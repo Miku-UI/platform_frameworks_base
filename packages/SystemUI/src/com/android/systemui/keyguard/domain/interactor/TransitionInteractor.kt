@@ -27,13 +27,11 @@ import com.android.systemui.keyguard.shared.model.TransitionModeOnCanceled
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
-import com.android.systemui.util.kotlin.sample
 import java.util.UUID
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.map
 
 /**
  * Each TransitionInteractor is responsible for determining under which conditions to notify
@@ -184,9 +182,12 @@ sealed class TransitionInteractor(
         powerInteractor.isAsleep
             .filter { isAsleep -> isAsleep }
             .filterRelevantKeyguardState()
-            .sample(transitionInteractor.startedKeyguardTransitionStep)
-            .map(modeOnCanceledFromStartedStep)
-            .collect { modeOnCanceled ->
+            .collect {
+                val modeOnCanceled =
+                    modeOnCanceledFromStartedStep(
+                        transitionInteractor.startedKeyguardTransitionStep.value
+                    )
+
                 startTransitionTo(
                     toState = keyguardInteractor.asleepKeyguardState.value,
                     modeOnCanceled = modeOnCanceled,

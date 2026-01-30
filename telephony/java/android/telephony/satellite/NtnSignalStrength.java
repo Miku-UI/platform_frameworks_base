@@ -16,22 +16,23 @@
 
 package android.telephony.satellite;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.Nullable;
-import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
+
+import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
  * NTN signal strength related information.
- * @hide
  */
-@SystemApi
+@FlaggedApi(Flags.FLAG_TELEPHONY_SATELLITE_APIS)
 public final class NtnSignalStrength implements Parcelable {
     /** Non-terrestrial network signal strength is not available. */
     public static final int NTN_SIGNAL_STRENGTH_NONE = 0;

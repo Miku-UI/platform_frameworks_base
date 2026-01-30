@@ -20,7 +20,7 @@ import android.view.SurfaceControlViewHost;
 
 /**
  * Binder interface to send the inline content from one process to the other.
- * {@hide}
+ * @hide
  */
 oneway interface IInlineContentCallback {
     void onContent(in SurfaceControlViewHost.SurfacePackage content, int width, int height);

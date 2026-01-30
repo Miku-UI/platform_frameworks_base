@@ -20,10 +20,7 @@ package {
 
 filegroup {
     name: "SpaScreenshotTestRNGFiles",
-    srcs: [
-        "src/**/*.java",
-        "src/**/*.kt",
-    ],
+    srcs: ["src/**/*.kt"],
 }
 
 android_test {

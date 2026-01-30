@@ -117,7 +117,7 @@ public class ContextHubService extends IContextHubService.Stub {
 
     /**
      * Constants describing an async event from the Context Hub.
-     * {@hide}
+     * @hide
      */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = {"CONTEXT_HUB_EVENT_"}, value = {
@@ -263,10 +263,8 @@ public class ContextHubService extends IContextHubService.Stub {
                 mEndpointManager.onHalRestart();
             }
             resetSettings();
-            if (Flags.reconnectHostEndpointsAfterHalRestart()) {
-                mClientManager.forEachClientOfHub(mContextHubId,
-                        ContextHubClientBroker::sendHostEndpointConnectedEvent);
-            }
+            mClientManager.forEachClientOfHub(
+                    mContextHubId, ContextHubClientBroker::sendHostEndpointConnectedEvent);
             Log.i(TAG, "Finished recovering from Context Hub HAL restart");
         }
 
@@ -488,15 +486,9 @@ public class ContextHubService extends IContextHubService.Stub {
         mContextHubInfoList = new ArrayList<>(mContextHubIdToInfoMap.values());
         mClientManager = new ContextHubClientManager(mContext, mContextHubWrapper);
 
-        if (Flags.reduceLockingContextHubTransactionManager()) {
-            mTransactionManager =
-                    new ContextHubTransactionManager(
-                            mContextHubWrapper, mClientManager, mNanoAppStateManager);
-        } else {
-            mTransactionManager =
-                    new ContextHubTransactionManagerOld(
-                            mContextHubWrapper, mClientManager, mNanoAppStateManager);
-        }
+        mTransactionManager =
+                new ContextHubTransactionManager(
+                        mContextHubWrapper, mClientManager, mNanoAppStateManager);
 
         mSensorPrivacyManagerInternal =
                 LocalServices.getService(SensorPrivacyManagerInternal.class);
@@ -1077,21 +1069,14 @@ public class ContextHubService extends IContextHubService.Stub {
      * @param message the message contents
      * @param nanoappPermissions the set of permissions the nanoapp holds
      * @param messagePermissions the set of permissions that should be used for attributing
-     *        permissions when this message is consumed by a client
+     *     permissions when this message is consumed by a client
      */
-    private void handleClientMessageCallback(int contextHubId, short hostEndpointId,
-            NanoAppMessage message, List<String> nanoappPermissions,
+    private void handleClientMessageCallback(
+            int contextHubId,
+            short hostEndpointId,
+            NanoAppMessage message,
+            List<String> nanoappPermissions,
             List<String> messagePermissions) {
-        if (!Flags.reliableMessageDuplicateDetectionService()) {
-            byte errorCode = mClientManager.onMessageFromNanoApp(contextHubId, hostEndpointId,
-                    message, nanoappPermissions, messagePermissions);
-            if (message.isReliable() && errorCode != ErrorCode.OK) {
-                sendMessageDeliveryStatusToContextHub(contextHubId,
-                        message.getMessageSequenceNumber(), errorCode);
-            }
-            return;
-        }
-
         if (!message.isReliable()) {
             mClientManager.onMessageFromNanoApp(
                     contextHubId, hostEndpointId, message,

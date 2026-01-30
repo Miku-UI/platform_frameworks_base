@@ -1,18 +1,15 @@
 # Applications & Processes
 per-file ActivityManager* = file:/ACTIVITY_MANAGER_OWNERS
+per-file ActivityManager* = file:platform/system/zygote:/OWNERS
 per-file ActiveServices.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ProcessList.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ActivityThread.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file ProcessRecord.java = file:/ACTIVITY_MANAGER_OWNERS
+per-file Process*Record* = file:/ACTIVITY_MANAGER_OWNERS
 per-file SystemServer.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ServiceRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file AppProfiler.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file ProcessStateRecord.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file ProcessServiceRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ForegroundServiceTypeLoggerModule.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file AppRestrictionController.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file ProcessErrorStateRecord.java = file:/ACTIVITY_MANAGER_OWNERS
-per-file ProcessProfileRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ConnectionRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file UidRecord.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file IntentBindRecord.java = file:/ACTIVITY_MANAGER_OWNERS
@@ -58,23 +55,23 @@ per-file *Package* = patb@google.com
 
 # OOM Adjuster & ProcessStateController
 per-file *Oom* = file:/OOM_ADJUSTER_OWNERS
-per-file ProcessStateController.java = file:/OOM_ADJUSTER_OWNERS
+per-file ProcessStateController* = file:/OOM_ADJUSTER_OWNERS
 
 # Miscellaneous
-per-file SettingsToPropertiesMapper.java = omakoto@google.com, yamasani@google.com, dzshen@google.com, zhidou@google.com
+per-file SettingsToPropertiesMapper.java = file:platform/packages/modules/ConfigInfrastructure:/OWNERS
 per-file CarUserSwitchingDialog.java = file:platform/packages/services/Car:/OWNERS
 
 # Activity Security
 per-file ActivityManager* = file:/ACTIVITY_SECURITY_OWNERS
 
 # Aconfig Flags
-per-file flags.aconfig = yamasani@google.com, nalini@google.com
+per-file flags.aconfig = file:/ACTIVITY_MANAGER_OWNERS
 
 # Londoners
 michaelwr@google.com #{LAST_RESORT_SUGGESTION}
 narayan@google.com #{LAST_RESORT_SUGGESTION}
 
 # Default
-yamasani@google.com
+yamasani@google.com #{LAST_RESORT_SUGGESTION}
 hackbod@google.com #{LAST_RESORT_SUGGESTION}
 omakoto@google.com #{LAST_RESORT_SUGGESTION}

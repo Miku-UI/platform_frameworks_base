@@ -16,80 +16,19 @@
 
 package android.platform.test.ravenwood;
 
-import static com.android.ravenwood.common.RavenwoodCommonUtils.log;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.Instrumentation;
-import android.content.Context;
-import android.platform.test.annotations.DisabledOnRavenwood;
 
-import androidx.test.platform.app.InstrumentationRegistry;
-
-import com.android.ravenwood.common.RavenwoodCommonUtils;
+import com.android.ravenwood.common.RavenwoodInternalUtils;
 
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
-import java.util.Objects;
-import java.util.regex.Pattern;
-
 /**
  * Reach out to g/ravenwood if you need any features in it.
  */
 public final class RavenwoodRule implements TestRule {
-    private static final String TAG = com.android.ravenwood.common.RavenwoodCommonUtils.TAG;
-
-    static final boolean IS_ON_RAVENWOOD = RavenwoodCommonUtils.isOnRavenwood();
-
-    /**
-     * When this flag is enabled, all tests will be unconditionally run on Ravenwood to detect
-     * cases where a test is able to pass despite being marked as {@link DisabledOnRavenwood}.
-     *
-     * This is typically helpful for internal maintainers discovering tests that had previously
-     * been ignored, but now have enough Ravenwood-supported functionality to be enabled.
-     */
-    private static final boolean RUN_DISABLED_TESTS = "1".equals(
-            System.getenv("RAVENWOOD_RUN_DISABLED_TESTS"));
-
-    /**
-     * When using ENABLE_PROBE_IGNORED, you may still want to skip certain tests,
-     * for example because the test would crash the JVM.
-     *
-     * This regex defines the tests that should still be disabled even if ENABLE_PROBE_IGNORED
-     * is set.
-     *
-     * Before running each test class and method, we check if this pattern can be found in
-     * the full test name (either [class full name], or [class full name] + "#" + [method name]),
-     * and if so, we skip it.
-     *
-     * For example, if you want to skip an entire test class, use:
-     * RAVENWOOD_REALLY_DISABLE='\.CustomTileDefaultsRepositoryTest$'
-     *
-     * For example, if you want to skip an entire test class, use:
-     * RAVENWOOD_REALLY_DISABLE='\.CustomTileDefaultsRepositoryTest#testSimple$'
-     *
-     * To ignore multiple classes, use (...|...), for example:
-     * RAVENWOOD_REALLY_DISABLE='\.(ClassA|ClassB)$'
-     *
-     * Because we use a regex-find, setting "." would disable all tests.
-     */
-    private static final Pattern REALLY_DISABLED_PATTERN = Pattern.compile(
-            Objects.requireNonNullElse(System.getenv("RAVENWOOD_REALLY_DISABLED"), ""));
-
-    private static final boolean HAS_REALLY_DISABLE_PATTERN =
-            !REALLY_DISABLED_PATTERN.pattern().isEmpty();
-
-    static {
-        if (RUN_DISABLED_TESTS) {
-            log(TAG, "$RAVENWOOD_RUN_DISABLED_TESTS enabled: force running all tests");
-            if (HAS_REALLY_DISABLE_PATTERN) {
-                log(TAG, "$RAVENWOOD_REALLY_DISABLED=" + REALLY_DISABLED_PATTERN.pattern());
-            }
-        }
-    }
-
     final RavenwoodTestProperties mProperties = new RavenwoodTestProperties();
 
     public static class Builder {
@@ -136,22 +75,9 @@ public final class RavenwoodRule implements TestRule {
         }
     }
 
-    /**
-     * Return if the current process is running on a Ravenwood test environment.
-     */
-    public static boolean isOnRavenwood() {
-        return IS_ON_RAVENWOOD;
-    }
-
-    private static void ensureOnRavenwood(String featureName) {
-        if (!IS_ON_RAVENWOOD) {
-            throw new RuntimeException(featureName + " is only supported on Ravenwood.");
-        }
-    }
-
     @Override
     public Statement apply(Statement base, Description description) {
-        if (!IS_ON_RAVENWOOD) {
+        if (!isOnRavenwood()) {
             return base;
         }
         return new Statement() {
@@ -174,8 +100,22 @@ public final class RavenwoodRule implements TestRule {
      * but this one is guaranteeed to return the real value, even when Ravenwood supports
      * injecting a time to{@link System#currentTimeMillis()}.
      */
-    public long realCurrentTimeMillis() {
+    public static long realCurrentTimeMillis() {
         return System.currentTimeMillis();
+    }
+
+    /**
+     * Return if the current process is running on a Ravenwood test environment.
+     */
+    public static boolean isOnRavenwood() {
+        return RavenwoodInternalUtils.isOnRavenwood();
+    }
+
+    private static void ensureOnRavenwood(String featureName) {
+        if (!isOnRavenwood()) {
+            throw new UnsupportedOperationException(
+                    featureName + " is only supported on Ravenwood.");
+        }
     }
 
     /**
@@ -212,46 +152,37 @@ public final class RavenwoodRule implements TestRule {
         }
     }
 
-    // Below are internal to ravenwood. Don't use them from normal tests...
-
-    public static class RavenwoodPrivate {
-        private RavenwoodPrivate() {
-        }
-
-        private volatile Boolean mRunDisabledTestsOverride = null;
-
-        private volatile Pattern mReallyDisabledPattern = null;
-
-        public boolean isRunningDisabledTests() {
-            if (mRunDisabledTestsOverride != null) {
-                return mRunDisabledTestsOverride;
-            }
-            return RUN_DISABLED_TESTS;
-        }
-
-        public Pattern getReallyDisabledPattern() {
-            if (mReallyDisabledPattern != null) {
-                return mReallyDisabledPattern;
-            }
-            return REALLY_DISABLED_PATTERN;
-        }
-
-        public void overrideRunDisabledTest(boolean runDisabledTests,
-                @Nullable String reallyDisabledPattern) {
-            mRunDisabledTestsOverride = runDisabledTests;
-            mReallyDisabledPattern =
-                    reallyDisabledPattern == null ? null : Pattern.compile(reallyDisabledPattern);
-        }
-
-        public void resetRunDisabledTest() {
-            mRunDisabledTestsOverride = null;
-            mReallyDisabledPattern = null;
-        }
+    /**
+     * @return the full directory path that contains the "ravenwood-runtime" files.
+     *
+     * This method throws if called on the device side.
+     */
+    public static String getRavenwoodRuntimePath() {
+        ensureOnRavenwood("RavenwoodRule.getRavenwoodRuntimePath()");
+        return RavenwoodInternalUtils.getRavenwoodRuntimePath();
     }
 
-    private static final RavenwoodPrivate sRavenwoodPrivate = new  RavenwoodPrivate();
-
-    public static RavenwoodPrivate private$ravenwood() {
-        return sRavenwoodPrivate;
+    /**
+     * Load a JNI library respecting {@code java.library.path}
+     * (which reflects {@code LD_LIBRARY_PATH}).
+     *
+     * <p>{@code libname} must be the library filename without:
+     * - directory
+     * - "lib" prefix
+     * - and the ".so" extension
+     *
+     * <p>For example, in order to load "libmyjni.so", then pass "myjni".
+     *
+     * <p>This is basically the same thing as Java's {@link System#loadLibrary(String)},
+     * but this API works slightly different on ART and on the desktop Java, namely
+     * the desktop Java version uses a different entry point method name
+     * {@code JNI_OnLoad_libname()} (note the included "libname")
+     * while ART always seems to use {@code JNI_OnLoad()}.
+     *
+     * <p>This method provides the same behavior on both the device side and on Ravenwood --
+     * it uses {@code JNI_OnLoad()} as the entry point name on both.
+     */
+    public static void loadJniLibrary(String libname) {
+        RavenwoodInternalUtils.loadJniLibrary(libname);
     }
 }

@@ -36,7 +36,6 @@ import android.content.pm.UserProperties;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.LongSparseArray;
 
 import com.android.settingslib.testutils.shadow.ShadowPermissionChecker;
@@ -61,8 +60,6 @@ import java.util.concurrent.TimeUnit;
 @Config(shadows = {ShadowPermissionChecker.class})
 public class RecentAppOpsAccessesTest {
 
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     private static final int TEST_UID = 1234;
     private static final long NOW = 1_000_000_000;  // Approximately 9/8/2001
     private static final long ONE_MIN_AGO = NOW - TimeUnit.MINUTES.toMillis(1);
@@ -140,9 +137,6 @@ public class RecentAppOpsAccessesTest {
 
     @Test
     public void testGetAppList_quietModeDisabled_shouldFilterRecentAccesses() {
-        mSetFlagsRule.enableFlags(
-                android.multiuser.Flags.FLAG_SUPPORT_AUTOLOCK_FOR_PRIVATE_SPACE,
-                android.multiuser.Flags.FLAG_HANDLE_INTERLEAVED_SETTINGS_FOR_PRIVATE_SPACE);
         when(mUserManager.isQuietModeEnabled(any())).thenReturn(false);
 
         List<RecentAppOpsAccess.Access> requests = mRecentAppOpsAccess.getAppList(false);
@@ -157,9 +151,6 @@ public class RecentAppOpsAccessesTest {
 
     @Test
     public void testGetAppList_quietModeEnabledShowInQuietDefault_shouldFilterRecentAccesses() {
-        mSetFlagsRule.enableFlags(
-                android.multiuser.Flags.FLAG_SUPPORT_AUTOLOCK_FOR_PRIVATE_SPACE,
-                android.multiuser.Flags.FLAG_HANDLE_INTERLEAVED_SETTINGS_FOR_PRIVATE_SPACE);
         when(mUserManager.isQuietModeEnabled(any())).thenReturn(true);
         when(mUserManager.getUserProperties(any())).thenReturn(mUserProperties);
         when(mUserProperties.getShowInQuietMode())
@@ -177,9 +168,6 @@ public class RecentAppOpsAccessesTest {
 
     @Test
     public void testGetAppList_quietModeEnabledShowInQuietHidden_shouldNotFilterRecentAccesses() {
-        mSetFlagsRule.enableFlags(
-                android.multiuser.Flags.FLAG_SUPPORT_AUTOLOCK_FOR_PRIVATE_SPACE,
-                android.multiuser.Flags.FLAG_HANDLE_INTERLEAVED_SETTINGS_FOR_PRIVATE_SPACE);
         when(mUserManager.isQuietModeEnabled(any())).thenReturn(true);
         when(mUserManager.getUserProperties(any())).thenReturn(mUserProperties);
         when(mUserProperties.getShowInQuietMode())

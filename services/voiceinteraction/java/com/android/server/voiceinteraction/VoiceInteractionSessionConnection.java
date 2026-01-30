@@ -115,11 +115,13 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
     final int mCallingUid;
     final Handler mHandler;
     final IActivityTaskManager mActivityTaskManager;
+    final ActivityTaskManagerInternal mActivityTaskManagerInternal;
     final IActivityManager mAm;
     final UriGrantsManagerInternal mUgmInternal;
     final IWindowManager mIWindowManager;
     final AppOpsManager mAppOps;
     final IBinder mPermissionOwner;
+    private boolean mEnableAssistStructure;
     boolean mShown;
     Bundle mShowArgs;
     int mShowFlags;
@@ -219,15 +221,18 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
     };
 
     public VoiceInteractionSessionConnection(Object lock, ComponentName component, int user,
-            Context context, Callback callback, int callingUid, Handler handler) {
+            Context context, Callback callback, int callingUid,
+            Handler handler, boolean enableAssistStructure) {
         mLock = lock;
         mSessionComponentName = component;
         mUser = user;
         mContext = context;
+        mEnableAssistStructure = enableAssistStructure;
         mCallback = callback;
         mCallingUid = callingUid;
         mHandler = handler;
         mActivityTaskManager = ActivityTaskManager.getService();
+        mActivityTaskManagerInternal = LocalServices.getService(ActivityTaskManagerInternal.class);
         mAm = ActivityManager.getService();
         mUgmInternal = LocalServices.getService(UriGrantsManagerInternal.class);
         mIWindowManager = IWindowManager.Stub.asInterface(
@@ -309,10 +314,16 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
 
                 // Ensure that the current activity supports assist data
                 boolean isAssistDataAllowed = false;
-                try {
-                    isAssistDataAllowed = mActivityTaskManager.isAssistDataAllowed();
-                } catch (RemoteException e) {
-                    // Should never happen
+                if (com.android.window.flags.Flags.supportGeminiOnMultiDisplay()) {
+                    isAssistDataAllowed =
+                            mActivityTaskManagerInternal.isAssistDataForActivitiesAllowed(
+                                    topActivitiesToken);
+                } else {
+                    try {
+                        isAssistDataAllowed = mActivityTaskManager.isAssistDataAllowed();
+                    } catch (RemoteException e) {
+                        // Should never happen
+                    }
                 }
 
                 // TODO: Refactor to have all assist data allowed checks in one place.
@@ -324,15 +335,27 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
                     mShowArgs.putParcelableArrayList(KEY_FOREGROUND_ACTIVITIES, topComponents);
                 }
 
-                mAssistDataRequester.requestAssistData(topActivitiesToken,
-                        fetchData,
-                        fetchScreenshot,
-                        fetchDataAllowed,
-                        (disabledContext & VoiceInteractionSession.SHOW_WITH_SCREENSHOT) == 0,
-                        mCallingUid,
-                        mSessionComponentName.getPackageName(),
-                        attributionTag);
-
+                if (android.app.contextualsearch.flags.Flags.enableVisAssistStructureUiHint()) {
+                    mAssistDataRequester.requestAssistData(topActivitiesToken,
+                            fetchData,
+                            fetchScreenshot,
+                            mEnableAssistStructure,
+                            fetchDataAllowed,
+                            (disabledContext & VoiceInteractionSession.SHOW_WITH_SCREENSHOT) == 0,
+                            /* ignoreTopActivityCheck= */ false,
+                            mCallingUid,
+                            mSessionComponentName.getPackageName(),
+                            attributionTag);
+                } else {
+                    mAssistDataRequester.requestAssistData(topActivitiesToken,
+                            fetchData,
+                            fetchScreenshot,
+                            fetchDataAllowed,
+                            (disabledContext & VoiceInteractionSession.SHOW_WITH_SCREENSHOT) == 0,
+                            mCallingUid,
+                            mSessionComponentName.getPackageName(),
+                            attributionTag);
+                }
                 boolean needDisclosure = mAssistDataRequester.getPendingDataCount() > 0
                         || mAssistDataRequester.getPendingScreenshotCount() > 0;
                 if (needDisclosure && AssistUtils.shouldDisclose(mContext, mSessionComponentName)) {
@@ -695,8 +718,7 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
             Slog.d(TAG, "getTopVisibleActivityInfosLocked");
         }
         List<ActivityAssistInfo> allVisibleActivities =
-                LocalServices.getService(ActivityTaskManagerInternal.class)
-                        .getTopVisibleActivities();
+                mActivityTaskManagerInternal.getTopVisibleActivities();
         if (DEBUG) {
             Slog.d(TAG, "getTopVisibleActivityInfosLocked: allVisibleActivities="
                     + allVisibleActivities);
@@ -914,6 +936,10 @@ final class VoiceInteractionSessionConnection implements ServiceConnection,
         synchronized (mLock) {
             mService = null;
         }
+    }
+
+    public void setEnableAssistStructure(boolean enableAssistStructure) {
+        mEnableAssistStructure = enableAssistStructure;
     }
 
     public void dump(String prefix, PrintWriter pw) {

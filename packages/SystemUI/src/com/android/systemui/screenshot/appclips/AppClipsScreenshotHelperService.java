@@ -19,8 +19,8 @@ package com.android.systemui.screenshot.appclips;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
-import android.window.ScreenCapture.SynchronousScreenCaptureListener;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
+import android.window.ScreenCaptureInternal.SynchronousScreenCaptureListener;
 
 import androidx.annotation.Nullable;
 

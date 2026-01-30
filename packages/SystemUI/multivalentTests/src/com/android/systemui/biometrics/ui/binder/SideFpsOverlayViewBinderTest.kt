@@ -30,13 +30,16 @@ import com.android.systemui.biometrics.data.repository.biometricStatusRepository
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.biometrics.shared.model.AuthenticationReason
 import com.android.systemui.biometrics.shared.model.AuthenticationReason.SettingsOperations
-import com.android.systemui.biometrics.shared.model.DisplayRotation
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.biometrics.shared.model.SensorStrength
 import com.android.systemui.biometrics.updateSfpsIndicatorRequests
 import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.display.data.repository.displayStateRepository
+import com.android.systemui.display.shared.model.DisplayRotation
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.power.data.repository.fakePowerRepository
+import com.android.systemui.power.shared.model.WakeSleepReason
+import com.android.systemui.power.shared.model.WakefulnessState
 import com.android.systemui.res.R
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.eq
@@ -85,6 +88,15 @@ class SideFpsOverlayViewBinderTest : SysuiTestCase() {
     fun verifyIndicatorNotAdded_whenInRearDisplayMode() {
         kosmos.testScope.runTest {
             setupTestConfiguration(isInRearDisplayMode = true)
+            updateSfpsIndicatorRequests(kosmos, mContext, primaryBouncerRequest = true)
+            verify(kosmos.windowManager, never()).addView(any(), any())
+        }
+    }
+
+    @Test
+    fun verifyIndicatorNotAdded_whenAsleep() {
+        kosmos.testScope.runTest {
+            setupTestConfiguration(asleep = true)
             updateSfpsIndicatorRequests(kosmos, mContext, primaryBouncerRequest = true)
             verify(kosmos.windowManager, never()).addView(any(), any())
         }
@@ -194,7 +206,10 @@ class SideFpsOverlayViewBinderTest : SysuiTestCase() {
         }
     }
 
-    private suspend fun TestScope.setupTestConfiguration(isInRearDisplayMode: Boolean) {
+    private suspend fun TestScope.setupTestConfiguration(
+        isInRearDisplayMode: Boolean = false,
+        asleep: Boolean = false,
+    ) {
         kosmos.fingerprintPropertyRepository.setProperties(
             sensorId = 1,
             strength = SensorStrength.STRONG,
@@ -205,6 +220,12 @@ class SideFpsOverlayViewBinderTest : SysuiTestCase() {
         kosmos.displayStateRepository.setIsInRearDisplayMode(isInRearDisplayMode)
         kosmos.displayStateRepository.setCurrentRotation(DisplayRotation.ROTATION_0)
         kosmos.displayRepository.emitDisplayChangeEvent(0)
+        kosmos.fakePowerRepository.updateWakefulness(
+            if (asleep) WakefulnessState.ASLEEP else WakefulnessState.AWAKE,
+            WakeSleepReason.POWER_BUTTON,
+            WakeSleepReason.POWER_BUTTON,
+            false,
+        )
         kosmos.sideFpsOverlayViewBinder.start()
         runCurrent()
     }

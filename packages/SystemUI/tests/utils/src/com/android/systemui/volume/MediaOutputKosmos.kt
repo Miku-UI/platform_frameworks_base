@@ -16,17 +16,20 @@
 
 package com.android.systemui.volume
 
+import android.content.applicationContext
 import android.content.packageManager
 import android.content.pm.ApplicationInfo
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.media.mediaOutputDialogManager
+import com.android.systemui.qs.panels.data.repository.qsPanelAppearanceRepository
 import com.android.systemui.util.concurrency.execution
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.volume.data.repository.FakeLocalMediaRepository
 import com.android.systemui.volume.data.repository.FakeMediaControllerRepository
+import com.android.systemui.volume.dialog.domain.interactor.desktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.panel.component.mediaoutput.data.repository.FakeLocalMediaRepositoryFactory
 import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.MediaDeviceSessionInteractor
 import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.MediaOutputActionsInteractor
@@ -38,7 +41,14 @@ val Kosmos.localMediaRepositoryFactory by
     Kosmos.Fixture { FakeLocalMediaRepositoryFactory { localMediaRepository } }
 
 val Kosmos.mediaOutputActionsInteractor by
-    Kosmos.Fixture { MediaOutputActionsInteractor(mediaOutputDialogManager) }
+    Kosmos.Fixture {
+        MediaOutputActionsInteractor(
+            applicationContext,
+            mediaOutputDialogManager,
+            qsPanelAppearanceRepository,
+            desktopAudioTileDetailsFeatureInteractor,
+        )
+    }
 var Kosmos.mediaControllerRepository by Kosmos.Fixture { FakeMediaControllerRepository() }
 val Kosmos.mediaOutputInteractor by
     Kosmos.Fixture {

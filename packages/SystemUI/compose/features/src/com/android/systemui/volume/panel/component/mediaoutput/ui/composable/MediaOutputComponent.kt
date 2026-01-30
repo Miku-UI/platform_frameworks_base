@@ -45,7 +45,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -58,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.compose.animation.Expandable
 import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.common.ui.compose.toColor
+import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.res.R
 import com.android.systemui.volume.panel.component.mediaoutput.ui.viewmodel.ConnectedDeviceViewModel
 import com.android.systemui.volume.panel.component.mediaoutput.ui.viewmodel.DeviceIconViewModel
@@ -65,14 +68,15 @@ import com.android.systemui.volume.panel.component.mediaoutput.ui.viewmodel.Medi
 import com.android.systemui.volume.panel.dagger.scope.VolumePanelScope
 import com.android.systemui.volume.panel.ui.composable.ComposeVolumePanelUiComponent
 import com.android.systemui.volume.panel.ui.composable.VolumePanelComposeScope
+import com.google.common.annotations.VisibleForTesting
+import java.util.Objects
 import javax.inject.Inject
+import platform.test.motion.compose.values.MotionTestValueKey
+import platform.test.motion.compose.values.motionTestValues
 
 @VolumePanelScope
-class MediaOutputComponent
-@Inject
-constructor(
-    private val viewModel: MediaOutputViewModel,
-) : ComposeVolumePanelUiComponent {
+class MediaOutputComponent @Inject constructor(private val viewModel: MediaOutputViewModel) :
+    ComposeVolumePanelUiComponent {
 
     @Composable
     override fun VolumePanelComposeScope.Content(modifier: Modifier) {
@@ -99,6 +103,7 @@ constructor(
                     MaterialTheme.colorScheme.surfaceContainerHighest
                 },
             shape = RoundedCornerShape(28.dp),
+            useModifierBasedImplementation = true,
             onClick =
                 if (enabled) {
                     { viewModel.onBarClick(it) }
@@ -142,9 +147,19 @@ constructor(
     @Composable
     private fun ConnectedDeviceIcon(deviceIconViewModel: DeviceIconViewModel) {
         val transition = updateTransition(deviceIconViewModel, label = "MediaOutputIconTransition")
+        val isTransitionIdle by
+            remember(transition) {
+                derivedStateOf {
+                    transition.currentState == transition.targetState && !transition.isRunning
+                }
+            }
         Box(
-            modifier = Modifier.padding(16.dp).fillMaxHeight().aspectRatio(1f),
-            contentAlignment = Alignment.Center
+            modifier =
+                Modifier.padding(16.dp).fillMaxHeight().aspectRatio(1f).motionTestValues {
+                    isTransitionIdle exportAs
+                        MediaOutputComponentMotionTestKeys.isIconTransitionIdle
+                },
+            contentAlignment = Alignment.Center,
         ) {
             transition.AnimatedContent(
                 contentKey = { it.backgroundColor },
@@ -157,12 +172,10 @@ constructor(
                             fadeOut(animationSpec = snap())
                     } else {
                         fadeIn(animationSpec = snap(delayMillis = 900)) togetherWith
-                            scaleOut(
-                                targetScale = 0.9f,
-                                animationSpec = isPlayingOutSpec(),
-                            ) + fadeOut(animationSpec = isPlayingOutSpec())
+                            scaleOut(targetScale = 0.9f, animationSpec = isPlayingOutSpec()) +
+                                fadeOut(animationSpec = isPlayingOutSpec())
                     }
-                }
+                },
             ) { targetViewModel ->
                 Spacer(
                     modifier =
@@ -170,11 +183,18 @@ constructor(
                             .background(
                                 color = targetViewModel.backgroundColor.toColor(),
                                 shape = RoundedCornerShape(12.dp),
-                            ),
+                            )
+                            .sysuiResTag(
+                                if (targetViewModel is DeviceIconViewModel.IsPlaying) {
+                                    MediaOutputComponentMotionTestKeys.PLAYING_ICON_BACKGROUND_TAG
+                                } else {
+                                    MediaOutputComponentMotionTestKeys.IDLE_ICON_BACKGROUND_TAG
+                                }
+                            )
                 )
             }
             transition.AnimatedContent(
-                contentKey = { it.icon },
+                contentKey = { Objects.hash(it.icon, it.iconColor) },
                 transitionSpec = {
                     if (targetState is DeviceIconViewModel.IsPlaying) {
                         fadeIn(animationSpec = snap(delayMillis = 700)) togetherWith
@@ -189,12 +209,21 @@ constructor(
                         ) + fadeIn(animationSpec = isNotPlayingInIconSpec()) togetherWith
                             fadeOut(animationSpec = isPlayingOutSpec())
                     }
-                }
-            ) {
+                },
+            ) { targetViewModel ->
                 Icon(
-                    icon = it.icon,
-                    tint = it.iconColor.toColor(),
-                    modifier = Modifier.padding(12.dp).fillMaxSize(),
+                    icon = targetViewModel.icon,
+                    tint = targetViewModel.iconColor.toColor(),
+                    modifier =
+                        Modifier.padding(12.dp)
+                            .fillMaxSize()
+                            .sysuiResTag(
+                                if (targetViewModel is DeviceIconViewModel.IsPlaying) {
+                                    MediaOutputComponentMotionTestKeys.PLAYING_ICON_TAG
+                                } else {
+                                    MediaOutputComponentMotionTestKeys.IDLE_ICON_TAG
+                                }
+                            ),
                 )
             }
         }
@@ -210,3 +239,15 @@ private fun <T> isPlayingInIconBackgroundSpec() = tween<T>(durationMillis = 400,
 private fun <T> isNotPlayingOutIconSpec() = tween<T>(durationMillis = 400, delayMillis = 300)
 
 private fun <T> isNotPlayingInIconSpec() = tween<T>(durationMillis = 400, delayMillis = 900)
+
+@VisibleForTesting
+object MediaOutputComponentMotionTestKeys {
+
+    const val PLAYING_ICON_TAG = "PlayingIcon"
+    const val PLAYING_ICON_BACKGROUND_TAG = "PlayingIconBackground"
+    const val IDLE_ICON_TAG = "IdleIcon"
+    const val IDLE_ICON_BACKGROUND_TAG = "IdleIconBackground"
+
+    val isIconTransitionIdle: MotionTestValueKey<Boolean> =
+        MotionTestValueKey("is_icon_transition_idle")
+}

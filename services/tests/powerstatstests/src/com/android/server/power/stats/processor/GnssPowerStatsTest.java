@@ -49,6 +49,7 @@ import com.android.internal.os.PowerStats;
 import com.android.server.power.stats.BatteryUsageStatsRule;
 import com.android.server.power.stats.EnergyConsumerPowerStatsCollector;
 import com.android.server.power.stats.GnssPowerStatsCollector;
+import com.android.server.power.stats.MockClock;
 import com.android.server.power.stats.PowerStatsCollector;
 import com.android.server.power.stats.PowerStatsUidResolver;
 import com.android.server.power.stats.format.BinaryStatePowerStatsLayout;
@@ -130,11 +131,14 @@ public class GnssPowerStatsTest {
 
         GnssPowerStatsCollector collector = new GnssPowerStatsCollector(mInjector);
         collector.addConsumer(
-                powerStats -> stats.addPowerStats(powerStats, mMonotonicClock.monotonicTime()));
+                (powerStats, elapsedRealtime, uptimeMs) -> stats.addPowerStats(powerStats,
+                        mMonotonicClock.monotonicTime(elapsedRealtime)));
         collector.setEnabled(true);
 
+        MockClock clock = mStatsRule.getMockClock();
+
         // Establish a baseline
-        collector.collectAndDeliverStats();
+        collector.collectAndDeliverStats(clock.realtime, clock.uptime);
 
         stats.noteStateChange(buildHistoryItem(0, true, APP_UID1));
 
@@ -147,7 +151,7 @@ public class GnssPowerStatsTest {
 
         stats.noteStateChange(buildHistoryItem(6000, false, APP_UID1));
 
-        collector.collectAndDeliverStats();
+        collector.collectAndDeliverStats(clock.realtime, clock.uptime);
 
         stats.noteStateChange(buildHistoryItem(7000, true, APP_UID2));
         stats.noteStateChange(buildHistoryItem(7000,
@@ -155,7 +159,7 @@ public class GnssPowerStatsTest {
         stats.noteStateChange(buildHistoryItem(8000,
                 GnssSignalQuality.GNSS_SIGNAL_QUALITY_POOR));
         mStatsRule.setTime(11_000, 11_000);
-        collector.collectAndDeliverStats();
+        collector.collectAndDeliverStats(clock.realtime, clock.uptime);
 
         stats.finish(START_TIME + 11_000);
 
@@ -303,13 +307,16 @@ public class GnssPowerStatsTest {
 
         GnssPowerStatsCollector collector = new GnssPowerStatsCollector(mInjector);
         collector.addConsumer(
-                powerStats -> stats.addPowerStats(powerStats, mMonotonicClock.monotonicTime()));
+                (powerStats, elapsedRealtimeMs, uptimeMs) -> stats.addPowerStats(powerStats,
+                        mMonotonicClock.monotonicTime(elapsedRealtimeMs)));
         collector.setEnabled(true);
+
+        MockClock clock = mStatsRule.getMockClock();
 
         // Establish a baseline
         when(mConsumedEnergyRetriever.getConsumedEnergy(new int[]{ENERGY_CONSUMER_ID}))
                 .thenReturn(createEnergyConsumerResults(ENERGY_CONSUMER_ID, 10000));
-        collector.collectAndDeliverStats();
+        collector.collectAndDeliverStats(clock.realtime, clock.uptime);
 
         stats.noteStateChange(buildHistoryItem(0, true, APP_UID1));
 
@@ -324,7 +331,7 @@ public class GnssPowerStatsTest {
 
         when(mConsumedEnergyRetriever.getConsumedEnergy(new int[]{ENERGY_CONSUMER_ID}))
                 .thenReturn(createEnergyConsumerResults(ENERGY_CONSUMER_ID, 2_170_000));
-        collector.collectAndDeliverStats();
+        collector.collectAndDeliverStats(clock.realtime, clock.uptime);
 
         stats.noteStateChange(buildHistoryItem(7000, true, APP_UID2));
         stats.noteStateChange(buildHistoryItem(7000, GnssSignalQuality.GNSS_SIGNAL_QUALITY_GOOD));
@@ -332,7 +339,7 @@ public class GnssPowerStatsTest {
         mStatsRule.setTime(11_000, 11_000);
         when(mConsumedEnergyRetriever.getConsumedEnergy(new int[]{ENERGY_CONSUMER_ID}))
                 .thenReturn(createEnergyConsumerResults(ENERGY_CONSUMER_ID, 3_610_000));
-        collector.collectAndDeliverStats();
+        collector.collectAndDeliverStats(clock.realtime, clock.uptime);
 
         stats.finish(START_TIME + 11_000);
 

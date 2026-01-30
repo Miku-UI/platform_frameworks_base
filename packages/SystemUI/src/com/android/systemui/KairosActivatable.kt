@@ -18,8 +18,10 @@ package com.android.systemui
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.BuildSpec
+import com.android.systemui.kairos.CoalescingPolicy
 import com.android.systemui.kairos.Events
 import com.android.systemui.kairos.EventsLoop
 import com.android.systemui.kairos.ExperimentalKairosApi
@@ -30,17 +32,19 @@ import com.android.systemui.kairos.RootKairosNetwork
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.StateLoop
 import com.android.systemui.kairos.TransactionScope
-import com.android.systemui.kairos.activateSpec
 import com.android.systemui.kairos.effect
 import com.android.systemui.kairos.launchKairosNetwork
-import com.android.systemui.kairos.launchScope
+import com.android.systemui.kairos.util.NameTag
+import com.android.systemui.kairos.util.nameTag
 import dagger.Binds
 import dagger.Module
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import dagger.multibindings.Multibinds
 import javax.inject.Inject
+import javax.inject.Provider
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -142,8 +146,6 @@ interface KairosBuilder : KairosActivatable {
 @OptIn(ExperimentalKairosApi::class)
 private class KairosBuilderImpl @Inject constructor() : KairosBuilder {
 
-    // TODO: atomic?
-    // TODO: are two lists really necessary?
     private var _builds: MutableList<KairosActivatable>? = mutableListOf()
     private var _startables: MutableList<KairosActivatable>? = mutableListOf()
 
@@ -183,32 +185,46 @@ private class KairosBuilderImpl @Inject constructor() : KairosBuilder {
 class KairosCoreStartable
 private constructor(
     private val appScope: CoroutineScope,
-    private val activatables: dagger.Lazy<Set<@JvmSuppressWildcards KairosActivatable>>,
+    private val activatables: Provider<Set<@JvmSuppressWildcards KairosActivatable>>,
     private val unwrappedNetwork: RootKairosNetwork,
 ) : CoreStartable, KairosNetwork by unwrappedNetwork {
 
     @Inject
     constructor(
         @Application appScope: CoroutineScope,
-        activatables: dagger.Lazy<Set<@JvmSuppressWildcards KairosActivatable>>,
-    ) : this(appScope, activatables, appScope.launchKairosNetwork())
+        activatables: Provider<Set<@JvmSuppressWildcards KairosActivatable>>,
+        @Background bgDispatcher: CoroutineDispatcher,
+    ) : this(
+        appScope = appScope,
+        activatables = activatables,
+        unwrappedNetwork =
+            appScope.launchKairosNetwork(
+                context = bgDispatcher,
+                coalescingPolicy = CoalescingPolicy.Eager,
+            ),
+    )
 
     private val started = CompletableDeferred<Unit>()
 
     override fun start() {
         appScope.launch {
-            unwrappedNetwork.activateSpec {
-                for (activatable in activatables.get()) {
-                    launchScope { activatable.run { activate() } }
+            // Many of our Dagger-provided classes are not safe to init off of the main thread, so
+            // query the [Provider] here outside of [activateSpec].
+            val activatableSet = activatables.get()
+            unwrappedNetwork.activateSpec(nameTag("KairosCoreStartable")) {
+                for (activatable in activatableSet) {
+                    activatable.run { activate() }
                 }
-                effect { started.complete(Unit) }
+                effect(name = nameTag("KairosCoreStartable::notifyStarted")) {
+                    started.complete(Unit)
+                }
             }
         }
     }
 
-    override suspend fun activateSpec(spec: BuildSpec<*>) {
+    override suspend fun activateSpec(name: NameTag?, spec: BuildSpec<*>) {
         started.await()
-        unwrappedNetwork.activateSpec(spec)
+        unwrappedNetwork.activateSpec(name, spec)
     }
 
     override suspend fun <R> transact(block: TransactionScope.() -> R): R {

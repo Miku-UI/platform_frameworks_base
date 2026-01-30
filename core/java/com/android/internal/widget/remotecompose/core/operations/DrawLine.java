@@ -41,7 +41,7 @@ public class DrawLine extends DrawBase4 implements SerializableToString {
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         Maker m = DrawLine::new;
-        read(m, buffer, operations);
+        read(buffer, operations, m);
     }
 
     /**
@@ -139,7 +139,7 @@ public class DrawLine extends DrawBase4 implements SerializableToString {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serialize(serializer, "startX", "startY", "endX", "endY").addType(CLASS_NAME);
     }
 }

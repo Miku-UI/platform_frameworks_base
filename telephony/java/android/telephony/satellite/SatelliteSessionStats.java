@@ -361,7 +361,7 @@ public final class SatelliteSessionStats implements Parcelable {
         for (int i = 0; i < size; i++) {
             Integer key = in.readInt();
             SatelliteSessionStats value = in.readParcelable(
-                    SatelliteSessionStats.class.getClassLoader());
+                    SatelliteSessionStats.class.getClassLoader(), SatelliteSessionStats.class);
             datagramStats.put(key, value);
         }
     }

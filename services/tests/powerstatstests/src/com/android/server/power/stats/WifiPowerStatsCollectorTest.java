@@ -192,7 +192,7 @@ public class WifiPowerStatsCollectorTest {
     public void triggering() throws Throwable {
         PowerStatsCollector collector = mBatteryStats.getPowerStatsCollector(
                 BatteryConsumer.POWER_COMPONENT_WIFI);
-        collector.addConsumer(mRecordedPowerStats::add);
+        collector.addConsumer((stats, elapsedRealtime, uptime) -> mRecordedPowerStats.add(stats));
 
         mBatteryStats.setPowerStatsCollectorEnabled(BatteryConsumer.POWER_COMPONENT_WIFI, true);
 

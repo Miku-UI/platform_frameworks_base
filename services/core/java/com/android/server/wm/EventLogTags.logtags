@@ -77,9 +77,9 @@ option java_package com.android.server.wm
 
 # IME surface parent is updated.
 32003 imf_update_ime_parent (surface name|3)
-# IME snapshot is shown.
+# IME screenshot is shown.
 32004 imf_show_ime_screenshot (target window|3),(transition|1),(surface position|3)
-# IME snapshot is hidden.
+# IME screenshot is hidden.
 32005 imf_remove_ime_screenshot (target window|3)
 
 # Request surface flinger to show / hide the wallpaper surface.

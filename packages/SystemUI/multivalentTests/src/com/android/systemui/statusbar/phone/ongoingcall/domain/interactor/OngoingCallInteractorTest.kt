@@ -17,12 +17,16 @@
 package com.android.systemui.statusbar.phone.ongoingcall.domain.interactor
 
 import android.app.PendingIntent
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.activity.data.repository.activityManagerRepository
 import com.android.systemui.activity.data.repository.fake
+import com.android.systemui.ambient.statusbar.shared.flag.OngoingActivityChipsOnDream
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
@@ -32,6 +36,7 @@ import com.android.systemui.statusbar.gesture.swipeStatusBarAwayGestureHandler
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentBuilder
 import com.android.systemui.statusbar.phone.ongoingcall.EnableChipsModernization
 import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallModel
+import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallTestHelper
 import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallTestHelper.addOngoingCallState
 import com.android.systemui.statusbar.phone.ongoingcall.shared.model.OngoingCallTestHelper.removeOngoingCallState
 import com.android.systemui.statusbar.window.fakeStatusBarWindowControllerStore
@@ -81,7 +86,9 @@ class OngoingCallInteractorTest : SysuiTestCase() {
                 startTimeMs = startTimeMs,
                 statusBarChipIconView = testIconView,
                 contentIntent = testIntent,
-                promotedContent = testPromotedContent,
+                requestedPromotion = true,
+                promotedContent =
+                    OngoingCallTestHelper.PromotedContentInput.OverrideToValue(testPromotedContent),
                 isAppVisible = false,
             )
 
@@ -92,6 +99,7 @@ class OngoingCallInteractorTest : SysuiTestCase() {
             assertThat(model.notificationIconView).isSameInstanceAs(testIconView)
             assertThat(model.intent).isSameInstanceAs(testIntent)
             assertThat(model.notificationKey).isEqualTo(key)
+            assertThat(model.requestedPromotion).isTrue()
             assertThat(model.promotedContent).isSameInstanceAs(testPromotedContent)
             assertThat(model.isAppVisible).isFalse()
         }
@@ -112,7 +120,9 @@ class OngoingCallInteractorTest : SysuiTestCase() {
                 startTimeMs = startTimeMs,
                 statusBarChipIconView = testIconView,
                 contentIntent = testIntent,
-                promotedContent = testPromotedContent,
+                requestedPromotion = true,
+                promotedContent =
+                    OngoingCallTestHelper.PromotedContentInput.OverrideToValue(testPromotedContent),
                 isAppVisible = true,
             )
 
@@ -124,6 +134,7 @@ class OngoingCallInteractorTest : SysuiTestCase() {
             assertThat(model.notificationIconView).isSameInstanceAs(testIconView)
             assertThat(model.intent).isSameInstanceAs(testIntent)
             assertThat(model.notificationKey).isEqualTo(key)
+            assertThat(model.requestedPromotion).isTrue()
             assertThat(model.promotedContent).isSameInstanceAs(testPromotedContent)
             assertThat(model.isAppVisible).isTrue()
         }
@@ -332,6 +343,62 @@ class OngoingCallInteractorTest : SysuiTestCase() {
             underTest.onStatusBarSwiped()
 
             // Verify status bar is no longer required
+            assertThat(requiresStatusBarVisibleInRepository).isFalse()
+            assertThat(requiresStatusBarVisibleInWindowController).isFalse()
+        }
+
+    @DisableFlags(OngoingActivityChipsOnDream.FLAG_NAME)
+    @Test
+    fun ongoingCallNotificationAndDreaming_flagDisabled_setsRequiresStatusBarVisibleTrue() =
+        kosmos.runTest {
+            val isStatusBarRequired by collectLastValue(underTest.isStatusBarRequiredForOngoingCall)
+            val requiresStatusBarVisibleInRepository by
+                collectLastValue(
+                    kosmos.fakeStatusBarModeRepository.defaultDisplay
+                        .ongoingProcessRequiresStatusBarVisible
+                )
+            val requiresStatusBarVisibleInWindowController by
+                collectLastValue(
+                    kosmos.fakeStatusBarWindowControllerStore.defaultDisplay
+                        .ongoingProcessRequiresStatusBarVisible
+                )
+            addOngoingCallState()
+
+            assertThat(isStatusBarRequired).isTrue()
+            assertThat(requiresStatusBarVisibleInRepository).isTrue()
+            assertThat(requiresStatusBarVisibleInWindowController).isTrue()
+
+            kosmos.fakeKeyguardRepository.setDreamingWithOverlay(true)
+
+            assertThat(isStatusBarRequired).isTrue()
+            assertThat(requiresStatusBarVisibleInRepository).isTrue()
+            assertThat(requiresStatusBarVisibleInWindowController).isTrue()
+        }
+
+    @EnableFlags(OngoingActivityChipsOnDream.FLAG_NAME)
+    @Test
+    fun ongoingCallNotificationAndDreaming_flagEnabled_setsRequiresStatusBarVisibleFalse() =
+        kosmos.runTest {
+            val isStatusBarRequired by collectLastValue(underTest.isStatusBarRequiredForOngoingCall)
+            val requiresStatusBarVisibleInRepository by
+                collectLastValue(
+                    kosmos.fakeStatusBarModeRepository.defaultDisplay
+                        .ongoingProcessRequiresStatusBarVisible
+                )
+            val requiresStatusBarVisibleInWindowController by
+                collectLastValue(
+                    kosmos.fakeStatusBarWindowControllerStore.defaultDisplay
+                        .ongoingProcessRequiresStatusBarVisible
+                )
+            addOngoingCallState()
+
+            assertThat(isStatusBarRequired).isTrue()
+            assertThat(requiresStatusBarVisibleInRepository).isTrue()
+            assertThat(requiresStatusBarVisibleInWindowController).isTrue()
+
+            kosmos.fakeKeyguardRepository.setDreamingWithOverlay(true)
+
+            assertThat(isStatusBarRequired).isFalse()
             assertThat(requiresStatusBarVisibleInRepository).isFalse()
             assertThat(requiresStatusBarVisibleInWindowController).isFalse()
         }

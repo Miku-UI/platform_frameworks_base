@@ -61,6 +61,11 @@ public class SurfaceControlViewHost {
     private final WindowlessWindowManager mWm;
 
     private SurfaceControl mSurfaceControl;
+
+    // True if this SurfaceControlViewHost created mSurfaceControl and is responsible for releasing
+    // it.
+    private final boolean mOwnsSurfaceControl;
+
     private IAccessibilityEmbeddedConnection mAccessibilityEmbeddedConnection;
     private boolean mReleased = false;
 
@@ -76,6 +81,20 @@ public class SurfaceControlViewHost {
                     mViewRoot.forceWmRelayout();
                 }
             });
+        }
+
+        @Override
+        public void onDispatchAttachedToWindow(InputTransferToken hostInputTransferToken) {
+            boolean hostInputTransferTokenChanged =
+                    !Objects.equals(hostInputTransferToken, mWm.getHostInputTransferToken());
+            if (!hostInputTransferTokenChanged) {
+                return;
+            }
+
+            mWm.setHostInputTransferToken(hostInputTransferToken);
+            if (mViewRoot != null && mViewRoot.mView != null) {
+                mWm.updateInputChannel(getWindowToken().asBinder());
+            }
         }
 
         @Override
@@ -299,7 +318,6 @@ public class SurfaceControlViewHost {
          * @see WindowManager#transferTouchGesture(InputTransferToken, InputTransferToken)
          */
         @Nullable
-        @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
         public InputTransferToken getInputTransferToken() {
             return mInputTransferToken;
         }
@@ -325,6 +343,7 @@ public class SurfaceControlViewHost {
     public SurfaceControlViewHost(@NonNull Context c, @NonNull Display d,
             @NonNull WindowlessWindowManager wwm, @NonNull String callsite) {
         mSurfaceControl = wwm.mRootSurface;
+        mOwnsSurfaceControl = false;
         mWm = wwm;
         mViewRoot = new ViewRootImpl(c, d, mWm, new WindowlessWindowLayout());
         mCloseGuard.openWithCallSite("release", callsite);
@@ -366,7 +385,6 @@ public class SurfaceControlViewHost {
      * @param display                The Display the hierarchy will be placed on.
      * @param hostInputTransferToken The host input transfer token, as discussed above.
      */
-    @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
     public SurfaceControlViewHost(@NonNull Context context, @NonNull Display display,
             @Nullable InputTransferToken hostInputTransferToken) {
         this(context, display, hostInputTransferToken, "untracked");
@@ -393,6 +411,7 @@ public class SurfaceControlViewHost {
                 .setName("SurfaceControlViewHost")
                 .setCallsite("SurfaceControlViewHost[" + callsite + "]")
                 .build();
+        mOwnsSurfaceControl = true;
         mWm = new WindowlessWindowManager(context.getResources().getConfiguration(),
                 mSurfaceControl, hostToken);
 
@@ -465,10 +484,21 @@ public class SurfaceControlViewHost {
      * @param height The height to layout the View within, in pixels.
      */
     public void setView(@NonNull View view, int width, int height) {
-        final WindowManager.LayoutParams lp =
-                new WindowManager.LayoutParams(width, height,
-                        WindowManager.LayoutParams.TYPE_APPLICATION, 0, PixelFormat.TRANSPARENT);
-        setView(view, lp);
+        setView(view, new LayoutParams(width, height, true /* focusable */));
+    }
+
+    /**
+     * Sets the root view of the {@link SurfaceControlViewHost}. This view will render in to the
+     * SurfaceControl, and receive input based on the SurfaceControl's positioning on screen. It
+     * will be laid out as if it were in a window of the passed in width and height.
+     *
+     * @param view The {@link View} to add
+     * @param attrs The {@link LayoutParams} parameters for the {@link View}.
+     */
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    public void setView(@NonNull View view, @NonNull LayoutParams attrs) {
+        Objects.requireNonNull(attrs);
+        setView(view, attrs.toWindowManagerLayoutParams());
     }
 
     /**
@@ -477,6 +507,7 @@ public class SurfaceControlViewHost {
     @TestApi
     public void setView(@NonNull View view, @NonNull WindowManager.LayoutParams attrs) {
         Objects.requireNonNull(view);
+        Objects.requireNonNull(attrs);
         attrs.flags |= WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
         addWindowToken(attrs);
         view.setLayoutParams(attrs);
@@ -533,10 +564,24 @@ public class SurfaceControlViewHost {
      * @param height Height in pixels
      */
     public void relayout(int width, int height) {
-        final WindowManager.LayoutParams lp =
-                new WindowManager.LayoutParams(width, height,
-                        WindowManager.LayoutParams.TYPE_APPLICATION, 0, PixelFormat.TRANSPARENT);
-        relayout(lp);
+        relayout(new LayoutParams(width, height, true /* focusable */));
+    }
+
+    /**
+     * Modifies the {@link LayoutParams} of the root view.
+     */
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    public void relayout(@NonNull LayoutParams attrs) {
+        Objects.requireNonNull(attrs);
+        relayout(attrs.toWindowManagerLayoutParams());
+    }
+
+    /**
+     * Returns the {@link LayoutParams} of the root view.
+     */
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    public @NonNull LayoutParams getLayoutParams() {
+        return LayoutParams.from(mViewRoot.mWindowAttributes);
     }
 
     /**
@@ -545,7 +590,6 @@ public class SurfaceControlViewHost {
      * and render the object unusable.
      */
     public void release() {
-        // ViewRoot will release mSurfaceControl for us.
         doRelease(true /* immediate */);
     }
 
@@ -557,6 +601,9 @@ public class SurfaceControlViewHost {
 
         mViewRoot.die(immediate);
         WindowManagerGlobal.getInstance().removeWindowlessRoot(mViewRoot);
+        if (Flags.scvhSurfaceControlLifetimeFix() && mOwnsSurfaceControl) {
+            mSurfaceControl.release();
+        }
         mReleased = true;
         mCloseGuard.close();
     }
@@ -594,11 +641,114 @@ public class SurfaceControlViewHost {
         final WindowManager wm = (WindowManager) mViewRoot.mContext.getSystemService(
                 Context.WINDOW_SERVICE);
         InputTransferToken embeddedToken = getInputTransferToken();
-        InputTransferToken hostToken = mWm.mHostInputTransferToken;
+        InputTransferToken hostToken = mWm.getHostInputTransferToken();
         if (embeddedToken == null || hostToken == null) {
             Log.w(TAG, "Failed to transferTouchGestureToHost. Host or embedded token is null");
             return false;
         }
-        return wm.transferTouchGesture(getInputTransferToken(), mWm.mHostInputTransferToken);
+        return wm.transferTouchGesture(embeddedToken, hostToken);
+    }
+
+    /**
+     * Requests input focus for the given embedded view root, to be used for cases where the
+     * embedded window is not rooted to any window (otherwise focus is managed by the hosting
+     * SurfaceView).
+     *
+     * WM will enforce that callers also hold the INTERNAL_SYSTEM_WINDOW permission.
+     * If `focused` is false, WM will resolve focus on the next window.
+     * @hide
+     */
+    public boolean requestInputFocus(boolean focused) {
+        if (mViewRoot == null) {
+            return false;
+        }
+        return mWm.requestInputFocus(mViewRoot, focused);
+    }
+
+    /**
+     * Specifies the layout parameters for a {@link View} hosted by a {@link
+     * SurfaceControlViewHost}. This is a subset of {@link WindowManager.LayoutParams} that are
+     * applicable for {@link View}s hosted by {@code SurfaceControlViewHost}.
+     */
+    @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+    public static class LayoutParams {
+        private final boolean mFocusable;
+        private final int mWidth;
+        private final int mHeight;
+
+        /**
+         * Creates a new set of layout parameters. If {@code focusable} is set to false,
+         * this {@link View} won't ever get key input focus, so the user can not send key or other
+         * button events to it. Those will instead go to the current focused window.
+         * If set to true, {@link View} is focusable.
+         *
+         * @param width The width, in pixels, of the bounds for the {@link View}.
+         * @param height The height, in pixels, of the bounds for the {@link View}.
+         * @param focusable Whether the {@link View} can receive key input focus.
+         */
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        public LayoutParams(int width, int height, boolean focusable) {
+            mWidth = width;
+            mHeight = height;
+            mFocusable = focusable;
+        }
+
+        /**
+         * Returns {@code true} if this {@link View} can receive key input focus.
+         */
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        public boolean isFocusable() {
+            return mFocusable;
+        }
+
+        /**
+         * Returns the width, in pixels, of the bounds for the {@link View}.
+         */
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        public int getWidth() {
+            return mWidth;
+        }
+
+        /**
+         * Returns the height, in pixels, of the bounds for the {@link View}.
+         */
+        @FlaggedApi(Flags.FLAG_SCVH_SET_FOCUSABLE)
+        public int getHeight() {
+            return mHeight;
+        }
+
+        /**
+         * Converts these layout params to {@link WindowManager.LayoutParams} adding some defaults
+         * set for SCVH.
+         *
+         * @hide
+         */
+        WindowManager.LayoutParams toWindowManagerLayoutParams() {
+            final WindowManager.LayoutParams wmLayoutParams =
+                    new WindowManager.LayoutParams(
+                            mWidth,
+                            mHeight,
+                            WindowManager.LayoutParams.TYPE_APPLICATION,
+                            0,
+                            PixelFormat.TRANSPARENT);
+            wmLayoutParams.flags |= WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED;
+            if (!mFocusable) {
+                wmLayoutParams.flags |= WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
+            }
+            return wmLayoutParams;
+        }
+
+        /**
+         * Creates a {@link LayoutParams} from {@link WindowManager.LayoutParams}.
+         *
+         * @hide
+         */
+        static LayoutParams from(WindowManager.LayoutParams wmLayoutParams) {
+            final boolean focusable =
+                    (wmLayoutParams.flags & WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE) == 0;
+            final LayoutParams layoutParams =
+                    new LayoutParams(wmLayoutParams.width, wmLayoutParams.height, focusable);
+            return layoutParams;
+        }
     }
 }

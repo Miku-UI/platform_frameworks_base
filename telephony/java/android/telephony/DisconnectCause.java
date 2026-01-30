@@ -155,7 +155,7 @@ public final class DisconnectCause {
      * of a failure of the connection -- it is an additional message that accompanies
      * a successful connection giving the user important information about what happened.
      *
-     * {@hide}
+     * @hide
      */
     public static final int EXITED_ECM                     = 42;
 

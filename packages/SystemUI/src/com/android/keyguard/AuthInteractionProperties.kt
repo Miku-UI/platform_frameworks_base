@@ -25,5 +25,5 @@ import com.google.android.msdl.domain.InteractionProperties
  */
 data class AuthInteractionProperties(
     override val vibrationAttributes: VibrationAttributes =
-        VibrationAttributes.createForUsage(VibrationAttributes.USAGE_COMMUNICATION_REQUEST)
+        VibrationAttributes.createForUsage(VibrationAttributes.USAGE_HARDWARE_FEEDBACK)
 ) : InteractionProperties

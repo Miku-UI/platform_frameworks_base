@@ -41,10 +41,8 @@ constructor(
             icon = Icon.Loaded(resources.getDrawable(iconRes, theme), null, iconRes)
             if (data.isEnabled) {
                 activationState = QSTileState.ActivationState.ACTIVE
-                secondaryLabel = subtitleArray[2]
             } else {
                 activationState = QSTileState.ActivationState.INACTIVE
-                secondaryLabel = subtitleArray[1]
             }
             contentDescription = label
             supportedActions =

@@ -153,11 +153,11 @@ public class DrawTextOnPath extends PaintOperation implements VariableSupport, S
 
     @Override
     public void paint(@NonNull PaintContext context) {
-        context.drawTextOnPath(mTextId, mPathId, mOutHOffset, mOutVOffset);
+        context.drawTextOnPath(mTextId, getId(mPathId, context), mOutHOffset, mOutVOffset);
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("pathId", mPathId)

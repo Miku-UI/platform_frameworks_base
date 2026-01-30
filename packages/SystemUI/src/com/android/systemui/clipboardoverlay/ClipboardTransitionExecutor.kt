@@ -31,12 +31,21 @@ import android.view.View
 import android.view.Window
 import android.view.WindowManagerGlobal
 import com.android.internal.app.ChooserActivity
+import com.android.systemui.Flags.clipboardOverlayMultiuser
+import com.android.systemui.plugins.ActivityStartOptions
+import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.settings.DisplayTracker
+import com.android.systemui.settings.UserTracker
 import javax.inject.Inject
 
 class ClipboardTransitionExecutor
 @Inject
-constructor(val context: Context, val displayTracker: DisplayTracker) {
+constructor(
+    val context: Context,
+    val userTracker: UserTracker,
+    val displayTracker: DisplayTracker,
+    val activityStarter: ActivityStarter,
+) {
     fun startSharedTransition(window: Window, view: View, intent: Intent, onReady: Runnable) {
         val transition: Pair<ActivityOptions, ExitTransitionCoordinator> =
             ActivityOptions.startSharedElementAnimation(
@@ -53,10 +62,22 @@ constructor(val context: Context, val displayTracker: DisplayTracker) {
                     override fun onFinish() {}
                 },
                 null,
-                Pair.create(view, ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME)
+                Pair.create(view, ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME),
             )
         transition.second.startExit()
-        context.startActivity(intent, transition.first.toBundle())
+        if (clipboardOverlayMultiuser()) {
+            transition.first.launchDisplayId = window.context.displayId
+            activityStarter.startActivityDismissingKeyguard(
+                ActivityStartOptions(
+                    intent,
+                    flags = intent.flags,
+                    userHandle = userTracker.userHandle,
+                    activityOptions = transition.first,
+                )
+            )
+        } else {
+            context.startActivity(intent, transition.first.toBundle())
+        }
         val runner = RemoteAnimationAdapter(NULL_ACTIVITY_TRANSITION, 0, 0)
         try {
             checkNotNull(WindowManagerGlobal.getWindowManagerService())
@@ -79,7 +100,7 @@ constructor(val context: Context, val displayTracker: DisplayTracker) {
                 apps: Array<RemoteAnimationTarget>,
                 wallpapers: Array<RemoteAnimationTarget>,
                 nonApps: Array<RemoteAnimationTarget>,
-                finishedCallback: IRemoteAnimationFinishedCallback
+                finishedCallback: IRemoteAnimationFinishedCallback,
             ) {
                 try {
                     finishedCallback.onAnimationFinished()

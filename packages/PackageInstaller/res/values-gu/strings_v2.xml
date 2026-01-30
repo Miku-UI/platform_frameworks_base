@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"પરવાનગી આવશ્યક છે"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ઇન્સ્ટૉલ કરવાની પ્રક્રિયા બ્લૉક કરેલી છે"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"ઍપ તૈયાર કરવામાં આવી રહી છે…"</string>
+    <string name="title_install" msgid="6806728682404990326">"આ ઍપને ઇન્સ્ટૉલ કરીએ?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ઇન્સ્ટૉલ કરી રહ્યાં છીએ…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"ઍપ ઇન્સ્ટૉલ કરી"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"આ ઍપને ફરી ઇન્સ્ટૉલ કરીએ?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"ફરી ઇન્સ્ટૉલ કરી રહ્યાં છીએ…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"ઍપને ફરી ઇન્સ્ટૉલ કરી"</string>
+    <string name="title_update" msgid="1747328630716712391">"આ ઍપને અપડેટ કરીએ?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>નો ઉપયોગ કરીને આ ઍપને અપડેટ કરીએ?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"અપડેટ કરી રહ્યાં છીએ…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"ઍપને અપડેટ કરી"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"ઍપ ઇન્સ્ટૉલ કરી શકાતી નથી"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ઇન્સ્ટૉલ કરવાની પ્રક્રિયા બ્લૉક કરેલી છે"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"ઍપ સુસંગત નથી"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"અમાન્ય પૅકેજ"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"પર્યાપ્ત સ્ટોરેજ નથી"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"ઍપ ઇન્સ્ટૉલ કરેલી નથી"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"આ ઍપને અનઇન્સ્ટૉલ કરીએ?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"આ ઍપની ક્લોનને ડિલીટ કરીએ?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"ઍપ સંબંધિત અપડેટને અનઇન્સ્ટૉલ કરીએ?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"ઍપ સંબંધિત અપડેટને બધા વપરાશકર્તાઓ માટે અનઇન્સ્ટૉલ કરીએ?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"આ ઍપને બધા વપરાશકર્તાઓ માટે અનઇન્સ્ટૉલ કરીએ?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"આ ઍપને વપરાશકર્તા \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" માટે અનઇન્સ્ટૉલ કરીએ?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"ઍપ મળી નથી"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"આ ઍપ અનઇન્સ્ટૉલ કરી શકાતી નથી"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"ઍપ અનઇન્સ્ટૉલ થઈ નથી"</string>
+    <string name="title_archive" msgid="2876455228073419830">"આ ઍપને આર્કાઇવ કરીએ?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"આ ઍપને બધા વપરાશકર્તાઓ માટે આર્કાઇવ કરીએ?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"આ ઍપને વપરાશકર્તા \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" માટે આર્કાઇવ કરીએ?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"આ ઍપને રિસ્ટોર કરીએ?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"આવશ્યક પગલું"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"પર્યાપ્ત સ્ટોરેજ નથી"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"તમે ઑફલાઇન છો"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> બંધ છે"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ઇન્સ્ટૉલ કરેલું નથી"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"કંઈક ખોટું થયું"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"આ ઍપ સામાન્ય રીતે &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; પરથી અપડેટ મેળવે છે. કોઈ અલગ સૉર્સ વડે અપડેટ કરીને, તમે તમારા ટૅબ્લેટ પર કોઈપણ સૉર્સ પરથી ભાવિ અપડેટ મેળવી શકો છો. ઍપની કાર્યક્ષમતા બદલાઈ શકે છે."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"આ ઍપ સામાન્ય રીતે &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; પરથી અપડેટ મેળવે છે. કોઈ અલગ સૉર્સ વડે અપડેટ કરીને, તમે તમારા ટીવી પર કોઈપણ સૉર્સ પરથી ભાવિ અપડેટ મેળવી શકો છો. ઍપની કાર્યક્ષમતા બદલાઈ શકે છે."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"આ ઍપ સામાન્ય રીતે &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; પરથી અપડેટ મેળવે છે. કોઈ અલગ સૉર્સ વડે અપડેટ કરીને, તમે તમારા ફોન પર કોઈપણ સૉર્સ પરથી ભાવિ અપડેટ મેળવી શકો છો. ઍપની કાર્યક્ષમતા બદલાઈ શકે છે."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"તમારી સુરક્ષા માટે, હાલમાં તમારા ટૅબ્લેટને આ સૉર્સ પરથી અજાણી ઍપ ઇન્સ્ટૉલ કરવાની મંજૂરી નથી. તમે સેટિંગમાં જઈને આને બદલી શકો છો."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"તમારી સુરક્ષા માટે, હાલમાં તમારા ટીવીને આ સૉર્સ પરથી અજાણી ઍપ ઇન્સ્ટૉલ કરવાની મંજૂરી નથી. તમે સેટિંગમાં જઈને આને બદલી શકો છો."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"તમારી સુરક્ષા માટે, હાલમાં તમારી વૉચને આ સૉર્સ પરથી અજાણી ઍપ ઇન્સ્ટૉલ કરવાની મંજૂરી નથી. તમે સેટિંગમાં જઈને આને બદલી શકો છો."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"તમારી સુરક્ષા માટે, હાલમાં તમારા ફોનને આ સૉર્સ પરથી અજાણી ઍપ ઇન્સ્ટૉલ કરવાની મંજૂરી નથી. તમે સેટિંગમાં જઈને આને બદલી શકો છો."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"તમારો ફોન અને વ્યક્તિગત ડેટા અજાણી ઍપના અટૅક પ્રત્યે વધુ સંવેદનશીલ છે. આ ઍપ ઇન્સ્ટૉલ કરીને તમે સંમત થાઓ છો કે તેનો ઉપયોગ કરવાથી તમારા ફોનને થતા કોઈપણ નુકસાન અથવા ડેટાના નુકસાન માટે તમે જવાબદાર છો."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"તમારું ટૅબ્લેટ અને વ્યક્તિગત ડેટા અજાણી ઍપના અટૅક પ્રત્યે વધુ સંવેદનશીલ છે. આ ઍપ ઇન્સ્ટૉલ કરીને તમે સંમત થાઓ છો કે તેનો ઉપયોગ કરવાથી તમારા ટૅબ્લેટને થતા કોઈપણ નુકસાન અથવા ડેટાના નુકસાન માટે તમે જવાબદાર છો."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"તમારું ટીવી અને વ્યક્તિગત ડેટા અજાણી ઍપના અટૅક પ્રત્યે વધુ સંવેદનશીલ છે. આ ઍપ ઇન્સ્ટૉલ કરીને તમે સંમત થાઓ છો કે તેનો ઉપયોગ કરવાથી તમારા ટીવીને થતા કોઈપણ નુકસાન અથવા ડેટાના નુકસાન માટે તમે જવાબદાર છો."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"આ ઍપને ઇન્સ્ટૉલ થવાથી બ્લૉક કરવામાં આવી હતી"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"આ ઍપ તમારા ડિવાઇસમાં પહેલેથી જ રહેલી ઍપ સાથે વિરોધાભાસ ઊભો કરે છે"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"આ ઍપ તમારા ડિવાઇસ સાથે સુસંગત નથી"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"આ ઍપની ઇન્સ્ટૉલેશન ફાઇલમાં સમસ્યા છે"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"આ ઍપ ઇન્સ્ટૉલ કરવા માટે, કેટલીક સ્પેસ ખાલી કરો અને પછી ફરી પ્રયાસ કરો"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"ઍપની ફાઇલમાં સમસ્યા છે"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ઍપ ઇન્સ્ટૉલ કરવાનું પ્રતિબંધિત કરવામાં આવ્યું છે"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"અજાણી ઍપ ઇન્સ્ટૉલ કરવાનું પ્રતિબંધિત કરવામાં આવ્યું છે"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"આ ઍપની ક્લોન પણ અસ્તિત્વમાં છે અને તેને ડિલીટ કરવામાં આવશે"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"આ ઍપ <xliff:g id="APP_LABEL">%1$s</xliff:g>ની ક્લોન છે"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"આ ઍપનું વર્ઝન બદલીને તેને ફેક્ટરી વર્ઝન કરવામાં આવશે. ઍપનો બધો ડેટા કાઢી નાખવામાં આવશે."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"ડિવાઇસ પરના બધા વપરાશકર્તાઓ માટે આ ઍપનું વર્ઝન બદલીને તેને ફેક્ટરી વર્ઝન કરવામાં આવશે. ઍપનો બધો ડેટા કાઢી નાખવામાં આવશે."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"આ ઍપને તમારી ઑફિસની પ્રોફાઇલમાંથી અનઇન્સ્ટૉલ કરવામાં આવશે"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"આ ઍપને તમારી ખાનગી સ્પેસમાંથી અનઇન્સ્ટૉલ કરવામાં આવશે"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"આ ઍપ ઇન્સ્ટૉલ કરેલી ઍપની સૂચિમાં મળી નથી અથવા તેને પહેલેથી જ અનઇન્સ્ટૉલ કરવામાં આવી છે"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"વર્તમાન વપરાશકર્તાને આને અનઇન્સ્ટૉલ કરવાની મંજૂરી નથી"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"આ ઍપ અનઇન્સ્ટૉલ કરી શકાઈ નથી"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"ઍપનો ડેટા રાખો"</string>
+    <string name="message_archive" msgid="943853731737315850">"તમારી ઍપનો ડેટા સાચવવામાં આવશે"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"ઍપનો બધો ડેટા સાચવવામાં આવશે"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ઍપનો ડેટા સાચવવામાં આવશે"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"આ ઍપને તમારી ઑફિસની પ્રોફાઇલમાંથી આર્કાઇવ કરવામાં આવશે. તમારી ઍપનો ડેટા સાચવવામાં આવશે."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"આ ઍપને તમારી ખાનગી સ્પેસમાંથી આર્કાઇવ કરવામાં આવશે. તમારી ઍપનો ડેટા સાચવવામાં આવશે."</string>
+    <string name="message_restore" msgid="8402726798623569969">"આ ઍપ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> પરથી બૅકગ્રાઉન્ડમાં ડાઉનલોડ થશે"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"આ ઍપ રિસ્ટોર કરતા પહેલાં <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>ને વધુ માહિતીની જરૂર છે"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"આ ઍપ રિસ્ટોર કરવા માટે, &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; ખાલી કરો અને પછી ફરી પ્રયાસ કરો"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"આ ઍપ રિસ્ટોર કરવા માટે, તમારું ઇન્ટરનેટ કનેક્શન ચેક કરો અને પછી ફરી પ્રયાસ કરો"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"આ ઍપને રિસ્ટોર કરવા માટે, સેટિંગમાં જઈને <xliff:g id="INSTALLERNAME">%1$s</xliff:g> ચાલુ કરો"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"આ ઍપને રિસ્ટોર કરવા માટે, તમારે <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ઇન્સ્ટૉલ કરવાની જરૂર પડશે"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"આ ઍપને રિસ્ટોર કરવામાં કોઈ સમસ્યા આવી હતી"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> નીચેની ઍપનો ભાગ છે: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;આ ઍપ બ્લૉક કરવામાં આવી હતી. તમારા ડિવાઇસ અને ડેટાને સલામત રાખવામાં મદદ માટે ફક્ત ચકાસણી કરાયેલા ડેવલપરની ઍપ ઇન્સ્ટૉલ કરી શકાય છે.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;આ ઍપને અપડેટ કરવામાં આવી ન હતી. તમારા ડિવાઇસ અને ડેટાને સલામત રાખવામાં મદદ માટે ફક્ત ચકાસણી કરાયેલા ડેવલપરની અપડેટ ઇન્સ્ટૉલ કરી શકાય છે.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;આ ઍપને ઇન્સ્ટૉલ કરવામાં આવી ન હતી. ચકાસણી ન કરાયેલા ડેવલપરની ઍપ કદાચ અસલામત હોઈ શકે છે.&lt;/p&gt; &lt;p&gt;ઍપ ડેવલપરની ચકાસણી કરવા માટે ઇન્ટરનેટ કનેક્શન જરૂરી છે. તમારું કનેક્શન ચેક કરો, પછી ફરી ઇન્સ્ટૉલ કરવાનો પ્રયાસ કરો. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;આ ઍપને અપડેટ કરવામાં આવી ન હતી. ચકાસણી ન કરાયેલા ડેવલપરની અપડેટ કદાચ અસલામત હોઈ શકે છે.&lt;/p&gt; &lt;p&gt;ઍપ ડેવલપરની ચકાસણી કરવા માટે ઇન્ટરનેટ કનેક્શન જરૂરી છે. તમારું કનેક્શન ચેક કરો, પછી ફરી અપડેટ કરવાનો પ્રયાસ કરો. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;આ ઍપના ડેવલપરની ચકાસણી કરતી વખતે સમસ્યા આવી હતી. ચકાસણી ન કરાયેલા ડેવલપરની ઍપ કદાચ અસલામત હોઈ શકે છે, તેથી ઍપ ઇન્સ્ટૉલ કરવામાં આવી ન હતી.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;આ ઍપના ડેવલપરની ચકાસણી કરતી વખતે સમસ્યા આવી હતી. ચકાસણી ન કરાયેલા ડેવલપરની અપડેટ કદાચ અસલામત હોઈ શકે છે, તેથી ઍપ અપડેટ કરવામાં આવી ન હતી.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;ડેવલપરની ચકાસણી કરવામાં સમસ્યા આવી હોવાના કારણે આ ઍપને બ્લૉક કરવામાં આવી હતી. તમારા ડિવાઇસ અને ડેટાને સલામત રાખવામાં મદદ માટે ફક્ત ચકાસણી કરાયેલા ડેવલપરની ઍપ ઇન્સ્ટૉલ કરી શકાય છે.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;ડેવલપરની ચકાસણી કરવામાં સમસ્યા આવી હોવાના કારણે આ ઍપને અપડેટ કરી શકાઈ ન હતી. તમારા ડિવાઇસ અને ડેટાને સલામત રાખવામાં મદદ માટે ફક્ત ચકાસણી કરાયેલા ડેવલપરની અપડેટ ઇન્સ્ટૉલ કરી શકાય છે.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ડેવલપરની ચકાસણી વિશે વધુ જાણો&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"જો તમે ચકાસણી કર્યા વિના ઇન્સ્ટૉલ કરો છો, તો ધ્યાનમાં રાખો કે ચકાસણી ન કરાયેલા ડેવલપરની ઍપ તમારા ડિવાઇસ અને ડેટાને જોખમમાં મૂકી શકે છે."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"જો તમે ચકાસણી કર્યા વિના અપડેટ કરો છો, તો ધ્યાનમાં લો કે ચકાસણી ન કરાયેલા ડેવલપરની અપડેટ તમારા ડિવાઇસ અને ડેટાને જોખમમાં મૂકી શકે છે."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"ઍપ ડેવલપરની ચકાસણી થઈ નથી"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"કોઈ ઇન્ટરનેટ નથી, ઍપ ડેવલપરની ચકાસણી કરી શકતા નથી"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"ઍપ ડેવલપરની ચકાસણી કરી શકતા નથી"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"ચકાસણી કર્યા વિના ઇન્સ્ટૉલ કરો"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"ચકાસણી કર્યા વિના અપડેટ કરો"</string>
+    <string name="button_install" msgid="7434013176505680162">"ઇન્સ્ટૉલ કરો"</string>
+    <string name="button_update" msgid="3046719350226327526">"અપડેટ કરો"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"તો પણ અપડેટ કરો"</string>
+    <string name="button_done" msgid="3408025390982260629">"થઈ ગયું"</string>
+    <string name="button_open" msgid="6892684987374117955">"ખોલો"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"રદ કરો"</string>
+    <string name="button_continue" msgid="107501685249826244">"ચાલુ રાખો"</string>
+    <string name="button_close" msgid="7187308556466275899">"બંધ કરો"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"અનઇન્સ્ટૉલ કરો"</string>
+    <string name="button_delete" msgid="1050833585936159792">"ડિલીટ કરો"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"ફરી ઇન્સ્ટૉલ કરો"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"ઍપ મેનેજ કરો"</string>
+    <string name="button_archive" msgid="2719647830439699121">"આર્કાઇવ કરો"</string>
+    <string name="button_restore" msgid="4388317532933866637">"રિસ્ટોર કરો"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"અપડેટ અનઇન્સ્ટૉલ કરો"</string>
+    <string name="button_settings" msgid="3837571366246132287">"સેટિંગ"</string>
+    <string name="button_retry" msgid="6736082260813816198">"ફરી પ્રયાસ કરો"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>ની ક્લોન"</string>
+</resources>

@@ -31,14 +31,17 @@ import androidx.compose.animation.graphics.res.animatedVectorResource
 import androidx.compose.animation.graphics.res.rememberAnimatedVectorPainter
 import androidx.compose.animation.graphics.vector.AnimatedImageVector
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +57,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
@@ -68,7 +72,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.compose.PlatformOutlinedButton
 import com.android.compose.animation.Easings
+import com.android.compose.modifiers.size
+import com.android.compose.modifiers.thenIf
 import com.android.keyguard.PinShapeAdapter
+import com.android.systemui.bouncer.shared.constants.PinBouncerConstants
 import com.android.systemui.bouncer.ui.viewmodel.EntryToken.Digit
 import com.android.systemui.bouncer.ui.viewmodel.PinBouncerViewModel
 import com.android.systemui.bouncer.ui.viewmodel.PinInputViewModel
@@ -87,6 +94,20 @@ fun PinInputDisplay(viewModel: PinBouncerViewModel, modifier: Modifier = Modifie
     val hintedPinLength: Int? by viewModel.hintedPinLength.collectAsStateWithLifecycle()
     val shapeAnimations = rememberShapeAnimations(viewModel.pinShapes)
 
+    val isPinDisplayBorderVisible by
+        viewModel.isPinDisplayBorderVisible.collectAsStateWithLifecycle(initialValue = false)
+    val borderColor = colorResource(R.color.bouncer_password_focus_color)
+    val pinInputHeight = dimensionResource(id = R.dimen.keyguard_password_field_height)
+    val pinInputWidth = dimensionResource(id = R.dimen.keyguard_password_field_width)
+    val roundedShape = remember { RoundedCornerShape(16.dp) }
+    val pinInputModifier =
+        modifier.thenIf(isPinDisplayBorderVisible) {
+            Modifier.border(width = 3.dp, color = borderColor, shape = roundedShape)
+                .height(pinInputHeight)
+                .width(pinInputWidth)
+                .clip(roundedShape)
+        }
+
     // The display comes in two different flavors:
     // 1) hinting: shows a circle (◦) per expected pin input, and dot (●) per entered digit.
     //    This has a fixed width, and uses two distinct types of AVDs to animate the addition and
@@ -99,8 +120,8 @@ fun PinInputDisplay(viewModel: PinBouncerViewModel, modifier: Modifier = Modifie
     // unifying into a single, more complex implementation.
 
     when (val length = hintedPinLength) {
-        null -> RegularPinInputDisplay(viewModel, shapeAnimations, modifier)
-        else -> HintingPinInputDisplay(viewModel, shapeAnimations, length, modifier)
+        null -> RegularPinInputDisplay(viewModel, shapeAnimations, pinInputModifier)
+        else -> HintingPinInputDisplay(viewModel, shapeAnimations, length, pinInputModifier)
     }
 }
 
@@ -169,9 +190,10 @@ private fun HintingPinInputDisplay(
     var playAnimation by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { playAnimation = true }
 
-    val dotColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val dotColor = MaterialTheme.colorScheme.onSurface
     Row(
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
         modifier = modifier.height(shapeAnimations.shapeSize),
     ) {
         pinEntryDrawable.forEachIndexed { index, drawable ->
@@ -337,7 +359,7 @@ private fun SimArea(viewModel: PinBouncerViewModel) {
             Image(
                 painter = painterResource(id = R.drawable.ic_lockscreen_sim),
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(colorResource(id = R.color.background_protected)),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
             )
         }
     }
@@ -482,7 +504,7 @@ private class PinInputEntry(val digit: Digit, val shapeAnimations: ShapeAnimatio
         val animatedShapeSize by shapeSize.asState()
         val animatedEntryWidth by entryWidth.asState()
 
-        val dotColor = MaterialTheme.colorScheme.onSurfaceVariant
+        val dotColor = MaterialTheme.colorScheme.onSurface
         val shapeHeight = shapeAnimations.shapeSize
         var atEnd by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { atEnd = true }
@@ -544,7 +566,7 @@ private class ShapeAnimations(
 @Composable
 private fun rememberShapeAnimations(pinShapes: PinShapeAdapter): ShapeAnimations {
     // NOTE: `animatedVectorResource` does remember the returned AnimatedImageVector.
-    val dotToCircle = AnimatedImageVector.animatedVectorResource(R.drawable.pin_dot_delete_avd)
+    val dotToCircle = AnimatedImageVector.animatedVectorResource(PinBouncerConstants.pinDotAvd)
     val shapesToDot = pinShapes.shapes.map { AnimatedImageVector.animatedVectorResource(it) }
     val shapeSize = dimensionResource(R.dimen.password_shape_size)
 

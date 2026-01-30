@@ -31,7 +31,6 @@ ndk_library {
 
 cc_defaults {
     name: "libandroid_defaults",
-    cpp_std: "gnu++20",
     cflags: [
         "-Wall",
         "-Werror",
@@ -185,6 +184,37 @@ filegroup {
     name: "platform-compat-native-aidl",
     srcs: [
         "aidl/com/android/internal/compat/IPlatformCompatNative.aidl",
+    ],
+    path: "aidl",
+}
+
+// Aidl library for platform compat.
+cc_library_shared {
+    name: "lib-camera-compatibility-info-api",
+    cflags: [
+        "-Wall",
+        "-Werror",
+        "-Wno-missing-field-initializers",
+        "-Wno-unused-variable",
+        "-Wunused-parameter",
+    ],
+    shared_libs: [
+        "libcameracompatbilityinfo",
+    ],
+    aidl: {
+        local_include_dirs: ["aidl"],
+        export_aidl_headers: true,
+    },
+    srcs: [
+        ":camera-compatibility-info-aidl",
+    ],
+    export_include_dirs: ["aidl"],
+}
+
+filegroup {
+    name: "camera-compatibility-info-aidl",
+    srcs: [
+        "aidl/android/content/res/CameraCompatibilityInfo.aidl",
     ],
     path: "aidl",
 }

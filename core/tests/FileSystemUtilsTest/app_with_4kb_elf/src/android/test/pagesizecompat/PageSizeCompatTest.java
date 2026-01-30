@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 
 @RunWith(AndroidJUnit4.class)
 public class PageSizeCompatTest {
-    private static final String WARNING_TEXT = "PageSizeCompatTestApp";
+    private static final String WARNING_TEXT = "Android App Compatibility";
     private static final long TIMEOUT = 5000;
 
     public void testPageSizeCompat_appLaunch(boolean shouldPass) throws Exception {
@@ -78,21 +78,28 @@ public class PageSizeCompatTest {
     @Test
     public void testPageSizeCompat_compatEnabled() throws Exception {
         testPageSizeCompat_appLaunch(true);
+        //verify warning dialog
+        Assert.assertTrue(findCompatWaring() != null);
     }
 
     @Test
     public void testPageSizeCompat_compatDisabled() throws Exception {
         testPageSizeCompat_appLaunch(false);
+        //verify warning dialog
+        Assert.assertTrue(findCompatWaring() != null);
     }
 
     @Test
     public void testPageSizeCompat_compatByAlignmentChecks() throws Exception {
         testPageSizeCompat_appLaunch(true);
-
         //verify warning dialog
+        Assert.assertTrue(findCompatWaring() != null);
+    }
+
+    private UiObject2 findCompatWaring() {
         UiDevice device = UiDevice.getInstance(getInstrumentation());
         device.waitForWindowUpdate(null, TIMEOUT);
-        UiObject2 targetObject = device.wait(Until.findObject(By.text(WARNING_TEXT)), TIMEOUT);
-        Assert.assertTrue(targetObject != null);
+        UiObject2 object = device.wait(Until.findObject(By.text(WARNING_TEXT)), TIMEOUT);
+        return object;
     }
 }

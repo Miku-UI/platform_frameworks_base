@@ -20,19 +20,10 @@ import static android.view.WindowManager.TRANSIT_CLOSE;
 import static android.view.WindowManager.TRANSIT_FLAG_KEYGUARD_GOING_AWAY_NO_ANIMATION;
 import static android.view.WindowManager.TRANSIT_FLAG_KEYGUARD_GOING_AWAY_SUBTLE_ANIMATION;
 import static android.view.WindowManager.TRANSIT_FLAG_KEYGUARD_GOING_AWAY_TO_SHADE;
-import static android.view.WindowManager.TRANSIT_OLD_ACTIVITY_CLOSE;
-import static android.view.WindowManager.TRANSIT_OLD_ACTIVITY_OPEN;
-import static android.view.WindowManager.TRANSIT_OLD_NONE;
-import static android.view.WindowManager.TRANSIT_OLD_TRANSLUCENT_ACTIVITY_CLOSE;
-import static android.view.WindowManager.TRANSIT_OLD_TRANSLUCENT_ACTIVITY_OPEN;
-import static android.view.WindowManager.TRANSIT_OLD_UNSET;
-import static android.view.WindowManager.TRANSIT_OLD_WALLPAPER_INTRA_CLOSE;
-import static android.view.WindowManager.TRANSIT_OLD_WALLPAPER_INTRA_OPEN;
 import static android.view.WindowManager.TRANSIT_OPEN;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.ActivityManager;
 import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.ResourceId;
@@ -54,7 +45,6 @@ import android.util.Slog;
 import android.view.InflateException;
 import android.view.SurfaceControl;
 import android.view.WindowManager.LayoutParams;
-import android.view.WindowManager.TransitionOldType;
 import android.view.WindowManager.TransitionType;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
@@ -65,7 +55,7 @@ import android.view.animation.Interpolator;
 import android.view.animation.PathInterpolator;
 import android.view.animation.ScaleAnimation;
 import android.view.animation.TranslateAnimation;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 import com.android.internal.R;
 
@@ -75,10 +65,15 @@ import java.util.List;
 /** @hide */
 public class TransitionAnimation {
     public static final int WALLPAPER_TRANSITION_NONE = 0;
+    /** Wallpaper keeps visible in a CHANGE transition. */
     public static final int WALLPAPER_TRANSITION_CHANGE = 1;
+    /** Wallpaper becomes visible. */
     public static final int WALLPAPER_TRANSITION_OPEN = 2;
+    /** Wallpaper becomes invisible. */
     public static final int WALLPAPER_TRANSITION_CLOSE = 3;
+    /** Wallpaper keeps visible in a OPEN transition. */
     public static final int WALLPAPER_TRANSITION_INTRA_OPEN = 4;
+    /** Wallpaper keeps visible in a CLOSE transition. */
     public static final int WALLPAPER_TRANSITION_INTRA_CLOSE = 5;
 
     // These are the possible states for the enter/exit activities during a thumbnail transition
@@ -130,7 +125,6 @@ public class TransitionAnimation {
     private final int mDefaultWindowAnimationStyleResId;
 
     private final boolean mDebug;
-    private final boolean mLowRamRecentsEnabled;
 
     public TransitionAnimation(Context context, boolean debug, String tag) {
         mContext = context;
@@ -166,8 +160,6 @@ public class TransitionAnimation {
         mConfigShortAnimTime = context.getResources().getInteger(
                 com.android.internal.R.integer.config_shortAnimTime);
 
-        mLowRamRecentsEnabled = ActivityManager.isLowRamDeviceStatic();
-
         final TypedArray windowStyle = mContext.getTheme().obtainStyledAttributes(
                 com.android.internal.R.styleable.Window);
         mDefaultWindowAnimationStyleResId = windowStyle.getResourceId(
@@ -193,12 +185,6 @@ public class TransitionAnimation {
         return loadDefaultAnimationRes(com.android.internal.R.anim.wallpaper_open_exit, userId);
     }
 
-    /** Same as {@code loadKeyguardUnoccludeAnimation} for current user. */
-    @Nullable
-    public Animation loadKeyguardUnoccludeAnimation() {
-        return loadKeyguardUnoccludeAnimation(UserHandle.USER_CURRENT);
-    }
-
     /** Load voice activity open animation for user. */
     @Nullable
     public Animation loadVoiceActivityOpenAnimation(boolean enter, int userId) {
@@ -207,24 +193,12 @@ public class TransitionAnimation {
                 : com.android.internal.R.anim.voice_activity_open_exit, userId);
     }
 
-    /** Same as {@code loadVoiceActivityOpenAnimation} for current user. */
-    @Nullable
-    public Animation loadVoiceActivityOpenAnimation(boolean enter) {
-        return loadVoiceActivityOpenAnimation(enter, UserHandle.USER_CURRENT);
-    }
-
     /** Load voice activity exit animation for user. */
     @Nullable
     public Animation loadVoiceActivityExitAnimation(boolean enter, int userId) {
         return loadDefaultAnimationRes(enter
                 ? com.android.internal.R.anim.voice_activity_close_enter
                 : com.android.internal.R.anim.voice_activity_close_exit, userId);
-    }
-
-    /** Same as {@code loadVoiceActivityExitAnimation} for current user. */
-    @Nullable
-    public Animation loadVoiceActivityExitAnimation(boolean enter) {
-        return loadVoiceActivityExitAnimation(enter, UserHandle.USER_CURRENT);
     }
 
     @Nullable
@@ -237,12 +211,6 @@ public class TransitionAnimation {
     public Animation loadCrossProfileAppEnterAnimation(int userId) {
         return loadAnimationRes(DEFAULT_PACKAGE,
                 com.android.internal.R.anim.task_open_enter_cross_profile_apps, userId);
-    }
-
-    /** Same as {@code loadCrossProfileAppEnterAnimation} for current user. */
-    @Nullable
-    public Animation loadCrossProfileAppEnterAnimation() {
-        return loadCrossProfileAppEnterAnimation(UserHandle.USER_CURRENT);
     }
 
     @Nullable
@@ -290,7 +258,7 @@ public class TransitionAnimation {
 
     /** Load animation by attribute Id from specific LayoutParams */
     @Nullable
-    public Animation loadAnimationAttr(LayoutParams lp, int animAttr, int transit) {
+    public Animation loadAnimationAttr(LayoutParams lp, int animAttr) {
         int resId = Resources.ID_NULL;
         Context context = mContext;
         if (animAttr >= 0) {
@@ -300,7 +268,6 @@ public class TransitionAnimation {
                 resId = ent.array.getResourceId(animAttr, 0);
             }
         }
-        resId = updateToTranslucentAnimIfNeeded(resId, transit);
         if (ResourceId.isValid(resId)) {
             return loadAnimationSafely(context, resId, mTag);
         }
@@ -308,7 +275,7 @@ public class TransitionAnimation {
     }
 
     /** Get animation resId by attribute Id from specific LayoutParams */
-    public int getAnimationResId(LayoutParams lp, int animAttr, int transit) {
+    public int getAnimationResId(LayoutParams lp, int animAttr) {
         int resId = Resources.ID_NULL;
         if (animAttr >= 0) {
             AttributeCache.Entry ent = getCachedAnimations(lp);
@@ -316,12 +283,11 @@ public class TransitionAnimation {
                 resId = ent.array.getResourceId(animAttr, 0);
             }
         }
-        resId = updateToTranslucentAnimIfNeeded(resId, transit);
         return resId;
     }
 
     /** Get default animation resId */
-    public int getDefaultAnimationResId(int animAttr, int transit) {
+    public int getDefaultAnimationResId(int animAttr) {
         int resId = Resources.ID_NULL;
         if (animAttr >= 0) {
             AttributeCache.Entry ent = getCachedAnimations(DEFAULT_PACKAGE,
@@ -330,7 +296,6 @@ public class TransitionAnimation {
                 resId = ent.array.getResourceId(animAttr, 0);
             }
         }
-        resId = updateToTranslucentAnimIfNeeded(resId, transit);
         return resId;
     }
 
@@ -339,12 +304,10 @@ public class TransitionAnimation {
      *
      * @param translucent {@code true} if we're sure that the animation is applied on a translucent
      *                    window container, {@code false} otherwise.
-     * @param transit {@link TransitionOldType} for the app transition of this animation, or
-     *                {@link TransitionOldType#TRANSIT_OLD_UNSET} if app transition type is unknown.
      */
     @Nullable
-    private Animation loadAnimationAttr(String packageName, int animStyleResId, int animAttr,
-            boolean translucent, @TransitionOldType int transit) {
+    public Animation loadAnimationAttr(String packageName, int animStyleResId, int animAttr,
+            boolean translucent) {
         if (animStyleResId == 0) {
             return null;
         }
@@ -360,8 +323,6 @@ public class TransitionAnimation {
         }
         if (translucent) {
             resId = updateToTranslucentAnimIfNeeded(resId);
-        } else if (transit != TRANSIT_OLD_UNSET) {
-            resId = updateToTranslucentAnimIfNeeded(resId, transit);
         }
         if (ResourceId.isValid(resId)) {
             return loadAnimationSafely(context, resId, mTag);
@@ -369,27 +330,11 @@ public class TransitionAnimation {
         return null;
     }
 
-
-    /** Load animation by attribute Id from a specific AnimationStyle resource. */
-    @Nullable
-    public Animation loadAnimationAttr(String packageName, int animStyleResId, int animAttr,
-            boolean translucent) {
-        return loadAnimationAttr(packageName, animStyleResId, animAttr, translucent,
-                TRANSIT_OLD_UNSET);
-    }
-
     /** Load animation by attribute Id from android package. */
     @Nullable
     public Animation loadDefaultAnimationAttr(int animAttr, boolean translucent) {
         return loadAnimationAttr(DEFAULT_PACKAGE, mDefaultWindowAnimationStyleResId, animAttr,
                 translucent);
-    }
-
-    /** Load animation by attribute Id from android package. */
-    @Nullable
-    public Animation loadDefaultAnimationAttr(int animAttr, @TransitionOldType int transit) {
-        return loadAnimationAttr(DEFAULT_PACKAGE, mDefaultWindowAnimationStyleResId, animAttr,
-                false /* translucent */, transit);
     }
 
     @Nullable
@@ -509,13 +454,6 @@ public class TransitionAnimation {
 
     public Animation createClipRevealAnimationLocked(@TransitionType int transit,
             int wallpaperTransit, boolean enter, Rect appFrame, Rect displayFrame, Rect startRect) {
-        return createClipRevealAnimationLockedCompat(
-                getTransitCompatType(transit, wallpaperTransit), enter, appFrame, displayFrame,
-                startRect);
-    }
-
-    public Animation createClipRevealAnimationLockedCompat(@TransitionOldType int transit,
-            boolean enter, Rect appFrame, Rect displayFrame, Rect startRect) {
         final Animation anim;
         if (enter) {
             final int appWidth = appFrame.width();
@@ -597,23 +535,18 @@ public class TransitionAnimation {
             anim = set;
         } else {
             final long duration;
-            switch (transit) {
-                case TRANSIT_OLD_ACTIVITY_OPEN:
-                case TRANSIT_OLD_ACTIVITY_CLOSE:
-                    duration = mConfigShortAnimTime;
-                    break;
-                default:
-                    duration = DEFAULT_APP_TRANSITION_DURATION;
-                    break;
+            if (transit == TRANSIT_OPEN || transit == TRANSIT_CLOSE) {
+                duration = mConfigShortAnimTime;
+            } else {
+                duration = DEFAULT_APP_TRANSITION_DURATION;
             }
-            if (transit == TRANSIT_OLD_WALLPAPER_INTRA_OPEN
-                    || transit == TRANSIT_OLD_WALLPAPER_INTRA_CLOSE) {
+            if (wallpaperTransit == WALLPAPER_TRANSITION_INTRA_OPEN
+                    || wallpaperTransit == WALLPAPER_TRANSITION_INTRA_CLOSE) {
                 // If we are on top of the wallpaper, we need an animation that
                 // correctly handles the wallpaper staying static behind all of
                 // the animated elements.  To do this, will just have the existing
                 // element fade out.
                 anim = new AlphaAnimation(1, 0);
-                anim.setDetachWallpaper(true);
             } else {
                 // For normal animations, the exiting element just holds in place.
                 anim = new AlphaAnimation(1, 1);
@@ -626,12 +559,6 @@ public class TransitionAnimation {
     }
 
     public Animation createScaleUpAnimationLocked(@TransitionType int transit, int wallpaperTransit,
-            boolean enter, Rect containingFrame, Rect startRect) {
-        return createScaleUpAnimationLockedCompat(getTransitCompatType(transit, wallpaperTransit),
-                enter, containingFrame, startRect);
-    }
-
-    public Animation createScaleUpAnimationLockedCompat(@TransitionOldType int transit,
             boolean enter, Rect containingFrame, Rect startRect) {
         Animation a;
         setupDefaultNextAppTransitionStartRect(startRect, mTmpRect);
@@ -652,16 +579,14 @@ public class TransitionAnimation {
             AnimationSet set = new AnimationSet(false);
             set.addAnimation(scale);
             set.addAnimation(alpha);
-            set.setDetachWallpaper(true);
             a = set;
-        } else  if (transit == TRANSIT_OLD_WALLPAPER_INTRA_OPEN
-                || transit == TRANSIT_OLD_WALLPAPER_INTRA_CLOSE) {
+        } else  if (wallpaperTransit == WALLPAPER_TRANSITION_INTRA_OPEN
+                || wallpaperTransit == WALLPAPER_TRANSITION_INTRA_CLOSE) {
             // If we are on top of the wallpaper, we need an animation that
             // correctly handles the wallpaper staying static behind all of
             // the animated elements.  To do this, will just have the existing
             // element fade out.
             a = new AlphaAnimation(1, 0);
-            a.setDetachWallpaper(true);
         } else {
             // For normal animations, the exiting element just holds in place.
             a = new AlphaAnimation(1, 1);
@@ -671,14 +596,10 @@ public class TransitionAnimation {
         // it  is the standard duration for that.  Otherwise we use the longer
         // task transition duration.
         final long duration;
-        switch (transit) {
-            case TRANSIT_OLD_ACTIVITY_OPEN:
-            case TRANSIT_OLD_ACTIVITY_CLOSE:
-                duration = mConfigShortAnimTime;
-                break;
-            default:
-                duration = DEFAULT_APP_TRANSITION_DURATION;
-                break;
+        if (transit == TRANSIT_OPEN || transit == TRANSIT_CLOSE) {
+            duration = mConfigShortAnimTime;
+        } else {
+            duration = DEFAULT_APP_TRANSITION_DURATION;
         }
         a.setDuration(duration);
         a.setFillAfter(true);
@@ -687,20 +608,13 @@ public class TransitionAnimation {
         return a;
     }
 
-    public Animation createThumbnailEnterExitAnimationLocked(boolean enter, boolean scaleUp,
-            Rect containingFrame, @TransitionType int transit, int wallpaperTransit,
-            HardwareBuffer thumbnailHeader, Rect startRect) {
-        return createThumbnailEnterExitAnimationLockedCompat(enter, scaleUp, containingFrame,
-                getTransitCompatType(transit, wallpaperTransit), thumbnailHeader, startRect);
-    }
-
     /**
      * This animation is created when we are doing a thumbnail transition, for the activity that is
      * leaving, and the activity that is entering.
      */
-    public Animation createThumbnailEnterExitAnimationLockedCompat(boolean enter, boolean scaleUp,
-            Rect containingFrame, @TransitionOldType int transit, HardwareBuffer thumbnailHeader,
-            Rect startRect) {
+    public Animation createThumbnailEnterExitAnimationLocked(boolean enter, boolean scaleUp,
+            Rect containingFrame, @TransitionType int transit, int wallpaperTransit,
+            HardwareBuffer thumbnailHeader, Rect startRect) {
         final int appWidth = containingFrame.width();
         final int appHeight = containingFrame.height();
         Animation a;
@@ -723,7 +637,7 @@ public class TransitionAnimation {
             }
             case THUMBNAIL_TRANSITION_EXIT_SCALE_UP: {
                 // Exiting app while the thumbnail is scaling up should fade or stay in place
-                if (transit == TRANSIT_OLD_WALLPAPER_INTRA_OPEN) {
+                if (wallpaperTransit == WALLPAPER_TRANSITION_INTRA_OPEN) {
                     // Fade out while bringing up selected activity. This keeps the
                     // current activity from showing through a launching wallpaper
                     // activity.
@@ -761,141 +675,16 @@ public class TransitionAnimation {
                 throw new RuntimeException("Invalid thumbnail transition state");
         }
 
-        return prepareThumbnailAnimation(a, appWidth, appHeight, transit);
-    }
-
-    /**
-     * This alternate animation is created when we are doing a thumbnail transition, for the
-     * activity that is leaving, and the activity that is entering.
-     */
-    public Animation createAspectScaledThumbnailEnterExitAnimationLocked(boolean enter,
-            boolean scaleUp, int orientation, int transit, Rect containingFrame, Rect contentInsets,
-            @Nullable Rect surfaceInsets, @Nullable Rect stableInsets, boolean freeform,
-            Rect startRect, Rect defaultStartRect) {
-        Animation a;
-        final int appWidth = containingFrame.width();
-        final int appHeight = containingFrame.height();
-        setupDefaultNextAppTransitionStartRect(defaultStartRect, mTmpRect);
-        final int thumbWidthI = mTmpRect.width();
-        final float thumbWidth = thumbWidthI > 0 ? thumbWidthI : 1;
-        final int thumbHeightI = mTmpRect.height();
-        final float thumbHeight = thumbHeightI > 0 ? thumbHeightI : 1;
-        final int thumbStartX = mTmpRect.left - containingFrame.left - contentInsets.left;
-        final int thumbStartY = mTmpRect.top - containingFrame.top;
-        final int thumbTransitState = getThumbnailTransitionState(enter, scaleUp);
-
-        switch (thumbTransitState) {
-            case THUMBNAIL_TRANSITION_ENTER_SCALE_UP:
-            case THUMBNAIL_TRANSITION_EXIT_SCALE_DOWN: {
-                if (freeform && scaleUp) {
-                    a = createAspectScaledThumbnailEnterFreeformAnimationLocked(
-                            containingFrame, surfaceInsets, startRect, defaultStartRect);
-                } else if (freeform) {
-                    a = createAspectScaledThumbnailExitFreeformAnimationLocked(
-                            containingFrame, surfaceInsets, startRect, defaultStartRect);
-                } else {
-                    AnimationSet set = new AnimationSet(true);
-
-                    // In portrait, we scale to fit the width
-                    mTmpFromClipRect.set(containingFrame);
-                    mTmpToClipRect.set(containingFrame);
-
-                    // Containing frame is in screen space, but we need the clip rect in the
-                    // app space.
-                    mTmpFromClipRect.offsetTo(0, 0);
-                    mTmpToClipRect.offsetTo(0, 0);
-
-                    // Exclude insets region from the source clip.
-                    mTmpFromClipRect.inset(contentInsets);
-
-                    if (shouldScaleDownThumbnailTransition(orientation)) {
-                        // We scale the width and clip to the top/left square
-                        float scale =
-                                thumbWidth / (appWidth - contentInsets.left - contentInsets.right);
-                        int unscaledThumbHeight = (int) (thumbHeight / scale);
-                        mTmpFromClipRect.bottom = mTmpFromClipRect.top + unscaledThumbHeight;
-
-                        Animation scaleAnim = new ScaleAnimation(
-                                scaleUp ? scale : 1, scaleUp ? 1 : scale,
-                                scaleUp ? scale : 1, scaleUp ? 1 : scale,
-                                containingFrame.width() / 2f,
-                                containingFrame.height() / 2f + contentInsets.top);
-                        final float targetX = (mTmpRect.left - containingFrame.left);
-                        final float x = containingFrame.width() / 2f
-                                - containingFrame.width() / 2f * scale;
-                        final float targetY = (mTmpRect.top - containingFrame.top);
-                        float y = containingFrame.height() / 2f
-                                - containingFrame.height() / 2f * scale;
-
-                        // During transition may require clipping offset from any top stable insets
-                        // such as the statusbar height when statusbar is hidden
-                        if (mLowRamRecentsEnabled && contentInsets.top == 0 && scaleUp) {
-                            mTmpFromClipRect.top += stableInsets.top;
-                            y += stableInsets.top;
-                        }
-                        final float startX = targetX - x;
-                        final float startY = targetY - y;
-                        Animation clipAnim = scaleUp
-                                ? new ClipRectAnimation(mTmpFromClipRect, mTmpToClipRect)
-                                : new ClipRectAnimation(mTmpToClipRect, mTmpFromClipRect);
-                        Animation translateAnim = scaleUp
-                                ? createCurvedMotion(startX, 0, startY - contentInsets.top, 0)
-                                : createCurvedMotion(0, startX, 0, startY - contentInsets.top);
-
-                        set.addAnimation(clipAnim);
-                        set.addAnimation(scaleAnim);
-                        set.addAnimation(translateAnim);
-
-                    } else {
-                        // In landscape, we don't scale at all and only crop
-                        mTmpFromClipRect.bottom = mTmpFromClipRect.top + thumbHeightI;
-                        mTmpFromClipRect.right = mTmpFromClipRect.left + thumbWidthI;
-
-                        Animation clipAnim = scaleUp
-                                ? new ClipRectAnimation(mTmpFromClipRect, mTmpToClipRect)
-                                : new ClipRectAnimation(mTmpToClipRect, mTmpFromClipRect);
-                        Animation translateAnim = scaleUp
-                                ? createCurvedMotion(thumbStartX, 0,
-                                thumbStartY - contentInsets.top, 0)
-                                : createCurvedMotion(0, thumbStartX, 0,
-                                        thumbStartY - contentInsets.top);
-
-                        set.addAnimation(clipAnim);
-                        set.addAnimation(translateAnim);
-                    }
-                    a = set;
-                    a.setZAdjustment(Animation.ZORDER_TOP);
-                }
-                break;
-            }
-            case THUMBNAIL_TRANSITION_EXIT_SCALE_UP: {
-                // Previous app window during the scale up
-                if (transit == TRANSIT_OLD_WALLPAPER_INTRA_OPEN) {
-                    // Fade out the source activity if we are animating to a wallpaper
-                    // activity.
-                    a = new AlphaAnimation(1, 0);
-                } else {
-                    a = new AlphaAnimation(1, 1);
-                }
-                break;
-            }
-            case THUMBNAIL_TRANSITION_ENTER_SCALE_DOWN: {
-                // Target app window during the scale down
-                if (transit == TRANSIT_OLD_WALLPAPER_INTRA_OPEN) {
-                    // Fade in the destination activity if we are animating from a wallpaper
-                    // activity.
-                    a = new AlphaAnimation(0, 1);
-                } else {
-                    a = new AlphaAnimation(1, 1);
-                }
-                break;
-            }
-            default:
-                throw new RuntimeException("Invalid thumbnail transition state");
+        // Pick the desired duration. If this is an inter-activity transition, it is the standard
+        // duration for that. Otherwise, use the longer task transition duration.
+        final int duration;
+        if (transit == TRANSIT_OPEN || transit == TRANSIT_CLOSE) {
+            duration = mConfigShortAnimTime;
+        } else {
+            duration = DEFAULT_APP_TRANSITION_DURATION;
         }
-
-        return prepareThumbnailAnimationWithDuration(a, appWidth, appHeight,
-                THUMBNAIL_APP_TRANSITION_DURATION, mTouchResponseInterpolator);
+        return prepareThumbnailAnimationWithDuration(a, appWidth, appHeight, duration,
+                mDecelerateInterpolator);
     }
 
     /**
@@ -1026,45 +815,6 @@ public class TransitionAnimation {
         return Bitmap.createBitmap(picture).getHardwareBuffer();
     }
 
-    /**
-     * Prepares the specified animation with a standard duration, interpolator, etc.
-     */
-    private Animation prepareThumbnailAnimation(Animation a, int appWidth, int appHeight,
-            @TransitionOldType int transit) {
-        // Pick the desired duration.  If this is an inter-activity transition,
-        // it  is the standard duration for that.  Otherwise we use the longer
-        // task transition duration.
-        final int duration;
-        switch (transit) {
-            case TRANSIT_OLD_ACTIVITY_OPEN:
-            case TRANSIT_OLD_ACTIVITY_CLOSE:
-                duration = mConfigShortAnimTime;
-                break;
-            default:
-                duration = DEFAULT_APP_TRANSITION_DURATION;
-                break;
-        }
-        return prepareThumbnailAnimationWithDuration(a, appWidth, appHeight, duration,
-                mDecelerateInterpolator);
-    }
-
-
-    private Animation createAspectScaledThumbnailEnterFreeformAnimationLocked(Rect frame,
-            @Nullable Rect surfaceInsets, @Nullable Rect startRect,
-            @Nullable Rect defaultStartRect) {
-        getNextAppTransitionStartRect(startRect, defaultStartRect, mTmpRect);
-        return createAspectScaledThumbnailFreeformAnimationLocked(mTmpRect, frame, surfaceInsets,
-                true);
-    }
-
-    private Animation createAspectScaledThumbnailExitFreeformAnimationLocked(Rect frame,
-            @Nullable Rect surfaceInsets, @Nullable Rect startRect,
-            @Nullable Rect defaultStartRect) {
-        getNextAppTransitionStartRect(startRect, defaultStartRect, mTmpRect);
-        return createAspectScaledThumbnailFreeformAnimationLocked(frame, mTmpRect, surfaceInsets,
-                false);
-    }
-
     private void getNextAppTransitionStartRect(Rect startRect, Rect defaultStartRect, Rect rect) {
         if (startRect == null && defaultStartRect == null) {
             Slog.e(mTag, "Starting rect for container not available", new Throwable());
@@ -1074,56 +824,11 @@ public class TransitionAnimation {
         }
     }
 
-    private AnimationSet createAspectScaledThumbnailFreeformAnimationLocked(Rect sourceFrame,
-            Rect destFrame, @Nullable Rect surfaceInsets, boolean enter) {
-        final float sourceWidth = sourceFrame.width();
-        final float sourceHeight = sourceFrame.height();
-        final float destWidth = destFrame.width();
-        final float destHeight = destFrame.height();
-        final float scaleH = enter ? sourceWidth / destWidth : destWidth / sourceWidth;
-        final float scaleV = enter ? sourceHeight / destHeight : destHeight / sourceHeight;
-        AnimationSet set = new AnimationSet(true);
-        final int surfaceInsetsH = surfaceInsets == null
-                ? 0 : surfaceInsets.left + surfaceInsets.right;
-        final int surfaceInsetsV = surfaceInsets == null
-                ? 0 : surfaceInsets.top + surfaceInsets.bottom;
-        // We want the scaling to happen from the center of the surface. In order to achieve that,
-        // we need to account for surface insets that will be used to enlarge the surface.
-        final float scaleHCenter = ((enter ? destWidth : sourceWidth) + surfaceInsetsH) / 2;
-        final float scaleVCenter = ((enter ? destHeight : sourceHeight) + surfaceInsetsV) / 2;
-        final ScaleAnimation scale = enter
-                ? new ScaleAnimation(scaleH, 1, scaleV, 1, scaleHCenter, scaleVCenter)
-                : new ScaleAnimation(1, scaleH, 1, scaleV, scaleHCenter, scaleVCenter);
-        final int sourceHCenter = sourceFrame.left + sourceFrame.width() / 2;
-        final int sourceVCenter = sourceFrame.top + sourceFrame.height() / 2;
-        final int destHCenter = destFrame.left + destFrame.width() / 2;
-        final int destVCenter = destFrame.top + destFrame.height() / 2;
-        final int fromX = enter ? sourceHCenter - destHCenter : destHCenter - sourceHCenter;
-        final int fromY = enter ? sourceVCenter - destVCenter : destVCenter - sourceVCenter;
-        final TranslateAnimation translation = enter ? new TranslateAnimation(fromX, 0, fromY, 0)
-                : new TranslateAnimation(0, fromX, 0, fromY);
-        set.addAnimation(scale);
-        set.addAnimation(translation);
-        return set;
-    }
-
     /**
      * @return whether the transition should show the thumbnail being scaled down.
      */
     private boolean shouldScaleDownThumbnailTransition(int orientation) {
         return orientation == Configuration.ORIENTATION_PORTRAIT;
-    }
-
-    private static int updateToTranslucentAnimIfNeeded(int anim, @TransitionOldType int transit) {
-        if (transit == TRANSIT_OLD_TRANSLUCENT_ACTIVITY_OPEN
-                && anim == R.anim.activity_open_enter) {
-            return R.anim.activity_translucent_open_enter;
-        }
-        if (transit == TRANSIT_OLD_TRANSLUCENT_ACTIVITY_CLOSE
-                && anim == R.anim.activity_close_exit) {
-            return R.anim.activity_translucent_close_exit;
-        }
-        return anim;
     }
 
     private static int updateToTranslucentAnimIfNeeded(int anim) {
@@ -1134,22 +839,6 @@ public class TransitionAnimation {
             return R.anim.activity_translucent_close_exit;
         }
         return anim;
-    }
-
-    private static @TransitionOldType int getTransitCompatType(@TransitionType int transit,
-            int wallpaperTransit) {
-        if (wallpaperTransit == WALLPAPER_TRANSITION_INTRA_OPEN) {
-            return TRANSIT_OLD_WALLPAPER_INTRA_OPEN;
-        } else if (wallpaperTransit == WALLPAPER_TRANSITION_INTRA_CLOSE) {
-            return TRANSIT_OLD_WALLPAPER_INTRA_CLOSE;
-        } else if (transit == TRANSIT_OPEN) {
-            return TRANSIT_OLD_ACTIVITY_OPEN;
-        } else if (transit == TRANSIT_CLOSE) {
-            return TRANSIT_OLD_ACTIVITY_CLOSE;
-        }
-
-        // We only do some special handle for above type, so use type NONE for default behavior.
-        return TRANSIT_OLD_NONE;
     }
 
     /**
@@ -1329,8 +1018,10 @@ public class TransitionAnimation {
     }
 
     /** Sets the default attributes of the screenshot layer used for animation. */
-    public static void configureScreenshotLayer(SurfaceControl.Transaction t, SurfaceControl layer,
-            ScreenCapture.ScreenshotHardwareBuffer buffer) {
+    public static void configureScreenshotLayer(
+            SurfaceControl.Transaction t,
+            SurfaceControl layer,
+            ScreenCaptureInternal.ScreenshotHardwareBuffer buffer) {
         t.setBuffer(layer, buffer.getHardwareBuffer());
         t.setDataSpace(layer, buffer.getColorSpace().getDataSpace());
         // Avoid showing dimming effect for HDR content when running animations.
@@ -1362,8 +1053,8 @@ public class TransitionAnimation {
 
     /** Returns the luminance in 0~1. */
     public static float getBorderLuma(SurfaceControl surfaceControl, int w, int h) {
-        final ScreenCapture.ScreenshotHardwareBuffer buffer =
-                ScreenCapture.captureLayers(surfaceControl, new Rect(0, 0, w, h), 1);
+        final ScreenCaptureInternal.ScreenshotHardwareBuffer buffer =
+                ScreenCaptureInternal.captureLayers(surfaceControl, new Rect(0, 0, w, h), 1);
         if (buffer == null) {
             return 0;
         }

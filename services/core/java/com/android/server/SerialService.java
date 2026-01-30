@@ -38,7 +38,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.function.Supplier;
 
-@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class SerialService extends ISerialManager.Stub {
     private static final String TAG = "SerialService";
 
@@ -119,9 +118,9 @@ public class SerialService extends ISerialManager.Stub {
                 @NonNull Supplier<ParcelFileDescriptor> supplier) {
             synchronized (mSerialPorts) {
                 Preconditions.checkState(!mSerialPorts.containsKey(name),
-                        "Port " + name + " already defined");
+                        "Port %s already defined", name);
                 Preconditions.checkArgument(name.startsWith(PREFIX_VIRTUAL),
-                        "Port " + name + " must be under " + PREFIX_VIRTUAL);
+                        "Port %s must be under %s", name, PREFIX_VIRTUAL);
                 mSerialPorts.put(name, supplier);
             }
         }
@@ -130,9 +129,9 @@ public class SerialService extends ISerialManager.Stub {
         public void removeVirtualSerialPortForTest(@NonNull String name) {
             synchronized (mSerialPorts) {
                 Preconditions.checkState(mSerialPorts.containsKey(name),
-                        "Port " + name + " not yet defined");
+                        "Port %s not yet defined", name);
                 Preconditions.checkArgument(name.startsWith(PREFIX_VIRTUAL),
-                        "Port " + name + " must be under " + PREFIX_VIRTUAL);
+                        "Port %s must be under %s", name, PREFIX_VIRTUAL);
                 mSerialPorts.remove(name);
             }
         }

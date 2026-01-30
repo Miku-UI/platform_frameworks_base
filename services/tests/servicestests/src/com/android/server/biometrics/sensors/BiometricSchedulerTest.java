@@ -802,6 +802,45 @@ public class BiometricSchedulerTest {
     }
 
     @Test
+    public void testBiometricQueueHung_watchdogTriggered_noUserSwitch() {
+        final int currentUserId = mCurrentUserId;
+        final int newUserId = 10;
+
+        final Supplier<Object> lazyDaemon1 = () -> mock(Object.class);
+        final TestHalClientMonitor client1 = new TestHalClientMonitor(mContext, mToken, lazyDaemon1,
+                0 /* cookie */, BiometricsProto.CM_UPDATE_ACTIVE_USER, currentUserId);
+        final ClientMonitorCallback callback1 = mock(ClientMonitorCallback.class);
+
+        final TestHalClientMonitor client2 = new TestHalClientMonitor(mContext, mToken, lazyDaemon1,
+                0 /* cookie */, BiometricsProto.CM_UPDATE_ACTIVE_USER, newUserId);
+        final ClientMonitorCallback callback2 = mock(ClientMonitorCallback.class);
+
+        mScheduler.scheduleClientMonitor(client1, callback1);
+        mScheduler.scheduleClientMonitor(client2, callback2);
+
+        waitForIdle();
+
+        assertThat(mScheduler.mPendingOperations.size()).isEqualTo(1);
+        assertThat(mScheduler.mCurrentOperation.getClientMonitor()).isEqualTo(client1);
+        verify(callback1).onClientStarted(client1);
+
+        mScheduler.startWatchdog();
+        waitForIdle();
+        mLooper.moveTimeForward(10000);
+        waitForIdle();
+        // After 10 seconds the HAL has 3 seconds to respond to a cancel
+        mLooper.moveTimeForward(3000);
+        waitForIdle();
+
+
+        assertThat(mScheduler.mPendingOperations.size()).isEqualTo(0);
+        assertThat(mScheduler.mCurrentOperation).isEqualTo(null);
+        assertThat(mCurrentUserId).isEqualTo(currentUserId);
+        verify(callback1).onClientFinished(client1, true);
+        verify(callback2).onClientFinished(client2, true);
+    }
+
+    @Test
     public void testTwoInternalCleanupOps_withFirstFavorHalEnrollment() throws Exception {
         final String owner = "test.owner";
         final int userId = 1;
@@ -1182,7 +1221,12 @@ public class BiometricSchedulerTest {
 
         TestHalClientMonitor(@NonNull Context context, @NonNull IBinder token,
                 @NonNull Supplier<Object> lazyDaemon, int cookie, int protoEnum) {
-            super(context, lazyDaemon, token /* token */, null /* listener */, 0 /* userId */, TAG,
+            this(context, token, lazyDaemon, cookie, protoEnum, 0 /* userId */);
+        }
+
+        TestHalClientMonitor(@NonNull Context context, @NonNull IBinder token,
+                @NonNull Supplier<Object> lazyDaemon, int cookie, int protoEnum, int userId) {
+            super(context, lazyDaemon, token /* token */, null /* listener */, userId, TAG,
                     cookie, TEST_SENSOR_ID, mock(BiometricLogger.class),
                     mock(BiometricContext.class), false /* isMandatoryBiometrics */);
             mProtoEnum = protoEnum;

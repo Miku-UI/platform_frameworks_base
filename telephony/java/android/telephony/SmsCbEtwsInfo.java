@@ -36,7 +36,7 @@ import java.util.Arrays;
  * Contains information elements for a GSM or UMTS ETWS (Earthquake and Tsunami Warning
  * System) warning notification. Supported values for each element are defined in 3GPP TS 23.041.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class SmsCbEtwsInfo implements Parcelable {

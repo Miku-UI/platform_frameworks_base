@@ -27,7 +27,7 @@ import com.android.ims.internal.IImsVideoCallProvider;
 /**
  * An IMS session that is associated with a SIP dialog which is established from/to
  * INVITE request or a mid-call transaction to control the session.
- * {@hide}
+ * @hide
  */
 interface IImsCallSession {
     /**

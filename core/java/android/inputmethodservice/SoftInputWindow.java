@@ -16,7 +16,7 @@
 
 package android.inputmethodservice;
 
-import static android.inputmethodservice.SoftInputWindowProto.WINDOW_STATE;
+import static android.internal.perfetto.protos.Softinputwindow.SoftInputWindowProto.WINDOW_STATE;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
@@ -27,7 +27,6 @@ import android.os.IBinder;
 import android.util.Log;
 import android.util.proto.ProtoOutputStream;
 import android.view.KeyEvent;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 

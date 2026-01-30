@@ -267,7 +267,7 @@ constructor(
     }
 
     override fun getStatusBarContentInsetsForRotation(@Rotation rotation: Int): Insets =
-        traceSection(tag = "StatusBarContentInsetsProvider.getStatusBarContentInsetsForRotation") {
+        traceSection("StatusBarContentInsetsProvider.getStatusBarContentInsetsForRotation") {
             val sysUICutout = sysUICutoutProvider.cutoutInfoForCurrentDisplayAndRotation()
             val displayCutout = sysUICutout?.cutout
             val key = getCacheKey(rotation, displayCutout)
@@ -332,7 +332,19 @@ constructor(
         val currentRotation = getExactRotation(context)
 
         val roundedCornerPadding =
-            rotatedResources.getDimensionPixelSize(R.dimen.rounded_corner_content_padding)
+            if (context.displayId == DEFAULT_DISPLAY || !StatusBarConnectedDisplays.isEnabled) {
+                rotatedResources.getDimensionPixelSize(R.dimen.rounded_corner_content_padding)
+            } else {
+                // Currently the padding is hardcoded for each device default display, and there is
+                // no mapping between the rounded corner radius (that you could get from
+                // Display#getRoundedCorner) and a padding value. The proper way of doing this is
+                // using safe insets, that take this into account already.
+                // For now, as external displays with corner radius are extremely uncommon, we're
+                // just returning an hardcoded small padding.
+                rotatedResources.getDimensionPixelSize(
+                    R.dimen.status_bar_padding_without_rounded_corners
+                )
+            }
         val minDotPadding =
             if (isPrivacyDotEnabled)
                 rotatedResources.getDimensionPixelSize(R.dimen.ongoing_appops_dot_min_padding)
@@ -573,7 +585,7 @@ private fun getStatusBarContentBounds(
     bottomAlignedMargin: Int,
     statusBarContentHeight: Int,
 ): Rect {
-    val insetTop = getInsetTop(bottomAlignedMargin, statusBarContentHeight, sbHeight)
+    val insetTop = getInsetTop(bottomAlignedMargin, statusBarContentHeight, sbHeight, sysUICutout)
 
     val logicalDisplayWidth = if (targetRotation.isHorizontal()) height else width
 
@@ -666,8 +678,11 @@ private fun getInsetTop(
     bottomAlignedMargin: Int,
     statusBarContentHeight: Int,
     statusBarHeight: Int,
+    sysUICutout: SysUICutoutInformation?,
 ): Int {
-    val bottomAlignmentEnabled = bottomAlignedMargin >= 0
+    // This bottom aligned margin is only intended for displays with a cutout, so that the
+    // content can be aligned with the cutout, when it isn't centered.
+    val bottomAlignmentEnabled = bottomAlignedMargin >= 0 && sysUICutout != null
     if (!bottomAlignmentEnabled) {
         return 0
     }

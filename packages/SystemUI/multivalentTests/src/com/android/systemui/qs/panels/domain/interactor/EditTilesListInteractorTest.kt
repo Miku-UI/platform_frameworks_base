@@ -129,6 +129,7 @@ class EditTilesListInteractorTest : SysuiTestCase() {
                         label = Text.Loaded(tileName),
                         appName = Text.Loaded(appName),
                         category = TileCategory.PROVIDED_BY_APP,
+                        appIcon = null,
                     )
 
                 assertThat(editTiles.customTiles).hasSize(1)
@@ -180,6 +181,7 @@ class EditTilesListInteractorTest : SysuiTestCase() {
                 label = Text.Loaded(spec),
                 appName = null,
                 category = TileCategory.UNKNOWN,
+                appIcon = null,
             )
         }
 
@@ -191,6 +193,7 @@ class EditTilesListInteractorTest : SysuiTestCase() {
                 label = Text.Resource(uiConfig.labelRes),
                 appName = null,
                 category = category,
+                appIcon = null,
             )
         }
     }

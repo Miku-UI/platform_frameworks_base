@@ -22,13 +22,13 @@ import android.view.inputmethod.ImeTracker;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
 import android.view.inputmethod.EditorInfo;
-import android.window.ImeOnBackInvokedDispatcher;
 
 import com.android.internal.inputmethod.IBooleanListener;
 import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
 import com.android.internal.inputmethod.IImeTracker;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputBindResult;
 import com.android.internal.inputmethod.InputMethodInfoSafeList;
@@ -74,13 +74,6 @@ interface IInputMethodManager {
             + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
     InputMethodSubtype getLastInputMethodSubtype(int userId);
 
-    boolean showSoftInput(in IInputMethodClient client, @nullable IBinder windowToken,
-            in ImeTracker.Token statsToken, int flags, int lastClickToolType,
-            in @nullable ResultReceiver resultReceiver, int reason, boolean async);
-    boolean hideSoftInput(in IInputMethodClient client, @nullable IBinder windowToken,
-            in ImeTracker.Token statsToken, int flags,
-            in @nullable ResultReceiver resultReceiver, int reason, boolean async);
-
     /**
      * A test API for CTS to request hiding the current soft input window, with the request origin
      * on the server side.
@@ -88,15 +81,14 @@ interface IInputMethodManager {
     @EnforcePermission("TEST_INPUT_METHOD")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.TEST_INPUT_METHOD)")
-    void hideSoftInputFromServerForTest();
+    oneway void hideSoftInputFromServerForTest();
 
-    // TODO(b/293640003): Remove method once Flags.useZeroJankProxy() is enabled.
+    // TODO(b/434184668): convert to oneway
     // If windowToken is null, this just does startInput().  Otherwise this reports that a window
     // has gained focus, and if 'editorInfo' is non-null then also does startInput.
-    // @NonNull
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
-    InputBindResult startInputOrWindowGainedFocus(
+    void startInputOrWindowGainedFocus(
             /* @StartInputReason */ int startInputReason,
             in IInputMethodClient client, in @nullable IBinder windowToken,
             /* @StartInputFlags */ int startInputFlags,
@@ -104,32 +96,18 @@ interface IInputMethodManager {
             /* @android.view.WindowManager.LayoutParams.Flags */ int windowFlags,
             in @nullable EditorInfo editorInfo, in @nullable IRemoteInputConnection inputConnection,
             in @nullable IRemoteAccessibilityInputConnection remoteAccessibilityInputConnection,
+            in @nullable IRemoteComputerControlInputConnection remoteComputerControlInputConnection,
             int unverifiedTargetSdkVersion, int userId,
-            in ImeOnBackInvokedDispatcher imeDispatcher, boolean imeRequestedVisible);
+            in ResultReceiver imeBackCallbackReceiver, boolean imeRequestedVisible,
+            int startInputSeq);
 
-    // If windowToken is null, this just does startInput().  Otherwise this reports that a window
-    // has gained focus, and if 'editorInfo' is non-null then also does startInput.
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
-            + "android.Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)")
-    void startInputOrWindowGainedFocusAsync(
-            /* @StartInputReason */ int startInputReason,
-            in IInputMethodClient client, in @nullable IBinder windowToken,
-            /* @StartInputFlags */ int startInputFlags,
-            /* @android.view.WindowManager.LayoutParams.SoftInputModeFlags */ int softInputMode,
-            /* @android.view.WindowManager.LayoutParams.Flags */ int windowFlags,
-            in @nullable EditorInfo editorInfo, in @nullable IRemoteInputConnection inputConnection,
-            in @nullable IRemoteAccessibilityInputConnection remoteAccessibilityInputConnection,
-            int unverifiedTargetSdkVersion, int userId,
-            in ImeOnBackInvokedDispatcher imeDispatcher, boolean imeRequestedVisible,
-            int startInputSeq, boolean useAsyncShowHideMethod);
-
-    void showInputMethodPickerFromClient(in IInputMethodClient client,
+    oneway void showInputMethodPickerFromClient(in IInputMethodClient client,
             int auxiliarySubtypeMode);
 
     @EnforcePermission(allOf = {"WRITE_SECURE_SETTINGS", "INTERACT_ACROSS_USERS_FULL"})
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
     + "permission.WRITE_SECURE_SETTINGS, android.Manifest.permission.INTERACT_ACROSS_USERS_FULL})")
-    void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int displayId);
+    oneway void showInputMethodPickerFromSystem(int auxiliarySubtypeMode, int displayId);
 
     @EnforcePermission("TEST_INPUT_METHOD")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
@@ -176,18 +154,22 @@ interface IInputMethodManager {
     // TODO(Bug 113914148): Consider removing this.
     int getInputMethodWindowVisibleHeight(in IInputMethodClient client);
 
-    oneway void reportPerceptibleAsync(in IBinder windowToken, boolean perceptible);
+    /**
+     * Reports whether the IME is currently perceptible or not.
+     *
+     * @param windowToken the IME client window.
+     * @param perceptible whether the source is perceptible or not.
+     *
+     * @see InsetsAnimationControlCallbacks#reportPerceptible
+     */
+    oneway void reportPerceptible(in IBinder windowToken, boolean perceptible);
 
-    @EnforcePermission(allOf = {"INTERNAL_SYSTEM_WINDOW", "INTERACT_ACROSS_USERS_FULL"})
-    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(allOf = {android.Manifest."
-    + "permission.INTERNAL_SYSTEM_WINDOW, android.Manifest.permission.INTERACT_ACROSS_USERS_FULL})")
-    void removeImeSurface(int displayId);
-
-    /** Remove the IME surface. Requires passing the currently focused window. */
-    oneway void removeImeSurfaceFromWindowAsync(in IBinder windowToken);
-
-    @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
-    void startProtoDump(in byte[] protoDump, int source, String where);
+    /**
+     * Remove the IME surface if the given window is the currently focused IME Client window.
+     *
+     * @param windowToken the IME client window.
+     */
+    oneway void removeImeSurfaceFromWindow(in IBinder windowToken);
 
     @JavaPassthrough(annotation="@android.annotation.RequiresNoPermission")
     boolean isImeTraceEnabled();
@@ -243,9 +225,13 @@ interface IInputMethodManager {
             + "android.Manifest.permission.TEST_INPUT_METHOD)")
     void setStylusWindowIdleTimeoutForTest(in IInputMethodClient client, long timeout);
 
-    /**
-     * Returns the singleton instance for the Ime Tracker Service.
-     * {@hide}
-     */
+    /** Returns the singleton instance for the Ime Tracker Service. */
     IImeTracker getImeTrackerService();
+
+    /** Test method to set DevicePolicy allowed IMEs. */
+    @EnforcePermission("TEST_INPUT_METHOD")
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+            + "android.Manifest.permission.TEST_INPUT_METHOD)")
+    void setAllowedImesByPolicyForTest(
+            in IInputMethodClient client, in List<String> allowedPackages);
 }

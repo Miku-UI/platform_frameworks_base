@@ -75,9 +75,24 @@ oneway interface IKeyguardService {
     void onFinishedWakingUp();
 
     /**
-     * Called when the device screen is turning on.
+    * Screen turning on reason: unknown
+    */
+    const int SCREEN_TURNING_ON_REASON_UNKNOWN = 0;
+
+    /**
+     * Screen turning on reason: the screen is turning on because of a display switch,
+     * e.g. turning on the opposite screen when unfolding a foldable device
      */
-    void onScreenTurningOn(IKeyguardDrawnCallback callback);
+    const int SCREEN_TURNING_ON_REASON_DISPLAY_SWITCH = 1;
+
+    /**
+     * Called when the device screen is turning on.
+     * @param reason the reason for the screen turning on, must be one of
+     *        IKeyguardService.SCREEN_TURNING_ON_REASON_*
+     * @param callback the callback that should executed when SystemUI has finished preparations
+     *        for turning on the screen
+     */
+    void onScreenTurningOn(int reason, IKeyguardDrawnCallback callback);
 
     /**
      * Called when the screen has actually turned on.

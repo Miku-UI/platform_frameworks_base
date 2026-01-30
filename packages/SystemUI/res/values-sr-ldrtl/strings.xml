@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"Превуците улево да бисте брзо променили апликације"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"Превуците од горњег десног угла да бисте отворили обавештења"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"Превуците од горњег левог угла да бисте отворили Брза подешавања"</string>
 </resources>

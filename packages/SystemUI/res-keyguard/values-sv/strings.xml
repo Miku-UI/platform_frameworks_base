@@ -21,7 +21,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="keyguard_enter_your_pin" msgid="5429932527814874032">"Ange pinkoden"</string>
-    <string name="keyguard_enter_pin" msgid="8114529922480276834">"Ange PIN-kod"</string>
+    <string name="keyguard_enter_pin" msgid="8114529922480276834">"Ange pinkod"</string>
     <string name="keyguard_enter_your_pattern" msgid="351503370332324745">"Ange mönstret"</string>
     <string name="keyguard_enter_pattern" msgid="7616595160901084119">"Rita mönster"</string>
     <string name="keyguard_enter_your_password" msgid="7225626204122735501">"Ange ditt lösenord"</string>
@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Lås upp med lösenord eller fingeravtryck"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Lås upp med mönster eller fingeravtryck"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"För ökad säkerhet låstes enheten av jobbprincipen"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Tvåstegsverifiering"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Använd fingeravtryckslås"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Använd ansiktslås"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Använd fingeravtryck eller ansiktslås"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Pinkod krävs efter låsning"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Lösenord krävs efter låsning"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Mönster krävs efter låsning"</string>

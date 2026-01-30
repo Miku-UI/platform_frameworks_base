@@ -19,6 +19,7 @@ package com.android.systemui.clipboardoverlay;
 import android.content.Context;
 import android.widget.Toast;
 
+import com.android.systemui.clipboardoverlay.dagger.ClipboardOverlayModule;
 import com.android.systemui.res.R;
 
 import javax.inject.Inject;
@@ -31,7 +32,7 @@ class ClipboardToast extends Toast.Callback {
     private Toast mCopiedToast;
 
     @Inject
-    ClipboardToast(Context context) {
+    ClipboardToast(@ClipboardOverlayModule.OverlayWindowContext Context context) {
         mContext = context;
     }
 

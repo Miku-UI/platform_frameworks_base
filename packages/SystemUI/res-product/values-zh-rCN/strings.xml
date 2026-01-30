@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"正在此平板电脑上播放"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"即使这部手机已关机，您也可以通过“查找我的设备”确定其位置"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"即使这部平板电脑已关机，您也可以通过“查找我的设备”确定其位置"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"即使这部手机已关机，您也可以通过“查找中心”定位它"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"即使这部平板电脑已关机，您也可以通过“查找中心”定位它"</string>
 </resources>

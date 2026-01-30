@@ -28,14 +28,8 @@ import android.widget.LinearLayout
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.KeyguardIndicationTextView
 
-class KeyguardIndicationArea(
-    context: Context,
-    private val attrs: AttributeSet?,
-) :
-    LinearLayout(
-        context,
-        attrs,
-    ) {
+class KeyguardIndicationArea(context: Context, private val attrs: AttributeSet?) :
+    LinearLayout(context, attrs) {
 
     init {
         setId(R.id.keyguard_indication_area)
@@ -44,9 +38,9 @@ class KeyguardIndicationArea(
         addView(indicationTopRow(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         addView(
             indicationBottomRow(),
-            LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
+            LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT).apply {
                 gravity = Gravity.CENTER_HORIZONTAL
-            }
+            },
         )
     }
 
@@ -59,6 +53,7 @@ class KeyguardIndicationArea(
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
         }
     }
+
     private fun indicationTopRow(): KeyguardIndicationTextView {
         return KeyguardIndicationTextView(context, attrs).apply {
             id = R.id.keyguard_indication_text

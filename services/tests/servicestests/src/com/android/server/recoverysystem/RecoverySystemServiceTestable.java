@@ -20,7 +20,7 @@ import android.content.Context;
 import android.hardware.boot.IBootControl;
 import android.os.PowerManager;
 
-import com.android.internal.widget.LockSettingsInternal;
+import com.android.server.locksettings.LockSettingsInternal;
 
 import java.io.FileWriter;
 

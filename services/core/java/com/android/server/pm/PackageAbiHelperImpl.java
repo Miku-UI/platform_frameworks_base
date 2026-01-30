@@ -29,8 +29,6 @@ import static com.android.server.pm.InstructionSets.getPrimaryInstructionSet;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.content.pm.ApplicationInfo;
-import android.content.pm.Flags;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Environment;
@@ -388,8 +386,8 @@ final class PackageAbiHelperImpl implements PackageAbiHelper {
                 // Force the match for these cases
                 // 1. pkg.getTargetSdkVersion >= Build.VERSION_CODES.VANILLA_ICE_CREAM
                 // 2. cpuAbiOverride is null. If it is non-null, it is set via shell for testing
-                final boolean forceMatch = Flags.forceMultiArchNativeLibsMatch()
-                        && pkg.getTargetSdkVersion() >= Build.VERSION_CODES.VANILLA_ICE_CREAM
+                final boolean forceMatch =
+                        pkg.getTargetSdkVersion() >= Build.VERSION_CODES.VANILLA_ICE_CREAM
                         && cpuAbiOverride == null;
 
                 String[] supported32BitAbis = forceMatch ? getNativelySupported32BitAbis()
@@ -628,7 +626,7 @@ final class PackageAbiHelperImpl implements PackageAbiHelper {
     }
 
     @Override
-    public int checkPackageAlignment(
+    public NativeLibraryHelper.AlignmentResult checkPackageAlignment(
             AndroidPackage pkg,
             String libraryRoot,
             boolean nativeLibraryRootRequiresIsa,
@@ -641,7 +639,7 @@ final class PackageAbiHelperImpl implements PackageAbiHelper {
         } catch (IOException e) {
             Slog.e(PackageManagerService.TAG, "Failed to check alignment of package : "
                     + pkg.getPackageName());
-            return ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
+            return null;
         }
     }
 }

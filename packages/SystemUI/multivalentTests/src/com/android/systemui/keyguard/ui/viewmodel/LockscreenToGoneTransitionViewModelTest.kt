@@ -21,6 +21,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
@@ -30,31 +31,54 @@ import com.android.systemui.statusbar.sysuiStatusBarStateController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class LockscreenToGoneTransitionViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
     private val repository = kosmos.fakeKeyguardTransitionRepository
     private val sysuiStatusBarStateController = kosmos.sysuiStatusBarStateController
-    private val underTest = kosmos.lockscreenToGoneTransitionViewModel
+    private lateinit var underTest: LockscreenToGoneTransitionViewModel
+
+    @Before
+    fun setup() {
+        underTest = kosmos.lockscreenToGoneTransitionViewModel
+    }
 
     @Test
     fun deviceEntryParentViewHides() =
         testScope.runTest {
-            val deviceEntryParentViewAlpha by collectValues(underTest.deviceEntryParentViewAlpha)
+            val deviceEntryParentViewAlpha by collectLastValue(underTest.deviceEntryParentViewAlpha)
+            val tolerance = 0.05f
+
             repository.sendTransitionStep(step(0f, TransitionState.STARTED))
+            assertThat(deviceEntryParentViewAlpha).isEqualTo(1f)
+
             repository.sendTransitionStep(step(0.1f))
+            assertThat(deviceEntryParentViewAlpha).isWithin(tolerance).of(0.9f)
+
             repository.sendTransitionStep(step(0.3f))
+            assertThat(deviceEntryParentViewAlpha).isWithin(tolerance).of(0.7f)
+
             repository.sendTransitionStep(step(0.4f))
+            assertThat(deviceEntryParentViewAlpha).isWithin(tolerance).of(0.6f)
+
             repository.sendTransitionStep(step(0.5f))
+            assertThat(deviceEntryParentViewAlpha).isWithin(tolerance).of(0.5f)
+
             repository.sendTransitionStep(step(0.6f))
+            assertThat(deviceEntryParentViewAlpha).isWithin(tolerance).of(0.4f)
+
             repository.sendTransitionStep(step(0.8f))
+            assertThat(deviceEntryParentViewAlpha).isWithin(tolerance).of(0.2f)
+
             repository.sendTransitionStep(step(1f))
-            deviceEntryParentViewAlpha.forEach { assertThat(it).isEqualTo(0f) }
+            assertThat(deviceEntryParentViewAlpha).isEqualTo(0f)
         }
 
     @Test
@@ -106,14 +130,14 @@ class LockscreenToGoneTransitionViewModelTest : SysuiTestCase() {
 
     private fun step(
         value: Float,
-        state: TransitionState = TransitionState.RUNNING
+        state: TransitionState = TransitionState.RUNNING,
     ): TransitionStep {
         return TransitionStep(
             from = KeyguardState.LOCKSCREEN,
             to = KeyguardState.GONE,
             value = value,
             transitionState = state,
-            ownerName = "LockscreenToGoneTransitionViewModelTest"
+            ownerName = "LockscreenToGoneTransitionViewModelTest",
         )
     }
 }

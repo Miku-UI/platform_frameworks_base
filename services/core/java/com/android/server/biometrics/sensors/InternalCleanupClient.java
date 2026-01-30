@@ -26,7 +26,6 @@ import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.biometrics.BiometricsProto;
-import com.android.server.biometrics.Flags;
 import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.log.BiometricLogger;
 
@@ -48,7 +47,7 @@ public abstract class InternalCleanupClient<S extends BiometricAuthenticator.Ide
         extends HalClientMonitor<T> implements EnumerateConsumer, RemovalConsumer,
         EnrollmentModifier {
 
-    private static final String TAG = "Biometrics/InternalCleanupClient";
+    private static final String TAG = "InternalCleanupClient";
 
     /**
      * Container for enumerated templates. Used to keep track when cleaning up unknown
@@ -108,8 +107,7 @@ public abstract class InternalCleanupClient<S extends BiometricAuthenticator.Ide
                 }
             }
 
-            if (mBiometricUtils.hasValidBiometricUserState(getContext(), getTargetUserId())
-                    && Flags.notifyFingerprintsLoe()) {
+            if (mBiometricUtils.hasValidBiometricUserState(getContext(), getTargetUserId())) {
                 handleInvalidBiometricState();
             }
         }
@@ -164,8 +162,7 @@ public abstract class InternalCleanupClient<S extends BiometricAuthenticator.Ide
 
         getLogger().logUnknownEnrollmentInHal();
 
-        if (mBiometricUtils.hasValidBiometricUserState(getContext(), getTargetUserId())
-                && Flags.notifyFingerprintsLoe()) {
+        if (mBiometricUtils.hasValidBiometricUserState(getContext(), getTargetUserId())) {
             getLogger().logFingerprintsLoe();
         }
 

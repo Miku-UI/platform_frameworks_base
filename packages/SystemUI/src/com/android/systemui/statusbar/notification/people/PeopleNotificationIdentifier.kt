@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.notification.people
 
 import android.annotation.IntDef
 import android.service.notification.NotificationListenerService.Ranking
-import android.service.notification.StatusBarNotification
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.statusbar.notification.collection.GroupEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
@@ -38,23 +37,21 @@ interface PeopleNotificationIdentifier {
      * Identifies if the given notification can be classified as a "People" notification.
      *
      * @return [TYPE_NON_PERSON] if not a people notification, [TYPE_PERSON] if it is a people
-     *  notification that doesn't use shortcuts, [TYPE_FULL_PERSON] if it is a person notification
-     *  that users shortcuts, and [TYPE_IMPORTANT_PERSON] if an "important" people notification
-     *  that users shortcuts.
+     *   notification that doesn't use shortcuts, [TYPE_FULL_PERSON] if it is a person notification
+     *   that users shortcuts, and [TYPE_IMPORTANT_PERSON] if an "important" people notification
+     *   that users shortcuts.
      */
-    @PeopleNotificationType
-    fun getPeopleNotificationType(entry: NotificationEntry): Int
+    @PeopleNotificationType fun getPeopleNotificationType(entry: NotificationEntry): Int
 
-    fun compareTo(
-        @PeopleNotificationType a: Int,
-        @PeopleNotificationType b: Int
-    ): Int
+    fun compareTo(@PeopleNotificationType a: Int, @PeopleNotificationType b: Int): Int
 
     companion object {
 
         @Retention(AnnotationRetention.SOURCE)
-        @IntDef(prefix = ["TYPE_"], value = [TYPE_NON_PERSON, TYPE_PERSON, TYPE_FULL_PERSON,
-            TYPE_IMPORTANT_PERSON])
+        @IntDef(
+            prefix = ["TYPE_"],
+            value = [TYPE_NON_PERSON, TYPE_PERSON, TYPE_FULL_PERSON, TYPE_IMPORTANT_PERSON],
+        )
         annotation class PeopleNotificationType
 
         const val TYPE_NON_PERSON = 0
@@ -65,60 +62,49 @@ interface PeopleNotificationIdentifier {
 }
 
 @SysUISingleton
-class PeopleNotificationIdentifierImpl @Inject constructor(
-    private val personExtractor: NotificationPersonExtractor,
-    private val groupManager: GroupMembershipManager
-) : PeopleNotificationIdentifier {
+class PeopleNotificationIdentifierImpl
+@Inject
+constructor(private val groupManager: GroupMembershipManager) : PeopleNotificationIdentifier {
 
     @PeopleNotificationType
     override fun getPeopleNotificationType(entry: NotificationEntry): Int =
-            when (val type = entry.ranking.personTypeInfo) {
-                TYPE_IMPORTANT_PERSON -> TYPE_IMPORTANT_PERSON
-                else -> {
-                    when (val type = upperBound(type, extractPersonTypeInfo(entry.sbn))) {
-                        TYPE_IMPORTANT_PERSON -> TYPE_IMPORTANT_PERSON
-                        else -> upperBound(type, getPeopleTypeOfSummary(entry))
-                    }
-                }
+        when (val type = entry.ranking.personTypeInfo) {
+            TYPE_IMPORTANT_PERSON -> TYPE_IMPORTANT_PERSON
+            else -> {
+                upperBound(type, getPeopleTypeOfSummary(entry))
             }
+        }
 
-    override fun compareTo(
-        @PeopleNotificationType a: Int,
-        @PeopleNotificationType b: Int
-    ): Int
-    {
+    override fun compareTo(@PeopleNotificationType a: Int, @PeopleNotificationType b: Int): Int {
         return b.compareTo(a)
     }
 
     /**
      * Given two [PeopleNotificationType]s, determine the upper bound. Used to constrain a
-     * notification to a type given multiple signals, i.e. notification groups, where each child
-     * has a [PeopleNotificationType] that is used to constrain the summary.
+     * notification to a type given multiple signals, i.e. notification groups, where each child has
+     * a [PeopleNotificationType] that is used to constrain the summary.
      */
     @PeopleNotificationType
     private fun upperBound(
         @PeopleNotificationType type: Int,
-        @PeopleNotificationType other: Int
-    ): Int =
-            max(type, other)
+        @PeopleNotificationType other: Int,
+    ): Int = max(type, other)
 
     private val Ranking.personTypeInfo
-        get() = when {
-            !isConversation -> TYPE_NON_PERSON
-            conversationShortcutInfo == null -> TYPE_PERSON
-            channel?.isImportantConversation == true -> TYPE_IMPORTANT_PERSON
-            else -> TYPE_FULL_PERSON
-        }
-
-    private fun extractPersonTypeInfo(sbn: StatusBarNotification) =
-            if (personExtractor.isPersonNotification(sbn)) TYPE_PERSON else TYPE_NON_PERSON
+        get() =
+            when {
+                !isConversation -> TYPE_NON_PERSON
+                conversationShortcutInfo == null -> TYPE_PERSON
+                channel?.isImportantConversation == true -> TYPE_IMPORTANT_PERSON
+                else -> TYPE_FULL_PERSON
+            }
 
     private fun getPeopleTypeOfSummary(entry: NotificationEntry): Int {
         if (NotificationBundleUi.isEnabled) {
-            if (!entry.sbn.notification.isGroupSummary) {
-                return TYPE_NON_PERSON;
+            val parent = entry.parent as? GroupEntry
+            if (!entry.sbn.notification.isGroupSummary || parent?.summary != entry) {
+                return TYPE_NON_PERSON
             }
-            val parent = entry.parent as? GroupEntry ?: return TYPE_NON_PERSON
             return getPeopleTypeForChildList(parent.children)
         } else {
             if (!groupManager.isGroupSummary(entry)) {
@@ -130,16 +116,13 @@ class PeopleNotificationIdentifierImpl @Inject constructor(
     }
 
     private fun getPeopleTypeForChildList(children: List<NotificationEntry>?): Int {
-        val childTypes = children
-            ?.asSequence()
-            ?.map { getPeopleNotificationType(it) }
-            ?: return TYPE_NON_PERSON
+        val childTypes =
+            children?.asSequence()?.map { getPeopleNotificationType(it) } ?: return TYPE_NON_PERSON
 
         var groupType = TYPE_NON_PERSON
         for (childType in childTypes) {
             groupType = upperBound(groupType, childType)
-            if (groupType == TYPE_IMPORTANT_PERSON)
-                break
+            if (groupType == TYPE_IMPORTANT_PERSON) break
         }
         return groupType
     }

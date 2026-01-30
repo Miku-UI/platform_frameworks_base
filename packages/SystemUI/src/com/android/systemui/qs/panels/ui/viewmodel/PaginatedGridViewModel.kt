@@ -16,12 +16,13 @@
 
 package com.android.systemui.qs.panels.ui.viewmodel
 
+import androidx.compose.runtime.getValue
 import com.android.systemui.classifier.Classifier.QS_SWIPE_SIDE
 import com.android.systemui.classifier.domain.interactor.FalsingInteractor
 import com.android.systemui.development.ui.viewmodel.BuildNumberViewModel
+import com.android.systemui.inputdevice.domain.interactor.PointerDeviceInteractor
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.Hydrator
-import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QS
 import com.android.systemui.qs.panels.ui.viewmodel.toolbar.EditModeButtonViewModel
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -33,20 +34,23 @@ class PaginatedGridViewModel
 @AssistedInject
 constructor(
     iconTilesViewModel: IconTilesViewModel,
-    columnsWithMediaViewModelFactory: QSColumnsViewModel.Factory,
     inFirstPageViewModel: InFirstPageViewModel,
     val buildNumberViewModelFactory: BuildNumberViewModel.Factory,
     val editModeButtonViewModelFactory: EditModeButtonViewModel.Factory,
     private val falsingInteractor: FalsingInteractor,
+    pointerDeviceInteractor: PointerDeviceInteractor,
 ) : IconTilesViewModel by iconTilesViewModel, ExclusiveActivatable() {
 
     private val hydrator = Hydrator("PaginatedGridViewModel")
-    private val columnsWithMediaViewModel = columnsWithMediaViewModelFactory.create(LOCATION_QS)
 
     var inFirstPage by inFirstPageViewModel::inFirstPage
 
-    val columns: Int
-        get() = columnsWithMediaViewModel.columns
+    val showArrowsInPagerDots by
+        hydrator.hydratedStateOf(
+            traceName = "showArrowsInPagerDots",
+            source = pointerDeviceInteractor.isAnyPointerDeviceConnected,
+            initialValue = false,
+        )
 
     fun registerSideSwipeGesture() {
         falsingInteractor.isFalseTouch(QS_SWIPE_SIDE)
@@ -55,7 +59,6 @@ constructor(
     override suspend fun onActivated(): Nothing {
         coroutineScope {
             launch { hydrator.activate() }
-            launch { columnsWithMediaViewModel.activate() }
             awaitCancellation()
         }
     }

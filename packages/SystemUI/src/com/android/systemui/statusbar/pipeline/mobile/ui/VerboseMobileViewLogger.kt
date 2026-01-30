@@ -35,9 +35,7 @@ import javax.inject.Inject
 @SysUISingleton
 class VerboseMobileViewLogger
 @Inject
-constructor(
-    @VerboseMobileViewLog private val buffer: LogBuffer,
-) {
+constructor(@VerboseMobileViewLog private val buffer: LogBuffer) {
     fun logBinderReceivedVisibility(parentView: View, subId: Int, visibility: Boolean) {
         buffer.log(
             TAG,
@@ -51,7 +49,26 @@ constructor(
         )
     }
 
-    fun logBinderReceivedSignalIcon(parentView: View, subId: Int, icon: SignalIconModel) {
+    fun logBinderSignalIconResult(parentView: View, subId: Int, unpackedLevel: Int) {
+        buffer.log(
+            TAG,
+            LogLevel.VERBOSE,
+            {
+                str1 = parentView.getIdForLogging()
+                int1 = subId
+                int2 = unpackedLevel
+            },
+            { "Binder[subId=$int1, viewId=$str1] SignalDrawable used $int2 for drawable level" },
+        )
+    }
+
+    fun logBinderReceivedSignalCellularIcon(
+        parentView: View,
+        subId: Int,
+        icon: SignalIconModel.Cellular,
+        packedSignalDrawableState: Int,
+        shouldRequestLayout: Boolean,
+    ) {
         buffer.log(
             TAG,
             LogLevel.VERBOSE,
@@ -59,11 +76,37 @@ constructor(
                 str1 = parentView.getIdForLogging()
                 int1 = subId
                 int2 = icon.level
-                bool1 = if (icon is SignalIconModel.Cellular) icon.showExclamationMark else false
+                long1 = icon.numberOfLevels.toLong()
+                // See SettingsLib/res/drawable/ic_mobile_level_list.xml for how the
+                // SignalDrawableState level is used for rendering.
+                long2 = packedSignalDrawableState.toLong()
+                bool1 = icon.showExclamationMark
+                bool2 = shouldRequestLayout
             },
             {
-                "Binder[subId=$int1, viewId=$str1] received new signal icon: " +
-                    "level=$int2 showExclamation=$bool1"
+                "Binder[subId=$int1, viewId=$str1] received new signal icon (cellular): " +
+                    "level=$int2 numLevels=$long1 showExclamation=$bool1 " +
+                    "packedDrawableLevel=$long2 shouldRequestLayout=$bool2"
+            },
+        )
+    }
+
+    fun logBinderReceivedSignalSatelliteIcon(
+        parentView: View,
+        subId: Int,
+        icon: SignalIconModel.Satellite,
+    ) {
+        buffer.log(
+            TAG,
+            LogLevel.VERBOSE,
+            {
+                str1 = parentView.getIdForLogging()
+                int1 = subId
+                int2 = icon.level
+            },
+            {
+                "Binder[subId=$int1, viewId=$str1] received new signal icon (satellite): " +
+                    "level=$int2"
             },
         )
     }
@@ -76,7 +119,7 @@ constructor(
                 str1 = parentView.getIdForLogging()
                 int1 = subId
                 bool1 = icon != null
-                int2 = icon?.res ?: -1
+                int2 = icon?.resId ?: -1
             },
             {
                 "Binder[subId=$int1, viewId=$str1] received new network type icon: " +

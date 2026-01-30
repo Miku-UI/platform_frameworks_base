@@ -1004,8 +1004,7 @@ public class ApplicationsState {
                 Log.i(TAG, "Rebuilding...");
             }
             for (AppEntry entry : apps) {
-                if (android.multiuser.Flags.enablePrivateSpaceFeatures()
-                        && android.multiuser.Flags.handleInterleavedSettingsForPrivateSpace()) {
+                if (android.multiuser.Flags.enablePrivateSpaceFeatures()) {
                     UserHandle userHandle = UserHandle.of(UserHandle.getUserId(entry.info.uid));
                     if (!profileHideInQuietModeStatus.containsKey(userHandle)) {
                         profileHideInQuietModeStatus.put(
@@ -1831,8 +1830,7 @@ public class ApplicationsState {
          * quiet mode is enabled, false otherwise.
          */
         private boolean shouldHideInQuietMode(@NonNull UserManager userManager, int uid) {
-            if (android.multiuser.Flags.enablePrivateSpaceFeatures()
-                    && android.multiuser.Flags.handleInterleavedSettingsForPrivateSpace()) {
+            if (android.multiuser.Flags.enablePrivateSpaceFeatures()) {
                 UserHandle userHandle = UserHandle.of(UserHandle.getUserId(uid));
                 return isHideInQuietEnabledForProfile(userManager, userHandle);
             }

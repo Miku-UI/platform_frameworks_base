@@ -119,7 +119,7 @@ private fun EducationAnimation(
         dynamicProperties = animationProperties,
         modifier =
             Modifier.fillMaxSize()
-                .clickable { isPlaying = !isPlaying }
+                .clickable(interactionSource = null, indication = null) { isPlaying = !isPlaying }
                 .semantics { contentDescription = animationDescription },
     )
 }

@@ -31,6 +31,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.hardware.biometrics.BiometricPrompt;
+import android.hardware.biometrics.PromptInfo;
 import android.os.RemoteException;
 import android.testing.TestableLooper;
 
@@ -44,6 +46,7 @@ import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.biometrics.AuthController;
+import com.android.systemui.biometrics.BiometricPromptLogger;
 import com.android.systemui.process.ProcessWrapper;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 
@@ -71,6 +74,8 @@ public class SessionTrackerTest extends SysuiTestCase {
     private UiEventLogger mUiEventLogger;
     @Mock
     private ProcessWrapper mProcessWrapper;
+    @Mock
+    private BiometricPromptLogger mBiometricPromptLogger;
 
     @Captor
     ArgumentCaptor<KeyguardUpdateMonitorCallback> mKeyguardUpdateMonitorCallbackCaptor;
@@ -97,7 +102,8 @@ public class SessionTrackerTest extends SysuiTestCase {
                 mKeyguardUpdateMonitor,
                 mKeyguardStateController,
                 mUiEventLogger,
-                mProcessWrapper
+                mProcessWrapper,
+                mBiometricPromptLogger
         );
     }
 
@@ -137,7 +143,8 @@ public class SessionTrackerTest extends SysuiTestCase {
         captureAuthControllerCallback();
 
         // WHEN auth controller shows the biometric prompt
-        mAuthControllerCallback.onBiometricPromptShown();
+        PromptInfo promptInfo = new PromptInfo();
+        mAuthControllerCallback.onBiometricPromptShown(promptInfo);
 
         // THEN the biometric prompt session has a session id
         assertNotNull(mSessionTracker.getSessionId(SESSION_BIOMETRIC_PROMPT));
@@ -145,6 +152,7 @@ public class SessionTrackerTest extends SysuiTestCase {
         // THEN session started event gets sent to status bar service
         verify(mStatusBarService).onSessionStarted(
                 eq(SESSION_BIOMETRIC_PROMPT), any(InstanceId.class));
+        verify(mBiometricPromptLogger).logPromptStart(any(InstanceId.class), eq(promptInfo));
     }
 
     @Test
@@ -154,13 +162,15 @@ public class SessionTrackerTest extends SysuiTestCase {
         captureAuthControllerCallback();
 
         // WHEN auth controller shows the biometric prompt and then hides it
-        mAuthControllerCallback.onBiometricPromptShown();
-        mAuthControllerCallback.onBiometricPromptDismissed();
+        int reason = BiometricPrompt.DISMISSED_REASON_USER_CANCEL;
+        mAuthControllerCallback.onBiometricPromptShown(new PromptInfo());
+        mAuthControllerCallback.onBiometricPromptDismissed(reason);
 
         // THEN the biometric prompt session no longer has a session id
         assertNull(mSessionTracker.getSessionId(SESSION_BIOMETRIC_PROMPT));
 
         // THEN session end event gets sent to status bar service
+        verify(mBiometricPromptLogger).logPromptEnd(any(InstanceId.class), eq(reason));
         verify(mStatusBarService).onSessionEnded(
                 eq(SESSION_BIOMETRIC_PROMPT), any(InstanceId.class));
     }

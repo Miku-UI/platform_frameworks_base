@@ -19,7 +19,11 @@ package com.android.systemui.statusbar.chips.uievents
 import com.android.internal.logging.UiEvent
 import com.android.internal.logging.UiEventLogger
 
-/** All UI Events related to the status bar chips. */
+/**
+ * Contains UI Events related to the status bar chips.
+ *
+ * These UI Events are logged as part of a larger custom atom - see [StatusBarChipsUiEventLogger].
+ */
 enum class StatusBarChipUiEvent(private val _id: Int) : UiEventLogger.UiEventEnum {
     // New chip events, with chip type embedded in the event
     @UiEvent(doc = "New status bar chip: Call") STATUS_BAR_NEW_CHIP_CALL(2211),
@@ -30,6 +34,9 @@ enum class StatusBarChipUiEvent(private val _id: Int) : UiEventLogger.UiEventEnu
     STATUS_BAR_NEW_CHIP_CAST_TO_OTHER_DEVICE(2214),
     @UiEvent(doc = "New status bar chip: Promoted notification")
     STATUS_BAR_NEW_CHIP_NOTIFICATION(2215),
+
+    // New status bar chip *without* the type embedded. used only for custom atom logging.
+    @UiEvent(doc = "New status bar chip") STATUS_BAR_CHIP_ADDED(2259),
 
     // Other chip events, which don't need the chip type embedded in the event because an instanceId
     // should also be provided with the new event and all subsequent events

@@ -46,7 +46,7 @@ public class BitmapData extends Operation implements SerializableToString, Seria
     int mImageHeight;
     short mType;
     short mEncoding;
-    @NonNull byte[] mBitmap;
+    @NonNull byte [] mBitmap;
 
     /** The max size of width or height */
     public static final int MAX_IMAGE_DIMENSION = 8000;
@@ -59,6 +59,9 @@ public class BitmapData extends Operation implements SerializableToString, Seria
 
     /** The data is encoded as a reference to file */
     public static final short ENCODING_FILE = 2;
+
+    /** allocates a new bitmap data with value = 0 */
+    public static final short ENCODING_EMPTY = 3;
 
     /** The data is encoded as PNG_8888 (default) */
     public static final short TYPE_PNG_8888 = 0;
@@ -83,7 +86,7 @@ public class BitmapData extends Operation implements SerializableToString, Seria
      * @param height the height of the image
      * @param bitmap the data
      */
-    public BitmapData(int imageId, int width, int height, @NonNull byte[] bitmap) {
+    public BitmapData(int imageId, int width, int height, @NonNull byte [] bitmap) {
         this.mImageId = imageId;
         this.mImageWidth = width;
         this.mImageHeight = height;
@@ -95,7 +98,7 @@ public class BitmapData extends Operation implements SerializableToString, Seria
      *
      * @param from the bitmap to copy
      */
-    public void update(BitmapData from) {
+    public void update(@NonNull BitmapData from) {
         this.mImageWidth = from.mImageWidth;
         this.mImageHeight = from.mImageHeight;
         this.mBitmap = from.mBitmap;
@@ -174,7 +177,7 @@ public class BitmapData extends Operation implements SerializableToString, Seria
             int imageId,
             int width,
             int height,
-            @NonNull byte[] bitmap) {
+            @NonNull byte [] bitmap) {
         buffer.start(OP_CODE);
         buffer.writeInt(imageId);
         buffer.writeInt(width);
@@ -200,7 +203,7 @@ public class BitmapData extends Operation implements SerializableToString, Seria
             short width,
             short encoding,
             short height,
-            @NonNull byte[] bitmap) {
+            @NonNull byte [] bitmap) {
         buffer.start(OP_CODE);
         buffer.writeInt(imageId);
         int w = (((int) type) << 16) | width;
@@ -285,7 +288,7 @@ public class BitmapData extends Operation implements SerializableToString, Seria
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("imageId", mImageId)

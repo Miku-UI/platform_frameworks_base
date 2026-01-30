@@ -373,9 +373,11 @@ public final class Zygote {
             boolean bindMountSyspropOverrides) {
         ZygoteHooks.preFork();
 
+        boolean useFifoUi = SystemProperties.getInt("sys.use_fifo_ui", 0) == 1;
         int pid = nativeForkAndSpecialize(
                 uid, gid, gids, runtimeFlags, rlimits, mountExternal, seInfo, niceName, fdsToClose,
                 fdsToIgnore, startChildZygote, instructionSet, appDataDir, isTopApp,
+                com.android.internal.os.Flags.zygoteEarlyFifoBoost() ? useFifoUi : false,
                 pkgDataInfoList, allowlistedDataInfoList, bindMountAppDataDirs,
                 bindMountAppStorageDirs, bindMountSyspropOverrides);
         if (pid == 0) {
@@ -398,7 +400,7 @@ public final class Zygote {
     private static native int nativeForkAndSpecialize(int uid, int gid, int[] gids,
             int runtimeFlags, int[][] rlimits, int mountExternal, String seInfo, String niceName,
             int[] fdsToClose, int[] fdsToIgnore, boolean startChildZygote, String instructionSet,
-            String appDataDir, boolean isTopApp, String[] pkgDataInfoList,
+            String appDataDir, boolean isTopApp, boolean useFifoUi, String[] pkgDataInfoList,
             String[] allowlistedDataInfoList, boolean bindMountAppDataDirs,
             boolean bindMountAppStorageDirs, boolean bindMountSyspropOverrides);
 
@@ -730,9 +732,11 @@ public final class Zygote {
                                              @NonNull FileDescriptor zygoteSocket,
                                              int expectedUid,
                                              int minUid,
-                                             @Nullable String firstNiceName) {
+                                             @Nullable String firstNiceName,
+                                             boolean isTopApp) {
         boolean in_child =
-                argBuffer.forkRepeatedly(zygoteSocket, expectedUid, minUid, firstNiceName);
+                argBuffer.forkRepeatedly(zygoteSocket, expectedUid, minUid, firstNiceName,
+                        isTopApp);
         if (in_child) {
             return childMain(argBuffer, /*usapPoolSocket=*/null, /*writePipe=*/null);
         } else {

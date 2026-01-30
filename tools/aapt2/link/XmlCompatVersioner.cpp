@@ -108,6 +108,7 @@ std::unique_ptr<xml::XmlResource> XmlCompatVersioner::ProcessDoc(
 
   std::unique_ptr<xml::XmlResource> cloned_doc = util::make_unique<xml::XmlResource>(doc->file);
   cloned_doc->file.config.sdkVersion = static_cast<uint16_t>(target_api);
+  cloned_doc->file.config.minorVersion = 0;
 
   cloned_doc->root = doc->root->CloneElement([&](const xml::Element& el, xml::Element* out_el) {
     for (const auto& attr : el.attributes) {
@@ -141,11 +142,11 @@ std::vector<std::unique_ptr<xml::XmlResource>> XmlCompatVersioner::Process(
 
   // Adjust the sdkVersion of the first XML document back to its original (this only really
   // makes a difference if the sdk version was below the minSdk to start).
-  versioned_docs.back()->file.config.sdkVersion = doc->file.config.sdkVersion;
+  versioned_docs.back()->file.config.version = doc->file.config.version;
 
   // Iterate from smallest to largest API version.
+  std::set<ApiVersion> tmp;
   for (ApiVersion api : apis_referenced) {
-    std::set<ApiVersion> tmp;
     versioned_docs.push_back(ProcessDoc(api, api_range.end, doc, &tmp));
   }
   return versioned_docs;

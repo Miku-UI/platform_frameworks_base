@@ -24,27 +24,22 @@ val jetpackComposeVersion: String? by extra
 
 android {
     namespace = "com.android.settingslib.spa.testutils"
+    defaultConfig { minSdk = 23 }
 
-    sourceSets {
-        sourceSets.getByName("main") {
-            kotlin.setSrcDirs(listOf("src"))
-            manifest.srcFile("AndroidManifest.xml")
-        }
+    sourceSets.getByName("main") {
+        kotlin.setSrcDirs(listOf("src"))
+        manifest.srcFile("AndroidManifest.xml")
     }
 }
 
 dependencies {
-    api(project(":spa"))
+    api(project(":Spa"))
 
     api("androidx.arch.core:core-testing:2.2.0")
     api("androidx.compose.ui:ui-test-junit4:$jetpackComposeVersion")
     api("androidx.lifecycle:lifecycle-runtime-testing")
-    api("org.mockito.kotlin:mockito-kotlin:2.2.11")
-    api("org.mockito:mockito-core") {
-        version {
-            strictly("2.28.2")
-        }
-    }
+    api(libs.mockito.kotlin)
+    api("org.mockito:mockito-core:4.3.0") // external/mockito
     api(libs.truth)
     debugApi("androidx.compose.ui:ui-test-manifest:$jetpackComposeVersion")
 }

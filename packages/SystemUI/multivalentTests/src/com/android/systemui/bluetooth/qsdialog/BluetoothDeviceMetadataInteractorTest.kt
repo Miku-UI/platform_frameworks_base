@@ -19,11 +19,14 @@ package com.android.systemui.bluetooth.qsdialog
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.graphics.drawable.Drawable
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import android.util.Pair
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.bluetooth.CachedBluetoothDevice
+import com.android.settingslib.flags.Flags.FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bluetooth.bluetoothAdapter
 import com.android.systemui.coroutines.collectLastValue
@@ -31,6 +34,7 @@ import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
@@ -67,6 +71,7 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
     @Mock private lateinit var drawable: Drawable
     @Captor
     private lateinit var argumentCaptor: ArgumentCaptor<BluetoothAdapter.OnMetadataChangedListener>
+    @Captor private lateinit var callbackCaptor: ArgumentCaptor<CachedBluetoothDevice.Callback>
     private lateinit var interactor: BluetoothDeviceMetadataInteractor
 
     @Before
@@ -93,6 +98,7 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
     fun deviceItemUpdateEmpty_doNothing() {
         with(kosmos) {
             testScope.runTest {
@@ -108,6 +114,7 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
     fun deviceItemUpdate_registerListener() {
         with(kosmos) {
             testScope.runTest {
@@ -125,6 +132,7 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
     fun deviceItemUpdate_sameDeviceItems_registerListenerOnce() {
         with(kosmos) {
             testScope.runTest {
@@ -143,6 +151,7 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
     fun deviceItemUpdate_differentDeviceItems_unregisterOldAndRegisterNew() {
         with(kosmos) {
             testScope.runTest {
@@ -165,6 +174,7 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
     fun metadataUpdate_triggerCallback_emit() {
         with(kosmos) {
             testScope.runTest {
@@ -193,6 +203,7 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
     fun metadataUpdate_triggerCallbackNonBatteryKey_doNothing() {
         with(kosmos) {
             testScope.runTest {
@@ -217,6 +228,105 @@ class BluetoothDeviceMetadataInteractorTest : SysuiTestCase() {
                 )
 
                 assertThat(update).isNull()
+            }
+        }
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @EnableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
+    fun deviceItemUpdateEmpty_doNotRegisterCallback() {
+        with(kosmos) {
+            testScope.runTest {
+                val update by collectLastValue(interactor.metadataUpdate)
+                deviceItemUpdate.emit(emptyList())
+                runCurrent()
+
+                assertThat(update).isNull()
+                verify(cachedDevice1, never()).registerCallback(any(), any())
+                verify(cachedDevice1, never()).unregisterCallback(any())
+                verify(cachedDevice2, never()).registerCallback(any(), any())
+                verify(cachedDevice2, never()).unregisterCallback(any())
+            }
+        }
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @EnableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
+    fun deviceItemUpdate_registerCallback() {
+        with(kosmos) {
+            testScope.runTest {
+                val deviceItem = AvailableMediaDeviceItemFactory().create(context, cachedDevice1)
+                val update by collectLastValue(interactor.metadataUpdate)
+                deviceItemUpdate.emit(listOf(deviceItem))
+                runCurrent()
+
+                assertThat(update).isNull()
+                verify(cachedDevice1).registerCallback(any(), any())
+                verify(cachedDevice1, never()).unregisterCallback(any())
+            }
+        }
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @EnableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
+    fun deviceItemUpdate_sameDeviceItems_registerCallbackOnce() {
+        with(kosmos) {
+            testScope.runTest {
+                val deviceItem = AvailableMediaDeviceItemFactory().create(context, cachedDevice1)
+                val update by collectLastValue(interactor.metadataUpdate)
+                deviceItemUpdate.emit(listOf(deviceItem))
+                deviceItemUpdate.emit(listOf(deviceItem))
+                runCurrent()
+
+                assertThat(update).isNull()
+                verify(cachedDevice1, times(1)).registerCallback(any(), any())
+                verify(cachedDevice1, never()).unregisterCallback(any())
+            }
+        }
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @EnableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
+    fun deviceItemUpdate_differentDeviceItems_unregisterOldAndRegisterNewCallback() {
+        with(kosmos) {
+            testScope.runTest {
+                val deviceItem1 = AvailableMediaDeviceItemFactory().create(context, cachedDevice1)
+                val deviceItem2 = AvailableMediaDeviceItemFactory().create(context, cachedDevice2)
+                val update by collectLastValue(interactor.metadataUpdate)
+                deviceItemUpdate.emit(listOf(deviceItem1))
+                deviceItemUpdate.emit(listOf(deviceItem1, deviceItem2))
+                runCurrent()
+
+                assertThat(update).isNull()
+                verify(cachedDevice1, times(2)).registerCallback(any(), any())
+                verify(cachedDevice2, times(1)).registerCallback(any(), any())
+                verify(cachedDevice1, times(1)).unregisterCallback(any())
+            }
+        }
+    }
+
+    @Test
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @EnableFlags(FLAG_REFACTOR_BATTERY_LEVEL_DISPLAY)
+    fun callbackTriggered_emit() {
+        with(kosmos) {
+            testScope.runTest {
+                val deviceItem = AvailableMediaDeviceItemFactory().create(context, cachedDevice1)
+                val update by collectLastValue(interactor.metadataUpdate)
+                deviceItemUpdate.emit(listOf(deviceItem))
+                runCurrent()
+
+                assertThat(update).isNull()
+                verify(cachedDevice1).registerCallback(any(), callbackCaptor.capture())
+
+                val callback = callbackCaptor.value
+                callback.onDeviceAttributesChanged()
+
+                assertThat(update).isEqualTo(Unit)
             }
         }
     }

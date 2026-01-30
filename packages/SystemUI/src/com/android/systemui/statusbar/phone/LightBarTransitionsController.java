@@ -30,6 +30,7 @@ import com.android.app.animation.Interpolators;
 import com.android.internal.policy.GestureNavigationSettingsObserver;
 import com.android.systemui.Dumpable;
 import com.android.systemui.dagger.qualifiers.Background;
+import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.shared.system.QuickStepContract;
 import com.android.systemui.statusbar.CommandQueue;
@@ -94,7 +95,7 @@ public class LightBarTransitionsController implements Dumpable {
 
     private final Callback mCallback;
 
-    private final Handler mHandler;
+    private final Handler mMainHandler;
     private final DarkIntensityApplier mApplier;
     private final KeyguardStateController mKeyguardStateController;
     private final StatusBarStateController mStatusBarStateController;
@@ -125,13 +126,14 @@ public class LightBarTransitionsController implements Dumpable {
     @AssistedInject
     public LightBarTransitionsController(
             Context context,
+            @Main Handler mainHandler,
             @Background Handler bgHandler,
             @Assisted DarkIntensityApplier applier,
             CommandQueue commandQueue,
             KeyguardStateController keyguardStateController,
             StatusBarStateController statusBarStateController) {
         mApplier = applier;
-        mHandler = new Handler();
+        mMainHandler = mainHandler;
         mKeyguardStateController = keyguardStateController;
         mStatusBarStateController = statusBarStateController;
         mCommandQueue = commandQueue;
@@ -142,7 +144,7 @@ public class LightBarTransitionsController implements Dumpable {
         mContext = context;
         mDisplayId = mContext.getDisplayId();
         mGestureNavigationSettingsObserver = new GestureNavigationSettingsObserver(
-                mHandler, bgHandler, mContext, this::onNavigationSettingsChanged);
+                mMainHandler, bgHandler, mContext, this::onNavigationSettingsChanged);
         mGestureNavigationSettingsObserver.register();
         onNavigationSettingsChanged();
     }
@@ -201,8 +203,8 @@ public class LightBarTransitionsController implements Dumpable {
             mTransitionDeferring = true;
             mTransitionDeferringStartTime = startTime;
             mTransitionDeferringDuration = duration;
-            mHandler.removeCallbacks(mTransitionDeferringDoneRunnable);
-            mHandler.postAtTime(mTransitionDeferringDoneRunnable, startTime);
+            mMainHandler.removeCallbacks(mTransitionDeferringDoneRunnable);
+            mMainHandler.postAtTime(mTransitionDeferringDoneRunnable, startTime);
         }
         mTransitionPending = false;
     }

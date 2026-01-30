@@ -812,7 +812,9 @@ final class SharedPreferencesImpl implements SharedPreferences {
 
             writeTime = System.currentTimeMillis();
 
-            FileUtils.sync(str);
+            if (!Flags.sharedpreferencesSkipFsync()) {
+                FileUtils.sync(str);
+            }
 
             fsyncTime = System.currentTimeMillis();
 

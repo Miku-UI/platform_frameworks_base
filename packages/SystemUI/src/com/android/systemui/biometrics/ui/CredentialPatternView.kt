@@ -44,9 +44,15 @@ class CredentialPatternView(context: Context, attrs: AttributeSet?) :
 
     override fun onApplyWindowInsets(v: View, insets: WindowInsets): WindowInsets {
         val statusBarInsets: Insets = insets.getInsets(Type.statusBars())
+        val displayCutoutInsets: Insets = insets.getInsets(Type.displayCutout())
         val navigationInsets: Insets = insets.getInsets(Type.navigationBars())
 
-        setPadding(0, statusBarInsets.top, 0, navigationInsets.bottom)
+        setPadding(
+            displayCutoutInsets.left,
+            statusBarInsets.top.coerceAtLeast(displayCutoutInsets.top),
+            displayCutoutInsets.right,
+            navigationInsets.bottom,
+        )
         return WindowInsets.CONSUMED
     }
 }

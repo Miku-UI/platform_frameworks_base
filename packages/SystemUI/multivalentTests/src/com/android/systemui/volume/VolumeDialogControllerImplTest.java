@@ -100,7 +100,7 @@ public class VolumeDialogControllerImplTest extends SysuiTestCase {
     private final FakeThreadFactory mThreadFactory = new FakeThreadFactory(
             new FakeExecutor(new FakeSystemClock()));
     private final TestScope mTestScope = TestScopeProvider.getTestScope();
-    private final JavaAdapter mJavaAdapter = new JavaAdapter(mTestScope);
+    private final JavaAdapter mJavaAdapter = new JavaAdapter(mTestScope, mTestScope);
     private FakeAudioSharingInteractor mFakeAudioSharingInteractor;
     @Mock
     private AudioManager mAudioManager;
@@ -318,7 +318,7 @@ public class VolumeDialogControllerImplTest extends SysuiTestCase {
     @Test
     public void testSetStreamVolume_setSecondaryDeviceVolume() {
         mVolumeController.setStreamVolume(
-                VolumeDialogControllerImpl.DYNAMIC_STREAM_BROADCAST, /* level= */ 100);
+                VolumeDialogControllerImpl.DYNAMIC_STREAM_BROADCAST, /* level= */ 100, false);
         Objects.requireNonNull(TestableLooper.get(this)).processAllMessages();
         mTestScope.getTestScheduler().advanceUntilIdle();
 

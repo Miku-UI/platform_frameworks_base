@@ -16,11 +16,12 @@
 
 #pragma once
 
-#include "pipeline/skia/SkiaDisplayList.h"
-#include "canvas/CanvasOpBuffer.h"
-
 #include <memory>
 #include <variant>
+
+#include "ColorArea.h"
+#include "canvas/CanvasOpBuffer.h"
+#include "pipeline/skia/SkiaDisplayList.h"
 
 namespace android {
 namespace uirenderer {
@@ -150,6 +151,13 @@ public:
     void applyColorTransform(ColorTransform transform) {
         if (mImpl) {
             mImpl->applyColorTransform(transform);
+        }
+    }
+
+    /** Adds all relevant draw calls with fills to the given ColorArea */
+    void findFillAreas(ColorArea& accumulator) {
+        if (mImpl) {
+            mImpl->findFillAreas(accumulator);
         }
     }
 

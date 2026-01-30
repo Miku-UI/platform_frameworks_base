@@ -2,4 +2,7 @@
 # Assign bugs to aep-automated-tests@google.com
 
 file:EnterprisePlatform_OWNERS
-scottjonathan@google.com
+scottjonathan@google.com #{LAST_RESORT_SUGGESTION}
+alexanderhartl@google.com #{LAST_RESORT_SUGGESTION}
+artyomchen@google.com #{LAST_RESORT_SUGGESTION}
+vsavu@google.com #{LAST_RESORT_SUGGESTION}

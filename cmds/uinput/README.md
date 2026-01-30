@@ -41,10 +41,7 @@ the file, one after the other without separators:
 }
 ```
 
-Many examples of command files can be found [in the CTS tests][cts-example-jsons].
-
 [lenient mode]: https://developer.android.com/reference/android/util/JsonReader#setLenient(boolean)
-[cts-example-jsons]: https://cs.android.com/android/platform/superproject/main/+/main:cts/tests/tests/hardware/res/raw/
 
 ### Command reference
 
@@ -123,7 +120,7 @@ Example:
   "pid": 0x2c42,
   "bus": "usb",
   "configuration":[
-        {"type":"UI_SET_EVBIT", "data":["EV_KEY", "EV_FF"]},
+        {"type":"UI_SET_EVBIT", "data":["EV_KEY", "EV_ABS", "EV_FF"]},
         {"type":"UI_SET_KEYBIT", "data":["KEY_0", "KEY_1", "KEY_2", "KEY_3"]},
         {"type":"UI_SET_ABSBIT", "data":["ABS_Y", "ABS_WHEEL"]},
         {"type":"UI_SET_FFBIT", "data":["FF_RUMBLE"]}

@@ -15,6 +15,7 @@
  */
 package com.android.internal.widget.remotecompose.core.semantics;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 
 /**
@@ -97,7 +98,7 @@ public interface AccessibleComponent extends AccessibilitySemantics {
      *
      * @return The mode of the operation, which defaults to {@link CoreSemantics.Mode#SET}.
      */
-    default CoreSemantics.Mode getMode() {
+    default @NonNull CoreSemantics.Mode getMode() {
         return CoreSemantics.Mode.SET;
     }
 
@@ -140,7 +141,7 @@ public interface AccessibleComponent extends AccessibilitySemantics {
          * @param i int value
          * @return corresponding enum value
          */
-        public static Role fromInt(int i) {
+        public static @NonNull Role fromInt(int i) {
             if (i < UNKNOWN.ordinal()) {
                 return Role.values()[i];
             }

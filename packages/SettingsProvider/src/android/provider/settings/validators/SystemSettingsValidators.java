@@ -47,6 +47,9 @@ import java.util.Map;
  * Validators for System settings
  */
 public class SystemSettingsValidators {
+    private static final float CV_PREFERRED_INTENSITY_MIN = 0.0f;
+    private static final float CV_PREFERRED_INTENSITY_MAX = 1.0f;
+
     @UnsupportedAppUsage
     public static final Map<String, Validator> VALIDATORS = new ArrayMap<>();
 
@@ -145,6 +148,7 @@ public class SystemSettingsValidators {
         VALIDATORS.put(System.RING_VIBRATION_INTENSITY, VIBRATION_INTENSITY_VALIDATOR);
         VALIDATORS.put(System.HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_VALIDATOR);
         VALIDATORS.put(System.HARDWARE_HAPTIC_FEEDBACK_INTENSITY, VIBRATION_INTENSITY_VALIDATOR);
+        VALIDATORS.put(System.GESTURE_INPUT_VIBRATION_INTENSITY, VIBRATION_INTENSITY_VALIDATOR);
         VALIDATORS.put(System.KEYBOARD_VIBRATION_ENABLED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.HAPTIC_FEEDBACK_ENABLED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.RINGTONE, URI_VALIDATOR);
@@ -194,7 +198,7 @@ public class SystemSettingsValidators {
         VALIDATORS.put(System.HIDE_ROTATION_LOCK_TOGGLE_FOR_ACCESSIBILITY, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.VIBRATE_WHEN_RINGING, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.DTMF_TONE_TYPE_WHEN_DIALING, BOOLEAN_VALIDATOR);
-        VALIDATORS.put(System.HEARING_AID, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(System.HEARING_AID_COMPATIBILITY, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.TTY_MODE, new InclusiveIntegerRangeValidator(0, 3));
         VALIDATORS.put(System.NOTIFICATION_LIGHT_PULSE, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.POINTER_LOCATION, BOOLEAN_VALIDATOR);
@@ -271,7 +275,11 @@ public class SystemSettingsValidators {
         VALIDATORS.put(System.NOTIFICATION_COOLDOWN_ALL, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(System.PREFERRED_REGION, ANY_STRING_VALIDATOR);
-        VALIDATORS.put(System.CV_ENABLED,
-                new InclusiveIntegerRangeValidator(0, 1));
+        VALIDATORS.put(System.CV_ENABLED, new InclusiveIntegerRangeValidator(0, 1));
+        VALIDATORS.put(System.CV_DYNAMIC_ENABLED, new InclusiveIntegerRangeValidator(0, 1));
+        VALIDATORS.put(
+                System.CV_PREFERRED_INTENSITY,
+                new InclusiveFloatRangeValidator(
+                        CV_PREFERRED_INTENSITY_MIN, CV_PREFERRED_INTENSITY_MAX));
     }
 }

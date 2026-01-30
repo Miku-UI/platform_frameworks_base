@@ -20,6 +20,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
@@ -35,7 +36,6 @@ import java.util.Objects;
  * @see ObservingDevicePresenceRequest.Builder#setUuid(ParcelUuid)
  * @see ObservingDevicePresenceRequest.Builder#setAssociationId(int)
  */
-@FlaggedApi(Flags.FLAG_DEVICE_PRESENCE)
 public final class DevicePresenceEvent implements Parcelable {
 
     /** @hide */
@@ -45,7 +45,10 @@ public final class DevicePresenceEvent implements Parcelable {
             EVENT_BT_CONNECTED,
             EVENT_BT_DISCONNECTED,
             EVENT_SELF_MANAGED_APPEARED,
-            EVENT_SELF_MANAGED_DISAPPEARED
+            EVENT_SELF_MANAGED_DISAPPEARED,
+            EVENT_ASSOCIATION_REMOVED,
+            EVENT_SELF_MANAGED_NEARBY,
+            EVENT_SELF_MANAGED_NOT_NEARBY
     })
 
     @Retention(RetentionPolicy.SOURCE)
@@ -98,6 +101,27 @@ public final class DevicePresenceEvent implements Parcelable {
      * that a device has disappeared on its own.
      */
     public static final int EVENT_SELF_MANAGED_DISAPPEARED = 5;
+
+    /**
+     * A companion app will receives the callback
+     * {@link CompanionDeviceService#onDevicePresenceEvent(DevicePresenceEvent)}
+     * with this event when the {@link AssociationInfo} is removed.
+     */
+    @FlaggedApi(Flags.FLAG_NOTIFY_ASSOCIATION_REMOVED)
+    public static final int EVENT_ASSOCIATION_REMOVED = 6;
+
+    /**
+     * Event reported by a self-managed companion app to indicate the device is nearby.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_DATA_SYNC)
+    public static final int EVENT_SELF_MANAGED_NEARBY = 7;
+
+    /**
+     * Event reported by a self-managed companion app to indicate the device is not nearby.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_DATA_SYNC)
+    public static final int EVENT_SELF_MANAGED_NOT_NEARBY = 8;
+
     private final int mAssociationId;
     private final int mEvent;
     @Nullable
@@ -115,6 +139,12 @@ public final class DevicePresenceEvent implements Parcelable {
         mAssociationId = associationId;
         mEvent = event;
         mUuid = uuid;
+    }
+
+    private DevicePresenceEvent(Builder builder) {
+        mAssociationId = builder.mAssociationId != null ? builder.mAssociationId : NO_ASSOCIATION;
+        mEvent = builder.mEvent;
+        mUuid = builder.mUuid;
     }
 
     /**
@@ -181,7 +211,7 @@ public final class DevicePresenceEvent implements Parcelable {
 
     @Override
     public String toString() {
-        return "ObservingDevicePresenceResult { "
+        return "DevicePresenceEvent { "
                 + "Association Id= " + mAssociationId + ","
                 + "ParcelUuid= " + mUuid + ","
                 + "Event= " + mEvent + "}";
@@ -194,7 +224,7 @@ public final class DevicePresenceEvent implements Parcelable {
 
     @NonNull
     public static final Parcelable.Creator<DevicePresenceEvent> CREATOR =
-            new Parcelable.Creator<DevicePresenceEvent>() {
+            new Parcelable.Creator<>() {
                 @Override
                 public DevicePresenceEvent[] newArray(int size) {
                     return new DevicePresenceEvent[size];
@@ -213,6 +243,94 @@ public final class DevicePresenceEvent implements Parcelable {
             mUuid = null;
         } else {
             mUuid = ParcelUuid.CREATOR.createFromParcel(in);
+        }
+    }
+
+    /**
+     * Builder for creating a {@link DevicePresenceEvent}.
+     * <p>
+     * An event must be identified by either an association ID or a UUID, but not both.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_DATA_SYNC)
+    @SystemApi
+    public static final class Builder {
+        private Integer mAssociationId;
+        private Integer mEvent;
+        private ParcelUuid mUuid;
+
+        /**
+         * Creates a new Builder.
+         * <p>
+         * The event type must be set via {@link #setEvent(int)}, and the event must be identified
+         * by setting either {@link #setAssociationId(int)} or {@link #setUuid(ParcelUuid)} before
+         * calling {@link #build()}.
+         */
+        public Builder() {}
+
+        /**
+         * Set the association ID for this event.
+         * <p>
+         * An event cannot be identified by both an association ID and a UUID.
+         *
+         * @param associationId The association ID.
+         * @return This builder.
+         */
+        @NonNull
+        public Builder setAssociationId(int associationId) {
+            this.mAssociationId = associationId;
+            return this;
+        }
+
+        /**
+         * Sets the type of presence event that occurred.
+         *
+         * @param event The type of presence event.
+         * @return This builder.
+         */
+        @NonNull
+        public Builder setEvent(@Event int event) {
+            this.mEvent = event;
+            return this;
+        }
+
+        /**
+         * Sets the ParcelUuid to identify the device for this event.
+         * <p>
+         * An event cannot be identified by both an association ID and a UUID.
+         *
+         * @param uuid The ParcelUuid to set.
+         * @return This builder.
+         */
+        @NonNull
+        public Builder setUuid(@NonNull ParcelUuid uuid) {
+            this.mUuid = uuid;
+            return this;
+        }
+
+        /**
+         * Builds the {@link DevicePresenceEvent} object.
+         *
+         * @return The constructed {@link DevicePresenceEvent}.
+         * @throws IllegalStateException if required fields are not set or if conflicting
+         *                               identifiers (association ID and UUID) are provided.
+         */
+        @NonNull
+        public DevicePresenceEvent build() {
+            if (mEvent == null) {
+                throw new IllegalStateException("Event must be set.");
+            }
+
+            final boolean hasAssociationId = mAssociationId != null;
+            final boolean hasUuid = mUuid != null;
+
+            // Throw if both identifiers are set or if neither is set.
+            if ((hasAssociationId && hasUuid) || (!hasAssociationId && !hasUuid)) {
+                throw new IllegalStateException(
+                        "Exactly one of associationId or UUID must be set.");
+            }
+
+            return new DevicePresenceEvent(this);
         }
     }
 }

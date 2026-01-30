@@ -171,7 +171,7 @@ public class HearingAidAudioRoutingHelper {
     @Nullable
     public AudioDeviceAttributes getMatchedHearingDeviceAttributesForOutput(
             @Nullable CachedBluetoothDevice device) {
-        if (device == null || !device.isHearingAidDevice()) {
+        if (device == null || !device.isHearingDevice()) {
             return null;
         }
 
@@ -201,7 +201,7 @@ public class HearingAidAudioRoutingHelper {
     @Nullable
     private AudioDeviceAttributes getMatchedHearingDeviceAttributesInput(
             @Nullable CachedBluetoothDevice device) {
-        if (device == null || !device.isHearingAidDevice()) {
+        if (device == null || !device.isHearingDevice()) {
             return null;
         }
 

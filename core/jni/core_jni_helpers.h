@@ -91,6 +91,11 @@ static inline void DieIfException(JNIEnv* env, const char* message) {
     }
 }
 
+template <typename T>
+inline sp<T> SpFromRawPtr(jlong ptr) {
+    return sp<T>::fromExisting(reinterpret_cast<T*>(ptr));
+}
+
 }  // namespace android
 
 #endif  // CORE_JNI_HELPERS

@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"മുമ്പത്തെ സ്‌ക്രീനിലേക്ക് പോവുക"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"അടുത്ത സ്‌ക്രീനിലേക്ക് പോവുക"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"നിങ്ങളുടെ ഉപകരണം നിയന്ത്രിക്കുന്നതിന്, ഉപയോഗസഹായി മെനു വലിയൊരു ഓൺ-സ്ക്രീൻ മെനു നൽകുന്നു. ഉപകരണം ലോക്ക് ചെയ്യാനും ശബ്‌ദവും തെളിച്ചവും നിയന്ത്രിക്കാനും സ്‌ക്രീൻ ഷോട്ടുകൾ എടുക്കാനും മറ്റും നിങ്ങൾക്ക് കഴിയും."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"വലിയ മെനുവിലൂടെ ഉപകരണം നിയന്ത്രിക്കുക"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"വലിയ മെനു ഉപയോഗിച്ച് വോളിയം, തെളിച്ചം എന്നിവയും മറ്റും നിയന്ത്രിക്കുക"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ഉപയോഗസഹായി മെനു ക്രമീകരണം"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"വലിയ ബട്ടണുകൾ"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"ഉപയോഗസഹായി മെനു ബട്ടണുകളുടെ വലുപ്പം കൂട്ടുക"</string>

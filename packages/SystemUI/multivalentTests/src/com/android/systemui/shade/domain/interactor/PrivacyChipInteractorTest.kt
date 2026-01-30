@@ -19,20 +19,15 @@ package com.android.systemui.shade.domain.interactor
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.privacy.OngoingPrivacyChip
-import com.android.systemui.privacy.PrivacyApplication
-import com.android.systemui.privacy.PrivacyItem
-import com.android.systemui.privacy.PrivacyType
 import com.android.systemui.privacy.privacyDialogController
 import com.android.systemui.privacy.privacyDialogControllerV2
 import com.android.systemui.shade.data.repository.fakePrivacyChipRepository
-import com.android.systemui.shade.data.repository.privacyChipRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.whenever
-import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -61,90 +56,27 @@ class PrivacyChipInteractorTest : SysuiTestCase() {
         whenever(privacyChip.context).thenReturn(this.context)
     }
 
-    @Test
-    fun isChipVisible_updates() =
-        testScope.runTest {
-            val actual by collectLastValue(underTest.isChipVisible)
-
-            privacyChipRepository.setPrivacyItems(emptyList())
-            runCurrent()
-
-            assertThat(actual).isFalse()
-
-            val privacyItems =
-                listOf(
-                    PrivacyItem(
-                        privacyType = PrivacyType.TYPE_CAMERA,
-                        application = PrivacyApplication("", 0)
-                    ),
-                )
-            privacyChipRepository.setPrivacyItems(privacyItems)
-            runCurrent()
-
-            assertThat(actual).isTrue()
-        }
-
-    @Test
-    fun isChipEnabled_noIndicationEnabled() =
-        testScope.runTest {
-            val actual by collectLastValue(underTest.isChipEnabled)
-
-            privacyChipRepository.setIsMicCameraIndicationEnabled(false)
-            privacyChipRepository.setIsLocationIndicationEnabled(false)
-
-            assertThat(actual).isFalse()
-        }
-
-    @Test
-    fun isChipEnabled_micCameraIndicationEnabled() =
-        testScope.runTest {
-            val actual by collectLastValue(underTest.isChipEnabled)
-
-            privacyChipRepository.setIsMicCameraIndicationEnabled(true)
-            privacyChipRepository.setIsLocationIndicationEnabled(false)
-
-            assertThat(actual).isTrue()
-        }
-
-    @Test
-    fun isChipEnabled_locationIndicationEnabled() =
-        testScope.runTest {
-            val actual by collectLastValue(underTest.isChipEnabled)
-
-            privacyChipRepository.setIsMicCameraIndicationEnabled(false)
-            privacyChipRepository.setIsLocationIndicationEnabled(true)
-
-            assertThat(actual).isTrue()
-        }
-
-    @Test
-    fun isChipEnabled_allIndicationEnabled() =
-        testScope.runTest {
-            val actual by collectLastValue(underTest.isChipEnabled)
-
-            privacyChipRepository.setIsMicCameraIndicationEnabled(true)
-            privacyChipRepository.setIsLocationIndicationEnabled(true)
-
-            assertThat(actual).isTrue()
-        }
-
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun onPrivacyChipClicked_safetyCenterEnabled() =
         testScope.runTest {
             privacyChipRepository.setIsSafetyCenterEnabled(true)
 
             underTest.onPrivacyChipClicked(privacyChip)
+            runCurrent()
 
             verify(privacyDialogControllerV2).showDialog(any(), any())
             verify(privacyDialogController, never()).showDialog(any())
         }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun onPrivacyChipClicked_safetyCenterDisabled() =
         testScope.runTest {
             privacyChipRepository.setIsSafetyCenterEnabled(false)
 
             underTest.onPrivacyChipClicked(privacyChip)
+            runCurrent()
 
             verify(privacyDialogController).showDialog(any())
             verify(privacyDialogControllerV2, never()).showDialog(any(), any())

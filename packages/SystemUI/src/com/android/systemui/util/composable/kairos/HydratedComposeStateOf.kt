@@ -20,12 +20,14 @@ import androidx.compose.runtime.mutableStateOf
 import com.android.systemui.KairosBuilder
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
+import com.android.systemui.kairos.util.nameTag
 
 @ExperimentalKairosApi
 fun <T> KairosBuilder.hydratedComposeStateOf(
+    name: String,
     source: State<T>,
     initialValue: T,
 ): androidx.compose.runtime.State<T> =
     mutableStateOf(initialValue).also { state ->
-        onActivated { source.observe { state.value = it } }
+        onActivated { source.observe(name = nameTag(name)) { state.value = it } }
     }

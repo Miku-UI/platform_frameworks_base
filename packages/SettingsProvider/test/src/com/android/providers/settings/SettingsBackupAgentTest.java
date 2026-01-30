@@ -45,6 +45,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
@@ -63,9 +64,8 @@ import android.telephony.SubscriptionManager;
 import android.test.mock.MockContentProvider;
 import android.test.mock.MockContentResolver;
 
+import androidx.annotation.NonNull;
 import androidx.test.runner.AndroidJUnit4;
-
-import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -152,6 +152,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
 
     @Test
     public void testRoundTripDeviceSpecificSettings() throws IOException {
+        mAgentUnderTest.onCreate(
+            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         TestSettingsHelper helper = new TestSettingsHelper(mContext);
         mAgentUnderTest.mSettingsHelper = helper;
 
@@ -170,6 +172,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
 
     @Test
     public void testRoundTripDeviceSpecificSettingsWithBlock() throws IOException {
+        mAgentUnderTest.onCreate(
+            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         TestSettingsHelper helper = new TestSettingsHelper(mContext);
         mAgentUnderTest.mSettingsHelper = helper;
 
@@ -258,6 +262,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
                 new SettingsBackupAgent.SettingsBackupAllowlist(
                         new String[] { OVERRIDDEN_TEST_SETTING, PRESERVED_TEST_SETTING },
                         TEST_VALUES_VALIDATORS);
+        mAgentUnderTest.onCreate(
+                UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         mAgentUnderTest.setSettingsAllowlist(allowlist);
         mAgentUnderTest.setBlockedSettings();
         TestSettingsHelper settingsHelper = new TestSettingsHelper(mContext);
@@ -301,7 +307,6 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_CONFIGURABLE_FONT_SCALE_DEFAULT)
     public void testFindClosestAllowedFontScale() {
         final String[] availableFontScales = new String[]{"0.5", "0.9", "1.0", "1.1", "1.5"};
         final Function<String, String> testedMethod =
@@ -324,6 +329,73 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
         // When the current value is larger than the only one available, the largest allowed
         // is returned.
         assertEquals("1.5", testedMethod.apply("1.8"));
+    }
+
+    @Test
+    @DisableFlags(android.view.accessibility.Flags.FLAG_TEXT_CURSOR_BLINK_INTERVAL)
+    public void testFindEqualOrNextLargestTextCursorBlinkInterval_flagOff() {
+        final Function<String, String> testedMethod =
+                getFindEqualOrNextLargestTextCursorBlinkInterval();
+
+        // Always return default if flag is off.
+        assertEquals("500", testedMethod.apply("0"));
+        assertEquals("500", testedMethod.apply("333"));
+        assertEquals("500", testedMethod.apply("385"));
+        assertEquals("500", testedMethod.apply("500"));
+        assertEquals("500", testedMethod.apply("625"));
+        assertEquals("500", testedMethod.apply("1000"));
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_TEXT_CURSOR_BLINK_INTERVAL)
+    public void testFindEqualOrNextLargestTextCursorBlinkInterval() {
+        final Function<String, String> testedMethod =
+                getFindEqualOrNextLargestTextCursorBlinkInterval();
+
+        // Any allowed value needs to be preserved.
+        assertEquals("0", testedMethod.apply("0"));
+        assertEquals("333", testedMethod.apply("333"));
+        assertEquals("385", testedMethod.apply("385"));
+        assertEquals("500", testedMethod.apply("500"));
+        assertEquals("625", testedMethod.apply("625"));
+        assertEquals("1000", testedMethod.apply("1000"));
+
+        // When the current value is not one of the available, the next largest is returned.
+        assertEquals("0", testedMethod.apply("-1"));
+        assertEquals("333", testedMethod.apply("5"));
+        assertEquals("385", testedMethod.apply("370"));
+        assertEquals("500", testedMethod.apply("490"));
+        assertEquals("625", testedMethod.apply("600"));
+        assertEquals("1000", testedMethod.apply("900"));
+
+        // When the current value is larger than the only one available, the largest allowed
+        // is returned.
+        assertEquals("1000", testedMethod.apply("1333"));
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_TEXT_CURSOR_BLINK_INTERVAL)
+    public void testFindEqualOrNextLargestTextCursorBlinkInterval_numberFormatException() {
+        final Function<String, String> testedMethod =
+                getFindEqualOrNextLargestTextCursorBlinkInterval();
+
+        // A string with no integer should return the default value.
+        assertEquals("500", testedMethod.apply("test"));
+    }
+
+    @NonNull
+    private Function<String, String> getFindEqualOrNextLargestTextCursorBlinkInterval() {
+        Resources resources = getContext().getResources();
+        return (value) -> SettingsBackupAgent.findEqualOrNextLargestTextCursorBlinkInterval(value,
+                resources.getIntArray(
+                        com.android.internal.R.array
+                                .accessibility_text_cursor_blink_intervals),
+                resources.getInteger(
+                        com.android.internal.R.integer
+                                .no_blink_accessibility_text_cursor_blink_interval_ms),
+                resources.getInteger(
+                        com.android.internal.R.integer
+                                .def_accessibility_text_cursor_blink_interval_ms));
     }
 
     @Test
@@ -368,25 +440,9 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void onCreate_metricsFlagIsDisabled_areAgentMetricsEnabledIsFalse() {
-        mAgentUnderTest.onCreate();
-
-        assertFalse(mAgentUnderTest.areAgentMetricsEnabled);
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void onCreate_flagIsEnabled_areAgentMetricsEnabledIsTrue() {
-        mAgentUnderTest.onCreate();
-
-        assertTrue(mAgentUnderTest.areAgentMetricsEnabled);
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void writeDataForKey_metricsFlagIsEnabled_numberOfSettingsPerKeyContainsKey_dataWriteSucceeds_logsSuccessMetrics()
-        throws IOException {
+    public void
+        writeDataForKey_numberOfSettingsPerKeyContainsKey_dataWriteSucceeds_logsSuccessMetrics()
+            throws IOException {
         when(mBackupDataOutput.writeEntityHeader(anyString(), anyInt())).thenReturn(0);
         when(mBackupDataOutput.writeEntityData(any(byte[].class), anyInt())).thenReturn(0);
         mAgentUnderTest.onCreate(
@@ -403,9 +459,9 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void writeDataForKey_metricsFlagIsEnabled_numberOfSettingsPerKeyContainsKey_writeEntityHeaderFails_logsFailureMetrics()
-        throws IOException {
+    public void
+        writeDataForKey_numberOfSettingsPerKeyContainsKey_writeEntityHeaderFails_logsFailureMetrics()
+            throws IOException {
         when(mBackupDataOutput.writeEntityHeader(anyString(), anyInt())).thenThrow(new IOException());
         when(mBackupDataOutput.writeEntityData(any(byte[].class), anyInt())).thenReturn(0);
         mAgentUnderTest.onCreate(
@@ -422,9 +478,9 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void writeDataForKey_metricsFlagIsEnabled_numberOfSettingsPerKeyContainsKey_writeEntityDataFails_logsFailureMetrics()
-        throws IOException {
+    public void
+        writeDataForKey_numberOfSettingsPerKeyContainsKey_writeEntityDataFails_logsFailureMetrics()
+            throws IOException {
         when(mBackupDataOutput.writeEntityHeader(anyString(), anyInt())).thenReturn(0);
         when(mBackupDataOutput.writeEntityData(any(byte[].class), anyInt())).thenThrow(new IOException());
         mAgentUnderTest.onCreate(
@@ -441,24 +497,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void writeDataForKey_metricsFlagIsDisabled_doesNotLogMetrics()
-        throws IOException {
-        when(mBackupDataOutput.writeEntityHeader(anyString(), anyInt())).thenReturn(0);
-        when(mBackupDataOutput.writeEntityData(any(byte[].class), anyInt())).thenReturn(0);
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.BACKUP);
-        mAgentUnderTest.setNumberOfSettingsPerKey(TEST_KEY, 1);
-
-        mAgentUnderTest.writeDataForKey(
-            TEST_KEY, TEST_VALUE.getBytes(), mBackupDataOutput);
-
-        assertNull(getLoggingResultForDatatype(TEST_KEY, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void writeDataForKey_metricsFlagIsEnabled_numberOfSettingsPerKeyDoesNotContainKey_doesNotLogMetrics()
+    public void writeDataForKey_numberOfSettingsPerKeyDoesNotContainKey_doesNotLogMetrics()
         throws IOException {
         when(mBackupDataOutput.writeEntityHeader(anyString(), anyInt())).thenReturn(0);
         when(mBackupDataOutput.writeEntityData(any(byte[].class), anyInt())).thenReturn(0);
@@ -472,8 +511,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreEnabled_readEntityDataFails_failureIsLogged()
+    public void restoreSettings_readEntityDataFails_failureIsLogged()
         throws IOException {
         when(mBackupDataInput.readEntityData(any(byte[].class), anyInt(), anyInt()))
             .thenThrow(new IOException());
@@ -499,31 +537,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreDisabled_readEntityDataFails_failureIsNotLogged()
-        throws IOException {
-        when(mBackupDataInput.readEntityData(any(byte[].class), anyInt(), anyInt()))
-            .thenThrow(new IOException());
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-
-        mAgentUnderTest.restoreSettings(
-            mBackupDataInput,
-            TEST_URI,
-            /* movedToGlobal= */ null,
-            /* movedToSecure= */ null,
-            /* movedToSystem= */ null,
-            /* blockedSettingsArrayId= */ 0,
-            /* dynamicBlockList= */ Collections.emptySet(),
-            /* settingsToPreserve= */ Collections.emptySet(),
-            TEST_KEY);
-
-        assertNull(getLoggingResultForDatatype(TEST_KEY, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreEnabled_settingIsSkippedBySystem_failureIsLogged() {
+    public void restoreSettings_settingIsSkippedBySystem_failureIsLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         String[] settingBlockedBySystem = new String[] {OVERRIDDEN_TEST_SETTING};
@@ -559,42 +573,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void
-        restoreSettings_agentMetricsAreDisabled_settingIsSkippedBySystem_failureIsNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        String[] settingBlockedBySystem = new String[] {OVERRIDDEN_TEST_SETTING};
-        SettingsBackupAgent.SettingsBackupAllowlist allowlist =
-                new SettingsBackupAgent.SettingsBackupAllowlist(
-                        settingBlockedBySystem,
-                        TEST_VALUES_VALIDATORS);
-        mAgentUnderTest.setSettingsAllowlist(allowlist);
-        mAgentUnderTest.setBlockedSettings(settingBlockedBySystem);
-        TestSettingsHelper settingsHelper = new TestSettingsHelper(mContext);
-        mAgentUnderTest.mSettingsHelper = settingsHelper;
-
-        byte[] backupData = generateBackupData(TEST_VALUES);
-        mAgentUnderTest
-            .restoreSettings(
-                backupData,
-                /* pos= */ 0,
-                backupData.length,
-                TEST_URI,
-                /* movedToGlobal= */ null,
-                /* movedToSecure= */ null,
-                /* movedToSystem= */ null,
-                /* blockedSettingsArrayId= */ 0,
-                /* dynamicBlockList= */ Collections.emptySet(),
-                /* settingsToPreserve= */ Collections.emptySet(),
-                TEST_KEY);
-
-        assertNull(getLoggingResultForDatatype(TEST_KEY, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreEnabled_settingIsSkippedByBlockList_failureIsLogged() {
+    public void restoreSettings_settingIsSkippedByBlockList_failureIsLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         SettingsBackupAgent.SettingsBackupAllowlist allowlist =
@@ -631,43 +610,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void
-        restoreSettings_agentMetricsAreDisabled_settingIsSkippedByBlockList_failureIsNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        SettingsBackupAgent.SettingsBackupAllowlist allowlist =
-                new SettingsBackupAgent.SettingsBackupAllowlist(
-                        new String[] {OVERRIDDEN_TEST_SETTING},
-                        TEST_VALUES_VALIDATORS);
-        mAgentUnderTest.setSettingsAllowlist(allowlist);
-        mAgentUnderTest.setBlockedSettings();
-        TestSettingsHelper settingsHelper = new TestSettingsHelper(mContext);
-        mAgentUnderTest.mSettingsHelper = settingsHelper;
-        Set<String> dynamicBlockList =
-            Set.of(Uri.withAppendedPath(TEST_URI, OVERRIDDEN_TEST_SETTING).toString());
-
-        byte[] backupData = generateBackupData(TEST_VALUES);
-        mAgentUnderTest
-            .restoreSettings(
-                backupData,
-                /* pos= */ 0,
-                backupData.length,
-                TEST_URI,
-                /* movedToGlobal= */ null,
-                /* movedToSecure= */ null,
-                /* movedToSystem= */ null,
-                /* blockedSettingsArrayId= */ 0,
-                dynamicBlockList,
-                /* settingsToPreserve= */ Collections.emptySet(),
-                TEST_KEY);
-
-        assertNull(getLoggingResultForDatatype(TEST_KEY, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreEnabled_settingIsPreserved_failureIsLogged() {
+    public void restoreSettings_settingIsPreserved_failureIsLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         SettingsBackupAgent.SettingsBackupAllowlist allowlist =
@@ -704,42 +647,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreDisabled_settingIsPreserved_failureIsNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        SettingsBackupAgent.SettingsBackupAllowlist allowlist =
-                new SettingsBackupAgent.SettingsBackupAllowlist(
-                        new String[] {OVERRIDDEN_TEST_SETTING},
-                        TEST_VALUES_VALIDATORS);
-        mAgentUnderTest.setSettingsAllowlist(allowlist);
-        mAgentUnderTest.setBlockedSettings();
-        TestSettingsHelper settingsHelper = new TestSettingsHelper(mContext);
-        mAgentUnderTest.mSettingsHelper = settingsHelper;
-        Set<String> preservedSettings =
-            Set.of(Uri.withAppendedPath(TEST_URI, OVERRIDDEN_TEST_SETTING).toString());
-
-        byte[] backupData = generateBackupData(TEST_VALUES);
-        mAgentUnderTest
-            .restoreSettings(
-                backupData,
-                /* pos= */ 0,
-                backupData.length,
-                TEST_URI,
-                /* movedToGlobal= */ null,
-                /* movedToSecure= */ null,
-                /* movedToSystem= */ null,
-                /* blockedSettingsArrayId= */ 0,
-                /* dynamicBlockList = */ Collections.emptySet(),
-                preservedSettings,
-                TEST_KEY);
-
-        assertNull(getLoggingResultForDatatype(TEST_KEY, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreEnabled_settingIsNotValid_failureIsLogged() {
+    public void restoreSettings_settingIsNotValid_failureIsLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         SettingsBackupAgent.SettingsBackupAllowlist allowlist =
@@ -774,40 +682,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSettings_agentMetricsAreDisabled_settingIsNotValid_failureIsNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        SettingsBackupAgent.SettingsBackupAllowlist allowlist =
-                new SettingsBackupAgent.SettingsBackupAllowlist(
-                        new String[] {OVERRIDDEN_TEST_SETTING},
-                        /* settingsValidators= */ null);
-        mAgentUnderTest.setSettingsAllowlist(allowlist);
-        mAgentUnderTest.setBlockedSettings();
-        TestSettingsHelper settingsHelper = new TestSettingsHelper(mContext);
-        mAgentUnderTest.mSettingsHelper = settingsHelper;
-
-        byte[] backupData = generateBackupData(TEST_VALUES);
-        mAgentUnderTest
-            .restoreSettings(
-                backupData,
-                /* pos= */ 0,
-                backupData.length,
-                TEST_URI,
-                /* movedToGlobal= */ null,
-                /* movedToSecure= */ null,
-                /* movedToSystem= */ null,
-                /* blockedSettingsArrayId= */ 0,
-                /* dynamicBlockList = */ Collections.emptySet(),
-                /* settingsToPreserve= */ Collections.emptySet(),
-                TEST_KEY);
-
-        assertNull(getLoggingResultForDatatype(TEST_KEY, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void getSoftAPConfiguration_flagIsEnabled_numberOfSettingsInKeyAreRecorded() {
+    public void getSoftAPConfiguration_numberOfSettingsInKeyAreRecorded() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.BACKUP);
         when(mWifiManager.retrieveSoftApBackupData()).thenReturn(null);
@@ -818,21 +693,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void getSoftAPConfiguration_flagIsNotEnabled_numberOfSettingsInKeyAreNotRecorded() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.BACKUP);
-        when(mWifiManager.retrieveSoftApBackupData()).thenReturn(null);
-
-        mAgentUnderTest.getSoftAPConfiguration();
-
-        assertEquals(mAgentUnderTest.getNumberOfSettingsPerKey(KEY_SOFTAP_CONFIG), 0);
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreSoftApConfiguration_flagIsEnabled_restoreIsSuccessful_successMetricsAreLogged() {
+        restoreSoftApConfiguration_restoreIsSuccessful_successMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         SoftApConfiguration config = new SoftApConfiguration.Builder().setSsid("test").build();
@@ -848,9 +710,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreSoftApConfiguration_flagIsEnabled_restoreIsNotSuccessful_failureMetricsAreLogged() {
+        restoreSoftApConfiguration_restoreIsNotSuccessful_failureMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         SoftApConfiguration config = new SoftApConfiguration.Builder().setSsid("test").build();
@@ -866,22 +727,7 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreSoftApConfiguration_flagIsNotEnabled_metricsAreNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        SoftApConfiguration config = new SoftApConfiguration.Builder().setSsid("test").build();
-        byte[] data = config.toString().getBytes();
-        when(mWifiManager.restoreSoftApBackupData(any())).thenReturn(null);
-
-        mAgentUnderTest.restoreSoftApConfiguration(data);
-
-        assertNull(getLoggingResultForDatatype(KEY_SOFTAP_CONFIG, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void getNewWifiConfigData_flagIsEnabled_numberOfSettingsInKeyAreRecorded() {
+    public void getNewWifiConfigData_numberOfSettingsInKeyAreRecorded() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.BACKUP);
         when(mWifiManager.retrieveBackupData()).thenReturn(null);
@@ -892,21 +738,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void getNewWifiConfigData_flagIsNotEnabled_numberOfSettingsInKeyAreNotRecorded() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.BACKUP);
-        when(mWifiManager.retrieveBackupData()).thenReturn(null);
-
-        mAgentUnderTest.getNewWifiConfigData();
-
-        assertEquals(mAgentUnderTest.getNumberOfSettingsPerKey(KEY_WIFI_NEW_CONFIG), 0);
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreNewWifiConfigData_flagIsEnabled_restoreIsSuccessful_successMetricsAreLogged() {
+        restoreNewWifiConfigData_restoreIsSuccessful_successMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         doNothing().when(mWifiManager).restoreBackupData(any());
@@ -920,9 +753,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreNewWifiConfigData_flagIsEnabled_restoreIsNotSuccessful_failureMetricsAreLogged() {
+        restoreNewWifiConfigData_restoreIsNotSuccessful_failureMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         doThrow(new RuntimeException()).when(mWifiManager).restoreBackupData(any());
@@ -936,21 +768,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreNewWifiConfigData_flagIsNotEnabled_metricsAreNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        doNothing().when(mWifiManager).restoreBackupData(any());
-
-        mAgentUnderTest.restoreNewWifiConfigData(new byte[] {});
-
-        assertNull(getLoggingResultForDatatype(KEY_WIFI_NEW_CONFIG, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        getSimSpecificSettingsData_agentMetricsAreEnabled_numberOfSettingsInKeyAreRecorded() {
+        getSimSpecificSettingsData_numberOfSettingsInKeyAreRecorded() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.BACKUP);
         when(mSubscriptionManager.getAllSimSpecificSettingsForBackup()).thenReturn(new byte[0]);
@@ -961,9 +780,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreSimSpecificSettings_agentMetricsAreEnabled_restoreIsSuccessful_successMetricsAreLogged() {
+        restoreSimSpecificSettings_restoreIsSuccessful_successMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         doNothing().when(mSubscriptionManager).restoreAllSimSpecificSettingsFromBackup(any());
@@ -977,9 +795,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreSimSpecificSettings_agentMetricsAreEnabled_restoreIsNotSuccessful_failureMetricsAreLogged() {
+        restoreSimSpecificSettings_restoreIsNotSuccessful_failureMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         doThrow(new RuntimeException())
@@ -995,22 +812,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreSimSpecificSettings_agentMetricsAreNotEnabled_metricsAreNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        doNothing().when(mSubscriptionManager).restoreAllSimSpecificSettingsFromBackup(any());
-
-        mAgentUnderTest.restoreSimSpecificSettings(new byte[0]);
-
-        assertNull(getLoggingResultForDatatype(KEY_SIM_SPECIFIC_SETTINGS_2, mAgentUnderTest));
-    }
-
-    @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void
-        restoreWifiData_agentMetricsAreEnabled_restoreIsSuccessful_successMetricsAreLogged() {
+        restoreWifiData_restoreIsSuccessful_successMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         doNothing().when(mWifiManager).restoreWifiBackupData(any());
@@ -1024,9 +827,8 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
     }
 
     @Test
-    @EnableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
     public void
-        restoreWifiData_agentMetricsAreEnabled_restoreIsNotSuccessful_failureMetricsAreLogged() {
+        restoreWifiData_restoreIsNotSuccessful_failureMetricsAreLogged() {
         mAgentUnderTest.onCreate(
             UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
         doThrow(new RuntimeException()).when(mWifiManager).restoreWifiBackupData(any());
@@ -1037,18 +839,6 @@ public class SettingsBackupAgentTest extends BaseSettingsProviderTest {
             getLoggingResultForDatatype(KEY_WIFI_SETTINGS_BACKUP_DATA, mAgentUnderTest);
         assertNotNull(loggingResult);
         assertEquals(loggingResult.getFailCount(), 1);
-    }
-
-    @Test
-    @DisableFlags(com.android.server.backup.Flags.FLAG_ENABLE_METRICS_SETTINGS_BACKUP_AGENTS)
-    public void restoreWifiData_agentMetricsAreDisabled_metricsAreNotLogged() {
-        mAgentUnderTest.onCreate(
-            UserHandle.SYSTEM, BackupDestination.CLOUD, OperationType.RESTORE);
-        doNothing().when(mWifiManager).restoreWifiBackupData(any());
-
-        mAgentUnderTest.restoreWifiData(new byte[0]);
-
-        assertNull(getLoggingResultForDatatype(KEY_WIFI_SETTINGS_BACKUP_DATA, mAgentUnderTest));
     }
 
     private byte[] generateBackupData(Map<String, String> keyValueData) {

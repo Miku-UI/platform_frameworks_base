@@ -19,7 +19,7 @@ package android.net;
 import android.net.Network;
 import android.net.ProxyInfo;
 
-/** {@hide} */
+/** @hide */
 oneway interface IPacProxyInstalledListener {
     void onPacProxyInstalled(in Network network, in ProxyInfo proxy);
 }

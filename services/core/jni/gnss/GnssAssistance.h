@@ -54,6 +54,7 @@ using GnssAlmanac = android::hardware::gnss::gnss_assistance::GnssAlmanac;
 using GnssSatelliteCorrections =
         android::hardware::gnss::gnss_assistance::GnssAssistance::GnssSatelliteCorrections;
 using GpsSatelliteEphemeris = android::hardware::gnss::gnss_assistance::GpsSatelliteEphemeris;
+using QzssSatelliteEphemeris = android::hardware::gnss::gnss_assistance::QzssSatelliteEphemeris;
 using SatelliteEphemerisTime = android::hardware::gnss::gnss_assistance::SatelliteEphemerisTime;
 using UtcModel = android::hardware::gnss::gnss_assistance::UtcModel;
 using LeapSecondsModel = android::hardware::gnss::gnss_assistance::LeapSecondsModel;
@@ -101,11 +102,12 @@ struct GnssAssistanceUtil {
                                   GnssAssistance& gnssAssistance);
     static void setGpsAssistance(JNIEnv* env, jobject gpsAssistanceObj,
                                  std::optional<GpsAssistance>& gpsAssistanceOpt);
-    template <class T>
-    static void setGpsOrQzssSatelliteEphemeris(JNIEnv* env, jobject satelliteEphemerisObj,
-                                               std::vector<T>& satelliteEphemeris);
+    static void setGpsSatelliteEphemeris(JNIEnv* env, jobject satelliteEphemerisObj,
+                                         std::vector<GpsSatelliteEphemeris>& satelliteEphemeris);
     static void setQzssAssistance(JNIEnv* env, jobject qzssAssistanceObj,
                                   std::optional<QzssAssistance>& qzssAssistanceOpt);
+    static void setQzssSatelliteEphemeris(JNIEnv* env, jobject satelliteEphemerisObj,
+                                          std::vector<QzssSatelliteEphemeris>& satelliteEphemeris);
     static void setGnssAlmanac(JNIEnv* env, jobject gnssAlmanacObj,
                                std::optional<GnssAlmanac>& gnssAlmanacOpt);
     static void setGnssSignalType(JNIEnv* env, jobject gnssSignalTypeObj,

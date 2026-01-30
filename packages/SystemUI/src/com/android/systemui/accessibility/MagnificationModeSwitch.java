@@ -229,19 +229,19 @@ class MagnificationModeSwitch implements MagnificationGestureDetector.OnGestureL
     }
 
     @Override
-    public boolean onDrag(View v, float offsetX, float offsetY) {
+    public boolean onDrag(View v, int offsetX, int offsetY) {
         moveButton(offsetX, offsetY);
         return true;
     }
 
     @Override
-    public boolean onStart(float x, float y) {
+    public boolean onStart() {
         stopFadeOutAnimation();
         return true;
     }
 
     @Override
-    public boolean onFinish(float xOffset, float yOffset) {
+    public boolean onFinish() {
         if (mIsVisible) {
             final int windowWidth = mWindowManager.getCurrentWindowMetrics().getBounds().width();
             final int halfWindowWidth = windowWidth / 2;
@@ -261,7 +261,7 @@ class MagnificationModeSwitch implements MagnificationGestureDetector.OnGestureL
         updateButtonViewLayoutIfNeeded();
     }
 
-    private void moveButton(float offsetX, float offsetY) {
+    private void moveButton(int offsetX, int offsetY) {
         mSfVsyncFrameProvider.postFrameCallback(l -> {
             mParams.x += offsetX;
             mParams.y += offsetY;

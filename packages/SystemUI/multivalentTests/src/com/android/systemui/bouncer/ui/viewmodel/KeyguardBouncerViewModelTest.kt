@@ -33,7 +33,10 @@ import com.android.systemui.coroutines.collectValues
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor
 import com.android.systemui.keyguard.DismissCallbackRegistry
 import com.android.systemui.keyguard.data.repository.TrustRepository
+import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.statusbar.policy.KeyguardStateController
+import com.android.systemui.testKosmos
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.utils.os.FakeHandler
 import com.google.common.truth.Truth.assertThat
@@ -52,6 +55,7 @@ import org.mockito.MockitoAnnotations
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class KeyguardBouncerViewModelTest : SysuiTestCase() {
+    private val kosmos = testKosmos()
 
     @Mock lateinit var bouncerView: BouncerView
     @Mock private lateinit var keyguardStateController: KeyguardStateController
@@ -89,7 +93,13 @@ class KeyguardBouncerViewModelTest : SysuiTestCase() {
                 mSelectedUserInteractor,
                 faceAuthInteractor,
             )
-        underTest = KeyguardBouncerViewModel(bouncerView, bouncerInteractor)
+        underTest =
+            KeyguardBouncerViewModel(
+                bouncerView,
+                bouncerInteractor,
+                { kosmos.secureLockDeviceInteractor },
+                { kosmos.keyguardTransitionInteractor },
+            )
     }
 
     @Test

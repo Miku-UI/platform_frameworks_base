@@ -186,7 +186,7 @@ public class FaceSensorConfigurations implements Parcelable {
             try {
                 IVirtualHal vhal = IVirtualHal.Stub.asInterface(
                         Binder.allowBlocking(ServiceManager.waitForService(fqNameMapped)));
-                return vhal.getFaceHal();
+                return vhal != null ? vhal.getFaceHal() : null;
             } catch (RemoteException e) {
                 Slog.e(TAG, "Remote exception in vhal.getFaceHal() call" + fqNameMapped);
             }

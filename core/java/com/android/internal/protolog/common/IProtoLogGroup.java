@@ -21,15 +21,9 @@ package com.android.internal.protolog.common;
  */
 public interface IProtoLogGroup {
     /**
-     * if false all log statements for this group are excluded from compilation,
+     * if false all log statements for this group are excluded from compilation.
      */
     boolean isEnabled();
-
-    /**
-     * @deprecated TODO(b/324128613) remove once we migrate fully to Perfetto
-     * is binary logging enabled for the group.
-     */
-    boolean isLogToProto();
 
     /**
      * is text logging enabled for the group.
@@ -37,23 +31,9 @@ public interface IProtoLogGroup {
     boolean isLogToLogcat();
 
     /**
-     * returns true is any logging is enabled for this group.
-     * @deprecated TODO(b/324128613) remove once we migrate fully to Perfetto
-     */
-    default boolean isLogToAny() {
-        return isLogToLogcat() || isLogToProto();
-    }
-
-    /**
-     * returns the name of the source of the logged message
+     * returns the name of the source of the logged message.
      */
     String getTag();
-
-    /**
-     * set binary logging for this group.
-     * @deprecated TODO(b/324128613) remove once we migrate fully to Perfetto
-     */
-    void setLogToProto(boolean logToProto);
 
     /**
      * set text logging for this group.

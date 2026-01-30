@@ -19,7 +19,7 @@ package com.android.internal.backup;
 /**
 * A callback class for {@link IBackupTransport}
 *
-* {@hide}
+* @hide
 */
 oneway interface ITransportStatusCallback {
     /**

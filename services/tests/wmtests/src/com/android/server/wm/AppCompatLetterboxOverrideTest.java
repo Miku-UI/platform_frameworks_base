@@ -213,16 +213,13 @@ public class AppCompatLetterboxOverrideTest extends WindowTestsBase {
      * Runs a test scenario providing a Robot.
      */
     void runTestScenario(@NonNull Consumer<LetterboxOverridesRobotTest> consumer) {
-        final LetterboxOverridesRobotTest robot =
-                new LetterboxOverridesRobotTest(mWm, mAtm, mSupervisor);
+        final LetterboxOverridesRobotTest robot = new LetterboxOverridesRobotTest(this);
         consumer.accept(robot);
     }
 
     private static class LetterboxOverridesRobotTest extends AppCompatRobotBase {
-        LetterboxOverridesRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        LetterboxOverridesRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         void invokeCheckWallpaperBackgroundForLetterbox(boolean wallpaperShouldBeShown) {

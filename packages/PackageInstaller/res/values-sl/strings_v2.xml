@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Potrebno je dovoljenje"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Namestitev je blokirana"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Pripravljanje aplikacije …"</string>
+    <string name="title_install" msgid="6806728682404990326">"Ali želite namestiti to aplikacijo?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Nameščanje …"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Aplikacija je nameščena"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Ali želite znova namestiti to aplikacijo?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Vnovično nameščanje …"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Aplikacija je znova nameščena"</string>
+    <string name="title_update" msgid="1747328630716712391">"Ali želite posodobiti to aplikacijo?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Ali želite to aplikacijo posodobiti iz vira »<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>«?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Posodabljanje …"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Aplikacija je posodobljena"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Aplikacije ni mogoče namestiti"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Namestitev je blokirana"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Aplikacija ni združljiva"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Neveljaven paket"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Ni dovolj prostora za shranjevanje"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Aplikacija ni nameščena"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Ali želite odmestiti to aplikacijo?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Ali želite izbrisati ta klon aplikacije?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Ali želite odmestiti posodobitve aplikacije?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Ali želite odmestiti posodobitve aplikacije za vse uporabnike?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Ali želite odmestiti to aplikacijo za vse uporabnike?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Ali želite odmestiti to aplikacijo za uporabnika »<xliff:g id="USER_NAME">%1$s</xliff:g>«?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Aplikacije ni bilo mogoče najti"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Te aplikacije ni mogoče odmestiti"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Aplikacija ni odmeščena"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Želite arhivirati to aplikacijo?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Ali želite to aplikacijo arhivirati za vse uporabnike?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Ali želite to aplikacijo arhivirati za uporabnika »<xliff:g id="USER_NAME">%1$s</xliff:g>«?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Ali želite obnoviti to aplikacijo?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Potrebno je ukrepanje"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Ni dovolj prostora za shranjevanje"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Nimate vzpostavljene povezave"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"Namestitveni program <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> je onemogočen"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"Namestitveni program <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ni nameščen"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Prišlo je do težave"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Ta aplikacija običajno prejema posodobitve iz vira &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Če jo posodobite iz drugega vira, boste prihodnje posodobitve v tabličnem računalniku morda prejemali iz katerega koli vira. Funkcija aplikacije se lahko spremeni."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Ta aplikacija običajno prejema posodobitve iz vira &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Če jo posodobite iz drugega vira, boste prihodnje posodobitve v televizorju morda prejemali iz katerega koli vira. Funkcija aplikacije se lahko spremeni."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Ta aplikacija običajno prejema posodobitve iz vira &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Če jo posodobite iz drugega vira, boste prihodnje posodobitve v telefonu morda prejemali iz katerega koli vira. Funkcija aplikacije se lahko spremeni."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Tablični računalnik zaradi varnosti trenutno nima dovoljenja za nameščanje neznanih aplikacij iz tega vira. To lahko spremenite v nastavitvah."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Televizor zaradi varnosti trenutno nima dovoljenja za nameščanje neznanih aplikacij iz tega vira. To lahko spremenite v nastavitvah."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Ura zaradi varnosti trenutno nima dovoljenja za nameščanje neznanih aplikacij iz tega vira. To lahko spremenite v nastavitvah."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Telefon zaradi varnosti trenutno nima dovoljenja za nameščanje neznanih aplikacij iz tega vira. To lahko spremenite v nastavitvah."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Neznane aplikacije lahko resno ogrozijo varnost telefona in osebnih podatkov. Z namestitvijo te aplikacije se strinjate, da ste sami odgovorni za morebitno škodo, nastalo v telefonu, ali izgubo podatkov, do katerih lahko pride zaradi uporabe te aplikacije."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Neznane aplikacije lahko resno ogrozijo varnost tabličnega računalnika in osebnih podatkov. Z namestitvijo te aplikacije se strinjate, da ste sami odgovorni za morebitno škodo, nastalo v tabličnem računalniku, ali izgubo podatkov, do katerih lahko pride zaradi uporabe te aplikacije."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Neznane aplikacije lahko resno ogrozijo varnost televizorja in osebnih podatkov. Z namestitvijo te aplikacije se strinjate, da ste sami odgovorni za morebitno škodo, nastalo v televizorju, ali izgubo podatkov, do katerih lahko pride zaradi uporabe te aplikacije."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Namestitev te aplikacije je bila blokirana"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Ta aplikacija je v sporu z aplikacijo, ki je že v napravi"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Ta aplikacija ni združljiva z vašo napravo"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Prišlo je do težave z namestitveno datoteko te aplikacije"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Če želite namestiti to aplikacijo, sprostite nekaj prostora in poskusite znova"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Prišlo je do težave z datoteko aplikacije"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Nameščanje aplikacij ni dovoljeno"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Nameščanje neznanih aplikacij ni dovoljeno"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Obstaja tudi klon te aplikacije, ki bo prav tako izbrisan"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Ta aplikacija je klon aplikacije <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Ta aplikacija bo zamenjana s tovarniško različico. Vsi podatki aplikacije bodo odstranjeni."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Ta aplikacija bo zamenjana s tovarniško različico za vse uporabnike v napravi. Vsi podatki aplikacije bodo odstranjeni."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Ta aplikacija bo odmeščena iz delovnega profila"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Ta aplikacija bo odmeščena iz zasebnega prostora"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Te aplikacije ni bilo mogoče najti na seznamu nameščenih aplikacij ali pa je že bila odmeščena"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Trenutni uporabnik nima dovoljenja za izvedbo te odmestitve"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Te aplikacije ni bilo mogoče odmestiti"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Ohrani podatke aplikacije"</string>
+    <string name="message_archive" msgid="943853731737315850">"Podatki aplikacije bodo shranjeni"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Vsi podatki aplikacije bodo shranjeni"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Podatki aplikacije bodo shranjeni"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Ta aplikacija bo arhivirana iz delovnega profila. Podatki aplikacije bodo shranjeni."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Ta aplikacija bo arhivirana iz zasebnega prostora. Podatki aplikacije bodo shranjeni."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Ta aplikacija bo v ozadju prenesena od tukaj: <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> potrebuje več informacij, preden lahko obnovite to aplikacijo"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Če želite obnoviti to aplikacijo, sprostite &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; prostora in poskusite znova"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Če želite obnoviti to aplikacijo, preverite internetno povezavo in poskusite znova"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Če želite obnoviti to aplikacijo, v nastavitvah omogočite »<xliff:g id="INSTALLERNAME">%1$s</xliff:g>«"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Če želite obnoviti to aplikacijo, morate namestiti »<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>«"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Pri poskusu obnovitve te aplikacije je prišlo do težave"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> je del te aplikacije: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Ta aplikacija je bila blokirana. Zaradi zagotavljanja varnosti naprave in podatkov je mogoče namestiti samo aplikacije od preverjenih razvijalcev.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Ta aplikacija ni bila posodobljena. Zaradi zagotavljanja varnosti naprave in podatkov je mogoče namestiti samo posodobitve od preverjenih razvijalcev.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Ta aplikacija ni bila nameščena. Aplikacije od nepreverjenih razvijalcev morda niso varne.&lt;/p&gt; &lt;p&gt;Za preverjanje razvijalca aplikacije je potrebna internetna povezava. Preverite povezavo in nato poskusite znova namestiti aplikacijo. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Ta aplikacija ni bila posodobljena. Posodobitve od nepreverjenih razvijalcev morda niso varne.&lt;/p&gt; &lt;p&gt;Za preverjanje razvijalca aplikacije je potrebna internetna povezava. Preverite povezavo in nato poskusite znova posodobiti aplikacijo. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Pri preverjanju razvijalca te aplikacije je prišlo do težave. Aplikacije od nepreverjenih razvijalcev morda niso varne, zato aplikacija ni bila nameščena.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Pri preverjanju razvijalca te aplikacije je prišlo do težave. Posodobitve od nepreverjenih razvijalcev morda niso varne, zato aplikacija ni bila posodobljena.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Ta aplikacija je bila blokirana, ker je prišlo do težave pri preverjanju njenega razvijalca. Zaradi zagotavljanja varnosti naprave in podatkov je mogoče namestiti samo aplikacije od preverjenih razvijalcev.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Ta aplikacija ni bila posodobljena, ker je prišlo do težave pri preverjanju njenega razvijalca. Zaradi zagotavljanja varnosti naprave in podatkov je mogoče namestiti samo posodobitve od preverjenih razvijalcev.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Več o preverjanju razvijalcev&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Če namestite brez preverjanja, upoštevajte, da aplikacije od nepreverjenih razvijalcev lahko ogrozijo vašo napravo in podatke."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Če posodobite brez preverjanja, upoštevajte, da lahko posodobitve od nepreverjenih razvijalcev ogrozijo vašo napravo in podatke."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Razvijalec aplikacije ni preverjen"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Ni internetne povezave, zato razvijalca aplikacije ni mogoče preveriti"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Razvijalca aplikacije ni mogoče preveriti"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Namesti brez preverjanja"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Posodobi brez preverjanja"</string>
+    <string name="button_install" msgid="7434013176505680162">"Namesti"</string>
+    <string name="button_update" msgid="3046719350226327526">"Posodobi"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Vseeno posodobi"</string>
+    <string name="button_done" msgid="3408025390982260629">"Končano"</string>
+    <string name="button_open" msgid="6892684987374117955">"Odpri"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Prekliči"</string>
+    <string name="button_continue" msgid="107501685249826244">"Naprej"</string>
+    <string name="button_close" msgid="7187308556466275899">"Zapri"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Odmesti"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Izbriši"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Namesti znova"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Upravljanje aplikacij"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Arhiviraj"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Obnovi"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Odmesti posodobitve"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Nastavitve"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Poskusi znova"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Klon aplikacije <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+</resources>

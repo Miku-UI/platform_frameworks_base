@@ -23,9 +23,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.editor.SettingsDropdownBox
@@ -37,10 +35,6 @@ private const val TITLE = "Sample SettingsDropdownBox"
 
 object SettingsDropdownBoxPageProvider : SettingsPageProvider {
     override val name = "SettingsDropdownBox"
-
-    override fun getTitle(arguments: Bundle?): String {
-        return TITLE
-    }
 
     @Composable
     override fun Page(arguments: Bundle?) {
@@ -58,7 +52,9 @@ object SettingsDropdownBoxPageProvider : SettingsPageProvider {
             label = "SettingsDropdownBox",
             options = listOf("item1", "item2", "item3"),
             selectedOptionIndex = selectedItem,
-        ) { selectedItem = it }
+        ) {
+            selectedItem = it
+        }
     }
 
     @Composable
@@ -69,7 +65,9 @@ object SettingsDropdownBoxPageProvider : SettingsPageProvider {
             options = listOf("item1", "item2", "item3"),
             enabled = false,
             selectedOptionIndex = selectedItem,
-        ) { selectedItem = it }
+        ) {
+            selectedItem = it
+        }
     }
 
     @Composable
@@ -79,24 +77,24 @@ object SettingsDropdownBoxPageProvider : SettingsPageProvider {
             label = "Empty",
             options = emptyList(),
             selectedOptionIndex = selectedItem,
-        ) { selectedItem = it }
+        ) {
+            selectedItem = it
+        }
     }
 
-    fun buildInjectEntry(): SettingsEntryBuilder {
-        return SettingsEntryBuilder.createInject(owner = createSettingsPage())
-            .setUiLayoutFn {
-                Preference(object : PreferenceModel {
-                    override val title = TITLE
-                    override val onClick = navigator(name)
-                })
+    @Composable
+    fun Entry() {
+        Preference(
+            object : PreferenceModel {
+                override val title = TITLE
+                override val onClick = navigator(name)
             }
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun SettingsDropdownBoxPagePreview() {
-    SettingsTheme {
-        SettingsDropdownBoxPageProvider.Page(null)
-    }
+    SettingsTheme { SettingsDropdownBoxPageProvider.Page(null) }
 }

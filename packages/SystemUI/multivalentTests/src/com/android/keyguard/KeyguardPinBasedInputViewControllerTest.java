@@ -48,6 +48,7 @@ import com.android.systemui.keyboard.data.repository.FakeKeyboardRepository;
 import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.res.R;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -98,6 +99,8 @@ public class KeyguardPinBasedInputViewControllerTest extends SysuiTestCase {
     private NumPadKey[] mButtons = new NumPadKey[]{};
     @Mock
     private InputManager mInputManager;
+    @Mock
+    private LockPatternCheckerWrapper mLockPatternCheckerWrapper;
 
     private KeyguardPinBasedInputViewController mKeyguardPinViewController;
 
@@ -132,7 +135,7 @@ public class KeyguardPinBasedInputViewControllerTest extends SysuiTestCase {
                 mKeyguardMessageAreaControllerFactory, mLatencyTracker,
                 mEmergencyButtonController, mFalsingCollector, featureFlags,
                 mSelectedUserInteractor, keyguardKeyboardInteractor, mBouncerHapticPlayer,
-                mUserActivityNotifier, mInputManager) {
+                mUserActivityNotifier, mInputManager, mLockPatternCheckerWrapper) {
             @Override
             public void onResume(int reason) {
                 super.onResume(reason);
@@ -147,7 +150,6 @@ public class KeyguardPinBasedInputViewControllerTest extends SysuiTestCase {
         verify(mPasswordEntry).requestFocus();
     }
 
-    @Test
     public void testGetInitialMessageResId() {
         assertThat(mKeyguardPinViewController.getInitialMessageResId()).isNotEqualTo(0);
     }

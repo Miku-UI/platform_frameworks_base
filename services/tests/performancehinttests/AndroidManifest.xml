@@ -20,4 +20,6 @@
     <instrumentation android:name="androidx.test.runner.AndroidJUnitRunner"
          android:targetPackage="com.android.server.power.hinttests"
          android:label="ADPF Performance Hint Service Test"/>
+
+    <application android:debuggable="true" />
 </manifest>

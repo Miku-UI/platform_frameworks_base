@@ -5,7 +5,8 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
-import com.android.systemui.qs.ui.adapter.QSSceneAdapter
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import com.android.systemui.scene.shared.model.SceneContainerConfig
 import com.android.systemui.scene.shared.model.SceneDataSourceDelegator
 import com.android.systemui.scene.ui.composable.Overlay
@@ -13,15 +14,14 @@ import com.android.systemui.scene.ui.composable.Scene
 import com.android.systemui.scene.ui.viewmodel.SceneContainerViewModel
 import com.android.systemui.shade.TouchLogger
 import com.android.systemui.statusbar.notification.stack.ui.view.SharedNotificationContainer
-import javax.inject.Provider
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.android.systemui.statusbar.phone.ui.TintedIconManager
 
 /** A root view of the main SysUI window that supports scenes. */
 class SceneWindowRootView(context: Context, attrs: AttributeSet?) : WindowRootView(context, attrs) {
 
     private var motionEventHandler: SceneContainerViewModel.MotionEventHandler? = null
     // TODO(b/298525212): remove once Compose exposes window inset bounds.
-    private val windowInsets: MutableStateFlow<WindowInsets?> = MutableStateFlow(null)
+    private val windowInsets: MutableState<WindowInsets?> = mutableStateOf(null)
 
     fun init(
         viewModelFactory: SceneContainerViewModel.Factory,
@@ -31,9 +31,9 @@ class SceneWindowRootView(context: Context, attrs: AttributeSet?) : WindowRootVi
         overlays: Set<Overlay>,
         layoutInsetController: LayoutInsetsController,
         sceneDataSourceDelegator: SceneDataSourceDelegator,
-        qsSceneAdapter: Provider<QSSceneAdapter>,
         sceneJankMonitorFactory: SceneJankMonitor.Factory,
         windowRootViewKeyEventHandler: WindowRootViewKeyEventHandler,
+        tintedIconManagerFactory: TintedIconManager.Factory,
     ) {
         setLayoutInsetsController(layoutInsetController)
         SceneWindowRootViewBinder.bind(
@@ -51,8 +51,8 @@ class SceneWindowRootView(context: Context, attrs: AttributeSet?) : WindowRootVi
                 super.setVisibility(if (isVisible) View.VISIBLE else View.INVISIBLE)
             },
             dataSourceDelegator = sceneDataSourceDelegator,
-            qsSceneAdapter = qsSceneAdapter,
             sceneJankMonitorFactory = sceneJankMonitorFactory,
+            tintedIconManagerFactory = tintedIconManagerFactory,
         )
         setWindowRootViewKeyEventHandler(windowRootViewKeyEventHandler)
     }

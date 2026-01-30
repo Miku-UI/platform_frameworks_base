@@ -302,7 +302,7 @@ public class RootContentBehavior extends Operation
     }
 
     @Override
-    public int scrollByOffset(RemoteContext context, int offset) {
+    public int scrollByOffset(@NonNull RemoteContext context, int offset) {
         // TODO implement scroll handling
         return offset;
     }

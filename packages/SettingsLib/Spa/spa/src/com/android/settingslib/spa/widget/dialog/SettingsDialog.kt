@@ -50,7 +50,7 @@ fun SettingsDialogCard(
     content: @Composable () -> Unit,
 ) {
     Card(
-        shape = SettingsShape.CornerExtraLarge,
+        shape = SettingsShape.CornerExtraLarge1,
         colors = CardDefaults.cardColors(containerColor = AlertDialogDefaults.containerColor),
     ) {
         Column(modifier = Modifier.padding(vertical = SettingsDimension.itemPaddingAround)) {

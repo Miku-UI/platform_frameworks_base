@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.notification.stack.ui.viewbinder
 
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
-import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Flags
 import com.android.systemui.common.ui.view.onLayoutChanged
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
@@ -39,6 +38,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.DisposableHandle
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /** Binds the shared notification container to its view-model. */
 @SysUISingleton
@@ -117,13 +117,11 @@ constructor(
                         }
                     }
 
-                    launch {
-                        viewModel.getLockscreenDisplayConfig(calculateMaxNotifications).collect {
-                            (isOnLockscreen, maxNotifications) ->
-                            if (SceneContainerFlag.isEnabled) {
-                                controller.setOnLockscreen(isOnLockscreen)
+                    if (!SceneContainerFlag.isEnabled) {
+                        launch {
+                            viewModel.getMaxNotifications(calculateMaxNotifications).collect {
+                                controller.setMaxDisplayedNotifications(it)
                             }
-                            controller.setMaxDisplayedNotifications(maxNotifications)
                         }
                     }
 
@@ -147,7 +145,7 @@ constructor(
                         if (extendedWallpaperEffects()) {
                             launch {
                                 combine(
-                                        viewModel.getNotificationStackAbsoluteBottom(
+                                        viewModel.getNotificationStackAbsoluteBottomOnLockscreen(
                                             calculateMaxNotifications = calculateMaxNotifications,
                                             calculateHeight = { maxNotifications ->
                                                 notificationStackSizeCalculator.computeHeight(
@@ -155,9 +153,9 @@ constructor(
                                                     shelfHeight =
                                                         controller.getShelfHeight().toFloat(),
                                                     stack = controller.view,
+                                                    reason = "getStackAbsoluteBottomOnLockscreen",
                                                 )
                                             },
-                                            controller.getShelfHeight().toFloat(),
                                         ),
                                         viewModel.configurationBasedDimensions.map { it.marginTop },
                                         ::Pair,
@@ -197,6 +195,15 @@ constructor(
                                 controller.setMaxAlphaForGlanceableHub(it)
                             }
                         }
+
+                        if (Flags.gestureBetweenHubAndLockscreenMotion()) {
+                            launch {
+                                viewModel.viewScale.collect {
+                                    view.scaleX = it
+                                    view.scaleY = it
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -207,6 +214,14 @@ constructor(
 
         controller.setOnHeightChangedRunnable { viewModel.notificationStackChanged() }
         disposables += DisposableHandle { controller.setOnHeightChangedRunnable(null) }
+
+        controller.setOnKeyguardTopLevelNotificationRemovedRunnable {
+            viewModel.notificationStackChangedInstant()
+        }
+        disposables += DisposableHandle {
+            controller.setOnKeyguardTopLevelNotificationRemovedRunnable(null)
+        }
+
         disposables += view.onLayoutChanged { viewModel.notificationStackChanged() }
 
         return disposables

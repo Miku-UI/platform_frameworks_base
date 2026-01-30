@@ -17,11 +17,12 @@
 package com.android.server.wm.flicker.ime
 
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.Rotation
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
 import com.android.server.wm.flicker.BaseTest
@@ -45,10 +46,11 @@ import org.junit.runners.Parameterized
  *
  * To run this test: `atest FlickerTestsIme:CloseImeShownOnAppStartToAppOnPressBackTest`
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class CloseImeShownOnAppStartToAppOnPressBackTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+class CloseImeShownOnAppStartToAppOnPressBackTest(flicker: FlickerTest) : BaseTest(flicker) {
     private val testApp = ImeShownOnAppStartHelper(instrumentation, flicker.scenario.startRotation)
 
     /** {@inheritDoc} */
@@ -89,7 +91,7 @@ class CloseImeShownOnAppStartToAppOnPressBackTest(flicker: LegacyFlickerTest) : 
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 // b/190352379 (IME doesn't show on app launch in 90 degrees)
                 supportedRotations = listOf(Rotation.ROTATION_0)
             )

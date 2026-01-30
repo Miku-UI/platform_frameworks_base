@@ -21,6 +21,7 @@ import static android.widget.Editor.logCursor;
 import static com.android.internal.annotations.VisibleForTesting.Visibility.PACKAGE;
 
 import android.annotation.IntDef;
+import android.companion.virtualdevice.flags.Flags;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
@@ -142,8 +143,11 @@ public class EditorTouchState {
             final long millisBetweenLastDownAndLastUp = mLastUpMillis - mLastDownMillis;
 
             // Detect double tap and triple click.
-            if (millisSinceLastUp <= ViewConfiguration.getDoubleTapTimeout()
-                    && millisBetweenLastDownAndLastUp <= ViewConfiguration.getDoubleTapTimeout()
+            final int doubleTapTimeoutMillis = Flags.viewconfigurationApis()
+                    ? config.getDoubleTapTimeoutMillis()
+                    : ViewConfiguration.getDoubleTapTimeout();
+            if (millisSinceLastUp <= doubleTapTimeoutMillis
+                    && millisBetweenLastDownAndLastUp <= doubleTapTimeoutMillis
                     && (mMultiTapStatus == MultiTapStatus.FIRST_TAP
                     || (mMultiTapStatus == MultiTapStatus.DOUBLE_TAP && isMouse))) {
                 if (mMultiTapStatus == MultiTapStatus.FIRST_TAP) {

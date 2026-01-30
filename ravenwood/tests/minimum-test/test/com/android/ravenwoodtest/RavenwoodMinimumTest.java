@@ -41,9 +41,4 @@ public class RavenwoodMinimumTest {
     public void testIgnored() {
         throw new RuntimeException("Shouldn't be executed under ravenwood");
     }
-
-    @Test
-    public void testIgnored$noRavenwood() {
-        throw new RuntimeException("Shouldn't be executed under ravenwood");
-    }
 }

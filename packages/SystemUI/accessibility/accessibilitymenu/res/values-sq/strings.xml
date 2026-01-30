@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Shko tek ekrani i mëparshëm"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Shko tek ekrani tjetër"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"\"Menyja e qasshmërisë\" ofron një meny të madhe në ekran për të kontrolluar pajisjen tënde. Mund të kyçësh pajisjen, të kontrollosh volumin dhe ndriçimin, të nxjerrësh pamje ekrani dhe të tjera."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Kontrollo pajisjen nëpërmjet menysë së madhe"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Kontrollo volumin, ndriçimin dhe më shumë me një meny të madhe"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Cilësimet e menysë së qasshmërisë"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Butona të mëdhenj"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Rrit madhësinë e butonave të \"Menysë së qasshmërisë\""</string>

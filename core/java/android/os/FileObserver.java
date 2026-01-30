@@ -104,7 +104,7 @@ public abstract class FileObserver {
     private static class ObserverThread extends Thread {
         /** Temporarily retained; appears to be missing UnsupportedAppUsage annotation */
         private HashMap<Integer, WeakReference> m_observers = new HashMap<Integer, WeakReference>();
-        private SparseArray<WeakReference> mRealObservers = new SparseArray<>();
+        private final SparseArray<WeakReference> mRealObservers = new SparseArray<>();
         private int m_fd;
 
         public ObserverThread() {
@@ -143,6 +143,11 @@ public abstract class FileObserver {
 
         public void stopWatching(int[] descriptors) {
             stopWatching(m_fd, descriptors);
+            synchronized (mRealObservers) {
+                for (int wfd: descriptors) {
+                    mRealObservers.delete(wfd);
+                }
+            }
         }
 
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)

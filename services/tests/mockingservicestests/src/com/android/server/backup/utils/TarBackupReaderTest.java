@@ -105,7 +105,7 @@ public class TarBackupReaderTest {
         MockitoAnnotations.initMocks(this);
 
         mContext = new TestableContext(ApplicationProvider.getApplicationContext());
-        mUserId = UserHandle.USER_SYSTEM;
+        mUserId = UserHandle.myUserId();
     }
 
     @Test

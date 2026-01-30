@@ -18,6 +18,7 @@ package android.os;
 
 import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -148,7 +149,7 @@ public final class Trace {
     private static native void nativeTraceCounter(long tag, String name, long value);
     @FastNative
     private static native void nativeTraceBegin(long tag, String name);
-    @FastNative
+    @CriticalNative
     private static native void nativeTraceEnd(long tag);
     @FastNative
     private static native void nativeAsyncTraceBegin(long tag, String name, int cookie);
@@ -392,6 +393,29 @@ public final class Trace {
     }
 
     /**
+     * Writes a trace message to indicate that a given section of code has
+     * begun. Must be followed by a call to {@link #asyncTraceForTrackEnd} using the same
+     * track name and cookie.
+     *
+     * Events with the same trackName and cookie nest inside each other in the
+     * same way as calls to {@link #traceBegin(long, String)} and
+     * {@link #traceEnd(long)}.
+     *
+     * @param trackName  The track where the event should appear in the trace.
+     * @param methodName The method name to appear in the trace.
+     * @param cookie     Unique identifier used for nesting events on a single
+     *                   track. Events which overlap without nesting on the same
+     *                   track must have different values for cookie.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ASYNC_TRACE_FOR_TRACK)
+    public static void asyncTraceForTrackBegin(
+            @NonNull String trackName, @NonNull String methodName, int cookie) {
+        asyncTraceForTrackBegin(TRACE_TAG_APP, trackName, methodName, cookie);
+    }
+
+    /**
      * Writes a trace message to indicate that the current method has ended.
      * Must be called exactly once for each call to
      * {@link #asyncTraceForTrackBegin(long, String, String, int)}
@@ -413,6 +437,27 @@ public final class Trace {
         if (isTagEnabled(traceTag)) {
             nativeAsyncTraceForTrackEnd(traceTag, trackName, cookie);
         }
+    }
+
+    /**
+     * Writes a trace message to indicate that the current method has ended.
+     * Must be called exactly once for each call to
+     * {@link #asyncTraceForTrackBegin(String, String, int)}
+     * using the same track name, and cookie.
+     *
+     * See the documentation for {@link #asyncTraceForTrackBegin(String, String, int)}.
+     * for intended usage of this method.
+     *
+     * @param trackName The track where the event should appear in the trace.
+     * @param cookie    Unique identifier used for nesting events on a single
+     *                  track. Events which overlap without nesting on the same
+     *                  track must have different values for cookie.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ASYNC_TRACE_FOR_TRACK)
+    public static void asyncTraceForTrackEnd(@NonNull String trackName, int cookie) {
+        asyncTraceForTrackEnd(TRACE_TAG_APP, trackName, cookie);
     }
 
     /**

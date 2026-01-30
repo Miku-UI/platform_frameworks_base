@@ -280,8 +280,8 @@ public final class TouchInteractionController {
     }
 
     /**
-     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} and {@link If
-     * {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled and at least
+     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE}
+     * is enabled and at least
      * one callback has been added, this function tells the framework to initiate a dragging
      * interaction using the specified pointer. The pointer's movements will be passed through to
      * the rest of the input pipeline. Dragging is often used to perform two-finger scrolling.
@@ -309,8 +309,8 @@ public final class TouchInteractionController {
     }
 
     /**
-     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} and {@link If
-     * {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled and at least
+     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE}
+     * is enabled and at least
      * one callback has been added, this function tells the framework to initiate a delegating
      * interaction. Motion events will be passed through as-is to the rest of the input pipeline for
      * the duration of this interaction.
@@ -331,8 +331,8 @@ public final class TouchInteractionController {
     }
 
     /**
-     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} and {@link If
-     * {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled and at least
+     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE}
+     * is enabled and at least
      * one callback has been added, this function tells the framework to perform a click.
      * The framework will first try to perform
      * {@link AccessibilityNodeInfo.AccessibilityAction#ACTION_CLICK} on the item with
@@ -353,8 +353,8 @@ public final class TouchInteractionController {
     }
 
     /**
-     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} and {@link If
-     * {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE} is enabled and at least
+     * If {@link AccessibilityServiceInfo#FLAG_REQUEST_TOUCH_EXPLORATION_MODE}
+     * is enabled and at least
      * one callback has been added, this function tells the framework to perform a long click.
      * The framework will simulate a long click using motion events on the last location with
      * accessibility focus and will delegate any movements to the rest of the input pipeline. This

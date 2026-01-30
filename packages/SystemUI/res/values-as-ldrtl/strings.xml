@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"তাত্‍ক্ষণিকভাৱে আনটো এপ্ ব্যৱহাৰ কৰিবলৈ বাওঁফালে টানক"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"জাননীসমূহ খুলিবলৈ একেবাৰে ওপৰৰ সোঁফালৰ পৰা ছোৱাইপ কৰক"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"ক্ষিপ্ৰ ছেটিংসমূহ খুলিবলৈ একেবাৰে ওপৰৰ বাওঁফালৰ পৰা ছোৱাইপ কৰক"</string>
 </resources>

@@ -21,7 +21,6 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
-import android.util.MergedConfiguration;
 import android.view.DragEvent;
 import android.view.IScrollCaptureResponseListener;
 import android.view.IWindow;
@@ -30,9 +29,8 @@ import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 import android.view.ScrollCaptureResponse;
 import android.view.WindowInsets.Type.InsetsType;
+import android.view.WindowRelayoutResult;
 import android.view.inputmethod.ImeTracker;
-import android.window.ActivityWindowInfo;
-import android.window.ClientWindowFrames;
 
 import com.android.internal.os.IResultReceiver;
 
@@ -45,18 +43,19 @@ public class BaseIWindow extends IWindow.Stub {
 
     private IWindowSession mSession;
 
+    private int mLastSeqId = -1;
+
     public void setSession(IWindowSession session) {
         mSession = session;
     }
 
     @Override
-    public void resized(ClientWindowFrames frames, boolean reportDraw,
-            MergedConfiguration mergedConfiguration, InsetsState insetsState, boolean forceLayout,
-            boolean alwaysConsumeSystemBars, int displayId, int seqId, boolean dragResizing,
-            @Nullable ActivityWindowInfo activityWindowInfo) {
-        if (reportDraw) {
+    public void resized(WindowRelayoutResult layout, boolean reportDraw, boolean forceLayout,
+            int displayId, boolean syncWithBuffers, boolean dragResizing) {
+        if (layout.syncSeqId > mLastSeqId || reportDraw) {
+            mLastSeqId = layout.syncSeqId;
             try {
-                mSession.finishDrawing(this, null /* postDrawTransaction */, seqId);
+                mSession.finishDrawing(this, null /* postDrawTransaction */, layout.syncSeqId);
             } catch (RemoteException e) {
             }
         }
@@ -68,13 +67,11 @@ public class BaseIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void showInsets(@InsetsType int types, boolean fromIme,
-            @Nullable ImeTracker.Token statsToken) {
+    public void showInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken) {
     }
 
     @Override
-    public void hideInsets(@InsetsType int types, boolean fromIme,
-            @Nullable ImeTracker.Token statsToken) {
+    public void hideInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken) {
     }
 
     @Override
@@ -82,7 +79,7 @@ public class BaseIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void dispatchAppVisibility(boolean visible) {
+    public void dispatchAppVisibility(boolean visible, int seqId) {
     }
 
     @Override
@@ -105,14 +102,7 @@ public class BaseIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void dispatchWallpaperOffsets(float x, float y, float xStep, float yStep, float zoom,
-            boolean sync) {
-        if (sync) {
-            try {
-                mSession.wallpaperOffsetsComplete(asBinder());
-            } catch (RemoteException e) {
-            }
-        }
+    public void dispatchWallpaperOffsets(float x, float y, float xStep, float yStep, float zoom) {
     }
 
     @Override
@@ -126,14 +116,7 @@ public class BaseIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void dispatchWallpaperCommand(String action, int x, int y,
-            int z, Bundle extras, boolean sync) {
-        if (sync) {
-            try {
-                mSession.wallpaperCommandComplete(asBinder(), null);
-            } catch (RemoteException e) {
-            }
-        }
+    public void dispatchWallpaperCommand(String action, int x, int y, int z, Bundle extras) {
     }
 
     @Override

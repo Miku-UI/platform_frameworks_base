@@ -16,10 +16,14 @@
 
 package com.android.systemui.dreams;
 
+import static android.service.dreams.Flags.dreamOverlayStartedFix;
 import static android.service.dreams.Flags.dreamWakeRedirect;
 import static android.service.dreams.Flags.dreamsV2;
 
+import static com.android.systemui.Flags.dreamBiometricPromptFixes;
 import static com.android.systemui.Flags.glanceableHubAllowKeyguardWhenDreaming;
+import static com.android.systemui.ambient.touch.TouchSurfaceKt.SURFACE_DREAM;
+import static com.android.systemui.ambient.touch.scrim.dagger.ScrimModule.BOUNCER_SCRIM_CONTROLLER;
 import static com.android.systemui.dreams.dagger.DreamModule.DREAM_OVERLAY_WINDOW_TITLE;
 import static com.android.systemui.dreams.dagger.DreamModule.DREAM_TOUCH_INSET_MANAGER;
 import static com.android.systemui.dreams.dagger.DreamModule.HOME_CONTROL_PANEL_DREAM_COMPONENT;
@@ -57,7 +61,8 @@ import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.systemui.ambient.touch.TouchHandler;
 import com.android.systemui.ambient.touch.TouchMonitor;
 import com.android.systemui.ambient.touch.dagger.AmbientTouchComponent;
-import com.android.systemui.ambient.touch.scrim.ScrimManager;
+import com.android.systemui.ambient.touch.scrim.ScrimController;
+import com.android.systemui.biometrics.domain.interactor.PromptCredentialInteractor;
 import com.android.systemui.communal.domain.interactor.CommunalInteractor;
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor;
 import com.android.systemui.communal.shared.log.CommunalUiEvent;
@@ -68,6 +73,7 @@ import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dreams.complication.dagger.DreamComplicationComponent;
 import com.android.systemui.dreams.dagger.DreamModule;
 import com.android.systemui.dreams.dagger.DreamOverlayComponent;
+import com.android.systemui.dreams.touch.DismissTouchHandler;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.navigationbar.gestural.domain.GestureInteractor;
 import com.android.systemui.navigationbar.gestural.domain.TaskMatcher;
@@ -79,6 +85,7 @@ import com.android.systemui.scene.shared.model.Scenes;
 import com.android.systemui.shade.ShadeExpansionChangeEvent;
 import com.android.systemui.touch.TouchInsetManager;
 import com.android.systemui.util.concurrency.DelayableExecutor;
+import com.android.systemui.util.kotlin.BooleanFlowOperators;
 
 import kotlin.Unit;
 
@@ -116,7 +123,7 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
     private DreamOverlayContainerViewController mDreamOverlayContainerViewController;
     private final DreamOverlayCallbackController mDreamOverlayCallbackController;
     private final KeyguardUpdateMonitor mKeyguardUpdateMonitor;
-    private final ScrimManager mScrimManager;
+    private final ScrimController mBouncerScrimController;
     @Nullable
     private final ComponentName mLowLightDreamComponent;
     @Nullable
@@ -128,8 +135,18 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
     // A reference to the {@link Window} used to hold the dream overlay.
     private Window mWindow;
 
-    // True if a dream has bound to the service and dream overlay service has started.
+    /**
+     * True if a dream has bound to the service and dream overlay service has started. Does not
+     * immediately flip to false in {@link #onEndDream()}, waits until the overlay service state is
+     * reset.
+     */
     private boolean mStarted = false;
+
+    /**
+     * True if the connected dream has been ended from {@link #onEndDream()} and has not fully
+     * started yet.
+     */
+    private boolean mEnded = false;
 
     // True if the service has been destroyed.
     private boolean mDestroyed = false;
@@ -145,9 +162,17 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
     private boolean mCommunalVisible = false;
 
     /**
-     * True if the primary bouncer is visible.
+     * True if either the primary bouncer or alternate bouncer is visible.
      */
     private boolean mBouncerShowing = false;
+
+    /**
+     * True if the biometric prompt is showing.
+     *
+     * The biometric prompt is a window that shows up on top of an activity that can be used to
+     * request authentication for a sensitive action.
+     */
+    private boolean mBiometricPromptShowing = false;
 
     private final DreamComplicationComponent.Factory mDreamComplicationComponentFactory;
     private final ComplicationComponent.Factory mComplicationComponentFactory;
@@ -194,7 +219,7 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
             new KeyguardUpdateMonitorCallback() {
                 @Override
                 public void onShadeExpandedChanged(boolean expanded) {
-                    mExecutor.execute(() -> {
+                    dreamScopedExecute(() -> {
                         if (mShadeExpanded == expanded) {
                             return;
                         }
@@ -202,7 +227,7 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
 
                         updateLifecycleStateLocked();
                         updateGestureBlockingLocked();
-                    });
+                    }, "shade expanded changed");
                 }
             };
 
@@ -221,20 +246,14 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
         }
     };
 
-    private final Consumer<Boolean> mBouncerShowingConsumer = new Consumer<>() {
-        @Override
-        public void accept(Boolean bouncerShowing) {
-            mExecutor.execute(() -> updateBouncerShowingLocked(bouncerShowing));
-        }
-    };
+    private final Consumer<Boolean> mBouncerShowingConsumer = bouncerShowing ->
+            dreamScopedExecute(() -> updateBouncerShowingLocked(bouncerShowing),
+            "bouncer showing changed");
 
-    private final Consumer<Set<OverlayKey>> mCurrentOverlaysConsumer = new Consumer<>() {
-        @Override
-        public void accept(Set<OverlayKey> currentOverlays) {
-            mExecutor.execute(() ->
-                    updateBouncerShowingLocked(currentOverlays.contains(Overlays.Bouncer)));
-        }
-    };
+    private final Consumer<Set<OverlayKey>> mCurrentOverlaysConsumer =
+            currentOverlays -> dreamScopedExecute(() ->
+                    updateBouncerShowingLocked(currentOverlays.contains(Overlays.Bouncer)),
+                    "overlays changed");
 
     private final Consumer<Unit> mPickupConsumer = new Consumer<>() {
         @Override
@@ -244,6 +263,10 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
                             PowerManager.WAKE_REASON_LIFT));
         }
     };
+
+    private final Consumer<Boolean> mBiometricPromptShowingConsumer =
+            showing -> dreamScopedExecute(() -> updateBiometricPromptShowingLocked(showing),
+            "update biometric prompt showing");
 
     /**
      * {@link ResetHandler} protects resetting {@link DreamOverlayService} by making sure reset
@@ -338,6 +361,8 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
             mGestureInteractor.removeGestureBlockedMatcher(DREAM_TYPE_MATCHER,
                     GestureInteractor.Scope.Global);
 
+            mKeyguardUpdateMonitor.removeCallback(mKeyguardCallback);
+
             mStarted = false;
         }
 
@@ -399,8 +424,9 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
             AmbientTouchComponent.Factory ambientTouchComponentFactory,
             DreamOverlayStateController stateController,
             KeyguardUpdateMonitor keyguardUpdateMonitor,
-            ScrimManager scrimManager,
+            @Named(BOUNCER_SCRIM_CONTROLLER) ScrimController bouncerScrimController,
             CommunalInteractor communalInteractor,
+            PromptCredentialInteractor promptCredentialInteractor,
             CommunalSettingsInteractor communalSettingsInteractor,
             SceneInteractor sceneInteractor,
             SystemDialogsCloser systemDialogsCloser,
@@ -421,10 +447,9 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
         mExecutor = executor;
         mWindowManager = windowManager;
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
-        mScrimManager = scrimManager;
+        mBouncerScrimController = bouncerScrimController;
         mLowLightDreamComponent = lowLightDreamComponent;
         mHomeControlPanelDreamComponent = homeControlPanelDreamComponent;
-        mKeyguardUpdateMonitor.registerCallback(mKeyguardCallback);
         mStateController = stateController;
         mUiEventLogger = uiEventLogger;
         mComplicationComponentFactory = complicationComponentFactory;
@@ -453,13 +478,19 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
             mFlows.add(collectFlow(getLifecycle(), sceneInteractor.getCurrentOverlays(),
                     mCurrentOverlaysConsumer));
         } else {
-            mFlows.add(collectFlow(getLifecycle(), keyguardInteractor.primaryBouncerShowing,
+            mFlows.add(collectFlow(getLifecycle(), BooleanFlowOperators.anyOf(
+                    keyguardInteractor.primaryBouncerShowing,
+                    keyguardInteractor.getAlternateBouncerShowing()),
                     mBouncerShowingConsumer));
         }
 
         if (dreamsV2()) {
             mFlows.add(collectFlow(getLifecycle(), wakeGestureMonitor.getWakeUpDetected(),
                     mPickupConsumer));
+        }
+        if (dreamBiometricPromptFixes()) {
+            mFlows.add(collectFlow(getLifecycle(), promptCredentialInteractor.isShowing(),
+                    mBiometricPromptShowingConsumer));
         }
     }
 
@@ -483,8 +514,6 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
 
     @Override
     public void onDestroy() {
-        mKeyguardUpdateMonitor.removeCallback(mKeyguardCallback);
-
         for (Job job : mFlows) {
             job.cancel(new CancellationException());
         }
@@ -521,8 +550,17 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
             // to hub swipe gesture.
             touchHandlers.add(dreamOverlayComponent.getCommunalTouchHandler());
         }
+        if (isDreamInPreviewMode()) {
+            touchHandlers.add(new DismissTouchHandler(new DismissTouchHandler.DismissCallback() {
+                @Override
+                public void onDismissed() {
+                    mExecutor.execute(DreamOverlayService.this::requestExit);
+                }
+            }));
+        }
+
         final AmbientTouchComponent ambientTouchComponent = mAmbientTouchComponentFactory.create(
-                mLifecycleOwner, new HashSet<>(touchHandlers), TAG);
+                mLifecycleOwner, new HashSet<>(touchHandlers), TAG, SURFACE_DREAM);
 
         setLifecycleStateLocked(Lifecycle.State.STARTED);
 
@@ -575,6 +613,9 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
 
         mDreamOverlayCallbackController.onStartDream();
         mStarted = true;
+        mEnded = false;
+
+        mKeyguardUpdateMonitor.registerCallback(mKeyguardCallback);
 
         updateRedirectWakeup();
         updateGestureBlockingLocked();
@@ -597,6 +638,9 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
 
     @Override
     public void onEndDream() {
+        if (dreamOverlayStartedFix()) {
+            mEnded = true;
+        }
         mResetHandler.reset("ending dream");
     }
 
@@ -615,9 +659,14 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
         }
     }
 
+    /**
+     * Update the back gesture blocking state. Should only be called from
+     * {@link #dreamScopedExecute(Runnable, String)}.
+     */
     private void updateGestureBlockingLocked() {
-        final boolean shouldBlock = mStarted && !mShadeExpanded && !mBouncerShowing
-                && !isDreamInPreviewMode();
+        final boolean shouldBlock =
+                (dreamOverlayStartedFix() || mStarted) && !mShadeExpanded && !mBouncerShowing
+                        && !isDreamInPreviewMode() && !mBiometricPromptShowing;
 
         if (shouldBlock) {
             mGestureInteractor.addGestureBlockedMatcher(DREAM_TYPE_MATCHER,
@@ -643,7 +692,8 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
         }
 
         // If anything is on top of the dream, we should stop touch handling.
-        boolean shouldPause = mShadeExpanded || mCommunalVisible || mBouncerShowing;
+        boolean shouldPause =
+                mShadeExpanded || mCommunalVisible || mBouncerShowing || mBiometricPromptShowing;
 
         setLifecycleStateLocked(
                 shouldPause ? Lifecycle.State.STARTED : Lifecycle.State.RESUMED);
@@ -663,7 +713,7 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
         // an equal amount.
         if (mDreamOverlayContainerViewController != null
                 && mDreamOverlayContainerViewController.isBouncerShowing()) {
-            mScrimManager.getCurrentController().expand(
+            mBouncerScrimController.expand(
                     new ShadeExpansionChangeEvent(
                             /* fraction= */ 1.f,
                             /* expanded= */ false,
@@ -764,5 +814,27 @@ public class DreamOverlayService extends android.service.dreams.DreamOverlayServ
 
         updateLifecycleStateLocked();
         updateGestureBlockingLocked();
+    }
+
+    private void updateBiometricPromptShowingLocked(boolean biometricPromptShowing) {
+        if (mBiometricPromptShowing == biometricPromptShowing) {
+            return;
+        }
+
+        mBiometricPromptShowing = biometricPromptShowing;
+
+        updateLifecycleStateLocked();
+        updateGestureBlockingLocked();
+    }
+
+    private void dreamScopedExecute(Runnable runnable, String description) {
+        mExecutor.execute(() -> {
+            if (!mStarted || mEnded) {
+                Log.d(TAG, "could not execute when not dreaming:" + description);
+                return;
+            }
+
+            runnable.run();
+        });
     }
 }

@@ -69,6 +69,7 @@ import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -90,6 +91,7 @@ import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.accessibility.EventStreamTransformation;
 import com.android.server.accessibility.Flags;
 import com.android.server.accessibility.magnification.FullScreenMagnificationController.MagnificationInfoChangedCallback;
+import com.android.server.accessibility.test.MessageCapturingHandler;
 import com.android.server.input.InputManagerInternal;
 import com.android.server.testutils.OffsettableClock;
 import com.android.server.testutils.TestHandler;
@@ -103,6 +105,7 @@ import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.stubbing.Answer;
@@ -190,6 +193,8 @@ public class FullScreenMagnificationGestureHandlerTest {
 
     FullScreenMagnificationController mFullScreenMagnificationController;
     @Mock
+    FullScreenMagnificationController.ControllerContext mMockControllerContext;
+    @Mock
     MagnificationGestureHandler.Callback mMockCallback;
     @Mock
     MagnificationInfoChangedCallback mMagnificationInfoChangedCallback;
@@ -215,28 +220,35 @@ public class FullScreenMagnificationGestureHandlerTest {
     private OffsettableClock mClock;
     private FullScreenMagnificationGestureHandler mMgh;
     private TestHandler mHandler;
+    private final MessageCapturingHandler mMessageCapturingHandler = new MessageCapturingHandler(
+            null);
+    private WindowManagerInternal.MagnificationCallbacks mMagnificationCallbacks;
 
     private long mLastDownTime = Integer.MIN_VALUE;
 
     private float mOriginalMagnificationPersistedScale;
 
-    static final Rect INITIAL_MAGNIFICATION_BOUNDS = new Rect(0, 0, 800, 800);
+    private static final Rect INITIAL_MAGNIFICATION_BOUNDS = new Rect(0, 0, 800, 800);
+    private static final Rect IME_BOUNDS = new Rect(
+            INITIAL_MAGNIFICATION_BOUNDS.left, INITIAL_MAGNIFICATION_BOUNDS.bottom / 2,
+            INITIAL_MAGNIFICATION_BOUNDS.right, INITIAL_MAGNIFICATION_BOUNDS.bottom);
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        final FullScreenMagnificationController.ControllerContext mockController =
-                mock(FullScreenMagnificationController.ControllerContext.class);
         final WindowManagerInternal mockWindowManager = mock(WindowManagerInternal.class);
         final InputManagerInternal mockInputManager = mock(InputManagerInternal.class);
-        when(mockController.getContext()).thenReturn(mContext);
-        when(mockController.getTraceManager()).thenReturn(mMockTraceManager);
-        when(mockController.getWindowManager()).thenReturn(mockWindowManager);
-        when(mockController.getInputManager()).thenReturn(mockInputManager);
-        when(mockController.getHandler()).thenReturn(new Handler(mContext.getMainLooper()));
-        when(mockController.newValueAnimator()).thenReturn(new ValueAnimator());
-        when(mockController.getAnimationDuration()).thenReturn(1000L);
-        when(mockWindowManager.setMagnificationCallbacks(eq(DISPLAY_0), any())).thenReturn(true);
+        when(mMockControllerContext.getContext()).thenReturn(mContext);
+        when(mMockControllerContext.getTraceManager()).thenReturn(mMockTraceManager);
+        when(mMockControllerContext.getWindowManager()).thenReturn(mockWindowManager);
+        when(mMockControllerContext.getInputManager()).thenReturn(mockInputManager);
+        when(mMockControllerContext.getHandler()).thenReturn(new Handler(mContext.getMainLooper()));
+        when(mMockControllerContext.newValueAnimator()).thenReturn(new ValueAnimator());
+        when(mMockControllerContext.getAnimationDuration()).thenReturn(1000L);
+        ArgumentCaptor<WindowManagerInternal.MagnificationCallbacks> magnificationCallbacksCaptor =
+                ArgumentCaptor.forClass(WindowManagerInternal.MagnificationCallbacks.class);
+        when(mockWindowManager.setMagnificationCallbacks(
+                eq(DISPLAY_0), magnificationCallbacksCaptor.capture())).thenReturn(true);
         mOriginalMagnificationPersistedScale = Settings.Secure.getFloatForUser(
                 mContext.getContentResolver(),
                 Settings.Secure.ACCESSIBILITY_DISPLAY_MAGNIFICATION_SCALE, 2.0f,
@@ -247,7 +259,7 @@ public class FullScreenMagnificationGestureHandlerTest {
         mMockMagnificationConnectionState = true;
         mFullScreenMagnificationController =
                 new FullScreenMagnificationController(
-                        mockController,
+                        mMockControllerContext,
                         new Object(),
                         mMagnificationInfoChangedCallback,
                         new MagnificationScaleProvider(mContext),
@@ -270,6 +282,7 @@ public class FullScreenMagnificationGestureHandlerTest {
         }).when(mockWindowManager).getMagnificationRegion(anyInt(), any(Region.class));
 
         mFullScreenMagnificationController.register(DISPLAY_0);
+        mMagnificationCallbacks = magnificationCallbacksCaptor.getValue();
         mFullScreenMagnificationController.setAlwaysOnMagnificationEnabled(true);
         mClock = new OffsettableClock.Stopped();
 
@@ -574,6 +587,86 @@ public class FullScreenMagnificationGestureHandlerTest {
                 STATE_ZOOMED_WITH_PERSISTED_SCALE_TMP);
         assertZoomsImmediatelyOnSwipeFrom(STATE_ZOOMED_OUT_FROM_SERVICE_2TAPS,
                 STATE_ZOOMED_WITH_PERSISTED_SCALE_TMP);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MAGNIFICATION_MAGNIFY_NAV_BAR_AND_IME)
+    public void testTripleTap_tapPerformedNotOverIme_activatesMagnification() {
+        showIme(new Region(IME_BOUNDS));
+        goFromStateIdleTo(STATE_IDLE);
+        final int centerX = IME_BOUNDS.centerX(), aboveImeY = IME_BOUNDS.top / 2;
+
+        tap(centerX, aboveImeY);
+        tap(centerX, aboveImeY);
+        tap(centerX, aboveImeY);
+
+        assertIn(STATE_ACTIVATED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MAGNIFICATION_MAGNIFY_NAV_BAR_AND_IME)
+    public void testTripleTap_tapPerformedOverIme_doesNotActivateMagnification() {
+        showIme(new Region(IME_BOUNDS));
+        goFromStateIdleTo(STATE_IDLE);
+        final EventCaptor eventCaptor = new EventCaptor();
+        mMgh.setNext(eventCaptor);
+        final int centerX = IME_BOUNDS.centerX(), centerY = IME_BOUNDS.centerY();
+
+        tap(centerX, centerY);
+        tap(centerX, centerY);
+        tap(centerX, centerY);
+        // no fast forward
+
+        // Events are immediately delegated
+        assertIn(STATE_IDLE);
+        final List<Integer> expectedActions = List.of(
+                ACTION_DOWN, ACTION_UP,
+                ACTION_DOWN, ACTION_UP,
+                ACTION_DOWN, ACTION_UP
+        );
+        assertActionsInOrder(eventCaptor.mEvents, expectedActions);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MAGNIFICATION_MAGNIFY_NAV_BAR_AND_IME)
+    public void testTripleTap_tapPerformedOverIme_alreadyMagnified_doesNotDeactivate() {
+        showIme(new Region(IME_BOUNDS));
+        goFromStateIdleTo(STATE_ACTIVATED);
+        final EventCaptor eventCaptor = new EventCaptor();
+        mMgh.setNext(eventCaptor);
+        final int centerX = IME_BOUNDS.centerX(), centerY = IME_BOUNDS.centerY();
+        // Zoom into the center of the IME to ensure that these taps are performed over its
+        // magnified bounds.
+        mFullScreenMagnificationController
+                .setScaleAndCenter(DISPLAY_0, 8, centerX, centerY, false, false, 1);
+
+        tap(centerX, centerY);
+        tap(centerX, centerY);
+        tap(centerX, centerY);
+        // no fast forward
+
+        // Events are immediately delegated, still in STATE_ACTIVATED
+        assertIn(STATE_ACTIVATED);
+        final List<Integer> expectedActions = List.of(
+                ACTION_DOWN, ACTION_UP,
+                ACTION_DOWN, ACTION_UP,
+                ACTION_DOWN, ACTION_UP
+        );
+        assertActionsInOrder(eventCaptor.mEvents, expectedActions);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MAGNIFICATION_MAGNIFY_NAV_BAR_AND_IME)
+    public void testSingleTapAfterTriggeringShortcut_tapPerformedOverIme_activatesMagnification() {
+        showIme(new Region(IME_BOUNDS));
+        goFromStateIdleTo(STATE_SHORTCUT_TRIGGERED);
+        final int centerX = IME_BOUNDS.centerX(), centerY = IME_BOUNDS.centerY();
+
+        tap(centerX, centerY);
+        // no fast forward
+
+        // Events are immediately delegated
+        assertIn(STATE_ACTIVATED);
     }
 
     @Test
@@ -2331,6 +2424,12 @@ public class FullScreenMagnificationGestureHandlerTest {
             }
         }
         return eventQueue;
+    }
+
+    private void showIme(Region imeRegion) {
+        when(mMockControllerContext.getHandler()).thenReturn(mMessageCapturingHandler);
+        mMagnificationCallbacks.onImeRegionChanged(imeRegion);
+        mMessageCapturingHandler.sendAllMessages();
     }
 
     private String stateDump() {

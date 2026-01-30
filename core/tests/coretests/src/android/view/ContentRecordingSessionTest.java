@@ -27,6 +27,7 @@ import static com.google.common.truth.Truth.assertThat;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.Parcel;
+import android.os.Process;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -47,6 +48,7 @@ import org.junit.runner.RunWith;
 public class ContentRecordingSessionTest {
     private static final int DISPLAY_ID = 1;
     private static final int TASK_ID = 123;
+    private static final int UID = 1234;
     private static final IBinder WINDOW_TOKEN = new Binder("DisplayContentWindowToken");
 
     @Test
@@ -144,6 +146,51 @@ public class ContentRecordingSessionTest {
         taskSession4.setVirtualDisplayId(DEFAULT_DISPLAY);
         taskSession4.setTokenToRecord(null);
         assertThat(ContentRecordingSession.isValid(taskSession4)).isFalse();
+    }
+
+    @Test
+    public void testIsValid_overlaySession() {
+        // Canonical task session.
+        ContentRecordingSession overlaySession = ContentRecordingSession.createOverlaySession(
+                DISPLAY_ID, UID);
+        overlaySession.setVirtualDisplayId(DEFAULT_DISPLAY);
+        assertThat(ContentRecordingSession.isValid(overlaySession)).isTrue();
+
+        // Different display values.
+        ContentRecordingSession overlaySession0 = ContentRecordingSession.createOverlaySession(
+                INVALID_DISPLAY, UID);
+        overlaySession0.setVirtualDisplayId(DEFAULT_DISPLAY);
+        assertThat(ContentRecordingSession.isValid(overlaySession0)).isFalse();
+
+        ContentRecordingSession overlaySession1 = ContentRecordingSession.createOverlaySession(
+                DISPLAY_ID, UID);
+        overlaySession1.setVirtualDisplayId(DEFAULT_DISPLAY);
+        overlaySession1.setDisplayToRecord(INVALID_DISPLAY);
+        assertThat(ContentRecordingSession.isValid(overlaySession1)).isFalse();
+
+        ContentRecordingSession overlaySession2 = ContentRecordingSession.createOverlaySession(
+                INVALID_DISPLAY, UID);
+        overlaySession2.setVirtualDisplayId(DEFAULT_DISPLAY);
+        overlaySession2.setDisplayToRecord(DISPLAY_ID);
+        assertThat(ContentRecordingSession.isValid(overlaySession2)).isTrue();
+
+        // UID values.
+        ContentRecordingSession overlaySession3 = ContentRecordingSession.createOverlaySession(
+                DISPLAY_ID, Process.INVALID_UID);
+        overlaySession3.setVirtualDisplayId(DEFAULT_DISPLAY);
+        assertThat(ContentRecordingSession.isValid(overlaySession3)).isFalse();
+
+        ContentRecordingSession overlaySession4 = ContentRecordingSession.createOverlaySession(
+                DISPLAY_ID, UID);
+        overlaySession4.setVirtualDisplayId(DEFAULT_DISPLAY);
+        overlaySession4.setRecordingOwnerUid(Process.INVALID_UID);
+        assertThat(ContentRecordingSession.isValid(overlaySession4)).isFalse();
+
+        ContentRecordingSession overlaySession5 = ContentRecordingSession.createOverlaySession(
+                DISPLAY_ID, Process.INVALID_UID);
+        overlaySession5.setVirtualDisplayId(DEFAULT_DISPLAY);
+        overlaySession5.setRecordingOwnerUid(UID);
+        assertThat(ContentRecordingSession.isValid(overlaySession5)).isTrue();
     }
 
     @Test

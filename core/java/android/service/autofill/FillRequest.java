@@ -545,7 +545,7 @@ public final class FillRequest implements Parcelable {
         byte flg = in.readByte();
         int id = in.readInt();
         List<FillContext> fillContexts = new ArrayList<>();
-        in.readParcelableList(fillContexts, FillContext.class.getClassLoader());
+        in.readParcelableList(fillContexts, FillContext.class.getClassLoader(), FillContext.class);
         List<String> hints = new ArrayList<>();
         in.readStringList(hints);
         Bundle clientState = (flg & 0x8) == 0 ? null : in.readBundle();

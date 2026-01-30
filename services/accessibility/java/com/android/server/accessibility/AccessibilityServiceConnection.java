@@ -18,6 +18,7 @@ package com.android.server.accessibility;
 
 import static android.accessibilityservice.AccessibilityService.SoftKeyboardController.ENABLE_IME_FAIL_UNKNOWN;
 import static android.accessibilityservice.AccessibilityService.SoftKeyboardController.ENABLE_IME_SUCCESS;
+import static android.content.IntentFilter.SYSTEM_HIGH_PRIORITY;
 import static android.os.Trace.TRACE_TAG_WINDOW_MANAGER;
 
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
@@ -39,10 +40,13 @@ import android.app.PendingIntent;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ParceledListSlice;
+import android.content.pm.ResolveInfo;
 import android.hardware.usb.UsbDevice;
 import android.hardware.usb.UsbManager;
 import android.os.Binder;
@@ -81,6 +85,7 @@ import java.util.Set;
  */
 class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnection {
     private static final String LOG_TAG = "AccessibilityServiceConnection";
+    private static final int UID_UNKNOWN = -1;
 
     /*
      Holding a weak reference so there isn't a loop of references. AccessibilityUserState keeps
@@ -99,6 +104,11 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
     private List<Bundle> mTestBrailleDisplays = null;
 
     private final Handler mMainHandler;
+    private UsbDeviceReceiver mUsbDeviceReceiverReceiver;
+    // The serial number of the braille display which USB permission was last granted for. Needed to
+    // automatically re-grant USB permission to this same braille display if unplugged and connected
+    // again in the same accessibility service session.
+    private String mConnectedBrailleDisplaySerialNumber = null;
 
     private static final class AccessibilityInputMethodSessionCallback
             extends IAccessibilityInputMethodSessionCallback.Stub {
@@ -111,7 +121,7 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
 
         @RequiresNoPermission
         @Override
-        public void sessionCreated(IAccessibilityInputMethodSession session, int id) {
+        public void sessionCreated(@NonNull IAccessibilityInputMethodSession session, int id) {
             Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "ASC.sessionCreated");
             final long ident = Binder.clearCallingIdentity();
             try {
@@ -121,6 +131,24 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
                 Binder.restoreCallingIdentity(ident);
             }
             Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
+        }
+    }
+
+    private class UsbDeviceReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (!Flags.enableBrailleSuwImmediateConnections()) {
+                return;
+            }
+
+            UsbDevice device =
+                    intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice.class);
+            if (device != null) {
+                String action = intent.getAction();
+                if (action != null && action.equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
+                    onDeviceAttached(device);
+                }
+            }
         }
     }
 
@@ -177,6 +205,14 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
         mActivityTaskManagerService.setAllowAppSwitches(mComponentName.flattenToString(),
                 mAccessibilityServiceInfo.getResolveInfo().serviceInfo.applicationInfo.uid,
                 userState.mUserId);
+
+        if (Flags.enableBrailleSuwImmediateConnections() && isInSetupWizard()) {
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+            filter.setPriority(SYSTEM_HIGH_PRIORITY);
+            mUsbDeviceReceiverReceiver = new UsbDeviceReceiver();
+            mContext.registerReceiver(mUsbDeviceReceiverReceiver, filter);
+        }
     }
 
     public void unbindLocked() {
@@ -191,6 +227,10 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
         mActivityTaskManagerService.setAllowAppSwitches(mComponentName.flattenToString(), -1,
                 userState.mUserId);
         resetLocked();
+        if (Flags.enableBrailleSuwImmediateConnections() && mUsbDeviceReceiverReceiver != null) {
+            mContext.unregisterReceiver(mUsbDeviceReceiverReceiver);
+            mConnectedBrailleDisplaySerialNumber = null;
+        }
     }
 
     public boolean canRetrieveInteractiveWindowsLocked() {
@@ -797,6 +837,45 @@ class AccessibilityServiceConnection extends AbstractAccessibilityServiceConnect
                     BrailleDisplayConnection.BUS_USB,
                     controller);
         }
+    }
+
+    private void onDeviceAttached(UsbDevice device) {
+        if (!Flags.enableBrailleSuwImmediateConnections()) {
+            return;
+        }
+
+        if (isInSetupWizard() || (mConnectedBrailleDisplaySerialNumber != null
+                && mConnectedBrailleDisplaySerialNumber.equals(device.getSerialNumber()))) {
+            int clientUid = getClientUid();
+            if (clientUid == UID_UNKNOWN) {
+                return;
+            }
+
+            UsbManager usbManager = mContext.getSystemService(UsbManager.class);
+            usbManager.grantPermission(device, /* uid of client's App */ clientUid);
+
+            String usbSerialNumber = device.getSerialNumber();
+            if (!TextUtils.isEmpty(usbSerialNumber)) {
+                // Store the serial number to re-grant USB permission to this braille display if it
+                // is unplugged and reconnected.
+                mConnectedBrailleDisplaySerialNumber = usbSerialNumber;
+            }
+        }
+    }
+
+    private int getClientUid() {
+        ResolveInfo resolveInfo = mAccessibilityServiceInfo.getResolveInfo();
+        if (resolveInfo != null && resolveInfo.serviceInfo != null
+                && resolveInfo.serviceInfo.applicationInfo != null) {
+            return resolveInfo.serviceInfo.applicationInfo.uid;
+        }
+
+        return UID_UNKNOWN;
+    }
+
+    private boolean isInSetupWizard() {
+        return Settings.Secure.getIntForUser(mContext.getContentResolver(),
+                Settings.Secure.USER_SETUP_COMPLETE, 0, mUserId) == 0;
     }
 
     @Override

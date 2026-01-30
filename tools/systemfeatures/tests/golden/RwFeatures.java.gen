@@ -19,6 +19,24 @@ import android.util.ArrayMap;
  */
 public final class RwFeatures {
     /**
+     * Check for FEATURE_AUTO.
+     *
+     * @hide
+     */
+    public static boolean hasFeatureAuto(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_AUTO);
+    }
+
+    /**
+     * Check for FEATURE_VULKAN.
+     *
+     * @hide
+     */
+    public static boolean hasFeatureVulkan(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_VULKAN);
+    }
+
+    /**
      * Check for FEATURE_WATCH.
      *
      * @hide
@@ -34,24 +52,6 @@ public final class RwFeatures {
      */
     public static boolean hasFeatureWifi(Context context) {
         return hasFeatureFallback(context, PackageManager.FEATURE_WIFI);
-    }
-
-    /**
-     * Check for FEATURE_VULKAN.
-     *
-     * @hide
-     */
-    public static boolean hasFeatureVulkan(Context context) {
-        return hasFeatureFallback(context, PackageManager.FEATURE_VULKAN);
-    }
-
-    /**
-     * Check for FEATURE_AUTO.
-     *
-     * @hide
-     */
-    public static boolean hasFeatureAuto(Context context) {
-        return hasFeatureFallback(context, PackageManager.FEATURE_AUTO);
     }
 
     private static boolean hasFeatureFallback(Context context, String featureName) {

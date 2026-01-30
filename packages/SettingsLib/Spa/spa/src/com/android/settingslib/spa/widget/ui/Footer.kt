@@ -29,7 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.settingslib.spa.framework.theme.SettingsDimension
+import com.android.settingslib.spa.framework.theme.SettingsSpace
 import com.android.settingslib.spa.framework.theme.SettingsTheme
+import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
 
 @Composable
 fun Footer(footerText: String) {
@@ -41,14 +43,20 @@ fun Footer(footerText: String) {
 
 @Composable
 fun Footer(content: @Composable () -> Unit) {
-    Column(Modifier.padding(SettingsDimension.itemPadding)) {
+    Column(Modifier.padding(SettingsDimension.footerPadding)) {
         Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = null,
                 modifier = Modifier.size(SettingsDimension.itemIconSize),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(modifier = Modifier.height(SettingsDimension.itemPaddingVertical))
+        val spaceHeight =
+            if (isSpaExpressiveEnabled) {
+                SettingsSpace.extraSmall4
+            } else {
+                SettingsDimension.paddingLarge
+            }
+        Spacer(modifier = Modifier.height(spaceHeight))
         content()
     }
 }

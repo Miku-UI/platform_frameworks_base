@@ -188,6 +188,7 @@ Result<Unit> Lookup(const std::vector<std::string>& args) {
 
     if (i == 0) {
       target_path = idmap_header->GetTargetPath();
+      // TODO: b/437989879 - Add support for r/w flags in idmap
       auto target_apk = ApkAssets::Load(target_path);
       if (!target_apk) {
         return Error("failed to read target apk from %s", target_path.c_str());

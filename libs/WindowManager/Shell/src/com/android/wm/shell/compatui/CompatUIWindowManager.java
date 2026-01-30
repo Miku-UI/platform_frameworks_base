@@ -16,7 +16,6 @@
 
 package com.android.wm.shell.compatui;
 
-import static android.view.WindowManager.LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP;
 import static android.window.TaskConstants.TASK_CHILD_LAYER_COMPAT_UI;
 
 import android.annotation.NonNull;
@@ -31,7 +30,6 @@ import android.view.View;
 import android.window.DesktopModeFlags;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.window.flags.Flags;
 import com.android.wm.shell.R;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.DisplayLayout;
@@ -39,7 +37,7 @@ import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.compatui.CompatUIController.CompatUIHintsState;
 import com.android.wm.shell.compatui.api.CompatUIEvent;
 import com.android.wm.shell.compatui.impl.CompatUIEvents.SizeCompatRestartButtonAppeared;
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
+import com.android.wm.shell.shared.desktopmode.DesktopState;
 
 import java.util.function.Consumer;
 
@@ -74,6 +72,9 @@ class CompatUIWindowManager extends CompatUIWindowManagerAbstract {
     @NonNull
     private final Rect mLayoutBounds = new Rect();
 
+    @NonNull
+    private final DesktopState mDesktopState;
+
     CompatUIWindowManager(@NonNull Context context, @NonNull TaskInfo taskInfo,
                           @NonNull SyncTransactionQueue syncQueue,
                           @NonNull Consumer<CompatUIEvent> callback,
@@ -82,11 +83,12 @@ class CompatUIWindowManager extends CompatUIWindowManagerAbstract {
                           @NonNull CompatUIHintsState compatUIHintsState,
                           @NonNull CompatUIConfiguration compatUIConfiguration,
                           @NonNull Consumer<Pair<TaskInfo, ShellTaskOrganizer.TaskListener>>
-                                  onRestartButtonClicked) {
+                                  onRestartButtonClicked,
+                          @NonNull DesktopState desktopState) {
         super(context, taskInfo, syncQueue, taskListener, displayLayout);
         mCallback = callback;
         mHasSizeCompat = taskInfo.appCompatTaskInfo.isTopActivityInSizeCompat();
-        if (DesktopModeStatus.canEnterDesktopMode(context)
+        if (desktopState.canEnterDesktopMode()
                 && DesktopModeFlags.ENABLE_WINDOWING_DYNAMIC_INITIAL_BOUNDS.isTrue()) {
             // Don't show the SCM button for freeform tasks
             mHasSizeCompat &= !taskInfo.isFreeform();
@@ -95,6 +97,7 @@ class CompatUIWindowManager extends CompatUIWindowManagerAbstract {
         mCompatUIConfiguration = compatUIConfiguration;
         mOnRestartButtonClicked = onRestartButtonClicked;
         mHideScmTolerance = mCompatUIConfiguration.getHideSizeCompatRestartButtonTolerance();
+        mDesktopState = desktopState;
     }
 
     @Override
@@ -143,7 +146,7 @@ class CompatUIWindowManager extends CompatUIWindowManagerAbstract {
             boolean canShow) {
         final boolean prevHasSizeCompat = mHasSizeCompat;
         mHasSizeCompat = taskInfo.appCompatTaskInfo.isTopActivityInSizeCompat();
-        if (DesktopModeStatus.canEnterDesktopMode(mContext)
+        if (mDesktopState.canEnterDesktopMode()
                 && DesktopModeFlags.ENABLE_WINDOWING_DYNAMIC_INITIAL_BOUNDS.isTrue()) {
             // Don't show the SCM button for freeform tasks
             mHasSizeCompat &= !taskInfo.isFreeform();
@@ -195,9 +198,11 @@ class CompatUIWindowManager extends CompatUIWindowManagerAbstract {
 
     @VisibleForTesting
     boolean shouldShowSizeCompatRestartButton(@NonNull TaskInfo taskInfo) {
+        if (!mCompatUIConfiguration.isRestartButtonConfigEnabled()) {
+            return false;
+        }
         // Always show button if display is phone sized.
-        if (!Flags.allowHideScmButton() || taskInfo.configuration.smallestScreenWidthDp
-                < LARGE_SCREEN_SMALLEST_SCREEN_WIDTH_DP) {
+        if (CompatUIUtils.shouldShowSizeCompatRestartForPhoneScreen(taskInfo)) {
             return true;
         }
 

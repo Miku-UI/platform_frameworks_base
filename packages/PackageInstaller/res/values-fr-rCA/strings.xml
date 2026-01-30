@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Mettre à jour"</string>
     <string name="done" msgid="6632441120016885253">"Terminé"</string>
     <string name="cancel" msgid="1018267193425558088">"Annuler"</string>
+    <string name="more_details" msgid="3643407086654820243">"Plus de détails"</string>
+    <string name="dont_install" msgid="414055123295505225">"Ne pas installer"</string>
     <string name="installing" msgid="4921993079741206516">"Installation en cours…"</string>
     <string name="installing_app" msgid="1165095864863849422">"Installation de <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> en cours…"</string>
     <string name="install_done" msgid="5987363587661783896">"Appli installée."</string>
@@ -98,7 +100,7 @@
     <string name="untrusted_external_source_warning" product="tv" msgid="7057271609532508035">"À des fins de sécurité, l\'installation d\'applis inconnues provenant de cette source n\'est pas autorisée sur ce téléviseur. Vous pouvez modifier cette option dans les paramètres."</string>
     <string name="untrusted_external_source_warning" product="watch" msgid="7195163388090818636">"À des fins de sécurité, l\'installation d\'applis inconnues provenant de cette source n\'est pas autorisée sur cette montre. Vous pouvez modifier cette option dans les paramètres."</string>
     <string name="untrusted_external_source_warning" product="default" msgid="8444191224459138919">"À des fins de sécurité, l\'installation d\'applis inconnues provenant de cette source n\'est pas autorisée sur ce téléphone. Vous pouvez modifier cette option dans les paramètres."</string>
-    <string name="anonymous_source_warning" product="default" msgid="2784902545920822500">"Votre téléphone et vos données personnelles sont plus vulnérables aux attaques provenant d\'applis inconnues. En installant cette appli, vous acceptez d\'être l\'unique responsable de tout dommage causé à votre téléphone ou de toute perte de données pouvant découler de l\'utilisation de telles applis."</string>
+    <string name="anonymous_source_warning" product="default" msgid="2784902545920822500">"Votre téléphone et vos données personnelles sont plus vulnérables aux attaques provenant d\'applis inconnues. En installant cette appli, vous acceptez d\'être responsable de tout dommage causé à votre téléphone ou de toute perte de données pouvant découler de l\'utilisation de cette appli."</string>
     <string name="anonymous_source_warning" product="tablet" msgid="3939101621438855516">"Votre tablette et vos données personnelles sont plus vulnérables aux attaques provenant d\'applis inconnues. En installant cette appli, vous acceptez d\'être l\'unique responsable de tout dommage causé à votre tablette ou de toute perte de données pouvant découler de l\'utilisation de telles applis."</string>
     <string name="anonymous_source_warning" product="tv" msgid="5599483539528168566">"Votre téléviseur et vos données personnelles sont plus vulnérables aux attaques d\'applis inconnues. En installant cette appli, vous acceptez d\'être l\'unique responsable de tout dommage causé à votre téléviseur ou de toute perte de données pouvant découler de son utilisation."</string>
     <string name="cloned_app_label" msgid="7503612829833756160">"Clone de <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>

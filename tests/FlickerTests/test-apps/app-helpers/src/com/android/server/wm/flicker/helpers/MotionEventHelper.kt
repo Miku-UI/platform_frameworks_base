@@ -83,7 +83,7 @@ class MotionEventHelper(
      * Drag from [startX], [startY] to [endX], [endY] with a "hold" period after touching down
      * and before moving.
      */
-    fun holdToDrag(startX: Int, startY: Int, endX: Int, endY: Int, steps: Int) {
+    fun holdToDrag(startX: Int, startY: Int, endX: Int, endY: Int, steps: Int, sleepTimeBeforeDrop: Long = REGULAR_CLICK_LENGTH) {
         val downTime = SystemClock.uptimeMillis()
         actionDown(startX, startY, time = downTime)
         SystemClock.sleep(100L) // Hold before dragging.
@@ -96,8 +96,8 @@ class MotionEventHelper(
             downTime,
             withMotionEventInjectDelay = true
         )
-        SystemClock.sleep(REGULAR_CLICK_LENGTH)
-        actionUp(startX, endX, downTime)
+        SystemClock.sleep(sleepTimeBeforeDrop)
+        actionUp(endX, endY, downTime)
     }
 
     private fun injectMotionEvent(

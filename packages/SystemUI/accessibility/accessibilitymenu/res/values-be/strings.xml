@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Вярнуцца на папярэдні экран"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Перайсці на наступны экран"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Меню спецыяльных магчымасцей – гэта вялікае экраннае меню для кіравання прыладай. Вы можаце блакіраваць прыладу, рэгуляваць гучнасць і яркасць, рабіць здымкі экрана і выконваць іншыя дзеянні."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Кіраваць прыладай праз вялікае меню"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Наладжвайце гучнасць, яркасць і іншыя параметры ў вялікім меню"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Налады меню спец. магчым."</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Вялікія кнопкі"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Павялічыць памер кнопак меню спецыяльных магчымасцей"</string>

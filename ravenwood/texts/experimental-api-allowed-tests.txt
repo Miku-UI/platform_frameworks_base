@@ -1,0 +1,6 @@
+# Used by run-ravenwood-tests.sh. Tests listed here can use experimental APIs
+# when running by run-ravenwood-tests.sh.
+
+RavenwoodUiTest_exp
+CtsViewTestCasesRavenwood
+SystemUiRavenTests

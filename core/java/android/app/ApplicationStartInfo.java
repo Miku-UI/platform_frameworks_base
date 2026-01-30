@@ -72,7 +72,6 @@ import java.util.Objects;
  *      if requested after the startup is complete.
  * </p>
  */
-@FlaggedApi(Flags.FLAG_APP_START_INFO)
 public final class ApplicationStartInfo implements Parcelable {
 
     /**
@@ -645,6 +644,12 @@ public final class ApplicationStartInfo implements Parcelable {
      * Timestamp {@link #START_TIMESTAMP_FULLY_DRAWN} is never guaranteed to be available as it is
      * dependant on devloper calling {@link Activity#reportFullyDrawn}.
      * </p>
+     *
+     * <p class="note">
+     * Note: The timestamp {@link #START_TIMESTAMP_LAUNCH} for starts of type
+     * {@link #START_COMPONENT_SERVICE} may be incorrect in
+     * {@link android.os.Build.VERSION_CODES#BAKLAVA} and below.
+     * </p>
      */
     public @NonNull Map<Integer, Long> getStartupTimestamps() {
         if (mStartupTimestampsNs == null) {
@@ -1083,13 +1088,12 @@ public final class ApplicationStartInfo implements Parcelable {
         final ApplicationStartInfo o = (ApplicationStartInfo) other;
 
         boolean intentEquals = true;
-        if (android.content.flags.Flags.intentSaveToXmlPackage()) {
-            if (mStartIntent == null) {
-                intentEquals = o.mStartIntent == null;
-            } else {
-                intentEquals = mStartIntent.filterEquals(o.mStartIntent);
-            }
+        if (mStartIntent == null) {
+            intentEquals = o.mStartIntent == null;
+        } else {
+            intentEquals = mStartIntent.filterEquals(o.mStartIntent);
         }
+
 
         return mPid == o.mPid
                 && mRealUid == o.mRealUid
@@ -1113,7 +1117,7 @@ public final class ApplicationStartInfo implements Parcelable {
         return Objects.hash(mPid, mRealUid, mPackageUid, mDefiningUid, mReason, mStartupState,
                 mStartType, mLaunchMode, mPackageName, mProcessName, mStartupTimestampsNs,
                 mMonotonicCreationTimeMs, mStartComponent,
-                android.content.flags.Flags.intentSaveToXmlPackage() ? mStartIntent : null);
+                mStartIntent);
     }
 
     private boolean timestampsEquals(@NonNull ApplicationStartInfo other) {

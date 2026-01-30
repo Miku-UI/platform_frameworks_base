@@ -22,7 +22,7 @@ import java.text.CharacterIterator;
 
 /**
  * An implementation of {@link java.text.CharacterIterator} that iterates over a given CharSequence.
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class CharSequenceCharacterIterator implements CharacterIterator {

@@ -18,6 +18,7 @@ package com.android.systemui.communal.widgets
 
 import android.appwidget.AppWidgetProviderInfo
 import com.android.systemui.CoreStartable
+import com.android.systemui.Flags.restrictCommunalAppWidgetHostListening
 import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.communal.shared.model.CommunalWidgetContentModel
@@ -27,11 +28,9 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.settings.UserTracker
-import com.android.systemui.user.domain.interactor.UserLockedInteractor
 import com.android.systemui.util.kotlin.BooleanFlowOperators.allOf
 import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
 import com.android.systemui.util.kotlin.BooleanFlowOperators.not
-import com.android.systemui.util.kotlin.pairwise
 import com.android.systemui.util.kotlin.sample
 import dagger.Lazy
 import javax.inject.Inject
@@ -39,7 +38,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.dropWhile
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
@@ -60,7 +58,6 @@ constructor(
     @Main private val uiDispatcher: CoroutineDispatcher,
     private val glanceableHubWidgetManagerLazy: Lazy<GlanceableHubWidgetManager>,
     private val glanceableHubMultiUserHelper: GlanceableHubMultiUserHelper,
-    private val userLockedInteractor: UserLockedInteractor,
 ) : CoreStartable {
 
     private val appWidgetHost by lazy { appWidgetHostLazy.get() }
@@ -72,6 +69,14 @@ constructor(
     private val glanceableHubWidgetManager by lazy { glanceableHubWidgetManagerLazy.get() }
 
     override fun start() {
+        // Do nothing on a non system user process when hsum is not enabled. See b/431515488.
+        if (
+            !glanceableHubMultiUserHelper.glanceableHubHsumFlagEnabled &&
+                !glanceableHubMultiUserHelper.isSystemUser()
+        ) {
+            return
+        }
+
         if (
             glanceableHubMultiUserHelper.glanceableHubHsumFlagEnabled &&
                 glanceableHubMultiUserHelper.isInHeadlessSystemUser()
@@ -92,24 +97,20 @@ constructor(
             !glanceableHubMultiUserHelper.glanceableHubHsumFlagEnabled ||
                 !glanceableHubMultiUserHelper.isHeadlessSystemUserMode()
         ) {
-            val isAvailable =
-                if (communalSettingsInteractor.isV2FlagEnabled()) {
-                    allOf(
-                        communalInteractor.isCommunalEnabled,
-                        keyguardInteractor.isKeyguardShowing,
-                    )
+            val listenFlow =
+                if (restrictCommunalAppWidgetHostListening()) {
+                    // Listen whenever any part of the hub is visible so that widgets show up during
+                    // transitions too.
+                    communalInteractor.isCommunalVisible
                 } else {
                     communalInteractor.isCommunalAvailable
                 }
-
-            anyOf(isAvailable, communalInteractor.editModeOpen)
+            anyOf(listenFlow, communalInteractor.editModeOpen)
                 // Only trigger updates on state changes, ignoring the initial false value.
-                .pairwise(false)
-                .filter { (previous, new) -> previous != new }
-                .onEach { (_, shouldListen) -> updateAppWidgetHostActive(shouldListen) }
+                .dropWhile { !it }
+                .onEach { shouldListen -> updateAppWidgetHostActive(shouldListen) }
                 .sample(communalInteractor.communalWidgets, ::Pair)
-                .onEach { (withPrev, widgets) ->
-                    val (_, isActive) = withPrev
+                .onEach { (isActive, widgets) ->
                     // The validation is performed once the hub becomes active.
                     if (isActive) {
                         removeNotLockscreenWidgets(widgets)
@@ -163,7 +164,6 @@ constructor(
                     is CommunalWidgetContentModel.Available ->
                         widget.providerInfo.widgetCategory and
                             AppWidgetProviderInfo.WIDGET_CATEGORY_NOT_KEYGUARD != 0
-
                     else -> false
                 }
             }
@@ -182,7 +182,6 @@ constructor(
                     when (widget) {
                         is CommunalWidgetContentModel.Available ->
                             widget.providerInfo.profile?.identifier
-
                         is CommunalWidgetContentModel.Pending -> widget.user.identifier
                     }
                 !currentUserIds.contains(uid)

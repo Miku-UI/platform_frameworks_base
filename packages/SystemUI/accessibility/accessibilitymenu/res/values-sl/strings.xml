@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Na prejšnji zaslon"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Na naslednji zaslon"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Meni za dostopnost je velik zaslonski meni za upravljanje naprave. V njem lahko zaklenete napravo, nastavljate glasnost in svetlost, zajamete posnetke zaslona in drugo."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Upravljanje naprave prek velikega menija"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Upravljanje glasnosti, svetlosti in drugega v velikem meniju"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Nastavitve menija za dostopnost"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Veliki gumbi"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Povečanje velikosti gumbov menija za dostopnost"</string>

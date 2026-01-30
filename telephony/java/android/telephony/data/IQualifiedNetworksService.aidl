@@ -20,7 +20,7 @@ import android.telephony.data.IQualifiedNetworksServiceCallback;
 import android.telephony.data.ThrottleStatus;
 
 /**
- * {@hide}
+ * @hide
  */
 interface IQualifiedNetworksService
 {

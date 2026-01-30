@@ -19,7 +19,7 @@ package android.os;
 
 import android.hardware.power.WorkDuration;
 
-/** {@hide} */
+/** @hide */
 oneway interface IHintSession {
     void updateTargetWorkDuration(long targetDurationNanos);
     void reportActualWorkDuration(in long[] actualDurationNanos, in long[] timeStampNanos);

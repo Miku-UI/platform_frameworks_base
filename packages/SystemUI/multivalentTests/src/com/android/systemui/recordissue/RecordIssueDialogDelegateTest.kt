@@ -31,7 +31,6 @@ import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger
 import com.android.systemui.mediaprojection.SessionCreationSource
 import com.android.systemui.mediaprojection.devicepolicy.ScreenCaptureDevicePolicyResolver
 import com.android.systemui.mediaprojection.devicepolicy.ScreenCaptureDisabledDialogDelegate
-import com.android.systemui.model.SysUiState
 import com.android.systemui.recordissue.IssueRecordingState.Companion.ISSUE_TYPE_NOT_SET
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
@@ -49,9 +48,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mock
 import org.mockito.Mockito.never
 import org.mockito.Mockito.spy
@@ -73,7 +70,6 @@ class RecordIssueDialogDelegateTest : SysuiTestCase() {
     private lateinit var screenCaptureDisabledDialogDelegate: ScreenCaptureDisabledDialogDelegate
     @Mock private lateinit var screenCaptureDisabledDialog: SystemUIDialog
 
-    @Mock private lateinit var sysuiState: SysUiState
     @Mock private lateinit var systemUIDialogManager: SystemUIDialogManager
     @Mock private lateinit var broadcastDispatcher: BroadcastDispatcher
     private val systemClock = FakeSystemClock()
@@ -89,7 +85,6 @@ class RecordIssueDialogDelegateTest : SysuiTestCase() {
     fun setup() {
         MockitoAnnotations.initMocks(this)
         whenever(dprLazy.get()).thenReturn(devicePolicyResolver)
-        whenever(sysuiState.setFlag(anyLong(), anyBoolean())).thenReturn(sysuiState)
         whenever(screenCaptureDisabledDialogDelegate.createSysUIDialog())
             .thenReturn(screenCaptureDisabledDialog)
         whenever(state.issueTypeRes).thenReturn(ISSUE_TYPE_NOT_SET)
@@ -99,7 +94,6 @@ class RecordIssueDialogDelegateTest : SysuiTestCase() {
                 SystemUIDialog.Factory(
                     context,
                     systemUIDialogManager,
-                    sysuiState,
                     broadcastDispatcher,
                     mDialogTransitionAnimator,
                 )

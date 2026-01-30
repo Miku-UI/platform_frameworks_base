@@ -31,6 +31,7 @@ import android.app.NotificationManager;
 import android.app.admin.DevicePolicyManager;
 import android.app.admin.DevicePolicyManagerInternal;
 import android.app.admin.DeviceStateCache;
+import android.app.test.PropertyInvalidatedCacheTestRule;
 import android.app.trust.TrustManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -42,7 +43,6 @@ import android.hardware.face.FaceManager;
 import android.hardware.fingerprint.FingerprintManager;
 import android.os.FileUtils;
 import android.os.IProgressListener;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.storage.IStorageManager;
@@ -55,11 +55,13 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.internal.util.test.FakeSettingsProviderRule;
 import com.android.internal.widget.LockPatternUtils;
-import com.android.internal.widget.LockSettingsInternal;
 import com.android.internal.widget.LockscreenCredential;
 import com.android.server.LocalServices;
+import com.android.server.StorageManagerInternal;
+import com.android.server.locksettings.FakeKeyStore.FakeKeyStoreRule;
 import com.android.server.locksettings.recoverablekeystore.RecoverableKeyStoreManager;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.security.authenticationpolicy.SecureLockDeviceServiceInternal;
 import com.android.server.wm.WindowManagerInternal;
 
 import org.junit.After;
@@ -93,6 +95,7 @@ public abstract class BaseLockSettingsServiceTests {
     MockLockSettingsContext mContext;
     LockSettingsStorageTestable mStorage;
     LockSettingsStrongAuth mStrongAuth;
+    LockSettingsService.SynchronizedStrongAuthTracker mStrongAuthTracker;
 
     Resources mResources;
     FakeGateKeeperService mGateKeeperService;
@@ -113,9 +116,16 @@ public abstract class BaseLockSettingsServiceTests {
     FingerprintManager mFingerprintManager;
     FaceManager mFaceManager;
     PackageManager mPackageManager;
+    SecureLockDeviceServiceInternal mSecureLockDeviceServiceInternal;
+    Runnable mInvalidateLockoutEndTimeCacheMock;
     LockSettingsServiceTestable.MockInjector mInjector;
     @Rule
     public FakeSettingsProviderRule mSettingsRule = FakeSettingsProvider.rule();
+
+    @Rule
+    public PropertyInvalidatedCacheTestRule mCacheRule = new PropertyInvalidatedCacheTestRule();
+
+    @Rule public FakeKeyStoreRule mKeyStoreRule = new FakeKeyStoreRule();
 
     @Before
     public void setUp_baseServices() throws Exception {
@@ -137,12 +147,19 @@ public abstract class BaseLockSettingsServiceTests {
         mFaceManager = mock(FaceManager.class);
         mPackageManager = mock(PackageManager.class);
         mStrongAuth = mock(LockSettingsStrongAuth.class);
+        mStrongAuthTracker = mock(LockSettingsService.SynchronizedStrongAuthTracker.class);
+        mInvalidateLockoutEndTimeCacheMock = mock(Runnable.class);
 
         LocalServices.removeServiceForTest(LockSettingsInternal.class);
         LocalServices.removeServiceForTest(DevicePolicyManagerInternal.class);
         LocalServices.removeServiceForTest(WindowManagerInternal.class);
         LocalServices.addService(DevicePolicyManagerInternal.class, mDevicePolicyManagerInternal);
         LocalServices.addService(WindowManagerInternal.class, mMockWindowManager);
+
+        mSecureLockDeviceServiceInternal = mock(SecureLockDeviceServiceInternal.class);
+        LocalServices.removeServiceForTest(SecureLockDeviceServiceInternal.class);
+        LocalServices.addService(SecureLockDeviceServiceInternal.class,
+                mSecureLockDeviceServiceInternal);
 
         final Context origContext = InstrumentationRegistry.getContext();
         mContext = new MockLockSettingsContext(origContext, mResources,
@@ -164,14 +181,20 @@ public abstract class BaseLockSettingsServiceTests {
         mInjector =
                 new LockSettingsServiceTestable.MockInjector(
                         mContext,
-                        mStorage, mStrongAuth,
+                        mStorage,
+                        mStrongAuth,
+                        mStrongAuthTracker,
                         mActivityManager,
-                        setUpStorageManagerMock(),
+                        mock(IStorageManager.class),
+                        setUpStorageManagerInternalMock(),
                         mSpManager,
                         mGsiService,
                         mRecoverableKeyStoreManager,
                         mUserManagerInternal,
-                        mDeviceStateCache);
+                        mDeviceStateCache,
+                        mSecureLockDeviceServiceInternal,
+                        mKeyStoreRule.getKeyStore(),
+                        mInvalidateLockoutEndTimeCacheMock);
         mService =
                 new LockSettingsServiceTestable(mInjector, mGateKeeperService, mAuthSecretService);
         mService.mHasSecureLockScreen = true;
@@ -230,7 +253,6 @@ public abstract class BaseLockSettingsServiceTests {
         // Adding a fake Device Owner app which will enable escrow token support in LSS.
         when(mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser()).thenReturn(
                 new ComponentName("com.dummy.package", ".FakeDeviceOwner"));
-        when(mUserManagerInternal.isDeviceManaged()).thenReturn(true);
         when(mDeviceStateCache.isUserOrganizationManaged(anyInt())).thenReturn(true);
         when(mDeviceStateCache.isDeviceProvisioned()).thenReturn(true);
         mockBiometricsHardwareFingerprintsAndTemplates(PRIMARY_USER_ID);
@@ -238,6 +260,8 @@ public abstract class BaseLockSettingsServiceTests {
 
         setDeviceProvisioned(true);
         mLocalService = LocalServices.getService(LockSettingsInternal.class);
+
+        when(mUserManagerInternal.isMainUserPermanentAdmin()).thenReturn(true);
     }
 
     private Resources createMockResources() {
@@ -249,13 +273,18 @@ public abstract class BaseLockSettingsServiceTests {
         when(res.getBoolean(
                 eq(com.android.internal.R.bool.config_enableCredentialFactoryResetProtection)))
                 .thenReturn(true);
-        when(res.getBoolean(eq(com.android.internal.R.bool.config_isMainUserPermanentAdmin)))
-                .thenReturn(true);
         when(res.getBoolean(eq(com.android.internal.R.bool.config_strongAuthRequiredOnBoot)))
                 .thenReturn(true);
         when(res.getBoolean(eq(com.android.internal.R.bool.config_repairModeSupported)))
                 .thenReturn(true);
+        when(res.getBoolean(
+                        eq(com.android.internal.R.bool.config_softwareLskfRateLimiterEnforcing)))
+                .thenReturn(isSoftwareLskfRateLimiterEnforcing());
         return res;
+    }
+
+    protected boolean isSoftwareLskfRateLimiterEnforcing() {
+        return true;
     }
 
     protected void setDeviceProvisioned(boolean provisioned) {
@@ -269,9 +298,7 @@ public abstract class BaseLockSettingsServiceTests {
     }
 
     protected void setSecureFrpMode(boolean secure) {
-        if (android.security.Flags.frpEnforcement()) {
-            mStorage.setTestFactoryResetProtectionState(secure);
-        }
+        mStorage.setTestFactoryResetProtectionState(secure);
         Settings.Secure.putIntForUser(mContext.getContentResolver(),
                 Settings.Secure.SECURE_FRP_MODE, secure ? 1 : 0, UserHandle.USER_SYSTEM);
     }
@@ -286,8 +313,6 @@ public abstract class BaseLockSettingsServiceTests {
         when(mUserManager.isUserRunning(eq(profileId))).thenReturn(true);
         when(mUserManager.isUserUnlocked(eq(profileId))).thenReturn(true);
         when(mUserManagerInternal.getUserInfo(eq(profileId))).thenReturn(userInfo);
-        // TODO(b/258213147): Remove
-        when(mUserManagerInternal.isUserManaged(eq(profileId))).thenReturn(true);
         when(mDeviceStateCache.isUserOrganizationManaged(eq(profileId)))
                 .thenReturn(true);
         return userInfo;
@@ -301,8 +326,8 @@ public abstract class BaseLockSettingsServiceTests {
         return userInfo;
     }
 
-    private IStorageManager setUpStorageManagerMock() throws RemoteException {
-        final IStorageManager sm = mock(IStorageManager.class);
+    private StorageManagerInternal setUpStorageManagerInternalMock() {
+        final StorageManagerInternal sm = mock(StorageManagerInternal.class);
 
         doAnswer(invocation -> {
             Object[] args = invocation.getArguments();

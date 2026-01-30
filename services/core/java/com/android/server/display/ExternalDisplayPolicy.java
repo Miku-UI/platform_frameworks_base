@@ -125,6 +125,8 @@ class ExternalDisplayPolicy {
     }
 
     /**
+     * Handles the displays which were connected before the boot completed.
+     * Handles content mode for external displays.
      * Starts listening for temperature changes.
      */
     void onBootCompleted() {
@@ -142,6 +144,10 @@ class ExternalDisplayPolicy {
             mDisplayIdsWaitingForBootCompletion.clear();
         }
 
+        if (mFlags.isDisplayContentModeManagementEnabled()) {
+            handleMirrorBuiltInDisplaySettingChangeLocked(/*enableDisplays=*/ false);
+        }
+
         if (!mFlags.isConnectedDisplayErrorHandlingEnabled()) {
             if (DEBUG) {
                 Slog.d(TAG, "ConnectedDisplayErrorHandlingEnabled is not enabled on your device:"
@@ -153,6 +159,22 @@ class ExternalDisplayPolicy {
         if (!registerThermalServiceListener(new SkinThermalStatusObserver())) {
             Slog.e(TAG, "Failed to register thermal listener");
         }
+    }
+
+    /**
+     * Handles content mode change for all displays and
+     * enables all external displays if needed.
+     */
+    void handleMirrorBuiltInDisplaySettingChangeLocked(boolean enableDisplays) {
+        mLogicalDisplayMapper.forEachLocked(logicalDisplay -> {
+            if (!isExternalDisplayLocked(logicalDisplay)) {
+                return;
+            }
+            if (!logicalDisplay.isEnabledLocked() && enableDisplays) {
+                setExternalDisplayEnabledLocked(logicalDisplay, true);
+            }
+            handleLogicalDisplayContentModeChange(logicalDisplay);
+        });
     }
 
     /**
@@ -193,10 +215,7 @@ class ExternalDisplayPolicy {
 
         mExternalDisplayStatsService.onDisplayConnected(logicalDisplay);
 
-        if (((Build.IS_ENG || Build.IS_USERDEBUG)
-                        && SystemProperties.getBoolean(ENABLE_ON_CONNECT, false))
-                || (mFlags.isDisplayContentModeManagementEnabled()
-                        && logicalDisplay.canHostTasksLocked())) {
+        if (shouldAutoEnable(logicalDisplay)) {
             Slog.w(TAG, "External display is enabled by default, bypassing user consent.");
             mInjector.sendExternalDisplayEventLocked(logicalDisplay, EVENT_DISPLAY_CONNECTED);
             return;
@@ -236,14 +255,15 @@ class ExternalDisplayPolicy {
     }
 
     /**
-     * Upon external display gets added.
+     * Upon external display content mode change.
      */
-    void handleLogicalDisplayAddedLocked(@NonNull final LogicalDisplay logicalDisplay) {
-        if (!isExternalDisplayLocked(logicalDisplay)) {
+    void handleLogicalDisplayContentModeChange(@NonNull final LogicalDisplay logicalDisplay) {
+        if (!isExternalDisplayLocked(logicalDisplay) || !logicalDisplay.isEnabledLocked()) {
             return;
         }
 
-        mExternalDisplayStatsService.onDisplayAdded(logicalDisplay.getDisplayIdLocked());
+        mExternalDisplayStatsService.onDisplayContentModeChange(
+            logicalDisplay.getDisplayIdLocked());
     }
 
     /**
@@ -262,6 +282,18 @@ class ExternalDisplayPolicy {
         } else {
             mExternalDisplayStatsService.onPresentationWindowRemoved(displayId);
         }
+    }
+
+    private boolean shouldAutoEnable(LogicalDisplay logicalDisplay) {
+        if ((Build.IS_ENG || Build.IS_USERDEBUG)
+                && SystemProperties.getBoolean(ENABLE_ON_CONNECT, false)) return true;
+
+        // If using the new connection dialog, then don't auto enable displays so the dialog
+        // has a reason to show
+        if (mFlags.isUpdatedDisplayConnectionDialogEnabled()) return false;
+
+        return mFlags.isDisplayContentModeManagementEnabled()
+                && logicalDisplay.canHostTasksLocked();
     }
 
     @GuardedBy("mSyncRoot")
@@ -336,14 +368,6 @@ class ExternalDisplayPolicy {
     }
 
     boolean isDisplayReadyForMirroring(int displayId) {
-        if (!mFlags.isWaitingConfirmationBeforeMirroringEnabled()) {
-            if (DEBUG) {
-                Slog.d(TAG, "isDisplayReadyForMirroring: mirroring CONFIRMED - "
-                        + " flag 'waiting for confirmation before mirroring' is disabled");
-            }
-            return true;
-        }
-
         synchronized (mSyncRoot) {
             if (!mIsBootCompleted) {
                 if (DEBUG) {

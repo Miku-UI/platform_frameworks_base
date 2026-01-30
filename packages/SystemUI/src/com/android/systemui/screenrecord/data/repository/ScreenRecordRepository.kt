@@ -19,7 +19,7 @@ package com.android.systemui.screenrecord.data.repository
 import android.media.projection.StopReason
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.screenrecord.RecordingController
+import com.android.systemui.screenrecord.ScreenRecordUxController
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
@@ -34,8 +34,8 @@ import kotlinx.coroutines.withContext
 /**
  * Repository storing information about the state of screen recording.
  *
- * Mostly a wrapper around [RecordingController] so that new screen-recording-related code can use
- * recommended architecture.
+ * Mostly a wrapper around [ScreenRecordUxController] so that new screen-recording-related code can
+ * use recommended architecture.
  */
 interface ScreenRecordRepository {
     /** The current screen recording state. Note that this is a cold flow. */
@@ -50,13 +50,13 @@ class ScreenRecordRepositoryImpl
 @Inject
 constructor(
     @Background private val bgCoroutineContext: CoroutineContext,
-    private val recordingController: RecordingController,
+    private val screenRecordUxController: ScreenRecordUxController,
 ) : ScreenRecordRepository {
 
     override val screenRecordState: Flow<ScreenRecordModel> =
         conflatedCallbackFlow {
                 val callback =
-                    object : RecordingController.RecordingStateChangeCallback {
+                    object : ScreenRecordUxController.StateChangeCallback {
                         override fun onRecordingStart() {
                             trySend(ScreenRecordModel.Recording)
                         }
@@ -71,7 +71,8 @@ constructor(
 
                         override fun onCountdownEnd() {
                             if (
-                                !recordingController.isRecording && !recordingController.isStarting
+                                !screenRecordUxController.isRecording &&
+                                    !screenRecordUxController.isStarting
                             ) {
                                 // The recording was in Starting state but got canceled before
                                 // actually starting
@@ -79,17 +80,17 @@ constructor(
                             }
                         }
                     }
-                recordingController.addCallback(callback)
-                awaitClose { recordingController.removeCallback(callback) }
+                screenRecordUxController.addCallback(callback)
+                awaitClose { screenRecordUxController.removeCallback(callback) }
             }
             .onStart { emit(generateModel()) }
             .distinctUntilChanged()
             .flowOn(bgCoroutineContext)
 
     private fun generateModel(): ScreenRecordModel {
-        return if (recordingController.isRecording) {
+        return if (screenRecordUxController.isRecording) {
             ScreenRecordModel.Recording
-        } else if (recordingController.isStarting) {
+        } else if (screenRecordUxController.isStarting) {
             ScreenRecordModel.Starting(0)
         } else {
             ScreenRecordModel.DoingNothing
@@ -97,6 +98,6 @@ constructor(
     }
 
     override suspend fun stopRecording(@StopReason stopReason: Int) {
-        withContext(bgCoroutineContext) { recordingController.stopRecording(stopReason) }
+        withContext(bgCoroutineContext) { screenRecordUxController.stopRecording(stopReason) }
     }
 }

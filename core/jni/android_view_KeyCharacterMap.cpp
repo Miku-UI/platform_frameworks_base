@@ -48,13 +48,13 @@ static struct {
 
 class NativeKeyCharacterMap {
 public:
-    NativeKeyCharacterMap(int32_t deviceId, std::unique_ptr<KeyCharacterMap> map)
+    NativeKeyCharacterMap(DeviceId deviceId, std::unique_ptr<KeyCharacterMap> map)
           : mDeviceId(deviceId), mMap(std::move(map)) {}
 
     ~NativeKeyCharacterMap() {
     }
 
-    inline int32_t getDeviceId() const {
+    inline DeviceId getDeviceId() const {
         return mDeviceId;
     }
 
@@ -63,11 +63,11 @@ public:
     }
 
 private:
-    int32_t mDeviceId;
+    DeviceId mDeviceId;
     std::unique_ptr<KeyCharacterMap> mMap;
 };
 
-jobject android_view_KeyCharacterMap_create(JNIEnv* env, int32_t deviceId,
+jobject android_view_KeyCharacterMap_create(JNIEnv* env, DeviceId deviceId,
                                             std::unique_ptr<KeyCharacterMap> kcm) {
     NativeKeyCharacterMap* nativeMap = new NativeKeyCharacterMap(deviceId, std::move(kcm));
     if (!nativeMap) {
@@ -242,21 +242,24 @@ static jboolean nativeEquals(JNIEnv* env, jobject clazz, jlong ptr1, jlong ptr2)
     return static_cast<jboolean>(*map1 == *map2);
 }
 
-static void nativeApplyOverlay(JNIEnv* env, jobject clazz, jlong ptr, jstring nameObj,
-        jstring overlayObj) {
-    NativeKeyCharacterMap* map = reinterpret_cast<NativeKeyCharacterMap*>(ptr);
+static jobject nativeObtainMapWithOverlay(JNIEnv* env, jobject clazz, jlong baseMapPtr,
+                                          jstring nameObj, jstring overlayObj) {
+    NativeKeyCharacterMap* map = reinterpret_cast<NativeKeyCharacterMap*>(baseMapPtr);
     if (!map || !map->getMap()) {
-        return;
+        return nullptr;
     }
     ScopedUtfChars nameChars(env, nameObj);
     ScopedUtfChars overlayChars(env, overlayObj);
     base::Result<std::shared_ptr<KeyCharacterMap>> ret =
             KeyCharacterMap::loadContents(nameChars.c_str(), overlayChars.c_str(),
                                           KeyCharacterMap::Format::OVERLAY);
-    if (ret.ok()) {
-        std::shared_ptr<KeyCharacterMap> overlay = *ret;
-        map->getMap()->combine(*overlay);
+    if (!ret.ok()) {
+        return nullptr;
     }
+    std::shared_ptr<KeyCharacterMap> overlay = *ret;
+    std::unique_ptr<KeyCharacterMap> result = std::make_unique<KeyCharacterMap>(*map->getMap());
+    result->combine(*overlay);
+    return android_view_KeyCharacterMap_create(env, map->getDeviceId(), std::move(result));
 }
 
 static jint nativeGetMappedKey(JNIEnv* env, jobject clazz, jlong ptr, jint scanCode) {
@@ -292,8 +295,9 @@ static const JNINativeMethod g_methods[] = {
         {"nativeObtainEmptyKeyCharacterMap", "(I)Landroid/view/KeyCharacterMap;",
          (void*)nativeObtainEmptyKeyCharacterMap},
         {"nativeEquals", "(JJ)Z", (void*)nativeEquals},
-        {"nativeApplyOverlay", "(JLjava/lang/String;Ljava/lang/String;)V",
-         (void*)nativeApplyOverlay},
+        {"nativeObtainMapWithOverlay",
+         "(JLjava/lang/String;Ljava/lang/String;)Landroid/view/KeyCharacterMap;",
+         (void*)nativeObtainMapWithOverlay},
         {"nativeGetMappedKey", "(JI)I", (void*)nativeGetMappedKey}};
 
 int register_android_view_KeyCharacterMap(JNIEnv* env)

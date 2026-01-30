@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"စကားဝှက် (သို့) လက်ဗွေဖြင့် ဖွင့်ပါ"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"ပုံဖော်ခြင်း (သို့) လက်ဗွေဖြင့် ဖွင့်ပါ"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"ထပ်ဆောင်းလုံခြုံရေးအတွက် စက်ကို အလုပ်ခွင်မူဝါဒက ပိတ်လိုက်သည်"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"နှစ်ဆင့်စိစစ်ခြင်း"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"လက်ဗွေသုံး လော့ခ်ဖွင့်ခြင်းကို သုံးရန်"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"မျက်နှာပြ လော့ခ်ဖွင့်ခြင်းကို သုံးရန်"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"လက်ဗွေသုံး (သို့) မျက်နှာပြ လော့ခ်ဖွင့်ခြင်းကို သုံးရန်"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"လော့ခ်ဒေါင်းလုပ်ပြီးနောက် ပင်နံပါတ်လိုအပ်သည်"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"လော့ခ်ဒေါင်းလုပ်ပြီးနောက် စကားဝှက်လိုအပ်သည်"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"လော့ခ်ဒေါင်းလုပ်ပြီးနောက် ပုံဖော်ခြင်းလိုအပ်သည်"</string>

@@ -253,9 +253,8 @@ public class ProxyManagerTest {
 
         // The virtual device has been updated with the streamed app's UID, so the proxy is
         // updated.
-        mProxyManager.notifyProxyOfRunningAppsChange(runningUids);
+        mProxyManager.notifyProxyOfRunningAppsChange(DEVICE_ID, runningUids);
 
-        verify(localVdm).getDeviceIdsForUid(STREAMED_CALLING_UID);
         verify(mMockProxySystemSupport).getCurrentUserClientsLocked();
         verify(mMockProxySystemSupport).getGlobalClientsLocked();
         // Messages to notify IAccessibilityManagerClients should be posted.

@@ -18,12 +18,13 @@ package com.android.server.wm.flicker.rotation
 
 import android.platform.test.annotations.PlatinumTest
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.ScenarioBuilder
 import android.tools.ScenarioImpl
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import android.view.WindowManager
 import com.android.server.wm.flicker.helpers.SeamlessRotationAppHelper
@@ -87,10 +88,11 @@ import org.junit.runners.Parameterized
  *        apps are running before setup
  * ```
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class SeamlessAppRotationTest(flicker: LegacyFlickerTest) : RotationTransition(flicker) {
+class SeamlessAppRotationTest(flicker: FlickerTest) : RotationTransition(flicker) {
     override val testApp = SeamlessRotationAppHelper(instrumentation)
 
     /** {@inheritDoc} */
@@ -221,7 +223,7 @@ class SeamlessAppRotationTest(flicker: LegacyFlickerTest) : RotationTransition(f
     }
 
     companion object {
-        private val LegacyFlickerTest.starveUiThread
+        private val FlickerTest.starveUiThread
             get() =
                 scenario.getConfigValue<Boolean>(
                     ActivityOptions.SeamlessRotation.EXTRA_STARVE_UI_THREAD
@@ -230,9 +232,9 @@ class SeamlessAppRotationTest(flicker: LegacyFlickerTest) : RotationTransition(f
 
         @JvmStatic
         protected fun createConfig(
-            sourceConfig: LegacyFlickerTest,
+            sourceConfig: FlickerTest,
             starveUiThread: Boolean
-        ): LegacyFlickerTest {
+        ): FlickerTest {
             val originalScenario = sourceConfig.initialize("createConfig") as ScenarioImpl
             val nameExt = if (starveUiThread) "_BUSY_UI_THREAD" else ""
             val newConfig =
@@ -248,20 +250,20 @@ class SeamlessAppRotationTest(flicker: LegacyFlickerTest) : RotationTransition(f
                         starveUiThread
                     )
                     .withDescriptionOverride("${originalScenario.description}$nameExt")
-            return LegacyFlickerTest(newConfig)
+            return FlickerTest(newConfig)
         }
 
         /**
          * Creates the test configurations for seamless rotation based on the default rotation tests
-         * from [LegacyFlickerTestFactory.rotationTests], but adding a flag (
+         * from [FlickerTestFactory.rotationTests], but adding a flag (
          * [ActivityOptions.SeamlessRotation.EXTRA_STARVE_UI_THREAD]) to indicate if the app should
          * starve the UI thread of not
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.rotationTests().flatMap { sourceCfg ->
-                val legacyCfg = sourceCfg as LegacyFlickerTest
+            FlickerTestFactory.rotationTests().flatMap { sourceCfg ->
+                val legacyCfg = sourceCfg as FlickerTest
                 val defaultRun = createConfig(legacyCfg, starveUiThread = false)
                 val busyUiRun = createConfig(legacyCfg, starveUiThread = true)
                 listOf(defaultRun, busyUiRun)

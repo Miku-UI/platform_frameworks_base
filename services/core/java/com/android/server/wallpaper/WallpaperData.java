@@ -16,7 +16,6 @@
 
 package com.android.server.wallpaper;
 
-import static android.app.Flags.liveWallpaperContentHandling;
 import static android.app.WallpaperManager.FLAG_LOCK;
 import static android.app.WallpaperManager.ORIENTATION_UNKNOWN;
 
@@ -48,9 +47,17 @@ class WallpaperData {
     final int userId;
 
     /**
+     * Description of the static wallpaper in the process of being applied. This is set when
+     * starting the process of applying a static wallpaper and cleared after it's successfully done.
+     */
+    WallpaperDescription mPendingStaticDescription = null;
+
+    /**
      * True while the client is writing a new wallpaper
      */
-    boolean imageWallpaperPending;
+    boolean imageWallpaperPending() {
+        return mPendingStaticDescription != null;
+    }
 
     /**
      * Which wallpaper is set. Flag values are from {@link SetWallpaperFlags}.
@@ -84,14 +91,6 @@ class WallpaperData {
      * @deprecated
      */
     private ComponentName mWallpaperComponent;
-
-    // TODO(b/347235611) Remove this field
-    /**
-     * The component name of the wallpaper that should be set next.
-     *
-     * @deprecated
-     */
-    ComponentName nextWallpaperComponent;
 
     /**
      * The ID of this wallpaper
@@ -215,9 +214,7 @@ class WallpaperData {
         this.primaryColors = source.primaryColors;
         this.mWallpaperDimAmount = source.mWallpaperDimAmount;
         this.connection = source.connection;
-        if (liveWallpaperContentHandling()) {
-            this.setDescription(source.getDescription());
-        }
+        this.setDescription(source.getDescription());
         if (this.connection != null) {
             this.connection.mWallpaper = this;
         }
@@ -243,19 +240,12 @@ class WallpaperData {
     }
 
     @NonNull ComponentName getComponent() {
-        if (liveWallpaperContentHandling()) {
-            return mDescription.getComponent();
-        } else {
-            return mWallpaperComponent;
-        }
+        return mDescription.getComponent();
     }
 
     void setComponent(@NonNull ComponentName componentName) {
-        if (liveWallpaperContentHandling()) {
-            throw new IllegalStateException(
-                    "Use \"setDescription\" when content handling is enabled");
-        }
-        this.mWallpaperComponent = componentName;
+        throw new IllegalStateException(
+                "Use \"setDescription\" when content handling is enabled");
     }
 
     @NonNull WallpaperDescription getDescription() {
@@ -263,10 +253,6 @@ class WallpaperData {
     }
 
     void setDescription(@NonNull WallpaperDescription description) {
-        if (!liveWallpaperContentHandling()) {
-            throw new IllegalStateException(
-                    "Use \"setContent\" when content handling is disabled");
-        }
         if (description == null) {
             throw new IllegalArgumentException("WallpaperDescription must not be null");
         }

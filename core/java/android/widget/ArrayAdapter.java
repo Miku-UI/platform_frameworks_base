@@ -128,6 +128,12 @@ public class ArrayAdapter<T> extends BaseAdapter implements Filterable, ThemedSp
     /** Layout inflater used for {@link #getDropDownView(int, View, ViewGroup)}. */
     private LayoutInflater mDropDownInflater;
 
+    private static final boolean sBoostCpuLoadFlag =
+            android.widget.flags.Flags.boostCpuLoadForLongTextRendering();
+
+    /** The threshold at which to boost cpu work load for long text rendering. */
+    private static final int BOOST_CPU_TEXT_LENGTH_THRESHOLD = 500;
+
     /**
      * Constructor
      *
@@ -448,13 +454,24 @@ public class ArrayAdapter<T> extends BaseAdapter implements Filterable, ThemedSp
         }
 
         final T item = getItem(position);
-        if (item == null) {
-            text.setText("");
-        } else if (item instanceof CharSequence) {
-            text.setText((CharSequence) item);
+        int textLength;
+        CharSequence textContent;
+        if (item instanceof CharSequence) {
+            textLength = ((CharSequence) item).length();
+            textContent = (CharSequence) item;
         } else {
-            text.setText(item.toString());
+            textLength = item.toString() == null ? 0 : item.toString().length();
+            textContent = item.toString();
         }
+        // Send a hint to boost the renderer when processing text content rendering takes time.
+        // (e.g. text rendering in minikin may take 2 ~ 4 ms when the text length > 500 during
+        // calculating text bounds)
+        if (sBoostCpuLoadFlag && parent.isAttachedToWindow()
+                && textLength > BOOST_CPU_TEXT_LENGTH_THRESHOLD) {
+            parent.getViewRootImpl().notifyRendererOfExpensiveFrame(
+                    "ADPF_SendHint: Expensive text rendering");
+        }
+        text.setText(textContent);
 
         return view;
     }

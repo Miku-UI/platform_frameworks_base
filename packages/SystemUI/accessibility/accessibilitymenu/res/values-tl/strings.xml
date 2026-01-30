@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Pumunta sa nakaraang screen"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Pumunta sa susunod na screen"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Nagbibigay ang Menu ng Accessibility ng malaking menu sa screen para kontrolin ang iyong device. Magagawa mong i-lock ang iyong device, kontrolin ang volume at liwanag, kumuha ng mga screenshot, at higit pa."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Kontrolin ang device sa pamamagitan ng malaking menu"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Kontrolin ang volume, liwanag, at higit pa gamit ang malaking menu"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Mga Setting ng Menu ng Accessibility"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Malalaking button"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Palakihin ang Mga Button ng Menu ng Accessibility"</string>

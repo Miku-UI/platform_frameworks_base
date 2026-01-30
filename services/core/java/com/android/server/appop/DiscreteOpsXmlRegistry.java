@@ -195,7 +195,7 @@ class DiscreteOpsXmlRegistry extends DiscreteOpsRegistry {
         }
     }
 
-    void migrateSqliteData(DiscreteOps sqliteOps) {
+    void migrateDiscreteAppOpHistory(DiscreteOps sqliteOps) {
         synchronized (mOnDiskLock) {
             if (mDiscreteAccessDir == null) {
                 Slog.d(TAG, "State not saved - persistence not initialized.");
@@ -358,10 +358,10 @@ class DiscreteOpsXmlRegistry extends DiscreteOpsRegistry {
         }
     }
 
-    void deleteDiscreteOpsDir() {
+    boolean deleteDiscreteOpsDir() {
         synchronized (mOnDiskLock) {
             mCachedOps = null;
-            FileUtils.deleteContentsAndDir(mDiscreteAccessDir);
+            return FileUtils.deleteContentsAndDir(mDiscreteAccessDir);
         }
     }
 

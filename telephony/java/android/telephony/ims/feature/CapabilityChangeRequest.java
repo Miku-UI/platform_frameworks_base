@@ -30,7 +30,7 @@ import java.util.Set;
 /**
  * Used by the framework to enable and disable MMTEL and RCS capabilities. See
  * MmTelFeature#changeEnabledCapabilities and RcsFeature#changeEnabledCapabilities.
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class CapabilityChangeRequest implements Parcelable {

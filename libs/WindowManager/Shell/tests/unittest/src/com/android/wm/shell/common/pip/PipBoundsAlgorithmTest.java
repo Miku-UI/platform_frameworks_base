@@ -31,11 +31,14 @@ import androidx.test.filters.SmallTest;
 
 import com.android.wm.shell.R;
 import com.android.wm.shell.ShellTestCase;
+import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.DisplayLayout;
+import com.android.wm.shell.sysui.ShellInit;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 
 /**
  * Unit tests against {@link PipBoundsAlgorithm}, including but not limited to:
@@ -62,12 +65,17 @@ public class PipBoundsAlgorithmTest extends ShellTestCase {
     private PipBoundsState mPipBoundsState;
     private SizeSpecSource mSizeSpecSource;
     private PipDisplayLayoutState mPipDisplayLayoutState;
+    @Mock private DisplayController mDisplayController;
+    @Mock private ShellInit mShellInit;
 
 
     @Before
     public void setUp() throws Exception {
         initializeMockResources();
-        mPipDisplayLayoutState = new PipDisplayLayoutState(mContext);
+        mPipDisplayLayoutState = new PipDisplayLayoutState(mContext, mDisplayController,
+                mShellInit);
+        // Directly call onInit instead of using ShellInit
+        mPipDisplayLayoutState.onInit();
 
         mSizeSpecSource = new PhoneSizeSpecSource(mContext, mPipDisplayLayoutState);
         mPipBoundsState = new PipBoundsState(mContext, mSizeSpecSource, mPipDisplayLayoutState);
@@ -480,6 +488,110 @@ public class PipBoundsAlgorithmTest extends ShellTestCase {
         assertEquals(minMenuSize.getWidth(), bounds.width());
         assertEquals(minMenuSize.getWidth() / mPipBoundsState.getAspectRatio(),
                 bounds.height(), 0.3f);
+    }
+
+    @Test
+    public void snapToMovementBoundsEdge_boundsSnappedToLeft() {
+        final Rect bounds = new Rect(100, 200, 550, 480);
+        final Rect originalBounds = new Rect(bounds);
+
+        mPipBoundsAlgorithm.snapToMovementBoundsEdge(bounds);
+
+        assertEquals("Bounds are snapped to left edge of movement bounds",
+                bounds.left, mPipDisplayLayoutState.getInsetBounds().left);
+        assertEquals("Bounds top edge is unchanged",
+                bounds.top, originalBounds.top);
+    }
+
+    @Test
+    public void snapToMovementBoundsEdge_boundsSnappedToRight() {
+        final Rect bounds = new Rect(700, 200, 900, 480);
+        final Rect originalBounds = new Rect(bounds);
+
+        mPipBoundsAlgorithm.snapToMovementBoundsEdge(bounds);
+
+        assertEquals("Bounds are snapped to right edge of movement bounds",
+                bounds.right, mPipDisplayLayoutState.getInsetBounds().right);
+        assertEquals("Bounds top edge is unchanged",
+                bounds.top, originalBounds.top);
+    }
+
+    @Test
+    public void snapToMovementBoundsEdge_customDisplayLayout_boundsSnappedToLeft() {
+        final DisplayInfo displayInfo = new DisplayInfo();
+        displayInfo.displayId = 2;
+        displayInfo.logicalWidth = 500;
+        displayInfo.logicalHeight = 1000;
+        final DisplayLayout displayLayout = new DisplayLayout(displayInfo,
+                mContext.getResources(), true, true);
+        final Rect bounds = new Rect(100, 200, 200, 400);
+        final Rect originalBounds = new Rect(bounds);
+
+        mPipBoundsAlgorithm.snapToMovementBoundsEdge(bounds, displayLayout);
+
+        assertEquals("Bounds are snapped to left edge of movement bounds of custom display",
+                bounds.left, mPipDisplayLayoutState.getInsetBounds(displayLayout).left);
+        assertEquals("Bounds top edge is unchanged",
+                bounds.top, originalBounds.top);
+    }
+
+    @Test
+    public void snapToMovementBoundsEdge_customDisplayLayout_boundsSnappedToRight() {
+        final DisplayInfo displayInfo = new DisplayInfo();
+        displayInfo.displayId = 2;
+        displayInfo.logicalWidth = 500;
+        displayInfo.logicalHeight = 1000;
+        final DisplayLayout displayLayout = new DisplayLayout(displayInfo,
+                mContext.getResources(), true, true);
+        final Rect bounds = new Rect(300, 200, 400, 400);
+        final Rect originalBounds = new Rect(bounds);
+
+        mPipBoundsAlgorithm.snapToMovementBoundsEdge(bounds, displayLayout);
+
+        assertEquals("Bounds are snapped to right edge of movement bounds of custom display",
+                bounds.right, mPipDisplayLayoutState.getInsetBounds(displayLayout).right);
+        assertEquals("Bounds top edge is unchanged",
+                bounds.top, originalBounds.top);
+    }
+
+    @Test
+    public void snapToMovementBoundsEdge_customDisplayLayout_boundsSnappedToMovementBoundsTop() {
+        final DisplayInfo displayInfo = new DisplayInfo();
+        displayInfo.displayId = 2;
+        displayInfo.logicalWidth = 500;
+        displayInfo.logicalHeight = 500;
+        final DisplayLayout displayLayout = new DisplayLayout(displayInfo,
+                mContext.getResources(), true, true);
+        final Rect bounds = new Rect(100, -100, 200, 0);
+        final Rect movementBounds = mPipBoundsAlgorithm.getMovementBounds(bounds, true,
+                displayLayout);
+
+        mPipBoundsAlgorithm.snapToMovementBoundsEdge(bounds, displayLayout);
+
+        assertEquals("Bounds are snapped to left edge of movement bounds of custom display",
+                bounds.left, mPipDisplayLayoutState.getInsetBounds(displayLayout).left);
+        assertEquals("Bounds top edge is moved to movement bounds top",
+                bounds.top, movementBounds.top);
+    }
+
+    @Test
+    public void snapToMovementBoundsEdge_customDisplayLayout_boundsSnappedToMovementBoundsBottom() {
+        final DisplayInfo displayInfo = new DisplayInfo();
+        displayInfo.displayId = 2;
+        displayInfo.logicalWidth = 500;
+        displayInfo.logicalHeight = 500;
+        final DisplayLayout displayLayout = new DisplayLayout(displayInfo,
+                mContext.getResources(), true, true);
+        final Rect bounds = new Rect(300, 600, 400, 700);
+        final Rect movementBounds = mPipBoundsAlgorithm.getMovementBounds(bounds, true,
+                displayLayout);
+
+        mPipBoundsAlgorithm.snapToMovementBoundsEdge(bounds, displayLayout);
+
+        assertEquals("Bounds are snapped to right edge of movement bounds of custom display",
+                bounds.right, mPipDisplayLayoutState.getInsetBounds(displayLayout).right);
+        assertEquals("Bounds top edge is moved to movement bounds bottom",
+                bounds.top, movementBounds.bottom);
     }
 
     private void overrideDefaultAspectRatio(float aspectRatio) {

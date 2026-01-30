@@ -24,6 +24,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.hardware.hdmi.HdmiControlManager;
 import android.hardware.hdmi.HdmiDeviceInfo;
 import android.hardware.hdmi.HdmiHotplugEvent;
@@ -86,6 +87,8 @@ import java.util.Map;
 class TvInputHardwareManager implements TvInputHal.Callback {
     private static final String TAG = TvInputHardwareManager.class.getSimpleName();
 
+    private PackageManager mPackageManager;
+
     private final Context mContext;
     private final Listener mListener;
     private final TvInputHal mHal = new TvInputHal(this);
@@ -139,6 +142,7 @@ class TvInputHardwareManager implements TvInputHal.Callback {
         mContext = context;
         mListener = listener;
         mAudioManager = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
+        mPackageManager = mContext.getPackageManager();
         mHal.init();
     }
 
@@ -233,6 +237,27 @@ class TvInputHardwareManager implements TvInputHal.Callback {
             }
             int previousConfigsLength = connection.getConfigsLengthLocked();
             int previousCableConnectionStatus = connection.getInputStateLocked();
+
+            if (configs != null) {
+                /*
+                   This method is called when a new connection is created or when there is a change
+                   in the stream configuration. When a new connection is created,
+                   connection.mConfigs is null. If the stream is updated and a new config is
+                   generated, it is added to the configs array by TvInputHal. This new added
+                   configuration has to be marked as the current active config for this connection.
+                */
+                TvStreamConfig nextActiveConfig = configs[0];
+                for (TvStreamConfig config : configs) {
+                    if (config.getGeneration() > nextActiveConfig.getGeneration()) {
+                        nextActiveConfig = config;
+                    }
+                }
+                final TvInputHardwareImpl hardwareImpl = connection.getHardwareImplLocked();
+                if (hardwareImpl != null) {
+                    hardwareImpl.mActiveConfig = nextActiveConfig;
+                }
+            }
+
             connection.updateConfigsLocked(configs);
             String inputId = mHardwareInputIdMap.get(deviceId);
             if (inputId != null) {
@@ -253,7 +278,7 @@ class TvInputHardwareManager implements TvInputHal.Callback {
                     deviceId, cableConnectionStatus, connection);
                 mPendingTvinputInfoEvents.removeIf(message -> message.arg1 == deviceId);
                 mPendingTvinputInfoEvents.add(msg);
-           }
+            }
             ITvInputHardwareCallback callback = connection.getCallbackLocked();
             if (callback != null) {
                 try {
@@ -473,8 +498,10 @@ class TvInputHardwareManager implements TvInputHal.Callback {
         if (callback == null) {
             throw new NullPointerException();
         }
-        TunerResourceManager trm = (TunerResourceManager) mContext.getSystemService(
-                Context.TV_TUNER_RESOURCE_MGR_SERVICE);
+        TunerResourceManager trm = null;
+        if (mPackageManager.hasSystemFeature(PackageManager.FEATURE_TUNER)) {
+            trm = mContext.getSystemService(TunerResourceManager.class);
+        }
         synchronized (mLock) {
             Connection connection = mConnections.get(deviceId);
             if (connection == null) {

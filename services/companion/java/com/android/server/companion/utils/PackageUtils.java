@@ -26,24 +26,18 @@ import static com.android.internal.R.array.config_companionDevicePackages;
 import static com.android.internal.R.array.config_companionPermSyncEnabledCerts;
 import static com.android.internal.R.array.config_companionPermSyncEnabledPackages;
 
-import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.AppOpsManager;
 import android.app.ecm.EnhancedConfirmationManager;
-import android.companion.CompanionDeviceService;
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.FeatureInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.PackageInfoFlags;
-import android.content.pm.PackageManager.ResolveInfoFlags;
 import android.content.pm.PackageManagerInternal;
-import android.content.pm.ResolveInfo;
-import android.content.pm.ServiceInfo;
 import android.content.pm.Signature;
 import android.os.Binder;
 import android.os.Process;
@@ -52,11 +46,7 @@ import android.util.Slog;
 
 import com.android.internal.util.ArrayUtils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -64,12 +54,8 @@ import java.util.Set;
  */
 public final class PackageUtils {
 
+    public static final int PACKAGE_NOT_FOUND = -1;
     private static final String TAG = "CDM_PackageUtils";
-
-    private static final Intent COMPANION_SERVICE_INTENT =
-            new Intent(CompanionDeviceService.SERVICE_INTERFACE);
-    private static final String PROPERTY_PRIMARY_TAG =
-            "android.companion.PROPERTY_PRIMARY_COMPANION_DEVICE_SERVICE";
 
     /**
      * Get package info
@@ -119,61 +105,6 @@ public final class PackageUtils {
     }
 
     /**
-     * @return list of {@link CompanionDeviceService}-s per package for a given user.
-     *         Services marked as "primary" would always appear at the head of the lists, *before*
-     *         all non-primary services.
-     */
-    public static @NonNull Map<String, List<ComponentName>> getCompanionServicesForUser(
-            @NonNull Context context, @UserIdInt int userId) {
-        final PackageManager pm = context.getPackageManager();
-        final List<ResolveInfo> companionServices = pm.queryIntentServicesAsUser(
-                COMPANION_SERVICE_INTENT, ResolveInfoFlags.of(0), userId);
-
-        final Map<String, List<ComponentName>> packageNameToServiceInfoList =
-                new HashMap<>(companionServices.size());
-
-        for (ResolveInfo resolveInfo : companionServices) {
-            final ServiceInfo service = resolveInfo.serviceInfo;
-
-            final boolean requiresPermission = Manifest.permission.BIND_COMPANION_DEVICE_SERVICE
-                    .equals(resolveInfo.serviceInfo.permission);
-            if (!requiresPermission) {
-                Slog.w(TAG, "CompanionDeviceService "
-                        + service.getComponentName().flattenToShortString() + " must require "
-                        + "android.permission.BIND_COMPANION_DEVICE_SERVICE");
-                continue;
-            }
-
-            // We'll need to prepend "primary" services, while appending the other (non-primary)
-            // services to the list.
-            final ArrayList<ComponentName> services =
-                    (ArrayList<ComponentName>) packageNameToServiceInfoList.computeIfAbsent(
-                            service.packageName, it -> new ArrayList<>(1));
-
-            final ComponentName componentName = service.getComponentName();
-
-            if (isPrimaryCompanionDeviceService(pm, componentName, userId)) {
-                // "Primary" service should be at the head of the list.
-                services.add(0, componentName);
-            } else {
-                services.add(componentName);
-            }
-        }
-
-        return packageNameToServiceInfoList;
-    }
-
-    private static boolean isPrimaryCompanionDeviceService(@NonNull PackageManager pm,
-            @NonNull ComponentName componentName, @UserIdInt int userId) {
-        try {
-            return pm.getPropertyAsUser(PROPERTY_PRIMARY_TAG, componentName.getPackageName(),
-                    componentName.getClassName(), userId).getBoolean();
-        } catch (PackageManager.NameNotFoundException e) {
-            return false;
-        }
-    }
-
-    /**
      * Check if the package is allowlisted in the overlay config.
      * For this we'll check to config arrays:
      *   - com.android.internal.R.array.config_companionDevicePackages
@@ -190,8 +121,14 @@ public final class PackageUtils {
      */
     public static boolean isPackageAllowlisted(Context context,
             PackageManagerInternal packageManagerInternal, @NonNull String packageName) {
-        return isPackageAllowlisted(context, packageManagerInternal, packageName,
+        boolean isAllowListed = isPackageAllowlisted(context, packageManagerInternal, packageName,
                 config_companionDevicePackages, config_companionDeviceCerts);
+        if (!isAllowListed) {
+            Slog.i(TAG, "Package: " + packageName
+                    + " is not allowlisted to bypass association dialog");
+        }
+
+        return isAllowListed;
     }
 
     /**
@@ -199,8 +136,14 @@ public final class PackageUtils {
      */
     public static boolean isPermSyncAutoEnabled(Context context,
             PackageManagerInternal packageManagerInternal, String packageName) {
-        return isPackageAllowlisted(context, packageManagerInternal, packageName,
+        boolean isAllowListed = isPackageAllowlisted(context, packageManagerInternal, packageName,
                 config_companionPermSyncEnabledPackages, config_companionPermSyncEnabledCerts);
+        if (!isAllowListed) {
+            Slog.i(TAG, "Package: " + packageName
+                    + " is not allowlisted to bypass perm sync dialog");
+        }
+
+        return isAllowListed;
     }
 
     private static boolean isPackageAllowlisted(Context context,
@@ -262,6 +205,21 @@ public final class PackageUtils {
                     AppOpsManager.OP_ACCESS_RESTRICTED_SETTINGS, uid,
                     packageName, /* attributionTag= */ null, /* message= */ null);
             return mode == AppOpsManager.MODE_ALLOWED || mode == AppOpsManager.MODE_DEFAULT;
+        }
+    }
+
+    /**
+     * Get UID from a packageName. Return -1 if the package is not found.
+     */
+    public static int getUidFromPackageName(int userId, Context context, String packageName) {
+        PackageManager packageManager = context.getPackageManager();
+        try {
+            ApplicationInfo applicationInfo = packageManager.getApplicationInfoAsUser(
+                    packageName, 0, userId);
+            return applicationInfo.uid;
+        } catch (PackageManager.NameNotFoundException e) {
+            Slog.w(TAG, packageName + " is not found");
+            return PACKAGE_NOT_FOUND;
         }
     }
 }

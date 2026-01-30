@@ -16,7 +16,6 @@
 
 package com.android.internal.util.test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import com.android.tradefed.device.DeviceNotAvailableException;
@@ -66,6 +65,8 @@ public class SystemPreparer extends ExternalResource {
     // to manually verify the device state.
     private boolean mDebugSkipAfterReboot;
 
+    private int mCurrentUserId;
+
     public SystemPreparer(TemporaryFolder hostTempFolder, DeviceProvider deviceProvider) {
         this(hostTempFolder, RebootStrategy.FULL, null, deviceProvider);
     }
@@ -86,6 +87,11 @@ public class SystemPreparer extends ExternalResource {
             testRuleDelegate.setDelegate(mTearDownRule);
         }
         mDebugSkipAfterReboot = debugSkipAfterReboot;
+    }
+
+    @Override
+    protected void before() throws Throwable {
+        mCurrentUserId = mDeviceProvider.getDevice().getCurrentUser();
     }
 
     /** Copies a file within the host test jar to a path on device. */
@@ -140,24 +146,6 @@ public class SystemPreparer extends ExternalResource {
         return this;
     }
 
-    /** Stages multiple APEXs within the host test jar onto the device. */
-    public SystemPreparer stageMultiplePackages(String[] resourcePaths, String[] packageNames)
-            throws DeviceNotAvailableException, IOException {
-        assertEquals(resourcePaths.length, packageNames.length);
-        final ITestDevice device = mDeviceProvider.getDevice();
-        final String[] adbCommandLine = new String[resourcePaths.length + 2];
-        adbCommandLine[0] = "install-multi-package";
-        adbCommandLine[1] = "--staged";
-        for (int i = 0; i < resourcePaths.length; i++) {
-            final File tmpFile = copyResourceToTemp(resourcePaths[i]);
-            adbCommandLine[i + 2] = tmpFile.getAbsolutePath();
-            mInstalledPackages.add(packageNames[i]);
-        }
-        final String output = device.executeAdbCommand(adbCommandLine);
-        assertTrue(output.contains("Success. Reboot device to apply staged session"));
-        return this;
-    }
-
     /** Sets the enable state of an overlay package. */
     public SystemPreparer setOverlayEnabled(String packageName, boolean enabled)
             throws DeviceNotAvailableException {
@@ -166,11 +154,14 @@ public class SystemPreparer extends ExternalResource {
 
         // Wait for the overlay to change its enabled state.
         final long endMillis = System.currentTimeMillis() + OVERLAY_ENABLE_TIMEOUT_MS;
-        String result;
+        String result = null;
         while (System.currentTimeMillis() <= endMillis) {
-            device.executeShellCommand(String.format("cmd overlay %s %s", enable, packageName));
-            result = device.executeShellCommand("cmd overlay dump isenabled "
-                    + packageName);
+            device.executeShellCommand(
+                    String.format("cmd overlay %s --user %d %s", enable, mCurrentUserId,
+                            packageName));
+            result = device.executeShellCommand(
+                    String.format("cmd overlay dump --user %d isenabled %s", mCurrentUserId,
+                            packageName));
             if (((enabled) ? "true\n" : "false\n").equals(result)) {
                 return this;
             }
@@ -181,8 +172,9 @@ public class SystemPreparer extends ExternalResource {
             }
         }
 
-        throw new IllegalStateException(String.format("Failed to %s overlay %s:\n%s", enable,
-                packageName, device.executeShellCommand("cmd overlay list")));
+        throw new IllegalStateException(String.format(
+                "Failed to %s overlay %s. Last result:\n%s\nOverlay list:\n%s",
+                enable, packageName, result, device.executeShellCommand("cmd overlay list")));
     }
 
     /** Restarts the device and waits until after boot is completed. */

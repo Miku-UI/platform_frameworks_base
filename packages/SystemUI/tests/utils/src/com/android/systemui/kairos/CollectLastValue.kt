@@ -49,7 +49,7 @@ fun <T> TestScope.collectLastValue(state: State<T>, kairosNetwork: KairosNetwork
 }
 
 /**
- * Collect [flow] in a new [Job] and return a getter for the collection of values collected.
+ * Collect [events] in a new [Job] and return a getter for the collection of values collected.
  *
  * ```
  * fun myTest() = runTest {
@@ -60,9 +60,12 @@ fun <T> TestScope.collectLastValue(state: State<T>, kairosNetwork: KairosNetwork
  * ```
  */
 @ExperimentalKairosApi
-fun <T> TestScope.collectLastValue(flow: Events<T>, kairosNetwork: KairosNetwork): KairosValue<T?> {
+fun <T> TestScope.collectLastVaxlue(
+    events: Events<T>,
+    kairosNetwork: KairosNetwork,
+): KairosValue<T?> {
     var value: T? = null
-    backgroundScope.launch { kairosNetwork.activateSpec { flow.observe { value = it } } }
+    backgroundScope.launch { kairosNetwork.activateSpec { events.observe { value = it } } }
     return KairosValueImpl {
         runCurrent()
         value
@@ -70,7 +73,7 @@ fun <T> TestScope.collectLastValue(flow: Events<T>, kairosNetwork: KairosNetwork
 }
 
 /**
- * Collect [flow] in a new [Job] and return a getter for the collection of values collected.
+ * Collect [events] in a new [Job] and return a getter for the collection of values collected.
  *
  * ```
  * fun myTest() = runTest {
@@ -82,11 +85,11 @@ fun <T> TestScope.collectLastValue(flow: Events<T>, kairosNetwork: KairosNetwork
  */
 @ExperimentalKairosApi
 fun <T> TestScope.collectValues(
-    flow: Events<T>,
+    events: Events<T>,
     kairosNetwork: KairosNetwork,
 ): KairosValue<List<T>> {
     val values = mutableListOf<T>()
-    backgroundScope.launch { kairosNetwork.activateSpec { flow.observe { values.add(it) } } }
+    backgroundScope.launch { kairosNetwork.activateSpec { events.observe { values.add(it) } } }
     return KairosValueImpl {
         runCurrent()
         values.toList()

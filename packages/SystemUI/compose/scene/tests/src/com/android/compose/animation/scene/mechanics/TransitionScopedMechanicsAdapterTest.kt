@@ -60,7 +60,7 @@ import com.android.compose.animation.scene.transitions
 import com.android.mechanics.spec.InputDirection
 import com.android.mechanics.spec.Mapping
 import com.android.mechanics.spec.MotionSpec
-import com.android.mechanics.spec.buildDirectionalMotionSpec
+import com.android.mechanics.spec.builder.directionalMotionSpec
 import com.android.mechanics.spring.SpringParameters
 import com.google.common.truth.Truth
 import kotlinx.coroutines.CoroutineScope
@@ -95,9 +95,9 @@ class TransitionScopedMechanicsAdapterTest {
             val specFactory: SpecFactory = { _, _ ->
                 MotionSpec(
                     // Linearly animate from 10 down to 0
-                    buildDirectionalMotionSpec(TestSpring, Mapping.Fixed(50.dp.toPx())) {
+                    directionalMotionSpec(TestSpring, Mapping.Fixed(50.dp.toPx())) {
                         targetFromCurrent(breakpoint = 0f, to = 0f)
-                        constantValueFromCurrent(breakpoint = 1f)
+                        fixedValueFromCurrent(breakpoint = 1f)
                     }
                 )
             }
@@ -116,8 +116,8 @@ class TransitionScopedMechanicsAdapterTest {
             val specFactory: SpecFactory = { _, _ ->
                 MotionSpec(
                     // Use a spring to toggle 10f -> 0f at a progress of 0.5
-                    buildDirectionalMotionSpec(TestSpring, Mapping.Fixed(50.dp.toPx())) {
-                        constantValue(breakpoint = 0.5f, value = 0f)
+                    directionalMotionSpec(TestSpring, Mapping.Fixed(50.dp.toPx())) {
+                        fixedValue(breakpoint = 0.5f, value = 0f)
                     }
                 )
             }
@@ -140,11 +140,8 @@ class TransitionScopedMechanicsAdapterTest {
                     transformation(TestElements.Foo) {
                         TestTransformation { _, _ ->
                             MotionSpec(
-                                buildDirectionalMotionSpec(
-                                    TestSpring,
-                                    Mapping.Fixed(50.dp.toPx()),
-                                ) {
-                                    constantValue(breakpoint = 0.3f, value = 0f)
+                                directionalMotionSpec(TestSpring, Mapping.Fixed(50.dp.toPx())) {
+                                    fixedValue(breakpoint = 0.3f, value = 0f)
                                 }
                             )
                         }
@@ -450,7 +447,7 @@ class TransitionScopedMechanicsAdapterTest {
         override val property = PropertyTransformation.Property.Offset
 
         val motionValue =
-            TransitionScopedMechanicsAdapter(createSpec = specFactory, stableThreshold = 1f)
+            TransitionScopedMechanicsAdapter(getSpec = specFactory, stableThreshold = 1f)
 
         override fun PropertyTransformationScope.transform(
             content: ContentKey,

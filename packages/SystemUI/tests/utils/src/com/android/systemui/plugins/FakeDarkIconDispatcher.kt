@@ -17,12 +17,34 @@
 package com.android.systemui.plugins
 
 import android.graphics.Rect
+import com.android.systemui.statusbar.phone.LightBarTransitionsController
+import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher
+import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher.DarkChange
+import java.io.PrintWriter
 import java.util.ArrayList
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
-class FakeDarkIconDispatcher : DarkIconDispatcher {
+class FakeDarkIconDispatcher(
+    private val lightBarTransitionsController: LightBarTransitionsController
+) : SysuiDarkIconDispatcher {
+
+    private val mutableDarkChangeFlow = MutableStateFlow(DarkChange.EMPTY)
+
     val receivers = mutableListOf<DarkIconDispatcher.DarkReceiver>()
 
-    override fun setIconsDarkArea(r: ArrayList<Rect>) {}
+    override fun setIconsDarkArea(r: ArrayList<Rect>) {
+        mutableDarkChangeFlow.value = mutableDarkChangeFlow.value.copy(areas = r)
+    }
+
+    fun setIconsTint(color: Int) {
+        mutableDarkChangeFlow.value = mutableDarkChangeFlow.value.copy(tint = color)
+    }
+
+    fun setDarkIntensity(darkIntensity: Float) {
+        mutableDarkChangeFlow.value =
+            mutableDarkChangeFlow.value.copy(darkIntensity = darkIntensity)
+    }
 
     override fun addDarkReceiver(receiver: DarkIconDispatcher.DarkReceiver) {
         receivers.add(receiver)
@@ -33,4 +55,22 @@ class FakeDarkIconDispatcher : DarkIconDispatcher {
     }
 
     override fun applyDark(`object`: DarkIconDispatcher.DarkReceiver) {}
+
+    override fun dump(pw: PrintWriter, args: Array<out String>) {}
+
+    override fun getTransitionsController(): LightBarTransitionsController {
+        return lightBarTransitionsController
+    }
+
+    override fun darkChangeFlow(): StateFlow<DarkChange> {
+        return mutableDarkChangeFlow
+    }
+
+    private fun DarkChange.copy(
+        areas: Collection<Rect> = this.areas,
+        darkIntensity: Float = this.darkIntensity,
+        tint: Int = this.tint,
+    ): DarkChange {
+        return DarkChange(areas, darkIntensity, tint)
+    }
 }

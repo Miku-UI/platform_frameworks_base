@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Konektatzen…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Konektatuta<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Parekatzen…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Ezin da parekatu"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Ezin da konektatu"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Konektatuta (telefonoaren audiorik gabe)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Konektatuta (gailuaren audiorik gabe)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Konektatuta (telefonoaren edo gailuaren audiorik gabe)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"L aldearen bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>. R aldearen bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Ezkerreko aldearen bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Eskuineko aldearen bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Kutxaren bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Ezkerrekoa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>; kutxa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Eskuinekoa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>; kutxa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Ezkerrekoa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>; eskuinekoa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Ezk.: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>; Kutxa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>; Esk.: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Ezkerrekoa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Eskuinekoa: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Aktibo"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Aktibo (eskuinekoa soilik)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Aktibo (ezkerrekoa eta eskuinekoa)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Ezin izan da eguneratu ingurunea"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Ezin izan da eguneratu aurrezarpena"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Hautatuta"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Aktibo (multimedia-edukia soilik). Bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Aktibo (multimedia-edukia soilik). L aldearen bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>. R aldearen bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Gailu gonbidatua. Bateria: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -268,7 +277,7 @@
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Parekatu gailua QR kode batekin"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Parekatu gailu gehiago QR kode bat eskaneatuta"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Parekatu gailua parekatze-kode batekin"</string>
-    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Parekatu gailu gehiago sei digituko kode batekin"</string>
+    <string name="adb_pair_method_code_summary" msgid="6370414511333685185">"Parekatu gailu gehiago 6 digituko kode batekin"</string>
     <string name="adb_paired_devices_title" msgid="5268997341526217362">"Parekatutako gailuak"</string>
     <string name="adb_wireless_device_connected_summary" msgid="3039660790249148713">"Konektatuta daudenak"</string>
     <string name="adb_wireless_device_details_title" msgid="7129369670526565786">"Gailuaren xehetasunak"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Modu hau gaituta dagoenean, baliteke gailuaren MAC helbidea aldatzea MAC helbideak ausaz antolatzeko aukera gaituta daukan sare batera konektatzen den bakoitzean."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Sare neurtua"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Neurtu gabeko sarea"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Erregistroen buffer-tamainak"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Erregistroen buffer-tamaina"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Hautatu erregistroen buffer-tamainak"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Erregistro iraunkorraren biltegia garbitu nahi duzu?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Erregistro iraunkor hau kontrolatzeari uzten diogunean gailuan dituzun erregistroko datuak ezabatu beharko ditugu."</string>
@@ -411,7 +420,7 @@
     <string name="usb_audio_disable_routing" msgid="3367656923544254975">"Desgaitu USB bidez audioa bideratzeko aukera"</string>
     <string name="usb_audio_disable_routing_summary" msgid="8768242894849534699">"Desgaitu USB bidezko audio-gailuetara automatikoki bideratzeko aukera"</string>
     <string name="debug_layout" msgid="1659216803043339741">"Erakutsi diseinu-mugak"</string>
-    <string name="debug_layout_summary" msgid="8825829038287321978">"Erakutsi kliparen mugak, marjinak, etab."</string>
+    <string name="debug_layout_summary" msgid="8825829038287321978">"Erakutsi ebakiaren mugak, marjinak, etab."</string>
     <string name="force_rtl_layout_all_locales" msgid="8690762598501599796">"Eskuinetik ezkerrerako norabidea"</string>
     <string name="force_rtl_layout_all_locales_summary" msgid="6663016859517239880">"Behartu pantaila-diseinuaren norabidea eskuin-ezker izatera lurraldeko ezarpen guztiekin"</string>
     <string name="transparent_navigation_bar" msgid="1933192171384678484">"Nabigazio-barra gardena"</string>
@@ -419,7 +428,7 @@
     <string name="window_blurs" msgid="6831008984828425106">"Gaitu leiho-lausotzeak"</string>
     <string name="force_msaa" msgid="4081288296137775550">"Behartu 4x MSAA"</string>
     <string name="force_msaa_summary" msgid="9070437493586769500">"Gaitu 4x MSAA, OpenGL ES 2.0 aplikazioetan"</string>
-    <string name="show_non_rect_clip" msgid="7499758654867881817">"Araztu angeluzuzenak ez diren klip-eragiketak"</string>
+    <string name="show_non_rect_clip" msgid="7499758654867881817">"Araztu angeluzuzenak ez diren ebaketa-eragiketak"</string>
     <string name="track_frame_time" msgid="522674651937771106">"Profilaren HWUI errendatzea"</string>
     <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"Gaitu GPUaren arazketa-geruzak"</string>
     <string name="enable_gpu_debug_layers_summary" msgid="4921521407377170481">"Eman GPUaren arazketa-geruzak kargatzeko baimena arazketa-aplikazioei"</string>
@@ -447,7 +456,7 @@
     <string name="force_allow_on_external" msgid="9187902444231637880">"Behartu aplikazioak onartzera kanpoko memorian"</string>
     <string name="force_allow_on_external_summary" msgid="8525425782530728238">"Aplikazioek kanpoko memorian idatz dezakete, ezarritako balioak kontuan izan gabe"</string>
     <string name="force_resizable_activities" msgid="7143612144399959606">"Behartu jardueren tamaina doitu ahal izatera"</string>
-    <string name="force_resizable_activities_summary" msgid="2490382056981583062">"Eman aukera jarduera guztien tamaina doitzeko, leiho batean baino gehiagotan erabili ahal izan daitezen, ezarritako balioak kontuan izan gabe"</string>
+    <string name="force_resizable_activities_summary" msgid="2490382056981583062">"Eman aukera jarduera guztien tamaina doitzeko, leiho batean baino gehiagotan erabili ahal izan daitezen, ezarritako balioak kontuan izan gabe."</string>
     <string name="enable_freeform_support" msgid="7599125687603914253">"Gaitu estilo libreko leihoak"</string>
     <string name="local_backup_password_title" msgid="4631017948933578709">"Babeskopien pasahitz lokala"</string>
     <string name="local_backup_password_summary_none" msgid="7646898032616361714">"Une honetan, ordenagailuko babeskopia osoak ez daude babestuta"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"Duela <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> geratzen dira"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Txikiena"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Txikiagoa"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Txikia"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Lehenetsia"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Handia"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Oso handia"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Handiena"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Oso handia"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Oso handia"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Estra handia"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Handiena"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Pertsonalizatua (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menua"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Idatzi pasahitza jatorrizko datuak demo moduan berrezartzeko"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 gailu konektatuta}other{# gailu konektatuta}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Denbora gehiago."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Denbora gutxiago."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Lupa"</string>
     <string name="cancel" msgid="5665114069455378395">"Utzi"</string>
     <string name="next" msgid="2699398661093607009">"Hurrengoa"</string>
     <string name="back" msgid="5554327870352703710">"Atzera"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> aplikazioaren audioa igortzen edo audio-irteera aldatzen baduzu, une hartako igorpena etengo da"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Igorri <xliff:g id="SWITCHAPP">%1$s</xliff:g> aplikazioaren audioa"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Aldatu audio-irteera"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Atzera egiteko keinuaren animazio-igarleak"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Gaitu atzera egiteko keinuaren sistemaren animazio-igarleak."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Atzera egiteko keinuaren sistemaren animazio-igarleak gaitzen ditu ezarpenak. enableOnBackInvokedCallback-ek egiazko gisa ezarrita egon behar du aplikazio bakoitzaren manifestu-fitxategian."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"%% <xliff:g id="PERCENTAGE">%1$d</xliff:g>"</string>
     <string name="not_specified" msgid="5423502443185110328">"Zehaztugabea"</string>
     <string name="neuter" msgid="2075249330106127310">"Neutroa"</string>

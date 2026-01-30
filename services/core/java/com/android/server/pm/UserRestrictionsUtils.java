@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AppGlobals;
+import android.app.admin.DevicePolicyManagerInternal;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
@@ -80,6 +81,8 @@ public class UserRestrictionsUtils {
 
     public static final Set<String> USER_RESTRICTIONS = newSetWithUniqueCheck(new String[] {
             UserManager.DISALLOW_CONFIG_WIFI,
+            UserManager.DISALLOW_CONFIG_WIFI_PRIVATE,
+            UserManager.DISALLOW_CONFIG_WIFI_SHARED,
             UserManager.DISALLOW_CONFIG_LOCALE,
             UserManager.DISALLOW_MODIFY_ACCOUNTS,
             UserManager.DISALLOW_INSTALL_APPS,
@@ -681,9 +684,7 @@ public class UserRestrictionsUtils {
                     break;
                 case UserManager.DISALLOW_DEBUGGING_FEATURES:
                     if (newValue) {
-                        // Only disable adb if changing for system user, since it is global
-                        // TODO: should this be admin user?
-                        if (userId == UserHandle.USER_SYSTEM) {
+                        if (userId == UserHandle.USER_SYSTEM || userId == getDeviceOwnerUserId()) {
                             android.provider.Settings.Global.putStringForUser(cr,
                                     android.provider.Settings.Global.ADB_ENABLED, "0",
                                     userId);
@@ -808,6 +809,9 @@ public class UserRestrictionsUtils {
                     return false;
                 }
                 restriction = UserManager.DISALLOW_DEBUGGING_FEATURES;
+                if (deviceOwnerOrSystemUserHasRestriction(restriction)) {
+                    return true;
+                }
                 break;
 
             case android.provider.Settings.Global.PACKAGE_VERIFIER_INCLUDE_ADB:
@@ -965,5 +969,26 @@ public class UserRestrictionsUtils {
                 String userRestriction, boolean newValue) {
         return (newValue || UserManager.get(context).hasUserRestriction(userRestriction,
                 UserHandle.of(userId))) ? 0 : 1;
+    }
+
+    private static int getDeviceOwnerUserId() {
+        DevicePolicyManagerInternal dpm = LocalServices.getService(
+                DevicePolicyManagerInternal.class);
+        return dpm.getDeviceOwnerUserId();
+    }
+
+    private static boolean deviceOwnerOrSystemUserHasRestriction(String restriction) {
+        UserManagerInternal userManager = LocalServices.getService(UserManagerInternal.class);
+        if (userManager == null) {
+            return false;
+        }
+
+        if (userManager.hasUserRestriction(restriction, UserHandle.USER_SYSTEM)) {
+            return true;
+        }
+
+        final int deviceOwnerId = getDeviceOwnerUserId();
+        return deviceOwnerId != UserHandle.USER_NULL && deviceOwnerId != UserHandle.USER_SYSTEM
+                && userManager.hasUserRestriction(restriction, deviceOwnerId);
     }
 }

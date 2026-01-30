@@ -54,6 +54,7 @@ constructor(
                         ),
                         Text.Resource(config.uiConfig.labelRes),
                         null,
+                        null,
                         category = config.category,
                     )
                 } else {
@@ -64,6 +65,7 @@ constructor(
                             ContentDescription.Loaded(it.spec),
                         ),
                         Text.Loaded(it.spec),
+                        null,
                         null,
                         category = TileCategory.UNKNOWN,
                     )

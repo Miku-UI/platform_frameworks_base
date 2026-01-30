@@ -54,9 +54,11 @@ public abstract class SensorPrivacyToggleTile extends QSTileImpl<QSTile.BooleanS
         IndividualSensorPrivacyController.Callback {
 
     private final KeyguardStateController mKeyguard;
+    private final SafetyCenterManager mSafetyCenterManager;
     protected IndividualSensorPrivacyController mSensorPrivacyController;
 
-    private final Boolean mIsSafetyCenterEnabled;
+    // Set delayed in the background thread.
+    private boolean mIsSafetyCenterEnabled;
 
     /**
      * @return Id of the sensor that will be toggled
@@ -90,8 +92,14 @@ public abstract class SensorPrivacyToggleTile extends QSTileImpl<QSTile.BooleanS
                 statusBarStateController, activityStarter, qsLogger);
         mSensorPrivacyController = sensorPrivacyController;
         mKeyguard = keyguardStateController;
-        mIsSafetyCenterEnabled = safetyCenterManager.isSafetyCenterEnabled();
+        mSafetyCenterManager = safetyCenterManager;
         mSensorPrivacyController.observe(getLifecycle(), this);
+    }
+
+    @Override
+    protected void handleInitialize() {
+        super.handleInitialize();
+        mIsSafetyCenterEnabled = mSafetyCenterManager.isSafetyCenterEnabled();
     }
 
     @Override

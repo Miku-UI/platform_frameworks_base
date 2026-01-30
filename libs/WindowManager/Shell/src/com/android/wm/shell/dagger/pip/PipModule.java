@@ -16,12 +16,12 @@
 
 package com.android.wm.shell.dagger.pip;
 
-import com.android.wm.shell.common.pip.PipUtils;
 import com.android.wm.shell.dagger.WMSingleton;
 import com.android.wm.shell.pip.Pip;
 import com.android.wm.shell.pip.PipTransitionController;
 import com.android.wm.shell.pip2.phone.PipController;
 import com.android.wm.shell.pip2.phone.PipTransition;
+import com.android.wm.shell.shared.pip.PipFlags;
 
 import dagger.Module;
 import dagger.Provides;
@@ -42,7 +42,7 @@ public abstract class PipModule {
     static PipTransitionController providePipTransitionController(
             com.android.wm.shell.pip.PipTransition legacyPipTransition,
             PipTransition newPipTransition) {
-        if (PipUtils.isPip2ExperimentEnabled()) {
+        if (PipFlags.isPip2ExperimentEnabled()) {
             return newPipTransition;
         } else {
             return legacyPipTransition;
@@ -54,7 +54,7 @@ public abstract class PipModule {
     static Optional<Pip> providePip(
             Optional<com.android.wm.shell.pip.phone.PipController.PipImpl> pip1,
             Optional<PipController.PipImpl> pip2) {
-        if (PipUtils.isPip2ExperimentEnabled()) {
+        if (PipFlags.isPip2ExperimentEnabled()) {
             return Optional.ofNullable(pip2.orElse(null));
 
         } else {

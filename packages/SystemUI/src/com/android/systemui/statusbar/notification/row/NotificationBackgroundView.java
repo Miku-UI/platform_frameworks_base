@@ -55,6 +55,8 @@ public class NotificationBackgroundView extends View implements Dumpable,
     private final boolean mDontModifyCorners;
     private Drawable mBackground;
     private int mClipTopAmount;
+    private int mTopOverlap;
+    private int mBottomOverlap;
     private int mClipBottomAmount;
     private int mTintColor;
     @Nullable private Integer mRippleColor;
@@ -108,11 +110,13 @@ public class NotificationBackgroundView extends View implements Dumpable,
 
     @Override
     protected void onDraw(Canvas canvas) {
-        if (mClipTopAmount + mClipBottomAmount < getActualHeight() || mExpandAnimationRunning) {
+        float clipTop = Math.max(mClipTopAmount, mTopOverlap);
+        int clipBottomAmount = Math.max(mClipBottomAmount, mBottomOverlap);
+        if (clipTop + clipBottomAmount < getActualHeight() || mExpandAnimationRunning) {
             canvas.save();
             if (!mExpandAnimationRunning) {
-                canvas.clipRect(0, mClipTopAmount, getWidth(),
-                        getActualHeight() - mClipBottomAmount);
+                canvas.clipRect(0, clipTop, getWidth(),
+                        getActualHeight() - clipBottomAmount);
             }
 
             if (!NotificationAddXOnHoverToDismiss.isEnabled()) {
@@ -174,7 +178,7 @@ public class NotificationBackgroundView extends View implements Dumpable,
         if (mBottomIsRounded
                 && mBottomAmountClips
                 && !mExpandAnimationRunning) {
-            bottom -= mClipBottomAmount;
+            bottom -= Math.max(mClipBottomAmount, mBottomOverlap);
         }
         final boolean alignedToRight = isAlignedToRight();
         final int width = getWidth();
@@ -210,7 +214,7 @@ public class NotificationBackgroundView extends View implements Dumpable,
             if (mBottomIsRounded
                     && mBottomAmountClips
                     && !mExpandAnimationRunning) {
-                bottom -= mClipBottomAmount;
+                bottom -= Math.max(mClipBottomAmount, mBottomOverlap);
             }
 
             final boolean alignedToRight = isAlignedToRight();
@@ -298,13 +302,8 @@ public class NotificationBackgroundView extends View implements Dumpable,
     public void setTint(int tintColor) {
         Drawable baseLayer = getBaseBackgroundLayer();
         if (notificationRowTransparency()) {
-            // BG base layer being a drawable, there isn't a method like setColor() to color it.
-            // Instead, we set a color filter that essentially replaces every pixel of the drawable.
-            baseLayer.setColorFilter(
-                    new PorterDuffColorFilter(
-                            tintColor,
-                            // SRC operator discards the drawable's color+alpha
-                            PorterDuff.Mode.SRC));
+            ((GradientDrawable) baseLayer.mutate()).setColor(tintColor);
+
         } else {
             baseLayer.mutate().setTintMode(PorterDuff.Mode.SRC_ATOP);
             baseLayer.setTint(tintColor);
@@ -346,6 +345,28 @@ public class NotificationBackgroundView extends View implements Dumpable,
 
     public void setClipTopAmount(int clipTopAmount) {
         mClipTopAmount = clipTopAmount;
+        invalidate();
+    }
+
+    /**
+     * Sets the overlap on the top of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipTopAmount, however it is a separate way to clip which is usually
+     * then combined with the clipTopAmount to take the maximum.
+     */
+    public void setTopOverlap(int topOverlap) {
+        mTopOverlap = topOverlap;
+        invalidate();
+    }
+
+    /**
+     * Sets the overlap on the bottom of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipBottomAmount, however it is a separate way to clip which is usually
+     * then combined with the clipBottomAmount to take the maximum.
+     */
+    public void setBottomOverlap(int bottomOverlap) {
+        mBottomOverlap = bottomOverlap;
         invalidate();
     }
 
@@ -466,6 +487,8 @@ public class NotificationBackgroundView extends View implements Dumpable,
         pw.println("mDontModifyCorners: " + mDontModifyCorners);
         pw.println("mClipTopAmount: " + mClipTopAmount);
         pw.println("mClipBottomAmount: " + mClipBottomAmount);
+        pw.println("mTopOverlap: " + mTopOverlap);
+        pw.println("mBottomOverlap: " + mBottomOverlap);
         pw.println("mCornerRadii: " + Arrays.toString(mCornerRadii));
         pw.println("mBottomIsRounded: " + mBottomIsRounded);
         pw.println("mBottomAmountClips: " + mBottomAmountClips);

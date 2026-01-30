@@ -74,7 +74,7 @@ public class RootContentDescription extends Operation
     }
 
     @Override
-    public Integer getContentDescriptionId() {
+    public @NonNull Integer getContentDescriptionId() {
         return mContentDescription;
     }
 
@@ -132,7 +132,7 @@ public class RootContentDescription extends Operation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("contentDescriptionId", mContentDescription);
     }
 }

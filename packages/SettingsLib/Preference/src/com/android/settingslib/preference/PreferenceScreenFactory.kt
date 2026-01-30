@@ -16,6 +16,7 @@
 
 package com.android.settingslib.preference
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import androidx.preference.Preference
@@ -24,6 +25,7 @@ import androidx.preference.PreferenceManager
 import androidx.preference.PreferenceScreen
 import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_ARGS
 import com.android.settingslib.metadata.PreferenceScreenRegistry
+import kotlinx.coroutines.CoroutineScope
 
 /** Factory to create preference screen. */
 class PreferenceScreenFactory {
@@ -49,7 +51,7 @@ class PreferenceScreenFactory {
     }
 
     /** Factory constructor from [Context]. */
-    constructor(context: Context) : this(PreferenceManager(context))
+    @SuppressLint("RestrictedApi") constructor(context: Context) : this(PreferenceManager(context))
 
     /** Factory constructor from [PreferenceManager]. */
     constructor(preferenceManager: PreferenceManager) {
@@ -71,6 +73,7 @@ class PreferenceScreenFactory {
      * @param xmlRes The resource ID of the XML to inflate
      * @return The root hierarchy (if one was not provided, the new hierarchy's root)
      */
+    @SuppressLint("RestrictedApi")
     fun inflate(xmlRes: Int): PreferenceScreen? =
         if (xmlRes != 0) {
             preferenceManager.inflateFromResource(preferenceManager.context, xmlRes, rootScreen)
@@ -87,10 +90,11 @@ class PreferenceScreenFactory {
         context: Context,
         screenKey: String?,
         args: Bundle?,
+        coroutineScope: CoroutineScope,
     ): PreferenceScreen? {
         val metadata = PreferenceScreenRegistry.create(context, screenKey, args) ?: return null
         if (metadata is PreferenceScreenCreator && metadata.hasCompleteHierarchy()) {
-            return metadata.createPreferenceScreen(this)
+            return metadata.createPreferenceScreen(this, coroutineScope)
         }
         return null
     }
@@ -98,7 +102,10 @@ class PreferenceScreenFactory {
     companion object {
         /** Creates [PreferenceScreen] from [PreferenceScreenRegistry]. */
         @JvmStatic
-        fun createBindingScreen(preference: Preference): PreferenceScreen? {
+        fun createBindingScreen(
+            preference: Preference,
+            coroutineScope: CoroutineScope,
+        ): PreferenceScreen? {
             val context = preference.context
             val args = preference.peekExtras()?.getBundle(EXTRA_BINDING_SCREEN_ARGS)
             val preferenceScreenCreator =
@@ -106,7 +113,8 @@ class PreferenceScreenFactory {
                     as? PreferenceScreenCreator) ?: return null
             if (!preferenceScreenCreator.hasCompleteHierarchy()) return null
             val factory = PreferenceScreenFactory(context)
-            val preferenceScreen = preferenceScreenCreator.createPreferenceScreen(factory)
+            val preferenceScreen =
+                preferenceScreenCreator.createPreferenceScreen(factory, coroutineScope)
             factory.preferenceManager.setPreferences(preferenceScreen)
             return preferenceScreen
         }

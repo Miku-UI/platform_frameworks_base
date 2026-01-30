@@ -17,16 +17,23 @@
 package com.android.systemui.qs.panels.ui.viewmodel
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
+import com.android.systemui.qs.panels.domain.interactor.largeTileSpanInteractor
 import com.android.systemui.qs.panels.domain.interactor.qsColumnsInteractor
 
 val Kosmos.qsColumnsViewModelFactory by
     Kosmos.Fixture {
         object : QSColumnsViewModel.Factory {
-            override fun create(mediaLocation: Int?): QSColumnsViewModel {
+            override fun create(
+                mediaLocation: Int?,
+                mediaUiBehavior: MediaUiBehavior?,
+            ): QSColumnsViewModel {
                 return QSColumnsViewModel(
                     qsColumnsInteractor,
                     mediaInRowInLandscapeViewModelFactory,
+                    largeTileSpanInteractor,
                     mediaLocation,
+                    mediaUiBehavior,
                 )
             }
         }

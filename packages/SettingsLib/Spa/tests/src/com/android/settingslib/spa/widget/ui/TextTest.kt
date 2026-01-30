@@ -26,21 +26,33 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class TextTest {
-    @get:Rule
-    val composeTestRule = createComposeRule()
+    @get:Rule val composeTestRule = createComposeRule()
 
     @Test
     fun settingsTitle() {
-        composeTestRule.setContent {
-            SettingsTitle(title = "myTitleValue")
-        }
+        composeTestRule.setContent { SettingsTitle(title = "myTitleValue") }
+
         composeTestRule.onNodeWithText("myTitleValue").assertIsDisplayed()
     }
 
+    @Test
+    fun settingsBody() {
+        composeTestRule.setContent { SettingsBody("body") }
+
+        composeTestRule.onNodeWithText("body").assertIsDisplayed()
+    }
+
+    @Test
+    fun settingsIntro() {
+        composeTestRule.setContent { SettingsIntro("intro") }
+
+        composeTestRule.onNodeWithText("intro").assertIsDisplayed()
+    }
+
+    @Test
     fun placeholderTitle() {
-        composeTestRule.setContent {
-            PlaceholderTitle(title = "myTitlePlaceholder")
-        }
+        composeTestRule.setContent { PlaceholderTitle(title = "myTitlePlaceholder") }
+
         composeTestRule.onNodeWithText("myTitlePlaceholder").assertIsDisplayed()
     }
 }

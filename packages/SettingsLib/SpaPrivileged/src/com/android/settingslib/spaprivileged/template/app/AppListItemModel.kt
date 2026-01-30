@@ -29,7 +29,7 @@ import com.android.settingslib.spaprivileged.model.app.AppRecord
 data class AppListItemModel<T : AppRecord>(
     val record: T,
     val label: String,
-    val summary: () -> String,
+    val summary: () -> CharSequence,
 )
 
 @Composable

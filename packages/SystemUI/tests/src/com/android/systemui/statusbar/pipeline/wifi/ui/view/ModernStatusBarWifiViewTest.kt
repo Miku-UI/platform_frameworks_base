@@ -17,6 +17,9 @@
 package com.android.systemui.statusbar.pipeline.wifi.ui.view
 
 import android.content.res.ColorStateList
+import android.content.res.Configuration
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper
 import android.testing.TestableLooper.RunWithLooper
@@ -25,12 +28,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView.STATE_DOT
 import com.android.systemui.statusbar.StatusBarIconView.STATE_HIDDEN
 import com.android.systemui.statusbar.StatusBarIconView.STATE_ICON
+import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
@@ -80,6 +85,8 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
+        // To ensure testable resources are being used.
+        context.orCreateTestableResources
         testableLooper = TestableLooper.get(this)
 
         airplaneModeRepository = FakeAirplaneModeRepository()
@@ -109,11 +116,7 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
                 scope,
                 wifiConstants,
             )
-        viewModel =
-            viewModelForLocation(
-                viewModelCommon,
-                StatusBarLocation.HOME,
-            )
+        viewModel = viewModelForLocation(viewModelCommon, StatusBarLocation.HOME)
     }
 
     // Note: The following tests are more like integration tests, since they stand up a full
@@ -252,6 +255,53 @@ class ModernStatusBarWifiViewTest : SysuiTestCase() {
         assertThat(view.getIconView().imageTintList).isEqualTo(ColorStateList.valueOf(color))
 
         ViewUtils.detachView(view)
+    }
+
+    @Test
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME)
+    @DisableFlags(Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
+    fun configChanged_dimensionsWithNewValues_flagDisabled_dimensionsNotUpdated() {
+        val view = ModernStatusBarWifiView.constructAndBind(context, SLOT_NAME, viewModel)
+        val iconView = view.getIconView()
+        val group = view.getIconGroupView()
+        val initialHeight =
+            context.resources.getDimensionPixelSize(R.dimen.status_bar_wifi_signal_height_updated)
+        val initialMargin =
+            context.resources.getDimensionPixelSize(
+                R.dimen.status_bar_wifi_signal_horizontal_margin
+            )
+
+        overrideResource(R.dimen.status_bar_wifi_signal_height_updated, initialHeight + 10)
+        overrideResource(R.dimen.status_bar_wifi_signal_horizontal_margin, initialMargin + 10)
+        view.onConfigurationChanged(Configuration())
+
+        assertThat(iconView.layoutParams.height).isEqualTo(initialHeight)
+        val newMarginLp = group.layoutParams as ViewGroup.MarginLayoutParams
+        assertThat(newMarginLp.marginStart).isEqualTo(initialMargin)
+        assertThat(newMarginLp.marginEnd).isEqualTo(initialMargin)
+    }
+
+    @Test
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME, Flags.FLAG_FIX_SHADE_HEADER_WRONG_ICON_SIZE)
+    fun configChanged_dimensionsWithNewValues_flagEnabled_dimensionsUpdated() {
+        val view = ModernStatusBarWifiView.constructAndBind(context, SLOT_NAME, viewModel)
+        val iconView = view.getIconView()
+        val group = view.getIconGroupView()
+        val initialHeight =
+            context.resources.getDimensionPixelSize(R.dimen.status_bar_wifi_signal_height_updated)
+        val initialMargin =
+            context.resources.getDimensionPixelSize(
+                R.dimen.status_bar_wifi_signal_horizontal_margin
+            )
+
+        overrideResource(R.dimen.status_bar_wifi_signal_height_updated, initialHeight + 10)
+        overrideResource(R.dimen.status_bar_wifi_signal_horizontal_margin, initialMargin + 10)
+        view.onConfigurationChanged(Configuration())
+
+        assertThat(iconView.layoutParams.height).isEqualTo(initialHeight + 10)
+        val newMarginLp = group.layoutParams as ViewGroup.MarginLayoutParams
+        assertThat(newMarginLp.marginStart).isEqualTo(initialMargin + 10)
+        assertThat(newMarginLp.marginEnd).isEqualTo(initialMargin + 10)
     }
 
     private fun View.getIconGroupView(): View {

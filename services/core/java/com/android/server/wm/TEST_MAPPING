@@ -1,0 +1,101 @@
+{
+  "imports": [
+    {
+      // Includes WM unit tests
+      "path": "frameworks/base/services/tests/wmtests"
+    },
+    {
+      "path": "frameworks/base/tests/FlickerTests/ActivityEmbedding"
+    },
+    {
+      "path": "frameworks/base/tests/FlickerTests/AppClose"
+    },
+    {
+      "path": "frameworks/base/tests/FlickerTests/AppLaunch"
+    },
+    {
+      "path": "frameworks/base/tests/FlickerTests/IME"
+    },
+    {
+      "path": "frameworks/base/tests/FlickerTests/Notification"
+    },
+    {
+      "path": "frameworks/base/tests/FlickerTests/Quickswitch"
+    },
+    {
+      "path": "frameworks/base/tests/FlickerTests/Rotation"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/flicker/appcompat"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/flicker/bubble"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/flicker/pip"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/e2e/bubbles/flicker-explicit"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/e2e/desktopmode/scenarios"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/e2e/mediaprojection"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/e2e/pip2"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/src/com/android/wm/shell/splitscreen"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/activity"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/am"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/animations"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/backnavigation"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/display"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/ime"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/input"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/insets"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/keyguard"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/multidisplay"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/other"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/taskfragment"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/window"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/testsdk29"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/testsdk34"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/testsdk35"
+    }
+  ]
+}

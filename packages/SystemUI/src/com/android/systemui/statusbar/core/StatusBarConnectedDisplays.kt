@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.core
 
+import android.window.DesktopExperienceFlags
 import com.android.systemui.flags.FlagToken
 import com.android.systemui.flags.RefactorFlagUtils
 import com.android.systemui.shared.Flags
@@ -30,10 +31,27 @@ object StatusBarConnectedDisplays {
     val token: FlagToken
         get() = FlagToken(FLAG_NAME, isEnabled)
 
+    /**
+     * This is defined as [DesktopExperienceFlags] to make it possible to enable it together with
+     * all the other desktop experience flags from the dev settings.
+     *
+     * Alternatively, using adb:
+     * ```bash
+     * adb shell aflags enable com.android.window.flags.show_desktop_experience_dev_option && \
+     *   adb shell setprop persist.wm.debug.desktop_experience_devopts 1
+     * ```
+     */
+    val FLAG =
+        DesktopExperienceFlags.DesktopExperienceFlag(
+            Flags::statusBarConnectedDisplays,
+            /* shouldOverrideByDevOption= */ true,
+            FLAG_NAME,
+        )
+
     /** Is the refactor enabled */
     @JvmStatic
     inline val isEnabled
-        get() = Flags.statusBarConnectedDisplays()
+        get() = FLAG.isTrue
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the

@@ -35,10 +35,10 @@ class NotificationViewHeightRepository @Inject constructor() {
     val syntheticScroll = MutableStateFlow(0f)
 
     /**
-     * Whether the current touch gesture is overscroll. If true, it means the NSSL has already
-     * consumed part of the gesture.
+     * Whether the current gesture is expanding a Notification. If true, the NSSL has already
+     * consumed the swipe amount to increase the Notification's size.
      */
-    val isCurrentGestureOverscroll = MutableStateFlow(false)
+    val isCurrentGestureExpandingNotification = MutableStateFlow(false)
 
     /** Whether the current touch gesture is on any open notification guts. */
     val isCurrentGestureInGuts = MutableStateFlow(false)

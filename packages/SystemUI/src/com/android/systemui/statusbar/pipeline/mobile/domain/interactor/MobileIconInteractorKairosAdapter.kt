@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.pipeline.mobile.domain.interactor
 import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.toColdConflatedFlow
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.NetworkTypeIconModel
@@ -33,29 +34,120 @@ fun BuildScope.MobileIconInteractorKairosAdapter(
 ): MobileIconInteractor =
     with(kairosImpl) {
         MobileIconInteractorKairosAdapter(
+            subscriptionId = subscriptionId,
             tableLogBuffer = tableLogBuffer,
-            activity = activity.toColdConflatedFlow(kairosNetwork),
-            mobileIsDefault = mobileIsDefault.toColdConflatedFlow(kairosNetwork),
-            isDataConnected = isDataConnected.toStateFlow(),
-            isInService = isInService.toStateFlow(),
-            isEmergencyOnly = isEmergencyOnly.toStateFlow(),
-            isDataEnabled = isDataEnabled.toStateFlow(),
-            alwaysShowDataRatIcon = alwaysShowDataRatIcon.toStateFlow(),
-            signalLevelIcon = signalLevelIcon.toStateFlow(),
-            networkTypeIconGroup = networkTypeIconGroup.toStateFlow(),
-            showSliceAttribution = showSliceAttribution.toStateFlow(),
-            isNonTerrestrial = isNonTerrestrial.toStateFlow(),
-            networkName = networkName.toStateFlow(),
-            carrierName = carrierName.toStateFlow(),
-            isSingleCarrier = isSingleCarrier.toStateFlow(),
-            isRoaming = isRoaming.toStateFlow(),
-            isForceHidden = isForceHidden.toColdConflatedFlow(kairosNetwork),
-            isAllowedDuringAirplaneMode = isAllowedDuringAirplaneMode.toStateFlow(),
-            carrierNetworkChangeActive = carrierNetworkChangeActive.toStateFlow(),
+            activity =
+                activity.toColdConflatedFlow(
+                    kairosNetwork,
+                    nameTag { "MobileIconInteractorKairosAdapter(subId=$subscriptionId).activity" },
+                ),
+            mobileIsDefault =
+                mobileIsDefault.toColdConflatedFlow(
+                    kairosNetwork,
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).mobileIsDefault"
+                    },
+                ),
+            isDataConnected =
+                isDataConnected.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isDataConnected"
+                    }
+                ),
+            isInService =
+                isInService.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isInService"
+                    }
+                ),
+            isEmergencyOnly =
+                isEmergencyOnly.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isEmergencyOnly"
+                    }
+                ),
+            isDataEnabled =
+                isDataEnabled.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isDataEnabled"
+                    }
+                ),
+            alwaysShowDataRatIcon =
+                alwaysShowDataRatIcon.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).alwaysShowDataRatIcon"
+                    }
+                ),
+            signalLevelIcon =
+                signalLevelIcon.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).signalLevelIcon"
+                    }
+                ),
+            networkTypeIconGroup =
+                networkTypeIconGroup.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).networkTypeIconGroup"
+                    }
+                ),
+            showSliceAttribution =
+                showSliceAttribution.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).showSliceAttribution"
+                    }
+                ),
+            isNonTerrestrial =
+                isNonTerrestrial.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isNonTerrestrial"
+                    }
+                ),
+            networkName =
+                networkName.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).networkName"
+                    }
+                ),
+            carrierName =
+                carrierName.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).carrierName"
+                    }
+                ),
+            isSingleCarrier =
+                isSingleCarrier.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isSingleCarrier"
+                    }
+                ),
+            isRoaming =
+                isRoaming.toStateFlow(
+                    nameTag { "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isRoaming" }
+                ),
+            isForceHidden =
+                isForceHidden.toColdConflatedFlow(
+                    kairosNetwork,
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isForceHidden"
+                    },
+                ),
+            isAllowedDuringAirplaneMode =
+                isAllowedDuringAirplaneMode.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).isAllowedDuringAirplaneMode"
+                    }
+                ),
+            carrierNetworkChangeActive =
+                carrierNetworkChangeActive.toStateFlow(
+                    nameTag {
+                        "MobileIconInteractorKairosAdapter(subId=$subscriptionId).carrierNetworkChangeActive"
+                    }
+                ),
         )
     }
 
 private class MobileIconInteractorKairosAdapter(
+    override val subscriptionId: Int,
     override val tableLogBuffer: TableLogBuffer,
     override val activity: Flow<DataActivityModel>,
     override val mobileIsDefault: Flow<Boolean>,

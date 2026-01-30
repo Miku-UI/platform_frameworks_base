@@ -45,7 +45,7 @@ public final class RecoverableSecurityException extends SecurityException implem
     private final CharSequence mUserMessage;
     private final RemoteAction mUserAction;
 
-    /** {@hide} */
+    /** @hide */
     public RecoverableSecurityException(Parcel in) {
         this(new SecurityException(in.readString()), in.readCharSequence(),
                 RemoteAction.CREATOR.createFromParcel(in));

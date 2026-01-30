@@ -68,15 +68,20 @@ class MediaDeviceLogger @Inject constructor(@MediaDeviceLog private val buffer: 
         buffer.log(TAG, LogLevel.DEBUG, { str1 = name }, { "New device name $str1" })
     }
 
-    fun logLocalDevice(sassDevice: MediaDeviceData?, connectedDevice: MediaDeviceData?) {
+    fun logLocalDevice(
+        broadcastDevice: MediaDeviceData?,
+        sassDevice: MediaDeviceData?,
+        connectedDevice: MediaDeviceData?,
+    ) {
         buffer.log(
             TAG,
             LogLevel.DEBUG,
             {
-                str1 = sassDevice?.name?.toString()
-                str2 = connectedDevice?.name?.toString()
+                str1 = broadcastDevice?.name?.toString()
+                str2 = sassDevice?.name?.toString()
+                str3 = connectedDevice?.name?.toString()
             },
-            { "Local device: $str1 or $str2" }
+            { "Local device: $str1 or $str2 or $str3" },
         )
     }
 

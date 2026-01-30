@@ -273,6 +273,7 @@ class FakeStatusBarService : IStatusBarService.Stub() {
         dismissalSurface: Int,
         dismissalSentiment: Int,
         nv: NotificationVisibility,
+        fromBundle: Boolean,
     ) {}
 
     override fun onNotificationVisibilityChanged(

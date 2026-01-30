@@ -20,7 +20,6 @@ import static android.content.Intent.ACTION_PACKAGE_ADDED;
 import static android.content.Intent.ACTION_PACKAGE_REMOVED;
 import static android.content.Intent.EXTRA_REPLACING;
 import static android.server.app.Flags.gameDefaultFrameRate;
-import static android.server.app.Flags.disableGameModeWhenAppTop;
 
 import static com.android.internal.R.styleable.GameModeConfig_allowGameAngleDriver;
 import static com.android.internal.R.styleable.GameModeConfig_allowGameDownscaling;
@@ -2327,17 +2326,14 @@ public final class GameManagerService extends IGameManagerService.Stub {
                     p -> isPackageGame(p, userId));
             synchronized (mUidObserverLock) {
                 if (isNotGame) {
-                    if (disableGameModeWhenAppTop()) {
-                        if (!mGameForegroundUids.isEmpty() && mNonGameForegroundUids.isEmpty()) {
-                            Slog.v(TAG, "Game power mode OFF (first non-game in foreground)");
-                            mPowerManagerInternal.setPowerMode(Mode.GAME, false);
-                        }
-                        mNonGameForegroundUids.add(uid);
+                    if (!mGameForegroundUids.isEmpty() && mNonGameForegroundUids.isEmpty()) {
+                        Slog.v(TAG, "Game power mode OFF (first non-game in foreground)");
+                        mPowerManagerInternal.setPowerMode(Mode.GAME, false);
                     }
+                    mNonGameForegroundUids.add(uid);
                     return;
                 }
-                if (mGameForegroundUids.isEmpty() && (!disableGameModeWhenAppTop()
-                        || mNonGameForegroundUids.isEmpty())) {
+                if (mGameForegroundUids.isEmpty() && mNonGameForegroundUids.isEmpty()) {
                     Slog.v(TAG, "Game power mode ON (first game in foreground)");
                     mPowerManagerInternal.setPowerMode(Mode.GAME, true);
                 }
@@ -2354,12 +2350,11 @@ public final class GameManagerService extends IGameManagerService.Stub {
             synchronized (mUidObserverLock) {
                 if (mGameForegroundUids.contains(uid)) {
                     mGameForegroundUids.remove(uid);
-                    if (mGameForegroundUids.isEmpty() && (!disableGameModeWhenAppTop()
-                            || mNonGameForegroundUids.isEmpty())) {
+                    if (mGameForegroundUids.isEmpty() && mNonGameForegroundUids.isEmpty()) {
                         Slog.v(TAG, "Game power mode OFF (no games in foreground)");
                         mPowerManagerInternal.setPowerMode(Mode.GAME, false);
                     }
-                } else if (disableGameModeWhenAppTop() && mNonGameForegroundUids.contains(uid)) {
+                } else if (mNonGameForegroundUids.contains(uid)) {
                     mNonGameForegroundUids.remove(uid);
                     if (mNonGameForegroundUids.isEmpty() && !mGameForegroundUids.isEmpty()) {
                         Slog.v(TAG, "Game power mode ON (only games in foreground)");

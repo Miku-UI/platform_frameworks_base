@@ -19,6 +19,7 @@ package com.android.systemui.keyguard.ui.viewmodel
 import android.util.LayoutDirection
 import com.android.app.animation.Interpolators.EMPHASIZED
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
+import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.dagger.GlanceableHubBlurComponent
 import com.android.systemui.keyguard.shared.model.Edge
@@ -44,6 +45,7 @@ constructor(
     animationFlow: KeyguardTransitionAnimationFlow,
     @ShadeDisplayAware configurationInteractor: ConfigurationInteractor,
     private val blurFactory: GlanceableHubBlurComponent.Factory,
+    private val communalSettingsInteractor: CommunalSettingsInteractor,
 ) : DeviceEntryIconTransition, GlanceableHubTransition {
     private val transitionAnimation =
         animationFlow
@@ -70,7 +72,17 @@ constructor(
             }
 
     // Keep the dream visible while the hub swipes in over the dream.
-    val dreamAlpha: Flow<Float> = transitionAnimation.immediatelyTransitionTo(1f)
+    val dreamAlpha: Flow<Float> by lazy {
+        if (communalSettingsInteractor.isV2FlagEnabled()) {
+            transitionAnimation.sharedFlow(
+                duration = 250.milliseconds,
+                onStep = { 1f - it },
+                name = "DREAMING->GLANCEABLE_HUB: dreamAlpha",
+            )
+        } else {
+            transitionAnimation.immediatelyTransitionTo(1f)
+        }
+    }
 
     val dreamOverlayAlpha: Flow<Float> =
         transitionAnimation.sharedFlow(

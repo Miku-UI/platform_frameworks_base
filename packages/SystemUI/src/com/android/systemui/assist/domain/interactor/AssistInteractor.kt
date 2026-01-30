@@ -16,25 +16,18 @@
 
 package com.android.systemui.assist.domain.interactor
 
-import com.android.systemui.Flags
 import com.android.systemui.assist.data.repository.AssistRepository
 import com.android.systemui.dagger.SysUISingleton
 import javax.inject.Inject
 import kotlinx.coroutines.flow.SharedFlow
 
 @SysUISingleton
-class AssistInteractor
-@Inject
-constructor(
-    private val repository: AssistRepository,
-) {
+class AssistInteractor @Inject constructor(private val repository: AssistRepository) {
     /** The type of the latest invocation of the assistant. */
     val latestInvocationType: SharedFlow<Int> = repository.latestInvocationType
 
     /** Notifies that Assistant has been started. */
     fun onAssistantStarted(type: Int) {
-        if (Flags.enableContextualTips() && Flags.enableContextualTipForPowerOff()) {
-            repository.setLatestInvocationType(type)
-        }
+        repository.setLatestInvocationType(type)
     }
 }

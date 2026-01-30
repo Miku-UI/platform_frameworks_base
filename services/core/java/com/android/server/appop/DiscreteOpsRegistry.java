@@ -107,16 +107,6 @@ abstract class DiscreteOpsRegistry {
             OP_MONITOR_LOCATION
     };
 
-    // These are additional ops, which are not backed by runtime permissions, but are recorded.
-    static final int[] ADDITIONAL_DISCRETE_OPS = new int[] {
-            OP_PHONE_CALL_MICROPHONE,
-            OP_RECEIVE_AMBIENT_TRIGGER_AUDIO,
-            OP_RECEIVE_SANDBOX_TRIGGER_AUDIO,
-            OP_PHONE_CALL_CAMERA,
-            OP_EMERGENCY_LOCATION,
-            OP_RESERVED_FOR_TESTING
-    };
-
     // Legacy ops captured in discrete database.
     private static final String LEGACY_OPS = OP_FINE_LOCATION + "," + OP_COARSE_LOCATION
             + "," + OP_EMERGENCY_LOCATION + "," + OP_CAMERA + "," + OP_RECORD_AUDIO + ","
@@ -128,18 +118,17 @@ abstract class DiscreteOpsRegistry {
     static final long DEFAULT_DISCRETE_HISTORY_CUTOFF = Duration.ofDays(7).toMillis();
     static final long MAXIMUM_DISCRETE_HISTORY_CUTOFF = Duration.ofDays(30).toMillis();
     // The duration for which the data is kept, default is 7 days and max 30 days enforced.
-    static long sDiscreteHistoryCutoff;
+    static long sDiscreteHistoryCutoff = DEFAULT_DISCRETE_HISTORY_CUTOFF;
 
     static final long DEFAULT_DISCRETE_HISTORY_QUANTIZATION = Duration.ofMinutes(1).toMillis();
     // discrete ops are rounded up to quantization time, meaning we record one op per time bucket
     // in case of duplicate op events.
-    static long sDiscreteHistoryQuantization;
+    static long sDiscreteHistoryQuantization = DEFAULT_DISCRETE_HISTORY_QUANTIZATION;
 
     static int[] sDiscreteOps = new int[0];
-    static int sDiscreteFlags;
-
     static final int OP_FLAGS_DISCRETE = OP_FLAG_SELF | OP_FLAG_TRUSTED_PROXIED
             | OP_FLAG_TRUSTED_PROXY;
+    static int sDiscreteFlags = OP_FLAGS_DISCRETE;
 
     boolean mDebugMode = false;
 
@@ -177,7 +166,7 @@ abstract class DiscreteOpsRegistry {
      */
     abstract void offsetHistory(long offset);
 
-    abstract  void addFilteredDiscreteOpsToHistoricalOps(AppOpsManager.HistoricalOps result,
+    abstract void addFilteredDiscreteOpsToHistoricalOps(AppOpsManager.HistoricalOps result,
             long beginTimeMillis, long endTimeMillis,
             @AppOpsManager.HistoricalOpsRequestFilter int filter, int uidFilter,
             @Nullable String packageNameFilter, @Nullable String[] opNamesFilter,
@@ -196,7 +185,6 @@ abstract class DiscreteOpsRegistry {
 
     static long discretizeTimeStamp(long timeStamp) {
         return timeStamp / sDiscreteHistoryQuantization * sDiscreteHistoryQuantization;
-
     }
 
     static long discretizeDuration(long duration) {
@@ -243,29 +231,16 @@ abstract class DiscreteOpsRegistry {
         Arrays.sort(sDiscreteOps);
     }
 
-    // App ops backed by runtime/dangerous permissions.
-    private static IntArray getRuntimePermissionOps() {
-        IntArray runtimeOps = new IntArray();
-        for (int op = 0; op < AppOpsManager._NUM_OP; op++) {
-            if (AppOpsManager.opIsRuntimePermission(op)) {
-                runtimeOps.add(op);
-            }
-        }
-        return runtimeOps;
-    }
-
     /**
      * @return an array of app ops captured into discrete database.
      */
     private static int[] getDefaultOpsList() {
-        if (!(Flags.recordAllRuntimeAppopsSqlite() && Flags.enableSqliteAppopsAccesses())) {
-            return getDefaultLegacyOps();
+        IntArray discreteOpsArray = new IntArray();
+        discreteOpsArray.addAll(getDefaultLegacyOps());
+
+        if (Flags.enableSqliteAppopsAccesses()) {
+            discreteOpsArray.addAll(IMPORTANT_OPS_FOR_SECURITY);
         }
-
-        IntArray discreteOpsArray = getRuntimePermissionOps();
-        discreteOpsArray.addAll(IMPORTANT_OPS_FOR_SECURITY);
-        discreteOpsArray.addAll(ADDITIONAL_DISCRETE_OPS);
-
         return discreteOpsArray.toArray();
     }
 

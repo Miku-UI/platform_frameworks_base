@@ -36,7 +36,6 @@ import static com.android.internal.util.FrameworkStatsLog.PROVIDER_ACQUISITION_E
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_MU;
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_PROCESSES;
 import static com.android.server.am.ActivityManagerService.TAG_MU;
-import static com.android.server.am.Flags.serviceBindingOomAdjPolicy;
 
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
@@ -269,7 +268,7 @@ public class ContentProviderHelper {
             }
 
             final int callingProcessState = r != null
-                    ? r.mState.getCurProcState() : ActivityManager.PROCESS_STATE_UNKNOWN;
+                    ? r.getCurProcState() : ActivityManager.PROCESS_STATE_UNKNOWN;
 
             if (providerRunning) {
                 cpi = cpr.info;
@@ -310,7 +309,7 @@ public class ContentProviderHelper {
                 checkAssociationAndPermissionLocked(r, cpi, callingUid, userId, checkCrossUser,
                         cpr.name.flattenToShortString(), startTime);
 
-                final int providerProcessState = cpr.proc.mState.getCurProcState();
+                final int providerProcessState = cpr.proc.getCurProcState();
 
                 final long origId = Binder.clearCallingIdentity();
                 try {
@@ -322,18 +321,16 @@ public class ContentProviderHelper {
                             expectedUserId);
 
                     checkTime(startTime, "getContentProviderImpl: before updateOomAdj");
-                    final int verifiedAdj = cpr.proc.mState.getVerifiedAdj();
-                    boolean success = !serviceBindingOomAdjPolicy()
-                            || mService.mOomAdjuster.evaluateProviderConnectionAdd(r, cpr.proc)
-                            ? mService.mProcessStateController.runUpdate(cpr.proc,
-                            OOM_ADJ_REASON_GET_PROVIDER)
-                            : true;
+                    final int verifiedAdj = cpr.proc.getVerifiedAdj();
+                    boolean success = mService.mOomAdjuster.evaluateProviderConnectionAdd(r,
+                            cpr.proc) ? mService.mProcessStateController.runUpdate(cpr.proc,
+                            OOM_ADJ_REASON_GET_PROVIDER) : true;
                     // XXX things have changed so updateOomAdjLocked doesn't actually tell us
                     // if the process has been successfully adjusted.  So to reduce races with
                     // it, we will check whether the process still exists.  Note that this doesn't
                     // completely get rid of races with LMK killing the process, but should make
                     // them much smaller.
-                    if (success && verifiedAdj != cpr.proc.mState.getSetAdj()
+                    if (success && verifiedAdj != cpr.proc.getSetAdj()
                             && !isProcessAliveLocked(cpr.proc)) {
                         success = false;
                     }
@@ -365,7 +362,7 @@ public class ContentProviderHelper {
                         conn = null;
                         dyingProc = cpr.proc;
                     } else {
-                        cpr.proc.mState.setVerifiedAdj(cpr.proc.mState.getSetAdj());
+                        cpr.proc.setVerifiedAdj(cpr.proc.getSetAdj());
                         FrameworkStatsLog.write(
                                 PROVIDER_ACQUISITION_EVENT_REPORTED,
                                 cpr.proc.uid, callingUid,
@@ -538,7 +535,7 @@ public class ContentProviderHelper {
                             if (mService.mProcessStateController.addPublishedProvider(proc,
                                     cpi.name, cpr)) {
                                 checkTime(startTime, "getContentProviderImpl: scheduling install");
-                                mService.mOomAdjuster.unfreezeTemporarily(proc,
+                                mService.unfreezeTemporarily(proc,
                                         CachedAppOptimizer.UNFREEZE_REASON_GET_PROVIDER);
                                 try {
                                     thread.scheduleInstallProvider(cpi);
@@ -551,7 +548,7 @@ public class ContentProviderHelper {
                                     PROVIDER_ACQUISITION_EVENT_REPORTED__PROC_START_TYPE__PROCESS_START_TYPE_WARM,
                                     PROVIDER_ACQUISITION_EVENT_REPORTED__PACKAGE_STOPPED_STATE__PACKAGE_STATE_NORMAL,
                                     cpi.packageName, callingPackage,
-                                    callingProcessState, proc.mState.getCurProcState(),
+                                    callingProcessState, proc.getCurProcState(),
                                     false, 0L);
                         } else {
                             final boolean stopped = cpr.appInfo.isStopped();
@@ -912,6 +909,10 @@ public class ContentProviderHelper {
                 (conn.provider != null && conn.provider.info != null
                 ? conn.provider.info.authority : ""));
         try {
+            if (android.app.Flags.skipRefContentProvider()
+                    && unstable <= 0 && conn.unstableCount() <= 0) {
+                return false;
+            }
             conn.adjustCounts(stable, unstable);
             return !conn.dead;
         } finally {
@@ -1379,7 +1380,8 @@ public class ContentProviderHelper {
         mService.mActivityTaskManager.installSystemProviders();
         //new DevelopmentSettingsObserver(); // init to observe developer settings enable/disable
         SettingsToPropertiesMapper.start(mService.mContext.getContentResolver());
-        mService.mOomAdjuster.initSettings();
+        mService.getCachedAppOptimizer().init();
+        mService.setupServicePrewarmingOnUserSwitch();
 
         // Now that the settings provider is published we can consider sending in a rescue party.
         CrashRecoveryAdaptor.rescuePartyOnSettingsProviderPublished(mService.mContext);
@@ -1473,10 +1475,9 @@ public class ContentProviderHelper {
             cpr.proc.mProfile.addHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
         }
         mService.mProcessStateController.addProviderConnection(r, conn);
-        mService.startAssociationLocked(r.uid, r.processName, r.mState.getCurProcState(),
+        mService.startAssociationLocked(r.uid, r.processName, r.getCurProcState(),
                 cpr.uid, cpr.appInfo.longVersionCode, cpr.name, cpr.info.processName);
-        if (updateLru && cpr.proc != null
-                && r.mState.getSetAdj() <= ProcessList.PERCEPTIBLE_LOW_APP_ADJ) {
+        if (updateLru && cpr.proc != null && r.getSetAdj() <= ProcessList.PERCEPTIBLE_LOW_APP_ADJ) {
             // If this is a perceptible app accessing the provider, make
             // sure to count it as being accessed and thus back up on
             // the LRU list.  This is good because content providers are
@@ -1484,7 +1485,7 @@ public class ContentProviderHelper {
             // the "getContentProviderImpl" tag here, because it's part
             // of the checktime log in getContentProviderImpl().
             checkTime(startTime, "getContentProviderImpl: before updateLruProcess");
-            processList.updateLruProcessLocked(cpr.proc, false, null);
+            mService.mProcessStateController.updateLruProcess(cpr.proc, false, null);
             checkTime(startTime, "getContentProviderImpl: after updateLruProcess");
         }
         return conn;
@@ -1541,8 +1542,7 @@ public class ContentProviderHelper {
                 cpr.proc.mProfile.clearHostingComponentType(HOSTING_COMPONENT_TYPE_PROVIDER);
             }
             mService.mProcessStateController.removeProviderConnection(conn.client, conn);
-            if (conn.client.mState.getSetProcState()
-                    < ActivityManager.PROCESS_STATE_LAST_ACTIVITY) {
+            if (conn.client.getSetProcState() < ActivityManager.PROCESS_STATE_LAST_ACTIVITY) {
                 // The client is more important than last activity -- note the time this
                 // is happening, so we keep the old provider process around a bit as last
                 // activity to avoid thrashing it.
@@ -1553,9 +1553,8 @@ public class ContentProviderHelper {
             }
             mService.stopAssociationLocked(conn.client.uid, conn.client.processName, cpr.uid,
                     cpr.appInfo.longVersionCode, cpr.name, cpr.info.processName);
-            if (updateOomAdj && (!serviceBindingOomAdjPolicy()
-                    || mService.mOomAdjuster.evaluateProviderConnectionRemoval(conn.client,
-                            cpr.proc))) {
+            if (updateOomAdj && mService.mOomAdjuster.evaluateProviderConnectionRemoval(conn.client,
+                    cpr.proc)) {
                 mService.updateOomAdjLocked(conn.provider.proc, OOM_ADJ_REASON_REMOVE_PROVIDER);
             }
         }
@@ -1679,8 +1678,8 @@ public class ContentProviderHelper {
 
     private void maybeUpdateProviderUsageStatsLocked(ProcessRecord app, String providerPkgName,
             String authority) {
-        if (app == null || app.mState.getCurProcState()
-                > ActivityManager.PROCESS_STATE_IMPORTANT_FOREGROUND) {
+        if (app == null
+                || app.getCurProcState() > ActivityManager.PROCESS_STATE_IMPORTANT_FOREGROUND) {
             return;
         }
 
@@ -1760,7 +1759,7 @@ public class ContentProviderHelper {
         }
 
         final boolean callerForeground = r == null
-                || r.mState.getSetSchedGroup() != ProcessList.SCHED_GROUP_BACKGROUND;
+                || r.getSetSchedGroup() != ProcessList.SCHED_GROUP_BACKGROUND;
 
         // Show a permission review UI only for starting from a foreground app
         if (!callerForeground) {
@@ -1849,7 +1848,7 @@ public class ContentProviderHelper {
                     capp.killLocked(
                             "depends on provider " + cpr.name.flattenToShortString()
                             + " in dying proc " + (proc != null ? proc.processName : "??")
-                            + " (adj " + (proc != null ? proc.mState.getSetAdj() : "??") + ")",
+                            + " (adj " + (proc != null ? proc.getSetAdj() : "??") + ")",
                             ApplicationExitInfo.REASON_DEPENDENCY_DIED,
                             ApplicationExitInfo.SUBREASON_UNKNOWN,
                             true);

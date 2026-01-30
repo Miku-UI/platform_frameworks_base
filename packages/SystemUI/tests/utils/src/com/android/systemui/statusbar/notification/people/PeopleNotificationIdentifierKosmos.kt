@@ -20,6 +20,4 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.statusbar.notification.collection.render.groupMembershipManager
 
 val Kosmos.peopleNotificationIdentifier by
-    Kosmos.Fixture {
-        PeopleNotificationIdentifierImpl(notificationPersonExtractor, groupMembershipManager)
-    }
+    Kosmos.Fixture { PeopleNotificationIdentifierImpl(groupMembershipManager) }

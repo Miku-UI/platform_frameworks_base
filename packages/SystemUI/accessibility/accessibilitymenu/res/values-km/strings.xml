@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"ចូល​ទៅ​កាន់​អេក្រង់​មុន"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"ចូល​ទៅកាន់​អេក្រង់​បន្ទាប់​"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"ម៉ឺនុយភាពងាយស្រួលផ្ដល់ម៉ឺនុយធំនៅលើអេក្រង់ ដើម្បីគ្រប់គ្រងឧបករណ៍របស់អ្នក។ អ្នកអាច​ចាក់សោឧបករណ៍​របស់អ្នក គ្រប់គ្រងកម្រិតសំឡេងនិងពន្លឺ ថតរូបអេក្រង់ និង​អ្វីៗច្រើនទៀត។"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"គ្រប់គ្រងឧបករណ៍តាមរយៈម៉ឺនុយធំ"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"គ្រប់គ្រងកម្រិតសំឡេង ពន្លឺ និងអ្វីៗជាច្រើនទៀតដោយប្រើម៉ឺនុយធំ"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ការកំណត់​ម៉ឺនុយ​ភាពងាយស្រួល"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ប៊ូតុង​ធំ"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"បង្កើន​ទំហំ​ប៊ូតុង​ម៉ឺនុយភាពងាយស្រួល"</string>

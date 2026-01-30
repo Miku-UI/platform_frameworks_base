@@ -17,7 +17,6 @@
 package com.android.systemui.keyguard.domain.interactor
 
 import android.annotation.FloatRange
-import com.android.systemui.Flags.transitionRaceCondition
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.TransitionInfo
@@ -56,13 +55,7 @@ constructor(private val repository: KeyguardTransitionRepository) {
      * *will* be emitted, and therefore that it can safely request an AOD -> LOCKSCREEN transition
      * which will subsequently cancel GONE -> AOD.
      */
-    internal fun currentTransitionInfoInternal(): TransitionInfo {
-        return if (transitionRaceCondition()) {
-            repository.currentTransitionInfo
-        } else {
-            repository.currentTransitionInfoInternal.value
-        }
-    }
+    internal fun currentTransitionInfoInternal(): TransitionInfo = repository.currentTransitionInfo
 
     suspend fun startTransition(info: TransitionInfo) = repository.startTransition(info)
 

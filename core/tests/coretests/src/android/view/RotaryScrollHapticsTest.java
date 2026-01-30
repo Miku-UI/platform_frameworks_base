@@ -71,13 +71,13 @@ public final class RotaryScrollHapticsTest {
         mMockScrollFeedbackProvider = mock(HapticScrollFeedbackProvider.class);
 
         Context context = InstrumentationRegistry.getTargetContext();
-        mView = new TestGenericMotionEventControllingView(context);
-        mView.mScrollFeedbackProvider = mMockScrollFeedbackProvider;
-
         ViewConfiguration.setInstanceForTesting(context, mMockViewConfig);
         when(mMockViewConfig.getScaledVerticalScrollFactor())
                 .thenReturn(TEST_SCALED_VERTICAL_SCROLL_FACTOR);
         mockRotaryScrollHapticsEnabled(true);
+
+        mView = new TestGenericMotionEventControllingView(context);
+        mView.mScrollFeedbackProvider = mMockScrollFeedbackProvider;
     }
 
     @After

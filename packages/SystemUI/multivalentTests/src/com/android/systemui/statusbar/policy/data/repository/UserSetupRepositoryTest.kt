@@ -42,7 +42,6 @@ import org.mockito.Mockito.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@android.platform.test.annotations.EnabledOnRavenwood
 class UserSetupRepositoryTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()

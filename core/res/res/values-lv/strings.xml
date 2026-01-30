@@ -72,9 +72,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"Zvanītāja ID noklusējumi ir iestatīti uz Ierobežots. Nākamais zvans: nav ierobežots"</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"Zvanītāja ID noklusējumi ir iestatīti uz Nav ierobežots. Nākamais zvans: ierobežots"</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"Zvanītāja ID noklusējumi ir iestatīti uz Nav ierobežots. Nākamais zvans: nav ierobežots"</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"Šī lietotne nav saderīga ar 16 KB lapām. APK saskaņošanas pārbaude neizdevās. Šī lietotne tiks palaista, izmantojot ar lapas izmēru saderīgu režīmu. Lai uzlabotu saderību, lūdzu, atkārtoti kompilējiet lietojumprogrammu, nodrošinot atbalstu 16 KB lapām. Plašāku informāciju skatiet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;."</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"Šī lietotne nav saderīga ar 16 KB lapām. ELF saskaņošanas pārbaude neizdevās. Šī lietotne tiks palaista, izmantojot ar lapas izmēru saderīgu režīmu. Lai uzlabotu saderību, lūdzu, atkārtoti kompilējiet lietojumprogrammu, nodrošinot atbalstu 16 KB lapām. Plašāku informāciju skatiet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;."</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"Šī lietotne nav saderīga ar 16 KB lapām. APK un ELF saskaņošanas pārbaudes neizdevās. Šī lietotne tiks palaista, izmantojot ar lapas izmēru saderīgu režīmu. Lai uzlabotu saderību, lūdzu, atkārtoti kompilējiet lietojumprogrammu, nodrošinot atbalstu 16 KB lapām. Plašāku informāciju skatiet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;."</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"Šī lietotne nav saderīga ar 16 KB lapām. APK saskaņošanas pārbaude neizdevās. Šī lietotne tiks palaista, izmantojot ar lapas lielumu saderīgu režīmu. Lai uzlabotu saderību, atkārtoti kompilējiet lietojumprogrammu, nodrošinot atbalstu 16 KB lapām. Plašāku informāciju skatiet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Tālāk norādītās bibliotēkas nav pielāgotas 16 KB lapām. &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"Šī lietotne nav saderīga ar 16 KB lapām. ELF saskaņošanas pārbaude neizdevās. Šī lietotne tiks palaista, izmantojot ar lapas lielumu saderīgu režīmu. Lai uzlabotu saderību, atkārtoti kompilējiet lietojumprogrammu, nodrošinot atbalstu 16 KB lapām. Plašāku informāciju skatiet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Tālāk norādītās bibliotēkas nav pielāgotas 16 KB lapām. &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"Šī lietotne nav saderīga ar 16 KB lapām. APK un ELF saskaņošanas pārbaudes neizdevās. Šī lietotne tiks palaista, izmantojot ar lapas lielumu saderīgu režīmu. Lai uzlabotu saderību, atkārtoti kompilējiet lietojumprogrammu, nodrošinot atbalstu 16 KB lapām. Plašāku informāciju skatiet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Tālāk norādītās bibliotēkas nav pielāgotas 16 KB lapām. &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"Šis brīdinājums tiek rādīts, jo šī ir atkļūdojama lietotne, kas pašlaik tiek testēta. Ja neesat izstrādātājs, ziņojiet par to izstrādātājam un pieprasiet lietotni, kas nav atkļūdojama. &lt;br&gt;&lt;br&gt; Šī lietotne nav saderīga ar 16 KB lapām. APK saskaņošanas pārbaude neizdevās. Veiciet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; norādītās darbības. Tālāk norādītās bibliotēkas nav pielāgotas 16 KB lapām. &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Šis brīdinājums tiek rādīts, jo šī ir atkļūdojama lietotne, kas pašlaik tiek testēta. Ja neesat izstrādātājs, ziņojiet par to izstrādātājam un pieprasiet lietotni, kas nav atkļūdojama. &lt;br&gt;&lt;br&gt; Šī lietotne nav saderīga ar 16 KB lapām. ELF saskaņošanas pārbaude neizdevās. Veiciet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; norādītās darbības. Tālāk norādītās bibliotēkas nav pielāgotas 16 KB lapām. &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"Šis brīdinājums tiek rādīts, jo šī ir atkļūdojama lietotne, kas pašlaik tiek testēta. Ja neesat izstrādātājs, ziņojiet par to izstrādātājam un pieprasiet lietotni, kas nav atkļūdojama. &lt;br&gt;&lt;br&gt; Šī lietotne nav saderīga ar 16 KB lapām. APK un ELF saskaņošanas pārbaudes neizdevās. Veiciet vietnē &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; norādītās darbības. &lt;br&gt;&lt;br&gt; Tālāk norādītās bibliotēkas nav pielāgotas 16 KB lapām. &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"Vairs nerādīt"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Android lietotņu saderība"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s : LOAD segments nav saskaņots&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : nesaspiesta bibliotēka nav saskaņota&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s : LOAD segments un nesaspiesta bibliotēka nav saskaņoti&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : nezināma kļūda&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"Pakalpojums netiek nodrošināts."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"Zvanītāja ID iestatījumu nevar mainīt."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"Tiek izmantots operatora <xliff:g id="CARRIERDISPLAY">%s</xliff:g> datu savienojums"</string>
@@ -161,8 +170,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"Mobilā tīkla drošība"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"Šifrēšana un paziņojumi par nešifrētiem tīkliem"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"Piekļūts ierīces ID"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"Pulksten <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> tuvējā tīklā tika reģistrēts jūsu ierīces unikālais ID (IMSI vai IMEI), kamēr izmantojāt savu <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g> SIM karti."</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"Pulksten <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> tuvējā tīklā tika reģistrēts jūsu ierīces unikālais ID (IMSI vai IMEI), kamēr izmantojāt savu <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g> SIM karti.\n\nTas nozīmē, ka tika reģistrēta jūsu atrašanās vieta, darbības vai identitāte. Šāda prakse ir ierasta, tomēr var radīt problēmas personām, kurām ir bažas par konfidencialitāti."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"Pulksten <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> tuvējā tīklā tika reģistrēts jūsu ierīces unikālais ID (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>), kamēr izmantojāt savu <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> SIM karti."</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"Pulksten <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> tuvējā tīklā tika reģistrēts jūsu ierīces unikālais ID, kamēr izmantojāt savu <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> SIM karti."</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"Pulksten <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> tuvējā tīklā tika reģistrēts jūsu ierīces unikālais ID (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>), kamēr izmantojāt savu <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> SIM karti.\n\nTas nozīmē, ka tika reģistrēta jūsu atrašanās vieta, darbības vai identitāte. Šāda prakse ir ierasta, tomēr var radīt problēmas personām, kurām ir bažas par konfidencialitāti."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"Pulksten <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> tuvējā tīklā tika reģistrēts jūsu ierīces unikālais ID, kamēr izmantojāt savu <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> SIM karti.\n\nTas nozīmē, ka tika reģistrēta jūsu atrašanās vieta, darbības vai identitāte. Šāda prakse ir ierasta, tomēr var radīt problēmas personām, kurām ir bažas par konfidencialitāti."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"Izveidots savienojums ar šifrēto tīklu <xliff:g id="NETWORK_NAME">%1$s</xliff:g>"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"Tagad <xliff:g id="NETWORK_NAME">%1$s</xliff:g> SIM savienojums ir drošāks."</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"Izveidots savienojums ar nešifrētu tīklu"</string>
@@ -290,6 +301,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"Palīdzība"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"Balss palīgs"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"Bloķēšana"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"Bloķēt"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"Pārsniedz"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"Atbildēt"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"Jauns paziņojums"</string>
@@ -325,8 +337,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"Pārslēgties uz darba profilu"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"Pārslēgties uz personīgo profilu lietotnē <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Pārslēgties uz darba profilu lietotnē <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"Kontaktpersonas"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"piekļūt jūsu kontaktpersonu datiem"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"Kontaktpersonas un konti"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"piekļūt jūsu kontaktpersonām un skatīt sarakstu ar kontiem, kuros var saglabāt kontaktpersonas šajā ierīcē"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Atrašanās vieta"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"piekļūt ierīces atrašanās vietas informācijai"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Kalendārs"</string>
@@ -355,10 +367,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"piekļūt sensoru datiem par jūsu veselības rādījumiem"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"Paziņojumi"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"rādīt paziņojumus"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"PR izsekošanas dati"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"piekļūt PR datiem par jums un vidi ap jums"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"sensitīvi PR izsekošanas dati"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"piekļūt sensitīviem izsekošanas datiem, piemēram, acu kustībām"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"Acu izsekošanas dati"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"precīzi izsekot acu kustībām"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"Kustību un apkārtnes dati"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"izsekot acu, sejas, ķermeņa kustībām un skenēt apkārtni"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"Precīzi kustību un apkārtnes dati"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"precīzi skenēt apkārtni un izsekot galvas kustībām"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"Izgūt loga saturu."</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"Skatīt tā loga saturu, ar kuru mijiedarbojaties."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"Aktivizēt funkciju “Pārlūkot pieskaroties”."</string>
@@ -383,6 +397,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"Ļauj lietotnei izvērst vai sakļaut statusa joslu."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"paziņojumu darbību rādīšana pilnekrāna režīmā, ja ierīce ir bloķēta"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"Ļauj lietotnei rādīt paziņojumus kā pilnekrāna režīma darbības, ja ierīce ir bloķēta"</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"Reāllaika jaunumu rādīšana"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"Ļauj lietotnei rādīt aktīvus, laika ziņā svarīgus paziņojumus statusa joslā un bloķēšanas ekrānā."</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"instalēt saīsnes"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"Ļauj lietojumprogrammai pievienot saīsnes sākuma ekrānam, nejautājot lietotājam."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"atinstalēt saīsnes"</string>
@@ -624,6 +640,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"Atļaut lietotnei noteikt relatīvo atrašanās vietu starp tuvumā esošām ultraplatjoslas ierīcēm"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"Mijiedarbība ar tuvumā esošām Wi‑Fi ierīcēm"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Atļauj lietotnei nodot datus tuvumā esošām Wi‑Fi ierīcē, izveidot savienojumu ar tām un noteikt to relatīvo pozīciju."</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"piekļūt lokālā tīkla ierīcēm"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"Ļauj lietotnei piekļūt lokālā tīkla ierīcēm."</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"atrašanās vietas noteikšana relatīvi ierīcēm"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Atļaut lietotnei noteikt relatīvo atrašanās vietu starp tuvumā esošām ierīcēm"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Informācija par vēlamo NFC maksājumu pakalpojumu"</string>
@@ -654,27 +672,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"Ļauj lietotnei pārveidot jūsu fotoattēlu kolekciju."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"Lasīt atrašanās vietas no jūsu multivides kolekcijas"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"Ļauj lietotnei lasīt atrašanās vietas no jūsu multivides kolekcijas."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"izsekot aptuvenām acu kustībām"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"Ļauj lietotnei izsekot aptuvenām acu kustībām."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"izsekot, kur skatāties"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"Ļauj lietotnei piekļūt precīziem acu kustību izsekošanas datiem."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"izsekot jūsu sejas kustībām"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"Ļauj lietotnei piekļūt sejas kustību izsekošanas datiem."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"izsekot jūsu roku kustībām"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"Ļauj lietotnei piekļūt roku kustību izsekošanas datiem."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"izsekot jūsu galvas kustībām"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"Ļauj lietotnei piekļūt galvas kustību reģistrēšanas datiem."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"izprast jūsu tuvāko apkārtni"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"Ļauj lietotnei piekļūt izsekošanas datiem par vidi tieši ap jums."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"detalizēti izprast jūsu tuvāko apkārtni"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"Ļauj lietotnei piekļūt ļoti detalizētiem izsekošanas datiem par vidi tieši ap jums."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"piekļūt PR datiem, kamēr lietotne nedarbojas priekšplānā"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"Ļauj lietotnei piekļūt PR datiem, kamēr lietotne nedarbojas priekšplānā."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"izsekot acu kustībām"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"Ļauj lietotnei izsekot aptuvenam skatiena virzienam."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"precīzi izsekot acu kustībām"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"Ļauj lietotnei izsekot skatiena virzienam."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"izsekot sejas kustībām"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"Ļauj lietotnei izsekot sejas kustībām un izteiksmēm."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"izsekot roku kustībām"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"Ļauj lietotnei izsekot roku kustībām."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"izsekot galvas kustībām"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"Ļauj lietotnei izsekot galvas kustībām."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"skenēt apkārtni"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"Ļauj lietotnei skenēt apkārtni."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"precīzi skenēt apkārtni"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"Ļauj lietotnei precīzi skenēt apkārtni."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"piekļūt PR izsekošanas datiem fonā"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"Ļauj lietotnei piekļūt PR datiem fonā."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"taustiņu uztveršana"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"Ļauj lietotnei uztvert taustiņus, pirms sistēma var apstrādāt sistēmas saīsnes un darbības."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"Biometrijas izmantošana"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"Biometrijas vai ekrāna bloķēšanas izmantošana"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"Apstipriniet, ka tas esat jūs"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"Lai turpinātu, izmantojiet biometriju"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"Izmantojiet biometrijas datus vai ekrāna bloķēšanas opciju, lai turpinātu"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"Lai turpinātu, tālrunī apstipriniet savu identitāti"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"Lai turpinātu, planšetdatorā apstipriniet savu identitāti"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"Biometrisko datu aparatūra nav pieejama"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"Autentifikācija ir atcelta"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"Dati nav atpazīti"</string>
@@ -898,6 +920,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"Neļauj izmantot nevienu ierīces kameru."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"Atspējot ekrāna bloķēšanas funkcijas"</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"Novērst dažu ekrāna bloķēšanas funkciju darbību"</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"Lai aizvērtu šo lietotni, nospiediet un turiet taustiņu ESC."</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"Mājas"</item>
     <item msgid="7740243458912727194">"Mobilais"</item>
@@ -1108,6 +1131,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"SIM kartes atbloķēšanas PIN"</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"SIM kartes atbloķēšanas PUK"</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"Autorizācija ar paroli."</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"Biometriskā atbloķēšanas metode drošai ierīces bloķēšanai."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"Kombinācijas ievades apgabals."</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"Apgabals, kur vilkt ar pirkstu."</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1183,22 +1207,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"pēc <xliff:g id="COUNT">%d</xliff:g> h"</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"pēc <xliff:g id="COUNT">%d</xliff:g> d."</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"pēc <xliff:g id="COUNT">%d</xliff:g> g."</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"pirms <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"pirms <xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"pirms <xliff:g id="COUNT">%d</xliff:g> d."</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"pirms <xliff:g id="COUNT">%d</xliff:g> g."</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> min"</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g> d."</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> g."</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"pēc <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"pēc <xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"pēc <xliff:g id="COUNT">%d</xliff:g> d."</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"pēc <xliff:g id="COUNT">%d</xliff:g> g."</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"pirms <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"pirms <xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"pirms <xliff:g id="COUNT">%d</xliff:g> d."</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"pirms <xliff:g id="COUNT">%d</xliff:g> g."</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{Pirms vienas minūtes}zero{Pirms # minūtēm}one{Pirms vairākām minūtēm, minūšu skaits: #}other{Pirms vairākām minūtēm, minūšu skaits: #}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{Pirms vienas stundas}zero{Pirms # stundām}one{Pirms vairākām stundām, stundu skaits: #}other{Pirms vairākām stundām, stundu skaits: #}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{Pirms vienas dienas}zero{Pirms # dienām}one{Pirms vairākām dienām, dienu skaits: #}other{Pirms vairākām dienām, dienu skaits: #}}"</string>
@@ -1453,7 +1463,7 @@
     <string name="usb_power_notification_message" msgid="7284765627437897702">"Pievienotā ierīce tiek uzlādēta. Pieskarieties, lai skatītu citas opcijas."</string>
     <string name="usb_unsupported_audio_accessory_title" msgid="2335775548086533065">"Konstatēts analogs audio piederums"</string>
     <string name="usb_unsupported_audio_accessory_message" msgid="1300168007129796621">"Pievienotā ierīce nav saderīga ar šo tālruni. Pieskarieties, lai uzzinātu vairāk."</string>
-    <string name="adb_active_notification_title" msgid="408390247354560331">"USB atkļūdošana ir pievienota."</string>
+    <string name="adb_active_notification_title" msgid="408390247354560331">"Atkļūdošanas USB savienojums izveidots"</string>
     <string name="adb_active_notification_message" msgid="5617264033476778211">"Pieskarieties, lai izslēgtu USB atkļūdošanu"</string>
     <string name="adb_active_notification_message" product="tv" msgid="6624498401272780855">"Atlasiet, lai atspējotu USB atkļūdošanu."</string>
     <string name="adbwifi_active_notification_title" msgid="6147343659168302473">"Aktivizēta bezvadu atkļūdošana"</string>
@@ -1479,8 +1489,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"NORAIDĪT"</string>
     <string name="select_input_method" msgid="3971267998568587025">"Ievades metodes izvēle"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"Valodas iestatījumi"</string>
-    <string name="show_ime" msgid="6406112007347443383">"Paturēt ekrānā, kamēr ir aktīva fiziskā tastatūra"</string>
-    <string name="hardware" msgid="3611039921284836033">"Izmantojiet ekrāna tastatūru"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"Jākonfigurē <xliff:g id="DEVICE_NAME">%s</xliff:g>"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"Konfigurējiet fiziskās tastatūras"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"Pieskarieties, lai atlasītu valodu un izkārtojumu"</string>
@@ -1710,6 +1718,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"Ārēja ierīce"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"Austiņas"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"Televizora audio"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"Analogais"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"Digitālais"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"AUX"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"Sistēma"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"Bluetooth audio"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"Bezvadu attēlošana"</string>
@@ -1805,7 +1819,8 @@
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Vienas rokas režīms"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Papildu aptumšošana"</string>
     <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Dzirdes aparāti"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"Automātiskā klikšķināšana"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"Automātiskā klikšķināšana (pārdomu laiks)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Peles taustiņi"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Atvienota"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"Pievienota"</string>
     <string name="hearing_device_status_active" msgid="4770378695482566032">"Aktīva"</string>
@@ -1830,6 +1845,8 @@
     <string name="user_logging_out_message" msgid="7216437629179710359">"Notiek lietotāja <xliff:g id="NAME">%1$s</xliff:g> atteikšanās…"</string>
     <string name="owner_name" msgid="8713560351570795743">"Īpašnieks"</string>
     <string name="guest_name" msgid="8502103277839834324">"Viesis"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"Sistēmas lietotājs"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Lietotājs"</string>
     <string name="error_message_title" msgid="4082495589294631966">"Kļūda"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"Jūsu administrators neļauj veikt šīs izmaiņas."</string>
     <string name="app_not_found" msgid="3429506115332341800">"Netika atrasta neviena lietojumprogramma, kas var veikt šo darbību."</string>
@@ -1970,8 +1987,8 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"Instalēja jūsu administrators.\nPārejiet uz iestatījumiem, lai skatītu piešķirtās atļaujas."</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"Dzēsa administrators"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"Labi"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"Akumulatora enerģijas taupīšanas režīmā tiek ieslēgts tumšais motīvs un tiek ierobežotas vai izslēgtas darbības fonā, daži vizuālie efekti, noteiktas funkcijas un noteikti tīkla savienojumi."</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"Akumulatora enerģijas taupīšanas režīmā tiek ieslēgts tumšais motīvs un tiek ierobežotas vai izslēgtas darbības fonā, daži vizuālie efekti, noteiktas funkcijas un noteikti tīkla savienojumi."</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"Akumulatora enerģijas taupīšanas režīmā tiek ieslēgts tumšais motīvs un tiek ierobežotas vai izslēgtas fonā izpildāmas darbības, daži vizuālie efekti, noteiktas funkcijas un noteikti tīkla savienojumi."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"Akumulatora enerģijas taupīšanas režīmā tiek ieslēgts tumšais motīvs un tiek ierobežotas vai izslēgtas fonā izpildāmas darbības, daži vizuālie efekti, noteiktas funkcijas un noteikti tīkla savienojumi."</string>
     <string name="data_saver_description" msgid="4995164271550590517">"Lai samazinātu datu lietojumu, datu lietojuma samazinātājs neļauj dažām lietotnēm fonā nosūtīt vai saņemt datus. Lietotne, kuru pašlaik izmantojat, var piekļūt datiem, bet, iespējams, piekļūs tiem retāk (piemēram, attēli tiks parādīti tikai tad, kad tiem pieskarsieties)."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"Vai ieslēgt datu lietojuma samazinātāju?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"Ieslēgt"</string>
@@ -2033,6 +2050,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"Maksimizēt"</string>
     <string name="close_button_text" msgid="10603510034455258">"Aizvērt"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g>: <xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Atbildēt"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Video"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Noraidīt"</string>
@@ -2044,7 +2064,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"Akcijas"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"Sociālie tīkli"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"Ziņas"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"Ieteikumi"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"Ieteikumi"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"Jūs iestatījāt šo paziņojumu svarīguma līmeni."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"Tas ir svarīgi iesaistīto personu dēļ."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"Pielāgots lietotnes paziņojums"</string>
@@ -2267,19 +2287,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"Virzienu slēdzis — pa kreisi"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"Virzienu slēdzis — pa labi"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"Virzienu slēdzis — centrs"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"Automātiskās klikšķināšanas veida iestatījumu panelis"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"Noklikšķināt ar peles kreiso pogu"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"Noklikšķināt ar peles labo pogu"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"Veikt dubultklikšķi"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"Automātiskās klikšķināšanas opciju izvēlne"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"Noklikšķināt ar peles kreiso pogu"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"Noklikšķināt ar peles labo pogu"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"Veikt dubultklikšķi"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"Vilkt"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"Ritināt"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"Pieskarties un turēt"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"Pārtraukt"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"Pozīcija"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"Ritināt augšup"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"Ritināt lejup"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"Ritināt pa kreisi"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"Ritināt pa labi"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"Izslēgt ritināšanas režīmu"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"Atsākt"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"Mainīt izvēlnes pozīciju"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"Ritināt augšup"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"Ritināt lejup"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"Ritināt pa kreisi"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"Ritināt pa labi"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"Izslēgt ritināšanas režīmu"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"Ritināšanas panelis"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"Pakotne “<xliff:g id="PACKAGE_NAME">%1$s</xliff:g>” ir ievietota ierobežotā kopā."</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2499,7 +2521,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Drošības nolūkos lietotnes saturs kopīgotajā ekrānā ir paslēpts"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"Automātiski izveidots savienojums ar satelītu"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"Varat sūtīt un saņemt ziņojumus bez mobilā vai Wi-Fi tīkla."</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"Varat sūtīt un saņemt ziņojumus un izmantot ierobežotu datu apjomu, lietojot satelītu."</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"Varat sūtīt un saņemt ziņojumus un izmantot noteiktas lietotnes, lietojot satelīta savienojumu."</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"Vai izmantot satelīta ziņojumapmaiņu?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"Sūtiet un saņemiet ziņojumus bez mobilā vai Wi‑Fi tīkla."</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"Atvērt lietotni Ziņojumi"</string>
@@ -2554,12 +2576,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"Kalendārs"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"Kalkulators"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Maps"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"Faili"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"Lietojumprogrammas"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"Jūsu pirkstu nospiedumus vairs nevar atpazīt. Vēlreiz iestatiet autorizāciju ar pirksta nospiedumu."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"USB ierīce tika pievienota, kad Android ierīce bija bloķēta"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"USB ierīce tika pievienota, kad Android ierīce bija bloķēta. Lai izmantotu ierīci, vispirms atbloķējiet Android ierīci un pēc tam atkārtoti pievienojiet USB ierīci."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"Drošība un konfidencialitāte"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"Atbloķējiet ekrānu un atkārtoti pievienojiet USB ierīci"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"Lai izveidotu USB savienojumu, atbloķējiet ekrānu"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"Lai izveidotu USB savienojumu, kad tiek izmantota papildu aizsardzība, ir jāatbloķē ekrāns."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"Lai izveidotu USB savienojumu, kad tiek izmantota papildu aizsardzība, ir jāatbloķē ekrāns."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"Lai uzlāde būtu ātrāka, kad tiek izmantota papildu aizsardzība, ir jāatbloķē ekrāns."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"Lai uzlāde būtu ātrāka vai lai izveidotu USB savienojumu, kad tiek izmantota papildu aizsardzība, ir jāatbloķē ekrāns."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"Izslēgt skaņu"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"Paziņojumiem ir izslēgta skaņa"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"Jūs nesaņemsiet papildu aizsardzības USB paziņojumus, līdz restartēsiet ierīci."</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"Aizdomīgas darbības ar USB"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"USB datu signāls ir atspējots."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"USB datu signāls ir atspējots"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"Vai radušās problēmas saistībā ar autorizāciju ar pirksta nospiedumu?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Pieskarieties, lai skatītu padomus par to, kā uzlabot atbloķēšanas pieredzi."</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Atspējot mirgošanu"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Turiet nospiestu barošanas pogu, lai izslēgtu televizoru."</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Sistēmas resursu brīdinājumi"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Pārmērīga resursu izmantošana"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"Lietotne <xliff:g id="APP_NAME">%1$s</xliff:g> izmanto pārāk daudz resursu."</string>
 </resources>

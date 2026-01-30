@@ -23,9 +23,10 @@ import android.view.InputEvent
 import android.view.MotionEvent
 import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.coroutines.launchTraced as launch
-import com.android.systemui.Flags
+import com.android.systemui.Flags.restrictCommunalShadeToWhenIdle
 import com.android.systemui.ambient.touch.TouchHandler.TouchSession
 import com.android.systemui.ambient.touch.dagger.ShadeModule
+import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.communal.ui.viewmodel.CommunalViewModel
 import com.android.systemui.scene.domain.interactor.SceneInteractor
@@ -53,6 +54,7 @@ constructor(
     private val dreamManager: DreamManager,
     private val communalViewModel: CommunalViewModel,
     private val communalSettingsInteractor: CommunalSettingsInteractor,
+    private val communalSceneInteractor: CommunalSceneInteractor,
     private val sceneInteractor: SceneInteractor,
     private val windowRootViewProvider: Optional<Provider<WindowRootView>>,
     @param:Named(ShadeModule.NOTIFICATION_SHADE_GESTURE_INITIATION_HEIGHT)
@@ -69,12 +71,8 @@ constructor(
     private val windowRootView by lazy { windowRootViewProvider.get().get() }
 
     init {
-        if (Flags.hubmodeFullscreenVerticalSwipeFix()) {
-            scope.launch {
-                communalViewModel.glanceableTouchAvailable.collect {
-                    onGlanceableTouchAvailable(it)
-                }
-            }
+        scope.launch {
+            communalViewModel.glanceableTouchAvailable.collect { onGlanceableTouchAvailable(it) }
         }
     }
 
@@ -115,8 +113,7 @@ constructor(
                         capture =
                             abs(distanceY.toDouble()) > abs(distanceX.toDouble()) &&
                                 distanceY < 0 &&
-                                if (Flags.hubmodeFullscreenVerticalSwipeFix()) touchAvailable
-                                else true
+                                touchAvailable
                         if (capture == true) {
                             if (SceneContainerFlag.isEnabled) {
                                 sceneInteractor.onRemoteUserInputStarted("shade touch handler")
@@ -153,7 +150,11 @@ constructor(
             // Send touches to central surfaces only when on the glanceable hub while not dreaming.
             // While sending touches where while dreaming will open the shade, the shade
             // while closing if opened then closed in the same gesture.
-            surfaces.get().handleExternalShadeWindowTouch(event)
+            if (
+                !restrictCommunalShadeToWhenIdle() || communalSceneInteractor.isIdleOnCommunal.value
+            ) {
+                surfaces.get().handleExternalShadeWindowTouch(event)
+            }
         } else {
             // Send touches to the shade view when dreaming.
             shadeViewController.handleExternalTouch(event)
@@ -161,12 +162,10 @@ constructor(
     }
 
     override fun getTouchInitiationRegion(bounds: Rect, region: Region, exclusionRect: Rect?) {
-        // If fullscreen swipe, use entire space minus exclusion region
-        if (Flags.hubmodeFullscreenVerticalSwipeFix()) {
-            region.op(bounds, Region.Op.UNION)
+        // For fullscreen swipe, use entire space minus exclusion region
+        region.op(bounds, Region.Op.UNION)
 
-            exclusionRect?.apply { region.op(this, Region.Op.DIFFERENCE) }
-        }
+        exclusionRect?.apply { region.op(this, Region.Op.DIFFERENCE) }
 
         val outBounds = Rect(bounds)
         outBounds.inset(0, 0, 0, outBounds.height() - initiationHeight)

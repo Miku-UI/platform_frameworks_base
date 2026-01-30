@@ -38,7 +38,7 @@ class AndroidHeuristicsFilter(
         if (syspropsPolicy != null && classes.isSyspropsClass(className)) {
             return syspropsPolicy
         }
-        if (rFilePolicy != null && classes.isRClass(className)) {
+        if (rFilePolicy != null && className.isRClass()) {
             return rFilePolicy
         }
         return super.getPolicyForClass(className)
@@ -82,6 +82,6 @@ private fun ClassNodes.isSyspropsClass(className: String): Boolean {
 /**
  * @return if a given class "seems like" an R class or its nested classes.
  */
-private fun ClassNodes.isRClass(className: String): Boolean {
-    return className.endsWith("/R") || className.contains("/R$")
+fun String.isRClass(): Boolean {
+    return endsWith("/R") || contains("/R$")
 }

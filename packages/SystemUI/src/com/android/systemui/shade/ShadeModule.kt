@@ -16,11 +16,10 @@
 
 package com.android.systemui.shade
 
+import android.os.UserHandle
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogBufferFactory
-import com.android.systemui.plugins.qs.QSContainerController
-import com.android.systemui.qs.ui.adapter.QSSceneAdapterImpl
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractor
 import com.android.systemui.settings.brightness.domain.interactor.BrightnessMirrorShowingInteractorPassThrough
@@ -162,17 +161,15 @@ abstract class ShadeModule {
             sceneContainerOn: Provider<BrightnessMirrorShowingInteractorPassThrough>,
             sceneContainerOff: Provider<NotificationPanelViewController>,
         ): BrightnessMirrorShowingInteractor {
-            return if (SceneContainerFlag.isEnabled) {
+            // Do not use NPVC if the user is not system. We don't want to create an NPVC in that
+            // case.
+            return if (
+                SceneContainerFlag.isEnabled || UserHandle.myUserId() != UserHandle.USER_SYSTEM
+            ) {
                 sceneContainerOn.get()
             } else {
                 sceneContainerOff.get()
             }
-        }
-
-        @Provides
-        @SysUISingleton
-        fun providesQSContainerController(impl: QSSceneAdapterImpl): QSContainerController {
-            return impl
         }
 
         @Provides

@@ -89,8 +89,8 @@
 -keep,allowoptimization,allowaccessmodification class com.android.server.tv.TvInputHal { *; }
 -keep,allowoptimization,allowaccessmodification class com.android.server.usb.UsbAlsaJackDetector { *; }
 -keep,allowoptimization,allowaccessmodification class com.android.server.usb.UsbAlsaMidiDevice { *; }
--keep,allowoptimization,allowaccessmodification class com.android.server.vibrator.VibratorController$OnVibrationCompleteListener { *; }
--keep,allowoptimization,allowaccessmodification class com.android.server.vibrator.VibratorManagerService$VibratorManagerNativeCallbacks { *; }
+-keep,allowoptimization,allowaccessmodification class com.android.server.vibrator.HalVibrator$Callbacks { *; }
+-keep,allowoptimization,allowaccessmodification class com.android.server.vibrator.HalVibratorManager$Callbacks { *; }
 -keepclasseswithmembers,allowoptimization,allowaccessmodification class com.android.server.** {
   *** *FromNative(...);
 }

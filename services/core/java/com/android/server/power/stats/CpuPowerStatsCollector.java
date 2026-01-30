@@ -322,7 +322,7 @@ public class CpuPowerStatsCollector extends PowerStatsCollector {
     }
 
     @Override
-    protected PowerStats collectStats() {
+    protected PowerStats collectStats(long elapsedRealtimeMs, long uptimeMillis) {
         if (!ensureInitialized()) {
             return null;
         }
@@ -348,7 +348,6 @@ public class CpuPowerStatsCollector extends PowerStatsCollector {
                 (newTimestampNanos - mLastUpdateTimestampNanos) / NANOS_PER_MILLIS;
         mLastUpdateTimestampNanos = newTimestampNanos;
 
-        long uptimeMillis = mClock.uptimeMillis();
         long uptimeDelta = uptimeMillis - mLastUpdateUptimeMillis;
         mLastUpdateUptimeMillis = uptimeMillis;
 

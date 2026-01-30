@@ -172,10 +172,12 @@ public abstract class OrientationEventListener {
             // camera open and it is in camera compat mode for desktop windowing (freeform mode).
             // Values of this override is Surface.ROTATION_0/90/180/270, or
             // WindowConfiguration.ROTATION_UNDEFINED when not set.
-            if (CompatibilityInfo.getOverrideDisplayRotation() != ROTATION_UNDEFINED) {
+            final int sandboxedDisplayRotation = CompatibilityInfo.getCameraCompatibilityInfo()
+                    .getDisplayRotationSandbox();
+            if (sandboxedDisplayRotation != ROTATION_UNDEFINED) {
                 // SensorEventListener reports the rotation in the opposite direction from the
                 // display rotation.
-                int orientation = (360 - CompatibilityInfo.getOverrideDisplayRotation() * 90) % 360;
+                int orientation = (360 - sandboxedDisplayRotation * 90) % 360;
                 if (orientation != mOrientation) {
                     mOrientation = orientation;
                     onOrientationChanged(orientation);

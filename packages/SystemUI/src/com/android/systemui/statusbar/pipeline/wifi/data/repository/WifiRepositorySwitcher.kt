@@ -23,6 +23,7 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiScanEntry
@@ -127,4 +128,21 @@ constructor(
         activeRepo
             .flatMapLatest { it.wifiScanResults }
             .stateIn(scope, SharingStarted.WhileSubscribed(), realImpl.wifiScanResults.value)
+
+    override val wifiToggleState: StateFlow<WifiToggleState> =
+        activeRepo
+            .flatMapLatest { it.wifiToggleState }
+            .stateIn(scope, SharingStarted.WhileSubscribed(), realImpl.wifiToggleState.value)
+
+    override fun enableWifi() {
+        activeRepo.value.enableWifi()
+    }
+
+    override fun pauseWifi() {
+        activeRepo.value.pauseWifi()
+    }
+
+    override fun scanForWifi() {
+        activeRepo.value.scanForWifi()
+    }
 }

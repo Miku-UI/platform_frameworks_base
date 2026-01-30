@@ -26,12 +26,15 @@ import static android.content.pm.ActivityInfo.CONFIG_UI_MODE;
 import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_INIT;
 import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_SYSUI_EVENTS;
 
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.pm.ActivityInfo;
 import android.content.pm.UserInfo;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.UserHandle;
+import android.os.UserManager;
 import android.util.ArrayMap;
 import android.view.InsetsSource;
 import android.view.InsetsState;
@@ -41,6 +44,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.protolog.ProtoLog;
+import com.android.wm.shell.common.DisplayChangeController;
 import com.android.wm.shell.common.DisplayInsetsController;
 import com.android.wm.shell.common.DisplayInsetsController.OnInsetsChangedListener;
 import com.android.wm.shell.common.ExternalInterfaceBinder;
@@ -50,6 +54,7 @@ import com.android.wm.shell.sysui.ShellCommandHandler.ShellCommandActionHandler;
 
 import java.io.PrintWriter;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
@@ -66,6 +71,7 @@ public class ShellController {
     private final ShellCommandHandler mShellCommandHandler;
     private final ShellExecutor mMainExecutor;
     private final DisplayInsetsController mDisplayInsetsController;
+    private final UserManager mUserManager;
     private final ShellInterfaceImpl mImpl = new ShellInterfaceImpl();
 
     private final CopyOnWriteArrayList<ConfigurationChangeListener> mConfigChangeListeners =
@@ -83,6 +89,9 @@ public class ShellController {
     private ArrayMap<String, ExternalInterfaceBinder> mExternalInterfaces = new ArrayMap<>();
 
     private Configuration mLastConfiguration;
+    private int mUserId;
+    private Context mUserContext;
+    private List<UserInfo> mProfiles;
 
     private OnInsetsChangedListener mInsetsChangeListener = new OnInsetsChangedListener() {
         private InsetsState mInsetsState = new InsetsState();
@@ -131,13 +140,18 @@ public class ShellController {
             ShellInit shellInit,
             ShellCommandHandler shellCommandHandler,
             DisplayInsetsController displayInsetsController,
+            UserManager userManager,
             ShellExecutor mainExecutor) {
         mContext = context;
         mShellInit = shellInit;
         mShellCommandHandler = shellCommandHandler;
         mDisplayInsetsController = displayInsetsController;
+        mUserManager = userManager;
         mMainExecutor = mainExecutor;
         shellInit.addInitCallback(this::onInit, this);
+        final int currentUserId = ActivityManager.getCurrentUser();
+        updateCurrentUser(currentUserId, getOrCreateUserContext(currentUserId));
+        updateProfiles(getUserProfiles(currentUserId));
     }
 
     private void onInit() {
@@ -145,6 +159,10 @@ public class ShellController {
         mShellCommandHandler.addDumpCallback(this::dump, this);
         mDisplayInsetsController.addInsetsChangedListener(
                 mContext.getDisplayId(), mInsetsChangeListener);
+        // Update current user again, in case it changed between the constructor and |onInit|.
+        final int currentUserId = ActivityManager.getCurrentUser();
+        updateCurrentUser(currentUserId, getOrCreateUserContext(currentUserId));
+        updateProfiles(getUserProfiles(currentUserId));
     }
 
     /**
@@ -157,7 +175,13 @@ public class ShellController {
     /**
      * Adds a new configuration listener. The configuration change callbacks are not made in any
      * particular order.
+     *
+     * Note: This callback only propagates the application configuration from SysUI which will be
+     * incomplete for multi-display scenarios. To cover both single and multi-display scenarios,
+     * you should use {@link DisplayController#addDisplayChangingController()} to register for
+     * callbacks for your display.
      */
+    @Deprecated
     public void addConfigurationChangeListener(ConfigurationChangeListener listener) {
         mConfigChangeListeners.remove(listener);
         mConfigChangeListeners.add(listener);
@@ -165,14 +189,17 @@ public class ShellController {
 
     /**
      * Removes an existing configuration listener.
+     *
+     * Note: Callers use {@link DisplayController#add/removeDisplayChangingController()}
      */
+    @Deprecated
     public void removeConfigurationChangeListener(ConfigurationChangeListener listener) {
         mConfigChangeListeners.remove(listener);
     }
 
     /**
      * Adds a new Keyguard listener. The Keyguard change callbacks are not made in any
-     * particular order.
+     * particular order, and are not synchronized with transitions.
      */
     public void addKeyguardChangeListener(KeyguardChangeListener listener) {
         mKeyguardChangeListeners.remove(listener);
@@ -188,11 +215,13 @@ public class ShellController {
 
     /**
      * Adds a new user-change listener. The user change callbacks are not made in any
-     * particular order.
+     * particular order, and are not synchronized with transitions.
      */
     public void addUserChangeListener(UserChangeListener listener) {
         mUserChangeListeners.remove(listener);
         mUserChangeListeners.add(listener);
+        listener.onUserChanged(mUserId, mUserContext);
+        listener.onUserProfilesChanged(mProfiles);
     }
 
     /**
@@ -231,7 +260,10 @@ public class ShellController {
     public void createExternalInterfaces(Bundle output) {
         // Invalidate the old binders
         for (int i = 0; i < mExternalInterfaces.size(); i++) {
-            mExternalInterfaces.valueAt(i).invalidate();
+            final ExternalInterfaceBinder extInterface = mExternalInterfaces.valueAt(i);
+            ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "Invalidating external interface: %s",
+                    extInterface.getClass().getSimpleName());
+            extInterface.invalidate();
         }
         mExternalInterfaces.clear();
 
@@ -244,6 +276,17 @@ public class ShellController {
         }
     }
 
+    /** Returns the current user id. */
+    public int getCurrentUserId() {
+        return mUserId;
+    }
+
+    /** Returns the current user profiles. */
+    @NonNull
+    public List<UserInfo> getCurrentUserProfiles() {
+        return mProfiles;
+    }
+
     @VisibleForTesting
     void onConfigurationChanged(Configuration newConfig) {
         // The initial config is send on startup and doesn't trigger listener callbacks
@@ -252,7 +295,6 @@ public class ShellController {
             ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "Initial Configuration: %s", newConfig);
             return;
         }
-
         final int diff = newConfig.diff(mLastConfiguration);
         ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "New configuration change: %s", newConfig);
         ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "\tchanges=%s",
@@ -303,14 +345,26 @@ public class ShellController {
 
     @VisibleForTesting
     void onUserChanged(int newUserId, @NonNull Context userContext) {
+        if (!updateCurrentUser(newUserId, userContext)) {
+            // No change, do not notify listeners.
+            return;
+        }
         ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "User changed: id=%d", newUserId);
         for (UserChangeListener listener : mUserChangeListeners) {
             listener.onUserChanged(newUserId, userContext);
         }
     }
 
+    public Configuration getLastConfiguration() {
+        return mLastConfiguration;
+    }
+
     @VisibleForTesting
     void onUserProfilesChanged(@NonNull List<UserInfo> profiles) {
+        if (!updateProfiles(profiles)) {
+            // No change, do not notify listeners.
+            return;
+        }
         ProtoLog.v(WM_SHELL_SYSUI_EVENTS, "User profiles changed");
         for (UserChangeListener listener : mUserChangeListeners) {
             listener.onUserProfilesChanged(profiles);
@@ -346,9 +400,42 @@ public class ShellController {
         SurfaceControlRegistry.dump(100 /* limit */, false /* runGc */, pw);
     }
 
+    /** Updates the current user and returns {@code true} if it changed. */
+    private boolean updateCurrentUser(int newUserId, @NonNull Context userContext) {
+        if (mUserId == newUserId && mUserContext != null
+                && mUserContext.getUserId() == userContext.getUserId()) {
+            return false;
+        }
+        mUserId = newUserId;
+        mUserContext = userContext;
+        return true;
+    }
+
+    /** Updates the current user profiles and returns {@code true} if they changed. */
+    private boolean updateProfiles(@NonNull List<UserInfo> profiles) {
+        if (Objects.equals(mProfiles, profiles)) return false;
+        mProfiles = profiles;
+        return true;
+    }
+
+    @NonNull
+    private Context getOrCreateUserContext(int userId) {
+        if (mUserContext != null && mUserContext.getUserId() == userId) {
+            return mUserContext;
+        }
+        return mContext.createContextAsUser(UserHandle.of(userId), 0 /* flags */);
+    }
+
+    @NonNull
+    private List<UserInfo> getUserProfiles(int userId) {
+        return mUserManager.getProfiles(userId);
+    }
+
     public void dump(@NonNull PrintWriter pw, String prefix) {
         final String innerPrefix = prefix + "  ";
         pw.println(prefix + TAG);
+        pw.println(innerPrefix + "mUserId=" + mUserId);
+        pw.println(innerPrefix + "mProfiles=" + mProfiles);
         pw.println(innerPrefix + "mConfigChangeListeners=" + mConfigChangeListeners.size());
         pw.println(innerPrefix + "mLastConfiguration=" + mLastConfiguration);
         pw.println(innerPrefix + "mKeyguardChangeListeners=" + mKeyguardChangeListeners.size());

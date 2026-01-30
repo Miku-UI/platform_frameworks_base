@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.tiles.impl.airplane.domain.interactor
 
-import android.platform.test.annotations.EnabledOnRavenwood
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -38,7 +37,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class AirplaneModeTileUserActionInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()

@@ -29,6 +29,7 @@ import android.view.MotionEvent.PointerProperties;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.accessibility.EventStreamTransformation;
 import com.android.server.accessibility.Flags;
@@ -39,7 +40,16 @@ import com.android.server.policy.WindowManagerPolicy;
  * gesture dispatch. TouchExplorer is responsible for insuring that the receiver of motion events is
  * set correctly so that events go to the right place.
  */
-class EventDispatcher {
+public class EventDispatcher {
+
+    /**
+     * Device ID used for touchscreen events injected by touch exploration and gesture dispatch.
+     *
+     * <p>Using a virtual device ID that differs from a real touchscreen ID helps to prevent
+     * conflicts in inputflinger/InputDispatcher between injected and real touch events.
+     */
+    public static final int VIRTUAL_TOUCHSCREEN_DEVICE_ID = -1;
+
     private static final String LOG_TAG = "EventDispatcher";
     private static final int CLICK_LOCATION_NONE = 0;
     private static final int CLICK_LOCATION_ACCESSIBILITY_FOCUS = 1;
@@ -64,12 +74,17 @@ class EventDispatcher {
 
     private TouchState mState;
 
+    @VisibleForTesting
+    int mDisplayId;
+
     EventDispatcher(
             Context context,
+            int displayId,
             AccessibilityManagerService ams,
             EventStreamTransformation receiver,
             TouchState state) {
         mContext = context;
+        mDisplayId = displayId;
         mAms = ams;
         mReceiver = receiver;
         mState = state;
@@ -96,7 +111,7 @@ class EventDispatcher {
             int policyFlags) {
         prototype.setAction(action);
 
-        MotionEvent event = null;
+        MotionEvent event;
         if (pointerIdBits == ALL_POINTER_ID_BITS) {
             event = prototype;
         } else {
@@ -125,10 +140,11 @@ class EventDispatcher {
             event.getPointerProperties(i, p);
             properties[i] = p;
         }
+        final int deviceId = VIRTUAL_TOUCHSCREEN_DEVICE_ID;
         event = MotionEvent.obtain(downTime, event.getEventTime(), event.getAction(),
                 event.getPointerCount(), properties, coords,
                 event.getMetaState(), event.getButtonState(),
-                event.getXPrecision(), event.getYPrecision(), rawEvent.getDeviceId(),
+                event.getXPrecision(), event.getYPrecision(), deviceId,
                 event.getEdgeFlags(), rawEvent.getSource(), event.getDisplayId(), event.getFlags(),
                 event.getClassification());
         // If the user is long pressing but the long pressing pointer
@@ -172,18 +188,24 @@ class EventDispatcher {
     void sendAccessibilityEvent(int type) {
         AccessibilityManager accessibilityManager = AccessibilityManager.getInstance(mContext);
         if (accessibilityManager.isEnabled()) {
-            AccessibilityEvent event = AccessibilityEvent.obtain(type);
-            event.setWindowId(mAms.getActiveWindowId());
-            accessibilityManager.sendAccessibilityEvent(event);
+            accessibilityManager.sendAccessibilityEvent(populateAccessibilityEvent(type));
             if (DEBUG) {
                 Slog.d(
                         LOG_TAG,
                         "Sending accessibility event" + AccessibilityEvent.eventTypeToString(type));
             }
         }
-        // Todo: get rid of this and have TouchState control the sending of events rather than react
-        // to it.
+        // Todo(b/431802110): Restructure TouchState to send a11y events rather than receive them.
         mState.onInjectedAccessibilityEvent(type);
+    }
+
+    AccessibilityEvent populateAccessibilityEvent(int type) {
+        AccessibilityEvent event = new AccessibilityEvent(type);
+        event.setWindowId(mAms.getActiveWindowId());
+        if (Flags.touchExplorerA11yEventsIncludeDisplayId()) {
+            event.setDisplayId(mDisplayId);
+        }
+        return event;
     }
 
     @Override
@@ -298,8 +320,7 @@ class EventDispatcher {
                 sendMotionEvent(
                         prototype,
                         action,
-                        Flags.eventDispatcherRawEvent() ? mState.getLastReceivedRawEvent() :
-                                mState.getLastReceivedEvent(),
+                        mState.getLastReceivedRawEvent(),
                         pointerIdBits,
                         policyFlags);
             }
@@ -329,8 +350,7 @@ class EventDispatcher {
                 sendMotionEvent(
                         event,
                         action,
-                        Flags.eventDispatcherRawEvent() ? mState.getLastReceivedRawEvent() :
-                                mState.getLastReceivedEvent(),
+                        mState.getLastReceivedRawEvent(),
                         pointerIdBits,
                         policyFlags);
             }
@@ -397,9 +417,7 @@ class EventDispatcher {
                 continue;
             }
             final int action = computeInjectionAction(MotionEvent.ACTION_POINTER_UP, i);
-            sendMotionEvent(prototype, action,
-                    Flags.eventDispatcherRawEvent() ? mState.getLastReceivedRawEvent() :
-                            mState.getLastReceivedEvent(),
+            sendMotionEvent(prototype, action, mState.getLastReceivedRawEvent(),
                     pointerIdBits, policyFlags);
             pointerIdBits &= ~(1 << pointerId);
         }

@@ -27,7 +27,6 @@ import android.view.ViewGroup
 import android.window.RemoteTransition
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.android.systemui.Flags.pssAppSelectorRecentsSplitScreen
 import com.android.systemui.display.naturalBounds
 import com.android.systemui.mediaprojection.appselector.MediaProjectionAppSelectorResultHandler
 import com.android.systemui.mediaprojection.appselector.MediaProjectionAppSelectorScope
@@ -147,9 +146,7 @@ constructor(
         val splitBounds = task.splitBounds
         val handleResult: () -> Unit = { resultHandler.returnSelectedApp(launchCookie, taskId)}
 
-        if (pssAppSelectorRecentsSplitScreen() &&
-            task.isLaunchingInSplitScreen() &&
-            !task.isForegroundTask) {
+        if (task.isLaunchingInSplitScreen() && !task.isForegroundTask) {
             startSplitScreenTask(view, taskId, splitBounds!!, handleResult, activityOptions)
         } else {
             activityTaskManager.startActivityFromRecents(taskId, activityOptions.toBundle())

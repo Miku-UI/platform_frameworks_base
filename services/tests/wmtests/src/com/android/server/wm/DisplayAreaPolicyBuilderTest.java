@@ -109,15 +109,19 @@ public class DisplayAreaPolicyBuilderTest {
         mDisplayContent = mock(DisplayContent.class);
         doReturn(true).when(mDisplayContent).isTrusted();
         doReturn(DEFAULT_DISPLAY).when(mDisplayContent).getDisplayId();
+        doReturn(mock(InsetsStateController.class)).when(mDisplayContent)
+                .getInsetsStateController();
         mDisplayContent.isDefaultDisplay = true;
-        mDefaultTaskDisplayArea = new TaskDisplayArea(mDisplayContent, mWms, "Tasks",
+        mDefaultTaskDisplayArea = createTaskDisplayAreaForPolicy(mDisplayContent, mWms, "Tasks",
                 FEATURE_DEFAULT_TASK_CONTAINER);
         mTaskDisplayAreaList = new ArrayList<>();
         mTaskDisplayAreaList.add(mDefaultTaskDisplayArea);
         mGroupRoot1 = new SurfacelessDisplayAreaRoot(mWms, "group1", FEATURE_VENDOR_FIRST + 1);
         mGroupRoot2 = new SurfacelessDisplayAreaRoot(mWms, "group2", FEATURE_VENDOR_FIRST + 2);
-        mTda1 = new TaskDisplayArea(mDisplayContent, mWms, "tda1", FEATURE_VENDOR_FIRST + 3);
-        mTda2 = new TaskDisplayArea(mDisplayContent, mWms, "tda2", FEATURE_VENDOR_FIRST + 4);
+        mTda1 = createTaskDisplayAreaForPolicy(mDisplayContent, mWms, "tda1",
+                FEATURE_VENDOR_FIRST + 3);
+        mTda2 = createTaskDisplayAreaForPolicy(mDisplayContent, mWms, "tda2",
+                FEATURE_VENDOR_FIRST + 4);
     }
 
     @Test
@@ -138,8 +142,8 @@ public class DisplayAreaPolicyBuilderTest {
                                 .build())
                         .setImeContainer(mImeContainer)
                         .setTaskDisplayAreas(mTaskDisplayAreaList);
-        DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(rootHierarchy)
+        DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(
+                DEFAULT_DISPLAY, rootHierarchy)
                 .build(mWms);
 
         assertThat(policy.getDisplayAreas(foo.getId())).isNotEmpty();
@@ -256,8 +260,8 @@ public class DisplayAreaPolicyBuilderTest {
                                 .build())
                         .setImeContainer(mImeContainer)
                         .setTaskDisplayAreas(mTaskDisplayAreaList);
-        DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(rootHierarchy)
+        DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(
+                DEFAULT_DISPLAY, rootHierarchy)
                 .build(mWms);
 
         List<DisplayArea<? extends WindowContainer>> dimmableDAs =
@@ -273,40 +277,42 @@ public class DisplayAreaPolicyBuilderTest {
 
     @Test
     public void testBuilder_singleRoot_validateSettings() {
-        final DisplayAreaPolicyBuilder builder = new DisplayAreaPolicyBuilder();
-
         // Root must be set.
-        assertThrows(IllegalStateException.class, () -> builder.build(mWms));
+        assertThrows(NullPointerException.class, () -> new DisplayAreaPolicyBuilder(
+                DEFAULT_DISPLAY, null));
 
         // IME must be set.
-        builder.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setTaskDisplayAreas(mTaskDisplayAreaList));
+        final DisplayAreaPolicyBuilder builder1 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList));
 
-        assertThrows(IllegalStateException.class, () -> builder.build(mWms));
+        assertThrows(IllegalStateException.class, () -> builder1.build(mWms));
 
         // Default TaskDisplayArea must be set.
-        builder.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(Lists.newArrayList(
-                        new TaskDisplayArea(mDisplayContent, mWms, "testTda",
-                                FEATURE_VENDOR_FIRST + 1))));
+        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(Lists.newArrayList(
+                                createTaskDisplayAreaForPolicy(mDisplayContent, mWms, "testTda",
+                                        FEATURE_VENDOR_FIRST + 1))));
 
-        assertThrows(IllegalStateException.class, () -> builder.build(mWms));
+        assertThrows(IllegalStateException.class, () -> builder2.build(mWms));
 
         // No exception
-        builder.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(mTaskDisplayAreaList));
+        final DisplayAreaPolicyBuilder builder3 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList));
 
-        builder.build(mWms);
+        builder3.build(mWms);
     }
 
     @Test
     public void testBuilder_displayAreaGroup_validateSettings() {
-        final DisplayAreaPolicyBuilder builder1 = new DisplayAreaPolicyBuilder();
+        final DisplayAreaPolicyBuilder builder1 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
 
         // IME must be set to one of the roots.
-        builder1.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
         builder1.addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                 mGroupRoot1)
                 .setTaskDisplayAreas(mTaskDisplayAreaList));
@@ -314,8 +320,8 @@ public class DisplayAreaPolicyBuilderTest {
         assertThrows(IllegalStateException.class, () -> builder1.build(mWms));
 
         // Default TaskDisplayArea must be set.
-        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder();
-        builder2.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
+        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
         builder2.addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                 mGroupRoot1)
                 .setImeContainer(mImeContainer)
@@ -324,8 +330,8 @@ public class DisplayAreaPolicyBuilderTest {
         assertThrows(IllegalStateException.class, () -> builder2.build(mWms));
 
         // Each DisplayAreaGroup must have at least one TaskDisplayArea.
-        final DisplayAreaPolicyBuilder builder3 = new DisplayAreaPolicyBuilder();
-        builder3.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
+        final DisplayAreaPolicyBuilder builder3 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
         builder3.addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                 mGroupRoot1)
                 .setImeContainer(mImeContainer)
@@ -336,8 +342,8 @@ public class DisplayAreaPolicyBuilderTest {
         assertThrows(IllegalStateException.class, () -> builder3.build(mWms));
 
         // No exception
-        final DisplayAreaPolicyBuilder builder4 = new DisplayAreaPolicyBuilder();
-        builder4.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
+        final DisplayAreaPolicyBuilder builder4 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot));
         builder4.addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                 mGroupRoot1)
                 .setImeContainer(mImeContainer)
@@ -352,10 +358,10 @@ public class DisplayAreaPolicyBuilderTest {
     @Test
     public void testBuilder_rootHasUniqueId() {
         // Root must have different id from all roots.
-        final DisplayAreaPolicyBuilder builder1 = new DisplayAreaPolicyBuilder();
-        builder1.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(mTaskDisplayAreaList));
+        final DisplayAreaPolicyBuilder builder1 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList));
         final RootDisplayArea groupRoot1 = new SurfacelessDisplayAreaRoot(mWms, "group1",
                 mRoot.mFeatureId);
         builder1.addDisplayAreaGroupHierarchy(
@@ -365,24 +371,24 @@ public class DisplayAreaPolicyBuilderTest {
         assertThrows(IllegalStateException.class, () -> builder1.build(mWms));
 
         // Root must have different id from all TDAs.
-        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder();
-        builder2.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(Lists.newArrayList(
-                        mDefaultTaskDisplayArea,
-                        new TaskDisplayArea(mDisplayContent, mWms, "testTda",
-                                mRoot.mFeatureId))));
+        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(Lists.newArrayList(
+                                mDefaultTaskDisplayArea,
+                                createTaskDisplayAreaForPolicy(mDisplayContent, mWms, "testTda",
+                                        mRoot.mFeatureId))));
 
         assertThrows(IllegalStateException.class, () -> builder2.build(mWms));
 
         // Root must have different id from all features.
-        final DisplayAreaPolicyBuilder builder3 = new DisplayAreaPolicyBuilder();
-        builder3.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(mTaskDisplayAreaList)
-                .addFeature(new Feature.Builder(mPolicy, "testFeature", mRoot.mFeatureId)
-                        .all()
-                        .build()));
+        final DisplayAreaPolicyBuilder builder3 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList)
+                        .addFeature(new Feature.Builder(mPolicy, "testFeature", mRoot.mFeatureId)
+                                .all()
+                                .build()));
 
         assertThrows(IllegalStateException.class, () -> builder3.build(mWms));
     }
@@ -390,27 +396,27 @@ public class DisplayAreaPolicyBuilderTest {
     @Test
     public void testBuilder_taskDisplayAreaHasUniqueId() {
         // TDA must have different id from all TDAs.
-        final DisplayAreaPolicyBuilder builder = new DisplayAreaPolicyBuilder();
         final List<TaskDisplayArea> tdaList = Lists.newArrayList(
                 mDefaultTaskDisplayArea,
                 mTda1,
-                new TaskDisplayArea(mDisplayContent, mWms, "tda2", mTda1.mFeatureId));
-        builder.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(tdaList));
+                createTaskDisplayAreaForPolicy(mDisplayContent, mWms, "tda2", mTda1.mFeatureId));
+        final DisplayAreaPolicyBuilder builder = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(tdaList));
 
         assertThrows(IllegalStateException.class, () -> builder.build(mWms));
 
         // TDA must have different id from all features.
-        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder();
-        builder2.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(Lists.newArrayList(
-                        mDefaultTaskDisplayArea,
-                        mTda1))
-                .addFeature(new Feature.Builder(mPolicy, "testFeature", mTda1.mFeatureId)
-                        .all()
-                        .build()));
+        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(Lists.newArrayList(
+                                mDefaultTaskDisplayArea,
+                                mTda1))
+                        .addFeature(new Feature.Builder(mPolicy, "testFeature", mTda1.mFeatureId)
+                                .all()
+                                .build()));
 
         assertThrows(IllegalStateException.class, () -> builder2.build(mWms));
     }
@@ -418,27 +424,30 @@ public class DisplayAreaPolicyBuilderTest {
     @Test
     public void testBuilder_featureHasUniqueId() {
         // Feature must have different id from features below the same root.
-        final DisplayAreaPolicyBuilder builder = new DisplayAreaPolicyBuilder();
-        builder.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(mTaskDisplayAreaList)
-                .addFeature(new Feature.Builder(mPolicy, "feature1", FEATURE_VENDOR_FIRST + 10)
-                        .all()
-                        .build())
-                .addFeature(new Feature.Builder(mPolicy, "feature2", FEATURE_VENDOR_FIRST + 10)
-                        .upTo(TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY)
-                        .build()));
+        final DisplayAreaPolicyBuilder builder = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList)
+                        .addFeature(
+                                new Feature.Builder(mPolicy, "feature1", FEATURE_VENDOR_FIRST + 10)
+                                        .all()
+                                        .build())
+                        .addFeature(
+                                new Feature.Builder(mPolicy, "feature2", FEATURE_VENDOR_FIRST + 10)
+                                        .upTo(TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY)
+                                        .build()));
 
         assertThrows(IllegalStateException.class, () -> builder.build(mWms));
 
         // Features below different root can have the same id.
-        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder();
-        builder2.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(mTaskDisplayAreaList)
-                .addFeature(new Feature.Builder(mPolicy, "feature1", FEATURE_VENDOR_FIRST + 10)
-                        .all()
-                        .build()));
+        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList)
+                        .addFeature(
+                                new Feature.Builder(mPolicy, "feature1", FEATURE_VENDOR_FIRST + 10)
+                                        .all()
+                                        .build()));
         builder2.addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                 mGroupRoot1)
                 .setTaskDisplayAreas(Lists.newArrayList(mTda1))
@@ -452,42 +461,43 @@ public class DisplayAreaPolicyBuilderTest {
     @Test
     public void testBuilder_idsNotGreaterThanFeatureVendorLast() {
         // Root id should not be greater than FEATURE_VENDOR_LAST.
-        final DisplayAreaPolicyBuilder builder1 = new DisplayAreaPolicyBuilder();
         final RootDisplayArea root = new SurfacelessDisplayAreaRoot(mWms, "testRoot",
                 FEATURE_VENDOR_LAST + 1);
-        builder1.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(mTaskDisplayAreaList));
+        final DisplayAreaPolicyBuilder builder1 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList));
 
         assertThrows(IllegalStateException.class, () -> builder1.build(mWms));
 
         // TDA id should not be greater than FEATURE_VENDOR_LAST.
-        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder();
-        builder2.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(Lists.newArrayList(
-                        mDefaultTaskDisplayArea,
-                        new TaskDisplayArea(mDisplayContent, mWms, "testTda",
-                                FEATURE_VENDOR_LAST + 1))));
+        final DisplayAreaPolicyBuilder builder2 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(Lists.newArrayList(
+                                mDefaultTaskDisplayArea,
+                                createTaskDisplayAreaForPolicy(mDisplayContent, mWms, "testTda",
+                                        FEATURE_VENDOR_LAST + 1))));
 
         assertThrows(IllegalStateException.class, () -> builder2.build(mWms));
 
         // Feature id should not be greater than FEATURE_VENDOR_LAST.
-        final DisplayAreaPolicyBuilder builder3 = new DisplayAreaPolicyBuilder();
-        builder3.setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
-                .setImeContainer(mImeContainer)
-                .setTaskDisplayAreas(mTaskDisplayAreaList)
-                .addFeature(new Feature.Builder(mPolicy, "testFeature", FEATURE_VENDOR_LAST + 1)
-                        .all()
-                        .build()));
+        final DisplayAreaPolicyBuilder builder3 = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+                        .setImeContainer(mImeContainer)
+                        .setTaskDisplayAreas(mTaskDisplayAreaList)
+                        .addFeature(
+                                new Feature.Builder(mPolicy, "testFeature", FEATURE_VENDOR_LAST + 1)
+                                        .all()
+                                        .build()));
 
         assertThrows(IllegalStateException.class, () -> builder3.build(mWms));
     }
 
     @Test
     public void testBuilder_displayAreaGroup_attachDisplayAreas() {
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
                         .setTaskDisplayAreas(mTaskDisplayAreaList))
                 .addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                         mGroupRoot1)
@@ -520,8 +530,8 @@ public class DisplayAreaPolicyBuilderTest {
                 .upTo(TYPE_STATUS_BAR)
                 .and(TYPE_NAVIGATION_BAR)
                 .build();
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
                         .setTaskDisplayAreas(mTaskDisplayAreaList))
                 .addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                         mGroupRoot1)
@@ -548,8 +558,8 @@ public class DisplayAreaPolicyBuilderTest {
 
     @Test
     public void testBuilder_addWindow_selectContainerForWindowFunc_defaultFunc() {
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
                         .setTaskDisplayAreas(mTaskDisplayAreaList))
                 .addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(
                         mGroupRoot1)
@@ -598,8 +608,8 @@ public class DisplayAreaPolicyBuilderTest {
         final DisplayAreaPolicyBuilder.HierarchyBuilder hierarchy2 =
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                new DisplayAreaPolicyBuilder.HierarchyBuilder(mRoot)
                         .setTaskDisplayAreas(mTaskDisplayAreaList))
                 .addDisplayAreaGroupHierarchy(hierarchy1)
                 .addDisplayAreaGroupHierarchy(hierarchy2)
@@ -644,8 +654,8 @@ public class DisplayAreaPolicyBuilderTest {
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(
                         mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(hierarchy0)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                hierarchy0)
                 .addDisplayAreaGroupHierarchy(hierarchy1)
                 .addDisplayAreaGroupHierarchy(hierarchy2)
                 .setSelectRootForWindowFunc((token, options) -> {
@@ -717,8 +727,8 @@ public class DisplayAreaPolicyBuilderTest {
         final DisplayAreaPolicyBuilder.HierarchyBuilder hierarchy2 =
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(hierarchy0)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                hierarchy0)
                 .addDisplayAreaGroupHierarchy(hierarchy1)
                 .addDisplayAreaGroupHierarchy(hierarchy2)
                 .build(mWms);
@@ -741,8 +751,8 @@ public class DisplayAreaPolicyBuilderTest {
         final DisplayAreaPolicyBuilder.HierarchyBuilder hierarchy2 =
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(hierarchy0)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                hierarchy0)
                 .addDisplayAreaGroupHierarchy(hierarchy1)
                 .addDisplayAreaGroupHierarchy(hierarchy2)
                 .build(mWms);
@@ -765,8 +775,8 @@ public class DisplayAreaPolicyBuilderTest {
         final DisplayAreaPolicyBuilder.HierarchyBuilder hierarchy2 =
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(hierarchy0)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                hierarchy0)
                 .addDisplayAreaGroupHierarchy(hierarchy1)
                 .addDisplayAreaGroupHierarchy(hierarchy2)
                 .build(mWms);
@@ -792,8 +802,8 @@ public class DisplayAreaPolicyBuilderTest {
         final DisplayAreaPolicyBuilder.HierarchyBuilder hierarchy2 =
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(hierarchy0)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                hierarchy0)
                 .addDisplayAreaGroupHierarchy(hierarchy1)
                 .addDisplayAreaGroupHierarchy(hierarchy2)
                 .build(mWms);
@@ -824,8 +834,8 @@ public class DisplayAreaPolicyBuilderTest {
         final DisplayAreaPolicyBuilder.HierarchyBuilder hierarchy2 =
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(hierarchy0)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                hierarchy0)
                 .addDisplayAreaGroupHierarchy(hierarchy1)
                 .addDisplayAreaGroupHierarchy(hierarchy2)
                 .build(mWms);
@@ -864,8 +874,8 @@ public class DisplayAreaPolicyBuilderTest {
         final DisplayAreaPolicyBuilder.HierarchyBuilder hierarchy2 =
                 new DisplayAreaPolicyBuilder.HierarchyBuilder(mGroupRoot2)
                         .setTaskDisplayAreas(Lists.newArrayList(mTda2));
-        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(hierarchy0)
+        final DisplayAreaPolicyBuilder.Result policy = new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY,
+                hierarchy0)
                 .setSelectTaskDisplayAreaFunc((options) -> {
                     if (options == null) {
                         return mDefaultTaskDisplayArea;
@@ -1006,6 +1016,16 @@ public class DisplayAreaPolicyBuilderTest {
         if (leaf) {
             consumer.accept(root);
         }
+    }
+
+    private static TaskDisplayArea createTaskDisplayAreaForPolicy(DisplayContent displayContent,
+            WindowManagerService service, String name, int displayAreaFeature) {
+        final TaskDisplayArea tda = new TaskDisplayArea(service, name, displayAreaFeature,
+                false /* createdByOrganizer */, true /* canHostHomeTask */);
+        // When creating for policy builder, mDisplayArea should be set after TDA is added as child,
+        // override it here because the DisplayContent is a mock.
+        tda.mDisplayContent = displayContent;
+        return tda;
     }
 
     static class SurfacelessDisplayAreaRoot extends RootDisplayArea {

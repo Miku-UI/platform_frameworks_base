@@ -117,31 +117,17 @@ public:
     }
 
     std::function<void()> createCallback(jlong vibrationId, jlong stepId) {
-        auto callbackId = ++mCallbackId;
-        return [vibrationId, stepId, callbackId, this]() {
-            auto currentCallbackId = mCallbackId.load();
-            if (!android_os_vibrator_fix_vibration_thread_callback_handling() &&
-                currentCallbackId != callbackId) {
-                // This callback is from an older HAL call that is no longer relevant
-                return;
-            }
+        return [vibrationId, stepId, this]() {
             auto jniEnv = GetOrAttachJNIEnvironment(sJvm);
             jniEnv->CallVoidMethod(mCallbackListener, sMethodIdOnComplete, mVibratorId, vibrationId,
                                    stepId);
         };
     }
 
-    void disableOldCallbacks() {
-        // TODO remove this once android_os_vibrator_fix_vibration_thread_callback_handling removed
-        mCallbackId++;
-    }
-
 private:
     const std::shared_ptr<vibrator::HalController> mHal;
     const int32_t mVibratorId;
     const jobject mCallbackListener;
-    // TODO remove this once android_os_vibrator_fix_vibration_thread_callback_handling removed
-    std::atomic<int64_t> mCallbackId;
 };
 
 static Aidl::BrakingPwle brakingPwle(Aidl::Braking braking, int32_t duration) {
@@ -238,16 +224,6 @@ static jlong vibratorGetNativeFinalizer(JNIEnv* /* env */, jclass /* clazz */) {
     return static_cast<jlong>(reinterpret_cast<uintptr_t>(&destroyNativeWrapper));
 }
 
-static jboolean vibratorIsAvailable(JNIEnv* env, jclass /* clazz */, jlong ptr) {
-    VibratorControllerWrapper* wrapper = reinterpret_cast<VibratorControllerWrapper*>(ptr);
-    if (wrapper == nullptr) {
-        ALOGE("vibratorIsAvailable failed because native wrapper was not initialized");
-        return JNI_FALSE;
-    }
-    auto pingFn = [](vibrator::HalWrapper* hal) { return hal->ping(); };
-    return wrapper->halCall<void>(pingFn, "ping").isOk() ? JNI_TRUE : JNI_FALSE;
-}
-
 static jlong vibratorOn(JNIEnv* env, jclass /* clazz */, jlong ptr, jlong timeoutMs,
                         jlong vibrationId, jlong stepId) {
     VibratorControllerWrapper* wrapper = reinterpret_cast<VibratorControllerWrapper*>(ptr);
@@ -271,7 +247,6 @@ static void vibratorOff(JNIEnv* env, jclass /* clazz */, jlong ptr) {
     }
     auto offFn = [](vibrator::HalWrapper* hal) { return hal->off(); };
     wrapper->halCall<void>(offFn, "off");
-    wrapper->disableOldCallbacks();
 }
 
 static void vibratorSetAmplitude(JNIEnv* env, jclass /* clazz */, jlong ptr, jfloat amplitude) {
@@ -583,11 +558,9 @@ static jboolean vibratorGetInfo(JNIEnv* env, jclass /* clazz */, jlong ptr,
 }
 
 static const JNINativeMethod method_table[] = {
-        {"nativeInit",
-         "(ILcom/android/server/vibrator/VibratorController$OnVibrationCompleteListener;)J",
+        {"nativeInit", "(ILcom/android/server/vibrator/HalVibrator$Callbacks;)J",
          (void*)vibratorNativeInit},
         {"getNativeFinalizer", "()J", (void*)vibratorGetNativeFinalizer},
-        {"isAvailable", "(J)Z", (void*)vibratorIsAvailable},
         {"on", "(JJJJ)J", (void*)vibratorOn},
         {"off", "(J)V", (void*)vibratorOff},
         {"setAmplitude", "(JF)V", (void*)vibratorSetAmplitude},
@@ -607,10 +580,9 @@ static const JNINativeMethod method_table[] = {
 
 int register_android_server_vibrator_VibratorController(JavaVM* jvm, JNIEnv* env) {
     sJvm = jvm;
-    auto listenerClassName =
-            "com/android/server/vibrator/VibratorController$OnVibrationCompleteListener";
+    auto listenerClassName = "com/android/server/vibrator/HalVibrator$Callbacks";
     jclass listenerClass = FindClassOrDie(env, listenerClassName);
-    sMethodIdOnComplete = GetMethodIDOrDie(env, listenerClass, "onComplete", "(IJJ)V");
+    sMethodIdOnComplete = GetMethodIDOrDie(env, listenerClass, "onVibrationStepComplete", "(IJJ)V");
 
     jclass primitiveClass = FindClassOrDie(env, "android/os/vibrator/PrimitiveSegment");
     sPrimitiveClassInfo.id = GetFieldIDOrDie(env, primitiveClass, "mPrimitiveId", "I");

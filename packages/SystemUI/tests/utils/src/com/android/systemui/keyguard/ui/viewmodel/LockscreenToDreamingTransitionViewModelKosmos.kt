@@ -21,8 +21,5 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 
 val Kosmos.lockscreenToDreamingTransitionViewModel by Fixture {
-    LockscreenToDreamingTransitionViewModel(
-        shadeDependentFlows = shadeDependentFlows,
-        animationFlow = keyguardTransitionAnimationFlow,
-    )
+    LockscreenToDreamingTransitionViewModel(animationFlow = keyguardTransitionAnimationFlow)
 }

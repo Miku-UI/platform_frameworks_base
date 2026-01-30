@@ -124,13 +124,19 @@ per-file Process.java = file:/PERFORMANCE_OWNERS
 per-file OomKillRecord.java = file:/MEMORY_OWNERS
 
 # MessageQueue and related classes
-per-file MessageQueue.java = mfasheh@google.com, shayba@google.com
-per-file Message.java = mfasheh@google.com, shayba@google.com
-per-file Looper.java = mfasheh@google.com, shayba@google.com
-per-file TestLooperManager.java = mfasheh@google.com, shayba@google.com
-per-file Handler.java = mfasheh@google.com, shayba@google.com
-per-file HandlerThread.java = mfasheh@google.com, shayba@google.com
-per-file HandlerExecutor.java = mfasheh@google.com, shayba@google.com
+per-file MessageQueue.java = file:/MESSAGE_QUEUE_OWNERS
+per-file MessageQueue_ravenwood.java = file:/MESSAGE_QUEUE_OWNERS
+per-file Message.java = file:/MESSAGE_QUEUE_OWNERS
+per-file Looper.java = file:/MESSAGE_QUEUE_OWNERS
+per-file Looper_ravenwood.java = file:/MESSAGE_QUEUE_OWNERS
+per-file TestLooperManager.java = file:/MESSAGE_QUEUE_OWNERS
+per-file Handler.java = file:/MESSAGE_QUEUE_OWNERS
+per-file Handler_ravenwood.java = file:/MESSAGE_QUEUE_OWNERS
+per-file HandlerThread.java = file:/MESSAGE_QUEUE_OWNERS
+per-file HandlerExecutor.java = file:/MESSAGE_QUEUE_OWNERS
+per-file MessageHeap.java = file:/MESSAGE_QUEUE_OWNERS
+per-file MessageStack.java = file:/MESSAGE_QUEUE_OWNERS
+per-file WaitState.java = file:/MESSAGE_QUEUE_OWNERS
 
 # Stats
 per-file IStatsBootstrapAtomService.aidl = file:/services/core/java/com/android/server/stats/OWNERS
@@ -144,3 +150,9 @@ per-file DropBoxManager* = mwachens@google.com
 
 # Flags
 per-file flags.aconfig = file:/FF_LEADS_OWNERS
+
+# Trade-In-Mode
+per-file ITradeInMode.aidl = file:/TRADE_IN_MODE_OWNERS
+
+# Perfetto SDK
+per-file PerfettoTrace*.java = file:/PERFETTO_OWNERS

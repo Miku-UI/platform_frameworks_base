@@ -21,7 +21,7 @@ import android.content.IntentSender;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.ShortcutInfo;
 
-/** {@hide} */
+/** @hide */
 interface IShortcutService {
 
     boolean setDynamicShortcuts(String packageName, in ParceledListSlice shortcutInfoList,

@@ -58,6 +58,7 @@ import com.android.server.accessibility.AccessibilitySecurityPolicy.Accessibilit
 import com.android.server.utils.Slogf;
 import com.android.server.wm.AccessibilityWindowsPopulator.AccessibilityWindow;
 import com.android.server.wm.WindowManagerInternal;
+import com.android.window.flags.Flags;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
@@ -1258,6 +1259,10 @@ public class AccessibilityWindowManager {
         return mLastNonProxyTopFocusedDisplayId;
     }
 
+    int getTopFocusedDisplayId() {
+        return mTopFocusedDisplayId;
+    }
+
     /**
      * Checks if we are tracking windows on specified display.
      *
@@ -2047,7 +2052,13 @@ public class AccessibilityWindowManager {
         if (traceWMEnabled()) {
             logTraceWM("getFocusedWindowToken", "");
         }
-        final IBinder token = mWindowManagerInternal.getFocusedWindowTokenFromWindowStates();
+
+        // When useInputReportedFocusForAccessibility() is enabled, we use the focused input target
+        // as reported from input, which may not be reported as the focused window state if the
+        // focused input target is an embedded window
+        final IBinder token = Flags.useInputReportedFocusForAccessibility()
+                ? mWindowManagerInternal.getFocusedWindowToken()
+                : mWindowManagerInternal.getFocusedWindowTokenFromWindowStates();
         synchronized (mLock) {
             return findWindowIdLocked(userId, token);
         }

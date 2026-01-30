@@ -53,8 +53,7 @@ public class ContextHubTestModeManager {
         }
 
         long counterValue = mCounter.getAndIncrement();
-        if (Flags.reliableMessageDuplicateDetectionService()
-                && counterValue % NUMBER_OF_EVENTS == DUPLICATE_MESSAGE_TO_HOST_EVENT) {
+        if (counterValue % NUMBER_OF_EVENTS == DUPLICATE_MESSAGE_TO_HOST_EVENT) {
             Log.i(TAG, "[TEST MODE] Duplicating message to host ("
                     + NUM_MESSAGES_TO_DUPLICATE
                     + " sends) with message sequence number: "
@@ -104,8 +103,7 @@ public class ContextHubTestModeManager {
             return true;
         }
 
-        if (Flags.reliableMessageRetrySupportService()
-                && counterValue % NUMBER_OF_EVENTS == DROP_MESSAGE_TO_CONTEXT_HUB_EVENT) {
+        if (counterValue % NUMBER_OF_EVENTS == DROP_MESSAGE_TO_CONTEXT_HUB_EVENT) {
             Log.i(TAG, "[TEST MODE] Dropping message to the Context Hub with "
                     + "message sequence number: "
                     + message.getMessageSequenceNumber());

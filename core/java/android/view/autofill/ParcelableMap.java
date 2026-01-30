@@ -25,7 +25,7 @@ import java.util.Map;
 /**
  * A parcelable HashMap for {@link AutofillId} and {@link AutofillValue}
  *
- * {@hide}
+ * @hide
  */
 class ParcelableMap extends HashMap<AutofillId, AutofillValue> implements Parcelable {
     ParcelableMap(int size) {

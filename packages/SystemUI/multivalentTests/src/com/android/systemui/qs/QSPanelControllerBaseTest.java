@@ -20,6 +20,9 @@ import static com.android.systemui.flags.SceneContainerFlagParameterizationKt.pa
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static kotlinx.coroutines.flow.FlowKt.asStateFlow;
+import static kotlinx.coroutines.flow.StateFlowKt.MutableStateFlow;
+
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
@@ -34,9 +37,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import static kotlinx.coroutines.flow.FlowKt.asStateFlow;
-import static kotlinx.coroutines.flow.StateFlowKt.MutableStateFlow;
 
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -70,6 +70,9 @@ import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController;
 import com.android.systemui.util.animation.DisappearParameters;
 
+import kotlinx.coroutines.flow.MutableStateFlow;
+import kotlinx.coroutines.flow.StateFlow;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -84,9 +87,6 @@ import java.util.Collections;
 import java.util.List;
 
 import javax.inject.Provider;
-
-import kotlinx.coroutines.flow.MutableStateFlow;
-import kotlinx.coroutines.flow.StateFlow;
 
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
 import platform.test.runner.parameterized.Parameters;
@@ -105,6 +105,7 @@ public class QSPanelControllerBaseTest extends SysuiTestCase {
     }
 
     private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
+
     @Mock
     private QSPanel mQSPanel;
     @Mock
@@ -234,6 +235,7 @@ public class QSPanelControllerBaseTest extends SysuiTestCase {
 
     @After
     public void tearDown() {
+        mController.onViewDetached();
         mController.destroy();
         disallowTestableLooperAsMainThread();
     }

@@ -49,7 +49,7 @@ import java.util.Map;
  * but it could provide more (in which case the algorithm name should be specified by the caller
  * when calculating the scores).
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public abstract class AutofillFieldClassificationService extends Service {
@@ -98,7 +98,7 @@ public abstract class AutofillFieldClassificationService extends Service {
      */
     public static final String REQUIRED_ALGORITHM_CREDIT_CARD = "CREDIT_CARD";
 
-    /** {@hide} **/
+    /** @hide **/
     public static final String EXTRA_SCORES = "scores";
 
     private AutofillFieldClassificationServiceWrapper mWrapper;
@@ -191,7 +191,7 @@ public abstract class AutofillFieldClassificationService extends Service {
      * @param userDataValues values predicted from the user data.
      * @return the calculated scores of {@code actualValues} x {@code userDataValues}.
      *
-     * {@hide}
+     * @hide
      *
      * @deprecated Use {@link AutofillFieldClassificationService#onCalculateScores} instead.
      */
@@ -272,7 +272,7 @@ public abstract class AutofillFieldClassificationService extends Service {
      * @param algorithms array of field classification algorithms
      * @return the calculated scores of {@code actualValues} x {@code userDataValues}.
      *
-     * {@hide}
+     * @hide
      */
     @Nullable
     @SystemApi
@@ -303,7 +303,7 @@ public abstract class AutofillFieldClassificationService extends Service {
     /**
      * Helper class used to encapsulate a float[][] in a Parcelable.
      *
-     * {@hide}
+     * @hide
      */
     public static final class Scores implements Parcelable {
         @NonNull

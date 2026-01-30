@@ -164,8 +164,9 @@ public class FalsingManagerFake implements FalsingManager {
     }
 
     @Override
-    public void cleanupInternal() {
+    public List<FalsingBeliefListener> cleanupInternal() {
         mDestroyed = true;
+        return new ArrayList<FalsingBeliefListener>();
     }
 
     private void checkDestroyed() {

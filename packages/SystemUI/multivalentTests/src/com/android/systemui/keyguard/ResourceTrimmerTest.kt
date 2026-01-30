@@ -9,15 +9,12 @@ import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
-import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
-import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.scene.data.repository.Idle
 import com.android.systemui.scene.data.repository.setSceneTransition
 import com.android.systemui.scene.domain.interactor.sceneInteractor
@@ -42,10 +39,8 @@ class ResourceTrimmerTest : SysuiTestCase() {
     val kosmos = testKosmos()
 
     private val testScope = kosmos.testScope
-    private val keyguardRepository = kosmos.fakeKeyguardRepository
     private val featureFlags = kosmos.fakeFeatureFlagsClassic
     private val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
-    private val powerInteractor = kosmos.powerInteractor
 
     @Mock private lateinit var globalWindowManager: GlobalWindowManager
     private lateinit var resourceTrimmer: ResourceTrimmer
@@ -55,8 +50,6 @@ class ResourceTrimmerTest : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
-        keyguardRepository.setDozeAmount(0f)
-        keyguardRepository.setKeyguardGoingAway(false)
         resourceTrimmer =
             ResourceTrimmer(
                 keyguardTransitionInteractor = kosmos.keyguardTransitionInteractor,
@@ -65,65 +58,6 @@ class ResourceTrimmerTest : SysuiTestCase() {
                 bgDispatcher = kosmos.testDispatcher,
             )
         resourceTrimmer.start()
-    }
-
-    @Test
-    fun dozeAodDisabled_sleep_doesntTrimMemory() =
-        testScope.runTest {
-            powerInteractor.setAsleepForTest()
-            testScope.runCurrent()
-            verifyNoMoreInteractions(globalWindowManager)
-        }
-
-    @Test
-    fun dozeEnabled_sleepWithFullDozeAmount_doesntTrimMemory() =
-        testScope.runTest {
-            keyguardRepository.setDreaming(true)
-            keyguardRepository.setDozeAmount(1f)
-            powerInteractor.setAsleepForTest()
-            testScope.runCurrent()
-            verifyNoMoreInteractions(globalWindowManager)
-        }
-
-    @Test
-    fun dozeEnabled_sleepWithoutFullDozeAmount_doesntTrimMemory() =
-        testScope.runTest {
-            keyguardRepository.setDreaming(true)
-            keyguardRepository.setDozeAmount(0f)
-            powerInteractor.setAsleepForTest()
-            testScope.runCurrent()
-            verifyNoMoreInteractions(globalWindowManager)
-        }
-
-    @Test
-    fun aodEnabled_deviceWakesHalfWayThrough_doesNotTrimMemory() {
-        testScope.runTest {
-            keyguardRepository.setDreaming(true)
-            keyguardRepository.setDozeAmount(0f)
-            powerInteractor.setAsleepForTest()
-
-            testScope.runCurrent()
-            verifyNoMoreInteractions(globalWindowManager)
-
-            generateSequence(0f) { it + 0.1f }
-                .takeWhile { it < 0.8f }
-                .forEach {
-                    keyguardRepository.setDozeAmount(it)
-                    testScope.runCurrent()
-                }
-            verifyNoMoreInteractions(globalWindowManager)
-
-            generateSequence(0.8f) { it - 0.1f }
-                .takeWhile { it >= 0f }
-                .forEach {
-                    keyguardRepository.setDozeAmount(it)
-                    testScope.runCurrent()
-                }
-
-            keyguardRepository.setDozeAmount(0f)
-            testScope.runCurrent()
-            verifyNoMoreInteractions(globalWindowManager)
-        }
     }
 
     @Test

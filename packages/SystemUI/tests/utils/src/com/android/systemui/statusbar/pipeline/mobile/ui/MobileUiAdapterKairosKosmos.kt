@@ -20,6 +20,7 @@ import com.android.systemui.dump.dumpManager
 import com.android.systemui.kairos.ActivatedKairosFixture
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.statusbar.phone.ui.statusBarIconController
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.mobileIconsViewModelKairos
 
@@ -30,5 +31,6 @@ val Kosmos.mobileUiAdapterKairos by ActivatedKairosFixture {
         mobileIconsViewModelKairos,
         mobileViewLogger,
         dumpManager,
+        testDispatcher,
     )
 }

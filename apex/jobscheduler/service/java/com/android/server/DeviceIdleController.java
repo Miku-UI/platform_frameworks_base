@@ -90,6 +90,7 @@ import android.telephony.emergency.EmergencyNumber;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.AtomicFile;
+import android.util.Log;
 import android.util.MutableLong;
 import android.util.Pair;
 import android.util.Slog;
@@ -315,7 +316,7 @@ public class DeviceIdleController extends SystemService
     private static final String USER_ALLOWLIST_REMOVAL_METRIC_ID =
             "battery.value_app_removed_from_power_allowlist";
 
-    private static final boolean DEBUG = false;
+    private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
     private static final boolean COMPRESS_TIME = false;
 
@@ -1114,7 +1115,7 @@ public class DeviceIdleController extends SystemService
                 !COMPRESS_TIME ? 30 * 1000L : 5 * 1000L;
         private long mDefaultInactiveTimeout =
                 (30 * 60 * 1000L) / (!COMPRESS_TIME ? 1 : 10);
-        private static final long DEFAULT_INACTIVE_TIMEOUT_SMALL_BATTERY =
+        @VisibleForTesting static final long DEFAULT_INACTIVE_TIMEOUT_SMALL_BATTERY =
                 (60 * 1000L) / (!COMPRESS_TIME ? 1 : 10);
         private long mDefaultSensingTimeout =
                 !COMPRESS_TIME ? 4 * 60 * 1000L : 60 * 1000L;
@@ -1127,7 +1128,7 @@ public class DeviceIdleController extends SystemService
                 !COMPRESS_TIME ? 60 * 1000L : 5 * 1000L;
         private long mDefaultIdleAfterInactiveTimeout =
                 (30 * 60 * 1000L) / (!COMPRESS_TIME ? 1 : 10);
-        private static final long DEFAULT_IDLE_AFTER_INACTIVE_TIMEOUT_SMALL_BATTERY =
+        @VisibleForTesting static final long DEFAULT_IDLE_AFTER_INACTIVE_TIMEOUT_SMALL_BATTERY =
                 (60 * 1000L) / (!COMPRESS_TIME ? 1 : 10);
         private long mDefaultIdlePendingTimeout =
                 !COMPRESS_TIME ? 5 * 60 * 1000L : 30 * 1000L;
@@ -1428,16 +1429,17 @@ public class DeviceIdleController extends SystemService
         public boolean USE_MODE_MANAGER = mDefaultUseModeManager;
 
         private final ContentResolver mResolver;
-        private final boolean mSmallBatteryDevice;
+        private final boolean mUseSmallBatteryDeviceValues;
         private final UserSettingDeviceConfigMediator mUserSettingDeviceConfigMediator =
                 new UserSettingDeviceConfigMediator.SettingsOverridesIndividualMediator(',');
 
-        public Constants(Handler handler, ContentResolver resolver) {
+        public Constants(Handler handler, ContentResolver resolver, boolean isSmallBatteryDevice) {
             super(handler);
             mResolver = resolver;
             initDefault();
-            mSmallBatteryDevice = ActivityManager.isSmallBatteryDevice();
-            if (mSmallBatteryDevice) {
+
+            mUseSmallBatteryDeviceValues = isSmallBatteryDevice && !isWatch();
+            if (mUseSmallBatteryDeviceValues) {
                 INACTIVE_TIMEOUT = DEFAULT_INACTIVE_TIMEOUT_SMALL_BATTERY;
                 IDLE_AFTER_INACTIVE_TIMEOUT = DEFAULT_IDLE_AFTER_INACTIVE_TIMEOUT_SMALL_BATTERY;
             }
@@ -1627,7 +1629,6 @@ public class DeviceIdleController extends SystemService
         }
 
         private void updateConstantsLocked() {
-            if (mSmallBatteryDevice) return;
             FLEX_TIME_SHORT = mUserSettingDeviceConfigMediator.getLong(
                     KEY_FLEX_TIME_SHORT, mDefaultFlexTimeShort);
 
@@ -1680,7 +1681,7 @@ public class DeviceIdleController extends SystemService
                     KEY_MIN_DEEP_MAINTENANCE_TIME,
                     mDefaultMinDeepMaintenanceTime);
 
-            final long defaultInactiveTimeout = mSmallBatteryDevice
+            final long defaultInactiveTimeout = mUseSmallBatteryDeviceValues
                     ? DEFAULT_INACTIVE_TIMEOUT_SMALL_BATTERY
                     : mDefaultInactiveTimeout;
             INACTIVE_TIMEOUT = mUserSettingDeviceConfigMediator.getLong(
@@ -1702,7 +1703,7 @@ public class DeviceIdleController extends SystemService
                     KEY_MOTION_INACTIVE_TIMEOUT_FLEX,
                     mDefaultMotionInactiveTimeoutFlex);
 
-            final long defaultIdleAfterInactiveTimeout = mSmallBatteryDevice
+            final long defaultIdleAfterInactiveTimeout = mUseSmallBatteryDeviceValues
                     ? DEFAULT_IDLE_AFTER_INACTIVE_TIMEOUT_SMALL_BATTERY
                     : mDefaultIdleAfterInactiveTimeout;
             IDLE_AFTER_INACTIVE_TIMEOUT = mUserSettingDeviceConfigMediator.getLong(
@@ -1757,6 +1758,10 @@ public class DeviceIdleController extends SystemService
 
             USE_MODE_MANAGER = mUserSettingDeviceConfigMediator.getBoolean(
                     KEY_USE_MODE_MANAGER, mDefaultUseModeManager);
+        }
+
+        private boolean isWatch() {
+            return getContext().getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH);
         }
 
         void dump(PrintWriter pw) {
@@ -2502,7 +2507,7 @@ public class DeviceIdleController extends SystemService
         Constants getConstants(DeviceIdleController controller, Handler handler,
                 ContentResolver resolver) {
             if (mConstants == null) {
-                mConstants = controller.new Constants(handler, resolver);
+                mConstants = controller.new Constants(handler, resolver, isSmallBatteryDevice());
             }
             return mConstants;
         }
@@ -2578,6 +2583,10 @@ public class DeviceIdleController extends SystemService
         boolean useMotionSensor() {
             return mContext.getResources().getBoolean(
                    com.android.internal.R.bool.config_autoPowerModeUseMotionSensor);
+        }
+
+        boolean isSmallBatteryDevice() {
+            return ActivityManager.isSmallBatteryDevice();
         }
     }
 
@@ -2762,8 +2771,9 @@ public class DeviceIdleController extends SystemService
                 mPowerSaveWhitelistChangedIntent = new Intent(
                         PowerManager.ACTION_POWER_SAVE_WHITELIST_CHANGED);
                 mPowerSaveWhitelistChangedIntent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
+                //This intent is not exposed in PowerManager, so hardcoding the broadcast string.
                 mPowerSaveTempWhitelistChangedIntent = new Intent(
-                        PowerManager.ACTION_POWER_SAVE_TEMP_WHITELIST_CHANGED);
+                        "android.os.action.POWER_SAVE_TEMP_WHITELIST_CHANGED");
                 mPowerSaveTempWhitelistChangedIntent.addFlags(Intent.FLAG_RECEIVER_REGISTERED_ONLY);
                 mPowerSaveWhitelistChangedOptions = mostRecentDeliveryOptions;
                 mPowerSaveTempWhilelistChangedOptions = mostRecentDeliveryOptions;
@@ -3527,11 +3537,14 @@ public class DeviceIdleController extends SystemService
     @VisibleForTesting
     @GuardedBy("this")
     void updateQuickDozeFlagLocked(boolean enabled) {
-        if (DEBUG) Slog.i(TAG, "updateQuickDozeFlagLocked: enabled=" + enabled);
+        if (DEBUG) {
+            Slog.i(TAG, "updateQuickDozeFlagLocked: enabled=" + enabled
+                    + ", mForceIdle=" + mForceIdle);
+        }
         mQuickDozeActivated = enabled;
         mQuickDozeActivatedWhileIdling =
                 mQuickDozeActivated && (mState == STATE_IDLE || mState == STATE_IDLE_MAINTENANCE);
-        if (enabled) {
+        if (!mForceIdle && enabled) {
             // If Quick Doze is enabled, see if we should go straight into it.
             becomeInactiveIfAppropriateLocked();
         }
@@ -3614,6 +3627,14 @@ public class DeviceIdleController extends SystemService
     void setLightEnabledForTest(boolean enabled) {
         synchronized (this) {
             mLightEnabled = enabled;
+        }
+    }
+
+    /** Must only be used in tests. */
+    @VisibleForTesting
+    void setForceIdleEnabledForTest(boolean enabled) {
+        synchronized (this) {
+            mForceIdle = enabled;
         }
     }
 
@@ -3913,9 +3934,17 @@ public class DeviceIdleController extends SystemService
                 // for motion and sleep some more while doing so.
                 startMonitoringMotionLocked();
                 long delay = mConstants.IDLE_AFTER_INACTIVE_TIMEOUT;
-                scheduleAlarmLocked(delay);
-                moveToStateLocked(STATE_IDLE_PENDING, reason);
-                break;
+                if (delay == 0 && Flags.enableNonScheduledExitFromIdlePending()) {
+                    moveToStateLocked(STATE_IDLE_PENDING, reason);
+                    if (DEBUG) {
+                        Slog.d(TAG, "Fall through IDLE_PENDING: IDLE_AFTER_INACTIVE_TIMEOUT is 0");
+                    }
+                    // fall through
+                } else {
+                    scheduleAlarmLocked(delay);
+                    moveToStateLocked(STATE_IDLE_PENDING, reason);
+                    break;
+                }
             case STATE_IDLE_PENDING:
                 cancelLocatingLocked();
                 mLocated = false;
@@ -4470,9 +4499,11 @@ public class DeviceIdleController extends SystemService
     private void reportTempWhitelistChangedLocked(final int uid, final boolean added) {
         mHandler.obtainMessage(MSG_REPORT_TEMP_APP_WHITELIST_CHANGED, uid, added ? 1 : 0)
                 .sendToTarget();
-        getContext().sendBroadcastAsUser(mPowerSaveTempWhitelistChangedIntent, UserHandle.SYSTEM,
-                null /* receiverPermission */,
-                mPowerSaveTempWhilelistChangedOptions);
+        if (!Flags.stopPowerSaveTempWhitelistBroadcast()) {
+            getContext().sendBroadcastAsUser(mPowerSaveTempWhitelistChangedIntent,
+                    UserHandle.SYSTEM, null /* receiverPermission */,
+                    mPowerSaveTempWhilelistChangedOptions);
+        }
     }
 
     private void passWhiteListsToForceAppStandbyTrackerLocked() {
@@ -5236,6 +5267,10 @@ public class DeviceIdleController extends SystemService
         pw.print(Flags.FLAG_REMOVE_IDLE_LOCATION);
         pw.print("=");
         pw.println(Flags.removeIdleLocation());
+        pw.print("    ");
+        pw.print(Flags.FLAG_STOP_POWER_SAVE_TEMP_WHITELIST_BROADCAST);
+        pw.print("=");
+        pw.println(Flags.stopPowerSaveTempWhitelistBroadcast());
         pw.println();
 
         synchronized (this) {

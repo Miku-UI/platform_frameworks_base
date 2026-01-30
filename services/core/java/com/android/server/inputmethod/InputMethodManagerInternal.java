@@ -30,6 +30,7 @@ import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.inputmethod.IAccessibilityInputMethodSession;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.InlineSuggestionsRequestCallback;
 import com.android.internal.inputmethod.InlineSuggestionsRequestInfo;
 import com.android.internal.inputmethod.SoftInputShowHideReason;
@@ -241,7 +242,7 @@ public abstract class InputMethodManagerInternal {
     public abstract void removeImeSurface(int displayId);
 
     /**
-     * Called when a non-IME-focusable overlay window being the IME layering target (e.g. a
+     * Called when a non-IME-focusable overlay window that is the IME layering target (e.g. a
      * window with {@link android.view.WindowManager.LayoutParams#FLAG_NOT_FOCUSABLE} and
      * {@link android.view.WindowManager.LayoutParams#FLAG_ALT_FOCUSABLE_IM} flags)
      * has changed its window visibility.
@@ -332,6 +333,20 @@ public abstract class InputMethodManagerInternal {
      */
     public abstract void onSwitchKeyboardLayoutShortcut(int direction, int displayId,
             IBinder targetWindowToken);
+
+    /**
+     * Provides the remote input connection for computer control automations running on computer
+     * control display.
+     *
+     * <p>
+     *     This will return {@code null} for non-computer control displays or if there is no
+     *     active input connection on the display. This doesn't require the computer control
+     *     display to be the top focussed display.
+     * </p>
+     */
+    @Nullable
+    public abstract IRemoteComputerControlInputConnection getComputerControlInputConnection(
+            @UserIdInt int userId, int displayId);
 
     /**
      * Fake implementation of {@link InputMethodManagerInternal}. All the methods do nothing.
@@ -456,6 +471,13 @@ public abstract class InputMethodManagerInternal {
                 @Override
                 public void onSwitchKeyboardLayoutShortcut(int direction, int displayId,
                         IBinder targetWindowToken) {
+                }
+
+                @Nullable
+                @Override
+                public IRemoteComputerControlInputConnection getComputerControlInputConnection(
+                        @UserIdInt int userId,  int displayId) {
+                    return null;
                 }
             };
 

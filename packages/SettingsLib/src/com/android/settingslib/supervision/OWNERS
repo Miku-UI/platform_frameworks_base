@@ -1,1 +1,3 @@
-file:platform/frameworks/base:/core/java/android/app/supervision/OWNERS
+include platform/frameworks/base:/core/java/android/app/supervision/OWNERS
+
+yvonnejiang@google.com

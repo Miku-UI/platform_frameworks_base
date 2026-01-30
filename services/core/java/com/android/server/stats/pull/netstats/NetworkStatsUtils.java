@@ -122,4 +122,8 @@ public class NetworkStatsUtils {
     public static boolean isAddEntriesSupported() {
         return Flags.netstatsUseAddEntries();
     }
+
+    public static boolean isTransportTypeSupported() {
+        return Flags.netstatsUseTransportType();
+    }
 }

@@ -21,8 +21,7 @@
 
 namespace android {
 
-// Return an SkFontMgr which is capable of turning bytes into a SkTypeface using Freetype.
-// There are no other fonts inside this SkFontMgr (e.g. no system fonts).
-sk_sp<SkFontMgr> FreeTypeFontMgr();
+// Create new SkTypeface.
+sk_sp<SkTypeface> makeSkTypeface(std::unique_ptr<SkStreamAsset>, const SkFontArguments&);
 
 }  // namespace android

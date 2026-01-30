@@ -26,7 +26,6 @@ var Kosmos.lockscreenToAodTransitionViewModel by Fixture {
     LockscreenToAodTransitionViewModel(
         deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
         powerInteractor = powerInteractor,
-        shadeDependentFlows = shadeDependentFlows,
         animationFlow = keyguardTransitionAnimationFlow,
     )
 }

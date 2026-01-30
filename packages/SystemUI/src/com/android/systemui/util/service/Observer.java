@@ -16,7 +16,7 @@
 
 package com.android.systemui.util.service;
 
-import com.android.systemui.util.annotations.WeaklyReferencedCallback;
+import com.android.internal.annotations.WeaklyReferencedCallback;
 
 /**
  * The {@link Observer} interface specifies an entity which listeners

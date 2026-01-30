@@ -18,6 +18,7 @@ package com.android.internal.graphics.cam;
 
 import static org.junit.Assert.assertEquals;
 
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.filters.LargeTest;
@@ -218,6 +219,7 @@ public final class CamTest {
 
     @LargeTest
     @Test
+    @DisabledOnRavenwood(reason = "Large test is flaky", bug = 378422423)
     public void testHctReflexivity() {
         for (int i = 0; i <= 0x00ffffff; i++) {
             int color = 0xFF000000 | i;

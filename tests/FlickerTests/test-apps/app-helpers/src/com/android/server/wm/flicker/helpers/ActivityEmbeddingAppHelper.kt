@@ -17,7 +17,7 @@
 package com.android.server.wm.flicker.helpers
 
 import android.app.Instrumentation
-import android.os.SystemClock
+import android.platform.uiautomatorhelpers.scrollUntilFound
 import android.tools.PlatformConsts
 import android.tools.device.apphelpers.StandardAppHelper
 import android.tools.helpers.FIND_TIMEOUT
@@ -26,7 +26,7 @@ import android.tools.traces.parsers.WindowManagerStateHelper
 import android.tools.traces.parsers.toFlickerComponent
 import android.util.Log
 import androidx.test.uiautomator.By
-import androidx.test.uiautomator.Direction
+import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Until
 import androidx.window.extensions.WindowExtensions
 import androidx.window.extensions.WindowExtensionsProvider
@@ -85,14 +85,7 @@ constructor(
      * activity and finish itself.
      */
     fun launchTrampolineActivity(wmHelper: WindowManagerStateHelper) {
-        scrollToBottom()
-        val launchButton =
-            uiDevice.wait(
-                Until.findObject(By.res(packageName, "launch_trampoline_button")),
-                FIND_TIMEOUT
-            )
-        require(launchButton != null) { "Can't find launch trampoline activity button on screen." }
-        launchButton.click()
+        findButtonAndClick(By.res(packageName, "launch_trampoline_button"))
         wmHelper
             .StateSyncBuilder()
             .withActivityState(SECONDARY_ACTIVITY_COMPONENT, PlatformConsts.STATE_RESUMED)
@@ -213,14 +206,7 @@ constructor(
      * placeholder secondary activity based on the placeholder rule.
      */
     fun launchPlaceholderSplitRTL(wmHelper: WindowManagerStateHelper) {
-        scrollToBottom()
-        val launchButton =
-            uiDevice.wait(
-                Until.findObject(By.res(packageName, "launch_placeholder_split_rtl_button")),
-                FIND_TIMEOUT
-            )
-        require(launchButton != null) { "Can't find launch placeholder split button on screen." }
-        launchButton.click()
+        findButtonAndClick(By.res(packageName, "launch_placeholder_split_rtl_button"))
         wmHelper
             .StateSyncBuilder()
             .withActivityState(PLACEHOLDER_PRIMARY_COMPONENT, PlatformConsts.STATE_RESUMED)
@@ -229,18 +215,19 @@ constructor(
     }
 
     /**
-     * Scrolls to the bottom of the launch options. This is needed if the launch button is at the
-     * bottom. Otherwise the click may trigger touch on navBar.
+     * Scrolls until finding the launch button on the list, then click.
+     * This is needed if the launch button is at the bottom. Otherwise the click may trigger touch
+     * on navBar.
      */
-    private fun scrollToBottom() {
+    private fun findButtonAndClick(viewSelector: BySelector) {
         val launchOptionsList = uiDevice.wait(
             Until.findObject(By.res(packageName, "launch_options_list")),
             FIND_TIMEOUT
-        )
-        requireNotNull(launchOptionsList) { "Unable to find the list of launch options" }
-        launchOptionsList.scrollUntil(Direction.DOWN, Until.scrollFinished(Direction.DOWN))
-        // Wait a bit after scrolling, otherwise the immediate click may not be treated as "click".
-        SystemClock.sleep(1000L)
+        ) ?: error("Unable to find the list of launch options")
+        val button = launchOptionsList.scrollUntilFound(
+            viewSelector
+        ) ?: error("Can't find launch button on screen.")
+        button.click()
     }
 
     companion object {

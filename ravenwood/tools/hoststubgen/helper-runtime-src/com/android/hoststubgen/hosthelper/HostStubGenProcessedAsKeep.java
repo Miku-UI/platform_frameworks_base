@@ -25,11 +25,17 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation injected to all classes/methods/fields that are kept in the processes jar.
+ * Annotation injected to all classes/methods/fields with a reason why they're kept.
+ *
+ * For classes and fields, all of them should have this annotation unless it's removed.
+ * For methods, only methods containing the original body will have it.
+ * Methods that are processed as "ignore", "throw", "substitute", etc. won't have it.
  */
 @Target({TYPE, METHOD, CONSTRUCTOR, FIELD})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface HostStubGenProcessedAsKeep {
     String CLASS_INTERNAL_NAME = HostTestUtils.getInternalName(HostStubGenProcessedAsKeep.class);
     String CLASS_DESCRIPTOR = "L" + CLASS_INTERNAL_NAME + ";";
+
+    String reason() default "";
 }

@@ -238,6 +238,7 @@ static void android_location_gnss_hal_GnssNative_class_init_once(JNIEnv* env, jc
     gnss::MeasurementCorrectionsCallback_class_init_once(env, clazz);
     if (location_flags::gnss_assistance_interface_jni()) {
         gnss::GnssAssistance_class_init_once(env, clazz);
+        gnss::GnssAssistanceCallback_class_init_once(env, clazz);
     }
     gnss::Utils_class_init_once(env);
 }

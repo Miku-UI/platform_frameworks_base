@@ -2,13 +2,6 @@ package: "android.provider"
 container: "system"
 
 flag {
-    name: "a11y_standalone_gesture_enabled"
-    namespace: "accessibility"
-    description: "Separating a11y software shortcut and gesture shortcut"
-    bug: "297544054"
-}
-
-flag {
     name: "system_settings_default"
     is_exported: true
     namespace: "package_manager_service"
@@ -22,6 +15,19 @@ flag {
     namespace: "privacy_infra_policy"
     description: "This flag controls new E2EE contact keys API"
     bug: "290696572"
+}
+
+# OWNER = andonian TARGET=25Q3
+flag {
+    name: "launcher_data_access"
+    is_exported: true
+    namespace: "launcher"
+    description: "This flag introduces a permission which protects a content provider within home/launcher applications that enables management of home screen metadata such as shortcut placement, launch intents, and labels."
+    bug: "379378706"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+    is_fixed_read_only: true
 }
 
 # OWNER = tgunn TARGET=25Q1
@@ -62,4 +68,31 @@ flag {
     namespace: "globalintl"
     description: "Feature flag for regional preferences APIs"
     bug: "370379000"
+}
+
+flag {
+    name: "enable_documents_trash_api"
+    is_exported: true
+    namespace: "documentsui"
+    is_fixed_read_only: true
+    description: "This flag will enable documents trash APIs"
+    bug: "409260986"
+}
+
+# OWNER=rambowang TARGET=25Q4
+flag {
+    name: "expose_system_update_settings"
+    is_exported: true
+    namespace: "android_settings"
+    description: "Feature flag to expose SYSTEM_UPDATE_SETTINGS as a public API"
+    bug: "417458670"
+}
+
+# OWNER = liefuliu
+flag {
+    name: "new_account_attributes_api_enabled"
+    is_exported: true
+    namespace: "contacts"
+    description: "Enable the new Account Attributes APIs for contacts"
+    bug: "330326187"
 }

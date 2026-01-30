@@ -41,7 +41,8 @@ internal class Overlay(
     alignment: Alignment,
     isModal: Boolean,
     effectFactory: OverscrollFactory,
-) : Content(key, layoutImpl, content, actions, zIndex, globalZIndex, effectFactory) {
+    alwaysCompose: Boolean,
+) : Content(key, layoutImpl, content, actions, zIndex, globalZIndex, effectFactory, alwaysCompose) {
     var alignment by mutableStateOf(alignment)
     var isModal by mutableStateOf(isModal)
 

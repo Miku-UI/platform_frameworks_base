@@ -24,8 +24,9 @@ import androidx.annotation.Nullable;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.GroupEntry;
-import com.android.systemui.statusbar.notification.collection.PipelineEntry;
+import com.android.systemui.statusbar.notification.collection.ListEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
+import com.android.systemui.statusbar.notification.collection.PipelineEntry;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import java.util.List;
@@ -95,11 +96,16 @@ public class GroupMembershipManagerImpl implements GroupMembershipManager {
     public List<NotificationEntry> getChildren(@NonNull PipelineEntry entry) {
         NotificationBundleUi.assertInLegacyMode();
 
-        if (entry instanceof GroupEntry) {
-            return ((GroupEntry) entry).getChildren();
+        final ListEntry listEntry = entry.asListEntry();
+        if (listEntry == null) {
+            return null;
         }
 
-        NotificationEntry representativeEntry = entry.getRepresentativeEntry();
+        if (listEntry instanceof GroupEntry groupEntry) {
+            return groupEntry.getChildren();
+        }
+
+        final NotificationEntry representativeEntry = listEntry.getRepresentativeEntry();
         if (representativeEntry != null && isGroupSummary(representativeEntry)) {
             // maybe we were actually passed the summary
             if (representativeEntry.getParent() instanceof GroupEntry parent) {

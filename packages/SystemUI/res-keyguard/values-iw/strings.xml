@@ -21,7 +21,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="keyguard_enter_your_pin" msgid="5429932527814874032">"מה קוד האימות שלך?"</string>
-    <string name="keyguard_enter_pin" msgid="8114529922480276834">"צריך להזין קוד אימות"</string>
+    <string name="keyguard_enter_pin" msgid="8114529922480276834">"מה קוד האימות שלך?"</string>
     <string name="keyguard_enter_your_pattern" msgid="351503370332324745">"יש להזין קו ביטול נעילה"</string>
     <string name="keyguard_enter_pattern" msgid="7616595160901084119">"צריך לצייר את קו פתיחת הנעילה"</string>
     <string name="keyguard_enter_your_password" msgid="7225626204122735501">"יש להזין סיסמה"</string>
@@ -50,7 +50,7 @@
     <string name="error_disable_esim_title" msgid="3802652622784813119">"‏לא ניתן להשבית את כרטיס ה-eSIM"</string>
     <string name="error_disable_esim_msg" msgid="2441188596467999327">"‏לא ניתן להשבית את כרטיס ה-eSIM עקב שגיאה."</string>
     <string name="keyboardview_keycode_enter" msgid="6727192265631761174">"Enter"</string>
-    <string name="kg_wrong_pattern" msgid="5907301342430102842">"קו ביטול נעילה שגוי"</string>
+    <string name="kg_wrong_pattern" msgid="5907301342430102842">"קו פתיחת נעילה שגוי"</string>
     <string name="kg_wrong_pattern_try_again" msgid="3603524940234151881">"קו ביטול נעילה שגוי. יש לנסות שוב."</string>
     <string name="kg_wrong_password" msgid="4143127991071670512">"סיסמה שגויה"</string>
     <string name="kg_wrong_password_try_again" msgid="6602878676125765920">"סיסמה שגויה. יש לנסות שוב."</string>
@@ -59,16 +59,20 @@
     <string name="kg_wrong_input_try_fp_suggestion" msgid="3143861542242024833">"אפשר לבטל נעילה באמצעות טביעת אצבע"</string>
     <string name="kg_fp_not_recognized" msgid="5183108260932029241">"טביעת האצבע לא זוהתה"</string>
     <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"הפנים לא זוהו"</string>
-    <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"יש לנסות שוב או להזין קוד אימות"</string>
-    <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"יש לנסות שוב או להזין סיסמה"</string>
-    <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"יש לנסות שוב או לצייר קו ביטול נעילה"</string>
+    <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"אפשר לנסות שוב או להקיש קוד אימות"</string>
+    <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"אפשר לנסות שוב או להקליד סיסמה"</string>
+    <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"אפשר לנסות שוב או לצייר קו פתיחת נעילה"</string>
     <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"אחרי יותר מדי ניסיונות נדרש קוד אימות"</string>
     <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"אחרי יותר מדי ניסיונות נדרשת סיסמה"</string>
-    <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"אחרי יותר מדי ניסיונות נדרש קו ביטול נעילה"</string>
-    <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"פתיחה בקוד אימות או טביעת אצבע"</string>
-    <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"פתיחה בסיסמה או טביעת אצבע"</string>
-    <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"פתיחה בקו ביטול נעילה או טביעת אצבע"</string>
+    <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"אחרי יותר מדי ניסיונות נדרש קו פתיחת נעילה"</string>
+    <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"פתיחה באמצעות קוד אימות או טביעת אצבע"</string>
+    <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"פתיחה באמצעות סיסמה או טביעת אצבע"</string>
+    <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"פתיחה באמצעות קו ביטול נעילה או טביעת אצבע"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"לאבטחה מוגברת, המכשיר ננעל כחלק ממדיניות מקום העבודה"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"אימות דו-שלבי"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"שימוש בפתיחה בטביעת אצבע"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"שימוש בפתיחה בזיהוי פנים"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"שימוש בטביעת אצבע או בפתיחה בזיהוי פנים"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"נדרש קוד אימות לאחר הפעלת \'ללא \'ביטול נעילה בטביעת אצבע\'\'"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"נדרשת סיסמה לאחר הפעלת \'ללא \'ביטול נעילה בטביעת אצבע\'\'"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"נדרש קו ביטול נעילה לאחר הפעלת \'ללא \'ביטול נעילה בטביעת אצבע\'\'"</string>
@@ -80,9 +84,9 @@
     <string name="kg_face_locked_out" msgid="2751559491287575">"לא ניתן לפתוח בזיהוי פנים. בוצעו יותר מדי ניסיונות."</string>
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"לא ניתן לפתוח בטביעת אצבע. בוצעו יותר מדי ניסיונות."</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"התכונה \'סביבה אמינה\' לא זמינה"</string>
-    <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"בוצעו יותר מדי ניסיונות עם קוד אימות שגוי"</string>
-    <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"בוצעו יותר מדי ניסיונות עם קו ביטול נעילה שגוי"</string>
-    <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"בוצעו יותר מדי ניסיונות עם סיסמה שגויה"</string>
+    <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"הקשת קוד אימות שגוי יותר מדי פעמים"</string>
+    <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"ציירת קו פתיחת נעילה שגוי יותר מדי פעמים"</string>
+    <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"הסיסמה שהקלדת הייתה שגויה יותר מדי פעמים"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{אפשר לנסות שוב בעוד שנייה אחת.}one{אפשר לנסות שוב בעוד # שניות.}two{אפשר לנסות שוב בעוד # שניות.}other{אפשר לנסות שוב בעוד # שניות.}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"‏יש להזין את קוד האימות של כרטיס ה-SIM."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"‏יש להזין את קוד האימות של כרטיס ה-SIM של <xliff:g id="CARRIER">%1$s</xliff:g>."</string>

@@ -16,6 +16,9 @@
 
 package com.android.server.display;
 
+import static com.android.server.display.TestUtilsKt.createSensor;
+import static com.android.server.display.TestUtilsKt.createSensorEvent;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.mockito.ArgumentMatchers.any;
@@ -30,8 +33,8 @@ import android.os.Handler;
 import android.os.PowerManager;
 import android.platform.test.annotations.Presubmit;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.testutils.OffsettableClock;
 
@@ -63,7 +66,7 @@ public class ScreenOffBrightnessSensorControllerTest {
         MockitoAnnotations.initMocks(this);
 
         mClock = new OffsettableClock.Stopped();
-        mLightSensor = TestUtils.createSensor(Sensor.TYPE_LIGHT, "Light Sensor");
+        mLightSensor = createSensor(Sensor.TYPE_LIGHT, "Light Sensor");
         mController = new ScreenOffBrightnessSensorController(
                 mSensorManager,
                 mLightSensor,
@@ -95,40 +98,40 @@ public class ScreenOffBrightnessSensorControllerTest {
                 eq(SensorManager.SENSOR_DELAY_NORMAL), any(Handler.class));
         SensorEventListener listener = listenerCaptor.getValue();
 
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, 0));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, 0));
         assertEquals(PowerManager.BRIGHTNESS_INVALID_FLOAT,
                 mController.getAutomaticScreenBrightness(), 0);
 
         int sensorValue = 1;
         float brightness = 0.2f;
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, sensorValue));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, sensorValue));
         when(mBrightnessMappingStrategy.getBrightness(SENSOR_TO_LUX[sensorValue]))
                 .thenReturn(brightness);
         assertEquals(brightness, mController.getAutomaticScreenBrightness(), 0);
 
         sensorValue = 2;
         brightness = 0.4f;
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, sensorValue));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, sensorValue));
         when(mBrightnessMappingStrategy.getBrightness(SENSOR_TO_LUX[sensorValue]))
                 .thenReturn(brightness);
         assertEquals(brightness, mController.getAutomaticScreenBrightness(), 0);
 
         sensorValue = 3;
         brightness = 0.6f;
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, sensorValue));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, sensorValue));
         when(mBrightnessMappingStrategy.getBrightness(SENSOR_TO_LUX[sensorValue]))
                 .thenReturn(brightness);
         assertEquals(brightness, mController.getAutomaticScreenBrightness(), 0);
 
         sensorValue = 4;
         brightness = 0.8f;
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, sensorValue));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, sensorValue));
         when(mBrightnessMappingStrategy.getBrightness(SENSOR_TO_LUX[sensorValue]))
                 .thenReturn(brightness);
         assertEquals(brightness, mController.getAutomaticScreenBrightness(), 0);
 
         sensorValue = 5;
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, sensorValue));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, sensorValue));
         assertEquals(PowerManager.BRIGHTNESS_INVALID_FLOAT,
                 mController.getAutomaticScreenBrightness(), 0);
     }
@@ -145,7 +148,7 @@ public class ScreenOffBrightnessSensorControllerTest {
                 eq(SensorManager.SENSOR_DELAY_NORMAL), any(Handler.class));
         SensorEventListener listener = listenerCaptor.getValue();
 
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, 1));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, 1));
         mController.setLightSensorEnabled(false);
         assertNotEquals(PowerManager.BRIGHTNESS_INVALID_FLOAT,
                 mController.getAutomaticScreenBrightness(), 0);

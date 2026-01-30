@@ -35,7 +35,7 @@ constructor(@BatteryControllerLog private val logBuffer: LogBuffer) {
             TAG,
             LogLevel.DEBUG,
             { int1 = System.identityHashCode(controller) },
-            { "BatteryController CREATE (${Integer.toHexString(int1)})" }
+            { "BatteryController CREATE (${Integer.toHexString(int1)})" },
         )
     }
 
@@ -47,7 +47,7 @@ constructor(@BatteryControllerLog private val logBuffer: LogBuffer) {
                 int1 = System.identityHashCode(controller)
                 bool1 = hasReceivedBattery
             },
-            { "BatteryController INIT (${Integer.toHexString(int1)}) hasReceivedBattery=$bool1" }
+            { "BatteryController INIT (${Integer.toHexString(int1)}) hasReceivedBattery=$bool1" },
         )
     }
 
@@ -63,7 +63,7 @@ constructor(@BatteryControllerLog private val logBuffer: LogBuffer) {
                 int1 = intent.getIntExtra(EXTRA_LEVEL, DEFAULT)
                 int2 = intent.getIntExtra(EXTRA_SCALE, DEFAULT)
             },
-            { "Processing BATTERY_CHANGED intent. level=${int1.report()} scale=${int2.report()}" }
+            { "Processing BATTERY_CHANGED intent. level=${int1.report()} scale=${int2.report()}" },
         )
     }
 
@@ -72,7 +72,7 @@ constructor(@BatteryControllerLog private val logBuffer: LogBuffer) {
             TAG,
             LogLevel.DEBUG,
             {},
-            { "Detected test intent. Will not execute battery level callbacks." }
+            { "Detected test intent. Will not execute battery level callbacks." },
         )
     }
 
@@ -81,7 +81,7 @@ constructor(@BatteryControllerLog private val logBuffer: LogBuffer) {
             TAG,
             LogLevel.DEBUG,
             {},
-            { "Entering test mode for BATTERY_LEVEL_TEST intent" }
+            { "Entering test mode for BATTERY_LEVEL_TEST intent" },
         )
     }
 
@@ -101,7 +101,16 @@ constructor(@BatteryControllerLog private val logBuffer: LogBuffer) {
             {
                 "Sending onBatteryLevelChanged callbacks " +
                     "with level=$int1, plugged=$bool1, charging=$bool2"
-            }
+            },
+        )
+    }
+
+    fun logBatteryUnknownStateChangedCallback(isUnknown: Boolean) {
+        logBuffer.log(
+            TAG,
+            LogLevel.DEBUG,
+            { bool1 = isUnknown },
+            { "Sending onBatteryStateUnknown callback with isUnknown=$bool1" },
         )
     }
 
@@ -110,7 +119,7 @@ constructor(@BatteryControllerLog private val logBuffer: LogBuffer) {
             TAG,
             LogLevel.DEBUG,
             { bool1 = isPowerSave },
-            { "Sending onPowerSaveChanged callback with powerSave=$bool1" }
+            { "Sending onPowerSaveChanged callback with powerSave=$bool1" },
         )
     }
 

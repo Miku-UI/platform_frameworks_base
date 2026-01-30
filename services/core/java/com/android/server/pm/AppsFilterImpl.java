@@ -40,6 +40,7 @@ import static com.android.server.pm.AppsFilterUtils.canQueryViaUsesLibrary;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
+import android.app.AppOpsManager;
 import android.app.ApplicationPackageManager;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
@@ -176,8 +177,11 @@ public final class AppsFilterImpl extends AppsFilterLocked implements Watchable,
     private void onChanged() {
         // App visibility may have changed, which means that earlier fetches from these caches may
         // be invalid.
-        PackageManager.invalidatePackageInfoCache();
-        ApplicationPackageManager.invalidateGetPackagesForUidCache();
+        final int invalidationReason = PackageMetrics.INVALIDATION_REASON_APP_FILTER_CHANGE;
+        PackageManagerService.invalidatePackageInfoCache(invalidationReason);
+        PackageManagerService.invalidateGetPackagesForUidCache(invalidationReason);
+        ApplicationPackageManager.invalidateQueryIntentActivitiesCache();
+        AppOpsManager.invalidateCheckPackageCache();
         dispatchChange(this);
     }
 
@@ -615,10 +619,11 @@ public final class AppsFilterImpl extends AppsFilterLocked implements Watchable,
             }
         }
 
-        if (!newPkg.getUsesPermissions().isEmpty()) {
+        if (!newPkg.getRequestedPermissions().isEmpty()) {
             // newPkg requests some permissions
             synchronized (mQueryableViaUsesPermissionLock) {
-                for (ParsedUsesPermission usesPermission : newPkg.getUsesPermissions()) {
+                for (ParsedUsesPermission usesPermission :
+                        newPkg.getUsesPermissionMapping().values()) {
                     String usesPermissionName = usesPermission.getName();
                     // Lookup in the mPermissionToUids cache if installed packages have
                     // defined this permission.
@@ -1160,8 +1165,9 @@ public final class AppsFilterImpl extends AppsFilterLocked implements Watchable,
                     }
                 }
             }
-            if (setting.getPkg() != null && !setting.getPkg().getUsesPermissions().isEmpty()) {
-                for (ParsedUsesPermission usesPermission : setting.getPkg().getUsesPermissions()) {
+            if (setting.getPkg() != null && !setting.getPkg().getRequestedPermissions().isEmpty()) {
+                for (ParsedUsesPermission usesPermission :
+                        setting.getPkg().getUsesPermissionMapping().values()) {
                     String usesPermissionName = usesPermission.getName();
                     if (mUsesPermissionToUids.containsKey(usesPermissionName)) {
                         mUsesPermissionToUids.get(usesPermissionName).remove(setting.getAppId());

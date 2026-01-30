@@ -15,9 +15,11 @@
  */
 package android.service.quicksettings;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
+import android.annotation.StringDef;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
 import android.app.Dialog;
@@ -45,6 +47,8 @@ import android.view.WindowManager;
 
 import com.android.internal.R;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
 
 /**
@@ -153,6 +157,75 @@ public class TileService extends Service {
      */
     public static final String META_DATA_TOGGLEABLE_TILE =
             "android.service.quicksettings.TOGGLEABLE_TILE";
+
+    /**
+     * Meta-data to set a category for a tile. Optional but recommended for apps that implement a
+     * TileService.
+     * <p>
+     * This category could be used to classify the provided tile, such as in the edit page for
+     * Quick Settings.
+     * <p>
+     * To set the category of a TileService, set this meta-data to the appropriate string on the
+     * TileService's manifest declaration. For example:
+     * <pre class="prettyprint">
+     * {@literal
+     * <meta-data android:name="android.service.quicksettings.TILE_CATEGORY"
+     *      android:value="android.service.quicksettings.CATEGORY_CONNECTIVITY" />
+     * }
+     * </pre>
+     */
+    @FlaggedApi(Flags.FLAG_QUICKSETTINGS_TILE_CATEGORIES)
+    public static final String META_DATA_TILE_CATEGORY =
+            "android.service.quicksettings.TILE_CATEGORY";
+
+    /** @hide */
+    @StringDef(prefix = { "CATEGORY_" }, value = {
+            CATEGORY_CONNECTIVITY,
+            CATEGORY_UTILITIES,
+            CATEGORY_DISPLAY,
+            CATEGORY_PRIVACY,
+            CATEGORY_ACCESSIBILITY
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface Categories {}
+
+    /**
+     * Tile category for connectivity related tiles. This is a possible value for
+     * {@link META_DATA_TILE_CATEGORY}
+     */
+    @FlaggedApi(Flags.FLAG_QUICKSETTINGS_TILE_CATEGORIES)
+    public static final String CATEGORY_CONNECTIVITY =
+            "android.service.quicksettings.CATEGORY_CONNECTIVITY";
+
+    /**
+     * Tile category for utility tiles. This is a possible value for
+     * {@link META_DATA_TILE_CATEGORY}.
+     */
+    @FlaggedApi(Flags.FLAG_QUICKSETTINGS_TILE_CATEGORIES)
+    public static final String CATEGORY_UTILITIES =
+            "android.service.quicksettings.CATEGORY_UTILITIES";
+
+    /**
+     * Tile category for display related tiles. This is a possible value for
+     * {@link META_DATA_TILE_CATEGORY}
+     */
+    @FlaggedApi(Flags.FLAG_QUICKSETTINGS_TILE_CATEGORIES)
+    public static final String CATEGORY_DISPLAY = "android.service.quicksettings.CATEGORY_DISPLAY";
+
+    /**
+     * Tile category for privacy related tiles. This is a possible value for
+     * {@link META_DATA_TILE_CATEGORY}
+     */
+    @FlaggedApi(Flags.FLAG_QUICKSETTINGS_TILE_CATEGORIES)
+    public static final String CATEGORY_PRIVACY = "android.service.quicksettings.CATEGORY_PRIVACY";
+
+    /**
+     * Tile category for accessibility related tiles. This is a possible value for
+     * {@link META_DATA_TILE_CATEGORY}
+     */
+    @FlaggedApi(Flags.FLAG_QUICKSETTINGS_TILE_CATEGORIES)
+    public static final String CATEGORY_ACCESSIBILITY =
+            "android.service.quicksettings.CATEGORY_ACCESSIBILITY";
 
     /**
      * @hide

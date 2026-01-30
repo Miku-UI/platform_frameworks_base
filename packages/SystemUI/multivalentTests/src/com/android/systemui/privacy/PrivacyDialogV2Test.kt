@@ -24,8 +24,8 @@ import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.res.R
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.res.R
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
 import org.junit.Before
@@ -62,7 +62,7 @@ class PrivacyDialogV2Test : SysuiTestCase() {
             isPhoneCall: Boolean = false,
             isService: Boolean = false,
             permGroupName: String = TEST_PERM_GROUP,
-            navigationIntent: Intent = TEST_INTENT
+            navigationIntent: Intent = TEST_INTENT,
         ) =
             PrivacyDialogV2.PrivacyElement(
                 type,
@@ -77,7 +77,7 @@ class PrivacyDialogV2Test : SysuiTestCase() {
                 isPhoneCall,
                 isService,
                 permGroupName,
-                navigationIntent
+                navigationIntent,
             )
     }
 
@@ -184,7 +184,7 @@ class PrivacyDialogV2Test : SysuiTestCase() {
         val list =
             listOf(
                 createPrivacyElement(type = PrivacyType.TYPE_CAMERA, isActive = true),
-                createPrivacyElement()
+                createPrivacyElement(),
             )
         dialog = PrivacyDialogV2(context, list, manageApp, closeApp, openPrivacyDashboard)
 
@@ -275,7 +275,7 @@ class PrivacyDialogV2Test : SysuiTestCase() {
                 createPrivacyElement(
                     attributionLabel = "For subattribution",
                     isActive = true,
-                    isService = true
+                    isService = true,
                 )
             )
         dialog = PrivacyDialogV2(context, list, manageApp, closeApp, openPrivacyDashboard)
@@ -293,7 +293,7 @@ class PrivacyDialogV2Test : SysuiTestCase() {
                 createPrivacyElement(
                     attributionLabel = "For subattribution",
                     proxyLabel = "proxy label",
-                    isActive = true
+                    isActive = true,
                 )
             )
         dialog = PrivacyDialogV2(context, list, manageApp, closeApp, openPrivacyDashboard)
@@ -308,7 +308,7 @@ class PrivacyDialogV2Test : SysuiTestCase() {
         dialog = PrivacyDialogV2(context, list, manageApp, closeApp, openPrivacyDashboard)
         dialog.show()
 
-        assertThat(dialog.window?.attributes?.title).isEqualTo("Microphone & Camera")
+        assertThat(dialog.window?.attributes?.title).isEqualTo("Microphone, Camera & Location")
     }
 
     @Test

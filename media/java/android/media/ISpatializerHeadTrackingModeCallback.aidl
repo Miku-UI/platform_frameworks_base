@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for the AudioService to signal Spatializer head tracking mode changes.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ISpatializerHeadTrackingModeCallback {
 

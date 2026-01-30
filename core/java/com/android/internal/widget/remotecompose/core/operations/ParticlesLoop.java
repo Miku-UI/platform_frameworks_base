@@ -62,7 +62,7 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
         return mList;
     }
 
-    @NonNull private ArrayList<Operation> mList = new ArrayList<>();
+    @NonNull private final ArrayList<Operation> mList = new ArrayList<>();
 
     @NonNull AnimatedFloatExpression mExp = new AnimatedFloatExpression();
 
@@ -73,7 +73,7 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
      * @param restart the restart equation kills and restart when positive
      * @param values the loop equations
      */
-    public ParticlesLoop(int id, float[] restart, float[][] values) {
+    public ParticlesLoop(int id, @Nullable float [] restart, @NonNull float [][] values) {
         mId = id;
         mRestart = restart;
         if (restart != null) {
@@ -168,8 +168,8 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
     public static void apply(
             @NonNull WireBuffer buffer,
             int id,
-            @Nullable float[] restart,
-            @NonNull float[][] equations) {
+            @Nullable float [] restart,
+            @NonNull float [][] equations) {
         buffer.start(OP_CODE);
         buffer.writeInt(id);
         if (restart != null) {
@@ -200,6 +200,10 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
         int restartLen = buffer.readInt();
         float[] restart = null;
         if (restartLen > 0) {
+            if (restartLen > MAX_EQU_LENGTH) {
+                throw new RuntimeException(
+                        restartLen + " map entries more than max = " + MAX_EQU_LENGTH);
+            }
             restart = new float[restartLen];
             for (int i = 0; i < restartLen; i++) {
                 restart[i] = buffer.readFloat();
@@ -292,10 +296,11 @@ public class ParticlesLoop extends PaintOperation implements VariableSupport, Co
                 op.apply(context.getContext());
             }
         }
+        context.needsRepaint();
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("id", mId);
     }
 }

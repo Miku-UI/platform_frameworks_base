@@ -294,6 +294,12 @@ object PermissionFlags {
      */
     const val USER_SELECTED = 1 shl 23
 
+    /**
+     * Permission flag for a normal permission that is revoked at install-time due to failing
+     * purpose validation check.
+     */
+    const val PURPOSE_REVOKED = 1 shl 24
+
     /** Mask for all permission flags. */
     const val MASK_ALL = 0.inv()
 
@@ -328,6 +334,9 @@ object PermissionFlags {
     const val MASK_RESTRICTED = RESTRICTION_REVOKED or SOFT_RESTRICTED
 
     fun isPermissionGranted(flags: Int): Boolean {
+        if (flags.hasBits(PURPOSE_REVOKED)) {
+            return false
+        }
         if (flags.hasBits(INSTALL_GRANTED)) {
             return true
         }
@@ -497,6 +506,7 @@ object PermissionFlags {
         if (apiFlags.hasBits(PackageManager.FLAG_PERMISSION_SELECTED_LOCATION_ACCURACY)) {
             flags = flags or USER_SELECTED
         }
+        flags = flags or (oldFlags and PURPOSE_REVOKED)
         return flags
     }
 
@@ -526,6 +536,7 @@ object PermissionFlags {
             ONE_TIME -> "ONE_TIME"
             HIBERNATION -> "HIBERNATION"
             USER_SELECTED -> "USER_SELECTED"
+            PURPOSE_REVOKED -> "PURPOSE_REVOKED"
             else -> "0x${flag.toUInt().toString(16).uppercase()}"
         }
 

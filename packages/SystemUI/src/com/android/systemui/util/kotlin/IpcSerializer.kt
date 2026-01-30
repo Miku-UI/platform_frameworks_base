@@ -16,10 +16,10 @@
 
 package com.android.systemui.util.kotlin
 
+import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.runBlocking
 
 /**
  * A utility for handling incoming IPCs from a Binder interface in the order that they are received.

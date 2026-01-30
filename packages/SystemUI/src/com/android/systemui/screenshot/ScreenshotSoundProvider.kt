@@ -19,6 +19,7 @@ package com.android.systemui.screenshot
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioSystem
+import android.media.MediaActionSound
 import android.media.MediaPlayer
 import android.net.Uri
 import com.android.internal.R
@@ -34,14 +35,14 @@ interface ScreenshotSoundProvider {
      * a background thread, as it might take time.
      */
     fun getScreenshotSound(): MediaPlayer
+
+    fun getForcedShutterSound(): MediaActionSound
 }
 
 @SysUISingleton
-class ScreenshotSoundProviderImpl
-@Inject
-constructor(
-    private val context: Context,
-) : ScreenshotSoundProvider {
+class ScreenshotSoundProviderImpl @Inject constructor(private val context: Context) :
+    ScreenshotSoundProvider {
+
     override fun getScreenshotSound(): MediaPlayer {
         return MediaPlayer.create(
             context,
@@ -51,7 +52,11 @@ constructor(
                 .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build(),
-            AudioSystem.newAudioSessionId()
+            AudioSystem.newAudioSessionId(),
         )
+    }
+
+    override fun getForcedShutterSound(): MediaActionSound {
+        return MediaActionSound().apply { load(MediaActionSound.SHUTTER_CLICK) }
     }
 }

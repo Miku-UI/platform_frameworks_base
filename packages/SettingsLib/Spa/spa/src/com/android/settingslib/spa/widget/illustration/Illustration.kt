@@ -16,7 +16,9 @@
 
 package com.android.settingslib.spa.widget.illustration
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,18 +29,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.android.settingslib.spa.framework.theme.SettingsDimension
-import com.android.settingslib.spa.widget.ui.ImageBox
 import com.android.settingslib.spa.widget.ui.Lottie
-enum class ResourceType { IMAGE, LOTTIE }
 
-/**
- * The widget model for [Illustration] widget.
- */
+enum class ResourceType {
+    IMAGE,
+    LOTTIE,
+}
+
+/** The widget model for [Illustration] widget. */
 interface IllustrationModel {
-    /**
-     * The resource id of this [Illustration].
-     */
+    /** The resource id of this [Illustration]. */
     val resId: Int
 
     /**
@@ -56,47 +59,48 @@ interface IllustrationModel {
  */
 @Composable
 fun Illustration(model: IllustrationModel) {
-    Illustration(
-        resId = model.resId,
-        resourceType = model.resourceType,
-        modifier = Modifier,
-    )
+    Illustration { IllustrationContent(resId = model.resId, resourceType = model.resourceType) }
 }
 
 @Composable
-fun Illustration(
-    resId: Int,
-    resourceType: ResourceType,
-    modifier: Modifier = Modifier
-) {
+fun Illustration(spec: LottieCompositionSpec) {
+    Illustration { Lottie(spec) }
+}
+
+@Composable
+fun Illustration(resId: Int, resourceType: ResourceType, modifier: Modifier = Modifier) {
+    Illustration(modifier) { IllustrationContent(resId, resourceType) }
+}
+
+@Composable
+private fun IllustrationContent(resId: Int, resourceType: ResourceType) {
+    when (resourceType) {
+        ResourceType.LOTTIE -> {
+            Lottie(resId = resId)
+        }
+
+        ResourceType.IMAGE -> {
+            Image(painter = painterResource(resId), contentDescription = null)
+        }
+    }
+}
+
+@Composable
+internal fun Illustration(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = SettingsDimension.illustrationPadding),
+        modifier =
+            modifier.fillMaxWidth().padding(horizontal = SettingsDimension.illustrationPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val illustrationModifier = modifier
-            .sizeIn(
-                maxWidth = SettingsDimension.illustrationMaxWidth,
-                maxHeight = SettingsDimension.illustrationMaxHeight,
-            )
-            .clip(RoundedCornerShape(SettingsDimension.illustrationCornerRadius))
-            .background(color = Color.Transparent)
-
-        when (resourceType) {
-            ResourceType.LOTTIE -> {
-                Lottie(
-                    resId = resId,
-                    modifier = illustrationModifier,
+        Box(
+            Modifier.sizeIn(
+                    maxWidth = SettingsDimension.illustrationMaxWidth,
+                    maxHeight = SettingsDimension.illustrationMaxHeight,
                 )
-            }
-            ResourceType.IMAGE -> {
-                ImageBox(
-                    resId = resId,
-                    contentDescription = null,
-                    modifier = illustrationModifier,
-                )
-            }
+                .clip(RoundedCornerShape(SettingsDimension.illustrationCornerRadius))
+                .background(color = Color.Transparent)
+        ) {
+            content()
         }
     }
 }

@@ -27,7 +27,7 @@ import android.annotation.SystemApi;
  * system/update_engine/binder_bindings/android/os/IUpdateEngine.aidl and
  * system/update_engine/binder_bindings/android/os/IUpdateEngineCallback.aidl.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public abstract class UpdateEngineCallback {

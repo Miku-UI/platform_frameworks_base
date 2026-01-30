@@ -24,7 +24,6 @@ import static android.view.WindowManager.TRANSIT_OPEN;
 import static android.window.ActivityWindowInfo.getActivityWindowInfo;
 
 import android.annotation.CallSuper;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -36,8 +35,6 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.view.RemoteAnimationDefinition;
 import android.view.WindowManager;
-
-import com.android.window.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -198,7 +195,6 @@ public class TaskFragmentOrganizer extends WindowOrganizer {
      */
     @CallSuper
     @RequiresPermission(value = "android.permission.MANAGE_ACTIVITY_TASKS", conditional = true)
-    @FlaggedApi(Flags.FLAG_TASK_FRAGMENT_SYSTEM_ORGANIZER_FLAG)
     public void registerOrganizer(boolean isSystemOrganizer) {
         registerOrganizer(isSystemOrganizer, null /* outSavedState */);
     }
@@ -361,7 +357,6 @@ public class TaskFragmentOrganizer extends WindowOrganizer {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_TASK_FRAGMENT_SYSTEM_ORGANIZER_FLAG)
     public void applySystemTransaction(@NonNull WindowContainerTransaction wct,
             @TaskFragmentTransitionType int transitionType,
             @Nullable RemoteTransition remoteTransition) {

@@ -146,6 +146,11 @@ public class ChooserActivityTest {
      */
     private static final UserHandle PERSONAL_USER_HANDLE = InstrumentationRegistry
             .getInstrumentation().getTargetContext().getUser();
+
+    private static final int PERSONAL_USER_ID = PERSONAL_USER_HANDLE.getIdentifier();
+    private static final int WORK_PROFILE_USER_ID = PERSONAL_USER_ID + 1;
+    private static final int CLONE_PROFILE_USER_ID = PERSONAL_USER_ID + 2;
+
     private static final Function<PackageManager, PackageManager> DEFAULT_PM = pm -> pm;
     private static final Function<PackageManager, PackageManager> NO_APP_PREDICTION_SERVICE_PM =
             pm -> {
@@ -624,7 +629,8 @@ public class ChooserActivityTest {
         // enable the work tab feature flag
         ResolverActivity.ENABLE_TABBED_VIEW = true;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(2, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        2, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos = createResolvedComponentsForTest(4);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
         markWorkProfileUserAvailable();
@@ -1334,13 +1340,14 @@ public class ChooserActivityTest {
         waitForIdle();
 
         final DisplayResolveInfo testDri =
-                activity.createTestDisplayResolveInfo(sendIntent,
-                ResolverDataProvider.createResolveInfo(
-                        3, 0, PERSONAL_USER_HANDLE),
+                activity.createTestDisplayResolveInfo(
+                        sendIntent,
+                        ResolverDataProvider.createResolveInfo(
+                                3, PERSONAL_USER_ID, PERSONAL_USER_HANDLE),
                         "testLabel",
                         "testInfo",
                         sendIntent,
-                /* resolveInfoPresentationGetter */ null);
+                        /* resolveInfoPresentationGetter */ null);
         final ChooserListAdapter adapter = activity.getAdapter();
 
         assertThat(adapter.getBaseScore(null, 0), is(CALLER_TARGET_SCORE_BOOST));
@@ -1460,8 +1467,8 @@ public class ChooserActivityTest {
         ArgumentCaptor<LogMaker> logMakerCaptor = ArgumentCaptor.forClass(LogMaker.class);
         // Create direct share target
         List<ChooserTarget> serviceTargets = createDirectShareTargets(1, "");
-        ResolveInfo ri = ResolverDataProvider.createResolveInfo(3, 0,
-                PERSONAL_USER_HANDLE);
+        ResolveInfo ri =
+                ResolverDataProvider.createResolveInfo(3, PERSONAL_USER_ID, PERSONAL_USER_HANDLE);
 
         // Start activity
         final IChooserWrapper activity = (IChooserWrapper)
@@ -1539,8 +1546,8 @@ public class ChooserActivityTest {
         // Create direct share target
         List<ChooserTarget> serviceTargets = createDirectShareTargets(1,
                 resolvedComponentInfos.get(0).getResolveInfoAt(0).activityInfo.packageName);
-        ResolveInfo ri = ResolverDataProvider.createResolveInfo(3, 0,
-                PERSONAL_USER_HANDLE);
+        ResolveInfo ri =
+                ResolverDataProvider.createResolveInfo(3, PERSONAL_USER_ID, PERSONAL_USER_HANDLE);
 
         // Start activity
         final IChooserWrapper activity = (IChooserWrapper)
@@ -1618,8 +1625,8 @@ public class ChooserActivityTest {
         // Create direct share target
         List<ChooserTarget> serviceTargets = createDirectShareTargets(2,
                 resolvedComponentInfos.get(0).getResolveInfoAt(0).activityInfo.packageName);
-        ResolveInfo ri = ResolverDataProvider.createResolveInfo(3, 0,
-                PERSONAL_USER_HANDLE);
+        ResolveInfo ri =
+                ResolverDataProvider.createResolveInfo(3, PERSONAL_USER_ID, PERSONAL_USER_HANDLE);
 
         // Start activity
         final ChooserActivity activity =
@@ -1692,8 +1699,8 @@ public class ChooserActivityTest {
         // Create direct share target
         List<ChooserTarget> serviceTargets = createDirectShareTargets(2,
                 resolvedComponentInfos.get(0).getResolveInfoAt(0).activityInfo.packageName);
-        ResolveInfo ri = ResolverDataProvider.createResolveInfo(3, 0,
-                PERSONAL_USER_HANDLE);
+        ResolveInfo ri =
+                ResolverDataProvider.createResolveInfo(3, PERSONAL_USER_ID, PERSONAL_USER_HANDLE);
 
         // Start activity
         final ChooserActivity activity =
@@ -1805,8 +1812,8 @@ public class ChooserActivityTest {
         // Create direct share target
         List<ChooserTarget> serviceTargets = createDirectShareTargets(1,
                 resolvedComponentInfos.get(14).getResolveInfoAt(0).activityInfo.packageName);
-        ResolveInfo ri = ResolverDataProvider.createResolveInfo(16, 0,
-                PERSONAL_USER_HANDLE);
+        ResolveInfo ri =
+                ResolverDataProvider.createResolveInfo(16, PERSONAL_USER_ID, PERSONAL_USER_HANDLE);
 
         // Start activity
         final IChooserWrapper activity = (IChooserWrapper)
@@ -1893,7 +1900,8 @@ public class ChooserActivityTest {
         int otherProfileTargets = 1;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
                 createResolvedComponentsForTestWithOtherProfile(
-                        personalProfileTargets + otherProfileTargets, /* userID */ 10);
+                        personalProfileTargets + otherProfileTargets, /* userID */
+                        WORK_PROFILE_USER_ID);
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> workResolvedComponentInfos = createResolvedComponentsForTest(
                 workProfileTargets);
@@ -1906,9 +1914,9 @@ public class ChooserActivityTest {
                 mActivityRule.launchActivity(Intent.createChooser(sendIntent, "work tab test"));
         waitForIdle();
 
-        assertThat(activity.getCurrentUserHandle().getIdentifier(), is(0));
+        assertThat(activity.getCurrentUserHandle().getIdentifier(), is(PERSONAL_USER_ID));
         onView(withTextFromRuntimeResource("resolver_work_tab")).perform(click());
-        assertThat(activity.getCurrentUserHandle().getIdentifier(), is(10));
+        assertThat(activity.getCurrentUserHandle().getIdentifier(), is(WORK_PROFILE_USER_ID));
         assertThat(activity.getPersonalListAdapter().getCount(), is(personalProfileTargets));
         assertThat(activity.getWorkListAdapter().getCount(), is(workProfileTargets));
     }
@@ -1920,7 +1928,8 @@ public class ChooserActivityTest {
         markWorkProfileUserAvailable();
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -1942,7 +1951,8 @@ public class ChooserActivityTest {
         ResolverActivity.ENABLE_TABBED_VIEW = true;
         markWorkProfileUserAvailable();
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
@@ -1979,7 +1989,8 @@ public class ChooserActivityTest {
         markWorkProfileUserAvailable();
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
         ChooserActivityOverrideData.getInstance().hasCrossProfileIntents = false;
@@ -2004,7 +2015,8 @@ public class ChooserActivityTest {
         markWorkProfileUserAvailable();
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
         ChooserActivityOverrideData.getInstance().isQuietModeEnabled = true;
@@ -2202,8 +2214,8 @@ public class ChooserActivityTest {
         // Create direct share target
         List<ChooserTarget> serviceTargets = createDirectShareTargets(1,
                 resolvedComponentInfos.get(0).getResolveInfoAt(0).activityInfo.packageName);
-        ResolveInfo ri = ResolverDataProvider.createResolveInfo(3, 0,
-                PERSONAL_USER_HANDLE);
+        ResolveInfo ri =
+                ResolverDataProvider.createResolveInfo(3, PERSONAL_USER_ID, PERSONAL_USER_HANDLE);
 
         ChooserActivityOverrideData
                 .getInstance()
@@ -2422,7 +2434,8 @@ public class ChooserActivityTest {
         markWorkProfileUserAvailable();
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -2500,7 +2513,8 @@ public class ChooserActivityTest {
     public void testAutolaunch_singleTarget_wifthWorkProfileAndTabbedViewOff_noAutolaunch() {
         ResolverActivity.ENABLE_TABBED_VIEW = false;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(2, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        2, /* userId */ WORK_PROFILE_USER_ID);
         when(
                 ChooserActivityOverrideData
                         .getInstance()
@@ -2563,7 +2577,8 @@ public class ChooserActivityTest {
         markWorkProfileUserAvailable();
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(2, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        2, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
         ChooserActivityOverrideData.getInstance().hasCrossProfileIntents = false;
@@ -2626,7 +2641,8 @@ public class ChooserActivityTest {
         markWorkProfileUserAvailable();
         int workProfileTargets = 1;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(2, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        2, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -2658,7 +2674,8 @@ public class ChooserActivityTest {
         markWorkProfileUserAvailable();
         int workProfileTargets = 4;
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(workProfileTargets);
         ChooserActivityOverrideData.getInstance().hasCrossProfileIntents = false;
@@ -2736,8 +2753,8 @@ public class ChooserActivityTest {
         Intent chooserIntent = createChooserIntent(createSendTextIntent(),
                 new Intent[] {new Intent("action.fake")});
         ChooserActivityOverrideData.getInstance().packageManager = mock(PackageManager.class);
-        ResolveInfo ri = ResolverDataProvider.createResolveInfo(0,
-                UserHandle.USER_CURRENT, PERSONAL_USER_HANDLE);
+        ResolveInfo ri =
+                ResolverDataProvider.createResolveInfo(0, PERSONAL_USER_ID, PERSONAL_USER_HANDLE);
         when(
                 ChooserActivityOverrideData
                         .getInstance()
@@ -2761,7 +2778,8 @@ public class ChooserActivityTest {
         ResolverActivity.ENABLE_TABBED_VIEW = true;
         markWorkProfileUserAvailable();
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(3);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -2770,7 +2788,8 @@ public class ChooserActivityTest {
         ChooserActivityOverrideData.getInstance().onQueryDirectShareTargets =
                 chooserListAdapter -> {
                     isQueryDirectShareCalledOnWorkProfile[0] =
-                            (chooserListAdapter.getUserHandle().getIdentifier() == 10);
+                            (chooserListAdapter.getUserHandle().getIdentifier()
+                                    == WORK_PROFILE_USER_ID);
                     return null;
                 };
         Intent sendIntent = createSendTextIntent();
@@ -2793,7 +2812,8 @@ public class ChooserActivityTest {
         ResolverActivity.ENABLE_TABBED_VIEW = true;
         markWorkProfileUserAvailable();
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(3);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -2802,7 +2822,8 @@ public class ChooserActivityTest {
         ChooserActivityOverrideData.getInstance().onQueryDirectShareTargets =
                 chooserListAdapter -> {
                     isQueryDirectShareCalledOnWorkProfile[0] =
-                            (chooserListAdapter.getUserHandle().getIdentifier() == 10);
+                            (chooserListAdapter.getUserHandle().getIdentifier()
+                                    == WORK_PROFILE_USER_ID);
                     return null;
                 };
         Intent sendIntent = createSendTextIntent();
@@ -2825,7 +2846,8 @@ public class ChooserActivityTest {
         ResolverActivity.ENABLE_TABBED_VIEW = true;
         markWorkProfileUserAvailable();
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(3);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -2850,7 +2872,8 @@ public class ChooserActivityTest {
         ResolverActivity.ENABLE_TABBED_VIEW = true;
         markWorkProfileUserAvailable();
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(3);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -2859,7 +2882,8 @@ public class ChooserActivityTest {
         ChooserActivityOverrideData.getInstance().onQueryDirectShareTargets =
                 chooserListAdapter -> {
                     isQueryDirectShareCalledOnWorkProfile[0] =
-                            (chooserListAdapter.getUserHandle().getIdentifier() == 10);
+                            (chooserListAdapter.getUserHandle().getIdentifier()
+                                    == WORK_PROFILE_USER_ID);
                     return null;
                 };
         Intent sendIntent = createSendTextIntent();
@@ -2882,7 +2906,8 @@ public class ChooserActivityTest {
         ResolverActivity.ENABLE_TABBED_VIEW = true;
         markWorkProfileUserAvailable();
         List<ResolvedComponentInfo> personalResolvedComponentInfos =
-                createResolvedComponentsForTestWithOtherProfile(3, /* userId */ 10);
+                createResolvedComponentsForTestWithOtherProfile(
+                        3, /* userId */ WORK_PROFILE_USER_ID);
         List<ResolvedComponentInfo> workResolvedComponentInfos =
                 createResolvedComponentsForTest(3);
         setupResolverControllers(personalResolvedComponentInfos, workResolvedComponentInfos);
@@ -3179,15 +3204,13 @@ public class ChooserActivityTest {
     }
 
     private void markWorkProfileUserAvailable() {
-        if (UserManager.isHeadlessSystemUserMode()) {
-            ChooserActivityOverrideData.getInstance().workProfileUserHandle = UserHandle.of(11);
-        } else {
-            ChooserActivityOverrideData.getInstance().workProfileUserHandle = UserHandle.of(10);
-        }
+        ChooserActivityOverrideData.getInstance().workProfileUserHandle =
+                UserHandle.of(WORK_PROFILE_USER_ID);
     }
 
     private void markCloneProfileUserAvailable() {
-        ChooserActivityOverrideData.getInstance().cloneProfileUserHandle = UserHandle.of(11);
+        ChooserActivityOverrideData.getInstance().cloneProfileUserHandle =
+                UserHandle.of(CLONE_PROFILE_USER_ID);
     }
 
     private void setupResolverControllers(

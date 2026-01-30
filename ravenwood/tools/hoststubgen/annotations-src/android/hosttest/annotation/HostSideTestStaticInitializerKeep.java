@@ -15,9 +15,6 @@
  */
 package android.hosttest.annotation;
 
-import static java.lang.annotation.ElementType.CONSTRUCTOR;
-import static java.lang.annotation.ElementType.FIELD;
-import static java.lang.annotation.ElementType.METHOD;
 import static java.lang.annotation.ElementType.TYPE;
 
 import java.lang.annotation.Retention;
@@ -25,12 +22,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * THIS ANNOTATION IS EXPERIMENTAL. REACH OUT TO g/ravenwood BEFORE USING IT, OR YOU HAVE ANY
- * QUESTIONS ABOUT IT.
- *
- * @hide
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
  */
-@Target({TYPE, FIELD, METHOD, CONSTRUCTOR})
+@Target({TYPE})
 @Retention(RetentionPolicy.CLASS)
 public @interface HostSideTestStaticInitializerKeep {
 }

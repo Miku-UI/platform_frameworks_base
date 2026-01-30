@@ -57,7 +57,7 @@ import android.util.SparseArray;
   * ...
   *
   * <p>The service should also be file-based encryption (FBE) aware.
-  * {@hide}
+  * @hide
   */
 @SystemApi
 public class GbaService extends Service  {

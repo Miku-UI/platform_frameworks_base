@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Önceki ekrana git"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Sonraki ekrana git"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Erişilebilirlik Menüsü, cihazınızı kontrol etmeniz için geniş bir ekran menüsü sağlar. Cihazınızı kilitleyebilir, ses düzeyini ve parlaklığı kontrol edebilir, ekran görüntüsü alabilir ve daha fazlasını yapabilirsiniz."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Cihazı geniş menüyle kontrol edin"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Geniş menüyle ses düzeyini, parlaklığı ve diğer ayarları kontrol edin"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Erişilebilirlik Menüsü Ayarları"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Büyük düğmeler"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Erişilebilirlik menüsündeki düğmelerin boyutunu artır"</string>

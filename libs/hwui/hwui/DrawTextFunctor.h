@@ -25,23 +25,21 @@
 #include "Paint.h"
 #include "Properties.h"
 #include "RenderNode.h"
+#include "SkColor.h"
 #include "Typeface.h"
 #include "hwui/PaintFilter.h"
 #include "pipeline/skia/SkiaRecordingCanvas.h"
 
-#ifdef __ANDROID__
+#ifdef __linux__
 #include <com_android_graphics_hwui_flags.h>
 namespace flags = com::android::graphics::hwui::flags;
-#else
+#else // __linux__
 namespace flags {
 constexpr bool high_contrast_text_small_text_rect() {
     return false;
 }
-constexpr bool high_contrast_text_inner_text_color() {
-    return false;
-}
 }  // namespace flags
-#endif
+#endif // __linux__
 
 namespace android {
 
@@ -56,7 +54,7 @@ static inline void drawStroke(SkScalar left, SkScalar right, SkScalar top, SkSca
     canvas->drawRect(left, top, right, bottom, paint);
 }
 
-static void simplifyPaint(int color, Paint* paint) {
+static void simplifyPaint(SkColor4f color, Paint* paint) {
     paint->setColor(color);
     paint->setShader(nullptr);
     paint->setColorFilter(nullptr);
@@ -148,26 +146,21 @@ public:
 
         if (CC_UNLIKELY(canvas->isHighContrastText() && paint.getAlpha() != 0)) {
             // high contrast draw path
-            int color = paint.getColor();
-            uirenderer::Lab lab = uirenderer::sRGBToLab(color);
+            uirenderer::Lab lab = uirenderer::sRGBToLab(paint.getColor4f());
             bool darken = shouldDarkenTextForHighContrast(lab);
 
             // outline
             gDrawTextBlobMode = DrawTextBlobMode::HctOutline;
             Paint outlinePaint(paint);
-            simplifyPaint(darken ? SK_ColorWHITE : SK_ColorBLACK, &outlinePaint);
+            simplifyPaint(darken ? SkColors::kWhite : SkColors::kBlack, &outlinePaint);
             outlinePaint.setStyle(SkPaint::kStrokeAndFill_Style);
             canvas->drawGlyphs(glyphFunc, glyphCount, outlinePaint, x, y, totalAdvance);
 
             // inner
             gDrawTextBlobMode = DrawTextBlobMode::HctInner;
             Paint innerPaint(paint);
-            if (flags::high_contrast_text_inner_text_color()) {
-                adjustHighContrastInnerTextColor(&lab);
-                simplifyPaint(uirenderer::LabToSRGB(lab, SK_AlphaOPAQUE), &innerPaint);
-            } else {
-                simplifyPaint(darken ? SK_ColorBLACK : SK_ColorWHITE, &innerPaint);
-            }
+            adjustHighContrastInnerTextColor(&lab);
+            simplifyPaint(uirenderer::LabToSRGB(lab, 1.0f), &innerPaint);
             innerPaint.setStyle(SkPaint::kFill_Style);
             canvas->drawGlyphs(glyphFunc, glyphCount, innerPaint, x, y, totalAdvance);
             gDrawTextBlobMode = DrawTextBlobMode::Normal;

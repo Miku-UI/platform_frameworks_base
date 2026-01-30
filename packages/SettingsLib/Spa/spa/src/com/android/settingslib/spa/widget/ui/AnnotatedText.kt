@@ -26,8 +26,7 @@ import com.android.settingslib.spa.framework.util.annotatedStringResource
 fun AnnotatedText(@StringRes id: Int) {
     Text(
         text = annotatedStringResource(id),
-        style = MaterialTheme.typography.bodyMedium.copy(
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        ),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        style = MaterialTheme.typography.bodyMedium,
     )
 }

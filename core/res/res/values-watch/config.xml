@@ -91,9 +91,6 @@
          devices. -->
     <bool name="config_viewRotaryEncoderHapticScrollFedbackEnabled">true</bool>
 
-    <!-- If this is true, allow wake from theater mode from motion. -->
-    <bool name="config_allowTheaterModeWakeFromMotion">true</bool>
-
     <!-- True if the device supports system decorations on secondary displays. -->
     <bool name="config_supportsSystemDecorsOnSecondaryDisplays">false</bool>
 
@@ -114,4 +111,11 @@
     <!-- By default ActivityOptions#makeScaleUpAnimation is only used between activities. This
      config enables OEMs to support its usage across tasks.-->
     <bool name="config_enableCrossTaskScaleUpAnimation">true</bool>
+
+    <!-- Whether Sys UI reboot UI is prioritized for reocvery triggered UI. -->
+    <bool name="config_prioritizeSysUiForRecoveryRebootUi">true</bool>
+
+    <!-- Amount of time in ms the user needs to press the relevant key to bring up the
+         global actions dialog -->
+    <integer name="config_globalActionsKeyTimeout">300</integer>
 </resources>

@@ -18,20 +18,27 @@ package com.android.settingslib.graph
 
 import com.android.settingslib.graph.proto.BundleProto
 import com.android.settingslib.graph.proto.BundleProto.BundleValue
+import com.android.settingslib.graph.proto.BundleProtoOrBuilder
 import com.android.settingslib.graph.proto.IntentProto
 import com.android.settingslib.graph.proto.ParameterizedPreferenceScreenProto
+import com.android.settingslib.graph.proto.PreferenceGraphProto
 import com.android.settingslib.graph.proto.PreferenceGroupProto
+import com.android.settingslib.graph.proto.PreferenceGroupProtoOrBuilder
 import com.android.settingslib.graph.proto.PreferenceOrGroupProto
+import com.android.settingslib.graph.proto.PreferenceOrGroupProtoOrBuilder
 import com.android.settingslib.graph.proto.PreferenceProto
 import com.android.settingslib.graph.proto.PreferenceProto.ActionTarget
+import com.android.settingslib.graph.proto.PreferenceProto.ActionTargetOrBuilder
+import com.android.settingslib.graph.proto.PreferenceProtoOrBuilder
 import com.android.settingslib.graph.proto.PreferenceScreenProto
+import com.android.settingslib.graph.proto.PreferenceScreenProtoOrBuilder
 import com.android.settingslib.graph.proto.PreferenceValueDescriptorProto
 import com.android.settingslib.graph.proto.PreferenceValueProto
 import com.android.settingslib.graph.proto.RangeValueProto
 import com.android.settingslib.graph.proto.TextProto
 
 /** Returns root or null. */
-val PreferenceScreenProto.rootOrNull
+val PreferenceScreenProtoOrBuilder.rootOrNull
     get() = if (hasRoot()) root else null
 
 /** Kotlin DSL-style builder for [PreferenceScreenProto]. */
@@ -47,11 +54,11 @@ inline fun parameterizedPreferenceScreenProto(
     ParameterizedPreferenceScreenProto.newBuilder().also(init).build()
 
 /** Returns preference or null. */
-val PreferenceOrGroupProto.preferenceOrNull
+val PreferenceOrGroupProtoOrBuilder.preferenceOrNull
     get() = if (hasPreference()) preference else null
 
 /** Returns group or null. */
-val PreferenceOrGroupProto.groupOrNull
+val PreferenceOrGroupProtoOrBuilder.groupOrNull
     get() = if (hasGroup()) group else null
 
 /** Kotlin DSL-style builder for [PreferenceOrGroupProto]. */
@@ -61,7 +68,7 @@ inline fun preferenceOrGroupProto(
 ): PreferenceOrGroupProto = PreferenceOrGroupProto.newBuilder().also(init).build()
 
 /** Returns preference or null. */
-val PreferenceGroupProto.preferenceOrNull
+val PreferenceGroupProtoOrBuilder.preferenceOrNull
     get() = if (hasPreference()) preference else null
 
 /** Kotlin DSL-style builder for [PreferenceGroupProto]. */
@@ -71,16 +78,24 @@ inline fun preferenceGroupProto(
 ): PreferenceGroupProto = PreferenceGroupProto.newBuilder().also(init).build()
 
 /** Returns title or null. */
-val PreferenceProto.titleOrNull
+val PreferenceProtoOrBuilder.titleOrNull
     get() = if (hasTitle()) title else null
 
 /** Returns summary or null. */
-val PreferenceProto.summaryOrNull
+val PreferenceProtoOrBuilder.summaryOrNull
     get() = if (hasSummary()) summary else null
 
 /** Returns actionTarget or null. */
-val PreferenceProto.actionTargetOrNull
+val PreferenceProtoOrBuilder.actionTargetOrNull
     get() = if (hasActionTarget()) actionTarget else null
+
+/** Returns key or null. */
+val ActionTargetOrBuilder.keyOrNull
+    get() = if (hasKey()) key else null
+
+/** Returns args or null. */
+val ActionTargetOrBuilder.argsOrNull
+    get() = if (hasArgs()) args else null
 
 /** Kotlin DSL-style builder for [PreferenceProto]. */
 @JvmSynthetic
@@ -132,3 +147,22 @@ inline fun bundleProto(init: BundleProto.Builder.() -> Unit): BundleProto =
 @JvmSynthetic
 inline fun bundleValueProto(init: BundleValue.Builder.() -> Unit): BundleValue =
     BundleValue.newBuilder().also(init).build()
+
+fun PreferenceGraphProto.Builder.mergeForLazyMode(
+    screen: PreferenceScreenProto,
+    screenKey: String,
+    args: BundleProtoOrBuilder?,
+) {
+    val oldScreen = getScreensOrDefault(screenKey, null)
+    if (oldScreen == null) {
+        putScreens(screenKey, screen)
+        return
+    }
+    val screenBuilder = oldScreen.toBuilder()
+    if (args == null) {
+        screenBuilder.mergeFrom(screen)
+    } else {
+        screenBuilder.addAllParameterizedScreens(screen.parameterizedScreensList)
+    }
+    putScreens(screenKey, screenBuilder.build())
+}

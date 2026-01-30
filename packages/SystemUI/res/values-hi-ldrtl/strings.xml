@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"ऐप्लिकेशन को तेज़ी से बदलने के लिए उसे बाईं ओर खींचें और छोड़ें"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"सूचनाएं देखने के लिए, सबसे ऊपर दाईं ओर से नीचे की ओर स्वाइप करें"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"क्विक सेटिंग खोलने के लिए, स्क्रीन पर सबसे ऊपर बाईं ओर से नीचे की ओर स्वाइप करें"</string>
 </resources>

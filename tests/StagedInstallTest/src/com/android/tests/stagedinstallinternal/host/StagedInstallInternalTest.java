@@ -93,12 +93,11 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
         } catch (AssertionError e) {
             Log.e(TAG, e);
         }
+        // Delete test APEXes from the preinstalled partitions and test-only sysconfig.
+        // Note that installed APEX files will be deleted by apexd after reboot.
         deleteFiles("/system/apex/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex",
-                "/data/apex/active/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex",
-                "/data/apex/active/" + SHIM_APEX_PACKAGE_NAME + "*.apex",
                 "/system/apex/test.rebootless_apex_v*.apex",
                 "/vendor/apex/test.rebootless_apex_v*.apex",
-                "/data/apex/active/test.apex.rebootless*.apex",
                 "/system/app/TestApp/TestAppAv1.apk",
                 TEST_VENDOR_APEX_ALLOW_LIST);
     }
@@ -348,6 +347,27 @@ public class StagedInstallInternalTest extends BaseHostJUnit4Test {
         runPhase("testAbandonStagedSessionShouldCleanUp");
         List<String> after = getStagingDirectories();
         // The staging directories generated during the test should be deleted
+        assertThat(after).isEqualTo(before);
+    }
+
+    @Test
+    public void testAbandonShouldCleanUpApexSession_AbandonDuringVerification() throws Exception {
+        String before = getDevice().executeShellCommand("apexd --dump sessions");
+        getDevice().setProperty("apexd.test_hook.submit_staged_session", "sleep_ms 1000");
+        try {
+            runPhase("testAbandonShouldCleanUpApexSession_AbandonDuringVerification");
+            String after = getDevice().executeShellCommand("apexd --dump sessions");
+            assertThat(after).isEqualTo(before);
+        } finally {
+            getDevice().setProperty("apexd.test_hook.submit_staged_session", "");
+        }
+    }
+
+    @Test
+    public void testAbandonShouldCleanUpApexSession_AbandonAfterVerification() throws Exception {
+        String before = getDevice().executeShellCommand("apexd --dump sessions");
+        runPhase("testAbandonShouldCleanUpApexSession_AbandonAfterVerification");
+        String after = getDevice().executeShellCommand("apexd --dump sessions");
         assertThat(after).isEqualTo(before);
     }
 

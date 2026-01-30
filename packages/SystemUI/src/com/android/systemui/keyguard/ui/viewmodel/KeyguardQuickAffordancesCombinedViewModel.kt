@@ -20,6 +20,8 @@ package com.android.systemui.keyguard.ui.viewmodel
 import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.FlowTracing.traceEmissionCount
 import com.android.app.tracing.coroutines.flow.flowName
+import com.android.systemui.Flags
+import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardQuickAffordanceInteractor
@@ -29,7 +31,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.quickaffordance.ActivationState
 import com.android.systemui.keyguard.shared.quickaffordance.KeyguardQuickAffordancePosition
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
-import com.android.systemui.shared.Flags
+import com.android.systemui.shared.Flags as SharedFlags
 import com.android.systemui.shared.keyguard.shared.model.KeyguardQuickAffordanceSlots
 import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
 import javax.inject.Inject
@@ -159,7 +161,7 @@ constructor(
 
     /** An observable for the view-model of the "start button" quick affordance. */
     val startButton: Flow<KeyguardQuickAffordanceViewModel> =
-        if (Flags.newCustomizationPickerUi()) {
+        if (SharedFlags.newCustomizationPickerUi()) {
             previewAffordances.flatMapLatestConflated {
                 button(
                     position = KeyguardQuickAffordancePosition.BOTTOM_START,
@@ -172,7 +174,7 @@ constructor(
 
     /** An observable for the view-model of the "end button" quick affordance. */
     val endButton: Flow<KeyguardQuickAffordanceViewModel> =
-        if (Flags.newCustomizationPickerUi()) {
+        if (SharedFlags.newCustomizationPickerUi()) {
             previewAffordances.flatMapLatestConflated {
                 button(
                     position = KeyguardQuickAffordancePosition.BOTTOM_END,
@@ -297,7 +299,7 @@ constructor(
                     configKey = configKey,
                     isVisible = true,
                     animateReveal = animateReveal,
-                    icon = icon,
+                    icon = nonTintedIcon(icon),
                     onClicked = { parameters ->
                         quickAffordanceInteractor.onQuickAffordanceTriggered(
                             configKey = parameters.configKey,
@@ -316,6 +318,14 @@ constructor(
                 KeyguardQuickAffordanceViewModel(slotId = slotId)
         }
     }
+
+    @VisibleForTesting
+    fun nonTintedIcon(icon: Icon): Icon =
+        if (Flags.clearShortcutIconTint() && icon is Icon.Loaded) {
+            icon.apply { drawable.setTintList(null) }
+        } else {
+            icon
+        }
 
     companion object {
         // We select a value that's less than 1.0 because we want floating point math precision to

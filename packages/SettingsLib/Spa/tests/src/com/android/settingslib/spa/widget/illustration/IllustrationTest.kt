@@ -16,72 +16,47 @@
 
 package com.android.settingslib.spa.widget.illustration
 
-import androidx.annotation.DrawableRes
-import androidx.annotation.RawRes
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.SemanticsPropertyKey
-import androidx.compose.ui.semantics.SemanticsPropertyReceiver
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsNotDisplayed
-import androidx.compose.ui.test.filterToOne
-import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.getBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.size
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.settingslib.spa.test.R
+import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class IllustrationTest {
-    @get:Rule
-    val composeTestRule = createComposeRule()
-
-    private val drawableId = SemanticsPropertyKey<Int>("DrawableResId")
-    private var SemanticsPropertyReceiver.drawableId by drawableId
+    @get:Rule val composeTestRule = createComposeRule()
 
     @Test
     fun image_displayed() {
-        val resId = R.drawable.accessibility_captioning_banner
         composeTestRule.setContent {
             Illustration(
-                resId = resId,
-                resourceType = ResourceType.IMAGE,
-                modifier = Modifier.semantics { drawableId = resId }
+                object : IllustrationModel {
+                    override val resId = R.drawable.accessibility_captioning_banner
+                    override val resourceType = ResourceType.IMAGE
+                }
             )
         }
 
-        fun hasDrawable(@DrawableRes id: Int): SemanticsMatcher =
-            SemanticsMatcher.expectValue(drawableId, id)
-
-        val isIllustrationNode = hasAnyAncestor(hasDrawable(resId))
-        composeTestRule.onAllNodes(hasDrawable(resId))
-            .filterToOne(isIllustrationNode)
-            .assertIsDisplayed()
+        assertThat(composeTestRule.onRoot().getBoundsInRoot().size.height.value).isNonZero()
     }
 
-    private val rawId = SemanticsPropertyKey<Int>("RawResId")
-    private var SemanticsPropertyReceiver.rawId by rawId
-
     @Test
-    fun empty_lottie_not_displayed() {
-        val resId = R.raw.empty
+    fun lottie_emptyResource_notDisplayed() {
         composeTestRule.setContent {
             Illustration(
-                resId = resId,
-                resourceType = ResourceType.LOTTIE,
-                modifier = Modifier.semantics { rawId = resId }
+                object : IllustrationModel {
+                    override val resId = R.raw.empty
+                    override val resourceType = ResourceType.LOTTIE
+                }
             )
         }
 
-        fun hasRaw(@RawRes id: Int): SemanticsMatcher =
-            SemanticsMatcher.expectValue(rawId, id)
-
-        val isIllustrationNode = hasAnyAncestor(hasRaw(resId))
-        composeTestRule.onAllNodes(hasRaw(resId))
-            .filterToOne(isIllustrationNode)
-            .assertIsNotDisplayed()
+        assertThat(composeTestRule.onRoot().getBoundsInRoot().size.height).isEqualTo(0.dp)
     }
 }

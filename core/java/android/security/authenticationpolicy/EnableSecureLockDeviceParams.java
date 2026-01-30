@@ -34,7 +34,6 @@ import java.util.Objects;
 @SystemApi
 @FlaggedApi(FLAG_SECURE_LOCKDOWN)
 public final class EnableSecureLockDeviceParams implements Parcelable {
-
     /**
      * Client message associated with the request to enable secure lock on the device. This message
      * will be shown on the device when secure lock mode is enabled.
@@ -62,6 +61,11 @@ public final class EnableSecureLockDeviceParams implements Parcelable {
 
     private EnableSecureLockDeviceParams(@NonNull Parcel in) {
         mMessage = Objects.requireNonNull(in.readCharSequence());
+    }
+
+    @NonNull
+    public CharSequence getMessage() {
+        return mMessage;
     }
 
     public static final @NonNull Creator<EnableSecureLockDeviceParams> CREATOR =

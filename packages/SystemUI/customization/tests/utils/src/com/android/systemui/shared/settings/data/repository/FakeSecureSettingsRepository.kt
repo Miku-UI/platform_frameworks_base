@@ -32,7 +32,7 @@ class FakeSecureSettingsRepository : SecureSettingsRepository {
         return intSetting(name, if (defaultValue) 1 else 0).map { it != 0 }
     }
 
-    fun setBool(name: String, value: Boolean) {
+    override suspend fun setBoolean(name: String, value: Boolean) {
         settings.value =
             settings.value.toMutableMap().apply { this[name] = (if (value) 1 else 0).toString() }
     }

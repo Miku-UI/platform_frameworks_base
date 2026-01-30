@@ -1,5 +1,17 @@
+# owners for ADPF APIs including performance hint API for game and thermal APIs
+bkaya@google.com
+jimblackler@google.com
+bentonian@google.com
+
+# legacy owners for ADPF
 adyabr@google.com
 chingtangyu@google.com
 mattbuckley@google.com
 sumir@google.com
 xwxw@google.com
+
+# owner for performance hint API specifically for non-game
+jjaggi@google.com
+vishnun@google.com
+melodymhsu@google.com
+pdwilliams@google.com

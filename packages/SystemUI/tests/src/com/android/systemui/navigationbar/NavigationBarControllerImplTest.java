@@ -20,7 +20,6 @@ import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.Display.INVALID_DISPLAY;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
-import static com.android.wm.shell.Flags.enableTaskbarNavbarUnification;
 import static com.android.wm.shell.Flags.enableTaskbarOnPhones;
 
 import static org.junit.Assert.assertFalse;
@@ -46,13 +45,14 @@ import android.util.SparseArray;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.app.displaylib.DisplaysWithDecorationsRepositoryCompat;
 import com.android.dx.mockito.inline.extended.StaticMockitoSession;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.model.SysUiState;
 import com.android.systemui.navigationbar.views.NavigationBar;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.settings.FakeDisplayTracker;
 import com.android.systemui.shared.recents.utilities.Utilities;
 import com.android.systemui.shared.system.TaskStackChangeListeners;
@@ -65,6 +65,8 @@ import com.android.systemui.util.settings.SecureSettings;
 import com.android.systemui.util.time.FakeSystemClock;
 import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.pip.Pip;
+
+import kotlinx.coroutines.CoroutineDispatcher;
 
 import org.junit.After;
 import org.junit.Before;
@@ -126,7 +128,9 @@ public class NavigationBarControllerImplTest extends SysuiTestCase {
                         Optional.of(mock(BackAnimation.class)),
                         mock(SecureSettings.class),
                         mDisplayTracker,
-                        mDeviceStateManager));
+                        mDeviceStateManager,
+                        mock(DisplaysWithDecorationsRepositoryCompat.class),
+                        mock(CoroutineDispatcher.class)));
         initializeNavigationBars();
         mMockitoSession = mockitoSession().mockStatic(Utilities.class).startMocking();
     }
@@ -154,7 +158,7 @@ public class NavigationBarControllerImplTest extends SysuiTestCase {
 
     @Test
     public void testCreateNavigationBarsIncludeDefaultTrue() {
-        assumeFalse(enableTaskbarNavbarUnification() && enableTaskbarOnPhones());
+        assumeFalse(enableTaskbarOnPhones());
 
         // Large screens may be using taskbar and the logic is different
         mNavigationBarController.mIsLargeScreen = false;
@@ -313,7 +317,7 @@ public class NavigationBarControllerImplTest extends SysuiTestCase {
 
     @Test
     public void testShouldRenderTaskbar_taskbarRenderedOnPhone() {
-        assumeTrue(enableTaskbarNavbarUnification() && enableTaskbarOnPhones());
+        assumeTrue(enableTaskbarOnPhones());
 
         mNavigationBarController.mIsLargeScreen = false;
         mNavigationBarController.mIsPhone = true;
@@ -329,8 +333,6 @@ public class NavigationBarControllerImplTest extends SysuiTestCase {
 
     @Test
     public void testShouldRenderTaskbar_taskbarRenderedInFoldedState() {
-        assumeTrue(enableTaskbarNavbarUnification());
-
         mNavigationBarController.mIsLargeScreen = false;
         mNavigationBarController.mIsPhone = false;
         assertTrue(mNavigationBarController.supportsTaskbar());

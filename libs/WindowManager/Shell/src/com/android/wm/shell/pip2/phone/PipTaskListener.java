@@ -37,9 +37,11 @@ import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.pip.PipBoundsAlgorithm;
 import com.android.wm.shell.common.pip.PipBoundsState;
 import com.android.wm.shell.common.pip.PipUtils;
+import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.pip2.animation.PipResizeAnimator;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.annotations.ShellMainThread;
+import com.android.wm.shell.shared.pip.PipFlags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -70,7 +72,10 @@ public class PipTaskListener implements ShellTaskOrganizer.TaskListener,
 
     private PipResizeAnimatorSupplier mPipResizeAnimatorSupplier;
 
+    private final @NonNull PipSurfaceTransactionHelper mSurfaceTransactionHelper;
+
     public PipTaskListener(Context context,
+            @NonNull PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
             ShellTaskOrganizer shellTaskOrganizer,
             PipTransitionState pipTransitionState,
             PipScheduler pipScheduler,
@@ -85,7 +90,7 @@ public class PipTaskListener implements ShellTaskOrganizer.TaskListener,
         mMainExecutor = mainExecutor;
 
         mPipTransitionState.addPipTransitionStateChangedListener(this);
-        if (PipUtils.isPip2ExperimentEnabled()) {
+        if (PipFlags.isPip2ExperimentEnabled()) {
             mMainExecutor.execute(() -> {
                 shellTaskOrganizer.addListenerForType(this,
                         ShellTaskOrganizer.TASK_LISTENER_TYPE_PIP);
@@ -98,6 +103,8 @@ public class PipTaskListener implements ShellTaskOrganizer.TaskListener,
         // PiP Activity.
         mPipBoundsState.addOnPipComponentChangedListener(((oldPipComponent, newPipComponent) ->
                 mPictureInPictureParams = new PictureInPictureParams.Builder().build()));
+
+        mSurfaceTransactionHelper = pipSurfaceTransactionHelper;
     }
 
     void setPictureInPictureParams(@Nullable PictureInPictureParams params) {
@@ -204,12 +211,13 @@ public class PipTaskListener implements ShellTaskOrganizer.TaskListener,
                 if (mWaitingForAspectRatioChange) {
                     mWaitingForAspectRatioChange = false;
                     PipResizeAnimator animator = mPipResizeAnimatorSupplier.get(mContext,
+                            mSurfaceTransactionHelper,
                             mPipTransitionState.getPinnedTaskLeash(), startTx, finishTx,
                             destinationBounds,
                             mPipBoundsState.getBounds(), destinationBounds, duration,
                             0f /* delta */);
                     animator.setAnimationEndCallback(
-                            () -> mPipScheduler.scheduleFinishResizePip(destinationBounds));
+                            () -> mPipScheduler.scheduleFinishPipBoundsChange(destinationBounds));
                     animator.start();
                 }
                 break;
@@ -227,6 +235,7 @@ public class PipTaskListener implements ShellTaskOrganizer.TaskListener,
     @VisibleForTesting
     interface PipResizeAnimatorSupplier {
         PipResizeAnimator get(@NonNull Context context,
+                @NonNull PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
                 @NonNull SurfaceControl leash,
                 @Nullable SurfaceControl.Transaction startTx,
                 @Nullable SurfaceControl.Transaction finishTx,

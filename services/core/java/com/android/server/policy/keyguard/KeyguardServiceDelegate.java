@@ -1,10 +1,11 @@
 package com.android.server.policy.keyguard;
 
-import static com.android.server.wm.KeyguardServiceDelegateProto.INTERACTIVE_STATE;
-import static com.android.server.wm.KeyguardServiceDelegateProto.OCCLUDED;
-import static com.android.server.wm.KeyguardServiceDelegateProto.SCREEN_STATE;
-import static com.android.server.wm.KeyguardServiceDelegateProto.SECURE;
-import static com.android.server.wm.KeyguardServiceDelegateProto.SHOWING;
+import static android.internal.perfetto.protos.Windowmanagerservice.KeyguardServiceDelegateProto.INTERACTIVE_STATE;
+import static android.internal.perfetto.protos.Windowmanagerservice.KeyguardServiceDelegateProto.OCCLUDED;
+import static android.internal.perfetto.protos.Windowmanagerservice.KeyguardServiceDelegateProto.SCREEN_STATE;
+import static android.internal.perfetto.protos.Windowmanagerservice.KeyguardServiceDelegateProto.SECURE;
+import static android.internal.perfetto.protos.Windowmanagerservice.KeyguardServiceDelegateProto.SHOWING;
+import static com.android.internal.policy.IKeyguardService.SCREEN_TURNING_ON_REASON_UNKNOWN;
 
 import android.app.ActivityTaskManager;
 import android.content.ComponentName;
@@ -207,7 +208,7 @@ public class KeyguardServiceDelegate {
                 }
                 if (mKeyguardState.screenState == SCREEN_STATE_ON
                         || mKeyguardState.screenState == SCREEN_STATE_TURNING_ON) {
-                    mKeyguardService.onScreenTurningOn(
+                    mKeyguardService.onScreenTurningOn(SCREEN_TURNING_ON_REASON_UNKNOWN,
                             new KeyguardShowDelegate(mDrawnListenerWhenConnect));
                 }
                 if (mKeyguardState.screenState == SCREEN_STATE_ON) {
@@ -359,10 +360,11 @@ public class KeyguardServiceDelegate {
         mKeyguardState.screenState = SCREEN_STATE_OFF;
     }
 
-    public void onScreenTurningOn(final DrawnListener drawnListener) {
+    public void onScreenTurningOn(int reason, final DrawnListener drawnListener) {
         if (mKeyguardService != null) {
-            if (DEBUG) Log.v(TAG, "onScreenTurnedOn(showListener = " + drawnListener + ")");
-            mKeyguardService.onScreenTurningOn(new KeyguardShowDelegate(drawnListener));
+            if (DEBUG) Log.v(TAG, "onScreenTurnedOn(reason = " + reason
+                    + ", showListener = " + drawnListener + ")");
+            mKeyguardService.onScreenTurningOn(reason,  new KeyguardShowDelegate(drawnListener));
         } else {
             // try again when we establish a connection
             Slog.w(TAG, "onScreenTurningOn(): no keyguard service!");

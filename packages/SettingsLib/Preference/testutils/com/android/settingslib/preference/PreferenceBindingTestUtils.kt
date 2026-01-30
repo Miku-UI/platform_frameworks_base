@@ -17,13 +17,19 @@
 package com.android.settingslib.preference
 
 import android.content.Context
+import android.os.Bundle
 import androidx.annotation.VisibleForTesting
+import androidx.fragment.app.testing.FragmentScenario
 import androidx.preference.Preference
+import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceScreen
+import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_ARGS
+import com.android.settingslib.metadata.EXTRA_BINDING_SCREEN_KEY
 import com.android.settingslib.metadata.PersistentPreference
 import com.android.settingslib.metadata.PreferenceMetadata
 import com.android.settingslib.metadata.PreferenceScreenMetadata
-import org.mockito.kotlin.mock
+import com.android.settingslib.metadata.preferenceHierarchy
+import kotlinx.coroutines.CoroutineScope
 
 /** Creates [Preference] widget and binds with metadata. */
 @Suppress("UNCHECKED_CAST")
@@ -31,7 +37,7 @@ import org.mockito.kotlin.mock
 fun <P : Preference> PreferenceMetadata.createAndBindWidget(
     context: Context,
     preferenceScreen: PreferenceScreen? = null,
-    preferenceScreenMetadata: PreferenceScreenMetadata = mock(),
+    preferenceScreenMetadata: PreferenceScreenMetadata = DummyPreferenceScreenMetadata,
 ): P {
     val binding = PreferenceBindingFactory.defaultFactory.getPreferenceBinding(this)!!
     return (binding.createWidget(context) as P).also {
@@ -46,3 +52,24 @@ fun <P : Preference> PreferenceMetadata.createAndBindWidget(
         binding.bind(it, this)
     }
 }
+
+private object DummyPreferenceScreenMetadata : PreferenceScreenMetadata {
+    override val key: String
+        get() = ""
+
+    override fun fragmentClass() = null
+
+    override fun getPreferenceHierarchy(context: Context, coroutineScope: CoroutineScope) =
+        preferenceHierarchy(context) {}
+}
+
+/** Launches fragment for given [PreferenceScreenMetadata]. */
+@Suppress("UNCHECKED_CAST")
+fun PreferenceScreenMetadata.launchFragmentScenario() =
+    FragmentScenario.launchInContainer(
+        fragmentClass() as Class<out PreferenceFragmentCompat>,
+        Bundle(2).also {
+            it.putString(EXTRA_BINDING_SCREEN_KEY, key)
+            it.putBundle(EXTRA_BINDING_SCREEN_ARGS, arguments)
+        },
+    )

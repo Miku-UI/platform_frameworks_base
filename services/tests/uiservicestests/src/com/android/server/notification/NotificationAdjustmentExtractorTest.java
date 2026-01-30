@@ -16,8 +16,9 @@
 
 package com.android.server.notification;
 
+import static android.app.NotificationChannel.SOCIAL_MEDIA_ID;
+import static android.app.NotificationManager.IMPORTANCE_HIGH;
 import static android.app.NotificationManager.IMPORTANCE_LOW;
-
 import static android.platform.test.flag.junit.SetFlagsRule.DefaultInitValueType.DEVICE_DEFAULT;
 import static android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION;
 import static android.service.notification.Flags.FLAG_NOTIFICATION_FORCE_GROUPING;
@@ -42,6 +43,7 @@ import android.os.Bundle;
 import android.os.UserHandle;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.FlagsParameterization;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.Adjustment;
 import android.service.notification.SnoozeCriterion;
@@ -49,16 +51,31 @@ import android.service.notification.StatusBarNotification;
 
 import com.android.server.UiServiceTestCase;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
+@RunWith(ParameterizedAndroidJunit4.class)
 public class NotificationAdjustmentExtractorTest extends UiServiceTestCase {
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule(DEVICE_DEFAULT);
+
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        return FlagsParameterization.allCombinationsOf(Flags.FLAG_SHOW_NOISY_BUNDLED_NOTIFICATIONS);
+    }
+
+    public NotificationAdjustmentExtractorTest(FlagsParameterization flags) {
+        mSetFlagsRule.setFlagsParameterization(flags);
+    }
 
     @Test
     public void testExtractsAdjustment() {
@@ -129,8 +146,62 @@ public class NotificationAdjustmentExtractorTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags({Flags.FLAG_SHOW_NOISY_BUNDLED_NOTIFICATIONS})
+    public void testClassificationAdjustments_noisy_notImmediately() {
+        NotificationChannel social = new NotificationChannel(
+                SOCIAL_MEDIA_ID, "social", IMPORTANCE_LOW);
+        GroupHelper groupHelper = mock(GroupHelper.class);
+        NotificationAdjustmentExtractor extractor = new NotificationAdjustmentExtractor();
+        extractor.setGroupHelper(groupHelper);
+
+        NotificationRecord r = generateRecord();
+        r.setAudiblyAlerted(true);
+
+        Bundle classificationAdj = new Bundle();
+        classificationAdj.putParcelable(Adjustment.KEY_TYPE, social);
+        Adjustment adjustment = new Adjustment("pkg", r.getKey(), classificationAdj, "", 0);
+        r.addAdjustment(adjustment);
+
+        RankingReconsideration regroupingTask = extractor.process(r);
+        assertThat(regroupingTask).isNotNull();
+        regroupingTask.applyChangesLocked(r);
+        assertThat(r.getChannel()).isNotEqualTo(social);
+        verify(groupHelper, times(0)).onChannelUpdated(r);
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_SHOW_NOISY_BUNDLED_NOTIFICATIONS})
+    public void testClassificationAdjustments_noisy_okAfterDelay() {
+        NotificationChannel social = new NotificationChannel(
+                SOCIAL_MEDIA_ID, "social", IMPORTANCE_LOW);
+        GroupHelper groupHelper = mock(GroupHelper.class);
+        NotificationAdjustmentExtractor extractor = new NotificationAdjustmentExtractor();
+        extractor.setGroupHelper(groupHelper);
+
+        NotificationRecord r = generateRecord();
+        r.setAudiblyAlerted(true);
+
+        Bundle classificationAdj = new Bundle();
+        classificationAdj.putParcelable(Adjustment.KEY_TYPE, social);
+        Adjustment adjustment = new Adjustment("pkg", r.getKey(), classificationAdj, "", 0);
+        r.addAdjustment(adjustment);
+
+        RankingReconsideration regroupingTask = extractor.process(r);
+        assertThat(regroupingTask).isNotNull();
+
+        extractor.mInjectedTimeMs = new NotificationAdjustmentExtractor.InjectedTime(
+                System.currentTimeMillis() + NotificationAdjustmentExtractor.HANG_TIME_MS);
+
+        regroupingTask.applyChangesLocked(r);
+        assertThat(r.getChannel()).isEqualTo(social);
+        verify(groupHelper, times(1)).onChannelUpdated(r);
+    }
+
+    @Test
     @EnableFlags({FLAG_NOTIFICATION_CLASSIFICATION, FLAG_NOTIFICATION_FORCE_GROUPING})
-    public void testClassificationAdjustments_triggerRegrouping() {
+    public void testClassificationAdjustments_triggerRegrouping_whenSilent() {
+        NotificationChannel social = new NotificationChannel(
+                SOCIAL_MEDIA_ID, "social", IMPORTANCE_LOW);
         GroupHelper groupHelper = mock(GroupHelper.class);
         NotificationAdjustmentExtractor extractor = new NotificationAdjustmentExtractor();
         extractor.setGroupHelper(groupHelper);
@@ -138,14 +209,46 @@ public class NotificationAdjustmentExtractorTest extends UiServiceTestCase {
         NotificationRecord r = generateRecord();
 
         Bundle classificationAdj = new Bundle();
-        classificationAdj.putParcelable(Adjustment.KEY_TYPE, mock(NotificationChannel.class));
+        classificationAdj.putParcelable(Adjustment.KEY_TYPE, social);
         Adjustment adjustment = new Adjustment("pkg", r.getKey(), classificationAdj, "", 0);
         r.addAdjustment(adjustment);
 
         RankingReconsideration regroupingTask = extractor.process(r);
         assertThat(regroupingTask).isNotNull();
         regroupingTask.applyChangesLocked(r);
+        assertThat(r.getChannel()).isEqualTo(social);
         verify(groupHelper, times(1)).onChannelUpdated(r);
+    }
+
+    @Test
+    @EnableFlags({FLAG_NOTIFICATION_CLASSIFICATION, FLAG_NOTIFICATION_FORCE_GROUPING})
+    public void testClassificationAdjustments_unclassifyTriggersUnbundling() {
+        GroupHelper groupHelper = mock(GroupHelper.class);
+        NotificationAdjustmentExtractor extractor = new NotificationAdjustmentExtractor();
+        extractor.setGroupHelper(groupHelper);
+
+        NotificationRecord r = generateRecord();
+        r.setHadGroupSummaryWhenUnclassified(true);
+
+        Bundle classificationAdj = new Bundle();
+        classificationAdj.putParcelable(Adjustment.KEY_UNCLASSIFY, mock(NotificationChannel.class));
+        Adjustment adjustment = new Adjustment("pkg", r.getKey(), classificationAdj, "", 0);
+        r.addAdjustment(adjustment);
+
+        RankingReconsideration regroupingTask = extractor.process(r);
+        assertThat(regroupingTask).isNotNull();
+        regroupingTask.applyChangesLocked(r);
+        verify(groupHelper, times(1)).onNotificationUnbundled(r, true);
+
+        // make sure that the group summary boolean is passed through correctly
+        r.setHadGroupSummaryWhenUnclassified(false);
+        classificationAdj.putParcelable(Adjustment.KEY_UNCLASSIFY, mock(NotificationChannel.class));
+        adjustment = new Adjustment("pkg", r.getKey(), classificationAdj, "", 0);
+        r.addAdjustment(adjustment);
+        RankingReconsideration regroupingTask2 = extractor.process(r);
+        assertThat(regroupingTask2).isNotNull();
+        regroupingTask2.applyChangesLocked(r);
+        verify(groupHelper, times(1)).onNotificationUnbundled(r, false);
     }
 
     @Test
@@ -167,7 +270,7 @@ public class NotificationAdjustmentExtractorTest extends UiServiceTestCase {
     }
 
     private NotificationRecord generateRecord() {
-        NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_LOW);
+        NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_HIGH);
         final Notification.Builder builder = new Notification.Builder(getContext())
                 .setContentTitle("foo")
                 .setSmallIcon(android.R.drawable.sym_def_app_icon);

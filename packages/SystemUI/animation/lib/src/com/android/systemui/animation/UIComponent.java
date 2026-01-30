@@ -19,7 +19,7 @@ package com.android.systemui.animation;
 import android.annotation.FloatRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.graphics.Rect;
+import android.graphics.RectF;
 import android.view.SurfaceControl;
 
 import java.util.concurrent.Executor;
@@ -38,7 +38,7 @@ public interface UIComponent {
 
     /** Get the bounds of this UI in its display. */
     @NonNull
-    Rect getBounds();
+    RectF getBounds();
 
     /** Create a new {@link Transaction} that can update this UI. */
     @NonNull
@@ -62,7 +62,7 @@ public interface UIComponent {
 
         /** Update bounds of an UI. Execution will be delayed until {@link #commit()} is called. */
         @NonNull
-        Transaction setBounds(@NonNull T ui, @NonNull Rect bounds);
+        Transaction setBounds(@NonNull T ui, @NonNull RectF bounds);
 
         /**
          * Attach a ui to the transition leash. Execution will be delayed until {@link #commit()} is

@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.media.projection.StopReason;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.UserHandle;
 import android.service.quicksettings.Tile;
 import android.text.TextUtils;
 import android.util.Log;
@@ -42,22 +43,22 @@ import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.plugins.qs.QSTile;
-import com.android.systemui.plugins.qs.TileDetailsViewModel;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.QsEventLogger;
 import com.android.systemui.qs.logging.QSLogger;
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor;
 import com.android.systemui.qs.tileimpl.QSTileImpl;
-import com.android.systemui.qs.tiles.dialog.ScreenRecordDetailsViewModel;
 import com.android.systemui.res.R;
-import com.android.systemui.screenrecord.RecordingController;
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureType;
+import com.android.systemui.screencapture.common.shared.model.ScreenCaptureUiParameters;
+import com.android.systemui.screencapture.domain.interactor.ScreenCaptureUiInteractor;
+import com.android.systemui.screencapture.record.domain.interactor.ScreenCaptureRecordFeaturesInteractor;
+import com.android.systemui.screenrecord.ScreenRecordUxController;
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel;
 import com.android.systemui.settings.UserContextProvider;
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
-
-import java.util.function.Consumer;
 
 import javax.inject.Inject;
 
@@ -65,14 +66,14 @@ import javax.inject.Inject;
  * Quick settings tile for screen recording
  */
 public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
-        implements RecordingController.RecordingStateChangeCallback {
+        implements ScreenRecordUxController.StateChangeCallback {
 
     public static final String TILE_SPEC = "screenrecord";
 
     private static final String TAG = "ScreenRecordTile";
     private static final String INTERACTION_JANK_TAG = "screen_record";
 
-    private final RecordingController mController;
+    private final ScreenRecordUxController mController;
     private final KeyguardDismissUtil mKeyguardDismissUtil;
     private final KeyguardStateController mKeyguardStateController;
     private final Callback mCallback = new Callback();
@@ -81,6 +82,7 @@ public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
     private final PanelInteractor mPanelInteractor;
     private final MediaProjectionMetricsLogger mMediaProjectionMetricsLogger;
     private final UserContextProvider mUserContextProvider;
+    private final ScreenCaptureUiInteractor mScreenCaptureUiInteractor;
 
     private long mMillisUntilFinished = 0;
 
@@ -96,12 +98,13 @@ public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
             StatusBarStateController statusBarStateController,
             ActivityStarter activityStarter,
             QSLogger qsLogger,
-            RecordingController controller,
+            ScreenRecordUxController controller,
             KeyguardDismissUtil keyguardDismissUtil,
             KeyguardStateController keyguardStateController,
             DialogTransitionAnimator dialogTransitionAnimator,
             PanelInteractor panelInteractor,
             MediaProjectionMetricsLogger mediaProjectionMetricsLogger,
+            ScreenCaptureUiInteractor screenCaptureUiInteractor,
             UserContextProvider userContextProvider
     ) {
         super(host, uiEventLogger, backgroundLooper, mainHandler, falsingManager, metricsLogger,
@@ -114,6 +117,7 @@ public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
         mDialogTransitionAnimator = dialogTransitionAnimator;
         mPanelInteractor = panelInteractor;
         mMediaProjectionMetricsLogger = mediaProjectionMetricsLogger;
+        mScreenCaptureUiInteractor = screenCaptureUiInteractor;
         mUserContextProvider = userContextProvider;
     }
 
@@ -127,7 +131,29 @@ public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
 
     @Override
     protected void handleClick(@Nullable Expandable expandable) {
-        handleClick(() -> showDialog(expandable));
+        if (ScreenCaptureRecordFeaturesInteractor.INSTANCE.getShouldShowNewToolbar()) {
+            UserHandle userHandle = UserHandle.of(getCurrentTileUser());
+
+            mUiHandler.post(() -> mActivityStarter.executeRunnableDismissingKeyguard(
+                    () -> mScreenCaptureUiInteractor.show(
+                            new ScreenCaptureUiParameters(
+                                    /* screenCaptureType= */ ScreenCaptureType.RECORD,
+                                    /* isUserConsentRequired= */ false,
+                                    /* resultReceiver= */ null,
+                                    /* mediaProjection= */ null,
+                                    /* hostAppUserHandle= */ userHandle,
+                                    /* hostAppUid= */ 0
+                            )
+                    ),
+                    /* cancelAction= */ null,
+                    /* dismissShade= */ true,
+                    /* afterKeyguardGone= */ true,
+                    /* deferred= */ false
+            ));
+        } else {
+            // TODO(b/409330121): call mController.onScreenRecordQsTileClick() instead.
+            handleClick(() -> showDialog(expandable));
+        }
     }
 
     private void showDialog(@Nullable Expandable expandable) {
@@ -191,26 +217,6 @@ public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
     }
 
     @Override
-    public boolean getDetailsViewModel(Consumer<TileDetailsViewModel> callback) {
-        handleClick(() -> executeWhenUnlockedKeyguard(
-                () -> {
-                    if (mController.isScreenCaptureDisabled()) {
-                        // Close the panel first so that the toast can show up.
-                        mDialogTransitionAnimator.disableAllCurrentDialogsExitAnimations();
-                        mPanelInteractor.collapsePanels();
-
-                        showDisabledByPolicyToast();
-                        return;
-                    }
-
-                    callback.accept(new ScreenRecordDetailsViewModel(mController,
-                            this::onStartRecordingClicked));
-                })
-        );
-        return true;
-    }
-
-    @Override
     protected void handleUpdateState(BooleanState state, Object arg) {
         boolean isStarting = mController.isStarting();
         boolean isRecording = mController.isRecording();
@@ -258,7 +264,8 @@ public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
 
     void showDisabledByPolicyToast() {
         Toast.makeText(mContext,
-                R.string.screen_capturing_disabled_by_policy_dialog_description, Toast.LENGTH_SHORT)
+                        R.string.screen_capturing_disabled_by_policy_dialog_description,
+                        Toast.LENGTH_SHORT)
                 .show();
     }
 
@@ -271,7 +278,7 @@ public class ScreenRecordTile extends QSTileImpl<QSTile.BooleanState>
         mController.stopRecording(StopReason.STOP_QS_TILE);
     }
 
-    private final class Callback implements RecordingController.RecordingStateChangeCallback {
+    private final class Callback implements ScreenRecordUxController.StateChangeCallback {
         @Override
         public void onCountdown(long millisUntilFinished) {
             mMillisUntilFinished = millisUntilFinished;

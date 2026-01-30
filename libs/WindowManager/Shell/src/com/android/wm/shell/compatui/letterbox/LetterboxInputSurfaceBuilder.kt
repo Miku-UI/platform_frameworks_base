@@ -18,41 +18,33 @@ package com.android.wm.shell.compatui.letterbox
 
 import android.view.SurfaceControl
 import android.view.SurfaceControl.Transaction
-import com.android.wm.shell.common.transition.SurfaceBuilderSupplier
+import android.window.TaskConstants
+import com.android.wm.shell.common.suppliers.SurfaceBuilderSupplier
 import com.android.wm.shell.dagger.WMSingleton
 import javax.inject.Inject
 
-/**
- * Component responsible for the actual creation of the Letterbox surfaces.
- */
+/** Component responsible for the actual creation of the Letterbox surfaces. */
 @WMSingleton
-class LetterboxInputSurfaceBuilder @Inject constructor(
-    private val surfaceBuilderSupplier: SurfaceBuilderSupplier
-) {
-
-    companion object {
-        /*
-         * Letterbox spy surfaces need to stay above the activity layer which is 0.
-         */
-        // TODO(b/378673153): Consider adding this to [TaskConstants].
-        @JvmStatic
-        private val TASK_CHILD_LAYER_LETTERBOX_SPY = 1000
-    }
+class LetterboxInputSurfaceBuilder
+@Inject
+constructor(private val surfaceBuilderSupplier: SurfaceBuilderSupplier) {
 
     fun createInputSurface(
         tx: Transaction,
         parentLeash: SurfaceControl,
         surfaceName: String,
-        callSite: String
-    ) = surfaceBuilderSupplier.get()
-        .setName(surfaceName)
-        .setContainerLayer()
-        .setParent(parentLeash)
-        .setCallsite(callSite)
-        .build().apply {
-            tx.setLayer(this, TASK_CHILD_LAYER_LETTERBOX_SPY)
-                .setTrustedOverlay(this, true)
-                .show(this)
-                .apply()
-        }
+        callSite: String,
+    ) =
+        surfaceBuilderSupplier
+            .get()
+            .setName(surfaceName)
+            .setContainerLayer()
+            .setParent(parentLeash)
+            .setCallsite(callSite)
+            .build()
+            .apply {
+                tx.setLayer(this, TaskConstants.TASK_CHILD_SHELL_LAYER_LETTERBOX_SPY)
+                    .setTrustedOverlay(this, true)
+                    .show(this)
+            }
 }

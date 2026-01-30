@@ -16,9 +16,15 @@
 
 package android.timezone;
 
+import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
+
+import android.annotation.FlaggedApi;
+import android.annotation.SystemApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.icu.util.TimeZone;
+
+import android.timezone.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,13 +36,21 @@ import java.util.Objects;
  *
  * @hide
  */
+@FlaggedApi(Flags.FLAG_EXPOSE_TIME_ZONE_SYSTEM_API)
+@SystemApi(client = MODULE_LIBRARIES)
 public final class CountryTimeZones {
 
     /**
-     * A mapping to a time zone ID with some associated metadata.
+     * A wrapper for a time zone mapping.
+     *
+     * <p>This class currently only exposes the time zone and its ID (e.g., "America/Los_Angeles").
+     * It is structured to allow for additional metadata to be exposed in the future without
+     * breaking the API.
      *
      * @hide
      */
+    @FlaggedApi(Flags.FLAG_EXPOSE_TIME_ZONE_SYSTEM_API)
+    @SystemApi(client = MODULE_LIBRARIES)
     public static final class TimeZoneMapping {
 
         @NonNull
@@ -57,10 +71,8 @@ public final class CountryTimeZones {
             return mDelegate.getTimeZoneId();
         }
 
-        /**
-         * Returns a frozen {@link TimeZone} object for this mapping.
-         */
-        @NonNull
+        /** Returns a frozen {@link TimeZone} object for this mapping. */
+        @Nullable
         public TimeZone getTimeZone() {
             return mDelegate.getTimeZone();
         }
@@ -93,14 +105,19 @@ public final class CountryTimeZones {
      *
      * @hide
      */
+    @FlaggedApi(Flags.FLAG_EXPOSE_TIME_ZONE_SYSTEM_API)
+    @SystemApi(client = MODULE_LIBRARIES)
     public static final class OffsetResult {
 
         private final TimeZone mTimeZone;
+        @Nullable private final String mCountryIsoCode;
         private final boolean mIsOnlyMatch;
 
         /** Creates an instance with the supplied information. */
-        public OffsetResult(@NonNull TimeZone timeZone, boolean isOnlyMatch) {
+        public OffsetResult(@NonNull TimeZone timeZone, @Nullable String countryIsoCode,
+                boolean isOnlyMatch) {
             mTimeZone = Objects.requireNonNull(timeZone);
+            mCountryIsoCode = countryIsoCode;
             mIsOnlyMatch = isOnlyMatch;
         }
 
@@ -110,6 +127,12 @@ public final class CountryTimeZones {
         @NonNull
         public TimeZone getTimeZone() {
             return mTimeZone;
+        }
+
+        /** Returns the country ISO code where the time zone matched. */
+        @Nullable
+        public String getCountryIsoCode() {
+            return mCountryIsoCode;
         }
 
         /**
@@ -129,18 +152,20 @@ public final class CountryTimeZones {
             }
             OffsetResult that = (OffsetResult) o;
             return mIsOnlyMatch == that.mIsOnlyMatch
-                    && mTimeZone.getID().equals(that.mTimeZone.getID());
+                    && mTimeZone.getID().equals(that.mTimeZone.getID())
+                    && Objects.equals(mCountryIsoCode, that.mCountryIsoCode);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(mTimeZone, mIsOnlyMatch);
+            return Objects.hash(mTimeZone, mCountryIsoCode, mIsOnlyMatch);
         }
 
         @Override
         public String toString() {
             return "OffsetResult{"
                     + "mTimeZone(ID)=" + mTimeZone.getID()
+                    + ", mCountryIsoCode=" + mCountryIsoCode
                     + ", mIsOnlyMatch=" + mIsOnlyMatch
                     + '}';
         }
@@ -153,12 +178,10 @@ public final class CountryTimeZones {
         mDelegate = delegate;
     }
 
-    /**
-     * Returns true if the ISO code for the country is a case-insensitive match for the one
-     * supplied.
-     */
-    public boolean matchesCountryCode(@NonNull String countryIso) {
-        return mDelegate.matchesCountryCode(countryIso);
+    /** Returns the ISO code for the country in lower case (e.g., "us"). */
+    @NonNull
+    public String getCountryIso() {
+        return mDelegate.getCountryIso();
     }
 
     /**
@@ -219,14 +242,14 @@ public final class CountryTimeZones {
      *     there is no match
      */
     @Nullable
-    public OffsetResult lookupByOffsetWithBias(long whenMillis, @Nullable TimeZone bias,
-            int totalOffsetMillis, boolean isDst) {
+    public OffsetResult lookupByOffsetWithBias(
+            long whenMillis, @NonNull TimeZone bias, int totalOffsetMillis, boolean isDst) {
         com.android.i18n.timezone.CountryTimeZones.OffsetResult delegateOffsetResult =
                 mDelegate.lookupByOffsetWithBias(
                         whenMillis, bias, totalOffsetMillis, isDst);
         return delegateOffsetResult == null ? null :
-                new OffsetResult(
-                        delegateOffsetResult.getTimeZone(), delegateOffsetResult.isOnlyMatch());
+                new OffsetResult(delegateOffsetResult.getTimeZone(), mDelegate.getCountryIso(),
+                        delegateOffsetResult.isOnlyMatch());
     }
 
     /**
@@ -242,13 +265,13 @@ public final class CountryTimeZones {
      *     there is no match
      */
     @Nullable
-    public OffsetResult lookupByOffsetWithBias(long whenMillis, @Nullable TimeZone bias,
-            int totalOffsetMillis) {
+    public OffsetResult lookupByOffsetWithBias(
+            long whenMillis, @NonNull TimeZone bias, int totalOffsetMillis) {
         com.android.i18n.timezone.CountryTimeZones.OffsetResult delegateOffsetResult =
                 mDelegate.lookupByOffsetWithBias(whenMillis, bias, totalOffsetMillis);
         return delegateOffsetResult == null ? null :
-                new OffsetResult(
-                        delegateOffsetResult.getTimeZone(), delegateOffsetResult.isOnlyMatch());
+                new OffsetResult(delegateOffsetResult.getTimeZone(), mDelegate.getCountryIso(),
+                        delegateOffsetResult.isOnlyMatch());
     }
 
     /**

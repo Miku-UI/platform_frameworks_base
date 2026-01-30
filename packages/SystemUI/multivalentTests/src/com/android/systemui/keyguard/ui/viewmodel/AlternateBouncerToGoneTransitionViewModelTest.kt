@@ -30,11 +30,17 @@ import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionState.RUNNING
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.data.repository.Transition
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.sysuiStatusBarStateController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -50,6 +56,31 @@ class AlternateBouncerToGoneTransitionViewModelTest : SysuiTestCase() {
     private val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
     private val sysuiStatusBarStateController = kosmos.sysuiStatusBarStateController
     private val underTest by lazy { kosmos.alternateBouncerToGoneTransitionViewModel }
+
+    @Before
+    fun setup() {
+        kosmos.setSceneTransition(
+            Transition(from = Scenes.Lockscreen, to = Scenes.Gone, progress = flowOf(.5f))
+        )
+    }
+
+    @Test
+    fun notificationAlpha() =
+        testScope.runTest {
+            val values by collectValues(underTest.notificationAlpha(ViewStateAccessor()))
+            runCurrent()
+
+            sysuiStatusBarStateController.setLeaveOpenOnKeyguardHide(false)
+            keyguardTransitionRepository.sendTransitionSteps(
+                listOf(step(0f, TransitionState.STARTED), step(0f), step(0.3f), step(1f)),
+                testScope,
+            )
+            runCurrent()
+
+            // Assert alpha value goes to 0
+            assertThat(values.size).isGreaterThan(0)
+            assertThat(values[values.size - 1]).isEqualTo(0f)
+        }
 
     @Test
     fun deviceEntryParentViewDisappear() =
@@ -134,7 +165,7 @@ class AlternateBouncerToGoneTransitionViewModelTest : SysuiTestCase() {
             keyguardTransitionRepository.sendTransitionSteps(
                 from = KeyguardState.ALTERNATE_BOUNCER,
                 to = GONE,
-                testScope
+                testScope,
             )
 
             // Alpha starts and ends at 0.
@@ -144,10 +175,10 @@ class AlternateBouncerToGoneTransitionViewModelTest : SysuiTestCase() {
     private fun step(value: Float, state: TransitionState = RUNNING): TransitionStep {
         return TransitionStep(
             from = KeyguardState.ALTERNATE_BOUNCER,
-            to = GONE,
+            to = if (SceneContainerFlag.isEnabled) KeyguardState.UNDEFINED else GONE,
             value = value,
             transitionState = state,
-            ownerName = "AlternateBouncerToGoneTransitionViewModelTest"
+            ownerName = "AlternateBouncerToGoneTransitionViewModelTest",
         )
     }
 }

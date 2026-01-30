@@ -24,21 +24,19 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.android.systemui.deviceentry.ui.view.UdfpsAccessibilityOverlay
 import com.android.systemui.deviceentry.ui.viewmodel.UdfpsAccessibilityOverlayViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
+import kotlinx.coroutines.launch
 
 object UdfpsAccessibilityOverlayBinder {
 
     /** Forwards hover events to the view model to make guided announcements for accessibility. */
     @SuppressLint("ClickableViewAccessibility")
     @JvmStatic
-    fun bind(
-        view: UdfpsAccessibilityOverlay,
-        viewModel: UdfpsAccessibilityOverlayViewModel,
-    ) {
-        view.setOnHoverListener { v, event -> viewModel.onHoverEvent(v, event) }
+    fun bind(view: UdfpsAccessibilityOverlay, viewModel: UdfpsAccessibilityOverlayViewModel) {
         view.repeatWhenAttached {
             // Repeat on CREATED because we update the visibility of the view
             repeatOnLifecycle(Lifecycle.State.CREATED) {
-                viewModel.visible.collect { visible -> view.isInvisible = !visible }
+                view.udfpsAccessibilityOverlayViewModel = viewModel
+                launch { viewModel.visible.collect { visible -> view.isInvisible = !visible } }
             }
         }
     }

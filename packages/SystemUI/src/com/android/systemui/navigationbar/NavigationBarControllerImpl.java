@@ -18,7 +18,6 @@ package com.android.systemui.navigationbar;
 
 import static com.android.systemui.navigationbar.gestural.EdgeBackGestureHandler.DEBUG_MISSING_GESTURE_TAG;
 import static com.android.systemui.shared.recents.utilities.Utilities.isLargeScreen;
-import static com.android.wm.shell.Flags.enableTaskbarNavbarUnification;
 import static com.android.wm.shell.Flags.enableTaskbarOnPhones;
 
 import android.content.Context;
@@ -41,18 +40,21 @@ import android.window.DesktopExperienceFlags;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.android.app.displaylib.DisplayDecorationListener;
+import com.android.app.displaylib.DisplaysWithDecorationsRepositoryCompat;
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.statusbar.RegisterStatusBarResult;
 import com.android.settingslib.applications.InterestingConfigChanges;
 import com.android.systemui.Dumpable;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Main;
+import com.android.systemui.display.flags.WmCallbackForSysDecorFlag;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.model.SysUiState;
 import com.android.systemui.navigationbar.views.NavigationBar;
 import com.android.systemui.navigationbar.views.NavigationBarView;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.shared.statusbar.phone.BarTransitions.TransitionMode;
 import com.android.systemui.shared.system.TaskStackChangeListeners;
@@ -66,6 +68,8 @@ import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.pip.Pip;
 
 import dalvik.annotation.optimization.NeverCompile;
+
+import kotlinx.coroutines.CoroutineDispatcher;
 
 import java.io.PrintWriter;
 import java.util.Optional;
@@ -106,7 +110,7 @@ public class NavigationBarControllerImpl implements
     SparseArray<NavigationBar> mNavigationBars = new SparseArray<>();
 
     /** Local cache for {@link IWindowManager#hasNavigationBar(int)}. */
-    private SparseBooleanArray mHasNavBar = new SparseBooleanArray();
+    private SparseBooleanArray mHasNavBarOrTaskbar = new SparseBooleanArray();
 
     // Tracks config changes that will actually recreate the nav bar
     private final InterestingConfigChanges mConfigChanges = new InterestingConfigChanges(
@@ -132,7 +136,9 @@ public class NavigationBarControllerImpl implements
             Optional<BackAnimation> backAnimation,
             SecureSettings secureSettings,
             DisplayTracker displayTracker,
-            DeviceStateManager deviceStateManager) {
+            DeviceStateManager deviceStateManager,
+            DisplaysWithDecorationsRepositoryCompat displaysWithDecorationsRepositoryCompat,
+            @Main CoroutineDispatcher mainCoroutineDispatcher) {
         mContext = context;
         mExecutor = mainExecutor;
         mNavigationBarComponentFactory = navigationBarComponentFactory;
@@ -140,6 +146,10 @@ public class NavigationBarControllerImpl implements
         mDisplayTracker = displayTracker;
         mDisplayManager = mContext.getSystemService(DisplayManager.class);
         commandQueue.addCallback(mCommandQueueCallbacks);
+        if (WmCallbackForSysDecorFlag.isEnabled()) {
+            displaysWithDecorationsRepositoryCompat.registerDisplayDecorationListener(
+                    mDisplayDecorationListener, mainCoroutineDispatcher);
+        }
         configurationController.addCallback(this);
         mConfigChanges.applyNewConfig(mContext.getResources());
         mNavMode = navigationModeController.addListener(this);
@@ -214,20 +224,33 @@ public class NavigationBarControllerImpl implements
         });
     }
 
-    private boolean shouldCreateNavBarAndTaskBar(int displayId) {
-        if (mHasNavBar.indexOfKey(displayId) > -1) {
-            return mHasNavBar.get(displayId);
+    /**
+     * Returns the cached value from {@link #mHasNavBarOrTaskbar} if it exists, otherwise calls
+     * {@link #updateHasNavBarForDisplay(int)} to update the cache and returns that value.
+     */
+    @Override
+    public boolean canCreateNavBarOrTaskBar(int displayId) {
+        if (mHasNavBarOrTaskbar.indexOfKey(displayId) > -1) {
+            return mHasNavBarOrTaskbar.get(displayId);
         }
 
+        return updateHasNavBarForDisplay(displayId);
+    }
+
+    /**
+     * Updates the cache {@link #mHasNavBarOrTaskbar} for the given displayId by querying
+     * {@link IWindowManager#hasNavigationBar(int)}.
+     */
+    private boolean updateHasNavBarForDisplay(int displayId) {
         final IWindowManager wms = WindowManagerGlobal.getWindowManagerService();
 
         try {
-            boolean hasNavigationBar = wms.hasNavigationBar(displayId);
-            mHasNavBar.put(displayId, hasNavigationBar);
-            return hasNavigationBar;
+            boolean hasNavigationBarOrTaskbar = wms.hasNavigationBar(displayId);
+            mHasNavBarOrTaskbar.put(displayId, hasNavigationBarOrTaskbar);
+            return hasNavigationBarOrTaskbar;
         } catch (RemoteException e) {
             // Cannot get wms, just return false with warning message.
-            Log.w(TAG, "Cannot get WindowManager.");
+            Log.w(TAG, "Cannot get WindowManager.", e);
             return false;
         }
     }
@@ -243,12 +266,12 @@ public class NavigationBarControllerImpl implements
 
     /** @return {@code true} if taskbar is enabled, false otherwise */
     private boolean initializeTaskbarIfNecessary() {
-        boolean taskbarEnabled = supportsTaskbar() && shouldCreateNavBarAndTaskBar(
-                mContext.getDisplayId());
+        final int displayId = mContext.getDisplayId();
+        final boolean canCreateNavBarOrTaskbar = canCreateNavBarOrTaskBar(displayId);
+        boolean taskbarEnabled = supportsTaskbar() && canCreateNavBarOrTaskbar;
 
         if (taskbarEnabled) {
             Trace.beginSection("NavigationBarController#initializeTaskbarIfNecessary");
-            final int displayId = mContext.getDisplayId();
             // Hint to NavBarHelper if we are replacing an existing bar to skip extra work
             mNavBarHelper.setTogglingNavbarTaskbar(mNavigationBars.contains(displayId));
             // Remove navigation bar when taskbar is showing
@@ -268,29 +291,26 @@ public class NavigationBarControllerImpl implements
         // Enable for tablets, unfolded state on a foldable device, (non handheld AND flag is set),
         // or handheld when enableTaskbarOnPhones() returns true.
         boolean foldedOrPhone = !mIsPhone || enableTaskbarOnPhones();
-        return mIsLargeScreen || (foldedOrPhone && enableTaskbarNavbarUnification());
+        return mIsLargeScreen || foldedOrPhone;
     }
 
+    // TODO: b/408503553 - Remove system decor callbacks once the flag is cleaned up.
     private final CommandQueue.Callbacks mCommandQueueCallbacks = new CommandQueue.Callbacks() {
         @Override
         public void onDisplayRemoved(int displayId) {
-            onDisplayRemoveSystemDecorations(displayId);
+            mDisplayDecorationListener.onDisplayRemoveSystemDecorations(displayId);
         }
 
         @Override
         public void onDisplayRemoveSystemDecorations(int displayId) {
-            removeNavigationBar(displayId);
-            mHasNavBar.delete(displayId);
+            WmCallbackForSysDecorFlag.assertInLegacyMode();
+            mDisplayDecorationListener.onDisplayRemoveSystemDecorations(displayId);
         }
 
         @Override
         public void onDisplayAddSystemDecorations(int displayId) {
-            if (DesktopExperienceFlags.ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT.isTrue()) {
-                mHasNavBar.put(displayId, true);
-            }
-            Display display = mDisplayManager.getDisplay(displayId);
-            mIsLargeScreen = isLargeScreen(mContext);
-            createNavigationBar(display, null /* savedState */, null /* result */);
+            WmCallbackForSysDecorFlag.assertInLegacyMode();
+            mDisplayDecorationListener.onDisplayAddSystemDecorations(displayId);
         }
 
         @Override
@@ -319,6 +339,31 @@ public class NavigationBarControllerImpl implements
             }
         }
     };
+
+    private final DisplayDecorationListener mDisplayDecorationListener =
+            new DisplayDecorationListener() {
+                @Override
+                public void onDisplayRemoved(int displayId) {
+                    onDisplayRemoveSystemDecorations(displayId);
+                }
+
+                @Override
+                public void onDisplayRemoveSystemDecorations(int displayId) {
+                    removeNavigationBar(displayId);
+                    mHasNavBarOrTaskbar.delete(displayId);
+                }
+
+                @Override
+                public void onDisplayAddSystemDecorations(int displayId) {
+                    if (DesktopExperienceFlags.ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT.isTrue()) {
+                        updateHasNavBarForDisplay(displayId);
+                    }
+                    Display display = mDisplayManager.getDisplay(displayId);
+                    mIsLargeScreen = isLargeScreen(mContext);
+                    if (mNavigationBars.get(displayId) == null) {
+                        createNavigationBar(display, null /* savedState */, null /* result */);
+                    }
+                }};
 
     /**
      * Recreates the navigation bar for the given display.
@@ -366,7 +411,14 @@ public class NavigationBarControllerImpl implements
         final int displayId = display.getDisplayId();
         final boolean isOnDefaultDisplay = displayId == mDisplayTracker.getDefaultDisplayId();
 
-        if (!shouldCreateNavBarAndTaskBar(displayId)) {
+        if (!canCreateNavBarOrTaskBar(displayId)) {
+            return;
+        }
+
+        // Taskbar on connected displays will be created by TaskbarManager through display
+        // decoration callback when flag is on.
+        if (!isOnDefaultDisplay
+                && DesktopExperienceFlags.ENABLE_TASKBAR_CONNECTED_DISPLAYS.isTrue()) {
             return;
         }
 
@@ -379,6 +431,7 @@ public class NavigationBarControllerImpl implements
         final Context context = isOnDefaultDisplay
                 ? mContext
                 : mContext.createDisplayContext(display);
+
         NavigationBarComponent component = mNavigationBarComponentFactory.create(
                 context, savedState);
         NavigationBar navBar = component.getNavigationBar();

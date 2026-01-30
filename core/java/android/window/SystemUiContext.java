@@ -23,7 +23,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.res.Configuration;
 
-import com.android.window.flags.Flags;
+import java.util.Objects;
 
 /**
  * System Context to be used for UI. This Context has resources that can be themed.
@@ -39,10 +39,6 @@ public class SystemUiContext extends ContextWrapper implements ConfigurationDisp
 
     public SystemUiContext(Context base) {
         super(base);
-        if (!Flags.trackSystemUiContextBeforeWms()) {
-            throw new UnsupportedOperationException("SystemUiContext can only be used after"
-                    + " flag is enabled.");
-        }
     }
 
     @Override
@@ -65,5 +61,17 @@ public class SystemUiContext extends ContextWrapper implements ConfigurationDisp
     public boolean shouldReportPrivateChanges() {
         // We should report all config changes to update fields obtained from resources.
         return true;
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        // We should detach from WindowContainer when the Context is finalized since SystemUiContext
+        // associates the DisplayContent with #getDisplayId().
+        try {
+            final WindowTokenClient token = (WindowTokenClient) getWindowContextToken();
+            WindowTokenClientController.getInstance().detachIfNeeded(Objects.requireNonNull(token));
+        } finally {
+            super.finalize();
+        }
     }
 }

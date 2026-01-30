@@ -38,7 +38,6 @@ import com.android.systemui.mediaprojection.data.repository.fakeMediaProjectionR
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.screenrecord.data.repository.screenRecordRepository
 import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.notification.collection.buildEntry
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
@@ -190,7 +189,9 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
             // GIVEN a screen record event + screen record notif that has a status bar chip
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
             val screenRecordEntry =
                 buildNotificationEntry(tag = "screenRecord", promoted = false) {
                     setImportance(NotificationManager.IMPORTANCE_DEFAULT)
@@ -203,7 +204,7 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
                 collectLastValue(promotedNotificationsInteractor.orderedChipNotificationKeys)
 
             assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|screenRecord|0")
+                .containsExactly(screenRecordEntry.key)
                 .inOrder()
 
             // THEN the entry is in the fgs section
@@ -217,7 +218,9 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
             // GIVEN a screen record event + screen record notif that has a status bar chip
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
             val screenRecordEntry =
                 buildNotificationEntry(tag = "screenRecord", promoted = false) {
                     setImportance(NotificationManager.IMPORTANCE_MIN)
@@ -230,7 +233,7 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
                 collectLastValue(promotedNotificationsInteractor.orderedChipNotificationKeys)
 
             assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|screenRecord|0")
+                .containsExactly(screenRecordEntry.key)
                 .inOrder()
 
             // THEN the entry is NOT in the fgs section
@@ -244,7 +247,9 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
             // GIVEN a screen record event + screen record notif that has a status bar chip
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
             val screenRecordEntry =
                 buildNotificationEntry(tag = "screenRecord", promoted = false) {
                     setImportance(NotificationManager.IMPORTANCE_DEFAULT)
@@ -257,7 +262,7 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
                 collectLastValue(promotedNotificationsInteractor.orderedChipNotificationKeys)
 
             assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|screenRecord|0")
+                .containsExactly(screenRecordEntry.key)
                 .inOrder()
 
             // THEN the entry is NOT in the fgs section
@@ -297,14 +302,13 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
     @Test
     @EnableFlags(
         PromotedNotificationUi.FLAG_NAME,
-        StatusBarNotifChips.FLAG_NAME,
         StatusBarChipsModernization.FLAG_NAME,
         StatusBarRootModernization.FLAG_NAME,
     )
     fun comparatorPutsCallBeforeOther() =
         kosmos.runTest {
             // GIVEN a call and a promoted ongoing notification
-            val callEntry = buildOngoingCallEntry(promoted = false)
+            val callEntry = buildOngoingCallEntry(promoted = true)
             val ronEntry = buildPromotedOngoingEntry()
             val otherEntry = buildNotificationEntry(tag = "other")
 
@@ -317,7 +321,10 @@ class ColorizedFgsCoordinatorTest : SysuiTestCase() {
 
             // THEN the order of the notification keys should be the call then the RON
             assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|call|0", "0|test_pkg|0|ron|0")
+                .containsExactly(
+                    callEntry.key,
+                    ronEntry.key,
+                )
 
             // VERIFY that the comparator puts the call before the ron
             assertThat(sectioner.comparator!!.compare(callEntry, ronEntry)).isLessThan(0)

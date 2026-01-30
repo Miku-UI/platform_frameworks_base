@@ -59,6 +59,8 @@ import android.view.InputMonitor;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.PointerIcon;
+import android.view.View;
+import android.view.View.PointerCaptureMode;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
 
@@ -206,7 +208,14 @@ public final class InputManagerGlobal {
         synchronized (InputManagerGlobal.class) {
             final var oldInstance = sInstance;
             sInstance = new InputManagerGlobal(inputManagerService);
-            return () -> sInstance = oldInstance;
+            Log.d(TAG, "Starting InputManagerGlobal test session with new service instance "
+                    + inputManagerService + ", old service instance = "
+                    + (oldInstance != null ? oldInstance.getInputManagerService() : "null"));
+            return () -> {
+                Log.d(TAG, "Closing test session and restoring service instance to "
+                        + (oldInstance != null ? oldInstance.getInputManagerService() : "null"));
+                sInstance = oldInstance;
+            };
         }
     }
 
@@ -1709,6 +1718,28 @@ public final class InputManagerGlobal {
     }
 
     /**
+     * @see InputManager#createVirtualKeyboard(VirtualKeyboardConfig)
+     */
+    @NonNull
+    @RequiresPermission(anyOf = {
+            Manifest.permission.INJECT_KEY_EVENTS,
+            Manifest.permission.INJECT_EVENTS
+    })
+    public VirtualKeyboard createVirtualKeyboard(@NonNull VirtualKeyboardConfig config) {
+        IVirtualInputDevice virtualInputDevice;
+        try {
+            // Pass a token to the server so that the server can be notified when the calling
+            // process has died and therefore clean up the virtual device.
+            final IBinder token = new Binder(
+                    "android.hardware.input.VirtualKeyboard:" + config.getInputDeviceName());
+            virtualInputDevice = mIm.createVirtualKeyboard(token, config);
+            return new VirtualKeyboard(config, virtualInputDevice);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * @see InputManager#setPointerIcon(PointerIcon, int, int, int, IBinder)
      */
     public boolean setPointerIcon(PointerIcon icon, int displayId, int deviceId, int pointerId,
@@ -1721,11 +1752,20 @@ public final class InputManagerGlobal {
     }
 
     /**
-     * @see InputManager#requestPointerCapture(IBinder, boolean)
+     * @see android.view.View#requestPointerCapture()
      */
-    public void requestPointerCapture(IBinder windowToken, boolean enable) {
+    public void requestPointerCapture(@NonNull IBinder windowToken, @PointerCaptureMode int mode) {
+        // We need to check the mode is valid here too, since the binder call is oneway, so the
+        // check in InputManagerService#requestPointerCapture would not result in the exception
+        // being propagated to the caller.
+        if (mode != View.POINTER_CAPTURE_MODE_UNCAPTURED
+                && mode != View.POINTER_CAPTURE_MODE_ABSOLUTE
+                && mode != View.POINTER_CAPTURE_MODE_RELATIVE) {
+            throw new IllegalArgumentException("Invalid pointer capture mode " + mode);
+        }
+
         try {
-            mIm.requestPointerCapture(windowToken, enable);
+            mIm.requestPointerCapture(windowToken, mode);
         } catch (RemoteException ex) {
             throw ex.rethrowFromSystemServer();
         }

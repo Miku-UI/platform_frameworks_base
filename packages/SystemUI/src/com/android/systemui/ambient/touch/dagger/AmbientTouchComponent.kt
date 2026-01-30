@@ -17,9 +17,11 @@ package com.android.systemui.ambient.touch.dagger
 
 import androidx.lifecycle.LifecycleOwner
 import com.android.systemui.ambient.dagger.AmbientModule.Companion.LOGGING_NAME
+import com.android.systemui.ambient.dagger.AmbientModule.Companion.SURFACE
 import com.android.systemui.ambient.dagger.AmbientModule.Companion.TOUCH_HANDLERS
 import com.android.systemui.ambient.touch.TouchHandler
 import com.android.systemui.ambient.touch.TouchMonitor
+import com.android.systemui.ambient.touch.TouchSurface
 import dagger.BindsInstance
 import dagger.Subcomponent
 import javax.inject.Named
@@ -39,6 +41,7 @@ interface AmbientTouchComponent {
             @Named(TOUCH_HANDLERS)
             touchHandlers: Set<@JvmSuppressWildcards TouchHandler>,
             @BindsInstance @Named(LOGGING_NAME) loggingName: String,
+            @BindsInstance @Named(SURFACE) @TouchSurface surface: Int,
         ): AmbientTouchComponent
     }
 

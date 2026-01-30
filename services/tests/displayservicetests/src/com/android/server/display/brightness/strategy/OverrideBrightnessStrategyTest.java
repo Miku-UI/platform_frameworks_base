@@ -61,7 +61,7 @@ public class OverrideBrightnessStrategyTest {
                 mOverrideBrightnessStrategy.updateBrightness(
                         new StrategyExecutionRequest(displayPowerRequest, 0.2f,
                                 /* userSetBrightnessChanged= */ false,
-                                /* isStylusBeingUsed */ false));
+                                /* isStylusBeingUsed */ false, /* offloadSession= */ null));
         assertThat(updatedDisplayBrightnessState).isEqualTo(expectedDisplayBrightnessState);
     }
 
@@ -85,7 +85,7 @@ public class OverrideBrightnessStrategyTest {
                 mOverrideBrightnessStrategy.updateBrightness(
                         new StrategyExecutionRequest(displayPowerRequest, 0.2f,
                                 /* userSetBrightnessChanged= */ false,
-                                /* isStylusBeingUsed */ false));
+                                /* isStylusBeingUsed */ false, /* offloadSession= */ null));
         assertThat(updatedDisplayBrightnessState).isEqualTo(expectedDisplayBrightnessState);
     }
 

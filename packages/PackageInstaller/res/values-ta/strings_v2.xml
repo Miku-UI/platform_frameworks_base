@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"அனுமதி தேவை"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"நிறுவல் தடுக்கப்பட்டது"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"ஆப்ஸ் தயாராகிறது…"</string>
+    <string name="title_install" msgid="6806728682404990326">"இந்த ஆப்ஸை நிறுவவா?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"நிறுவுகிறது…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"ஆப்ஸ் நிறுவப்பட்டது"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"இந்த ஆப்ஸை மீண்டும் நிறுவவா?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"மீண்டும் நிறுவுகிறது…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"ஆப்ஸ் மீண்டும் நிறுவப்பட்டது"</string>
+    <string name="title_update" msgid="1747328630716712391">"இந்த ஆப்ஸைப் புதுப்பிக்கவா?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> ஐப் பயன்படுத்தி இந்த ஆப்ஸைப் புதுப்பிக்கவா?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"புதுப்பிக்கிறது…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"ஆப்ஸ் புதுப்பிக்கப்பட்டது"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"ஆப்ஸை நிறுவ முடியவில்லை"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"நிறுவல் தடுக்கப்பட்டது"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"ஆப்ஸ் இணக்கமாக இல்லை"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"தவறான பேக்கேஜ்"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"போதுமான சேமிப்பகம் இல்லை"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"ஆப்ஸ் நிறுவப்படவில்லை"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"இந்த ஆப்ஸை நிறுவல் நீக்கவா?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"இந்த ஆப்ஸ் குளோனை நீக்கவா?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"ஆப்ஸ் புதுப்பிப்புகளை நிறுவல் நீக்கவா?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"அனைத்துப் பயனர்களுக்கும் ஆப்ஸ் புதுப்பிப்புகளை நிறுவல் நீக்கவா?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"அனைத்துப் பயனர்களுக்கும் இந்த ஆப்ஸை நிறுவல் நீக்கவா?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"\"<xliff:g id="USER_NAME">%1$s</xliff:g>\" என்ற பயனருக்கு இந்த ஆப்ஸை நிறுவல் நீக்கவா?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"ஆப்ஸ் இல்லை"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"இந்த ஆப்ஸை நிறுவல் நீக்க முடியவில்லை"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"ஆப்ஸ் நிறுவல் நீக்கப்படவில்லை"</string>
+    <string name="title_archive" msgid="2876455228073419830">"இந்த ஆப்ஸைக் காப்பிடவா?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"அனைத்துப் பயனர்களுக்கும் இந்த ஆப்ஸைக் காப்பிடவா?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"\"<xliff:g id="USER_NAME">%1$s</xliff:g>\" என்ற பயனருக்கு இந்த ஆப்ஸைக் காப்பிடவா?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"இந்த ஆப்ஸை மீட்டெடுக்கவா?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"நடவடிக்கை தேவை"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"போதுமான சேமிப்பகம் இல்லை"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"ஆஃப்லைனில் உள்ளீர்கள்"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> முடக்கப்பட்டுள்ளது"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> நிறுவப்படவில்லை"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"ஏதோ தவறாகிவிட்டது"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"பொதுவாக இந்த ஆப்ஸ் &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; இல் இருந்து புதுப்பிப்புகளைப் பெறும். வேறு உரிமையாளர் மூலம் புதுப்பித்தால் எதிர்காலத்தில் டேப்லெட்டில் இடம்பெற்றுள்ள எந்த உரிமையாளரிடம் இருந்தும் புதுப்பிப்புகளைப் பெறக்கூடும். ஆப்ஸ் செயல்பாடுகள் மாறுபடக்கூடும்."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"பொதுவாக இந்த ஆப்ஸ் &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; இல் இருந்து புதுப்பிப்புகளைப் பெறும். வேறு உரிமையாளர் மூலம் புதுப்பித்தால் எதிர்காலத்தில் டிவியில் இடம்பெற்றுள்ள எந்த உரிமையாளரிடம் இருந்தும் புதுப்பிப்புகளைப் பெறக்கூடும். ஆப்ஸ் செயல்பாடுகள் மாறுபடக்கூடும்."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"பொதுவாக இந்த ஆப்ஸ் &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; இல் இருந்து புதுப்பிப்புகளைப் பெறும். வேறு உரிமையாளர் மூலம் புதுப்பித்தால் எதிர்காலத்தில் மொபைலில் இடம்பெற்றுள்ள எந்த உரிமையாளரிடம் இருந்தும் புதுப்பிப்புகளைப் பெறக்கூடும். ஆப்ஸ் செயல்பாடுகள் மாறுபடக்கூடும்."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"உங்கள் பாதுகாப்புக்காக, இந்த ஆதாரத்திலிருந்து அறியப்படாத ஆப்ஸை டேப்லெட்டில் நிறுவ தற்போது அனுமதியில்லை. இதை அமைப்புகளில் மாற்றலாம்."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"உங்கள் பாதுகாப்புக்காக, இந்த ஆதாரத்திலிருந்து அறியப்படாத ஆப்ஸை டிவியில் நிறுவ தற்போது அனுமதியில்லை. இதை அமைப்புகளில் மாற்றலாம்."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"உங்கள் பாதுகாப்புக்காக, இந்த ஆதாரத்திலிருந்து அறியப்படாத ஆப்ஸை வாட்ச்சில் நிறுவ தற்போது அனுமதியில்லை. இதை அமைப்புகளில் மாற்றலாம்."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"உங்கள் பாதுகாப்புக்காக, இந்த ஆதாரத்திலிருந்து அறியப்படாத ஆப்ஸை மொபைலில் நிறுவ தற்போது அனுமதியில்லை. இதை அமைப்புகளில் மாற்றலாம்."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"அறியப்படாத ஆப்ஸால் உங்கள் மொபைலும் தனிப்பட்ட தரவும் அதிகப் பாதிப்புக்கு உள்ளாகலாம். இந்த ஆப்ஸை நிறுவுவதன் மூலம், அதைப் பயன்படுத்தும்போது உங்கள் மொபைலுக்குப் பாதிப்பு ஏற்பட்டாலோ தரவை இழந்தாலோ அதற்கு நீங்கள்தான் பொறுப்பாவீர்கள் என்பதை ஏற்கிறீர்கள்."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"அறியப்படாத ஆப்ஸால் உங்கள் டேப்லெட்டும் தனிப்பட்ட தரவும் அதிகப் பாதிப்புக்கு உள்ளாகலாம். இந்த ஆப்ஸை நிறுவுவதன் மூலம், அதைப் பயன்படுத்தும்போது உங்கள் டேப்லெட்டுக்குப் பாதிப்பு ஏற்பட்டாலோ தரவை இழந்தாலோ அதற்கு நீங்கள்தான் பொறுப்பாவீர்கள் என்பதை ஏற்கிறீர்கள்."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"அறியப்படாத ஆப்ஸால் உங்கள் டிவியும் தனிப்பட்ட தரவும் அதிகப் பாதிப்புக்கு உள்ளாகலாம். இந்த ஆப்ஸை நிறுவுவதன் மூலம், அதைப் பயன்படுத்தும்போது உங்கள் டிவிக்குப் பாதிப்பு ஏற்பட்டாலோ தரவை இழந்தாலோ அதற்கு நீங்கள்தான் பொறுப்பாவீர்கள் என்பதை ஏற்கிறீர்கள்."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"இந்த ஆப்ஸ் நிறுவப்படுவதிலிருந்து தடுக்கப்பட்டது"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"இந்த ஆப்ஸ் உங்கள் சாதனத்தில் ஏற்கெனவே உள்ள ஆப்ஸுடன் முரண்படுகிறது"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"இந்த ஆப்ஸ் உங்கள் சாதனத்துடன் இணக்கமாக இல்லை"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"இந்த ஆப்ஸின் நிறுவல் ஃபைலில் சிக்கல் உள்ளது"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"இந்த ஆப்ஸை நிறுவ, சிறிது சேமிப்பிடத்தைக் காலியாக்கி மீண்டும் முயலவும்"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"ஆப்ஸ் ஃபைலில் சிக்கல் உள்ளது"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ஆப்ஸை நிறுவுவது தடைசெய்யப்பட்டுள்ளது"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"அறியப்படாத ஆப்ஸை நிறுவுவது தடைசெய்யப்பட்டுள்ளது"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"இந்த ஆப்ஸின் குளோனும் உள்ளது, அது நீக்கப்படும்"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"இந்த ஆப்ஸ் <xliff:g id="APP_LABEL">%1$s</xliff:g> இன் குளோன் ஆகும்"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"இந்த ஆப்ஸ் ஆரம்பநிலைப் பதிப்பிற்கு மாற்றப்படும். அனைத்து ஆப்ஸ் தரவும் நீக்கப்படும்."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"சாதனத்தில் உள்ள அனைத்துப் பயனர்களுக்கும் இந்த ஆப்ஸ் ஆரம்பநிலைப் பதிப்பிற்கு மாற்றப்படும். அனைத்து ஆப்ஸ் தரவும் நீக்கப்படும்."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"இந்த ஆப்ஸ் உங்கள் பணிக் கணக்கில் இருந்து நிறுவல் நீக்கப்படும்"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"இந்த ஆப்ஸ் உங்கள் ரகசிய இடத்தில் இருந்து நிறுவல் நீக்கப்படும்"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"இந்த ஆப்ஸ் நிறுவிய ஆப்ஸ் பட்டியலில் இல்லை அல்லது ஏற்கெனவே நிறுவல் நீக்கப்பட்டுள்ளது"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"இந்த நிறுவல் நீக்கச் செயலைச் செய்ய தற்போதைய பயனருக்கு அனுமதியில்லை"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"இந்த ஆப்ஸை நிறுவல் நீக்க முடியவில்லை"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"ஆப்ஸ் தரவை வைத்திரு"</string>
+    <string name="message_archive" msgid="943853731737315850">"உங்கள் ஆப்ஸ் தரவு சேமிக்கப்படும்"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"ஆப்ஸ் தரவு அனைத்தும் சேமிக்கப்படும்"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ஆப்ஸ் தரவு சேமிக்கப்படும்"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"இந்த ஆப்ஸ் உங்கள் பணிக் கணக்கில் காப்பிடப்படும். உங்கள் ஆப்ஸ் தரவு சேமிக்கப்படும்."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"இந்த ஆப்ஸ் உங்கள் ரகசிய இடத்தில் காப்பிடப்படும். உங்கள் ஆப்ஸ் தரவு சேமிக்கப்படும்."</string>
+    <string name="message_restore" msgid="8402726798623569969">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> இல் இருந்து இந்த ஆப்ஸ் பின்னணியில் பதிவிறக்கப்படும்"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"இந்த ஆப்ஸை மீட்டெடுக்கும் முன்பு <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>க்குக் கூடுதல் தகவல்கள் தேவை"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"இந்த ஆப்ஸை மீட்டெடுக்க, &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; இடத்தைக் காலியாக்கி மீண்டும் முயலவும்"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"இந்த ஆப்ஸை மீட்டெடுக்க, உங்கள் இணைய இணைப்பைச் சரிபார்த்துவிட்டு மீண்டும் முயலவும்"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"இந்த ஆப்ஸை மீட்டெடுக்க அமைப்புகளில் <xliff:g id="INSTALLERNAME">%1$s</xliff:g> ஐ இயக்கவும்"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"இந்த ஆப்ஸை மீட்டெடுக்க <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ஐ நிறுவ வேண்டும்"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"இந்த ஆப்ஸை மீட்டெடுக்க முயலும்போது சிக்கல் ஏற்பட்டது"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> பின்வரும் ஆப்ஸின் பகுதியாகும்: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;இந்த ஆப்ஸ் தடுக்கப்பட்டது. உங்கள் சாதனத்தையும் தரவையும் பாதுகாப்பாக வைத்திருக்க உதவ, சரிபார்க்கப்பட்ட டெவெலப்பர்கள் வழங்கும் ஆப்ஸை மட்டுமே நிறுவ முடியும்.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;இந்த ஆப்ஸ் புதுப்பிக்கப்படவில்லை. உங்கள் சாதனத்தையும் தரவையும் பாதுகாப்பாக வைத்திருக்க உதவ, சரிபார்க்கப்பட்ட டெவெலப்பர்கள் வழங்கும் புதுப்பிப்புகளை மட்டுமே நிறுவ முடியும்.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;இந்த ஆப்ஸ் நிறுவப்படவில்லை. சரிபார்க்கப்படாத டெவெலப்பர்கள் வழங்கும் ஆப்ஸ் பாதுகாப்பற்றவையாக இருக்கக்கூடும்.&lt;/p&gt; &lt;p&gt;ஆப்ஸ் டெவெலப்பரைச் சரிபார்க்க இணைய இணைப்பு தேவை. உங்கள் இணைப்பைச் சரிபார்த்துவிட்டு மீண்டும் நிறுவிப் பார்க்கவும். &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;இந்த ஆப்ஸ் புதுப்பிக்கப்படவில்லை. சரிபார்க்கப்படாத டெவெலப்பர்கள் வழங்கும் புதுப்பிப்புகள் பாதுகாப்பற்றவையாக இருக்கக்கூடும்.&lt;/p&gt; &lt;p&gt;ஆப்ஸ் டெவெலப்பரைச் சரிபார்க்க இணைய இணைப்பு தேவை. உங்கள் இணைப்பைச் சரிபார்த்துவிட்டு மீண்டும் புதுப்பித்துப் பார்க்கவும். &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;இந்த ஆப்ஸின் டெவெலப்பரைச் சரிபார்ப்பதில் சிக்கல் ஏற்பட்டது. சரிபார்க்கப்படாத டெவெலப்பர்கள் வழங்கும் ஆப்ஸ் பாதுகாப்பற்றவையாக இருக்கக்கூடும் என்பதால் ஆப்ஸ் நிறுவப்படவில்லை.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;இந்த ஆப்ஸின் டெவெலப்பரைச் சரிபார்ப்பதில் சிக்கல் ஏற்பட்டது. சரிபார்க்கப்படாத டெவெலப்பர்கள் வழங்கும் புதுப்பிப்புகள் பாதுகாப்பற்றவையாக இருக்கக்கூடும் என்பதால் ஆப்ஸ் புதுப்பிக்கப்படவில்லை.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;டெவெலப்பரைச் சரிபார்ப்பதில் சிக்கல் ஏற்பட்டதால் இந்த ஆப்ஸ் தடுக்கப்பட்டது. உங்கள் சாதனத்தையும் தரவையும் பாதுகாப்பாக வைத்திருக்க உதவ, சரிபார்க்கப்பட்ட டெவெலப்பர்கள் வழங்கும் ஆப்ஸை மட்டுமே நிறுவ முடியும்.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;டெவெலப்பரைச் சரிபார்ப்பதில் சிக்கல் ஏற்பட்டதால் இந்த ஆப்ஸ் புதுப்பிக்கப்படவில்லை. உங்கள் சாதனத்தையும் தரவையும் பாதுகாப்பாக வைத்திருக்க உதவ, சரிபார்க்கப்பட்ட டெவெலப்பர்கள் வழங்கும் புதுப்பிப்புகளை மட்டுமே நிறுவ முடியும்.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;டெவெலப்பர் சரிபார்ப்பு குறித்து மேலும் தெரிந்துகொள்ளுங்கள்&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"சரிபார்க்காமல் நிறுவினால், சரிபார்க்கப்படாத டெவெலப்பர்கள் வழங்கும் ஆப்ஸ் உங்கள் சாதனத்திற்கும் தரவிற்கும் ஆபத்தை ஏற்படுத்தக்கூடும் என்பதை நினைவில்கொள்ளுங்கள்."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"சரிபார்க்காமல் புதுப்பித்தால், சரிபார்க்கப்படாத டெவெலப்பர்கள் வழங்கும் புதுப்பிப்புகள் உங்கள் சாதனத்திற்கும் தரவிற்கும் ஆபத்தை ஏற்படுத்தக்கூடும் என்பதை நினைவில்கொள்ளுங்கள்."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"ஆப்ஸ் டெவெலப்பர் சரிபார்க்கப்படவில்லை"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"இணைய இணைப்பு இல்லாததால் ஆப்ஸ் டெவெலப்பரைச் சரிபார்க்க முடியவில்லை"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"ஆப்ஸ் டெவெலப்பரைச் சரிபார்க்க முடியவில்லை"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"சரிபார்க்காமல் நிறுவு"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"சரிபார்க்காமல் புதுப்பி"</string>
+    <string name="button_install" msgid="7434013176505680162">"நிறுவு"</string>
+    <string name="button_update" msgid="3046719350226327526">"புதுப்பி"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"பரவாயில்லை, புதுப்பி"</string>
+    <string name="button_done" msgid="3408025390982260629">"முடிந்தது"</string>
+    <string name="button_open" msgid="6892684987374117955">"திற"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"ரத்துசெய்"</string>
+    <string name="button_continue" msgid="107501685249826244">"தொடர்க"</string>
+    <string name="button_close" msgid="7187308556466275899">"மூடு"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"நிறுவல் நீக்கு"</string>
+    <string name="button_delete" msgid="1050833585936159792">"நீக்கு"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"மீண்டும் நிறுவு"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"ஆப்ஸை நிர்வகியுங்கள்"</string>
+    <string name="button_archive" msgid="2719647830439699121">"காப்பிடு"</string>
+    <string name="button_restore" msgid="4388317532933866637">"மீட்டெடு"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"புதுப்பிப்புகளை நிறுவல் நீக்கு"</string>
+    <string name="button_settings" msgid="3837571366246132287">"அமைப்புகள்"</string>
+    <string name="button_retry" msgid="6736082260813816198">"மீண்டும் முயல்க"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> குளோன்"</string>
+</resources>

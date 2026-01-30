@@ -33,7 +33,6 @@ import android.util.Log;
 import android.widget.Toast;
 
 import com.android.internal.telephony.TelephonyPermissions;
-import com.android.internal.telephony.flags.Flags;
 import com.android.internal.telephony.util.TelephonyUtils;
 
 /**
@@ -427,16 +426,9 @@ public final class LocationAccessPolicy {
     private static boolean isAppAtLeastSdkVersion(Context context,
             @NonNull UserHandle callingUserHandle, String pkgName, int sdkVersion) {
         try {
-            if (Flags.hsumPackageManager()) {
-                if (context.getPackageManager().getApplicationInfoAsUser(
-                        pkgName, 0, callingUserHandle).targetSdkVersion >= sdkVersion) {
-                    return true;
-                }
-            } else {
-                if (context.getPackageManager().getApplicationInfo(pkgName, 0).targetSdkVersion
-                        >= sdkVersion) {
-                    return true;
-                }
+            if (context.getPackageManager().getApplicationInfoAsUser(
+                    pkgName, 0, callingUserHandle).targetSdkVersion >= sdkVersion) {
+                return true;
             }
         } catch (PackageManager.NameNotFoundException e) {
             // In case of exception, assume known app (more strict checking)

@@ -51,3 +51,11 @@ flag {
       purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "desktop_device_state_property_api"
+    is_exported: true
+    namespace: "windowing_sdk"
+    description: "Update device state property API for desktop devices"
+    bug: "383387318"
+}

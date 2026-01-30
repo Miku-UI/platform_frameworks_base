@@ -85,8 +85,8 @@ import java.util.function.Consumer;
     private final Object mEndpointLock = new Object();
 
     /**
-     * The next available endpoint ID to register. Per EndpointId.aidl definition, dynamic
-     * endpoint IDs must have the left-most bit as 1, and the values 0/-1 are invalid.
+     * The next available endpoint ID to register. Per EndpointId.aidl definition, dynamic endpoint
+     * IDs must have the left-most bit as 1, and the values 0/-1 are invalid.
      */
     @GuardedBy("mEndpointLock")
     private long mNextEndpointId = -2;
@@ -100,6 +100,9 @@ import java.util.function.Consumer;
     /** Variables for managing session ID creation */
     private final Object mSessionIdLock = new Object();
 
+    /** Variables for managing HAL restart */
+    private final Object mHalRestartLock = new Object();
+
     /** A set of session IDs that have been reserved by an endpoint. */
     @GuardedBy("mSessionIdLock")
     private final Set<Integer> mReservedSessionIds =
@@ -109,13 +112,13 @@ import java.util.function.Consumer;
     private int mNextSessionId = 0;
 
     /** Set true if init() succeeds */
-    private boolean mSessionIdsValid = false;
+    private boolean mIsRegistered = false;
 
     /** The interface for endpoint communication (retrieved from HAL in init()) */
     private IEndpointCommunication mHubInterface = null;
 
-    /** Thread pool executor for handling timeout */
-    private final ScheduledExecutorService mSessionTimeoutExecutor;
+    /** Thread pool executor to be shared with all endpoints */
+    private final ScheduledExecutorService mExecutor;
 
     /*
      * The list of previous registration records.
@@ -165,12 +168,12 @@ import java.util.function.Consumer;
             IContextHubWrapper contextHubProxy,
             HubInfoRegistry hubInfoRegistry,
             ContextHubTransactionManager transactionManager,
-            ScheduledExecutorService scheduledExecutorService) {
+            ScheduledExecutorService executor) {
         mContext = context;
         mContextHubProxy = contextHubProxy;
         mHubInfoRegistry = hubInfoRegistry;
         mTransactionManager = transactionManager;
-        mSessionTimeoutExecutor = scheduledExecutorService;
+        mExecutor = executor;
     }
 
     /* package */ ContextHubEndpointManager(
@@ -189,14 +192,24 @@ import java.util.function.Consumer;
     /**
      * Initializes this class.
      *
-     * This is separate from the constructor so that this may be passed into the callback registered
-     * with the HAL.
+     * <p>This is separate from the constructor so that this may be passed into the callback
+     * registered with the HAL.
      *
+     * @throws IllegalStateException if mHubInterface is null
      * @throws InstantiationException on unexpected failure
      * @throws UnsupportedOperationException if not supported by the HAL
      */
-    /* package */ void init() throws InstantiationException, UnsupportedOperationException {
-        if (mSessionIdsValid) {
+    /* package */ void init()
+            throws IllegalStateException, InstantiationException, UnsupportedOperationException {
+        synchronized (mHalRestartLock) {
+            initLocked();
+        }
+    }
+
+    @GuardedBy("mHalRestartLock")
+    private void initLocked()
+            throws IllegalStateException, InstantiationException, UnsupportedOperationException {
+        if (mIsRegistered) {
             throw new IllegalStateException("Already initialized");
         }
         try {
@@ -209,9 +222,9 @@ import java.util.function.Consumer;
             contextHubInfo.toolchain = "";
             contextHubInfo.supportedPermissions = new String[0];
             info.hubDetails = HubInfo.HubDetails.contextHubInfo(contextHubInfo);
-            mHubInterface = mContextHubProxy.registerEndpointHub(
-                    new ContextHubHalEndpointCallback(mHubInfoRegistry, this),
-                    info);
+            mHubInterface =
+                    mContextHubProxy.registerEndpointHub(
+                            new ContextHubHalEndpointCallback(mHubInfoRegistry, this), info);
             if (mHubInterface == null) {
                 throw new IllegalStateException("Received null IEndpointCommunication");
             }
@@ -219,7 +232,7 @@ import java.util.function.Consumer;
             String error = "Failed to register ContextHubService as message hub";
             Log.e(TAG, error, e);
             throw new InstantiationException(error);
-        }  // Forward UnsupportedOperationException to caller
+        } // Forward UnsupportedOperationException to caller
 
         int[] range = null;
         try {
@@ -250,7 +263,7 @@ import java.util.function.Consumer;
         synchronized (mSessionIdLock) {
             mNextSessionId = mMinSessionId;
         }
-        mSessionIdsValid = true;
+        mIsRegistered = true;
     }
 
     /**
@@ -268,40 +281,43 @@ import java.util.function.Consumer;
             String packageName,
             String attributionTag)
             throws RemoteException {
-        if (!mSessionIdsValid) {
-            throw new IllegalStateException("ContextHubEndpointManager failed to initialize");
-        }
-        ContextHubEndpointBroker broker;
-        long endpointId = getNewEndpointId();
-        EndpointInfo halEndpointInfo =
-                ContextHubServiceUtil.createHalEndpointInfo(
-                        pendingEndpointInfo, endpointId, SERVICE_HUB_ID);
-        broker =
-                new ContextHubEndpointBroker(
-                        mContext,
-                        mHubInterface,
-                        this /* endpointManager */,
-                        halEndpointInfo,
-                        callback,
-                        packageName,
-                        attributionTag,
-                        mTransactionManager,
-                        mSessionTimeoutExecutor);
-        broker.register();
-        mEndpointMap.put(endpointId, broker);
+        synchronized (mHalRestartLock) {
+            if (!mIsRegistered) {
+                throw new IllegalStateException("ContextHubEndpointManager failed to initialize");
+            }
+            ContextHubEndpointBroker broker;
+            long endpointId = getNewEndpointId();
+            EndpointInfo halEndpointInfo =
+                    ContextHubServiceUtil.createHalEndpointInfo(
+                            pendingEndpointInfo, endpointId, SERVICE_HUB_ID);
+            broker =
+                    new ContextHubEndpointBroker(
+                            mContext,
+                            mHubInterface,
+                            this /* endpointManager */,
+                            halEndpointInfo,
+                            callback,
+                            packageName,
+                            attributionTag,
+                            mTransactionManager,
+                            mExecutor);
+            broker.register();
+            mEndpointMap.put(endpointId, broker);
 
-        try {
-            broker.attachDeathRecipient();
-        } catch (RemoteException e) {
-            // The client process has died, so we close the connection and return null
-            Log.e(TAG, "Failed to attach death recipient to client", e);
-            broker.unregister();
-            return null;
-        }
+            try {
+                broker.attachDeathRecipient();
+            } catch (RemoteException e) {
+                // The client process has died, so we close the connection and return null
+                Log.e(TAG, "Failed to attach death recipient to client", e);
+                broker.unregister();
+                return null;
+            }
 
-        mRegistrationRecordDeque.add(new RegistrationRecord(broker.toString(), ACTION_REGISTERED));
-        Log.d(TAG, "Registered endpoint with ID = " + endpointId);
-        return IContextHubEndpoint.Stub.asInterface(broker);
+            mRegistrationRecordDeque.add(
+                    new RegistrationRecord(broker.toString(), ACTION_REGISTERED));
+            Log.d(TAG, "Registered endpoint with ID = " + endpointId);
+            return IContextHubEndpoint.Stub.asInterface(broker);
+        }
     }
 
     /**
@@ -351,6 +367,7 @@ import java.util.function.Consumer;
      * @param endpointId The ID of the endpoint to unregister.
      */
     /* package */ void unregisterEndpoint(long endpointId) {
+        Log.d(TAG, "Unregistering endpoint with ID = " + endpointId);
         ContextHubEndpointBroker broker = mEndpointMap.remove(endpointId);
         if (broker != null) {
             mRegistrationRecordDeque.add(
@@ -360,9 +377,25 @@ import java.util.function.Consumer;
 
     /** Invoked by the service when the Context Hub HAL restarts. */
     /* package */ void onHalRestart() {
-        for (ContextHubEndpointBroker broker : mEndpointMap.values()) {
-            // The broker will close existing sessions and re-register itself
-            broker.onHalRestart();
+        synchronized (mHalRestartLock) {
+            Log.d(TAG, "onHalRestart");
+            mIsRegistered = false;
+            try {
+                initLocked();
+            } catch (IllegalStateException
+                    | InstantiationException
+                    | UnsupportedOperationException e) {
+                Log.e(TAG, "Failed to re-register ContextHubService:" + e.getMessage());
+            }
+
+            for (ContextHubEndpointBroker broker : mEndpointMap.values()) {
+                if (mIsRegistered) {
+                    // mHubInterface is guaranteed to be valid if mIsRegistered is true
+                    broker.onHalRestart(mHubInterface);
+                } else {
+                    broker.unregister();
+                }
+            }
         }
     }
 
@@ -541,7 +574,9 @@ import java.util.function.Consumer;
         }
     }
 
-    /** @return an available endpoint ID */
+    /**
+     * @return an available endpoint ID
+     */
     private long getNewEndpointId() {
         synchronized (mEndpointLock) {
             if (mNextEndpointId >= 0) {

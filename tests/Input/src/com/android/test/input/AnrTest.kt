@@ -98,6 +98,7 @@ class AnrTest {
     private lateinit var PACKAGE_NAME: String
     private val DISPATCHING_TIMEOUT =
         (UNMULTIPLIED_DEFAULT_DISPATCHING_TIMEOUT_MILLIS * Build.HW_TIMEOUT_MULTIPLIER)
+    private val ANR_WAIT_TIMEOUT = Duration.ofSeconds(20).toMillis() * Build.HW_TIMEOUT_MULTIPLIER
     private var remoteWindowToken: IBinder? = null
     private var remoteDisplayId: Int? = null
     private var remotePid: Int? = null
@@ -158,7 +159,7 @@ class AnrTest {
         // Find anr dialog and kill app
         val uiDevice: UiDevice = UiDevice.getInstance(instrumentation)
         val closeAppButton: UiObject2? =
-            uiDevice.wait(Until.findObject(By.res("android:id/aerr_close")), 20000)
+            uiDevice.wait(Until.findObject(By.res("android:id/aerr_close")), ANR_WAIT_TIMEOUT)
         if (closeAppButton == null) {
             fail("Could not find anr dialog/close button")
             return
@@ -170,7 +171,7 @@ class AnrTest {
         // Find anr dialog and tap on wait
         val uiDevice: UiDevice = UiDevice.getInstance(instrumentation)
         val waitButton: UiObject2? =
-            uiDevice.wait(Until.findObject(By.res("android:id/aerr_wait")), 20000)
+            uiDevice.wait(Until.findObject(By.res("android:id/aerr_wait")), ANR_WAIT_TIMEOUT)
         if (waitButton == null) {
             fail("Could not find anr dialog/wait button")
             return
@@ -199,7 +200,7 @@ class AnrTest {
      * activity again.
      */
     private fun waitForNewExitReasonAfter(timestamp: Long) {
-        PollingCheck.waitFor(Duration.ofSeconds(20).toMillis() * Build.HW_TIMEOUT_MULTIPLIER) {
+        PollingCheck.waitFor(ANR_WAIT_TIMEOUT) {
             val reasons = getExitReasons()
             !reasons.isEmpty() && reasons[0].timestamp >= timestamp
         }

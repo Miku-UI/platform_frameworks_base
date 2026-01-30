@@ -19,77 +19,20 @@ package com.android.server.am;
 import android.util.ArraySet;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.server.am.psc.ProcessReceiverRecordInternal;
 
 import java.io.PrintWriter;
 
 /**
  * The state info of all broadcast receivers in the process.
  */
-final class ProcessReceiverRecord {
-    final ProcessRecord mApp;
+final class ProcessReceiverRecord extends ProcessReceiverRecordInternal {
     private final ActivityManagerService mService;
-
-    /**
-     * mReceivers currently running in the app.
-     */
-    private final ArraySet<BroadcastRecord> mCurReceivers = new ArraySet<BroadcastRecord>();
-
-    private int mCurReceiversSize;
 
     /**
      * All IIntentReceivers that are registered from this process.
      */
     private final ArraySet<ReceiverList> mReceivers = new ArraySet<>();
-
-    int numberOfCurReceivers() {
-        return mCurReceiversSize;
-    }
-
-    void incrementCurReceivers() {
-        mCurReceiversSize++;
-    }
-
-    void decrementCurReceivers() {
-        mCurReceiversSize--;
-    }
-
-    /**
-     * @deprecated we're moving towards tracking only a reference count to
-     *             improve performance.
-     */
-    @Deprecated
-    BroadcastRecord getCurReceiverAt(int index) {
-        return mCurReceivers.valueAt(index);
-    }
-
-    /**
-     * @deprecated we're moving towards tracking only a reference count to
-     *             improve performance.
-     */
-    @Deprecated
-    boolean hasCurReceiver(BroadcastRecord receiver) {
-        return mCurReceivers.contains(receiver);
-    }
-
-    /**
-     * @deprecated we're moving towards tracking only a reference count to
-     *             improve performance.
-     */
-    @Deprecated
-    void addCurReceiver(BroadcastRecord receiver) {
-        mCurReceivers.add(receiver);
-        mCurReceiversSize = mCurReceivers.size();
-    }
-
-    /**
-     * @deprecated we're moving towards tracking only a reference count to
-     *             improve performance.
-     */
-    @Deprecated
-    void removeCurReceiver(BroadcastRecord receiver) {
-        mCurReceivers.remove(receiver);
-        mCurReceiversSize = mCurReceivers.size();
-    }
 
     int numberOfReceivers() {
         return mReceivers.size();
@@ -103,9 +46,10 @@ final class ProcessReceiverRecord {
         mReceivers.remove(receiver);
     }
 
-    ProcessReceiverRecord(ProcessRecord app) {
-        mApp = app;
-        mService = app.mService;
+    ProcessReceiverRecord(ActivityManagerService service) {
+        super(service);
+
+        mService = service;
     }
 
     @GuardedBy("mService")
@@ -118,12 +62,13 @@ final class ProcessReceiverRecord {
     }
 
     void dump(PrintWriter pw, String prefix, long nowUptime) {
-        if (!mCurReceivers.isEmpty()) {
-            pw.print(prefix); pw.println("Current mReceivers:");
-            for (int i = 0, size = mCurReceivers.size(); i < size; i++) {
-                pw.print(prefix); pw.print("  - "); pw.println(mCurReceivers.valueAt(i));
-            }
-        }
+        pw.print(prefix);
+        pw.print("mIsReceivingBroadcast=");
+        pw.println(isReceivingBroadcast());
+
+        pw.print(prefix);
+        pw.print("mBroadcastReceiverSchedGroup=");
+        pw.println(getBroadcastReceiverSchedGroup());
         if (mReceivers.size() > 0) {
             pw.print(prefix); pw.println("mReceivers:");
             for (int i = 0, size = mReceivers.size(); i < size; i++) {

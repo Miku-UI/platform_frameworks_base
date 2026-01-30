@@ -29,6 +29,7 @@
 #include <sys/types.h>
 #include <utils/Log.h>
 
+#include <algorithm>
 #include <array>
 #include <fstream>
 #include <vector>

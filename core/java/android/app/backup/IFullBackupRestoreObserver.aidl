@@ -20,7 +20,7 @@ package android.app.backup;
  * Observer of a full backup or restore process.  The observer is told "interesting"
  * information about an ongoing full backup or restore action.
  *
- * {@hide}
+ * @hide
  */
 
 oneway interface IFullBackupRestoreObserver {

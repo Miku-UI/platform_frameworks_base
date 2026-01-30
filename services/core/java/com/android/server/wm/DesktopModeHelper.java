@@ -16,12 +16,10 @@
 
 package com.android.server.wm;
 
-import static android.app.Flags.enableConnectedDisplaysWallpaper;
-import static android.window.DesktopExperienceFlags.ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE;
-
 import android.annotation.NonNull;
 import android.content.Context;
 import android.os.SystemProperties;
+import android.window.DesktopExperienceFlags;
 import android.window.DesktopModeFlags;
 
 import com.android.internal.R;
@@ -32,6 +30,7 @@ import com.android.window.flags.Flags;
  * Constants for desktop mode feature
  */
 public final class DesktopModeHelper {
+
     /**
      * Flag to indicate whether to restrict desktop mode to supported devices.
      */
@@ -64,9 +63,16 @@ public final class DesktopModeHelper {
     }
 
     /**
+     * Return {@code true} if desktop mode is unrestricted on the current device or it can host
+     * desktop sessions on its internal display.
+     */
+    public static boolean isDesktopModeSupportedOnInternalDisplay(@NonNull Context context) {
+        return !shouldEnforceDeviceRestrictions() ||  canInternalDisplayHostDesktops(context);
+    }
+
+    /**
      * Return {@code true} if the current device can hosts desktop sessions on its internal display.
      */
-    @VisibleForTesting
     private static boolean canInternalDisplayHostDesktops(@NonNull Context context) {
         return context.getResources().getBoolean(R.bool.config_canInternalDisplayHostDesktops);
     }
@@ -84,21 +90,16 @@ public final class DesktopModeHelper {
         if (!shouldEnforceDeviceRestrictions()) {
             return true;
         }
-        // If projected display is enabled, #canInternalDisplayHostDesktops is no longer a
-        // requirement.
-        final boolean desktopModeSupported = ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE.isTrue()
-                ? isDesktopModeSupported(context) : (isDesktopModeSupported(context)
-                && canInternalDisplayHostDesktops(context));
         final boolean desktopModeSupportedByDevOptions =
                 Flags.enableDesktopModeThroughDevOption()
                         && isDesktopModeDevOptionsSupported(context);
-        return desktopModeSupported || desktopModeSupportedByDevOptions;
+        return isDesktopModeSupported(context) || desktopModeSupportedByDevOptions;
     }
 
     /**
      * Return {@code true} if desktop mode can be entered on the current device.
      */
-    static boolean canEnterDesktopMode(@NonNull Context context) {
+    public static boolean canEnterDesktopMode(@NonNull Context context) {
         return (isDeviceEligibleForDesktopMode(context)
                 && DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_MODE.isTrue())
                 || isDesktopModeEnabledByDevOption(context);
@@ -106,6 +107,12 @@ public final class DesktopModeHelper {
 
     /** Returns {@code true} if desktop experience wallpaper is supported on this device. */
     public static boolean isDeviceEligibleForDesktopExperienceWallpaper(@NonNull Context context) {
-        return enableConnectedDisplaysWallpaper() && isDeviceEligibleForDesktopMode(context);
+        return DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WALLPAPER.isTrue()
+                && isDeviceEligibleForDesktopMode(context);
+    }
+
+    /** Returns {@code true} if the desktop experience developer option should be shown. */
+    public static boolean isDesktopExperienceDevOptionSupported(@NonNull Context context) {
+        return Flags.showDesktopExperienceDevOption() && isDeviceEligibleForDesktopMode(context);
     }
 }

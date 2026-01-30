@@ -37,10 +37,10 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
-import android.os.storage.StorageManagerInternal;
 import android.provider.DeviceConfig;
 
 import com.android.server.LocalServices;
+import com.android.server.StorageManagerInternal;
 import com.android.server.pm.pkg.AndroidPackage;
 
 import java.util.Arrays;

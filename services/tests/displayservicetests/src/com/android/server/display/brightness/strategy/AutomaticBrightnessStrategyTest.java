@@ -686,7 +686,8 @@ public class AutomaticBrightnessStrategyTest {
                 .build();
         DisplayBrightnessState actualDisplayBrightnessState = mAutomaticBrightnessStrategy
                 .updateBrightness(new StrategyExecutionRequest(displayPowerRequest, 0.6f,
-                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false));
+                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false,
+                        /* offloadSession= */ null));
         assertEquals(expectedDisplayBrightnessState, actualDisplayBrightnessState);
     }
 
@@ -735,7 +736,8 @@ public class AutomaticBrightnessStrategyTest {
                 .build();
         DisplayBrightnessState actualDisplayBrightnessState = mAutomaticBrightnessStrategy
                 .updateBrightness(new StrategyExecutionRequest(displayPowerRequest, 0.6f,
-                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false));
+                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false,
+                        /* offloadSession= */ null));
         assertEquals(expectedDisplayBrightnessState, actualDisplayBrightnessState);
     }
 
@@ -774,7 +776,8 @@ public class AutomaticBrightnessStrategyTest {
                 .build();
         DisplayBrightnessState actualDisplayBrightnessState = mAutomaticBrightnessStrategy
                 .updateBrightness(new StrategyExecutionRequest(displayPowerRequest, 0.6f,
-                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false));
+                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false,
+                        /* offloadSession= */ null));
         assertEquals(expectedDisplayBrightnessState, actualDisplayBrightnessState);
     }
 
@@ -813,7 +816,8 @@ public class AutomaticBrightnessStrategyTest {
                 .build();
         DisplayBrightnessState actualDisplayBrightnessState = mAutomaticBrightnessStrategy
                 .updateBrightness(new StrategyExecutionRequest(displayPowerRequest, 0.6f,
-                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false));
+                        /* userSetBrightnessChanged= */ true, /* isStylusBeingUsed */ false,
+                        /* offloadSession= */ null));
         assertEquals(expectedDisplayBrightnessState, actualDisplayBrightnessState);
     }
 

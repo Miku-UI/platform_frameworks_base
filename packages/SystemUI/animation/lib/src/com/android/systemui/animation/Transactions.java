@@ -17,7 +17,7 @@
 package com.android.systemui.animation;
 
 import android.annotation.FloatRange;
-import android.graphics.Rect;
+import android.graphics.RectF;
 import android.util.ArrayMap;
 import android.view.SurfaceControl;
 
@@ -61,7 +61,7 @@ public class Transactions implements UIComponent.Transaction<UIComponent> {
     }
 
     @Override
-    public Transactions setBounds(UIComponent ui, Rect bounds) {
+    public Transactions setBounds(UIComponent ui, RectF bounds) {
         getTransactionFor(ui).setBounds(ui, bounds);
         return this;
     }

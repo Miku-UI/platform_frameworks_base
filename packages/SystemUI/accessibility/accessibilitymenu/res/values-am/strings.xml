@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"ወደ ቀዳሚው ማያ ገፅ ይሂዱ"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"ወደ ቀጣዩ ማያ ገፅ ይሂዱ"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"የተደራሽነት ምናሌ መሣሪያዎን ለመቆጣጠር ትልቅ የማያ ገፅ ላይ ምናሌን ያቀርባል። የእርስዎን መሣሪያ መቆለፍ፣ ድምፅን እና ብሩህነትን መቆጣጠር፣ ቅጽበታዊ ገፅ ዕይታዎችን ማንሳት እና ተጨማሪ ነገሮችን ማድረግ ይችላሉ።"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"መሣሪያውን በትልቅ ምናሌ በኩል ይቆጣጠሩ"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"በትልቅ ምናሌ ድምፅ፣ ብሩህነት እና ሌሎችንም ይቆጣጠሩ"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"የተደራሽነት ምናሌ ቅንብሮች"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ትልቅ አዝራሮች"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"የተደራሽነት ምናሌ አዝራሮች መጠን ይጨምሩ"</string>

@@ -16,18 +16,16 @@
 
 package com.android.server.wm.flicker.launch
 
-import android.os.SystemClock
 import android.platform.test.annotations.Postsubmit
 import android.tools.device.apphelpers.CameraAppHelper
 import android.tools.device.apphelpers.StandardAppHelper
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.rules.RemoveAllTasksButHomeRule
-import android.tools.flicker.subject.layers.LayersTraceSubject
-import android.tools.traces.component.ComponentNameMatcher
 import android.view.KeyEvent
+import androidx.test.filters.FlakyTest
 import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.setRotation
 import com.android.server.wm.flicker.launch.common.OpenAppFromLauncherTransition
@@ -63,7 +61,8 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class OpenCameraFromHomeOnDoubleClickPowerButtonTest(flicker: LegacyFlickerTest) :
+@FlakyTest(bugId = 420408933)
+class OpenCameraFromHomeOnDoubleClickPowerButtonTest(flicker: FlickerTest) :
     OpenAppFromLauncherTransition(flicker) {
     private val cameraApp = CameraAppHelper(instrumentation)
     override val testApp: StandardAppHelper
@@ -77,7 +76,6 @@ class OpenCameraFromHomeOnDoubleClickPowerButtonTest(flicker: LegacyFlickerTest)
             }
             transitions {
                 device.pressKeyCode(KeyEvent.KEYCODE_POWER)
-                SystemClock.sleep(100)
                 device.pressKeyCode(KeyEvent.KEYCODE_POWER)
                 wmHelper.StateSyncBuilder().withWindowSurfaceAppeared(cameraApp).waitForAndVerify()
             }
@@ -158,11 +156,11 @@ class OpenCameraFromHomeOnDoubleClickPowerButtonTest(flicker: LegacyFlickerTest)
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.nonRotationTests()
+        fun getParams() = FlickerTestFactory.nonRotationTests()
     }
 }

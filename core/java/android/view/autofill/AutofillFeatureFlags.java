@@ -20,10 +20,14 @@ import static android.service.autofill.Flags.improveFillDialogAconfig;
 
 import android.annotation.SuppressLint;
 import android.annotation.TestApi;
+import android.app.ActivityThread;
+import android.content.pm.PackageManager;
+import android.os.RemoteException;
 import android.provider.DeviceConfig;
 import android.service.autofill.Flags;
 import android.text.TextUtils;
 import android.util.ArraySet;
+import android.util.Log;
 import android.view.View;
 
 import com.android.internal.util.ArrayUtils;
@@ -37,6 +41,8 @@ import java.util.Set;
  */
 @TestApi
 public class AutofillFeatureFlags {
+
+    private static final String TAG = AutofillFeatureFlags.class.getSimpleName();
 
     /**
      * {@code DeviceConfig} property used to set which Smart Suggestion modes for Augmented Autofill
@@ -428,6 +434,7 @@ public class AutofillFeatureFlags {
      * @hide
      */
     public static final int DEFAULT_MAX_INPUT_LENGTH_FOR_AUTOFILL = 3;
+
     private AutofillFeatureFlags() {};
 
     /**
@@ -678,12 +685,29 @@ public class AutofillFeatureFlags {
      * @hide
      */
     public static boolean isImproveFillDialogEnabled() {
-        // TODO(b/266379948): Add condition for checking whether device has PCC first
+        // TODO(b/420943436): Temporarily skipping this test on Automotive with Multi-Window
+        // until b/420943436 is fixed.
+        if (Flags.disableFillDialogOnAutomotiveMultiWindow()
+                && isAutomotiveWithMultiWindow()) {
+            return false;
+        }
 
+        // TODO(b/266379948): Add condition for checking whether device has PCC first
         return improveFillDialogAconfig() && DeviceConfig.getBoolean(
                 DeviceConfig.NAMESPACE_AUTOFILL,
                 DEVICE_CONFIG_IMPROVE_FILL_DIALOG_ENABLED,
                 DEFAULT_IMPROVE_FILL_DIALOG_ENABLED);
+    }
+
+    private static boolean isAutomotiveWithMultiWindow() {
+        try {
+            return ActivityThread.getPackageManager().hasSystemFeature(
+                    PackageManager.FEATURE_CAR_SPLITSCREEN_MULTITASKING, 0 /* version */);
+        } catch (RemoteException e) {
+            Log.e(TAG, "Error retrieving system features to confirm "
+                    + "FEATURE_CAR_SPLITSCREEN_MULTITASKING", e);
+            return false;
+        }
     }
 
     /**

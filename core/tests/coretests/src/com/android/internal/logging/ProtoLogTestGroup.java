@@ -20,19 +20,16 @@ import com.android.internal.protolog.common.IProtoLogGroup;
 
 class ProtoLogTestGroup implements IProtoLogGroup {
     private final boolean mEnabled;
-    private volatile boolean mLogToProto;
     private volatile boolean mLogToLogcat;
     private final String mTag;
     private final int mId;
 
     ProtoLogTestGroup(String tag, int id) {
-        this(true, true, false, tag, id);
+        this(true, false, tag, id);
     }
 
-    ProtoLogTestGroup(
-            boolean enabled, boolean logToProto, boolean logToLogcat, String tag, int id) {
+    ProtoLogTestGroup(boolean enabled, boolean logToLogcat, String tag, int id) {
         this.mEnabled = enabled;
-        this.mLogToProto = logToProto;
         this.mLogToLogcat = logToLogcat;
         this.mTag = tag;
         this.mId = id;
@@ -49,28 +46,13 @@ class ProtoLogTestGroup implements IProtoLogGroup {
     }
 
     @Override
-    public boolean isLogToProto() {
-        return mLogToProto;
-    }
-
-    @Override
     public boolean isLogToLogcat() {
         return mLogToLogcat;
     }
 
     @Override
-    public boolean isLogToAny() {
-        return mLogToLogcat || mLogToProto;
-    }
-
-    @Override
     public String getTag() {
         return mTag;
-    }
-
-    @Override
-    public void setLogToProto(boolean logToProto) {
-        this.mLogToProto = logToProto;
     }
 
     @Override

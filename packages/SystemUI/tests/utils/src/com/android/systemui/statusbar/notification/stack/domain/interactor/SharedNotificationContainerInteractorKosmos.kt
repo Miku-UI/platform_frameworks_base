@@ -23,6 +23,7 @@ import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.shade.largeScreenHeaderHelper
 import com.android.systemui.statusbar.policy.splitShadeStateController
+import org.mockito.kotlin.mock
 
 val Kosmos.sharedNotificationContainerInteractor by
     Kosmos.Fixture {
@@ -33,5 +34,6 @@ val Kosmos.sharedNotificationContainerInteractor by
             keyguardInteractor = keyguardInteractor,
             deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
             largeScreenHeaderHelperLazy = { largeScreenHeaderHelper },
+            logger = mock(),
         )
     }

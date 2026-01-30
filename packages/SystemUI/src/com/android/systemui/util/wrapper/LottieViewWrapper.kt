@@ -19,16 +19,24 @@ import android.content.Context
 import android.util.AttributeSet
 import com.airbnb.lottie.LottieAnimationView
 import com.android.app.tracing.traceSection
+import com.android.systemui.util.animation.enableScreenOffAnimationGuard
 
 /** LottieAnimationView that traces each call to invalidate. */
 open class LottieViewWrapper : LottieAnimationView {
     constructor(context: Context?) : super(context)
+
     constructor(context: Context?, attrs: AttributeSet?) : super(context, attrs)
+
     constructor(
         context: Context?,
         attrs: AttributeSet?,
-        defStyleAttr: Int
+        defStyleAttr: Int,
     ) : super(context, attrs, defStyleAttr)
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        enableScreenOffAnimationGuard()
+    }
 
     override fun invalidate() {
         traceSection<Any?>("${this::class} invalidate") {

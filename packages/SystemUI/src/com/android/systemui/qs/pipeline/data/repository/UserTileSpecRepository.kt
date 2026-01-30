@@ -4,6 +4,7 @@ import android.annotation.UserIdInt
 import android.database.ContentObserver
 import android.provider.Settings
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.Flags.hsuQsChanges
 import com.android.systemui.common.coroutine.ConflatedCallbackFlow
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
@@ -11,6 +12,7 @@ import com.android.systemui.qs.pipeline.data.model.RestoreData
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.pipeline.shared.TilesUpgradePath
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
+import com.android.systemui.user.domain.interactor.HeadlessSystemUserMode
 import com.android.systemui.util.settings.SecureSettings
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -45,6 +47,7 @@ constructor(
     @Assisted private val userId: Int,
     private val defaultTilesRepository: DefaultTilesRepository,
     private val secureSettings: SecureSettings,
+    private val hsum: HeadlessSystemUserMode,
     private val logger: QSPipelineLogger,
     @Application private val applicationScope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
@@ -54,15 +57,20 @@ constructor(
     val tilesUpgradePath: ReceiveChannel<TilesUpgradePath> = _tilesUpgradePath
 
     private val defaultTiles: List<TileSpec>
-        get() = defaultTilesRepository.defaultTiles
+        get() = defaultTilesRepository.getDefaultTiles(isHeadlessSystemUser)
 
     private val changeEvents =
         MutableSharedFlow<ChangeAction>(extraBufferCapacity = CHANGES_BUFFER_SIZE)
+
+    private var isHeadlessSystemUser = false
 
     private lateinit var _tiles: StateFlow<List<TileSpec>>
 
     suspend fun tiles(): Flow<List<TileSpec>> {
         if (!::_tiles.isInitialized) {
+            withContext(backgroundDispatcher) {
+              isHeadlessSystemUser = hsuQsChanges() && hsum.isHeadlessSystemUser(userId)
+            }
             _tiles =
                 changeEvents
                     .scan(loadTilesFromSettingsAndParse(userId)) { current, change ->
@@ -186,8 +194,9 @@ constructor(
         changeEvents.emit(PrependDefault(defaultTiles))
     }
 
-    suspend fun resetToDefault() {
+    suspend fun resetToDefault(): List<TileSpec> {
         changeEvents.emit(ResetToDefault(defaultTiles))
+        return defaultTiles
     }
 
     sealed interface ChangeAction {

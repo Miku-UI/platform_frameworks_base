@@ -53,6 +53,10 @@ interface TogglePermissionAppListModel<T : AppRecord> {
     val enhancedConfirmationKey: String?
         get() = null
 
+    /** Whether the App List page shows the system apps initially. */
+    val showSystemAppsInitially: Boolean
+        get() = false
+
     /**
      * Loads the extra info for the App List, and generates the [AppRecord] List.
      *

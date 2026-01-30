@@ -16,8 +16,6 @@
 
 package com.android.systemui.lifecycle
 
-import kotlinx.coroutines.awaitCancellation
-
 class FakeActivatable(
     private val onActivation: () -> Unit = {},
     private val onDeactivation: () -> Unit = {},
@@ -25,14 +23,13 @@ class FakeActivatable(
     var activationCount = 0
     var cancellationCount = 0
 
-    override suspend fun onActivated(): Nothing {
+    override suspend fun onActivated() {
         activationCount++
         onActivation()
-        try {
-            awaitCancellation()
-        } finally {
-            cancellationCount++
-            onDeactivation()
-        }
+    }
+
+    override suspend fun onDeactivated() {
+        cancellationCount++
+        onDeactivation()
     }
 }

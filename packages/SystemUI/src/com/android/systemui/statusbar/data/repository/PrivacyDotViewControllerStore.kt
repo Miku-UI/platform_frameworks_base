@@ -59,7 +59,12 @@ constructor(
             statusBarConfigurationControllerStore.forDisplay(displayId) ?: return null
         val contentInsetsProvider = contentInsetsProviderStore.forDisplay(displayId) ?: return null
         val displayScope = displayScopeRepository[displayId] ?: return null
-        return factory.create(displayScope, configurationController, contentInsetsProvider)
+        return factory.create(
+            displayScope,
+            configurationController,
+            contentInsetsProvider,
+            displayId,
+        )
     }
 
     override suspend fun onDisplayRemovalAction(instance: PrivacyDotViewController) {

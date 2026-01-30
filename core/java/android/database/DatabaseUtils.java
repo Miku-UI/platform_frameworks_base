@@ -16,13 +16,13 @@
 
 package android.database;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.OperationApplicationException;
-import android.database.sqlite.Flags;
 import android.database.sqlite.SQLiteAbortException;
 import android.database.sqlite.SQLiteConstraintException;
 import android.database.sqlite.SQLiteDatabase;
@@ -43,6 +43,8 @@ import com.android.internal.util.ArrayUtils;
 
 import java.io.FileNotFoundException;
 import java.io.PrintStream;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.text.Collator;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -78,15 +80,37 @@ public class DatabaseUtils {
     /** One of the values returned by {@link #getSqlStatementType(String)}. */
     public static final int STATEMENT_OTHER = 99;
 
+    /** @hide */
+    @IntDef(flag = true, prefix = { "STATEMENT_" }, value = {
+            STATEMENT_SELECT, STATEMENT_UPDATE, STATEMENT_ATTACH, STATEMENT_BEGIN,
+            STATEMENT_COMMIT, STATEMENT_ABORT, STATEMENT_PRAGMA, STATEMENT_DDL,
+            STATEMENT_UNPREPARED, STATEMENT_OTHER
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SqlStatementType {}
+
     // The following statement types are "extended" and are for internal use only.  These types
     // are not public and are never returned by {@link #getSqlStatementType(String)}.
 
-    /** An internal statement type @hide **/
+    /** An internal statement type, collapses to STATEMENT_OTHER. */
+    /** @hide */
     public static final int STATEMENT_WITH = 100;
-    /** An internal statement type @hide **/
+    /** An internal statement type, collapses to STATEMENT_DDL. */
+    /** @hide */
     public static final int STATEMENT_CREATE = 101;
-    /** An internal statement type denoting a comment. @hide **/
+    /** An internal statement type denoting a comment, collapses to STATEMENT_OTHER. */
+    /** @hide */
     public static final int STATEMENT_COMMENT = 102;
+
+    /** @hide */
+    @IntDef(flag = true, prefix = { "STATEMENT_" }, value = {
+            STATEMENT_SELECT, STATEMENT_UPDATE, STATEMENT_ATTACH, STATEMENT_BEGIN,
+            STATEMENT_COMMIT, STATEMENT_ABORT, STATEMENT_PRAGMA, STATEMENT_DDL,
+            STATEMENT_UNPREPARED, STATEMENT_OTHER,
+            STATEMENT_WITH, STATEMENT_CREATE, STATEMENT_COMMENT
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface SqlStatementExtendedType {}
 
     /**
      * Special function for writing an exception result at the header of
@@ -202,7 +226,7 @@ public class DatabaseUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static long executeInsert(@NonNull SQLiteDatabase db, @NonNull String sql,
             @Nullable Object[] bindArgs) throws SQLException {
         try (SQLiteStatement st = db.compileStatement(sql)) {
@@ -211,7 +235,7 @@ public class DatabaseUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static int executeUpdateDelete(@NonNull SQLiteDatabase db, @NonNull String sql,
             @Nullable Object[] bindArgs) throws SQLException {
         try (SQLiteStatement st = db.compileStatement(sql)) {
@@ -220,7 +244,7 @@ public class DatabaseUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     private static void bindArgs(@NonNull SQLiteStatement st, @Nullable Object[] bindArgs) {
         if (bindArgs == null) return;
 
@@ -1208,7 +1232,7 @@ public class DatabaseUtils {
         private SQLiteStatement mPreparedStatement = null;
 
         /**
-         * {@hide}
+         * @hide
          *
          * These are the columns returned by sqlite's "PRAGMA
          * table_info(...)" command that we depend on.
@@ -1673,6 +1697,7 @@ public class DatabaseUtils {
      * can return values that are not publicly visible.
      * @hide
      */
+    @SqlStatementExtendedType
     public static int getSqlStatementTypeExtended(@NonNull String sql) {
       return categorizeStatement(getSqlStatementPrefixExtendedNoRegex(sql), sql);
     }
@@ -1681,7 +1706,8 @@ public class DatabaseUtils {
      * Convert an extended statement type to a public SQL statement type value.
      * @hide
      */
-    public static int getSqlStatementType(int extended) {
+    @SqlStatementType
+    public static int getSqlStatementType(@SqlStatementExtendedType int extended) {
         switch (extended) {
             case STATEMENT_CREATE: return STATEMENT_DDL;
             case STATEMENT_WITH: return STATEMENT_OTHER;
@@ -1707,6 +1733,7 @@ public class DatabaseUtils {
      * @param sql the SQL statement whose type is returned by this method
      * @return one of the values listed above
      */
+    @SqlStatementType
     public static int getSqlStatementType(String sql) {
         return getSqlStatementType(getSqlStatementTypeExtended(sql));
     }

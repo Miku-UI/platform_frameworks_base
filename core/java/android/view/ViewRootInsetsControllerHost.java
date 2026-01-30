@@ -26,6 +26,8 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
+import android.view.WindowInsetsController.Appearance;
+import android.view.WindowInsetsController.Behavior;
 import android.view.inputmethod.ImeTracker;
 import android.view.inputmethod.InputMethodManager;
 
@@ -46,6 +48,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         mViewRoot = viewRoot;
     }
 
+    @NonNull
     @Override
     public Handler getHandler() {
         return mViewRoot.mHandler;
@@ -57,7 +60,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     }
 
     @Override
-    public void addOnPreDrawRunnable(Runnable r) {
+    public void addOnPreDrawRunnable(@NonNull Runnable r) {
         if (mViewRoot.mView == null) {
             return;
         }
@@ -81,6 +84,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         mViewRoot.mView.dispatchWindowInsetsAnimationPrepare(animation);
     }
 
+    @Nullable
     @Override
     public WindowInsetsAnimation.Bounds dispatchWindowInsetsAnimationStart(
             @NonNull WindowInsetsAnimation animation,
@@ -92,6 +96,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         return mViewRoot.mView.dispatchWindowInsetsAnimationStart(animation, bounds);
     }
 
+    @Nullable
     @Override
     public WindowInsets dispatchWindowInsetsAnimationProgress(@NonNull WindowInsets insets,
             @NonNull List<WindowInsetsAnimation> runningAnimations) {
@@ -119,7 +124,8 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     }
 
     @Override
-    public void applySurfaceParams(SyncRtSurfaceTransactionApplier.SurfaceParams... params) {
+    public void applySurfaceParams(
+            @NonNull SyncRtSurfaceTransactionApplier.SurfaceParams... params) {
         if (mViewRoot.mView == null) {
             throw new IllegalStateException("View of the ViewRootImpl is not initiated.");
         }
@@ -140,7 +146,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     }
 
     @Override
-    public void postInsetsAnimationCallback(Runnable r) {
+    public void postInsetsAnimationCallback(@NonNull Runnable r) {
         mViewRoot.mChoreographer.postCallback(Choreographer.CALLBACK_INSETS_ANIMATION, r,
                 null /* token */);
     }
@@ -192,7 +198,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
     }
 
     @Override
-    public void setSystemBarsAppearance(int appearance, int mask) {
+    public void setSystemBarsAppearance(@Appearance int appearance, @Appearance int mask) {
         final InsetsFlags insetsFlags = mViewRoot.mWindowAttributes.insetsFlags;
         final int newAppearance = (insetsFlags.appearance & ~mask) | (appearance & mask);
         if (insetsFlags.appearance != newAppearance) {
@@ -202,13 +208,14 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         }
     }
 
+    @Appearance
     @Override
     public int getSystemBarsAppearance() {
         return mViewRoot.mWindowAttributes.insetsFlags.appearance;
     }
 
     @Override
-    public void setSystemBarsBehavior(int behavior) {
+    public void setSystemBarsBehavior(@Behavior int behavior) {
         if (mViewRoot.mWindowAttributes.insetsFlags.behavior != behavior) {
             mViewRoot.mWindowAttributes.insetsFlags.behavior = behavior;
             mViewRoot.mWindowAttributesChanged = true;
@@ -216,13 +223,14 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         }
     }
 
+    @Behavior
     @Override
     public int getSystemBarsBehavior() {
         return mViewRoot.mWindowAttributes.insetsFlags.behavior;
     }
 
     @Override
-    public void releaseSurfaceControlFromRt(SurfaceControl surfaceControl) {
+    public void releaseSurfaceControlFromRt(@NonNull SurfaceControl surfaceControl) {
 
          // At the time we receive new leashes (e.g. InsetsSourceConsumer is processing
          // setControl) we need to release the old leash. But we may have already scheduled
@@ -241,11 +249,13 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         }
     }
 
+    @NonNull
     @Override
     public InputMethodManager getInputMethodManager() {
         return mViewRoot.mContext.getSystemService(InputMethodManager.class);
     }
 
+    @Nullable
     @Override
     public String getRootViewTitle() {
         if (mViewRoot == null) {
@@ -254,6 +264,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         return mViewRoot.getTitle().toString();
     }
 
+    @Nullable
     @Override
     public Context getRootViewContext() {
         return mViewRoot != null ? mViewRoot.mContext : null;
@@ -267,6 +278,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         return 0;
     }
 
+    @Nullable
     @Override
     public IBinder getWindowToken() {
         if (mViewRoot == null) {
@@ -279,6 +291,7 @@ public class ViewRootInsetsControllerHost implements InsetsController.Host {
         return view.getWindowToken();
     }
 
+    @Nullable
     @Override
     public CompatibilityInfo.Translator getTranslator() {
         if (mViewRoot != null) {

@@ -26,6 +26,10 @@ import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.os.Parcelable;
 
 import com.android.media.projection.flags.Flags;
@@ -50,7 +54,7 @@ public final class MediaProjectionConfig implements Parcelable {
     public static final int PROJECTION_SOURCE_DISPLAY = 1 << 1;
 
     /**
-     * Bitmask for setting whether this configuration is for projecting the a custom region display.
+     * Bitmask for setting whether this configuration is for projecting a custom region display.
      *
      * @hide
      */
@@ -66,7 +70,7 @@ public final class MediaProjectionConfig implements Parcelable {
      * Bitmask for setting whether this configuration is for projecting the content provided by an
      * application.
      */
-    @FlaggedApi(com.android.media.projection.flags.Flags.FLAG_APP_CONTENT_SHARING)
+    @FlaggedApi(Flags.FLAG_APP_CONTENT_SHARING)
     public static final int PROJECTION_SOURCE_APP_CONTENT = 1 << 4;
 
     /**
@@ -101,6 +105,7 @@ public final class MediaProjectionConfig implements Parcelable {
     private static final int VALID_PROJECTION_SOURCES = createValidSourcesMask();
 
     private final int mInitialSelection;
+    private final boolean mOwnAppContentProvided;
 
     /** @hide */
     @IntDef(prefix = "CAPTURE_REGION_", value = {CAPTURE_REGION_USER_CHOICE,
@@ -161,13 +166,15 @@ public final class MediaProjectionConfig implements Parcelable {
         mRequesterHint = null;
         mInitialSelection = -1;
         mProjectionSources = -1;
+        mOwnAppContentProvided = false;
     }
 
     /**
      * Customized instance, with region set to the provided value.
      */
     private MediaProjectionConfig(@MediaProjectionSource int projectionSource,
-            @Nullable String requesterHint, int displayId, int initialSelection) {
+            @Nullable String requesterHint, int displayId, int initialSelection,
+            boolean ownAppContentProvided) {
         if (!Flags.appContentSharing()) {
             throw new UnsupportedOperationException(
                     "Flag FLAG_APP_CONTENT_SHARING disabled. This method must not be called");
@@ -180,6 +187,7 @@ public final class MediaProjectionConfig implements Parcelable {
         mRequesterHint = requesterHint;
         mDisplayToCapture = displayId;
         mInitialSelection = initialSelection;
+        mOwnAppContentProvided = ownAppContentProvided;
     }
 
     /**
@@ -329,6 +337,7 @@ public final class MediaProjectionConfig implements Parcelable {
             dest.writeInt(mProjectionSources);
             dest.writeString(mRequesterHint);
             dest.writeInt(mInitialSelection);
+            dest.writeBoolean(mOwnAppContentProvided);
         } else {
             dest.writeInt(mRegionToCapture);
         }
@@ -346,11 +355,13 @@ public final class MediaProjectionConfig implements Parcelable {
             mProjectionSources = in.readInt();
             mRequesterHint = in.readString();
             mInitialSelection = in.readInt();
+            mOwnAppContentProvided = in.readBoolean();
         } else {
             mRegionToCapture = in.readInt();
             mProjectionSources = -1;
             mRequesterHint = null;
             mInitialSelection = -1;
+            mOwnAppContentProvided = false;
         }
     }
 
@@ -388,6 +399,25 @@ public final class MediaProjectionConfig implements Parcelable {
     }
 
     /**
+     * Returns true if the application requesting the media projection session is offering its own
+     * content to be picked in the UI picker.
+     *
+     * <p> The requester must also have enabled {@link #PROJECTION_SOURCE_APP_CONTENT} for the
+     * content to be shown in the picker.
+     *
+     * <p> If set, the requesting app's content will replace any other app content that might
+     * have been enabled.
+     *
+     * @see Builder#setOwnAppContentProvided(Context, boolean)
+     * @see Builder#setSourceEnabled(int, boolean)
+     * @see #PROJECTION_SOURCE_APP_CONTENT
+     */
+    @FlaggedApi(Flags.FLAG_APP_CONTENT_SHARING)
+    public boolean isOwnAppContentProvided() {
+        return mOwnAppContentProvided;
+    }
+
+    /**
      * A hint set by the requesting app indicating who the requester of this {@link MediaProjection}
      * session is.
      * <p>
@@ -419,6 +449,7 @@ public final class MediaProjectionConfig implements Parcelable {
 
         @MediaProjectionSource
         private int mInitialSelection;
+        private boolean mOwnAppContentProvided;
 
         public Builder() {
             if (!Flags.appContentSharing()) {
@@ -449,8 +480,72 @@ public final class MediaProjectionConfig implements Parcelable {
         }
 
         /**
+         * Indicates to the system that the requesting application is offering its own
+         * {@link MediaProjectionAppContent content} to be shared as
+         * {@link #PROJECTION_SOURCE_APP_CONTENT}.
+         *
+         * <p> When {@link #setOwnAppContentProvided} is set to <code>true</code>, the requesting
+         * app's content will override any content from other apps that might have been displayed
+         * by the system.
+         *
+         * <p> If this application wishes to offer its own content to be shared, it must declare, in
+         * its manifest, a
+         * {@link android.os.Service} inheriting from {@link AppContentProjectionService} and
+         * declare an intent filter with an
+         * {@value AppContentProjectionService#SERVICE_INTERFACE} action. The service must be
+         * exported and protected by the {@link android.Manifest.permission#MANAGE_MEDIA_PROJECTION}
+         * permission
+         *
+         * <p><pre>
+         *  &lt;/application>
+         *   ...
+         *    &lt;service
+         *         android:exported="true"
+         *         android:name="com.example.AppContentSharingService"
+         *         android:permission="android.permission.MANAGE_MEDIA_PROJECTION">
+         *       &lt;intent-filter>
+         *         &lt;action android:name="android.media.projection.AppContentProjectionService"/>
+         *       &lt;/intent-filter>
+         *     &lt;/service>
+         *   &lt;/application>
+         * </pre>
+         *
+         * <p> If supported by the device, the content will be displayed to the user in the media
+         * projection picker and
+         * {@link AppContentProjectionService#onContentRequest(AppContentRequest)}
+         * will be called, offering the a chance to this application to provide or update the
+         * content to be shared.
+         *
+         * <p> If the user selects an item from this list,
+         * {@link AppContentProjectionService#onLoopbackProjectionStarted(AppContentProjectionSession, int)}
+         * will be called and the projection session will be considered as started.
+         *
+         * <p> If the shared content becomes unavailable, this application will be responsible for
+         * calling {@link AppContentProjectionSession#notifySessionStop()}. If the session is
+         * stopped outside of this application
+         * {@link AppContentProjectionService#onSessionStopped(AppContentProjectionSession)}
+         * will be called.
+         */
+        @NonNull
+        @SuppressLint({"MissingGetterMatchingBuilder", "RequiresPermission"})
+        public Builder setOwnAppContentProvided(@NonNull Context context, boolean isEnabled) {
+            Intent checkIntent = new Intent(AppContentProjectionService.SERVICE_INTERFACE);
+            checkIntent.setPackage(context.getPackageName());
+            ResolveInfo appContentServiceResolveInfo = context.getPackageManager()
+                    .resolveService(checkIntent, PackageManager.MATCH_ALL);
+
+            if (appContentServiceResolveInfo == null) {
+                throw new IllegalStateException(
+                        "No service with an <intent-filter> defining action=%s found".formatted(
+                                AppContentProjectionService.SERVICE_INTERFACE));
+            }
+            mOwnAppContentProvided = isEnabled;
+            return this;
+        }
+
+        /**
          * Let the requesting app indicate who the requester of this {@link MediaProjection}
-         * session is..
+         * session is.
          * <p>
          * The UI component prompting the user for the permission to start the session can use
          * this hint to provide more information about the origin of the request (e.g. a browser
@@ -497,7 +592,8 @@ public final class MediaProjectionConfig implements Parcelable {
         @NonNull
         public MediaProjectionConfig build() {
             return new MediaProjectionConfig(mOptions, mRequesterHint, DEFAULT_DISPLAY,
-                    mInitialSelection);
+                    mInitialSelection, mOwnAppContentProvided);
         }
     }
+
 }

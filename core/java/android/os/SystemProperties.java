@@ -49,7 +49,7 @@ import java.util.HashMap;
  * "https://source.android.com/devices/architecture/sysprops-apis">Implementing
  * System Properties as APIs</a>.</p>
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 @RavenwoodKeepWholeClass

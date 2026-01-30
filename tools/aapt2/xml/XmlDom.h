@@ -92,6 +92,7 @@ class Element : public Node {
   std::string name;
   std::vector<Attribute> attributes;
   std::vector<std::unique_ptr<Node>> children;
+  std::optional<FeatureFlagAttribute> flag;
 
   void AppendChild(std::unique_ptr<Node> child);
   void InsertChild(size_t index, std::unique_ptr<Node> child);

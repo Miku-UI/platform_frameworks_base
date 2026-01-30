@@ -50,7 +50,7 @@ import com.android.internal.R;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 
-public class ResolverDrawerLayout extends ViewGroup {
+public class ResolverDrawerLayout extends ViewGroup implements DismissableView {
     private static final String TAG = "ResolverDrawerLayout";
     private MetricsLogger mMetricsLogger;
 
@@ -117,7 +117,7 @@ public class ResolverDrawerLayout extends ViewGroup {
 
     private Drawable mScrollIndicatorDrawable;
 
-    private OnDismissedListener mOnDismissedListener;
+    private OnDismissListener mOnDismissedListener;
     private RunOnDismissedListener mRunOnDismissedListener;
     private OnCollapsedChangedListener mOnCollapsedChangedListener;
 
@@ -311,7 +311,8 @@ public class ResolverDrawerLayout extends ViewGroup {
                 + mCollapsibleHeightReserved;
     }
 
-    public void setOnDismissedListener(OnDismissedListener listener) {
+    @Override
+    public void setOnDismissListener(OnDismissListener listener) {
         mOnDismissedListener = listener;
     }
 
@@ -651,7 +652,7 @@ public class ResolverDrawerLayout extends ViewGroup {
 
     void dispatchOnDismissed() {
         if (mOnDismissedListener != null) {
-            mOnDismissedListener.onDismissed();
+            mOnDismissedListener.onDismiss();
         }
         if (mRunOnDismissedListener != null) {
             removeCallbacks(mRunOnDismissedListener);
@@ -1256,16 +1257,6 @@ public class ResolverDrawerLayout extends ViewGroup {
                 return new SavedState[size];
             }
         };
-    }
-
-    /**
-     * Listener for sheet dismissed events.
-     */
-    public interface OnDismissedListener {
-        /**
-         * Callback when the sheet is dismissed by the user.
-         */
-        void onDismissed();
     }
 
     /**

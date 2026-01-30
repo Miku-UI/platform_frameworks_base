@@ -3,13 +3,6 @@ container: "system"
 container: "system"
 
 flag {
-  name: "ranking_update_ashmem"
-  namespace: "systemui"
-  description: "This flag controls moving ranking update contents into ashmem"
-  bug: "249848655"
-}
-
-flag {
   name: "redact_sensitive_notifications_from_untrusted_listeners"
   is_exported: true
   namespace: "systemui"
@@ -73,3 +66,55 @@ flag {
   description: "This flag controls regrouping after notification classification"
   bug: "372775153"
 }
+
+flag {
+  name: "notification_bitmap_offloading"
+  namespace: "systemui"
+  description: "Enables offloading Bitmaps to disk"
+  bug: "398153219"
+}
+
+flag {
+  name: "report_nls_start_and_end"
+  namespace: "backstage_power"
+  description: "Reports NLS calls start and end to ActivityManager for process capability adjustments"
+  bug: "398072400"
+}
+
+flag {
+  name: "notification_get_original_importance"
+  is_exported: true
+  namespace: "systemui"
+  description: "Makes NotificationChannel#getOriginalImportance public"
+  bug: "409474564"
+}
+
+flag {
+  name: "apply_brightness_clamping_for_modes"
+  namespace: "wear_frameworks"
+  description: "Whether to apply brightness clamping for modes"
+  bug: "387528442"
+}
+
+# Start: API flags
+
+flag {
+  name: "nm_classification_nls"
+  namespace: "systemui"
+  description: "New api for notification_classification_ui"
+  bug: "416144530"
+  is_exported: true
+}
+
+# End: API flags
+
+# Start: Flags that have been cleaned up in code but need to remain for CTS
+
+flag {
+  name: "ranking_update_ashmem"
+  namespace: "systemui"
+  description: "This flag controls moving ranking update contents into ashmem"
+  bug: "249848655"
+}
+
+# End: Flags that have been cleaned up in code but need to remain for CTS

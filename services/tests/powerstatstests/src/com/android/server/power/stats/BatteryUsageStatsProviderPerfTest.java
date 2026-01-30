@@ -170,8 +170,8 @@ public class BatteryUsageStatsProviderPerfTest {
 
         MultiStatePowerAttributor powerAttributor = new MultiStatePowerAttributor(context, store,
                 mPowerProfile, mCpuScalingPolicies, mPowerProfile::getBatteryCapacity);
-        return new BatteryUsageStatsProvider(context, powerAttributor, mPowerProfile,
-                mCpuScalingPolicies, store, 10000000, mClock, mMonotonicClock);
+        return new BatteryUsageStatsProvider(powerAttributor, store, 10000000, mClock,
+                mMonotonicClock);
     }
 
     private void waitForBackgroundThread() {

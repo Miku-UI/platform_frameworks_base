@@ -77,7 +77,7 @@ public class CompanionDeviceDiscoveryService extends Service {
 
     private static final String SYS_PROP_DEBUG_TIMEOUT = "debug.cdm.discovery_timeout";
     private static final long TIMEOUT_SOFT = 20_000L; // 20 seconds
-    private static final long TIMEOUT_HARD = 180_000L; // 3 minutes
+    private static final long TIMEOUT_HARD = 300_000L; // 5 minutes
     private static final long TIMEOUT_MIN = 1_000L; // 1 sec
     private static final long TIMEOUT_MAX = 60_000L; // 1 min
 
@@ -277,7 +277,12 @@ public class CompanionDeviceDiscoveryService extends Service {
 
         // Stop BLE scanning.
         if (mBleScanCallback != null) {
-            mBleScanner.stopScan(mBleScanCallback);
+            try {
+                mBleScanner.stopScan(mBleScanCallback);
+            } catch (IllegalStateException e) {
+                Slog.e(TAG, "Unable to stop BLE scanner. The scanner is already"
+                        + " turned off or Bluetooth is disabled.");
+            }
         }
 
         Handler.getMain().removeCallbacks(mSoftTimeoutRunnable);
@@ -393,7 +398,7 @@ public class CompanionDeviceDiscoveryService extends Service {
             // First: make change.
             mDevicesFound.add(device);
             // Then: notify observers.
-            sScanResultsLiveData.setValue(mDevicesFound);
+            sScanResultsLiveData.setValue(new ArrayList<>(mDevicesFound));
             // Stop discovery when there's one device found for singleDevice.
             if (mStopAfterFirstMatch) {
                 stopDiscoveryAndFinish();
@@ -408,7 +413,7 @@ public class CompanionDeviceDiscoveryService extends Service {
             // First: make change.
             mDevicesFound.remove(device);
             // Then: notify observers.
-            sScanResultsLiveData.setValue(mDevicesFound);
+            sScanResultsLiveData.setValue(new ArrayList<>(mDevicesFound));
         });
     }
 

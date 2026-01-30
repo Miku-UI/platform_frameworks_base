@@ -149,7 +149,7 @@ public class DisplayOffloadSessionImpl implements DisplayManagerInternal.Display
 
     @Override
     public float getBrightness() {
-        return mDisplayPowerController.getScreenBrightnessSetting();
+        return mDisplayPowerController.getCurrentScreenBrightness();
     }
 
     @Override

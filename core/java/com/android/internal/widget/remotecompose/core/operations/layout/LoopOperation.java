@@ -56,7 +56,7 @@ public class LoopOperation extends PaintOperation
     }
 
     @Override
-    public void registerListening(RemoteContext context) {
+    public void registerListening(@NonNull RemoteContext context) {
         if (Float.isNaN(mUntil)) {
             context.listensTo(Utils.idFromNan(mUntil), this);
         }
@@ -69,7 +69,7 @@ public class LoopOperation extends PaintOperation
     }
 
     @Override
-    public void updateVariables(RemoteContext context) {
+    public void updateVariables(@NonNull RemoteContext context) {
         mUntilOut = Float.isNaN(mUntil) ? context.getFloat(Utils.idFromNan(mUntil)) : mUntil;
         mFromOut = Float.isNaN(mFrom) ? context.getFloat(Utils.idFromNan(mFrom)) : mFrom;
         mStepOut = Float.isNaN(mStep) ? context.getFloat(Utils.idFromNan(mStep)) : mStep;
@@ -209,7 +209,7 @@ public class LoopOperation extends PaintOperation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("indexVariableId", mIndexVariableId)

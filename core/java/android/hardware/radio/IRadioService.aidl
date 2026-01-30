@@ -25,7 +25,7 @@ import android.hardware.radio.RadioManager;
 /**
  * API to the broadcast radio service.
  *
- * {@hide}
+ * @hide
  */
 interface IRadioService {
     List<RadioManager.ModuleProperties> listModules();

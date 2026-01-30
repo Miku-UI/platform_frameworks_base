@@ -9,6 +9,7 @@ per-file LockPatternView.java = file:/packages/SystemUI/OWNERS
 per-file *LockScreen* = file:/services/core/java/com/android/server/locksettings/OWNERS
 per-file *Lockscreen* = file:/services/core/java/com/android/server/locksettings/OWNERS
 per-file *LockSettings* = file:/services/core/java/com/android/server/locksettings/OWNERS
+per-file VerifyCredentialResponse* = file:/services/core/java/com/android/server/locksettings/OWNERS
 
 # Notification related
 per-file *Notification* = file:/packages/SystemUI/src/com/android/systemui/statusbar/notification/OWNERS
@@ -26,3 +27,6 @@ per-file ViewClippingUtil.java = file:/packages/SystemUI/src/com/android/systemu
 
 # Appwidget related
 per-file *RemoteViews* = file:/services/appwidget/java/com/android/server/appwidget/OWNERS
+
+# Resolver related
+per-file *Resolver* = file:/core/java/com/android/internal/app/chooser/OWNERS

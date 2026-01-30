@@ -21,8 +21,6 @@ import static android.media.AudioManager.AUDIO_DEVICE_CATEGORY_UNKNOWN;
 import static android.media.AudioSystem.isBluetoothDevice;
 import static android.media.AudioSystem.isBluetoothLeDevice;
 
-import static com.android.media.audio.Flags.dsaOverBtLeAudio;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -71,7 +69,7 @@ import java.util.UUID;
 public class SpatializerHelper {
 
     private static final String TAG = "AS.SpatializerHelper";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final boolean DEBUG_MORE = false;
 
     private static void logd(String s) {
@@ -549,6 +547,9 @@ public class SpatializerHelper {
         if (!isDeviceCompatibleWithSpatializationModes(ada)) {
             return;
         }
+        if (ada.getInternalType() == AudioSystem.DEVICE_OUT_BLE_BROADCAST) {
+            return;
+        }
         loglogi("addCompatibleAudioDevice: dev=" + ada);
         final AdiDeviceState deviceState = findSACompatibleDeviceStateForAudioDeviceAttributes(ada);
         AdiDeviceState updatedDevice = null; // non-null on update.
@@ -621,6 +622,9 @@ public class SpatializerHelper {
     }
 
     synchronized void removeCompatibleAudioDevice(@NonNull AudioDeviceAttributes ada) {
+        if (ada.getInternalType() == AudioSystem.DEVICE_OUT_BLE_BROADCAST) {
+            return;
+        }
         loglogi("removeCompatibleAudioDevice: dev=" + ada);
 
         final AdiDeviceState deviceState = findSACompatibleDeviceStateForAudioDeviceAttributes(ada);
@@ -1277,6 +1281,9 @@ public class SpatializerHelper {
             Log.v(TAG, "no headtracking support, setHasHeadTracker always false for " + ada);
             return false;
         }
+        if (ada.getInternalType() == AudioSystem.DEVICE_OUT_BLE_BROADCAST) {
+            return false;
+        }
         final AdiDeviceState deviceState = findSACompatibleDeviceStateForAudioDeviceAttributes(ada);
         if (deviceState != null) {
             if (!deviceState.hasHeadTracker()) {
@@ -1685,56 +1692,37 @@ public class SpatializerHelper {
         for (String address : deviceAddresses) {
             UUID routingDeviceUuid = UuidUtils.uuidFromAudioDeviceAttributes(
                     new AudioDeviceAttributes(currentDevice.getInternalType(), address));
-            if (dsaOverBtLeAudio()) {
-                for (Sensor sensor : sensors) {
-                    final UUID uuid = sensor.getUuid();
-                    if (uuid.equals(routingDeviceUuid)) {
-                        htSensor = sensor;
-                        HeadtrackerInfo info = new HeadtrackerInfo(sensor);
-                        if (isBluetoothLeDevice(currentDevice.getInternalType())) {
-                            if (info.getMajorVersion() == 2) {
-                                // Version 2 is used only by LE Audio profile
-                                break;
-                            }
-                            // we do not break, as this could be a match on the A2DP sensor
-                            // for a dual mode headset.
-                        } else if (info.getMajorVersion() == 1) {
-                            // Version 1 is used only by A2DP profile
+
+            for (Sensor sensor : sensors) {
+                final UUID uuid = sensor.getUuid();
+                if (uuid.equals(routingDeviceUuid)) {
+                    htSensor = sensor;
+                    HeadtrackerInfo info = new HeadtrackerInfo(sensor);
+                    if (isBluetoothLeDevice(currentDevice.getInternalType())) {
+                        if (info.getMajorVersion() == 2) {
+                            // Version 2 is used only by LE Audio profile
                             break;
                         }
-                    }
-                    if (htSensor == null && uuid.equals(UuidUtils.STANDALONE_UUID)) {
-                        htSensor = sensor;
-                        // we do not break, perhaps we find a head tracker on device.
-                    }
-                }
-                if (htSensor != null) {
-                    if (htSensor.getUuid().equals(UuidUtils.STANDALONE_UUID)) {
+                        // we do not break, as this could be a match on the A2DP sensor
+                        // for a dual mode headset.
+                    } else if (info.getMajorVersion() == 1) {
+                        // Version 1 is used only by A2DP profile
                         break;
                     }
-                    if (setHasHeadTracker(currentDevice)) {
-                        break;
-                    } else {
-                        htSensor = null;
-                    }
                 }
-            } else {
-                for (Sensor sensor : sensors) {
-                    final UUID uuid = sensor.getUuid();
-                    if (uuid.equals(routingDeviceUuid)) {
-                        htSensor = sensor;
-                        if (!setHasHeadTracker(currentDevice)) {
-                            htSensor = null;
-                        }
-                        break;
-                    }
-                    if (uuid.equals(UuidUtils.STANDALONE_UUID)) {
-                        htSensor = sensor;
-                        // we do not break, perhaps we find a head tracker on device.
-                    }
+                if (htSensor == null && uuid.equals(UuidUtils.STANDALONE_UUID)) {
+                    htSensor = sensor;
+                    // we do not break, perhaps we find a head tracker on device.
                 }
-                if (htSensor != null) {
+            }
+            if (htSensor != null) {
+                if (htSensor.getUuid().equals(UuidUtils.STANDALONE_UUID)) {
                     break;
+                }
+                if (setHasHeadTracker(currentDevice)) {
+                    break;
+                } else {
+                    htSensor = null;
                 }
             }
         }

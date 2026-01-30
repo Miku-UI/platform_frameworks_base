@@ -26,6 +26,7 @@ import com.android.systemui.deviceentry.domain.interactor.deviceEntryFaceAuthInt
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.user.ui.viewmodel.userSwitcherViewModel
 import com.android.systemui.util.time.systemClock
 
@@ -41,6 +42,7 @@ val Kosmos.bouncerMessageViewModel by Fixture {
         faceAuthInteractor = deviceEntryFaceAuthInteractor,
         deviceUnlockedInteractor = deviceUnlockedInteractor,
         deviceEntryBiometricsAllowedInteractor = deviceEntryBiometricsAllowedInteractor,
+        secureLockDeviceInteractor = secureLockDeviceInteractor,
     )
 }
 

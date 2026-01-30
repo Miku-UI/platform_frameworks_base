@@ -29,17 +29,10 @@ import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.communal.shared.model.CommunalScenes.isCommunal
 import com.android.systemui.communal.shared.model.CommunalTransitionKeys
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
-import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
-import com.android.systemui.keyguard.shared.model.Edge
-import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
-import com.android.systemui.keyguard.shared.model.KeyguardState.GLANCEABLE_HUB
-import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.NotificationShadeWindowController
-import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
 import com.android.systemui.util.kotlin.emitOnStart
 import com.android.systemui.util.kotlin.sample
 import com.android.systemui.util.settings.SettingsProxyExt.observerFlow
@@ -52,7 +45,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
@@ -68,12 +60,10 @@ constructor(
     private val communalInteractor: CommunalInteractor,
     private val communalSettingsInteractor: CommunalSettingsInteractor,
     private val communalSceneInteractor: CommunalSceneInteractor,
-    private val keyguardTransitionInteractor: KeyguardTransitionInteractor,
     private val keyguardInteractor: KeyguardInteractor,
     private val systemSettings: SystemSettings,
     private val notificationShadeWindowController: NotificationShadeWindowController,
     @Background private val bgScope: CoroutineScope,
-    @Application private val applicationScope: CoroutineScope,
     @Main private val mainDispatcher: CoroutineDispatcher,
     private val uiEventLogger: UiEventLogger,
 ) : CoreStartable {
@@ -161,25 +151,6 @@ constructor(
                             )
                             uiEventLogger.log(CommunalUiEvent.COMMUNAL_HUB_TIMEOUT)
                         }
-                    }
-            }
-        }
-
-        if (communalSettingsInteractor.isV2FlagEnabled()) {
-            applicationScope.launch(context = mainDispatcher) {
-                anyOf(
-                        communalSceneInteractor.isTransitioningToOrIdleOnCommunal,
-                        // when transitioning from hub to dream, allow hub to stay at the current
-                        // orientation, as keyguard doesn't allow rotation by default.
-                        keyguardTransitionInteractor.isInTransition(
-                            edge = Edge.create(from = Scenes.Communal, to = DREAMING),
-                            edgeWithoutSceneContainer =
-                                Edge.create(from = GLANCEABLE_HUB, to = DREAMING),
-                        ),
-                    )
-                    .distinctUntilChanged()
-                    .collectLatest {
-                        notificationShadeWindowController.setGlanceableHubOrientationAware(it)
                     }
             }
         }

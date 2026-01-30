@@ -16,6 +16,7 @@
 
 syntax = "proto2";
 
+import "frameworks/base/core/proto/android/graphics/insets.proto";
 import "frameworks/base/core/proto/android/graphics/rect.proto";
 
 package android.view;
@@ -31,4 +32,5 @@ message InsetsSourceProto {
     optional .android.graphics.RectProto visible_frame = 3;
     optional bool visible = 4;
     optional int32 type_number = 5;
+    optional .android.graphics.InsetsProto attached_insets = 6;
 }

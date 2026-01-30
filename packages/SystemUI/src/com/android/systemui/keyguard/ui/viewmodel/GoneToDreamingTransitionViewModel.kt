@@ -24,6 +24,8 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.shade.domain.interactor.ShadeInteractor
+import dagger.Lazy
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +36,7 @@ class GoneToDreamingTransitionViewModel
 @Inject
 constructor(
     animationFlow: KeyguardTransitionAnimationFlow,
+    private val shadeInteractor: Lazy<ShadeInteractor>,
 ) {
 
     private val transitionAnimation =
@@ -42,9 +45,7 @@ constructor(
                 duration = TO_DREAMING_DURATION,
                 edge = Edge.create(from = Scenes.Gone, to = DREAMING),
             )
-            .setupWithoutSceneContainer(
-                edge = Edge.create(from = GONE, to = DREAMING),
-            )
+            .setupWithoutSceneContainer(edge = Edge.create(from = GONE, to = DREAMING))
 
     /** Lockscreen views y-translation */
     fun lockscreenTranslationY(translatePx: Int): Flow<Float> {
@@ -58,10 +59,19 @@ constructor(
         )
     }
 
-    /** Lockscreen views alpha */
-    val lockscreenAlpha: Flow<Float> =
-        transitionAnimation.sharedFlow(
+    /**
+     * Lockscreen views alpha. If coming from an expanded shade or QS that collapsed to launch
+     * dream, then lockscreen views should not be visible.
+     */
+    fun lockscreenAlpha(): Flow<Float> {
+        var isAnyExpanded = false
+        return transitionAnimation.sharedFlow(
             duration = 250.milliseconds,
-            onStep = { 1f - it },
+            onStart = { isAnyExpanded = shadeInteractor.get().isAnyExpanded.value },
+            onStep = { step -> if (isAnyExpanded) 0f else 1f - step },
+            name = "GONE->DREAMING: lockscreenAlpha",
         )
+    }
+
+    val statusBarAlpha: Flow<Float> = transitionAnimation.immediatelyTransitionTo(0f)
 }

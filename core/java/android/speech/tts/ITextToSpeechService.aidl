@@ -25,7 +25,7 @@ import android.speech.tts.Voice;
 /**
  * Interface for TextToSpeech to talk to TextToSpeechService.
  *
- * {@hide}
+ * @hide
  */
 interface ITextToSpeechService {
 

@@ -19,6 +19,7 @@ package com.android.systemui.keyboard.shortcut.data.repository
 import android.content.Context
 import android.content.Context.INPUT_SERVICE
 import android.hardware.input.AppLaunchData
+import android.hardware.input.AppLaunchData.ComponentData
 import android.hardware.input.AppLaunchData.RoleData
 import android.hardware.input.InputGestureData
 import android.hardware.input.InputGestureData.createKeyTrigger
@@ -39,8 +40,6 @@ import android.view.KeyEvent.META_META_ON
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.hardware.input.Flags.FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES
-import com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER
-import com.android.systemui.Flags.FLAG_APP_SHORTCUT_REMOVAL_FIX
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.keyboard.shared.model.ShortcutCustomizationRequestResult
@@ -93,7 +92,8 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     private val inputManager = kosmos.fakeInputManager.inputManager
     private val testScope = kosmos.testScope
     private val helper = kosmos.shortcutHelperTestHelper
-    private val repo = kosmos.customShortcutCategoriesRepository
+    private val repo =
+        kosmos.customShortcutCategoriesRepository as CustomShortcutCategoriesRepository
 
     @Before
     fun setup() {
@@ -101,7 +101,7 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun categories_correctlyConvertsAPIModelsToShortcutHelperModels() {
         testScope.runTest {
             whenever(inputManager.getCustomInputGestures(/* filter= */ anyOrNull()))
@@ -116,7 +116,7 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+    @DisableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun categories_emitsEmptyListWhenFlagIsDisabled() {
         testScope.runTest {
             whenever(inputManager.getCustomInputGestures(/* filter= */ anyOrNull()))
@@ -130,7 +130,7 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun categories_ignoresUnknownKeyGestureTypes() {
         testScope.runTest {
             whenever(inputManager.getCustomInputGestures(/* filter= */ anyOrNull()))
@@ -282,7 +282,30 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+    fun buildInputGestureDataForAppLaunchShortcut_addsComponentDataForNonDefaultAppShortcuts() =
+        testScope.runTest {
+            helper.toggle(deviceId = 123)
+
+            repo.onCustomizationRequested(
+                SingleShortcutCustomization.Add(
+                    categoryType = ShortcutCategoryType.AppCategories,
+                    defaultShortcutCommand = null,
+                    packageName = TEST_PACKAGE,
+                    className = TEST_CLASS,
+                )
+            )
+            repo.updateUserKeyCombination(standardKeyCombination)
+
+            val inputGestureData = repo.buildInputGestureDataForShortcutBeingCustomized()
+
+            assertThat(inputGestureData?.action?.appLaunchData())
+                .isEqualTo(
+                    ComponentData(/* packageName= */ TEST_PACKAGE, /* className= */ TEST_CLASS)
+                )
+        }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun deleteShortcut_successfullyRetrievesGestureDataAndDeletesShortcut() {
         testScope.runTest {
             whenever(inputManager.getCustomInputGestures(anyOrNull()))
@@ -297,11 +320,7 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(
-        FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES,
-        FLAG_USE_KEY_GESTURE_EVENT_HANDLER,
-        FLAG_APP_SHORTCUT_REMOVAL_FIX,
-    )
+    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun removeAppCategoryShortcut_successfullyRetrievesGestureDataAndDeletesTheCorrectShortcut() {
         testScope.runTest {
             // We are collecting this because the flow is a cold flow but we need its value as a
@@ -327,7 +346,7 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun categories_isUpdatedAfterCustomShortcutIsDeleted() {
         testScope.runTest {
             // TODO(b/380445594) refactor tests and move these stubbing to ShortcutHelperTestHelper
@@ -351,7 +370,7 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun categories_isUpdatedAfterCustomShortcutIsAdded() {
         testScope.runTest {
             // TODO(b/380445594) refactor tests and move these stubbings to ShortcutHelperTestHelper
@@ -373,7 +392,7 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+    @EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
     fun categories_isUpdatedAfterCustomShortcutsAreReset() {
         testScope.runTest {
             // TODO(b/380445594) refactor tests and move these stubbings to ShortcutHelperTestHelper
@@ -485,4 +504,9 @@ class CustomShortcutCategoriesRepositoryTest : SysuiTestCase() {
                     key("B")
                 },
         )
+
+    private companion object {
+        const val TEST_PACKAGE = "com.test.package"
+        const val TEST_CLASS = "TestClass"
+    }
 }

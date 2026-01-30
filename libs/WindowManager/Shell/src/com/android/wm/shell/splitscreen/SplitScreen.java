@@ -23,6 +23,7 @@ import android.app.ActivityManager;
 import android.graphics.Rect;
 import android.os.Bundle;
 import android.window.RemoteTransition;
+import android.window.WindowContainerTransaction;
 
 import com.android.internal.logging.InstanceId;
 import com.android.wm.shell.shared.annotations.ExternalThread;
@@ -90,8 +91,12 @@ public interface SplitScreen {
      * Callback interface for listening to requests to enter split select. Used for desktop -> split
      */
     interface SplitSelectListener {
+        /**
+         * Called when split-select is requested.
+         */
         default boolean onRequestEnterSplitSelect(ActivityManager.RunningTaskInfo taskInfo,
-                int splitPosition, Rect taskBounds) {
+                int splitPosition, Rect taskBounds, boolean startRecents,
+                @Nullable WindowContainerTransaction withRecentsWct) {
             return false;
         }
     }

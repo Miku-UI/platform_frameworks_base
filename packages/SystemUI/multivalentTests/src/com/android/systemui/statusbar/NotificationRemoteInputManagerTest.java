@@ -46,6 +46,7 @@ import android.widget.RemoteViews;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.power.domain.interactor.PowerInteractor;
 import com.android.systemui.shade.domain.interactor.ShadeInteractor;
@@ -55,7 +56,6 @@ import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
 import com.android.systemui.statusbar.notification.collection.render.NotificationVisibilityProvider;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.policy.RemoteInputUriController;
 import com.android.systemui.util.kotlin.JavaAdapter;
@@ -107,7 +107,7 @@ public class NotificationRemoteInputManagerTest extends SysuiTestCase {
     ArgumentCaptor<NotificationRemoteInputManager.ClickHandler> mClickHandlerArgumentCaptor;
     private Context mSpyContext;
 
-    private NotificationTestHelper mTestHelper;
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
     private TestableNotificationRemoteInputManager mRemoteInputManager;
     private NotificationEntry mEntry;
 
@@ -125,7 +125,6 @@ public class NotificationRemoteInputManagerTest extends SysuiTestCase {
                 any(), any(), anyInt(), anyInt(), anyInt(), any());
 
 
-        mTestHelper = new NotificationTestHelper(mSpyContext, mDependency);
         mActionClickLogger = spy(new ActionClickLogger(logcatLogBuffer()));
 
         mRemoteInputManager = new TestableNotificationRemoteInputManager(mContext,
@@ -217,7 +216,8 @@ public class NotificationRemoteInputManagerTest extends SysuiTestCase {
 
         verify(mRemoteInputListener).releaseNotificationIfKeptForRemoteInputHistory(row.getKey());
         if (NotificationBundleUi.isEnabled()) {
-            verify(row.getEntryAdapter()).onNotificationActionClicked();
+            verify(mKosmos.getMockNotificationActionClickManager())
+                    .onNotificationActionClicked(any());
         } else {
             latch.await(10, TimeUnit.MILLISECONDS);
         }
@@ -239,7 +239,7 @@ public class NotificationRemoteInputManagerTest extends SysuiTestCase {
                 .addAction(new Notification.Action(com.android.systemui.res.R.drawable.ic_person,
                         "reply", pi))
                 .build();
-        ExpandableNotificationRow row = mTestHelper.createRow(n);
+        ExpandableNotificationRow row = mKosmos.createRow(n);
         row.onNotificationUpdated();
         row.getPrivateLayout().setExpandedChild(Notification.Builder.recoverBuilder(mSpyContext, n)
                 .createBigContentView().apply(

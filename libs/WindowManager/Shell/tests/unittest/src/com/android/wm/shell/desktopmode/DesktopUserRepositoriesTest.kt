@@ -23,14 +23,16 @@ import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import androidx.test.filters.SmallTest
-import com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn
 import com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession
 import com.android.dx.mockito.inline.extended.StaticMockitoSession
 import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_HSUM
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
-import com.android.wm.shell.desktopmode.persistence.DesktopPersistentRepository
-import com.android.wm.shell.desktopmode.persistence.DesktopRepositoryInitializer
+import com.android.wm.shell.desktopmode.data.DesktopRepository
+import com.android.wm.shell.desktopmode.data.DesktopRepositoryInitializer
+import com.android.wm.shell.desktopmode.data.persistence.DesktopPersistentRepository
+import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
 import com.google.common.truth.Truth.assertThat
@@ -57,7 +59,11 @@ class DesktopUserRepositoriesTest : ShellTestCase() {
     private lateinit var userRepositories: DesktopUserRepositories
     private lateinit var shellInit: ShellInit
     private lateinit var datastoreScope: CoroutineScope
+
+    private lateinit var bgScope: CoroutineScope
     private lateinit var mockitoSession: StaticMockitoSession
+    private lateinit var desktopState: FakeDesktopState
+    private lateinit var desktopConfig: FakeDesktopConfig
 
     private val testExecutor = mock<ShellExecutor>()
     private val persistentRepository = mock<DesktopPersistentRepository>()
@@ -73,9 +79,14 @@ class DesktopUserRepositoriesTest : ShellTestCase() {
                 .strictness(Strictness.LENIENT)
                 .spyStatic(ActivityManager::class.java)
                 .startMocking()
-        doReturn(USER_ID_1).`when` { ActivityManager.getCurrentUser() }
+        whenever(shellController.currentUserId).thenReturn(USER_ID_1)
+
+        desktopState = FakeDesktopState()
+        desktopConfig = FakeDesktopConfig()
 
         datastoreScope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+        bgScope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
+
         shellInit = spy(ShellInit(testExecutor))
 
         val profiles: MutableList<UserInfo> =
@@ -84,13 +95,15 @@ class DesktopUserRepositoriesTest : ShellTestCase() {
 
         userRepositories =
             DesktopUserRepositories(
-                context,
                 shellInit,
                 shellController,
                 persistentRepository,
                 repositoryInitializer,
                 datastoreScope,
+                bgScope,
                 userManager,
+                desktopState,
+                desktopConfig,
             )
     }
 
@@ -137,6 +150,17 @@ class DesktopUserRepositoriesTest : ShellTestCase() {
         val userIdForProfile = userRepositories.getUserIdForProfile(PROFILE_ID_1)
 
         assertThat(userIdForProfile).isEqualTo(USER_ID_2)
+    }
+
+    @Test
+    fun forAllRepositories_invokesOnAllRepositories() {
+        userRepositories.onUserChanged(USER_ID_1, mock())
+        userRepositories.getProfile(USER_ID_1)
+        userRepositories.onUserChanged(USER_ID_2, mock())
+        userRepositories.getProfile(USER_ID_2)
+        var repositoriesInvoked = 0
+        userRepositories.forAllRepositories { _ -> repositoriesInvoked++ }
+        assertThat(repositoriesInvoked).isEqualTo(2)
     }
 
     private companion object {

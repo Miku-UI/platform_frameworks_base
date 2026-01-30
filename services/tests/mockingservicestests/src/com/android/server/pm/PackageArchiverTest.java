@@ -30,6 +30,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
@@ -148,15 +149,18 @@ public class PackageArchiverTest {
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
         rule.system().stageNominalSystemState();
-        when(rule.mocks().getInjector().getPackageInstallerService()).thenReturn(
-                mInstallerService);
+        when(rule.mocks().getInjector().getPackageInstallerService(
+                nullable(ComponentName.class))).thenReturn(mInstallerService);
+        final int sdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT;
+        final int sdkVersionFull = Build.parseFullVersion(String.valueOf(sdkVersion));
         mPackageManagerService = spy(new PackageManagerService(rule.mocks().getInjector(),
                 /* factoryTest= */false,
                 MockSystem.Companion.getDEFAULT_VERSION_INFO().fingerprint,
                 /* isEngBuild= */ false,
                 /* isUserDebugBuild= */false,
-                Build.VERSION_CODES.CUR_DEVELOPMENT,
-                Build.VERSION.INCREMENTAL));
+                sdkVersion,
+                Build.VERSION.INCREMENTAL,
+                sdkVersionFull));
 
         when(mComputer.getPackageStateFiltered(eq(PACKAGE), anyInt(), anyInt())).thenReturn(
                 mPackageState);

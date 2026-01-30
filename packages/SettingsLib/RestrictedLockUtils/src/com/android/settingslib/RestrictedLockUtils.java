@@ -17,6 +17,8 @@
 package com.android.settingslib;
 
 import android.app.admin.DevicePolicyManager;
+import android.app.admin.EnforcingAdmin;
+import android.app.admin.flags.Flags;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -26,6 +28,7 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
@@ -116,6 +119,40 @@ public class RestrictedLockUtils {
             intent.putExtra(Intent.EXTRA_USER, admin.user);
         }
         return intent;
+    }
+
+    /** Gets the intent to trigger the {@code android.settings.ShowAdminSupportDetailsDialog}. */
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    @NonNull
+    public static Intent getShowAdminSupportDetailsIntent(@Nullable EnforcingAdmin admin) {
+        final Intent intent = new Intent(Settings.ACTION_SHOW_ADMIN_SUPPORT_DETAILS);
+        if (admin != null) {
+            // Although EXTRA_ENFORCING_ADMIN contains all info from other extras, we keep them
+            // to provide backward compatibility.
+            if (Flags.enforcingAdminExtraEnabled()) {
+                intent.putExtra(DevicePolicyManager.EXTRA_ENFORCING_ADMIN, admin);
+            }
+            if (Flags.enforcingAdminGetComponentNameEnabled() && admin.getComponentName() != null) {
+                intent.putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin.getComponentName());
+            }
+            intent.putExtra(Intent.EXTRA_USER, admin.getUserHandle());
+        }
+        return intent;
+    }
+
+    /** Sends the intent to trigger the {@code android.settings.ShowAdminSupportDetailsDialog}. */
+    @RequiresApi(Build.VERSION_CODES.BAKLAVA)
+    public static void sendShowAdminSupportDetailsIntent(
+            @NonNull Context context, @Nullable EnforcingAdmin admin, @NonNull String restriction) {
+        final Intent intent = getShowAdminSupportDetailsIntent(admin);
+        int targetUserId = UserHandle.myUserId();
+        if (admin != null) {
+            if (isCurrentUserOrProfile(context, admin.getUserHandle().getIdentifier())) {
+                targetUserId = admin.getUserHandle().getIdentifier();
+            }
+            intent.putExtra(DevicePolicyManager.EXTRA_RESTRICTION, restriction);
+        }
+        context.startActivityAsUser(intent, UserHandle.of(targetUserId));
     }
 
     /**

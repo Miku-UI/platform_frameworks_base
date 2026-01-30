@@ -17,50 +17,42 @@
 package com.android.settingslib.spa.widget.preference
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.min
-import com.android.settingslib.spa.framework.theme.SettingsDimension
 import com.android.settingslib.spa.framework.theme.SettingsShape
+import com.android.settingslib.spa.framework.theme.SettingsSpace
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
-import com.android.settingslib.spa.framework.util.EntryHighlight
 
 @Composable
 fun MainSwitchPreference(model: SwitchPreferenceModel) {
-    EntryHighlight {
-        Surface(
-            modifier =
-                Modifier.padding(SettingsDimension.itemPaddingEnd)
-                    .then(
-                        if (isSpaExpressiveEnabled)
-                            Modifier.heightIn(min = SettingsDimension.preferenceMinHeight)
-                        else Modifier
-                    ),
-            color =
-                when (model.checked()) {
-                    true -> MaterialTheme.colorScheme.primaryContainer
-                    else -> MaterialTheme.colorScheme.secondaryContainer
-                },
-            shape = if (isSpaExpressiveEnabled) CircleShape else SettingsShape.CornerExtraLarge,
-        ) {
-            InternalSwitchPreference(
-                title = model.title,
-                checked = model.checked(),
-                changeable = model.changeable(),
-                onCheckedChange = model.onCheckedChange,
-                paddingStart = if (isSpaExpressiveEnabled) 32.dp else 20.dp,
-                paddingEnd = 20.dp,
-                paddingVertical = if (isSpaExpressiveEnabled) 16.dp else 24.dp,
-            )
-        }
+    MainSwitchPreference(model = model, modifier = Modifier)
+}
+
+@Composable
+internal fun MainSwitchPreference(model: SwitchPreferenceModel, modifier: Modifier) {
+    Surface(
+        modifier = Modifier.padding(SettingsSpace.small1),
+        color = MaterialTheme.colorScheme.primaryContainer,
+        shape =
+            if (isSpaExpressiveEnabled) SettingsShape.CornerFull
+            else SettingsShape.CornerExtraLarge1,
+    ) {
+        InternalSwitchPreference(
+            title = model.title,
+            modifier = modifier,
+            checked = model.checked(),
+            changeable = model.changeable(),
+            onCheckedChange = model.onCheckedChange,
+            paddingStart = if (isSpaExpressiveEnabled) SettingsSpace.medium1 else 20.dp,
+            paddingEnd = SettingsSpace.small3,
+            paddingVertical = if (isSpaExpressiveEnabled) SettingsSpace.small1 else 24.dp,
+        )
     }
 }
 

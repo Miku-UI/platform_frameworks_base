@@ -27,8 +27,11 @@ import static com.android.internal.accessibility.util.AccessibilityStatsLogUtils
 import android.annotation.Nullable;
 import android.app.Activity;
 import android.content.ComponentName;
+import android.graphics.Insets;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.view.accessibility.AccessibilityManager;
 import android.widget.GridView;
 import android.widget.TextView;
@@ -54,11 +57,8 @@ public class AccessibilityButtonChooserActivity extends Activity {
 
         final ResolverDrawerLayout rdl = findViewById(R.id.contentPanel);
         if (rdl != null) {
-            rdl.setOnDismissedListener(this::finish);
+            rdl.setOnDismissListener(this::finish);
         }
-
-        final String component = Settings.Secure.getString(getContentResolver(),
-                Settings.Secure.ACCESSIBILITY_BUTTON_TARGET_COMPONENT);
 
         final AccessibilityManager accessibilityManager =
                 getSystemService(AccessibilityManager.class);
@@ -68,8 +68,7 @@ public class AccessibilityButtonChooserActivity extends Activity {
                 NAV_BAR_MODE_GESTURAL == getResources().getInteger(
                         com.android.internal.R.integer.config_navBarInteractionMode);
 
-        final int targetType = android.provider.Flags.a11yStandaloneGestureEnabled()
-                ? getIntent().getIntExtra(EXTRA_TYPE_TO_CHOOSE, SOFTWARE) : SOFTWARE;
+        final int targetType = getIntent().getIntExtra(EXTRA_TYPE_TO_CHOOSE, SOFTWARE);
 
         if (isGestureNavigateEnabled) {
             final TextView promptPrologue = findViewById(R.id.accessibility_button_prompt_prologue);
@@ -98,5 +97,18 @@ public class AccessibilityButtonChooserActivity extends Activity {
             Settings.Secure.putString(getContentResolver(), key, mTargets.get(position).getId());
             finish();
         });
+
+        if (android.view.accessibility.Flags.buttonChooserActivityBottomMarginSystemBar()) {
+            final WindowInsets windowInsets =
+                    getWindowManager().getCurrentWindowMetrics().getWindowInsets();
+            final Insets insets = windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.systemBars());
+
+            final ViewGroup.MarginLayoutParams params =
+                    (ViewGroup.MarginLayoutParams) gridview.getLayoutParams();
+
+            params.bottomMargin = insets.bottom;
+            gridview.setLayoutParams(params);
+        }
     }
 }

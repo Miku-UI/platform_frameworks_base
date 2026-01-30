@@ -7,28 +7,6 @@
   public void <init>();
 }
 
-# Needed to ensure callback field references are kept in their respective
-# owning classes when the downstream callback registrars only store weak refs.
-# Note that we restrict this to SysUISingleton classes, as other registering
-# classes should either *always* unregister or *never* register from their
-# constructor. We also keep callback class names for easier debugging.
-# TODO(b/373579455): Evaluate if <init> needs to be kept.
--keepnames @com.android.systemui.util.annotations.WeaklyReferencedCallback class * {
-  void <init>();
-}
-# TODO(b/373579455): Evaluate if <init> needs to be kept.
--keepnames class * extends @com.android.systemui.util.annotations.WeaklyReferencedCallback ** {
-  void <init>();
-}
--if @com.android.systemui.util.annotations.WeaklyReferencedCallback class *
--keepclassmembers,allowaccessmodification @com.android.systemui.dagger.SysUISingleton class * {
-  <1> *;
-}
--if class * extends @com.android.systemui.util.annotations.WeaklyReferencedCallback **
--keepclassmembers,allowaccessmodification @com.android.systemui.dagger.SysUISingleton class * {
-  <1> *;
-}
-
 # TODO(b/373579455): Evaluate if <init> needs to be kept.
 -keep class androidx.core.app.CoreComponentFactory {
   void <init>();
@@ -70,8 +48,3 @@
   static *** v(...);
 }
 -maximumremovedandroidloglevel 2
-
-#Keep the R
--keepclassmembers class com.android.systemui.customization.R$* {
-    public static <fields>;
-}

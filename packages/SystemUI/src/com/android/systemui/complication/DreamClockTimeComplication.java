@@ -35,6 +35,7 @@ import com.android.systemui.util.condition.ConditionalCoreStartable;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 
 /**
  * Clock Time Complication that produce Clock Time view holder.
@@ -96,16 +97,16 @@ public class DreamClockTimeComplication implements Complication {
      */
     public static class DreamClockTimeViewHolder implements ViewHolder {
         private final TextClock mView;
-        private final ComplicationLayoutParams mLayoutParams;
+        private final Provider<ComplicationLayoutParams> mLayoutParamsProvider;
 
         @Inject
         DreamClockTimeViewHolder(
                 @Named(DREAM_CLOCK_TIME_COMPLICATION_VIEW) TextClock view,
                 @Named(DREAM_CLOCK_TIME_COMPLICATION_LAYOUT_PARAMS)
-                        ComplicationLayoutParams layoutParams,
+                Provider<ComplicationLayoutParams> layoutParamsProvider,
                 DreamClockTimeViewController viewController) {
             mView = view;
-            mLayoutParams = layoutParams;
+            mLayoutParamsProvider = layoutParamsProvider;
             viewController.init();
 
             // Support localized AM/PM marker for 12h mode in content description.
@@ -122,7 +123,7 @@ public class DreamClockTimeComplication implements Complication {
 
         @Override
         public ComplicationLayoutParams getLayoutParams() {
-            return mLayoutParams;
+            return mLayoutParamsProvider.get();
         }
     }
 

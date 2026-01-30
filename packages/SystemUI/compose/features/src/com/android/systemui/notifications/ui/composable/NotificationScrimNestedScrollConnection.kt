@@ -42,7 +42,6 @@ fun NotificationScrimNestedScrollConnection(
     maxScrimOffset: Float,
     contentHeight: () -> Float,
     minVisibleScrimHeight: () -> Float,
-    isCurrentGestureOverscroll: () -> Boolean,
     onStart: (Float) -> Unit = {},
     onStop: (Float) -> Unit = {},
     flingBehavior: FlingBehavior,
@@ -60,7 +59,7 @@ fun NotificationScrimNestedScrollConnection(
         // scrolling down and content is done scrolling to top. After that, the scrim
         // needs to collapse; collapse the scrim until it is at the maxScrimOffset.
         canStartPostScroll = { offsetAvailable, _, _ ->
-            offsetAvailable > 0 && (scrimOffset() < maxScrimOffset || isCurrentGestureOverscroll())
+            offsetAvailable > 0 && (scrimOffset() < maxScrimOffset)
         },
         onStart = { firstScroll ->
             onStart(firstScroll)

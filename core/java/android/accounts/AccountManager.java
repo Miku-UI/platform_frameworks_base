@@ -369,16 +369,6 @@ public class AccountManager {
         public boolean bypass(UserPackage query) {
             return query.userId < 0;
         }
-        @Override
-        public boolean resultEquals(Account[] l, Account[] r) {
-            if (l == r) {
-                return true;
-            } else if (l == null || r == null) {
-                return false;
-            } else {
-                return Arrays.equals(l, r);
-            }
-        }
     };
 
     /**

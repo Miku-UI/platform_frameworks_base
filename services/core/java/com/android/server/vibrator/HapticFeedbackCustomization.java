@@ -16,13 +16,15 @@
 
 package com.android.server.vibrator;
 
+import static android.os.VibrationAttributes.USAGE_GESTURE_INPUT;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.res.Resources;
 import android.content.res.XmlResourceParser;
+import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.VibratorInfo;
-import android.os.vibrator.Flags;
 import android.os.vibrator.persistence.ParsedVibration;
 import android.os.vibrator.persistence.VibrationXmlParser;
 import android.text.TextUtils;
@@ -118,15 +120,10 @@ final class HapticFeedbackCustomization {
     @NonNull
     private final SparseArray<VibrationEffect> mHapticCustomizationsForSourceTouchScreen;
 
-    HapticFeedbackCustomization(Resources res, VibratorInfo vibratorInfo) {
-        if (!Flags.hapticFeedbackVibrationOemCustomizationEnabled()) {
-            Slog.d(TAG, "Haptic feedback customization feature is not enabled.");
-            mHapticCustomizations = new SparseArray<>();
-            mHapticCustomizationsForSourceRotary = new SparseArray<>();
-            mHapticCustomizationsForSourceTouchScreen = new SparseArray<>();
-            return;
-        }
+    @NonNull
+    private final SparseArray<VibrationEffect> mHapticCustomizationsForUsageGestureInput;
 
+    HapticFeedbackCustomization(Resources res, VibratorInfo vibratorInfo) {
         // Load base customizations.
         SparseArray<VibrationEffect> hapticCustomizations;
         hapticCustomizations = loadCustomizedFeedbackVibrationFromFile(res, vibratorInfo);
@@ -139,35 +136,48 @@ final class HapticFeedbackCustomization {
         mHapticCustomizations = hapticCustomizations;
 
         // Load customizations specified by input sources.
-        if (android.os.vibrator.Flags.hapticFeedbackInputSourceCustomizationEnabled()) {
-            mHapticCustomizationsForSourceRotary =
+        mHapticCustomizationsForSourceRotary =
+                loadCustomizedFeedbackVibrationFromRes(res, vibratorInfo,
+                        R.xml.haptic_feedback_customization_source_rotary_encoder);
+        mHapticCustomizationsForSourceTouchScreen =
+                loadCustomizedFeedbackVibrationFromRes(res, vibratorInfo,
+                        R.xml.haptic_feedback_customization_source_touchscreen);
+
+        // Load customizations specified for usages.
+        if (android.os.vibrator.Flags.hapticFeedbackWithCustomUsage()) {
+            mHapticCustomizationsForUsageGestureInput =
                     loadCustomizedFeedbackVibrationFromRes(res, vibratorInfo,
-                            R.xml.haptic_feedback_customization_source_rotary_encoder);
-            mHapticCustomizationsForSourceTouchScreen =
-                    loadCustomizedFeedbackVibrationFromRes(res, vibratorInfo,
-                            R.xml.haptic_feedback_customization_source_touchscreen);
+                            R.xml.haptic_feedback_customization_usage_gesture_input);
         } else {
-            mHapticCustomizationsForSourceRotary = new SparseArray<>();
-            mHapticCustomizationsForSourceTouchScreen = new SparseArray<>();
+            mHapticCustomizationsForUsageGestureInput = new SparseArray<>();
         }
     }
 
     @VisibleForTesting
     HapticFeedbackCustomization(@NonNull SparseArray<VibrationEffect> hapticCustomizations,
             @NonNull SparseArray<VibrationEffect> hapticCustomizationsForSourceRotary,
-            @NonNull SparseArray<VibrationEffect> hapticCustomizationsForSourceTouchScreen) {
+            @NonNull SparseArray<VibrationEffect> hapticCustomizationsForSourceTouchScreen,
+            @NonNull SparseArray<VibrationEffect> hapticCustomizationsForUsageGestureInput) {
         mHapticCustomizations = hapticCustomizations;
         mHapticCustomizationsForSourceRotary = hapticCustomizationsForSourceRotary;
         mHapticCustomizationsForSourceTouchScreen = hapticCustomizationsForSourceTouchScreen;
+        mHapticCustomizationsForUsageGestureInput = hapticCustomizationsForUsageGestureInput;
     }
 
     @Nullable
-    VibrationEffect getEffect(int effectId) {
-        return mHapticCustomizations.get(effectId);
+    VibrationEffect getEffect(int effectId, @VibrationAttributes.Usage int usage) {
+        VibrationEffect resultVibration = null;
+        if (usage == USAGE_GESTURE_INPUT) {
+            resultVibration = mHapticCustomizationsForUsageGestureInput.get(effectId);
+        }
+        if (resultVibration == null) {
+            resultVibration = mHapticCustomizations.get(effectId);
+        }
+        return resultVibration;
     }
 
     @Nullable
-    VibrationEffect getEffect(int effectId, int inputSource) {
+    VibrationEffect getEffectForInputDevice(int effectId, int inputSource) {
         VibrationEffect resultVibration = null;
         if ((InputDevice.SOURCE_ROTARY_ENCODER & inputSource) != 0) {
             resultVibration = mHapticCustomizationsForSourceRotary.get(effectId);
@@ -259,9 +269,6 @@ final class HapticFeedbackCustomization {
 
     @Nullable
     private static TypedXmlPullParser readCustomizationResources(Resources res, int xmlResId) {
-        if (!Flags.loadHapticFeedbackVibrationCustomizationFromResources()) {
-            return null;
-        }
         final XmlResourceParser resParser;
         try {
             resParser = res.getXml(xmlResId);

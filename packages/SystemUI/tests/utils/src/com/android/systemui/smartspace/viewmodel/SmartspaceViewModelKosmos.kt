@@ -16,6 +16,7 @@
 
 package com.android.systemui.smartspace.viewmodel
 
+import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.smartspace.ui.viewmodel.SmartspaceViewModel
@@ -26,7 +27,8 @@ val Kosmos.smartspaceViewModelFactory by
             override fun create(surfaceName: String): SmartspaceViewModel {
                 return SmartspaceViewModel(
                     powerInteractor = powerInteractor,
-                    surfaceName = surfaceName
+                    keyguardInteractor = keyguardInteractor,
+                    surfaceName = surfaceName,
                 )
             }
         }

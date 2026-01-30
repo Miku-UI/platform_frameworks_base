@@ -20,18 +20,29 @@ import com.android.settingslib.bluetooth.CachedBluetoothDevice
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcast
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant
 import com.android.settingslib.bluetooth.LocalBluetoothManager
+import com.android.settingslib.bluetooth.onServiceStateChanged
 import com.android.settingslib.bluetooth.onSourceConnectedOrRemoved
 import com.android.settingslib.volume.data.repository.AudioSharingRepository as SettingsLibAudioSharingRepository
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.withContext
 
 interface AudioSharingRepository {
+    val isAudioSharingProfilesReady: StateFlow<Boolean>
+
     val leAudioBroadcastProfile: LocalBluetoothLeBroadcast?
 
     val audioSourceStateUpdate: Flow<Unit>
@@ -55,16 +66,40 @@ class AudioSharingRepositoryImpl(
     private val settingsLibAudioSharingRepository: SettingsLibAudioSharingRepository,
     private val logger: BluetoothTileDialogLogger,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
+    @Application private val coroutineScope: CoroutineScope,
 ) : AudioSharingRepository {
 
     override val leAudioBroadcastProfile: LocalBluetoothLeBroadcast?
-        get() = localBluetoothManager.profileManager?.leAudioBroadcastProfile
+        get() = localBluetoothManager.profileManager.leAudioBroadcastProfile
 
     private val leAudioBroadcastAssistantProfile: LocalBluetoothLeBroadcastAssistant?
-        get() = localBluetoothManager.profileManager?.leAudioBroadcastAssistantProfile
+        get() = localBluetoothManager.profileManager.leAudioBroadcastAssistantProfile
+
+    override val isAudioSharingProfilesReady: StateFlow<Boolean> =
+        localBluetoothManager.profileManager.onServiceStateChanged
+            .map {
+                leAudioBroadcastProfile?.isProfileReady == true &&
+                    leAudioBroadcastAssistantProfile?.isProfileReady == true
+            }
+            .onStart {
+                emit(
+                    leAudioBroadcastProfile?.isProfileReady == true &&
+                        leAudioBroadcastAssistantProfile?.isProfileReady == true
+                )
+            }
+            .flowOn(backgroundDispatcher)
+            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), false)
 
     override val audioSourceStateUpdate: Flow<Unit> =
-        leAudioBroadcastAssistantProfile?.onSourceConnectedOrRemoved ?: emptyFlow()
+        isAudioSharingProfilesReady
+            .flatMapLatest {
+                if (it) {
+                    leAudioBroadcastAssistantProfile?.onSourceConnectedOrRemoved ?: emptyFlow()
+                } else {
+                    emptyFlow()
+                }
+            }
+            .flowOn(backgroundDispatcher)
 
     override val inAudioSharing: StateFlow<Boolean> =
         settingsLibAudioSharingRepository.inAudioSharing
@@ -124,6 +159,8 @@ class AudioSharingRepositoryImpl(
 
 @SysUISingleton
 class AudioSharingRepositoryEmptyImpl : AudioSharingRepository {
+    override val isAudioSharingProfilesReady: StateFlow<Boolean> = MutableStateFlow(false)
+
     override val leAudioBroadcastProfile: LocalBluetoothLeBroadcast? = null
 
     override val audioSourceStateUpdate: Flow<Unit> = emptyFlow()

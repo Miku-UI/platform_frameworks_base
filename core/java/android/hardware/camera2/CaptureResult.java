@@ -19,6 +19,8 @@ package android.hardware.camera2;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
+import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.hardware.camera2.impl.CameraMetadataNative;
 import android.hardware.camera2.impl.CaptureResultExtras;
@@ -432,6 +434,61 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
         return mSequenceId;
     }
 
+    /**
+     * Builder class for creating {@link CaptureResult} instances. Only the native metadata can be
+     * customized and there is no associated {@link CaptureRequest}.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_VIRTUAL_CAMERA_METADATA)
+    public static final class Builder {
+        private final CameraMetadataNative mNativeMetadata;
+
+        /**
+         * Builder for creating a {@link CaptureResult}.
+         *
+         * @see CameraCharacteristics#getAvailableCaptureResultKeys
+         */
+        public Builder() {
+            mNativeMetadata = new CameraMetadataNative();
+        }
+
+        /**
+         * Builder for creating a {@link CaptureResult} starting from a copy of an existing
+         * instance.
+         */
+        public Builder(@NonNull CaptureResult captureResult) {
+            mNativeMetadata = new CameraMetadataNative(captureResult.getNativeMetadata());
+        }
+
+        /**
+         * Sets a capture result field to a value. The field definitions can be found in
+         * {@link CaptureResult}.
+         * <p>
+         * Setting a field to {@code null} will remove that field from the capture result metadata.
+         *
+         * @param key   The metadata field to write.
+         * @param value The value to set the field to, which must be of a matching type to the key.
+         */
+        @SuppressLint("KotlinOperator")
+        @NonNull
+        public <T> Builder set(@NonNull CaptureResult.Key<T> key, T value) {
+            mNativeMetadata.set(key, value);
+            return this;
+        }
+
+        /**
+         * Builds the {@link CaptureResult} object with the set of {@link CaptureResult.Key}s.
+         *
+         * @return A new {@link CaptureResult} instance.
+         */
+        public @NonNull CaptureResult build() {
+            // cameraId, captureRequest, requestId and frameNumber are not used
+            return new CaptureResult(mNativeMetadata, 0 /* requestId */);
+        }
+    }
+
     /*@O~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~
      * The key entries below this point are generated from metadata
      * definitions in /system/media/camera/docs. Do not modify by hand or
@@ -835,6 +892,7 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      *   <li>{@link #CONTROL_AE_MODE_ON_ALWAYS_FLASH ON_ALWAYS_FLASH}</li>
      *   <li>{@link #CONTROL_AE_MODE_ON_AUTO_FLASH_REDEYE ON_AUTO_FLASH_REDEYE}</li>
      *   <li>{@link #CONTROL_AE_MODE_ON_EXTERNAL_FLASH ON_EXTERNAL_FLASH}</li>
+     *   <li>{@link #CONTROL_AE_MODE_ON_LOW_LIGHT_BOOST_BRIGHTNESS_PRIORITY ON_LOW_LIGHT_BOOST_BRIGHTNESS_PRIORITY}</li>
      * </ul>
      *
      * <p><b>Available values for this device:</b><br>
@@ -859,6 +917,7 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      * @see #CONTROL_AE_MODE_ON_ALWAYS_FLASH
      * @see #CONTROL_AE_MODE_ON_AUTO_FLASH_REDEYE
      * @see #CONTROL_AE_MODE_ON_EXTERNAL_FLASH
+     * @see #CONTROL_AE_MODE_ON_LOW_LIGHT_BOOST_BRIGHTNESS_PRIORITY
      */
     @PublicKey
     @NonNull
@@ -2912,7 +2971,6 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      */
     @PublicKey
     @NonNull
-    @FlaggedApi(Flags.FLAG_CAMERA_AE_MODE_LOW_LIGHT_BOOST)
     public static final Key<Integer> CONTROL_LOW_LIGHT_BOOST_STATE =
             new Key<Integer>("android.control.lowLightBoostState", int.class);
 
@@ -2921,7 +2979,7 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      * to control zoom levels.</p>
      * <p>If set to AUTO, the camera device detects which capture request key the application uses
      * to do zoom, {@link CaptureRequest#SCALER_CROP_REGION android.scaler.cropRegion} or {@link CaptureRequest#CONTROL_ZOOM_RATIO android.control.zoomRatio}. If
-     * the application doesn't set android.scaler.zoomRatio or sets it to 1.0 in the capture
+     * the application doesn't set {@link CaptureRequest#CONTROL_ZOOM_RATIO android.control.zoomRatio} or sets it to 1.0 in the capture
      * request, the effective zoom level is reflected in {@link CaptureRequest#SCALER_CROP_REGION android.scaler.cropRegion} in capture
      * results. If {@link CaptureRequest#CONTROL_ZOOM_RATIO android.control.zoomRatio} is set to values other than 1.0, the effective
      * zoom level is reflected in {@link CaptureRequest#CONTROL_ZOOM_RATIO android.control.zoomRatio}. AUTO is the default value
@@ -3437,28 +3495,36 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
             new Key<Float>("android.lens.filterDensity", float.class);
 
     /**
-     * <p>The desired lens focal length; used for optical zoom.</p>
-     * <p>This setting controls the physical focal length of the camera
-     * device's lens. Changing the focal length changes the field of
-     * view of the camera device, and is usually used for optical zoom.</p>
-     * <p>Like {@link CaptureRequest#LENS_FOCUS_DISTANCE android.lens.focusDistance} and {@link CaptureRequest#LENS_APERTURE android.lens.aperture}, this
-     * setting won't be applied instantaneously, and it may take several
-     * frames before the lens can change to the requested focal length.
-     * While the focal length is still changing, {@link CaptureResult#LENS_STATE android.lens.state} will
-     * be set to MOVING.</p>
-     * <p>Optical zoom via this control will not be supported on most devices. Starting from API
-     * level 30, the camera device may combine optical and digital zoom through the
-     * {@link CaptureRequest#CONTROL_ZOOM_RATIO android.control.zoomRatio} control.</p>
+     * <p>The desired lens focal length</p>
+     * <p>Focal length is the distance from the optical center of the lens to the
+     * focal point for a thin lens approximation of the camera optical system.
+     * The definition assumes the lens is focused at infinity.</p>
+     * <p>The horizontal field-of-view of the processed full frame camera outputs
+     * can be derived as:</p>
+     * <pre><code>fov = 2 * atan2(sw / 2, fl)
+     * </code></pre>
+     * <p>where:</p>
+     * <ul>
+     * <li><code>sw</code> is the {@link CameraCharacteristics#SENSOR_INFO_PHYSICAL_SIZE android.sensor.info.physicalSize} width,</li>
+     * <li><code>fl</code> is {@link CaptureRequest#LENS_FOCAL_LENGTH android.lens.focalLength}.</li>
+     * </ul>
+     * <p>Using this control to switch between lenses is not supported on most
+     * devices. Starting from API level 30, the application is strongly recommended
+     * to use {@link CaptureRequest#CONTROL_ZOOM_RATIO android.control.zoomRatio} for combined optical and digital zoom. To
+     * exclusively use a particular focal length lens in a logical multi-camera,
+     * applications can iterate over the physical cameras exposed by the logical
+     * multi-camera device via
+     * {@link android.hardware.camera2.CameraCharacteristics#getPhysicalCameraIds }
+     * and select the one with the desired focal length.</p>
      * <p><b>Units</b>: Millimeters</p>
      * <p><b>Range of valid values:</b><br>
      * {@link CameraCharacteristics#LENS_INFO_AVAILABLE_FOCAL_LENGTHS android.lens.info.availableFocalLengths}</p>
      * <p>This key is available on all devices.</p>
      *
      * @see CaptureRequest#CONTROL_ZOOM_RATIO
-     * @see CaptureRequest#LENS_APERTURE
-     * @see CaptureRequest#LENS_FOCUS_DISTANCE
+     * @see CaptureRequest#LENS_FOCAL_LENGTH
      * @see CameraCharacteristics#LENS_INFO_AVAILABLE_FOCAL_LENGTHS
-     * @see CaptureResult#LENS_STATE
+     * @see CameraCharacteristics#SENSOR_INFO_PHYSICAL_SIZE
      */
     @PublicKey
     @NonNull
@@ -3570,8 +3636,7 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      * <ul>
      * <li>Fixed focus (<code>{@link CameraCharacteristics#LENS_INFO_MINIMUM_FOCUS_DISTANCE android.lens.info.minimumFocusDistance} == 0</code>), which means
      * {@link CaptureRequest#LENS_FOCUS_DISTANCE android.lens.focusDistance} parameter will always be 0.</li>
-     * <li>Fixed focal length ({@link CameraCharacteristics#LENS_INFO_AVAILABLE_FOCAL_LENGTHS android.lens.info.availableFocalLengths} contains single value),
-     * which means the optical zoom is not supported.</li>
+     * <li>Fixed focal length ({@link CameraCharacteristics#LENS_INFO_AVAILABLE_FOCAL_LENGTHS android.lens.info.availableFocalLengths} contains single value).</li>
      * <li>No ND filter ({@link CameraCharacteristics#LENS_INFO_AVAILABLE_FILTER_DENSITIES android.lens.info.availableFilterDensities} contains only 0).</li>
      * <li>Fixed aperture ({@link CameraCharacteristics#LENS_INFO_AVAILABLE_APERTURES android.lens.info.availableApertures} contains single value).</li>
      * </ul>
@@ -5445,7 +5510,7 @@ public class CaptureResult extends CameraMetadata<CaptureResult.Key<?>> {
      * <p>An array of intra-frame lens intrinsic samples.</p>
      * <p>Contains an array of intra-frame {@link CameraCharacteristics#LENS_INTRINSIC_CALIBRATION android.lens.intrinsicCalibration} updates. This must
      * not be confused or compared to {@link CaptureResult#STATISTICS_OIS_SAMPLES android.statistics.oisSamples}. Although OIS could be the
-     * main driver, all relevant factors such as focus distance and optical zoom must also
+     * main driver, all relevant factors such as focus distance and focal length must also
      * be included. Do note that OIS samples must not be applied on top of the lens intrinsic
      * samples.
      * Support for this capture result can be queried via

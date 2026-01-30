@@ -16,22 +16,19 @@
 
 package com.android.systemui.media.controls.domain.pipeline
 
-import android.bluetooth.BluetoothLeBroadcast
-import android.bluetooth.BluetoothLeBroadcastMetadata
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.TestStubDrawable
 import android.media.MediaRoute2Info
+import android.media.MediaRoute2Info.TYPE_REMOTE_SPEAKER
 import android.media.MediaRouter2Manager
 import android.media.RoutingSessionInfo
+import android.media.SuggestedDeviceInfo
 import android.media.session.MediaController
 import android.media.session.MediaController.PlaybackInfo
 import android.media.session.MediaSession
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
-import android.platform.test.annotations.RequiresFlagsDisabled
-import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.platform.test.flag.junit.FlagsParameterization
 import android.testing.TestableLooper
@@ -41,15 +38,21 @@ import com.android.settingslib.bluetooth.LocalBluetoothManager
 import com.android.settingslib.bluetooth.LocalBluetoothProfileManager
 import com.android.settingslib.flags.Flags
 import com.android.settingslib.media.LocalMediaManager
+import com.android.settingslib.media.LocalMediaManager.MediaDeviceState.STATE_CONNECTING
+import com.android.settingslib.media.LocalMediaManager.MediaDeviceState.STATE_DISCONNECTED
 import com.android.settingslib.media.MediaDevice
-import com.android.settingslib.media.PhoneMediaDevice
-import com.android.settingslib.media.flags.Flags.FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS
+import com.android.settingslib.media.SuggestedDeviceManager
+import com.android.settingslib.media.SuggestedDeviceState
+import com.android.systemui.Flags.FLAG_ENABLE_SUGGESTED_DEVICE_UI
+import com.android.systemui.Flags.enableSuggestedDeviceUi
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.media.controls.MediaTestUtils
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.controls.shared.model.MediaDeviceData
+import com.android.systemui.media.controls.shared.model.SuggestionData
 import com.android.systemui.media.controls.util.LocalMediaManagerFactory
 import com.android.systemui.media.controls.util.MediaControllerFactory
+import com.android.systemui.media.controls.util.SuggestedDeviceManagerFactory
 import com.android.systemui.media.muteawait.MediaMuteAwaitConnectionManager
 import com.android.systemui.media.muteawait.MediaMuteAwaitConnectionManagerFactory
 import com.android.systemui.res.R
@@ -63,20 +66,20 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentCaptor
-import org.mockito.ArgumentMatchers.anyBoolean
-import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
-import org.mockito.Mockito.any
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.reset
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.verifyNoMoreInteractions
-import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.MockitoJUnit
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.reset
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoMoreInteractions
+import org.mockito.kotlin.whenever
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
@@ -87,23 +90,22 @@ private const val SESSION_KEY = "SESSION_KEY"
 private const val DEVICE_ID = "DEVICE_ID"
 private const val DEVICE_NAME = "DEVICE_NAME"
 private const val REMOTE_DEVICE_NAME = "REMOTE_DEVICE_NAME"
-private const val BROADCAST_APP_NAME = "BROADCAST_APP_NAME"
-private const val NORMAL_APP_NAME = "NORMAL_APP_NAME"
+private const val SUGGESTED_DEVICE_NAME = "SUGGESTED_DEVICE_NAME"
+private const val SUGGESTED_DEVICE_CONNECTION_STATE_1 = STATE_DISCONNECTED
+private const val SUGGESTED_DEVICE_CONNECTION_STATE_2 = STATE_CONNECTING
 
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 @TestableLooper.RunWithLooper
 public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCase() {
 
-    companion object {
+    private companion object {
         val OTHER_DEVICE_ICON_STUB = TestStubDrawable()
 
         @JvmStatic
         @Parameters(name = "{0}")
         fun getParams(): List<FlagsParameterization> {
-            return FlagsParameterization.progressionOf(
-                com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DEVICE_MANAGER_BACKGROUND_EXECUTION
-            )
+            return FlagsParameterization.progressionOf(FLAG_ENABLE_SUGGESTED_DEVICE_UI)
         }
     }
 
@@ -117,6 +119,8 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     @Mock private lateinit var controllerFactory: MediaControllerFactory
     @Mock private lateinit var lmmFactory: LocalMediaManagerFactory
     @Mock private lateinit var lmm: LocalMediaManager
+    @Mock private lateinit var sdmFactory: SuggestedDeviceManagerFactory
+    @Mock private lateinit var sdm: SuggestedDeviceManager
     @Mock private lateinit var mr2: MediaRouter2Manager
     @Mock private lateinit var muteAwaitFactory: MediaMuteAwaitConnectionManagerFactory
     @Mock private lateinit var muteAwaitManager: MediaMuteAwaitConnectionManager
@@ -130,11 +134,13 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     @Mock private lateinit var controller: MediaController
     @Mock private lateinit var playbackInfo: PlaybackInfo
     @Mock private lateinit var configurationController: ConfigurationController
-    @Mock private lateinit var bluetoothLeBroadcast: BluetoothLeBroadcast
     @Mock private lateinit var localBluetoothProfileManager: LocalBluetoothProfileManager
     @Mock private lateinit var localBluetoothLeBroadcast: LocalBluetoothLeBroadcast
     @Mock private lateinit var packageManager: PackageManager
     @Mock private lateinit var applicationInfo: ApplicationInfo
+    private lateinit var suggestedDeviceState1: SuggestedDeviceState
+    private lateinit var suggestedDeviceState2: SuggestedDeviceState
+    private lateinit var suggestedDeviceInfo: SuggestedDeviceInfo
     private lateinit var localBluetoothManager: LocalBluetoothManager
     private lateinit var session: MediaSession
     private lateinit var mediaData: MediaData
@@ -152,6 +158,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
                 context,
                 controllerFactory,
                 lmmFactory,
+                sdmFactory,
                 { mr2 },
                 muteAwaitFactory,
                 configurationController,
@@ -166,9 +173,33 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         whenever(device.name).thenReturn(DEVICE_NAME)
         whenever(device.iconWithoutBackground).thenReturn(icon)
         whenever(lmmFactory.create(PACKAGE)).thenReturn(lmm)
+        whenever(sdmFactory.create(lmm)).thenReturn(sdm)
         whenever(muteAwaitFactory.create(lmm)).thenReturn(muteAwaitManager)
         whenever(lmm.getCurrentConnectedDevice()).thenReturn(device)
         whenever(mr2.getRoutingSessionForMediaController(any())).thenReturn(routingSession)
+        whenever(localBluetoothManager.profileManager).thenReturn(localBluetoothProfileManager)
+        whenever(localBluetoothProfileManager.leAudioBroadcastProfile)
+            .thenReturn(localBluetoothLeBroadcast)
+        whenever(localBluetoothLeBroadcast.isEnabled(null)).thenReturn(false)
+        suggestedDeviceInfo =
+            SuggestedDeviceInfo.Builder(SUGGESTED_DEVICE_NAME, DEVICE_ID, TYPE_REMOTE_SPEAKER)
+                .build()
+        suggestedDeviceState1 =
+            SuggestedDeviceState(
+                suggestedDeviceInfo = suggestedDeviceInfo,
+                connectionState = SUGGESTED_DEVICE_CONNECTION_STATE_1,
+            )
+        suggestedDeviceState2 =
+            SuggestedDeviceState(
+                suggestedDeviceInfo = suggestedDeviceInfo,
+                connectionState = SUGGESTED_DEVICE_CONNECTION_STATE_2,
+            )
+        // A drawable for TYPE_REMOTE_SPEAKER, mocks return from SuggestedDeviceState#getIcon
+        context.orCreateTestableResources.addOverride(
+            com.android.settingslib.R.drawable.ic_media_speaker_device,
+            icon,
+        )
+        whenever(sdm.getSuggestedDevice()).thenReturn(suggestedDeviceState1)
 
         whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_LOCAL)
         whenever(controller.playbackInfo).thenReturn(playbackInfo)
@@ -179,7 +210,6 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         mediaData =
             MediaTestUtils.emptyMediaData.copy(packageName = PACKAGE, token = session.sessionToken)
         whenever(controllerFactory.create(session.sessionToken)).thenReturn(controller)
-        setupLeAudioConfiguration(false)
 
         context.orCreateTestableResources.addOverride(
             R.drawable.ic_media_home_devices,
@@ -195,7 +225,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     @Test
     fun removeUnknown() {
         manager.onMediaDataRemoved("unknown", false)
-        verify(listener, never()).onKeyRemoved(eq(KEY), anyBoolean())
+        verify(listener, never()).onKeyRemoved(eq(KEY), any())
     }
 
     @Test
@@ -213,6 +243,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         fakeBgExecutor.runAllReady()
         fakeFgExecutor.runAllReady()
         verify(lmm).unregisterCallback(any())
+        verify(sdm).removeListener(any())
         verify(muteAwaitManager).stopListening()
     }
 
@@ -221,7 +252,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         manager.onMediaDataLoaded(KEY, null, mediaData.copy(token = null))
         fakeBgExecutor.runAllReady()
         fakeFgExecutor.runAllReady()
-        val data = captureDeviceData(KEY)
+        val data = captureDeviceDataFromCombinedCallback(KEY)
         assertThat(data.enabled).isTrue()
         assertThat(data.name).isEqualTo(DEVICE_NAME)
     }
@@ -237,9 +268,10 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         fakeFgExecutor.runAllReady()
         // THEN the listener for the old key should removed.
         verify(lmm).unregisterCallback(any())
+        verify(sdm).removeListener(any())
         verify(muteAwaitManager).stopListening()
         // AND a new device event emitted
-        val data = captureDeviceData(KEY, KEY_OLD)
+        val data = captureDeviceDataFromCombinedCallback(KEY, KEY_OLD)
         assertThat(data.enabled).isTrue()
         assertThat(data.name).isEqualTo(DEVICE_NAME)
     }
@@ -261,7 +293,12 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         manager.onMediaDataLoaded(KEY, oldKey, mediaData)
         fakeBgExecutor.runAllReady()
         fakeFgExecutor.runAllReady()
-        verify(listener).onMediaDeviceChanged(eq(KEY), eq(oldKey), any())
+        if (enableSuggestedDeviceUi()) {
+            verify(listener)
+                .onMediaDeviceAndSuggestionDataChanged(eq(KEY), eq(oldKey), any(), any())
+        } else {
+            verify(listener).onMediaDeviceChanged(eq(KEY), eq(oldKey), any())
+        }
     }
 
     @Test
@@ -302,11 +339,15 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
 
     @Test
     fun deviceListUpdate() {
+        whenever(lmm.getCurrentConnectedDevice()).thenReturn(null)
         manager.onMediaDataLoaded(KEY, null, mediaData)
         fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        reset(listener)
         val deviceCallback = captureCallback()
         verify(muteAwaitManager).startListening()
         // WHEN the device list changes
+        whenever(lmm.getCurrentConnectedDevice()).thenReturn(device)
         deviceCallback.onDeviceListUpdate(mutableListOf(device))
         assertThat(fakeBgExecutor.runAllReady()).isEqualTo(1)
         assertThat(fakeFgExecutor.runAllReady()).isEqualTo(1)
@@ -318,12 +359,121 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     }
 
     @Test
-    fun selectedDeviceStateChanged() {
+    @EnableFlags(FLAG_ENABLE_SUGGESTED_DEVICE_UI)
+    fun onMediaDataLoaded() {
+        // Verify that on media data loaded, fgExecutor only runs once and listener notified
         manager.onMediaDataLoaded(KEY, null, mediaData)
         fakeBgExecutor.runAllReady()
+        assertThat(fakeFgExecutor.runAllReady()).isEqualTo(1)
+
+        val mediaDeviceCaptor = argumentCaptor<MediaDeviceData>()
+        val suggestionCaptor = argumentCaptor<SuggestionData>()
+        verify(listener)
+            .onMediaDeviceAndSuggestionDataChanged(
+                eq(KEY),
+                eq(null),
+                mediaDeviceCaptor.capture(),
+                suggestionCaptor.capture(),
+            )
+        val deviceData = mediaDeviceCaptor.firstValue
+        assertThat(deviceData.enabled).isTrue()
+        assertThat(deviceData.name).isEqualTo(DEVICE_NAME)
+        assertThat(deviceData.icon).isEqualTo(icon)
+        val suggestionData = suggestionCaptor.firstValue.suggestedMediaDeviceData!!
+        assertThat(suggestionData.name).isEqualTo(SUGGESTED_DEVICE_NAME)
+        assertThat(suggestionData.connectionState).isEqualTo(SUGGESTED_DEVICE_CONNECTION_STATE_1)
+        assertThat(suggestionData.icon).isEqualTo(icon)
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_SUGGESTED_DEVICE_UI)
+    fun onMediaDataLoaded_resumption_doesNotLoadSuggestionData() {
+        val resumptionMediaData = mediaData.copy(resumption = true)
+
+        manager.onMediaDataLoaded(KEY, null, resumptionMediaData)
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+
+        val mediaDeviceCaptor = argumentCaptor<MediaDeviceData>()
+        val suggestionCaptor = argumentCaptor<SuggestionData>()
+        verify(listener)
+            .onMediaDeviceAndSuggestionDataChanged(
+                eq(KEY),
+                eq(null),
+                mediaDeviceCaptor.capture(),
+                suggestionCaptor.capture(),
+            )
+        val deviceData = mediaDeviceCaptor.firstValue
+        assertThat(deviceData.enabled).isTrue()
+        assertThat(deviceData.name).isEqualTo(DEVICE_NAME)
+        assertThat(deviceData.icon).isEqualTo(icon)
+        val suggestionData = suggestionCaptor.firstValue
+        assertThat(suggestionData.suggestedMediaDeviceData).isNull()
+        // The onSuggestionSpaceVisible should be set.
+        assertThat(suggestionData.onSuggestionSpaceVisible).isNotNull()
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_SUGGESTED_DEVICE_UI)
+    fun suggestedDeviceUpdate() {
+        // Need to load media data to load LocalMediaManager the first time
+        manager.onMediaDataLoaded(KEY, null, mediaData)
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        clearInvocations(listener)
+        val suggestedDeviceListener = captureSuggestedDeviceListener()
+        // WHEN the device list changes
+        suggestedDeviceListener.onSuggestedDeviceStateUpdated(suggestedDeviceState2)
+        assertThat(fakeBgExecutor.runAllReady()).isEqualTo(1)
+        assertThat(fakeFgExecutor.runAllReady()).isEqualTo(1)
+        // THEN the update is dispatched to the listener
+        val data = captureSuggestionData(KEY).suggestedMediaDeviceData!!
+        assertThat(data.name).isEqualTo(SUGGESTED_DEVICE_NAME)
+        assertThat(data.connectionState).isEqualTo(SUGGESTED_DEVICE_CONNECTION_STATE_2)
+        assertThat(data.icon).isEqualTo(icon)
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_SUGGESTED_DEVICE_UI)
+    fun suggestedDeviceUpdateWithRepeatedValue() {
+        // Need to load media data to load LocalMediaManager the first time
+        manager.onMediaDataLoaded(KEY, null, mediaData)
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        clearInvocations(listener)
+        val suggestedDeviceListener = captureSuggestedDeviceListener()
+        // Load initial suggestion data
+        suggestedDeviceListener.onSuggestedDeviceStateUpdated(suggestedDeviceState2)
+        assertThat(fakeBgExecutor.runAllReady()).isEqualTo(1)
+        assertThat(fakeFgExecutor.runAllReady()).isEqualTo(1)
+        clearInvocations(listener)
+        // Reload device suggestion and verify no work on foreground
+        suggestedDeviceListener.onSuggestedDeviceStateUpdated(suggestedDeviceState2)
+        assertThat(fakeBgExecutor.runAllReady()).isEqualTo(1)
+        assertThat(fakeFgExecutor.runAllReady()).isEqualTo(0)
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_SUGGESTED_DEVICE_UI)
+    fun suggestedDeviceInitialization_resumption_doesNotAddListener() {
+        val resumptionMediaData = mediaData.copy(resumption = true)
+        manager.onMediaDataLoaded(KEY, null, resumptionMediaData)
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        verify(sdm, never()).addListener(any())
+    }
+
+    @Test
+    fun selectedDeviceStateChanged() {
+        whenever(lmm.getCurrentConnectedDevice()).thenReturn(null)
+        manager.onMediaDataLoaded(KEY, null, mediaData)
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        reset(listener)
         val deviceCallback = captureCallback()
         // WHEN the selected device changes state
-        deviceCallback.onSelectedDeviceStateChanged(device, 1)
+        whenever(lmm.getCurrentConnectedDevice()).thenReturn(device)
+        deviceCallback.onSelectedDeviceStateChanged(device, STATE_CONNECTING)
         assertThat(fakeBgExecutor.runAllReady()).isEqualTo(1)
         assertThat(fakeFgExecutor.runAllReady()).isEqualTo(1)
         // THEN the update is dispatched to the listener
@@ -342,10 +492,10 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         reset(listener)
 
         // Ensure we'll get device info when using the address
-        val fullMediaDevice = mock(MediaDevice::class.java)
+        val fullMediaDevice = mock<MediaDevice>()
         val address = "fakeAddress"
         val nameFromDevice = "nameFromDevice"
-        val iconFromDevice = mock(Drawable::class.java)
+        val iconFromDevice = mock<Drawable>()
         whenever(lmm.getMediaDeviceById(eq(address))).thenReturn(fullMediaDevice)
         whenever(fullMediaDevice.name).thenReturn(nameFromDevice)
         whenever(fullMediaDevice.iconWithoutBackground).thenReturn(iconFromDevice)
@@ -353,7 +503,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         // WHEN the about-to-connect device changes to non-null
         val deviceCallback = captureCallback()
         val nameFromParam = "nameFromParam"
-        val iconFromParam = mock(Drawable::class.java)
+        val iconFromParam = mock<Drawable>()
         deviceCallback.onAboutToConnectDeviceAdded(address, nameFromParam, iconFromParam)
         assertThat(fakeFgExecutor.runAllReady()).isEqualTo(1)
 
@@ -381,7 +531,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         // WHEN the about-to-connect device changes to non-null
         val deviceCallback = captureCallback()
         val name = "AboutToConnectDeviceName"
-        val mockIcon = mock(Drawable::class.java)
+        val mockIcon = mock<Drawable>()
         deviceCallback.onAboutToConnectDeviceAdded(address, name, mockIcon)
         assertThat(fakeFgExecutor.runAllReady()).isEqualTo(1)
 
@@ -401,7 +551,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         deviceCallback.onAboutToConnectDeviceAdded(
             "fakeAddress",
             "AboutToConnectDeviceName",
-            mock(Drawable::class.java),
+            mock<Drawable>(),
         )
         // Run and reset the executors and listeners so we only focus on new events.
         fakeBgExecutor.runAllReady()
@@ -442,7 +592,6 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     }
 
     @Test
-    @EnableFlags(com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX)
     fun onMediaDataLoaded_withRemotePlaybackType_usesNonNullRoutingSessionName_drawableReused() {
         whenever(routingSession.name).thenReturn(REMOTE_DEVICE_NAME)
         whenever(routingSession.selectedRoutes).thenReturn(listOf("selectedRoute", "selectedRoute"))
@@ -456,34 +605,6 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     }
 
     @Test
-    @DisableFlags(com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX)
-    fun onMediaDataLoaded_withRemotePlaybackType_usesNonNullRoutingSessionName_drawableNotReused() {
-        whenever(routingSession.name).thenReturn(REMOTE_DEVICE_NAME)
-        whenever(routingSession.selectedRoutes).thenReturn(listOf("selectedRoute", "selectedRoute"))
-        whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
-
-        val firstData = loadMediaAndCaptureDeviceData()
-        reset(listener)
-        val secondData = loadMediaAndCaptureDeviceData()
-
-        assertThat(secondData.icon).isNotEqualTo(firstData.icon)
-    }
-
-    @RequiresFlagsDisabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @Test
-    fun onMediaDataLoaded_withRemotePlaybackInfo_noMatchingRoutingSession_setsDisabledDevice() {
-        // GIVEN that MR2Manager returns null for routing session
-        whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
-        whenever(mr2.getRoutingSessionForMediaController(any())).thenReturn(null)
-        // WHEN a notification is added
-        // THEN the device is disabled and name is set to null
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.enabled).isFalse()
-        assertThat(data.name).isNull()
-    }
-
-    @RequiresFlagsEnabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @Test
     fun onMediaDataLoaded_withRemotePlaybackInfo_noMatchingRoutingSession_returnsOtherDevice() {
         // GIVEN that MR2Manager returns null for routing session
         whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
@@ -493,13 +614,10 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         val data = loadMediaAndCaptureDeviceData()
         assertThat(data.enabled).isFalse()
         assertThat(data.name).isEqualTo(context.getString(R.string.media_seamless_other_device))
-        assertThat(data.icon).isEqualTo(OTHER_DEVICE_ICON_STUB)
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @EnableFlags(com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX)
-    fun onMediaDataLoaded_withRemotePlaybackInfo_noMatchingRoutingSession_drawableReused() {
+    fun onMediaDataLoaded_withRemotePlaybackInfo_noMatchingRoutingSession() {
         whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
         whenever(mr2.getRoutingSessionForMediaController(any())).thenReturn(null)
         context.orCreateTestableResources.removeOverride(R.drawable.ic_media_home_devices)
@@ -512,42 +630,6 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @DisableFlags(com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX)
-    fun onMediaDataLoaded_withRemotePlaybackInfo_noMatchingRoutingSession_drawableNotReused() {
-        whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
-        whenever(mr2.getRoutingSessionForMediaController(any())).thenReturn(null)
-        context.orCreateTestableResources.removeOverride(R.drawable.ic_media_home_devices)
-
-        val firstData = loadMediaAndCaptureDeviceData()
-        reset(listener)
-        val secondData = loadMediaAndCaptureDeviceData()
-
-        assertThat(secondData.icon).isNotEqualTo(firstData.icon)
-    }
-
-    @RequiresFlagsDisabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @Test
-    fun onSelectedDeviceStateChanged_withRemotePlaybackInfo_noMatchingRoutingSession_setsDisabledDevice() {
-        // GIVEN a notif is added
-        loadMediaAndCaptureDeviceData()
-        reset(listener)
-        // AND MR2Manager returns null for routing session
-        whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
-        whenever(mr2.getRoutingSessionForMediaController(any())).thenReturn(null)
-        // WHEN the selected device changes state
-        val deviceCallback = captureCallback()
-        deviceCallback.onSelectedDeviceStateChanged(device, 1)
-        fakeBgExecutor.runAllReady()
-        fakeFgExecutor.runAllReady()
-        // THEN the device is disabled and name is set to null
-        val data = captureDeviceData(KEY)
-        assertThat(data.enabled).isFalse()
-        assertThat(data.name).isNull()
-    }
-
-    @RequiresFlagsEnabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @Test
     fun onSelectedDeviceStateChanged_withRemotePlaybackInfo_noMatchingRoutingSession_returnOtherDevice() {
         // GIVEN a notif is added
         loadMediaAndCaptureDeviceData()
@@ -557,7 +639,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         whenever(mr2.getRoutingSessionForMediaController(any())).thenReturn(null)
         // WHEN the selected device changes state
         val deviceCallback = captureCallback()
-        deviceCallback.onSelectedDeviceStateChanged(device, 1)
+        deviceCallback.onSelectedDeviceStateChanged(device, STATE_CONNECTING)
         fakeBgExecutor.runAllReady()
         fakeFgExecutor.runAllReady()
         // THEN the device is disabled and name and icon are set to "OTHER DEVICE".
@@ -567,27 +649,6 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         assertThat(data.icon).isEqualTo(OTHER_DEVICE_ICON_STUB)
     }
 
-    @RequiresFlagsDisabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @Test
-    fun onDeviceListUpdate_withRemotePlaybackInfo_noMatchingRoutingSession_setsDisabledDevice() {
-        // GIVEN a notif is added
-        loadMediaAndCaptureDeviceData()
-        reset(listener)
-        // GIVEN that MR2Manager returns null for routing session
-        whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
-        whenever(mr2.getRoutingSessionForMediaController(any())).thenReturn(null)
-        // WHEN the selected device changes state
-        val deviceCallback = captureCallback()
-        deviceCallback.onDeviceListUpdate(mutableListOf(device))
-        fakeBgExecutor.runAllReady()
-        fakeFgExecutor.runAllReady()
-        // THEN the device is disabled and name is set to null
-        val data = captureDeviceData(KEY)
-        assertThat(data.enabled).isFalse()
-        assertThat(data.name).isNull()
-    }
-
-    @RequiresFlagsEnabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
     @Test
     fun onDeviceListUpdate_withRemotePlaybackInfo_noMatchingRoutingSession_returnsOtherDevice() {
         // GIVEN a notif is added
@@ -605,42 +666,51 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         val data = captureDeviceData(KEY)
         assertThat(data.enabled).isFalse()
         assertThat(data.name).isEqualTo(context.getString(R.string.media_seamless_other_device))
-        assertThat(data.icon).isEqualTo(OTHER_DEVICE_ICON_STUB)
     }
 
-    // With the flag enabled, MediaDeviceManager no longer gathers device name information directly.
-    @RequiresFlagsDisabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
     @Test
-    fun mr2ReturnsSystemRouteWithNullName_isPhone_usePhoneName() {
-        // When the routing session name is null, and is a system session for a PhoneMediaDevice
-        val phoneDevice = mock(PhoneMediaDevice::class.java)
-        whenever(phoneDevice.iconWithoutBackground).thenReturn(icon)
-        whenever(lmm.currentConnectedDevice).thenReturn(phoneDevice)
-        whenever(routingSession.isSystemSession).thenReturn(true)
-
-        whenever(routingSession.name).thenReturn(null)
-        whenever(mr2.getSelectedRoutes(any())).thenReturn(listOf(selectedRoute))
-        whenever(selectedRoute.name).thenReturn(REMOTE_DEVICE_NAME)
-        whenever(selectedRoute.type).thenReturn(MediaRoute2Info.TYPE_BUILTIN_SPEAKER)
-
-        // Then the device name is the PhoneMediaDevice string
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.name).isEqualTo(PhoneMediaDevice.getMediaTransferThisDeviceName(context))
-    }
-
-    // With the flag enabled, MediaDeviceManager no longer gathers device name information directly.
-    @RequiresFlagsDisabled(FLAG_USE_PLAYBACK_INFO_FOR_ROUTING_CONTROLS)
-    @Test
-    fun mr2ReturnsSystemRouteWithNullName_useSelectedRouteName() {
-        // When the routing session does not have a name, and is a system session
-        whenever(routingSession.name).thenReturn(null)
-        whenever(mr2.getSelectedRoutes(any())).thenReturn(listOf(selectedRoute))
-        whenever(selectedRoute.name).thenReturn(REMOTE_DEVICE_NAME)
-        whenever(routingSession.isSystemSession).thenReturn(true)
-
-        // Then the device name is the selected route name
-        val data = loadMediaAndCaptureDeviceData()
+    @EnableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
+    fun onDeviceListUpdate_withBroadcastOnAndRemotePlaybackType_usesNonNullRoutingSessionName() {
+        // GIVEN a notif is added
+        loadMediaAndCaptureDeviceData()
+        reset(listener)
+        // GIVEN that MR2Manager returns a valid routing session
+        whenever(routingSession.name).thenReturn(REMOTE_DEVICE_NAME)
+        whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
+        // GIVEN that broadcast is on
+        whenever(localBluetoothLeBroadcast.isEnabled(null)).thenReturn(true)
+        // WHEN the selected device changes state
+        val deviceCallback = captureCallback()
+        deviceCallback.onDeviceListUpdate(mutableListOf(device))
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        // THEN device is enabled and name and icon are set to remote device name.
+        val data = captureDeviceData(KEY)
+        assertThat(data.enabled).isTrue()
         assertThat(data.name).isEqualTo(REMOTE_DEVICE_NAME)
+    }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_LE_AUDIO_SHARING,
+        com.android.media.flags.Flags.FLAG_ENABLE_OUTPUT_SWITCHER_PERSONAL_AUDIO_SHARING,
+    )
+    fun onDeviceListUpdate_withBroadcastOn_returnsBroadcastDevice() {
+        // GIVEN a notif is added
+        loadMediaAndCaptureDeviceData()
+        reset(listener)
+        whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_LOCAL)
+        // GIVEN that broadcast is on
+        whenever(localBluetoothLeBroadcast.isEnabled(null)).thenReturn(true)
+        // WHEN the selected device changes state
+        val deviceCallback = captureCallback()
+        deviceCallback.onDeviceListUpdate(mutableListOf(device))
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        // THEN device is enabled and name and icon are set to "Sharing audio".
+        val data = captureDeviceData(KEY)
+        assertThat(data.enabled).isTrue()
+        assertThat(data.name).isEqualTo(context.getString(R.string.audio_sharing_description))
     }
 
     @Test
@@ -664,9 +734,9 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         reset(mr2)
         // WHEN onAudioInfoChanged fires with remote playback type
         whenever(playbackInfo.getPlaybackType()).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
-        val captor = ArgumentCaptor.forClass(MediaController.Callback::class.java)
+        val captor = argumentCaptor<MediaController.Callback>()
         verify(controller).registerCallback(captor.capture())
-        captor.value.onAudioInfoChanged(playbackInfo)
+        captor.firstValue.onAudioInfoChanged(playbackInfo)
         // THEN the route is checked
         verify(mr2).getRoutingSessionForMediaController(eq(controller))
     }
@@ -682,9 +752,9 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         // WHEN onAudioInfoChanged fires with a volume control id change
         whenever(playbackInfo.getVolumeControlId()).thenReturn("placeholder id")
         whenever(playbackInfo.playbackType).thenReturn(PlaybackInfo.PLAYBACK_TYPE_REMOTE)
-        val captor = ArgumentCaptor.forClass(MediaController.Callback::class.java)
+        val captor = argumentCaptor<MediaController.Callback>()
         verify(controller).registerCallback(captor.capture())
-        captor.value.onAudioInfoChanged(playbackInfo)
+        captor.firstValue.onAudioInfoChanged(playbackInfo)
         // THEN the routing session is checked
         verify(mr2).getRoutingSessionForMediaController(eq(controller))
     }
@@ -697,9 +767,9 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         loadMediaAndCaptureDeviceData()
         reset(mr2)
         // WHEN onAudioInfoChanged fires with remote playback type
-        val captor = ArgumentCaptor.forClass(MediaController.Callback::class.java)
+        val captor = argumentCaptor<MediaController.Callback>()
         verify(controller).registerCallback(captor.capture())
-        captor.value.onAudioInfoChanged(playbackInfo)
+        captor.firstValue.onAudioInfoChanged(playbackInfo)
         // THEN the route is not checked
         verify(mr2, never()).getRoutingSessionForMediaController(eq(controller))
     }
@@ -720,13 +790,31 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         fakeBgExecutor.runAllReady()
         fakeFgExecutor.runAllReady()
 
-        val dataCaptor = ArgumentCaptor.forClass(MediaDeviceData::class.java)
-        verify(listener, times(2)).onMediaDeviceChanged(eq(KEY), any(), dataCaptor.capture())
+        val dataCaptor = argumentCaptor<MediaDeviceData>()
+        val firstDevice =
+            if (enableSuggestedDeviceUi()) {
+                verify(listener)
+                    .onMediaDeviceAndSuggestionDataChanged(
+                        eq(KEY),
+                        anyOrNull(),
+                        dataCaptor.capture(),
+                        any(),
+                    )
+                dataCaptor.firstValue
+            } else {
+                verify(listener, times(2))
+                    .onMediaDeviceChanged(eq(KEY), anyOrNull(), dataCaptor.capture())
+                dataCaptor.allValues.get(0)
+            }
 
-        val firstDevice = dataCaptor.allValues.get(0)
+        val secondDevice =
+            if (enableSuggestedDeviceUi()) {
+                captureDeviceData(KEY)
+            } else {
+                dataCaptor.allValues.get(1)
+            }
+
         assertThat(firstDevice.id).isEqualTo(DEVICE_ID)
-
-        val secondDevice = dataCaptor.allValues.get(1)
         assertThat(secondDevice.id).isEqualTo(updatedId)
     }
 
@@ -747,13 +835,31 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         fakeBgExecutor.runAllReady()
         fakeFgExecutor.runAllReady()
 
-        val dataCaptor = ArgumentCaptor.forClass(MediaDeviceData::class.java)
-        verify(listener, times(2)).onMediaDeviceChanged(eq(KEY), any(), dataCaptor.capture())
+        val dataCaptor = argumentCaptor<MediaDeviceData>()
+        val firstDevice =
+            if (enableSuggestedDeviceUi()) {
+                verify(listener)
+                    .onMediaDeviceAndSuggestionDataChanged(
+                        eq(KEY),
+                        anyOrNull(),
+                        dataCaptor.capture(),
+                        any(),
+                    )
+                dataCaptor.firstValue
+            } else {
+                verify(listener, times(2))
+                    .onMediaDeviceChanged(eq(KEY), anyOrNull(), dataCaptor.capture())
+                dataCaptor.allValues.get(0)
+            }
 
-        val firstDevice = dataCaptor.allValues.get(0)
+        val secondDevice =
+            if (enableSuggestedDeviceUi()) {
+                captureDeviceData(KEY)
+            } else {
+                dataCaptor.allValues.get(1)
+            }
+
         assertThat(firstDevice.name).isEqualTo(DEVICE_NAME)
-
-        val secondDevice = dataCaptor.allValues.get(1)
         assertThat(secondDevice.name).isEqualTo(updatedName)
     }
 
@@ -762,14 +868,18 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         // GIVEN a notification is added, with a particular device connected
         whenever(device.id).thenReturn(DEVICE_ID)
         whenever(device.name).thenReturn(DEVICE_NAME)
-        val firstIcon = mock(Drawable::class.java)
+        val firstIcon = mock<Drawable>()
         whenever(device.icon).thenReturn(firstIcon)
 
         loadMediaAndCaptureDeviceData()
+        // Run anything in progress to not conflate with later interactions
+        fakeBgExecutor.runAllReady()
+        fakeFgExecutor.runAllReady()
+        clearInvocations(listener)
 
         // and later the manager gets a callback with only the icon changed
         val deviceCallback = captureCallback()
-        val secondIcon = mock(Drawable::class.java)
+        val secondIcon = mock<Drawable>()
         whenever(device.icon).thenReturn(secondIcon)
         deviceCallback.onDeviceListUpdate(mutableListOf(device))
 
@@ -782,8 +892,7 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
     @Test
     fun testRemotePlaybackDeviceOverride() {
         whenever(routingSession.name).thenReturn(DEVICE_NAME)
-        val deviceData =
-            MediaDeviceData(false, null, REMOTE_DEVICE_NAME, null, showBroadcastButton = false)
+        val deviceData = MediaDeviceData(false, null, REMOTE_DEVICE_NAME, null)
         val mediaDataWithDevice = mediaData.copy(device = deviceData)
 
         // GIVEN media data that already has a device set
@@ -798,239 +907,44 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         verify(lmm, never()).registerCallback(any())
     }
 
-    @Test
-    fun onBroadcastStarted_flagOff_currentMediaDeviceDataIsBroadcasting() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-        mSetFlagsRule.disableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(BROADCAST_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.showBroadcastButton).isFalse()
-        assertThat(data.enabled).isTrue()
-        assertThat(data.name).isEqualTo(DEVICE_NAME)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @DisableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStarted_legacy_currentMediaDeviceDataIsBroadcasting() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(BROADCAST_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.showBroadcastButton).isTrue()
-        assertThat(data.enabled).isTrue()
-        assertThat(data.name)
-            .isEqualTo(context.getString(R.string.broadcasting_description_is_broadcasting))
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @DisableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStarted_legacy_currentMediaDeviceDataIsNotBroadcasting() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(NORMAL_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.showBroadcastButton).isTrue()
-        assertThat(data.enabled).isTrue()
-        assertThat(data.name).isEqualTo(BROADCAST_APP_NAME)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @DisableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStopped_legacy_bluetoothLeBroadcastIsDisabledAndBroadcastingButtonIsGone() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(false)
-        broadcastCallback.onBroadcastStopped(1, 1)
-
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.showBroadcastButton).isFalse()
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @EnableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStarted_currentMediaDeviceDataIsBroadcasting() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(BROADCAST_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.showBroadcastButton).isFalse()
-        assertThat(data.enabled).isFalse()
-        assertThat(data.name).isEqualTo(context.getString(R.string.audio_sharing_description))
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @EnableFlags(
-        Flags.FLAG_ENABLE_LE_AUDIO_SHARING,
-        com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX,
-    )
-    fun onBroadcastStarted_currentMediaDeviceDataIsBroadcasting_drawablesReused() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(BROADCAST_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val firstDeviceData = loadMediaAndCaptureDeviceData()
-        reset(listener)
-        val secondDeviceData = loadMediaAndCaptureDeviceData()
-
-        assertThat(firstDeviceData.icon).isEqualTo(secondDeviceData.icon)
-    }
-
-    @Test
-    @DisableFlags(
-        Flags.FLAG_LEGACY_LE_AUDIO_SHARING,
-        com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX,
-    )
-    @EnableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStarted_currentMediaDeviceDataIsBroadcasting_drawablesNotReused() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(BROADCAST_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val firstDeviceData = loadMediaAndCaptureDeviceData()
-        reset(listener)
-        val secondDeviceData = loadMediaAndCaptureDeviceData()
-
-        assertThat(firstDeviceData.icon).isNotEqualTo(secondDeviceData.icon)
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_LEGACY_LE_AUDIO_SHARING,
-        com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX,
-    )
-    @DisableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStarted_legacy_currentMediaDeviceDataIsNotBroadcasting_drawableReused() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(NORMAL_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val firstDeviceData = loadMediaAndCaptureDeviceData()
-        reset(listener)
-        val secondDeviceData = loadMediaAndCaptureDeviceData()
-
-        assertThat(firstDeviceData.icon).isEqualTo(secondDeviceData.icon)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @DisableFlags(
-        Flags.FLAG_ENABLE_LE_AUDIO_SHARING,
-        com.android.systemui.Flags.FLAG_MEDIA_CONTROLS_DRAWABLES_REUSE_BUGFIX,
-    )
-    fun onBroadcastStarted_legacy_currentMediaDeviceDataIsNotBroadcasting_drawableNotReused() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(NORMAL_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val firstDeviceData = loadMediaAndCaptureDeviceData()
-        reset(listener)
-        val secondDeviceData = loadMediaAndCaptureDeviceData()
-
-        assertThat(firstDeviceData.icon).isNotEqualTo(secondDeviceData.icon)
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @EnableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStarted_currentMediaDeviceDataIsNotBroadcasting() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(true)
-        setupBroadcastPackage(NORMAL_APP_NAME)
-        broadcastCallback.onBroadcastStarted(1, 1)
-
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.showBroadcastButton).isFalse()
-        assertThat(data.enabled).isFalse()
-        assertThat(data.name).isEqualTo(context.getString(R.string.audio_sharing_description))
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    @EnableFlags(Flags.FLAG_ENABLE_LE_AUDIO_SHARING)
-    fun onBroadcastStopped_bluetoothLeBroadcastIsDisabledAndBroadcastingButtonIsGone() {
-        val broadcastCallback = setupBroadcastCallback()
-        setupLeAudioConfiguration(false)
-        broadcastCallback.onBroadcastStopped(1, 1)
-
-        val data = loadMediaAndCaptureDeviceData()
-        assertThat(data.showBroadcastButton).isFalse()
-        assertThat(data.name?.equals(context.getString(R.string.audio_sharing_description)))
-            .isFalse()
-    }
-
     private fun captureCallback(): LocalMediaManager.DeviceCallback {
-        val captor = ArgumentCaptor.forClass(LocalMediaManager.DeviceCallback::class.java)
+        val captor = argumentCaptor<LocalMediaManager.DeviceCallback>()
         verify(lmm).registerCallback(captor.capture())
-        return captor.getValue()
+        return captor.firstValue
     }
 
-    private fun setupBroadcastCallback(): BluetoothLeBroadcast.Callback {
-        val callback: BluetoothLeBroadcast.Callback =
-            object : BluetoothLeBroadcast.Callback {
-                override fun onBroadcastStarted(reason: Int, broadcastId: Int) {}
-
-                override fun onBroadcastStartFailed(reason: Int) {}
-
-                override fun onBroadcastStopped(reason: Int, broadcastId: Int) {}
-
-                override fun onBroadcastStopFailed(reason: Int) {}
-
-                override fun onPlaybackStarted(reason: Int, broadcastId: Int) {}
-
-                override fun onPlaybackStopped(reason: Int, broadcastId: Int) {}
-
-                override fun onBroadcastUpdated(reason: Int, broadcastId: Int) {}
-
-                override fun onBroadcastUpdateFailed(reason: Int, broadcastId: Int) {}
-
-                override fun onBroadcastMetadataChanged(
-                    broadcastId: Int,
-                    metadata: BluetoothLeBroadcastMetadata,
-                ) {}
-            }
-
-        bluetoothLeBroadcast.registerCallback(fakeFgExecutor, callback)
-        return callback
+    private fun captureSuggestedDeviceListener(): SuggestedDeviceManager.Listener {
+        val captor = argumentCaptor<SuggestedDeviceManager.Listener>()
+        verify(sdm).addListener(captor.capture())
+        return captor.firstValue
     }
 
-    private fun setupLeAudioConfiguration(isLeAudio: Boolean) {
-        whenever(localBluetoothManager.profileManager).thenReturn(localBluetoothProfileManager)
-        whenever(localBluetoothProfileManager.leAudioBroadcastProfile)
-            .thenReturn(localBluetoothLeBroadcast)
-        whenever(localBluetoothLeBroadcast.isEnabled(any())).thenReturn(isLeAudio)
-        whenever(localBluetoothLeBroadcast.appSourceName).thenReturn(BROADCAST_APP_NAME)
-    }
+    private fun captureDeviceDataFromCombinedCallback(
+        key: String,
+        oldKey: String? = null,
+    ): MediaDeviceData {
+        if (!enableSuggestedDeviceUi()) {
+            return captureDeviceData(key, oldKey)
+        }
 
-    private fun setupBroadcastPackage(currentName: String) {
-        whenever(lmm.packageName).thenReturn(PACKAGE)
-        whenever(packageManager.getApplicationInfo(eq(PACKAGE), anyInt()))
-            .thenReturn(applicationInfo)
-        whenever(packageManager.getApplicationLabel(applicationInfo)).thenReturn(currentName)
-        context.setMockPackageManager(packageManager)
+        val captor = argumentCaptor<MediaDeviceData>()
+        verify(listener)
+            .onMediaDeviceAndSuggestionDataChanged(eq(key), eq(oldKey), captor.capture(), any())
+        verify(listener, never()).onMediaDeviceChanged(eq(key), eq(oldKey), any())
+        verify(listener, never()).onSuggestionDataChanged(eq(key), eq(oldKey), any())
+        return captor.firstValue
     }
 
     private fun captureDeviceData(key: String, oldKey: String? = null): MediaDeviceData {
-        val captor = ArgumentCaptor.forClass(MediaDeviceData::class.java)
+        val captor = argumentCaptor<MediaDeviceData>()
         verify(listener).onMediaDeviceChanged(eq(key), eq(oldKey), captor.capture())
-        return captor.getValue()
+        return captor.firstValue
+    }
+
+    private fun captureSuggestionData(key: String, oldKey: String? = null): SuggestionData {
+        val captor = argumentCaptor<SuggestionData>()
+        verify(listener).onSuggestionDataChanged(eq(key), eq(oldKey), captor.capture())
+        return captor.firstValue
     }
 
     private fun loadMediaAndCaptureDeviceData(): MediaDeviceData {
@@ -1038,6 +952,6 @@ public class MediaDeviceManagerTest(flags: FlagsParameterization) : SysuiTestCas
         fakeBgExecutor.runAllReady()
         fakeFgExecutor.runAllReady()
 
-        return captureDeviceData(KEY)
+        return captureDeviceDataFromCombinedCallback(KEY)
     }
 }

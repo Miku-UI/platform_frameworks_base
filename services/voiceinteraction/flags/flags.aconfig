@@ -1,0 +1,10 @@
+package: "com.android.server.voiceinteraction.flags"
+container: "system"
+
+flag {
+    name: "enable_vis_lazy_binding"
+    is_fixed_read_only: true
+    namespace: "machine_learning"
+    description: "This flags a feature to enable lazy binding to the VoiceInteractionService"
+    bug: "404928803"
+}

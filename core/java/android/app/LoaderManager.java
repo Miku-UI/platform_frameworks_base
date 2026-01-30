@@ -210,6 +210,8 @@ public abstract class LoaderManager {
 
 class LoaderManagerImpl extends LoaderManager {
     static final String TAG = "LoaderManager";
+    // As this field is toggled by a public API, it cannot be made final.
+    @SuppressWarnings("DebugNonFinal")
     static boolean DEBUG = false;
 
     // These are the currently active loaders.  A loader is here

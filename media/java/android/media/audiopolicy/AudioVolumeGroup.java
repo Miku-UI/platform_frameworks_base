@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.media.AudioAttributes;
+import android.media.AudioManager;
 import android.media.AudioSystem;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -85,11 +86,20 @@ public final class AudioVolumeGroup implements Parcelable {
         if (status != AudioSystem.SUCCESS) {
             Log.w(TAG, ": listAudioVolumeGroups failed");
         }
+        avgList.removeIf(avg -> avg.isInternalGroup());
+        avgList.removeIf(avg -> avg.getLegacyStreamTypes().length == 1
+                && avg.getLegacyStreamTypes()[0] == AudioManager.STREAM_BLUETOOTH_SCO);
         return avgList;
     }
 
     private static native int native_list_audio_volume_groups(
             ArrayList<AudioVolumeGroup> groups);
+
+    private boolean isInternalGroup() {
+        return Arrays.stream(mAudioAttributes)
+                .filter(aa -> AudioProductStrategy.isInternalAttributesForStrategy(aa))
+                .findFirst().isPresent();
+    }
 
     /**
      * @param name of the volume group
@@ -200,21 +210,23 @@ public final class AudioVolumeGroup implements Parcelable {
 
     @Override
     public @NonNull String toString() {
-        StringBuilder s = new StringBuilder();
-        s.append("\n Name: ");
-        s.append(mName);
-        s.append(" Id: ");
-        s.append(Integer.toString(mId));
+        return toString("");
+    }
 
-        s.append("\n     Supported Audio Attributes:");
+    String toString(String indent) {
+        StringBuilder s = new StringBuilder();
+        s.append("\n").append(indent).append("Name: ").append(mName);
+        s.append(" Id: ").append(mId);
+
+        s.append("\n").append(indent).append(indent).append("Supported Audio Attributes:");
         for (AudioAttributes attribute : mAudioAttributes) {
-            s.append("\n       -");
+            s.append("\n").append(indent).append(indent).append(indent).append("-");
             s.append(attribute.toString());
         }
-        s.append("\n     Supported Legacy Stream Types: { ");
+
+        s.append("\n").append(indent).append(indent).append("Supported Legacy Stream Types: { ");
         for (int legacyStreamType : mLegacyStreamTypes) {
-            s.append(Integer.toString(legacyStreamType));
-            s.append(" ");
+            s.append(legacyStreamType).append(" ");
         }
         s.append("}");
         return s.toString();

@@ -230,8 +230,9 @@ public class SettingsState {
     @GuardedBy("mLock")
     private final List<HistoricalOperation> mHistoricalOperations;
 
-    @GuardedBy("mLock")
-    public final int mKey;
+    // This is a key composed of the device id in the most significant 32 bits, followed by 4 bits
+    // reserved for settings type, and the least significant 28 bits representing the user id.
+    public final long mKey;
 
     @GuardedBy("mLock")
     private int mVersion = VERSION_UNDEFINED;
@@ -253,11 +254,11 @@ public class SettingsState {
 
     @GuardedBy("mLock")
     @NonNull
-    private Map<String, Map<String, String>> mNamespaceDefaults;
+    private final Map<String, Map<String, String>> mNamespaceDefaults;
 
     // TOBO(b/312444587): remove the comparison logic after Test Mission 2.
     @NonNull
-    private Map<String, AconfigdFlagInfo> mAconfigDefaultFlags;
+    private final Map<String, AconfigdFlagInfo> mAconfigDefaultFlags;
 
     public static final int SETTINGS_TYPE_GLOBAL = 0;
     public static final int SETTINGS_TYPE_SYSTEM = 1;
@@ -265,19 +266,29 @@ public class SettingsState {
     public static final int SETTINGS_TYPE_SSAID = 3;
     public static final int SETTINGS_TYPE_CONFIG = 4;
 
-    public static final int SETTINGS_TYPE_MASK = 0xF0000000;
-    public static final int SETTINGS_TYPE_SHIFT = 28;
+    private static final long SETTINGS_TYPE_MASK = 0xF0000000L;
+    private static final long SETTINGS_TYPE_AND_USER_ID_MASK = 0xFFFFFFFFL;
+    private static final int SETTINGS_TYPE_SHIFT = 28;
+    private static final int SETTINGS_DEVICE_ID_SHIFT = 32;
 
-    public static int makeKey(int type, int userId) {
-        return (type << SETTINGS_TYPE_SHIFT) | userId;
+    public static long makeKey(int type, int userId, int deviceId) {
+        return (((long) deviceId) << SETTINGS_DEVICE_ID_SHIFT)
+                | (((long) type) << SETTINGS_TYPE_SHIFT)
+                | userId;
     }
 
-    public static int getTypeFromKey(int key) {
-        return key >>> SETTINGS_TYPE_SHIFT;
+    public static int getTypeFromKey(long key) {
+        int typeAndUserId = (int) (key & SETTINGS_TYPE_AND_USER_ID_MASK);
+        return typeAndUserId >>> SETTINGS_TYPE_SHIFT;
     }
 
-    public static int getUserIdFromKey(int key) {
-        return key & ~SETTINGS_TYPE_MASK;
+    public static int getUserIdFromKey(long key) {
+        return (int) (key & ~SETTINGS_TYPE_MASK);
+    }
+
+    public static int getDeviceIdFromKey(long key) {
+        long deviceId = key >>> SETTINGS_DEVICE_ID_SHIFT;
+        return (int) deviceId;
     }
 
     public static String settingTypeToString(int type) {
@@ -303,36 +314,33 @@ public class SettingsState {
         }
     }
 
-    public static boolean isConfigSettingsKey(int key) {
+    public static boolean isConfigSettingsKey(long key) {
         return getTypeFromKey(key) == SETTINGS_TYPE_CONFIG;
     }
 
-    public static boolean isGlobalSettingsKey(int key) {
+    public static boolean isGlobalSettingsKey(long key) {
         return getTypeFromKey(key) == SETTINGS_TYPE_GLOBAL;
     }
 
-    public static boolean isSystemSettingsKey(int key) {
+    public static boolean isSystemSettingsKey(long key) {
         return getTypeFromKey(key) == SETTINGS_TYPE_SYSTEM;
     }
 
-    public static boolean isSecureSettingsKey(int key) {
+    public static boolean isSecureSettingsKey(long key) {
         return getTypeFromKey(key) == SETTINGS_TYPE_SECURE;
     }
 
-    public static boolean isSsaidSettingsKey(int key) {
-        return getTypeFromKey(key) == SETTINGS_TYPE_SSAID;
-    }
-
-    public static String keyToString(int key) {
+    public static String keyToString(long key) {
         return "Key[user=" + getUserIdFromKey(key) + ";type="
-                + settingTypeToString(getTypeFromKey(key)) + "]";
+                + settingTypeToString(getTypeFromKey(key)) + ";deviceId="
+                + getDeviceIdFromKey(key) + "]";
     }
 
     public SettingsState(
             Context context,
             Object lock,
             File file,
-            int key,
+            long key,
             int maxBytesPerAppPackage,
             Looper looper) {
         // It is important that we use the same lock as the settings provider
@@ -357,8 +365,6 @@ public class SettingsState {
 
         mNamespaceDefaults = new HashMap<>();
         mAconfigDefaultFlags = new HashMap<>();
-
-        ProtoOutputStream requests = null;
 
         synchronized (mLock) {
             readStateSyncLocked();
@@ -387,7 +393,6 @@ public class SettingsState {
     @GuardedBy("mLock")
     public int getAllAconfigFlagsFromSettings(
             @NonNull Map<String, AconfigdFlagInfo> flagInfoDefault) {
-        Map<String, AconfigdFlagInfo> ret = new HashMap<>();
         int numSettings = mSettings.size();
         int num_requests = 0;
         for (int i = 0; i < numSettings; i++) {
@@ -888,6 +893,11 @@ public class SettingsState {
 
     // The settings provider must hold its lock when calling here.
     public void persistSettingsLocked() {
+        if (getDeviceIdFromKey(mKey) != Context.DEVICE_ID_DEFAULT) {
+            // No need to persist settings for virtual devices.
+            return;
+        }
+
         mHandler.removeMessages(MyHandler.MSG_PERSIST_SETTINGS);
         // schedule a write operation right away
         mHandler.obtainMessage(MyHandler.MSG_PERSIST_SETTINGS).sendToTarget();
@@ -909,8 +919,8 @@ public class SettingsState {
                 oldState.value, null, oldState.defaultValue, null);
 
         FrameworkStatsLog.write(FrameworkStatsLog.SETTING_CHANGED, name, /* value= */ "",
-                /* newValue= */ "", oldState.value, /* tag */ "", false, getUserIdFromKey(mKey),
-                FrameworkStatsLog.SETTING_CHANGED__REASON__DELETED);
+                /* newValue= */ "", oldState.value, /* tag */ "", false,
+                getUserIdFromKey(mKey), FrameworkStatsLog.SETTING_CHANGED__REASON__DELETED);
 
         updateMemoryUsagePerPackageLocked(oldState.packageName, newSize);
 
@@ -957,6 +967,14 @@ public class SettingsState {
     // The settings provider must hold its lock when calling here.
     @GuardedBy("mLock")
     public void destroyLocked(Runnable callback) {
+        if (getDeviceIdFromKey(mKey) != Context.DEVICE_ID_DEFAULT) {
+            if (callback != null) {
+                callback.run();
+            }
+            // No need to persist settings for virtual devices.
+            return;
+        }
+
         mHandler.removeMessages(MyHandler.MSG_PERSIST_SETTINGS);
         if (callback != null) {
             if (mDirty) {
@@ -1121,6 +1139,11 @@ public class SettingsState {
 
     @GuardedBy("mLock")
     private void writeStateAsyncLocked() {
+        if (getDeviceIdFromKey(mKey) != Context.DEVICE_ID_DEFAULT) {
+            // No need to persist settings for virtual devices.
+            return;
+        }
+
         final long currentTimeMillis = SystemClock.uptimeMillis();
 
         if (mWriteScheduled) {
@@ -1150,6 +1173,12 @@ public class SettingsState {
     }
 
     private void doWriteState() {
+        synchronized (mLock) {
+            if (mStatePersistFile == null) {
+                return;
+            }
+        }
+
         boolean wroteState = false;
         String settingFailedToBePersisted = null;
         final int version;
@@ -1408,6 +1437,10 @@ public class SettingsState {
 
     @GuardedBy("mLock")
     private void readStateSyncLocked() throws IllegalStateException {
+        if (mStatePersistFile == null) {
+            return;
+        }
+
         FileInputStream in;
         AtomicFile file = new AtomicFile(mStatePersistFile);
         try {
@@ -1462,12 +1495,44 @@ public class SettingsState {
             TypedXmlPullParser parser = Xml.resolvePullParser(in);
             parseStateLocked(parser);
             return true;
-        } catch (XmlPullParserException | IOException | NumberFormatException e) {
+        } catch (XmlPullParserException | IOException | IllegalArgumentException e) {
             Slog.e(LOG_TAG, "parse settings xml failed", e);
             return false;
         } finally {
             IoUtils.closeQuietly(in);
         }
+    }
+
+    public static boolean verifySettingsFileIntegrity(File file) {
+        if (!file.exists()) {
+            return false;
+        }
+        try {
+            FileInputStream in = new AtomicFile(file).openRead();
+            try {
+                TypedXmlPullParser parser = Xml.resolvePullParser(in);
+                int outerDepth = parser.getDepth();
+                int type;
+                while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
+                        && (type != XmlPullParser.END_TAG || parser.getDepth() > outerDepth)) {
+                    if (type == XmlPullParser.END_TAG || type == XmlPullParser.TEXT) {
+                        continue;
+                    }
+
+                    String tagName = parser.getName();
+                    if (tagName.equals(TAG_SETTINGS)) {
+                        return true;
+                    } else if (tagName.equals(TAG_NAMESPACE_HASHES)) {
+                        return true;
+                    }
+                }
+            } finally {
+                IoUtils.closeQuietly(in);
+            }
+        } catch (XmlPullParserException | IOException e) {
+            Slog.e(LOG_TAG, "verify settings xml failed", e);
+        }
+        return false;
     }
 
     /**
@@ -1732,7 +1797,7 @@ public class SettingsState {
             return name;
         }
 
-        public int getKey() {
+        public long getKey() {
             return mKey;
         }
 
@@ -1777,7 +1842,7 @@ public class SettingsState {
         }
 
         public boolean isTransient() {
-            switch (getTypeFromKey(getKey())) {
+            switch (getTypeFromKey(mKey)) {
                 case SETTINGS_TYPE_GLOBAL:
                     return ArrayUtils.contains(Global.TRANSIENT_SETTINGS, getName());
             }
@@ -1853,7 +1918,7 @@ public class SettingsState {
          * Interns a string if it's a common setting value.
          * Otherwise returns the given string.
          */
-        static String internValue(String str) {
+        private static String internValue(String str) {
             if (str == null) {
                 return null;
             }

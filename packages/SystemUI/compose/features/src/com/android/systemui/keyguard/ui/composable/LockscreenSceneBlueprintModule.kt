@@ -17,14 +17,8 @@
 package com.android.systemui.keyguard.ui.composable
 
 import com.android.systemui.keyguard.ui.composable.blueprint.CommunalBlueprintModule
-import com.android.systemui.keyguard.ui.composable.section.OptionalSectionModule
+import com.android.systemui.keyguard.ui.composable.elements.OEMElementProviderModule
 import dagger.Module
 
-@Module(
-    includes =
-        [
-            CommunalBlueprintModule::class,
-            OptionalSectionModule::class,
-        ],
-)
+@Module(includes = [CommunalBlueprintModule::class, OEMElementProviderModule::class])
 interface LockscreenSceneBlueprintModule

@@ -36,11 +36,12 @@ import com.android.wm.shell.splitscreen.SplitScreen;
 import com.android.wm.shell.startingsurface.StartingSurface;
 import com.android.wm.shell.sysui.ShellInterface;
 import com.android.wm.shell.taskview.TaskViewFactory;
+import com.android.wm.shell.windowdecor.viewholder.AppHandles;
+
+import java.util.Optional;
 
 import dagger.BindsInstance;
 import dagger.Subcomponent;
-
-import java.util.Optional;
 
 /**
  * Dagger Subcomponent for WindowManager.  This class explicitly describes the interfaces exported
@@ -119,6 +120,9 @@ public interface WMComponent {
 
     @WMSingleton
     Optional<AppZoomOut> getAppZoomOut();
+
+    @WMSingleton
+    Optional<AppHandles> getAppHandles();
 
     // Injector methods to support field injection
 

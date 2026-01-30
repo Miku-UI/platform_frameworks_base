@@ -102,7 +102,7 @@ public class ProcFileReader implements Closeable {
      * Find buffer index of next token delimiter, usually space or newline.
      * Fills buffer as needed.
      *
-     * @return Index of next delimeter, otherwise -1 if no tokens remain on
+     * @return Index of next delimiter, otherwise -1 if no tokens remain on
      *         current line.
      */
     private int nextTokenIndex() throws IOException {

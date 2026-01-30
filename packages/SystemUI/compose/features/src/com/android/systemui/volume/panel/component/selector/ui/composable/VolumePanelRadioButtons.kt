@@ -82,7 +82,7 @@ fun VolumePanelRadioButtonBar(
     indicatorBackgroundCornerSize: CornerSize =
         CornerSize(VolumePanelRadioButtonBarDefaults.DefaultIndicatorBackgroundCornerRadius),
     colors: VolumePanelRadioButtonBarColors = VolumePanelRadioButtonBarDefaults.defaultColors(),
-    content: VolumePanelRadioButtonBarScope.() -> Unit
+    content: VolumePanelRadioButtonBarScope.() -> Unit,
 ) {
     val scope =
         VolumePanelRadioButtonBarScopeImpl().apply(content).apply {
@@ -108,16 +108,13 @@ fun VolumePanelRadioButtonBar(
                     Modifier.layoutId(RadioButtonBarComponent.Indicator)
                         .offset { IntOffset(offsetAnimatable.value, 0) }
                         .padding(indicatorBackgroundPadding)
-                        .background(
-                            colors.indicatorColor,
-                            RoundedCornerShape(indicatorCornerSize),
-                        )
+                        .background(colors.indicatorColor, RoundedCornerShape(indicatorCornerSize))
             )
             Row(
                 modifier =
                     Modifier.layoutId(RadioButtonBarComponent.Buttons)
                         .padding(indicatorBackgroundPadding),
-                horizontalArrangement = Arrangement.spacedBy(spacing)
+                horizontalArrangement = Arrangement.spacedBy(spacing),
             ) {
                 for (itemIndex in items.indices) {
                     val item = items[itemIndex]
@@ -134,7 +131,7 @@ fun VolumePanelRadioButtonBar(
                                 .clickable(
                                     interactionSource = null,
                                     indication = null,
-                                    onClick = { items[itemIndex].onItemSelected() }
+                                    onClick = { items[itemIndex].onItemSelected() },
                                 ),
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
@@ -155,7 +152,7 @@ fun VolumePanelRadioButtonBar(
                         .padding(
                             start = indicatorBackgroundPadding,
                             top = labelIndicatorBackgroundSpacing,
-                            end = indicatorBackgroundPadding
+                            end = indicatorBackgroundPadding,
                         )
                         .clearAndSetSemantics {},
                 horizontalArrangement = Arrangement.spacedBy(spacing),
@@ -166,7 +163,7 @@ fun VolumePanelRadioButtonBar(
                         modifier = Modifier.weight(1f),
                         onClick = { items[itemIndex].onItemSelected() },
                         shape = RoundedCornerShape(cornersRadius),
-                        contentPadding = PaddingValues(cornersRadius)
+                        contentPadding = PaddingValues(cornersRadius),
                     ) {
                         val item = items[itemIndex]
                         if (item.icon !== Empty) {
@@ -210,7 +207,7 @@ private class BarMeasurePolicy(
 
     override fun MeasureScope.measure(
         measurables: List<Measurable>,
-        constraints: Constraints
+        constraints: Constraints,
     ): MeasureResult {
         val fillWidthConstraints = constraints.copy(minWidth = constraints.maxWidth)
         val buttonsPlaceable: Placeable =
@@ -307,10 +304,10 @@ object VolumePanelRadioButtonBarDefaults {
      */
     @Composable
     fun defaultColors(
-        indicatorColor: Color = MaterialTheme.colorScheme.tertiaryContainer,
+        indicatorColor: Color = MaterialTheme.colorScheme.tertiary,
         indicatorBackgroundColor: Color = MaterialTheme.colorScheme.surface,
         iconColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-        selectedIconColor: Color = MaterialTheme.colorScheme.onTertiaryContainer,
+        selectedIconColor: Color = MaterialTheme.colorScheme.onTertiary,
         labelColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
         selectedLabelColor: Color = MaterialTheme.colorScheme.onSurface,
     ): VolumePanelRadioButtonBarColors =

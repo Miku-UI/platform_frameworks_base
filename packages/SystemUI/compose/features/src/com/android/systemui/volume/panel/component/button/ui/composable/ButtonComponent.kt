@@ -42,6 +42,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.compose.animation.Expandable
@@ -64,7 +65,6 @@ class ButtonComponent(
     override fun VolumePanelComposeScope.Content(modifier: Modifier) {
         val viewModelByState by viewModelFlow.collectAsStateWithLifecycle()
         val viewModel = viewModelByState ?: return
-        val label = viewModel.label.toString()
 
         val screenWidth: Float =
             with(LocalDensity.current) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
@@ -81,7 +81,8 @@ class ButtonComponent(
                     modifier =
                         Modifier.fillMaxSize().padding(8.dp).semantics {
                             role = Role.Button
-                            contentDescription = label
+                            contentDescription = viewModel.label
+                            viewModel.stateDescription?.let { stateDescription = it }
                         },
                     color =
                         if (viewModel.isActive) {
@@ -108,6 +109,7 @@ class ButtonComponent(
                         } else {
                             MaterialTheme.colorScheme.onSurface
                         },
+                    useModifierBasedImplementation = true,
                     onClick = { onClick(it, gravity) },
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -117,7 +119,7 @@ class ButtonComponent(
             }
             Text(
                 modifier = Modifier.clearAndSetSemantics {}.basicMarquee(),
-                text = label,
+                text = viewModel.label,
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 2,
             )

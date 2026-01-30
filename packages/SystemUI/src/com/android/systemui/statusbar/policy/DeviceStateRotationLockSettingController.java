@@ -31,7 +31,7 @@ import com.android.settingslib.devicestate.DeviceStateAutoRotateSettingManager;
 import com.android.systemui.Dumpable;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
-import com.android.systemui.util.wrapper.RotationPolicyWrapper;
+import com.android.systemui.rotation.RotationPolicyWrapper;
 
 import java.io.PrintWriter;
 import java.util.concurrent.Executor;

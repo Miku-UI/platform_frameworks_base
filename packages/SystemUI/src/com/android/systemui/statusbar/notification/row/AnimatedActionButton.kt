@@ -20,17 +20,31 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
 import android.widget.Button
+import com.android.internal.jank.Cuj
+import com.android.internal.jank.InteractionJankMonitor
 
 /**
  * Custom Button for Animated Action Button, which includes the custom background and foreground.
  */
 @SuppressLint("AppCompatCustomView")
-class AnimatedActionButton @JvmOverloads constructor(
-    context: Context,
-    attrs: AttributeSet? = null,
-    defStyleAttr: Int = 0,
-) : Button(context, attrs, defStyleAttr) {
+class AnimatedActionButton
+@JvmOverloads
+constructor(context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0) :
+    Button(context, attrs, defStyleAttr) {
     init {
-        background = AnimatedActionBackgroundDrawable(context)
+        val interactionJankMonitor = InteractionJankMonitor.getInstance()
+        background =
+            AnimatedActionBackgroundDrawable(
+                context = context,
+                onAnimationStarted = {
+                    interactionJankMonitor.begin(this, Cuj.CUJ_NOTIFICATIONS_ANIMATED_ACTION)
+                },
+                onAnimationEnded = {
+                    interactionJankMonitor.end(Cuj.CUJ_NOTIFICATIONS_ANIMATED_ACTION)
+                },
+                onAnimationCancelled = {
+                    interactionJankMonitor.cancel(Cuj.CUJ_NOTIFICATIONS_ANIMATED_ACTION)
+                },
+            )
     }
 }

@@ -101,14 +101,12 @@ class TileHapticsViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    fun whenLaunchingFromLongClick_playsLongPressHaptics() =
+    fun whenLongClickOccurs_playsLongPressHaptics() =
         testScope.runTest {
-            // WHEN the tile is long-clicked and its action state changes accordingly
+            // WHEN the tile is long-clicked
             underTest.setTileInteractionState(
                 TileHapticsViewModel.TileInteractionState.LONG_CLICKED
             )
-            // WHEN the activity transition (from the long-click) starts
-            underTest.onActivityLaunchTransitionStart()
             runCurrent()
 
             // THEN the long-press token plays

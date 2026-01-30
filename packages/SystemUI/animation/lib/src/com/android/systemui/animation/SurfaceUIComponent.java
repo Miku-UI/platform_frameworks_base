@@ -16,6 +16,7 @@
 
 package com.android.systemui.animation;
 
+import android.annotation.Nullable;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.RectF;
@@ -31,17 +32,29 @@ import java.util.concurrent.Executor;
  * @hide
  */
 public class SurfaceUIComponent implements UIComponent {
-    private final Collection<SurfaceControl> mSurfaces;
-    private final Rect mBaseBounds;
+    private final ArrayList<SurfaceControl> mSurfaces = new ArrayList<>();
+    private final RectF mBaseBounds;
     private final float[] mFloat9 = new float[9];
 
     private float mAlpha;
     private boolean mVisible;
-    private Rect mBounds;
+    private RectF mBounds;
+    @Nullable
+    private final SurfaceControl mBackgroundDimmingSurface;
 
     public SurfaceUIComponent(
-            SurfaceControl sc, float alpha, boolean visible, Rect bounds, Rect baseBounds) {
-        this(Arrays.asList(sc), alpha, visible, bounds, baseBounds);
+            SurfaceControl sc,
+            float alpha,
+            boolean visible,
+            Rect bounds,
+            Rect baseBounds,
+            boolean enableBackgroundDimming) {
+        this(Arrays.asList(sc),
+                alpha,
+                visible,
+                bounds,
+                baseBounds,
+                enableBackgroundDimming);
     }
 
     public SurfaceUIComponent(
@@ -49,12 +62,34 @@ public class SurfaceUIComponent implements UIComponent {
             float alpha,
             boolean visible,
             Rect bounds,
-            Rect baseBounds) {
-        mSurfaces = surfaces;
+            Rect baseBounds,
+            boolean enableBackgroundDimming) {
+        mSurfaces.addAll(surfaces);
         mAlpha = alpha;
         mVisible = visible;
-        mBounds = bounds;
-        mBaseBounds = baseBounds;
+        mBounds = new RectF(bounds);
+        mBaseBounds = new RectF(baseBounds);
+        if (enableBackgroundDimming) {
+          mBackgroundDimmingSurface = new SurfaceControl.Builder()
+                  .setName("SurfaceUIComponent-BackgroundDimming")
+                  .setColorLayer()
+                  .setBufferSize(baseBounds.width(), baseBounds.height())
+                  .setHidden(!visible)
+                  .build();
+          if (!bounds.equals(baseBounds)) {
+              Matrix matrix = new Matrix();
+              matrix.setRectToRect(
+                      mBaseBounds,
+                      mBounds,
+                      Matrix.ScaleToFit.CENTER);
+              new SurfaceControl.Transaction()
+                  .setMatrix(mBackgroundDimmingSurface, matrix, mFloat9).apply();
+          }
+
+            mSurfaces.add(mBackgroundDimmingSurface);
+        } else {
+            mBackgroundDimmingSurface = null;
+        }
     }
 
     @Override
@@ -68,7 +103,7 @@ public class SurfaceUIComponent implements UIComponent {
     }
 
     @Override
-    public Rect getBounds() {
+    public RectF getBounds() {
         return mBounds;
     }
 
@@ -109,7 +144,9 @@ public class SurfaceUIComponent implements UIComponent {
             mChanges.add(
                     () -> {
                         ui.mAlpha = alpha;
-                        ui.mSurfaces.forEach(s -> mTransaction.setAlpha(s, alpha));
+                        ui.mSurfaces.forEach(
+                                s -> mTransaction.setAlpha(
+                                        s, s != ui.mBackgroundDimmingSurface ? alpha : 1));
                     });
             return this;
         }
@@ -129,7 +166,7 @@ public class SurfaceUIComponent implements UIComponent {
         }
 
         @Override
-        public Transaction setBounds(SurfaceUIComponent ui, Rect bounds) {
+        public Transaction setBounds(SurfaceUIComponent ui, RectF bounds) {
             mChanges.add(
                     () -> {
                         if (ui.mBounds.equals(bounds)) {
@@ -138,10 +175,11 @@ public class SurfaceUIComponent implements UIComponent {
                         ui.mBounds = bounds;
                         Matrix matrix = new Matrix();
                         matrix.setRectToRect(
-                                new RectF(ui.mBaseBounds),
-                                new RectF(ui.mBounds),
-                                Matrix.ScaleToFit.FILL);
-                        ui.mSurfaces.forEach(s -> mTransaction.setMatrix(s, matrix, ui.mFloat9));
+                                ui.mBaseBounds,
+                                ui.mBounds,
+                                Matrix.ScaleToFit.CENTER);
+                        ui.mSurfaces.forEach(
+                                s -> mTransaction.setMatrix(s, matrix, ui.mFloat9));
                     });
             return this;
         }
@@ -150,7 +188,10 @@ public class SurfaceUIComponent implements UIComponent {
         public Transaction attachToTransitionLeash(
                 SurfaceUIComponent ui, SurfaceControl transitionLeash, int w, int h) {
             mChanges.add(
-                    () -> ui.mSurfaces.forEach(s -> mTransaction.reparent(s, transitionLeash)));
+                    () -> {
+                        ui.mSurfaces.forEach(
+                                s -> mTransaction.reparent(s, transitionLeash));
+                    });
             return this;
         }
 
@@ -159,7 +200,8 @@ public class SurfaceUIComponent implements UIComponent {
                 SurfaceUIComponent ui, Executor executor, Runnable onDone) {
             mChanges.add(
                     () -> {
-                        ui.mSurfaces.forEach(s -> mTransaction.reparent(s, null));
+                        ui.mSurfaces.forEach(
+                                s -> mTransaction.reparent(s, null));
                         mTransaction.addTransactionCommittedListener(executor, onDone::run);
                     });
             return this;

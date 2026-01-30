@@ -365,10 +365,15 @@ public class SecurityLog {
     /**
      * Indicates that a cryptographic key was generated. The log entry contains the following
      * information about the event, encapsulated in an {@link Object} array and accessible via
-     * {@link SecurityEvent#getData()}:
+     * {@link SecurityEvent#getData()}:<ul>
      * <li> [0] result ({@code Integer}, 0 if operation failed, 1 if succeeded)
      * <li> [1] alias of the key ({@code String})
-     * <li> [2] requesting process uid ({@code Integer}).
+     * <li> [2] owner of the key ({@code Integer}):<ul>
+     *   <li>If the top bit is clear, this is the requesting process uid.</li>
+     *   <li>If the top bit is set, this identifies an
+     *       <a href="https://source.android.com/docs/security/features/keystore#selinux-policy">SELinux label</a>.</li>
+     *   </ul>
+     * </ul>
      *
      * If security logging is enabled on organization-owned managed profile devices, only events
      * happening inside the managed profile will be visible.
@@ -379,10 +384,15 @@ public class SecurityLog {
     /**
      * Indicates that a cryptographic key was imported. The log entry contains the following
      * information about the event, encapsulated in an {@link Object} array and accessible via
-     * {@link SecurityEvent#getData()}:
+     * {@link SecurityEvent#getData()}:<ul>
      * <li> [0] result ({@code Integer}, 0 if operation failed, 1 if succeeded)
      * <li> [1] alias of the key ({@code String})
-     * <li> [2] requesting process uid ({@code Integer}).
+     * <li> [2] owner of the key ({@code Integer}):<ul>
+     *   <li>If the top bit is clear, this is the requesting process uid.</li>
+     *   <li>If the top bit is set, this identifies an
+     *       <a href="https://source.android.com/docs/security/features/keystore#selinux-policy">SELinux label</a>.</li>
+     *   </ul>
+     * </ul>
      *
      * If security logging is enabled on organization-owned managed profile devices, only events
      * happening inside the managed profile will be visible.
@@ -392,10 +402,15 @@ public class SecurityLog {
     /**
      * Indicates that a cryptographic key was destroyed. The log entry contains the following
      * information about the event, encapsulated in an {@link Object} array and accessible via
-     * {@link SecurityEvent#getData()}:
+     * {@link SecurityEvent#getData()}:<ul>
      * <li> [0] result ({@code Integer}, 0 if operation failed, 1 if succeeded)
      * <li> [1] alias of the key ({@code String})
-     * <li> [2] requesting process uid ({@code Integer}).
+     * <li> [2] owner of the key ({@code Integer}):<ul>
+     *   <li>If the top bit is clear, this is the requesting process uid.</li>
+     *   <li>If the top bit is set, this identifies an
+     *       <a href="https://source.android.com/docs/security/features/keystore#selinux-policy">SELinux label</a>.</li>
+     *   </ul>
+     * </ul>
      *
      * If security logging is enabled on organization-owned managed profile devices, only events
      * happening inside the managed profile will be visible.
@@ -467,9 +482,14 @@ public class SecurityLog {
     /**
      * Indicates a failed cryptographic key integrity check. The log entry contains the following
      * information about the event, encapsulated in an {@link Object} array and accessible via
-     * {@link SecurityEvent#getData()}:
+     * {@link SecurityEvent#getData()}:<ul>
      * <li> [0] alias of the key ({@code String})
-     * <li> [1] owner application uid ({@code Integer}).
+     * <li> [1] owner of the key ({@code Integer}):<ul>
+     *   <li>If the top bit is clear, this is the requesting process uid.</li>
+     *   <li>If the top bit is set, this identifies an
+     *       <a href="https://source.android.com/docs/security/features/keystore#selinux-policy">SELinux label</a>.</li>
+     *   </ul>
+     * </ul>
      *
      * If security logging is enabled on organization-owned managed profile devices, only events
      * happening inside the managed profile will be visible.

@@ -25,9 +25,4 @@ abstract class PeopleHubModule {
     abstract fun peopleNotificationIdentifier(
         impl: PeopleNotificationIdentifierImpl
     ): PeopleNotificationIdentifier
-
-    @Binds
-    abstract fun notificationPersonExtractor(
-        pluginImpl: NotificationPersonExtractorPluginBoundary
-    ): NotificationPersonExtractor
 }

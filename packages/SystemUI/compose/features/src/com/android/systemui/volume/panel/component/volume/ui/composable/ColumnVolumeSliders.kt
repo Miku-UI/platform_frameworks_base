@@ -41,7 +41,9 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -58,8 +60,12 @@ import com.android.compose.PlatformSliderColors
 import com.android.compose.modifiers.padding
 import com.android.compose.modifiers.thenIf
 import com.android.systemui.Flags
+import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.res.R
 import com.android.systemui.volume.panel.component.volume.slider.ui.viewmodel.SliderViewModel
+import com.google.common.annotations.VisibleForTesting
+import platform.test.motion.compose.values.MotionTestValueKey
+import platform.test.motion.compose.values.motionTestValues
 
 private const val EXPAND_DURATION_MILLIS = 500
 private const val COLLAPSE_EXPAND_BUTTON_DELAY_MILLIS = 350
@@ -104,6 +110,11 @@ fun ColumnVolumeSliders(
                     if (Flags.volumeRedesign()) {
                         {
                             ExpandButton(
+                                modifier =
+                                    Modifier.sysuiResTag(
+                                        ColumnVolumeSlidersMotionTestKeys
+                                            .TOGGLE_EXPANSION_BUTTON_TAG
+                                    ),
                                 isExpanded = isExpanded,
                                 isExpandable = isExpandable,
                                 onExpandedChanged = onExpandedChanged,
@@ -116,7 +127,11 @@ fun ColumnVolumeSliders(
 
             if (!Flags.volumeRedesign()) {
                 ExpandButtonLegacy(
-                    modifier = Modifier.align(Alignment.CenterEnd),
+                    modifier =
+                        Modifier.align(Alignment.CenterEnd)
+                            .sysuiResTag(
+                                ColumnVolumeSlidersMotionTestKeys.TOGGLE_EXPANSION_BUTTON_TAG
+                            ),
                     isExpanded = isExpanded,
                     isExpandable = isExpandable,
                     onExpandedChanged = onExpandedChanged,
@@ -132,9 +147,22 @@ fun ColumnVolumeSliders(
             exit =
                 shrinkVertically(animationSpec = tween(durationMillis = COLLAPSE_DURATION_MILLIS)),
         ) {
+            val isTransitionIdle by
+                remember(transition) {
+                    derivedStateOf {
+                        transition.currentState == transition.targetState && !transition.isRunning
+                    }
+                }
             // This box allows sliders to slide towards top when the container is shrinking and
             // slide from top when the container is expanding.
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.BottomCenter) {
+            Box(
+                modifier =
+                    Modifier.fillMaxWidth().motionTestValues {
+                        isTransitionIdle exportAs
+                            ColumnVolumeSlidersMotionTestKeys.isSlidersTransitionIdle
+                    },
+                contentAlignment = Alignment.BottomCenter,
+            ) {
                 Column {
                     for (index in 1..viewModels.lastIndex) {
                         val sliderViewModel: SliderViewModel = viewModels[index]
@@ -351,4 +379,11 @@ private fun topSliderPadding(isExpandable: Boolean): State<Dp> {
         animationSpec = animationSpec,
         label = "TopVolumeSliderPadding",
     )
+}
+
+@VisibleForTesting
+object ColumnVolumeSlidersMotionTestKeys {
+    const val TOGGLE_EXPANSION_BUTTON_TAG = "sliders_toggle_button"
+    val isSlidersTransitionIdle: MotionTestValueKey<Boolean> =
+        MotionTestValueKey("is_sliders_transition_idle")
 }

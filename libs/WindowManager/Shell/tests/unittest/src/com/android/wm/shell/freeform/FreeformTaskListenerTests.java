@@ -20,9 +20,8 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.view.Display.INVALID_DISPLAY;
 
-import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
-import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION;
+import static com.android.window.flags.Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND;
 import static com.android.window.flags.Flags.FLAG_ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS;
 import static com.android.window.flags.Flags.FLAG_SHOW_DESKTOP_WINDOWING_DEV_OPTION;
 
@@ -40,17 +39,16 @@ import android.view.SurfaceControl;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import com.android.dx.mockito.inline.extended.StaticMockitoSession;
 import com.android.window.flags.Flags;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.TestRunningTaskInfoBuilder;
 import com.android.wm.shell.common.LaunchAdjacentController;
 import com.android.wm.shell.desktopmode.DesktopModeLoggerTransitionObserver;
-import com.android.wm.shell.desktopmode.DesktopRepository;
 import com.android.wm.shell.desktopmode.DesktopTasksController;
 import com.android.wm.shell.desktopmode.DesktopUserRepositories;
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
+import com.android.wm.shell.desktopmode.data.DesktopRepository;
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState;
 import com.android.wm.shell.sysui.ShellInit;
 import com.android.wm.shell.windowdecor.WindowDecorViewModel;
 
@@ -59,7 +57,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.quality.Strictness;
+import org.mockito.MockitoAnnotations;
 
 import java.util.Optional;
 
@@ -93,17 +91,16 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
     private TaskChangeListener mTaskChangeListener;
 
     private FreeformTaskListener mFreeformTaskListener;
-    private StaticMockitoSession mMockitoSession;
+    private AutoCloseable mMocksInit = null;
 
     @Before
     public void setup() {
-        mMockitoSession =
-                mockitoSession()
-                        .initMocks(this)
-                        .strictness(Strictness.LENIENT)
-                        .mockStatic(DesktopModeStatus.class)
-                        .startMocking();
-        doReturn(true).when(() -> DesktopModeStatus.canEnterDesktopMode(any()));
+        mMocksInit = MockitoAnnotations.openMocks(this);
+
+        var desktopState = new FakeDesktopState();
+        desktopState.setCanEnterDesktopMode(true);
+        desktopState.setFreeformEnabled(true);
+
         when(mDesktopUserRepositories.getCurrent()).thenReturn(mDesktopRepository);
         when(mDesktopUserRepositories.getProfile(anyInt())).thenReturn(mDesktopRepository);
         mFreeformTaskListener =
@@ -116,7 +113,16 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
                         mDesktopModeLoggerTransitionObserver,
                         mLaunchAdjacentController,
                         mWindowDecorViewModel,
-                        Optional.of(mTaskChangeListener));
+                        Optional.of(mTaskChangeListener),
+                        desktopState);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (mMocksInit != null) {
+            mMocksInit.close();
+            mMocksInit = null;
+        }
     }
 
     @Test
@@ -129,7 +135,9 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
 
         verify(mDesktopUserRepositories.getCurrent())
-                .addTask(task.displayId, task.taskId, task.isVisible = true);
+                .addTask(task.displayId, task.taskId, task.isVisible = true,
+                        task.configuration.windowConfiguration.getBounds()
+                );
     }
 
     @Test
@@ -142,7 +150,8 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
 
         verify(mDesktopUserRepositories.getCurrent())
-                .addTask(task.displayId, task.taskId, task.isVisible);
+                .addTask(task.displayId, task.taskId, task.isVisible,
+                        task.configuration.windowConfiguration.getBounds());
     }
 
     @Test
@@ -155,7 +164,8 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         mFreeformTaskListener.onTaskAppeared(task, mMockSurfaceControl);
 
         verify(mDesktopUserRepositories.getCurrent(), never())
-                .addTask(task.displayId, task.taskId, task.isVisible);
+                .addTask(task.displayId, task.taskId, task.isVisible,
+                        task.configuration.windowConfiguration.getBounds());
     }
 
     @Test
@@ -168,7 +178,8 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         mFreeformTaskListener.onFocusTaskChanged(task);
 
         verify(mDesktopUserRepositories.getCurrent())
-                .addTask(task.displayId, task.taskId, task.isVisible);
+                .addTask(task.displayId, task.taskId, task.isVisible,
+                        task.configuration.windowConfiguration.getBounds());
     }
 
     @Test
@@ -181,7 +192,8 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         mFreeformTaskListener.onFocusTaskChanged(task);
 
         verify(mDesktopUserRepositories.getCurrent(), never())
-                .addTask(task.displayId, task.taskId, task.isVisible);
+                .addTask(task.displayId, task.taskId, task.isVisible,
+                        task.configuration.windowConfiguration.getBounds());
     }
 
     @Test
@@ -195,7 +207,8 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         mFreeformTaskListener.onFocusTaskChanged(fullscreenTask);
 
         verify(mDesktopUserRepositories.getCurrent(), never())
-                .addTask(fullscreenTask.displayId, fullscreenTask.taskId, fullscreenTask.isVisible);
+                .addTask(fullscreenTask.displayId, fullscreenTask.taskId, fullscreenTask.isVisible,
+                        fullscreenTask.configuration.windowConfiguration.getBounds());
     }
 
     @Test
@@ -240,8 +253,7 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         task.displayId = INVALID_DISPLAY;
         mFreeformTaskListener.onTaskVanished(task);
 
-        verify(mDesktopUserRepositories.getCurrent(), never()).removeTask(task.displayId,
-                task.taskId);
+        verify(mDesktopUserRepositories.getCurrent(), never()).removeTask(task.taskId);
     }
 
     @Test
@@ -263,8 +275,7 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
         verify(mDesktopUserRepositories.getCurrent(), never())
                 .minimizeTask(task.displayId, task.taskId);
         verify(mDesktopUserRepositories.getCurrent()).removeClosingTask(task.taskId);
-        verify(mDesktopUserRepositories.getCurrent())
-                .removeTask(task.displayId, task.taskId);
+        verify(mDesktopUserRepositories.getCurrent()).removeTask(task.taskId);
     }
 
     @Test
@@ -280,8 +291,7 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
                 .minimizeTask(task.displayId, task.taskId);
         verify(mDesktopUserRepositories.getCurrent(), never())
                 .removeClosingTask(task.taskId);
-        verify(mDesktopUserRepositories.getCurrent(), never())
-                .removeTask(task.displayId, task.taskId);
+        verify(mDesktopUserRepositories.getCurrent(), never()).removeTask(task.taskId);
     }
 
     @Test
@@ -298,6 +308,7 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
 
 
     @Test
+    @DisableFlags(FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     public void onTaskInfoChanged_withDesktopController_forwards() {
         ActivityManager.RunningTaskInfo task =
                 new TestRunningTaskInfoBuilder().setWindowingMode(WINDOWING_MODE_FREEFORM).build();
@@ -321,7 +332,9 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
 
         verify(mTaskChangeListener, never()).onTaskChanging(any());
         verify(mDesktopUserRepositories.getCurrent())
-                .updateTask(task.displayId, task.taskId, task.isVisible);
+                .updateTask(task.displayId, task.taskId, task.isVisible,
+                        task.configuration.windowConfiguration.getBounds()
+                );
     }
 
     @Test
@@ -337,11 +350,8 @@ public final class FreeformTaskListenerTests extends ShellTestCase {
 
         verify(mTaskChangeListener).onNonTransitionTaskChanging(any());
         verify(mDesktopUserRepositories.getCurrent(), never())
-                .updateTask(task.displayId, task.taskId, task.isVisible);
-    }
-
-    @After
-    public void tearDown() {
-        mMockitoSession.finishMocking();
+                .updateTask(task.displayId, task.taskId, task.isVisible,
+                        task.configuration.windowConfiguration.getBounds()
+                );
     }
 }

@@ -40,22 +40,23 @@ class SceneContainerRule : TestRule {
                             "\n * Did you forget to add a new aconfig flag dependency in" +
                             " @EnableSceneContainer?" +
                             "\n * Did you forget to use SetFlagsRule with an earlier order?",
-                        SceneContainerFlag.isEnabled
+                        SceneContainerFlag.isEnabled,
                     )
                 }
                 // Get the flag value, treating the unset error as false.
-                val sceneContainerAconfigEnabled = try {
-                    com.android.systemui.Flags.sceneContainer()
-                } catch (e: Exception) {
-                    false
-                }
-                if (sceneContainerAconfigEnabled) {
+                val sceneContainerAconfigEnabled =
+                    try {
+                        com.android.systemui.Flags.sceneContainer()
+                    } catch (e: Exception) {
+                        false
+                    }
+                if (sceneContainerAconfigEnabled && SceneContainerFlag.isEnabledOnVariant) {
                     Assert.assertTrue(
-                            "FLAG_SCENE_CONTAINER is enabled but SceneContainerFlag.isEnabled" +
-                                    " is false.  Use `.andSceneContainer()` from" +
-                                    " SceneContainerFlagParameterization.kt to parameterize this" +
-                                    " flag correctly.",
-                            SceneContainerFlag.isEnabled
+                        "FLAG_SCENE_CONTAINER is enabled but SceneContainerFlag.isEnabled" +
+                            " is false.  Use `.andSceneContainer()` from" +
+                            " SceneContainerFlagParameterization.kt to parameterize this" +
+                            " flag correctly.",
+                        SceneContainerFlag.isEnabled,
                     )
                 }
                 if (
@@ -67,7 +68,7 @@ class SceneContainerRule : TestRule {
                             if (exception is AssumptionViolatedException) {
                                 throw AssertionError(
                                     "This is marked @BrokenWithSceneContainer, but was skipped.",
-                                    exception
+                                    exception,
                                 )
                             }
                             throw AssumptionViolatedException("Test is still broken", exception)

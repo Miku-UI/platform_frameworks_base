@@ -106,8 +106,10 @@ final class NotificationHistoryProtoHelper {
                     break;
                 case (int) Notification.CHANNEL_NAME:
                     String channelName = parser.readString(Notification.CHANNEL_NAME);
-                    notification.setChannelName(channelName);
-                    stringPool.add(channelName);
+                    if (!TextUtils.isEmpty(channelName)) {
+                        notification.setChannelName(channelName);
+                        stringPool.add(channelName);
+                    }
                     break;
                 case (int) Notification.CHANNEL_NAME_INDEX:
                     notification.setChannelName(stringPool.get(parser.readInt(
@@ -266,13 +268,16 @@ final class NotificationHistoryProtoHelper {
                     + ") not found in string cache");
             proto.write(Notification.PACKAGE, notification.getPackage());
         }
-        final int channelNameIndex = Arrays.binarySearch(stringPool, notification.getChannelName());
-        if (channelNameIndex >= 0) {
-            proto.write(Notification.CHANNEL_NAME_INDEX, channelNameIndex + 1);
-        } else {
-            Slog.w(TAG, "notification channel name (" + notification.getChannelName()
-                    + ") not found in string cache");
-            proto.write(Notification.CHANNEL_NAME, notification.getChannelName());
+        if (!TextUtils.isEmpty(notification.getChannelName())) {
+            final int channelNameIndex = Arrays.binarySearch(stringPool,
+                    notification.getChannelName());
+            if (channelNameIndex >= 0) {
+                proto.write(Notification.CHANNEL_NAME_INDEX, channelNameIndex + 1);
+            } else {
+                Slog.w(TAG, "notification channel name (" + notification.getChannelName()
+                        + ") not found in string cache");
+                proto.write(Notification.CHANNEL_NAME, notification.getChannelName());
+            }
         }
         final int channelIdIndex = Arrays.binarySearch(stringPool, notification.getChannelId());
         if (channelIdIndex >= 0) {

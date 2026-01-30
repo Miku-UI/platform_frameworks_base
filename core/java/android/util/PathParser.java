@@ -23,6 +23,7 @@ import dalvik.annotation.optimization.FastNative;
 /**
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class PathParser {
     static final String LOGTAG = PathParser.class.getSimpleName();
 

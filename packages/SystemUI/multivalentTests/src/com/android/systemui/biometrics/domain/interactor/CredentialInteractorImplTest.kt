@@ -6,9 +6,11 @@ import android.content.pm.UserInfo
 import android.hardware.biometrics.Flags
 import android.os.UserManager
 import android.platform.test.annotations.EnableFlags
+import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.widget.LockPatternUtils
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
 import com.android.internal.widget.LockscreenCredential
 import com.android.internal.widget.VerifyCredentialResponse
 import com.android.systemui.SysuiTestCase
@@ -16,6 +18,7 @@ import com.android.systemui.biometrics.domain.model.BiometricOperationInfo
 import com.android.systemui.biometrics.domain.model.BiometricPromptRequest
 import com.android.systemui.biometrics.promptInfo
 import com.android.systemui.biometrics.shared.model.BiometricUserInfo
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.whenever
@@ -32,6 +35,7 @@ import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mock
 import org.mockito.Mockito.verify
 import org.mockito.junit.MockitoJUnit
+import org.mockito.kotlin.never
 
 private const val USER_ID = 22
 private const val OWNER_ID = 10
@@ -113,6 +117,11 @@ class CredentialInteractorImplTest : SysuiTestCase() {
 
     @Test fun pinCredentialWhenGood() = pinCredential(goodCredential())
 
+    @EnableSceneContainer
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun pinCredentialWhenGood_duringSecureLockDevice() = pinCredential(goodCredential())
+
     @Test fun pinCredentialWhenBad() = pinCredential(badCredential())
 
     @Test fun pinCredentialWhenBadAndThrottled() = pinCredential(badCredential(timeout = 5_000))
@@ -130,74 +139,74 @@ class CredentialInteractorImplTest : SysuiTestCase() {
     fun pinCredentialTiedProfileWhenBadAndThrottled() =
         pinCredential(badCredential(timeout = 5_000), OWNER_ID)
 
-    private fun pinCredential(result: VerifyCredentialResponse, credentialOwner: Int = USER_ID) =
-        runTest {
-            val usedAttempts = 1
-            whenever(lockPatternUtils.getCurrentFailedPasswordAttempts(eq(credentialOwner)))
-                .thenReturn(usedAttempts)
-            whenever(lockPatternUtils.verifyCredential(any(), eq(credentialOwner), anyInt()))
-                .thenReturn(result)
-            whenever(lockPatternUtils.verifyTiedProfileChallenge(any(), eq(USER_ID), anyInt()))
-                .thenReturn(result)
-            whenever(
-                    lockPatternUtils.verifyGatekeeperPasswordHandle(
-                        anyLong(),
-                        anyLong(),
-                        eq(USER_ID),
-                    )
-                )
-                .thenReturn(result)
-            whenever(lockPatternUtils.setLockoutAttemptDeadline(anyInt(), anyInt())).thenAnswer {
-                systemClock.elapsedRealtime() + (it.arguments[1] as Int)
-            }
+    private fun pinCredential(
+        result: VerifyCredentialResponse,
+        credentialOwner: Int = USER_ID,
+        isSecureLockDeviceEnabled: Boolean = false,
+    ) = runTest {
+        val usedAttempts = 1
+        if (isSecureLockDeviceEnabled) {
+            whenever(lockPatternUtils.getStrongAuthForUser(eq(USER_ID)))
+                .thenReturn(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE)
+        }
+        whenever(lockPatternUtils.getCurrentFailedPasswordAttempts(eq(credentialOwner)))
+            .thenReturn(usedAttempts)
+        whenever(lockPatternUtils.verifyCredential(any(), eq(credentialOwner), anyInt()))
+            .thenReturn(result)
+        whenever(lockPatternUtils.verifyTiedProfileChallenge(any(), eq(USER_ID), anyInt()))
+            .thenReturn(result)
+        whenever(lockPatternUtils.verifyGatekeeperPasswordHandle(anyLong(), anyLong(), eq(USER_ID)))
+            .thenReturn(result)
+        whenever(lockPatternUtils.setLockoutAttemptDeadline(anyInt(), anyInt())).thenAnswer {
+            systemClock.elapsedRealtime() + (it.arguments[1] as Int)
+        }
 
-            // wrap in an async block so the test can advance the clock if throttling credential
-            // checks prevents the method from returning
-            val statusList = mutableListOf<CredentialStatus>()
-            interactor
-                .verifyCredential(
-                    pinRequest(credentialOwner),
-                    LockscreenCredential.createPin("1234"),
-                )
-                .toList(statusList)
+        // wrap in an async block so the test can advance the clock if throttling credential
+        // checks prevents the method from returning
+        val statusList = mutableListOf<CredentialStatus>()
+        interactor
+            .verifyCredential(pinRequest(credentialOwner), LockscreenCredential.createPin("1234"))
+            .toList(statusList)
 
-            val last = statusList.removeLastOrNull()
-            if (result.isMatched) {
-                assertThat(statusList).isEmpty()
-                val successfulResult = last as? CredentialStatus.Success.Verified
-                assertThat(successfulResult).isNotNull()
-                assertThat(successfulResult!!.hat).isEqualTo(result.gatekeeperHAT)
+        val last = statusList.removeLastOrNull()
+        if (result.isMatched) {
+            assertThat(statusList).isEmpty()
+            val successfulResult = last as? CredentialStatus.Success.Verified
+            assertThat(successfulResult).isNotNull()
+            assertThat(successfulResult!!.hat).isEqualTo(result.gatekeeperHAT)
 
+            if (isSecureLockDeviceEnabled) {
+                verify(lockPatternUtils, never()).userPresent(eq(credentialOwner))
+            } else {
                 verify(lockPatternUtils).userPresent(eq(credentialOwner))
                 verify(lockPatternUtils)
                     .removeGatekeeperPasswordHandle(eq(result.gatekeeperPasswordHandle))
-            } else {
-                val failedResult = last as? CredentialStatus.Fail.Error
-                assertThat(failedResult).isNotNull()
-                assertThat(failedResult!!.remainingAttempts)
-                    .isEqualTo(if (result.timeout > 0) null else MAX_ATTEMPTS - usedAttempts - 1)
-                assertThat(failedResult.urgentMessage).isNull()
+            }
+        } else {
+            val failedResult = last as? CredentialStatus.Fail.Error
+            assertThat(failedResult).isNotNull()
+            assertThat(failedResult!!.remainingAttempts)
+                .isEqualTo(if (result.timeout > 0) null else MAX_ATTEMPTS - usedAttempts - 1)
+            assertThat(failedResult.urgentMessage).isNull()
 
-                if (result.timeout > 0) { // failed and throttled
-                    // messages are in the throttled errors, so the final Error.error is empty
-                    assertThat(failedResult.error).isEmpty()
-                    assertThat(statusList).isNotEmpty()
-                    assertThat(
-                            statusList.filterIsInstance(CredentialStatus.Fail.Throttled::class.java)
-                        )
-                        .hasSize(statusList.size)
+            if (result.timeout > 0) { // failed and throttled
+                // messages are in the throttled errors, so the final Error.error is empty
+                assertThat(failedResult.error).isEmpty()
+                assertThat(statusList).isNotEmpty()
+                assertThat(statusList.filterIsInstance(CredentialStatus.Fail.Throttled::class.java))
+                    .hasSize(statusList.size)
 
-                    verify(lockPatternUtils)
-                        .setLockoutAttemptDeadline(eq(credentialOwner), eq(result.timeout))
-                } else { // failed
-                    assertThat(failedResult.error)
-                        .matches(Regex("(.*)try again(.*)", RegexOption.IGNORE_CASE).toPattern())
-                    assertThat(statusList).isEmpty()
+                verify(lockPatternUtils)
+                    .setLockoutAttemptDeadline(eq(credentialOwner), eq(result.timeout))
+            } else { // failed
+                assertThat(failedResult.error)
+                    .matches(Regex("(.*)try again(.*)", RegexOption.IGNORE_CASE).toPattern())
+                assertThat(statusList).isEmpty()
 
-                    verify(lockPatternUtils).reportFailedPasswordAttempt(eq(credentialOwner))
-                }
+                verify(lockPatternUtils).reportFailedPasswordAttempt(eq(credentialOwner))
             }
         }
+    }
 
     @Test
     fun pinCredentialWhenBadAndFinalAttempt() = runTest {

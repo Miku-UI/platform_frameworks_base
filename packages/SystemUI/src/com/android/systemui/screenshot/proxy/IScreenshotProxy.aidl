@@ -26,4 +26,7 @@ interface IScreenshotProxy {
 
     /** Attempts to dismiss the keyguard. */
     void dismissKeyguard(IOnDoneCallback callback);
+
+    /** Gets the ID of the display that currently has input focus. */
+    int getFocusedDisplay();
 }

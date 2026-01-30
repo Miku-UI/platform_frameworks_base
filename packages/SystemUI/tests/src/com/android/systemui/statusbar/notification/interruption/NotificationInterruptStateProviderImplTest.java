@@ -49,7 +49,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
-import android.app.Flags;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.PendingIntent;
@@ -58,28 +57,31 @@ import android.graphics.drawable.Icon;
 import android.hardware.display.AmbientDisplayConfiguration;
 import android.os.Handler;
 import android.os.PowerManager;
-import android.platform.test.annotations.DisableFlags;
-
 import android.platform.test.annotations.EnableFlags;
+
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.logging.testing.UiEventLoggerFake;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.GeneralKosmosKt;
+import com.android.systemui.kosmos.Kosmos;
+import com.android.systemui.kosmos.KosmosKt;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.res.R;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.notification.NotifPipelineFlags;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
+import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.interruption.NotificationInterruptStateProvider.FullScreenIntentDecision;
 import com.android.systemui.statusbar.notification.interruption.NotificationInterruptStateProviderImpl.NotificationInterruptEvent;
 import com.android.systemui.statusbar.policy.BatteryController;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
-import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.util.FakeEventLog;
 import com.android.systemui.util.settings.FakeGlobalSettings;
+import com.android.systemui.util.settings.FakeGlobalSettingsKosmosKt;
 import com.android.systemui.util.time.FakeSystemClock;
 import com.android.wm.shell.bubbles.Bubbles;
 
@@ -102,6 +104,7 @@ import java.util.Set;
 @SmallTest
 public class NotificationInterruptStateProviderImplTest extends SysuiTestCase {
 
+    Kosmos mKosmos = KosmosKt.Kosmos();
     @Mock
     PowerManager mPowerManager;
     @Mock
@@ -145,7 +148,7 @@ public class NotificationInterruptStateProviderImplTest extends SysuiTestCase {
 
         mUiEventLoggerFake = new UiEventLoggerFake();
         mSystemClock = new FakeSystemClock();
-        mGlobalSettings = new FakeGlobalSettings();
+        mGlobalSettings = FakeGlobalSettingsKosmosKt.getFakeGlobalSettings(mKosmos);
         mGlobalSettings.putInt(HEADS_UP_NOTIFICATIONS_ENABLED, HEADS_UP_ON);
         mEventLog = new FakeEventLog();
 
@@ -169,6 +172,7 @@ public class NotificationInterruptStateProviderImplTest extends SysuiTestCase {
                         mEventLog,
                         Optional.of(mBubbles));
         mNotifInterruptionStateProvider.mUseHeadsUp = true;
+        GeneralKosmosKt.runCurrent(mKosmos);
     }
 
     /**
@@ -534,21 +538,6 @@ public class NotificationInterruptStateProviderImplTest extends SysuiTestCase {
 
         verify(mLogger, never()).logNoHeadsUpOldWhen(any(), anyLong(), anyLong());
         verify(mLogger, never()).logMaybeHeadsUpDespiteOldWhen(any(), anyLong(), anyLong(), any());
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_SORT_SECTION_BY_TIME)
-    public void testShouldHeadsUp_oldWhen_whenZero() {
-        ensureStateForHeadsUpWhenAwake();
-
-        NotificationEntry entry = createNotification(IMPORTANCE_HIGH);
-        entry.getSbn().getNotification().when = 0L;
-
-        assertThat(mNotifInterruptionStateProvider.shouldHeadsUp(entry)).isTrue();
-
-        verify(mLogger, never()).logNoHeadsUpOldWhen(any(), anyLong(), anyLong());
-        verify(mLogger).logMaybeHeadsUpDespiteOldWhen(eq(entry), eq(0L), anyLong(),
-                eq("when <= 0"));
     }
 
     @Test

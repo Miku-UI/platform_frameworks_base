@@ -18,11 +18,9 @@ package com.android.systemui.clipboardoverlay;
 
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
 
-import static com.android.systemui.Flags.FLAG_CLIPBOARD_SHARED_TRANSITIONS;
-import static com.android.systemui.Flags.FLAG_CLIPBOARD_USE_DESCRIPTION_MIMETYPE;
+import static com.android.systemui.Flags.FLAG_CLIPBOARD_OVERLAY_MULTIUSER;
 import static com.android.systemui.Flags.FLAG_SHOW_CLIPBOARD_INDICATION;
 import static com.android.systemui.clipboardoverlay.ClipboardOverlayEvent.CLIPBOARD_OVERLAY_ACTION_SHOWN;
-import static com.android.systemui.clipboardoverlay.ClipboardOverlayEvent.CLIPBOARD_OVERLAY_DISMISS_TAPPED;
 import static com.android.systemui.clipboardoverlay.ClipboardOverlayEvent.CLIPBOARD_OVERLAY_EXPANDED_FROM_MINIMIZED;
 import static com.android.systemui.clipboardoverlay.ClipboardOverlayEvent.CLIPBOARD_OVERLAY_SHARE_TAPPED;
 import static com.android.systemui.clipboardoverlay.ClipboardOverlayEvent.CLIPBOARD_OVERLAY_SHOWN_EXPANDED;
@@ -48,8 +46,9 @@ import android.content.Intent;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.PersistableBundle;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.view.WindowInsets;
 import android.view.textclassifier.TextLinks;
@@ -60,8 +59,11 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.internal.logging.UiEventLogger;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.broadcast.BroadcastSender;
+import com.android.systemui.plugins.ActivityStartOptions;
+import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.screenshot.TimeoutHandler;
 import com.android.systemui.settings.FakeDisplayTracker;
+import com.android.systemui.settings.FakeUserTracker;
 import com.android.systemui.util.concurrency.FakeExecutor;
 import com.android.systemui.util.time.FakeSystemClock;
 
@@ -100,7 +102,11 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
     @Mock
     private ClipboardTransitionExecutor mClipboardTransitionExecutor;
     @Mock
+    private ClipboardInputEventReceiver mClipboardInputEventReceiver;
+    @Mock
     private UiEventLogger mUiEventLogger;
+    @Mock
+    private ActivityStarter mActivityStarter;
     private FakeDisplayTracker mDisplayTracker = new FakeDisplayTracker(mContext);
 
     @Mock
@@ -120,6 +126,8 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
     private ArgumentCaptor<AnimatorListenerAdapter> mAnimatorArgumentCaptor;
 
     private FakeExecutor mExecutor = new FakeExecutor(new FakeSystemClock());
+    private final FakeUserTracker mFakeUserTracker = new FakeUserTracker();
+    private Handler mMainHandler = new Handler(Looper.getMainLooper());
 
     private class FakeClipboardIndicationProvider implements ClipboardIndicationProvider {
         private ClipboardIndicationCallback mIndicationCallback;
@@ -192,10 +200,13 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
                 getFakeBroadcastDispatcher(),
                 mBroadcastSender,
                 mTimeoutHandler,
+                mActivityStarter,
+                mFakeUserTracker,
                 mClipboardUtils,
                 mExecutor,
                 mClipboardImageLoader,
                 mClipboardTransitionExecutor,
+                mClipboardInputEventReceiver,
                 mClipboardIndicationProvider,
                 mUiEventLogger,
                 fakeIntentCreator);
@@ -209,79 +220,10 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(FLAG_CLIPBOARD_USE_DESCRIPTION_MIMETYPE)
-    public void test_setClipData_invalidImageData_legacy() {
-        initController();
-
-        ClipData clipData = new ClipData("", new String[]{"image/png"},
-                new ClipData.Item(Uri.parse("")));
-
-        mOverlayController.setClipData(clipData, "");
-
-        verify(mClipboardOverlayView, times(1)).showDefaultTextPreview();
-        verify(mClipboardOverlayView, times(1)).showShareChip();
-        verify(mClipboardOverlayView, times(1)).getEnterAnimation();
-    }
-
-    @Test
     public void test_setClipData_nonImageUri_legacy() {
         initController();
 
         ClipData clipData = new ClipData("", new String[]{"resource/png"},
-                new ClipData.Item(Uri.parse("")));
-
-        mOverlayController.setClipData(clipData, "");
-
-        verify(mClipboardOverlayView, times(1)).showDefaultTextPreview();
-        verify(mClipboardOverlayView, times(1)).showShareChip();
-        verify(mClipboardOverlayView, times(1)).getEnterAnimation();
-    }
-
-    @Test
-    public void test_setClipData_textData_legacy() {
-        initController();
-
-        mOverlayController.setClipData(mSampleClipData, "abc");
-
-        verify(mClipboardOverlayView, times(1)).showTextPreview("Test Item", false);
-        verify(mUiEventLogger, times(1)).log(CLIPBOARD_OVERLAY_SHOWN_EXPANDED, 0, "abc");
-        verify(mClipboardOverlayView, times(1)).showShareChip();
-        verify(mClipboardOverlayView, times(1)).getEnterAnimation();
-    }
-
-    @Test
-    public void test_setClipData_sensitiveTextData_legacy() {
-        initController();
-
-        ClipDescription description = mSampleClipData.getDescription();
-        PersistableBundle b = new PersistableBundle();
-        b.putBoolean(ClipDescription.EXTRA_IS_SENSITIVE, true);
-        description.setExtras(b);
-        ClipData data = new ClipData(description, mSampleClipData.getItemAt(0));
-        mOverlayController.setClipData(data, "");
-
-        verify(mClipboardOverlayView, times(1)).showTextPreview("••••••", true);
-        verify(mClipboardOverlayView, times(1)).showShareChip();
-        verify(mClipboardOverlayView, times(1)).getEnterAnimation();
-    }
-
-    @Test
-    public void test_setClipData_repeatedCalls_legacy() {
-        when(mAnimator.isRunning()).thenReturn(true);
-        initController();
-
-        mOverlayController.setClipData(mSampleClipData, "");
-        mOverlayController.setClipData(mSampleClipData, "");
-
-        verify(mClipboardOverlayView, times(1)).getEnterAnimation();
-    }
-
-    @Test
-    @DisableFlags(FLAG_CLIPBOARD_USE_DESCRIPTION_MIMETYPE)
-    public void test_setClipData_invalidImageData() {
-        initController();
-
-        ClipData clipData = new ClipData("", new String[]{"image/png"},
                 new ClipData.Item(Uri.parse("")));
 
         mOverlayController.setClipData(clipData, "");
@@ -353,19 +295,20 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(FLAG_CLIPBOARD_SHARED_TRANSITIONS)
-    public void test_viewCallbacks_onShareTapped_sharedTransitionsOff() {
+    public void test_viewCallbacks_onShareTapped_legacy() {
         initController();
         mOverlayController.setClipData(mSampleClipData, "");
 
         mCallbacks.onShareButtonTapped();
+        verify(mEndAnimator).addListener(mAnimatorListenerCaptor.capture());
+        mAnimatorListenerCaptor.getValue().onAnimationEnd(mEndAnimator);
 
         verify(mUiEventLogger, times(1)).log(CLIPBOARD_OVERLAY_SHARE_TAPPED, 0, "");
         verify(mClipboardOverlayView, times(1)).getExitAnimation();
     }
 
     @Test
-    @EnableFlags(FLAG_CLIPBOARD_SHARED_TRANSITIONS)
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
     public void test_viewCallbacks_onShareTapped() {
         initController();
         mOverlayController.setClipData(mSampleClipData, "");
@@ -376,58 +319,17 @@ public class ClipboardOverlayControllerTest extends SysuiTestCase {
 
         verify(mUiEventLogger, times(1)).log(CLIPBOARD_OVERLAY_SHARE_TAPPED, 0, "");
         verify(mClipboardOverlayView, times(1)).getExitAnimation();
+        verify(mActivityStarter).startActivityDismissingKeyguard(any(ActivityStartOptions.class));
     }
 
     @Test
-    @DisableFlags(FLAG_CLIPBOARD_SHARED_TRANSITIONS)
-    public void test_viewCallbacks_onDismissTapped_sharedTransitionsOff() {
-        initController();
-        mOverlayController.setClipData(mSampleClipData, "");
-
-        mCallbacks.onDismissButtonTapped();
-
-        verify(mUiEventLogger, times(1)).log(CLIPBOARD_OVERLAY_DISMISS_TAPPED, 0, "");
-        verify(mClipboardOverlayView, times(1)).getExitAnimation();
-    }
-
-    @Test
-    @EnableFlags(FLAG_CLIPBOARD_SHARED_TRANSITIONS)
-    public void test_viewCallbacks_onDismissTapped() {
-        initController();
-
-        mCallbacks.onDismissButtonTapped();
-        verify(mEndAnimator).addListener(mAnimatorListenerCaptor.capture());
-        mAnimatorListenerCaptor.getValue().onAnimationEnd(mEndAnimator);
-
-        // package name is null since we haven't actually set a source for this test
-        verify(mUiEventLogger, times(1)).log(CLIPBOARD_OVERLAY_DISMISS_TAPPED, 0, null);
-        verify(mClipboardOverlayView, times(1)).getExitAnimation();
-    }
-
-    @Test
-    public void test_multipleDismissals_dismissesOnce_sharedTransitionsOff() {
-        initController();
-        mCallbacks.onSwipeDismissInitiated(mAnimator);
-        mCallbacks.onDismissButtonTapped();
-        mCallbacks.onSwipeDismissInitiated(mAnimator);
-        mCallbacks.onDismissButtonTapped();
-
-        verify(mUiEventLogger, times(1)).log(CLIPBOARD_OVERLAY_SWIPE_DISMISSED, 0, null);
-        verify(mUiEventLogger, never()).log(CLIPBOARD_OVERLAY_DISMISS_TAPPED);
-    }
-
-    @Test
-    @EnableFlags(FLAG_CLIPBOARD_SHARED_TRANSITIONS)
     public void test_multipleDismissals_dismissesOnce() {
         initController();
 
         mCallbacks.onSwipeDismissInitiated(mAnimator);
-        mCallbacks.onDismissButtonTapped();
         mCallbacks.onSwipeDismissInitiated(mAnimator);
-        mCallbacks.onDismissButtonTapped();
 
         verify(mUiEventLogger, times(1)).log(CLIPBOARD_OVERLAY_SWIPE_DISMISSED, 0, null);
-        verify(mUiEventLogger, never()).log(CLIPBOARD_OVERLAY_DISMISS_TAPPED);
     }
 
     @Test

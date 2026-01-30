@@ -16,13 +16,17 @@
 
 package com.android.systemui.clipboardoverlay;
 
+import static com.android.systemui.Flags.FLAG_CLIPBOARD_OVERLAY_MULTIUSER;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import android.content.ClipData;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.content.pm.UserInfo;
 import android.net.Uri;
+import android.platform.test.annotations.EnableFlags;
 import android.text.SpannableString;
 
 import androidx.test.filters.SmallTest;
@@ -30,10 +34,13 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
+import com.android.systemui.settings.FakeUserTracker;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 @SmallTest
@@ -41,8 +48,14 @@ import java.util.concurrent.atomic.AtomicReference;
 public class DefaultIntentCreatorTest extends SysuiTestCase {
     private static final int EXTERNAL_INTENT_FLAGS = Intent.FLAG_ACTIVITY_NEW_TASK
             | Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION;
+    private final FakeUserTracker mFakeUserTracker = new FakeUserTracker();
 
-    private final DefaultIntentCreator mIntentCreator  = new DefaultIntentCreator();
+    private final DefaultIntentCreator mIntentCreator  = new DefaultIntentCreator(mFakeUserTracker);
+
+    @Before
+    public void setup() {
+        mFakeUserTracker.set(List.of(new UserInfo(17, "test user", 0)), 0);
+    }
 
     @Test
     public void test_getTextEditorIntent() {
@@ -75,14 +88,24 @@ public class DefaultIntentCreatorTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
+    public void test_getRemoteCopyIntent_setsUserId() {
+        getContext().getOrCreateTestableResources().addOverride(R.string.config_remoteCopyPackage,
+                "");
+
+        ClipData clipData = ClipData.newPlainText("Test", "Test Item");
+        Intent intent = mIntentCreator.getRemoteCopyIntent(clipData, getContext());
+
+        assertEquals(17, intent.getContentUserHint());
+    }
+
+    @Test
     public void test_getImageEditIntentAsync() {
         getContext().getOrCreateTestableResources().addOverride(R.string.config_screenshotEditor,
                 "");
         Uri fakeUri = Uri.parse("content://foo");
         final AtomicReference<Intent> intentHolder = new AtomicReference<>(null);
-        mIntentCreator.getImageEditIntentAsync(fakeUri, getContext(), output -> {
-            intentHolder.set(output);
-        });
+        mIntentCreator.getImageEditIntentAsync(fakeUri, getContext(), intentHolder::set);
 
         Intent intent = intentHolder.get();
         assertEquals(Intent.ACTION_EDIT, intent.getAction());
@@ -96,10 +119,21 @@ public class DefaultIntentCreatorTest extends SysuiTestCase {
                 "com.android.remotecopy.RemoteCopyActivity");
         getContext().getOrCreateTestableResources().addOverride(R.string.config_screenshotEditor,
                 fakeComponent.flattenToString());
-        mIntentCreator.getImageEditIntentAsync(fakeUri, getContext(), output -> {
-            intentHolder.set(output);
-        });
+        mIntentCreator.getImageEditIntentAsync(fakeUri, getContext(), intentHolder::set);
         assertEquals(fakeComponent, intentHolder.get().getComponent());
+    }
+
+    @Test
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
+    public void test_getImageEditAsync_setsUserId() {
+        getContext().getOrCreateTestableResources().addOverride(R.string.config_screenshotEditor,
+                "");
+        Uri fakeUri = Uri.parse("content://foo");
+        final AtomicReference<Intent> intentHolder = new AtomicReference<>(null);
+        mIntentCreator.getImageEditIntentAsync(fakeUri, getContext(), intentHolder::set);
+
+        Intent intent = intentHolder.get();
+        assertEquals(17, intent.getContentUserHint());
     }
 
     @Test
@@ -112,6 +146,15 @@ public class DefaultIntentCreatorTest extends SysuiTestCase {
         Intent target = intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class);
         assertEquals("Test Item", target.getStringExtra(Intent.EXTRA_TEXT));
         assertEquals("text/plain", target.getType());
+    }
+
+    @Test
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
+    public void test_getShareIntent_setsUserId() {
+        ClipData clipData = ClipData.newPlainText("Test", "Test Item");
+        Intent intent = mIntentCreator.getShareIntent(clipData, getContext());
+
+        assertEquals(17, intent.getContentUserHint());
     }
 
     @Test

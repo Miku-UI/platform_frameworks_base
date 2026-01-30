@@ -17,6 +17,7 @@
 
 package com.android.compose
 
+import android.graphics.drawable.Drawable
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.android.compose.ui.graphics.painter.rememberDrawablePainter
 
 @Composable
 fun PlatformButton(
@@ -114,6 +116,31 @@ fun PlatformIconButton(
     ) {
         Icon(
             painter = painterResource(id = iconResource),
+            contentDescription = contentDescription,
+            tint = colors.contentColor,
+        )
+    }
+}
+
+@Composable
+fun PlatformIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    colors: IconButtonColors = iconButtonColors(),
+    shape: Shape = IconButtonDefaults.standardShape,
+    iconDrawable: Drawable,
+    contentDescription: String?,
+) {
+    IconButton(
+        modifier = modifier,
+        onClick = onClick,
+        enabled = enabled,
+        colors = colors,
+        shape = shape,
+    ) {
+        Icon(
+            painter = rememberDrawablePainter(iconDrawable),
             contentDescription = contentDescription,
             tint = colors.contentColor,
         )

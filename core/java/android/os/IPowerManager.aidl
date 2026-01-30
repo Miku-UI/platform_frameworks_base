@@ -120,6 +120,8 @@ interface IPowerManager
     @UnsupportedAppUsage
     void reboot(boolean confirm, String reason, boolean wait);
     void rebootSafeMode(boolean confirm, boolean wait);
+
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.REBOOT)")
     void shutdown(boolean confirm, String reason, boolean wait);
     void crash(String message);
     int getLastShutdownReason();
@@ -146,6 +148,10 @@ interface IPowerManager
     boolean isAmbientDisplayAvailable();
     // suppresses the current ambient display configuration and disables ambient display.
     void suppressAmbientDisplay(String token, boolean suppress);
+    // suppresses the current ambient display configuration and disables ambient display based on
+    // the specified flags.
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.WRITE_DREAM_STATE)")
+    oneway void suppressAmbientDisplayBehavior(String token, int suppressionFlags);
     // returns whether ambient display is suppressed by the calling app with the given token.
     boolean isAmbientDisplaySuppressedForToken(String token);
     // returns whether ambient display is suppressed by any app with any token.

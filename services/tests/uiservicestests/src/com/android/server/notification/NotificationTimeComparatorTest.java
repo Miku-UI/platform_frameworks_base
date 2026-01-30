@@ -55,7 +55,6 @@ public class NotificationTimeComparatorTest extends UiServiceTestCase {
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule(DEVICE_DEFAULT);
 
     @Test
-    @EnableFlags({android.app.Flags.FLAG_SORT_SECTION_BY_TIME})
     public void testCompare() {
         NotificationRecord one = mock(NotificationRecord.class);
         when(one.getRankingTimeMs()).thenReturn(1L);

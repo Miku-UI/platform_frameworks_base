@@ -25,6 +25,7 @@ import android.app.Activity;
 import android.app.DialogFragment;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
+import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.InstallSourceInfo;
 import android.content.pm.PackageInstaller;
@@ -35,6 +36,8 @@ import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+
+import com.android.packageinstaller.v2.ui.UnarchiveLaunch;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -57,6 +60,17 @@ public class UnarchiveActivity extends Activity {
         getWindow().addSystemFlags(SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS);
 
         super.onCreate(null);
+
+        if (PackageUtil.isVersionTwoEnabled(this)) {
+            Intent piaV2 = new Intent(getIntent());
+            piaV2.putExtra(UnarchiveLaunch.EXTRA_CALLING_PKG_NAME, getLaunchedFromPackage());
+            piaV2.putExtra(UnarchiveLaunch.EXTRA_CALLING_PKG_UID, getLaunchedFromUid());
+            piaV2.setClass(this, UnarchiveLaunch.class);
+            piaV2.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
+            startActivity(piaV2);
+            finish();
+            return;
+        }
 
         int callingUid = getLaunchedFromUid();
         if (callingUid == Process.INVALID_UID) {

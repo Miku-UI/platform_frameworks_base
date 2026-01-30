@@ -29,6 +29,7 @@ import com.android.internal.util.FastPrintWriter;
 import com.android.internal.util.Preconditions;
 import com.android.internal.util.TypedProperties;
 
+import dalvik.annotation.optimization.CriticalNative;
 import dalvik.system.VMDebug;
 
 import org.apache.harmony.dalvik.ddmc.Chunk;
@@ -50,6 +51,7 @@ import java.lang.annotation.Target;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -117,6 +119,11 @@ public final class Debug
         "support_boot_stages",
         "app_info",
     };
+
+    /*
+     * Default return value for getInstanceCounts methods.
+     */
+    private static final long[] EMPTY_COUNT_CLASS_INSTANCES = new long[0];
 
     /**
      * This class is used to retrieved various statistics about the memory mappings for this
@@ -1346,8 +1353,16 @@ public final class Debug
      *            in ".trace", it will be appended for you.
      * @param bufferSize The maximum amount of trace data we gather. If not
      *            given, it defaults to 8MB.
-     * @param flags Flags to control method tracing. The only one that is
-     *            currently defined is {@link #TRACE_COUNT_ALLOCS}.
+     * @param flags Flags to control method tracing. The following flags are supported:
+     *            0x0001 {@link #TRACE_COUNT_ALLOCS}
+     *
+     *            Flags to control time source: These are available with API #34 and higher.
+     *            0x0010 Report the elapsed time since the start of the trace.
+     *            0x0100 Report the time the thread has spent on the CPU since the start of the
+     *                   trace. Please note that the thread cpu incurs a significant (typically
+     *                   2-3x) performance penalty. Use this flag only when necessary.
+     *            If neither of these flags are set, both the elapsed time and the thread cpu time
+     *            are reported.
      */
     public static void startMethodTracing(String tracePath, int bufferSize, int flags) {
         VMDebug.startMethodTracing(fixTracePath(tracePath), bufferSize, flags, false, 0);
@@ -1930,18 +1945,21 @@ public final class Debug
      * Returns the size of the native heap.
      * @return The size of the native heap in bytes.
      */
+    @CriticalNative
     public static native long getNativeHeapSize();
 
     /**
      * Returns the amount of allocated memory in the native heap.
      * @return The allocated size in bytes.
      */
+    @CriticalNative
     public static native long getNativeHeapAllocatedSize();
 
     /**
      * Returns the amount of free memory in the native heap.
      * @return The freed size in bytes.
      */
+    @CriticalNative
     public static native long getNativeHeapFreeSize();
 
     /**
@@ -2059,7 +2077,9 @@ public final class Debug
     /** @hide */
     public static final int MEMINFO_CMA_FREE = 25;
     /** @hide */
-    public static final int MEMINFO_COUNT = 26;
+    public static final int MEMINFO_SWAP_CACHED = 26;
+    /** @hide */
+    public static final int MEMINFO_COUNT = 27;
 
     /**
      * Retrieves /proc/meminfo.  outSizes is filled with fields
@@ -2207,13 +2227,116 @@ public final class Debug
     public static native void dumpNativeMallocInfo(FileDescriptor fd);
 
     /**
-      * Returns a count of the extant instances of a class.
+     * Counts the number of instances of the specified class.
      *
-     * @hide
+     * <p><b>Warning:</b> This operation can be expensive, as it may involve traversing portions
+     * of the Java heap. It is primarily intended for debugging purposes and should not be used in
+     * performance-critical code.
+     *
+     * <p>It's intended to help developers identify object leaks or to validate
+     * the number of instances of a specific class during development.
+     *
+     * <p>It is the caller's responsibility to do GC if they don't want unreachable
+     * objects to get counted.
+     *
+     * @param cls {@link Class} the class to count instances of.
+     *
+     * @return the number of matching instances.
+     *
      */
-    @UnsupportedAppUsage
-    public static long countInstancesOfClass(Class cls) {
-        return VMDebug.countInstancesOfClass(cls, true);
+    @FlaggedApi(Flags.FLAG_COUNT_CLASS_INSTANCES_API)
+    public static long getInstanceCount(@NonNull Class cls) {
+        return getInstanceCount(cls, true);
+    }
+    /**
+     * Counts the number of instances of the specified classes.
+     *
+     * <p><b>Warning:</b> This operation can be expensive, as it may involve traversing portions
+     * of the Java heap. It is primarily intended for debugging purposes and should not be used in
+     * performance-critical code.
+     *
+     * <p>It's intended to help developers identify object leaks or to validate
+     * the number of instances of a specific class during development.
+     *
+     * <p>It is the caller's responsibility to do GC if they don't want unreachable
+     * objects to get counted.
+     *
+     * @param classes An array of {@link Class} objects representing the classes to count instances
+     *                of. Must not be null.
+     *
+     * @return An array of {@code long} values, where each element corresponds to the number of
+     *         instances of the class at the same index in the {@code classes} list.
+     *         The returned array will have the same length as the input {@code classes} array.
+     *         If the system is under memory pressure and unable to allocate the return array a
+     *         empty array will be returned.
+     */
+    @FlaggedApi(Flags.FLAG_COUNT_CLASS_INSTANCES_API)
+    public static @NonNull long[] getInstanceCounts(@NonNull List<Class> classes) {
+        return getInstanceCounts(classes, true);
+    }
+
+    /**
+     * Counts the number of instances of the specified class.
+     *
+     * <p><b>Warning:</b> This operation can be expensive, as it may involve traversing portions
+     * of the Java heap. It is primarily intended for debugging purposes and should not be used in
+     * performance-critical code.
+     *
+     * <p>It's intended to help developers identify object leaks or to validate
+     * the number of instances of a specific class during development.
+     *
+     * <p>It is the caller's responsibility to do GC if they don't want unreachable
+     * objects to get counted.
+     *
+     * @param cls {@link Class} the class to count instances of.
+     * @param includeAssignable if true, any instance whose class is assignable to
+     *                   {@code cls}, as defined by {@link Class#isAssignableFrom},
+     *                   is counted. If false, only instances whose class is
+     *                   equal to {@code cls} are counted.
+     *
+     * @return the number of matching instances.
+     *
+     */
+    @FlaggedApi(Flags.FLAG_COUNT_CLASS_INSTANCES_API)
+    public static long getInstanceCount(@NonNull Class cls, boolean includeAssignable) {
+        return VMDebug.countInstancesOfClass(cls, includeAssignable);
+    }
+
+    /**
+     * Counts the number of instances of the specified classes.
+     *
+     * <p><b>Warning:</b> This operation can be expensive, as it may involve traversing portions
+     * of the Java heap. It is primarily intended for debugging purposes and should not be used in
+     * performance-critical code.
+     *
+     * <p>It's intended to help developers identify object leaks or to validate
+     * the number of instances of a specific class during development.
+     *
+     * <p>It is the caller's responsibility to do GC if they don't want unreachable
+     * objects to get counted.
+     *
+     * @param classes An array of {@link Class} objects representing the classes to count instances
+     *                of. Must not be null.
+     * @param includeAssignable if true, any instance whose class is assignable to
+     *                   {@code cls}, as defined by {@link Class#isAssignableFrom},
+     *                   is counted. If false, only instances whose class is
+     *                   equal to {@code cls} are counted.
+     *
+     * @return An array of {@code long} values, where each element corresponds to the number of
+     *         instances of the class at the same index in the {@code classes} list.
+     *         The returned array will have the same length as the input {@code classes} array.
+     *         If the system is under memory pressure and unable to allocate the return array a
+     *         empty array will be returned.
+     */
+    @FlaggedApi(Flags.FLAG_COUNT_CLASS_INSTANCES_API)
+    public static @NonNull long[] getInstanceCounts(@NonNull List<Class> classes,
+            boolean includeAssignable) {
+        long[] instanceCount =
+                VMDebug.countInstancesOfClasses(classes.toArray(new Class[0]), includeAssignable);
+        if (instanceCount != null) {
+            return instanceCount;
+        }
+        return EMPTY_COUNT_CLASS_INSTANCES;
     }
 
     /**
@@ -2493,7 +2616,7 @@ public final class Debug
      * These properties are only set during platform debugging, and are not
      * meant to be used as a general-purpose properties store.
      *
-     * {@hide}
+     * @hide
      *
      * @param cl The class to (possibly) modify
      * @param partial If false, sets all static fields, otherwise, only set
@@ -2617,7 +2740,7 @@ public final class Debug
      * Return a string consisting of methods and locations at multiple call stack levels.
      * @param depth the number of levels to return, starting with the immediate caller.
      * @return a string describing the call stack.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public static String getCallers(final int depth) {
@@ -2633,7 +2756,7 @@ public final class Debug
      * Return a string consisting of methods and locations at multiple call stack levels.
      * @param depth the number of levels to return, starting with the immediate caller.
      * @return a string describing the call stack.
-     * {@hide}
+     * @hide
      */
     public static String getCallers(final int start, int depth) {
         final StackTraceElement[] callStack = Thread.currentThread().getStackTrace();
@@ -2651,7 +2774,7 @@ public final class Debug
      * @param depth the number of levels to return, starting with the immediate caller.
      * @param linePrefix prefix to put in front of each location.
      * @return a string describing the call stack.
-     * {@hide}
+     * @hide
      */
     public static String getCallers(final int depth, String linePrefix) {
         final StackTraceElement[] callStack = Thread.currentThread().getStackTrace();
@@ -2664,7 +2787,7 @@ public final class Debug
 
     /**
      * @return a String describing the immediate caller of the calling method.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public static String getCaller() {

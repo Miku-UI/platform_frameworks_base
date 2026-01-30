@@ -1,0 +1,159 @@
+# Copyright (C) 2025 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The metric tracks work done during region sampling in captureSample.
+# Instead of tracking the complete captureSample slice, a more accurate representation of the flow is
+# to measure the duration from the start of the drawLayers slice in the RE thread, till the end of the
+# waitForever slice in the RegionSampling track.
+
+# SQL query to retrieve details about various CUJs, including their unique IDs, names, timestamps and their durations.
+query: {
+    id: "sf_region_sampling_cujs"
+    table: {
+        table_name: "android_jank_latency_cujs"
+        module_name: "android.cujs.sysui_cujs"
+        column_names: "cuj_name"
+        column_names: "ts"
+        column_names: "dur"
+        column_names: "cuj_id"
+    }
+    select_columns: { column_name: "cuj_name" }
+    select_columns: { column_name: "dur" }
+    select_columns: { column_name: "cuj_id" alias: "id" }
+    select_columns: { column_name: "ts" }
+}
+
+# This query measures the time elapsed from the beginning of the drawLayersInternal for
+# RegionSampling event on the RenderEngine thread to the end of the waitForever event on the
+# RegionSampling thread.
+
+# drawLayersSliceTable selects all drawLayersInternal for RegionSampling events from RenderEngine
+# thread. It assigns a row number (ts_id) to each event based on its timestamp to allow for a
+# one-to-one correlation with events in other threads. This table serves as the starting point for
+# duration calculation.
+
+# waitForeverSliceTable selects all waitForever events from threads named RegionSampling. It also
+# assigns a row number (ts_id) to each event based on its timestamp, which is used to match with the
+# corresponding drawLayers event. This table provides the end point for duration calculation.
+
+query: {
+    id: "drawLayersInternal_to_waitForever_duration"
+    sql: {
+        column_names: "id"
+        column_names: "ts"
+        column_names: "ts_end"
+        column_names: "dur"
+        sql: "
+        WITH drawLayersTable AS (
+            SELECT
+                ROW_NUMBER() OVER (ORDER BY s.ts ASC) AS ts_id,
+                s.ts,
+                s.ts + s.dur AS ts_end
+            FROM
+                slice AS s
+            WHERE
+                -- TODO(b/441024983) : Replace with a perfetto stdlib function like is_render_engine_thread_track(track_id).
+                s.track_id IN (
+                    SELECT id
+                    FROM thread_track
+                    WHERE utid IN (
+                        SELECT id
+                        FROM thread
+                        WHERE name = 'RenderEngine'
+                    )
+                )
+                AND s.name LIKE 'drawLayersInternal for RegionSampling%'
+            ORDER BY
+                s.ts ASC
+        ),
+        waitForeverTable AS (
+            SELECT
+                ROW_NUMBER() OVER (ORDER BY s.ts ASC) AS ts_id,
+                s.ts,
+                s.ts + s.dur AS ts_end
+            FROM
+                slice AS s
+            WHERE
+                -- TODO(b/441025041) : Replace with a perfetto stdlib function like is_region_sampling_thread_track(track_id).
+                s.track_id IN (
+                    SELECT id
+                    FROM thread_track
+                    WHERE utid IN (
+                        SELECT id
+                        FROM thread
+                        WHERE name = 'RegionSampling'
+                    )
+                )
+                AND s.name = 'waitForever'
+            ORDER BY
+                s.ts ASC
+        )
+
+        /* Join 'drawLayersTable' and 'waitForeverTable' on their common ID 'ts_id' and pick ts of
+           drawLayers event which marks the starting of the region sampling duration and ts_end of
+           waitForever event which marks the ending of the region sampling duration. */
+
+        SELECT
+            d.ts_id as id,
+            d.ts AS ts,
+            w.ts_end AS ts_end,
+            w.ts_end - d.ts AS dur
+        FROM
+            drawLayersTable AS d
+        JOIN
+            waitForeverTable AS w
+        ON
+            d.ts_id = w.ts_id
+        "
+    }
+}
+
+# Define the TraceMetricV2TemplateSpec to generate these aggregates as 3 metrics with cuj_name as dimensions.
+# The spec uses interval_intersect to ensure the metrics are CUJ scoped.
+
+metric_template_spec: {
+    id_prefix: "android_sf_critical_work_region_sampling_cuj"
+    dimensions: "cuj_name"
+    value_columns: "max_dur"
+    value_columns: "avg_dur"
+    value_columns: "count"
+    query: {
+        interval_intersect: {
+            base: {
+                inner_query_id: "drawLayersInternal_to_waitForever_duration"
+            }
+            interval_intersect: {
+                inner_query_id: "sf_region_sampling_cujs"
+            }
+        }
+        group_by: {
+            column_names: "cuj_name"
+            aggregates: {
+              column_name: "dur"
+              op: MAX
+              result_column_name: "max_dur"
+            }
+            aggregates: {
+              column_name: "dur"
+              op: MEAN
+              result_column_name: "avg_dur"
+            }
+            aggregates: {
+              column_name: "id"
+              op: COUNT
+              result_column_name: "count"
+            }
+        }
+    }
+}

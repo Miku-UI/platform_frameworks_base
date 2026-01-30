@@ -50,6 +50,7 @@ struct AnnotationRule {
     kSystemApi = 0x02,
     kTestApi = 0x04,
     kFlaggedApi = 0x08,
+    kHide = 0x10,
   };
 
   StringPiece doc_str;
@@ -58,10 +59,11 @@ struct AnnotationRule {
   bool preserve_params;
 };
 
-static std::array<AnnotationRule, 3> sAnnotationRules = {{
+static std::array<AnnotationRule, 4> sAnnotationRules = {{
     {"@SystemApi", AnnotationRule::kSystemApi, "@android.annotation.SystemApi", true},
     {"@TestApi", AnnotationRule::kTestApi, "@android.annotation.TestApi", false},
     {"@FlaggedApi", AnnotationRule::kFlaggedApi, "@android.annotation.FlaggedApi", true},
+    {"@hide", AnnotationRule::kHide, "@android.annotation.Hide", false},
 }};
 
 void AnnotationProcessor::AppendCommentLine(std::string comment, bool add_api_annotations) {

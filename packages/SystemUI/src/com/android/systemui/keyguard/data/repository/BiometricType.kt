@@ -29,5 +29,8 @@ enum class BiometricType(val isFingerprint: Boolean) {
 
     // Fingerprint sensor that is located on the side of the device, typically on the power button
     SIDE_FINGERPRINT(true),
+
+    // Fingerprint sensor with unknown location
+    OTHER_FINGERPRINT(true),
     FACE(false),
 }

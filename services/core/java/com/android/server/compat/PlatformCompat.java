@@ -77,6 +77,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
     private final CompatConfig mCompatConfig;
     private final AndroidBuildClassifier mBuildClassifier;
     private Boolean mIsWear;
+    private Boolean mLogChangeChecksToStatsD = false;
 
     public PlatformCompat(Context context) {
         super(PermissionEnforcer.fromContext(context));
@@ -103,11 +104,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
     @EnforcePermission(LOG_COMPAT_CHANGE)
     public void reportChange(long changeId, ApplicationInfo appInfo) {
         super.reportChange_enforcePermission();
-        reportChangeInternal(
-                changeId,
-                appInfo.uid,
-                appInfo.isSystemApp(),
-                ChangeReporter.STATE_LOGGED);
+        isChangeEnabledAndReportInternal(changeId, appInfo, true);
     }
 
     @Override
@@ -118,11 +115,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
 
         ApplicationInfo appInfo = getApplicationInfo(packageName, userId);
         if (appInfo != null) {
-            reportChangeInternal(
-                    changeId,
-                    appInfo.uid,
-                    appInfo.isSystemApp(),
-                    ChangeReporter.STATE_LOGGED);
+            isChangeEnabledAndReportInternal(changeId, appInfo, true);
         }
     }
 
@@ -131,19 +124,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
     public void reportChangeByUid(long changeId, int uid) {
         super.reportChangeByUid_enforcePermission();
 
-        reportChangeInternal(changeId, uid, false, ChangeReporter.STATE_LOGGED);
-    }
-
-    /**
-     * Report the change, but skip over the sdk target version check. This can be used to force the
-     * debug logs.
-     *
-     * @param changeId        of the change to report
-     * @param uid             of the user
-     * @param state           of the change - enabled/disabled/logged
-     */
-    private void reportChangeInternal(long changeId, int uid, boolean isKnownSystemApp, int state) {
-        mChangeReporter.reportChange(uid, changeId, state, isKnownSystemApp, true);
+        isChangeEnabledByUidInternal(changeId, uid, true);
     }
 
     @Override
@@ -151,7 +132,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
     public boolean isChangeEnabled(long changeId, ApplicationInfo appInfo) {
         super.isChangeEnabled_enforcePermission();
 
-        return isChangeEnabledInternal(changeId, appInfo);
+        return isChangeEnabledAndReportInternal(changeId, appInfo, mLogChangeChecksToStatsD);
     }
 
     @Override
@@ -164,7 +145,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
         if (appInfo == null) {
             return mCompatConfig.willChangeBeEnabled(changeId, packageName);
         }
-        return isChangeEnabledInternal(changeId, appInfo);
+        return isChangeEnabledAndReportInternal(changeId, appInfo, mLogChangeChecksToStatsD);
     }
 
     @Override
@@ -172,7 +153,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
     public boolean isChangeEnabledByUid(long changeId, int uid) {
         super.isChangeEnabledByUid_enforcePermission();
 
-        return isChangeEnabledByUidInternal(changeId, uid);
+        return isChangeEnabledByUidInternal(changeId, uid, mLogChangeChecksToStatsD);
     }
 
     /**
@@ -190,11 +171,14 @@ public class PlatformCompat extends IPlatformCompat.Stub {
      * is not null, also reports the change.
      *
      * @param changeId of the change to report
-     * @param appInfo  the app to check
+     * @param appInfo the app to check
+     * @param isReportRequested whether this is being specifically logged as a change report (ie
+     *     reportChange, rather than isEnabled).
      *
      * <p>Does not perform costly permission check.
      */
-    public boolean isChangeEnabledInternal(long changeId, ApplicationInfo appInfo) {
+    public boolean isChangeEnabledAndReportInternal(
+            long changeId, ApplicationInfo appInfo, boolean isReportRequested) {
         // Fetch the CompatChange. This is done here instead of in mCompatConfig to avoid multiple
         // fetches.
         CompatChange c = mCompatConfig.getCompatChange(changeId);
@@ -204,11 +188,14 @@ public class PlatformCompat extends IPlatformCompat.Stub {
         if (appInfo != null) {
             boolean isTargetingLatestSdk =
                     mCompatConfig.isChangeTargetingLatestSdk(c, appInfo.targetSdkVersion);
-            mChangeReporter.reportChange(appInfo.uid,
-                    changeId,
-                    state,
-                    appInfo.isSystemApp(),
-                    isTargetingLatestSdk);
+            if (isTargetingLatestSdk || isReportRequested) {
+                mChangeReporter.reportChange(
+                        appInfo.uid,
+                        changeId,
+                        state,
+                        appInfo.isSystemApp(),
+                        isReportRequested);
+            }
         }
         return enabled;
     }
@@ -240,7 +227,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
      *
      * <p>Does not perform costly permission check.
      */
-    public boolean isChangeEnabledByUidInternal(long changeId, int uid) {
+    public boolean isChangeEnabledByUidInternal(long changeId, int uid, boolean isChangeReport) {
         String[] packages = mContext.getPackageManager().getPackagesForUid(uid);
         if (packages == null || packages.length == 0) {
             return mCompatConfig.defaultChangeIdValue(changeId);
@@ -250,7 +237,7 @@ public class PlatformCompat extends IPlatformCompat.Stub {
         for (String packageName : packages) {
             final var appInfo =
                 fixTargetSdk(getApplicationInfo(packageName, userId), uid);
-            enabled &= isChangeEnabledInternal(changeId, appInfo);
+            enabled &= isChangeEnabledAndReportInternal(changeId, appInfo, isChangeReport);
         }
         return enabled;
     }
@@ -388,6 +375,15 @@ public class PlatformCompat extends IPlatformCompat.Stub {
         super.clearOverrideForTest_enforcePermission();
 
         return mCompatConfig.removeOverride(changeId, packageName);
+    }
+
+    @Override
+    public void setLogChangeChecksToStatsd(boolean value) {
+        mLogChangeChecksToStatsD = value;
+    }
+
+    public boolean isLogChangeChecksToStatsd() {
+        return mLogChangeChecksToStatsD;
     }
 
     @Override

@@ -993,40 +993,6 @@ public abstract class IPackageManagerBase extends IPackageManager.Stub {
         return snapshot().isUidPrivileged(uid);
     }
 
-    /**
-     * Ask the package manager to perform a dex-opt with the given compiler filter.
-     * <p>
-     * Note: exposed only for the shell command to allow moving packages explicitly to a definite
-     * state.
-     */
-    @Override
-    @Deprecated
-    public final boolean performDexOptMode(String packageName,
-            boolean checkProfiles, String targetCompilerFilter, boolean force,
-            boolean bootComplete, String splitName) {
-        final Computer snapshot = snapshot();
-        if (!checkProfiles) {
-            // There is no longer a flag to skip profile checking.
-            Log.w(PackageManagerService.TAG, "Ignored checkProfiles=false flag");
-        }
-        return mDexOptHelper.performDexOptMode(
-                snapshot, packageName, targetCompilerFilter, force, bootComplete, splitName);
-    }
-
-    /**
-     * Ask the package manager to perform a dex-opt with the given compiler filter on the secondary
-     * dex files belonging to the given package.
-     * <p>
-     * Note: exposed only for the shell command to allow moving packages explicitly to a definite
-     * state.
-     */
-    @Override
-    @Deprecated
-    public final boolean performDexOptSecondary(String packageName, String compilerFilter,
-            boolean force) {
-        return mDexOptHelper.performDexOptSecondary(packageName, compilerFilter, force);
-    }
-
     @Override
     @Deprecated
     public final @NonNull

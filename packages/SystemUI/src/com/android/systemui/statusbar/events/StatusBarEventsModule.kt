@@ -34,6 +34,13 @@ interface StatusBarEventsModule {
         fun provideSystemStatusAnimationSchedulerLogBuffer(factory: LogBufferFactory): LogBuffer {
             return factory.create("SystemStatusAnimationSchedulerLog", 60)
         }
+
+        @Provides
+        @SysUISingleton
+        @SystemEventCoordinatorLog
+        fun provideSystemEventCoordinatorLogBuffer(factory: LogBufferFactory): LogBuffer {
+            return factory.create("SystemEventCoordinatorLog", 60)
+        }
     }
 
     @Binds

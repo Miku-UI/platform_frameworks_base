@@ -15,9 +15,9 @@
 
 #
 # Use "ravehleper mm" to create a shell script which:
-# - Reads read a list of methods from STDIN
+# - Reads a list of methods from STDIN
 #   Which basically looks like a list of 'com.android.ravenwoodtest.tests.Test1#testA'
-# - Add @DisabledOnRavenwood to them
+# - Adds @DisabledOnRavenwood to them
 #
 # Example usage:
 #
@@ -54,16 +54,6 @@ OUT_SCRIPT="${OUT_SCRIPT:-/tmp/add-annotations.sh}"
 
 rm -f "$OUT_SCRIPT"
 
-
-with_flag() {
-    local flag="$1"
-    shift
-
-    for arg in "$@"; do
-        echo "$flag $arg"
-    done
-}
-
 run() {
     echo "Running: $*"
     "$@"
@@ -72,7 +62,7 @@ run() {
 run ${RAVENHELPER_CMD:-ravenhelper mm} \
     --output-script $OUT_SCRIPT \
     --text "$annotation" \
-    $(with_flag --src $source_dirs)
+    "${source_dirs[@]}"
 
 
 if ! [[ -f $OUT_SCRIPT ]] ; then

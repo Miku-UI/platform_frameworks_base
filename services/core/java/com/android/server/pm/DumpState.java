@@ -37,7 +37,6 @@ public final class DumpState {
     public static final int DUMP_DOMAIN_PREFERRED = 1 << 18;
     public static final int DUMP_FROZEN = 1 << 19;
     public static final int DUMP_DEXOPT = 1 << 20;
-    public static final int DUMP_COMPILER_STATS = 1 << 21;
     public static final int DUMP_CHANGES = 1 << 22;
     public static final int DUMP_VOLUMES = 1 << 23;
     public static final int DUMP_SERVICE_PERMISSIONS = 1 << 24;

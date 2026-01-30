@@ -19,21 +19,25 @@ package com.android.wm.shell.transition;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_RECENTS;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
-import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_PIP;
 import static android.window.TransitionInfo.FLAG_IN_TASK_WITH_EMBEDDED_ACTIVITY;
 
 import static com.android.wm.shell.shared.TransitionUtil.isOpeningType;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityManager;
 import android.app.PendingIntent;
 import android.os.IBinder;
+import android.os.RemoteException;
 import android.util.ArrayMap;
+import android.util.Log;
 import android.util.Pair;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
+import android.window.RemoteTransition;
 import android.window.TransitionInfo;
 import android.window.TransitionRequestInfo;
 import android.window.WindowContainerToken;
@@ -42,6 +46,7 @@ import android.window.WindowContainerTransaction;
 import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.activityembedding.ActivityEmbeddingController;
+import com.android.wm.shell.bubbles.BubbleTransitions;
 import com.android.wm.shell.common.ComponentUtils;
 import com.android.wm.shell.desktopmode.DesktopTasksController;
 import com.android.wm.shell.keyguard.KeyguardTransitionHandler;
@@ -49,11 +54,15 @@ import com.android.wm.shell.pip.PipTransitionController;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.recents.RecentsTransitionHandler;
 import com.android.wm.shell.shared.TransitionUtil;
+import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper;
+import com.android.wm.shell.shared.pip.PipFlags;
 import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.splitscreen.StageCoordinator;
 import com.android.wm.shell.sysui.ShellInit;
 import com.android.wm.shell.unfold.UnfoldTransitionHandler;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Optional;
@@ -73,10 +82,14 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
     private StageCoordinator mSplitHandler;
     private final KeyguardTransitionHandler mKeyguardHandler;
     private DesktopTasksController mDesktopTasksController;
+    private BubbleTransitions mBubbleTransitions;
     private UnfoldTransitionHandler mUnfoldHandler;
     private ActivityEmbeddingController mActivityEmbeddingController;
 
     abstract static class MixedTransition {
+
+        // Mixed transition types
+
         /** Entering Pip from split, breaks split. */
         static final int TYPE_ENTER_PIP_FROM_SPLIT = 1;
 
@@ -116,6 +129,45 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
         /** Open transition during a desktop session. */
         static final int TYPE_OPEN_IN_DESKTOP = 12;
 
+        /** Transition of a visible app into a bubble. */
+        static final int TYPE_LAUNCH_OR_CONVERT_TO_BUBBLE = 13;
+
+        /** Transition of a visible app in a split pair into a bubble. */
+        static final int TYPE_LAUNCH_OR_CONVERT_SPLIT_TASK_TO_BUBBLE = 14;
+
+        /** Transition of a visible app in Pip into a bubble. */
+        static final int TYPE_LAUNCH_OR_CONVERT_PIP_TASK_TO_BUBBLE = 15;
+
+        /**
+         * Transition of a visible app into a bubble when launched from another bubble or for an
+         * existing bubble.
+         */
+        static final int TYPE_LAUNCH_OR_CONVERT_TO_BUBBLE_FROM_EXISTING_BUBBLE = 16;
+
+        @IntDef(prefix = {"TYPE_"}, value = {
+                TYPE_ENTER_PIP_FROM_SPLIT,
+                TYPE_DISPLAY_AND_SPLIT_CHANGE,
+                TYPE_OPTIONS_REMOTE_AND_PIP_OR_DESKTOP_CHANGE,
+                TYPE_RECENTS_DURING_SPLIT,
+                TYPE_KEYGUARD,
+                TYPE_RECENTS_DURING_KEYGUARD,
+                TYPE_RECENTS_DURING_DESKTOP,
+                TYPE_UNFOLD,
+                TYPE_ENTER_PIP_FROM_ACTIVITY_EMBEDDING,
+                TYPE_ENTER_PIP_REPLACE_FROM_SPLIT,
+                TYPE_ENTER_PIP_WITH_DISPLAY_CHANGE,
+                TYPE_OPEN_IN_DESKTOP,
+                TYPE_LAUNCH_OR_CONVERT_TO_BUBBLE,
+                TYPE_LAUNCH_OR_CONVERT_SPLIT_TASK_TO_BUBBLE,
+                TYPE_LAUNCH_OR_CONVERT_PIP_TASK_TO_BUBBLE,
+                TYPE_LAUNCH_OR_CONVERT_TO_BUBBLE_FROM_EXISTING_BUBBLE,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        @interface MixedTransitionType {
+        }
+
+        // Mixed transition sub-animation types
+
         /** The default animation for this mixed transition. */
         static final int ANIM_TYPE_DEFAULT = 0;
 
@@ -123,9 +175,19 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
         static final int ANIM_TYPE_GOING_HOME = 1;
 
         /** For RECENTS_DURING_SPLIT, is set when this turns into a pair->pair task switch. */
-        static final int ANIM_TYPE_PAIR_TO_PAIR = 1;
+        static final int ANIM_TYPE_PAIR_TO_PAIR = 2;
 
+        @IntDef(prefix = {"ANIM_TYPE_"}, value = {
+                ANIM_TYPE_DEFAULT,
+                ANIM_TYPE_GOING_HOME,
+                ANIM_TYPE_PAIR_TO_PAIR,
+        })
+        @interface SubAnimationType {
+        }
+
+        @MixedTransitionType
         final int mType;
+        @SubAnimationType
         int mAnimType = ANIM_TYPE_DEFAULT;
         final IBinder mTransition;
 
@@ -155,7 +217,7 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
          */
         int mInFlightSubAnimations = 0;
 
-        MixedTransition(int type, IBinder transition, Transitions player,
+        MixedTransition(@MixedTransitionType int type, IBinder transition, Transitions player,
                 MixedTransitionHandler mixedHandler, PipTransitionController pipHandler,
                 StageCoordinator splitHandler, KeyguardTransitionHandler keyguardHandler) {
             mType = type;
@@ -235,11 +297,11 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
             KeyguardTransitionHandler keyguardHandler,
             Optional<DesktopTasksController> desktopTasksControllerOptional,
             Optional<UnfoldTransitionHandler> unfoldHandler,
-            Optional<ActivityEmbeddingController> activityEmbeddingController) {
+            Optional<ActivityEmbeddingController> activityEmbeddingController,
+            BubbleTransitions bubbleTransitions) {
         mPlayer = player;
         mKeyguardHandler = keyguardHandler;
-        if (Transitions.ENABLE_SHELL_TRANSITIONS
-                && pipTransitionController != null
+        if (pipTransitionController != null
                 && splitScreenControllerOptional.isPresent()) {
             // Add after dependencies because it is higher priority
             shellInit.addInitCallback(() -> {
@@ -257,6 +319,7 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
                 mDesktopTasksController = desktopTasksControllerOptional.orElse(null);
                 mUnfoldHandler = unfoldHandler.orElse(null);
                 mActivityEmbeddingController = activityEmbeddingController.orElse(null);
+                mBubbleTransitions = bubbleTransitions;
             }, this);
         }
     }
@@ -265,6 +328,55 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
     @Override
     public WindowContainerTransaction handleRequest(@NonNull IBinder transition,
             @NonNull TransitionRequestInfo request) {
+        // Transitions involving a task that is being bubbled
+        if (requestHasBubbleEnter(request)) {
+            consumeRemoteTransitionIfNecessary(transition, request.getRemoteTransition());
+
+            if (mSplitHandler.requestImpliesSplitToBubble(request.getTriggerTask())) {
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                        " Got a Bubble-enter request from a split task");
+                mBubbleTransitions.storePendingEnterTransition(transition, request);
+                mActiveTransitions.add(createDefaultMixedTransition(
+                        MixedTransition.TYPE_LAUNCH_OR_CONVERT_SPLIT_TASK_TO_BUBBLE, transition));
+
+                WindowContainerTransaction out = new WindowContainerTransaction();
+                mSplitHandler.addExitForBubblesIfNeeded(request, out);
+                return out;
+            } else if (request.getTriggerTask() != null
+                    && mPipHandler.isTaskActiveInPip(request.getTriggerTask().taskId)) {
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                        " Got a Bubble-enter request from a pip task");
+                mBubbleTransitions.storePendingEnterTransition(transition, request);
+                mActiveTransitions.add(createDefaultMixedTransition(
+                        MixedTransition.TYPE_LAUNCH_OR_CONVERT_PIP_TASK_TO_BUBBLE, transition));
+                return new WindowContainerTransaction();
+            } else {
+                // This check should happen after we've checked for split + bubble enter
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                        " Got a Bubble-enter request");
+                mBubbleTransitions.storePendingEnterTransition(transition, request);
+                mActiveTransitions.add(createDefaultMixedTransition(
+                        MixedTransition.TYPE_LAUNCH_OR_CONVERT_TO_BUBBLE, transition));
+                return new WindowContainerTransaction();
+            }
+        } else if (requestHasBubbleEnterFromAppBubbleOrExistingBubble(request)) {
+            consumeRemoteTransitionIfNecessary(transition, request.getRemoteTransition());
+
+            if (mSplitHandler.requestImpliesSplitToBubble(request.getTriggerTask())) {
+                // TODO: Handle from split
+            } else {
+                // Note: This will currently "intercept" launches even while the bubble is collapsed
+                // but we will not actually play any animation in DefaultMixedTransition unless the
+                // launch contains an appBubble task as well
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, " Got a Bubble-enter request "
+                        + "from an app bubble or for an existing bubble");
+                mActiveTransitions.add(createDefaultMixedTransition(
+                        MixedTransition.TYPE_LAUNCH_OR_CONVERT_TO_BUBBLE_FROM_EXISTING_BUBBLE,
+                        transition));
+                return new WindowContainerTransaction();
+            }
+        }
+
         if (mSplitHandler.requestImpliesSplitToPip(request)) {
             ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, " Got a PiP-enter request while "
                     + "Split-Screen is active, so treat it as Mixed.");
@@ -277,7 +389,10 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
 
             WindowContainerTransaction out = new WindowContainerTransaction();
             mPipHandler.augmentRequest(transition, request, out);
-            mSplitHandler.addEnterOrExitIfNeeded(request, out);
+            if (PipFlags.isPip2ExperimentEnabled() && mSplitHandler.isSplitScreenVisible()) {
+                mSplitHandler.removePipFromSplitIfNeeded(request, out);
+            }
+            mSplitHandler.addEnterOrExitForPipIfNeeded(request, out);
             return out;
         } else if (request.getType() == TRANSIT_PIP
                 && (request.getFlags() & FLAG_IN_TASK_WITH_EMBEDDED_ACTIVITY) != 0 && (
@@ -331,7 +446,8 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
                         new WindowContainerTransaction());
             }
             final MixedTransition mixed = createRecentsMixedTransition(
-                    MixedTransition.TYPE_RECENTS_DURING_SPLIT, transition);
+                    MixedTransition.TYPE_RECENTS_DURING_SPLIT, transition,
+                    request.getTriggerTask().displayId);
             mixed.mLeftoversHandler = handler.first;
             mActiveTransitions.add(mixed);
             return handler.second;
@@ -341,6 +457,7 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
             if (wct != null) {
                 mActiveTransitions.add(createDefaultMixedTransition(
                         MixedTransition.TYPE_UNFOLD, transition));
+                mBubbleTransitions.notifyUnfoldTransitionStarting(transition);
             }
             return wct;
         } else if (mDesktopTasksController != null
@@ -361,24 +478,30 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
         return null;
     }
 
-    private DefaultMixedTransition createDefaultMixedTransition(int type, IBinder transition) {
+    private DefaultMixedTransition createDefaultMixedTransition(
+            @MixedTransition.MixedTransitionType int type, IBinder transition) {
         return new DefaultMixedTransition(
                 type, transition, mPlayer, this, mPipHandler, mSplitHandler, mKeyguardHandler,
-                mUnfoldHandler, mActivityEmbeddingController, mDesktopTasksController);
+                mUnfoldHandler, mActivityEmbeddingController, mDesktopTasksController,
+                mBubbleTransitions);
     }
 
     @Override
-    public Consumer<IBinder> handleRecentsRequest() {
+    public Consumer<IBinder> handleRecentsRequest(int displayId) {
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                " handleRecentsRequest displayId=%d deskActive=%b",
+                displayId,
+                mDesktopTasksController != null && mDesktopTasksController.isAnyDeskActive(
+                        displayId));
         if (mRecentsHandler != null) {
             if (mSplitHandler.isSplitScreenVisible()) {
-                return this::setRecentsTransitionDuringSplit;
+                return transition -> setRecentsTransitionDuringSplit(transition, displayId);
             } else if (mKeyguardHandler.isKeyguardShowing()
                     && !mKeyguardHandler.isKeyguardAnimating()) {
-                return this::setRecentsTransitionDuringKeyguard;
+                return transition -> setRecentsTransitionDuringKeyguard(transition, displayId);
             } else if (mDesktopTasksController != null
-                    // Check on the default display. Recents/gesture nav is only available there
-                    && mDesktopTasksController.isAnyDeskActive(DEFAULT_DISPLAY)) {
-                return this::setRecentsTransitionDuringDesktop;
+                    && mDesktopTasksController.isAnyDeskActive(displayId)) {
+                return transition -> setRecentsTransitionDuringDesktop(transition, displayId);
             }
         }
         return null;
@@ -402,30 +525,32 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
         }
     }
 
-    private void setRecentsTransitionDuringSplit(IBinder transition) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, " Got a recents request while "
-                + "Split-Screen is foreground, so treat it as Mixed.");
+    private void setRecentsTransitionDuringSplit(IBinder transition, int displayId) {
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                " Got a recents request while Split-Screen is foreground, so treat it as Mixed.");
         mActiveTransitions.add(createRecentsMixedTransition(
-                MixedTransition.TYPE_RECENTS_DURING_SPLIT, transition));
+                MixedTransition.TYPE_RECENTS_DURING_SPLIT, transition, displayId));
     }
 
-    private void setRecentsTransitionDuringKeyguard(IBinder transition) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, " Got a recents request while "
-                + "keyguard is visible, so treat it as Mixed.");
+    private void setRecentsTransitionDuringKeyguard(IBinder transition, int displayId) {
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                " Got a recents request while keyguard is visible, so treat it as Mixed.");
         mActiveTransitions.add(createRecentsMixedTransition(
-                MixedTransition.TYPE_RECENTS_DURING_KEYGUARD, transition));
+                MixedTransition.TYPE_RECENTS_DURING_KEYGUARD, transition, displayId));
     }
 
-    private void setRecentsTransitionDuringDesktop(IBinder transition) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, " Got a recents request while "
-                + "desktop mode is active, so treat it as Mixed.");
+    private void setRecentsTransitionDuringDesktop(IBinder transition, int displayId) {
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                " Got a recents request while desktop mode is active, so treat it as Mixed.");
         mActiveTransitions.add(createRecentsMixedTransition(
-                MixedTransition.TYPE_RECENTS_DURING_DESKTOP, transition));
+                MixedTransition.TYPE_RECENTS_DURING_DESKTOP, transition, displayId));
     }
 
-    private MixedTransition createRecentsMixedTransition(int type, IBinder transition) {
+    private MixedTransition createRecentsMixedTransition(int type, IBinder transition,
+            int displayId) {
         return new RecentsMixedTransition(type, transition, mPlayer, this, mPipHandler,
-                mSplitHandler, mKeyguardHandler, mRecentsHandler, mDesktopTasksController);
+                mSplitHandler, mKeyguardHandler, mRecentsHandler, mDesktopTasksController,
+                displayId);
     }
 
     static TransitionInfo subCopy(@NonNull TransitionInfo info,
@@ -455,6 +580,24 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
             if (mActiveTransitions.get(i).mTransition != transition) continue;
             mixed = mActiveTransitions.get(i);
             break;
+        }
+
+        // If there was no requested transition but the transition includes an opening bubble task
+        // then handle it here now
+        TransitionInfo.Change bubbleChange =
+                transitionHasBubbleEnterFromAppBubbleOrExistingBubble(info);
+        if (mixed == null && bubbleChange != null) {
+            if (mSplitHandler.requestImpliesSplitToBubble(bubbleChange.getTaskInfo())) {
+                // TODO: Handle from split
+            } else {
+                // Add a mixed transition
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, " Got a Bubble-enter "
+                        + "transition from an app bubble or for an existing bubble");
+                mixed = createDefaultMixedTransition(
+                        MixedTransition.TYPE_LAUNCH_OR_CONVERT_TO_BUBBLE_FROM_EXISTING_BUBBLE,
+                        transition);
+                mActiveTransitions.add(mixed);
+            }
         }
 
         // Offer Keyguard the opportunity to take over lock transitions - ideally we could know by
@@ -609,6 +752,7 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
         // In order to play display level animation, force the type to CHANGE (it could be PIP).
         final TransitionInfo changeInfo = info.getType() != TRANSIT_CHANGE
                 ? subCopy(info, TRANSIT_CHANGE, true /* withChanges */) : info;
+        changeInfo.getChanges().remove(pipChange);
         final MixedTransition mixed = createDefaultMixedTransition(
                 MixedTransition.TYPE_ENTER_PIP_WITH_DISPLAY_CHANGE, transition);
         mActiveTransitions.add(mixed);
@@ -688,6 +832,59 @@ public class DefaultMixedHandler implements MixedTransitionHandler,
     public boolean isEnteringPip(TransitionInfo.Change change,
             @WindowManager.TransitionType int transitType) {
         return mPipHandler.isEnteringPip(change, transitType);
+    }
+
+    /**
+     * Returns whether the given request for a launching bubble and should be handled by the
+     * bubbles transition.
+     */
+    public boolean requestHasBubbleEnter(@NonNull TransitionRequestInfo request) {
+        return BubbleAnythingFlagHelper.enableCreateAnyBubble()
+                && request.getTriggerTask() != null
+                && mBubbleTransitions.hasPendingEnterTransition(request);
+    }
+
+    /**
+     * Returns whether the given request for a launching task is from an app bubble or for an
+     * existing bubble and should be handled by the bubbles transition.
+     */
+    public boolean requestHasBubbleEnterFromAppBubbleOrExistingBubble(
+            @NonNull TransitionRequestInfo request) {
+        return BubbleAnythingFlagHelper.enableCreateAnyBubble()
+                && request.getTriggerTask() != null
+                && mBubbleTransitions.shouldBeAppBubble(request.getTriggerTask());
+    }
+
+    /**
+     * Returns the associated change for the bubbled task in the given started transition if it is
+     * from an app bubble or for an existing bubble and should be handled by the bubbles transition
+     */
+    public TransitionInfo.Change transitionHasBubbleEnterFromAppBubbleOrExistingBubble(
+            @NonNull TransitionInfo info) {
+        if (!BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+            return null;
+        }
+        final TransitionInfo.Change change = mBubbleTransitions.getEnterBubbleTask(info);
+        if (!com.android.wm.shell.Flags.fixTaskViewRotationAnimation()) {
+            return change;
+        }
+        return change != null && TransitionUtil.isOpeningMode(change.getMode()) ? change : null;
+    }
+
+    /**
+     * Notifies the remote transition that it will not be played and is consumed by another
+     * transition (and it can clean up accordingly).
+     */
+    private void consumeRemoteTransitionIfNecessary(@NonNull IBinder transition,
+            @Nullable RemoteTransition remote) {
+        if (remote != null) {
+            try {
+                remote.getRemoteTransition().onTransitionConsumed(transition, false /* aborted */);
+            } catch (RemoteException e) {
+                Log.e(ShellProtoLogGroup.WM_SHELL_TRANSITIONS.getTag(),
+                        "Error notifying remote onTransitionConsumed()", e);
+            }
+        }
     }
 
     @Override

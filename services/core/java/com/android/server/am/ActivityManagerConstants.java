@@ -172,11 +172,6 @@ final class ActivityManagerConstants extends ContentObserver {
     static final String KEY_TIERED_CACHED_ADJ_UI_TIER_SIZE = "tiered_cached_adj_ui_tier_size";
 
     /**
-     * Whether or not to enable the new oom adjuster implementation.
-     */
-    static final String KEY_ENABLE_NEW_OOMADJ = "enable_new_oom_adj";
-
-    /**
      * Whether or not to enable the batching of OOM adjuster calls to LMKD
      */
     static final String KEY_ENABLE_BATCHING_OOM_ADJ = "enable_batching_oom_adj";
@@ -265,14 +260,9 @@ final class ActivityManagerConstants extends ContentObserver {
     private final int mDefaultTieredCachedAdjUiTierSize;
 
     /**
-     * The default value to {@link #KEY_ENABLE_NEW_OOMADJ}.
-     */
-    private static final boolean DEFAULT_ENABLE_NEW_OOM_ADJ = Flags.oomadjusterCorrectnessRewrite();
-
-    /**
      * The default value to {@link #KEY_ENABLE_BATCHING_OOM_ADJ}.
      */
-    private static final boolean DEFAULT_ENABLE_BATCHING_OOM_ADJ = Flags.batchingOomAdj();
+    private static final boolean DEFAULT_ENABLE_BATCHING_OOM_ADJ = true;
 
     /**
      * The default value to {@link #KEY_FOLLOW_UP_OOMADJ_UPDATE_WAIT_DURATION}.
@@ -1186,9 +1176,6 @@ final class ActivityManagerConstants extends ContentObserver {
     /** @see #KEY_TIERED_CACHED_ADJ_UI_TIER_SIZE */
     public int TIERED_CACHED_ADJ_UI_TIER_SIZE;
 
-    /** @see #KEY_ENABLE_NEW_OOMADJ */
-    public boolean ENABLE_NEW_OOMADJ = DEFAULT_ENABLE_NEW_OOM_ADJ;
-
     /** @see #KEY_ENABLE_BATCHING_OOM_ADJ */
     public boolean ENABLE_BATCHING_OOM_ADJ = DEFAULT_ENABLE_BATCHING_OOM_ADJ;
 
@@ -1591,8 +1578,6 @@ final class ActivityManagerConstants extends ContentObserver {
     }
 
     private void loadNativeBootDeviceConfigConstants() {
-        ENABLE_NEW_OOMADJ = getDeviceConfigBoolean(KEY_ENABLE_NEW_OOMADJ,
-                DEFAULT_ENABLE_NEW_OOM_ADJ);
         ENABLE_BATCHING_OOM_ADJ = getDeviceConfigBoolean(KEY_ENABLE_BATCHING_OOM_ADJ,
                 DEFAULT_ENABLE_BATCHING_OOM_ADJ);
     }
@@ -2370,13 +2355,6 @@ final class ActivityManagerConstants extends ContentObserver {
                 TIERED_CACHED_ADJ_MAX_UI_TIER_SIZE);
     }
 
-    private void updateEnableNewOomAdj() {
-        ENABLE_NEW_OOMADJ = DeviceConfig.getBoolean(
-            DeviceConfig.NAMESPACE_ACTIVITY_MANAGER_NATIVE_BOOT,
-            KEY_ENABLE_NEW_OOMADJ,
-            DEFAULT_ENABLE_NEW_OOM_ADJ);
-    }
-
     private void updateFollowUpOomAdjUpdateWaitDuration() {
         FOLLOW_UP_OOMADJ_UPDATE_WAIT_DURATION = DeviceConfig.getLong(
                 DeviceConfig.NAMESPACE_ACTIVITY_MANAGER,
@@ -2625,9 +2603,6 @@ final class ActivityManagerConstants extends ContentObserver {
         pw.print("="); pw.println(TIERED_CACHED_ADJ_DECAY_TIME);
         pw.print("  "); pw.print(KEY_TIERED_CACHED_ADJ_UI_TIER_SIZE);
         pw.print("="); pw.println(TIERED_CACHED_ADJ_UI_TIER_SIZE);
-
-        pw.print("  "); pw.print(KEY_ENABLE_NEW_OOMADJ);
-        pw.print("="); pw.println(ENABLE_NEW_OOMADJ);
 
         pw.print("  "); pw.print(KEY_FREEZER_CUTOFF_ADJ);
         pw.print("="); pw.println(FREEZER_CUTOFF_ADJ);

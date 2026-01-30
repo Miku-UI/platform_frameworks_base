@@ -22,6 +22,9 @@ import android.companion.virtual.IVirtualDeviceListener;
 import android.companion.virtual.IVirtualDeviceSoundEffectListener;
 import android.companion.virtual.VirtualDevice;
 import android.companion.virtual.VirtualDeviceParams;
+import android.companion.virtual.computercontrol.ComputerControlSessionParams;
+import android.companion.virtual.computercontrol.IAutomatedPackageListener;
+import android.companion.virtual.computercontrol.IComputerControlSessionCallback;
 import android.content.AttributionSource;
 
 /**
@@ -51,6 +54,14 @@ interface IVirtualDeviceManager {
             in IVirtualDeviceSoundEffectListener soundEffectListener);
 
     /**
+     * Requests a new computer control session.
+     */
+    @EnforcePermission("ACCESS_COMPUTER_CONTROL")
+    void requestComputerControlSession(
+            in AttributionSource attributionSource, in ComputerControlSessionParams params,
+            in IComputerControlSessionCallback callback);
+
+    /**
      * Returns the details of all available virtual devices.
      */
     List<VirtualDevice> getVirtualDevices();
@@ -69,6 +80,16 @@ interface IVirtualDeviceManager {
      * Unregisters a previously registered virtual device listener.
      */
     void unregisterVirtualDeviceListener(in IVirtualDeviceListener listener);
+
+    /**
+     * Registers a listener to receive notifications for automated packages.
+     */
+    void registerAutomatedPackageListener(in IAutomatedPackageListener listener);
+
+    /**
+     * Unregisters a previously registered listener.
+     */
+    void unregisterAutomatedPackageListener(in IAutomatedPackageListener listener);
 
     /**
      * Returns the ID of the device which owns the display with the given ID.
@@ -92,6 +113,11 @@ interface IVirtualDeviceManager {
      * Returns the device policy for the given virtual device and policy type.
      */
     int getDevicePolicy(int deviceId, int policyType);
+
+    /**
+     * Returns the device policy for the given display ID and policy type.
+     */
+    int getDevicePolicyForDisplayId(int displayId, int policyType);
 
     /**
      * Returns device-specific session id for playback, or AUDIO_SESSION_ID_GENERATE

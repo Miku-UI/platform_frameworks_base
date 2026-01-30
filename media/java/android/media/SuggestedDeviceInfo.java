@@ -20,7 +20,6 @@ import static com.android.media.flags.Flags.FLAG_ENABLE_SUGGESTED_DEVICE_API;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -32,8 +31,9 @@ import java.util.Objects;
  * Allows applications to suggest routes to the system UI (for example, in the System UI Output
  * Switcher).
  *
+ * <p>Suggested devices are used to transfer the current media session from one device to another.
+ *
  * @see MediaRouter2#setSuggestedDevice
- * @hide
  */
 @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
 public final class SuggestedDeviceInfo implements Parcelable {
@@ -55,7 +55,7 @@ public final class SuggestedDeviceInfo implements Parcelable {
 
     @NonNull private final String mRouteId;
 
-    private final int mType;
+    private final @MediaRoute2Info.Type int mType;
 
     @NonNull private final Bundle mExtras;
 
@@ -98,7 +98,7 @@ public final class SuggestedDeviceInfo implements Parcelable {
      *
      * @return The device type.
      */
-    public int getType() {
+    public @MediaRoute2Info.Type int getType() {
         return mType;
     }
 
@@ -107,7 +107,7 @@ public final class SuggestedDeviceInfo implements Parcelable {
      *
      * @return The extras.
      */
-    @Nullable
+    @NonNull
     public Bundle getExtras() {
         return mExtras;
     }
@@ -151,70 +151,44 @@ public final class SuggestedDeviceInfo implements Parcelable {
 
     /** Builder for {@link SuggestedDeviceInfo}. */
     public static final class Builder {
-        @NonNull private String mDeviceDisplayName;
+        @NonNull private final String mDeviceDisplayName;
 
-        @NonNull private String mRouteId;
+        @NonNull private final String mRouteId;
 
-        @NonNull private Integer mType;
+        private final int mType;
 
         private Bundle mExtras = Bundle.EMPTY;
 
         /**
-         * Creates a new SuggestedDeviceInfo. The device display name, route ID, and type must be
-         * set. The extras cannot be null, but default to an empty {@link Bundle}.
+         * Constructor.
          *
-         * @throws IllegalArgumentException if the builder has a mandatory unset field.
+         * @param deviceDisplayName The {@link #getDeviceDisplayName() display name}.
+         * @param routeId The {@link #getRouteId() route ID}.
+         * @param type The {@link #getType() route type}.
          */
-        public SuggestedDeviceInfo build() {
-            if (mDeviceDisplayName == null) {
-                throw new IllegalArgumentException("Device display name cannot be null");
-            }
-
-            if (mRouteId == null) {
-                throw new IllegalArgumentException("Route ID cannot be null.");
-            }
-
-            if (mType == null) {
-                throw new IllegalArgumentException("Device type cannot be null.");
-            }
-
-            if (mExtras == null) {
-                throw new IllegalArgumentException("Extras cannot be null.");
-            }
-
-            return new SuggestedDeviceInfo(this);
-        }
-
-        /**
-         * Sets the {@link #getDeviceDisplayName() device display name}.
-         *
-         * @throws IllegalArgumentException if the name is null or empty.
-         */
-        public Builder setDeviceDisplayName(@NonNull String deviceDisplayName) {
+        public Builder(
+                @NonNull String deviceDisplayName,
+                @NonNull String routeId,
+                @MediaRoute2Info.Type int type) {
             if (TextUtils.isEmpty(deviceDisplayName)) {
-                throw new IllegalArgumentException("Device display name cannot be null");
+                throw new IllegalArgumentException("Device display name cannot be empty");
             }
             mDeviceDisplayName = deviceDisplayName;
-            return this;
+
+            if (TextUtils.isEmpty(routeId)) {
+                throw new IllegalArgumentException("Route ID cannot be empty.");
+            }
+            mRouteId = routeId;
+            mType = type;
         }
 
         /**
-         * Sets the {@link #getRouteId() route id}.
-         *
-         * @throws IllegalArgumentException if the route id is null or empty.
+         * Creates a new SuggestedDeviceInfo. The device display name, route ID, and type must be
+         * set. The extras cannot be null, but default to an empty {@link Bundle}.
          */
-        public Builder setRouteId(@NonNull String routeId) {
-            if (TextUtils.isEmpty(routeId)) {
-                throw new IllegalArgumentException("Device display name cannot be null");
-            }
-            mRouteId = routeId;
-            return this;
-        }
-
-        /** Sets the {@link #getType() device type}. */
-        public Builder setType(int type) {
-            mType = type;
-            return this;
+        @NonNull
+        public SuggestedDeviceInfo build() {
+            return new SuggestedDeviceInfo(this);
         }
 
         /**
@@ -227,8 +201,9 @@ public final class SuggestedDeviceInfo implements Parcelable {
          *
          * @throws NullPointerException if the extras are null.
          */
+        @NonNull
         public Builder setExtras(@NonNull Bundle extras) {
-            mExtras = Objects.requireNonNull(extras, "extras must not be null");
+            mExtras = Objects.requireNonNull(extras, "Extras must not be null");
             return this;
         }
     }

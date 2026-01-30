@@ -19,6 +19,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
@@ -33,7 +34,7 @@ import java.util.List;
 public class WidthModifierOperation extends DimensionModifierOperation {
     private static final int OP_CODE = Operations.MODIFIER_WIDTH;
     public static final String CLASS_NAME = "WidthModifierOperation";
-    private WidthInModifierOperation mWidthIn = null;
+    private @Nullable WidthInModifierOperation mWidthIn = null;
 
     /**
      * The name of the class
@@ -126,7 +127,7 @@ public class WidthModifierOperation extends DimensionModifierOperation {
      *
      * @param widthInConstraints width constraints
      */
-    public void setWidthIn(WidthInModifierOperation widthInConstraints) {
+    public void setWidthIn(@NonNull WidthInModifierOperation widthInConstraints) {
         mWidthIn = widthInConstraints;
     }
 
@@ -135,12 +136,12 @@ public class WidthModifierOperation extends DimensionModifierOperation {
      *
      * @return width in constraints
      */
-    public WidthInModifierOperation getWidthIn() {
+    public @Nullable WidthInModifierOperation getWidthIn() {
         return mWidthIn;
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER)
                 .addType("WidthModifierOperation")

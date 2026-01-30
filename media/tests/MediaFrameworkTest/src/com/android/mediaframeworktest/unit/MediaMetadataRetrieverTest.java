@@ -22,21 +22,15 @@ import static org.junit.Assert.assertTrue;
 
 import android.graphics.Bitmap;
 import android.media.MediaMetadataRetriever;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Log;
 
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.media.playback.flags.Flags;
 import com.android.mediaframeworktest.MediaNames;
 import com.android.mediaframeworktest.MediaProfileReader;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -47,9 +41,6 @@ import java.io.IOException;
 public class MediaMetadataRetrieverTest {
 
     private static final String TAG = "MediaMetadataRetrieverTest";
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     // Test album art extraction.
     @MediumTest
@@ -295,31 +286,15 @@ public class MediaMetadataRetrieverTest {
         assertTrue(!hasFailed);
     }
 
-    /** Test the thumbnail is generated when the default is set to RGBA8888 */
+    /** Test the thumbnail is generated in RGBA8888 */
     @MediumTest
-    // TODO(b/305160754) Remove the following annotation and use SetFlagsRule.enableFlags
-    @RequiresFlagsEnabled(Flags.FLAG_MEDIAMETADATARETRIEVER_DEFAULT_RGBA8888)
     @Test
-    public void testGetFrameAtTimeWithRGBA8888Flag_Set() throws IOException {
+    public void testGetFrameAtTime() throws IOException {
         try (MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
             retriever.setDataSource(MediaNames.TEST_PATH_1);
             Bitmap bitmap = retriever.getFrameAtTime(-1);
             assertNotNull(bitmap);
             assertEquals(Bitmap.Config.ARGB_8888, bitmap.getConfig());
-        }
-    }
-
-    /** Test the thumbnail is generated when the default is not set to RGBA8888 */
-    @MediumTest
-    // TODO(b/305160754) Remove the following annotation and use SetFlagsRule.disableFlags
-    @RequiresFlagsDisabled(Flags.FLAG_MEDIAMETADATARETRIEVER_DEFAULT_RGBA8888)
-    @Test
-    public void testGetFrameAtTimeWithRGBA8888Flag_Unset() throws IOException {
-        try (MediaMetadataRetriever retriever = new MediaMetadataRetriever()) {
-            retriever.setDataSource(MediaNames.TEST_PATH_1);
-            Bitmap bitmap = retriever.getFrameAtTime(-1);
-            assertNotNull(bitmap);
-            assertEquals(Bitmap.Config.RGB_565, bitmap.getConfig());
         }
     }
 

@@ -18,15 +18,10 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-import android.companion.virtual.IVirtualDevice;
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 import android.view.KeyEvent;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -40,20 +35,17 @@ import java.util.Set;
 @SystemApi
 public class VirtualDpad extends VirtualInputDevice {
 
-    private final Set<Integer> mSupportedKeyCodes =
-            Collections.unmodifiableSet(
-                    new HashSet<>(
-                            Arrays.asList(
-                                    KeyEvent.KEYCODE_BACK,
-                                    KeyEvent.KEYCODE_DPAD_UP,
-                                    KeyEvent.KEYCODE_DPAD_DOWN,
-                                    KeyEvent.KEYCODE_DPAD_LEFT,
-                                    KeyEvent.KEYCODE_DPAD_RIGHT,
-                                    KeyEvent.KEYCODE_DPAD_CENTER)));
+    private static final Set<Integer> SUPPORTED_KEY_CODES = Set.of(
+            KeyEvent.KEYCODE_BACK,
+            KeyEvent.KEYCODE_DPAD_UP,
+            KeyEvent.KEYCODE_DPAD_DOWN,
+            KeyEvent.KEYCODE_DPAD_LEFT,
+            KeyEvent.KEYCODE_DPAD_RIGHT,
+            KeyEvent.KEYCODE_DPAD_CENTER);
 
     /** @hide */
-    public VirtualDpad(VirtualDpadConfig config, IVirtualDevice virtualDevice, IBinder token) {
-        super(config, virtualDevice, token);
+    public VirtualDpad(VirtualDpadConfig config, IVirtualInputDevice virtualInputDevice) {
+        super(config, virtualInputDevice);
     }
 
     /**
@@ -73,18 +65,26 @@ public class VirtualDpad extends VirtualInputDevice {
      */
     public void sendKeyEvent(@NonNull VirtualKeyEvent event) {
         try {
-            if (!mSupportedKeyCodes.contains(event.getKeyCode())) {
+            if (!SUPPORTED_KEY_CODES.contains(event.getKeyCode())) {
                 throw new IllegalArgumentException(
                         "Unsupported key code "
                                 + event.getKeyCode()
                                 + " sent to a VirtualDpad input device.");
             }
-            if (!mVirtualDevice.sendDpadKeyEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendDpadKeyEvent(event)) {
                 Log.w(TAG, "Failed to send key event to virtual dpad "
                         + mConfig.getInputDeviceName());
             }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
+    }
+
+    /**
+     * Returns whether the given key code is supported by this Dpad device.
+     * @hide
+     */
+    public static boolean isKeyCodeSupported(int keyCode) {
+        return SUPPORTED_KEY_CODES.contains(keyCode);
     }
 }

@@ -51,4 +51,22 @@ public class BackgroundThreadTest {
         boolean success = done.block(5000);
         assertThat(success).isTrue();
     }
+
+    @Test
+    public void test_startIfNeeded() {
+        BackgroundThread.startIfNeeded();
+
+        BackgroundThread thread = BackgroundThread.get();
+        assertThat(thread.getLooper()).isNotEqualTo(Looper.getMainLooper());
+    }
+
+    @Test
+    public void test_startIfNeededMultipleTimes() {
+        BackgroundThread.startIfNeeded();
+        BackgroundThread.startIfNeeded();
+        BackgroundThread.startIfNeeded();
+
+        BackgroundThread thread = BackgroundThread.get();
+        assertThat(thread.getLooper()).isNotEqualTo(Looper.getMainLooper());
+    }
 }

@@ -477,7 +477,7 @@ public class ViewDebug {
      */
     @UnsupportedAppUsage
     public static long getViewInstanceCount() {
-        return Debug.countInstancesOfClass(View.class);
+        return Debug.getInstanceCount(View.class);
     }
 
     /**
@@ -489,7 +489,7 @@ public class ViewDebug {
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static long getViewRootImplCount() {
-        return Debug.countInstancesOfClass(ViewRootImpl.class);
+        return Debug.getInstanceCount(ViewRootImpl.class);
     }
 
     /**

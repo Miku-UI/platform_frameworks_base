@@ -16,7 +16,7 @@
 
 package android.media;
 
-import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_DEFAULT;
+import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_CUSTOM;
 import static android.companion.virtual.VirtualDeviceParams.POLICY_TYPE_AUDIO;
 import static android.content.Context.DEVICE_ID_DEFAULT;
 import static android.media.AudioManager.AUDIO_SESSION_ID_GENERATE;
@@ -579,7 +579,7 @@ public abstract class PlayerBase {
 
         VirtualDeviceManager vdm = context.getSystemService(VirtualDeviceManager.class);
         if (vdm == null || vdm.getDevicePolicy(deviceId, POLICY_TYPE_AUDIO)
-                == DEVICE_POLICY_DEFAULT) {
+                != DEVICE_POLICY_CUSTOM) {
             return AUDIO_SESSION_ID_GENERATE;
         }
 

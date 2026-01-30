@@ -90,7 +90,7 @@ final class ExternalVibrationSession extends Vibration
         return new Vibration.DebugInfoImpl(getStatus(), callerInfo,
                 FrameworkStatsLog.VIBRATION_REPORTED__VIBRATION_TYPE__EXTERNAL, stats,
                 /* playedEffect= */ null, /* originalEffect= */ null, mScale.scaleLevel,
-                mScale.adaptiveHapticsScale);
+                mScale.scaleFactor, mScale.adaptiveHapticsScale);
     }
 
     @Override
@@ -175,11 +175,18 @@ final class ExternalVibrationSession extends Vibration
 
     void scale(VibrationScaler scaler, int usage) {
         mScale.scaleLevel = scaler.getScaleLevel(usage);
-        if (Flags.hapticsScaleV2Enabled()) {
-            mScale.scaleFactor = scaler.getScaleFactor(usage);
+        if (Flags.hapticsScaleV2Enabled() || hasScaleConfig(scaler)) {
+            mScale.scaleFactor = scaler.getScaleFactor(usage, /* isExternalVibration= */ true);
         }
         mScale.adaptiveHapticsScale = scaler.getAdaptiveHapticsScale(usage);
         stats.reportAdaptiveScale(mScale.adaptiveHapticsScale);
+    }
+
+    // TODO(b/345186129): remove this once we finish migrating to scale factor and clean up flags.
+    private static boolean hasScaleConfig(VibrationScaler scaler) {
+        // Only send scale factor if device config has it, to be used as linear scale.
+        return Flags.vibrationScaleDeviceConfigEnabled()
+                && scaler.getVibrationConfig().hasExternalVibrationScaleFactors();
     }
 
     @Override

@@ -35,6 +35,10 @@
     <option name="test-suite-tag" value="apct" />
     <option name="test-suite-tag" value="framework-base-presubmit" />
     <option name="test-tag" value="SystemUITests" />
+
+    <!-- enable more shards (go/ajur-max-shard) -->
+    <option name="ajur-max-shard" value="8" />
+
     <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
         <option name="package" value="com.android.systemui.tests" />
         <option name="runner" value="android.testing.TestableInstrumentation" />
@@ -46,6 +50,6 @@
         <option name="directory-keys"
             value="/data/user/0/com.android.systemui.tests/files"/>
         <option name="collect-on-run-ended-only" value="true"/>
-        <option name="clean-up" value="true"/>
+        <option name="clean-up" value="false" />
     </metrics_collector>
 </configuration>

@@ -140,7 +140,7 @@ public class SystemConfigManager {
      *
      * @param packageName The target package.
      * @return The enabled component
-     * {@hide}
+     * @hide
      */
     @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
     @NonNull

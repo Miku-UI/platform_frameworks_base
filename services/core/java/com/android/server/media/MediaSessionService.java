@@ -45,6 +45,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
+import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.AudioPlaybackConfiguration;
 import android.media.AudioSystem;
@@ -122,9 +123,6 @@ public class MediaSessionService extends SystemService implements Monitor {
     private static final int WAKELOCK_TIMEOUT = 5000;
     private static final int MEDIA_KEY_LISTENER_TIMEOUT = 1000;
     private static final int SESSION_CREATION_LIMIT_PER_UID = 100;
-    private static final int LONG_PRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout()
-            + /* Buffer for delayed delivery of key event */ 50;
-    private static final int MULTI_TAP_TIMEOUT = ViewConfiguration.getMultiPressTimeout();
     /**
      * Copied from Settings.System.MEDIA_BUTTON_RECEIVER
      */
@@ -145,6 +143,18 @@ public class MediaSessionService extends SystemService implements Monitor {
      */
     private static final String USAGE_STATS_ACTION_STOP = "stop";
     private static final String USAGE_STATS_CATEGORY = "android.media";
+
+    /**
+     * {@code AudioAttributes.USAGE_} types that are ignored by the 'recent audio playback' tracking
+     * in {@link AudioPlayerStateMonitor} if {@link
+     * com.android.media.mediasession.flags.Flags#filterSessionAudioPlaybackByUsage()} is true.
+     */
+    private static final Set<Integer> IGNORED_AUDIO_USAGE_TYPES_FOR_PLAYBACK_TRACKING =
+            Set.of(
+                    AudioAttributes.USAGE_NOTIFICATION,
+                    AudioAttributes.USAGE_NOTIFICATION_RINGTONE,
+                    AudioAttributes.USAGE_ALARM,
+                    AudioAttributes.USAGE_NOTIFICATION_EVENT);
 
     private final Context mContext;
     private final SessionManagerImpl mSessionManagerImpl;
@@ -260,7 +270,11 @@ public class MediaSessionService extends SystemService implements Monitor {
         publishBinderService(Context.MEDIA_SESSION_SERVICE, mSessionManagerImpl);
         Watchdog.getInstance().addMonitor(this);
         mKeyguardManager = (KeyguardManager) mContext.getSystemService(Context.KEYGUARD_SERVICE);
-        mAudioPlayerStateMonitor = AudioPlayerStateMonitor.getInstance(mContext);
+        mAudioPlayerStateMonitor =
+                com.android.media.mediasession.flags.Flags.filterSessionAudioPlaybackByUsage()
+                        ? AudioPlayerStateMonitor.getInstance(
+                                mContext, IGNORED_AUDIO_USAGE_TYPES_FOR_PLAYBACK_TRACKING)
+                        : AudioPlayerStateMonitor.getInstance(mContext);
         mAudioPlayerStateMonitor.registerListener(
                 (config, isRemoved) -> {
                     if (DEBUG) {
@@ -372,8 +386,8 @@ public class MediaSessionService extends SystemService implements Monitor {
                     "onSessionActiveStateChanged:"
                             + " record="
                             + record
-                            + " playbackState="
-                            + playbackState);
+                            + " active="
+                            + record.isActive());
             reportMediaInteractionEvent(record, isUserEngaged);
             mHandler.postSessionsChanged(record);
         }
@@ -385,7 +399,7 @@ public class MediaSessionService extends SystemService implements Monitor {
             // MediaSession2 case
             return record.checkPlaybackActiveState(/* expected= */ true);
         }
-        return playbackState.isActive() && record.isActive();
+        return playbackState.isActive();
     }
 
     // Currently only media1 can become global priority session.
@@ -1225,6 +1239,20 @@ public class MediaSessionService extends SystemService implements Monitor {
                 Log.w(TAG, "Encountered problem while using reflection", e);
             }
         }
+    }
+
+    private int getLongPressTimeoutMillis() {
+        int longPressTimeoutMillis =
+                android.companion.virtualdevice.flags.Flags.viewconfigurationApis()
+                        ? ViewConfiguration.get(mContext).getLongPressTimeoutMillis()
+                        : ViewConfiguration.getLongPressTimeout();
+        return longPressTimeoutMillis + /* Buffer for delayed delivery of key event */ 50;
+    }
+
+    private int getMultiPressTimeoutMillis() {
+        return android.companion.virtualdevice.flags.Flags.viewconfigurationApis()
+                ? ViewConfiguration.get(mContext).getMultiPressTimeoutMillis()
+                : ViewConfiguration.getMultiPressTimeout();
     }
 
     /**
@@ -2248,8 +2276,7 @@ public class MediaSessionService extends SystemService implements Monitor {
                                 keyEvent, AudioManager.USE_DEFAULT_STREAM_TYPE, false);
                         return;
                     }
-                    if (Flags.fallbackToDefaultHandlingWhenMediaSessionHasFixedVolumeHandling()
-                            && !record.canHandleVolumeKey()) {
+                    if (!record.canHandleVolumeKey()) {
                         Log.d(TAG, "Session with packageName=" + record.getPackageName()
                                 + " doesn't support volume adjustment."
                                 + " Fallbacks to the default handling.");
@@ -2545,19 +2572,16 @@ public class MediaSessionService extends SystemService implements Monitor {
                     isValidLocalStreamType(suggestedStream)
                             && AudioSystem.isStreamActive(suggestedStream, 0);
 
-            if (session != null && session.getUid() != uid
-                    && mAudioPlayerStateMonitor.hasUidPlayedAudioLast(uid)) {
-                if (Flags.adjustVolumeForForegroundAppPlayingAudioWithoutMediaSession()) {
-                    // The app in the foreground has been the last app to play media locally.
-                    // Therefore, We ignore the chosen session so that volume events affect the
-                    // local music stream instead. See b/275185436 for details.
-                    Log.d(TAG, "Ignoring session=" + session + " and adjusting suggestedStream="
-                            + suggestedStream + " instead");
-                    session = null;
-                } else {
-                    Log.d(TAG, "Session=" + session + " will not be not ignored and will receive"
-                            + " the volume adjustment event");
-                }
+            if (session != null
+                    && session.getUid() != uid
+                    && (com.android.media.mediasession.flags.Flags.sessionlessVolKeyZeroCooldown()
+                            ? mAudioPlayerStateMonitor.isPlaybackActive(uid)
+                            : mAudioPlayerStateMonitor.hasUidPlayedAudioLast(uid))) {
+                // We ignore the chosen session so that volume events affect the local music stream
+                // instead. See b/275185436 and b/432003816 for details.
+                Log.d(TAG, "Ignoring session=" + session + " and adjusting suggestedStream="
+                        + suggestedStream + " instead");
+                session = null;
             }
 
             if (session == null || preferSuggestedStream) {
@@ -2571,6 +2595,11 @@ public class MediaSessionService extends SystemService implements Monitor {
                         Log.d(TAG, "Nothing is playing on the music stream. Skipping volume event,"
                                 + " flags=" + flags);
                     }
+                    return;
+                }
+
+                if (MediaRouter2ServiceImpl.maybeHandleVolumeKeyEvent(
+                        TAG, direction, suggestedStream)) {
                     return;
                 }
 
@@ -2677,13 +2706,22 @@ public class MediaSessionService extends SystemService implements Monitor {
                 if (needWakeLock) {
                     mKeyEventReceiver.acquireWakeLockLocked();
                 }
-                String callingPackageName =
+                String reportedPackageName =
                         (asSystemService) ? mContext.getPackageName() : packageName;
-                boolean sent = mediaButtonReceiverHolder.send(
-                        mContext, keyEvent, callingPackageName,
-                        needWakeLock ? mKeyEventReceiver.mLastTimeoutId : -1, mKeyEventReceiver,
-                        mHandler,
-                        MediaSessionDeviceConfig.getMediaButtonReceiverFgsAllowlistDurationMs());
+                boolean sent =
+                        mediaButtonReceiverHolder.send(
+                                mContext,
+                                keyEvent,
+                                MediaSessionService.this,
+                                packageName,
+                                pid,
+                                uid,
+                                reportedPackageName,
+                                needWakeLock ? mKeyEventReceiver.mLastTimeoutId : -1,
+                                mKeyEventReceiver,
+                                mHandler,
+                                MediaSessionDeviceConfig
+                                        .getMediaButtonReceiverFgsAllowlistDurationMs());
                 if (sent) {
                     String pkgName = mediaButtonReceiverHolder.getPackageName();
                     for (FullUserRecord.OnMediaKeyEventDispatchedListenerRecord cr
@@ -2985,7 +3023,7 @@ public class MediaSessionService extends SystemService implements Monitor {
                                 mMultiTapTimeoutRunnable.run();
                             } else {
                                 mHandler.postDelayed(mMultiTapTimeoutRunnable,
-                                        MULTI_TAP_TIMEOUT);
+                                        getMultiPressTimeoutMillis());
                                 mMultiTapCount = 1;
                                 mMultiTapKeyCode = keyEvent.getKeyCode();
                             }
@@ -2996,7 +3034,8 @@ public class MediaSessionService extends SystemService implements Monitor {
                                     stream, musicOnly, isSingleTapOverridden(overriddenKeyEvents),
                                     isDoubleTapOverridden(overriddenKeyEvents));
                             if (isTripleTapOverridden(overriddenKeyEvents)) {
-                                mHandler.postDelayed(mMultiTapTimeoutRunnable, MULTI_TAP_TIMEOUT);
+                                mHandler.postDelayed(mMultiTapTimeoutRunnable,
+                                        getMultiPressTimeoutMillis());
                                 mMultiTapCount = 2;
                             } else {
                                 mMultiTapTimeoutRunnable.run();
@@ -3110,7 +3149,8 @@ public class MediaSessionService extends SystemService implements Monitor {
                         if (mLongPressTimeoutRunnable == null) {
                             mLongPressTimeoutRunnable = createLongPressTimeoutRunnable(keyEvent);
                         }
-                        mHandler.postDelayed(mLongPressTimeoutRunnable, LONG_PRESS_TIMEOUT);
+                        mHandler.postDelayed(mLongPressTimeoutRunnable,
+                                getLongPressTimeoutMillis());
                     } else {
                         resetLongPressTracking();
                     }
@@ -3287,12 +3327,14 @@ public class MediaSessionService extends SystemService implements Monitor {
                 MediaSessionRecordImpl userEngagedRecord =
                         getUserEngagedMediaSessionRecordForNotification(uid, postedNotification);
                 if (userEngagedRecord != null) {
-                    setFgsActiveLocked(userEngagedRecord, sbn);
+                    // Session is considered user engaged, nothing to do.
                     return;
                 }
                 MediaSessionRecordImpl notificationRecord =
                         getAnyMediaSessionRecordForNotification(uid, userId, postedNotification);
                 if (notificationRecord != null) {
+                    // A session exists for this notification, but it's not considered user engaged,
+                    // so immediately inform ActivityManager that it is inactive.
                     setFgsInactiveIfNoSessionIsLinkedToNotification(notificationRecord);
                 }
             }
@@ -3301,11 +3343,7 @@ public class MediaSessionService extends SystemService implements Monitor {
         @Override
         public void onNotificationRemoved(StatusBarNotification sbn) {
             super.onNotificationRemoved(sbn);
-            Notification removedNotification = sbn.getNotification();
             int uid = sbn.getUid();
-            if (!removedNotification.isMediaNotification()) {
-                return;
-            }
             synchronized (mLock) {
                 Map<String, StatusBarNotification> notifications = mMediaNotifications.get(uid);
                 if (notifications != null) {
@@ -3314,14 +3352,6 @@ public class MediaSessionService extends SystemService implements Monitor {
                         mMediaNotifications.remove(uid);
                     }
                 }
-
-                MediaSessionRecordImpl notificationRecord =
-                        getUserEngagedMediaSessionRecordForNotification(uid, removedNotification);
-
-                if (notificationRecord == null) {
-                    return;
-                }
-                setFgsInactiveIfNoSessionIsLinkedToNotification(notificationRecord);
             }
         }
 

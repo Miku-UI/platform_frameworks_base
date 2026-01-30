@@ -22,7 +22,6 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidedValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
-import com.android.settingslib.spa.framework.compose.LocalNavController
 
 interface EntryData {
     val pageId: String?
@@ -136,12 +135,10 @@ data class SettingsEntry(
 
     @Composable
     private fun provideLocalEntryData(arguments: Bundle): ProvidedValue<EntryData> {
-        val controller = LocalNavController.current
         return LocalEntryDataProvider provides remember {
             object : EntryData {
                 override val pageId = containerPage().id
                 override val entryId = id
-                override val isHighlighted = controller.highlightEntryId == id
                 override val arguments = arguments
             }
         }

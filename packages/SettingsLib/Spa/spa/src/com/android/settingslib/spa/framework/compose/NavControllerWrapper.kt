@@ -28,8 +28,7 @@ interface NavControllerWrapper {
     fun navigate(route: String, popUpCurrent: Boolean = false)
     fun navigateBack()
 
-    val highlightEntryId: String?
-        get() = null
+    fun isHighLightItem(highlightItemKey: String) = false
 
     val sessionSourceName: String?
         get() = null
@@ -65,7 +64,7 @@ internal class NavControllerWrapperImpl(
     val navController: NavHostController,
     private val onBackPressedDispatcher: OnBackPressedDispatcher?,
 ) : NavControllerWrapper {
-    var highlightId: String? = null
+    var highlightItemKey: String? = null
     var sessionName: String? = null
 
     override fun navigate(route: String, popUpCurrent: Boolean) {
@@ -84,8 +83,15 @@ internal class NavControllerWrapperImpl(
         onBackPressedDispatcher?.onBackPressed()
     }
 
-    override val highlightEntryId: String?
-        get() = highlightId
+    override fun isHighLightItem(highlightItemKey: String): Boolean {
+        return if (this.highlightItemKey == highlightItemKey) {
+            // Also clear the highlight key when get, so we only highlight once
+            this.highlightItemKey = null
+            true
+        } else {
+            false
+        }
+    }
 
     override val sessionSourceName: String?
         get() = sessionName

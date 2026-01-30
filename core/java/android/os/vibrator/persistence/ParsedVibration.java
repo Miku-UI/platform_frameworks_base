@@ -16,9 +16,6 @@
 
 package android.os.vibrator.persistence;
 
-import static android.os.vibrator.Flags.FLAG_VIBRATION_XML_APIS;
-
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -39,7 +36,6 @@ import java.util.Objects;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_VIBRATION_XML_APIS)
 public final class ParsedVibration {
     private final ArrayList<VibrationEffect> mEffects;
 
@@ -62,7 +58,6 @@ public final class ParsedVibration {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(FLAG_VIBRATION_XML_APIS)
     @Nullable
     public VibrationEffect resolve(@NonNull Vibrator vibrator) {
         return resolve(vibrator.getInfo());

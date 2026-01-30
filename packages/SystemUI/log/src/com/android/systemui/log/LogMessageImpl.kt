@@ -39,7 +39,12 @@ data class LogMessageImpl(
     override var bool2: Boolean,
     override var bool3: Boolean,
     override var bool4: Boolean,
+    override var bool5: Boolean,
 ) : LogMessage {
+
+    fun clear() {
+        reset(DEFAULT_TAG, LogLevel.DEBUG, 0, DEFAULT_PRINTER)
+    }
 
     fun reset(
         tag: String,
@@ -65,6 +70,7 @@ data class LogMessageImpl(
         bool2 = false
         bool3 = false
         bool4 = false
+        bool5 = false
     }
 
     companion object Factory {
@@ -86,7 +92,8 @@ data class LogMessageImpl(
                 false,
                 false,
                 false,
-                false
+                false,
+                false,
             )
         }
     }

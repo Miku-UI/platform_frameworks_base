@@ -36,8 +36,8 @@ public class SystemFeaturesMetadataProcessorTest {
     @Test
     public void testSdkFeatureCount() {
         // See the fake PackageManager definition in this directory.
-        // It defines 6 annotated features, and any/all other constants should be ignored.
-        assertThat(SystemFeaturesMetadata.SDK_FEATURE_COUNT).isEqualTo(6);
+        // It defines 8 annotated features, and any/all other constants should be ignored.
+        assertThat(SystemFeaturesMetadata.SDK_FEATURE_COUNT).isEqualTo(8);
     }
 
     @Test

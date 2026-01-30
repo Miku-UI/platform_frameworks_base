@@ -1,7 +1,7 @@
 package com.android.sharedstoragebackup;
 
-import android.app.backup.FullBackupAgent;
 import android.app.backup.FullBackup;
+import android.app.backup.FullBackupAgent;
 import android.app.backup.FullBackupDataOutput;
 import android.content.Context;
 import android.os.Environment;
@@ -16,7 +16,7 @@ import java.io.IOException;
 
 public class SharedStorageAgent extends FullBackupAgent {
     static final String TAG = "SharedStorageAgent";
-    static final boolean DEBUG = true;
+    static final boolean DEBUG = false;
 
     StorageVolume[] mVolumes;
 
@@ -30,9 +30,7 @@ public class SharedStorageAgent extends FullBackupAgent {
         }
     }
 
-    /**
-     * Full backup of the shared-storage filesystem
-     */
+    /** Full backup of the shared-storage filesystem */
     @Override
     public void onFullBackup(FullBackupDataOutput output) throws IOException {
         // If there are shared-storage volumes available, run the inherited directory-
@@ -43,8 +41,10 @@ public class SharedStorageAgent extends FullBackupAgent {
             // Ignore all apps' getExternalFilesDir() content; it is backed up as part of
             // each app-specific payload.
             ArraySet<String> externalFilesDirFilter = new ArraySet();
-            final File externalAndroidRoot = new File(Environment.getExternalStorageDirectory(),
-                    Environment.DIRECTORY_ANDROID);
+            final File externalAndroidRoot =
+                    new File(
+                            Environment.getExternalStorageDirectory(),
+                            Environment.DIRECTORY_ANDROID);
             externalFilesDirFilter.add(externalAndroidRoot.getCanonicalPath());
 
             for (int i = 0; i < mVolumes.length; i++) {
@@ -53,19 +53,30 @@ public class SharedStorageAgent extends FullBackupAgent {
                 //     shared/N/path/to/file
                 // The restore will then extract to the given volume
                 String domain = FullBackup.SHARED_PREFIX + i;
-                fullBackupFileTree(null, domain, v.getPath(),
+                fullBackupFileTree(
+                        null,
+                        domain,
+                        v.getPath(),
                         null /* manifestExcludes */,
-                        externalFilesDirFilter /* systemExcludes */, output);
+                        externalFilesDirFilter /* systemExcludes */,
+                        output);
             }
         }
     }
 
-    /**
-     * Full restore of one file to shared storage
-     */
+    /** Full restore of one file to shared storage */
     @Override
-    public void onRestoreFile(ParcelFileDescriptor data, long size,
-            int type, String domain, String relpath, long mode, long mtime)
+    public void onRestoreFile(
+            ParcelFileDescriptor data,
+            long size,
+            int type,
+            String domain,
+            String relpath,
+            long mode,
+            long mtime,
+            long appVersionCode,
+            int transportFlags,
+            String contentVersion)
             throws IOException {
         if (DEBUG) Slog.d(TAG, "Shared restore: [ " + domain + " : " + relpath + "]");
 

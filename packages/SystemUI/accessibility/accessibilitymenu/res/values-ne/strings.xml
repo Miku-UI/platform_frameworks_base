@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"अघिल्लो स्क्रिनमा जानुहोस्"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"अर्को स्क्रिनमा जानुहोस्"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"तपाईं आफ्नो डिभाइस नियन्त्रण गर्न एक्सेसिबिलिटी मेनुमा गई ठुलो अन स्क्रिन मेनु खोल्न सक्नुहुन्छ। तपाईं आफ्नो डिभाइस लक गर्न, भोल्युम र चमक नियन्त्रण गर्न, स्क्रिनसटहरू लिन र थप कार्यहरू गर्न सक्नुहुन्छ।"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"ठुलो मेनुको सहायताले डिभाइस नियन्त्रण गर्नुहोस्"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"ठुलो मेनु प्रयोग गरी भोल्युम, चमक र थप कुरा नियन्त्रण गर्नुहोस्"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"एक्सेसिबिलिटी मेनुसम्बन्धी सेटिङ"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ठूला बटनहरू"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"एक्सेसिबिलिटी मेनुका बटनहरूको आकार बढाउनुहोस्"</string>

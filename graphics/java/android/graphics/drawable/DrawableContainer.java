@@ -41,6 +41,7 @@ import android.view.View;
  *
  * You can subclass it to create your own DrawableContainers or directly use one its child classes.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class DrawableContainer extends Drawable implements Drawable.Callback {
     private static final boolean DEBUG = false;
     private static final String TAG = "DrawableContainer";

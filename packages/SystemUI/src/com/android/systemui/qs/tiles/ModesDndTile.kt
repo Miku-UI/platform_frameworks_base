@@ -23,13 +23,15 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.VisibleForTesting
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.coroutineScope
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
 import com.android.internal.logging.MetricsLogger
+import com.android.systemui.Flags
 import com.android.systemui.animation.Expandable
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.modes.shared.ModesUi
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.plugins.qs.QSTile.BooleanState
@@ -37,7 +39,6 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.qs.QSHost
 import com.android.systemui.qs.QsEventLogger
 import com.android.systemui.qs.asQSTileIcon
-import com.android.systemui.qs.flags.QsInCompose
 import com.android.systemui.qs.logging.QSLogger
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigProvider
@@ -48,12 +49,10 @@ import com.android.systemui.qs.tiles.impl.modes.domain.model.ModesDndTileModel
 import com.android.systemui.qs.tiles.impl.modes.ui.ModesDndTileMapper
 import com.android.systemui.res.R
 import javax.inject.Inject
-import kotlinx.coroutines.runBlocking
 
 /**
  * Standalone tile used to control the DND Mode. Contrast to [ModesTile] (the tile that opens a
- * dialog showing the list of all modes) and [DndTile] (the tile used to toggle interruption
- * filtering in the pre-MODES_UI world).
+ * dialog showing the list of all modes).
  */
 class ModesDndTile
 @Inject
@@ -89,25 +88,25 @@ constructor(
 
     init {
         lifecycle.coroutineScope.launch {
-            lifecycle.repeatOnLifecycle(
-                // TODO: b/403434908 - Workaround for "not listening to tile updates". Can be reset
-                //   to RESUMED if either b/403434908 is fixed or QsInCompose is inlined.
-                if (QsInCompose.isEnabled) Lifecycle.State.RESUMED else Lifecycle.State.CREATED
-            ) {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 dataInteractor.tileData().collect { refreshState(it) }
             }
         }
     }
 
-    override fun isAvailable(): Boolean = ModesUi.isEnabled && android.app.Flags.modesUiDndTile()
+    override fun isAvailable(): Boolean = android.app.Flags.modesUiDndTile()
 
     override fun getTileLabel(): CharSequence =
         mContext.getString(R.string.quick_settings_dnd_label)
 
     override fun newTileState(): BooleanState = BooleanState()
 
-    override fun handleClick(expandable: Expandable?) = runBlocking {
-        userActionInteractor.handleClick()
+    override fun handleClick(expandable: Expandable?) {
+        if (Flags.doNotUseRunBlocking()) {
+            lifecycleScope.launch { userActionInteractor.handleClick() }
+        } else {
+            runBlocking { userActionInteractor.handleClick() }
+        }
     }
 
     override fun getLongClickIntent(): Intent? = userActionInteractor.getSettingsIntent()

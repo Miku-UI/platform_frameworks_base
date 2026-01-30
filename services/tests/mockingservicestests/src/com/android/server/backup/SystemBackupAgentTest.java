@@ -74,7 +74,9 @@ public class SystemBackupAgentTest {
     }
 
     @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_FOR_INPUT_GESTURES)
+    @EnableFlags({
+            com.android.hardware.input.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_FOR_INPUT_GESTURES,
+            com.android.window.flags.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_DISPLAY_WINDOW_SETTINGS})
     public void onCreate_systemUser_addsAllHelpers() {
         UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
         when(mUserManagerMock.isProfile()).thenReturn(false);
@@ -97,11 +99,14 @@ public class SystemBackupAgentTest {
                         "companion",
                         "system_gender",
                         "display",
-                        "input");
+                        "input",
+                        "display_window");
     }
 
     @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_FOR_INPUT_GESTURES)
+    @EnableFlags({
+            com.android.hardware.input.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_FOR_INPUT_GESTURES,
+            com.android.window.flags.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_DISPLAY_WINDOW_SETTINGS})
     public void onCreate_systemUser_slicesDisabled_addsAllNonSlicesHelpers() {
         UserHandle userHandle = new UserHandle(UserHandle.USER_SYSTEM);
         when(mUserManagerMock.isProfile()).thenReturn(false);
@@ -125,11 +130,13 @@ public class SystemBackupAgentTest {
                         "companion",
                         "system_gender",
                         "display",
-                        "input");
+                        "input",
+                        "display_window");
     }
 
     @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_FOR_INPUT_GESTURES)
+    @EnableFlags(
+            com.android.window.flags.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_DISPLAY_WINDOW_SETTINGS)
     public void onCreate_profileUser_addsProfileEligibleHelpers() {
         UserHandle userHandle = new UserHandle(NON_SYSTEM_USER_ID);
         when(mUserManagerMock.isProfile()).thenReturn(true);
@@ -145,11 +152,14 @@ public class SystemBackupAgentTest {
                         "companion",
                         "app_gender",
                         "system_gender",
-                        "display");
+                        "display",
+                        "display_window");
     }
 
     @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_FOR_INPUT_GESTURES)
+    @EnableFlags({
+            com.android.hardware.input.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_FOR_INPUT_GESTURES,
+            com.android.window.flags.Flags.FLAG_ENABLE_BACKUP_AND_RESTORE_DISPLAY_WINDOW_SETTINGS})
     public void onCreate_nonSystemUser_addsNonSystemEligibleHelpers() {
         UserHandle userHandle = new UserHandle(NON_SYSTEM_USER_ID);
         when(mUserManagerMock.isProfile()).thenReturn(false);
@@ -170,7 +180,8 @@ public class SystemBackupAgentTest {
                         "app_gender",
                         "system_gender",
                         "display",
-                        "input");
+                        "input",
+                        "display_window");
     }
 
     @Test

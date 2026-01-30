@@ -28,7 +28,8 @@ import java.util.List;
 public class SystemSettings {
 
     /**
-     * Settings to back up.
+     * Settings to back up. You must either add your setting here to be backed up, or add it to
+     * SettingsBackupTest#getBackUpDenyListSystemSettings().
      *
      * NOTE: Settings are backed up and restored in the order they appear
      *       in this array. If you have one setting depending on another,
@@ -65,7 +66,7 @@ public class SystemSettings {
                 Settings.System.TIME_12_24,
                 Settings.System.DTMF_TONE_WHEN_DIALING,
                 Settings.System.DTMF_TONE_TYPE_WHEN_DIALING,
-                Settings.System.HEARING_AID,
+                Settings.System.HEARING_AID_COMPATIBILITY,
                 Settings.System.TTY_MODE,
                 Settings.System.MASTER_MONO,
                 Settings.System.MASTER_BALANCE,
@@ -96,6 +97,7 @@ public class SystemSettings {
                 Settings.System.RING_VIBRATION_INTENSITY,
                 Settings.System.HAPTIC_FEEDBACK_INTENSITY,
                 Settings.System.HARDWARE_HAPTIC_FEEDBACK_INTENSITY,
+                Settings.System.GESTURE_INPUT_VIBRATION_INTENSITY,
                 Settings.System.KEYBOARD_VIBRATION_ENABLED,
                 Settings.System.HAPTIC_FEEDBACK_ENABLED,
                 Settings.System.DISPLAY_COLOR_MODE_VENDOR_HINT, // must precede DISPLAY_COLOR_MODE
@@ -125,7 +127,9 @@ public class SystemSettings {
                 Settings.System.NOTIFICATION_COOLDOWN_ALL,
                 Settings.System.NOTIFICATION_COOLDOWN_VIBRATE_UNLOCKED,
                 Settings.System.PREFERRED_REGION,
-                Settings.System.CV_ENABLED
+                Settings.System.CV_ENABLED,
+                Settings.System.CV_DYNAMIC_ENABLED,
+                Settings.System.CV_PREFERRED_INTENSITY
         ));
         if (Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
             settings.add(Settings.System.PEAK_REFRESH_RATE);

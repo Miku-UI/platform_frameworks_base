@@ -23,6 +23,7 @@ import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.animation.PropertyValuesHolder;
 import android.annotation.StyleRes;
+import android.companion.virtualdevice.flags.Flags;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -93,9 +94,6 @@ class FastScroller {
     // Indices for mPreviewResId.
     private static final int PREVIEW_LEFT = 0;
     private static final int PREVIEW_RIGHT = 1;
-
-    /** Delay before considering a tap in the thumb area to be a drag. */
-    private static final long TAP_TIMEOUT = ViewConfiguration.getTapTimeout();
 
     private final Rect mTempBounds = new Rect();
     private final Rect mTempMargins = new Rect();
@@ -229,7 +227,8 @@ class FastScroller {
 
     private float mInitialTouchY;
     private long mPendingDrag = -1;
-    private int mScaledTouchSlop;
+    private final int mScaledTouchSlop;
+    private final int mTapTimeoutMillis;
 
     private int mOldItemCount;
     private int mOldChildCount;
@@ -261,7 +260,10 @@ class FastScroller {
         mOldChildCount = listView.getChildCount();
 
         final Context context = listView.getContext();
-        mScaledTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
+        final ViewConfiguration viewConfiguration = ViewConfiguration.get(context);
+        mScaledTouchSlop = viewConfiguration.getScaledTouchSlop();
+        mTapTimeoutMillis = Flags.viewconfigurationApis()
+                ? viewConfiguration.getTapTimeoutMillis() : ViewConfiguration.getTapTimeout();
         mScrollBarStyle = listView.getScrollBarStyle();
 
         mScrollCompleted = true;
@@ -1373,7 +1375,7 @@ class FastScroller {
      * scrolling, rather than tapping.
      */
     private void startPendingDrag() {
-        mPendingDrag = SystemClock.uptimeMillis() + TAP_TIMEOUT;
+        mPendingDrag = SystemClock.uptimeMillis() + mTapTimeoutMillis;
     }
 
     private void beginDrag() {

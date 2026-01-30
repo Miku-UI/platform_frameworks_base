@@ -18,13 +18,16 @@ package com.android.systemui.statusbar.pipeline.wifi.ui.view
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.res.Configuration
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.ImageView
-import com.android.settingslib.flags.Flags.newStatusBarIcons
+import com.android.keyguard.AlphaOptimizedLinearLayout
+import com.android.systemui.Flags
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView
+import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.pipeline.shared.ui.view.ModernStatusBarView
 import com.android.systemui.statusbar.pipeline.wifi.ui.binder.WifiViewBinder
 import com.android.systemui.statusbar.pipeline.wifi.ui.viewmodel.LocationBasedWifiViewModel
@@ -33,10 +36,8 @@ import com.android.systemui.statusbar.pipeline.wifi.ui.viewmodel.LocationBasedWi
  * A new and more modern implementation of [com.android.systemui.statusbar.StatusBarWifiView] that
  * is updated by [WifiViewBinder].
  */
-class ModernStatusBarWifiView(
-    context: Context,
-    attrs: AttributeSet?,
-) : ModernStatusBarView(context, attrs) {
+class ModernStatusBarWifiView(context: Context, attrs: AttributeSet?) :
+    ModernStatusBarView(context, attrs) {
 
     override fun toString(): String {
         return "ModernStatusBarWifiView(" +
@@ -60,17 +61,42 @@ class ModernStatusBarWifiView(
         ): ModernStatusBarWifiView {
             return (LayoutInflater.from(context).inflate(R.layout.new_status_bar_wifi_group, null)
                     as ModernStatusBarWifiView)
-                .also {
-                    // Flag-specific configuration
-                    if (newStatusBarIcons()) {
-                        // The newer asset does not embed whitespace around it, and is therefore
-                        // rectangular. Use wrap_content for the width in this case
-                        val iconView = it.requireViewById<ImageView>(R.id.wifi_signal)
-                        val lp = iconView.layoutParams
-                        lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
-                    }
+                .apply {
+                    updateDimensions()
 
-                    it.initView(slot) { WifiViewBinder.bind(it, wifiViewModel) }
+                    initView(slot) { WifiViewBinder.bind(this, wifiViewModel) }
+                }
+        }
+    }
+
+    public override fun onConfigurationChanged(newConfig: Configuration?) {
+        if (Flags.fixShadeHeaderWrongIconSize()) {
+            updateDimensions()
+        }
+    }
+
+    private fun updateDimensions() {
+        // Flag-specific configuration
+        if (NewStatusBarIcons.isEnabled) {
+            // The newer asset does not embed whitespace around it, and is therefore
+            // rectangular. Use wrap_content for the width in this case
+            val iconView = requireViewById<ImageView>(R.id.wifi_signal)
+            iconView.adjustViewBounds = true
+            val lp = iconView.layoutParams
+            lp.width = ViewGroup.LayoutParams.WRAP_CONTENT
+            lp.height =
+                resources.getDimensionPixelSize(R.dimen.status_bar_wifi_signal_height_updated)
+
+            // New status bar icons have a single 3sp spacing defined
+            (requireViewById<AlphaOptimizedLinearLayout>(R.id.wifi_group).layoutParams
+                    as MarginLayoutParams)
+                .apply {
+                    val margin =
+                        context.resources.getDimensionPixelSize(
+                            R.dimen.status_bar_wifi_signal_horizontal_margin
+                        )
+                    marginStart = margin
+                    marginEnd = margin
                 }
         }
     }

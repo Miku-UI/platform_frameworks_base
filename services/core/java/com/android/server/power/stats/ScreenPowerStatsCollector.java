@@ -128,7 +128,7 @@ public class ScreenPowerStatsCollector extends PowerStatsCollector {
     }
 
     @Override
-    public PowerStats collectStats() {
+    public PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
         if (!ensureInitialized()) {
             return null;
         }
@@ -182,9 +182,8 @@ public class ScreenPowerStatsCollector extends PowerStatsCollector {
                     Math.max(0, mLayout.getUidTopActivityDuration(uidStats) + topActivityDuration));
         });
 
-        long elapsedRealtime = mClock.elapsedRealtime();
-        mPowerStats.durationMs = elapsedRealtime - mLastCollectionTime;
-        mLastCollectionTime = elapsedRealtime;
+        mPowerStats.durationMs = elapsedRealtimeMs - mLastCollectionTime;
+        mLastCollectionTime = elapsedRealtimeMs;
 
         mFirstSample = false;
 

@@ -18,6 +18,7 @@ package com.android.settingslib.spa.framework.util
 
 import android.content.ComponentName
 import android.content.Intent
+import androidx.annotation.VisibleForTesting
 import com.android.settingslib.spa.framework.common.SettingsEntry
 import com.android.settingslib.spa.framework.common.SettingsPage
 import com.android.settingslib.spa.framework.common.SpaEnvironmentFactory
@@ -28,14 +29,8 @@ const val SESSION_SEARCH = "search"
 const val SESSION_EXTERNAL = "external"
 
 const val KEY_DESTINATION = "spaActivityDestination"
-const val KEY_HIGHLIGHT_ENTRY = "highlightEntry"
-const val KEY_SESSION_SOURCE_NAME = "sessionSource"
-
-val SPA_INTENT_RESERVED_KEYS = listOf(
-    KEY_DESTINATION,
-    KEY_HIGHLIGHT_ENTRY,
-    KEY_SESSION_SOURCE_NAME
-)
+@VisibleForTesting const val KEY_HIGHLIGHT_ITEM_KEY = "highlightKey"
+internal const val KEY_SESSION_SOURCE_NAME = "sessionSource"
 
 private fun createBaseIntent(): Intent? {
     val context = SpaEnvironmentFactory.instance.appContext
@@ -43,7 +38,7 @@ private fun createBaseIntent(): Intent? {
     return Intent().setComponent(ComponentName(context, browseActivityClass))
 }
 
-fun SettingsPage.createIntent(sessionName: String? = null): Intent? {
+internal fun SettingsPage.createIntent(sessionName: String? = null): Intent? {
     if (!isBrowsable()) return null
     return createBaseIntent()?.appendSpaParams(
         destination = buildRoute(),
@@ -51,36 +46,22 @@ fun SettingsPage.createIntent(sessionName: String? = null): Intent? {
     )
 }
 
-fun SettingsEntry.createIntent(sessionName: String? = null): Intent? {
-    val sp = containerPage()
-    if (!sp.isBrowsable()) return null
-    return createBaseIntent()?.appendSpaParams(
-        destination = sp.buildRoute(),
-        entryId = id,
-        sessionName = sessionName
-    )
-}
+internal fun SettingsEntry.createIntent(sessionName: String? = null): Intent? =
+    containerPage().createIntent(sessionName)
 
 fun Intent.appendSpaParams(
     destination: String? = null,
-    entryId: String? = null,
-    sessionName: String? = null
-): Intent {
-    return apply {
-        if (destination != null) putExtra(KEY_DESTINATION, destination)
-        if (entryId != null) putExtra(KEY_HIGHLIGHT_ENTRY, entryId)
-        if (sessionName != null) putExtra(KEY_SESSION_SOURCE_NAME, sessionName)
-    }
+    highlightItemKey: String? = null,
+    sessionName: String? = null,
+): Intent = apply {
+    if (destination != null) putExtra(KEY_DESTINATION, destination)
+    if (highlightItemKey != null) putExtra(KEY_HIGHLIGHT_ITEM_KEY, highlightItemKey)
+    if (sessionName != null) putExtra(KEY_SESSION_SOURCE_NAME, sessionName)
 }
 
-fun Intent.getDestination(): String? {
-    return getStringExtra(KEY_DESTINATION)
-}
+internal fun Intent.getDestination(): String? = getStringExtra(KEY_DESTINATION)
 
-fun Intent.getEntryId(): String? {
-    return getStringExtra(KEY_HIGHLIGHT_ENTRY)
-}
+internal val Intent.highlightItemKey: String?
+    get() = getStringExtra(KEY_HIGHLIGHT_ITEM_KEY)
 
-fun Intent.getSessionName(): String? {
-    return getStringExtra(KEY_SESSION_SOURCE_NAME)
-}
+internal fun Intent.getSessionName(): String? = getStringExtra(KEY_SESSION_SOURCE_NAME)

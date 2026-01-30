@@ -76,6 +76,7 @@ constructor(
                     .onStart { emit(activeSessions) }
             }
             .map { getMediaControllers(it) }
+            .flowOn(backgroundCoroutineContext)
             .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), MediaControllers(null, null))
 
     /** [MediaDeviceSessions] that contains currently active sessions. */
@@ -131,7 +132,7 @@ constructor(
             var remoteController: MediaController? = null
             val remoteMediaSessions: MutableSet<String> = mutableSetOf()
             for (controller in controllers) {
-                val playbackInfo: MediaController.PlaybackInfo = controller.playbackInfo ?: continue
+                val playbackInfo: MediaController.PlaybackInfo = controller.playbackInfo
                 when (playbackInfo.playbackType) {
                     MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE -> {
                         // MediaController can't be local if there is a remote one for the same

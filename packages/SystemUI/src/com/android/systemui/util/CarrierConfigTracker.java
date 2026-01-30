@@ -55,6 +55,7 @@ public class CarrierConfigTracker
     private final SparseBooleanArray mNoCallingConfigs = new SparseBooleanArray();
     private final SparseBooleanArray mCarrierProvisionsWifiMergedNetworks =
             new SparseBooleanArray();
+    private final SparseBooleanArray mInflateSignalStrength = new SparseBooleanArray();
     private final SparseBooleanArray mShowOperatorNameConfigs = new SparseBooleanArray();
     private final CarrierConfigManager mCarrierConfigManager;
     private final Set<CarrierConfigChangedListener> mListeners = new ArraySet<>();
@@ -62,6 +63,8 @@ public class CarrierConfigTracker
             new ArraySet<>();
     private boolean mDefaultCarrierProvisionsWifiMergedNetworksLoaded;
     private boolean mDefaultCarrierProvisionsWifiMergedNetworks;
+    private boolean mDefaultInflateSignalStrengthLoaded;
+    private boolean mDefaultInflateSignalStrength;
     private boolean mDefaultShowOperatorNameConfigLoaded;
     private boolean mDefaultShowOperatorNameConfig;
     private boolean mDefaultAlwaysShowPrimarySignalBarInOpportunisticNetworkConfigLoaded;
@@ -116,6 +119,10 @@ public class CarrierConfigTracker
             mCarrierProvisionsWifiMergedNetworks.put(subId, config.getBoolean(
                     CarrierConfigManager.KEY_CARRIER_PROVISIONS_WIFI_MERGED_NETWORKS_BOOL));
         }
+        synchronized (mInflateSignalStrength) {
+            mInflateSignalStrength.put(subId, config.getBoolean(
+                    CarrierConfigManager.KEY_INFLATE_SIGNAL_STRENGTH_BOOL));
+        }
         synchronized (mShowOperatorNameConfigs) {
             mShowOperatorNameConfigs.put(subId, config.getBoolean(
                     CarrierConfigManager.KEY_SHOW_OPERATOR_NAME_IN_STATUSBAR_BOOL));
@@ -157,6 +164,24 @@ public class CarrierConfigTracker
             mDefaultCarrierProvisionsWifiMergedNetworksLoaded = true;
         }
         return mDefaultCarrierProvisionsWifiMergedNetworks;
+    }
+
+    /**
+     * Returns the KEY_INFLATE_SIGNAL_STRENGTH_BOOL value for the given subId.
+     */
+    public boolean getInflateSignalStrengthBool(int subId) {
+        synchronized (mInflateSignalStrength) {
+            if (mInflateSignalStrength.indexOfKey(subId) >= 0) {
+                return mInflateSignalStrength.get(subId);
+            }
+        }
+        if (!mDefaultInflateSignalStrengthLoaded) {
+            mDefaultInflateSignalStrength =
+                    CarrierConfigManager.getDefaultConfig().getBoolean(
+                            CarrierConfigManager.KEY_INFLATE_SIGNAL_STRENGTH_BOOL);
+            mDefaultInflateSignalStrengthLoaded = true;
+        }
+        return mDefaultInflateSignalStrength;
     }
 
     /**

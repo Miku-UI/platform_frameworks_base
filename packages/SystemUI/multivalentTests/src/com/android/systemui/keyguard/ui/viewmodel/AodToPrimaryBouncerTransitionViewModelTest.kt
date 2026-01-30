@@ -30,10 +30,17 @@ import com.android.systemui.keyguard.shared.model.TransitionState.STARTED
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.data.repository.ShowOverlay
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -43,6 +50,18 @@ class AodToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
     private val underTest by lazy { kosmos.aodToPrimaryBouncerTransitionViewModel }
+
+    @Before
+    fun setUp() {
+        // Put STL in transition: Lockscreen (includes KeyguardState.AOD) => Bouncer
+        kosmos.setSceneTransition(
+            ShowOverlay(
+                overlay = Overlays.Bouncer,
+                fromScene = Scenes.Lockscreen,
+                progress = flowOf(.5f),
+            )
+        )
+    }
 
     @Test
     fun aodToPrimaryBouncerChangesBlurToMax() =
@@ -77,7 +96,12 @@ class AodToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() {
     private fun step(value: Float, transitionState: TransitionState = RUNNING) =
         TransitionStep(
             from = KeyguardState.AOD,
-            to = KeyguardState.PRIMARY_BOUNCER,
+            to =
+                if (SceneContainerFlag.isEnabled) {
+                    KeyguardState.UNDEFINED
+                } else {
+                    KeyguardState.PRIMARY_BOUNCER
+                },
             value = value,
             transitionState = transitionState,
             ownerName = "AodToPrimaryBouncerTransitionViewModelTest",

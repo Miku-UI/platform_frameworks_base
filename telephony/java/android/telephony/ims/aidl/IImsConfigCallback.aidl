@@ -20,7 +20,7 @@ package android.telephony.ims.aidl;
 /**
  * Provides callback interface for ImsConfig when a value has changed.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IImsConfigCallback {
     void onIntConfigChanged(int item, int value);

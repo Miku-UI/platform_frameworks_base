@@ -15,11 +15,6 @@
  */
 package com.android.server.notification;
 
-import static android.app.Flags.restrictAudioAttributesAlarm;
-import static android.app.Flags.restrictAudioAttributesCall;
-import static android.app.Flags.restrictAudioAttributesMedia;
-import static android.app.Flags.sortSectionByTime;
-import static android.app.NotificationManager.IMPORTANCE_MIN;
 import static android.text.TextUtils.formatSimple;
 
 import android.annotation.NonNull;
@@ -63,11 +58,7 @@ public class RankingHelper {
             IPlatformCompat platformCompat, GroupHelper groupHelper) {
         mContext = context;
         mRankingHandler = rankingHandler;
-        if (sortSectionByTime()) {
-            mPreliminaryComparator = new NotificationTimeComparator();
-        } else {
-            mPreliminaryComparator = new NotificationComparator(mContext);
-        }
+        mPreliminaryComparator = new NotificationTimeComparator();
 
         final int N = extractorNames.length;
         mSignalExtractors = new NotificationSignalExtractor[N];
@@ -80,10 +71,7 @@ public class RankingHelper {
                 extractor.setConfig(config);
                 extractor.setZenHelper(zenHelper);
                 extractor.setGroupHelper(groupHelper);
-                if (restrictAudioAttributesAlarm() || restrictAudioAttributesMedia()
-                        || restrictAudioAttributesCall()) {
-                    extractor.setCompatChangeLogger(platformCompat);
-                }
+                extractor.setCompatChangeLogger(platformCompat);
                 mSignalExtractors[i] = extractor;
             } catch (ClassNotFoundException e) {
                 Slog.w(TAG, "Couldn't find extractor " + extractorNames[i] + ".", e);
@@ -130,34 +118,19 @@ public class RankingHelper {
         }
 
         // Rank each record individually.
-        if (sortSectionByTime()) {
-            notificationList.sort(mPreliminaryComparator);
-        } else {
-            // Lock comparator state for consistent compare() results.
-            synchronized (((NotificationComparator) mPreliminaryComparator).mStateLock) {
-                notificationList.sort(mPreliminaryComparator);
-            }
-        }
+        notificationList.sort(mPreliminaryComparator);
 
         synchronized (mProxyByGroupTmp) {
             // record individual ranking result and nominate proxies for each group
             for (int i = 0; i < N; i++) {
                 final NotificationRecord record = notificationList.get(i);
                 record.setAuthoritativeRank(i);
-                if (sortSectionByTime()) {
-                    final String groupKey = record.getGroupKey();
-                    NotificationRecord existingProxy = mProxyByGroupTmp.get(groupKey);
-                    // summaries are mostly hidden in systemui - if there is a child notification,
-                    // use its rank
-                    if (existingProxy == null || existingProxy.getNotification().isGroupSummary()) {
-                        mProxyByGroupTmp.put(groupKey, record);
-                    }
-                } else {
-                    final String groupKey = record.getGroupKey();
-                    NotificationRecord existingProxy = mProxyByGroupTmp.get(groupKey);
-                    if (existingProxy == null) {
-                        mProxyByGroupTmp.put(groupKey, record);
-                    }
+                final String groupKey = record.getGroupKey();
+                 NotificationRecord existingProxy = mProxyByGroupTmp.get(groupKey);
+                // summaries are mostly hidden in systemui - if there is a child notification,
+                // use its rank
+                if (existingProxy == null || existingProxy.getNotification().isGroupSummary()) {
+                    mProxyByGroupTmp.put(groupKey, record);
                 }
             }
             // assign global sort key:
@@ -182,10 +155,7 @@ public class RankingHelper {
                 }
 
                 boolean isGroupSummary = record.getNotification().isGroupSummary();
-                char intrusiveRank = sortSectionByTime()
-                        ? '2'
-                        : record.isRecentlyIntrusive() && record.getImportance() > IMPORTANCE_MIN
-                        ? '0' : '1';
+                char intrusiveRank = '2';
                 record.setGlobalSortKey(
                         formatSimple("crtcl=0x%04x:intrsv=%c:grnk=0x%04x:gsmry=%c:%s:rnk=0x%04x",
                         record.getCriticality(),

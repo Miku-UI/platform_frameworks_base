@@ -28,7 +28,7 @@
         android:paddingBottom="16dp"
         android:text="@string/fp_power_button_enrollment_title"
         android:textColor="@color/side_fps_text_color"
-        android:paddingLeft="20dp"/>
+        android:paddingStart="20dp"/>
     <Space
         android:layout_width="5dp"
         android:layout_height="match_parent" />

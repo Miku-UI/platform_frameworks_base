@@ -29,7 +29,7 @@ import androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
 import androidx.constraintlayout.widget.ConstraintSet.START
 import androidx.constraintlayout.widget.ConstraintSet.TOP
 import com.android.systemui.common.ui.ConfigurationState
-import com.android.systemui.customization.R as customR
+import com.android.systemui.customization.clocks.R as clocksR
 import com.android.systemui.keyguard.shared.model.KeyguardSection
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
 import com.android.systemui.res.R
@@ -54,7 +54,7 @@ constructor(
     private val iconBindingFailureTracker: StatusBarIconViewBindingFailureTracker,
     private val nicAodViewModel: NotificationIconContainerAlwaysOnDisplayViewModel,
     private val nicAodIconViewStore: AlwaysOnDisplayNotificationIconViewStore,
-    private val systemBarUtilsState: SystemBarUtilsState,
+    @ShadeDisplayAware private val systemBarUtilsState: SystemBarUtilsState,
     private val rootViewModel: KeyguardRootViewModel,
     private val shadeModeInteractor: ShadeModeInteractor,
 ) : KeyguardSection() {
@@ -70,7 +70,7 @@ constructor(
                 setPaddingRelative(
                     resources.getDimensionPixelSize(R.dimen.below_clock_padding_start_icons),
                     0,
-                    0,
+                    resources.getDimensionPixelOffset(R.dimen.shelf_icon_container_padding),
                     0,
                 )
                 setVisibility(View.INVISIBLE)
@@ -96,10 +96,10 @@ constructor(
         val bottomMargin =
             context.resources.getDimensionPixelSize(R.dimen.keyguard_status_view_bottom_margin)
         val horizontalMargin =
-            context.resources.getDimensionPixelSize(customR.dimen.status_view_margin_horizontal)
+            context.resources.getDimensionPixelSize(clocksR.dimen.status_view_margin_horizontal)
         val height = context.resources.getDimensionPixelSize(R.dimen.notification_shelf_height)
         val isVisible = rootViewModel.isNotifIconContainerVisible.value
-        val isShadeLayoutWide = shadeModeInteractor.isShadeLayoutWide.value
+        val isFullWidthShade = shadeModeInteractor.isFullWidthShade.value
 
         constraintSet.apply {
             if (PromotedNotificationUi.isEnabled) {
@@ -111,7 +111,7 @@ constructor(
             setGoneMargin(nicId, BOTTOM, bottomMargin)
             setVisibility(nicId, if (isVisible.value) VISIBLE else GONE)
 
-            if (PromotedNotificationUi.isEnabled && isShadeLayoutWide) {
+            if (PromotedNotificationUi.isEnabled && !isFullWidthShade) {
                 // Don't create a start constraint, so the icons can hopefully right-align.
             } else {
                 connect(nicId, START, PARENT_ID, START, horizontalMargin)

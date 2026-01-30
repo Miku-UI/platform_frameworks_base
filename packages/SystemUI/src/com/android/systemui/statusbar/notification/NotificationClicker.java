@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.systemui.statusbar.notification;
 
 import android.app.Notification;
@@ -27,9 +28,6 @@ import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
-import com.android.wm.shell.bubbles.Bubbles;
-
-import java.util.Optional;
 
 import javax.inject.Inject;
 
@@ -42,7 +40,6 @@ public final class NotificationClicker implements View.OnClickListener {
 
     private final NotificationClickerLogger mLogger;
     private final PowerInteractor mPowerInteractor;
-    private final Optional<Bubbles> mBubblesOptional;
     private final NotificationActivityStarter mNotificationActivityStarter;
 
     private ExpandableNotificationRow.OnDragSuccessListener mOnDragSuccessListener
@@ -63,11 +60,9 @@ public final class NotificationClicker implements View.OnClickListener {
     private NotificationClicker(
             NotificationClickerLogger logger,
             PowerInteractor powerInteractor,
-            Optional<Bubbles> bubblesOptional,
             NotificationActivityStarter notificationActivityStarter) {
         mLogger = logger;
         mPowerInteractor = powerInteractor;
-        mBubblesOptional = bubblesOptional;
         mNotificationActivityStarter = notificationActivityStarter;
     }
 
@@ -108,14 +103,8 @@ public final class NotificationClicker implements View.OnClickListener {
         DejankUtils.postAfterTraversal(() -> row.setJustClicked(false));
 
         if (NotificationBundleUi.isEnabled()) {
-            if (!row.getEntryAdapter().isBubble() && mBubblesOptional.isPresent()) {
-                mBubblesOptional.get().collapseStack();
-            }
             row.getEntryAdapter().onEntryClicked(row);
         } else {
-            if (!row.getEntryLegacy().isBubble() && mBubblesOptional.isPresent()) {
-                mBubblesOptional.get().collapseStack();
-            }
             mNotificationActivityStarter.onNotificationClicked(row.getEntryLegacy(), row);
         }
     }
@@ -163,14 +152,10 @@ public final class NotificationClicker implements View.OnClickListener {
         }
 
         /** Builds an instance. */
-        public NotificationClicker build(
-                Optional<Bubbles> bubblesOptional,
-                NotificationActivityStarter notificationActivityStarter
-        ) {
+        public NotificationClicker build(NotificationActivityStarter notificationActivityStarter) {
             return new NotificationClicker(
                     mLogger,
                     mPowerInteractor,
-                    bubblesOptional,
                     notificationActivityStarter);
         }
     }

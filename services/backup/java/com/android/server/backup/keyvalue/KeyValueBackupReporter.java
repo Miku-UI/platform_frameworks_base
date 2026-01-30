@@ -16,6 +16,7 @@
 
 package com.android.server.backup.keyvalue;
 
+import android.app.IBackupAgent;
 import android.annotation.Nullable;
 import android.app.backup.BackupManager;
 import android.app.backup.BackupManagerMonitor;
@@ -402,5 +403,9 @@ public class KeyValueBackupReporter {
 
     void onTaskFinished() {
         Slog.i(TAG, "K/V backup pass finished");
+    }
+
+    void monitorAgentLoggingResults(PackageInfo packageInfo, IBackupAgent agent) {
+        mBackupManagerMonitorEventSender.monitorAgentLoggingResults(packageInfo, agent);
     }
 }

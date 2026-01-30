@@ -118,6 +118,7 @@ android_test {
         "servicestests-core-utils",
         "servicestests-utils-mockito-extended",
         "truth",
+        "ui-trace-collector",
     ],
 
     libs: [

@@ -20,6 +20,7 @@ package com.android.systemui.keyguard.domain.interactor
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.graphics.Rect
 import android.os.PowerManager
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
@@ -32,15 +33,21 @@ import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor
-import com.android.systemui.flags.FeatureFlags
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.inputdevice.data.repository.PointerDeviceRepository
 import com.android.systemui.keyguard.data.repository.KeyguardRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor
 import com.android.systemui.shade.PulsingGestureListener
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
+import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.statusbar.policy.AccessibilityManagerWrapper
-import com.android.systemui.util.settings.repository.UserAwareSecureSettingsRepository
 import com.android.systemui.util.time.SystemClock
+import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -67,23 +74,43 @@ constructor(
     transitionInteractor: KeyguardTransitionInteractor,
     repository: KeyguardRepository,
     private val logger: UiEventLogger,
-    private val featureFlags: FeatureFlags,
     broadcastDispatcher: BroadcastDispatcher,
     private val accessibilityManager: AccessibilityManagerWrapper,
+    private val statusBarKeyguardViewManager: StatusBarKeyguardViewManager,
     private val pulsingGestureListener: PulsingGestureListener,
     private val faceAuthInteractor: DeviceEntryFaceAuthInteractor,
-    private val secureSettingsRepository: UserAwareSecureSettingsRepository,
+    private val deviceEntryInteractor: DeviceEntryInteractor,
+    private val powerInteractor: PowerInteractor,
+    private val secureSettingsRepository: SecureSettingsRepository,
     private val powerManager: PowerManager,
     private val systemClock: SystemClock,
+    private val pointerDeviceRepository: PointerDeviceRepository,
+    secureLockDeviceInteractor: Lazy<SecureLockDeviceInteractor>,
 ) {
+    private val _udfpsAccessibilityOverlayBounds: MutableStateFlow<Rect?> = MutableStateFlow(null)
+
+    /** Bounds of the UDFPS accessibility overlay */
+    val udfpsAccessibilityOverlayBounds: Flow<Rect?> =
+        _udfpsAccessibilityOverlayBounds.asStateFlow()
+
+    fun setUdfpsAccessibilityOverlayBounds(bounds: Rect?) {
+        _udfpsAccessibilityOverlayBounds.value = bounds
+    }
+
     /** Whether the long-press handling feature should be enabled. */
     val isLongPressHandlingEnabled: StateFlow<Boolean> =
         if (isLongPressFeatureEnabled()) {
                 combine(
                     transitionInteractor.isFinishedIn(KeyguardState.LOCKSCREEN),
                     repository.isQuickSettingsVisible,
-                ) { isFullyTransitionedToLockScreen, isQuickSettingsVisible ->
-                    isFullyTransitionedToLockScreen && !isQuickSettingsVisible
+                    secureLockDeviceInteractor.get().isSecureLockDeviceEnabled,
+                ) {
+                    isFullyTransitionedToLockScreen,
+                    isQuickSettingsVisible,
+                    isSecureLockDeviceEnabled ->
+                    isFullyTransitionedToLockScreen &&
+                        !isQuickSettingsVisible &&
+                        !isSecureLockDeviceEnabled
                 }
             } else {
                 flowOf(false)
@@ -101,13 +128,16 @@ constructor(
                     transitionInteractor.transitionValue(KeyguardState.LOCKSCREEN),
                     repository.isQuickSettingsVisible,
                     isDoubleTapSettingEnabled(),
+                    secureLockDeviceInteractor.get().isSecureLockDeviceEnabled,
                 ) {
                     isFullyTransitionedToLockScreen,
                     isQuickSettingsVisible,
-                    isDoubleTapSettingEnabled ->
+                    isDoubleTapSettingEnabled,
+                    isSecureLockDeviceEnabled ->
                     isFullyTransitionedToLockScreen == 1f &&
                         !isQuickSettingsVisible &&
-                        isDoubleTapSettingEnabled
+                        isDoubleTapSettingEnabled &&
+                        !isSecureLockDeviceEnabled
                 }
             } else {
                 flowOf(false)
@@ -117,6 +147,15 @@ constructor(
                 started = SharingStarted.WhileSubscribed(),
                 initialValue = false,
             )
+
+    /* Cache value of `isAnyPointerDeviceConnected` so it can
+     * be easily checked. */
+    private val _isAnyPointerDeviceConnected =
+        pointerDeviceRepository.isAnyPointerDeviceConnected.stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = false,
+        )
 
     private val _isMenuVisible = MutableStateFlow(false)
     /** Model for whether the menu should be shown. */
@@ -203,7 +242,11 @@ constructor(
     /** Notifies that the lockscreen has been clicked at position [x], [y]. */
     fun onClick(x: Float, y: Float) {
         pulsingGestureListener.onSingleTapUp(x, y)
-        faceAuthInteractor.onNotificationPanelClicked()
+        if (faceAuthInteractor.canFaceAuthRun()) {
+            faceAuthInteractor.onNotificationPanelClicked()
+        } else if (_isAnyPointerDeviceConnected.value) {
+            attemptDeviceEntry(loggingReason = "Lockscreen clicked")
+        }
     }
 
     /** Notifies that the lockscreen has been double clicked. */
@@ -268,6 +311,23 @@ constructor(
                     AccessibilityManager.FLAG_CONTENT_CONTROLS,
             )
             .toLong()
+    }
+
+    private fun attemptDeviceEntry(loggingReason: String) {
+        if (isDeviceAwake()) {
+            if (SceneContainerFlag.isEnabled) {
+                deviceEntryInteractor.attemptDeviceEntry(loggingReason)
+            } else {
+                statusBarKeyguardViewManager.showPrimaryBouncer(
+                    true,
+                    "KeyguardTouchHandlingInteractor#attemptDeviceEntry",
+                )
+            }
+        }
+    }
+
+    private fun isDeviceAwake(): Boolean {
+        return powerInteractor.detailedWakefulness.value.isAwake()
     }
 
     enum class LogEvents(private val _id: Int) : UiEventLogger.UiEventEnum {

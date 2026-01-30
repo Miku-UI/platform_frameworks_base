@@ -36,9 +36,7 @@ import org.junit.runner.RunWith
 class ColorCorrectionTileMapperTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val colorCorrectionTileConfig = kosmos.qsColorCorrectionTileConfig
-    private val subtitleArray by lazy {
-        context.resources.getStringArray(R.array.tile_states_color_correction)
-    }
+
     // Using lazy (versus =) to make sure we override the right context -- see b/311612168
     private val mapper by lazy {
         ColorCorrectionTileMapper(
@@ -55,8 +53,7 @@ class ColorCorrectionTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(colorCorrectionTileConfig, inputModel)
 
-        val expectedState =
-            createColorCorrectionTileState(QSTileState.ActivationState.INACTIVE, subtitleArray[1])
+        val expectedState = createColorCorrectionTileState(QSTileState.ActivationState.INACTIVE)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
@@ -66,14 +63,12 @@ class ColorCorrectionTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(colorCorrectionTileConfig, inputModel)
 
-        val expectedState =
-            createColorCorrectionTileState(QSTileState.ActivationState.ACTIVE, subtitleArray[2])
+        val expectedState = createColorCorrectionTileState(QSTileState.ActivationState.ACTIVE)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
     private fun createColorCorrectionTileState(
-        activationState: QSTileState.ActivationState,
-        secondaryLabel: String,
+        activationState: QSTileState.ActivationState
     ): QSTileState {
         val label = context.getString(R.string.quick_settings_color_correction_label)
         return QSTileState(
@@ -84,10 +79,10 @@ class ColorCorrectionTileMapperTest : SysuiTestCase() {
             ),
             label,
             activationState,
-            secondaryLabel,
+            secondaryLabel = null,
             setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
             label,
-            null,
+            stateDescription = null,
             QSTileState.SideViewIcon.None,
             QSTileState.EnabledState.ENABLED,
             Switch::class.qualifiedName,

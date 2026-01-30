@@ -20,7 +20,7 @@ package android.speech;
  * Listener for model download events. It makes RecognitionService let callers know about the
  * progress of model download requests.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IModelDownloadListener {
     /**

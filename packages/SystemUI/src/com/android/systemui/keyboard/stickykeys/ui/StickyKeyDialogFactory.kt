@@ -18,6 +18,7 @@ package com.android.systemui.keyboard.stickykeys.ui
 
 import android.app.Dialog
 import android.content.Context
+import android.view.Display
 import android.view.Gravity
 import android.view.Window
 import android.view.WindowInsets
@@ -35,22 +36,25 @@ import com.android.systemui.res.R
 import javax.inject.Inject
 
 @SysUISingleton
-class StickyKeyDialogFactory
-@Inject
-constructor(
-    @Application val context: Context,
-) {
+class StickyKeyDialogFactory @Inject constructor(@Application val context: Context) {
 
-    fun create(viewModel: StickyKeysIndicatorViewModel): Dialog {
-        return createStickyKeyIndicator(viewModel)
+    fun create(display: Display, viewModel: StickyKeysIndicatorViewModel): Dialog {
+        return createStickyKeyIndicator(display, viewModel)
     }
 
-    private fun createStickyKeyIndicator(viewModel: StickyKeysIndicatorViewModel): Dialog {
-        return ComponentDialog(context, R.style.Theme_SystemUI_Dialog_StickyKeys).apply {
-            // because we're requesting window feature it must be called before setting content
-            window?.setStickyKeyWindowAttributes()
-            setContentView(createStickyKeyIndicatorView(context, viewModel))
-        }
+    private fun createStickyKeyIndicator(
+        display: Display,
+        viewModel: StickyKeysIndicatorViewModel,
+    ): Dialog {
+        return ComponentDialog(
+                context = context.createDisplayContext(display),
+                themeResId = R.style.Theme_SystemUI_Dialog_StickyKeys,
+            )
+            .apply {
+                // because we're requesting window feature it must be called before setting content
+                window?.setStickyKeyWindowAttributes()
+                setContentView(createStickyKeyIndicatorView(context, viewModel))
+            }
     }
 
     private fun Window.setStickyKeyWindowAttributes() {

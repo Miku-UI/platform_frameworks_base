@@ -43,19 +43,27 @@ public interface TimeZoneChangeListener {
         private final @UserIdInt int mUserId;
         private final String mOldZoneId;
         private final String mNewZoneId;
+        private final @TimeZoneConfidence int mOldConfidence;
         private final @TimeZoneConfidence int mNewConfidence;
         private final String mCause;
 
-        public TimeZoneChangeEvent(@ElapsedRealtimeLong long elapsedRealtimeMillis,
+        public TimeZoneChangeEvent(
+                @ElapsedRealtimeLong long elapsedRealtimeMillis,
                 @CurrentTimeMillisLong long unixEpochTimeMillis,
-                @Origin int origin, @UserIdInt int userId, @NonNull String oldZoneId,
-                @NonNull String newZoneId, int newConfidence, @NonNull String cause) {
+                @Origin int origin,
+                @UserIdInt int userId,
+                @NonNull String oldZoneId,
+                @NonNull String newZoneId,
+                @TimeZoneConfidence int oldConfidence,
+                @TimeZoneConfidence int newConfidence,
+                @NonNull String cause) {
             mElapsedRealtimeMillis = elapsedRealtimeMillis;
             mUnixEpochTimeMillis = unixEpochTimeMillis;
             mOrigin = origin;
             mUserId = userId;
             mOldZoneId = Objects.requireNonNull(oldZoneId);
             mNewZoneId = Objects.requireNonNull(newZoneId);
+            mOldConfidence = oldConfidence;
             mNewConfidence = newConfidence;
             mCause = Objects.requireNonNull(cause);
         }
@@ -89,17 +97,38 @@ public interface TimeZoneChangeListener {
             return mNewZoneId;
         }
 
+        public @TimeZoneConfidence int getOldConfidence() {
+            return mOldConfidence;
+        }
+
+        public @TimeZoneConfidence int getNewConfidence() {
+            return mNewConfidence;
+        }
+
         @Override
         public String toString() {
             return "TimeZoneChangeEvent{"
-                    + "mElapsedRealtimeMillis=" + mElapsedRealtimeMillis
-                    + ", mUnixEpochTimeMillis=" + mUnixEpochTimeMillis
-                    + ", mOrigin=" + mOrigin
-                    + ", mUserId=" + mUserId
-                    + ", mOldZoneId='" + mOldZoneId + '\''
-                    + ", mNewZoneId='" + mNewZoneId + '\''
-                    + ", mNewConfidence=" + mNewConfidence
-                    + ", mCause='" + mCause + '\''
+                    + "mElapsedRealtimeMillis="
+                    + mElapsedRealtimeMillis
+                    + ", mUnixEpochTimeMillis="
+                    + mUnixEpochTimeMillis
+                    + ", mOrigin="
+                    + mOrigin
+                    + ", mUserId="
+                    + mUserId
+                    + ", mOldZoneId='"
+                    + mOldZoneId
+                    + '\''
+                    + ", mNewZoneId='"
+                    + mNewZoneId
+                    + '\''
+                    + ", mOldConfidence="
+                    + mOldConfidence
+                    + ", mNewConfidence="
+                    + mNewConfidence
+                    + ", mCause='"
+                    + mCause
+                    + '\''
                     + '}';
         }
 
@@ -115,6 +144,7 @@ public interface TimeZoneChangeListener {
                         && mUserId == that.mUserId
                         && Objects.equals(mOldZoneId, that.mOldZoneId)
                         && Objects.equals(mNewZoneId, that.mNewZoneId)
+                        && mOldConfidence == that.mOldConfidence
                         && mNewConfidence == that.mNewConfidence
                         && Objects.equals(mCause, that.mCause);
             }
@@ -123,8 +153,16 @@ public interface TimeZoneChangeListener {
 
         @Override
         public int hashCode() {
-            return Objects.hash(mElapsedRealtimeMillis, mUnixEpochTimeMillis, mOrigin, mUserId,
-                    mOldZoneId, mNewZoneId, mNewConfidence, mCause);
+            return Objects.hash(
+                    mElapsedRealtimeMillis,
+                    mUnixEpochTimeMillis,
+                    mOrigin,
+                    mUserId,
+                    mOldZoneId,
+                    mNewZoneId,
+                    mOldConfidence,
+                    mNewConfidence,
+                    mCause);
         }
     }
 }

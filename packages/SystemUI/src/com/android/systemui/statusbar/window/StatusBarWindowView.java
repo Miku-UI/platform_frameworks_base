@@ -16,9 +16,6 @@
 
 package com.android.systemui.statusbar.window;
 
-import static android.view.MotionEvent.ACTION_DOWN;
-import static android.view.MotionEvent.ACTION_MOVE;
-import static android.view.MotionEvent.ACTION_UP;
 import static android.view.WindowInsets.Type.systemBars;
 
 import android.content.Context;
@@ -26,7 +23,6 @@ import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.util.AttributeSet;
 import android.view.DisplayCutout;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
 import android.widget.FrameLayout;
@@ -34,7 +30,6 @@ import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import com.android.systemui.Flags;
 import com.android.systemui.compose.ComposeInitializer;
 import com.android.systemui.statusbar.core.StatusBarRootModernization;
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController;
@@ -108,34 +103,6 @@ public class StatusBarWindowView extends FrameLayout {
         }
         applyMargins();
         return windowInsets;
-    }
-
-    /**
-     * This is specifically for pulling down the status bar as a consistent motion in the visual
-     * immersive mode. In the visual immersive mode, after the system detects a system gesture
-     * motion from the top, we show permanent bars, and then forward the touch events from the
-     * focused window to the status bar window. However, since the first relayed event is out of
-     * bound of the status bar view, in order for the touch event to be correctly dispatched down,
-     * we jot down the position Y of the initial touch down event, offset it to 0 in the y-axis,
-     * and calculate the movement based on first touch down position.
-     *
-     * TODO(b/391894499): Remove this doc once Flags.statusBarWindowNoCustomTouch() is rolled out.
-     */
-    @Override
-    public boolean dispatchTouchEvent(MotionEvent ev) {
-        if (Flags.statusBarWindowNoCustomTouch()) {
-            return super.dispatchTouchEvent(ev);
-        }
-
-        if (ev.getAction() == ACTION_DOWN && ev.getRawY() > getHeight()) {
-            mTouchDownY = ev.getRawY();
-            ev.setLocation(ev.getRawX(), mTopInset);
-        } else if (ev.getAction() == ACTION_MOVE && mTouchDownY != 0) {
-            ev.setLocation(ev.getRawX(), mTopInset + ev.getRawY() - mTouchDownY);
-        } else if (ev.getAction() == ACTION_UP) {
-            mTouchDownY = 0;
-        }
-        return super.dispatchTouchEvent(ev);
     }
 
     private void applyMargins() {

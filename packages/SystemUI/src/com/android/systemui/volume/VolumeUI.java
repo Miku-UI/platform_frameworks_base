@@ -23,7 +23,6 @@ import android.util.Log;
 import com.android.settingslib.volume.data.repository.AudioRepository;
 import com.android.systemui.CoreStartable;
 import com.android.systemui.dagger.SysUISingleton;
-import com.android.systemui.qs.tiles.DndTile;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.util.kotlin.JavaAdapter;
@@ -52,11 +51,11 @@ public class VolumeUI implements CoreStartable, ConfigurationController.Configur
 
     @Inject
     public VolumeUI(Context context,
-            VolumeDialogComponent volumeDialogComponent,
-            AudioRepository audioRepository,
-            AudioSharingInteractor audioSharingInteractor,
-            JavaAdapter javaAdapter,
-            VolumeLogger volumeLogger) {
+                    VolumeDialogComponent volumeDialogComponent,
+                    AudioRepository audioRepository,
+                    AudioSharingInteractor audioSharingInteractor,
+                    JavaAdapter javaAdapter,
+                    VolumeLogger volumeLogger) {
         mContext = context;
         mVolumeComponent = volumeDialogComponent;
         mAudioRepository = audioRepository;
@@ -67,7 +66,6 @@ public class VolumeUI implements CoreStartable, ConfigurationController.Configur
 
     @Override
     public void start() {
-        mAudioRepository.init();
         boolean enableVolumeUi = mContext.getResources().getBoolean(R.bool.enable_volume_ui);
         boolean enableSafetyWarning =
                 mContext.getResources().getBoolean(R.bool.enable_safety_warning);
@@ -109,7 +107,6 @@ public class VolumeUI implements CoreStartable, ConfigurationController.Configur
     }
 
     private void setDefaultVolumeController() {
-        DndTile.setVisible(mContext, true);
         if (LOGD) Log.d(TAG, "Registering default volume controller");
         mVolumeComponent.register();
     }

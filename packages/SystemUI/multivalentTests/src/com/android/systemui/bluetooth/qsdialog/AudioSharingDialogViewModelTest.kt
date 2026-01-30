@@ -24,6 +24,8 @@ import com.android.settingslib.bluetooth.LeAudioProfile
 import com.android.settingslib.bluetooth.LocalBluetoothProfileManager
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bluetooth.cachedBluetoothDeviceManager
+import com.android.systemui.bluetooth.ui.viewModel.AudioSharingDialogState
+import com.android.systemui.bluetooth.ui.viewModel.AudioSharingDialogViewModel
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope

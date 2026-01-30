@@ -33,6 +33,8 @@ import com.android.systemui.plugins.PluginManager;
 import com.android.systemui.util.DeviceConfigProxy;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executor;
 
 import javax.inject.Inject;
@@ -77,10 +79,7 @@ public class FalsingManagerProxy implements FalsingManager, Dumpable {
         mPluginListener = new PluginListener<FalsingPlugin>() {
             public void onPluginConnected(FalsingPlugin plugin, Context context) {
                 FalsingManager pluginFalsingManager = plugin.getFalsingManager(context);
-                if (pluginFalsingManager != null) {
-                    mInternalFalsingManager.cleanupInternal();
-                    mInternalFalsingManager = pluginFalsingManager;
-                }
+                cleanupAndReattachListeners(mInternalFalsingManager, pluginFalsingManager);
             }
 
             public void onPluginDisconnected(FalsingPlugin plugin) {
@@ -88,7 +87,7 @@ public class FalsingManagerProxy implements FalsingManager, Dumpable {
             }
         };
 
-        mPluginManager.addPluginListener(mPluginListener, FalsingPlugin.class);
+        mPluginManager.addPluginListener(mPluginListener, FalsingPlugin.class, false);
 
         mDumpManager.registerDumpable(DUMPABLE_TAG, this);
     }
@@ -107,10 +106,8 @@ public class FalsingManagerProxy implements FalsingManager, Dumpable {
      * If multiple implementations are available, this is where the choice is made.
      */
     private void setupFalsingManager() {
-        if (mInternalFalsingManager != null) {
-            mInternalFalsingManager.cleanupInternal();
-        }
-        mInternalFalsingManager = mBrightLineFalsingManagerProvider.get();
+        cleanupAndReattachListeners(mInternalFalsingManager,
+                mBrightLineFalsingManagerProvider.get());
     }
 
     @Override
@@ -204,10 +201,24 @@ public class FalsingManagerProxy implements FalsingManager, Dumpable {
     }
 
     @Override
-    public void cleanupInternal() {
+    public List<FalsingBeliefListener> cleanupInternal() {
         mDeviceConfig.removeOnPropertiesChangedListener(mDeviceConfigListener);
         mPluginManager.removePluginListener(mPluginListener);
         mDumpManager.unregisterDumpable(DUMPABLE_TAG);
-        mInternalFalsingManager.cleanupInternal();
+        return mInternalFalsingManager.cleanupInternal();
+    }
+
+    private void cleanupAndReattachListeners(FalsingManager old, FalsingManager current) {
+        List<FalsingBeliefListener> beliefListeners = new ArrayList<>();
+        if (old != null) {
+            beliefListeners = old.cleanupInternal();
+        }
+
+        if (current == null) return;
+
+        for (FalsingBeliefListener listener : beliefListeners) {
+            current.addFalsingBeliefListener(listener);
+        }
+        mInternalFalsingManager = current;
     }
 }

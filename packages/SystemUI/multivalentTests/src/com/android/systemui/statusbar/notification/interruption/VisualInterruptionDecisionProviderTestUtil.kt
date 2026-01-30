@@ -31,6 +31,7 @@ import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.policy.BatteryController
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
 import com.android.systemui.statusbar.policy.KeyguardStateController
+import com.android.systemui.statusbar.policy.domain.interactor.DeviceProvisioningInteractor
 import com.android.systemui.util.EventLog
 import com.android.systemui.util.settings.GlobalSettings
 import com.android.systemui.util.settings.SystemSettings
@@ -64,6 +65,7 @@ object VisualInterruptionDecisionProviderTestUtil {
         context: Context,
         notificationManager: NotificationManager,
         settingsInteractor: NotificationSettingsInteractor,
+        deviceProvisioningInteractor: DeviceProvisioningInteractor,
     ): VisualInterruptionDecisionProvider {
         return if (VisualInterruptionRefactor.isEnabled) {
             VisualInterruptionDecisionProviderImpl(
@@ -89,6 +91,7 @@ object VisualInterruptionDecisionProviderTestUtil {
                 context,
                 notificationManager,
                 settingsInteractor,
+                deviceProvisioningInteractor,
             )
         } else {
             NotificationInterruptStateProviderWrapper(

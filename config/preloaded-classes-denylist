@@ -4,11 +4,9 @@ android.os.FileObserver
 android.os.NullVibrator
 android.provider.MediaStore
 android.speech.tts.TextToSpeech$Connection$SetupConnectionAsyncTask
-android.view.HdrRenderState
 android.widget.Magnifier
 com.android.internal.jank.InteractionJankMonitor$InstanceHolder
 com.android.internal.util.LatencyTracker$SLatencyTrackerHolder
 gov.nist.core.net.DefaultNetworkLayer
 java.util.concurrent.ThreadLocalRandom
-java.util.ImmutableCollections
 sun.nio.fs.UnixChannelFactory

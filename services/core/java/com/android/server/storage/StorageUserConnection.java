@@ -38,7 +38,6 @@ import android.os.RemoteCallback;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
-import android.os.storage.StorageManagerInternal;
 import android.os.storage.StorageVolume;
 import android.service.storage.ExternalStorageService;
 import android.service.storage.IExternalStorageService;
@@ -48,6 +47,7 @@ import android.util.SparseArray;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.Preconditions;
 import com.android.server.LocalServices;
+import com.android.server.StorageManagerInternal;
 
 import java.io.IOException;
 import java.util.ArrayList;

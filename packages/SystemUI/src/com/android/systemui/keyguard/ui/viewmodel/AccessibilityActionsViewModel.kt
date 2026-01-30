@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import android.graphics.Rect
 import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
@@ -23,6 +24,7 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInterac
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.StatusBarState
 import javax.inject.Inject
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -34,7 +36,18 @@ constructor(
     private val communalInteractor: CommunalInteractor,
     keyguardInteractor: KeyguardInteractor,
     keyguardTransitionInteractor: KeyguardTransitionInteractor,
+    keyguardTouchHandlingFactory: KeyguardTouchHandlingViewModel.Factory,
 ) {
+    private val keyguardTouchHandlingViewModel = keyguardTouchHandlingFactory.create()
+
+    /**
+     * Bounds of the UDFPS accessibility overlay. This is needed in order to prevent interrupted
+     * accessibility feedback from user interaction where the accessibility actions view and the
+     * accessibility overlay overlap.
+     */
+    val accessibilityOverlayBoundsWhenListeningForUdfps: Flow<Rect?> =
+        keyguardTouchHandlingViewModel.accessibilityOverlayBoundsWhenListeningForUdfps
+
     val isCommunalAvailable = communalInteractor.isCommunalAvailable
 
     // Checks that we are fully in lockscreen, not transitioning to another state, and shade is not
@@ -44,7 +57,7 @@ constructor(
                 keyguardTransitionInteractor.transitionValue(KeyguardState.LOCKSCREEN).map {
                     it == 1f
                 },
-                keyguardInteractor.statusBarState
+                keyguardInteractor.statusBarState,
             ) { transitionFinishedOnLockscreen, statusBarState ->
                 transitionFinishedOnLockscreen && statusBarState == StatusBarState.KEYGUARD
             }

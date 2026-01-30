@@ -16,27 +16,42 @@
 
 package com.android.systemui.deviceentry.ui.viewmodel
 
+import android.content.Context
 import android.graphics.Point
 import android.view.MotionEvent
-import android.view.View
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.android.systemui.accessibility.domain.interactor.AccessibilityInteractor
 import com.android.systemui.biometrics.UdfpsUtils
 import com.android.systemui.biometrics.domain.interactor.UdfpsOverlayInteractor
 import com.android.systemui.biometrics.shared.model.UdfpsOverlayParams
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 
 /** Models the UI state for the UDFPS accessibility overlay */
 abstract class UdfpsAccessibilityOverlayViewModel(
+    @Application private val applicationContext: Context,
     udfpsOverlayInteractor: UdfpsOverlayInteractor,
+    deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
+    private val udfpsUtils: UdfpsUtils = UdfpsUtils(),
     accessibilityInteractor: AccessibilityInteractor,
-) {
-    private val udfpsUtils = UdfpsUtils()
-    private val udfpsOverlayParams: StateFlow<UdfpsOverlayParams> =
-        udfpsOverlayInteractor.udfpsOverlayParams
+) : ViewModel() {
 
+    /** Whether the under display fingerprint sensor is currently running. */
+    open val isListeningForUdfps: StateFlow<Boolean> =
+        deviceEntryUdfpsInteractor.isListeningForUdfps.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = false,
+        )
+
+    /** Whether the accessibility overlay should be visible. */
     val visible: Flow<Boolean> =
         accessibilityInteractor.isTouchExplorationEnabled.flatMapLatest { touchExplorationEnabled ->
             if (touchExplorationEnabled) {
@@ -46,17 +61,30 @@ abstract class UdfpsAccessibilityOverlayViewModel(
             }
         }
 
+    private val udfpsOverlayParams: StateFlow<UdfpsOverlayParams> =
+        udfpsOverlayInteractor.udfpsOverlayParams
+
     abstract fun isVisibleWhenTouchExplorationEnabled(): Flow<Boolean>
 
+    open fun getUdfpsDirectionalFeedbackOnHoverEnterOrMove(
+        event: MotionEvent,
+        includeLockscreenContentDescription: Boolean,
+    ): CharSequence? {
+        return getUdfpsDirectionalFeedbackOnHoverEnterOrMove(event)
+    }
+
     /** Give directional feedback to help the user authenticate with UDFPS. */
-    fun onHoverEvent(v: View, event: MotionEvent): Boolean {
+    fun getUdfpsDirectionalFeedbackOnHoverEnterOrMove(event: MotionEvent): CharSequence? {
+        if (!isListeningForUdfps.value) {
+            return null
+        }
         val overlayParams = udfpsOverlayParams.value
         val scaledTouch: Point =
             udfpsUtils.getTouchInNativeCoordinates(
                 event.getPointerId(0),
                 event,
                 overlayParams, /* rotateToPortrait */
-                false
+                false,
             )
 
         if (
@@ -64,24 +92,22 @@ abstract class UdfpsAccessibilityOverlayViewModel(
                 event.getPointerId(0),
                 event,
                 overlayParams,
-                /* rotateTouchToPortrait */ false
+                /* rotateTouchToPortrait */ false,
             )
         ) {
             // view only receives motionEvents when [visible] which requires touchExplorationEnabled
             val announceStr =
                 udfpsUtils.onTouchOutsideOfSensorArea(
                     /* touchExplorationEnabled */ true,
-                    v.context,
+                    applicationContext,
                     scaledTouch.x,
                     scaledTouch.y,
                     overlayParams,
-                    /* touchRotatedToPortrait */ false
+                    /* touchRotatedToPortrait */ false,
                 )
-            if (announceStr != null) {
-                v.announceForAccessibility(announceStr)
-            }
+            return announceStr
+        } else {
+            return null
         }
-        // always let the motion events go through to underlying views
-        return false
     }
 }

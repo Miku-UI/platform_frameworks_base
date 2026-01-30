@@ -24,7 +24,7 @@ import android.telephony.satellite.stub.SatelliteDatagram;
 import android.telephony.satellite.stub.SatelliteModemState;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ISatelliteListener {
     /**

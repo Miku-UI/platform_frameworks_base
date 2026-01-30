@@ -22,11 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * THIS ANNOTATION IS EXPERIMENTAL. REACH OUT TO g/ravenwood BEFORE USING IT, OR YOU HAVE ANY
- * QUESTIONS ABOUT IT.
- *
- * If a class has this annotation, all its native methods will be delegated to another class.
- * (See {@link android.os.Parcel} as an example.)
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
  */
 @Target({TYPE})
 @Retention(RetentionPolicy.CLASS)

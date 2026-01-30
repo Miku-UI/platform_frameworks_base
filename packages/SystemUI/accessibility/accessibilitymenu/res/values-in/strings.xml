@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Buka layar sebelumnya"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Buka layar berikutnya"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Menu Aksesibilitas menyediakan menu di layar dengan ukuran besar untuk mengontrol perangkat Anda. Anda dapat mengunci perangkat, mengontrol volume dan kecerahan, mengambil screenshot, dan banyak lagi."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Kontrol perangkat melalui menu berukuran besar"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Kontrol volume, kecerahan, dan lainnya dengan menu besar"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Setelan Menu Aksesibilitas"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Tombol besar"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Perbesar ukuran Tombol Menu Aksesibilitas"</string>

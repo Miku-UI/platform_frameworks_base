@@ -87,7 +87,7 @@ public final class ContentValues implements Parcelable {
         mMap.putAll(from);
     }
 
-    /** {@hide} */
+    /** @hide */
     private ContentValues(Parcel in) {
         mMap = new ArrayMap<>(in.readInt());
         in.readArrayMap(mMap, null);
@@ -101,7 +101,7 @@ public final class ContentValues implements Parcelable {
         return mMap.equals(((ContentValues) object).mMap);
     }
 
-    /** {@hide} */
+    /** @hide */
     public ArrayMap<String, Object> getValues() {
         return mMap;
     }
@@ -219,7 +219,7 @@ public final class ContentValues implements Parcelable {
         mMap.put(key, null);
     }
 
-    /** {@hide} */
+    /** @hide */
     public void putObject(@Nullable String key, @Nullable Object value) {
         if (value == null) {
             putNull(key);
@@ -550,7 +550,7 @@ public final class ContentValues implements Parcelable {
 
     /**
      * Unsupported, here until we get proper bulk insert APIs.
-     * {@hide}
+     * @hide
      */
     @Deprecated
     @UnsupportedAppUsage
@@ -560,7 +560,7 @@ public final class ContentValues implements Parcelable {
 
     /**
      * Unsupported, here until we get proper bulk insert APIs.
-     * {@hide}
+     * @hide
      */
     @SuppressWarnings("unchecked")
     @Deprecated
@@ -584,7 +584,7 @@ public final class ContentValues implements Parcelable {
         return sb.toString();
     }
 
-    /** {@hide} */
+    /** @hide */
     public static boolean isSupportedValue(Object value) {
         if (value == null) {
             return true;

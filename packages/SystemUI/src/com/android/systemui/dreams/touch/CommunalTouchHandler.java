@@ -31,10 +31,12 @@ import com.android.systemui.ambient.touch.TouchHandler;
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor;
 import com.android.systemui.communal.domain.interactor.CommunalInteractor;
 import com.android.systemui.dreams.touch.dagger.CommunalTouchModule;
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.scene.domain.interactor.SceneInteractor;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.scene.ui.view.WindowRootView;
 import com.android.systemui.statusbar.phone.CentralSurfaces;
+import com.android.systemui.util.kotlin.BooleanFlowOperators;
 
 import kotlinx.coroutines.Job;
 
@@ -76,6 +78,7 @@ public class CommunalTouchHandler implements TouchHandler {
             CommunalInteractor communalInteractor,
             ConfigurationInteractor configurationInteractor,
             SceneInteractor sceneInteractor,
+            KeyguardInteractor keyguardInteractor,
             Optional<Provider<WindowRootView>> windowRootViewProvider,
             Lifecycle lifecycle) {
         mInitiationWidth = initiationWidth;
@@ -88,7 +91,10 @@ public class CommunalTouchHandler implements TouchHandler {
 
         mFlows.add(collectFlow(
                 mLifecycle,
-                mCommunalInteractor.isCommunalAvailable(),
+                BooleanFlowOperators.allOf(
+                        mCommunalInteractor.isCommunalAvailable(),
+                        keyguardInteractor.isKeyguardShowing()
+                ),
                 mIsCommunalAvailableCallback
         ));
 

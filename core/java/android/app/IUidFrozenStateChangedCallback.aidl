@@ -16,7 +16,7 @@
 
 package android.app;
 
-/** {@hide} */
+/** @hide */
 oneway interface IUidFrozenStateChangedCallback {
     /**
      * Report a new frozen state for the Uid list.

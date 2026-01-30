@@ -44,6 +44,7 @@ import android.content.pm.PackageManager.NameNotFoundException;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.content.pm.UserInfo;
+import android.content.res.Resources;
 import android.graphics.Rect;
 import android.hardware.hdmi.HdmiClient;
 import android.hardware.hdmi.HdmiControlManager;
@@ -90,6 +91,7 @@ import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
+import android.os.ShellCallback;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.text.TextUtils;
@@ -144,6 +146,8 @@ public final class TvInputManagerService extends SystemService {
     private static final long UPDATE_HARDWARE_TIS_BINDING_DELAY_IN_MILLIS = 10 * 1000; // 10 seconds
     private static final long SET_TV_AS_ACTIVE_SOURCE_IF_NO_REQUEST_DELAY_IN_MILLIS
             = 10 * 1000; // 10 seconds
+
+    private static String sConfiguredTvProfileName;
 
     // There are two different formats of DVB frontend devices. One is /dev/dvb%d.frontend%d,
     // another one is /dev/dvb/adapter%d/frontend%d. Followings are the patterns for selecting the
@@ -219,6 +223,7 @@ public final class TvInputManagerService extends SystemService {
         }
 
         initExternalInputLoggingConfigs();
+        initConfigTvProfileName();
     }
 
     @Override
@@ -302,6 +307,15 @@ public final class TvInputManagerService extends SystemService {
         mExternalInputLoggingDeviceBrandNames.addAll(Arrays.asList(deviceBrandNames));
     }
 
+    private void initConfigTvProfileName() {
+        try {
+            sConfiguredTvProfileName = mContext.getResources().getString(
+                    R.string.config_configured_tv_profile_name);
+        } catch (Resources.NotFoundException e) {
+            sConfiguredTvProfileName = "";
+        }
+    }
+
     private class MyPackageMonitor extends PackageMonitor {
         MyPackageMonitor(boolean supportsPackageRestartQuery) {
             super(supportsPackageRestartQuery);
@@ -381,6 +395,7 @@ public final class TvInputManagerService extends SystemService {
         intentFilter.addAction(Intent.ACTION_USER_REMOVED);
         intentFilter.addAction(Intent.ACTION_USER_STARTED);
         intentFilter.addAction(Intent.ACTION_USER_STOPPED);
+        intentFilter.addAction(Intent.ACTION_USER_INFO_CHANGED);
         mContext.registerReceiverAsUser(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -391,10 +406,28 @@ public final class TvInputManagerService extends SystemService {
                     removeUser(intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0));
                 } else if (Intent.ACTION_USER_STARTED.equals(action)) {
                     int userId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
-                    startUser(userId);
+                    UserInfo userInfo = mUserManager.getUserInfo(userId);
+                    // Start user directly for devices without the configuration and when the
+                    // profile has been configured previously, i.e. has onboarded successfully
+                    if (sConfiguredTvProfileName.isEmpty() || (userInfo.name.equals(
+                            sConfiguredTvProfileName) && userInfo.isProfile())) {
+                        startUser(userId);
+                    }
+                    // For non-configured new user, do not call startUser until
+                    // ACTION_USER_INFO_CHANGED is received
                 } else if (Intent.ACTION_USER_STOPPED.equals(action)) {
                     int userId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
                     stopUser(userId);
+                } else if (Intent.ACTION_USER_INFO_CHANGED.equals(action)) {
+                    // Act upon this intent only if config is defined
+                    if (!sConfiguredTvProfileName.isEmpty()) {
+                        int userId = intent.getIntExtra(Intent.EXTRA_USER_HANDLE, 0);
+                        UserInfo userInfo = mUserManager.getUserInfo(userId);
+                        if (userInfo.name.equals(sConfiguredTvProfileName) && userInfo.isProfile()
+                                && mUserManager.isUserRunning(userId)) {
+                            startUser(userId);
+                        }
+                    }
                 }
             }
         }, UserHandle.ALL, intentFilter, null, null);
@@ -575,11 +608,9 @@ public final class TvInputManagerService extends SystemService {
                 // user already started
                 return;
             }
-            UserInfo userInfo = mUserManager.getUserInfo(userId);
             UserInfo parentInfo = mUserManager.getProfileParent(userId);
-            if (userInfo.isProfile()
-                    && parentInfo != null
-                    && parentInfo.id == mCurrentUserId) {
+            // User is guaranteed to be a profile here as we have checked before calling startUser
+            if (parentInfo != null) {
                 int prevUserId = mCurrentUserId;
                 mCurrentUserId = userId;
                 // only the children of the current user can be started in background
@@ -623,19 +654,18 @@ public final class TvInputManagerService extends SystemService {
                 return;
             }
 
+            // NOTE: The switchUser() function is currently only used when switching from a kid's
+            // profile to the parent's (system) user.
+            // Cleanup for the single running kid's profile is currently handled in stopUser().
+            // This code includes cleanup logic for future multi-profile support.
             for (int runningId : mRunningProfiles) {
                 releaseSessionOfUserLocked(runningId);
+                cleanUpHdmiDevices(runningId);
                 unbindServiceOfUserLocked(runningId);
             }
             mRunningProfiles.clear();
 
-            int prevUserId = mCurrentUserId;
             mCurrentUserId = userId;
-
-            releaseSessionOfUserLocked(prevUserId);
-            cleanUpHdmiDevices(prevUserId);
-            unbindServiceOfUserLocked(prevUserId);
-
             buildTvInputListLocked(mCurrentUserId, null);
             buildTvContentRatingSystemListLocked(mCurrentUserId);
             mMessageHandler
@@ -806,8 +836,7 @@ public final class TvInputManagerService extends SystemService {
         UserState userState = getOrCreateUserStateLocked(userId);
         ServiceState serviceState = userState.serviceStateMap.get(component);
         if (serviceState == null) {
-            throw new IllegalStateException("Service state not found for " + component + " (userId="
-                    + userId + ")");
+            Slog.e(TAG, "Service state not found for " + component + " (userId=" + userId + ")");
         }
         return serviceState;
     }
@@ -1045,7 +1074,7 @@ public final class TvInputManagerService extends SystemService {
         if (serviceState != null) {
             serviceState.sessionTokens.remove(sessionToken);
         }
-        if (!serviceState.isHardware) {
+        if (!serviceState.isHardware || serviceState.reconnecting) {
             updateServiceConnectionLocked(sessionState.componentName, userId);
         } else {
             updateHardwareServiceConnectionDelayed(userId);
@@ -1067,7 +1096,7 @@ public final class TvInputManagerService extends SystemService {
                         Process.SYSTEM_UID, userId);
             }
             ServiceState serviceState = getServiceStateLocked(sessionState.componentName, userId);
-            if (!serviceState.isHardware) {
+            if (serviceState == null || !serviceState.isHardware) {
                 return;
             }
             ITvInputSession session = getSessionLocked(sessionState);
@@ -1948,7 +1977,6 @@ public final class TvInputManagerService extends SystemService {
                                 || !Objects.equals(sessionState.currentChannel, channelUri)) {
                             sessionState.isCurrent = true;
                             sessionState.currentChannel = channelUri;
-                            notifyCurrentChannelInfosUpdatedLocked(userState);
                             if (!sessionState.isRecordingSession) {
                                 String sessionActualInputId = getSessionActualInputId(sessionState);
                                 if (!TextUtils.equals(mOnScreenInputId, sessionActualInputId)) {
@@ -1960,6 +1988,7 @@ public final class TvInputManagerService extends SystemService {
                                 mOnScreenInputId = sessionActualInputId;
                                 mOnScreenSessionState = sessionState;
                             }
+                            notifyCurrentChannelInfosUpdatedLocked(userState);
                         }
                         if (TvContract.isChannelUriForPassthroughInput(channelUri)) {
                             // Do not log the watch history for passthrough inputs.
@@ -3054,7 +3083,7 @@ public final class TvInputManagerService extends SystemService {
         }
 
         private void ensureTunerResourceAccessPermission() {
-            if (mContext.checkCallingPermission(
+            if (mContext.checkCallingOrSelfPermission(
                     android.Manifest.permission.TUNER_RESOURCE_ACCESS)
                     != PackageManager.PERMISSION_GRANTED) {
                 throw new SecurityException("Requires TUNER_RESOURCE_ACCESS permission");
@@ -3190,6 +3219,14 @@ public final class TvInputManagerService extends SystemService {
             }
             mTvInputHardwareManager.dump(fd, writer, args);
         }
+
+        @Override
+        public void onShellCommand(FileDescriptor in, FileDescriptor out, FileDescriptor err,
+                String[] args, ShellCallback callback, android.os.ResultReceiver resultReceiver)
+                throws RemoteException {
+            (new TvInputManagerShellCommand(TvInputManagerService.this)).exec(
+                    this, in, out, err, args, callback, resultReceiver);
+        }
     }
 
     // get the actual input id of the specific sessionState.
@@ -3259,7 +3296,7 @@ public final class TvInputManagerService extends SystemService {
                             : TunedInfo.APP_TYPE_NON_SYSTEM;
                 }
                 channelInfos.add(new TunedInfo(
-                        state.inputId,
+                        state.isRecordingSession ? state.inputId : mOnScreenInputId,
                         watchedProgramsAccess ? state.currentChannel : null,
                         state.isRecordingSession,
                         state.isVisible,
@@ -3704,6 +3741,7 @@ public final class TvInputManagerService extends SystemService {
     private void addHardwareInputLocked(
             TvInputInfo inputInfo, ComponentName component, int userId) {
         ServiceState serviceState = getServiceStateLocked(component, userId);
+        if (serviceState == null) return;
         serviceState.hardwareInputMap.put(inputInfo.getId(), inputInfo);
         setPictureProfileLocked(inputInfo.getId());
         buildTvInputListLocked(userId, null);
@@ -3729,8 +3767,10 @@ public final class TvInputManagerService extends SystemService {
         }
         ComponentName component = mTvInputHardwareManager.getInputMap().get(inputId).getComponent();
         ServiceState serviceState = getServiceStateLocked(component, userId);
-        serviceState.hardwareInputMap.remove(inputId);
-        buildTvInputListLocked(userId, null);
+         if (serviceState != null) {
+            serviceState.hardwareInputMap.remove(inputId);
+            buildTvInputListLocked(userId, null);
+        }
         mTvInputHardwareManager.removeHardwareInput(inputId);
     }
 
@@ -3893,7 +3933,8 @@ public final class TvInputManagerService extends SystemService {
             try {
                 synchronized (mLock) {
                     ServiceState serviceState = getServiceStateLocked(mComponent, mUserId);
-                    if (serviceState.hardwareInputMap.containsKey(inputInfo.getId())) {
+                    if (serviceState != null && serviceState.hardwareInputMap.containsKey(
+                            inputInfo.getId())) {
                         return;
                     }
                     Slog.d(TAG, "ServiceCallback: addHardwareInput, deviceId: " + deviceId +
@@ -3914,7 +3955,8 @@ public final class TvInputManagerService extends SystemService {
             try {
                 synchronized (mLock) {
                     ServiceState serviceState = getServiceStateLocked(mComponent, mUserId);
-                    if (serviceState.hardwareInputMap.containsKey(inputInfo.getId())) {
+                    if (serviceState != null && serviceState.hardwareInputMap.containsKey(
+                            inputInfo.getId())) {
                         return;
                     }
                     Slog.d(TAG, "ServiceCallback: addHdmiInput, id: " + id +
@@ -4039,7 +4081,6 @@ public final class TvInputManagerService extends SystemService {
                         UserState userState = getOrCreateUserStateLocked(mSessionState.userId);
                         mSessionState.isCurrent = true;
                         mSessionState.currentChannel = channelUri;
-                        notifyCurrentChannelInfosUpdatedLocked(userState);
                         if (!mSessionState.isRecordingSession) {
                             String sessionActualInputId = getSessionActualInputId(mSessionState);
                             if (!TextUtils.equals(mOnScreenInputId, sessionActualInputId)) {
@@ -4051,6 +4092,7 @@ public final class TvInputManagerService extends SystemService {
                             mOnScreenInputId = sessionActualInputId;
                             mOnScreenSessionState = mSessionState;
                         }
+                        notifyCurrentChannelInfosUpdatedLocked(userState);
                     }
                 } catch (RemoteException e) {
                     Slog.e(TAG, "error in onChannelRetuned", e);

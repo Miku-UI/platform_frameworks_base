@@ -128,6 +128,8 @@ public final class KeymasterDefs {
             Tag.DEVICE_UNIQUE_ATTESTATION; // KM_BOOL | 720;
     public static final int KM_TAG_ATTESTATION_ID_SECOND_IMEI =
             Tag.ATTESTATION_ID_SECOND_IMEI; // KM_BYTES | 723;
+    public static final int KM_TAG_MODULE_HASH =
+            Tag.MODULE_HASH; // KM_BYTES | 724;
 
     public static final int KM_TAG_NONCE = Tag.NONCE; // KM_BYTES | 1001;
     public static final int KM_TAG_MAC_LENGTH = Tag.MAC_LENGTH; // KM_UINT | 1003;

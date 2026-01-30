@@ -44,11 +44,13 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "SpaLib"
-include(":spa")
-include(":gallery")
-include(":testutils")
-include(":SettingsLibColor")
-project(":SettingsLibColor").projectDir = File(rootDir, "../Color")
-
-// Uncomment this for screenshot
-// include(":screenshot")
+include(":Spa")
+project(":Spa").projectDir = file("spa")
+include(":Spa:gallery")
+project(":Spa:gallery").projectDir = file("gallery")
+include(":Spa:screenshot")
+project(":Spa:screenshot").projectDir = file("screenshot")
+include(":Spa:testutils")
+project(":Spa:testutils").projectDir = file("testutils")
+include(":SettingsLib:Color")
+project(":SettingsLib:Color").projectDir = file("../Color")

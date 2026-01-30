@@ -406,7 +406,8 @@ class DisplayTopologyXmlStore implements DisplayTopologyStore {
         }
 
         return new DisplayTopology.TreeNode(
-                displayId, displayNode.getWidth(), displayNode.getHeight(),
+                displayId, displayNode.getLogicalWidth(), displayNode.getLogicalHeight(),
+                displayNode.getLogicalDensity(),
                 toDisplayTopologyPosition(persistentDisplay.getPosition()),
                 persistentDisplay.getOffset(), children);
     }
@@ -476,23 +477,23 @@ class DisplayTopologyXmlStore implements DisplayTopologyStore {
         return root;
     }
 
-    private Position toPersistentPosition(@DisplayTopology.TreeNode.Position int pos) {
+    private Position toPersistentPosition(@DisplayTopology.Position int pos) {
         return switch (pos) {
-            case DisplayTopology.TreeNode.POSITION_LEFT -> Position.left;
-            case DisplayTopology.TreeNode.POSITION_TOP -> Position.top;
-            case DisplayTopology.TreeNode.POSITION_RIGHT -> Position.right;
-            case DisplayTopology.TreeNode.POSITION_BOTTOM -> Position.bottom;
+            case DisplayTopology.POSITION_LEFT -> Position.left;
+            case DisplayTopology.POSITION_TOP -> Position.top;
+            case DisplayTopology.POSITION_RIGHT -> Position.right;
+            case DisplayTopology.POSITION_BOTTOM -> Position.bottom;
             default -> throw new IllegalArgumentException("Unknown position=" + pos);
         };
     }
 
-    @DisplayTopology.TreeNode.Position
+    @DisplayTopology.Position
     private int toDisplayTopologyPosition(Position pos) {
         return switch (pos) {
-            case left ->  DisplayTopology.TreeNode.POSITION_LEFT;
-            case top ->  DisplayTopology.TreeNode.POSITION_TOP;
-            case right ->  DisplayTopology.TreeNode.POSITION_RIGHT;
-            case bottom ->  DisplayTopology.TreeNode.POSITION_BOTTOM;
+            case left ->  DisplayTopology.POSITION_LEFT;
+            case top ->  DisplayTopology.POSITION_TOP;
+            case right ->  DisplayTopology.POSITION_RIGHT;
+            case bottom ->  DisplayTopology.POSITION_BOTTOM;
         };
     }
 

@@ -1,0 +1,2 @@
+# Haptics
+per-file *Vibrat*.java = file:/services/core/java/com/android/server/vibrator/OWNERS

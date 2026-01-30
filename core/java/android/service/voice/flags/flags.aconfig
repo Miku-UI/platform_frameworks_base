@@ -24,3 +24,10 @@ flag {
     description: "This flag allows providing foreground app component along with onShow args."
     bug: "319409708"
 }
+
+flag {
+    name: "set_invocation_effect_enabled_api"
+    namespace: "systemui"
+    description: "This flag enabled the api to enable the voice interaction session invocation effect."
+    bug: "416136399"
+}

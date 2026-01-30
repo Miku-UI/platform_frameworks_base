@@ -45,6 +45,9 @@
 
     <metrics_collector class="com.android.tradefed.device.metric.FilePullerLogCollector">
         <option name="pull-pattern-keys" value="perfetto_file_path" />
+        <option name="pull-pattern-keys" value="simpleperf_profiling_file_path"/>
+        <option name="pull-pattern-keys" value="simpleperf_report_file_path"/>
+        <option name="collect-on-run-ended-only" value="false"/>
     </metrics_collector>
 
     <!-- Needed for storing the perfetto files in external storage-->
@@ -54,7 +57,7 @@
         <option name="package" value="com.android.perftests.core" />
         <option name="hidden-api-checks" value="false"/>
 
-        <option name="device-listeners" value="android.device.collectors.ProcLoadListener,android.device.collectors.PerfettoListener" />
+        <option name="device-listeners" value="android.device.collectors.ProcLoadListener,android.device.collectors.PerfettoListener,android.device.collectors.SimpleperfListener" />
         <!-- ProcLoadListener related arguments -->
         <!-- Wait for device last minute threshold to reach 3 with 2 minute timeout before starting the test run -->
         <option name="instrumentation-arg" key="procload-collector:per_run" value="true" />
@@ -67,5 +70,13 @@
         <option name="instrumentation-arg" key="perfetto_config_file" value="trace_config.textproto" />
 
         <option name="instrumentation-arg" key="newRunListenerMode" value="true" />
+
+        <!-- Listener related args for collecting the traces and waiting for the device to stabilize. -->
+
+        <option name="instrumentation-arg" key="profiling-iterations" value="1" />
+
+        <!-- SimpleperfListener related arguments -->
+        <option name="instrumentation-arg" key="simpleperf-collector:events_to_record" value="cpu-cycles" />
+        <option name="instrumentation-arg" key="simpleperf-collector:processes_to_record" value="com.android.perftests.core" />
     </test>
 </configuration>

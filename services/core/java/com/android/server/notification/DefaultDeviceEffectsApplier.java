@@ -85,7 +85,7 @@ public class DefaultDeviceEffectsApplier implements DeviceEffectsApplier {
                 () -> {
                     maybeSuppressAmbientDisplay(effects.shouldSuppressAmbientDisplay());
                     maybeDisplayGrayscale(effects.shouldDisplayGrayscale());
-                    maybeDimWallpaper(effects.shouldDimWallpaper());
+                    maybeDimWallpaper(effects.shouldDimWallpaper(), origin);
                     maybeUseNightMode(effects.shouldUseNightMode(), origin);
                 });
 
@@ -120,19 +120,26 @@ public class DefaultDeviceEffectsApplier implements DeviceEffectsApplier {
         }
     }
 
-    protected void maybeDimWallpaper(boolean shouldDimWallpaper) {
-        if (mLastAppliedEffects.shouldDimWallpaper() != shouldDimWallpaper) {
-            if (mWallpaperManager != null) {
-                try {
-                    traceApplyDeviceEffect("dimWallpaper", shouldDimWallpaper);
-                    mWallpaperManager.setWallpaperDimAmount(
-                            shouldDimWallpaper
-                                    ? WALLPAPER_DIM_AMOUNT_DIMMED
-                                    : WALLPAPER_DIM_AMOUNT_NORMAL);
-                } catch (Exception e) {
-                    Slog.e(TAG, "Could not change wallpaper override", e);
-                }
+    protected void maybeDimWallpaper(boolean shouldDimWallpaper, @ConfigOrigin int origin) {
+        if (mWallpaperManager == null) {
+            return;
+        }
+        try {
+            // Unlike the other effects, dimWallpaper is serialized (and thus preserved on reboot).
+            if (mLastAppliedEffects.shouldDimWallpaper() != shouldDimWallpaper) {
+                traceApplyDeviceEffect("dimWallpaper", shouldDimWallpaper);
+                mWallpaperManager.setWallpaperDimAmount(
+                        shouldDimWallpaper
+                                ? WALLPAPER_DIM_AMOUNT_DIMMED
+                                : WALLPAPER_DIM_AMOUNT_NORMAL);
+            } else if (origin == ZenModeConfig.ORIGIN_INIT
+                    && !shouldDimWallpaper
+                    && mWallpaperManager.getWallpaperDimAmount() == WALLPAPER_DIM_AMOUNT_DIMMED) {
+                traceApplyDeviceEffect("dimWallpaper (reset on boot)", false);
+                mWallpaperManager.setWallpaperDimAmount(WALLPAPER_DIM_AMOUNT_NORMAL);
             }
+        } catch (Exception e) {
+            Slog.e(TAG, "Could not change wallpaper override", e);
         }
     }
 
@@ -141,7 +148,7 @@ public class DefaultDeviceEffectsApplier implements DeviceEffectsApplier {
             try {
                 updateOrScheduleNightMode(shouldUseNightMode, origin);
             } catch (Exception e) {
-                Slog.e(TAG, "Could not change dark theme override", e);
+                Slog.e(TAG, "Could not change night mode override", e);
             }
         }
     }
@@ -158,7 +165,7 @@ public class DefaultDeviceEffectsApplier implements DeviceEffectsApplier {
                 || origin == ZenModeConfig.ORIGIN_USER_IN_SYSTEMUI
                 || origin == ZenModeConfig.ORIGIN_USER_IN_APP
                 || !mPowerManager.isInteractive()
-                || (android.app.Flags.modesUi() && mKeyguardManager.isKeyguardLocked())) {
+                || mKeyguardManager.isKeyguardLocked()) {
             unregisterScreenOffReceiver();
             updateNightModeImmediately(useNightMode);
         } else {
@@ -184,7 +191,7 @@ public class DefaultDeviceEffectsApplier implements DeviceEffectsApplier {
                         useNightMode ? MODE_ATTENTION_THEME_OVERLAY_NIGHT
                                 : MODE_ATTENTION_THEME_OVERLAY_OFF);
             } catch (Exception e) {
-                Slog.e(TAG, "Could not change wallpaper override", e);
+                Slog.e(TAG, "Could not change night mode override", e);
             }
         });
     }

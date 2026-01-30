@@ -16,8 +16,10 @@
 
 package com.android.systemui.shade.domain.interactor
 
+import android.graphics.Rect
 import com.android.compose.animation.scene.TransitionKey
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.shade.ShadeOverlayBoundsListener
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -31,6 +33,7 @@ class ShadeInteractorEmptyImpl @Inject constructor() : ShadeInteractor {
     override val isShadeEnabled: StateFlow<Boolean> = inactiveFlowBoolean
     override val isQsEnabled: StateFlow<Boolean> = inactiveFlowBoolean
     override val shadeExpansion: StateFlow<Float> = inactiveFlowFloat
+    override val isNotificationsExpanded: StateFlow<Boolean> = inactiveFlowBoolean
     override val isShadeAnyExpanded: StateFlow<Boolean> = inactiveFlowBoolean
     override val qsExpansion: StateFlow<Float> = inactiveFlowFloat
     override val isQsExpanded: StateFlow<Boolean> = inactiveFlowBoolean
@@ -59,5 +62,15 @@ class ShadeInteractorEmptyImpl @Inject constructor() : ShadeInteractor {
         bypassNotificationsShade: Boolean,
     ) {}
 
+    override fun toggleNotificationsShade(loggingReason: String, transitionKey: TransitionKey?) {}
+
+    override fun toggleQuickSettingsShade(loggingReason: String, transitionKey: TransitionKey?) {}
+
     override fun collapseEitherShade(loggingReason: String, transitionKey: TransitionKey?) {}
+
+    override fun setShadeOverlayBounds(bounds: Rect?) {}
+
+    override fun addShadeOverlayBoundsListener(listener: ShadeOverlayBoundsListener) {}
+
+    override fun removeShadeOverlayBoundsListener(listener: ShadeOverlayBoundsListener) {}
 }

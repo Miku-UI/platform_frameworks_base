@@ -27,6 +27,7 @@ import com.android.systemui.animation.activityTransitionAnimator
 import com.android.systemui.assist.assistManager
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.settings.userTracker
@@ -56,6 +57,7 @@ val Kosmos.statusBarNotificationActivityStarter by
             shadeDialogContextInteractor,
             fakeExecutorHandler,
             fakeExecutor,
+            testScope,
             notificationVisibilityProvider,
             mockHeadsUpManager,
             activityStarter,

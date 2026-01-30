@@ -80,11 +80,14 @@ public class ProtoLogCommandHandler extends ShellCommand {
         pw.println("    Print this help text.");
         pw.println();
         pw.println("  groups (list | status)");
-        pw.println("    list - lists all ProtoLog groups registered with ProtoLog service");
-        pw.println("    status <group> - print the status of a ProtoLog group");
+        pw.println("    list - Lists all ProtoLog groups registered with ProtoLog service");
+        pw.println("    status <group>? - Print the status of a ProtoLog group. If no group is "
+                +  "passed then it prints the status of all groups.");
         pw.println();
-        pw.println("  logcat (enable | disable) <group>");
-        pw.println("    enable or disable ProtoLog to logcat");
+        pw.println("  logcat (enable | disable) <group>?");
+        pw.println("    Enable or disable ProtoLog to logcat. Passing no groups to the command "
+                + "will enable/disable all groups. Passing a group or space separated list of "
+                + "groups to the command will enable/disable those groups only.");
         pw.println();
     }
 
@@ -125,7 +128,17 @@ public class ProtoLogCommandHandler extends ShellCommand {
                 final String group = getNextArg();
 
                 if (group == null) {
-                    pw.println("Incomplete command. Use 'cmd protolog help' for guidance.");
+                    final String[] allGroups = mProtoLogConfigurationService.getGroups();
+                    if (allGroups.length == 0) {
+                        pw.println("No ProtoLog groups registered with ProtoLog service.");
+                    } else {
+                        pw.println("Status for all ProtoLog groups:");
+                        for (String currentGroup : allGroups) {
+                            pw.println("  " + currentGroup + ": LOG_TO_LOGCAT = "
+                                    + mProtoLogConfigurationService.isLoggingToLogcat(
+                                    currentGroup));
+                        }
+                    }
                     return 0;
                 }
 
@@ -150,7 +163,7 @@ public class ProtoLogCommandHandler extends ShellCommand {
     private int handleLogcatCommands(@Nullable String cmd) {
         PrintWriter pw = getOutPrintWriter();
 
-        if (cmd == null || peekNextArg() == null) {
+        if (cmd == null) {
             pw.println("Incomplete command. Use 'cmd protolog help' for guidance.");
             return 0;
         }

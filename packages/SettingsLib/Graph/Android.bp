@@ -2,17 +2,12 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-filegroup {
-    name: "SettingsLibGraph-srcs",
-    srcs: ["src/**/*.kt"],
-}
-
 android_library {
     name: "SettingsLibGraph",
     defaults: [
         "SettingsLintDefaults",
     ],
-    srcs: [":SettingsLibGraph-srcs"],
+    srcs: ["src/**/*.kt"],
     static_libs: [
         "SettingsLibGraph-proto-lite",
         "SettingsLibIpc",
@@ -22,6 +17,8 @@ android_library {
         "androidx.fragment_fragment",
         "androidx.preference_preference",
     ],
+    sdk_version: "system_current",
+    min_sdk_version: "23",
     kotlincflags: ["-Xjvm-default=all"],
 }
 

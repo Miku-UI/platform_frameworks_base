@@ -28,22 +28,25 @@
     <string name="chooser_title" msgid="2235819929238267637">"เลือก<xliff:g id="PROFILE_NAME">%1$s</xliff:g>ที่จะตั้งค่า"</string>
     <string name="single_device_title" msgid="4199861437545438606">"กำลังค้นหา<xliff:g id="PROFILE_NAME">%1$s</xliff:g>"</string>
     <string name="summary_watch" msgid="8134580124808507407">"แอปนี้จะได้รับอนุญาตให้ซิงค์ข้อมูล เช่น ชื่อของบุคคลที่โทรเข้ามา และมีสิทธิ์เข้าถึงข้อมูลเหล่านี้ใน<xliff:g id="DEVICE_TYPE">%1$s</xliff:g>ของคุณ"</string>
+    <string name="profile_name_fitness_tracker" msgid="3107192493390199691">"เครื่องติดตามการเคลื่อนไหว"</string>
     <string name="confirmation_title_glasses" msgid="8288346850537727333">"อนุญาตให้ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; จัดการ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; ไหม"</string>
     <string name="profile_name_glasses" msgid="3506504967216601277">"อุปกรณ์"</string>
     <string name="summary_glasses" msgid="5469208629679579157">"แอปนี้จะได้รับสิทธิ์ดังต่อไปนี้ใน<xliff:g id="DEVICE_TYPE">%1$s</xliff:g>ของคุณ"</string>
-    <string name="title_app_streaming" msgid="1047090167914857893">"อนุญาตให้ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; สตรีมแอปและฟีเจอร์ของระบบใน<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>ของคุณไปยัง &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ไหม"</string>
-    <string name="summary_app_streaming" msgid="7990244299655610920">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> จะมีสิทธิ์เข้าถึงทุกอย่างที่ปรากฏหรือเล่นบน<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ซึ่งรวมถึงเสียง รูปภาพ ข้อมูลการชำระเงิน รหัสผ่าน และข้อความ&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> จะสามารถสตรีมแอปไปยัง <xliff:g id="DEVICE_NAME">%3$s</xliff:g> ได้จนกว่าคุณจะนำการให้สิทธิ์นี้ออก"</string>
-    <string name="helper_summary_app_streaming" msgid="1872657107404139828">"<xliff:g id="APP_NAME">%1$s</xliff:g> กำลังขอสิทธิ์ในนามของ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> เพื่อสตรีมแอปและฟีเจอร์ของระบบจาก<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>ของคุณ"</string>
+    <string name="profile_name_medical" msgid="5617160509499466400">"อุปกรณ์ทางการแพทย์"</string>
+    <string name="title_app_streaming" msgid="237666000400427614">"อนุญาตให้ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; สตรีมแอปและฟีเจอร์ของระบบระหว่าง<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>กับ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ไหม"</string>
+    <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> จะได้รับสิทธิ์ต่อไปนี้"</string>
+    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> จะมีสิทธิ์เข้าถึงทุกอย่างที่ปรากฏหรือเล่นบน<xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ซึ่งรวมถึงเสียง รูปภาพ ข้อมูลการชำระเงิน รหัสผ่าน และข้อความ&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> จะสามารถสตรีมแอปไปยัง <xliff:g id="DEVICE_NAME">%3$s</xliff:g> ได้จนกว่าคุณจะนำการให้สิทธิ์นี้ออก"</string>
+    <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> กำลังขอสิทธิ์ในนามของ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> เพื่อสตรีมแอปและฟีเจอร์ของระบบระหว่างอุปกรณ์ต่างๆ ของคุณ"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
-    <string name="title_computer" msgid="4782923323932440751">"อนุญาตให้ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; เข้าถึงข้อมูลนี้จาก<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>ของคุณ"</string>
-    <string name="summary_computer" msgid="3798467601598297062"></string>
+    <string name="title_computer" msgid="5040395223341777259">"อนุญาตให้ &lt;strong&gt;<xliff:g id="DISPLAY_NAME">%3$s</xliff:g>&lt;/strong&gt; เข้าถึงข้อมูลนี้จาก<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>ของคุณ"</string>
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> กำลังขอสิทธิ์ในนามของ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> เพื่อเข้าถึงรูปภาพ สื่อ และการแจ้งเตือนใน<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>ของคุณ"</string>
-    <string name="title_nearby_device_streaming" msgid="2727103756701741359">"อนุญาตให้ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; สตรีมแอปใน<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>ของคุณไปยัง &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ไหม"</string>
-    <string name="summary_nearby_device_streaming" msgid="70434958004946884">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> จะมีสิทธิ์เข้าถึงทุกอย่างที่ปรากฏหรือเล่นบน <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> ซึ่งรวมถึงเสียง รูปภาพ ข้อมูลการชำระเงิน รหัสผ่าน และข้อความ&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> จะสามารถสตรีมแอปไปยัง <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> ได้จนกว่าคุณจะนำการให้สิทธิ์นี้ออก"</string>
+    <string name="title_nearby_device_streaming" msgid="5342768208699657581">"อนุญาตให้ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; สตรีมแอปและฟีเจอร์ของระบบระหว่าง<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>กับ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ไหม"</string>
+    <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> จะได้รับสิทธิ์ต่อไปนี้"</string>
+    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> จะมีสิทธิ์เข้าถึงทุกอย่างที่ปรากฏหรือเล่นบน <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> ซึ่งรวมถึงเสียง รูปภาพ ข้อมูลการชำระเงิน รหัสผ่าน และข้อความ&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> จะสามารถสตรีมแอปไปยัง <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> ได้จนกว่าคุณจะนำการให้สิทธิ์นี้ออก"</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> กำลังขอสิทธิ์ในนามของ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> เพื่อสตรีมแอปจาก<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>ของคุณ"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"อนุญาตให้ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; สตรีมเสียงและฟีเจอร์ของระบบระหว่าง<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>กับ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; ไหม"</string>
-    <string name="summary_virtual_device" msgid="3502592544171322817">"<xliff:g id="APP_NAME_0">%2$s</xliff:g> จะมีสิทธิ์เข้าถึงทุกอย่างที่เล่นบน <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%2$s</xliff:g> จะสามารถสตรีมเสียงไปยัง <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> ได้จนกว่าคุณจะนำสิทธิ์เข้าถึงนี้ออก"</string>
+    <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> จะได้รับสิทธิ์ต่อไปนี้"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"อุปกรณ์"</string>
     <string name="summary_generic" msgid="1761976003668044801">"แอปนี้จะสามารถซิงค์ข้อมูล เช่น ชื่อของบุคคลที่โทรเข้ามา ระหว่างโทรศัพท์ของคุณและอุปกรณ์ที่เลือกไว้ได้"</string>
     <string name="consent_yes" msgid="8344487259618762872">"อนุญาต"</string>
@@ -67,6 +70,11 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"เปลี่ยนเอาต์พุตสื่อ"</string>
     <string name="permission_storage" msgid="6831099350839392343">"รูปภาพและสื่อ"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"การแจ้งเตือน"</string>
+    <string name="permission_create_virtual_device" msgid="1102905050922460040">"สตรีมข้อมูลไปยัง<xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
+    <string name="permission_add_mirror_display" msgid="3743433250535606288">"มิเรอร์หน้าจอ"</string>
+    <string name="permission_add_trusted_display" msgid="9052824856626276723">"สตรีมแอป"</string>
+    <string name="permission_schedule_exact_alarm" msgid="5680932535987512225">"ตั้งนาฬิกาปลุกและการช่วยเตือน"</string>
+    <string name="permission_bypass_dnd" msgid="1241123166903040347">"ข้ามการตั้งค่าโหมดห้ามรบกวน"</string>
     <string name="permission_phone_summary" msgid="8246321093970051702">"โทรและจัดการการโทร"</string>
     <string name="permission_call_logs_summary" msgid="7545243592757693321">"อ่านและเขียนบันทึกการโทรของโทรศัพท์"</string>
     <string name="permission_sms_summary" msgid="8499509535410068616">"ส่งและดูข้อความ SMS"</string>
@@ -75,9 +83,15 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"บันทึกเสียง"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"ค้นหา เชื่อมต่อ และระบุตำแหน่งซึ่งสัมพันธ์กับอุปกรณ์ที่อยู่ใกล้เคียง"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"อ่านการแจ้งเตือนทั้งหมด รวมถึงข้อมูลอย่างรายชื่อติดต่อ ข้อความ และรูปภาพ"</string>
-    <string name="permission_notifications_summary" msgid="2272810466047367030">"• อ่านการแจ้งเตือนทั้งหมด รวมถึงข้อมูลอย่างรายชื่อติดต่อ ข้อความ และรูปภาพ&lt;br/&gt;• ส่งการแจ้งเตือน&lt;br/&gt;&lt;br/&gt;คุณจัดการความสามารถในการอ่านและส่งการแจ้งเตือนของแอปนี้ได้ทุกเมื่อในการตั้งค่า &gt; การแจ้งเตือน"</string>
+    <string name="permission_notifications_summary" msgid="6819393427371255636">"• อ่านการแจ้งเตือนทั้งหมด รวมถึงข้อมูลอย่างรายชื่อติดต่อ ข้อความ และรูปภาพ&lt;br/&gt;• ส่งการแจ้งเตือนถึงคุณ&lt;br/&gt;&lt;br/&gt;คุณจัดการความสามารถในการอ่านและส่งการแจ้งเตือนของแอปนี้ได้ทุกเมื่อในการตั้งค่า &gt; การแจ้งเตือน"</string>
     <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_post_notifications_summary" msgid="1099188848900200165">"ส่งการแจ้งเตือนถึงคุณ"</string>
+    <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"สตรีมไมโครโฟน กล้อง และข้อมูลเซ็นเซอร์อื่นๆ จาก &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ไปยัง<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
+    <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"บันทึก แคสต์ หรือแชร์หน้าจอของ<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>ไปยัง &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> จะมีสิทธิ์เข้าถึงทุกอย่างที่ปรากฏหรือเล่นใน<xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g> ซึ่งรวมถึงเสียง รูปภาพ ข้อมูลการชำระเงิน รหัสผ่าน และข้อความ"</string>
+    <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"สตรีมแอป <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> ของคุณไปยัง &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> จะมีสิทธิ์เข้าถึงทุกอย่างที่ปรากฏหรือเล่นใน <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g> ซึ่งรวมถึงเสียง รูปภาพ ข้อมูลการชำระเงิน รหัสผ่าน และข้อความ แม้ในขณะที่ <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> ถูกล็อกอยู่ก็ตาม"</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"เข้าถึงรายการอุปกรณ์ที่มีและควบคุมอุปกรณ์ที่จะสตรีมหรือแคสต์เสียงหรือวิดีโอจากแอปอื่นๆ"</string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
+    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
     <string name="device_type" product="default" msgid="8268703872070046263">"โทรศัพท์"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"แท็บเล็ต"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"ทีวี"</string>

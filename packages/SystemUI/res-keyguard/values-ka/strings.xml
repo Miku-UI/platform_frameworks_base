@@ -55,9 +55,9 @@
     <string name="kg_wrong_password" msgid="4143127991071670512">"პაროლი არასწორია"</string>
     <string name="kg_wrong_password_try_again" msgid="6602878676125765920">"პარ. არასწ. ცადეთ ხელახლა."</string>
     <string name="kg_wrong_pin" msgid="4160978845968732624">"PIN-კოდი არასწორია"</string>
-    <string name="kg_wrong_pin_try_again" msgid="3129729383303430190">"PIN არასწ. ცადეთ ხელახლა."</string>
+    <string name="kg_wrong_pin_try_again" msgid="3129729383303430190">"PIN არასწორია. ცადეთ ხელახლა."</string>
     <string name="kg_wrong_input_try_fp_suggestion" msgid="3143861542242024833">"ან თითის ანაბეჭდით განბლოკვა"</string>
-    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"ანაბ. ამოცნ. ვერ მოხერხდა"</string>
+    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"ანაბეჭდის ამოცნობა ვერ მოხერხდა"</string>
     <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"სახის ამოცნ. ვერ მოხერხდა"</string>
     <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"ცადეთ ხელახლა ან შეიყვანეთ PIN-კოდი"</string>
     <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"ცადეთ ხელახლა ან შეიყვანეთ პაროლი"</string>
@@ -68,7 +68,11 @@
     <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"PIN-კოდ. ან თითის ან. გან."</string>
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"პაროლ. ან თითის ან. განბლ."</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"ნიმუშით ან თითის ან. განბ."</string>
-    <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"დამატ. უსაფრთხ. მოწყობ. დაიბლ. სამსახ. წეს. თანახმად"</string>
+    <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"მოწყობილობა დაიბლოკა სამსახურის წესებით, დამატებითი უსაფრთხოებისთვის"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"2-ფაზიანი დადასტურება"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"ანაბეჭდით განბლოკვის გამოყენება"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"სახით განბლოკვის გამოყენება"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"თითის ანაბეჭდის ან სახით განბლოკვის გამოყენება"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"დაბლოკვის შემდეგ საჭიროა PIN-კოდი"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"დაბლოკვის შემდეგ საჭიროა პაროლი"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"დაბლოკვის შემდეგ საჭიროა ნიმუში"</string>

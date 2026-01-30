@@ -31,23 +31,30 @@ import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.logging.UiEventLogger
 import com.android.keyguard.BouncerPanelExpansionCalculator
 import com.android.systemui.Dumpable
+import com.android.systemui.Flags
+import com.android.systemui.Flags.qsComposeFragmentEarlyExpansion
 import com.android.systemui.animation.ShadeInterpolation
 import com.android.systemui.classifier.Classifier
 import com.android.systemui.classifier.domain.interactor.FalsingInteractor
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
-import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBypassInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.Hydrator
 import com.android.systemui.log.table.TableLogBuffer
+import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QQS
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QS
 import com.android.systemui.media.controls.ui.view.MediaHost
 import com.android.systemui.media.controls.ui.view.MediaHostState
 import com.android.systemui.media.dagger.MediaModule.QS_PANEL
 import com.android.systemui.media.dagger.MediaModule.QUICK_QS_PANEL
+import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
+import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
+import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.qs.FooterActionsController
 import com.android.systemui.qs.QSEvent
@@ -63,7 +70,6 @@ import com.android.systemui.res.R
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.shade.LargeScreenHeaderHelper
 import com.android.systemui.shade.ShadeDisplayAware
-import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shade.transition.LargeScreenShadeInterpolator
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.SysuiStatusBarStateController
@@ -85,6 +91,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -98,11 +105,10 @@ constructor(
     footerActionsViewModelFactory: FooterActionsViewModel.Factory,
     private val footerActionsController: FooterActionsController,
     private val sysuiStatusBarStateController: SysuiStatusBarStateController,
-    deviceEntryInteractor: DeviceEntryInteractor,
+    deviceEntryBypassInteractor: DeviceEntryBypassInteractor,
     disableFlagsInteractor: DisableFlagsInteractor,
     keyguardTransitionInteractor: KeyguardTransitionInteractor,
     private val largeScreenShadeInterpolator: LargeScreenShadeInterpolator,
-    shadeInteractor: ShadeInteractor,
     @ShadeDisplayAware configurationInteractor: ConfigurationInteractor,
     private val largeScreenHeaderHelper: LargeScreenHeaderHelper,
     private val squishinessInteractor: TileSquishinessInteractor,
@@ -115,13 +121,29 @@ constructor(
     @Named(QSFragmentComposeModule.QS_USING_MEDIA_PLAYER) private val usingMedia: Boolean,
     private val uiEventLogger: UiEventLogger,
     @Assisted private val lifecycleScope: LifecycleCoroutineScope,
+    private val mediaCarouselInteractor: MediaCarouselInteractor,
+    val mediaViewModelFactory: MediaViewModel.Factory,
 ) : Dumpable, ExclusiveActivatable() {
 
     val containerViewModel = containerViewModelFactory.create(supportsBrightnessMirroring = true)
     val quickQuickSettingsViewModel = quickQuickSettingsViewModelFactory.create()
 
-    private val qqsMediaInRowViewModel = mediaInRowInLandscapeViewModelFactory.create(LOCATION_QQS)
-    private val qsMediaInRowViewModel = mediaInRowInLandscapeViewModelFactory.create(LOCATION_QS)
+    val qsMediaUiBehavior =
+        MediaUiBehavior(
+            isCarouselDismissible = false,
+            carouselVisibility = MediaCarouselVisibility.WhenNotEmpty,
+        )
+
+    val qqsMediaUiBehavior =
+        MediaUiBehavior(
+            isCarouselDismissible = true,
+            carouselVisibility = MediaCarouselVisibility.WhenAnyCardIsActive,
+        )
+
+    private val qqsMediaInRowViewModel =
+        mediaInRowInLandscapeViewModelFactory.create(LOCATION_QQS, qqsMediaUiBehavior)
+    private val qsMediaInRowViewModel =
+        mediaInRowInLandscapeViewModelFactory.create(LOCATION_QS, qsMediaUiBehavior)
 
     private val hydrator = Hydrator("QSFragmentComposeViewModel.hydrator", tableLogBuffer)
 
@@ -135,7 +157,7 @@ constructor(
     var isQsVisible by mutableStateOf(false)
 
     val isQsVisibleAndAnyShadeExpanded: Boolean
-        get() = anyShadeExpanded && isQsVisible
+        get() = isPanelExpanded && isQsVisible
 
     // This can only be negative if undefined (in which case it will be -1f), else it will be
     // in [0, 1]. In some cases, it could be set back to -1f internally to indicate that it's
@@ -211,11 +233,31 @@ constructor(
 
     var heightOverride by mutableStateOf(-1)
 
+    var isPanelExpanded by mutableStateOf(false)
+
     val expansionState by derivedStateOf {
         if (forceQs) {
             QSExpansionState(1f)
         } else {
-            QSExpansionState(qsExpansion.coerceIn(0f, 1f))
+            QSExpansionState(
+                if (Flags.noExpansionOnOverscroll() && isStackScrollerOverscrolling) 0f
+                else
+                    qsExpansion.coerceIn(
+                        // Only apply early expansion if we are not collapsing QQS, measured by
+                        // panelExpansionFraction and squishinessFraction
+                        minimumValue =
+                            if (
+                                isQsExpanded &&
+                                    panelExpansionFraction >= 1f &&
+                                    squishinessFraction >= 1f
+                            ) {
+                                EARLY_EXPANSION
+                            } else {
+                                0f
+                            },
+                        maximumValue = 1f,
+                    )
+            )
         }
     }
 
@@ -229,22 +271,23 @@ constructor(
 
     var overScrollAmount by mutableStateOf(0)
 
-    val viewTranslationY by derivedStateOf {
-        if (isOverscrolling) {
-            overScrollAmount.toFloat()
-        } else {
-            if (onKeyguardAndExpanded) {
-                translationScaleY * qqsHeight
+    val viewTranslationY: Float
+        get() =
+            if (isOverscrolling) {
+                overScrollAmount.toFloat()
             } else {
-                headerTranslation
+                if (onKeyguardAndExpanded) {
+                    translationScaleY * qqsHeight
+                } else {
+                    headerTranslation
+                }
             }
-        }
-    }
 
-    val qsScrollTranslationY by derivedStateOf {
-        val panelTranslationY = translationScaleY * heightDiff
-        if (onKeyguardAndExpanded) panelTranslationY else 0f
-    }
+    val qsScrollTranslationY: Float
+        get() {
+            val panelTranslationY = translationScaleY * heightDiff
+            return if (onKeyguardAndExpanded) panelTranslationY else 0f
+        }
 
     val viewAlpha by derivedStateOf {
         when {
@@ -259,6 +302,9 @@ constructor(
     val showingMirror: Boolean
         get() = containerViewModel.brightnessSliderViewModel.showMirror
 
+    val isBrightnessSliderVisible: Boolean
+        get() = containerViewModel.isBrightnessSliderVisible
+
     // The initial values in these two are not meaningful. The flow will emit on start the correct
     // values. This is because we need to lazily fetch them after initMediaHosts.
     val qqsMediaVisible by
@@ -267,7 +313,7 @@ constructor(
             initialValue = usingMedia,
             source =
                 if (usingMedia) {
-                    mediaHostVisible(qqsMediaHost)
+                    mediaHostVisible(qqsMediaHost, qqsMediaUiBehavior, mediaCarouselInteractor)
                 } else {
                     flowOf(false)
                 },
@@ -280,7 +326,12 @@ constructor(
         hydrator.hydratedStateOf(
             traceName = "qsMediaVisible",
             initialValue = usingMedia,
-            source = if (usingMedia) mediaHostVisible(qsMediaHost) else flowOf(false),
+            source =
+                if (usingMedia) {
+                    mediaHostVisible(qsMediaHost, qsMediaUiBehavior, mediaCarouselInteractor)
+                } else {
+                    flowOf(false)
+                },
         )
 
     val qsMediaInRow: Boolean
@@ -290,7 +341,9 @@ constructor(
 
     val qsMediaTranslationY by derivedStateOf {
         if (
-            qsExpansion > 0f &&
+            !MediaControlsInComposeFlag.isEnabled &&
+                !Flags.mediaControlsTranslationFix() &&
+                qsExpansion > 0f &&
                 !isKeyguardState &&
                 !qqsMediaVisible &&
                 !qsMediaInRow &&
@@ -398,7 +451,7 @@ constructor(
     private val isBypassEnabled by
         hydrator.hydratedStateOf(
             traceName = "isBypassEnabled",
-            source = deviceEntryInteractor.isBypassEnabled,
+            source = deviceEntryBypassInteractor.isBypassEnabled,
         )
 
     private val showCollapsedOnKeyguard by derivedStateOf {
@@ -419,9 +472,8 @@ constructor(
     private val translationScaleY: Float
         get() = ((qsExpansion - 1) * (if (isInSplitShade) 1f else SHORT_PARALLAX_AMOUNT))
 
-    private val headerTranslation by derivedStateOf {
-        if (isTransitioningToFullShade) 0f else proposedTranslation
-    }
+    private val headerTranslation: Float
+        get() = if (isTransitioningToFullShade) 0f else proposedTranslation
 
     private val alphaProgress by derivedStateOf {
         when {
@@ -448,12 +500,6 @@ constructor(
                 ),
         )
 
-    private val anyShadeExpanded by
-        hydrator.hydratedStateOf(
-            traceName = "anyShadeExpanded",
-            source = shadeInteractor.isAnyExpanded,
-        )
-
     fun applyNewQsScrollerBounds(left: Float, top: Float, right: Float, bottom: Float) {
         if (usingMedia) {
             qsMediaHost.currentClipping.set(
@@ -477,11 +523,13 @@ constructor(
         uiEventLogger.log(QSEvent.QS_PANEL_EXPANDED)
     }
 
+    fun onMediaSwipeToDismiss() = mediaCarouselInteractor.onSwipeToDismiss()
+
     override suspend fun onActivated(): Nothing {
         initMediaHosts() // init regardless of using media (same as current QS).
         coroutineScope {
             launch { hydrateSquishinessInteractor() }
-            if (usingMedia) {
+            if (usingMedia && !MediaControlsInComposeFlag.isEnabled) {
                 launch { hydrateQqsMediaExpansion() }
                 launch { hydrateMediaSquishiness() }
                 launch { hydrateMediaDisappearParameters() }
@@ -496,6 +544,8 @@ constructor(
     }
 
     private fun initMediaHosts() {
+        if (MediaControlsInComposeFlag.isEnabled) return
+
         qqsMediaHost.apply {
             expansion = qqsMediaExpansion
             showsOnlyActiveMedia = true
@@ -537,11 +587,12 @@ constructor(
             printSection("Quick Settings state") {
                 println("isQSExpanded", isQsExpanded)
                 println("isQSVisible", isQsVisible)
-                println("anyShadeExpanded", anyShadeExpanded)
+                println("isPanelExpanded", isPanelExpanded)
                 println("isQSVisibleAndAnyShadeExpanded", isQsVisibleAndAnyShadeExpanded)
                 println("isQSEnabled", isQsEnabled)
                 println("isCustomizing", containerViewModel.editModeViewModel.isEditing.value)
                 println("inFirstPage", inFirstPage)
+                println("isBrightnessSliderVisible", containerViewModel.isBrightnessSliderVisible)
             }
             printSection("Expansion state") {
                 println("qsExpansion", qsExpansion)
@@ -593,6 +644,14 @@ constructor(
 
     // In the future, this may have other relevant elements.
     data class QSExpansionState(@FloatRange(0.0, 1.0) val progress: Float)
+
+    companion object {
+        private val EARLY_EXPANSION
+            get() = if (qsComposeFragmentEarlyExpansion()) 1.0E-6F else 0f
+
+        val QS_LISTENING_THRESHOLD
+            get() = EARLY_EXPANSION * 2
+    }
 }
 
 private fun Float.constrainSquishiness(): Float {
@@ -605,7 +664,28 @@ private val SHORT_PARALLAX_AMOUNT = 0.1f
  * Returns a flow to track the visibility of a [MediaHost]. The flow will emit on start the visible
  * state of the view.
  */
-private fun mediaHostVisible(mediaHost: MediaHost): Flow<Boolean> {
+private fun mediaHostVisible(
+    mediaHost: MediaHost,
+    mediaUiBehavior: MediaUiBehavior,
+    mediaCarouselInteractor: MediaCarouselInteractor,
+): Flow<Boolean> {
+    if (MediaControlsInComposeFlag.isEnabled) {
+        return combine(
+            mediaCarouselInteractor.hasActiveMedia,
+            mediaCarouselInteractor.hasAnyMedia,
+            mediaCarouselInteractor.isLockedAndHidden,
+        ) { activeMedia, anyMedia, lockedAndHidden ->
+            if (lockedAndHidden) {
+                false
+            } else if (
+                mediaUiBehavior.carouselVisibility == MediaCarouselVisibility.WhenAnyCardIsActive
+            ) {
+                activeMedia
+            } else {
+                anyMedia
+            }
+        }
+    }
     return callbackFlow {
             val listener: (Boolean) -> Unit = { visible: Boolean -> trySend(visible) }
             mediaHost.addVisibilityChangeListener(listener)

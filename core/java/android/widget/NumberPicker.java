@@ -420,18 +420,23 @@ public class NumberPicker extends LinearLayout {
     /**
      * @see ViewConfiguration#getScaledTouchSlop()
      */
-    private int mTouchSlop;
+    private final int mTouchSlop;
 
     /**
      * @see ViewConfiguration#getScaledMinimumFlingVelocity()
      */
-    private int mMinimumFlingVelocity;
+    private final int mMinimumFlingVelocity;
 
     /**
      * @see ViewConfiguration#getScaledMaximumFlingVelocity()
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private int mMaximumFlingVelocity;
+
+    /**
+     * @see ViewConfiguration#getTapTimeoutMillis()
+     */
+    private final int mTapTimeoutMillis;
 
     /**
      * Flag whether the selector should wrap around.
@@ -781,6 +786,8 @@ public class NumberPicker extends LinearLayout {
         // initialize constants
         ViewConfiguration configuration = ViewConfiguration.get(context);
         mTouchSlop = configuration.getScaledTouchSlop();
+        mTapTimeoutMillis = android.companion.virtualdevice.flags.Flags.viewconfigurationApis()
+                ? configuration.getTapTimeoutMillis() : ViewConfiguration.getTapTimeout();
         mMinimumFlingVelocity = configuration.getScaledMinimumFlingVelocity();
         mMaximumFlingVelocity = configuration.getScaledMaximumFlingVelocity()
                 / SELECTOR_MAX_FLING_VELOCITY_ADJUSTMENT;
@@ -933,10 +940,10 @@ public class NumberPicker extends LinearLayout {
                     onScrollerFinished(mAdjustScroller);
                 } else if (mLastDownEventY < mTopSelectionDividerTop) {
                     postChangeCurrentByOneFromLongPress(
-                            false, ViewConfiguration.getLongPressTimeout());
+                            false, getLongPressTimeoutMillis());
                 } else if (mLastDownEventY > mBottomSelectionDividerBottom) {
                     postChangeCurrentByOneFromLongPress(
-                            true, ViewConfiguration.getLongPressTimeout());
+                            true, getLongPressTimeoutMillis());
                 } else {
                     mPerformClickOnTap = true;
                     postBeginSoftInputOnLongPressCommand();
@@ -990,7 +997,7 @@ public class NumberPicker extends LinearLayout {
                     int eventY = (int) event.getY();
                     int deltaMoveY = (int) Math.abs(eventY - mLastDownEventY);
                     long deltaTime = event.getEventTime() - mLastDownEventTime;
-                    if (deltaMoveY <= mTouchSlop && deltaTime < ViewConfiguration.getTapTimeout()) {
+                    if (deltaMoveY <= mTouchSlop && deltaTime < mTapTimeoutMillis) {
                         if (mPerformClickOnTap) {
                             mPerformClickOnTap = false;
                             performClick();
@@ -2120,7 +2127,7 @@ public class NumberPicker extends LinearLayout {
         } else {
             removeCallbacks(mBeginSoftInputOnLongPressCommand);
         }
-        postDelayed(mBeginSoftInputOnLongPressCommand, ViewConfiguration.getLongPressTimeout());
+        postDelayed(mBeginSoftInputOnLongPressCommand, getLongPressTimeoutMillis());
     }
 
     /**
@@ -2336,7 +2343,7 @@ public class NumberPicker extends LinearLayout {
             cancel();
             mMode = MODE_PRESS;
             mManagedButton = button;
-            NumberPicker.this.postDelayed(this, ViewConfiguration.getTapTimeout());
+            NumberPicker.this.postDelayed(this, mTapTimeoutMillis);
         }
 
         public void buttonTapped(int button) {

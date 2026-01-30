@@ -16,10 +16,12 @@
 
 package com.android.server.wm;
 
-import static com.android.server.wm.AnimationAdapterProto.LOCAL;
-import static com.android.server.wm.LocalAnimationAdapterProto.ANIMATION_SPEC;
+import static android.internal.perfetto.protos.Animationadapter.AnimationAdapterProto.LOCAL;
+import static android.internal.perfetto.protos.Animationadapter.LocalAnimationAdapterProto.ANIMATION_SPEC;
 
+import android.annotation.ColorInt;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.os.SystemClock;
 import android.util.proto.ProtoOutputStream;
 import android.view.SurfaceControl;
@@ -36,11 +38,13 @@ import java.io.PrintWriter;
  */
 class LocalAnimationAdapter implements AnimationAdapter {
 
+    @NonNull
     private final AnimationSpec mSpec;
 
+    @NonNull
     private final SurfaceAnimationRunner mAnimator;
 
-    LocalAnimationAdapter(AnimationSpec spec, SurfaceAnimationRunner animator) {
+    LocalAnimationAdapter(@NonNull AnimationSpec spec, @NonNull SurfaceAnimationRunner animator) {
         mSpec = spec;
         mAnimator = animator;
     }
@@ -55,20 +59,21 @@ class LocalAnimationAdapter implements AnimationAdapter {
         return mSpec.getShowBackground();
     }
 
+    @ColorInt
     @Override
     public int getBackgroundColor() {
         return mSpec.getBackgroundColor();
     }
 
     @Override
-    public void startAnimation(SurfaceControl animationLeash, Transaction t,
+    public void startAnimation(@NonNull SurfaceControl animationLeash, @NonNull Transaction t,
             @AnimationType int type, @NonNull OnAnimationFinishedCallback finishCallback) {
         mAnimator.startAnimation(mSpec, animationLeash, t,
                 () -> finishCallback.onAnimationFinished(type, this));
     }
 
     @Override
-    public void onAnimationCancelled(SurfaceControl animationLeash) {
+    public void onAnimationCancelled(@Nullable SurfaceControl animationLeash) {
         mAnimator.onAnimationCancelled(animationLeash);
     }
 
@@ -83,12 +88,12 @@ class LocalAnimationAdapter implements AnimationAdapter {
     }
 
     @Override
-    public void dump(PrintWriter pw, String prefix) {
+    public void dump(@NonNull PrintWriter pw, @NonNull String prefix) {
         mSpec.dump(pw, prefix);
     }
 
     @Override
-    public void dumpDebug(ProtoOutputStream proto) {
+    public void dumpDebug(@NonNull ProtoOutputStream proto) {
         final long token = proto.start(LOCAL);
         mSpec.dumpDebug(proto, ANIMATION_SPEC);
         proto.end(token);
@@ -116,6 +121,7 @@ class LocalAnimationAdapter implements AnimationAdapter {
         /**
          * @see AnimationAdapter#getBackgroundColor
          */
+        @ColorInt
         default int getBackgroundColor() {
             return 0;
         }
@@ -139,10 +145,10 @@ class LocalAnimationAdapter implements AnimationAdapter {
          * @param leash           The leash to apply the state to.
          * @param currentPlayTime The current time of the animation.
          */
-        void apply(Transaction t, SurfaceControl leash, long currentPlayTime);
+        void apply(@NonNull Transaction t, @NonNull SurfaceControl leash, long currentPlayTime);
 
         /**
-         * @see AppTransition#canSkipFirstFrame
+         * @see WindowAnimationSpec#canSkipFirstFrame
          */
         default boolean canSkipFirstFrame() {
             return false;
@@ -165,16 +171,17 @@ class LocalAnimationAdapter implements AnimationAdapter {
             return duration > 0 ? currentPlayTime / duration : 1.0f;
         }
 
-        void dump(PrintWriter pw, String prefix);
+        void dump(@NonNull PrintWriter pw, @NonNull String prefix);
 
-        default void dumpDebug(ProtoOutputStream proto, long fieldId) {
+        default void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
             final long token = proto.start(fieldId);
             dumpDebugInner(proto);
             proto.end(token);
         }
 
-        void dumpDebugInner(ProtoOutputStream proto);
+        void dumpDebugInner(@NonNull ProtoOutputStream proto);
 
+        @Nullable
         default WindowAnimationSpec asWindowAnimationSpec() {
             return null;
         }

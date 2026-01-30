@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Nagpe-play sa tablet na ito"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Puwede mong hanapin ang teleponong ito gamit ang Hanapin ang Aking Device kahit naka-off ito"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Puwede mong hanapin ang tablet na ito gamit ang Hanapin ang Aking Device kahit naka-off ito"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Puwede mong mahanap ang teleponong ito gamit ang Find Hub kahit na naka-off"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Puwede mong mahanap ang tablet na ito gamit ang Find Hub kahit na naka-off"</string>
 </resources>

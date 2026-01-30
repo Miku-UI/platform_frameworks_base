@@ -198,7 +198,7 @@ TEST_F(IdmapTest, OverlayLoaderInterop) {
   ASSERT_THAT(asset, NotNull());
 
   auto loader_assets = ApkAssets::LoadTable(std::move(asset), EmptyAssetsProvider::Create(),
-      PROPERTY_LOADER);
+      nullptr, PROPERTY_LOADER);
   AssetManager2 asset_manager;
   asset_manager.SetApkAssets({overlayable_assets_, loader_assets, overlay_assets_});
 

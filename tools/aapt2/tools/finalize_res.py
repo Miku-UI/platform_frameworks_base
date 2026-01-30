@@ -141,7 +141,11 @@ def finalize_group(raw):
     # Only add it to final.xml if new ids were actually assigned
     if res:
         res = '<staging-public-group-final type="%s" first-id="%s">\n%s  </staging-public-group-final>\n\n%s' % (_type, raw.group(2), group_matches, res)
+
+    # Potenitally bump _lowest_staging_first_id if this group had any flags (finalize or not).
+    if all:
         _lowest_staging_first_id = min(id, _lowest_staging_first_id)
+
     return res
 
 """

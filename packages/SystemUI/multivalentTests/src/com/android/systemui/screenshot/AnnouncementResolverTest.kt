@@ -17,6 +17,7 @@
 package com.android.systemui.screenshot
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.screenshot.data.repository.profileTypeRepository
 import com.android.systemui.screenshot.policy.TestUserIds
@@ -31,7 +32,7 @@ import org.junit.runner.RunWith
 import org.mockito.Mockito.mock
 
 @RunWith(AndroidJUnit4::class)
-class AnnouncementResolverTest {
+class AnnouncementResolverTest : SysuiTestCase() {
     private val kosmos = Kosmos()
 
     private val screenshotMessage = "Saving screenshot"
@@ -49,7 +50,7 @@ class AnnouncementResolverTest {
         AnnouncementResolver(
             messages,
             kosmos.profileTypeRepository,
-            TestScope(UnconfinedTestDispatcher())
+            TestScope(UnconfinedTestDispatcher()),
         )
 
     @Test

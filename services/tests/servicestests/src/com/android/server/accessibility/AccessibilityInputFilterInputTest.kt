@@ -15,11 +15,17 @@
  */
 package com.android.server.accessibility
 
+import android.content.Context
+import android.content.ContextWrapper
 import android.hardware.display.DisplayManagerGlobal
+import android.hardware.input.IInputManager
+import android.hardware.input.InputManager
+import android.hardware.input.InputManagerGlobal
 import android.os.SystemClock
-import android.platform.test.annotations.RequiresFlagsEnabled
+import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
+import android.platform.test.flag.junit.SetFlagsRule
 import android.view.Display
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.DisplayAdjustments
@@ -45,6 +51,7 @@ import com.android.cts.input.inputeventmatchers.withMotionAction
 import com.android.cts.input.inputeventmatchers.withSource
 import com.android.cts.input.BlockingQueueEventVerifier
 import com.android.server.LocalServices
+import com.android.server.accessibility.gestures.EventDispatcher
 import com.android.server.accessibility.magnification.MagnificationProcessor
 import com.android.server.wm.WindowManagerInternal
 import java.util.concurrent.LinkedBlockingQueue
@@ -80,8 +87,10 @@ fun createMotionEvent(action: Int, downTime: Long, eventTime: Long, source: Int,
     val yPrecision = 0f
     val edgeFlags = 0
     val displayId = 0
-    return MotionEvent.obtain(downTime, eventTime, action, x, y, pressure, size, metaState,
-        xPrecision, yPrecision, deviceId, edgeFlags, source, displayId)
+    return MotionEvent.obtain(
+        downTime, eventTime, action, x, y, pressure, size, metaState,
+        xPrecision, yPrecision, deviceId, edgeFlags, source, displayId
+    )
 }
 
 /**
@@ -94,7 +103,7 @@ fun createMotionEvent(action: Int, downTime: Long, eventTime: Long, source: Int,
 class AccessibilityInputFilterInputTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
-    private companion object{
+    private companion object {
         const val ALL_A11Y_FEATURES = (AccessibilityInputFilter.FLAG_FEATURE_AUTOCLICK
                 or AccessibilityInputFilter.FLAG_FEATURE_TOUCH_EXPLORATION
                 or AccessibilityInputFilter.FLAG_FEATURE_CONTROL_SCREEN_MAGNIFIER
@@ -112,6 +121,10 @@ class AccessibilityInputFilterInputTest {
     @JvmField
     val mCheckFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
+    @Rule
+    @JvmField
+    val mSetFlagsRule: SetFlagsRule = SetFlagsRule()
+
     @Mock
     private lateinit var mockA11yController: WindowManagerInternal.AccessibilityControllerInternal
 
@@ -121,30 +134,56 @@ class AccessibilityInputFilterInputTest {
     @Mock
     private lateinit var mockMagnificationProcessor: MagnificationProcessor
 
+    @Mock
+    private lateinit var inputManager: IInputManager
+    private lateinit var inputManagerGlobalSession: InputManagerGlobal.TestSession
+
     private val inputEvents = LinkedBlockingQueue<InputEvent>()
     private val verifier = BlockingQueueEventVerifier(inputEvents)
 
     @Mock
     private lateinit var host: IInputFilterHost
     private lateinit var ams: AccessibilityManagerService
+    private lateinit var context: Context
     private lateinit var a11yInputFilter: AccessibilityInputFilter
     private val touchDeviceId = 1
     private val fromTouchScreen = allOf(withDeviceId(touchDeviceId), withSource(SOURCE_TOUCHSCREEN))
+    private val fromInjectedTouchScreen =
+        allOf(
+            withDeviceId(EventDispatcher.VIRTUAL_TOUCHSCREEN_DEVICE_ID),
+            withSource(SOURCE_TOUCHSCREEN)
+        )
     private val stylusDeviceId = 2
     private val fromStylus = allOf(withDeviceId(stylusDeviceId), withSource(STYLUS_SOURCE))
+    private val fromInjectedStylus =
+        allOf(
+            withDeviceId(EventDispatcher.VIRTUAL_TOUCHSCREEN_DEVICE_ID),
+            withSource(STYLUS_SOURCE)
+        )
     private val joystickDeviceId = 3
-    private val fromJoystick = allOf(withDeviceId(joystickDeviceId), withSource(SOURCE_JOYSTICK))
+    private val fromJoystick =
+        allOf(
+            withDeviceId(joystickDeviceId),
+            withSource(SOURCE_JOYSTICK),
+            withMotionAction(ACTION_MOVE)
+        )
 
     @Before
     fun setUp() {
-        val context = instrumentation.context
+        context = Mockito.spy(ContextWrapper(instrumentation.context))
         LocalServices.removeServiceForTest(WindowManagerInternal::class.java)
         LocalServices.addService(WindowManagerInternal::class.java, mockWindowManagerService)
+        inputManagerGlobalSession = InputManagerGlobal.createTestSession(inputManager)
+        val inputManager = InputManager(context)
+        whenever(context.getSystemService(Mockito.eq(Context.INPUT_SERVICE)))
+            .thenReturn(inputManager)
 
         whenever(mockA11yController.isAccessibilityTracingEnabled).thenReturn(false)
         whenever(
-            mockWindowManagerService.accessibilityController).thenReturn(
-            mockA11yController)
+            mockWindowManagerService.accessibilityController
+        ).thenReturn(
+            mockA11yController
+        )
 
         ams = Mockito.spy(AccessibilityManagerService(context))
         val displayList = arrayListOf(createStubDisplay(DEFAULT_DISPLAY, DisplayInfo()))
@@ -164,6 +203,12 @@ class AccessibilityInputFilterInputTest {
     fun tearDown() {
         if (this::a11yInputFilter.isInitialized) {
             a11yInputFilter.uninstall()
+        }
+        if (this::inputManagerGlobalSession.isInitialized) {
+            inputManagerGlobalSession.close()
+        }
+        if (this::ams.isInitialized) {
+            ams.unregisterObservers()
         }
     }
 
@@ -198,15 +243,30 @@ class AccessibilityInputFilterInputTest {
         val downTime = SystemClock.uptimeMillis()
         sendTouchEvent(ACTION_DOWN, downTime, downTime)
         // DOWN event gets transformed to HOVER_ENTER
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // MOVE becomes HOVER_MOVE
         sendTouchEvent(ACTION_MOVE, downTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_MOVE)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_MOVE)
+            )
+        )
 
         // UP becomes HOVER_EXIT
         sendTouchEvent(ACTION_UP, downTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_EXIT)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
 
         verifier.assertNoEvents()
     }
@@ -222,16 +282,31 @@ class AccessibilityInputFilterInputTest {
         val downTime = SystemClock.uptimeMillis()
         sendTouchEvent(ACTION_DOWN, downTime, downTime)
         // DOWN event gets transformed to HOVER_ENTER
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // CANCEL becomes HOVER_EXIT
         sendTouchEvent(ACTION_CANCEL, downTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_EXIT)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
 
         // DOWN again! New hover is expected
         val newDownTime = SystemClock.uptimeMillis()
         sendTouchEvent(ACTION_DOWN, newDownTime, newDownTime)
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         verifier.assertNoEvents()
     }
@@ -248,16 +323,31 @@ class AccessibilityInputFilterInputTest {
         val downTime = SystemClock.uptimeMillis()
         sendStylusEvent(ACTION_DOWN, downTime, downTime)
         // DOWN event gets transformed to HOVER_ENTER
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // CANCEL becomes HOVER_EXIT
         sendStylusEvent(ACTION_CANCEL, downTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_EXIT)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
 
         // DOWN again! New hover is expected
         val newDownTime = SystemClock.uptimeMillis()
         sendStylusEvent(ACTION_DOWN, newDownTime, newDownTime)
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         verifier.assertNoEvents()
     }
@@ -272,15 +362,30 @@ class AccessibilityInputFilterInputTest {
         val downTime = SystemClock.uptimeMillis()
         sendStylusEvent(ACTION_DOWN, downTime, downTime)
         // DOWN event gets transformed to HOVER_ENTER
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // CANCEL becomes HOVER_EXIT
         sendStylusEvent(ACTION_CANCEL, downTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_EXIT)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
 
         val newDownTime = SystemClock.uptimeMillis()
         sendTouchEvent(ACTION_DOWN, newDownTime, newDownTime)
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         verifier.assertNoEvents()
     }
@@ -299,11 +404,21 @@ class AccessibilityInputFilterInputTest {
         sendTouchEvent(ACTION_DOWN, downTime, downTime)
 
         // DOWN event gets transformed to HOVER_ENTER
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
         verifier.assertNoEvents()
 
         enableFeatures(0)
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_EXIT)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
         verifier.assertNoEvents()
 
         sendTouchEvent(ACTION_MOVE, downTime, SystemClock.uptimeMillis())
@@ -329,7 +444,7 @@ class AccessibilityInputFilterInputTest {
      * interleaved.
      */
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_HANDLE_MULTI_DEVICE_INPUT)
+    @EnableFlags(Flags.FLAG_HANDLE_MULTI_DEVICE_INPUT)
     fun testMultiDeviceEventsWithoutA11yFeatures() {
         enableFeatures(0)
 
@@ -374,21 +489,36 @@ class AccessibilityInputFilterInputTest {
      * interleaved.
      */
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_HANDLE_MULTI_DEVICE_INPUT)
+    @EnableFlags(Flags.FLAG_HANDLE_MULTI_DEVICE_INPUT)
     fun testMultiDeviceEventsWithAllA11yFeatures() {
         enableFeatures(ALL_A11Y_FEATURES)
 
         // Touch device - ACTION_DOWN
         val touchDownTime = SystemClock.uptimeMillis()
         sendTouchEvent(ACTION_DOWN, touchDownTime, touchDownTime)
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // Stylus device - ACTION_DOWN
         val stylusDownTime = SystemClock.uptimeMillis()
         sendStylusEvent(ACTION_DOWN, stylusDownTime, stylusDownTime)
         // Touch is canceled and stylus is started
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_EXIT)))
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // Touch device - ACTION_MOVE
         sendTouchEvent(ACTION_MOVE, touchDownTime, SystemClock.uptimeMillis())
@@ -397,7 +527,12 @@ class AccessibilityInputFilterInputTest {
 
         // Stylus device - ACTION_MOVE
         sendStylusEvent(ACTION_MOVE, stylusDownTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_MOVE)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_MOVE)
+            )
+        )
 
         // Touch device - ACTION_UP
         sendTouchEvent(ACTION_UP, touchDownTime, SystemClock.uptimeMillis())
@@ -405,12 +540,22 @@ class AccessibilityInputFilterInputTest {
         verifier.assertNoEvents()
 
         sendStylusEvent(ACTION_UP, stylusDownTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_EXIT)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
 
         // Now stylus is done, and a new touch gesture will work!
         val newTouchDownTime = SystemClock.uptimeMillis()
         sendTouchEvent(ACTION_DOWN, newTouchDownTime, newTouchDownTime)
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         verifier.assertNoEvents()
     }
@@ -422,32 +567,57 @@ class AccessibilityInputFilterInputTest {
      * while stylus is active. Check that the latest device is always given preference.
      */
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_HANDLE_MULTI_DEVICE_INPUT)
+    @EnableFlags(Flags.FLAG_HANDLE_MULTI_DEVICE_INPUT)
     fun testStylusWithTouchInTheMiddle() {
         enableFeatures(ALL_A11Y_FEATURES)
 
         // Stylus device - ACTION_DOWN
         val stylusDownTime = SystemClock.uptimeMillis()
         sendStylusEvent(ACTION_DOWN, stylusDownTime, stylusDownTime)
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // Touch device - ACTION_DOWN
         val touchDownTime = SystemClock.uptimeMillis()
         sendTouchEvent(ACTION_DOWN, touchDownTime, touchDownTime)
         // Touch DOWN causes stylus to get canceled
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_EXIT)))
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         // Touch device - ACTION_MOVE
         sendTouchEvent(ACTION_MOVE, touchDownTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_MOVE)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_MOVE)
+            )
+        )
 
         sendStylusEvent(ACTION_MOVE, stylusDownTime, SystemClock.uptimeMillis())
         // Stylus is ignored because touch is active now
         verifier.assertNoEvents()
 
         sendTouchEvent(ACTION_UP, touchDownTime, SystemClock.uptimeMillis())
-        verifier.assertReceivedMotion(allOf(fromTouchScreen, withMotionAction(ACTION_HOVER_EXIT)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedTouchScreen,
+                withMotionAction(ACTION_HOVER_EXIT)
+            )
+        )
 
         sendStylusEvent(ACTION_UP, stylusDownTime, SystemClock.uptimeMillis())
         // The UP stylus event is also ignored
@@ -456,7 +626,12 @@ class AccessibilityInputFilterInputTest {
         // Now stylus works again, because touch gesture is finished
         val newStylusDownTime = SystemClock.uptimeMillis()
         sendStylusEvent(ACTION_DOWN, newStylusDownTime, newStylusDownTime)
-        verifier.assertReceivedMotion(allOf(fromStylus, withMotionAction(ACTION_HOVER_ENTER)))
+        verifier.assertReceivedMotion(
+            allOf(
+                fromInjectedStylus,
+                withMotionAction(ACTION_HOVER_ENTER)
+            )
+        )
 
         verifier.assertNoEvents()
     }
@@ -479,8 +654,10 @@ class AccessibilityInputFilterInputTest {
     }
 
     private fun createStubDisplay(displayId: Int, displayInfo: DisplayInfo): Display {
-        val display = Display(DisplayManagerGlobal.getInstance(), displayId,
-            displayInfo, DisplayAdjustments.DEFAULT_DISPLAY_ADJUSTMENTS)
+        val display = Display(
+            DisplayManagerGlobal.getInstance(), displayId,
+            displayInfo, DisplayAdjustments.DEFAULT_DISPLAY_ADJUSTMENTS
+        )
         return display
     }
 

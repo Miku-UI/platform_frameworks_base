@@ -141,7 +141,7 @@ public class MultiStatePowerAttributorTest {
         }).when(mPowerStatsAggregator).aggregatePowerStats(any(BatteryStatsHistory.class),
                 anyLong(), anyLong(), any(Consumer.class));
 
-        mPowerStatsScheduler.start(/*enabled*/ true);
+        mPowerStatsScheduler.start();
         ConditionVariable done = new ConditionVariable();
         mHandler.post(done::open);
         done.block();

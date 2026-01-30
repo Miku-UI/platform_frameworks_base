@@ -226,7 +226,9 @@ public final class NotificationProgressBar extends ProgressBar implements
     }
 
     @NonNull
-    private NotificationProgressDrawable getNotificationProgressDrawable() {
+    public NotificationProgressDrawable getNotificationProgressDrawable() {
+        if (mNotificationProgressDrawable != null) return mNotificationProgressDrawable;
+
         final Drawable d = getProgressDrawable();
         if (d == null) {
             throw new IllegalStateException("getProgressDrawable() returns null");

@@ -166,6 +166,8 @@ public class PackageParserTest {
     private static final String TEST_APP6_APK = "PackageParserTestApp6.apk";
     private static final String TEST_APP7_APK = "PackageParserTestApp7.apk";
     private static final String TEST_APP8_APK = "PackageParserTestApp8.apk";
+    private static final String TEST_APP9_APK = "PackageParserTestApp9.apk";
+    private static final String TEST_APP10_APK = "PackageParserTestApp10.apk";
     private static final String PACKAGE_NAME = "com.android.servicestests.apps.packageparserapp";
 
     @Before
@@ -292,8 +294,6 @@ public class PackageParserTest {
         assertSame(deserialized.getPackageName(), deserialized2.getPackageName());
         assertSame(deserialized.getPermission(),
                 deserialized2.getPermission());
-        assertSame(deserialized.getRequestedPermissions().iterator().next(),
-                deserialized2.getRequestedPermissions().iterator().next());
 
         List<String> protectedBroadcastsOne = new ArrayList<>(1);
         protectedBroadcastsOne.addAll(deserialized.getProtectedBroadcasts());
@@ -771,8 +771,8 @@ public class PackageParserTest {
                             .collect(toList());
             assertWithMessage(
                     "Compatibility permissions shouldn't be added into uses permissions.")
-                    .that(pkg.getUsesPermissions().stream().map(ParsedUsesPermission::getName)
-                            .collect(toList()))
+                    .that(pkg.getUsesPermissionMapping().values().stream()
+                            .map(ParsedUsesPermission::getName).collect(toList()))
                     .containsNoneIn(compatPermissions);
             assertWithMessage(
                     "Compatibility permissions shouldn't be added into requested permissions.")
@@ -794,7 +794,7 @@ public class PackageParserTest {
             assertWithMessage(
                     "Compatibility permissions should be added into uses permissions.")
                     .that(Arrays.stream(COMPAT_PERMS).map(CompatibilityPermissionInfo::getName)
-                            .allMatch(pkg.getUsesPermissions().stream()
+                            .allMatch(pkg.getUsesPermissionMapping().values().stream()
                                     .map(ParsedUsesPermission::getName)
                             .collect(toList())::contains))
                     .isTrue();
@@ -879,6 +879,10 @@ public class PackageParserTest {
             assertThat(permissionNames).doesNotContain(PACKAGE_NAME + ".PERM3");
             assertThat(permissionNames).doesNotContain(PACKAGE_NAME + ".PERM4");
             assertThat(permissionNames).doesNotContain(PACKAGE_NAME + ".PERM5");
+
+            var activities = pkg.getActivities().stream().map(ParsedActivity::getName).toList();
+            assertThat(activities).contains(PACKAGE_NAME + ".TestActivity");
+            assertThat(activities).doesNotContain(PACKAGE_NAME + ".TestActivity2");
         } finally {
             testFile.delete();
         }
@@ -913,6 +917,43 @@ public class PackageParserTest {
             assertThat(permissionNames).doesNotContain(PACKAGE_NAME + ".PERM3");
             assertThat(permissionNames).doesNotContain(PACKAGE_NAME + ".PERM4");
             assertThat(permissionNames).doesNotContain(PACKAGE_NAME + ".PERM5");
+
+            var activities = pkg.getActivities().stream().map(ParsedActivity::getName).toList();
+            assertThat(activities).contains(PACKAGE_NAME + ".TestActivity");
+            assertThat(activities).doesNotContain(PACKAGE_NAME + ".TestActivity2");
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    public void testParseBackupProperties_noBackupAgent() throws Exception {
+        final File testFile = extractFile(TEST_APP9_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            // Supported without backupAgent - checks they are the non-default
+            assertTrue("restoreAnyVersion", pkg.isRestoreAnyVersion());
+            assertFalse("killAfterRestore", pkg.isKillAfterRestoreAllowed());
+
+            // Not supported without backupAgent - checks they are the default
+            // (opposite of what is in the manifest)
+            assertFalse("fullBackupOnly", pkg.isFullBackupOnly());
+            assertFalse("backupInForeground", pkg.isBackupInForeground());
+        } finally {
+            testFile.delete();
+        }
+    }
+
+    @Test
+    public void testParseBackupProperties_withBackupAgent() throws Exception {
+        final File testFile = extractFile(TEST_APP10_APK);
+        try {
+            final ParsedPackage pkg = new TestPackageParser2().parsePackage(testFile, 0, false);
+            // Non-default values
+            assertTrue("restoreAnyVersion", pkg.isRestoreAnyVersion());
+            assertFalse("killAfterRestore", pkg.isKillAfterRestoreAllowed());
+            assertTrue("fullBackupOnly", pkg.isFullBackupOnly());
+            assertTrue("backupInForeground", pkg.isBackupInForeground());
         } finally {
             testFile.delete();
         }
@@ -1279,7 +1320,7 @@ public class PackageParserTest {
                 .addProvider(new ParsedProviderImpl())
                 .addService(new ParsedServiceImpl())
                 .addInstrumentation(new ParsedInstrumentationImpl())
-                .addUsesPermission(new ParsedUsesPermissionImpl("foo7", 0))
+                .addUsesPermission(new ParsedUsesPermissionImpl("foo7", 0, Collections.emptySet()))
                 .addImplicitPermission("foo25")
                 .addProtectedBroadcast("foo8")
                 .setSdkLibraryName("sdk12")

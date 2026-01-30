@@ -22,7 +22,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.qs.tileimpl.SubtitleArrayMapping
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.ui.model.QSTileStateSubject
 import com.android.systemui.qs.tiles.impl.inversion.domain.model.ColorInversionTileModel
@@ -37,9 +36,7 @@ import org.junit.runner.RunWith
 class ColorInversionTileMapperTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val colorInversionTileConfig = kosmos.qsColorInversionTileConfig
-    private val subtitleArrayId =
-        SubtitleArrayMapping.getSubtitleId(colorInversionTileConfig.tileSpec.spec)
-    private val subtitleArray by lazy { context.resources.getStringArray(subtitleArrayId) }
+
     // Using lazy (versus =) to make sure we override the right context -- see b/311612168
     private val mapper by lazy {
         ColorInversionTileMapper(
@@ -62,7 +59,6 @@ class ColorInversionTileMapperTest : SysuiTestCase() {
         val expectedState =
             createColorInversionTileState(
                 QSTileState.ActivationState.INACTIVE,
-                subtitleArray[1],
                 R.drawable.qs_invert_colors_icon_off,
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
@@ -77,7 +73,6 @@ class ColorInversionTileMapperTest : SysuiTestCase() {
         val expectedState =
             createColorInversionTileState(
                 QSTileState.ActivationState.ACTIVE,
-                subtitleArray[2],
                 R.drawable.qs_invert_colors_icon_on,
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
@@ -85,7 +80,6 @@ class ColorInversionTileMapperTest : SysuiTestCase() {
 
     private fun createColorInversionTileState(
         activationState: QSTileState.ActivationState,
-        secondaryLabel: String,
         iconRes: Int,
     ): QSTileState {
         val label = context.getString(R.string.quick_settings_inversion_label)
@@ -93,10 +87,10 @@ class ColorInversionTileMapperTest : SysuiTestCase() {
             Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
             label,
             activationState,
-            secondaryLabel,
+            secondaryLabel = null,
             setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
             label,
-            null,
+            stateDescription = null,
             QSTileState.SideViewIcon.None,
             QSTileState.EnabledState.ENABLED,
             Switch::class.qualifiedName,

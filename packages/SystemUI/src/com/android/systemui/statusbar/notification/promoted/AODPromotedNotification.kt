@@ -20,8 +20,12 @@ import android.app.Flags.notificationsRedesignTemplates
 import android.app.Notification
 import android.content.Context
 import android.graphics.PorterDuff
+import android.graphics.Rect
+import android.graphics.Typeface
+import android.graphics.drawable.Drawable
 import android.util.Log
-import android.view.LayoutInflater
+import android.util.Size
+import android.view.NotificationHeaderView
 import android.view.NotificationTopLineView
 import android.view.View
 import android.view.View.GONE
@@ -30,6 +34,7 @@ import android.view.View.MeasureSpec.EXACTLY
 import android.view.View.MeasureSpec.UNSPECIFIED
 import android.view.View.MeasureSpec.makeMeasureSpec
 import android.view.View.VISIBLE
+import android.view.ViewGroup
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewStub
 import android.widget.Chronometer
@@ -55,6 +60,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.isVisible
+import androidx.tracing.trace
 import com.android.app.tracing.traceSection
 import com.android.internal.R
 import com.android.internal.widget.BigPictureNotificationImageView
@@ -62,8 +68,9 @@ import com.android.internal.widget.CachingIconView
 import com.android.internal.widget.ImageFloatingTextView
 import com.android.internal.widget.NotificationExpandButton
 import com.android.internal.widget.NotificationProgressBar
+import com.android.internal.widget.NotificationProgressDrawable
 import com.android.internal.widget.NotificationProgressModel
-import com.android.internal.widget.NotificationRowIconView
+import com.android.systemui.FontStyles
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.res.R as systemuiR
 import com.android.systemui.statusbar.notification.promoted.AodPromotedNotificationColor.Background
@@ -75,6 +82,7 @@ import com.android.systemui.statusbar.notification.promoted.shared.model.Promote
 import com.android.systemui.statusbar.notification.promoted.ui.viewmodel.AODPromotedNotificationViewModel
 import com.android.systemui.statusbar.notification.row.shared.ImageModel
 import com.android.systemui.statusbar.notification.row.shared.isNullOrEmpty
+import kotlin.math.min
 
 @Composable
 fun AODPromotedNotification(
@@ -90,15 +98,14 @@ fun AODPromotedNotification(
     val content = viewModel.content ?: return
     val audiblyAlertedIconVisible = viewModel.audiblyAlertedIconVisible
 
-    val layoutResource = content.layoutResource
-    if (layoutResource == null) {
+    val notificationView = content.notificationView
+    if (notificationView == null) {
         Log.w(TAG, "not displaying promoted notif with ineligible style on AOD")
         return
     }
-
-    key(content.identity) {
+    key(content.identity, notificationView.getTag(viewInflationIdentity)) {
         AODPromotedNotificationView(
-            layoutResource = layoutResource,
+            notificationViewFactory = { notificationView },
             content = content,
             audiblyAlertedIconVisible = audiblyAlertedIconVisible,
             modifier = modifier,
@@ -108,7 +115,7 @@ fun AODPromotedNotification(
 
 @Composable
 fun AODPromotedNotificationView(
-    layoutResource: Int,
+    notificationViewFactory: (Context) -> View,
     content: PromotedNotificationContentModel,
     audiblyAlertedIconVisible: Boolean,
     modifier: Modifier = Modifier,
@@ -118,7 +125,7 @@ fun AODPromotedNotificationView(
 
     val boxModifier = modifier.padding(sidePaddingValues)
 
-    val borderStroke = BorderStroke(1.dp, SecondaryText.brush)
+    val borderStroke = BorderStroke(0.5.dp, SecondaryText.brush.value.copy(alpha = 0.32f))
 
     val borderRadius = dimensionResource(systemuiR.dimen.notification_corner_radius)
     val borderShape = RoundedCornerShape(borderRadius)
@@ -135,15 +142,18 @@ fun AODPromotedNotificationView(
     Box(modifier = boxModifier) {
         AndroidView(
             factory = { context ->
-                val notif =
-                    traceSection("$TAG.inflate") {
-                        LayoutInflater.from(context).inflate(layoutResource, /* root= */ null)
-                    }
+                val notificationView = notificationViewFactory(context)
+                if (notificationView.parent != null) {
+                    (notificationView.parent as ViewGroup).removeView(notificationView)
+                }
+
                 val updater =
-                    traceSection("$TAG.findViews") { AODPromotedNotificationViewUpdater(notif) }
+                    traceSection("$TAG.findViews") {
+                        AODPromotedNotificationViewUpdater(notificationView)
+                    }
 
                 val frame = FrameLayoutWithMaxHeight(maxHeight, context)
-                frame.addView(notif)
+                frame.addView(notificationView)
                 frame.setTag(viewUpdaterTagId, updater)
 
                 frame
@@ -170,43 +180,51 @@ private class FrameLayoutWithMaxHeight(maxHeight: Int, context: Context) : Frame
 
     // This mirrors the logic in NotificationContentView.onMeasure.
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        if (childCount != 1) {
-            Log.wtf(TAG, "Should contain exactly one child.")
-            return super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        trace("AODPromotedNotif#onMeasure") {
+            if (childCount != 1) {
+                Log.wtf(TAG, "Should contain exactly one child.")
+                return super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            }
+
+            val horizPadding = paddingStart + paddingEnd
+            val vertPadding = paddingTop + paddingBottom
+
+            val ownWidthSize = MeasureSpec.getSize(widthMeasureSpec)
+            val ownHeightMode = MeasureSpec.getMode(heightMeasureSpec)
+            val ownHeightSize = MeasureSpec.getSize(heightMeasureSpec)
+
+            val availableHeight =
+                if (ownHeightMode != UNSPECIFIED) {
+                    maxHeight.coerceAtMost(ownHeightSize)
+                } else {
+                    maxHeight
+                }
+
+            val child = getChildAt(0)
+            val childWidthSpec = makeMeasureSpec(ownWidthSize, EXACTLY)
+            val childHeightSpec =
+                child.layoutParams.height
+                    .takeIf { it >= 0 }
+                    ?.let { makeMeasureSpec(availableHeight.coerceAtMost(it), EXACTLY) }
+                    ?: run { makeMeasureSpec(availableHeight, AT_MOST) }
+            measureChildWithMargins(
+                child,
+                childWidthSpec,
+                horizPadding,
+                childHeightSpec,
+                vertPadding,
+            )
+            val childMeasuredHeight = child.measuredHeight
+
+            val ownMeasuredWidth = MeasureSpec.getSize(widthMeasureSpec)
+            val ownMeasuredHeight =
+                if (ownHeightMode != UNSPECIFIED) {
+                    childMeasuredHeight.coerceAtMost(ownHeightSize)
+                } else {
+                    childMeasuredHeight
+                }
+            setMeasuredDimension(ownMeasuredWidth, ownMeasuredHeight)
         }
-
-        val horizPadding = paddingStart + paddingEnd
-        val vertPadding = paddingTop + paddingBottom
-
-        val ownWidthSize = MeasureSpec.getSize(widthMeasureSpec)
-        val ownHeightMode = MeasureSpec.getMode(heightMeasureSpec)
-        val ownHeightSize = MeasureSpec.getSize(heightMeasureSpec)
-
-        val availableHeight =
-            if (ownHeightMode != UNSPECIFIED) {
-                maxHeight.coerceAtMost(ownHeightSize)
-            } else {
-                maxHeight
-            }
-
-        val child = getChildAt(0)
-        val childWidthSpec = makeMeasureSpec(ownWidthSize, EXACTLY)
-        val childHeightSpec =
-            child.layoutParams.height
-                .takeIf { it >= 0 }
-                ?.let { makeMeasureSpec(availableHeight.coerceAtMost(it), EXACTLY) }
-                ?: run { makeMeasureSpec(availableHeight, AT_MOST) }
-        measureChildWithMargins(child, childWidthSpec, horizPadding, childHeightSpec, vertPadding)
-        val childMeasuredHeight = child.measuredHeight
-
-        val ownMeasuredWidth = MeasureSpec.getSize(widthMeasureSpec)
-        val ownMeasuredHeight =
-            if (ownHeightMode != UNSPECIFIED) {
-                childMeasuredHeight.coerceAtMost(ownHeightSize)
-            } else {
-                childMeasuredHeight
-            }
-        setMeasuredDimension(ownMeasuredWidth, ownMeasuredHeight)
     }
 }
 
@@ -244,7 +262,7 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     private val appNameText: TextView? = root.findViewById(R.id.app_name_text)
     private val bigPicture: BigPictureNotificationImageView? = root.findViewById(R.id.big_picture)
     private val bigText: ImageFloatingTextView? = root.findViewById(R.id.big_text)
-    private var chronometerStub: ViewStub? = root.findViewById(R.id.chronometer)
+    private var chronometerStub: ViewStub? = null
     private var chronometer: Chronometer? = null
     private val closeButton: View? = root.findViewById(R.id.close_button)
     private val conversationIconBadge: View? = root.findViewById(R.id.conversation_icon_badge)
@@ -259,7 +277,7 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     private val headerTextSecondary: TextView? = root.findViewById(R.id.header_text_secondary)
     private val headerTextSecondaryDivider: TextView? =
         root.findViewById(R.id.header_text_secondary_divider)
-    private val icon: NotificationRowIconView? = root.findViewById(R.id.icon)
+    private val icon: CachingIconView? = root.findViewById(R.id.icon)
     private val leftIcon: ImageView? = root.findViewById(R.id.left_icon)
     private val mainColumn: View? = root.findViewById(R.id.notification_main_column)
     private val notificationProgressEndIcon: CachingIconView? =
@@ -272,7 +290,9 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     private val time: DateTimeView? = root.findViewById(R.id.time)
     private val timeDivider: TextView? = root.findViewById(R.id.time_divider)
     private val title: TextView? = root.findViewById(R.id.title)
+    private val header: NotificationHeaderView? = root.findViewById(R.id.notification_header)
     private val topLine: NotificationTopLineView? = root.findViewById(R.id.notification_top_line)
+    private val actionsContainer: FrameLayout? = root.findViewById(R.id.actions_container)
     private val verificationDivider: TextView? = root.findViewById(R.id.verification_divider)
     private val verificationIcon: ImageView? = root.findViewById(R.id.verification_icon)
     private val verificationText: TextView? = root.findViewById(R.id.verification_text)
@@ -281,10 +301,11 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     private var oldProgressBar: ProgressBar? = null
     private val newProgressBar = root.findViewById<View>(R.id.progress) as? NotificationProgressBar
 
-    private val largeIconSizePx: Int =
+    private val defaultLargeIconSizePx: Int =
         root.context.resources.getDimensionPixelSize(R.dimen.notification_right_icon_size)
+    private val defaultTypeface: Typeface? = getNotificationTypeFace(root.context)
 
-    private val endMarginPx: Int =
+    private val marginPx: Int =
         if (notificationsRedesignTemplates()) {
             root.context.resources.getDimensionPixelSize(R.dimen.notification_2025_margin)
         } else {
@@ -293,18 +314,26 @@ private class AODPromotedNotificationViewUpdater(root: View) {
             )
         }
 
-    private val imageEndMarginPx: Int
-        get() = largeIconSizePx + 2 * endMarginPx
+    private val progressStyleProgressThickness: Float =
+        root.context.resources.getDimension(
+            systemuiR.dimen.notification_aod_progress_style_progress_thickness
+        )
+    private val progressStyleProgressAheadThickness: Float =
+        root.context.resources.getDimension(
+            systemuiR.dimen.notification_aod_progress_style_ahead_progress_thickness
+        )
 
-    private val PromotedNotificationContentModel.imageEndMarginPxIfHasLargeIcon: Int
-        get() =
-            if (!skeletonLargeIcon.isNullOrEmpty()) {
-                imageEndMarginPx
-            } else {
-                0
-            }
+    private data class SmallIconSavedState(val background: Drawable?, val padding: Rect)
+
+    private var smallIconSavedState: SmallIconSavedState? = null
 
     init {
+        val chronometerView = root.findViewById<View>(R.id.chronometer)
+        if (chronometerView is ViewStub) {
+            chronometerStub = chronometerView
+        } else if (chronometerView is Chronometer) {
+            chronometer = chronometerView
+        }
         // Hide views that are never visible in the skeleton promoted notification.
         alternateExpandTarget?.visibility = GONE
         bigPicture?.visibility = GONE
@@ -321,18 +350,13 @@ private class AODPromotedNotificationViewUpdater(root: View) {
             ?.mutate()
             ?.setColorFilter(SecondaryText.colorInt, PorterDuff.Mode.SRC_IN)
 
-        (rightIcon?.layoutParams as? MarginLayoutParams)?.let {
-            it.marginEnd = endMarginPx
-            rightIcon.layoutParams = it
-        }
-        bigText?.setImageEndMargin(largeIconSizePx + endMarginPx)
-        text?.setImageEndMargin(largeIconSizePx + endMarginPx)
-
         setTextViewColor(appNameDivider, SecondaryText)
         setTextViewColor(headerTextDivider, SecondaryText)
         setTextViewColor(headerTextSecondaryDivider, SecondaryText)
         setTextViewColor(timeDivider, SecondaryText)
         setTextViewColor(verificationDivider, SecondaryText)
+
+        adjustPromotedNotificationTextFonts()
 
         if (notificationsRedesignTemplates()) {
             (mainColumn?.layoutParams as? MarginLayoutParams)?.let { mainColumnMargins ->
@@ -366,14 +390,14 @@ private class AODPromotedNotificationViewUpdater(root: View) {
         textView: ImageFloatingTextView? = text,
     ) {
         val headerTitleView = if (collapsed) title else null
-        updateHeader(content, titleView = headerTitleView, collapsed = collapsed)
+        updateHeader(content, headerTitleView = headerTitleView, collapsed = collapsed)
 
         if (headerTitleView == null) {
             updateTitle(title, content)
         }
         updateText(textView, content)
-        updateSmallIcon(icon, content)
-        updateImageView(rightIcon, content.skeletonLargeIcon)
+        updateNotifIcon(icon, content.skeletonNotifIcon, content.iconLevel)
+        updateRightIconAndSpacing(content.skeletonLargeIcon)
         updateOldProgressBar(content)
     }
 
@@ -421,6 +445,11 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     private fun updateNewProgressBar(content: PromotedNotificationContentModel) {
         val newProgressBar = newProgressBar ?: return
 
+        (newProgressBar.notificationProgressDrawable.mutate() as? NotificationProgressDrawable)
+            ?.setSegmentHeight(progressStyleProgressThickness)
+        (newProgressBar.notificationProgressDrawable.mutate() as? NotificationProgressDrawable)
+            ?.setFadedSegmentHeight(progressStyleProgressAheadThickness)
+
         if (content.newProgress != null && !content.newProgress.isIndeterminate) {
             newProgressBar.setProgressModel(content.newProgress.toSkeleton().toBundle())
             newProgressBar.visibility = VISIBLE
@@ -432,22 +461,33 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     private fun updateHeader(
         content: PromotedNotificationContentModel,
         collapsed: Boolean,
-        titleView: TextView?,
+        headerTitleView: TextView?,
     ) {
-        val hasTitle = titleView != null && content.title != null
+        val hasTitleInHeader = headerTitleView != null && content.title != null
         val hasSubText = content.subText != null
+
+        // Determine if the notification has no content *below* the header/top line
+        val hasTextBelowHeader = content.text != null
+        val hasTitleBelowHeader = content.title != null && headerTitleView == null
+        val isSingleLine = !hasTitleBelowHeader && !hasTextBelowHeader
+
         // the collapsed form doesn't show the app name unless there is no other text in the header
-        val appNameRequired = !hasTitle && !hasSubText
+        val appNameRequired = !hasTitleInHeader && !hasSubText
         val hideAppName = (!appNameRequired && collapsed)
+
+        // We're only showing the top line (e.g. for redacted notifs), so center it
+        header?.centerTopLine(isSingleLine)
+        // We normally use the (empty) actions container for the bottom padding of the notification,
+        // but that's not necessary when single line
+        actionsContainer?.isVisible = !isSingleLine
 
         updateAppName(content, forceHide = hideAppName)
         updateTextView(headerTextSecondary, content.subText)
-        updateTitle(titleView, content)
+        updateTitle(headerTitleView, content)
         updateTimeAndChronometer(content)
+        updateProfileBadge(content)
 
-        updateHeaderDividers(content, hideTitle = !hasTitle, hideAppName = hideAppName)
-
-        updateTopLine(content)
+        updateHeaderDividers(content, hideTitle = !hasTitleInHeader, hideAppName = hideAppName)
     }
 
     private fun updateHeaderDividers(
@@ -479,15 +519,14 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     ) {
         updateAppName(content, forceHide = collapsed)
         updateTimeAndChronometer(content)
+        updateProfileBadge(content)
 
         updateImageView(verificationIcon, content.verificationIcon)
         updateTextView(verificationText, content.verificationText)
 
         updateConversationHeaderDividers(content, hideTitle = true, hideAppName = collapsed)
 
-        updateTopLine(content)
-
-        updateSmallIcon(conversationIcon, content)
+        updateConversationIcon(content)
         updateTitle(conversationText, content)
     }
 
@@ -515,15 +554,19 @@ private class AODPromotedNotificationViewUpdater(root: View) {
         verificationDivider?.isVisible = showDividerBeforeVerification
     }
 
+    private fun updateConversationIcon(content: PromotedNotificationContentModel) {
+        updateNotifIcon(conversationIcon, content.skeletonNotifIcon, content.iconLevel)
+        (conversationIcon?.layoutParams as? MarginLayoutParams)?.let {
+            it.bottomMargin = marginPx
+            conversationIcon?.layoutParams = it
+        }
+    }
+
     private fun updateAppName(content: PromotedNotificationContentModel, forceHide: Boolean) {
         updateTextView(appNameText, content.appName?.takeUnless { forceHide })
     }
 
     private fun updateTitle(titleView: TextView?, content: PromotedNotificationContentModel) {
-        (titleView?.layoutParams as? MarginLayoutParams)?.let {
-            it.marginEnd = content.imageEndMarginPxIfHasLargeIcon
-            titleView.layoutParams = it
-        }
         updateTextView(titleView, content.title, color = PrimaryText)
     }
 
@@ -548,17 +591,111 @@ private class AODPromotedNotificationViewUpdater(root: View) {
         chronometer?.isVisible = (content.time is When.Chronometer)
     }
 
-    private fun updateSmallIcon(
+    private fun updateRightIconAndSpacing(image: ImageModel?) {
+        updateImageView(rightIcon, image)
+
+        val rightIconSizePx = calculateRightIconDimensions(image?.drawable)
+        rightIcon?.setRightIconState(
+            width = rightIconSizePx.width,
+            height = rightIconSizePx.height,
+            marginEnd = marginPx,
+        )
+
+        bigText?.setImageEndMargin(rightIconSizePx.width)
+        text?.setImageEndMargin(rightIconSizePx.width)
+
+        val hasRightIcon = image?.drawable != null
+        val spaceBasedOnRightIcon =
+            if (hasRightIcon) rightIconSizePx.width + 2 * marginPx else marginPx
+        (title?.layoutParams as? MarginLayoutParams)?.let {
+            it.marginEnd = spaceBasedOnRightIcon
+            title.layoutParams = it
+        }
+        topLine?.headerTextMarginEnd = spaceBasedOnRightIcon
+    }
+
+    private fun calculateRightIconDimensions(drawable: Drawable?): Size {
+        var viewWidthPx = defaultLargeIconSizePx
+        val viewHeightPx = defaultLargeIconSizePx
+
+        drawable?.let {
+            val iconWidth = drawable.intrinsicWidth
+            val iconHeight = drawable.intrinsicHeight
+
+            if (iconWidth > 0 && iconHeight > 0) {
+                if (iconWidth > iconHeight) {
+                    val maxViewWidthPx = viewHeightPx * MAX_LARGE_ICON_ASPECT_RATIO
+                    viewWidthPx = (viewHeightPx.toFloat() * iconWidth / iconHeight).toInt()
+                    viewWidthPx = min(viewWidthPx, maxViewWidthPx.toInt())
+                }
+            }
+        }
+        return Size(viewWidthPx, viewHeightPx)
+    }
+
+    private fun updateProfileBadge(content: PromotedNotificationContentModel) {
+        if (content.profileBadgeBitmap != null) {
+            profileBadge?.setImageBitmap(content.profileBadgeBitmap)
+            profileBadge?.visibility = VISIBLE
+            profileBadge?.setColorFilter(PrimaryText.colorInt, PorterDuff.Mode.SRC_IN)
+        }
+    }
+
+    private fun updateNotifIcon(
         smallIconView: CachingIconView?,
-        content: PromotedNotificationContentModel,
+        notifIcon: PromotedNotificationContentModel.NotifIcon?,
+        iconLevel: Int,
     ) {
         smallIconView ?: return
 
-        // Icon binding must be called in this order
-        updateImageView(smallIconView, content.smallIcon)
-        smallIconView.setImageLevel(content.iconLevel)
-        smallIconView.setBackgroundColor(Background.colorInt)
-        smallIconView.originalIconColor = PrimaryText.colorInt
+        when (notifIcon) {
+            is PromotedNotificationContentModel.NotifIcon.SmallIcon -> {
+                restoreNotifIconState(smallIconView)
+
+                // Icon binding must be called in this order
+                updateImageView(smallIconView, notifIcon.imageModel)
+                smallIconView.setImageLevel(iconLevel)
+                smallIconView.setBackgroundColor(Background.colorInt)
+                smallIconView.originalIconColor = PrimaryText.colorInt
+            }
+
+            is PromotedNotificationContentModel.NotifIcon.AppIcon -> {
+                saveNotifIconState(smallIconView)
+                resetNotifIconState(smallIconView)
+
+                updateImageView(smallIconView, notifIcon.drawable)
+            }
+
+            else -> {
+                smallIconView.isVisible = false
+            }
+        }
+    }
+
+    private fun saveNotifIconState(smallIconView: CachingIconView) {
+        smallIconSavedState == null || return
+
+        smallIconSavedState =
+            smallIconView.let {
+                SmallIconSavedState(
+                    background = it.background,
+                    padding = Rect(it.paddingLeft, it.paddingTop, it.paddingRight, it.paddingBottom),
+                )
+            }
+    }
+
+    private fun resetNotifIconState(smallIconView: CachingIconView) {
+        smallIconView.background = null
+        smallIconView.setPadding(0, 0, 0, 0)
+    }
+
+    private fun restoreNotifIconState(smallIconView: CachingIconView) {
+        val savedState = smallIconSavedState ?: return
+
+        smallIconView.background = savedState.background
+        savedState.padding.let { smallIconView.setPadding(it.left, it.top, it.right, it.bottom) }
+
+        smallIconSavedState = null
     }
 
     private fun inflateChronometer() {
@@ -570,10 +707,6 @@ private class AODPromotedNotificationViewUpdater(root: View) {
         chronometerStub = null
 
         chronometer?.appendFontFeatureSetting("tnum")
-    }
-
-    private fun updateTopLine(content: PromotedNotificationContentModel) {
-        topLine?.headerTextMarginEnd = content.imageEndMarginPxIfHasLargeIcon
     }
 
     private fun inflateOldProgressBar() {
@@ -607,14 +740,57 @@ private class AODPromotedNotificationViewUpdater(root: View) {
     }
 
     private fun updateImageView(view: ImageView?, model: ImageModel?) {
-        if (view == null) return
-        val drawable = model?.drawable
+        updateImageView(view, model?.drawable)
+    }
+
+    private fun updateImageView(view: ImageView?, drawable: Drawable?) {
+        view ?: return
         view.setImageDrawable(drawable)
         view.isVisible = drawable != null
     }
 
     private fun setTextViewColor(view: TextView?, color: AodPromotedNotificationColor) {
         view?.setTextColor(color.colorInt)
+    }
+
+    private fun adjustPromotedNotificationTextFonts() {
+        adjustTextViewFont(appNameDivider)
+        adjustTextViewFont(appNameText)
+        adjustTextViewFont(bigText)
+        adjustTextViewFont(conversationText)
+        adjustTextViewFont(headerText)
+        adjustTextViewFont(headerTextDivider)
+        adjustTextViewFont(headerTextSecondary)
+        adjustTextViewFont(headerTextSecondaryDivider)
+        adjustTextViewFont(text)
+        adjustTextViewFont(title)
+        adjustTextViewFont(verificationDivider)
+        adjustTextViewFont(verificationText)
+        adjustTextViewFont(time)
+        adjustTextViewFont(timeDivider)
+    }
+
+    private fun getNotificationTypeFace(context: Context): Typeface? =
+        try {
+            val defaultFontFamily =
+                if (notificationsRedesignTemplates()) {
+                    FontStyles.GSF_BODY_MEDIUM
+                } else {
+                    context.resources.getString(R.string.config_bodyFontFamily)
+                }
+            Typeface.create(defaultFontFamily, Typeface.NORMAL)
+        } catch (throwable: Throwable) {
+            Log.wtf(TAG, "Font is not found for Promoted Notifications")
+            null
+        }
+
+    private fun adjustTextViewFont(view: TextView?) {
+        view?.setTypeface(defaultTypeface, Typeface.NORMAL)
+    }
+
+    companion object {
+        /** Maximum aspect ratio of the large icon. 16:9 */
+        private const val MAX_LARGE_ICON_ASPECT_RATIO: Float = 16f / 9f
     }
 }
 
@@ -654,6 +830,22 @@ private fun TextView.appendFontFeatureSetting(newSetting: String) {
     fontFeatureSettings = (fontFeatureSettings?.let { "$it," } ?: "") + newSetting
 }
 
+private fun ImageView.setRightIconState(width: Int, height: Int, marginEnd: Int) {
+
+    val lp = (layoutParams as? MarginLayoutParams) ?: return
+    lp.width = width
+    lp.height = height
+    lp.marginEnd = marginEnd
+
+    layoutParams = lp
+}
+
+private fun NotificationTopLineView.setEndMargin(marginEnd: Int) {
+    val lp = (layoutParams as? MarginLayoutParams) ?: return
+    lp.marginEnd = marginEnd
+    layoutParams = lp
+}
+
 private enum class AodPromotedNotificationColor(val colorInt: Int) {
     Background(android.graphics.Color.BLACK),
     PrimaryText(android.graphics.Color.WHITE),
@@ -668,5 +860,6 @@ private fun scaledFontHeight(@DimenRes dimenId: Int): Dp {
 }
 
 private val viewUpdaterTagId = systemuiR.id.aod_promoted_notification_view_updater_tag
+private val viewInflationIdentity = systemuiR.id.aod_promoted_notification_inflation_identity
 
 private const val TAG = "AODPromotedNotification"

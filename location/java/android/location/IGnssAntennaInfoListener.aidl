@@ -19,7 +19,7 @@ package android.location;
 import android.location.GnssAntennaInfo;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IGnssAntennaInfoListener {
     void onGnssAntennaInfoChanged(in List<GnssAntennaInfo> antennaInfos);

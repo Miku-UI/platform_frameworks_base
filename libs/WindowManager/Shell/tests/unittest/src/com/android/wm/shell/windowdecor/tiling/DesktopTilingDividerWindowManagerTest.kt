@@ -16,17 +16,15 @@
 
 package com.android.wm.shell.windowdecor.tiling
 
-import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.testing.AndroidTestingRunner
-import android.view.Display
-import android.view.RoundedCorner
 import android.view.SurfaceControl
 import androidx.test.annotation.UiThreadTest
 import androidx.test.filters.SmallTest
+import com.android.internal.jank.Cuj.CUJ_DESKTOP_MODE_TILE_RESIZING
+import com.android.internal.jank.InteractionJankMonitor
 import com.android.wm.shell.ShellTestCase
-import com.android.wm.shell.common.SyncTransactionQueue
 import java.util.function.Supplier
 import kotlin.test.Test
 import org.junit.Before
@@ -47,8 +45,6 @@ class DesktopTilingDividerWindowManagerTest : ShellTestCase() {
 
     private val leashMock = mock<SurfaceControl>()
 
-    private val syncQueueMock = mock<SyncTransactionQueue>()
-
     private val transitionHandlerMock = mock<DesktopTilingWindowDecoration>()
 
     private val transactionSupplierMock = mock<Supplier<SurfaceControl.Transaction>>()
@@ -59,17 +55,12 @@ class DesktopTilingDividerWindowManagerTest : ShellTestCase() {
 
     private lateinit var desktopTilingWindowManager: DesktopTilingDividerWindowManager
 
-    private val context = mock<Context>()
-    private val display = mock<Display>()
-    private val roundedCorner = mock<RoundedCorner>()
+    private val jankMonitor: InteractionJankMonitor = mock()
 
     @Before
     fun setup() {
         config = Configuration()
         config.setToDefaults()
-        whenever(context.display).thenReturn(display)
-        whenever(display.getRoundedCorner(any())).thenReturn(roundedCorner)
-        whenever(roundedCorner.radius).thenReturn(CORNER_RADIUS)
         whenever(transactionSupplierMock.get()).thenReturn(transaction)
         whenever(transaction.show(any())).thenReturn(transaction)
         whenever(transaction.setAlpha(any(), any())).thenReturn(transaction)
@@ -81,14 +72,13 @@ class DesktopTilingDividerWindowManagerTest : ShellTestCase() {
             DesktopTilingDividerWindowManager(
                 config,
                 windowName,
-                mContext,
                 leashMock,
-                syncQueueMock,
                 transitionHandlerMock,
                 transactionSupplierMock,
                 BOUNDS,
-                context,
-                /* isDarkMode= */ true
+                mContext,
+                /* isDarkMode= */ true,
+                jankMonitor,
             )
     }
 
@@ -107,16 +97,31 @@ class DesktopTilingDividerWindowManagerTest : ShellTestCase() {
 
     @Test
     @UiThreadTest
+    fun dividerMove_beginsAndEndsJankMonitoring() {
+        desktopTilingWindowManager.generateViewHost(surfaceControl)
+        desktopTilingWindowManager.onDividerMoveStart(-1, mock())
+
+        verify(jankMonitor, times(1)).begin(any())
+
+        desktopTilingWindowManager.onDividerMovedEnd(-1, mock())
+
+        verify(jankMonitor, times(1)).end(CUJ_DESKTOP_MODE_TILE_RESIZING)
+    }
+
+    @Test
+    @UiThreadTest
     fun testWindowManager_accountsForRoundedCornerDimensions() {
         desktopTilingWindowManager.generateViewHost(surfaceControl)
-
+        val cornerRadius =
+            mContext.resources.getDimensionPixelSize(
+                com.android.wm.shell.shared.R.dimen.desktop_windowing_freeform_rounded_corner_radius
+            )
         // Ensure a surfaceControl transaction runs to show the divider.
         verify(transaction, times(1))
-            .setPosition(any(), eq(BOUNDS.left.toFloat() - CORNER_RADIUS), any())
+            .setPosition(any(), eq(BOUNDS.left.toFloat() - cornerRadius), any())
     }
 
     companion object {
         private val BOUNDS = Rect(1, 2, 3, 4)
-        private const val CORNER_RADIUS = 28
     }
 }

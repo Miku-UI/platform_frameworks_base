@@ -28,7 +28,6 @@ import android.app.AppOpsManager;
 import android.content.Context;
 import android.os.Process;
 import android.util.ArraySet;
-import android.util.Log;
 import android.util.LongSparseArray;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -208,7 +207,6 @@ public class DiscreteAppOpSqlPersistenceTest {
 
         mDiscreteRegistry.addFilteredDiscreteOpsToHistoricalOps(results, beginTimeMillis,
                 endTimeMillis, 0, 0, null, null, null, 0, new ArraySet<>());
-        Log.i("Manjeet", "TEST read " + results);
         assertWithMessage("results shouldn't be empty").that(results.isEmpty()).isFalse();
     }
 

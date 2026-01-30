@@ -19,6 +19,7 @@ package com.android.systemui.log.table
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.log.FakeLogProxy
 import com.android.systemui.log.LogcatEchoTrackerAlways
 import com.android.systemui.log.table.TableChange.Companion.IS_INITIAL_PREFIX
 import com.android.systemui.util.time.FakeSystemClock
@@ -51,11 +52,12 @@ class LogDiffsForTableTest : SysuiTestCase() {
     fun setUp() {
         systemClock = FakeSystemClock()
         tableLogBuffer =
-            TableLogBuffer(
+            TableLogBufferImpl(
                 MAX_SIZE,
                 BUFFER_NAME,
                 systemClock,
                 LogcatEchoTrackerAlways(),
+                localLogcat = FakeLogProxy(),
             )
     }
 
@@ -65,12 +67,7 @@ class LogDiffsForTableTest : SysuiTestCase() {
     fun boolean_doesNotLogWhenNotCollected() {
         val flow = flowOf(true, true, false)
 
-        flow.logDiffsForTable(
-            tableLogBuffer,
-            COLUMN_PREFIX,
-            COLUMN_NAME,
-            initialValue = false,
-        )
+        flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, COLUMN_NAME, initialValue = false)
 
         val logs = dumpLog()
         assertThat(logs).doesNotContain(COLUMN_PREFIX)
@@ -263,12 +260,7 @@ class LogDiffsForTableTest : SysuiTestCase() {
     fun int_doesNotLogWhenNotCollected() {
         val flow = flowOf(5, 6, 7)
 
-        flow.logDiffsForTable(
-            tableLogBuffer,
-            COLUMN_PREFIX,
-            COLUMN_NAME,
-            initialValue = 1234,
-        )
+        flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, COLUMN_NAME, initialValue = 1234)
 
         val logs = dumpLog()
         assertThat(logs).doesNotContain(COLUMN_PREFIX)
@@ -369,12 +361,7 @@ class LogDiffsForTableTest : SysuiTestCase() {
             }
 
             val flowWithLogging =
-                flow.logDiffsForTable(
-                    tableLogBuffer,
-                    COLUMN_PREFIX,
-                    COLUMN_NAME,
-                    initialValue = 1,
-                )
+                flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, COLUMN_NAME, initialValue = 1)
 
             val job = launch { flowWithLogging.collect() }
 
@@ -416,12 +403,7 @@ class LogDiffsForTableTest : SysuiTestCase() {
             }
 
             val flowWithLogging =
-                flow.logDiffsForTable(
-                    tableLogBuffer,
-                    COLUMN_PREFIX,
-                    COLUMN_NAME,
-                    initialValue = 1,
-                )
+                flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, COLUMN_NAME, initialValue = 1)
 
             val job = launch { flowWithLogging.collect() }
 
@@ -517,12 +499,7 @@ class LogDiffsForTableTest : SysuiTestCase() {
     fun string_doesNotLogWhenNotCollected() {
         val flow = flowOf("val5", "val6", "val7")
 
-        flow.logDiffsForTable(
-            tableLogBuffer,
-            COLUMN_PREFIX,
-            COLUMN_NAME,
-            initialValue = "val1234",
-        )
+        flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, COLUMN_NAME, initialValue = "val1234")
 
         val logs = dumpLog()
         assertThat(logs).doesNotContain(COLUMN_PREFIX)
@@ -779,18 +756,10 @@ class LogDiffsForTableTest : SysuiTestCase() {
 
     @Test
     fun diffable_doesNotLogWhenNotCollected() {
-        val flow =
-            flowOf(
-                TestDiffable(1, "1", true),
-                TestDiffable(2, "2", false),
-            )
+        val flow = flowOf(TestDiffable(1, "1", true), TestDiffable(2, "2", false))
 
         val initial = TestDiffable(0, "0", false)
-        flow.logDiffsForTable(
-            tableLogBuffer,
-            COLUMN_PREFIX,
-            initial,
-        )
+        flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, initial)
 
         val logs = dumpLog()
         assertThat(logs).doesNotContain(COLUMN_PREFIX)
@@ -803,19 +772,10 @@ class LogDiffsForTableTest : SysuiTestCase() {
     @Test
     fun diffable_logsInitialWhenCollected_usingLogFull() =
         testScope.runTest {
-            val flow =
-                flowOf(
-                    TestDiffable(1, "1", true),
-                    TestDiffable(2, "2", false),
-                )
+            val flow = flowOf(TestDiffable(1, "1", true), TestDiffable(2, "2", false))
 
             val initial = TestDiffable(1234, "string1234", false)
-            val flowWithLogging =
-                flow.logDiffsForTable(
-                    tableLogBuffer,
-                    COLUMN_PREFIX,
-                    initial,
-                )
+            val flowWithLogging = flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, initial)
 
             systemClock.setCurrentTimeMillis(3000L)
             val job = launch { flowWithLogging.collect() }
@@ -887,12 +847,7 @@ class LogDiffsForTableTest : SysuiTestCase() {
                 }
             }
 
-            val flowWithLogging =
-                flow.logDiffsForTable(
-                    tableLogBuffer,
-                    COLUMN_PREFIX,
-                    initialValue,
-                )
+            val flowWithLogging = flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, initialValue)
 
             val job = launch { flowWithLogging.collect() }
 
@@ -1032,12 +987,7 @@ class LogDiffsForTableTest : SysuiTestCase() {
         testScope.runTest {
             val initialValue = TestDiffable(0, "string0", false)
             val flow = MutableStateFlow(initialValue)
-            val flowWithLogging =
-                flow.logDiffsForTable(
-                    tableLogBuffer,
-                    COLUMN_PREFIX,
-                    initialValue,
-                )
+            val flowWithLogging = flow.logDiffsForTable(tableLogBuffer, COLUMN_PREFIX, initialValue)
 
             systemClock.setCurrentTimeMillis(50L)
             val job = launch { flowWithLogging.collect() }

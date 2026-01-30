@@ -24,18 +24,20 @@ import android.content.Context;
 import android.graphics.Rect;
 import android.os.Debug;
 import android.os.Handler;
-import android.os.RemoteException;
 import android.util.Size;
 import android.view.MotionEvent;
 import android.view.SurfaceControl;
 import android.view.View;
 import android.view.ViewRootImpl;
-import android.view.WindowManagerGlobal;
 
 import com.android.internal.protolog.ProtoLog;
+import com.android.wm.shell.common.DisplayController;
+import com.android.wm.shell.common.DisplayInsetsController;
+import com.android.wm.shell.common.ImeListener;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.SystemWindows;
 import com.android.wm.shell.common.pip.PipBoundsState;
+import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipMediaController;
 import com.android.wm.shell.common.pip.PipMediaController.ActionListener;
 import com.android.wm.shell.common.pip.PipMenuController;
@@ -106,6 +108,7 @@ public class PhonePipMenuController implements PipMenuController {
     private final ArrayList<Listener> mListeners = new ArrayList<>();
     private final SystemWindows mSystemWindows;
     private final PipUiEventLogger mPipUiEventLogger;
+    private final PipDisplayLayoutState mPipDisplayLayoutState;
 
     private List<RemoteAction> mAppActions;
     private RemoteAction mCloseAction;
@@ -117,6 +120,8 @@ public class PhonePipMenuController implements PipMenuController {
 
     private SurfaceControl mLeash;
 
+    private boolean mIsImeVisible;
+
     private ActionListener mMediaActionListener = new ActionListener() {
         @Override
         public void onMediaActionsChanged(List<RemoteAction> mediaActions) {
@@ -127,15 +132,27 @@ public class PhonePipMenuController implements PipMenuController {
 
     public PhonePipMenuController(Context context, PipBoundsState pipBoundsState,
             PipMediaController mediaController, SystemWindows systemWindows,
+            DisplayController displayController,
+            DisplayInsetsController displayInsetsController,
+            PipDisplayLayoutState pipDisplayLayoutState,
             PipUiEventLogger pipUiEventLogger,
             ShellExecutor mainExecutor, Handler mainHandler) {
         mContext = context;
         mPipBoundsState = pipBoundsState;
         mMediaController = mediaController;
         mSystemWindows = systemWindows;
+        mPipDisplayLayoutState = pipDisplayLayoutState;
         mMainExecutor = mainExecutor;
         mMainHandler = mainHandler;
         mPipUiEventLogger = pipUiEventLogger;
+
+        displayInsetsController.addInsetsChangedListener(mPipDisplayLayoutState.getDisplayId(),
+                new ImeListener(displayController, mPipDisplayLayoutState.getDisplayId()) {
+                    @Override
+                    protected void onImeVisibilityChanged(boolean imeVisible, int imeHeight) {
+                        mIsImeVisible = imeVisible;
+                    }
+                });
     }
 
     public boolean isMenuVisible() {
@@ -147,7 +164,7 @@ public class PhonePipMenuController implements PipMenuController {
      */
     @Override
     public void attach(SurfaceControl leash) {
-        mLeash = leash;
+        mLeash = new SurfaceControl(leash, "PhonePipMenuController");
         attachPipMenuView();
     }
 
@@ -158,7 +175,10 @@ public class PhonePipMenuController implements PipMenuController {
     public void detach() {
         hideMenu();
         detachPipMenuView();
-        mLeash = null;
+        if (mLeash != null) {
+            mLeash.release();
+            mLeash = null;
+        }
     }
 
     void attachPipMenuView() {
@@ -506,13 +526,12 @@ public class PhonePipMenuController implements PipMenuController {
                 mMediaController.removeActionListener(mMediaActionListener);
             }
 
-            try {
-                WindowManagerGlobal.getWindowSession().grantEmbeddedWindowFocus(null /* window */,
-                        mSystemWindows.getFocusGrantToken(mPipMenuView),
-                        menuState != MENU_STATE_NONE /* grantFocus */);
-            } catch (RemoteException e) {
+            // Do not grant focus if IME is visible, which can cause the focus being granted
+            // back and forth in between the IME and PiP menu, and causes flicker.
+            final boolean grantFocus = !mIsImeVisible && (menuState != MENU_STATE_NONE);
+            if (!mSystemWindows.requestInputFocus(mPipMenuView, grantFocus)) {
                 ProtoLog.e(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
-                        "%s: Unable to update focus as menu appears/disappears, %s", TAG, e);
+                        "%s: Unable to update focus as menu appears/disappears", TAG);
             }
         }
     }

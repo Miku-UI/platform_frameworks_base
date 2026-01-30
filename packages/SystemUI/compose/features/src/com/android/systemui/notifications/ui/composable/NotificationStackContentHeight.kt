@@ -35,30 +35,37 @@ import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScr
  *
  * @param view Notification stack scroll view
  * @param totalVerticalPadding extra padding to be added to the received stack content height.
+ * @param constrainToMaxHeight if true, the height will not be taller than the available space.
  */
 fun Modifier.notificationStackHeight(
     view: NotificationScrollView,
     totalVerticalPadding: Dp = 0.dp,
-) = this then StackLayoutElement(view, totalVerticalPadding)
+    constrainToMaxHeight: Boolean = false,
+) = this then StackLayoutElement(view, totalVerticalPadding, constrainToMaxHeight)
 
 private data class StackLayoutElement(
     val view: NotificationScrollView,
     val padding: Dp,
+    val constrainToMaxHeight: Boolean,
 ) : ModifierNodeElement<StackLayoutNode>() {
 
-    override fun create(): StackLayoutNode = StackLayoutNode(view, padding)
+    override fun create(): StackLayoutNode = StackLayoutNode(view, padding, constrainToMaxHeight)
 
     override fun update(node: StackLayoutNode) {
         check(view == node.view) { "Trying to reuse the node with a new View." }
-        if (node.padding != padding) {
+        if (node.padding != padding || node.constrainToMaxHeight != constrainToMaxHeight) {
             node.padding = padding
+            node.constrainToMaxHeight = constrainToMaxHeight
             node.invalidateMeasureIfAttached()
         }
     }
 }
 
-private class StackLayoutNode(val view: NotificationScrollView, var padding: Dp) :
-    LayoutModifierNode, Modifier.Node() {
+private class StackLayoutNode(
+    val view: NotificationScrollView,
+    var padding: Dp,
+    var constrainToMaxHeight: Boolean,
+) : LayoutModifierNode, Modifier.Node() {
 
     private val stackHeightChangedListener = Runnable { invalidateMeasureIfAttached() }
 
@@ -74,9 +81,12 @@ private class StackLayoutNode(val view: NotificationScrollView, var padding: Dp)
 
     override fun MeasureScope.measure(
         measurable: Measurable,
-        constraints: Constraints
+        constraints: Constraints,
     ): MeasureResult {
-        val contentHeight = padding.roundToPx() + view.intrinsicStackHeight
+        var contentHeight = padding.roundToPx() + view.intrinsicStackHeight
+        if (constrainToMaxHeight) {
+            contentHeight = contentHeight.coerceAtMost(constraints.maxHeight)
+        }
         val placeable =
             measurable.measure(
                 constraints.copy(minHeight = contentHeight, maxHeight = contentHeight)
@@ -86,7 +96,7 @@ private class StackLayoutNode(val view: NotificationScrollView, var padding: Dp)
     }
 
     override fun toString(): String {
-        return "StackLayoutNode(view=$view padding:$padding)"
+        return "StackLayoutNode(view=$view padding:$padding constrainToMaxHeight:$constrainToMaxHeight)"
     }
 
     fun invalidateMeasureIfAttached() {

@@ -57,6 +57,7 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.os.RemoteCallback;
 import android.os.RemoteException;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.WindowManager;
 import android.window.BackAnimationAdapter;
@@ -72,6 +73,7 @@ import android.window.TaskSnapshot;
 import android.window.WindowOnBackInvokedDispatcher;
 
 import com.android.server.LocalServices;
+import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -154,6 +156,8 @@ public class BackNavigationControllerTests extends WindowTestsBase {
     public void backTypeCrossTaskWhenBackToPreviousTask() {
         Task taskA = createTask(mDefaultDisplay);
         ActivityRecord recordA = createActivityRecord(taskA);
+        newWindowBuilder("windowA", TYPE_BASE_APPLICATION).setWindowToken(
+                recordA).build();
         Mockito.doNothing().when(recordA).reparentSurfaceControl(any(), any());
 
         final Task topTask = createTopTaskWithActivity();
@@ -204,6 +208,23 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         backNavigationInfo = startBackNavigation();
         assertThat(typeToString(backNavigationInfo.getType()))
                 .isEqualTo(typeToString(BackNavigationInfo.TYPE_CROSS_TASK));
+
+        // Reset drawing status to test no process
+        backNavigationInfo.onBackNavigationFinished(false);
+        mBackNavigationController.clearBackAnimations(true);
+        doReturn(false).when(recordA).hasProcess();
+        backNavigationInfo = startBackNavigation();
+        assertThat(typeToString(backNavigationInfo.getType()))
+                .isEqualTo(typeToString(BackNavigationInfo.TYPE_CALLBACK));
+
+        // Reset drawing status to test no window activity.
+        backNavigationInfo.onBackNavigationFinished(false);
+        mBackNavigationController.clearBackAnimations(true);
+        doReturn(true).when(recordA).hasProcess();
+        doReturn(null).when(recordA).findMainWindow();
+        backNavigationInfo = startBackNavigation();
+        assertThat(typeToString(backNavigationInfo.getType()))
+                .isEqualTo(typeToString(BackNavigationInfo.TYPE_CALLBACK));
     }
 
     @Test
@@ -220,6 +241,23 @@ public class BackNavigationControllerTests extends WindowTestsBase {
                 .isEqualTo(typeToString(BackNavigationInfo.TYPE_RETURN_TO_HOME));
     }
 
+    @EnableFlags(Flags.FLAG_PREDICTIVE_BACK_INTERCEPT_TRANSITION)
+    @Test
+    public void noBackInTransition() {
+        Task taskA = createTask(mDefaultDisplay);
+        ActivityRecord recordA = createActivityRecord(taskA);
+        Mockito.doNothing().when(recordA).reparentSurfaceControl(any(), any());
+        doReturn(false).when(taskA).showToCurrentUser();
+
+        withSystemCallback(createTopTaskWithActivity());
+        final TransitionController transitionController = mAtm.getTransitionController();
+        doReturn(true).when(transitionController).inTransition();
+        BackNavigationInfo backNavigationInfo = startBackNavigation();
+        assertWithMessage("BackNavigationInfo").that(backNavigationInfo).isNotNull();
+        assertThat(typeToString(backNavigationInfo.getType()))
+                .isEqualTo(typeToString(BackNavigationInfo.TYPE_IN_TRANSITION));
+    }
+
     @Test
     public void backTypeCrossActivityWithCustomizeExitAnimation() {
         CrossActivityTestCase testCase = createTopTaskWithTwoActivities();
@@ -227,9 +265,9 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         testCase.windowFront.mAttrs.windowAnimations = 0x10;
         spyOn(mDisplayContent.mTransitionAnimation);
         doReturn(0xffff00AB).when(mDisplayContent.mTransitionAnimation)
-                .getAnimationResId(any(), anyInt(), anyInt());
+                .getAnimationResId(any(), anyInt());
         doReturn(0xffff00CD).when(mDisplayContent.mTransitionAnimation)
-                .getDefaultAnimationResId(anyInt(), anyInt());
+                .getDefaultAnimationResId(anyInt());
 
         BackNavigationInfo backNavigationInfo = startBackNavigation();
         assertWithMessage("BackNavigationInfo").that(backNavigationInfo).isNotNull();
@@ -302,6 +340,14 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         backNavigationInfo = startBackNavigation();
         assertThat(typeToString(backNavigationInfo.getType()))
                 .isEqualTo(typeToString(BackNavigationInfo.TYPE_CALLBACK));
+
+        // reset drawing status, test previous activity has no window.
+        backNavigationInfo.onBackNavigationFinished(false);
+        mBackNavigationController.clearBackAnimations(true);
+        doReturn(null).when(testCase.recordBack).findMainWindow();
+        backNavigationInfo = startBackNavigation();
+        assertThat(typeToString(backNavigationInfo.getType()))
+                .isEqualTo(typeToString(BackNavigationInfo.TYPE_CALLBACK));
     }
 
     @Test
@@ -325,21 +371,21 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         outPrevActivities.clear();
 
         // Stacked + top companion to bottom but bottom didn't => predict for previous activity
-        tf2.setCompanionTaskFragment(tf1);
+        tf2.setCompanionTaskFragment(tf1, null /* toBeFinishedActivity */);
         predictable = BackNavigationController.getAnimatablePrevActivities(task, topAr,
                 outPrevActivities);
         assertTrue(outPrevActivities.contains(prevAr));
         assertTrue(predictable);
-        tf2.setCompanionTaskFragment(null);
+        tf2.clearCompanionTaskFragment();
         outPrevActivities.clear();
 
         // Stacked + next companion to top => predict for previous task
-        tf1.setCompanionTaskFragment(tf2);
+        tf1.setCompanionTaskFragment(tf2, null /* toBeFinishedActivity */);
         predictable = BackNavigationController.getAnimatablePrevActivities(task, topAr,
                 outPrevActivities);
         assertTrue(outPrevActivities.isEmpty());
         assertTrue(predictable);
-        tf1.setCompanionTaskFragment(null);
+        tf1.clearCompanionTaskFragment();
 
         // Adjacent + no companion => unable to predict
         // TF1 | TF2
@@ -354,14 +400,14 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         assertFalse(predictable);
 
         // Adjacent + companion => predict for previous task
-        tf1.setCompanionTaskFragment(tf2);
+        tf1.setCompanionTaskFragment(tf2, null /* toBeFinishedActivity */);
         predictable = BackNavigationController.getAnimatablePrevActivities(task, topAr,
                 outPrevActivities);
         assertTrue(outPrevActivities.isEmpty());
         assertTrue(predictable);
-        tf1.setCompanionTaskFragment(null);
+        tf1.clearCompanionTaskFragment();
 
-        tf2.setCompanionTaskFragment(tf1);
+        tf2.setCompanionTaskFragment(tf1, null /* toBeFinishedActivity */);
         predictable = BackNavigationController.getAnimatablePrevActivities(task, prevAr,
                 outPrevActivities);
         assertTrue(outPrevActivities.isEmpty());
@@ -369,8 +415,8 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         // reset
         tf1.clearAdjacentTaskFragments();
         tf2.clearAdjacentTaskFragments();
-        tf1.setCompanionTaskFragment(null);
-        tf2.setCompanionTaskFragment(null);
+        tf1.clearCompanionTaskFragment();
+        tf2.clearCompanionTaskFragment();
 
         final TaskFragment tf3 = new TaskFragmentBuilder(mAtm)
                 .createActivityCount(2)
@@ -408,22 +454,57 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         // TF3
         // TF2
         // TF1
-        tf3.setCompanionTaskFragment(tf4);
+        tf3.setCompanionTaskFragment(tf4, null /* toBeFinishedActivity */);
         topAr = tf4.getTopMostActivity();
         predictable = BackNavigationController.getAnimatablePrevActivities(task, topAr,
                 outPrevActivities);
         assertTrue(outPrevActivities.contains(tf2.getTopMostActivity()));
         assertTrue(predictable);
         outPrevActivities.clear();
-        tf3.setCompanionTaskFragment(null);
+        tf3.clearCompanionTaskFragment();
 
         // Stacked +  top companion to next but next one didn't => predict for previous activity.
-        tf4.setCompanionTaskFragment(tf3);
+        tf4.setCompanionTaskFragment(tf3, null /* toBeFinishedActivity */);
         topAr = tf4.getTopMostActivity();
         predictable = BackNavigationController.getAnimatablePrevActivities(task, topAr,
                 outPrevActivities);
         assertTrue(outPrevActivities.contains(tf3.getTopMostActivity()));
         assertTrue(predictable);
+    }
+
+    @EnableFlags(Flags.FLAG_TASK_FRAGMENT_COMPANION_ACTIVITY)
+    @Test
+    public void backTypeCrossActivityInTaskFragment_withCompanionActivity() {
+        final Task task = createTask(mDefaultDisplay);
+        final TaskFragment tf1 = new TaskFragmentBuilder(mAtm)
+                .setParentTask(task)
+                .createActivityCount(2)
+                .build();
+        final TaskFragment tf2 = createTaskFragmentWithActivity(task);
+        final ArrayList<ActivityRecord> outPrevActivities = new ArrayList<>();
+
+        ActivityRecord prevTopAr = tf1.getTopMostActivity();
+        ActivityRecord prevBottomAr = tf1.getBottomMostActivity();
+        ActivityRecord topAr = tf2.getTopMostActivity();
+        boolean predictable;
+
+        // Stacked + next companion to top activity => predict for previous bottom activity
+        tf1.setCompanionTaskFragment(tf2, prevTopAr.token);
+        predictable = BackNavigationController.getAnimatablePrevActivities(task, topAr,
+                outPrevActivities);
+        assertTrue(outPrevActivities.contains(prevBottomAr));
+        assertTrue(predictable);
+        outPrevActivities.clear();
+        tf1.clearCompanionTaskFragment();
+
+        // Adjacent + companion activity => unable to predict
+        tf1.setAdjacentTaskFragments(new TaskFragment.AdjacentSet(tf1, tf2));
+        tf1.setCompanionTaskFragment(tf2, prevTopAr.token);
+        predictable = BackNavigationController.getAnimatablePrevActivities(task, topAr,
+                outPrevActivities);
+        assertTrue(outPrevActivities.isEmpty());
+        assertFalse(predictable);
+        tf1.clearCompanionTaskFragment();
     }
 
     @Test
@@ -671,6 +752,28 @@ public class BackNavigationControllerTests extends WindowTestsBase {
         assertThat(mostRecentUsedWindow).isEqualTo(secondaryWindow);
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_INDEPENDENT_BACK_IN_PROJECTED)
+    public void testBackIsInProjectedMode_returnsWindowOnUnfocusedDisplay() {
+        final DisplayContent secondDc = createNewDisplay();
+        doReturn(true).when(mBackNavigationController).isInProjectedMode(secondDc.mDisplayId);
+
+        final Task taskOnSecondDisplay = createTopTaskWithActivity(secondDc);
+        final Task taskOnDefaultDisplay = createTopTaskWithActivity();
+        withSystemCallback(taskOnSecondDisplay);
+        withSystemCallback(taskOnDefaultDisplay);
+        mBackAnimationAdapter.mOriginDisplayId = secondDc.mDisplayId;
+
+        // Top focused task on top focused display is on default display.
+        assertEquals(taskOnDefaultDisplay.getTopVisibleAppMainWindow(),
+                mWm.getFocusedWindowLocked());
+
+        final BackNavigationInfo backNavigationInfo = startBackNavigation();
+        assertWithMessage("BackNavigationInfo").that(backNavigationInfo).isNotNull();
+        // Returns task on unfocused display (second display) if projected mode.
+        assertEquals(taskOnSecondDisplay.mTaskId, backNavigationInfo.getFocusedTaskId());
+    }
+
     /**
      * Test with
      * config_predictShowStartingSurface = true
@@ -859,7 +962,12 @@ public class BackNavigationControllerTests extends WindowTestsBase {
 
     @NonNull
     private Task createTopTaskWithActivity() {
-        Task task = createTask(mDefaultDisplay);
+        return createTopTaskWithActivity(mDefaultDisplay);
+    }
+
+    @NonNull
+    private Task createTopTaskWithActivity(@NonNull DisplayContent dc) {
+        Task task = createTask(dc);
         ActivityRecord record = createActivityRecord(task);
         // enable OnBackInvokedCallbacks
         record.info.applicationInfo.privateFlagsExt |=

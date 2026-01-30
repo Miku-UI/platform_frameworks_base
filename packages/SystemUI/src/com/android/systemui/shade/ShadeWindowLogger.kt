@@ -60,8 +60,8 @@ class ShadeWindowLogger @Inject constructor(@ShadeWindowLog private val buffer: 
         bouncerShowing: Boolean,
         headsUpNotificationShowing: Boolean,
         scrimsVisibilityNotTransparent: Boolean,
-        backgroundBlurRadius: Boolean,
         launchingActivityFromNotification: Boolean,
+        forceHideAfterActivityLaunch: Boolean,
     ) {
         buffer.log(
             TAG,
@@ -74,16 +74,18 @@ class ShadeWindowLogger @Inject constructor(@ShadeWindowLog private val buffer: 
                 bool4 = keyguardFadingAway
                 int1 = if (bouncerShowing) 1 else 0
                 int2 = if (headsUpNotificationShowing) 1 else 0
-                long1 = if (scrimsVisibilityNotTransparent) 1 else 0
-                long2 = if (backgroundBlurRadius) 1 else 0
-                double1 = if (launchingActivityFromNotification) 1.0 else 0.0
+                long1 = if (scrimsVisibilityNotTransparent) 1L else 0L
+                long2 = if (launchingActivityFromNotification) 1L else 0L
+                double1 = if (forceHideAfterActivityLaunch) 1.0 else 0.0
             },
             {
                 "Setting isExpanded to $str1: forceWindowCollapsed $bool1, " +
                     "isKeyguardShowingAndNotOccluded $bool2, panelVisible $bool3, " +
-                    "keyguardFadingAway $bool4, bouncerShowing $int1," +
-                    "headsUpNotificationShowing $int2, scrimsVisibilityNotTransparent $long1," +
-                    "backgroundBlurRadius $long2, launchingActivityFromNotification $double1"
+                    "keyguardFadingAway $bool4, bouncerShowing ${int1 == 1}, " +
+                    "headsUpNotificationShowing ${int2 == 1}, " +
+                    "scrimsVisibilityNotTransparent ${long1 == 1L}, " +
+                    "launchingActivityFromNotification $${long2 == 1L}, " +
+                    "forceHideAfterActivityLaunch $${double1 == 1.0}"
             },
         )
     }

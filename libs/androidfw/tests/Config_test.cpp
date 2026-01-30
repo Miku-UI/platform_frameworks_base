@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#include <vector>
+
+#include "androidfw/ConfigDescription.h"
 #include "androidfw/ResourceTypes.h"
 
 #include "utils/Log.h"
@@ -23,15 +26,15 @@
 #include "TestHelpers.h"
 #include "gtest/gtest.h"
 
+using ::android::ConfigDescription;
+
 namespace android {
 
 static ResTable_config selectBest(const ResTable_config& target,
-                                  const Vector<ResTable_config>& configs) {
+                                  const std::vector<ResTable_config>& configs) {
   ResTable_config bestConfig;
   memset(&bestConfig, 0, sizeof(bestConfig));
-  const size_t configCount = configs.size();
-  for (size_t i = 0; i < configCount; i++) {
-    const ResTable_config& thisConfig = configs[i];
+  for (const auto& thisConfig : configs) {
     if (!thisConfig.match(target)) {
       continue;
     }
@@ -57,34 +60,34 @@ TEST(ConfigTest, shouldSelectBestDensity) {
   deviceConfig.density = ResTable_config::DENSITY_XHIGH;
   deviceConfig.sdkVersion = 21;
 
-  Vector<ResTable_config> configs;
+  std::vector<ResTable_config> configs;
 
   ResTable_config expectedBest =
       buildDensityConfig(ResTable_config::DENSITY_HIGH);
-  configs.add(expectedBest);
+  configs.push_back(expectedBest);
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 
   expectedBest = buildDensityConfig(ResTable_config::DENSITY_XXHIGH);
-  configs.add(expectedBest);
+  configs.push_back(expectedBest);
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 
   expectedBest = buildDensityConfig(int(ResTable_config::DENSITY_XXHIGH) - 20);
-  configs.add(expectedBest);
+  configs.push_back(expectedBest);
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 
-  configs.add(buildDensityConfig(int(ResTable_config::DENSITY_HIGH) + 20));
+  configs.push_back(buildDensityConfig(int(ResTable_config::DENSITY_HIGH) + 20));
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 
-  configs.add(buildDensityConfig(int(ResTable_config::DENSITY_XHIGH) - 1));
+  configs.push_back(buildDensityConfig(int(ResTable_config::DENSITY_XHIGH) - 1));
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 
   expectedBest = buildDensityConfig(ResTable_config::DENSITY_XHIGH);
-  configs.add(expectedBest);
+  configs.push_back(expectedBest);
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 
   expectedBest = buildDensityConfig(ResTable_config::DENSITY_ANY);
   expectedBest.sdkVersion = 21;
-  configs.add(expectedBest);
+  configs.push_back(expectedBest);
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 }
 
@@ -93,16 +96,16 @@ TEST(ConfigTest, shouldSelectBestDensityWhenNoneSpecified) {
   memset(&deviceConfig, 0, sizeof(deviceConfig));
   deviceConfig.sdkVersion = 21;
 
-  Vector<ResTable_config> configs;
-  configs.add(buildDensityConfig(ResTable_config::DENSITY_HIGH));
+  std::vector<ResTable_config> configs;
+  configs.push_back(buildDensityConfig(ResTable_config::DENSITY_HIGH));
 
   ResTable_config expectedBest =
       buildDensityConfig(ResTable_config::DENSITY_MEDIUM);
-  configs.add(expectedBest);
+  configs.push_back(expectedBest);
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 
   expectedBest = buildDensityConfig(ResTable_config::DENSITY_ANY);
-  configs.add(expectedBest);
+  configs.push_back(expectedBest);
   ASSERT_EQ(expectedBest, selectBest(deviceConfig, configs));
 }
 
@@ -217,6 +220,110 @@ TEST(ConfigTest, GrammaticalGender) {
 
   EXPECT_EQ(defaultConfig.diff(feminine), ResTable_config::CONFIG_GRAMMATICAL_GENDER);
   EXPECT_EQ(masculine.diff(feminine), ResTable_config::CONFIG_GRAMMATICAL_GENDER);
+}
+
+static ResTable_config Cfg(StringPiece str) {
+  ConfigDescription config = {};
+  // We're assuming str will successfully parse, to simplify writing tests
+  ConfigDescription::Parse(str, &config);
+  return config;
+}
+
+TEST(ConfigTest, SdkAndMinorVersion_Match) {
+  // Left is resource version, right is platform version
+  EXPECT_TRUE(Cfg("").match(Cfg("v41")));
+  EXPECT_TRUE(Cfg("").match(Cfg("v41.1")));
+
+  EXPECT_TRUE(Cfg("v41").match(Cfg("v41")));
+  EXPECT_TRUE(Cfg("v41").match(Cfg("v41.1")));
+  EXPECT_TRUE(Cfg("v41").match(Cfg("v41.2")));
+  EXPECT_TRUE(Cfg("v41").match(Cfg("v42")));
+  EXPECT_TRUE(Cfg("v41").match(Cfg("v42.1")));
+
+  EXPECT_FALSE(Cfg("v41.1").match(Cfg("v41")));
+  EXPECT_TRUE(Cfg("v41.1").match(Cfg("v41.1")));
+  EXPECT_TRUE(Cfg("v41.1").match(Cfg("v41.2")));
+  EXPECT_TRUE(Cfg("v41.1").match(Cfg("v42")));
+  EXPECT_TRUE(Cfg("v41.1").match(Cfg("v42.1")));
+
+  EXPECT_FALSE(Cfg("v41.2").match(Cfg("v41")));
+  EXPECT_FALSE(Cfg("v41.2").match(Cfg("v41.1")));
+  EXPECT_TRUE(Cfg("v41.2").match(Cfg("v41.2")));
+  EXPECT_TRUE(Cfg("v41.2").match(Cfg("v42")));
+  EXPECT_TRUE(Cfg("v41.2").match(Cfg("v42.1")));
+
+  EXPECT_FALSE(Cfg("v42").match(Cfg("v41")));
+  EXPECT_FALSE(Cfg("v42").match(Cfg("v41.1")));
+  EXPECT_FALSE(Cfg("v42").match(Cfg("v41.2")));
+  EXPECT_TRUE(Cfg("v42").match(Cfg("v42")));
+  EXPECT_TRUE(Cfg("v42").match(Cfg("v42.1")));
+
+  EXPECT_FALSE(Cfg("v42.1").match(Cfg("v41")));
+  EXPECT_FALSE(Cfg("v42.1").match(Cfg("v41.1")));
+  EXPECT_FALSE(Cfg("v42.1").match(Cfg("v41.2")));
+  EXPECT_FALSE(Cfg("v42.1").match(Cfg("v42")));
+  EXPECT_TRUE(Cfg("v42.1").match(Cfg("v42.1")));
+
+  // ConfigDescription::Parse doesn't allow "v0.3" so we have to create it manually to test
+  ResTable_config config = {};
+  config.sdkVersion = 0;
+  config.minorVersion = 3;
+  EXPECT_FALSE(config.match(Cfg("v41")));
+}
+
+TEST(ConfigTest, SdkAndMinorVersion_IsBetterThan) {
+  ResTable_config requested = Cfg("v45");
+  EXPECT_FALSE(Cfg("v40").isBetterThan(Cfg("v40"), &requested));
+  EXPECT_TRUE(Cfg("v41").isBetterThan(Cfg("v40"), &requested));
+  EXPECT_TRUE(Cfg("v41.1").isBetterThan(Cfg("v41"), &requested));
+  EXPECT_TRUE(Cfg("v41.2").isBetterThan(Cfg("v41.1"), &requested));
+  EXPECT_TRUE(Cfg("v42").isBetterThan(Cfg("v41.2"), &requested));
+  EXPECT_TRUE(Cfg("v43.1").isBetterThan(Cfg("v42"), &requested));
+
+  requested = Cfg("v45.9");
+  EXPECT_FALSE(Cfg("v40").isBetterThan(Cfg("v40"), &requested));
+  EXPECT_TRUE(Cfg("v41").isBetterThan(Cfg("v40"), &requested));
+  EXPECT_TRUE(Cfg("v41.1").isBetterThan(Cfg("v41"), &requested));
+  EXPECT_TRUE(Cfg("v41.2").isBetterThan(Cfg("v41.1"), &requested));
+  EXPECT_TRUE(Cfg("v42").isBetterThan(Cfg("v41.2"), &requested));
+  EXPECT_TRUE(Cfg("v43.1").isBetterThan(Cfg("v42"), &requested));
+
+  // isBetterThan defaults to isMoreSpecificThan if requested is null
+  EXPECT_FALSE(Cfg("v40").isBetterThan(Cfg("v40"), nullptr));
+  EXPECT_FALSE(Cfg("v41").isBetterThan(Cfg("v40"), nullptr));
+  EXPECT_TRUE(Cfg("v41.1").isBetterThan(Cfg("v41"), nullptr));
+  EXPECT_FALSE(Cfg("v41.2").isBetterThan(Cfg("v41.1"), nullptr));
+  EXPECT_FALSE(Cfg("v42").isBetterThan(Cfg("v41.2"), nullptr));
+  EXPECT_TRUE(Cfg("v43.1").isBetterThan(Cfg("v42"), nullptr));
+}
+
+TEST(ConfigTest, SdkAndMinorVersion_SelectBest) {
+  ResTable_config requested = Cfg("v45");
+  EXPECT_STREQ("v42", selectBest(requested, {Cfg("v40"), Cfg("v42"), Cfg("v41")}).toString());
+  EXPECT_STREQ("v42.3",
+               selectBest(requested, {Cfg("v40.5"), Cfg("v42.3"), Cfg("v41.2")}).toString());
+  EXPECT_STREQ("v42.5",
+               selectBest(requested, {Cfg("v42.5"), Cfg("v42.3"), Cfg("v41.2")}).toString());
+  EXPECT_STREQ("v42.5",
+               selectBest(requested, {Cfg("v42.3"), Cfg("v41.2"), Cfg("v42.5")}).toString());
+  EXPECT_STREQ("v42.5",
+               selectBest(requested, {Cfg("v42"), Cfg("v42.5"), Cfg("v41.2")}).toString());
+  EXPECT_STREQ("v44", selectBest(requested, {Cfg("v42.5"), Cfg("v42.3"), Cfg("v44")}).toString());
+
+  requested = Cfg("v45.9");
+  EXPECT_STREQ("v42", selectBest(requested, {Cfg("v40"), Cfg("v42"), Cfg("v41")}).toString());
+  EXPECT_STREQ("v42.3",
+               selectBest(requested, {Cfg("v40.5"), Cfg("v42.3"), Cfg("v41.2")}).toString());
+  EXPECT_STREQ("v42.5",
+               selectBest(requested, {Cfg("v42.5"), Cfg("v42.3"), Cfg("v41.2")}).toString());
+  EXPECT_STREQ("v42.5",
+               selectBest(requested, {Cfg("v42.3"), Cfg("v41.2"), Cfg("v42.5")}).toString());
+  EXPECT_STREQ("v42.5",
+               selectBest(requested, {Cfg("v42"), Cfg("v42.5"), Cfg("v41.2")}).toString());
+  EXPECT_STREQ("v44",
+               selectBest(requested, {Cfg("v42.5"), Cfg("v42.3"), Cfg("v44")}).toString());
+  EXPECT_STREQ("v45.6",
+               selectBest(requested, {Cfg("v45.3"), Cfg("45"), Cfg("v45.6")}).toString());
 }
 
 }  // namespace android.

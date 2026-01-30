@@ -22,7 +22,8 @@ import com.android.systemui.common.shared.model.Icon
 
 /** A ViewModel for the security button. */
 data class FooterActionsSecurityButtonViewModel(
-    val icon: Icon,
-    val text: String,
-    val onClick: ((quickSettingsContext: Context, Expandable) -> Unit)?,
-)
+    override val icon: Icon,
+    override val text: String,
+    override val onClick: ((quickSettingsContext: Context, Expandable) -> Unit)?,
+    override val hasNewChanges: Boolean = false,
+) : FooterTextButtonViewModel

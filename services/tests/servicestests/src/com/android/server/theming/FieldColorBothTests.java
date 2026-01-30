@@ -19,11 +19,6 @@ package com.android.server.theming;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.theming.FieldColorBoth;
-import android.content.theming.ThemeSettings;
-import android.content.theming.ThemeSettingsUpdater;
-import android.content.theming.ThemeStyle;
-
-import com.google.common.truth.Truth;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -32,30 +27,27 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FieldColorBothTests {
-    static final ThemeSettings DEFAULTS = new ThemeSettings(1, 0xFF123456, 0xFF654321,
-            "home_wallpaper", ThemeStyle.VIBRANT, true);
     private FieldColorBoth mFieldColorBoth;
 
     @Before
     public void setup() {
-        mFieldColorBoth = new FieldColorBoth("colorBoth", ThemeSettingsUpdater::colorBoth,
-                ThemeSettings::colorBoth, DEFAULTS);
+        mFieldColorBoth = new FieldColorBoth();
     }
 
     @Test
-    public void parse_validColorBoth_returnsTrue() {
+    public void parse_validTrueString_returnsTrue() {
         Boolean parsedValue = mFieldColorBoth.parse("1");
         assertThat(parsedValue).isTrue();
     }
 
     @Test
-    public void parse_validColorBoth_returnsFalse() {
+    public void parse_validFalseString_returnsFalse() {
         Boolean parsedValue = mFieldColorBoth.parse("0");
         assertThat(parsedValue).isFalse();
     }
 
     @Test
-    public void parse_invalidColorBoth_returnsNull() {
+    public void parse_invalidString_returnsNull() {
         Boolean parsedValue = mFieldColorBoth.parse("invalid");
         assertThat(parsedValue).isNull();
     }
@@ -84,16 +76,11 @@ public class FieldColorBothTests {
 
     @Test
     public void getFieldType_returnsBooleanClass() {
-        Truth.assertThat(mFieldColorBoth.getFieldType()).isEqualTo(Boolean.class);
+        assertThat(mFieldColorBoth.getFieldType()).isEqualTo(Boolean.class);
     }
 
     @Test
     public void getJsonType_returnsStringClass() {
-        Truth.assertThat(mFieldColorBoth.getJsonType()).isEqualTo(String.class);
-    }
-
-    @Test
-    public void get_returnsDefaultValue() {
-        Truth.assertThat(mFieldColorBoth.getDefaultValue()).isEqualTo(DEFAULTS.colorBoth());
+        assertThat(mFieldColorBoth.getJsonType()).isEqualTo(String.class);
     }
 }

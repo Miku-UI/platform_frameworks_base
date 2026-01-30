@@ -22,6 +22,8 @@ import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardClockInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.kosmos.backgroundScope
+import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.notification.icon.ui.viewmodel.notificationIconContainerAlwaysOnDisplayViewModel
 import com.android.systemui.statusbar.ui.systemBarUtilsProxy
@@ -32,10 +34,13 @@ val Kosmos.keyguardClockViewModel by
             context = applicationContext,
             keyguardClockInteractor = keyguardClockInteractor,
             applicationScope = applicationCoroutineScope,
+            backgroundScope = backgroundScope,
             aodNotificationIconViewModel = notificationIconContainerAlwaysOnDisplayViewModel,
             shadeModeInteractor = shadeModeInteractor,
             systemBarUtils = systemBarUtilsProxy,
             configurationInteractor = configurationInteractor,
             resources = mainResources,
+            smallClockLogBuffer = logcatLogBuffer(name = "KeyguardSmallClockViewModel"),
+            largeClockLogBuffer = logcatLogBuffer(name = "KeyguardLargeClockViewModel"),
         )
     }

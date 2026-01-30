@@ -22,10 +22,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * THIS ANNOTATION IS EXPERIMENTAL. REACH OUT TO g/ravenwood BEFORE USING IT, OR YOU HAVE ANY
- * QUESTIONS ABOUT IT.
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
  *
- * Same as {@link HostSideTestKeep} but it'll change the visibility of all its members too.
  * @hide
  */
 @Target({TYPE})

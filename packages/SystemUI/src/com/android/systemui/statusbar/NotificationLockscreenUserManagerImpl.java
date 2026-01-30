@@ -15,7 +15,6 @@
  */
 package com.android.systemui.statusbar;
 
-import static android.app.Flags.keyguardPrivateNotifications;
 import static android.app.StatusBarManager.ACTION_KEYGUARD_PRIVATE_NOTIFICATIONS_CHANGED;
 import static android.app.StatusBarManager.EXTRA_KM_PRIVATE_NOTIFS_ALLOWED;
 import static android.app.admin.DevicePolicyManager.ACTION_DEVICE_POLICY_MANAGER_STATE_CHANGED;
@@ -47,6 +46,7 @@ import android.database.ExecutorContentObserver;
 import android.net.Uri;
 import android.os.Looper;
 import android.os.Process;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
@@ -61,7 +61,7 @@ import androidx.annotation.WorkerThread;
 import com.android.internal.statusbar.NotificationVisibility;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.systemui.Dumpable;
-import com.android.systemui.Flags;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Background;
@@ -72,15 +72,12 @@ import com.android.systemui.flags.FeatureFlagsClassic;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.plugins.statusbar.StatusBarStateController.StateListener;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shared.system.SysUiStatsLog;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
-import com.android.systemui.statusbar.notification.collection.UseElapsedRealtimeForCreationTime;
 import com.android.systemui.statusbar.notification.collection.notifcollection.CommonNotifCollection;
 import com.android.systemui.statusbar.notification.collection.render.NotificationVisibilityProvider;
-import com.android.systemui.statusbar.notification.row.shared.LockscreenOtpRedaction;
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.WifiRepository;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
@@ -203,7 +200,7 @@ public class NotificationLockscreenUserManagerImpl implements
                     // the user before calling into DPM
                     sendingUserId = mCurrentUserId;
                     @SuppressLint("MissingPermission")
-                    List<UserInfo> users = mUserManager.getUsers();
+                    List<UserInfo> users = mUserManager.getAliveUsers();
                     for (int i = users.size() - 1; i >= 0; i--) {
                         changed |= updateDpcSettings(users.get(i).id);
                     }
@@ -241,14 +238,6 @@ public class NotificationLockscreenUserManagerImpl implements
                 });
             } else if (profileAvailabilityActions(action)) {
                 updateCurrentProfilesCache();
-            } else if (Objects.equals(action, Intent.ACTION_USER_UNLOCKED)) {
-                if (!keyguardPrivateNotifications()) {
-                    // Start the overview connection to the launcher service
-                    // Connect if user hasn't connected yet
-                    if (mLauncherProxyServiceLazy.get().getProxy() == null) {
-                        mLauncherProxyServiceLazy.get().startConnectionToCurrentUser();
-                    }
-                }
             } else if (Objects.equals(action, NOTIFICATION_UNLOCKED_BY_WORK_CHALLENGE_ACTION)) {
                 final IntentSender intentSender = intent.getParcelableExtra(
                         Intent.EXTRA_INTENT);
@@ -382,13 +371,11 @@ public class NotificationLockscreenUserManagerImpl implements
 
         dumpManager.registerDumpable(this);
 
-        if (keyguardPrivateNotifications()) {
-            init();
-        }
+        init();
 
         // To avoid dependency injection cycle, finish constructing this object before using the
         // KeyguardInteractor. The CoroutineScope will only be null in tests.
-        if (LockscreenOtpRedaction.isEnabled() && coroutineScope != null) {
+        if (coroutineScope != null) {
             mMainExecutor.execute(() -> {
                 JavaAdapterKt.collectFlow(coroutineScope,
                     keyguardInteractor.get().isKeyguardDismissible(),
@@ -417,10 +404,6 @@ public class NotificationLockscreenUserManagerImpl implements
 
     public void setUpWithPresenter(NotificationPresenter presenter) {
         mPresenter = presenter;
-
-        if (!keyguardPrivateNotifications()) {
-            init();
-        }
     }
 
     private void init() {
@@ -498,11 +481,10 @@ public class NotificationLockscreenUserManagerImpl implements
         mBroadcastDispatcher.registerReceiver(mAllUsersReceiver,
                 new IntentFilter(ACTION_DEVICE_POLICY_MANAGER_STATE_CHANGED),
                 mBackgroundExecutor, UserHandle.ALL);
-        if (keyguardPrivateNotifications()) {
-            mBroadcastDispatcher.registerReceiver(mKeyguardReceiver,
-                    new IntentFilter(ACTION_KEYGUARD_PRIVATE_NOTIFICATIONS_CHANGED),
-                    mBackgroundExecutor, UserHandle.ALL);
-        }
+
+        mBroadcastDispatcher.registerReceiver(mKeyguardReceiver,
+                new IntentFilter(ACTION_KEYGUARD_PRIVATE_NOTIFICATIONS_CHANGED),
+                mBackgroundExecutor, UserHandle.ALL);
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(Intent.ACTION_USER_ADDED);
@@ -541,9 +523,7 @@ public class NotificationLockscreenUserManagerImpl implements
                 false, mLockScreenUris, 0, UserHandle.of(userId));
         updateDpcSettings(userId);
 
-        if (keyguardPrivateNotifications()) {
-            updateGlobalKeyguardSettings();
-        }
+        updateGlobalKeyguardSettings();
     }
 
     public boolean shouldShowLockscreenNotifications() {
@@ -571,12 +551,8 @@ public class NotificationLockscreenUserManagerImpl implements
         boolean show;
         boolean allowedByDpm;
 
-        if (keyguardPrivateNotifications()) {
-            show = mUsersUsersAllowingNotifications.get(mCurrentUserId);
-        } else {
-            show = mUsersUsersAllowingNotifications.get(mCurrentUserId)
-                    && mKeyguardAllowingNotifications;
-        }
+        show = mUsersUsersAllowingNotifications.get(mCurrentUserId);
+
         // If DPC never notified us about a user, that means they have no policy for the user,
         // and they allow the behavior
         allowedByDpm = mUsersDpcAllowingNotifications.get(mCurrentUserId, true);
@@ -610,12 +586,7 @@ public class NotificationLockscreenUserManagerImpl implements
                 userId) != 0;
         mUsersUsersAllowingNotifications.put(userId, newAllowLockscreen);
 
-        if (keyguardPrivateNotifications()) {
-            return (newAllowLockscreen != originalAllowLockscreen);
-        } else {
-            boolean keyguardChanged = updateGlobalKeyguardSettings();
-            return (newAllowLockscreen != originalAllowLockscreen) || keyguardChanged;
-        }
+        return (newAllowLockscreen != originalAllowLockscreen);
     }
 
     @WorkerThread
@@ -674,14 +645,9 @@ public class NotificationLockscreenUserManagerImpl implements
             Log.i(TAG, "Asking for redact notifs dpm override too early", new Throwable());
             return false;
         }
-        if (keyguardPrivateNotifications()) {
-            return mUsersUsersAllowingPrivateNotifications.get(userHandle)
-                    && mUsersDpcAllowingPrivateNotifications.get(userHandle)
-                    && mKeyguardAllowingNotifications;
-        } else {
-            return mUsersUsersAllowingPrivateNotifications.get(userHandle)
-                    && mUsersDpcAllowingPrivateNotifications.get(userHandle);
-        }
+        return mUsersUsersAllowingPrivateNotifications.get(userHandle)
+                && mUsersDpcAllowingPrivateNotifications.get(userHandle)
+                && mKeyguardAllowingNotifications;
     }
 
     /**
@@ -750,14 +716,8 @@ public class NotificationLockscreenUserManagerImpl implements
             Log.wtf(TAG, "Asking for show notifs dpm override too early", new Throwable());
             updateDpcSettings(userHandle);
         }
-        if (keyguardPrivateNotifications()) {
-            return mUsersUsersAllowingNotifications.get(userHandle)
-                    && mUsersDpcAllowingNotifications.get(userHandle);
-        } else {
-            return mUsersUsersAllowingNotifications.get(userHandle)
-                    && mUsersDpcAllowingNotifications.get(userHandle)
-                    && mKeyguardAllowingNotifications;
-        }
+        return mUsersUsersAllowingNotifications.get(userHandle)
+                && mUsersDpcAllowingNotifications.get(userHandle);
     }
 
     /**
@@ -790,7 +750,7 @@ public class NotificationLockscreenUserManagerImpl implements
         if (notificationRequestsRedaction && isNotifRedacted) {
             return REDACTION_TYPE_PUBLIC;
         }
-        if (keyguardPrivateNotifications() && !mKeyguardAllowingNotifications) {
+        if (!mKeyguardAllowingNotifications) {
             return REDACTION_TYPE_PUBLIC;
         }
 
@@ -798,57 +758,6 @@ public class NotificationLockscreenUserManagerImpl implements
             return REDACTION_TYPE_OTP;
         }
         return REDACTION_TYPE_NONE;
-    }
-
-    /*
-     * We show the sensitive content redaction view if
-     * 1. The feature is enabled
-     * 2. The device is locked
-     * 3. The device is NOT connected to Wifi
-     * 4. The notification has the `hasSensitiveContent` ranking variable set to true
-     * 5. The device has not connected to Wifi since receiving the notification
-     * 6. The notification arrived at least LOCK_TIME_FOR_SENSITIVE_REDACTION_MS before the last
-     *    lock time.
-     */
-    private boolean shouldShowSensitiveContentRedactedView(NotificationEntry ent) {
-        if (android.app.Flags.redactionOnLockscreenMetrics()) {
-            return shouldShowSensitiveContentRedactedViewWithLog(ent);
-        }
-
-        if (!LockscreenOtpRedaction.isEnabled()) {
-            return false;
-        }
-
-        if (!mLocked.get()) {
-            return false;
-        }
-
-        long notificationTime = getEarliestNotificationTime(ent);
-        if (!mRedactOtpOnWifi.get()) {
-            if (mConnectedToWifi.get()) {
-                return false;
-            }
-
-            long lastWifiConnectTime = mLastWifiConnectionTime.get();
-            // If the device has connected to wifi since receiving the notification, do not redact
-            if (notificationTime < lastWifiConnectTime) {
-                return false;
-            }
-        }
-
-        if (ent.getRanking() == null || !ent.getRanking().hasSensitiveContent()) {
-            return false;
-        }
-
-        // If the lock screen was not already locked for at least mOtpRedactionRequiredLockTimeMs
-        // when this notification arrived, do not redact
-        long latestTimeForRedaction = mLastLockTime.get() + mOtpRedactionRequiredLockTimeMs.get();
-
-        if (notificationTime < latestTimeForRedaction) {
-            return false;
-        }
-
-        return true;
     }
 
     /*
@@ -863,11 +772,7 @@ public class NotificationLockscreenUserManagerImpl implements
      *
      * This version of the method logs a metric about the request.
      */
-    private boolean shouldShowSensitiveContentRedactedViewWithLog(NotificationEntry ent) {
-        if (!LockscreenOtpRedaction.isEnabled()) {
-            return false;
-        }
-
+    private boolean shouldShowSensitiveContentRedactedView(NotificationEntry ent) {
         if (ent.getRanking() == null || !ent.getRanking().hasSensitiveContent()) {
             return false;
         }
@@ -920,8 +825,7 @@ public class NotificationLockscreenUserManagerImpl implements
     // notification's "when" time, or the notification entry creation time
     private long getEarliestNotificationTime(NotificationEntry notif) {
         long notifWhenWallClock = notif.getSbn().getNotification().getWhen();
-        long creationTimeDelta = UseElapsedRealtimeForCreationTime.getCurrentTime()
-                - notif.getCreationTime();
+        long creationTimeDelta = SystemClock.elapsedRealtime() - notif.getCreationTime();
 
         long creationTimeWallClock = System.currentTimeMillis() - creationTimeDelta;
         return Math.min(notifWhenWallClock, creationTimeWallClock);
@@ -1057,16 +961,8 @@ public class NotificationLockscreenUserManagerImpl implements
 
     private void notifyNotificationStateChanged() {
         if (!Looper.getMainLooper().isCurrentThread()) {
-            if (Flags.checkLockscreenGoneTransition()) {
-                for (NotificationStateChangedListener listener : mNotifStateChangedListeners) {
-                    mMainExecutor.execute(listener::onNotificationStateChanged);
-                }
-            } else {
-                mMainExecutor.execute(() -> {
-                    for (NotificationStateChangedListener listener : mNotifStateChangedListeners) {
-                        listener.onNotificationStateChanged();
-                    }
-                });
+            for (NotificationStateChangedListener listener : mNotifStateChangedListeners) {
+                mMainExecutor.execute(listener::onNotificationStateChanged);
             }
         } else {
             for (NotificationStateChangedListener listener : mNotifStateChangedListeners) {

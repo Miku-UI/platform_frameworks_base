@@ -134,7 +134,8 @@ constructor(
                                 }
                             } else {
                                 Color.Resource(
-                                    com.android.internal.R.color.materialColorSurfaceContainerHighest
+                                    com.android.internal.R.color
+                                        .materialColorSurfaceContainerHighest
                                 )
                             },
                         backgroundColor =

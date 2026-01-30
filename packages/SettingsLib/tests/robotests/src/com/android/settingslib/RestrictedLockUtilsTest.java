@@ -40,7 +40,9 @@ import android.app.admin.DevicePolicyManager;
 import android.app.admin.DpcAuthority;
 import android.app.admin.EnforcingAdmin;
 import android.app.admin.RoleAuthority;
+import android.app.admin.SystemAuthority;
 import android.app.admin.UnknownAuthority;
+import android.app.admin.flags.Flags;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
@@ -52,6 +54,7 @@ import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.provider.Settings;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -98,6 +101,7 @@ public class RestrictedLockUtilsTest {
                 .thenReturn(mDevicePolicyManager);
         when(mContext.getSystemService(Context.USER_SERVICE))
                 .thenReturn(mUserManager);
+        when(mContext.getSystemService(UserManager.class)).thenReturn(mUserManager);
         when(mContext.getPackageManager())
                 .thenReturn(mPackageManager);
 
@@ -260,7 +264,7 @@ public class RestrictedLockUtilsTest {
     @RequiresFlagsEnabled(android.security.Flags.FLAG_AAPM_API)
     @Test
     public void isPolicyEnforcedByAdvancedProtection_enforced_returnsTrue() {
-        final Authority advancedProtectionAuthority = new UnknownAuthority(
+        final Authority advancedProtectionAuthority = new SystemAuthority(
                 ADVANCED_PROTECTION_SYSTEM_ENTITY);
         final EnforcingAdmin advancedProtectionEnforcingAdmin = new EnforcingAdmin(mPackage,
                 advancedProtectionAuthority, UserHandle.of(mUserId), mAdmin1);
@@ -458,6 +462,31 @@ public class RestrictedLockUtilsTest {
         assertThat(intentCaptor.getValue().getExtra(EXTRA_RESTRICTION)).isNull();
     }
 
+    @Test
+    public void sendShowAdminSupportDetailsIntent_withEnforcingAdmin_extraRestrictionProvided() {
+        when(mUserManager.getUserProfiles()).thenReturn(
+                Collections.singletonList(UserHandle.of(mUserId)));
+        EnforcingAdmin enforcingAdmin = new EnforcingAdmin(mPackage,
+                UnknownAuthority.UNKNOWN_AUTHORITY, UserHandle.of(mUserId), mAdmin1);
+        final String restriction = "fake";
+
+        RestrictedLockUtils.sendShowAdminSupportDetailsIntent(mContext, enforcingAdmin,
+                restriction);
+
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext).startActivityAsUser(intentCaptor.capture(), any());
+        assertThat(intentCaptor.getValue().getExtra(EXTRA_RESTRICTION)).isEqualTo(restriction);
+    }
+
+    @Test
+    public void sendShowAdminSupportDetailsIntent_withEnforcingAdmin_noExtraRestriction() {
+        RestrictedLockUtils.sendShowAdminSupportDetailsIntent(mContext, null, null);
+
+        ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
+        verify(mContext).startActivityAsUser(intentCaptor.capture(), any());
+        assertThat(intentCaptor.getValue().getExtra(EXTRA_RESTRICTION)).isNull();
+    }
+
     /** See b/386971405. Ensure that the code does not crash when the user is not found. */
     @Test
     public void checkIfKeyguardFeaturesDisabled_returnsNull_whenUserDoesNotExist() {
@@ -466,6 +495,94 @@ public class RestrictedLockUtilsTest {
                         RestrictedLockUtilsInternal.checkIfKeyguardFeaturesDisabled(
                                 mContext, KEYGUARD_DISABLE_FINGERPRINT, mUserId))
                 .isNull();
+    }
+
+    private static final ComponentName ENFORCING_ADMIN_COMPONENT =
+            new ComponentName("test.pkg", "test.class");
+    private static final UserHandle ENFORCING_ADMIN_USER_HANDLE = UserHandle.of(10);
+    private static final EnforcingAdmin ENFORCING_ADMIN = new EnforcingAdmin(
+            ENFORCING_ADMIN_COMPONENT.getPackageName(),
+            UnknownAuthority.UNKNOWN_AUTHORITY,
+            ENFORCING_ADMIN_USER_HANDLE,
+            ENFORCING_ADMIN_COMPONENT);
+    private static final EnforcingAdmin ENFORCING_ADMIN_NO_COMPONENT = new EnforcingAdmin(
+            ENFORCING_ADMIN_COMPONENT.getPackageName(),
+            UnknownAuthority.UNKNOWN_AUTHORITY,
+            ENFORCING_ADMIN_USER_HANDLE,
+            /* componentName= */ null);
+
+    @Test
+    public void getShowAdminSupportDetailsIntent_withEnforcingAdmin_nullAdmin() {
+        // Call the method with a null admin
+        Intent intent = RestrictedLockUtils.getShowAdminSupportDetailsIntent((EnforcingAdmin) null);
+
+        // Verify the intent action is correct
+        assertThat(intent.getAction()).isEqualTo(Settings.ACTION_SHOW_ADMIN_SUPPORT_DETAILS);
+        // Verify no extras are added
+        assertThat(intent.getExtras()).isNull();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENFORCING_ADMIN_EXTRA_ENABLED)
+    public void getShowAdminSupportDetailsIntent_withEnforcingAdmin_extraFlagEnabled() {
+        // Call the method
+        Intent intent = RestrictedLockUtils.getShowAdminSupportDetailsIntent(ENFORCING_ADMIN);
+
+        // Verify the intent contains the EXTRA_ENFORCING_ADMIN extra
+        assertThat(intent.getParcelableExtra(DevicePolicyManager.EXTRA_ENFORCING_ADMIN,
+                EnforcingAdmin.class)).isEqualTo(ENFORCING_ADMIN);
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENFORCING_ADMIN_EXTRA_ENABLED)
+    public void getShowAdminSupportDetailsIntent_withEnforcingAdmin_extraFlagDisabled() {
+        // Call the method
+        Intent intent = RestrictedLockUtils.getShowAdminSupportDetailsIntent(ENFORCING_ADMIN);
+
+        // Verify the intent does not contain the EXTRA_ENFORCING_ADMIN extra
+        assertThat(intent.hasExtra(DevicePolicyManager.EXTRA_ENFORCING_ADMIN)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENFORCING_ADMIN_GET_COMPONENT_NAME_ENABLED)
+    public void getShowAdminSupportDetailsIntent_withEnforcingAdmin_componentNameFlagEnabled() {
+        // Call the method
+        Intent intent = RestrictedLockUtils.getShowAdminSupportDetailsIntent(ENFORCING_ADMIN);
+
+        // Verify the intent contains the EXTRA_DEVICE_ADMIN extra
+        assertThat(intent.getParcelableExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN,
+                ComponentName.class)).isEqualTo(ENFORCING_ADMIN_COMPONENT);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENFORCING_ADMIN_GET_COMPONENT_NAME_ENABLED)
+    public void getShowAdminSupportDetailsIntent_withEnforcingAdmin_componentNameNull_flagEnabled() {
+        // Call the method with an admin that has no component name
+        Intent intent = RestrictedLockUtils.getShowAdminSupportDetailsIntent(
+                ENFORCING_ADMIN_NO_COMPONENT);
+
+        // Verify the intent does not contain the EXTRA_DEVICE_ADMIN extra
+        assertThat(intent.hasExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN)).isFalse();
+    }
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_ENFORCING_ADMIN_GET_COMPONENT_NAME_ENABLED)
+    public void getShowAdminSupportDetailsIntent_withEnforcingAdmin_componentNameFlagDisabled() {
+        // Call the method
+        Intent intent = RestrictedLockUtils.getShowAdminSupportDetailsIntent(ENFORCING_ADMIN);
+
+        // Verify the intent does not contain the EXTRA_DEVICE_ADMIN extra
+        assertThat(intent.hasExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN)).isFalse();
+    }
+
+    @Test
+    public void getShowAdminSupportDetailsIntent_withEnforcingAdmin_alwaysHasUserExtra() {
+        // Call the method
+        Intent intent = RestrictedLockUtils.getShowAdminSupportDetailsIntent(ENFORCING_ADMIN);
+
+        // Verify the intent always contains the user handle extra
+        assertThat(intent.getParcelableExtra(Intent.EXTRA_USER, UserHandle.class))
+                .isEqualTo(ENFORCING_ADMIN_USER_HANDLE);
     }
 
     private UserInfo setUpUser(int userId, ComponentName[] admins) {

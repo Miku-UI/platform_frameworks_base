@@ -16,6 +16,8 @@
 
 package com.android.internal.protolog;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 
@@ -25,6 +27,7 @@ import com.android.internal.protolog.common.IProtoLogGroup;
 import com.android.internal.protolog.common.LogLevel;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -40,15 +43,18 @@ public class NoViewerConfigProtoLogImpl implements IProtoLog {
     private static final String LOG_TAG = "ProtoLog";
 
     @Override
-    public void log(LogLevel logLevel, IProtoLogGroup group, long messageHash, int paramsMask,
-            Object[] args) {
+    public void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group, long messageHash,
+            int paramsMask, @Nullable Object[] args) {
+        final var argsString = args == null ? ""
+                : Arrays.stream(args).map(Object::toString).collect(Collectors.joining());
+
         Log.w(LOG_TAG, "ProtoLogging is not available due to missing viewer config file...");
-        logMessage(logLevel, group.getTag(), "PROTOLOG#" + messageHash + "("
-                + Arrays.stream(args).map(Object::toString).collect(Collectors.joining()) + ")");
+        logMessage(logLevel, group.getTag(), "PROTOLOG#" + messageHash + "(" + argsString + ")");
     }
 
     @Override
-    public void log(LogLevel logLevel, IProtoLogGroup group, String messageString, Object... args) {
+    public void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group,
+            @NonNull String messageString, @NonNull Object... args) {
         logMessage(logLevel, group.getTag(), TextUtils.formatSimple(messageString, args));
     }
 
@@ -58,26 +64,33 @@ public class NoViewerConfigProtoLogImpl implements IProtoLog {
     }
 
     @Override
-    public int startLoggingToLogcat(String[] groups, ILogger logger) {
+    public int startLoggingToLogcat(@NonNull String[] groups, @NonNull ILogger logger) {
         return 0;
     }
 
     @Override
-    public int stopLoggingToLogcat(String[] groups, ILogger logger) {
+    public int stopLoggingToLogcat(@NonNull String[] groups, @NonNull ILogger logger) {
         return 0;
     }
 
     @Override
-    public boolean isEnabled(IProtoLogGroup group, LogLevel level) {
+    public boolean isEnabled(@NonNull IProtoLogGroup group, @NonNull LogLevel level) {
         return false;
     }
 
     @Override
+    @NonNull
     public List<IProtoLogGroup> getRegisteredGroups() {
-        return List.of();
+        return Collections.emptyList();
     }
 
-    private void logMessage(LogLevel logLevel, String tag, String message) {
+    @Override
+    public void registerGroups(@NonNull IProtoLogGroup... groups) {
+        // No-op
+    }
+
+    private void logMessage(
+            @NonNull LogLevel logLevel, @NonNull String tag, @NonNull String message) {
         switch (logLevel) {
             case VERBOSE -> Log.v(tag, message);
             case INFO -> Log.i(tag, message);

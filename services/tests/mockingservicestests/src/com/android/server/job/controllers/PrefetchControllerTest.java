@@ -42,6 +42,7 @@ import static org.mockito.Mockito.verify;
 
 import android.app.AlarmManager;
 import android.app.job.JobInfo;
+import android.app.usage.UsageStatsManager;
 import android.app.usage.UsageStatsManagerInternal;
 import android.app.usage.UsageStatsManagerInternal.EstimatedLaunchTimeChangedListener;
 import android.appwidget.AppWidgetManager;
@@ -193,7 +194,7 @@ public class PrefetchControllerTest {
         JobStatus js = JobStatus.createFromJobInfo(
                 jobInfo, callingUid, packageName, SOURCE_USER_ID, "PCTest", testTag);
         js.serviceProcessName = "testProcess";
-        js.setStandbyBucket(FREQUENT_INDEX);
+        js.setStandbyBucket(FREQUENT_INDEX, UsageStatsManager.REASON_MAIN_PREDICTED);
         // Make sure Doze and background-not-restricted don't affect tests.
         js.setDeviceNotDozingConstraintSatisfied(/* nowElapsed */ sElapsedRealtimeClock.millis(),
                 /* state */ true, /* allowlisted */false);

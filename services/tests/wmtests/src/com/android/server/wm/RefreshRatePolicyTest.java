@@ -20,8 +20,6 @@ import static android.view.SurfaceControl.FRAME_RATE_SELECTION_STRATEGY_OVERRIDE
 import static android.view.SurfaceControl.RefreshRateRange.FLOAT_TOLERANCE;
 import static android.view.WindowManager.LayoutParams.TYPE_BASE_APPLICATION;
 
-import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_APP_TRANSITION;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -34,6 +32,7 @@ import android.platform.test.annotations.Presubmit;
 import android.view.Display.Mode;
 import android.view.Surface;
 import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams;
 
 import androidx.test.filters.SmallTest;
@@ -328,9 +327,8 @@ public class RefreshRatePolicyTest extends WindowTestsBase {
         assertEquals(LOW_REFRESH_RATE,
                 mPolicy.getPreferredMaxRefreshRate(cameraUsingWindow), FLOAT_TOLERANCE);
 
-        cameraUsingWindow.mActivityRecord.mSurfaceAnimator.startAnimation(
-                cameraUsingWindow.getPendingTransaction(), mock(AnimationAdapter.class),
-                false /* hidden */, ANIMATION_TYPE_APP_TRANSITION);
+        requestTransition(cameraUsingWindow.mActivityRecord, WindowManager.TRANSIT_OPEN);
+        mDisplayContent.mTransitionController.collect(cameraUsingWindow.mActivityRecord);
         assertEquals(0, mPolicy.getPreferredModeId(cameraUsingWindow));
         assertFalse(mPolicy.updateFrameRateVote(cameraUsingWindow));
         assertEquals(FRAME_RATE_VOTE_NONE, cameraUsingWindow.mFrameRateVote);
@@ -349,9 +347,8 @@ public class RefreshRatePolicyTest extends WindowTestsBase {
         assertEquals(0, mPolicy.getPreferredMinRefreshRate(window), FLOAT_TOLERANCE);
         assertEquals(LOW_REFRESH_RATE, mPolicy.getPreferredMaxRefreshRate(window), FLOAT_TOLERANCE);
 
-        window.mActivityRecord.mSurfaceAnimator.startAnimation(
-                window.getPendingTransaction(), mock(AnimationAdapter.class),
-                false /* hidden */, ANIMATION_TYPE_APP_TRANSITION);
+        requestTransition(window.mActivityRecord, WindowManager.TRANSIT_OPEN);
+        mDisplayContent.mTransitionController.collect(window.mActivityRecord);
         assertEquals(0, mPolicy.getPreferredModeId(window));
         assertFalse(mPolicy.updateFrameRateVote(window));
         assertEquals(FRAME_RATE_VOTE_NONE, window.mFrameRateVote);
@@ -370,9 +367,8 @@ public class RefreshRatePolicyTest extends WindowTestsBase {
         assertEquals(LOW_REFRESH_RATE, mPolicy.getPreferredMinRefreshRate(window), FLOAT_TOLERANCE);
         assertEquals(0, mPolicy.getPreferredMaxRefreshRate(window), FLOAT_TOLERANCE);
 
-        window.mActivityRecord.mSurfaceAnimator.startAnimation(
-                window.getPendingTransaction(), mock(AnimationAdapter.class),
-                false /* hidden */, ANIMATION_TYPE_APP_TRANSITION);
+        requestTransition(window.mActivityRecord, WindowManager.TRANSIT_OPEN);
+        mDisplayContent.mTransitionController.collect(window.mActivityRecord);
         assertEquals(0, mPolicy.getPreferredModeId(window));
         assertFalse(mPolicy.updateFrameRateVote(window));
         assertEquals(FRAME_RATE_VOTE_NONE, window.mFrameRateVote);

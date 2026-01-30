@@ -161,7 +161,7 @@ public class LaunchConversationActivityTest extends SysuiTestCase {
         mActivity.onCreate(new Bundle());
 
         verify(mIStatusBarService, never()).onNotificationClear(
-                any(), anyInt(), any(), anyInt(), anyInt(), any());
+                any(), anyInt(), any(), anyInt(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -172,7 +172,7 @@ public class LaunchConversationActivityTest extends SysuiTestCase {
         mActivity.onCreate(new Bundle());
 
         verify(mIStatusBarService, never()).onNotificationClear(
-                any(), anyInt(), any(), anyInt(), anyInt(), any());
+                any(), anyInt(), any(), anyInt(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -183,7 +183,7 @@ public class LaunchConversationActivityTest extends SysuiTestCase {
         mActivity.onCreate(new Bundle());
 
         verify(mIStatusBarService, never()).onNotificationClear(
-                any(), anyInt(), any(), anyInt(), anyInt(), any());
+                any(), anyInt(), any(), anyInt(), anyInt(), any(), anyBoolean());
     }
 
     @Test
@@ -201,7 +201,8 @@ public class LaunchConversationActivityTest extends SysuiTestCase {
         // Clear the notification for bubbles.
         FakeExecutor.exhaustExecutors(mBgExecutor);
         verify(mIStatusBarService, times(1)).onNotificationClear(any(),
-                anyInt(), any(), anyInt(), anyInt(), mNotificationVisibilityCaptor.capture());
+                anyInt(), any(), anyInt(), anyInt(), mNotificationVisibilityCaptor.capture(),
+                anyBoolean());
         // Do not select the bubble.
         verify(mBubblesManager, never()).expandStackAndSelectBubble(any(Bubble.class));
         verify(mBubblesManager, never()).expandStackAndSelectBubble(any(NotificationEntry.class));
@@ -226,7 +227,7 @@ public class LaunchConversationActivityTest extends SysuiTestCase {
         verify(mCommandQueue).removeCallback(any());
         // Don't clear the notification for bubbles.
         verify(mIStatusBarService, never()).onNotificationClear(any(),
-                anyInt(), any(), anyInt(), anyInt(), any());
+                anyInt(), any(), anyInt(), anyInt(), any(), anyBoolean());
         // Select the bubble.
         verify(mBubblesManager, times(1)).getBubbleWithShortcutId(any());
         verify(mBubblesManager, times(1)).expandStackAndSelectBubble(eq(mNotifEntryCanBubble));
@@ -247,7 +248,7 @@ public class LaunchConversationActivityTest extends SysuiTestCase {
         verify(mCommandQueue).removeCallback(any());
         // Don't clear the notification for bubbles.
         verify(mIStatusBarService, never()).onNotificationClear(any(),
-                anyInt(), any(), anyInt(), anyInt(), any());
+                anyInt(), any(), anyInt(), anyInt(), any(), anyBoolean());
         // Do not select the bubble.
         verify(mBubblesManager, never()).expandStackAndSelectBubble(any(Bubble.class));
         verify(mBubblesManager, never()).expandStackAndSelectBubble(any(NotificationEntry.class));

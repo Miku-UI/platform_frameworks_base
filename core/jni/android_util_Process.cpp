@@ -30,6 +30,7 @@
 #include <processgroup/sched_policy.h>
 #include <android-base/logging.h>
 #include <android-base/unique_fd.h>
+#include <cutils/misc.h>
 
 #include <algorithm>
 #include <array>
@@ -63,8 +64,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#define GUARD_THREAD_PRIORITY 0
-
 using namespace android;
 
 static constexpr bool kDebugPolicy = false;
@@ -81,11 +80,6 @@ static constexpr size_t kProcReadStackBufferSize = 1024;
 // retry with a relatively large heap-allocated buffer.  We double
 // this size and retry until the whole file fits.
 static constexpr size_t kProcReadMinHeapBufferSize = 4096;
-
-#if GUARD_THREAD_PRIORITY
-Mutex gKeyCreateMutex;
-static pthread_key_t gBgKey = -1;
-#endif
 
 // For both of these, err should be in the errno range (positive), not a status_t (negative)
 static void signalExceptionForError(JNIEnv* env, int err, int tid) {
@@ -441,6 +435,27 @@ void android_os_Process_setProcessFrozen(
     }
 }
 
+jboolean android_os_Process_isProcessFrozen(JNIEnv *env, jobject, jint pid, jint uid)
+{
+    if (uid < 0) {
+        jniThrowExceptionFmt(env, "java/lang/IllegalArgumentException", "uid is negative: %d", uid);
+        return false;
+    }
+
+    char const* type = (uid < FIRST_APPLICATION_UID) ? "system" : "apps";
+    char path[PATH_MAX];
+    snprintf(path, sizeof(path), "/sys/fs/cgroup/%s/uid_%d/pid_%d/cgroup.freeze", type, uid, pid);
+
+    int fd = ::open(path, O_RDONLY);
+    if (fd >= 0) {
+      char flag = 0;
+      ::read(fd, &flag, 1);
+      ::close(fd);
+      return flag == '1';
+    }
+    return false;
+}
+
 jint android_os_Process_getProcessGroup(JNIEnv* env, jobject clazz, jint pid)
 {
     SchedPolicy sp;
@@ -634,23 +649,6 @@ jlongArray android_os_Process_getSchedAffinity(JNIEnv* env, jobject clazz, jint 
     return masks;
 }
 
-static void android_os_Process_setCanSelfBackground(JNIEnv* env, jobject clazz, jboolean bgOk) {
-    // Establishes the calling thread as illegal to put into the background.
-    // Typically used only for the system process's main looper.
-#if GUARD_THREAD_PRIORITY
-    ALOGV("Process.setCanSelfBackground(%d) : tid=%d", bgOk, gettid());
-    {
-        Mutex::Autolock _l(gKeyCreateMutex);
-        if (gBgKey == -1) {
-            pthread_key_create(&gBgKey, NULL);
-        }
-    }
-
-    // inverted:  not-okay, we set a sentinel value
-    pthread_setspecific(gBgKey, (void*)(bgOk ? 0 : 0xbaad));
-#endif
-}
-
 jint android_os_Process_getThreadScheduler(JNIEnv* env, jclass clazz,
                                               jint tid)
 {
@@ -684,24 +682,7 @@ void android_os_Process_setThreadScheduler(JNIEnv* env, jclass clazz,
 #endif
 }
 
-void android_os_Process_setThreadPriority(JNIEnv* env, jobject clazz,
-                                              jint pid, jint pri)
-{
-#if GUARD_THREAD_PRIORITY
-    // if we're putting the current thread into the background, check the TLS
-    // to make sure this thread isn't guarded.  If it is, raise an exception.
-    if (pri >= ANDROID_PRIORITY_BACKGROUND) {
-        if (pid == gettid()) {
-            void* bgOk = pthread_getspecific(gBgKey);
-            if (bgOk == ((void*)0xbaad)) {
-                ALOGE("Thread marked fg-only put self in background!");
-                jniThrowException(env, "java/lang/SecurityException", "May not put this thread into background");
-                return;
-            }
-        }
-    }
-#endif
-
+void android_os_Process_setThreadPriorityNative(JNIEnv* env, jobject clazz, jint pid, jint pri) {
     int rc = androidSetThreadPriority(pid, pri);
     if (rc != 0) {
         if (rc == INVALID_OPERATION) {
@@ -713,12 +694,6 @@ void android_os_Process_setThreadPriority(JNIEnv* env, jobject clazz,
 
     //ALOGI("Setting priority of %" PRId32 ": %" PRId32 ", getpriority returns %d\n",
     //     pid, pri, getpriority(PRIO_PROCESS, pid));
-}
-
-void android_os_Process_setCallingThreadPriority(JNIEnv* env, jobject clazz,
-                                                        jint pri)
-{
-    android_os_Process_setThreadPriority(env, clazz, gettid(), pri);
 }
 
 jint android_os_Process_getThreadPriority(JNIEnv* env, jobject clazz,
@@ -778,24 +753,28 @@ static int pid_compare(const void* v1, const void* v2)
     return *((const jint*)v1) - *((const jint*)v2);
 }
 
-static jlong android_os_Process_getFreeMemory(JNIEnv* env, jobject clazz)
-{
-    std::array<std::string_view, 1> memFreeTags = {
-            ::android::meminfo::SysMemInfo::kMemAvailable,
-    };
-    std::vector<uint64_t> mem(memFreeTags.size());
+static jlong android_os_Process_getMemory(JNIEnv* env, jobject clazz, std::string_view tag) {
+    std::array<std::string_view, 1> memTags = {tag};
+    std::vector<uint64_t> mem(memTags.size());
     ::android::meminfo::SysMemInfo smi;
 
-    if (!smi.ReadMemInfo(memFreeTags.size(),
-                         memFreeTags.data(),
-                         mem.data())) {
-        jniThrowRuntimeException(env, "SysMemInfo read failed to get Free Memory");
+    if (!smi.ReadMemInfo(memTags.size(), memTags.data(), mem.data())) {
+        jniThrowRuntimeException(env,
+                                 ("SysMemInfo read failed to get " + std::string(tag)).c_str());
         return -1L;
     }
 
     jlong sum = 0;
     std::for_each(mem.begin(), mem.end(), [&](uint64_t val) { sum += val; });
     return sum * 1024;
+}
+
+static jlong android_os_Process_getAvailableMemory(JNIEnv* env, jobject clazz) {
+    return android_os_Process_getMemory(env, clazz, ::android::meminfo::SysMemInfo::kMemAvailable);
+}
+
+static jlong android_os_Process_getFreeMemory(JNIEnv* env, jobject clazz) {
+    return android_os_Process_getMemory(env, clazz, ::android::meminfo::SysMemInfo::kMemFree);
 }
 
 static jlong android_os_Process_getTotalMemory(JNIEnv* env, jobject clazz)
@@ -1300,7 +1279,7 @@ void android_os_Process_sendTgSignalThrows(JNIEnv* env, jobject clazz, jint tgid
     }
 }
 
-static jlong android_os_Process_getElapsedCpuTime(JNIEnv* env, jobject clazz)
+static jlong android_os_Process_getElapsedCpuTime(CRITICAL_JNI_PARAMS)
 {
     struct timespec ts;
 
@@ -1502,10 +1481,10 @@ void android_os_Process_freezeCgroupUID(JNIEnv* env, jobject clazz, jint uid, jb
 static const JNINativeMethod methods[] = {
         {"getUidForName", "(Ljava/lang/String;)I", (void*)android_os_Process_getUidForName},
         {"getGidForName", "(Ljava/lang/String;)I", (void*)android_os_Process_getGidForName},
-        {"setThreadPriority", "(II)V", (void*)android_os_Process_setThreadPriority},
         {"setThreadScheduler", "(III)V", (void*)android_os_Process_setThreadScheduler},
-        {"setCanSelfBackground", "(Z)V", (void*)android_os_Process_setCanSelfBackground},
-        {"setThreadPriority", "(I)V", (void*)android_os_Process_setCallingThreadPriority},
+        // @FastNative
+        {"setThreadPriorityNative", "(II)V", (void*)android_os_Process_setThreadPriorityNative},
+        // @FastNative
         {"getThreadPriority", "(I)I", (void*)android_os_Process_getThreadPriority},
         {"getThreadScheduler", "(I)I", (void*)android_os_Process_getThreadScheduler},
         {"setThreadGroup", "(II)V", (void*)android_os_Process_setThreadGroup},
@@ -1525,7 +1504,10 @@ static const JNINativeMethod methods[] = {
         {"sendSignalThrows", "(II)V", (void*)android_os_Process_sendSignalThrows},
         {"sendTgSignalThrows", "(III)V", (void*)android_os_Process_sendTgSignalThrows},
         {"setProcessFrozen", "(IIZ)V", (void*)android_os_Process_setProcessFrozen},
-        {"getFreeMemory", "()J", (void*)android_os_Process_getFreeMemory},
+        {"isProcessFrozen", "(II)Z", (void*)android_os_Process_isProcessFrozen},
+        {"getFreeMemory", "()J", (void*)android_os_Process_getAvailableMemory},
+        {"getMemAvailable", "()J", (void*)android_os_Process_getAvailableMemory},
+        {"getMemFree", "()J", (void*)android_os_Process_getFreeMemory},
         {"getTotalMemory", "()J", (void*)android_os_Process_getTotalMemory},
         {"readProcLines", "(Ljava/lang/String;[Ljava/lang/String;[J)V",
          (void*)android_os_Process_readProcLines},

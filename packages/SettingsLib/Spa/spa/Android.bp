@@ -26,16 +26,14 @@ android_library {
     static_libs: [
         "MPAndroidChart",
         "SettingsLibColor",
-        "aconfig_settingstheme_exported_flags_java_lib",
         "androidx.compose.animation_animation",
         "androidx.compose.material3_material3",
         "androidx.compose.material_material-icons-extended",
         "androidx.compose.runtime_runtime",
-        "androidx.compose.runtime_runtime-livedata",
         "androidx.compose.ui_ui-tooling-preview",
-        "androidx.lifecycle_lifecycle-livedata-ktx",
         "androidx.lifecycle_lifecycle-runtime-compose",
         "androidx.navigation_navigation-compose",
+        "androidx.window_window",
         "com.google.android.material_material",
         "lottie_compose",
     ],
@@ -44,11 +42,4 @@ android_library {
     ],
     sdk_version: "current",
     min_sdk_version: "31",
-}
-
-// Expose the srcs to tests, so the tests can access the internal classes.
-filegroup {
-    name: "SpaLib_srcs",
-    visibility: ["//frameworks/base/packages/SettingsLib/Spa/tests"],
-    srcs: ["src/**/*.kt"],
 }

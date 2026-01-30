@@ -34,7 +34,10 @@ import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
+import android.os.HandlerExecutor;
 import android.os.PowerManager;
+import android.os.PowerManager.ScreenTimeoutPolicy;
+import android.os.PowerManager.ScreenTimeoutPolicyListener;
 import android.util.ArraySet;
 import android.util.Dumpable;
 import android.util.Slog;
@@ -75,9 +78,6 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
     private final FeatureFlags mFeatureFlags;
     private final DisplayInfo mDefaultDisplayInfo = new DisplayInfo();
 
-    @PowerManager.ScreenTimeoutPolicy
-    private volatile int mScreenTimeoutPolicy;
-
     /**
      * Creates {@link BookStyleClosedStatePredicate}. It is expected that the device has a pair
      * of accelerometer sensors (one for each movable part of the device), see parameter
@@ -115,7 +115,7 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
         final Sensor orientationSensor = sensorManager.getDefaultSensor(
                 Sensor.TYPE_DEVICE_ORIENTATION);
 
-        mPostureEstimator = new PostureEstimator(mHandler, sensorManager,
+        mPostureEstimator = new PostureEstimator(mHandler, mFeatureFlags, sensorManager,
                 leftAccelerometerSensor, rightAccelerometerSensor, orientationSensor,
                 updatesListener::onClosedStateUpdated);
     }
@@ -127,8 +127,8 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
     public void init() {
         if (mFeatureFlags.forceFoldablesTentModeWithScreenWakelock()) {
             try {
-                mPowerManager.addScreenTimeoutPolicyListener(DEFAULT_DISPLAY, Runnable::run,
-                        new ScreenTimeoutPolicyListener());
+                mPowerManager.addScreenTimeoutPolicyListener(DEFAULT_DISPLAY,
+                        new HandlerExecutor(mHandler), mPostureEstimator);
             } catch (IllegalStateException exception) {
                 // TODO: b/389613319 - remove after removing the screen timeout policy API flagging
                 Slog.e(TAG, "Error subscribing to the screen timeout policy changes");
@@ -149,22 +149,13 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
 
         mPostureEstimator.onDeviceClosedStatusChanged(hingeAngle == ANGLE_0);
 
-        final boolean isLikelyTentOrWedgeMode = mPostureEstimator.isLikelyTentOrWedgeMode()
-                || shouldForceTentOrWedgeMode();
+        final boolean isLikelyTentOrWedgeMode = mPostureEstimator.isLikelyTentOrWedgeMode();
 
         final PreferredScreen preferredScreen = mClosedStateCalculator.
                 calculatePreferredScreen(hingeAngle, isLikelyTentOrWedgeMode,
                         mPostureEstimator.isLikelyReverseWedgeMode(hingeAngle));
 
         return preferredScreen == OUTER;
-    }
-
-    private boolean shouldForceTentOrWedgeMode() {
-        if (!mFeatureFlags.forceFoldablesTentModeWithScreenWakelock()) {
-            return false;
-        }
-
-        return mScreenTimeoutPolicy == PowerManager.SCREEN_TIMEOUT_KEEP_DISPLAY_ON;
     }
 
     private HingeAngle hingeAngleFromFloat(float hingeAngle) {
@@ -204,7 +195,6 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
     @Override
     public void dump(@NonNull PrintWriter writer, @Nullable String[] args) {
         writer.println("  " + getDumpableName());
-        writer.println("  mScreenTimeoutPolicy=" + mScreenTimeoutPolicy);
         mPostureEstimator.dump(writer, args);
         mClosedStateCalculator.dump(writer, args);
     }
@@ -213,19 +203,11 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
         void onClosedStateUpdated();
     }
 
-    private class ScreenTimeoutPolicyListener implements
-            PowerManager.ScreenTimeoutPolicyListener {
-        @Override
-        public void onScreenTimeoutPolicyChanged(int screenTimeoutPolicy) {
-            // called from the binder thread
-            mScreenTimeoutPolicy = screenTimeoutPolicy;
-        }
-    }
-
     /**
      * Estimates if the device is going to enter wedge/tent mode based on the sensor data
      */
-    private static class PostureEstimator implements SensorEventListener, Dumpable {
+    private static class PostureEstimator implements SensorEventListener,
+            ScreenTimeoutPolicyListener, Dumpable {
 
         private static final String FLAT_INCLINATION_THRESHOLD_DEGREES_PROPERTY
                 = "persist.foldable_postures.wedge_inclination_threshold_degrees";
@@ -245,9 +227,10 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
         @Nullable
         private final Sensor mRightAccelerometerSensor;
         private final Sensor mOrientationSensor;
-        private final Runnable mOnSensorUpdatedListener;
+        private final Runnable mOnEstimationChanged;
 
         private final ConditionSensorListener mConditionedSensorListener;
+        private final FeatureFlags mFeatureFlags;
 
         @Nullable
         private float[] mRightGravityVector;
@@ -261,17 +244,22 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
         @Nullable
         private SensorEvent mLastDeviceOrientationSensorEvent = null;
 
+        @ScreenTimeoutPolicy
+        private int mScreenTimeoutPolicy = PowerManager.SCREEN_TIMEOUT_ACTIVE;
+
         private boolean mScreenTurnedOn = false;
         private boolean mDeviceClosed = false;
 
-        public PostureEstimator(Handler handler, SensorManager sensorManager,
-                @Nullable Sensor leftAccelerometerSensor, @Nullable Sensor rightAccelerometerSensor,
-                Sensor orientationSensor, Runnable onSensorUpdated) {
+        public PostureEstimator(Handler handler, FeatureFlags featureFlags,
+                SensorManager sensorManager, @Nullable Sensor leftAccelerometerSensor,
+                @Nullable Sensor rightAccelerometerSensor, Sensor orientationSensor,
+                Runnable onEstimationChanged) {
             mLeftAccelerometerSensor = leftAccelerometerSensor;
             mRightAccelerometerSensor = rightAccelerometerSensor;
             mOrientationSensor = orientationSensor;
 
-            mOnSensorUpdatedListener = onSensorUpdated;
+            mFeatureFlags = featureFlags;
+            mOnEstimationChanged = onEstimationChanged;
 
             final List<SensorSubscription> sensorSubscriptions = new ArrayList<>();
             if (mLeftAccelerometerSensor != null) {
@@ -320,12 +308,22 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
                 mLastDeviceOrientationSensorEvent = event;
             }
 
-            mOnSensorUpdatedListener.run();
+            mOnEstimationChanged.run();
         }
 
         @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
 
+        }
+
+        /**
+         * Called from {@link BookStyleClosedStatePredicate#mHandler}'s thread
+         * (system server's main thread)
+         */
+        @Override
+        public void onScreenTimeoutPolicyChanged(int screenTimeoutPolicy) {
+            mScreenTimeoutPolicy = screenTimeoutPolicy;
+            mOnEstimationChanged.run();
         }
 
         private void setNewValueWithHighPassFilter(float[] output, float[] newValues) {
@@ -345,9 +343,12 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
         }
 
         /**
-         * Returns true if the phone is likely in tent or wedge mode when unfolding. Tent mode
-         * is detected by checking if the phone is in seascape position, screen is rotated to
-         * landscape or seascape, or if the right side of the device is mostly flat.
+         * Returns true if the phone is likely in tent or wedge mode when unfolding.
+         * Tent/wedge mode is detected by checking if:
+         *  - the phone is in seascape position
+         *  - screen is rotated to landscape or seascape
+         *  - if the right side of the device is mostly flat
+         *  - if there is an active screen wake lock
          */
         public boolean isLikelyTentOrWedgeMode() {
             boolean isScreenLandscapeOrSeascape = Objects.equals(mLastScreenRotation,
@@ -366,6 +367,11 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
             boolean isSensorSeaScape = Objects.equals(getOrientationSensorRotation(),
                     Surface.ROTATION_270);
             if (isSensorSeaScape) {
+                return true;
+            }
+
+            if (mFeatureFlags.forceFoldablesTentModeWithScreenWakelock()
+                    && mScreenTimeoutPolicy == PowerManager.SCREEN_TIMEOUT_KEEP_DISPLAY_ON) {
                 return true;
             }
 
@@ -414,6 +420,7 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
          */
         public void onDisplayRotationChanged(int rotation) {
             mLastScreenRotation = rotation;
+            mOnEstimationChanged.run();
         }
 
         /**
@@ -430,6 +437,7 @@ public class BookStyleClosedStatePredicate implements Predicate<FoldableDeviceSt
             writer.println("      isLikelyTentOrWedgeMode = " + isLikelyTentOrWedgeMode());
             writer.println("      mScreenTurnedOn = " + mScreenTurnedOn);
             writer.println("      mLastScreenRotation = " + mLastScreenRotation);
+            writer.println("      mScreenTimeoutPolicy=" + mScreenTimeoutPolicy);
             writer.println("      mDeviceClosed = " + mDeviceClosed);
             writer.println("      mLeftGravityVector = " + Arrays.toString(mLeftGravityVector));
             writer.println("      mRightGravityVector = " + Arrays.toString(mRightGravityVector));

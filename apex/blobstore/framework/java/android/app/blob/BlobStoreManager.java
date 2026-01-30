@@ -15,6 +15,8 @@
  */
 package android.app.blob;
 
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
+
 import android.annotation.BytesLong;
 import android.annotation.CallbackExecutor;
 import android.annotation.CurrentTimeMillisLong;
@@ -22,9 +24,11 @@ import android.annotation.IdRes;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.content.Context;
+import android.os.Build;
 import android.os.LimitExceededException;
 import android.os.ParcelFileDescriptor;
 import android.os.ParcelableException;
@@ -142,6 +146,8 @@ import java.util.function.Consumer;
  *     }
  * </pre>
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @SystemService(Context.BLOB_STORE_SERVICE)
 public class BlobStoreManager {
     /** @hide */

@@ -16,9 +16,6 @@
 
 package com.android.systemui.statusbar.notification.row
 
-import android.app.Flags.FLAG_COMPACT_HEADS_UP_NOTIFICATION
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -48,13 +45,6 @@ class HeadsUpStyleProviderImplTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(FLAG_COMPACT_HEADS_UP_NOTIFICATION)
-    fun shouldApplyCompactStyle_returnsFalse_whenCompactFlagDisabled() {
-        assertThat(headsUpStyleProvider.shouldApplyCompactStyle()).isFalse()
-    }
-
-    @Test
-    @EnableFlags(FLAG_COMPACT_HEADS_UP_NOTIFICATION)
     fun shouldApplyCompactStyle_returnsTrue_whenImmersiveModeEnabled() {
         // GIVEN
         statusBarModeRepositoryStore.defaultDisplay.isInFullscreenMode.value = true
@@ -64,7 +54,6 @@ class HeadsUpStyleProviderImplTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_COMPACT_HEADS_UP_NOTIFICATION)
     fun shouldApplyCompactStyle_returnsFalse_whenImmersiveModeDisabled() {
         // GIVEN
         statusBarModeRepositoryStore.defaultDisplay.isInFullscreenMode.value = false

@@ -26,6 +26,8 @@ public class ProcessMemInfo {
     long pss;
     long swapPss;
     long memtrack;
+    long dmabufRss;
+    long dmabufPss;
 
     public ProcessMemInfo(String _name, int _pid, int _oomAdj, int _procState,
             String _adjType, String _adjReason) {

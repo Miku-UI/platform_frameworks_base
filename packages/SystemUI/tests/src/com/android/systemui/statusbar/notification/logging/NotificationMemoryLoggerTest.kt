@@ -20,10 +20,12 @@ import android.app.Notification
 import android.app.StatsManager
 import android.graphics.Bitmap
 import android.graphics.drawable.Icon
+import android.platform.test.flag.junit.FlagsParameterization
+import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import android.stats.sysui.NotificationEnums
 import android.util.StatsEvent
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DO_NOT_USE_RUN_BLOCKING
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.assertLogsWtf
 import com.android.systemui.shared.system.SysUiStatsLog
@@ -35,7 +37,6 @@ import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Expect
 import com.google.common.truth.Truth.assertThat
-import java.lang.RuntimeException
 import kotlinx.coroutines.Dispatchers
 import org.junit.Before
 import org.junit.Rule
@@ -44,10 +45,13 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
+
 
 @SmallTest
-@RunWith(AndroidJUnit4::class)
-class NotificationMemoryLoggerTest : SysuiTestCase() {
+@RunWith(ParameterizedAndroidJunit4::class)
+class NotificationMemoryLoggerTest(flags: FlagsParameterization) : SysuiTestCase() {
 
     @Rule @JvmField val expect = Expect.create()
 
@@ -55,6 +59,19 @@ class NotificationMemoryLoggerTest : SysuiTestCase() {
     private val immediate = Dispatchers.Main.immediate
 
     @Mock private lateinit var statsManager: StatsManager
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return allCombinationsOf(FLAG_DO_NOT_USE_RUN_BLOCKING)
+        }
+    }
+
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
+
 
     @Before
     fun setUp() {

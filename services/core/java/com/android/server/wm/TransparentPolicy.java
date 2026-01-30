@@ -338,9 +338,6 @@ class TransparentPolicy {
             if (task == null || task.getWindowingMode() == WINDOWING_MODE_FREEFORM) {
                 return false;
             }
-            if (!mActivityRecord.mWmService.mFlags.mRespectNonTopVisibleFixedOrientation) {
-                return true;
-            }
             // Do not enable the policy if the activity can affect display orientation.
             final int orientation = mActivityRecord.getOverrideOrientation();
             return orientation == SCREEN_ORIENTATION_UNSPECIFIED

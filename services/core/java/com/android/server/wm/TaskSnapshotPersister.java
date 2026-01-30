@@ -26,10 +26,10 @@ import android.window.TaskSnapshot;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.pm.UserManagerInternal;
-import com.android.window.flags.Flags;
 
 import java.io.File;
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 /**
  * Persists {@link TaskSnapshot}s to disk.
@@ -51,7 +51,7 @@ class TaskSnapshotPersister extends BaseAppSnapshotPersister {
             PersistInfoProvider persistInfoProvider,
             boolean disableSnapshots) {
         super(persistQueue, persistInfoProvider);
-        mDisableSnapshots = Flags.checkDisabledSnapshotsInTaskPersister() && disableSnapshots;
+        mDisableSnapshots = disableSnapshots;
     }
 
     /**
@@ -68,6 +68,21 @@ class TaskSnapshotPersister extends BaseAppSnapshotPersister {
         synchronized (mLock) {
             mPersistedTaskIdsSinceLastRemoveObsolete.add(taskId);
             super.persistSnapshot(taskId, userId, snapshot);
+        }
+    }
+
+    /**
+     * Persists a snapshot of a task to disk.
+     *
+     * @param taskId The id of the task that needs to be persisted.
+     * @param userId The id of the user this tasks belongs to.
+     * @param snapshot The snapshot to persist.
+     */
+    void persistSnapshotAndConvert(int taskId, int userId, TaskSnapshot snapshot,
+            Consumer<LowResSnapshotSupplier> lowResSnapshotConsumer) {
+        synchronized (mLock) {
+            mPersistedTaskIdsSinceLastRemoveObsolete.add(taskId);
+            super.persistSnapshotAndConvert(taskId, userId, snapshot, lowResSnapshotConsumer);
         }
     }
 

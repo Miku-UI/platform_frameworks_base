@@ -16,8 +16,8 @@
 
 package com.android.wm.shell.pip2.phone;
 
+import static android.app.WindowConfiguration.ROTATION_UNDEFINED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
-import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
 import static android.view.Surface.ROTATION_0;
 import static android.view.Surface.ROTATION_270;
 import static android.view.Surface.ROTATION_90;
@@ -33,10 +33,11 @@ import static com.android.wm.shell.pip2.phone.transition.PipTransitionUtils.getF
 import static com.android.wm.shell.pip2.phone.transition.PipTransitionUtils.getLeash;
 import static com.android.wm.shell.pip2.phone.transition.PipTransitionUtils.getPipChange;
 import static com.android.wm.shell.pip2.phone.transition.PipTransitionUtils.getPipParams;
+import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_EXIT_PIP;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_EXIT_PIP_TO_SPLIT;
+import static com.android.wm.shell.transition.Transitions.TRANSIT_PIP_BOUNDS_CHANGE;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_REMOVE_PIP;
-import static com.android.wm.shell.transition.Transitions.TRANSIT_RESIZE_PIP;
 import static com.android.wm.shell.transition.Transitions.transitTypeToString;
 
 import android.animation.ValueAnimator;
@@ -62,6 +63,7 @@ import android.window.WindowContainerTransaction;
 
 import androidx.annotation.Nullable;
 
+import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.Preconditions;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.ComponentUtils;
@@ -78,9 +80,12 @@ import com.android.wm.shell.pip.PipTransitionController;
 import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.pip2.animation.PipAlphaAnimator;
 import com.android.wm.shell.pip2.animation.PipEnterAnimator;
+import com.android.wm.shell.pip2.phone.transition.ContentPipHandler;
+import com.android.wm.shell.pip2.phone.transition.PipDisplayChangeObserver;
 import com.android.wm.shell.pip2.phone.transition.PipExpandHandler;
 import com.android.wm.shell.pip2.phone.transition.PipTransitionUtils;
 import com.android.wm.shell.shared.TransitionUtil;
+import com.android.wm.shell.shared.pip.PipFlags;
 import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.sysui.ShellInit;
 import com.android.wm.shell.transition.Transitions;
@@ -91,7 +96,8 @@ import java.util.Optional;
  * Implementation of transitions for PiP on phone.
  */
 public class PipTransition extends PipTransitionController implements
-        PipTransitionState.PipTransitionStateChangedListener {
+        PipTransitionState.PipTransitionStateChangedListener,
+        PipDisplayLayoutState.DisplayIdListener {
     private static final String TAG = PipTransition.class.getSimpleName();
 
     // Used when for ENTERING_PIP state update.
@@ -110,12 +116,13 @@ public class PipTransition extends PipTransitionController implements
     // Dependencies
     //
 
-    private final Context mContext;
+    private Context mContext;
     private final PipTaskListener mPipTaskListener;
     private final PipScheduler mPipScheduler;
     private final PipTransitionState mPipTransitionState;
     private final PipDisplayLayoutState mPipDisplayLayoutState;
     private final DisplayController mDisplayController;
+    private final Optional<SplitScreenController> mSplitScreenControllerOptional;
     private final PipSurfaceTransactionHelper mPipSurfaceTransactionHelper;
     private final PipDesktopState mPipDesktopState;
     private final Optional<DesktopPipTransitionController> mDesktopPipTransitionController;
@@ -130,7 +137,7 @@ public class PipTransition extends PipTransitionController implements
     @Nullable
     private IBinder mExitViaExpandTransition;
     @Nullable
-    private IBinder mResizeTransition;
+    private IBinder mBoundsChangeTransition;
     private int mBoundsChangeDuration = BOUNDS_CHANGE_JUMPCUT_DURATION;
     private boolean mPendingRemoveWithFadeout;
 
@@ -139,6 +146,8 @@ public class PipTransition extends PipTransitionController implements
     // Internal state and relevant cached info
     //
     private final PipExpandHandler mExpandHandler;
+    private final ContentPipHandler mContentPipHandler;
+    private final PipDisplayChangeObserver mPipDisplayChangeObserver;
 
     private Transitions.TransitionFinishCallback mFinishCallback;
 
@@ -148,6 +157,7 @@ public class PipTransition extends PipTransitionController implements
 
     public PipTransition(
             Context context,
+            @NonNull PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
             @NonNull ShellInit shellInit,
             @NonNull ShellTaskOrganizer shellTaskOrganizer,
             @NonNull Transitions transitions,
@@ -174,22 +184,36 @@ public class PipTransition extends PipTransitionController implements
         mPipTransitionState = pipTransitionState;
         mPipTransitionState.addPipTransitionStateChangedListener(this);
         mPipDisplayLayoutState = pipDisplayLayoutState;
+        mPipDisplayLayoutState.addDisplayIdListener(this);
         mDisplayController = displayController;
-        mPipSurfaceTransactionHelper = new PipSurfaceTransactionHelper(mContext);
+        mSplitScreenControllerOptional = splitScreenControllerOptional;
+        mPipSurfaceTransactionHelper = pipSurfaceTransactionHelper;
         mPipDesktopState = pipDesktopState;
         mDesktopPipTransitionController = desktopPipTransitionController;
         mPipInteractionHandler = pipInteractionHandler;
 
-        mExpandHandler = new PipExpandHandler(mContext, pipBoundsState, pipBoundsAlgorithm,
-                pipTransitionState, pipDisplayLayoutState, pipInteractionHandler,
-                splitScreenControllerOptional);
+        mExpandHandler = new PipExpandHandler(mContext, mPipSurfaceTransactionHelper,
+                pipBoundsState, pipBoundsAlgorithm,
+                pipTransitionState, pipDisplayLayoutState, pipDesktopState, pipInteractionHandler,
+                pipScheduler, splitScreenControllerOptional, displayController);
+        mContentPipHandler = new ContentPipHandler(mContext, mPipSurfaceTransactionHelper,
+                pipTransitionState);
+        mPipDisplayChangeObserver = new PipDisplayChangeObserver(pipTransitionState,
+                pipBoundsState);
     }
 
     @Override
     protected void onInit() {
-        if (PipUtils.isPip2ExperimentEnabled()) {
+        if (PipFlags.isPip2ExperimentEnabled()) {
             mTransitions.addHandler(this);
+            mTransitions.registerObserver(mPipDisplayChangeObserver);
         }
+    }
+
+    @Override
+    public void onDisplayIdChanged(@NonNull Context context) {
+        mContext = context;
+        mExpandHandler.onDisplayIdChanged(context);
     }
 
     @Override
@@ -202,16 +226,19 @@ public class PipTransition extends PipTransitionController implements
     //
 
     @Override
-    public void startExpandTransition(WindowContainerTransaction out, boolean toSplit) {
-        if (out == null) return;
+    public void startExpandTransition(
+            WindowContainerTransaction wct, boolean toSplit, boolean hasFirstHandler) {
+        if (wct == null) return;
         mPipTransitionState.setState(PipTransitionState.EXITING_PIP);
+        // If PiP wasn't visible, we don't necessarily want to animate using this handler, so we
+        // only force it if it was visible.
+        Transitions.TransitionHandler handler = hasFirstHandler ? this : null;
         mExitViaExpandTransition = mTransitions.startTransition(toSplit ? TRANSIT_EXIT_PIP_TO_SPLIT
-                : TRANSIT_EXIT_PIP, out, this);
+                : TRANSIT_EXIT_PIP, wct, handler);
     }
 
     @Override
-    public void startRemoveTransition(boolean withFadeout) {
-        final WindowContainerTransaction wct = getRemovePipTransaction();
+    public void startRemoveTransition(WindowContainerTransaction wct, boolean withFadeout) {
         if (wct == null) return;
         mPipTransitionState.setState(PipTransitionState.EXITING_PIP);
         mPendingRemoveWithFadeout = withFadeout;
@@ -219,11 +246,12 @@ public class PipTransition extends PipTransitionController implements
     }
 
     @Override
-    public void startResizeTransition(WindowContainerTransaction wct, int duration) {
+    public void startPipBoundsChangeTransition(WindowContainerTransaction wct, int duration) {
         if (wct == null) {
             return;
         }
-        mResizeTransition = mTransitions.startTransition(TRANSIT_RESIZE_PIP, wct, this);
+        mBoundsChangeTransition = mTransitions.startTransition(TRANSIT_PIP_BOUNDS_CHANGE, wct,
+                this);
         mBoundsChangeDuration = duration;
     }
 
@@ -231,8 +259,13 @@ public class PipTransition extends PipTransitionController implements
     @Override
     public WindowContainerTransaction handleRequest(@NonNull IBinder transition,
             @NonNull TransitionRequestInfo request) {
+        if (mPipTransitionState.getState() == PipTransitionState.SCHEDULED_ENTER_PIP) {
+            // An enter PiP transition has already been scheduled and is waiting to be played.
+            return null;
+        }
         if (isAutoEnterInButtonNavigation(request) || isEnterPictureInPictureModeRequest(request)) {
             mEnterTransition = transition;
+            mPipTransitionState.setState(PipTransitionState.SCHEDULED_ENTER_PIP);
             final WindowContainerTransaction wct = getEnterPipTransaction(transition,
                     request.getPipChange());
 
@@ -246,6 +279,14 @@ public class PipTransition extends PipTransitionController implements
             );
             return wct;
         }
+
+        final WindowContainerTransaction exitViaExpandWct = mExpandHandler.handleRequest(transition,
+                request);
+        if (exitViaExpandWct != null) {
+            mExitViaExpandTransition = transition;
+            return exitViaExpandWct;
+        }
+
         return null;
     }
 
@@ -256,6 +297,7 @@ public class PipTransition extends PipTransitionController implements
             outWct.merge(getEnterPipTransaction(transition, request.getPipChange()),
                     true /* transfer */);
             mEnterTransition = transition;
+            mPipTransitionState.setState(PipTransitionState.SCHEDULED_ENTER_PIP);
         }
     }
 
@@ -278,7 +320,12 @@ public class PipTransition extends PipTransitionController implements
 
     @Override
     public void onTransitionConsumed(@NonNull IBinder transition, boolean aborted,
-            @Nullable SurfaceControl.Transaction finishT) {}
+            @Nullable SurfaceControl.Transaction finishT) {
+        if (aborted && (transition == mBoundsChangeTransition
+                || mPipTransitionState.getState() == PipTransitionState.SCHEDULED_ENTER_PIP)) {
+            onTransitionAborted();
+        }
+    }
 
     @Override
     public boolean startAnimation(@NonNull IBinder transition,
@@ -293,11 +340,22 @@ public class PipTransition extends PipTransitionController implements
             TransitionInfo.Change pipChange = getPipChange(info);
 
             // If there is no PiP change, exit this transition handler and potentially try others.
-            if (pipChange == null) return false;
+            if (pipChange == null) {
+                Log.wtf(TAG, String.format("""
+                        PipTransition did not find a PiP change despite waiting for a scheduled
+                        enter PiP transition.
+                        callers=%s""", Debug.getCallers(4)));
+                onTransitionAborted();
+                return false;
+            }
 
             // Other targets might have default transforms applied that are not relevant when
             // playing PiP transitions, so reset those transforms if needed.
             prepareOtherTargetTransforms(info, startTransaction, finishTransaction);
+
+            // This PiP transition might have caused a previous PiP to be dismissed. If so, we need
+            // to clean up the PiP state.
+            cleanUpPrevPipIfPresent(info, startTransaction, finishTransaction);
 
             // Update the PipTransitionState while supplying the PiP leash and token to be cached.
             Bundle extra = new Bundle();
@@ -305,11 +363,20 @@ public class PipTransition extends PipTransitionController implements
             extra.putParcelable(PIP_TASK_INFO, pipChange.getTaskInfo());
             mPipTransitionState.setState(PipTransitionState.ENTERING_PIP, extra);
 
+            // TRUSTED_OVERLAY is granted iff Shell successfully receives the transition.
+            ProtoLog.d(WM_SHELL_PICTURE_IN_PICTURE,
+                    "Set TRUSTED_OVERLAY for Task#%d", pipChange.getTaskInfo().taskId);
+            startTransaction.setTrustedOverlay(pipChange.getLeash(), true);
+
             if (isInSwipePipToHomeTransition()) {
                 // If this is the second transition as a part of swipe PiP to home cuj,
                 // handle this transition as a special case with no-op animation.
                 return handleSwipePipToHomeTransition(info, startTransaction, finishTransaction,
                         finishCallback);
+            }
+            if (mContentPipHandler.startAnimation(transition, info,
+                    startTransaction, finishTransaction, finishCallback)) {
+                return true;
             }
             if (isLegacyEnter(info)) {
                 // If this is a legacy-enter-pip (auto-enter is off and PiP activity went to pause),
@@ -337,25 +404,56 @@ public class PipTransition extends PipTransitionController implements
             mExitViaExpandTransition = null;
             return mExpandHandler.startAnimation(transition, info, startTransaction,
                     finishTransaction, finishCallback);
-        } else if (transition == mResizeTransition) {
-            mResizeTransition = null;
-            return startResizeAnimation(info, startTransaction, finishTransaction, finishCallback);
+        } else if (transition == mBoundsChangeTransition) {
+            mBoundsChangeTransition = null;
+            return startBoundsChangeAnimation(info, startTransaction, finishTransaction,
+                    finishCallback);
         }
 
         if (isRemovePipTransition(info)) {
             mPipTransitionState.setState(PipTransitionState.EXITING_PIP);
             return startRemoveAnimation(info, startTransaction, finishTransaction, finishCallback);
         }
+
+        if (shouldCleanUp(info)) {
+            ProtoLog.d(WM_SHELL_PICTURE_IN_PICTURE,
+                    "Cleaning up previously pinned task since in a different windowing mode: %s",
+                    mPipTransitionState);
+            cleanUpState(finishCallback);
+            return true;
+        }
+
         // For any unhandled transition, make sure the PiP surface is properly updated,
         // i.e. corner and shadow radius.
         syncPipSurfaceState(info, startTransaction, finishTransaction);
         return false;
     }
 
+    private boolean shouldCleanUp(TransitionInfo info) {
+        // Clean up state if task no longer in PIP windowing mode.
+        TransitionInfo.Change pipChange = getChangeByToken(info,
+                mPipTransitionState.getPipTaskToken());
+        return pipChange != null && pipChange.getTaskInfo() != null
+                && pipChange.getTaskInfo().getWindowingMode() != WINDOWING_MODE_PINNED;
+    }
+
+    @Override
+    public void cleanUpState() {
+        cleanUpState(/* finishCallback= */ null);
+    }
+
+    private void cleanUpState(@Nullable Transitions.TransitionFinishCallback finishCallback) {
+        mFinishCallback = finishCallback;
+        mPipBoundsState.setLastPipComponentName(null /* lastPipComponentName */);
+        mPipTransitionState.setState(PipTransitionState.EXITING_PIP);
+        finishTransition();
+    }
+
     @Override
     public boolean isEnteringPip(@NonNull TransitionInfo.Change change,
             @WindowManager.TransitionType int transitType) {
-        if (change.getTaskInfo() != null
+        if (mPipTransitionState.getState() == PipTransitionState.SCHEDULED_ENTER_PIP
+                && change.getTaskInfo() != null
                 && change.getTaskInfo().getWindowingMode() == WINDOWING_MODE_PINNED) {
             // TRANSIT_TO_FRONT, though uncommon with triggering PiP, should semantically also
             // be allowed to animate if the task in question is pinned already - see b/308054074.
@@ -408,7 +506,7 @@ public class PipTransition extends PipTransitionController implements
     // Animation schedulers and entry points
     //
 
-    private boolean startResizeAnimation(@NonNull TransitionInfo info,
+    private boolean startBoundsChangeAnimation(@NonNull TransitionInfo info,
             @NonNull SurfaceControl.Transaction startTransaction,
             @NonNull SurfaceControl.Transaction finishTransaction,
             @NonNull Transitions.TransitionFinishCallback finishCallback) {
@@ -462,7 +560,10 @@ public class PipTransition extends PipTransitionController implements
         TransitionInfo.Change pipActivityChange = PipTransitionUtils.getDeferConfigActivityChange(
                 info, pipChange.getTaskInfo().getToken());
         if (pipActivityChange == null) {
-            return false;
+            Log.wtf(TAG, String.format("""
+                        PipTransition.handleSwipePipToHomeTransition() didn't detect
+                        a config-at-end PiP activity, so activity leash manipulations are skipped.
+                        transitionInfo=%s, callers=%s""", info, Debug.getCallers(4)));
         }
         mFinishCallback = finishCallback;
 
@@ -494,13 +595,16 @@ public class PipTransition extends PipTransitionController implements
         params.copyOnlySet(
                 new PictureInPictureParams.Builder().setSourceRectHint(sourceRectHint).build());
 
-        // Config-at-end transitions need to have their activities transformed before starting
-        // the animation; this makes the buffer seem like it's been updated to final size.
-        prepareConfigAtEndActivity(startTransaction, finishTransaction, pipChange,
-                pipActivityChange);
+        if (pipActivityChange != null) {
+            // Config-at-end transitions need to have their activities transformed before starting
+            // the animation; this makes the buffer seem like it's been updated to final size.
+            prepareConfigAtEndActivity(startTransaction, finishTransaction, pipChange,
+                    pipActivityChange);
+        }
 
         startTransaction.merge(finishTransaction);
-        PipEnterAnimator animator = new PipEnterAnimator(mContext, pipLeash,
+        PipEnterAnimator animator = new PipEnterAnimator(mContext, mPipSurfaceTransactionHelper,
+                pipLeash,
                 startTransaction, finishTransaction, destinationBounds, delta);
         animator.setEnterStartState(pipChange);
         animator.onEnterAnimationUpdate(1.0f /* fraction */, startTransaction);
@@ -534,6 +638,14 @@ public class PipTransition extends PipTransitionController implements
         if (pipActivityChange == null) {
             return false;
         }
+
+        // In multi-activity case, set the parent's leash to invisible while we're animating to PiP
+        TransitionInfo.Change parentBeforePip = pipActivityChange.getLastParent() != null
+                ? getChangeByToken(info, pipActivityChange.getLastParent()) : null;
+        if (parentBeforePip != null && TransitionUtil.isClosingMode(parentBeforePip.getMode())) {
+            startTransaction.setAlpha(parentBeforePip.getLeash(), 0);
+        }
+
         mFinishCallback = finishCallback;
 
         final SurfaceControl pipLeash = getLeash(pipChange);
@@ -549,7 +661,8 @@ public class PipTransition extends PipTransitionController implements
             updatePipChangesForFixedRotation(info, pipChange, pipActivityChange);
         }
 
-        PipEnterAnimator animator = new PipEnterAnimator(mContext, pipLeash,
+        PipEnterAnimator animator = new PipEnterAnimator(mContext, mPipSurfaceTransactionHelper,
+                pipLeash,
                 startTransaction, finishTransaction, endBounds, delta);
         if (PipBoundsAlgorithm.getValidSourceHintRect(params, startBounds, endBounds) == null) {
             // If app provided src-rect-hint is invalid, use app icon overlay.
@@ -581,10 +694,17 @@ public class PipTransition extends PipTransitionController implements
 
     private void updatePipChangesForFixedRotation(TransitionInfo info,
             TransitionInfo.Change outPipTaskChange,
-            TransitionInfo.Change outPipActivityChange) {
+            @Nullable TransitionInfo.Change outPipActivityChange) {
         final TransitionInfo.Change fixedRotationChange = findFixedRotationChange(info);
-        final Rect endBounds = outPipTaskChange.getEndAbsBounds();
-        final Rect endActivityBounds = outPipActivityChange.getEndAbsBounds();
+        final Rect outEndBounds = outPipTaskChange.getEndAbsBounds();
+
+        final Rect outEndActivityBounds = outPipActivityChange != null
+                ? outPipActivityChange.getEndAbsBounds() : null;
+        // Cache the task to activity offset to potentially restore later.
+        final Point activityEndOffset = outEndActivityBounds != null ? new Point(
+                outEndActivityBounds.left - outEndBounds.left,
+                outEndActivityBounds.top - outEndBounds.top) : null;
+
         int startRotation = outPipTaskChange.getStartRotation();
         int endRotation = fixedRotationChange != null
                 ? fixedRotationChange.getEndFixedRotation() : mPipDisplayLayoutState.getRotation();
@@ -596,18 +716,14 @@ public class PipTransition extends PipTransitionController implements
         // This is used by display change listeners to respond properly to fixed rotation.
         mPipTransitionState.setInFixedRotation(true);
 
-        // Cache the task to activity offset to potentially restore later.
-        Point activityEndOffset = new Point(endActivityBounds.left - endBounds.left,
-                endActivityBounds.top - endBounds.top);
-
         // If we are running a fixed rotation bounds enter PiP animation,
         // then update the display layout rotation, and recalculate the end rotation bounds.
         // Update the endBounds in place, so that the PiP change is up-to-date.
         mPipDisplayLayoutState.rotateTo(endRotation);
         float snapFraction = mPipBoundsAlgorithm.getSnapFraction(
                 mPipBoundsAlgorithm.getEntryDestinationBounds());
-        mPipBoundsAlgorithm.applySnapFraction(endBounds, snapFraction);
-        mPipBoundsState.setBounds(endBounds);
+        mPipBoundsAlgorithm.applySnapFraction(outEndBounds, snapFraction);
+        mPipBoundsState.setBounds(outEndBounds);
 
         // Display bounds were already updated to represent the final orientation,
         // so we just need to readjust the origin, and perform rotation about (0, 0).
@@ -615,12 +731,14 @@ public class PipTransition extends PipTransitionController implements
         Rect displayBounds = mPipDisplayLayoutState.getDisplayBounds();
         int originTranslateX = isClockwise ? 0 : -displayBounds.width();
         int originTranslateY = isClockwise ? -displayBounds.height() : 0;
-        endBounds.offset(originTranslateX, originTranslateY);
+        outEndBounds.offset(originTranslateX, originTranslateY);
 
-        // Update the activity end bounds in place as well, as this is used for transform
-        // calculation later.
-        endActivityBounds.offsetTo(endBounds.left + activityEndOffset.x,
-                endBounds.top + activityEndOffset.y);
+        if (activityEndOffset != null) {
+            // Update the activity end bounds in place as well, as this is used for transform
+            // calculation later.
+            outEndActivityBounds.offsetTo(outEndBounds.left + activityEndOffset.x,
+                    outEndBounds.top + activityEndOffset.y);
+        }
     }
 
     private boolean startAlphaTypeEnterAnimation(@NonNull TransitionInfo info,
@@ -633,10 +751,22 @@ public class PipTransition extends PipTransitionController implements
         }
         mFinishCallback = finishCallback;
 
-        Rect destinationBounds = pipChange.getEndAbsBounds();
-        SurfaceControl pipLeash = mPipTransitionState.getPinnedTaskLeash();
+        final Rect destinationBounds = pipChange.getEndAbsBounds();
+        if (pipChange.getEndRotation() != ROTATION_UNDEFINED
+                && pipChange.getStartRotation() != pipChange.getEndRotation()) {
+            // If we are playing an enter PiP animation with display change collected together
+            // in the same transition, then PipController#onDisplayChange() must have already
+            // updated the PiP bounds state to reflect the final desired destination bounds.
+            // This might not be in the WM state yet as PiP task token might have been null then.
+            // WM state will be updated via a follow-up bounds change transition after.
+            destinationBounds.set(mPipBoundsState.getBounds());
+        }
+
+        final SurfaceControl pipLeash = mPipTransitionState.getPinnedTaskLeash();
         Preconditions.checkNotNull(pipLeash, "Leash is null for alpha transition.");
 
+        // Note that fixed rotation is different from the same transition display change rotation;
+        // with fixed rotation, we expect a follow-up async rotation transition after this one.
         final int delta = getFixedRotationDelta(info, pipChange, mPipDisplayLayoutState);
         if (delta != ROTATION_0) {
             updatePipChangesForFixedRotation(info, pipChange,
@@ -663,9 +793,11 @@ public class PipTransition extends PipTransitionController implements
             finishTransaction.setMatrix(pipLeash, transformTensor, matrixTmp);
         } else {
             startTransaction.setPosition(pipLeash, destinationBounds.left, destinationBounds.top);
+            finishTransaction.setPosition(pipLeash, destinationBounds.left, destinationBounds.top);
         }
 
-        PipAlphaAnimator animator = new PipAlphaAnimator(mContext, pipLeash, startTransaction,
+        PipAlphaAnimator animator = new PipAlphaAnimator(mContext, mPipSurfaceTransactionHelper,
+                pipLeash, startTransaction,
                 finishTransaction, PipAlphaAnimator.FADE_IN);
         // This should update the pip transition state accordingly after we stop playing.
         animator.setAnimationEndCallback(this::finishTransition);
@@ -687,9 +819,13 @@ public class PipTransition extends PipTransitionController implements
             mPipBoundsState.setLastPipComponentName(null /* lastPipComponentName */);
         }
 
+        final Rect startBounds = pipChange.getStartAbsBounds();
+        startTransaction.setWindowCrop(pipChange.getLeash(),
+                startBounds.width(), startBounds.height());
         finishTransaction.setAlpha(pipChange.getLeash(), 0f);
         if (mPendingRemoveWithFadeout) {
-            PipAlphaAnimator animator = new PipAlphaAnimator(mContext, pipChange.getLeash(),
+            PipAlphaAnimator animator = new PipAlphaAnimator(mContext, mPipSurfaceTransactionHelper,
+                    pipChange.getLeash(),
                     startTransaction, finishTransaction, PipAlphaAnimator.FADE_OUT);
             animator.setAnimationEndCallback(this::finishTransition);
             animator.start();
@@ -709,7 +845,7 @@ public class PipTransition extends PipTransitionController implements
     @NonNull
     private Rect getAdjustedSourceRectHint(@NonNull TransitionInfo info,
             @NonNull TransitionInfo.Change pipTaskChange,
-            @NonNull TransitionInfo.Change pipActivityChange) {
+            @Nullable TransitionInfo.Change pipActivityChange) {
         final Rect startBounds = pipTaskChange.getStartAbsBounds();
         final Rect endBounds = pipTaskChange.getEndAbsBounds();
         final PictureInPictureParams params = pipTaskChange.getTaskInfo().pictureInPictureParams;
@@ -719,7 +855,7 @@ public class PipTransition extends PipTransitionController implements
                 endBounds);
 
         final Rect adjustedSourceRectHint = new Rect();
-        if (sourceRectHint != null) {
+        if (sourceRectHint != null && pipActivityChange != null) {
             adjustedSourceRectHint.set(sourceRectHint);
             // If multi-activity PiP, use the parent task before PiP to retrieve display cutouts;
             // then, offset the valid app provided source rect hint by the cutout insets.
@@ -742,7 +878,7 @@ public class PipTransition extends PipTransitionController implements
             // app icon overlay animation.
             float aspectRatio = mPipBoundsAlgorithm.getAspectRatioOrDefault(params);
             adjustedSourceRectHint.set(
-                    PipUtils.getEnterPipWithOverlaySrcRectHint(startBounds, aspectRatio));
+                    PipUtils.getPseudoSourceRectHint(startBounds, aspectRatio));
         }
         return adjustedSourceRectHint;
     }
@@ -767,6 +903,8 @@ public class PipTransition extends PipTransitionController implements
             @NonNull TransitionRequestInfo.PipChange pipChange) {
         // cache the original task token to check for multi-activity case later
         final ActivityManager.RunningTaskInfo pipTask = pipChange.getTaskInfo();
+        mPipTransitionState.setPipCandidateTaskInfo(pipTask);
+
         PictureInPictureParams pipParams = pipTask.pictureInPictureParams;
         mPipTaskListener.setPictureInPictureParams(pipParams);
         mPipBoundsState.setBoundsStateForEntry(pipTask.topActivity, pipTask.topActivityInfo,
@@ -801,19 +939,6 @@ public class PipTransition extends PipTransitionController implements
         WindowContainerTransaction wct = new WindowContainerTransaction();
         wct.movePipActivityToPinnedRootTask(token, entryBounds);
         wct.deferConfigToTransitionEnd(token);
-        return wct;
-    }
-
-    @Nullable
-    private WindowContainerTransaction getRemovePipTransaction() {
-        WindowContainerToken pipTaskToken = mPipTransitionState.getPipTaskToken();
-        if (pipTaskToken == null) {
-            return null;
-        }
-        WindowContainerTransaction wct = new WindowContainerTransaction();
-        wct.setBounds(pipTaskToken, null);
-        wct.setWindowingMode(pipTaskToken, WINDOWING_MODE_UNDEFINED);
-        wct.reorder(pipTaskToken, false);
         return wct;
     }
 
@@ -857,11 +982,12 @@ public class PipTransition extends PipTransitionController implements
 
             // #getEnterPipTransaction() always attempts to mark PiP activity as config-at-end one.
             // However, the activity will only actually be marked config-at-end by Core if it is
-            // both isVisible and isVisibleRequested, which is when we can't run bounds animation.
+            // both isVisible and isVisibleRequested, which is when we can run bounds animation.
             //
             // So we can use the absence of a config-at-end activity as a signal that we should run
             // a legacy-enter PiP animation instead.
-            return TransitionUtil.isOpeningMode(pipChange.getMode())
+            return (TransitionUtil.isOpeningMode(pipChange.getMode())
+                    || pipChange.getMode() == TRANSIT_CHANGE)
                     && PipTransitionUtils.getDeferConfigActivityChange(
                             info, pipChange.getContainer()) == null;
         }
@@ -930,6 +1056,46 @@ public class PipTransition extends PipTransitionController implements
     }
 
     /**
+     * This is called by [startAnimation] when a enter PiP transition is received, and before
+     * mPipTransitionState is updated with the incoming PiP task info. If a change is found
+     * for the previous PiP with change TO_BACK, the previous PiP was dismissed by Core. We want to
+     * update the state in PipTransitionState so everything is cleaned up and also ensure the
+     * previous PiP is no longer visible.
+     */
+    private void cleanUpPrevPipIfPresent(@NonNull TransitionInfo info,
+            @NonNull SurfaceControl.Transaction startTx,
+            @NonNull SurfaceControl.Transaction finishTx) {
+        TransitionInfo.Change previousPipChange = null;
+        TaskInfo previousPipTaskInfo = mPipTransitionState.getPipTaskInfo();
+        if (previousPipTaskInfo == null) {
+            return;
+        }
+
+        for (TransitionInfo.Change change : info.getChanges()) {
+            if (change.getTaskInfo() != null
+                    && change.getTaskInfo().getTaskId() == previousPipTaskInfo.getTaskId()
+                    && TransitionUtil.isClosingMode(change.getMode())) {
+                previousPipChange = change;
+                break;
+            }
+        }
+
+        if (previousPipChange == null) {
+            return;
+        }
+
+        ProtoLog.d(WM_SHELL_PICTURE_IN_PICTURE,
+                "cleanUpPrevPipIfPresent: Previous PiP with taskId=%d found with closing mode, "
+                        + "clean up PiP state",
+                previousPipTaskInfo.getTaskId());
+
+        mPipTransitionState.setState(PipTransitionState.EXITING_PIP);
+        mPipTransitionState.setState(PipTransitionState.EXITED_PIP);
+        startTx.setAlpha(previousPipChange.getLeash(), 0);
+        finishTx.setAlpha(previousPipChange.getLeash(), 0);
+    }
+
+    /**
      * Sets the type of animation to run upon entering PiP.
      *
      * By default, {@link PipTransition} uses various signals from Transitions to figure out
@@ -966,6 +1132,13 @@ public class PipTransition extends PipTransitionController implements
                 nextState = PipTransitionState.EXITED_PIP;
                 break;
         }
+
+        if (nextState == PipTransitionState.UNDEFINED) {
+            Log.wtf(TAG, String.format("""
+                        PipTransitionState resolved to an undefined state in finishTransition().
+                        callers=%s""", Debug.getCallers(4)));
+        }
+
         mPipTransitionState.setState(nextState);
 
         if (mFinishCallback != null) {
@@ -975,6 +1148,49 @@ public class PipTransition extends PipTransitionController implements
             mFinishCallback = null;
             finishCallback.onTransitionFinished(null /* finishWct */);
         }
+    }
+
+    @Override
+    public void onTransitionAborted() {
+        final int currentState = mPipTransitionState.getState();
+        int nextState = PipTransitionState.UNDEFINED;
+        switch (currentState) {
+            case PipTransitionState.SCHEDULED_BOUNDS_CHANGE:
+                nextState = PipTransitionState.CHANGED_PIP_BOUNDS;
+                break;
+            case PipTransitionState.SCHEDULED_ENTER_PIP:
+                if (mPipTransitionState.getPipTaskToken() != null) {
+                    nextState = PipTransitionState.ENTERED_PIP;
+                } else {
+                    removePipCandidateTaskIfNeeded();
+                    nextState = PipTransitionState.EXITED_PIP;
+                }
+                break;
+        }
+
+        if (nextState == PipTransitionState.UNDEFINED) {
+            Log.wtf(TAG, String.format("""
+                        PipTransitionState resolved to an undefined state in abortTransition().
+                        callers=%s""", Debug.getCallers(4)));
+        }
+
+        mPipTransitionState.setState(nextState);
+    }
+
+    private void removePipCandidateTaskIfNeeded() {
+        if (mPipTransitionState.getState() != PipTransitionState.SCHEDULED_ENTER_PIP
+                || mPipTransitionState.getPipCandidateTaskInfo() == null
+                || mPipTransitionState.getPipCandidateTaskInfo().getToken() == null) {
+            return;
+        }
+
+        // Enter PiP was scheduled but PiP handler didn't handle it properly.
+        // So try to remove the PiP candidate we had received via transition request,
+        // because Core might have put the activity in PiP and not resolved the task as a target
+        // (this could happen if the display is asleep, which disqualifies PiP task as invisible).
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        wct.removeTask(mPipTransitionState.getPipCandidateTaskInfo().getToken());
+        mTransitions.startTransition(TRANSIT_CLOSE, wct, null);
     }
 
     @Override
@@ -994,10 +1210,16 @@ public class PipTransition extends PipTransitionController implements
 
                 Preconditions.checkState(hasValidTokenAndLeash,
                         "Unexpected bundle for " + mPipTransitionState);
+                mPipInteractionHandler.begin(mPipTransitionState.getPinnedTaskLeash(),
+                        PipInteractionHandler.INTERACTION_ENTER_PIP);
+                break;
+            case PipTransitionState.ENTERED_PIP:
+                mPipInteractionHandler.end();
                 break;
             case PipTransitionState.EXITED_PIP:
                 mPipTransitionState.setPinnedTaskLeash(null);
                 mPipTransitionState.setPipTaskInfo(null);
+                mPipTransitionState.setPipCandidateTaskInfo(null);
                 mPendingRemoveWithFadeout = false;
                 break;
         }
@@ -1008,5 +1230,12 @@ public class PipTransition extends PipTransitionController implements
         final TaskInfo inPipTask = mPipTransitionState.getPipTaskInfo();
         return packageName != null && inPipTask != null && mPipTransitionState.isInPip()
                 && packageName.equals(ComponentUtils.getPackageName(inPipTask.baseIntent));
+    }
+
+    @Override
+    public boolean isTaskActiveInPip(int taskId) {
+        final TaskInfo inPipTask = mPipTransitionState.getPipTaskInfo();
+        return inPipTask != null && mPipTransitionState.isInPip()
+                && taskId == inPipTask.getTaskId();
     }
 }

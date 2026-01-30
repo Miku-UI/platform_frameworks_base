@@ -17,6 +17,7 @@
 package com.android.compose.animation.scene.mechanics
 
 import androidx.annotation.VisibleForTesting
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.ElementKey
@@ -51,11 +52,13 @@ internal class TransitionScopedMechanicsAdapter(
     private val computeInput: MotionValueInput = { progress, _, _ -> progress },
     private val stableThreshold: Float = MotionValue.StableThresholdEffect,
     private val label: String? = null,
-    private val createSpec: SpecFactory,
+    private val getSpec: SpecFactory,
 ) {
 
     private val input = mutableFloatStateOf(0f)
     private var motionValue: MotionValue? = null
+    private var transformationContent: ContentKey? = null
+    private var transformationElement: ElementKey? = null
 
     fun PropertyTransformationScope.update(
         content: ContentKey,
@@ -68,22 +71,31 @@ internal class TransitionScopedMechanicsAdapter(
         var motionValue = motionValue
 
         if (motionValue == null) {
+            transformationContent = content
+            transformationElement = element
             motionValue =
                 MotionValue(
-                    input::floatValue,
-                    transition.gestureContext
-                        ?: ProvidedGestureContext(
-                            0f,
-                            appearDirection(content, element, transition),
-                        ),
-                    createSpec(content, element),
-                    stableThreshold = stableThreshold,
+                    input = { input.floatValue },
+                    gestureContext =
+                        transition.gestureContext
+                            ?: ProvidedGestureContext(
+                                0f,
+                                appearDirection(content, element, transition),
+                            ),
+                    spec = derivedStateOf { getSpec(content, element) }::value,
                     label = label,
+                    stableThreshold = stableThreshold,
                 )
+
             this@TransitionScopedMechanicsAdapter.motionValue = motionValue
 
             transitionScope.launch {
                 motionValue.keepRunningWhile { !transition.isProgressStable || !isStable }
+            }
+        } else {
+            check(content == transformationContent && element == transformationElement) {
+                "update received ($content, $element), " +
+                    "instead of ($transformationContent, $transformationElement)"
             }
         }
 

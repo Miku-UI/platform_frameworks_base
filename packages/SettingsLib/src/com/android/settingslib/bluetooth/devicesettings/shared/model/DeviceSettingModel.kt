@@ -67,6 +67,17 @@ sealed interface DeviceSettingModel {
         val intent: Intent,
     ) : DeviceSettingModel
 
+    /** Models a device setting which should be displayed as a banner preference. */
+    data class BannerPreference(
+        override val cachedDevice: CachedBluetoothDevice,
+        @DeviceSettingId override val id: Int,
+        val title: String,
+        val message: String,
+        val icon: DeviceSettingIcon? = null,
+        val positiveButton: ButtonModel? = null,
+        val negativeButton: ButtonModel? = null,
+    ) : DeviceSettingModel
+
     /** Models an unknown preference. */
     data class Unknown(
         override val cachedDevice: CachedBluetoothDevice,
@@ -76,6 +87,9 @@ sealed interface DeviceSettingModel {
 
 /** Models a toggle in [DeviceSettingModel.MultiTogglePreference]. */
 data class ToggleModel(val label: String, val icon: DeviceSettingIcon)
+
+/** Models a button in [DeviceSettingModel.BannerPreference]. */
+data class ButtonModel(val label: String, val action: DeviceSettingActionModel?)
 
 /** Models an icon in device settings. */
 sealed interface DeviceSettingIcon {

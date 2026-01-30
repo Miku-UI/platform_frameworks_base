@@ -20,15 +20,23 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.ravenwood.RavenwoodRule;
 import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
+import java.util.IdentityHashMap;
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -38,8 +46,10 @@ import java.util.ArrayList;
 @Presubmit
 @RunWith(AndroidJUnit4.class)
 public class ParcelTest {
+    @Rule public final RavenwoodRule mRavenwood = new RavenwoodRule();
+
     @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule();
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private static final int WORK_SOURCE_1 = 1000;
     private static final int WORK_SOURCE_2 = 1002;
@@ -108,14 +118,16 @@ public class ParcelTest {
         p.recycle();
     }
 
-    /**
-     * Verify that writing/reading UTF-8 and UTF-16 strings works well.
-     */
+    /** Verify that writing/reading UTF-8 and UTF-16 strings works well. */
     @Test
     public void testStrings() {
         final String[] strings = {
-                null, "", "abc\0def", "com.example.typical_package_name",
-                "從不喜歡孤單一個 - 蘇永康／吳雨霏", "example"
+            null,
+            "",
+            "abc\0def",
+            "com.example.typical_package_name",
+            "從不喜歡孤單一個 - 蘇永康／吳雨霏",
+            "example"
         };
 
         final Parcel p = Parcel.obtain();
@@ -196,15 +208,20 @@ public class ParcelTest {
         pB.writeString("Tiramisu");
         pB.writeInt(-1);
 
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> Parcel.compareData(pA, iA + length, pB, iB, 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> Parcel.compareData(pA, iA, pB, pB.dataSize(), 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> Parcel.compareData(pA, iA, pB, iB, length + 1));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> Parcel.compareData(pA, iA + length + 1, pB, iB, 0));
-        assertThrows(IllegalArgumentException.class,
+        assertThrows(
+                IllegalArgumentException.class,
                 () -> Parcel.compareData(pA, iA, pB, iB + pB.dataSize() + 1, 0));
     }
 
@@ -270,31 +287,34 @@ public class ParcelTest {
         p.writeInt(Integer.MAX_VALUE);
 
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class, () ->p.createBooleanArray());
+        assertThrows(BadParcelableException.class, () -> p.createBooleanArray());
 
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class, () ->p.createCharArray());
+        assertThrows(BadParcelableException.class, () -> p.createCharArray());
 
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class, () ->p.createIntArray());
+        assertThrows(BadParcelableException.class, () -> p.createIntArray());
 
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class, () ->p.createLongArray());
+        assertThrows(BadParcelableException.class, () -> p.createLongArray());
 
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class, () ->p.createBinderArray());
+        assertThrows(BadParcelableException.class, () -> p.createBinderArray());
 
-        int[] dimensions = new int[]{Integer.MAX_VALUE, 100, 100};
+        int[] dimensions = new int[] {Integer.MAX_VALUE, 100, 100};
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class,
+        assertThrows(
+                BadParcelableException.class,
                 () -> p.createFixedArray(int[][][].class, dimensions));
 
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class,
+        assertThrows(
+                BadParcelableException.class,
                 () -> p.createFixedArray(String[][][].class, dimensions));
 
         p.setDataPosition(0);
-        assertThrows(BadParcelableException.class,
+        assertThrows(
+                BadParcelableException.class,
                 () -> p.createFixedArray(IBinder[][][].class, dimensions));
 
         p.recycle();
@@ -328,16 +348,16 @@ public class ParcelTest {
         p.setDataPosition(0);
         p.createBinderArray();
 
-        int[] dimensions = new int[]{ 100, 100, 100 };
+        int[] dimensions = new int[] {100, 100, 100};
 
         p.setDataPosition(0);
-        int[][][] data  =  new int[100][100][100];
+        int[][][] data = new int[100][100][100];
         p.writeFixedArray(data, 0, dimensions);
         p.setDataPosition(0);
         p.createFixedArray(int[][][].class, dimensions);
 
         p.setDataPosition(0);
-        IBinder[][][] parcelables  =  new IBinder[100][100][100];
+        IBinder[][][] parcelables = new IBinder[100][100][100];
         p.writeFixedArray(parcelables, 0, dimensions);
         p.setDataPosition(0);
         p.createFixedArray(IBinder[][][].class, dimensions);
@@ -384,8 +404,8 @@ public class ParcelTest {
 
     private static void assertLogsWtf(Runnable test) {
         ArrayList<Log.TerribleFailure> wtfs = new ArrayList<>();
-        Log.TerribleFailureHandler oldHandler = Log.setWtfHandler(
-                (tag, what, system) -> wtfs.add(what));
+        Log.TerribleFailureHandler oldHandler =
+                Log.setWtfHandler((tag, what, system) -> wtfs.add(what));
         try {
             test.run();
         } finally {

@@ -30,6 +30,7 @@ import com.android.internal.annotations.GuardedBy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * The real implementation of {@link DeviceActivityMonitor}.
@@ -59,6 +60,8 @@ class DeviceActivityMonitorImpl implements DeviceActivityMonitor {
                             contentResolver, Settings.Global.AIRPLANE_MODE_ON);
                     if (state == 0) {
                         notifyFlightComplete();
+                    } else if (state == 1) {
+                        notifyFlightStart();
                     }
                 } catch (Settings.SettingNotFoundException e) {
                     Slog.e(LOG_TAG, "Unable to read airplane mode state", e);
@@ -77,9 +80,17 @@ class DeviceActivityMonitorImpl implements DeviceActivityMonitor {
         mListeners.add(listener);
     }
 
+    private void notifyFlightStart() {
+        notify("notifyFlightStart", Listener::onFlightStart);
+    }
+
     private void notifyFlightComplete() {
+        notify("notifyFlightComplete", Listener::onFlightComplete);
+    }
+
+    private void notify(String logMessage, Consumer<Listener> notifier) {
         if (DBG) {
-            Slog.d(LOG_TAG, "notifyFlightComplete");
+            Slog.d(LOG_TAG, logMessage);
         }
 
         // Copy the listeners holding the "this" lock but don't hold the lock while delivering the
@@ -89,7 +100,7 @@ class DeviceActivityMonitorImpl implements DeviceActivityMonitor {
             listeners = new ArrayList<>(mListeners);
         }
         for (Listener listener : listeners) {
-            listener.onFlightComplete();
+            notifier.accept(listener);
         }
     }
 

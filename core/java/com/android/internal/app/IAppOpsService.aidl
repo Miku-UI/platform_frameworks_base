@@ -111,7 +111,7 @@ interface IAppOpsService {
     void setMode(int code, int uid, String packageName, int mode);
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)
     void resetAllModes(int reqUserId, String reqPackageName);
-    void setAudioRestriction(int code, int usage, int uid, int mode, in String[] exceptionPackages);
+    void setAudioRestriction(int code, in int[] usages, int mode, in String[] exceptionPackages);
 
     void setUserRestrictions(in Bundle restrictions, IBinder token, int userHandle);
     void setUserRestriction(int code, boolean restricted, IBinder token, int userHandle, in PackageTagsList excludedPackageTags);
@@ -162,6 +162,7 @@ interface IAppOpsService {
             int attributionFlags, int attributionChainId);
     void finishOperationForDevice(IBinder clientId, int code, int uid, String packageName,
             @nullable String attributionTag, int virtualDeviceId);
-   List<AppOpsManager.PackageOps> getPackagesForOpsForDevice(in int[] ops, String persistentDeviceId);
-   oneway void noteOperationsInBatch(in Map batchedNoteOps);
+    ParceledListSlice<AppOpsManager.PackageOps> getPackagesForOpsForDevice(in int[] ops, String persistentDeviceId);
+    oneway void noteOperationsInBatch(in Map batchedNoteOps);
+    List<String> getPackagesWithNonDefaultUidMode(int op, int mode, int userId);
 }

@@ -17,6 +17,10 @@
 package com.android.settingslib.supervision
 
 import android.app.admin.DeviceAdminReceiver
+import android.app.admin.EnforcingAdmin
+import android.app.admin.RoleAuthority
+import android.app.role.RoleManager
+import android.app.supervision.SupervisionAppService
 import android.app.supervision.SupervisionManager
 import android.content.Context
 import android.content.ContextWrapper
@@ -50,11 +54,14 @@ import org.mockito.junit.MockitoRule
  */
 @RunWith(AndroidJUnit4::class)
 class SupervisionRestrictionsHelperTest {
-    @get:Rule val mocks: MockitoRule = MockitoJUnit.rule()
+    @get:Rule
+    val mocks: MockitoRule = MockitoJUnit.rule()
 
-    @Mock private lateinit var mockPackageManager: PackageManager
+    @Mock
+    private lateinit var mockPackageManager: PackageManager
 
-    @Mock private lateinit var mockSupervisionManager: SupervisionManager
+    @Mock
+    private lateinit var mockSupervisionManager: SupervisionManager
 
     private lateinit var context: Context
 
@@ -74,6 +81,7 @@ class SupervisionRestrictionsHelperTest {
 
     @Test
     fun createEnforcedAdmin_nullSupervisionPackage() {
+        `when`(mockSupervisionManager.isSupervisionEnabledForUser(USER_ID)).thenReturn(false)
         `when`(mockSupervisionManager.activeSupervisionAppPackage).thenReturn(null)
 
         val enforcedAdmin =
@@ -93,15 +101,16 @@ class SupervisionRestrictionsHelperTest {
                     }
             }
 
+        `when`(mockSupervisionManager.isSupervisionEnabledForUser(USER_ID)).thenReturn(true)
         `when`(mockSupervisionManager.activeSupervisionAppPackage)
             .thenReturn(SUPERVISION_APP_PACKAGE)
         `when`(
-                mockPackageManager.queryIntentServicesAsUser(
-                    argThat(hasAction("android.app.action.BIND_SUPERVISION_APP_SERVICE")),
-                    anyInt(),
-                    eq(USER_ID),
-                )
+            mockPackageManager.queryIntentServicesAsUser(
+                argThat(hasAction(SupervisionAppService.ACTION_SUPERVISION_APP_SERVICE)),
+                anyInt(),
+                eq(USER_ID),
             )
+        )
             .thenReturn(listOf(resolveInfo))
 
         val enforcedAdmin =
@@ -124,17 +133,18 @@ class SupervisionRestrictionsHelperTest {
                     }
             }
 
+        `when`(mockSupervisionManager.isSupervisionEnabledForUser(USER_ID)).thenReturn(true)
         `when`(mockSupervisionManager.activeSupervisionAppPackage)
             .thenReturn(SUPERVISION_APP_PACKAGE)
         `when`(mockPackageManager.queryIntentServicesAsUser(any<Intent>(), anyInt(), eq(USER_ID)))
             .thenReturn(emptyList<ResolveInfo>())
         `when`(
-                mockPackageManager.queryBroadcastReceiversAsUser(
-                    argThat(hasAction(DeviceAdminReceiver.ACTION_DEVICE_ADMIN_ENABLED)),
-                    anyInt(),
-                    eq(USER_ID),
-                )
+            mockPackageManager.queryBroadcastReceiversAsUser(
+                argThat(hasAction(DeviceAdminReceiver.ACTION_DEVICE_ADMIN_ENABLED)),
+                anyInt(),
+                eq(USER_ID),
             )
+        )
             .thenReturn(listOf(resolveInfo))
 
         val enforcedAdmin =
@@ -148,6 +158,7 @@ class SupervisionRestrictionsHelperTest {
 
     @Test
     fun createEnforcedAdmin_noSupervisionComponent() {
+        `when`(mockSupervisionManager.isSupervisionEnabledForUser(USER_ID)).thenReturn(true)
         `when`(mockSupervisionManager.activeSupervisionAppPackage)
             .thenReturn(SUPERVISION_APP_PACKAGE)
         `when`(mockPackageManager.queryIntentServicesAsUser(any<Intent>(), anyInt(), anyInt()))
@@ -162,6 +173,72 @@ class SupervisionRestrictionsHelperTest {
         assertThat(enforcedAdmin!!.component).isNull()
         assertThat(enforcedAdmin.enforcedRestriction).isEqualTo(RESTRICTION)
         assertThat(enforcedAdmin.user).isEqualTo(USER_HANDLE)
+    }
+
+    @Test
+    fun createEnforcingAdmin_returnsNullIfSupervisionDisabled() {
+        `when`(mockSupervisionManager.isSupervisionEnabledForUser(USER_ID)).thenReturn(false)
+
+        val enforcingAdmin =
+            SupervisionRestrictionsHelper.createEnforcingAdmin(context, USER_HANDLE)
+
+        assertThat(enforcingAdmin).isNull()
+    }
+
+    @Test
+    fun createEnforcingAdmin_returnsAdminIfSupervisionEnabledWithService() {
+        val resolveInfo =
+            ResolveInfo().apply {
+                serviceInfo =
+                    ServiceInfo().apply {
+                        packageName = SUPERVISION_APP_PACKAGE
+                        name = "service.class"
+                    }
+            }
+        `when`(mockSupervisionManager.isSupervisionEnabledForUser(USER_ID)).thenReturn(true)
+        `when`(mockSupervisionManager.activeSupervisionAppPackage).thenReturn(
+            SUPERVISION_APP_PACKAGE
+        )
+        `when`(
+            mockPackageManager.queryIntentServicesAsUser(
+                argThat(hasAction(SupervisionAppService.ACTION_SUPERVISION_APP_SERVICE)),
+                anyInt(),
+                eq(USER_ID)
+            )
+        )
+            .thenReturn(listOf(resolveInfo))
+
+        val enforcingAdmin: EnforcingAdmin? =
+            SupervisionRestrictionsHelper.createEnforcingAdmin(context, USER_HANDLE)
+
+        assertThat(enforcingAdmin).isNotNull()
+        assertThat(enforcingAdmin!!.packageName).isEqualTo(SUPERVISION_APP_PACKAGE)
+        assertThat(enforcingAdmin.authority)
+            .isEqualTo(RoleAuthority(setOf(RoleManager.ROLE_SYSTEM_SUPERVISION)))
+        assertThat(enforcingAdmin.userHandle).isEqualTo(USER_HANDLE)
+        assertThat(enforcingAdmin.componentName).isEqualTo(resolveInfo.serviceInfo.componentName)
+    }
+
+    @Test
+    fun createEnforcingAdmin_returnsAdminIfSupervisionEnabledWithNoComponent() {
+        `when`(mockSupervisionManager.isSupervisionEnabledForUser(USER_ID)).thenReturn(true)
+        `when`(mockSupervisionManager.activeSupervisionAppPackage).thenReturn(
+            SUPERVISION_APP_PACKAGE
+        )
+        `when`(mockPackageManager.queryIntentServicesAsUser(any<Intent>(), anyInt(), anyInt()))
+            .thenReturn(emptyList<ResolveInfo>())
+        `when`(mockPackageManager.queryBroadcastReceiversAsUser(any<Intent>(), anyInt(), anyInt()))
+            .thenReturn(emptyList<ResolveInfo>())
+
+        val enforcingAdmin: EnforcingAdmin? =
+            SupervisionRestrictionsHelper.createEnforcingAdmin(context, USER_HANDLE)
+
+        assertThat(enforcingAdmin).isNotNull()
+        assertThat(enforcingAdmin!!.packageName).isEmpty()
+        assertThat(enforcingAdmin.authority)
+            .isEqualTo(RoleAuthority(setOf(RoleManager.ROLE_SYSTEM_SUPERVISION)))
+        assertThat(enforcingAdmin.userHandle).isEqualTo(USER_HANDLE)
+        assertThat(enforcingAdmin.componentName).isNull()
     }
 
     private fun hasAction(action: String) =

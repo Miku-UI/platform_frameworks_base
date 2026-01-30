@@ -36,7 +36,6 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
     private var wasStarted = false
     private var scrimOffset = 0f
     private var contentHeight = 0f
-    private var isCurrentGestureOverscroll = false
     private val customFlingBehavior =
         object : FlingBehavior {
             override suspend fun ScrollScope.performFling(initialVelocity: Float): Float {
@@ -54,7 +53,6 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
             maxScrimOffset = MAX_SCRIM_OFFSET,
             contentHeight = { contentHeight },
             minVisibleScrimHeight = { MIN_VISIBLE_SCRIM_HEIGHT },
-            isCurrentGestureOverscroll = { isCurrentGestureOverscroll },
             onStart = { isStarted = true },
             onStop = {
                 wasStarted = true
@@ -180,24 +178,6 @@ class NotificationScrimNestedScrollConnectionTest : SysuiTestCase() {
 
         assertThat(offsetConsumed).isEqualTo(Offset.Zero)
         assertThat(wasStarted).isEqualTo(false)
-        assertThat(isStarted).isEqualTo(false)
-    }
-
-    @Test
-    fun canStartPostScroll_externalOverscrollGesture_startButIgnoreScroll() = runTest {
-        scrimOffset = MAX_SCRIM_OFFSET
-        isCurrentGestureOverscroll = true
-
-        val offsetConsumed =
-            scrollConnection.onPostScroll(
-                consumed = Offset.Zero,
-                available = Offset(x = 0f, y = 1f),
-                source = UserInput,
-            )
-
-        assertThat(offsetConsumed).isEqualTo(Offset.Zero)
-        // Returning 0 offset will immediately stop the connection
-        assertThat(wasStarted).isEqualTo(true)
         assertThat(isStarted).isEqualTo(false)
     }
 

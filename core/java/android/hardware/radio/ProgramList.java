@@ -17,7 +17,6 @@
 package android.hardware.radio;
 
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -329,7 +328,6 @@ public final class ProgramList implements AutoCloseable {
      * program identifier on the list
      * @throws NullPointerException if primary identifier is {@code null}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public @NonNull List<RadioManager.ProgramInfo> getProgramInfos(
             @NonNull ProgramSelector.Identifier id) {
         Objects.requireNonNull(id, "Primary identifier can not be null");

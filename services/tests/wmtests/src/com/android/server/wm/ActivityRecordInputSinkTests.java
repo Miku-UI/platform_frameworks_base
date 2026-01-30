@@ -38,6 +38,7 @@ import android.window.WindowInfosListenerForTest.WindowInfo;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.filters.FlakyTest;
 import androidx.test.filters.MediumTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -114,6 +115,7 @@ public class ActivityRecordInputSinkTests {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ALLOW_DISABLE_ACTIVITY_RECORD_INPUT_SINK)
+    @FlakyTest(bugId = 419786630)
     public void testSimpleButtonPress_withOverlayDisableInputSink() throws InterruptedException {
         startOverlayApp(true);
         waitForOverlayApp();

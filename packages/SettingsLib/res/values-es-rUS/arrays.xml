@@ -295,9 +295,9 @@
     <item msgid="7521112827893653392">"Basado en el enfoque"</item>
   </string-array>
   <string-array name="shade_display_awareness_summaries">
-    <item msgid="2964753205732912921">"Mostrar sobra solo en la pantalla del dispositivo"</item>
+    <item msgid="2964753205732912921">"Mostrar panel solo en la pantalla del dispositivo"</item>
     <item msgid="1955398604822147783">"Mostrar panel en una sola pantalla externa"</item>
-    <item msgid="391477482416751568">"Mostrar el panel de la última pantalla en la que se interactuó con su barra de estado"</item>
+    <item msgid="391477482416751568">"Muestra el panel en la pantalla en la que se interactuó con su barra de estado por última vez"</item>
     <item msgid="1746820128097981528">"Mostrar el panel en la última pantalla enfocada"</item>
   </string-array>
   <string-array name="shade_display_awareness_values">

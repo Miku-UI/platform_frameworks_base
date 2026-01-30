@@ -19,7 +19,7 @@ package android.media;
 import android.media.RemoteDisplayState;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IRemoteDisplayCallback {
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)

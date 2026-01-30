@@ -19,6 +19,10 @@ package com.android.systemui.kairos
 import com.android.systemui.kairos.internal.DerivedMapCheap
 import com.android.systemui.kairos.internal.StateImpl
 import com.android.systemui.kairos.internal.init
+import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 
 /**
  * Returns a [StateSelector] that can be used to efficiently check if the input [State] is currently
@@ -45,11 +49,19 @@ import com.android.systemui.kairos.internal.init
  */
 @ExperimentalKairosApi
 fun <A> State<A>.selector(numDistinctValues: Int? = null): StateSelector<A> =
+    selector(nameTag("State.selector").toNameData("State.selector"), numDistinctValues)
+
+internal fun <A> State<A>.selector(
+    nameData: NameData,
+    numDistinctValues: Int? = null,
+): StateSelector<A> =
     StateSelector(
         this,
-        changes
-            .map { new -> mapOf(new to true, sampleDeferred().value to false) }
-            .groupByKey(numDistinctValues),
+        changes(nameData + "changes")
+            .map(nameData + "changesOnAndOff") { new ->
+                mapOf(new to true, sampleDeferred().value to false)
+            }
+            .groupByKey(nameData, numDistinctValues),
     )
 
 /**
@@ -61,7 +73,7 @@ fun <A> State<A>.selector(numDistinctValues: Int? = null): StateSelector<A> =
 class StateSelector<in A>
 internal constructor(
     private val upstream: State<A>,
-    private val groupedChanges: GroupedEvents<A, Boolean>,
+    private val groupedChanges: KeyedEvents<A, Boolean>,
 ) {
     /**
      * Returns a [State] that tracks whether the upstream [State] is currently holding the given
@@ -69,16 +81,19 @@ internal constructor(
      *
      * @see selector
      */
-    fun whenSelected(value: A): State<Boolean> {
-        val operatorName = "StateSelector#whenSelected"
-        val name = "$operatorName[$value]"
+    fun whenSelected(value: A): State<Boolean> =
+        whenSelected(
+            nameTag("StateSelector.whenSelected").toNameData("StateSelector.whenSelected"),
+            value,
+        )
+
+    internal fun whenSelected(nameData: NameData, value: A): State<Boolean> {
         return StateInit(
-            init(name) {
+            init(nameData) {
                 StateImpl(
-                    name,
-                    operatorName,
+                    nameData,
                     groupedChanges.impl.eventsForKey(value),
-                    DerivedMapCheap(upstream.init) { it == value },
+                    DerivedMapCheap(nameData + "checkEquality", upstream.init) { it == value },
                 )
             }
         )

@@ -14,15 +14,16 @@
 
 package com.android.systemui.statusbar.phone
 
+import android.app.ActivityOptions
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
 import android.os.UserHandle
 import android.view.View
 import com.android.systemui.animation.ActivityTransitionAnimator
-import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.plugins.ActivityStartOptions
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.ActivityStarter.OnDismissAction
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
@@ -55,12 +56,10 @@ constructor(
         controllerFactory: ActivityTransitionAnimator.ControllerFactory,
         scope: CoroutineScope,
     ) {
-        if (!TransitionAnimator.longLivedReturnAnimationsEnabled()) return
         activityStarterInternal.registerTransition(cookie, controllerFactory, scope)
     }
 
     override fun unregisterTransition(cookie: ActivityTransitionAnimator.TransitionCookie) {
-        if (!TransitionAnimator.longLivedReturnAnimationsEnabled()) return
         activityStarterInternal.unregisterTransition(cookie)
     }
 
@@ -359,6 +358,10 @@ constructor(
         )
     }
 
+    override fun startActivityDismissingKeyguard(options: ActivityStartOptions) {
+        activityStarterInternal.startActivityDismissingKeyguard(options)
+    }
+
     override fun startActivityDismissingKeyguard(
         intent: Intent,
         onlyProvisioned: Boolean,
@@ -370,6 +373,40 @@ constructor(
             onlyProvisioned = onlyProvisioned,
             dismissShade = dismissShade,
             customMessage = customMessage,
+        )
+    }
+
+    override fun startActivityDismissingKeyguard(
+        intent: Intent,
+        onlyProvisioned: Boolean,
+        dismissShade: Boolean,
+        customMessage: String?,
+        callback: ActivityStarter.Callback?,
+    ) {
+        activityStarterInternal.startActivityDismissingKeyguard(
+            intent = intent,
+            onlyProvisioned = onlyProvisioned,
+            dismissShade = dismissShade,
+            customMessage = customMessage,
+            callback = callback,
+        )
+    }
+
+    override fun startActivityDismissingKeyguard(
+        intent: Intent,
+        onlyProvisioned: Boolean,
+        dismissShade: Boolean,
+        customMessage: String?,
+        activityOptions: ActivityOptions,
+        callback: ActivityStarter.Callback?,
+    ) {
+        activityStarterInternal.startActivityDismissingKeyguard(
+            intent = intent,
+            onlyProvisioned = onlyProvisioned,
+            dismissShade = dismissShade,
+            customMessage = customMessage,
+            callback = callback,
+            activityOptions = activityOptions,
         )
     }
 

@@ -27,6 +27,11 @@ import libcore.util.NativeAllocationRegistry;
 
 /**
  * Listener for getting {@link InputWindowHandle} updates from SurfaceFlinger.
+ *
+ * <p>Results provided via {@link #register()} and {@link #onWindowInfosChanged} will be a
+ * subset of the system's available windows, but will minimally include those window handles
+ * that are known to be on screen. This can return an empty collection of window handles if the
+ * display is off.
  * @hide
  */
 public abstract class WindowInfosListener {

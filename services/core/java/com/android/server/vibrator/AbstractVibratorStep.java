@@ -23,9 +23,9 @@ import android.util.Slog;
 import java.util.Arrays;
 import java.util.List;
 
-/** Represent a step on a single vibrator that plays a command on {@link VibratorController}. */
+/** Represent a step on a single vibrator that plays a command on {@link HalVibrator}. */
 abstract class AbstractVibratorStep extends Step {
-    public final VibratorController controller;
+    public final HalVibrator vibrator;
 
     long mVibratorOnResult;
     long mPendingVibratorOffDeadline;
@@ -35,21 +35,21 @@ abstract class AbstractVibratorStep extends Step {
      * @param conductor          The VibrationStepConductor for these steps.
      * @param startTime          The time to schedule this step in the
      *                           {@link VibrationStepConductor}.
-     * @param controller         The vibrator that is playing the effect.
+     * @param vibrator           The vibrator that is playing the effect.
      * @param pendingVibratorOffDeadline The time the vibrator is expected to complete any
      *                           previous vibration and turn off. This is used to allow this step to
      *                           be triggered when the completion callback is received, and can
      *                           be used to play effects back-to-back.
      */
     AbstractVibratorStep(VibrationStepConductor conductor, long startTime,
-            VibratorController controller, long pendingVibratorOffDeadline) {
+            HalVibrator vibrator, long pendingVibratorOffDeadline) {
         super(conductor, startTime);
-        this.controller = controller;
+        this.vibrator = vibrator;
         mPendingVibratorOffDeadline = pendingVibratorOffDeadline;
     }
 
     public int getVibratorId() {
-        return controller.getVibratorInfo().getId();
+        return vibrator.getInfo().getId();
     }
 
     @Override
@@ -82,7 +82,7 @@ abstract class AbstractVibratorStep extends Step {
     @Override
     public List<Step> cancel() {
         return Arrays.asList(new CompleteEffectVibratorStep(conductor, SystemClock.uptimeMillis(),
-                /* cancelled= */ true, controller, mPendingVibratorOffDeadline));
+                /* cancelled= */ true, vibrator, mPendingVibratorOffDeadline));
     }
 
     @Override
@@ -126,7 +126,7 @@ abstract class AbstractVibratorStep extends Step {
         }
         // Make sure we ignore any pending callback from old vibration commands.
         conductor.nextVibratorCallbackStepId(getVibratorId());
-        controller.off();
+        vibrator.off();
         getVibration().stats.reportVibratorOff();
         mPendingVibratorOffDeadline = 0;
     }
@@ -136,7 +136,7 @@ abstract class AbstractVibratorStep extends Step {
             Slog.d(VibrationThread.TAG,
                     "Amplitude changed on vibrator " + getVibratorId() + " to " + amplitude);
         }
-        controller.setAmplitude(amplitude);
+        vibrator.setAmplitude(amplitude);
         getVibration().stats.reportSetAmplitude();
     }
 }

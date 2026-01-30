@@ -29,9 +29,7 @@ import androidx.annotation.NonNull;
 import androidx.dynamicanimation.animation.DynamicAnimation;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.systemui.Flags;
 import com.android.wm.shell.shared.bubbles.DismissCircleView;
-import com.android.wm.shell.shared.bubbles.DismissView;
 import com.android.wm.shell.shared.magnetictarget.MagnetizedObject;
 
 import java.util.Map;
@@ -48,7 +46,6 @@ class DragToInteractAnimationController {
     private static final float ANIMATING_MAX_ALPHA = 0.7f;
 
     private final DragToInteractView mInteractView;
-    private final DismissView mDismissView;
     private final MenuView mMenuView;
 
     /**
@@ -61,7 +58,6 @@ class DragToInteractAnimationController {
     private float mSizePercent;
 
     DragToInteractAnimationController(DragToInteractView interactView, MenuView menuView) {
-        mDismissView = null;
         mInteractView = interactView;
         mInteractView.setPivotX(interactView.getWidth() / 2.0f);
         mInteractView.setPivotY(interactView.getHeight() / 2.0f);
@@ -76,32 +72,11 @@ class DragToInteractAnimationController {
         });
     }
 
-    DragToInteractAnimationController(DismissView dismissView, MenuView menuView) {
-        mDismissView = dismissView;
-        mInteractView = null;
-        mDismissView.setPivotX(dismissView.getWidth() / 2.0f);
-        mDismissView.setPivotY(dismissView.getHeight() / 2.0f);
-        mMenuView = menuView;
-
-        updateResources();
-
-        mInteractMap = new ArrayMap<>();
-        createMagnetizedObjectAndAnimator(dismissView.getCircle());
-    }
-
     void showInteractView(boolean show) {
-        if (Flags.floatingMenuDragToEdit() && mInteractView != null) {
-            if (show) {
-                mInteractView.show();
-            } else {
-                mInteractView.hide();
-            }
-        } else if (mDismissView != null) {
-            if (show) {
-                mDismissView.show();
-            } else {
-                mDismissView.hide();
-            }
+        if (show) {
+            mInteractView.show();
+        } else {
+            mInteractView.hide();
         }
     }
 

@@ -20,6 +20,8 @@
 #include <nativehelper/scoped_local_ref.h>
 #include <utils/Errors.h>
 
+#include <memory>
+
 #include "jni.h"
 
 namespace android {

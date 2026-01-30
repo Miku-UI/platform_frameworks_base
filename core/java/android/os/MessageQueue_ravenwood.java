@@ -16,13 +16,10 @@
 
 package android.os;
 
-import android.ravenwood.annotation.RavenwoodKeepWholeClass;
-
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
-@RavenwoodKeepWholeClass
 class MessageQueue_ravenwood {
     private static final AtomicLong sNextId = new AtomicLong(1);
     private static final Map<Long, MessageQueue_ravenwood> sInstances = new ConcurrentHashMap<>();
@@ -99,5 +96,9 @@ class MessageQueue_ravenwood {
 
     public static void nativeSetFileDescriptorEvents(long ptr, int fd, int events) {
         throw new UnsupportedOperationException();
+    }
+
+    public static void nativeSetSkipEpollWaitForZeroTimeout(long ptr) {
+        // No-op; this method changes native MQ impl behavior and cannot be mocked here.
     }
 }

@@ -18,7 +18,6 @@ package com.android.server.accessibility.magnification;
 
 import static android.accessibilityservice.MagnificationConfig.MAGNIFICATION_MODE_FULLSCREEN;
 
-import static com.android.server.accessibility.Flags.FLAG_MAGNIFICATION_ENLARGE_POINTER_BUGFIX;
 import static com.android.server.accessibility.magnification.FullScreenMagnificationController.MagnificationInfoChangedCallback;
 import static com.android.server.accessibility.magnification.MockMagnificationConnection.TEST_DISPLAY;
 
@@ -30,10 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -58,13 +54,16 @@ import android.graphics.Region;
 import android.hardware.display.DisplayManagerInternal;
 import android.os.Looper;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.test.mock.MockContentResolver;
 import android.view.DisplayInfo;
 import android.view.MagnificationSpec;
+import android.view.View;
 import android.view.accessibility.MagnificationAnimationCallback;
 import android.widget.Scroller;
 
@@ -82,6 +81,8 @@ import com.android.server.accessibility.test.MessageCapturingHandler;
 import com.android.server.input.InputManagerInternal;
 import com.android.server.wm.WindowManagerInternal;
 import com.android.server.wm.WindowManagerInternal.MagnificationCallbacks;
+
+import com.google.common.truth.Truth;
 
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
@@ -113,6 +114,15 @@ public class FullScreenMagnificationControllerTest {
     static final Region INITIAL_MAGNIFICATION_REGION = new Region(INITIAL_MAGNIFICATION_BOUNDS);
     static final Region OTHER_REGION_COMPAT = new Region(OTHER_MAGNIFICATION_BOUNDS_COMPAT);
     static final Region OTHER_REGION = new Region(OTHER_MAGNIFICATION_BOUNDS);
+
+    // IME tests define bounds where the IME takes up the bottom half of the screen.
+    static final Rect SCREEN_BOUNDS = new Rect(0, 0, 1000, 2000);
+    static final Rect IME_BOUNDS = new Rect(
+            SCREEN_BOUNDS.left, SCREEN_BOUNDS.bottom / 2,
+            SCREEN_BOUNDS.right, SCREEN_BOUNDS.bottom);
+    static final PointF POINT_OUTSIDE_IME_BOUNDS = new PointF(
+            SCREEN_BOUNDS.right / 2, SCREEN_BOUNDS.bottom / 4);
+
     static final int SERVICE_ID_1 = 1;
     static final int SERVICE_ID_2 = 2;
     static final int DISPLAY_0 = 0;
@@ -123,6 +133,8 @@ public class FullScreenMagnificationControllerTest {
 
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     final FullScreenMagnificationController.ControllerContext mMockControllerCtx =
             mock(FullScreenMagnificationController.ControllerContext.class);
@@ -248,40 +260,6 @@ public class FullScreenMagnificationControllerTest {
 
         // Once for each display on unregister
         verify(mMockThumbnail, times(2)).hideThumbnail();
-    }
-
-    @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_MAGNIFICATION_FOLLOWS_MOUSE_WITH_POINTER_MOTION_FILTER)
-    public void testRegister_RegistersPointerMotionFilter() {
-        register(DISPLAY_0);
-
-        verify(mMockInputManager).registerAccessibilityPointerMotionFilter(
-                any(InputManagerInternal.AccessibilityPointerMotionFilter.class));
-
-        // If a filter is already registered, adding a display won't invoke another filter
-        // registration.
-        clearInvocations(mMockInputManager);
-        register(DISPLAY_1);
-        register(INVALID_DISPLAY);
-
-        verify(mMockInputManager, times(0)).registerAccessibilityPointerMotionFilter(
-                any(InputManagerInternal.AccessibilityPointerMotionFilter.class));
-    }
-
-    @Test
-    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_MAGNIFICATION_FOLLOWS_MOUSE_WITH_POINTER_MOTION_FILTER)
-    public void testUnregister_UnregistersPointerMotionFilter() {
-        register(DISPLAY_0);
-        register(DISPLAY_1);
-        clearInvocations(mMockInputManager);
-
-        mFullScreenMagnificationController.unregister(DISPLAY_1);
-        // There's still an active display. Don't unregister yet.
-        verify(mMockInputManager, times(0)).registerAccessibilityPointerMotionFilter(
-                nullable(InputManagerInternal.AccessibilityPointerMotionFilter.class));
-
-        mFullScreenMagnificationController.unregister(DISPLAY_0);
-        verify(mMockInputManager, times(1)).registerAccessibilityPointerMotionFilter(isNull());
     }
 
     @Test
@@ -642,6 +620,64 @@ public class FullScreenMagnificationControllerTest {
                 /* centerX= */ anyFloat(),
                 /* centerY= */ anyFloat()
         );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MAGNIFICATION_MAGNIFY_NAV_BAR_AND_IME)
+    public void imeRegionContains_pointInsideImeRegion_returnsTrue() {
+        for (int displayId = 0; displayId < DISPLAY_COUNT; displayId++) {
+            register(displayId);
+            final MagnificationCallbacks callbacks = getMagnificationCallbacks(displayId);
+            final PointF point = new PointF(IME_BOUNDS.centerX(), IME_BOUNDS.centerY());
+
+            callbacks.onImeRegionChanged(new Region(IME_BOUNDS));
+            mMessageCapturingHandler.sendAllMessages();
+
+            Truth.assertThat(mFullScreenMagnificationController.imeRegionContains(
+                    displayId, point.x, point.y)).isTrue();
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MAGNIFICATION_MAGNIFY_NAV_BAR_AND_IME)
+    public void imeRegionContains_pointOutsideImeRegion_returnsFalse() {
+        for (int displayId = 0; displayId < DISPLAY_COUNT; displayId++) {
+            register(displayId);
+            final MagnificationCallbacks callbacks = getMagnificationCallbacks(displayId);
+            final PointF point = POINT_OUTSIDE_IME_BOUNDS;
+
+            callbacks.onImeRegionChanged(new Region(IME_BOUNDS));
+            mMessageCapturingHandler.sendAllMessages();
+
+            Truth.assertThat(mFullScreenMagnificationController.imeRegionContains(
+                    displayId, point.x, point.y)).isFalse();
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MAGNIFICATION_MAGNIFY_NAV_BAR_AND_IME)
+    public void imeRegionContains_pointInsideMagnifiedImeRegion_returnsTrue() {
+        for (int displayId = 0; displayId < DISPLAY_COUNT; displayId++) {
+            register(displayId);
+            final MagnificationCallbacks callbacks = getMagnificationCallbacks(displayId);
+            final PointF point = POINT_OUTSIDE_IME_BOUNDS;
+            // Set the magnification region to the full screen.
+            callbacks.onMagnificationRegionChanged(new Region(SCREEN_BOUNDS));
+            mMessageCapturingHandler.sendAllMessages();
+            // Zoom far into the center of the IME. This in effect makes the IME fill the entire
+            // screen, so that a point on screen that was previously outside of unmagnified IME
+            // bounds is now inside of magnified IME bounds.
+            Truth.assertThat(mFullScreenMagnificationController
+                    .setScaleAndCenter(displayId, 8, IME_BOUNDS.centerX(), IME_BOUNDS.centerY(),
+                            false, false, SERVICE_ID_1)).isTrue();
+            mMessageCapturingHandler.sendAllMessages();
+
+            callbacks.onImeRegionChanged(new Region(IME_BOUNDS));
+            mMessageCapturingHandler.sendAllMessages();
+
+            Truth.assertThat(mFullScreenMagnificationController.imeRegionContains(
+                    displayId, point.x, point.y)).isTrue();
+        }
     }
 
     @Test
@@ -1293,19 +1329,130 @@ public class FullScreenMagnificationControllerTest {
     }
 
     @Test
-    public void requestRectOnScreen_disabledByPrefSetting_doesNothing() {
+    public void requestRectOnScreen_followTypingDisabledByPrefSetting_undefined_doNothing() {
+        requestRectOnScreen_followTypingDisabledByPrefSettingHelper_doNothing(
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED);
+    }
+
+    @Test
+    public void requestRectOnScreen_followTypingDisabledByPrefSetting_textCursor_doNothing() {
+        requestRectOnScreen_followTypingDisabledByPrefSettingHelper_doNothing(
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_TEXT_CURSOR);
+    }
+
+    private void requestRectOnScreen_followTypingDisabledByPrefSettingHelper_doNothing(int source) {
         register(DISPLAY_0);
         zoomIn2xToMiddle(DISPLAY_0);
+        mMessageCapturingHandler.sendAllMessages();
         Mockito.reset(mMockWindowManager);
         MagnificationSpec startSpec = getCurrentMagnificationSpec(DISPLAY_0);
-        MagnificationSpec expectedEndSpec = getMagnificationSpec(2.0f, 0, 0);
         mFullScreenMagnificationController.setMagnificationFollowTypingEnabled(false);
 
-        mFullScreenMagnificationController.onRectangleOnScreenRequested(DISPLAY_0, 0, 0, 1, 1);
+        mFullScreenMagnificationController.onRectangleOnScreenRequested(DISPLAY_0, 0, 0, 1, 1,
+                source);
+        mMessageCapturingHandler.sendAllMessages();
 
         assertThat(getCurrentMagnificationSpec(DISPLAY_0), closeTo(startSpec));
-        verify(mMockWindowManager, never()).setMagnificationSpec(eq(DISPLAY_0),
+        verify(mMockWindowManager, never()).setMagnificationSpec(eq(DISPLAY_0), any());
+    }
+
+    @Test
+    public void requestRectOnScreen_followTypingEnabledByPrefSetting_undefined_moves() {
+        requestRectOnScreen_followTypingEnabledByPrefSettingHelper_moves(
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED);
+    }
+
+    @Test
+    public void requestRectOnScreen_followTypingEnabledByPrefSetting_textCursor_moves() {
+        requestRectOnScreen_followTypingEnabledByPrefSettingHelper_moves(
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_TEXT_CURSOR);
+    }
+
+    private void requestRectOnScreen_followTypingEnabledByPrefSettingHelper_moves(int source) {
+        register(DISPLAY_0);
+        zoomIn2xToMiddle(DISPLAY_0);
+        mMessageCapturingHandler.sendAllMessages();
+        Mockito.reset(mMockWindowManager);
+        MagnificationSpec expectedEndSpec = getMagnificationSpec(2.0f, 0, 0);
+        mFullScreenMagnificationController.setMagnificationFollowTypingEnabled(true);
+
+        mFullScreenMagnificationController.onRectangleOnScreenRequested(DISPLAY_0, 0, 0, 1, 1,
+                source);
+        mMessageCapturingHandler.sendAllMessages();
+
+        assertThat(getCurrentMagnificationSpec(DISPLAY_0), closeTo(expectedEndSpec));
+        verify(mMockWindowManager).setMagnificationSpec(eq(DISPLAY_0),
                 argThat(closeTo(expectedEndSpec)));
+    }
+
+    @Test
+    public void requestRectOnScreen_followTypingEnabledByPrefSetting_scrollOnly_doNothing() {
+        register(DISPLAY_0);
+        zoomIn2xToMiddle(DISPLAY_0);
+        mMessageCapturingHandler.sendAllMessages();
+        Mockito.reset(mMockWindowManager);
+        MagnificationSpec startSpec = getCurrentMagnificationSpec(DISPLAY_0);
+        mFullScreenMagnificationController.setMagnificationFollowTypingEnabled(true);
+
+        mFullScreenMagnificationController.onRectangleOnScreenRequested(DISPLAY_0, 0, 0, 1, 1,
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
+        mMessageCapturingHandler.sendAllMessages();
+
+        assertThat(getCurrentMagnificationSpec(DISPLAY_0), closeTo(startSpec));
+        verify(mMockWindowManager, never()).setMagnificationSpec(eq(DISPLAY_0), any());
+    }
+
+    @Test
+    public void requestRectOnScreen_followFocusDisabledByPrefSetting_focus_doNothing() {
+        register(DISPLAY_0);
+        zoomIn2xToMiddle(DISPLAY_0);
+        mMessageCapturingHandler.sendAllMessages();
+        Mockito.reset(mMockWindowManager);
+        MagnificationSpec startSpec = getCurrentMagnificationSpec(DISPLAY_0);
+        mFullScreenMagnificationController.setMagnificationFollowKeyboardEnabled(false);
+
+        mFullScreenMagnificationController.onRectangleOnScreenRequested(DISPLAY_0, 0, 0, 1, 1,
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS);
+        mMessageCapturingHandler.sendAllMessages();
+
+        assertThat(getCurrentMagnificationSpec(DISPLAY_0), closeTo(startSpec));
+        verify(mMockWindowManager, never()).setMagnificationSpec(eq(DISPLAY_0), any());
+    }
+
+    @Test
+    public void requestRectOnScreen_followKeyboardEnabledByPrefSetting_focus_moves() {
+        register(DISPLAY_0);
+        zoomIn2xToMiddle(DISPLAY_0);
+        mMessageCapturingHandler.sendAllMessages();
+        Mockito.reset(mMockWindowManager);
+        MagnificationSpec expectedEndSpec = getMagnificationSpec(2.0f, 0, 0);
+        mFullScreenMagnificationController.setMagnificationFollowKeyboardEnabled(true);
+
+        mFullScreenMagnificationController.onRectangleOnScreenRequested(DISPLAY_0, 0, 0, 1, 1,
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS);
+        mMessageCapturingHandler.sendAllMessages();
+
+        assertThat(getCurrentMagnificationSpec(DISPLAY_0), closeTo(expectedEndSpec));
+        verify(mMockWindowManager).setMagnificationSpec(eq(DISPLAY_0),
+                argThat(closeTo(expectedEndSpec)));
+    }
+
+
+    @Test
+    public void requestRectOnScreen_followKeyboardEnabledByPrefSetting_scrollOnly_doNothing() {
+        register(DISPLAY_0);
+        zoomIn2xToMiddle(DISPLAY_0);
+        mMessageCapturingHandler.sendAllMessages();
+        Mockito.reset(mMockWindowManager);
+        MagnificationSpec startSpec = getCurrentMagnificationSpec(DISPLAY_0);
+        mFullScreenMagnificationController.setMagnificationFollowKeyboardEnabled(true);
+
+        mFullScreenMagnificationController.onRectangleOnScreenRequested(DISPLAY_0, 0, 0, 1, 1,
+                View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY);
+        mMessageCapturingHandler.sendAllMessages();
+
+        assertThat(getCurrentMagnificationSpec(DISPLAY_0), closeTo(startSpec));
+        verify(mMockWindowManager, never()).setMagnificationSpec(eq(DISPLAY_0), any());
     }
 
     @Test
@@ -1331,14 +1478,14 @@ public class FullScreenMagnificationControllerTest {
     }
 
     @Test
-    public void testRequestRectOnScreen_garbageInput_doesNothing() {
+    public void testRequestRectOnScreen_garbageInput_doNothing() {
         for (int i = 0; i < DISPLAY_COUNT; i++) {
-            requestRectOnScreen_garbageInput_doesNothing(i);
+            requestRectOnScreen_garbageInput_doNothing(i);
             resetMockWindowManager();
         }
     }
 
-    private void requestRectOnScreen_garbageInput_doesNothing(int displayId) {
+    private void requestRectOnScreen_garbageInput_doNothing(int displayId) {
         register(displayId);
         zoomIn2xToMiddle(displayId);
         mMessageCapturingHandler.sendAllMessages();
@@ -1576,7 +1723,6 @@ public class FullScreenMagnificationControllerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_MAGNIFICATION_ENLARGE_POINTER_BUGFIX)
     public void persistScale_setValue_notifyInput() {
         register(TEST_DISPLAY);
 
@@ -1596,7 +1742,6 @@ public class FullScreenMagnificationControllerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_MAGNIFICATION_ENLARGE_POINTER_BUGFIX)
     public void setScale_setNonTransientScale_notifyInput() {
         register(TEST_DISPLAY);
 
@@ -1608,7 +1753,6 @@ public class FullScreenMagnificationControllerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_MAGNIFICATION_ENLARGE_POINTER_BUGFIX)
     public void setScaleAndCenter_setTransientScale_notNotifyInput() {
         register(TEST_DISPLAY);
 
@@ -1623,7 +1767,6 @@ public class FullScreenMagnificationControllerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_MAGNIFICATION_ENLARGE_POINTER_BUGFIX)
     public void setScaleAndCenter_setNonTransientScale_notifyInput() {
         register(TEST_DISPLAY);
 
@@ -1635,7 +1778,6 @@ public class FullScreenMagnificationControllerTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_MAGNIFICATION_ENLARGE_POINTER_BUGFIX)
     public void setCenter_notNotifyInput() {
         register(TEST_DISPLAY);
 
@@ -1645,15 +1787,13 @@ public class FullScreenMagnificationControllerTest {
         mFullScreenMagnificationController.setCenter(TEST_DISPLAY, point.x, point.y, false,
                 SERVICE_ID_1);
 
-        // Note that setCenter doesn't change scale, so it's not necessary to notify the input
-        // manager, but we currently do. The input manager skips redundant computation if the
-        // notified scale is the same as the previous call.
-        verify(mMockInputManager).setAccessibilityPointerIconScaleFactor(TEST_DISPLAY,
-                2.0f);
+        // setCenter doesn't change scale, so it's not necessary to notify
+        // the input manager.
+        verify(mMockInputManager, never()).setAccessibilityPointerIconScaleFactor(anyInt(),
+                anyFloat());
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_MAGNIFICATION_ENLARGE_POINTER_BUGFIX)
     public void offsetMagnifiedRegion_notNotifyInput() {
         register(TEST_DISPLAY);
 
@@ -1663,11 +1803,27 @@ public class FullScreenMagnificationControllerTest {
         mFullScreenMagnificationController.offsetMagnifiedRegion(TEST_DISPLAY, 100, 50,
                 SERVICE_ID_1);
 
-        // Note that setCenter doesn't change scale, so it's not necessary to notify the input
-        // manager, but we currently do. The input manager skips redundant computation if the
-        // notified scale is the same as the previous call.
-        verify(mMockInputManager).setAccessibilityPointerIconScaleFactor(TEST_DISPLAY,
-                2.0f);
+        // offsetMagnifiedRegion don't change scale, so it's not necessary to notify
+        // the input manager.
+        verify(mMockInputManager, never()).setAccessibilityPointerIconScaleFactor(anyInt(),
+                anyFloat());
+    }
+
+    @Test
+    public void magnificationRegionChanged_notNotifyInput() {
+        register(TEST_DISPLAY);
+        MagnificationCallbacks callbacks = getMagnificationCallbacks(TEST_DISPLAY);
+        callbacks.onMagnificationRegionChanged(OTHER_REGION);
+
+        mMessageCapturingHandler.sendAllMessages();
+
+        verify(mRequestObserver).onFullScreenMagnificationChanged(eq(TEST_DISPLAY),
+                eq(OTHER_REGION), any());
+
+        // onMagnificationRegionChanged don't change scale, so it's not necessary to notify
+        // the input manager.
+        verify(mMockInputManager, never()).setAccessibilityPointerIconScaleFactor(anyInt(),
+                anyFloat());
     }
 
     @Test

@@ -1,22 +1,23 @@
 package: "android.os"
 container: "system"
-container: "system"
 
 # keep-sorted start block=yes newline_separated=yes
-flag {
-     # Holdback study for concurrent MessageQueue.
-     # Do not promote beyond trunkfood.
-     namespace: "system_performance"
-     name: "message_queue_force_legacy"
-     description: "Whether to holdback concurrent MessageQueue (force legacy)."
-     bug: "336880969"
-}
-
 flag {
     name: "adpf_25q2_metrics"
     namespace: "game"
     description: "Add missing metrics for ADPF 25Q2 features."
     bug: "367803904"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "adpf_cap_max_batch_size"
+    namespace: "game"
+    description: "Caps the maximum batch size of work durations that can be sent in a report"
+    is_fixed_read_only: true
+    bug: "406377213"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -160,10 +161,11 @@ flag {
 }
 
 flag {
-     name: "app_zygote_retry_start"
-     namespace: "arc_next"
-     description: "Guard the new added retry logic in app zygote."
-     bug: "361799815"
+    name: "async_trace_for_track"
+    is_exported: true
+    namespace: "perfetto"
+    description: "Enable async trace for track."
+    bug: "407831889"
 }
 
 flag {
@@ -200,6 +202,28 @@ flag {
 }
 
 flag {
+    name: "bluetooth_bugreport_mode"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Add bluetooth bugreport mode containing subset of log sections only related to bluetooth debugging."
+    bug: "410692617"
+}
+
+flag {
+    name: "bugreport_multi_display_screenshot_enabled"
+    namespace: "crumpet"
+    description: "Enable a flag taking screenshots of all displays in bugreport."
+    bug: "364767133"
+}
+
+flag {
+    name: "count_class_instances_api"
+    namespace: "system_performance"
+    description: "Guards the new count instances of classes api"
+    bug: "337354084"
+}
+
+flag {
     name: "cpu_gpu_headrooms"
     namespace: "game"
     description: "Feature flag for adding CPU/GPU headroom API"
@@ -215,26 +239,27 @@ flag {
 }
 
 flag {
-    name: "disallow_cellular_null_ciphers_restriction"
-    namespace: "cellular_security"
-    description: "Guards a new UserManager user restriction that admins can use to require cellular encryption on their managed devices."
-    bug: "276752881"
-}
-
-flag {
-    name: "enable_angle_allow_list"
+    name: "enable_angle_deny_list"
     namespace: "gpu"
-    description: "Whether to read from angle allowlist to determine if app should use ANGLE"
-    is_fixed_read_only: true
-    bug: "370845648"
+    description: "Whether to use native driver for apps in the denylist"
+    bug: "434014731"
 }
 
 flag {
-     name: "force_concurrent_message_queue"
-     namespace: "system_performance"
-     is_exported: true
-     description: "Whether MessageQueue uses the new concurrent implementation"
-     bug: "336880969"
+    name: "enable_angle_for_games"
+    namespace: "gpu"
+    description: "Whether to use angle driver for games not in the denylist"
+    bug: "440630034"
+}
+
+flag {
+    name: "enforce_strict_file_mode_check"
+    namespace: "backstage_power"
+    description: "Throw an IllegalArgumentException if the file mode passed to ParcelFileDescriptor#parseMode is unknown."
+    bug: "414387646"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -246,11 +271,28 @@ flag {
 }
 
 flag {
-     name: "ipc_data_cache_test_apis"
+     name: "ipc_data_cache_module_adservices"
      namespace: "system_performance"
-     description: "Expose IpcDataCache test apis to mainline modules."
+     description: "IpcDataCache module for AdServices."
+     is_fixed_read_only: true
+     bug: "415306020"
+     is_exported: true
+}
+
+flag {
+     name: "ipc_data_cache_testmode_apis"
+     namespace: "system_performance"
+     description: "Expose IpcDataCache testmode apis to mainline modules."
+     is_fixed_read_only: true
      bug: "396173886"
      is_exported: true
+}
+
+flag {
+    name: "low_light_dream_behavior"
+    namespace: "systemui"
+    description: "New low light dream behavior"
+    bug: "408229468"
 }
 
 flag {
@@ -273,6 +315,24 @@ flag {
 }
 
 flag {
+    name: "material_colors_2025_03"
+    namespace: "systemui"
+    description: "Adding new Material Tokens as of March 2025"
+    bug: "394371316"
+    is_exported: true
+    metadata {
+        purpose: PURPOSE_FEATURE
+    }
+}
+
+flag {
+    name: "material_default_user_icon"
+    namespace: "systemui"
+    description: "Shows the material themed default user icon."
+    bug: "424367031"
+}
+
+flag {
     name: "material_motion_tokens"
     namespace: "systemui"
     description: "Adding new Material Tokens for M3 Motion Spec"
@@ -289,20 +349,19 @@ flag {
 }
 
 flag {
-    name: "message_queue_tail_tracking"
-    namespace: "system_performance"
-    description: "track tail of message queue."
-    bug: "305311707"
-    is_fixed_read_only: true
-}
-
-flag {
      name: "message_queue_testability"
      namespace: "system_performance"
      is_exported: true
      description: "Whether MessageQueue implements test APIs."
      bug: "379472827"
      is_fixed_read_only: true
+}
+
+flag {
+    name: "native_framework_prototype"
+    namespace: "system_performance"
+    description: "Enable support for the native framework prototype"
+    bug: "406925781"
 }
 
 flag {
@@ -319,6 +378,13 @@ flag {
     namespace: "bluetooth"
     description: "Guards the Context.sendOrderedBroadcastMultiplePermissions API"
     bug: "345802719"
+}
+
+flag {
+    name: "parcel_string_cache_enabled"
+    namespace: "system_performance"
+    description: "Enable JNIStringCache in Parcel"
+    bug: "442140362"
 }
 
 flag {
@@ -371,12 +437,43 @@ flag {
 }
 
 flag {
+     name: "use_concurrent_message_queue_in_apps"
+     namespace: "system_performance"
+     description: "Whether MessageQueue can use the new concurrent implementation in any process"
+     bug: "418770969"
+}
+
+flag {
+    name: "use_query_angle_choice"
+    namespace: "gpu"
+    description: "Use new query for ANGLE choice"
+    bug: "408439360"
+}
+
+flag {
+    namespace: "system_performance"
+    name: "binder_cache_transaction_trace_names"
+    description: "Reuse transaction names caches across binder instances of the same interface."
+    bug: "330738126"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
      namespace: "system_performance"
      name: "enable_has_binders"
      is_exported: true
      description: "Add hasBinders to Public API under a flag."
      is_fixed_read_only: true
      bug: "330345513"
+}
+
+flag {
+    namespace: "system_performance"
+    name: "native_looper_skip_epoll_wait_for_zero_timeout"
+    description: "Skips epoll_wait if pollOnce is called with a timeout of 0."
+    bug: "410218466"
 }
 
 flag {
@@ -404,11 +501,25 @@ flag {
 
 flag {
      namespace: "system_performance"
+     name: "perfetto_sdk_tracing_v3"
+     description: "Tracing using Perfetto SDK API from the 'dev.perfetto.sdk' package."
+     bug: "303199244"
+}
+
+flag {
+     namespace: "system_performance"
      name: "telemetry_apis_framework_initialization"
      is_exported: true
      description: "Control framework initialization APIs of telemetry APIs feature."
      is_fixed_read_only: true
      bug: "324241334"
+}
+
+flag {
+    namespace: "wear_services"
+    name: "bugreport_deferred_consent_screenshot_fix"
+    description: "Stops always taking a screenshot when consent is deferred."
+    bug: "385709501"
 }
 
 # keep-sorted end

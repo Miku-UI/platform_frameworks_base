@@ -21,7 +21,7 @@ import android.app.blob.IBlobStoreSession;
 import android.app.blob.LeaseInfo;
 import android.os.RemoteCallback;
 
-/** {@hide} */
+/** @hide */
 interface IBlobStoreManager {
     long createSession(in BlobHandle handle, in String packageName);
     IBlobStoreSession openSession(long sessionId, in String packageName);

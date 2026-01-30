@@ -112,6 +112,8 @@ constructor(
     override fun getLongClickIntent(): Intent = WIFI_SETTINGS
 
     companion object {
+        const val TILE_SPEC: String = "internet"
+
         private val WIFI_SETTINGS = Intent(Settings.ACTION_WIFI_SETTINGS)
     }
 }

@@ -164,6 +164,15 @@ public class SignalDrawable extends DrawableWrapper {
         return true;
     }
 
+    /**
+     * Returns the level used to access the different drawable assets.
+     *
+     * Temporarily visible for logging purposes - b/378919631.
+     */
+    public int unpackLevel() {
+        return unpackLevel(getLevel());
+    }
+
     private int unpackLevel(int packedState) {
         int numBins = (packedState & NUM_LEVEL_MASK) >> NUM_LEVEL_SHIFT;
         int cutOutOffset = 0;

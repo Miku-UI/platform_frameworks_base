@@ -71,8 +71,7 @@ void DrawGainmapBitmap(SkCanvas* c, const sk_sp<const SkImage>& image, const SkR
                        const sk_sp<const SkImage>& gainmapImage, const SkGainmapInfo& gainmapInfo) {
     ATRACE_CALL();
 #ifdef __ANDROID__
-    auto destColorspace = c->imageInfo().refColorSpace();
-    float targetSdrHdrRatio = getTargetHdrSdrRatio(destColorspace.get());
+    float targetSdrHdrRatio = getTargetHdrSdrRatio(c->imageInfo().colorSpace());
     const bool baseImageHdr = gainmapInfo.fBaseImageType == SkGainmapInfo::BaseImageType::kHDR;
     if (gainmapImage && ((baseImageHdr && targetSdrHdrRatio < gainmapInfo.fDisplayRatioHdr) ||
                          (!baseImageHdr && targetSdrHdrRatio > gainmapInfo.fDisplayRatioSdr))) {
@@ -87,7 +86,7 @@ void DrawGainmapBitmap(SkCanvas* c, const sk_sp<const SkImage>& image, const SkR
         gainmapSrc.fBottom *= sY;
         auto shader =
                 SkGainmapShader::Make(image, src, sampling, gainmapImage, gainmapSrc, sampling,
-                                      gainmapInfo, dst, targetSdrHdrRatio, destColorspace);
+                                      gainmapInfo, dst, targetSdrHdrRatio);
         gainmapPaint.setShader(shader);
         c->drawRect(dst, gainmapPaint);
     } else

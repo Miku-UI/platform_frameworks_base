@@ -38,6 +38,7 @@ interface IVirtualDeviceManagerNative {
     /**
      * Counterpart to VirtualDeviceParams#DevicePolicy.
      */
+    const int DEVICE_POLICY_INVALID = -1;
     const int DEVICE_POLICY_DEFAULT = 0;
     const int DEVICE_POLICY_CUSTOM = 1;
 

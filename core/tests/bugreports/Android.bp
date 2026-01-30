@@ -33,6 +33,8 @@ android_test {
         "android.tracing.flags-aconfig-java",
         "androidx.test.rules",
         "androidx.test.uiautomator_uiautomator",
+        "android.os.flags-aconfig-java",
+        "flag-junit",
         "truth",
     ],
     test_suites: ["general-tests"],

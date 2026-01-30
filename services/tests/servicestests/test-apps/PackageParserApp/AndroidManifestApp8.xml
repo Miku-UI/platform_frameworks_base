@@ -17,12 +17,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
         package="com.android.servicestests.apps.packageparserapp" >
 
-    <application>
+    <application android:featureFlag="my.flag1">
         <activity android:name=".TestActivity"
+                  android:exported="true" />
+    </application>
+    <application android:featureFlag="!my.flag1">
+        <activity android:name=".TestActivity2"
                   android:exported="true" />
     </application>
 
     <permission android:name="PERM1" android:featureFlag="my.flag1 " />
+    <permission android:name="PERM1" android:featureFlag="!my.flag1 " />
     <permission android:name="PERM2" android:featureFlag=" !my.flag2" />
     <permission android:name="PERM3" android:featureFlag="my.flag3" />
     <permission android:name="PERM4" android:featureFlag="!my.flag4" />

@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"Povlecite v levo za hiter preklop med aplikacijami"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"Povlecite iz zgornjega desnega kota, da odprete obvestila."</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"Povlecite iz zgornjega levega kota, da odprete hitre nastavitve"</string>
 </resources>

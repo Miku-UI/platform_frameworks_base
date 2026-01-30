@@ -16,6 +16,7 @@
 
 package android.telephony.ims.stub;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -25,6 +26,8 @@ import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
 import android.telephony.ims.aidl.IImsSmsListener;
 import android.util.Log;
+
+import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -194,11 +197,10 @@ public class ImsSmsImplBase {
      * TS 124.11. Once the RP-SMMA Notification is sent to the network. The network will deliver all
      * the pending messages which failed due to Unavailability of Memory.
      *
-     * @param token unique token generated in {@link ImsSmsDispatcher#onMemoryAvailable(void)} that
-     *  should be used when triggering callbacks for this specific message.
-     *
-     * @hide
+     * @param token unique token generated that should be used when triggering callbacks for this
+     * specific message.
      */
+    @FlaggedApi(Flags.FLAG_SUPPORT_IMS_SMS_SMMA)
     public void onMemoryAvailable(int token) {
         // Base Implementation - Should be overridden
     }
@@ -406,7 +408,7 @@ public class ImsSmsImplBase {
 
     /**
      * This API is used to report the result of sending
-     * RP-SMMA to framework based on received network responses(RP-ACK,
+     * RP-SMMA from framework based on received network responses(RP-ACK,
      * RP-ERROR or SIP error).
      *
      * @param token provided in {@link #onMemoryAvailable()}.
@@ -416,9 +418,8 @@ public class ImsSmsImplBase {
      * {@link #RESULT_NO_NETWORK_ERROR} if no network error was generated. See
      * 3GPP TS 24.011 Section 7.3.4 for valid error codes and more
      * information.
-     *
-     * @hide
      */
+    @FlaggedApi(Flags.FLAG_SUPPORT_IMS_SMS_SMMA)
     public final void onMemoryAvailableResult(int token, @SendStatusResult int result,
             int networkErrorCode) throws RuntimeException {
         IImsSmsListener listener = null;

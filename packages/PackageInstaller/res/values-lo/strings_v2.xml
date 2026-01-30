@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"ຕ້ອງໄດ້ຮັບອະນຸຍາດ"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ການຕິດຕັ້ງຖືກບລັອກໄວ້"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"ກຳລັງກະກຽມແອັບ…"</string>
+    <string name="title_install" msgid="6806728682404990326">"ຕິດຕັ້ງແອັບນີ້ບໍ?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ກຳລັງຕິດຕັ້ງ…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"ຕິດຕັ້ງແອັບແລ້ວ"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"ຕິດຕັ້ງແອັບນີ້ຄືນໃໝ່ບໍ?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"ກຳລັງຕິດຕັ້ງຄືນໃໝ່…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"ຕິດຕັ້ງແອັບຄືນໃໝ່ແລ້ວ"</string>
+    <string name="title_update" msgid="1747328630716712391">"ອັບເດດແອັບນີ້ບໍ?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"ອັບເດດແອັບນີ້ໂດຍໃຊ້ <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> ບໍ?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"ກຳລັງອັບເດດ…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"ອັບເດດແອັບແລ້ວ"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"ບໍ່ສາມາດຕິດຕັ້ງແອັບໄດ້"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ການຕິດຕັ້ງຖືກບລັອກໄວ້"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"ແອັບບໍ່ເຂົ້າກັນ"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"ແພັກເກດບໍ່ຖືກຕ້ອງ"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"ບ່ອນຈັດເກັບຂໍ້ມູນບໍ່ພຽງພໍ"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"ຍັງບໍ່ໄດ້ຕິດຕັ້ງແອັບ"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"ຖອນການຕິດຕັ້ງແອັບນີ້ບໍ?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"ລຶບໂຄລນຂອງແອັບນີ້ບໍ?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"ຖອນການຕິດຕັ້ງການອັບເດດແອັບບໍ?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"ຖອນການຕິດຕັ້ງການອັບເດດແອັບສຳລັບຜູ້ໃຊ້ທຸກຄົນບໍ?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"ຖອນການຕິດຕັ້ງແອັບນີ້ສຳລັບຜູ້ໃຊ້ທຸກຄົນບໍ?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"ຖອນການຕິດຕັ້ງແອັບນີ້ສຳລັບຜູ້ໃຊ້ \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" ບໍ?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"ບໍ່ພົບແອັບ"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"ບໍ່ສາມາດຖອນການຕິດຕັ້ງແອັບນີ້ໄດ້"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"ຍັງບໍ່ໄດ້ຖອນການຕິດຕັ້ງແອັບ"</string>
+    <string name="title_archive" msgid="2876455228073419830">"ເກັບແອັບນີ້ໄວ້ໃນແຟ້ມບໍ?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"ເກັບແອັບນີ້ໄວ້ໃນແຟ້ມສຳລັບຜູ້ໃຊ້ທຸກຄົນບໍ?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"ເກັບແອັບນີ້ໄວ້ໃນແຟ້ມສຳລັບຜູ້ໃຊ້ \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" ບໍ?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"ກູ້ຄືນແອັບນີ້ບໍ?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"ຕ້ອງດຳເນີນການ"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"ບ່ອນຈັດເກັບຂໍ້ມູນບໍ່ພຽງພໍ"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"ທ່ານອອບລາຍຢູ່"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ຖືກປິດການນຳໃຊ້"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"ຍັງບໍ່ໄດ້ຕິດຕັ້ງ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"ມີບາງຢ່າງຜິດພາດເກີດຂຶ້ນ"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"ໂດຍປົກກະຕິແລ້ວແອັບນີ້ຈະໄດ້ຮັບການອັບເດດຈາກ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. ການອັບເດດໂດຍໃຊ້ແຫຼ່ງທີ່ມາອື່ນອາດເຮັດໃຫ້ແທັບເລັດຂອງທ່ານໄດ້ຮັບການອັບເດດຈາກແຫຼ່ງທີ່ມານັ້ນໃນອະນາຄົດ. ຟັງຊັນການນຳໃຊ້ແອັບອາດມີການປ່ຽນແປງ."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"ໂດຍປົກກະຕິແລ້ວແອັບນີ້ຈະໄດ້ຮັບການອັບເດດຈາກ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. ການອັບເດດໂດຍໃຊ້ແຫຼ່ງທີ່ມາອື່ນອາດເຮັດໃຫ້ໂທລະທັດຂອງທ່ານໄດ້ຮັບການອັບເດດຈາກແຫຼ່ງທີ່ມານັ້ນໃນອະນາຄົດ. ຟັງຊັນການນຳໃຊ້ແອັບອາດມີການປ່ຽນແປງ."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"ໂດຍປົກກະຕິແລ້ວແອັບນີ້ຈະໄດ້ຮັບການອັບເດດຈາກ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. ການອັບເດດໂດຍໃຊ້ແຫຼ່ງທີ່ມາອື່ນອາດເຮັດໃຫ້ໂທລະສັບຂອງທ່ານໄດ້ຮັບການອັບເດດຈາກແຫຼ່ງທີ່ມານັ້ນໃນອະນາຄົດ. ຟັງຊັນການນຳໃຊ້ແອັບອາດມີການປ່ຽນແປງ."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"ເພື່ອຄວາມປອດໄພຂອງທ່ານ, ຕອນນີ້ແທັບເລັດຂອງທ່ານບໍ່ໄດ້ຮັບອະນຸຍາດໃຫ້ຕິດຕັ້ງແອັບທີ່ບໍ່ຮູ້ຈັກຈາກແຫຼ່ງທີ່ມານີ້. ທ່ານສາມາດປ່ຽນສິ່ງນີ້ໄດ້ໃນການຕັ້ງຄ່າ."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"ເພື່ອຄວາມປອດໄພຂອງທ່ານ, ຕອນນີ້ໂທລະທັດຂອງທ່ານບໍ່ໄດ້ຮັບອະນຸຍາດໃຫ້ຕິດຕັ້ງແອັບທີ່ບໍ່ຮູ້ຈັກຈາກແຫຼ່ງທີ່ມານີ້. ທ່ານສາມາດປ່ຽນສິ່ງນີ້ໄດ້ໃນການຕັ້ງຄ່າ."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"ເພື່ອຄວາມປອດໄພຂອງທ່ານ, ຕອນນີ້ໂມງຂອງທ່ານບໍ່ໄດ້ຮັບອະນຸຍາດໃຫ້ຕິດຕັ້ງແອັບທີ່ບໍ່ຮູ້ຈັກຈາກແຫຼ່ງທີ່ມານີ້. ທ່ານສາມາດປ່ຽນສິ່ງນີ້ໄດ້ໃນການຕັ້ງຄ່າ."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"ເພື່ອຄວາມປອດໄພຂອງທ່ານ, ຕອນນີ້ໂທລະສັບຂອງທ່ານບໍ່ໄດ້ຮັບອະນຸຍາດໃຫ້ຕິດຕັ້ງແອັບທີ່ບໍ່ຮູ້ຈັກຈາກແຫຼ່ງທີ່ມານີ້. ທ່ານສາມາດປ່ຽນສິ່ງນີ້ໄດ້ໃນການຕັ້ງຄ່າ."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"ໂທລະສັບ ແລະ ຂໍ້ມູນສ່ວນຕົວຂອງທ່ານມີຄວາມສ່ຽງຫຼາຍຂຶ້ນທີ່ຈະຖືກໂຈມຕີຈາກແອັບທີ່ບໍ່ຮູ້ຈັກ. ໂດຍການຕິດຕັ້ງແອັບນີ້, ແມ່ນຖືວ່າທ່ານຍອມຮັບວ່າທ່ານຈະຮັບຜິດຊອບຕໍ່ຄວາມເສຍຫາຍໃດໆທີ່ຈະເກີດຂຶ້ນກັບໂທລະສັບຂອງທ່ານ ຫຼື ການສູນເສຍຂໍ້ມູນທີ່ອາດເກີດຈາກການນຳໃຊ້ແອັບດັ່ງກ່າວ."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"ແທັບເລັດ ແລະ ຂໍ້ມູນສ່ວນຕົວຂອງທ່ານມີຄວາມສ່ຽງຫຼາຍຂຶ້ນທີ່ຈະຖືກໂຈມຕີຈາກແອັບທີ່ບໍ່ຮູ້ຈັກ. ໂດຍການຕິດຕັ້ງແອັບນີ້, ແມ່ນຖືວ່າທ່ານຍອມຮັບວ່າທ່ານຈະຮັບຜິດຊອບຕໍ່ຄວາມເສຍຫາຍໃດໆທີ່ຈະເກີດຂຶ້ນກັບແທັບເລັດຂອງທ່ານ ຫຼື ການສູນເສຍຂໍ້ມູນທີ່ອາດເກີດຈາກການນຳໃຊ້ແອັບດັ່ງກ່າວ."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"ໂທລະທັດ ແລະ ຂໍ້ມູນສ່ວນຕົວຂອງທ່ານມີຄວາມສ່ຽງຫຼາຍຂຶ້ນທີ່ຈະຖືກໂຈມຕີຈາກແອັບທີ່ບໍ່ຮູ້ຈັກ. ໂດຍການຕິດຕັ້ງແອັບນີ້, ແມ່ນຖືວ່າທ່ານຍອມຮັບວ່າທ່ານຈະຮັບຜິດຊອບຕໍ່ຄວາມເສຍຫາຍໃດໆທີ່ຈະເກີດຂຶ້ນກັບໂທລະທັດຂອງທ່ານ ຫຼື ການສູນເສຍຂໍ້ມູນທີ່ອາດເກີດຈາກການນຳໃຊ້ແອັບດັ່ງກ່າວ."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"ແອັບນີ້ຖືກບລັອກບໍ່ໃຫ້ຕິດຕັ້ງ"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"ແອັບນີ້ຂັດແຍ່ງກັບແອັບທີ່ມີຢູ່ແລ້ວໃນອຸປະກອນຂອງທ່ານ"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"ແອັບນີ້ບໍ່ເຂົ້າກັນກັບອຸປະກອນຂອງທ່ານ"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"ເກີດບັນຫາກັບໄຟລ໌ຕິດຕັ້ງຂອງແອັບນີ້"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"ເພື່ອຕິດຕັ້ງແອັບນີ້, ໃຫ້ເພີ່ມພື້ນທີ່ຈັດເກັບຂໍ້ມູນແລ້ວລອງໃໝ່"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"ເກີດບັນຫາກັບໄຟລ໌ແອັບ"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ການຕິດຕັ້ງແອັບຖືກຈຳກັດ"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"ການຕິດຕັ້ງແອັບທີ່ບໍ່ຮູ້ຈັກຖືກຈຳກັດ"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"ຍັງມີໂຄລນຂອງແອັບນີ້ຢູ່ ແລະ ໂຄລນດັ່ງກ່າວຈະຖືກລຶບອອກ"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"ແອັບນີ້ແມ່ນໂຄລນຂອງ <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"ແອັບນີ້ຈະຖືກປ່ຽນແທນດ້ວຍເວີຊັນທີ່ມາຈາກໂຮງງານ. ລະບົບຈະລຶບຂໍ້ມູນແອັບທັງໝົດອອກ."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"ແອັບນີ້ຈະຖືກປ່ຽນແທນດ້ວຍເວີຊັນທີ່ມາຈາກໂຮງງານສຳລັບຜູ້ໃຊ້ທຸກຄົນໃນອຸປະກອນນີ້. ລະບົບຈະລຶບຂໍ້ມູນແອັບທັງໝົດອອກ."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"ແອັບນີ້ຈະຖືກຖອນການຕິດຕັ້ງຈາກໂປຣໄຟລ໌ບ່ອນເຮັດວຽກຂອງທ່ານ"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"ແອັບນີ້ຈະຖືກຖອນການຕິດຕັ້ງຈາກພື້ນທີ່ສ່ວນບຸກຄົນຂອງທ່ານ"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"ບໍ່ພົບແອັບນີ້ໃນລາຍຊື່ແອັບທີ່ຕິດຕັ້ງໄວ້ ຫຼື ແອັບນີ້ອາດຖືກຖອນການຕິດຕັ້ງແລ້ວ"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"ຜູ້ໃຊ້ປັດຈຸບັນບໍ່ໄດ້ຮັບອະນຸຍາດໃຫ້ຖອນການຕິດຕັ້ງນີ້"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"ບໍ່ສາມາດຖອນການຕິດຕັ້ງແອັບນີ້ໄດ້"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"ຮັກສາຂໍ້ມູນແອັບໄວ້"</string>
+    <string name="message_archive" msgid="943853731737315850">"ລະບົບຈະບັນທຶກຂໍ້ມູນແອັບຂອງທ່ານ"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"ລະບົບຈະບັນທຶກຂໍ້ມູນແອັບທັງໝົດ"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ລະບົບຈະບັນທຶກຂໍ້ມູນແອັບ"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"ແອັບນີ້ຈະຖືກເກັບໄວ້ໃນແຟ້ມຈາກໂປຣໄຟລ໌ບ່ອນເຮັດວຽກຂອງທ່ານ. ລະບົບຈະບັນທຶກຂໍ້ມູນແອັບຂອງທ່ານ."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"ແອັບນີ້ຈະຖືກເກັບໄວ້ໃນແຟ້ມຈາກພື້ນທີ່ສ່ວນບຸກຄົນຂອງທ່ານ. ລະບົບຈະບັນທຶກຂໍ້ມູນແອັບຂອງທ່ານ."</string>
+    <string name="message_restore" msgid="8402726798623569969">"ລະບົບຈະດາວໂຫຼດແອັບນີ້ຈາກ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ໃນພື້ນຫຼັງ"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ຕ້ອງການຂໍ້ມູນເພີ່ມເຕີມກ່ອນທີ່ທ່ານຈະສາມາດກູ້ຄືນແອັບນີ້ໄດ້"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"ເພື່ອກູ້ຄືນແອັບນີ້, ໃຫ້ເພີ່ມພື້ນທີ່ຈັດເກັບຂໍ້ມູນ &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; ແລ້ວລອງໃໝ່"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"ເພື່ອກູ້ຄືນແອັບນີ້, ໃຫ້ກວດສອບການເຊື່ອມຕໍ່ອິນເຕີເນັດຂອງທ່ານແລ້ວລອງໃໝ່"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"ເພື່ອກູ້ຄືນແອັບນີ້, ໃຫ້ເປີດການນຳໃຊ້ <xliff:g id="INSTALLERNAME">%1$s</xliff:g> ໃນການຕັ້ງຄ່າ"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"ເພື່ອກູ້ຄືນແອັບນີ້, ທ່ານຈະຕ້ອງຕິດຕັ້ງ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"ເກີດບັນຫາໃນລະຫວ່າງທີ່ພະຍາຍາມກູ້ຄືນແອັບນີ້"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> ແມ່ນສ່ວນໜຶ່ງຂອງແອັບຕໍ່ໄປນີ້: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;ລະບົບໄດ້ບລັອກແອັບນີ້. ເພື່ອຊ່ວຍຮັກສາອຸປະກອນ ແລະ ຂໍ້ມູນຂອງທ່ານໃຫ້ປອດໄພ, ທ່ານຈະສາມາດຕິດຕັ້ງໄດ້ສະເພາະແອັບຈາກນັກພັດທະນາທີ່ໄດ້ຮັບການຢັ້ງຢືນແລ້ວເທົ່ານັ້ນ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;ແອັບນີ້ບໍ່ໄດ້ຮັບການອັບເດດ. ເພື່ອຊ່ວຍຮັກສາອຸປະກອນ ແລະ ຂໍ້ມູນຂອງທ່ານໃຫ້ປອດໄພ, ທ່ານຈະສາມາດຕິດຕັ້ງໄດ້ສະເພາະການອັບເດດຈາກນັກພັດທະນາທີ່ໄດ້ຮັບການຢັ້ງຢືນແລ້ວເທົ່ານັ້ນ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;ບໍ່ໄດ້ຕິດຕັ້ງແອັບນີ້. ແອັບຈາກນັກພັດທະນາທີ່ບໍ່ໄດ້ຮັບການຢັ້ງຢືນອາດບໍ່ປອດໄພ.&lt;/p&gt; &lt;p&gt;ຕ້ອງມີການເຊື່ອມຕໍ່ອິນເຕີເນັດເພື່ອຢັ້ງຢືນນັກພັດທະນາແອັບ. ກວດສອບການເຊື່ອມຕໍ່ຂອງທ່ານ, ແລ້ວລອງຕິດຕັ້ງອີກຄັ້ງ. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;ແອັບນີ້ບໍ່ໄດ້ຮັບການອັບເດດ. ການອັບເດດຈາກນັກພັດທະນາທີ່ບໍ່ໄດ້ຮັບການຢັ້ງຢືນອາດບໍ່ປອດໄພ.&lt;/p&gt; &lt;p&gt;ຕ້ອງມີການເຊື່ອມຕໍ່ອິນເຕີເນັດເພື່ອຢັ້ງຢືນນັກພັດທະນາແອັບ. ກວດສອບການເຊື່ອມຕໍ່ຂອງທ່ານ, ແລ້ວລອງອັບເດດອີກຄັ້ງ. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;ເກີດບັນຫາໃນການຢັ້ງຢືນນັກພັດທະນາແອັບນີ້. ແອັບຈາກນັກພັດທະນາທີ່ບໍ່ໄດ້ຮັບການຢັ້ງຢືນອາດບໍ່ປອດໄພ, ດັ່ງນັ້ນລະບົບຈຶ່ງບໍ່ໄດ້ຕິດຕັ້ງແອັບນີ້.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;ເກີດບັນຫາໃນການຢັ້ງຢືນນັກພັດທະນາແອັບນີ້. ການອັບເດດຈາກນັກພັດທະນາທີ່ບໍ່ໄດ້ຮັບການຢັ້ງຢືນອາດບໍ່ປອດໄພ, ດັ່ງນັ້ນລະບົບຈຶ່ງບໍ່ໄດ້ຕິດຕັ້ງແອັບນີ້.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;ລະບົບໄດ້ບລັອກແອັບນີ້ເນື່ອງຈາກເກີດບັນຫາໃນການຢັ້ງຢືນນັກພັດທະນາ. ເພື່ອຊ່ວຍຮັກສາອຸປະກອນ ແລະ ຂໍ້ມູນຂອງທ່ານໃຫ້ປອດໄພ, ທ່ານຈະສາມາດຕິດຕັ້ງໄດ້ສະເພາະແອັບຈາກນັກພັດທະນາທີ່ໄດ້ຮັບການຢັ້ງຢືນແລ້ວເທົ່ານັ້ນ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;ແອັບນີ້ບໍ່ໄດ້ຮັບການອັບເດດເນື່ອງຈາກເກີດບັນຫາໃນການຢັ້ງຢືນນັກພັດທະນາ. ເພື່ອຊ່ວຍຮັກສາອຸປະກອນ ແລະ ຂໍ້ມູນຂອງທ່ານໃຫ້ປອດໄພ, ທ່ານຈະສາມາດຕິດຕັ້ງໄດ້ສະເພາະການອັບເດດຈາກນັກພັດທະນາທີ່ໄດ້ຮັບການຢັ້ງຢືນແລ້ວເທົ່ານັ້ນ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ສຶກສາເພີ່ມເຕີມກ່ຽວກັບການຢັ້ງຢືນນັກພັດທະນາ&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"ຫາກທ່ານຕິດຕັ້ງໂດຍບໍ່ຢັ້ງຢືນ, ກະລຸນາຮັບຊາບວ່າແອັບຈາກນັກພັດທະນາທີ່ບໍ່ໄດ້ຮັບການຢັ້ງຢືນອາດເຮັດໃຫ້ອຸປະກອນ ແລະ ຂໍ້ມູນຂອງທ່ານຕົກຢູ່ໃນຄວາມສ່ຽງ."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"ຫາກທ່ານອັບເດດໂດຍບໍ່ຢັ້ງຢືນ, ກະລຸນາຮັບຊາບວ່າການອັບເດດຈາກນັກພັດທະນາທີ່ບໍ່ໄດ້ຮັບການຢັ້ງຢືນອາດເຮັດໃຫ້ອຸປະກອນ ແລະ ຂໍ້ມູນຂອງທ່ານຕົກຢູ່ໃນຄວາມສ່ຽງ."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"ນັກພັດທະນາແອັບບໍ່ໄດ້ຮັບການຢັ້ງຢືນ"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"ບໍ່ມີອິນເຕີເນັດ, ບໍ່ສາມາດຢັ້ງຢືນນັກພັດທະນາແອັບໄດ້"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"ບໍ່ສາມາດຢັ້ງຢືນນັກພັດທະນາແອັບໄດ້"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"ຕິດຕັ້ງໂດຍບໍ່ຢັ້ງຢືນ"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"ອັບເດດໂດຍບໍ່ຢັ້ງຢືນ"</string>
+    <string name="button_install" msgid="7434013176505680162">"ຕິດຕັ້ງ"</string>
+    <string name="button_update" msgid="3046719350226327526">"ອັບເດດ"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"ຢືນຢັນການອັບເດດ"</string>
+    <string name="button_done" msgid="3408025390982260629">"ແລ້ວໆ"</string>
+    <string name="button_open" msgid="6892684987374117955">"ເປີດ"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"ຍົກເລີກ"</string>
+    <string name="button_continue" msgid="107501685249826244">"ສືບຕໍ່"</string>
+    <string name="button_close" msgid="7187308556466275899">"ປິດ"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"ຖອນການຕິດຕັ້ງ"</string>
+    <string name="button_delete" msgid="1050833585936159792">"ລຶບ"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"ຕິດຕັ້ງຄືນໃໝ່"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"ຈັດການແອັບ"</string>
+    <string name="button_archive" msgid="2719647830439699121">"ເກັບໄວ້ໃນແຟ້ມ"</string>
+    <string name="button_restore" msgid="4388317532933866637">"ກູ້ຄືນ"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"ຖອນການຕິດຕັ້ງການອັບເດດ"</string>
+    <string name="button_settings" msgid="3837571366246132287">"ການຕັ້ງຄ່າ"</string>
+    <string name="button_retry" msgid="6736082260813816198">"ລອງໃໝ່"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"ໂຄລນຂອງ <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+</resources>

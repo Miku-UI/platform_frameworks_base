@@ -5,36 +5,12 @@ container: "system"
 
 flag {
     namespace: "window_surfaces"
-    name: "surface_trusted_overlay"
-    description: "Whether to add trusted overlay flag on the SurfaceControl or the InputWindow"
-    is_fixed_read_only: true
-    bug: "292032926"
-}
-
-flag {
-    namespace: "window_surfaces"
-    name: "delete_capture_display"
-    description: "Delete uses of ScreenCapture#captureDisplay"
-    is_fixed_read_only: true
-    bug: "293445881"
-}
-
-flag {
-    namespace: "window_surfaces"
     name: "allow_disable_activity_record_input_sink"
     description: "Whether to allow system activity to disable ActivityRecordInputSink"
     is_fixed_read_only: true
     bug: "262477923"
 }
 
-flag {
-    namespace: "window_surfaces"
-    name: "trusted_presentation_listener_for_window"
-    is_exported: true
-    description: "Enable trustedPresentationListener on windows public API"
-    is_fixed_read_only: true
-    bug: "278027319"
-}
 
 flag {
     namespace: "window_surfaces"
@@ -45,14 +21,6 @@ flag {
     bug: "295038072"
 }
 
-flag {
-    namespace: "window_surfaces"
-    name: "surface_control_input_receiver"
-    is_exported: true
-    description: "Enable public API to register an InputReceiver for a SurfaceControl"
-    is_fixed_read_only: true
-    bug: "278757236"
-}
 
 flag {
     namespace: "window_surfaces"
@@ -61,25 +29,6 @@ flag {
     description: "Enable screen recording callbacks public API"
     is_fixed_read_only: true
     bug: "304574518"
-}
-
-flag {
-    namespace: "window_surfaces"
-    name: "sync_screen_capture"
-    description: "Create a screen capture API that blocks in SurfaceFlinger"
-    is_fixed_read_only: true
-    bug: "321263247"
-}
-
-flag {
-    namespace: "window_surfaces"
-    name: "enable_buffer_transform_hint_from_display"
-    description: "Always use display info to determine VRI's buffer transform hint"
-    is_fixed_read_only: true
-    bug: "301238858"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -107,6 +56,14 @@ flag {
 }
 
 flag {
+  name: "enable_box_shadow_settings"
+  namespace: "window_surfaces"
+  description: "Enable SurfaceControl box shadow settings."
+  bug: "367464660"
+  is_fixed_read_only: true
+}
+
+flag {
     name: "jank_api"
     namespace: "window_surfaces"
     description: "Adds the jank data listener to AttachedSurfaceControl"
@@ -122,6 +79,54 @@ flag {
     is_fixed_read_only: true
     is_exported: true
     bug: "359424300"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "scvh_surface_control_lifetime_fix"
+    namespace: "window_surfaces"
+    description: "Fix lifetime issue with SurfaceControl's created by SCVH"
+    is_fixed_read_only: true
+    bug: "407989942"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "use_input_reported_focus_for_accessibility"
+    namespace: "window_surfaces"
+    description: "Use input-reported focus state when composing accessibility window info"
+    bug: "424253885"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "system_content_priority"
+    namespace: "window_surfaces"
+    description: "Enable prioritization for windows based on the importance of the content, from the system perspective."
+    bug: "431285755"
+}
+
+flag {
+    name: "deprecate_surface_animation_frame_callback"
+    namespace: "window_surfaces"
+    description: "Utilize postVsyncCallback from Choreographer for SurfaceAnimationRunner allowing more precise scheduling via vsyncId."
+    bug: "443142083"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "deprecate_window_animator_frame_callback"
+    namespace: "window_surfaces"
+    description: "Utilize postVsyncCallback from Choreographer for WindowAnimator allowing more precise scheduling via vsyncId."
+    bug: "443142083"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

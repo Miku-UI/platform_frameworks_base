@@ -1,11 +1,14 @@
 # File containing standard options to HostStubGen for Ravenwood
 
-# --debug # To enable debug log on consone
+# --debug # To enable debug log on console
 
 # Keep all classes / methods / fields, but make the methods throw.
 --default-throw
 
 --delete-finals
+
+--experimental-method-call-hook
+    android.platform.test.ravenwood.RavenwoodExperimentalApiChecker.onExperimentalApiCalled
 
 # Uncomment below lines to enable each feature.
 

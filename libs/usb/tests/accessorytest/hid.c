@@ -47,7 +47,7 @@ static void milli_sleep(int millis) {
 }
 
 static void* hid_thread(void* arg) {
-    int fd = (int)arg;
+    int fd = (int)(uintptr_t)arg;
     char buffer[4096];
     int id, ret, offset;
     struct usb_device *device;

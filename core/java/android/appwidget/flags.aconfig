@@ -103,3 +103,20 @@ flag {
   bug: "364655296"
   is_exported: true
 }
+
+flag {
+  name: "remote_document_features_2025q4"
+  namespace: "app_widgets"
+  description: "Remote document features in Q4 2025 release"
+  bug: "412684851"
+}
+
+flag {
+  name: "play_store_pin_widgets"
+  namespace: "app_widgets"
+  description: "Allow apps with INSTALL_PACKAGES to pin widgets for other packages"
+  bug: "414841181"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

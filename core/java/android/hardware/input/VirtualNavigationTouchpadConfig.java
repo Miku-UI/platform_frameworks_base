@@ -38,12 +38,16 @@ public final class VirtualNavigationTouchpadConfig extends VirtualInputDeviceCon
 
     private VirtualNavigationTouchpadConfig(@NonNull Builder builder) {
         super(builder);
+        checkForAssociatedDisplay();
+
         mHeight = builder.mHeight;
         mWidth = builder.mWidth;
     }
 
     private VirtualNavigationTouchpadConfig(@NonNull Parcel in) {
         super(in);
+        checkForAssociatedDisplay();
+
         mHeight = in.readInt();
         mWidth = in.readInt();
     }

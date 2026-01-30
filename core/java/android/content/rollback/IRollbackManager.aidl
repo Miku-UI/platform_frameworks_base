@@ -20,7 +20,7 @@ import android.content.pm.ParceledListSlice;
 import android.content.rollback.RollbackInfo;
 import android.content.IntentSender;
 
-/** {@hide} */
+/** @hide */
 interface IRollbackManager {
 
     ParceledListSlice getAvailableRollbacks();

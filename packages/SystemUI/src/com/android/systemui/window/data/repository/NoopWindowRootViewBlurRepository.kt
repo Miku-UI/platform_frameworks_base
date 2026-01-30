@@ -21,8 +21,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 class NoopWindowRootViewBlurRepository @Inject constructor() : WindowRootViewBlurRepository {
-    override val blurRequestedByShade: MutableStateFlow<Int> = MutableStateFlow(0)
-    override val isBlurOpaque: MutableStateFlow<Boolean> = MutableStateFlow(true)
+    override val blurRequestedByShade: MutableStateFlow<Float> = MutableStateFlow(0.0f)
+    override val scaleRequestedByShade: MutableStateFlow<Float> = MutableStateFlow(1.0f)
     override val isBlurSupported: StateFlow<Boolean> = MutableStateFlow(false)
     override var blurAppliedListener: BlurAppliedListener? = null
+    override val trackingShadeMotion: MutableStateFlow<Boolean> = MutableStateFlow(false)
 }

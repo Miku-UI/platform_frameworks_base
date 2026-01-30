@@ -19,7 +19,7 @@ package android.location.provider;
 import android.location.provider.ProviderRequest;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IProviderRequestListener {
     void onProviderRequestChanged(String provider, in ProviderRequest request);

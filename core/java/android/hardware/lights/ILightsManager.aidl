@@ -22,7 +22,7 @@ import android.hardware.lights.LightState;
 /**
  * API to lights manager service.
  *
- * {@hide}
+ * @hide
  */
 interface ILightsManager {
   @EnforcePermission("CONTROL_DEVICE_LIGHTS")

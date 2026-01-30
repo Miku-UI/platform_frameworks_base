@@ -45,6 +45,9 @@ import com.android.systemui.communal.domain.interactor.communalInteractor
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.domain.interactor.setCommunalV2ConfigEnabled
 import com.android.systemui.communal.shared.model.CommunalScenes
+import com.android.systemui.communal.shared.model.EditModeState
+import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepositorySpy
@@ -60,6 +63,7 @@ import com.android.systemui.power.shared.model.WakeSleepReason
 import com.android.systemui.power.shared.model.WakefulnessState
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -70,6 +74,7 @@ import org.mockito.Mockito.reset
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization) : SysuiTestCase() {
@@ -79,6 +84,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
         @Parameters(name = "{0}")
         fun getParams(): List<FlagsParameterization> {
             return FlagsParameterization.allCombinationsOf(FLAG_GLANCEABLE_HUB_V2)
+                .andSceneContainer()
         }
     }
 
@@ -104,6 +110,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
 
     @Test
     @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
+    @DisableSceneContainer
     fun transitionToGone_keyguardOccluded_biometricAuthenticated() =
         testScope.runTest {
             transitionRepository.sendTransitionSteps(
@@ -129,6 +136,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
 
     @Test
     @EnableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
+    @DisableSceneContainer // KeyguardDismissTransitionInteractor is not used in flexi.
     fun transitionToGone_keyguardOccludedThenAltBouncer_authed_wmStateRefactor() =
         testScope.runTest {
             transitionRepository.sendTransitionSteps(
@@ -144,6 +152,60 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
 
             assertThat(transitionRepository)
                 .startedTransition(from = KeyguardState.ALTERNATE_BOUNCER, to = KeyguardState.GONE)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR, Flags.FLAG_HUB_EDIT_MODE_TRANSITION)
+    @DisableSceneContainer
+    fun transitionToGone_whenEnteringHubEditMode_flagOff_transitionToGone() =
+        kosmos.runTest {
+            transitionRepository.transitionTo(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.ALTERNATE_BOUNCER,
+            )
+            reset(transitionRepository)
+
+            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(null)
+            fakeKeyguardRepository.setKeyguardOccluded(true)
+            runCurrent()
+            assertThat(transitionRepository).noTransitionsStarted()
+
+            communalSceneInteractor.setEditModeState(EditModeState.STARTING)
+
+            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(true)
+            runCurrent()
+            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(null)
+            runCurrent()
+
+            assertThat(transitionRepository)
+                .startedTransition(from = KeyguardState.ALTERNATE_BOUNCER, to = KeyguardState.GONE)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
+    @EnableFlags(Flags.FLAG_HUB_EDIT_MODE_TRANSITION)
+    @DisableSceneContainer
+    fun transitionToGone_whenEnteringHubEditMode_flagOn_doNothing() =
+        kosmos.runTest {
+            transitionRepository.transitionTo(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.ALTERNATE_BOUNCER,
+            )
+            reset(transitionRepository)
+
+            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(null)
+            fakeKeyguardRepository.setKeyguardOccluded(true)
+            runCurrent()
+            assertThat(transitionRepository).noTransitionsStarted()
+
+            communalSceneInteractor.setEditModeState(EditModeState.STARTING)
+
+            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(true)
+            runCurrent()
+            fakeKeyguardBouncerRepository.setKeyguardAuthenticatedBiometrics(null)
+            runCurrent()
+
+            assertThat(transitionRepository).noTransitionsStarted()
         }
 
     @Test
@@ -197,6 +259,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
 
     @Test
     @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
+    @DisableSceneContainer
     fun transitionToOccluded_glanceableHubShowing() =
         kosmos.runTest {
             val currentScene by collectLastValue(communalSceneInteractor.currentScene)
@@ -231,6 +294,9 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
     @Test
     fun transitionToDreaming() =
         kosmos.runTest {
+            // Advance past initial dreaming/doze delay
+            testScope.advanceTimeBy(550)
+
             fakePowerRepository.updateWakefulness(
                 WakefulnessState.AWAKE,
                 WakeSleepReason.POWER_BUTTON,
@@ -239,7 +305,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
             )
             fakeKeyguardRepository.setKeyguardOccluded(false)
             fakeKeyguardBouncerRepository.setAlternateVisible(true)
-            runCurrent()
+            testScope.advanceTimeBy(200) // advance past delay
 
             transitionRepository.sendTransitionSteps(
                 from = KeyguardState.LOCKSCREEN,
@@ -262,6 +328,7 @@ class FromAlternateBouncerTransitionInteractorTest(flags: FlagsParameterization)
 
     @Test
     @DisableFlags(Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR)
+    @DisableSceneContainer
     fun transitionToGone_whenOpeningGlanceableHubEditMode() =
         testScope.runTest {
             kosmos.fakeKeyguardBouncerRepository.setAlternateVisible(true)

@@ -33,11 +33,13 @@ import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_USER;
 import static android.content.pm.PackageManager.USER_MIN_ASPECT_RATIO_3_2;
 import static android.content.pm.PackageManager.USER_MIN_ASPECT_RATIO_FULLSCREEN;
+import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_USER_ASPECT_RATIO_FULLSCREEN_OVERRIDE;
 import static android.view.WindowManager.PROPERTY_COMPAT_IGNORE_REQUESTED_ORIENTATION;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
+import static com.android.window.flags.Flags.FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES;
 import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_FOR_DESKTOP_WINDOWING;
 
 import static org.junit.Assert.assertEquals;
@@ -46,6 +48,7 @@ import static org.mockito.Mockito.verify;
 import android.compat.testing.PlatformCompatChangeRule;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
@@ -83,10 +86,16 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     }
 
     @Test
+    @DisableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     @EnableCompatChanges({OVERRIDE_ANY_ORIENTATION_TO_USER})
     public void testOverrideOrientationIfNeeded_fullscreenOverrideEnabled_returnsUser() {
         runTestScenarioWithActivity((robot) -> {
-            robot.activity().setIgnoreOrientationRequest(true);
+            robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY);
+                a.createActivityWithComponent();
+                a.setIgnoreOrientationRequest(true);
+            });
+
             robot.checkOverrideOrientation(/* candidate */ SCREEN_ORIENTATION_PORTRAIT,
                     /* expected */ SCREEN_ORIENTATION_USER);
         });
@@ -98,6 +107,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
         runTestScenario((robot) -> {
             robot.prop().disable(PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE);
             robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY);
                 a.createActivityWithComponent();
                 a.setIgnoreOrientationRequest(true);
             });
@@ -114,6 +124,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
             robot.prop().disable(PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE);
             robot.conf().enableUserAppAspectRatioFullscreen(true);
             robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY);
                 a.createActivityWithComponent();
                 a.setIgnoreOrientationRequest(true);
                 a.setGetUserMinAspectRatioOverrideCode(USER_MIN_ASPECT_RATIO_FULLSCREEN);
@@ -131,6 +142,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
             robot.prop().disable(PROPERTY_COMPAT_ALLOW_USER_ASPECT_RATIO_FULLSCREEN_OVERRIDE);
             robot.conf().enableUserAppAspectRatioFullscreen(true);
             robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY);
                 a.createActivityWithComponent();
                 a.setIgnoreOrientationRequest(true);
                 a.setGetUserMinAspectRatioOverrideCode(USER_MIN_ASPECT_RATIO_FULLSCREEN);
@@ -266,11 +278,12 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     @Test
     @EnableCompatChanges({OVERRIDE_UNDEFINED_ORIENTATION_TO_PORTRAIT,
             OVERRIDE_ORIENTATION_ONLY_FOR_CAMERA})
+    @DisableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     public void testOverrideOrientationIfNeeded_whenCameraNotActive_isUnchanged() {
         runTestScenario((robot) -> {
             robot.applyOnConf((c)-> {
-                c.enableCameraCompatTreatment(true);
-                c.enableCameraCompatTreatmentAtBuildTime(true);
+                c.enableCameraCompatForceRotateTreatment(true);
+                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
             });
             robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
@@ -285,11 +298,12 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     @Test
     @EnableCompatChanges({OVERRIDE_UNDEFINED_ORIENTATION_TO_PORTRAIT,
             OVERRIDE_ORIENTATION_ONLY_FOR_CAMERA})
+    @DisableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     public void testOverrideOrientationIfNeeded_whenCameraActive_returnsPortrait() {
         runTestScenario((robot) -> {
             robot.applyOnConf((c) -> {
-                c.enableCameraCompatTreatment(true);
-                c.enableCameraCompatTreatmentAtBuildTime(true);
+                c.enableCameraCompatForceRotateTreatment(true);
+                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
             });
             robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
@@ -315,11 +329,12 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     }
 
     @Test
+    @DisableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     public void testOverrideOrientationIfNeeded_fullscreenOverride_cameraActivity_unchanged() {
         runTestScenario((robot) -> {
             robot.applyOnConf((c) -> {
-                c.enableCameraCompatTreatment(true);
-                c.enableCameraCompatTreatmentAtBuildTime(true);
+                c.enableCameraCompatForceRotateTreatment(true);
+                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
             });
             robot.applyOnActivity((a) -> {
                 a.createActivityWithComponentInNewTaskAndDisplay();
@@ -434,12 +449,13 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
     }
 
     @Test
+    @DisableFlags(FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     @EnableCompatChanges({OVERRIDE_ENABLE_COMPAT_IGNORE_REQUESTED_ORIENTATION})
     public void testShouldIgnoreRequestedOrientation_cameraCompatTreatment_returnsTrue() {
         runTestScenario((robot) -> {
             robot.applyOnConf((c) -> {
-                c.enableCameraCompatTreatment(true);
-                c.enableCameraCompatTreatmentAtBuildTime(true);
+                c.enableCameraCompatForceRotateTreatment(true);
+                c.enableCameraCompatForceRotateTreatmentAtBuildTime(true);
                 c.enablePolicyForIgnoringRequestedOrientation(true);
             });
             robot.applyOnActivity((a) -> {
@@ -531,8 +547,7 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
      */
     void runTestScenario(boolean withActivity,
                          @NonNull Consumer<OrientationPolicyRobotTest> consumer) {
-        final OrientationPolicyRobotTest robot =
-                new OrientationPolicyRobotTest(mWm, mAtm, mSupervisor, withActivity);
+        final OrientationPolicyRobotTest robot = new OrientationPolicyRobotTest(this, withActivity);
         consumer.accept(robot);
     }
 
@@ -540,12 +555,9 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
 
         private final WindowManagerService mWm;
 
-        OrientationPolicyRobotTest(@NonNull WindowManagerService wm,
-                                   @NonNull ActivityTaskManagerService atm,
-                                   @NonNull ActivityTaskSupervisor supervisor,
-                                   boolean withActivity) {
-            super(wm, atm, supervisor);
-            mWm = wm;
+        OrientationPolicyRobotTest(@NonNull WindowTestsBase windowTestBase, boolean withActivity) {
+            super(windowTestBase);
+            mWm = windowTestBase.mWm;
             spyOn(mWm);
             if (withActivity) {
                 activity().createActivityWithComponent();
@@ -563,11 +575,11 @@ public class AppCompatOrientationPolicyTest extends WindowTestsBase {
         void onPostDisplayContentCreation(@NonNull DisplayContent displayContent) {
             super.onPostDisplayContentCreation(displayContent);
             spyOn(displayContent.mAppCompatCameraPolicy);
-            if (displayContent.mAppCompatCameraPolicy.hasDisplayRotationCompatPolicy()) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mDisplayRotationCompatPolicy);
+            if (displayContent.mAppCompatCameraPolicy.hasDisplayRotationPolicy()) {
+                spyOn(displayContent.mAppCompatCameraPolicy.mDisplayRotationPolicy);
             }
-            if (displayContent.mAppCompatCameraPolicy.hasCameraCompatFreeformPolicy()) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mCameraCompatFreeformPolicy);
+            if (displayContent.mAppCompatCameraPolicy.hasSimReqOrientationPolicy()) {
+                spyOn(displayContent.mAppCompatCameraPolicy.mSimReqOrientationPolicy);
             }
         }
 

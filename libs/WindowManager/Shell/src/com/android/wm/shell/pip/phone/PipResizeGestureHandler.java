@@ -39,7 +39,7 @@ import android.view.InputEventReceiver;
 import android.view.InputMonitor;
 import android.view.MotionEvent;
 import android.view.ViewConfiguration;
-import android.window.DesktopModeFlags;
+import android.window.DesktopExperienceFlags;
 
 import androidx.annotation.VisibleForTesting;
 
@@ -69,6 +69,7 @@ public class PipResizeGestureHandler {
     private static final float PINCH_RESIZE_AUTO_MAX_RATIO = 0.9f;
 
     private final Context mContext;
+    private final InputManager mInputManager;
     private final PipBoundsAlgorithm mPipBoundsAlgorithm;
     private final PipMotionHelper mMotionHelper;
     private final PipBoundsState mPipBoundsState;
@@ -136,6 +137,7 @@ public class PipResizeGestureHandler {
             PipUiEventLogger pipUiEventLogger, PhonePipMenuController menuActivityController,
             ShellExecutor mainExecutor, @Nullable PipPerfHintController pipPerfHintController) {
         mContext = context;
+        mInputManager = mContext.getSystemService(InputManager.class);
         mDisplayId = context.getDisplayId();
         mMainExecutor = mainExecutor;
         mPipPerfHintController = pipPerfHintController;
@@ -183,7 +185,7 @@ public class PipResizeGestureHandler {
     private void reloadResources() {
         final Resources res = mContext.getResources();
         mDelta = res.getDimensionPixelSize(R.dimen.pip_resize_edge_size);
-        mEnableDragCornerResize = DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_PIP.isTrue();
+        mEnableDragCornerResize = DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_PIP.isTrue();
         mTouchSlop = ViewConfiguration.get(mContext).getScaledTouchSlop();
     }
 
@@ -227,8 +229,7 @@ public class PipResizeGestureHandler {
 
         if (mIsEnabled) {
             // Register input event receiver
-            mInputMonitor = mContext.getSystemService(InputManager.class).monitorGestureInput(
-                    "pip-resize", mDisplayId);
+            mInputMonitor = mInputManager.monitorGestureInput("pip-resize", mDisplayId);
             try {
                 mMainExecutor.executeBlocking(() -> {
                     mInputEventReceiver = new PipResizeInputEventReceiver(
@@ -509,7 +510,7 @@ public class PipResizeGestureHandler {
                         mThresholdCrossed = true;
                         // Reset the down to begin resizing from this point
                         mDownPoint.set(x, y);
-                        mInputMonitor.pilferPointers();
+                        mInputManager.pilferPointers(mInputEventReceiver.getToken());
                     }
                     if (mThresholdCrossed) {
                         if (mPhonePipMenuController.isMenuVisible()) {
@@ -537,20 +538,7 @@ public class PipResizeGestureHandler {
         }
     }
 
-    private void snapToMovementBoundsEdge(Rect bounds, Rect movementBounds) {
-        final int leftEdge = bounds.left;
 
-
-        final int fromLeft = Math.abs(leftEdge - movementBounds.left);
-        final int fromRight = Math.abs(movementBounds.right - leftEdge);
-
-        // The PIP will be snapped to either the right or left edge, so calculate which one
-        // is closest to the current position.
-        final int newLeft = fromLeft < fromRight
-                ? movementBounds.left : movementBounds.right;
-
-        bounds.offsetTo(newLeft, mLastResizeBounds.top);
-    }
 
     /**
      * Resizes the pip window and updates user-resized bounds.
@@ -561,11 +549,8 @@ public class PipResizeGestureHandler {
     void userResizeTo(Rect bounds, float snapFraction) {
         Rect finalBounds = new Rect(bounds);
 
-        // get the current movement bounds
-        final Rect movementBounds = mPipBoundsAlgorithm.getMovementBounds(finalBounds);
-
         // snap the target bounds to the either left or right edge, by choosing the closer one
-        snapToMovementBoundsEdge(finalBounds, movementBounds);
+        mPipBoundsAlgorithm.snapToMovementBoundsEdge(bounds);
 
         // apply the requested snap fraction onto the target bounds
         mPipBoundsAlgorithm.applySnapFraction(finalBounds, snapFraction);
@@ -597,15 +582,10 @@ public class PipResizeGestureHandler {
                     resizeRectAboutCenter(mLastResizeBounds, mMinSize.x, mMinSize.y);
                 }
 
-                // get the current movement bounds
-                final Rect movementBounds = mPipBoundsAlgorithm
-                        .getMovementBounds(mLastResizeBounds);
-
                 // snap mLastResizeBounds to the correct edge based on movement bounds
-                snapToMovementBoundsEdge(mLastResizeBounds, movementBounds);
+                mPipBoundsAlgorithm.snapToMovementBoundsEdge(mLastResizeBounds);
 
-                final float snapFraction = mPipBoundsAlgorithm.getSnapFraction(
-                        mLastResizeBounds, movementBounds);
+                final float snapFraction = mPipBoundsAlgorithm.getSnapFraction(mLastResizeBounds);
                 mPipBoundsAlgorithm.applySnapFraction(mLastResizeBounds, snapFraction);
 
                 // disable any touch events beyond resizing too
@@ -658,9 +638,8 @@ public class PipResizeGestureHandler {
 
     @VisibleForTesting
     void pilferPointers() {
-        mInputMonitor.pilferPointers();
+        mInputManager.pilferPointers(mInputEventReceiver.getToken());
     }
-
 
     @VisibleForTesting public void updateMaxSize(int maxX, int maxY) {
         mMaxSize.set(maxX, maxY);

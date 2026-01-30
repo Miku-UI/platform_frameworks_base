@@ -57,11 +57,11 @@ import com.android.wm.shell.common.pip.PipBoundsState;
 import com.android.wm.shell.common.pip.PipDoubleTapHelper;
 import com.android.wm.shell.common.pip.PipPerfHintController;
 import com.android.wm.shell.common.pip.PipUiEventLogger;
-import com.android.wm.shell.common.pip.PipUtils;
 import com.android.wm.shell.common.pip.SizeSpecSource;
 import com.android.wm.shell.pip.PipAnimationController;
 import com.android.wm.shell.pip.PipTaskOrganizer;
 import com.android.wm.shell.pip.PipTransitionController;
+import com.android.wm.shell.shared.pip.PipFlags;
 import com.android.wm.shell.sysui.ShellInit;
 
 import java.io.PrintWriter;
@@ -224,7 +224,7 @@ public class PipTouchHandler {
         // TODO(b/181599115): This should really be initializes as part of the pip controller, but
         // until all PIP implementations derive from the controller, just initialize the touch handler
         // if it is needed
-        if (!PipUtils.isPip2ExperimentEnabled()) {
+        if (!PipFlags.isPip2ExperimentEnabled()) {
             shellInit.addInitCallback(this::onInit, this);
         }
     }
@@ -581,6 +581,7 @@ public class PipTouchHandler {
             case MotionEvent.ACTION_CANCEL: {
                 shouldDeliverToMenu = !mTouchState.startedDragging() && !mTouchState.isDragging();
                 mTouchState.reset();
+                mPipDismissTargetHandler.cleanUpDismissTarget();
                 break;
             }
             case MotionEvent.ACTION_HOVER_ENTER:

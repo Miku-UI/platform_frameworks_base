@@ -19,6 +19,7 @@ package com.android.systemui.biometrics.domain.interactor
 import android.content.applicationContext
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.applicationCoroutineScope
@@ -30,6 +31,5 @@ val Kosmos.fingerprintPropertyInteractor by Fixture {
         repository = fingerprintPropertyRepository,
         configurationInteractor = configurationInteractor,
         displayStateInteractor = displayStateInteractor,
-        udfpsOverlayInteractor = udfpsOverlayInteractor,
     )
 }

@@ -187,13 +187,13 @@ public class ParcelFileDescriptor implements Parcelable, Closeable {
         mClosed = true;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public ParcelFileDescriptor(FileDescriptor fd) {
         this(fd, null);
     }
 
-    /** {@hide} */
+    /** @hide */
     public ParcelFileDescriptor(FileDescriptor fd, FileDescriptor commChannel) {
         if (fd == null) {
             throw new NullPointerException("FileDescriptor must not be null");
@@ -296,7 +296,7 @@ public class ParcelFileDescriptor implements Parcelable, Closeable {
         return fromFd(original, handler, listener);
     }
 
-    /** {@hide} */
+    /** @hide */
     @RavenwoodThrow(blockedBy = MessageQueue.class)
     public static ParcelFileDescriptor fromFd(FileDescriptor fd, Handler handler,
             final OnCloseListener listener) throws IOException {
@@ -730,7 +730,7 @@ public class ParcelFileDescriptor implements Parcelable, Closeable {
                     return -1;
                 }
             } catch (ErrnoException e) {
-                Log.w(TAG, "fstat() failed: " + e);
+                Log.w(TAG, "fstat() failed", e);
                 return -1;
             }
         }
@@ -910,10 +910,10 @@ public class ParcelFileDescriptor implements Parcelable, Closeable {
                 Os.write(mCommFd, buf, 0, writePtr);
             } catch (ErrnoException e) {
                 // Reporting status is best-effort
-                Log.w(TAG, "Failed to report status: " + e);
+                Log.w(TAG, "Failed to report status", e);
             } catch (InterruptedIOException e) {
                 // Reporting status is best-effort
-                Log.w(TAG, "Failed to report status: " + e);
+                Log.w(TAG, "Failed to report status", e);
             }
 
         } finally {
@@ -942,11 +942,11 @@ public class ParcelFileDescriptor implements Parcelable, Closeable {
                 // Remote is still alive, but no status written yet
                 return null;
             } else {
-                Log.d(TAG, "Failed to read status; assuming dead: " + e);
+                Log.d(TAG, "Failed to read status; assuming dead", e);
                 return new Status(Status.DEAD);
             }
         } catch (InterruptedIOException e) {
-            Log.d(TAG, "Failed to read status; assuming dead: " + e);
+            Log.d(TAG, "Failed to read status; assuming dead", e);
             return new Status(Status.DEAD);
         }
     }

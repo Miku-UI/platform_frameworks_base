@@ -19,12 +19,16 @@ with adb shell, for example, <code>adb shell sqlite3</code>.
 
 <p>The version of SQLite depends on the version of Android. In the past,
   SQLite upgrades have been delivered as part of a new API level, but more
-  recently SQLite may be upgraded within an API level.  See the following
-  table:
+  recently SQLite may be upgraded within an API level (as with API 34).
+  Note that patch-level upgrades (e.g. from 3.44.0 to 3.44.3) are not
+  reported here. If an Android release is not in the table, it uses the
+  version of SQLite from the next-lower Android release that is listed.
+  See the following table:
 <table style="width:auto;">
   <tr><th>Android API</th><th>SQLite Version</th></tr>
-  <tr><td>API 35</td><td>3.44.3</td></tr>
-  <tr><td>API 34</td><td>3.42.0</td></tr>
+  <tr><td>API 36.1</td><td>3.50</td></tr>
+  <tr><td>API 35</td><td>3.44</td></tr>
+  <tr><td>API 34</td><td>3.42</td></tr>
   <tr><td>API 34</td><td>3.39</td></tr>
   <tr><td>API 33</td><td>3.32</td></tr>
   <tr><td>API 32</td><td>3.32</td></tr>

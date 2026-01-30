@@ -144,7 +144,7 @@ public class BluetoothPowerStatsCollector extends PowerStatsCollector {
     }
 
     @Override
-    public PowerStats collectStats() {
+    public PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
         if (!ensureInitialized()) {
             return null;
         }
@@ -158,8 +158,7 @@ public class BluetoothPowerStatsCollector extends PowerStatsCollector {
         mConsumedEnergyHelper.collectConsumedEnergy(mPowerStats, mLayout);
 
         if (mObserver != null) {
-            mObserver.onBluetoothPowerStatsRetrieved(activityInfo, mClock.elapsedRealtime(),
-                    mClock.uptimeMillis());
+            mObserver.onBluetoothPowerStatsRetrieved(activityInfo, elapsedRealtimeMs, uptimeMs);
         }
 
         return mPowerStats;

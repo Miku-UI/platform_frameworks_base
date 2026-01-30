@@ -19,7 +19,6 @@ package com.android.server;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
-import android.os.Process;
 import android.os.StrictMode;
 
 /**
@@ -40,8 +39,6 @@ public class ServiceThread extends HandlerThread {
 
     @Override
     public void run() {
-        Process.setCanSelfBackground(false);
-
         if (!mAllowIo) {
             StrictMode.initThreadDefaults(null);
         }

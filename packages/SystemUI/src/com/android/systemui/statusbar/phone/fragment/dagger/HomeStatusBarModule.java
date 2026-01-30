@@ -20,7 +20,6 @@ import android.view.View;
 import android.view.ViewStub;
 
 import com.android.systemui.battery.BatteryMeterView;
-import com.android.systemui.dagger.qualifiers.DisplaySpecific;
 import com.android.systemui.dagger.qualifiers.RootView;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.HeadsUpStatusBarView;
@@ -135,13 +134,5 @@ public interface HomeStatusBarModule {
     @HomeStatusBarScope
     static HeadsUpStatusBarView providesHeasdUpStatusBarView(@RootView PhoneStatusBarView view) {
         return view.findViewById(R.id.heads_up_status_bar_view);
-    }
-
-    /** */
-    @Provides
-    @HomeStatusBarScope
-    @DisplaySpecific
-    static int displayId(@RootView PhoneStatusBarView view) {
-        return view.getContext().getDisplayId();
     }
 }

@@ -87,6 +87,10 @@ final class StrictModeViolationDialog extends BaseErrorDialog {
         mHandler.obtainMessage(ACTION_OK).sendToTarget();
     }
 
+    AppErrorResult getResult() {
+        return mResult;
+    }
+
     private final Handler mHandler = new Handler() {
         public void handleMessage(Message msg) {
             synchronized (mService.mProcLock) {

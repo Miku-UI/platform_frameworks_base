@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Ενημέρωση"</string>
     <string name="done" msgid="6632441120016885253">"Τέλος"</string>
     <string name="cancel" msgid="1018267193425558088">"Ακύρωση"</string>
+    <string name="more_details" msgid="3643407086654820243">"Περισσότερα"</string>
+    <string name="dont_install" msgid="414055123295505225">"Χωρίς εγκατάστ."</string>
     <string name="installing" msgid="4921993079741206516">"Εγκατάσταση…"</string>
     <string name="installing_app" msgid="1165095864863849422">"Εγκατάσταση <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>…"</string>
     <string name="install_done" msgid="5987363587661783896">"Η εφαρμογή εγκαταστάθηκε."</string>
@@ -78,7 +80,7 @@
     <string name="uninstalling" msgid="8709566347688966845">"Απεγκατάσταση…"</string>
     <string name="uninstalling_app" msgid="8866082646836981397">"Απεγκατάσταση <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>…"</string>
     <string name="uninstall_done" msgid="439354138387969269">"Η απεγκατάσταση ολοκληρώθηκε."</string>
-    <string name="uninstall_done_app" msgid="4588850984473605768">"Απεγκαταστάθηκε το πακέτο <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+    <string name="uninstall_done_app" msgid="4588850984473605768">"Απεγκαταστάθηκε το <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
     <string name="uninstall_done_clone_app" msgid="5578308154544195413">"Έγινε διαγραφή κλώνου <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
     <string name="uninstall_failed" msgid="1847750968168364332">"Μη επιτυχής απεγκατάσταση."</string>
     <string name="uninstall_failed_app" msgid="5506028705017601412">"Μη επιτυχής απεγκατάσταση <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>."</string>

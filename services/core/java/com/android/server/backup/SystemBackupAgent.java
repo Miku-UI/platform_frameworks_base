@@ -34,6 +34,7 @@ import android.os.ServiceManager;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.util.Slog;
+import android.window.DesktopExperienceFlags;
 
 import com.android.server.display.DisplayBackupHelper;
 import com.android.server.notification.NotificationBackupHelper;
@@ -70,6 +71,7 @@ public class SystemBackupAgent extends BackupAgentHelper {
     private static final String DISPLAY_HELPER = "display";
     private static final String INPUT_HELPER = "input";
     private static final String WEAR_BACKUP_HELPER = "wear";
+    private static final String DISPLAY_WINDOW_HELPER = "display_window";
 
     // These paths must match what the WallpaperManagerService uses.  The leaf *_FILENAME
     // are also used in the full-backup file format, so must not change unless steps are
@@ -108,7 +110,8 @@ public class SystemBackupAgent extends BackupAgentHelper {
                     COMPANION_HELPER,
                     APP_GENDER_HELPER,
                     SYSTEM_GENDER_HELPER,
-                    DISPLAY_HELPER);
+                    DISPLAY_HELPER,
+                    DISPLAY_WINDOW_HELPER);
 
     /** Helpers that are enabled for full, non-system users. */
     private static final Set<String> sEligibleHelpersForNonSystemUser =
@@ -154,7 +157,10 @@ public class SystemBackupAgent extends BackupAgentHelper {
         if (com.android.hardware.input.Flags.enableBackupAndRestoreForInputGestures()) {
             addHelperIfEligibleForUser(INPUT_HELPER, new InputBackupHelper(mUserId));
         }
-
+        if (DesktopExperienceFlags.ENABLE_BACKUP_AND_RESTORE_DISPLAY_WINDOW_SETTINGS.isTrue()) {
+            addHelperIfEligibleForUser(DISPLAY_WINDOW_HELPER,
+                    new DisplayWindowSettingsBackupHelper(mUserId));
+        }
         // Add Wear helper only if the device is a watch
         if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)) {
             addHelperIfEligibleForUser(WEAR_BACKUP_HELPER, new WearBackupHelper());
@@ -187,7 +193,8 @@ public class SystemBackupAgent extends BackupAgentHelper {
      */
     @Override
     public void onRestoreFile(ParcelFileDescriptor data, long size,
-            int type, String domain, String path, long mode, long mtime)
+            int type, String domain, String path, long mode, long mtime,
+            long appVersionCode, int transportFlags, String contentVersion)
             throws IOException {
         Slog.i(TAG, "Restoring file domain=" + domain + " path=" + path);
 

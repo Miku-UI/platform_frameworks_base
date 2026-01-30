@@ -119,7 +119,7 @@ public class NotificationHeaderViewWrapper extends NotificationViewWrapper imple
                 TRANSFORMING_VIEW_TITLE);
         resolveHeaderViews();
         addFeedbackOnClickListener(row);
-        addCloseButtonOnClickListener(row);
+        addDismissButtonOnClickListener(row);
 
         if (NotificationAddXOnHoverToDismiss.isEnabled()) {
             mRow.addDismissButtonTargetStateListener(mHoverListener);
@@ -213,8 +213,8 @@ public class NotificationHeaderViewWrapper extends NotificationViewWrapper imple
         }
     }
 
-    private void addCloseButtonOnClickListener(ExpandableNotificationRow row) {
-        View.OnClickListener listener = row.getCloseButtonOnClickListener(row);
+    private void addDismissButtonOnClickListener(ExpandableNotificationRow row) {
+        View.OnClickListener listener = row.getDismissButtonOnClickListener();
         if (mCloseButton != null && listener != null) {
             mCloseButton.setOnClickListener(listener);
         }

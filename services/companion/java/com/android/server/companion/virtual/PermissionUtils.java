@@ -19,6 +19,7 @@ package com.android.server.companion.virtual;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.os.Binder;
+import android.os.Process;
 import android.os.UserHandle;
 import android.util.Slog;
 
@@ -39,6 +40,9 @@ class PermissionUtils {
      */
     public static boolean validateCallingPackageName(Context context, String callingPackage) {
         final int callingUid = Binder.getCallingUid();
+        if (callingUid == Process.SYSTEM_UID) {
+            return true;
+        }
         final long token = Binder.clearCallingIdentity();
         try {
             int packageUid = context.getPackageManager()

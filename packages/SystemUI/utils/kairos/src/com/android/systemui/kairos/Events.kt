@@ -31,13 +31,19 @@ import com.android.systemui.kairos.internal.mapImpl
 import com.android.systemui.kairos.internal.neverImpl
 import com.android.systemui.kairos.internal.util.hashString
 import com.android.systemui.kairos.util.Maybe
+import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.NameTaggingDisabled
+import com.android.systemui.kairos.util.forceInit
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
 import com.android.systemui.kairos.util.toMaybe
+import com.android.systemui.kairos.util.toNameData
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.reflect.KProperty
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * A series of values of type [A] available at discrete points in time.
@@ -70,10 +76,13 @@ sealed class Events<out A> {
  */
 @ExperimentalKairosApi
 class EventsLoop<A> : Events<A>() {
+
+    private val nameData: NameData = NameTaggingDisabled
+
     private val deferred = CompletableLazy<Events<A>>()
 
     internal val init: Init<EventsImpl<A>> =
-        init(name = null) { deferred.value.init.connect(evalScope = this) }
+        init(nameData) { deferred.value.init.connect(evalScope = this) }
 
     /**
      * The [Events] this reference is referring to. Must be set before this [EventsLoop] is
@@ -94,7 +103,7 @@ class EventsLoop<A> : Events<A>() {
         loopback = value
     }
 
-    override fun toString(): String = "${this::class.simpleName}@$hashString"
+    override fun toString(): String = "${this::class.simpleName}@$hashString[$nameData]"
 }
 
 /**
@@ -154,7 +163,12 @@ fun <A> deferredEvents(block: KairosScope.() -> Events<A>): Events<A> = deferInl
  */
 @ExperimentalKairosApi
 fun <A, B> Events<A>.mapMaybe(transform: TransactionScope.(A) -> Maybe<B>): Events<B> =
-    map(transform).filterPresent()
+    mapMaybe(nameTag("Events.mapMaybe").toNameData("Events.mapMaybe"), transform)
+
+internal fun <A, B> Events<A>.mapMaybe(
+    nameData: NameData,
+    transform: TransactionScope.(A) -> Maybe<B>,
+): Events<B> = map(nameData + "map", transform).filterPresent(nameData)
 
 /**
  * Returns an [Events] that contains only the non-null results of applying [transform] to each value
@@ -168,9 +182,13 @@ fun <A, B> Events<A>.mapMaybe(transform: TransactionScope.(A) -> Maybe<B>): Even
  * @see mapMaybe
  */
 @ExperimentalKairosApi
-fun <A, B> Events<A>.mapNotNull(transform: TransactionScope.(A) -> B?): Events<B> = mapMaybe {
-    transform(it).toMaybe()
-}
+fun <A, B> Events<A>.mapNotNull(transform: TransactionScope.(A) -> B?): Events<B> =
+    mapNotNull(nameTag("Events.mapNotNull").toNameData("Events.mapNotNull"), transform)
+
+internal fun <A, B> Events<A>.mapNotNull(
+    nameData: NameData,
+    transform: TransactionScope.(A) -> B?,
+): Events<B> = mapMaybe(nameData) { transform(it).toMaybe() }
 
 /**
  * Returns an [Events] containing the results of applying [transform] to each value of the original
@@ -180,21 +198,38 @@ fun <A, B> Events<A>.mapNotNull(transform: TransactionScope.(A) -> B?): Events<B
  */
 @ExperimentalKairosApi
 fun <A, B> Events<A>.map(transform: TransactionScope.(A) -> B): Events<B> {
-    val mapped: EventsImpl<B> = mapImpl({ init.connect(evalScope = this) }) { a, _ -> transform(a) }
-    return EventsInit(constInit(name = null, mapped.cached()))
+    return map(nameTag("Events.map").toNameData("Events.map"), transform)
+}
+
+internal fun <A, B> Events<A>.map(
+    nameData: NameData,
+    transform: TransactionScope.(A) -> B,
+): Events<B> {
+    val mapped: EventsImpl<B> =
+        mapImpl({ init.connect(evalScope = this) }, nameData) { a, _ -> transform(a) }
+    return EventsInit(constInit(nameData, mapped.cached(nameData + "cached")))
 }
 
 /**
  * Like [map], but the emission is not cached during the transaction. Use only if [transform] is
- * fast and pure.
+ * fast and pure. If you are unsure if you need this, then you should prefer [map].
  *
  * @sample com.android.systemui.kairos.KairosSamples.mapCheap
  * @see map
  */
 @ExperimentalKairosApi
 fun <A, B> Events<A>.mapCheap(transform: TransactionScope.(A) -> B): Events<B> =
+    mapCheap(nameTag("Events.mapCheap").toNameData("Events.mapCheap"), transform)
+
+internal fun <A, B> Events<A>.mapCheap(
+    nameData: NameData,
+    transform: TransactionScope.(A) -> B,
+): Events<B> =
     EventsInit(
-        constInit(name = null, mapImpl({ init.connect(evalScope = this) }) { a, _ -> transform(a) })
+        constInit(
+            nameData,
+            mapImpl({ init.connect(evalScope = this) }, nameData) { a, _ -> transform(a) },
+        )
     )
 
 /**
@@ -212,9 +247,13 @@ fun <A, B> Events<A>.mapCheap(transform: TransactionScope.(A) -> B): Events<B> =
  * [BuildScope.toSharedFlow] or [BuildScope.observe].
  */
 @ExperimentalKairosApi
-fun <A> Events<A>.onEach(action: TransactionScope.(A) -> Unit): Events<A> = map {
-    it.also { action(it) }
-}
+fun <A> Events<A>.onEach(action: TransactionScope.(A) -> Unit): Events<A> =
+    onEach(nameTag("Events.onEach").toNameData("Events.onEach"), action)
+
+internal fun <A> Events<A>.onEach(
+    nameData: NameData,
+    action: TransactionScope.(A) -> Unit,
+): Events<A> = map(nameData) { it.also { action(it) } }
 
 /**
  * Splits an [Events] of pairs into a pair of [Events], where each returned [Events] emits half of
@@ -229,9 +268,12 @@ fun <A> Events<A>.onEach(action: TransactionScope.(A) -> Unit): Events<A> = map 
  * ```
  */
 @ExperimentalKairosApi
-fun <A, B> Events<Pair<A, B>>.unzip(): Pair<Events<A>, Events<B>> {
-    val lefts = map { it.first }
-    val rights = map { it.second }
+fun <A, B> Events<Pair<A, B>>.unzip(): Pair<Events<A>, Events<B>> =
+    unzip(nameTag("Events.unzip").toNameData("Events.unzip"))
+
+internal fun <A, B> Events<Pair<A, B>>.unzip(nameData: NameData): Pair<Events<A>, Events<B>> {
+    val lefts = map(nameData + "getFirst") { it.first }
+    val rights = map(nameData + "getSecond") { it.second }
     return lefts to rights
 }
 
@@ -244,15 +286,20 @@ fun <A, B> Events<Pair<A, B>>.unzip(): Pair<Events<A>, Events<B>> {
 @ExperimentalKairosApi
 class CoalescingMutableEvents<in In, Out>
 internal constructor(
-    internal val name: String?,
+    internal val nameData: NameData,
     internal val coalesce: (old: Lazy<Out>, new: In) -> Out,
     internal val network: Network,
     private val getInitialValue: () -> Out,
-    internal val impl: InputNode<Out> = InputNode(),
+    internal val impl: InputNode<Out> = InputNode(nameData),
 ) : Events<Out>() {
+
+    init {
+        nameData.forceInit()
+    }
+
     private val storage = AtomicReference(false to lazy { getInitialValue() })
 
-    override fun toString(): String = "${this::class.simpleName}@$hashString"
+    override fun toString(): String = "${this::class.simpleName}@$hashString[$nameData]"
 
     /**
      * Inserts [value] into the current batch, enqueueing it for emission from this [Events] if not
@@ -264,12 +311,10 @@ internal constructor(
      */
     fun emit(value: In) {
         val (scheduled, _) =
-            storage.getAndUpdate { (_, batch) -> true to CompletableLazy(coalesce(batch, value)) }
+            storage.getAndUpdate { (_, batch) -> true to lazyOf(coalesce(batch, value)) }
         if (!scheduled) {
             @Suppress("DeferredResultUnused")
-            network.transaction(
-                "CoalescingMutableEvents${name?.let { "($name)" }.orEmpty()}.emit"
-            ) {
+            network.transaction("CoalescingMutableEvents.emit") {
                 val (_, batch) = storage.getAndSet(false to lazy { getInitialValue() })
                 impl.visit(this, batch.value)
             }
@@ -285,13 +330,19 @@ internal constructor(
  */
 @ExperimentalKairosApi
 class MutableEvents<T>
-internal constructor(internal val network: Network, internal val impl: InputNode<T> = InputNode()) :
-    Events<T>() {
-    internal val name: String? = null
+internal constructor(
+    internal val network: Network,
+    internal val nameData: NameData,
+    internal val impl: InputNode<T> = InputNode(nameData),
+) : Events<T>() {
+
+    init {
+        nameData.forceInit()
+    }
 
     private val storage = AtomicReference<Job?>(null)
 
-    override fun toString(): String = "${this::class.simpleName}@$hashString"
+    override fun toString(): String = "${this::class.simpleName}@$hashString[$nameData]"
 
     /**
      * Emits a [value] to this [Events], suspending the caller until the Kairos transaction
@@ -301,12 +352,14 @@ internal constructor(internal val network: Network, internal val impl: InputNode
         coroutineScope {
             var jobOrNull: Job? = null
             val newEmit =
-                async(start = CoroutineStart.LAZY) {
+                launch(start = CoroutineStart.LAZY) {
                     jobOrNull?.join()
+                    jobOrNull = null
                     network.transaction("MutableEvents.emit") { impl.visit(this, value) }.await()
                 }
             jobOrNull = storage.getAndSet(newEmit)
-            newEmit.await()
+            newEmit.join()
+            storage.compareAndExchange(newEmit, null)
         }
     }
 }
@@ -320,12 +373,12 @@ internal class EventsInit<out A>(val init: Init<EventsImpl<A>>) : Events<A>() {
 internal val <A> Events<A>.init: Init<EventsImpl<A>>
     get() =
         when (this) {
-            is EmptyEvents -> constInit("EmptyEvents", neverImpl)
+            is EmptyEvents -> constInit(nameTag("neverEvents").toNameData("neverEvents"), neverImpl)
             is EventsInit -> init
             is EventsLoop -> init
-            is CoalescingMutableEvents<*, A> -> constInit(name, impl.activated())
-            is MutableEvents -> constInit(name, impl.activated())
+            is CoalescingMutableEvents<*, A> -> constInit(nameData, impl.activated())
+            is MutableEvents -> constInit(nameData, impl.activated())
         }
 
 private inline fun <A> deferInline(crossinline block: InitScope.() -> Events<A>): Events<A> =
-    EventsInit(init(name = null) { block().init.connect(evalScope = this) })
+    EventsInit(init(NameTaggingDisabled) { block().init.connect(evalScope = this) })

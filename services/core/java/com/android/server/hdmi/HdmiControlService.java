@@ -16,7 +16,6 @@
 
 package com.android.server.hdmi;
 
-import static android.media.tv.flags.Flags.hdmiControlEnhancedBehavior;
 import static android.hardware.hdmi.HdmiControlManager.DEVICE_EVENT_ADD_DEVICE;
 import static android.hardware.hdmi.HdmiControlManager.DEVICE_EVENT_REMOVE_DEVICE;
 import static android.hardware.hdmi.HdmiControlManager.EARC_FEATURE_DISABLED;
@@ -27,6 +26,7 @@ import static android.hardware.hdmi.HdmiControlManager.POWER_CONTROL_MODE_NONE;
 import static android.hardware.hdmi.HdmiControlManager.SOUNDBAR_MODE_DISABLED;
 import static android.hardware.hdmi.HdmiControlManager.SOUNDBAR_MODE_ENABLED;
 import static android.hardware.hdmi.HdmiControlManager.TV_SEND_STANDBY_ON_SLEEP_ENABLED;
+import static android.media.tv.flags.Flags.hdmiControlEnhancedBehavior;
 
 import static com.android.server.hdmi.Constants.ADDR_UNREGISTERED;
 import static com.android.server.hdmi.Constants.DISABLED;
@@ -98,6 +98,7 @@ import android.os.SystemProperties;
 import android.os.UserHandle;
 import android.provider.DeviceConfig;
 import android.provider.Settings.Global;
+import android.service.dreams.DreamManagerInternal;
 import android.stats.hdmi.HdmiStatsEnums;
 import android.sysprop.HdmiProperties;
 import android.text.TextUtils;
@@ -111,6 +112,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.util.IndentingPrintWriter;
+import com.android.server.LocalServices;
 import com.android.server.SystemService;
 import com.android.server.hdmi.HdmiAnnotations.ServiceThreadOnly;
 import com.android.server.hdmi.HdmiCecController.AllocateAddressCallback;
@@ -129,6 +131,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -451,6 +454,9 @@ public class HdmiControlService extends SystemService {
     @GuardedBy("mLock")
     private boolean mEarcEnabled;
 
+    // Flag for disable absolute volume behavior b/406050353
+    private boolean mAvbDisabled = true;
+
     private int mEarcPortId = -1;
 
     // Set to true while the service is in normal mode. While set to false, no input change is
@@ -574,6 +580,10 @@ public class HdmiControlService extends SystemService {
     // Whether a CEC-enabled sink is connected to the playback device
     private boolean mIsCecAvailable = false;
 
+    // Last three caller that init change of the input source
+    private final LinkedList<Integer> mLastUpdateSourceCallerRecord = new LinkedList<>();
+    private final int mMaxUpdateSourceCallerRecordNum = 3;
+
     // Object that handles logging statsd atoms.
     // Use getAtomWriter() instead of accessing directly, to allow dependency injection for testing.
     private HdmiCecAtomWriter mAtomWriter = new HdmiCecAtomWriter();
@@ -581,6 +591,8 @@ public class HdmiControlService extends SystemService {
     private CecMessageBuffer mCecMessageBuffer;
 
     private final SelectRequestBuffer mSelectRequestBuffer = new SelectRequestBuffer();
+
+    private DreamManagerInternal mDreamManagerInternal;
 
     /**
      * Constructor for testing.
@@ -704,13 +716,18 @@ public class HdmiControlService extends SystemService {
         publishBinderService(Context.HDMI_CONTROL_SERVICE, new BinderService());
 
         if (mCecController != null) {
-            // Register broadcast receiver for power state change.
-            IntentFilter filter = new IntentFilter();
-            filter.addAction(Intent.ACTION_SCREEN_OFF);
-            filter.addAction(Intent.ACTION_SCREEN_ON);
-            filter.addAction(Intent.ACTION_SHUTDOWN);
-            filter.addAction(Intent.ACTION_CONFIGURATION_CHANGED);
-            getContext().registerReceiver(mHdmiControlBroadcastReceiver, filter);
+            // Register broadcast receiver for power state change with high priority.
+            IntentFilter powerFilter = new IntentFilter();
+            powerFilter.addAction(Intent.ACTION_SCREEN_OFF);
+            powerFilter.addAction(Intent.ACTION_SCREEN_ON);
+            powerFilter.addAction(Intent.ACTION_SHUTDOWN);
+            powerFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
+            getContext().registerReceiver(mHdmiControlBroadcastReceiver, powerFilter);
+
+            // Register broadcast receiver for configuration change.
+            IntentFilter configFilter = new IntentFilter();
+            configFilter.addAction(Intent.ACTION_CONFIGURATION_CHANGED);
+            getContext().registerReceiver(mHdmiControlBroadcastReceiver, configFilter);
 
             // Register ContentObserver to monitor the settings change.
             registerContentObserver();
@@ -2359,6 +2376,7 @@ public class HdmiControlService extends SystemService {
         @Override
         public void deviceSelect(final int deviceId, final IHdmiControlCallback callback) {
             initBinderCall();
+            updateLastActiveSourceCall(Binder.getCallingPid());
             runOnServiceThread(new Runnable() {
                 @Override
                 public void run() {
@@ -2406,6 +2424,7 @@ public class HdmiControlService extends SystemService {
         @Override
         public void portSelect(final int portId, final IHdmiControlCallback callback) {
             initBinderCall();
+            updateLastActiveSourceCall(Binder.getCallingPid());
             runOnServiceThread(new Runnable() {
                 @Override
                 public void run() {
@@ -3010,6 +3029,7 @@ public class HdmiControlService extends SystemService {
             pw.println("mIsCecAvailable: " + mIsCecAvailable);
             pw.println("mCecVersion: " + mCecVersion);
             pw.println("mIsAbsoluteVolumeBehaviorEnabled: " + isAbsoluteVolumeBehaviorEnabled());
+            pw.println("mLastUpdateSourceCallerRecord: " + mLastUpdateSourceCallerRecord.toString());
 
             // System settings
             pw.println("System_settings:");
@@ -3170,6 +3190,13 @@ public class HdmiControlService extends SystemService {
                 Binder.restoreCallingIdentity(token);
             }
         }
+    }
+
+    private void updateLastActiveSourceCall(int clientPid) {
+        if (mLastUpdateSourceCallerRecord.size() == mMaxUpdateSourceCallerRecordNum) {
+            mLastUpdateSourceCallerRecord.removeFirst();
+        }
+        mLastUpdateSourceCallerRecord.add(clientPid);
     }
 
     @VisibleForTesting
@@ -3789,6 +3816,11 @@ public class HdmiControlService extends SystemService {
         return SystemProperties.getBoolean(Constants.PROPERTY_ARC_SUPPORT, true);
     }
 
+    @VisibleForTesting
+    protected void setAvbDisabled(boolean disabled) {
+        mAvbDisabled = disabled;
+    }
+
     @ServiceThreadOnly
     int getPowerStatus() {
         assertRunOnServiceThread();
@@ -3846,6 +3878,10 @@ public class HdmiControlService extends SystemService {
 
     boolean isWakeUpMessageReceived() {
         return mWakeUpMessageReceived;
+    }
+
+    void setWakeUpMessageReceived(boolean wakeUpMessageReceived) {
+        mWakeUpMessageReceived = wakeUpMessageReceived;
     }
 
     protected boolean isStandbyMessageReceived() {
@@ -4721,11 +4757,21 @@ public class HdmiControlService extends SystemService {
             return;
         }
 
+        // Determine if the selected System Audio output is a TV.
+        // Unlike amplifiers, TVs are not mandated to send <Report Audio Status> even in HDMI 2.0.
+        // To avoid these problems, we only allow absolute volume when an amplifier is being used
+        // as the system audio device.
+        if (mAvbDisabled && systemAudioDeviceInfo.getDeviceType() == HdmiDeviceInfo.DEVICE_TV) {
+            switchToFullVolumeBehavior();
+            return;
+        }
+
         // Condition 5: The System Audio device supports <Set Audio Volume Level>
         switch (systemAudioDeviceInfo.getDeviceFeatures().getSetAudioVolumeLevelSupport()) {
             case DeviceFeatures.FEATURE_SUPPORTED:
                 if (currentVolumeBehavior
                         != AudioDeviceVolumeManager.DEVICE_VOLUME_BEHAVIOR_ABSOLUTE) {
+                    // Keep using AVB for other cases
                     // Start an action that will call enableAbsoluteVolumeBehavior
                     // once the System Audio device sends <Report Audio Status>
                     localCecDevice.startNewAvbAudioStatusAction(
@@ -4807,10 +4853,6 @@ public class HdmiControlService extends SystemService {
         mAbsoluteVolumeChangedListener = new AbsoluteVolumeChangedListener(
                 localDevice, systemAudioDevice);
 
-        // AudioService sets the volume of the stream and device based on the input VolumeInfo
-        // when enabling absolute volume behavior, but not the mute state
-        notifyAvbMuteChange(audioStatus.getMute());
-
         // If <Set Audio Volume Level> is supported, enable absolute volume behavior.
         // Otherwise, enable adjust-only AVB on TVs only.
         if (systemAudioDevice.getDeviceFeatures().getSetAudioVolumeLevelSupport()
@@ -4829,6 +4871,10 @@ public class HdmiControlService extends SystemService {
                         mAbsoluteVolumeChangedListener);
             }
         }
+
+        // AudioService sets the volume of the stream and device based on the input VolumeInfo
+        // when enabling absolute volume behavior, but not the mute state
+        notifyAvbMuteChange(audioStatus.getMute());
 
     }
 
@@ -4968,7 +5014,8 @@ public class HdmiControlService extends SystemService {
                 getAudioManager().getDevicesForAttributes(STREAM_MUSIC_ATTRIBUTES);
         for (AudioDeviceAttributes streamMusicDevice : streamMusicDevices) {
             if (getAvbCapableAudioOutputDevices().contains(streamMusicDevice)) {
-                int flags = AudioManager.FLAG_ABSOLUTE_VOLUME;
+                int flags = AudioManager.FLAG_ABSOLUTE_VOLUME
+                        | AudioManager.FLAG_HDMI_SYSTEM_AUDIO_VOLUME;
                 if (isTvDevice()) {
                     flags |= AudioManager.FLAG_SHOW_UI;
                 }
@@ -4989,7 +5036,8 @@ public class HdmiControlService extends SystemService {
         for (AudioDeviceAttributes streamMusicDevice : streamMusicDevices) {
             if (getAvbCapableAudioOutputDevices().contains(streamMusicDevice)) {
                 int direction = mute ? AudioManager.ADJUST_MUTE : AudioManager.ADJUST_UNMUTE;
-                int flags = AudioManager.FLAG_ABSOLUTE_VOLUME;
+                int flags = AudioManager.FLAG_ABSOLUTE_VOLUME
+                        | AudioManager.FLAG_HDMI_SYSTEM_AUDIO_VOLUME;
                 if (isTvDevice()) {
                     flags |= AudioManager.FLAG_SHOW_UI;
                 }
@@ -5193,6 +5241,9 @@ public class HdmiControlService extends SystemService {
         // of sound when CEC is disabled and eARC is enabled due to SAM being in the off state.
         if (!isCecControlEnabled()) {
             setSystemAudioActivated(true);
+        } else if (isTvDeviceEnabled() && tv().getAvrDeviceInfo() == null) {
+            // The AVR might not support CEC.
+            tv().changeSystemAudioMode(enabled, null);
         }
         getAudioManager().setWiredDeviceConnectionState(attributes, enabled ? 1 : 0);
     }
@@ -5231,6 +5282,42 @@ public class HdmiControlService extends SystemService {
 
     protected boolean isHdmiControlEnhancedBehaviorFlagEnabled() {
         return hdmiControlEnhancedBehavior();
+    }
+
+    @VisibleForTesting
+    protected boolean shouldDreamOnStandbyMessage() {
+        if (!isTvDevice()) {
+            return false;
+        }
+        return mHdmiCecConfig.getIntValue(
+                HdmiControlManager.CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE)
+                == HdmiControlManager.TV_BEHAVIOR_ON_STANDBY_MESSAGE_GO_TO_DREAM;
+    }
+
+    @VisibleForTesting
+    protected boolean shouldTvSendStandbyOnSleep() {
+        if (!isTvDevice()) {
+            return false;
+        }
+        return mHdmiCecConfig.getIntValue(
+                HdmiControlManager.CEC_SETTING_NAME_TV_SEND_STANDBY_ON_SLEEP)
+                == HdmiControlManager.TV_SEND_STANDBY_ON_SLEEP_ENABLED;
+    }
+
+    protected void startDreaming() {
+        if (mDreamManagerInternal == null) {
+            // If mDreamManagerInternal is null, attempt to re-fetch it.
+            mDreamManagerInternal = LocalServices.getService(DreamManagerInternal.class);
+        }
+        if (mDreamManagerInternal == null) {
+            Slog.w(TAG, "DreamManagerInternal is null, can't start dreaming");
+            return;
+        }
+        if (!mDreamManagerInternal.canStartDreaming(true)) {
+            Slog.w(TAG, "Can't start dreaming.");
+            return;
+        }
+        mDreamManagerInternal.requestDream();
     }
 
     /**
@@ -5274,8 +5361,10 @@ public class HdmiControlService extends SystemService {
         Display display = getContext().getDisplay();
         if (display != null) {
             DeviceProductInfo deviceProductInfo = display.getDeviceProductInfo();
-            manufacturerPnpId = deviceProductInfo.getManufacturerPnpId();
-            manufactureYear = deviceProductInfo.getManufactureYear();
+            if (deviceProductInfo != null) {
+                manufacturerPnpId = deviceProductInfo.getManufacturerPnpId();
+                manufactureYear = deviceProductInfo.getManufactureYear();
+            }
         }
         int enumLogReason =
                 HdmiStatsEnums.LOG_REASON_POWER_STATE_CHANGE_ON_ACTIVE_SOURCE_LOST_TOGGLE_UNKNOWN;

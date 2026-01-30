@@ -23,6 +23,7 @@ import static android.content.Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS;
 import static android.content.pm.ActivityInfo.RESIZE_MODE_RESIZEABLE;
 
 import android.Manifest;
+import android.annotation.CallbackExecutor;
 import android.annotation.ColorInt;
 import android.annotation.DrawableRes;
 import android.annotation.FlaggedApi;
@@ -31,6 +32,10 @@ import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
+import android.annotation.SpecialUsers.CanBeCURRENT_OR_SELF;
+import android.annotation.SpecialUsers.CannotBeSpecialUser;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
@@ -66,6 +71,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.IpcDataCache;
 import android.os.LocaleList;
+import android.os.OutcomeReceiver;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.PowerExemptionManager;
@@ -254,7 +260,7 @@ public class ActivityManager {
 
     /**
      * Query handler for mGetCurrentUserIdCache - returns a cached value of the current foreground
-     * user id if the backstage_power/android.app.cache_get_current_user_id flag is enabled.
+     * user id.
      */
     private static final IpcDataCache.QueryHandler<Void, Integer> mGetCurrentUserIdQuery =
             new IpcDataCache.QueryHandler<>() {
@@ -265,12 +271,6 @@ public class ActivityManager {
                     } catch (RemoteException e) {
                         throw e.rethrowFromSystemServer();
                     }
-                }
-
-                @Override
-                public boolean shouldBypassCache(Void query) {
-                    // If the flag to enable the new caching behavior is off, bypass the cache.
-                    return !Flags.cacheGetCurrentUserId();
                 }
             };
 
@@ -859,6 +859,8 @@ public class ActivityManager {
             PROCESS_CAPABILITY_BFSL,
             PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK,
             PROCESS_CAPABILITY_FOREGROUND_AUDIO_CONTROL,
+            PROCESS_CAPABILITY_CPU_TIME,
+            PROCESS_CAPABILITY_IMPLICIT_CPU_TIME,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ProcessCapability {}
@@ -1020,6 +1022,14 @@ public class ActivityManager {
     public static final int PROCESS_CAPABILITY_CPU_TIME = 1 << 7;
 
     /**
+     * @hide
+     * Process does not have an explicit reason to be run on the CPU but it is below the
+     * FREEZER_CUTOFF_ADJ, so avoid freezing it.
+     * TODO: b/403034947 - Delete this capability once no longer needed.
+     */
+    public static final int PROCESS_CAPABILITY_IMPLICIT_CPU_TIME = 1 << 8;
+
+    /**
      * @hide all capabilities, the ORing of all flags in {@link ProcessCapability}.
      *
      * Don't expose it as TestApi -- we may add new capabilities any time, which could
@@ -1032,7 +1042,8 @@ public class ActivityManager {
             | PROCESS_CAPABILITY_BFSL
             | PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK
             | PROCESS_CAPABILITY_FOREGROUND_AUDIO_CONTROL
-            | PROCESS_CAPABILITY_CPU_TIME;
+            | PROCESS_CAPABILITY_CPU_TIME
+            | PROCESS_CAPABILITY_IMPLICIT_CPU_TIME;
 
     /**
      * All implicit capabilities. This capability set is currently only used for processes under
@@ -1058,6 +1069,7 @@ public class ActivityManager {
         pw.print((caps & PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK) != 0 ? 'U' : '-');
         pw.print((caps & PROCESS_CAPABILITY_FOREGROUND_AUDIO_CONTROL) != 0 ? 'A' : '-');
         pw.print((caps & PROCESS_CAPABILITY_CPU_TIME) != 0 ? 'T' : '-');
+        pw.print((caps & PROCESS_CAPABILITY_IMPLICIT_CPU_TIME) != 0 ? 'I' : '-');
     }
 
     /** @hide */
@@ -1071,6 +1083,7 @@ public class ActivityManager {
         sb.append((caps & PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK) != 0 ? 'U' : '-');
         sb.append((caps & PROCESS_CAPABILITY_FOREGROUND_AUDIO_CONTROL) != 0 ? 'A' : '-');
         sb.append((caps & PROCESS_CAPABILITY_CPU_TIME) != 0 ? 'T' : '-');
+        sb.append((caps & PROCESS_CAPABILITY_IMPLICIT_CPU_TIME) != 0 ? 'I' : '-');
     }
 
     /**
@@ -1093,6 +1106,47 @@ public class ActivityManager {
         final StringBuilder sb = new StringBuilder();
         printCapabilitiesSummary(sb, caps);
         return sb.toString();
+    }
+
+    // NOTE: If a new PROCESS_CAPABILITY is added, then new fields must be added
+    // to frameworks/base/core/proto/android/app/enums.proto and the following method must
+    // be updated to correctly map between them.
+    // However, if the current ActivityManager values are merely modified, no update should be made
+    // to enums.proto, to which values can only be added but never modified. Note that the proto
+    // versions do NOT have the ordering restrictions of the ActivityManager process capabilities.
+    /**
+     * Maps ActivityManager.PROCESS_CAPABILITY_ values to enums.proto ProcessCapabilityEnum value.
+     *
+     * @param amInt a process capability of the form ActivityManager.PROCESS_CAPABILITY_
+     * @return the value of the corresponding enums.proto ProcessCapabilityEnum value.
+     * @hide
+     */
+    @android.ravenwood.annotation.RavenwoodKeep
+    public static final int processCapabilityAmToProto(int amInt) {
+        switch (amInt) {
+            case PROCESS_CAPABILITY_FOREGROUND_LOCATION:
+                return AppProtoEnums.PROCESS_CAPABILITY_FOREGROUND_LOCATION;
+            case PROCESS_CAPABILITY_FOREGROUND_CAMERA:
+                return AppProtoEnums.PROCESS_CAPABILITY_FOREGROUND_CAMERA;
+            case PROCESS_CAPABILITY_FOREGROUND_MICROPHONE:
+                return AppProtoEnums.PROCESS_CAPABILITY_FOREGROUND_MICROPHONE;
+            case PROCESS_CAPABILITY_POWER_RESTRICTED_NETWORK:
+                return AppProtoEnums.PROCESS_CAPABILITY_POWER_RESTRICTED_NETWORK;
+            case PROCESS_CAPABILITY_BFSL:
+                return AppProtoEnums.PROCESS_CAPABILITY_BFSL;
+            case PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK:
+                return AppProtoEnums.PROCESS_CAPABILITY_USER_RESTRICTED_NETWORK;
+            case PROCESS_CAPABILITY_FOREGROUND_AUDIO_CONTROL:
+                return AppProtoEnums.PROCESS_CAPABILITY_FOREGROUND_AUDIO_CONTROL;
+            case PROCESS_CAPABILITY_CPU_TIME:
+                return AppProtoEnums.PROCESS_CAPABILITY_CPU_TIME;
+            case PROCESS_CAPABILITY_IMPLICIT_CPU_TIME:
+                return AppProtoEnums.PROCESS_CAPABILITY_IMPLICIT_CPU_TIME;
+            default:
+                // ActivityManager capabilities
+                // could not be mapped to an AppProtoEnums ProcessCapability capability.
+                return AppProtoEnums.PROCESS_CAPABILITY_UNKNOWN;
+        }
     }
 
     // NOTE: If PROCESS_STATEs are added, then new fields must be added
@@ -2334,7 +2388,8 @@ public class ActivityManager {
 
         /** @hide */
         @UnsupportedAppUsage
-        public static Bitmap loadTaskDescriptionIcon(String iconFilename, int userId) {
+        public static Bitmap loadTaskDescriptionIcon(String iconFilename,
+                @CanBeCURRENT @UserIdInt int userId) {
             if (iconFilename != null) {
                 try {
                     return getTaskService().getTaskDescriptionIcon(iconFilename,
@@ -3175,6 +3230,32 @@ public class ActivityManager {
     }
 
     /**
+     * Checks if a task opened on the display with the given ID can be repositioned on screen using
+     * the {@link android.app.ActivityManager.AppTask#moveTaskTo} method.
+     * <p>
+     * This method does not guarantee that a subsequent call to reposition a task on the given
+     * display will succeed. Instead, it indicates whether the given display's windowing mode
+     * configuration allows for handling repositioning requests.
+     * <p>
+     * Apps without the {@link android.Manifest.permission#REPOSITION_SELF_WINDOWS} permission are
+     * not allowed to move tasks and this method will always return {@code false} for such apps.
+     *
+     * @param displayId Target display ID
+     * @return Whether the windowing mode active on display with given ID allows task repositioning
+     *
+     * @throws IllegalArgumentException if there is no display with given display ID
+     */
+    @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_WINDOW_REPOSITIONING_API)
+    @SuppressLint("RequiresPermission")
+    public boolean isTaskMoveAllowedOnDisplay(int displayId) {
+        try {
+            return getTaskService().isTaskMoveAllowedOnDisplay(displayId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Information you can retrieve about a particular Service that is
      * currently running in the system.
      */
@@ -3366,6 +3447,104 @@ public class ActivityManager {
     }
 
     /**
+     * Information you can retrieve about a particular connection to a
+     * Service that is currently running in the system.
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    public static final class ConnectionInfo implements Parcelable {
+        /**
+         * Bind service flags.
+         */
+        private final long mFlags;
+
+        /**
+         * Client process name.
+         */
+        private final @NonNull String mProcessName;
+
+        /**
+         * Client package name.
+         */
+        private final @NonNull String mPackageName;
+
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        /** @hide */
+        public ConnectionInfo(long flags,
+                @NonNull String processName,
+                @NonNull String packageName) {
+            mFlags = flags;
+            mProcessName = processName;
+            mPackageName = packageName;
+        }
+
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        /** @hide */
+        private ConnectionInfo(@NonNull Parcel source) {
+            mFlags = source.readLong();
+            mProcessName = source.readString8();
+            mPackageName = source.readString8();
+        }
+
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        /** @hide */
+        public static final @NonNull Creator<ConnectionInfo> CREATOR =
+                new Creator<ConnectionInfo>() {
+                    public ConnectionInfo createFromParcel(Parcel source) {
+                        return new ConnectionInfo(source);
+                    }
+                    public ConnectionInfo[] newArray(int size) {
+                        return new ConnectionInfo[size];
+                    }
+                };
+
+        /**
+         * Write parcel.
+         * @hide
+         */
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        public void writeToParcel(@NonNull Parcel dest, int flags) {
+            dest.writeLong(mFlags);
+            dest.writeString8(mProcessName);
+            dest.writeString8(mPackageName);
+        }
+
+        /**
+         * Describe contents.
+         * @hide
+         */
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        public int describeContents() {
+            return 0;
+        }
+
+        /**
+         * Get the bind service flags for the connection.
+         */
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        public @Context.BindServiceFlagsLongBits long getFlags() {
+            return mFlags;
+        }
+
+        /**
+         * Get the process name of the client.
+         */
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        public @NonNull String getProcessName() {
+            return mProcessName;
+        }
+
+        /**
+         * Get the package name of the client.
+         */
+        @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+        public @NonNull String getPackageName() {
+            return mPackageName;
+        }
+    }
+
+    /**
      * Returns a PendingIntent you can start to show a control panel for the
      * given running service.  If the service does not have a control panel,
      * null is returned.
@@ -3375,6 +3554,26 @@ public class ActivityManager {
         try {
             return getService()
                     .getRunningServiceControlPanel(service);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns a list of ConnectionInfo for connections bound to a given service.
+     * @param service The component name of the service to return ConnectionInfo
+     * records for.
+     * @return Returns a list of ConnectionInfo records describing each of
+     * the service connections.
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    public @NonNull List<ConnectionInfo> getRunningServiceConnections(
+            @NonNull ComponentName service) {
+        Objects.requireNonNull(service);
+        try {
+            return getService().getRunningServiceConnections(service);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -3401,6 +3600,15 @@ public class ActivityManager {
          * system to run well.
          */
         public long availMem;
+
+        /**
+         * The free memory on the system.  This is the unused RAM size of the
+         * device. Unlike {@link #availMem}, it's a basic snapshot of free RAM,
+         * not accounting for reclaimable memory.
+         */
+        @FlaggedApi(Flags.FLAG_GET_FREE_MEMORY)
+        @SuppressLint("MutableBareField")
+        public long freeMem;
 
         /**
          * The total memory accessible by the kernel.  This is basically the
@@ -3445,6 +3653,7 @@ public class ActivityManager {
         public void writeToParcel(Parcel dest, int flags) {
             dest.writeLong(advertisedMem);
             dest.writeLong(availMem);
+            dest.writeLong(freeMem);
             dest.writeLong(totalMem);
             dest.writeLong(threshold);
             dest.writeInt(lowMemory ? 1 : 0);
@@ -3457,6 +3666,7 @@ public class ActivityManager {
         public void readFromParcel(Parcel source) {
             advertisedMem = source.readLong();
             availMem = source.readLong();
+            freeMem = source.readLong();
             totalMem = source.readLong();
             threshold = source.readLong();
             lowMemory = source.readInt() != 0;
@@ -3470,6 +3680,7 @@ public class ActivityManager {
         public void copyTo(MemoryInfo other) {
             other.advertisedMem = advertisedMem;
             other.availMem = availMem;
+            other.freeMem = freeMem;
             other.totalMem = totalMem;
             other.threshold = threshold;
             other.lowMemory = lowMemory;
@@ -3505,16 +3716,12 @@ public class ActivityManager {
      * manage its memory.
      */
     public void getMemoryInfo(MemoryInfo outInfo) {
-        if (Flags.rateLimitGetMemoryInfo()) {
-            synchronized (mMemoryInfoCache) {
-                mMemoryInfoCache.get(() -> {
-                    getMemoryInfoInternal(mRateLimitedMemInfo);
-                    return mRateLimitedMemInfo;
-                });
-                mRateLimitedMemInfo.copyTo(outInfo);
-            }
-        } else {
-            getMemoryInfoInternal(outInfo);
+        synchronized (mMemoryInfoCache) {
+            mMemoryInfoCache.get(() -> {
+                getMemoryInfoInternal(mRateLimitedMemInfo);
+                return mRateLimitedMemInfo;
+            });
+            mRateLimitedMemInfo.copyTo(outInfo);
         }
     }
 
@@ -3711,27 +3918,22 @@ public class ActivityManager {
      * specified.
      */
     public List<ProcessErrorStateInfo> getProcessesInErrorState() {
-        if (Flags.rateLimitGetProcessesInErrorState()) {
-            return mErrorProcessesCache.get(() -> {
-                return getProcessesInErrorStateInternal();
-            });
-        } else {
-            return getProcessesInErrorStateInternal();
-        }
-    }
-
-    private List<ProcessErrorStateInfo> getProcessesInErrorStateInternal() {
-        try {
-            return getService().getProcessesInErrorState();
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        return mErrorProcessesCache.get(() -> {
+            try {
+                return getService().getProcessesInErrorState();
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        });
     }
 
     /**
      * Information you can retrieve about a running process.
      */
     public static class RunningAppProcessInfo implements Parcelable {
+        // The list of fields must be kept in sync with RunningAppProcessInfo.aidl.
+        // LINT.IfChange
+
         /**
          * The name of the process that this object is associated with
          */
@@ -3759,32 +3961,8 @@ public class ActivityManager {
         public String[] pkgDeps;
 
         /**
-         * Constant for {@link #flags}: this is an app that is unable to
-         * correctly save its state when going to the background,
-         * so it can not be killed while in the background.
-         * @hide
-         */
-        public static final int FLAG_CANT_SAVE_STATE = 1<<0;
-
-        /**
-         * Constant for {@link #flags}: this process is associated with a
-         * persistent system app.
-         * @hide
-         */
-        @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-        public static final int FLAG_PERSISTENT = 1<<1;
-
-        /**
-         * Constant for {@link #flags}: this process is associated with a
-         * persistent system app.
-         * @hide
-         */
-        @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-        public static final int FLAG_HAS_ACTIVITIES = 1<<2;
-
-        /**
          * Flags of information.  May be any of
-         * {@link #FLAG_CANT_SAVE_STATE}.
+         * {@link android.app.RunningAppProcessInfo#FLAG_CANT_SAVE_STATE}.
          * @hide
          */
         @UnsupportedAppUsage
@@ -4112,6 +4290,8 @@ public class ActivityManager {
          */
         public long lastActivityTime;
 
+        // LINT.ThenChange(frameworks/base/core/java/android/app/RunningAppProcessInfo.aidl)
+
         public RunningAppProcessInfo() {
             importance = IMPORTANCE_FOREGROUND;
             importanceReasonCode = REASON_UNKNOWN;
@@ -4133,41 +4313,32 @@ public class ActivityManager {
         }
 
         public void writeToParcel(Parcel dest, int flags) {
-            dest.writeString(processName);
-            dest.writeInt(pid);
-            dest.writeInt(uid);
-            dest.writeStringArray(pkgList);
-            dest.writeStringArray(pkgDeps);
-            dest.writeInt(this.flags);
-            dest.writeInt(lastTrimLevel);
-            dest.writeInt(importance);
-            dest.writeInt(lru);
-            dest.writeInt(importanceReasonCode);
-            dest.writeInt(importanceReasonPid);
-            ComponentName.writeToParcel(importanceReasonComponent, dest);
-            dest.writeInt(importanceReasonImportance);
-            dest.writeInt(processState);
-            dest.writeInt(isFocused ? 1 : 0);
-            dest.writeLong(lastActivityTime);
+            final android.app.RunningAppProcessInfo info = new android.app.RunningAppProcessInfo();
+            copyTo(info);
+            info.writeToParcel(dest, flags);
         }
 
         public void readFromParcel(Parcel source) {
-            processName = source.readString();
-            pid = source.readInt();
-            uid = source.readInt();
-            pkgList = source.readStringArray();
-            pkgDeps = source.readStringArray();
-            flags = source.readInt();
-            lastTrimLevel = source.readInt();
-            importance = source.readInt();
-            lru = source.readInt();
-            importanceReasonCode = source.readInt();
-            importanceReasonPid = source.readInt();
-            importanceReasonComponent = ComponentName.readFromParcel(source);
-            importanceReasonImportance = source.readInt();
-            processState = source.readInt();
-            isFocused = source.readInt() != 0;
-            lastActivityTime = source.readLong();
+            final android.app.RunningAppProcessInfo info = new android.app.RunningAppProcessInfo();
+            info.readFromParcel(source);
+            processName = info.processName;
+            pid = info.pid;
+            uid = info.uid;
+            pkgList = info.pkgList;
+            pkgDeps = info.pkgDeps;
+            flags = info.flags;
+            lastTrimLevel = info.lastTrimLevel;
+            importance = info.importance;
+            lru = info.lru;
+            importanceReasonCode = info.importanceReasonCode;
+            importanceReasonPid = info.importanceReasonPid;
+            importanceReasonComponent = info.importanceReasonComponent != null
+                    ? ComponentName.unflattenFromString(info.importanceReasonComponent)
+                    : null;
+            importanceReasonImportance = info.importanceReasonImportance;
+            processState = info.processState;
+            isFocused = info.isFocused;
+            lastActivityTime = info.lastActivityTime;
         }
 
         /**
@@ -4185,6 +4356,28 @@ public class ActivityManager {
             other.processState = processState;
             other.isFocused = isFocused;
             other.lastActivityTime = lastActivityTime;
+        }
+
+        /** @hide */
+        public void copyTo(android.app.RunningAppProcessInfo info) {
+            info.processName = TextUtils.emptyIfNull(processName);
+            info.pid = pid;
+            info.uid = uid;
+            info.pkgList = pkgList;
+            info.pkgDeps = pkgDeps;
+            info.flags = this.flags;
+            info.lastTrimLevel = lastTrimLevel;
+            info.importance = importance;
+            info.lru = lru;
+            info.importanceReasonCode = importanceReasonCode;
+            info.importanceReasonPid = importanceReasonPid;
+            info.importanceReasonComponent = importanceReasonComponent != null
+                    ? importanceReasonComponent.flattenToString()
+                    : null;
+            info.importanceReasonImportance = importanceReasonImportance;
+            info.processState = processState;
+            info.isFocused = isFocused;
+            info.lastActivityTime = lastActivityTime;
         }
 
         public static final @android.annotation.NonNull Creator<RunningAppProcessInfo> CREATOR =
@@ -4251,7 +4444,8 @@ public class ActivityManager {
      * @return Returns true if successful.
      * @hide
      */
-    public boolean setProcessMemoryTrimLevel(String process, int userId, int level) {
+    public boolean setProcessMemoryTrimLevel(
+            String process, @CanBeALL @CanBeCURRENT @UserIdInt int userId, int level) {
         try {
             return getService().setProcessMemoryTrimLevel(process, userId,
                     level);
@@ -4271,21 +4465,13 @@ public class ActivityManager {
      * specified.
      */
     public List<RunningAppProcessInfo> getRunningAppProcesses() {
-        if (!Flags.rateLimitGetRunningAppProcesses()) {
-            return getRunningAppProcessesInternal();
-        } else {
-            return mRunningProcessesCache.get(() -> {
-                return getRunningAppProcessesInternal();
-            });
-        }
-    }
-
-    private List<RunningAppProcessInfo> getRunningAppProcessesInternal() {
-        try {
-            return getService().getRunningAppProcesses();
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
+        return mRunningProcessesCache.get(() -> {
+            try {
+                return getService().getRunningAppProcesses();
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        });
     }
 
     /**
@@ -4307,7 +4493,6 @@ public class ActivityManager {
      *         the order from most recent to least recent.
      */
     @NonNull
-    @FlaggedApi(Flags.FLAG_APP_START_INFO)
     public List<ApplicationStartInfo> getHistoricalProcessStartReasons(
             @IntRange(from = 0) int maxNum) {
         try {
@@ -4341,7 +4526,6 @@ public class ActivityManager {
      */
     @NonNull
     @SystemApi
-    @FlaggedApi(Flags.FLAG_APP_START_INFO)
     @RequiresPermission(Manifest.permission.DUMP)
     public List<ApplicationStartInfo> getExternalHistoricalProcessStartReasons(
             @NonNull String packageName, @IntRange(from = 0) int maxNum) {
@@ -4394,7 +4578,6 @@ public class ActivityManager {
      *
      * @throws IllegalArgumentException if executor or listener are null.
      */
-    @FlaggedApi(Flags.FLAG_APP_START_INFO)
     public void addApplicationStartInfoCompletionListener(@NonNull final Executor executor,
             @NonNull final Consumer<ApplicationStartInfo> listener) {
         Preconditions.checkNotNull(executor, "executor cannot be null");
@@ -4445,7 +4628,6 @@ public class ActivityManager {
     /**
      * Removes the provided callback set by {@link #addApplicationStartInfoCompletionListener}.
      */
-    @FlaggedApi(Flags.FLAG_APP_START_INFO)
     public void removeApplicationStartInfoCompletionListener(
             @NonNull final Consumer<ApplicationStartInfo> listener) {
         Preconditions.checkNotNull(listener, "listener cannot be null");
@@ -4485,7 +4667,6 @@ public class ActivityManager {
      *                    Will thow {@link java.lang.IllegalArgumentException} if not in range.
      * @param timestampNs Clock monotonic time in nanoseconds of event to be recorded.
      */
-    @FlaggedApi(Flags.FLAG_APP_START_INFO)
     public void addStartInfoTimestamp(@IntRange(
             from = ApplicationStartInfo.START_TIMESTAMP_RESERVED_RANGE_DEVELOPER_START,
             to = ApplicationStartInfo.START_TIMESTAMP_RESERVED_RANGE_DEVELOPER) int key,
@@ -4819,16 +5000,12 @@ public class ActivityManager {
      * {@link RunningAppProcessInfo#importanceReasonCode}.
      */
     public static void getMyMemoryState(RunningAppProcessInfo outState) {
-        if (Flags.rateLimitGetMyMemoryState()) {
-            synchronized (mMyMemoryStateCache) {
-                mMyMemoryStateCache.get(() -> {
-                    getMyMemoryStateInternal(mRateLimitedMemState);
-                    return mRateLimitedMemState;
-                });
-                mRateLimitedMemState.copyTo(outState);
-            }
-        } else {
-            getMyMemoryStateInternal(outState);
+        synchronized (mMyMemoryStateCache) {
+            mMyMemoryStateCache.get(() -> {
+                getMyMemoryStateInternal(mRateLimitedMemState);
+                return mRateLimitedMemState;
+            });
+            mRateLimitedMemState.copyTo(outState);
         }
     }
 
@@ -4939,7 +5116,8 @@ public class ActivityManager {
      * services, removing their alarms, etc.
      */
     @UnsupportedAppUsage
-    public void forceStopPackageAsUser(String packageName, int userId) {
+    public void forceStopPackageAsUser(String packageName,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
         try {
             getService().forceStopPackage(packageName, userId);
         } catch (RemoteException e) {
@@ -4964,7 +5142,8 @@ public class ActivityManager {
      * @hide
      */
     @RequiresPermission(Manifest.permission.FORCE_STOP_PACKAGES)
-    public void forceStopPackageAsUserEvenWhenStopping(String packageName, @UserIdInt int userId) {
+    public void forceStopPackageAsUserEvenWhenStopping(String packageName,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
         try {
             getService().forceStopPackageEvenWhenStopping(packageName, userId);
         } catch (RemoteException e) {
@@ -5291,7 +5470,8 @@ public class ActivityManager {
      * user number, unless <var>allowAll</var> is true in which case it could also be
      * USER_ALL.
      */
-    public static int handleIncomingUser(int callingPid, int callingUid, int userId,
+    public static @CanBeALL @UserIdInt int handleIncomingUser(int callingPid, int callingUid,
+            @CanBeALL @CanBeCURRENT @CanBeCURRENT_OR_SELF @UserIdInt int userId,
             boolean allowAll, boolean requireFull, String name, String callerPackage) {
         if (UserHandle.getUserId(callingUid) == userId) {
             return userId;
@@ -5351,6 +5531,35 @@ public class ActivityManager {
         Preconditions.checkArgument(user != null, "UserHandle cannot be null.");
 
         return switchUser(user.getIdentifier());
+    }
+
+    /**
+     * Logs out the specified user by stopping it. If that user is the foreground user, we first
+     * switch to another appropriate user. The current implementation (which is subject to change)
+     * depends on the device configuration, as follows:
+     *
+     * <ul>
+     *   <li>On a device that can switch to the system user, it will do so.
+     *   <li>On a device that cannot switch to the system user, this method will fail since we are
+     *       unable to logout the user.
+     *   <li>Note that attempts to logout the system user will fail, since the system user cannot be
+     *       stopped.
+     * </ul>
+     *
+     * @param userId the user to logout.
+     * @return true if logout is successfully initiated. Reason for failure could be that logout
+     *     does not support this type of device, or any underlying operations fails.
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.INTERACT_ACROSS_USERS_FULL)
+    @SuppressWarnings("AndroidFrameworkContextUserId")
+    // TODO(b/397755402): It shouldn't need to suppress warning, since this API is hidden.
+    public boolean logoutUser(@UserIdInt int userId) {
+        try {
+            return getService().logoutUser(userId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
     }
 
     /**
@@ -5420,7 +5629,7 @@ public class ActivityManager {
      */
     @Nullable
     @RequiresPermission(Manifest.permission.MANAGE_USERS)
-    public String getSwitchingFromUserMessage(@UserIdInt int userId) {
+    public String getSwitchingFromUserMessage(@CannotBeSpecialUser @UserIdInt int userId) {
         try {
             return getService().getSwitchingFromUserMessage(userId);
         } catch (RemoteException re) {
@@ -5435,7 +5644,7 @@ public class ActivityManager {
      */
     @Nullable
     @RequiresPermission(Manifest.permission.MANAGE_USERS)
-    public String getSwitchingToUserMessage(@UserIdInt int userId) {
+    public String getSwitchingToUserMessage(@CannotBeSpecialUser @UserIdInt int userId) {
         try {
             return getService().getSwitchingToUserMessage(userId);
         } catch (RemoteException re) {
@@ -5590,13 +5799,13 @@ public class ActivityManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_OR_STOPPED = 1 << 0;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_AND_LOCKED = 1 << 1;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_AND_UNLOCKED = 1 << 2;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_AND_UNLOCKING_OR_UNLOCKED = 1 << 3;
 
     /**
@@ -5617,7 +5826,7 @@ public class ActivityManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public boolean isVrModePackageEnabled(ComponentName component) {
         try {
             return getService().isVrModePackageEnabled(component);
@@ -5689,7 +5898,8 @@ public class ActivityManager {
     /**
      * @hide
      */
-    public static void broadcastStickyIntent(Intent intent, int userId) {
+    public static void broadcastStickyIntent(Intent intent,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
         broadcastStickyIntent(intent, AppOpsManager.OP_NONE, null, userId);
     }
 
@@ -5698,7 +5908,8 @@ public class ActivityManager {
      *
      * @hide
      */
-    public static void broadcastStickyIntent(Intent intent, int appOp, int userId) {
+    public static void broadcastStickyIntent(Intent intent, int appOp,
+            @CanBeALL @CanBeCURRENT @UserIdInt  int userId) {
         broadcastStickyIntent(intent, appOp, null, userId);
     }
 
@@ -5707,7 +5918,8 @@ public class ActivityManager {
      *
      * @hide
      */
-    public static void broadcastStickyIntent(Intent intent, int appOp, Bundle options, int userId) {
+    public static void broadcastStickyIntent(Intent intent, int appOp, Bundle options,
+            @CanBeALL @CanBeCURRENT @UserIdInt  int userId) {
         broadcastStickyIntent(intent, null, appOp, options, userId);
     }
 
@@ -5717,7 +5929,7 @@ public class ActivityManager {
      * @hide
      */
     public static void broadcastStickyIntent(Intent intent, String[] excludedPackages,
-            int appOp, Bundle options, int userId) {
+            int appOp, Bundle options, @CanBeALL @CanBeCURRENT @UserIdInt  int userId) {
         try {
             getService().broadcastIntentWithFeature(
                     null, null, intent, null, null, Activity.RESULT_OK, null, null,
@@ -5978,7 +6190,7 @@ public class ActivityManager {
             android.Manifest.permission.MANAGE_USERS,
             android.Manifest.permission.CREATE_USERS
     })
-    public boolean isProfileForeground(@NonNull UserHandle userHandle) {
+    public boolean isProfileForeground(@NonNull @CannotBeSpecialUser UserHandle userHandle) {
         UserManager userManager = mContext.getSystemService(UserManager.class);
         if (userManager != null) {
             for (UserInfo userInfo : userManager.getProfiles(getCurrentUser())) {
@@ -6100,6 +6312,38 @@ public class ActivityManager {
      * See {@link android.app.ActivityManager#getAppTasks()}
      */
     public static class AppTask {
+
+        /**
+         * The windowing layer is not specified. The system will use a
+         * {@link #WINDOWING_LAYER_NORMAL_APP} layer.
+         * @hide
+         */
+        public static final int WINDOWING_LAYER_UNDEFINED = 0;
+        /**
+         * The windowing layer for normal application windows.
+         * @hide
+         */
+        public static final int WINDOWING_LAYER_NORMAL_APP = 1;
+        /**
+         * The windowing layer for pinned windows, these windows are typically displayed above
+         * normal application windows.
+         * @hide
+         */
+        public static final int WINDOWING_LAYER_PINNED = 2;
+
+        /**
+         * Defines the windowing layer for a task, which can affect its Z-ordering.
+         * @hide
+         */
+        @IntDef(prefix = { "WINDOWING_LAYER_" }, value = {
+                WINDOWING_LAYER_UNDEFINED,
+                WINDOWING_LAYER_NORMAL_APP,
+                WINDOWING_LAYER_PINNED,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface WindowingLayer {
+        }
+
         private IAppTask mAppTaskImpl;
 
         /** @hide */
@@ -6153,6 +6397,59 @@ public class ActivityManager {
         }
 
         /**
+         * Repositions the task to the specified {@link TaskLocation}.
+         * <p>
+         * If the {@link TaskLocation}'s bounds are invalid (i.e. too small or not fully inside the
+         * target display), the request will be rejected.
+         * <p>
+         * When the repositioning request is approved or rejected, the {@code callback} will be
+         * invoked. If the request is approved, the callback will receive a {@link TaskLocation}
+         * containing the new display ID and bounds of the task. The final display ID and bounds may
+         * be adjusted to the closest acceptable states from the requested ones at the system's
+         * discretion.
+         * <p>
+         * If the request is rejected, the callback will receive an exception with a descriptive
+         * message accessible via {@link Exception#getMessage()}. This exception will be one of
+         * the following:
+         * <ul>
+         * <li>{@link SecurityException} if the requester doesn't hold the permission required to
+         * use this method;</li>
+         * <li>{@link IllegalStateException} if the task is not in a state that allows it to
+         * change its {@link TaskLocation} programmatically at runtime of the request;</li>
+         * <li>{@link SecurityException} if this task cannot be placed on the target display
+         * requested. This can happen when the display is not trusted and not owned by the calling
+         * app;</li>
+         * <li>{@link IllegalArgumentException} if the {@link TaskLocation} provided does not
+         * include a valid display ID or the bounds provided are not fully contained inside the
+         * given display or the bounds provided are smaller than the minimum size defined in the <a
+         * href="https://source.android.com/docs/compatibility/16/android-16-cdd#3814_multi-windows">
+         * CDD</a> in either direction.</li>
+         * </ul>
+         * <p>
+         * It is allowed to move a task to a display with which the call of
+         * {@link ActivityManager#isTaskMoveAllowedOnDisplay()} returns {@code false}, but the task
+         * won't be allowed to be programmatically moved again until users take actions to make the
+         * same task movable again.
+         * <p>
+         * If the task stays on its original display, its z-order will not be affected. Otherwise,
+         * if the task moves to a different display, it will become focused.
+         *
+         * @param location {@link TaskLocation} with the target display or {@link
+         * Display#INVALID_DISPLAY} if the target display is the current display,
+         * and the new desired bounds
+         * @param executor an Executor used to invoke the callback
+         * @param callback a callback to receive the result of the request
+         */
+        @FlaggedApi(com.android.window.flags.Flags.FLAG_ENABLE_WINDOW_REPOSITIONING_API)
+        @RequiresPermission(Manifest.permission.REPOSITION_SELF_WINDOWS)
+        public void moveTaskTo(
+                @NonNull TaskLocation location,
+                @NonNull @CallbackExecutor Executor executor,
+                @NonNull OutcomeReceiver<TaskLocation, Exception> callback) {
+            TaskMoveRequestHandler.moveTaskTo(location, executor, callback, mAppTaskImpl);
+        }
+
+        /**
          * Start an activity in this task.  Brings the task to the foreground.  If this task
          * is not currently active (that is, its id < 0), then a new activity for the given
          * Intent will be launched as the root of the task and the task brought to the
@@ -6192,6 +6489,30 @@ public class ActivityManager {
             } catch (RemoteException e) {
                 throw e.rethrowFromSystemServer();
             }
+        }
+
+        /**
+         * Requests the windowing layer for this task. This can be used to affect the Z-ordering
+         * of the activity's window relative to other windows.
+         *
+         * <p>
+         * The task will be moved to the requested layer if possible.
+         *
+         * @param layer the {@link WindowingLayer} to move task to.
+         * @param executor an Executor used to invoke the callback
+         * @param callback a callback to receive the result of the request
+         * @hide
+         */
+        // TODO(b/442807136): Complete javadoc, add all requirements and detals needed
+        public void requestWindowingLayer(
+                @WindowingLayer int layer,
+                @NonNull @CallbackExecutor Executor executor,
+                @NonNull OutcomeReceiver<Void, Exception> callback) {
+            Objects.requireNonNull(executor, "executor cannot be null");
+            Objects.requireNonNull(callback, "callback cannot be null");
+            TaskWindowingLayerRequestHandler.requestWindowingLayer(
+                    layer, executor, callback, mAppTaskImpl
+            );
         }
     }
 
@@ -6276,7 +6597,7 @@ public class ActivityManager {
      * @hide
      */
     @RequiresPermission(Manifest.permission.SET_THEME_OVERLAY_CONTROLLER_READY)
-    public void setThemeOverlayReady(@UserIdInt int userId) {
+    public void setThemeOverlayReady(@CannotBeSpecialUser @UserIdInt int userId) {
         try {
             getService().setThemeOverlayReady(userId);
         } catch (RemoteException e) {

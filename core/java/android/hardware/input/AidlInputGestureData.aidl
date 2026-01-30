@@ -27,6 +27,7 @@ parcelable AidlInputGestureData {
     String appLaunchRole;
     String appLaunchPackageName;
     String appLaunchClassName;
+    boolean allowCaptureByFocusedWindow;
 
     @JavaDerive(equals=true)
     parcelable KeyTrigger {

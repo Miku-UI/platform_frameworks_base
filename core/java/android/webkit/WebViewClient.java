@@ -51,7 +51,8 @@ public class WebViewClient {
      * @param url The URL to be loaded.
      * @return {@code true} to cancel the current load, otherwise return {@code false}.
      * @deprecated Use {@link #shouldOverrideUrlLoading(WebView, WebResourceRequest)
-     *             shouldOverrideUrlLoading(WebView, WebResourceRequest)} instead.
+     *             shouldOverrideUrlLoading(WebView, WebResourceRequest)} on {@link
+     *             android.os.Build.VERSION_CODES#N} and above.
      */
     @Deprecated
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
@@ -192,7 +193,8 @@ public class WebViewClient {
      *         response information or {@code null} if the WebView should load the
      *         resource itself.
      * @deprecated Use {@link #shouldInterceptRequest(WebView, WebResourceRequest)
-     *             shouldInterceptRequest(WebView, WebResourceRequest)} instead.
+     *             shouldInterceptRequest(WebView, WebResourceRequest)} on {@link
+     *             android.os.Build.VERSION_CODES#M} and above.
      */
     @Deprecated
     @Nullable
@@ -326,7 +328,8 @@ public class WebViewClient {
      * @param description A String describing the error.
      * @param failingUrl The url that failed to load.
      * @deprecated Use {@link #onReceivedError(WebView, WebResourceRequest, WebResourceError)
-     *             onReceivedError(WebView, WebResourceRequest, WebResourceError)} instead.
+     *             onReceivedError(WebView, WebResourceRequest, WebResourceError)} on {@link
+     *             android.os.Build.VERSION_CODES#M} and above.
      */
     @Deprecated
     public void onReceivedError(WebView view, int errorCode,

@@ -1815,6 +1815,13 @@ public class AudioTrack extends PlayerBase
                 || format.getChannelCount() < 1) {
             return false;
         }
+        // Do not force power saving for multichannel content and high sample rates
+        // to match rules in audio policy manager that default to mixer output instead
+        // of direct output for these formats
+        if (format.getChannelCount() > 2
+                || format.getSampleRate() > AudioSystem.SAMPLE_RATE_HZ_MAX) {
+            return false;
+        }
 
         // Mode must be streaming
         if (mode != MODE_STREAM) {

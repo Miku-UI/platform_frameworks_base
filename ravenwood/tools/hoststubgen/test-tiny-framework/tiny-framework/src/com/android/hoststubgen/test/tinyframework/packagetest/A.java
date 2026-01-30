@@ -16,4 +16,6 @@
 package com.android.hoststubgen.test.tinyframework.packagetest;
 
 public class A {
+    public void foo() {
+    }
 }

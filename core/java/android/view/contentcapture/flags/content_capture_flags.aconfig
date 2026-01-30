@@ -17,6 +17,13 @@ flag {
 }
 
 flag {
+    name: "enable_system_ui_underlay"
+    namespace: "ailabs"
+    description: "Feature flag to enable the connection between content capture and system UI underlay"
+    bug: "403422950"
+}
+
+flag {
     name: "flush_after_each_frame"
     namespace: "pixel_state_server"
     description: "Feature flag to send a flush event after each frame"
@@ -26,4 +33,18 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "enable_export_assist_virtual_node_to_ccapi"
+    namespace: "ailabs"
+    description: "Feature flag to enable exporting assist api virtual node to content capture"
+    bug: "430421182"
+}
+
+flag {
+    name: "reduce_binder_transaction_enabled"
+    namespace: "ailabs"
+    description: "Feature flag to reduce binder transaction for content capture, by batching metrics logging and reducing the number of flush events"
+    bug: "433614684"
 }

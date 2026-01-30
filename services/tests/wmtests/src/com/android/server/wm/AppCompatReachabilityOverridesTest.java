@@ -141,8 +141,7 @@ public class AppCompatReachabilityOverridesTest extends WindowTestsBase {
      * Runs a test scenario providing a Robot.
      */
     void runTestScenario(@NonNull Consumer<ReachabilityOverridesRobotTest> consumer) {
-        final ReachabilityOverridesRobotTest robot =
-                new ReachabilityOverridesRobotTest(mWm, mAtm, mSupervisor);
+        final ReachabilityOverridesRobotTest robot = new ReachabilityOverridesRobotTest(this);
         consumer.accept(robot);
     }
 
@@ -150,10 +149,8 @@ public class AppCompatReachabilityOverridesTest extends WindowTestsBase {
 
         private final Supplier<Rect> mLetterboxInnerBoundsSupplier = spy(Rect::new);
 
-        ReachabilityOverridesRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        ReachabilityOverridesRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         @Override

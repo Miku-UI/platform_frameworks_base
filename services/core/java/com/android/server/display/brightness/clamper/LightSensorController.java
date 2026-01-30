@@ -29,6 +29,7 @@ import android.view.Display;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.os.BackgroundThread;
 import com.android.server.display.config.SensorData;
 import com.android.server.display.utils.AmbientFilter;
 import com.android.server.display.utils.AmbientFilterFactory;
@@ -51,7 +52,8 @@ public class LightSensorController {
 
     private final SensorManager mSensorManager;
     private final LightSensorListener mLightSensorListener;
-    private final Handler mHandler;
+    private final Handler mUpdateHandler;
+    private final Handler mRegistrationHandler;
     private final Injector mInjector;
     private final AmbientFilter mAmbientFilter;
 
@@ -80,17 +82,20 @@ public class LightSensorController {
 
     LightSensorController(SensorManager sensorManager, Resources resources,
             LightSensorListener listener, Handler handler) {
-        this(sensorManager, resources, listener, handler, new Injector());
+        this(sensorManager, resources, listener, handler, BackgroundThread.getHandler(),
+                new Injector());
     }
 
     @VisibleForTesting
     LightSensorController(SensorManager sensorManager, Resources resources,
-            LightSensorListener listener, Handler handler, Injector injector) {
+            LightSensorListener listener, Handler updateHandler, Handler registrationHandler,
+            Injector injector) {
         mSensorManager = sensorManager;
         mLightSensorRate = injector.getLightSensorRate(resources);
         mAmbientFilter = injector.getAmbientFilter(resources);
         mLightSensorListener = listener;
-        mHandler = handler;
+        mUpdateHandler = updateHandler;
+        mRegistrationHandler = registrationHandler;
         mInjector = injector;
     }
 
@@ -99,8 +104,12 @@ public class LightSensorController {
             return;
         }
         if (mLightSensor != null) {
-            mSensorManager.registerListener(mLightSensorEventListener,
-                    mLightSensor, mLightSensorRate * 1000, mHandler);
+            // move light sensor registration to registration handler, to avoid blocking
+            // updatePowerState
+            Sensor sensorToRegister = mLightSensor;
+            mRegistrationHandler.post(
+                    () -> mSensorManager.registerListener(mLightSensorEventListener,
+                            sensorToRegister, mLightSensorRate * 1000, mUpdateHandler));
         }
         if (mRegisteredLightSensor != null) {
             stop();
@@ -116,7 +125,10 @@ public class LightSensorController {
         if (mRegisteredLightSensor == null) {
             return;
         }
-        mSensorManager.unregisterListener(mLightSensorEventListener, mRegisteredLightSensor);
+        Sensor sensorToUnregister = mRegisteredLightSensor;
+        mRegistrationHandler.post(() ->
+                mSensorManager.unregisterListener(mLightSensorEventListener,
+                        sensorToUnregister));
         mRegisteredLightSensor = null;
         mAmbientFilter.clear();
         mLightSensorListener.onAmbientLuxChange(INVALID_LUX);

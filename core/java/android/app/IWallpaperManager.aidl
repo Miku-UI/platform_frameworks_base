@@ -57,8 +57,8 @@ interface IWallpaperManager {
      */
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.SET_WALLPAPER)")
     ParcelFileDescriptor setWallpaper(String name, in String callingPackage,
-            in int[] screenOrientations, in List<Rect> crops, boolean allowBackup,
-            out Bundle extras, int which, IWallpaperManagerCallback completion, int userId);
+            in WallpaperDescription description, boolean allowBackup, out Bundle extras, int which,
+            IWallpaperManagerCallback completion, int userId);
 
     /**
      * Set the live wallpaper.
@@ -72,6 +72,10 @@ interface IWallpaperManager {
     @UnsupportedAppUsage
     void setWallpaperComponent(in ComponentName name);
 
+    /**
+     * Sets the ID field in WallpaperDescription for the current wallpaper for the given screen.
+     */
+    void setWallpaperDescriptionId(in String newId, int which, int userId);
 
     /**
      * @deprecated Use {@link #getWallpaperWithFeature(String, IWallpaperManagerCallback, int,

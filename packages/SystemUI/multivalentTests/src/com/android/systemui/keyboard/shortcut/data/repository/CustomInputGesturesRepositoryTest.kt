@@ -28,7 +28,6 @@ import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.hardware.input.Flags.FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES
-import com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.coroutines.collectLastValue
@@ -51,7 +50,7 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES, FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
+@EnableFlags(FLAG_ENABLE_CUSTOMIZABLE_INPUT_GESTURES)
 class CustomInputGesturesRepositoryTest : SysuiTestCase() {
 
     private val primaryUserContext: Context = mock()

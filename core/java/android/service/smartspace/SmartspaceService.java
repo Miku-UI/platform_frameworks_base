@@ -41,6 +41,7 @@ import android.util.Slog;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 
 /**
@@ -321,8 +322,12 @@ public abstract class SmartspaceService extends Service {
         }
 
         public void destroy() {
-            if (mCallback != null && mOnBinderDied != null) {
-                mCallback.asBinder().unlinkToDeath(this, 0);
+            try {
+                if (mCallback != null && mOnBinderDied != null) {
+                    mCallback.asBinder().unlinkToDeath(this, 0);
+                }
+            } catch (NoSuchElementException e) {
+                Slog.e(TAG, "Error trying to unlink to death:" + e);
             }
         }
 

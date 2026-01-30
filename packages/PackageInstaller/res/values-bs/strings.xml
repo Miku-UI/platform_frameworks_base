@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Ažuriraj"</string>
     <string name="done" msgid="6632441120016885253">"Gotovo"</string>
     <string name="cancel" msgid="1018267193425558088">"Otkaži"</string>
+    <string name="more_details" msgid="3643407086654820243">"Više detalja"</string>
+    <string name="dont_install" msgid="414055123295505225">"Nemoj instalirati"</string>
     <string name="installing" msgid="4921993079741206516">"Instaliranje…"</string>
     <string name="installing_app" msgid="1165095864863849422">"Instaliranje paketa <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>…"</string>
     <string name="install_done" msgid="5987363587661783896">"Aplikacija je instalirana."</string>
@@ -98,9 +100,9 @@
     <string name="untrusted_external_source_warning" product="tv" msgid="7057271609532508035">"Radi vaše sigurnosti TV-u trenutno nije dozvoljeno da instalira nepoznate aplikacije iz ovog izvora. Ovo možete promijeniti u Postavkama."</string>
     <string name="untrusted_external_source_warning" product="watch" msgid="7195163388090818636">"Radi vaše sigurnosti, satu trenutno nije dozvoljeno da instalira nepoznate aplikacije iz ovog izvora. Ovo možete promijeniti u Postavkama."</string>
     <string name="untrusted_external_source_warning" product="default" msgid="8444191224459138919">"Radi vaše sigurnosti telefonu trenutno nije dozvoljeno da instalira nepoznate aplikacije iz ovog izvora. Ovo možete promijeniti u Postavkama."</string>
-    <string name="anonymous_source_warning" product="default" msgid="2784902545920822500">"Vaši podaci na telefonu i vaši lični podaci izloženiji su napadima nepoznatih aplikacija. Instaliranjem ove aplikacije, prihvatate odgovornost za bilo kakvu štetu na telefonu ili gubitak podataka do kojih može doći korištenjem aplikacije."</string>
-    <string name="anonymous_source_warning" product="tablet" msgid="3939101621438855516">"Vaši podaci na tabletu i vaši lični podaci izloženiji su napadima nepoznatih aplikacija. Instaliranjem ove aplikacije, prihvatate odgovornost za bilo kakvu štetu na tabletu ili gubitak podataka do kojih može doći korištenjem aplikacije."</string>
-    <string name="anonymous_source_warning" product="tv" msgid="5599483539528168566">"Vaši podaci na TV-u i vaši lični podaci izloženiji su napadima nepoznatih aplikacija. Instaliranjem ove aplikacije, prihvatate odgovornost za bilo kakvu štetu na TV-u ili gubitak podataka do kojih može doći korištenjem aplikacije."</string>
+    <string name="anonymous_source_warning" product="default" msgid="2784902545920822500">"Vaši podaci na telefonu i lični podaci izloženiji su napadima nepoznatih aplikacija. Instaliranjem ove aplikacije prihvatate odgovornost za bilo kakvu štetu na telefonu ili gubitak podataka do kojih može doći korištenjem aplikacije."</string>
+    <string name="anonymous_source_warning" product="tablet" msgid="3939101621438855516">"Vaši podaci na tabletu i lični podaci izloženiji su napadima nepoznatih aplikacija. Instaliranjem ove aplikacije prihvatate odgovornost za bilo kakvu štetu na tabletu ili gubitak podataka do kojih može doći korištenjem aplikacije."</string>
+    <string name="anonymous_source_warning" product="tv" msgid="5599483539528168566">"Vaši podaci na TV-u i lični podaci izloženiji su napadima nepoznatih aplikacija. Instaliranjem ove aplikacije prihvatate odgovornost za bilo kakvu štetu na TV-u ili gubitak podataka do kojih može doći korištenjem aplikacije."</string>
     <string name="cloned_app_label" msgid="7503612829833756160">"Klon aplikacije <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
     <string name="archiving_app_label" msgid="1127085259724124725">"Arhivirati aplikaciju <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>?"</string>
     <string name="anonymous_source_continue" msgid="4375745439457209366">"Nastavi"</string>

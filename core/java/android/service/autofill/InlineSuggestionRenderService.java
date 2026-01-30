@@ -48,7 +48,7 @@ import java.lang.ref.WeakReference;
 /**
  * A service that renders an inline presentation view given the {@link InlinePresentation}.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public abstract class InlineSuggestionRenderService extends Service {

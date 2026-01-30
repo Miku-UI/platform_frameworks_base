@@ -74,11 +74,15 @@ class RunBlockingDetector : Detector(), SourceCodeScanner {
                     """,
                 category = Category.PERFORMANCE,
                 priority = 8,
-                severity = Severity.WARNING,
+                severity = Severity.ERROR,
                 implementation =
                     Implementation(RunBlockingDetector::class.java, Scope.JAVA_FILE_SCOPE),
             )
 
-        val FORBIDDEN_IMPORTS = listOf("kotlinx.coroutines.runBlocking")
+        val FORBIDDEN_IMPORTS =
+            listOf(
+                "kotlinx.coroutines.runBlocking",
+                "com.android.app.tracing.coroutines.runBlockingTraced",
+            )
     }
 }

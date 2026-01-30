@@ -16,36 +16,20 @@
 
 package com.android.wm.shell.scenarios
 
-import android.tools.NavBar
 import android.tools.Rotation
-import com.android.window.flags.Flags
-import com.android.wm.shell.Utils
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus
 import org.junit.After
-import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class ExitDesktopWithDragToTopDragZone
-constructor(
+abstract class ExitDesktopWithDragToTopDragZone(
     val rotation: Rotation = Rotation.ROTATION_0,
     isResizeable: Boolean = true,
     isLandscapeApp: Boolean = true,
-) : DesktopScenarioCustomAppTestBase(isResizeable, isLandscapeApp) {
-
-    @Rule @JvmField val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, rotation)
-
+) : DesktopScenarioCustomAppTestBase(isResizeable, isLandscapeApp, rotation) {
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopWindowingMode() && tapl.isTablet)
-        // Skip the test when the drag-to-maximize is enabled on this device.
-        Assume.assumeFalse(
-            DesktopModeStatus.shouldMaximizeWhenDragToTopEdge(instrumentation.context))
-        tapl.setEnableRotation(true)
-        tapl.setExpectedRotation(rotation.value)
         testApp.enterDesktopMode(wmHelper, device)
     }
 

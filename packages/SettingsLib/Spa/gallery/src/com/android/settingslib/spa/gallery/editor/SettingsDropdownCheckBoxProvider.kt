@@ -21,9 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.tooling.preview.Preview
-import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.editor.SettingsDropdownCheckBox
@@ -37,98 +35,98 @@ private const val TITLE = "Sample SettingsDropdownCheckBox"
 object SettingsDropdownCheckBoxProvider : SettingsPageProvider {
     override val name = "SettingsDropdownCheckBox"
 
-    override fun getTitle(arguments: Bundle?): String {
-        return TITLE
-    }
-
     @Composable
     override fun Page(arguments: Bundle?) {
         RegularScaffold(title = TITLE) {
             SettingsDropdownCheckBox(
                 label = "SettingsDropdownCheckBox",
-                options = remember {
-                    listOf(
-                        SettingsDropdownCheckOption("Item 1"),
-                        SettingsDropdownCheckOption("Item 2"),
-                        SettingsDropdownCheckOption("Item 3"),
-                    )
-                },
+                options =
+                    remember {
+                        listOf(
+                            SettingsDropdownCheckOption("Item 1"),
+                            SettingsDropdownCheckOption("Item 2"),
+                            SettingsDropdownCheckOption("Item 3"),
+                        )
+                    },
             )
-            SettingsDropdownCheckBox(
-                label = "Empty list",
-                options = emptyList(),
-            )
+            SettingsDropdownCheckBox(label = "Empty list", options = emptyList())
             SettingsDropdownCheckBox(
                 label = "Disabled",
-                options = remember {
-                    listOf(
-                        SettingsDropdownCheckOption("Item 1", selected = mutableStateOf(true)),
-                        SettingsDropdownCheckOption("Item 2"),
-                        SettingsDropdownCheckOption("Item 3"),
-                    )
-                },
+                options =
+                    remember {
+                        listOf(
+                            SettingsDropdownCheckOption("Item 1", selected = mutableStateOf(true)),
+                            SettingsDropdownCheckOption("Item 2"),
+                            SettingsDropdownCheckOption("Item 3"),
+                        )
+                    },
                 enabled = false,
             )
             SettingsDropdownCheckBox(
                 label = "With disabled item",
-                options = remember {
-                    listOf(
-                        SettingsDropdownCheckOption("Enabled item 1"),
-                        SettingsDropdownCheckOption("Enabled item 2"),
-                        SettingsDropdownCheckOption(
-                            text = "Disabled item 1",
-                            changeable = false,
-                            selected = mutableStateOf(true),
-                        ),
-                        SettingsDropdownCheckOption("Disabled item 2", changeable = false),
-                    )
-                },
+                options =
+                    remember {
+                        listOf(
+                            SettingsDropdownCheckOption("Enabled item 1"),
+                            SettingsDropdownCheckOption("Enabled item 2"),
+                            SettingsDropdownCheckOption(
+                                text = "Disabled item 1",
+                                changeable = false,
+                                selected = mutableStateOf(true),
+                            ),
+                            SettingsDropdownCheckOption("Disabled item 2", changeable = false),
+                        )
+                    },
             )
             SettingsDropdownCheckBox(
                 label = "With select all",
-                options = remember {
-                    listOf(
-                        SettingsDropdownCheckOption("All", isSelectAll = true),
-                        SettingsDropdownCheckOption("Item 1"),
-                        SettingsDropdownCheckOption("Item 2"),
-                        SettingsDropdownCheckOption("Item 3"),
-                    )
-                },
+                options =
+                    remember {
+                        listOf(
+                            SettingsDropdownCheckOption("All", isSelectAll = true),
+                            SettingsDropdownCheckOption("Item 1"),
+                            SettingsDropdownCheckOption("Item 2"),
+                            SettingsDropdownCheckOption("Item 3"),
+                        )
+                    },
             )
             SettingsDropdownCheckBox(
                 label = "With disabled item and select all",
                 options =
-                remember {
-                    listOf(
-                        SettingsDropdownCheckOption("All", isSelectAll = true, changeable = false),
-                        SettingsDropdownCheckOption("Enabled item 1"),
-                        SettingsDropdownCheckOption("Enabled item 2"),
-                        SettingsDropdownCheckOption(
-                            text = "Disabled item 1",
-                            changeable = false,
-                            selected = mutableStateOf(true),
-                        ),
-                        SettingsDropdownCheckOption("Disabled item 2", changeable = false),
-                    )
-                },
+                    remember {
+                        listOf(
+                            SettingsDropdownCheckOption(
+                                "All",
+                                isSelectAll = true,
+                                changeable = false,
+                            ),
+                            SettingsDropdownCheckOption("Enabled item 1"),
+                            SettingsDropdownCheckOption("Enabled item 2"),
+                            SettingsDropdownCheckOption(
+                                text = "Disabled item 1",
+                                changeable = false,
+                                selected = mutableStateOf(true),
+                            ),
+                            SettingsDropdownCheckOption("Disabled item 2", changeable = false),
+                        )
+                    },
             )
         }
     }
 
-    fun buildInjectEntry(): SettingsEntryBuilder {
-        return SettingsEntryBuilder.createInject(owner = createSettingsPage()).setUiLayoutFn {
-            Preference(object : PreferenceModel {
+    @Composable
+    fun Entry() {
+        Preference(
+            object : PreferenceModel {
                 override val title = TITLE
                 override val onClick = navigator(name)
-            })
-        }
+            }
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun SettingsDropdownCheckBoxPagePreview() {
-    SettingsTheme {
-        SettingsDropdownCheckBoxProvider.Page(null)
-    }
+    SettingsTheme { SettingsDropdownCheckBoxProvider.Page(null) }
 }

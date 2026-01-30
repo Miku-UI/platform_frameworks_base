@@ -31,6 +31,7 @@ import androidx.test.filters.SmallTest
 import com.android.internal.statusbar.IStatusBarService
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardRepository
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.statusbar.StatusBarStateController
@@ -73,6 +74,7 @@ import org.mockito.junit.MockitoJUnit
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class BackActionInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope

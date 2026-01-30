@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Tillatelse kreves"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Installasjonen ble blokkert"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Klargjør appen …"</string>
+    <string name="title_install" msgid="6806728682404990326">"Vil du installere denne appen?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Installerer …"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Appen er installert"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Vil du reinstallere denne appen?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Reinstallerer …"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Appen er reinstallert"</string>
+    <string name="title_update" msgid="1747328630716712391">"Vil du oppdatere denne appen?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Vil du oppdatere denne appen med <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Oppdaterer …"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Appen er oppdatert"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Kan ikke installere appen"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Installasjonen ble blokkert"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Appen er ikke kompatibel"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Ugyldig pakke"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Ikke nok lagringsplass"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Appen er ikke installert"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Vil du avinstallere denne appen?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Vil du slette denne appklonen?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Vil du avinstallere appoppdateringer?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Vil du avinstallere appoppdateringer for alle brukere?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Vil du avinstallere denne appen for alle brukere?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Vil du avinstallere denne appen for brukeren «<xliff:g id="USER_NAME">%1$s</xliff:g>»?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Fant ikke appen"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Kan ikke avinstallere denne appen"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Appen er ikke avinstallert"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Vil du arkivere denne appen?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Vil du arkivere denne appen for alle brukere?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Vil du arkivere denne appen for brukeren «<xliff:g id="USER_NAME">%1$s</xliff:g>»?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Vil du gjenopprette denne appen?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Handling påkrevd"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Ikke nok lagringsplass"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Du er uten nett"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> er deaktivert"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> er ikke installert"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Noe gikk galt"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Denne appen mottar vanligvis oppdateringer fra &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Hvis du oppdaterer fra en annen kilde, kan du få fremtidige oppdateringer fra en hvilken som helst kilde på nettbrettet. Appfunksjonaliteten kan endres."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Denne appen mottar vanligvis oppdateringer fra &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Hvis du oppdaterer med en annen kilde, kan du få fremtidige oppdateringer fra en hvilken som helst kilde på TV-en. Appfunksjonaliteten kan endres."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Denne appen mottar vanligvis oppdateringer fra &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Hvis du oppdaterer fra en annen kilde, kan du få fremtidige oppdateringer fra en hvilken som helst kilde på telefonen. Appfunksjonaliteten kan endres."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Av sikkerhetsgrunner har nettbrettet for øyeblikket ikke tillatelse til å installere ukjente apper fra denne kilden. Du kan endre dette i innstillingene."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Av sikkerhetsgrunner har TV-en for øyeblikket ikke tillatelse til å installere ukjente apper fra denne kilden. Du kan endre dette i innstillingene."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Av sikkerhetsgrunner har klokken for øyeblikket ikke tillatelse til å installere ukjente apper fra denne kilden. Du kan endre dette i innstillingene."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Av sikkerhetsgrunner har telefonen for øyeblikket ikke tillatelse til å installere ukjente apper fra denne kilden. Du kan endre dette i innstillingene."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Telefonen din og de personlige dataene dine er mer sårbare for angrep fra ukjente apper. Når du installerer denne appen, samtykker du i at du er ansvarlig for eventuelle skader på telefonen eller tap av data som kan skyldes bruk av appen"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Nettbrettet ditt og de personlige dataene dine er mer sårbare for angrep fra ukjente apper. Når du installerer denne appen, samtykker du i at du er ansvarlig for eventuelle skader på nettbrettet eller tap av data som kan skyldes bruk av appen."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"TV-en din og de personlige dataene dine er mer sårbare for angrep fra ukjente apper. Når du installerer denne appen, samtykker du i at du er ansvarlig for eventuelle skader på TV-en eller tap av data som kan skyldes bruk av appen."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Denne appen ble blokkert fra å bli installert"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Denne appen er i konflikt med en app som allerede finnes på enheten din"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Denne appen er ikke kompatibel med enheten"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Det er et problem med installasjonsfilen for denne appen"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"For å installere denne appen, frigjør plass og prøv på nytt"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Det er et problem med appfilen"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Installering av apper er begrenset"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Installering av ukjente apper er begrenset"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Det finnes også en klone av denne appen, og den blir slettet"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Denne appen er en klone av <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Denne appen blir erstattet med fabrikkversjonen. Alle appdata blir fjernet."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Denne appen blir erstattet med fabrikkversjonen for alle brukere på enheten. Alle appdata blir fjernet."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Denne appen avinstalleres fra jobbprofilen din"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Denne appen blir avinstallert fra det private området ditt"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Denne appen ble ikke funnet i listen over installerte apper, eller den er avinstallert allerede"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Denne brukeren har ikke tillatelse til å utføre denne avinstalleringen"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Denne appen kunne ikke avinstalleres"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Behold appdata"</string>
+    <string name="message_archive" msgid="943853731737315850">"Appdataene dine blir lagret"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Alle appdata blir lagret"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Appdataene blir lagret"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Denne appen blir arkivert fra jobbprofilen din. Appdataene dine blir lagret."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Denne appen blir arkivert fra det private området ditt. Appdataene dine blir lagret."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Denne appen lastes ned fra <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> i bakgrunnen"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> trenger mer informasjon før du kan gjenopprette denne appen"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"For å gjenopprette denne appen, frigjør &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; og prøv på nytt"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"For å gjenopprette denne appen, sjekk internettilkoblingen og prøv igjen"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"For å gjenopprette denne appen, aktiver <xliff:g id="INSTALLERNAME">%1$s</xliff:g> i innstillingene"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"For å gjenopprette denne appen må du installere <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Det oppsto et problem med å gjenopprette denne appen"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> er en del av følgende app: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Denne appen er blokkert. For å bidra til å holde enheten din og dataene på den trygge kan bare apper fra bekreftede utviklere installeres.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Denne appen ble ikke oppdatert. For å bidra til å holde enheten din og dataene på den trygge kan bare oppdateringer fra bekreftede utviklere installeres.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Denne appen ble ikke installert. Apper fra ubekreftede utviklere kan være usikre.&lt;/p&gt; &lt;p&gt;Du må ha en internettilkobling for å bekrefte apputvikleren. Sjekk tilkoblingen, og prøv å installere på nytt. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Denne appen ble ikke oppdatert. Oppdateringer fra ubekreftede utviklere kan være usikre.&lt;/p&gt; &lt;p&gt;Du må ha internettilkobling for å bekrefte apputvikleren. Sjekk tilkoblingen, og prøv å oppdatere på nytt. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Det oppsto et problem med å bekrefte utvikleren av denne appen. Apper fra ubekreftede utviklere kan være usikre, så appen ble ikke installert.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Det oppsto et problem med å bekrefte utvikleren av denne appen. Oppdateringer fra ubekreftede utviklere kan være usikre, så appen ble ikke oppdatert.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Denne appen ble blokkert fordi det oppsto et problem med å bekrefte utvikleren. For å bidra til å holde enheten din og dataene på den trygge kan bare apper fra bekreftede utviklere installeres.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Denne appen ble ikke oppdatert, fordi det oppsto et problem med å bekrefte utvikleren. For å bidra til å holde enheten din og dataene på den trygge kan bare oppdateringer fra bekreftede utviklere installeres.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Finn ut mer om utviklerbekreftelse&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Hvis du installerer uten å bekrefte, må du huske at apper fra ubekreftede utviklere kan utgjøre en fare for enheten din og dataene på den."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Hvis du oppdaterer uten å bekrefte, må du huske at oppdateringer fra ubekreftede utviklere kan sette enheten din og dataene på den i fare."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Apputvikleren er ubekreftet"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Ingen internettilkobling – kan ikke bekrefte apputvikleren"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Kan ikke bekrefte apputvikleren"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Installer uten å bekrefte"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Oppdater uten å bekrefte"</string>
+    <string name="button_install" msgid="7434013176505680162">"Installer"</string>
+    <string name="button_update" msgid="3046719350226327526">"Oppdater"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Oppdater likevel"</string>
+    <string name="button_done" msgid="3408025390982260629">"Ferdig"</string>
+    <string name="button_open" msgid="6892684987374117955">"Åpne"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Avbryt"</string>
+    <string name="button_continue" msgid="107501685249826244">"Fortsett"</string>
+    <string name="button_close" msgid="7187308556466275899">"Lukk"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Avinstaller"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Slett"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Reinstaller"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Administrer apper"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Arkivér"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Gjenopprett"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Avinstaller oppdateringer"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Innstillinger"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Prøv igjen"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>-klone"</string>
+</resources>

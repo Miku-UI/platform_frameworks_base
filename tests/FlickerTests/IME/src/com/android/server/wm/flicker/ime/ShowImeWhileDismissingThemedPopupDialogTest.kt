@@ -17,11 +17,12 @@
 package com.android.server.wm.flicker.ime
 
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.Rotation
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.parsers.toFlickerComponent
 import android.view.WindowInsets.Type.ime
@@ -40,13 +41,16 @@ import org.junit.runners.MethodSorters
 import org.junit.runners.Parameterized
 
 /**
- * Test IME snapshot mechanism won't apply when transitioning from non-IME focused dialog activity.
+ * Test IME screenshot mechanism won't apply when transitioning from non-IME focused dialog
+ * activity.
+ *
  * To run this test: `atest FlickerTestsIme:ShowImeWhileDismissingThemedPopupDialogTest`
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class ShowImeWhileDismissingThemedPopupDialogTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+class ShowImeWhileDismissingThemedPopupDialogTest(flicker: FlickerTest) : BaseTest(flicker) {
     private val testApp = ImeShownOnAppStartHelper(instrumentation, flicker.scenario.startRotation)
 
     /** {@inheritDoc} */
@@ -80,24 +84,24 @@ class ShowImeWhileDismissingThemedPopupDialogTest(flicker: LegacyFlickerTest) : 
         flicker.assertLayersEnd { this.isVisible(ComponentNameMatcher.IME) }
     }
 
-    /** Checks that [ComponentNameMatcher.IME_SNAPSHOT] layer is invisible always. */
+    /** Checks that [ComponentNameMatcher.IME_SCREENSHOT] layer is invisible always. */
     @Presubmit
     @Test
-    fun imeSnapshotNotVisible() {
-        flicker.assertLayers { this.isInvisible(ComponentNameMatcher.IME_SNAPSHOT) }
+    fun imeScreenshotNotVisible() {
+        flicker.assertLayers { this.isInvisible(ComponentNameMatcher.IME_SCREENSHOT) }
     }
 
     companion object {
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 supportedRotations = listOf(Rotation.ROTATION_0)
             )
     }

@@ -58,7 +58,7 @@ class ShadeDisplaysInteractorTest : SysuiTestCase() {
     private val positionRepository = kosmos.fakeShadeDisplaysRepository
     private val shadeContext = kosmos.mockedWindowContext
     private val resources = kosmos.mockResources
-    private val latencyTracker = kosmos.mockedShadeDisplayChangeLatencyTracker
+    private val performanceTracker = kosmos.mockedShadeDisplayChangePerformanceTracker
     private val configuration = mock<Configuration>()
     private val display = mock<Display>()
     private val activeNotificationRepository = kosmos.activeNotificationListRepository
@@ -104,14 +104,14 @@ class ShadeDisplaysInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    fun start_shadeInWrongPosition_logsStartToLatencyTracker() =
+    fun start_shadeInWrongPosition_logsStartToPerformanceTracker() =
         testScope.runTest {
             whenever(display.displayId).thenReturn(0)
             positionRepository.setPendingDisplayId(1)
 
             underTest.start()
 
-            verify(latencyTracker).onShadeDisplayChanging(eq(1))
+            verify(performanceTracker).onShadeDisplayChanging(eq(1))
         }
 
     @Test

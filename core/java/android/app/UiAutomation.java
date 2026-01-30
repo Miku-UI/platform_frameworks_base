@@ -73,8 +73,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
 import android.view.accessibility.IAccessibilityInteractionConnection;
 import android.view.inputmethod.EditorInfo;
-import android.window.ScreenCapture;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
+import android.window.ScreenCaptureInternal;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -117,6 +117,8 @@ import java.util.concurrent.TimeoutException;
  * interacting with another application whose behavior depends on that setting.
  * </p>
  */
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+@android.ravenwood.annotation.RavenwoodRedirectionClass("UiAutomation_ravenwood")
 public final class UiAutomation {
 
     private static final String LOG_TAG = UiAutomation.class.getSimpleName();
@@ -284,6 +286,7 @@ public final class UiAutomation {
      *
      * @hide
      */
+    @android.ravenwood.annotation.RavenwoodKeep
     public UiAutomation(Context context, IUiAutomationConnection connection) {
         this(getDisplayId(context), context.getMainLooper(), connection);
     }
@@ -307,6 +310,7 @@ public final class UiAutomation {
         Log.w(LOG_TAG, "Created with deprecatead constructor, assumes DEFAULT_DISPLAY");
     }
 
+    @android.ravenwood.annotation.RavenwoodKeep
     private UiAutomation(int displayId, Looper looper, IUiAutomationConnection connection) {
         Preconditions.checkArgument(looper != null, "Looper cannot be null!");
         Preconditions.checkArgument(connection != null, "Connection cannot be null!");
@@ -586,6 +590,7 @@ public final class UiAutomation {
      * @see #adoptShellPermissionIdentity(String...)
      * @see #dropShellPermissionIdentity()
      */
+    @android.ravenwood.annotation.RavenwoodRedirect
     public void adoptShellPermissionIdentity() {
         try {
             // Calling out without a lock held.
@@ -611,6 +616,7 @@ public final class UiAutomation {
      * @see #adoptShellPermissionIdentity()
      * @see #dropShellPermissionIdentity()
      */
+    @android.ravenwood.annotation.RavenwoodRedirect
     public void adoptShellPermissionIdentity(@Nullable String... permissions) {
         try {
             // Calling out without a lock held.
@@ -627,6 +633,7 @@ public final class UiAutomation {
      *
      * @see #adoptShellPermissionIdentity()
      */
+    @android.ravenwood.annotation.RavenwoodRedirect
     public void dropShellPermissionIdentity() {
         try {
             // Calling out without a lock held.
@@ -645,6 +652,7 @@ public final class UiAutomation {
      */
     @TestApi
     @NonNull
+    @android.ravenwood.annotation.RavenwoodRedirect
     public Set<String> getAdoptedShellPermissions() {
         try {
             final List<String> permissions = mUiAutomationConnection.getAdoptedShellPermissions();
@@ -1282,8 +1290,8 @@ public final class UiAutomation {
         display.getRealSize(displaySize);
 
         // Take the screenshot
-        ScreenCapture.SynchronousScreenCaptureListener syncScreenCapture =
-                ScreenCapture.createSyncCaptureListener();
+        ScreenCaptureInternal.SynchronousScreenCaptureListener syncScreenCapture =
+                ScreenCaptureInternal.createSyncCaptureListener();
         try {
             if (!mUiAutomationConnection.takeScreenshot(
                     new Rect(0, 0, displaySize.x, displaySize.y), syncScreenCapture, mDisplayId)) {
@@ -1316,6 +1324,64 @@ public final class UiAutomation {
     }
 
     /**
+     * Takes a screenshot from the specified display.
+     *
+     * @param displayId The ID of the display to capture.
+     * @return A {@link android.graphics.Bitmap} representing the screenshot of the specified
+     *         display.
+     * @throws IllegalArgumentException If the provided {@code displayId} does not correspond to
+     * a valid display.
+     * @throws IOException If an error occurs while creating the screenshot or processing the
+     * captured screenshot into a bitmap.
+     * @hide
+     */
+    @TestApi
+    @NonNull
+    @SuppressLint("UnflaggedApi") // TestApi
+    public Bitmap takeScreenshot(int displayId) throws IOException {
+        if (DEBUG) {
+            Log.d(LOG_TAG, "Taking screenshot of display " + displayId);
+        }
+        Display display = DisplayManagerGlobal.getInstance().getRealDisplay(displayId);
+        if (display == null) {
+            throw new IllegalArgumentException("Error finding the display " + displayId);
+        }
+        Point displaySize = new Point();
+        display.getRealSize(displaySize);
+
+        // Take the screenshot
+        ScreenCaptureInternal.SynchronousScreenCaptureListener syncScreenCapture =
+                ScreenCaptureInternal.createSyncCaptureListener();
+        try {
+            if (!mUiAutomationConnection.takeScreenshot(
+                    new Rect(0, 0, displaySize.x, displaySize.y), syncScreenCapture, displayId)) {
+                throw new IOException("Fail to capture screenshot for display=" + displayId
+                        + " due to remote error.");
+            }
+        } catch (RemoteException e) {
+            e.rethrowFromSystemServer();
+        }
+
+        final ScreenshotHardwareBuffer screenshotBuffer = syncScreenCapture.getBuffer();
+        if (screenshotBuffer == null) {
+            throw new IOException("Empty screenshot buffer for display=" + displayId);
+        }
+        Bitmap screenShot = screenshotBuffer.asBitmap();
+        if (screenShot == null) {
+            throw new IOException("Fail to create screenshot bitmap for display=" + displayId);
+        }
+        Bitmap swBitmap;
+        try (HardwareBuffer buffer = screenshotBuffer.getHardwareBuffer()) {
+            swBitmap = screenShot.copy(Bitmap.Config.ARGB_8888, false);
+        }
+        screenShot.recycle();
+
+        // Optimization
+        swBitmap.setHasAlpha(false);
+        return swBitmap;
+    }
+
+    /**
      * Used to capture a screenshot of a Window. This can return null in the following cases:
      * 1. Window content hasn't been layed out.
      * 2. Window doesn't have a valid SurfaceControl
@@ -1328,29 +1394,33 @@ public final class UiAutomation {
     @Nullable
     public Bitmap takeScreenshot(@NonNull Window window) {
         if (window == null) {
+            Log.e(LOG_TAG, "Window is null");
             return null;
         }
 
         View decorView = window.peekDecorView();
         if (decorView == null) {
+            Log.e(LOG_TAG, "Decor view is null");
             return null;
         }
 
         ViewRootImpl viewRoot = decorView.getViewRootImpl();
         if (viewRoot == null) {
+            Log.e(LOG_TAG, "View root is null");
             return null;
         }
 
         SurfaceControl sc = viewRoot.getSurfaceControl();
         if (!sc.isValid()) {
+            Log.e(LOG_TAG, "ViewRootImpl SurfaceControl is not valid");
             return null;
         }
 
         // Apply a sync transaction to ensure SurfaceFlinger is flushed before capturing a
         // screenshot.
         new SurfaceControl.Transaction().apply(true);
-        ScreenCapture.SynchronousScreenCaptureListener syncScreenCapture =
-                ScreenCapture.createSyncCaptureListener();
+        ScreenCaptureInternal.SynchronousScreenCaptureListener syncScreenCapture =
+                ScreenCaptureInternal.createSyncCaptureListener();
         try {
             if (!mUiAutomationConnection.takeSurfaceControlScreenshot(sc, syncScreenCapture)) {
                 Log.e(LOG_TAG, "Failed to take screenshot for window=" + window);
@@ -1360,7 +1430,8 @@ public final class UiAutomation {
             Log.e(LOG_TAG, "Error while taking screenshot!", re);
             return null;
         }
-        ScreenCapture.ScreenshotHardwareBuffer captureBuffer = syncScreenCapture.getBuffer();
+        ScreenCaptureInternal.ScreenshotHardwareBuffer captureBuffer =
+                syncScreenCapture.getBuffer();
         if (captureBuffer == null) {
             Log.e(LOG_TAG, "Failed to take screenshot for window=" + window);
             return null;
@@ -1583,7 +1654,14 @@ public final class UiAutomation {
             mUiAutomationConnection.grantRuntimePermission(packageName,
                     permission, userHandle.getIdentifier());
         } catch (Exception e) {
-            throw new SecurityException("Error granting runtime permission", e);
+            throw new SecurityException(
+                    "Error granting runtime permission "
+                            + permission
+                            + " to package "
+                            + packageName
+                            + " for user "
+                            + userHandle,
+                    e);
         }
     }
 
@@ -1822,6 +1900,7 @@ public final class UiAutomation {
      * <p><b>NOTE: </b> must be a static method because it's called from a constructor to call
      * another one.
      */
+    @android.ravenwood.annotation.RavenwoodReplace(reason = "Always use DEFAULT_DISPLAY")
     private static int getDisplayId(Context context) {
         Preconditions.checkArgument(context != null, "Context cannot be null!");
 
@@ -1853,6 +1932,10 @@ public final class UiAutomation {
             Log.d(LOG_TAG, "getDisplayId(): returning user's display (" + userDisplayId + ")");
         }
         return userDisplayId;
+    }
+
+    private static int getDisplayId$ravenwood(Context context) {
+        return DEFAULT_DISPLAY;
     }
 
     private static int getMainDisplayIdAssignedToUser(Context context, UserManager userManager) {

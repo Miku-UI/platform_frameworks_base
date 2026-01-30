@@ -103,12 +103,8 @@ public class HapticScrollFeedbackProvider implements ScrollFeedbackProvider {
 
         if (Math.abs(mTotalScrollPixels) >= mTickIntervalPixels) {
             mTotalScrollPixels %= mTickIntervalPixels;
-            if (android.os.vibrator.Flags.hapticFeedbackInputSourceCustomizationEnabled()) {
-                mView.performHapticFeedbackForInputDevice(
-                        HapticFeedbackConstants.SCROLL_TICK, inputDeviceId, source, /* flags= */ 0);
-            } else {
-                mView.performHapticFeedback(HapticFeedbackConstants.SCROLL_TICK);
-            }
+            mView.performHapticFeedbackForInputDevice(
+                    HapticFeedbackConstants.SCROLL_TICK, inputDeviceId, source, /* flags= */ 0);
         }
     }
 
@@ -122,13 +118,8 @@ public class HapticScrollFeedbackProvider implements ScrollFeedbackProvider {
         if (!mCanPlayLimitFeedback) {
             return;
         }
-        if (android.os.vibrator.Flags.hapticFeedbackInputSourceCustomizationEnabled()) {
-            mView.performHapticFeedbackForInputDevice(
-                    HapticFeedbackConstants.SCROLL_LIMIT, inputDeviceId, source, /* flags= */ 0);
-        } else {
-            mView.performHapticFeedback(HapticFeedbackConstants.SCROLL_LIMIT);
-        }
-
+        mView.performHapticFeedbackForInputDevice(
+                HapticFeedbackConstants.SCROLL_LIMIT, inputDeviceId, source, /* flags= */ 0);
         mCanPlayLimitFeedback = false;
     }
 
@@ -138,13 +129,9 @@ public class HapticScrollFeedbackProvider implements ScrollFeedbackProvider {
         if (!mHapticScrollFeedbackEnabled) {
             return;
         }
-        if (android.os.vibrator.Flags.hapticFeedbackInputSourceCustomizationEnabled()) {
-            mView.performHapticFeedbackForInputDevice(
-                    HapticFeedbackConstants.SCROLL_ITEM_FOCUS, inputDeviceId, source,
-                    /* flags= */ 0);
-        } else {
-            mView.performHapticFeedback(HapticFeedbackConstants.SCROLL_ITEM_FOCUS);
-        }
+        mView.performHapticFeedbackForInputDevice(
+                HapticFeedbackConstants.SCROLL_ITEM_FOCUS, inputDeviceId, source,
+                /* flags= */ 0);
         mCanPlayLimitFeedback = true;
     }
 

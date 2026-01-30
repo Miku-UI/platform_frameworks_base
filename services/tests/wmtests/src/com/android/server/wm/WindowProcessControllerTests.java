@@ -18,12 +18,15 @@ package com.android.server.wm;
 
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.content.pm.ActivityInfo.INSETS_DECOUPLED_CONFIGURATION_ENFORCED;
 import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_INSETS_DECOUPLED_CONFIGURATION;
 import static android.content.res.Configuration.GRAMMATICAL_GENDER_NOT_SPECIFIED;
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
 
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.any;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.never;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
@@ -33,6 +36,8 @@ import static com.android.server.wm.ActivityRecord.State.RESUMED;
 import static com.android.server.wm.ActivityRecord.State.STARTED;
 import static com.android.server.wm.ActivityRecord.State.STOPPED;
 import static com.android.server.wm.ActivityRecord.State.STOPPING;
+import static com.android.server.wm.ActivityTaskManagerService.RELAUNCH_REASON_WINDOWING_MODE_RESIZE;
+import static com.android.server.wm.ActivityTaskManagerService.relaunchReasonToString;
 import static com.android.server.wm.ConfigurationContainer.applySizeOverrideIfNeeded;
 
 import static org.junit.Assert.assertEquals;
@@ -40,11 +45,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -62,6 +65,10 @@ import android.os.LocaleList;
 import android.os.RemoteException;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.view.Display;
+import android.view.DisplayInfo;
+
+import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -357,6 +364,12 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         activity.setState(STOPPED, "test");
         flags = mWpc.getActivityStateFlags() & exclusiveFlags;
         assertEquals(0, flags);
+
+        activity.setVisibleRequested(true);
+        activity.setState(RESUMED, "test");
+        activity.makeInvisible();
+        flags = mWpc.getActivityStateFlags() & exclusiveFlags;
+        assertEquals(WindowProcessController.ACTIVITY_STATE_FLAG_IS_PAUSING_OR_PAUSED, flags);
     }
 
     @Test
@@ -383,12 +396,8 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         assertTrue(mWpc.hasForegroundActivities());
 
         activity.setVisibleRequested(false);
-        if (com.android.window.flags.Flags.useVisibleRequestedForProcessTracker()) {
-            assertTrue("PAUSING is visible", mWpc.hasVisibleActivities());
-            activity.setState(PAUSED, "test");
-        } else {
-            activity.setVisible(false);
-        }
+        assertTrue("PAUSING is visible", mWpc.hasVisibleActivities());
+        activity.setState(PAUSED, "test");
         verify(tracker).onAllActivitiesInvisible(mWpc);
         assertFalse(mWpc.hasVisibleActivities());
 
@@ -462,7 +471,6 @@ public class WindowProcessControllerTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(com.android.window.flags.Flags.FLAG_INSETS_DECOUPLED_CONFIGURATION)
     public void testOverrideConfigurationApplied() {
         final DisplayContent displayContent = new TestDisplayContent.Builder(mAtm, 1000, 1500)
                 .setSystemDecorations(true).setDensityDpi(160).build();
@@ -474,8 +482,6 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         decorInsetsInfo.mConfigInsets.set(emptyRect);
         decorInsetsInfo.mOverrideConfigInsets.set(new Rect(0, 100, 0, 200));
         decorInsetsInfo.mOverrideNonDecorInsets.set(new Rect(0, 0, 0, 200));
-        decorInsetsInfo.mNonDecorFrame.set(new Rect(0, 0, 1000, 1500));
-        decorInsetsInfo.mConfigFrame.set(new Rect(0, 0, 1000, 1500));
         decorInsetsInfo.mOverrideConfigFrame.set(new Rect(0, 100, 1000, 1300));
         decorInsetsInfo.mOverrideNonDecorFrame.set(new Rect(0, 0, 1000, 1300));
         doReturn(decorInsetsInfo).when(displayPolicy)
@@ -509,6 +515,55 @@ public class WindowProcessControllerTests extends WindowTestsBase {
         // Only the non-decor insets should be deducted for the app bounds.
         assertNotNull(resolvedConfig.windowConfiguration.getAppBounds());
         assertEquals(1300, resolvedConfig.windowConfiguration.getAppBounds().height());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
+    public void testGetCrashTag_desktopModeFalse() {
+        doReturn(false).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.setWindowingMode(WINDOWING_MODE_FREEFORM);
+
+        assertNull(mWpc.getCrashTag());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
+    public void testGetCrashTag_desktopModeFalse_relaunchReason() {
+        doReturn(false).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.mRelaunchReason = RELAUNCH_REASON_WINDOWING_MODE_RESIZE;
+
+        assertEquals(
+                "Relaunch-Reason=" + relaunchReasonToString(RELAUNCH_REASON_WINDOWING_MODE_RESIZE),
+                mWpc.getCrashTag());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
+    public void testGetCrashTag_desktopModeTrue_freeform() {
+        doReturn(true).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
+        final ActivityRecord activity = createActivityRecord(mWpc);
+        activity.getTask().setWindowingMode(WINDOWING_MODE_FREEFORM);
+
+        assertEquals("Freeform-Tasks=1", mWpc.getCrashTag());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_CRASH_LOGGING_FOR_DESKTOP)
+    public void testGetCrashTag_desktopModeTrue_freeformOnExternalDisplay() {
+        doReturn(true).when(() -> DesktopModeHelper.canEnterDesktopMode(mContext));
+        DisplayInfo displayInfo = new DisplayInfo();
+        displayInfo.copyFrom(mDisplayInfo);
+        displayInfo.type = Display.TYPE_EXTERNAL;
+        final DisplayContent dc = createNewDisplay(displayInfo);
+
+        final TaskBuilder taskBuilder = new TaskBuilder(mSupervisor);
+        final Task task = taskBuilder.setDisplay(dc).setWindowingMode(
+                WINDOWING_MODE_FREEFORM).build();
+        mWpc.addRecentTask(task);
+
+        assertEquals("Freeform-Tasks=1 On-External-Display=Yes", mWpc.getCrashTag());
     }
 
     private TestDisplayContent createTestDisplayContentInContainer() {

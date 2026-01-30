@@ -79,12 +79,25 @@ class QuickAccessWalletKeyguardQuickAffordanceConfigTest : SysuiTestCase() {
     fun affordance_keyguardShowing_hasWalletCard_visibleModel() =
         testScope.runTest {
             setUpState()
+            val iconCopy: Drawable = mock()
+            val constantState: Drawable.ConstantState = mock()
+            whenever(ICON.constantState).thenReturn(constantState)
+            whenever(constantState.newDrawable()).thenReturn(iconCopy)
 
             val latest by collectLastValue(underTest.lockScreenState)
 
             val visibleModel = latest as KeyguardQuickAffordanceConfig.LockScreenState.Visible
             assertThat(visibleModel.icon)
                 .isEqualTo(
+                    Icon.Loaded(
+                        drawable = iconCopy,
+                        contentDescription =
+                            ContentDescription.Resource(res = R.string.accessibility_wallet_button),
+                    )
+                )
+
+            assertThat(visibleModel.icon)
+                .isNotEqualTo(
                     Icon.Loaded(
                         drawable = ICON,
                         contentDescription =
@@ -107,6 +120,10 @@ class QuickAccessWalletKeyguardQuickAffordanceConfigTest : SysuiTestCase() {
     fun affordance_keyguardShowing_hasPaymentCard_visibleModel() =
         testScope.runTest {
             setUpState(cardType = WalletCard.CARD_TYPE_PAYMENT)
+            val iconCopy: Drawable = mock()
+            val constantState: Drawable.ConstantState = mock()
+            whenever(ICON.constantState).thenReturn(constantState)
+            whenever(constantState.newDrawable()).thenReturn(iconCopy)
 
             val latest by collectLastValue(underTest.lockScreenState)
 
@@ -114,11 +131,32 @@ class QuickAccessWalletKeyguardQuickAffordanceConfigTest : SysuiTestCase() {
             assertThat(visibleModel.icon)
                 .isEqualTo(
                     Icon.Loaded(
+                        drawable = iconCopy,
+                        contentDescription =
+                            ContentDescription.Resource(res = R.string.accessibility_wallet_button),
+                    )
+                )
+
+            assertThat(visibleModel.icon)
+                .isNotEqualTo(
+                    Icon.Loaded(
                         drawable = ICON,
                         contentDescription =
                             ContentDescription.Resource(res = R.string.accessibility_wallet_button),
                     )
                 )
+        }
+
+    @Test
+    fun affordance_keyguardShowing_hasPaymentCard_visibleModel_noConstantState_resFallback() =
+        testScope.runTest {
+            setUpState(cardType = WalletCard.CARD_TYPE_PAYMENT)
+            whenever(ICON.constantState).thenReturn(null)
+
+            val latest by collectLastValue(underTest.lockScreenState)
+
+            val visibleModel = latest as KeyguardQuickAffordanceConfig.LockScreenState.Visible
+            assertThat(visibleModel.icon).isInstanceOf(Icon.Resource::class.java)
         }
 
     @Test

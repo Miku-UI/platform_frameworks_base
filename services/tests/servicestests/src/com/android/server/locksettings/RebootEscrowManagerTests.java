@@ -22,10 +22,10 @@ import static android.content.pm.UserInfo.FLAG_PROFILE;
 import static android.content.pm.UserInfo.NO_PROFILE_GROUP_ID;
 import static android.os.UserHandle.USER_SYSTEM;
 
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_ESCROW_NOT_READY;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_NONE;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_PROVIDER_MISMATCH;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_STORE_ESCROW_KEY;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_ESCROW_NOT_READY;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_NONE;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_PROVIDER_MISMATCH;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_STORE_ESCROW_KEY;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -65,7 +65,6 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
-import com.android.internal.widget.RebootEscrowListener;
 import com.android.server.locksettings.ResumeOnRebootServiceProvider.ResumeOnRebootServiceConnection;
 import com.android.server.pm.UserManagerInternal;
 

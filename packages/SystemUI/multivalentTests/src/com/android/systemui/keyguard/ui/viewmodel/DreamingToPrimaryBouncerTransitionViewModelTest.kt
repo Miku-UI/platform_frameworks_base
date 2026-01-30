@@ -19,6 +19,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionState.RUNNING
@@ -31,6 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
+@DisableSceneContainer
 @RunWith(AndroidJUnit4::class)
 class DreamingToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
@@ -41,6 +43,22 @@ class DreamingToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() {
     fun dreamingToPrimaryBouncerChangesBlurToMax() =
         testScope.runTest {
             val values by collectValues(underTest.windowBlurRadius)
+
+            kosmos.keyguardWindowBlurTestUtil.assertTransitionToBlurRadius(
+                transitionProgress = listOf(0.0f, 0.0f, 0.3f, 0.4f, 0.5f, 1.0f),
+                startValue = kosmos.blurConfig.maxBlurRadiusPx,
+                endValue = kosmos.blurConfig.maxBlurRadiusPx,
+                transitionFactory = ::step,
+                actualValuesProvider = { values },
+                checkInterpolatedValues = false,
+            )
+        }
+
+    @Test
+    fun dreamingToPrimaryBouncerChangesNotificationBlurToMax_whenShadeExpanded() =
+        testScope.runTest {
+            val values by collectValues(underTest.notificationBlurRadius)
+            kosmos.keyguardWindowBlurTestUtil.shadeExpanded(true)
 
             kosmos.keyguardWindowBlurTestUtil.assertTransitionToBlurRadius(
                 transitionProgress = listOf(0.0f, 0.0f, 0.3f, 0.4f, 0.5f, 1.0f),

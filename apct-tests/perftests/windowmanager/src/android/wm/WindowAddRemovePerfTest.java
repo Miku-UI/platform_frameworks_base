@@ -19,12 +19,12 @@ package android.wm;
 import static android.view.WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR;
 import static android.view.WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
 
-import android.graphics.Rect;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.perftests.utils.ManualBenchmarkState;
 import android.perftests.utils.ManualBenchmarkState.ManualBenchmarkTest;
 import android.perftests.utils.PerfManualStatusReporter;
+import android.util.MergedConfiguration;
 import android.view.Display;
 import android.view.IWindowSession;
 import android.view.InputChannel;
@@ -34,6 +34,8 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
+import android.view.WindowRelayoutResult;
+import android.window.ClientWindowFrames;
 
 import androidx.test.filters.LargeTest;
 
@@ -85,10 +87,9 @@ public class WindowAddRemovePerfTest extends WindowManagerPerfTestBase
     private static class TestWindow extends BaseIWindow {
         final WindowManager.LayoutParams mLayoutParams = new WindowManager.LayoutParams();
         final int mRequestedVisibleTypes = WindowInsets.Type.defaultVisible();
-        final InsetsState mOutInsetsState = new InsetsState();
-        final InsetsSourceControl.Array mOutControls = new InsetsSourceControl.Array();
-        final Rect mOutAttachedFrame = new Rect();
-        final float[] mOutSizeCompatScale = { 1f };
+        final WindowRelayoutResult mRelayoutResult = new WindowRelayoutResult(
+                new ClientWindowFrames(), new MergedConfiguration(), new InsetsState(),
+                new InsetsSourceControl.Array());
 
         TestWindow() {
             mLayoutParams.setTitle(TestWindow.class.getName());
@@ -105,9 +106,8 @@ public class WindowAddRemovePerfTest extends WindowManagerPerfTestBase
                 final InputChannel inputChannel = new InputChannel();
 
                 long startTime = SystemClock.elapsedRealtimeNanos();
-                session.addToDisplay(this, mLayoutParams, View.VISIBLE,
-                        Display.DEFAULT_DISPLAY, mRequestedVisibleTypes, inputChannel,
-                        mOutInsetsState, mOutControls, mOutAttachedFrame, mOutSizeCompatScale);
+                session.addToDisplay(this, mLayoutParams, View.VISIBLE, Display.DEFAULT_DISPLAY,
+                        mRequestedVisibleTypes, inputChannel, mRelayoutResult);
                 final long elapsedTimeNsOfAdd = SystemClock.elapsedRealtimeNanos() - startTime;
                 state.addExtraResult("add", elapsedTimeNsOfAdd);
 

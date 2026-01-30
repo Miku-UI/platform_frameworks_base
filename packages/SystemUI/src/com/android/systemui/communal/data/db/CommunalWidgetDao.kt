@@ -171,6 +171,9 @@ interface CommunalWidgetDao {
         spanYNew: Int,
     ): Long
 
+    @Query("SELECT COUNT(widget_id) FROM communal_widget_table WHERE widget_id = :widgetId")
+    fun getWidgetCount(widgetId: Int): Long
+
     @Query("INSERT INTO communal_item_rank_table(rank) VALUES(:rank)")
     fun insertItemRank(rank: Int): Long
 
@@ -229,6 +232,10 @@ interface CommunalWidgetDao {
         userSerialNumber: Int,
         spanY: SpanValue,
     ): Long {
+        // Remove any existing entry with the same widget id  to prevent issue where multiple
+        // entries are linked to the same widget. This should not normally happen if all widgets
+        // are requested from the same provider.
+        removeAllWidgetsById(widgetId)
         val widgets = getWidgetsNow()
 
         // If rank is not specified (null or less than 0), rank it last by finding the current
@@ -251,6 +258,14 @@ interface CommunalWidgetDao {
             spanY = spanY.toFixed().value,
             spanYNew = spanY.toResponsive().value,
         )
+    }
+
+    @Transaction
+    fun removeAllWidgetsById(widgetId: Int) {
+        var continueRemoving = false
+        do {
+            continueRemoving = deleteWidgetById(widgetId)
+        } while (continueRemoving)
     }
 
     @Transaction

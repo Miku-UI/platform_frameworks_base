@@ -17,12 +17,13 @@
 package com.android.systemui.screenshot.message
 
 import android.content.ComponentName
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import android.content.pm.PackageManager
 import android.graphics.Canvas
 import android.graphics.ColorFilter
 import android.graphics.drawable.Drawable
 import android.os.UserHandle
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.systemui.SysuiTestCase
 import com.android.systemui.screenshot.data.model.ProfileType
 import com.android.systemui.screenshot.data.repository.ProfileTypeRepository
 import com.google.common.truth.Truth.assertThat
@@ -31,7 +32,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class ProfileMessageControllerTest {
+class ProfileMessageControllerTest : SysuiTestCase() {
     @Test
     fun personalScreenshot() = runTest {
         assertThat(
@@ -111,7 +112,7 @@ class ProfileMessageControllerTest {
         object : PackageLabelIconProvider {
             override suspend fun getPackageLabelIcon(
                 componentName: ComponentName,
-                userHandle: UserHandle
+                userHandle: UserHandle,
             ): LabeledIcon {
                 if (componentName.equals(FILE_MANAGER_COMPONENT)) {
                     return LabeledIcon(FILE_MANAGER_LABEL, drawable)
@@ -173,7 +174,7 @@ class ProfileMessageControllerTest {
             packageLabelIconProvider,
             FakeProfileFirstRunResources(fileManagerComponent),
             profileFirstRunSettings,
-            profileTypeRepository
+            profileTypeRepository,
         )
 
     companion object {

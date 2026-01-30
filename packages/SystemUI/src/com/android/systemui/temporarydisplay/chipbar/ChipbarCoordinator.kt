@@ -76,7 +76,8 @@ import javax.inject.Inject
  * Only one chipbar may be shown at a time.
  */
 @SysUISingleton
-open class ChipbarCoordinator
+open class
+ChipbarCoordinator
 @Inject
 constructor(
     context: Context,
@@ -270,7 +271,9 @@ constructor(
     override fun animateViewIn(view: ViewGroup) {
         // We can only request focus once the animation finishes.
         val onAnimationEnd = Runnable {
-            maybeGetAccessibilityFocus(view.getTag(INFO_TAG) as ChipbarInfo?, view)
+            if (view.isAttachedToWindow) {
+                maybeGetAccessibilityFocus(view.getTag(INFO_TAG) as ChipbarInfo?, view)
+            }
         }
         val animatedIn = chipbarAnimator.animateViewIn(view.getInnerView(), onAnimationEnd)
 

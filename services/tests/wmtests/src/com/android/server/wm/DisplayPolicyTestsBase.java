@@ -64,6 +64,9 @@ public class DisplayPolicyTestsBase extends WindowTestsBase {
         addWindow(mNavBarWindow);
 
         // Update source frame and visibility of insets providers.
+        if (android.view.inputmethod.Flags.setServerVisibilityOnprelayout()) {
+            mDisplayContent.getInsetsStateController().onPreLayout();
+        }
         mDisplayContent.getInsetsStateController().onPostLayout();
     }
 

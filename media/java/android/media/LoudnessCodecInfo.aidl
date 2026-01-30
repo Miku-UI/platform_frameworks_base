@@ -21,7 +21,7 @@ package android.media;
  * input attributes used for measuring the parameters required to perform
  * loudness alignment as specified by the CTA2075 standard.
  *
- * {@hide}
+ * @hide
  */
 @JavaDerive(equals = true, toString = true)
 parcelable LoudnessCodecInfo {

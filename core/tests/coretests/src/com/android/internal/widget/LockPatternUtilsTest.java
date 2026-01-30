@@ -19,10 +19,12 @@ package com.android.internal.widget;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_MANAGED;
 import static android.app.admin.DevicePolicyManager.PASSWORD_QUALITY_UNSPECIFIED;
 
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_TRUSTAGENT_EXPIRED;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_LOCKOUT;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN;
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -36,29 +38,32 @@ import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.PropertyInvalidatedCache;
+import android.app.test.PropertyInvalidatedCacheTestRule;
 import android.app.trust.TrustManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.UserInfo;
-import android.hardware.input.IInputManager;
-import android.hardware.input.InputManagerGlobal;
+import android.content.res.Resources;
 import android.os.Looper;
+import android.os.ParcelDuration;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.DisabledOnRavenwood;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.platform.test.ravenwood.RavenwoodRule;
 import android.provider.Settings;
 import android.test.mock.MockContentResolver;
-import android.view.InputDevice;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -75,8 +80,10 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 @RunWith(AndroidJUnit4.class)
 @SmallTest
@@ -87,16 +94,29 @@ public class LockPatternUtilsTest {
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
+    @Rule
+    public final PropertyInvalidatedCacheTestRule mCacheTestRule =
+            new PropertyInvalidatedCacheTestRule();
+
     private ILockSettings mLockSettings;
+    private Supplier<Duration> mTimeSinceBootSupplier = mock(Supplier.class);
     private static final int USER_ID = 1;
     private static final int DEMO_USER_ID = 5;
+    private static final Duration LOCKOUT_END_TIME = Duration.ofSeconds(1);
 
     private LockPatternUtils mLockPatternUtils;
+
+    private Resources mResources;
 
     private void configureTest(boolean isSecure, boolean isDemoUser, int deviceDemoMode)
             throws Exception {
         mLockSettings = mock(ILockSettings.class);
+        when(mTimeSinceBootSupplier.get()).thenReturn(Duration.ZERO);
         final Context context = spy(new ContextWrapper(InstrumentationRegistry.getTargetContext()));
+
+        // Need to invalidate once or else caching doesn't work.
+        PropertyInvalidatedCache.invalidateCache(
+                PropertyInvalidatedCache.MODULE_SYSTEM, LockPatternUtils.LOCKOUT_END_TIME_API);
 
         final MockContentResolver cr = new MockContentResolver(context);
         cr.addProvider(Settings.AUTHORITY, new FakeSettingsProvider());
@@ -108,8 +128,9 @@ public class LockPatternUtilsTest {
                          : LockPatternUtils.CREDENTIAL_TYPE_NONE);
         when(mLockSettings.getLong("lockscreen.password_type", PASSWORD_QUALITY_UNSPECIFIED,
                 DEMO_USER_ID)).thenReturn((long) PASSWORD_QUALITY_MANAGED);
+        when(mLockSettings.getLockoutEndTime(USER_ID)).thenReturn(asParcel(LOCKOUT_END_TIME));
         when(mLockSettings.hasSecureLockScreen()).thenReturn(true);
-        mLockPatternUtils = new LockPatternUtils(context, mLockSettings);
+        mLockPatternUtils = new LockPatternUtils(context, mLockSettings, mTimeSinceBootSupplier);
 
         final UserInfo userInfo = mock(UserInfo.class);
         when(userInfo.isDemo()).thenReturn(isDemoUser);
@@ -302,6 +323,52 @@ public class LockPatternUtilsTest {
     }
 
     @Test
+    public void biometricsAllowedUpdates_onSecureLockDeviceStrongAuthFlagChanges() {
+        // Creates strong auth tracker
+        TestStrongAuthTracker tracker = createStrongAuthTracker();
+        tracker.changeStrongAuth(STRONG_AUTH_NOT_REQUIRED);
+
+        // Mock auth flag changes when enabling secure lock device
+        tracker.changeStrongAuth(
+                PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
+                        | STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE);
+
+        // Non-strong biometrics are not allowed during secure lock device
+        tracker.changeIsNonStrongBiometricAllowed(false);
+
+        // User has not completed any authentication, all biometrics should be disallowed
+        assertFalse(tracker.isBiometricAllowedForUser(
+                /* isStrongBiometric = */ false, DEMO_USER_ID));
+
+        assertFalse(tracker.isBiometricAllowedForUser(
+                /* isStrongBiometric = */ true, DEMO_USER_ID));
+
+        // After primary auth, secure lock device clears
+        // PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag, only
+        // STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE is set
+        tracker.changeStrongAuth(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE);
+
+        // Non-strong biometrics should still be disallowed
+        assertFalse(tracker.isBiometricAllowedForUser(
+                /* isStrongBiometric = */ false, DEMO_USER_ID));
+
+        // Strong biometrics should be allowed
+        assertTrue(tracker.isBiometricAllowedForUser(
+                /* isStrongBiometric = */ true, DEMO_USER_ID));
+
+        // After biometric auth, secure lock device is disabled
+        tracker.changeStrongAuth(STRONG_AUTH_NOT_REQUIRED);
+        tracker.changeIsNonStrongBiometricAllowed(true);
+
+        // All biometrics should be re-allowed
+        assertTrue(tracker.isBiometricAllowedForUser(
+                /* isStrongBiometric = */ false, DEMO_USER_ID));
+
+        assertTrue(tracker.isBiometricAllowedForUser(
+                /* isStrongBiometric = */ true, DEMO_USER_ID));
+    }
+
+    @Test
     public void testUserFrp_isNotRegularUser() throws Exception {
         assertTrue(LockPatternUtils.USER_FRP < 0);
     }
@@ -361,6 +428,60 @@ public class LockPatternUtilsTest {
         assertThat(mLockPatternUtils.writeRepairModeCredential(USER_ID)).isFalse();
     }
 
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
+    public void testGetLockoutEndTime_once() throws Exception {
+        configureTest(true, false, 2);
+        Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(USER_ID);
+
+        assertThat(lockoutEndTime).isEqualTo(LOCKOUT_END_TIME);
+        verify(mLockSettings).getLockoutEndTime(USER_ID);
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
+    public void testGetLockoutEndTime_multipleTimesHitCache() throws Exception {
+        configureTest(true, false, 2);
+        for (int i = 0; i < 5; i++) {
+            Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(USER_ID);
+            assertThat(lockoutEndTime).isEqualTo(LOCKOUT_END_TIME);
+        }
+
+        verify(mLockSettings).getLockoutEndTime(USER_ID);
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
+    public void testGetLockoutEndTime_newQueryAfterEndTime() throws Exception {
+        configureTest(true, false, 2);
+        for (int i = 0; i < 5; i++) {
+            Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(USER_ID);
+            assertThat(lockoutEndTime).isEqualTo(LOCKOUT_END_TIME);
+        }
+        reset(mTimeSinceBootSupplier, mLockSettings);
+        when(mTimeSinceBootSupplier.get()).thenReturn(LOCKOUT_END_TIME.plusMillis(1));
+        Duration secondLockoutEndTime = LOCKOUT_END_TIME.plusSeconds(1);
+        when(mLockSettings.getLockoutEndTime(USER_ID)).thenReturn(asParcel(secondLockoutEndTime));
+
+        Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(USER_ID);
+
+        assertThat(lockoutEndTime).isEqualTo(secondLockoutEndTime);
+        verify(mLockSettings).getLockoutEndTime(USER_ID);
+    }
+
+    @Test
+    @EnableFlags(android.security.Flags.FLAG_MANAGE_LOCKOUT_END_TIME_IN_SERVICE)
+    public void testInvalidateLockoutEndTimeCache_causesNewQuery() throws Exception {
+        configureTest(true, false, 2);
+        for (int i = 0; i < 5; i++) {
+            Duration lockoutEndTime = mLockPatternUtils.getLockoutEndTime(USER_ID);
+            assertThat(lockoutEndTime).isEqualTo(LOCKOUT_END_TIME);
+            LockPatternUtils.invalidateLockoutEndTimeCache();
+        }
+
+        verify(mLockSettings, times(5)).getLockoutEndTime(USER_ID);
+    }
+
     private TestStrongAuthTracker createStrongAuthTracker() {
         final Context context = new ContextWrapper(InstrumentationRegistry.getTargetContext());
         return new TestStrongAuthTracker(context, Looper.getMainLooper());
@@ -375,6 +496,10 @@ public class LockPatternUtilsTest {
         public void changeStrongAuth(@StrongAuthFlags int strongAuthFlags) {
             handleStrongAuthRequiredChanged(strongAuthFlags, DEMO_USER_ID);
         }
+
+        public void changeIsNonStrongBiometricAllowed(boolean allowed) {
+            handleIsNonStrongBiometricAllowedChanged(allowed, DEMO_USER_ID);
+        }
     }
 
     private ILockSettings createTestLockSettings() {
@@ -384,7 +509,7 @@ public class LockPatternUtilsTest {
         when(context.getSystemService(Context.TRUST_SERVICE)).thenReturn(trustManager);
 
         final ILockSettings ils = mock(ILockSettings.class);
-        mLockPatternUtils = new LockPatternUtils(context, ils);
+        mLockPatternUtils = new LockPatternUtils(context, ils, mTimeSinceBootSupplier);
         return ils;
     }
 
@@ -406,155 +531,69 @@ public class LockPatternUtilsTest {
         };
     }
 
-    private InputManagerGlobal.TestSession configureExternalHardwareTest(InputDevice[] devices)
-            throws RemoteException {
-        final Context context = new ContextWrapper(InstrumentationRegistry.getTargetContext());
+    private void configureSensitiveInputVisibilityTest() throws RemoteException {
+        final Context context = spy(new ContextWrapper(InstrumentationRegistry.getTargetContext()));
         final ILockSettings ils = mock(ILockSettings.class);
         when(ils.getBoolean(anyString(), anyBoolean(), anyInt())).thenThrow(RemoteException.class);
-        mLockPatternUtils = new LockPatternUtils(context, ils);
+        mLockPatternUtils = new LockPatternUtils(context, ils, mTimeSinceBootSupplier);
 
-        IInputManager inputManagerMock = mock(IInputManager.class);
-
-        int[] deviceIds = new int[devices.length];
-
-        for (int i = 0; i < devices.length; i++) {
-            when(inputManagerMock.getInputDevice(i)).thenReturn(devices[i]);
-        }
-
-        when(inputManagerMock.getInputDeviceIds()).thenReturn(deviceIds);
-        InputManagerGlobal.TestSession session =
-                InputManagerGlobal.createTestSession(inputManagerMock);
-
-        return session;
+        mResources = spy(context.getResources());
+        when(context.getResources()).thenReturn(mResources);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isPinEnhancedPrivacyEnabled_noDevicesAttached() throws RemoteException {
-        InputManagerGlobal.TestSession session = configureExternalHardwareTest(new InputDevice[0]);
-        assertFalse(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isPinEnhancedPrivacyEnabled_noEnabledDeviceAttached() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder.setEnabled(false);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
-        assertFalse(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isPinEnhancedPrivacyEnabled_withoutHwKeyboard() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder.setEnabled(true).setSources(InputDevice.SOURCE_TOUCHSCREEN);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
-        assertFalse(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isPinEnhancedPrivacyEnabled_withoutFullHwKeyboard() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder
-                .setEnabled(true)
-                .setSources(InputDevice.SOURCE_KEYBOARD)
-                .setKeyboardType(InputDevice.KEYBOARD_TYPE_NON_ALPHABETIC);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
-        assertFalse(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isPinEnhancedPrivacyEnabled_withHwKeyboardOldDefault() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder
-                .setEnabled(true)
-                .setSources(InputDevice.SOURCE_KEYBOARD)
-                .setKeyboardType(InputDevice.KEYBOARD_TYPE_ALPHABETIC);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
-        assertFalse(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isPinEnhancedPrivacyEnabled_withHwKeyboard() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder
-                .setEnabled(true)
-                .setSources(InputDevice.SOURCE_KEYBOARD)
-                .setKeyboardType(InputDevice.KEYBOARD_TYPE_ALPHABETIC);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
-        assertTrue(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isVisiblePatternEnabled_noDevices() throws RemoteException {
-        InputManagerGlobal.TestSession session = configureExternalHardwareTest(new InputDevice[0]);
+    @EnableFlags(Flags.FLAG_ENABLE_DEFAULT_VISIBILITY_FOR_SENSITIVE_INPUTS)
+    public void isVisiblePatternEnabled_WhenConfigValueTrue() throws RemoteException {
+        configureSensitiveInputVisibilityTest();
+        when(mResources.getBoolean(com.android.internal.R.bool.config_lockPatternVisibleDefault))
+                .thenReturn(true);
         assertTrue(mLockPatternUtils.isVisiblePatternEnabled(USER_ID));
-        session.close();
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isVisiblePatternEnabled_noEnabledDevices() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder.setEnabled(false);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
-        assertTrue(mLockPatternUtils.isVisiblePatternEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isVisiblePatternEnabled_noPointingDevices() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder
-                .setEnabled(true)
-                .setSources(InputDevice.SOURCE_TOUCHSCREEN);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
-        assertTrue(mLockPatternUtils.isVisiblePatternEnabled(USER_ID));
-        session.close();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isVisiblePatternEnabled_externalPointingDevice() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder
-                .setEnabled(true)
-                .setSources(InputDevice.SOURCE_CLASS_POINTER);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
+    @EnableFlags(Flags.FLAG_ENABLE_DEFAULT_VISIBILITY_FOR_SENSITIVE_INPUTS)
+    public void isVisiblePatternEnabled_WhenConfigValueFalse() throws RemoteException {
+        configureSensitiveInputVisibilityTest();
+        when(mResources.getBoolean(com.android.internal.R.bool.config_lockPatternVisibleDefault))
+                .thenReturn(false);
         assertFalse(mLockPatternUtils.isVisiblePatternEnabled(USER_ID));
-        session.close();
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_HIDE_LAST_CHAR_WITH_PHYSICAL_INPUT)
-    public void isVisiblePatternEnabled_externalPointingDeviceOldDefault() throws RemoteException {
-        InputDevice.Builder builder = new InputDevice.Builder();
-        builder
-                .setEnabled(true)
-                .setSources(InputDevice.SOURCE_CLASS_POINTER);
-        InputManagerGlobal.TestSession session =
-                configureExternalHardwareTest(new InputDevice[]{builder.build()});
+    @DisableFlags(Flags.FLAG_ENABLE_DEFAULT_VISIBILITY_FOR_SENSITIVE_INPUTS)
+    public void isVisiblePatternEnabled_OldDefault() throws RemoteException {
+        configureSensitiveInputVisibilityTest();
         assertTrue(mLockPatternUtils.isVisiblePatternEnabled(USER_ID));
-        session.close();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DEFAULT_VISIBILITY_FOR_SENSITIVE_INPUTS)
+    public void isPinEnhancedPrivacyEnabled_WhenConfigValueTrue() throws RemoteException {
+        configureSensitiveInputVisibilityTest();
+        when(mResources.getBoolean(
+                        com.android.internal.R.bool.config_lockPinEnhancedPrivacyDefault))
+                .thenReturn(true);
+        assertTrue(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DEFAULT_VISIBILITY_FOR_SENSITIVE_INPUTS)
+    public void isPinEnhancedPrivacyEnabled_WhenConfigValueFalse() throws RemoteException {
+        configureSensitiveInputVisibilityTest();
+        when(mResources.getBoolean(
+                        com.android.internal.R.bool.config_lockPinEnhancedPrivacyDefault))
+                .thenReturn(false);
+        assertFalse(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_DEFAULT_VISIBILITY_FOR_SENSITIVE_INPUTS)
+    public void isPinEnhancedPrivacyEnabled_OldDefault() throws RemoteException {
+        configureSensitiveInputVisibilityTest();
+        assertFalse(mLockPatternUtils.isPinEnhancedPrivacyEnabled(USER_ID));
+    }
+
+    private static ParcelDuration asParcel(Duration duration) {
+        return new ParcelDuration(duration);
     }
 }

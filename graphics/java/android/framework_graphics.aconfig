@@ -44,6 +44,16 @@ flag {
 }
 
 flag {
+    name: "use_resources_from_context_to_create_drawable_icons"
+    namespace: "lse_desktop_experience"
+    description: "Uses resources from the context to create icon drawables instead of system resources (that are not display aware)"
+    bug: "404242315"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
   name: "gradient_drawable_shape_arc_for_rounded_cap"
   is_fixed_read_only: true
   namespace: "wear_frameworks"

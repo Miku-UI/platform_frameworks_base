@@ -24,7 +24,6 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothHearingAid;
 import android.content.Context;
 import android.graphics.drawable.Drawable;
-import android.media.AudioManager;
 import android.media.MediaRoute2Info;
 import android.media.RouteListingPreference;
 
@@ -40,22 +39,41 @@ public class BluetoothMediaDevice extends MediaDevice {
     private static final String TAG = "BluetoothMediaDevice";
 
     private final CachedBluetoothDevice mCachedDevice;
-    private final AudioManager mAudioManager;
+    private final boolean mIsMutingExpectedDevice;
 
     BluetoothMediaDevice(
             @NonNull Context context,
             @NonNull CachedBluetoothDevice device,
-            @Nullable MediaRoute2Info info,
-            @Nullable RouteListingPreference.Item item) {
-        super(context, info, item);
+            @Nullable MediaRoute2Info routeInfo,
+            @Nullable DynamicRouteAttributes dynamicRouteAttributes,
+            @Nullable RouteListingPreference.Item rlpItem) {
+        this(context, device, routeInfo, dynamicRouteAttributes, rlpItem,
+                /* isMutingExpectedDevice= */ false);
+    }
+
+    BluetoothMediaDevice(
+            @NonNull Context context,
+            @NonNull CachedBluetoothDevice device,
+            @Nullable MediaRoute2Info routeInfo,
+            @Nullable DynamicRouteAttributes dynamicRouteAttributes,
+            @Nullable RouteListingPreference.Item rlpItem,
+            boolean isMutingExpectedDevice) {
+        super(context, routeInfo, dynamicRouteAttributes, rlpItem);
         mCachedDevice = device;
-        mAudioManager = context.getSystemService(AudioManager.class);
+        mIsMutingExpectedDevice = isMutingExpectedDevice;
         initDeviceRecord();
     }
 
     @Override
     public String getName() {
-        return mCachedDevice.getName();
+        if (mRouteInfo != null) {
+            // Prefer name from route info since CachedBluetoothDevice#getName results in an
+            // IPC call.
+            return mRouteInfo.getName().toString();
+        } else {
+            return mCachedDevice.getName();
+        }
+
     }
 
     @Override
@@ -94,7 +112,7 @@ public class BluetoothMediaDevice extends MediaDevice {
 
     @Override
     public String getId() {
-        if (mCachedDevice.isHearingAidDevice()) {
+        if (mCachedDevice.isHearingDevice()) {
             if (mCachedDevice.getHiSyncId() != BluetoothHearingAid.HI_SYNC_ID_INVALID) {
                 return Long.toString(mCachedDevice.getHiSyncId());
             }
@@ -132,8 +150,7 @@ public class BluetoothMediaDevice extends MediaDevice {
 
     @Override
     public boolean isMutingExpectedDevice() {
-        return mAudioManager.getMutingExpectedDevice() != null && mCachedDevice.getAddress().equals(
-                mAudioManager.getMutingExpectedDevice().getAddress());
+        return mIsMutingExpectedDevice;
     }
 
     @Override

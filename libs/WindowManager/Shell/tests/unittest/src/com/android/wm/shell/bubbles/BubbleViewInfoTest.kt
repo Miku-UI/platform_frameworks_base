@@ -33,11 +33,14 @@ import com.android.launcher3.icons.BubbleIconFactory
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestShellExecutor
+import com.android.wm.shell.bubbles.appinfo.PackageManagerBubbleAppInfoProvider
 import com.android.wm.shell.bubbles.bar.BubbleBarLayerView
+import com.android.wm.shell.bubbles.logging.BubbleSessionTracker
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayImeController
 import com.android.wm.shell.common.DisplayInsetsController
 import com.android.wm.shell.common.FloatingContentCoordinator
+import com.android.wm.shell.common.HomeIntentProvider
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.common.SyncTransactionQueue
 import com.android.wm.shell.common.TaskStackListenerImpl
@@ -45,7 +48,6 @@ import com.android.wm.shell.sysui.ShellCommandHandler
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.taskview.TaskView
-import com.android.wm.shell.taskview.TaskViewRepository
 import com.android.wm.shell.taskview.TaskViewTransitions
 import com.android.wm.shell.transition.Transitions
 import com.google.common.truth.Truth.assertThat
@@ -57,6 +59,7 @@ import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import java.util.Optional
 import java.util.concurrent.Executor
 
 /** Tests for loading / inflating views & icons for a bubble. */
@@ -74,6 +77,7 @@ class BubbleViewInfoTest : ShellTestCase() {
     private lateinit var bubbleStackView: BubbleStackView
     private lateinit var bubbleBarLayerView: BubbleBarLayerView
     private lateinit var bubblePositioner: BubblePositioner
+    private lateinit var bubbleAppInfoProvider: PackageManagerBubbleAppInfoProvider
 
     private val bubbleTaskViewFactory = BubbleTaskViewFactory {
         BubbleTaskView(mock<TaskView>(), mock<Executor>())
@@ -96,8 +100,15 @@ class BubbleViewInfoTest : ShellTestCase() {
         val windowManager = context.getSystemService(WindowManager::class.java)
         val shellInit = ShellInit(mainExecutor)
         val shellCommandHandler = ShellCommandHandler()
-        val shellController = ShellController(context, shellInit, shellCommandHandler,
-					      mock<DisplayInsetsController>(), mainExecutor)
+        val shellController =
+            ShellController(
+                context,
+                shellInit,
+                shellCommandHandler,
+                mock<DisplayInsetsController>(),
+                mock<UserManager>(),
+                mainExecutor,
+            )
         bubblePositioner = BubblePositioner(context, windowManager)
         val bubbleLogger = mock<BubbleLogger>()
         val bubbleData =
@@ -110,7 +121,9 @@ class BubbleViewInfoTest : ShellTestCase() {
                 bgExecutor
             )
         val surfaceSynchronizer = { obj: Runnable -> obj.run() }
+        bubbleAppInfoProvider = PackageManagerBubbleAppInfoProvider()
 
+        val bubbleSessionTracker = mock<BubbleSessionTracker>()
         bubbleController =
             BubbleController(
                 context,
@@ -121,6 +134,7 @@ class BubbleViewInfoTest : ShellTestCase() {
                 surfaceSynchronizer,
                 FloatingContentCoordinator(),
                 mock<BubbleDataRepository>(),
+                mock<BubbleTransitions>(),
                 mock<IStatusBarService>(),
                 windowManager,
                 mock<DisplayInsetsController>(),
@@ -137,12 +151,17 @@ class BubbleViewInfoTest : ShellTestCase() {
                 mainExecutor,
                 mock<Handler>(),
                 bgExecutor,
-                mock<TaskViewRepository>(),
                 mock<TaskViewTransitions>(),
                 mock<Transitions>(),
                 mock<SyncTransactionQueue>(),
                 mock<IWindowManager>(),
-                BubbleResizabilityChecker()
+                BubbleResizabilityChecker(),
+                mock<HomeIntentProvider>(),
+                bubbleAppInfoProvider,
+                { Optional.empty() },
+                Optional.empty(),
+                { false },
+                bubbleSessionTracker,
             )
 
         val bubbleStackViewManager = BubbleStackViewManager.fromBubbleController(bubbleController)
@@ -155,9 +174,11 @@ class BubbleViewInfoTest : ShellTestCase() {
                 surfaceSynchronizer,
                 FloatingContentCoordinator(),
                 bubbleController,
-                mainExecutor
+                mainExecutor,
+                bubbleSessionTracker,
             )
-        bubbleBarLayerView = BubbleBarLayerView(context, bubbleController, bubbleData, bubbleLogger)
+        bubbleBarLayerView = BubbleBarLayerView(context, bubbleController, bubbleData, bubbleLogger,
+            mainExecutor)
     }
 
     @Test
@@ -171,6 +192,7 @@ class BubbleViewInfoTest : ShellTestCase() {
                 bubbleStackView,
                 iconFactory,
                 bubble,
+                bubbleAppInfoProvider,
                 false /* skipInflation */
             )
         assertThat(info!!).isNotNull()
@@ -182,7 +204,6 @@ class BubbleViewInfoTest : ShellTestCase() {
         assertThat(info.shortcutInfo).isNotNull()
         assertThat(info.appName).isNotEmpty()
         assertThat(info.rawBadgeBitmap).isNotNull()
-        assertThat(info.dotPath).isNotNull()
         assertThat(info.bubbleBitmap).isNotNull()
         assertThat(info.badgeBitmap).isNotNull()
     }
@@ -197,6 +218,7 @@ class BubbleViewInfoTest : ShellTestCase() {
                 bubbleBarLayerView,
                 iconFactory,
                 bubble,
+                bubbleAppInfoProvider,
                 false /* skipInflation */
             )
         assertThat(info!!).isNotNull()
@@ -208,7 +230,6 @@ class BubbleViewInfoTest : ShellTestCase() {
         assertThat(info.shortcutInfo).isNotNull()
         assertThat(info.appName).isNotEmpty()
         assertThat(info.rawBadgeBitmap).isNotNull()
-        assertThat(info.dotPath).isNotNull()
         assertThat(info.bubbleBitmap).isNotNull()
         assertThat(info.badgeBitmap).isNotNull()
     }
@@ -231,6 +252,7 @@ class BubbleViewInfoTest : ShellTestCase() {
                 bubbleBarLayerView,
                 iconFactory,
                 bubble,
+                bubbleAppInfoProvider,
                 true /* skipInflation */
             )
         assertThat(info).isNotNull()
@@ -238,7 +260,6 @@ class BubbleViewInfoTest : ShellTestCase() {
         assertThat(info?.shortcutInfo).isNotNull()
         assertThat(info?.appName).isNotEmpty()
         assertThat(info?.rawBadgeBitmap).isNotNull()
-        assertThat(info?.dotPath).isNotNull()
         assertThat(info?.bubbleBitmap).isNotNull()
         assertThat(info?.badgeBitmap).isNotNull()
     }

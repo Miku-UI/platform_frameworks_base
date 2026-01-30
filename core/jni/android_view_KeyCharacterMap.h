@@ -17,14 +17,15 @@
 #ifndef _ANDROID_VIEW_KEY_CHARACTER_MAP_H
 #define _ANDROID_VIEW_KEY_CHARACTER_MAP_H
 
-#include "jni.h"
-
+#include <input/Input.h>
 #include <input/KeyCharacterMap.h>
+
+#include "jni.h"
 
 namespace android {
 
 /* Creates a KeyCharacterMap object from the given information. */
-extern jobject android_view_KeyCharacterMap_create(JNIEnv* env, int32_t deviceId,
+extern jobject android_view_KeyCharacterMap_create(JNIEnv* env, DeviceId deviceId,
                                                    std::unique_ptr<KeyCharacterMap> kcm);
 
 } // namespace android

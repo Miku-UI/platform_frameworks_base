@@ -53,6 +53,7 @@ import java.io.IOException;
  *
  * @attr ref android.R.styleable#ColorDrawable_color
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ColorDrawable extends Drawable {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private final Paint mPaint = new Paint(Paint.ANTI_ALIAS_FLAG);

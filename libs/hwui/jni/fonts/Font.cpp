@@ -460,8 +460,7 @@ std::shared_ptr<minikin::MinikinFont> createMinikinFontSkia(
     args.setCollectionIndex(ttcIndex);
     args.setVariationDesignPosition({skVariation.data(), static_cast<int>(skVariation.size())});
 
-    sk_sp<SkFontMgr> fm = android::FreeTypeFontMgr();
-    sk_sp<SkTypeface> face(fm->makeFromStream(std::move(fontData), args));
+    sk_sp<SkTypeface> face = makeSkTypeface(std::move(fontData), args);
     if (face == nullptr) {
         return nullptr;
     }

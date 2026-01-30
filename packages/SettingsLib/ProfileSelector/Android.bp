@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibProfileSelector",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -18,15 +19,11 @@ android_library {
     resource_dirs: ["res"],
 
     static_libs: [
-        "com.google.android.material_material",
         "SettingsLibSettingsTheme",
         "android.os.flags-aconfig-java-export",
+        "com.google.android.material_material",
     ],
 
     sdk_version: "system_current",
     min_sdk_version: "23",
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.mediaprovider",
-    ],
 }

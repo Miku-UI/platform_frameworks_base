@@ -851,7 +851,7 @@ public class FrameTracker implements HardwareRendererObserver.OnFrameMetricsAvai
         public void write(int code, int displayId, @RefreshRate int refreshRate,
                 int arg1, long arg2, long arg3, long arg4, long arg5, long arg6, long arg7) {
             FrameworkStatsLog.write(code, arg1, arg2, arg3, arg4, arg5, arg6, arg7,
-                    mDisplayResolutionTracker.getResolution(displayId), refreshRate);
+                    mDisplayResolutionTracker.getResolution(displayId), refreshRate, 0, 0.0f, 0.0f);
         }
     }
 

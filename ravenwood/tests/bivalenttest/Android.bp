@@ -29,6 +29,10 @@ cc_library_shared {
         "libutils",
         "libcutils",
     ],
+    static_libs: [
+        "libaconfig_storage_read_api_cc",
+        "com.android.internal.os_flags_c_lib",
+    ],
 }
 
 java_defaults {
@@ -39,8 +43,8 @@ java_defaults {
         "androidx.test.rules",
 
         "junit-params",
-        "platform-parametric-runner-lib",
         "platform-compat-test-rules",
+        "platform-parametric-runner-lib-no-robo",
 
         // To make sure it won't cause VerifyError (b/324063814)
         "platformprotosnano",
@@ -54,6 +58,14 @@ java_defaults {
     jni_libs: [
         "libravenwoodbivalenttest_jni",
     ],
+}
+
+android_ravenwood_test {
+    name: "RavenwoodBivalentTest",
+    defaults: ["ravenwood-bivalent-defaults"],
+    target_sdk_version: "34",
+    package_name: "com.android.ravenwoodtest.bivalenttest",
+    auto_gen_config: true,
 }
 
 java_defaults {
@@ -82,14 +94,6 @@ java_defaults {
     test_config_template: "AndroidTestTemplate.xml",
 }
 
-android_ravenwood_test {
-    name: "RavenwoodBivalentTest",
-    defaults: ["ravenwood-bivalent-defaults"],
-    target_sdk_version: "34",
-    package_name: "com.android.ravenwoodtest.bivalenttest",
-    auto_gen_config: true,
-}
-
 android_test {
     name: "RavenwoodBivalentTest_device",
     defaults: ["ravenwood-bivalent-device-defaults"],
@@ -100,5 +104,6 @@ android_test {
     defaults: ["ravenwood-bivalent-device-defaults"],
     ravenizer: {
         enabled: true,
+        flags: ["--no-jdk-patch"],
     },
 }

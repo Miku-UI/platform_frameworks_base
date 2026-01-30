@@ -21,6 +21,7 @@ import com.android.systemui.statusbar.notification.stack.shared.model.Accessibil
 import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrimBounds
 import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrimShape
 import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrollState
+import com.android.systemui.util.state.SynchronouslyObservableState
 import java.util.function.Consumer
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -54,9 +55,6 @@ class NotificationPlaceholderRepository @Inject constructor() {
     /** A consumer of [AccessibilityScrollEvent]s. */
     var accessibilityScrollEventConsumer: Consumer<AccessibilityScrollEvent>? = null
 
-    /**
-     * A consumer of [ShadeScrimShape], to be updated when the bounds of the QuickSettings Overlay
-     * panel changes.
-     */
-    var qsPanelShapeConsumer: ((ShadeScrimShape?) -> Unit)? = null
+    /** The bounds of the QuickSettings Overlay panel (in window coordinates). */
+    var qsPanelShapeInWindow = SynchronouslyObservableState<ShadeScrimShape?>(null)
 }

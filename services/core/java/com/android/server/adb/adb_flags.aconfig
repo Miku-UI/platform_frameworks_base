@@ -1,0 +1,12 @@
+package: "com.android.server.adb"
+container: "system"
+
+flag {
+    namespace: "adb"
+    name: "allow_adb_wifi_reconnect"
+    description: "Allow wireless debugging to auto connect on trusted networks."
+    bug: "423809120"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

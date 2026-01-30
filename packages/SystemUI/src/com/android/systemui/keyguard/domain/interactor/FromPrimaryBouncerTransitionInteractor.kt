@@ -20,6 +20,7 @@ import android.animation.ValueAnimator
 import android.util.Log
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.KeyguardSecurityModel
+import com.android.systemui.Flags
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
@@ -35,8 +36,6 @@ import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
-import com.android.systemui.util.kotlin.Utils.Companion.sample
-import com.android.systemui.util.kotlin.sample
 import com.android.wm.shell.shared.animation.Interpolators
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -77,6 +76,7 @@ constructor(
     ) {
 
     override fun start() {
+        listenForBouncerToDreaming()
         listenForPrimaryBouncerToGone()
         listenForPrimaryBouncerToAsleep()
         listenForPrimaryBouncerNotShowing()
@@ -104,20 +104,41 @@ constructor(
         }
     }
 
+    /**
+     * The dream can start underneath the bouncer if the user presses the power button or the screen
+     * times out while their "When to show" condition for dreams is active. Since the dream is an
+     * activity that starts under the bouncer, we want to start the transition to dreaming
+     * immediately so that we can fade the bouncer away as it starts.
+     */
+    private fun listenForBouncerToDreaming() {
+        scope.launch {
+            keyguardInteractor.isDreaming
+                .filterRelevantKeyguardStateAnd { isDreaming -> isDreaming }
+                .collect {
+                    if (!communalSceneInteractor.isIdleOnCommunal.value) {
+                        // If the widgets on lockscreen feature is showing underneath the bouncer,
+                        // don't start the dream transition as the dream is not visible.
+                        startTransitionTo(KeyguardState.DREAMING)
+                    }
+                }
+        }
+    }
+
     private fun listenForPrimaryBouncerNotShowing() {
         if (SceneContainerFlag.isEnabled) return
         if (KeyguardWmStateRefactor.isEnabled) {
             scope.launch {
                 keyguardInteractor.primaryBouncerShowing
-                    .sample(powerInteractor.isAwake, communalSceneInteractor.isIdleOnCommunal)
-                    .filterRelevantKeyguardStateAnd { (isBouncerShowing, _, _) ->
+                    .filterRelevantKeyguardStateAnd { isBouncerShowing ->
                         // TODO(b/307976454) - See if we need to listen for SHOW_WHEN_LOCKED
                         // activities showing up over the bouncer. Camera launch can't show up over
                         // bouncer since the first power press hides bouncer. Do occluding
                         // activities auto hide bouncer? Not sure.
                         !isBouncerShowing
                     }
-                    .collect { (_, isAwake, isIdleOnCommunal) ->
+                    .collect {
+                        val isAwake = powerInteractor.detailedWakefulness.value.isAwake()
+                        val isIdleOnCommunal = communalSceneInteractor.isIdleOnCommunal.value
                         if (
                             !maybeStartTransitionToOccludedOrInsecureCamera { state, reason ->
                                 startTransitionTo(state, ownerReason = reason)
@@ -137,12 +158,10 @@ constructor(
             scope.launch {
                 keyguardInteractor.primaryBouncerShowing
                     .filterRelevantKeyguardStateAnd { isBouncerShowing -> !isBouncerShowing }
-                    .sample(
-                        powerInteractor.isAwake,
-                        keyguardInteractor.isDreaming,
-                        communalSceneInteractor.isIdleOnCommunal,
-                    )
-                    .collect { (_, isAwake, isDreaming, isIdleOnCommunal) ->
+                    .collect {
+                        val isAwake = powerInteractor.detailedWakefulness.value.isAwake()
+                        val isDreaming = keyguardInteractor.isDreaming.value
+                        val isIdleOnCommunal = communalSceneInteractor.isIdleOnCommunal.value
                         val isOccluded = keyguardInteractor.isKeyguardOccluded.value
                         val hubV2 = communalSettingsInteractor.isV2FlagEnabled()
                         val toState =
@@ -206,8 +225,8 @@ constructor(
                 powerInteractor.isAsleep
                     .filter { isAsleep -> isAsleep }
                     .filterRelevantKeyguardState()
-                    .sample(communalSceneInteractor.isIdleOnCommunal)
-                    .collect { isIdleOnCommunal ->
+                    .collect {
+                        val isIdleOnCommunal = communalSceneInteractor.isIdleOnCommunal.value
                         if (isIdleOnCommunal) {
                             // If the bouncer is showing on top of the hub, then ensure we also
                             // hide the hub.
@@ -242,6 +261,18 @@ constructor(
             keyguardInteractor.isKeyguardGoingAway
                 .filterRelevantKeyguardStateAnd { isKeyguardGoingAway -> isKeyguardGoingAway }
                 .collect {
+                    val editModeState = communalSceneInteractor.editModeState.value
+                    if (Flags.hubEditModeTransition() && editModeState != null) {
+                        Log.i(
+                            TAG,
+                            "Ignoring isKeyguardGoingAway due to editModeState: $editModeState",
+                        )
+                        // If transitioning to hub edit mode, do nothing here. The keyguard state
+                        // change to GONE happens as a result of moving away from the communal
+                        // scene, which is triggered by the edit mode activity.
+                        return@collect
+                    }
+
                     val securityMode =
                         keyguardSecurityModel.getSecurityMode(
                             selectedUserInteractor.getSelectedUserId()

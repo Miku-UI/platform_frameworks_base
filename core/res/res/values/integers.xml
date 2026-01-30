@@ -34,4 +34,13 @@
     <integer name="time_picker_mode_material">2</integer>
 
     <integer name="date_picker_header_max_lines_material">2</integer>
+
+    <!-- Default value for Settings.Secure.ACCESSIBILITY_TEXT_CURSOR_BLINK_INTERVAL_MS. Keep in sync
+         with ViewConfiguration. -->
+    <integer name="def_accessibility_text_cursor_blink_interval_ms">500</integer>
+
+    <!-- Value representing no blinking for
+         Settings.Secure.ACCESSIBILITY_TEXT_CURSOR_BLINK_INTERVAL_MS. Keep in sync with
+         ViewConfiguration. -->
+    <integer name="no_blink_accessibility_text_cursor_blink_interval_ms">0</integer>
 </resources>

@@ -92,7 +92,7 @@ final class AttributedOp {
     }
 
     /**
-     * Update state when noteOp was rejected or startOp->finishOp event finished
+     * Update state when noteOp was rejected or accessed.
      *
      * @param proxyUid            The uid of the proxy
      * @param proxyPackageName    The package name of the proxy
@@ -113,7 +113,7 @@ final class AttributedOp {
         mAppOpsService.mHistoricalRegistry.incrementOpAccessedCount(parent.op, parent.uid,
                 parent.packageName, persistentDeviceId, tag, uidState, flags, accessTime,
                 AppOpsManager.ATTRIBUTION_FLAGS_NONE, AppOpsManager.ATTRIBUTION_CHAIN_ID_NONE,
-                accessCount);
+                accessCount, false);
     }
 
     /**
@@ -160,11 +160,14 @@ final class AttributedOp {
      * @param uidState UID state of the app noteOp is called for
      * @param flags    OpFlags of the call
      */
-    public void rejected(@AppOpsManager.UidState int uidState, @AppOpsManager.OpFlags int flags) {
-        rejected(System.currentTimeMillis(), uidState, flags);
+    public void rejected(@AppOpsManager.UidState int uidState, @AppOpsManager.OpFlags int flags,
+            int rejectedCount) {
+        long rejectTime = System.currentTimeMillis();
+        rejected(rejectTime, uidState, flags);
 
         mAppOpsService.mHistoricalRegistry.incrementOpRejectedCount(parent.op, parent.uid,
-                parent.packageName, tag, uidState, flags);
+                parent.packageName, persistentDeviceId, tag, uidState, flags,
+                rejectTime, rejectedCount);
     }
 
     /**
@@ -257,7 +260,7 @@ final class AttributedOp {
         if (isStarted) {
             mAppOpsService.mHistoricalRegistry.incrementOpAccessedCount(parent.op, parent.uid,
                     parent.packageName, persistentDeviceId, tag, uidState, flags, startTime,
-                    attributionFlags, attributionChainId, 1);
+                    attributionFlags, attributionChainId, 1, true);
         }
     }
 
@@ -382,6 +385,7 @@ final class AttributedOp {
         InProgressStartOpEvent event = mPausedInProgressEvents.valueAt(indexOfToken);
         event.mNumUnfinishedStarts--;
         if (event.mNumUnfinishedStarts == 0) {
+            event.finish();
             mPausedInProgressEvents.removeAt(indexOfToken);
             mAppOpsService.mInProgressStartOpEventPool.release(event);
             if (mPausedInProgressEvents.isEmpty()) {
@@ -451,7 +455,7 @@ final class AttributedOp {
             mAppOpsService.mHistoricalRegistry.incrementOpAccessedCount(parent.op, parent.uid,
                     parent.packageName, persistentDeviceId, tag, event.getUidState(),
                     event.getFlags(), startTime, event.getAttributionFlags(),
-                    event.getAttributionChainId(), 1);
+                    event.getAttributionChainId(), 1, true);
             if (shouldSendActive) {
                 mAppOpsService.scheduleOpActiveChangedIfNeededLocked(parent.op, parent.uid,
                         parent.packageName, tag, event.getVirtualDeviceId(), true,

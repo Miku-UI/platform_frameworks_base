@@ -2,22 +2,19 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-filegroup {
-    name: "SettingsLibIpc-srcs",
-    srcs: ["src/**/*.kt"],
-}
-
 android_library {
     name: "SettingsLibIpc",
     defaults: [
         "SettingsLintDefaults",
     ],
-    srcs: [":SettingsLibIpc-srcs"],
+    srcs: ["src/**/*.kt"],
     static_libs: [
         "androidx.collection_collection",
         "guava",
         "kotlinx-coroutines-android",
     ],
+    sdk_version: "system_current",
+    min_sdk_version: "23",
     kotlincflags: ["-Xjvm-default=all"],
 }
 
@@ -31,4 +28,5 @@ android_library {
         "flag-junit",
         "kotlinx-coroutines-android",
     ],
+    test_only: true,
 }

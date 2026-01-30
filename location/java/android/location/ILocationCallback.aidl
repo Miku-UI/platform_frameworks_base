@@ -20,7 +20,7 @@ import android.location.Location;
 
 /**
  * Listener for single locations.
- * {@hide}
+ * @hide
  */
 oneway interface ILocationCallback
 {

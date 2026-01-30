@@ -19,6 +19,7 @@ package com.android.systemui.keyguard.ui.binder
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
+import android.content.Context
 import android.graphics.Matrix
 import android.util.Log
 import android.view.RemoteAnimationTarget
@@ -28,6 +29,7 @@ import android.view.View
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
+import com.android.internal.R
 import com.android.keyguard.KeyguardViewController
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
@@ -35,8 +37,32 @@ import com.android.systemui.keyguard.TAG
 import com.android.systemui.keyguard.domain.interactor.KeyguardSurfaceBehindInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardSurfaceBehindModel
 import com.android.wm.shell.shared.animation.Interpolators
+import java.lang.Math.clamp
 import java.util.concurrent.Executor
 import javax.inject.Inject
+import kotlin.math.max
+
+/**
+ * Starting scale factor for the app/launcher surface behind the keyguard, when it's animating in
+ * during keyguard exit.
+ */
+private const val START_SCALE_FACTOR = 0.95f
+
+/**
+ * Y coordinate of the pivot point for the scale effect on the surface behind the keyguard. This is
+ * expressed as percentage of the surface's height, so 0.66f means the surface will scale up from
+ * the point at (width / 2, height * 0.66).
+ */
+private const val SCALE_PIVOT_Y = 0.66f
+
+/** Damping ratio to use for animations resulting from touch gesture fling animation. */
+private const val TOUCH_FLING_DAMPING_RATIO = 0.992f
+
+/**
+ * Fastest swipe velocity we'll use for the spring animations. Higher values will result in an
+ * unreasonable amount of overshoot.
+ */
+private const val FASTEST_SWIPE_VELOCITY = -21500f
 
 /**
  * Applies [KeyguardSurfaceBehindViewParams] to a RemoteAnimationTarget, starting and managing
@@ -49,6 +75,7 @@ constructor(
     @Main private val executor: Executor,
     private val keyguardViewController: KeyguardViewController,
     private val interactor: KeyguardSurfaceBehindInteractor,
+    context: Context,
 ) {
     private var surfaceBehind: RemoteAnimationTarget? = null
         set(value) {
@@ -62,17 +89,21 @@ constructor(
     private val matrix = Matrix()
     private val tmpFloat = FloatArray(9)
 
+    private val defaultSpring = SpringForce().apply { stiffness = 675f }
+
+    /**
+     * If the spring is running, the value we're animating from. This needs to be saved in case the
+     * viewParams are updated while the spring is still running.
+     */
+    private var animatingFromTranslationY: Float = Float.NaN
     private var animatedTranslationY = FloatValueHolder()
     private val translateYSpring =
         SpringAnimation(animatedTranslationY).apply {
-            spring =
-                SpringForce().apply {
-                    stiffness = 275f
-                    dampingRatio = 0.98f
-                }
+            spring = defaultSpring
             addUpdateListener { _, _, _ -> applyToSurfaceBehind() }
             addEndListener { _, _, _, _ ->
                 try {
+                    animatingFromTranslationY = Float.NaN
                     updateIsAnimatingSurface()
                 } catch (e: NullPointerException) {
                     // TODO(b/291645410): Remove when we can isolate DynamicAnimations.
@@ -84,7 +115,7 @@ constructor(
     private var animatedAlpha = 0f
     private var alphaAnimator =
         ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 150
+            duration = 125
             interpolator = Interpolators.ALPHA_IN
             addUpdateListener {
                 animatedAlpha = it.animatedValue as Float
@@ -98,6 +129,10 @@ constructor(
                 }
             )
         }
+
+    /** Rounded corner radius to apply to the surface behind the keyguard. */
+    private val roundedCornerRadius =
+        context.resources.getDimensionPixelSize(R.dimen.rounded_corner_radius).toFloat()
 
     /**
      * ViewParams to apply to the surface provided to [applyParamsToSurface]. If the surface is null
@@ -162,7 +197,16 @@ constructor(
                 // If the spring isn't running yet, set the start value. Otherwise, respect the
                 // current position.
                 animatedTranslationY.value = viewParams.animateFromTranslationY
-                translateYSpring.setStartVelocity(viewParams.startVelocity)
+                animatingFromTranslationY = viewParams.animateFromTranslationY
+                translateYSpring.setStartVelocity(
+                    max(FASTEST_SWIPE_VELOCITY, viewParams.startVelocity)
+                )
+                translateYSpring.setSpring(
+                    defaultSpring.apply {
+                        dampingRatio =
+                            if (viewParams.startVelocity > 0f) TOUCH_FLING_DAMPING_RATIO else 1f
+                    }
+                )
             }
 
             translateYSpring.animateToFinalPosition(viewParams.translationY)
@@ -176,21 +220,32 @@ constructor(
     }
 
     private fun applyToSurfaceBehind() {
-        surfaceBehind?.leash?.let { sc ->
+        surfaceBehind?.let { target ->
             executor.execute {
                 if (surfaceBehind == null) {
                     Log.d(
                         TAG,
                         "Attempting to modify params of surface that isn't " +
-                            "animating. Ignoring."
+                            "animating. Ignoring.",
                     )
                     matrix.set(Matrix.IDENTITY_MATRIX)
                     return@execute
                 }
 
-                val translationY =
-                    if (translateYSpring.isRunning) animatedTranslationY.value
-                    else viewParams.translationY
+                val translationX = target.screenSpaceBounds.left.toFloat()
+                val baseTranslationY =
+                    if (translateYSpring.isRunning) {
+                        animatedTranslationY.value
+                    } else {
+                        viewParams.translationY
+                    }
+                val translationY = target.screenSpaceBounds.top.toFloat() + baseTranslationY
+
+                var percentTranslated =
+                    clamp(1f - (baseTranslationY / animatingFromTranslationY), 0f, 1f)
+                if (!percentTranslated.isFinite()) percentTranslated = 1f
+                val scaleFactor =
+                    START_SCALE_FACTOR + ((1f - START_SCALE_FACTOR) * percentTranslated)
 
                 val alpha =
                     if (alphaAnimator.isRunning) {
@@ -199,24 +254,30 @@ constructor(
                         viewParams.alpha
                     }
 
+                matrix.setScale(
+                    scaleFactor,
+                    scaleFactor,
+                    target.screenSpaceBounds.width() / 2f,
+                    target.screenSpaceBounds.height() * SCALE_PIVOT_Y,
+                )
+                matrix.postTranslate(translationX, translationY)
+
                 if (
                     keyguardViewController.viewRootImpl.view?.visibility != View.VISIBLE &&
-                        sc.isValid
+                        target.leash.isValid
                 ) {
                     with(SurfaceControl.Transaction()) {
-                        setMatrix(
-                            sc,
-                            matrix.apply { setTranslate(/* dx= */ 0f, translationY) },
-                            tmpFloat
-                        )
-                        setAlpha(sc, alpha)
+                        setMatrix(target.leash, matrix, tmpFloat)
+                        setAlpha(target.leash, alpha)
+                        setCornerRadius(target.leash, roundedCornerRadius)
                         apply()
                     }
                 } else {
                     surfaceTransactionApplier.scheduleApply(
-                        SyncRtSurfaceTransactionApplier.SurfaceParams.Builder(sc)
-                            .withMatrix(matrix.apply { setTranslate(/* dx= */ 0f, translationY) })
+                        SyncRtSurfaceTransactionApplier.SurfaceParams.Builder(target.leash)
+                            .withMatrix(matrix)
                             .withAlpha(alpha)
+                            .withCornerRadius(roundedCornerRadius)
                             .build()
                     )
                 }

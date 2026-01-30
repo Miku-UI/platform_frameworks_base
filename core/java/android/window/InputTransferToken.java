@@ -16,7 +16,6 @@
 
 package android.window;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.os.IBinder;
 import android.os.Looper;
@@ -27,7 +26,6 @@ import android.view.SurfaceControl;
 import android.view.SurfaceControlInputReceiver;
 import android.view.SurfaceControlViewHost;
 
-import com.android.window.flags.Flags;
 
 import libcore.util.NativeAllocationRegistry;
 
@@ -50,7 +48,6 @@ import java.util.Objects;
  *
  * @see android.view.WindowManager#transferTouchGesture(InputTransferToken, InputTransferToken)
  */
-@FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
 public final class InputTransferToken implements Parcelable {
     private static native long nativeCreate();
     private static native long nativeCreate(IBinder token);

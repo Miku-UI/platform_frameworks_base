@@ -96,7 +96,7 @@ public class TableRow extends LinearLayout {
      *
      * @param columnIndex the index of the column
      * @param collapsed true if the column must be collapsed, false otherwise
-     * {@hide}
+     * @hide
      */
     void setColumnCollapsed(int columnIndex, boolean collapsed) {
         final View child = getVirtualChildAt(columnIndex);
@@ -283,7 +283,7 @@ public class TableRow extends LinearLayout {
      *
      * @return an array of integers corresponding to the width of each cell, or
      *         column, in this row
-     * {@hide}
+     * @hide
      */
     int[] getColumnsWidths(int widthMeasureSpec, int heightMeasureSpec) {
         final int numColumns = getVirtualChildCount();
@@ -336,7 +336,7 @@ public class TableRow extends LinearLayout {
      *                     honor
      * @throws IllegalArgumentException when columnWidths' length is smaller
      *         than the number of children in this row
-     * {@hide}
+     * @hide
      */
     void setColumnsWidthConstraints(int[] columnWidths) {
         if (columnWidths == null || columnWidths.length < getVirtualChildCount()) {

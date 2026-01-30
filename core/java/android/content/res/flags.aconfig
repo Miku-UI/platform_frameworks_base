@@ -92,6 +92,17 @@ flag {
 }
 
 flag {
+    name: "ignore_non_public_config_diff_for_resources_key"
+    namespace: "resource_manager"
+    description: "Only consider the resources related configuration fields to create ResourcesImpl"
+    bug: "413273054"
+    is_fixed_read_only: true
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
     name: "system_context_handle_app_info_changed"
     is_exported: true
     namespace: "resource_manager"
@@ -115,11 +126,20 @@ flag {
 }
 
 flag {
+    name: "resource_readwrite_flags"
+    is_exported: false
+    namespace: "resource_manager"
+    description: "Feature flag for allowing read/write flags on individual resources"
+    bug: "420720496"
+    is_fixed_read_only: true
+}
+
+flag {
     name: "resources_minor_version_support"
     is_exported: true
     namespace: "resource_manager"
     description: "Feature flag for supporting minor version in Resources"
-    bug: "373535266"
+    bug: "383177182"
     is_fixed_read_only: true
 }
 
@@ -140,6 +160,27 @@ flag {
 }
 
 flag {
+    name: "test_flag_1"
+    namespace: "resource_manager"
+    description: "flag for cts tests that can be changed at runtime"
+    bug: "420720496"
+}
+
+flag {
+    name: "test_flag_2"
+    namespace: "resource_manager"
+    description: "flag for cts tests that can be changed at runtime"
+    bug: "420720496"
+}
+
+flag {
+    name: "test_flag_3"
+    namespace: "resource_manager"
+    description: "flag for cts tests that can be changed at runtime"
+    bug: "420720496"
+}
+
+flag {
     name: "use_new_aconfig_storage"
     is_exported: true
     namespace: "resource_manager"
@@ -148,4 +189,28 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "enhanced_debugging"
+    namespace: "resource_manager"
+    description: "Enable the enhanced debugging features via ProtoLog"
+    bug: "416380441"
+}
+
+flag {
+    name: "idmap_crc_is_mtime"
+    namespace: "resource_manager"
+    description: "Replace the raw crc with mtime in idmap files"
+    bug: "422474410"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "merge_idmap_binder_transactions"
+    namespace: "resource_manager"
+    description: "Merge per-package idmap verification and creation steps into a single binder transaction"
+    bug: "422474410"
 }

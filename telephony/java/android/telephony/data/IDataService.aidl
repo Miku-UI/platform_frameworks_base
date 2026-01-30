@@ -25,7 +25,7 @@ import android.telephony.data.TrafficDescriptor;
 import com.android.internal.telephony.IIntegerConsumer;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IDataService
 {
@@ -49,4 +49,9 @@ oneway interface IDataService
     void registerForUnthrottleApn(int slotIndex, IDataServiceCallback callback);
     void unregisterForUnthrottleApn(int slotIndex, IDataServiceCallback callback);
     void requestNetworkValidation(int slotId, int cid, IIntegerConsumer callback);
+    void notifyUserDataEnabled(int slotId, boolean enabled, IIntegerConsumer callback);
+    void notifyUserDataRoamingEnabled(int slotId, boolean enabled, IIntegerConsumer callback);
+    void notifyImsDataNetwork(int slotId, int accessNetwork, int dataNetworkState,
+                              int physicalTransportType, int physicalNetworkSlotIndex,
+                              IIntegerConsumer callback);
 }

@@ -23,12 +23,15 @@ import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
@@ -43,9 +46,6 @@ import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.runner.RunWith
 
@@ -54,28 +54,26 @@ import org.junit.runner.RunWith
 @EnableSceneContainer
 class DreamUserActionsViewModelTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
     private lateinit var underTest: DreamUserActionsViewModel
 
     @Before
     fun setUp() {
         underTest = kosmos.dreamUserActionsViewModelFactory.create()
-        underTest.activateIn(testScope)
+        underTest.activateIn(kosmos.testScope)
     }
 
     @Test
     fun actions_singleShade() =
-        testScope.runTest {
-            kosmos.enableSingleShade()
+        kosmos.runTest {
+            enableSingleShade()
 
             val actions by collectLastValue(underTest.actions)
 
             setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
             assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up))
-                .isEqualTo(UserActionResult.ShowOverlay(Overlays.Bouncer))
+            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Lockscreen))
             assertThat(actions?.get(Swipe.Down)).isEqualTo(UserActionResult(Scenes.Shade))
             assertThat(actions?.get(Swipe.Start)).isNull()
             assertThat(actions?.get(Swipe.End)).isNull()
@@ -93,15 +91,14 @@ class DreamUserActionsViewModelTest : SysuiTestCase() {
 
     @Test
     fun actions_splitShade() =
-        testScope.runTest {
-            kosmos.enableSplitShade()
+        kosmos.runTest {
+            enableSplitShade()
 
             val actions by collectLastValue(underTest.actions)
 
             setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
             assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up))
-                .isEqualTo(UserActionResult.ShowOverlay(Overlays.Bouncer))
+            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Lockscreen))
             assertThat(actions?.get(Swipe.Down))
                 .isEqualTo(UserActionResult(Scenes.Shade, ToSplitShade))
             assertThat(actions?.get(Swipe.Start)).isNull()
@@ -121,15 +118,14 @@ class DreamUserActionsViewModelTest : SysuiTestCase() {
 
     @Test
     fun actions_dualShade() =
-        testScope.runTest {
-            kosmos.enableDualShade()
+        kosmos.runTest {
+            enableDualShade()
 
             val actions by collectLastValue(underTest.actions)
 
             setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
             assertThat(actions).isNotEmpty()
-            assertThat(actions?.get(Swipe.Up))
-                .isEqualTo(UserActionResult.ShowOverlay(Overlays.Bouncer))
+            assertThat(actions?.get(Swipe.Up)).isEqualTo(UserActionResult(Scenes.Lockscreen))
             assertThat(actions?.get(Swipe.Down))
                 .isEqualTo(UserActionResult.ShowOverlay(Overlays.NotificationsShade))
             assertThat(actions?.get(Swipe.Start)).isNull()
@@ -147,11 +143,11 @@ class DreamUserActionsViewModelTest : SysuiTestCase() {
             assertThat(actions?.get(Swipe.End)).isNull()
         }
 
-    private fun TestScope.setUpState(isShadeTouchable: Boolean, isDeviceUnlocked: Boolean) {
+    private fun Kosmos.setUpState(isShadeTouchable: Boolean, isDeviceUnlocked: Boolean) {
         if (isShadeTouchable) {
-            kosmos.powerInteractor.setAwakeForTest()
+            powerInteractor.setAwakeForTest()
         } else {
-            kosmos.powerInteractor.setAsleepForTest()
+            powerInteractor.setAsleepForTest()
         }
 
         if (isDeviceUnlocked) {
@@ -159,28 +155,23 @@ class DreamUserActionsViewModelTest : SysuiTestCase() {
         } else {
             lockDevice()
         }
-        runCurrent()
     }
 
-    private fun TestScope.lockDevice() {
-        val deviceUnlockStatus by
-            collectLastValue(kosmos.deviceUnlockedInteractor.deviceUnlockStatus)
+    private fun Kosmos.lockDevice() {
+        val deviceUnlockStatus by collectLastValue(deviceUnlockedInteractor.deviceUnlockStatus)
 
         kosmos.fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
         assertThat(deviceUnlockStatus?.isUnlocked).isFalse()
         kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "reason")
-        runCurrent()
     }
 
-    private fun TestScope.unlockDevice() {
-        val deviceUnlockStatus by
-            collectLastValue(kosmos.deviceUnlockedInteractor.deviceUnlockStatus)
+    private fun Kosmos.unlockDevice() {
+        val deviceUnlockStatus by collectLastValue(deviceUnlockedInteractor.deviceUnlockStatus)
 
-        kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+        fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
             SuccessFingerprintAuthenticationStatus(0, true)
         )
         assertThat(deviceUnlockStatus?.isUnlocked).isTrue()
-        kosmos.sceneInteractor.changeScene(Scenes.Gone, "reason")
-        runCurrent()
+        sceneInteractor.changeScene(Scenes.Gone, "reason")
     }
 }

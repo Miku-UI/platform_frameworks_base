@@ -16,13 +16,13 @@
 
 package com.android.settingslib.spa.screenshot.widget.preference
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AirplanemodeActive
 import androidx.compose.runtime.Composable
 import com.android.settingslib.spa.screenshot.util.settingsScreenshotTestRule
 import com.android.settingslib.spa.widget.preference.SwitchPreference
 import com.android.settingslib.spa.widget.preference.SwitchPreferenceModel
+import com.android.settingslib.spa.widget.ui.Category
 import com.android.settingslib.spa.widget.ui.SettingsIcon
 import org.junit.Rule
 import org.junit.Test
@@ -32,7 +32,6 @@ import platform.test.runner.parameterized.Parameters
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.PhoneAndTabletMinimal
 
-/** A screenshot test for ExampleFeature. */
 @RunWith(ParameterizedAndroidJunit4::class)
 class SwitchPreferenceScreenshotTest(emulationSpec: DeviceEmulationSpec) {
     companion object {
@@ -50,7 +49,7 @@ class SwitchPreferenceScreenshotTest(emulationSpec: DeviceEmulationSpec) {
     @Test
     fun test() {
         screenshotRule.screenshotTest("switchPreference") {
-            Column {
+            Category {
                 SampleSwitchPreference()
                 SampleSwitchPreferenceWithSummary()
                 SampleNotChangeableSwitchPreference()

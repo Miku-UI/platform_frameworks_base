@@ -55,7 +55,6 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
-import android.content.res.XmlResourceParser;
 import android.hardware.input.KeyGestureEvent;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.ArrayMap;
@@ -115,16 +114,11 @@ class ShortcutKeyTestBase {
         doReturn(mResources).when(mContext).getResources();
         doReturn(mSettingsProviderRule.mockContentResolver(mContext))
                 .when(mContext).getContentResolver();
-        XmlResourceParser testBookmarks = mResources.getXml(
-                com.android.frameworks.wmtests.R.xml.bookmarks);
-        doReturn(testBookmarks).when(mResources).getXml(com.android.internal.R.xml.bookmarks);
         mDispatchedKeyHandler = event -> false;
         mDownKeysDispatched = 0;
         mUpKeysDispatched = 0;
 
         try {
-            // Keep packageName / className in sync with
-            // services/tests/wmtests/res/xml/bookmarks.xml
             ActivityInfo testActivityInfo = new ActivityInfo();
             testActivityInfo.applicationInfo = new ApplicationInfo();
             testActivityInfo.packageName =
@@ -134,10 +128,12 @@ class ShortcutKeyTestBase {
         } catch (PackageManager.NameNotFoundException ignored) { }
     }
 
-
-    /** Same as {@link setUpPhoneWindowManager(boolean)}, without supporting settings update. */
+    /**
+     * Same as {@link setUpPhoneWindowManager(boolean, String)}, without supporting settings update
+     * and feature.
+     */
     protected final void setUpPhoneWindowManager() {
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ false);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ false, /* supportFeature */ "");
     }
 
     /**
@@ -152,9 +148,13 @@ class ShortcutKeyTestBase {
      *    notifyChange(), which prevents SettingsObserver from getting notified of events. So
      *    we're effectively always instantiating TestPhoneWindowManager with
      *    supportSettingsUpdate=false.
+     * @param supportFeature The feature will be supported by TestPhoneWindowManager. Empty string
+     *    if no specific feature to be provided.
      */
-    protected final void setUpPhoneWindowManager(boolean supportSettingsUpdate) {
-        mPhoneWindowManager = new TestPhoneWindowManager(mContext, supportSettingsUpdate);
+    protected final void setUpPhoneWindowManager(
+            boolean supportSettingsUpdate, String supportFeature) {
+        mPhoneWindowManager =
+                new TestPhoneWindowManager(mContext, supportSettingsUpdate, supportFeature);
     }
 
     protected final void setDispatchedKeyHandler(DispatchedKeyHandler keyHandler) {
@@ -298,7 +298,7 @@ class ShortcutKeyTestBase {
     private void interceptKey(KeyEvent keyEvent) {
         int actions = mPhoneWindowManager.interceptKeyBeforeQueueing(keyEvent);
         if ((actions & ACTION_PASS_TO_USER) != 0) {
-            if (0 == mPhoneWindowManager.interceptKeyBeforeDispatching(keyEvent)) {
+            if (!mPhoneWindowManager.interceptKeyBeforeDispatching(keyEvent)) {
                 if (!mDispatchedKeyHandler.onKeyDispatched(keyEvent)) {
                     mPhoneWindowManager.interceptUnhandledKey(keyEvent);
                 }

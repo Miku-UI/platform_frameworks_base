@@ -50,6 +50,7 @@ import android.view.ViewGroup;
 
 import androidx.test.filters.SmallTest;
 
+import com.android.systemui.flags.DisableSceneContainer;
 import com.android.systemui.plugins.qs.QS;
 import com.android.systemui.qs.flags.QSComposeFragment;
 import com.android.systemui.res.R;
@@ -67,6 +68,7 @@ import platform.test.runner.parameterized.Parameters;
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4.class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
+@DisableSceneContainer
 public class QuickSettingsControllerImplTest extends QuickSettingsControllerImplBaseTest {
 
     @Parameters(name = "{0}")

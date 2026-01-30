@@ -16,8 +16,17 @@
 
 package android.timezone;
 
-import android.annotation.NonNull;
+import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
 
+import android.annotation.FlaggedApi;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.annotation.SystemApi;
+import android.annotation.TestApi;
+
+import android.timezone.flags.Flags;
+
+import com.android.internal.annotations.VisibleForTesting;
 import java.util.Objects;
 import java.util.Set;
 
@@ -26,10 +35,39 @@ import java.util.Set;
  *
  * @hide
  */
+@FlaggedApi(Flags.FLAG_EXPOSE_TIME_ZONE_SYSTEM_API)
+@SystemApi(client = MODULE_LIBRARIES)
 public final class MobileCountries {
 
     @NonNull
     private final com.android.i18n.timezone.MobileCountries mDelegate;
+
+    /**
+     * Create a {@link MobileCountries} entity. This can be used for test networks (i.e. integration
+     * tests).
+     */
+    @NonNull
+    public static MobileCountries createTestCell(@NonNull String mcc) {
+        return new MobileCountries(
+                com.android.i18n.timezone.MobileCountries.create(mcc, Set.of(""), ""));
+    }
+
+    /**
+     * Create a {@link MobileCountries} entity for tests (i.e. unit tests).
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    @NonNull
+    public static MobileCountries createForTest(
+            @NonNull String mcc,
+            @Nullable String mnc,
+            @NonNull Set<String> countryIsoCodes,
+            @NonNull String defaultCountryIsoCode) {
+        return new MobileCountries(
+                com.android.i18n.timezone.MobileCountries.create(
+                        mcc, mnc, countryIsoCodes, defaultCountryIsoCode));
+    }
 
     MobileCountries(@NonNull com.android.i18n.timezone.MobileCountries delegate) {
         mDelegate = Objects.requireNonNull(delegate);
@@ -41,6 +79,14 @@ public final class MobileCountries {
     @NonNull
     public String getMcc() {
         return mDelegate.getMcc();
+    }
+
+    /**
+     * Returns the Mobile Network Code of the network.
+     */
+    @Nullable
+    public String getMnc() {
+        return mDelegate.getMnc();
     }
 
     /**
@@ -64,5 +110,21 @@ public final class MobileCountries {
         return "MobileCountries{"
                 + "mDelegate=" + mDelegate
                 + '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o instanceof MobileCountries that) {
+            return mDelegate.equals(that.mDelegate);
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mDelegate);
     }
 }

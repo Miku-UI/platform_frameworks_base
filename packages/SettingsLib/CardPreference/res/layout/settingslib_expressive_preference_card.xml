@@ -28,7 +28,8 @@
         android:layout_height="wrap_content"
         android:baselineAligned="false"
         android:minHeight="@dimen/settingslib_expressive_space_large3"
-        android:paddingHorizontal="@dimen/settingslib_expressive_space_medium1"
+        android:paddingStart="@dimen/settingslib_expressive_space_small1"
+        android:paddingEnd="@dimen/settingslib_expressive_space_extrasmall6"
         android:orientation="horizontal"
         android:gravity="center_vertical"
         android:background="@drawable/settingslib_card_preference_background">
@@ -53,8 +54,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:paddingHorizontal="@dimen/settingslib_expressive_space_small1"
-            android:paddingVertical="@dimen/settingslib_expressive_space_small2"
+            android:paddingStart="@dimen/settingslib_expressive_space_extrasmall6"
+            android:paddingVertical="@dimen/settingslib_expressive_space_small1"
             android:orientation="vertical">
             <TextView
                 android:id="@android:id/title"
@@ -69,14 +70,13 @@
         </LinearLayout>
 
         <ImageView
-            android:id="@android:id/closeButton"
+            android:id="@android:id/icon1"
             android:layout_width="@dimen/settingslib_expressive_space_medium4"
             android:layout_height="@dimen/settingslib_expressive_space_medium4"
             android:padding="@dimen/settingslib_expressive_space_extrasmall4"
             android:layout_gravity="center"
-            android:contentDescription="@string/settingslib_dismiss_button_content_description"
-            android:src="@drawable/settingslib_expressive_icon_close"
-            android:tint="@color/settingslib_materialColorOnSecondary" />
+            android:scaleType="centerInside"
+            android:tint="@color/settingslib_materialColorSecondary" />
 
     </LinearLayout>
 </LinearLayout>

@@ -140,6 +140,8 @@ public class PipInputConsumer {
         final InputChannel inputChannel = new InputChannel();
         try {
             final int displayId = mPipDisplayLayoutState.getDisplayId();
+            ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
+                    "%s: Creating input consumer on displayID: %d", TAG, displayId);
             mWindowManager.destroyInputConsumer(mToken, displayId);
             mWindowManager.createInputConsumer(mToken, mName, displayId, inputChannel);
         } catch (RemoteException e) {
@@ -163,7 +165,10 @@ public class PipInputConsumer {
             return;
         }
         try {
-            mWindowManager.destroyInputConsumer(mToken, mPipDisplayLayoutState.getDisplayId());
+            final int displayId = mPipDisplayLayoutState.getDisplayId();
+            ProtoLog.d(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
+                    "%s: Destroying input consumer on displayID: %d", TAG, displayId);
+            mWindowManager.destroyInputConsumer(mToken, displayId);
         } catch (RemoteException e) {
             ProtoLog.e(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                     "%s: Failed to destroy input consumer, %s", TAG, e);

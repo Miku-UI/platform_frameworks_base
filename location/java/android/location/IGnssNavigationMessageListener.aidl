@@ -19,7 +19,7 @@ package android.location;
 import android.location.GnssNavigationMessage;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IGnssNavigationMessageListener {
     void onGnssNavigationMessageReceived(in GnssNavigationMessage event);

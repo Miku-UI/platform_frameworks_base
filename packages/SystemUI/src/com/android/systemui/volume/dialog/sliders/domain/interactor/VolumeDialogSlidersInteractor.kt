@@ -19,7 +19,6 @@ package com.android.systemui.volume.dialog.sliders.domain.interactor
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.media.AudioSystem
-import com.android.settingslib.flags.Flags
 import com.android.systemui.volume.VolumeDialogControllerImpl
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogScope
@@ -66,8 +65,10 @@ constructor(
                 sliderTypes.apply { addAll(newSliderTypes) }
             }
             .map { sliderTypes ->
+                val primarySlider = sliderTypes.firstOrNull()
+                primarySlider ?: return@map null
                 VolumeDialogSlidersModel(
-                    slider = sliderTypes.first(),
+                    slider = primarySlider,
                     floatingSliders = sliderTypes.drop(1),
                 )
             }
@@ -88,10 +89,7 @@ constructor(
             }
 
             // Always show the stream for audio sharing if it exists.
-            if (
-                (Flags.volumeDialogAudioSharingFix() || Flags.audioSharingDeveloperOption()) &&
-                    streamModel.stream == VolumeDialogControllerImpl.DYNAMIC_STREAM_BROADCAST
-            ) {
+            if (streamModel.stream == VolumeDialogControllerImpl.DYNAMIC_STREAM_BROADCAST) {
                 return true
             }
 

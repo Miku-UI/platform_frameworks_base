@@ -19,6 +19,7 @@ package com.android.server.vibrator;
 import static android.os.VibrationAttributes.USAGE_ACCESSIBILITY;
 import static android.os.VibrationAttributes.USAGE_ALARM;
 import static android.os.VibrationAttributes.USAGE_COMMUNICATION_REQUEST;
+import static android.os.VibrationAttributes.USAGE_GESTURE_INPUT;
 import static android.os.VibrationAttributes.USAGE_HARDWARE_FEEDBACK;
 import static android.os.VibrationAttributes.USAGE_IME_FEEDBACK;
 import static android.os.VibrationAttributes.USAGE_MEDIA;
@@ -201,12 +202,13 @@ final class VibrationSettings {
     @GuardedBy("mLock")
     private boolean mOnWirelessCharger;
 
-    VibrationSettings(Context context, Handler handler) {
-        this(context, handler, new VibrationConfig(context.getResources()));
+    VibrationSettings(Context context, Handler handler, VibrationConfig config) {
+        this(context, handler, config, createEffectsFromResource(context.getResources()));
     }
 
     @VisibleForTesting
-    VibrationSettings(Context context, Handler handler, VibrationConfig config) {
+    VibrationSettings(Context context, Handler handler, VibrationConfig config,
+            SparseArray<VibrationEffect> fallbackEffects) {
         mContext = context;
         mVibrationConfig = config;
         mSettingObserver = new SettingsContentObserver(handler);
@@ -215,23 +217,7 @@ final class VibrationSettings {
         mUidObserver = new VibrationUidObserver();
         mUserSwitchObserver = new VibrationUserSwitchObserver();
         mLowPowerModeListener = new VibrationLowPowerModeListener();
-
-        VibrationEffect clickEffect = createEffectFromResource(
-                com.android.internal.R.array.config_virtualKeyVibePattern);
-        VibrationEffect doubleClickEffect = createEffectFromResource(
-                com.android.internal.R.array.config_doubleClickVibePattern);
-        VibrationEffect heavyClickEffect = createEffectFromResource(
-                com.android.internal.R.array.config_longPressVibePattern);
-        VibrationEffect tickEffect = createEffectFromResource(
-                com.android.internal.R.array.config_clockTickVibePattern);
-
-        mFallbackEffects = new SparseArray<>();
-        mFallbackEffects.put(VibrationEffect.EFFECT_CLICK, clickEffect);
-        mFallbackEffects.put(VibrationEffect.EFFECT_DOUBLE_CLICK, doubleClickEffect);
-        mFallbackEffects.put(VibrationEffect.EFFECT_TICK, tickEffect);
-        mFallbackEffects.put(VibrationEffect.EFFECT_HEAVY_CLICK, heavyClickEffect);
-        mFallbackEffects.put(VibrationEffect.EFFECT_TEXTURE_TICK,
-                VibrationEffect.get(VibrationEffect.EFFECT_TICK, false));
+        mFallbackEffects = fallbackEffects;
 
         // Update with current values from settings.
         update();
@@ -399,6 +385,11 @@ final class VibrationSettings {
         return mVibrationConfig.getRequestVibrationParamsForUsages();
     }
 
+    /** The effects to be used as fallback for given prebaked effect ids. */
+    public SparseArray<VibrationEffect> getFallbackEffects() {
+        return mFallbackEffects;
+    }
+
     /**
      * Return a {@link VibrationEffect} that should be played if the device do not support given
      * {@code effectId}.
@@ -406,6 +397,7 @@ final class VibrationSettings {
      * @param effectId one of VibrationEffect.EFFECT_*
      * @return The effect to be played as a fallback
      */
+    // TODO(b/409002423): remove this method once remove_hidl_support flag removed
     public VibrationEffect getFallbackEffect(int effectId) {
         return mFallbackEffects.get(effectId);
     }
@@ -497,13 +489,14 @@ final class VibrationSettings {
                 return false;
             }
         }
-        if (!SYSTEM_VIBRATION_SCREEN_OFF_USAGE_ALLOWLIST.contains(callerInfo.attrs.getUsage())) {
-            // Usages not allowed even for system vibrations should always be cancelled.
-            return true;
+        if (SYSTEM_VIBRATION_SCREEN_OFF_USAGE_ALLOWLIST.contains(callerInfo.attrs.getUsage())) {
+            // Ignore screen off events for System vibrations from allowed usages.
+            return !UserHandle.isSameApp(callerInfo.uid, Process.SYSTEM_UID)
+                    && !UserHandle.isSameApp(callerInfo.uid, Process.ROOT_UID)
+                    && !Objects.equals(callerInfo.opPkg, sysUiPackageName);
         }
-        // Only allow vibrations from System packages to continue vibrating when the screen goes off
-        return callerInfo.uid != Process.SYSTEM_UID && callerInfo.uid != 0
-                && !Objects.equals(sysUiPackageName, callerInfo.opPkg);
+        // Usages not in allowlist should always be cancelled by screen off, even system vibrations.
+        return true;
     }
 
     /**
@@ -580,6 +573,10 @@ final class VibrationSettings {
             int ringIntensity = toIntensity(
                     loadSystemSetting(Settings.System.RING_VIBRATION_INTENSITY, -1, userHandle),
                     getDefaultIntensity(USAGE_RINGTONE));
+            int gestureInputIntensity = toIntensity(
+                    loadSystemSetting(Settings.System.GESTURE_INPUT_VIBRATION_INTENSITY, -1,
+                            userHandle),
+                    getDefaultIntensity(USAGE_GESTURE_INPUT));
 
             mCurrentVibrationIntensities.clear();
             mCurrentVibrationIntensities.put(USAGE_ALARM, alarmIntensity);
@@ -587,6 +584,7 @@ final class VibrationSettings {
             mCurrentVibrationIntensities.put(USAGE_MEDIA, mediaIntensity);
             mCurrentVibrationIntensities.put(USAGE_UNKNOWN, mediaIntensity);
             mCurrentVibrationIntensities.put(USAGE_RINGTONE, ringIntensity);
+            mCurrentVibrationIntensities.put(USAGE_GESTURE_INPUT, gestureInputIntensity);
 
             // Communication request is not disabled by the notification setting.
             mCurrentVibrationIntensities.put(USAGE_COMMUNICATION_REQUEST,
@@ -784,9 +782,25 @@ final class VibrationSettings {
                 UserHandle.USER_ALL);
     }
 
-    @Nullable
-    private VibrationEffect createEffectFromResource(int resId) {
-        return createEffectFromResource(mContext.getResources(), resId);
+    private static SparseArray<VibrationEffect> createEffectsFromResource(Resources resources) {
+        VibrationEffect clickEffect = createEffectFromResource(resources,
+                com.android.internal.R.array.config_virtualKeyVibePattern);
+        VibrationEffect doubleClickEffect = createEffectFromResource(resources,
+                com.android.internal.R.array.config_doubleClickVibePattern);
+        VibrationEffect heavyClickEffect = createEffectFromResource(resources,
+                com.android.internal.R.array.config_longPressVibePattern);
+        VibrationEffect tickEffect = createEffectFromResource(resources,
+                com.android.internal.R.array.config_clockTickVibePattern);
+
+        SparseArray<VibrationEffect> effects = new SparseArray<>();
+        effects.put(VibrationEffect.EFFECT_CLICK, clickEffect);
+        effects.put(VibrationEffect.EFFECT_DOUBLE_CLICK, doubleClickEffect);
+        effects.put(VibrationEffect.EFFECT_TICK, tickEffect);
+        effects.put(VibrationEffect.EFFECT_HEAVY_CLICK, heavyClickEffect);
+        effects.put(VibrationEffect.EFFECT_TEXTURE_TICK,
+                VibrationEffect.get(VibrationEffect.EFFECT_TICK, false));
+
+        return effects;
     }
 
     /**
@@ -801,8 +815,8 @@ final class VibrationSettings {
      * vibration with off-on timings as per the provided timings array.
      */
     @Nullable
-    static VibrationEffect createEffectFromResource(Resources res, int resId) {
-        long[] timings = getLongIntArray(res, resId);
+    private static VibrationEffect createEffectFromResource(Resources resources, int resId) {
+        long[] timings = getLongIntArray(resources, resId);
         return createEffectFromTimings(timings);
     }
 

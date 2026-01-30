@@ -30,6 +30,7 @@ import android.provider.Settings;
 import android.util.Log;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -95,24 +96,51 @@ public class AppLocaleCollector implements LocaleCollectorBase {
      */
     @VisibleForTesting
     public Set<LocaleStore.LocaleInfo> getActiveImeLocales() {
-        Set<LocaleStore.LocaleInfo> activeImeLocales = null;
+
         InputMethodManager imm = mContext.getSystemService(InputMethodManager.class);
         if (imm != null) {
             InputMethodInfo activeIme = getActiveIme(imm);
             if (activeIme != null) {
-                activeImeLocales = LocaleStore.transformImeLanguageTagToLocaleInfo(
-                        imm.getEnabledInputMethodSubtypeList(activeIme, true));
+                List<InputMethodSubtype> list = imm.getEnabledInputMethodSubtypeList(activeIme,
+                        true);
+                Set<Locale> localeSet = new HashSet<>();
+                for (InputMethodSubtype subtype : list) {
+                    Locale locale = Locale.forLanguageTag(subtype.getLanguageTag());
+                    if (locale.getCountry().length() > 0) {
+                        localeSet.add(locale);
+                    }
+                }
+                return addScript(localeSet);
             }
         }
-        if (activeImeLocales == null) {
-            return Set.of();
-        } else {
-            return activeImeLocales.stream().filter(
-                    // For the locale to be added into the suggestion area, its country could not be
-                    // empty.
-                    info -> info.getLocale().getCountry().length() > 0).collect(
-                    Collectors.toSet());
+        return Set.of();
+    }
+
+    private Set<LocaleStore.LocaleInfo> addScript(Set<Locale> localeSet) {
+        HashSet<LocaleStore.LocaleInfo> result = new HashSet<>();
+        String[] localeArr = LocalePicker.getSupportedLocales(mContext);
+        Locale systemLocale;
+        for (String localeId : localeArr) {
+            systemLocale = Locale.forLanguageTag(localeId);
+            for (Locale locale : localeSet) {
+                if (locale.equals(systemLocale) || shouldAddScript(systemLocale, locale)) {
+                    LocaleStore.LocaleInfo infoWithImeExtension = LocaleStore.getLocaleInfo(
+                            systemLocale);
+                    infoWithImeExtension.extendSuggestionOfType(
+                            LocaleStore.LocaleInfo.SUGGESTION_TYPE_IME_LANGUAGE);
+                    result.add(infoWithImeExtension);
+                    break;
+                }
+            }
         }
+        return result;
+    }
+
+    private boolean shouldAddScript(Locale supported, Locale desired) {
+        return supported.getLanguage().equals(desired.getLanguage())
+                && supported.getCountry().equals(desired.getCountry())
+                && !supported.getScript().isEmpty()
+                && desired.getScript().isEmpty();
     }
 
     private InputMethodInfo getActiveIme(InputMethodManager imm) {

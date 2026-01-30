@@ -517,7 +517,6 @@ class LockSettingsStorage {
             mCache.removeUser(userId);
             // The directory itself will be deleted as part of user deletion operation by the
             // framework, so only need to purge cache here.
-            //TODO: (b/34600579) invoke secdiscardable
             mCache.purgePath(spStateDir);
         } finally {
             db.endTransaction();

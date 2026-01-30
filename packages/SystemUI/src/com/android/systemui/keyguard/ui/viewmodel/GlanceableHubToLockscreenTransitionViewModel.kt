@@ -18,6 +18,7 @@ package com.android.systemui.keyguard.ui.viewmodel
 
 import android.util.LayoutDirection
 import com.android.app.animation.Interpolators.EMPHASIZED
+import com.android.systemui.Flags
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
@@ -43,6 +44,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combineTransform
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -95,7 +97,9 @@ constructor(
             transitionAnimation.sharedFlow(
                 duration = 167.milliseconds,
                 // If will rotate, start later to leave time for screen rotation.
-                startTime = if (willRotate) 500.milliseconds else 167.milliseconds,
+                startTime =
+                    if (willRotate || Flags.gestureBetweenHubAndLockscreenMotion()) 500.milliseconds
+                    else 167.milliseconds,
                 onStep = { step ->
                     if (willRotate) {
                         if (!communalSceneInteractor.rotatedToPortrait.value) {
@@ -117,31 +121,35 @@ constructor(
     val showUmo: Flow<Boolean> = keyguardAlpha.map { alpha -> alpha == 0f }
 
     val keyguardTranslationX: Flow<StateToValue> =
-        configurationInteractor
-            .directionalDimensionPixelSize(
-                LayoutDirection.LTR,
-                R.dimen.hub_to_lockscreen_transition_lockscreen_translation_x,
-            )
-            .flatMapLatest { translatePx: Int ->
-                transitionAnimation.sharedFlowWithState(
-                    duration = TO_LOCKSCREEN_DURATION,
-                    onStep = { value ->
-                        // do not animate translation-x if screen rotation will happen
-                        if (willRotateToPortraitInTransition.value) {
-                            0f
-                        } else {
-                            -translatePx + value * translatePx
-                        }
-                    },
-                    interpolator = EMPHASIZED,
-                    // Move notifications back to their original position since they can be
-                    // accessed from the shade, and also keyguard elements in case the animation
-                    // is cancelled.
-                    onFinish = { 0f },
-                    onCancel = { 0f },
-                    name = "GLANCEABLE_HUB->LOCKSCREEN: keyguardTranslationX",
+        if (Flags.gestureBetweenHubAndLockscreenMotion()) {
+            emptyFlow()
+        } else {
+            configurationInteractor
+                .directionalDimensionPixelSize(
+                    LayoutDirection.LTR,
+                    R.dimen.hub_to_lockscreen_transition_lockscreen_translation_x,
                 )
-            }
+                .flatMapLatest { translatePx: Int ->
+                    transitionAnimation.sharedFlowWithState(
+                        duration = TO_LOCKSCREEN_DURATION,
+                        onStep = { value ->
+                            // do not animate translation-x if screen rotation will happen
+                            if (willRotateToPortraitInTransition.value) {
+                                0f
+                            } else {
+                                -translatePx + value * translatePx
+                            }
+                        },
+                        interpolator = EMPHASIZED,
+                        // Move notifications back to their original position since they can be
+                        // accessed from the shade, and also keyguard elements in case the animation
+                        // is cancelled.
+                        onFinish = { 0f },
+                        onCancel = { 0f },
+                        name = "GLANCEABLE_HUB->LOCKSCREEN: keyguardTranslationX",
+                    )
+                }
+        }
 
     val notificationAlpha: Flow<Float> = keyguardAlpha
 
@@ -155,4 +163,13 @@ constructor(
     val deviceEntryBackgroundViewAlpha: Flow<Float> = keyguardAlpha
 
     override val deviceEntryParentViewAlpha: Flow<Float> = keyguardAlpha
+
+    override val zoomOut: Flow<Float> =
+        transitionAnimation.sharedFlow(
+            onStep = { 1f - it },
+            // reset zoom out on wallpaper and keyguard view
+            onFinish = { 0f },
+            onCancel = { 1f },
+            name = "GLANCEABLE_HUB->LOCKSCREEN: zoomOut",
+        )
 }

@@ -17,7 +17,7 @@
 package android.telephony.satellite.stub;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ISatelliteGateway {
     // An empty service because Telephony does not need to use any APIs from this service.

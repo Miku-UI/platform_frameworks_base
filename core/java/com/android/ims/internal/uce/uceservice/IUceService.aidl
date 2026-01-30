@@ -26,7 +26,7 @@ import com.android.ims.internal.uce.common.StatusCode;
 
 /** IUceService
  *  UCE service interface class.
- * {@hide} */
+ * @hide */
 interface IUceService
 {
 

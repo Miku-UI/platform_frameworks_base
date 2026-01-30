@@ -65,6 +65,7 @@ import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.RecordingCanvas;
 import android.graphics.Rect;
+import android.graphics.RenderNode;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.InsetDrawable;
@@ -201,15 +202,19 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
     ActionMode mPrimaryActionMode;
     private ActionMode mFloatingActionMode;
     private ActionBarContextView mPrimaryActionModeView;
+
+    // Paddings loaded from R.attr.actionModeStyle.
+    private int mActionModeViewInternalPaddingLeft;
+    private int mActionModeViewInternalPaddingTop;
+    private int mActionModeViewInternalPaddingRight;
+    private int mActionModeViewInternalPaddingBottom;
+
     private PopupWindow mPrimaryActionModePopup;
     private Runnable mShowPrimaryActionModePopup;
     private ViewTreeObserver.OnPreDrawListener mFloatingToolbarPreDrawListener;
     private View mFloatingActionModeOriginatingView;
     private FloatingToolbar mFloatingToolbar;
     private ObjectAnimator mFadeAnim;
-
-    // View added at runtime to draw under the status bar area
-    private View mStatusGuard;
 
     private final ColorViewState mStatusColorViewState =
             new ColorViewState(STATUS_BAR_COLOR_VIEW_ATTRIBUTES);
@@ -428,9 +433,32 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent ev) {
+        if (interceptBackProgress(ev)) {
+            return true;
+        }
         final Window.Callback cb = mWindow.getCallback();
         return cb != null && !mWindow.isDestroyed() && mFeatureId < 0
                 ? cb.dispatchTouchEvent(ev) : super.dispatchTouchEvent(ev);
+    }
+
+    private boolean interceptBackProgress(MotionEvent ev) {
+        final ViewRootImpl viewRootImpl = getViewRootImpl();
+        if (viewRootImpl == null) {
+            return false;
+        }
+        viewRootImpl.getOnBackInvokedDispatcher().onMotionEvent(ev);
+        // Intercept touch if back gesture is in progress.
+        if (!viewRootImpl.getOnBackInvokedDispatcher().isBackGestureInProgress()) {
+            return false;
+        }
+        // Intercept touch if back gesture is in progress.
+        if (!viewRootImpl.getOnBackInvokedDispatcher().isInterceptedMotionEvent()) {
+            viewRootImpl.getOnBackInvokedDispatcher().setMotionEventIntercepted();
+            ev.setAction(MotionEvent.ACTION_CANCEL);
+            // Return false to deliver the first CANCEL.
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -512,16 +540,10 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
         }
 
         ViewRootImpl viewRootImpl = getViewRootImpl();
-        if (viewRootImpl != null) {
-            viewRootImpl.getOnBackInvokedDispatcher().onMotionEvent(event);
-            // Intercept touch if back gesture is in progress.
-            if (viewRootImpl.getOnBackInvokedDispatcher().isBackGestureInProgress()) {
-                return true;
-            }
-        }
         if (viewRootImpl != null && mWearGestureInterceptionDetector != null) {
             boolean wasIntercepting = mWearGestureInterceptionDetector.isIntercepting();
-            boolean intercepting = mWearGestureInterceptionDetector.onInterceptTouchEvent(event);
+            boolean intercepting = mWearGestureInterceptionDetector
+                    .onInterceptTouchEvent(event);
             if (wasIntercepting != intercepting) {
                 viewRootImpl.updateDecorViewGestureInterception(intercepting);
             }
@@ -1002,10 +1024,6 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
     @Override
     public void onWindowSystemUiVisibilityChanged(int visible) {
         updateColorViews(null /* insets */, true /* animate */);
-
-        if (mStatusGuard != null && mStatusGuard.getVisibility() == VISIBLE) {
-            updateStatusGuardColor();
-        }
     }
 
     @Override
@@ -1040,7 +1058,7 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
         }
         mFrameOffsets.set(insets.getSystemWindowInsetsAsRect());
         insets = updateColorViews(insets, true /* animate */);
-        insets = updateStatusGuard(insets);
+        insets = updateActionModeInsets(insets);
         if (getForeground() != null) {
             drawableChanged();
         }
@@ -1163,6 +1181,11 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
                 if (viewRoot != null) {
                     viewRoot.requestInvalidateRootRenderNode();
                 }
+            }
+            if (android.view.accessibility.Flags.forceInvertColor()
+                    && mNavigationColorViewState.view != null) {
+                mNavigationColorViewState.view.setUsageHint(
+                        RenderNode.USAGE_NAVIGATION_BAR_BACKGROUND);
             }
 
             boolean statusBarNeedsRightInset = navBarToRightEdge
@@ -1592,9 +1615,7 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
         }
     }
 
-    private WindowInsets updateStatusGuard(WindowInsets insets) {
-        boolean showStatusGuard = false;
-        // Show the status guard when the non-overlay contextual action bar is showing
+    private WindowInsets updateActionModeInsets(WindowInsets insets) {
         if (mPrimaryActionModeView != null) {
             if (mPrimaryActionModeView.getLayoutParams() instanceof MarginLayoutParams) {
                 // Insets are magic!
@@ -1608,55 +1629,30 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
                     final Rect rect = mTempRect;
 
                     // Apply the insets that have not been applied by the contentParent yet.
-                    WindowInsets innerInsets =
+                    final WindowInsets innerInsets =
                             mWindow.mContentParent.computeSystemWindowInsets(insets, rect);
-                    int newTopMargin = innerInsets.getSystemWindowInsetTop();
-                    int newLeftMargin = innerInsets.getSystemWindowInsetLeft();
-                    int newRightMargin = innerInsets.getSystemWindowInsetRight();
+                    final boolean consumesSystemWindowInsetsTop;
+                    final Insets systemWindowInsets = innerInsets.getSystemWindowInsets();
+                    final Insets newMargin = innerInsets.getInsets(
+                            WindowInsets.Type.navigationBars());
 
-                    // Must use root window insets for the guard, because the color views consume
-                    // the navigation bar inset if the window does not request LAYOUT_HIDE_NAV - but
-                    // the status guard is attached at the root.
-                    WindowInsets rootInsets = getRootWindowInsets();
-                    int newGuardLeftMargin = rootInsets.getSystemWindowInsetLeft();
-                    int newGuardRightMargin = rootInsets.getSystemWindowInsetRight();
-
-                    if (mlp.topMargin != newTopMargin || mlp.leftMargin != newLeftMargin
-                            || mlp.rightMargin != newRightMargin) {
+                    // Don't extend into navigation bar area so the width can align with status
+                    // bar color view.
+                    if (mlp.leftMargin != newMargin.left
+                            || mlp.rightMargin != newMargin.right) {
                         mlpChanged = true;
-                        mlp.topMargin = newTopMargin;
-                        mlp.leftMargin = newLeftMargin;
-                        mlp.rightMargin = newRightMargin;
+                        mlp.leftMargin = newMargin.left;
+                        mlp.rightMargin = newMargin.right;
                     }
 
-                    if (newTopMargin > 0 && mStatusGuard == null) {
-                        mStatusGuard = new View(mContext);
-                        mStatusGuard.setVisibility(GONE);
-                        final LayoutParams lp = new LayoutParams(MATCH_PARENT,
-                                mlp.topMargin, Gravity.LEFT | Gravity.TOP);
-                        lp.leftMargin = newGuardLeftMargin;
-                        lp.rightMargin = newGuardRightMargin;
-                        addView(mStatusGuard, indexOfChild(mStatusColorViewState.view), lp);
-                    } else if (mStatusGuard != null) {
-                        final LayoutParams lp = (LayoutParams)
-                                mStatusGuard.getLayoutParams();
-                        if (lp.height != mlp.topMargin || lp.leftMargin != newGuardLeftMargin
-                                || lp.rightMargin != newGuardRightMargin) {
-                            lp.height = mlp.topMargin;
-                            lp.leftMargin = newGuardLeftMargin;
-                            lp.rightMargin = newGuardRightMargin;
-                            mStatusGuard.setLayoutParams(lp);
-                        }
-                    }
-
-                    // The action mode's theme may differ from the app, so
-                    // always show the status guard above it if we have one.
-                    showStatusGuard = mStatusGuard != null;
-
-                    if (showStatusGuard && mStatusGuard.getVisibility() != VISIBLE) {
-                        // If it wasn't previously shown, the color may be stale
-                        updateStatusGuardColor();
-                    }
+                    mPrimaryActionModeView.setPadding(
+                            mActionModeViewInternalPaddingLeft + systemWindowInsets.left
+                                    - newMargin.left,
+                            mActionModeViewInternalPaddingTop + systemWindowInsets.top,
+                            mActionModeViewInternalPaddingRight + systemWindowInsets.right
+                                    - newMargin.right,
+                            mActionModeViewInternalPaddingBottom);
+                    consumesSystemWindowInsetsTop = systemWindowInsets.top > 0;
 
                     // We only need to consume the insets if the action
                     // mode is overlaid on the app content (e.g. it's
@@ -1664,14 +1660,8 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
                     // screen_simple_overlay_action_mode.xml).
                     final boolean nonOverlay = (mWindow.getLocalFeaturesPrivate()
                             & (1 << Window.FEATURE_ACTION_MODE_OVERLAY)) == 0;
-                    if (nonOverlay && showStatusGuard) {
+                    if (nonOverlay && consumesSystemWindowInsetsTop) {
                         insets = insets.inset(0, insets.getSystemWindowInsetTop(), 0, 0);
-                    }
-                } else {
-                    // reset top margin
-                    if (mlp.topMargin != 0 || mlp.leftMargin != 0 || mlp.rightMargin != 0) {
-                        mlpChanged = true;
-                        mlp.topMargin = 0;
                     }
                 }
                 if (mlpChanged) {
@@ -1679,18 +1669,7 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
                 }
             }
         }
-        if (mStatusGuard != null) {
-            mStatusGuard.setVisibility(showStatusGuard ? VISIBLE : GONE);
-        }
         return insets;
-    }
-
-    private void updateStatusGuardColor() {
-        boolean lightStatusBar =
-                (getWindowSystemUiVisibility() & SYSTEM_UI_FLAG_LIGHT_STATUS_BAR) != 0;
-        mStatusGuard.setBackgroundColor(lightStatusBar
-                ? mContext.getColor(R.color.decor_view_status_guard_light)
-                : mContext.getColor(R.color.decor_view_status_guard));
     }
 
     /**
@@ -1987,6 +1966,7 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
                 }
 
                 mPrimaryActionModeView = new ActionBarContextView(actionBarContext);
+                initializeActionModeViewInternalPadding();
                 mPrimaryActionModePopup = new PopupWindow(actionBarContext, null,
                         R.attr.actionModePopupWindowStyle);
                 mPrimaryActionModePopup.setWindowLayoutType(
@@ -2033,6 +2013,7 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
                 ViewStub stub = findViewById(R.id.action_mode_bar_stub);
                 if (stub != null) {
                     mPrimaryActionModeView = (ActionBarContextView) stub.inflate();
+                    initializeActionModeViewInternalPadding();
                     mPrimaryActionModePopup = null;
                 }
             }
@@ -2045,6 +2026,13 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
             return mode;
         }
         return null;
+    }
+
+    private void initializeActionModeViewInternalPadding() {
+        mActionModeViewInternalPaddingLeft = mPrimaryActionModeView.getPaddingLeft();
+        mActionModeViewInternalPaddingTop = mPrimaryActionModeView.getPaddingTop();
+        mActionModeViewInternalPaddingRight = mPrimaryActionModeView.getPaddingRight();
+        mActionModeViewInternalPaddingBottom = mPrimaryActionModeView.getPaddingBottom();
     }
 
     private void endOnGoingFadeAnimation() {
@@ -2182,20 +2170,14 @@ public class DecorView extends FrameLayout implements RootViewSurfaceTaker, Wind
     void clearContentView() {
         for (int i = getChildCount() - 1; i >= 0; i--) {
             View v = getChildAt(i);
-            if (v != mStatusColorViewState.view && v != mNavigationColorViewState.view
-                    && v != mStatusGuard) {
+            if (v != mStatusColorViewState.view && v != mNavigationColorViewState.view) {
                 removeViewAt(i);
             }
         }
     }
 
     @Override
-    public void onWindowSizeIsChanging(Rect newBounds, boolean fullscreen, Rect systemInsets,
-            Rect stableInsets) {}
-
-    @Override
-    public void onWindowDragResizeStart(Rect initialBounds, boolean fullscreen, Rect systemInsets,
-            Rect stableInsets) {
+    public void onWindowDragResizeStart() {
         if (mWindow.isDestroyed()) {
             // If the owner's window is gone, we should not be able to come here anymore.
             return;

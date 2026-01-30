@@ -520,12 +520,25 @@ public class WebChromeClient {
     }
 
     /**
-     * Tell the client to show a file chooser.
+     * Asks the client app to show a file chooser. The web page has requested to either upload or
+     * save a file, such as from a 'file' input in an HTML form or due to a JavaScript API call. The
+     * client app can decide whether to show the user a file chooser dialog or to programmatically
+     * handle the request. This can be invoked both for uploads and downloads, and it can also be
+     * invoked for single files, multiple files, or entire folders. Client apps should check {@code
+     * fileChooserParams} for details about what type of file is being requested.
      *
-     * This is called to handle HTML forms with 'file' input type, in response to the
-     * user pressing the "Select File" button.
-     * To cancel the request, call <code>filePathCallback.onReceiveValue(null)</code> and
-     * return {@code true}.
+     * <p>To show the user a file chooser dialog, override this callback to return {@code true} and
+     * store the {@code filePathCallback} in a variable. Present the dialog to the user and when
+     * they reply, invoke the callback with a URI which points to the file. Make sure to check the
+     * {@code fileChooserParams} in order to show appropriate options in the file chooser dialog,
+     * such as automatically filtering by relevant file type (see {@link
+     * FileChooserParams#getAcceptTypes}).
+     *
+     * <p>To handle each request programmatically, respond to this callback with {@code true}. You
+     * can invoke {@code filePathCallback} with {@code null} in order to cancel the request or you
+     * can invoke the callback with a URI to actual file or folder.
+     *
+     * <p>The default behavior is that WebView will cancel all file requests.
      *
      * <p class="note"><b>Note:</b> WebView does not enforce any restrictions on
      * the chosen file(s). WebView can access all files that your app can access.
@@ -567,7 +580,7 @@ public class WebChromeClient {
          * @hide
          */
         @ChangeId
-        @EnabledAfter(targetSdkVersion = android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM)
+        @EnabledAfter(targetSdkVersion = android.os.Build.VERSION_CODES.BAKLAVA)
         @FlaggedApi(android.webkit.Flags.FLAG_FILE_SYSTEM_ACCESS)
         @SystemApi
         public static final long ENABLE_FILE_SYSTEM_ACCESS = 364980165L;

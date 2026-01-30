@@ -21,6 +21,7 @@ import android.content.Intent;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.android.systemui.application.SystemUIApplication;
 import com.android.systemui.process.ProcessWrapper;
 
 import javax.inject.Inject;

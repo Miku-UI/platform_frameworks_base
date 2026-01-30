@@ -2602,9 +2602,13 @@ jobject JTuner::getFrontendStatus(jintArray types) {
                 jfieldID field = env->GetFieldID(clazz, "mCodeRates", "[I");
                 std::vector<FrontendInnerFec> v = s.get<FrontendStatus::Tag::codeRates>();
 
-                ScopedLocalRef valObj(env, env->NewIntArray(v.size()));
-                env->SetIntArrayRegion(valObj.get(), 0, v.size(), reinterpret_cast<jint *>(&v[0]));
-
+                //Short-term fix for frontend status coderates not retrieved correctly.
+                ScopedLocalRef<jintArray> valObj(env, env->NewIntArray(v.size()));
+                std::vector<jint> temp(v.size());
+                for (size_t i = 0; i < v.size(); i++) {
+                    temp[i] = static_cast<jint>(v[i]);
+                }
+                env->SetIntArrayRegion(valObj.get(), 0, v.size(), temp.data());
                 env->SetObjectField(statusObj, field, valObj.get());
                 break;
             }

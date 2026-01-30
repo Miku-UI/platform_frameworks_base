@@ -20,7 +20,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.overscroll
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Modifier
@@ -69,6 +68,8 @@ constructor(
 
     override val userActions: Flow<Map<UserAction, UserActionResult>> = actionsViewModel.actions
 
+    override val alwaysCompose: Boolean = false
+
     override suspend fun activate(): Nothing {
         actionsViewModel.activate()
     }
@@ -88,7 +89,7 @@ private fun ContentScope.BouncerOverlay(
     dialogFactory: BouncerDialogFactory,
     modifier: Modifier = Modifier,
 ) {
-    val backgroundColor = MaterialTheme.colorScheme.surface
+    val backgroundColor = viewModel.backgroundColor
 
     DisposableEffect(Unit) { onDispose { viewModel.onUiDestroyed() } }
 

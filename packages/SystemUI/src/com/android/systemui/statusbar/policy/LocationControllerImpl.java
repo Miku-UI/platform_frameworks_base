@@ -45,7 +45,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.config.sysui.SystemUiDeviceConfigFlags;
-import com.android.internal.logging.UiEvent;
 import com.android.internal.logging.UiEventLogger;
 import com.android.systemui.BootCompleteCache;
 import com.android.systemui.appops.AppOpItem;
@@ -277,22 +276,6 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
         if (mAreActiveLocationRequests != hadActiveLocationRequests) {
             mHandler.sendEmptyMessage(H.MSG_LOCATION_ACTIVE_CHANGED);
         }
-
-        // Log each of the types of location access that would cause the location indicator to be
-        // shown, regardless of device's setting state. This is used to understand how often a
-        // user would see the location indicator based on any settings state the device could be in.
-        if (!hadActiveLocationRequests && (highPowerOp || systemAppOp || nonSystemAppOp)) {
-            if (highPowerOp) {
-                mUiEventLogger.log(
-                        LocationIndicatorEvent.LOCATION_INDICATOR_MONITOR_HIGH_POWER);
-            }
-            if (systemAppOp) {
-                mUiEventLogger.log(LocationIndicatorEvent.LOCATION_INDICATOR_SYSTEM_APP);
-            }
-            if (nonSystemAppOp) {
-                mUiEventLogger.log(LocationIndicatorEvent.LOCATION_INDICATOR_NON_SYSTEM_APP);
-            }
-        }
     }
 
     private boolean isSystemApp(List<UserInfo> profiles, AppOpItem item) {
@@ -335,11 +318,6 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
             mAreActiveLocationRequests = areActiveHighPowerLocationRequests();
             if (mAreActiveLocationRequests != hadActiveLocationRequests) {
                 mHandler.sendEmptyMessage(H.MSG_LOCATION_ACTIVE_CHANGED);
-                if (mAreActiveLocationRequests) {
-                    // Log that the indicator was shown for a high power op.
-                    mUiEventLogger.log(
-                            LocationIndicatorEvent.LOCATION_INDICATOR_MONITOR_HIGH_POWER);
-                }
             }
         }
     }
@@ -413,26 +391,6 @@ public class LocationControllerImpl extends BroadcastReceiver implements Locatio
                     mSettingsChangeCallbacks.get(i).onLocationSettingsChanged(isEnabled);
                 }
             }
-        }
-    }
-
-    /**
-     * Enum for events which prompt the location indicator to appear.
-     */
-    enum LocationIndicatorEvent implements UiEventLogger.UiEventEnum {
-        @UiEvent(doc = "Location indicator shown for high power access")
-        LOCATION_INDICATOR_MONITOR_HIGH_POWER(935),
-        @UiEvent(doc = "Location indicator shown for system app access")
-        LOCATION_INDICATOR_SYSTEM_APP(936),
-        @UiEvent(doc = "Location indicator shown for non system app access")
-        LOCATION_INDICATOR_NON_SYSTEM_APP(937);
-
-        private final int mId;
-        LocationIndicatorEvent(int id) {
-            mId = id;
-        }
-        @Override public int getId() {
-            return mId;
         }
     }
 }

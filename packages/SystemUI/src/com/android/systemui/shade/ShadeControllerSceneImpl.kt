@@ -17,7 +17,6 @@
 package com.android.systemui.shade
 
 import android.view.MotionEvent
-import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.assist.AssistManager
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -39,6 +38,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -208,17 +208,17 @@ constructor(
 
     @Deprecated("Deprecated in Java")
     override fun postAnimateCollapseShade() {
-        animateCollapseShade()
+        scope.launch(mainDispatcher) { animateCollapseShade() }
     }
 
     @Deprecated("Deprecated in Java")
     override fun postAnimateForceCollapseShade() {
-        animateCollapseShadeForced()
+        scope.launch(mainDispatcher) { animateCollapseShadeForced() }
     }
 
     @Deprecated("Deprecated in Java")
     override fun postAnimateExpandQs() {
-        expandToQs()
+        scope.launch(mainDispatcher) { expandToQs() }
     }
 
     override fun postOnShadeExpanded(action: Runnable) {

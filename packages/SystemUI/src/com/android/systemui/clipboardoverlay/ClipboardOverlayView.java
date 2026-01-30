@@ -47,7 +47,6 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.WindowInsets;
-import android.view.accessibility.AccessibilityManager;
 import android.view.animation.LinearInterpolator;
 import android.view.animation.PathInterpolator;
 import android.widget.FrameLayout;
@@ -77,8 +76,6 @@ import java.util.ArrayList;
 public class ClipboardOverlayView extends DraggableConstraintLayout {
 
     interface ClipboardOverlayCallbacks extends SwipeDismissCallbacks {
-        void onDismissButtonTapped();
-
         void onRemoteCopyButtonTapped();
 
         void onShareButtonTapped();
@@ -94,7 +91,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
     private static final int FONT_SEARCH_STEP_PX = 4;
 
     private final DisplayMetrics mDisplayMetrics;
-    private final AccessibilityManager mAccessibilityManager;
     private final ArrayList<View> mActionChips = new ArrayList<>();
 
     private View mClipboardPreview;
@@ -108,7 +104,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
     private View mActionContainerBackground;
     private View mIndicationContainer;
     private TextView mIndicationText;
-    private View mDismissButton;
     private LinearLayout mActionContainer;
     private ClipboardOverlayCallbacks mClipboardCallbacks;
     private ActionButtonViewBinder mActionButtonViewBinder = new ActionButtonViewBinder();
@@ -125,7 +120,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
         super(context, attrs, defStyleAttr);
         mDisplayMetrics = new DisplayMetrics();
         mContext.getDisplay().getRealMetrics(mDisplayMetrics);
-        mAccessibilityManager = AccessibilityManager.getInstance(mContext);
     }
 
     @Override
@@ -140,7 +134,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
         mMinimizedPreview = requireViewById(R.id.minimized_preview);
         mShareChip = requireViewById(R.id.share_chip);
         mRemoteCopyChip = requireViewById(R.id.remote_copy_chip);
-        mDismissButton = requireViewById(R.id.dismiss_button);
         mIndicationContainer = requireViewById(R.id.indication_container);
         mIndicationText = mIndicationContainer.findViewById(R.id.indication_text);
 
@@ -197,7 +190,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
     public void setCallbacks(SwipeDismissCallbacks callbacks) {
         super.setCallbacks(callbacks);
         ClipboardOverlayCallbacks clipboardCallbacks = (ClipboardOverlayCallbacks) callbacks;
-        mDismissButton.setOnClickListener(v -> clipboardCallbacks.onDismissButtonTapped());
         mClipboardPreview.setOnClickListener(v -> clipboardCallbacks.onPreviewTapped());
         mMinimizedPreview.setOnClickListener(v -> clipboardCallbacks.onMinimizedViewTapped());
         mClipboardCallbacks = clipboardCallbacks;
@@ -221,6 +213,13 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
         // Set the visibility of clipboard indication based on the text is empty or not.
         int visibility = text.isEmpty() ? View.GONE : View.VISIBLE;
         mIndicationContainer.setVisibility(visibility);
+    }
+
+    void announce(CharSequence text) {
+        View announce = findViewById(R.id.clipboard_announcement_live_region);
+        // clear the description to announce even if successive copies are the same type
+        announce.setContentDescription("");
+        announce.setContentDescription(text);
     }
 
     void setMinimized(boolean minimized) {
@@ -284,7 +283,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
                 (int) FloatingWindowUtil.dpToPx(mDisplayMetrics, -SWIPE_PADDING_DP));
         touchRegion.op(tmpRect, Region.Op.UNION);
 
-        mDismissButton.getBoundsOnScreen(tmpRect);
         touchRegion.op(tmpRect, Region.Op.UNION);
 
         return touchRegion.contains(x, y);
@@ -341,7 +339,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
         setAlpha(0);
         mActionContainerBackground.setVisibility(View.GONE);
         mIndicationContainer.setVisibility(View.GONE);
-        mDismissButton.setVisibility(View.GONE);
         mShareChip.setVisibility(View.GONE);
         mRemoteCopyChip.setVisibility(View.GONE);
         setEditAccessibilityAction(false);
@@ -370,9 +367,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
     }
 
     Animator getEnterAnimation() {
-        if (mAccessibilityManager.isEnabled()) {
-            mDismissButton.setVisibility(View.VISIBLE);
-        }
         TimeInterpolator linearInterpolator = new LinearInterpolator();
         TimeInterpolator scaleInterpolator = new PathInterpolator(0, 0, 0, 1f);
         AnimatorSet enterAnim = new AnimatorSet();
@@ -415,7 +409,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
             mMinimizedPreview.setAlpha(alpha);
             mClipboardPreview.setAlpha(alpha);
             mPreviewBorder.setAlpha(alpha);
-            mDismissButton.setAlpha(alpha);
             mActionContainer.setAlpha(alpha);
         });
 
@@ -443,7 +436,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
             mActionContainer.setAlpha(alpha);
             mActionContainerBackground.setAlpha(alpha);
             mPreviewBorder.setAlpha(alpha);
-            mDismissButton.setAlpha(alpha);
         });
         alphaAnim.setDuration(300);
         return alphaAnim;
@@ -490,7 +482,6 @@ public class ClipboardOverlayView extends DraggableConstraintLayout {
             mMinimizedPreview.setAlpha(alpha);
             mClipboardPreview.setAlpha(alpha);
             mPreviewBorder.setAlpha(alpha);
-            mDismissButton.setAlpha(alpha);
             mActionContainer.setAlpha(alpha);
         });
 

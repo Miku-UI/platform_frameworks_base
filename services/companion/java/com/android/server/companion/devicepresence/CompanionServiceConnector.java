@@ -24,6 +24,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
+import android.companion.ActionRequest;
 import android.companion.AssociationInfo;
 import android.companion.CompanionDeviceService;
 import android.companion.DevicePresenceEvent;
@@ -116,6 +117,15 @@ public class CompanionServiceConnector extends ServiceConnector.Impl<ICompanionD
 
     void postOnDevicePresenceEvent(@NonNull DevicePresenceEvent event) {
         post(companionService -> companionService.onDevicePresenceEvent(event));
+    }
+
+    /**
+     * Post the ActionRequest to the service.
+     */
+    public void postOnActionRequested(@NonNull AssociationInfo associationInfo,
+            @NonNull ActionRequest request) {
+        post(companionService ->
+                companionService.onActionRequested(associationInfo, request));
     }
 
     /**

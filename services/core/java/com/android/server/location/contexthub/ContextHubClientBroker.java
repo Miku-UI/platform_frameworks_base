@@ -484,7 +484,7 @@ public class ContextHubClientBroker extends IContextHubClient.Stub
             if (authState == AUTHORIZATION_DENIED) {
                 if (Compatibility.isChangeEnabled(CHANGE_ID_AUTH_STATE_DENIED)) {
                     throw new SecurityException("Client doesn't have valid permissions to send"
-                            + " message to " + message.getNanoAppId());
+                            + " message to 0x" + Long.toHexString(message.getNanoAppId()));
                 }
                 // Return a bland error code for apps targeting old SDKs since they wouldn't be able
                 // to use an error code added in S.
@@ -645,7 +645,7 @@ public class ContextHubClientBroker extends IContextHubClient.Stub
         // If in the grace period, the host may not receive any messages containing permissions
         // covered data.
         if (authState == AUTHORIZATION_DENIED_GRACE_PERIOD && !messagePermissions.isEmpty()) {
-            Log.e(TAG, "Dropping message from " + Long.toHexString(nanoAppId) + ". " + mPackage
+            Log.e(TAG, "Dropping message from 0x" + Long.toHexString(nanoAppId) + ". " + mPackage
                     + " in grace period and napp msg has permissions");
             return ErrorCode.PERMISSION_DENIED;
         }
@@ -660,7 +660,7 @@ public class ContextHubClientBroker extends IContextHubClient.Stub
                         mAttributionTag,
                         messagePermissions,
                         RECEIVE_MSG_NOTE + nanoAppId)) {
-            Log.e(TAG, "Dropping message from " + Long.toHexString(nanoAppId) + ". " + mPackage
+            Log.e(TAG, "Dropping message from 0x" + Long.toHexString(nanoAppId) + ". " + mPackage
                     + " doesn't have permission");
             return ErrorCode.PERMISSION_DENIED;
         }
@@ -875,7 +875,7 @@ public class ContextHubClientBroker extends IContextHubClient.Stub
         if (curAuthState != newAuthState) {
             if (newAuthState == AUTHORIZATION_DENIED
                     || newAuthState == AUTHORIZATION_DENIED_GRACE_PERIOD) {
-                Log.e(TAG, "updateNanoAppAuthState auth error: "
+                Log.e(TAG, "updateNanoAppAuthState auth error: 0x"
                         + Long.toHexString(nanoAppId) + ", "
                         + nanoappPermissions + ", "
                         + gracePeriodExpired + ", "

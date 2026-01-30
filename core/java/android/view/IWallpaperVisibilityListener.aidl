@@ -18,7 +18,7 @@ package android.view;
 
 /**
  * Listener to be invoked when wallpaper visibility changes.
- * {@hide}
+ * @hide
  */
 oneway interface IWallpaperVisibilityListener {
     /**

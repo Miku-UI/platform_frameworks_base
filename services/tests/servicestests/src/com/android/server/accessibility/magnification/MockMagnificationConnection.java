@@ -31,6 +31,7 @@ import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.view.Display;
+import android.view.View;
 import android.view.accessibility.IMagnificationConnection;
 import android.view.accessibility.IMagnificationConnectionCallback;
 import android.view.accessibility.IRemoteMagnificationAnimationCallback;
@@ -46,6 +47,14 @@ class MockMagnificationConnection {
 
     public static final int TEST_DISPLAY = Display.DEFAULT_DISPLAY;
     public static final int TEST_DISPLAY_2 = Display.DEFAULT_DISPLAY + 1;
+    public static final int TEST_SOURCE_UNDEFINED =
+            View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED;
+    public static final int TEST_SOURCE_SCROLL_ONLY =
+            View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_SCROLL_ONLY;
+    public static final int TEST_SOURCE_TEXT_CURSOR =
+            View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_TEXT_CURSOR;
+    public static final int TEST_SOURCE_INPUT_FOCUS =
+            View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS;
     private final List mValidDisplayIds;
     private final IMagnificationConnection mConnection;
     private final Binder mBinder;

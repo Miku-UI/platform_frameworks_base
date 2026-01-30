@@ -21,6 +21,7 @@ import android.app.RemoteLockscreenValidationResult;
 import android.app.RemoteLockscreenValidationSession;
 import android.app.trust.IStrongAuthTracker;
 import android.os.Bundle;
+import android.os.ParcelDuration;
 import android.security.keystore.recovery.WrappedApplicationKey;
 import android.security.keystore.recovery.KeyChainSnapshot;
 import android.security.keystore.recovery.KeyChainProtectionParams;
@@ -33,7 +34,8 @@ import com.android.internal.widget.VerifyCredentialResponse;
 
 import java.util.Map;
 
-/** {@hide} */
+/** @hide */
+@SensitiveData
 interface ILockSettings {
     @UnsupportedAppUsage
     void setBoolean(in String key, in boolean value, in int userId);
@@ -70,6 +72,7 @@ interface ILockSettings {
     void userPresent(int userId);
     int getStrongAuthForUser(int userId);
     boolean hasPendingEscrowToken(int userId);
+    ParcelDuration getLockoutEndTime(int userId);
 
     // Keystore RecoveryController methods.
     // {@code ServiceSpecificException} may be thrown to signal an error, which caller can

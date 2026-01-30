@@ -16,7 +16,6 @@
 
 package android.hardware.radio;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -137,7 +136,6 @@ public final class ProgramSelector implements Parcelable {
      * converted to 0-based index. 0 is the index of main program service (MPS). 1 to 7 are
      * indexes of additional supplemental program services (SPS).
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_1 = 1 << 0;
 
     /**
@@ -145,7 +143,6 @@ public final class ProgramSelector implements Parcelable {
      *
      * <p>For further reference, see {@link #SUB_CHANNEL_HD_1}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_2 = 1 << 1;
 
     /**
@@ -153,7 +150,6 @@ public final class ProgramSelector implements Parcelable {
      *
      * <p>For further reference, see {@link #SUB_CHANNEL_HD_1}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_3 = 1 << 2;
 
     /**
@@ -161,7 +157,6 @@ public final class ProgramSelector implements Parcelable {
      *
      * <p>For further reference, see {@link #SUB_CHANNEL_HD_1}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_4 = 1 << 3;
 
     /**
@@ -169,7 +164,6 @@ public final class ProgramSelector implements Parcelable {
      *
      * <p>For further reference, see {@link #SUB_CHANNEL_HD_1}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_5 = 1 << 4;
 
     /**
@@ -177,7 +171,6 @@ public final class ProgramSelector implements Parcelable {
      *
      * <p>For further reference, see {@link #SUB_CHANNEL_HD_1}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_6 = 1 << 5;
 
     /**
@@ -185,7 +178,6 @@ public final class ProgramSelector implements Parcelable {
      *
      * <p>For further reference, see {@link #SUB_CHANNEL_HD_1}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_7 = 1 << 6;
 
     /**
@@ -193,7 +185,6 @@ public final class ProgramSelector implements Parcelable {
      *
      * <p>For further reference, see {@link #SUB_CHANNEL_HD_1}
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int SUB_CHANNEL_HD_8 = 1 << 7;
 
     /** @hide */
@@ -379,7 +370,6 @@ public final class ProgramSelector implements Parcelable {
      * carried as additional identifier and may be used by the tuner hardware
      * to double-check tuning.
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int IDENTIFIER_TYPE_HD_STATION_LOCATION = 15;
     /**
      * Primary identifier for vendor-specific radio technology.

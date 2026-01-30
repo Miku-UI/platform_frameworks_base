@@ -27,10 +27,8 @@ private const val TAG = "ViewDialogTransitionAnimatorController"
 
 /** A [DialogTransitionAnimator.Controller] that can animate a [View] from/to a dialog. */
 class ViewDialogTransitionAnimatorController
-internal constructor(
-    private val source: View,
-    override val cuj: DialogCuj?,
-) : DialogTransitionAnimator.Controller {
+internal constructor(private val source: View, override val cuj: DialogCuj?) :
+    DialogTransitionAnimator.Controller {
     override val viewRoot: ViewRootImpl?
         get() = source.viewRootImpl
 
@@ -47,10 +45,17 @@ internal constructor(
         // to the host dialog.
         if (source.parent !is ViewGroup) {
             // This should usually not happen, but let's make sure we don't call GhostView.addGhost
-            // and crash if the view was detached right before we started the animation.
+            // at all if the view was detached right before we started the animation.
             Log.w(TAG, "source was detached right before drawing was moved to overlay")
         } else {
-            GhostView.addGhost(source, viewGroup)
+            try {
+                GhostView.addGhost(source, viewGroup)
+            } catch (e: Exception) {
+                // It is not 100% clear what conditions cause this exception to happen even with the
+                // previous check (maybe a race condition?), and we could never reproduce it, but it
+                // does show up on occasion.
+                Log.e(TAG, "Failed to create ghostView", e)
+            }
         }
     }
 

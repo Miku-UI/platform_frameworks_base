@@ -16,9 +16,6 @@
 
 package android.app.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
-
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Bundle;
@@ -31,7 +28,6 @@ import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.ResponsePara
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public interface StreamingProcessingCallback extends ProcessingCallback {
     /**
      * Callback that would be invoked when a part of the response i.e. some response is

@@ -20,7 +20,7 @@ package {
     // all of the 'license_kinds' from "frameworks_base_license"
     // to get the below license kinds:
     //   SPDX-license-identifier-Apache-2.0
-    default_team: "trendy_team_windowing_sdk",
+    default_team: "trendy_team_activity_embedding",
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
@@ -36,12 +36,12 @@ android_test {
     data: ["trace_config/*"],
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Begin breakdowns for FlickerTestsActivityEmbedding module
+// Auto generated section, don't update it manually
 
 test_module_config {
     name: "FlickerTestsActivityEmbedding-CatchAll",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     exclude_filters: [
         "com.android.server.wm.flicker.activityembedding.close.CloseSecondaryActivityInSplitTest",
         "com.android.server.wm.flicker.activityembedding.layoutchange.HorizontalSplitChangeRatioTest",
@@ -55,85 +55,81 @@ test_module_config {
         "com.android.server.wm.flicker.activityembedding.rtl.RTLStartSecondaryWithPlaceholderTest",
         "com.android.server.wm.flicker.activityembedding.splitscreen.EnterSystemSplitTest",
     ],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Close-CloseSecondaryActivityInSplitTest",
+    name: "FlickerTestsActivityEmbedding-close-CloseSecondaryActivityInSplitTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.close.CloseSecondaryActivityInSplitTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-LayoutChange-HorizontalSplitChangeRatioTest",
+    name: "FlickerTestsActivityEmbedding-layoutchange-HorizontalSplitChangeRatioTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.layoutchange.HorizontalSplitChangeRatioTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Open-MainActivityStartsSecondaryWithAlwaysExpandTest",
+    name: "FlickerTestsActivityEmbedding-open-MainActivityStartsSecondaryWithAlwaysExpandTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.open.MainActivityStartsSecondaryWithAlwaysExpandTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Open-OpenActivityEmbeddingPlaceholderSplitTest",
+    name: "FlickerTestsActivityEmbedding-open-OpenActivityEmbeddingPlaceholderSplitTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.open.OpenActivityEmbeddingPlaceholderSplitTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Open-OpenActivityEmbeddingSecondaryToSplitTest",
+    name: "FlickerTestsActivityEmbedding-open-OpenActivityEmbeddingSecondaryToSplitTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.open.OpenActivityEmbeddingSecondaryToSplitTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Open-OpenThirdActivityOverSplitTest",
+    name: "FlickerTestsActivityEmbedding-open-OpenThirdActivityOverSplitTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.open.OpenThirdActivityOverSplitTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Open-OpenTrampolineActivityTest",
+    name: "FlickerTestsActivityEmbedding-open-OpenTrampolineActivityTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.open.OpenTrampolineActivityTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Pip-SecondaryActivityEnterPipTest",
+    name: "FlickerTestsActivityEmbedding-pip-SecondaryActivityEnterPipTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.pip.SecondaryActivityEnterPipTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Rotation-RotateSplitNoChangeTest",
+    name: "FlickerTestsActivityEmbedding-rotation-RotateSplitNoChangeTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.rotation.RotateSplitNoChangeTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-Rtl-RTLStartSecondaryWithPlaceholderTest",
+    name: "FlickerTestsActivityEmbedding-rtl-RTLStartSecondaryWithPlaceholderTest",
     base: "FlickerTestsActivityEmbedding",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.activityembedding.rtl.RTLStartSecondaryWithPlaceholderTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
-    name: "FlickerTestsActivityEmbedding-SplitScreen-EnterSystemSplitTest",
+    name: "FlickerTestsActivityEmbedding-splitscreen-EnterSystemSplitTest",
     base: "FlickerTestsActivityEmbedding",
-    include_filters: ["com.android.server.wm.flicker.activityembedding.splitscreen.EnterSystemSplitTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.activityembedding.splitscreen.EnterSystemSplitTest"],
 }
-
-// End breakdowns for FlickerTestsActivityEmbedding module
-////////////////////////////////////////////////////////////////////////////////

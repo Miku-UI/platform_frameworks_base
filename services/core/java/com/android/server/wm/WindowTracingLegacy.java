@@ -16,11 +16,11 @@
 
 package com.android.server.wm;
 
-import static com.android.server.wm.WindowManagerTraceFileProto.ENTRY;
-import static com.android.server.wm.WindowManagerTraceFileProto.MAGIC_NUMBER;
-import static com.android.server.wm.WindowManagerTraceFileProto.MAGIC_NUMBER_H;
-import static com.android.server.wm.WindowManagerTraceFileProto.MAGIC_NUMBER_L;
-import static com.android.server.wm.WindowManagerTraceFileProto.REAL_TO_ELAPSED_TIME_OFFSET_NANOS;
+import static android.internal.perfetto.protos.Windowmanager.WindowManagerTraceFileProto.ENTRY;
+import static android.internal.perfetto.protos.Windowmanager.WindowManagerTraceFileProto.MAGIC_NUMBER;
+import static android.internal.perfetto.protos.Windowmanager.WindowManagerTraceFileProto.MAGIC_NUMBER_H;
+import static android.internal.perfetto.protos.Windowmanager.WindowManagerTraceFileProto.MAGIC_NUMBER_L;
+import static android.internal.perfetto.protos.Windowmanager.WindowManagerTraceFileProto.REAL_TO_ELAPSED_TIME_OFFSET_NANOS;
 
 import android.annotation.Nullable;
 import android.os.ShellCommand;

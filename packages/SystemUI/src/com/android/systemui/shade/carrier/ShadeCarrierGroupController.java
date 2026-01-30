@@ -39,7 +39,6 @@ import androidx.annotation.VisibleForTesting;
 import com.android.keyguard.CarrierTextManager;
 import com.android.settingslib.AccessibilityContentDescriptions;
 import com.android.settingslib.mobile.TelephonyIcons;
-import com.android.systemui.Flags;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Background;
@@ -55,6 +54,7 @@ import com.android.systemui.statusbar.connectivity.SignalCallback;
 import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider;
 import com.android.systemui.statusbar.phone.StatusBarLocation;
 import com.android.systemui.statusbar.pipeline.StatusBarPipelineFlags;
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapter;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapterKairos;
 import com.android.systemui.statusbar.pipeline.mobile.ui.binder.MobileIconsBinder;
@@ -223,7 +223,7 @@ public class ShadeCarrierGroupController {
         mMobileIconsViewModel = mobileUiAdapter.getMobileIconsViewModel();
 
         if (mStatusBarPipelineFlags.useNewShadeCarrierGroupMobileIcons()) {
-            if (Flags.statusBarMobileIconKairos()) {
+            if (StatusBarMobileIconKairos.isEnabled()) {
                 mobileUiAdapterKairos.get().setShadeCarrierGroupController(this);
             } else {
                 mobileUiAdapter.setShadeCarrierGroupController(this);
@@ -275,7 +275,7 @@ public class ShadeCarrierGroupController {
 
         List<IconData> iconDataList = processSubIdList(subIds);
 
-        if (Flags.statusBarMobileIconKairos()) {
+        if (StatusBarMobileIconKairos.isEnabled()) {
             for (Job job : mBindingJobs) {
                 job.cancel(new CancellationException());
             }
@@ -289,7 +289,7 @@ public class ShadeCarrierGroupController {
                         mMobileContextProvider.getMobileContextForSub(iconData.subId, mContext);
 
                 Pair<ModernShadeCarrierGroupMobileView, Job> viewAndJob =
-                        ModernShadeCarrierGroupMobileView.constructAndBind(
+                        ModernShadeCarrierGroupMobileView.constructAndBindKairos(
                                 mobileContext,
                                 mobileIconsViewModel.getLogger(),
                                 "mobile_carrier_shade_group",

@@ -12,9 +12,14 @@ android_test {
     certificate: "platform",
     libs: [
         "android.test.base.stubs.system",
-        "android.test.runner.stubs.system",
     ],
-    static_libs: ["junit"],
+    static_libs: [
+        "androidx.test.ext.junit",
+        "androidx.test.runner",
+        "flag-junit",
+        "junit",
+        "platform-compat-test-rules",
+    ],
     // Include all test java files.
     srcs: ["src/**/*.java"],
     platform_apis: true,

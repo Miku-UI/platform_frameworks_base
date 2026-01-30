@@ -43,7 +43,7 @@ import java.util.HashMap;
  * This class implements handle the MO SMS target address before sending.
  * This is special for VZW requirement. Follow the specifications of assisted dialing
  * of MO SMS while traveling on VZW CDMA, international CDMA or GSM markets.
- * {@hide}
+ * @hide
  */
 public class SmsNumberUtils {
     private static final String TAG = "SmsNumberUtils";

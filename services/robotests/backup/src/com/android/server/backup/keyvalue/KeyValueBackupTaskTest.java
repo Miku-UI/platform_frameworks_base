@@ -126,13 +126,13 @@ import com.android.server.backup.testing.TransportTestUtils;
 import com.android.server.backup.testing.TransportTestUtils.TransportMock;
 import com.android.server.backup.utils.BackupEligibilityRules;
 import com.android.server.backup.utils.BackupManagerMonitorEventSender;
+import com.android.server.pm.UserManagerInternal;
 import com.android.server.testing.shadows.FrameworkShadowLooper;
 import com.android.server.testing.shadows.ShadowApplicationPackageManager;
 import com.android.server.testing.shadows.ShadowBackupDataInput;
 import com.android.server.testing.shadows.ShadowBackupDataOutput;
 import com.android.server.testing.shadows.ShadowEventLog;
 import com.android.server.testing.shadows.ShadowSystemServiceRegistry;
-import com.android.server.testing.shadows.ShadowUserManager;
 
 import com.google.common.base.Charsets;
 import com.google.common.truth.IterableSubject;
@@ -180,7 +180,6 @@ import java.util.stream.Stream;
             ShadowEventLog.class,
             ShadowQueuedWork.class,
             ShadowSystemServiceRegistry.class,
-            ShadowUserManager.class
         })
 @Presubmit
 public class KeyValueBackupTaskTest  {
@@ -198,6 +197,7 @@ public class KeyValueBackupTaskTest  {
     @Mock private OnTaskFinishedListener mListener;
     @Mock private PackageManagerInternal mPackageManagerInternal;
     @Mock private BackupAgentConnectionManager mBackupAgentConnectionManager;
+    @Mock private UserManagerInternal mUserManagerInternal;
 
     private UserBackupManagerService mBackupManagerService;
     private TransportData mTransport;
@@ -242,6 +242,9 @@ public class KeyValueBackupTaskTest  {
 
         mWakeLock = spy(createBackupWakeLock(mApplication));
         mBackupManager = spy(FakeIBackupManager.class);
+
+        LocalServices.removeServiceForTest(UserManagerInternal.class);
+        LocalServices.addService(UserManagerInternal.class, mUserManagerInternal);
 
         // Needed to be able to use a real BMS instead of a mock
         setUpBinderCallerAndApplicationAsSystem(mApplication);

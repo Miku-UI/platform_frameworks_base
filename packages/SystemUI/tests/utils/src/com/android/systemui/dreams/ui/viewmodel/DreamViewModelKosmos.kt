@@ -26,6 +26,8 @@ import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInterac
 import com.android.systemui.keyguard.ui.viewmodel.dreamingToGlanceableHubTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.dreamingToLockscreenTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.glanceableHubToDreamingTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.goneToDreamingTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.lockscreenToDreamingTransitionViewModel
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.settings.userTracker
 
@@ -38,6 +40,8 @@ val Kosmos.dreamViewModel by
             keyguardTransitionInteractor = keyguardTransitionInteractor,
             fromGlanceableHubTransitionViewModel = glanceableHubToDreamingTransitionViewModel,
             toGlanceableHubTransitionViewModel = dreamingToGlanceableHubTransitionViewModel,
+            fromLockscreenTransitionViewModel = lockscreenToDreamingTransitionViewModel,
+            fromGoneTransitionViewModel = goneToDreamingTransitionViewModel,
             toLockscreenTransitionViewModel = dreamingToLockscreenTransitionViewModel,
             fromDreamingTransitionInteractor = fromDreamingTransitionInteractor,
             keyguardUpdateMonitor = keyguardUpdateMonitor,

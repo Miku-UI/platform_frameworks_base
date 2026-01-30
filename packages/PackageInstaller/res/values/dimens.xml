@@ -42,15 +42,26 @@
     <dimen name="wear_permission_review_pref_padding">8dp</dimen>
     <dimen name="wear_permission_review_icon_size">24dp</dimen>
 
-    <!-- Dialog title height -->
-    <dimen name="alert_dialog_title_height">64dip</dimen>
-    <!-- Dialog button bar height -->
-    <dimen name="alert_dialog_button_bar_height">48dip</dimen>
-    <!-- The amount to offset when scrolling to a selection in an AlertDialog -->
-    <dimen name="config_alertDialogSelectionScrollOffset">0dp</dimen>
-    <dimen name="dialog_padding_top_material">18dp</dimen>
-    <dimen name="dialog_title_divider_material">8dp</dimen>
-    <!-- Dialog padding minus control padding, used to fix alignment. -->
-    <dimen name="select_dialog_padding_start_material">20dp</dimen>
-    <dimen name="select_dialog_drawable_padding_start_material">20dp</dimen>
+    <dimen name="app_snippet_icon_dimen">40dp</dimen>
+    <dimen name="app_icon_margin">12dp</dimen>
+    <dimen name="lock_icon_dimen">32dp</dimen>
+    <dimen name="app_snippet_layout_vertical_margin">16dp</dimen>
+    <dimen name="app_label_padding">18dp</dimen>
+    <dimen name="dialog_inter_element_margin">16dp</dimen>
+    <dimen name="alert_dialog_inner_padding">24dp</dimen>
+    <dimen name="button_min_height">48dp</dimen>
+    <dimen name="dialog_inter_element_vertical_margin">12dp</dimen>
+    <dimen name="alert_dialog_radius">28dp</dimen>
+    <dimen name="alert_dialog_dim_amount">0.6</dimen>
+    <dimen name="indeterminate_progress_bar_padding">26dp</dimen>
+    <dimen name="progress_bar_margin_top">32dp</dimen>
+    <!-- 364dp for the portrait mode -->
+    <dimen name="alert_dialog_min_width_minor">96.5%</dimen>
+    <!-- Override the values for the buttonbar paddings in M3 MaterialAlertDialog -->
+    <dimen name="m3_alert_dialog_action_top_padding">4dp</dimen>
+    <dimen name="m3_alert_dialog_action_bottom_padding">20dp</dimen>
+
+    <dimen name="install_without_verifying_text_padding">16dp</dimen>
+    <dimen name="more_details_clickable_layout_vertical_margin">16dp</dimen>
+
 </resources>

@@ -33,7 +33,6 @@ import javax.inject.Inject
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.merge
@@ -78,12 +77,12 @@ constructor(
             .distinctUntilChanged()
 
     private val interactionHapticsState: Flow<TileHapticsState> =
-        combine(tileInteractionState, tileAnimationState) { interactionState, animationState ->
-                when {
-                    interactionState == TileInteractionState.LONG_CLICKED &&
-                        animationState == TileAnimationState.ACTIVITY_LAUNCH ->
-                        TileHapticsState.LONG_PRESS
-                    else -> TileHapticsState.NO_HAPTICS
+        tileInteractionState
+            .mapLatest {
+                if (it == TileInteractionState.LONG_CLICKED) {
+                    TileHapticsState.LONG_PRESS
+                } else {
+                    TileHapticsState.NO_HAPTICS
                 }
             }
             .distinctUntilChanged()

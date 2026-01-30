@@ -129,7 +129,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[1]
+        val expectedSecondaryLabel = null
         val expectedState =
             createUiNightModeTileState(
                 activationState = QSTileState.ActivationState.INACTIVE,
@@ -147,7 +147,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[2]
+        val expectedSecondaryLabel = null
         val expectedState =
             createUiNightModeTileState(
                 iconRes = R.drawable.qs_light_dark_theme_icon_on,
@@ -166,7 +166,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[2]
+        val expectedSecondaryLabel = null
         val expectedState =
             createUiNightModeTileState(
                 iconRes = R.drawable.qs_light_dark_theme_icon_on,
@@ -185,7 +185,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[1]
+        val expectedSecondaryLabel = null
         val expectedState =
             createUiNightModeTileState(
                 iconRes = R.drawable.qs_light_dark_theme_icon_off,
@@ -204,7 +204,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[2]
+        val expectedSecondaryLabel = null
         val expectedState =
             createUiNightModeTileState(
                 iconRes = R.drawable.qs_light_dark_theme_icon_on,
@@ -248,7 +248,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[1]
+        val expectedSecondaryLabel = null
         val expectedState =
             createUiNightModeTileState(
                 iconRes = R.drawable.qs_light_dark_theme_icon_off,
@@ -367,7 +367,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
 
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[2]
+        val expectedSecondaryLabel = null
 
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
         val expectedState =
@@ -390,7 +390,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
 
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[1]
+        val expectedSecondaryLabel = null
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
         val expectedState =
             createUiNightModeTileState(
@@ -417,7 +417,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
 
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[1]
+        val expectedSecondaryLabel = null
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
         val expectedState =
             createUiNightModeTileState(
@@ -444,7 +444,7 @@ class UiModeNightTileMapperTest : SysuiTestCase() {
 
         val actualState: QSTileState = mapper.map(qsTileConfig, inputModel)
 
-        val expectedSecondaryLabel = context.resources.getStringArray(R.array.tile_states_dark)[2]
+        val expectedSecondaryLabel = null
         val expectedLabel = context.getString(R.string.quick_settings_ui_mode_night_label)
         val expectedState =
             createUiNightModeTileState(

@@ -16,7 +16,6 @@
 
 package com.android.server.biometrics.sensors.face.aidl;
 
-import static android.adaptiveauth.Flags.FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_ERROR_CANCELED;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_START;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_TOO_DARK;
@@ -265,11 +264,11 @@ public class FaceAuthenticationClientTest {
     }
 
     @Test
-    public void cancelsAuthWhenNotInForeground() throws Exception {
+    public void cancelsAuthWhenNotInForegroundAndNotVisible() throws Exception {
         final ActivityManager.RunningTaskInfo topTask = new ActivityManager.RunningTaskInfo();
         topTask.topActivity = new ComponentName("other", "thing");
+        topTask.isVisible = false;
         when(mActivityTaskManager.getTasks(anyInt())).thenReturn(List.of(topTask));
-        when(mHal.authenticateWithContext(anyLong(), any())).thenReturn(mCancellationSignal);
 
         final FaceAuthenticationClient client = createClient();
         client.start(mCallback);
@@ -279,6 +278,40 @@ public class FaceAuthenticationClientTest {
         verify(mCancellationSignal, never()).cancel();
         verify(mClientMonitorCallbackConverter)
                 .onError(anyInt(), anyInt(), eq(BIOMETRIC_ERROR_CANCELED), anyInt());
+    }
+
+    @Test
+    public void successfulAuthWhenInForegroundAndNotVisible() throws Exception {
+        final ActivityManager.RunningTaskInfo topTask = new ActivityManager.RunningTaskInfo();
+        topTask.topActivity = new ComponentName("test-owner", "cls");
+        topTask.isVisible = false;
+        when(mActivityTaskManager.getTasks(anyInt())).thenReturn(List.of(topTask));
+
+        final FaceAuthenticationClient client = createClient();
+        client.start(mCallback);
+        client.onAuthenticated(new Face("friendly", 1 /* faceId */, 2 /* deviceId */),
+                true /* authenticated */, new ArrayList<>());
+
+        verify(mCallback).onClientFinished(client, true);
+    }
+
+    @Test
+    public void successfulAuthWhenNotInForegroundAndVisible() throws Exception {
+        final ActivityManager.RunningTaskInfo topTask = new ActivityManager.RunningTaskInfo();
+        topTask.topActivity = new ComponentName("other", "thing");
+        topTask.isVisible = false;
+        final ActivityManager.RunningTaskInfo currentTask = new ActivityManager.RunningTaskInfo();
+        currentTask.topActivity = new ComponentName("test-owner", "cls");
+        currentTask.isVisible = true;
+
+        when(mActivityTaskManager.getTasks(anyInt())).thenReturn(List.of(topTask, currentTask));
+
+        final FaceAuthenticationClient client = createClient();
+        client.start(mCallback);
+        client.onAuthenticated(new Face("friendly", 1 /* faceId */, 2 /* deviceId */),
+                true /* authenticated */, new ArrayList<>());
+
+        verify(mCallback).onClientFinished(client, true);
     }
 
     @Test
@@ -412,7 +445,6 @@ public class FaceAuthenticationClientTest {
     @Test
     public void testAuthenticationStateListeners_onAuthenticationSucceeded()
             throws RemoteException {
-        mSetFlagsRule.enableFlags(FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS);
         final FaceAuthenticationClient client = createClient();
         client.start(mCallback);
         client.onAuthenticated(new Face("friendly", 1 /* faceId */, 2 /* deviceId */),
@@ -430,7 +462,6 @@ public class FaceAuthenticationClientTest {
 
     @Test
     public void testAuthenticationStateListeners_onAuthenticationFailed() throws RemoteException {
-        mSetFlagsRule.enableFlags(FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS);
         final FaceAuthenticationClient client = createClient();
         client.start(mCallback);
         client.onAuthenticated(new Face("friendly", 1 /* faceId */, 2 /* deviceId */),

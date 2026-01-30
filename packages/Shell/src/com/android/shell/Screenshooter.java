@@ -22,9 +22,9 @@ import android.graphics.Bitmap;
 import android.os.RemoteException;
 import android.util.Log;
 import android.view.WindowManagerGlobal;
-import android.window.ScreenCapture;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
-import android.window.ScreenCapture.SynchronousScreenCaptureListener;
+import android.window.ScreenCaptureInternal;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
+import android.window.ScreenCaptureInternal.SynchronousScreenCaptureListener;
 
 /**
  * Helper class used to take screenshots.
@@ -45,7 +45,7 @@ final class Screenshooter {
         Log.d(TAG, "Taking fullscreen screenshot");
         // Take the screenshot
         final SynchronousScreenCaptureListener syncScreenCapture =
-                ScreenCapture.createSyncCaptureListener();
+                ScreenCaptureInternal.createSyncCaptureListener();
         try {
             WindowManagerGlobal.getWindowManagerService().captureDisplay(DEFAULT_DISPLAY, null,
                     syncScreenCapture);

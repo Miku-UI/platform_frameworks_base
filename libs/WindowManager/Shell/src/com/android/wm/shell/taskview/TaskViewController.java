@@ -86,7 +86,7 @@ public interface TaskViewController {
     /**
      * Attaches the given root task {@code taskInfo} in the task view.
      *
-     * <p> Since {@link ShellTaskOrganizer#createRootTask(int, int,
+     * <p> Since {@link ShellTaskOrganizer#createRootTask(CreateRootTaskRequest,
      * ShellTaskOrganizer.TaskListener)} does not use the shell transitions flow, this method is
      * used as an entry point for an already-created root-task in the task view.
      *
@@ -127,7 +127,4 @@ public interface TaskViewController {
      * @param boundsOnScreen the on screen bounds of the surface view.
      */
     void setTaskBounds(TaskViewTaskController taskView, Rect boundsOnScreen);
-
-    /** Whether shell-transitions are currently enabled. */
-    boolean isUsingShellTransitions();
 }

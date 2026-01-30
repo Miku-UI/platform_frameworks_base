@@ -196,7 +196,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
     /**
      * Test for the restoration from saved file.
      */
-    public void disabled_testInitializeFromSavedFile() {
+    public void testInitializeFromSavedFile() {
 
         mInjectedCurrentTimeMillis = START_TIME + 4 * INTERVAL + 50;
         assertResetTimes(START_TIME + 4 * INTERVAL, START_TIME + 5 * INTERVAL);
@@ -205,6 +205,9 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
 
         dumpBaseStateFile();
 
+        // We need to add the dirtyUserId manually since we have not done anything to modify
+        // user state.
+        mService.addDirtyUserId(USER_10);
         mService.saveDirtyInfo();
 
         // Restore.
@@ -822,7 +825,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
         assertEquals(1, mManager.getRemainingCallCount());
     }
 
-    public void disabled_testIcons() throws IOException {
+    public void testIcons() throws IOException {
         final Icon res32x32 = Icon.createWithResource(getTestContext(), R.drawable.black_32x32);
         final Icon res64x64 = Icon.createWithResource(getTestContext(), R.drawable.black_64x64);
         final Icon res512x512 = Icon.createWithResource(getTestContext(), R.drawable.black_512x512);
@@ -3919,7 +3922,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
     /**
      * Try save and load, also stop/start the user.
      */
-    public void disabled_testSaveAndLoadUser() {
+    public void testSaveAndLoadUser() {
         // First, create some shortcuts and save.
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             final Icon icon1 = Icon.createWithResource(getTestContext(), R.drawable.black_64x16);
@@ -4575,7 +4578,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
         });
     }
 
-    public void disabled_testHandleGonePackage_crossProfile() {
+    public void testHandleGonePackage_crossProfile() {
         // Create some shortcuts.
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(list(
@@ -4910,7 +4913,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
         checkCanRestoreTo(DISABLED_REASON_BACKUP_NOT_SUPPORTED, spi3, true, 10, true, "sig1");
     }
 
-    public void disabled_testHandlePackageDelete() {
+    public void testHandlePackageDelete() {
         checkHandlePackageDeleteInner((userId, packageName) -> {
             uninstallPackage(userId, packageName);
             mService.mPackageMonitor.onReceive(getTestContext(),
@@ -4918,7 +4921,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
         });
     }
 
-    public void disabled_testHandlePackageDisable() {
+    public void testHandlePackageDisable() {
         checkHandlePackageDeleteInner((userId, packageName) -> {
             disablePackage(userId, packageName);
             mService.mPackageMonitor.onReceive(getTestContext(),
@@ -5168,7 +5171,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
         });
     }
 
-    public void disabled_testHandlePackageUpdate() throws Throwable {
+    public void testHandlePackageUpdate() throws Throwable {
         // Set up shortcuts and launchers.
 
         final Icon res32x32 = Icon.createWithResource(getTestContext(), R.drawable.black_32x32);
@@ -5417,7 +5420,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
         });
     }
 
-    public void disabled_testHandlePackageUpdate_systemAppUpdate() {
+    public void testHandlePackageUpdate_systemAppUpdate() {
 
         // Package1 is a system app.  Package 2 is not a system app, so it's not scanned
         // in this test at all.
@@ -5444,7 +5447,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
 
         // Next.
         // Update the packages -- now they have 1 manifest shortcut.
-        // But checkPackageChanges() don't notice it, since their version code / timestamp haven't
+        // checkPackageChanges() should notice it, even if their version code / timestamp haven't
         // changed.
         addManifestShortcutResource(
                 new ComponentName(CALLING_PACKAGE_1, ShortcutActivity.class.getName()),
@@ -5457,15 +5460,15 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
 
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertWith(getCallerShortcuts())
-                    .isEmpty();
+                .haveIds("ms1");
         });
         runWithCaller(CALLING_PACKAGE_2, USER_10, () -> {
             assertWith(getCallerShortcuts())
-                    .isEmpty();
+                .haveIds("ms1");
         });
 
         // Next.
-        // Update the build finger print.  All apps will be scanned now.
+        // Update the build finger print.  All apps will be scanned now, no change in shortcuts.
         mInjectedBuildFingerprint = "update1";
         mInjectedCurrentTimeMillis += 1000;
         mService.checkPackageChanges(USER_10);
@@ -5490,14 +5493,14 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
         mInjectedCurrentTimeMillis += 1000;
         mService.checkPackageChanges(USER_10);
 
-        // Fingerprint hasn't changed, so there packages weren't scanned.
+        // Fingerprint hasn't changed, but packages should still be scanned
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertWith(getCallerShortcuts())
-                    .haveIds("ms1");
+                    .haveIds("ms1", "ms2");
         });
         runWithCaller(CALLING_PACKAGE_2, USER_10, () -> {
             assertWith(getCallerShortcuts())
-                    .haveIds("ms1");
+                    .haveIds("ms1", "ms2");
         });
 
         // Update the fingerprint.  CALLING_PACKAGE_1's version code hasn't changed, but we scan
@@ -6920,7 +6923,7 @@ public class ShortcutManagerTest1 extends BaseShortcutManagerTest {
     }
 
     public void disabled_testDumpsys_withIcons() throws IOException {
-        disabled_testIcons();
+        testIcons();
         // Dump after having some icons.
         dumpsysOnLogcat("test1", /* force= */ true);
     }

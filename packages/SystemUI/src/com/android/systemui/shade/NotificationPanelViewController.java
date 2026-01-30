@@ -21,6 +21,7 @@ import static android.view.View.VISIBLE;
 
 import static com.android.app.animation.Interpolators.EMPHASIZED_DECELERATE;
 import static com.android.systemui.Flags.msdlFeedback;
+import static com.android.systemui.Flags.notificationShadeBlur;
 import static com.android.systemui.Flags.predictiveBackAnimateShade;
 import static com.android.systemui.classifier.Classifier.BOUNCER_UNLOCK;
 import static com.android.systemui.classifier.Classifier.GENERIC;
@@ -97,6 +98,7 @@ import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.dagger.KeyguardStatusBarViewComponent;
 import com.android.systemui.DejankUtils;
 import com.android.systemui.Dumpable;
+import com.android.systemui.Flags;
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor;
 import com.android.systemui.classifier.Classifier;
@@ -125,6 +127,7 @@ import com.android.systemui.keyguard.ui.viewmodel.KeyguardTouchHandlingViewModel
 import com.android.systemui.media.controls.domain.pipeline.MediaDataManager;
 import com.android.systemui.media.controls.ui.controller.KeyguardMediaController;
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager;
+import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag;
 import com.android.systemui.model.StateChange;
 import com.android.systemui.model.SysUiState;
 import com.android.systemui.navigationbar.NavigationBarController;
@@ -199,11 +202,10 @@ import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.statusbar.policy.SplitShadeStateController;
 import com.android.systemui.tuner.TunerService;
 import com.android.systemui.unfold.SysUIUnfoldComponent;
-import com.android.systemui.util.Compile;
 import com.android.systemui.util.SystemUIBoostFramework;
 import com.android.systemui.util.Utils;
 import com.android.systemui.util.time.SystemClock;
-import com.android.systemui.wallpapers.ui.viewmodel.WallpaperFocalAreaViewModel;
+import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor;
 import com.android.wm.shell.animation.FlingAnimationUtils;
 
 import dalvik.annotation.optimization.NeverCompile;
@@ -216,7 +218,6 @@ import dagger.Lazy;
 import kotlin.Unit;
 
 import kotlinx.coroutines.CoroutineDispatcher;
-import kotlinx.coroutines.flow.Flow;
 import kotlinx.coroutines.flow.MutableStateFlow;
 import kotlinx.coroutines.flow.StateFlow;
 
@@ -235,7 +236,7 @@ public final class NotificationPanelViewController implements
         ShadeSurface, Dumpable, BrightnessMirrorShowingInteractor {
 
     public static final String TAG = NotificationPanelView.class.getSimpleName();
-    private static final boolean DEBUG_LOGCAT = Compile.IS_DEBUG && Log.isLoggable(TAG, Log.DEBUG);
+    private static final boolean DEBUG_LOGCAT = Log.isLoggable(TAG, Log.DEBUG);
     private static final boolean DEBUG_DRAWABLE = false;
     /** The parallax amount of the quick settings translation when dragging down the panel. */
     public static final float QS_PARALLAX_AMOUNT = 0.175f;
@@ -254,6 +255,10 @@ public final class NotificationPanelViewController implements
      */
     private static final int MAX_TIME_TO_OPEN_WHEN_FLINGING_FROM_LAUNCHER = 300;
     private static final int MAX_DOWN_EVENT_BUFFER_SIZE = 50;
+
+    private static final int PANEL_ALPHA_OUT_DURATION = notificationShadeBlur() ? 120 : 150;
+    private static final int PANEL_ALPHA_IN_DURATION = notificationShadeBlur() ? 140 : 200;
+
     private static final String COUNTER_PANEL_OPEN = "panel_open";
     public static final String COUNTER_PANEL_OPEN_QS = "panel_open_qs";
     private static final String COUNTER_PANEL_OPEN_PEEK = "panel_open_peek";
@@ -334,6 +339,7 @@ public final class NotificationPanelViewController implements
     private final QuickSettingsControllerImpl mQsController;
     private final TouchHandler mTouchHandler = new TouchHandler();
     private final BlurConfig mBlurConfig;
+    private final WindowRootViewBlurInteractor mWindowRootViewBlurInteractor;
 
     private long mDownTime;
     private long mStatusBarLongPressDowntime = -1L;
@@ -449,17 +455,19 @@ public final class NotificationPanelViewController implements
             R.id.panel_alpha_animator_tag, R.id.panel_alpha_animator_start_tag,
             R.id.panel_alpha_animator_end_tag);
     private final AnimationProperties mPanelAlphaOutPropertiesAnimator =
-            new AnimationProperties().setDuration(150).setCustomInterpolator(
+            new AnimationProperties().setDuration(PANEL_ALPHA_OUT_DURATION).setCustomInterpolator(
                     mPanelAlphaAnimator.getProperty(), Interpolators.ALPHA_OUT);
     private final AnimationProperties mPanelAlphaInPropertiesAnimator =
-            new AnimationProperties().setDuration(200).setAnimationEndAction((property) -> {
-                if (mPanelAlphaEndAction != null) {
-                    mPanelAlphaEndAction.run();
-                }
-                // Once the animation for the alpha has finished (NPV is visible again), dismiss
-                // the mirror
-                postToView(() -> mIsBrightnessMirrorShowing.setValue(false));
-            }).setCustomInterpolator(
+            new AnimationProperties().setDuration(PANEL_ALPHA_IN_DURATION).setAnimationEndAction(
+                    (property) -> {
+                        if (mPanelAlphaEndAction != null) {
+                            mPanelAlphaEndAction.run();
+                        }
+                        // Once the animation for the alpha has finished (NPV is visible again),
+                        // dismiss
+                        // the mirror
+                        postToView(() -> mIsBrightnessMirrorShowing.setValue(false));
+                    }).setCustomInterpolator(
                     mPanelAlphaAnimator.getProperty(), Interpolators.ALPHA_IN);
 
     private final CommandQueue mCommandQueue;
@@ -507,7 +515,6 @@ public final class NotificationPanelViewController implements
     private final NotificationListContainer mNotificationListContainer;
     private final NPVCDownEventState.Buffer mLastDownEvents;
     private final KeyguardClockInteractor mKeyguardClockInteractor;
-    private final WallpaperFocalAreaViewModel mWallpaperFocalAreaViewModel;
     private float mMinExpandHeight;
     private boolean mPanelUpdateWhenAnimatorEnds;
     private boolean mHasVibratedOnOpen = false;
@@ -641,8 +648,7 @@ public final class NotificationPanelViewController implements
             @Main CoroutineDispatcher mainDispatcher,
             KeyguardTransitionInteractor keyguardTransitionInteractor,
             DumpManager dumpManager,
-            KeyguardTouchHandlingViewModel keyguardTouchHandlingViewModel,
-            WallpaperFocalAreaViewModel wallpaperFocalAreaViewModel,
+            KeyguardTouchHandlingViewModel.Factory keyguardTouchHandlingViewModelFactory,
             KeyguardInteractor keyguardInteractor,
             ActivityStarter activityStarter,
             SharedNotificationContainerInteractor sharedNotificationContainerInteractor,
@@ -656,9 +662,11 @@ public final class NotificationPanelViewController implements
             BrightnessMirrorShowingRepository brightnessMirrorShowingRepository,
             BlurConfig blurConfig,
             Lazy<ShadeDisplaysRepository> shadeDisplaysRepository,
+            WindowRootViewBlurInteractor windowRootViewBlurInteractor,
             TunerService tunerService,
             Context context) {
         mBlurConfig = blurConfig;
+        mWindowRootViewBlurInteractor = windowRootViewBlurInteractor;
         SceneContainerFlag.assertInLegacyMode();
         keyguardStateController.addCallback(new KeyguardStateController.Callback() {
             @Override
@@ -756,7 +764,7 @@ public final class NotificationPanelViewController implements
         mWakeUpCoordinator = coordinator;
         mMainDispatcher = mainDispatcher;
         mAccessibilityManager = accessibilityManager;
-        mView.setAccessibilityPaneTitle(determineAccessibilityPaneTitle());
+        mView.getRootView().setAccessibilityPaneTitle(determineAccessibilityPaneTitle());
         setAlpha(255, false /* animate */);
         mCommandQueue = commandQueue;
         mDisplayId = displayId;
@@ -819,10 +827,9 @@ public final class NotificationPanelViewController implements
                 SysUIUnfoldComponent::getKeyguardUnfoldTransition);
 
         mKeyguardClockInteractor = keyguardClockInteractor;
-        mWallpaperFocalAreaViewModel = wallpaperFocalAreaViewModel;
         KeyguardTouchViewBinder.bind(
                 mView.requireViewById(R.id.keyguard_long_press),
-                keyguardTouchHandlingViewModel,
+                keyguardTouchHandlingViewModelFactory,
                 (x, y) -> {
                     onEmptySpaceClick(x, y);
                     return Unit.INSTANCE;
@@ -1011,7 +1018,15 @@ public final class NotificationPanelViewController implements
 
     private void handleBouncerShowingChanged(Boolean isBouncerShowing) {
         if (!com.android.systemui.Flags.bouncerUiRevamp()) return;
-        if (isBouncerShowing && isExpanded()) {
+        boolean statusBarStateIsNotKeyguard = mStatusBarStateController.getState() != KEYGUARD;
+        boolean qsExpanded = mShadeRepository.getLegacyIsQsExpanded().getValue();
+        boolean lockscreenShadeExpanded =
+                mShadeRepository.getLockscreenShadeExpansion().getValue() > 0;
+        boolean shouldBlurShade =
+                statusBarStateIsNotKeyguard || qsExpanded || lockscreenShadeExpanded;
+        debugLog("statusBarStateIsNotKeyguard=%s, qsExpanded=%s, lockscreenShadeExpanded=%s",
+                statusBarStateIsNotKeyguard, qsExpanded, lockscreenShadeExpanded);
+        if (isBouncerShowing && shouldBlurShade) {
             if (mBlurRenderEffect == null) {
                 mBlurRenderEffect = RenderEffect.createBlurEffect(
                         mBlurConfig.getMaxBlurRadiusPx(),
@@ -1019,9 +1034,12 @@ public final class NotificationPanelViewController implements
                         Shader.TileMode.CLAMP);
             }
             debugLog("Applying blur RenderEffect to shade.");
+            Trace.asyncTraceForTrackBegin(Trace.TRACE_TAG_APP, "ShadeBlurRenderEffect", "active",
+                    0);
             mView.setRenderEffect(mBlurRenderEffect);
         } else {
             debugLog("Resetting blur RenderEffect on shade.");
+            Trace.asyncTraceForTrackEnd(Trace.TRACE_TAG_APP, "ShadeBlurRenderEffect", 0);
             mView.setRenderEffect(null);
         }
     }
@@ -1037,8 +1055,10 @@ public final class NotificationPanelViewController implements
             mQsController.updateResources();
             mNotificationsQSContainerController.updateResources();
             updateKeyguardStatusViewAlignment();
-            mKeyguardMediaController.refreshMediaPosition(
-                    "NotificationPanelViewController.updateResources");
+            if (!SceneContainerFlag.isEnabled()) {
+                mKeyguardMediaController.refreshMediaPosition(
+                        "NotificationPanelViewController.updateResources");
+            }
 
             if (splitShadeChanged) {
                 if (isPanelVisibleBecauseOfHeadsUp()) {
@@ -1164,19 +1184,21 @@ public final class NotificationPanelViewController implements
     }
 
     private void updateClockAppearance() {
-        mKeyguardClockInteractor.setClockSize(computeDesiredClockSize());
-        updateKeyguardStatusViewAlignment();
+        postToView(() -> {
+            mKeyguardClockInteractor.setClockSize(computeDesiredClockSize());
+            updateKeyguardStatusViewAlignment();
 
-        float darkAmount =
-                mScreenOffAnimationController.shouldExpandNotifications()
-                        ? 1.0f : mInterpolatedDarkAmount;
+            float darkAmount =
+                    mScreenOffAnimationController.shouldExpandNotifications()
+                            ? 1.0f : mInterpolatedDarkAmount;
 
-        mClockPositionAlgorithm.setup(
-                darkAmount, mOverStretchAmount,
-                mKeyguardBypassController.getBypassEnabled(),
-                mQsController.getHeaderHeight(),
-                mSplitShadeEnabled);
-        mClockPositionAlgorithm.run(mClockPositionResult);
+            mClockPositionAlgorithm.setup(
+                    darkAmount, mOverStretchAmount,
+                    mKeyguardBypassController.getBypassEnabled(),
+                    mQsController.getHeaderHeight(),
+                    mSplitShadeEnabled);
+            mClockPositionAlgorithm.run(mClockPositionResult);
+        });
     }
 
     KeyguardClockPositionAlgorithm.Result getClockPositionResult() {
@@ -1200,7 +1222,7 @@ public final class NotificationPanelViewController implements
     private ClockSize computeDesiredClockSizeForSplitShade() {
         // Media is not visible to the user on AOD.
         boolean isMediaVisibleToUser =
-                mMediaDataManager.hasActiveMediaOrRecommendation() && !isOnAod();
+                mMediaDataManager.hasActiveMedia() && !isOnAod();
         if (isMediaVisibleToUser) {
             // When media is visible, it overlaps with the large clock. Use small clock instead.
             return ClockSize.SMALL;
@@ -1241,7 +1263,7 @@ public final class NotificationPanelViewController implements
 
     private boolean hasVisibleNotifications() {
         return mActiveNotificationsInteractor.getAreAnyNotificationsPresentValue()
-                || mMediaDataManager.hasActiveMediaOrRecommendation();
+                || mMediaDataManager.hasActiveMedia();
     }
 
     @Override
@@ -1354,6 +1376,11 @@ public final class NotificationPanelViewController implements
             mLockscreenShadeTransitionController.goToLockedShade(
                     /* expandedView= */null, /* needsQSAnimation= */true);
         } else if (isFullyCollapsed()) {
+            if (!SceneContainerFlag.isEnabled() && Flags.bouncerUiRevamp()) {
+                // Mark the bit that indicates that shade is going to expand when shade is opened
+                // through AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS
+                mWindowRootViewBlurInteractor.setTrackingShadeMotion(true);
+            }
             expand(true /* animate */);
         } else {
             mQsController.traceQsJank(true /* startTracing */, false /* wasCancelled */);
@@ -1369,6 +1396,11 @@ public final class NotificationPanelViewController implements
         if (mQsController.getExpanded()) {
             mQsController.flingQs(0, FLING_COLLAPSE);
         } else {
+            if (!SceneContainerFlag.isEnabled() && Flags.bouncerUiRevamp()) {
+                // Mark the bit that indicates that shade is going to expand when shade is opened
+                // through AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS
+                mWindowRootViewBlurInteractor.setTrackingShadeMotion(true);
+            }
             expand(true /* animate */);
         }
     }
@@ -1656,6 +1688,8 @@ public final class NotificationPanelViewController implements
                 } else {
                     expands = vel > 0;
                 }
+            } else {
+                mShadeLog.d("flingExpands: ignoring false touch");
             }
         }
 
@@ -1969,6 +2003,9 @@ public final class NotificationPanelViewController implements
     }
 
     private void onExpandingFinished() {
+        if (Flags.bouncerUiRevamp()) {
+            mWindowRootViewBlurInteractor.setTrackingShadeMotion(false);
+        }
         if (!SceneContainerFlag.isEnabled()) {
             mNotificationStackScrollLayoutController.onExpansionStopped();
         }
@@ -2254,11 +2291,16 @@ public final class NotificationPanelViewController implements
     }
 
     private void onClosingFinished() {
+        if (Flags.bouncerUiRevamp()) {
+            mWindowRootViewBlurInteractor.setTrackingShadeMotion(false);
+        }
         if (mOpenCloseListener != null) {
             mOpenCloseListener.onClosingFinished();
         }
         setClosingWithAlphaFadeout(false);
-        mMediaHierarchyManager.closeGuts();
+        if (!MediaControlsInComposeFlag.isEnabled()) {
+            mMediaHierarchyManager.closeGuts();
+        }
     }
 
     private void setClosingWithAlphaFadeout(boolean closing) {
@@ -2297,6 +2339,14 @@ public final class NotificationPanelViewController implements
     @Deprecated
     public void onStatusBarLongPress(MotionEvent event) {
         Log.i(TAG, "Status Bar was long pressed.");
+        if (mTouchDisabled) {
+            mShadeLog.d("Touch disabled. Long press expansion ignored.");
+            return;
+        }
+        if (mBarState == KEYGUARD) {
+            mShadeLog.d("Lockscreen Status Bar was long pressed. Expansion not supported.");
+            return;
+        }
         if (DISABLE_LONG_PRESS_EXPAND) {
             //TODO(b/394977231) delete this temporary workaround used only by tests
             Log.i(TAG, "Ignoring status Bar long press on virtualized test device.");
@@ -2313,14 +2363,8 @@ public final class NotificationPanelViewController implements
                 mShadeLog.d("Status Bar was long pressed. Expanding to QS.");
                 mQsController.flingQs(0, FLING_EXPAND);
             } else {
-                if (mBarState == KEYGUARD) {
-                    mShadeLog.d("Lockscreen Status Bar was long pressed. Expanding to Notifications.");
-                    mLockscreenShadeTransitionController.goToLockedShade(
-                            /* expandedView= */null, /* needsQSAnimation= */true);
-                } else {
-                    mShadeLog.d("Status Bar was long pressed. Expanding to Notifications.");
-                    expandToNotifications();
-                }
+                mShadeLog.d("Status Bar was long pressed. Expanding to Notifications.");
+                expandToNotifications();
             }
         }
     }
@@ -2587,99 +2631,90 @@ public final class NotificationPanelViewController implements
         IndentingPrintWriter ipw = asIndenting(pw);
         ipw.increaseIndent();
 
-        ipw.print("mDownTime="); ipw.println(mDownTime);
-        ipw.print("mTouchSlopExceededBeforeDown="); ipw.println(mTouchSlopExceededBeforeDown);
-        ipw.print("mIsLaunchAnimationRunning="); ipw.println(isLaunchingActivity());
-        ipw.print("mOverExpansion="); ipw.println(mOverExpansion);
-        ipw.print("mExpandedHeight="); ipw.println(mExpandedHeight);
-        ipw.print("isTracking()="); ipw.println(isTracking());
-        ipw.print("mExpanding="); ipw.println(mExpanding);
-        ipw.print("mSplitShadeEnabled="); ipw.println(mSplitShadeEnabled);
-        ipw.print("mAnimateNextPositionUpdate="); ipw.println(mAnimateNextPositionUpdate);
+        ipw.print("gestureExclusionRect="); ipw.println(calculateGestureExclusionRect());
+        ipw.print("isClosing()="); ipw.println(isClosing());
         ipw.print("isPanelExpanded()="); ipw.println(isPanelExpanded());
-        ipw.print("mDozing="); ipw.println(mDozing);
-        ipw.print("mDozingOnDown="); ipw.println(mDozingOnDown);
-        ipw.print("mBouncerShowing="); ipw.println(mBouncerShowing);
+        ipw.print("isTracking()="); ipw.println(isTracking());
+        ipw.print("mAllowExpandForSmallExpansion="); ipw.println(mAllowExpandForSmallExpansion);
+        ipw.print("mAnimateAfterExpanding="); ipw.println(mAnimateAfterExpanding);
+        ipw.print("mAnimateNextPositionUpdate="); ipw.println(mAnimateNextPositionUpdate);
+        ipw.print("mAnimatingOnDown="); ipw.println(mAnimatingOnDown);
         ipw.print("mBarState="); ipw.println(mBarState);
-        ipw.print("mStatusBarMinHeight="); ipw.println(mStatusBarMinHeight);
-        ipw.print("mStatusBarHeaderHeightKeyguard="); ipw.println(mStatusBarHeaderHeightKeyguard);
-        ipw.print("mOverStretchAmount="); ipw.println(mOverStretchAmount);
-        ipw.print("mDownX="); ipw.println(mDownX);
-        ipw.print("mDownY="); ipw.println(mDownY);
-        ipw.print("mDisplayTopInset="); ipw.println(mDisplayTopInset);
-        ipw.print("mDisplayRightInset="); ipw.println(mDisplayRightInset);
-        ipw.print("mDisplayLeftInset="); ipw.println(mDisplayLeftInset);
-        ipw.print("mIsExpandingOrCollapsing="); ipw.println(mIsExpandingOrCollapsing);
-        ipw.print("mHeadsUpStartHeight="); ipw.println(mHeadsUpStartHeight);
-        ipw.print("mListenForHeadsUp="); ipw.println(mListenForHeadsUp);
-        ipw.print("mNavigationBarBottomHeight="); ipw.println(mNavigationBarBottomHeight);
-        ipw.print("mExpandingFromHeadsUp="); ipw.println(mExpandingFromHeadsUp);
-        ipw.print("mCollapsedOnDown="); ipw.println(mCollapsedOnDown);
-        ipw.print("mClosingWithAlphaFadeOut="); ipw.println(mClosingWithAlphaFadeOut);
-        ipw.print("mHeadsUpAnimatingAway="); ipw.println(mHeadsUpAnimatingAway);
-        ipw.print("mShowIconsWhenExpanded="); ipw.println(mShowIconsWhenExpanded);
-        ipw.print("mIsFullWidth="); ipw.println(mIsFullWidth);
         ipw.print("mBlockingExpansionForCurrentTouch=");
         ipw.println(mBlockingExpansionForCurrentTouch);
+        ipw.print("mBouncerShowing="); ipw.println(mBouncerShowing);
+        ipw.print("mCollapsedAndHeadsUpOnDown="); ipw.println(mCollapsedAndHeadsUpOnDown);
+        ipw.print("mCollapsedOnDown="); ipw.println(mCollapsedOnDown);
+        ipw.print("mDisplayLeftInset="); ipw.println(mDisplayLeftInset);
+        ipw.print("mDisplayRightInset="); ipw.println(mDisplayRightInset);
+        ipw.print("mDisplayTopInset="); ipw.println(mDisplayTopInset);
+        ipw.print("mDownTime="); ipw.println(mDownTime);
+        ipw.print("mDownX="); ipw.println(mDownX);
+        ipw.print("mDownY="); ipw.println(mDownY);
+        ipw.print("mExpandLatencyTracking="); ipw.println(mExpandLatencyTracking);
+        ipw.print("mExpandedFraction="); ipw.println(mExpandedFraction);
+        ipw.print("mExpandedHeight="); ipw.println(mExpandedHeight);
+        ipw.print("mExpansionDragDownAmountPx="); ipw.println(mExpansionDragDownAmountPx);
+        ipw.print("mExpanding="); ipw.println(mExpanding);
+        ipw.print("mExpandingFromHeadsUp="); ipw.println(mExpandingFromHeadsUp);
         ipw.print("mExpectingSynthesizedDown="); ipw.println(mExpectingSynthesizedDown);
-        ipw.print("mLastEventSynthesizedDown="); ipw.println(mLastEventSynthesizedDown);
-        ipw.print("mInterpolatedDarkAmount="); ipw.println(mInterpolatedDarkAmount);
-        ipw.print("mLinearDarkAmount="); ipw.println(mLinearDarkAmount);
-        ipw.print("mPulsing="); ipw.println(mPulsing);
-        ipw.print("mStackScrollerMeasuringPass="); ipw.println(mStackScrollerMeasuringPass);
-        ipw.print("mPanelAlpha="); ipw.println(mPanelAlpha);
+        ipw.print("mFixedDuration="); ipw.println(mFixedDuration);
+        ipw.print("mGestureWaitForTouchSlop="); ipw.println(mGestureWaitForTouchSlop);
+        ipw.print("mHasLayoutedSinceDown="); ipw.println(mHasLayoutedSinceDown);
+        ipw.print("mHasVibratedOnOpen="); ipw.println(mHasVibratedOnOpen);
+        ipw.print("mHeadsUpAnimatingAway="); ipw.println(mHeadsUpAnimatingAway);
         ipw.print("mHeadsUpInset="); ipw.println(mHeadsUpInset);
         ipw.print("mHeadsUpPinnedMode="); ipw.println(mHeadsUpPinnedMode);
-        ipw.print("mAllowExpandForSmallExpansion="); ipw.println(mAllowExpandForSmallExpansion);
-        ipw.print("mMaxOverscrollAmountForPulse="); ipw.println(mMaxOverscrollAmountForPulse);
+        ipw.print("mHintDistance="); ipw.println(mHintDistance);
+        ipw.print("mIgnoreXTouchSlop="); ipw.println(mIgnoreXTouchSlop);
+        ipw.print("mInitialExpandX="); ipw.println(mInitialExpandX);
+        ipw.print("mInitialExpandY="); ipw.println(mInitialExpandY);
+        ipw.print("mInitialOffsetOnTouch="); ipw.println(mInitialOffsetOnTouch);
+        ipw.print("mInitialTouchFromKeyguard="); ipw.println(mInitialTouchFromKeyguard);
+        ipw.print("mInterpolatedDarkAmount="); ipw.println(mInterpolatedDarkAmount);
+        ipw.print("mIsExpandingOrCollapsing="); ipw.println(mIsExpandingOrCollapsing);
+        ipw.print("mIsFlinging="); ipw.println(mIsFlinging);
+        ipw.print("mIsFullWidth="); ipw.println(mIsFullWidth);
+        ipw.print("mIsLaunchAnimationRunning="); ipw.println(isLaunchingActivity());
         ipw.print("mIsPanelCollapseOnQQS="); ipw.println(mIsPanelCollapseOnQQS);
+        ipw.print("mIsSpringBackAnimation="); ipw.println(mIsSpringBackAnimation);
         ipw.print("mIsGestureNavigation="); ipw.println(mIsGestureNavigation);
-        ipw.print("mOldLayoutDirection="); ipw.println(mOldLayoutDirection);
+        ipw.print("mLastEventSynthesizedDown="); ipw.println(mLastEventSynthesizedDown);
+        ipw.print("mLastGesturedOverExpansion="); ipw.println(mLastGesturedOverExpansion);
+        ipw.print("mLinearDarkAmount="); ipw.println(mLinearDarkAmount);
+        ipw.print("mListenForHeadsUp="); ipw.println(mListenForHeadsUp);
         ipw.print("mMinFraction="); ipw.println(mMinFraction);
+        ipw.print("mNavigationBarBottomHeight="); ipw.println(mNavigationBarBottomHeight);
+        ipw.print("mMotionAborted="); ipw.println(mMotionAborted);
+        ipw.print("mOldLayoutDirection="); ipw.println(mOldLayoutDirection);
+        ipw.print("mOverExpansion="); ipw.println(mOverExpansion);
+        ipw.print("mOverStretchAmount="); ipw.println(mOverStretchAmount);
+        ipw.print("mPanelAlpha="); ipw.println(mPanelAlpha);
+        ipw.print("mPanelClosedOnDown="); ipw.println(mPanelClosedOnDown);
+        ipw.print("mPanelFlingOvershootAmount="); ipw.println(mPanelFlingOvershootAmount);
+        ipw.print("mPanelUpdateWhenAnimatorEnds="); ipw.println(mPanelUpdateWhenAnimatorEnds);
+        ipw.print("mPulsing="); ipw.println(mPulsing);
+        ipw.print("mShowIconsWhenExpanded="); ipw.println(mShowIconsWhenExpanded);
+        ipw.print("mSlopMultiplier="); ipw.println(mSlopMultiplier);
+        ipw.print("mStackScrollerMeasuringPass="); ipw.println(mStackScrollerMeasuringPass);
+        ipw.print("mStatusBarHeaderHeightKeyguard="); ipw.println(mStatusBarHeaderHeightKeyguard);
+        ipw.print("mStatusBarMinHeight="); ipw.println(mStatusBarMinHeight);
+        ipw.print("mTouchAboveFalsingThreshold="); ipw.println(mTouchAboveFalsingThreshold);
+        ipw.print("mTouchDisabled="); ipw.println(mTouchDisabled);
+        ipw.print("mTouchSlop="); ipw.println(mTouchSlop);
+        ipw.print("mTouchSlopExceededBeforeDown="); ipw.println(mTouchSlopExceededBeforeDown);
+        ipw.print("mTouchStartedInEmptyArea="); ipw.println(mTouchStartedInEmptyArea);
+        ipw.print("mTrackingPointer="); ipw.println(mTrackingPointer);
+        ipw.print("mUpdateFlingOnLayout="); ipw.println(mUpdateFlingOnLayout);
+        ipw.print("mUpdateFlingVelocity="); ipw.println(mUpdateFlingVelocity);
+        ipw.print("mUpwardsWhenThresholdReached="); ipw.println(mUpwardsWhenThresholdReached);
+        ipw.print("mUseExternalTouch="); ipw.println(mUseExternalTouch);
+        ipw.print("mViewName="); ipw.println(mViewName);
         ipw.print("mSplitShadeFullTransitionDistance=");
         ipw.println(mSplitShadeFullTransitionDistance);
         ipw.print("mSplitShadeScrimTransitionDistance=");
         ipw.println(mSplitShadeScrimTransitionDistance);
         ipw.print("mMinExpandHeight="); ipw.println(mMinExpandHeight);
-        ipw.print("mPanelUpdateWhenAnimatorEnds="); ipw.println(mPanelUpdateWhenAnimatorEnds);
-        ipw.print("mHasVibratedOnOpen="); ipw.println(mHasVibratedOnOpen);
-        ipw.print("mFixedDuration="); ipw.println(mFixedDuration);
-        ipw.print("mPanelFlingOvershootAmount="); ipw.println(mPanelFlingOvershootAmount);
-        ipw.print("mLastGesturedOverExpansion="); ipw.println(mLastGesturedOverExpansion);
-        ipw.print("mIsSpringBackAnimation="); ipw.println(mIsSpringBackAnimation);
-        ipw.print("mHintDistance="); ipw.println(mHintDistance);
-        ipw.print("mInitialOffsetOnTouch="); ipw.println(mInitialOffsetOnTouch);
-        ipw.print("mCollapsedAndHeadsUpOnDown="); ipw.println(mCollapsedAndHeadsUpOnDown);
-        ipw.print("mExpandedFraction="); ipw.println(mExpandedFraction);
-        ipw.print("mExpansionDragDownAmountPx="); ipw.println(mExpansionDragDownAmountPx);
-        ipw.print("mPanelClosedOnDown="); ipw.println(mPanelClosedOnDown);
-        ipw.print("mHasLayoutedSinceDown="); ipw.println(mHasLayoutedSinceDown);
-        ipw.print("mUpdateFlingVelocity="); ipw.println(mUpdateFlingVelocity);
-        ipw.print("mUpdateFlingOnLayout="); ipw.println(mUpdateFlingOnLayout);
-        ipw.print("isClosing()="); ipw.println(isClosing());
-        ipw.print("mTouchSlopExceeded="); ipw.println(mTouchSlopExceeded);
-        ipw.print("mTrackingPointer="); ipw.println(mTrackingPointer);
-        ipw.print("mTouchSlop="); ipw.println(mTouchSlop);
-        ipw.print("mSlopMultiplier="); ipw.println(mSlopMultiplier);
-        ipw.print("mTouchAboveFalsingThreshold="); ipw.println(mTouchAboveFalsingThreshold);
-        ipw.print("mTouchStartedInEmptyArea="); ipw.println(mTouchStartedInEmptyArea);
-        ipw.print("mMotionAborted="); ipw.println(mMotionAborted);
-        ipw.print("mUpwardsWhenThresholdReached="); ipw.println(mUpwardsWhenThresholdReached);
-        ipw.print("mAnimatingOnDown="); ipw.println(mAnimatingOnDown);
-        ipw.print("mHandlingPointerUp="); ipw.println(mHandlingPointerUp);
-        ipw.print("mInstantExpanding="); ipw.println(mInstantExpanding);
-        ipw.print("mAnimateAfterExpanding="); ipw.println(mAnimateAfterExpanding);
-        ipw.print("mIsFlinging="); ipw.println(mIsFlinging);
-        ipw.print("mViewName="); ipw.println(mViewName);
-        ipw.print("mInitialExpandY="); ipw.println(mInitialExpandY);
-        ipw.print("mInitialExpandX="); ipw.println(mInitialExpandX);
-        ipw.print("mTouchDisabled="); ipw.println(mTouchDisabled);
-        ipw.print("mInitialTouchFromKeyguard="); ipw.println(mInitialTouchFromKeyguard);
-        ipw.print("mNextCollapseSpeedUpFactor="); ipw.println(mNextCollapseSpeedUpFactor);
-        ipw.print("mGestureWaitForTouchSlop="); ipw.println(mGestureWaitForTouchSlop);
-        ipw.print("mIgnoreXTouchSlop="); ipw.println(mIgnoreXTouchSlop);
-        ipw.print("mExpandLatencyTracking="); ipw.println(mExpandLatencyTracking);
-        ipw.println("gestureExclusionRect:" + calculateGestureExclusionRect());
         Trace.beginSection("Table<DownEvents>");
         new DumpsysTableLogger(
                 TAG,
@@ -2895,6 +2930,9 @@ public final class NotificationPanelViewController implements
     /** Called when a MotionEvent is about to trigger Shade expansion. */
     private void startExpandMotion(float newX, float newY, boolean startTracking,
             float expandedHeight) {
+        if (Flags.bouncerUiRevamp()) {
+            mWindowRootViewBlurInteractor.setTrackingShadeMotion(true);
+        }
         if (!mHandlingPointerUp && !mStatusBarStateController.isDozing()) {
             mQsController.beginJankMonitoring(isFullyCollapsed());
         }
@@ -3160,11 +3198,6 @@ public final class NotificationPanelViewController implements
     }
 
     @Override
-    public Flow<Float> getLegacyPanelExpansion() {
-        return  mShadeRepository.getLegacyShadeExpansion();
-    }
-
-    @Override
     public boolean isFullyExpanded() {
         return mExpandedHeight >= getMaxPanelTransitionDistance();
     }
@@ -3273,17 +3306,22 @@ public final class NotificationPanelViewController implements
     @Override
     public void updateExpansionAndVisibility() {
         if (!SceneContainerFlag.isEnabled()) {
+            boolean isExpanded = isExpanded();
             mShadeExpansionStateManager.onPanelExpansionChanged(
-                    mExpandedFraction, isExpanded(), isTracking());
+                    mExpandedFraction, isExpanded, isTracking());
+            mQsController.setPanelExpanded(isExpandedWithoutHeadsUp());
         }
         updateVisibility();
     }
 
     @Override
     public boolean isExpanded() {
+        return isExpandedWithoutHeadsUp() || isPanelVisibleBecauseOfHeadsUp();
+    }
+
+    private boolean isExpandedWithoutHeadsUp() {
         return mExpandedFraction > 0f
                 || mInstantExpanding
-                || isPanelVisibleBecauseOfHeadsUp()
                 || isTracking()
                 || mHeightAnimator != null
                 || isPanelVisibleBecauseScrimIsAnimatingOff()
@@ -3406,7 +3444,7 @@ public final class NotificationPanelViewController implements
         }
 
         if (mAccessibilityManager.isEnabled()) {
-            mView.setAccessibilityPaneTitle(determineAccessibilityPaneTitle());
+            mView.getRootView().setAccessibilityPaneTitle(determineAccessibilityPaneTitle());
         }
 
         if (!mFalsingManager.isUnlockingDisabled() && qsFullyExpanded
@@ -3983,10 +4021,17 @@ public final class NotificationPanelViewController implements
         @Override
         public boolean onTouchEvent(MotionEvent event) {
             if (!mUseExternalTouch) {
-                return false;
+                if (isLockedShadeHomeGestureEvent(event)) {
+                    mShadeLog.d("onTouch: down motion event in home gesture area");
+                } else {
+                    mShadeLog.d("onTouch: external touch handling disabled");
+                    // Consume touches below notifications on keyguard to allow for expansion
+                    return mStatusBarStateController.getState() == StatusBarState.KEYGUARD;
+                }
             }
 
             if (mAlternateBouncerInteractor.isVisibleState()) {
+                mShadeLog.d("onTouch: alternate bouncer visible; ignoring touch");
                 // never send touches to shade if the alternate bouncer is showing
                 return false;
             }
@@ -4084,6 +4129,11 @@ public final class NotificationPanelViewController implements
             return !mDozing || handled;
         }
 
+        private boolean isLockedShadeHomeGestureEvent(MotionEvent event) {
+            return mBarState == SHADE_LOCKED && event.getActionMasked() == MotionEvent.ACTION_DOWN
+                    && isInGestureNavHomeHandleArea(event.getY());
+        }
+
         private boolean handleTouch(MotionEvent event) {
             if (mInstantExpanding) {
                 mShadeLog.logMotionEvent(event,
@@ -4132,8 +4182,7 @@ public final class NotificationPanelViewController implements
             }
 
             final boolean isTrackpadThreeFingerSwipe = isTrackpadThreeFingerSwipe(event);
-            if (com.android.systemui.Flags.disableShadeTrackpadTwoFingerSwipe()
-                    && !isTrackpadThreeFingerSwipe && isTwoFingerSwipeTrackpadEvent(event)
+            if (!isTrackpadThreeFingerSwipe && isTwoFingerSwipeTrackpadEvent(event)
                     && !isPanelExpanded()) {
                 if (isDown) {
                     mShadeLog.d("ignoring down event for two finger trackpad swipe");

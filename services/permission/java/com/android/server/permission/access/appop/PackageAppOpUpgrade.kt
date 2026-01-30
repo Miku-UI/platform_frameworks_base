@@ -32,14 +32,30 @@ class PackageAppOpUpgrade(private val policy: PackageAppOpPolicy) {
                     getAppOpMode(
                         packageState.packageName,
                         userId,
-                        AppOpsManager.OPSTR_RUN_IN_BACKGROUND
+                        AppOpsManager.OPSTR_RUN_IN_BACKGROUND,
                     )
                 setAppOpMode(
                     packageState.packageName,
                     userId,
                     AppOpsManager.OPSTR_RUN_ANY_IN_BACKGROUND,
-                    appOpMode
+                    appOpMode,
                 )
+            }
+        }
+        if (version <= 15) {
+            with(policy) {
+                val appOpModes = getAppOpModes(packageState.packageName, userId)
+                if (
+                    appOpModes != null &&
+                        AppOpsManager.OPSTR_ACCESS_RESTRICTED_SETTINGS !in appOpModes
+                ) {
+                    setAppOpMode(
+                        packageState.packageName,
+                        userId,
+                        AppOpsManager.OPSTR_ACCESS_RESTRICTED_SETTINGS,
+                        AppOpsManager.MODE_ALLOWED,
+                    )
+                }
             }
         }
     }

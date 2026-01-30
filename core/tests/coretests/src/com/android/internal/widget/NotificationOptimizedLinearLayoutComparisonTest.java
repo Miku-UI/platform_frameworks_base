@@ -23,16 +23,12 @@ import static android.view.ViewGroup.LayoutParams.WRAP_CONTENT;
 import static org.junit.Assert.assertEquals;
 
 import android.content.Context;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.Gravity;
 import android.view.View;
 import android.view.View.MeasureSpec;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.flags.Flags;
 
 import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -54,7 +50,6 @@ import java.util.List;
  */
 @LargeTest
 @RunWith(AndroidJUnit4.class)
-@EnableFlags(Flags.FLAG_NOTIF_LINEARLAYOUT_OPTIMIZED)
 @Presubmit
 public class NotificationOptimizedLinearLayoutComparisonTest {
 
@@ -75,8 +70,6 @@ public class NotificationOptimizedLinearLayoutComparisonTest {
     private static final int[] LAYOUT_PARAMS = {MATCH_PARENT, WRAP_CONTENT, 0, 50};
     private static final int[] CHILD_WEIGHTS = {0, 1};
     private static final int[] CHILD_MARGINS = {0, 10, -10};
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     private Context mContext;
 
@@ -340,7 +333,7 @@ public class NotificationOptimizedLinearLayoutComparisonTest {
     }
 
     private View buildChildView() {
-        final View childView = new TextView(mContext);
+        final View childView = new View(mContext);
         // this is initial value. We are going to mutate this layout params during the test.
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(MATCH_PARENT,
                 WRAP_CONTENT);

@@ -60,26 +60,29 @@ import java.util.concurrent.Executor;
  *
  * This class is hidden but public to allow CTS testing and verification
  * of the static methods and classes.
- *
  * @hide
  */
 @TestApi
-@SuppressLint({"UnflaggedApi", "StaticUtils"}) // Test API
+@SuppressLint({"StaticUtils"})
 public class Utils {
+
+    // Not instantiable.
+    private Utils() {}
+
     private static final String TAG = "Utils";
 
-    /** @hide
-     * The vibration uri key parameter
+    /**
+     * The vibration uri key parameter used to query its existence from the ringtone uri
+     * @hide
      */
     @TestApi
-    @SuppressLint("UnflaggedApi") // Test API
     public static final String VIBRATION_URI_PARAM = "vibration_uri";
 
-    /** @hide
-     * Indicates the synchronized vibration
+    /**
+     * The vibration uri path segment indicates the synchronized vibration
+     * @hide
      */
     @TestApi
-    @SuppressLint("UnflaggedApi") // Test API
     public static final String SYNCHRONIZED_VIBRATION = "synchronized";
 
     /**
@@ -393,7 +396,7 @@ public class Utils {
             outFile = FileUtils.buildUniqueFile(externalStorage, mimeType, fileName);
         } catch (FileNotFoundException e) {
             // This might also be reached if the number of repeated files gets too high
-            Log.e(TAG, "Unable to get a unique file name: " + e);
+            Log.e(TAG, "Unable to get a unique file name", e);
             return null;
         }
         return outFile;
@@ -750,7 +753,7 @@ public class Utils {
      *
      * @hide
      */
-    public static boolean hasVibration(Uri ringtoneUri) {
+    public static boolean hasVibrationParameter(@Nullable Uri ringtoneUri) {
         if (ringtoneUri == null) {
             return false;
         }
@@ -786,7 +789,6 @@ public class Utils {
      *
      * @hide
      */
-    @SuppressWarnings("FlaggedApi") // VibrationXmlParser is available internally as hidden APIs.
     public static VibrationEffect parseVibrationEffect(Vibrator vibrator, Uri vibrationUri) {
         if (vibrationUri == null) {
             Log.w(TAG, "The vibration Uri is null.");
@@ -806,7 +808,7 @@ public class Utils {
                                 new InputStreamReader(fileInputStream, StandardCharsets.UTF_8));
                 return parsedVibration.resolve(vibrator);
             } catch (IOException e) {
-                Log.e(TAG, "FileNotFoundException" + e);
+                Log.e(TAG, "IOException", e);
             }
         } else {
             // File not found or cannot be read

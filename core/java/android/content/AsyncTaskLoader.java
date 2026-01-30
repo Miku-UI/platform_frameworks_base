@@ -143,7 +143,7 @@ public abstract class AsyncTaskLoader<D> extends Loader<D> {
         this(context, AsyncTask.THREAD_POOL_EXECUTOR);
     }
 
-    /** {@hide} */
+    /** @hide */
     public AsyncTaskLoader(Context context, Executor executor) {
         super(context);
         mExecutor = executor;

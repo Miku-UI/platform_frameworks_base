@@ -61,6 +61,16 @@ public:
             JNIEnv* env, jobject *jAudioAttributes, const audio_attributes_t &attributes);
 
     /**
+     * @brief nativeToJava AudioAttributes.Builder Java object from a native AudioAttributes.
+     * @param env
+     * @param jAttributesBuilder JAVA AudioAttribute.Builder object
+     * @param attributes native AudioAttribute
+     * @return AUDIO_JAVA_SUCCESS on success, error code otherwise
+     */
+    static jint nativeToJavaBuilder(
+            JNIEnv* env, jobject jAttributesBuilder, const audio_attributes_t &attributes);
+
+    /**
      * @brief getJavaArray: creates an array of JAVA AudioAttributes objects
      * @param env
      * @param jAudioAttributeArray
@@ -69,6 +79,10 @@ public:
      */
     static jint getJavaArray(
             JNIEnv* env, jobjectArray *jAudioAttributeArray, jint numAudioAttributes);
+
+    static bool isInstanceOfAudioAttributes(JNIEnv *env, jobject object);
+
+    static bool isInstanceOfAudioAttributesBuilder(JNIEnv *env, jobject object);
 };
 
 }; // namespace android

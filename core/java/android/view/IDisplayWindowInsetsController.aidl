@@ -49,12 +49,12 @@ oneway interface IDisplayWindowInsetsController {
     /**
      * @see IWindow#showInsets
      */
-    void showInsets(int types, boolean fromIme, in @nullable ImeTracker.Token statsToken);
+    void showInsets(int types, in @nullable ImeTracker.Token statsToken);
 
     /**
      * @see IWindow#hideInsets
      */
-    void hideInsets(int types, boolean fromIme, in @nullable ImeTracker.Token statsToken);
+    void hideInsets(int types, in @nullable ImeTracker.Token statsToken);
 
     /**
      * Reports the requested IME visibility of the IME input target to

@@ -40,14 +40,11 @@ import com.android.systemui.statusbar.notification.FeedbackIcon
 import com.android.systemui.statusbar.notification.collection.EntryAdapter
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactory
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
-import com.android.systemui.statusbar.notification.collection.msgStyleBubbleableFullPerson
-import com.android.systemui.statusbar.notification.people.peopleNotificationIdentifier
+import com.android.systemui.statusbar.notification.collection.makeEntryOfPeopleType
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier
+import com.android.systemui.statusbar.notification.people.peopleNotificationIdentifier
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
-import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
 import junit.framework.Assert.assertEquals
 import junit.framework.Assert.assertFalse
 import junit.framework.Assert.assertTrue
@@ -55,16 +52,17 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito
-import org.mockito.Mockito.anyBoolean
-import org.mockito.Mockito.anyInt
-import org.mockito.Mockito.clearInvocations
-import org.mockito.Mockito.doReturn
-import org.mockito.Mockito.never
-import org.mockito.Mockito.spy
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations.initMocks
+import org.mockito.kotlin.any
+import org.mockito.kotlin.atLeastOnce
+import org.mockito.kotlin.clearInvocations
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.spy
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -88,14 +86,16 @@ class NotificationContentViewTest : SysuiTestCase() {
         initMocks(this)
         fakeParent =
             spy(FrameLayout(mContext, /* attrs= */ null)).also { it.visibility = View.GONE }
-        val entry = kosmos.msgStyleBubbleableFullPerson
-        val mockEntryAdapter = factory.create(entry)
+
+        val entry = kosmos.makeEntryOfPeopleType()
+        val entryAdapter = factory.create(entry)
+
         row =
             spy(
                 when (NotificationBundleUi.isEnabled) {
                     true -> {
                         ExpandableNotificationRow(mContext, /* attrs= */ null, UserHandle.CURRENT)
-                            .apply { entryAdapter = mockEntryAdapter }
+                            .apply { this.entryAdapter = entryAdapter }
                     }
                     false -> {
                         ExpandableNotificationRow(mContext, /* attrs= */ null, entry).apply {
@@ -125,7 +125,7 @@ class NotificationContentViewTest : SysuiTestCase() {
         assertEquals(view.contractedWrapper, view.visibleWrapper)
         // AND the contractedWrapper is visible, but NOT shown
         verify(view.contractedWrapper).setVisible(true)
-        verify(view.contractedWrapper, never()).onContentShown(anyBoolean())
+        verify(view.contractedWrapper, never()).onContentShown(any())
     }
 
     @Test
@@ -139,7 +139,7 @@ class NotificationContentViewTest : SysuiTestCase() {
         // THEN the contractedWrapper is set
         assertEquals(view.contractedWrapper, view.visibleWrapper)
         // AND the contractedWrapper is visible and shown
-        verify(view.contractedWrapper, Mockito.atLeastOnce()).setVisible(true)
+        verify(view.contractedWrapper, atLeastOnce()).setVisible(true)
         verify(view.contractedWrapper, times(1)).onContentShown(true)
     }
 
@@ -188,8 +188,8 @@ class NotificationContentViewTest : SysuiTestCase() {
         // THEN the contractedWrapper is set
         assertEquals(view.expandedWrapper, view.visibleWrapper)
         // AND the contractedWrapper is visible, but NOT shown
-        verify(view.expandedWrapper, Mockito.atLeastOnce()).setVisible(true)
-        verify(view.expandedWrapper, never()).onContentShown(anyBoolean())
+        verify(view.expandedWrapper, atLeastOnce()).setVisible(true)
+        verify(view.expandedWrapper, never()).onContentShown(any())
     }
 
     @Test
@@ -203,7 +203,7 @@ class NotificationContentViewTest : SysuiTestCase() {
         // THEN the expandedWrapper is set
         assertEquals(view.expandedWrapper, view.visibleWrapper)
         // AND the expandedWrapper is visible and shown
-        verify(view.expandedWrapper, Mockito.atLeastOnce()).setVisible(true)
+        verify(view.expandedWrapper, atLeastOnce()).setVisible(true)
         verify(view.expandedWrapper, times(1)).onContentShown(true)
     }
 
@@ -406,7 +406,7 @@ class NotificationContentViewTest : SysuiTestCase() {
     fun setExpandedChild_notShowBubbleButton_marginTargetBottomMarginShouldNotChange() {
         // Given: bottom margin of actionListMarginTarget is notificationContentMargin
         // Bubble button should not be shown for the given NotificationEntry
-        val mockNotificationEntry = kosmos.msgStyleBubbleableFullPerson
+        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
         val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
         val actionListMarginTarget =
             spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
@@ -434,7 +434,7 @@ class NotificationContentViewTest : SysuiTestCase() {
     fun setExpandedChild_showBubbleButton_marginTargetBottomMarginShouldChangeToZero() {
         // Given: bottom margin of actionListMarginTarget is notificationContentMargin
         // Bubble button should be shown for the given NotificationEntry
-        val mockNotificationEntry = kosmos.msgStyleBubbleableFullPerson
+        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
         val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
         val actionListMarginTarget =
             spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
@@ -463,7 +463,7 @@ class NotificationContentViewTest : SysuiTestCase() {
     @DisableFlags(android.app.Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
     fun onNotificationUpdated_notShowBubbleButton_marginTargetBottomMarginShouldNotChange() {
         // Given: bottom margin of actionListMarginTarget is notificationContentMargin
-        val mockNotificationEntry = kosmos.msgStyleBubbleableFullPerson
+        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
         val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
         val actionListMarginTarget =
             spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
@@ -482,7 +482,11 @@ class NotificationContentViewTest : SysuiTestCase() {
 
         // When: call NotificationContentView.onNotificationUpdated() to update the
         // NotificationEntry, which should not show bubble button
-        view.onNotificationUpdated(kosmos.msgStyleBubbleableFullPerson)
+        if (NotificationBundleUi.isEnabled) {
+            view.onNotificationUpdated(null)
+        } else {
+            view.onNotificationUpdated(mockNotificationEntry)
+        }
 
         // Then: bottom margin of actionListMarginTarget should not change, still be 20
         assertEquals(notificationContentMargin, getMarginBottom(actionListMarginTarget))
@@ -492,7 +496,7 @@ class NotificationContentViewTest : SysuiTestCase() {
     @DisableFlags(android.app.Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
     fun onNotificationUpdated_showBubbleButton_marginTargetBottomMarginShouldChangeToZero() {
         // Given: bottom margin of actionListMarginTarget is notificationContentMargin
-        val mockNotificationEntry = kosmos.msgStyleBubbleableFullPerson
+        val mockNotificationEntry = kosmos.makeEntryOfPeopleType()
         val mockContainingNotification = createMockContainingNotification(mockNotificationEntry)
         val actionListMarginTarget =
             spy(createLinearLayoutWithBottomMargin(notificationContentMargin))
@@ -510,7 +514,11 @@ class NotificationContentViewTest : SysuiTestCase() {
 
         // When: call NotificationContentView.onNotificationUpdated() to update the
         // NotificationEntry, which should show bubble button
-        view.onNotificationUpdated(kosmos.msgStyleBubbleableFullPerson)
+        if (NotificationBundleUi.isEnabled) {
+            view.onNotificationUpdated(null)
+        } else {
+            view.onNotificationUpdated(mockNotificationEntry)
+        }
 
         // Then: no bubble yet
         assertEquals(notificationContentMargin, getMarginBottom(actionListMarginTarget))
@@ -594,7 +602,7 @@ class NotificationContentViewTest : SysuiTestCase() {
         view.notifySubtreeAccessibilityStateChanged(view.contractedChild, view.contractedChild, 0)
 
         // Then: the contentView propagates the event to its parent
-        verify(fakeParent).notifySubtreeAccessibilityStateChanged(any(), any(), anyInt())
+        verify(fakeParent).notifySubtreeAccessibilityStateChanged(any(), any(), any())
     }
 
     @Test
@@ -610,7 +618,7 @@ class NotificationContentViewTest : SysuiTestCase() {
         view.notifySubtreeAccessibilityStateChanged(view.contractedChild, view.contractedChild, 0)
 
         // Then: the contentView DOESN'T propagates the event to its parent
-        verify(fakeParent, never()).notifySubtreeAccessibilityStateChanged(any(), any(), anyInt())
+        verify(fakeParent, never()).notifySubtreeAccessibilityStateChanged(any(), any(), any())
     }
 
     private fun createMockContainingNotification(notificationEntry: NotificationEntry) =
@@ -634,8 +642,7 @@ class NotificationContentViewTest : SysuiTestCase() {
             whenever(sbnMock.user).thenReturn(userMock)
         }
 
-    private fun createMockNotificationEntryAdapter() =
-        mock<EntryAdapter>()
+    private fun createMockNotificationEntryAdapter() = mock<EntryAdapter>()
 
     private fun createLinearLayoutWithBottomMargin(bottomMargin: Int): LinearLayout {
         val outerLayout = LinearLayout(mContext)
@@ -649,7 +656,10 @@ class NotificationContentViewTest : SysuiTestCase() {
     private fun createMockExpandedChild() =
         spy(createViewWithHeight(expandedHeight)).apply {
             whenever(this.findViewById<ImageView>(R.id.bubble_button)).thenReturn(mock())
-            whenever(this.findViewById<View>(R.id.actions_container)).thenReturn(mock())
+            val value =
+                whenever(this.findViewById<FrameLayout>(R.id.actions_container)).thenReturn(mock())
+            whenever(this.findViewById<LinearLayout>(R.id.actions_container_layout))
+                .thenReturn(mock())
             whenever(this.context).thenReturn(mContext)
 
             val resourcesMock: Resources = mock()
@@ -697,6 +707,13 @@ class NotificationContentViewTest : SysuiTestCase() {
             .also { contentView ->
                 fakeParent.addView(contentView)
                 contentView.mockRequestLayout()
+                contentView.onNotificationUpdated(
+                    if (NotificationBundleUi.isEnabled) {
+                        null
+                    } else {
+                        row.entryLegacy
+                    }
+                )
             }
     }
 

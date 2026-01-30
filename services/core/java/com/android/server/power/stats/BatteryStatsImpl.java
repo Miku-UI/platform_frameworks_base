@@ -51,7 +51,6 @@ import android.os.BatteryManager;
 import android.os.BatteryStats;
 import android.os.BatteryUsageStats;
 import android.os.BatteryUsageStatsQuery;
-import android.os.Binder;
 import android.os.BluetoothBatteryStats;
 import android.os.Build;
 import android.os.ConditionVariable;
@@ -93,7 +92,6 @@ import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.ArrayMap;
-import android.util.ArraySet;
 import android.util.AtomicFile;
 import android.util.IndentingPrintWriter;
 import android.util.KeyValueListParser;
@@ -106,7 +104,6 @@ import android.util.Printer;
 import android.util.Slog;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
-import android.util.SparseDoubleArray;
 import android.util.SparseIntArray;
 import android.util.SparseLongArray;
 import android.util.TimeUtils;
@@ -115,11 +112,8 @@ import android.view.Display;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.os.BackgroundThread;
 import com.android.internal.os.BatteryStatsHistory;
 import com.android.internal.os.BatteryStatsHistoryIterator;
-import com.android.internal.os.BinderCallsStats;
-import com.android.internal.os.BinderTransactionNameResolver;
 import com.android.internal.os.Clock;
 import com.android.internal.os.CpuScalingPolicies;
 import com.android.internal.os.KernelCpuSpeedReader;
@@ -136,17 +130,13 @@ import com.android.internal.os.PowerProfile;
 import com.android.internal.os.PowerStats;
 import com.android.internal.os.RailStats;
 import com.android.internal.os.RpmStats;
-import com.android.internal.power.EnergyConsumerStats;
-import com.android.internal.power.EnergyConsumerStats.StandardPowerBucket;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
 import com.android.server.LocalServices;
-import com.android.server.power.feature.PowerManagerFlags;
 import com.android.server.power.optimization.Flags;
-import com.android.server.power.stats.SystemServerCpuThreadReader.SystemServiceCpuThreadTimes;
 import com.android.server.power.stats.format.MobileRadioPowerStatsLayout;
 
 import libcore.util.EmptyArray;
@@ -174,6 +164,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -191,7 +182,6 @@ public class BatteryStatsImpl extends BatteryStats {
     private static final boolean DEBUG = false;
     public static final boolean DEBUG_ENERGY = false;
     private static final boolean DEBUG_ENERGY_CPU = DEBUG_ENERGY;
-    private static final boolean DEBUG_BINDER_STATS = false;
     private static final boolean DEBUG_MEMORY = false;
 
     private static final String HISTORY_DIR = "battery-history";
@@ -199,8 +189,7 @@ public class BatteryStatsImpl extends BatteryStats {
     // TODO: remove "tcp" from network methods, since we measure total stats.
 
     // Current on-disk Parcel version. Must be updated when the format of the parcelable changes
-    public static final int VERSION =
-            !Flags.disableSystemServicePowerAttr() ? 214 : 215;
+    public static final int VERSION = 216;
 
     // The maximum number of names wakelocks we will keep track of
     // per uid; once the limit is reached, we batch the remaining wakelocks
@@ -296,12 +285,9 @@ public class BatteryStatsImpl extends BatteryStats {
     protected KernelCpuUidClusterTimeReader mCpuUidClusterTimeReader;
     @VisibleForTesting
     protected KernelSingleUidTimeReader mKernelSingleUidTimeReader;
-    @VisibleForTesting
-    protected SystemServerCpuThreadReader mSystemServerCpuThreadReader;
 
     private KernelMemoryBandwidthStats mKernelMemoryBandwidthStats;
     private final LongSparseArray<SamplingTimer> mKernelMemoryStats = new LongSparseArray<>();
-    private int[] mCpuPowerBracketMap;
     private final CpuPowerStatsCollector mCpuPowerStatsCollector;
     private final WakelockPowerStatsCollector mWakelockPowerStatsCollector;
     private final ScreenPowerStatsCollector mScreenPowerStatsCollector;
@@ -358,7 +344,7 @@ public class BatteryStatsImpl extends BatteryStats {
             return mChargeTimeRemainingMs;
         }
 
-        double getEstimatedBatteryCapacity() {
+        long getEstimatedBatteryCapacity() {
             return mEstimatedBatteryCapacityMah;
         }
 
@@ -533,13 +519,6 @@ public class BatteryStatsImpl extends BatteryStats {
         return mKernelMemoryStats;
     }
 
-    private static final int[] SUPPORTED_PER_PROCESS_STATE_STANDARD_ENERGY_BUCKETS = {
-            EnergyConsumerStats.POWER_BUCKET_CPU,
-            EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO,
-            EnergyConsumerStats.POWER_BUCKET_WIFI,
-            EnergyConsumerStats.POWER_BUCKET_BLUETOOTH,
-    };
-
     // TimeInState counters need NUM_PROCESS_STATE states in order to accommodate
     // Uid.PROCESS_STATE_NONEXISTENT, which is outside the range of legitimate proc states.
     private static final int PROC_STATE_TIME_COUNTER_STATE_COUNT = NUM_PROCESS_STATE + 1;
@@ -595,9 +574,8 @@ public class BatteryStatsImpl extends BatteryStats {
      * Batterystats shall remove UIDs, and a delay {@link Constants#UID_REMOVE_DELAY_MS} is
      * implemented so that STATSD can capture those UID times before they are deleted.
      */
-    @GuardedBy("this")
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-    protected Queue<UidToRemove> mPendingRemovedUids = new LinkedList<>();
+    protected final Queue<UidToRemove> mPendingRemovedUids;
 
     @NonNull
     public BatteryStatsHistory getHistory() {
@@ -637,8 +615,7 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
-    private boolean mSaveBatteryUsageStatsOnReset;
-    private boolean mResetBatteryHistoryOnNewSession;
+    private boolean mSaveBatteryUsageStatsOnNewSession;
     private boolean mAccumulateBatteryUsageStats;
     private BatteryUsageStatsProvider mBatteryUsageStatsProvider;
     private PowerStatsStore mPowerStatsStore;
@@ -685,6 +662,7 @@ public class BatteryStatsImpl extends BatteryStats {
         private final Long mDefaultPowerStatsThrottlePeriod;
         private final Map<String, Long> mPowerStatsThrottlePeriods;
         private final int mMaxHistorySizeBytes;
+        private final int mHighBatteryLevelAfterCharge;
 
         private BatteryStatsConfig(Builder builder) {
             int flags = 0;
@@ -698,6 +676,7 @@ public class BatteryStatsImpl extends BatteryStats {
             mDefaultPowerStatsThrottlePeriod = builder.mDefaultPowerStatsThrottlePeriod;
             mPowerStatsThrottlePeriods = builder.mPowerStatsThrottlePeriods;
             mMaxHistorySizeBytes = builder.mMaxHistorySizeBytes;
+            mHighBatteryLevelAfterCharge = builder.mHighBatteryLevelAfterCharge;
         }
 
         /**
@@ -707,6 +686,13 @@ public class BatteryStatsImpl extends BatteryStats {
         public boolean shouldResetOnUnplugHighBatteryLevel() {
             return (mFlags & RESET_ON_UNPLUG_HIGH_BATTERY_LEVEL_FLAG)
                     == RESET_ON_UNPLUG_HIGH_BATTERY_LEVEL_FLAG;
+        }
+
+        /** Returns battery level (as percent of battery) to consider as "high enough" to trigger
+         *  a battery session reset.
+         *  Only has an effect if {@link #shouldResetOnUnplugHighBatteryLevel} is true */
+        public int getHighBatteryLevelAfterCharge() {
+            return mHighBatteryLevelAfterCharge;
         }
 
         /**
@@ -735,16 +721,19 @@ public class BatteryStatsImpl extends BatteryStats {
          * Builder for BatteryStatsConfig
          */
         public static class Builder {
-            private boolean mResetOnUnplugHighBatteryLevel;
-            private boolean mResetOnUnplugAfterSignificantCharge;
             private static final long DEFAULT_POWER_STATS_THROTTLE_PERIOD =
                     TimeUnit.HOURS.toMillis(1);
             private static final long DEFAULT_POWER_STATS_THROTTLE_PERIOD_CPU =
                     TimeUnit.MINUTES.toMillis(1);
             private static final int DEFAULT_MAX_HISTORY_SIZE = 4 * 1024 * 1024;
+            private static final int DEFAULT_HIGH_BATTERY_LEVEL_AFTER_CHARGE = 90;
+
+            private boolean mResetOnUnplugHighBatteryLevel;
+            private boolean mResetOnUnplugAfterSignificantCharge;
             private long mDefaultPowerStatsThrottlePeriod = DEFAULT_POWER_STATS_THROTTLE_PERIOD;
             private final Map<String, Long> mPowerStatsThrottlePeriods = new HashMap<>();
             private int mMaxHistorySizeBytes = DEFAULT_MAX_HISTORY_SIZE;
+            private int mHighBatteryLevelAfterCharge = DEFAULT_HIGH_BATTERY_LEVEL_AFTER_CHARGE;
 
             public Builder() {
                 mResetOnUnplugHighBatteryLevel = true;
@@ -804,6 +793,13 @@ public class BatteryStatsImpl extends BatteryStats {
              */
             public Builder setMaxHistorySizeBytes(int maxHistorySizeBytes) {
                 mMaxHistorySizeBytes = maxHistorySizeBytes;
+                return this;
+            }
+
+            /** Sets battery level (as percent of battery) to consider as "high enough" to
+             * trigger a battery session reset.*/
+            public Builder setHighBatteryLevelAfterCharge(int highBatteryLevelAfterCharge) {
+                mHighBatteryLevelAfterCharge = highBatteryLevelAfterCharge;
                 return this;
             }
         }
@@ -1125,8 +1121,7 @@ public class BatteryStatsImpl extends BatteryStats {
     private boolean mShuttingDown;
 
     private final HistoryEventTracker mActiveEvents = new HistoryEventTracker();
-    private final BatteryHistoryStepDetailsProvider mStepDetailsProvider =
-            new BatteryHistoryStepDetailsProvider(this);
+    private final BatteryHistoryStepDetailsProvider mStepDetailsProvider;
 
     private boolean mHaveBatteryLevel = false;
     private boolean mBatteryPluggedIn;
@@ -1217,15 +1212,14 @@ public class BatteryStatsImpl extends BatteryStats {
          */
         public int screenBrightnessBin = -1;
         /**
+         * Per display screen brightness.
+         */
+        public int screenBrightness = -1;
+        /**
          * Per display screen brightness timers.
          */
         public StopwatchTimer[] screenBrightnessTimers =
                 new StopwatchTimer[NUM_SCREEN_BRIGHTNESS_BINS];
-        /**
-         * Per display screen state the last time {@link #updateDisplayEnergyConsumerStatsLocked}
-         * was called.
-         */
-        public int screenStateAtLastEnergyMeasurement = Display.STATE_UNKNOWN;
 
         DisplayBatteryStats(Clock clock, TimeBase timeBase) {
             screenOnTimer = new StopwatchTimer(clock, null, -1, null,
@@ -1724,31 +1718,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
     int mWifiRadioPowerState = DataConnectionRealTimeInfo.DC_POWER_STATE_LOW;
 
-    @GuardedBy("this")
-    @VisibleForTesting
-    protected @Nullable EnergyConsumerStats.Config mEnergyConsumerStatsConfig;
-
-    /**
-     * Accumulated global (generally, device-wide total) charge consumption of various consumers
-     * while on battery.
-     * Its '<b>custom</b> power buckets' correspond to the
-     * {@link android.hardware.power.stats.EnergyConsumer.ordinal}s of (custom) energy consumer
-     * type {@link android.hardware.power.stats.EnergyConsumerType#OTHER}).
-     *
-     * If energy consumer data is completely unavailable this will be null.
-     */
-    @GuardedBy("this")
-    @VisibleForTesting
-    @Nullable
-    protected EnergyConsumerStats mGlobalEnergyConsumerStats;
-    /** Bluetooth Power calculator for attributing bluetooth EnergyConsumer to uids */
-    @Nullable BluetoothPowerCalculator mBluetoothPowerCalculator = null;
-    /** Cpu Power calculator for attributing cpu EnergyConsumer to uids */
-    @Nullable CpuPowerCalculator mCpuPowerCalculator = null;
-    /** Mobile Radio Power calculator for attributing radio EnergyConsumer to uids */
-    @Nullable MobileRadioPowerCalculator mMobileRadioPowerCalculator = null;
-    /** Wifi Power calculator for attributing wifi EnergyConsumer to uids */
-    @Nullable WifiPowerCalculator mWifiPowerCalculator = null;
+    private @NonNull String[] mCustomEnergyConsumerNames = new String[0];
 
     /**
      * These provide time bases that discount the time the device is plugged
@@ -1821,6 +1791,7 @@ public class BatteryStatsImpl extends BatteryStats {
     private int mNumConnectivityChange;
 
     private int mEstimatedBatteryCapacityMah = -1;
+    private int mReportedBatteryCapacityMah = -1;
 
     private int mLastLearnedBatteryCapacityUah = -1;
     private int mMinLearnedBatteryCapacityUah = -1;
@@ -1829,11 +1800,6 @@ public class BatteryStatsImpl extends BatteryStats {
     private long mBatteryTimeToFullSeconds = -1;
 
     private long[] mTmpCpuTimeInFreq;
-
-    /**
-     * Times spent by the system server threads handling incoming binder requests.
-     */
-    private LongSamplingCounterArray mBinderThreadCpuTimesUs;
 
     private final PowerProfile mPowerProfile;
 
@@ -2153,9 +2119,6 @@ public class BatteryStatsImpl extends BatteryStats {
         mCpuUidActiveTimeReader = new KernelCpuUidActiveTimeReader(true, mClock);
         mCpuUidClusterTimeReader = new KernelCpuUidClusterTimeReader(true, mClock);
         mKernelWakelockReader = new KernelWakelockReader();
-        if (!Flags.disableSystemServicePowerAttr()) {
-            mSystemServerCpuThreadReader = SystemServerCpuThreadReader.create();
-        }
         mKernelMemoryBandwidthStats = new KernelMemoryBandwidthStats();
         mTmpRailStats = new RailStats();
     }
@@ -2165,7 +2128,6 @@ public class BatteryStatsImpl extends BatteryStats {
             WifiPowerStatsCollector.Injector, BluetoothPowerStatsCollector.Injector,
             EnergyConsumerPowerStatsCollector.Injector, WakelockPowerStatsCollector.Injector {
         private PackageManager mPackageManager;
-        private PowerStatsCollector.ConsumedEnergyRetriever mConsumedEnergyRetriever;
         private NetworkStatsManager mNetworkStatsManager;
         private TelephonyManager mTelephonyManager;
         private WifiManager mWifiManager;
@@ -2174,8 +2136,11 @@ public class BatteryStatsImpl extends BatteryStats {
         @SuppressLint("WifiManagerPotentialLeak")
         void setContext(Context context) {
             mPackageManager = context.getPackageManager();
-            mConsumedEnergyRetriever = new PowerStatsCollector.ConsumedEnergyRetrieverImpl(
-                    LocalServices.getService(PowerStatsInternal.class), () -> mBatteryVoltageMv);
+            if (mConsumedEnergyRetriever == null) {
+                mConsumedEnergyRetriever = new PowerStatsCollector.ConsumedEnergyRetrieverImpl(
+                        LocalServices.getService(PowerStatsInternal.class),
+                        () -> mBatteryVoltageMv);
+            }
             mNetworkStatsManager = context.getSystemService(NetworkStatsManager.class);
             mTelephonyManager =
                     (TelephonyManager) context.getSystemService(Context.TELEPHONY_SERVICE);
@@ -2293,6 +2258,8 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
+    @VisibleForTesting
+    protected PowerStatsCollector.ConsumedEnergyRetriever mConsumedEnergyRetriever;
     private final PowerStatsCollectorInjector mPowerStatsCollectorInjector =
             new PowerStatsCollectorInjector();
 
@@ -4635,10 +4602,14 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     private void onBeforeIsolatedUidRemoved(int isolatedUid, int parentUid) {
-        long realtime = mClock.elapsedRealtime();
+        final long realtime = mClock.elapsedRealtime();
         mPowerStatsUidResolver.retainIsolatedUid(isolatedUid);
-        synchronized (this) {
+        if (Flags.concurrentQueueForPendingRemovedUids()) {
             mPendingRemovedUids.add(new UidToRemove(isolatedUid, realtime));
+        } else {
+            synchronized (this) {
+                mPendingRemovedUids.add(new UidToRemove(isolatedUid, realtime));
+            }
         }
         if (mExternalSync != null) {
             mExternalSync.scheduleCpuSyncDueToRemovedUid(isolatedUid);
@@ -4646,8 +4617,8 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     private void onAfterIsolatedUidRemoved(int isolatedUid, int parentUid) {
-        long realtime = mClock.elapsedRealtime();
-        long uptime = mClock.uptimeMillis();
+        final long realtime = mClock.elapsedRealtime();
+        final long uptime = mClock.uptimeMillis();
         synchronized (this) {
             getUidStatsLocked(parentUid, realtime, uptime).removeIsolatedUid(isolatedUid);
         }
@@ -5063,10 +5034,6 @@ public class BatteryStatsImpl extends BatteryStats {
                         uidStats.mProcessState, true /* acquired */,
                         getPowerManagerWakeLockLevel(type));
             }
-            if (mPowerManagerFlags.isFrameworkWakelockInfoEnabled()) {
-                mFrameworkEvents.noteStartWakeLock(
-                        mapIsolatedUid(uid), name, getPowerManagerWakeLockLevel(type), uptimeMs);
-            }
         }
     }
 
@@ -5113,10 +5080,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 mFrameworkStatsLogger.wakelockStateChanged(mapIsolatedUid(uid), wc, name,
                         uidStats.mProcessState, false/* acquired */,
                         getPowerManagerWakeLockLevel(type));
-            }
-            if (mPowerManagerFlags.isFrameworkWakelockInfoEnabled()) {
-                mFrameworkEvents.noteStopWakeLock(
-                        mapIsolatedUid(uid), name, getPowerManagerWakeLockLevel(type), uptimeMs);
             }
 
             if (mappedUid != uid) {
@@ -5583,7 +5546,7 @@ public class BatteryStatsImpl extends BatteryStats {
 
         int state;
         int overallBin = mScreenBrightnessBin;
-        int externalUpdateFlag = 0;
+        int externalUpdateFlag = ExternalStatsSync.UPDATE_DISPLAY;
         boolean shouldScheduleSync = false;
         final int numDisplay = mPerDisplayBatteryStats.length;
         if (display < 0 || display >= numDisplay) {
@@ -5669,15 +5632,6 @@ public class BatteryStatsImpl extends BatteryStats {
                     Slog.wtf(TAG,
                             "Attempted to start timer for unexpected display state " + displayState
                                     + " for display " + display);
-            }
-
-            if (shouldScheduleSync
-                    && mGlobalEnergyConsumerStats != null
-                    && mGlobalEnergyConsumerStats.isStandardBucketSupported(
-                    EnergyConsumerStats.POWER_BUCKET_SCREEN_ON)) {
-                // Display energy consumption stats is available. Prepare to schedule an
-                // external sync.
-                externalUpdateFlag |= ExternalStatsSync.UPDATE_DISPLAY;
             }
 
             // Reevaluate most important display screen state.
@@ -5813,7 +5767,6 @@ public class BatteryStatsImpl extends BatteryStats {
         else if (bin >= NUM_SCREEN_BRIGHTNESS_BINS) bin = NUM_SCREEN_BRIGHTNESS_BINS-1;
 
         final int overallBin;
-
         final int numDisplays = mPerDisplayBatteryStats.length;
         if (display < 0 || display >= numDisplays) {
             Slog.wtf(TAG, "Unexpected note screen brightness for display " + display + " (only "
@@ -5838,8 +5791,33 @@ public class BatteryStatsImpl extends BatteryStats {
             }
             overallBin = evaluateOverallScreenBrightnessBinLocked();
         }
-
         maybeUpdateOverallScreenBrightness(overallBin, elapsedRealtimeMs, uptimeMs);
+
+        // Calulcating overall brightness among all display
+        final int oldBrightness = displayStats.screenBrightness;
+        if (brightness != oldBrightness) {
+            displayStats.screenBrightness = brightness;
+            int overallBrightness = evaluateOverallScreenBrightnessLocked();
+            FrameworkStatsLog.write(FrameworkStatsLog.SCREEN_BRIGHTNESS_CHANGED, overallBrightness);
+        }
+    }
+
+    @GuardedBy("this")
+    private int evaluateOverallScreenBrightnessLocked() {
+        int overallBrightness = -1;
+        final int numDisplays = getDisplayCount();
+        for (int display = 0; display < numDisplays; display++) {
+            final int displayBrightness;
+            if (mPerDisplayBatteryStats[display].screenState == Display.STATE_ON) {
+                displayBrightness = mPerDisplayBatteryStats[display].screenBrightness;
+            } else {
+                displayBrightness = -1;
+            }
+            if (displayBrightness > overallBrightness) {
+                overallBrightness = displayBrightness;
+            }
+        }
+        return overallBrightness;
     }
 
     @GuardedBy("this")
@@ -7414,99 +7392,6 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
-    /**
-     * Records timing data related to an incoming Binder call in order to attribute
-     * the power consumption to the calling app.
-     */
-    public void noteBinderCallStats(int workSourceUid, long incrementalCallCount,
-            Collection<BinderCallsStats.CallStat> callStats) {
-        noteBinderCallStats(workSourceUid, incrementalCallCount, callStats,
-                mClock.elapsedRealtime(), mClock.uptimeMillis());
-    }
-
-    public void noteBinderCallStats(int workSourceUid, long incrementalCallCount,
-            Collection<BinderCallsStats.CallStat> callStats,
-            long elapsedRealtimeMs, long uptimeMs) {
-        synchronized (this) {
-            getUidStatsLocked(workSourceUid, elapsedRealtimeMs, uptimeMs)
-                    .noteBinderCallStatsLocked(incrementalCallCount, callStats);
-        }
-    }
-
-    /**
-     * Takes note of native IDs of threads taking incoming binder calls. The CPU time
-     * of these threads is attributed to the apps making those binder calls.
-     */
-    public void noteBinderThreadNativeIds(int[] binderThreadNativeTids) {
-        mSystemServerCpuThreadReader.setBinderThreadNativeTids(binderThreadNativeTids);
-    }
-
-    /**
-     * Estimates the proportion of system server CPU activity handling incoming binder calls
-     * that can be attributed to each app
-     */
-    @VisibleForTesting
-    public void updateSystemServiceCallStats() {
-        // Start off by computing the average duration of recorded binder calls,
-        // regardless of which binder or transaction. We will use this as a fallback
-        // for calls that were not sampled at all.
-        int totalRecordedCallCount = 0;
-        long totalRecordedCallTimeMicros = 0;
-        for (int i = 0; i < mUidStats.size(); i++) {
-            Uid uid = mUidStats.valueAt(i);
-            ArraySet<BinderCallStats> binderCallStats = uid.mBinderCallStats;
-            for (int j = binderCallStats.size() - 1; j >= 0; j--) {
-                BinderCallStats stats = binderCallStats.valueAt(j);
-                totalRecordedCallCount += stats.recordedCallCount;
-                totalRecordedCallTimeMicros += stats.recordedCpuTimeMicros;
-            }
-        }
-
-        long totalSystemServiceTimeMicros = 0;
-
-        // For every UID, use recorded durations of sampled binder calls to estimate
-        // the total time the system server spent handling requests from this UID.
-        for (int i = 0; i < mUidStats.size(); i++) {
-            Uid uid = mUidStats.valueAt(i);
-
-            long totalTimeForUidUs = 0;
-            int totalCallCountForUid = 0;
-            ArraySet<BinderCallStats> binderCallStats = uid.mBinderCallStats;
-            for (int j = binderCallStats.size() - 1; j >= 0; j--) {
-                BinderCallStats stats = binderCallStats.valueAt(j);
-                totalCallCountForUid += stats.callCount;
-                if (stats.recordedCallCount > 0) {
-                    totalTimeForUidUs +=
-                            stats.callCount * stats.recordedCpuTimeMicros / stats.recordedCallCount;
-                } else if (totalRecordedCallCount > 0) {
-                    totalTimeForUidUs +=
-                            stats.callCount * totalRecordedCallTimeMicros / totalRecordedCallCount;
-                }
-            }
-
-            if (totalCallCountForUid < uid.mBinderCallCount && totalRecordedCallCount > 0) {
-                // Estimate remaining calls, which were not tracked because of binder call
-                // stats sampling
-                totalTimeForUidUs +=
-                        (uid.mBinderCallCount - totalCallCountForUid) * totalRecordedCallTimeMicros
-                                / totalRecordedCallCount;
-            }
-
-            uid.mSystemServiceTimeUs = totalTimeForUidUs;
-            totalSystemServiceTimeMicros += totalTimeForUidUs;
-        }
-
-        for (int i = 0; i < mUidStats.size(); i++) {
-            Uid uid = mUidStats.valueAt(i);
-            if (totalSystemServiceTimeMicros > 0) {
-                uid.mProportionalSystemServiceUsage =
-                        (double) uid.mSystemServiceTimeUs / totalSystemServiceTimeMicros;
-            } else {
-                uid.mProportionalSystemServiceUsage = 0;
-            }
-        }
-    }
-
     public String[] getWifiIfaces() {
         synchronized (mWifiNetworkLock) {
             return mWifiIfaces;
@@ -7908,101 +7793,12 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
-    @GuardedBy("this")
-    @Override
-    public long getBluetoothEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_BLUETOOTH);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getCpuEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_CPU);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getGnssEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_GNSS);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getMobileRadioEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getPhoneEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_PHONE);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getScreenOnEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_SCREEN_ON);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getScreenDozeEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_SCREEN_DOZE);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getWifiEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_WIFI);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public long getCameraEnergyConsumptionUC() {
-        return getPowerBucketConsumptionUC(EnergyConsumerStats.POWER_BUCKET_CAMERA);
-    }
-
-    /**
-     * Returns the consumption (in microcoulombs) that the given standard power bucket consumed.
-     * Will return {@link #POWER_DATA_UNAVAILABLE} if data is unavailable
-     *
-     * @param bucket standard power bucket of interest
-     * @return charge (in microcoulombs) used for this power bucket
-     */
-    @GuardedBy("this")
-    private long getPowerBucketConsumptionUC(@StandardPowerBucket int bucket) {
-        if (mGlobalEnergyConsumerStats == null) {
-            return POWER_DATA_UNAVAILABLE;
-        }
-        return mGlobalEnergyConsumerStats.getAccumulatedStandardBucketCharge(bucket);
-    }
-
-    @GuardedBy("this")
-    @Override
-    public @Nullable long[] getCustomEnergyConsumerBatteryConsumptionUC() {
-        if (mGlobalEnergyConsumerStats == null) {
-            return null;
-        }
-        return mGlobalEnergyConsumerStats.getAccumulatedCustomBucketCharges();
-    }
-
     /**
      * Returns the names of custom power components.
      */
     @Override
     public @NonNull String[] getCustomEnergyConsumerNames() {
-        synchronized (this) {
-            if (mEnergyConsumerStatsConfig == null) {
-                return new String[0];
-            }
-            final String[] names = mEnergyConsumerStatsConfig.getCustomBucketNames();
-            for (int i = 0; i < names.length; i++) {
-                if (TextUtils.isEmpty(names[i])) {
-                    names[i] = "CUSTOM_" + BatteryConsumer.FIRST_CUSTOM_POWER_COMPONENT_ID + i;
-                }
-            }
-            return names;
-        }
+        return mCustomEnergyConsumerNames;
     }
 
     @Override
@@ -8127,61 +7923,6 @@ public class BatteryStatsImpl extends BatteryStats {
     private static void detachIfNotNull(ControllerActivityCounterImpl counter) {
         if (counter != null) {
             counter.detach();
-        }
-    }
-
-    /**
-     * Accumulates stats for a specific binder transaction.
-     */
-    @VisibleForTesting
-    protected static class BinderCallStats {
-        public Class<? extends Binder> binderClass;
-        public int transactionCode;
-        public String methodName;
-
-        public long callCount;
-        public long recordedCallCount;
-        public long recordedCpuTimeMicros;
-
-
-        @Override
-        public int hashCode() {
-            return binderClass.hashCode() * 31 + transactionCode;
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            if (!(obj instanceof BinderCallStats)) {
-                return false;
-            }
-            BinderCallStats bcsk = (BinderCallStats) obj;
-            return binderClass.equals(bcsk.binderClass) && transactionCode == bcsk.transactionCode;
-        }
-
-        public String getClassName() {
-            return binderClass.getName();
-        }
-
-        public String getMethodName() {
-            return methodName;
-        }
-
-        @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
-        public void ensureMethodName(BinderTransactionNameResolver resolver) {
-            if (methodName == null) {
-                methodName = resolver.getMethodName(binderClass, transactionCode);
-            }
-        }
-
-        @Override
-        public String toString() {
-            return "BinderCallStats{"
-                    + binderClass
-                    + " transaction=" + transactionCode
-                    + " callCount=" + callCount
-                    + " recordedCallCount=" + recordedCallCount
-                    + " recorderCpuTimeMicros=" + recordedCpuTimeMicros
-                    + "}";
         }
     }
 
@@ -8358,38 +8099,6 @@ public class BatteryStatsImpl extends BatteryStats {
          */
         final SparseArray<Pid> mPids = new SparseArray<>();
 
-        /**
-         * Grand total of system server binder calls made by this uid.
-         */
-        private long mBinderCallCount;
-
-        /**
-         * Detailed information about system server binder calls made by this uid.
-         */
-        private final ArraySet<BinderCallStats> mBinderCallStats = new ArraySet<>();
-
-        /**
-         * EnergyConsumer consumption by this uid while on battery.
-         * Its '<b>custom</b> power buckets' correspond to the
-         * {@link android.hardware.power.stats.EnergyConsumer.ordinal}s of (custom) energy consumer
-         * type {@link android.hardware.power.stats.EnergyConsumerType#OTHER}).
-         *
-         * Will be null if energy consumer data is completely unavailable (in which case
-         * {@link #mGlobalEnergyConsumerStats} will also be null) or if the power usage by this uid
-         * is 0 for every bucket.
-         */
-        private EnergyConsumerStats mUidEnergyConsumerStats;
-
-        /**
-         * Estimated total time spent by the system server handling requests from this uid.
-         */
-        private long mSystemServiceTimeUs;
-
-        /**
-         * Estimated proportion of system server binder call CPU cost for this uid.
-         */
-        private double mProportionalSystemServiceUsage;
-
         public Uid(BatteryStatsImpl bsi, int uid, long elapsedRealtimeMs, long uptimeMs) {
             mBsi = bsi;
             mUid = uid;
@@ -8458,11 +8167,6 @@ public class BatteryStatsImpl extends BatteryStats {
                     getBluetoothControllerActivity();
             if (bluetoothControllerActivity != null) {
                 bluetoothControllerActivity.setState(batteryConsumerProcessState, elapsedTimeMs);
-            }
-            final EnergyConsumerStats energyStats =
-                    getOrCreateEnergyConsumerStatsIfSupportedLocked();
-            if (energyStats != null) {
-                energyStats.setState(batteryConsumerProcessState, elapsedTimeMs);
             }
         }
 
@@ -8546,20 +8250,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 return false;
             }
             return mProcStateScreenOffTimeMs.getCountsLocked(timesInFreqMs, procState);
-        }
-
-        public long getBinderCallCount() {
-            return mBinderCallCount;
-        }
-
-        @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-        public ArraySet<BinderCallStats> getBinderCallStats() {
-            return mBinderCallStats;
-        }
-
-        @Override
-        public  double getProportionalSystemServiceUsage() {
-            return mProportionalSystemServiceUsage;
         }
 
         /**
@@ -8845,163 +8535,9 @@ public class BatteryStatsImpl extends BatteryStats {
             return mModemControllerActivity;
         }
 
-        @GuardedBy("mBsi")
-        private EnergyConsumerStats getOrCreateEnergyConsumerStatsLocked() {
-            if (mUidEnergyConsumerStats == null) {
-                mUidEnergyConsumerStats = new EnergyConsumerStats(mBsi.mEnergyConsumerStatsConfig);
-            }
-            return mUidEnergyConsumerStats;
-        }
-
-        @GuardedBy("mBsi")
-        private EnergyConsumerStats getOrCreateEnergyConsumerStatsIfSupportedLocked() {
-            if (mUidEnergyConsumerStats == null && mBsi.mEnergyConsumerStatsConfig != null) {
-                mUidEnergyConsumerStats = new EnergyConsumerStats(mBsi.mEnergyConsumerStatsConfig);
-            }
-            return mUidEnergyConsumerStats;
-        }
-
-        /** Adds the given charge to the given standard power bucket for this uid. */
-        @GuardedBy("mBsi")
-        private void addChargeToStandardBucketLocked(long chargeDeltaUC,
-                @StandardPowerBucket int powerBucket, long timestampMs) {
-            final EnergyConsumerStats energyConsumerStats =
-                    getOrCreateEnergyConsumerStatsLocked();
-            energyConsumerStats.updateStandardBucket(powerBucket, chargeDeltaUC, timestampMs);
-        }
-
-        /** Adds the given charge to the given custom power bucket for this uid. */
-        @GuardedBy("mBsi")
-        private void addChargeToCustomBucketLocked(long chargeDeltaUC, int powerBucket) {
-            getOrCreateEnergyConsumerStatsLocked().updateCustomBucket(powerBucket, chargeDeltaUC,
-                    mBsi.mClock.elapsedRealtime());
-        }
-
-        /**
-         * Returns the battery consumption (in microcoulomb) of this uid for a standard power bucket
-         * of interest.
-         * @param bucket standard power bucket of interest
-         * @return consumption (in microcolombs) used by this uid for this power bucket
-         */
-        @GuardedBy("mBsi")
-        public long getEnergyConsumptionUC(@StandardPowerBucket int bucket) {
-            if (mBsi.mGlobalEnergyConsumerStats == null
-                    || !mBsi.mGlobalEnergyConsumerStats.isStandardBucketSupported(bucket)) {
-                return POWER_DATA_UNAVAILABLE;
-            }
-            if (mUidEnergyConsumerStats == null) {
-                return 0L; // It is supported, but was never filled, so it must be 0
-            }
-            return mUidEnergyConsumerStats.getAccumulatedStandardBucketCharge(bucket);
-        }
-
-        /**
-         * Returns the battery consumption (in microcoulombs) of this uid for a standard power
-         * bucket and a process state, such as Uid.PROCESS_STATE_TOP.
-         */
-        @GuardedBy("mBsi")
-        public long getEnergyConsumptionUC(@StandardPowerBucket int bucket,
-                int processState) {
-            if (mBsi.mGlobalEnergyConsumerStats == null
-                    || !mBsi.mGlobalEnergyConsumerStats.isStandardBucketSupported(bucket)) {
-                return POWER_DATA_UNAVAILABLE;
-            }
-            if (mUidEnergyConsumerStats == null) {
-                return 0L; // It is supported, but was never filled, so it must be 0
-            }
-            return mUidEnergyConsumerStats.getAccumulatedStandardBucketCharge(bucket, processState);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long[] getCustomEnergyConsumerBatteryConsumptionUC() {
-            if (mBsi.mGlobalEnergyConsumerStats == null) {
-                return null;
-            }
-            if (mUidEnergyConsumerStats == null) {
-                // Custom buckets may exist. But all values for this uid are 0 so we report all 0s.
-                return new long[mBsi.mGlobalEnergyConsumerStats.getNumberCustomPowerBuckets()];
-            }
-            return mUidEnergyConsumerStats.getAccumulatedCustomBucketCharges();
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getBluetoothEnergyConsumptionUC() {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_BLUETOOTH);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getBluetoothEnergyConsumptionUC(
-                @BatteryConsumer.ProcessState int processState) {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_BLUETOOTH,
-                    processState);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getCpuEnergyConsumptionUC() {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_CPU);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getCpuEnergyConsumptionUC(
-                @BatteryConsumer.ProcessState int processState) {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_CPU,
-                    processState);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getGnssEnergyConsumptionUC() {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_GNSS);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getMobileRadioEnergyConsumptionUC() {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getMobileRadioEnergyConsumptionUC(int processState) {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO,
-                    processState);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getScreenOnEnergyConsumptionUC() {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_SCREEN_ON);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getWifiEnergyConsumptionUC() {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_WIFI);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getWifiEnergyConsumptionUC(int processState) {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_WIFI,
-                    processState);
-        }
-
-        @GuardedBy("mBsi")
-        @Override
-        public long getCameraEnergyConsumptionUC() {
-            return getEnergyConsumptionUC(EnergyConsumerStats.POWER_BUCKET_CAMERA);
-        }
-
         /**
          * Gets the minimum of the uid's foreground activity time and its PROCESS_STATE_TOP time
          * since last marked. Also sets the mark time for both these timers.
-         *
-         * @see CpuPowerCalculator
          *
          * @param doCalc if true, then calculate the minimum; else don't bother and return 0. Either
          *               way, the mark is set.
@@ -9808,12 +9344,6 @@ public class BatteryStatsImpl extends BatteryStats {
             resetIfNotNull(mBluetoothControllerActivity, false, realtimeUs);
             resetIfNotNull(mModemControllerActivity, false, realtimeUs);
 
-            if (resetReason == RESET_REASON_ENERGY_CONSUMER_BUCKETS_CHANGE) {
-                mUidEnergyConsumerStats = null;
-            } else {
-                EnergyConsumerStats.resetIfNotNull(mUidEnergyConsumerStats);
-            }
-
             resetIfNotNull(mUserCpuTime, false, realtimeUs);
             resetIfNotNull(mSystemCpuTime, false, realtimeUs);
 
@@ -9906,14 +9436,8 @@ public class BatteryStatsImpl extends BatteryStats {
             }
             mPackageStats.clear();
 
-            mBinderCallCount = 0;
-            mBinderCallStats.clear();
-
-            mProportionalSystemServiceUsage = 0;
-
             mLastStepUserTimeMs = mLastStepSystemTimeMs = 0;
             mCurStepUserTimeMs = mCurStepSystemTimeMs = 0;
-
 
             return !active;
         }
@@ -10071,40 +9595,6 @@ public class BatteryStatsImpl extends BatteryStats {
                         break;
                     }
                 }
-            }
-        }
-
-        // Reusable object used as a key to lookup values in mBinderCallStats
-        private static BinderCallStats sTempBinderCallStats = new BinderCallStats();
-
-        /**
-         * Notes incoming binder call stats associated with this work source UID.
-         */
-        public void noteBinderCallStatsLocked(long incrementalCallCount,
-                Collection<BinderCallsStats.CallStat> callStats) {
-            if (DEBUG) {
-                Slog.d(TAG, "noteBinderCalls() workSourceUid = [" + mUid + "], "
-                        + " incrementalCallCount: " + incrementalCallCount + " callStats = ["
-                        + new ArrayList<>(callStats) + "]");
-            }
-            mBinderCallCount += incrementalCallCount;
-            for (BinderCallsStats.CallStat stat : callStats) {
-                BinderCallStats bcs;
-                sTempBinderCallStats.binderClass = stat.binderClass;
-                sTempBinderCallStats.transactionCode = stat.transactionCode;
-                int index = mBinderCallStats.indexOf(sTempBinderCallStats);
-                if (index >= 0) {
-                    bcs = mBinderCallStats.valueAt(index);
-                } else {
-                    bcs = new BinderCallStats();
-                    bcs.binderClass = stat.binderClass;
-                    bcs.transactionCode = stat.transactionCode;
-                    mBinderCallStats.add(bcs);
-                }
-
-                bcs.callCount += stat.incrementalCallCount;
-                bcs.recordedCallCount = stat.recordedCallCount;
-                bcs.recordedCpuTimeMicros = stat.cpuTimeMicros;
             }
         }
 
@@ -10952,11 +10442,6 @@ public class BatteryStatsImpl extends BatteryStats {
                             elapsedRealtimeMs);
                 }
 
-                final EnergyConsumerStats energyStats =
-                        getOrCreateEnergyConsumerStatsIfSupportedLocked();
-                if (energyStats != null) {
-                    energyStats.setState(batteryConsumerProcessState, elapsedRealtimeMs);
-                }
                 maybeScheduleExternalStatsSync(prevBatteryConsumerProcessState,
                         batteryConsumerProcessState);
             }
@@ -11274,9 +10759,6 @@ public class BatteryStatsImpl extends BatteryStats {
         return mTmpCpuTimeInFreq;
     }
 
-    WakelockStatsFrameworkEvents mFrameworkEvents = new WakelockStatsFrameworkEvents();
-    PowerManagerFlags mPowerManagerFlags = new PowerManagerFlags();
-
     public BatteryStatsImpl(@NonNull BatteryStatsConfig config, @NonNull Clock clock,
             @NonNull MonotonicClock monotonicClock, @Nullable File systemDir,
             @NonNull Handler handler, @Nullable PlatformIdleStateCallback platformIdleStateCallback,
@@ -11307,6 +10789,12 @@ public class BatteryStatsImpl extends BatteryStats {
         mClock = clock;
         initKernelStatsReaders();
 
+        if (Flags.concurrentQueueForPendingRemovedUids()) {
+            mPendingRemovedUids = new ConcurrentLinkedQueue<>();
+        } else {
+            mPendingRemovedUids = new LinkedList<>();
+        }
+
         mBatteryStatsConfig = config;
         mMonotonicClock = monotonicClock;
         mHandler = new MyHandler(handler.getLooper());
@@ -11316,6 +10804,8 @@ public class BatteryStatsImpl extends BatteryStats {
         mCpuScalingPolicies = cpuScalingPolicies;
         mPowerStatsUidResolver = powerStatsUidResolver;
         mFrameworkStatsLogger = frameworkStatsLogger;
+
+        mStepDetailsProvider = new BatteryHistoryStepDetailsProvider(this, clock);
 
         initPowerProfile();
 
@@ -11400,10 +10890,10 @@ public class BatteryStatsImpl extends BatteryStats {
         mFrameworkStatsLogger.deviceIdleModeStateChanged(mDeviceIdleMode);
     }
 
-    private void recordPowerStats(PowerStats stats) {
+    private void recordPowerStats(PowerStats stats, long elapsedRealtimeMs, long uptimeMs) {
         if (stats.durationMs > 0) {
             synchronized (this) {
-                mHistory.recordPowerStats(mClock.elapsedRealtime(), mClock.uptimeMillis(), stats);
+                mHistory.recordPowerStats(elapsedRealtimeMs, uptimeMs, stats);
             }
         }
     }
@@ -11502,36 +10992,10 @@ public class BatteryStatsImpl extends BatteryStats {
             mKernelCpuSpeedReaders[i] = new KernelCpuSpeedReader(cpus[0], freqs.length);
         }
 
-        // Initialize CPU power bracket map, which combines CPU states (cluster/freq pairs)
-        // into a small number of brackets
-        mCpuPowerBracketMap = new int[mCpuScalingPolicies.getScalingStepCount()];
-        int index = 0;
-        for (int policy : policies) {
-            int steps = mCpuScalingPolicies.getFrequencies(policy).length;
-            for (int step = 0; step < steps; step++) {
-                mCpuPowerBracketMap[index++] =
-                        mPowerProfile.getCpuPowerBracketForScalingStep(policy, step);
-            }
-        }
-
-        if (mEstimatedBatteryCapacityMah == -1) {
-            // Initialize the estimated battery capacity to a known preset one.
-            mEstimatedBatteryCapacityMah = (int) mPowerProfile.getBatteryCapacity();
-        }
+        // Initialize the estimated battery capacity to a known preset one.
+        mEstimatedBatteryCapacityMah = (int) mPowerProfile.getBatteryCapacity();
 
         setDisplayCountLocked(mPowerProfile.getNumDisplays());
-    }
-
-    /**
-     * Starts tracking CPU time-in-state for threads of the system server process,
-     * keeping a separate account of threads receiving incoming binder calls.
-     */
-    public void startTrackingSystemServerCpuTime() {
-        mSystemServerCpuThreadReader.startTrackingThreadCpuTime();
-    }
-
-    public SystemServiceCpuThreadTimes getSystemServiceCpuThreadTimes() {
-        return mSystemServerCpuThreadReader.readAbsolute();
     }
 
     public void setCallback(BatteryCallback cb) {
@@ -11599,14 +11063,14 @@ public class BatteryStatsImpl extends BatteryStats {
         if (mDailyDischargeStepTracker.mNumStepDurations > 0) {
             hasData = true;
             item.mDischargeSteps = new LevelStepTracker(
-                    mDailyDischargeStepTracker.mNumStepDurations,
-                    mDailyDischargeStepTracker.mStepDurations);
+                mDailyDischargeStepTracker.mNumStepDurations,
+                mDailyDischargeStepTracker.mStepDurations);
         }
         if (mDailyChargeStepTracker.mNumStepDurations > 0) {
             hasData = true;
             item.mChargeSteps = new LevelStepTracker(
-                    mDailyChargeStepTracker.mNumStepDurations,
-                    mDailyChargeStepTracker.mStepDurations);
+                mDailyChargeStepTracker.mNumStepDurations,
+                mDailyChargeStepTracker.mStepDurations);
         }
         if (mDailyPackageChanges != null) {
             hasData = true;
@@ -11628,24 +11092,21 @@ public class BatteryStatsImpl extends BatteryStats {
                 TypedXmlSerializer out = Xml.resolveSerializer(memStream);
                 writeDailyItemsLocked(out);
                 final long initialTimeMs = SystemClock.uptimeMillis() - startTimeMs;
-                BackgroundThread.getHandler().post(new Runnable() {
-                    @Override
-                    public void run() {
-                        synchronized (mCheckinFile) {
-                            final long startTimeMs2 = SystemClock.uptimeMillis();
-                            FileOutputStream stream = null;
-                            try {
-                                stream = mDailyFile.startWrite();
-                                memStream.writeTo(stream);
-                                stream.flush();
-                                mDailyFile.finishWrite(stream);
-                                mFrameworkStatsLogger.writeCommitSysConfigFile("batterystats-daily",
-                                        initialTimeMs + SystemClock.uptimeMillis() - startTimeMs2);
-                            } catch (IOException e) {
-                                Slog.w("BatteryStats",
-                                        "Error writing battery daily items", e);
-                                mDailyFile.failWrite(stream);
-                            }
+                mHandler.post(() -> {
+                    synchronized (mCheckinFile) {
+                        final long startTimeMs2 = SystemClock.uptimeMillis();
+                        FileOutputStream stream = null;
+                        try {
+                            stream = mDailyFile.startWrite();
+                            memStream.writeTo(stream);
+                            stream.flush();
+                            mDailyFile.finishWrite(stream);
+                            mFrameworkStatsLogger.writeCommitSysConfigFile("batterystats-daily",
+                                    initialTimeMs + SystemClock.uptimeMillis() - startTimeMs2);
+                        } catch (IOException e) {
+                            Slog.w("BatteryStats",
+                                    "Error writing battery daily items", e);
+                            mDailyFile.failWrite(stream);
                         }
                     }
                 });
@@ -11959,30 +11420,16 @@ public class BatteryStatsImpl extends BatteryStats {
     /**
      * Associates the BatteryStatsImpl object with a BatteryUsageStatsProvider and PowerStatsStore
      * to allow for a snapshot of battery usage stats to be taken and stored just before battery
-     * reset.
+     * starting a new history buffer.
      */
-    public void saveBatteryUsageStatsOnReset(
+    public void saveBatteryUsageStatsOnNewSession(
             @NonNull BatteryUsageStatsProvider batteryUsageStatsProvider,
             @NonNull PowerStatsStore powerStatsStore,
             boolean accumulateBatteryUsageStats) {
-        mSaveBatteryUsageStatsOnReset = true;
+        mSaveBatteryUsageStatsOnNewSession = true;
         mBatteryUsageStatsProvider = batteryUsageStatsProvider;
         mPowerStatsStore = powerStatsStore;
         mAccumulateBatteryUsageStats = accumulateBatteryUsageStats;
-    }
-
-    /**
-     * Enables or disables battery history reset at the beginning of a battery stats session.
-     */
-    public void resetBatteryHistoryOnNewSession(boolean enabled) {
-        mResetBatteryHistoryOnNewSession = enabled;
-    }
-
-    /**
-     * Enables or disables battery history file compression.
-     */
-    public void setBatteryHistoryCompressionEnabled(boolean enabled) {
-        mBatteryHistoryDirectory.setFileCompressionEnabled(enabled);
     }
 
     @GuardedBy("this")
@@ -12031,7 +11478,7 @@ public class BatteryStatsImpl extends BatteryStats {
         }
 
         mHandler.post(()-> {
-            saveBatteryUsageStatsOnReset();
+            saveBatteryUsageStatsOnNewSession();
             synchronized (BatteryStatsImpl.this) {
                 resetAllStatsLocked(mClock.uptimeMillis(), mClock.elapsedRealtime(), reason);
             }
@@ -12056,10 +11503,8 @@ public class BatteryStatsImpl extends BatteryStats {
             mPerDisplayBatteryStats[i].reset(elapsedRealtimeUs);
         }
 
-        if (mPowerProfile != null) {
+        if (mEstimatedBatteryCapacityMah <= 0 && mPowerProfile != null) {
             mEstimatedBatteryCapacityMah = (int) mPowerProfile.getBatteryCapacity();
-        } else {
-            mEstimatedBatteryCapacityMah = -1;
         }
         mLastLearnedBatteryCapacityUah = -1;
         mMinLearnedBatteryCapacityUah = -1;
@@ -12170,20 +11615,13 @@ public class BatteryStatsImpl extends BatteryStats {
             mTmpRailStats.reset();
         }
 
-        EnergyConsumerStats.resetIfNotNull(mGlobalEnergyConsumerStats);
-
-        if (!Flags.disableSystemServicePowerAttr()) {
-            resetIfNotNull(mBinderThreadCpuTimesUs, false, elapsedRealtimeUs);
-        }
-
         mNumAllUidCpuTimeReads = 0;
         mNumUidsRemoved = 0;
 
         initDischarge(elapsedRealtimeUs);
 
-        if ((resetReason != RESET_REASON_FULL_CHARGE
-                && resetReason != RESET_REASON_PLUGGED_IN_FOR_LONG_DURATION)
-                || mResetBatteryHistoryOnNewSession) {
+        if (resetReason != RESET_REASON_FULL_CHARGE
+                && resetReason != RESET_REASON_PLUGGED_IN_FOR_LONG_DURATION) {
             mHistory.reset();
         }
 
@@ -12201,8 +11639,8 @@ public class BatteryStatsImpl extends BatteryStats {
         mHandler.sendEmptyMessage(MSG_REPORT_RESET_STATS);
     }
 
-    private void saveBatteryUsageStatsOnReset() {
-        if (!mSaveBatteryUsageStatsOnReset) {
+    private void saveBatteryUsageStatsOnNewSession() {
+        if (!mSaveBatteryUsageStatsOnNewSession) {
             return;
         }
 
@@ -12348,7 +11786,7 @@ public class BatteryStatsImpl extends BatteryStats {
      */
     @GuardedBy("this")
     public void updateWifiState(@Nullable final WifiActivityEnergyInfo info,
-            final long consumedChargeUC, long elapsedRealtimeMs, long uptimeMs,
+            long elapsedRealtimeMs, long uptimeMs,
             @NonNull NetworkStatsManager networkStatsManager) {
         if (DEBUG_ENERGY) {
             synchronized (mWifiNetworkLock) {
@@ -12367,19 +11805,19 @@ public class BatteryStatsImpl extends BatteryStats {
                 delta = null;
             }
         }
-        updateWifiBatteryStats(info, delta, consumedChargeUC, elapsedRealtimeMs, uptimeMs);
+        updateWifiBatteryStats(info, delta, elapsedRealtimeMs, uptimeMs);
     }
 
     private void onWifiPowerStatsRetrieved(WifiActivityEnergyInfo wifiActivityEnergyInfo,
             NetworkStats networkStatsDelta, long elapsedRealtimeMs, long uptimeMs) {
         // Do not populate consumed energy, because energy attribution is done by
         // WifiPowerStatsProcessor.
-        updateWifiBatteryStats(wifiActivityEnergyInfo, networkStatsDelta, POWER_DATA_UNAVAILABLE,
+        updateWifiBatteryStats(wifiActivityEnergyInfo, networkStatsDelta,
                 elapsedRealtimeMs, uptimeMs);
     }
 
     private void updateWifiBatteryStats(WifiActivityEnergyInfo info,
-            NetworkStats delta, long consumedChargeUC, long elapsedRealtimeMs,
+            NetworkStats delta, long elapsedRealtimeMs,
             long uptimeMs) {
         synchronized (this) {
             if (!mOnBatteryInternal || mIgnoreNextExternalStats) {
@@ -12392,10 +11830,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 return;
             }
 
-            final SparseDoubleArray uidEstimatedConsumptionMah =
-                    (mGlobalEnergyConsumerStats != null
-                            && mWifiPowerCalculator != null && consumedChargeUC > 0) ?
-                            new SparseDoubleArray() : null;
             double totalEstimatedConsumptionMah = 0;
 
             SparseLongArray rxPackets = new SparseLongArray();
@@ -12458,37 +11892,7 @@ public class BatteryStatsImpl extends BatteryStats {
                         // be evenly distributed amongst the apps.
                         totalTxPackets += entry.getTxPackets();
                     }
-
-                    // Calculate consumed energy for this uid. Only do so if WifiReporting isn't
-                    // enabled (if it is, we'll do it later instead using info).
-                    if (uidEstimatedConsumptionMah != null && info == null && !mHasWifiReporting) {
-                        final long uidRunningMs = u.mWifiRunningTimer
-                                .getTimeSinceMarkLocked(elapsedRealtimeMs * 1000) / 1000;
-                        if (uidRunningMs > 0) u.mWifiRunningTimer.setMark(elapsedRealtimeMs);
-
-                        final long uidScanMs = u.mWifiScanTimer
-                                .getTimeSinceMarkLocked(elapsedRealtimeMs * 1000) / 1000;
-                        if (uidScanMs > 0) u.mWifiScanTimer.setMark(elapsedRealtimeMs);
-
-                        long uidBatchScanMs = 0;
-                        for (int bn = 0; bn < BatteryStats.Uid.NUM_WIFI_BATCHED_SCAN_BINS; bn++) {
-                            if (u.mWifiBatchedScanTimer[bn] != null) {
-                                long bnMs = u.mWifiBatchedScanTimer[bn]
-                                        .getTimeSinceMarkLocked(elapsedRealtimeMs * 1000) / 1000;
-                                if (bnMs > 0) {
-                                    u.mWifiBatchedScanTimer[bn].setMark(elapsedRealtimeMs);
-                                }
-                                uidBatchScanMs += bnMs;
-                            }
-                        }
-
-                        uidEstimatedConsumptionMah.incrementValue(u.getUid(),
-                                mWifiPowerCalculator.calcPowerWithoutControllerDataMah(
-                                        entry.getRxPackets(), entry.getTxPackets(),
-                                        uidRunningMs, uidScanMs, uidBatchScanMs));
-                    }
                 }
-                delta = null;
             }
 
             if (info != null) {
@@ -12601,12 +12005,6 @@ public class BatteryStatsImpl extends BatteryStats {
                         uid.getOrCreateWifiControllerActivityLocked().getOrCreateIdleTimeCounter()
                                 .increment(myIdleTimeMs, elapsedRealtimeMs);
                     }
-
-                    if (uidEstimatedConsumptionMah != null) {
-                        double uidEstMah = mWifiPowerCalculator.calcPowerFromControllerDataMah(
-                                scanRxTimeSinceMarkMs, scanTxTimeSinceMarkMs, myIdleTimeMs);
-                        uidEstimatedConsumptionMah.incrementValue(uid.getUid(), uidEstMah);
-                    }
                 }
 
                 if (DEBUG_ENERGY) {
@@ -12646,11 +12044,6 @@ public class BatteryStatsImpl extends BatteryStats {
                             .getOrCreateWifiControllerActivityLocked()
                             .getOrCreateTxTimeCounters()[0]
                             .increment(myTxTimeMs, elapsedRealtimeMs);
-                    if (uidEstimatedConsumptionMah != null) {
-                        uidEstimatedConsumptionMah.incrementValue(uid,
-                                mWifiPowerCalculator.calcPowerFromControllerDataMah(
-                                        0, myTxTimeMs, 0));
-                    }
                 }
 
                 for (int i = 0; i < rxTimesMs.size(); i++) {
@@ -12664,11 +12057,6 @@ public class BatteryStatsImpl extends BatteryStats {
                             .getOrCreateWifiControllerActivityLocked()
                             .getOrCreateRxTimeCounter()
                             .increment(myRxTimeMs, elapsedRealtimeMs);
-                    if (uidEstimatedConsumptionMah != null) {
-                        uidEstimatedConsumptionMah.incrementValue(uid,
-                                mWifiPowerCalculator.calcPowerFromControllerDataMah(
-                                        myRxTimeMs, 0, 0));
-                    }
                 }
 
                 // Any left over power use will be picked up by the WiFi category in BatteryStatsHelper.
@@ -12704,30 +12092,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 if (mTmpRailStats != null) {
                     mTmpRailStats.resetWifiTotalEnergyUsed();
                 }
-
-                if (uidEstimatedConsumptionMah != null) {
-                    totalEstimatedConsumptionMah = Math.max(controllerMaMs / MILLISECONDS_IN_HOUR,
-                            mWifiPowerCalculator.calcPowerFromControllerDataMah(
-                                    rxTimeMs, txTimeMs, idleTimeMs));
-                }
-            }
-
-            // Update the EnergyConsumerStats information.
-            if (uidEstimatedConsumptionMah != null) {
-                mGlobalEnergyConsumerStats.updateStandardBucket(
-                        EnergyConsumerStats.POWER_BUCKET_WIFI, consumedChargeUC);
-
-                // Now calculate the consumption for each uid, according to its proportional usage.
-                if (!mHasWifiReporting) {
-                    final long globalTimeMs = mGlobalWifiRunningTimer
-                            .getTimeSinceMarkLocked(elapsedRealtimeMs * 1000) / 1000;
-                    mGlobalWifiRunningTimer.setMark(elapsedRealtimeMs);
-                    totalEstimatedConsumptionMah = mWifiPowerCalculator
-                            .calcGlobalPowerWithoutControllerDataMah(globalTimeMs);
-                }
-                distributeEnergyToUidsLocked(EnergyConsumerStats.POWER_BUCKET_WIFI,
-                        consumedChargeUC, uidEstimatedConsumptionMah, totalEstimatedConsumptionMah,
-                        elapsedRealtimeMs);
             }
         }
     }
@@ -12738,7 +12102,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * Distribute Cell radio energy info and network traffic to apps.
      */
     public void noteModemControllerActivity(@Nullable final ModemActivityInfo activityInfo,
-            final long consumedChargeUC, long elapsedRealtimeMs, long uptimeMs,
+            long elapsedRealtimeMs, long uptimeMs,
             @NonNull NetworkStatsManager networkStatsManager) {
         if (DEBUG_ENERGY) {
             Slog.d(TAG, "Updating mobile radio stats with " + activityInfo);
@@ -12758,19 +12122,19 @@ public class BatteryStatsImpl extends BatteryStats {
             }
         }
 
-        updateCellularBatteryStats(deltaInfo, delta, consumedChargeUC, elapsedRealtimeMs, uptimeMs);
+        updateCellularBatteryStats(deltaInfo, delta, elapsedRealtimeMs, uptimeMs);
     }
 
     private void onMobileRadioPowerStatsRetrieved(ModemActivityInfo modemActivityInfo,
             NetworkStats networkStatsDelta, long elapsedRealtimeMs, long uptimeMs) {
         // Do not populate consumed energy, because energy attribution is done by
         // MobileRadioPowerStatsProcessor.
-        updateCellularBatteryStats(modemActivityInfo, networkStatsDelta, POWER_DATA_UNAVAILABLE,
+        updateCellularBatteryStats(modemActivityInfo, networkStatsDelta,
                 elapsedRealtimeMs, uptimeMs);
     }
 
     private void updateCellularBatteryStats(@Nullable ModemActivityInfo deltaInfo,
-            @Nullable NetworkStats delta, long consumedChargeUC, long elapsedRealtimeMs,
+            @Nullable NetworkStats delta, long elapsedRealtimeMs,
             long uptimeMs) {
         // Add modem tx power to history.
         addModemTxPowerToHistory(deltaInfo, elapsedRealtimeMs, uptimeMs);
@@ -12788,33 +12152,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 return;
             }
 
-            final SparseDoubleArray uidEstimatedConsumptionMah;
-            final long dataConsumedChargeUC;
-            if (consumedChargeUC > 0 && isMobileRadioEnergyConsumerSupportedLocked()) {
-                final long phoneConsumedChargeUC;
-                if (totalRadioDurationMs == 0) {
-                    phoneConsumedChargeUC = 0;
-                } else {
-                    // Crudely attribute power consumption. Added (totalRadioDurationMs / 2) to the
-                    // numerator for long rounding.
-                    phoneConsumedChargeUC =
-                            (consumedChargeUC * phoneOnDurationMs + totalRadioDurationMs / 2)
-                                    / totalRadioDurationMs;
-                }
-                dataConsumedChargeUC = consumedChargeUC - phoneConsumedChargeUC;
-
-                mGlobalEnergyConsumerStats.updateStandardBucket(
-                        EnergyConsumerStats.POWER_BUCKET_PHONE, phoneConsumedChargeUC);
-                mGlobalEnergyConsumerStats.updateStandardBucket(
-                        EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO, dataConsumedChargeUC);
-                uidEstimatedConsumptionMah = new SparseDoubleArray();
-            } else {
-                uidEstimatedConsumptionMah = null;
-                dataConsumedChargeUC = POWER_DATA_UNAVAILABLE;
-            }
-
-            RxTxConsumption rxTxConsumption = null;
-            boolean attributeWithModemActivityInfo = false;
             if (deltaInfo != null) {
                 mHasModemReporting = true;
                 mModemActivity.getOrCreateIdleTimeCounter()
@@ -12860,11 +12197,7 @@ public class BatteryStatsImpl extends BatteryStats {
                     mTmpRailStats.resetCellularTotalEnergyUsed();
                 }
 
-                rxTxConsumption = incrementPerRatDataLocked(deltaInfo, elapsedRealtimeMs);
-
-                attributeWithModemActivityInfo = mConstants.PER_UID_MODEM_MODEL
-                        == PER_UID_MODEM_POWER_MODEL_MODEM_ACTIVITY_INFO_RX_TX
-                        && rxTxConsumption != null;
+                incrementPerRatDataLocked(deltaInfo, elapsedRealtimeMs);
             }
             long totalAppRadioTimeUs = mMobileRadioActivePerAppTimer.getTimeSinceMarkLocked(
                     elapsedRealtimeMs * 1000);
@@ -12928,25 +12261,6 @@ public class BatteryStatsImpl extends BatteryStats {
                                 (totalAppRadioTimeUs * appPackets) / totalPackets;
                         u.noteMobileRadioActiveTimeLocked(appRadioTimeUs, elapsedRealtimeMs);
 
-                        if (uidEstimatedConsumptionMah != null) {
-                            final double uidConsumptionMah;
-                            if (attributeWithModemActivityInfo) {
-                                // Distribute measured mobile radio charge consumption based on
-                                // rx/tx packets and estimated rx/tx charge consumption.
-                                uidConsumptionMah = smearModemActivityInfoRxTxConsumptionMah(
-                                        rxTxConsumption, entry.getRxPackets(), entry.getTxPackets(),
-                                        totalRxPackets, totalTxPackets);
-                            } else {
-                                // Distribute mobile radio charge consumption based on app radio
-                                // active time
-                                uidConsumptionMah =
-                                    mMobileRadioPowerCalculator.calcPowerFromRadioActiveDurationMah(
-                                                appRadioTimeUs / 1000);
-                            }
-                            uidEstimatedConsumptionMah.incrementValue(u.getUid(),
-                                    uidConsumptionMah);
-                        }
-
                         // Remove this app from the totals, so that we don't lose any time
                         // due to rounding.
                         totalAppRadioTimeUs -= appRadioTimeUs;
@@ -12981,91 +12295,13 @@ public class BatteryStatsImpl extends BatteryStats {
                     mMobileRadioActiveUnknownTime.addCountLocked(totalAppRadioTimeUs);
                     mMobileRadioActiveUnknownCount.addCountLocked(1);
                 }
-
-                // Update the EnergyConsumerStats information.
-                if (uidEstimatedConsumptionMah != null) {
-                    double totalEstimatedConsumptionMah = 0.0;
-                    if (attributeWithModemActivityInfo) {
-                        // Estimate inactive modem power consumption and combine with previously
-                        // estimated active power consumption for an estimate of total modem
-                        // power consumption.
-                        final long sleepTimeMs = deltaInfo.getSleepTimeMillis();
-                        final long idleTimeMs = deltaInfo.getIdleTimeMillis();
-                        final double inactiveConsumptionMah =
-                                mMobileRadioPowerCalculator.calcInactiveStatePowerMah(sleepTimeMs,
-                                        idleTimeMs);
-                        totalEstimatedConsumptionMah += inactiveConsumptionMah;
-                        totalEstimatedConsumptionMah += rxTxConsumption.rxConsumptionMah;
-                        totalEstimatedConsumptionMah += rxTxConsumption.txConsumptionMah;
-                    } else {
-                        // Estimate total active radio power consumption since last mark.
-                        totalEstimatedConsumptionMah +=
-                                mMobileRadioPowerCalculator.calcPowerFromRadioActiveDurationMah(
-                                        totalRadioDurationMs);
-
-                        // Estimate idle power consumption at each signal strength level
-                        final int numSignalStrengthLevels = mPhoneSignalStrengthsTimer.length;
-                        for (int lvl = 0; lvl < numSignalStrengthLevels; lvl++) {
-                            final long strengthLevelDurationMs =
-                                    mPhoneSignalStrengthsTimer[lvl].getTimeSinceMarkLocked(
-                                            elapsedRealtimeMs * 1000) / 1000;
-                            mPhoneSignalStrengthsTimer[lvl].setMark(elapsedRealtimeMs);
-
-                            totalEstimatedConsumptionMah +=
-                                    mMobileRadioPowerCalculator.calcIdlePowerAtSignalStrengthMah(
-                                            strengthLevelDurationMs, lvl);
-                        }
-
-                        // Estimate total active radio power consumption since last mark.
-                        final long scanTimeMs = mPhoneSignalScanningTimer.getTimeSinceMarkLocked(
-                                elapsedRealtimeMs * 1000) / 1000;
-                        mPhoneSignalScanningTimer.setMark(elapsedRealtimeMs);
-                        totalEstimatedConsumptionMah +=
-                                mMobileRadioPowerCalculator.calcScanTimePowerMah(scanTimeMs);
-                    }
-                    distributeEnergyToUidsLocked(EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO,
-                            dataConsumedChargeUC, uidEstimatedConsumptionMah,
-                            totalEstimatedConsumptionMah, elapsedRealtimeMs);
-                }
-            }
-        }
-    }
-
-    private static class RxTxConsumption {
-        public final double rxConsumptionMah;
-        public final long rxDurationMs;
-        public final double txConsumptionMah;
-        public final long txDurationMs;
-
-        /**
-         * Represents the ratio between time spent transmitting and the total active time.
-         */
-        public final double txToTotalRatio;
-
-        RxTxConsumption(double rxMah, long rxMs, double txMah, long txMs) {
-            rxConsumptionMah = rxMah;
-            rxDurationMs = rxMs;
-            txConsumptionMah = txMah;
-            txDurationMs = txMs;
-
-            final long activeDurationMs = txDurationMs + rxDurationMs;
-            if (activeDurationMs == 0) {
-                txToTotalRatio = 0.0;
-            } else {
-                txToTotalRatio = ((double) txDurationMs) / activeDurationMs;
             }
         }
     }
 
     @GuardedBy("this")
-    @Nullable
-    private RxTxConsumption incrementPerRatDataLocked(ModemActivityInfo deltaInfo,
+    private void incrementPerRatDataLocked(ModemActivityInfo deltaInfo,
             long elapsedRealtimeMs) {
-        double rxConsumptionMah = 0.0;
-        long rxDurationMs = 0;
-        double txConsumptionMah = 0.0;
-        long txDurationMs = 0;
-
         final int infoSize = deltaInfo.getSpecificInfoLength();
         if (infoSize == 1 && deltaInfo.getSpecificInfoRat(0)
                 == AccessNetworkConstants.AccessNetworkType.UNKNOWN
@@ -13116,16 +12352,6 @@ public class BatteryStatsImpl extends BatteryStats {
                                             + (totalLvlDurationMs / 2)) / totalLvlDurationMs;
                             ratStats.incrementTxDuration(freq, level, proportionalTxDurationMs);
                             frequencyDurationMs += durationMs;
-
-                            if (isMobileRadioEnergyConsumerSupportedLocked()) {
-                                // Accumulate the power cost of time spent transmitting in a
-                                // particular state.
-                                final double txStatePowerConsumptionMah =
-                                        mMobileRadioPowerCalculator.calcTxStatePowerMah(rat, freq,
-                                                level, proportionalTxDurationMs);
-                                txConsumptionMah += txStatePowerConsumptionMah;
-                                txDurationMs += proportionalTxDurationMs;
-                            }
                         }
                         final long totalRxDuration = deltaInfo.getReceiveTimeMillis();
                         // Smear HAL provided Rx power duration based on active modem
@@ -13135,18 +12361,7 @@ public class BatteryStatsImpl extends BatteryStats {
                                 (frequencyDurationMs * totalRxDuration + (totalActiveTimeMs
                                         / 2)) / totalActiveTimeMs;
                         ratStats.incrementRxDuration(freq, proportionalRxDurationMs);
-
-                        if (isMobileRadioEnergyConsumerSupportedLocked()) {
-                            // Accumulate the power cost of time spent receiving in a particular
-                            // state.
-                            final double rxStatePowerConsumptionMah =
-                                    mMobileRadioPowerCalculator.calcRxStatePowerMah(rat, freq,
-                                            proportionalRxDurationMs);
-                            rxConsumptionMah += rxStatePowerConsumptionMah;
-                            rxDurationMs += proportionalRxDurationMs;
-                        }
                     }
-
                 }
             }
         } else {
@@ -13164,28 +12379,10 @@ public class BatteryStatsImpl extends BatteryStats {
                 final long rxTimeMs = deltaInfo.getReceiveTimeMillis(rat, freq);
                 final int[] txTimesMs = deltaInfo.getTransmitTimeMillis(rat, freq);
                 ratStats.incrementRxDuration(freq, rxTimeMs);
-                if (isMobileRadioEnergyConsumerSupportedLocked()) {
-                    // Accumulate the power cost of time spent receiving in a particular state.
-                    final double rxStatePowerConsumptionMah =
-                            mMobileRadioPowerCalculator.calcRxStatePowerMah(ratBucket, freq,
-                                    rxTimeMs);
-                    rxConsumptionMah += rxStatePowerConsumptionMah;
-                    rxDurationMs += rxTimeMs;
-                }
-
                 final int numTxLvl = txTimesMs.length;
                 for (int lvl = 0; lvl < numTxLvl; lvl++) {
                     final long txTimeMs = txTimesMs[lvl];
                     ratStats.incrementTxDuration(freq, lvl, txTimeMs);
-                    if (isMobileRadioEnergyConsumerSupportedLocked()) {
-                        // Accumulate the power cost of time spent transmitting in a particular
-                        // state.
-                        final double txStatePowerConsumptionMah =
-                                mMobileRadioPowerCalculator.calcTxStatePowerMah(ratBucket, freq,
-                                        lvl, txTimeMs);
-                        txConsumptionMah += txStatePowerConsumptionMah;
-                        txDurationMs += txTimeMs;
-                    }
                 }
             }
         }
@@ -13195,45 +12392,6 @@ public class BatteryStatsImpl extends BatteryStats {
             if (ratStats == null) continue;
             ratStats.setMark(elapsedRealtimeMs);
         }
-
-        if (isMobileRadioEnergyConsumerSupportedLocked()) {
-            return new RxTxConsumption(rxConsumptionMah, rxDurationMs, txConsumptionMah,
-                    txDurationMs);
-        } else {
-            return null;
-        }
-    }
-
-    /**
-     * Smear modem Rx/Tx power consumption calculated from {@link ModemActivityInfo} using Rx/Tx
-     * packets.
-     *
-     * @return the combine Rx/Tx smeared power consumption in milliamp-hours.
-     */
-    private double smearModemActivityInfoRxTxConsumptionMah(RxTxConsumption rxTxConsumption,
-            long rxPackets, long txPackets, long totalRxPackets, long totalTxPackets) {
-        // Distribute measured mobile radio charge consumption based on
-        // rx/tx packets and estimated rx/tx charge consumption.
-        double consumptionMah = 0.0;
-        if (totalRxPackets != 0) {
-            // Proportionally distribute receive battery consumption.
-            consumptionMah += rxTxConsumption.rxConsumptionMah * rxPackets
-                    / totalRxPackets;
-        }
-        if (totalTxPackets != 0 || (totalRxPackets != 0 && rxTxConsumption.txToTotalRatio != 0.0)) {
-            // ModemActivityInfo Tx time represents time spent both transmitting and receiving.
-            // There is currently no way to distinguish how many Rx packets were received during
-            // Rx time vs Tx time.
-            // Assumption: The number of packets received while transmitting is proportional
-            // to the time spent transmitting over total active time.
-            final double totalPacketsDuringTxTime =
-                    totalTxPackets + rxTxConsumption.txToTotalRatio * totalRxPackets;
-            final double packetsDuringTxTime =
-                    txPackets + rxTxConsumption.txToTotalRatio * rxPackets;
-            consumptionMah += rxTxConsumption.txConsumptionMah * packetsDuringTxTime
-                    / totalPacketsDuringTxTime;
-        }
-        return consumptionMah;
     }
 
     /**
@@ -13297,19 +12455,17 @@ public class BatteryStatsImpl extends BatteryStats {
 
     private void onBluetoothPowerStatsRetrieved(BluetoothActivityEnergyInfo info,
             long elapsedRealtimeMs, long uptimeMs) {
-        // Do not populate consumed energy, because energy attribution is done by
-        // BluetoothPowerStatsProcessor.
-        updateBluetoothStateLocked(info, POWER_DATA_UNAVAILABLE, elapsedRealtimeMs, uptimeMs);
+        updateBluetoothStateLocked(info, elapsedRealtimeMs, uptimeMs);
     }
 
     /**
-     * Distribute Bluetooth energy info and network traffic to apps.
+     * Distribute Bluetooth network traffic to apps.
      *
      * @param info The accumulated energy information from the bluetooth controller.
      */
     @GuardedBy("this")
     public void updateBluetoothStateLocked(@Nullable final BluetoothActivityEnergyInfo info,
-            final long consumedChargeUC, long elapsedRealtimeMs, long uptimeMs) {
+            long elapsedRealtimeMs, long uptimeMs) {
         if (DEBUG_ENERGY) {
             Slog.d(TAG, "Updating bluetooth stats: " + info);
         }
@@ -13348,10 +12504,6 @@ public class BatteryStatsImpl extends BatteryStats {
             Slog.d(TAG, "  Idle Time:  " + idleTimeMs + " ms");
         }
 
-        final SparseDoubleArray uidEstimatedConsumptionMah =
-                (mGlobalEnergyConsumerStats != null
-                        && mBluetoothPowerCalculator != null && consumedChargeUC > 0) ?
-                        new SparseDoubleArray() : null;
         long totalScanTimeMs = 0;
 
         final int uidCount = mUidStats.size();
@@ -13410,12 +12562,6 @@ public class BatteryStatsImpl extends BatteryStats {
 
                 rxTimesMs.incrementValue(u.getUid(), scanTimeRxSinceMarkMs);
                 txTimesMs.incrementValue(u.getUid(), scanTimeTxSinceMarkMs);
-
-                if (uidEstimatedConsumptionMah != null) {
-                    uidEstimatedConsumptionMah.incrementValue(u.getUid(),
-                            mBluetoothPowerCalculator.calculatePowerMah(
-                                    scanTimeRxSinceMarkMs, scanTimeTxSinceMarkMs, 0));
-                }
 
                 leftOverRxTimeMs -= scanTimeRxSinceMarkMs;
                 leftOverTxTimeMs -= scanTimeTxSinceMarkMs;
@@ -13492,10 +12638,6 @@ public class BatteryStatsImpl extends BatteryStats {
                         .getOrCreateBluetoothControllerActivityLocked()
                         .getOrCreateTxTimeCounters()[0]
                         .increment(myTxTimeMs, elapsedRealtimeMs);
-                if (uidEstimatedConsumptionMah != null) {
-                    uidEstimatedConsumptionMah.incrementValue(uid,
-                            mBluetoothPowerCalculator.calculatePowerMah(0, myTxTimeMs, 0));
-                }
             }
 
             for (int i = 0; i < rxTimesMs.size(); i++) {
@@ -13509,10 +12651,6 @@ public class BatteryStatsImpl extends BatteryStats {
                         .getOrCreateBluetoothControllerActivityLocked()
                         .getOrCreateRxTimeCounter()
                         .increment(myRxTimeMs, elapsedRealtimeMs);
-                if (uidEstimatedConsumptionMah != null) {
-                    uidEstimatedConsumptionMah.incrementValue(uid,
-                            mBluetoothPowerCalculator.calculatePowerMah(myRxTimeMs, 0, 0));
-                }
             }
         }
 
@@ -13529,19 +12667,6 @@ public class BatteryStatsImpl extends BatteryStats {
                     / opVolt;
             // We store the power drain as mAms.
             mBluetoothActivity.getPowerCounter().addCountLocked((long) controllerMaMs);
-        }
-
-        // Update the EnergyConsumerStats information.
-        if (uidEstimatedConsumptionMah != null) {
-            mGlobalEnergyConsumerStats.updateStandardBucket(
-                    EnergyConsumerStats.POWER_BUCKET_BLUETOOTH, consumedChargeUC);
-
-            double totalEstimatedMah
-                    = mBluetoothPowerCalculator.calculatePowerMah(rxTimeMs, txTimeMs, idleTimeMs);
-            totalEstimatedMah = Math.max(totalEstimatedMah, controllerMaMs / MILLISECONDS_IN_HOUR);
-            distributeEnergyToUidsLocked(EnergyConsumerStats.POWER_BUCKET_BLUETOOTH,
-                    consumedChargeUC, uidEstimatedConsumptionMah, totalEstimatedMah,
-                    elapsedRealtimeMs);
         }
 
         mLastBluetoothActivityInfo.set(info);
@@ -13614,366 +12739,6 @@ public class BatteryStatsImpl extends BatteryStats {
                     getScreenOffRpmTimerLocked(name).update(timeUs, count, elapsedRealtimeUs);
                 }
             }
-        }
-    }
-
-    /**
-     * Accumulate Cpu charge consumption and distribute it to the correct state and the apps.
-     * Only call if device is on battery.
-     *
-     * @param clusterChargeUC amount of charge (microcoulombs) consumed by each Cpu Cluster
-     * @param accumulator collection of calculated uid cpu power consumption to smear
-     *                    clusterChargeUC against.
-     */
-    @GuardedBy("this")
-    @SuppressWarnings("GuardedBy") // errorprone false positive on u.addChargeToStandardBucketLocked
-    private void updateCpuEnergyConsumerStatsLocked(@NonNull long[] clusterChargeUC,
-            @NonNull CpuDeltaPowerAccumulator accumulator) {
-        if (DEBUG_ENERGY) {
-            Slog.d(TAG, "Updating cpu cluster stats: " + Arrays.toString(clusterChargeUC));
-        }
-        if (mGlobalEnergyConsumerStats == null) {
-            return;
-        }
-
-        final int numClusters = clusterChargeUC.length;
-        long totalCpuChargeUC = 0;
-        for (int i = 0; i < numClusters; i++) {
-            totalCpuChargeUC += clusterChargeUC[i];
-        }
-        if (totalCpuChargeUC <= 0) return;
-
-        final long timestampMs = mClock.elapsedRealtime();
-
-        mGlobalEnergyConsumerStats.updateStandardBucket(EnergyConsumerStats.POWER_BUCKET_CPU,
-                totalCpuChargeUC, timestampMs);
-
-        // Calculate the microcoulombs/milliamp-hour charge ratio for each
-        // cluster to normalize  each uid's estimated power usage against actual power usage for
-        // a given cluster.
-        final double[] clusterChargeRatio = new double[numClusters];
-        for (int cluster = 0; cluster < numClusters; cluster++) {
-
-            final double totalClusterChargeMah = accumulator.totalClusterChargesMah[cluster];
-            if (totalClusterChargeMah <= 0.0) {
-                // This cluster did not have any work on it, since last update.
-                // Avoid dividing by zero.
-                clusterChargeRatio[cluster] = 0.0;
-            } else {
-                clusterChargeRatio[cluster] =
-                        clusterChargeUC[cluster] / accumulator.totalClusterChargesMah[cluster];
-            }
-        }
-
-        // Assign and distribute power usage to apps based on their calculated cpu cluster charge.
-        final long uidChargeArraySize = accumulator.perUidCpuClusterChargesMah.size();
-        for (int i = 0; i < uidChargeArraySize; i++) {
-            final Uid uid = accumulator.perUidCpuClusterChargesMah.keyAt(i);
-            final double[] uidClusterChargesMah = accumulator.perUidCpuClusterChargesMah.valueAt(i);
-
-            // Iterate each cpu cluster and sum the proportional cpu cluster charge to
-            // get the total cpu charge consumed by a uid.
-            long uidCpuChargeUC = 0;
-            for (int cluster = 0; cluster < numClusters; cluster++) {
-                final double uidClusterChargeMah = uidClusterChargesMah[cluster];
-
-                // Proportionally allocate the cpu cluster charge to a uid using the
-                // cluster charge/charge ratio. Add 0.5 to round the proportional
-                // charge double to the nearest long value.
-                final long uidClusterChargeUC =
-                        (long) (uidClusterChargeMah * clusterChargeRatio[cluster]
-                                + 0.5);
-
-                uidCpuChargeUC += uidClusterChargeUC;
-            }
-
-            if (uidCpuChargeUC < 0) {
-                Slog.wtf(TAG, "Unexpected proportional EnergyConsumer charge "
-                        + "(" + uidCpuChargeUC + ") for uid " + uid.mUid);
-                continue;
-            }
-
-            uid.addChargeToStandardBucketLocked(uidCpuChargeUC,
-                    EnergyConsumerStats.POWER_BUCKET_CPU, timestampMs);
-        }
-    }
-
-    /**
-     * Accumulate Display charge consumption and distribute it to the correct state and the apps.
-     *
-     * NOTE: The algorithm used makes the strong assumption that app foreground activity time
-     * is always 0 when the screen is not "ON" and whenever the rail energy is 0 (if supported).
-     * To the extent that those assumptions are violated, the algorithm will err.
-     *
-     * @param chargesUC amount of charge (microcoulombs) used by each Display since this was last
-     *                 called.
-     * @param screenStates each screen state at the time this data collection was scheduled
-     */
-    @GuardedBy("this")
-    public void updateDisplayEnergyConsumerStatsLocked(long[] chargesUC, int[] screenStates,
-            long elapsedRealtimeMs) {
-        if (DEBUG_ENERGY) Slog.d(TAG, "Updating display stats: " + Arrays.toString(chargesUC));
-        if (mGlobalEnergyConsumerStats == null) {
-            return;
-        }
-
-        final int numDisplays;
-        if (mPerDisplayBatteryStats.length == screenStates.length) {
-            numDisplays = screenStates.length;
-        } else {
-            // if this point is reached, it will be reached every display state change.
-            // Rate limit the wtf logging to once every 100 display updates.
-            if (mDisplayMismatchWtfCount++ % 100 == 0) {
-                Slog.wtf(TAG, "Mismatch between PowerProfile reported display count ("
-                        + mPerDisplayBatteryStats.length
-                        + ") and PowerStatsHal reported display count (" + screenStates.length
-                        + ")");
-            }
-            // Keep the show going, use the shorter of the two.
-            numDisplays = mPerDisplayBatteryStats.length < screenStates.length
-                    ? mPerDisplayBatteryStats.length : screenStates.length;
-        }
-
-        final int[] oldScreenStates = new int[numDisplays];
-        for (int i = 0; i < numDisplays; i++) {
-            final int screenState = screenStates[i];
-            oldScreenStates[i] = mPerDisplayBatteryStats[i].screenStateAtLastEnergyMeasurement;
-            mPerDisplayBatteryStats[i].screenStateAtLastEnergyMeasurement = screenState;
-        }
-
-        if (!mOnBatteryInternal) {
-            // There's nothing further to update.
-            return;
-        }
-        if (mIgnoreNextExternalStats) {
-            // Although under ordinary resets we won't get here, and typically a new sync will
-            // happen right after the reset, strictly speaking we need to set all mark times to now.
-            final int uidStatsSize = mUidStats.size();
-            for (int i = 0; i < uidStatsSize; i++) {
-                final Uid uid = mUidStats.valueAt(i);
-                uid.markProcessForegroundTimeUs(elapsedRealtimeMs, false);
-            }
-            return;
-        }
-
-        long totalScreenOnChargeUC = 0;
-        for (int i = 0; i < numDisplays; i++) {
-            final long chargeUC = chargesUC[i];
-            if (chargeUC <= 0) {
-                // There's nothing further to update.
-                continue;
-            }
-
-            final @StandardPowerBucket int powerBucket =
-                    EnergyConsumerStats.getDisplayPowerBucket(oldScreenStates[i]);
-            mGlobalEnergyConsumerStats.updateStandardBucket(powerBucket, chargeUC);
-            if (powerBucket == EnergyConsumerStats.POWER_BUCKET_SCREEN_ON) {
-                totalScreenOnChargeUC += chargeUC;
-            }
-        }
-
-        // Now we blame individual apps, but only if the display was ON.
-        if (totalScreenOnChargeUC <= 0) {
-            return;
-        }
-        // TODO(b/175726779): Consider unifying the code with the non-rail display power blaming.
-
-        // NOTE: fg time is NOT pooled. If two uids are both somehow in fg, then that time is
-        // 'double counted' and will simply exceed the realtime that elapsed.
-        // TODO(b/175726779): collect per display uid visibility for display power attribution.
-
-        // Collect total time since mark so that we can normalize power.
-        final SparseDoubleArray fgTimeUsArray = new SparseDoubleArray();
-        final long elapsedRealtimeUs = elapsedRealtimeMs * 1000;
-        // TODO(b/175726779): Update and optimize the algorithm (e.g. avoid iterating over ALL uids)
-        final int uidStatsSize = mUidStats.size();
-        for (int i = 0; i < uidStatsSize; i++) {
-            final Uid uid = mUidStats.valueAt(i);
-            final long fgTimeUs = uid.markProcessForegroundTimeUs(elapsedRealtimeMs, true);
-            if (fgTimeUs == 0) continue;
-            fgTimeUsArray.put(uid.getUid(), (double) fgTimeUs);
-        }
-        distributeEnergyToUidsLocked(EnergyConsumerStats.POWER_BUCKET_SCREEN_ON,
-                totalScreenOnChargeUC, fgTimeUsArray, 0, elapsedRealtimeMs);
-    }
-
-    /**
-     * Accumulate GNSS charge consumption and distribute it to the correct state and the apps.
-     *
-     * @param chargeUC amount of charge (microcoulombs) used by GNSS since this was last called.
-     */
-    @GuardedBy("this")
-    public void updateGnssEnergyConsumerStatsLocked(long chargeUC, long elapsedRealtimeMs) {
-        if (DEBUG_ENERGY) Slog.d(TAG, "Updating gnss stats: " + chargeUC);
-        if (mGlobalEnergyConsumerStats == null) {
-            return;
-        }
-
-        if (!mOnBatteryInternal || chargeUC <= 0) {
-            // There's nothing further to update.
-            return;
-        }
-        if (mIgnoreNextExternalStats) {
-            // Although under ordinary resets we won't get here, and typically a new sync will
-            // happen right after the reset, strictly speaking we need to set all mark times to now.
-            final int uidStatsSize = mUidStats.size();
-            for (int i = 0; i < uidStatsSize; i++) {
-                final Uid uid = mUidStats.valueAt(i);
-                uid.markGnssTimeUs(elapsedRealtimeMs);
-            }
-            return;
-        }
-
-        mGlobalEnergyConsumerStats.updateStandardBucket(EnergyConsumerStats.POWER_BUCKET_GNSS,
-                chargeUC);
-
-        // Collect the per uid time since mark so that we can normalize power.
-        final SparseDoubleArray gnssTimeUsArray = new SparseDoubleArray();
-        // TODO(b/175726779): Update and optimize the algorithm (e.g. avoid iterating over ALL uids)
-        final int uidStatsSize = mUidStats.size();
-        for (int i = 0; i < uidStatsSize; i++) {
-            final Uid uid = mUidStats.valueAt(i);
-            final long gnssTimeUs = uid.markGnssTimeUs(elapsedRealtimeMs);
-            if (gnssTimeUs == 0) continue;
-            gnssTimeUsArray.put(uid.getUid(), (double) gnssTimeUs);
-        }
-        distributeEnergyToUidsLocked(EnergyConsumerStats.POWER_BUCKET_GNSS, chargeUC,
-                gnssTimeUsArray, 0, elapsedRealtimeMs);
-    }
-
-    /**
-     * Accumulate camera charge consumption and distribute it to the correct state and the apps.
-     *
-     * @param chargeUC amount of charge (microcoulombs) used by the camera since this was last
-     *         called.
-     */
-    @GuardedBy("this")
-    public void updateCameraEnergyConsumerStatsLocked(long chargeUC, long elapsedRealtimeMs) {
-        if (DEBUG_ENERGY) Slog.d(TAG, "Updating camera stats: " + chargeUC);
-        if (mGlobalEnergyConsumerStats == null) {
-            return;
-        }
-
-        if (!mOnBatteryInternal || chargeUC <= 0) {
-            // There's nothing further to update.
-            return;
-        }
-
-        if (mIgnoreNextExternalStats) {
-            // Although under ordinary resets we won't get here, and typically a new sync will
-            // happen right after the reset, strictly speaking we need to set all mark times to now.
-            final int uidStatsSize = mUidStats.size();
-            for (int i = 0; i < uidStatsSize; i++) {
-                final Uid uid = mUidStats.valueAt(i);
-                uid.markCameraTimeUs(elapsedRealtimeMs);
-            }
-            return;
-        }
-
-        mGlobalEnergyConsumerStats.updateStandardBucket(
-                EnergyConsumerStats.POWER_BUCKET_CAMERA, chargeUC);
-
-        // Collect the per uid time since mark so that we can normalize power.
-        final SparseDoubleArray cameraTimeUsArray = new SparseDoubleArray();
-
-        // Note: Iterating over all UIDs may be suboptimal.
-        final int uidStatsSize = mUidStats.size();
-        for (int i = 0; i < uidStatsSize; i++) {
-            final Uid uid = mUidStats.valueAt(i);
-            final long cameraTimeUs = uid.markCameraTimeUs(elapsedRealtimeMs);
-            if (cameraTimeUs == 0) continue;
-            cameraTimeUsArray.put(uid.getUid(), (double) cameraTimeUs);
-        }
-        distributeEnergyToUidsLocked(EnergyConsumerStats.POWER_BUCKET_CAMERA, chargeUC,
-                cameraTimeUsArray, 0, elapsedRealtimeMs);
-    }
-
-    /**
-     * Accumulate Custom power bucket charge, globally and for each app.
-     *
-     * @param totalChargeUC charge (microcoulombs) used for this bucket since this was last called.
-     * @param uidCharges map of uid->charge (microcoulombs) for this bucket since last called.
-     *                    Data inside uidCharges will not be modified (treated immutable).
-     *                    Uids not already known to BatteryStats will be ignored.
-     */
-    @GuardedBy("this")
-    @SuppressWarnings("GuardedBy") // errorprone false positive on u.addChargeToCustomBucketLocked
-    public void updateCustomEnergyConsumerStatsLocked(int customPowerBucket,
-            long totalChargeUC, @Nullable SparseLongArray uidCharges) {
-        if (DEBUG_ENERGY) {
-            Slog.d(TAG, "Updating attributed EnergyConsumer stats for custom bucket "
-                    + customPowerBucket
-                    + " with total charge " + totalChargeUC
-                    + " and uid charges " + uidCharges);
-        }
-        if (mGlobalEnergyConsumerStats == null) return;
-        if (!mOnBatteryInternal || mIgnoreNextExternalStats || totalChargeUC <= 0) return;
-
-        mGlobalEnergyConsumerStats.updateCustomBucket(customPowerBucket, totalChargeUC,
-                mClock.elapsedRealtime());
-
-        if (uidCharges == null) return;
-        final int numUids = uidCharges.size();
-        for (int i = 0; i < numUids; i++) {
-            final int uidInt = mapUid(uidCharges.keyAt(i));
-            final long uidChargeUC = uidCharges.valueAt(i);
-            if (uidChargeUC == 0) continue;
-
-            final Uid uidObj = getAvailableUidStatsLocked(uidInt);
-            if (uidObj != null) {
-                uidObj.addChargeToCustomBucketLocked(uidChargeUC, customPowerBucket);
-            } else {
-                // Ignore any uid not already known to BatteryStats, rather than creating a new Uid.
-                // Otherwise we could end up reviving dead Uids. Note that the CPU data is updated
-                // first, so any uid that has used any CPU should already be known to BatteryStats.
-                // Recently removed uids (especially common for isolated uids) can reach this path
-                // and are ignored.
-                if (!Process.isIsolated(uidInt)) {
-                    Slog.w(TAG, "Received EnergyConsumer charge " + totalChargeUC
-                            + " for custom bucket " + customPowerBucket + " for non-existent uid "
-                            + uidInt);
-                }
-            }
-        }
-    }
-
-    /**
-     * Attributes energy (for the given bucket) to each uid according to the following formula:
-     *     blamedEnergy[uid] = totalEnergy * ratioNumerators[uid] / ratioDenominator;
-     * <p>Does nothing if ratioDenominator is 0.
-     *
-     * <p>Here, ratioDenominator = max(sumOfAllRatioNumerators, minRatioDenominator),
-     * so if given minRatioDenominator <= 0, then sumOfAllRatioNumerators will be used implicitly.
-     *
-     * <p>Note that ratioNumerators and minRatioDenominator must use the same units, but need not
-     * use the same units as totalConsumedChargeUC (which must be in microcoulombs).
-     *
-     * <p>A consequence of minRatioDenominator is that the sum over all uids might be less than
-     * totalConsumedChargeUC. This is intentional; the remainder is purposefully unnaccounted rather
-     * than incorrectly blamed on uids, and implies unknown (non-uid) sources of drain.
-     *
-     * <p>All uids in ratioNumerators must exist in mUidStats already.
-     */
-    @GuardedBy("this")
-    @SuppressWarnings("GuardedBy") // errorprone false positive on u.addChargeToStandardBucketLocked
-    private void distributeEnergyToUidsLocked(@StandardPowerBucket int bucket,
-            long totalConsumedChargeUC, SparseDoubleArray ratioNumerators,
-            double minRatioDenominator, long timestampMs) {
-
-        // If the sum of all app usage was greater than the total, use that instead:
-        double sumRatioNumerators = 0;
-        for (int i = ratioNumerators.size() - 1; i >= 0; i--) {
-            sumRatioNumerators += ratioNumerators.valueAt(i);
-        }
-        final double ratioDenominator = Math.max(sumRatioNumerators, minRatioDenominator);
-        if (ratioDenominator <= 0) return;
-
-        for (int i = ratioNumerators.size() - 1; i >= 0; i--) {
-            final Uid uid = getAvailableUidStatsLocked(ratioNumerators.keyAt(i));
-            final double ratioNumerator = ratioNumerators.valueAt(i);
-            final long uidActualUC
-                    = (long) (totalConsumedChargeUC * ratioNumerator / ratioDenominator + 0.5);
-            uid.addChargeToStandardBucketLocked(uidActualUC, bucket, timestampMs);
         }
     }
 
@@ -14098,64 +12863,6 @@ public class BatteryStatsImpl extends BatteryStats {
     }
 
     /**
-     * Object for calculating and accumulating the estimated cpu power used while reading the
-     * various cpu kernel files.
-     */
-    @VisibleForTesting
-    public static class CpuDeltaPowerAccumulator {
-        // Keeps track of total charge used per cluster.
-        public final double[] totalClusterChargesMah;
-        // Keeps track of charge used per cluster per uid.
-        public final ArrayMap<Uid, double[]> perUidCpuClusterChargesMah;
-
-        private final CpuPowerCalculator mCalculator;
-        private Uid mCachedUid = null;
-        private double[] mUidClusterCache = null;
-
-        CpuDeltaPowerAccumulator(CpuPowerCalculator calculator, int nClusters) {
-            mCalculator = calculator;
-            totalClusterChargesMah = new double[nClusters];
-            perUidCpuClusterChargesMah = new ArrayMap<>();
-        }
-
-        /** Add per cpu cluster durations to the currently cached uid. */
-        public void addCpuClusterDurationsMs(Uid uid, long[] durationsMs) {
-            final double[] uidChargesMah = getOrCreateUidCpuClusterCharges(uid);
-            for (int cluster = 0; cluster < durationsMs.length; cluster++) {
-                final double estimatedDeltaMah = mCalculator.calculatePerCpuClusterPowerMah(cluster,
-                        durationsMs[cluster]);
-                uidChargesMah[cluster] += estimatedDeltaMah;
-                totalClusterChargesMah[cluster] += estimatedDeltaMah;
-            }
-        }
-
-        /** Add per speed per cpu cluster durations to the currently cached uid. */
-        public void addCpuClusterSpeedDurationsMs(Uid uid, int cluster, int speed,
-                long durationsMs) {
-            final double[] uidChargesMah = getOrCreateUidCpuClusterCharges(uid);
-            final double estimatedDeltaMah = mCalculator.calculatePerCpuFreqPowerMah(cluster, speed,
-                    durationsMs);
-            uidChargesMah[cluster] += estimatedDeltaMah;
-            totalClusterChargesMah[cluster] += estimatedDeltaMah;
-        }
-
-        private double[] getOrCreateUidCpuClusterCharges(Uid uid) {
-            // Repeated additions on the same uid is very likely.
-            // Skip a lookup if getting the same uid as the last get.
-            if (uid == mCachedUid) return mUidClusterCache;
-
-            double[] uidChargesMah = perUidCpuClusterChargesMah.get(uid);
-            if (uidChargesMah == null) {
-                uidChargesMah = new double[totalClusterChargesMah.length];
-                perUidCpuClusterChargesMah.put(uid, uidChargesMah);
-            }
-            mCachedUid = uid;
-            mUidClusterCache = uidChargesMah;
-            return uidChargesMah;
-        }
-    }
-
-    /**
      * Read and distribute CPU usage across apps. If their are partial wakelocks being held
      * and we are on battery with screen off, we give more of the cpu time to those apps holding
      * wakelocks. If the screen is on, we just assign the actual cpu time an app used.
@@ -14164,8 +12871,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * buckets.
      */
     @GuardedBy("this")
-    public void updateCpuTimeLocked(boolean onBattery, boolean onBatteryScreenOff,
-            long[] cpuClusterChargeUC) {
+    public void updateCpuTimeLocked(boolean onBattery, boolean onBatteryScreenOff) {
         if (DEBUG_ENERGY_CPU) {
             Slog.d(TAG, "!Cpu updating!");
         }
@@ -14206,9 +12912,6 @@ public class BatteryStatsImpl extends BatteryStats {
                     mKernelCpuSpeedReaders[i].readDelta();
                 }
             }
-            if (!Flags.disableSystemServicePowerAttr()) {
-                mSystemServerCpuThreadReader.readDelta();
-            }
             return;
         }
 
@@ -14216,103 +12919,19 @@ public class BatteryStatsImpl extends BatteryStats {
         final SparseLongArray updatedUids = mCpuUidFreqTimeReader.allUidTimesAvailable()
                 ? null : new SparseLongArray();
 
-        final CpuDeltaPowerAccumulator powerAccumulator;
-        if (mGlobalEnergyConsumerStats != null
-                && mGlobalEnergyConsumerStats.isStandardBucketSupported(
-                EnergyConsumerStats.POWER_BUCKET_CPU)) {
-            if (cpuClusterChargeUC == null) {
-                Slog.wtf(TAG,
-                        "POWER_BUCKET_CPU supported but no EnergyConsumer Cpu Cluster charge "
-                                + "reported on updateCpuTimeLocked!");
-                powerAccumulator = null;
-            } else {
-                if (mCpuPowerCalculator == null) {
-                    mCpuPowerCalculator = new CpuPowerCalculator(mCpuScalingPolicies,
-                            mPowerProfile);
-                }
-                // Cpu EnergyConsumer is supported, create an object to accumulate the estimated
-                // charge consumption since the last cpu update
-                powerAccumulator = new CpuDeltaPowerAccumulator(mCpuPowerCalculator,
-                        mCpuScalingPolicies.getPolicies().length);
-            }
-        } else {
-            powerAccumulator = null;
-        }
-
         readKernelUidCpuTimesLocked(partialTimersToConsider, updatedUids, onBattery);
         // updatedUids=null means /proc/uid_time_in_state provides snapshots of per-cluster cpu
         // freqs, so no need to approximate these values.
         if (updatedUids != null) {
-            updateClusterSpeedTimes(updatedUids, onBattery, powerAccumulator);
+            updateClusterSpeedTimes(updatedUids, onBattery);
         }
-        readKernelUidCpuFreqTimesLocked(partialTimersToConsider, onBattery, onBatteryScreenOff,
-                powerAccumulator);
+        readKernelUidCpuFreqTimesLocked(partialTimersToConsider, onBattery, onBatteryScreenOff
+        );
         mNumAllUidCpuTimeReads += 2;
         if (mConstants.TRACK_CPU_ACTIVE_CLUSTER_TIME) {
-            // Cpu Active times do not get any info ony how to attribute Cpu Cluster
-            // charge, so not need to provide the powerAccumulator
             readKernelUidCpuActiveTimesLocked(onBattery);
-            readKernelUidCpuClusterTimesLocked(onBattery, powerAccumulator);
+            readKernelUidCpuClusterTimesLocked(onBattery);
             mNumAllUidCpuTimeReads += 2;
-        }
-
-        if (!Flags.disableSystemServicePowerAttr()) {
-            updateSystemServerThreadStats();
-        }
-
-        if (powerAccumulator != null) {
-            updateCpuEnergyConsumerStatsLocked(cpuClusterChargeUC, powerAccumulator);
-        }
-    }
-
-    /**
-     * Estimates the proportion of the System Server CPU activity (per cluster per speed)
-     * spent on handling incoming binder calls.
-     */
-    @VisibleForTesting
-    public void updateSystemServerThreadStats() {
-        // There are some simplifying assumptions made in this algorithm
-        // 1) We assume that if a thread handles incoming binder calls, all of its activity
-        //    is spent doing that.  Most incoming calls are handled by threads allocated
-        //    by the native layer in the binder thread pool, so this assumption is reasonable.
-        // 2) We use the aggregate CPU time spent in different threads as a proxy for the CPU
-        //    cost. In reality, in multi-core CPUs, the CPU cost may not be linearly
-        //    affected by additional threads.
-
-        SystemServerCpuThreadReader.SystemServiceCpuThreadTimes systemServiceCpuThreadTimes =
-                    mSystemServerCpuThreadReader.readDelta();
-        if (systemServiceCpuThreadTimes == null) {
-            return;
-        }
-
-        if (mBinderThreadCpuTimesUs == null) {
-            mBinderThreadCpuTimesUs = new LongSamplingCounterArray(mOnBatteryTimeBase);
-        }
-        mBinderThreadCpuTimesUs.addCountLocked(systemServiceCpuThreadTimes.binderThreadCpuTimesUs);
-
-        if (DEBUG_BINDER_STATS) {
-            Slog.d(TAG, "System server threads per CPU cluster (incoming binder threads)");
-            long binderThreadTimeMs = 0;
-            final long[] binderThreadCpuTimesUs = mBinderThreadCpuTimesUs.getCountsLocked(
-                    BatteryStats.STATS_SINCE_CHARGED);
-            int index = 0;
-            int[] policies = mCpuScalingPolicies.getPolicies();
-            for (int policy : policies) {
-                StringBuilder sb = new StringBuilder();
-                sb.append("policy").append(policy).append(": [");
-                int numSpeeds = mCpuScalingPolicies.getFrequencies(policy).length;
-                for (int speed = 0; speed < numSpeeds; speed++) {
-                    if (speed != 0) {
-                        sb.append(", ");
-                    }
-                    long binderCountMs = binderThreadCpuTimesUs[index] / 1000;
-                    sb.append(TextUtils.formatSimple("%10d", binderCountMs));
-
-                    binderThreadTimeMs += binderCountMs;
-                    index++;
-                }
-                Slog.d(TAG, sb.toString());
-            }
         }
     }
 
@@ -14347,16 +12966,13 @@ public class BatteryStatsImpl extends BatteryStats {
 
     /**
      * Take snapshot of cpu times (aggregated over all uids) at different frequencies and
-     * calculate cpu times spent by each uid at different frequencies. Will also add estimated
-     * power consumptions, if powerAccumulator data structure is provided.
+     * calculate cpu times spent by each uid at different frequencies.
      *
-     * @param updatedUids  The uids for which times spent at different frequencies are calculated.
-     * @param onBattery whether or not this is onBattery
-     * @param powerAccumulator object to accumulate the estimated cluster charge consumption.
+     * @param updatedUids The uids for which times spent at different frequencies are calculated.
+     * @param onBattery   whether or not this is onBattery
      */
     @VisibleForTesting
-    public void updateClusterSpeedTimes(@NonNull SparseLongArray updatedUids, boolean onBattery,
-            @Nullable CpuDeltaPowerAccumulator powerAccumulator) {
+    public void updateClusterSpeedTimes(@NonNull SparseLongArray updatedUids, boolean onBattery) {
         long totalCpuClustersTimeMs = 0;
         // Read the time spent for each cluster at various cpu frequencies.
         final long[][] clusterSpeedTimesMs = new long[mKernelCpuSpeedReaders.length][];
@@ -14404,11 +13020,6 @@ public class BatteryStatsImpl extends BatteryStats {
                                 * clusterSpeedTimesMs[cluster][speed]
                                 / totalCpuClustersTimeMs;
                         cpuSpeeds[speed].addCountLocked(deltaSpeedCount, onBattery);
-
-                        if (powerAccumulator != null) {
-                            powerAccumulator.addCpuClusterSpeedDurationsMs(u, cluster,
-                                    speed, deltaSpeedCount);
-                        }
                     }
                 }
             }
@@ -14424,6 +13035,7 @@ public class BatteryStatsImpl extends BatteryStats {
      * @param updatedUids If not null, then the uids found in the snapshot will be added to this.
      */
     @VisibleForTesting
+    @SuppressWarnings("GuardedBy")  // errorprone false positive on readDelta
     public void readKernelUidCpuTimesLocked(@Nullable ArrayList<StopwatchTimer> partialTimers,
             @Nullable SparseLongArray updatedUids, boolean onBattery) {
         mTempTotalCpuUserTimeUs = mTempTotalCpuSystemTimeUs = 0;
@@ -14431,7 +13043,13 @@ public class BatteryStatsImpl extends BatteryStats {
         final long startTimeMs = mClock.uptimeMillis();
         final long elapsedRealtimeMs = mClock.elapsedRealtime();
 
-        mCpuUidUserSysTimeReader.readDelta(false, (uid, timesUs) -> {
+        // When mIgnoreNextExternalStats is set, we are supposed to establish a CPU stats baseline
+        // by force reading the delta. In this case we ignore the delta itself, because it
+        // represents data collected before the current battery session started
+        mCpuUidUserSysTimeReader.readDelta(mIgnoreNextExternalStats /* force */, (uid, timesUs) -> {
+            if (mIgnoreNextExternalStats) {
+                return;
+            }
             long userTimeUs = timesUs[0], systemTimeUs = timesUs[1];
 
             uid = mapUid(uid);
@@ -14489,7 +13107,7 @@ public class BatteryStatsImpl extends BatteryStats {
             Slog.d(TAG, "Reading cpu stats took " + elapsedTimeMs + "ms");
         }
 
-        if (numWakelocks > 0) {
+        if (numWakelocks > 0 && !mIgnoreNextExternalStats) {
             // Distribute a portion of the total cpu time to wakelock holders.
             mTempTotalCpuUserTimeUs = (mTempTotalCpuUserTimeUs * (100 - WAKE_LOCK_WEIGHT)) / 100;
             mTempTotalCpuSystemTimeUs =
@@ -14528,18 +13146,17 @@ public class BatteryStatsImpl extends BatteryStats {
 
     /**
      * Take a snapshot of the cpu times spent by each uid in each freq and update the
-     * corresponding counters.  Will also add estimated power consumptions, if powerAccumulator
-     * data structure is provided.
+     * corresponding counters.
      *
-     * @param partialTimers The wakelock holders among which the cpu freq times will be distributed.
-     * @param onBattery whether or not this is onBattery
+     * @param partialTimers      The wakelock holders among which the cpu freq times will be
+     *                           distributed.
+     * @param onBattery          whether or not this is onBattery
      * @param onBatteryScreenOff whether or not this is onBattery with the screen off.
-     * @param powerAccumulator object to accumulate the estimated cluster charge consumption.
      */
     @VisibleForTesting
+    @SuppressWarnings("GuardedBy")    // errorprone false positive on readDelta
     public void readKernelUidCpuFreqTimesLocked(@Nullable ArrayList<StopwatchTimer> partialTimers,
-            boolean onBattery, boolean onBatteryScreenOff,
-            @Nullable CpuDeltaPowerAccumulator powerAccumulator) {
+            boolean onBattery, boolean onBatteryScreenOff) {
         final boolean perClusterTimesAvailable =
                 mCpuUidFreqTimeReader.perClusterTimesAvailable();
         final int numWakelocks = partialTimers == null ? 0 : partialTimers.size();
@@ -14548,9 +13165,11 @@ public class BatteryStatsImpl extends BatteryStats {
         mWakeLockAllocationsUs = null;
         final long startTimeMs = mClock.uptimeMillis();
         final long elapsedRealtimeMs = mClock.elapsedRealtime();
-        // If power is being accumulated for attribution, data needs to be read immediately.
-        final boolean forceRead = powerAccumulator != null;
-        mCpuUidFreqTimeReader.readDelta(forceRead, (uid, cpuFreqTimeMs) -> {
+        mCpuUidFreqTimeReader.readDelta(mIgnoreNextExternalStats, (uid, cpuFreqTimeMs) -> {
+            if (mIgnoreNextExternalStats) {
+                return;
+            }
+
             uid = mapUid(uid);
             if (Process.isIsolated(uid)) {
                 if (DEBUG) Slog.d(TAG, "Got freq readings for an isolated uid: " + uid);
@@ -14610,11 +13229,6 @@ public class BatteryStatsImpl extends BatteryStats {
                             appAllocationUs = cpuFreqTimeMs[freqIndex] * 1000;
                         }
                         cpuTimesUs[speed].addCountLocked(appAllocationUs, onBattery);
-
-                        if (powerAccumulator != null) {
-                            powerAccumulator.addCpuClusterSpeedDurationsMs(u, cluster,
-                                    speed, appAllocationUs / 1000);
-                        }
                         freqIndex++;
                     }
                 }
@@ -14653,11 +13267,6 @@ public class BatteryStatsImpl extends BatteryStats {
                                 mWakeLockAllocationsUs[cluster][speed] / (numWakelocks - i);
                         cpuTimeUs[speed].addCountLocked(allocationUs, onBattery);
                         mWakeLockAllocationsUs[cluster][speed] -= allocationUs;
-
-                        if (powerAccumulator != null) {
-                            powerAccumulator.addCpuClusterSpeedDurationsMs(u, cluster,
-                                    speed, allocationUs / 1000);
-                        }
                     }
                 }
             }
@@ -14708,20 +13317,16 @@ public class BatteryStatsImpl extends BatteryStats {
 
     /**
      * Take a snapshot of the cpu cluster times spent by each uid and update the corresponding
-     * counters. Will also add estimated power consumptions, if powerAccumulator data structure
-     * is provided.
+     * counters.
      *
      * @param onBattery whether or not this is onBattery
-     * @param powerAccumulator object to accumulate the estimated cluster charge consumption.
      */
     @VisibleForTesting
-    public void readKernelUidCpuClusterTimesLocked(boolean onBattery,
-            @Nullable CpuDeltaPowerAccumulator powerAccumulator) {
+    public void readKernelUidCpuClusterTimesLocked(boolean onBattery) {
         final long startTimeMs = mClock.uptimeMillis();
         final long elapsedRealtimeMs = mClock.elapsedRealtime();
         // If power is being accumulated for attribution, data needs to be read immediately.
-        final boolean forceRead = powerAccumulator != null;
-        mCpuUidClusterTimeReader.readDelta(forceRead, (uid, cpuClusterTimesMs) -> {
+        mCpuUidClusterTimeReader.readDelta(false, (uid, cpuClusterTimesMs) -> {
             uid = mapUid(uid);
             if (Process.isIsolated(uid)) {
                 if (DEBUG) Slog.w(TAG, "Got cluster times for an isolated uid: " + uid);
@@ -14733,10 +13338,6 @@ public class BatteryStatsImpl extends BatteryStats {
             }
             final Uid u = getUidStatsLocked(uid, elapsedRealtimeMs, startTimeMs);
             u.mCpuClusterTimesMs.addCountLocked(cpuClusterTimesMs, onBattery);
-
-            if (powerAccumulator != null) {
-                powerAccumulator.addCpuClusterDurationsMs(u, cpuClusterTimesMs);
-            }
         });
 
         final long elapsedTimeMs = mClock.uptimeMillis() - startTimeMs;
@@ -14810,6 +13411,9 @@ public class BatteryStatsImpl extends BatteryStats {
         mCustomEnergyConsumerPowerStatsCollector.setEnabled(
                 mPowerStatsCollectorEnabled.get(BatteryConsumer.POWER_COMPONENT_ANY));
         mCustomEnergyConsumerPowerStatsCollector.schedule();
+
+        noteCustomEnergyConsumerNamesAsync(
+                mCustomEnergyConsumerPowerStatsCollector.getCustomEnergyConsumerNames());
 
         mSystemReady = true;
     }
@@ -14930,7 +13534,7 @@ public class BatteryStatsImpl extends BatteryStats {
         if (mBatteryStatsConfig.shouldResetOnUnplugHighBatteryLevel()) {
             // Allow resetting due to currently being at high battery level
             if (batteryStatus == BatteryManager.BATTERY_STATUS_FULL) return true;
-            if (batteryLevel >= 90) return true;
+            if (batteryLevel >= mBatteryStatsConfig.getHighBatteryLevelAfterCharge()) return true;
         }
         if (mBatteryStatsConfig.shouldResetOnUnplugAfterSignificantCharge()) {
             // Allow resetting after a significant charge (from a very low level to a now very
@@ -14975,37 +13579,31 @@ public class BatteryStatsImpl extends BatteryStats {
                     final Parcel parcel = Parcel.obtain();
                     writeSummaryToParcel(parcel, true);
                     final long initialTimeMs = SystemClock.uptimeMillis() - startTimeMs;
-                    BackgroundThread.getHandler().post(new Runnable() {
-                        @Override public void run() {
-                            synchronized (mCheckinFile) {
-                                final long startTimeMs2 = SystemClock.uptimeMillis();
-                                FileOutputStream stream = null;
-                                try {
-                                    stream = mCheckinFile.startWrite();
-                                    stream.write(parcel.marshall());
-                                    stream.flush();
-                                    mCheckinFile.finishWrite(stream);
-                                    mFrameworkStatsLogger.writeCommitSysConfigFile(
-                                            "batterystats-checkin",
-                                            initialTimeMs + SystemClock.uptimeMillis()
-                                                    - startTimeMs2);
-                                } catch (IOException e) {
-                                    Slog.w("BatteryStats",
-                                            "Error writing checkin battery statistics", e);
-                                    mCheckinFile.failWrite(stream);
-                                } finally {
-                                    parcel.recycle();
-                                }
+                    mHandler.post(() -> {
+                        synchronized (mCheckinFile) {
+                            final long startTimeMs2 = SystemClock.uptimeMillis();
+                            FileOutputStream stream = null;
+                            try {
+                                stream = mCheckinFile.startWrite();
+                                stream.write(parcel.marshall());
+                                stream.flush();
+                                mCheckinFile.finishWrite(stream);
+                                mFrameworkStatsLogger.writeCommitSysConfigFile(
+                                        "batterystats-checkin",
+                                        initialTimeMs + SystemClock.uptimeMillis()
+                                            - startTimeMs2);
+                            } catch (IOException e) {
+                                Slog.w("BatteryStats",
+                                        "Error writing checkin battery statistics", e);
+                                mCheckinFile.failWrite(stream);
+                            } finally {
+                                parcel.recycle();
                             }
                         }
                     });
                 }
                 doWrite = true;
                 startNewSession(RESET_REASON_FULL_CHARGE);
-                if (chargeUah > 0 && level > 0) {
-                    // Only use the reported coulomb charge value if it is supported and reported.
-                    mEstimatedBatteryCapacityMah = (int) ((chargeUah / 1000) / (level / 100.0));
-                }
                 reset = true;
                 mDischargeStepTracker.init();
             }
@@ -15121,6 +13719,17 @@ public class BatteryStatsImpl extends BatteryStats {
         }
         int oldStatus = mBatteryStatus;
         if (onBattery) {
+            if (mReportedBatteryCapacityMah <= 0) {
+                if (chargeFullUah > 0) {
+                    mReportedBatteryCapacityMah = chargeFullUah / 1000;
+                    mEstimatedBatteryCapacityMah = mReportedBatteryCapacityMah;
+                } else if (chargeUah > 0 && level > 25) {
+                    // Only use the reported coulomb charge value if it is supported and reported.
+                    mReportedBatteryCapacityMah = (int) ((chargeUah / 1000.0) / (level / 100.0));
+                    mEstimatedBatteryCapacityMah = mReportedBatteryCapacityMah;
+                }
+            }
+
             mDischargeCurrentLevel = level;
             if (!mHistory.isRecordingHistory()) {
                 mHistory.startRecordingHistory(elapsedRealtimeMs, uptimeMs, true);
@@ -15284,7 +13893,7 @@ public class BatteryStatsImpl extends BatteryStats {
         mBatteryTimeToFullSeconds = chargeTimeToFullSeconds;
 
         if (mAccumulateBatteryUsageStats) {
-            mBatteryUsageStatsProvider.accumulateBatteryUsageStatsAsync(this, mHandler);
+            mBatteryUsageStatsProvider.accumulateBatteryUsageStatsAsync(this, mHandler, false);
         }
         if (requestStepDetails) {
             mStepDetailsProvider.requestUpdate();
@@ -15666,19 +14275,6 @@ public class BatteryStatsImpl extends BatteryStats {
         }
     }
 
-
-    /**
-     * Estimates the time spent by the system server handling incoming binder requests.
-     */
-    @Override
-    public long[] getSystemServiceTimeAtCpuSpeeds() {
-        if (mBinderThreadCpuTimesUs == null) {
-            return null;
-        }
-
-        return mBinderThreadCpuTimesUs.getCountsLocked(BatteryStats.STATS_SINCE_CHARGED);
-    }
-
     /**
      * Retrieve the statistics object for a particular uid, creating if needed.
      */
@@ -15883,77 +14479,32 @@ public class BatteryStatsImpl extends BatteryStats {
                 // Already plugged in. Schedule the long plug in alarm.
                 scheduleNextResetWhilePluggedInCheck();
             }
-
-            if (mPowerManagerFlags.isFrameworkWakelockInfoEnabled()) {
-                mFrameworkEvents.initialize(context);
-            }
         }
     }
 
-    /**
-     * Initialize the EnergyConsumer stats data structures.
-     *
-     * @param supportedStandardBuckets boolean array indicating which {@link StandardPowerBucket}s
-     *                                 are currently supported. If null, none are supported
-     *                                 (regardless of customBucketNames).
-     * @param customBucketNames        names of custom (OTHER) EnergyConsumers on this device
-     */
-    @GuardedBy("this")
-    public void initEnergyConsumerStatsLocked(@Nullable boolean[] supportedStandardBuckets,
-            String[] customBucketNames) {
-        final int numDisplays = mPerDisplayBatteryStats.length;
-        for (int i = 0; i < numDisplays; i++) {
-            final int screenState = mPerDisplayBatteryStats[i].screenState;
-            mPerDisplayBatteryStats[i].screenStateAtLastEnergyMeasurement = screenState;
-        }
-
-        if (supportedStandardBuckets != null) {
-            final EnergyConsumerStats.Config config = new EnergyConsumerStats.Config(
-                    supportedStandardBuckets, customBucketNames,
-                    SUPPORTED_PER_PROCESS_STATE_STANDARD_ENERGY_BUCKETS,
-                    getBatteryConsumerProcessStateNames());
-
-            if (mEnergyConsumerStatsConfig != null
-                    &&  !mEnergyConsumerStatsConfig.isCompatible(config)) {
-                // Supported power buckets changed since last boot.
-                // Save accumulated battery usage stats before resetting
-                saveBatteryUsageStatsOnReset();
-                // Existing data is no longer reliable.
-                resetAllStatsLocked(SystemClock.uptimeMillis(), SystemClock.elapsedRealtime(),
-                        RESET_REASON_ENERGY_CONSUMER_BUCKETS_CHANGE);
+    @VisibleForTesting
+    protected void noteCustomEnergyConsumerNamesAsync(@NonNull String[] names) {
+        mHandler.post(() -> {
+            synchronized (BatteryStatsImpl.this) {
+                noteCustomEnergyConsumerNamesLocked(names);
             }
-
-            mEnergyConsumerStatsConfig = config;
-            mGlobalEnergyConsumerStats = new EnergyConsumerStats(config);
-
-            if (supportedStandardBuckets[EnergyConsumerStats.POWER_BUCKET_BLUETOOTH]) {
-                mBluetoothPowerCalculator = new BluetoothPowerCalculator(mPowerProfile);
-            }
-            if (supportedStandardBuckets[EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO]) {
-                mMobileRadioPowerCalculator = new MobileRadioPowerCalculator(mPowerProfile);
-            }
-            if (supportedStandardBuckets[EnergyConsumerStats.POWER_BUCKET_WIFI]) {
-                mWifiPowerCalculator = new WifiPowerCalculator(mPowerProfile);
-            }
-        } else {
-            if (mEnergyConsumerStatsConfig != null) {
-                // EnergyConsumer no longer supported
-                // Save accumulated battery usage stats before resetting
-                saveBatteryUsageStatsOnReset();
-                // Wipe out the current battery session data.
-                resetAllStatsLocked(SystemClock.uptimeMillis(), SystemClock.elapsedRealtime(),
-                        RESET_REASON_ENERGY_CONSUMER_BUCKETS_CHANGE);
-            }
-            mEnergyConsumerStatsConfig = null;
-            mGlobalEnergyConsumerStats = null;
-        }
+        });
     }
 
     @GuardedBy("this")
-    private boolean isMobileRadioEnergyConsumerSupportedLocked() {
-        if (mGlobalEnergyConsumerStats == null) return false;
-        return mGlobalEnergyConsumerStats.isStandardBucketSupported(
-                EnergyConsumerStats.POWER_BUCKET_MOBILE_RADIO);
+    private void noteCustomEnergyConsumerNamesLocked(@NonNull String[] names) {
+        if (Arrays.equals(names, mCustomEnergyConsumerNames)) {
+            return;
+        }
+
+        // Some EnergyConsumer got added or are no longer supported
+        // Save accumulated battery usage stats before resetting
+        saveBatteryUsageStatsOnNewSession();
+        // Wipe out the current battery session data.
+        resetAllStatsLocked(SystemClock.uptimeMillis(), SystemClock.elapsedRealtime(),
+                RESET_REASON_ENERGY_CONSUMER_BUCKETS_CHANGE);
+
+        mCustomEnergyConsumerNames = Arrays.copyOf(names, names.length);
     }
 
     @NonNull
@@ -16315,63 +14866,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 pw.print("  "); pw.print(u); pw.print(": "); pw.println(Arrays.toString(times));
             }
         }
-
-        if (!Flags.disableSystemServicePowerAttr()) {
-            updateSystemServiceCallStats();
-            if (mBinderThreadCpuTimesUs != null) {
-                pw.println("Per UID System server binder time in ms:");
-                long[] systemServiceTimeAtCpuSpeeds = getSystemServiceTimeAtCpuSpeeds();
-                for (int i = 0; i < size; i++) {
-                    int u = mUidStats.keyAt(i);
-                    Uid uid = mUidStats.get(u);
-                    double proportionalSystemServiceUsage = uid.getProportionalSystemServiceUsage();
-                    long timeUs = 0;
-                    for (int j = systemServiceTimeAtCpuSpeeds.length - 1; j >= 0; j--) {
-                        timeUs += systemServiceTimeAtCpuSpeeds[j] * proportionalSystemServiceUsage;
-                    }
-
-                    pw.print("  ");
-                    pw.print(u);
-                    pw.print(": ");
-                    pw.println(timeUs / 1000);
-                }
-            }
-        }
-    }
-
-    /**
-     * Dump EnergyConsumer stats
-     */
-    @GuardedBy("this")
-    public void dumpEnergyConsumerStatsLocked(PrintWriter pw) {
-        pw.printf("On-battery energy consumer stats (microcoulombs) \n");
-        if (mGlobalEnergyConsumerStats == null) {
-            pw.printf("    Not supported on this device.\n");
-            return;
-        }
-
-        dumpEnergyConsumerStatsLocked(pw, "global usage", mGlobalEnergyConsumerStats);
-
-        int size = mUidStats.size();
-        for (int i = 0; i < size; i++) {
-            final int u = mUidStats.keyAt(i);
-            final Uid uid = mUidStats.get(u);
-            final String name = "uid " + uid.mUid;
-            dumpEnergyConsumerStatsLocked(pw, name, uid.mUidEnergyConsumerStats);
-        }
-    }
-
-    /** Dump EnergyConsumer stats for the given uid */
-    @GuardedBy("this")
-    private void dumpEnergyConsumerStatsLocked(PrintWriter pw, String name,
-            EnergyConsumerStats stats) {
-        if (stats == null) return;
-        final IndentingPrintWriter iPw = new IndentingPrintWriter(pw, "    ");
-        iPw.increaseIndent();
-        iPw.printf("%s:\n", name);
-        iPw.increaseIndent();
-        stats.dump(iPw);
-        iPw.decreaseIndent();
     }
 
     /**
@@ -16439,13 +14933,13 @@ public class BatteryStatsImpl extends BatteryStats {
 
     @GuardedBy("this")
     public void writeAsyncLocked() {
-        BackgroundThread.getHandler().removeCallbacks(mWriteAsyncRunnable);
-        BackgroundThread.getHandler().post(mWriteAsyncRunnable);
+        mHandler.removeCallbacks(mWriteAsyncRunnable);
+        mHandler.post(mWriteAsyncRunnable);
     }
 
     @GuardedBy("this")
     public void writeSyncLocked() {
-        BackgroundThread.getHandler().removeCallbacks(mWriteAsyncRunnable);
+        mHandler.removeCallbacks(mWriteAsyncRunnable);
         writeStatsLocked();
         writeHistoryLocked();
     }
@@ -16621,19 +15115,13 @@ public class BatteryStatsImpl extends BatteryStats {
         mNextMaxDailyDeadlineMs = in.readLong();
         mBatteryTimeToFullSeconds = in.readLong();
 
-        final EnergyConsumerStats.Config config = EnergyConsumerStats.Config.createFromParcel(in);
-        final EnergyConsumerStats energyConsumerStats =
-                EnergyConsumerStats.createAndReadSummaryFromParcel(mEnergyConsumerStatsConfig, in);
-        if (config != null && Arrays.equals(config.getStateNames(),
-                getBatteryConsumerProcessStateNames())) {
-            /**
-             * WARNING: Supported buckets may have changed across boots. Bucket mismatch is handled
-             *          later when {@link #initEnergyConsumerStatsLocked} is called.
-             */
-            mEnergyConsumerStatsConfig = config;
-            mGlobalEnergyConsumerStats = energyConsumerStats;
+        String[] stateNames = in.readStringArray();
+        if (!Arrays.equals(stateNames, getBatteryConsumerProcessStateNames())) {
+            throw new ParcelFormatException("Incompatible proc state name change. Saved names: "
+                            + Arrays.toString(stateNames));
         }
 
+        mCustomEnergyConsumerNames = in.readStringArray();
         mStartCount++;
 
         mScreenState = Display.STATE_UNKNOWN;
@@ -16965,9 +15453,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 u.mWifiRadioApWakeupCount = null;
             }
 
-            u.mUidEnergyConsumerStats = EnergyConsumerStats.createAndReadSummaryFromParcel(
-                    mEnergyConsumerStatsConfig, in);
-
             int NW = in.readInt();
             if (NW > (MAX_WAKELOCKS_PER_UID+1)) {
                 throw new ParcelFormatException("File corrupt: too many wake locks " + NW);
@@ -17067,11 +15552,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 }
             }
         }
-
-        if (!Flags.disableSystemServicePowerAttr()) {
-            mBinderThreadCpuTimesUs =
-                    LongSamplingCounterArray.readSummaryFromParcelLocked(in, mOnBatteryTimeBase);
-        }
     }
 
     /**
@@ -17144,8 +15624,8 @@ public class BatteryStatsImpl extends BatteryStats {
         out.writeLong(mNextMaxDailyDeadlineMs);
         out.writeLong(mBatteryTimeToFullSeconds);
 
-        EnergyConsumerStats.Config.writeToParcel(mEnergyConsumerStatsConfig, out);
-        EnergyConsumerStats.writeSummaryToParcel(mGlobalEnergyConsumerStats, out);
+        out.writeStringArray(getBatteryConsumerProcessStateNames());
+        out.writeStringArray(mCustomEnergyConsumerNames);
 
         mScreenOnTimer.writeSummaryFromParcelLocked(out, nowRealtime);
         mScreenDozeTimer.writeSummaryFromParcelLocked(out, nowRealtime);
@@ -17496,8 +15976,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 out.writeInt(0);
             }
 
-            EnergyConsumerStats.writeSummaryToParcel(u.mUidEnergyConsumerStats, out);
-
             final ArrayMap<String, Uid.Wakelock> wakeStats = u.mWakelockStats.getMap();
             int NW = wakeStats.size();
             out.writeInt(NW);
@@ -17614,10 +16092,6 @@ public class BatteryStatsImpl extends BatteryStats {
                 }
             }
         }
-
-        if (!Flags.disableSystemServicePowerAttr()) {
-            LongSamplingCounterArray.writeSummaryToParcelLocked(out, mBinderThreadCpuTimesUs);
-        }
     }
 
     /**
@@ -17635,15 +16109,12 @@ public class BatteryStatsImpl extends BatteryStats {
         // Pull the clock time.  This may update the time and make a new history entry
         // if we had originally pulled a time before the RTC was set.
         getStartClockTime();
-
-        if (!Flags.disableSystemServicePowerAttr()) {
-            updateSystemServiceCallStats();
-        }
     }
 
     @GuardedBy("this")
+    @Override
     public void dump(Context context, PrintWriter pw, int flags, int reqUid, long histStart,
-            BatteryStatsDumpHelper dumpHelper) {
+            BatteryStatsDumpHelper dumpHelper, long monotonicClockStartTime) {
         if (DEBUG) {
             pw.println("mOnBatteryTimeBase:");
             mOnBatteryTimeBase.dump(pw, "  ");
@@ -17715,7 +16186,7 @@ public class BatteryStatsImpl extends BatteryStats {
             pr.println("*** Camera timer:");
             mCameraOnTimer.logState(pr, "  ");
         }
-        super.dump(context, pw, flags, reqUid, histStart, dumpHelper);
+        super.dump(context, pw, flags, reqUid, histStart, dumpHelper, monotonicClockStartTime);
 
         synchronized (this) {
             pw.print("Per process state tracking available: ");
@@ -17736,9 +16207,6 @@ public class BatteryStatsImpl extends BatteryStats {
 
             pw.println();
             mCpuPowerStatsCollector.dumpCpuPowerBracketsLocked(pw);
-
-            pw.println();
-            dumpEnergyConsumerStatsLocked(pw);
         }
     }
 }

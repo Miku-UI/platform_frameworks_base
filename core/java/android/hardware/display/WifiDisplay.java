@@ -32,6 +32,7 @@ import java.util.Objects;
  * @hide
  */
 public final class WifiDisplay implements Parcelable {
+    private static final String UNKNOWN_MAC_ADDRESS = "00:00:00:00:00:00";
     private final String mDeviceAddress;
     private final String mDeviceName;
     private final String mDeviceAlias;
@@ -192,5 +193,10 @@ public final class WifiDisplay implements Parcelable {
         result += ", isAvailable " + mIsAvailable + ", canConnect " + mCanConnect
                 + ", isRemembered " + mIsRemembered;
         return result;
+    }
+
+    public WifiDisplay copy(boolean isDeviceAddressVisible) {
+        return new WifiDisplay(isDeviceAddressVisible ? mDeviceAddress : UNKNOWN_MAC_ADDRESS,
+                mDeviceName, mDeviceAlias, mIsAvailable, mCanConnect, mIsRemembered);
     }
 }

@@ -16,6 +16,9 @@
 
 package com.android.systemui.qs.footer
 
+import android.app.admin.DevicePolicyManager
+import android.app.role.RoleManager
+import android.app.supervision.SupervisionManager
 import android.content.Context
 import android.os.Handler
 import android.os.UserManager
@@ -40,27 +43,37 @@ import com.android.systemui.qs.footer.domain.interactor.FooterActionsInteractor
 import com.android.systemui.qs.footer.domain.interactor.FooterActionsInteractorImpl
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.createFooterActionsViewModel
+import com.android.systemui.qs.panels.data.repository.ToggleTextFeedbackRepository
+import com.android.systemui.qs.panels.domain.interactor.TextFeedbackInteractor
+import com.android.systemui.qs.pipeline.data.repository.FakeInstalledTilesComponentRepository
+import com.android.systemui.qs.pipeline.data.repository.InstalledTilesComponentRepository
+import com.android.systemui.qs.tiles.base.shared.model.FakeQSTileConfigProvider
+import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigProvider
 import com.android.systemui.security.data.repository.SecurityRepository
 import com.android.systemui.security.data.repository.SecurityRepositoryImpl
-import com.android.systemui.shade.shared.model.ShadeMode
+import com.android.systemui.settings.FakeUserTracker
+import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
 import com.android.systemui.statusbar.policy.FakeSecurityController
 import com.android.systemui.statusbar.policy.FakeUserInfoController
 import com.android.systemui.statusbar.policy.SecurityController
 import com.android.systemui.statusbar.policy.UserInfoController
 import com.android.systemui.statusbar.policy.UserSwitcherController
+import com.android.systemui.supervision.data.repository.SupervisionRepository
+import com.android.systemui.supervision.data.repository.SupervisionRepositoryImpl
 import com.android.systemui.user.data.repository.FakeUserRepository
 import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.user.data.repository.UserSwitcherRepository
 import com.android.systemui.user.data.repository.UserSwitcherRepositoryImpl
+import com.android.systemui.user.domain.interactor.HeadlessSystemUserMode
+import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.user.domain.interactor.UserSwitcherInteractor
-import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.settings.FakeGlobalSettings
 import com.android.systemui.util.settings.GlobalSettings
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
+import org.mockito.kotlin.mock
 
 /**
  * Util class to create real implementations of the FooterActions repositories, viewModel and
@@ -71,7 +84,7 @@ class FooterActionsTestUtils(
     private val testableLooper: TestableLooper,
     private val scheduler: TestCoroutineScheduler,
 ) {
-    private val mockActivityStarter: ActivityStarter = mock<ActivityStarter>()
+    private val mockActivityStarter: ActivityStarter = mock()
 
     /** Enable or disable the user switcher in the settings. */
     fun setUserSwitcherEnabled(settings: GlobalSettings, enabled: Boolean) {
@@ -86,19 +99,23 @@ class FooterActionsTestUtils(
     fun footerActionsViewModel(
         @Application context: Context = this.context.applicationContext,
         footerActionsInteractor: FooterActionsInteractor = footerActionsInteractor(),
+        textFeedbackInteractor: TextFeedbackInteractor = textFeedbackInteractor(),
         falsingManager: FalsingManager = FalsingManagerFake(),
         globalActionsDialogLite: GlobalActionsDialogLite = mock(),
         showPowerButton: Boolean = true,
-        shadeMode: ShadeMode,
+        selectedUserInteractor: SelectedUserInteractor = mock(),
+        hsum: HeadlessSystemUserMode = mock(),
     ): FooterActionsViewModel {
         return createFooterActionsViewModel(
             context,
             footerActionsInteractor,
-            MutableStateFlow(shadeMode),
+            textFeedbackInteractor,
             falsingManager,
             globalActionsDialogLite,
             mockActivityStarter,
             showPowerButton,
+            selectedUserInteractor,
+            hsum,
         )
     }
 
@@ -117,6 +134,7 @@ class FooterActionsTestUtils(
         broadcastDispatcher: BroadcastDispatcher = mock(),
         bgDispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler),
         context: Context = mock(),
+        supervisionRepository: SupervisionRepository = supervisionRepository(),
     ): FooterActionsInteractor {
         return FooterActionsInteractorImpl(
             activityStarter,
@@ -127,6 +145,7 @@ class FooterActionsTestUtils(
             fgsManagerController,
             userSwitcherInteractor,
             securityRepository,
+            supervisionRepository,
             foregroundServicesRepository,
             userSwitcherRepository,
             broadcastDispatcher,
@@ -170,6 +189,45 @@ class FooterActionsTestUtils(
             userInfoController,
             settings,
             userRepository,
+        )
+    }
+
+    /** Create a [SupervisionRepository] to be used in tests. */
+    private fun supervisionRepository(
+        roleManager: RoleManager = mock(),
+        supervisionManager: SupervisionManager = mock(),
+        devicePolicyManager: DevicePolicyManager = mock(),
+        userRepository: UserRepository = FakeUserRepository(),
+        @Application context: Context = this.context.applicationContext,
+        bgDispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler),
+    ): SupervisionRepository =
+        SupervisionRepositoryImpl(
+            { supervisionManager },
+            userRepository,
+            roleManager,
+            devicePolicyManager,
+            context,
+            bgDispatcher,
+        )
+
+    private fun toggleTextFeedbackRepository(): ToggleTextFeedbackRepository {
+        return ToggleTextFeedbackRepository()
+    }
+
+    fun textFeedbackInteractor(
+        toggleTextFeedbackRepository: ToggleTextFeedbackRepository = toggleTextFeedbackRepository(),
+        qsTileConfigProvider: QSTileConfigProvider = FakeQSTileConfigProvider(),
+        installedTilesComponentRepository: InstalledTilesComponentRepository =
+            FakeInstalledTilesComponentRepository(),
+        userTracker: UserTracker = FakeUserTracker(),
+        bgDispatcher: CoroutineDispatcher = StandardTestDispatcher(scheduler),
+    ): TextFeedbackInteractor {
+        return TextFeedbackInteractor(
+            toggleTextFeedbackRepository,
+            qsTileConfigProvider,
+            installedTilesComponentRepository,
+            userTracker,
+            bgDispatcher,
         )
     }
 }

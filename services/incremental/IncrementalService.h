@@ -202,14 +202,17 @@ public:
 
     class AppOpsListener : public com::android::internal::app::BnAppOpsCallback {
     public:
-        AppOpsListener(IncrementalService& incrementalService, std::string packageName)
-              : incrementalService(incrementalService), packageName(std::move(packageName)) {}
+        AppOpsListener(IncrementalService& incrementalService, std::string packageName, int32_t op)
+              : incrementalService(incrementalService),
+                packageName(std::move(packageName)),
+                op(op) {}
         binder::Status opChanged(int32_t op, int32_t uid, const String16& packageName,
                                  const String16& persistentDeviceId) final;
 
     private:
         IncrementalService& incrementalService;
         const std::string packageName;
+        const int32_t op;
     };
 
     class IncrementalServiceConnector : public os::incremental::BnIncrementalServiceConnector {

@@ -23,7 +23,6 @@ import static android.window.TransitionInfo.FLAG_IN_TASK_WITH_EMBEDDED_ACTIVITY;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assume.assumeTrue;
 import static org.mockito.Mockito.mock;
 
 import android.animation.Animator;
@@ -69,7 +68,6 @@ abstract class ActivityEmbeddingAnimationTestBase extends ShellTestCase {
     @CallSuper
     @Before
     public void setUp() {
-        assumeTrue(Transitions.ENABLE_SHELL_TRANSITIONS);
         MockitoAnnotations.initMocks(this);
         mController = ActivityEmbeddingController.create(mContext, mShellInit, mTransitions);
         assertNotNull(mController);

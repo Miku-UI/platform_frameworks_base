@@ -21,6 +21,7 @@
 #include <SkPicture.h>
 #include <gui/TraceUtils.h>
 #include <pthread.h>
+#include "utils/Thread.h"
 
 #ifdef __ANDROID__
 #include <gui/SurfaceControl.h>
@@ -285,11 +286,15 @@ void RenderProxy::notifyFramePending() {
 }
 
 void RenderProxy::notifyCallbackPending() {
-    mRenderThread.queue().post([this]() { mContext->sendLoadResetHint(); });
+    mRenderThread.queue().post([this]() { mContext->sendCpuLoadResetHint(); });
 }
 
 void RenderProxy::notifyExpensiveFrame() {
-    mRenderThread.queue().post([this]() { mContext->sendLoadIncreaseHint(); });
+    mRenderThread.queue().post([this]() { mContext->sendCpuLoadIncreaseHint(); });
+}
+
+void RenderProxy::notifyGpuLoadUp() {
+    mRenderThread.queue().post([this]() { mContext->sendGpuLoadIncreaseHint(); });
 }
 
 void RenderProxy::dumpProfileInfo(int fd, int dumpFlags) {
@@ -500,10 +505,15 @@ void RenderProxy::disableVsync() {
     Properties::disableVsync = true;
 }
 
-void RenderProxy::preload() {
+int RenderProxy::preload() {
     // Create RenderThread object and start the thread. Then preload Vulkan/EGL driver.
     auto& thread = RenderThread::getInstance();
     thread.queue().post([&thread]() { thread.preload(); });
+#ifdef __ANDROID__
+    return thread.getTid();
+#else
+    return 0;
+#endif
 }
 
 void RenderProxy::setRtAnimationsEnabled(bool enabled) {

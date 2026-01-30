@@ -13,14 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.android.systemui.motion
 
+import androidx.compose.ui.unit.Density
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import org.junit.rules.RuleChain
 import platform.test.motion.MotionTestRule
 import platform.test.motion.compose.ComposeToolkit
+import platform.test.motion.compose.FixedConfiguration
 import platform.test.motion.testing.createGoldenPathManager
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.Displays
@@ -36,14 +37,14 @@ fun createSysUiComposeMotionTestRule(
     val goldenPathManager =
         createGoldenPathManager("frameworks/base/packages/SystemUI/tests/goldens", pathConfig)
     val testScope = kosmos.testScope
-
     val composeScreenshotTestRule =
         ComposeScreenshotTestRule(deviceEmulationSpec, goldenPathManager)
-
+    val fixedConfiguration =
+        FixedConfiguration(density = Density(deviceEmulationSpec.display.densityDpi / 160f))
     return MotionTestRule(
-        ComposeToolkit(composeScreenshotTestRule.composeRule, testScope),
+        ComposeToolkit(composeScreenshotTestRule.composeRule, testScope, fixedConfiguration),
         goldenPathManager,
         bitmapDiffer = composeScreenshotTestRule,
-        extraRules = RuleChain.outerRule(composeScreenshotTestRule)
+        extraRules = RuleChain.outerRule(composeScreenshotTestRule),
     )
 }

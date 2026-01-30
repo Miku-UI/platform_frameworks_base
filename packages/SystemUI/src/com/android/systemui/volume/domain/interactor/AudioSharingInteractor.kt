@@ -23,7 +23,6 @@ import androidx.annotation.IntRange
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.settingslib.bluetooth.BluetoothUtils
 import com.android.settingslib.bluetooth.CachedBluetoothDevice
-import com.android.settingslib.flags.Flags
 import com.android.settingslib.volume.data.repository.AudioSharingRepository
 import com.android.settingslib.volume.data.repository.AudioSharingRepository.Companion.AUDIO_SHARING_VOLUME_MAX
 import com.android.settingslib.volume.data.repository.AudioSharingRepository.Companion.AUDIO_SHARING_VOLUME_MIN
@@ -115,7 +114,7 @@ constructor(
 
     override suspend fun audioSharingVolumeBarAvailable(@Application context: Context): Boolean =
         withContext(backgroundCoroutineContext) {
-            (Flags.volumeDialogAudioSharingFix() && BluetoothUtils.isAudioSharingEnabled()) ||
+            BluetoothUtils.isAudioSharingEnabled() ||
                 BluetoothUtils.isAudioSharingPreviewEnabled(context.contentResolver)
         }
 

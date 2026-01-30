@@ -26,6 +26,16 @@ enum class DevicePosture {
     OPENED,
     FLIPPED;
 
+    fun toDevicePostureInt(): Int {
+        return when (this) {
+            CLOSED -> DevicePostureController.DEVICE_POSTURE_CLOSED
+            HALF_OPENED -> DevicePostureController.DEVICE_POSTURE_HALF_OPENED
+            OPENED -> DevicePostureController.DEVICE_POSTURE_OPENED
+            FLIPPED -> DevicePostureController.DEVICE_POSTURE_FLIPPED
+            UNKNOWN -> DevicePostureController.DEVICE_POSTURE_UNKNOWN
+        }
+    }
+
     companion object {
         fun toPosture(@DevicePostureController.DevicePostureInt posture: Int): DevicePosture {
             return when (posture) {

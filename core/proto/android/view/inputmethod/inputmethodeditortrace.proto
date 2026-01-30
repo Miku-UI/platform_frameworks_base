@@ -72,7 +72,7 @@ message InputMethodClientsTraceProto {
         optional InputMethodManagerProto input_method_manager = 2;
         optional ViewRootImplProto view_root_impl = 3;
         optional InsetsControllerProto insets_controller = 4;
-        optional ImeInsetsSourceConsumerProto ime_insets_source_consumer = 5;
+        optional ImeInsetsSourceConsumerProto ime_insets_source_consumer = 5 [deprecated = true];
         optional EditorInfoProto editor_info = 6;
         optional ImeFocusControllerProto ime_focus_controller = 7;
         optional InputConnectionProto input_connection = 8;

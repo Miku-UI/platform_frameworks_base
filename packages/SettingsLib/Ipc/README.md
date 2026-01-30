@@ -45,6 +45,17 @@ to handle requests. `ApiHandler` implementation uses Kotlin `suspend`, which
 allows flexible threading model on top of the
 [Kotlin coroutines](https://kotlinlang.org/docs/coroutines-overview.html).
 
+## Caveats
+
+IPC request data is transmitted with `Bundle` (see `MessageCodec`),
+
+-   Bundle keys should not be changed to avoid breaking backward compatibility.
+-   If strong backward compatibility is required, consider using serialization
+    framework (e.g. Protobuf) and marshall/unmarshall with byte array.
+-   When parcelable is used (e.g. `Bundle.putParcelable`), the class name must
+    be the same across apps. Thus add `@Keep` annotation to the parcelable class
+    if Proguard is enabled.
+
 ## Usage
 
 The service provider should extend `MessengerService` and provide API
@@ -61,27 +72,21 @@ import android.app.Application
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import kotlinx.coroutines.runBlocking
 
-class EchoService :
-  MessengerService(
-    listOf(EchoApiImpl),
-    PermissionChecker { _, _, _ -> true },
-  )
+class EchoService : MessengerService(listOf(EchoApiImpl()), PermissionChecker { _, _, _ -> true })
 
 class EchoServiceClient(context: Context) : MessengerServiceClient(context) {
-  override val serviceIntentFactory: () -> Intent
-    get() = { Intent("example.intent.action.ECHO") }
+  private val echoApi = EchoApi()
 
-  fun echo(data: String?): String? =
-    runBlocking { invoke(context.packageName, EchoApi, data).await() }
+  override val serviceIntentFactory = { Intent("example.intent.action.ECHO") }
+
+  suspend fun echo(data: String?): String? = invoke(context.packageName, echoApi, data).await()
 }
 
-object EchoApi : ApiDescriptor<String?, String?> {
+open class EchoApi : ApiDescriptor<String?, String?> {
   private val codec =
     object : MessageCodec<String?> {
-      override fun encode(data: String?) =
-        Bundle(1).apply { putString("data", data) }
+      override fun encode(data: String?) = Bundle(1).apply { putString("data", data) }
 
       override fun decode(data: Bundle): String? = data.getString("data", null)
     }
@@ -97,8 +102,7 @@ object EchoApi : ApiDescriptor<String?, String?> {
 }
 
 // This is not needed by EchoServiceClient.
-object EchoApiImpl : ApiHandler<String?, String?>,
-                     ApiDescriptor<String?, String?> by EchoApi {
+class EchoApiImpl : EchoApi(), ApiHandler<String?, String?> {
   override suspend fun invoke(
     application: Application,
     callingPid: Int,

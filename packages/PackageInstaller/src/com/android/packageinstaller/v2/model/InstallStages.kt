@@ -17,10 +17,13 @@
 package com.android.packageinstaller.v2.model
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageInstaller
 import android.content.pm.PackageManager
 import android.graphics.drawable.Drawable
+import com.android.packageinstaller.v2.model.InstallAborted.Companion.ABORT_REASON_INTERNAL_ERROR
+import com.android.packageinstaller.v2.model.InstallAborted.Companion.ABORT_REASON_POLICY
 
 sealed class InstallStage(val stageCode: Int) {
 
@@ -33,6 +36,8 @@ sealed class InstallStage(val stageCode: Int) {
         const val STAGE_INSTALLING = 4
         const val STAGE_SUCCESS = 5
         const val STAGE_FAILED = 6
+        const val STAGE_VERIFICATION_CONFIRMATION_REQUIRED = 7
+        const val STAGE_VERIFICATION_FAILURE = 8
     }
 }
 
@@ -44,10 +49,10 @@ data class InstallUserActionRequired(
     val actionReason: Int,
     val appSnippet: PackageUtil.AppSnippet? = null,
     val isAppUpdating: Boolean = false,
-    /**
-     * This holds either a package name or the app label of the install source.
-     */
-    val sourceApp: String? = null,
+    val existingUpdateOwnerPackageName: CharSequence? = null,
+    val requestedUpdateOwnerPackageName: CharSequence? = null,
+    val unknownSourcePackageName: String? = null,
+    val verificationInfo: PackageInstaller.DeveloperVerificationUserConfirmationInfo? = null,
 ) : InstallStage(STAGE_USER_ACTION_REQUIRED) {
 
     val appIcon: Drawable?
@@ -56,14 +61,29 @@ data class InstallUserActionRequired(
     val appLabel: String?
         get() = appSnippet?.let { appSnippet.label as String? }
 
+    fun getExistingUpdateOwnerLabel(context: Context): String? {
+        return existingUpdateOwnerPackageName?.let {
+            PackageUtil.getApplicationLabel(context, it.toString()) as String?
+        }
+    }
+
+    fun getRequestedUpdateOwnerLabel(context: Context): String? {
+        return requestedUpdateOwnerPackageName?.let {
+            PackageUtil.getApplicationLabel(context, it.toString()) as String?
+        }
+    }
+
     companion object {
         const val USER_ACTION_REASON_UNKNOWN_SOURCE = 0
         const val USER_ACTION_REASON_ANONYMOUS_SOURCE = 1
         const val USER_ACTION_REASON_INSTALL_CONFIRMATION = 2
+        const val USER_ACTION_REASON_VERIFICATION_CONFIRMATION = 3
     }
 }
 
-data class InstallInstalling(val appSnippet: PackageUtil.AppSnippet) :
+data class InstallInstalling(
+    val appSnippet: PackageUtil.AppSnippet,
+    val isAppUpdating: Boolean = false) :
     InstallStage(STAGE_INSTALLING) {
 
     val appIcon: Drawable?
@@ -76,6 +96,7 @@ data class InstallInstalling(val appSnippet: PackageUtil.AppSnippet) :
 data class InstallSuccess(
     val appSnippet: PackageUtil.AppSnippet,
     val shouldReturnResult: Boolean = false,
+    val isAppUpdating: Boolean = false,
     /**
      *
      * * If the caller is requesting a result back, this will hold an Intent with
@@ -142,3 +163,11 @@ data class InstallAborted(
         const val DLG_PACKAGE_ERROR = 1
     }
 }
+
+class InstallVerificationConfirmationRequired :
+    InstallStage(STAGE_VERIFICATION_CONFIRMATION_REQUIRED)
+
+class InstallVerificationFailure(
+    val failureReason: Int = PackageInstaller.DEVELOPER_VERIFICATION_FAILED_REASON_UNKNOWN,
+    val isAppUpdating: Boolean = false,
+) : InstallStage(STAGE_VERIFICATION_FAILURE)

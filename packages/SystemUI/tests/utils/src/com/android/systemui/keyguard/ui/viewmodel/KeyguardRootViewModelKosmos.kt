@@ -16,7 +16,7 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 import com.android.systemui.communal.domain.interactor.communalInteractor
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryBypassInteractor
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
@@ -24,6 +24,7 @@ import com.android.systemui.keyguard.domain.interactor.pulseExpansionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.minmode.minModeManager
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.ui.viewmodel.notificationShadeWindowModel
 import com.android.systemui.statusbar.notification.icon.ui.viewmodel.notificationIconContainerAlwaysOnDisplayViewModel
@@ -31,12 +32,12 @@ import com.android.systemui.statusbar.notification.promoted.domain.interactor.ao
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationsKeyguardInteractor
 import com.android.systemui.statusbar.phone.dozeParameters
 import com.android.systemui.statusbar.phone.screenOffAnimationController
-import com.android.systemui.wallpapers.domain.interactor.wallpaperFocalAreaInteractor
+import java.util.Optional
 
 val Kosmos.keyguardRootViewModel by Fixture {
     KeyguardRootViewModel(
         applicationScope = applicationCoroutineScope,
-        deviceEntryInteractor = deviceEntryInteractor,
+        deviceEntryBypassInteractor = deviceEntryBypassInteractor,
         dozeParameters = dozeParameters,
         keyguardInteractor = keyguardInteractor,
         communalInteractor = communalInteractor,
@@ -71,7 +72,6 @@ val Kosmos.keyguardRootViewModel by Fixture {
         goneToDozingTransitionViewModel = goneToDozingTransitionViewModel,
         goneToDreamingTransitionViewModel = goneToDreamingTransitionViewModel,
         goneToLockscreenTransitionViewModel = goneToLockscreenTransitionViewModel,
-        goneToGlanceableHubTransitionViewModel = goneToGlanceableHubTransitionViewModel,
         lockscreenToAodTransitionViewModel = lockscreenToAodTransitionViewModel,
         lockscreenToDozingTransitionViewModel = lockscreenToDozingTransitionViewModel,
         lockscreenToDreamingTransitionViewModel = lockscreenToDreamingTransitionViewModel,
@@ -94,9 +94,12 @@ val Kosmos.keyguardRootViewModel by Fixture {
         screenOffAnimationController = screenOffAnimationController,
         aodBurnInViewModel = aodBurnInViewModel,
         shadeInteractor = shadeInteractor,
-        wallpaperFocalAreaInteractor = wallpaperFocalAreaInteractor,
         dumpManager = dumpManager,
         glanceableHubToAodTransitionViewModel = glanceableHubToAodTransitionViewModel,
         aodToGlanceableHubTransitionViewModel = aodToGlanceableHubTransitionViewModel,
+        minModeManager = Optional.of(minModeManager),
+        primaryBouncerToDozingTransitionViewModel = primaryBouncerToDozingTransitionViewModel,
+        alternateBouncerToDozingTransitionViewModel = alternateBouncerToDozingTransitionViewModel,
+        glanceableHubToDozingTransitionViewModel = glanceableHubToDozingTransitionViewModel,
     )
 }

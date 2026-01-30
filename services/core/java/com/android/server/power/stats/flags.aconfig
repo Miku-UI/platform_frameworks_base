@@ -10,57 +10,11 @@ flag {
 }
 
 flag {
-    name: "streamlined_battery_stats"
-    namespace: "backstage_power"
-    description: "Feature flag for streamlined battery stats"
-    bug: "285646152"
-}
-
-flag {
-    name: "disable_system_service_power_attr"
-    namespace: "backstage_power"
-    description: "Deprecation of system service power re-attribution"
-    bug: "311793616"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "streamlined_connectivity_battery_stats"
     namespace: "backstage_power"
     description: "Feature flag for streamlined connectivity battery stats"
     bug: "323970018"
     is_exported: true
-}
-
-flag {
-    name: "streamlined_misc_battery_stats"
-    namespace: "backstage_power"
-    description: "Feature flag for streamlined misc (excluding CPU, Cell, Wifi, BT) battery stats"
-    bug: "333941740"
-}
-
-flag {
-    name: "oneway_battery_stats_service"
-    namespace: "backstage_power"
-    description: "Bugfix flag for locking issues and watchdog kills in BatteryStatsService"
-    bug: "330792526"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "add_battery_usage_stats_slice_atom"
-    namespace: "backstage_power"
-    description: "Adds battery_usage_stats_slice atom"
-    bug: "324602949"
-}
-
-flag {
-    name: "battery_usage_stats_by_power_and_screen_state"
-    namespace: "backstage_power"
-    description: "Batterystats dumpsys is enhanced by including power break-down by power s"
-    bug: "352835319"
 }
 
 flag {
@@ -79,31 +33,44 @@ flag {
 }
 
 flag {
-    name: "accumulate_battery_usage_stats"
+     namespace: "backstage_power"
+     name: "checkin_history_start_time"
+     description: "Add duration limit to battery stats check in (csv) format"
+     bug: "403599628"
+     is_fixed_read_only: true
+}
+
+flag {
+     namespace: "backstage_power"
+     name: "real_checkin_history_start_time"
+     description: "Add duration limit to battery stats real check in (csv) format"
+     bug: "403599628"
+     is_fixed_read_only: true
+}
+
+flag {
+    name: "report_out_of_order_battery_history_events"
     namespace: "backstage_power"
-    description: "Add support for monotonically accumulated BatteryUsageStats"
-    bug: "345022340"
+    description: "Generate a Log.wtf when an out-of-order event is written to battery history"
+    bug: "407828438"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "extended_battery_history_continuous_collection_enabled"
-    namespace: "backstage_power"
-    description: "Disable automatic reset of battery stats history on full charge"
-    bug: "381940953"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+     namespace: "backstage_power"
+     name: "configure_power_stats_log_frequency"
+     description: "Add a configurable value for power stats logging frequency"
+     bug: "166689029"
 }
 
 flag {
-    name: "extended_battery_history_compression_enabled"
-    namespace: "backstage_power"
-    description: "Compress each battery history chunk on disk"
-    bug: "381937912"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+     namespace: "backstage_power"
+     name: "concurrent_queue_for_pending_removed_uids"
+     description: "Added ConcurrentLinkedQueue to address locking issue for pending remove uids queue"
+     bug: "420852486"
+     metadata {
+         purpose: PURPOSE_BUGFIX
+     }
 }

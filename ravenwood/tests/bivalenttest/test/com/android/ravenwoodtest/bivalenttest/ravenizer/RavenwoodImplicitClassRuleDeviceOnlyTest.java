@@ -15,18 +15,21 @@
  */
 package com.android.ravenwoodtest.bivalenttest.ravenizer;
 
+import static org.junit.Assert.assertFalse;
+
 import android.platform.test.annotations.DisabledOnRavenwood;
 import android.platform.test.ravenwood.RavenwoodRule;
-import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+/**
+ * This test shouldn't be executed on Ravenwood.
+ */
 @RunWith(AndroidJUnit4.class)
 @DisabledOnRavenwood
 public class RavenwoodImplicitClassRuleDeviceOnlyTest {
@@ -34,27 +37,17 @@ public class RavenwoodImplicitClassRuleDeviceOnlyTest {
 
     @BeforeClass
     public static void beforeClass() {
-        // This method shouldn't be called -- unless RUN_DISABLED_TESTS is enabled.
-
-        // If we're doing RUN_DISABLED_TESTS, don't throw here, because that'd confuse junit.
-        if (!RavenwoodRule.private$ravenwood().isRunningDisabledTests()) {
-            Assert.assertFalse(RavenwoodRule.isOnRavenwood());
-        }
+        // This method shouldn't be called
+        assertFalse(RavenwoodRule.isOnRavenwood());
     }
 
     @Test
     public void testDeviceOnly() {
-        Assert.assertFalse(RavenwoodRule.isOnRavenwood());
+        assertFalse(RavenwoodRule.isOnRavenwood());
     }
 
     @AfterClass
     public static void afterClass() {
-        if (RavenwoodRule.isOnRavenwood()) {
-            Log.e(TAG, "Even @AfterClass shouldn't be executed!");
-
-            if (!RavenwoodRule.private$ravenwood().isRunningDisabledTests()) {
-                System.exit(1);
-            }
-        }
+        assertFalse(RavenwoodRule.isOnRavenwood());
     }
 }

@@ -20,9 +20,11 @@ import android.content.Context
 import android.graphics.Insets
 import android.graphics.Rect
 import android.testing.TestableLooper
+import android.testing.ViewUtils
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
+import androidx.compose.ui.platform.ComposeView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -55,6 +57,7 @@ class SystemEventChipAnimationControllerTest : SysuiTestCase() {
     @Mock private lateinit var sbWindowController: StatusBarWindowController
     @Mock private lateinit var insetsProvider: StatusBarContentInsetsProvider
 
+    private val statusbarFake = FrameLayout(mContext)
     private var testView = TestView(mContext)
     private var viewCreator: ViewCreator = { testView }
 
@@ -64,7 +67,6 @@ class SystemEventChipAnimationControllerTest : SysuiTestCase() {
         // StatusBarWindowController is mocked. The addViewToWindow function needs to be mocked to
         // ensure that the chip view is added to a parent view
         whenever(sbWindowController.addViewToWindow(any(), any())).then {
-            val statusbarFake = FrameLayout(mContext)
             statusbarFake.layout(
                 portraitArea.left,
                 portraitArea.top,
@@ -108,64 +110,101 @@ class SystemEventChipAnimationControllerTest : SysuiTestCase() {
 
     @Test
     fun prepareChipAnimation_positionsChip() {
-        controller.prepareChipAnimation(viewCreator)
-        val chipRect = controller.chipBounds
+        try {
+            ViewUtils.attachView(statusbarFake)
+            TestableLooper.get(this).processAllMessages()
+            controller.prepareChipAnimation(viewCreator)
 
-        // SB area = 10, 10, 990, 100
-        // chip size = 0, 0, 100, 50
-        assertThat(chipRect).isEqualTo(Rect(890, 30, 990, 80))
+            val chipRect = controller.chipBounds
+            assertThat(chipRect).isEqualTo(Rect(890, 30, 990, 80))
+        } finally {
+            ViewUtils.detachView(statusbarFake)
+        }
     }
 
     @Test
     fun prepareChipAnimation_rotation_repositionsChip() {
-        controller.prepareChipAnimation(viewCreator)
+        try {
+            ViewUtils.attachView(statusbarFake)
+            TestableLooper.get(this).processAllMessages()
 
-        // Chip has been prepared, and is located at (890, 30, 990, 75)
-        // Rotation should put it into its landscape location:
-        // SB area = 10, 10, 1990, 80
-        // chip size = 0, 0, 100, 50
+            controller.prepareChipAnimation(viewCreator)
+            // Chip has been prepared, and is located at (890, 30, 990, 75)
+            // Rotation should put it into its landscape location:
+            // SB area = 10, 10, 1990, 80
+            // chip size = 0, 0, 100, 50
 
-        whenever(insetsProvider.getStatusBarContentAreaForCurrentRotation())
-            .thenReturn(landscapeArea)
-        getInsetsListener().onStatusBarContentInsetsChanged()
+            whenever(insetsProvider.getStatusBarContentAreaForCurrentRotation())
+                .thenReturn(landscapeArea)
+            getInsetsListener().onStatusBarContentInsetsChanged()
 
-        val chipRect = controller.chipBounds
-        assertThat(chipRect).isEqualTo(Rect(1890, 20, 1990, 70))
+            val chipRect = controller.chipBounds
+            assertThat(chipRect).isEqualTo(Rect(1890, 20, 1990, 70))
+        } finally {
+            ViewUtils.detachView(statusbarFake)
+        }
+    }
+
+    /** regression test for b/294462223. */
+    @Test
+    fun prepareChipAnimation_withComposeView_doesNotCrash() {
+        val composeViewCreator: ViewCreator = {
+            object : BackgroundAnimatableView {
+                override val view = ComposeView(mContext)
+
+                override fun setBoundsForAnimation(l: Int, t: Int, r: Int, b: Int) {}
+            }
+        }
+
+        try {
+            ViewUtils.attachView(statusbarFake)
+            // Make sure prepareChipAnimation does not crash when it adds the chip to a ComposeView.
+            controller.prepareChipAnimation(composeViewCreator)
+        } finally {
+            ViewUtils.detachView(statusbarFake)
+        }
     }
 
     /** regression test for (b/289378932) */
     @Test
     fun fullScreenStatusBar_positionsChipAtTop_withTopGravity() {
-        // In the case of a fullscreen status bar window, the content insets area is still correct
-        // (because it uses the dimens), but the window can be full screen. This seems to happen
-        // when launching an app from the ongoing call chip.
+        try {
+            ViewUtils.attachView(statusbarFake)
+            TestableLooper.get(this).processAllMessages()
 
-        // GIVEN layout the status bar window fullscreen portrait
-        whenever(sbWindowController.addViewToWindow(any(), any())).then {
-            val statusbarFake = FrameLayout(mContext)
-            statusbarFake.layout(
-                fullScreenSb.left,
-                fullScreenSb.top,
-                fullScreenSb.right,
-                fullScreenSb.bottom,
-            )
+            // In the case of a fullscreen status bar window, the content insets area is still
+            // correct
+            // (because it uses the dimens), but the window can be full screen. This seems to happen
+            // when launching an app from the ongoing call chip.
 
-            val lp = it.arguments[1] as FrameLayout.LayoutParams
-            assertThat(lp.gravity and Gravity.VERTICAL_GRAVITY_MASK).isEqualTo(Gravity.TOP)
+            // GIVEN layout the status bar window fullscreen portrait
+            whenever(sbWindowController.addViewToWindow(any(), any())).then {
+                statusbarFake.layout(
+                    fullScreenSb.left,
+                    fullScreenSb.top,
+                    fullScreenSb.right,
+                    fullScreenSb.bottom,
+                )
 
-            statusbarFake.addView(it.arguments[0] as View, lp)
+                val lp = it.arguments[1] as FrameLayout.LayoutParams
+                assertThat(lp.gravity and Gravity.VERTICAL_GRAVITY_MASK).isEqualTo(Gravity.TOP)
+
+                statusbarFake.addView(it.arguments[0] as View, lp)
+            }
+
+            // GIVEN insets provider gives the correct content area
+            whenever(insetsProvider.getStatusBarContentAreaForCurrentRotation())
+                .thenReturn(portraitArea)
+
+            // WHEN the controller lays out the chip in a fullscreen window
+            controller.prepareChipAnimation(viewCreator)
+
+            // THEN it still aligns the chip to the content area provided by the insets provider
+            val chipRect = controller.chipBounds
+            assertThat(chipRect).isEqualTo(Rect(890, 30, 990, 80))
+        } finally {
+            ViewUtils.detachView(statusbarFake)
         }
-
-        // GIVEN insets provider gives the correct content area
-        whenever(insetsProvider.getStatusBarContentAreaForCurrentRotation())
-            .thenReturn(portraitArea)
-
-        // WHEN the controller lays out the chip in a fullscreen window
-        controller.prepareChipAnimation(viewCreator)
-
-        // THEN it still aligns the chip to the content area provided by the insets provider
-        val chipRect = controller.chipBounds
-        assertThat(chipRect).isEqualTo(Rect(890, 30, 990, 80))
     }
 
     private class TestView(context: Context) : View(context), BackgroundAnimatableView {

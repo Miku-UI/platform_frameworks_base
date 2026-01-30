@@ -20,18 +20,16 @@ package com.android.server.devicepolicy;
 import android.annotation.NonNull;
 import android.app.admin.PolicyValue;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 final class MostRecent<V> extends ResolutionMechanism<V> {
 
     @Override
-    PolicyValue<V> resolve(@NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies) {
-        List<Map.Entry<EnforcingAdmin, PolicyValue<V>>> policiesList = new ArrayList<>(
-                adminPolicies.entrySet());
-        return policiesList.isEmpty() ? null : policiesList.get(policiesList.size() - 1).getValue();
+    ResolvedPolicy<V> resolve(
+            @NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies) {
+        Map.Entry<EnforcingAdmin, PolicyValue<V>> lastEntry = adminPolicies.lastEntry();
+        return lastEntry == null ? null : new ResolvedPolicy<V>(lastEntry);
     }
 
     @Override

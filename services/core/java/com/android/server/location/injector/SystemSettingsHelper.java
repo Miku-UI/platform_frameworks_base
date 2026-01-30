@@ -718,7 +718,7 @@ public class SystemSettingsHelper extends SettingsHelper {
             if (!mValid) {
                 final long identity = Binder.clearCallingIdentity();
                 try {
-                    PackageTagsList.Builder builder = new PackageTagsList.Builder().add(
+                    PackageTagsList.Builder builder = new PackageTagsList.Builder().addAll(
                             mBaseValuesSupplier.get());
 
                     String setting = DeviceConfig.getProperty(DeviceConfig.NAMESPACE_LOCATION,

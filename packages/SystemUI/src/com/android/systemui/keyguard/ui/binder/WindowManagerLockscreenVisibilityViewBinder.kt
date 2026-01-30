@@ -32,7 +32,7 @@ object WindowManagerLockscreenVisibilityViewBinder {
     fun bind(
         viewModel: WindowManagerLockscreenVisibilityViewModel,
         lockscreenVisibilityManager: WindowManagerLockscreenVisibilityManager,
-        scope: CoroutineScope
+        scope: CoroutineScope,
     ) {
         scope.launch("$TAG#viewModel.surfaceBehindVisibility") {
             viewModel.surfaceBehindVisibility.collect {
@@ -41,8 +41,8 @@ object WindowManagerLockscreenVisibilityViewBinder {
         }
 
         scope.launch("$TAG#viewModel.lockscreenVisibility") {
-            viewModel.lockscreenVisibility.collect {
-                lockscreenVisibilityManager.setLockscreenShown(it)
+            viewModel.lockscreenVisibility.collect { (visibility, reason) ->
+                lockscreenVisibilityManager.setLockscreenShown(visibility, reason)
             }
         }
 

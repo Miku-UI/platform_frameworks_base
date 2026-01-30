@@ -22,23 +22,28 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.content.pm.UserInfo
 import android.net.Uri
+import android.platform.test.annotations.EnableFlags
 import android.text.SpannableString
 import androidx.test.filters.SmallTest
 import androidx.test.runner.AndroidJUnit4
+import com.android.systemui.Flags.FLAG_CLIPBOARD_OVERLAY_MULTIUSER
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.res.R
-import com.android.systemui.util.mockito.eq
-import com.android.systemui.util.mockito.mock
+import com.android.systemui.settings.FakeUserTracker
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 @SmallTest
@@ -48,9 +53,21 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     private val mainDispatcher = UnconfinedTestDispatcher(scheduler)
     private val testScope = TestScope(mainDispatcher)
     val packageManager = mock<PackageManager>()
+    val userTracker = FakeUserTracker()
 
     val creator =
-        ActionIntentCreator(context, packageManager, testScope.backgroundScope, mainDispatcher)
+        ActionIntentCreator(
+            context,
+            packageManager,
+            userTracker,
+            testScope.backgroundScope,
+            mainDispatcher,
+        )
+
+    @Before
+    fun setup() {
+        userTracker.set(listOf(UserInfo(17, "test user", 0)), 0)
+    }
 
     @Test
     fun test_getTextEditorIntent() {
@@ -82,16 +99,37 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     }
 
     @Test
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
+    fun test_remoteCopyIntent_containsUserId() {
+        context.getOrCreateTestableResources().addOverride(R.string.config_remoteCopyPackage, "")
+
+        val clipData = ClipData.newPlainText("Test", "Test Item")
+        var intent = creator.getRemoteCopyIntent(clipData, context)
+
+        assertEquals(17, intent.contentUserHint)
+    }
+
+    @Test
     fun test_getImageEditIntent_noDefault() = runTest {
         context.getOrCreateTestableResources().addOverride(R.string.config_screenshotEditor, "")
         val fakeUri = Uri.parse("content://foo")
-        var intent = creator.getImageEditIntent(fakeUri, context)
+        val intent = creator.getImageEditIntent(fakeUri)
 
         assertEquals(Intent.ACTION_EDIT, intent.action)
         assertEquals("image/*", intent.type)
         assertEquals(null, intent.component)
         assertEquals("clipboard", intent.getStringExtra("edit_source"))
         assertFlags(intent, EXTERNAL_INTENT_FLAGS)
+    }
+
+    @Test
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
+    fun test_getImageEditIntent_containsUserId() = runTest {
+        context.getOrCreateTestableResources().addOverride(R.string.config_screenshotEditor, "")
+        val fakeUri = Uri.parse("content://foo")
+        val intent = creator.getImageEditIntent(fakeUri)
+
+        assertEquals(17, intent.contentUserHint)
     }
 
     @Test
@@ -103,11 +141,12 @@ class ActionIntentCreatorTest : SysuiTestCase() {
         context
             .getOrCreateTestableResources()
             .addOverride(R.string.config_screenshotEditor, fakeComponent.flattenToString())
-        val intent = creator.getImageEditIntent(fakeUri, context)
+        val intent = creator.getImageEditIntent(fakeUri)
         assertEquals(fakeComponent, intent.component)
     }
 
     @Test
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
     fun test_getImageEditIntent_preferredProvidedButDisabled() = runTest {
         val fakeUri = Uri.parse("content://foo")
 
@@ -130,8 +169,9 @@ class ActionIntentCreatorTest : SysuiTestCase() {
                 R.string.config_preferredScreenshotEditor,
                 preferredComponent.flattenToString(),
             )
-        val intent = creator.getImageEditIntent(fakeUri, context)
+        val intent = creator.getImageEditIntent(fakeUri)
         assertEquals(defaultComponent, intent.component)
+        assertEquals(17, intent.contentUserHint)
     }
 
     @Test
@@ -163,7 +203,7 @@ class ActionIntentCreatorTest : SysuiTestCase() {
                 R.string.config_preferredScreenshotEditor,
                 preferredComponent.flattenToString(),
             )
-        val intent = creator.getImageEditIntent(fakeUri, context)
+        val intent = creator.getImageEditIntent(fakeUri)
         assertEquals(preferredComponent, intent.component)
     }
 
@@ -180,9 +220,18 @@ class ActionIntentCreatorTest : SysuiTestCase() {
     }
 
     @Test
+    @EnableFlags(FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
+    fun test_getShareIntent_containsUserId() {
+        val clipData = ClipData.newPlainText("Test", "Test Item")
+        val intent = creator.getShareIntent(clipData, context)
+
+        assertEquals(17, intent.contentUserHint)
+    }
+
+    @Test
     fun test_getShareIntent_html() {
         val clipData = ClipData.newHtmlText("Test", "Some HTML", "<b>Some HTML</b>")
-        val intent = creator.getShareIntent(clipData, getContext())
+        val intent = creator.getShareIntent(clipData, context)
 
         assertEquals(Intent.ACTION_CHOOSER, intent.action)
         assertFlags(intent, EXTERNAL_INTENT_FLAGS)

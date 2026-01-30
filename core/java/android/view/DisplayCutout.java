@@ -17,15 +17,15 @@
 package android.view;
 
 import static android.content.res.Resources.ID_NULL;
+import static android.internal.perfetto.protos.Displaycutout.DisplayCutoutProto.BOUND_BOTTOM;
+import static android.internal.perfetto.protos.Displaycutout.DisplayCutoutProto.BOUND_LEFT;
+import static android.internal.perfetto.protos.Displaycutout.DisplayCutoutProto.BOUND_RIGHT;
+import static android.internal.perfetto.protos.Displaycutout.DisplayCutoutProto.BOUND_TOP;
+import static android.internal.perfetto.protos.Displaycutout.DisplayCutoutProto.INSETS;
+import static android.internal.perfetto.protos.Displaycutout.DisplayCutoutProto.SIDE_OVERRIDES;
+import static android.internal.perfetto.protos.Displaycutout.DisplayCutoutProto.WATERFALL_INSETS;
 import static android.util.DisplayMetrics.DENSITY_DEFAULT;
 import static android.util.DisplayMetrics.DENSITY_DEVICE_STABLE;
-import static android.view.DisplayCutoutProto.BOUND_BOTTOM;
-import static android.view.DisplayCutoutProto.BOUND_LEFT;
-import static android.view.DisplayCutoutProto.BOUND_RIGHT;
-import static android.view.DisplayCutoutProto.BOUND_TOP;
-import static android.view.DisplayCutoutProto.INSETS;
-import static android.view.DisplayCutoutProto.SIDE_OVERRIDES;
-import static android.view.DisplayCutoutProto.WATERFALL_INSETS;
 import static android.view.Surface.ROTATION_0;
 import static android.view.Surface.ROTATION_270;
 
@@ -52,7 +52,6 @@ import android.view.Surface.Rotation;
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.window.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -1149,9 +1148,6 @@ public final class DisplayCutout {
 
     private static int[] getDisplayCutoutSideOverrides(Resources res, String displayUniqueId)
             throws IllegalArgumentException {
-        if (!Flags.movableCutoutConfiguration()) {
-            return null;
-        }
         final int index = DisplayUtils.getDisplayUniqueIdConfigIndex(res, displayUniqueId);
         final TypedArray array = res.obtainTypedArray(
                 R.array.config_displayCutoutSideOverrideArray);

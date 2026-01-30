@@ -90,6 +90,8 @@ class RearDisplayInnerDialogDelegateTest : SysuiTestCase() {
                 seekbar.progress = 50
                 seekbar.progress = 100
                 verify(mockCallback).run()
+
+                dismiss()
             }
     }
 
@@ -112,6 +114,8 @@ class RearDisplayInnerDialogDelegateTest : SysuiTestCase() {
                 val seekbar = findViewById<SeekBar>(R.id.seekbar)
                 seekbar.progress = 100
                 verify(mockCallback, never()).run()
+
+                dismiss()
             }
     }
 
@@ -155,6 +159,8 @@ class RearDisplayInnerDialogDelegateTest : SysuiTestCase() {
 
                 cancelButton.performClick()
                 verify(mockCallback).run()
+
+                dismiss()
             }
     }
 }

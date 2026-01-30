@@ -30,7 +30,6 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(NotificationsHunSharedAnimationValues.FLAG_NAME)
 class HeadsUpAnimatorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
 

@@ -17,12 +17,12 @@
 package com.android.server.wm.flicker.activityembedding.rotation
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
-import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.RequiresDevice
+import android.tools.flicker.junit.FlickerParametersRunnerFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
+import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.helpers.ActivityEmbeddingAppHelper
 import org.junit.FixMethodOrder
 import org.junit.Test
@@ -42,7 +42,7 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-open class RotateSplitNoChangeTest(flicker: LegacyFlickerTest) : RotationTransition(flicker) {
+open class RotateSplitNoChangeTest(flicker: FlickerTest) : RotationTransition(flicker) {
     override val transition: FlickerBuilder.() -> Unit
         get() = {
             super.transition(this)
@@ -133,11 +133,11 @@ open class RotateSplitNoChangeTest(flicker: LegacyFlickerTest) : RotationTransit
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.rotationTests()
+        fun getParams() = FlickerTestFactory.rotationTests()
     }
 }

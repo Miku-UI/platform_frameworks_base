@@ -18,7 +18,7 @@ package android.app;
 /**
  * Defines the PROCESS_STATE_* values used by ActivityManager.
  * These values are shared by Java and native side.
- * {@hide}
+ * @hide
  */
 @Backing(type="int")
 enum ProcessStateEnum {

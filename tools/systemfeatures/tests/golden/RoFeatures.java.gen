@@ -22,13 +22,12 @@ import com.android.aconfig.annotations.AssumeTrueForR8;
  */
 public final class RoFeatures {
     /**
-     * Check for FEATURE_WATCH.
+     * Check for FEATURE_AUTO.
      *
      * @hide
      */
-    @AssumeTrueForR8
-    public static boolean hasFeatureWatch(Context context) {
-        return true;
+    public static boolean hasFeatureAuto(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_AUTO);
     }
 
     /**
@@ -38,16 +37,6 @@ public final class RoFeatures {
      */
     public static boolean hasFeaturePc(Context context) {
         return hasFeatureFallback(context, PackageManager.FEATURE_PC);
-    }
-
-    /**
-     * Check for FEATURE_WIFI.
-     *
-     * @hide
-     */
-    @AssumeTrueForR8
-    public static boolean hasFeatureWifi(Context context) {
-        return true;
     }
 
     /**
@@ -61,12 +50,23 @@ public final class RoFeatures {
     }
 
     /**
-     * Check for FEATURE_AUTO.
+     * Check for FEATURE_WATCH.
      *
      * @hide
      */
-    public static boolean hasFeatureAuto(Context context) {
-        return hasFeatureFallback(context, PackageManager.FEATURE_AUTO);
+    @AssumeTrueForR8
+    public static boolean hasFeatureWatch(Context context) {
+        return true;
+    }
+
+    /**
+     * Check for FEATURE_WIFI.
+     *
+     * @hide
+     */
+    @AssumeTrueForR8
+    public static boolean hasFeatureWifi(Context context) {
+        return true;
     }
 
     private static boolean hasFeatureFallback(Context context, String featureName) {
@@ -79,9 +79,9 @@ public final class RoFeatures {
     @Nullable
     public static Boolean maybeHasFeature(String featureName, int version) {
         switch (featureName) {
+            case PackageManager.FEATURE_VULKAN: return false;
             case PackageManager.FEATURE_WATCH: return 1 >= version;
             case PackageManager.FEATURE_WIFI: return 0 >= version;
-            case PackageManager.FEATURE_VULKAN: return false;
             default: break;
         }
         return null;

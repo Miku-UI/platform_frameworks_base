@@ -77,6 +77,7 @@ import java.io.InputStream;
  * @attr ref android.R.styleable#BitmapDrawable_mipMap
  * @attr ref android.R.styleable#BitmapDrawable_tileMode
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class BitmapDrawable extends Drawable {
     private static final int DEFAULT_PAINT_FLAGS =
             Paint.FILTER_BITMAP_FLAG | Paint.DITHER_FLAG;

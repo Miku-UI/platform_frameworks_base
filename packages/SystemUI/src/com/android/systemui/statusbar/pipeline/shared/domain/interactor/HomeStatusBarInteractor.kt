@@ -16,7 +16,7 @@
 
 package com.android.systemui.statusbar.pipeline.shared.domain.interactor
 
-import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.statusbar.disableflags.domain.interactor.DisableFlagsInteractor
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.CarrierConfigInteractor
@@ -32,7 +32,7 @@ import kotlinx.coroutines.flow.map
  * Interactor for the home screen status bar (aka
  * [com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment]).
  */
-@SysUISingleton
+@PerDisplaySingleton
 class HomeStatusBarInteractor
 @Inject
 constructor(

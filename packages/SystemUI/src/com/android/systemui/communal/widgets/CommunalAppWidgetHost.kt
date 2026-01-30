@@ -18,6 +18,8 @@ package com.android.systemui.communal.widgets
 
 import android.appwidget.AppWidgetHost
 import android.content.Context
+import android.os.DeadObjectException
+import android.os.TransactionTooLargeException
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.communal.shared.model.GlanceableHubMultiUserHelper
 import com.android.systemui.log.LogBuffer
@@ -78,7 +80,16 @@ class CommunalAppWidgetHost(
     }
 
     override fun startListening() {
-        super.startListening()
+        try {
+            super.startListening()
+        } catch (e: Exception) {
+            if (!e.isBinderSizeError()) {
+                throw RuntimeException(e)
+            }
+            // We ignore the binder size error, which is caused by the list of RemoteViews passed
+            // back being too large that the binder buffer space runs out. See b/14255011 and
+            // b/402970061 for more context.
+        }
         backgroundScope.launch {
             synchronized(observers) {
                 observers.forEach { observer -> observer.onHostStartListening() }
@@ -87,8 +98,8 @@ class CommunalAppWidgetHost(
     }
 
     override fun stopListening() {
-        super.stopListening()
         backgroundScope.launch {
+            super.stopListening()
             synchronized(observers) {
                 observers.forEach { observer -> observer.onHostStopListening() }
             }
@@ -127,5 +138,9 @@ class CommunalAppWidgetHost(
 
     companion object {
         private const val TAG = "CommunalAppWidgetHost"
+
+        private fun Exception.isBinderSizeError(): Boolean {
+            return cause is TransactionTooLargeException || cause is DeadObjectException
+        }
     }
 }

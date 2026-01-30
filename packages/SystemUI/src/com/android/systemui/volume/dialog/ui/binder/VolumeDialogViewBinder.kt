@@ -21,7 +21,6 @@ import android.content.Context
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.accessibility.AccessibilityEvent
 import androidx.compose.ui.util.lerp
@@ -32,11 +31,14 @@ import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import com.android.app.tracing.coroutines.launchInTraced
 import com.android.app.tracing.coroutines.launchTraced
-import com.android.internal.view.RotationPolicy
+import com.android.systemui.Flags
 import com.android.systemui.common.ui.view.onApplyWindowInsets
+import com.android.systemui.common.ui.view.updateMargin
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.res.R
 import com.android.systemui.util.kotlin.awaitCancellationThenDispose
+import com.android.systemui.util.view.listenToComputeInternalInsets
+import com.android.systemui.volume.dialog.captions.ui.viewmodel.VolumeDialogCaptionsButtonViewModel
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogScope
 import com.android.systemui.volume.dialog.shared.model.VolumeDialogVisibilityModel
@@ -49,12 +51,10 @@ import kotlin.math.ceil
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.scan
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 private const val SPRING_STIFFNESS = 700f
 private const val SPRING_DAMPING_RATIO = 0.9f
@@ -71,6 +71,7 @@ class VolumeDialogViewBinder
 constructor(
     @Application context: Context,
     private val viewModel: VolumeDialogViewModel,
+    private val captionsButtonViewModel: VolumeDialogCaptionsButtonViewModel,
     private val jankListenerFactory: JankListenerFactory,
     private val tracer: VolumeTracer,
     @VolumeDialog private val viewBinders: List<@JvmSuppressWildcards ViewBinder>,
@@ -78,13 +79,20 @@ constructor(
 
     private val halfOpenedOffsetPx: Float =
         context.resources.getDimensionPixelSize(R.dimen.volume_dialog_half_opened_offset).toFloat()
+    private val mainSliderVerticalMargin: Int by lazy {
+        context.resources.getDimensionPixelSize(R.dimen.volume_dialog_slider_vertical_margin)
+    }
 
-    fun CoroutineScope.bind(dialog: Dialog) {
-        val insets: MutableStateFlow<WindowInsets> =
-            MutableStateFlow(WindowInsets.Builder().build())
+    private val mainSliderWithCaptionsToggleVerticalMargin: Int by lazy {
+        context.resources.getDimensionPixelSize(
+            R.dimen.volume_dialog_slider_vertical_margin_with_captions_toggle
+        )
+    }
+
+    fun CoroutineScope.bind(dialog: Dialog, isVolumeDialogVertical: Boolean = true) {
         // Root view of the Volume Dialog.
         val root: ViewGroup = dialog.requireViewById(R.id.volume_dialog)
-
+        val mainSliderContainer: View? = root.findViewById(R.id.volume_dialog_main_slider_container)
         root.accessibilityDelegate = Accessibility(viewModel)
         root.setOnHoverListener { _, event ->
             viewModel.onHover(
@@ -111,20 +119,37 @@ constructor(
             .launchInTraced("VDVB#isHalfOpened", this)
 
         launchTraced("VDVB#viewTreeObserver") {
-            root.viewTreeObserver.listenToComputeInternalInsets()
+            root.viewTreeObserver.listenToComputeInternalInsets {
+                viewModel.fillTouchableBounds(this)
+            }
         }
 
         launchTraced("VDVB#insets") {
             root
-                .onApplyWindowInsets { v, newInsets ->
-                    val insetsValues = newInsets.getInsets(WindowInsets.Type.displayCutout())
-                    v.updatePadding(
+                .onApplyWindowInsets { view, newInsets ->
+                    val insetsValues =
+                        newInsets.getInsets(
+                            WindowInsets.Type.displayCutout() or
+                                WindowInsets.Type.navigationBars() or
+                                WindowInsets.Type.statusBars()
+                        )
+                    view.updatePadding(
                         left = insetsValues.left,
                         top = insetsValues.top,
                         right = insetsValues.right,
                         bottom = insetsValues.bottom,
                     )
-                    insets.value = newInsets
+                    if (isVolumeDialogVertical) {
+                        mainSliderContainer?.updateMargin(
+                            top = getSliderVerticalMargin() - view.paddingTop,
+                            bottom = getSliderVerticalMargin() - view.paddingBottom,
+                        )
+                    } else {
+                        mainSliderContainer?.updateMargin(
+                            left = getSliderVerticalMargin() - view.paddingLeft,
+                            right = getSliderVerticalMargin() - view.paddingRight,
+                        )
+                    }
                     WindowInsets.CONSUMED
                 }
                 .awaitCancellationThenDispose()
@@ -154,7 +179,8 @@ constructor(
         var junkListener: DynamicAnimation.OnAnimationUpdateListener? = null
 
         visibilityModel
-            .mapLatest {
+            .conflate()
+            .onEach {
                 when (it) {
                     is VolumeDialogVisibilityModel.Visible -> {
                         tracer.traceVisibilityEnd(it)
@@ -186,27 +212,8 @@ constructor(
      */
     private fun View.applyAnimationProgress(fraction: Float) {
         alpha = ceil(fraction)
-        if (display.rotation == RotationPolicy.NATURAL_ROTATION) {
-                if (isLayoutRtl) {
-                    -1
-                } else {
-                    1
-                } * width / 2f
-            } else {
-                null
-            }
-            ?.let { maxTranslationX -> translationX = lerp(maxTranslationX, 0f, fraction) }
+        translationX = lerp(width, 0, fraction).toFloat()
     }
-
-    private suspend fun ViewTreeObserver.listenToComputeInternalInsets() =
-        suspendCancellableCoroutine<Unit> { continuation ->
-            val listener =
-                ViewTreeObserver.OnComputeInternalInsetsListener { inoutInfo ->
-                    viewModel.fillTouchableBounds(inoutInfo)
-                }
-            addOnComputeInternalInsetsListener(listener)
-            continuation.invokeOnCancellation { removeOnComputeInternalInsetsListener(listener) }
-        }
 
     private suspend fun View.applyVerticalOffset(offsetPx: Float, shouldAnimate: Boolean) {
         if (!shouldAnimate) {
@@ -215,6 +222,13 @@ constructor(
         }
         animate().setDuration(150).translationY(offsetPx).suspendAnimate()
     }
+
+    private fun getSliderVerticalMargin(): Int =
+        if (Flags.captionsToggleInVolumeDialogV1() && captionsButtonViewModel.isVisible.value) {
+            mainSliderWithCaptionsToggleVerticalMargin
+        } else {
+            mainSliderVerticalMargin
+        }
 
     private class Accessibility(private val viewModel: VolumeDialogViewModel) :
         View.AccessibilityDelegate() {

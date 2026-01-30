@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+@file:Suppress("UNUSED_VARIABLE")
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package com.android.systemui.lifecycle
 
 import android.view.View
@@ -23,12 +26,17 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.ui.viewmodel.FakeSysUiViewModel
 import com.android.systemui.util.Assert
 import com.google.common.truth.Truth.assertThat
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,12 +59,16 @@ class SysUiViewModelTest : SysuiTestCase() {
         composeRule.setContent {
             val keepAlive by keepAliveMutable
             if (keepAlive) {
-                rememberViewModel("test") {
-                    FakeSysUiViewModel(
-                        onActivation = { isActive = true },
-                        onDeactivation = { isActive = false },
-                    )
-                }
+                // Need to explicitly state the type to avoid a weird issue where the factory seems
+                // to return Unit instead of FakeSysUiViewModel. It might be an issue with the
+                // compose compiler.
+                val unused: FakeSysUiViewModel =
+                    rememberViewModel("test") {
+                        FakeSysUiViewModel(
+                            onActivation = { isActive = true },
+                            onDeactivation = { isActive = false },
+                        )
+                    }
             }
         }
         assertThat(isActive).isTrue()
@@ -127,6 +139,62 @@ class SysUiViewModelTest : SysuiTestCase() {
     }
 
     @Test
+    @Ignore("b/436984081")
+    fun rememberActivated_withCoroutineContext() {
+        val flag = FlagElement("flag")
+        var viewModel: FakeViewModel? = null
+
+        composeRule.setContent {
+            viewModel =
+                rememberViewModel(
+                    traceName = "test",
+                    coroutineContext = flag,
+                    factory = { FakeViewModel() },
+                )
+        }
+
+        assertThat(viewModel?.lastActivationCoroutineContext?.get(flag.key)).isSameInstanceAs(flag)
+    }
+
+    @Test
+    @Ignore("b/436984081")
+    fun rememberActivated_withConfiguredCompositionLocal() {
+        val flag = FlagElement("flag")
+        var viewModel: FakeViewModel? = null
+
+        composeRule.setContent {
+            WithConfiguredRememberViewModels(coroutineContext = flag) {
+                viewModel = rememberViewModel(traceName = "test", factory = { FakeViewModel() })
+            }
+        }
+
+        assertThat(viewModel?.lastActivationCoroutineContext?.get(flag.key)).isSameInstanceAs(flag)
+    }
+
+    @Test
+    @Ignore("b/436984081")
+    fun rememberActivated_withConfiguredCompositionLocal_andCoroutineContextOverride() {
+        val configuredFlag = FlagElement("configured")
+        val innerOverrideFlag = FlagElement("innerOverride")
+        var viewModel: FakeViewModel? = null
+
+        composeRule.setContent {
+            WithConfiguredRememberViewModels(coroutineContext = configuredFlag) {
+                viewModel =
+                    rememberViewModel(
+                        traceName = "test",
+                        coroutineContext = innerOverrideFlag,
+                        factory = { FakeViewModel() },
+                    )
+            }
+        }
+
+        assertThat(viewModel?.lastActivationCoroutineContext?.get(configuredFlag.key)).isNull()
+        assertThat(viewModel?.lastActivationCoroutineContext?.get(innerOverrideFlag.key))
+            .isSameInstanceAs(innerOverrideFlag)
+    }
+
+    @Test
     fun viewModel_viewBinder() = runTest {
         Assert.setTestThread(Thread.currentThread())
 
@@ -158,13 +226,26 @@ class SysUiViewModelTest : SysuiTestCase() {
 
 private class FakeViewModel : ExclusiveActivatable() {
     var isActivated = false
+    /**
+     * The [CoroutineContext] used for the most recent activation of this [FakeViewModel]; will be
+     * `null` before the first activation and will be updated for every subsequent activation.
+     */
+    var lastActivationCoroutineContext: CoroutineContext? = null
+        private set
 
     override suspend fun onActivated(): Nothing {
         isActivated = true
+        lastActivationCoroutineContext = coroutineContext
         try {
             awaitCancellation()
         } finally {
             isActivated = false
         }
     }
+}
+
+private class FlagElement(private val name: String) : CoroutineContext.Element {
+    override val key = object : CoroutineContext.Key<FlagElement> {}
+
+    override fun toString(): String = name
 }

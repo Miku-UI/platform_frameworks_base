@@ -14,7 +14,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@TestableLooper.RunWithLooper
+@TestableLooper.RunWithLooper(setAsMainLooper = true)
 class GenericGestureDetectorTest : SysuiTestCase() {
 
     private lateinit var gestureDetector: TestGestureDetector
@@ -33,23 +33,23 @@ class GenericGestureDetectorTest : SysuiTestCase() {
 
     @Test
     fun callbackRegistered_isGestureListening() {
-        gestureDetector.addOnGestureDetectedCallback("tag"){}
+        gestureDetector.addOnGestureDetectedCallback("tag") {}
 
         assertThat(gestureDetector.isGestureListening).isTrue()
     }
 
     @Test
     fun multipleCallbacksRegistered_isGestureListening() {
-        gestureDetector.addOnGestureDetectedCallback("tag"){}
-        gestureDetector.addOnGestureDetectedCallback("tag2"){}
+        gestureDetector.addOnGestureDetectedCallback("tag") {}
+        gestureDetector.addOnGestureDetectedCallback("tag2") {}
 
         assertThat(gestureDetector.isGestureListening).isTrue()
     }
 
     @Test
     fun allCallbacksUnregistered_notGestureListening() {
-        gestureDetector.addOnGestureDetectedCallback("tag"){}
-        gestureDetector.addOnGestureDetectedCallback("tag2"){}
+        gestureDetector.addOnGestureDetectedCallback("tag") {}
+        gestureDetector.addOnGestureDetectedCallback("tag2") {}
 
         gestureDetector.removeOnGestureDetectedCallback("tag")
         gestureDetector.removeOnGestureDetectedCallback("tag2")
@@ -59,8 +59,8 @@ class GenericGestureDetectorTest : SysuiTestCase() {
 
     @Test
     fun someButNotAllCallbacksUnregistered_isGestureListening() {
-        gestureDetector.addOnGestureDetectedCallback("tag"){}
-        gestureDetector.addOnGestureDetectedCallback("tag2"){}
+        gestureDetector.addOnGestureDetectedCallback("tag") {}
+        gestureDetector.addOnGestureDetectedCallback("tag2") {}
 
         gestureDetector.removeOnGestureDetectedCallback("tag2")
 
@@ -70,9 +70,7 @@ class GenericGestureDetectorTest : SysuiTestCase() {
     @Test
     fun onInputEvent_meetsGestureCriteria_allCallbacksNotified() {
         var callbackNotified = false
-        gestureDetector.addOnGestureDetectedCallback("tag"){
-            callbackNotified = true
-        }
+        gestureDetector.addOnGestureDetectedCallback("tag") { callbackNotified = true }
 
         gestureDetector.onInputEvent(
             MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, CORRECT_X, 0f, 0)
@@ -84,9 +82,7 @@ class GenericGestureDetectorTest : SysuiTestCase() {
     @Test
     fun onInputEvent_doesNotMeetGestureCriteria_callbackNotNotified() {
         var callbackNotified = false
-        gestureDetector.addOnGestureDetectedCallback("tag"){
-            callbackNotified = true
-        }
+        gestureDetector.addOnGestureDetectedCallback("tag") { callbackNotified = true }
 
         gestureDetector.onInputEvent(
             MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, CORRECT_X - 5, 0f, 0)
@@ -98,30 +94,19 @@ class GenericGestureDetectorTest : SysuiTestCase() {
     @Test
     fun callbackUnregisteredThenGestureDetected_oldCallbackNotNotified() {
         var oldCallbackNotified = false
-        gestureDetector.addOnGestureDetectedCallback("tag"){
-            oldCallbackNotified = true
-        }
-        gestureDetector.addOnGestureDetectedCallback("tag2"){}
+        gestureDetector.addOnGestureDetectedCallback("tag") { oldCallbackNotified = true }
+        gestureDetector.addOnGestureDetectedCallback("tag2") {}
 
         gestureDetector.removeOnGestureDetectedCallback("tag")
         gestureDetector.onInputEvent(
-            MotionEvent.obtain(
-                0,
-                0,
-                MotionEvent.ACTION_DOWN,
-                CORRECT_X,
-                0f,
-                0
-            )
+            MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, CORRECT_X, 0f, 0)
         )
 
         assertThat(oldCallbackNotified).isFalse()
     }
 
-    inner class TestGestureDetector : GenericGestureDetector(
-            "fakeTag",
-            displayTracker.defaultDisplayId
-    ) {
+    inner class TestGestureDetector :
+        GenericGestureDetector("fakeTag", displayTracker.defaultDisplayId) {
         var isGestureListening = false
 
         override fun onInputEvent(ev: InputEvent) {

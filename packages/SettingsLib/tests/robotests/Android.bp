@@ -48,16 +48,20 @@ android_robolectric_test {
     static_libs: [
         "Robolectric_shadows_androidx_fragment_upstream",
         "SettingsLib-robo-testutils",
+        "SettingsLibGraph",
+        "SettingsLibService",
         "Settings_robolectric_meta_service_file",
         "androidx.core_core",
         "androidx.fragment_fragment",
         "androidx.test.core",
         "androidx.test.ext.junit",
+        "device_policy_aconfig_flags_lib",
         "flag-junit",
         "kotlinx_coroutines_test",
+        "mockito-robolectric-prebuilt", // mockito deps order matters
+        "mockito-kotlin2",
         "settingslib_illustrationpreference_flags_lib",
         "settingslib_media_flags_lib",
-        "settingslib_selectorwithwidgetpreference_flags_lib",
         "testng", // TODO: remove once JUnit on Android provides assertThrows
     ],
     java_resource_dirs: ["config"],
@@ -99,8 +103,8 @@ java_library {
     ],
     plugins: [
         "Robolectric_processor",
-        "auto_value_builder_plugin_1.9",
-        "auto_value_plugin_1.9",
+        "auto_value_builder_plugin",
+        "auto_value_plugin",
     ],
     libs: [
         "Robolectric_all-target",

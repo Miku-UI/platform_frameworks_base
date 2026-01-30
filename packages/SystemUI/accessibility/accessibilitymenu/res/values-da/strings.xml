@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Gå til forrige skærm"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Gå til næste skærm"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Menuen Hjælpefunktioner giver dig en stor menu på skærmen, som du kan bruge til at styre din enhed. Du kan låse din enhed, justere lyd- og lysstyrken, tage screenshots og meget mere."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Styr enheden via den store menu"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Juster lydstyrke, lysstyrke og meget mere med en omfattende menu"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Indst. for menuen Hjælpefunktioner"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Store knapper"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Forstør knapperne i menuen Hjælpefunktioner"</string>

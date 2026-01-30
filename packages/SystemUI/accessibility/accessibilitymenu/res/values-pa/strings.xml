@@ -2,7 +2,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="accessibility_menu_service_name" msgid="730136711554740131">"ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ"</string>
-    <string name="accessibility_menu_intro" msgid="3164193281544042394">"ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨ ਲਈ ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ ਇੱਕ ਵੱਡਾ ਆਨ-ਸਕ੍ਰੀਨ ਮੀਨੂ ਮੁਹੱਈਆ ਕਰਦਾ ਹੈ। ਤੁਸੀਂ ਆਪਣੇ ਡੀਵਾਈਸ ਨੂੰ ਲਾਕ ਕਰ ਸਕਦੇ ਹੋ, ਅਵਾਜ਼ ਅਤੇ ਚਮਕ ਨੂੰ ਕੰਟਰੋਲ ਕਰ ਸਕਦੇ ਹੋ, ਸਕ੍ਰੀਨਸ਼ਾਟ ਲੈ ਸਕਦੇ ਹੋ ਅਤੇ ਹੋਰ ਵੀ ਬਹੁਤ ਕੁਝ।"</string>
+    <string name="accessibility_menu_intro" msgid="3164193281544042394">"ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨ ਲਈ ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ ਇੱਕ ਵੱਡਾ ਆਨ-ਸਕ੍ਰੀਨ ਮੀਨੂ ਮੁਹੱਈਆ ਕਰਦਾ ਹੈ। ਤੁਸੀਂ ਆਪਣੇ ਡੀਵਾਈਸ ਨੂੰ ਲਾਕ ਕਰ ਸਕਦੇ ਹੋ, ਅਵਾਜ਼ ਅਤੇ ਚਮਕ ਨੂੰ ਕੰਟਰੋਲ ਕਰ ਸਕਦੇ ਹੋ, ਸਕ੍ਰੀਨਸ਼ਾਟ ਲੈ ਸਕਦੇ ਹੋ ਅਤੇ ਹੋਰ ਵੀ ਬਹੁਤ ਕੁਝ ਕਰ ਸਕਦੇ ਹੋ।"</string>
     <string name="assistant_label" msgid="6796392082252272356">"Assistant"</string>
     <string name="assistant_utterance" msgid="65509599221141377">"Assistant"</string>
     <string name="a11y_settings_label" msgid="3977714687248445050">"ਪਹੁੰਚਯੋਗਤਾ ਸੈਟਿੰਗਾਂ"</string>
@@ -20,8 +20,8 @@
     <string name="brightness_down_label" msgid="7115662941913272072">"ਚਮਕ ਘਟਾਓ"</string>
     <string name="previous_button_content_description" msgid="840869171117765966">"ਪਿਛਲੀ ਸਕ੍ਰੀਨ \'ਤੇ ਜਾਓ"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"ਅਗਲੀ ਸਕ੍ਰੀਨ \'ਤੇ ਜਾਓ"</string>
-    <string name="accessibility_menu_description" msgid="4458354794093858297">"ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨ ਲਈ ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ ਇੱਕ ਵੱਡਾ ਸਕ੍ਰੀਨ-ਉੱਪਰਲਾ ਮੀਨੂ ਮੁਹੱਈਆ ਕਰਦਾ ਹੈ। ਤੁਸੀਂ ਆਪਣੇ ਡੀਵਾਈਸ ਨੂੰ ਲਾਕ ਕਰ ਸਕਦੇ ਹੋ, ਅਵਾਜ਼ ਅਤੇ ਚਮਕ ਨੂੰ ਕੰਟਰੋਲ ਕਰ ਸਕਦੇ ਹੋ, ਸਕ੍ਰੀਨਸ਼ਾਟ ਲੈ ਸਕਦੇ ਹੋ ਅਤੇ ਹੋਰ ਵੀ ਬਹੁਤ ਕੁਝ।"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"ਵੱਡੇ ਮੀਨੂ ਰਾਹੀਂ ਡੀਵਾਈਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰੋ"</string>
+    <string name="accessibility_menu_description" msgid="4458354794093858297">"ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਨੂੰ ਕੰਟਰੋਲ ਕਰਨ ਲਈ ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ ਇੱਕ ਵੱਡਾ ਸਕ੍ਰੀਨ-ਉੱਪਰਲਾ ਮੀਨੂ ਮੁਹੱਈਆ ਕਰਦਾ ਹੈ। ਤੁਸੀਂ ਆਪਣੇ ਡੀਵਾਈਸ ਨੂੰ ਲਾਕ ਕਰ ਸਕਦੇ ਹੋ, ਅਵਾਜ਼ ਅਤੇ ਚਮਕ ਨੂੰ ਕੰਟਰੋਲ ਕਰ ਸਕਦੇ ਹੋ, ਸਕ੍ਰੀਨਸ਼ਾਟ ਲੈ ਸਕਦੇ ਹੋ ਅਤੇ ਹੋਰ ਵੀ ਬਹੁਤ ਕੁਝ ਕਰ ਸਕਦੇ ਹੋ।"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"ਵੱਡੇ ਮੀਨੂ ਨਾਲ ਅਵਾਜ਼, ਚਮਕ ਅਤੇ ਹੋਰ ਬਹੁਤ ਕੁਝ ਕੰਟਰੋਲ ਕਰੋ"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ ਸੈਟਿੰਗਾਂ"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ਵੱਡੇ ਬਟਨ"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"\'ਪਹੁੰਚਯੋਗਤਾ ਮੀਨੂ\' ਬਟਨਾਂ ਦਾ ਆਕਾਰ ਵਧਾਓ"</string>

@@ -17,7 +17,6 @@
 package com.android.server.am;
 
 import android.Manifest;
-import android.annotation.ElapsedRealtimeLong;
 import android.app.ActivityManager;
 import android.content.pm.PackageManager;
 import android.os.SystemClock;
@@ -31,76 +30,15 @@ import android.util.proto.ProtoUtils;
 import com.android.internal.annotations.CompositeRWLock;
 import com.android.internal.annotations.GuardedBy;
 import com.android.server.am.UidObserverController.ChangeRecord;
+import com.android.server.am.psc.ProcessRecordInternal;
+import com.android.server.am.psc.UidRecordInternal;
 
 import java.util.function.Consumer;
 
 /**
  * Overall information about a uid that has actively running processes.
  */
-public final class UidRecord {
-    private final ActivityManagerService mService;
-    private final ActivityManagerGlobalLock mProcLock;
-    private final int mUid;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private int mCurProcState;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private int mSetProcState = ActivityManager.PROCESS_STATE_NONEXISTENT;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private boolean mProcAdjChanged;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private int mCurAdj;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private int mSetAdj;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private int mCurCapability;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private int mSetCapability;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private long mLastBackgroundTime;
-
-    /**
-     * Last time the UID became idle. This is set to 0, once the UID becomes active.
-     */
-    @ElapsedRealtimeLong
-    @CompositeRWLock({"mService", "mProcLock"})
-    private long mLastIdleTimeIfStillIdle;
-
-    /**
-     * Last time the UID became idle. Unlike {@link #mLastIdleTimeIfStillIdle}, we never clear it.
-     */
-    @ElapsedRealtimeLong
-    @CompositeRWLock({"mService", "mProcLock"})
-    private long mRealLastIdleTime;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private boolean mEphemeral;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private boolean mForegroundServices;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private boolean mCurAllowList;;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private boolean mSetAllowList;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private boolean mIdle;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private boolean mSetIdle;
-
-    @CompositeRWLock({"mService", "mProcLock"})
-    private int mNumProcs;
-
+public final class UidRecord extends UidRecordInternal {
     @CompositeRWLock({"mService", "mProcLock"})
     private ArraySet<ProcessRecord> mProcRecords = new ArraySet<>();
 
@@ -181,54 +119,18 @@ public final class UidRecord {
     private boolean mUidIsFrozen;
 
     public UidRecord(int uid, ActivityManagerService service) {
-        mUid = uid;
-        mService = service;
-        mProcLock = service != null ? service.mProcLock : null;
-        mIdle = true;
-        reset();
+        super(uid, service, service != null ? service.mProcLock : null);
     }
 
-    int getUid() {
-        return mUid;
-    }
-
+    @Override
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    int getCurProcState() {
-        return mCurProcState;
+    public int getNumOfProcs() {
+        return mProcRecords.size();
     }
 
-    @GuardedBy({"mService", "mProcLock"})
-    void setCurProcState(int curProcState) {
-        mCurProcState = curProcState;
-    }
-
+    @Override
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    int getSetProcState() {
-        return mSetProcState;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setSetProcState(int setProcState) {
-        mSetProcState = setProcState;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void noteProcAdjChanged() {
-        mProcAdjChanged = true;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void clearProcAdjChanged() {
-        mProcAdjChanged = false;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    boolean getProcAdjChanged() {
-        return mProcAdjChanged;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    int getMinProcAdj() {
+    public int getMinProcAdj() {
         int minAdj = ProcessList.UNKNOWN_ADJ;
         for (int i = mProcRecords.size() - 1; i >= 0; i--) {
             int adj = mProcRecords.valueAt(i).getSetAdj();
@@ -239,126 +141,6 @@ public final class UidRecord {
         return minAdj;
     }
 
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    int getCurCapability() {
-        return mCurCapability;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setCurCapability(int curCapability) {
-        mCurCapability = curCapability;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    int getSetCapability() {
-        return mSetCapability;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setSetCapability(int setCapability) {
-        mSetCapability = setCapability;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    long getLastBackgroundTime() {
-        return mLastBackgroundTime;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setLastBackgroundTime(long lastBackgroundTime) {
-        mLastBackgroundTime = lastBackgroundTime;
-    }
-
-    /**
-     * Last time the UID became idle. This is set to 0, once the UID becomes active.
-     */
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    long getLastIdleTimeIfStillIdle() {
-        return mLastIdleTimeIfStillIdle;
-    }
-
-    /**
-     * Last time the UID became idle. Unlike {@link #getLastIdleTimeIfStillIdle}, we never clear it.
-     */
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    long getRealLastIdleTime() {
-        return mRealLastIdleTime;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setLastIdleTime(@ElapsedRealtimeLong long lastIdleTime) {
-        mLastIdleTimeIfStillIdle = lastIdleTime;
-        if (lastIdleTime > 0) {
-            mRealLastIdleTime = lastIdleTime;
-        }
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    boolean isEphemeral() {
-        return mEphemeral;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setEphemeral(boolean ephemeral) {
-        mEphemeral = ephemeral;
-    }
-
-    /** Returns whether the UID has any FGS of any type or not (including "short fgs") */
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    boolean hasForegroundServices() {
-        return mForegroundServices;
-    }
-
-    /** Sets whether the UID has any FGS of any type or not (including "short fgs") */
-    @GuardedBy({"mService", "mProcLock"})
-    void setForegroundServices(boolean foregroundServices) {
-        mForegroundServices = foregroundServices;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    boolean isCurAllowListed() {
-        return mCurAllowList;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setCurAllowListed(boolean curAllowList) {
-        mCurAllowList = curAllowList;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    boolean isSetAllowListed() {
-        return mSetAllowList;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setSetAllowListed(boolean setAllowlist) {
-        mSetAllowList = setAllowlist;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    boolean isIdle() {
-        return mIdle;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setIdle(boolean idle) {
-        mIdle = idle;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    boolean isSetIdle() {
-        return mSetIdle;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void setSetIdle(boolean setIdle) {
-        mSetIdle = setIdle;
-    }
-
-    @GuardedBy(anyOf = {"mService", "mProcLock"})
-    int getNumOfProcs() {
-        return mProcRecords.size();
-    }
 
     @GuardedBy(anyOf = {"mService", "mProcLock"})
     void forEachProcess(Consumer<ProcessRecord> callback) {
@@ -367,8 +149,9 @@ public final class UidRecord {
         }
     }
 
+    @Override
     @GuardedBy(anyOf = {"mService", "mProcLock"})
-    ProcessRecord getProcessRecordByIndex(int idx) {
+    public ProcessRecord getProcessRecordByIndex(int idx) {
         return mProcRecords.valueAt(idx);
     }
 
@@ -420,26 +203,23 @@ public final class UidRecord {
         return mUidIsFrozen;
     }
 
+    @Override
     @GuardedBy({"mService", "mProcLock"})
-    void addProcess(ProcessRecord app) {
-        mProcRecords.add(app);
+    public void addProcess(ProcessRecordInternal app) {
+        // Only ProcessRecord extends ProcessRecordInternal, so it's safe to cast directly.
+        mProcRecords.add((ProcessRecord) app);
     }
 
+    @Override
     @GuardedBy({"mService", "mProcLock"})
-    void removeProcess(ProcessRecord app) {
-        mProcRecords.remove(app);
+    public void removeProcess(ProcessRecordInternal app) {
+        // Only ProcessRecord extends ProcessRecordInternal, so it's safe to cast directly.
+        mProcRecords.remove((ProcessRecord) app);
     }
 
     @GuardedBy("mService")
     void setLastReportedChange(int lastReportedChange) {
         mLastReportedChange = lastReportedChange;
-    }
-
-    @GuardedBy({"mService", "mProcLock"})
-    void reset() {
-        setCurProcState(ActivityManager.PROCESS_STATE_CACHED_EMPTY);
-        mForegroundServices = false;
-        mCurCapability = 0;
     }
 
     public void updateHasInternetPermission() {
@@ -452,7 +232,7 @@ public final class UidRecord {
         proto.write(UidRecordProto.UID, mUid);
         proto.write(UidRecordProto.CURRENT, ProcessList.makeProcStateProtoEnum(mCurProcState));
         proto.write(UidRecordProto.EPHEMERAL, mEphemeral);
-        proto.write(UidRecordProto.FG_SERVICES, mForegroundServices);
+        proto.write(UidRecordProto.FG_SERVICES, mHasForegroundServices);
         proto.write(UidRecordProto.WHILELIST, mCurAllowList);
         ProtoUtils.toDuration(proto, UidRecordProto.LAST_BACKGROUND_TIME,
                 mLastBackgroundTime, SystemClock.elapsedRealtime());
@@ -461,7 +241,6 @@ public final class UidRecord {
             ProtoUtils.writeBitWiseFlagsToProtoEnum(proto, UidRecordProto.LAST_REPORTED_CHANGES,
                     mLastReportedChange, ORIG_ENUMS, PROTO_ENUMS);
         }
-        proto.write(UidRecordProto.NUM_PROCS, mNumProcs);
 
         long seqToken = proto.start(UidRecordProto.NETWORK_STATE_UPDATE);
         proto.write(UidRecordProto.ProcStateSequence.CURURENT, curProcStateSeq);
@@ -483,7 +262,7 @@ public final class UidRecord {
         if (mEphemeral) {
             sb.append(" ephemeral");
         }
-        if (mForegroundServices) {
+        if (mHasForegroundServices) {
             sb.append(" fgServices");
         }
         if (mCurAllowList) {
@@ -543,8 +322,11 @@ public final class UidRecord {
                 sb.append("procadj");
             }
         }
-        sb.append(" procs:");
-        sb.append(mNumProcs);
+
+        // Keep the legacy field to maintain backward compatibility for downstream readers.
+        // TODO: b/425766486 - Remove the fixed string.
+        sb.append(" procs:0");
+
         sb.append(" seq(");
         sb.append(curProcStateSeq);
         sb.append(",");

@@ -642,7 +642,7 @@ class DevicePolicyData {
             case NEW_USER_DISCLAIMER_NEEDED:
                 return false;
             default:
-                Slogf.w(TAG, "isNewUserDisclaimerAcknowledged(%d): invalid value %d", mUserId,
+                Slogf.w(TAG, "isNewUserDisclaimerAcknowledged(%d): invalid value %s", mUserId,
                         mNewUserDisclaimer);
                 return false;
         }

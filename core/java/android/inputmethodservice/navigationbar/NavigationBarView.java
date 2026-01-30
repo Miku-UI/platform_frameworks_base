@@ -43,8 +43,6 @@ import android.view.Surface;
 import android.view.View;
 import android.view.animation.Interpolator;
 import android.view.animation.PathInterpolator;
-import android.view.inputmethod.Flags;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.FrameLayout;
 
 import java.util.function.Consumer;
@@ -136,17 +134,10 @@ public final class NavigationBarView extends FrameLayout {
     public void prepareNavButtons(@NonNull ButtonClickListener listener) {
         getBackButton().setLongClickable(false);
 
-        if (Flags.imeSwitcherRevamp()) {
-            final var imeSwitchButton = getImeSwitchButton();
-            imeSwitchButton.setLongClickable(true);
-            imeSwitchButton.setOnClickListener(listener::onImeSwitchButtonClick);
-            imeSwitchButton.setOnLongClickListener(listener::onImeSwitchButtonLongClick);
-        } else {
-            final ButtonDispatcher imeSwitchButton = getImeSwitchButton();
-            imeSwitchButton.setLongClickable(false);
-            imeSwitchButton.setOnClickListener(view -> view.getContext()
-                    .getSystemService(InputMethodManager.class).showInputMethodPicker());
-        }
+        final var imeSwitchButton = getImeSwitchButton();
+        imeSwitchButton.setLongClickable(true);
+        imeSwitchButton.setOnClickListener(listener::onImeSwitchButtonClick);
+        imeSwitchButton.setOnLongClickListener(listener::onImeSwitchButtonLongClick);
     }
 
     @Override
@@ -220,11 +211,7 @@ public final class NavigationBarView extends FrameLayout {
                 oldConfig.getLayoutDirection() != mConfiguration.getLayoutDirection();
 
         if (densityChange || dirChange) {
-            final int switcherResId = Flags.imeSwitcherRevamp()
-                    ? com.android.internal.R.drawable.ic_ime_switcher_new
-                    : com.android.internal.R.drawable.ic_ime_switcher;
-
-            mImeSwitcherIcon = getDrawable(switcherResId);
+            mImeSwitcherIcon = getDrawable(com.android.internal.R.drawable.ic_ime_switcher);
         }
         if (orientationChange || densityChange || dirChange) {
             mBackIcon = getBackDrawable();

@@ -21,6 +21,7 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.panels.ui.viewmodel.detailsViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.iconTilesViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.infiniteGridViewModelFactory
+import com.android.systemui.qs.panels.ui.viewmodel.textFeedbackContentViewModelFactory
 
 val Kosmos.infiniteGridLayout by
     Kosmos.Fixture {
@@ -28,6 +29,7 @@ val Kosmos.infiniteGridLayout by
             detailsViewModel,
             iconTilesViewModel,
             infiniteGridViewModelFactory,
+            textFeedbackContentViewModelFactory,
             tileHapticsViewModelFactoryProvider,
         )
     }

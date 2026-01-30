@@ -54,6 +54,7 @@ import com.android.server.AppWidgetBackupBridge;
 import com.android.server.backup.BackupAgentTimeoutParameters;
 import com.android.server.backup.BackupRestoreTask;
 import com.android.server.backup.DataChangedJournal;
+import com.android.server.backup.Flags;
 import com.android.server.backup.KeyValueBackupJob;
 import com.android.server.backup.OperationStorage;
 import com.android.server.backup.OperationStorage.OpState;
@@ -699,10 +700,17 @@ public class KeyValueBackupTask implements BackupRestoreTask, Runnable {
 
         try {
             extractAgentData(mCurrentPackage);
-            BackupManagerMonitorEventSender mBackupManagerMonitorEventSender =
+            int status;
+            if (Flags.enableKvBackupLogsFromTransportWithProperFlowId()) {
+                status = sendDataToTransport(mCurrentPackage);
+                mReporter.monitorAgentLoggingResults(mCurrentPackage, mAgent);
+            } else {
+                BackupManagerMonitorEventSender mBackupManagerMonitorEventSender =
                     new BackupManagerMonitorEventSender(mReporter.getMonitor());
-            mBackupManagerMonitorEventSender.monitorAgentLoggingResults(mCurrentPackage, mAgent);
-            int status = sendDataToTransport(mCurrentPackage);
+                mBackupManagerMonitorEventSender.monitorAgentLoggingResults(
+                        mCurrentPackage, mAgent);
+                status = sendDataToTransport(mCurrentPackage);
+            }
             cleanUpAgentForTransportStatus(status);
         } catch (AgentException | TaskException e) {
             cleanUpAgentForError(e);

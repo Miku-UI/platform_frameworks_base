@@ -17,7 +17,7 @@
 package com.android.systemui.statusbar.featurepods.popups.ui.viewmodel
 
 import com.android.systemui.lifecycle.Activatable
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipModel
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipModel
 
 /**
  * Interface for a view model that knows the display requirements for a single type of status bar

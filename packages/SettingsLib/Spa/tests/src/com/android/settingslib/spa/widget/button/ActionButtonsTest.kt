@@ -73,6 +73,28 @@ class ActionButtonsTest {
     }
 
     @Test
+    fun button_disabledIsNotClickable() {
+        var clicked by mutableStateOf(false)
+        composeTestRule.setContent {
+            ActionButtons(
+                listOf(
+                    ActionButton(
+                        text = "Open",
+                        imageVector = Icons.AutoMirrored.Outlined.Launch,
+                        enabled = false
+                    ) {
+                        clicked = true
+                    },
+                )
+            )
+        }
+
+        composeTestRule.onNodeWithText("Open").performClick()
+
+        assertThat(clicked).isFalse()
+    }
+
+    @Test
     fun twoButtons_positionIsAligned() {
         composeTestRule.setContent {
             ActionButtons(

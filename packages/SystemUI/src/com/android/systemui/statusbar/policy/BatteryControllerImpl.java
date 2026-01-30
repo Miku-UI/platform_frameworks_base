@@ -22,7 +22,6 @@ import static android.os.BatteryManager.EXTRA_CHARGING_STATUS;
 import static android.os.BatteryManager.EXTRA_PRESENT;
 
 import static com.android.settingslib.fuelgauge.BatterySaverLogging.SAVER_ENABLED_QS;
-import static com.android.systemui.Flags.registerBatteryControllerReceiversInCorestartable;
 import static com.android.systemui.util.DumpUtilsKt.asIndenting;
 
 import android.annotation.WorkerThread;
@@ -150,9 +149,7 @@ public class BatteryControllerImpl extends BroadcastReceiver implements BatteryC
     @Override
     public void init() {
         mLogger.logBatteryControllerInit(this, mHasReceivedBattery);
-        if (!registerBatteryControllerReceiversInCorestartable()) {
-            registerReceiver();
-        }
+        registerReceiver();
         if (!mHasReceivedBattery) {
             // Get initial state. Relying on Sticky behavior until API for getting info.
             Intent intent = mContext.registerReceiver(
@@ -493,6 +490,7 @@ public class BatteryControllerImpl extends BroadcastReceiver implements BatteryC
     }
 
     private void fireBatteryUnknownStateChanged() {
+        mLogger.logBatteryUnknownStateChangedCallback(mStateUnknown);
         dispatchSafeChange((callback) -> callback.onBatteryUnknownStateChanged(mStateUnknown));
     }
 

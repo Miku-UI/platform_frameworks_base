@@ -29,31 +29,31 @@ class CodeUtilsTest {
     @Test
     fun hash() {
         assertEquals(3883826472308915399, CodeUtils.hash("Test.java:50", "test",
-                LogLevel.DEBUG, LogGroup("test", true, true, "TAG")))
+                LogLevel.DEBUG, LogGroup("test", true, true, "TAG", 1)))
     }
 
     @Test
     fun hash_changeLocation() {
         assertEquals(4125273133972468649, CodeUtils.hash("Test.java:10", "test2",
-                LogLevel.DEBUG, LogGroup("test", true, true, "TAG")))
+                LogLevel.DEBUG, LogGroup("test", true, true, "TAG", 1)))
     }
 
     @Test
     fun hash_changeLevel() {
         assertEquals(2618535069521361990, CodeUtils.hash("Test.java:50", "test",
-                LogLevel.ERROR, LogGroup("test", true, true, "TAG")))
+                LogLevel.ERROR, LogGroup("test", true, true, "TAG", 1)))
     }
 
     @Test
     fun hash_changeMessage() {
         assertEquals(8907822592109789043, CodeUtils.hash("Test.java:50", "test2",
-                LogLevel.DEBUG, LogGroup("test", true, true, "TAG")))
+                LogLevel.DEBUG, LogGroup("test", true, true, "TAG", 1)))
     }
 
     @Test
     fun hash_changeGroup() {
         assertEquals(-1299517016176640015, CodeUtils.hash("Test.java:50", "test2",
-                LogLevel.DEBUG, LogGroup("test2", true, true, "TAG")))
+                LogLevel.DEBUG, LogGroup("test2", true, true, "TAG", 1)))
     }
 
     @Test(expected = IllegalImportException::class)

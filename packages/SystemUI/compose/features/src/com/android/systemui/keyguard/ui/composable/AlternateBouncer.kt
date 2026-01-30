@@ -55,6 +55,7 @@ import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerDependencies
 import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerMessageAreaViewModel
 import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerUdfpsIconViewModel
+import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.log.TouchHandlingViewLogger
 import com.android.systemui.res.R
 
@@ -64,9 +65,9 @@ fun AlternateBouncer(
     onHideAnimationFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-
-    val isVisible by
-        alternateBouncerDependencies.viewModel.isVisible.collectAsStateWithLifecycle(true)
+    val alternateBouncerViewModel =
+        rememberViewModel("AlternateBouncerViewModel") { alternateBouncerDependencies.viewModel }
+    val isVisible by alternateBouncerViewModel.isVisible.collectAsStateWithLifecycle(true)
     val visibleState = remember { MutableTransitionState(isVisible) }
 
     // Feeds the isVisible value to the MutableTransitionState used by AnimatedVisibility below.
@@ -98,7 +99,7 @@ fun AlternateBouncer(
                 Modifier.background(color = Colors.AlternateBouncerBackgroundColor).pointerInput(
                     Unit
                 ) {
-                    detectTapGestures(onTap = { alternateBouncerDependencies.viewModel.onTapped() })
+                    detectTapGestures(onTap = { alternateBouncerViewModel.onTapped() })
                 },
         ) {
             StatusMessage(viewModel = alternateBouncerDependencies.messageAreaViewModel)

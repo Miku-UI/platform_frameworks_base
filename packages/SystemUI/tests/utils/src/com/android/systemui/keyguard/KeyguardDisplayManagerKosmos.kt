@@ -17,7 +17,7 @@
 package com.android.systemui.keyguard
 
 import android.content.testableContext
-import com.android.keyguard.ConnectedDisplayKeyguardPresentation
+import com.android.keyguard.ConnectedDisplayKeyguardPresentationFactory
 import com.android.keyguard.KeyguardDisplayManager
 import com.android.keyguard.KeyguardDisplayManager.DeviceStateHelper
 import com.android.systemui.concurrency.fakeExecutor
@@ -39,8 +39,9 @@ var Kosmos.keyguardDisplayManager by
             fakeExecutor,
             mock<DeviceStateHelper>(),
             keyguardStateController,
-            mock<ConnectedDisplayKeyguardPresentation.Factory>(),
+            mock<ConnectedDisplayKeyguardPresentationFactory>(),
             { shadeDisplaysRepository },
             applicationCoroutineScope,
+            /* isCentralizedWallpaperPresentationEnabled= */ true,
         )
     }

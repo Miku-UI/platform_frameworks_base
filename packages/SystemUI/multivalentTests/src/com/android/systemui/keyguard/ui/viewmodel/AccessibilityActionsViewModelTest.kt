@@ -16,12 +16,16 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import android.graphics.Rect
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.keyguard.data.repository.deviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
+import com.android.systemui.keyguard.domain.interactor.keyguardTouchHandlingInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.keyguard.shared.model.TransitionState
@@ -148,4 +152,35 @@ class AccessibilityActionsViewModelTest : SysuiTestCase() {
 
             assertThat(isOnKeyguard).isEqualTo(false)
         }
+
+    @Test
+    fun udfpsAccessibilityOverlayBounds_isNull_whenNotListeningForUdfps() =
+        testScope.runTest {
+            val accessibilityOverlayBoundsWhenListeningForUdfps by
+                collectLastValue(underTest.accessibilityOverlayBoundsWhenListeningForUdfps)
+            setUdfpsListeningState(false)
+            assertThat(accessibilityOverlayBoundsWhenListeningForUdfps).isNull()
+        }
+
+    @Test
+    fun updatesUdfpsAccessibilityOverlayBoundsWhenListeningForUdfps() =
+        testScope.runTest {
+            val accessibilityOverlayBoundsWhenListeningForUdfps by
+                collectLastValue(underTest.accessibilityOverlayBoundsWhenListeningForUdfps)
+            setUdfpsListeningState(true)
+            assertThat(accessibilityOverlayBoundsWhenListeningForUdfps)
+                .isEqualTo(Rect(0, 1000, 1000, 2000))
+        }
+
+    private fun setUdfpsListeningState(isListening: Boolean) {
+        kosmos.fingerprintPropertyRepository.supportsUdfps()
+        kosmos.deviceEntryFingerprintAuthRepository.setIsRunning(isListening)
+        if (isListening) {
+            kosmos.keyguardTouchHandlingInteractor.setUdfpsAccessibilityOverlayBounds(
+                Rect(0, 1000, 1000, 2000)
+            )
+        } else {
+            kosmos.keyguardTouchHandlingInteractor.setUdfpsAccessibilityOverlayBounds(null)
+        }
+    }
 }

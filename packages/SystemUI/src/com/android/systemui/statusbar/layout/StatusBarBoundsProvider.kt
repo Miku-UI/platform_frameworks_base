@@ -64,12 +64,19 @@ constructor(
             }
         }
 
+    private var isStarted = false
+
     override fun start() {
+        if (isStarted) {
+            return
+        }
+        isStarted = true
         startSideContent.addOnLayoutChangeListener(layoutListener)
         endSideContent.addOnLayoutChangeListener(layoutListener)
     }
 
     override fun stop() {
+        isStarted = false
         startSideContent.removeOnLayoutChangeListener(layoutListener)
         endSideContent.removeOnLayoutChangeListener(layoutListener)
     }

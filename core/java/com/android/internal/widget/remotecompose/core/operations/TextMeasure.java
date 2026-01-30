@@ -132,7 +132,7 @@ public class TextMeasure extends PaintOperation {
         return indent + toString();
     }
 
-    @NonNull float[] mBounds = new float[4];
+    @NonNull float [] mBounds = new float[4];
 
     @Override
     public void paint(@NonNull PaintContext context) {
@@ -164,7 +164,7 @@ public class TextMeasure extends PaintOperation {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("id", mId)

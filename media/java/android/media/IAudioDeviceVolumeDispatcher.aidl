@@ -22,7 +22,7 @@ import android.media.VolumeInfo;
 /**
  * AIDL for the AudioService to signal audio device volume changes.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAudioDeviceVolumeDispatcher {
 

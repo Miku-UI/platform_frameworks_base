@@ -42,6 +42,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * A controller to register/unregister {@link WindowContainerListener} for {@link WindowContext}.
@@ -70,14 +71,13 @@ class WindowContextListenerController {
     final ArrayMap<IBinder, WindowContextListenerImpl> mListeners = new ArrayMap<>();
 
     /**
-     * @see #registerWindowContainerListener(WindowProcessController, IBinder, WindowContainer, int,
-     * Bundle, boolean)
+     * @see #registerWindowContainerListener
      */
     void registerWindowContainerListener(@NonNull WindowProcessController wpc,
             @NonNull IBinder clientToken, @NonNull WindowContainer<?> container,
-            @WindowType int type, @Nullable Bundle options) {
-        registerWindowContainerListener(wpc, clientToken, container, type, options,
-                true /* shouldDispatchConfigWhenRegistering */);
+            @WindowType int type, boolean callerCanManageAppTokens, @Nullable Bundle options) {
+        registerWindowContainerListener(wpc, clientToken, container, type, callerCanManageAppTokens,
+                options, true /* shouldDispatchConfigWhenRegistering */);
     }
 
     /**
@@ -91,6 +91,8 @@ class WindowContextListenerController {
      * @param clientToken the token to associate with the listener
      * @param container the {@link WindowContainer} which the listener is going to listen to.
      * @param type the window type
+     * @param callerCanManageAppTokens {@code true} to indicate the caller is granted to
+     *                {@link android.Manifest.permission#MANAGE_APP_TOKENS}.
      * @param options a bundle used to pass window-related options.
      * @param shouldDispatchConfigWhenRegistering {@code true} to indicate the current
      *                {@code container}'s config will dispatch to the client side when
@@ -98,12 +100,12 @@ class WindowContextListenerController {
      */
     void registerWindowContainerListener(@NonNull WindowProcessController wpc,
             @NonNull IBinder clientToken, @NonNull WindowContainer<?> container,
-            @WindowType int type, @Nullable Bundle options,
+            @WindowType int type, boolean callerCanManageAppTokens, @Nullable Bundle options,
             boolean shouldDispatchConfigWhenRegistering) {
         WindowContextListenerImpl listener = mListeners.get(clientToken);
         if (listener == null) {
             listener = new WindowContextListenerImpl(wpc, clientToken, container, type,
-                    options);
+                    callerCanManageAppTokens, options);
             listener.register(shouldDispatchConfigWhenRegistering);
         } else {
             updateContainerForWindowContextListener(clientToken, container);
@@ -137,12 +139,29 @@ class WindowContextListenerController {
     }
 
     void dispatchPendingConfigurationIfNeeded(int displayId) {
-        for (int i = mListeners.size() - 1; i >= 0; --i) {
-            final WindowContextListenerImpl listener = mListeners.valueAt(i);
-            if (listener.getWindowContainer().getDisplayContent().getDisplayId() == displayId
-                    && listener.mHasPendingConfiguration) {
-                listener.dispatchWindowContextInfoChange();
+        forAllListeners(l -> {
+            if (l.getDisplayId() == displayId && l.mHasPendingConfiguration) {
+                l.dispatchWindowContextInfoChange();
             }
+        });
+    }
+
+    /**
+     * Called when the {@link DisplayContent} with {@code displayId} is going to be removed.
+     * <p>
+     * Note that it will be called before {@link DisplayContent#removeChild removing any children}.
+     */
+    void dispatchDisplayRemoval(int displayId) {
+        forAllListeners(l -> {
+            if (l.getDisplayId() == displayId) {
+                l.handleDisplayRemoved();
+            }
+        });
+    }
+
+    private void forAllListeners(@NonNull Consumer<WindowContextListenerImpl> callback) {
+        for (int i = mListeners.size() - 1; i >= 0; --i) {
+            callback.accept(mListeners.valueAt(i));
         }
     }
 
@@ -180,6 +199,23 @@ class WindowContextListenerController {
                     "The listener has already been attached to the same display id");
             return false;
         }
+        return true;
+    }
+
+    /**
+     * Updates the {@link WindowContextListenerImpl listener} with token {@code clientToken} to
+     * listen to the corresponding {@link DisplayArea} on {@code display}.
+     *
+     * @return {@code false} if the listener does not exist, or {@code true} if the reparent
+     *   operation is successful.
+     */
+    boolean reparentToDisplayArea(@NonNull IBinder clientToken, @NonNull DisplayContent display) {
+        final WindowContextListenerImpl listener = mListeners.get(clientToken);
+        if (listener == null) {
+            ProtoLog.i(WM_DEBUG_ADD_REMOVE, "The listener does not exist.");
+            return false;
+        }
+        listener.reparentToDisplayArea(display);
         return true;
     }
 
@@ -234,6 +270,8 @@ class WindowContextListenerController {
         @Nullable private final Bundle mOptions;
         @WindowType private final int mType;
 
+        private final boolean mCallerCanManageAppTokens;
+
         private DeathRecipient mDeathRecipient;
 
         private int mLastReportedDisplay = INVALID_DISPLAY;
@@ -243,11 +281,12 @@ class WindowContextListenerController {
 
         private WindowContextListenerImpl(@NonNull WindowProcessController wpc,
                 @NonNull IBinder clientToken, @NonNull WindowContainer<?> container,
-                @WindowType int type, @Nullable Bundle options) {
+                @WindowType int type, boolean callerCanManageAppTokens, @Nullable Bundle options) {
             mWpc = Objects.requireNonNull(wpc);
             mClientToken = clientToken;
             mContainer = Objects.requireNonNull(container);
             mType = type;
+            mCallerCanManageAppTokens = callerCanManageAppTokens;
             mOptions = options;
 
             final DeathRecipient deathRecipient = new DeathRecipient();
@@ -264,6 +303,11 @@ class WindowContextListenerController {
         @VisibleForTesting
         WindowContainer<?> getWindowContainer() {
             return mContainer;
+        }
+
+        int getDisplayId() {
+            final DisplayContent display = mContainer.mDisplayContent;
+            return display != null ? display.getDisplayId() : INVALID_DISPLAY;
         }
 
         int getUid() {
@@ -287,11 +331,10 @@ class WindowContextListenerController {
         }
 
         private void register(boolean shouldDispatchConfig) {
-            final IBinder token = mClientToken;
             if (mDeathRecipient == null) {
-                throw new IllegalStateException("Invalid client token: " + token);
+                throw new IllegalStateException("Invalid client token: " + mClientToken);
             }
-            mListeners.putIfAbsent(token, this);
+            mListeners.putIfAbsent(mClientToken, this);
             mContainer.registerWindowContainerListener(this, shouldDispatchConfig);
         }
 
@@ -349,6 +392,27 @@ class WindowContextListenerController {
             mWpc.scheduleClientTransactionItem(
                     new WindowContextInfoChangeItem(mClientToken, config, displayId));
             mHasPendingConfiguration = false;
+        }
+
+        private void handleDisplayRemoved() {
+            // Only handle the reparent case here. Otherwise, it will be handled in #onRemoved.
+            if (WindowContext.shouldFallbackToDefaultDisplay(mOptions)) {
+                final WindowManagerService wm = mContainer.mWmService;
+                wm.reparentWindowContextToDisplay(
+                        mClientToken,
+                        wm.getDefaultDisplayContentLocked(),
+                        mWpc.getPid(),
+                        getUid());
+            }
+        }
+
+        /**
+         * Updates to listen to the {@link DisplayArea} on given {@code display}.
+         */
+        private void reparentToDisplayArea(@NonNull DisplayContent display) {
+            final DisplayArea<?> da = display.findAreaForWindowType(mType, mOptions,
+                    mCallerCanManageAppTokens, false /* roundedCornerOverlay */);
+            updateContainer(da);
         }
 
         @Override

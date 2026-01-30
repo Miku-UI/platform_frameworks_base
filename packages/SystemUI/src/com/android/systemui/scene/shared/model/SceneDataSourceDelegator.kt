@@ -20,6 +20,7 @@ import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +32,7 @@ import kotlinx.coroutines.flow.stateIn
  * Delegates calls to a runtime-provided [SceneDataSource] or to a no-op implementation if a
  * delegate isn't set.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SceneDataSourceDelegator(applicationScope: CoroutineScope, config: SceneContainerConfig) :
     SceneDataSource {
     private val noOpDelegate = NoOpSceneDataSource(config.initialSceneKey)
@@ -58,10 +60,6 @@ class SceneDataSourceDelegator(applicationScope: CoroutineScope, config: SceneCo
         delegateMutable.value.changeScene(toScene = toScene, transitionKey = transitionKey)
     }
 
-    override fun snapToScene(toScene: SceneKey) {
-        delegateMutable.value.snapToScene(toScene = toScene)
-    }
-
     override fun showOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) {
         delegateMutable.value.showOverlay(overlay = overlay, transitionKey = transitionKey)
     }
@@ -74,16 +72,12 @@ class SceneDataSourceDelegator(applicationScope: CoroutineScope, config: SceneCo
         delegateMutable.value.replaceOverlay(from = from, to = to, transitionKey = transitionKey)
     }
 
-    override fun instantlyShowOverlay(overlay: OverlayKey) {
-        delegateMutable.value.instantlyShowOverlay(overlay)
-    }
-
-    override fun instantlyHideOverlay(overlay: OverlayKey) {
-        delegateMutable.value.instantlyHideOverlay(overlay)
-    }
-
     override fun freezeAndAnimateToCurrentState() {
         delegateMutable.value.freezeAndAnimateToCurrentState()
+    }
+
+    override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) {
+        delegateMutable.value.instantlyTransitionTo(scene = scene, overlays = overlays)
     }
 
     /**
@@ -109,8 +103,6 @@ class SceneDataSourceDelegator(applicationScope: CoroutineScope, config: SceneCo
 
         override fun changeScene(toScene: SceneKey, transitionKey: TransitionKey?) = Unit
 
-        override fun snapToScene(toScene: SceneKey) = Unit
-
         override fun showOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
 
         override fun hideOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
@@ -121,10 +113,8 @@ class SceneDataSourceDelegator(applicationScope: CoroutineScope, config: SceneCo
             transitionKey: TransitionKey?,
         ) = Unit
 
-        override fun instantlyShowOverlay(overlay: OverlayKey) = Unit
-
-        override fun instantlyHideOverlay(overlay: OverlayKey) = Unit
-
         override fun freezeAndAnimateToCurrentState() = Unit
+
+        override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) = Unit
     }
 }

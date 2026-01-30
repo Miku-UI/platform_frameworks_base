@@ -19,13 +19,9 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 public class TinyFrameworkClassWideAnnotationsTest {
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testSimple() {
@@ -48,12 +44,20 @@ public class TinyFrameworkClassWideAnnotationsTest {
     }
 
     @Test
+    public void testExperimental() {
+        TinyFrameworkHooks.sExperimentalMethodCalls.clear();
+
+        var tfc = new TinyFrameworkClassWideAnnotations();
+        tfc.experimental();
+
+        // ClassWideKeep should override experimental policy set in text policy
+        assertThat(TinyFrameworkHooks.sExperimentalMethodCalls).isEmpty();
+    }
+
+    @Test
     public void testUnsupportedMethod() {
         var tfc = new TinyFrameworkClassWideAnnotations();
-
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage("not yet supported");
-        tfc.unsupportedMethod();
+        assertThrows(TinyFrameworkUnsupportedApiException.class, tfc::unsupportedMethod);
     }
 
     @Test

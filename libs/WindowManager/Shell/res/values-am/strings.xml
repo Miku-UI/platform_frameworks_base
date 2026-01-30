@@ -36,20 +36,25 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"ይህ መተግበሪያ መከፈት የሚችለው በ1 መስኮት ብቻ ነው"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"መተግበሪያ በሁለተኛ ማሳያ ላይ ላይሠራ ይችላል።"</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"መተግበሪያ በሁለተኛ ማሳያዎች ላይ ማስጀመርን አይደግፍም።"</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"መተግበሪያ ዓረፋን አይደግፍም"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"የተከፈለ የማያ ገፅ ከፋይ"</string>
     <string name="divider_title" msgid="1963391955593749442">"የተከፈለ የማያ ገፅ ከፋይ"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"የግራ ሙሉ ማያ ገፅ"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"ግራ 70%"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"ግራ 50%"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"ግራ 30%"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"የቀኝ ሙሉ ማያ ገፅ"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"ከላይ ያለውን መተግበሪያ ከታች ባለው ቀይር"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"በግራ ያለውን መተግበሪያን በቀኝ ባለው ቀይር"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"የላይ ሙሉ ማያ ገፅ"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"ከላይ 70%"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"ከላይ 50%"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"ከላይ 30%"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"የታች ሙሉ ማያ ገፅ"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"የግራ መተግበሪያን ሙሉ ገፅ ዕይታ ላይ አድርግ"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"10% ግራ፣ 90% ቀኝ"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"30% ግራ፣ 70% ቀኝ"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"50% ግራ፣ 50% ቀኝ"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"70% ግራ፣ 30% ቀኝ"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"90% ግራ፣ 10% ቀኝ"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"የቀኝ መተግበሪያን ሙሉ ገፅ ዕይታ ላይ አድርግ"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"የራስጌ መተግበሪያን ከግርጌ መተግበሪያ ጋር ለውጥ፣ የአሁኑን መከፋፈል አቆይ"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"የቀኝ መተግበሪያን ከግራ መተግበሪያ ጋር ለውጥ፣ የአሁኑን መከፋፈል አቆይ"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"የራስጌ መተግበሪያን ሙሉ ገፅ ዕይታ ላይ አድርግ"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"10% ራስጌ፣ 90% ግርጌ"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"30% ራስጌ፣ 70% ግራጌ"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"50% ራስጌ፣ 50% ግርጌ"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"70% ራስጌ፣ 30% ግርጌ"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"90% ራስጌ፣ 10% ግርጌ"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"የግርጌ መተግበሪያን ሙሉ ገፅ ዕይታ ላይ አድርግ"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"ወደ ግራ ከፋፍል"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"ወደ ቀኝ ከፋፍል"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"ወደ ላይ ከፋፍል"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"መስኮቶችን አስተዳድር"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"ምጥጥነ ገፅታ ለውጥ"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"ዕይታን አትባ"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"የስህተት አዶ"</string>
     <string name="close_text" msgid="4986518933445178928">"ዝጋ"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"ምናሌ ዝጋ"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ዴስክቶፕ መስኮት)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"የማያ ገጹ መጠን አሳድግ"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"መጠን ቀይር"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"መተግበሪያ ወደዚህ መንቀሳቀስ አይችልም"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"አዲስ የመተግበሪያ መስኮት በመክፈት ላይ"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"የመተግበሪያ መስኮትን በመዝጋት ላይ"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"የመተግበሪያ መስኮትን በማሳነስ ላይ"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ትኩረት የተደረገበት)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ትኩረት ያልተደረገበት)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"አስማጭ"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"ወደነበረበት መልስ"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"አሳድግ"</string>

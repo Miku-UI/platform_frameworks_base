@@ -1,0 +1,9 @@
+package: "android.app"
+container: "system"
+
+flag {
+     namespace: "sdk_sandbox"
+     name: "sdk_context_in_app_process"
+     description: "Allows creation of SDK Context in App process"
+     bug: "437011329"
+}

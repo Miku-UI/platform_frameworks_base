@@ -16,9 +16,9 @@
 
 package com.android.internal.inputmethod;
 
-import static android.view.inputmethod.InputConnectionProto.CURSOR_CAPS_MODE;
-import static android.view.inputmethod.InputConnectionProto.SELECTED_TEXT_END;
-import static android.view.inputmethod.InputConnectionProto.SELECTED_TEXT_START;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionProto.CURSOR_CAPS_MODE;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionProto.SELECTED_TEXT_END;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionProto.SELECTED_TEXT_START;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.NonNull;

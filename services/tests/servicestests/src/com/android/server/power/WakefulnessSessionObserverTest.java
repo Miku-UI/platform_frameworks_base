@@ -25,7 +25,7 @@ import static android.os.PowerManager.WAKE_REASON_POWER_BUTTON;
 import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.Display.DEFAULT_DISPLAY_GROUP;
 
-import static com.android.server.power.ScreenTimeoutOverridePolicy.RELEASE_REASON_UNKNOWN;
+import static com.android.server.power.ScreenTimeoutOverridePolicy.RELEASE_REASON_NOT_ACQUIRED;
 import static com.android.server.power.ScreenTimeoutOverridePolicy.RELEASE_REASON_USER_ACTIVITY_TOUCH;
 import static com.android.server.power.WakefulnessSessionObserver.OFF_REASON_POWER_BUTTON;
 import static com.android.server.power.WakefulnessSessionObserver.OFF_REASON_TIMEOUT;
@@ -199,7 +199,7 @@ public class WakefulnessSessionObserverTest {
     @Test
     public void testOnWakeLockReleased() {
         mWakefulnessSessionObserver.onWakeLockReleased(
-                PowerManager.SCREEN_TIMEOUT_OVERRIDE_WAKE_LOCK, RELEASE_REASON_UNKNOWN);
+                PowerManager.SCREEN_TIMEOUT_OVERRIDE_WAKE_LOCK, RELEASE_REASON_NOT_ACQUIRED);
         for (int idx = 0; idx < mWakefulnessSessionObserver.mPowerGroups.size(); idx++) {
             assertThat(mWakefulnessSessionObserver.mPowerGroups.valueAt(idx).isInOverrideTimeout())
                     .isFalse();

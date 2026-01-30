@@ -33,7 +33,6 @@ import android.companion.virtual.IVirtualDevice;
 import android.companion.virtual.VirtualDevice;
 import android.os.Parcel;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -52,9 +51,6 @@ public class VirtualDeviceTest {
     private static final String PERSISTENT_ID = "persistentId";
     private static final String DEVICE_NAME = "VirtualDeviceName";
     private static final String DISPLAY_NAME = "DisplayName";
-
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     private IVirtualDevice mVirtualDevice;
@@ -135,7 +131,6 @@ public class VirtualDeviceTest {
 
     @Test
     public void virtualDevice_hasCustomAudioInputSupport() throws Exception {
-        mSetFlagsRule.enableFlags(android.media.audiopolicy.Flags.FLAG_AUDIO_MIX_TEST_API);
 
         VirtualDevice virtualDevice =
                 new VirtualDevice(

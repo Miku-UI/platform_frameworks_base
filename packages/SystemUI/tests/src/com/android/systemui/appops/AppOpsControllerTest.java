@@ -46,10 +46,12 @@ import static org.mockito.Mockito.when;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.location.flags.Flags;
 import android.media.AudioManager;
 import android.media.AudioRecordingConfiguration;
 import android.os.Looper;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -66,6 +68,7 @@ import com.android.systemui.util.time.FakeSystemClock;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -537,6 +540,35 @@ public class AppOpsControllerTest extends SysuiTestCase {
         mController.onOpNoted(AppOpsManager.OP_FINE_LOCATION, TEST_UID, TEST_PACKAGE_NAME,
                 TEST_ATTRIBUTION_NAME, AppOpsManager.OP_FLAG_SELF, AppOpsManager.MODE_ALLOWED);
         verify(mMockHandler).scheduleRemoval(any(AppOpItem.class), anyLong());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LOCATION_INDICATORS_ENABLED)
+    public void opNotedScheduledForRemoval_delayIsCorrect() {
+        mController.setBGHandler(mMockHandler);
+        ArgumentCaptor<AppOpItem> itemCaptor = ArgumentCaptor.forClass(AppOpItem.class);
+        ArgumentCaptor<Long> delayCaptor = ArgumentCaptor.forClass(Long.class);
+
+        // Location op is noted
+        mController.onOpNoted(AppOpsManager.OP_FINE_LOCATION, TEST_UID, TEST_PACKAGE_NAME,
+                TEST_ATTRIBUTION_NAME, AppOpsManager.OP_FLAG_SELF, AppOpsManager.MODE_ALLOWED);
+
+        // Non-location op is noted
+        mController.onOpNoted(AppOpsManager.OP_RECORD_AUDIO, TEST_UID, TEST_PACKAGE_NAME,
+                TEST_ATTRIBUTION_NAME, AppOpsManager.OP_FLAG_SELF, AppOpsManager.MODE_ALLOWED);
+
+        // Check they are both scheduled for removal with the correct delays
+        verify(mMockHandler, times(2)).scheduleRemoval(itemCaptor.capture(),
+                delayCaptor.capture());
+
+        List<AppOpItem> items = itemCaptor.getAllValues();
+        List<Long> delays = delayCaptor.getAllValues();
+
+        assertEquals(AppOpsManager.OP_FINE_LOCATION, items.get(0).getCode());
+        assertEquals(10000L, delays.get(0).longValue());
+
+        assertEquals(AppOpsManager.OP_RECORD_AUDIO, items.get(1).getCode());
+        assertEquals(5000L, delays.get(1).longValue());
     }
 
     @Test

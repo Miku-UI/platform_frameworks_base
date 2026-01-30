@@ -25,7 +25,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import libcore.util.NativeAllocationRegistry;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -35,9 +34,6 @@ public class RavenwoodNativeAllocationRegistryTest {
     static {
         RavenwoodJniTest.initializeJni();
     }
-
-    @Rule
-    public final RavenwoodRule mRavenwoodRule = new RavenwoodRule();
 
     private static class Data {
         private final long mNativePtr;
@@ -67,7 +63,7 @@ public class RavenwoodNativeAllocationRegistryTest {
     @Test
     public void testNativeAllocationRegistry() {
 
-        final long timeoutTime = mRavenwoodRule.realCurrentTimeMillis() + 10_000;
+        final long timeoutTime = RavenwoodRule.realCurrentTimeMillis() + 10_000;
 
         final int startAlloc = Data.nGetTotalAlloc();
 
@@ -89,7 +85,7 @@ public class RavenwoodNativeAllocationRegistryTest {
             if (currentAlloc < totalAlloc) {
                 break; // Good, some objects have been released;
             }
-            if (mRavenwoodRule.realCurrentTimeMillis() > timeoutTime) {
+            if (RavenwoodRule.realCurrentTimeMillis() > timeoutTime) {
                 fail("No objects have been released before timeout");
             }
         }

@@ -29,7 +29,8 @@ public:
     enum { NO_BUFFER_AVAILABLE = IGraphicBufferConsumer::NO_BUFFER_AVAILABLE };
 
     static void createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
-                                  sp<IGraphicBufferConsumer>* outConsumer);
+                                  sp<IGraphicBufferConsumer>* outConsumer,
+                                  bool consumerIsSurfaceFlinger = false);
 };
 
 } // namespace android

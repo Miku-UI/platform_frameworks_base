@@ -16,6 +16,7 @@
 
 package com.android.systemui.util.kotlin
 
+import com.android.systemui.Flags
 import com.android.systemui.coroutines.newTracingContext
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
@@ -43,12 +44,20 @@ class GlobalCoroutinesModule {
         "Use @Main CoroutineContext instead",
         ReplaceWith("mainCoroutineContext()", "kotlin.coroutines.CoroutineContext"),
     )
-    fun mainDispatcher(): CoroutineDispatcher = Dispatchers.Main.immediate
+    fun mainDispatcher(): CoroutineDispatcher =
+        if (Flags.doNotUseImmediateCoroutineDispatcher()) {
+            Dispatchers.Main
+        } else {
+            Dispatchers.Main.immediate
+        }
 
     @Provides
     @Singleton
     @Main
-    fun mainCoroutineContext(): CoroutineContext {
-        return Dispatchers.Main.immediate
-    }
+    fun mainCoroutineContext(): CoroutineContext =
+        if (Flags.doNotUseImmediateCoroutineDispatcher()) {
+            Dispatchers.Main
+        } else {
+            Dispatchers.Main.immediate
+        }
 }

@@ -36,20 +36,25 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"මෙම යෙදුම විවෘත කළ හැක්කේ 1 කවුළුවක පමණයි"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"යෙදුම ද්විතියික සංදර්ශකයක ක්‍රියා නොකළ හැකිය."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"යෙදුම ද්විතීයික සංදර්ශක මත දියත් කිරීම සඳහා සහාය නොදක්වයි."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"යෙදුම බුබුලට සහාය නොදක්වයි"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"බෙදුම් තිර වෙන්කරණය"</string>
     <string name="divider_title" msgid="1963391955593749442">"බෙදුම් තිර වෙන්කරණය"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"වම් පූර්ණ තිරය"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"වම් 70%"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"වම් 50%"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"වම් 30%"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"දකුණු පූර්ණ තිරය"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"ඉහළ යෙදුම පහළ සමග මාරු කරන්න"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"වම් යෙදුම දකුණ සමග මාරු කරන්න"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"ඉහළම පූර්ණ තිරය"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"ඉහළම 70%"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"ඉහළම 50%"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"ඉහළම 30%"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"පහළ පූර්ණ තිරය"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"වම් යෙදුම පූර්ණ තිරය බවට පත් කරන්න"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"10% වම, 90% දකුණ"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"30% වම, 70% දකුණ"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"50% වම, 50% දකුණ"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"70% වම, 30% දකුණ"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"90% වම, 10% දකුණ"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"දකුණු යෙදුම පූර්ණ තිරය බවට පත් කරන්න"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"ඉහළ යෙදුම පහළ යෙදුම සමග මාරු කරන්න, වත්මන් බෙදීම තබා ගන්න"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"වම් යෙදුම දකුණු යෙදුම සමග මාරු කරන්න, වත්මන් බෙදීම තබා ගන්න"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"ඉහළම යෙදුම පූර්ණ තිරය බවට පත් කරන්න"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"10% ඉහළ, 90% පහළ"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"30% ඉහළ, 70% පහළ"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"50% ඉහළ, 50% පහළ"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"70% ඉහළ, 30% පහළ"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"90% ඉහළ, 10% පහළ"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"පහළ යෙදුම පූර්ණ තිරය බවට පත් කරන්න"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"වම බෙදන්න"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"දකුණ බෙදන්න"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"ඉහළ බෙදන්න"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"කවුළු කළමනාකරණය කරන්න"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"දර්ශන අනුපාතය වෙනස් කරන්න"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"දසුන ප්‍රශස්ත කරන්න"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"දෝෂ නිරූපකය"</string>
     <string name="close_text" msgid="4986518933445178928">"වසන්න"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"මෙනුව වසන්න"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ඩෙස්ක්ටොප් කවුළුකරණය)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"තිරය උපරිම කරන්න"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"ප්‍රතිප්‍රමාණය කරන්න"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"යෙදුම මෙතැනට ගෙන යා නොහැක"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"නව යෙදුම් කවුළුව විවෘත කිරීම"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"යෙදුම් කවුළුව වැසීම"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"යෙදුම් කවුළුව අවම කිරීම"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (අවධානිත)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (අවධානිත නොවේ)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"ගිලෙන සුළු"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"ප්‍රතිසාධනය කරන්න"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"විහිදන්න"</string>

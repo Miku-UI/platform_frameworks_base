@@ -38,7 +38,7 @@ public class PeriodicSync implements Parcelable {
     public final long period;
     /**
      * How much flexibility can be taken in scheduling the sync, in seconds.
-     * {@hide}
+     * @hide
      */
     public final long flexTime;
 
@@ -60,7 +60,7 @@ public class PeriodicSync implements Parcelable {
 
     /**
      * Create a copy of a periodic sync.
-     * {@hide}
+     * @hide
      */
     public PeriodicSync(PeriodicSync other) {
         this.account = other.account;
@@ -72,7 +72,7 @@ public class PeriodicSync implements Parcelable {
 
     /**
      * A PeriodicSync for a sync with a specified provider.
-     * {@hide}
+     * @hide
      */
     public PeriodicSync(Account account, String authority, Bundle extras,
             long period, long flexTime) {
@@ -134,7 +134,7 @@ public class PeriodicSync implements Parcelable {
 
     /**
      * Periodic sync extra comparison function.
-     * {@hide}
+     * @hide
      */
     public static boolean syncExtrasEquals(Bundle b1, Bundle b2) {
         if (b1.size() != b2.size()) {

@@ -11,3 +11,10 @@ flag {
     # Use is_fixed_read_only because DeviceConfig may not be available when Build.VERSION_CODES is first accessed
     is_fixed_read_only: true
 }
+
+flag {
+    name: "device_initial_sdk_int_full"
+    namespace: "android_sdk"
+    description: "Add API Build.DEVICE_INITIAL_SDK_INT_FULL which mirrors Build.DEVICE_INITIAL_SDK_INT but with support for the SDK major.minor versioning scheme."
+    bug: "419702369"
+}

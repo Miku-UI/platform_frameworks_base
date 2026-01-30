@@ -30,7 +30,7 @@ import com.android.ims.internal.IImsUt;
 import android.os.Message;
 
 /**
- * {@hide}
+ * @hide
  */
 interface IImsService {
     int open(int phoneId, int serviceClass, in PendingIntent incomingCallIntent,

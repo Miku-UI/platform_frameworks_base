@@ -53,6 +53,23 @@
         app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent" />
 
+    <!-- Fallback Button, replaces negative button when there are several fallbacks -->
+    <Button
+        android:id="@+id/button_fallback"
+        style="@style/AuthCredentialNegativeButtonStyle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="24dp"
+        android:layout_marginBottom="8dp"
+        android:text="@string/biometric_dialog_fallback_button"
+        android:visibility="invisible"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="@id/button_center_guideline"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <!-- "Use Credential" Button, replaces if device credential is allowed -->
     <Button
         android:id="@+id/button_use_credential"

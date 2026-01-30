@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/RequestComputerControlAccessDialogScrollView">
+    <LinearLayout
+        style="@style/RequestComputerControlAccessDialogContent">
+        <ImageView
+            android:id="@+id/agent_icon"
+            style="@style/RequestComputerControlAccessDialogAgentIcon" />
+        <TextView
+            android:id="@+id/title"
+            android:text="@string/request_computer_control_access_dialog_title"
+            style="@style/RequestComputerControlAccessDialogTitle" />
+        <TextView
+            android:id="@+id/description"
+            android:text="@string/request_computer_control_access_dialog_description"
+            style="@style/RequestComputerControlAccessDialogDescription" />
+        <Button
+            android:id="@+id/allow_button"
+            android:text="@string/request_computer_control_access_dialog_button_allow"
+            style="@style/RequestComputerControlAccessDialogAllowButton" />
+        <Button
+            android:id="@+id/dont_allow_button"
+            android:text="@string/request_computer_control_access_dialog_button_dont_allow"
+            style="@style/RequestComputerControlAccessDialogDontAllowButton" />
+        <Button
+            android:id="@+id/always_allow_button"
+            android:text="@string/request_computer_control_access_dialog_button_always_allow"
+            style="@style/RequestComputerControlAccessDialogAlwaysAllowButton" />
+    </LinearLayout>
+</ScrollView>

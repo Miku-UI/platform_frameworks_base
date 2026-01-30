@@ -96,6 +96,12 @@ constructor(
             // present in the shade, which means we know we've already inflated the icon that we
             // might use for the call chip (see b/354930838).
             activeNotificationsInteractor.ongoingCallNotification.collect {
+                logger.log(
+                    TAG,
+                    LogLevel.DEBUG,
+                    { str1 = it?.key },
+                    { "Ongoing call key from interactor: $str1" },
+                )
                 updateInfoFromNotifModel(it)
             }
         }
@@ -161,12 +167,14 @@ constructor(
                 intent = currentInfo.intent,
                 notificationKey = currentInfo.key,
                 appName = currentInfo.appName,
+                requestedPromotion = currentInfo.requestedPromotion,
                 promotedContent = currentInfo.promotedContent,
                 // [hasOngoingCall()] filters out the case in which the call is ongoing but the app
                 // is visible (we issue [OngoingCallModel.NoCall] below in that case), so this can
                 // be safely made false.
                 isAppVisible = false,
                 notificationInstanceId = currentInfo.instanceId,
+                packageName = currentInfo.packageName,
             )
         } else {
             return OngoingCallModel.NoCall
@@ -225,9 +233,11 @@ constructor(
                     notifModel.uid,
                     notifModel.appName,
                     notifModel.instanceId,
+                    notifModel.requestedPromotion,
                     notifModel.promotedContent,
                     isOngoing = true,
                     statusBarSwipedAway = callNotificationInfo?.statusBarSwipedAway ?: false,
+                    packageName = notifModel.packageName,
                 )
             if (newOngoingCallInfo == callNotificationInfo) {
                 return
@@ -253,7 +263,7 @@ constructor(
             uidObserver.registerWithUid(currentCallNotificationInfo.uid)
             if (!currentCallNotificationInfo.statusBarSwipedAway) {
                 statusBarWindowControllerStore.defaultDisplay
-                    .setOngoingProcessRequiresStatusBarVisible(true)
+                    .setOngoingProcessRequiresStatusBarVisible(visible = true, source = TAG)
             }
             updateGestureListening()
             sendStateChangeEvent()
@@ -298,7 +308,8 @@ constructor(
 
         callNotificationInfo = null
         statusBarWindowControllerStore.defaultDisplay.setOngoingProcessRequiresStatusBarVisible(
-            false
+            visible = false,
+            source = TAG,
         )
         swipeStatusBarAwayGestureHandler.removeOnGestureDetectedCallback(TAG)
         sendStateChangeEvent()
@@ -326,7 +337,8 @@ constructor(
         logger.log(TAG, LogLevel.DEBUG, {}, { "Swipe away gesture detected" })
         callNotificationInfo = callNotificationInfo?.copy(statusBarSwipedAway = true)
         statusBarWindowControllerStore.defaultDisplay.setOngoingProcessRequiresStatusBarVisible(
-            false
+            visible = false,
+            source = TAG,
         )
         swipeStatusBarAwayGestureHandler.removeOnGestureDetectedCallback(TAG)
     }
@@ -347,6 +359,7 @@ constructor(
         val uid: Int,
         val appName: String,
         val instanceId: InstanceId?,
+        val requestedPromotion: Boolean,
         /**
          * If the call notification also meets promoted notification criteria, this field is filled
          * in with the content related to promotion. Otherwise null.
@@ -356,6 +369,7 @@ constructor(
         val isOngoing: Boolean,
         /** True if the user has swiped away the status bar while in this phone call. */
         val statusBarSwipedAway: Boolean,
+        val packageName: String,
     )
 
     override fun dump(pw: PrintWriter, args: Array<out String>) {

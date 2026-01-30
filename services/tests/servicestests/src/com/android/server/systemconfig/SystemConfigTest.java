@@ -24,6 +24,7 @@ import static org.testng.Assert.expectThrows;
 import android.content.pm.Signature;
 import android.content.pm.SignedPackage;
 import android.os.Build;
+import android.permission.PermissionManager.SplitPermissionInfo;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -31,11 +32,13 @@ import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
+import android.util.SparseArray;
 import android.util.Xml;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.server.SystemConfig;
 
 import org.junit.Before;
@@ -51,7 +54,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
@@ -68,6 +73,16 @@ import java.util.Set;
 public class SystemConfigTest {
     private static final String LOG_TAG = "SystemConfigTest";
 
+    private static final String ALWAYS_ON_FLAG = "always.on.flag";
+    private static final String ALWAYS_OFF_FLAG = "always.off.flag";
+    private static final Map<String, Boolean> FLAG_VALUES = Map.of(
+            ALWAYS_ON_FLAG, true,
+            ALWAYS_OFF_FLAG, false
+    );
+
+    // From system/core/libcutils/include/private/android_filesystem_config.h
+    private static final int MEDIA_UID = 1013;
+
     private SystemConfig mSysConfig;
     private File mFooJar;
 
@@ -80,6 +95,7 @@ public class SystemConfigTest {
         mSysConfig = new SystemConfigTestClass();
         mFooJar = createTempFile(
                 mTemporaryFolder.getRoot().getCanonicalFile(), "foo.jar", "JAR");
+        ParsingPackageUtils.getAconfigFlags().addFlagValuesForTesting(FLAG_VALUES);
     }
 
     /**
@@ -158,13 +174,13 @@ public class SystemConfigTest {
         readPermissions(folder1, /* No permission needed anyway */ 0);
         readPermissions(folder2, /* No permission needed anyway */ 0);
 
-        Map<String, Set<String>> actualWhite = mSysConfig.getAndClearPackageToUserTypeWhitelist();
-        Map<String, Set<String>> actualBlack = mSysConfig.getAndClearPackageToUserTypeBlacklist();
+        Map<String, Set<String>> actualWhite = mSysConfig.getAndClearPackageToUserTypeAllowlist();
+        Map<String, Set<String>> actualBlack = mSysConfig.getAndClearPackageToUserTypeDenylist();
 
         assertEquals("Whitelist was not cleared", 0,
-                mSysConfig.getAndClearPackageToUserTypeWhitelist().size());
+                mSysConfig.getAndClearPackageToUserTypeAllowlist().size());
         assertEquals("Blacklist was not cleared", 0,
-                mSysConfig.getAndClearPackageToUserTypeBlacklist().size());
+                mSysConfig.getAndClearPackageToUserTypeDenylist().size());
 
         assertEquals("Incorrect whitelist.", expectedWhite, actualWhite);
         assertEquals("Incorrect blacklist", expectedBlack, actualBlack);
@@ -202,6 +218,95 @@ public class SystemConfigTest {
         final Map<String, Boolean> packageTwo = mSysConfig.getComponentsEnabledStates(
                 "com.android.package2");
         assertEquals(packageTwoExpected, packageTwo);
+    }
+
+    @Test
+    public void testSplitPermission_featureFlagEnabled() throws Exception {
+        final String contents =
+                "<permissions>"
+                        + "<split-permission name=\"android.permission.FOO\""
+                        + "featureFlag=\"" + ALWAYS_ON_FLAG + "\""
+                        + "targetSdk=\"36\">"
+                        + "<new-permission name=\"android.permission.BAR\" />"
+                        + "</split-permission>"
+                        + "</permissions>";
+
+        final File folder = createTempSubfolder("folder/etc/permissions");
+        createTempFile(folder, "platform.xml", contents);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        SplitPermissionInfo expectedPermission =
+                new SplitPermissionInfo(
+                        "android.permission.FOO", List.of("android.permission.BAR"),
+                        36);
+
+        final ArrayList<SplitPermissionInfo> permissions =
+                mSysConfig.getSplitPermissions();
+        assertThat(permissions.size()).isEqualTo(1);
+        assertEquals(expectedPermission, permissions.getFirst());
+    }
+
+    @Test
+    public void testSplitPermission_featureFlagDisabled() throws Exception {
+        final String contents =
+                "<permissions>"
+                        + "<split-permission name=\"android.permission.FOO\""
+                        + "featureFlag=\"" + ALWAYS_OFF_FLAG + "\""
+                        + "targetSdk=\"36\">"
+                        + "<new-permission name=\"android.permission.BAR\" />"
+                        + "</split-permission>"
+                        + "</permissions>";
+
+        final File folder = createTempSubfolder("folder/etc/permissions");
+        createTempFile(folder, "platform.xml", contents);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        final ArrayList<SplitPermissionInfo> permissions =
+                mSysConfig.getSplitPermissions();
+        assertThat(permissions).isEmpty();
+    }
+
+    @Test
+    public void testAssignPermission_featureFlagEnabled() throws Exception {
+        final String contents =
+                "<permissions>"
+                        + "<assign-permission name=\"android.permission.FOO\""
+                        + "featureFlag=\"" + ALWAYS_ON_FLAG + "\""
+                        + "uid=\"media\">"
+                        + "</assign-permission>"
+                        + "</permissions>";
+
+        final File folder = createTempSubfolder("folder/etc/permissions");
+        createTempFile(folder, "platform.xml", contents);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        final SparseArray<ArraySet<String>> permissions =
+                mSysConfig.getSystemPermissions();
+        assertThat(permissions.size()).isEqualTo(1);
+        assertThat(permissions.get(MEDIA_UID)).containsExactly("android.permission.FOO");
+    }
+
+    @Test
+    public void testAssignPermission_featureFlagDisabled() throws Exception {
+        final String contents =
+                "<permissions>"
+                        + "<assign-permission name=\"android.permission.FOO\""
+                        + "featureFlag=\"" + ALWAYS_OFF_FLAG + "\""
+                        + "uid=\"media\">"
+                        + "</assign-permission>"
+                        + "</permissions>";
+
+        final File folder = createTempSubfolder("folder/etc/permissions");
+        createTempFile(folder, "platform.xml", contents);
+
+        readPermissions(folder, /* Grant all permission flags */ ~0);
+
+        final SparseArray<ArraySet<String>> permissions =
+                mSysConfig.getSystemPermissions();
+        assertThat(permissions.size()).isEqualTo(0);
     }
 
     /**

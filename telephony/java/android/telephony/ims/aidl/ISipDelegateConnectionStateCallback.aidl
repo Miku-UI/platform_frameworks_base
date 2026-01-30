@@ -24,7 +24,7 @@ import android.telephony.ims.aidl.ISipDelegate;
 
 /**
  * See {@link SipDelegateConnectionStateCallback} for docs regarding this callback.
- * {@hide}
+ * @hide
  */
 oneway interface ISipDelegateConnectionStateCallback {
     void onCreated(ISipDelegate c);

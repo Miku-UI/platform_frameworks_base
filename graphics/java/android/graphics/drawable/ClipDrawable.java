@@ -53,6 +53,7 @@ import java.io.IOException;
  * @attr ref android.R.styleable#ClipDrawable_gravity
  * @attr ref android.R.styleable#ClipDrawable_drawable
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ClipDrawable extends DrawableWrapper {
     public static final int HORIZONTAL = 1;
     public static final int VERTICAL = 2;

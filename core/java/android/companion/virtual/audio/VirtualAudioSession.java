@@ -31,6 +31,7 @@ import android.media.AudioTrack;
 import android.media.audiopolicy.AudioMix;
 import android.media.audiopolicy.AudioMixingRule;
 import android.media.audiopolicy.AudioPolicy;
+import android.os.Binder;
 import android.util.IntArray;
 import android.util.Log;
 
@@ -90,14 +91,16 @@ public final class VirtualAudioSession extends IAudioRoutingCallback.Stub implem
         @Override
         public void onPlaybackConfigChanged(List<AudioPlaybackConfiguration> configs) {
             if (mCallback != null) {
-                mExecutor.execute(() -> mCallback.onPlaybackConfigChanged(configs));
+                Binder.withCleanCallingIdentity(() ->
+                        mExecutor.execute(() -> mCallback.onPlaybackConfigChanged(configs)));
             }
         }
 
         @Override
         public void onRecordingConfigChanged(List<AudioRecordingConfiguration> configs) {
             if (mCallback != null) {
-                mExecutor.execute(() -> mCallback.onRecordingConfigChanged(configs));
+                Binder.withCleanCallingIdentity(() ->
+                        mExecutor.execute(() -> mCallback.onRecordingConfigChanged(configs)));
             }
         }
     }

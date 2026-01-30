@@ -20,6 +20,7 @@ import static android.app.servertransaction.TestUtils.config;
 import static android.app.servertransaction.TestUtils.mergedConfig;
 import static android.app.servertransaction.TestUtils.referrerIntentList;
 import static android.app.servertransaction.TestUtils.resultInfoList;
+import static android.view.Display.DEFAULT_DISPLAY;
 
 import static org.junit.Assert.assertEquals;
 
@@ -93,7 +94,7 @@ public class TransactionParcelTests {
         activityWindowInfo.set(true /* isEmbedded */, new Rect(0, 0, 500, 1000),
                 new Rect(0, 0, 500, 500));
         final ActivityConfigurationChangeItem item = new ActivityConfigurationChangeItem(
-                mActivityToken, config(), activityWindowInfo);
+                mActivityToken, config(), activityWindowInfo, DEFAULT_DISPLAY);
         writeAndPrepareForReading(item);
 
         // Read from parcel and assert
@@ -225,7 +226,8 @@ public class TransactionParcelTests {
         activityWindowInfo.set(true /* isEmbedded */, new Rect(0, 0, 500, 1000),
                 new Rect(0, 0, 500, 500));
         final ActivityRelaunchItem item = new ActivityRelaunchItem(mActivityToken, resultInfoList(),
-                referrerIntentList(), 35, mergedConfig(), true, activityWindowInfo);
+                referrerIntentList(), 35, mergedConfig(), true, activityWindowInfo,
+                DEFAULT_DISPLAY);
         writeAndPrepareForReading(item);
 
         // Read from parcel and assert
@@ -296,7 +298,7 @@ public class TransactionParcelTests {
         final NewIntentItem callback1 =
                 new NewIntentItem(mActivityToken, new ArrayList<>(), true /* resume */);
         final ActivityConfigurationChangeItem callback2 = new ActivityConfigurationChangeItem(
-                mActivityToken, config(), new ActivityWindowInfo());
+                mActivityToken, config(), new ActivityWindowInfo(), DEFAULT_DISPLAY);
 
         final StopActivityItem lifecycleRequest = new StopActivityItem(mActivityToken);
 

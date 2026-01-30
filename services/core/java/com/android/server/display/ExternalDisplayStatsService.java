@@ -241,7 +241,7 @@ public final class ExternalDisplayStatsService {
         logStateConnected(display.getDisplayIdLocked());
     }
 
-    void onDisplayAdded(int displayId) {
+    void onDisplayContentModeChange(int displayId) {
         if (mInjector.isExtendedDisplayEnabled()) {
             logStateExtended(displayId);
         } else {

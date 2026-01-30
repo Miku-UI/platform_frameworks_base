@@ -162,7 +162,7 @@ class VolumeDialogRingerDrawerViewModelTest : SysuiTestCase() {
     }
 
     private fun TestScope.setUpRingerMode(selectedRingerMode: RingerMode) {
-        controller.setStreamVolume(STREAM_RING, 50)
+        controller.setStreamVolume(STREAM_RING, 50, true)
         controller.setRingerMode(selectedRingerMode.value, false)
         runCurrent()
     }

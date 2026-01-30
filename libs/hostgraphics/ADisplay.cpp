@@ -17,6 +17,10 @@
 #include <apex/display.h>
 #include <utils/Errors.h>
 
+#include <stdlib.h>
+
+#include <type_traits>
+
 namespace android::display::impl {
 
 /**

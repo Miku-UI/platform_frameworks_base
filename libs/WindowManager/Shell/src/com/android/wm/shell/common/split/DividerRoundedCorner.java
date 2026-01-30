@@ -30,6 +30,7 @@ import android.util.AttributeSet;
 import android.view.RoundedCorner;
 import android.view.View;
 
+import androidx.annotation.DimenRes;
 import androidx.annotation.Nullable;
 
 import com.android.wm.shell.R;
@@ -47,7 +48,7 @@ public class DividerRoundedCorner extends View {
     private InvertedRoundedCornerDrawInfo mBottomLeftCorner;
     private InvertedRoundedCornerDrawInfo mBottomRightCorner;
     private boolean mIsLeftRightSplit;
-    private boolean mIsSplitScreen;
+    @DimenRes private int mRadiusResourceId = 0;
 
     public DividerRoundedCorner(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
@@ -57,7 +58,6 @@ public class DividerRoundedCorner extends View {
                 getResources().getColor(R.color.split_divider_background, null /* theme */));
         mDividerBarBackground.setFlags(Paint.ANTI_ALIAS_FLAG);
         mDividerBarBackground.setStyle(Paint.Style.FILL);
-        mIsSplitScreen = false;
     }
 
     @Override
@@ -101,40 +101,28 @@ public class DividerRoundedCorner extends View {
     }
 
     /**
-     * Used by tiling infrastructure to specify display light/dark mode and
-     * whether handle colors should be overridden on display mode change in case
-     * of non split screen.
+     * Sets the resource ID for the radius. This resource ID can be used to retrieve
+     * dimension values for the radius from the application's resources.
+     * If {@code radiusResId} is 0, the display's default round corner will be used.
      *
-     * @param isSplitScreen Whether the divider is used by split screen or tiling.
-     * @param color         Rounded corner color.
+     * @param radiusResId The resource ID of the radius dimension.
      */
-    public void setup(boolean isSplitScreen, int color) {
-        mIsSplitScreen = isSplitScreen;
-        if (!isSplitScreen) {
-            mDividerBarBackground.setColor(color);
-        }
+    public void setRadiusResource(@DimenRes int radiusResId) {
+        mRadiusResourceId = radiusResId;
     }
 
     /**
-     * Notifies the divider of ui mode change and provides a new color.
+     * Sets the color for the rounded corners of the divider bar background.
+     * Optionally invalidates the view to trigger a redraw if the change should be
+     * reflected immediately.
      *
-     * @param color The new divider rounded corner color.
+     * @param cornerColor The ARGB color to set for the rounded corners.
+     * @param invalidateView True if the view should be invalidated
+     *                       to redraw with the new color, false otherwise.
      */
-    public void onUiModeChange(int color) {
-        if (!mIsSplitScreen) {
-            mDividerBarBackground.setColor(color);
-            invalidate();
-        }
-    }
-
-    /**
-     * Notifies rounded corner view of color change.
-     *
-     * @param color The new divider rounded corner color.
-     */
-    public void onCornerColorChange(int color) {
-        if (!mIsSplitScreen) {
-            mDividerBarBackground.setColor(color);
+    public void setRoundCornerColor(int cornerColor, boolean invalidateView) {
+        mDividerBarBackground.setColor(cornerColor);
+        if (invalidateView) {
             invalidate();
         }
     }
@@ -164,17 +152,12 @@ public class DividerRoundedCorner extends View {
         InvertedRoundedCornerDrawInfo(@RoundedCorner.Position int cornerPosition) {
             mCornerPosition = cornerPosition;
 
-            final RoundedCorner roundedCorner = getDisplay().getRoundedCorner(cornerPosition);
-            if (mIsSplitScreen) {
+            if (mRadiusResourceId == 0) {
+                final RoundedCorner roundedCorner = getDisplay().getRoundedCorner(cornerPosition);
                 mRadius = roundedCorner == null ? 0 : roundedCorner.getRadius();
             } else {
-                mRadius = mContext
-                        .getResources()
-                        .getDimensionPixelSize(
-                                com.android.wm.shell.shared.R.dimen
-                                        .desktop_windowing_freeform_rounded_corner_radius);
+                mRadius = mContext.getResources().getDimensionPixelSize(mRadiusResourceId);
             }
-
 
             // Starts with a filled square, and then subtracting out a circle from the appropriate
             // corner.

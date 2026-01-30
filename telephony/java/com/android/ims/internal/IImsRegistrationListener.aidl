@@ -24,7 +24,7 @@ import android.net.Uri;
  * A listener type for receiving notifications about the changes to
  * the IMS connection(registration).
  *
- * {@hide}
+ * @hide
  */
 oneway interface IImsRegistrationListener {
     /**

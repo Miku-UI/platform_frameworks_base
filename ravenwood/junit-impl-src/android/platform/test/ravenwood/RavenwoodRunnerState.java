@@ -15,7 +15,7 @@
  */
 package android.platform.test.ravenwood;
 
-import static com.android.ravenwood.common.RavenwoodCommonUtils.RAVENWOOD_VERBOSE_LOGGING;
+import static com.android.ravenwood.common.RavenwoodInternalUtils.RAVENWOOD_VERBOSE_LOGGING;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -25,6 +25,7 @@ import android.util.Log;
 import android.util.Pair;
 
 import com.android.ravenwood.RavenwoodRuntimeNative;
+import com.android.ravenwood.common.RavenwoodInternalUtils;
 
 import org.junit.runner.Description;
 
@@ -42,9 +43,11 @@ import java.util.Set;
  * All members must be called from the runner's main thread.
  */
 public final class RavenwoodRunnerState {
-    private static final String TAG = com.android.ravenwood.common.RavenwoodCommonUtils.TAG;
+    private static final String TAG = RavenwoodInternalUtils.TAG;
     private static final String RAVENWOOD_RULE_ERROR =
             "RavenwoodRule(s) are not executed in the correct order";
+
+    private static final String ALLOW_ALL_SYSPROP_READ_ENV = "RAVENWOOD_ALLOW_ANY_SYSPROP_READ";
 
     private static final List<Pair<RavenwoodRule, RavenwoodPropertyState>> sActiveProperties =
             new ArrayList<>();
@@ -58,13 +61,11 @@ public final class RavenwoodRunnerState {
         mRunner = runner;
     }
 
-    private Description mMethodDescription;
-
     public void enterTestRunner() {
         if (RAVENWOOD_VERBOSE_LOGGING) {
             Log.v(TAG, "enterTestRunner: " + mRunner);
         }
-        RavenwoodRuntimeEnvironmentController.initForRunner();
+        RavenwoodDriver.initForRunner();
     }
 
     public void enterTestClass() {
@@ -78,19 +79,18 @@ public final class RavenwoodRunnerState {
             Log.v(TAG, "exitTestClass: " + mRunner.mTestJavaClass.getName());
         }
         assertTrue(RAVENWOOD_RULE_ERROR, sActiveProperties.isEmpty());
-        RavenwoodRuntimeEnvironmentController.exitTestClass();
+        RavenwoodErrorHandler.exitTestClass();
     }
 
     /** Called when a test method is about to start */
     public void enterTestMethod(Description description) {
-        mMethodDescription = description;
-        RavenwoodRuntimeEnvironmentController.enterTestMethod(description);
+        RavenwoodDriver.enterTestMethod(description);
+        RavenwoodErrorHandler.enterTestMethod(description);
     }
 
     /** Called when a test method finishes */
     public void exitTestMethod(Description description) {
-        RavenwoodRuntimeEnvironmentController.exitTestMethod(description);
-        mMethodDescription = null;
+        RavenwoodErrorHandler.exitTestMethod(description);
     }
 
     public void enterRavenwoodRule(RavenwoodRule rule) {
@@ -154,6 +154,13 @@ public final class RavenwoodRunnerState {
                 || sActiveProperties.stream().anyMatch(p -> p.second.isKeyAccessible(key, write));
 
         if (!result) {
+            if ((RavenwoodExperimentalApiChecker.isExperimentalApiEnabled()
+                    || RavenwoodEnvironment.getInstance().getBoolEnvVar(ALLOW_ALL_SYSPROP_READ_ENV))
+                    && !write) {
+                Log.w(TAG, "Unallow-listed property read detected: key=" + key);
+                return;
+            }
+
             throw new IllegalArgumentException((write ? "Write" : "Read")
                     + " access to system property '" + key + "' denied via RavenwoodRule");
         }

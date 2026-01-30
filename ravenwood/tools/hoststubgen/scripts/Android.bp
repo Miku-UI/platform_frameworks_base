@@ -12,9 +12,3 @@ sh_binary_host {
     src: "dump-jar",
     visibility: ["//visibility:public"],
 }
-
-genrule_defaults {
-    name: "hoststubgen-jar-dump-defaults",
-    tools: ["dump-jar"],
-    cmd: "$(location dump-jar) -s -o $(out) $(in)",
-}

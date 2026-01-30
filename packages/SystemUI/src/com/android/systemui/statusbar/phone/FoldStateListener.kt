@@ -21,18 +21,22 @@ import android.hardware.devicestate.DeviceState.PROPERTY_FOLDABLE_DISPLAY_CONFIG
 import android.hardware.devicestate.DeviceState.PROPERTY_POWER_CONFIGURATION_TRIGGER_SLEEP
 import android.hardware.devicestate.DeviceStateManager.DeviceStateCallback
 import android.hardware.devicestate.feature.flags.Flags as DeviceStateManagerFlags
+import androidx.annotation.VisibleForTesting
 import com.android.internal.R
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 
 /**
  * Listens for fold state changes and reports the new folded state together with other properties
  * associated with that state.
  */
-internal class FoldStateListener(
-    context: Context,
-    private val listener: OnFoldStateChangeListener
-) : DeviceStateCallback {
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+class FoldStateListener(context: Context, private val listener: OnFoldStateChangeListener) :
+    DeviceStateCallback {
 
-    internal interface OnFoldStateChangeListener {
+    @DeprecatedSysuiVisibleForTesting
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    interface OnFoldStateChangeListener {
         /**
          * Reports that the device either became folded or unfolded.
          *

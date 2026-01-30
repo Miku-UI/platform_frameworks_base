@@ -58,6 +58,7 @@ final class ScanRequest {
     public final boolean mIsPlatformPackage;
     /** Override value for package ABI if set during install */
     @Nullable public final String mCpuAbiOverride;
+    public final boolean mEnableAlignmentChecks;
 
     ScanRequest(
             @NonNull ParsedPackage parsedPackage,
@@ -72,7 +73,8 @@ final class ScanRequest {
             @PackageManagerService.ScanFlags int scanFlags,
             boolean isPlatformPackage,
             @Nullable UserHandle user,
-            @Nullable String cpuAbiOverride) {
+            @Nullable String cpuAbiOverride,
+            boolean enableAlignmentChecks) {
         mParsedPackage = parsedPackage;
         mOldPkg = oldPkg;
         mPkgSetting = pkgSetting;
@@ -87,5 +89,6 @@ final class ScanRequest {
         mIsPlatformPackage = isPlatformPackage;
         mUser = user;
         mCpuAbiOverride = cpuAbiOverride;
+        mEnableAlignmentChecks = enableAlignmentChecks;
     }
 }

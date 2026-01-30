@@ -20,12 +20,17 @@ import static android.companion.CompanionDeviceManager.MESSAGE_ONEWAY_FROM_WEARA
 import static android.companion.CompanionDeviceManager.MESSAGE_ONEWAY_PING;
 import static android.companion.CompanionDeviceManager.MESSAGE_ONEWAY_TO_WEARABLE;
 import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_CONTEXT_SYNC;
+import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_METADATA_UPDATE;
 import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_PERMISSION_RESTORE;
 import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_PING;
 import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_REMOTE_AUTHENTICATION;
+import static android.companion.CompanionDeviceManager.MESSAGE_ONEWAY_TASK_CONTINUITY;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.companion.AssociationRequest;
 import android.companion.IOnMessageReceivedListener;
+import android.companion.IOnTransportEventListener;
 import android.content.Context;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
@@ -40,6 +45,8 @@ import libcore.util.EmptyArray;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -50,6 +57,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  * This class represents the channel established between two devices.
  */
 public abstract class Transport {
+    /**
+     * Flag to extend attestation patch validation allowance to 2 years instead of 1 year.
+     * Requires {@link AssociationRequest#DEVICE_PROFILE_WEARABLE_SENSING} device profile.
+     */
+    public static final int FLAG_EXTEND_PATCH_DIFF = 1;
+
     protected static final String TAG = "CDM_CompanionTransport";
     protected static final boolean DEBUG = Build.IS_DEBUGGABLE;
 
@@ -64,6 +77,30 @@ public abstract class Transport {
     protected final OutputStream mRemoteOut;
     protected final Context mContext;
 
+    /** @hide */
+    @IntDef(value = {
+            SUCCESSFUL_CONNECTION,
+            ERROR_UPDATE_REQUIRED,
+            ERROR_UNKNOWN,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface TransportEvent {}
+
+    /**
+     * Indicates channel is connected and ready to exchange messages.
+     */
+    public static final int SUCCESSFUL_CONNECTION = 200;
+
+    /**
+     * Reserved for AVF patch level difference error.
+     */
+    public static final int ERROR_UPDATE_REQUIRED = 427;
+
+    /**
+     * Fallback error code.
+     */
+    public static final int ERROR_UNKNOWN = 500;
+
     /**
      * Message type -> Listener
      *
@@ -73,6 +110,9 @@ public abstract class Transport {
      */
     @GuardedBy("mListeners")
     private final SparseArray<Set<IOnMessageReceivedListener>> mListeners = new SparseArray<>();
+
+    @GuardedBy("mEventListeners")
+    private final Set<IOnTransportEventListener> mEventListeners = new HashSet<>();
 
     private OnTransportClosedListener mOnTransportClosed;
 
@@ -112,6 +152,25 @@ public abstract class Transport {
                 mListeners.put(message, new HashSet<IOnMessageReceivedListener>());
             }
             mListeners.get(message).add(listener);
+        }
+    }
+
+    /**
+     * Add a listener for transport events
+     * @param listener Executes when this transport reports an event
+     */
+    void addListener(IOnTransportEventListener listener) {
+        synchronized (mEventListeners) {
+            mEventListeners.add(listener);
+        }
+    }
+
+    /**
+     * Remove registered event listener.
+     */
+    void removeListener(IOnTransportEventListener listener) {
+        synchronized (mEventListeners) {
+            mEventListeners.remove(listener);
         }
     }
 
@@ -239,11 +298,23 @@ public abstract class Transport {
         }
     }
 
+    protected final void eventCallback(@TransportEvent int event) {
+        synchronized (mEventListeners) {
+            for (IOnTransportEventListener listener : mEventListeners) {
+                try {
+                    listener.onTransportEvent(event);
+                } catch (RemoteException ignored) {
+                }
+            }
+        }
+    }
+
     private void processOneway(int message, byte[] data) {
         switch (message) {
             case MESSAGE_ONEWAY_PING:
             case MESSAGE_ONEWAY_FROM_WEARABLE:
-            case MESSAGE_ONEWAY_TO_WEARABLE: {
+            case MESSAGE_ONEWAY_TO_WEARABLE:
+            case MESSAGE_ONEWAY_TASK_CONTINUITY: {
                 callback(message, data);
                 break;
             }
@@ -261,18 +332,25 @@ public abstract class Transport {
                 sendMessage(MESSAGE_RESPONSE_SUCCESS, sequence, data);
                 break;
             }
-            case MESSAGE_REQUEST_CONTEXT_SYNC:
-            case MESSAGE_REQUEST_REMOTE_AUTHENTICATION: {
-                callback(message, data);
-                sendMessage(MESSAGE_RESPONSE_SUCCESS, sequence, EmptyArray.BYTE);
-                break;
-            }
             case MESSAGE_REQUEST_PERMISSION_RESTORE: {
                 try {
                     callback(message, data);
                     sendMessage(MESSAGE_RESPONSE_SUCCESS, sequence, EmptyArray.BYTE);
                 } catch (Exception e) {
                     Slog.w(TAG, "Failed to restore permissions");
+                    sendMessage(MESSAGE_RESPONSE_FAILURE, sequence, EmptyArray.BYTE);
+                }
+                break;
+            }
+            case MESSAGE_REQUEST_CONTEXT_SYNC:
+            case MESSAGE_REQUEST_REMOTE_AUTHENTICATION:
+            case MESSAGE_REQUEST_METADATA_UPDATE: {
+                try {
+                    callback(message, data);
+                    sendMessage(MESSAGE_RESPONSE_SUCCESS, sequence, EmptyArray.BYTE);
+                } catch (Exception e) {
+                    Slog.w(TAG, "Failed to execute callback for request 0x"
+                            + Integer.toHexString(message));
                     sendMessage(MESSAGE_RESPONSE_FAILURE, sequence, EmptyArray.BYTE);
                 }
                 break;

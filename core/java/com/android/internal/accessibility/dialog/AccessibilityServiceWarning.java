@@ -68,7 +68,6 @@ public class AccessibilityServiceWarning {
         return ad;
     }
 
-    @VisibleForTesting
     public static View createAccessibilityServiceWarningDialogContentView(Context context,
             AccessibilityServiceInfo info,
             View.OnClickListener allowListener,

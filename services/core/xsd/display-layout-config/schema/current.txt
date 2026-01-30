@@ -30,7 +30,9 @@ package com.android.server.display.config.layout {
   public class Layout {
     ctor public Layout();
     method public java.util.List<com.android.server.display.config.layout.Display> getDisplay();
+    method public String getName();
     method public java.math.BigInteger getState();
+    method public void setName(String);
     method public void setState(java.math.BigInteger);
   }
 

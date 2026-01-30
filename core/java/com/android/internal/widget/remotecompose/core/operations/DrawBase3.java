@@ -78,8 +78,17 @@ public abstract class DrawBase3 extends PaintOperation implements VariableSuppor
 
     protected abstract void write(@NonNull WireBuffer buffer, float v1, float v2, float v3);
 
-    interface Maker {
-        DrawBase3 create(float v1, float v2, float v3);
+    /** interface for the operation builder with 3 float parameters */
+    public interface Maker {
+        /**
+         * creation function for operation with 3 float parameters
+         *
+         * @param v1 param 1
+         * @param v2 param 2
+         * @param v3 param 3
+         * @return operation
+         */
+        @NonNull DrawBase3 create(float v1, float v2, float v3);
     }
 
     @NonNull
@@ -97,12 +106,12 @@ public abstract class DrawBase3 extends PaintOperation implements VariableSuppor
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param maker the maker of the operation
      * @param buffer the buffer to read
      * @param operations the list of operations to add to
+     * @param maker the maker of the operation
      */
     public static void read(
-            @NonNull Maker maker, @NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
+            @NonNull WireBuffer buffer, @NonNull List<Operation> operations, @NonNull Maker maker) {
         float v1 = buffer.readFloat();
         float v2 = buffer.readFloat();
         float v3 = buffer.readFloat();
@@ -123,8 +132,11 @@ public abstract class DrawBase3 extends PaintOperation implements VariableSuppor
         return null;
     }
 
-    protected MapSerializer serialize(
-            MapSerializer serializer, String v1Name, String v2Name, String v3Name) {
+    protected @NonNull MapSerializer serialize(
+            @NonNull MapSerializer serializer,
+            @NonNull String v1Name,
+            @NonNull String v2Name,
+            @NonNull String v3Name) {
         return serializer
                 .add(v1Name, mValue1, mV1)
                 .add(v2Name, mValue2, mV2)

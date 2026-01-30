@@ -17,6 +17,7 @@
 package com.android.server.power.hint;
 
 
+import static com.android.server.power.hint.Flags.FLAG_USE_SYSUI_SESSION_TAG;
 import static com.android.server.power.hint.HintManagerService.CLEAN_UP_UID_DELAY_MILLIS;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -45,9 +46,13 @@ import static org.mockito.Mockito.when;
 import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
+import android.app.IActivityManager;
+import android.app.role.RoleManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.PackageManagerInternal;
 import android.hardware.common.fmq.MQDescriptor;
 import android.hardware.power.ChannelConfig;
 import android.hardware.power.ChannelMessage;
@@ -80,6 +85,7 @@ import androidx.test.InstrumentationRegistry;
 
 import com.android.server.FgThread;
 import com.android.server.LocalServices;
+import com.android.server.SystemService;
 import com.android.server.power.hint.HintManagerService.AppHintSession;
 import com.android.server.power.hint.HintManagerService.Injector;
 import com.android.server.power.hint.HintManagerService.NativeWrapper;
@@ -161,9 +167,15 @@ public class HintManagerServiceTest {
     @Mock
     private IPower mIPowerMock;
     @Mock
+    private IActivityManager mIActivityManagerMock;
+    @Mock
     private ActivityManagerInternal mAmInternalMock;
     @Mock
     private PackageManager mMockPackageManager;
+    @Mock
+    private RoleManager mMockRoleManager;
+    @Mock
+    private PackageManagerInternal mPackageManagerInternalMock;
     @Mock
     private IHintManager.IHintManagerClient mClientCallback;
     @Rule
@@ -215,6 +227,7 @@ public class HintManagerServiceTest {
         applicationInfo.category = ApplicationInfo.CATEGORY_GAME;
         mSupportInfo = makeDefaultSupportInfo();
         when(mContext.getPackageManager()).thenReturn(mMockPackageManager);
+        when(mContext.getSystemService(RoleManager.class)).thenReturn(mMockRoleManager);
         when(mMockPackageManager.getNameForUid(anyInt())).thenReturn(TEST_APP_NAME);
         when(mMockPackageManager.getApplicationInfo(eq(TEST_APP_NAME), anyInt()))
                 .thenReturn(applicationInfo);
@@ -245,6 +258,8 @@ public class HintManagerServiceTest {
         when(mIPowerMock.getSupportInfo()).thenReturn(mSupportInfo);
         LocalServices.removeServiceForTest(ActivityManagerInternal.class);
         LocalServices.addService(ActivityManagerInternal.class, mAmInternalMock);
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
+        LocalServices.addService(PackageManagerInternal.class, mPackageManagerInternalMock);
     }
 
     @After
@@ -335,7 +350,13 @@ public class HintManagerServiceTest {
             IPower createIPower() {
                 return mIPowerMock;
             }
+            IActivityManager getIActivityManager() {
+                return mIActivityManagerMock;
+            }
         });
+        when(mPackageManagerInternalMock.getSystemUiServiceComponent())
+                .thenReturn(new ComponentName("", ""));
+        mService.onBootPhase(SystemService.PHASE_SYSTEM_SERVICES_READY);
         return mService;
     }
 
@@ -378,6 +399,92 @@ public class HintManagerServiceTest {
         assertThrows(SecurityException.class,
                 () -> service.getBinderServiceInstance().createHintSessionWithConfig(token,
                         SessionTag.OTHER, creationConfig, config));
+    }
+
+    @Test
+    public void testCreateHintSessionNoChangeToSessionTag() throws Exception {
+        HintManagerService service = createService();
+        IBinder token = new Binder();
+        SessionCreationConfig creationConfig =
+                makeSessionCreationConfig(new int[]{TID}, DEFAULT_TARGET_DURATION);
+        SessionConfig config = new SessionConfig();
+        int tag = SessionTag.OTHER;
+
+        service.getBinderServiceInstance()
+                .createHintSessionWithConfig(token, tag, creationConfig, config);
+
+        verify(mNativeWrapperMock).halCreateHintSessionWithConfig(
+                anyInt(), anyInt(), any(), anyLong(), eq(tag), any());
+    }
+
+    @Test
+    public void testCreateHintSessionUpdatesAppTagToGame() throws Exception {
+        ApplicationInfo applicationInfo = new ApplicationInfo();
+        applicationInfo.category = ApplicationInfo.CATEGORY_GAME;
+        when(mMockPackageManager.getApplicationInfo(any(), anyInt())).thenReturn(applicationInfo);
+        HintManagerService service = createService();
+        IBinder token = new Binder();
+        SessionCreationConfig creationConfig =
+                makeSessionCreationConfig(new int[]{TID}, DEFAULT_TARGET_DURATION);
+        SessionConfig config = new SessionConfig();
+
+        service.getBinderServiceInstance()
+                .createHintSessionWithConfig(token, SessionTag.APP, creationConfig, config);
+
+        verify(mNativeWrapperMock).halCreateHintSessionWithConfig(
+                anyInt(), anyInt(), any(), anyLong(), eq(SessionTag.GAME), any());
+    }
+
+    @Test
+    public void testCreateHintSessionAppTagUnchanged() throws Exception {
+        ApplicationInfo applicationInfo = new ApplicationInfo();
+        when(mMockPackageManager.getApplicationInfo(any(), anyInt())).thenReturn(applicationInfo);
+        HintManagerService service = createService();
+        IBinder token = new Binder();
+        SessionCreationConfig creationConfig =
+                makeSessionCreationConfig(new int[]{TID}, DEFAULT_TARGET_DURATION);
+        SessionConfig config = new SessionConfig();
+
+        service.getBinderServiceInstance()
+                .createHintSessionWithConfig(token, SessionTag.APP, creationConfig, config);
+
+        verify(mNativeWrapperMock).halCreateHintSessionWithConfig(
+                anyInt(), anyInt(), any(), anyLong(), eq(SessionTag.APP), any());
+    }
+
+    @RequiresFlagsEnabled(FLAG_USE_SYSUI_SESSION_TAG)
+    @Test
+    public void testCreateHintSessionSetsSysuiTagWhenCallerIsSysui() throws Exception {
+        when(mPackageManagerInternalMock.getPackageUid(any(), anyLong(), anyInt())).thenReturn(UID);
+        HintManagerService service = createService();
+        IBinder token = new Binder();
+        SessionCreationConfig creationConfig =
+                makeSessionCreationConfig(new int[]{TID}, DEFAULT_TARGET_DURATION);
+        SessionConfig config = new SessionConfig();
+
+        service.getBinderServiceInstance()
+                .createHintSessionWithConfig(token, SessionTag.APP, creationConfig, config);
+
+        verify(mNativeWrapperMock).halCreateHintSessionWithConfig(
+                anyInt(), anyInt(), any(), anyLong(), eq(SessionTag.SYSUI), any());
+    }
+
+    @RequiresFlagsEnabled(FLAG_USE_SYSUI_SESSION_TAG)
+    @Test
+    public void testCreateHintSessionSetsSysuiTagWhenCallerIsLauncher() throws Exception {
+        when(mMockRoleManager.getRoleHolders(any())).thenReturn(List.of("<mock-package-name>"));
+        when(mMockPackageManager.getPackageUid(any(), anyInt())).thenReturn(UID);
+        HintManagerService service = createService();
+        IBinder token = new Binder();
+        SessionCreationConfig creationConfig =
+                makeSessionCreationConfig(new int[]{TID}, DEFAULT_TARGET_DURATION);
+        SessionConfig config = new SessionConfig();
+
+        service.getBinderServiceInstance()
+                .createHintSessionWithConfig(token, SessionTag.APP, creationConfig, config);
+
+        verify(mNativeWrapperMock).halCreateHintSessionWithConfig(
+                anyInt(), anyInt(), any(), anyLong(), eq(SessionTag.SYSUI), any());
     }
 
     @Test
@@ -466,11 +573,6 @@ public class HintManagerServiceTest {
                 SessionTag.OTHER, creationConfig, config).session;
         assertNotNull(a);
         assertEquals(sessionId1, config.id);
-
-        creationConfig.tids = createThreads(1, stopLatch1);
-
-        assertEquals(service.getBinderServiceInstance().createHintSessionWithConfig(token,
-                    SessionTag.OTHER, creationConfig, config).pipelineThreadLimitExceeded, true);
     }
 
     @Test
@@ -692,7 +794,6 @@ public class HintManagerServiceTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_POWERHINT_THREAD_CLEANUP)
     public void testNoCleanupDeadThreadsForPrevPowerHalVersion() throws Exception {
         reset(mIPowerMock);
         when(mIPowerMock.getInterfaceVersion()).thenReturn(3);
@@ -730,7 +831,6 @@ public class HintManagerServiceTest {
 
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_POWERHINT_THREAD_CLEANUP)
     public void testCleanupDeadThreads() throws Exception {
         HintManagerService service = createService();
         IBinder token = new Binder();

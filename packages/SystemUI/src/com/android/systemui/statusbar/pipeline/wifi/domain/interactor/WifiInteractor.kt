@@ -21,6 +21,7 @@ import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.statusbar.pipeline.shared.data.model.ConnectivitySlot
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.statusbar.pipeline.shared.data.repository.ConnectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.WifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiScanEntry
@@ -63,6 +64,9 @@ interface WifiInteractor {
 
     /** True if there are networks available other than the currently-connected one */
     val areNetworksAvailable: StateFlow<Boolean>
+
+    /** A flow representing the user's optimistic intent to toggle Wi-Fi. */
+    val wifiToggleState: StateFlow<WifiToggleState>
 }
 
 @SysUISingleton
@@ -101,10 +105,7 @@ constructor(
         connectivityRepository.forceHiddenSlots.map { it.contains(ConnectivitySlot.WIFI) }
 
     override val areNetworksAvailable: StateFlow<Boolean> =
-        combine(
-                wifiNetwork,
-                wifiRepository.wifiScanResults,
-            ) { currentNetwork, scanResults ->
+        combine(wifiNetwork, wifiRepository.wifiScanResults) { currentNetwork, scanResults ->
                 // We consider networks to be available if the scan results list contains networks
                 // other than the one that is currently connected
                 if (scanResults.isEmpty()) {
@@ -117,8 +118,10 @@ constructor(
             }
             .stateIn(scope, SharingStarted.WhileSubscribed(), false)
 
+    override val wifiToggleState: StateFlow<WifiToggleState> = wifiRepository.wifiToggleState
+
     private fun anyNonMatchingNetworkExists(
         currentNetwork: WifiNetworkModel.Active,
-        availableNetworks: List<WifiScanEntry>
+        availableNetworks: List<WifiScanEntry>,
     ): Boolean = availableNetworks.firstOrNull { it.ssid != currentNetwork.ssid } != null
 }

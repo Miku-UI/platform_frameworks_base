@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -528,7 +529,7 @@ public abstract class AbstractMessageParser {
 
     // Append any necessary end tokens
     for (Character key : seenCharacters.keySet()) {
-      if (seenCharacters.get(key) == Boolean.TRUE) {
+      if (Objects.equals(seenCharacters.get(key), Boolean.TRUE)) {
         Format end = new Format(key.charValue(), false);
         end.setMatched(true);
         addToken(end);

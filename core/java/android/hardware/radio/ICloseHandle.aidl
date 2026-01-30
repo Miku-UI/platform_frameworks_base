@@ -16,7 +16,7 @@
 
 package android.hardware.radio;
 
-/** {@hide} */
+/** @hide */
 interface ICloseHandle {
     void close();
 }

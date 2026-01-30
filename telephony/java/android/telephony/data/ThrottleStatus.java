@@ -49,7 +49,7 @@ public final class ThrottleStatus implements Parcelable {
      */
     public static final int THROTTLE_TYPE_ELAPSED_TIME = 2;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(flag = true, prefix = {"THROTTLE_TYPE_"}, value = {
             ThrottleStatus.THROTTLE_TYPE_NONE,
             ThrottleStatus.THROTTLE_TYPE_ELAPSED_TIME,
@@ -73,7 +73,7 @@ public final class ThrottleStatus implements Parcelable {
      */
     public static final int RETRY_TYPE_HANDOVER = 3;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(flag = true, prefix = {"RETRY_TYPE_"}, value = {
             ThrottleStatus.RETRY_TYPE_NONE,
             ThrottleStatus.RETRY_TYPE_NEW_CONNECTION,

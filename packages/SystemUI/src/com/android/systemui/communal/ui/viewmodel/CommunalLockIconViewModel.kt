@@ -128,7 +128,7 @@ constructor(
 
     suspend fun onUserInteraction() {
         if (SceneContainerFlag.isEnabled) {
-            deviceEntryInteractor.attemptDeviceEntry()
+            deviceEntryInteractor.attemptDeviceEntry("Communal lock icon")
         } else {
             keyguardViewController
                 .get()

@@ -19,11 +19,6 @@ package com.android.server.theming;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.theming.FieldColorSource;
-import android.content.theming.ThemeSettings;
-import android.content.theming.ThemeSettingsUpdater;
-import android.content.theming.ThemeStyle;
-
-import com.google.common.truth.Truth;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -33,43 +28,69 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FieldColorSourceTests {
-    static final ThemeSettings DEFAULTS = new ThemeSettings(1, 0xFF123456, 0xFF654321,
-            "home_wallpaper", ThemeStyle.VIBRANT, true);
     private FieldColorSource mFieldColorSource;
 
     @Before
     public void setup() {
-        mFieldColorSource = new FieldColorSource("colorSource", ThemeSettingsUpdater::colorSource,
-                ThemeSettings::colorSource, DEFAULTS);
+        mFieldColorSource = new FieldColorSource();
     }
 
     @Test
     public void parse_validColorSource_returnsSameString() {
-        String validColorSource = "home_wallpaper";
+        String validColorSource = FieldColorSource.VALUE_HOME_WALLPAPER;
         String parsedValue = mFieldColorSource.parse(validColorSource);
         assertThat(parsedValue).isEqualTo(validColorSource);
     }
 
     @Test
+    public void parse_anotherValidColorSource_returnsSameString() {
+        String validColorSource = FieldColorSource.VALUE_PRESET;
+        String parsedValue = mFieldColorSource.parse(validColorSource);
+        assertThat(parsedValue).isEqualTo(validColorSource);
+    }
+
+    @Test
+    public void parse_anyString_returnsSameString() {
+        String anyString = "any_custom_string";
+        String parsedValue = mFieldColorSource.parse(anyString);
+        assertThat(parsedValue).isEqualTo(anyString);
+    }
+
+    @Test
+    public void parse_nullString_returnsNull() {
+        String parsedValue = mFieldColorSource.parse(null);
+        assertThat(parsedValue).isNull();
+    }
+
+    @Test
     public void serialize_validColorSource_returnsSameString() {
-        String validColorSource = "lock_wallpaper";
+        String validColorSource =
+                FieldColorSource.VALUE_HOME_WALLPAPER; // Changed from VALUE_LOCK_WALLPAPER as
+        // it's not in FieldColorSource.java
+        String serializedValue = mFieldColorSource.serialize(validColorSource);
+        assertThat(serializedValue).isEqualTo(validColorSource);
+    }
+
+    @Test
+    public void serialize_anotherValidColorSource_returnsSameString() {
+        String validColorSource = FieldColorSource.VALUE_PRESET;
         String serializedValue = mFieldColorSource.serialize(validColorSource);
         assertThat(serializedValue).isEqualTo(validColorSource);
     }
 
     @Test
     public void validate_preset_returnsTrue() {
-        assertThat(mFieldColorSource.validate("preset")).isTrue();
+        assertThat(mFieldColorSource.validate(FieldColorSource.VALUE_PRESET)).isTrue();
     }
 
     @Test
     public void validate_homeWallpaper_returnsTrue() {
-        assertThat(mFieldColorSource.validate("home_wallpaper")).isTrue();
+        assertThat(mFieldColorSource.validate(FieldColorSource.VALUE_HOME_WALLPAPER)).isTrue();
     }
 
     @Test
-    public void validate_lockWallpaper_returnsTrue() {
-        assertThat(mFieldColorSource.validate("lock_wallpaper")).isTrue();
+    public void validate_lockWallpaper_returnsFalse() {
+        assertThat(mFieldColorSource.validate("lock_wallpaper")).isFalse();
     }
 
     @Test
@@ -79,16 +100,11 @@ public class FieldColorSourceTests {
 
     @Test
     public void getFieldType_returnsStringClass() {
-        Truth.assertThat(mFieldColorSource.getFieldType()).isEqualTo(String.class);
+        assertThat(mFieldColorSource.getFieldType()).isEqualTo(String.class);
     }
 
     @Test
     public void getJsonType_returnsStringClass() {
-        Truth.assertThat(mFieldColorSource.getJsonType()).isEqualTo(String.class);
-    }
-
-    @Test
-    public void get_returnsDefaultValue() {
-        Truth.assertThat(mFieldColorSource.getDefaultValue()).isEqualTo(DEFAULTS.colorSource());
+        assertThat(mFieldColorSource.getJsonType()).isEqualTo(String.class);
     }
 }

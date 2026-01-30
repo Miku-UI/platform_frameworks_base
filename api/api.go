@@ -15,6 +15,7 @@
 package api
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/google/blueprint/proptools"
@@ -30,6 +31,7 @@ const virtualization = "framework-virtualization"
 const location = "framework-location"
 const platformCrashrecovery = "framework-platformcrashrecovery"
 const ondeviceintelligence = "framework-ondeviceintelligence-platform"
+const platformTelephony = "framework-platformtelephony"
 
 var core_libraries_modules = []string{art, conscrypt, i18n}
 
@@ -41,7 +43,7 @@ var core_libraries_modules = []string{art, conscrypt, i18n}
 // APIs.
 // In addition, the modules in this list are allowed to contribute to test APIs
 // stubs.
-var non_updatable_modules = []string{virtualization, location, platformCrashrecovery, ondeviceintelligence}
+var non_updatable_modules = []string{virtualization, location, platformCrashrecovery, ondeviceintelligence, platformTelephony}
 
 // The intention behind this soong plugin is to generate a number of "merged"
 // API-related modules that would otherwise require a large amount of very
@@ -445,14 +447,28 @@ func createMergedTxts(
 	baseTxtModulePrefix string,
 	stubsTypeSuffix string,
 	doDist bool,
+	checkedIn bool,
 ) {
+
+	if checkedIn && doDist {
+		ctx.ModuleErrorf("Checked in api txt files cannot be disted.")
+	}
+
+	checkedInPrefix := ""
+	if checkedIn {
+		checkedInPrefix = "checked-in-"
+	}
+
 	var textFiles []MergedTxtDefinition
 
-	tagSuffix := []string{".api.txt}", ".removed-api.txt}"}
+	tagSuffix := []string{
+		fmt.Sprintf(".%sapi.txt}", checkedInPrefix),
+		fmt.Sprintf(".%sremoved-api.txt}", checkedInPrefix),
+	}
 	distFilename := []string{"android.txt", "android-removed.txt"}
 	for i, f := range []string{"current.txt", "removed.txt"} {
 		textFiles = append(textFiles, MergedTxtDefinition{
-			TxtFilename:  f,
+			TxtFilename:  checkedInPrefix + f,
 			DistFilename: distFilename[i],
 			BaseTxt:      ":" + baseTxtModulePrefix + f,
 			Modules:      bootclasspath,
@@ -460,7 +476,7 @@ func createMergedTxts(
 			Scope:        "public",
 		})
 		textFiles = append(textFiles, MergedTxtDefinition{
-			TxtFilename:  f,
+			TxtFilename:  checkedInPrefix + f,
 			DistFilename: distFilename[i],
 			BaseTxt:      ":" + baseTxtModulePrefix + "system-" + f,
 			Modules:      bootclasspath,
@@ -468,7 +484,7 @@ func createMergedTxts(
 			Scope:        "system",
 		})
 		textFiles = append(textFiles, MergedTxtDefinition{
-			TxtFilename:  f,
+			TxtFilename:  checkedInPrefix + f,
 			DistFilename: distFilename[i],
 			BaseTxt:      ":" + baseTxtModulePrefix + "module-lib-" + f,
 			Modules:      bootclasspath,
@@ -476,7 +492,7 @@ func createMergedTxts(
 			Scope:        "module-lib",
 		})
 		textFiles = append(textFiles, MergedTxtDefinition{
-			TxtFilename:  f,
+			TxtFilename:  checkedInPrefix + f,
 			DistFilename: distFilename[i],
 			BaseTxt:      ":" + baseTxtModulePrefix + "system-server-" + f,
 			Modules:      system_server_classpath,
@@ -495,8 +511,9 @@ func (a *CombinedApis) createInternalModules(ctx android.LoadHookContext) {
 	if ctx.Config().VendorConfig("ANDROID").Bool("include_nonpublic_framework_api") {
 		bootclasspath.AppendSimpleValue(a.properties.Conditional_bootclasspath)
 	}
-	createMergedTxts(ctx, bootclasspath, system_server_classpath, "non-updatable-", "-", false)
-	createMergedTxts(ctx, bootclasspath, system_server_classpath, "non-updatable-exportable-", "-exportable-", true)
+	createMergedTxts(ctx, bootclasspath, system_server_classpath, "non-updatable-", "-", false, false)
+	createMergedTxts(ctx, bootclasspath, system_server_classpath, "non-updatable-", "-", false, true)
+	createMergedTxts(ctx, bootclasspath, system_server_classpath, "non-updatable-exportable-", "-exportable-", true, false)
 
 	createMergedPublicStubs(ctx, bootclasspath)
 	createMergedSystemStubs(ctx, bootclasspath)

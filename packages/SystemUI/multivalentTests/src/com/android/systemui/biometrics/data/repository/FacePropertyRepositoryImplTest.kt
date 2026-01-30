@@ -29,6 +29,7 @@ import android.hardware.face.IFaceAuthenticatorsRegisteredCallback
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.biometrics.shared.model.FaceSensorInfo
 import com.android.systemui.biometrics.shared.model.LockoutMode
 import com.android.systemui.biometrics.shared.model.SensorStrength
 import com.android.systemui.common.ui.data.repository.FakeConfigurationRepository
@@ -79,6 +80,7 @@ class FacePropertyRepositoryImplTest : SysuiTestCase() {
     @Mock private lateinit var faceManager: FaceManager
     @Captor private lateinit var cameraCallback: ArgumentCaptor<CameraManager.AvailabilityCallback>
     @Mock private lateinit var cameraManager: CameraManager
+
     @Before
     fun setup() {
         overrideResource(R.string.config_protectedCameraId, LOGICAL_CAMERA_ID_OUTER_FRONT)
@@ -86,7 +88,7 @@ class FacePropertyRepositoryImplTest : SysuiTestCase() {
         overrideResource(R.string.config_protectedInnerCameraId, LOGICAL_CAMERA_ID_INNER_FRONT)
         overrideResource(
             R.string.config_protectedInnerPhysicalCameraId,
-            PHYSICAL_CAMERA_ID_INNER_FRONT
+            PHYSICAL_CAMERA_ID_INNER_FRONT,
         )
         overrideResource(R.array.config_face_auth_props, OUTER_FRONT_SENSOR_LOCATION)
         overrideResource(R.array.config_inner_face_auth_props, INNER_FRONT_SENSOR_LOCATION)
@@ -258,7 +260,7 @@ class FacePropertyRepositoryImplTest : SysuiTestCase() {
                     CameraInfo(
                         "0",
                         PHYSICAL_CAMERA_ID_OUTER_FRONT,
-                        Point(OUTER_FRONT_SENSOR_LOCATION[0], OUTER_FRONT_SENSOR_LOCATION[1])
+                        Point(OUTER_FRONT_SENSOR_LOCATION[0], OUTER_FRONT_SENSOR_LOCATION[1]),
                     )
                 )
         }

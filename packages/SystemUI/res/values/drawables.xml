@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
+<?xml version="1.0" encoding="utf-8"?><!--
   ~ Copyright (C) 2022 The Android Open Source Project
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,4 +22,16 @@
     <drawable name="unblock_hw_sensor_all">@drawable/ic_videocam_off</drawable>
     <!-- Second drawable shown for the sensor unblock dialog when blocked by the hardware privacy toggle -->
     <drawable name="unblock_hw_sensor_all_second">@drawable/ic_mic_off</drawable>
+
+    <drawable name="qs_bluetooth_icon_disconnected">@drawable/vd_bluetooth</drawable>
+
+    <drawable name="ic_global_actions_bugreport">@*android:drawable/ic_lock_bugreport_round
+    </drawable>
+    <drawable name="ic_global_actions_emergency">@drawable/ic_emergency_star_round</drawable>
+    <drawable name="ic_global_actions_lockdown">@*android:drawable/ic_lock_lockdown_round</drawable>
+    <drawable name="ic_global_actions_logout">@*android:drawable/ic_logout_round</drawable>
+    <drawable name="ic_global_actions_power_off">@*android:drawable/ic_lock_power_off_round
+    </drawable>
+    <drawable name="ic_global_actions_restart">@*android:drawable/ic_restart_round</drawable>
+    <drawable name="ic_global_actions_screenshot">@*android:drawable/ic_screenshot_round</drawable>
 </resources>

@@ -30,6 +30,7 @@ import android.graphics.fonts.FontFamily;
 import android.graphics.fonts.SystemFonts;
 import android.graphics.text.PositionedGlyphs;
 import android.graphics.text.TextRunShaper;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.text.FontConfig;
@@ -1064,5 +1065,43 @@ public class TypefaceSystemFallbackTest {
         assertEquals(GLYPH_2EM_WIDTH, paint.measureText("a"), 0.0f);
         assertEquals(GLYPH_2EM_WIDTH, paint.measureText("b"), 0.0f);
         assertEquals(GLYPH_2EM_WIDTH, paint.measureText("c"), 0.0f);
+    }
+
+    @RequiresFlagsEnabled(Flags.FLAG_CUSTOM_FALLBACK_FOR_CUSTOMIZATION)
+    @Test
+    public void testBuildSystemFallback_fallbackAttribute() {
+        final String xml = "<?xml version='1.0' encoding='UTF-8'?>"
+                + "<familyset>"
+                + "  <family name='sans-serif'>"
+                + "    <font weight='400' style='normal'>fallback_capital.ttf</font>"
+                + "  </family>"
+                + "</familyset>";
+        final String oemXml = "<?xml version='1.0' encoding='UTF-8'?>"
+                + "<fonts-modification version='1'>"
+                + "  <family-list customizationType='new-named-family' name='custom-family' "
+                + "     fallback='fallback-family'>"
+                + "    <family>"
+                + "      <font weight='400' style='normal'>a3em.ttf</font>"
+                + "    </family>"
+                + "  </family-list>"
+                + "  <family-list customizationType='new-named-family' name='fallback-family'>"
+                + "    <family>"
+                + "      <font weight='400' style='normal'>fallback.ttf</font>"
+                + "    </family>"
+                + "  </family-list>"
+                + "</fonts-modification>";
+        final ArrayMap<String, Typeface> fontMap = new ArrayMap<>();
+        final ArrayMap<String, FontFamily[]> fallbackMap = new ArrayMap<>();
+
+        buildSystemFallback(xml, oemXml, fontMap, fallbackMap);
+
+        final Paint paint = new Paint();
+
+        Typeface testTypeface = fontMap.get("custom-family");
+        assertNotNull(testTypeface);
+        paint.setTypeface(testTypeface);
+        assertEquals("a3em.ttf", getFontName(paint, "a"));
+        assertEquals("fallback.ttf", getFontName(paint, "x"));
+        assertEquals("fallback_capital.ttf", getFontName(paint, "A"));
     }
 }

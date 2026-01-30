@@ -20,7 +20,7 @@ import android.os.IBinder;
 /**
  * Callback from app into system process to indicate that processing of
  * a direct-call alarm has completed.
- * {@hide}
+ * @hide
  */
 interface IAlarmCompleteListener {
     void alarmComplete(in IBinder who);

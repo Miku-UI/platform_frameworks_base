@@ -28,8 +28,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import android.graphics.Rect;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
@@ -42,7 +40,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.accessibility.utils.TestUtils;
 import com.android.systemui.navigationbar.NavigationModeController;
@@ -113,18 +110,6 @@ public class MenuItemAccessibilityDelegateTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
-    public void getAccessibilityActionList_matchSize_withoutEdit() {
-        final AccessibilityNodeInfoCompat info =
-                new AccessibilityNodeInfoCompat(new AccessibilityNodeInfo());
-
-        mMenuItemAccessibilityDelegate.onInitializeAccessibilityNodeInfo(mStubListView, info);
-
-        assertThat(info.getActionList().size()).isEqualTo(6);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void getAccessibilityActionList_matchSize() {
         final AccessibilityNodeInfoCompat info =
                 new AccessibilityNodeInfoCompat(new AccessibilityNodeInfo());

@@ -62,12 +62,16 @@ public final class PolicyState<V> implements Parcelable {
     private PolicyState(Parcel source) {
         int size = source.readInt();
         for (int i = 0; i < size; i++) {
-            EnforcingAdmin admin = source.readParcelable(EnforcingAdmin.class.getClassLoader());
-            PolicyValue<V> policyValue = source.readParcelable(PolicyValue.class.getClassLoader());
+            EnforcingAdmin admin = source.readParcelable(EnforcingAdmin.class.getClassLoader(),
+                    EnforcingAdmin.class);
+            PolicyValue<V> policyValue = source.readParcelable(PolicyValue.class.getClassLoader(),
+                    PolicyValue.class);
             mPoliciesSetByAdmins.put(admin, policyValue);
         }
-        mCurrentResolvedPolicy = source.readParcelable(PolicyValue.class.getClassLoader());
-        mResolutionMechanism = source.readParcelable(ResolutionMechanism.class.getClassLoader());
+        mCurrentResolvedPolicy = source.readParcelable(PolicyValue.class.getClassLoader(),
+                PolicyValue.class);
+        mResolutionMechanism = source.readParcelable(ResolutionMechanism.class.getClassLoader(),
+                ResolutionMechanism.class);
     }
 
     /**

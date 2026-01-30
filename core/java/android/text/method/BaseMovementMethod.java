@@ -369,12 +369,12 @@ public class BaseMovementMethod implements MovementMethod {
         return false;
     }
 
-    /** {@hide} */
+    /** @hide */
     protected boolean leftWord(TextView widget, Spannable buffer) {
         return false;
     }
 
-    /** {@hide} */
+    /** @hide */
     protected boolean rightWord(TextView widget, Spannable buffer) {
         return false;
     }

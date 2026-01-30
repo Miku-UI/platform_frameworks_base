@@ -18,16 +18,23 @@ package com.android.systemui.statusbar.chips.sharetoapp.ui.view
 
 import android.content.DialogInterface
 import android.content.applicationContext
+import android.content.packageManager
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.view.View
 import android.view.Window
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.mediaprojection.data.model.MediaProjectionState
 import com.android.systemui.mediaprojection.data.repository.fakeMediaProjectionRepository
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.chips.mediaprojection.domain.interactor.mediaProjectionChipInteractor
+import com.android.systemui.statusbar.chips.mediaprojection.domain.model.ProjectionChipModel
 import com.android.systemui.statusbar.chips.mediaprojection.ui.view.endMediaProjectionDialogHelper
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.testKosmos
@@ -38,6 +45,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -51,9 +59,72 @@ class EndGenericShareToAppDialogDelegateTest : SysuiTestCase() {
     private lateinit var underTest: EndGenericShareToAppDialogDelegate
 
     @Test
+    @EnableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
+    fun message_unknownHostPackage_appNameFlagOn_isGeneric() {
+        createAndSetDelegate()
+        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
+            .thenThrow(PackageManager.NameNotFoundException())
+
+        underTest.beforeCreate(sysuiDialog, /* savedInstanceState= */ null)
+
+        verify(sysuiDialog)
+            .setMessage(context.getString(R.string.share_to_app_stop_dialog_message_generic))
+    }
+
+    @Test
+    @DisableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
+    fun message_unknownHostPackage_appNameFlagOff_isGeneric() {
+        createAndSetDelegate()
+        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
+            .thenThrow(PackageManager.NameNotFoundException())
+
+        underTest.beforeCreate(sysuiDialog, /* savedInstanceState= */ null)
+
+        verify(sysuiDialog)
+            .setMessage(context.getString(R.string.share_to_app_stop_dialog_message_generic))
+    }
+
+    @Test
+    @EnableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
+    fun message_hasHostPackage_appNameFlagOn_hasAppName() {
+        createAndSetDelegate()
+        val hostAppInfo = mock<ApplicationInfo>()
+        whenever(hostAppInfo.loadLabel(kosmos.packageManager)).thenReturn("Host Package")
+        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
+            .thenReturn(hostAppInfo)
+
+        underTest.beforeCreate(sysuiDialog, /* savedInstanceState= */ null)
+
+        verify(sysuiDialog)
+            .setMessage(
+                context.getString(
+                    R.string.share_to_app_stop_dialog_message_with_host_app,
+                    "Host Package",
+                )
+            )
+    }
+
+    @Test
+    @DisableFlags(FLAG_STATUS_BAR_SHARE_DIALOG_WITH_APP_NAME)
+    fun message_hasHostPackage_appNameFlagOff_isGeneric() {
+        createAndSetDelegate()
+        val hostAppInfo = mock<ApplicationInfo>()
+        whenever(hostAppInfo.loadLabel(kosmos.packageManager)).thenReturn("Host Package")
+        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
+            .thenReturn(hostAppInfo)
+
+        underTest.beforeCreate(sysuiDialog, /* savedInstanceState= */ null)
+
+        verify(sysuiDialog)
+            .setMessage(context.getString(R.string.share_to_app_stop_dialog_message_generic))
+    }
+
+    @Test
     fun positiveButton_clickStopsRecording() =
         kosmos.testScope.runTest {
             createAndSetDelegate()
+            whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
+                .thenThrow(PackageManager.NameNotFoundException())
             underTest.beforeCreate(sysuiDialog, /* savedInstanceState= */ null)
 
             assertThat(kosmos.fakeMediaProjectionRepository.stopProjectingInvoked).isFalse()
@@ -70,6 +141,8 @@ class EndGenericShareToAppDialogDelegateTest : SysuiTestCase() {
     @EnableFlags(com.android.media.projection.flags.Flags.FLAG_SHOW_STOP_DIALOG_POST_CALL_END)
     fun accessibilityDataSensitive_flagEnabled_appliesSetting() {
         createAndSetDelegate()
+        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
+            .thenThrow(PackageManager.NameNotFoundException())
 
         val window = mock<Window>()
         val decorView = mock<View>()
@@ -85,6 +158,8 @@ class EndGenericShareToAppDialogDelegateTest : SysuiTestCase() {
     @DisableFlags(com.android.media.projection.flags.Flags.FLAG_SHOW_STOP_DIALOG_POST_CALL_END)
     fun accessibilityDataSensitive_flagDisabled_doesNotApplySetting() {
         createAndSetDelegate()
+        whenever(kosmos.packageManager.getApplicationInfo(eq(HOST_PACKAGE), any<Int>()))
+            .thenThrow(PackageManager.NameNotFoundException())
 
         val window = mock<Window>()
         val decorView = mock<View>()
@@ -97,11 +172,22 @@ class EndGenericShareToAppDialogDelegateTest : SysuiTestCase() {
     }
 
     private fun createAndSetDelegate() {
+        val projectionChipState =
+            ProjectionChipModel.Projecting(
+                ProjectionChipModel.Receiver.ShareToApp,
+                ProjectionChipModel.ContentType.Audio,
+                MediaProjectionState.Projecting.NoScreen(hostPackage = HOST_PACKAGE),
+            )
         underTest =
             EndGenericShareToAppDialogDelegate(
                 kosmos.endMediaProjectionDialogHelper,
                 kosmos.applicationContext,
                 stopAction = kosmos.mediaProjectionChipInteractor::stopProjecting,
+                state = projectionChipState,
             )
+    }
+
+    companion object {
+        private const val HOST_PACKAGE = "fake.host.package"
     }
 }

@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Okudlala kule thebhulethi"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Ungathola le foni ngokuthi Thola Idivayisi Yami noma ivaliwe"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Ungathola le thebhulethi ngokuthi Thola Idivayisi Yami noma ivaliwe"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Ungakwazi ukuthola le foni ngokusebenzisa okuthi Thola Inkundla ngisho noma ivaliwe"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Ungakwazi ukuthola le thebhulethi usebenzisa okuthi Thola Inkundla ngisho noma ivaliwe"</string>
 </resources>

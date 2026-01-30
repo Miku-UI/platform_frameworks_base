@@ -28,12 +28,12 @@ import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.desktopmode.CaptionState
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger
 import com.android.wm.shell.desktopmode.DesktopModeUiEventLogger.DesktopUiEventEnum
-import com.android.wm.shell.desktopmode.WindowDecorCaptionHandleRepository
+import com.android.wm.shell.desktopmode.WindowDecorCaptionRepository
 import com.android.wm.shell.desktopmode.education.AppHandleEducationController.Companion.APP_HANDLE_EDUCATION_DELAY_MILLIS
 import com.android.wm.shell.desktopmode.education.AppHandleEducationController.Companion.TOOLTIP_VISIBLE_DURATION_MILLIS
 import com.android.wm.shell.desktopmode.education.data.AppHandleEducationDatastoreRepository
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus
 import com.android.wm.shell.shared.desktopmode.DesktopModeTransitionSource
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.util.createAppHandleState
 import com.android.wm.shell.util.createAppHeaderState
 import com.android.wm.shell.util.createWindowingEducationProto
@@ -72,32 +72,31 @@ class AppHandleEducationControllerTest : ShellTestCase() {
     @JvmField
     @Rule
     val extendedMockitoRule =
-        ExtendedMockitoRule.Builder(this)
-            .mockStatic(DesktopModeStatus::class.java)
-            .mockStatic(SystemProperties::class.java)
-            .build()!!
+        ExtendedMockitoRule.Builder(this).mockStatic(SystemProperties::class.java).build()!!
 
     private lateinit var educationController: AppHandleEducationController
     private lateinit var testableContext: TestableContext
     private val testScope = TestScope()
     private val testDataStoreFlow = MutableStateFlow(createWindowingEducationProto())
-    private val testCaptionStateFlow = MutableStateFlow<CaptionState>(CaptionState.NoCaption)
+    private val testCaptionStateFlow = MutableStateFlow<CaptionState>(CaptionState.NoCaption())
     private val educationConfigCaptor =
         argumentCaptor<DesktopWindowingEducationTooltipController.TooltipEducationViewConfig>()
     @Mock private lateinit var mockEducationFilter: AppHandleEducationFilter
     @Mock private lateinit var mockDataStoreRepository: AppHandleEducationDatastoreRepository
-    @Mock private lateinit var mockCaptionHandleRepository: WindowDecorCaptionHandleRepository
+    @Mock private lateinit var mockCaptionHandleRepository: WindowDecorCaptionRepository
     @Mock private lateinit var mockTooltipController: DesktopWindowingEducationTooltipController
     @Mock private lateinit var mockDesktopModeUiEventLogger: DesktopModeUiEventLogger
+    private lateinit var desktopState: FakeDesktopState
 
     @Before
     fun setUp() {
+        desktopState = FakeDesktopState()
+        desktopState.canEnterDesktopMode = true
         MockitoAnnotations.initMocks(this)
         Dispatchers.setMain(StandardTestDispatcher(testScope.testScheduler))
         testableContext = TestableContext(mContext)
         whenever(mockDataStoreRepository.dataStoreFlow).thenReturn(testDataStoreFlow)
         whenever(mockCaptionHandleRepository.captionStateFlow).thenReturn(testCaptionStateFlow)
-        whenever(DesktopModeStatus.canEnterDesktopMode(any())).thenReturn(true)
 
         educationController =
             AppHandleEducationController(
@@ -109,6 +108,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
                 testScope.backgroundScope,
                 Dispatchers.Main,
                 mockDesktopModeUiEventLogger,
+                desktopState,
             )
     }
 
@@ -189,7 +189,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
             setShouldShowDesktopModeEducation(true)
 
             // Simulate no caption state notification
-            testCaptionStateFlow.value = CaptionState.NoCaption
+            testCaptionStateFlow.value = CaptionState.NoCaption()
             waitForBufferDelay()
 
             verify(mockTooltipController, times(1)).hideEducationTooltip()
@@ -204,7 +204,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
             setShouldShowDesktopModeEducation(true)
 
             // Simulate no caption state notification
-            testCaptionStateFlow.value = CaptionState.NoCaption
+            testCaptionStateFlow.value = CaptionState.NoCaption()
             waitForBufferDelay()
 
             verify(mockTooltipController, never()).hideEducationTooltip()
@@ -219,7 +219,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
             setShouldShowDesktopModeEducation(true)
 
             // Simulate no caption state notification
-            testCaptionStateFlow.value = CaptionState.NoCaption
+            testCaptionStateFlow.value = CaptionState.NoCaption()
             waitForBufferDelay()
 
             verify(mockTooltipController, never()).hideEducationTooltip()
@@ -234,7 +234,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
             setShouldShowDesktopModeEducation(true)
 
             // Simulate no caption state notification
-            testCaptionStateFlow.value = CaptionState.NoCaption
+            testCaptionStateFlow.value = CaptionState.NoCaption()
             waitForBufferDelay()
 
             verify(mockTooltipController, never()).hideEducationTooltip()
@@ -246,7 +246,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
         testScope.runTest {
             // App handle visible but education aconfig flag disabled, should not show education
             // tooltip.
-            whenever(DesktopModeStatus.canEnterDesktopMode(any())).thenReturn(false)
+            desktopState.canEnterDesktopMode = false
             setShouldShowDesktopModeEducation(true)
 
             // Simulate app handle visible.
@@ -281,7 +281,7 @@ class AppHandleEducationControllerTest : ShellTestCase() {
             setShouldShowDesktopModeEducation(true)
 
             // Simulate app handle is not visible.
-            testCaptionStateFlow.value = CaptionState.NoCaption
+            testCaptionStateFlow.value = CaptionState.NoCaption()
             // Wait for first tooltip to showup.
             waitForBufferDelay()
 
@@ -438,6 +438,23 @@ class AppHandleEducationControllerTest : ShellTestCase() {
             educationConfigCaptor.lastValue.onEducationClickAction.invoke()
 
             verify(mockOpenHandleMenuCallback, times(1)).invoke(any())
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_APP_HANDLE_EDUCATION,
+        Flags.FLAG_ENABLE_APP_HANDLE_POSITION_REPORTING,
+    )
+    fun init_taskNotFocused_shouldNotCallShowEducationTooltip() =
+        testScope.runTest {
+            setShouldShowDesktopModeEducation(true)
+
+            // Simulate app handle not focused.
+            testCaptionStateFlow.value = createAppHandleState(isFocused = false)
+            // Wait for first tooltip to showup.
+            waitForBufferDelay()
+
+            verify(mockTooltipController, never()).showEducationTooltip(any(), any())
         }
 
     private suspend fun setShouldShowDesktopModeEducation(shouldShowDesktopModeEducation: Boolean) {

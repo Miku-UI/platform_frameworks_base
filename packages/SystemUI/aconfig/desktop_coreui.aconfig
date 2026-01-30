@@ -1,0 +1,10 @@
+package: "com.android.systemui"
+container: "system"
+
+flag {
+   name: "desktop_sizing"
+   namespace: "desktop_coreui"
+   description: "Override sysui resources such as size with the values tuned for desktop."
+   bug: "399966089"
+   is_fixed_read_only: true
+}

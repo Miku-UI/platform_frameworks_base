@@ -35,6 +35,7 @@ import android.util.Slog;
 import com.android.internal.alsa.AlsaCardsParser;
 import com.android.internal.util.dump.DualDumpOutputStream;
 import com.android.server.usb.descriptors.UsbDescriptorParser;
+import com.android.server.usb.flags.Flags;
 
 import libcore.io.IoUtils;
 
@@ -55,8 +56,14 @@ public final class UsbAlsaManager {
 
     // Flag to turn on/off multi-peripheral select mode
     // Set to true to have multi-devices mode
-    private static final boolean IS_MULTI_MODE = SystemProperties.getBoolean(
+    private static final boolean IS_MULTI_DEV_SINGLE_CONN_MODE = SystemProperties.getBoolean(
             "ro.audio.multi_usb_mode", false /*def*/);
+
+    // Set to true to allow multiple usb audio connections simultaneously.
+    // Note `IS_MULTI_DEV_SINGLE_CONN_MODE` allows multiple devices under ONE active connection.
+    // This will override `IS_MULTI_DEV_SINGLE_CONN_MODE` if set to true.
+    private static final boolean IS_MULTI_DEV_MULTI_CONN_MODE = SystemProperties.getBoolean(
+            "ro.audio.same_type_multi_device_allowed", false /*def*/);
 
     private static final String ALSA_DIRECTORY = "/dev/snd/";
 
@@ -294,23 +301,41 @@ public final class UsbAlsaManager {
             UsbDescriptorParser parser) {
         if (DEBUG) {
             Slog.d(TAG, "usbDeviceAdded(): " + usbDevice.getManufacturerName()
-                    + " nm:" + usbDevice.getProductName());
+                    + " nm:" + usbDevice.getProductName()
+                    + " hasAudioInterface: " + parser.hasAudioInterface());
         }
 
-        // Scan the Alsa File Space
-        mCardsParser.scan();
+        AlsaCardsParser.AlsaCardRecord cardRec = null;
 
-        // Find the ALSA spec for this device address
-        AlsaCardsParser.AlsaCardRecord cardRec =
-                mCardsParser.findCardNumFor(deviceAddress);
-        if (cardRec == null) {
-            if (parser.hasAudioInterface()) {
-                Slog.e(TAG, "usbDeviceAdded(): cannot find sound card for " + deviceAddress);
+        if (Flags.waitForAlsaScanResultsIfHasAudioInterface()) {
+            if (!parser.hasAudioInterface()) {
+                return;
             }
-            return;
-        }
 
-        waitForAlsaDevice(cardRec.getCardNum(), true /*isAdded*/);
+            waitForAlsaDeviceAddress(deviceAddress, true /*isAdded*/);
+
+            // Find the ALSA spec for this device address
+            cardRec = mCardsParser.findCardNumFor(deviceAddress);
+
+            if (cardRec == null) {
+                Slog.e(TAG, "usbDeviceAdded(): cannot find sound card for " + deviceAddress);
+                return;
+            }
+        } else {
+            // Scan the Alsa File Space
+            mCardsParser.scan();
+
+            // Find the ALSA spec for this device address
+            cardRec = mCardsParser.findCardNumFor(deviceAddress);
+            if (cardRec == null) {
+                if (parser.hasAudioInterface()) {
+                    Slog.e(TAG, "usbDeviceAdded(): cannot find sound card for " + deviceAddress);
+                }
+                return;
+            }
+
+            waitForAlsaDevice(cardRec.getCardNum(), true /*isAdded*/);
+        }
 
         // Add it to the devices list
         boolean hasInput = parser.hasInput()
@@ -337,16 +362,22 @@ public final class UsbAlsaManager {
                                       deviceAddress, hasOutput, hasInput,
                                       isInputHeadset, isOutputHeadset, isDock);
             alsaDevice.setDeviceNameAndDescription(
-                    usbDevice.getProductName(), cardRec.getCardDescription());
-            if (IS_MULTI_MODE) {
-                deselectCurrentDevice(alsaDevice.getInputDeviceType());
-                deselectCurrentDevice(alsaDevice.getOutputDeviceType());
-            } else {
-                // At single mode, the first device is the selected device.
-                if (!mAlsaDevices.isEmpty()) {
-                    deselectAlsaDevice(mAlsaDevices.get(0));
+                    cardRec.getCardName(), cardRec.getCardDescription());
+
+            // Deselect the current active audio connection to allow the new
+            // device to kick in, unless multiple connections is supported.
+            if (!IS_MULTI_DEV_MULTI_CONN_MODE) {
+                if (IS_MULTI_DEV_SINGLE_CONN_MODE) {
+                    deselectCurrentDevice(alsaDevice.getInputDeviceType());
+                    deselectCurrentDevice(alsaDevice.getOutputDeviceType());
+                } else {
+                    // At single mode, the first device is the selected device.
+                    if (!mAlsaDevices.isEmpty()) {
+                        deselectAlsaDevice(mAlsaDevices.get(0));
+                    }
                 }
             }
+
             addAlsaDevice(alsaDevice);
             selectAlsaDevice(alsaDevice);
         }
@@ -417,15 +448,23 @@ public final class UsbAlsaManager {
         UsbAlsaDevice alsaDevice = removeAlsaDevice(deviceAddress);
         Slog.i(TAG, "USB Audio Device Removed: " + alsaDevice);
         if (alsaDevice != null) {
-            waitForAlsaDevice(alsaDevice.getCardNum(), false /*isAdded*/);
-            deselectAlsaDevice(alsaDevice);
-            if (IS_MULTI_MODE) {
-                selectDefaultDevice(alsaDevice.getOutputDeviceType());
-                selectDefaultDevice(alsaDevice.getInputDeviceType());
+            if (Flags.waitForAlsaScanResultsIfHasAudioInterface()) {
+                waitForAlsaDeviceAddress(deviceAddress, false /*isAdded*/);
             } else {
-                // If there are any external devices left, select the latest attached one
-                if (!mAlsaDevices.isEmpty() && mAlsaDevices.get(0) != null) {
-                    selectAlsaDevice(mAlsaDevices.get(0));
+                waitForAlsaDevice(alsaDevice.getCardNum(), false /*isAdded*/);
+            }
+            deselectAlsaDevice(alsaDevice);
+            // Update the "single" active audio connection when multiple connections
+            // is not supported, with the new default device.
+            if (!IS_MULTI_DEV_MULTI_CONN_MODE) {
+                if (IS_MULTI_DEV_SINGLE_CONN_MODE) {
+                    selectDefaultDevice(alsaDevice.getOutputDeviceType());
+                    selectDefaultDevice(alsaDevice.getInputDeviceType());
+                } else {
+                    // If there are any external devices left, select the latest attached one
+                    if (!mAlsaDevices.isEmpty() && mAlsaDevices.get(0) != null) {
+                        selectAlsaDevice(mAlsaDevices.get(0));
+                    }
                 }
             }
         }
@@ -463,6 +502,50 @@ public final class UsbAlsaManager {
             mPeripheralMidiDevice = null;
         }
    }
+
+    private boolean waitForAlsaDeviceAddress(String addr, boolean isAdded) {
+        if (DEBUG) {
+            Slog.e(TAG, "waitForAlsaDeviceAddress(" + addr + ")");
+        }
+
+        // This value was empirically determined.
+        final int kWaitTimeMs = 2500;
+
+        synchronized (mAlsaCards) {
+            final long timeoutMs = SystemClock.elapsedRealtime() + kWaitTimeMs;
+
+            do {
+                mCardsParser.scan();
+
+                AlsaCardsParser.AlsaCardRecord cardRec =
+                        mCardsParser.findCardNumFor(addr);
+
+                if (isAdded && (cardRec != null)) {
+                    if (mAlsaCards.contains(cardRec.getCardNum())) {
+                        return true;
+                    }
+                }
+
+                // Consider removed if can't be probed by the parser as
+                // it's not as time sensitive for the removal case.
+                if (!isAdded && (cardRec == null)) {
+                    return true;
+                }
+
+                long waitTimeMs = timeoutMs - SystemClock.elapsedRealtime();
+                if (waitTimeMs <= 0) {
+                    Slog.e(TAG, "waitForAlsaDeviceAddress(" + addr + ") timeout");
+                    return false;
+                }
+
+                try {
+                    mAlsaCards.wait(waitTimeMs);
+                } catch (InterruptedException e) {
+                    Slog.d(TAG, "usb: InterruptedException while waiting for ALSA file.");
+                }
+            } while (true);
+        }
+    }
 
     private boolean waitForAlsaDevice(int card, boolean isAdded) {
         if (DEBUG) {

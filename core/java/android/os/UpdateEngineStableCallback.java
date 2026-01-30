@@ -24,7 +24,7 @@ package android.os;
  * system/update_engine/stable/android/os/IUpdateEngineStable.aidl and
  * system/update_engine/stable/android/os/IUpdateEngineStableCallback.aidl.
  *
- * <p>{@hide}
+ * @hide
  */
 public abstract class UpdateEngineStableCallback {
 

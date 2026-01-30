@@ -25,7 +25,7 @@ import java.util.StringJoiner;
 
 /**
  * An event logged per interface and that aggregates WakeupEvents for that interface.
- * {@hide}
+ * @hide
  */
 public class WakeupStats {
 

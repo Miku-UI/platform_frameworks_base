@@ -23,7 +23,6 @@ import android.app.WallpaperManager
 import android.content.res.Resources
 import android.graphics.Matrix
 import android.graphics.Rect
-import android.hardware.devicestate.DeviceStateManager
 import android.os.DeadObjectException
 import android.os.Handler
 import android.os.PowerManager
@@ -40,7 +39,6 @@ import androidx.core.math.MathUtils
 import com.android.app.animation.Interpolators
 import com.android.internal.R
 import com.android.keyguard.KeyguardViewController
-import com.android.systemui.Flags.fasterUnlockTransition
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.flags.FeatureFlags
@@ -56,7 +54,6 @@ import com.android.systemui.statusbar.SysuiStatusBarStateController
 import com.android.systemui.statusbar.phone.BiometricUnlockController
 import com.android.systemui.statusbar.phone.BiometricUnlockController.MODE_WAKE_AND_UNLOCK_FROM_DREAM
 import com.android.systemui.statusbar.policy.KeyguardStateController
-import com.android.systemui.util.Utils.isDeviceFoldable
 import dagger.Lazy
 import javax.inject.Inject
 
@@ -103,15 +100,14 @@ const val DISMISS_AMOUNT_EXIT_KEYGUARD_THRESHOLD = 0.3f
  * from a tap on the unlock icon, or from the bouncer. This is not relevant if the lockscreen is
  * swiped away via a touch gesture, or when it's flinging expanded/collapsed after a swipe.
  */
-const val LEGACY_UNLOCK_ANIMATION_DURATION_MS = 200L
 const val UNLOCK_ANIMATION_DURATION_MS = 300L
 
 /**
  * If there are two different wallpapers on home and lock screen, duration and delay of the lock
  * wallpaper fade out.
  */
-const val LOCK_WALLPAPER_FADE_OUT_DURATION = 150L
-const val LOCK_WALLPAPER_FADE_OUT_START_DELAY = 150L
+const val LOCK_WALLPAPER_FADE_OUT_DURATION_MS = 150L
+const val LOCK_WALLPAPER_FADE_OUT_START_DELAY_MS = 150L
 
 /**
  * How long the in-window launcher icon animation takes. This is used if the launcher is underneath
@@ -127,8 +123,7 @@ const val LAUNCHER_ICONS_ANIMATION_DURATION_MS = 633L
  * If there are two different wallpapers on home and lock screen, this is also the duration and
  * delay of the home wallpaper fade in.
  */
-const val LEGACY_CANNED_UNLOCK_START_DELAY = 100L
-const val CANNED_UNLOCK_START_DELAY = 25L
+const val CANNED_UNLOCK_START_DELAY_MS = 25L
 
 /**
  * Duration for the alpha animation on the surface behind. This plays to fade in the surface during
@@ -140,7 +135,6 @@ const val SURFACE_BEHIND_SWIPE_FADE_DURATION_MS = 175L
  * Start delay for the surface behind animation, used so that the lockscreen can get out of the way
  * before the surface begins appearing.
  */
-const val LEGACY_UNLOCK_ANIMATION_SURFACE_BEHIND_START_DELAY_MS = 75L
 const val UNLOCK_ANIMATION_SURFACE_BEHIND_START_DELAY_MS = 67L
 
 /**
@@ -170,7 +164,6 @@ constructor(
     private val notificationShadeWindowController: NotificationShadeWindowController,
     private val powerManager: PowerManager,
     private val wallpaperManager: WallpaperManager,
-    private val deviceStateManager: DeviceStateManager,
 ) : KeyguardStateController.Callback, ISysuiUnlockAnimationController.Stub() {
 
     interface KeyguardUnlockAnimationListener {
@@ -379,11 +372,8 @@ constructor(
         }
 
         with(wallpaperCannedUnlockAnimator) {
-            duration =
-                if (fasterUnlockTransition()) UNLOCK_ANIMATION_DURATION_MS
-                else LAUNCHER_ICONS_ANIMATION_DURATION_MS
-            interpolator =
-                if (fasterUnlockTransition()) Interpolators.LINEAR else Interpolators.ALPHA_OUT
+            duration = UNLOCK_ANIMATION_DURATION_MS
+            interpolator = Interpolators.LINEAR
             addUpdateListener { valueAnimator: ValueAnimator ->
                 setWallpaperAppearAmount(
                     valueAnimator.animatedValue as Float,
@@ -410,23 +400,21 @@ constructor(
             )
         }
 
-        if (fasterUnlockTransition()) {
-            with(wallpaperFadeOutUnlockAnimator) {
-                duration = LOCK_WALLPAPER_FADE_OUT_DURATION
-                startDelay = LOCK_WALLPAPER_FADE_OUT_START_DELAY
-                interpolator = Interpolators.LINEAR
-                addUpdateListener { valueAnimator: ValueAnimator ->
-                    setWallpaperAppearAmount(
-                        valueAnimator.animatedValue as Float,
-                        closingWallpaperTargets,
-                    )
-                }
+        with(wallpaperFadeOutUnlockAnimator) {
+            duration = LOCK_WALLPAPER_FADE_OUT_DURATION_MS
+            startDelay = LOCK_WALLPAPER_FADE_OUT_START_DELAY_MS
+            interpolator = Interpolators.LINEAR
+            addUpdateListener { valueAnimator: ValueAnimator ->
+                setWallpaperAppearAmount(
+                    valueAnimator.animatedValue as Float,
+                    closingWallpaperTargets,
+                )
             }
         }
 
         with(surfaceBehindEntryAnimator) {
-            duration = unlockAnimationDurationMs()
-            startDelay = surfaceBehindFadeOutStartDelayMs()
+            duration = UNLOCK_ANIMATION_DURATION_MS
+            startDelay = UNLOCK_ANIMATION_SURFACE_BEHIND_START_DELAY_MS
             interpolator = Interpolators.TOUCH_RESPONSE
             addUpdateListener { valueAnimator: ValueAnimator ->
                 surfaceBehindAlpha = valueAnimator.animatedValue as Float
@@ -491,7 +479,6 @@ constructor(
                 "${!notificationShadeWindowController.isLaunchingActivity}",
         )
         Log.wtf(TAG, "  launcherUnlockController != null: ${launcherUnlockController != null}")
-        Log.wtf(TAG, "  !isFoldable(context): ${!isDeviceFoldable(resources, deviceStateManager)}")
     }
 
     /**
@@ -649,7 +636,7 @@ constructor(
                 try {
                     launcherUnlockController?.playUnlockAnimation(
                         true,
-                        unlockAnimationDurationMs() + cannedUnlockStartDelayMs(),
+                        UNLOCK_ANIMATION_DURATION_MS + CANNED_UNLOCK_START_DELAY_MS,
                         0, /* startDelay */
                     )
                 } catch (e: DeadObjectException) {
@@ -688,7 +675,7 @@ constructor(
             it.onUnlockAnimationStarted(
                 playingCannedUnlockAnimation /* playingCannedAnimation */,
                 isWakeAndUnlockNotFromDream /* isWakeAndUnlockNotFromDream */,
-                cannedUnlockStartDelayMs() /* unlockStartDelay */,
+                CANNED_UNLOCK_START_DELAY_MS /* unlockStartDelay */,
                 LAUNCHER_ICONS_ANIMATION_DURATION_MS, /* unlockAnimationDuration */
             )
         }
@@ -762,7 +749,7 @@ constructor(
             launcherUnlockController?.playUnlockAnimation(
                 true /* unlocked */,
                 LAUNCHER_ICONS_ANIMATION_DURATION_MS /* duration */,
-                cannedUnlockStartDelayMs(), /* startDelay */
+                CANNED_UNLOCK_START_DELAY_MS, /* startDelay */
             )
         } catch (e: DeadObjectException) {
             // Hello! If you are here investigating a bug where Launcher is blank (no icons)
@@ -792,7 +779,7 @@ constructor(
         // As soon as the shade starts animating out of the way, start the canned unlock animation,
         // which will finish keyguard exit when it completes. The in-window animations in the
         // Launcher window will end on their own.
-        if (fasterUnlockTransition() && openingWallpaperTargets?.isNotEmpty() == true) {
+        if (openingWallpaperTargets?.isNotEmpty() == true) {
             fadeOutWallpaper()
         }
 
@@ -819,7 +806,7 @@ constructor(
                         .exitKeyguardAndFinishSurfaceBehindRemoteAnimation(false /* cancelled */)
                 }
             },
-            cannedUnlockStartDelayMs(),
+            CANNED_UNLOCK_START_DELAY_MS,
         )
     }
 
@@ -1037,22 +1024,19 @@ constructor(
         }
 
         if (wallpapers) {
-            if (!fasterUnlockTransition()) setWallpaperAppearAmount(amount, openingWallpaperTargets)
-            else {
-                // Use the amount to compute the fadeInAmount and fadeOutAmount of the home and lock
-                // screen wallpapers to manually imitate the canned unlock animation.
-                val total = (UNLOCK_ANIMATION_DURATION_MS + CANNED_UNLOCK_START_DELAY).toFloat()
-                val fadeInStart = CANNED_UNLOCK_START_DELAY / total
-                val fadeInAmount = maxOf(0f, (amount - fadeInStart) / (1f - fadeInStart))
+            // Use the amount to compute the fadeInAmount and fadeOutAmount of the home and lock
+            // screen wallpapers to manually imitate the canned unlock animation.
+            val total = (UNLOCK_ANIMATION_DURATION_MS + CANNED_UNLOCK_START_DELAY_MS).toFloat()
+            val fadeInStart = CANNED_UNLOCK_START_DELAY_MS / total
+            val fadeInAmount = maxOf(0f, (amount - fadeInStart) / (1f - fadeInStart))
 
-                val fadeOutStart = LOCK_WALLPAPER_FADE_OUT_START_DELAY / total
-                val fadeOutEnd = fadeOutStart + LOCK_WALLPAPER_FADE_OUT_DURATION / total
-                val fadeOutAmount =
-                    ((amount - fadeOutStart) / (fadeOutEnd - fadeOutStart)).coerceIn(0f, 1f)
+            val fadeOutStart = LOCK_WALLPAPER_FADE_OUT_START_DELAY_MS / total
+            val fadeOutEnd = fadeOutStart + LOCK_WALLPAPER_FADE_OUT_DURATION_MS / total
+            val fadeOutAmount =
+                ((amount - fadeOutStart) / (fadeOutEnd - fadeOutStart)).coerceIn(0f, 1f)
 
-                setWallpaperAppearAmount(fadeInAmount, openingWallpaperTargets)
-                setWallpaperAppearAmount(1 - fadeOutAmount, closingWallpaperTargets)
-            }
+            setWallpaperAppearAmount(fadeInAmount, openingWallpaperTargets)
+            setWallpaperAppearAmount(1 - fadeOutAmount, closingWallpaperTargets)
         }
     }
 
@@ -1117,12 +1101,12 @@ constructor(
         surfaceBehindAlphaAnimator.cancel()
         surfaceBehindEntryAnimator.cancel()
         wallpaperCannedUnlockAnimator.cancel()
-        if (fasterUnlockTransition()) wallpaperFadeOutUnlockAnimator.cancel()
+        wallpaperFadeOutUnlockAnimator.cancel()
 
         // That target is no longer valid since the animation finished, null it out.
         surfaceBehindRemoteAnimationTargets = null
         openingWallpaperTargets = null
-        if (fasterUnlockTransition()) closingWallpaperTargets = null
+        closingWallpaperTargets = null
 
         playingCannedUnlockAnimation = false
         dismissAmountThresholdsReached = false
@@ -1284,32 +1268,5 @@ constructor(
         return launcherActivityClass?.let {
             ActivityManagerWrapper.getInstance().runningTask?.topActivity?.className?.equals(it)
         } ?: false
-    }
-
-    /**
-     * Temporary method for b/298186160 TODO (b/298186160) replace references with the constant
-     * itself when flag is removed
-     */
-    private fun cannedUnlockStartDelayMs(): Long {
-        return if (fasterUnlockTransition()) CANNED_UNLOCK_START_DELAY
-        else LEGACY_CANNED_UNLOCK_START_DELAY
-    }
-
-    /**
-     * Temporary method for b/298186160 TODO (b/298186160) replace references with the constant
-     * itself when flag is removed
-     */
-    private fun unlockAnimationDurationMs(): Long {
-        return if (fasterUnlockTransition()) UNLOCK_ANIMATION_DURATION_MS
-        else LEGACY_UNLOCK_ANIMATION_DURATION_MS
-    }
-
-    /**
-     * Temporary method for b/298186160 TODO (b/298186160) replace references with the constant
-     * itself when flag is removed
-     */
-    private fun surfaceBehindFadeOutStartDelayMs(): Long {
-        return if (fasterUnlockTransition()) UNLOCK_ANIMATION_SURFACE_BEHIND_START_DELAY_MS
-        else LEGACY_UNLOCK_ANIMATION_SURFACE_BEHIND_START_DELAY_MS
     }
 }

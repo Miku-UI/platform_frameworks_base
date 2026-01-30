@@ -26,7 +26,6 @@ import static android.content.pm.PackageManager.MATCH_KNOWN_PACKAGES;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.os.UserHandle.USER_ALL;
 
-import static com.android.server.pm.InstructionSets.getAppDexInstructionSets;
 import static com.android.server.pm.PackageManagerService.DEBUG_COMPRESSION;
 import static com.android.server.pm.PackageManagerService.DEBUG_REMOVE;
 import static com.android.server.pm.PackageManagerService.EMPTY_INT_ARRAY;
@@ -38,8 +37,8 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SpecialUsers.CanBeALL;
 import android.annotation.UserIdInt;
+import android.app.AppOpsManager;
 import android.app.ApplicationExitInfo;
-import android.app.ApplicationPackageManager;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.Flags;
@@ -265,7 +264,9 @@ final class DeletePackageHelper {
                     mPm.updateInstantAppInstallerLocked(packageName);
                 }
             }
-            ApplicationPackageManager.invalidateGetPackagesForUidCache();
+            PackageManagerService.invalidateGetPackagesForUidCache(
+                    PackageMetrics.INVALIDATION_REASON_DELETE_PACKAGE);
+            AppOpsManager.invalidateCheckPackageCache();
         }
 
         if (res) {
@@ -285,8 +286,8 @@ final class DeletePackageHelper {
         // other processes clean up before deleting resources.
         try (PackageManagerTracedLock installLock = mPm.mInstallLock.acquireLock()) {
             if (info.mArgs != null) {
-                mRemovePackageHelper.cleanUpResources(info.mArgs.getPackageName(),
-                        info.mArgs.getCodeFile(), info.mArgs.getInstructionSets());
+                mRemovePackageHelper.cleanUpResources(
+                        info.mArgs.getPackageName(), info.mArgs.getCodeFile());
             }
 
             boolean reEnableStub = false;
@@ -345,9 +346,7 @@ final class DeletePackageHelper {
         }
 
         if (res && isInstallerPackage) {
-            final PackageInstallerService packageInstallerService =
-                    mPm.mInjector.getPackageInstallerService();
-            packageInstallerService.onInstallerPackageDeleted(uninstalledPs.getAppId(), removeUser);
+            mPm.onInstallerPackageDeleted(uninstalledPs.getAppId(), removeUser);
         }
 
         return res ? DELETE_SUCCEEDED : PackageManager.DELETE_FAILED_INTERNAL_ERROR;
@@ -582,9 +581,7 @@ final class DeletePackageHelper {
 
         // Delete application code and resources only for parent packages
         if (deleteCodeAndResources) {
-            outInfo.mArgs = new CleanUpArgs(ps.getName(),
-                    ps.getPathString(), getAppDexInstructionSets(
-                            ps.getPrimaryCpuAbiLegacy(), ps.getSecondaryCpuAbiLegacy()));
+            outInfo.mArgs = new CleanUpArgs(ps.getName(), ps.getPathString());
             if (DEBUG_SD_INSTALL) Slog.i(TAG, "args=" + outInfo.mArgs);
         }
     }

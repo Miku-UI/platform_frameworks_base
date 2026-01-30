@@ -71,7 +71,16 @@ static sk_sp<SkColorFilter> createLinearEffectColorFilter(const shaders::LinearE
         effectBuilder.uniform(uniform.name.c_str()).set(uniform.value.data(), uniform.value.size());
     }
 
-    return effectBuilder.makeColorFilter();
+    auto filter = effectBuilder.makeColorFilter();
+    if (filter) {
+        // HWUI does not use the fakeDataspace, so there is no need to override the output space
+        // of the working color space filter.
+        sk_sp<SkColorSpace> inputSpace =
+                DataSpaceToColorSpace(static_cast<android_dataspace>(linearEffect.inputDataspace))
+                        ->makeLinearGamma();
+        filter = filter->makeWithWorkingColorSpace(inputSpace);
+    }
+    return filter;
 }
 
 static ui::Dataspace extractTransfer(ui::Dataspace dataspace) {

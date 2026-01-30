@@ -180,6 +180,14 @@ public class ImsRegistrationImplBase {
      */
     public static final int REASON_VOPS_NOT_SUPPORTED = 7;
 
+    /**
+     * The default throttling time in seconds to wait before attempting IMS registration after
+     * an IMS deregistration event. This value is used by default when a more specific throttling
+     * duration is not otherwise specified.
+     * @hide
+     */
+    public static final int DEFAULT_THROTTLE_SEC = 0;
+
     private Executor mExecutor;
 
     /**
@@ -613,6 +621,64 @@ public class ImsRegistrationImplBase {
         broadcastToCallbacksLocked((c) -> {
             try {
                 c.onDeregistered(reasonInfo, suggestedAction, imsRadioTech);
+            } catch (RemoteException e) {
+                Log.w(LOG_TAG, e + "onDeregistered() - Skipping callback.");
+            }
+        }, isEmergency);
+    }
+
+    /**
+     * Notify the framework that the device is disconnected from the IMS network.
+     * <p>
+     * Note: Prior to calling {@link #onDeregistered(ImsReasonInfo,int)}, you should ensure that any
+     * changes to {@link android.telephony.ims.feature.ImsFeature} capability availability is sent
+     * to the framework.  For example,
+     * {@link android.telephony.ims.feature.MmTelFeature.MmTelCapabilities#CAPABILITY_TYPE_VIDEO}
+     * and
+     * {@link android.telephony.ims.feature.MmTelFeature.MmTelCapabilities#CAPABILITY_TYPE_VOICE}
+     * may be set to unavailable to ensure the framework knows these services are no longer
+     * available due to de-registration.  If you do not report capability changes impacted by
+     * de-registration, the framework will not know which features are no longer available as a
+     * result.
+     *
+     * @param info the {@link ImsReasonInfo} associated with why registration was disconnected.
+     * @param suggestedAction the expected behavior of radio protocol stack.
+     * @param attributes The attributes associated with the IMS registration
+     * @param throttlingTimeSec The registration throttling time in seconds.
+     *                          This value must be 0 or greater. A value of 0 indicates that no
+     *                          specific throttling time is being requested.
+     * @throws IllegalArgumentException if throttlingTimeSec is a negative value.
+     * @hide This API is not part of the Android public SDK API
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SUPPORT_THROTTLE_TIME_FOR_DEREGISTRATION)
+    public final void onDeregistered(@Nullable ImsReasonInfo info,
+            @RegistrationManager.SuggestedAction int suggestedAction,
+            @NonNull ImsRegistrationAttributes attributes,
+            @IntRange(from = 0) int throttlingTimeSec) {
+        if (throttlingTimeSec < 0) {
+            throw new IllegalArgumentException("throttlingTimeSec cannot be negative: "
+                    + throttlingTimeSec);
+        }
+
+        boolean isEmergency = isEmergency(attributes);
+        int imsRadioTech = attributes.getRegistrationTechnology();
+        if (isEmergency) {
+            updateToDisconnectedEmergencyState(info, suggestedAction, imsRadioTech);
+        } else {
+            updateToDisconnectedState(info, suggestedAction, imsRadioTech);
+        }
+        // ImsReasonInfo should never be null.
+        final ImsReasonInfo reasonInfo = (info != null) ? info : new ImsReasonInfo();
+
+        broadcastToCallbacksLocked((c) -> {
+            try {
+                if (isEmergency) {
+                    c.onDeregistered(reasonInfo, suggestedAction, imsRadioTech);
+                } else {
+                    c.onDeregisteredWithTime(
+                            reasonInfo, suggestedAction, imsRadioTech, throttlingTimeSec);
+                }
             } catch (RemoteException e) {
                 Log.w(LOG_TAG, e + "onDeregistered() - Skipping callback.");
             }

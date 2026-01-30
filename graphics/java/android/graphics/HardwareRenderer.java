@@ -33,6 +33,9 @@ import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.Trace;
+import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.util.Log;
 import android.util.TimeUtils;
 import android.view.Display;
@@ -45,6 +48,8 @@ import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.SurfaceHolder;
 import android.view.animation.AnimationUtils;
+
+import com.android.internal.util.RateLimitingCache;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -79,7 +84,8 @@ import sun.misc.Cleaner;
  * Failure to do so will cause the render thread to stall on that surface, blocking all
  * HardwareRenderer instances.</p>
  */
-@android.ravenwood.annotation.RavenwoodKeepWholeClass
+@RavenwoodKeepPartialClass(comment =
+        "Hardware graphics not supported. Keeping minimal surface enough for Choreographer")
 public class HardwareRenderer {
     private static final String LOG_TAG = "HardwareRenderer";
 
@@ -176,8 +182,9 @@ public class HardwareRenderer {
     /**
      * Name of the file that holds the shaders cache.
      */
-    private static final String CACHE_PATH_SHADERS = "com.android.opengl.shaders_cache";
-    private static final String CACHE_PATH_SKIASHADERS = "com.android.skia.shaders_cache";
+    private static final String CACHE_PATH_OPENGL_SHADERS = "com.android.opengl.shaders_cache";
+    private static final String CACHE_PATH_SKIA_SHADERS = "com.android.skia.shaders_cache";
+    private static final String CACHE_PATH_SKIA_PIPELINES = "com.android.skia.pipelines_cache";
 
     private static int sDensityDpi = 0;
 
@@ -188,6 +195,67 @@ public class HardwareRenderer {
     private int mForceDark = ForceDarkType.NONE;
     private @ActivityInfo.ColorMode int mColorMode = ActivityInfo.COLOR_MODE_DEFAULT;
     private float mDesiredSdrHdrRatio = 1f;
+
+    private final NotifyRendererRateLimiter mNotifyExpensiveFrameRateLimiter =
+            createNotifyRendererRateLimiter("notifyExpensiveFrame", this::notifyExpensiveFrame);
+
+    private final NotifyRendererRateLimiter mNotifyGpuLoadUpRateLimiter =
+            createNotifyRendererRateLimiter("notifyGpuLoadUp", this::notifyGpuLoadUp);
+
+    /**
+     * A class for rate limiting of notifying renderer IPC invocation (e.g. notifyExpensiveFrame)
+     * that allows once per period to appropriate control for bursts of calls.
+     */
+    private static class NotifyRendererRateLimiter extends RateLimitingCache<Void> {
+        private static final long DEFAULT_NOTIFY_PERIOD_MILLIS = 100;
+
+        private final @NonNull RateLimitingCache.ValueFetcher<Void> mNotifyRendererRunnable;
+        private final @NonNull Runnable mRunnable;
+
+        /** Counts when the rate limiter permits to notify the renderer */
+        private int mNotifyCount;
+        private @Nullable String mNotifyReason;
+
+        NotifyRendererRateLimiter(String reason, @NonNull Runnable runnable,
+                long periodMillis) {
+            super(periodMillis);
+
+            mRunnable = runnable;
+            mNotifyRendererRunnable = () -> {
+                final String notifyReason = getNotifyReason();
+                final boolean logForReason = notifyReason != null && !notifyReason.isEmpty();
+                try {
+                    final String traceReason = logForReason ? reason + ":" + notifyReason : reason;
+                    Trace.traceBegin(Trace.TRACE_TAG_VIEW, traceReason);
+                    mRunnable.run();
+                } finally {
+                    Trace.traceEnd(Trace.TRACE_TAG_VIEW);
+                }
+                incrementNotifyCount();
+                return null;
+            };
+        }
+
+        private int notifyIfAllow(String reason) {
+            mNotifyReason = reason;
+            get(mNotifyRendererRunnable);
+            return mNotifyCount;
+        }
+
+        private void incrementNotifyCount() {
+            mNotifyCount++;
+        }
+
+        private @Nullable String getNotifyReason() {
+            return mNotifyReason;
+        }
+    }
+
+    private NotifyRendererRateLimiter createNotifyRendererRateLimiter(String reason,
+            Runnable runnable) {
+        return new NotifyRendererRateLimiter(reason, runnable,
+                NotifyRendererRateLimiter.DEFAULT_NOTIFY_PERIOD_MILLIS);
+    }
 
     /**
      * Creates a new instance of a HardwareRenderer. The HardwareRenderer will default
@@ -1053,10 +1121,35 @@ public class HardwareRenderer {
     }
 
     /**
+     * Notifies the hardware renderer from the UI thread about upcoming expensive frames with
+     * rate limiting control.
+     *
+     * @hide
+     */
+    public int notifyExpensiveFrameWithRateLimit(String reason) {
+        return mNotifyExpensiveFrameRateLimiter.notifyIfAllow(reason);
+    }
+
+    /**
+     * Notifies the HardwareRenderer that upcoming frames need to increase the
+     * GPU work load for speedup the rendering.
+     *
+     * @hide
+     */
+    public int notifyRendererForGpuLoadUp(String reason) {
+        return mNotifyGpuLoadUpRateLimiter.notifyIfAllow(reason);
+    }
+
+    private void notifyGpuLoadUp() {
+        nNotifyGpuLoadUp(mNativeProxy);
+    }
+
+    /**
      * b/68769804, b/66945974: For low FPS experiments.
      *
      * @hide
      */
+    @RavenwoodIgnore
     public static void setFPSDivisor(int divisor) {
         nSetRtAnimationsEnabled(divisor <= 1);
     }
@@ -1204,8 +1297,10 @@ public class HardwareRenderer {
      * @hide
      */
     public static void setupDiskCache(File cacheDir) {
-        setupShadersDiskCache(new File(cacheDir, CACHE_PATH_SHADERS).getAbsolutePath(),
-                new File(cacheDir, CACHE_PATH_SKIASHADERS).getAbsolutePath());
+        setupPersistentGraphicsCache(
+            new File(cacheDir, CACHE_PATH_OPENGL_SHADERS).getAbsolutePath(),
+            new File(cacheDir, CACHE_PATH_SKIA_SHADERS).getAbsolutePath(),
+            new File(cacheDir, CACHE_PATH_SKIA_PIPELINES).getAbsolutePath());
     }
 
     /** @hide */
@@ -1477,9 +1572,11 @@ public class HardwareRenderer {
      * its first frame adds directly to user-visible app launch latency.
      *
      * Should only be called after GraphicsEnvironment.chooseDriver().
+     *
+     * @return the tid of the RenderThread.
      * @hide
      */
-    public static native void preload();
+    public static native int preload();
 
     /**
      * Initialize the Buffer Allocator singleton
@@ -1499,7 +1596,8 @@ public class HardwareRenderer {
     protected static native boolean isWebViewOverlaysEnabled();
 
     /** @hide */
-    protected static native void setupShadersDiskCache(String cacheFile, String skiaCacheFile);
+    protected static native void setupPersistentGraphicsCache(
+            String openglShaderCachePath, String skiaShaderCachePath, String skiaPipelineCachePath);
 
     private static native void nRotateProcessStatsBuffer();
 
@@ -1651,4 +1749,6 @@ public class HardwareRenderer {
     private static native void nNotifyCallbackPending(long nativeProxy);
 
     private static native void nNotifyExpensiveFrame(long nativeProxy);
+
+    private static native void nNotifyGpuLoadUp(long nativeProxy);
 }

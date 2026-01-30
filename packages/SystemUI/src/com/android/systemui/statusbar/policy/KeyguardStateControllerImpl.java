@@ -38,6 +38,8 @@ import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.keyguard.logging.KeyguardUpdateMonitorLogger;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.dagger.qualifiers.Main;
+import com.android.systemui.display.flags.DisplayComponentRepositoryFlag;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.keyguard.KeyguardUnlockAnimationController;
@@ -50,6 +52,7 @@ import dagger.Lazy;
 import java.io.PrintWriter;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 
 import javax.inject.Inject;
@@ -128,13 +131,19 @@ public class KeyguardStateControllerImpl implements KeyguardStateController {
             DumpManager dumpManager,
             Lazy<KeyguardInteractor> keyguardInteractor,
             FeatureFlags featureFlags,
-            SelectedUserInteractor userInteractor) {
+            SelectedUserInteractor userInteractor,
+            @Main Executor mainExecutor) {
         mContext = context;
         mLogger = logger;
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
         mLockPatternUtils = lockPatternUtils;
         mUserInteractor = userInteractor;
-        mKeyguardUpdateMonitor.registerCallback(mKeyguardUpdateMonitorCallback);
+        if (DisplayComponentRepositoryFlag.INSTANCE.isEagerInitializationEnabled()) {
+            mainExecutor.execute(
+                    () -> mKeyguardUpdateMonitor.registerCallback(mKeyguardUpdateMonitorCallback));
+        } else {
+            mKeyguardUpdateMonitor.registerCallback(mKeyguardUpdateMonitorCallback);
+        }
         mUnlockAnimationControllerLazy = keyguardUnlockAnimationController;
         mFeatureFlags = featureFlags;
         mKeyguardInteractorLazy = keyguardInteractor;

@@ -34,4 +34,7 @@
 
     <!-- Radius of switch bar -->
     <dimen name="settingslib_switch_bar_radius">28dp</dimen>
+
+    <!-- Radius of entry background -->
+    <dimen name="settingslib_entry_bg_radius">20dp</dimen>
 </resources>

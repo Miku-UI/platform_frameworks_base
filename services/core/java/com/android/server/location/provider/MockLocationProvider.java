@@ -34,7 +34,7 @@ import java.util.Set;
 /**
  * A mock location provider used by LocationManagerService to implement test providers.
  *
- * {@hide}
+ * @hide
  */
 public class MockLocationProvider extends AbstractLocationProvider {
 

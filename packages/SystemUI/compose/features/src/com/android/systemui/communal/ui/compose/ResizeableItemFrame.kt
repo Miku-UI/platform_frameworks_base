@@ -48,11 +48,14 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastIsFinite
 import androidx.compose.ui.zIndex
 import com.android.compose.modifiers.thenIf
+import com.android.internal.R.dimen.system_app_widget_background_radius
+import com.android.systemui.Flags.hubEditModeTransition
 import com.android.systemui.communal.ui.viewmodel.DragHandle
 import com.android.systemui.communal.ui.viewmodel.ResizeInfo
 import com.android.systemui.communal.ui.viewmodel.ResizeableItemFrameViewModel
@@ -120,6 +123,7 @@ private fun UpdateGridLayoutInfo(
 private fun BoxScope.DragHandle(
     handle: DragHandle,
     dragState: AnchoredDraggableState<Int>,
+    radius: Dp,
     outlinePadding: Dp,
     brush: Brush,
     alpha: () -> Float,
@@ -141,7 +145,7 @@ private fun BoxScope.DragHandle(
             if (dragState.anchors.size > 1) {
                 drawCircle(
                     brush = brush,
-                    radius = outlinePadding.toPx(),
+                    radius = radius.toPx(),
                     center = Offset(size.width / 2, size.height / 2),
                     alpha = alpha(),
                 )
@@ -183,10 +187,13 @@ fun ResizableItemFrame(
     verticalArrangement: Arrangement.Vertical,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    outlinePadding: Dp = 8.dp,
+    dragHandleRadius: Dp = 8.dp,
+    outlinePadding: Dp = if (hubEditModeTransition()) 0.dp else 8.dp,
     outlineColor: Color = MaterialTheme.colorScheme.primary,
-    cornerRadius: Dp = 37.dp,
-    strokeWidth: Dp = 3.dp,
+    cornerRadius: Dp =
+        if (hubEditModeTransition()) dimensionResource(system_app_widget_background_radius)
+        else 37.dp,
+    strokeWidth: Dp = if (hubEditModeTransition()) 4.dp else 3.dp,
     minHeightPx: Int = 0,
     maxHeightPx: Int = Int.MAX_VALUE,
     resizeMultiple: Int = 1,
@@ -197,7 +204,9 @@ fun ResizableItemFrame(
 ) {
     val brush = SolidColor(outlineColor)
     val onResizeUpdated by rememberUpdatedState(onResize)
-    val dragHandleHeight = verticalArrangement.spacing - outlinePadding * 2
+    val dragHandleHeight =
+        if (hubEditModeTransition()) dragHandleRadius * 2
+        else verticalArrangement.spacing - outlinePadding * 2
     val isDragging by
         remember(viewModel) {
             derivedStateOf {
@@ -217,6 +226,7 @@ fun ResizableItemFrame(
             DragHandle(
                 handle = DragHandle.TOP,
                 dragState = viewModel.topDragState,
+                radius = dragHandleRadius,
                 outlinePadding = outlinePadding,
                 brush = brush,
                 alpha = alpha,
@@ -226,6 +236,7 @@ fun ResizableItemFrame(
             DragHandle(
                 handle = DragHandle.BOTTOM,
                 dragState = viewModel.bottomDragState,
+                radius = dragHandleRadius,
                 outlinePadding = outlinePadding,
                 brush = brush,
                 alpha = alpha,

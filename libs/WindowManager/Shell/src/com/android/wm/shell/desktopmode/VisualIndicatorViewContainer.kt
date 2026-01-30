@@ -34,9 +34,9 @@ import android.view.WindowManager
 import android.view.WindowlessWindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
+import android.window.DesktopExperienceFlags
 import androidx.core.animation.doOnEnd
 import com.android.internal.annotations.VisibleForTesting
-import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayLayout
@@ -92,7 +92,7 @@ constructor(
             val metrics = resources.displayMetrics
             val screenWidth: Int
             val screenHeight: Int
-            if (Flags.enableBugFixesForSecondaryDisplay()) {
+            if (DesktopExperienceFlags.ENABLE_BUG_FIXES_FOR_SECONDARY_DISPLAY.isTrue) {
                 screenWidth = layout.width()
                 screenHeight = layout.height()
             } else {
@@ -569,7 +569,7 @@ constructor(
 
                     IndicatorType.TO_DESKTOP_INDICATOR -> {
                         val adjustmentPercentage =
-                            (1f - DesktopTasksController.DESKTOP_MODE_INITIAL_BOUNDS_SCALE)
+                            (1f - DESKTOP_MODE_INITIAL_BOUNDS_SCALE)
                         return Rect(
                             (adjustmentPercentage * desktopStableBounds.width() / 2).toInt(),
                             (adjustmentPercentage * desktopStableBounds.height() / 2).toInt(),

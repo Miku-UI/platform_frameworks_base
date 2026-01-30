@@ -20,5 +20,6 @@ data class LogGroup(
     val name: String,
     val enabled: Boolean,
     val textEnabled: Boolean,
-    val tag: String
+    val tag: String,
+    val id: Int,
 )

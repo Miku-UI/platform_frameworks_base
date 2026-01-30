@@ -22,25 +22,25 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.google.common.truth.Truth.assertThat
+import kotlin.test.Test
 import org.junit.Before
 import org.junit.runner.RunWith
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import kotlin.test.Test
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class ViewTransitionRegistryTest : SysuiTestCase() {
 
     private lateinit var view: View
-    private lateinit var underTest: ViewTransitionRegistry
+    private lateinit var underTest: ViewTransitionRegistryImpl
 
     @Before
     fun setup() {
         view = FrameLayout(mContext)
-        underTest = ViewTransitionRegistry()
+        underTest = ViewTransitionRegistryImpl()
     }
 
     @Test
@@ -102,9 +102,10 @@ class ViewTransitionRegistryTest : SysuiTestCase() {
         assertThat(underTest.getViewToken(view)).isEqualTo(token)
 
         // mock view's detach event
-        val caller = argumentCaptor<View.OnAttachStateChangeListener>()
-            .apply { verify(view).addOnAttachStateChangeListener(capture()) }
-            .firstValue
+        val caller =
+            argumentCaptor<View.OnAttachStateChangeListener>()
+                .apply { verify(view).addOnAttachStateChangeListener(capture()) }
+                .firstValue
 
         // register 3 times
         underTest.register(view)

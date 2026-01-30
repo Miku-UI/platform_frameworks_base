@@ -96,6 +96,7 @@ constructor(
     val userRequestedBouncerWhenAlreadyAuthenticated: Flow<Int> =
         repository.userRequestedBouncerWhenAlreadyAuthenticated.filterNotNull()
     val isShowing: StateFlow<Boolean> = repository.primaryBouncerShow
+    val isShowingSoon: StateFlow<Boolean> = repository.primaryBouncerShowingSoon
     val startingToHide: Flow<Unit> = repository.primaryBouncerStartingToHide.filter { it }.map {}
     val isBackButtonEnabled: Flow<Boolean> = repository.isBackButtonEnabled.filterNotNull()
     val showMessage: Flow<BouncerShowMessageModel> = repository.showMessage.filterNotNull()
@@ -104,7 +105,7 @@ constructor(
     val resourceUpdateRequests: Flow<Boolean> = repository.resourceUpdateRequests.filter { it }
     val keyguardPosition: Flow<Float> = repository.keyguardPosition.filterNotNull()
     val panelExpansionAmount: Flow<Float> = repository.panelExpansionAmount
-    val lastShownSecurityMode: Flow<KeyguardSecurityModel.SecurityMode> =
+    val lastShownSecurityMode: StateFlow<KeyguardSecurityModel.SecurityMode> =
         repository.lastShownSecurityMode
 
     /** 0f = bouncer fully hidden. 1f = bouncer fully visible. */
@@ -125,7 +126,7 @@ constructor(
 
     init {
         applicationScope.launch {
-            trustRepository.isCurrentUserActiveUnlockRunning.collect {
+            trustRepository.isCurrentUserActiveUnlockEnabled.collect {
                 currentUserActiveUnlockRunning = it
             }
         }

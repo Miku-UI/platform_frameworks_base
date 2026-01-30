@@ -1,0 +1,147 @@
+-include ../proguard_kotlin.flags
+
+# These are nessecary to keep keyguard clock plugins from crashing at runtime
+-keep class androidx.compose.runtime.ProvidableCompositionLocal { *; }
+
+-keep class androidx.compose.runtime.Updater {
+    *** constructor-impl(...);
+}
+
+-keep class androidx.compose.runtime.Composer {
+    *** shouldExecute(...);
+    *** startRestartGroup(...);
+    *** endRestartGroup(...);
+    *** startReplaceGroup(...);
+    *** endReplaceGroup(...);
+    *** getApplier(...);
+    *** consume(...);
+    *** getCurrentCompositionLocalMap(...);
+    *** Companion;
+}
+
+-keep class androidx.compose.runtime.ScopeUpdateScope {
+    *** updateScope(...);
+}
+
+-keep class androidx.compose.foundation.layout.SizeKt {
+    *** heightIn*$default(...);
+    *** fillMaxSize*$default(...);
+    *** fillMaxWidth*$default(...);
+    *** fillMaxHeight*$default(...);
+    *** wrapContentSize*$default(...);
+    *** wrapContentWidth*$default(...);
+    *** wrapContentHeight*$default(...);
+}
+
+-keep class androidx.compose.foundation.layout.SpacerKt {
+    *** Spacer(...);
+}
+
+-keep class androidx.compose.runtime.Composer$Companion {
+    *** getEmpty(...);
+}
+
+-keep class androidx.compose.ui.res.PrimitiveResources_androidKt {
+    *** dimensionResource(...);
+}
+
+-keep class androidx.compose.ui.platform.CompositionLocalsKt {
+    *** getLocalDensity(...);
+}
+
+-keep class androidx.compose.ui.Modifier {
+    *** Companion;
+}
+
+-keep class androidx.compose.ui.unit.Dp {
+    *** constructor-impl(...);
+}
+
+-keep class androidx.compose.foundation.layout.PaddingKt {
+    *** padding*(...);
+}
+
+-keep class androidx.compose.foundation.layout.Arrangement {
+    *** INSTANCE;
+    *** getTop(...);
+    *** getBottom(...);
+    *** getStart(...);
+    *** getEnd(...);
+    *** getSpaceBetween(...);
+    *** getCenter(...);
+}
+
+-keep class androidx.compose.ui.Alignment {
+    *** Companion;
+}
+
+-keep class androidx.compose.ui.Alignment$Companion {
+    *** INSTANCE;
+    *** getTop(...);
+    *** getBottom(...);
+    *** getStart(...);
+    *** getEnd(...);
+    *** getCenterHorizontally(...);
+}
+
+-keep class androidx.compose.foundation.layout.ColumnKt {
+    *** columnMeasurePolicy(...);
+}
+
+-keep class androidx.compose.foundation.layout.RowKt {
+    *** rowMeasurePolicy(...);
+}
+
+-keep class androidx.compose.foundation.layout.ColumnScope {
+    *** weight*$default(...);
+}
+
+-keep class androidx.compose.foundation.layout.RowScope {
+    *** weight*$default(...);
+}
+
+-keep class androidx.compose.runtime.ComposablesKt {
+    *** getCurrentCompositeKeyHashCode(...);
+}
+
+-keep class androidx.compose.ui.node.ComposeUiNode$Companion {
+    *** getConstructor(...);
+    *** getSetMeasurePolicy(...);
+    *** getSetResolvedCompositionLocals(...);
+    *** getSetCompositeKeyHash(...);
+    *** getSetModifier(...);
+}
+
+-keep class com.android.compose.animation.scene.ElementKey {
+    *** *init*(...);
+}
+
+-keep class com.android.compose.animation.scene.MovableElementKey {
+    *** *init*(...);
+}
+
+-keep class com.android.compose.animation.scene.MovableElementContentScope { *; }
+
+-keep class com.android.compose.animation.scene.ElementScope { *; }
+
+-keep class androidx.compose.runtime.internal.ComposableLambdaKt {
+    *** rememberComposableLambda(...);
+    *** composableLambdaInstance(...);
+}
+
+-keep class androidx.compose.foundation.layout.IntrinsicKt {
+    *** height(...);
+    *** width(...);
+}
+
+-keep class androidx.compose.ui.layout.MeasureScope {
+    *** layout*$default(...);
+}
+
+-keep class androidx.compose.ui.layout.Placeable$PlacementScope {
+    *** placeRelative*$default(...);
+}
+
+-keep class androidx.compose.ui.unit.Constraints {
+    *** copy-*$default(...);
+}

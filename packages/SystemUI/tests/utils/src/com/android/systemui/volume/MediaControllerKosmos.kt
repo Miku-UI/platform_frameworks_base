@@ -53,8 +53,8 @@ var Kosmos.localMediaController: MediaController by
         val localSessionToken: MediaSession.Token = MediaSession.Token(0, mock {})
         mock {
             whenever(packageName).thenReturn(LOCAL_PACKAGE)
-            whenever(playbackInfo).thenReturn(localPlaybackInfo)
-            whenever(playbackState).thenReturn(localPlaybackStateBuilder.build())
+            whenever(playbackInfo).then { localPlaybackInfo }
+            whenever(playbackState).then { localPlaybackStateBuilder.build() }
             whenever(sessionToken).thenReturn(localSessionToken)
         }
     }
@@ -83,8 +83,8 @@ var Kosmos.remoteMediaController: MediaController by
         val remoteSessionToken: MediaSession.Token = MediaSession.Token(0, mock {})
         mock {
             whenever(packageName).thenReturn(REMOTE_PACKAGE)
-            whenever(playbackInfo).thenReturn(remotePlaybackInfo)
-            whenever(playbackState).thenReturn(remotePlaybackStateBuilder.build())
+            whenever(playbackInfo).then { remotePlaybackInfo }
+            whenever(playbackState).then { remotePlaybackStateBuilder.build() }
             whenever(sessionToken).thenReturn(remoteSessionToken)
         }
     }

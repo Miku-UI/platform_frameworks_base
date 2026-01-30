@@ -41,7 +41,7 @@ import com.android.systemui.unfold.util.NaturalRotationUnfoldProgressProvider
 import com.android.systemui.unfold.util.ScopedUnfoldTransitionProgressProvider
 import com.android.systemui.unfold.util.UnfoldOnlyProgressProvider
 import com.android.systemui.unfold.util.UnfoldTransitionATracePrefix
-import com.android.systemui.util.time.SystemClockImpl
+import com.android.systemui.util.time.SystemClock
 import com.android.wm.shell.unfold.ShellUnfoldProgressProvider
 import dagger.Binds
 import dagger.Lazy
@@ -60,7 +60,7 @@ import javax.inject.Singleton
         [
             UnfoldSharedModule::class,
             SystemUnfoldSharedModule::class,
-            UnfoldTransitionModule.Bindings::class
+            UnfoldTransitionModule.Bindings::class,
         ]
 )
 class UnfoldTransitionModule {
@@ -78,7 +78,7 @@ class UnfoldTransitionModule {
     fun providesFoldStateListener(
         deviceStateManager: DeviceStateManager,
         @Application context: Context,
-        @Main executor: Executor
+        @Main executor: Executor,
     ): DeviceStateManager.FoldStateListener {
         val listener = DeviceStateManager.FoldStateListener(context)
         deviceStateManager.registerCallback(executor, listener)
@@ -90,10 +90,11 @@ class UnfoldTransitionModule {
     @Singleton
     fun providesFoldStateLoggingProvider(
         config: UnfoldTransitionConfig,
-        foldStateProvider: Lazy<FoldStateProvider>
+        foldStateProvider: Lazy<FoldStateProvider>,
+        systemClock: SystemClock,
     ): Optional<FoldStateLoggingProvider> =
         if (config.isHingeAngleEnabled) {
-            Optional.of(FoldStateLoggingProviderImpl(foldStateProvider.get(), SystemClockImpl()))
+            Optional.of(FoldStateLoggingProviderImpl(foldStateProvider.get(), systemClock))
         } else {
             Optional.empty()
         }
@@ -112,7 +113,7 @@ class UnfoldTransitionModule {
     fun provideNaturalRotationProgressProvider(
         context: Context,
         @UnfoldMain rotationChangeProvider: RotationChangeProvider,
-        unfoldTransitionProgressProvider: Optional<UnfoldTransitionProgressProvider>
+        unfoldTransitionProgressProvider: Optional<UnfoldTransitionProgressProvider>,
     ): Optional<NaturalRotationUnfoldProgressProvider> =
         unfoldTransitionProgressProvider.map { provider ->
             NaturalRotationUnfoldProgressProvider(context, rotationChangeProvider, provider)
@@ -145,7 +146,7 @@ class UnfoldTransitionModule {
         foldProvider: FoldProvider,
         provider: Provider<Optional<UnfoldTransitionProgressProvider>>,
         @Named(UNFOLD_ONLY_PROVIDER)
-        unfoldOnlyProvider: Provider<Optional<UnfoldTransitionProgressProvider>>
+        unfoldOnlyProvider: Provider<Optional<UnfoldTransitionProgressProvider>>,
     ): ShellUnfoldProgressProvider {
         val resultingProvider =
             if (config.isEnabled) {
@@ -162,8 +163,7 @@ class UnfoldTransitionModule {
 
         return resultingProvider?.get()?.orElse(null)?.let { unfoldProgressProvider ->
             UnfoldProgressProvider(unfoldProgressProvider, foldProvider)
-        }
-            ?: ShellUnfoldProgressProvider.NO_PROVIDER
+        } ?: ShellUnfoldProgressProvider.NO_PROVIDER
     }
 
     @Provides

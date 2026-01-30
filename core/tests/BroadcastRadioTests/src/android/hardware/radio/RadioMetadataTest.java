@@ -152,7 +152,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void putStringArray_withIllegalKey_throwsException() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         String invalidStringArrayKey = RadioMetadata.METADATA_KEY_HD_STATION_NAME_LONG;
 
         IllegalArgumentException thrown = assertThrows(IllegalArgumentException.class, () -> {
@@ -166,8 +165,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void putStringArray_withNullKey_throwsException() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-
         NullPointerException thrown = assertThrows(NullPointerException.class, () -> {
             mBuilder.putStringArray(/* key= */ null, UFIDS_VALUE);
         });
@@ -178,8 +175,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void putStringArray_withNullString_throwsException() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-
         NullPointerException thrown = assertThrows(NullPointerException.class, () -> {
             mBuilder.putStringArray(RadioMetadata.METADATA_KEY_UFIDS, /* value= */ null);
         });
@@ -353,7 +348,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void getStringArray_withKeyInMetadata() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         String key = RadioMetadata.METADATA_KEY_UFIDS;
         RadioMetadata metadata = mBuilder.putStringArray(key, UFIDS_VALUE).build();
 
@@ -363,7 +357,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void getStringArray_withKeyNotInMetadata() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         String key = RadioMetadata.METADATA_KEY_UFIDS;
         RadioMetadata metadata = mBuilder.build();
 
@@ -377,7 +370,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void getStringArray_withNullKey() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         RadioMetadata metadata = mBuilder.build();
 
         NullPointerException thrown = assertThrows(NullPointerException.class, () -> {
@@ -390,7 +382,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void getStringArray_withInvalidKey() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         String invalidClockKey = RadioMetadata.METADATA_KEY_HD_STATION_NAME_LONG;
         RadioMetadata metadata = mBuilder.build();
 
@@ -471,7 +462,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void equals_forMetadataWithDifferentContents_returnsFalse() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         RadioMetadata metadata1 = mBuilder
                 .putStringArray(RadioMetadata.METADATA_KEY_UFIDS, UFIDS_VALUE)
                 .build();
@@ -516,7 +506,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void writeToParcel_forRadioMetadata_withStringArrayTypeMetadata() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         RadioMetadata metadataExpected = mBuilder
                 .putInt(RadioMetadata.METADATA_KEY_RDS_PI, INT_KEY_VALUE)
                 .putString(RadioMetadata.METADATA_KEY_ARTIST, ARTIST_KEY_VALUE)
@@ -570,7 +559,6 @@ public final class RadioMetadataTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void toString_containsMetadataValues() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         RadioMetadata metadataExpected = mBuilder
                 .putInt(RadioMetadata.METADATA_KEY_RDS_PI, INT_KEY_VALUE)
                 .putString(RadioMetadata.METADATA_KEY_ARTIST, ARTIST_KEY_VALUE)

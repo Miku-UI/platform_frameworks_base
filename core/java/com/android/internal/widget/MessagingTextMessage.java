@@ -22,6 +22,7 @@ import android.annotation.Nullable;
 import android.annotation.StyleRes;
 import android.app.Notification;
 import android.content.Context;
+import android.graphics.Typeface;
 import android.text.Layout;
 import android.text.PrecomputedText;
 import android.util.AttributeSet;
@@ -82,7 +83,7 @@ public class MessagingTextMessage extends ImageFloatingTextView implements Messa
     }
 
     static MessagingMessage createMessage(IMessagingLayout layout,
-            Notification.MessagingStyle.Message m, boolean usePrecomputedText) {
+            Notification.MessagingStyle.Message m, boolean usePrecomputedText, boolean useItalics) {
         MessagingLinearLayout messagingLinearLayout = layout.getMessagingLinearLayout();
         MessagingTextMessage createdMessage = sInstancePool.acquire();
         if (createdMessage == null) {
@@ -146,6 +147,25 @@ public class MessagingTextMessage extends ImageFloatingTextView implements Messa
     @Override
     public void setColor(int color) {
         setTextColor(color);
+    }
+
+    @Override
+    public void updateViewForSummarization(boolean summarizationShowing) {
+        if (summarizationShowing) {
+            // Summarization text is italic, so we have to add space for it or characters like 'j'
+            // will be cut off
+            setPaddingRelative(mContext.getResources().getDimensionPixelSize(
+                            R.dimen.notification_text_message_start_padding_summarization),
+                    getPaddingTop(), getPaddingEnd(), getPaddingBottom());
+            setTypeface(Typeface.create("variable-body-medium", Typeface.ITALIC));
+            setShadowLayer(25f, 0f, 0f, 0);
+        } else {
+            setPaddingRelative(mContext.getResources().getDimensionPixelSize(
+                    R.dimen.notification_text_message_start_padding),
+                    getPaddingTop(), getPaddingEnd(), getPaddingBottom());
+            setTextAppearance(R.style.TextAppearance_DeviceDefault_Notification);
+            setShadowLayer(0f, 0f, 0f, 0);
+        }
     }
 
     @Override

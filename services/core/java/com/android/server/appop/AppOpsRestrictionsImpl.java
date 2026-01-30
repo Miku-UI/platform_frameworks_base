@@ -190,7 +190,7 @@ public class AppOpsRestrictionsImpl implements AppOpsRestrictions {
 
         // TODO (b/240617242) add overload for checkOp to support attribution tags
         if (isCheckOp) {
-            return !perUserExclusions.includes(packageName);
+            return !perUserExclusions.containsPackage(packageName);
         }
         return !perUserExclusions.contains(packageName, attributionTag);
     }
@@ -429,7 +429,7 @@ public class AppOpsRestrictionsImpl implements AppOpsRestrictions {
                     }
                     boolean hasPackage;
                     if (dumpPackage != null) {
-                        hasPackage = packageNames.includes(dumpPackage);
+                        hasPackage = packageNames.containsPackage(dumpPackage);
                     } else {
                         hasPackage = true;
                     }

@@ -116,6 +116,7 @@ public:
     void notifyFramePending();
     void notifyCallbackPending();
     void notifyExpensiveFrame();
+    void notifyGpuLoadUp();
 
     void dumpProfileInfo(int fd, int dumpFlags);
     // Not exported, only used for testing
@@ -153,7 +154,7 @@ public:
 
     static void disableVsync();
 
-    static void preload();
+    static int preload();
 
     static void setRtAnimationsEnabled(bool enabled);
 

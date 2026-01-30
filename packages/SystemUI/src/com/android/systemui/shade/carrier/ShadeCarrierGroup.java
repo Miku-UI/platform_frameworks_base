@@ -19,11 +19,12 @@ package com.android.systemui.shade.carrier;
 import android.annotation.StyleRes;
 import android.content.Context;
 import android.util.AttributeSet;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.android.systemui.FontSizeUtils;
+import com.android.systemui.Flags;
 import com.android.systemui.res.R;
 
 /**
@@ -32,6 +33,14 @@ import com.android.systemui.res.R;
 public class ShadeCarrierGroup extends LinearLayout {
     public ShadeCarrierGroup(Context context, AttributeSet attrs) {
         super(context, attrs);
+    }
+
+    @Override
+    protected void onFinishInflate() {
+        super.onFinishInflate();
+        if (Flags.fixShadeHeaderWrongIconSize()) {
+            getNoSimTextView().setGravity(Gravity.CENTER_VERTICAL | Gravity.END);
+        }
     }
 
     TextView getNoSimTextView() {
@@ -58,10 +67,11 @@ public class ShadeCarrierGroup extends LinearLayout {
         return findViewById(R.id.shade_carrier_divider2);
     }
 
-    public void updateTextAppearance(@StyleRes int resId) {
-        FontSizeUtils.updateFontSizeFromStyle(getNoSimTextView(), resId);
-        getCarrier1View().updateTextAppearance(resId);
-        getCarrier2View().updateTextAppearance(resId);
-        getCarrier3View().updateTextAppearance(resId);
+    /** Update the text appearance of the text and the tint of the icon */
+    public void updateTextAppearanceAndTint(@StyleRes int resId, int fgColor, int bgColor) {
+        getNoSimTextView().setTextAppearance(resId);
+        getCarrier1View().updateTextAppearanceAndTint(resId, fgColor, bgColor);
+        getCarrier2View().updateTextAppearanceAndTint(resId, fgColor, bgColor);
+        getCarrier3View().updateTextAppearanceAndTint(resId, fgColor, bgColor);
     }
 }

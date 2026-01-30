@@ -18,7 +18,6 @@ package com.android.systemui.media.controls.ui.controller
 
 import com.android.app.tracing.traceSection
 import com.android.systemui.Dumpable
-import com.android.systemui.Flags.mediaControlsUmoInflationInBackground
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.media.controls.ui.view.MediaHostState
@@ -99,13 +98,9 @@ class MediaHostStatesManager @Inject constructor(dumpManager: DumpManager) : Dum
                     }
                 }
             }
-            if (mediaControlsUmoInflationInBackground()) {
-                // Set carousel size if result measurements changed. This avoids setting carousel
-                // size when this method gets called before the addition of media view controllers
-                if (!carouselSizes.contains(location) || changed) {
-                    carouselSizes[location] = result
-                }
-            } else {
+            // Set carousel size if result measurements changed. This avoids setting carousel
+            // size when this method gets called before the addition of media view controllers
+            if (!carouselSizes.contains(location) || changed) {
                 carouselSizes[location] = result
             }
             return carouselSizes[location] ?: result

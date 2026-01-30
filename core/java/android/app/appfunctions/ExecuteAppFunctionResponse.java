@@ -24,7 +24,10 @@ import android.app.appsearch.GenericDocument;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.permission.flags.Flags;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -50,7 +53,15 @@ public final class ExecuteAppFunctionResponse implements Parcelable {
                     Bundle extras =
                             Objects.requireNonNull(
                                     parcel.readBundle(Bundle.class.getClassLoader()));
-                    return new ExecuteAppFunctionResponse(resultWrapper.getValue(), extras);
+                    if (Flags.appFunctionAccessApiEnabled()) {
+                        List<AppFunctionUriGrant> uriGrants =
+                                Objects.requireNonNull(
+                                        parcel.createTypedArrayList(AppFunctionUriGrant.CREATOR));
+                        return new ExecuteAppFunctionResponse(
+                                resultWrapper.getValue(), extras, uriGrants);
+                    } else {
+                        return new ExecuteAppFunctionResponse(resultWrapper.getValue(), extras);
+                    }
                 }
 
                 @Override
@@ -89,6 +100,12 @@ public final class ExecuteAppFunctionResponse implements Parcelable {
     @NonNull private final Bundle mExtras;
 
     /**
+     * The list of {@link AppFunctionUriGrant} to which the caller of this
+     * app function execution should have temporary access granted.
+     */
+    @NonNull private final List<AppFunctionUriGrant> mUriGrants;
+
+    /**
      * @param resultDocument The return value of the executed function.
      */
     public ExecuteAppFunctionResponse(@NonNull GenericDocument resultDocument) {
@@ -103,6 +120,25 @@ public final class ExecuteAppFunctionResponse implements Parcelable {
             @NonNull GenericDocument resultDocument, @NonNull Bundle extras) {
         mResultDocumentWrapper = new GenericDocumentWrapper(Objects.requireNonNull(resultDocument));
         mExtras = Objects.requireNonNull(extras);
+        mUriGrants = Collections.emptyList();
+    }
+
+    /**
+     * @param resultDocument The return value of the executed function.
+     * @param extras The additional metadata for this function execution response.
+     * @param uriGrants The list of {@link AppFunctionUriGrant} to which
+     *     the caller of this app function execution should have temporary access granted. These
+     *     grants typically persist until the device reboots. Uri owner could consider clearing
+     *     data associated with these URIs after a reboot.
+     */
+    @FlaggedApi(Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED)
+    public ExecuteAppFunctionResponse(
+            @NonNull GenericDocument resultDocument,
+            @NonNull Bundle extras,
+            @NonNull List<AppFunctionUriGrant> uriGrants) {
+        mResultDocumentWrapper = new GenericDocumentWrapper(Objects.requireNonNull(resultDocument));
+        mExtras = Objects.requireNonNull(extras);
+        mUriGrants = Objects.requireNonNull(uriGrants);
     }
 
     /**
@@ -136,6 +172,16 @@ public final class ExecuteAppFunctionResponse implements Parcelable {
     }
 
     /**
+     * The list of {@link AppFunctionUriGrant} to which the caller of this
+     * app function execution should have temporary access granted.
+     */
+    @FlaggedApi(Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED)
+    @NonNull
+    public List<AppFunctionUriGrant> getUriGrants() {
+        return mUriGrants;
+    }
+
+    /**
      * Returns the size of the response in bytes.
      *
      * @hide
@@ -153,5 +199,8 @@ public final class ExecuteAppFunctionResponse implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         mResultDocumentWrapper.writeToParcel(dest, flags);
         dest.writeBundle(mExtras);
+        if (Flags.appFunctionAccessApiEnabled()) {
+            dest.writeTypedList(mUriGrants, flags);
+        }
     }
 }

@@ -69,6 +69,7 @@ public abstract class BroadcastQueue {
 
     static void checkState(boolean expression, @NonNull String msg) {
         if (!expression) {
+            Trace.instantForTrack(Trace.TRACE_TAG_ACTIVITY_MANAGER, TAG, msg);
             throw new IllegalStateException(msg);
         }
     }

@@ -50,4 +50,13 @@
     <attr name="preferenceStyle" format="reference" />
     <attr name="switchPreferenceStyle" format="reference" />
 
+    <declare-styleable name="SafetySourcePreference">
+        <attr name="safetySource" format="string" />
+        <attr name="profile" format="enum">
+            <enum name="personal_profile" value="0" />
+            <enum name="work_profile" value="1" />
+            <enum name="private_profile" value="2" />
+        </attr>
+    </declare-styleable>
+
 </resources>

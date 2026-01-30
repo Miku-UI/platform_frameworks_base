@@ -125,6 +125,7 @@ import com.android.internal.content.PackageMonitor;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto;
 import com.android.internal.util.LatencyTracker;
+import com.android.internal.widget.DismissableView;
 import com.android.internal.widget.ResolverDrawerLayout;
 import com.android.internal.widget.ViewPager;
 
@@ -158,6 +159,7 @@ public class ResolverActivity extends Activity implements
     private Button mOnceButton;
     protected View mProfileView;
     private int mLastSelected = AbsListView.INVALID_POSITION;
+    @Nullable private View mLastSelectedItemView;
     private boolean mResolvingHome = false;
     private String mProfileSwitchMessage;
     private int mLayoutId;
@@ -169,6 +171,7 @@ public class ResolverActivity extends Activity implements
     private int mDefaultTitleResId;
     // Expected to be true if this object is ResolverActivity or is ResolverWrapperActivity.
     private final boolean mIsIntentPicker;
+    private View mContainer;
 
     // Whether this activity was instantiated with a specialized constructor that predefines a list
     // of resolutions to be displayed for the target intent (as in, e.g., the NFC use case).
@@ -177,6 +180,8 @@ public class ResolverActivity extends Activity implements
     // Whether or not this activity supports choosing a default handler for the intent.
     @VisibleForTesting
     protected boolean mSupportsAlwaysUseOption;
+    // TODO(b/417351080): mResolverDrawerLayout is only used in ChooserActivity. Usage should be
+    // refactored to use mContainer.
     protected ResolverDrawerLayout mResolverDrawerLayout;
     @UnsupportedAppUsage
     protected PackageManager mPm;
@@ -465,9 +470,10 @@ public class ResolverActivity extends Activity implements
         // We also turn it off when clonedProfile is present on the device, because we might have
         // different "last chosen" activities in the different profiles, and PackageManager doesn't
         // provide any more information to help us select between them.
-        boolean filterLastUsed = mSupportsAlwaysUseOption && !isVoiceInteraction()
-                && !shouldShowTabs() && !hasCloneProfile();
-        mMultiProfilePagerAdapter = createMultiProfilePagerAdapter(initialIntents, rList, filterLastUsed);
+        boolean filterLastUsed = filterLastUsedConfig() && mSupportsAlwaysUseOption
+                && !isVoiceInteraction() && !shouldShowTabs() && !hasCloneProfile();
+        mMultiProfilePagerAdapter =
+                createMultiProfilePagerAdapter(initialIntents, rList, filterLastUsed);
         if (configureContentView()) {
             return;
         }
@@ -484,33 +490,34 @@ public class ResolverActivity extends Activity implements
 
         mRegistered = true;
 
-        final ResolverDrawerLayout rdl = findViewById(R.id.contentPanel);
-        if (rdl != null) {
-            rdl.setOnDismissedListener(new ResolverDrawerLayout.OnDismissedListener() {
-                @Override
-                public void onDismissed() {
-                    finish();
-                }
-            });
+        mContainer = findViewById(R.id.contentPanel);
+        if (mContainer != null) {
+            // TODO(b/417351080): The flags and insets are the responsibility of the container
+            // and should be moved to the container implementation.
+            mContainer.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+            mContainer.setOnApplyWindowInsetsListener(this::onApplyWindowInsets);
 
-            boolean hasTouchScreen = getPackageManager()
-                    .hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN);
-
-            if (isVoiceInteraction() || !hasTouchScreen) {
-                rdl.setCollapsed(false);
+            if (mContainer instanceof DismissableView container) {
+                container.setOnDismissListener(this::finish);
             }
 
-            rdl.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                    | View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
-            rdl.setOnApplyWindowInsetsListener(this::onApplyWindowInsets);
+            if (mContainer instanceof final ResolverDrawerLayout rdl) {
+                boolean hasTouchScreen = getPackageManager()
+                        .hasSystemFeature(PackageManager.FEATURE_TOUCHSCREEN);
 
-            mResolverDrawerLayout = rdl;
+                if (isVoiceInteraction() || !hasTouchScreen) {
+                    rdl.setCollapsed(false);
+                }
 
-            for (int i = 0, size = mMultiProfilePagerAdapter.getCount(); i < size; i++) {
-                View view = mMultiProfilePagerAdapter.getItem(i).rootView.findViewById(
-                        R.id.resolver_list);
-                if (view != null) {
-                    view.setAccessibilityDelegate(new AppListAccessibilityDelegate(rdl));
+                mResolverDrawerLayout = rdl;
+
+                for (int i = 0, size = mMultiProfilePagerAdapter.getCount(); i < size; i++) {
+                    View view = mMultiProfilePagerAdapter.getItem(i).rootView.findViewById(
+                            R.id.resolver_list);
+                    if (view != null) {
+                        view.setAccessibilityDelegate(new AppListAccessibilityDelegate(rdl));
+                    }
                 }
             }
         }
@@ -527,6 +534,10 @@ public class ResolverActivity extends Activity implements
                 : MetricsProto.MetricsEvent.ACTION_SHOW_APP_DISAMBIG_NONE_FEATURED,
                 intent.getAction() + ":" + intent.getType() + ":"
                         + (categories != null ? Arrays.toString(categories.toArray()) : ""));
+    }
+
+    protected boolean filterLastUsedConfig() {
+        return getResources().getBoolean(R.bool.config_resolverActivityFilterLastUsed);
     }
 
     protected AbstractMultiProfilePagerAdapter createMultiProfilePagerAdapter(
@@ -689,7 +700,7 @@ public class ResolverActivity extends Activity implements
         // this happens, we check for it here and set the current profile's tab.
         int selectedProfile = getCurrentProfile();
         UserHandle intentUser = getIntentUser();
-        if (!getTabOwnerUserHandleForLaunch().equals(intentUser)) {
+        if (!Objects.equals(getTabOwnerUserHandleForLaunch(), intentUser)) {
             if (getPersonalProfileUserHandle().equals(intentUser)) {
                 selectedProfile = PROFILE_PERSONAL;
             } else if (getWorkProfileUserHandle().equals(intentUser)) {
@@ -922,8 +933,10 @@ public class ResolverActivity extends Activity implements
     protected WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
         mSystemWindowInsets = insets.getSystemWindowInsets();
 
-        mResolverDrawerLayout.setPadding(mSystemWindowInsets.left, mSystemWindowInsets.top,
-                mSystemWindowInsets.right, 0);
+        if (mContainer != null) {
+            mContainer.setPadding(mSystemWindowInsets.left, mSystemWindowInsets.top,
+                    mSystemWindowInsets.right, 0);
+        }
 
         resetButtonBar();
 
@@ -953,8 +966,8 @@ public class ResolverActivity extends Activity implements
             updateIntentPickerPaddings();
         }
 
-        if (mSystemWindowInsets != null) {
-            mResolverDrawerLayout.setPadding(mSystemWindowInsets.left, mSystemWindowInsets.top,
+        if (mSystemWindowInsets != null && mContainer != null) {
+            mContainer.setPadding(mSystemWindowInsets.left, mSystemWindowInsets.top,
                     mSystemWindowInsets.right, 0);
         }
     }
@@ -1430,8 +1443,7 @@ public class ResolverActivity extends Activity implements
         final ItemClickListener listener = new ItemClickListener();
         setupAdapterListView((ListView) mMultiProfilePagerAdapter.getActiveAdapterView(), listener);
         if (shouldShowTabs() && mIsIntentPicker) {
-            final ResolverDrawerLayout rdl = findViewById(R.id.contentPanel);
-            if (rdl != null) {
+            if (findViewById(R.id.contentPanel) instanceof ResolverDrawerLayout rdl) {
                 rdl.setMaxCollapsedHeight(getResources()
                         .getDimensionPixelSize(useLayoutWithDefault()
                                 ? R.dimen.resolver_max_collapsed_height_with_default_with_tabs
@@ -2188,6 +2200,7 @@ public class ResolverActivity extends Activity implements
             return;
         }
         mLastSelected = ListView.INVALID_POSITION;
+        mLastSelectedItemView = null;
         ListView inactiveListView = (ListView) mMultiProfilePagerAdapter.getInactiveAdapterView();
         if (inactiveListView.getCheckedItemCount() > 0) {
             inactiveListView.setItemChecked(inactiveListView.getCheckedItemPosition(), false);
@@ -2336,12 +2349,11 @@ public class ResolverActivity extends Activity implements
      * the screen.
      */
     private void setButtonBarIgnoreOffset(boolean ignoreOffset) {
-        View buttonBarContainer = findViewById(R.id.button_bar_container);
-        if (buttonBarContainer != null) {
-            ResolverDrawerLayout.LayoutParams layoutParams =
-                    (ResolverDrawerLayout.LayoutParams) buttonBarContainer.getLayoutParams();
-            layoutParams.ignoreOffset = ignoreOffset;
-            buttonBarContainer.setLayoutParams(layoutParams);
+        View container = findViewById(R.id.button_bar_container);
+        if (container != null
+                && container.getLayoutParams() instanceof ResolverDrawerLayout.LayoutParams lp) {
+            lp.ignoreOffset = ignoreOffset;
+            container.setLayoutParams(lp);
         }
     }
 
@@ -2572,6 +2584,12 @@ public class ResolverActivity extends Activity implements
                     mOnceButton.requestFocus();
                 }
                 mLastSelected = checkedPos;
+                if (mLastSelectedItemView != null) {
+                    mLastSelectedItemView.setStateDescription(null);
+                }
+                mLastSelectedItemView = view;
+                mLastSelectedItemView.setStateDescription(
+                        getString(com.android.internal.R.string.selected));
             } else {
                 startSelected(position, false, true);
             }
@@ -2683,7 +2701,6 @@ public class ResolverActivity extends Activity implements
 
     private boolean privateSpaceEnabled() {
         return mIsIntentPicker && android.os.Flags.allowPrivateProfile()
-                && android.multiuser.Flags.allowResolverSheetForPrivateSpace()
                 && android.multiuser.Flags.enablePrivateSpaceFeatures();
     }
 

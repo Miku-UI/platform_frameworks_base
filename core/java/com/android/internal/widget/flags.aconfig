@@ -7,3 +7,27 @@ flag {
     description: "Feature flag for changing the default of hiding the last interacted symbol when a physical input device is present"
     bug: "339270220"
 }
+
+flag {
+    name: "run_check_credential_with_higher_priority"
+    namespace: "wear_system_health"
+    description: "Feature flag for changing the priority of the check credential task"
+    bug: "407716215"
+}
+
+flag {
+    name: "enable_default_visibility_for_sensitive_inputs"
+    namespace: "systemui"
+    description: "Allows setting default value for visibility of sensitive inputs (passowrd, pin and pattern)."
+    bug: "339270220"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "notification_transparent_badge_ring"
+    namespace: "systemui"
+    description: "Makes the ring around for the notification badge transparent"
+    bug: "409346132"
+}

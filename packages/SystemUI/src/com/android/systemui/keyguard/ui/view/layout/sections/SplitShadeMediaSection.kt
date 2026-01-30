@@ -27,10 +27,11 @@ import androidx.constraintlayout.widget.ConstraintSet.MATCH_CONSTRAINT
 import androidx.constraintlayout.widget.ConstraintSet.PARENT_ID
 import androidx.constraintlayout.widget.ConstraintSet.START
 import androidx.constraintlayout.widget.ConstraintSet.TOP
-import com.android.systemui.customization.R as customR
+import com.android.systemui.customization.clocks.R as clocksR
 import com.android.systemui.keyguard.shared.model.KeyguardSection
 import com.android.systemui.media.controls.ui.controller.KeyguardMediaController
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import javax.inject.Inject
 
@@ -44,6 +45,7 @@ constructor(
     private val mediaContainerId = R.id.status_view_media_container
 
     override fun addViews(constraintLayout: ConstraintLayout) {
+        SceneContainerFlag.assertInLegacyMode()
         val mediaFrame =
             FrameLayout(context, null).apply {
                 id = mediaContainerId
@@ -51,7 +53,7 @@ constructor(
                 val horizontalPadding =
                     padding +
                         context.resources.getDimensionPixelSize(
-                            customR.dimen.status_view_margin_horizontal
+                            clocksR.dimen.status_view_margin_horizontal
                         )
 
                 setPaddingRelative(horizontalPadding, padding, horizontalPadding, padding)

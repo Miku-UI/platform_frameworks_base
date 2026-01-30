@@ -16,10 +16,9 @@
 
 package com.android.internal.os;
 
+import static android.net.http.Flags.preloadHttpengineInZygote;
 import static android.system.OsConstants.S_IRWXG;
 import static android.system.OsConstants.S_IRWXO;
-
-import static android.net.http.Flags.preloadHttpengineInZygote;
 
 import static com.android.internal.util.FrameworkStatsLog.BOOT_TIME_EVENT_ELAPSED_TIME__EVENT__SECONDARY_ZYGOTE_INIT_START;
 import static com.android.internal.util.FrameworkStatsLog.BOOT_TIME_EVENT_ELAPSED_TIME__EVENT__ZYGOTE_INIT_START;
@@ -28,8 +27,8 @@ import android.app.ApplicationLoaders;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.pm.SharedLibraryInfo;
 import android.content.res.Resources;
-import android.os.Build;
 import android.net.http.HttpEngine;
+import android.os.Build;
 import android.os.Environment;
 import android.os.IInstalld;
 import android.os.Process;
@@ -197,6 +196,9 @@ public class ZygoteInit {
         Log.i(TAG, "Preloading shared libraries...");
         System.loadLibrary("android");
         System.loadLibrary("jnigraphics");
+        if (android.os.Flags.perfettoSdkTracingV3()) {
+            System.loadLibrary("perfetto_framework_jni");
+        }
 
         // TODO(b/206676167): This library is only used for renderscript today. When renderscript is
         // removed, this load can be removed as well.
@@ -428,33 +430,29 @@ public class ZygoteInit {
                 null /*declaringPackage*/, null /*dependentPackages*/, null /*dependencies*/,
                 false /*isNative*/));
 
-        if (Flags.enableApacheHttpLegacyPreload()) {
+        libs.add(new SharedLibraryInfo(
+                "/system/framework/org.apache.http.legacy.jar", null /*packageName*/,
+                null /*codePaths*/, null /*name*/, 0 /*version*/,
+                SharedLibraryInfo.TYPE_BUILTIN, null /*declaringPackage*/,
+                null /*dependentPackages*/, null /*dependencies*/, false /*isNative*/));
+
+        // As these libraries are technically optional and not necessarily inherited from
+        // base_system.mk, only cache them if they exist.
+        final String mediaJarPath = "/system/framework/com.android.media.remotedisplay.jar";
+        if (new File(mediaJarPath).exists()) {
             libs.add(new SharedLibraryInfo(
-                    "/system/framework/org.apache.http.legacy.jar", null /*packageName*/,
+                    mediaJarPath, null /*packageName*/,
                     null /*codePaths*/, null /*name*/, 0 /*version*/,
                     SharedLibraryInfo.TYPE_BUILTIN, null /*declaringPackage*/,
                     null /*dependentPackages*/, null /*dependencies*/, false /*isNative*/));
         }
-
-        if (Flags.enableMediaAndLocationPreload()) {
-            // As these libraries are technically optional and not necessarily inherited from
-            // base_system.mk, only cache them if they exist.
-            final String mediaJarPath = "/system/framework/com.android.media.remotedisplay.jar";
-            if (new File(mediaJarPath).exists()) {
-                libs.add(new SharedLibraryInfo(
-                        mediaJarPath, null /*packageName*/,
-                        null /*codePaths*/, null /*name*/, 0 /*version*/,
-                        SharedLibraryInfo.TYPE_BUILTIN, null /*declaringPackage*/,
-                        null /*dependentPackages*/, null /*dependencies*/, false /*isNative*/));
-            }
-            final String locationJarPath = "/system/framework/com.android.location.provider.jar";
-            if (new File(locationJarPath).exists()) {
-                libs.add(new SharedLibraryInfo(
-                        locationJarPath, null /*packageName*/,
-                        null /*codePaths*/, null /*name*/, 0 /*version*/,
-                        SharedLibraryInfo.TYPE_BUILTIN, null /*declaringPackage*/,
-                        null /*dependentPackages*/, null /*dependencies*/, false /*isNative*/));
-            }
+        final String locationJarPath = "/system/framework/com.android.location.provider.jar";
+        if (new File(locationJarPath).exists()) {
+            libs.add(new SharedLibraryInfo(
+                    locationJarPath, null /*packageName*/,
+                    null /*codePaths*/, null /*name*/, 0 /*version*/,
+                    SharedLibraryInfo.TYPE_BUILTIN, null /*declaringPackage*/,
+                    null /*dependentPackages*/, null /*dependencies*/, false /*isNative*/));
         }
 
         // WindowManager Extensions is an optional shared library that is required for WindowManager
@@ -706,7 +704,6 @@ public class ZygoteInit {
                 (1L << OsConstants.CAP_NET_BIND_SERVICE) |
                 (1L << OsConstants.CAP_NET_BROADCAST) |
                 (1L << OsConstants.CAP_NET_RAW) |
-                (1L << OsConstants.CAP_SYS_MODULE) |
                 (1L << OsConstants.CAP_SYS_NICE) |
                 (1L << OsConstants.CAP_SYS_PTRACE) |
                 (1L << OsConstants.CAP_SYS_TIME) |

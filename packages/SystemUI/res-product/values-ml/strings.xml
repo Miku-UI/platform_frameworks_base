@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"ഈ ടാബ്‌ലെറ്റിൽ പ്ലേ ചെയ്യുന്നു"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"ഓഫായിരിക്കുമ്പോഴും Find My Device ഉപയോഗിച്ച് നിങ്ങൾക്ക് ഈ ഫോൺ കണ്ടെത്താനാകും"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"ഓഫായിരിക്കുമ്പോഴും Find My Device ഉപയോഗിച്ച് നിങ്ങൾക്ക് ഈ ടാബ്‌ലെറ്റ് കണ്ടെത്താനാകും"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"ഓഫാക്കിയിരിക്കുമ്പോൾ പോലും Find Hub ഉപയോഗിച്ച് നിങ്ങൾക്ക് ഈ ഫോൺ കണ്ടെത്താനാകും"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"ഓഫാക്കിയിരിക്കുമ്പോൾ പോലും Find Hub ഉപയോഗിച്ച് നിങ്ങൾക്ക് ഈ ടാബ്‌ലെറ്റ് കണ്ടെത്താനാകും"</string>
 </resources>

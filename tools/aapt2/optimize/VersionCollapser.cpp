@@ -72,6 +72,8 @@ FilterIterator<Iterator, Pred> make_filter_iterator(Iterator begin,
  */
 static void CollapseVersions(IAaptContext* context, int min_sdk, ResourceEntry* entry) {
   // First look for all sdks less than minSdk.
+  // Note that we iterate in reverse order, meaning we will first encounter entries with the
+  // highest SDK level and work our way down.
   for (auto iter = entry->values.rbegin(); iter != entry->values.rend();
        ++iter) {
     // Check if the item was already marked for removal.
@@ -80,10 +82,11 @@ static void CollapseVersions(IAaptContext* context, int min_sdk, ResourceEntry* 
     }
 
     const ConfigDescription& config = (*iter)->config;
-    if (config.sdkVersion <= min_sdk) {
+    if (config.sdkVersion != 0 && (config.sdkVersion < min_sdk ||
+                                   (config.sdkVersion == min_sdk && config.minorVersion == 0))) {
       // This is the first configuration we've found with a smaller or equal SDK level to the
-      // minimum. We MUST keep this one, but remove all others we find, which get overridden by this
-      // one.
+      // minimum. We MUST keep this one, but remove all others we find, which will be smaller and
+      // therefore get overridden by this one.
 
       ConfigDescription config_without_sdk = config.CopyWithoutSdkVersion();
       auto pred = [&](const std::unique_ptr<ResourceConfigValue>& val) -> bool {
@@ -93,12 +96,13 @@ static void CollapseVersions(IAaptContext* context, int min_sdk, ResourceEntry* 
         }
 
         // Only return Configs that differ in SDK version.
-        config_without_sdk.sdkVersion = val->config.sdkVersion;
+        config_without_sdk.version = val->config.version;
         return config_without_sdk == val->config &&
-               val->config.sdkVersion <= min_sdk;
+               (val->config.sdkVersion < min_sdk ||
+                (val->config.sdkVersion == min_sdk && val->config.minorVersion == 0));
       };
 
-      // Remove the rest that match.
+      // Remove the rest that match; all of them will be overridden by this one.
       auto filter_iter =
           make_filter_iterator(iter + 1, entry->values.rend(), pred);
       while (filter_iter.HasNext()) {
@@ -107,7 +111,8 @@ static void CollapseVersions(IAaptContext* context, int min_sdk, ResourceEntry* 
           context->GetDiagnostics()->Note(android::DiagMessage()
                                           << "removing configuration " << next->config.to_string()
                                           << " for entry: " << entry->name
-                                          << ", because its SDK version is smaller than minSdk");
+                                          << ", because its SDK version is smaller than minSdk "
+                                          << min_sdk);
         }
         next = {};
       }
@@ -126,8 +131,9 @@ static void CollapseVersions(IAaptContext* context, int min_sdk, ResourceEntry* 
   // space in the resources.arsc table.
   bool modified = false;
   for (std::unique_ptr<ResourceConfigValue>& config_value : entry->values) {
-    if (config_value->config.sdkVersion != 0 &&
-        config_value->config.sdkVersion <= min_sdk) {
+    const auto& config = config_value->config;
+    if (config.sdkVersion != 0 && (config.sdkVersion < min_sdk ||
+                                   (config.sdkVersion == min_sdk && config.minorVersion == 0))) {
       // Override the resource with a Configuration without an SDK.
       std::unique_ptr<ResourceConfigValue> new_value =
           util::make_unique<ResourceConfigValue>(

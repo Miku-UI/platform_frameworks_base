@@ -17,6 +17,7 @@ package com.android.ravenwoodtest.bivalentinst;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.Application;
 import android.app.Instrumentation;
 import android.content.Context;
 
@@ -63,6 +64,11 @@ public class RavenwoodInstrumentationTest_nonself {
     public void testTestAppContext() {
         // Test context doesn't have an app context.
         assertThat(sTestContext.getApplicationContext()).isNull();
+    }
+
+    @Test
+    public void testTargetAppContextType() {
+        assertThat(sTargetContext.getApplicationContext()).isInstanceOf(Application.class);
     }
 
     @Test

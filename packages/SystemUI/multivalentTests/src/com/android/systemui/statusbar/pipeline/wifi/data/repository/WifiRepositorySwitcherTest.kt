@@ -25,10 +25,12 @@ import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.connectivity.WifiPickerTrackerFactory
+import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoModeWifiDataSource
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.model.FakeWifiEventModel
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.prod.WifiRepositoryImpl
+import com.android.systemui.testKosmos
 import com.android.systemui.user.data.repository.FakeUserRepository
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.mockito.any
@@ -55,6 +57,8 @@ import org.mockito.MockitoAnnotations
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class WifiRepositorySwitcherTest : SysuiTestCase() {
+    private val kosmos = testKosmos()
+
     private lateinit var underTest: WifiRepositorySwitcher
     private lateinit var realImpl: WifiRepositoryImpl
     private lateinit var demoImpl: DemoWifiRepository
@@ -71,6 +75,7 @@ class WifiRepositorySwitcherTest : SysuiTestCase() {
 
     private val mainExecutor = FakeExecutor(FakeSystemClock())
     private val userRepository = FakeUserRepository()
+    private val connectivityRepository = kosmos.connectivityRepository
 
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
@@ -89,6 +94,7 @@ class WifiRepositorySwitcherTest : SysuiTestCase() {
             WifiRepositoryImpl(
                 mContext,
                 userRepository,
+                connectivityRepository,
                 testScope.backgroundScope,
                 mainExecutor,
                 testDispatcher,

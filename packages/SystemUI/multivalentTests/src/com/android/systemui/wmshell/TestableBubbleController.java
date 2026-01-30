@@ -30,20 +30,24 @@ import com.android.wm.shell.bubbles.BubbleData;
 import com.android.wm.shell.bubbles.BubbleDataRepository;
 import com.android.wm.shell.bubbles.BubbleLogger;
 import com.android.wm.shell.bubbles.BubblePositioner;
+import com.android.wm.shell.bubbles.BubbleTransitions;
 import com.android.wm.shell.bubbles.ResizabilityChecker;
+import com.android.wm.shell.bubbles.appinfo.BubbleAppInfoProvider;
+import com.android.wm.shell.bubbles.logging.BubbleSessionTracker;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.DisplayImeController;
 import com.android.wm.shell.common.DisplayInsetsController;
 import com.android.wm.shell.common.FloatingContentCoordinator;
+import com.android.wm.shell.common.HomeIntentProvider;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.common.TaskStackListenerImpl;
 import com.android.wm.shell.draganddrop.DragAndDropController;
 import com.android.wm.shell.onehanded.OneHandedController;
+import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.sysui.ShellCommandHandler;
 import com.android.wm.shell.sysui.ShellController;
 import com.android.wm.shell.sysui.ShellInit;
-import com.android.wm.shell.taskview.TaskViewRepository;
 import com.android.wm.shell.taskview.TaskViewTransitions;
 import com.android.wm.shell.transition.Transitions;
 
@@ -62,6 +66,7 @@ public class TestableBubbleController extends BubbleController {
             BubbleData data,
             FloatingContentCoordinator floatingContentCoordinator,
             BubbleDataRepository dataRepository,
+            BubbleTransitions bubbleTransitions,
             IStatusBarService statusBarService,
             WindowManager windowManager,
             DisplayInsetsController displayInsetsController,
@@ -77,19 +82,24 @@ public class TestableBubbleController extends BubbleController {
             DragAndDropController dragAndDropController,
             ShellExecutor shellMainExecutor,
             Handler shellMainHandler,
-            TaskViewRepository taskViewRepository,
             TaskViewTransitions taskViewTransitions,
             Transitions transitions,
             SyncTransactionQueue syncQueue,
             IWindowManager wmService,
-            ResizabilityChecker resizabilityChecker) {
+            ResizabilityChecker resizabilityChecker,
+            HomeIntentProvider homeIntentProvider,
+            BubbleAppInfoProvider appInfoProvider,
+            Optional<SplitScreenController> splitScreenController,
+            BubbleSessionTracker sessionTracker) {
         super(context, shellInit, shellCommandHandler, shellController, data, Runnable::run,
-                floatingContentCoordinator, dataRepository, statusBarService, windowManager,
-                displayInsetsController, displayImeController, userManager, launcherApps,
-                bubbleLogger, taskStackListener, shellTaskOrganizer, positioner, displayController,
-                oneHandedOptional, dragAndDropController, shellMainExecutor, shellMainHandler,
-                new SyncExecutor(), taskViewRepository, taskViewTransitions, transitions,
-                syncQueue, wmService, resizabilityChecker);
+                floatingContentCoordinator, dataRepository, bubbleTransitions, statusBarService,
+                windowManager, displayInsetsController, displayImeController, userManager,
+                launcherApps, bubbleLogger, taskStackListener, shellTaskOrganizer, positioner,
+                displayController, oneHandedOptional, dragAndDropController, shellMainExecutor,
+                shellMainHandler, new SyncExecutor(), taskViewTransitions,
+                transitions, syncQueue, wmService, resizabilityChecker, homeIntentProvider,
+                appInfoProvider, () -> splitScreenController, Optional.empty(), () -> false,
+                sessionTracker);
         setInflateSynchronously(true);
         onInit();
     }

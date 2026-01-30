@@ -22,7 +22,7 @@ import android.window.IUnhandledDragCallback;
 
 /**
  * An interface to a handler for global drags.
- * {@hide}
+ * @hide
  */
 oneway interface IGlobalDragListener {
     /**

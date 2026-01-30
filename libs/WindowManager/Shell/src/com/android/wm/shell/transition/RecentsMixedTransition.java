@@ -42,15 +42,25 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
     private final RecentsTransitionHandler mRecentsHandler;
     private final DesktopTasksController mDesktopTasksController;
 
+    /**
+     * The id of the desk that was active when the transition started. Only set when {@link #mType}
+     * is {@link DefaultMixedHandler.MixedTransition#TYPE_RECENTS_DURING_DESKTOP}.
+     */
+    @Nullable
+    private final Integer mActiveDeskIdOnStart;
+
     RecentsMixedTransition(int type, IBinder transition, Transitions player,
             MixedTransitionHandler mixedHandler, PipTransitionController pipHandler,
             StageCoordinator splitHandler, KeyguardTransitionHandler keyguardHandler,
             RecentsTransitionHandler recentsHandler,
-            DesktopTasksController desktopTasksController) {
+            DesktopTasksController desktopTasksController,
+            int displayId) {
         super(type, transition, player, mixedHandler, pipHandler, splitHandler, keyguardHandler);
         mRecentsHandler = recentsHandler;
         mDesktopTasksController = desktopTasksController;
         mLeftoversHandler = mRecentsHandler;
+        mActiveDeskIdOnStart = mType == TYPE_RECENTS_DURING_DESKTOP
+                ? mDesktopTasksController.getActiveDeskId(displayId) : null;
     }
 
     @Override
@@ -79,8 +89,8 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
             @NonNull SurfaceControl.Transaction startTransaction,
             @NonNull SurfaceControl.Transaction finishTransaction,
             @NonNull Transitions.TransitionFinishCallback finishCallback) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, "Transition for Recents during"
-                + " Desktop #%d", info.getDebugId());
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                "Transition for Recents during Desktop #%d", info.getDebugId());
 
         if (mInfo == null) {
             mInfo = info;
@@ -114,12 +124,13 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
             @NonNull SurfaceControl.Transaction startTransaction,
             @NonNull SurfaceControl.Transaction finishTransaction,
             @NonNull Transitions.TransitionFinishCallback finishCallback) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, "Mixed transition for Recents during"
-                + " Keyguard #%d", info.getDebugId());
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                "Mixed transition for Recents during Keyguard #%d", info.getDebugId());
 
         if (!mKeyguardHandler.isKeyguardShowing() || mKeyguardHandler.isKeyguardAnimating()) {
-            ProtoLog.w(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, "Cancel mixed transition because "
-                    + "keyguard state was changed #%d", info.getDebugId());
+            ProtoLog.w(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                    "Cancel mixed transition because keyguard state was changed #%d",
+                    info.getDebugId());
             return false;
         }
         if (mInfo == null) {
@@ -135,8 +146,8 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
             @NonNull SurfaceControl.Transaction startTransaction,
             @NonNull SurfaceControl.Transaction finishTransaction,
             @NonNull Transitions.TransitionFinishCallback finishCallback) {
-        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS, "Mixed transition for Recents during"
-                + " split screen #%d", info.getDebugId());
+        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_TRANSITIONS,
+                "Mixed transition for Recents during split screen #%d", info.getDebugId());
 
         for (int i = info.getChanges().size() - 1; i >= 0; --i) {
             final TransitionInfo.Change change = info.getChanges().get(i);
@@ -204,7 +215,7 @@ class RecentsMixedTransition extends DefaultMixedHandler.MixedTransition {
     void onAnimateRecentsDuringDesktopFinishing(boolean returnToApp,
             @NonNull WindowContainerTransaction finishWct) {
         mDesktopTasksController.onRecentsInDesktopAnimationFinishing(mTransition, finishWct,
-                returnToApp);
+                returnToApp, mActiveDeskIdOnStart);
     }
 
     @Override

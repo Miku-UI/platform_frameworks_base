@@ -17,6 +17,7 @@
 package com.android.server.accessibility;
 
 import static android.content.pm.PackageManager.MATCH_ANY_USER;
+import static android.os.UserManager.USER_TYPE_PROFILE_SUPERVISING;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
@@ -49,9 +50,11 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.content.pm.UserInfo;
 import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.testing.DexmakerShareClassLoaderRule;
 import android.testing.TestableContext;
 import android.util.ArraySet;
@@ -456,6 +459,19 @@ public class AccessibilitySecurityPolicyTest {
 
         assertEquals(mA11ySecurityPolicy.resolveProfileParentLocked(userId),
                 currentUserId);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.multiuser.Flags.FLAG_ALLOW_SUPERVISING_PROFILE)
+    public void resolveProfileParent_userIdNotCurrentUser_isSupervising_returnCurrentUser() {
+        final int userId = 15;
+        final int currentUserId = 20;
+        when(mMockA11yUserManager.getCurrentUserIdLocked()).thenReturn(currentUserId);
+        when(mMockUserManager.getUserInfo(userId))
+                .thenReturn(
+                        new UserInfo(
+                                userId, "Supervising", null, 0, USER_TYPE_PROFILE_SUPERVISING));
+        assertEquals(mA11ySecurityPolicy.resolveProfileParentLocked(userId), currentUserId);
     }
 
     @Test

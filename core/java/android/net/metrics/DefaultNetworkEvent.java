@@ -21,7 +21,7 @@ import java.util.StringJoiner;
 
 /**
  * An event recorded by ConnectivityService when there is a change in the default network.
- * {@hide}
+ * @hide
  */
 public class DefaultNetworkEvent {
 

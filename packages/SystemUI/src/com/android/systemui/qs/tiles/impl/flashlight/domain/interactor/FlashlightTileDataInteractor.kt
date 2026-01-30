@@ -17,52 +17,82 @@
 package com.android.systemui.qs.tiles.impl.flashlight.domain.interactor
 
 import android.os.UserHandle
+import com.android.systemui.flashlight.domain.interactor.FlashlightInteractor
+import com.android.systemui.flashlight.flags.FlashlightStrength
+import com.android.systemui.flashlight.shared.model.FlashlightModel
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
-import com.android.systemui.qs.tiles.impl.flashlight.domain.model.FlashlightTileModel
 import com.android.systemui.statusbar.policy.FlashlightController
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
+import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
-/** Observes flashlight state changes providing the [FlashlightTileModel]. */
+/** Observes flashlight state changes providing the [FlashlightModel]. */
 class FlashlightTileDataInteractor
 @Inject
-constructor(private val flashlightController: FlashlightController) :
-    QSTileDataInteractor<FlashlightTileModel> {
-
+constructor(
+    private val flashlightController: FlashlightController,
+    private val interactor: Lazy<FlashlightInteractor>,
+) : QSTileDataInteractor<FlashlightModel> {
     override fun tileData(
         user: UserHandle,
         triggers: Flow<DataUpdateTrigger>,
-    ): Flow<FlashlightTileModel> = conflatedCallbackFlow {
-        val callback =
-            object : FlashlightController.FlashlightListener {
-                override fun onFlashlightChanged(enabled: Boolean) {
-                    trySend(FlashlightTileModel.FlashlightAvailable(enabled))
-                }
-
-                override fun onFlashlightError() {
-                    trySend(FlashlightTileModel.FlashlightAvailable(false))
-                }
-
-                override fun onFlashlightAvailabilityChanged(available: Boolean) {
-                    trySend(
-                        if (available)
-                            FlashlightTileModel.FlashlightAvailable(flashlightController.isEnabled)
-                        else FlashlightTileModel.FlashlightTemporarilyUnavailable
-                    )
-                }
-            }
-        flashlightController.addCallback(callback)
-        awaitClose { flashlightController.removeCallback(callback) }
-    }
+    ): Flow<FlashlightModel> = tileData()
 
     /**
-     * Used to determine if the tile should be displayed. Not to be confused with the availability
-     * in the data model above. This flow signals whether the tile should be shown or hidden.
+     * An adapted version of the base class' [tileData] method for use in an old-style tile.
+     *
+     * TODO(b/299909989): Remove after the transition.
      */
+    fun tileData(): Flow<FlashlightModel> =
+        if (FlashlightStrength.isEnabled) interactor.get().state.onEach { currentTileModel = it }
+        else
+            conflatedCallbackFlow {
+                val callback =
+                    object : FlashlightController.FlashlightListener {
+                        override fun onFlashlightChanged(enabled: Boolean) {
+                            trySend(FlashlightModel.Available.Binary(enabled))
+                        }
+
+                        override fun onFlashlightError() {
+                            trySend(FlashlightModel.Available.Binary(false))
+                        }
+
+                        override fun onFlashlightAvailabilityChanged(available: Boolean) {
+                            trySend(
+                                if (available)
+                                    FlashlightModel.Available.Binary(flashlightController.isEnabled)
+                                else FlashlightModel.Unavailable.Temporarily.CameraInUse
+                            )
+                        }
+                    }
+                flashlightController.addCallback(callback)
+                awaitClose { flashlightController.removeCallback(callback) }
+            }
+
+    private var currentTileModel: FlashlightModel = FlashlightModel.Unavailable.Temporarily.Loading
+
+    /** Temporary measure until we discard the old-style tile */
+    fun getCurrentTileModel(): FlashlightModel = currentTileModel
+
+    fun isAvailable(): Boolean {
+        return if (FlashlightStrength.isUnexpectedlyInLegacyMode()) {
+            false
+        } else {
+            interactor.get().deviceSupportsFlashlight
+        }
+    }
+
+    /** Used to determine if the tile should be displayed or hidden. */
     override fun availability(user: UserHandle): Flow<Boolean> =
-        flowOf(flashlightController.hasFlashlight())
+        if (FlashlightStrength.isEnabled) {
+            interactor.get().state.map {
+                it !is FlashlightModel.Unavailable.Permanently.NotSupported
+            }
+        } else flowOf(flashlightController.hasFlashlight())
 }

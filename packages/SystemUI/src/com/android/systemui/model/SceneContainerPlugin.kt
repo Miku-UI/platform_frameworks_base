@@ -20,7 +20,6 @@ import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.scene.domain.interactor.SceneContainerOcclusionInteractor
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
@@ -42,23 +41,37 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * A plugin for [SysUiState] that provides overrides for certain state flags that must be pulled
  * from the scene framework when that framework is enabled.
+ *
+ * Note that those flags only apply to the display id containing the shade window, as defined by
+ * [com.android.systemui.shade.domain.interactor.ShadeDisplaysInteractor.displayId]
  */
-@SysUISingleton
-class SceneContainerPlugin
-@Inject
-constructor(
-    private val sceneInteractor: Lazy<SceneInteractor>,
-    private val occlusionInteractor: Lazy<SceneContainerOcclusionInteractor>,
-    private val shadeDisplaysRepository: Lazy<ShadeDisplaysRepository>,
-) {
-
-    private val shadeDisplayId: StateFlow<Int> by lazy { shadeDisplaysRepository.get().displayId }
-
+interface SceneContainerPlugin {
     /**
      * Returns an override value for the given [flag] or `null` if the scene framework isn't enabled
      * or if the flag value doesn't need to be overridden.
      */
-    fun flagValueOverride(@SystemUiStateFlags flag: Long, displayId: Int): Boolean? {
+    fun flagValueOverride(@SystemUiStateFlags flag: Long, displayId: Int): Boolean?
+
+    data class SceneContainerPluginState(
+        val scene: SceneKey,
+        val overlays: Set<OverlayKey>,
+        val isVisible: Boolean,
+    )
+}
+
+@SysUISingleton
+class SceneContainerPluginImpl
+@Inject
+constructor(
+    private val sceneInteractor: Lazy<SceneInteractor>,
+    private val shadeDisplaysRepository: Lazy<ShadeDisplaysRepository>,
+) : SceneContainerPlugin {
+
+    private val shadeDisplayId: StateFlow<Int> by lazy {
+        shadeDisplaysRepository.get().pendingDisplayId
+    }
+
+    override fun flagValueOverride(@SystemUiStateFlags flag: Long, displayId: Int): Boolean? {
         if (!SceneContainerFlag.isEnabled) {
             return null
         }
@@ -73,14 +86,12 @@ constructor(
         }
         val transitionState = sceneInteractor.get().transitionState.value
         val idleTransitionStateOrNull = transitionState as? ObservableTransitionState.Idle
-        val invisibleDueToOcclusion = occlusionInteractor.get().invisibleDueToOcclusion.value
         return idleTransitionStateOrNull?.let { idleState ->
             EvaluatorByFlag[flag]?.invoke(
-                SceneContainerPluginState(
+                SceneContainerPlugin.SceneContainerPluginState(
                     scene = idleState.currentScene,
                     overlays = idleState.currentOverlays,
                     isVisible = sceneInteractor.get().isVisible.value,
-                    invisibleDueToOcclusion = invisibleDueToOcclusion,
                 )
             )
         }
@@ -98,7 +109,7 @@ constructor(
          * to be overridden by the scene framework.
          */
         val EvaluatorByFlag =
-            mapOf<Long, (SceneContainerPluginState) -> Boolean>(
+            mapOf<Long, (SceneContainerPlugin.SceneContainerPluginState) -> Boolean>(
                 SYSUI_STATE_NOTIFICATION_PANEL_VISIBLE to
                     {
                         when {
@@ -132,18 +143,8 @@ constructor(
                     {
                         it.isVisible && it.scene == Scenes.Lockscreen
                     },
-                SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING_OCCLUDED to
-                    {
-                        it.scene == Scenes.Lockscreen && it.invisibleDueToOcclusion
-                    },
+                SYSUI_STATE_STATUS_BAR_KEYGUARD_SHOWING_OCCLUDED to { it.scene == Scenes.Occluded },
                 SYSUI_STATE_COMMUNAL_HUB_SHOWING to { it.isVisible && it.scene == Scenes.Communal },
             )
     }
-
-    data class SceneContainerPluginState(
-        val scene: SceneKey,
-        val overlays: Set<OverlayKey>,
-        val invisibleDueToOcclusion: Boolean,
-        val isVisible: Boolean,
-    )
 }

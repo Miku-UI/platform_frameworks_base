@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for AudioService to signal audio communication device updates.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ICommunicationDeviceDispatcher {
 

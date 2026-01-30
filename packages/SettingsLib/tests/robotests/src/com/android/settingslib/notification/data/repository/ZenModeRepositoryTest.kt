@@ -23,7 +23,6 @@ import android.content.Context
 import android.content.Intent
 import android.database.ContentObserver
 import android.os.Parcelable
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import android.provider.Settings.Global
 import androidx.test.filters.SmallTest
@@ -150,7 +149,6 @@ class ZenModeRepositoryTest {
         }
     }
 
-    @EnableFlags(android.app.Flags.FLAG_MODES_UI)
     @Test
     fun modesListEmitsOnSettingsChange() {
         testScope.runTest {
@@ -180,7 +178,6 @@ class ZenModeRepositoryTest {
         }
     }
 
-    @EnableFlags(android.app.Flags.FLAG_MODES_UI)
     @Test
     fun getModes_returnsModes() {
         val modesList = listOf(TestModeBuilder().setId("One").build())

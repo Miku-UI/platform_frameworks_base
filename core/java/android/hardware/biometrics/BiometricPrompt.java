@@ -22,6 +22,7 @@ import static android.Manifest.permission.USE_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
 import static android.hardware.biometrics.BiometricManager.Authenticators;
 import static android.hardware.biometrics.Flags.FLAG_ADD_KEY_AGREEMENT_CRYPTO_OBJECT;
+import static android.hardware.biometrics.Flags.FLAG_ADD_FALLBACK;
 import static android.hardware.biometrics.Flags.FLAG_GET_OP_ID_CRYPTO_OBJECT;
 import static android.os.Flags.FLAG_ALLOW_PRIVATE_PROFILE;
 
@@ -74,6 +75,10 @@ import javax.crypto.Mac;
 public class BiometricPrompt implements BiometricAuthenticator, BiometricConstants {
 
     private static final String TAG = "BiometricPrompt";
+
+    @VisibleForTesting
+    static final int MAX_FALLBACK_OPTIONS = 4;
+
     @VisibleForTesting
     static final int MAX_LOGO_DESCRIPTION_CHARACTER_NUMBER = 30;
 
@@ -145,6 +150,22 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
     public static final int DISMISSED_REASON_ERROR_NO_WM = 9;
 
     /**
+     * Dialog is done animating away after user clicked on a fallback option
+     * @hide
+     */
+    public static final int DISMISSED_REASON_FALLBACK_OPTION_BASE = 20;
+
+    // Reserve 20-29 for potential expanded fallback options
+
+    /**
+     * Maximum fallback option dismissed value
+     * @hide
+    */
+    public static final int DISMISSED_REASON_FALLBACK_OPTION_MAX =
+            DISMISSED_REASON_FALLBACK_OPTION_BASE + MAX_FALLBACK_OPTIONS;
+
+
+    /**
      * @hide
      */
     @IntDef({DISMISSED_REASON_BIOMETRIC_CONFIRMED,
@@ -155,7 +176,9 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
             DISMISSED_REASON_SERVER_REQUESTED,
             DISMISSED_REASON_CREDENTIAL_CONFIRMED,
             DISMISSED_REASON_CONTENT_VIEW_MORE_OPTIONS,
-            DISMISSED_REASON_ERROR_NO_WM})
+            DISMISSED_REASON_ERROR_NO_WM,
+            DISMISSED_REASON_FALLBACK_OPTION_BASE,
+            DISMISSED_REASON_FALLBACK_OPTION_MAX})
     @Retention(RetentionPolicy.SOURCE)
     public @interface DismissedReason {}
 
@@ -172,10 +195,12 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
      * A builder that collects arguments to be shown on the system-provided biometric dialog.
      */
     public static class Builder {
-        private PromptInfo mPromptInfo;
+        private final PromptInfo mPromptInfo;
         private ButtonInfo mNegativeButtonInfo;
         private ButtonInfo mContentViewMoreOptionsButtonInfo;
-        private Context mContext;
+        private final ButtonInfo[] mFallbackOptions = new ButtonInfo[MAX_FALLBACK_OPTIONS];
+        private int mFallbackOptionCount = 0;
+        private final Context mContext;
         private IAuthService mService;
 
         // LINT.IfChange
@@ -387,15 +412,26 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
         }
 
         /**
-         * Required: Sets the text, executor, and click listener for the negative button on the
+         * Optional: Sets the text, executor, and click listener for the negative button on the
          * prompt. This is typically a cancel button, but may be also used to show an alternative
          * method for authentication, such as a screen that asks for a backup password.
          *
-         * <p>Note that this setting is not required, and in fact is explicitly disallowed, if
-         * device credential authentication is enabled via {@link #setAllowedAuthenticators(int)} or
-         * {@link #setDeviceCredentialAllowed(boolean)}.
+         * <p> If not provided and no fallback is added through
+         * {@link #addFallbackOption(CharSequence, int, Executor, DialogInterface.OnClickListener)}
+         * (API 36.1 and later),
+         * the option to use device credential will be
+         * shown as the negative button if allowed in {@link #setAllowedAuthenticators(int)}. If
+         * credential is not allowed, "Cancel" will be shown as the negative button.
          *
-         * @param text Text to be shown on the negative button for the prompt.
+         * <p> In API 36 and earlier, this setting is required. Note that this setting is not
+         * required, and in fact is explicitly disallowed, if
+         * device credential authentication is enabled via {@link #setAllowedAuthenticators(int)}
+         * or
+         * {@link #setDeviceCredentialAllowed(boolean)}. To use credential authentication and
+         * provide custom behavior, use
+         * {@link #addFallbackOption(CharSequence, int, Executor, DialogInterface.OnClickListener)}
+         *
+         * @param text     Text to be shown on the negative button for the prompt.
          * @param executor Executor that will be used to run the on click callback.
          * @param listener Listener containing a callback to be run when the button is pressed.
          * @return This builder.
@@ -416,6 +452,73 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
             mPromptInfo.setNegativeButtonText(text);
             mNegativeButtonInfo = new ButtonInfo(executor, listener);
             return this;
+        }
+
+        /**
+         * Optional: Sets the text, icon, executor, and click listener for a fallback option in
+         * biometric prompt.
+         *
+         * <p>Fallback option is displayed as the negative button in prompt
+         * authentication screen if it is the only option and will display in a list in the
+         * fallback
+         * options page if there are more than one. If device credential authentication is allowed
+         * through {@link #setAllowedAuthenticators(int)}, it will
+         * count as a fallback option.
+         *
+         * <p> If a fallback option is not provided and
+         * {@link #setNegativeButton(CharSequence, Executor, DialogInterface.OnClickListener)} is
+         * not set, the option to use device credential will be
+         * shown as the negative button if allowed in {@link #setAllowedAuthenticators(int)}. If
+         * credential is not allowed, "Cancel" will be shown as the negative button.
+         *
+         * <p>A maximum of {@link #getMaxFallbackOptions()} fallback options can be added. This
+         * number does not include device credential authentication.
+         *
+         * <p><b>Note: These fallback options will not be displayed if
+         * {@link #setNegativeButton(CharSequence, Executor, DialogInterface.OnClickListener)} is
+         * set</b>
+         *
+         * @param text     Text to be shown on the fallback option for the prompt.
+         * @param iconType Icon to be shown for the fallback option
+         * @param executor Executor that will be used to run the on click callback.
+         * @param listener Listener containing a callback to be run when the button is pressed.
+         * @return This builder.
+         */
+        @NonNull
+        @FlaggedApi(FLAG_ADD_FALLBACK)
+        public Builder addFallbackOption(@NonNull CharSequence text,
+                @BiometricManager.IconType int iconType,
+                @NonNull @CallbackExecutor Executor executor,
+                @NonNull DialogInterface.OnClickListener listener) {
+            if (TextUtils.isEmpty(text)) {
+                throw new IllegalArgumentException("Text must be set and non-empty");
+            }
+            if (executor == null) {
+                throw new IllegalArgumentException("Executor must not be null");
+            }
+            if (listener == null) {
+                throw new IllegalArgumentException("Listener must not be null");
+            }
+            if (!isValidIconType(iconType)) {
+                throw new IllegalArgumentException("Invalid icon type");
+            }
+            if (mFallbackOptionCount >= getMaxFallbackOptions()) {
+                throw new IllegalArgumentException(
+                        "Maximum fallback option count of " + MAX_FALLBACK_OPTIONS + " exceeded");
+            }
+            mPromptInfo.addFallbackOption(new FallbackOption(text, iconType));
+            mFallbackOptions[mFallbackOptionCount] = new ButtonInfo(executor, listener);
+            mFallbackOptionCount++;
+            return this;
+        }
+
+        @FlaggedApi(FLAG_ADD_FALLBACK)
+        private static boolean isValidIconType(@BiometricManager.IconType int iconType) {
+            return iconType == BiometricManager.ICON_TYPE_PASSWORD
+                    || iconType == BiometricManager.ICON_TYPE_QR_CODE
+                    || iconType == BiometricManager.ICON_TYPE_ACCOUNT
+                    || iconType == BiometricManager.ICON_TYPE_GENERIC
+                    || iconType == BiometricManager.ICON_TYPE_SETTING;
         }
 
         /**
@@ -668,25 +771,15 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
         @NonNull
         public BiometricPrompt build() {
             final CharSequence title = mPromptInfo.getTitle();
-            final CharSequence negative = mPromptInfo.getNegativeButtonText();
             final boolean useDefaultTitle = mPromptInfo.isUseDefaultTitle();
-            final boolean deviceCredentialAllowed = mPromptInfo.isDeviceCredentialAllowed();
-            final @Authenticators.Types int authenticators = mPromptInfo.getAuthenticators();
-            final boolean willShowDeviceCredentialButton = deviceCredentialAllowed
-                    || isCredentialAllowed(authenticators);
 
             if (TextUtils.isEmpty(title) && !useDefaultTitle) {
                 throw new IllegalArgumentException("Title must be set and non-empty");
-            } else if (TextUtils.isEmpty(negative) && !willShowDeviceCredentialButton) {
-                throw new IllegalArgumentException("Negative text must be set and non-empty");
-            } else if (!TextUtils.isEmpty(negative) && willShowDeviceCredentialButton) {
-                throw new IllegalArgumentException("Can't have both negative button behavior"
-                        + " and device credential enabled");
             }
             mService = (mService == null) ? IAuthService.Stub.asInterface(
                     ServiceManager.getService(Context.AUTH_SERVICE)) : mService;
             return new BiometricPrompt(mContext, mPromptInfo, mNegativeButtonInfo,
-                    mContentViewMoreOptionsButtonInfo, mService);
+                    mContentViewMoreOptionsButtonInfo, mFallbackOptions, mService);
         }
     }
 
@@ -713,6 +806,7 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
     private final IAuthService mService;
     private final PromptInfo mPromptInfo;
     private final ButtonInfo mNegativeButtonInfo;
+    private final ButtonInfo[] mFallbackOptions;
     private final ButtonInfo mContentViewMoreOptionsButtonInfo;
 
     private CryptoObject mCryptoObject;
@@ -797,7 +891,20 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
         @Override
         public void onDialogDismissed(int reason) {
             // Check the reason and invoke OnClickListener(s) if necessary
-            if (reason == DISMISSED_REASON_NEGATIVE) {
+            if (reason >= DISMISSED_REASON_FALLBACK_OPTION_BASE
+                    && reason < DISMISSED_REASON_FALLBACK_OPTION_MAX) {
+                int buttonIndex = reason - DISMISSED_REASON_FALLBACK_OPTION_BASE;
+                if (mFallbackOptions[buttonIndex] != null) {
+                    mFallbackOptions[buttonIndex].executor.execute(() -> {
+                        mFallbackOptions[buttonIndex].listener.onClick(null,
+                                DialogInterface.BUTTON_NEGATIVE);
+                        mIsPromptShowing = false;
+                    });
+                } else {
+                    mAuthenticationCallback.onAuthenticationError(BIOMETRIC_ERROR_USER_CANCELED,
+                            null /* errString */);
+                }
+            } else if (reason == DISMISSED_REASON_NEGATIVE) {
                 if (mNegativeButtonInfo != null) {
                     mNegativeButtonInfo.executor.execute(() -> {
                         mNegativeButtonInfo.listener.onClick(null, DialogInterface.BUTTON_NEGATIVE);
@@ -831,10 +938,12 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
     private boolean mIsPromptShowing;
 
     private BiometricPrompt(Context context, PromptInfo promptInfo, ButtonInfo negativeButtonInfo,
-            ButtonInfo contentViewMoreOptionsButtonInfo, IAuthService service) {
+            ButtonInfo contentViewMoreOptionsButtonInfo, ButtonInfo[] fallbackOptions,
+            IAuthService service) {
         mContext = context;
         mPromptInfo = promptInfo;
         mNegativeButtonInfo = negativeButtonInfo;
+        mFallbackOptions = fallbackOptions;
         mContentViewMoreOptionsButtonInfo = contentViewMoreOptionsButtonInfo;
         mService = service;
         mIsPromptShowing = false;
@@ -944,6 +1053,17 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
     @Nullable
     public CharSequence getNegativeButtonText() {
         return mPromptInfo.getNegativeButtonText();
+    }
+
+    /**
+     * Gets the fallback options for the prompt, as set by
+     * {@link Builder#addFallbackOption(CharSequence, int, Executor, DialogInterface.OnClickListener)}.
+     * @return The fallback options for the prompt.
+     */
+    @NonNull
+    @FlaggedApi(FLAG_ADD_FALLBACK)
+    public List<FallbackOption> getFallbackOptions() {
+        return mPromptInfo.getFallbackOptions();
     }
 
     /**
@@ -1325,12 +1445,13 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
      * This call warms up the biometric hardware, displays a system-provided dialog, and starts
      * scanning for a biometric. It terminates when {@link
      * AuthenticationCallback#onAuthenticationError(int, CharSequence)} is called, when {@link
-     * AuthenticationCallback#onAuthenticationSucceeded( AuthenticationResult)}, or when the user
+     * AuthenticationCallback#onAuthenticationSucceeded(AuthenticationResult)}, or when the user
      * dismisses the system-provided dialog, at which point the crypto object becomes invalid. This
      * operation can be canceled by using the provided cancel object. The application will receive
      * authentication errors through {@link AuthenticationCallback}, and button events through the
      * corresponding callback set in {@link Builder#setNegativeButton(CharSequence, Executor,
-     * DialogInterface.OnClickListener)}. It is safe to reuse the {@link BiometricPrompt} object,
+     * DialogInterface.OnClickListener)} or
+     * {@link Builder#addFallbackOption(CharSequence, int, Executor, DialogInterface.OnClickListener)}. It is safe to reuse the {@link BiometricPrompt} object,
      * and calling {@link BiometricPrompt#authenticate(CancellationSignal, Executor,
      * AuthenticationCallback)} while an existing authentication attempt is occurring will stop the
      * previous client and start a new authentication. The interrupted client will receive a
@@ -1402,28 +1523,29 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
      * This call warms up the biometric hardware, displays a system-provided dialog, and starts
      * scanning for a biometric. It terminates when {@link
      * AuthenticationCallback#onAuthenticationError(int, CharSequence)} is called, when {@link
-     * AuthenticationCallback#onAuthenticationSucceeded( AuthenticationResult)} is called, or when
+     * AuthenticationCallback#onAuthenticationSucceeded(AuthenticationResult)} is called, or when
      * the user dismisses the system-provided dialog.  This operation can be canceled by using the
      * provided cancel object. The application will receive authentication errors through {@link
      * AuthenticationCallback}, and button events through the corresponding callback set in {@link
-     * Builder#setNegativeButton(CharSequence, Executor, DialogInterface.OnClickListener)}.  It is
-     * safe to reuse the {@link BiometricPrompt} object, and calling {@link
+     * Builder#setNegativeButton(CharSequence, Executor, DialogInterface.OnClickListener)} or
+     * {@link Builder#addFallbackOption(CharSequence, int, Executor,
+     * DialogInterface.OnClickListener)}.
+     * It is safe to reuse the {@link BiometricPrompt} object, and calling {@link
      * BiometricPrompt#authenticate(CancellationSignal, Executor, AuthenticationCallback)} while
-     * an existing authentication attempt is occurring will stop the previous client and start a new
-     * authentication. The interrupted client will receive a cancelled notification through {@link
-     * AuthenticationCallback#onAuthenticationError(int, CharSequence)}.
+     * an existing authentication attempt is occurring will stop the previous client and start a
+     * new authentication. The interrupted client will receive a cancelled notification through
+     * {@link AuthenticationCallback#onAuthenticationError(int, CharSequence)}.
      *
      * <p>Note: Applications generally should not cancel and start authentication in quick
-     * succession. For example, to properly handle authentication across configuration changes, it's
-     * recommended to use BiometricPrompt in a fragment with setRetainInstance(true). By doing so,
-     * the application will not need to cancel/restart authentication during the configuration
+     * succession. For example, to properly handle authentication across configuration changes,
+     * it's recommended to use BiometricPrompt in a fragment with setRetainInstance(true). By doing
+     * so, the application will not need to cancel/restart authentication during the configuration
      * change.
      *
-     * @throws IllegalArgumentException If any of the arguments are null.
-     *
-     * @param cancel An object that can be used to cancel authentication.
+     * @param cancel   An object that can be used to cancel authentication.
      * @param executor An executor to handle callback events.
      * @param callback An object to receive authentication events.
+     * @throws IllegalArgumentException If any of the arguments are null.
      */
     @RequiresPermission(USE_BIOMETRIC)
     public void authenticate(@NonNull CancellationSignal cancel,
@@ -1530,6 +1652,14 @@ public class BiometricPrompt implements BiometricAuthenticator, BiometricConstan
                     mContext.getString(R.string.biometric_error_hw_unavailable)));
             return -1;
         }
+    }
+
+    /**
+     * @return the maximum amount of fallback options that can be added to the prompt
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK)
+    public static int getMaxFallbackOptions() {
+        return MAX_FALLBACK_OPTIONS;
     }
 
     private static boolean isCredentialAllowed(@Authenticators.Types int allowedAuthenticators) {

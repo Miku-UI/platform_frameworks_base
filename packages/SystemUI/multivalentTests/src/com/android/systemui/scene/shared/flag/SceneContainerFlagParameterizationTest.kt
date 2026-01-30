@@ -20,7 +20,6 @@ import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.Flags.FLAG_EXAMPLE_FLAG
-import com.android.systemui.Flags.FLAG_NOTIFICATION_AVALANCHE_THROTTLE_HUN
 import com.android.systemui.Flags.FLAG_SCENE_CONTAINER
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.andSceneContainer
@@ -62,18 +61,5 @@ internal class SceneContainerFlagParameterizationTest : SysuiTestCase() {
         Truth.assertThat(result[2].mOverrides[FLAG_SCENE_CONTAINER]).isFalse()
         Truth.assertThat(result[3].mOverrides[unrelatedFlag]).isTrue()
         Truth.assertThat(result[3].mOverrides[FLAG_SCENE_CONTAINER]).isTrue()
-    }
-
-    @Test
-    fun oneDependencyAndSceneContainer() {
-        val dependentFlag = FLAG_NOTIFICATION_AVALANCHE_THROTTLE_HUN
-        val result = FlagsParameterization.allCombinationsOf(dependentFlag).andSceneContainer()
-        Truth.assertThat(result).hasSize(3)
-        Truth.assertThat(result[0].mOverrides[dependentFlag]).isFalse()
-        Truth.assertThat(result[0].mOverrides[FLAG_SCENE_CONTAINER]).isFalse()
-        Truth.assertThat(result[1].mOverrides[dependentFlag]).isTrue()
-        Truth.assertThat(result[1].mOverrides[FLAG_SCENE_CONTAINER]).isFalse()
-        Truth.assertThat(result[2].mOverrides[dependentFlag]).isTrue()
-        Truth.assertThat(result[2].mOverrides[FLAG_SCENE_CONTAINER]).isTrue()
     }
 }

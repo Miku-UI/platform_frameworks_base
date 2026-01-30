@@ -18,10 +18,10 @@
 package com.android.systemui.keyguard.ui.view.layout.sections
 
 import android.content.Context
-import android.view.View
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
+import com.android.systemui.deviceentry.ui.view.UdfpsAccessibilityOverlayOverlappingView
 import com.android.systemui.keyguard.shared.model.KeyguardSection
 import com.android.systemui.keyguard.ui.binder.AccessibilityActionsViewBinder
 import com.android.systemui.keyguard.ui.viewmodel.AccessibilityActionsViewModel
@@ -42,13 +42,18 @@ constructor(
     private val communalSettingsInteractor: CommunalSettingsInteractor,
     private val accessibilityActionsViewModel: AccessibilityActionsViewModel,
 ) : KeyguardSection() {
+    private val viewId = R.id.accessibility_actions_view
+    private var cachedConstraintLayout: ConstraintLayout? = null
+
     private var accessibilityActionsViewHandle: DisposableHandle? = null
 
     override fun addViews(constraintLayout: ConstraintLayout) {
         if (!communalSettingsInteractor.isCommunalFlagEnabled()) {
             return
         }
-        val view = View(constraintLayout.context).apply { id = R.id.accessibility_actions_view }
+        cachedConstraintLayout = constraintLayout
+        val view =
+            UdfpsAccessibilityOverlayOverlappingView(constraintLayout.context).apply { id = viewId }
         constraintLayout.addView(view)
     }
 
@@ -56,49 +61,32 @@ constructor(
         if (!communalSettingsInteractor.isCommunalFlagEnabled()) {
             return
         }
+        val view =
+            constraintLayout.requireViewById<UdfpsAccessibilityOverlayOverlappingView>(viewId)
         accessibilityActionsViewHandle =
-            AccessibilityActionsViewBinder.bind(
-                constraintLayout.requireViewById(R.id.accessibility_actions_view),
-                accessibilityActionsViewModel,
-            )
+            AccessibilityActionsViewBinder.bind(view, accessibilityActionsViewModel)
     }
 
     override fun applyConstraints(constraintSet: ConstraintSet) {
-        val accessibilityActionsViewId = R.id.accessibility_actions_view
         constraintSet.apply {
             // Starts from the bottom of the status bar.
             connect(
-                accessibilityActionsViewId,
+                viewId,
                 ConstraintSet.TOP,
                 ConstraintSet.PARENT_ID,
                 ConstraintSet.TOP,
-                Utils.getStatusBarHeaderHeightKeyguard(context)
+                Utils.getStatusBarHeaderHeightKeyguard(context),
             )
-            connect(
-                accessibilityActionsViewId,
-                ConstraintSet.BOTTOM,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.BOTTOM,
-            )
+            connect(viewId, ConstraintSet.BOTTOM, ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM)
             // Full width
-            connect(
-                accessibilityActionsViewId,
-                ConstraintSet.START,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.START
-            )
-            connect(
-                accessibilityActionsViewId,
-                ConstraintSet.END,
-                ConstraintSet.PARENT_ID,
-                ConstraintSet.END
-            )
+            connect(viewId, ConstraintSet.START, ConstraintSet.PARENT_ID, ConstraintSet.START)
+            connect(viewId, ConstraintSet.END, ConstraintSet.PARENT_ID, ConstraintSet.END)
         }
     }
 
     override fun removeViews(constraintLayout: ConstraintLayout) {
         accessibilityActionsViewHandle?.dispose()
         accessibilityActionsViewHandle = null
-        constraintLayout.removeView(R.id.accessibility_actions_view)
+        constraintLayout.removeView(viewId)
     }
 }

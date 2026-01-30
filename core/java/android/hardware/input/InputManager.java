@@ -31,14 +31,15 @@ import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SuppressLint;
+import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.annotation.UserHandleAware;
 import android.annotation.UserIdInt;
-import android.app.ActivityThread;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
+import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.hardware.BatteryState;
 import android.os.Build;
@@ -57,6 +58,8 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.PointerIcon;
 import android.view.VerifiedInputEvent;
+import android.view.View;
+import android.view.View.PointerCaptureMode;
 import android.view.WindowManager.LayoutParams;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
@@ -66,7 +69,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.Executor;
 
 /**
@@ -332,27 +334,6 @@ public final class InputManager {
         mGlobal = InputManagerGlobal.getInstance();
         mIm = mGlobal.getInputManagerService();
         mContext = context;
-    }
-
-    /**
-     * Gets an instance of the input manager.
-     *
-     *  Warning: The usage of this method is not supported!
-     *
-     *  @return The input manager instance.
-     *  Use {@link Context#getSystemService(Class)}
-     *  to obtain the InputManager instance.
-     *
-     * TODO (b/277717573): Soft remove this API in version V.
-     * TODO (b/277039664): Migrate app usage off this API.
-     *
-     * @hide
-     */
-    @Deprecated
-    @UnsupportedAppUsage
-    public static InputManager getInstance() {
-        return Objects.requireNonNull(ActivityThread.currentApplication())
-                .getSystemService(InputManager.class);
     }
 
     /**
@@ -1021,6 +1002,27 @@ public final class InputManager {
     }
 
     /**
+     * Returns a {@link VirtualKeyboard} to the caller.
+     * See {@link android.hardware.input.VirtualKeyboardConfig} for additional configurations
+     * available, e.g. display association, layout, and language.
+     *
+     * @param config the keyboard configuration
+     * @return VirtualKeyboard a virtual keyboard device
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(anyOf = {
+            Manifest.permission.INJECT_KEY_EVENTS,
+            Manifest.permission.INJECT_EVENTS
+    })
+    @FlaggedApi(com.android.hardware.input.Flags.FLAG_CREATE_VIRTUAL_KEYBOARD_API)
+    @NonNull
+    public VirtualKeyboard createVirtualKeyboard(@NonNull VirtualKeyboardConfig config) {
+        return mGlobal.createVirtualKeyboard(config);
+    }
+
+    /**
      * Injects an input event into the event system on behalf of an application.
      * The synchronization mode determines whether the method blocks while waiting for
      * input injection to proceed.
@@ -1100,16 +1102,17 @@ public final class InputManager {
     /**
      * Request or release pointer capture.
      * <p>
-     * When in capturing mode, the pointer icon disappears and all mouse events are dispatched to
-     * the window which has requested the capture. Relative position changes are available through
-     * {@link MotionEvent#getX} and {@link MotionEvent#getY}.
+     * When in capturing mode, the pointer icon disappears and all mouse and touchpad events are
+     * dispatched to the window which has requested the capture.
      *
-     * @param enable true when requesting pointer capture, false when releasing.
+     * @param mode the capture mode to request.
+     *
+     * @see View#requestPointerCapture()
      *
      * @hide
      */
-    public void requestPointerCapture(IBinder windowToken, boolean enable) {
-        mGlobal.requestPointerCapture(windowToken, enable);
+    public void requestPointerCapture(@NonNull IBinder windowToken, @PointerCaptureMode int mode) {
+        mGlobal.requestPointerCapture(windowToken, mode);
     }
 
     /**
@@ -1615,6 +1618,51 @@ public final class InputManager {
     public void resetLockedModifierState() {
         try {
             mIm.resetLockedModifierState();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Set whether all pointer scaling, including linear scaling based on the
+     * user's pointer speed setting, should be enabled or disabled for mice.
+     *
+     * Note that this only affects pointer movements from mice (that is, pointing devices which send
+     * relative motions, including trackballs and pointing sticks), not from other pointer devices
+     * such as touchpads and styluses.
+     *
+     * Scaling is enabled by default on new displays until it is explicitly disabled.
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @RequiresPermission(Manifest.permission.SET_POINTER_SPEED)
+    public void setMouseScalingEnabled(boolean enabled, int displayId) {
+        try {
+            mIm.setMouseScalingEnabled(enabled, displayId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Gets the current position of the mouse cursor on the specified display.
+     *
+     * <p>Returned values are in logical display coordinates in pixels.
+     *
+     * <p>Returns null if no cursor is available, or if existing cursor is not on the supplied
+     * `displayId`.
+     *
+     * <p>This method is inherently racy, and should only be used for test purposes.
+     * @hide
+     */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // @TestApi without associated feature.
+    @RequiresPermission(Manifest.permission.INJECT_EVENTS)
+    @Nullable
+    public PointF getCursorPosition(int displayId) {
+        try {
+            return mIm.getCursorPositionInLogicalDisplay(displayId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

@@ -16,9 +16,13 @@
 
 package com.android.server.locksettings;
 
+import static android.security.Flags.secureLockDevice;
+
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_TIMEOUT;
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE;
 
 import android.app.AlarmManager;
 import android.app.AlarmManager.OnAlarmListener;
@@ -62,6 +66,8 @@ public class LockSettingsStrongAuth {
     private static final int MSG_STRONG_BIOMETRIC_UNLOCK = 8;
     private static final int MSG_SCHEDULE_NON_STRONG_BIOMETRIC_IDLE_TIMEOUT = 9;
     private static final int MSG_REFRESH_STRONG_AUTH_TIMEOUT = 10;
+    private static final int MSG_PRIMARY_AUTH_SUCCESS_IN_SECURE_LOCK_DEVICE_MODE = 11;
+    private static final int MSG_DISABLE_SECURE_LOCK_DEVICE = 12;
 
     @VisibleForTesting
     protected static final String STRONG_AUTH_TIMEOUT_ALARM_TAG =
@@ -199,6 +205,14 @@ public class LockSettingsStrongAuth {
     }
 
     private void handleRequireStrongAuthOneUser(int strongAuthReason, int userId) {
+        // If requiring strong biometric auth for Secure Lock Device, disallow non-strong
+        // biometrics
+        if (secureLockDevice()
+                && (strongAuthReason & STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE) != 0
+        ) {
+            setIsNonStrongBiometricAllowed(false, userId);
+        }
+
         int oldValue = mStrongAuthForUser.get(userId, mDefaultStrongAuthFlags);
         int newValue = strongAuthReason == STRONG_AUTH_NOT_REQUIRED
                 ? STRONG_AUTH_NOT_REQUIRED
@@ -267,6 +281,56 @@ public class LockSettingsStrongAuth {
         // schedule a new alarm listener for the user
         mAlarmManager.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, nextAlarmTime,
                 STRONG_AUTH_TIMEOUT_ALARM_TAG, alarm, mHandler);
+    }
+
+    /**
+     * Indicates if PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is set for a given userId.
+     *
+     * Returns false if FLAG_SECURE_LOCK_DEVICE is disabled, or if the
+     * PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is not set.
+     */
+    private boolean isSecureLockDevicePrimaryAuthFlagSet(int userId) {
+        if (!secureLockDevice()) {
+            return false;
+        }
+
+        return (mStrongAuthForUser.get(userId, mDefaultStrongAuthFlags)
+                & PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE) != 0;
+    }
+
+    /**
+     * Indicates if STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is set for a given
+     * userId.
+     *
+     * Returns false if FLAG_SECURE_LOCK_DEVICE is disabled, or if the
+     * STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is not set.
+     */
+    private boolean isSecureLockDeviceStrongBiometricAuthFlagSet(int userId) {
+        if (!secureLockDevice()) {
+            return false;
+        }
+
+        return (mStrongAuthForUser.get(userId, mDefaultStrongAuthFlags)
+                & STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE) != 0;
+    }
+
+    /**
+     * Unsets all strong auth flag changes for Secure Lock Device.
+     * @param userId the user requesting to disable secure lock device
+     * @param authenticationComplete indicates if secure lock device is being disabled due to
+     *                               successful two-factor primary and biometric authentication
+     *                               by the user on this device. If {@code false}, it indicates
+     *                               a disable request by a remote mechanism that has verified the
+     *                               user's identity.
+     */
+    public void disableSecureLockDevice(int userId, boolean authenticationComplete) {
+        if (DEBUG) {
+            Slog.d(TAG, "disableSecureLockDevice(userId=" + userId + ", "
+                    + "authenticationComplete=" + authenticationComplete + ")");
+        }
+        Message msg = mHandler.obtainMessage(MSG_DISABLE_SECURE_LOCK_DEVICE,
+                userId, authenticationComplete ? 1 : 0);
+        mHandler.sendMessage(msg);
     }
 
     private void handleScheduleStrongAuthTimeout(int userId) {
@@ -402,6 +466,72 @@ public class LockSettingsStrongAuth {
                 NON_STRONG_BIOMETRIC_IDLE_TIMEOUT_ALARM_TAG, alarm, mHandler);
     }
 
+    /**
+     * Updates strong auth flags after primary authentication success in Secure Lock Device mode.
+     *
+     * Primary auth typically unlocks the device when secure lock device is disabled.
+     *
+     * When Secure Lock Device is enabled, the device is not unlocked after primary auth, because a
+     * second factor strong-biometric-only auth step is still required. Instead, primary auth
+     * success unsets all flags except for STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE.
+     * @param userId the userId of the user that successfully authenticated
+     */
+    private void handlePrimaryAuthSuccessInSecureLockDeviceMode(int userId) {
+        if (DEBUG) Slog.d(TAG, "handlePrimaryAuthSuccessInSecureLockDeviceMode");
+        if (secureLockDevice() && isSecureLockDevicePrimaryAuthFlagSet(userId)) {
+            mStrongAuthForUser.put(userId, STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE);
+            notifyStrongAuthTrackers(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE, userId);
+        }
+    }
+
+    /**
+     * Updates strong auth flags after disabling Secure Lock Device.
+     *
+     * <p>If {@code authenticationComplete} is {@code true}, reports the successful strong auth
+     * unlock and strong biometric unlock.
+     *
+     * <p>If {@code authenticationComplete} is {@code false}, the user has not completed two-factor
+     * authentication and any partial authentication progress is reset.
+     *
+     * @param userId the ID of the user requesting to disable secure lock device.
+     * @param authenticationComplete whether two-factor authentication was completed.
+     */
+    private void handleDisableSecureLockDevice(int userId, int authenticationComplete) {
+        if (!secureLockDevice()) {
+            return;
+        }
+
+        boolean authComplete = (authenticationComplete == 1);
+        if (DEBUG) {
+            Slog.d(TAG, "Disabling secure lock device for userId=" + userId + ", "
+                    + "authenticationComplete=" + authComplete);
+        }
+
+        for (int i = 0; i < mStrongAuthForUser.size(); i++) {
+            final int targetUserId = mStrongAuthForUser.keyAt(i);
+
+            // Unset Secure Lock Device strong biometric auth flag if set
+            if (isSecureLockDeviceStrongBiometricAuthFlagSet(targetUserId)) {
+                handleNoLongerRequireStrongAuth(
+                        STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE, targetUserId);
+            }
+
+            if (!authComplete) {
+                // Unset Secure Lock Device primary auth flag if set
+                if (isSecureLockDevicePrimaryAuthFlagSet(targetUserId)) {
+                    handleNoLongerRequireStrongAuth(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                            targetUserId);
+                }
+                handleRequireStrongAuth(mDefaultStrongAuthFlags, targetUserId);
+            }
+        }
+
+        if (authComplete) {
+            handleRequireStrongAuth(STRONG_AUTH_NOT_REQUIRED, userId);
+            handleScheduleStrongAuthTimeout(userId);
+        }
+    }
+
     private void notifyStrongAuthTrackers(int strongAuthReason, int userId) {
         int i = mTrackers.beginBroadcast();
         try {
@@ -477,6 +607,18 @@ public class LockSettingsStrongAuth {
 
     public void reportUnlock(int userId) {
         requireStrongAuth(STRONG_AUTH_NOT_REQUIRED, userId);
+    }
+
+    /**
+     * Report successful authentication with primary auth as part of a two-factor authentication in
+     * secure lock device. The device will remain locked until the second-factor strong biometric
+     * authentication is complete.
+     */
+    public void reportSuccessfulPrimaryAuthInSecureLockDeviceMode(int userId) {
+        final int argNotUsed = 0;
+        mHandler.obtainMessage(MSG_PRIMARY_AUTH_SUCCESS_IN_SECURE_LOCK_DEVICE_MODE, userId,
+                argNotUsed).sendToTarget();
+
     }
 
     /**
@@ -629,6 +771,12 @@ public class LockSettingsStrongAuth {
                     break;
                 case MSG_SCHEDULE_NON_STRONG_BIOMETRIC_IDLE_TIMEOUT:
                     handleScheduleNonStrongBiometricIdleTimeout(msg.arg1);
+                    break;
+                case MSG_PRIMARY_AUTH_SUCCESS_IN_SECURE_LOCK_DEVICE_MODE:
+                    handlePrimaryAuthSuccessInSecureLockDeviceMode(msg.arg1);
+                    break;
+                case MSG_DISABLE_SECURE_LOCK_DEVICE:
+                    handleDisableSecureLockDevice(msg.arg1, msg.arg2);
                     break;
             }
         }

@@ -146,9 +146,7 @@ public final class CreateRequestSession extends RequestSession<CreateCredentialR
         if (response != null) {
             mRequestSessionMetric.collectChosenProviderStatus(
                     ProviderStatusForMetrics.FINAL_SUCCESS.getMetricCode());
-            if (Flags.fixMetricDuplicationEmits()) {
-                mRequestSessionMetric.collectChosenClassType(mClientRequest.getType());
-            }
+            mRequestSessionMetric.collectChosenClassType(mClientRequest.getType());
             respondToClientWithResponseAndFinish(response);
         } else {
             mRequestSessionMetric.collectChosenProviderStatus(
@@ -163,6 +161,10 @@ public final class CreateRequestSession extends RequestSession<CreateCredentialR
     @Override
     public void onFinalErrorReceived(ComponentName componentName, String errorType,
             String message) {
+        if (Flags.metricBugfixesContinued()) {
+            mRequestSessionMetric.updateMetricsOnResponseReceived(mProviders, componentName,
+                    isPrimaryProviderViaProviderInfo(componentName));
+        }
         respondToClientWithErrorAndFinish(errorType, message);
     }
 
@@ -199,6 +201,10 @@ public final class CreateRequestSession extends RequestSession<CreateCredentialR
                 getProviderDataAndInitiateUi();
             } else {
                 String exception = CreateCredentialException.TYPE_NO_CREATE_OPTIONS;
+                if (Flags.metricBugfixesContinued()) {
+                    mRequestSessionMetric.updateMetricsOnResponseReceived(mProviders, componentName,
+                            isPrimaryProviderViaProviderInfo(componentName));
+                }
                 mRequestSessionMetric.collectFrameworkException(exception);
                 respondToClientWithErrorAndFinish(exception,
                         "No create options available.");

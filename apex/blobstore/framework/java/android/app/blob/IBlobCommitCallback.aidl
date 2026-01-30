@@ -15,7 +15,7 @@
  */
 package android.app.blob;
 
-/** {@hide} */
+/** @hide */
 oneway interface IBlobCommitCallback {
     void onResult(int result);
 }

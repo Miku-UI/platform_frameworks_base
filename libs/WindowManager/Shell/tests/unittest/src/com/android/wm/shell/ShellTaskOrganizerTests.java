@@ -16,6 +16,9 @@
 
 package com.android.wm.shell;
 
+import static android.app.WindowConfiguration.ACTIVITY_TYPE_DREAM;
+import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
+import static android.app.WindowConfiguration.ACTIVITY_TYPE_RECENTS;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
@@ -27,13 +30,13 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spy;
 import static com.android.wm.shell.ShellTaskOrganizer.TASK_LISTENER_TYPE_FULLSCREEN;
 import static com.android.wm.shell.ShellTaskOrganizer.TASK_LISTENER_TYPE_MULTI_WINDOW;
 import static com.android.wm.shell.ShellTaskOrganizer.TASK_LISTENER_TYPE_PIP;
-import static com.android.wm.shell.transition.Transitions.ENABLE_SHELL_TRANSITIONS;
+import static com.android.wm.shell.ShellTaskOrganizer.isHomeTaskOnDefaultDisplay;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
@@ -77,6 +80,7 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tests for the shell task organizer.
@@ -90,6 +94,8 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
 
     @Mock
     private ITaskOrganizerController mTaskOrganizerController;
+    @Mock
+    private RootTaskDisplayAreaOrganizer mRootTaskDisplayAreaOrganizer;
     @Mock
     private CompatUIController mCompatUI;
     @Mock
@@ -147,8 +153,8 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
         }
         mShellInit = spy(new ShellInit(mTestExecutor));
         mOrganizer = spy(new ShellTaskOrganizer(mShellInit, mShellCommandHandler,
-                mTaskOrganizerController, mCompatUI, Optional.empty(),
-                Optional.of(mRecentTasksController), mTestExecutor));
+                mRootTaskDisplayAreaOrganizer, mTaskOrganizerController, mCompatUI,
+                Optional.empty(), Optional.of(mRecentTasksController), mTestExecutor));
         mShellInit.init();
     }
 
@@ -165,19 +171,6 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
     @Test
     public void testInit_sendRegisterTaskOrganizer() throws RemoteException {
         verify(mTaskOrganizerController).registerTaskOrganizer(any(ITaskOrganizer.class));
-    }
-
-    @Test
-    public void testTaskLeashReleasedAfterVanished() throws RemoteException {
-        assumeFalse(ENABLE_SHELL_TRANSITIONS);
-        RunningTaskInfo taskInfo = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
-        SurfaceControl taskLeash = new SurfaceControl.Builder()
-                .setName("task").build();
-        mOrganizer.registerOrganizer();
-        mOrganizer.onTaskAppeared(taskInfo, taskLeash);
-        assertTrue(taskLeash.isValid());
-        mOrganizer.onTaskVanished(taskInfo);
-        assertTrue(!taskLeash.isValid());
     }
 
     @Test
@@ -290,6 +283,50 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
     }
 
     @Test
+    public void testAddSameListenerForTaskId() {
+        RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        TrackingTaskListener task1Listener = new TrackingTaskListener();
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        // Add task 1 specific listener
+        mOrganizer.addListenerForTaskId(task1Listener, 1);
+        assertTrue(task1Listener.appeared.contains(task1));
+
+        // Add same listener for the task, assert it doesn't throw and also onTaskAppeared() doesn't
+        // get called it again
+        mOrganizer.addListenerForTaskId(task1Listener, 1);
+        assertEquals(1, task1Listener.appeared.size());
+    }
+
+    @Test
+    public void testAddPendingListenerForTaskId() {
+        RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        TrackingTaskListener listener = new TrackingTaskListener();
+
+        // Add the listener first, then report the task to the organizer
+        mOrganizer.addListenerForTaskId(listener, 1);
+        assertFalse(mOrganizer.hasTaskListener(1));
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        // Verify that the listener got notified anyways
+        assertTrue(listener.appeared.contains(task1));
+    }
+
+    @Test
+    public void testRemovePendingListenerForTaskId() {
+        RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        TrackingTaskListener listener = new TrackingTaskListener();
+
+        // Add the listener, remove the listener, then report the task to the organizer
+        mOrganizer.addListenerForTaskId(listener, 1);
+        mOrganizer.removeListener(listener);
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        // Verify that the pending listener does not get notified
+        assertFalse(listener.appeared.contains(task1));
+    }
+
+    @Test
     public void testAddListenerForTaskId_afterTypeListener() {
         RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
         TrackingTaskListener mwListener = new TrackingTaskListener();
@@ -315,6 +352,51 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
 
         mOrganizer.addListenerForType(mwListener, TASK_LISTENER_TYPE_MULTI_WINDOW);
         assertFalse(mwListener.appeared.contains(task1));
+    }
+
+    @Test
+    public void testMigrateCookieToTaskOnInfoChanged() {
+        RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        TrackingTaskListener mwListener = new TrackingTaskListener();
+        mOrganizer.addListenerForType(mwListener, TASK_LISTENER_TYPE_MULTI_WINDOW);
+
+        TrackingTaskListener cookieListener = new TrackingTaskListener();
+        IBinder cookie = new Binder();
+        task1.addLaunchCookie(cookie);
+        mOrganizer.setPendingLaunchCookieListener(cookie, cookieListener);
+
+        mOrganizer.onTaskInfoChanged(task1);
+
+        assertTrue(mOrganizer.hasTaskListener(task1.taskId));
+    }
+
+    @Test
+    public void testRemoveListenerBeforeCookieMigration() {
+        // Add a generic listener for MW tasks
+        TrackingTaskListener mwListener = new TrackingTaskListener();
+        mOrganizer.addListenerForType(mwListener, TASK_LISTENER_TYPE_MULTI_WINDOW);
+
+        // Create a new task with a specific launch cookie
+        IBinder cookie = new Binder();
+        RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_MULTI_WINDOW);
+        task1.addLaunchCookie(cookie);
+
+        // Add a pending listener based on the same launch cookie
+        TrackingTaskListener cookieListener = new TrackingTaskListener();
+        mOrganizer.setPendingLaunchCookieListener(cookie, cookieListener);
+
+        // Remove the listener before the task appears
+        mOrganizer.removeListener(cookieListener);
+
+        // Report the task appearing
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        // Verify that the cookie listener was actually removed and that the generic MW listener
+        // received the task
+        assertTrue(mwListener.appeared.contains(task1));
+        assertFalse(cookieListener.appeared.contains(task1));
     }
 
     @Test
@@ -649,6 +731,45 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
     }
 
     @Test
+    public void testTaskAppearedListenerCallback() {
+        final RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_FULLSCREEN);
+
+        final RunningTaskInfo[] updatedTasks = new RunningTaskInfo[1];
+
+        final ShellTaskOrganizer.TaskAppearedListener listener =
+                new ShellTaskOrganizer.TaskAppearedListener() {
+                    @Override
+                    public void onTaskAppeared(RunningTaskInfo taskInfo, SurfaceControl leash) {
+                        updatedTasks[0] = taskInfo;
+                    }
+                };
+
+        mOrganizer.addTaskAppearedListener(listener);
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        assertEquals(updatedTasks[0], task1);
+    }
+
+    @Test
+    public void testTaskInfoChangedListenerCallback() {
+        RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_FULLSCREEN);
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        RunningTaskInfo[] vanishedTasks = new RunningTaskInfo[1];
+        ShellTaskOrganizer.TaskInfoChangedListener listener =
+                new ShellTaskOrganizer.TaskInfoChangedListener() {
+                    @Override
+                    public void onTaskInfoChanged(RunningTaskInfo taskInfo) {
+                        vanishedTasks[0] = taskInfo;
+                    }
+                };
+        mOrganizer.addTaskInfoChangedListener(listener);
+        mOrganizer.onTaskInfoChanged(task1);
+
+        assertEquals(vanishedTasks[0], task1);
+    }
+
+    @Test
     public void testTaskVanishedCallback() {
         RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_FULLSCREEN);
         mOrganizer.onTaskAppeared(task1, /* leash= */ null);
@@ -667,11 +788,96 @@ public class ShellTaskOrganizerTests extends ShellTestCase {
         assertEquals(vanishedTasks[0], task1);
     }
 
+    @Test
+    public void testSelfRemovingVanishedTaskListenersCallback() {
+        RunningTaskInfo task1 = createTaskInfo(/* taskId= */ 1, WINDOWING_MODE_FULLSCREEN);
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+
+        AtomicInteger calledListenerCount = new AtomicInteger(0);
+        ShellTaskOrganizer.TaskVanishedListener listener1 = getSelfRemovingVanishedListener(
+                mOrganizer, calledListenerCount);
+        ShellTaskOrganizer.TaskVanishedListener listener2 = getSelfRemovingVanishedListener(
+                mOrganizer, calledListenerCount);
+        mOrganizer.addTaskVanishedListener(listener1);
+        mOrganizer.addTaskVanishedListener(listener2);
+        mOrganizer.onTaskVanished(task1);
+
+        assertEquals(2, calledListenerCount.get());
+
+        mOrganizer.onTaskAppeared(task1, /* leash= */ null);
+        mOrganizer.onTaskVanished(task1);
+
+        // Count should remain the same if no new vanished listeners are added.
+        assertEquals(2, calledListenerCount.get());
+    }
+
+    @Test
+    public void testHomeTaskOnDefaultDisplay() {
+        RunningTaskInfo taskInfo = createTaskInfo(
+                /* taskId= */ 1, ACTIVITY_TYPE_HOME, DEFAULT_DISPLAY);
+
+        assertTrue(isHomeTaskOnDefaultDisplay(taskInfo));
+    }
+
+    @Test
+    public void testNonHomeTaskOnDefaultDisplay() {
+        RunningTaskInfo taskInfo = createTaskInfo(
+                /* taskId= */ 1, ACTIVITY_TYPE_DREAM, DEFAULT_DISPLAY);
+
+        assertFalse(isHomeTaskOnDefaultDisplay(taskInfo));
+    }
+
+    @Test
+    public void testHomeTaskOnExternalDisplay() {
+        RunningTaskInfo taskInfo = createTaskInfo(
+                /* taskId= */ 1, ACTIVITY_TYPE_HOME, /* displayId= */ 2);
+
+        assertFalse(isHomeTaskOnDefaultDisplay(taskInfo));
+    }
+
+    @Test
+    public void testRecentTaskOnExternalDisplay() {
+        RunningTaskInfo taskInfo = createTaskInfo(
+                /* taskId= */ 1, ACTIVITY_TYPE_RECENTS, /* displayId= */ 3);
+
+        assertFalse(isHomeTaskOnDefaultDisplay(taskInfo));
+    }
+
+    @Test
+    public void testGetHomeTaskSurface() {
+        RunningTaskInfo taskInfo = createTaskInfo(
+                /* taskId= */ 1, ACTIVITY_TYPE_HOME, /* displayId= */ 2);
+        SurfaceControl taskLeash = new SurfaceControl.Builder()
+                .setName("home_task").build();
+        mOrganizer.onTaskAppeared(taskInfo, taskLeash);
+        assertNull(mOrganizer.getHomeTaskSurface(/* displayId= */ 0));
+        assertEquals(mOrganizer.getHomeTaskSurface(/* displayId= */ 2), taskLeash);
+    }
+
+    private static ShellTaskOrganizer.TaskVanishedListener getSelfRemovingVanishedListener(
+            ShellTaskOrganizer shellTaskOrganizer, AtomicInteger taskVanishedCalls) {
+        return new ShellTaskOrganizer.TaskVanishedListener() {
+            @Override
+            public void onTaskVanished(RunningTaskInfo taskInfo) {
+                shellTaskOrganizer.removeTaskVanishedListener(this);
+                taskVanishedCalls.incrementAndGet();
+            }
+        };
+    }
+
     private static RunningTaskInfo createTaskInfo(int taskId, int windowingMode) {
         RunningTaskInfo taskInfo = new RunningTaskInfo();
         taskInfo.taskId = taskId;
         taskInfo.configuration.windowConfiguration.setWindowingMode(windowingMode);
         taskInfo.isVisible = true;
+        return taskInfo;
+    }
+
+    private static RunningTaskInfo createTaskInfo(int taskId, int activityType, int displayId) {
+        RunningTaskInfo taskInfo = new RunningTaskInfo();
+        taskInfo.taskId = taskId;
+        taskInfo.configuration.windowConfiguration.setActivityType(activityType);
+        taskInfo.displayId = displayId;
         return taskInfo;
     }
 

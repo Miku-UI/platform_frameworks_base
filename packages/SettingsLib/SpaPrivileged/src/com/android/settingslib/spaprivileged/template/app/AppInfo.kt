@@ -134,11 +134,7 @@ class AppInfoProvider(private val packageInfo: PackageInfo) {
             }
         if (footer.isBlank()) return
         if (!isSpaExpressiveEnabled) HorizontalDivider()
-        Column(
-            modifier =
-                if (isSpaExpressiveEnabled) Modifier.padding(SettingsDimension.footerItemPadding)
-                else Modifier.padding(SettingsDimension.itemPadding)
-        ) {
+        Box(modifier = Modifier.padding(SettingsDimension.footerPadding)) {
             CopyableBody(footer)
         }
     }

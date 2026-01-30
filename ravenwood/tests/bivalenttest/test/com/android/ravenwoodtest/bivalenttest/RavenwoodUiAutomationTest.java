@@ -26,11 +26,10 @@ import static org.junit.Assume.assumeTrue;
 
 import android.app.Instrumentation;
 import android.app.UiAutomation;
+import android.platform.test.ravenwood.RavenwoodRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
-
-import com.android.ravenwood.common.RavenwoodCommonUtils;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -77,7 +76,7 @@ public class RavenwoodUiAutomationTest {
     @Test
     public void testUnsupportedMethod() {
         // Only unsupported on Ravenwood
-        assumeTrue(RavenwoodCommonUtils.isOnRavenwood());
+        assumeTrue(RavenwoodRule.isOnRavenwood());
         assertThrows(RuntimeException.class,
                 () -> mInstrumentation.getUiAutomation().executeShellCommand("echo ok"));
     }

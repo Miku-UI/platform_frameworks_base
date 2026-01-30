@@ -125,12 +125,8 @@ public class BigPictureNotificationImageView extends ImageView implements
     public void setImageDrawable(@Nullable Drawable drawable) {
         if (drawable instanceof BitmapDrawable bitmapDrawable) {
             if (bitmapDrawable.getBitmap() == null) {
-                if (Flags.bigPictureStyleDiscardEmptyIconBitmapDrawables()) {
-                    Log.e(TAG, "discarding BitmapDrawable with null Bitmap (invalid image file?)");
-                    drawable = null;
-                } else {
-                    Log.e(TAG, "setting BitmapDrawable with null Bitmap (invalid image file?)");
-                }
+                Log.e(TAG, "discarding BitmapDrawable with null Bitmap (invalid image file?)");
+                drawable = null;
             }
         }
 

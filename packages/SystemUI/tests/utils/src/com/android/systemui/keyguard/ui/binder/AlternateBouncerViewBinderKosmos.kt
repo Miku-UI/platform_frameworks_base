@@ -75,7 +75,6 @@ private val Kosmos.alternateBouncerUdfpsIconViewModel by
             configurationInteractor = configurationInteractor,
             deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
             deviceEntryBackgroundViewModel = mock<DeviceEntryBackgroundViewModel>(),
-            fingerprintPropertyInteractor = fingerprintPropertyInteractor,
             udfpsOverlayInteractor = udfpsOverlayInteractor,
             alternateBouncerViewModel = alternateBouncerViewModel,
             statusBarKeyguardViewManager = statusBarKeyguardViewManager,

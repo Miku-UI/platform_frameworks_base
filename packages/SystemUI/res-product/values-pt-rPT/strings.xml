@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"A reproduzir neste tablet"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Pode localizar este telemóvel com o serviço Localizar o meu dispositivo mesmo quando está desligado"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Pode localizar este tablet com o serviço Localizar o meu dispositivo mesmo quando está desligado"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Pode localizar este telemóvel com o Localizador mesmo quando está desligado"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Pode localizar este tablet com o Localizador mesmo quando está desligado"</string>
 </resources>

@@ -630,7 +630,6 @@ public final class ProgramListTest {
 
     @Test
     public void getProgramInfos() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         createRadioTuner();
         mProgramList = mRadioTuner.getDynamicProgramList(TEST_FILTER);
         registerListCallbacks(/* numCallbacks= */ 1);
@@ -647,7 +646,6 @@ public final class ProgramListTest {
 
     @Test
     public void getProgramInfos_withIdNotFound() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
         createRadioTuner();
         mProgramList = mRadioTuner.getDynamicProgramList(TEST_FILTER);
         registerListCallbacks(/* numCallbacks= */ 1);

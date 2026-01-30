@@ -43,7 +43,7 @@ public abstract class ExpandableOutlineView extends ExpandableView {
     private RoundableState mRoundableState;
     private static final Path EMPTY_PATH = new Path();
     private final Rect mOutlineRect = new Rect();
-    private boolean mCustomOutline;
+    private boolean mHasCustomOutline;
     private float mOutlineAlpha = -1f;
     private boolean mAlwaysRoundBothCorners;
     private Path mTmpPath = new Path();
@@ -59,13 +59,14 @@ public abstract class ExpandableOutlineView extends ExpandableView {
     private final ViewOutlineProvider mProvider = new ViewOutlineProvider() {
         @Override
         public void getOutline(View view, Outline outline) {
-            if (!mCustomOutline && !hasRoundedCorner() && !mAlwaysRoundBothCorners) {
+            if (!mHasCustomOutline && !hasRoundedCorner() && !mAlwaysRoundBothCorners) {
                 // Only when translating just the contents, does the outline need to be shifted.
                 int translation = !mDismissUsingRowTranslationX ? (int) getTranslation() : 0;
                 int left = Math.max(translation, 0);
-                int top = mClipTopAmount;
+                int top = Math.max(mClipTopAmount, mTopOverlap);
                 int right = getWidth() + Math.min(translation, 0);
-                int bottom = Math.max(getActualHeight() - mClipBottomAmount, top);
+                int clipBottomAmount = Math.max(mClipBottomAmount, mBottomOverlap);
+                int bottom = Math.max(getActualHeight() - clipBottomAmount, top);
                 outline.setRect(left, top, right, bottom);
             } else {
                 Path clipPath = getClipPath(false /* ignoreTranslation */);
@@ -84,11 +85,26 @@ public abstract class ExpandableOutlineView extends ExpandableView {
 
     @Override
     public int getClipHeight() {
-        if (mCustomOutline) {
+        if (mHasCustomOutline) {
             return mOutlineRect.height();
         }
 
         return super.getClipHeight();
+    }
+
+    public boolean hasCustomOutline() {
+        return mHasCustomOutline;
+    }
+
+    public Rect getOutlineRect() {
+        return mOutlineRect;
+    }
+
+    public int getBackgroundBottom() {
+        if (mHasCustomOutline) {
+            return mOutlineRect.bottom;
+        }
+        return getActualHeight() - getClipBottomAmount();
     }
 
     protected Path getClipPath(boolean ignoreTranslation) {
@@ -98,19 +114,20 @@ public abstract class ExpandableOutlineView extends ExpandableView {
         int bottom;
         int height;
         float topRadius = mAlwaysRoundBothCorners ? getMaxRadius() : getTopCornerRadius();
-        if (!mCustomOutline) {
+        if (!mHasCustomOutline) {
             // The outline just needs to be shifted if we're translating the contents. Otherwise
             // it's already in the right place.
             int translation = !mDismissUsingRowTranslationX && !ignoreTranslation
                     ? (int) getTranslation() : 0;
             int halfExtraWidth = (int) (mExtraWidthForClipping / 2.0f);
             left = Math.max(translation, 0) - halfExtraWidth;
-            top = mClipTopAmount;
+            top = Math.max(mClipTopAmount, mTopOverlap);
             right = getWidth() + halfExtraWidth + Math.min(translation, 0);
             // If the top is rounded we want the bottom to be at most at the top roundness, in order
             // to avoid the shadow changing when scrolling up.
+            int clipBottomAmount = Math.max(mClipBottomAmount, mBottomOverlap);
             bottom = Math.max(mMinimumHeightForClipping,
-                    Math.max(getActualHeight() - mClipBottomAmount, (int) (top + topRadius)));
+                    Math.max(getActualHeight() - clipBottomAmount, (int) (top + topRadius)));
         } else {
             left = mOutlineRect.left;
             top = mOutlineRect.top;
@@ -206,24 +223,32 @@ public abstract class ExpandableOutlineView extends ExpandableView {
         // When translating the contents instead of the overall view, we need to make sure we clip
         // rounded to the contents.
         boolean forTranslation = getTranslation() != 0 && !mDismissUsingRowTranslationX;
-        return mAlwaysRoundBothCorners || mCustomOutline || forTranslation;
+        return mAlwaysRoundBothCorners || mHasCustomOutline || forTranslation;
     }
 
     private void initDimens() {
+        mAlwaysRoundBothCorners = getResources().getBoolean(
+                R.bool.config_clipNotificationsToOutline);
+        updateMaxRadius();
+        setClipToOutline(mAlwaysRoundBothCorners);
+    }
+
+    float calculateMaxRadius() {
         Resources res = getResources();
-        mAlwaysRoundBothCorners = res.getBoolean(R.bool.config_clipNotificationsToOutline);
-        float maxRadius;
         if (mAlwaysRoundBothCorners) {
-            maxRadius = res.getDimension(R.dimen.notification_shadow_radius);
+            return res.getDimension(R.dimen.notification_shadow_radius);
         } else {
-            maxRadius = res.getDimensionPixelSize(R.dimen.notification_corner_radius);
+            return res.getDimensionPixelSize(R.dimen.notification_corner_radius);
         }
+    }
+
+    void updateMaxRadius() {
+        float maxRadius = calculateMaxRadius();
         if (mRoundableState == null) {
             mRoundableState = new RoundableState(this, this, maxRadius);
         } else {
             mRoundableState.setMaxRadius(maxRadius);
         }
-        setClipToOutline(mAlwaysRoundBothCorners);
     }
 
     @Override
@@ -256,6 +281,23 @@ public abstract class ExpandableOutlineView extends ExpandableView {
     }
 
     @Override
+    public void setTopOverlap(int topOverlap) {
+        int previousAmount = mTopOverlap;
+        super.setTopOverlap(topOverlap);
+        if (previousAmount != topOverlap) {
+            applyRoundnessAndInvalidate();
+        }
+    }
+
+    @Override
+    public void setBottomOverlap(int bottomOverlap) {
+        int previousAmount = mBottomOverlap;
+        super.setBottomOverlap(bottomOverlap);
+        if (previousAmount != bottomOverlap) {
+            applyRoundnessAndInvalidate();
+        }
+    }
+    @Override
     public void setClipBottomAmount(int clipBottomAmount) {
         int previousAmount = getClipBottomAmount();
         super.setClipBottomAmount(clipBottomAmount);
@@ -280,7 +322,7 @@ public abstract class ExpandableOutlineView extends ExpandableView {
         if (rect != null) {
             setOutlineRect(rect.left, rect.top, rect.right, rect.bottom);
         } else {
-            mCustomOutline = false;
+            mHasCustomOutline = false;
             applyRoundnessAndInvalidate();
         }
     }
@@ -299,7 +341,7 @@ public abstract class ExpandableOutlineView extends ExpandableView {
 
     @Override
     public int getOutlineTranslation() {
-        if (mCustomOutline) {
+        if (mHasCustomOutline) {
             return mOutlineRect.left;
         }
         if (mDismissUsingRowTranslationX) {
@@ -309,7 +351,7 @@ public abstract class ExpandableOutlineView extends ExpandableView {
     }
 
     public void updateOutline() {
-        if (mCustomOutline) {
+        if (mHasCustomOutline) {
             return;
         }
         boolean hasOutline = needsOutline();
@@ -335,7 +377,7 @@ public abstract class ExpandableOutlineView extends ExpandableView {
     }
 
     protected void setOutlineRect(float left, float top, float right, float bottom) {
-        mCustomOutline = true;
+        mHasCustomOutline = true;
 
         mOutlineRect.set((int) left, (int) top, (int) right, (int) bottom);
 
@@ -363,7 +405,7 @@ public abstract class ExpandableOutlineView extends ExpandableView {
 
     protected void dumpCustomOutline(IndentingPrintWriter pw, String[] args) {
         pw.print("CustomOutline: ");
-        pw.print("mCustomOutline", mCustomOutline);
+        pw.print("mHasCustomOutline", mHasCustomOutline);
         pw.print("mOutlineRect", mOutlineRect);
         pw.print("mOutlineAlpha", mOutlineAlpha);
         pw.print("mAlwaysRoundBothCorners", mAlwaysRoundBothCorners);

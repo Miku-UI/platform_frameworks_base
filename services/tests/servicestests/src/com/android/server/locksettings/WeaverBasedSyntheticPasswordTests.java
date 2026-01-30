@@ -6,28 +6,13 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
-import android.platform.test.annotations.Presubmit;
-
-import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
-
 import com.android.server.locksettings.LockSettingsStorage.PersistentData;
 
 import com.google.android.collect.Sets;
 
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 
-@SmallTest
-@Presubmit
-@RunWith(AndroidJUnit4.class)
-public class WeaverBasedSyntheticPasswordTests extends SyntheticPasswordTests {
-
-    @Before
-    public void enableWeaver() throws Exception {
-        mSpManager.enableWeaver();
-    }
+public abstract class WeaverBasedSyntheticPasswordTests extends SyntheticPasswordTests {
 
     // Tests that if the device is not yet provisioned and the FRP credential uses Weaver, then the
     // Weaver slot of the FRP credential is not reused.  Assumes that Weaver slots are allocated

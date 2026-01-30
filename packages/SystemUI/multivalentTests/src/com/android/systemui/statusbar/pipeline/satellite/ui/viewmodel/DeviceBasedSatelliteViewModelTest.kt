@@ -23,16 +23,20 @@ import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.log.core.FakeLogBuffer
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.fake
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.FakeMobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsProxy
 import com.android.systemui.statusbar.pipeline.satellite.data.prod.FakeDeviceBasedSatelliteRepository
 import com.android.systemui.statusbar.pipeline.satellite.domain.interactor.DeviceBasedSatelliteInteractor
 import com.android.systemui.statusbar.pipeline.satellite.shared.model.SatelliteConnectionState
-import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.FakeWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.domain.interactor.WifiInteractorImpl
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
+import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
 import kotlin.time.Duration.Companion.seconds
@@ -47,15 +51,17 @@ import org.mockito.kotlin.mock
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
+    private val kosmos = testKosmos()
+
     private lateinit var underTest: DeviceBasedSatelliteViewModel
     private lateinit var interactor: DeviceBasedSatelliteInteractor
-    private lateinit var airplaneModeRepository: FakeAirplaneModeRepository
+    private val airplaneModeRepository = kosmos.airplaneModeRepository.fake
     private val repo = FakeDeviceBasedSatelliteRepository()
     private val testScope = TestScope()
 
     private val mobileIconsInteractor = FakeMobileIconsInteractor(FakeMobileMappingsProxy(), mock())
 
-    private val connectivityRepository = FakeConnectivityRepository()
+    private val connectivityRepository = kosmos.connectivityRepository.fake
     private val wifiRepository = FakeWifiRepository()
     private val wifiInteractor =
         WifiInteractorImpl(connectivityRepository, wifiRepository, testScope.backgroundScope)
@@ -63,7 +69,6 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
-        airplaneModeRepository = FakeAirplaneModeRepository()
 
         interactor =
             DeviceBasedSatelliteInteractor(
@@ -80,7 +85,7 @@ class DeviceBasedSatelliteViewModelTest : SysuiTestCase() {
                 context,
                 interactor,
                 testScope.backgroundScope,
-                airplaneModeRepository,
+                kosmos.airplaneModeInteractor,
                 FakeLogBuffer.Factory.create(),
                 mock(),
             )

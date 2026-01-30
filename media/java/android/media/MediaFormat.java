@@ -18,6 +18,7 @@ package android.media;
 
 import static android.media.audio.Flags.FLAG_IAMF_DEFINITIONS_API;
 import static android.media.codec.Flags.FLAG_APV_SUPPORT;
+import static android.media.codec.Flags.FLAG_AUDIO_MIX_PRESENTATION_SUPPORT;
 import static android.media.codec.Flags.FLAG_IN_PROCESS_SW_AUDIO_CODEC;
 import static android.media.codec.Flags.FLAG_NUM_INPUT_SLOTS;
 import static android.media.codec.Flags.FLAG_REGION_OF_INTEREST;
@@ -132,10 +133,13 @@ import java.util.stream.Collectors;
  * <tr><td>{@link #KEY_MPEGH_REFERENCE_CHANNEL_LAYOUT}</td>
  *     <td>Integer</td><td><b>decoder-only</b>, optional, if content is MPEG-H audio,
  *         specifies the preferred reference channel layout of the stream.</td></tr>
- * <tr><td>{@link #KEY_MAX_BUFFER_BATCH_OUTPUT_SIZE}</td><td>Integer</td><td>optional, used with
+ * <tr><td>{@link #KEY_BUFFER_BATCH_MAX_OUTPUT_SIZE}</td><td>Integer</td><td>optional, used with
  *         large audio frame support, specifies max size of output buffer in bytes.</td></tr>
  * <tr><td>{@link #KEY_BUFFER_BATCH_THRESHOLD_OUTPUT_SIZE}</td><td>Integer</td><td>optional,
  *         used with large audio frame support, specifies threshold output size in bytes.</td></tr>
+ * <tr><td>{@link #KEY_AUDIO_PRESENTATION_ID}</td><td>long</td>
+ *     <td><b>decoder-only</b>, optional, The ID of an AudioPresentation, MixPresentation,
+ *     or similar audio decoder concept.</td></tr>
  * </table>
  *
  * Subtitle formats have the following keys:
@@ -188,6 +192,7 @@ public final class MediaFormat {
     public static final String MIMETYPE_AUDIO_AC3 = "audio/ac3";
     public static final String MIMETYPE_AUDIO_EAC3 = "audio/eac3";
     public static final String MIMETYPE_AUDIO_EAC3_JOC = "audio/eac3-joc";
+    /** MIME type for AC-4 sync frame transport format audio stream. */
     public static final String MIMETYPE_AUDIO_AC4 = "audio/ac4";
     public static final String MIMETYPE_AUDIO_SCRAMBLED = "audio/scrambled";
     /** MIME type for MPEG-H Audio single stream */
@@ -481,44 +486,41 @@ public final class MediaFormat {
     public static final String KEY_MAX_INPUT_SIZE = "max-input-size";
 
     /**
-     * A key describing the maximum output buffer size in bytes when using
-     * large buffer mode containing multiple access units.
+     * A key describing the maximum output buffer size in bytes when using large buffer mode
+     * containing multiple access units.
      *
-     * When not-set - codec functions with one access-unit per frame.
-     * When set less than the size of two access-units - will make codec
-     * operate in single access-unit per output frame.
-     * When set to a value too big - The component or the framework will
-     * override this value to a reasonable max size not exceeding typical
-     * 10 seconds of data (device dependent) when set to a value larger than
-     * that. The value final value used will be returned in the output format.
+     * <p>When not-set - codec functions with one access-unit per frame. When set less than the size
+     * of two access-units - will make codec operate in single access-unit per output frame. When
+     * set to a value too big - The component or the framework will override this value to a
+     * reasonable max size not exceeding typical 10 seconds of data (device dependent) when set to a
+     * value larger than that. The value final value used will be returned in the output format.
      *
-     * The associated value is an integer
+     * <p>The associated value is an integer
      *
-     * @see FEATURE_MultipleFrames
+     * @see MediaCodecInfo.CodecCapabilities#FEATURE_MultipleFrames
      */
     @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
     public static final String KEY_BUFFER_BATCH_MAX_OUTPUT_SIZE = "buffer-batch-max-output-size";
 
     /**
-     * A key describing the threshold output size in bytes when using large buffer
-     * mode containing multiple access units.
+     * A key describing the threshold output size in bytes when using large buffer mode containing
+     * multiple access units.
      *
-     * This is an optional parameter.
+     * <p>This is an optional parameter.
      *
-     * If not set - the component can set this to a reasonable value.
-     * If set larger than max size, the components will
-     * clip this setting to maximum buffer batching output size.
+     * <p>If not set - the component can set this to a reasonable value. If set larger than max
+     * size, the components will clip this setting to maximum buffer batching output size.
      *
-     * The component will return a partial output buffer if the output buffer reaches or
-     * surpass this limit.
+     * <p>The component will return a partial output buffer if the output buffer reaches or surpass
+     * this limit.
      *
-     * Threshold size should be always less or equal to KEY_MAX_BUFFER_BATCH_OUTPUT_SIZE.
-     * The final setting of this value as determined by the component will be returned
-     * in the output format
+     * <p>Threshold size should be always less or equal to {@link KEY_BUFFER_BATCH_MAX_OUTPUT_SIZE}.
+     * The final setting of this value as determined by the component will be returned in the output
+     * format
      *
-     * The associated value is an integer
+     * <p>The associated value is an integer
      *
-     * @see FEATURE_MultipleFrames
+     * @see MediaCodecInfo.CodecCapabilities#FEATURE_MultipleFrames
      */
     @FlaggedApi(FLAG_LARGE_AUDIO_FRAME)
     public static final String KEY_BUFFER_BATCH_THRESHOLD_OUTPUT_SIZE =
@@ -546,7 +548,7 @@ public final class MediaFormat {
      * A key describing the hardware AV sync id.
      * The associated value is an integer
      *
-     * See android.media.tv.tuner.Tuner#getAvSyncHwId.
+     * @see android.media.tv.tuner.Tuner#getAvSyncHwId.
      */
     public static final String KEY_HARDWARE_AV_SYNC_ID = "hw-av-sync-id";
 
@@ -674,9 +676,17 @@ public final class MediaFormat {
      * When capture rate is different than the frame rate, it means that the
      * video is acquired at a different rate than the playback, which produces
      * slow motion or timelapse effect during playback. Application can use the
-     * value of this key to tell the relative speed ratio between capture and
-     * playback rates when the video was recorded.
+     * value of this key to set a capture rate that differs from the playback
+     * rate. If unspecified, the system uses the playback frame rate as the
+     * capture rate (e.g. normal speed).
      * </p>
+     *
+     * <p>However, Specifying capture rates that are nearly equal to the frame
+     * rate are at risk of causing frame drops and other visual artifacts in
+     * the output. To avoid such artifacts, the capture rate should be at
+     * least a factor of 2 away from the frame rate.
+     * {@code  GraphicBufferSource#calculateCodecTimestamp_l}</p>
+     *
      * <p>
      * The associated value is an integer or a float.
      * </p>
@@ -1763,20 +1773,21 @@ public final class MediaFormat {
 
     /**
      * A key describing the requested security model as flags.
+     *
+     * <p>The associated value is a flag of the following values: {@link
+     * #FLAG_SECURITY_MODEL_SANDBOXED}, {@link #FLAG_SECURITY_MODEL_MEMORY_SAFE}. The default value
+     * is {@link #FLAG_SECURITY_MODEL_SANDBOXED}.
+     *
+     * <p>When passed to {@link MediaCodecList#findDecoderForFormat} or {@link
+     * MediaCodecList#findEncoderForFormat}, MediaCodecList filters the security model of the codecs
+     * according to this flag value.
+     *
+     * <p>When passed to {@link MediaCodec#configure}, MediaCodec verifies the security model
+     * matches the flag value passed, and throws {@link java.lang.IllegalArgumentException} if the
+     * model does not match.
+     *
      * <p>
-     * The associated value is a flag of the following values:
-     * {@link FLAG_SECURITY_MODEL_SANDBOXED},
-     * {@link FLAG_SECURITY_MODEL_MEMORY_SAFE},
-     * The default value is {@link FLAG_SECURITY_MODEL_SANDBOXED}.
-     * <p>
-     * When passed to {@link MediaCodecList#findDecoderForFormat} or
-     * {@link MediaCodecList#findEncoderForFormat}, MediaCodecList filters
-     * the security model of the codecs according to this flag value.
-     * <p>
-     * When passed to {@link MediaCodec#configure}, MediaCodec verifies
-     * the security model matches the flag value passed, and throws
-     * {@link java.lang.IllegalArgumentException} if the model does not match.
-     * <p>
+     *
      * @see MediaCodecInfo#getSecurityModel
      * @see MediaCodecList#findDecoderForFormat
      * @see MediaCodecList#findEncoderForFormat
@@ -1800,8 +1811,8 @@ public final class MediaFormat {
      * <p>
      * The associated value is a string.
      * <p>
-     * @see {@link android.media.quality.PictureProfile}
-     * @see {@link android.media.quality.PictureProfile#getProfileId}
+     * @see android.media.quality.PictureProfile
+     * @see android.media.quality.PictureProfile#getProfileId
      */
     @FlaggedApi(FLAG_APPLY_PICTURE_PROFILES)
     public static final String KEY_PICTURE_PROFILE_ID = "picture-profile-id";
@@ -1811,10 +1822,26 @@ public final class MediaFormat {
      * <p>
      * The associated value is an instance of {@link android.media.quality.PictureProfile}.
      * <p>
-     * @see {@link android.media.quality.PictureProfile}
+     * @see android.media.quality.PictureProfile
      */
     @FlaggedApi(FLAG_APPLY_PICTURE_PROFILES)
     public static final String KEY_PICTURE_PROFILE_INSTANCE = "picture-profile-instance";
+
+    /**
+     * A key identifying an audio or mix presentation or similar concept.
+     *
+     * <p>For audio stream encodings and associated decoders that support the concept of different
+     * creator-defined mixes within a file, this key can be used to provide the decoder with the
+     * selected mix.
+     *
+     * <p>The associated value is a long.
+     *
+     * <p>
+     *
+     * @see AudioPresentation
+     */
+    @FlaggedApi(FLAG_AUDIO_MIX_PRESENTATION_SUPPORT)
+    public static final String KEY_AUDIO_PRESENTATION_ID = "audio-presentation-id";
 
     /**
      * QpOffsetRect constitutes the metadata required for encoding a region of interest in an

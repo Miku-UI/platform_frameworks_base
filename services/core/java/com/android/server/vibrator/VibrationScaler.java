@@ -17,7 +17,6 @@
 package com.android.server.vibrator;
 
 import android.annotation.NonNull;
-import android.hardware.vibrator.V1_0.EffectStrength;
 import android.os.ExternalVibrationScale;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
@@ -47,24 +46,29 @@ final class VibrationScaler {
     static final int SCALE_NONE = ExternalVibrationScale.ScaleLevel.SCALE_NONE; // 0
     static final int SCALE_HIGH = ExternalVibrationScale.ScaleLevel.SCALE_HIGH; // 1
     static final int SCALE_VERY_HIGH = ExternalVibrationScale.ScaleLevel.SCALE_VERY_HIGH; // 2
-    static final float ADAPTIVE_SCALE_NONE = 1f;
 
+    static final float ADAPTIVE_SCALE_NONE = 1f;
+    static final float SCALE_FACTOR_NONE = 1f;
+
+    // TODO(b/345186129): remove this once we finish migrating to scale factor and clean up flags.
     // Scale factors for each level.
     private static final float SCALE_FACTOR_VERY_LOW = 0.6f;
     private static final float SCALE_FACTOR_LOW = 0.8f;
-    private static final float SCALE_FACTOR_NONE = 1f;
     private static final float SCALE_FACTOR_HIGH = 1.2f;
     private static final float SCALE_FACTOR_VERY_HIGH = 1.4f;
 
-    private final VibrationSettings mSettingsController;
-    private final int mDefaultVibrationAmplitude;
-    private final float mDefaultVibrationScaleLevelGain;
+    private final VibrationConfig mVibrationConfig;
+    private final VibrationSettings mVibrationSettings;
     private final SparseArray<Float> mAdaptiveHapticsScales = new SparseArray<>();
 
-    VibrationScaler(VibrationConfig config, VibrationSettings settingsController) {
-        mSettingsController = settingsController;
-        mDefaultVibrationAmplitude = config.getDefaultVibrationAmplitude();
-        mDefaultVibrationScaleLevelGain = config.getDefaultVibrationScaleLevelGain();
+    VibrationScaler(VibrationConfig config, VibrationSettings settings) {
+        mVibrationConfig = config;
+        mVibrationSettings = settings;
+    }
+
+    /** Return static configurations used by this scaler. */
+    public VibrationConfig getVibrationConfig() {
+        return mVibrationConfig;
     }
 
     /**
@@ -74,8 +78,8 @@ final class VibrationScaler {
      * @return one of ExternalVibrationScale.ScaleLevel.SCALE_*
      */
     public int getScaleLevel(int usageHint) {
-        int defaultIntensity = mSettingsController.getDefaultIntensity(usageHint);
-        int currentIntensity = mSettingsController.getCurrentIntensity(usageHint);
+        int defaultIntensity = mVibrationSettings.getDefaultIntensity(usageHint);
+        int currentIntensity = mVibrationSettings.getCurrentIntensity(usageHint);
         if (currentIntensity == Vibrator.VIBRATION_INTENSITY_OFF) {
             // Bypassing user settings, or it has changed between checking and scaling. Use default.
             return SCALE_NONE;
@@ -97,10 +101,23 @@ final class VibrationScaler {
      * Calculates the scale factor to be applied to a vibration with given usage.
      *
      * @param usageHint one of VibrationAttributes.USAGE_*
+     * @param isExternalVibration true if this scale will be applied to an external vibration
      * @return The scale factor.
      */
-    public float getScaleFactor(int usageHint) {
-        return scaleLevelToScaleFactor(getScaleLevel(usageHint));
+    public float getScaleFactor(int usageHint, boolean isExternalVibration) {
+        if (!Flags.vibrationScaleDeviceConfigEnabled()) {
+            return scaleLevelToScaleFactor(getScaleLevel(usageHint));
+        }
+        int currentIntensity = mVibrationSettings.getCurrentIntensity(usageHint);
+        if (currentIntensity == Vibrator.VIBRATION_INTENSITY_OFF) {
+            // Bypassing user settings, or it has changed between checking and scaling. Use default.
+            // TODO(b/345186129): return zero here once scale levels removed and flags cleaned up.
+            return SCALE_FACTOR_NONE;
+        }
+        float defaultScale = scaleLevelToScaleFactor(getScaleLevel(usageHint));
+        return isExternalVibration
+                ? mVibrationConfig.getExternalVibrationScaleFactor(currentIntensity, defaultScale)
+                : mVibrationConfig.getVibrationScaleFactor(currentIntensity, defaultScale);
     }
 
     /**
@@ -112,9 +129,7 @@ final class VibrationScaler {
      * @return The adaptive haptics scale.
      */
     public float getAdaptiveHapticsScale(int usageHint) {
-        return Flags.adaptiveHapticsEnabled()
-                ? mAdaptiveHapticsScales.get(usageHint, ADAPTIVE_SCALE_NONE)
-                : ADAPTIVE_SCALE_NONE;
+        return mAdaptiveHapticsScales.get(usageHint, ADAPTIVE_SCALE_NONE);
     }
 
     /**
@@ -128,10 +143,20 @@ final class VibrationScaler {
     @NonNull
     public VibrationEffect scale(@NonNull VibrationEffect effect, int usageHint) {
         int newEffectStrength = getEffectStrength(usageHint);
-        float scaleFactor = getScaleFactor(usageHint);
+        float scaleFactor = getScaleFactor(usageHint, /* isExternalVibration= */ false);
         float adaptiveScale = getAdaptiveHapticsScale(usageHint);
 
-        return effect.resolve(mDefaultVibrationAmplitude)
+        // TODO(b/345186129): remove this once finish migrating to scale factor and clean up flags.
+        if (!Flags.hapticsScaleV2Enabled() && Flags.vibrationScaleDeviceConfigEnabled()
+                && mVibrationConfig.hasVibrationScaleFactors()) {
+            // If scale V2 is not enabled then make sure we apply config linearly.
+            return effect.resolve(mVibrationConfig.getDefaultVibrationAmplitude())
+                    .applyEffectStrength(newEffectStrength)
+                    .scaleLinearly(scaleFactor)
+                    .applyAdaptiveScale(adaptiveScale);
+        }
+
+        return effect.resolve(mVibrationConfig.getDefaultVibrationAmplitude())
                 .applyEffectStrength(newEffectStrength)
                 .scale(scaleFactor)
                 // Make sure this is the last one so it is applied on top of the settings scaling.
@@ -186,15 +211,45 @@ final class VibrationScaler {
         }
         pw.decreaseIndent();
 
-        pw.println("AdaptiveHapticsScales:");
-        pw.increaseIndent();
-        for (int i = 0; i < mAdaptiveHapticsScales.size(); i++) {
-            int usage = mAdaptiveHapticsScales.keyAt(i);
-            float scale = mAdaptiveHapticsScales.valueAt(i);
-            pw.println(VibrationAttributes.usageToString(usage)
-                    + " = " + String.format(Locale.ROOT, "%.2f", scale));
+        if (mAdaptiveHapticsScales.size() > 0) {
+            pw.println("AdaptiveHapticsScales:");
+            pw.increaseIndent();
+            for (int i = 0; i < mAdaptiveHapticsScales.size(); i++) {
+                int usage = mAdaptiveHapticsScales.keyAt(i);
+                float scale = mAdaptiveHapticsScales.valueAt(i);
+                pw.println(VibrationAttributes.usageToString(usage)
+                        + " = " + String.format(Locale.ROOT, "%.2f", scale));
+            }
+            pw.decreaseIndent();
+        } else {
+            pw.println("AdaptiveHapticsScales = null");
         }
-        pw.decreaseIndent();
+
+        if (mVibrationConfig.hasVibrationScaleFactors()) {
+            pw.println("DeviceConfigVibrationScales:");
+            pw.increaseIndent();
+            for (int intensity = Vibrator.VIBRATION_INTENSITY_LOW;
+                    intensity <= Vibrator.VIBRATION_INTENSITY_HIGH; intensity++) {
+                pw.println(intensityToString(intensity)
+                        + " = " + mVibrationConfig.getVibrationScaleFactor(intensity, 0));
+            }
+            pw.decreaseIndent();
+        } else {
+            pw.println("DeviceConfigVibrationScales = null");
+        }
+
+        if (mVibrationConfig.hasExternalVibrationScaleFactors()) {
+            pw.println("DeviceConfigExternalVibrationScales:");
+            pw.increaseIndent();
+            for (int intensity = Vibrator.VIBRATION_INTENSITY_LOW;
+                    intensity <= Vibrator.VIBRATION_INTENSITY_HIGH; intensity++) {
+                pw.println(intensityToString(intensity)
+                        + " = " + mVibrationConfig.getExternalVibrationScaleFactor(intensity, 0));
+            }
+            pw.decreaseIndent();
+        } else {
+            pw.println("DeviceConfigExternalVibrationScales = null");
+        }
 
         pw.decreaseIndent();
     }
@@ -202,7 +257,7 @@ final class VibrationScaler {
     /** Write current settings into given {@link ProtoOutputStream}. */
     void dump(ProtoOutputStream proto) {
         proto.write(VibratorManagerServiceDumpProto.DEFAULT_VIBRATION_AMPLITUDE,
-                mDefaultVibrationAmplitude);
+                mVibrationConfig.getDefaultVibrationAmplitude());
     }
 
     @Override
@@ -224,24 +279,24 @@ final class VibrationScaler {
     }
 
     private int getEffectStrength(int usageHint) {
-        int currentIntensity = mSettingsController.getCurrentIntensity(usageHint);
+        int currentIntensity = mVibrationSettings.getCurrentIntensity(usageHint);
         if (currentIntensity == Vibrator.VIBRATION_INTENSITY_OFF) {
             // Bypassing user settings, or it has changed between checking and scaling. Use default.
-            currentIntensity = mSettingsController.getDefaultIntensity(usageHint);
+            currentIntensity = mVibrationSettings.getDefaultIntensity(usageHint);
         }
 
         return intensityToEffectStrength(currentIntensity);
     }
 
-    /** Mapping of Vibrator.VIBRATION_INTENSITY_* values to {@link EffectStrength}. */
+    /** Mapping of Vibrator.VIBRATION_INTENSITY_* values to VibrationEffect.EFFECT_STRENGTH_*. */
     private static int intensityToEffectStrength(int intensity) {
         return switch (intensity) {
-            case Vibrator.VIBRATION_INTENSITY_LOW -> EffectStrength.LIGHT;
-            case Vibrator.VIBRATION_INTENSITY_MEDIUM -> EffectStrength.MEDIUM;
-            case Vibrator.VIBRATION_INTENSITY_HIGH -> EffectStrength.STRONG;
+            case Vibrator.VIBRATION_INTENSITY_LOW -> VibrationEffect.EFFECT_STRENGTH_LIGHT;
+            case Vibrator.VIBRATION_INTENSITY_MEDIUM -> VibrationEffect.EFFECT_STRENGTH_MEDIUM;
+            case Vibrator.VIBRATION_INTENSITY_HIGH -> VibrationEffect.EFFECT_STRENGTH_STRONG;
             default -> {
                 Slog.w(TAG, "Got unexpected vibration intensity: " + intensity);
-                yield EffectStrength.STRONG;
+                yield VibrationEffect.EFFECT_STRENGTH_STRONG;
             }
         };
     }
@@ -253,13 +308,15 @@ final class VibrationScaler {
                 // Scale set to none or to a bad value, use default factor for no scaling.
                 return SCALE_FACTOR_NONE;
             }
-            float scaleFactor = (float) Math.pow(mDefaultVibrationScaleLevelGain, level);
+            float scaleLevelGain = mVibrationConfig.getDefaultVibrationScaleLevelGain();
+            float scaleFactor = (float) Math.pow(scaleLevelGain, level);
             if (scaleFactor <= 0) {
                 // Something about our scaling has gone wrong, so just play with no scaling.
-                Slog.wtf(TAG, String.format(Locale.ROOT, "Error in scaling calculations, ended up"
-                                + " with invalid scale factor %.2f for scale level %s and default"
-                                + " level gain of %.2f", scaleFactor, scaleLevelToString(level),
-                        mDefaultVibrationScaleLevelGain));
+                Slog.wtf(TAG,
+                        String.format(Locale.ROOT, "Error in scaling calculations, ended up with"
+                                        + " invalid scale factor %.2f for scale level %s and"
+                                        + " default level gain of %.2f",
+                                scaleFactor, scaleLevelToString(level), scaleLevelGain));
                 scaleFactor = SCALE_FACTOR_NONE;
             }
             return scaleFactor;
@@ -283,6 +340,16 @@ final class VibrationScaler {
             case SCALE_HIGH -> "HIGH";
             case SCALE_VERY_HIGH -> "VERY_HIGH";
             default -> String.valueOf(scaleLevel);
+        };
+    }
+
+    static String intensityToString(int intensity) {
+        return switch (intensity) {
+            case Vibrator.VIBRATION_INTENSITY_OFF -> "OFF";
+            case Vibrator.VIBRATION_INTENSITY_LOW -> "LOW";
+            case Vibrator.VIBRATION_INTENSITY_MEDIUM -> "MEDIUM";
+            case Vibrator.VIBRATION_INTENSITY_HIGH -> "HIGH";
+            default -> String.valueOf(intensity);
         };
     }
 }

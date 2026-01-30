@@ -16,6 +16,7 @@
 
 package com.android.systemui.window.domain.interactor
 
+import android.content.res.mainResources
 import com.android.systemui.communal.domain.interactor.communalInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
@@ -27,6 +28,7 @@ val Kosmos.windowRootViewBlurInteractor by
     Kosmos.Fixture {
         WindowRootViewBlurInteractor(
             repository = windowRootViewBlurRepository,
+            resources = mainResources,
             keyguardInteractor = keyguardInteractor,
             keyguardTransitionInteractor = keyguardTransitionInteractor,
             communalInteractor = communalInteractor,

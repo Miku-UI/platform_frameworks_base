@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"左にドラッグするとアプリを素早く切り替えることができます"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"右上から下にスワイプして通知を開きます"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"左上から下にスワイプしてクイック設定を開きます"</string>
 </resources>

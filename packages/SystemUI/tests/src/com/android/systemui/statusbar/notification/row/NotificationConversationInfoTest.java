@@ -28,12 +28,16 @@ import static android.print.PrintManager.PRINT_SPOOLER_PACKAGE_NAME;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
+import static com.android.systemui.Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT;
+import static com.android.systemui.statusbar.notification.stack.StackStateAnimator.ANIMATION_DURATION_STANDARD;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
 
+import static org.junit.Assert.assertNotEquals;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyString;
@@ -84,6 +88,7 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.logging.MetricsLogger;
 import com.android.settingslib.notification.ConversationIconFactory;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.people.widget.PeopleSpaceWidgetManager;
 import com.android.systemui.res.R;
 import com.android.systemui.shade.ShadeController;
@@ -102,6 +107,7 @@ import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyl
 import com.android.systemui.wmshell.BubblesManager;
 import com.android.systemui.wmshell.BubblesTestActivity;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -122,6 +128,8 @@ import java.util.concurrent.CountDownLatch;
 @RunWith(AndroidJUnit4.class)
 @TestableLooper.RunWithLooper
 public class NotificationConversationInfoTest extends SysuiTestCase {
+
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
     private static final String TEST_PACKAGE_NAME = "test_package";
     private static final String TEST_SYSTEM_PACKAGE_NAME = PRINT_SPOOLER_PACKAGE_NAME;
     private static final int TEST_UID = 1;
@@ -136,8 +144,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     private StatusBarNotification mSbn;
     private NotificationEntry mEntry;
     private EntryAdapter mEntryAdapter;
-    private StatusBarNotification mBubbleSbn;
-    private NotificationEntry mBubbleEntry;
     @Mock
     private ShortcutInfo mShortcutInfo;
     @Mock
@@ -170,8 +176,6 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     @Mock
     private ConversationIconFactory mIconFactory;
     @Mock
-    private Notification.BubbleMetadata mBubbleMetadata;
-    @Mock
     private View.OnClickListener mCloseListener;
     private Handler mTestHandler;
     @Rule
@@ -187,8 +191,11 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mDependency.injectTestDependency(ShadeController.class, mShadeController);
         // Inflate the layout
         final LayoutInflater layoutInflater = LayoutInflater.from(mContext);
+        int layoutId = Flags.notificationsRedesignTemplates()
+                ? R.layout.notification_2025_conversation_info
+                : R.layout.notification_conversation_info;
         mNotificationInfo = (NotificationConversationInfo) layoutInflater.inflate(
-                R.layout.notification_conversation_info,
+                layoutId,
                 null);
         mNotificationInfo.setGutsParent(mNotificationGuts);
         doAnswer((Answer<Object>) invocation -> {
@@ -230,8 +237,13 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mNotificationChannel = new NotificationChannel(
                 TEST_CHANNEL, TEST_CHANNEL_NAME, IMPORTANCE_LOW);
 
+        PendingIntent bubbleIntent = PendingIntent.getActivity(mContext, 0,
+                new Intent(mContext, BubblesTestActivity.class),
+                PendingIntent.FLAG_MUTABLE);
         Notification notification = new Notification.Builder(mContext, mNotificationChannel.getId())
                 .setShortcutId(CONVERSATION_ID)
+                .setBubbleMetadata(new Notification.BubbleMetadata.Builder(bubbleIntent,
+                        Icon.createWithResource(mContext, R.drawable.android)).build())
                 .setStyle(new Notification.MessagingStyle(new Person.Builder().setName("m").build())
                         .addMessage(new Notification.MessagingStyle.Message(
                                 "hello!", 1000, new Person.Builder().setName("other").build())))
@@ -244,28 +256,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                     rankingBuilder.setChannel(mNotificationChannel);
                 })
                 .build();
-        mEntryAdapter = new EntryAdapterFactoryImpl(
-                mock(NotificationActivityStarter.class),
-                mock(MetricsLogger.class),
-                mock(PeopleNotificationIdentifier.class),
-                mock(NotificationIconStyleProvider.class),
-                mock(VisualStabilityCoordinator.class),
-                mock(NotificationActionClickManager.class),
-                mock(HighPriorityProvider.class),
-                mock(HeadsUpManager.class)
-        ).create(mEntry);
-
-        PendingIntent bubbleIntent = PendingIntent.getActivity(mContext, 0,
-                new Intent(mContext, BubblesTestActivity.class),
-                PendingIntent.FLAG_MUTABLE);
-        mBubbleSbn = new SbnBuilder(mSbn).setBubbleMetadata(
-                        new Notification.BubbleMetadata.Builder(bubbleIntent,
-                                Icon.createWithResource(mContext, R.drawable.android)).build())
-                .build();
-        mBubbleEntry = new NotificationEntryBuilder()
-                .setSbn(mBubbleSbn)
-                .setShortcutInfo(mShortcutInfo)
-                .build();
+        mEntryAdapter = mKosmos.getEntryAdapterFactory().create(mEntry);
 
         mConversationChannel = new NotificationChannel(
                 TEST_CHANNEL + " : " + CONVERSATION_ID, TEST_CHANNEL_NAME, IMPORTANCE_LOW);
@@ -278,6 +269,41 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 .thenReturn(mock(NotificationManager.Policy.class));
 
         when(mPeopleSpaceWidgetManager.requestPinAppWidget(any(), any())).thenReturn(true);
+    }
+
+    @After
+    public void tearDown() {
+        mTestableLooper.moveTimeForward(ANIMATION_DURATION_STANDARD);
+        mTestableLooper.processAllMessages();
+    }
+
+    /**
+     * Binds the view with a channel that's already a conversation channel
+     */
+    private void doConversationBind() {
+        RankingBuilder rb = new RankingBuilder(mEntry.getRanking());
+        rb.setChannel(mConversationChannel);
+        mEntry.setRanking(rb.build());
+        mNotificationInfo.bindNotification(
+                mShortcutManager,
+                mMockPackageManager,
+                mUserManager,
+                mPeopleSpaceWidgetManager,
+                mMockINotificationManager,
+                mOnUserInteractionCallback,
+                TEST_PACKAGE_NAME,
+                mEntry,
+                mEntryAdapter,
+                mEntry.getRanking(),
+                mSbn,
+                null,
+                null,
+                mIconFactory,
+                mContext,
+                true,
+                mTestHandler,
+                mTestHandler, null, Optional.of(mBubblesManager),
+                mShadeController, true, mCloseListener);
     }
 
     private void doStandardBind() {
@@ -411,7 +437,12 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags({Flags.FLAG_NM_SUMMARIZATION, Flags.FLAG_NM_SUMMARIZATION_UI})
+    @DisableFlags({
+            Flags.FLAG_NM_SUMMARIZATION,
+            Flags.FLAG_NM_SUMMARIZATION_UI,
+            Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI,
+            FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT
+    })
     public void testBindNotification_HidesFeedbackLink_flagOff() {
         doStandardBind();
         assertEquals(GONE, mNotificationInfo.findViewById(R.id.feedback).getVisibility());
@@ -454,11 +485,41 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_SUMMARIZATION, Flags.FLAG_NM_SUMMARIZATION_UI})
-    public void testBindNotification_hidesFeedbackLink_ifSummaryNotInRanking() {
-        doStandardBind();
+    @EnableFlags({Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI})
+    public void testBindNotification_SetsFeedbackLink_ifClassified() {
+        mEntry.setRanking(new RankingBuilder(mEntry.getRanking())
+                .setChannel(new NotificationChannel(
+                        NotificationChannel.SOCIAL_MEDIA_ID, "social", 2))
+                .build());
+        final CountDownLatch latch = new CountDownLatch(1);
+        mNotificationInfo.bindNotification(
+                mShortcutManager,
+                mMockPackageManager,
+                mUserManager,
+                mPeopleSpaceWidgetManager,
+                mMockINotificationManager,
+                mOnUserInteractionCallback,
+                TEST_PACKAGE_NAME,
+                mEntry,
+                mEntryAdapter,
+                mEntry.getRanking(),
+                mSbn,
+                null,
+                (View v, Intent intent) -> {
+                    latch.countDown();
+                },
+                mIconFactory,
+                mContext,
+                true,
+                mTestHandler,
+                mTestHandler, null, Optional.of(mBubblesManager),
+                mShadeController, true, null);
 
-        assertEquals(GONE, mNotificationInfo.findViewById(R.id.feedback).getVisibility());
+        final View feedback = mNotificationInfo.findViewById(R.id.feedback);
+        assertEquals(VISIBLE, feedback.getVisibility());
+        feedback.performClick();
+        // Verify that listener was triggered.
+        assertEquals(0, latch.getCount());
     }
 
     @Test
@@ -477,7 +538,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
                 mEntry.getRanking(),
                 mSbn,
                 (View v, NotificationChannel c, int appUid) -> {
-                    assertEquals(mConversationChannel, c);
+                    assertEquals(mNotificationChannel, c);
                     latch.countDown();
                 },
                 null,
@@ -547,7 +608,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mConversationChannel.setImportance(IMPORTANCE_HIGH);
         mConversationChannel.setImportantConversation(false);
         mConversationChannel.setAllowBubbles(true);
-        doStandardBind();
+        doConversationBind();
         View view = mNotificationInfo.findViewById(R.id.default_behavior);
         assertThat(view.isSelected()).isTrue();
         assertThat(((TextView) view.findViewById(R.id.default_summary)).getText()).isEqualTo(
@@ -562,7 +623,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mConversationChannel.setImportance(IMPORTANCE_HIGH);
         mConversationChannel.setImportantConversation(false);
         mConversationChannel.setAllowBubbles(true);
-        doStandardBind();
+        doConversationBind();
         View view = mNotificationInfo.findViewById(R.id.default_behavior);
         assertThat(view.isSelected()).isTrue();
         assertThat(((TextView) view.findViewById(R.id.default_summary)).getText()).isEqualTo(
@@ -654,7 +715,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mConversationChannel.setImportance(IMPORTANCE_HIGH);
         mConversationChannel.setImportantConversation(false);
         mConversationChannel.setAllowBubbles(true);
-        doStandardBind();
+        doConversationBind();
         assertThat(((TextView) mNotificationInfo.findViewById(R.id.priority_summary)).getText())
                 .isEqualTo(mContext.getString(
                         R.string.notification_channel_summary_priority_all));
@@ -666,7 +727,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mConversationChannel.setImportance(IMPORTANCE_LOW);
         mConversationChannel.setImportantConversation(false);
 
-        doStandardBind();
+        doConversationBind();
 
         View fave = mNotificationInfo.findViewById(R.id.priority);
         fave.performClick();
@@ -744,11 +805,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    public void testFavorite_andSave() throws Exception {
-        mConversationChannel.setAllowBubbles(false);
-        mConversationChannel.setImportance(IMPORTANCE_LOW);
-        mConversationChannel.setImportantConversation(false);
-
+    public void testFavorite_andSave_createConversation() throws Exception {
         doStandardBind();
 
         View fave = mNotificationInfo.findViewById(R.id.priority);
@@ -758,6 +815,36 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
 
         ArgumentCaptor<NotificationChannel> captor =
                 ArgumentCaptor.forClass(NotificationChannel.class);
+        verify(mMockINotificationManager, times(1))
+                .createConversationNotificationChannelForPackage(
+                        anyString(), anyInt(), any(), anyString());
+        verify(mMockINotificationManager, times(1)).updateNotificationChannelForPackage(
+                anyString(), anyInt(), captor.capture());
+        assertTrue(captor.getValue().isImportantConversation());
+        assertTrue(captor.getValue().canBubble());
+        assertEquals(IMPORTANCE_DEFAULT, captor.getValue().getImportance());
+        assertFalse(mNotificationInfo.shouldBeSavedOnClose());
+        assertNotEquals(captor.getValue().getId(), mNotificationChannel.getId());
+    }
+
+    @Test
+    public void testFavorite_andSave_alreadyConversation() throws Exception {
+        mConversationChannel.setAllowBubbles(false);
+        mConversationChannel.setImportance(IMPORTANCE_LOW);
+        mConversationChannel.setImportantConversation(false);
+
+        doConversationBind();
+
+        View fave = mNotificationInfo.findViewById(R.id.priority);
+        fave.performClick();
+        mNotificationInfo.findViewById(R.id.done).performClick();
+        mTestableLooper.processAllMessages();
+
+        ArgumentCaptor<NotificationChannel> captor =
+                ArgumentCaptor.forClass(NotificationChannel.class);
+        verify(mMockINotificationManager, never())
+                .createConversationNotificationChannelForPackage(
+                        anyString(), anyInt(), any(), anyString());
         verify(mMockINotificationManager, times(1)).updateNotificationChannelForPackage(
                 anyString(), anyInt(), captor.capture());
         assertTrue(captor.getValue().isImportantConversation());
@@ -815,7 +902,7 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
         mConversationChannel.setImportantConversation(false);
 
         // WHEN we indicate no selected action
-        doStandardBind();
+        doConversationBind();
 
         // THEN the selected action is -1, so the selected option is "Default" priority
         assertEquals(mNotificationInfo.getSelectedAction(), -1);
@@ -939,10 +1026,10 @@ public class NotificationConversationInfoTest extends SysuiTestCase {
     }
 
     @Test
-    public void testBindNotification_createsNewChannel() throws Exception {
+    public void testBindNotification_neverCreatesNewChannel() throws Exception {
         doStandardBind();
 
-        verify(mMockINotificationManager, times(1)).createConversationNotificationChannelForPackage(
+        verify(mMockINotificationManager, never()).createConversationNotificationChannelForPackage(
                 anyString(), anyInt(), any(), eq(CONVERSATION_ID));
     }
 

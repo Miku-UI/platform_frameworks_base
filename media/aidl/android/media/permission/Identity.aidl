@@ -18,7 +18,7 @@ package android.media.permission;
 /**
  * A collection of identity-related information, required for permission enforcement.
  *
- * {@hide}
+ * @hide
  */
 @JavaDerive(equals = true, toString = true)
 parcelable Identity {

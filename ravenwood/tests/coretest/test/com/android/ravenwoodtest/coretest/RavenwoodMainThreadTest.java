@@ -21,15 +21,21 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
+import android.platform.test.ravenwood.MessageWasPostedHereStackTrace;
 import android.platform.test.ravenwood.RavenwoodUtils;
 
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicReference;
 
+/**
+ * Tests related to the main thread.
+ *
+ * Some tests require $RAVENWOOD_RUN_SLOW_TESTS to set to "1".
+ */
 public class RavenwoodMainThreadTest {
-    private static final boolean RUN_UNSAFE_TESTS =
-            "1".equals(System.getenv("RAVENWOOD_RUN_UNSAFE_TESTS"));
+    private static final boolean RUN_SLOW_TESTS =
+            "1".equals(System.getenv("RAVENWOOD_RUN_SLOW_TESTS"));
 
     @Test
     public void testRunOnMainThread() {
@@ -44,18 +50,18 @@ public class RavenwoodMainThreadTest {
 
     /**
      * Sleep a long time on the main thread. This test would then "pass", but Ravenwood
-     * should show the stack traces.
+     * should show the "SLOW TEST DETECTED" stack traces.
      *
-     * This is "unsafe" because this test is slow.
+     * This test requires `RAVENWOOD_RUN_SLOW_TESTS=1`.
      */
     @Test
-    public void testUnsafeMainThreadHang() {
-        assumeTrue(RUN_UNSAFE_TESTS);
+    @androidx.test.filters.LargeTest
+    public void testMainThreadSlow() {
+        assumeTrue(RUN_SLOW_TESTS);
 
-        // The test should time out.
         RavenwoodUtils.runOnMainThreadSync(() -> {
             try {
-                Thread.sleep(30_000);
+                Thread.sleep(12_000);
             } catch (InterruptedException e) {
                 fail("Interrupted");
             }
@@ -63,20 +69,58 @@ public class RavenwoodMainThreadTest {
     }
 
     /**
-     * AssertionError on the main thread would be swallowed and reported "normally".
-     * (Other kinds of exceptions would be caught by the unhandled exception handler, and kills
-     * the process)
+     * runOnMainThreadSync() should report back the inner exception, if any.
      *
-     * This is "unsafe" only because this feature can be disabled via the env var.
+     * Note this test does _not_ involves "recoverable exception" check in
+     * RavenwoodDriver because the exception is caught in side the
+     * Runnable that's executed on the main handler. This purely tests runOnMainThreadSync()'s
+     * exception propagation.
      */
     @Test
-    public void testUnsafeAssertFailureOnMainThread() {
-        assumeTrue(RUN_UNSAFE_TESTS);
-
-        assertThrows(AssertionError.class, () -> {
+    public void testRunOnMainThreadSync() {
+        var th = assertThrows(AssertionError.class, () -> {
             RavenwoodUtils.runOnMainThreadSync(() -> {
-                fail();
+                fail("Assertion failure on main thread!");
             });
         });
+
+        // Also make sure the cause is set correctly.
+        assertHasMessageWasPostedHereStackTraceAsCause(th, "testRunOnMainThreadSync");
+    }
+
+    /**
+     * Ensure a given {@link Throwable} is an instance of MessageWasPostedHereStackTrace,
+     * has the current thread, and its stacktrace contains a give method name.
+     */
+    public static void assertHasMessageWasPostedHereStackTraceAsCause(
+            Throwable th, String expectedMethodNameInStacktrace) {
+        MessageWasPostedHereStackTrace cause = null;
+
+        var current = th;
+        for (;;) {
+            if (current instanceof MessageWasPostedHereStackTrace) {
+                cause = (MessageWasPostedHereStackTrace) current;
+                break;
+            }
+            var next = current.getCause();
+            if (next == null || next == th) {
+                break;
+            }
+            current = next;
+        }
+        if (cause == null) {
+            fail("Exception did't have MessageWasPostedHereStackTrace as cause: " + th);
+        }
+
+        assertThat(cause.getPostedThread()).isEqualTo(Thread.currentThread());
+
+        // Make sure the stacktrace contains a given method name.
+        for (var ste : cause.getStackTrace()) {
+            if (ste.getMethodName().equals(expectedMethodNameInStacktrace)) {
+                return; // Found
+            }
+        }
+        fail("Expected method '" + expectedMethodNameInStacktrace
+                + "' in stack trace, but not found");
     }
 }

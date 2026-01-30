@@ -174,10 +174,8 @@ public class ConditionProviders extends ManagedServices {
     @Override
     public void onUserSwitched(int user) {
         super.onUserSwitched(user);
-        if (android.app.Flags.modesHsum()) {
-            for (int i = 0; i < mSystemConditionProviders.size(); i++) {
-                mSystemConditionProviders.valueAt(i).onUserSwitched(UserHandle.of(user));
-            }
+        for (int i = 0; i < mSystemConditionProviders.size(); i++) {
+            mSystemConditionProviders.valueAt(i).onUserSwitched(UserHandle.of(user));
         }
     }
 
@@ -288,6 +286,13 @@ public class ConditionProviders extends ManagedServices {
             rt[i] = valid.valueAt(i);
         }
         return rt;
+    }
+
+    @VisibleForTesting
+    ConditionRecord getRecord(Uri id, ComponentName component) {
+        synchronized (mMutex) {
+            return getRecordLocked(id, component, false);
+        }
     }
 
     private ConditionRecord getRecordLocked(Uri id, ComponentName component, boolean create) {
@@ -492,7 +497,7 @@ public class ConditionProviders extends ManagedServices {
         return removed;
     }
 
-    private static class ConditionRecord {
+    static class ConditionRecord {
         public final Uri id;
         public final ComponentName component;
         public Condition condition;

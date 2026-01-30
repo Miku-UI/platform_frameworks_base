@@ -19,8 +19,6 @@ package android.graphics;
 import android.os.SystemClock;
 
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
-@android.ravenwood.annotation.RavenwoodClassLoadHook(
-        android.ravenwood.annotation.RavenwoodClassLoadHook.LIBANDROID_LOADING_HOOK)
 public class Interpolator {
 
     public Interpolator(int valueCount) {
@@ -164,4 +162,3 @@ public class Interpolator {
     private static native void nativeSetRepeatMirror(long native_instance, float repeatCount, boolean mirror);
     private static native int  nativeTimeToValues(long native_instance, int msec, float[] values);
 }
-

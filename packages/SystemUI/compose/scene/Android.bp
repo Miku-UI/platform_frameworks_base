@@ -22,27 +22,22 @@ package {
     default_applicable_licenses: ["frameworks_base_packages_SystemUI_license"],
 }
 
-filegroup {
-    name: "PlatformComposeSceneTransitionLayout-srcs",
-    srcs: [
-        "src/**/*.kt",
-    ],
-}
-
 android_library {
     name: "PlatformComposeSceneTransitionLayout",
     manifest: "AndroidManifest.xml",
 
     srcs: [
-        ":PlatformComposeSceneTransitionLayout-srcs",
+        "src/**/*.kt",
     ],
 
     static_libs: [
+        // Private APIs
+        "PlatformComposeCore",
+
+        // Public APIs
+        "//frameworks/libs/systemui/mechanics:mechanics",
         "androidx.compose.runtime_runtime",
         "androidx.compose.material3_material3",
-
-        "PlatformComposeCore",
-        "mechanics",
     ],
 
     kotlincflags: [

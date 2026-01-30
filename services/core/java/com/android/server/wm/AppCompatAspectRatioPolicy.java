@@ -26,6 +26,7 @@ import static android.content.pm.ActivityInfo.OVERRIDE_MIN_ASPECT_RATIO_SMALL;
 import static android.content.pm.ActivityInfo.OVERRIDE_MIN_ASPECT_RATIO_TO_ALIGN_WITH_SPLIT_SCREEN;
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.MIN_ASPECT_RATIO;
 
 import static com.android.server.wm.AppCompatConfiguration.DEFAULT_LETTERBOX_ASPECT_RATIO_FOR_MULTI_WINDOW;
 import static com.android.server.wm.AppCompatConfiguration.MIN_FIXED_ORIENTATION_LETTERBOX_ASPECT_RATIO;
@@ -36,6 +37,7 @@ import android.app.WindowConfiguration;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Rect;
+import android.util.proto.ProtoOutputStream;
 import android.window.DesktopModeFlags;
 
 /**
@@ -413,6 +415,10 @@ class AppCompatAspectRatioPolicy {
     @NonNull
     private AppCompatAspectRatioOverrides getOverrides() {
         return mActivityRecord.mAppCompatController.getAspectRatioOverrides();
+    }
+
+    public void dumpDebug(@NonNull ProtoOutputStream proto) {
+        proto.write(MIN_ASPECT_RATIO, getMinAspectRatio());
     }
 
     private static class AppCompatAspectRatioState {

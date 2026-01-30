@@ -24,6 +24,12 @@
 
     <!-- Whether to reset Battery Stats on unplug when the battery level is high. -->
     <bool name="config_batteryStatsResetOnUnplugHighBatteryLevel">true</bool>
+
+    <!-- Battery level (as percent of battery) to consider as "high enough" to trigger
+    a battery session reset.
+    Only has an effect if config_batteryStatsResetOnUnplugHighBatteryLevel is true  -->
+    <integer name="config_batteryStatsHighBatteryLevelAfterCharge">79</integer>
+
     <!-- Whether to reset Battery Stats on unplug if the battery was significantly charged -->
     <bool name="config_batteryStatsResetOnUnplugAfterSignificantCharge">true</bool>
 
@@ -55,4 +61,22 @@
 
     <!-- Size of storage allocated to battery history, in bytes -->
     <integer name="config_batteryHistoryStorageSize">4194304</integer>
+
+    <!-- Time span of battery history dump, in milliseconds, default value is 24 hours.
+    It only affects the `dumpsys batterystats -a` command -->
+    <integer name="config_batteryHistoryDumpWindowSize">86400000</integer>
+
+    <!-- Time span of battery history dump, in milliseconds, default value is 0 milliseconds.
+    It only affects the `dumpsys batterystats -c` command, The checkin Format -->
+    <integer name="config_batteryHistoryDumpCheckinWindowSize">0</integer>
+
+    <!-- Time span of battery history dump, in milliseconds, default value is 24 hours in millis.
+    It only affects the `dumpsys batterystats -\-checkin` command, The real checkin Format -->
+    <integer name="config_batteryHistoryDumpRealCheckinWindowSize">86400000</integer>
+
+    <!-- PowerStats log period on low frequency, default value is 1 hour (60 * 60 * 1000) in millis -->
+    <integer name="config_powerStatsLogPeriodLowFrequencyMs">3600000</integer>
+
+    <!-- PowerStats log period on high frequency, default value is 2 minutes (2 * 60 * 1000) in millis -->
+    <integer name="config_powerStatsLogPeriodHighFrequencyMs">120000</integer>
 </resources>

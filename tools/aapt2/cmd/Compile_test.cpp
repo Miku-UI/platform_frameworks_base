@@ -111,6 +111,42 @@ TEST_F(CompilerTest, MultiplePeriods) {
   ASSERT_EQ(::android::base::utf8::unlink(path5_out.c_str()), 0);
 }
 
+template <bool result>
+static void VerifyCompile(IAaptContext* context, const std::string& src_path,
+                          const std::string& out_dir, const std::string& out_file) {
+  constexpr int expected_result_compile = result ? 0 : 1;
+  constexpr int expected_result_unlink = result ? 0 : -1;
+  StdErrDiagnostics diag;
+  const std::string out_path = BuildPath({out_dir, out_file});
+  ::android::base::utf8::unlink(out_path.c_str());
+  ASSERT_EQ(TestCompile(src_path, out_dir, /** legacy */ false, diag), expected_result_compile);
+  ASSERT_EQ(::android::base::utf8::unlink(out_path.c_str()), expected_result_unlink);
+}
+
+TEST_F(CompilerTest, MinorVersion) {
+  std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
+  const std::string kResDir = BuildPath({android::base::Dirname(android::base::GetExecutablePath()),
+                                         "integration-tests", "CompileTest", "versions.res"});
+  const std::string kOutDir = testing::TempDir();
+
+  VerifyCompile<true>(context.get(), BuildPath({kResDir, "values", "values.xml"}), kOutDir,
+                      "values_values.arsc.flat");
+  VerifyCompile<true>(context.get(), BuildPath({kResDir, "values-v20", "values.xml"}), kOutDir,
+                      "values-v20_values.arsc.flat");
+  VerifyCompile<false>(context.get(), BuildPath({kResDir, "values-v20.2", "values.xml"}), kOutDir,
+                       "values-v20.2_values.arsc.flat");
+  VerifyCompile<true>(context.get(), BuildPath({kResDir, "values-v36.3", "values.xml"}), kOutDir,
+                      "values-v36.3_values.arsc.flat");
+  VerifyCompile<true>(context.get(), BuildPath({kResDir, "drawable", "image.png"}), kOutDir,
+                      "drawable_image.png.flat");
+  VerifyCompile<true>(context.get(), BuildPath({kResDir, "drawable-v30", "image.png"}), kOutDir,
+                      "drawable-v30_image.png.flat");
+  VerifyCompile<false>(context.get(), BuildPath({kResDir, "drawable-v30.1", "image.png"}), kOutDir,
+                       "drawable-v30.1_image.png.flat");
+  VerifyCompile<true>(context.get(), BuildPath({kResDir, "drawable-v37.1", "image.png"}), kOutDir,
+                      "drawable-v37.1_image.png.flat");
+}
+
 TEST_F(CompilerTest, DirInput) {
   StdErrDiagnostics diag;
   std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();

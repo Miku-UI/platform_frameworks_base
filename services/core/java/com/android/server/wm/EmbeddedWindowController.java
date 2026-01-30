@@ -17,12 +17,13 @@
 package com.android.server.wm;
 
 
+import static android.internal.perfetto.protos.Windowmanagerservice.IdentifierProto.HASH_CODE;
+import static android.internal.perfetto.protos.Windowmanagerservice.IdentifierProto.TITLE;
+import static android.internal.perfetto.protos.Windowmanagerservice.WindowStateProto.IDENTIFIER;
+
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_EMBEDDED_WINDOWS;
-import static com.android.server.wm.IdentifierProto.HASH_CODE;
-import static com.android.server.wm.IdentifierProto.TITLE;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
-import static com.android.server.wm.WindowStateProto.IDENTIFIER;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -240,9 +241,10 @@ class EmbeddedWindowController {
 
     static class EmbeddedWindow implements InputTarget {
         final IBinder mClient;
-        @Nullable final WindowState mHostWindowState;
-        @Nullable final ActivityRecord mHostActivityRecord;
-        final String mName;
+        @Nullable WindowState mHostWindowState;
+        @Nullable ActivityRecord mHostActivityRecord;
+        String mName;
+        final String mInputHandleName;
         final int mOwnerUid;
         final int mOwnerPid;
         final WindowManagerService mWmService;
@@ -280,25 +282,20 @@ class EmbeddedWindowController {
          * @param displayId used for focus requests
          */
         EmbeddedWindow(Session session, WindowManagerService service, IBinder clientToken,
-                       WindowState hostWindowState, int ownerUid, int ownerPid, int windowType,
-                       int displayId, InputTransferToken inputTransferToken, String inputHandleName,
-                       boolean isFocusable) {
+                       @Nullable WindowState hostWindowState, int ownerUid, int ownerPid,
+                       int windowType, int displayId, InputTransferToken inputTransferToken,
+                       String inputHandleName, boolean isFocusable) {
             mSession = session;
             mWmService = service;
             mClient = clientToken;
-            mHostWindowState = hostWindowState;
-            mHostActivityRecord = (mHostWindowState != null) ? mHostWindowState.mActivityRecord
-                    : null;
             mOwnerUid = ownerUid;
             mOwnerPid = ownerPid;
             mWindowType = windowType;
             mDisplayId = displayId;
             mInputTransferToken = inputTransferToken;
-            final String hostWindowName =
-                    (mHostWindowState != null) ? "-" + mHostWindowState.getWindowTag().toString()
-                            : "";
             mIsFocusable = isFocusable;
-            mName = "Embedded{" + inputHandleName + hostWindowName + "}";
+            mInputHandleName = inputHandleName;
+            updateHost(hostWindowState);
         }
 
         @Override
@@ -445,12 +442,9 @@ class EmbeddedWindowController {
 
         @Override
         public boolean shouldControlIme() {
-            if (android.view.inputmethod.Flags.refactorInsetsController()) {
-                // EmbeddedWindow should never be able to control the IME directly, but only the
-                // RemoteInsetsControlTarget.
-                return false;
-            }
-            return mHostWindowState != null;
+            // EmbeddedWindow should never be able to control the IME directly, but only the
+            // RemoteInsetsControlTarget.
+            return false;
         }
 
         @Override
@@ -486,6 +480,22 @@ class EmbeddedWindowController {
             proto.write(TITLE, "EmbeddedWindow");
             proto.end(token2);
             proto.end(token);
+        }
+
+        public void updateHost(WindowState hostWindowState) {
+            if (mHostWindowState == hostWindowState && mName != null) {
+                return;
+            }
+
+            ProtoLog.d(WM_DEBUG_EMBEDDED_WINDOWS, "[%s] Updated host window from %s to %s",
+                    this, mHostWindowState, hostWindowState);
+            mHostWindowState = hostWindowState;
+            mHostActivityRecord = (mHostWindowState != null) ? mHostWindowState.mActivityRecord
+                    : null;
+            final String hostWindowName =
+                    (mHostWindowState != null) ? "-" + mHostWindowState.getWindowTag().toString()
+                            : "";
+            mName = "Embedded{" + mInputHandleName + hostWindowName + "}";
         }
     }
 }

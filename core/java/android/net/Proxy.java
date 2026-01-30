@@ -78,7 +78,7 @@ public final class Proxy {
      * @return Proxy (java.net) object containing the host name. If the
      *         user did not set a hostname it returns the default host.
      *         A null value means that no host is to be used.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public static final java.net.Proxy getProxy(Context ctx, String url) {

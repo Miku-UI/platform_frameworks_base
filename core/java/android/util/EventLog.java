@@ -53,7 +53,7 @@ import java.util.regex.Pattern;
  * event-log-tags file defines the payload contents for each type code.
  */
 @RavenwoodKeepWholeClass
-@RavenwoodRedirectionClass("EventLog_host")
+@RavenwoodRedirectionClass("EventLog_ravenwood")
 public class EventLog {
     /** @hide */ public EventLog() {}
 

@@ -57,7 +57,7 @@ public class VrManager {
     private Map<VrStateCallback, CallbackEntry> mCallbackMap = new ArrayMap<>();
 
     /**
-     * {@hide}
+     * @hide
      */
     public VrManager(IVrManager service) {
         mService = service;

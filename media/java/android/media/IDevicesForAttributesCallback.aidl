@@ -22,7 +22,7 @@ import android.media.AudioDeviceAttributes;
 /**
  * AIDL for AudioService to signal updates of audio devices routing for attributes.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IDevicesForAttributesCallback {
 

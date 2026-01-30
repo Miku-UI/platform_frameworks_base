@@ -95,6 +95,12 @@ public class StartingSurfaceDrawer {
         mWindowlessSplashWindowCreator.setSysuiProxy(sysuiProxy);
     }
 
+    boolean hasStartingWindow(int taskId, boolean windowless) {
+        if (windowless) {
+            return mWindowlessRecords.getRecord(taskId) != null;
+        }
+        return mWindowRecords.getRecord(taskId) != null;
+    }
     /**
      * Called when a task need a splash screen starting window.
      *
@@ -188,8 +194,8 @@ public class StartingSurfaceDrawer {
                 records.getRecord(taskId);
         final SnapshotRecord record = sRecord instanceof SnapshotRecord
                 ? (SnapshotRecord) sRecord : null;
-        if (record != null && record.hasImeSurface()) {
-            records.removeWindow(taskId);
+        if (record != null) {
+            record.onImeWindowDrawn();
         }
     }
 
@@ -259,6 +265,7 @@ public class StartingSurfaceDrawer {
         protected final ShellExecutor mRemoveExecutor;
         private final int mTaskId;
         private final StartingWindowRecordManager mRecordManager;
+        private boolean mImeWindowDrawn;
 
         SnapshotRecord(int activityType, ShellExecutor removeExecutor, int taskId,
                 StartingWindowRecordManager recordManager) {
@@ -273,7 +280,8 @@ public class StartingSurfaceDrawer {
             if (immediately
                     // Show the latest content as soon as possible for unlocking to home.
                     || mActivityType == ACTIVITY_TYPE_HOME
-                    || info.deferRemoveMode == DEFER_MODE_NONE) {
+                    || info.deferRemoveMode == DEFER_MODE_NONE
+                    || mImeWindowDrawn) {
                 removeImmediately();
                 return true;
             }
@@ -305,6 +313,16 @@ public class StartingSurfaceDrawer {
         protected void removeImmediately() {
             mRemoveExecutor.removeCallbacks(mScheduledRunnable);
             mRecordManager.onRecordRemoved(this, mTaskId);
+        }
+
+        void onImeWindowDrawn() {
+            if (!hasImeSurface()) {
+                return;
+            }
+            mImeWindowDrawn = true;
+            if (mRemoveExecutor.hasCallback(mScheduledRunnable)) {
+                removeImmediately();
+            }
         }
     }
 

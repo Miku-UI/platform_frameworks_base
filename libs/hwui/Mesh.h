@@ -196,6 +196,8 @@ public:
             return mMesh;
         }
 
+        const SkRect& getBounds() const { return mBounds; };
+
     private:
         friend class Mesh;
 

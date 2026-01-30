@@ -356,7 +356,7 @@ sp<SurfaceControl> SpriteController::obtainSurface(int32_t width, int32_t height
     }
     const sp<SurfaceControl> surfaceControl =
             mSurfaceComposerClient->createSurface(String8("Sprite"), width, height,
-                                                  PIXEL_FORMAT_RGBA_8888, createFlags,
+                                                  getPixelFormat(), createFlags,
                                                   parent ? parent->getHandle() : nullptr);
     if (surfaceControl == nullptr || !surfaceControl->isValid()) {
         ALOGE("Error creating sprite surface.");
@@ -403,7 +403,7 @@ void SpriteController::SpriteImpl::setIcon(const SpriteIcon& icon) {
 
     uint32_t dirty;
     if (icon.isValid()) {
-        mLocked.state.icon.bitmap = icon.bitmap.copy(ANDROID_BITMAP_FORMAT_RGBA_8888);
+        mLocked.state.icon.bitmap = icon.bitmap.copy(getBitmapFormat());
         if (!mLocked.state.icon.isValid() || mLocked.state.icon.hotSpotX != icon.hotSpotX ||
             mLocked.state.icon.hotSpotY != icon.hotSpotY ||
             mLocked.state.icon.drawNativeDropShadow != icon.drawNativeDropShadow) {
@@ -501,6 +501,22 @@ void SpriteController::SpriteImpl::invalidateLocked(uint32_t dirty) {
     if (!wasDirty) {
         mController.invalidateSpriteLocked(sp<SpriteImpl>::fromExisting(this));
     }
+}
+
+uint32_t SpriteController::getBitmapFormat() {
+    if (Surface::IsCursorPlaneCompatibilitySupported()) {
+        return ANDROID_BITMAP_FORMAT_BGRA_8888;
+    }
+
+    return ANDROID_BITMAP_FORMAT_RGBA_8888;
+}
+
+PixelFormat SpriteController::getPixelFormat() {
+    if (Surface::IsCursorPlaneCompatibilitySupported()) {
+        return PIXEL_FORMAT_BGRA_8888;
+    }
+
+    return PIXEL_FORMAT_RGBA_8888;
 }
 
 } // namespace android

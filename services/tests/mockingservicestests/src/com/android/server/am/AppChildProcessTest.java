@@ -56,7 +56,6 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.quality.Strictness;
 
 import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
@@ -102,7 +101,8 @@ public class AppChildProcessTest {
         mPhantomInjector = new PhantomTestInjector();
         mAms = new ActivityManagerService(mInjector, mServiceThreadRule.getThread());
         mAms.mActivityTaskManager = new ActivityTaskManagerService(mContext);
-        mAms.mActivityTaskManager.initialize(null, null, mContext.getMainLooper());
+        mAms.mActivityTaskManager.initialize(null, null, mAms.mProcessStateController,
+                mContext.getMainLooper());
         mAms.mAtmInternal = spy(mAms.mActivityTaskManager.getAtmInternal());
         mAms.mPackageManagerInt = mPackageManagerInt;
         pList.mService = mAms;
@@ -247,8 +247,7 @@ public class AppChildProcessTest {
         }
 
         @Override
-        public AppOpsService getAppOpsService(File recentAccessesFile, File storageFile,
-                Handler handler) {
+        public AppOpsService getAppOpsService(Handler handler) {
             return mAppOpsService;
         }
 

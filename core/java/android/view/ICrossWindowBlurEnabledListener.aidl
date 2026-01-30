@@ -18,7 +18,7 @@ package android.view;
 
 /**
  * Listener to be invoked when cross-window blur is enabled or disabled.
- * {@hide}
+ * @hide
  */
 oneway interface ICrossWindowBlurEnabledListener {
     /**

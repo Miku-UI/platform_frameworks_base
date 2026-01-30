@@ -400,7 +400,7 @@ public class ApplicationErrorReport implements Parcelable {
             exceptionMessage = sanitizeString(exceptionMessage);
         }
 
-        /** {@hide} */
+        /** @hide */
         public void appendStackTrace(String tr) {
             stackTrace = sanitizeString(stackTrace + tr);
         }

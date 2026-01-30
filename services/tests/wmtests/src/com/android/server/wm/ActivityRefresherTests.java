@@ -21,10 +21,17 @@ import static android.app.servertransaction.ActivityLifecycleItem.ON_STOP;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
+import static com.android.server.wm.AppCompatCameraOverrides.NONE;
+import static com.android.server.wm.AppCompatCameraOverrides.IN_PROGRESS;
+import static com.android.server.wm.AppCompatCameraOverrides.REQUESTED;
+import static com.android.window.flags.Flags.FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -34,6 +41,8 @@ import android.app.servertransaction.ResumeActivityItem;
 import android.content.ComponentName;
 import android.content.res.Configuration;
 import android.os.Handler;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
@@ -71,7 +80,7 @@ public class ActivityRefresherTests extends WindowTestsBase {
     public void setUp() throws Exception {
         mAppCompatConfiguration = mDisplayContent.mWmService.mAppCompatConfiguration;
         spyOn(mAppCompatConfiguration);
-        when(mAppCompatConfiguration.isCameraCompatTreatmentEnabled())
+        when(mAppCompatConfiguration.isCameraCompatForceRotateTreatmentEnabled())
                 .thenReturn(true);
         when(mAppCompatConfiguration.isCameraCompatRefreshEnabled())
                 .thenReturn(true);
@@ -89,7 +98,8 @@ public class ActivityRefresherTests extends WindowTestsBase {
     }
 
     @Test
-    public void testShouldRefreshActivity_refreshDisabled() throws Exception {
+    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_pollMechanism_refreshDisabled() throws Exception {
         when(mAppCompatConfiguration.isCameraCompatRefreshEnabled())
                 .thenReturn(false);
         configureActivityAndDisplay();
@@ -97,11 +107,25 @@ public class ActivityRefresherTests extends WindowTestsBase {
 
         mActivityRefresher.onActivityConfigurationChanging(mActivity, mNewConfig, mOldConfig);
 
-        assertActivityRefreshRequested(/* refreshRequested= */ false);
+        assertNoActivityRefreshedDeprecated();
     }
 
     @Test
-    public void testShouldRefreshActivity_refreshDisabledForActivity() throws Exception {
+    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_pushMechanism_refreshDisabled() {
+        when(mAppCompatConfiguration.isCameraCompatRefreshEnabled()).thenReturn(false);
+        configureActivityAndDisplay();
+
+        mActivityRefresher.requestRefresh(mActivity);
+        mActivityRefresher.refreshActivityIfEnabled(mActivity);
+
+        assertActivityRefreshRequested(/* refreshRequested */ true);
+        assertNoActivityRefreshed();
+    }
+
+    @Test
+    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_pollMechanism_refreshDisabledForActivity() {
         configureActivityAndDisplay();
         when(mActivity.mAppCompatController.getCameraOverrides()
                 .shouldRefreshActivityForCameraCompat()).thenReturn(false);
@@ -109,42 +133,68 @@ public class ActivityRefresherTests extends WindowTestsBase {
 
         mActivityRefresher.onActivityConfigurationChanging(mActivity, mNewConfig, mOldConfig);
 
-        assertActivityRefreshRequested(/* refreshRequested= */ false);
+        assertNoActivityRefreshedDeprecated();
     }
 
     @Test
-    public void testShouldRefreshActivity_noRefreshTriggerers() throws Exception {
+    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_pushMechanism_refreshDisabledForActivity() {
+        configureActivityAndDisplay();
+        when(mActivity.mAppCompatController.getCameraOverrides()
+                .shouldRefreshActivityForCameraCompat()).thenReturn(false);
+
+        mActivityRefresher.requestRefresh(mActivity);
+        mActivityRefresher.refreshActivityIfEnabled(mActivity);
+
+        assertNoActivityRefreshed();
+    }
+
+    @Test
+    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_noRefreshTriggerers() {
         configureActivityAndDisplay();
 
         mActivityRefresher.onActivityConfigurationChanging(mActivity, mNewConfig, mOldConfig);
 
-        assertActivityRefreshRequested(/* refreshRequested= */ false);
+        assertNoActivityRefreshedDeprecated();
     }
 
     @Test
-    public void testShouldRefreshActivity_refreshTriggerersReturnFalse() throws Exception {
+    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_refreshTriggerersReturnFalse() {
         configureActivityAndDisplay();
         mActivityRefresher.addEvaluator(mEvaluatorFalse);
 
         mActivityRefresher.onActivityConfigurationChanging(mActivity, mNewConfig, mOldConfig);
 
-        assertActivityRefreshRequested(/* refreshRequested= */ false);
+        assertNoActivityRefreshedDeprecated();
     }
 
     @Test
-    public void testShouldRefreshActivity_anyRefreshTriggerersReturnTrue() throws Exception {
+    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_anyRefreshTriggerersReturnTrue() {
         configureActivityAndDisplay();
         mActivityRefresher.addEvaluator(mEvaluatorFalse);
         mActivityRefresher.addEvaluator(mEvaluatorTrue);
 
         mActivityRefresher.onActivityConfigurationChanging(mActivity, mNewConfig, mOldConfig);
 
-        assertActivityRefreshRequested(/* refreshRequested= */ true);
+        assertActivityRefreshedDeprecated(/* cycleThroughStop */ true);
     }
 
     @Test
-    public void testOnActivityConfigurationChanging_cycleThroughStopDisabled()
-            throws Exception {
+    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testShouldRefreshActivity_refreshNotRequested_activityNotRefreshed() {
+        configureActivityAndDisplay();
+
+        mActivityRefresher.refreshActivityIfEnabled(mActivity);
+
+        assertActivityRefreshRequested(/* refreshRequested */ false);
+    }
+
+    @Test
+    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testOnActivityConfigurationChanging_pollMechanism_cycleThroughStopDisabled() {
         mActivityRefresher.addEvaluator(mEvaluatorTrue);
         when(mAppCompatConfiguration.isCameraCompatRefreshCycleThroughStopEnabled())
                 .thenReturn(false);
@@ -152,51 +202,116 @@ public class ActivityRefresherTests extends WindowTestsBase {
 
         mActivityRefresher.onActivityConfigurationChanging(mActivity, mNewConfig, mOldConfig);
 
-        assertActivityRefreshRequested(/* refreshRequested */ true, /* cycleThroughStop */ false);
+        assertActivityRefreshedDeprecated(/* cycleThroughStop */ false);
     }
 
     @Test
-    public void testOnActivityConfigurationChanging_cycleThroughPauseEnabledForApp()
-            throws Exception {
+    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testOnActivityConfigurationChanging_pushMechanism_cycleThroughStopDisabled() {
+        when(mAppCompatConfiguration.isCameraCompatRefreshCycleThroughStopEnabled())
+                .thenReturn(false);
         configureActivityAndDisplay();
-        mActivityRefresher.addEvaluator(mEvaluatorTrue);
+
+        mActivityRefresher.requestRefresh(mActivity);
+        mActivityRefresher.refreshActivityIfEnabled(mActivity);
+
+        assertActivityRefreshRequested(/* refreshRequested */ true);
+        assertActivityRefreshed(/* cycleThroughStop */ false);
+    }
+
+    @Test
+    public void testOnActivityConfigurationChanging_cycleThroughPauseEnabledForApp() {
+        configureActivityAndDisplay();
         doReturn(true)
                 .when(mActivity.mAppCompatController.getCameraOverrides())
                     .shouldRefreshActivityViaPauseForCameraCompat();
 
-        mActivityRefresher.onActivityConfigurationChanging(mActivity, mNewConfig, mOldConfig);
+        mActivityRefresher.requestRefresh(mActivity);
+        mActivityRefresher.refreshActivityIfEnabled(mActivity);
 
-        assertActivityRefreshRequested(/* refreshRequested */ true, /* cycleThroughStop */ false);
+        assertActivityRefreshRequested(/* refreshRequested */ true);
+        assertActivityRefreshed(/* cycleThroughStop */ false);
     }
 
     @Test
-    public void testOnActivityRefreshed_setIsRefreshRequestedToFalse() throws Exception {
+    @EnableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testOnActivityRefreshed_activityRelaunched_activityNotRefreshedAlso() {
+        configureActivityAndDisplay();
+        mActivityRefresher.requestRefresh(mActivity);
+
+        mActivityRefresher.onActivityRefreshed(mActivity);
+        mActivityRefresher.refreshActivityIfEnabled(mActivity);
+
+        assertActivityRefreshRequested(/* refreshRequested */ true);
+        assertNoActivityRefreshed();
+    }
+
+    @Test
+    @DisableFlags(FLAG_ENABLE_CAMERA_COMPAT_SANDBOX_DISPLAY_ROTATION_ON_EXTERNAL_DISPLAYS_BUGFIX)
+    public void testOnActivityRefreshed_pollMechanism_setIsRefreshRequestedToFalse() {
         configureActivityAndDisplay();
         mActivityRefresher.addEvaluator(mEvaluatorTrue);
         doReturn(true)
                 .when(mActivity.mAppCompatController.getCameraOverrides())
-                    .shouldRefreshActivityViaPauseForCameraCompat();
+                .shouldRefreshActivityViaPauseForCameraCompat();
 
         mActivityRefresher.onActivityRefreshed(mActivity);
 
-        assertActivityRefreshRequested(false);
+        assertNoActivityRefreshedDeprecated();
     }
 
-    private void assertActivityRefreshRequested(boolean refreshRequested) throws Exception {
-        assertActivityRefreshRequested(refreshRequested, /* cycleThroughStop*/ true);
+    @Test
+    public void testActivityRefresh_activityRefreshedTrue() {
+        configureActivityAndDisplay();
+        mActivityRefresher.requestRefresh(mActivity);
+
+        mActivityRefresher.refreshActivityIfEnabled(mActivity);
+
+        assertActivityRefreshed();
     }
 
-    private void assertActivityRefreshRequested(boolean refreshRequested,
-            boolean cycleThroughStop) throws Exception {
+    private void assertActivityRefreshRequested(boolean refreshRequested) {
         verify(mActivity.mAppCompatController.getCameraOverrides(),
-                times(refreshRequested ? 1 : 0)).setIsRefreshRequested(true);
+                times(refreshRequested ? 1 : 0)).setActivityRefreshState(REQUESTED);
+    }
 
+    private void assertActivityRefreshed() {
+        assertActivityRefreshed(/* cycleThroughStop*/ true);
+    }
+
+    private void assertNoActivityRefreshedDeprecated() {
+        verify(mActivity.mAppCompatController.getCameraOverrides(), never())
+                .setIsRefreshRequested(true);
+    }
+
+    private void assertActivityRefreshedDeprecated(boolean cycleThroughStop) {
+        verify(mActivity.mAppCompatController.getCameraOverrides()).setIsRefreshRequested(true);
+        assertRefreshTransactions(/* activityRefreshed */ true, cycleThroughStop);
+        // Activity should complete the cycle, as there are no delays in tests.
+        assertFalse(mActivity.mAppCompatController.getCameraOverrides().isRefreshRequested());
+    }
+
+    private void assertNoActivityRefreshed() {
+        verify(mActivity.mAppCompatController.getCameraOverrides(), never())
+                .setActivityRefreshState(IN_PROGRESS);
+    }
+
+    private void assertActivityRefreshed(boolean cycleThroughStop) {
+        verify(mActivity.mAppCompatController.getCameraOverrides()).setActivityRefreshState(
+                IN_PROGRESS);
+        assertRefreshTransactions(/* activityRefreshed */ true, cycleThroughStop);
+        // Activity should complete the cycle, as there are no delays in tests.
+        assertEquals(NONE,
+                mActivity.mAppCompatController.getCameraOverrides().getActivityRefreshState());
+    }
+
+    private void assertRefreshTransactions(boolean activityRefreshed, boolean cycleThroughStop) {
         final RefreshCallbackItem refreshCallbackItem =
                 new RefreshCallbackItem(mActivity.token, cycleThroughStop ? ON_STOP : ON_PAUSE);
         final ResumeActivityItem resumeActivityItem = new ResumeActivityItem(mActivity.token,
                 /* isForward */ false, /* shouldSendCompatFakeFocus */ false);
 
-        verify(mActivity.mAtmService.getLifecycleManager(), times(refreshRequested ? 1 : 0))
+        verify(mActivity.mAtmService.getLifecycleManager(), times(activityRefreshed ? 1 : 0))
                 .scheduleTransactionItems(mActivity.app.getThread(),
                         refreshCallbackItem, resumeActivityItem);
     }

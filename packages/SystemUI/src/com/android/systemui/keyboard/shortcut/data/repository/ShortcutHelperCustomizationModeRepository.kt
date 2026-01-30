@@ -16,23 +16,58 @@
 
 package com.android.systemui.keyboard.shortcut.data.repository
 
+import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.keyboard.shortcut.shared.model.AppShortcutCustomizationState
+import com.android.systemui.keyboard.shortcut.shared.model.AppShortcutInfo
 import com.android.systemui.keyboard.shortcut.shared.model.ShortcutHelperState
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 
 class ShortcutHelperCustomizationModeRepository
 @Inject
-constructor(shortcutHelperStateRepository: ShortcutHelperStateRepository) {
-    private val _isCustomizationModeEnabled = MutableStateFlow(false)
-    val isCustomizationModeEnabled =
-        combine(_isCustomizationModeEnabled, shortcutHelperStateRepository.state) {
-            isCustomizationModeEnabled,
-            shortcutHelperState ->
-            isCustomizationModeEnabled && shortcutHelperState is ShortcutHelperState.Active
-        }
+constructor(
+    shortcutHelperStateRepository: ShortcutHelperStateRepository,
+    @Background backgroundScope: CoroutineScope,
+) {
+    private val _isCustomizationModeRequested = MutableStateFlow(false)
+    private val appShortcutsPreCustomizationStates =
+        hashMapOf<AppShortcutInfo, AppShortcutCustomizationState>()
 
-    fun toggleCustomizationMode(isCustomizing: Boolean) {
-        _isCustomizationModeEnabled.value = isCustomizing
+    val isCustomizationModeEnabled =
+        combine(_isCustomizationModeRequested, shortcutHelperStateRepository.state) {
+                isCustomizationModeRequested,
+                shortcutHelperState ->
+                isCustomizationModeRequested && shortcutHelperState is ShortcutHelperState.Active
+            }
+            .stateIn(scope = backgroundScope, started = SharingStarted.Lazily, initialValue = false)
+
+    fun toggleCustomizationMode(isEnabled: Boolean) {
+        _isCustomizationModeRequested.value = isEnabled
+
+        if (!isCustomizationModeEnabled.value) {
+            appShortcutsPreCustomizationStates.clear()
+        }
+    }
+
+    fun updateAppShortcutPreCustomizationState(
+        appShortcutInfo: AppShortcutInfo,
+        previousCustomizationState: AppShortcutCustomizationState,
+    ) {
+        if (
+            isCustomizationModeEnabled.value &&
+                !appShortcutsPreCustomizationStates.contains(appShortcutInfo)
+        ) {
+            appShortcutsPreCustomizationStates[appShortcutInfo] = previousCustomizationState
+        }
+    }
+
+    fun getPreCustomizationStateForAppShortcut(
+        appShortcutInfo: AppShortcutInfo
+    ): AppShortcutCustomizationState? {
+        return appShortcutsPreCustomizationStates[appShortcutInfo]
     }
 }

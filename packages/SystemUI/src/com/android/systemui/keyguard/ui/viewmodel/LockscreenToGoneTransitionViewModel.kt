@@ -28,6 +28,7 @@ import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.SysuiStatusBarStateController
+import com.android.systemui.statusbar.phone.KeyguardBypassController
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -41,6 +42,7 @@ class LockscreenToGoneTransitionViewModel
 constructor(
     animationFlow: KeyguardTransitionAnimationFlow,
     private val statusBarStateController: SysuiStatusBarStateController,
+    private val keyguardBypassController: KeyguardBypassController,
 ) : DeviceEntryIconTransition {
 
     private val transitionAnimation: FlowBuilder =
@@ -62,27 +64,47 @@ constructor(
     fun notificationAlpha(viewState: ViewStateAccessor): Flow<Float> {
         var startAlpha = 1f
         var leaveShadeOpen = false
-        val endAction: (() -> Float)? =
-            if (SceneContainerFlag.isEnabled) {
-                { 1f }
-            } else null
 
-        return transitionAnimation.sharedFlow(
-            duration = 80.milliseconds,
-            onStart = {
-                leaveShadeOpen = statusBarStateController.leaveOpenOnKeyguardHide()
-                startAlpha = viewState.alpha()
-            },
-            onStep = {
-                if (leaveShadeOpen) {
-                    1f
-                } else {
-                    MathUtils.lerp(startAlpha, 0f, it)
-                }
-            },
-            onFinish = endAction,
-            onCancel = endAction,
-        )
+        if (SceneContainerFlag.isEnabled) {
+            var bypassEnabled = false
+
+            return transitionAnimation.sharedFlow(
+                duration = 80.milliseconds,
+                onStart = {
+                    leaveShadeOpen = statusBarStateController.leaveOpenOnKeyguardHide()
+                    bypassEnabled = keyguardBypassController.isBypassEnabled()
+                    startAlpha = viewState.alpha()
+                },
+                onStep = {
+                    if (leaveShadeOpen) {
+                        1f
+                    } else if (bypassEnabled) {
+                        // Keep notifications hidden until the end of the transition if bypass is
+                        // enabled, to prevent flickers.
+                        0f
+                    } else {
+                        MathUtils.lerp(startAlpha, 0f, it)
+                    }
+                },
+                onFinish = { 1f },
+                onCancel = { 1f },
+            )
+        } else {
+            return transitionAnimation.sharedFlow(
+                duration = 80.milliseconds,
+                onStart = {
+                    leaveShadeOpen = statusBarStateController.leaveOpenOnKeyguardHide()
+                    startAlpha = viewState.alpha()
+                },
+                onStep = {
+                    if (leaveShadeOpen) {
+                        1f
+                    } else {
+                        MathUtils.lerp(startAlpha, 0f, it)
+                    }
+                },
+            )
+        }
     }
 
     fun lockscreenAlpha(viewState: ViewStateAccessor): Flow<Float> {
@@ -97,5 +119,9 @@ constructor(
     }
 
     override val deviceEntryParentViewAlpha: Flow<Float> =
-        transitionAnimation.immediatelyTransitionTo(0f)
+        transitionAnimation.sharedFlowWithShade(
+            duration = 600.milliseconds,
+            onStep = { step, isShadeExpanded -> if (isShadeExpanded) 0f else 1f - step },
+            onFinish = { 0f },
+        )
 }

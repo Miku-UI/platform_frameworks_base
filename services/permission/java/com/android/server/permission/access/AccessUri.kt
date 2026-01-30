@@ -64,6 +64,14 @@ data class DevicePermissionUri(val permissionName: String, val deviceId: Int) : 
     }
 }
 
+data class AppFunctionAccessUri(val targetUid: Int) : AccessUri(SCHEME) {
+    override fun toString(): String = "$scheme:///$targetUid"
+
+    companion object {
+        const val SCHEME = "app-id-app-function-permission"
+    }
+}
+
 data class UidUri(val uid: Int) : AccessUri(SCHEME) {
     val userId: Int
         get() = UserHandle.getUserId(uid)

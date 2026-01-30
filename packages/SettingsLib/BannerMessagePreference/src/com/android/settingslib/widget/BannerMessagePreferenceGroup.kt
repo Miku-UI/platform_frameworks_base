@@ -67,6 +67,7 @@ class BannerMessagePreferenceGroup @JvmOverloads constructor(
         }
 
         childPreferences.add(preference)
+        maybeCreateExpandCollapsePreference()
         expandPreference?.let {
             it.count = childPreferences.size - 1
         }
@@ -106,6 +107,13 @@ class BannerMessagePreferenceGroup @JvmOverloads constructor(
 
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
+
+        maybeCreateExpandCollapsePreference()
+        updateExpandCollapsePreference()
+        updateChildrenVisibility()
+    }
+
+    private fun maybeCreateExpandCollapsePreference() {
         if (childPreferences.size >= 2) {
             if (expandPreference == null) {
                 expandPreference = NumberButtonPreference(context).apply {
@@ -123,19 +131,17 @@ class BannerMessagePreferenceGroup @JvmOverloads constructor(
             if (collapsePreference == null) {
                 collapsePreference = SectionButtonPreference(context)
                     .apply {
-                    key = collapseKey
-                    title = collapseTitle
-                    icon = collapseIcon
-                    order = COLLAPSE_ORDER
-                    setOnClickListener {
-                        toggleExpansion()
+                        key = collapseKey
+                        title = collapseTitle
+                        icon = collapseIcon
+                        order = COLLAPSE_ORDER
+                        setOnClickListener {
+                            toggleExpansion()
+                        }
                     }
-                }
                 super.addPreference(collapsePreference!!)
             }
         }
-        updateExpandCollapsePreference()
-        updateChildrenVisibility()
     }
 
     private fun updateExpandCollapsePreference() {

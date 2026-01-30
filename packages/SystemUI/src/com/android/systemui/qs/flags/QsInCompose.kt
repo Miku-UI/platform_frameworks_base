@@ -29,8 +29,7 @@ object QsInCompose {
      * This is not a real flag name, but a representation of the allowed flag names. Should not be
      * used with test annotations.
      */
-    private val flagName =
-        "${QSComposeFragment.FLAG_NAME}|${SceneContainerFlag.getMainAconfigFlag().name}"
+    private val flagName = "${QSComposeFragment.FLAG_NAME}|${SceneContainerFlag.DESCRIPTION}"
 
     @JvmStatic
     inline val isEnabled: Boolean

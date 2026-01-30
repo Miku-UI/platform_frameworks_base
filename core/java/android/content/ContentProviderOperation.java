@@ -518,7 +518,7 @@ public class ContentProviderOperation implements Parcelable {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static String typeToString(int type) {
         switch (type) {
             case TYPE_INSERT: return "insert";
@@ -578,7 +578,7 @@ public class ContentProviderOperation implements Parcelable {
         }
     };
 
-    /** {@hide} */
+    /** @hide */
     public static class BackReference implements Parcelable {
         private final int fromIndex;
         private final String fromKey;
@@ -993,7 +993,7 @@ public class ContentProviderOperation implements Parcelable {
             return this;
         }
 
-        /** {@hide} */
+        /** @hide */
         public @NonNull Builder withFailureAllowed(boolean failureAllowed) {
             return withExceptionAllowed(failureAllowed);
         }

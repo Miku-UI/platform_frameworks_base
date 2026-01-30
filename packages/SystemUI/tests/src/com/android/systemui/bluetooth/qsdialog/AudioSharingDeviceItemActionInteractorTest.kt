@@ -51,6 +51,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.never
 import org.mockito.kotlin.whenever
+import org.mockito.quality.Strictness
 
 @SmallTest
 @RunWith(AndroidTestingRunner::class)
@@ -70,7 +71,11 @@ class AudioSharingDeviceItemActionInteractorTest : SysuiTestCase() {
     @Before
     fun setUp() {
         mockitoSession =
-            mockitoSession().initMocks(this).mockStatic(BluetoothUtils::class.java).startMocking()
+            mockitoSession()
+                .initMocks(this)
+                .mockStatic(BluetoothUtils::class.java)
+                .strictness(Strictness.LENIENT)
+                .startMocking()
         connectedMediaDeviceItem =
             DeviceItem(
                 type = DeviceItemType.AVAILABLE_MEDIA_BLUETOOTH_DEVICE,

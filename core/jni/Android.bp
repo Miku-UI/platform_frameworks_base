@@ -16,8 +16,8 @@ license {
 }
 
 soong_config_module_type {
-    name: "cc_library_shared_for_libandroid_runtime",
-    module_type: "cc_library_shared",
+    name: "cc_defaults_for_libandroid_runtime",
+    module_type: "cc_defaults",
     config_namespace: "ANDROID",
     bool_variables: [
         "release_binder_death_recipient_weak_from_jni",
@@ -27,8 +27,8 @@ soong_config_module_type {
     ],
 }
 
-cc_library_shared_for_libandroid_runtime {
-    name: "libandroid_runtime",
+cc_defaults_for_libandroid_runtime {
+    name: "libandroid_runtime_defaults",
     host_supported: true,
     cflags: [
         "-O3",
@@ -56,6 +56,9 @@ cc_library_shared_for_libandroid_runtime {
     ],
 
     cppflags: ["-Wno-conversion-null", "-O3"],
+    header_libs: [
+        "libhwui_internal_headers",
+    ],
 
     product_variables: {
         eng: {
@@ -69,11 +72,15 @@ cc_library_shared_for_libandroid_runtime {
         },
     },
 
-    cpp_std: "gnu++20",
-
     srcs: [
         "android_animation_PropertyValuesHolder.cpp",
         "android_content_res_ApkAssets.cpp",
+        "android_database_CursorWindow.cpp",
+        "android_database_SQLiteCommon.cpp",
+        "android_database_SQLiteConnection.cpp",
+        "android_database_SQLiteGlobal.cpp",
+        "android_database_SQLiteDebug.cpp",
+        "android_database_SQLiteRawStatement.cpp",
         "android_media_ImageReader.cpp",
         "android_media_PublicFormatUtils.cpp",
         "android_media_Utils.cpp",
@@ -109,6 +116,7 @@ cc_library_shared_for_libandroid_runtime {
     ],
 
     static_libs: [
+        "android.content.res.flags-aconfig-cc-host-ro",
         "libziparchive_for_incfs",
         "libguiflags",
     ],
@@ -149,12 +157,6 @@ cc_library_shared_for_libandroid_runtime {
                 "android_opengl_GLES31.cpp",
                 "android_opengl_GLES31Ext.cpp",
                 "android_opengl_GLES32.cpp",
-                "android_database_CursorWindow.cpp",
-                "android_database_SQLiteCommon.cpp",
-                "android_database_SQLiteConnection.cpp",
-                "android_database_SQLiteGlobal.cpp",
-                "android_database_SQLiteDebug.cpp",
-                "android_database_SQLiteRawStatement.cpp",
                 "android_graphics_GraphicBuffer.cpp",
                 "android_graphics_SurfaceTexture.cpp",
                 "android_view_CompositionSamplingListener.cpp",
@@ -247,6 +249,7 @@ cc_library_shared_for_libandroid_runtime {
                 "android_app_PropertyInvalidatedCache.cpp",
                 "android_app_backup_FullBackup.cpp",
                 "android_content_res_ObbScanner.cpp",
+                "android_content_res_CameraCompatibilityInfo.cpp",
                 "android_content_res_Configuration.cpp",
                 "android_content_res_ResourceTimer.cpp",
                 "android_security_Scrypt.cpp",
@@ -281,7 +284,19 @@ cc_library_shared_for_libandroid_runtime {
                 "android_tracing_PerfettoDataSource.cpp",
                 "android_tracing_PerfettoDataSourceInstance.cpp",
                 "android_tracing_PerfettoProducer.cpp",
-            ],
+            ] + select(release_flag("RELEASE_NATIVE_FRAMEWORK_PROTOTYPE"), {
+                true: [
+                    "android_os_ZygoteProcess.cpp",
+                ],
+                default: [],
+            }),
+
+            cppflags: select(release_flag("RELEASE_NATIVE_FRAMEWORK_PROTOTYPE"), {
+                true: [
+                    "-DANDROID_NATIVE_FRAMEWORK_PROTOTYPE",
+                ],
+                default: [],
+            }),
 
             static_libs: [
                 "android.os.flags-aconfig-cc",
@@ -297,7 +312,12 @@ cc_library_shared_for_libandroid_runtime {
                 "libscrypt_static",
                 "libstatssocket_lazy",
                 "libskia",
-            ],
+            ] + select(release_flag("RELEASE_NATIVE_FRAMEWORK_PROTOTYPE"), {
+                true: [
+                    "libflatbuffers-cpp",
+                ],
+                default: [],
+            }),
 
             shared_libs: [
                 "libbase",
@@ -382,6 +402,7 @@ cc_library_shared_for_libandroid_runtime {
                 "libnativewindow",
                 "libdl",
                 "libdl_android",
+                "libcameracompatbilityinfo",
                 "libtimeinstate",
                 "server_configurable_flags",
                 "libaconfig_storage_read_api_cc",
@@ -389,6 +410,7 @@ cc_library_shared_for_libandroid_runtime {
                 "libultrahdr",
                 "libperfetto_c",
                 "libtracing_perfetto",
+                "libperfetto_framework_jni",
             ],
             export_shared_lib_headers: [
                 // our headers include libnativewindow's public headers
@@ -403,7 +425,12 @@ cc_library_shared_for_libandroid_runtime {
                 "dnsproxyd_protocol_headers",
                 "flatbuffer_headers",
                 "tensorflow_headers",
-            ],
+            ] + select(release_flag("RELEASE_NATIVE_FRAMEWORK_PROTOTYPE"), {
+                true: [
+                    "libzygote_schema_headers",
+                ],
+                default: [],
+            }),
             runtime_libs: [
                 "libidmap2",
             ],
@@ -425,30 +452,26 @@ cc_library_shared_for_libandroid_runtime {
             ],
             static_libs: [
                 "libandroidfw",
-                "libbase",
                 "libbinary_parse",
-                "libcutils",
                 "libdng_sdk",
                 "libft2",
                 "libharfbuzz_ng",
                 "libhostgraphics",
                 "libhwui",
-                "libicui18n",
-                "libicuuc",
-                "libicuuc_stubdata",
                 "libimage_type_recognition",
                 "libinput",
                 "libjpeg",
-                "liblog",
                 "libminikin",
                 "libnativehelper_jvm",
                 "libpiex",
                 "libpng",
+                "libsqlite",
                 "libtiff_directory",
                 "libui-types",
-                "libutils",
                 "libwebp-decode",
                 "libwebp-encode",
+                "libperfetto_c",
+                "libtracing_perfetto",
                 "libwuffs_mirror_release_c",
                 "libz",
                 "libimage_io",
@@ -461,16 +484,9 @@ cc_library_shared_for_libandroid_runtime {
                 "libnativehelper_jvm",
                 "libui-types",
             ],
-            stl: "libc++_static",
         },
         host_linux: {
             srcs: [
-                "android_database_CursorWindow.cpp",
-                "android_database_SQLiteCommon.cpp",
-                "android_database_SQLiteConnection.cpp",
-                "android_database_SQLiteGlobal.cpp",
-                "android_database_SQLiteDebug.cpp",
-                "android_database_SQLiteRawStatement.cpp",
                 "android_hardware_input_InputApplicationHandle.cpp",
                 "android_os_MessageQueue.cpp",
                 "android_os_Parcel.cpp",
@@ -485,13 +501,33 @@ cc_library_shared_for_libandroid_runtime {
             ],
             static_libs: [
                 "libbinderthreadstateutils",
-                "libsqlite",
                 "libgui_window_info_static",
                 "libbinder",
                 "libbinder_ndk",
                 "libhidlbase", // libhwbinder is in here
                 "libaconfig_storage_read_api_cc",
             ],
+        },
+    },
+}
+
+cc_library_shared {
+    name: "libandroid_runtime",
+    defaults: ["libandroid_runtime_defaults"],
+    target: {
+        host: {
+            static_libs: [
+                "libbase",
+                "libcutils",
+                "liblog",
+                "libutils",
+                "libicui18n",
+                "libicuuc",
+                "libicuuc_stubdata",
+            ],
+            stl: "libc++_static",
+        },
+        host_linux: {
             version_script: "platform/linux/libandroid_runtime_export.txt",
         },
         darwin: {
@@ -519,10 +555,23 @@ cc_library_shared_for_libandroid_runtime {
     },
 }
 
+cc_library_host_shared {
+    name: "libandroid_runtime_ravenwood",
+    defaults: ["libandroid_runtime_defaults"],
+    stem: "libandroid_runtime",
+    installable: false,
+    visibility: ["//frameworks/base/ravenwood"],
+    shared_libs: [
+        "libbase",
+        "libcutils",
+        "liblog",
+        "libutils",
+        "libicu",
+    ],
+}
+
 cc_library_shared {
     name: "libvintf_jni",
-
-    cpp_std: "gnu++20",
 
     srcs: [
         "android_os_VintfObject.cpp",

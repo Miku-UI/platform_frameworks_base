@@ -19,6 +19,7 @@ package android.app;
 import static android.app.ActivityTaskManager.INVALID_TASK_ID;
 import static android.window.DisplayAreaOrganizer.FEATURE_UNDEFINED;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.TestApi;
@@ -52,6 +53,46 @@ public class TaskInfo {
      * @hide
      */
     public static final int PROPERTY_VALUE_UNSET = -1;
+
+    /**
+     * Self-movable state is not set.
+     *
+     * @hide
+     */
+    public static final int SELF_MOVABLE_UNSET = -1;
+
+    /**
+     * Self-movable state is not defined. WM core uses freeform windowing mode to decide.
+     *
+     * @hide
+     */
+    public static final int SELF_MOVABLE_DEFAULT = 0;
+
+    /**
+     * Self-moving is allowed. Note that there are permission checks in addition to this flag for
+     * apps calling {@link android.app.ActivityManager.AppTask#moveTaskToFront}.
+     *
+     * @hide
+     */
+    public static final int SELF_MOVABLE_ALLOWED = 1;
+
+    /**
+     * Self-moving is denied.
+     *
+     * @hide
+     */
+    public static final int SELF_MOVABLE_DENIED = 2;
+
+    /** @hide */
+    @IntDef(
+            prefix = {"SELF_MOVABLE_"},
+            value = {
+                SELF_MOVABLE_UNSET,
+                SELF_MOVABLE_DEFAULT,
+                SELF_MOVABLE_ALLOWED,
+                SELF_MOVABLE_DENIED,
+            })
+    public @interface SelfMovable {}
 
     /**
      * The id of the user the task was running as if this is a leaf task. The id of the current
@@ -323,6 +364,7 @@ public class TaskInfo {
      * The last non-fullscreen bounds the task was launched in or resized to.
      * @hide
      */
+    @Nullable
     public Rect lastNonFullscreenBounds;
 
     /**
@@ -358,6 +400,16 @@ public class TaskInfo {
     public AppCompatTaskInfo appCompatTaskInfo = AppCompatTaskInfo.create();
 
     /**
+     * Whether the Task should be an App Bubble.
+     * Please use this with caution. This is just a short-term solution which should be migrated
+     * to a more generic model vs. implying the Task is an App Bubble here.
+     * @hide
+     *
+     * TODO(b/407669465): remove it once migrated to the new approach
+     */
+    public boolean isAppBubble;
+
+    /**
      * The top activity's main window frame if it doesn't match the top activity bounds.
      * {@code null}, otherwise.
      *
@@ -365,6 +417,12 @@ public class TaskInfo {
      */
     @Nullable
     public Rect topActivityMainWindowFrame;
+
+    /**
+     * Whether the Task should be an Interactive Picture-in-Picture window.
+     * @hide
+     */
+    public boolean isInteractivePictureInPicture;
 
     TaskInfo() {
         // Do nothing
@@ -493,6 +551,7 @@ public class TaskInfo {
                 && Objects.equals(displayCutoutInsets, that.displayCutoutInsets)
                 && getWindowingMode() == that.getWindowingMode()
                 && configuration.uiMode == that.configuration.uiMode
+                && configuration.assetsSeq == that.configuration.assetsSeq
                 && Objects.equals(taskDescription, that.taskDescription)
                 && isFocused == that.isFocused
                 && isVisible == that.isVisible
@@ -511,7 +570,9 @@ public class TaskInfo {
                 && topActivityRequestOpenInBrowserEducationTimestamp
                     == that.topActivityRequestOpenInBrowserEducationTimestamp
                 && appCompatTaskInfo.equalsForTaskOrganizer(that.appCompatTaskInfo)
-                && Objects.equals(topActivityMainWindowFrame, that.topActivityMainWindowFrame);
+                && Objects.equals(topActivityMainWindowFrame, that.topActivityMainWindowFrame)
+                && isAppBubble == that.isAppBubble
+                && minWidth == that.minWidth && minHeight == that.minHeight;
     }
 
     /**
@@ -590,6 +651,7 @@ public class TaskInfo {
         topActivityRequestOpenInBrowserEducationTimestamp = source.readLong();
         appCompatTaskInfo = source.readTypedObject(AppCompatTaskInfo.CREATOR);
         topActivityMainWindowFrame = source.readTypedObject(Rect.CREATOR);
+        isAppBubble = source.readBoolean();
     }
 
     /**
@@ -647,6 +709,7 @@ public class TaskInfo {
         dest.writeLong(topActivityRequestOpenInBrowserEducationTimestamp);
         dest.writeTypedObject(appCompatTaskInfo, flags);
         dest.writeTypedObject(topActivityMainWindowFrame, flags);
+        dest.writeBoolean(isAppBubble);
     }
 
     @Override
@@ -696,6 +759,7 @@ public class TaskInfo {
                 + topActivityRequestOpenInBrowserEducationTimestamp
                 + " appCompatTaskInfo=" + appCompatTaskInfo
                 + " topActivityMainWindowFrame=" + topActivityMainWindowFrame
+                + " isAppBubble=" + isAppBubble
                 + "}";
     }
 }

@@ -16,6 +16,8 @@
 
 package com.android.internal.view;
 
+import static android.provider.Settings.System.ACCELEROMETER_ROTATION;
+
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
@@ -95,6 +97,20 @@ public final class RotationPolicy {
     }
 
     /**
+     * Requests to update value of setting key {@link Settings.Secure.DEVICE_STATE_ROTATION_LOCK} to
+     * {@link autoRotate} for {@link deviceState}.
+     */
+    public static void requestDeviceStateAutoRotateSettingChange(int deviceState,
+            boolean autoRotate) {
+        try {
+            IWindowManager wm = WindowManagerGlobal.getWindowManagerService();
+            wm.setDeviceStateAutoRotateSetting(deviceState, autoRotate);
+        } catch (RemoteException exc) {
+            Log.w(TAG, "Unable to save device state auto-rotate setting: " + exc.getMessage());
+        }
+    }
+
+    /**
      * Returns true if rotation lock is enabled.
      */
     public static boolean isRotationLocked(Context context) {
@@ -125,6 +141,24 @@ public final class RotationPolicy {
     }
 
     /**
+     * Sets screen rotation to {@link rotation} if the value of {@link ACCELEROMETER_ROTATION} is
+     * false.
+     */
+    public static void setRotationAtAngleIfAllowed(final int rotation, String caller) {
+        AsyncTask.execute(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    IWindowManager wm = WindowManagerGlobal.getWindowManagerService();
+                    wm.setRotationAtAngleIfAllowed(rotation, caller);
+                } catch (RemoteException exc) {
+                    Log.w(TAG, "Unable to set rotation to:" + rotation);
+                }
+            }
+        });
+    }
+
+    /**
      * Enables or disables natural rotation lock from Accessibility settings.
      *
      * If rotation is locked for accessibility, the system UI toggle is hidden to avoid confusion.
@@ -138,11 +172,19 @@ public final class RotationPolicy {
         setRotationLock(enabled, NATURAL_ROTATION, caller);
     }
 
-    private static boolean areAllRotationsAllowed(Context context) {
+    /**
+     * If true, the screen can be rotated via the accelerometer in all 4 rotations as the default
+     * behavior.
+     */
+    public static boolean areAllRotationsAllowed(Context context) {
         return context.getResources().getBoolean(R.bool.config_allowAllRotations);
     }
 
-    private static boolean useCurrentRotationOnRotationLockChange(Context context) {
+    /**
+     * If false and config_allowAllRotations is false, the screen will rotate to the natural
+     * orientation of the device when the auto-rotate policy is toggled.
+     */
+    public static boolean useCurrentRotationOnRotationLockChange(Context context) {
         return context.getResources().getBoolean(
                 R.bool.config_useCurrentRotationOnRotationLockChange);
     }

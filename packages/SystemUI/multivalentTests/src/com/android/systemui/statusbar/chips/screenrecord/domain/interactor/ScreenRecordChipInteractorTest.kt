@@ -16,11 +16,8 @@
 
 package com.android.systemui.statusbar.chips.screenrecord.domain.interactor
 
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_STATUS_BAR_AUTO_START_SCREEN_RECORD_CHIP
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
@@ -161,25 +158,7 @@ class ScreenRecordChipInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(FLAG_STATUS_BAR_AUTO_START_SCREEN_RECORD_CHIP)
-    fun screenRecordState_flagOff_doesNotAutomaticallySwitchToRecordingBasedOnTime() =
-        testScope.runTest {
-            val latest by collectLastValue(underTest.screenRecordState)
-
-            // WHEN screen record should start in 900ms
-            screenRecordRepo.screenRecordState.value = ScreenRecordModel.Starting(900)
-            assertThat(latest).isEqualTo(ScreenRecordChipModel.Starting(900))
-
-            // WHEN 900ms has elapsed
-            advanceTimeBy(901)
-
-            // THEN we don't automatically update to the recording state if the flag is off
-            assertThat(latest).isEqualTo(ScreenRecordChipModel.Starting(900))
-        }
-
-    @Test
-    @EnableFlags(FLAG_STATUS_BAR_AUTO_START_SCREEN_RECORD_CHIP)
-    fun screenRecordState_flagOn_automaticallySwitchesToRecordingBasedOnTime() =
+    fun screenRecordState_automaticallySwitchesToRecordingBasedOnTime() =
         testScope.runTest {
             val latest by collectLastValue(underTest.screenRecordState)
 
@@ -195,7 +174,6 @@ class ScreenRecordChipInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_AUTO_START_SCREEN_RECORD_CHIP)
     fun screenRecordState_recordingBeginsEarly_switchesToRecording() =
         testScope.runTest {
             val latest by collectLastValue(underTest.screenRecordState)
@@ -227,7 +205,6 @@ class ScreenRecordChipInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_AUTO_START_SCREEN_RECORD_CHIP)
     fun screenRecordState_secondRecording_doesNotAutomaticallyStart() =
         testScope.runTest {
             val latest by collectLastValue(underTest.screenRecordState)
@@ -250,7 +227,6 @@ class ScreenRecordChipInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_AUTO_START_SCREEN_RECORD_CHIP)
     fun screenRecordState_startingButThenDoingNothing_doesNotAutomaticallyStart() =
         testScope.runTest {
             val latest by collectLastValue(underTest.screenRecordState)
@@ -269,7 +245,6 @@ class ScreenRecordChipInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_AUTO_START_SCREEN_RECORD_CHIP)
     fun screenRecordState_multipleStartingValues_autoStartResets() =
         testScope.runTest {
             val latest by collectLastValue(underTest.screenRecordState)

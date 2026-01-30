@@ -41,7 +41,6 @@ import android.app.WindowConfiguration;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.platform.test.annotations.Presubmit;
-import android.view.DisplayInfo;
 import android.view.Surface;
 
 import androidx.test.filters.SmallTest;
@@ -180,28 +179,6 @@ public class WindowConfigurationTests extends WindowTestsBase {
         // Allowed to change from app process.
         config.setActivityType(ACTIVITY_TYPE_STANDARD);
         assertEquals(ACTIVITY_TYPE_STANDARD, config.getActivityType());
-    }
-
-    /** Ensures the configuration app bounds at the root level match the app dimensions. */
-    @Test
-    public void testAppBounds_RootConfigurationBounds() {
-        final DisplayInfo info = mDisplayContent.getDisplayInfo();
-        info.appWidth = 1024;
-        info.appHeight = 768;
-
-        final Rect appBounds = mWm.computeNewConfiguration(
-                mDisplayContent.getDisplayId()).windowConfiguration.getAppBounds();
-        // The bounds should always be positioned in the top left besides cutout.
-        final int expectedLeft = info.displayCutout != null
-                ? info.displayCutout.getSafeInsetLeft() : 0;
-        final int expectedTop = info.displayCutout != null
-                ? info.displayCutout.getSafeInsetTop() : 0;
-        assertEquals(expectedLeft, appBounds.left);
-        assertEquals(expectedTop, appBounds.top);
-
-        // The bounds should equal the defined app width and height
-        assertEquals(info.appWidth, appBounds.width());
-        assertEquals(info.appHeight, appBounds.height());
     }
 
     /** Ensure the window always has a caption in Freeform window mode or display mode. */

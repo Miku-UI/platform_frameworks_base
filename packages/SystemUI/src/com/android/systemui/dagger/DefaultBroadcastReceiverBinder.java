@@ -25,6 +25,7 @@ import com.android.systemui.media.dialog.MediaOutputDialogReceiver;
 import com.android.systemui.people.widget.PeopleSpaceWidgetPinnedReceiver;
 import com.android.systemui.people.widget.PeopleSpaceWidgetProvider;
 import com.android.systemui.screenshot.SmartActionsReceiver;
+import com.android.systemui.user.UserDialogReceiver;
 
 import dagger.Binds;
 import dagger.Module;
@@ -80,6 +81,16 @@ public abstract class DefaultBroadcastReceiverBinder {
     @ClassKey(GuestResetOrExitSessionReceiver.class)
     public abstract BroadcastReceiver bindGuestResetOrExitSessionReceiver(
             GuestResetOrExitSessionReceiver broadcastReceiver);
+
+
+    /**
+     *
+     */
+    @Binds
+    @IntoMap
+    @ClassKey(UserDialogReceiver.class)
+    public abstract BroadcastReceiver bindUserDialogReceiver(
+            UserDialogReceiver broadcastReceiver);
 
     /**
      *

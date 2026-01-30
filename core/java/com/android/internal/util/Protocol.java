@@ -29,7 +29,7 @@ package com.android.internal.util;
  * NOTE: After a value is created and source released a value shouldn't be changed to
  * maintain backwards compatibility.
  *
- * {@hide}
+ * @hide
  */
 public class Protocol {
     public static final int MAX_MESSAGE                                             = 0x0000FFFF;

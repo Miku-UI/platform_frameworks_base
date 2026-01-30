@@ -72,6 +72,11 @@ public class EnergyConsumerPowerStatsCollector extends PowerStatsCollector {
         mLayout = statsLayout;
     }
 
+    @Override
+    public String toString() {
+        return "COLLECTOR: " + mPowerComponentName;
+    }
+
     private boolean ensureInitialized() {
         if (mIsInitialized) {
             return true;
@@ -102,7 +107,7 @@ public class EnergyConsumerPowerStatsCollector extends PowerStatsCollector {
     }
 
     @Override
-    protected PowerStats collectStats() {
+    protected PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
         if (!ensureInitialized()) {
             return null;
         }
@@ -114,9 +119,8 @@ public class EnergyConsumerPowerStatsCollector extends PowerStatsCollector {
             return null;
         }
 
-        long timestamp = mClock.elapsedRealtime();
-        mPowerStats.durationMs = timestamp - mLastUpdateTimestamp;
-        mLastUpdateTimestamp = timestamp;
+        mPowerStats.durationMs = elapsedRealtimeMs - mLastUpdateTimestamp;
+        mLastUpdateTimestamp = elapsedRealtimeMs;
         return mPowerStats;
     }
 }

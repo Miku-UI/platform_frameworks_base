@@ -1,0 +1,496 @@
+#!/bin/bash
+
+set -e # Finish when any command fails.
+
+function apply() {
+    local file="$1"
+
+    # The script is given via stdin. Write it to file.
+    local sed="/tmp/pta-script.sed.tmp"
+    cat > "$sed"
+
+    echo "Running: sed -i -f \"$sed\" \"$file\""
+
+    if ! sed -i -f "$sed" "$file" ; then
+        echo 'Failed!' 1>&2
+        return 1
+    fi
+}
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/TinyFrameworkForPta.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta
+21i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+
+# add keep-<clinit> annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta
+21i\
+@android.ravenwood.annotation.RavenwoodKeepStaticInitializer
+
+# Add a comment about missing constructor to com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta
+21i\
+// [PTA]: Constructor needs Keep
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta.foo(Ljava/lang/String;Ljava/lang/Object;)V
+25i\
+    @android.ravenwood.annotation.RavenwoodKeep
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1
+28i\
+    @android.ravenwood.annotation.RavenwoodKeepPartialClass
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1.bar*
+29i\
+        @android.ravenwood.annotation.RavenwoodKeep
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1$Nest2
+32i\
+        @android.ravenwood.annotation.RavenwoodKeepPartialClass
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1$Nest2.baz*
+33i\
+            @android.ravenwood.annotation.RavenwoodKeep
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/TinyFrameworkForTextPolicy.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+21i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+21i\
+@android.ravenwood.annotation.RavenwoodClassLoadHook("com.android.hoststubgen.test.tinyframework.TinyFrameworkHooks.onClassLoaded")
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.<init>()V
+22i\
+    @android.ravenwood.annotation.RavenwoodKeep
+
+# add annotation to field com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.stub
+25i\
+    @android.ravenwood.annotation.RavenwoodKeep
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.addOne(I)I
+31i\
+    @android.ravenwood.annotation.RavenwoodKeep
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeRemoved(Ljava/lang/String;)V
+35i\
+    @android.ravenwood.annotation.RavenwoodRemove
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredObj()Ljava/lang/String;
+39i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredV()V
+43i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredZ()Z
+47i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredB()B
+51i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredC()C
+55i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredS()S
+59i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredI()I
+63i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredF()F
+67i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredD()D
+71i\
+    @android.ravenwood.annotation.RavenwoodIgnore
+
+# add annotation to method com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.unsupportedMethod()Ljava/lang/String;
+93i\
+    @android.ravenwood.annotation.RavenwoodThrow
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/TinyFrameworkPartiallyAllowlisted.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartialWithWholeClass_bad
+54i\
+    @android.ravenwood.annotation.RavenwoodRemove
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartiallyAllowlistedWithoutAnnot_bad
+65i\
+    @android.ravenwood.annotation.RavenwoodRemove
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/exp/MoreClasses.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.exp.ExpC2_WithClassPolicy_keep
+35i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.exp.ExpC3_WithClassPolicy_keepclass
+42i\
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
+
+# Add a comment about missing constructor to com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+98i\
+// [PTA]: Constructor needs Keep
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/packagetest/B.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.packagetest.B
+18i\
+@android.ravenwood.annotation.RavenwoodRemove
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/packagetest/MoreClassses.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.packagetest.KeepC2_WithClassPolicy_keep
+34i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.packagetest.KeepC3_WithClassPolicy_keepclass
+41i\
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
+
+# Add a comment about missing constructor to com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+97i\
+// [PTA]: Constructor needs Keep
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/packagetest/sub/B.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.packagetest.sub.B
+18i\
+@android.ravenwood.annotation.RavenwoodRemove
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/C1.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.C1
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/C2.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.C2
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/C3.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.C3
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/CA.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.CA
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/CB.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.CB
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/I1.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.I1
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/I2.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.I2
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/I3.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.I3
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/IA.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.IA
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/subclasstest/IB.java" <<'__END_OF_SCRIPT__'
+
+# add class annotation to com.android.hoststubgen.test.tinyframework.subclasstest.IB
+18i\
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "annotation-allowed-classes-tiny-framework-for-pta-test.txt" <<'__END_OF_SCRIPT__'
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1$Nest2
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartialWithWholeClass_bad
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartiallyAllowlistedWithoutAnnot_bad
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.exp.ExpC2_WithClassPolicy_keep
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.exp.ExpC3_WithClassPolicy_keepclass
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.packagetest.B
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.packagetest.KeepC2_WithClassPolicy_keep
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.packagetest.KeepC3_WithClassPolicy_keepclass
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.packagetest.sub.B
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.C1
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.C2
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.C3
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.CA
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.CB
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.I1
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.I2
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.I3
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.IA
+
+# add to annotation allowlist
+$a\
+com.android.hoststubgen.test.tinyframework.subclasstest.IB
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "policy-override-tiny-framework.txt" <<'__END_OF_SCRIPT__'
+
+# remove field policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.stub
+2s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.<init>()V
+4s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.addOne(I)I
+5s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeRemoved(Ljava/lang/String;)V
+6s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.unsupportedMethod()Ljava/lang/String;
+12s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredObj()Ljava/lang/String;
+14s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredV()V
+15s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredZ()Z
+16s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredB()B
+17s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredC()C
+18s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredS()S
+19s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredI()I
+20s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredF()F
+22s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy.toBeIgnoredD()D
+23s/^/#[PTA]: /
+
+# remove class load hook policy on com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+34s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.C1
+43s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.C2
+44s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.C3
+45s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.CA
+46s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.CB
+47s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.I1
+48s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.I2
+49s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.I3
+50s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.IA
+51s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.subclasstest.IB
+52s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.packagetest.B
+63s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.packagetest.sub.B
+64s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartialWithWholeClass_bad
+91s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartiallyAllowlistedWithoutAnnot_bad
+92s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta.<clinit>*
+97s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta.foo(Ljava/lang/String;Ljava/lang/Object;)V
+99s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1
+101s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1.bar*
+102s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1$Nest2
+104s/^/#[PTA]: /
+
+# remove method policy com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1$Nest2.baz*
+105s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.exp.ExpC2_WithClassPolicy_keep
+108s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.exp.ExpC3_WithClassPolicy_keepclass
+109s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.packagetest.KeepC2_WithClassPolicy_keep
+121s/^/#[PTA]: /
+
+# remove class policy on com.android.hoststubgen.test.tinyframework.packagetest.KeepC3_WithClassPolicy_keepclass
+122s/^/#[PTA]: /
+__END_OF_SCRIPT__
+
+echo "All files updated successfully!"

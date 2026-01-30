@@ -16,7 +16,6 @@
 
 package com.android.server.biometrics.sensors.fingerprint.aidl;
 
-import static android.adaptiveauth.Flags.FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_ERROR_CANCELED;
 import static android.hardware.biometrics.BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_START;
 import static android.hardware.biometrics.BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_TOO_FAST;
@@ -96,7 +95,6 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -157,8 +155,6 @@ public class FingerprintAuthenticationClientTest {
     private Probe mLuxProbe;
     @Mock
     private AuthSessionCoordinator mAuthSessionCoordinator;
-    @Mock
-    private Clock mClock;
     @Mock
     private LockoutTracker mLockoutTracker;
     @Captor
@@ -558,7 +554,6 @@ public class FingerprintAuthenticationClientTest {
     @Test
     public void testAuthenticationStateListeners_onAuthenticationSucceeded()
             throws RemoteException {
-        mSetFlagsRule.enableFlags(FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS);
         final FingerprintAuthenticationClient client = createClient();
         client.start(mCallback);
         client.onAuthenticated(new Fingerprint("friendly", 1 /* fingerId */,
@@ -575,7 +570,6 @@ public class FingerprintAuthenticationClientTest {
 
     @Test
     public void testAuthenticationStateListeners_onAuthenticationFailed() throws RemoteException {
-        mSetFlagsRule.enableFlags(FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS);
         final FingerprintAuthenticationClient client = createClient();
         client.start(mCallback);
         client.onAuthenticated(new Fingerprint("friendly", 1 /* fingerId */,
@@ -590,9 +584,10 @@ public class FingerprintAuthenticationClientTest {
     }
 
     @Test
-    public void cancelsAuthWhenNotInForeground() throws Exception {
+    public void cancelsAuthWhenNotInForegroundAndNotVisible() throws Exception {
         final ActivityManager.RunningTaskInfo topTask = new ActivityManager.RunningTaskInfo();
         topTask.topActivity = new ComponentName("other", "thing");
+        topTask.isVisible = false;
         when(mActivityTaskManager.getTasks(anyInt())).thenReturn(List.of(topTask));
 
         final FingerprintAuthenticationClient client = createClientWithoutBackgroundAuth();
@@ -602,9 +597,50 @@ public class FingerprintAuthenticationClientTest {
 
         mLooper.moveTimeForward(10);
         mLooper.dispatchAll();
+
         verify(mCancellationSignal, never()).cancel();
         verify(mClientMonitorCallbackConverter)
                 .onError(anyInt(), anyInt(), eq(BIOMETRIC_ERROR_CANCELED), anyInt());
+    }
+
+    @Test
+    public void successfulAuthWhenInForegroundAndNotVisible() throws Exception {
+        final ActivityManager.RunningTaskInfo topTask = new ActivityManager.RunningTaskInfo();
+        topTask.topActivity = new ComponentName("test-owner", "cls");
+        topTask.isVisible = false;
+        when(mActivityTaskManager.getTasks(anyInt())).thenReturn(List.of(topTask));
+
+        final FingerprintAuthenticationClient client = createClientWithoutBackgroundAuth();
+        client.start(mCallback);
+        client.onAuthenticated(new Fingerprint("friendly", 1 /* fingerId */, 2 /* deviceId */),
+                true /* authenticated */, new ArrayList<>());
+
+        mLooper.moveTimeForward(10);
+        mLooper.dispatchAll();
+
+        verify(mCallback).onClientFinished(client, true);
+    }
+
+    @Test
+    public void successfulAuthWhenNotInForegroundAndVisible() throws Exception {
+        final ActivityManager.RunningTaskInfo topTask = new ActivityManager.RunningTaskInfo();
+        topTask.topActivity = new ComponentName("other", "thing");
+        topTask.isVisible = false;
+        final ActivityManager.RunningTaskInfo currentTask = new ActivityManager.RunningTaskInfo();
+        currentTask.topActivity = new ComponentName("test-owner", "cls");
+        currentTask.isVisible = true;
+
+        when(mActivityTaskManager.getTasks(anyInt())).thenReturn(List.of(topTask, currentTask));
+
+        final FingerprintAuthenticationClient client = createClientWithoutBackgroundAuth();
+        client.start(mCallback);
+        client.onAuthenticated(new Fingerprint("friendly", 1 /* fingerId */, 2 /* deviceId */),
+                true /* authenticated */, new ArrayList<>());
+
+        mLooper.moveTimeForward(10);
+        mLooper.dispatchAll();
+
+        verify(mCallback).onClientFinished(client, true);
     }
 
     @Test

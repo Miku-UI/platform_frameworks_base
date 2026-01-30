@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.tiles.base.ui.analytics
 
-import android.platform.test.annotations.EnabledOnRavenwood
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.InstanceId
@@ -34,7 +33,6 @@ import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class QSTileAnalyticsTest : SysuiTestCase() {
 

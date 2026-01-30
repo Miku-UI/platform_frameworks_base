@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.pipeline.wifi.data.repository.prod
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.RealWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiScanEntry
@@ -48,6 +49,21 @@ class DisabledWifiRepository @Inject constructor() : RealWifiRepository {
 
     override val wifiScanResults: StateFlow<List<WifiScanEntry>> =
         MutableStateFlow<List<WifiScanEntry>>(emptyList()).asStateFlow()
+
+    override val wifiToggleState: StateFlow<WifiToggleState> =
+        MutableStateFlow<WifiToggleState>(WifiToggleState.Normal).asStateFlow()
+
+    override fun enableWifi() {
+        // No-op
+    }
+
+    override fun pauseWifi() {
+        // No-op
+    }
+
+    override fun scanForWifi() {
+        // No-op
+    }
 
     companion object {
         private val NETWORK = WifiNetworkModel.Unavailable

@@ -348,6 +348,26 @@ public final class MediaQualityManager {
     }
 
     /**
+     * Get the default profile of the application.
+     *
+     * @return PictureProfile the default profile of the application.
+     *
+     * @see PictureProfile
+     *
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.MANAGE_GLOBAL_PICTURE_QUALITY_SERVICE)
+    @Nullable
+    public PictureProfile getDefaultPictureProfile() {
+        try {
+            return mService.getDefaultPictureProfile();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+
+    /**
      * Sets preferred default picture profile.
      *
      * @param pictureProfileId the ID of the default profile. {@code null} to unset the default
@@ -410,6 +430,32 @@ public final class MediaQualityManager {
     }
 
     /**
+     * Gets current picture profile instance for TV input.
+     * @hide
+     */
+    public PictureProfile getCurrentPictureProfileForTvInput(String inputId) {
+        try {
+            return mService.getCurrentPictureProfileForTvInput(
+                    inputId, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Gets all picture profiles instance for TV input.
+     * @hide
+     */
+    public List<PictureProfile> getAllPictureProfilesForTvInput(String inputId) {
+        try {
+            return mService.getAllPictureProfilesForTvInput(
+                    inputId, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Gets sound profile handle by profile ID.
      * @hide
      */
@@ -461,6 +507,19 @@ public final class MediaQualityManager {
     public void removePictureProfile(@NonNull String profileId) {
         try {
             mService.removePictureProfile(profileId, mUserHandle.getIdentifier());
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Trigger a status change of the given picture profile.
+     * <p>For testing only. TODO: make it a @TestApi.
+     * @hide
+     */
+    public void changeStreamStatus(@NonNull String profileId, @NonNull String newStatus) {
+        try {
+            mService.changeStreamStatus(profileId, newStatus, mUserHandle.getIdentifier());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

@@ -34,7 +34,6 @@ import com.android.systemui.statusbar.NotificationListener;
 import com.android.systemui.statusbar.NotificationListener.NotificationHandler;
 import com.android.systemui.statusbar.notification.collection.PipelineDumpable;
 import com.android.systemui.statusbar.notification.collection.PipelineDumper;
-import com.android.systemui.statusbar.notification.collection.UseElapsedRealtimeForCreationTime;
 import com.android.systemui.util.concurrency.DelayableExecutor;
 import com.android.systemui.util.time.SystemClock;
 
@@ -183,7 +182,7 @@ public class GroupCoalescer implements Dumpable, PipelineDumpable {
     private void maybeEmitBatch(StatusBarNotification sbn) {
         final CoalescedEvent event = mCoalescedEvents.get(sbn.getKey());
         final EventBatch batch = mBatches.get(sbn.getGroupKey());
-        long now = UseElapsedRealtimeForCreationTime.getCurrentTime(mClock);
+        long now = mClock.elapsedRealtime();
         if (event != null) {
             mLogger.logEarlyEmit(sbn.getKey(), requireNonNull(event.getBatch()).mGroupKey);
             emitBatch(requireNonNull(event.getBatch()));
@@ -230,8 +229,7 @@ public class GroupCoalescer implements Dumpable, PipelineDumpable {
     private EventBatch getOrBuildBatch(final String groupKey) {
         EventBatch batch = mBatches.get(groupKey);
         if (batch == null) {
-            batch = new EventBatch(UseElapsedRealtimeForCreationTime.getCurrentTime(mClock),
-                    groupKey);
+            batch = new EventBatch(mClock.elapsedRealtime(), groupKey);
             mBatches.put(groupKey, batch);
         }
         return batch;
@@ -271,8 +269,7 @@ public class GroupCoalescer implements Dumpable, PipelineDumpable {
         }
         events.sort(mEventComparator);
 
-        long batchAge = UseElapsedRealtimeForCreationTime.getCurrentTime(mClock)
-                - batch.mCreatedTimestamp;
+        long batchAge = mClock.elapsedRealtime() - batch.mCreatedTimestamp;
         mLogger.logEmitBatch(batch.mGroupKey, batch.mMembers.size(), batchAge);
 
         mHandler.onNotificationBatchPosted(events);
@@ -302,7 +299,7 @@ public class GroupCoalescer implements Dumpable, PipelineDumpable {
 
     @Override
     public void dump(@NonNull PrintWriter pw, @NonNull String[] args) {
-        long now = UseElapsedRealtimeForCreationTime.getCurrentTime(mClock);
+        long now = mClock.elapsedRealtime();
 
         int eventCount = 0;
 

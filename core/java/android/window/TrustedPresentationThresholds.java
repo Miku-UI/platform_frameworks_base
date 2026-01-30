@@ -16,15 +16,12 @@
 
 package android.window;
 
-import android.annotation.FlaggedApi;
 import android.annotation.FloatRange;
 import android.annotation.IntRange;
 import android.os.Parcel;
 import android.os.Parcelable;
 
 import androidx.annotation.NonNull;
-
-import com.android.window.flags.Flags;
 
 import java.util.Objects;
 
@@ -33,7 +30,6 @@ import java.util.Objects;
  * {@link android.view.WindowManager#registerTrustedPresentationListener(IBinder,
  * TrustedPresentationThresholds, Executor, Consumer)}
  */
-@FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
 public final class TrustedPresentationThresholds implements Parcelable {
     /**
      * The min alpha the Window is required to have to be considered inside the
@@ -59,7 +55,6 @@ public final class TrustedPresentationThresholds implements Parcelable {
      * The min alpha the Window is required to have to be considered inside the
      * threshold.
      */
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public @FloatRange(from = 0f, fromInclusive = false, to = 1f) float getMinAlpha() {
         return mMinAlpha;
     }
@@ -68,7 +63,6 @@ public final class TrustedPresentationThresholds implements Parcelable {
      * The min fraction of the Window that was presented to the user to be considered
      * inside the threshold.
      */
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public @FloatRange(from = 0f, fromInclusive = false, to = 1f) float getMinFractionRendered() {
         return mMinFractionRendered;
     }
@@ -76,7 +70,6 @@ public final class TrustedPresentationThresholds implements Parcelable {
     /**
      * The time in milliseconds required for the Window to be in the threshold.
      */
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public @IntRange(from = 1) int getStabilityRequirementMillis() {
         return mStabilityRequirementMs;
     }
@@ -100,7 +93,6 @@ public final class TrustedPresentationThresholds implements Parcelable {
      * @param stabilityRequirementMs The time in milliseconds required for the
      *                               Window to be in the threshold.
      */
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public TrustedPresentationThresholds(
             @FloatRange(from = 0f, fromInclusive = false, to = 1f) float minAlpha,
             @FloatRange(from = 0f, fromInclusive = false, to = 1f) float minFractionRendered,
@@ -112,7 +104,6 @@ public final class TrustedPresentationThresholds implements Parcelable {
     }
 
     @Override
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public String toString() {
         return "TrustedPresentationThresholds { "
                 + "minAlpha = " + mMinAlpha + ", "
@@ -122,7 +113,6 @@ public final class TrustedPresentationThresholds implements Parcelable {
     }
 
     @Override
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeFloat(mMinAlpha);
         dest.writeFloat(mMinFractionRendered);
@@ -130,20 +120,17 @@ public final class TrustedPresentationThresholds implements Parcelable {
     }
 
     @Override
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public int describeContents() {
         return 0;
     }
 
 
     @Override
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public int hashCode() {
         return Objects.hash(mMinAlpha, mMinFractionRendered, mStabilityRequirementMs);
     }
 
     @Override
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public boolean equals(Object o) {
         if (this == o) {
             return true;
@@ -167,17 +154,14 @@ public final class TrustedPresentationThresholds implements Parcelable {
         checkValid();
     }
 
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     public static final @NonNull Creator<TrustedPresentationThresholds> CREATOR =
             new Creator<TrustedPresentationThresholds>() {
                 @Override
-                @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
                 public TrustedPresentationThresholds[] newArray(int size) {
                     return new TrustedPresentationThresholds[size];
                 }
 
                 @Override
-                @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
                 public TrustedPresentationThresholds createFromParcel(@NonNull Parcel in) {
                     return new TrustedPresentationThresholds(in);
                 }

@@ -16,8 +16,12 @@
 
 package com.android.systemui.deviceentry.ui.viewmodel
 
+import android.content.Context
 import com.android.systemui.accessibility.domain.interactor.AccessibilityInteractor
+import com.android.systemui.biometrics.UdfpsUtils
 import com.android.systemui.biometrics.domain.interactor.UdfpsOverlayInteractor
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -26,11 +30,17 @@ import kotlinx.coroutines.flow.flowOf
 class AlternateBouncerUdfpsAccessibilityOverlayViewModel
 @Inject
 constructor(
+    @Application private val applicationContext: Context,
+    deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     udfpsOverlayInteractor: UdfpsOverlayInteractor,
+    udfpsUtils: UdfpsUtils,
     accessibilityInteractor: AccessibilityInteractor,
 ) :
     UdfpsAccessibilityOverlayViewModel(
+        applicationContext,
         udfpsOverlayInteractor,
+        deviceEntryUdfpsInteractor,
+        udfpsUtils,
         accessibilityInteractor,
     ) {
     /** Overlay is always visible if touch exploration is enabled on the alternate bouncer. */

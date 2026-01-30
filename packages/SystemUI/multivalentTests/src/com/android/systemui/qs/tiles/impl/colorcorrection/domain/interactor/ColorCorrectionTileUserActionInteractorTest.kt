@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.colorcorrection.domain.interactor
 
 import android.os.UserHandle
-import android.platform.test.annotations.EnabledOnRavenwood
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -40,7 +39,6 @@ import org.mockito.junit.MockitoRule
 import org.mockito.kotlin.whenever
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class ColorCorrectionTileUserActionInteractorTest : SysuiTestCase() {
 

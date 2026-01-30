@@ -15,101 +15,105 @@
   limitations under the License.
   -->
 
-<com.google.android.material.card.MaterialCardView
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    style="@style/SettingsLibStatusBannerCardStyle">
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
 
-    <LinearLayout
-        android:id="@+id/banner_container"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:baselineAligned="false"
-        android:paddingVertical="@dimen/settingslib_expressive_space_small1"
-        android:paddingHorizontal="?android:attr/listPreferredItemPaddingStart"
-        android:orientation="vertical">
+    <com.google.android.material.card.MaterialCardView
+        style="@style/SettingsLibStatusBannerCardStyle">
 
         <LinearLayout
-            android:id="@+id/status_container"
+            android:id="@+id/banner_container"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal">
-
-            <FrameLayout
-                android:id="@android:id/icon_frame"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="@dimen/settingslib_status_banner_icon_frame_size"
-                android:minHeight="@dimen/settingslib_status_banner_icon_frame_size"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/icon_background"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-
-                <ImageView
-                    android:id="@android:id/icon"
-                    android:layout_width="@dimen/settingslib_expressive_space_medium4"
-                    android:layout_height="@dimen/settingslib_expressive_space_medium4"
-                    android:layout_gravity="center"
-                    android:scaleType="centerInside"/>
-
-                <com.google.android.material.progressindicator.CircularProgressIndicator
-                    android:id="@+id/progress_indicator"
-                    style="@style/Widget.Material3.CircularProgressIndicator"
-                    android:layout_width="@dimen/settingslib_expressive_space_medium4"
-                    android:layout_height="@dimen/settingslib_expressive_space_medium4"
-                    android:layout_gravity="center"
-                    android:scaleType="centerInside"
-                    android:indeterminate="false"
-                    android:max="100"
-                    android:progress="0"
-                    android:visibility="gone" />
-
-                <com.google.android.material.loadingindicator.LoadingIndicator
-                    android:id="@+id/loading_indicator"
-                    style="@style/Widget.Material3.LoadingIndicator"
-                    android:layout_width="@dimen/settingslib_expressive_space_medium4"
-                    android:layout_height="@dimen/settingslib_expressive_space_medium4"
-                    android:layout_gravity="center"
-                    android:scaleType="centerInside"
-                    android:visibility="gone" />
-
-            </FrameLayout>
+            android:layout_height="wrap_content"
+            android:baselineAligned="false"
+            android:paddingVertical="@dimen/settingslib_expressive_space_small1"
+            android:paddingHorizontal="@dimen/settingslib_expressive_space_small1"
+            android:orientation="vertical">
 
             <LinearLayout
-                android:id="@+id/text_container"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:paddingVertical="@dimen/settingslib_expressive_space_extrasmall4"
-                android:paddingHorizontal="@dimen/settingslib_expressive_space_small1"
-                android:layout_weight="1"
-                android:layout_gravity="center"
-                android:orientation="vertical">
-                <TextView
-                    android:id="@android:id/title"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hyphenationFrequency="normalFast"
-                    android:lineBreakWordStyle="phrase"
-                    android:textAppearance="@style/TextAppearance.SettingsLib.TitleLarge.Emphasized"/>
+                android:id="@+id/status_container"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="horizontal">
 
-                <TextView
-                    android:id="@android:id/summary"
-                    android:layout_width="match_parent"
+                <FrameLayout
+                    android:id="@android:id/icon_frame"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:hyphenationFrequency="normalFast"
-                    android:lineBreakWordStyle="phrase"
-                    android:maxLines="3"
-                    android:textAppearance="@style/TextAppearance.SettingsLib.BodyMedium"/>
+                    android:minWidth="@dimen/settingslib_expressive_space_large3"
+                    android:minHeight="@dimen/settingslib_expressive_space_large3"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:id="@+id/icon_background"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"/>
+
+                    <ImageView
+                        android:id="@android:id/icon"
+                        android:layout_width="@dimen/settingslib_expressive_space_medium4"
+                        android:layout_height="@dimen/settingslib_expressive_space_medium4"
+                        android:layout_gravity="center"
+                        android:scaleType="centerInside"/>
+
+                    <com.google.android.material.progressindicator.CircularProgressIndicator
+                        android:id="@+id/progress_indicator"
+                        android:theme="@style/Theme.Material3.DynamicColors.DayNight"
+                        style="@style/Widget.Material3.CircularProgressIndicator"
+                        android:layout_width="@dimen/settingslib_expressive_space_medium4"
+                        android:layout_height="@dimen/settingslib_expressive_space_medium4"
+                        android:layout_gravity="center"
+                        android:scaleType="centerInside"
+                        android:indeterminate="false"
+                        android:max="100"
+                        android:progress="0"
+                        android:visibility="gone" />
+
+                    <com.google.android.material.loadingindicator.LoadingIndicator
+                        android:id="@+id/loading_indicator"
+                        style="@style/Widget.Material3.LoadingIndicator"
+                        android:layout_width="@dimen/settingslib_expressive_space_medium4"
+                        android:layout_height="@dimen/settingslib_expressive_space_medium4"
+                        android:layout_gravity="center"
+                        android:scaleType="centerInside"
+                        android:visibility="gone" />
+
+                </FrameLayout>
+
+                <LinearLayout
+                    android:id="@+id/text_container"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="@dimen/settingslib_expressive_space_extrasmall5"
+                    android:paddingHorizontal="@dimen/settingslib_expressive_space_extrasmall6"
+                    android:layout_weight="1"
+                    android:layout_gravity="center"
+                    android:orientation="vertical">
+                    <TextView
+                        android:id="@android:id/title"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/settingslib_text_color_primary"
+                        android:textAppearance="@style/TextAppearance.SettingsLib.TitleLarge.Emphasized"/>
+
+                    <TextView
+                        android:id="@android:id/summary"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:maxLines="3"
+                        android:textColor="@color/settingslib_text_color_secondary"
+                        android:textAppearance="@style/TextAppearance.SettingsLib.BodyMedium"/>
+                </LinearLayout>
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/status_banner_button"
+                android:layout_marginTop="@dimen/settingslib_expressive_space_small1"
+                style="@style/SettingsLibButtonStyle.Expressive.Filled.Extra"/>
+
         </LinearLayout>
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/status_banner_button"
-            android:layout_marginTop="@dimen/settingslib_expressive_space_small3"
-            style="@style/SettingsLibButtonStyle.Expressive.Filled.Extra"/>
-
-    </LinearLayout>
-</com.google.android.material.card.MaterialCardView>
+    </com.google.android.material.card.MaterialCardView>
+</FrameLayout>

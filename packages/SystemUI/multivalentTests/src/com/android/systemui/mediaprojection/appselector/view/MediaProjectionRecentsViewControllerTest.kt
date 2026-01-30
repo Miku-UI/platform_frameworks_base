@@ -24,7 +24,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_PSS_APP_SELECTOR_RECENTS_SPLIT_SCREEN
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.mediaprojection.appselector.MediaProjectionAppSelectorResultHandler
 import com.android.systemui.mediaprojection.appselector.data.RecentTask
@@ -67,7 +66,7 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
             colorBackground = null,
             isForegroundTask = false,
             userType = RecentTask.UserType.STANDARD,
-            splitBounds = null
+            splitBounds = null,
         )
 
     private val splitScreenTask =
@@ -80,12 +79,12 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
             colorBackground = null,
             isForegroundTask = false,
             userType = RecentTask.UserType.STANDARD,
-            splitBounds = SplitBounds(Rect(), Rect(), 0, 0, 0)
+            splitBounds = SplitBounds(Rect(), Rect(), 1, 2, 0),
         )
 
     private val taskView =
         View(context).apply {
-            layoutParams = ViewGroup.LayoutParams(/* width = */ 100, /* height = */ 200)
+            layoutParams = ViewGroup.LayoutParams(/* width= */ 100, /* height= */ 200)
         }
 
     private val controller =
@@ -106,7 +105,6 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
 
     @Test
     fun onRecentAppClicked_splitScreenTaskWithSameIdIsStartedFromRecents() {
-        mSetFlagsRule.enableFlags(FLAG_PSS_APP_SELECTOR_RECENTS_SPLIT_SCREEN)
         controller.onRecentAppClicked(splitScreenTask, taskView)
 
         verify(splitScreen.get())
@@ -118,7 +116,7 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
                 anyInt(),
                 anyInt(),
                 any(),
-                any()
+                any(),
             )
     }
 
@@ -145,8 +143,7 @@ class MediaProjectionRecentsViewControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun onRecentAppClicked_splitScreenTaskInForeground_flagOn_usesDefaultAnimation() {
-        mSetFlagsRule.enableFlags(FLAG_PSS_APP_SELECTOR_RECENTS_SPLIT_SCREEN)
+    fun onRecentAppClicked_splitScreenTaskInForeground_usesDefaultAnimation() {
         assertForegroundTaskUsesDefaultCloseAnimation(splitScreenTask)
     }
 

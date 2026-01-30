@@ -19,6 +19,7 @@ package android.view;
 import android.annotation.SuppressLint;
 import android.graphics.Matrix;
 import android.graphics.Rect;
+import android.gui.EarlyWakeupInfo;
 import android.view.SurfaceControl.Transaction;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -38,11 +39,12 @@ public class SyncRtSurfaceTransactionApplier {
     public static final int FLAG_LAYER = 1 << 3;
     public static final int FLAG_CORNER_RADIUS = 1 << 4;
     public static final int FLAG_BACKGROUND_BLUR_RADIUS = 1 << 5;
-    public static final int FLAG_VISIBILITY = 1 << 6;
-    public static final int FLAG_TRANSACTION = 1 << 7;
-    public static final int FLAG_EARLY_WAKEUP_START = 1 << 8;
-    public static final int FLAG_EARLY_WAKEUP_END = 1 << 9;
-    public static final int FLAG_OPAQUE = 1 << 10;
+    public static final int FLAG_BACKGROUND_BLUR_SCALE = 1 << 6;
+    public static final int FLAG_VISIBILITY = 1 << 7;
+    public static final int FLAG_TRANSACTION = 1 << 8;
+    public static final int FLAG_EARLY_WAKEUP_START = 1 << 9;
+    public static final int FLAG_EARLY_WAKEUP_END = 1 << 10;
+    public static final int FLAG_OPAQUE = 1 << 11;
 
     private SurfaceControl mTargetSc;
     private final ViewRootImpl mTargetViewRootImpl;
@@ -127,6 +129,9 @@ public class SyncRtSurfaceTransactionApplier {
         if ((params.flags & FLAG_BACKGROUND_BLUR_RADIUS) != 0) {
             t.setBackgroundBlurRadius(params.surface, params.backgroundBlurRadius);
         }
+        if ((params.flags & FLAG_BACKGROUND_BLUR_SCALE) != 0) {
+            t.setBackgroundBlurScale(params.surface, params.backgroundBlurScale);
+        }
         if ((params.flags & FLAG_VISIBILITY) != 0) {
             if (params.visible) {
                 t.show(params.surface);
@@ -135,10 +140,10 @@ public class SyncRtSurfaceTransactionApplier {
             }
         }
         if ((params.flags & FLAG_EARLY_WAKEUP_START) != 0) {
-            t.setEarlyWakeupStart();
+            t.setEarlyWakeupStart(params.earlyWakeupInfo);
         }
         if ((params.flags & FLAG_EARLY_WAKEUP_END) != 0) {
-            t.setEarlyWakeupEnd();
+            t.setEarlyWakeupEnd(params.earlyWakeupInfo);
         }
         if ((params.flags & FLAG_OPAQUE) != 0) {
             t.setOpaque(params.surface, params.opaque);
@@ -182,12 +187,14 @@ public class SyncRtSurfaceTransactionApplier {
             float alpha;
             float cornerRadius;
             int backgroundBlurRadius;
+            float backgroundBlurScale;
             Matrix matrix;
             Rect windowCrop;
             int layer;
             boolean visible;
             boolean opaque;
             Transaction mergeTransaction;
+            EarlyWakeupInfo earlyWakeupInfo;
 
             /**
              * @param surface The surface to modify.
@@ -250,9 +257,19 @@ public class SyncRtSurfaceTransactionApplier {
              * @param radius the Radius for blur to apply to the background surfaces.
              * @return this Builder
              */
-            public Builder withBackgroundBlur(int radius) {
+            public Builder withBackgroundBlurRadius(int radius) {
                 this.backgroundBlurRadius = radius;
                 flags |= FLAG_BACKGROUND_BLUR_RADIUS;
+                return this;
+            }
+
+            /**
+             * @param scale the Scale for blur to apply to the background surfaces.
+             * @return this Builder
+             */
+            public Builder withBackgroundBlurScale(float scale) {
+                this.backgroundBlurScale = scale;
+                flags |= FLAG_BACKGROUND_BLUR_SCALE;
                 return this;
             }
 
@@ -282,7 +299,8 @@ public class SyncRtSurfaceTransactionApplier {
              * wakes up earlier to compose surfaces.
              * @return this Builder
              */
-            public Builder withEarlyWakeupStart() {
+            public Builder withEarlyWakeupStart(EarlyWakeupInfo earlyWakeupInfo) {
+                this.earlyWakeupInfo = earlyWakeupInfo;
                 flags |= FLAG_EARLY_WAKEUP_START;
                 return this;
             }
@@ -291,7 +309,8 @@ public class SyncRtSurfaceTransactionApplier {
              * Removes the early wake up hint set by earlyWakeupStart.
              * @return this Builder
              */
-            public Builder withEarlyWakeupEnd() {
+            public Builder withEarlyWakeupEnd(EarlyWakeupInfo earlyWakeupInfo) {
+                this.earlyWakeupInfo = earlyWakeupInfo;
                 flags |= FLAG_EARLY_WAKEUP_END;
                 return this;
             }
@@ -311,15 +330,15 @@ public class SyncRtSurfaceTransactionApplier {
              */
             public SurfaceParams build() {
                 return new SurfaceParams(surface, flags, alpha, matrix, windowCrop, layer,
-                        cornerRadius, backgroundBlurRadius, visible, mergeTransaction,
-                        opaque);
+                        cornerRadius, backgroundBlurRadius, backgroundBlurScale, visible,
+                        mergeTransaction, opaque, earlyWakeupInfo);
             }
         }
 
         private SurfaceParams(SurfaceControl surface, int params, float alpha, Matrix matrix,
                 Rect windowCrop, int layer, float cornerRadius,
-                int backgroundBlurRadius, boolean visible,
-                Transaction mergeTransaction, boolean opaque) {
+                int backgroundBlurRadius, float backgroundBlurScale, boolean visible,
+                Transaction mergeTransaction, boolean opaque, EarlyWakeupInfo earlyWakeupInfo) {
             this.flags = params;
             this.surface = surface;
             this.alpha = alpha;
@@ -328,9 +347,11 @@ public class SyncRtSurfaceTransactionApplier {
             this.layer = layer;
             this.cornerRadius = cornerRadius;
             this.backgroundBlurRadius = backgroundBlurRadius;
+            this.backgroundBlurScale = backgroundBlurScale;
             this.visible = visible;
             this.mergeTransaction = mergeTransaction;
             this.opaque = opaque;
+            this.earlyWakeupInfo = earlyWakeupInfo;
         }
 
         private final int flags;
@@ -348,6 +369,9 @@ public class SyncRtSurfaceTransactionApplier {
         public final int backgroundBlurRadius;
 
         @VisibleForTesting
+        public final float backgroundBlurScale;
+
+        @VisibleForTesting
         public final Matrix matrix;
 
         @VisibleForTesting
@@ -360,5 +384,7 @@ public class SyncRtSurfaceTransactionApplier {
 
         public final Transaction mergeTransaction;
         public final boolean opaque;
+
+        public final EarlyWakeupInfo earlyWakeupInfo;
     }
 }

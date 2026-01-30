@@ -59,7 +59,8 @@ import com.android.systemui.statusbar.phone.StatusIconContainer
 import com.android.systemui.statusbar.phone.StatusOverlayHoverListenerFactory
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import com.android.systemui.statusbar.phone.ui.TintedIconManager
-import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.batteryViewModelFactory
+import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.batteryViewModelAlwaysShowPercentFactory
+import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.batteryWithPercentViewModelFactory
 import com.android.systemui.statusbar.policy.Clock
 import com.android.systemui.statusbar.policy.FakeConfigurationController
 import com.android.systemui.statusbar.policy.NextAlarmController
@@ -69,7 +70,6 @@ import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.argumentCaptor
 import com.android.systemui.util.mockito.capture
-import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import dagger.Lazy
@@ -90,6 +90,7 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.MockitoJUnit
+import org.mockito.kotlin.eq
 
 private val EMPTY_CHANGES = ConstraintsChanges()
 
@@ -203,7 +204,8 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
                 Lazy { kosmos.shadeDisplaysRepository },
                 variableDateViewControllerFactory,
                 batteryMeterViewController,
-                kosmos.batteryViewModelFactory,
+                kosmos.batteryViewModelAlwaysShowPercentFactory,
+                kosmos.batteryWithPercentViewModelFactory,
                 dumpManager,
                 mShadeCarrierGroupControllerBuilder,
                 combinedShadeHeadersConstraintManager,
@@ -216,7 +218,10 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
         whenever(view.isAttachedToWindow).thenReturn(true)
         shadeHeaderController.init()
         carrierIconSlots =
-            listOf(context.getString(com.android.internal.R.string.status_bar_mobile))
+            listOf(
+                context.getString(com.android.internal.R.string.status_bar_mobile),
+                context.getString(com.android.internal.R.string.status_bar_stacked_mobile),
+            )
     }
 
     @Test
@@ -300,7 +305,26 @@ class ShadeHeaderControllerTest : SysuiTestCase() {
 
         verify(clock).setTextAppearance(R.style.TextAppearance_QS_Status)
         verify(date).setTextAppearance(R.style.TextAppearance_QS_Status)
-        verify(carrierGroup).updateTextAppearance(R.style.TextAppearance_QS_Status)
+        val fgColor = context.getColor(R.color.shade_header_text_color)
+        val bgColor = context.getColor(R.color.shade_header_text_color_bg)
+        verify(carrierGroup)
+            .updateTextAppearanceAndTint(R.style.TextAppearance_QS_Status, fgColor, bgColor)
+    }
+
+    @Test
+    fun updateUiMode_changesFontStyle() {
+        configurationController.notifyUiModeChanged()
+
+        verify(clock).setTextAppearance(R.style.TextAppearance_QS_Status)
+        verify(date).setTextAppearance(R.style.TextAppearance_QS_Status)
+    }
+
+    @Test
+    fun updateTheme_changesFontStyle() {
+        configurationController.notifyThemeChanged()
+
+        verify(clock).setTextAppearance(R.style.TextAppearance_QS_Status)
+        verify(date).setTextAppearance(R.style.TextAppearance_QS_Status)
     }
 
     @Test

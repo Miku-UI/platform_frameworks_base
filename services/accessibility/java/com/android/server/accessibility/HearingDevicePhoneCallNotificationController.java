@@ -88,6 +88,14 @@ public class HearingDevicePhoneCallNotificationController {
     }
 
     /**
+     * Unregisters a telephony callback to stop listening for call state changed to handle.
+     * @see #startListenForCallState()
+     */
+    public void stopListenForCallState() {
+        mTelephonyManager.unregisterTelephonyCallback(mTelephonyListener);
+    }
+
+    /**
      * A telephony callback listener to listen to call state changes and show/dismiss notification
      */
     @VisibleForTesting

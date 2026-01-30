@@ -82,7 +82,11 @@ public class KeyguardClockPositionAlgorithmTest extends SysuiTestCase {
 
     @After
     public void tearDown() {
-        mStaticMockSession.finishMocking();
+
+        if (mStaticMockSession != null) {
+            mStaticMockSession.finishMocking();
+        }
+
     }
 
     @Test

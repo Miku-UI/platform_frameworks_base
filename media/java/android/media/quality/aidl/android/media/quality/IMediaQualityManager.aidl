@@ -36,6 +36,7 @@ interface IMediaQualityManager {
     void createPictureProfile(in PictureProfile pp, int userId);
     void updatePictureProfile(in String id, in PictureProfile pp, int userId);
     void removePictureProfile(in String id, int userId);
+    PictureProfile getDefaultPictureProfile();
     boolean setDefaultPictureProfile(in String id, int userId);
     // TODO: use Bundle for includeParams
     PictureProfile getPictureProfile(
@@ -48,11 +49,15 @@ interface IMediaQualityManager {
     void setPictureProfileAllowList(in List<String> packages, int userId);
     List<PictureProfileHandle> getPictureProfileHandle(in String[] id, int userId);
 
+    void changeStreamStatus(in String profileId, in String newStatus, int userId);
+
     long getPictureProfileHandleValue(in String id, int userId);
     long getDefaultPictureProfileHandleValue(int userId);
     void notifyPictureProfileHandleSelection(in long handle, int userId);
 
     long getPictureProfileForTvInput(in String inputId, int userId);
+    PictureProfile getCurrentPictureProfileForTvInput(in String inputId, int userId);
+    List<PictureProfile> getAllPictureProfilesForTvInput(in String inputId, int userId);
 
     void createSoundProfile(in SoundProfile pp, int userId);
     void updateSoundProfile(in String id, in SoundProfile pp, int userId);

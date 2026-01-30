@@ -18,16 +18,15 @@
 package com.android.systemui.keyguard.data.quickaffordance
 
 import android.content.Context
-import com.android.systemui.res.R
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.qrcodescanner.controller.QRCodeScannerController
+import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -63,7 +62,7 @@ constructor(
             controller.addCallback(callback)
             controller.registerQRCodeScannerChangeObservers(
                 QRCodeScannerController.DEFAULT_QR_CODE_SCANNER_CHANGE,
-                QRCodeScannerController.QR_CODE_SCANNER_PREFERENCE_CHANGE
+                QRCodeScannerController.QR_CODE_SCANNER_PREFERENCE_CHANGE,
             )
             // Registering does not push an initial update.
             trySendWithFailureLogging(state(), "initial state", TAG)
@@ -71,7 +70,7 @@ constructor(
             awaitClose {
                 controller.unregisterQRCodeScannerChangeObservers(
                     QRCodeScannerController.DEFAULT_QR_CODE_SCANNER_CHANGE,
-                    QRCodeScannerController.QR_CODE_SCANNER_PREFERENCE_CHANGE
+                    QRCodeScannerController.QR_CODE_SCANNER_PREFERENCE_CHANGE,
                 )
                 controller.removeCallback(callback)
             }
@@ -86,7 +85,7 @@ constructor(
     }
 
     override fun onTriggered(
-        expandable: Expandable?,
+        expandable: Expandable?
     ): KeyguardQuickAffordanceConfig.OnTriggeredResult {
         return KeyguardQuickAffordanceConfig.OnTriggeredResult.StartActivity(
             intent = controller.intent,
@@ -99,12 +98,12 @@ constructor(
             KeyguardQuickAffordanceConfig.LockScreenState.Visible(
                 icon =
                     Icon.Resource(
-                        res = R.drawable.ic_qr_code_scanner,
+                        resId = R.drawable.ic_qr_code_scanner,
                         contentDescription =
                             ContentDescription.Resource(
-                                res = R.string.accessibility_qr_code_scanner_button,
+                                res = R.string.accessibility_qr_code_scanner_button
                             ),
-                    ),
+                    )
             )
         } else {
             KeyguardQuickAffordanceConfig.LockScreenState.Hidden

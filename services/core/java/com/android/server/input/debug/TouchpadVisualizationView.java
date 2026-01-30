@@ -35,7 +35,7 @@ import java.util.Map;
 
 public class TouchpadVisualizationView extends View {
     private static final String TAG = "TouchpadVizMain";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final float DEFAULT_RES_X = 47f;
     private static final float DEFAULT_RES_Y = 45f;
     private static final float MAX_TRACE_HISTORY_DURATION_SECONDS = 1f;

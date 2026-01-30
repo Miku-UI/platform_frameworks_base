@@ -17,7 +17,10 @@
 package com.android.systemui.statusbar.notification.data.repository
 
 import com.android.systemui.statusbar.notification.data.model.activeNotificationModel
+import com.android.systemui.statusbar.notification.shared.ActiveBundleModel
+import com.android.systemui.statusbar.notification.shared.ActiveNotificationGroupModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
+import com.android.systemui.statusbar.notification.shared.ActivePipelineEntryModel
 
 /**
  * Make the repository hold [count] active notifications for testing. The keys of the notifications
@@ -30,7 +33,7 @@ fun ActiveNotificationListRepository.setActiveNotifs(count: Int) {
                 val rankingsMap = mutableMapOf<String, Int>()
                 repeat(count) { i ->
                     val key = "$i"
-                    addEntry(activeNotificationModel(key = key))
+                    addNotifEntry(activeNotificationModel(key = key))
                     rankingsMap[key] = i
                 }
 
@@ -91,3 +94,8 @@ fun ActiveNotificationListRepository.removeNotif(keyToRemove: String) {
             }
             .build()
 }
+
+fun ActiveNotificationsStore.getPipelineModels(): List<ActivePipelineEntryModel> {
+    return renderList.mapNotNull { key: ActiveNotificationsStore.Key -> get(key) }
+}
+

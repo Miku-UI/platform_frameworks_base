@@ -17,10 +17,10 @@
 
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="app_name" msgid="7384524142163511792">"Credential Manager"</string>
+    <string name="app_name" msgid="7384524142163511792">"مدیر اعتبارنامه‌ها"</string>
     <string name="use_passkey_title" msgid="716598039340757817">"از گذرکلید استفاده می‌کنید؟"</string>
     <string name="use_password_title" msgid="4655101984031246476">"از گذرواژه استفاده می‌کنید؟"</string>
-    <string name="dialog_dismiss_button" msgid="989567669882005067">"رد کردن"</string>
+    <string name="dialog_dismiss_button" msgid="989567669882005067">"بستن"</string>
     <string name="dialog_continue_button" msgid="8630290044077052145">"ادامه"</string>
     <string name="dialog_sign_in_options_button" msgid="448002958902615054">"گزینه‌های ورود به سیستم"</string>
     <string name="sign_in_options_title" msgid="6720572645638986680">"گزینه‌های ورود به سیستم"</string>

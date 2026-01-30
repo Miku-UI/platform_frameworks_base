@@ -36,8 +36,6 @@ import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.FingerprintInteractiveToAuthProvider
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
-import com.android.systemui.biometrics.domain.interactor.displayStateInteractor
-import com.android.systemui.biometrics.shared.model.DisplayRotation
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.biometrics.shared.model.LottieCallback
 import com.android.systemui.biometrics.shared.model.SensorStrength
@@ -45,6 +43,8 @@ import com.android.systemui.biometrics.updateSfpsIndicatorRequests
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.display.data.repository.displayStateRepository
+import com.android.systemui.display.domain.interactor.displayStateInteractor
+import com.android.systemui.display.shared.model.DisplayRotation
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.res.R
 import com.android.systemui.testKosmos

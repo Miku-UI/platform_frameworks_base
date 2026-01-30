@@ -25,6 +25,7 @@ import android.power.PowerStatsInternal;
 import android.util.Slog;
 import android.util.SparseArray;
 
+import com.android.internal.os.Clock;
 import com.android.server.LocalServices;
 
 import java.util.HashMap;
@@ -35,12 +36,14 @@ class BatteryHistoryStepDetailsProvider {
     public static final String TAG = "BatteryHistoryStepDetails";
     private static final boolean DEBUG = false;
 
+    private static final int BOOT_TIME_UPDATE_DELAY_MILLIS = 20000;
     private static final int POWER_STATS_QUERY_TIMEOUT_MILLIS = 2000;
     private static final int MAX_LOW_POWER_STATS_SIZE = 32768;
 
     private final BatteryStatsImpl mBatteryStats;
 
     private final BatteryStats.HistoryStepDetails mDetails = new BatteryStats.HistoryStepDetails();
+    private final Clock mClock;
 
     private boolean mHasHistoryStepDetails;
 
@@ -70,33 +73,53 @@ class BatteryHistoryStepDetailsProvider {
     private long mCurStepStatSoftIrqTimeMs;
     private long mCurStepStatIdleTimeMs;
 
+    private boolean mSystemReady;
+    private boolean mPowerStatsReady;
     private PowerStatsInternal mPowerStatsInternal;
-    private final Map<Integer, String> mEntityNames = new HashMap<>();
-    private final Map<Integer, Map<Integer, String>> mStateNames = new HashMap<>();
+    private Map<Integer, String> mEntityNames;
+    private Map<Integer, Map<Integer, String>> mStateNames;
 
-    BatteryHistoryStepDetailsProvider(BatteryStatsImpl batteryStats) {
+    private boolean mFirstUpdate = true;
+    private final Object mUpdateToken = new Object();
+
+    BatteryHistoryStepDetailsProvider(BatteryStatsImpl batteryStats, Clock clock) {
         mBatteryStats = batteryStats;
+        mClock = clock;
     }
 
     void onSystemReady() {
-        mPowerStatsInternal = LocalServices.getService(PowerStatsInternal.class);
-        if (mPowerStatsInternal != null) {
-            populatePowerEntityMaps();
-        }
+        mSystemReady = true;
     }
 
     void requestUpdate() {
-        mBatteryStats.mHandler.post(this::update);
+        mBatteryStats.mHandler.removeCallbacksAndMessages(mUpdateToken);
+        if (!mSystemReady || mFirstUpdate) {
+            // System is busy; schedule an update at a later time.
+            mBatteryStats.mHandler.postDelayed(() -> {
+                synchronized (mClock) {
+                    long elapsedRealtimeMs = mClock.elapsedRealtime();
+                    long uptimeMs = mClock.uptimeMillis();
+                    update(elapsedRealtimeMs, uptimeMs);
+                }
+            }, mUpdateToken, BOOT_TIME_UPDATE_DELAY_MILLIS);
+        } else {
+            synchronized (mClock) {
+                // Grab the timestamp before posting to the handler to keep the timeline consistent
+                long elapsedRealtimeMs = mClock.elapsedRealtime();
+                long uptimeMs = mClock.uptimeMillis();
+                mBatteryStats.mHandler.postDelayed(() -> update(elapsedRealtimeMs, uptimeMs),
+                        mUpdateToken, 0);
+            }
+        }
     }
 
-    void update() {
+    void update(long elapsedRealtimeMs, long uptimeMs) {
         mHasHistoryStepDetails = false;
         mBatteryStats.updateCpuDetails();
         calculateHistoryStepDetails();
         updateStateResidency();
-        mBatteryStats.getHistory().recordHistoryStepDetails(mDetails,
-                mBatteryStats.mClock.elapsedRealtime(),
-                mBatteryStats.mClock.uptimeMillis());
+        mBatteryStats.getHistory().recordHistoryStepDetails(mDetails, elapsedRealtimeMs, uptimeMs);
+        mFirstUpdate = false;
     }
 
     private void calculateHistoryStepDetails() {
@@ -212,6 +235,14 @@ class BatteryHistoryStepDetailsProvider {
     private void updateStateResidency() {
         mDetails.statSubsystemPowerState = null;
 
+        if (!mPowerStatsReady) {
+            mPowerStatsInternal = LocalServices.getService(PowerStatsInternal.class);
+            if (mPowerStatsInternal != null) {
+                populatePowerEntityMaps();
+            }
+            mPowerStatsReady = true;
+        }
+
         if (mPowerStatsInternal == null || mEntityNames.isEmpty() || mStateNames.isEmpty()) {
             return;
         }
@@ -257,6 +288,9 @@ class BatteryHistoryStepDetailsProvider {
     }
 
     private void populatePowerEntityMaps() {
+        mEntityNames = new HashMap<>();
+        mStateNames = new HashMap<>();
+
         PowerEntity[] entities = mPowerStatsInternal.getPowerEntityInfo();
         if (entities == null) {
             return;

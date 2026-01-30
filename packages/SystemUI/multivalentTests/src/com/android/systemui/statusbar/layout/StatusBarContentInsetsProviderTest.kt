@@ -721,6 +721,27 @@ class StatusBarContentInsetsProviderTest : SysuiTestCase() {
     }
 
     @Test
+    fun calculateInsetsForRotationWithRotatedResources_bottomAlignedMargin_noCutout_topIsZero() {
+        val bounds =
+            calculateInsetsForRotationWithRotatedResources(
+                currentRotation = ROTATION_NONE,
+                targetRotation = ROTATION_NONE,
+                sysUICutout = null,
+                maxBounds = Rect(0, 0, 1080, 2160),
+                statusBarHeight = 100,
+                minLeft = 0,
+                minRight = 0,
+                isRtl = false,
+                dotWidth = 10,
+                bottomAlignedMargin = 5,
+                statusBarContentHeight = 15,
+            )
+
+        // Bottom aligned margin should only be take into account for displays with a cutout.
+        assertThat(bounds.top).isEqualTo(0)
+    }
+
+    @Test
     fun testCalculateInsetsForRotationWithRotatedResources_nonCornerCutout() {
         // GIVEN phone in portrait mode, where width < height and the cutout is not in the corner
         // the assumption here is that if the cutout does NOT touch the corner then we have room to

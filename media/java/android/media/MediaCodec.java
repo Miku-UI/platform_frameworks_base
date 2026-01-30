@@ -5431,6 +5431,8 @@ final public class MediaCodec {
     @FlaggedApi(FLAG_REGION_OF_INTEREST)
     public static final String PARAMETER_KEY_QP_OFFSET_RECTS = "qp-offset-rects";
 
+    private static final String PARAMETER_KEY_PICTURE_PROFILE_HANDLE = "picture-profile-handle";
+
     /**
      * Communicate additional parameter changes to the component instance.
      * <b>Note:</b> Some of these parameter changes may silently fail to apply.
@@ -5438,9 +5440,6 @@ final public class MediaCodec {
      * @param params The bundle of parameters to set.
      * @throws IllegalStateException if in the Released state.
      */
-
-    private static final String PARAMETER_KEY_PICTURE_PROFILE_HANDLE = "picture-profile-handle";
-
     public final void setParameters(@Nullable Bundle params) {
         if (params == null) {
             return;

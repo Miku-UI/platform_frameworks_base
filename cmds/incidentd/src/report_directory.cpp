@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <vector>
 
 namespace android {

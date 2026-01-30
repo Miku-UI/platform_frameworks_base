@@ -16,19 +16,20 @@
 
 package com.android.server.display;
 
-import static android.hardware.display.DisplayTopology.pxToDp;
-
+import android.annotation.Nullable;
 import android.hardware.display.DisplayTopology;
 import android.hardware.display.DisplayTopologyGraph;
+import android.os.Trace;
+import android.util.IndentingPrintWriter;
 import android.util.Pair;
 import android.util.Slog;
 import android.util.SparseArray;
-import android.util.SparseIntArray;
 import android.view.Display;
 import android.view.DisplayInfo;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.display.feature.DisplayManagerFlags;
 
 import java.io.PrintWriter;
 import java.util.HashMap;
@@ -44,6 +45,7 @@ import java.util.function.Consumer;
 class DisplayTopologyCoordinator {
     private static final String TAG = "DisplayTopologyCoordinator";
 
+    @Nullable
     private static String getUniqueId(DisplayInfo info) {
         if (info.displayId == Display.DEFAULT_DISPLAY && info.type == Display.TYPE_INTERNAL) {
             return "internal";
@@ -57,11 +59,6 @@ class DisplayTopologyCoordinator {
     @GuardedBy("mSyncRoot")
     private DisplayTopology mTopology;
 
-    // Map from logical display ID to logical display density. Should always be consistent with
-    // mTopology.
-    @GuardedBy("mSyncRoot")
-    private final SparseIntArray mDensities = new SparseIntArray();
-
     @GuardedBy("mSyncRoot")
     private final Map<String, Integer> mUniqueIdToDisplayIdMapping = new HashMap<>();
 
@@ -74,6 +71,13 @@ class DisplayTopologyCoordinator {
     private final BooleanSupplier mIsExtendedDisplayAllowed;
 
     /**
+     * Check if the default display should be included in the topology when there are other displays
+     * present. If not, remove the default when another display is added, and add the default
+     * display back to the topology when all other displays are removed.
+     */
+    private final BooleanSupplier mShouldIncludeDefaultDisplayInTopology;
+
+    /**
      * Callback used to send topology updates.
      * Should be invoked from the corresponding executor.
      * A copy of the topology should be sent that will not be modified by the system.
@@ -82,28 +86,38 @@ class DisplayTopologyCoordinator {
     private final Executor mTopologyChangeExecutor;
     private final DisplayManagerService.SyncRoot mSyncRoot;
     private final Runnable mTopologySavedCallback;
+    private final DisplayManagerFlags mFlags;
+    private final DisplayManagerService.DisplayInfoProvider mDisplayInfoProvider;
 
     DisplayTopologyCoordinator(BooleanSupplier isExtendedDisplayAllowed,
+            BooleanSupplier shouldIncludeDefaultDisplayInTopology,
             Consumer<Pair<DisplayTopology, DisplayTopologyGraph>> onTopologyChangedCallback,
             Executor topologyChangeExecutor, DisplayManagerService.SyncRoot syncRoot,
-            Runnable topologySavedCallback) {
-        this(new Injector(), isExtendedDisplayAllowed, onTopologyChangedCallback,
-                topologyChangeExecutor, syncRoot, topologySavedCallback);
+            Runnable topologySavedCallback, DisplayManagerFlags flags,
+            DisplayManagerService.DisplayInfoProvider displayInfoProvider) {
+        this(new Injector(), isExtendedDisplayAllowed, shouldIncludeDefaultDisplayInTopology,
+                onTopologyChangedCallback, topologyChangeExecutor, syncRoot, topologySavedCallback,
+                flags, displayInfoProvider);
     }
 
     @VisibleForTesting
     DisplayTopologyCoordinator(Injector injector, BooleanSupplier isExtendedDisplayAllowed,
+            BooleanSupplier shouldIncludeDefaultDisplayInTopology,
             Consumer<Pair<DisplayTopology, DisplayTopologyGraph>> onTopologyChangedCallback,
             Executor topologyChangeExecutor, DisplayManagerService.SyncRoot syncRoot,
-            Runnable topologySavedCallback) {
+            Runnable topologySavedCallback, DisplayManagerFlags flags,
+            DisplayManagerService.DisplayInfoProvider displayInfoProvider) {
         mTopology = injector.getTopology();
         mIsExtendedDisplayAllowed = isExtendedDisplayAllowed;
+        mShouldIncludeDefaultDisplayInTopology = shouldIncludeDefaultDisplayInTopology;
         mOnTopologyChangedCallback = onTopologyChangedCallback;
         mTopologyChangeExecutor = topologyChangeExecutor;
         mSyncRoot = syncRoot;
         mTopologyStore = injector.createTopologyStore(
                 mDisplayIdToUniqueIdMapping, mUniqueIdToDisplayIdMapping);
         mTopologySavedCallback = topologySavedCallback;
+        mFlags = flags;
+        mDisplayInfoProvider = displayInfoProvider;
     }
 
     /**
@@ -116,11 +130,21 @@ class DisplayTopologyCoordinator {
         }
         synchronized (mSyncRoot) {
             addDisplayIdMappingLocked(info);
-            mDensities.put(info.displayId, info.logicalDensityDpi);
-            mTopology.addDisplay(info.displayId, getWidth(info), getHeight(info));
+            mTopology.addDisplay(
+                    info.displayId, info.logicalWidth, info.logicalHeight, info.logicalDensityDpi);
             Slog.i(TAG, "Display " + info.displayId + " added, new topology: " + mTopology);
             restoreTopologyLocked();
             sendTopologyUpdateLocked();
+        }
+
+        if (mFlags.isDefaultDisplayInTopologySwitchEnabled()) {
+            // If the default display should not be included in the topology, then when a
+            // non-default display is added, remove the default display from the topology.
+            if (info.displayId != Display.DEFAULT_DISPLAY
+                    && !mShouldIncludeDefaultDisplayInTopology.getAsBoolean()
+                    && mTopology.hasMultipleDisplays()) {
+                onDisplayRemoved(Display.DEFAULT_DISPLAY);
+            }
         }
     }
 
@@ -129,14 +153,23 @@ class DisplayTopologyCoordinator {
      * @param info The new display info
      */
     void onDisplayChanged(DisplayInfo info) {
-        if (!isDisplayAllowedInTopology(info, /* shouldLog= */ false)) {
+        if (!isDisplayAllowedInTopology(info)) {
             return;
         }
         synchronized (mSyncRoot) {
-            if (mDensities.indexOfKey(info.displayId) >= 0) {
-                mDensities.put(info.displayId, info.logicalDensityDpi);
+            boolean topologyUpdated = mTopology.updateDisplay(info.displayId, info.logicalWidth,
+                    info.logicalHeight, info.logicalDensityDpi);
+
+            String uniqueId = getUniqueId(info);
+            String oldUniqueId = mDisplayIdToUniqueIdMapping.get(info.displayId);
+            if (uniqueId != null && oldUniqueId != null && !uniqueId.equals(oldUniqueId)) {
+                addDisplayIdMappingLocked(info);
+
+                // Restore the displays' positions by unique ID
+                topologyUpdated |= restoreTopologyLocked();
             }
-            if (mTopology.updateDisplay(info.displayId, getWidth(info), getHeight(info))) {
+
+            if (topologyUpdated) {
                 sendTopologyUpdateLocked();
             }
         }
@@ -148,12 +181,21 @@ class DisplayTopologyCoordinator {
      */
     void onDisplayRemoved(int displayId) {
         synchronized (mSyncRoot) {
-            mDensities.delete(displayId);
             if (mTopology.removeDisplay(displayId)) {
                 Slog.i(TAG, "Display " + displayId + " removed, new topology: " + mTopology);
                 removeDisplayIdMappingLocked(displayId);
                 restoreTopologyLocked();
                 sendTopologyUpdateLocked();
+            }
+        }
+
+        // If the default display should not be included in the topology, then when all non-default
+        // displays are removed, add the default display back to the topology.
+        if (mFlags.isDefaultDisplayInTopologySwitchEnabled()) {
+            if (displayId != Display.DEFAULT_DISPLAY
+                    && !mShouldIncludeDefaultDisplayInTopology.getAsBoolean()
+                    && mTopology.isEmpty()) {
+                onDisplayAdded(mDisplayInfoProvider.get(Display.DEFAULT_DISPLAY));
             }
         }
     }
@@ -196,10 +238,15 @@ class DisplayTopologyCoordinator {
     void setTopology(DisplayTopology topology) {
         final boolean isTopologySaved;
         synchronized (mSyncRoot) {
-            topology.normalize();
-            mTopology = topology;
-            sendTopologyUpdateLocked();
-            isTopologySaved = mTopologyStore.saveTopology(topology);
+            Trace.traceBegin(Trace.TRACE_TAG_POWER, "setTopology");
+            try {
+                topology.normalize();
+                mTopology = topology;
+                sendTopologyUpdateLocked();
+                isTopologySaved = mTopologyStore.saveTopology(topology);
+            } finally {
+                Trace.traceEnd(Trace.TRACE_TAG_POWER);
+            }
         }
 
         if (isTopologySaved) {
@@ -212,8 +259,15 @@ class DisplayTopologyCoordinator {
      * @param pw The stream to dump information to.
      */
     void dump(PrintWriter pw) {
+        pw.println("Display Topology Coordinator:");
+        pw.println("----------------------------------------");
+        IndentingPrintWriter idpw = new IndentingPrintWriter(pw);
+        idpw.increaseIndent();
         synchronized (mSyncRoot) {
-            mTopology.dump(pw);
+            idpw.println("isExtendedDisplayAllowed=" + mIsExtendedDisplayAllowed.getAsBoolean());
+            idpw.println("shouldIncludeDefaultDisplayInTopology="
+                    + mShouldIncludeDefaultDisplayInTopology.getAsBoolean());
+            mTopology.dump(idpw);
         }
     }
 
@@ -231,27 +285,22 @@ class DisplayTopologyCoordinator {
     @GuardedBy("mSyncRoot")
     private void addDisplayIdMappingLocked(DisplayInfo info) {
         final String uniqueId = getUniqueId(info);
+        if (null == uniqueId) {
+            Slog.e(TAG, "Can't find uniqueId for displayId=" + info.displayId);
+            return;
+        }
         mUniqueIdToDisplayIdMapping.put(uniqueId, info.displayId);
         mDisplayIdToUniqueIdMapping.put(info.displayId, uniqueId);
     }
 
-    /**
-     * @param info The display info
-     * @return The width of the display in dp
-     */
-    private float getWidth(DisplayInfo info) {
-        return pxToDp(info.logicalWidth, info.logicalDensityDpi);
-    }
-
-    /**
-     * @param info The display info
-     * @return The height of the display in dp
-     */
-    private float getHeight(DisplayInfo info) {
-        return pxToDp(info.logicalHeight, info.logicalDensityDpi);
+    boolean isDisplayAllowedInTopology(DisplayInfo info) {
+        return isDisplayAllowedInTopology(info, /* shouldLog= */ false);
     }
 
     private boolean isDisplayAllowedInTopology(DisplayInfo info, boolean shouldLog) {
+        if (info == null) {
+            return false;
+        }
         if (info.type != Display.TYPE_INTERNAL && info.type != Display.TYPE_EXTERNAL
                 && info.type != Display.TYPE_OVERLAY) {
             if (shouldLog) {
@@ -296,9 +345,14 @@ class DisplayTopologyCoordinator {
     @GuardedBy("mSyncRoot")
     private void sendTopologyUpdateLocked() {
         DisplayTopology copy = mTopology.copy();
-        SparseIntArray densities = mDensities.clone();
-        mTopologyChangeExecutor.execute(() -> mOnTopologyChangedCallback.accept(
-                new Pair<>(copy, copy.getGraph(densities))));
+        mTopologyChangeExecutor.execute(() -> {
+            Trace.traceBegin(Trace.TRACE_TAG_POWER, "sendTopologyUpdateLocked");
+            try {
+                mOnTopologyChangedCallback.accept(new Pair<>(copy, copy.getGraph()));
+            } finally {
+                Trace.traceEnd(Trace.TRACE_TAG_POWER);
+            }
+        });
     }
 
     @VisibleForTesting

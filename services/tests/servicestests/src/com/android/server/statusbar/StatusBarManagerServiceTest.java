@@ -32,6 +32,7 @@ import static android.app.StatusBarManager.DISABLE_NONE;
 import static android.app.StatusBarManager.DISABLE_RECENT;
 import static android.app.StatusBarManager.DISABLE_SEARCH;
 import static android.app.StatusBarManager.DISABLE_SYSTEM_INFO;
+import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL_OVERLAY;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
@@ -712,13 +713,18 @@ public class StatusBarManagerServiceTest {
     }
 
     @Test
-    public void testSetNavBarMode_setsModeNone() throws RemoteException {
+    public void testSetNavBarMode_setsModeGestural() throws Exception {
+        when(mOverlayManager.getDefaultOverlayPackages())
+                .thenReturn(new String[] {NAV_BAR_MODE_GESTURAL_OVERLAY});
+        when(mPackageManager.getPackageInfo(eq(NAV_BAR_MODE_GESTURAL_OVERLAY),
+                any(PackageManager.PackageInfoFlags.class))).thenReturn(new PackageInfo());
         int navBarModeNone = StatusBarManager.NAV_BAR_MODE_DEFAULT;
 
         mStatusBarManagerService.setNavBarMode(navBarModeNone);
 
         assertEquals(navBarModeNone, mStatusBarManagerService.getNavBarMode());
-        verify(mOverlayManager, never()).setEnabledExclusiveInCategory(anyString(), anyInt());
+        verify(mOverlayManager)
+                .setEnabledExclusiveInCategory(eq(NAV_BAR_MODE_GESTURAL_OVERLAY), anyInt());
     }
 
     @Test
@@ -773,19 +779,8 @@ public class StatusBarManagerServiceTest {
         // disable
         mStatusBarManagerService.disable(expectedFlags, mMockStatusBar, pkg);
 
-        ArgumentCaptor<DisableStates> disableStatesCaptor = ArgumentCaptor.forClass(
-                DisableStates.class);
-        verify(mMockStatusBar).disableForAllDisplays(disableStatesCaptor.capture());
-        DisableStates capturedDisableStates = disableStatesCaptor.getValue();
-        assertTrue(capturedDisableStates.animate);
-        assertEquals(capturedDisableStates.displaysWithStates.size(), 2);
-        Pair<Integer, Integer> display0States = capturedDisableStates.displaysWithStates.get(0);
-        assertEquals((int) display0States.first, expectedFlags);
-        assertEquals((int) display0States.second, 0);
-        Pair<Integer, Integer> display2States = capturedDisableStates.displaysWithStates.get(
-                SECONDARY_DISPLAY_ID);
-        assertEquals((int) display2States.first, expectedFlags);
-        assertEquals((int) display2States.second, 0);
+        verify(mMockStatusBar, never()).disableForAllDisplays(any());
+        verify(mMockStatusBar).disable(eq(0), eq(expectedFlags), eq(0));
     }
 
     @Test
@@ -909,19 +904,8 @@ public class StatusBarManagerServiceTest {
         // disable
         mStatusBarManagerService.disable2(expectedFlags, mMockStatusBar, pkg);
 
-        ArgumentCaptor<DisableStates> disableStatesCaptor = ArgumentCaptor.forClass(
-                DisableStates.class);
-        verify(mMockStatusBar).disableForAllDisplays(disableStatesCaptor.capture());
-        DisableStates capturedDisableStates = disableStatesCaptor.getValue();
-        assertTrue(capturedDisableStates.animate);
-        assertEquals(capturedDisableStates.displaysWithStates.size(), 2);
-        Pair<Integer, Integer> display0States = capturedDisableStates.displaysWithStates.get(0);
-        assertEquals((int) display0States.first, 0);
-        assertEquals((int) display0States.second, expectedFlags);
-        Pair<Integer, Integer> display2States = capturedDisableStates.displaysWithStates.get(
-                SECONDARY_DISPLAY_ID);
-        assertEquals((int) display2States.first, 0);
-        assertEquals((int) display2States.second, expectedFlags);
+        verify(mMockStatusBar, never()).disableForAllDisplays(any());
+        verify(mMockStatusBar).disable(eq(0), eq(0), eq(expectedFlags));
     }
 
     @Test

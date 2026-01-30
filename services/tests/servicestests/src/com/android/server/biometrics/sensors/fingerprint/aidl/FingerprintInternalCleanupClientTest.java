@@ -32,7 +32,6 @@ import android.hardware.biometrics.fingerprint.ISession;
 import android.hardware.fingerprint.Fingerprint;
 import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.testing.TestableContext;
@@ -41,7 +40,6 @@ import androidx.annotation.NonNull;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.android.server.biometrics.Flags;
 import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.log.BiometricLogger;
 import com.android.server.biometrics.sensors.ClientMonitorCallback;
@@ -180,7 +178,6 @@ public class FingerprintInternalCleanupClientTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_NOTIFY_FINGERPRINTS_LOE)
     public void invalidBiometricUserState() throws Exception {
         mClient =  createClient();
 

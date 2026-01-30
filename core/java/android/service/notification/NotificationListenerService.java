@@ -19,12 +19,11 @@ package android.service.notification;
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
+import android.annotation.MainThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SdkConstant;
 import android.annotation.SystemApi;
-import android.annotation.TestApi;
-import android.annotation.UiThread;
 import android.app.ActivityManager;
 import android.app.INotificationManager;
 import android.app.Notification;
@@ -283,6 +282,12 @@ public abstract class NotificationListenerService extends Service {
      * will be restored via NotificationListeners#notifyPostedLocked()
      */
     public static final int REASON_LOCKDOWN = 23;
+    @FlaggedApi(Flags.FLAG_NM_CLASSIFICATION_NLS)
+    /**
+     * Notification was canceled because it was in a bundle
+     * (e.g. @link android.app.NotificationChannel#PROMOTIONS_ID) that was dismissed.
+     */
+    public static final int REASON_BUNDLE_DISMISSED = 24;
     // If adding a new notification cancellation reason, you must also add handling for it in
     // NotificationCancelledEvent.fromCancelReason.
 
@@ -313,6 +318,7 @@ public abstract class NotificationListenerService extends Service {
             REASON_CLEAR_DATA,
             REASON_ASSISTANT_CANCEL,
             REASON_LOCKDOWN,
+            REASON_BUNDLE_DISMISSED
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface NotificationCancelReason{};
@@ -433,6 +439,9 @@ public abstract class NotificationListenerService extends Service {
     @GuardedBy("mLock")
     private RankingMap mRankingMap;
 
+    @GuardedBy("mLock")
+    private IDispatchCompletionListener mCompletionListener;
+
     /**
      * @hide
      */
@@ -466,13 +475,23 @@ public abstract class NotificationListenerService extends Service {
     }
 
     /**
+     * Returns the handler for tests.
+     * @hide
+     */
+    @VisibleForTesting
+    @Nullable
+    public final Handler getHandler() {
+        return mHandler;
+    }
+
+    /**
      * Implement this method to learn about new notifications as they are posted by apps.
      *
      * @param sbn A data structure encapsulating the original {@link android.app.Notification}
      *            object as well as its identifying information (tag and id) and source
      *            (package name).
      */
-    @UiThread
+    @MainThread
     public void onNotificationPosted(StatusBarNotification sbn) {
         // optional
     }
@@ -486,7 +505,7 @@ public abstract class NotificationListenerService extends Service {
      * @param rankingMap The current ranking map that can be used to retrieve ranking information
      *                   for active notifications, including the newly posted one.
      */
-    @UiThread
+    @MainThread
     public void onNotificationPosted(StatusBarNotification sbn, RankingMap rankingMap) {
         onNotificationPosted(sbn);
     }
@@ -505,7 +524,7 @@ public abstract class NotificationListenerService extends Service {
      *            and source (package name) used to post the {@link android.app.Notification} that
      *            was just removed.
      */
-    @UiThread
+    @MainThread
     public void onNotificationRemoved(StatusBarNotification sbn) {
         // optional
     }
@@ -527,7 +546,7 @@ public abstract class NotificationListenerService extends Service {
      *                   for active notifications.
      *
      */
-    @UiThread
+    @MainThread
     public void onNotificationRemoved(StatusBarNotification sbn, RankingMap rankingMap) {
         onNotificationRemoved(sbn);
     }
@@ -549,7 +568,7 @@ public abstract class NotificationListenerService extends Service {
      * @param rankingMap The current ranking map that can be used to retrieve ranking information
      *                   for active notifications.
      */
-    @UiThread
+    @MainThread
     public void onNotificationRemoved(StatusBarNotification sbn, RankingMap rankingMap,
             @NotificationCancelReason int reason) {
         onNotificationRemoved(sbn, rankingMap);
@@ -561,7 +580,7 @@ public abstract class NotificationListenerService extends Service {
      *
      * @hide
      */
-    @UiThread
+    @MainThread
     @SystemApi
     public void onNotificationRemoved(@NonNull StatusBarNotification sbn,
             @NonNull RankingMap rankingMap, @NonNull NotificationStats stats, int reason) {
@@ -573,7 +592,7 @@ public abstract class NotificationListenerService extends Service {
      * the notification manager.  You are safe to call {@link #getActiveNotifications()}
      * at this time.
      */
-    @UiThread
+    @MainThread
     public void onListenerConnected() {
         // optional
     }
@@ -583,7 +602,7 @@ public abstract class NotificationListenerService extends Service {
      * notification manager.You will not receive any events after this call, and may only
      * call {@link #requestRebind(ComponentName)} at this time.
      */
-    @UiThread
+    @MainThread
     public void onListenerDisconnected() {
         // optional
     }
@@ -594,7 +613,7 @@ public abstract class NotificationListenerService extends Service {
      * @param rankingMap The current ranking map that can be used to retrieve ranking information
      *                   for active notifications.
      */
-    @UiThread
+    @MainThread
     public void onNotificationRankingUpdate(RankingMap rankingMap) {
         // optional
     }
@@ -605,7 +624,7 @@ public abstract class NotificationListenerService extends Service {
      *
      * @param hints The current {@link #getCurrentListenerHints() listener hints}.
      */
-    @UiThread
+    @MainThread
     public void onListenerHintsChanged(int hints) {
         // optional
     }
@@ -617,7 +636,7 @@ public abstract class NotificationListenerService extends Service {
      * @param hideSilentStatusIcons whether or not status bar icons should be hidden for silent
      *                              notifications
      */
-    @UiThread
+    @MainThread
     public void onSilentStatusBarIconsVisibilityChanged(boolean hideSilentStatusIcons) {
         // optional
     }
@@ -635,7 +654,7 @@ public abstract class NotificationListenerService extends Service {
      *                   {@link #NOTIFICATION_CHANNEL_OR_GROUP_UPDATED},
      *                   {@link #NOTIFICATION_CHANNEL_OR_GROUP_DELETED}.
      */
-    @UiThread
+    @MainThread
     public void onNotificationChannelModified(String pkg, UserHandle user,
             NotificationChannel channel, @ChannelOrGroupModificationTypes int modificationType) {
         // optional
@@ -654,7 +673,7 @@ public abstract class NotificationListenerService extends Service {
      *                   {@link #NOTIFICATION_CHANNEL_OR_GROUP_UPDATED},
      *                   {@link #NOTIFICATION_CHANNEL_OR_GROUP_DELETED}.
      */
-    @UiThread
+    @MainThread
     public void onNotificationChannelGroupModified(String pkg, UserHandle user,
             NotificationChannelGroup group, @ChannelOrGroupModificationTypes int modificationType) {
         // optional
@@ -667,7 +686,7 @@ public abstract class NotificationListenerService extends Service {
      * @param interruptionFilter The current
      *     {@link #getCurrentInterruptionFilter() interruption filter}.
      */
-    @UiThread
+    @MainThread
     public void onInterruptionFilterChanged(int interruptionFilter) {
         // optional
     }
@@ -1315,6 +1334,9 @@ public abstract class NotificationListenerService extends Service {
 
     @Override
     public void onDestroy() {
+        synchronized (mLock) {
+            mCompletionListener = null;
+        }
         onListenerDisconnected();
         super.onDestroy();
     }
@@ -1480,24 +1502,26 @@ public abstract class NotificationListenerService extends Service {
     protected class NotificationListenerWrapper extends INotificationListener.Stub {
         @Override
         public void onNotificationPosted(IStatusBarNotificationHolder sbnHolder,
-                NotificationRankingUpdate update) {
+                NotificationRankingUpdate update, long dispatchToken) {
             StatusBarNotification sbn;
             try {
                 sbn = sbnHolder.get();
             } catch (RemoteException e) {
                 Log.w(TAG, "onNotificationPosted: Error receiving StatusBarNotification", e);
+                notifyDispatchCompletion(dispatchToken);
                 return;
             }
             if (sbn == null) {
                 Log.w(TAG, "onNotificationPosted: Error receiving StatusBarNotification");
+                notifyDispatchCompletion(dispatchToken);
                 return;
             }
-            onNotificationPostedFull(sbn, update);
+            onNotificationPostedFull(sbn, update, dispatchToken);
         }
 
         @Override
         public void onNotificationPostedFull(StatusBarNotification sbn,
-                NotificationRankingUpdate update) {
+                NotificationRankingUpdate update, long dispatchToken) {
             try {
                 // convert icon metadata to legacy format for older clients
                 createLegacyIconExtras(sbn.getNotification());
@@ -1510,41 +1534,49 @@ public abstract class NotificationListenerService extends Service {
                 sbn = null;
             }
 
+            final SomeArgs args = SomeArgs.obtain();
+            args.argl1 = dispatchToken;
+
             // protect subclass from concurrent modifications of (@link mNotificationKeys}.
             synchronized (mLock) {
                 applyUpdateLocked(update);
                 if (sbn != null) {
-                    SomeArgs args = SomeArgs.obtain();
                     args.arg1 = sbn;
                     args.arg2 = mRankingMap;
+
                     mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_POSTED,
                             args).sendToTarget();
                 } else {
                     // still pass along the ranking map, it may contain other information
+                    args.arg1 = mRankingMap;
                     mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_RANKING_UPDATE,
-                            mRankingMap).sendToTarget();
+                            args).sendToTarget();
                 }
             }
         }
 
         @Override
         public void onNotificationRemoved(IStatusBarNotificationHolder sbnHolder,
-                NotificationRankingUpdate update, NotificationStats stats, int reason) {
+                NotificationRankingUpdate update, NotificationStats stats, int reason,
+                long dispatchToken) {
             StatusBarNotification sbn;
             try {
                 sbn = sbnHolder.get();
             } catch (RemoteException e) {
                 Log.w(TAG, "onNotificationRemoved: Error receiving StatusBarNotification", e);
+                notifyDispatchCompletion(dispatchToken);
                 return;
             }
-            onNotificationRemovedFull(sbn, update, stats, reason);
+            onNotificationRemovedFull(sbn, update, stats, reason, dispatchToken);
         }
 
         @Override
         public void onNotificationRemovedFull(StatusBarNotification sbn,
-                NotificationRankingUpdate update, NotificationStats stats, int reason) {
+                NotificationRankingUpdate update, NotificationStats stats, int reason,
+                long dispatchToken) {
             if (sbn == null) {
                 Log.w(TAG, "onNotificationRemoved: Error receiving StatusBarNotification");
+                notifyDispatchCompletion(dispatchToken);
                 return;
             }
             // protect subclass from concurrent modifications of (@link mNotificationKeys}.
@@ -1555,6 +1587,7 @@ public abstract class NotificationListenerService extends Service {
                 args.arg2 = mRankingMap;
                 args.arg3 = reason;
                 args.arg4 = stats;
+                args.argl1 = dispatchToken;
                 mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_REMOVED,
                         args).sendToTarget();
             }
@@ -1562,37 +1595,57 @@ public abstract class NotificationListenerService extends Service {
         }
 
         @Override
-        public void onListenerConnected(NotificationRankingUpdate update) {
+        public void onListenerConnected(NotificationRankingUpdate update,
+                IDispatchCompletionListener completionListener, long dispatchToken) {
+            if (Flags.reportNlsStartAndEnd() && completionListener == null) {
+                Log.e(TAG, "No completion listener supplied for this service!");
+            }
+
             // protect subclass from concurrent modifications of (@link mNotificationKeys}.
             synchronized (mLock) {
                 applyUpdateLocked(update);
+                mCompletionListener = completionListener;
+            }
+            if (isConnected) {
+                Log.e(TAG, "onListenerConnected called on an already connected service!"
+                        + " This can result in duplicate events.");
             }
             isConnected = true;
-            mHandler.obtainMessage(MyHandler.MSG_ON_LISTENER_CONNECTED).sendToTarget();
+            final SomeArgs args = SomeArgs.obtain();
+            args.argl1 = dispatchToken;
+            mHandler.obtainMessage(MyHandler.MSG_ON_LISTENER_CONNECTED, args).sendToTarget();
         }
 
         @Override
-        public void onNotificationRankingUpdate(NotificationRankingUpdate update)
-                throws RemoteException {
+        public void onNotificationRankingUpdate(NotificationRankingUpdate update,
+                long dispatchToken) throws RemoteException {
+            final SomeArgs args = SomeArgs.obtain();
+            args.argl1 = dispatchToken;
             // protect subclass from concurrent modifications of (@link mNotificationKeys}.
             synchronized (mLock) {
                 applyUpdateLocked(update);
+                args.arg1 = mRankingMap;
                 mHandler.obtainMessage(MyHandler.MSG_ON_NOTIFICATION_RANKING_UPDATE,
-                        mRankingMap).sendToTarget();
+                        args).sendToTarget();
             }
 
         }
 
         @Override
-        public void onListenerHintsChanged(int hints) throws RemoteException {
+        public void onListenerHintsChanged(int hints, long dispatchToken) throws RemoteException {
+            final SomeArgs args = SomeArgs.obtain();
+            args.argl1 = dispatchToken;
             mHandler.obtainMessage(MyHandler.MSG_ON_LISTENER_HINTS_CHANGED,
-                    hints, 0).sendToTarget();
+                    hints, 0, args).sendToTarget();
         }
 
         @Override
-        public void onInterruptionFilterChanged(int interruptionFilter) throws RemoteException {
+        public void onInterruptionFilterChanged(int interruptionFilter,
+                long dispatchToken) throws RemoteException {
+            final SomeArgs args = SomeArgs.obtain();
+            args.argl1 = dispatchToken;
             mHandler.obtainMessage(MyHandler.MSG_ON_INTERRUPTION_FILTER_CHANGED,
-                    interruptionFilter, 0).sendToTarget();
+                    interruptionFilter, 0, args).sendToTarget();
         }
 
         @Override
@@ -1681,12 +1734,13 @@ public abstract class NotificationListenerService extends Service {
         @Override
         public void onNotificationChannelModification(String pkgName, UserHandle user,
                 NotificationChannel channel,
-                @ChannelOrGroupModificationTypes int modificationType) {
+                @ChannelOrGroupModificationTypes int modificationType, long dispatchToken) {
             SomeArgs args = SomeArgs.obtain();
             args.arg1 = pkgName;
             args.arg2 = user;
             args.arg3 = channel;
             args.arg4 = modificationType;
+            args.argl1 = dispatchToken;
             mHandler.obtainMessage(
                     MyHandler.MSG_ON_NOTIFICATION_CHANNEL_MODIFIED, args).sendToTarget();
         }
@@ -1694,20 +1748,25 @@ public abstract class NotificationListenerService extends Service {
         @Override
         public void onNotificationChannelGroupModification(String pkgName, UserHandle user,
                 NotificationChannelGroup group,
-                @ChannelOrGroupModificationTypes int modificationType) {
+                @ChannelOrGroupModificationTypes int modificationType, long dispatchToken) {
             SomeArgs args = SomeArgs.obtain();
             args.arg1 = pkgName;
             args.arg2 = user;
             args.arg3 = group;
             args.arg4 = modificationType;
+            args.argl1 = dispatchToken;
             mHandler.obtainMessage(
                     MyHandler.MSG_ON_NOTIFICATION_CHANNEL_GROUP_MODIFIED, args).sendToTarget();
         }
 
         @Override
-        public void onStatusBarIconsBehaviorChanged(boolean hideSilentStatusIcons) {
+        public void onStatusBarIconsBehaviorChanged(boolean hideSilentStatusIcons,
+                long dispatchToken) {
+            final SomeArgs args = SomeArgs.obtain();
+            args.argl1 = dispatchToken;
+            args.argi1 = hideSilentStatusIcons ? 1 : 0;
             mHandler.obtainMessage(MyHandler.MSG_ON_STATUS_BAR_ICON_BEHAVIOR_CHANGED,
-                    hideSilentStatusIcons).sendToTarget();
+                    args).sendToTarget();
         }
 
         @Override
@@ -2292,7 +2351,7 @@ public abstract class NotificationListenerService extends Service {
         }
 
         /**
-         * {@hide}
+         * @hide
          */
         public static String importanceToString(int importance) {
             switch (importance) {
@@ -2465,6 +2524,20 @@ public abstract class NotificationListenerService extends Service {
         }
     }
 
+    private void notifyDispatchCompletion(long token) {
+        synchronized (mLock) {
+            if (!Flags.reportNlsStartAndEnd() || mCompletionListener == null) {
+                // System listeners are not bound so we don't supply them a mCompletionListener.
+                return;
+            }
+            try {
+                mCompletionListener.notifyDispatchComplete(token);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Cannot send dispatch completion to the system", e);
+            }
+        }
+    }
+
     private final class MyHandler extends Handler {
         public static final int MSG_ON_NOTIFICATION_POSTED = 1;
         public static final int MSG_ON_NOTIFICATION_REMOVED = 2;
@@ -2490,8 +2563,9 @@ public abstract class NotificationListenerService extends Service {
                     SomeArgs args = (SomeArgs) msg.obj;
                     StatusBarNotification sbn = (StatusBarNotification) args.arg1;
                     RankingMap rankingMap = (RankingMap) args.arg2;
-                    args.recycle();
                     onNotificationPosted(sbn, rankingMap);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_NOTIFICATION_REMOVED: {
@@ -2500,27 +2574,40 @@ public abstract class NotificationListenerService extends Service {
                     RankingMap rankingMap = (RankingMap) args.arg2;
                     int reason = (int) args.arg3;
                     NotificationStats stats = (NotificationStats) args.arg4;
-                    args.recycle();
                     onNotificationRemoved(sbn, rankingMap, stats, reason);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_LISTENER_CONNECTED: {
+                    SomeArgs args = (SomeArgs) msg.obj;
                     onListenerConnected();
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_NOTIFICATION_RANKING_UPDATE: {
-                    RankingMap rankingMap = (RankingMap) msg.obj;
+                    SomeArgs args = (SomeArgs) msg.obj;
+                    RankingMap rankingMap = (RankingMap) args.arg1;
                     onNotificationRankingUpdate(rankingMap);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_LISTENER_HINTS_CHANGED: {
+                    SomeArgs args = (SomeArgs) msg.obj;
                     final int hints = msg.arg1;
                     onListenerHintsChanged(hints);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_INTERRUPTION_FILTER_CHANGED: {
+                    SomeArgs args = (SomeArgs) msg.obj;
                     final int interruptionFilter = msg.arg1;
                     onInterruptionFilterChanged(interruptionFilter);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_NOTIFICATION_CHANNEL_MODIFIED: {
@@ -2529,8 +2616,9 @@ public abstract class NotificationListenerService extends Service {
                     UserHandle user= (UserHandle) args.arg2;
                     NotificationChannel channel = (NotificationChannel) args.arg3;
                     int modificationType = (int) args.arg4;
-                    args.recycle();
                     onNotificationChannelModified(pkgName, user, channel, modificationType);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_NOTIFICATION_CHANNEL_GROUP_MODIFIED: {
@@ -2539,12 +2627,16 @@ public abstract class NotificationListenerService extends Service {
                     UserHandle user = (UserHandle) args.arg2;
                     NotificationChannelGroup group = (NotificationChannelGroup) args.arg3;
                     int modificationType = (int) args.arg4;
-                    args.recycle();
                     onNotificationChannelGroupModified(pkgName, user, group, modificationType);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
 
                 case MSG_ON_STATUS_BAR_ICON_BEHAVIOR_CHANGED: {
-                    onSilentStatusBarIconsVisibilityChanged((Boolean) msg.obj);
+                    SomeArgs args = (SomeArgs) msg.obj;
+                    onSilentStatusBarIconsVisibilityChanged(args.argi1 == 1);
+                    notifyDispatchCompletion(args.argl1);
+                    args.recycle();
                 } break;
             }
         }

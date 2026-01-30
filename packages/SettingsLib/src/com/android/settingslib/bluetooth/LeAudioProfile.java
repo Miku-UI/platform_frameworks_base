@@ -67,7 +67,7 @@ public class LeAudioProfile implements LocalBluetoothProfile {
             | BluetoothLeAudio.AUDIO_LOCATION_RIGHT_SURROUND;
 
     private static final String TAG = "LeAudioProfile";
-    private static boolean DEBUG = true;
+    private static boolean DEBUG = false;
 
     private Context mContext;
 

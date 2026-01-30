@@ -16,7 +16,6 @@
 
 package com.android.server.crashrecovery;
 
-import android.annotation.AnyThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -24,12 +23,10 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.VersionedPackage;
 import android.net.ConnectivityModuleConnector;
-import android.sysprop.CrashRecoveryProperties;
 import android.text.TextUtils;
 import android.util.Slog;
 
 import com.android.server.PackageWatchdog;
-import com.android.server.pm.ApexManager;
 
 import java.util.Collections;
 import java.util.List;
@@ -42,7 +39,6 @@ import java.util.List;
 public final class CrashRecoveryHelper {
     private static final String TAG = "CrashRecoveryHelper";
 
-    private final ApexManager mApexManager;
     private final Context mContext;
     private final ConnectivityModuleConnector mConnectivityModuleConnector;
 
@@ -50,30 +46,7 @@ public final class CrashRecoveryHelper {
     /** @hide */
     public CrashRecoveryHelper(@NonNull Context context) {
         mContext = context;
-        mApexManager = ApexManager.getInstance();
         mConnectivityModuleConnector = ConnectivityModuleConnector.getInstance();
-    }
-
-    /**
-     * Returns true if the package name is the name of a module.
-     * If the package is an APK inside an APEX then it will use the parent's APEX package name
-     * do determine if it is a module or not.
-     * @hide
-     */
-    @AnyThread
-    public boolean isModule(@NonNull String packageName) {
-        String apexPackageName =
-                mApexManager.getActiveApexPackageNameContainingPackage(packageName);
-        if (apexPackageName != null) {
-            packageName = apexPackageName;
-        }
-
-        PackageManager pm = mContext.getPackageManager();
-        try {
-            return pm.getModuleInfo(packageName, 0) != null;
-        } catch (PackageManager.NameNotFoundException ignore) {
-            return false;
-        }
     }
 
     /**
@@ -129,22 +102,5 @@ public final class CrashRecoveryHelper {
         } catch (PackageManager.NameNotFoundException e) {
             return pm.getPackageInfo(packageName, PackageManager.MATCH_APEX);
         }
-    }
-
-    /**
-     * Check if we're currently attempting to reboot for a factory reset. This method must
-     * return true if RescueParty tries to reboot early during a boot loop, since the device
-     * will not be fully booted at this time.
-     */
-    public static boolean isRecoveryTriggeredReboot() {
-        return isFactoryResetPropertySet() || isRebootPropertySet();
-    }
-
-    static boolean isFactoryResetPropertySet() {
-        return CrashRecoveryProperties.attemptingFactoryReset().orElse(false);
-    }
-
-    static boolean isRebootPropertySet() {
-        return CrashRecoveryProperties.attemptingReboot().orElse(false);
     }
 }

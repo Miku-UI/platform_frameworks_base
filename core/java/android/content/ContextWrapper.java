@@ -445,12 +445,14 @@ public class ContextWrapper extends Context {
     }
 
     /** @hide **/
+    @Override
     public void startActivityForResult(
             String who, Intent intent, int requestCode, @Nullable Bundle options) {
         mBase.startActivityForResult(who, intent, requestCode, options);
     }
 
     /** @hide **/
+    @Override
     public boolean canStartActivityForResult() {
         return mBase.canStartActivityForResult();
     }
@@ -680,6 +682,19 @@ public class ContextWrapper extends Context {
             @Nullable Bundle initialExtras, @Nullable Bundle options) {
         mBase.sendOrderedBroadcastMultiplePermissions(intent, receiverPermissions, receiverAppOp,
                 resultReceiver, scheduler, initialCode, initialData, initialExtras, options);
+    }
+
+    /** @hide */
+    @Override
+    public void sendOrderedBroadcastMultiplePermissions(
+            @NonNull Intent intent, @NonNull String[] receiverPermissions,
+            @NonNull String[] excludedPermissions, @Nullable String receiverAppOp,
+            @Nullable BroadcastReceiver resultReceiver, @Nullable Handler scheduler,
+            int initialCode, @Nullable String initialData, @Nullable Bundle initialExtras,
+            @Nullable Bundle options) {
+        mBase.sendOrderedBroadcastMultiplePermissions(intent, receiverPermissions,
+                excludedPermissions, receiverAppOp, resultReceiver, scheduler, initialCode,
+                initialData, initialExtras, options);
     }
 
     @Override
@@ -949,8 +964,20 @@ public class ContextWrapper extends Context {
     }
 
     @Override
+    public void updateServiceBindings(@NonNull List<UpdateBindingParams> params) {
+        mBase.updateServiceBindings(params);
+    }
+
+    @Override
     public void unbindService(ServiceConnection conn) {
         mBase.unbindService(conn);
+    }
+
+
+    @Override
+    public void rebindService(@NonNull ServiceConnection conn,
+            @NonNull BindServiceFlags flags) {
+        mBase.rebindService(conn, flags);
     }
 
     @Override
@@ -1293,7 +1320,7 @@ public class ContextWrapper extends Context {
         return mBase.createDeviceProtectedStorageContext();
     }
 
-    /** {@hide} */
+    /** @hide */
     @SystemApi
     @Override
     public Context createCredentialProtectedStorageContext() {
@@ -1313,14 +1340,14 @@ public class ContextWrapper extends Context {
         return mBase.isDeviceProtectedStorage();
     }
 
-    /** {@hide} */
+    /** @hide */
     @SystemApi
     @Override
     public boolean isCredentialProtectedStorage() {
         return mBase.isCredentialProtectedStorage();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public boolean canLoadUnsafeResources() {
         return mBase.canLoadUnsafeResources();
@@ -1536,6 +1563,7 @@ public class ContextWrapper extends Context {
      * @hide
      */
     @RequiresPermission(android.Manifest.permission.BROADCAST_CLOSE_SYSTEM_DIALOGS)
+    @Override
     public void closeSystemDialogs() {
         mBase.closeSystemDialogs();
     }

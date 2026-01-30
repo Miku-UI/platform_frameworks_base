@@ -360,7 +360,7 @@ public final class CpuInfoReader {
         if (numCpuFreqPolicyDirs == 0 || numCpuFreqPolicyDirs != numStaticPolicyInfos) {
             Slogf.e(TAG, "Failed to set CPU frequency directory to %s. Total CPU frequency "
                             + "policies (%d) under new path is either 0 or not equal to initial "
-                            + "total CPU frequency policies. Clearing CPU frequency policy "
+                            + "total CPU frequency policies (%d). Clearing CPU frequency policy "
                             + "directories", cpuFreqDir.getAbsolutePath(), numCpuFreqPolicyDirs,
                     numStaticPolicyInfos);
             mCpuFreqPolicyDirsById.clear();

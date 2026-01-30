@@ -203,7 +203,7 @@ public class DisplayManagerGlobalTest {
                 mDisplayManagerGlobal.getDisplayListeners();
         for (DisplayManagerGlobal.DisplayListenerDelegate delegate: delegates) {
             assertEquals(ALL_DISPLAY_EVENTS | INTERNAL_EVENT_FLAG_DISPLAY_REFRESH_RATE,
-                    delegate.mInternalEventFlagsMask);
+                    delegate.internalEventFlagsMask);
         }
 
         // Subscription to RR when events are supplied doesn't happen
@@ -221,11 +221,11 @@ public class DisplayManagerGlobalTest {
         int nonSubscribedListenersCount = 0;
         for (DisplayManagerGlobal.DisplayListenerDelegate delegate: delegates) {
             if (delegate.isEventFilterExplicit()) {
-                assertEquals(ALL_DISPLAY_EVENTS, delegate.mInternalEventFlagsMask);
+                assertEquals(ALL_DISPLAY_EVENTS, delegate.internalEventFlagsMask);
                 nonSubscribedListenersCount++;
             } else {
                 assertEquals(ALL_DISPLAY_EVENTS | INTERNAL_EVENT_FLAG_DISPLAY_REFRESH_RATE,
-                        delegate.mInternalEventFlagsMask);
+                        delegate.internalEventFlagsMask);
                 subscribedListenersCount++;
             }
         }
@@ -428,6 +428,11 @@ public class DisplayManagerGlobalTest {
                         .mapFiltersToInternalEventFlag(
                                 DisplayManager.EVENT_TYPE_DISPLAY_STATE,
                                 0));
+        assertEquals(DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_BRIGHTNESS_CHANGED,
+                mDisplayManagerGlobal
+                        .mapFiltersToInternalEventFlag(
+                                DisplayManager.EVENT_TYPE_DISPLAY_BRIGHTNESS,
+                                0));
 
         // test private flags mapping
         assertEquals(DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_CONNECTION_CHANGED,
@@ -438,18 +443,14 @@ public class DisplayManagerGlobalTest {
                 mDisplayManagerGlobal
                         .mapFiltersToInternalEventFlag(0,
                                 DisplayManager.PRIVATE_EVENT_TYPE_HDR_SDR_RATIO_CHANGED));
-        assertEquals(DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_BRIGHTNESS_CHANGED,
-                mDisplayManagerGlobal
-                        .mapFiltersToInternalEventFlag(0,
-                                DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS));
 
         // Test both public and private flags mapping
-        assertEquals(DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_BRIGHTNESS_CHANGED
+        assertEquals(DisplayManagerGlobal.INTERNAL_EVENT_FLAG_DISPLAY_COMMITTED_STATE_CHANGED
                         | INTERNAL_EVENT_FLAG_DISPLAY_REFRESH_RATE,
                 mDisplayManagerGlobal
                         .mapFiltersToInternalEventFlag(
                                 DisplayManager.EVENT_TYPE_DISPLAY_REFRESH_RATE,
-                                DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS));
+                                DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_COMMITTED_STATE_CHANGED));
     }
 
     @Test

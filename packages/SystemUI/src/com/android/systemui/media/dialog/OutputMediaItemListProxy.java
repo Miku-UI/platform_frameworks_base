@@ -16,11 +16,12 @@
 
 package com.android.systemui.media.dialog;
 
+import static com.android.media.flags.Flags.enableOutputSwitcherRedesign;
+
 import android.content.Context;
 
 import androidx.annotation.Nullable;
 
-import com.android.media.flags.Flags;
 import com.android.settingslib.media.MediaDevice;
 import com.android.systemui.res.R;
 
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 
 /** A proxy of holding the list of Output Switcher's output media items. */
 public class OutputMediaItemListProxy {
+    private static final int MAX_SUGGESTED_DEVICE_COUNT = 2;
     private final Context mContext;
     private final List<MediaItem> mOutputMediaItemList;
 
@@ -55,17 +57,15 @@ public class OutputMediaItemListProxy {
 
     /** Returns the list of output media items. */
     public List<MediaItem> getOutputMediaItemList() {
-        if (Flags.fixOutputMediaItemListIndexOutOfBoundsException()) {
-            if (isEmpty() && !mOutputMediaItemList.isEmpty()) {
-                // Ensures mOutputMediaItemList is empty when all individual media item lists are
-                // empty, preventing unexpected state issues.
-                mOutputMediaItemList.clear();
-            } else if (!isEmpty() && mOutputMediaItemList.isEmpty()) {
-                // When any individual media item list is modified, the cached mOutputMediaItemList
-                // is emptied. On the next request for the output media item list, a fresh list is
-                // created and stored in the cache.
-                mOutputMediaItemList.addAll(createOutputMediaItemList());
-            }
+        if (isEmpty() && !mOutputMediaItemList.isEmpty()) {
+            // Ensures mOutputMediaItemList is empty when all individual media item lists are empty,
+            // preventing unexpected state issues.
+            mOutputMediaItemList.clear();
+        } else if (!isEmpty() && mOutputMediaItemList.isEmpty()) {
+            // When any individual media item list is modified, the cached mOutputMediaItemList is
+            // emptied. On the next request for the output media item list, a fresh list is created
+            // and stored in the cache.
+            mOutputMediaItemList.addAll(createOutputMediaItemList());
         }
         return mOutputMediaItemList;
     }
@@ -74,10 +74,9 @@ public class OutputMediaItemListProxy {
         List<MediaItem> finalMediaItems = new CopyOnWriteArrayList<>();
         finalMediaItems.addAll(mSelectedMediaItems);
         if (!mSuggestedMediaItems.isEmpty()) {
-            finalMediaItems.add(
-                    MediaItem.createGroupDividerMediaItem(
-                            mContext.getString(
-                                    R.string.media_output_group_title_suggested_device)));
+            finalMediaItems.add(MediaItem.createGroupDividerMediaItem(mContext.getString(
+                    enableOutputSwitcherRedesign() ? R.string.media_output_group_title_suggested
+                            : R.string.media_output_group_title_suggested_device)));
             finalMediaItems.addAll(mSuggestedMediaItems);
         }
         if (!mSpeakersAndDisplaysMediaItems.isEmpty()) {
@@ -93,11 +92,11 @@ public class OutputMediaItemListProxy {
     /** Updates the list of output media items with a given list of media devices. */
     public void updateMediaDevices(
             List<MediaDevice> devices,
-            List<MediaDevice> selectedDevices,
             @Nullable MediaDevice connectedMediaDevice,
             boolean needToHandleMutingExpectedDevice) {
         Set<String> selectedOrConnectedMediaDeviceIds =
-                selectedDevices.stream().map(MediaDevice::getId).collect(Collectors.toSet());
+                devices.stream().filter(MediaDevice::isSelected).map(MediaDevice::getId).collect(
+                        Collectors.toSet());
         if (connectedMediaDevice != null) {
             selectedOrConnectedMediaDeviceIds.add(connectedMediaDevice.getId());
         }
@@ -154,7 +153,7 @@ public class OutputMediaItemListProxy {
             updatedSpeakersAndDisplaysMediaItems.addAll(remainingMediaItems);
         }
 
-        if (Flags.enableOutputSwitcherDeviceGrouping() && !updatedSelectedMediaItems.isEmpty()) {
+        if (!updatedSelectedMediaItems.isEmpty()) {
             MediaItem selectedMediaItem = updatedSelectedMediaItems.get(0);
             Optional<MediaDevice> mediaDeviceOptional = selectedMediaItem.getMediaDevice();
             if (mediaDeviceOptional.isPresent()) {
@@ -179,41 +178,27 @@ public class OutputMediaItemListProxy {
         mOutputMediaItemList.clear();
     }
 
-    /** Updates the list of output media items with the given list. */
-    public void clearAndAddAll(List<MediaItem> updatedMediaItems) {
-        mOutputMediaItemList.clear();
-        mOutputMediaItemList.addAll(updatedMediaItems);
-    }
-
     /** Removes the media items with muting expected devices. */
     public void removeMutingExpectedDevices() {
-        if (Flags.fixOutputMediaItemListIndexOutOfBoundsException()) {
-            mSelectedMediaItems.removeIf((MediaItem::isMutingExpectedDevice));
-            mSuggestedMediaItems.removeIf((MediaItem::isMutingExpectedDevice));
-            mSpeakersAndDisplaysMediaItems.removeIf((MediaItem::isMutingExpectedDevice));
-        }
+        mSelectedMediaItems.removeIf((MediaItem::isMutingExpectedDevice));
+        mSuggestedMediaItems.removeIf((MediaItem::isMutingExpectedDevice));
+        mSpeakersAndDisplaysMediaItems.removeIf((MediaItem::isMutingExpectedDevice));
         mOutputMediaItemList.removeIf((MediaItem::isMutingExpectedDevice));
     }
 
     /** Clears the output media item list. */
     public void clear() {
-        if (Flags.fixOutputMediaItemListIndexOutOfBoundsException()) {
-            mSelectedMediaItems.clear();
-            mSuggestedMediaItems.clear();
-            mSpeakersAndDisplaysMediaItems.clear();
-        }
+        mSelectedMediaItems.clear();
+        mSuggestedMediaItems.clear();
+        mSpeakersAndDisplaysMediaItems.clear();
         mOutputMediaItemList.clear();
     }
 
     /** Returns whether the output media item list is empty. */
     public boolean isEmpty() {
-        if (Flags.fixOutputMediaItemListIndexOutOfBoundsException()) {
-            return mSelectedMediaItems.isEmpty()
-                    && mSuggestedMediaItems.isEmpty()
-                    && mSpeakersAndDisplaysMediaItems.isEmpty();
-        } else {
-            return mOutputMediaItemList.isEmpty();
-        }
+        return mSelectedMediaItems.isEmpty()
+                && mSuggestedMediaItems.isEmpty()
+                && mSpeakersAndDisplaysMediaItems.isEmpty();
     }
 
     private void buildMediaItems(
@@ -231,12 +216,9 @@ public class OutputMediaItemListProxy {
                 selectedMediaItems.add(0, mediaItem);
             } else if (!needToHandleMutingExpectedDevice
                     && selectedOrConnectedMediaDeviceIds.contains(device.getId())) {
-                if (Flags.enableOutputSwitcherDeviceGrouping()) {
-                    selectedMediaItems.add(mediaItem);
-                } else {
-                    selectedMediaItems.add(0, mediaItem);
-                }
-            } else if (device.isSuggestedDevice()) {
+                selectedMediaItems.add(mediaItem);
+            } else if (device.isSuggestedDevice()
+                    && suggestedMediaItems.size() < MAX_SUGGESTED_DEVICE_COUNT) {
                 suggestedMediaItems.add(mediaItem);
             } else {
                 speakersAndDisplaysMediaItems.add(mediaItem);

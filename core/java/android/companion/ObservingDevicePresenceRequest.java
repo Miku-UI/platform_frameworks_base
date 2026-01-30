@@ -20,10 +20,10 @@ import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.ParcelUuid;
 import android.os.Parcelable;
-import android.provider.OneTimeUseBuilder;
 
 import java.util.Objects;
 
@@ -41,18 +41,22 @@ import java.util.Objects;
  * @see Builder#setAssociationId(int)
  * @see CompanionDeviceManager#startObservingDevicePresence(ObservingDevicePresenceRequest)
  */
-@FlaggedApi(Flags.FLAG_DEVICE_PRESENCE)
+// TODO(b/371198526): Update the javadoc once the 25Q4 is released.
 public final class ObservingDevicePresenceRequest implements Parcelable {
     private final int mAssociationId;
     @Nullable private final ParcelUuid mUuid;
+
+    @Nullable private final DeviceId mDeviceId;
 
     private static final int PARCEL_UUID_NULL = 0;
 
     private static final int PARCEL_UUID_NOT_NULL = 1;
 
-    private ObservingDevicePresenceRequest(int associationId, ParcelUuid uuid) {
+    private ObservingDevicePresenceRequest(
+            int associationId, @Nullable ParcelUuid uuid, @Nullable DeviceId deviceId) {
         mAssociationId = associationId;
         mUuid = uuid;
+        mDeviceId = deviceId;
     }
 
     private ObservingDevicePresenceRequest(@NonNull Parcel in) {
@@ -61,6 +65,12 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
             mUuid = null;
         } else {
             mUuid = ParcelUuid.CREATOR.createFromParcel(in);
+        }
+
+        if (in.readInt() == 1 && Flags.associationVerification()) {
+            mDeviceId = DeviceId.CREATOR.createFromParcel(in);
+        } else {
+            mDeviceId = null;
         }
     }
 
@@ -81,6 +91,17 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
         return mUuid;
     }
 
+    /**
+     * @return the device id for observing device presence.
+     * @hide
+     */
+    @Nullable
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_ASSOCIATION_VERIFICATION)
+    public DeviceId getDeviceId() {
+        return mDeviceId;
+    }
+
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeInt(mAssociationId);
@@ -92,6 +113,12 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
             mUuid.writeToParcel(dest, flags);
         }
 
+        if (Flags.associationVerification() && mDeviceId != null) {
+            dest.writeInt(1);
+            mDeviceId.writeToParcel(dest, flags);
+        } else {
+            dest.writeInt(0);
+        }
     }
 
     @Override
@@ -117,7 +144,8 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
     public String toString() {
         return "ObservingDevicePresenceRequest { "
                 + "Association Id= " + mAssociationId + ","
-                + "ParcelUuid= " + mUuid + "}";
+                + "ParcelUuid= " + mUuid + ","
+                + "Device id= " + mDeviceId + " }";
     }
 
     @Override
@@ -125,7 +153,14 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
         if (this == o) return true;
         if (!(o instanceof ObservingDevicePresenceRequest that)) return false;
 
-        return Objects.equals(mUuid, that.mUuid) && mAssociationId == that.mAssociationId;
+        if (Flags.associationVerification()) {
+            return Objects.equals(mUuid, that.mUuid)
+                    && mAssociationId == that.mAssociationId
+                    && Objects.equals(mDeviceId, that.mDeviceId);
+        }
+
+        return Objects.equals(mUuid, that.mUuid)
+                && mAssociationId == that.mAssociationId;
     }
 
     @Override
@@ -136,11 +171,12 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
     /**
      * A builder for {@link ObservingDevicePresenceRequest}
      */
-    public static final class Builder extends OneTimeUseBuilder<ObservingDevicePresenceRequest> {
+    public static final class Builder {
         // Initial the association id to {@link DevicePresenceEvent.NO_ASSOCIATION}
         // to indicate the value is not set yet.
         private int mAssociationId = DevicePresenceEvent.NO_ASSOCIATION;
         private ParcelUuid mUuid;
+        private DeviceId mDeviceId;
 
         public Builder() {}
 
@@ -161,7 +197,6 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
          */
         @NonNull
         public Builder setAssociationId(int associationId) {
-            checkNotUsed();
             this.mAssociationId = associationId;
             return this;
         }
@@ -192,24 +227,51 @@ public final class ObservingDevicePresenceRequest implements Parcelable {
                 android.Manifest.permission.BLUETOOTH_SCAN
         })
         public Builder setUuid(@NonNull ParcelUuid uuid) {
-            checkNotUsed();
             this.mUuid = uuid;
             return this;
         }
 
+        /**
+         * Sets the device id for observing device presence events.
+         *
+         * <p>It allows the requester app to observe device presence of the devices managed by other
+         * apps, but this requires to the requester app to obtain the device id with the 128 bit key
+         * from the managing app.
+         *
+         * @param deviceId A device id represents a device identifier managed by the companion app.
+         * @see AssociationInfo#getDeviceId()
+         * @see AssociationInfo#getId()
+         * @see CompanionDeviceManager#createAndSetDeviceId(int, DeviceId)
+         * @hide
+         */
         @NonNull
-        @Override
+        @SystemApi
+        @RequiresPermission(android.Manifest.permission.ACCESS_COMPANION_INFO)
+        @FlaggedApi(Flags.FLAG_ASSOCIATION_VERIFICATION)
+        public Builder setDeviceId(@NonNull DeviceId deviceId) {
+            this.mDeviceId = deviceId;
+            return this;
+        }
+
+        @NonNull
         public ObservingDevicePresenceRequest build() {
-            markUsed();
-            if (mUuid != null && mAssociationId != DevicePresenceEvent.NO_ASSOCIATION) {
-                throw new IllegalStateException("Cannot observe device presence based on "
-                        + "both ParcelUuid and association ID. Choose one or the other.");
-            } else if (mUuid == null && mAssociationId <= 0) {
-                throw new IllegalStateException("Must provide either a ParcelUuid or "
-                        + "a valid association ID to observe device presence.");
+            int providedCount = 0;
+            if (mDeviceId != null) {
+                providedCount++;
+            }
+            if (mUuid != null) {
+                providedCount++;
+            }
+            if (mAssociationId != DevicePresenceEvent.NO_ASSOCIATION) {
+                providedCount++;
             }
 
-            return new ObservingDevicePresenceRequest(mAssociationId, mUuid);
+            if (providedCount != 1) {
+                throw new IllegalStateException("Must provide exactly one of device id, "
+                        + "parcel uuid, or association id to observe device presence.");
+            }
+
+            return new ObservingDevicePresenceRequest(mAssociationId, mUuid, mDeviceId);
         }
     }
 }

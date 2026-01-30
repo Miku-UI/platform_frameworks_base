@@ -21,21 +21,21 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.android.systemui.media.controls.ui.view.MediaHost
+import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipId
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipModel
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipId
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipModel
 
 /** Container view that holds all right hand side chips in the status bar. */
 @Composable
 fun StatusBarPopupChipsContainer(
     chips: List<PopupChipModel.Shown>,
+    mediaViewModelFactory: MediaViewModel.Factory,
     mediaHost: MediaHost,
     onMediaControlPopupVisibilityChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -60,7 +60,11 @@ fun StatusBarPopupChipsContainer(
             chips.forEach { chip ->
                 StatusBarPopupChip(chip)
                 if (chip.isPopupShown) {
-                    StatusBarPopup(viewModel = chip, mediaHost = mediaHost)
+                    StatusBarPopup(
+                        viewModel = chip,
+                        mediaViewModelFactory = mediaViewModelFactory,
+                        mediaHost = mediaHost,
+                    )
                 }
             }
         }

@@ -29,6 +29,7 @@ import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.WireBuffer;
 import com.android.internal.widget.remotecompose.core.documentation.DocumentationBuilder;
 import com.android.internal.widget.remotecompose.core.operations.BitmapData;
+import com.android.internal.widget.remotecompose.core.operations.Utils;
 import com.android.internal.widget.remotecompose.core.operations.layout.Component;
 import com.android.internal.widget.remotecompose.core.operations.layout.measure.ComponentMeasure;
 import com.android.internal.widget.remotecompose.core.operations.layout.measure.MeasurePass;
@@ -40,20 +41,27 @@ import com.android.internal.widget.remotecompose.core.operations.utilities.Strin
 import java.util.List;
 
 public class ImageLayout extends LayoutManager implements VariableSupport {
-
-    private static final boolean DEBUG = false;
     private int mBitmapId = -1;
     private int mScaleType;
     private float mAlpha = 1f;
+    private float mOutAlpha;
 
-    @NonNull ImageScaling mScaling = new ImageScaling();
-    @NonNull PaintBundle mPaint = new PaintBundle();
+    @NonNull
+    ImageScaling mScaling = new ImageScaling();
+    @NonNull
+    PaintBundle mPaint = new PaintBundle();
 
     @Override
     public void registerListening(@NonNull RemoteContext context) {
         if (mBitmapId != -1) {
             context.listensTo(mBitmapId, this);
         }
+        context.listensTo(Utils.idFromNan(mAlpha), this);
+    }
+
+    @Override
+    public void updateVariables(@NonNull RemoteContext context) {
+        mOutAlpha = Float.isNaN(mAlpha) ? context.getFloat(Utils.idFromNan(mAlpha)) : mAlpha;
     }
 
     public ImageLayout(
@@ -71,6 +79,7 @@ public class ImageLayout extends LayoutManager implements VariableSupport {
         mBitmapId = bitmapId;
         mScaleType = scaleType & 0xFF;
         mAlpha = alpha;
+        mOutAlpha = Float.isNaN(alpha) ? 1f : alpha;
     }
 
     public ImageLayout(
@@ -142,7 +151,7 @@ public class ImageLayout extends LayoutManager implements VariableSupport {
                     1f);
 
             context.savePaint();
-            if (mAlpha == 1f) {
+            if (mOutAlpha == 1f) {
                 context.drawBitmap(
                         mBitmapId,
                         (int) 0f,
@@ -157,7 +166,8 @@ public class ImageLayout extends LayoutManager implements VariableSupport {
             } else {
                 context.savePaint();
                 mPaint.reset();
-                mPaint.setColor(0f, 0f, 0f, mAlpha);
+                // Set paint color to black with the alpha value, this will apply to the bitmap.
+                mPaint.setColor(0f, 0f, 0f, mOutAlpha);
                 context.applyPaint(mPaint);
                 context.drawBitmap(
                         mBitmapId,
@@ -251,13 +261,6 @@ public class ImageLayout extends LayoutManager implements VariableSupport {
 
     /**
      * Write the operation to the buffer
-     *
-     * @param buffer
-     * @param componentId
-     * @param animationId
-     * @param bitmapId
-     * @param scaleType
-     * @param alpha
      */
     public static void apply(
             @NonNull WireBuffer buffer,
@@ -277,7 +280,7 @@ public class ImageLayout extends LayoutManager implements VariableSupport {
     /**
      * Read this operation and add it to the list of operations
      *
-     * @param buffer the buffer to read
+     * @param buffer     the buffer to read
      * @param operations the list of operations that will be added to
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {

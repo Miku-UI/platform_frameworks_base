@@ -28,6 +28,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.scene.domain.interactor.WindowRootViewVisibilityInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.QuickSettingsController
 import com.android.systemui.shade.ShadeController
 import com.android.systemui.shade.domain.interactor.ShadeBackActionInteractor
@@ -80,6 +81,10 @@ constructor(
             notificationShadeWindowController.windowRootView?.viewRootImpl?.onBackInvokedDispatcher
 
     override fun start() {
+        if (SceneContainerFlag.isEnabled) {
+            return
+        }
+
         scope.launch {
             windowRootViewVisibilityInteractor.isLockscreenOrShadeVisibleAndInteractive.collect {
                 visible ->
@@ -93,12 +98,20 @@ constructor(
     }
 
     fun shouldBackBeHandled(): Boolean {
+        if (SceneContainerFlag.isEnabled) {
+            return false
+        }
+
         return statusBarStateController.state != StatusBarState.KEYGUARD &&
             statusBarStateController.state != StatusBarState.SHADE_LOCKED &&
             !statusBarKeyguardViewManager.isBouncerShowingOverDream
     }
 
     fun onBackRequested(): Boolean {
+        if (SceneContainerFlag.isEnabled) {
+            return false
+        }
+
         if (statusBarKeyguardViewManager.canHandleBackPressed()) {
             statusBarKeyguardViewManager.onBackPressed()
             return true

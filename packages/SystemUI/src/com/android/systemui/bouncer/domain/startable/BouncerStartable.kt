@@ -18,10 +18,10 @@ package com.android.systemui.bouncer.domain.startable
 
 import com.android.app.tracing.coroutines.launchTraced
 import com.android.systemui.CoreStartable
-import com.android.systemui.bouncer.shared.flag.ComposeBouncerFlags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyguard.domain.interactor.KeyguardMediaKeyInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 
@@ -34,7 +34,7 @@ constructor(
     @Application private val scope: CoroutineScope,
 ) : CoreStartable {
     override fun start() {
-        if (!ComposeBouncerFlags.isEnabled) return
+        if (!SceneContainerFlag.isEnabled) return
 
         scope.launchTraced("KeyguardMediaKeyInteractor#start") {
             keyguardMediaKeyInteractor.get().activate()

@@ -25,5 +25,6 @@ val Kosmos.occludedToDozingTransitionViewModel by Fixture {
     OccludedToDozingTransitionViewModel(
         deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
         animationFlow = keyguardTransitionAnimationFlow,
+        dozingTransitionFlows = dozingTransitionFlows,
     )
 }

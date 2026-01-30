@@ -29,10 +29,6 @@ import com.android.systemui.statusbar.ui.SystemBarUtilsProxy
  *   null in production code and non-null in tests.
  */
 class HeadsUpAnimator(context: Context, private val systemBarUtilsProxy: SystemBarUtilsProxy?) {
-    init {
-        NotificationsHunSharedAnimationValues.unsafeAssertInNewMode()
-    }
-
     var headsUpAppearHeightBottom: Int = 0
     var stackTopMargin: Int = 0
 
@@ -47,8 +43,6 @@ class HeadsUpAnimator(context: Context, private val systemBarUtilsProxy: SystemB
      * of the animation.
      */
     fun getHeadsUpYTranslation(isHeadsUpFromBottom: Boolean, hasStatusBarChip: Boolean): Int {
-        if (NotificationsHunSharedAnimationValues.isUnexpectedlyInLegacyMode()) return 0
-
         if (isHeadsUpFromBottom) {
             // start from or end at the bottom of the screen
             return headsUpAppearHeightBottom + headsUpAppearStartAboveScreen

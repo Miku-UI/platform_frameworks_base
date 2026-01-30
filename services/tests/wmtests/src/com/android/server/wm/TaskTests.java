@@ -49,6 +49,7 @@ import static com.android.server.wm.ActivityRecord.State.RESUMED;
 import static com.android.server.wm.Task.FLAG_FORCE_HIDDEN_FOR_TASK_ORG;
 import static com.android.server.wm.TaskFragment.EMBEDDED_DIM_AREA_PARENT_TASK;
 import static com.android.server.wm.TaskFragment.TASK_FRAGMENT_VISIBILITY_VISIBLE_BEHIND_TRANSLUCENT;
+import static com.android.server.wm.WindowContainer.POSITION_BOTTOM;
 import static com.android.server.wm.WindowContainer.POSITION_TOP;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -90,7 +91,6 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.util.DisplayMetrics;
 import android.util.Xml;
-import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.SurfaceControl;
 import android.view.WindowInsetsController;
@@ -186,6 +186,29 @@ public class TaskTests extends WindowTestsBase {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
+    public void testRemoveOnlyChildNestedTask_removesFocusFromRoot() {
+        // A created-by-organizer root task at the bottom.
+        final Task bottomRootTask = createTask(mDisplayContent);
+        bottomRootTask.mCreatedByOrganizer = true;
+        // Then a task with an activity on top of it.
+        final Task middleTask = createTask(mDisplayContent);
+        createActivityRecord(middleTask);
+        // And a created-by-organizer root task with a child task with an activity.
+        final Task topRootTask = createTask(mDisplayContent);
+        topRootTask.mCreatedByOrganizer = true;
+        final Task childTask = new TaskBuilder(mSupervisor).setParentTask(topRootTask).build();
+        createActivityRecord(childTask);
+        assertEquals(topRootTask, mDisplayContent.getFocusedRootTask());
+
+        // Reparent the top leaf task to the bottom root task.
+        childTask.reparent(bottomRootTask, POSITION_BOTTOM);
+
+        // Root is now empty, so it can't be focused.
+        assertNotEquals(topRootTask, mDisplayContent.getFocusedRootTask());
+    }
+
+    @Test
     public void testRemoveContainer_deferRemoval() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -241,7 +264,7 @@ public class TaskTests extends WindowTestsBase {
         final Task originalTask = activityMain.getTask();
         final ActivityRecord activityPip = new ActivityBuilder(mAtm).setTask(originalTask).build();
         activityPip.setState(RESUMED, "test");
-        mAtm.mRootWindowContainer.moveActivityToPinnedRootTask(activityPip, "test");
+        mAtm.mRootWindowContainer.moveActivityToPinnedRootTaskForTest(activityPip, "test");
         final Task pinnedActivityTask = activityPip.getTask();
 
         // Simulate pinnedActivityTask unintentionally added to recent during top activity resume.
@@ -913,6 +936,14 @@ public class TaskTests extends WindowTestsBase {
         assertEquals(800, inOutConfig.screenHeightDp); // 960/(192/160) = 800
         assertEquals(450, inOutConfig.screenWidthDp); // 540/(192/160) = 450
 
+        // Shift the bounds to be half outside the display (e.g. flexible/offscreen split).
+        inOutConfig.windowConfiguration.getBounds().offset(0, -longSide / 2);
+        inOutConfig.windowConfiguration.setAppBounds(null);
+        task.computeConfigResourceOverrides(inOutConfig, parentConfig);
+        assertEquals("Shifted override bounds should not be clipped by parent",
+                inOutConfig.windowConfiguration.getBounds().height(),
+                inOutConfig.windowConfiguration.getAppBounds().height());
+
         inOutConfig.setToDefaults();
         // Landscape bounds.
         final Rect largerLandscapeBounds = new Rect(0, 0, longSide, shortSide);
@@ -1267,6 +1298,9 @@ public class TaskTests extends WindowTestsBase {
         activity1.finishing = true;
 
         assertNull("No activity must be reported if all are finishing", task.getRootActivity());
+        assertEquals("The task id of finishing root activity must be reported.",
+                task.mTaskId, mAtm.mActivityClientController.getTaskForActivity(
+                        activity0.token, true /* onlyRoot */));
     }
 
     /**
@@ -1660,16 +1694,6 @@ public class TaskTests extends WindowTestsBase {
         assertEquals(SCREEN_ORIENTATION_LANDSCAPE, task.getOrientation());
         assertEquals(SCREEN_ORIENTATION_LANDSCAPE, display.getLastOrientation());
         assertEquals(Configuration.ORIENTATION_LANDSCAPE, display.getConfiguration().orientation);
-    }
-
-    @Test
-    public void testGetNonNullDimmerOnUntrustedDisplays() {
-        final DisplayInfo untrustedDisplayInfo = new DisplayInfo(mDisplayInfo);
-        untrustedDisplayInfo.flags &= ~Display.FLAG_TRUSTED;
-        final DisplayContent untrustedDisplay = createNewDisplay(untrustedDisplayInfo);
-        final ActivityRecord activity = createActivityRecord(untrustedDisplay);
-        activity.setOccludesParent(false);
-        assertNotNull(activity.getTask().getDimmer());
     }
 
     @Test
@@ -2170,20 +2194,15 @@ public class TaskTests extends WindowTestsBase {
     }
 
     @Test
-    public void testSetForceExcludedFromRecents() {
+    public void testSetForceExcludedFromRecents_returnsForceExcludedFromRecents() {
         final Task task = createTask(mDisplayContent);
 
         task.setForceExcludedFromRecents(true);
 
-        if (Flags.excludeTaskFromRecents()) {
-            assertTrue(task.isForceExcludedFromRecents());
-        } else {
-            assertFalse(task.isForceExcludedFromRecents());
-        }
+        assertTrue(task.isForceExcludedFromRecents());
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EXCLUDE_TASK_FROM_RECENTS)
     public void testSetForceExcludedFromRecents_resetsTaskForceExcludedFromRecents() {
         final Task task = createTask(mDisplayContent);
         task.setForceExcludedFromRecents(true);
@@ -2191,6 +2210,65 @@ public class TaskTests extends WindowTestsBase {
         task.setForceExcludedFromRecents(false);
 
         assertFalse(task.isForceExcludedFromRecents());
+    }
+
+    @Test
+    public void testAllowRelingquish_updateMinDimensions() {
+        // r0 allows relingquish
+        final ActivityRecord r0 = new ActivityBuilder(mAtm)
+                .setCreateTask(true)
+                .setWindowLayout(new ActivityInfo.WindowLayout(
+                        0, 0, 0, 0, 0, 500 /* minWidth */, 1000 /* minHeight*/))
+                .setActivityFlags(FLAG_RELINQUISH_TASK_IDENTITY)
+                .build();
+        final Task task = r0.getTask();
+
+        assertEquals(500, task.mMinWidth);
+        assertEquals(1000, task.mMinHeight);
+
+        final ActivityRecord r1 = new ActivityBuilder(mAtm)
+                .setTask(task)
+                .setWindowLayout(new ActivityInfo.WindowLayout(
+                        0, 0, 0, 0, 0, 1000 /* minWidth */, 500 /* minHeight*/))
+                .build();
+
+        assertEquals(1000, task.mMinWidth);
+        assertEquals(500, task.mMinHeight);
+    }
+
+    @Test
+    public void testDisallowRelingquish_notUpdateMinDimensions() {
+        // r0 disallows relingquish
+        final ActivityRecord r0 = new ActivityBuilder(mAtm)
+                .setCreateTask(true)
+                .setWindowLayout(new ActivityInfo.WindowLayout(
+                        0, 0, 0, 0, 0, 500 /* minWidth */, 1000 /* minHeight*/))
+                .build();
+        final Task task = r0.getTask();
+
+        assertEquals(500, task.mMinWidth);
+        assertEquals(1000, task.mMinHeight);
+
+        final ActivityRecord r1 = new ActivityBuilder(mAtm)
+                .setTask(task)
+                .setWindowLayout(new ActivityInfo.WindowLayout(
+                        0, 0, 0, 0, 0, 1000 /* minWidth */, 500 /* minHeight*/))
+                .build();
+
+        assertEquals(500, task.mMinWidth);
+        assertEquals(1000, task.mMinHeight);
+    }
+
+    @Test
+    public void testRemoveImmediately_resetHasBennVisible() {
+        final Task task = getTestTask();
+        task.setHasBeenVisible(true);
+
+        assertTrue(task.getHasBeenVisible());
+
+        task.removeImmediately("test");
+
+        assertFalse(task.getHasBeenVisible());
     }
 
     private Task getTestTask() {

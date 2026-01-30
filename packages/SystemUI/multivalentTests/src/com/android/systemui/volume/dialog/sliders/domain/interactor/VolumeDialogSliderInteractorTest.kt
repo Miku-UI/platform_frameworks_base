@@ -61,7 +61,7 @@ class VolumeDialogSliderInteractorTest : SysuiTestCase() {
     fun settingStreamVolume_setsActiveStream() =
         kosmos.runTest {
             // initialize the stream model
-            fakeVolumeDialogController.setStreamVolume(volumeDialogSliderType.audioStream, 0)
+            fakeVolumeDialogController.setStreamVolume(volumeDialogSliderType.audioStream, 0, true)
 
             val sliderModel by collectLastValue(underTest.slider)
             underTest.setStreamVolume(1)

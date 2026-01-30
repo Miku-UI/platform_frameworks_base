@@ -23,7 +23,7 @@ import com.android.ims.internal.IImsUtListener;
 /**
  * Provides the Ut interface interworking to get/set the supplementary service configuration.
  *
- * {@hide}
+ * @hide
  */
 interface IImsUt {
     /**

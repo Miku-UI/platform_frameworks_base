@@ -46,17 +46,20 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
 
     @NonNull
     private final ActivityWindowInfo mActivityWindowInfo;
+    private final int mDisplayId;
 
     public ActivityConfigurationChangeItem(@NonNull IBinder activityToken,
-            @NonNull Configuration config, @NonNull ActivityWindowInfo activityWindowInfo) {
+            @NonNull Configuration config, @NonNull ActivityWindowInfo activityWindowInfo,
+            int displayId) {
         super(activityToken);
         mConfiguration = new Configuration(config);
         mActivityWindowInfo = new ActivityWindowInfo(activityWindowInfo);
+        mDisplayId = displayId;
     }
 
     @Override
     public void preExecute(@NonNull ClientTransactionHandler client) {
-        CompatibilityInfo.applyOverrideIfNeeded(mConfiguration);
+        CompatibilityInfo.applyOverrideIfNeeded(mConfiguration, mDisplayId);
         // Notify the client of an upcoming change in the token configuration. This ensures that
         // batches of config change items only process the newest configuration.
         client.updatePendingActivityConfiguration(getActivityToken(), mConfiguration);
@@ -80,6 +83,7 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
         super.writeToParcel(dest, flags);
         dest.writeTypedObject(mConfiguration, flags);
         dest.writeTypedObject(mActivityWindowInfo, flags);
+        dest.writeInt(mDisplayId);
     }
 
     /** Reads from Parcel. */
@@ -87,6 +91,7 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
         super(in);
         mConfiguration = requireNonNull(in.readTypedObject(Configuration.CREATOR));
         mActivityWindowInfo = requireNonNull(in.readTypedObject(ActivityWindowInfo.CREATOR));
+        mDisplayId = in.readInt();
     }
 
     public static final @NonNull Creator<ActivityConfigurationChangeItem> CREATOR =
@@ -110,7 +115,8 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
         }
         final ActivityConfigurationChangeItem other = (ActivityConfigurationChangeItem) o;
         return Objects.equals(mConfiguration, other.mConfiguration)
-                && Objects.equals(mActivityWindowInfo, other.mActivityWindowInfo);
+                && Objects.equals(mActivityWindowInfo, other.mActivityWindowInfo)
+                && mDisplayId == other.mDisplayId;
     }
 
     @Override
@@ -119,6 +125,7 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
         result = 31 * result + super.hashCode();
         result = 31 * result + Objects.hashCode(mConfiguration);
         result = 31 * result + Objects.hashCode(mActivityWindowInfo);
+        result = 31 * result + mDisplayId;
         return result;
     }
 
@@ -126,6 +133,7 @@ public class ActivityConfigurationChangeItem extends ActivityTransactionItem {
     public String toString() {
         return "ActivityConfigurationChange{" + super.toString()
                 + ",config=" + mConfiguration
-                + ",activityWindowInfo=" + mActivityWindowInfo + "}";
+                + ",activityWindowInfo=" + mActivityWindowInfo
+                + ",displayId=" + mDisplayId + "}";
     }
 }

@@ -55,6 +55,7 @@ public class WindowAnimator {
     private boolean mLastRootAnimating;
 
     final Choreographer.FrameCallback mAnimationFrameCallback;
+    final Choreographer.VsyncCallback mAnimationVsyncCallback;
 
     /** Time of current animation step. Reset on each iteration */
     long mCurrentTime;
@@ -71,6 +72,8 @@ public class WindowAnimator {
      */
     private boolean mAnimationFrameCallbackScheduled;
     boolean mNotifyWhenNoAnimation = false;
+
+    private final ArrayList<WindowContainer<?>> mPendingVisibilityUpdates = new ArrayList<>();
 
     /**
      * A list of runnable that need to be run after {@link WindowContainer#prepareSurfaces} is
@@ -104,19 +107,35 @@ public class WindowAnimator {
         mContext = service.mContext;
         mPolicy = service.mPolicy;
         mTransaction = service.mTransactionFactory.get();
-        service.mAnimationHandler.runWithScissors(
-                () -> mChoreographer = Choreographer.getSfInstance(), 0 /* timeout */);
+        if (com.android.window.flags.Flags.deprecateSurfaceAnimationFrameCallback()) {
+            service.mAnimationHandler.runWithScissors(
+                    () -> mChoreographer = Choreographer.getInstance(), 0 /* timeout */);
+        } else {
+            service.mAnimationHandler.runWithScissors(
+                    () -> mChoreographer = Choreographer.getSfInstance(), 0 /* timeout */);
+        }
         mExecutor = new HandlerExecutor(service.mAnimationHandler);
 
-        mAnimationFrameCallback = frameTimeNs -> {
-            synchronized (mService.mGlobalLock) {
-                mAnimationFrameCallbackScheduled = false;
-                animate(frameTimeNs);
-                if (mNotifyWhenNoAnimation && !mLastRootAnimating) {
-                    mService.mGlobalLock.notifyAll();
-                }
-            }
-        };
+        mAnimationFrameCallback =
+                frameTimeNs -> {
+                    synchronized (mService.mGlobalLock) {
+                        mAnimationFrameCallbackScheduled = false;
+                        animate(frameTimeNs);
+                        if (mNotifyWhenNoAnimation && !mLastRootAnimating) {
+                            mService.mGlobalLock.notifyAll();
+                        }
+                    }
+                };
+        mAnimationVsyncCallback =
+                frameData -> {
+                    synchronized (mService.mGlobalLock) {
+                        mAnimationFrameCallbackScheduled = false;
+                        animate(frameData.getFrameTimeNanos());
+                        if (mNotifyWhenNoAnimation && !mLastRootAnimating) {
+                            mService.mGlobalLock.notifyAll();
+                        }
+                    }
+                };
     }
 
     void ready() {
@@ -152,6 +171,15 @@ public class WindowAnimator {
                 // exiting/removed apps.
                 dc.updateWindowsForAnimator();
                 dc.prepareSurfaces();
+            }
+
+            if (!mPendingVisibilityUpdates.isEmpty()) {
+                Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "updateSurfaceVisibility");
+                for (int i = mPendingVisibilityUpdates.size() - 1; i >= 0; i--) {
+                    updateSurfaceVisibility(mPendingVisibilityUpdates.get(i));
+                }
+                mPendingVisibilityUpdates.clear();
+                Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
             }
 
             for (int i = 0; i < numDisplays; i++) {
@@ -248,14 +276,22 @@ public class WindowAnimator {
     void scheduleAnimation() {
         if (!mAnimationFrameCallbackScheduled) {
             mAnimationFrameCallbackScheduled = true;
-            mChoreographer.postFrameCallback(mAnimationFrameCallback);
+            if (com.android.window.flags.Flags.deprecateWindowAnimatorFrameCallback()) {
+                mChoreographer.postVsyncCallback(mAnimationVsyncCallback);
+            } else {
+                mChoreographer.postFrameCallback(mAnimationFrameCallback);
+            }
         }
     }
 
     private void cancelAnimation() {
         if (mAnimationFrameCallbackScheduled) {
             mAnimationFrameCallbackScheduled = false;
-            mChoreographer.removeFrameCallback(mAnimationFrameCallback);
+            if (com.android.window.flags.Flags.deprecateWindowAnimatorFrameCallback()) {
+                mChoreographer.removeVsyncCallback(mAnimationVsyncCallback);
+            } else {
+                mChoreographer.removeFrameCallback(mAnimationFrameCallback);
+            }
         }
     }
 
@@ -276,6 +312,46 @@ public class WindowAnimator {
             mTransaction.apply();
         }
         Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
+    }
+
+    /**
+     * Updates surface visibility of the window container according to its hierarchy visibility
+     * if it is not in an active transition.
+     */
+    private void updateSurfaceVisibility(WindowContainer<?> wc) {
+        if (wc.mSurfaceControl == null) {
+            return;
+        }
+        final TransitionController controller = mService.mRoot.mTransitionController;
+        if (controller.isCollecting(wc) || controller.isPlayingTarget(wc)) {
+            // Let the transition handle surface visibility.
+            return;
+        }
+        if (controller.isParticipantOfPlayingTransition(wc)) {
+            // Non-target participants will still be updated when the transition is finished, so
+            // skip the intermediate state.
+            return;
+        }
+        wc.updateSurfaceVisibility(mTransaction);
+    }
+
+    /**
+     * The surface visibility of the window container will be evaluated on next frame. Assume the
+     * caller has invoked {@link #scheduleAnimation}.
+     */
+    void addSurfaceVisibilityUpdate(WindowContainer<?> wc) {
+        if (!mPendingVisibilityUpdates.contains(wc)) {
+            mPendingVisibilityUpdates.add(wc);
+        }
+    }
+
+    /** Same as {@link #addSurfaceVisibilityUpdate} but including animatable parents. */
+    void addSurfaceVisibilityUpdateIncludingAnimatableParents(WindowContainer<?> wc) {
+        addSurfaceVisibilityUpdate(wc);
+        for (WindowContainer<?> p = Transition.getAnimatableParent(wc);
+                p != null; p = Transition.getAnimatableParent(p)) {
+            addSurfaceVisibilityUpdate(p);
+        }
     }
 
     /**

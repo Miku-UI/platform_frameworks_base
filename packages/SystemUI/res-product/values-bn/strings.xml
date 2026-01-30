@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"এই ট্যাবলেটে চালানো হচ্ছে"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Find My Device-এর মাধ্যমে, এই ফোনটি বন্ধ করা থাকলেও তার লোকেশন শনাক্ত করতে পারবেন"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Find My Device-এর মাধ্যমে, এই ট্যাবলেটটি বন্ধ করা থাকলেও তার লোকেশন শনাক্ত করতে পারবেন"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Find Hub-এর মাধ্যমে, এই ফোনটি বন্ধ করা থাকলেও তার লোকেশন শনাক্ত করতে পারবেন"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Find Hub-এর মাধ্যমে, এই ট্যাবলেটটি বন্ধ করা থাকলেও তার লোকেশন শনাক্ত করতে পারবেন"</string>
 </resources>

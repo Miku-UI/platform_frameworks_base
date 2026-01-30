@@ -18,17 +18,16 @@ package com.android.systemui.shade.domain.interactor
 
 import android.content.mockedContext
 import android.window.WindowContext
-import com.android.systemui.common.ui.data.repository.configurationRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.logcatLogBuffer
-import com.android.systemui.shade.ShadeDisplayChangeLatencyTracker
+import com.android.systemui.shade.ShadeDisplayChangePerformanceTracker
 import com.android.systemui.shade.ShadeWindowLayoutParams
 import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
 import com.android.systemui.shade.data.repository.shadeExpansionIntent
 import com.android.systemui.statusbar.notification.domain.interactor.activeNotificationsInteractor
-import com.android.systemui.statusbar.notification.row.notificationRebindingTracker
 import com.android.systemui.statusbar.notification.stack.notificationStackRebindingHider
+import com.android.systemui.statusbar.phone.mockSystemUIDialogManager
 import com.android.systemui.statusbar.policy.configurationController
 import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
@@ -44,23 +43,31 @@ val Kosmos.mockedWindowContext by
             }
         }
     }
-val Kosmos.mockedShadeDisplayChangeLatencyTracker by
-    Kosmos.Fixture { mock<ShadeDisplayChangeLatencyTracker>() }
+val Kosmos.mockedShadeDisplayChangePerformanceTracker by
+    Kosmos.Fixture { mock<ShadeDisplayChangePerformanceTracker>() }
 val Kosmos.shadeDisplaysInteractor by
     Kosmos.Fixture {
-        ShadeDisplaysInteractor(
+        ShadeDisplaysInteractorImpl(
             fakeShadeDisplaysRepository,
             mockedWindowContext,
-            configurationRepository,
             testScope.backgroundScope,
             testScope.backgroundScope.coroutineContext,
-            mockedShadeDisplayChangeLatencyTracker,
+            mockedShadeDisplayChangePerformanceTracker,
             shadeExpandedStateInteractor,
             shadeExpansionIntent,
             activeNotificationsInteractor,
-            notificationRebindingTracker,
             notificationStackRebindingHider,
             configurationController,
             logcatLogBuffer("ShadeDisplaysInteractor"),
+            shadeDisplaysWaitInteractor,
+        )
+    }
+
+val Kosmos.shadeDisplayDialogInteractor by
+    Kosmos.Fixture {
+        ShadeDisplaysDialogInteractor(
+            mockSystemUIDialogManager,
+            fakeShadeDisplaysRepository,
+            testScope.backgroundScope,
         )
     }

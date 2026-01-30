@@ -20,7 +20,7 @@ package android.content.pm;
 /**
  * API for deletion callbacks from the Package Manager.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IPackageDeleteObserver {
     @UnsupportedAppUsage

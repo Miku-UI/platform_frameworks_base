@@ -61,7 +61,7 @@ import java.lang.annotation.RetentionPolicy;
 public final class PointerIcon implements Parcelable {
     private static final String TAG = "PointerIcon";
 
-    /** {@hide} Type constant: Custom icon with a user-supplied bitmap. */
+    /** @hide Type constant: Custom icon with a user-supplied bitmap. */
     public static final int TYPE_CUSTOM = PointerIconType.CUSTOM;
 
     /** Type constant: Null icon.  It has no bitmap. */
@@ -78,13 +78,13 @@ public final class PointerIcon implements Parcelable {
     /** Type constant: Arrow icon.  (Default mouse pointer) */
     public static final int TYPE_ARROW = PointerIconType.ARROW;
 
-    /** {@hide} Type constant: Spot hover icon for touchpads. */
+    /** @hide Type constant: Spot hover icon for touchpads. */
     public static final int TYPE_SPOT_HOVER = PointerIconType.SPOT_HOVER;
 
-    /** {@hide} Type constant: Spot touch icon for touchpads. */
+    /** @hide Type constant: Spot touch icon for touchpads. */
     public static final int TYPE_SPOT_TOUCH = PointerIconType.SPOT_TOUCH;
 
-    /** {@hide} Type constant: Spot anchor icon for touchpads. */
+    /** @hide Type constant: Spot anchor icon for touchpads. */
     public static final int TYPE_SPOT_ANCHOR = PointerIconType.SPOT_ANCHOR;
 
     // Type constants for additional predefined icons for mice.

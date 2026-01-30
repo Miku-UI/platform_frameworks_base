@@ -18,8 +18,9 @@
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape
-            android:shape="oval">
+            android:shape="rectangle">
             <size android:width="32dp" android:height="40dp"/>
+            <corners android:radius="@dimen/settingslib_expressive_space_large1"/>
             <solid android:color="@color/settingslib_materialColorSurfaceContainer"/>
         </shape>
     </item>

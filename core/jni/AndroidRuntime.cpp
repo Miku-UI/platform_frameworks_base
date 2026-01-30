@@ -169,6 +169,9 @@ extern int register_android_os_UEventObserver(JNIEnv* env);
 extern int register_android_os_HidlMemory(JNIEnv* env);
 extern int register_android_os_MemoryFile(JNIEnv* env);
 extern int register_android_os_SharedMemory(JNIEnv* env);
+#ifdef ANDROID_NATIVE_FRAMEWORK_PROTOTYPE
+extern int register_android_os_ZygoteProcess(JNIEnv* env);
+#endif
 extern int register_android_service_DataLoaderService(JNIEnv* env);
 extern int register_android_os_incremental_IncrementalManager(JNIEnv* env);
 extern int register_android_net_LocalSocketImpl(JNIEnv* env);
@@ -201,6 +204,7 @@ extern int register_android_view_VelocityTracker(JNIEnv* env);
 extern int register_android_view_VerifiedKeyEvent(JNIEnv* env);
 extern int register_android_view_VerifiedMotionEvent(JNIEnv* env);
 extern int register_android_content_res_ObbScanner(JNIEnv* env);
+extern int register_android_content_res_CameraCompatibilityInfo(JNIEnv* env);
 extern int register_android_content_res_Configuration(JNIEnv* env);
 extern int register_android_animation_PropertyValuesHolder(JNIEnv *env);
 extern int register_android_security_Scrypt(JNIEnv *env);
@@ -264,6 +268,9 @@ static const char* DISABLE_LOCK_PROFILING = "disable_lock_profiling";
 static const char* kLockProfThresholdRuntimeOption = "-Xlockprofthreshold:0";
 
 static AndroidRuntime* gCurRuntime = NULL;
+
+//The kernel's TASK_COMM_LEN minus one for the terminating NUL == 15.
+static constexpr int THREAD_NAME_TRUNCATION_LEN = 15;
 
 /*
  * Code written in the Java Programming Language calls here from main().
@@ -343,13 +350,12 @@ AndroidRuntime::~AndroidRuntime()
 
 void AndroidRuntime::setArgv0(const char* argv0, bool setProcName) {
     // Set the kernel's task name, for as much of the name as we can fit.
-    // The kernel's TASK_COMM_LEN minus one for the terminating NUL == 15.
     if (setProcName) {
         int len = strlen(argv0);
-        if (len < 15) {
+        if (len < THREAD_NAME_TRUNCATION_LEN) {
             pthread_setname_np(pthread_self(), argv0);
         } else {
-            pthread_setname_np(pthread_self(), argv0 + len - 15);
+            pthread_setname_np(pthread_self(), argv0 + len - THREAD_NAME_TRUNCATION_LEN);
         }
     }
 
@@ -657,6 +663,9 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote, bool p
     char heapgrowthlimitOptsBuf[sizeof("-XX:HeapGrowthLimit=")-1 + PROPERTY_VALUE_MAX];
     char heapminfreeOptsBuf[sizeof("-XX:HeapMinFree=")-1 + PROPERTY_VALUE_MAX];
     char heapmaxfreeOptsBuf[sizeof("-XX:HeapMaxFree=")-1 + PROPERTY_VALUE_MAX];
+    char enableTimeBasedGcTriggerBuf[sizeof("-XX:EnableTimeBasedGcTrigger=") - 1 +
+                                     PROPERTY_VALUE_MAX];
+    char heapMemoryGcCostFactorBuf[sizeof("-XX:HeapMemoryGcCostFactor=") - 1 + PROPERTY_VALUE_MAX];
     char usejitOptsBuf[sizeof("-Xusejit:")-1 + PROPERTY_VALUE_MAX];
     char jitpthreadpriorityOptsBuf[sizeof("-Xjitpthreadpriority:")-1 + PROPERTY_VALUE_MAX];
     char jitmaxsizeOptsBuf[sizeof("-Xjitmaxsize:")-1 + PROPERTY_VALUE_MAX];
@@ -852,6 +861,11 @@ int AndroidRuntime::startVm(JavaVM** pJavaVM, JNIEnv** pEnv, bool zygote, bool p
     parseRuntimeOption("dalvik.vm.heaptargetutilization",
                        heaptargetutilizationOptsBuf,
                        "-XX:HeapTargetUtilization=");
+
+    parseRuntimeOption("dalvik.vm.enable_time_based_gc_trigger", enableTimeBasedGcTriggerBuf,
+                       "-XX:EnableTimeBasedGcTrigger=");
+    parseRuntimeOption("dalvik.vm.heap-memory-gc-cost-factor", heapMemoryGcCostFactorBuf,
+                       "-XX:HeapMemoryGcCostFactor=");
 
     /* Foreground heap growth multiplier option */
     parseRuntimeOption("dalvik.vm.foreground-heap-growth-multiplier",
@@ -1552,6 +1566,7 @@ static const RegJNIRec gRegJNI[] = {
         REG_JNI(register_android_content_StringBlock),
         REG_JNI(register_android_content_XmlBlock),
         REG_JNI(register_android_content_res_ApkAssets),
+        REG_JNI(register_android_content_res_CameraCompatibilityInfo),
         REG_JNI(register_android_content_res_ResourceTimer),
         REG_JNI(register_android_text_AndroidCharacter),
         REG_JNI(register_android_text_Hyphenator),
@@ -1622,6 +1637,9 @@ static const RegJNIRec gRegJNI[] = {
         REG_JNI(register_android_net_LocalSocketImpl),
         REG_JNI(register_android_os_MemoryFile),
         REG_JNI(register_android_os_SharedMemory),
+#ifdef ANDROID_NATIVE_FRAMEWORK_PROTOTYPE
+        REG_JNI(register_android_os_ZygoteProcess),
+#endif
         REG_JNI(register_android_os_incremental_IncrementalManager),
         REG_JNI(register_com_android_internal_content_om_OverlayConfig),
         REG_JNI(register_com_android_internal_content_om_OverlayManagerImpl),

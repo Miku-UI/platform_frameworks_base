@@ -16,13 +16,16 @@
 
 package com.android.systemui.statusbar.core
 
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
 import com.android.systemui.dump.dumpManager
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.plugins.DarkIconDispatcher
@@ -31,14 +34,18 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.power.shared.model.WakeSleepReason
 import com.android.systemui.power.shared.model.WakefulnessState
-import com.android.systemui.shade.mockNotificationShadeWindowViewController
 import com.android.systemui.shade.mockShadeSurface
 import com.android.systemui.statusbar.data.model.StatusBarMode
 import com.android.systemui.statusbar.data.model.StatusBarMode.LIGHTS_OUT
 import com.android.systemui.statusbar.data.model.StatusBarMode.LIGHTS_OUT_TRANSPARENT
 import com.android.systemui.statusbar.data.model.StatusBarMode.OPAQUE
+import com.android.systemui.statusbar.data.model.StatusBarMode.SEMI_TRANSPARENT
 import com.android.systemui.statusbar.data.model.StatusBarMode.TRANSPARENT
 import com.android.systemui.statusbar.data.repository.fakeStatusBarModePerDisplayRepository
+import com.android.systemui.statusbar.phone.PhoneStatusBarTransitions
+import com.android.systemui.statusbar.phone.mockAutoHideController
+import com.android.systemui.statusbar.phone.ui.statusBarIconController
+import com.android.systemui.statusbar.policy.fakeConfigurationController
 import com.android.systemui.statusbar.window.data.repository.fakeStatusBarWindowStatePerDisplayRepository
 import com.android.systemui.statusbar.window.fakeStatusBarWindowController
 import com.android.systemui.statusbar.window.shared.model.StatusBarWindowState
@@ -48,7 +55,10 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.reset
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 
@@ -61,8 +71,6 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
     private val testScope = kosmos.testScope
     private val fakeStatusBarModePerDisplayRepository = kosmos.fakeStatusBarModePerDisplayRepository
     private val mockPluginDependencyProvider = kosmos.mockPluginDependencyProvider
-    private val mockNotificationShadeWindowViewController =
-        kosmos.mockNotificationShadeWindowViewController
     private val mockShadeSurface = kosmos.mockShadeSurface
     private val fakeBouncerRepository = kosmos.fakeKeyguardBouncerRepository
     private val fakeStatusBarWindowStatePerDisplayRepository =
@@ -89,14 +97,6 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
         orchestrator.start()
 
         assertThat(fakeStatusBarWindowController.isAttached).isTrue()
-    }
-
-    @Test
-    fun start_setsStatusBarControllerOnShade() {
-        orchestrator.start()
-
-        verify(mockNotificationShadeWindowViewController)
-            .setStatusBarViewController(fakeStatusBarInitializer.statusBarViewController)
     }
 
     @Test
@@ -149,6 +149,135 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_invokedWhenBarModeChanges_flagOff() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            setStatusBarMode(SEMI_TRANSPARENT)
+
+            verify(mockAutoHideController).touchAutoHide()
+
+            reset(mockAutoHideController)
+            setStatusBarMode(OPAQUE)
+
+            verify(mockAutoHideController).touchAutoHide()
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_invokedWhenBarModeChanges_flagOn() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            setStatusBarMode(SEMI_TRANSPARENT)
+
+            verify(mockAutoHideController).touchAutoHide()
+
+            reset(mockAutoHideController)
+            setStatusBarMode(OPAQUE)
+
+            verify(mockAutoHideController).touchAutoHide()
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_invokedWhenTransitionsChanges_flagOff() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            fakeStatusBarInitializer.setNewTransitions(mock<PhoneStatusBarTransitions>())
+
+            verify(mockAutoHideController).touchAutoHide()
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_invokedWhenTransitionsChanges_flagOn() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            fakeStatusBarInitializer.setNewTransitions(mock<PhoneStatusBarTransitions>())
+
+            verify(mockAutoHideController).touchAutoHide()
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_notInvokedWhenAnimateChanges_flagOff() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            // Changing the window state will affect the `shouldAnimateNextBarModeChange` value
+            setStatusBarWindowState(StatusBarWindowState.Hidden)
+
+            verify(mockAutoHideController, never()).touchAutoHide()
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_notInvokedWhenAnimateChanges_flagOn() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            setStatusBarWindowState(StatusBarWindowState.Showing)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            // Changing the window state will affect the `shouldAnimateNextBarModeChange` value
+            setStatusBarWindowState(StatusBarWindowState.Hidden)
+
+            verify(mockAutoHideController, never()).touchAutoHide()
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_flagOff_notInvokedWhenTransientShownStateChanges() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            setTransientStatusBar()
+
+            verify(mockAutoHideController, never()).touchAutoHide()
+
+            reset(mockAutoHideController)
+            abortTransientStatusBar()
+
+            verify(mockAutoHideController, never()).touchAutoHide()
+        }
+
+    /** Regression test for b/428659575. */
+    @Test
+    @EnableFlags(Flags.FLAG_STATUS_BAR_ALWAYS_SCHEDULE_AUTO_HIDE)
+    fun autoHide_flagOn_invokedWhenTransientShownStateChanges() =
+        kosmos.runTest {
+            setStatusBarMode(TRANSPARENT)
+            orchestrator.start()
+            reset(mockAutoHideController)
+
+            setTransientStatusBar()
+
+            verify(mockAutoHideController).touchAutoHide()
+
+            reset(mockAutoHideController)
+            abortTransientStatusBar()
+
+            verify(mockAutoHideController).touchAutoHide()
+        }
+
+    @Test
     fun statusBarVisible_notifiesBubbles() =
         testScope.runTest {
             setStatusBarMode(TRANSPARENT)
@@ -196,7 +325,7 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
     fun statusBarModeChange_transitionsToModeWithAnimation() =
         testScope.runTest {
             awakeDevice()
-            clearTransientStatusBar()
+            abortTransientStatusBar()
             setStatusBarWindowState(StatusBarWindowState.Showing)
             setStatusBarMode(TRANSPARENT)
 
@@ -210,7 +339,7 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
     fun statusBarModeChange_keepsTransitioningAsModeChanges() =
         testScope.runTest {
             awakeDevice()
-            clearTransientStatusBar()
+            abortTransientStatusBar()
             setStatusBarWindowState(StatusBarWindowState.Showing)
             setStatusBarMode(TRANSPARENT)
 
@@ -250,7 +379,7 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
     fun statusBarModeChange_windowIsHidden_transitionsToModeWithoutAnimation() =
         testScope.runTest {
             awakeDevice()
-            clearTransientStatusBar()
+            abortTransientStatusBar()
             setStatusBarWindowState(StatusBarWindowState.Hidden)
             setStatusBarMode(TRANSPARENT)
 
@@ -264,7 +393,7 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
     fun statusBarModeChange_deviceIsAsleep_transitionsToModeWithoutAnimation() =
         testScope.runTest {
             putDeviceToSleep()
-            clearTransientStatusBar()
+            abortTransientStatusBar()
             setStatusBarWindowState(StatusBarWindowState.Showing)
             setStatusBarMode(TRANSPARENT)
 
@@ -278,7 +407,7 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
     fun statusBarModeAnimationConditionsChange_withoutBarModeChange_noNewTransitionsHappen() =
         testScope.runTest {
             awakeDevice()
-            clearTransientStatusBar()
+            abortTransientStatusBar()
             setStatusBarWindowState(StatusBarWindowState.Showing)
             setStatusBarMode(TRANSPARENT)
 
@@ -287,7 +416,7 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
             putDeviceToSleep()
             awakeDevice()
             setTransientStatusBar()
-            clearTransientStatusBar()
+            abortTransientStatusBar()
 
             verify(fakeStatusBarInitializer.statusBarTransitions, times(1))
                 .transitionTo(TRANSPARENT.toTransitionModeInt(), /* animate= */ true)
@@ -300,6 +429,25 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
         orchestrator.stop()
 
         verify(dumpManager).unregisterDumpable("StatusBarOrchestrator")
+    }
+
+    @Test
+    fun start_densityChange_IconRefresh() {
+        orchestrator.start()
+
+        kosmos.fakeConfigurationController.notifyDensityOrFontScaleChanged()
+
+        verify(kosmos.statusBarIconController).refreshIconGroups(any())
+    }
+
+    @Test
+    fun stop_densityChange_noIconRefresh() {
+        orchestrator.start()
+        orchestrator.stop()
+
+        kosmos.fakeConfigurationController.notifyDensityOrFontScaleChanged()
+
+        verify(kosmos.statusBarIconController, never()).refreshIconGroups(any())
     }
 
     private fun putDeviceToSleep() {
@@ -324,8 +472,8 @@ class StatusBarOrchestratorTest : SysuiTestCase() {
         fakeStatusBarModePerDisplayRepository.showTransient()
     }
 
-    private fun clearTransientStatusBar() {
-        fakeStatusBarModePerDisplayRepository.clearTransient()
+    private fun abortTransientStatusBar() {
+        fakeStatusBarModePerDisplayRepository.abortTransient()
     }
 
     private fun setStatusBarWindowState(state: StatusBarWindowState) {

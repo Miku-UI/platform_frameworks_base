@@ -46,6 +46,7 @@ import java.util.List;
 public class ShaderData extends Operation implements VariableSupport, Serializable {
     private static final int OP_CODE = Operations.DATA_SHADER;
     private static final String CLASS_NAME = "ShaderData";
+    private static final int MAX_FLOAT_LEN = 200;
     int mShaderTextId; // the actual text of a shader
     int mShaderID; // allows shaders to be referenced by number
     @Nullable HashMap<String, float[]> mUniformRawFloatMap = null;
@@ -107,7 +108,7 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
      * @param name name of uniform
      * @return value of uniform
      */
-    public @NonNull float[] getUniformFloats(@NonNull String name) {
+    public @NonNull float [] getUniformFloats(@NonNull String name) {
         return mUniformFloatMap != null ? mUniformFloatMap.get(name) : new float[0];
     }
 
@@ -128,7 +129,7 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
      * @param name Name of uniform
      * @return value of uniform
      */
-    public @NonNull int[] getUniformInts(@NonNull String name) {
+    public @NonNull int [] getUniformInts(@NonNull String name) {
         return mUniformIntMap != null ? mUniformIntMap.get(name) : new int[0];
     }
 
@@ -174,10 +175,10 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
 
     @Override
     public void updateVariables(@NonNull RemoteContext context) {
-        if (mUniformRawFloatMap == null) {
+        if (mUniformRawFloatMap == null || mUniformFloatMap == null) {
             return;
         }
-        for (String name : mUniformRawFloatMap.keySet()) { // TODO: potential npe
+        for (String name : mUniformRawFloatMap.keySet()) {
             float[] value = mUniformRawFloatMap.get(name);
             float[] out = null;
             for (int i = 0; i < value.length; i++) {
@@ -194,10 +195,10 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
 
     @Override
     public void registerListening(@NonNull RemoteContext context) {
-        if (mUniformFloatMap == null) {
+        if (mUniformRawFloatMap == null || mUniformFloatMap == null) {
             return;
         }
-        for (String name : mUniformRawFloatMap.keySet()) { // TODO: potential npe
+        for (String name : mUniformRawFloatMap.keySet()) {
             float[] value = mUniformRawFloatMap.get(name);
             for (float v : value) {
                 if (Float.isNaN(v)) {
@@ -306,6 +307,9 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
             for (int i = 0; i < floatMapSize; i++) {
                 String name = buffer.readUTF8();
                 int len = buffer.readInt();
+                if (len > MAX_FLOAT_LEN) {
+                    throw new RuntimeException("Float array too long");
+                }
                 float[] val = new float[len];
 
                 for (int j = 0; j < len; j++) {
@@ -323,6 +327,9 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
             for (int i = 0; i < intMapSize; i++) {
                 String name = buffer.readUTF8();
                 int len = buffer.readInt();
+                if (len > MAX_FLOAT_LEN) {
+                    throw new RuntimeException("int array too long");
+                }
                 int[] val = new int[len];
                 for (int j = 0; j < len; j++) {
                     val[j] = buffer.readInt();
@@ -388,7 +395,7 @@ public class ShaderData extends Operation implements VariableSupport, Serializab
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("shaderTextId", mShaderTextId)

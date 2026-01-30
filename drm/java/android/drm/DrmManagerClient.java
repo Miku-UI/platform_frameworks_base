@@ -60,7 +60,7 @@ public class DrmManagerClient implements AutoCloseable {
      */
     public static final int ERROR_UNKNOWN = -2000;
 
-    /** {@hide} */
+    /** @hide */
     public static final int INVALID_SESSION = -1;
 
     HandlerThread mInfoThread;
@@ -183,7 +183,7 @@ public class DrmManagerClient implements AutoCloseable {
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     public static void notify(
             Object thisReference, int uniqueId, int infoType, String message) {
@@ -479,7 +479,7 @@ public class DrmManagerClient implements AutoCloseable {
      *
      * @param engineFilePath File path to the plug-in file to be installed.
      *
-     * {@hide}
+     * @hide
      */
     public void installDrmEngine(String engineFilePath) {
         if (null == engineFilePath || engineFilePath.equals("")) {

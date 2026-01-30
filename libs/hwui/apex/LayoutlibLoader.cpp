@@ -160,8 +160,14 @@ static int register_jni_procs(const std::unordered_map<std::string, RegJNIRec>& 
         const vector<string>& classesToRegister, JNIEnv* env) {
 
     for (const string& className : classesToRegister) {
-        if (jniRegMap.at(className).mProc(env) < 0) {
-            return -1;
+        auto it = jniRegMap.find(className);
+        if (it == jniRegMap.end()) {
+            fprintf(stderr, "Missing registration function for %s\n", className.c_str());
+            return JNI_ERR;
+        }
+        if (it->second.mProc(env) < 0) {
+            fprintf(stderr, "Failed to register class %s\n", className.c_str());
+            return JNI_ERR;
         }
     }
     return 0;

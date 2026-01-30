@@ -322,6 +322,7 @@ public final class AppClipsActivityTest extends SysuiTestCase {
 
     @Test
     @EnableFlags(Flags.FLAG_APP_CLIPS_BACKLINKS)
+    @Ignore("b/410279668")
     public void appClipsLaunched_backlinks_multipleBacklinksAvailable_duplicateName()
             throws RemoteException {
         // Set up mocking for multiple backlinks.

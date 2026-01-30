@@ -83,14 +83,14 @@ public abstract class ExternalStorageService extends Service {
     /**
      * {@link Bundle} key for a {@link String} value.
      *
-     * {@hide}
+     * @hide
      */
     public static final String EXTRA_SESSION_ID =
             "android.service.storage.extra.session_id";
     /**
      * {@link Bundle} key for a {@link ParcelableException} value.
      *
-     * {@hide}
+     * @hide
      */
     public static final String EXTRA_ERROR =
             "android.service.storage.extra.error";
@@ -98,7 +98,7 @@ public abstract class ExternalStorageService extends Service {
     /**
      * {@link Bundle} key for a package name {@link String} value.
      *
-     * {@hide}
+     * @hide
      */
     public static final String EXTRA_PACKAGE_NAME = "android.service.storage.extra.package_name";
 

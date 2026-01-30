@@ -165,7 +165,7 @@ public abstract class WebSettings {
      * @hide
      */
     @ChangeId
-    @EnabledAfter(targetSdkVersion = android.os.Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    @EnabledAfter(targetSdkVersion = android.os.Build.VERSION_CODES.BAKLAVA)
     @FlaggedApi(android.webkit.Flags.FLAG_USER_AGENT_REDUCTION)
     @SystemApi
     public static final long ENABLE_USER_AGENT_REDUCTION = 371034303L;

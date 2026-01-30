@@ -20,6 +20,7 @@
 #include "androidfw/StringPiece.h"
 #include "androidfw/Util.h"
 
+#include <charconv>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -628,7 +629,7 @@ static bool parseScreenHeightDp(const char* name, ResTable_config* out) {
   return true;
 }
 
-static bool parseVersion(const char* name, ResTable_config* out) {
+static bool parseVersion(const char* const name, ResTable_config* out) {
   if (strcmp(name, kWildcardName) == 0) {
     if (out) {
       out->sdkVersion = out->SDKVERSION_ANY;
@@ -641,15 +642,55 @@ static bool parseVersion(const char* name, ResTable_config* out) {
     return false;
   }
 
-  name++;
-  const char* s = name;
+  const char* start = name + 1;
+  const char* s = start;
   while (*s >= '0' && *s <= '9') s++;
-  if (s == name || *s != 0) return false;
-  std::string sdkName(name, s - name);
+  if (s == start) return false;
+
+  uint16_t sdkVersion = 0;
+  auto result = std::from_chars(start, s, sdkVersion);
+  if (result.ec != std::errc()) {
+    return false;
+  }
 
   if (out) {
-    out->sdkVersion = (uint16_t)atoi(sdkName.c_str());
+    out->sdkVersion = sdkVersion;
+  }
+
+  if (*s == 0) {
+    // No minor version specified
     out->minorVersion = 0;
+    return true;
+  }
+
+  // Minor version starts after '.'
+  if (*s != '.') {
+    return false;
+  }
+
+  start = s + 1;
+  s = start;
+  while (*s >= '0' && *s <= '9') {
+    s++;
+  }
+  if (s == start || *s != 0) {
+    return false;
+  }
+
+  uint16_t minorVersion = 0;
+  result = std::from_chars(start, s, minorVersion);
+  if (result.ec != std::errc()) {
+    return false;
+  }
+
+  // sdkVersion of 0 is not really valid, even though we allow it to be parsed. Therefore if it's 0,
+  // we shouldn't allow a minorVersion (unless it's also 0).
+  if (sdkVersion == 0 && minorVersion != 0) {
+    return false;
+  }
+
+  if (out) {
+    out->minorVersion = minorVersion;
   }
 
   return true;
@@ -847,7 +888,7 @@ bool ConfigDescription::Parse(StringPiece str, ConfigDescription* out) {
   return false;
 
 success:
-  if (out != NULL) {
+  if (out != nullptr) {
     ApplyVersionForCompatibility(&config);
     *out = config;
   }
@@ -859,17 +900,16 @@ void ConfigDescription::ApplyVersionForCompatibility(
   uint16_t min_sdk = 0;
   if (config->grammaticalInflection != 0) {
     min_sdk = SDK_U;
-  } else if ((config->uiMode & ResTable_config::MASK_UI_MODE_TYPE)
-                == ResTable_config::UI_MODE_TYPE_VR_HEADSET ||
-            config->colorMode & ResTable_config::MASK_WIDE_COLOR_GAMUT ||
-            config->colorMode & ResTable_config::MASK_HDR) {
+  } else if ((config->uiMode & ResTable_config::MASK_UI_MODE_TYPE) ==
+                 ResTable_config::UI_MODE_TYPE_VR_HEADSET ||
+             config->colorMode & ResTable_config::MASK_WIDE_COLOR_GAMUT ||
+             config->colorMode & ResTable_config::MASK_HDR) {
     min_sdk = SDK_O;
   } else if (config->screenLayout2 & ResTable_config::MASK_SCREENROUND) {
     min_sdk = SDK_MARSHMALLOW;
   } else if (config->density == ResTable_config::DENSITY_ANY) {
     min_sdk = SDK_LOLLIPOP;
-  } else if (config->smallestScreenWidthDp !=
-                 ResTable_config::SCREENWIDTH_ANY ||
+  } else if (config->smallestScreenWidthDp != ResTable_config::SCREENWIDTH_ANY ||
              config->screenWidthDp != ResTable_config::SCREENWIDTH_ANY ||
              config->screenHeightDp != ResTable_config::SCREENHEIGHT_ANY) {
     min_sdk = SDK_HONEYCOMB_MR2;
@@ -888,12 +928,13 @@ void ConfigDescription::ApplyVersionForCompatibility(
 
   if (min_sdk > config->sdkVersion) {
     config->sdkVersion = min_sdk;
+    config->minorVersion = 0;
   }
 }
 
 ConfigDescription ConfigDescription::CopyWithoutSdkVersion() const {
   ConfigDescription copy = *this;
-  copy.sdkVersion = 0;
+  copy.version = 0;
   return copy;
 }
 

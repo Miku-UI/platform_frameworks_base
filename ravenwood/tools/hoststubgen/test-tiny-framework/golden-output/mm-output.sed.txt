@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -e # Finish when any command fails.
+
+function apply() {
+    local file="$1"
+
+    # The script is given via stdin. Write it to file.
+    local sed="/tmp/pta-script.sed.tmp"
+    cat > "$sed"
+
+    echo "Running: sed -i -f \"$sed\" \"$file\""
+
+    if ! sed -i -f "$sed" "$file" ; then
+        echo 'Failed!' 1>&2
+        return 1
+    fi
+}
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/TinyFrameworkAnnotations.java" <<'__END_OF_SCRIPT__'
+
+# Method addOne
+46i\
+    @android.platform.test.annotations.DisabledOnRavenwood
+
+# Method addTwo
+56i\
+    @android.platform.test.annotations.DisabledOnRavenwood
+__END_OF_SCRIPT__
+
+#==============================================================================
+
+apply "tiny-framework/src/com/android/hoststubgen/test/tinyframework/TinyFrameworkForTextPolicy.java" <<'__END_OF_SCRIPT__'
+
+# Method toBeRemoved
+35i\
+    @android.platform.test.annotations.DisabledOnRavenwood
+__END_OF_SCRIPT__
+
+echo "All files updated successfully!"

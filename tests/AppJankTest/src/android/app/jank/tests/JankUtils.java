@@ -19,8 +19,13 @@ package android.app.jank.tests;
 import android.app.jank.AppJankStats;
 import android.app.jank.JankTracker;
 import android.app.jank.RelativeFrameTimeHistogram;
+import android.app.jank.StateTracker;
 import android.os.Process;
+import android.util.Log;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class JankUtils {
     private static final int APP_ID = Process.myUid();
@@ -78,5 +83,42 @@ public class JankUtils {
                 // do nothing and continue.
             }
         }
+    }
+
+    /**
+     * Aggregates the different states into a single map where state type is the key and the number
+     * of times the state was observed is the value.
+     *
+     * @param stateData data to be aggregated from JankTracker.
+     * @param printKeyToLogcat if true will print the different widget states to logcat under the
+     *     JANKTRACKER tag.
+     * @return a Map where the key is the state and the value is the number of times that state was
+     *     observed.
+     */
+    public static Map<String, Integer> aggregateCountsByState(
+            List<StateTracker.StateData> stateData, boolean printKeyToLogcat) {
+        Map<String, Integer> aggregateStateData = new HashMap<>();
+        if (stateData == null) return aggregateStateData;
+
+        for (StateTracker.StateData data : stateData) {
+            if (printKeyToLogcat) {
+                Log.d("JANKTRACKER", String.format("Key: %s", data.mWidgetState));
+            }
+            aggregateStateData.merge(data.mWidgetState, 1, Integer::sum);
+        }
+        return aggregateStateData;
+    }
+
+    /**
+     * Aggregates the different states into a single map where state type is the key and the number
+     * of times the state was observed is the value..
+     *
+     * @param stateData data to be aggregated from JankTracker
+     * @return a Map where the key is the state and the value is the number of times that state was
+     *     observed.
+     */
+    public static Map<String, Integer> aggregateCountsByState(
+            List<StateTracker.StateData> stateData) {
+        return aggregateCountsByState(stateData, false);
     }
 }

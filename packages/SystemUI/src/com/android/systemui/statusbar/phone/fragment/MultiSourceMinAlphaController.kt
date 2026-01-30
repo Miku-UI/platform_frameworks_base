@@ -17,16 +17,20 @@
 package com.android.systemui.statusbar.phone.fragment
 
 import android.view.View
+import androidx.annotation.VisibleForTesting
 import androidx.core.animation.Interpolator
 import androidx.core.animation.ValueAnimator
 import com.android.app.animation.InterpolatorsAndroidX
 import com.android.systemui.statusbar.core.StatusBarRootModernization
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 
 /**
  * A controller that keeps track of multiple sources applying alpha value changes to a view. It will
  * always apply the minimum alpha value of all sources.
  */
-internal class MultiSourceMinAlphaController
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+class MultiSourceMinAlphaController
 @JvmOverloads
 constructor(private val view: View, private val initialAlpha: Float = 1f) {
 

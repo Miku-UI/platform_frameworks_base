@@ -25,6 +25,7 @@
 #include <include/gpu/ganesh/GrContextOptions.h>
 #include <utils/StrongPointer.h>
 #include <vk/VulkanExtensions.h>
+#include <vk/VulkanPreferredFeatures.h>
 #include <vulkan/vulkan.h>
 
 // VK_ANDROID_frame_boundary is a bespoke extension defined by AGI
@@ -120,9 +121,9 @@ private:
     explicit VulkanManager() {}
     ~VulkanManager();
 
-    // Sets up the VkInstance and VkDevice objects. Also fills out the passed in
-    // VkPhysicalDeviceFeatures struct.
-    void setupDevice(skgpu::VulkanExtensions&, VkPhysicalDeviceFeatures2&);
+    // Sets up the VkInstance and VkDevice objects. Fills out mPhysicalDeviceFeatures2 and
+    // other feature structs.
+    void setupDevice();
 
     // simple wrapper class that exists only to initialize a pointer to NULL
     template <typename FNPTR_TYPE>
@@ -189,12 +190,14 @@ private:
     VkQueue mAHBUploadQueue = VK_NULL_HANDLE;
 
     // Variables saved to populate VkFunctorInitParams.
-    static const uint32_t mAPIVersion = VK_MAKE_VERSION(1, 1, 0);
+    static const uint32_t mAPIVersion = VK_API_VERSION_1_1;
     std::vector<VkExtensionProperties> mInstanceExtensionsOwner;
     std::vector<const char*> mInstanceExtensions;
     std::vector<VkExtensionProperties> mDeviceExtensionsOwner;
     std::vector<const char*> mDeviceExtensions;
     VkPhysicalDeviceFeatures2 mPhysicalDeviceFeatures2{};
+    VkPhysicalDeviceFaultFeaturesEXT mDeviceFaultFeatures{};
+    VkPhysicalDeviceGlobalPriorityQueryFeatures mGlobalPriorityQueryFeatures{};
 
     enum class SwapBehavior {
         Discard,
@@ -202,6 +205,7 @@ private:
     };
     SwapBehavior mSwapBehavior = SwapBehavior::Discard;
     skgpu::VulkanExtensions mExtensions;
+    skgpu::VulkanPreferredFeatures mVulkanFeatures;
     uint32_t mDriverVersion = 0;
 
     std::once_flag mInitFlag;

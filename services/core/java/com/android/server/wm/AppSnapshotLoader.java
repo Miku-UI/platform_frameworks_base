@@ -29,6 +29,7 @@ import android.graphics.Point;
 import android.graphics.Rect;
 import android.hardware.HardwareBuffer;
 import android.os.SystemClock;
+import android.util.DisplayMetrics;
 import android.util.Slog;
 import android.window.TaskSnapshot;
 
@@ -178,12 +179,6 @@ class AppSnapshotLoader {
                 return null;
             }
             final HardwareBuffer buffer = hwBitmap.getHardwareBuffer();
-            if (buffer == null) {
-                Slog.w(TAG, "Failed to retrieve gralloc buffer for bitmap: "
-                        + bitmapFile.getPath());
-                return null;
-            }
-
             final ComponentName topActivityComponent = ComponentName.unflattenFromString(
                     proto.topActivityComponent);
 
@@ -195,15 +190,23 @@ class AppSnapshotLoader {
             } else {
                 taskSize = new Point(proto.taskWidth, proto.taskHeight);
             }
+            int densityDpi = proto.densityDpi;
+            if (densityDpi <= 0) {
+                Slog.w(TAG, "Loaded snapshot density is invalid. Using default device density.");
+                densityDpi = DisplayMetrics.DENSITY_DEVICE_STABLE;
+            }
 
-            return new TaskSnapshot(proto.id, SystemClock.elapsedRealtimeNanos(),
-                    topActivityComponent, buffer, hwBitmap.getColorSpace(),
-                    proto.orientation, proto.rotation, taskSize,
+            final TaskSnapshot snapshot = new TaskSnapshot(proto.id,
+                    SystemClock.elapsedRealtimeNanos(), topActivityComponent, buffer,
+                    hwBitmap.getColorSpace(), proto.orientation, proto.rotation, taskSize,
                     new Rect(proto.insetLeft, proto.insetTop, proto.insetRight, proto.insetBottom),
                     new Rect(proto.letterboxInsetLeft, proto.letterboxInsetTop,
                             proto.letterboxInsetRight, proto.letterboxInsetBottom),
                     loadLowResolutionBitmap, proto.isRealSnapshot, proto.windowingMode,
-                    proto.appearance, proto.isTranslucent, false /* hasImeSurface */, proto.uiMode);
+                    proto.appearance, proto.isTranslucent, false /* hasImeSurface */, proto.uiMode,
+                    densityDpi);
+            hwBitmap.recycle();
+            return snapshot;
         } catch (IOException e) {
             Slog.w(TAG, "Unable to load task snapshot data for Id=" + id);
             return null;

@@ -17,6 +17,7 @@
 
 package com.android.systemui.user.ui.viewmodel
 
+import android.content.Context
 import android.graphics.drawable.Drawable
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Text
@@ -49,5 +50,7 @@ constructor(private val interactor: UserSwitcherInteractor) {
         interactor.selectedUser.mapLatest { userModel -> userModel.image }
 
     /** Action to execute on click. Should launch the user switcher */
-    val onClick: (Expandable) -> Unit = { interactor.showUserSwitcher(it) }
+    val onClick: (Expandable, Context) -> Unit = { expandable, context ->
+        interactor.showUserSwitcher(expandable, context)
+    }
 }

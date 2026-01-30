@@ -37,9 +37,12 @@ import android.os.ResultReceiver;
 import android.service.media.IMediaBrowserService;
 import android.service.media.IMediaBrowserServiceCallbacks;
 import android.service.media.MediaBrowserService;
+import android.service.media.MediaBrowserService.BrowserRoot;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
+
+import com.android.media.mediasession.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -114,16 +117,18 @@ public final class MediaBrowser {
      * @param context The context.
      * @param serviceComponent The component name of the media browser service.
      * @param callback The connection callback.
-     * @param rootHints An optional bundle of service-specific arguments to send
-     * to the media browser service when connecting and retrieving the root id
-     * for browsing, or null if none. The contents of this bundle may affect
-     * the information returned when browsing.
-     * @see android.service.media.MediaBrowserService.BrowserRoot#EXTRA_RECENT
-     * @see android.service.media.MediaBrowserService.BrowserRoot#EXTRA_OFFLINE
-     * @see android.service.media.MediaBrowserService.BrowserRoot#EXTRA_SUGGESTED
+     * @param rootHints An optional bundle of service-specific arguments to send to the media
+     *     browser service when connecting and retrieving the root id for browsing, or null if none.
+     *     The contents of this bundle may affect the information returned when browsing.
+     * @see BrowserRoot#EXTRA_RECENT
+     * @see BrowserRoot#EXTRA_OFFLINE
+     * @see BrowserRoot#EXTRA_SUGGESTED
      */
-    public MediaBrowser(Context context, ComponentName serviceComponent,
-            ConnectionCallback callback, Bundle rootHints) {
+    public MediaBrowser(
+            Context context,
+            ComponentName serviceComponent,
+            ConnectionCallback callback,
+            Bundle rootHints) {
         if (context == null) {
             throw new IllegalArgumentException("context must not be null");
         }
@@ -153,54 +158,7 @@ public final class MediaBrowser {
         }
 
         mState = CONNECT_STATE_CONNECTING;
-        mHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                if (mState == CONNECT_STATE_DISCONNECTING) {
-                    return;
-                }
-                mState = CONNECT_STATE_CONNECTING;
-                // TODO: remove this extra check.
-                if (DBG) {
-                    if (mServiceConnection != null) {
-                        throw new RuntimeException("mServiceConnection should be null. Instead it"
-                                + " is " + mServiceConnection);
-                    }
-                }
-                if (mServiceBinder != null) {
-                    throw new RuntimeException("mServiceBinder should be null. Instead it is "
-                            + mServiceBinder);
-                }
-                if (mServiceCallbacks != null) {
-                    throw new RuntimeException("mServiceCallbacks should be null. Instead it is "
-                            + mServiceCallbacks);
-                }
-
-                final Intent intent = new Intent(MediaBrowserService.SERVICE_INTERFACE);
-                intent.setComponent(mServiceComponent);
-
-                mServiceConnection = new MediaServiceConnection();
-
-                boolean bound = false;
-                try {
-                    bound = mContext.bindService(intent, mServiceConnection,
-                            Context.BIND_AUTO_CREATE | Context.BIND_INCLUDE_CAPABILITIES);
-                } catch (Exception ex) {
-                    Log.e(TAG, "Failed binding to service " + mServiceComponent);
-                }
-
-                if (!bound) {
-                    // Tell them that it didn't work.
-                    forceCloseConnection();
-                    mCallback.onConnectionFailed();
-                }
-
-                if (DBG) {
-                    Log.d(TAG, "connect...");
-                    dump();
-                }
-            }
-        });
+        mHandler.post(this::connectInternal);
     }
 
     /**
@@ -476,6 +434,62 @@ public final class MediaBrowser {
                     cb.onError(mediaId);
                 }
             });
+        }
+    }
+
+    private void connectInternal() {
+        if (mState == CONNECT_STATE_DISCONNECTING) {
+            return;
+        }
+        mState = CONNECT_STATE_CONNECTING;
+        // TODO: remove this extra check.
+        if (DBG) {
+            if (mServiceConnection != null) {
+                throw new RuntimeException(
+                        "mServiceConnection should be null. Instead it is " + mServiceConnection);
+            }
+        }
+        if (mServiceBinder != null) {
+            throw new RuntimeException(
+                    "mServiceBinder should be null. Instead it is " + mServiceBinder);
+        }
+        if (mServiceCallbacks != null) {
+            throw new RuntimeException(
+                    "mServiceCallbacks should be null. Instead it is " + mServiceCallbacks);
+        }
+
+        final Intent intent = new Intent(MediaBrowserService.SERVICE_INTERFACE);
+        intent.setComponent(mServiceComponent);
+
+        mServiceConnection = new MediaServiceConnection();
+
+        boolean bound = false;
+        try {
+            int bindServiceFlags;
+            if (Flags.avoidMediaBrowserIncludeCapabilitiesIfNotNeeded()) {
+                bindServiceFlags = Context.BIND_AUTO_CREATE;
+                if (mRootHints == null
+                        || (!mRootHints.containsKey(BrowserRoot.EXTRA_EXCLUDE_CAPABILITIES)
+                                && !mRootHints.containsKey(BrowserRoot.EXTRA_RECENT))) {
+                    bindServiceFlags |= Context.BIND_INCLUDE_CAPABILITIES;
+                }
+            } else {
+                bindServiceFlags = Context.BIND_AUTO_CREATE | Context.BIND_INCLUDE_CAPABILITIES;
+            }
+            bound = mContext.bindService(intent, mServiceConnection, bindServiceFlags);
+        } catch (Exception ex) {
+            Log.e(TAG, "Failed binding to service " + mServiceComponent);
+        }
+
+        if (!bound) {
+            // Tell them that it didn't work.
+            forceCloseConnection();
+            mCallback.onConnectionFailed();
+        }
+
+        if (DBG) {
+            Log.d(TAG, "connect...");
+            dump();
         }
     }
 

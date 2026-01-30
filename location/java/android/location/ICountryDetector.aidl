@@ -22,7 +22,7 @@ import android.location.ICountryListener;
 /**
  * The API for detecting the country where the user is.
  *
- * {@hide}
+ * @hide
  */
 interface ICountryDetector
 {

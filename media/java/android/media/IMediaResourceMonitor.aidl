@@ -16,7 +16,7 @@
 
 package android.media;
 
-/** {@hide} */
+/** @hide */
 interface IMediaResourceMonitor
 {
     oneway void notifyResourceGranted(in int pid, in int type);

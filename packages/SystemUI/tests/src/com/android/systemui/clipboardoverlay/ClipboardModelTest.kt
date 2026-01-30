@@ -22,11 +22,8 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.PersistableBundle
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_CLIPBOARD_USE_DESCRIPTION_MIMETYPE
 import com.android.systemui.SysuiTestCase
 import java.io.IOException
 import org.junit.Assert.assertEquals
@@ -91,23 +88,6 @@ class ClipboardModelTest : SysuiTestCase() {
 
     @Test
     @Throws(IOException::class)
-    @DisableFlags(FLAG_CLIPBOARD_USE_DESCRIPTION_MIMETYPE)
-    fun test_imageClipData_legacy() {
-        val testBitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
-        whenever(mMockContext.contentResolver).thenReturn(mMockContentResolver)
-        whenever(mMockContext.resources).thenReturn(mContext.resources)
-        whenever(mMockContentResolver.loadThumbnail(any(), any(), any())).thenReturn(testBitmap)
-        whenever(mMockContentResolver.getType(any())).thenReturn("image")
-        val imageClipData =
-            ClipData("Test", arrayOf("text/plain"), ClipData.Item(Uri.parse("test")))
-        val model = ClipboardModel.fromClipData(mMockContext, mClipboardUtils, imageClipData, "")
-        assertEquals(ClipboardModel.Type.IMAGE, model.type)
-        assertEquals(testBitmap, model.loadThumbnail(mMockContext))
-    }
-
-    @Test
-    @Throws(IOException::class)
-    @EnableFlags(FLAG_CLIPBOARD_USE_DESCRIPTION_MIMETYPE)
     fun test_imageClipData() {
         val testBitmap = Bitmap.createBitmap(50, 50, Bitmap.Config.ARGB_8888)
         whenever(mMockContext.contentResolver).thenReturn(mMockContentResolver)
@@ -118,20 +98,5 @@ class ClipboardModelTest : SysuiTestCase() {
         val model = ClipboardModel.fromClipData(mMockContext, mClipboardUtils, imageClipData, "")
         assertEquals(ClipboardModel.Type.IMAGE, model.type)
         assertEquals(testBitmap, model.loadThumbnail(mMockContext))
-    }
-
-    @Test
-    @Throws(IOException::class)
-    @DisableFlags(FLAG_CLIPBOARD_USE_DESCRIPTION_MIMETYPE)
-    fun test_imageClipData_loadFailure() {
-        whenever(mMockContext.contentResolver).thenReturn(mMockContentResolver)
-        whenever(mMockContext.resources).thenReturn(mContext.resources)
-        whenever(mMockContentResolver.loadThumbnail(any(), any(), any())).thenThrow(IOException())
-        whenever(mMockContentResolver.getType(any())).thenReturn("image")
-        val imageClipData =
-            ClipData("Test", arrayOf("text/plain"), ClipData.Item(Uri.parse("test")))
-        val model = ClipboardModel.fromClipData(mMockContext, mClipboardUtils, imageClipData, "")
-        assertEquals(ClipboardModel.Type.IMAGE, model.type)
-        assertNull(model.loadThumbnail(mMockContext))
     }
 }

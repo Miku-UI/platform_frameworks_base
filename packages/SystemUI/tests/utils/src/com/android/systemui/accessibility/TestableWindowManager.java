@@ -85,10 +85,15 @@ public class TestableWindowManager implements WindowManager {
     @Override
     public WindowMetrics getCurrentWindowMetrics() {
         final WindowMetrics realMetrics = mWindowManager.getCurrentWindowMetrics();
+        final Rect windowBounds = mWindowBounds == null
+                ? realMetrics.getBounds()
+                : mWindowBounds;
+        final WindowInsets windowInsets = mWindowInsets == null
+                ? realMetrics.getWindowInsets()
+                : mWindowInsets;
         final WindowMetrics windowMetrics = new WindowMetrics(
-                mWindowBounds == null ? realMetrics.getBounds()
-                        : mWindowBounds,
-                mWindowInsets == null ?  realMetrics.getWindowInsets() : mWindowInsets);
+                new Rect(windowBounds),
+                new WindowInsets(windowInsets));
         return windowMetrics;
     }
 

@@ -22,8 +22,9 @@ import android.window.WindowContainerToken
 import android.window.WindowContainerTransaction
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
-import com.android.wm.shell.common.WindowContainerTransactionSupplier
+import com.android.wm.shell.common.suppliers.WindowContainerTransactionSupplier
 import com.android.wm.shell.compatui.letterbox.LetterboxEvents.motionEventAt
+import com.android.wm.shell.compatui.letterbox.animations.LetterboxAnimationHandler
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.transition.Transitions.TRANSIT_MOVE_LETTERBOX_REACHABILITY
 import java.util.function.Consumer
@@ -37,8 +38,7 @@ import org.mockito.kotlin.verify
 /**
  * Tests for [ReachabilityGestureListenerFactory].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:ReachabilityGestureListenerFactoryTest
+ * Build/Install/Run: atest WMShellUnitTests:ReachabilityGestureListenerFactoryTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -62,9 +62,7 @@ class ReachabilityGestureListenerFactoryTest : ShellTestCase() {
         }
     }
 
-    /**
-     * Runs a test scenario providing a Robot.
-     */
+    /** Runs a test scenario providing a Robot. */
     fun runTestScenario(consumer: Consumer<ReachabilityGestureListenerFactoryRobotTest>) {
         val robot = ReachabilityGestureListenerFactoryRobotTest()
         consumer.accept(robot)
@@ -73,27 +71,33 @@ class ReachabilityGestureListenerFactoryTest : ShellTestCase() {
     class ReachabilityGestureListenerFactoryRobotTest {
 
         companion object {
-            @JvmStatic
-            private val TASK_ID = 1
+            @JvmStatic private val TASK_ID = 1
 
-            @JvmStatic
-            private val TOKEN = mock<WindowContainerToken>()
+            @JvmStatic private val TOKEN = mock<WindowContainerToken>()
         }
 
         private val transitions: Transitions
-        private val animationHandler: Transitions.TransitionHandler
+        private val animationHandler: LetterboxAnimationHandler
         private val factory: ReachabilityGestureListenerFactory
         private val wctSupplier: WindowContainerTransactionSupplier
         private val wct: WindowContainerTransaction
+        private val letterboxState: LetterboxState
         private lateinit var obtainedResult: Any
 
         init {
             transitions = mock<Transitions>()
-            animationHandler = mock<Transitions.TransitionHandler>()
+            animationHandler = mock<LetterboxAnimationHandler>()
             wctSupplier = mock<WindowContainerTransactionSupplier>()
             wct = mock<WindowContainerTransaction>()
             doReturn(wct).`when`(wctSupplier).get()
-            factory = ReachabilityGestureListenerFactory(transitions, animationHandler, wctSupplier)
+            letterboxState = LetterboxState()
+            factory =
+                ReachabilityGestureListenerFactory(
+                    transitions,
+                    animationHandler,
+                    wctSupplier,
+                    letterboxState,
+                )
         }
 
         fun invokeCreate(taskId: Int = TASK_ID, token: WindowContainerToken? = TOKEN) {
@@ -113,18 +117,10 @@ class ReachabilityGestureListenerFactoryTest : ShellTestCase() {
                 // WindowContainerTransaction
                 verify(wctSupplier).get()
                 // Verify the right params are passed to startAppCompatReachability()
-                verify(wct).setReachabilityOffset(
-                    token!!,
-                    taskId,
-                    50,
-                    100
-                )
+                verify(wct).setReachabilityOffset(token!!, taskId, 50, 100)
                 // startTransition() is invoked on Transitions with the right parameters
-                verify(transitions).startTransition(
-                    TRANSIT_MOVE_LETTERBOX_REACHABILITY,
-                    wct,
-                    animationHandler
-                )
+                verify(transitions)
+                    .startTransition(TRANSIT_MOVE_LETTERBOX_REACHABILITY, wct, animationHandler)
             }
         }
     }

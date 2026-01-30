@@ -112,6 +112,21 @@ public class EditorInfoTest {
         assertEquals(UserHandle.of(TEST_USER_ID), cloneViaParcel(editorInfo).targetInputMethodUser);
     }
 
+    @Test
+    public void testNullTargetDevicePolicyUserParcelable() throws Exception {
+        final EditorInfo editorInfo = new EditorInfo();
+        editorInfo.targetDevicePolicyUser = null;
+        assertNull(cloneViaParcel(editorInfo).targetDevicePolicyUser);
+    }
+
+    @Test
+    public void testNonNullTargetDevicePolicyUserParcelable() throws Exception {
+        final EditorInfo editorInfo = new EditorInfo();
+        editorInfo.targetDevicePolicyUser = UserHandle.of(TEST_USER_ID);
+        assertEquals(UserHandle.of(TEST_USER_ID),
+                cloneViaParcel(editorInfo).targetDevicePolicyUser);
+    }
+
     private static EditorInfo cloneViaParcel(EditorInfo original) {
         Parcel parcel = null;
         try {

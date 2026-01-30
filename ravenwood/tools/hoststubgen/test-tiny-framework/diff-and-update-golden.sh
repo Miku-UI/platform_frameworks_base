@@ -22,11 +22,6 @@ help() {
 
   OPTIONS:
     -u: Update the golden files.
-
-    -3: Run `meld` to compare original, stub and impl jar files in 3-way diff.
-        This is useful to visualize the exact differences between 3 jar files.
-
-    -2: Run `meld` to compare original <-> impl, and impl <-> stub as two different diffs.
 EOF
 }
 
@@ -40,18 +35,10 @@ mkdir -p $GOLDEN_DIR
 DIFF_CMD=${DIFF_CMD:-./tiny-framework-dump-test.py run-diff}
 
 update=0
-three_way=0
-two_way=0
-while getopts "u32" opt; do
+while getopts "u" opt; do
 case "$opt" in
     u)
         update=1
-        ;;
-    3)
-        three_way=1
-        ;;
-    2)
-        two_way=1
         ;;
     '?')
         help
@@ -106,16 +93,6 @@ for file in ${files[*]} ; do
     run cp $file $GOLDEN_DIR/$name
   fi
 done
-
-if (( $three_way )) ; then
-  echo "# Running 3-way diff with meld..."
-  run meld ${files[0]} ${files[1]} ${files[2]} &
-fi
-
-if (( $two_way )) ; then
-  echo "# Running meld..."
-  run meld --diff ${files[0]} ${files[1]} --diff ${files[1]} ${files[2]} --diff ${files[0]} ${files[2]}
-fi
 
 if (( $any_file_changed == 0 )) ; then
   echo "$SCRIPT_NAME: Success: no changes detected."

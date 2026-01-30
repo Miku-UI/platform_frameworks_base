@@ -56,12 +56,7 @@ public class FakeExtensionController implements ExtensionController {
         }
 
         @Override
-        public <P extends T> ExtensionBuilder<T> withPlugin(Class<P> cls, String action) {
-            return this;
-        }
-
-        @Override
-        public <P> ExtensionBuilder<T> withPlugin(Class<P> cls, String action, PluginConverter<T, P> converter) {
+        public <P> ExtensionBuilder<T> withPlugin(Class<P> cls, PluginConverter<T, P> converter) {
             return this;
         }
 

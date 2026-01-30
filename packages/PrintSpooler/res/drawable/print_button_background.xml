@@ -18,7 +18,8 @@
     android:shape="oval">
 
     <solid
-        android:color="?android:attr/colorAccent">
+      android:color="@color/print_button_background"
+        >
     </solid>
 
     <size

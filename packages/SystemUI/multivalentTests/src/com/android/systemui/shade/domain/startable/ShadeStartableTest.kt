@@ -17,61 +17,60 @@
 package com.android.systemui.shade.domain.startable
 
 import android.platform.test.flag.junit.FlagsParameterization
+import android.testing.TestableLooper.RunWithLooper
+import android.view.Display
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
-import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.display.data.repository.createFakeDisplaySubcomponent
 import com.android.systemui.display.data.repository.displayStateRepository
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
+import com.android.systemui.display.domain.interactor.createDisplayStateInteractor
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.parameterizeSceneContainerFlag
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
-import com.android.systemui.kosmos.testScope
-import com.android.systemui.res.R
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.fakeSceneDataSource
 import com.android.systemui.shade.ShadeExpansionChangeEvent
-import com.android.systemui.shade.ShadeExpansionListener
-import com.android.systemui.shade.domain.interactor.disableDualShade
+import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
+import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.shade.domain.interactor.enableDualShade
+import com.android.systemui.shade.domain.interactor.enableSingleShade
+import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.shade.domain.interactor.shadeMode
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.shade.shared.model.ShadeMode
 import com.android.systemui.statusbar.notification.stack.notificationStackScrollLayoutController
-import com.android.systemui.statusbar.phone.scrimController
+import com.android.systemui.statusbar.notificationShadeDepthController
 import com.android.systemui.testKosmos
-import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlin.math.max
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.verify
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
+@RunWithLooper(setAsMainLooper = true)
 @RunWith(ParameterizedAndroidJunit4::class)
 class ShadeStartableTest(flags: FlagsParameterization) : SysuiTestCase() {
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
-    private val sceneInteractor by lazy { kosmos.sceneInteractor }
-    private val shadeExpansionStateManager by lazy { kosmos.shadeExpansionStateManager }
-    private val fakeConfigurationRepository by lazy { kosmos.fakeConfigurationRepository }
-    private val fakeSceneDataSource by lazy { kosmos.fakeSceneDataSource }
 
-    private val underTest: ShadeStartable = kosmos.shadeStartable
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
+
+    private val Kosmos.underTest: ShadeStartable by Kosmos.Fixture { shadeStartable }
 
     companion object {
         @JvmStatic
@@ -85,67 +84,81 @@ class ShadeStartableTest(flags: FlagsParameterization) : SysuiTestCase() {
         mSetFlagsRule.setFlagsParameterization(flags)
     }
 
+    @Before
+    fun setUp() {
+        with(kosmos) {
+            shadeExpansionStateManager.addExpansionListener(notificationShadeDepthController)
+
+            displaySubcomponentPerDisplayRepository.apply {
+                add(
+                    Display.DEFAULT_DISPLAY,
+                    createFakeDisplaySubcomponent(
+                        displayStateRepository = displayStateRepository,
+                        displayStateInteractor =
+                            createDisplayStateInteractor(displayStateRepository),
+                    ),
+                )
+            }
+
+            fakeShadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY)
+        }
+    }
+
     @Test
     fun hydrateShadeMode_dualShadeDisabled() =
-        testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, false)
-            kosmos.disableDualShade()
-            val shadeMode by collectLastValue(kosmos.shadeMode)
-
+        kosmos.runTest {
+            val shadeMode by collectLastValue(shadeMode)
+            val isFullWidthShade by collectLastValue(shadeModeInteractor.isFullWidthShade)
             underTest.start()
-            assertThat(shadeMode).isEqualTo(ShadeMode.Single)
 
-            overrideResource(R.bool.config_use_split_notification_shade, true)
-            fakeConfigurationRepository.onAnyConfigurationChange()
+            enableSingleShade()
+            assertThat(shadeMode).isEqualTo(ShadeMode.Single)
+            assertThat(isFullWidthShade).isTrue()
+
+            enableSplitShade()
             assertThat(shadeMode).isEqualTo(ShadeMode.Split)
+            assertThat(isFullWidthShade).isFalse()
 
-            overrideResource(R.bool.config_use_split_notification_shade, false)
-            fakeConfigurationRepository.onAnyConfigurationChange()
+            enableSingleShade()
             assertThat(shadeMode).isEqualTo(ShadeMode.Single)
+            assertThat(isFullWidthShade).isTrue()
         }
 
     @Test
     @EnableSceneContainer
     fun hydrateShadeMode_dualShadeEnabled() =
-        testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, false)
-            kosmos.enableDualShade()
-            val shadeMode by collectLastValue(kosmos.shadeMode)
-
+        kosmos.runTest {
+            val shadeMode by collectLastValue(shadeMode)
+            val isFullWidthShade by collectLastValue(shadeModeInteractor.isFullWidthShade)
             underTest.start()
-            assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
 
-            overrideResource(R.bool.config_use_split_notification_shade, true)
-            fakeConfigurationRepository.onAnyConfigurationChange()
+            enableDualShade(wideLayout = false)
             assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
+            assertThat(isFullWidthShade).isTrue()
 
-            overrideResource(R.bool.config_use_split_notification_shade, false)
-            fakeConfigurationRepository.onAnyConfigurationChange()
+            enableDualShade(wideLayout = true)
             assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
+            assertThat(isFullWidthShade).isFalse()
+
+            enableDualShade(wideLayout = false)
+            assertThat(shadeMode).isEqualTo(ShadeMode.Dual)
+            assertThat(isFullWidthShade).isTrue()
         }
 
     @Test
     @EnableSceneContainer
     fun hydrateShadeExpansionStateManager() =
-        testScope.runTest {
-            val expansionListener = mock<ShadeExpansionListener>()
+        kosmos.runTest {
+            enableSingleShade()
             var latestChangeEvent: ShadeExpansionChangeEvent? = null
-            whenever(expansionListener.onPanelExpansionChanged(any())).thenAnswer {
-                latestChangeEvent = it.arguments[0] as ShadeExpansionChangeEvent
-                Unit
-            }
-            shadeExpansionStateManager.addExpansionListener(expansionListener)
+            shadeExpansionStateManager.addExpansionListener { latestChangeEvent = it }
 
             underTest.start()
 
-            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
-                AuthenticationMethodModel.Pin
-            )
-            runCurrent()
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
-            runCurrent()
             val transitionState =
                 MutableStateFlow<ObservableTransitionState>(
                     ObservableTransitionState.Idle(Scenes.Gone)
@@ -163,22 +176,92 @@ class ShadeStartableTest(flags: FlagsParameterization) : SysuiTestCase() {
 
             changeScene(Scenes.Shade, transitionState) { progress ->
                 assertThat(latestChangeEvent?.fraction).isEqualTo(progress)
+                assertThat(notificationShadeDepthController.qsPanelExpansion).isZero()
+                assertThat(notificationShadeDepthController.shadeExpansion).isEqualTo(progress)
+                assertThat(notificationShadeDepthController.transitionToFullShadeProgress)
+                    .isEqualTo(progress)
             }
+            assertThat(currentScene).isEqualTo(Scenes.Shade)
+
+            changeScene(Scenes.QuickSettings, transitionState) { progress ->
+                assertThat(latestChangeEvent?.fraction).isEqualTo(1 - progress)
+                assertThat(notificationShadeDepthController.qsPanelExpansion).isEqualTo(progress)
+                assertThat(notificationShadeDepthController.shadeExpansion).isEqualTo(1 - progress)
+                assertThat(notificationShadeDepthController.transitionToFullShadeProgress)
+                    .isEqualTo(
+                        max(
+                            notificationShadeDepthController.qsPanelExpansion,
+                            notificationShadeDepthController.shadeExpansion,
+                        )
+                    )
+            }
+            assertThat(currentScene).isEqualTo(Scenes.QuickSettings)
+
+            changeScene(Scenes.Lockscreen, transitionState) { progress ->
+                if (!transitionState.value.isIdle(Scenes.Lockscreen)) {
+                    assertThat(latestChangeEvent?.fraction).isZero()
+                    assertThat(notificationShadeDepthController.shadeExpansion).isZero()
+                } else {
+                    assertThat(latestChangeEvent?.fraction).isEqualTo(1f)
+                    assertThat(notificationShadeDepthController.shadeExpansion).isEqualTo(1f)
+                }
+                assertThat(notificationShadeDepthController.qsPanelExpansion)
+                    .isEqualTo(1 - progress)
+                assertThat(notificationShadeDepthController.transitionToFullShadeProgress)
+                    .isEqualTo(1 - progress)
+            }
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
         }
 
     @Test
     @EnableSceneContainer
-    fun hydrateFullWidth() =
-        testScope.runTest {
+    fun hydrateFullWidth_singleShade() =
+        kosmos.runTest {
+            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
+            enableSingleShade()
             underTest.start()
 
-            kosmos.displayStateRepository.setIsLargeScreen(true)
-            runCurrent()
-            verify(kosmos.notificationStackScrollLayoutController).setIsFullWidth(false)
-            assertThat(kosmos.scrimController.clipQsScrim).isFalse()
+            verify(notificationStackScrollLayoutController).setIsFullWidth(true)
+            assertThat(legacyUseSplitShade).isFalse()
         }
 
-    private fun TestScope.changeScene(
+    @Test
+    @EnableSceneContainer
+    fun hydrateFullWidth_splitShade() =
+        kosmos.runTest {
+            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
+            enableSplitShade()
+            underTest.start()
+
+            verify(notificationStackScrollLayoutController).setIsFullWidth(false)
+            assertThat(legacyUseSplitShade).isTrue()
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun hydrateFullWidth_dualShade_narrowScreen() =
+        kosmos.runTest {
+            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
+            enableDualShade(wideLayout = false)
+            underTest.start()
+
+            verify(notificationStackScrollLayoutController).setIsFullWidth(true)
+            assertThat(legacyUseSplitShade).isFalse()
+        }
+
+    @Test
+    @EnableSceneContainer
+    fun hydrateFullWidth_dualShade_wideScreen() =
+        kosmos.runTest {
+            val legacyUseSplitShade by collectLastValue(shadeRepository.legacyUseSplitShade)
+            enableDualShade(wideLayout = true)
+            underTest.start()
+
+            verify(notificationStackScrollLayoutController).setIsFullWidth(false)
+            assertThat(legacyUseSplitShade).isTrue()
+        }
+
+    private fun Kosmos.changeScene(
         toScene: SceneKey,
         transitionState: MutableStateFlow<ObservableTransitionState>,
         assertDuringProgress: ((progress: Float) -> Unit) = {},
@@ -194,24 +277,19 @@ class ShadeStartableTest(flags: FlagsParameterization) : SysuiTestCase() {
                 isInitiatedByUserInput = true,
                 isUserInputOngoing = flowOf(true),
             )
-        runCurrent()
         assertDuringProgress(progressFlow.value)
 
         progressFlow.value = 0.2f
-        runCurrent()
         assertDuringProgress(progressFlow.value)
 
         progressFlow.value = 0.6f
-        runCurrent()
         assertDuringProgress(progressFlow.value)
 
         progressFlow.value = 1f
-        runCurrent()
         assertDuringProgress(progressFlow.value)
 
         transitionState.value = ObservableTransitionState.Idle(toScene)
         fakeSceneDataSource.changeScene(toScene)
-        runCurrent()
         assertDuringProgress(progressFlow.value)
 
         assertThat(currentScene).isEqualTo(toScene)

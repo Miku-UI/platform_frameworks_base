@@ -69,6 +69,8 @@ public class ALSProbeTest {
     private SensorManager mSensorManager;
     @Captor
     private ArgumentCaptor<SensorEventListener> mSensorEventListenerCaptor;
+    @Captor
+    private ArgumentCaptor<Handler> mHandlerCaptor;
 
     private TestableLooper mLooper;
     private Sensor mLightSensor = new Sensor(
@@ -90,7 +92,9 @@ public class ALSProbeTest {
         final float value = 2.0f;
         mProbe.enable();
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), mHandlerCaptor.capture());
+
+        assertThat(mHandlerCaptor.getValue().getLooper()).isEqualTo(mLooper.getLooper());
 
         mSensorEventListenerCaptor.getValue().onSensorChanged(
                 new SensorEvent(mLightSensor, 1, 1, new float[]{4.0f}));
@@ -105,7 +109,7 @@ public class ALSProbeTest {
         mProbe.enable();
         mProbe.enable();
 
-        verify(mSensorManager).registerListener(any(), any(), anyInt());
+        verify(mSensorManager).registerListener(any(), any(), anyInt(), any());
         verifyNoMoreInteractions(mSensorManager);
     }
 
@@ -113,7 +117,7 @@ public class ALSProbeTest {
     public void testDisable() {
         mProbe.enable();
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
         mProbe.disable();
 
         verify(mSensorManager).unregisterListener(eq(mSensorEventListenerCaptor.getValue()));
@@ -136,7 +140,7 @@ public class ALSProbeTest {
 
         mProbe.enable();
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
         mSensorEventListenerCaptor.getValue().onSensorChanged(
                 new SensorEvent(mLightSensor, 1, 1, new float[]{4.0f}));
         mProbe.disable();
@@ -148,7 +152,7 @@ public class ALSProbeTest {
     public void testWatchDog() {
         mProbe.enable();
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
         mSensorEventListenerCaptor.getValue().onSensorChanged(
                 new SensorEvent(mLightSensor, 1, 1, new float[]{4.0f}));
         moveTimeBy(TIMEOUT_MS);
@@ -161,7 +165,7 @@ public class ALSProbeTest {
     @Test
     public void testEnableExtendsWatchDog() {
         mProbe.enable();
-        verify(mSensorManager).registerListener(any(), any(), anyInt());
+        verify(mSensorManager).registerListener(any(), any(), anyInt(), any());
 
         moveTimeBy(TIMEOUT_MS / 2);
         verify(mSensorManager, never()).unregisterListener(any(SensorEventListener.class));
@@ -182,7 +186,7 @@ public class ALSProbeTest {
         mProbe.awaitNextLux((v) -> lux.set(Math.round(v)), null /* handler */);
 
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
 
         moveTimeBy(TIMEOUT_MS);
 
@@ -206,7 +210,7 @@ public class ALSProbeTest {
         mProbe.enable();
 
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
 
         if (dataIsAvailable) {
             for (int v : values) {
@@ -259,7 +263,7 @@ public class ALSProbeTest {
         }
 
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
         for (int v : values) {
             mSensorEventListenerCaptor.getValue().onSensorChanged(
                     new SensorEvent(mLightSensor, 1, 1, new float[]{v}));
@@ -279,7 +283,7 @@ public class ALSProbeTest {
         mProbe.awaitNextLux((v) -> lux.set(Math.round(v)), null /* handler */);
 
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
 
         mProbe.destroy();
         mProbe.disable();
@@ -311,7 +315,7 @@ public class ALSProbeTest {
         mProbe.awaitNextLux((v) -> lux2.set(Math.round(v)), null /* handler */);
 
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
         mSensorEventListenerCaptor.getValue().onSensorChanged(
                 new SensorEvent(mLightSensor, 1, 1, new float[]{value}));
 
@@ -328,7 +332,7 @@ public class ALSProbeTest {
         mProbe.awaitNextLux((v) -> lux.set(Math.round(v)), null /* handler */);
 
         verify(mSensorManager).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
         mSensorEventListenerCaptor.getValue().onSensorChanged(
                 new SensorEvent(mLightSensor, 1, 1, new float[]{lastValue}));
 
@@ -354,7 +358,7 @@ public class ALSProbeTest {
 
         // Verify that no light sensor will be registered.
         verify(mSensorManager, times(0)).registerListener(
-                mSensorEventListenerCaptor.capture(), any(), anyInt());
+                mSensorEventListenerCaptor.capture(), any(), anyInt(), any());
 
         assertThat(lux.get()).isEqualTo(-1);
     }

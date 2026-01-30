@@ -38,6 +38,7 @@ public class ContentProviderHolder implements Parcelable {
     public IBinder connection;
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public boolean noReleaseNeeded;
+    public boolean noReleaseNeededIfUnstable;
 
     /**
      * Whether the provider here is a local provider or not.
@@ -65,6 +66,7 @@ public class ContentProviderHolder implements Parcelable {
         dest.writeStrongBinder(connection);
         dest.writeInt(noReleaseNeeded ? 1 : 0);
         dest.writeInt(mLocal ? 1 : 0);
+        dest.writeInt(noReleaseNeededIfUnstable ? 1 : 0);
     }
 
     public static final @android.annotation.NonNull Parcelable.Creator<ContentProviderHolder> CREATOR
@@ -88,5 +90,6 @@ public class ContentProviderHolder implements Parcelable {
         connection = source.readStrongBinder();
         noReleaseNeeded = source.readInt() != 0;
         mLocal = source.readInt() != 0;
+        noReleaseNeededIfUnstable = source.readInt() != 0;
     }
 }

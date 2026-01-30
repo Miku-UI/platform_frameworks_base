@@ -65,7 +65,7 @@
     <string name="notification_channel_failure" msgid="9042250774797916414">"Неуспешни работи за печатење"</string>
     <string name="could_not_create_file" msgid="3425025039427448443">"Не може да се создаде датотека"</string>
     <string name="print_services_disabled_toast" msgid="9089060734685174685">"Некои услуги за печатење се оневозможени"</string>
-    <string name="print_searching_for_printers" msgid="6550424555079932867">"Пребарување печатачи"</string>
+    <string name="print_searching_for_printers" msgid="6550424555079932867">"Се бараат печатачи"</string>
     <string name="print_no_print_services" msgid="8561247706423327966">"Нема овозможени услуги за печатење"</string>
     <string name="print_no_printers" msgid="4869403323900054866">"Не се пронајдени печатачи"</string>
     <string name="cannot_add_printer" msgid="7840348733668023106">"Не може да се додадат печатачи"</string>

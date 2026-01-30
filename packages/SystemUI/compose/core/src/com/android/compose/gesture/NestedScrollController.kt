@@ -84,34 +84,38 @@ enum class NestedScrollableBound {
     Any,
 
     /** Disable after reaching the top (left) bound when scrolling vertically (horizontally). */
-    TopLeft,
+    TopOrLeft,
 
     /** Disable after reaching the bottom (right) bound when scrolling vertically (horizontally). */
-    BottomRight;
+    BottomOrRight;
 
     companion object {
         /**
          * Disable after reaching the left (right) bound when scrolling horizontally in a LTR (RTL)
          * layout.
+         *
+         * Note: This is exclusively for horizontal scrolling.
          */
         val Start: NestedScrollableBound
             @Composable
             get() =
                 when (LocalLayoutDirection.current) {
-                    LayoutDirection.Ltr -> TopLeft
-                    LayoutDirection.Rtl -> BottomRight
+                    LayoutDirection.Ltr -> TopOrLeft
+                    LayoutDirection.Rtl -> BottomOrRight
                 }
 
         /**
          * Disable after reaching the right (left) bound when scrolling horizontally in a LTR (RTL)
          * layout.
+         *
+         * Note: This is exclusively for horizontal scrolling.
          */
         val End: NestedScrollableBound
             @Composable
             get() =
                 when (LocalLayoutDirection.current) {
-                    LayoutDirection.Ltr -> BottomRight
-                    LayoutDirection.Rtl -> TopLeft
+                    LayoutDirection.Ltr -> BottomOrRight
+                    LayoutDirection.Rtl -> TopOrLeft
                 }
     }
 }
@@ -190,10 +194,10 @@ private class NestedScrollControllerNode(
     private fun hasConsumedScrollInBounds(consumed: Float): Boolean {
         return when {
             consumed < 0f ->
-                bounds == NestedScrollableBound.Any || bounds == NestedScrollableBound.BottomRight
+                bounds == NestedScrollableBound.Any || bounds == NestedScrollableBound.BottomOrRight
 
             consumed > 0f ->
-                bounds == NestedScrollableBound.Any || bounds == NestedScrollableBound.TopLeft
+                bounds == NestedScrollableBound.Any || bounds == NestedScrollableBound.TopOrLeft
 
             else -> false
         }

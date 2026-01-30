@@ -18,7 +18,7 @@ package android.app.blob;
 import android.app.blob.IBlobCommitCallback;
 import android.os.ParcelFileDescriptor;
 
-/** {@hide} */
+/** @hide */
 interface IBlobStoreSession {
     ParcelFileDescriptor openWrite(long offsetBytes, long lengthBytes);
     ParcelFileDescriptor openRead();

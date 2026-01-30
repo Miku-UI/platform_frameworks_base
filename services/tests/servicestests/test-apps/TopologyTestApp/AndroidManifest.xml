@@ -15,13 +15,11 @@
 -->
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-        package="com.android.servicestests.apps.topologytestapp">
-
-    <uses-permission android:name="android.permission.MANAGE_DISPLAYS" />
+    package="com.android.servicestests.apps.topologytestapp">
 
     <application android:label="TopologyUpdateTestApp">
         <activity android:name="com.android.servicestests.apps.topologytestapp.TopologyUpdateActivity"
-                  android:exported="true" />
+            android:exported="true" />
     </application>
 
 </manifest>

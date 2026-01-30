@@ -36,8 +36,8 @@ import static android.Manifest.permission.WRITE_SECURE_SETTINGS;
 import android.annotation.Nullable;
 import android.os.RemoteException;
 import android.os.Trace;
+import android.os.Process;
 import android.os.UserHandle;
-import android.util.ArraySet;
 import android.util.IntArray;
 import android.util.Log;
 
@@ -45,7 +45,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.media.permission.INativePermissionController;
 import com.android.media.permission.PermissionEnum;
 import com.android.media.permission.UidPackageState;
-import com.android.server.pm.pkg.PackageState;
+import com.android.media.permission.UidPackageState.PackageState;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -54,11 +54,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.BiPredicate;
 import java.util.function.Supplier;
-import java.util.stream.Collector;
-import java.util.stream.Collectors;
 
 /** Responsible for synchronizing system server permission state to the native audioserver. */
 public class AudioServerPermissionProvider {
@@ -69,6 +66,13 @@ public class AudioServerPermissionProvider {
 
     static final byte[] HDS_PERMS = new byte[] {PermissionEnum.CAPTURE_AUDIO_HOTWORD,
             PermissionEnum.CAPTURE_AUDIO_OUTPUT, PermissionEnum.RECORD_AUDIO};
+
+    // Some non-package uids are statically assigned permissions. Since these uids don't show up as
+    // installed packages (as they correspond to native services), explicitly enumerate them.
+    // (see frameworks/base/data/etc/platform.xml)
+    // Note, we exclude system (1000) and AID_AUDIOSERVER (1041), as the permission model grants
+    // them all audio permissions
+    static final int[] NONPACKAGE_UIDS = new int[] { Process.MEDIA_UID, Process.CAMERASERVER_UID, };
 
     static {
         MONITORED_PERMS[PermissionEnum.RECORD_AUDIO] = RECORD_AUDIO;
@@ -100,7 +104,7 @@ public class AudioServerPermissionProvider {
     private INativePermissionController mDest;
 
     @GuardedBy("mLock")
-    private final Map<Integer, Set<String>> mPackageMap;
+    private final Map<Integer, Map<String, PackageState>> mPackageMap;
 
     // Values are sorted
     @GuardedBy("mLock")
@@ -113,10 +117,13 @@ public class AudioServerPermissionProvider {
     private int mHdsUid = -1;
 
     /**
-     * @param appInfos - PackageState for all apps on the device, used to populate init state
+     * @param packageMap - Map from app-ids to Map of packageNames to PackageState (also containing
+     * name)
+     * @param permissionPredicate - Check if a UID holds an android permission (string)
+     * @param userIdSupplier - Return all users (not uids) on the device, which apps can run in
      */
     public AudioServerPermissionProvider(
-            Collection<PackageState> appInfos,
+            Map<Integer, Map<String, PackageState>> packageMap,
             BiPredicate<Integer, String> permissionPredicate,
             Supplier<int[]> userIdSupplier) {
         for (int i = 0; i < PermissionEnum.ENUM_SIZE; i++) {
@@ -125,7 +132,7 @@ public class AudioServerPermissionProvider {
         mUserIdSupplier = userIdSupplier;
         mPermissionPredicate = permissionPredicate;
         // Initialize the package state
-        mPackageMap = generatePackageMappings(appInfos);
+        mPackageMap = packageMap;
     }
 
     /**
@@ -154,35 +161,47 @@ public class AudioServerPermissionProvider {
     }
 
     /**
-     * Called when a package is added or removed
+     * Called when a package is added, modified, or removed
      *
      * @param uid - uid of modified package (only app-id matters)
-     * @param packageName - the (new) packageName
+     * @param packageState - the (new) packageState
      * @param isRemove - true if the package is being removed, false if it is being added
      */
-    public void onModifyPackageState(int uid, String packageName, boolean isRemove) {
+    public void onModifyPackageState(int uid, PackageState packageState, boolean isRemove) {
         // No point in maintaining package mappings for uids of different users
         uid = UserHandle.getAppId(uid);
         synchronized (mLock) {
             // Update state
-            Set<String> packages;
+            Map<String, PackageState> packages;
             if (!isRemove) {
-                packages = mPackageMap.computeIfAbsent(uid, unused -> new ArraySet(1));
-                packages.add(packageName);
+                packages = mPackageMap.computeIfAbsent(uid, unused -> new HashMap<>());
+                if (packageState.equals(packages.put(packageState.packageName, packageState))) {
+                    // no change
+                    return;
+                }
             } else {
                 packages = mPackageMap.get(uid);
                 if (packages != null) {
-                    packages.remove(packageName);
-                    if (packages.isEmpty()) mPackageMap.remove(uid);
+                    if (packages.remove(packageState.packageName) == null) {
+                        // no change
+                        return;
+                    }
+                    if (packages.isEmpty()) {
+                        mPackageMap.remove(uid);
+                    }
+                } else {
+                    // no change
+                    return;
                 }
             }
             // Push state to destination
             if (mDest == null) {
+                // Will re-sync when service is back online
                 return;
             }
             var state = new UidPackageState();
             state.uid = uid;
-            state.packageNames = packages != null ? List.copyOf(packages) : Collections.emptyList();
+            state.packageStates = List.copyOf(packages.values());
             try {
                 mDest.updatePackagesForUid(state);
             } catch (RemoteException e) {
@@ -222,10 +241,9 @@ public class AudioServerPermissionProvider {
     public void setIsolatedServiceUid(int uid, int owningUid) {
         synchronized (mLock) {
             if (mHdsUid == uid) return;
-            var packageNameSet = mPackageMap.get(UserHandle.getAppId(owningUid));
-            if (packageNameSet != null) {
-                var packageName = packageNameSet.iterator().next();
-                onModifyPackageState(uid, packageName, /* isRemove= */ false);
+            var packages = mPackageMap.get(UserHandle.getAppId(owningUid));
+            if (packages != null) { var packageState = packages.values().iterator().next();
+                onModifyPackageState(uid, packageState, /* isRemove= */ false);
             } else {
                 Log.wtf(TAG, "setIsolatedService owning uid not found");
             }
@@ -255,16 +273,16 @@ public class AudioServerPermissionProvider {
 
     public void clearIsolatedServiceUid(int uid) {
         synchronized (mLock) {
-            var packageNameSet = mPackageMap.get(UserHandle.getAppId(uid));
+            var packages = mPackageMap.get(UserHandle.getAppId(uid));
             if (mHdsUid != uid) {
                 Log.wtf(TAG,
-                        "Unexpected isolated service uid cleared: " + uid + packageNameSet
+                        "Unexpected isolated service uid cleared: " + uid + packages
                                 + ", expected " + mHdsUid);
                 return;
             }
-            if (packageNameSet != null) {
-                var packageName = packageNameSet.iterator().next();
-                onModifyPackageState(uid, packageName, /* isRemove= */ true);
+            if (packages != null) {
+                var packageState = packages.values().iterator().next();
+                onModifyPackageState(uid, packageState, /* isRemove= */ true);
             } else {
                 Log.wtf(TAG, "clearIsolatedService uid not found");
             }
@@ -311,7 +329,7 @@ public class AudioServerPermissionProvider {
                                 entry -> {
                                     UidPackageState state = new UidPackageState();
                                     state.uid = entry.getKey();
-                                    state.packageNames = List.copyOf(entry.getValue());
+                                    state.packageStates = List.copyOf(entry.getValue().values());
                                     return state;
                                 })
                         .toList();
@@ -327,8 +345,19 @@ public class AudioServerPermissionProvider {
     /** Return all uids (not app-ids) which currently hold a given permission. Not app-op aware */
     private int[] getUidsHoldingPerm(int perm) {
         IntArray acc = new IntArray();
+        final IntArray appIds = new IntArray(mPackageMap.size() + NONPACKAGE_UIDS.length);
+        for (int appId : NONPACKAGE_UIDS) {
+            if (!mPackageMap.containsKey(appId)) {
+                appIds.add(appId);
+            }
+        }
+        for (int appId : mPackageMap.keySet()) {
+            appIds.add(appId);
+        }
+
         for (int userId : mUserIdSupplier.get()) {
-            for (int appId : mPackageMap.keySet()) {
+            for (int i = 0; i < appIds.size(); i++) {
+                int appId = appIds.get(i);
                 int uid = UserHandle.getUid(userId, appId);
                 if (mPermissionPredicate.test(uid, MONITORED_PERMS[perm])) {
                     acc.add(uid);
@@ -341,24 +370,5 @@ public class AudioServerPermissionProvider {
         var unwrapped = acc.toArray();
         Arrays.sort(unwrapped);
         return unwrapped;
-    }
-
-    /**
-     * Aggregation operation on all package states list: groups by states by app-id and merges the
-     * packageName for each state into an ArraySet.
-     */
-    private static Map<Integer, Set<String>> generatePackageMappings(
-            Collection<PackageState> appInfos) {
-        Collector<PackageState, Object, Set<String>> reducer =
-                Collectors.mapping(
-                        (PackageState p) -> p.getPackageName(),
-                        Collectors.toCollection(() -> new ArraySet(1)));
-
-        return appInfos.stream()
-                .collect(
-                        Collectors.groupingBy(
-                                /* predicate */ (PackageState p) -> p.getAppId(),
-                                /* factory */ HashMap::new,
-                                /* downstream collector */ reducer));
     }
 }

@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.notification.row;
 
 import android.content.Context;
 import android.os.Bundle;
-import android.service.notification.StatusBarNotification;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -36,11 +35,7 @@ import com.android.systemui.res.R;
 public class PromotedPermissionGutsContent extends LinearLayout
         implements NotificationGuts.GutsContent, View.OnClickListener {
 
-    private static final String TAG = "SnoozyPromotedGuts";
-
     private NotificationGuts mGutsContainer;
-    private StatusBarNotification mSbn;
-
     private TextView mUndoButton;
 
     private MetricsLogger mMetricsLogger = new MetricsLogger();
@@ -54,7 +49,7 @@ public class PromotedPermissionGutsContent extends LinearLayout
     @Override
     protected void onFinishInflate() {
         super.onFinishInflate();
-        mUndoButton = (TextView) findViewById(R.id.undo);
+        mUndoButton = findViewById(R.id.undo);
         mUndoButton.setOnClickListener(this);
         mUndoButton.setContentDescription(
                 getContext().getString(R.string.snooze_undo_content_description));
@@ -66,18 +61,6 @@ public class PromotedPermissionGutsContent extends LinearLayout
         super.onAttachedToWindow();
         dispatchConfigurationChanged(getResources().getConfiguration());
     }
-
-    /**
-     * Update the content description of the snooze view based on the snooze option and whether the
-     * snooze options are expanded or not.
-     * For example, this will be something like "Collapsed\u2029Snooze for 1 hour". The paragraph
-     * separator is added to introduce a break in speech, to match what TalkBack does by default
-     * when you e.g. press on a notification.
-     */
-    private void updateContentDescription() {
-        //
-    }
-
 
     @Override
     public boolean performAccessibilityActionInternal(int action, Bundle arguments) {
@@ -92,14 +75,13 @@ public class PromotedPermissionGutsContent extends LinearLayout
     }
 
     /**
-     * TODO docs
-     * @param sbn
+     * Set the app name and update any necessary UI.
+     * @param appName Display name for app.
      */
-    public void setStatusBarNotification(StatusBarNotification sbn) {
-        mSbn = sbn;
-        TextView demoteExplanation = (TextView) findViewById(R.id.demote_explain);
+    public void setAppName(String appName) {
+        TextView demoteExplanation = findViewById(R.id.demote_explain);
         demoteExplanation.setText(mContext.getResources().getString(R.string.demote_explain_text,
-                mSbn.getPackageName()));
+                appName));
     }
 
     @Override

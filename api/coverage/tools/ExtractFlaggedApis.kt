@@ -20,6 +20,7 @@ import com.android.tools.metalava.model.CallableItem
 import com.android.tools.metalava.model.ClassItem
 import com.android.tools.metalava.model.Item
 import com.android.tools.metalava.model.text.ApiFile
+import com.android.tools.metalava.model.value.asString
 import java.io.File
 import java.io.FileWriter
 
@@ -88,6 +89,6 @@ fun getFlagAnnotation(item: Item): String? {
     return item.modifiers
         .findAnnotation("android.annotation.FlaggedApi")
         ?.findAttribute("value")
-        ?.legacyValue
-        ?.value() as? String
+        ?.value
+        ?.asString()
 }

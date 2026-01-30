@@ -81,7 +81,7 @@ public abstract class LayoutInflater {
 
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     // TODO(b/182007470): Use @ConfigurationContext instead
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P)
@@ -555,7 +555,7 @@ public abstract class LayoutInflater {
                                     root);
                         }
                         // Create layout params that match root, if supplied
-                        params = root.generateLayoutParams(attrs);
+                        params = root.generateLayoutParams(inflaterContext, attrs);
                         if (!attachToRoot) {
                             // Set the layout params for temp if we are not
                             // attaching. (If we are, we use addView, below)
@@ -1019,7 +1019,8 @@ public abstract class LayoutInflater {
             } else {
                 final View view = createViewFromTag(parent, name, context, attrs);
                 final ViewGroup viewGroup = (ViewGroup) parent;
-                final ViewGroup.LayoutParams params = viewGroup.generateLayoutParams(attrs);
+                final ViewGroup.LayoutParams params =
+                        viewGroup.generateLayoutParams(context, attrs);
                 rInflateChildren(parser, view, attrs, true);
                 viewGroup.addView(view, params);
             }
@@ -1142,12 +1143,12 @@ public abstract class LayoutInflater {
                 // tag, false means we need to rely on the included layout params.
                 ViewGroup.LayoutParams params = null;
                 try {
-                    params = group.generateLayoutParams(attrs);
+                    params = group.generateLayoutParams(context, attrs);
                 } catch (RuntimeException e) {
                     // Ignore, just fail over to child attrs.
                 }
                 if (params == null) {
-                    params = group.generateLayoutParams(childAttrs);
+                    params = group.generateLayoutParams(context, childAttrs);
                 }
                 view.setLayoutParams(params);
 

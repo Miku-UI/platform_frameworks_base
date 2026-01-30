@@ -6,6 +6,7 @@ dsandler@android.com #{LAST_RESORT_SUGGESTION}
 dsandler@google.com #{LAST_RESORT_SUGGESTION}
 hackbod@android.com #{LAST_RESORT_SUGGESTION}
 hackbod@google.com #{LAST_RESORT_SUGGESTION}
+jham@google.com #{LAST_RESORT_SUGGESTION}
 jjaggi@google.com #{LAST_RESORT_SUGGESTION}
 lorenzo@google.com #{LAST_RESORT_SUGGESTION}
 michaelwr@google.com #{LAST_RESORT_SUGGESTION}
@@ -52,3 +53,5 @@ per-file ADPF_OWNERS = file:/ADPF_OWNERS
 per-file GAME_MANAGER_OWNERS = file:/GAME_MANAGER_OWNERS
 per-file SDK_OWNERS = file:/SDK_OWNERS
 per-file PREUPLOAD_OWNERS = file:/PREUPLOAD_OWNERS
+per-file THERMAL_OWNERS = file:/THERMAL_OWNERS
+per-file PERFETTO_OWNERS = file:/PERFETTO_OWNERS

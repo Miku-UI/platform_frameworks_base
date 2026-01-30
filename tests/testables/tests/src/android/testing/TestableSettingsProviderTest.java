@@ -17,6 +17,7 @@ package android.testing;
 import static org.junit.Assert.*;
 
 import android.content.ContentResolver;
+import android.content.Context;
 import android.provider.Settings;
 import android.provider.Settings.Global;
 import android.provider.Settings.Secure;
@@ -37,9 +38,9 @@ public class TestableSettingsProviderTest {
     public static final String NONEXISTENT_SETTING = "nonexistent_setting";
     private static final String TAG = "TestableSettingsProviderTest";
     private ContentResolver mContentResolver;
+    private final Context mRealContext = InstrumentationRegistry.getContext();
     @Rule
-    public final TestableContext mContext =
-            new TestableContext(InstrumentationRegistry.getContext());
+    public final TestableContext mContext = new TestableContext(mRealContext);
 
     @Before
     public void setup() {
@@ -93,11 +94,25 @@ public class TestableSettingsProviderTest {
     }
 
     @Test
-    public void testRelease() {
+    public void testClearValues() {
         // Verify different value.
         assertNull(Global.getString(mContentResolver, Global.DEVICE_PROVISIONED));
         mContext.getSettingsProvider().clearValuesAndCheck(mContext);
-        // Verify actual value after release.
+        // After clearing, the value should be fetched from the underlying real context.
         assertEquals("1", Global.getString(mContentResolver, Global.DEVICE_PROVISIONED));
+    }
+
+    @Test
+    public void testUnregister() {
+        // With the TestableSettingsProvider still in use, we should see the overridden value of
+        // DEVICE_PROVISIONED.
+        assertNull(Global.getString(mContentResolver, Global.DEVICE_PROVISIONED));
+
+        mContext.getSettingsProvider().unregister();
+
+        // After unregistering, the real value should be returned when we use the real context, even
+        // though the TestableSettingsProvider still exists with the overridden value.
+        assertEquals("1",
+                Global.getString(mRealContext.getContentResolver(), Global.DEVICE_PROVISIONED));
     }
 }

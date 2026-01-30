@@ -93,7 +93,33 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:orientation="vertical"
-        app:layout_constraintGuide_end="@dimen/qs_media_session_collapsed_legacy_guideline" />
+        app:layout_constraintGuide_end="@dimen/qs_media_session_collapsed_guideline" />
+
+    <!-- Carousel pagination -->
+    <ImageButton
+        android:id="@+id/page_left"
+        android:src="@drawable/ic_chevron_left"
+        style="@style/MediaPlayer.PageButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:minHeight="48dp"
+        android:visibility="gone"
+        />
+    <ImageButton
+        android:id="@+id/page_right"
+        android:src="@drawable/ic_chevron_right"
+        style="@style/MediaPlayer.PageButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:minHeight="48dp"
+        android:visibility="gone"
+        />
 
     <!-- App icon -->
     <com.android.internal.widget.CachingIconView
@@ -187,7 +213,7 @@
     <ImageButton
         android:id="@+id/actionPlayPause"
         style="@style/MediaPlayer.SessionAction.Primary"
-        android:layout_width="48dp"
+        android:layout_width="@dimen/qs_media_action_play_pause_width"
         android:layout_height="48dp"
         android:layout_marginStart="@dimen/qs_media_padding"
         android:layout_marginEnd="@dimen/qs_media_padding" />

@@ -44,6 +44,7 @@ import com.android.wm.shell.sysui.ShellInit;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.Executor;
 
 /** Display area organizer for the root/default TaskDisplayAreas */
@@ -102,6 +103,14 @@ public class RootTaskDisplayAreaOrganizer extends DisplayAreaOrganizer {
         }
     }
 
+    /** Unregisters the given listener associated to the given display. */
+    public void unregisterListener(int displayId, RootTaskDisplayAreaListener listener) {
+        final ArrayList<RootTaskDisplayAreaListener> listeners = mListeners.get(displayId);
+        if (listeners != null) {
+            listeners.remove(listener);
+        }
+    }
+
     public void unregisterListener(RootTaskDisplayAreaListener listener) {
         for (int i = mListeners.size() - 1; i >= 0; --i) {
             final List<RootTaskDisplayAreaListener> listeners = mListeners.valueAt(i);
@@ -113,6 +122,21 @@ public class RootTaskDisplayAreaOrganizer extends DisplayAreaOrganizer {
     public void attachToDisplayArea(int displayId, SurfaceControl.Builder b) {
         final SurfaceControl sc = mLeashes.get(displayId);
         b.setParent(sc);
+    }
+
+    /**
+     * Sets the layer of {@param sc} to be relative to the TDA on {@param displayId}.
+     *
+     * @throws NoSuchElementException if {@param displayId} has not appeared or has been removed.
+     */
+    public void relZToDisplayArea(int displayId, SurfaceControl sc, SurfaceControl.Transaction t,
+            int z) {
+        final SurfaceControl dsc = mLeashes.get(displayId);
+        if (dsc != null) {
+            t.setRelativeLayer(sc, dsc, z);
+        } else {
+            throw new NoSuchElementException("Display " + displayId + " is not registered");
+        }
     }
 
     /**

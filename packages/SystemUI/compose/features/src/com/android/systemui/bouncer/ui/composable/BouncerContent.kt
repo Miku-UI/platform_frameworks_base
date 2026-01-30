@@ -21,9 +21,12 @@ import android.content.DialogInterface
 import androidx.annotation.VisibleForTesting
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -34,29 +37,34 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,6 +81,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -80,11 +89,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.window.core.layout.WindowSizeClass
 import com.android.compose.PlatformButton
 import com.android.compose.animation.Easings
 import com.android.compose.animation.scene.ContentScope
@@ -93,7 +103,9 @@ import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.SceneTransitionLayout
 import com.android.compose.animation.scene.rememberMutableSceneTransitionLayoutState
 import com.android.compose.animation.scene.transitions
+import com.android.compose.modifiers.thenIf
 import com.android.compose.windowsizeclass.LocalWindowSizeClass
+import com.android.systemui.Flags
 import com.android.systemui.bouncer.shared.model.BouncerActionButtonModel
 import com.android.systemui.bouncer.ui.BouncerDialogFactory
 import com.android.systemui.bouncer.ui.viewmodel.AuthMethodBouncerViewModel
@@ -109,6 +121,8 @@ import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.fold.ui.composable.foldPosture
 import com.android.systemui.fold.ui.helper.FoldPosture
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.ui.composable.transitions.BOUNCER_INITIAL_TRANSLATION
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.pow
@@ -117,7 +131,7 @@ import platform.test.motion.compose.values.MotionTestValues
 import platform.test.motion.compose.values.motionTestValues
 
 @Composable
-fun BouncerContent(
+fun ContentScope.BouncerContent(
     viewModel: BouncerOverlayContentViewModel,
     dialogFactory: BouncerDialogFactory,
     modifier: Modifier = Modifier,
@@ -125,7 +139,103 @@ fun BouncerContent(
     val isOneHandedModeSupported by viewModel.isOneHandedModeSupported.collectAsStateWithLifecycle()
     val layout = calculateLayout(isOneHandedModeSupported = isOneHandedModeSupported)
 
-    BouncerContent(layout, viewModel, dialogFactory, modifier)
+    fun isDraggingToBouncer(): Boolean {
+        val currentTransition = layoutState.currentTransition
+        return currentTransition != null &&
+            currentTransition.isTransitioning(to = Overlays.Bouncer) &&
+            currentTransition.gestureContext != null
+    }
+
+    // Custom handle the BouncerContent toBouncer transition here.
+    // fromBouncer transitions are handled by the Scene transitions.
+
+    // Give an extra delay for showing BouncerContent if face auth or active unlock may run.
+    // This gives passive auth methods an opportunity to succeed before showing bouncer contents.
+    val appearAnimationInterpolator = FastOutSlowInEasing
+    var appearAnimationDuration: Int by remember { mutableIntStateOf(0) }
+    var appearAnimationDelay: Int by remember { mutableIntStateOf(0) }
+    var startAppearAnimation: Boolean by remember { mutableStateOf(false) }
+    val animatedAlpha: Float by
+        animateFloatAsState(
+            animationSpec =
+                tween(
+                    durationMillis = appearAnimationDuration,
+                    delayMillis = appearAnimationDelay,
+                    easing = appearAnimationInterpolator,
+                ),
+            targetValue =
+                if (startAppearAnimation) {
+                    1f
+                } else {
+                    // init alpha to 0f before anim begins
+                    0f
+                },
+            label = "alpha",
+        )
+
+    val animatedOffsetY by
+        animateDpAsState(
+            animationSpec =
+                tween(
+                    durationMillis = appearAnimationDuration,
+                    delayMillis = appearAnimationDelay,
+                    easing = appearAnimationInterpolator,
+                ),
+            targetValue =
+                if (startAppearAnimation) {
+                    0.dp
+                } else {
+                    // init to BOUNCER_INITIAL_TRANSLATION before anim begins
+                    BOUNCER_INITIAL_TRANSLATION
+                },
+            label = "offsetY",
+        )
+
+    LaunchedEffect(Unit) {
+        appearAnimationDelay =
+            BOUNCER_CONTENTS_PASSIVE_AUTH_DELAY.takeIf { viewModel.shouldDelayBouncerContent() }
+                ?: 0
+
+        // evaluate once when BouncerContent first shows; we don't animate if the
+        // bouncer showing was initiated from a drag/fling
+        appearAnimationDuration =
+            if (!isDraggingToBouncer()) BOUNCER_CONTENTS_ALPHA_IN_ANIMATION_DURATION else 0
+
+        startAppearAnimation = true
+    }
+
+    BouncerContent(
+        layout,
+        viewModel,
+        dialogFactory,
+        modifier =
+            modifier
+                .offset {
+                    val yOffset =
+                        if (isDraggingToBouncer()) {
+                            ((1 -
+                                    appearAnimationInterpolator.transform(
+                                        layoutState.currentTransition!!.progress
+                                    )) * BOUNCER_INITIAL_TRANSLATION)
+                                .toPx()
+                        } else {
+                            animatedOffsetY.value
+                        }
+                    IntOffset(x = 0, y = yOffset.toInt())
+                }
+                .graphicsLayer {
+                    alpha =
+                        if (isDraggingToBouncer()) {
+                            appearAnimationInterpolator.transform(
+                                // animate in along with the layout's transition
+                                layoutState.currentTransition!!.progress
+                            )
+                        } else {
+                            // animate in separately from the layout's transition
+                            animatedAlpha
+                        }
+                },
+    )
 }
 
 @Composable
@@ -156,6 +266,26 @@ fun BouncerContent(
         }
 
         Dialog(bouncerViewModel = viewModel, dialogFactory = dialogFactory)
+
+        if (viewModel.showBackButton) {
+            OutlinedButton(
+                onClick = viewModel::navigateBack,
+                modifier =
+                    Modifier.align(Alignment.BottomStart).padding(24.dp).testTag("BackButton"),
+                border =
+                    BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outlineVariant),
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 16.dp),
+                colors =
+                    ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    ),
+            ) {
+                Text(
+                    text = stringResource(R.string.back_button_on_bouncer),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        }
     }
 }
 
@@ -169,10 +299,12 @@ private fun StandardLayout(
     modifier: Modifier = Modifier,
 ) {
     val isHeightExpanded =
-        LocalWindowSizeClass.current.heightSizeClass == WindowHeightSizeClass.Expanded
+        LocalWindowSizeClass.current.isHeightAtLeastBreakpoint(
+            WindowSizeClass.HEIGHT_DP_EXPANDED_LOWER_BOUND
+        )
 
     FoldAware(
-        modifier = modifier.padding(top = 92.dp, bottom = 48.dp),
+        modifier = modifier.padding(top = 92.dp, bottom = 32.dp),
         viewModel = viewModel,
         aboveFold = {
             Column(
@@ -201,7 +333,15 @@ private fun StandardLayout(
                     )
                 }
 
-                ActionArea(viewModel = viewModel, modifier = Modifier.padding(top = 48.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    ActionArea(viewModel = viewModel, modifier = Modifier.padding(top = 32.dp))
+                    // This spacer dynamically resizes to 0 when there is insufficient space
+                    // available, e.g. when the IME is shown.
+                    Spacer(modifier = Modifier.weight(1f, fill = false).height(16.dp))
+                }
             }
         },
     )
@@ -264,7 +404,7 @@ private fun SplitLayout(viewModel: BouncerOverlayContentViewModel, modifier: Mod
             }
         }
 
-        // Right side (in right-to-left locales).
+        // Right side (in left-to-right locales).
         Box(modifier = Modifier.fillMaxHeight().weight(1f)) {
             when (authMethod) {
                 is PinBouncerViewModel,
@@ -312,7 +452,9 @@ private fun BesideUserSwitcherLayout(
     // of layout.
     val isSwapped = isLeftToRight == isInputPreferredOnLeftSide
     val isHeightExpanded =
-        LocalWindowSizeClass.current.heightSizeClass == WindowHeightSizeClass.Expanded
+        LocalWindowSizeClass.current.isHeightAtLeastBreakpoint(
+            WindowSizeClass.HEIGHT_DP_EXPANDED_LOWER_BOUND
+        )
     val authMethod by viewModel.authMethodViewModel.collectAsStateWithLifecycle()
 
     var swapAnimationEnd by remember { mutableStateOf(false) }
@@ -402,7 +544,10 @@ private fun BesideUserSwitcherLayout(
                 .motionTestValues { animatedAlpha(animatedOffset) exportAs MotionTestValues.alpha }
         }
 
-        UserSwitcher(viewModel = viewModel, modifier = Modifier.weight(1f).swappable())
+        UserSwitcher(
+            viewModel = viewModel,
+            modifier = Modifier.fillMaxHeight().weight(1f).swappable(),
+        )
 
         FoldAware(
             modifier = Modifier.weight(1f).swappable(inversed = true).testTag("FoldAware"),
@@ -410,7 +555,11 @@ private fun BesideUserSwitcherLayout(
             aboveFold = {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.Center,
+                    modifier =
+                        Modifier.fillMaxWidth().thenIf(authMethod is PasswordBouncerViewModel) {
+                            Modifier.fillMaxHeight()
+                        },
                 ) {
                     StatusMessage(viewModel = viewModel.message)
                     OutputArea(
@@ -534,14 +683,9 @@ private fun ContentScope.FoldableScene(
         // Content above the fold, when split on a foldable device in a "table top" posture:
         Box(
             modifier =
-                Modifier.element(SceneElements.AboveFold)
-                    .then(
-                        if (isSplit) {
-                            Modifier.weight(splitRatio)
-                        } else {
-                            Modifier
-                        }
-                    )
+                Modifier.element(SceneElements.AboveFold).thenIf(isSplit) {
+                    Modifier.weight(splitRatio)
+                }
         ) {
             aboveFold()
         }
@@ -563,6 +707,7 @@ private fun ContentScope.FoldableScene(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun StatusMessage(viewModel: BouncerMessageViewModel, modifier: Modifier = Modifier) {
     val message: MessageViewModel? by viewModel.message.collectAsStateWithLifecycle()
@@ -586,16 +731,14 @@ private fun StatusMessage(viewModel: BouncerMessageViewModel, modifier: Modifier
                 Text(
                     text = it.text,
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 18.sp,
-                    lineHeight = 24.sp,
+                    style = MaterialTheme.typography.titleLargeEmphasized,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(modifier = Modifier.size(10.dp))
                 Text(
                     text = it.secondaryText ?: "",
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 14.sp,
-                    lineHeight = 20.sp,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 2,
                 )
@@ -706,7 +849,7 @@ private fun ActionArea(viewModel: BouncerOverlayContentViewModel, modifier: Modi
                     }
                     .height(56.dp)
                     .clip(ButtonDefaults.shape)
-                    .background(color = MaterialTheme.colorScheme.tertiaryContainer)
+                    .background(color = MaterialTheme.colorScheme.secondaryContainer)
                     .semantics { role = Role.Button }
                     .combinedClickable(
                         onClick = { actionButton?.let { viewModel.onActionButtonClicked(it) } },
@@ -717,8 +860,8 @@ private fun ActionArea(viewModel: BouncerOverlayContentViewModel, modifier: Modi
         ) {
             Text(
                 text = stringResource(id = actionButtonModel.labelResId),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
                 modifier = Modifier.align(Alignment.Center).padding(ButtonDefaults.ContentPadding),
             )
         }
@@ -757,6 +900,7 @@ private fun Dialog(
 @Composable
 private fun UserSwitcher(viewModel: BouncerOverlayContentViewModel, modifier: Modifier = Modifier) {
     val isUserSwitcherVisible by viewModel.isUserSwitcherVisible.collectAsStateWithLifecycle()
+    val dropdownItems by viewModel.userSwitcherDropdown.collectAsStateWithLifecycle(emptyList())
     if (!isUserSwitcherVisible) {
         // Take up the same space as the user switcher normally would, but with nothing inside it.
         Box(modifier = modifier)
@@ -764,8 +908,8 @@ private fun UserSwitcher(viewModel: BouncerOverlayContentViewModel, modifier: Mo
     }
 
     val selectedUserImage by viewModel.selectedUserImage.collectAsStateWithLifecycle(null)
-    val dropdownItems by viewModel.userSwitcherDropdown.collectAsStateWithLifecycle(emptyList())
-
+    val userSwitcherIconSize = dimensionResource(R.dimen.bouncer_user_switcher_icon_size)
+    val maxUserSwitcherWidth = userSwitcherIconSize + UserSwitcherDropdownExtraWidth
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -775,53 +919,93 @@ private fun UserSwitcher(viewModel: BouncerOverlayContentViewModel, modifier: Mo
             Image(
                 bitmap = it.asImageBitmap(),
                 contentDescription = null,
-                modifier = Modifier.size(SelectedUserImageSize).sysuiResTag("user_icon"),
+                modifier = Modifier.size(userSwitcherIconSize).sysuiResTag("user_icon"),
             )
         }
-
-        val (isDropdownExpanded, setDropdownExpanded) = remember { mutableStateOf(false) }
-
-        dropdownItems.firstOrNull()?.let { firstDropdownItem ->
+        if (Flags.disableUserSwitcherDropdownOnBouncer() && dropdownItems.size <= 1) {
+            Spacer(modifier = Modifier.height(24.dp))
+            UserNamePill(viewModel = viewModel, maxWidth = maxUserSwitcherWidth)
+        } else {
             Spacer(modifier = Modifier.height(40.dp))
+            UserSwitcherDropdown(viewModel = viewModel, width = maxUserSwitcherWidth)
+        }
+    }
+}
 
-            Box {
-                PlatformButton(
-                    modifier =
-                        Modifier
-                            // Remove the built-in padding applied inside PlatformButton:
-                            .padding(vertical = 0.dp)
-                            .width(UserSwitcherDropdownWidth)
-                            .height(UserSwitcherDropdownHeight),
-                    colors =
-                        ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
-                        ),
-                    onClick = { setDropdownExpanded(!isDropdownExpanded) },
-                ) {
-                    val context = LocalContext.current
-                    Text(
-                        text = checkNotNull(firstDropdownItem.text.loadText(context)),
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+/**
+ * Displays the current user's name in a stylized pill shape. This is used when the user switcher
+ * dropdown is disabled.
+ */
+@Composable
+private fun UserNamePill(viewModel: BouncerOverlayContentViewModel, maxWidth: Dp) {
+    val selectedUserName by viewModel.selectedUserName.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    selectedUserName.loadText(context)?.let { userName ->
+        Text(
+            text = userName,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier =
+                Modifier.widthIn(max = maxWidth)
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = RoundedCornerShape(percent = 50),
                     )
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+        )
+    }
+}
 
-                    Spacer(modifier = Modifier.weight(1f))
+/**
+ * Displays the current user's name and an arrow, which can be clicked to expand a dropdown menu for
+ * switching users.
+ */
+@Composable
+private fun UserSwitcherDropdown(viewModel: BouncerOverlayContentViewModel, width: Dp) {
+    val dropdownItems by viewModel.userSwitcherDropdown.collectAsStateWithLifecycle(emptyList())
+    val (isDropdownExpanded, setDropdownExpanded) = remember { mutableStateOf(false) }
 
-                    Icon(
-                        imageVector = Icons.Default.KeyboardArrowDown,
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp).sysuiResTag("user_switcher_anchor"),
-                    )
-                }
+    dropdownItems.firstOrNull()?.let { firstDropdownItem ->
+        Box {
+            PlatformButton(
+                modifier =
+                    Modifier
+                        // Remove the built-in padding applied inside PlatformButton:
+                        .padding(vertical = 0.dp)
+                        .width(width)
+                        .height(UserSwitcherDropdownHeight),
+                colors =
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ),
+                onClick = { setDropdownExpanded(!isDropdownExpanded) },
+            ) {
+                val context = LocalContext.current
+                Text(
+                    text = checkNotNull(firstDropdownItem.text.loadText(context)),
+                    style = MaterialTheme.typography.headlineSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
 
-                UserSwitcherDropdownMenu(
-                    isExpanded = isDropdownExpanded,
-                    items = dropdownItems,
-                    onDismissed = { setDropdownExpanded(false) },
+                Spacer(modifier = Modifier.weight(1f))
+
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp).sysuiResTag("user_switcher_anchor"),
                 )
             }
+
+            UserSwitcherDropdownMenu(
+                isExpanded = isDropdownExpanded,
+                items = dropdownItems,
+                dropDownWidth = width,
+                onDismissed = { setDropdownExpanded(false) },
+            )
         }
     }
 }
@@ -834,6 +1018,7 @@ private fun UserSwitcher(viewModel: BouncerOverlayContentViewModel, modifier: Mo
 private fun UserSwitcherDropdownMenu(
     isExpanded: Boolean,
     items: List<BouncerOverlayContentViewModel.UserSwitcherDropdownItemViewModel>,
+    dropDownWidth: Dp,
     onDismissed: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -850,7 +1035,7 @@ private fun UserSwitcherDropdownMenu(
             expanded = isExpanded,
             onDismissRequest = onDismissed,
             offset = DpOffset(x = 0.dp, y = -UserSwitcherDropdownHeight),
-            modifier = Modifier.width(UserSwitcherDropdownWidth).sysuiResTag("user_list_dropdown"),
+            modifier = Modifier.width(dropDownWidth).sysuiResTag("user_list_dropdown"),
         ) {
             items.forEach { userSwitcherDropdownItem ->
                 DropdownMenuItem(
@@ -906,8 +1091,7 @@ private fun animatedAlpha(offset: Float): Float {
     return max(0f, (a * (abs(offset) - m).pow(2) + b).toFloat())
 }
 
-private val SelectedUserImageSize = 190.dp
-private val UserSwitcherDropdownWidth = SelectedUserImageSize + 2 * 29.dp
+private val UserSwitcherDropdownExtraWidth = 2 * 29.dp
 private val UserSwitcherDropdownHeight = 60.dp
 
 private object SceneKeys {
@@ -928,3 +1112,6 @@ private val SceneTransitions = transitions {
 object BouncerMotionTestKeys {
     val swapAnimationEnd = MotionTestValueKey<Boolean>("swapAnimationEnd")
 }
+
+private const val BOUNCER_CONTENTS_PASSIVE_AUTH_DELAY = 500
+private const val BOUNCER_CONTENTS_ALPHA_IN_ANIMATION_DURATION = 250

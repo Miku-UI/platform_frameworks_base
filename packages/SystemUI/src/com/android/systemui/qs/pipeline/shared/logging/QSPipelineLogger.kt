@@ -21,8 +21,11 @@ import com.android.systemui.log.core.LogLevel
 import com.android.systemui.qs.pipeline.dagger.QSAutoAddLog
 import com.android.systemui.qs.pipeline.dagger.QSRestoreLog
 import com.android.systemui.qs.pipeline.dagger.QSTileListLog
+import com.android.systemui.qs.pipeline.dagger.QSUpgraderLog
 import com.android.systemui.qs.pipeline.data.model.RestoreData
 import com.android.systemui.qs.pipeline.data.repository.UserTileSpecRepository
+import com.android.systemui.qs.pipeline.domain.upgrade.CustomTileAddedUpgrade
+import com.android.systemui.qs.pipeline.domain.upgrade.describe
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import javax.inject.Inject
 
@@ -37,12 +40,16 @@ constructor(
     @QSTileListLog private val tileListLogBuffer: LogBuffer,
     @QSAutoAddLog private val tileAutoAddLogBuffer: LogBuffer,
     @QSRestoreLog private val restoreLogBuffer: LogBuffer,
+    @QSUpgraderLog private val upgraderLogBuffer: LogBuffer,
 ) {
 
     companion object {
         const val TILE_LIST_TAG = "QSTileListLog"
         const val AUTO_ADD_TAG = "QSAutoAddableLog"
         const val RESTORE_TAG = "QSRestoreLog"
+        const val REPOSITORY_TAG = "TileSpecRepositoryLog"
+        const val UPGRADER_TAG = "QSUpgraderLog"
+        const val CUSTOM_TILE_REPOSITORY_UPGRADE_TAG = "CustomTileAddedRepositoryUpgrader"
     }
 
     /**
@@ -271,6 +278,60 @@ constructor(
         )
     }
 
+    fun logTileSpecRespoitoryCreatedForUser(userId: Int) {
+        tileListLogBuffer.log(
+            REPOSITORY_TAG,
+            LogLevel.DEBUG,
+            { int1 = userId },
+            { "UserTileSpecRepository created for user $int1" },
+        )
+    }
+
+    fun logCustomTileAddedRepositoryUpgradeError(upgrader: CustomTileAddedUpgrade, userId: Int) {
+        upgraderLogBuffer.log(
+            CUSTOM_TILE_REPOSITORY_UPGRADE_TAG,
+            LogLevel.ERROR,
+            {
+                int1 = userId
+                str1 = upgrader.describe()
+            },
+            { "Error performing upgrade $str1 for user $int1" },
+        )
+    }
+
+    fun logCustomTileAddedRepositoryUpgradeStarted(version: Int, userId: Int) {
+        upgraderLogBuffer.log(
+            CUSTOM_TILE_REPOSITORY_UPGRADE_TAG,
+            LogLevel.INFO,
+            {
+                int1 = userId
+                int2 = version
+            },
+            { "Starting upgrade $int2 for user $int1" },
+        )
+    }
+
+    fun logCustomTileAddedRepositoryUpgradeFinished(version: Int, userId: Int) {
+        upgraderLogBuffer.log(
+            CUSTOM_TILE_REPOSITORY_UPGRADE_TAG,
+            LogLevel.INFO,
+            {
+                int1 = userId
+                int2 = version
+            },
+            { "Finished upgrade $int2 for user $int1" },
+        )
+    }
+
+    fun logCustomTileAddedRepositoryUpgradeList(list: List<CustomTileAddedUpgrade>) {
+        upgraderLogBuffer.log(
+            CUSTOM_TILE_REPOSITORY_UPGRADE_TAG,
+            LogLevel.DEBUG,
+            { str1 = list.joinToString(",") { it.describe() } },
+            { "Injected upgrades: $str1" },
+        )
+    }
+
     /** Reasons for destroying an existing tile. */
     enum class TileDestroyedReason(val readable: String) {
         TILE_REMOVED("Tile removed from  current set"),
@@ -278,6 +339,7 @@ constructor(
         NEW_TILE_NOT_AVAILABLE("New tile not available"),
         EXISTING_TILE_NOT_AVAILABLE("Existing tile not available"),
         TILE_NOT_PRESENT_IN_NEW_USER("Tile not present in new user"),
+        TILE_NOT_ALLOWED_FOR_HSU("Tile not allowed for headless system user"),
     }
 
     enum class RestorePreprocessorStep {

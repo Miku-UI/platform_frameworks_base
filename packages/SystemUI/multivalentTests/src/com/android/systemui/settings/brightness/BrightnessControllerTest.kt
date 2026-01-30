@@ -19,7 +19,6 @@ package com.android.systemui.settings.brightness
 import android.hardware.display.BrightnessInfo
 import android.hardware.display.DisplayManager
 import android.os.Handler
-import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.service.vr.IVrManager
@@ -29,7 +28,6 @@ import android.view.Display
 import android.widget.ImageView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.settings.DisplayTracker
@@ -123,14 +121,18 @@ class BrightnessControllerTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_SHOW_TOAST_WHEN_APP_CONTROL_BRIGHTNESS)
     fun testOnChange_showToastWhenAppOverridesBrightness() {
-        val brightnessInfo = BrightnessInfo(
-            0.45f, 0.45f, 0.0f, 1.0f, BrightnessInfo.HIGH_BRIGHTNESS_MODE_OFF,
-            1.0f /* highBrightnessTransitionPoint */,
-            BrightnessInfo.BRIGHTNESS_MAX_REASON_NONE,
-            true /* isBrightnessOverrideByWindow */
-        )
+        val brightnessInfo =
+            BrightnessInfo(
+                0.45f,
+                0.45f,
+                0.0f,
+                1.0f,
+                BrightnessInfo.HIGH_BRIGHTNESS_MODE_OFF,
+                1.0f /* highBrightnessTransitionPoint */,
+                BrightnessInfo.BRIGHTNESS_MAX_REASON_NONE,
+                true, /* isBrightnessOverrideByWindow */
+            )
         whenever(display.brightnessInfo).thenReturn(brightnessInfo)
         underTest.registerCallbacks()
         testableLooper.processAllMessages()

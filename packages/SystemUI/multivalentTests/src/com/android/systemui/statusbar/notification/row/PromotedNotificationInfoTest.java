@@ -50,13 +50,14 @@ import com.android.systemui.statusbar.notification.AssistantFeedbackController;
 import com.android.systemui.statusbar.notification.NotificationActivityStarter;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactoryImpl;
+import com.android.systemui.statusbar.notification.collection.NotifPipeline;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
-import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
-import com.android.systemui.statusbar.notification.promoted.domain.interactor.PackageDemotionInteractor;
 import com.android.systemui.statusbar.notification.collection.coordinator.VisualStabilityCoordinator;
 import com.android.systemui.statusbar.notification.collection.provider.HighPriorityProvider;
+import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
+import com.android.systemui.statusbar.notification.promoted.domain.interactor.PackageDemotionInteractor;
 import com.android.systemui.statusbar.notification.row.icon.AppIconProvider;
 import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider;
 
@@ -125,13 +126,13 @@ public class PromotedNotificationInfoTest extends SysuiTestCase {
         }).build();
         mEntryAdapter = new EntryAdapterFactoryImpl(
                 mock(NotificationActivityStarter.class),
-                mock(MetricsLogger.class),
                 mock(PeopleNotificationIdentifier.class),
-                mock(NotificationIconStyleProvider.class),
                 mock(VisualStabilityCoordinator.class),
                 mock(NotificationActionClickManager.class),
                 mock(HighPriorityProvider.class),
-                mock(HeadsUpManager.class)
+                mock(HeadsUpManager.class),
+                mOnUserInteractionCallback,
+                mock(NotifPipeline.class)
         ).create(mEntry);
         mRanking = mEntry.getRanking();
         when(mAssistantFeedbackController.isFeedbackEnabled()).thenReturn(false);

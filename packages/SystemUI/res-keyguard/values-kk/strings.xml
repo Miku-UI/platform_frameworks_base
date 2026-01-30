@@ -68,7 +68,11 @@
     <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"Құлыпты PIN кодымен не саусақ ізімен ашыңыз."</string>
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Құлыпты құпия сөзбен не саусақ ізімен ашыңыз."</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Құлыпты өрнекпен не саусақ ізімен ашыңыз."</string>
-    <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Қауіпсіздікті күшейту үшін құрылғы жұмыс саясатына сай құлыпталды."</string>
+    <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Қауіпсіздікті күшейту үшін, құрылғы жұмыс саясатына сай құлыпталды."</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"2 сатылы растау"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Саусақ ізімен ашу функциясын пайдалану"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Бет тану функциясын пайдаланыңыз."</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Саусақ ізін немесе бет тану функциясын пайдаланыңыз."</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Құлыпталғаннан кейін PIN кодын енгізу қажет."</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Құлыпталғаннан кейін құпия сөз енгізу қажет."</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Құлыпталғаннан кейін өрнек енгізу қажет."</string>

@@ -20,8 +20,6 @@ import static org.junit.Assert.assertEquals;
 import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
-import com.android.ravenwood.common.RavenwoodCommonUtils;
-
 import org.junit.Test;
 
 public class RavenwoodLogLevelTest {

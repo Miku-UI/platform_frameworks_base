@@ -386,6 +386,16 @@ public class ContrastColorUtil {
         return result[0] < 50;
     }
 
+    /**
+     * Invert the lightness in LAB for the baseColor
+     */
+    public static int invertColorLightness(int baseColor) {
+        final double[] result = ColorUtilsFromCompat.getTempDouble3Array();
+        ColorUtilsFromCompat.colorToLAB(baseColor, result);
+        result[0] = 100 - result[0];
+        return ColorUtilsFromCompat.LABToColor(result[0], result[1], result[2]);
+    }
+
     private int processColor(int color) {
         return Color.argb(Color.alpha(color),
                 255 - Color.red(color),

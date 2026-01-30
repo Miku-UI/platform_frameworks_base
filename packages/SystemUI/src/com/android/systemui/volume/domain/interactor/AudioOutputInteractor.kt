@@ -56,6 +56,7 @@ constructor(
     private val bluetoothAdapter: BluetoothAdapter?,
     private val deviceIconInteractor: DeviceIconInteractor,
     private val mediaOutputInteractor: MediaOutputInteractor,
+    private val audioSharingInteractor: AudioSharingInteractor,
 ) {
 
     val currentAudioDevice: StateFlow<AudioOutputDevice> =
@@ -66,8 +67,14 @@ constructor(
                         communicationDevice?.toAudioOutputDevice()
                     }
                 } else {
-                    mediaOutputInteractor.currentConnectedDevice.map { mediaDevice ->
-                        mediaDevice?.toAudioOutputDevice()
+                    audioSharingInteractor.isInAudioSharing.flatMapLatest { inAudioSharing ->
+                        if (inAudioSharing) {
+                            audioSharingInteractor.primaryDevice.map { it?.toAudioOutputDevice() }
+                        } else {
+                            mediaOutputInteractor.currentConnectedDevice.map { mediaDevice ->
+                                mediaDevice?.toAudioOutputDevice()
+                            }
+                        }
                     }
                 }
             }
@@ -104,6 +111,13 @@ constructor(
         )
     }
 
+    private fun CachedBluetoothDevice.toAudioOutputDevice(): AudioOutputDevice =
+        AudioOutputDevice.Bluetooth(
+            name = name,
+            icon = deviceIconInteractor.loadIcon(this),
+            cachedBluetoothDevice = this,
+        )
+
     private fun MediaDevice.toAudioOutputDevice(): AudioOutputDevice {
         return when {
             this is BluetoothMediaDevice ->
@@ -114,20 +128,10 @@ constructor(
                 )
             deviceType == MediaDeviceType.TYPE_3POINT5_MM_AUDIO_DEVICE ||
                 deviceType == MediaDeviceType.TYPE_USB_C_AUDIO_DEVICE ->
-                AudioOutputDevice.Wired(
-                    name = name,
-                    icon = icon,
-                )
+                AudioOutputDevice.Wired(name = name, icon = icon)
             deviceType == MediaDeviceType.TYPE_CAST_DEVICE ->
-                AudioOutputDevice.Remote(
-                    name = name,
-                    icon = icon,
-                )
-            else ->
-                AudioOutputDevice.BuiltIn(
-                    name = name,
-                    icon = icon,
-                )
+                AudioOutputDevice.Remote(name = name, icon = icon)
+            else -> AudioOutputDevice.BuiltIn(name = name, icon = icon)
         }
     }
 }

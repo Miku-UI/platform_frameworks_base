@@ -1,0 +1,147 @@
+metric_bundles {
+  row {
+    values {
+      double_value: 1024.0
+    }
+    values {
+      double_value: 1536.0
+    }
+    values {
+      double_value: 1317.1965811965813
+    }
+    dimension {
+      string_value: "com.android.systemui"
+    }
+  }
+  row {
+    values {
+      double_value: 0.0
+    }
+    values {
+      double_value: 8192.0
+    }
+    values {
+      double_value: 4055.4455445544554
+    }
+    dimension {
+      string_value: "system_server"
+    }
+  }
+  specs {
+    id: "android_dmabuf_per_process_metric_min_val"
+    dimensions: "process_name"
+    value: "min_val"
+    query {
+      sql {
+        sql: "\n        INCLUDE PERFETTO MODULE android.memory.dmabuf;\n\n        SELECT\n          process_name,\n          value AS metric_val,\n          LEAD(ts, 1, (SELECT end_ts FROM trace_bounds))\n          OVER(PARTITION BY COALESCE(upid, utid) ORDER BY ts) - ts AS dur\n        FROM android_memory_cumulative_dmabuf\n        WHERE upid IS NOT NULL\n      "
+        column_names: "process_name"
+        column_names: "metric_val"
+        column_names: "dur"
+      }
+      filters {
+        column_name: "process_name"
+        op: EQUAL
+        string_rhs: "com.android.systemui"
+        string_rhs: "com.google.android.apps.nexuslauncher"
+        string_rhs: "system_server"
+      }
+      group_by {
+        column_names: "process_name"
+        aggregates {
+          column_name: "metric_val"
+          op: MIN
+          result_column_name: "min_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: MAX
+          result_column_name: "max_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: DURATION_WEIGHTED_MEAN
+          result_column_name: "avg_val"
+        }
+      }
+    }
+    bundle_id: "android_dmabuf_per_process_metric"
+  }
+  specs {
+    id: "android_dmabuf_per_process_metric_max_val"
+    dimensions: "process_name"
+    value: "max_val"
+    query {
+      sql {
+        sql: "\n        INCLUDE PERFETTO MODULE android.memory.dmabuf;\n\n        SELECT\n          process_name,\n          value AS metric_val,\n          LEAD(ts, 1, (SELECT end_ts FROM trace_bounds))\n          OVER(PARTITION BY COALESCE(upid, utid) ORDER BY ts) - ts AS dur\n        FROM android_memory_cumulative_dmabuf\n        WHERE upid IS NOT NULL\n      "
+        column_names: "process_name"
+        column_names: "metric_val"
+        column_names: "dur"
+      }
+      filters {
+        column_name: "process_name"
+        op: EQUAL
+        string_rhs: "com.android.systemui"
+        string_rhs: "com.google.android.apps.nexuslauncher"
+        string_rhs: "system_server"
+      }
+      group_by {
+        column_names: "process_name"
+        aggregates {
+          column_name: "metric_val"
+          op: MIN
+          result_column_name: "min_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: MAX
+          result_column_name: "max_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: DURATION_WEIGHTED_MEAN
+          result_column_name: "avg_val"
+        }
+      }
+    }
+    bundle_id: "android_dmabuf_per_process_metric"
+  }
+  specs {
+    id: "android_dmabuf_per_process_metric_avg_val"
+    dimensions: "process_name"
+    value: "avg_val"
+    query {
+      sql {
+        sql: "\n        INCLUDE PERFETTO MODULE android.memory.dmabuf;\n\n        SELECT\n          process_name,\n          value AS metric_val,\n          LEAD(ts, 1, (SELECT end_ts FROM trace_bounds))\n          OVER(PARTITION BY COALESCE(upid, utid) ORDER BY ts) - ts AS dur\n        FROM android_memory_cumulative_dmabuf\n        WHERE upid IS NOT NULL\n      "
+        column_names: "process_name"
+        column_names: "metric_val"
+        column_names: "dur"
+      }
+      filters {
+        column_name: "process_name"
+        op: EQUAL
+        string_rhs: "com.android.systemui"
+        string_rhs: "com.google.android.apps.nexuslauncher"
+        string_rhs: "system_server"
+      }
+      group_by {
+        column_names: "process_name"
+        aggregates {
+          column_name: "metric_val"
+          op: MIN
+          result_column_name: "min_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: MAX
+          result_column_name: "max_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: DURATION_WEIGHTED_MEAN
+          result_column_name: "avg_val"
+        }
+      }
+    }
+    bundle_id: "android_dmabuf_per_process_metric"
+  }
+}

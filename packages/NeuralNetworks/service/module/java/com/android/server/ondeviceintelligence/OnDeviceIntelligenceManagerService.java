@@ -248,7 +248,7 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             @Override
             public void getFeature(int id, IFeatureCallback featureCallback)
                     throws RemoteException {
-                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeatures");
+                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeature");
                 Objects.requireNonNull(featureCallback);
                 mContext.enforceCallingPermission(
                         Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
@@ -286,7 +286,7 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             @Override
             public void listFeatures(IListFeaturesCallback listFeaturesCallback)
                     throws RemoteException {
-                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeatures");
+                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal listFeatures");
                 Objects.requireNonNull(listFeaturesCallback);
                 mContext.enforceCallingPermission(
                         Manifest.permission.USE_ON_DEVICE_INTELLIGENCE, TAG);
@@ -329,7 +329,7 @@ public class OnDeviceIntelligenceManagerService extends SystemService {
             public void getFeatureDetails(Feature feature,
                     IFeatureDetailsCallback featureDetailsCallback)
                     throws RemoteException {
-                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeatureStatus");
+                Slog.i(TAG, "OnDeviceIntelligenceManagerInternal getFeatureDetails");
                 Objects.requireNonNull(feature);
                 Objects.requireNonNull(featureDetailsCallback);
                 mContext.enforceCallingPermission(

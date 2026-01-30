@@ -153,11 +153,11 @@ public class DozeTestDream extends DreamService {
 
             // flash the screen a bit to test these functions
             setDozeScreenState(DISPLAY_STATE_WHEN_DOZING);
-            setDozeScreenBrightness(200);
+            setDozeScreenBrightness(0.5f);
             mHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    setDozeScreenBrightness(50);
+                    setDozeScreenBrightness(0.1f);
                 }
             }, 2000);
             mHandler.postDelayed(new Runnable() {

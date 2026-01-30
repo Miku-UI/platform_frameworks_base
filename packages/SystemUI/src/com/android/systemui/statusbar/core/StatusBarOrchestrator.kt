@@ -20,6 +20,7 @@ import android.view.Display
 import android.view.View
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Dumpable
+import com.android.systemui.Flags
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.demomode.DemoModeController
@@ -34,6 +35,7 @@ import com.android.systemui.statusbar.AutoHideUiElement
 import com.android.systemui.statusbar.NotificationRemoteInputManager
 import com.android.systemui.statusbar.data.model.StatusBarMode
 import com.android.systemui.statusbar.data.repository.StatusBarModePerDisplayRepository
+import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshInteractor
 import com.android.systemui.statusbar.phone.AutoHideController
 import com.android.systemui.statusbar.phone.CentralSurfaces
 import com.android.systemui.statusbar.phone.PhoneStatusBarTransitions
@@ -71,6 +73,7 @@ constructor(
     @Assisted private val statusBarModeRepository: StatusBarModePerDisplayRepository,
     @Assisted private val statusBarInitializer: StatusBarInitializer,
     @Assisted private val statusBarWindowController: StatusBarWindowController,
+    @Assisted private val statusBarIconRefreshInteractor: StatusBarIconRefreshInteractor,
     @Main private val mainContext: CoroutineContext,
     @Assisted private val autoHideController: AutoHideController,
     private val demoModeController: DemoModeController,
@@ -131,18 +134,34 @@ constructor(
                 statusBarWindowState != StatusBarWindowState.Hidden
         }
 
-    private val barModeUpdate =
+    private data class BarModeAppearance(
+        val animate: Boolean,
+        val barTransitions: PhoneStatusBarTransitions,
+        val statusBarMode: StatusBarMode,
+        val isTransientShown: Boolean,
+    )
+
+    private val barModeAppearance =
         combine(
-                shouldAnimateNextBarModeChange,
-                phoneStatusBarTransitions.filterNotNull(),
-                statusBarModeRepository.statusBarMode,
-                ::Triple,
-            )
-            .distinctUntilChangedBy { (_, barTransitions, statusBarMode) ->
-                // We only want to collect when either bar transitions or status bar mode
-                // changed.
-                Pair(barTransitions, statusBarMode)
-            }
+            shouldAnimateNextBarModeChange,
+            phoneStatusBarTransitions.filterNotNull(),
+            statusBarModeRepository.statusBarMode,
+            statusBarModeRepository.isTransientShown,
+            ::BarModeAppearance,
+        )
+
+    private val barModeUpdate =
+        barModeAppearance.distinctUntilChangedBy {
+            // We only want to collect when either bar transitions or status bar mode changed.
+            Pair(it.barTransitions, it.statusBarMode)
+        }
+
+    private val autoHideUpdate =
+        barModeAppearance.distinctUntilChangedBy {
+            // Update auto-hide whenever `isTransientShown` changes so that we always hide the
+            // transient status bar even if `statusBarMode` hasn't changed. See b/428659575.
+            Triple(it.barTransitions, it.statusBarMode, it.isTransientShown)
+        }
 
     /** Starts status bar orchestration. To be called when status bar is created. */
     fun start() {
@@ -166,14 +185,18 @@ constructor(
                     }
                     launch { statusBarVisible.collect { updateBubblesVisibility(it) } }
                     launch {
-                        barModeUpdate.collect { (animate, barTransitions, statusBarMode) ->
-                            updateBarMode(animate, barTransitions, statusBarMode)
+                        barModeUpdate.collect {
+                            updateBarMode(it.animate, it.barTransitions, it.statusBarMode)
                         }
+                    }
+                    if (Flags.statusBarAlwaysScheduleAutoHide()) {
+                        launch { autoHideUpdate.collect { autoHideController.touchAutoHide() } }
                     }
                 }
         createAndAddWindow()
         setupPluginDependencies()
         setUpAutoHide()
+        statusBarIconRefreshInteractor.start()
     }
 
     private fun createAndAddWindow() {
@@ -194,10 +217,6 @@ constructor(
                     if (displayId != Display.DEFAULT_DISPLAY) {
                         return
                     }
-                    // TODO(b/373310629): shade should be display id aware
-                    notificationShadeWindowViewControllerLazy
-                        .get()
-                        .setStatusBarViewController(statusBarViewController)
                     // Ensure we re-propagate panel expansion values to the panel controller and
                     // any listeners it may have, such as PanelBar. This will also ensure we
                     // re-display the notification panel if necessary (for example, if
@@ -226,9 +245,7 @@ constructor(
                     return statusBarModeRepository.isTransientShown.value
                 }
 
-                override fun hide() {
-                    statusBarModeRepository.clearTransient()
-                }
+                override fun hide() {}
             }
         )
     }
@@ -241,7 +258,10 @@ constructor(
         if (!demoModeController.isInDemoMode) {
             barTransitions.transitionTo(barMode.toTransitionModeInt(), animate)
         }
-        autoHideController.touchAutoHide()
+
+        if (!Flags.statusBarAlwaysScheduleAutoHide()) {
+            autoHideController.touchAutoHide()
+        }
     }
 
     private fun updateBubblesVisibility(statusBarVisible: Boolean) {
@@ -282,6 +302,7 @@ constructor(
     fun stop() {
         StatusBarConnectedDisplays.unsafeAssertInNewMode()
         dumpManager.unregisterDumpable(dumpableName)
+        statusBarIconRefreshInteractor.stop()
         startJob?.cancel()
         startJob = null
     }
@@ -295,6 +316,7 @@ constructor(
             statusBarModeRepository: StatusBarModePerDisplayRepository,
             statusBarInitializer: StatusBarInitializer,
             statusBarWindowController: StatusBarWindowController,
+            statusBarIconRefreshInteractor: StatusBarIconRefreshInteractor,
             autoHideController: AutoHideController,
         ): StatusBarOrchestrator
     }

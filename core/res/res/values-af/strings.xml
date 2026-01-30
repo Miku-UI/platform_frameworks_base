@@ -71,9 +71,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"Beller-ID se verstek is beperk. Volgende oproep: nie beperk nie"</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"Beller-ID se verstek is nie beperk nie. Volgende oproep: beperk"</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"Beller-ID se verstek is nie beperk nie. Volgende oproep: nie beperk nie"</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"Hierdie app is nie versoenbaar met 16 KB nie. APK-belyningkontrole het misluk. Hierdie app sal met bladsygrootteversoenbare modus gebruik word. Stel asseblief weer die app met 16 KB-ondersteuning saam vir beste versoenbaarheid. Sien &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; vir meer inligting"</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"Hierdie app is nie versoenbaar met 16 KB nie. ELF-belyningkontrole het misluk. Hierdie app sal met bladsygrootteversoenbare modus gebruik word. Stel asseblief weer die app met 16 KB-ondersteuning saam vir beste versoenbaarheid. Sien &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; vir meer inligting"</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"Hierdie app is nie versoenbaar met 16 KB nie. APK- ELF-belyningkontroles het misluk. Hierdie app sal met bladsygrootteversoenbare modus gebruik word. Stel asseblief weer die app met 16 KB-ondersteuning saam vir beste versoenbaarheid. Sien &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; vir meer inligting"</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"Hierdie app is nie 16 KB-versoenbaar nie. APK-belyningkontrolering het misluk. Hierdie app sal met bladsygrootteversoenbare modus gebruik word. Stel weer die app met 16 KB-steun saam vir beste versoenbaarheid. Verwys na &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; vir meer inligting. Die volgende biblioteke is nie 16 KB-belyn nie: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"Hierdie app is nie 16 KB-versoenbaar nie. ELF-belyningkontrolering het misluk. Hierdie app sal met bladsygrootteversoenbare modus gebruik word. Stel weer die app met 16 KB-steun saam vir beste versoenbaarheid. Verwys na &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; vir meer inligting. Die volgende biblioteke is nie 16 KB-belyn nie: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"Hierdie app is nie 16 KB-versoenbaar nie. APK- en ELF-belyningkontrolerings het misluk. Hierdie app sal met bladsygrootteversoenbare modus gebruik word. Stel weer die app met 16 KB-steun saam vir beste versoenbaarheid. Verwys na &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; vir meer inligting. Die volgende biblioteke is nie 16 KB-belyn nie: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"Hierdie waarskuwing word gewys omdat dit ’n ontfoutbare app is wat tans getoets word. As jy nie die ontwikkelaar is nie, kan jy dit by die ontwikkelaar aangee en vra vir ’n nieontfoutbare app. &lt;br&gt;&lt;br&gt; Hierdie app is nie 16 KB-versoenbaar nie. APK-belyningkontrolering het misluk. Volg die stappe op &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Die volgende biblioteke is nie 16 KB-belyn nie: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Hierdie waarskuwing word gewys omdat dit ’n ontfoutbare app is wat tans getoets word. As jy nie die ontwikkelaar is nie, kan jy dit by die ontwikkelaar aangee en vra vir ’n nieontfoutbare app. &lt;br&gt;&lt;br&gt; Hierdie app is nie 16 KB-versoenbaar nie. ELF-belyningkontrolering het misluk. Volg die stappe op &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Die volgende biblioteke is nie 16 KB-belyn nie: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"Hierdie waarskuwing word gewys omdat dit ’n ontfoutbare app is wat tans getoets word. As jy nie die ontwikkelaar is nie, kan jy dit by die ontwikkelaar aangee en vra vir ’n nieontfoutbare app. &lt;br&gt;&lt;br&gt; Hierdie app is nie 16 KB-versoenbaar nie. APK- en ELF-belyningkontrolerings het misluk. Volg die stappe op &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Die volgende biblioteke is nie 16 KB-belyn nie: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"Moenie weer wys nie"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Versoenbaarheid van Android-app"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s : LAAI-segment is nie belyn nie&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : Onsaamgeperste biblioteek is nie belyn nie&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s : LAAI-segment en onsaamgeperste biblioteek is nie belyn nie&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : Onbekende fout&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"Diens nie verskaf nie."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"Jy kan nie die beller-ID-instelling verander nie."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"Het data oorgeskakel na <xliff:g id="CARRIERDISPLAY">%s</xliff:g>"</string>
@@ -95,7 +104,7 @@
     <string name="notification_channel_mobile_data_status" msgid="1941911162076442474">"Status van mobiele data"</string>
     <string name="notification_channel_sms" msgid="1243384981025535724">"SMS-boodskappe"</string>
     <string name="notification_channel_voice_mail" msgid="8457433203106654172">"Stemboodskappe"</string>
-    <string name="notification_channel_wfc" msgid="9048240466765169038">"Wi-Fi-oproepe"</string>
+    <string name="notification_channel_wfc" msgid="9048240466765169038">"Wi-fi-oproepe"</string>
     <string name="notification_channel_sim" msgid="5098802350325677490">"SIM-status"</string>
     <string name="notification_channel_sim_high_prio" msgid="642361929452850928">"Hoëprioriteit-SIM-status"</string>
     <string name="peerTtyModeFull" msgid="337553730440832160">"Ander party het TTY-modus VOL versoek"</string>
@@ -140,9 +149,9 @@
     <string name="wfcSpnFormat_spn_wifi" msgid="7232899594327126970">"<xliff:g id="SPN">%s</xliff:g>-Wi-Fi"</string>
     <string name="wfcSpnFormat_wifi_calling_bar_spn" msgid="8383917598312067365">"Wi-Fi-oproepe | <xliff:g id="SPN">%s</xliff:g>"</string>
     <string name="wfcSpnFormat_spn_vowifi" msgid="6865214948822061486">"<xliff:g id="SPN">%s</xliff:g>-VoWifi"</string>
-    <string name="wfcSpnFormat_wifi_calling" msgid="6178935388378661755">"Wi-Fi-oproepe"</string>
+    <string name="wfcSpnFormat_wifi_calling" msgid="6178935388378661755">"Wi-fi-oproepe"</string>
     <string name="wfcSpnFormat_wifi" msgid="1376356951297043426">"Wi-fi"</string>
-    <string name="wfcSpnFormat_wifi_calling_wo_hyphen" msgid="7178561009225028264">"Wi-Fi-oproepe"</string>
+    <string name="wfcSpnFormat_wifi_calling_wo_hyphen" msgid="7178561009225028264">"Wi-fi-oproepe"</string>
     <string name="wfcSpnFormat_vowifi" msgid="8371335230890725606">"VoWifi"</string>
     <string name="wfcSpnFormat_wifi_call" msgid="434016592539090004">"Wi-fi-oproep"</string>
     <string name="wifi_calling_off_summary" msgid="5626710010766902560">"Af"</string>
@@ -160,8 +169,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"Selnetwerksekuriteit"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"Enkripsie, kennisgewings vir ongeënkripteerde netwerke"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"Toegang is tot toestel-ID verkry"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"’n Nabygeleë netwerk het om <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> jou toestel se unieke ID (IMSI of IMEI) aangeteken terwyl jou <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>-SIM gebruik is"</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"’n Nabygeleë netwerk het om <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> jou toestel se unieke ID (IMSI of IMEI) aangeteken terwyl jou <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>-SIM gebruik is.\n\nDit beteken dat jou ligging, aktiwiteit of identiteit aangeteken is. Dit is ’n algemene praktyk, maar kan ’n kwessie wees vir mense wat bekommerd is oor privaatheid."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"’n Netwerk in die omtrek het pm <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> jou toestel se unieke ID (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>) aangeteken terwyl jou <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM gebruik is"</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"’n Netwerk in die omtrek het om <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> jou toestel se unieke ID aangeteken terwyl jou <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM gebruik is"</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"’n Netwerk in die omtrek het om <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> jou toestel se unieke ID (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>) aangeteken terwyl jou <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM gebruik is.\n\nDit beteken dat jou ligging, aktiwiteit of identiteit aangeteken is. Dit is ’n algemene praktyk, maar kan ’n kwessie wees vir mense wat bekommerd is oor privaatheid."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"’n Netwerk in die omtrek het om <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> jou toestel se unieke ID aangeteken terwyl jou <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM gebruik is.\n\nDit beteken dat jou ligging, aktiwiteit of identiteit aangeteken is. Dit is ’n algemene praktyk, maar kan ’n kwessie wees vir mense wat bekommerd is oor privaatheid."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"Verbind aan geënkripteerde netwerk <xliff:g id="NETWORK_NAME">%1$s</xliff:g>"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"<xliff:g id="NETWORK_NAME">%1$s</xliff:g>-SIM-verbinding is nou meer beveilig"</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"Verbind aan ongeënkripteerde netwerk"</string>
@@ -289,6 +300,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"Help"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"Stembystand"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"Snelsluit"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"Sluit"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"999+"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"Antwoord"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"Nuwe kennisgewing"</string>
@@ -324,8 +336,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"Skakel oor na werkprofiel"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"Skakel oor na persoonlike <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Skakel oor na werk-<xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"Kontakte"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"in te gaan by jou kontakte"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"Kontakte en rekeninge"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"gaan by jou kontakte in en sien die lys van jou rekeninge wat kontakte op hierdie toestel kan stoor"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Ligging"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"toegang te verkry tot hierdie toestel se ligging"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Kalender"</string>
@@ -354,10 +366,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"toegang te verkry tot sensordata oor jou lewenstekens"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"Kennisgewings"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"wys kennisgewings"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"UR-nasporingdata"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"toegang tot UR-data oor jou en die omgewing rondom jou te verkry"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"sensitiewe UR-nasporingdata"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"toegang tot sensitiewe nasporingdata, soos oogblik, te verkry"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"Oogkontroleringdata"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"kontroleer oogbeweging presies"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"Beweging- en areadata"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"kontroleer oë, gesig, liggaam en skandeerarea"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"Presiese beweging- en areadata"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"skandeer area en volg kop presies"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"Venster-inhoud ophaal"</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"Die inhoud ondersoek van \'n venster waarmee jy interaksie het."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"Verken-met-raak aanskakel"</string>
@@ -382,6 +396,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"Laat die app toe om die statusbalk uit te vou of in te vou."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"wys kennisgewings as volskermaktiwiteite op \'n geslote skerm"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"Laat die app toe om kennisgewings as volskermaktiwiteite op \'n geslote toestel te wys"</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"Wys regstreekse opdaterings"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"Laat die app toe om deurlopende, tydsensitiewe kennisgewings op die statusbalk en die sluitskerm te wys"</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"installeer kortpaaie"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"Stel \'n app in staat om Tuisskerm-kortpaaie by te voeg sonder gebruikerinmenging."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"deïnstalleer kortpaaie"</string>
@@ -623,6 +639,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"Laat die app toe om relatiewe posisie tussen ultrabreëbandtoestelle in die omtrek te bepaal"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"om interaksie met wi‑fi-toestelle in die omtrek te hê"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Laat die app toe om op toestelle in die omtrek te adverteer, aan hulle te koppel en hul relatiewe posisie te bepaal"</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"kry toegang tot plaaslikenetwerktoestelle"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"Laat die app toe om toegang tot plaaslikenetwerktoestelle te kry"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"bepaal relatiewe posisie tussen toestelle in die omtrek"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Laat die app toe om relatiewe posisie tussen toestelle in die omtrek te bepaal"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Voorkeur-NFC-betalingdiensinligting"</string>
@@ -653,27 +671,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"Laat die app toe om jou fotoversameling te wysig."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"lees liggings in jou mediaversameling"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"Laat die app toe om liggings in jou mediaversameling te lees."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"jou benaderde oogblik na te spoor"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"Laat die app toe om jou benaderde oogblik na te spoor."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"waar jy kyk na te spoor"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"Gee die app toegang tot presiese oogblikdata."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"jou gesig na te spoor"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"Gee die app toegang tot gesignasporingdata."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"jou hande na te spoor"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"Gee die app toegang tot handbewegingnasporingdata."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"jou kop na te spoor"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"Gee die app toegang tot kopsporingdata."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"jou onmiddellike omgewing te verstaan"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"Gee die app toegang tot nasporingdata oor die omgewing direk rondom jou."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"jou onmiddellike omgewing in fyn detail te verstaan"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"Gee die app toegang tot hoogs gedetailleerde spoordata oor die omgewing direk rondom jou."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"toegang tot UR-data te verkry terwyl dit nie op die voorgrond is nie"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"Gee die app toegang tot UR-data terwyl dit nie in die voorgrond is nie."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"kontroleer oogbeweging"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"Laat die app toe om die benaderde rigting waarnatoe jy kyk te kontroleer."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"kontroleer oogbeweging presies"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"Laat die app toe om die rigting waarnatoe jy kyk te kontroleer."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"kontroleer gesigbewegings"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"Laat die app toe om jou gesigbewegings en -uitdrukkings te kontroleer."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"kontroleer handbewegings"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"Laat die app toe om jou handbewegings te kontroleer."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"kontroleer kopbewegings"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"Laat die app toe om jou kopbewegings te kontroleer."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"skandeer jou omgewing"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"Laat die app toe om jou omgewing te skandeer."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"skandeer jou omgewing presies"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"Laat die app toe om jou omgewing presies te skandeer."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"Kry toegang tot UR-nasporing in die agtergrond"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"Laat die app toe om toegang tot UR-data in die agtergrond te kry."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"vang sleutels vas"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"Laat die app toe om sleutels vas te vang voordat die stelsel stelselkortpaaie en -handelinge kan verwerk."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"Gebruik biometrie"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"Gebruik biometrie of skermslot"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"Verifieer dat dit jy is"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"Gebruik jou biometrie om voort te gaan"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"Gebruik jou biometriese data of skermslot om voort te gaan"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"Verifieer dat dit jy op jou foon is om voort te gaan"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"Verifieer dat dit jy op jou tablet is om voort te gaan"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"Biometriese hardeware is nie beskikbaar nie"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"Stawing is gekanselleer"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"Nie herken nie"</string>
@@ -897,6 +919,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"Voorkom die gebruik van alle toestelkameras."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"Deaktiveer sommige skermslotkenmerke"</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"Voorkom dat sommige skermslotkenmerke gebruik word"</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"Langdruk die Esc-sleutel om hierdie app toe te maak"</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"Tuis"</item>
     <item msgid="7740243458912727194">"Mobiel"</item>
@@ -1107,6 +1130,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"SIM-PIN-ontsluiting."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"SIM-PUK-ontsluiting."</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"Wagwoord ontsluit."</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"Biometriese ontsluiting vir veilige sluittoestel."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"Patroonarea."</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"Sleep-area."</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1182,22 +1206,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"oor <xliff:g id="COUNT">%d</xliff:g> u."</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"oor <xliff:g id="COUNT">%d</xliff:g> d."</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"oor <xliff:g id="COUNT">%d</xliff:g> j."</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"<xliff:g id="COUNT">%d</xliff:g> m. gelede"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"<xliff:g id="COUNT">%d</xliff:g> uur gelede"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"<xliff:g id="COUNT">%d</xliff:g> d. gelede"</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"<xliff:g id="COUNT">%d</xliff:g> jr. gelede"</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> min."</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g> uur"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g> d."</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> jr."</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"oor <xliff:g id="COUNT">%d</xliff:g> min."</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"oor <xliff:g id="COUNT">%d</xliff:g> uur"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"oor <xliff:g id="COUNT">%d</xliff:g> d."</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"oor <xliff:g id="COUNT">%d</xliff:g> jr."</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"<xliff:g id="COUNT">%d</xliff:g> min. gelede"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"<xliff:g id="COUNT">%d</xliff:g> uur gelede"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"<xliff:g id="COUNT">%d</xliff:g> d. gelede"</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"<xliff:g id="COUNT">%d</xliff:g> jr. gelede"</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{# minuut gelede}other{# minute gelede}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{# uur gelede}other{# uur gelede}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{# dag gelede}other{# dae gelede}}"</string>
@@ -1478,8 +1488,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"WEIER"</string>
     <string name="select_input_method" msgid="3971267998568587025">"Kies invoermetode"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"Taalinstellings"</string>
-    <string name="show_ime" msgid="6406112007347443383">"Hou dit op die skerm terwyl fisieke sleutelbord aktief is"</string>
-    <string name="hardware" msgid="3611039921284836033">"Gebruik skermsleutelbord"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"Stel <xliff:g id="DEVICE_NAME">%s</xliff:g> op"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"Stel fisieke sleutelborde op"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"Tik om taal en uitleg te kies"</string>
@@ -1621,7 +1629,7 @@
     <string name="sync_undo_deletes" msgid="5786033331266418896">"Ontdoen die uitgeveedes"</string>
     <string name="sync_do_nothing" msgid="4528734662446469646">"Doen vir eers niks nie"</string>
     <string name="choose_account_label" msgid="5557833752759831548">"Kies \'n rekening"</string>
-    <string name="add_account_label" msgid="4067610644298737417">"Voeg \'n rekening by"</string>
+    <string name="add_account_label" msgid="4067610644298737417">"Voeg ’n rekening by"</string>
     <string name="add_account_button_label" msgid="322390749416414097">"Voeg rekening by"</string>
     <string name="number_picker_increment_button" msgid="7621013714795186298">"Vermeerder"</string>
     <string name="number_picker_decrement_button" msgid="5116948444762708204">"Verminder"</string>
@@ -1709,6 +1717,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"Eksterne toestel"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"Oorfone"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"TV-oudio"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"Analoog"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"Digitaal"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"AUX"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"Stelsel"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"Bluetooth-oudio"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"Draadlose skerm"</string>
@@ -1804,7 +1818,8 @@
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Eenhandmodus"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Ekstra donker"</string>
     <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Gehoortoestelle"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"Outoklik"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"Outoklik (stilstandtydtelling)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Muissleutels"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Ontkoppel"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"Gekoppel"</string>
     <string name="hearing_device_status_active" msgid="4770378695482566032">"Aktief"</string>
@@ -1829,6 +1844,8 @@
     <string name="user_logging_out_message" msgid="7216437629179710359">"Meld <xliff:g id="NAME">%1$s</xliff:g> tans af …"</string>
     <string name="owner_name" msgid="8713560351570795743">"Eienaar"</string>
     <string name="guest_name" msgid="8502103277839834324">"Gas"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"Stelselgebruiker"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Gebruiker"</string>
     <string name="error_message_title" msgid="4082495589294631966">"Fout"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"Jou administrateur laat nie hierdie verandering toe nie"</string>
     <string name="app_not_found" msgid="3429506115332341800">"Geen app gevind om hierdie handeling te hanteer nie"</string>
@@ -1969,8 +1986,8 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"Deur jou admin opgedateer.\nGaan na instellings om toegestaande toestemmings te sien"</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"Uitgevee deur jou administrateur"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"OK"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"Batterybespaarder skakel Donkertema aan en beperk of skakel agtergrondaktiwiteit, sommige visuele effekte, sekere kenmerke en sommige netwerkverbindings af"</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"Batterybespaarder skakel Donkertema aan en beperk of skakel agtergrondaktiwiteit, sommige visuele effekte, sekere kenmerke en sommige netwerkverbindings af"</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"Batterybespaarder skakel donkertema aan en beperk of skakel agtergrondaktiwiteit, sommige visuele effekte, sekere kenmerke en sommige netwerkverbindings af."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"Batterybespaarder skakel donkertema aan en beperk of skakel agtergrondaktiwiteit, sommige visuele effekte, sekere kenmerke en sommige netwerkverbindings af."</string>
     <string name="data_saver_description" msgid="4995164271550590517">"Databespaarder verhoed sommige apps om data op die agtergrond te stuur of te ontvang om datagebruik te help verminder. ’n App wat jy tans gebruik kan by data ingaan, maar sal dit dalk minder gereeld doen. Dit kan byvoorbeeld beteken dat prente nie wys voordat jy op hulle tik nie."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"Skakel Databespaarder aan?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"Skakel aan"</string>
@@ -2032,6 +2049,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"Maksimeer"</string>
     <string name="close_button_text" msgid="10603510034455258">"Maak toe"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g>: <xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Antwoord"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Video"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Wys af"</string>
@@ -2043,7 +2063,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"Promosies"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"Sosiaal"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"Nuus"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"Aanbevelings"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"Voorgestel"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"Jy stel die belangrikheid van hierdie kennisgewings."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"Dit is belangrik as gevolg van die mense wat betrokke is."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"Gepasmaakte appkennisgewing"</string>
@@ -2244,7 +2264,7 @@
     <string name="car_loading_profile" msgid="8219978381196748070">"Laai tans"</string>
     <string name="file_count" msgid="3220018595056126969">"{count,plural, =1{{file_name} + # lêer}other{{file_name} + # lêers}}"</string>
     <string name="chooser_no_direct_share_targets" msgid="1511722103987329028">"Geen mense om mee te deel is aanbeveel nie"</string>
-    <string name="chooser_all_apps_button_label" msgid="3230427756238666328">"Programmelys"</string>
+    <string name="chooser_all_apps_button_label" msgid="3230427756238666328">"Applys"</string>
     <string name="usb_device_resolve_prompt_warn" msgid="325871329788064199">"Opneemtoestemming is nie aan hierdie app verleen nie, maar dit kan oudio deur hierdie USB-toestel opneem."</string>
     <string name="accessibility_system_action_home_label" msgid="3234748160850301870">"Tuis"</string>
     <string name="accessibility_system_action_back_label" msgid="4205361367345537608">"Terug"</string>
@@ -2266,19 +2286,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"D-paneel links"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"D-paneel regs"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"D-paneel middel"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"Outoklik-tipe instellingspaneel"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"Linksklik"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"Regsklik"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"Dubbelklik"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"Kieslys vir outoklikopsies"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"Linksklik"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"Regsklik"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"Dubbelklik"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"Sleep"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"Rollees"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"Raak en hou"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"Onderbreek"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"Posisie"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"Rollees op"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"Rollees af"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"Rollees na links"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"Rollees na regs"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"Gaan uit Rolleesmodus"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"Hervat"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"Verander posisie van kieslys"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"Rollees op"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"Rollees af"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"Rollees na links"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"Rollees na regs"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"Gaan uit rolleesmodus"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"Rolleespaneel"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"<xliff:g id="PACKAGE_NAME">%1$s</xliff:g> is in die BEPERK-groep geplaas"</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2498,7 +2520,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Appinhoud is weens sekuriteit van skermdeling verberg"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"Outomaties aan satelliet gekoppel"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"Jy kan boodskappe stuur en ontvang sonder ’n selfoon- of wi-fi-netwerk"</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"Jy kan boodskappe stuur en ontvang en beperkte data via satelliet gebruik"</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"Jy kan boodskappe stuur en ontvang en uitgesoekte apps oor satelliet gebruik"</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"Gebruik satellietboodskappe?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"Stuur en ontvang boodskappe sonder ’n selfoon- of wi-fi-netwerk"</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"Maak Boodskappe oop"</string>
@@ -2553,12 +2575,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"Kalender"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"Sakrekenaar"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Maps"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"Lêers"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"Apps"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"Jou vingerafdrukke kan nie meer herken word nie. Stel Vingerafdrukslot weer op."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"USB-toestel is ingeprop wanneer dit gesluit is"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"USB-toestel is ingeprop wanneer jou Android gesluit is. Om die toestel te gebruik, moet jy eers jou Android ontsluit en dan weer die USB-toestel insit om dit te gebruik."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"Sekuriteit en privaatheid"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"Ontsluit skerm en herverbind USB"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"Ontsluit skerm om USB te verbind"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"Gevorderde Beskerming vereis dat jou skerm ontsluit moet wees om USB-verbinding te begin"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"Gevorderde Beskerming vereis dat jou skerm ontsluit moet wees om USB-verbinding te begin"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"Gevorderde Beskerming vereis dat jou skerm ontsluit moet wees om vinniger te laai"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"Gevorderde Beskerming vereis dat jou skerm ontsluit moet wees om vinniger te laai of om USB-verbinding te begin"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"Demp"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"Kennisgewings is gedemp"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"Jy sal nie Gevorderde Beskerming-USB-kennisgewings ontvang voordat jy jou toestel herbegin nie"</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"Verdagte USB-aktiwiteit"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"USB-datasein is gedeaktiveer."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"USB-datasein is gedeaktiveer"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"Sukkel jy met Vingerafdrukslot?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Tik om te kyk na wenke om jou ervaring met ontsluiting te verbeter"</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Moenie flits nie"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Langdruk die aan/af-skakelaar om TV af te skakel"</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Waarskuwings oor stelselhulpbronne"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Oorgebruik van hulpbron"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"App “<xliff:g id="APP_NAME">%1$s</xliff:g> gebruik te veel hulpbronne”."</string>
 </resources>

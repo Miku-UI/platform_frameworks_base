@@ -222,8 +222,8 @@ public class AccountsDbTest {
         int testUid = 100500;
         long grantId = mAccountsDb.insertGrant(accId, "tokenType", testUid);
         assertTrue(grantId > 0);
-        List<Integer> allUidGrants = mAccountsDb.findAllUidGrants();
-        List<Integer> expectedUids = Arrays.asList(testUid);
+        int[] allUidGrants = mAccountsDb.findAllUidGrants();
+        int[] expectedUids = new int[]{testUid};
         assertEquals(expectedUids, allUidGrants);
 
         long matchingGrantsCount = mAccountsDb.findMatchingGrantsCount(
@@ -237,14 +237,14 @@ public class AccountsDbTest {
         matchingGrantsCount = mAccountsDb.findMatchingGrantsCountAnyToken(testUid, account);
         assertEquals(1, matchingGrantsCount);
 
-        List<Pair<String, Integer>> allAccountGrants = mAccountsDb.findAllAccountGrants();
-        assertEquals(1, allAccountGrants.size());
-        assertEquals(account.name, allAccountGrants.get(0).first);
-        assertEquals(testUid, (int)allAccountGrants.get(0).second);
+        Pair<String[], int[]> allAccountGrants = mAccountsDb.findAllAccountGrants();
+        assertEquals(1, allAccountGrants.first.length);
+        assertEquals(account.name, allAccountGrants.first[0]);
+        assertEquals(testUid, allAccountGrants.second[0]);
 
         mAccountsDb.deleteGrantsByUid(testUid);
         allUidGrants = mAccountsDb.findAllUidGrants();
-        assertTrue("Test grants should be removed", allUidGrants.isEmpty());
+        assertEquals("Test grants should be removed", new int[]{}, allUidGrants);
     }
 
     @Test
@@ -255,9 +255,8 @@ public class AccountsDbTest {
         long sharedAccId = mAccountsDb.insertSharedAccount(account);
         long foundSharedAccountId = mAccountsDb.findSharedAccountId(account);
         assertEquals(sharedAccId, foundSharedAccountId);
-        List<Account> sharedAccounts = mAccountsDb.getSharedAccounts();
-        List<Account> expectedList = Arrays.asList(account);
-        assertEquals(expectedList, sharedAccounts);
+        Account[] sharedAccounts = mAccountsDb.getSharedAccounts();
+        assertEquals(new Account[] {account}, sharedAccounts);
 
         // Delete and verify
         mAccountsDb.deleteSharedAccount(account);

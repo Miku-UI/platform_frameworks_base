@@ -163,52 +163,6 @@ class MediaUiEventLogger @Inject constructor(private val logger: UiEventLogger) 
         logger.log(event)
     }
 
-    fun logRecommendationAdded(packageName: String, instanceId: InstanceId?) {
-        logger.logWithInstanceId(
-            MediaUiEvent.MEDIA_RECOMMENDATION_ADDED,
-            0,
-            packageName,
-            instanceId,
-        )
-    }
-
-    fun logRecommendationRemoved(packageName: String, instanceId: InstanceId?) {
-        logger.logWithInstanceId(
-            MediaUiEvent.MEDIA_RECOMMENDATION_REMOVED,
-            0,
-            packageName,
-            instanceId,
-        )
-    }
-
-    fun logRecommendationActivated(uid: Int, packageName: String, instanceId: InstanceId) {
-        logger.logWithInstanceId(
-            MediaUiEvent.MEDIA_RECOMMENDATION_ACTIVATED,
-            uid,
-            packageName,
-            instanceId,
-        )
-    }
-
-    fun logRecommendationItemTap(packageName: String, instanceId: InstanceId?, position: Int) {
-        logger.logWithInstanceIdAndPosition(
-            MediaUiEvent.MEDIA_RECOMMENDATION_ITEM_TAP,
-            0,
-            packageName,
-            instanceId,
-            position,
-        )
-    }
-
-    fun logRecommendationCardTap(packageName: String, instanceId: InstanceId?) {
-        logger.logWithInstanceId(
-            MediaUiEvent.MEDIA_RECOMMENDATION_CARD_TAP,
-            0,
-            packageName,
-            instanceId,
-        )
-    }
-
     fun logOpenBroadcastDialog(uid: Int, packageName: String, instanceId: InstanceId) {
         logger.logWithInstanceId(
             MediaUiEvent.MEDIA_OPEN_BROADCAST_DIALOG,

@@ -23,6 +23,7 @@ import com.android.systemui.statusbar.notification.stack.ui.viewmodel.Notificati
 import com.android.systemui.util.kotlin.Utils
 import com.android.systemui.util.kotlin.sample
 import com.android.systemui.util.kotlin.throttle
+import com.android.systemui.util.time.SystemClock
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
@@ -40,13 +41,14 @@ object NotificationStatsLoggerBinder {
         view: NotificationStackScrollLayout,
         logger: NotificationStatsLogger,
         viewModel: NotificationLoggerViewModel,
+        systemClock: SystemClock,
     ) {
         // Updates the logger about whether the Notification panel, and the individual Notifications
         // are visible to the user.
         viewModel.isLockscreenOrShadeInteractive
             .sample(
                 combine(viewModel.isOnLockScreen, viewModel.activeNotifications, ::Pair),
-                Utils.Companion::toTriple
+                Utils.Companion::toTriple,
             )
             .collectLatest { (isPanelInteractive, isOnLockScreen, notifications) ->
                 if (isPanelInteractive) {
@@ -58,15 +60,13 @@ object NotificationStatsLoggerBinder {
                         // Delay the updates with [NOTIFICATION_UPDATE_PERIOD_MS]. If the original
                         // flow emits more than once during this period, only the latest value is
                         // emitted, meaning that we won't log the intermediate Notification states.
-                        .throttle(NOTIFICATION_UPDATE_PERIOD_MS)
+                        .throttle(NOTIFICATION_UPDATE_PERIOD_MS, clock = systemClock)
                         .sample(viewModel.activeNotificationRanks, ::Pair)
                         .collect { (locationsProvider, ranks) ->
                             logger.onNotificationLocationsChanged(locationsProvider, ranks)
                         }
                 } else {
-                    logger.onLockscreenOrShadeNotInteractive(
-                        activeNotifications = notifications,
-                    )
+                    logger.onLockscreenOrShadeNotInteractive(activeNotifications = notifications)
                 }
             }
     }

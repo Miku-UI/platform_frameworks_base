@@ -17,13 +17,14 @@
 package com.android.systemui.keyboard.stickykeys.ui
 
 import android.app.Dialog
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyboard.stickykeys.StickyKeysLogger
 import com.android.systemui.keyboard.stickykeys.ui.viewmodel.StickyKeysIndicatorViewModel
+import com.android.systemui.settings.DisplayTracker
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 @SysUISingleton
 class StickyKeysIndicatorCoordinator
@@ -33,20 +34,28 @@ constructor(
     private val stickyKeyDialogFactory: StickyKeyDialogFactory,
     private val viewModel: StickyKeysIndicatorViewModel,
     private val stickyKeysLogger: StickyKeysLogger,
+    private val displayTracker: DisplayTracker,
 ) {
 
-    private var dialog: Dialog? = null
+    private var dialogs = mutableMapOf<Int, Dialog?>()
 
     fun startListening() {
         applicationScope.launch {
             viewModel.indicatorContent.collect { stickyKeys ->
                 stickyKeysLogger.logNewUiState(stickyKeys)
                 if (stickyKeys.isEmpty()) {
-                    dialog?.dismiss()
-                    dialog = null
-                } else if (dialog == null) {
-                    dialog = stickyKeyDialogFactory.create(viewModel)
-                    dialog?.show()
+                    displayTracker.allDisplays.forEach {
+                        dialogs[it.displayId]?.dismiss()
+                        dialogs[it.displayId] = null
+                    }
+                } else {
+                    displayTracker.allDisplays
+                        .filter { dialogs[it.displayId] == null }
+                        .forEach { display ->
+                            val newDialog = stickyKeyDialogFactory.create(display, viewModel)
+                            dialogs[display.displayId] = newDialog
+                            newDialog.show()
+                        }
                 }
             }
         }

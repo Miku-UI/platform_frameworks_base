@@ -22,12 +22,14 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.compose.theme.PlatformTheme
+import com.android.systemui.compose.modifiers.sysUiResTagContainer
 import com.android.systemui.people.ui.compose.PeopleScreen
 import com.android.systemui.people.ui.viewmodel.PeopleViewModel
 import javax.inject.Inject
@@ -62,7 +64,15 @@ constructor(private val viewModelFactory: PeopleViewModel.Factory) : ComponentAc
         }
 
         // Set the content of the activity, using either the View or Compose implementation.
-        setContent { PlatformTheme { PeopleScreen(viewModel, onResult = { finishActivity(it) }) } }
+        setContent {
+            PlatformTheme {
+                PeopleScreen(
+                    viewModel,
+                    onResult = { finishActivity(it) },
+                    Modifier.sysUiResTagContainer(),
+                )
+            }
+        }
     }
 
     private fun finishActivity(result: PeopleViewModel.Result) {

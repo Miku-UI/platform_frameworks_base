@@ -16,11 +16,9 @@
 
 package com.android.server.wm;
 
-import static com.android.server.wm.BackgroundActivityStartController.BAL_ALLOW_PENDING_INTENT;
 import static com.android.server.wm.BackgroundActivityStartController.BAL_ALLOW_PERMISSION;
 import static com.android.server.wm.BackgroundActivityStartController.BAL_ALLOW_VISIBLE_WINDOW;
 import static com.android.server.wm.BackgroundActivityStartController.BAL_BLOCK;
-import static com.android.window.flags.Flags.balImprovedMetrics;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -178,7 +176,13 @@ public class BackgroundActivityStartControllerTests {
         }
 
         public void setRealCallerVerdict(BalVerdict verdict) {
-            this.mRealCallerVerdict = Optional.of(verdict);
+            if (verdict == null) {
+                this.mRealCallerVerdict = Optional.empty();
+            } else if (verdict.isImmutable()) {
+                this.mRealCallerVerdict = Optional.of(verdict);
+            } else {
+                this.mRealCallerVerdict = Optional.of(verdict.setBasedOnRealCaller());
+            }
         }
 
         @Override
@@ -259,12 +263,8 @@ public class BackgroundActivityStartControllerTests {
 
         // assertions
         assertThat(verdict.getCode()).isEqualTo(BackgroundActivityStartController.BAL_BLOCK);
-        if (balImprovedMetrics()) {
-            assertThat(mBalAllowedLogs).containsExactly(
-                    new BalAllowedLog("package.app3/someClass", BAL_BLOCK));
-        } else {
-            assertThat(mBalAllowedLogs).isEmpty(); // not allowed
-        }
+        assertThat(mBalAllowedLogs).containsExactly(
+                new BalAllowedLog("package.app3/someClass", BAL_BLOCK));
     }
 
     // Tests for BackgroundActivityStartController.checkBackgroundActivityStart
@@ -294,12 +294,8 @@ public class BackgroundActivityStartControllerTests {
 
         // assertions
         assertThat(verdict).isEqualTo(BalVerdict.BLOCK);
-        if (balImprovedMetrics()) {
-            assertThat(mBalAllowedLogs).containsExactly(
-                    new BalAllowedLog("package.app3/someClass", BAL_BLOCK));
-        } else {
-            assertThat(mBalAllowedLogs).isEmpty(); // not allowed
-        }
+        assertThat(mBalAllowedLogs).containsExactly(
+                new BalAllowedLog("package.app3/someClass", BAL_BLOCK));
     }
 
     @Test
@@ -329,12 +325,8 @@ public class BackgroundActivityStartControllerTests {
 
         // assertions
         assertThat(verdict).isEqualTo(callerVerdict);
-        if (balImprovedMetrics()) {
-            assertThat(mBalAllowedLogs).containsExactly(
-                    new BalAllowedLog("package.app3/someClass", callerVerdict.getCode()));
-        } else {
-            assertThat(mBalAllowedLogs).isEmpty(); // non-critical exception
-        }
+        assertThat(mBalAllowedLogs).containsExactly(
+                new BalAllowedLog("package.app3/someClass", callerVerdict.getCode()));
     }
 
     @Test
@@ -398,13 +390,8 @@ public class BackgroundActivityStartControllerTests {
 
         // assertions
         assertThat(verdict).isEqualTo(callerVerdict);
-        if (balImprovedMetrics()) {
-            assertThat(mBalAllowedLogs).containsExactly(
-                    new BalAllowedLog("package.app3/someClass", callerVerdict.getCode()));
-        } else {
-            assertThat(mBalAllowedLogs).containsExactly(
-                    new BalAllowedLog("", callerVerdict.getCode()));
-        }
+        assertThat(mBalAllowedLogs).containsExactly(
+                new BalAllowedLog("package.app3/someClass", callerVerdict.getCode()));
     }
 
     @Test
@@ -440,12 +427,8 @@ public class BackgroundActivityStartControllerTests {
 
         // assertions
         assertThat(verdict).isEqualTo(BalVerdict.BLOCK);
-        if (balImprovedMetrics()) {
-            assertThat(mBalAllowedLogs).containsExactly(
-                    new BalAllowedLog("package.app3/someClass", BAL_BLOCK));
-        } else {
-            assertThat(mBalAllowedLogs).isEmpty();
-        }
+        assertThat(mBalAllowedLogs).containsExactly(
+                new BalAllowedLog("package.app3/someClass", BAL_BLOCK));
     }
 
     @Test
@@ -477,12 +460,8 @@ public class BackgroundActivityStartControllerTests {
 
         // assertions
         assertThat(verdict).isEqualTo(callerVerdict);
-        if (balImprovedMetrics()) {
-            assertThat(mBalAllowedLogs).containsExactly(
-                    new BalAllowedLog("package.app3/someClass", callerVerdict.getCode()));
-        } else {
-            assertThat(mBalAllowedLogs).isEmpty();
-        }
+        assertThat(mBalAllowedLogs).containsExactly(
+                new BalAllowedLog("package.app3/someClass", callerVerdict.getCode()));
     }
 
     @Test
@@ -514,8 +493,9 @@ public class BackgroundActivityStartControllerTests {
 
         // assertions
         assertThat(verdict).isEqualTo(realCallerVerdict);
+        assertThat(verdict.isBasedOnRealCaller()).isTrue();
         assertThat(mBalAllowedLogs).containsExactly(
-                new BalAllowedLog("package.app3/someClass", BAL_ALLOW_PENDING_INTENT));
+                new BalAllowedLog("package.app3/someClass", BAL_ALLOW_VISIBLE_WINDOW));
 
     }
 
@@ -563,6 +543,7 @@ public class BackgroundActivityStartControllerTests {
                         + "callingPid: 11001; "
                         + "appSwitchState: 0; "
                         + "callingUidHasVisibleActivity: false; "
+                        + "callingUidHasVisibleNotPinnedActivity: false; "
                         + "callingUidHasNonAppVisibleWindow: false; "
                         + "callingUidProcState: NONEXISTENT; "
                         + "isCallingUidPersistentSystemProcess: false; "
@@ -581,6 +562,7 @@ public class BackgroundActivityStartControllerTests {
                         + "realCallingUid: 1; "
                         + "realCallingPid: 1; "
                         + "realCallingUidHasVisibleActivity: false; "
+                        + "realCallingUidHasVisibleNotPinnedActivity: false; "
                         + "realCallingUidHasNonAppVisibleWindow: false; "
                         + "realCallingUidProcState: NONEXISTENT; "
                         + "isRealCallingUidPersistentSystemProcess: false; "
@@ -588,7 +570,6 @@ public class BackgroundActivityStartControllerTests {
                         + "realCallerApp: null; "
                         + "balAllowedByPiSender: BSP.ALLOW_BAL; "
                         + "realCallerStartMode: MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED; "
-                        + "balRequireOptInByPendingIntentCreator: true; "
                         + "balDontBringExistingBackgroundTaskStackToFg: true]");
     }
 
@@ -665,6 +646,7 @@ public class BackgroundActivityStartControllerTests {
                         + "callingPid: 11001; "
                         + "appSwitchState: 0; "
                         + "callingUidHasVisibleActivity: false; "
+                        + "callingUidHasVisibleNotPinnedActivity: false; "
                         + "callingUidHasNonAppVisibleWindow: false; "
                         + "callingUidProcState: NONEXISTENT; "
                         + "isCallingUidPersistentSystemProcess: false; "
@@ -683,6 +665,7 @@ public class BackgroundActivityStartControllerTests {
                         + "realCallingUid: 1; "
                         + "realCallingPid: 1; "
                         + "realCallingUidHasVisibleActivity: false; "
+                        + "realCallingUidHasVisibleNotPinnedActivity: false; "
                         + "realCallingUidHasNonAppVisibleWindow: false; "
                         + "realCallingUidProcState: NONEXISTENT; "
                         + "isRealCallingUidPersistentSystemProcess: false; "
@@ -690,7 +673,6 @@ public class BackgroundActivityStartControllerTests {
                         + "realCallerApp: null; "
                         + "balAllowedByPiSender: BSP.ALLOW_FGS; "
                         + "realCallerStartMode: MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED; "
-                        + "balRequireOptInByPendingIntentCreator: true; "
                         + "balDontBringExistingBackgroundTaskStackToFg: true]");
     }
 }

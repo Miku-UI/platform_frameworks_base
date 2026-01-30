@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for AudioService to signal stream aliasing update.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IStreamAliasingDispatcher {
 

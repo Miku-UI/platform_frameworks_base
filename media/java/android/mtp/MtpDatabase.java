@@ -74,7 +74,7 @@ import java.util.stream.IntStream;
  * MtpStorageManager for filesystem operations and MediaProvider to get media metadata. File
  * operations are also reflected in MediaProvider if possible.
  * operations
- * {@hide}
+ * @hide
  */
 public class MtpDatabase implements AutoCloseable {
     private static final String TAG = MtpDatabase.class.getSimpleName();

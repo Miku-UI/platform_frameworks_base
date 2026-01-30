@@ -16,8 +16,6 @@
 
 package android.app.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
-
 import android.annotation.FlaggedApi;
 import android.annotation.SystemApi;
 import android.app.SystemServiceRegistry;
@@ -29,7 +27,6 @@ import android.content.Context;
  * @hide
  */
 @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public class OnDeviceIntelligenceFrameworkInitializer {
     private OnDeviceIntelligenceFrameworkInitializer() {
     }

@@ -699,8 +699,10 @@ public class Utils {
         return networkRegWwan.isInService();
     }
 
-    /** Get the corresponding adaptive icon drawable. */
-    public static Drawable getBadgedIcon(Context context, Drawable icon, UserHandle user) {
+    /** Get the UserIconInfo required to badge an icon by looking up the UserInfo. */
+    @NonNull
+    public static UserIconInfo fetchUserIconInfo(@NonNull Context context,
+            @NonNull UserHandle user) {
         int userType = UserIconInfo.TYPE_MAIN;
         try {
             UserInfo ui =
@@ -717,10 +719,17 @@ public class Utils {
         } catch (Exception e) {
             // Ignore
         }
+        return new UserIconInfo(user, userType);
+    }
+
+    /** Get the corresponding adaptive icon drawable. */
+    @NonNull
+    public static Drawable getBadgedIcon(@NonNull Context context, @NonNull Drawable icon,
+            @NonNull UserHandle user) {
         try (IconFactory iconFactory = IconFactory.obtain(context)) {
             return iconFactory
                     .createBadgedIconBitmap(
-                            icon, new IconOptions().setUser(new UserIconInfo(user, userType)))
+                            icon, new IconOptions().setUser(fetchUserIconInfo(context, user)))
                     .newIcon(context);
         }
     }

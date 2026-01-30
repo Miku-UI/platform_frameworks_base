@@ -21,13 +21,11 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
 
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
 
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -40,12 +38,6 @@ import java.io.IOException;
 @Presubmit
 @RunWith(JUnit4.class)
 public class ApplicationSharedMemoryTest {
-
-    @Before
-    public void setUp() {
-        // Skip tests if the feature under test is disabled.
-        assumeTrue(Flags.applicationSharedMemoryEnabled());
-    }
 
     /**
      * Every application process, including ours, should have had an instance installed at this
@@ -124,10 +116,8 @@ public class ApplicationSharedMemoryTest {
         }
     }
 
-    /** If system feature caching is enabled, it should be auto-written into app shared memory. */
     @Test
     public void canReadSystemFeatures() throws IOException {
-        assumeTrue(android.content.pm.Flags.cacheSdkSystemFeatures());
         ApplicationSharedMemory instance = ApplicationSharedMemory.getInstance();
         assertThat(instance.readSystemFeaturesCache()).isNotEmpty();
     }
@@ -174,5 +164,20 @@ public class ApplicationSharedMemoryTest {
             fail("Cannot update system features for read-only ashmem.");
         } catch (IllegalStateException expected) {
         }
+    }
+
+    @Test
+    public void currentAnimatorScaleSharedMemory() throws IOException {
+        ApplicationSharedMemory instance1 = ApplicationSharedMemory.create();
+
+        final float kAnimatorScaleFirst = 1.5f;
+
+        instance1.setCurrentAnimatorScale(kAnimatorScaleFirst);
+        assertThat(instance1.getCurrentAnimatorScale()).isEqualTo(kAnimatorScaleFirst);
+
+        ApplicationSharedMemory instance2 =
+                ApplicationSharedMemory.fromFileDescriptor(
+                        instance1.getReadOnlyFileDescriptor(), /* mutable= */ false);
+        assertThat(instance2.getCurrentAnimatorScale()).isEqualTo(kAnimatorScaleFirst);
     }
 }

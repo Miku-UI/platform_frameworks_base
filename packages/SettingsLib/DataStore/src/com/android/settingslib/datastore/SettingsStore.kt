@@ -20,10 +20,13 @@ import android.content.ContentResolver
 import android.database.ContentObserver
 import android.net.Uri
 import android.util.Log
+import java.util.concurrent.ConcurrentHashMap
 
 /** Base class of the Settings provider data stores. */
-abstract class SettingsStore(protected val contentResolver: ContentResolver) :
+sealed class SettingsStore(protected val contentResolver: ContentResolver) :
     AbstractKeyedDataObservable<String>(), KeyValueStore {
+
+    private val defaultValues = ConcurrentHashMap<String, Any>()
 
     private val contentObserver =
         object : ContentObserver(HandlerExecutor.main) {
@@ -49,6 +52,24 @@ abstract class SettingsStore(protected val contentResolver: ContentResolver) :
         Log.i(tag, "unregisterContentObserver")
         contentResolver.unregisterContentObserver(contentObserver)
     }
+
+    /**
+     * Sets default value for given key.
+     *
+     * The observers are not notified for this operation.
+     */
+    fun setDefaultValue(key: String, value: Any) {
+        val oldValue = defaultValues.put(key, value)
+        if (oldValue == null) {
+            Log.d(tag, "setDefaultValue $key $value")
+        } else if (oldValue != value) {
+            Log.w(tag, "$key default value is changed from $oldValue to $value")
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : Any> getDefaultValue(key: String, valueType: Class<T>) =
+        defaultValues[key] as T?
 
     /** Tag for logging. */
     abstract val tag: String

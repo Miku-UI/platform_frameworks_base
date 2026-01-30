@@ -27,7 +27,6 @@ import androidx.annotation.NonNull;
 import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.RecyclerViewAccessibilityDelegate;
 
-import com.android.systemui.Flags;
 import com.android.systemui.res.R;
 
 /**
@@ -95,14 +94,12 @@ class MenuItemAccessibilityDelegate extends RecyclerViewAccessibilityDelegate.It
                         res.getString(R.string.accessibility_floating_button_action_remove_menu));
         info.addAction(removeMenu);
 
-        if (Flags.floatingMenuDragToEdit()) {
-            final AccessibilityNodeInfoCompat.AccessibilityActionCompat edit =
-                    new AccessibilityNodeInfoCompat.AccessibilityActionCompat(
-                            R.id.action_edit,
-                            res.getString(
-                                    R.string.accessibility_floating_button_action_edit));
-            info.addAction(edit);
-        }
+        final AccessibilityNodeInfoCompat.AccessibilityActionCompat edit =
+                new AccessibilityNodeInfoCompat.AccessibilityActionCompat(
+                        R.id.action_edit,
+                        res.getString(
+                                R.string.accessibility_floating_button_action_edit));
+        info.addAction(edit);
     }
 
     @Override

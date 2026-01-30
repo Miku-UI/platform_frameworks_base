@@ -18,6 +18,7 @@ package com.android.server.appbinding.finders;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.supervision.flags.Flags;
 import android.content.Context;
 import android.content.pm.IPackageManager;
 import android.content.pm.ServiceInfo;
@@ -34,6 +35,11 @@ import com.android.server.appbinding.AppBindingService;
 import com.android.server.appbinding.AppBindingUtils;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
@@ -53,13 +59,36 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
     private final Object mLock = new Object();
 
     @GuardedBy("mLock")
+    @Deprecated
     private final SparseArray<String> mTargetPackages = new SparseArray(4);
 
     @GuardedBy("mLock")
+    @Deprecated
     private final SparseArray<ServiceInfo> mTargetServices = new SparseArray(4);
 
     @GuardedBy("mLock")
+    @Deprecated
     private final SparseArray<String> mLastMessages = new SparseArray(4);
+
+    @GuardedBy("mLock")
+    private final SparseArray<HashMap<String, TargetServiceInfo>> mServiceInfos =
+            new SparseArray(4);
+
+    /**
+     * Helper class to store the ServiceInfo and the last message related to it.
+     */
+    private static class TargetServiceInfo {
+        @Nullable
+        public final ServiceInfo serviceInfo;
+        @Nullable
+        public final String lastMessage;
+
+        TargetServiceInfo(@Nullable ServiceInfo serviceInfo, @Nullable String lastMessage) {
+            this.serviceInfo = serviceInfo;
+            this.lastMessage = lastMessage;
+        }
+    }
+
 
     public AppServiceFinder(Context context,
             BiConsumer<AppServiceFinder, Integer> listener,
@@ -70,7 +99,7 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
     }
 
     /** Whether this service should really be enabled. */
-    protected boolean isEnabled(AppBindingConstants constants) {
+    protected boolean isEnabled(AppBindingConstants constants, int userId) {
         return true;
     }
 
@@ -88,6 +117,7 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
             mTargetPackages.delete(userId);
             mTargetServices.delete(userId);
             mLastMessages.delete(userId);
+            mServiceInfos.delete(userId);
         }
     }
 
@@ -95,6 +125,7 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
      * Find the target service from the target app on a given user.
      */
     @Nullable
+    @Deprecated
     public final ServiceInfo findService(int userId, IPackageManager ipm,
             AppBindingConstants constants) {
         synchronized (mLock) {
@@ -102,7 +133,7 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
             mTargetServices.put(userId, null);
             mLastMessages.put(userId, null);
 
-            if (!isEnabled(constants)) {
+            if (!isEnabled(constants, userId)) {
                 final String message = "feature disabled";
                 mLastMessages.put(userId, message);
                 Slog.i(TAG, getAppDescription() + " " + message);
@@ -155,6 +186,94 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
         }
     }
 
+    /**
+     * Find the target service from the target app on a given user.
+     */
+    @Nullable
+    public final ServiceInfo findService(int userId, IPackageManager ipm,
+            AppBindingConstants constants, String targetPackage) {
+        synchronized (mLock) {
+            HashMap<String, TargetServiceInfo> currServiceInfo = mServiceInfos.get(userId);
+            if (currServiceInfo == null) {
+                currServiceInfo = new HashMap<>();
+                mServiceInfos.put(userId, currServiceInfo);
+            }
+            if (DEBUG) {
+                Slog.d(TAG, getAppDescription() + " package=" + targetPackage);
+            }
+
+            if (!isEnabled(constants, userId)) {
+                final String message = "feature disabled";
+                currServiceInfo.put(targetPackage, new TargetServiceInfo(null, message));
+                Slog.i(TAG, getAppDescription() + " " + message);
+                return null;
+            }
+
+            final StringBuilder errorMessage = new StringBuilder();
+            final ServiceInfo service = AppBindingUtils.findService(
+                    targetPackage,
+                    userId,
+                    getServiceAction(),
+                    getServicePermission(),
+                    getServiceClass(),
+                    ipm,
+                    errorMessage);
+
+            if (service == null) {
+                final String message = errorMessage.toString();
+                currServiceInfo.put(targetPackage, new TargetServiceInfo(null, message));
+                if (DEBUG) {
+                    Slog.w(TAG, getAppDescription() + " package " + targetPackage + " u" + userId
+                            + " " + message);
+                }
+                return null;
+            }
+            final String error = validateService(service);
+            if (error != null) {
+                currServiceInfo.put(targetPackage, new TargetServiceInfo(null, error));
+                Log.e(TAG, error);
+                return null;
+            }
+
+            currServiceInfo.put(targetPackage, new TargetServiceInfo(service,
+                    "Valid service found"));
+            return service;
+        }
+    }
+
+    /**
+     * Find the list of target service from the target apps on a given user.
+     */
+    @Nullable
+    public final List<ServiceInfo> findServices(int userId, IPackageManager ipm,
+            AppBindingConstants constants) {
+        final Set<String> targetPackages = getTargetPackages(userId);
+        synchronized (mLock) {
+            mServiceInfos.put(userId, new HashMap<>());
+
+            if (DEBUG) {
+                Slog.d(TAG, getAppDescription() + " packages=" + targetPackages);
+            }
+
+            if (!isEnabled(constants, userId) || targetPackages.isEmpty()) {
+                final String message = (!isEnabled(constants, userId)) ? "feature disabled"
+                        : "Target packages not found";
+                mServiceInfos.get(userId).put(null, new TargetServiceInfo(null, message));
+                Slog.w(TAG, getAppDescription() + " u" + userId + " " + message);
+                return new ArrayList<>();
+            }
+        }
+
+        List<ServiceInfo> services = new ArrayList<>();
+        for (String targetPackage: targetPackages) {
+            ServiceInfo service = findService(userId, ipm, constants, targetPackage);
+            if (service != null) {
+                services.add(service);
+            }
+        }
+        return services;
+    }
+
     protected abstract Class<TServiceType> getServiceClass();
 
     /**
@@ -166,7 +285,13 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
      * @return the target package on a given user.
      */
     @Nullable
+    @Deprecated
     public abstract String getTargetPackage(int userId);
+
+    /**
+     * @return the target packages on a given user.
+     */
+    public abstract Set<String> getTargetPackages(int userId);
 
     /**
      * @return the intent action that identifies the target service in the target app.
@@ -199,6 +324,31 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
         pw.println();
 
         synchronized (mLock) {
+            for (int i = 0; i < mServiceInfos.size(); i++) {
+                final int userId = mServiceInfos.keyAt(i);
+                pw.print(prefix);
+                pw.print("  User: ");
+                pw.print(userId);
+                pw.println();
+                for (String targetPackage : mServiceInfos.get(userId).keySet()) {
+                    pw.print(prefix);
+                    pw.print("    Package: ");
+                    pw.print(targetPackage);
+                    pw.println();
+
+                    pw.print(prefix);
+                    pw.print("    Service: ");
+                    pw.print(mServiceInfos.get(userId).get(targetPackage).serviceInfo);
+                    pw.println();
+
+                    pw.print(prefix);
+                    pw.print("    Message: ");
+                    pw.print(mServiceInfos.get(userId).get(targetPackage).lastMessage);
+                    pw.println();
+                }
+                pw.println();
+            }
+
             for (int i = 0; i < mTargetPackages.size(); i++) {
                 final int userId = mTargetPackages.keyAt(i);
                 pw.print(prefix);
@@ -227,6 +377,16 @@ public abstract class AppServiceFinder<TServiceType, TServiceInterfaceType exten
     /** Dumpys support */
     public void dumpSimple(PrintWriter pw) {
         synchronized (mLock) {
+            for (int i = 0; i < mServiceInfos.size(); i++) {
+                final int userId = mServiceInfos.keyAt(i);
+                pw.println(String.format("finder,%s,%s", getAppDescription(), userId));
+                for (String targetPackage : mServiceInfos.get(userId).keySet()) {
+                    pw.println(String.format("finder,%s,%s,%s,%s,%s",
+                            getAppDescription(), userId, targetPackage,
+                            mServiceInfos.get(userId).get(targetPackage).serviceInfo,
+                            mServiceInfos.get(userId).get(targetPackage).lastMessage));
+                }
+            }
             for (int i = 0; i < mTargetPackages.size(); i++) {
                 final int userId = mTargetPackages.keyAt(i);
                 pw.print("finder,");

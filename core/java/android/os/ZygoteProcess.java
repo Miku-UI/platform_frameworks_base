@@ -17,6 +17,7 @@
 package android.os;
 
 import static android.os.Process.ZYGOTE_POLICY_FLAG_LATENCY_SENSITIVE;
+import static android.os.Process.ZYGOTE_POLICY_FLAG_NATIVE_PROCESS;
 import static android.os.Process.ZYGOTE_POLICY_FLAG_SYSTEM_PROCESS;
 
 import android.annotation.NonNull;
@@ -67,7 +68,7 @@ import java.util.UUID;
  * for the sockets opened to the zygotes and for starting processes on behalf of the
  * {@link android.os.Process} class.
  *
- * {@hide}
+ * @hide
  */
 public class ZygoteProcess {
 
@@ -359,6 +360,7 @@ public class ZygoteProcess {
                                                   boolean bindMountAppsData,
                                                   boolean bindMountAppStorageDirs,
                                                   boolean bindOverrideSysprops,
+                                                  long startSeq,
                                                   @Nullable String[] zygoteArgs) {
         // TODO (chriswailes): Is there a better place to check this value?
         if (fetchUsapPoolEnabledPropWithMinInterval()) {
@@ -371,7 +373,7 @@ public class ZygoteProcess {
                     abi, instructionSet, appDataDir, invokeWith, /*startChildZygote=*/ false,
                     packageName, zygotePolicyFlags, isTopApp, disabledCompatChanges,
                     pkgDataInfoMap, allowlistedDataInfoList, bindMountAppsData,
-                    bindMountAppStorageDirs, bindOverrideSysprops, zygoteArgs);
+                    bindMountAppStorageDirs, bindOverrideSysprops, startSeq, zygoteArgs);
         } catch (ZygoteStartFailedEx ex) {
             Log.e(LOG_TAG,
                     "Starting VM process through Zygote failed");
@@ -591,6 +593,11 @@ public class ZygoteProcess {
         return true;
     }
 
+    private static native int nativeStartNativeProcess(
+            int uid, int gid, long startSeq, String packageName,
+            String niceName, int targetSdkVersion, boolean startChildZygote,
+            int runtimeFlags, String seInfo);
+
     /**
      * Starts a new process via the zygote mechanism.
      *
@@ -645,8 +652,23 @@ public class ZygoteProcess {
                                                       boolean bindMountAppsData,
                                                       boolean bindMountAppStorageDirs,
                                                       boolean bindMountOverrideSysprops,
+                                                      long startSeq,
                                                       @Nullable String[] extraArgs)
                                                       throws ZygoteStartFailedEx {
+        if (Flags.nativeFrameworkPrototype()
+                && (zygotePolicyFlags & ZYGOTE_POLICY_FLAG_NATIVE_PROCESS) != 0) {
+            Log.i(LOG_TAG, "about to request forking a native process to the native zygote!!!");
+            int pid = nativeStartNativeProcess(uid, gid, startSeq, packageName, niceName,
+                    targetSdkVersion, startChildZygote, runtimeFlags, seInfo);
+            if (pid == -1) {
+                throw new ZygoteStartFailedEx("Failed to fork a native process.");
+            }
+            Process.ProcessStartResult result = new Process.ProcessStartResult();
+            result.pid = pid;
+            result.usingWrapper = false;
+            return result;
+        }
+
         ArrayList<String> argsForZygote = new ArrayList<>();
 
         // --runtime-args, --setuid=, --setgid=,
@@ -655,6 +677,7 @@ public class ZygoteProcess {
         argsForZygote.add("--setuid=" + uid);
         argsForZygote.add("--setgid=" + gid);
         argsForZygote.add("--runtime-flags=" + runtimeFlags);
+
         if (mountExternal == Zygote.MOUNT_EXTERNAL_DEFAULT) {
             argsForZygote.add("--mount-external-default");
         } else if (mountExternal == Zygote.MOUNT_EXTERNAL_INSTALLER) {
@@ -1313,7 +1336,7 @@ public class ZygoteProcess {
                     null /* disabledCompatChanges */, null /* pkgDataInfoMap */,
                     null /* allowlistedDataInfoList */, true /* bindMountAppsData*/,
                     /* bindMountAppStorageDirs */ false, /*bindMountOverrideSysprops */ false,
-                    extraArgs);
+                    /* startSeq */ 0, extraArgs);
 
         } catch (ZygoteStartFailedEx ex) {
             throw new RuntimeException("Starting child-zygote through Zygote failed", ex);

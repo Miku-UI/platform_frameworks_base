@@ -32,6 +32,7 @@ import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
+import com.android.systemui.keyguard.domain.interactor.keyguardOcclusionInteractor
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.navigationbar.NavigationModeController
@@ -43,7 +44,6 @@ import com.android.systemui.scene.data.repository.setSceneTransition
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
-import com.android.systemui.statusbar.domain.interactor.keyguardOcclusionInteractor
 import com.android.systemui.testKosmos
 import com.android.systemui.util.fakeDeviceConfigProxy
 import com.google.common.truth.Truth.assertThat

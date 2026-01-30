@@ -21,7 +21,7 @@
     <dimen name="settingslib_expressive_slider_thumb_width">@dimen/settingslib_expressive_space_extrasmall2</dimen>
     <dimen name="settingslib_expressive_slider_thumb_height">44dp</dimen>
     <dimen name="settingslib_expressive_slider_thumb_elevation">@dimen/settingslib_expressive_space_none</dimen>
-    <dimen name="settingslib_expressive_slider_thumb_stroke_width">@dimen/settingslib_expressive_space_extrasmall2</dimen>
+    <dimen name="settingslib_expressive_slider_thumb_stroke_width">@dimen/settingslib_expressive_space_none</dimen>
     <dimen name="settingslib_expressive_slider_thumb_track_gap_size">@dimen/settingslib_expressive_space_extrasmall3</dimen>
     <dimen name="settingslib_expressive_slider_tick_radius">@dimen/settingslib_expressive_radius_extrasmall1</dimen>
 

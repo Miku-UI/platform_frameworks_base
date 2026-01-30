@@ -39,7 +39,10 @@ abstract class StatusBarPerDisplayStoreImpl<T>(
                 .collect { removedDisplayIds ->
                     removedDisplayIds.forEach { removedDisplayId ->
                         val removedInstance = perDisplayInstances.remove(removedDisplayId)
-                        removedInstance?.let { onDisplayRemovalAction(it) }
+                        removedInstance?.let {
+                            logRemovalAction(removedDisplayId)
+                            onDisplayRemovalAction(it)
+                        }
                     }
                 }
         }

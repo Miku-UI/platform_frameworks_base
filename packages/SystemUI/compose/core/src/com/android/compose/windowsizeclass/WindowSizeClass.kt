@@ -17,13 +17,14 @@
 package com.android.compose.windowsizeclass
 
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
-import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.toComposeRect
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.window.core.layout.WindowSizeClass
+import androidx.window.core.layout.computeWindowSizeClass
 import androidx.window.layout.WindowMetricsCalculator
 
 val LocalWindowSizeClass =
@@ -43,5 +44,8 @@ fun calculateWindowSizeClass(): WindowSizeClass {
     val context = LocalContext.current
     val metrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(context)
     val size = with(density) { metrics.bounds.toComposeRect().size.toDpSize() }
-    return WindowSizeClass.calculateFromSize(size)
+    return WindowSizeClass.BREAKPOINTS_V2.computeWindowSizeClass(
+        size.width.value,
+        size.height.value,
+    )
 }

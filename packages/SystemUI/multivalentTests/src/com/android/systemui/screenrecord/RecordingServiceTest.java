@@ -20,6 +20,7 @@ import static com.android.systemui.screenrecord.RecordingService.GROUP_KEY_ERROR
 import static com.android.systemui.screenrecord.RecordingService.GROUP_KEY_SAVED;
 import static com.android.systemui.screenrecord.RecordingService.NOTIF_GROUP_ID_ERROR_SAVING;
 import static com.android.systemui.screenrecord.RecordingService.NOTIF_GROUP_ID_SAVED;
+import static com.android.systemui.screenrecord.ScreenRecordUxController.INTENT_UPDATE_STATE;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -78,7 +79,7 @@ public class RecordingServiceTest extends SysuiTestCase {
     @Mock
     private UiEventLogger mUiEventLogger;
     @Mock
-    private RecordingController mController;
+    private ScreenRecordUxController mController;
     @Mock
     private NotificationManager mNotificationManager;
     @Mock
@@ -109,7 +110,7 @@ public class RecordingServiceTest extends SysuiTestCase {
 
     private class RecordingServiceTestable extends RecordingService {
         RecordingServiceTestable(
-                RecordingController controller, Executor executor,
+                ScreenRecordUxController controller, Executor executor,
                 Handler handler, UiEventLogger uiEventLogger,
                 NotificationManager notificationManager,
                 UserContextProvider userContextTracker, KeyguardDismissUtil keyguardDismissUtil,
@@ -200,7 +201,7 @@ public class RecordingServiceTest extends SysuiTestCase {
     public void testOnSystemRequestedStop_recordingInProgress_endsRecording() throws IOException {
         doReturn(true).when(mController).isRecording();
 
-        mRecordingService.onStopped(StopReason.STOP_UNKNOWN);
+        mRecordingService.onStopped(mContext.getUserId(), StopReason.STOP_UNKNOWN);
 
         verify(mScreenMediaRecorder).end(eq(StopReason.STOP_UNKNOWN));
     }
@@ -209,7 +210,7 @@ public class RecordingServiceTest extends SysuiTestCase {
     public void testOnSystemRequestedStop_recordingInProgress_updatesState() {
         doReturn(true).when(mController).isRecording();
 
-        mRecordingService.onStopped(StopReason.STOP_UNKNOWN);
+        mRecordingService.onStopped(mContext.getUserId(), StopReason.STOP_UNKNOWN);
 
         assertUpdateState(false);
     }
@@ -219,7 +220,7 @@ public class RecordingServiceTest extends SysuiTestCase {
             throws IOException {
         doReturn(false).when(mController).isRecording();
 
-        mRecordingService.onStopped(StopReason.STOP_UNKNOWN);
+        mRecordingService.onStopped(mContext.getUserId(), StopReason.STOP_UNKNOWN);
 
         verify(mScreenMediaRecorder, never()).end(StopReason.STOP_UNKNOWN);
     }
@@ -230,7 +231,7 @@ public class RecordingServiceTest extends SysuiTestCase {
         doReturn(true).when(mController).isRecording();
         doThrow(new RuntimeException()).when(mScreenMediaRecorder).end(StopReason.STOP_UNKNOWN);
 
-        mRecordingService.onStopped(StopReason.STOP_UNKNOWN);
+        mRecordingService.onStopped(mContext.getUserId(), StopReason.STOP_UNKNOWN);
 
         verify(mScreenMediaRecorder).release();
     }
@@ -239,7 +240,7 @@ public class RecordingServiceTest extends SysuiTestCase {
     public void testOnSystemRequestedStop_whenRecordingInProgress_showsNotifications() {
         doReturn(true).when(mController).isRecording();
 
-        mRecordingService.onStopped(StopReason.STOP_UNKNOWN);
+        mRecordingService.onStopped(mContext.getUserId(), StopReason.STOP_UNKNOWN);
 
         // Processing notification
         ArgumentCaptor<Notification> notifCaptor = ArgumentCaptor.forClass(Notification.class);
@@ -274,7 +275,7 @@ public class RecordingServiceTest extends SysuiTestCase {
         doReturn(true).when(mController).isRecording();
         doThrow(new RuntimeException()).when(mScreenMediaRecorder).end(anyInt());
 
-        mRecordingService.onStopped(StopReason.STOP_UNKNOWN);
+        mRecordingService.onStopped(mContext.getUserId(), StopReason.STOP_UNKNOWN);
 
         verify(mRecordingService).createErrorSavingNotification(any());
         ArgumentCaptor<Notification> notifCaptor = ArgumentCaptor.forClass(Notification.class);
@@ -292,7 +293,8 @@ public class RecordingServiceTest extends SysuiTestCase {
         doReturn(true).when(mController).isRecording();
         doThrow(new OutOfMemoryError()).when(mScreenMediaRecorder).end(anyInt());
 
-        assertThrows(Throwable.class, () -> mRecordingService.onStopped(StopReason.STOP_UNKNOWN));
+        assertThrows(Throwable.class, () -> mRecordingService.onStopped(
+                mContext.getUserId(), StopReason.STOP_UNKNOWN));
 
         verify(mScreenMediaRecorder).release();
     }
@@ -327,8 +329,7 @@ public class RecordingServiceTest extends SysuiTestCase {
         } else {
             ArgumentCaptor<Intent> argumentCaptor = ArgumentCaptor.forClass(Intent.class);
             verify(mRecordingService).sendBroadcast(argumentCaptor.capture(), eq(PERMISSION_SELF));
-            assertEquals(RecordingController.INTENT_UPDATE_STATE,
-                    argumentCaptor.getValue().getAction());
+            assertEquals(INTENT_UPDATE_STATE, argumentCaptor.getValue().getAction());
         }
     }
 }

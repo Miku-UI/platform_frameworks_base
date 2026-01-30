@@ -47,8 +47,9 @@ import java.util.List;
  * as well as dispatching the underlying vibrator instruction calls (which need to be done before
  * triggering the synced effects). This role/encapsulation could probably be improved to split up
  * the grouped HAL calls here, as well as to clarify the role of dispatching VibratorSteps between
- * this class and the controller.
+ * this class and the HAL.
  */
+// TODO(b/421857859): remove this class once flag remove_sequential_combination is removed
 final class StartSequentialEffectStep extends Step {
     public final CombinedVibration.Sequential sequentialEffect;
     public final int currentIndex;
@@ -261,7 +262,7 @@ final class StartSequentialEffectStep extends Step {
         private final long mRequiredSyncCapabilities;
 
         DeviceEffectMap(CombinedVibration.Mono mono) {
-            SparseArray<VibratorController> vibrators = conductor.getVibrators();
+            SparseArray<HalVibrator> vibrators = conductor.getVibrators();
             VibrationEffect effect = mono.getEffect();
             mVibratorEffects = new SparseArray<>(vibrators.size());
             mVibratorIds = new int[vibrators.size()];
@@ -275,7 +276,7 @@ final class StartSequentialEffectStep extends Step {
         }
 
         DeviceEffectMap(CombinedVibration.Stereo stereo) {
-            SparseArray<VibratorController> vibrators = conductor.getVibrators();
+            SparseArray<HalVibrator> vibrators = conductor.getVibrators();
             SparseArray<VibrationEffect> stereoEffects = stereo.getEffects();
             mVibratorEffects = new SparseArray<>();
             for (int i = 0; i < stereoEffects.size(); i++) {

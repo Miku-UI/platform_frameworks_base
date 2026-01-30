@@ -214,7 +214,11 @@ void SkiaVulkanPipeline::onContextDestroyed() {
 }
 
 const SkM44& SkiaVulkanPipeline::getPixelSnapMatrix() const {
-    return mVkSurface->getPixelSnapMatrix();
+    if (mVkSurface) {
+        return mVkSurface->getPixelSnapMatrix();
+    }
+    static const SkM44 sSnapMatrix = VulkanSurface::GetPixelSnapMatrix(SkISize::MakeEmpty(), 0);
+    return sSnapMatrix;
 }
 
 } /* namespace skiapipeline */

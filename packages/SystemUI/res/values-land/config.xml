@@ -58,4 +58,7 @@
 
     <!-- Whether to show bottom sheets edge to edge -->
     <bool name="config_edgeToEdgeBottomSheetDialog">false</bool>
+
+    <!-- Indicates post recording flow to use flat bottom bar to save vertical space -->
+    <bool name="screen_record_post_recording_flat_bottom_bar">true</bool>
 </resources>

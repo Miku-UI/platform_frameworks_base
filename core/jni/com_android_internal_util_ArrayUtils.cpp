@@ -86,11 +86,8 @@ static void ZeroizePrimitiveArray(JNIEnv* env, jclass clazz, jarray array, size_
     void* elems = env->GetPrimitiveArrayCritical(array, &isCopy);
     CHECK(!isCopy);
 
-#ifdef __BIONIC__
     memset_explicit(elems, 0, buffer_size);
-#else
-    memset(elems, 0, buffer_size);
-#endif
+
     // Clean the data cache so that the data gets zeroized in main memory right away.  Without this,
     // it might not be written to main memory until the cache line happens to be evicted.
     CleanDataCache(static_cast<const uint8_t*>(elems), buffer_size, cache_line_size);

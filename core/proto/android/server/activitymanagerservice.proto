@@ -552,6 +552,8 @@ message ConnectionRecordProto {
     }
     repeated Flag flags = 3;
     optional string service_name = 4;
+
+    optional int32 client_pid = 5;
 }
 
 message AppBindRecordProto {
@@ -764,7 +766,7 @@ message ActivityManagerServiceDumpProcessesProto {
     optional int32 last_memory_level = 56;
     optional int32 last_num_processes = 57;
     optional .android.util.Duration last_idle_time = 58;
-    optional int64 low_ram_since_last_idle_ms = 59;
+    optional int64 low_ram_since_last_idle_ms = 59 [deprecated=true];
 }
 
 message ActiveInstrumentationProto {
@@ -808,7 +810,7 @@ message UidRecordProto {
         CHANGE_PROCADJ = 7;
     }
     repeated Change last_reported_changes = 8;
-    optional int32 num_procs = 9;
+    optional int32 num_procs = 9 [deprecated=true];
 
     message ProcStateSequence {
         option (.android.msg_privacy).dest = DEST_AUTOMATIC;
@@ -907,6 +909,7 @@ message ProcessOomProto {
             optional float ultilization = 3; // ratio of cpu time usage
         }
         optional CpuRunTime service_run_time = 15;
+        repeated .android.app.ProcessCapabilityEnum capability_flags = 16;
     }
     optional Detail detail = 15;
 }
@@ -1003,6 +1006,7 @@ message UserControllerProto {
     // both the current user and its profiles (if any)
     optional int32 current_user = 5;
     repeated int32 current_profiles = 6;
+    optional bool ready = 7;
 }
 
 // sync with com.android.server.am.AppTimeTracker.java
@@ -1067,3 +1071,31 @@ message AppsStartInfoProto {
     optional int64 monotonic_time = 3;
 }
 // LINT.ThenChange(/services/core/java/com/android/server/am/AppStartInfoTracker.java)
+
+message BitmapDumpProto {
+    option (.android.msg_privacy).dest = DEST_AUTOMATIC;
+
+    message AppBitmapInfo {
+        option (.android.msg_privacy).dest = DEST_AUTOMATIC;
+
+        optional int32 pid = 1;
+        optional string process_name = 2;
+
+        message BitmapInfo {
+            option (.android.msg_privacy).dest = DEST_AUTOMATIC;
+
+            optional int64 id = 1;
+            optional int32 width = 2;
+            optional int32 height = 3;
+            optional int32 size = 4;
+            optional bool mutable = 5;
+            optional int32 config = 6;
+            optional int64 source = 7;
+            optional bytes content = 8;
+        }
+
+        repeated BitmapInfo bitmaps = 3;
+    }
+
+    repeated AppBitmapInfo app_bitmaps = 1;
+}

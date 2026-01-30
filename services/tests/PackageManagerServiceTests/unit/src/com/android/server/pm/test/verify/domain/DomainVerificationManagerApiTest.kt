@@ -33,6 +33,8 @@ import android.os.Bundle
 import android.os.PatternMatcher.PATTERN_LITERAL
 import android.os.Process
 import android.platform.test.annotations.RequiresFlagsEnabled
+import android.platform.test.flag.junit.CheckFlagsRule
+import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.util.ArraySet
 import android.util.SparseArray
 import com.android.internal.pm.parsing.pkg.AndroidPackageInternal
@@ -48,6 +50,7 @@ import com.google.common.truth.Truth.assertThat
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.test.assertFailsWith
+import org.junit.Rule
 import org.junit.Test
 import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyInt
@@ -56,6 +59,9 @@ import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mockito.doReturn
 
 class DomainVerificationManagerApiTest {
+
+    @get:Rule
+    val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     companion object {
         private const val PKG_ONE = "com.test.one"

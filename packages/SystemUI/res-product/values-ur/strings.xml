@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"اس ٹیبلیٹ پر چل رہا ہے"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"پاور آف ہونے پر بھی آپ میرا آلہ ڈھونڈیں کے ساتھ اس فون کو تلاش کر سکتے ہیں"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"پاور آف ہونے پر بھی آپ میرا آلہ ڈھونڈیں کے ساتھ اس ٹیبلیٹ کو تلاش کر سکتے ہیں"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"‏پاور آف ہونے پر بھی آپ Find Hub کے ساتھ اس فون کو تلاش کر سکتے ہیں"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"‏پاور آف ہونے پر بھی آپ Find Hub کے ساتھ اس ٹیبلیٹ کو تلاش کر سکتے ہیں"</string>
 </resources>

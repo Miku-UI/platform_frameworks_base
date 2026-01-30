@@ -15,41 +15,9 @@ flag {
 
 flag {
     namespace: "input_native"
-    name: "keyboard_a11y_mouse_keys"
-    description: "Controls if the mouse keys accessibility feature for physical keyboard is available to the user"
-    bug: "341799888"
-}
-
-flag {
-    namespace: "input_native"
     name: "touchpad_visualizer"
     description: "Enables a developer overlay that displays raw touchpad input data and gesture recognition status in real-time."
     bug: "286551975"
-}
-
-flag {
-    name: "modifier_shortcut_dump"
-    namespace: "input"
-    description: "Dump keyboard shortcuts in dumpsys window"
-    bug: "351963350"
-}
-
-flag {
-    name: "modifier_shortcut_manager_refactor"
-    namespace: "input"
-    description: "Refactor ModifierShortcutManager internal representation of shortcuts."
-    bug: "358603902"
-}
-
-flag {
-    name: "input_manager_lifecycle_support"
-    namespace: "input"
-    description: "Add support for Lifecycle support in input manager"
-    bug: "362473586"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -57,20 +25,6 @@ flag {
     name: "manage_key_gestures"
     description: "Manage key gestures through Input APIs"
     is_exported: true
-    bug: "358569822"
-}
-
-flag {
-    namespace: "input_native"
-    name: "use_key_gesture_event_handler"
-    description: "Use KeyGestureEvent handler APIs to control system shortcuts and key gestures"
-    bug: "358569822"
-}
-
-flag {
-    namespace: "input"
-    name: "use_key_gesture_event_handler_multi_key_gestures"
-    description: "Use KeyGestureEvent handler APIs to control multi key press gestures"
     bug: "358569822"
 }
 
@@ -132,13 +86,6 @@ flag {
 }
 
 flag {
-    name: "touchpad_three_finger_tap_shortcut"
-    namespace: "input"
-    description: "Turns three-finger touchpad taps into a customizable shortcut."
-    bug: "365063048"
-}
-
-flag {
     name: "enable_display_color_inversion_key_gestures"
     namespace: "input"
     description: "Adds key gestures for display color inversion for accessibility needs"
@@ -146,10 +93,34 @@ flag {
 }
 
 flag {
+    name: "enable_magnify_magnification_key_gesture_dialog"
+    namespace: "accessibility"
+    description: "Enables magnifying the magnification key gesture dialog so that low vision users can see the dialog"
+    bug: "425722546"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_select_to_speak_key_gestures"
+    namespace: "accessibility"
+    description: "Adds key gestures for select to speak"
+    bug: "375277034"
+}
+
+flag {
     name: "enable_talkback_and_magnifier_key_gestures"
     namespace: "input"
-    description: "Adds key gestures for talkback and magnifier"
+    description: "Adds key gestures for Magnification. TalkBack key gesture has been flagged separately under enable_talkback_key_gestures."
     bug: "375277034"
+}
+
+flag {
+    name: "enable_talkback_key_gestures"
+    namespace: "accessibility"
+    description: "Adds key gesture for TalkBack"
+    bug: "441787329"
 }
 
 flag {
@@ -217,6 +188,7 @@ flag {
     name: "request_key_capture_api"
     namespace: "input"
     description: "Adds support for key capture APIs"
+    is_exported: true
     bug: "375435312"
 }
 
@@ -228,4 +200,71 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "create_virtual_keyboard_api"
+    namespace: "input"
+    is_exported: true
+    description: "Adds support for creating a virtual keyboard API"
+    bug: "416054433"
+}
+
+
+
+flag {
+    name: "mouse_to_touch_per_app_compat"
+    namespace: "lse_desktop_experience"
+    description: "Enables per-app overrides compatibility for mouse to touch"
+    bug: "413207127"
+}
+
+flag {
+    name: "enable_quick_settings_panel_shortcut"
+    namespace: "input"
+    description: "Enables shortcut for quick settings panel"
+    bug: "423899230"
+}
+
+flag {
+    name: "touchpad_disable"
+    namespace: "input"
+    description: "Adds an accessibility setting to disable touchpads"
+    bug: "372857036"
+}
+
+flag {
+    name: "disable_settings_for_virtual_devices"
+    namespace: "input"
+    description: "Disable settings pages for virtual devices created using VDM or InputManager"
+    bug: "402596982"
+}
+
+flag {
+    name: "pointer_capture_modes"
+    namespace: "input"
+    description: "Enable pointer capture modes with different touchpad behaviours, and default to relative events from captured touchpads"
+    is_exported: true
+    bug: "403531245"
+}
+
+flag {
+    name: "enable_partial_screenshot_keyboard_shortcut"
+    namespace: "input"
+    description: "Enables keyboard shortcut for taking partial screenshots via large screen capture UI"
+    bug: "420714826"
+}
+
+flag {
+  name: "keyboard_backlight_shortcuts"
+  namespace: "desktop_input"
+  description: "Enables new keyboard shortcuts to adjust keyboard backlight"
+  bug: "401626732"
+}
+
+flag {
+    name: "bluetooth_wakeup_state_check"
+    namespace: "desktop_pnp"
+    description: "Check Bluetooth HID profile connection state is changed before waking up the device."
+    bug: "440645135"
 }

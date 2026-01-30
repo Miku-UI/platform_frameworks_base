@@ -21,7 +21,7 @@ import android.hardware.radio.ProgramList;
 import android.hardware.radio.ProgramSelector;
 import android.hardware.radio.RadioManager;
 
-/** {@hide} */
+/** @hide */
 interface ITuner {
     void close();
 

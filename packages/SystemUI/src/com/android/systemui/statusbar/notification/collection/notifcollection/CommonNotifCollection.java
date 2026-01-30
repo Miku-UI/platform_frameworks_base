@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.notification.collection.notifcollection;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.android.systemui.statusbar.notification.collection.BundleEntry;
 import com.android.systemui.statusbar.notification.collection.NotifPipeline;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 
@@ -50,8 +51,21 @@ public interface CommonNotifCollection {
     @NonNull Collection<NotificationEntry> getAllNotifs();
 
     /**
+     * Returns the list of all known bundles, i.e. the bundles that are defined in BundleSpec.
+     *
+     * The returned collection is read-only, unsorted, unfiltered, and ungrouped.
+     */
+    @NonNull Collection<BundleEntry> getAllBundles();
+
+    /**
      * Returns the notification entry for the given notification key;
      * the returned entry (if present) may be in any state.
      */
     @Nullable NotificationEntry getEntry(@NonNull String key);
+
+    /**
+     * Returns the bundle entry for the given key;
+     * the returned entry (if present) may be in any state.
+     */
+    @Nullable BundleEntry getBundleEntry(@NonNull String key);
 }

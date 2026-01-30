@@ -19,7 +19,7 @@
 package com.android.server.wm.flicker.helpers
 
 import android.tools.Rotation
-import android.tools.flicker.legacy.FlickerTestData
+import android.tools.flicker.FlickerTestData
 import android.tools.flicker.rules.ChangeDisplayOrientationRule
 
 /**

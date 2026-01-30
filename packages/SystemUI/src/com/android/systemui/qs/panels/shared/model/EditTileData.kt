@@ -26,6 +26,7 @@ data class EditTileData(
     val icon: Icon,
     val label: Text,
     val appName: Text?,
+    val appIcon: Icon?,
     val category: TileCategory,
 ) {
     init {

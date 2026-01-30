@@ -130,7 +130,7 @@ public class AutoBrightnessFallbackStrategyTest {
                 mAutoBrightnessFallbackStrategy.updateBrightness(
                         new StrategyExecutionRequest(displayPowerRequest, 0.2f,
                                 /* userSetBrightnessChanged= */ false,
-                                /* isStylusBeingUsed */ false));
+                                /* isStylusBeingUsed */ false, /* offloadSession= */ null));
         assertEquals(updatedDisplayBrightnessState, expectedDisplayBrightnessState);
     }
 
@@ -145,6 +145,29 @@ public class AutoBrightnessFallbackStrategyTest {
         DisplayManagerInternal.DisplayPowerRequest dpr =
                 new DisplayManagerInternal.DisplayPowerRequest();
         dpr.policy = POLICY_OFF;
+        StrategySelectionNotifyRequest ssnr = new StrategySelectionNotifyRequest(dpr,
+                Display.STATE_OFF, mAutoBrightnessFallbackStrategy,
+                /* lastUserSetScreenBrightness= */ PowerManager.BRIGHTNESS_INVALID_FLOAT,
+                /* userSetBrightnessChanged= */ false,
+                /* allowAutoBrightnessWhileDozingConfig= */ false,
+                /* isAutoBrightnessEnabled= */ true,
+                /* isBedtimeModeWearEnabled= */ false);
+        mAutoBrightnessFallbackStrategy.strategySelectionPostProcessor(ssnr);
+
+        verify(mScreenOffBrightnessSensorController).setLightSensorEnabled(true);
+    }
+
+    @Test
+    public void testPostProcess_EnableSensor_PolicyBright_ScreenOff() {
+        boolean isDisplayEnabled = true;
+        int leadDisplayId = NO_LEAD_DISPLAY;
+        mAutoBrightnessFallbackStrategy.setupAutoBrightnessFallbackSensor(mSensorManager,
+                mDisplayDeviceConfig,
+                mHandler, mBrightnessMappingStrategy, isDisplayEnabled, leadDisplayId);
+
+        DisplayManagerInternal.DisplayPowerRequest dpr =
+                new DisplayManagerInternal.DisplayPowerRequest();
+        dpr.policy = POLICY_BRIGHT;
         StrategySelectionNotifyRequest ssnr = new StrategySelectionNotifyRequest(dpr,
                 Display.STATE_OFF, mAutoBrightnessFallbackStrategy,
                 /* lastUserSetScreenBrightness= */ PowerManager.BRIGHTNESS_INVALID_FLOAT,

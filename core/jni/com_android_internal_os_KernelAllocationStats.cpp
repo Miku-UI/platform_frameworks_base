@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <algorithm>
 #include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 #include <dmabufinfo/dmabufinfo.h>
+#include <iterator>
 #include <jni.h>
 #include <meminfo/sysmeminfo.h>
 #include <procinfo/process.h>

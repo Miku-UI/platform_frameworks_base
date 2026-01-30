@@ -149,9 +149,8 @@ public class HearingDevicesTileTest extends SysuiTestCase {
         BooleanState activeState = new BooleanState();
         mTile.handleUpdateState(activeState, null);
 
-        assertThat(activeState.state).isEqualTo(Tile.STATE_ACTIVE);
-        assertThat(activeState.secondaryLabel.toString()).isEqualTo(
-                mContext.getString(R.string.quick_settings_hearing_devices_connected));
+        assertStateCorrect(activeState, Tile.STATE_ACTIVE,
+                R.string.quick_settings_hearing_devices_connected);
     }
 
     @Test
@@ -162,9 +161,8 @@ public class HearingDevicesTileTest extends SysuiTestCase {
         BooleanState disconnectedState = new BooleanState();
         mTile.handleUpdateState(disconnectedState, null);
 
-        assertThat(disconnectedState.state).isEqualTo(Tile.STATE_INACTIVE);
-        assertThat(disconnectedState.secondaryLabel.toString()).isEqualTo(
-                mContext.getString(R.string.quick_settings_hearing_devices_disconnected));
+        assertStateCorrect(disconnectedState, Tile.STATE_INACTIVE,
+                R.string.quick_settings_hearing_devices_disconnected);
     }
 
     @Test
@@ -175,6 +173,18 @@ public class HearingDevicesTileTest extends SysuiTestCase {
         BooleanState inactiveState = new BooleanState();
         mTile.handleUpdateState(inactiveState, null);
 
-        assertThat(inactiveState.state).isEqualTo(Tile.STATE_INACTIVE);
+        assertStateCorrect(inactiveState, Tile.STATE_INACTIVE,  -1);
+    }
+
+    private void assertStateCorrect(BooleanState state, int targetState, int targetStateRes) {
+        assertThat(state.state).isEqualTo(targetState);
+
+        String labelString = mContext.getString(R.string.quick_settings_hearing_devices_label);
+        assertThat(state.label).isEqualTo(labelString);
+        assertThat(state.contentDescription).isEqualTo(labelString);
+
+        String stateString = targetStateRes != -1 ? mContext.getString(targetStateRes) : "";
+        assertThat(state.secondaryLabel).isEqualTo(stateString);
+        assertThat(state.stateDescription).isEqualTo(stateString);
     }
 }

@@ -32,6 +32,7 @@ import com.android.compatibility.common.util.ThrowingRunnable;
 
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.concurrent.Callable;
 
 public class NotificationSystemUtil {
 
@@ -43,6 +44,20 @@ public class NotificationSystemUtil {
         SystemUtil.runWithShellPermissionIdentity(
                 InstrumentationRegistry.getInstrumentation().getUiAutomation(),
                 runnable, Manifest.permission.STATUS_BAR_SERVICE);
+    }
+
+    /**
+     * Runs a {@link Callable} as the Shell, while adopting SystemUI's permission (as
+     * checked by {@code NotificationManagerService#isCallerSystemOrSystemUi}) and returns its
+     * result.
+     */
+    protected static <T> T callAsSystemUi(@NonNull Callable<T> callable) {
+        try {
+            return SystemUtil.callWithShellPermissionIdentity(
+                    callable, Manifest.permission.STATUS_BAR_SERVICE);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     static void toggleNotificationPolicyAccess(Context context, String packageName,

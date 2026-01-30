@@ -20,6 +20,7 @@ import static android.server.wm.CtsWindowInfoUtils.waitForStableWindowGeometry;
 import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.WindowInsets.Type.displayCutout;
 import static android.view.WindowInsets.Type.statusBars;
+import static android.window.ScreenCapture.ScreenCaptureParams.SECURE_CONTENT_POLICY_CAPTURE;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
@@ -51,8 +52,8 @@ import android.view.PointerIcon;
 import android.view.SurfaceControl;
 import android.view.cts.surfacevalidator.BitmapPixelChecker;
 import android.view.cts.surfacevalidator.SaveBitmapHelper;
-import android.window.ScreenCapture;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
+import android.window.ScreenCaptureInternal;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
 
 import androidx.annotation.Nullable;
 import androidx.test.filters.SmallTest;
@@ -134,23 +135,26 @@ public class ScreenshotTests {
         assertTrue("Failed to wait for stable geometry",
                 waitForStableWindowGeometry(Duration.ofSeconds(WAIT_TIME_S)));
 
-        ScreenCapture.LayerCaptureArgs args = new ScreenCapture.LayerCaptureArgs.Builder(secureSC)
-                .setCaptureSecureLayers(true)
-                .setChildrenOnly(false)
-                .build();
+        ScreenCaptureInternal.LayerCaptureArgs args =
+                new ScreenCaptureInternal.LayerCaptureArgs.Builder(secureSC)
+                        .setSecureContentPolicy(SECURE_CONTENT_POLICY_CAPTURE)
+                        .setChildrenOnly(false)
+                        .build();
 
         ScreenshotHardwareBuffer[] screenCapture = new ScreenshotHardwareBuffer[1];
         Bitmap screenshot = null;
         Bitmap swBitmap = null;
         try {
             CountDownLatch screenshotComplete = new CountDownLatch(1);
-            ScreenCapture.captureLayers(args, new ScreenCapture.ScreenCaptureListener(
-                    (screenshotHardwareBuffer, result) -> {
-                        if (result == 0) {
-                            screenCapture[0] = screenshotHardwareBuffer;
-                        }
-                        screenshotComplete.countDown();
-                    }));
+            ScreenCaptureInternal.captureLayers(
+                    args,
+                    new ScreenCaptureInternal.ScreenCaptureListener(
+                            (screenshotHardwareBuffer, result) -> {
+                                if (result == 0) {
+                                    screenCapture[0] = screenshotHardwareBuffer;
+                                }
+                                screenshotComplete.countDown();
+                            }));
             assertTrue("Failed to wait for screen capture",
                     screenshotComplete.await(WAIT_TIME_S, TimeUnit.SECONDS));
             assertNotNull("Screen capture buffer is null", screenCapture[0]);
@@ -220,8 +224,10 @@ public class ScreenshotTests {
         Bitmap swBitmap = null;
         try {
             CountDownLatch screenshotComplete = new CountDownLatch(1);
-            windowManager.captureDisplay(DEFAULT_DISPLAY, null,
-                    new ScreenCapture.ScreenCaptureListener(
+            windowManager.captureDisplay(
+                    DEFAULT_DISPLAY,
+                    null,
+                    new ScreenCaptureInternal.ScreenCaptureListener(
                             (screenshotHardwareBuffer, result) -> {
                                 if (result == 0) {
                                     screenCapture[0] = screenshotHardwareBuffer;

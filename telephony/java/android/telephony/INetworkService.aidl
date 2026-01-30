@@ -19,7 +19,7 @@ package android.telephony;
 import android.telephony.INetworkServiceCallback;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface INetworkService
 {

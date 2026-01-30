@@ -761,11 +761,14 @@ public final class FontConfig implements Parcelable {
     public static final class NamedFamilyList implements Parcelable {
         private final List<FontFamily> mFamilies;
         private final String mName;
+        private final @Nullable String mFallback;
 
         /** @hide */
-        public NamedFamilyList(@NonNull List<FontFamily> families, @NonNull String name) {
+        public NamedFamilyList(@NonNull List<FontFamily> families, @NonNull String name,
+                @Nullable String fallback) {
             mFamilies = families;
             mName = name;
+            mFallback = fallback;
         }
 
         /** @hide */
@@ -773,6 +776,7 @@ public final class FontConfig implements Parcelable {
             mFamilies = new ArrayList<>();
             mFamilies.add(family);
             mName = family.getName();
+            mFallback = null;
         }
 
         /**
@@ -797,6 +801,11 @@ public final class FontConfig implements Parcelable {
             return mName;
         }
 
+        /** @hide */
+        public @Nullable String getFallback() {
+            return mFallback;
+        }
+
         @Override
         public int describeContents() {
             return 0;
@@ -806,6 +815,7 @@ public final class FontConfig implements Parcelable {
         public void writeToParcel(@androidx.annotation.NonNull Parcel dest, int flags) {
             dest.writeTypedList(mFamilies, flags);
             dest.writeString8(mName);
+            dest.writeString8(mFallback);
         }
 
         public static final @NonNull Creator<NamedFamilyList> CREATOR = new Creator<>() {
@@ -815,7 +825,8 @@ public final class FontConfig implements Parcelable {
                 final List<FontFamily> families = new ArrayList<>();
                 source.readTypedList(families, FontFamily.CREATOR);
                 String name = source.readString8();
-                return new NamedFamilyList(families, name);
+                String fallback = source.readString8();
+                return new NamedFamilyList(families, name, fallback);
             }
 
             @Override
@@ -843,6 +854,7 @@ public final class FontConfig implements Parcelable {
             return "NamedFamilyList{"
                     + "mFamilies=" + mFamilies
                     + ", mName='" + mName + '\''
+                    + ", mFallback='" + mFallback + '\''
                     + '}';
         }
     }

@@ -20,32 +20,28 @@ import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.coordinator.dagger.CoordinatorScope
 import com.android.systemui.statusbar.notification.collection.notifcollection.NotifCollectionListener
-import com.android.systemui.statusbar.notification.shared.NotificationsLiveDataStoreRefactor
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationStatsLogger
-import java.util.Optional
 import javax.inject.Inject
 
 @CoordinatorScope
 class NotificationStatsLoggerCoordinator
 @Inject
-constructor(private val loggerOptional: Optional<NotificationStatsLogger>) : Coordinator {
+constructor(private val logger: NotificationStatsLogger) : Coordinator {
 
     private val collectionListener =
         object : NotifCollectionListener {
             override fun onEntryUpdated(entry: NotificationEntry) {
                 super.onEntryUpdated(entry)
-                loggerOptional.ifPresent { it.onNotificationUpdated(entry.key) }
+                logger.onNotificationUpdated(entry.key)
             }
 
             override fun onEntryRemoved(entry: NotificationEntry, reason: Int) {
                 super.onEntryRemoved(entry, reason)
-                loggerOptional.ifPresent { it.onNotificationRemoved(entry.key) }
+                logger.onNotificationRemoved(entry.key)
             }
         }
+
     override fun attach(pipeline: NotifPipeline) {
-        if (NotificationsLiveDataStoreRefactor.isUnexpectedlyInLegacyMode()) {
-            return
-        }
         pipeline.addCollectionListener(collectionListener)
     }
 }

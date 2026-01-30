@@ -19,11 +19,7 @@ package com.android.server.theming;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.theming.FieldColor;
-import android.content.theming.ThemeSettings;
-import android.content.theming.ThemeSettingsUpdater;
-import android.content.theming.ThemeStyle;
-
-import com.google.common.truth.Truth;
+import android.graphics.Color;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -32,76 +28,102 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FieldColorTests {
-    static final ThemeSettings DEFAULTS = new ThemeSettings(1, 0xFF123456, 0xFF654321,
-            "home_wallpaper", ThemeStyle.VIBRANT, true);
 
     private FieldColor mFieldColor;
 
     @Before
     public void setup() {
-        // Default to blue
-        mFieldColor = new FieldColor("accentColor", ThemeSettingsUpdater::accentColor,
-                ThemeSettings::accentColor, DEFAULTS);
+        mFieldColor = new FieldColor();
     }
 
     @Test
-    public void parse_validColor_returnsCorrectColor() {
-        Integer parsedValue = mFieldColor.parse("FF0000FF");
-        assertThat(parsedValue).isEqualTo(0xFF0000FF);
-    }    @Test
-    public void parse_validColorLowercase_returnsCorrectColor() {
-        Integer parsedValue = mFieldColor.parse("ff0000ff");
-        assertThat(parsedValue).isEqualTo(0xFF0000FF);
+    public void parse_validColorWithAlpha_returnsCorrectColor() {
+        Color parsedValue = mFieldColor.parse("FF0000FF");
+        assertThat(parsedValue).isEqualTo(Color.valueOf(0xFF0000FF));
+    }
+
+    @Test
+    public void parse_validColorLowercaseWithAlpha_returnsCorrectColor() {
+        Color parsedValue = mFieldColor.parse("ff0000ff");
+        assertThat(parsedValue).isEqualTo(Color.valueOf(0xFF0000FF));
     }
 
     @Test
     public void parse_validColorNoAlpha_returnsCorrectColor() {
-        Integer parsedValue = mFieldColor.parse("0000ff");
-        assertThat(parsedValue).isEqualTo(0xFF0000FF);
+        Color parsedValue = mFieldColor.parse("0000FF");
+        assertThat(parsedValue).isEqualTo(Color.valueOf(Color.parseColor("#0000FF")));
     }
 
+    @Test
+    public void parse_validColorNoAlphaLowercase_returnsCorrectColor() {
+        Color parsedValue = mFieldColor.parse("0000ff");
+        assertThat(parsedValue).isEqualTo(Color.valueOf(Color.parseColor("#0000ff")));
+    }
 
     @Test
-    public void parse_invalidColor_returnsNull() {
-        Integer parsedValue = mFieldColor.parse("invalid");
+    public void parse_invalidColor_short_returnsNull() {
+        Color parsedValue = mFieldColor.parse("12345");
+        assertThat(parsedValue).isNull();
+    }
+
+    @Test
+    public void parse_invalidColor_long_returnsNull() {
+        Color parsedValue = mFieldColor.parse("123456789");
+        assertThat(parsedValue).isNull();
+    }
+
+    @Test
+    public void parse_invalidColor_characters_returnsNull() {
+        Color parsedValue = mFieldColor.parse("GGHHII");
         assertThat(parsedValue).isNull();
     }
 
     @Test
     public void parse_nullColor_returnsNull() {
-        Integer parsedValue = mFieldColor.parse(null);
+        Color parsedValue = mFieldColor.parse(null);
         assertThat(parsedValue).isNull();
     }
 
     @Test
-    public void serialize_validColor_returnsCorrectString() {
-        String serializedValue = mFieldColor.serialize(0xFFFF0000); // Red
-        assertThat(serializedValue).isEqualTo("ffff0000");
+    public void serialize_validColorWithAlpha_returnsCorrectString() {
+        String serializedValue = mFieldColor.serialize(Color.valueOf(0xFFFF0000));
+        assertThat(serializedValue).isEqualTo("FFFF0000");
     }
 
     @Test
-    public void serialize_zeroColor_returnsZeroString() {
-        String serializedValue = mFieldColor.serialize(0);
+    public void serialize_validColorBlack_returnsCorrectString() {
+        String serializedValue = mFieldColor.serialize(Color.valueOf(Color.BLACK));
+        assertThat(serializedValue).isEqualTo("FF000000");
+    }
+
+    @Test
+    public void serialize_transparentColor_returnsZeroString() {
+        String serializedValue = mFieldColor.serialize(Color.valueOf(Color.TRANSPARENT));
         assertThat(serializedValue).isEqualTo("0");
     }
 
     @Test
-    public void validate_validColor_returnsTrue() {
-        assertThat(mFieldColor.validate(0xFF00FF00)).isTrue(); // Green
+    public void validate_validOpaqueColor_returnsTrue() {
+        assertThat(mFieldColor.validate(Color.valueOf(0xFF00FF00))).isTrue();
     }
 
     @Test
-    public void getFieldType_returnsIntegerClass() {
-        Truth.assertThat(mFieldColor.getFieldType()).isEqualTo(Integer.class);
+    public void validate_validNonOpaqueColor_returnsTrue() {
+        assertThat(mFieldColor.validate(Color.valueOf(0x8000FF00))).isTrue();
+    }
+
+    @Test
+    public void validate_transparentColor_returnsFalse() {
+        assertThat(mFieldColor.validate(Color.valueOf(Color.TRANSPARENT))).isFalse();
+    }
+
+    @Test
+    public void getFieldType_returnsColorClass() {
+        assertThat(mFieldColor.getFieldType()).isEqualTo(Color.class);
     }
 
     @Test
     public void getJsonType_returnsStringClass() {
-        Truth.assertThat(mFieldColor.getJsonType()).isEqualTo(String.class);
-    }
-
-    @Test
-    public void get_returnsDefaultValue() {
-        Truth.assertThat(mFieldColor.getDefaultValue()).isEqualTo(DEFAULTS.accentColor());
+        assertThat(mFieldColor.getJsonType()).isEqualTo(String.class);
     }
 }

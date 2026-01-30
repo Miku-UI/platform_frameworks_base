@@ -16,6 +16,7 @@
 
 package com.android.systemui.smartspace.ui.viewmodel
 
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -27,12 +28,17 @@ class SmartspaceViewModel
 @AssistedInject
 constructor(
     powerInteractor: PowerInteractor,
+    keyguardInteractor: KeyguardInteractor,
     @Assisted val surfaceName: String,
 ) {
 
     /** Screen on/off state */
     val isAwake: Flow<Boolean> =
         powerInteractor.isAwake.filter { surfaceName != SURFACE_WEATHER_VIEW }
+
+    /** Time tick flow */
+    val aodTimeTick: Flow<Long> =
+        keyguardInteractor.dozeTimeTick.filter { surfaceName == SURFACE_GENERAL_VIEW }
 
     @AssistedFactory
     interface Factory {

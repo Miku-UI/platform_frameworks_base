@@ -23,6 +23,7 @@ import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.qs.panels.shared.model.InfiniteGridLayoutType
 import com.android.systemui.qs.panels.shared.model.PaginatedGridLayoutType
 import com.android.systemui.shade.domain.interactor.enableDualShade
@@ -37,7 +38,8 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @EnableSceneContainer
 class GridLayoutTypeInteractorTest : SysuiTestCase() {
-    val kosmos = testKosmos()
+
+    val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
     val Kosmos.underTest by Kosmos.Fixture { kosmos.gridLayoutTypeInteractor }
 
@@ -46,10 +48,10 @@ class GridLayoutTypeInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             val type by collectLastValue(underTest.layout)
 
-            kosmos.enableSingleShade()
+            enableSingleShade()
             assertThat(type).isEqualTo(PaginatedGridLayoutType)
 
-            kosmos.enableSplitShade()
+            enableSplitShade()
             assertThat(type).isEqualTo(PaginatedGridLayoutType)
         }
 
@@ -58,10 +60,10 @@ class GridLayoutTypeInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             val type by collectLastValue(underTest.layout)
 
-            kosmos.enableDualShade(wideLayout = false)
+            enableDualShade(wideLayout = false)
             assertThat(type).isEqualTo(InfiniteGridLayoutType)
 
-            kosmos.enableDualShade(wideLayout = true)
+            enableDualShade(wideLayout = true)
             assertThat(type).isEqualTo(InfiniteGridLayoutType)
         }
 }

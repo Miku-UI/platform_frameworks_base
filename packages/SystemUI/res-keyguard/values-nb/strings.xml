@@ -57,7 +57,7 @@
     <string name="kg_wrong_pin" msgid="4160978845968732624">"Feil PIN-kode"</string>
     <string name="kg_wrong_pin_try_again" msgid="3129729383303430190">"Feil PIN-kode. Prøv igjen."</string>
     <string name="kg_wrong_input_try_fp_suggestion" msgid="3143861542242024833">"Eller lås opp med fingeravtrykk"</string>
-    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"Gjenkjenner ikke avtrykket"</string>
+    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"Fingeravtrykk ikke gjenkjent"</string>
     <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"Gjenkjenner ikke ansiktet"</string>
     <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"Prøv på nytt eller skriv inn PIN-koden"</string>
     <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"Prøv på nytt eller skriv inn passordet"</string>
@@ -67,8 +67,12 @@
     <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"Mønsteret kreves etter for mange forsøk"</string>
     <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"Lås opp med PIN-kode eller fingeravtrykk"</string>
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Lås opp med passord eller fingeravtrykk"</string>
-    <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Lås opp med mønster eller fingeravtrykk"</string>
+    <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Bruk mønster eller fingeravtrykk"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"For økt sikkerhet ble enheten låst med jobbregler"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Totrinnsbekreftelse"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Bruk Opplåsing med fingeravtrykk"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Bruk ansiktslås"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Bruk fingeravtrykk eller ansiktslås"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"PIN-koden kreves etter låsing"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Passordet kreves etter låsing"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Mønsteret kreves etter låsing"</string>

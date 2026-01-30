@@ -713,7 +713,7 @@ public class BroadcastSkipPolicy {
         }
 
         final boolean callerForeground = receiverRecord.callerApp != null
-                ? receiverRecord.callerApp.mState.getSetSchedGroup()
+                ? receiverRecord.callerApp.getSetSchedGroup()
                 != ProcessList.SCHED_GROUP_BACKGROUND : true;
 
         // Show a permission review UI only for explicit broadcast from a foreground app

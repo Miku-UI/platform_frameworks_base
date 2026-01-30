@@ -179,6 +179,8 @@ protected:
     ~PointerControllerTest();
 
     void ensureDisplayViewportIsSet(ui::LogicalDisplayId displayId = ui::LogicalDisplayId::DEFAULT);
+    void addDisplay(ui::LogicalDisplayId displayId, int32_t width, int32_t height,
+                    ui::Rotation rotation = ui::ROTATION_0);
 
     sp<MockSprite> mPointerSprite;
     sp<MockPointerControllerPolicyInterface> mPolicy;
@@ -223,12 +225,61 @@ void PointerControllerTest::ensureDisplayViewportIsSet(ui::LogicalDisplayId disp
     mPointerController->setDisplayViewport(viewport);
 }
 
+void PointerControllerTest::addDisplay(ui::LogicalDisplayId displayId, int32_t logicalWidth,
+                                       int32_t logicalHeight, ui::Rotation rotation) {
+    gui::DisplayInfo displayInfo;
+    displayInfo.displayId = displayId;
+    displayInfo.logicalWidth = logicalWidth;
+    displayInfo.logicalHeight = logicalHeight;
+    displayInfo.transform.set(ui::Transform::toRotationFlags(rotation), logicalHeight,
+                              logicalWidth);
+    mRegisteredListener->onWindowInfosChanged({{}, {displayInfo}, 0, 0});
+}
+
 void PointerControllerTest::loopThread() {
     Looper::setForThread(mLooper);
 
     while (mRunning.load(std::memory_order_relaxed)) {
         mLooper->pollOnce(100);
     }
+}
+
+TEST_F(PointerControllerTest, getPosition) {
+    addDisplay(ui::LogicalDisplayId::DEFAULT, 800, 600);
+    ensureDisplayViewportIsSet();
+
+    mPointerController->setPosition(100, 200);
+
+    vec2 absolutePosition = mPointerController->getPosition();
+    EXPECT_EQ(100, absolutePosition.x);
+    EXPECT_EQ(200, absolutePosition.y);
+
+    vec2 logicalPosition = mPointerController->getPositionInLogicalDisplay();
+    EXPECT_EQ(100, logicalPosition.x);
+    EXPECT_EQ(200, logicalPosition.y);
+}
+
+TEST_F(PointerControllerTest, getPosition_withDisplayRotation) {
+    addDisplay(ui::LogicalDisplayId::DEFAULT, 800, 600, ui::ROTATION_90);
+    DisplayViewport viewport;
+    viewport.displayId = ui::LogicalDisplayId::DEFAULT;
+    viewport.logicalRight = 800;
+    viewport.logicalBottom = 600;
+    viewport.physicalRight = 600;
+    viewport.physicalBottom = 800;
+    viewport.deviceWidth = 600;
+    viewport.deviceHeight = 800;
+    mPointerController->setDisplayViewport(viewport);
+
+    mPointerController->setPosition(100, 200);
+
+    vec2 absolutePosition = mPointerController->getPosition();
+    EXPECT_EQ(100, absolutePosition.x);
+    EXPECT_EQ(200, absolutePosition.y);
+
+    vec2 logicalPosition = mPointerController->getPositionInLogicalDisplay();
+    EXPECT_EQ(400, logicalPosition.x);
+    EXPECT_EQ(100, logicalPosition.y);
 }
 
 TEST_F(PointerControllerTest, useDefaultCursorTypeByDefault) {

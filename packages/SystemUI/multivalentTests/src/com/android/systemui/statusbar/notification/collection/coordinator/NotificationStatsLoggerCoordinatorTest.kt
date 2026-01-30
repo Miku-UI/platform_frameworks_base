@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.notification.collection.coordinator
 
-import android.platform.test.annotations.EnableFlags
 import android.service.notification.NotificationListenerService.REASON_CANCEL
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -24,12 +23,10 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.notifcollection.NotifCollectionListener
-import com.android.systemui.statusbar.notification.shared.NotificationsLiveDataStoreRefactor
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationStatsLogger
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.mockito.withArgCaptor
-import java.util.Optional
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,14 +34,13 @@ import org.mockito.Mockito.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(NotificationsLiveDataStoreRefactor.FLAG_NAME)
 class NotificationStatsLoggerCoordinatorTest : SysuiTestCase() {
 
     private lateinit var collectionListener: NotifCollectionListener
 
     private val pipeline: NotifPipeline = mock()
     private val logger: NotificationStatsLogger = mock()
-    private val underTest = NotificationStatsLoggerCoordinator(Optional.of(logger))
+    private val underTest = NotificationStatsLoggerCoordinator(logger)
 
     @Before
     fun attachPipeline() {

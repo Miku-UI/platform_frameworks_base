@@ -366,7 +366,7 @@ public class DreamOverlayContainerViewController extends
         if (!bouncerUiRevamp()) {
             mBlurUtils.applyBlur(mView.getViewRootImpl(),
                     (int) mBlurUtils.blurRadiusOfRatio(
-                            1 - aboutToShowBouncerProgress(bouncerHideAmount)), false);
+                            1 - aboutToShowBouncerProgress(bouncerHideAmount)), false, 1.0f);
         }
     }
 

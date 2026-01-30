@@ -16,6 +16,8 @@
 
 package com.android.systemui.lowlightclock;
 
+import static com.android.systemui.Flags.lowlightClockUsesKeyguardChargingStatus;
+
 import android.content.Context;
 import android.content.res.Resources;
 import android.os.BatteryManager;
@@ -30,6 +32,9 @@ import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.settingslib.fuelgauge.BatteryStatus;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.res.R;
+import com.android.systemui.statusbar.KeyguardIndicationController;
+
+import dagger.Lazy;
 
 import java.text.NumberFormat;
 
@@ -53,6 +58,8 @@ public class ChargingStatusProvider {
     // callback being GC'd.
     private ChargingStatusCallback mChargingStatusCallback;
 
+    private final Lazy<KeyguardIndicationController> mKeyguardIndicationController;
+
     private Callback mCallback;
 
     @Inject
@@ -60,11 +67,13 @@ public class ChargingStatusProvider {
             Context context,
             @Main Resources resources,
             IBatteryStats iBatteryStats,
-            KeyguardUpdateMonitor keyguardUpdateMonitor) {
+            KeyguardUpdateMonitor keyguardUpdateMonitor,
+            Lazy<KeyguardIndicationController> keyguardIndicationController) {
         mContext = context;
         mResources = resources;
         mBatteryInfo = iBatteryStats;
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
+        mKeyguardIndicationController = keyguardIndicationController;
     }
 
     /**
@@ -157,7 +166,15 @@ public class ChargingStatusProvider {
         if (mCallback != null) {
             final boolean shouldShowStatus =
                     mBatteryState.isPowerPluggedIn() || mBatteryState.isBatteryDefenderEnabled();
-            mCallback.onChargingStatusChanged(shouldShowStatus, computeChargingString());
+            mCallback.onChargingStatusChanged(shouldShowStatus, getChargingString());
+        }
+    }
+
+    private String getChargingString() {
+        if (lowlightClockUsesKeyguardChargingStatus()) {
+            return mKeyguardIndicationController.get().getPowerChargingString();
+        } else {
+            return computeChargingString();
         }
     }
 

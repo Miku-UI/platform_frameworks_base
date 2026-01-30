@@ -72,6 +72,7 @@ import java.io.IOException;
  * @attr ref android.R.styleable#ShapeDrawable_width
  * @attr ref android.R.styleable#ShapeDrawable_height
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ShapeDrawable extends Drawable {
     private @NonNull ShapeState mShapeState;
     private BlendModeColorFilter mBlendModeColorFilter;

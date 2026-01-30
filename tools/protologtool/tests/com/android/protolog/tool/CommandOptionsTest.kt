@@ -38,9 +38,6 @@ class CommandOptionsTest {
                 "services/core/services.core.wm.protologgroups/android_common/javac/" +
                 "services.core.wm.protologgroups.jar"
         private const val TEST_VIEWER_CONFIG_FILE_PATH = "/some/viewer/config/file/path.pb"
-        private const val TEST_LEGACY_VIEWER_CONFIG_FILE_PATH =
-            "/some/viewer/config/file/path.json.gz"
-        private const val TEST_LEGACY_OUTPUT_FILE_PATH = "/some/output/file/path.winscope"
         private const val TEST_SRC_JAR = "out/soong/.temp/sbox175955373/" +
                 "services.core.wm.protolog.srcjar"
         private const val TEST_VIEWER_JSON = "out/soong/.temp/sbox175955373/" +
@@ -72,8 +69,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val cmd = CommandOptions(testLine.split(' ').toTypedArray())
         assertEquals(CommandOptions.TRANSFORM_CALLS_CMD, cmd.command)
@@ -81,8 +76,6 @@ class CommandOptionsTest {
         assertEquals(TEST_PROTOLOGGROUP_CLASS, cmd.protoLogGroupsClassNameArg)
         assertEquals(TEST_PROTOLOGGROUP_JAR, cmd.protoLogGroupsJarArg)
         assertEquals(TEST_VIEWER_CONFIG_FILE_PATH, cmd.viewerConfigFilePathArg)
-        assertEquals(TEST_LEGACY_VIEWER_CONFIG_FILE_PATH, cmd.legacyViewerConfigFilePathArg)
-        assertEquals(TEST_LEGACY_OUTPUT_FILE_PATH, cmd.legacyOutputFilePath)
         assertEquals(TEST_SRC_JAR, cmd.outputSourceJarArg)
         assertEquals(TEST_JAVA_SRC, cmd.javaSourceArgs)
     }
@@ -93,8 +86,6 @@ class CommandOptionsTest {
                 "--protolog-class $TEST_PROTOLOG_CLASS " +
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -109,7 +100,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val cmd = CommandOptions(testLine.split(' ').toTypedArray())
         assertEquals(CommandOptions.TRANSFORM_CALLS_CMD, cmd.command)
@@ -117,8 +107,6 @@ class CommandOptionsTest {
         assertEquals(TEST_PROTOLOGGROUP_CLASS, cmd.protoLogGroupsClassNameArg)
         assertEquals(TEST_PROTOLOGGROUP_JAR, cmd.protoLogGroupsJarArg)
         assertEquals(TEST_VIEWER_CONFIG_FILE_PATH, cmd.viewerConfigFilePathArg)
-        assertEquals(null, cmd.legacyViewerConfigFilePathArg)
-        assertEquals(TEST_LEGACY_OUTPUT_FILE_PATH, cmd.legacyOutputFilePath)
         assertEquals(TEST_SRC_JAR, cmd.outputSourceJarArg)
         assertEquals(TEST_JAVA_SRC, cmd.javaSourceArgs)
     }
@@ -130,7 +118,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val cmd = CommandOptions(testLine.split(' ').toTypedArray())
         assertEquals(CommandOptions.TRANSFORM_CALLS_CMD, cmd.command)
@@ -138,8 +125,6 @@ class CommandOptionsTest {
         assertEquals(TEST_PROTOLOGGROUP_CLASS, cmd.protoLogGroupsClassNameArg)
         assertEquals(TEST_PROTOLOGGROUP_JAR, cmd.protoLogGroupsJarArg)
         assertEquals(TEST_VIEWER_CONFIG_FILE_PATH, cmd.viewerConfigFilePathArg)
-        assertEquals(TEST_LEGACY_VIEWER_CONFIG_FILE_PATH, cmd.legacyViewerConfigFilePathArg)
-        assertEquals(null, cmd.legacyOutputFilePath)
         assertEquals(TEST_SRC_JAR, cmd.outputSourceJarArg)
         assertEquals(TEST_JAVA_SRC, cmd.javaSourceArgs)
     }
@@ -150,8 +135,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -165,8 +148,6 @@ class CommandOptionsTest {
                 "--protolog-class $TEST_PROTOLOG_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -180,8 +161,6 @@ class CommandOptionsTest {
                 "--protolog-class $TEST_PROTOLOG_CLASS " +
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -196,8 +175,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -212,8 +189,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -228,8 +203,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -244,8 +217,6 @@ class CommandOptionsTest {
                 "--loggroups-class invalid " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -260,8 +231,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar invalid.txt " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar $TEST_SRC_JAR ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -277,8 +246,6 @@ class CommandOptionsTest {
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                 "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                 "--output-srcjar invalid.pb ${TEST_JAVA_SRC.joinToString(" ")}"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -294,8 +261,6 @@ class CommandOptionsTest {
                     "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                     "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
                     "--viewer-config-file-path $TEST_VIEWER_CONFIG_FILE_PATH " +
-                    "--legacy-viewer-config-file-path $TEST_LEGACY_VIEWER_CONFIG_FILE_PATH " +
-                    "--legacy-output-file-path $TEST_LEGACY_OUTPUT_FILE_PATH " +
                     "--output-srcjar $TEST_SRC_JAR invalid.py"
         val exception = assertThrows<InvalidCommandException>(InvalidCommandException::class.java) {
             CommandOptions(testLine.split(' ').toTypedArray())
@@ -331,29 +296,11 @@ class CommandOptionsTest {
     }
 
     @Test
-    fun generateConfig_json() {
-        val testLine = "generate-viewer-config " +
-                "--protolog-class $TEST_PROTOLOG_CLASS " +
-                "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
-                "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
-                "--viewer-config-type json " +
-                "--viewer-config $TEST_VIEWER_JSON ${TEST_JAVA_SRC.joinToString(" ")}"
-        val cmd = CommandOptions(testLine.split(' ').toTypedArray())
-        assertEquals(CommandOptions.GENERATE_CONFIG_CMD, cmd.command)
-        assertEquals(TEST_PROTOLOG_CLASS, cmd.protoLogClassNameArg)
-        assertEquals(TEST_PROTOLOGGROUP_CLASS, cmd.protoLogGroupsClassNameArg)
-        assertEquals(TEST_PROTOLOGGROUP_JAR, cmd.protoLogGroupsJarArg)
-        assertEquals(TEST_VIEWER_JSON, cmd.viewerConfigFileNameArg)
-        assertEquals(TEST_JAVA_SRC, cmd.javaSourceArgs)
-    }
-
-    @Test
     fun generateConfig_proto() {
         val testLine = "generate-viewer-config " +
                 "--protolog-class $TEST_PROTOLOG_CLASS " +
                 "--loggroups-class $TEST_PROTOLOGGROUP_CLASS " +
                 "--loggroups-jar $TEST_PROTOLOGGROUP_JAR " +
-                "--viewer-config-type proto " +
                 "--viewer-config $TEST_VIEWER_JSON ${TEST_JAVA_SRC.joinToString(" ")}"
         val cmd = CommandOptions(testLine.split(' ').toTypedArray())
         assertEquals(CommandOptions.GENERATE_CONFIG_CMD, cmd.command)
@@ -386,14 +333,5 @@ class CommandOptionsTest {
             CommandOptions(testLine.split(' ').toTypedArray())
         }
         assertThat(exception).hasMessageThat().contains("required, got invalid.yaml instead")
-    }
-
-    @Test
-    fun readLog() {
-        val testLine = "read-log --viewer-config $TEST_VIEWER_JSON $TEST_LOG"
-        val cmd = CommandOptions(testLine.split(' ').toTypedArray())
-        assertEquals(CommandOptions.READ_LOG_CMD, cmd.command)
-        assertEquals(TEST_VIEWER_JSON, cmd.viewerConfigFileNameArg)
-        assertEquals(TEST_LOG, cmd.logProtofileArg)
     }
 }

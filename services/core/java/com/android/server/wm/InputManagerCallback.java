@@ -146,6 +146,9 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
                 mInputDevicesReadyMonitor.notifyAll();
             }
         }
+
+        mService.onInputDevicesChanged();
+
         Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
     }
 
@@ -231,9 +234,8 @@ final class InputManagerCallback implements InputManagerService.WindowManagerCal
      * ordinary dispatch.
      */
     @Override
-    public long interceptKeyBeforeDispatching(
-            IBinder focusedToken, KeyEvent event, int policyFlags) {
-        return mService.mPolicy.interceptKeyBeforeDispatching(focusedToken, event, policyFlags);
+    public boolean interceptKeyBeforeDispatching(IBinder focusedToken, KeyEvent event) {
+        return mService.mPolicy.interceptKeyBeforeDispatching(focusedToken, event);
     }
 
     /**

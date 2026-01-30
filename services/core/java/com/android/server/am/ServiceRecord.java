@@ -66,6 +66,8 @@ import android.util.proto.ProtoUtils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.procstats.ServiceState;
 import com.android.server.LocalServices;
+import com.android.server.am.psc.ConnectionRecordInternal;
+import com.android.server.am.psc.ServiceRecordInternal;
 import com.android.server.notification.NotificationManagerInternal;
 import com.android.server.uri.NeededUriGrants;
 import com.android.server.uri.UriPermissionOwner;
@@ -78,7 +80,7 @@ import java.util.Objects;
 /**
  * A running application service.
  */
-final class ServiceRecord extends Binder implements ComponentName.WithComponentName {
+final class ServiceRecord extends ServiceRecordInternal implements ComponentName.WithComponentName {
     private static final String TAG = TAG_WITH_CLASS_NAME ? "ServiceRecord" : TAG_AM;
 
     // Maximum number of delivery attempts before giving up.
@@ -117,7 +119,6 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
 
     final ActivityManagerService ams;
     final ComponentName name; // service component.
-    final ComponentName instanceName; // service component's per-instance name.
     final String shortInstanceName; // instanceName.flattenToShortString().
     final String definingPackageName;
                             // Can be different from appInfo.packageName for external services
@@ -157,16 +158,12 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
     boolean fgRequired;     // is the service required to go foreground after starting?
     boolean fgWaiting;      // is a timeout for going foreground already scheduled?
     boolean isNotAppComponentUsage; // is service binding not considered component/package usage?
-    boolean isForeground;   // is service currently in foreground mode?
     boolean systemRequestedFgToBg; //  system requested service to transition to background.
     boolean inSharedIsolatedProcess; // is the service in a shared isolated process
     int foregroundId;       // Notification ID of last foreground req.
     Notification foregroundNoti; // Notification record of foreground state.
     long fgDisplayTime;     // time at which the FGS notification should become visible
-    int foregroundServiceType; // foreground service types.
-    long lastActivity;      // last time there was some activity on the service.
     long startingBgTimeout;  // time at which we scheduled this for a delayed start.
-    boolean startRequested; // someone explicitly called start?
     boolean delayedStop;    // service has been stopped but is in a delayed start?
     boolean stopIfKilled;   // last onStart() said to stop if service killed?
     boolean callStart;      // last onStart() has asked to always be called on restart.
@@ -187,10 +184,10 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
     int pendingConnectionImportance;   // To be filled in to ProcessRecord once it connects
 
     /**
-     * The last time (in uptime timebase) a bind request was made with BIND_ALMOST_PERCEPTIBLE for
-     * this service while on TOP.
+     * Proof of concept for native-only isolated processes. This should be using a more real
+     * manifest entry to declare services as such.
      */
-    long lastTopAlmostPerceptibleBindRequestUptimeMs;
+    boolean mIsNativeIsolated; // is the service a native-only isolated service?
 
     // any current binding to this service has BIND_ALLOW_BACKGROUND_ACTIVITY_STARTS flag?
     private boolean mIsAllowedBgActivityStartsByBinding;
@@ -351,7 +348,8 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
     /**
      * We use this logic for the capability calculation in oom-adjuster.
      */
-    boolean isFgsAllowedWiu_forCapabilities() {
+    @Override
+    public boolean isFgsAllowedWiu_forCapabilities() {
         return getFgsAllowWiu_forCapabilities() != REASON_DENIED;
     }
 
@@ -475,8 +473,6 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
     String stringName;      // caching of toString
 
     private int lastStartId;    // identifier of most recent start request.
-
-    boolean mKeepWarming; // Whether or not it'll keep critical code path of the host warm
 
     /**
      * The original earliest restart time, which considers the number of crashes, etc.,
@@ -817,18 +813,18 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         }
         proto.write(ServiceRecordProto.WHITELIST_MANAGER, allowlistManager);
         proto.write(ServiceRecordProto.DELAYED, delayed);
-        if (isForeground || foregroundId != 0) {
+        if (isForeground() || foregroundId != 0) {
             long fgToken = proto.start(ServiceRecordProto.FOREGROUND);
             proto.write(ServiceRecordProto.Foreground.ID, foregroundId);
             foregroundNoti.dumpDebug(proto, ServiceRecordProto.Foreground.NOTIFICATION);
             proto.write(ServiceRecordProto.Foreground.FOREGROUND_SERVICE_TYPE,
-                    foregroundServiceType);
+                    getForegroundServiceType());
             proto.end(fgToken);
         }
         ProtoUtils.toDuration(proto, ServiceRecordProto.CREATE_REAL_TIME, createRealTime, nowReal);
         ProtoUtils.toDuration(proto,
                 ServiceRecordProto.STARTING_BG_TIMEOUT, startingBgTimeout, now);
-        ProtoUtils.toDuration(proto, ServiceRecordProto.LAST_ACTIVITY_TIME, lastActivity, now);
+        ProtoUtils.toDuration(proto, ServiceRecordProto.LAST_ACTIVITY_TIME, getLastActivity(), now);
         ProtoUtils.toDuration(proto, ServiceRecordProto.RESTART_TIME, restartTime, now);
         proto.write(ServiceRecordProto.CREATED_FROM_FG, createdFromFg);
 
@@ -836,9 +832,9 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         proto.write(ServiceRecordProto.ALLOW_WHILE_IN_USE_PERMISSION_IN_FGS,
                 isFgsAllowedWiu_forCapabilities());
 
-        if (startRequested || delayedStop || lastStartId != 0) {
+        if (isStartRequested() || delayedStop || lastStartId != 0) {
             long startToken = proto.start(ServiceRecordProto.START);
-            proto.write(ServiceRecordProto.Start.START_REQUESTED, startRequested);
+            proto.write(ServiceRecordProto.Start.START_REQUESTED, isStartRequested());
             proto.write(ServiceRecordProto.Start.DELAYED_STOP, delayedStop);
             proto.write(ServiceRecordProto.Start.STOP_IF_KILLED, stopIfKilled);
             proto.write(ServiceRecordProto.Start.LAST_START_ID, lastStartId);
@@ -1000,10 +996,10 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         if (delayed) {
             pw.print(prefix); pw.print("delayed="); pw.println(delayed);
         }
-        if (isForeground || foregroundId != 0) {
-            pw.print(prefix); pw.print("isForeground="); pw.print(isForeground);
+        if (isForeground() || foregroundId != 0) {
+            pw.print(prefix); pw.print("isForeground="); pw.print(isForeground());
             pw.print(" foregroundId="); pw.print(foregroundId);
-            pw.printf(" types=0x%08X", foregroundServiceType);
+            pw.printf(" types=0x%08X", getForegroundServiceType());
             pw.print(" foregroundNoti="); pw.println(foregroundNoti);
 
             if (isShortFgs() && mShortFgsInfo != null) {
@@ -1026,22 +1022,22 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
             pw.print(prefix); pw.print("isFgsDelegate="); pw.println(mIsFgsDelegate);
         }
         pw.print(prefix); pw.print("createTime=");
-                TimeUtils.formatDuration(createRealTime, nowReal, pw);
-                pw.print(" startingBgTimeout=");
-                TimeUtils.formatDuration(startingBgTimeout, now, pw);
-                pw.println();
+        TimeUtils.formatDuration(createRealTime, nowReal, pw);
+        pw.print(" startingBgTimeout=");
+        TimeUtils.formatDuration(startingBgTimeout, now, pw);
+        pw.println();
         pw.print(prefix); pw.print("lastActivity=");
-                TimeUtils.formatDuration(lastActivity, now, pw);
-                pw.print(" restartTime=");
-                TimeUtils.formatDuration(restartTime, now, pw);
-                pw.print(" createdFromFg="); pw.println(createdFromFg);
+        TimeUtils.formatDuration(getLastActivity(), now, pw);
+        pw.print(" restartTime=");
+        TimeUtils.formatDuration(restartTime, now, pw);
+        pw.print(" createdFromFg="); pw.println(createdFromFg);
         if (pendingConnectionGroup != 0) {
             pw.print(prefix); pw.print(" pendingConnectionGroup=");
             pw.print(pendingConnectionGroup);
             pw.print(" Importance="); pw.println(pendingConnectionImportance);
         }
-        if (startRequested || delayedStop || lastStartId != 0) {
-            pw.print(prefix); pw.print("startRequested="); pw.print(startRequested);
+        if (isStartRequested() || delayedStop || lastStartId != 0) {
+            pw.print(prefix); pw.print("startRequested="); pw.print(isStartRequested());
                     pw.print(" delayedStop="); pw.print(delayedStop);
                     pw.print(" stopIfKilled="); pw.print(stopIfKilled);
                     pw.print(" callStart="); pw.print(callStart);
@@ -1104,9 +1100,10 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
 
     /** Used only for tests */
     private ServiceRecord(ActivityManagerService ams) {
+        super(null, 0);
+
         this.ams = ams;
         name = null;
-        instanceName = null;
         shortInstanceName = null;
         definingPackageName = null;
         definingUid = 0;
@@ -1123,6 +1120,7 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         sdkSandboxClientAppUid = 0;
         sdkSandboxClientAppPackage = null;
         inSharedIsolatedProcess = false;
+        mIsNativeIsolated = false;
     }
 
     public static ServiceRecord newEmptyInstanceForTest(ActivityManagerService ams) {
@@ -1142,9 +1140,10 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
             Intent.FilterComparison intent, ServiceInfo sInfo, boolean callerIsFg,
             Runnable restarter, String processName, int sdkSandboxClientAppUid,
             String sdkSandboxClientAppPackage, boolean inSharedIsolatedProcess) {
+        super(instanceName, SystemClock.uptimeMillis());
+
         this.ams = ams;
         this.name = name;
-        this.instanceName = instanceName;
         shortInstanceName = instanceName.flattenToShortString();
         this.definingPackageName = definingPackageName;
         this.definingUid = definingUid;
@@ -1161,7 +1160,6 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         exported = sInfo.exported;
         this.restarter = restarter;
         createRealTime = SystemClock.elapsedRealtime();
-        lastActivity = SystemClock.uptimeMillis();
         userId = UserHandle.getUserId(appInfo.uid);
         createdFromFg = callerIsFg;
         updateKeepWarmLocked();
@@ -1169,6 +1167,13 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         // to post or update a notification, but that doesn't cover the time before the first
         // notification
         updateFgsHasNotificationPermission();
+
+        if (android.os.Flags.nativeFrameworkPrototype()) {
+            // TODO(b/431902161): Add a stable way to distinguish native services.
+            // TODO(b/431901625): Consider supporting non-isolated native services.
+            mIsNativeIsolated = name.getShortClassName().contains(".NativeService")
+                && ((sInfo.flags & ServiceInfo.FLAG_ISOLATED_PROCESS) != 0);
+        }
     }
 
     public ServiceState getTracker() {
@@ -1250,7 +1255,6 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         updateProcessStateOnRequest();
         if (pendingConnectionGroup > 0 && proc != null) {
             final ProcessServiceRecord psr = proc.mServices;
-            psr.setConnectionService(this);
             psr.setConnectionGroup(pendingConnectionGroup);
             psr.setConnectionImportance(pendingConnectionImportance);
             pendingConnectionGroup = pendingConnectionImportance = 0;
@@ -1276,12 +1280,22 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
 
     void updateProcessStateOnRequest() {
         mProcessStateOnRequest = app != null && app.getThread() != null && !app.isKilled()
-                ? app.mState.getCurProcState() : PROCESS_STATE_NONEXISTENT;
+                ? app.getCurProcState() : PROCESS_STATE_NONEXISTENT;
     }
 
     @NonNull
     ArrayMap<IBinder, ArrayList<ConnectionRecord>> getConnections() {
         return connections;
+    }
+
+    @Override
+    public int getConnectionsSize() {
+        return connections.size();
+    }
+
+    @Override
+    public ArrayList<? extends ConnectionRecordInternal> getConnectionAt(int index) {
+        return connections.valueAt(index);
     }
 
     void addConnection(IBinder binder, ConnectionRecord c) {
@@ -1316,7 +1330,7 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         if (isShortFgs()) { // Short-FGS should always stop if killed.
             return true;
         }
-        return startRequested && (stopIfKilled || isStartCanceled) && pendingStarts.isEmpty();
+        return isStartRequested() && (stopIfKilled || isStartCanceled) && pendingStarts.isEmpty();
     }
 
     void updateIsAllowedBgActivityStartsByBinding() {
@@ -1472,8 +1486,9 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         return mBackgroundStartPrivilegesByStartMerged;
     }
 
+    @Override
     @GuardedBy("ams")
-    void updateKeepWarmLocked() {
+    public void updateKeepWarmLocked() {
         mKeepWarming = ams.mConstants.KEEP_WARMING_SERVICES.contains(name)
                 && (ams.mUserController.getCurrentUserId() == userId
                 || ams.mUserController.isCurrentProfile(userId)
@@ -1578,7 +1593,7 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
     }
 
     public void postNotification(boolean byForegroundService) {
-        if (isForeground && foregroundNoti != null && app != null) {
+        if (isForeground() && foregroundNoti != null && app != null) {
             final int appUid = appInfo.uid;
             final int appPid = app.getPid();
             // Do asynchronous communication with notification manager to
@@ -1769,6 +1784,16 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         deliveredStarts.clear();
     }
 
+    @Override
+    public ProcessRecord getHostProcess() {
+        return app;
+    }
+
+    @Override
+    public ProcessRecord getIsolationHostProcess() {
+        return isolationHostProc;
+    }
+
     public String toString() {
         if (stringName != null) {
             return stringName;
@@ -1799,8 +1824,8 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         // the short-service restrictions)
         // (But we should be preventing mixture of FOREGROUND_SERVICE_TYPE_SHORT_SERVICE
         // and other types in Service.startForeground().)
-        return startRequested && isForeground
-                && (foregroundServiceType == ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
+        return isStartRequested() && isForeground() && (getForegroundServiceType()
+                == ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
     }
 
     public ShortFgsInfo getShortFgsInfo() {
@@ -1830,7 +1855,7 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
         if (!isAppAlive()) {
             return false;
         }
-        if (!this.startRequested || !isShortFgs() || mShortFgsInfo == null
+        if (!isStartRequested() || !isShortFgs() || mShortFgsInfo == null
                 || !mShortFgsInfo.isCurrent()) {
             return false;
         }
@@ -1870,9 +1895,9 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
      */
     public String getShortFgsTimedEventDescription(long nowUptime) {
         return "aa=" + isAppAlive()
-                + " sreq=" + this.startRequested
-                + " isfg=" + this.isForeground
-                + " type=" + Integer.toHexString(this.foregroundServiceType)
+                + " sreq=" + isStartRequested()
+                + " isfg=" + isForeground()
+                + " type=" + Integer.toHexString(getForegroundServiceType())
                 + " sfc=" + this.mStartForegroundCount
                 + " now=" + nowUptime
                 + " " + (mShortFgsInfo == null ? "" : mShortFgsInfo.getDescription());
@@ -1889,9 +1914,8 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
      * @return true if one of the types of this FGS has a time limit.
      */
     public boolean isFgsTimeLimited() {
-        return startRequested
-                && isForeground
-                && ams.mServices.getTimeLimitedFgsType(foregroundServiceType)
+        return isStartRequested() && isForeground()
+                && ams.mServices.getTimeLimitedFgsType(getForegroundServiceType())
                         != ServiceInfo.FOREGROUND_SERVICE_TYPE_NONE;
     }
 
@@ -1909,12 +1933,12 @@ final class ServiceRecord extends Binder implements ComponentName.WithComponentN
      * @return {@code true} if the host process has updated its oom adj scores.
      */
     boolean wasOomAdjUpdated() {
-        return app != null && app.mState.getAdjSeq() > mAdjSeq;
+        return app != null && app.getAdjSeq() > mAdjSeq;
     }
 
     void updateOomAdjSeq() {
         if (app != null) {
-            mAdjSeq = app.mState.getAdjSeq();
+            mAdjSeq = app.getAdjSeq();
         }
     }
 }

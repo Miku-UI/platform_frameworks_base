@@ -29,7 +29,7 @@ import java.util.List;
 
 /**
  * See RcsFeature for more information.
- * {@hide}
+ * @hide
  */
 interface IImsRcsFeature {
     // Not oneway because we need to verify this completes before doing anything else.

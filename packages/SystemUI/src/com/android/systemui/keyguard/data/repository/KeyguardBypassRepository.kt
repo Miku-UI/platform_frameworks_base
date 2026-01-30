@@ -26,8 +26,8 @@ import com.android.systemui.dump.DumpManager
 import com.android.systemui.keyguard.shared.model.DevicePosture
 import com.android.systemui.keyguard.shared.model.DevicePosture.UNKNOWN
 import com.android.systemui.res.R
+import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
 import com.android.systemui.util.kotlin.FlowDumperImpl
-import com.android.systemui.util.settings.repository.UserAwareSecureSettingsRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +45,7 @@ constructor(
     biometricSettingsRepository: BiometricSettingsRepository,
     devicePostureRepository: DevicePostureRepository,
     dumpManager: DumpManager,
-    secureSettingsRepository: UserAwareSecureSettingsRepository,
+    secureSettingsRepository: SecureSettingsRepository,
     @Background backgroundDispatcher: CoroutineDispatcher,
 ) : FlowDumperImpl(dumpManager) {
 

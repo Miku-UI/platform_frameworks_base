@@ -27,11 +27,10 @@ import android.os.ParcelFileDescriptor;
 import android.os.PermissionEnforcer;
 import android.os.RemoteException;
 import android.os.UserHandle;
-import android.os.storage.StorageManagerInternal;
 import android.security.IFileIntegrityService;
 
-import com.android.internal.security.VerityUtils;
 import com.android.server.LocalServices;
+import com.android.server.StorageManagerInternal;
 import com.android.server.SystemService;
 
 import java.io.IOException;

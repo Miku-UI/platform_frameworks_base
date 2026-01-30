@@ -17,7 +17,7 @@
 package android.view;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IDisplayFoldListener
 {

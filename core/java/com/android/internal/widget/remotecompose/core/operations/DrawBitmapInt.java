@@ -109,7 +109,7 @@ public class DrawBitmapInt extends PaintOperation implements AccessibleComponent
     }
 
     @Override
-    public Integer getContentDescriptionId() {
+    public @NonNull Integer getContentDescriptionId() {
         return mContentDescId;
     }
 
@@ -145,7 +145,7 @@ public class DrawBitmapInt extends PaintOperation implements AccessibleComponent
      * @param dstTop the top most pixel in the destination
      * @param dstRight the right most pixel in the destination
      * @param dstBottom the bottom most pixel in the destination
-     * @param cdId the content discription id
+     * @param cdId the content description id
      */
     public static void apply(
             @NonNull WireBuffer buffer,
@@ -220,7 +220,7 @@ public class DrawBitmapInt extends PaintOperation implements AccessibleComponent
     @Override
     public void paint(@NonNull PaintContext context) {
         context.drawBitmap(
-                mImageId,
+                getId(mImageId, context),
                 mSrcLeft,
                 mSrcTop,
                 mSrcRight,
@@ -233,7 +233,7 @@ public class DrawBitmapInt extends PaintOperation implements AccessibleComponent
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("imageId", mImageId)

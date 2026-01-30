@@ -1420,7 +1420,6 @@ public class LocationProviderManagerTest {
 
     @Test
     public void testValidateLocation_futureLocation() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_LOCATION_VALIDATION);
         Location location = createLocation(NAME, mRandom);
         mProvider.setProviderLocation(location);
 

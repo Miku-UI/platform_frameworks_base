@@ -18,7 +18,7 @@ package android.telephony.ims.aidl;
 
 /**
  * The callback for RCS provisioning changes.
- * {@hide}
+ * @hide
  */
 oneway interface IRcsConfigCallback {
     void onConfigurationChanged(in byte[] config);

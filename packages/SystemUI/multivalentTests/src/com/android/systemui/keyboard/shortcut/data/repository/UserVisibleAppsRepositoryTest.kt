@@ -145,7 +145,7 @@ class UserVisibleAppsRepositoryTest : SysuiTestCase() {
         )
     }
 
-    companion object {
+    private companion object {
         const val TEST_PACKAGE_1 = "test.package.one"
         const val TEST_PACKAGE_2 = "test.package.two"
         const val TEST_CLASS_1 = "TestClassOne"

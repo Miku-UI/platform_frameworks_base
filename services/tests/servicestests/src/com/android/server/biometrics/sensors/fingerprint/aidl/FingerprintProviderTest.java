@@ -34,7 +34,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.ActivityManager;
 import android.content.Context;
+import android.content.pm.UserInfo;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.hardware.biometrics.IBiometricSensorReceiver;
@@ -52,12 +54,14 @@ import android.os.RemoteException;
 import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import androidx.test.filters.SmallTest;
 
 import com.android.server.biometrics.BiometricHandlerProvider;
+import com.android.server.biometrics.Flags;
 import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.sensors.AuthSessionCoordinator;
 import com.android.server.biometrics.sensors.AuthenticationStateListeners;
@@ -75,15 +79,19 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
+import java.util.List;
 
 @Presubmit
 @SmallTest
 public class FingerprintProviderTest {
 
     private static final String TAG = "FingerprintProviderTest";
+    private static final int CURRENT_USER_ID = ActivityManager.getCurrentUser();
+    private static final List<Integer> ALIVE_USERS = List.of(CURRENT_USER_ID,
+            CURRENT_USER_ID + 1, CURRENT_USER_ID + 2);
 
     @Rule
     public final CheckFlagsRule mCheckFlagsRule =
@@ -110,9 +118,13 @@ public class FingerprintProviderTest {
     @Mock
     private Handler mBiometricCallbackHandler;
     @Mock
+    private Handler mFingerprintHandler;
+    @Mock
     private AuthSessionCoordinator mAuthSessionCoordinator;
     @Mock
     private BiometricScheduler<IFingerprint, ISession> mScheduler;
+    @Mock
+    private IBinder mBinder;
 
     private final TestLooper mLooper = new TestLooper();
 
@@ -127,8 +139,10 @@ public class FingerprintProviderTest {
         when(mContext.getResources()).thenReturn(mResources);
         when(mResources.obtainTypedArray(anyInt())).thenReturn(mock(TypedArray.class));
         when(mContext.getSystemService(Context.USER_SERVICE)).thenReturn(mUserManager);
-        when(mUserManager.getAliveUsers()).thenReturn(new ArrayList<>());
+        when(mUserManager.getAliveUsers()).thenReturn(
+                ALIVE_USERS.stream().map(i -> new UserInfo(i, "", 0)).toList());
         when(mDaemon.createSession(anyInt(), anyInt(), any())).thenReturn(mock(ISession.class));
+        when(mDaemon.asBinder()).thenReturn(mBinder);
         when(mBiometricContext.getAuthSessionCoordinator()).thenReturn(mAuthSessionCoordinator);
         when(mBiometricHandlerProvider.getBiometricCallbackHandler()).thenReturn(
                 mBiometricCallbackHandler);
@@ -151,8 +165,10 @@ public class FingerprintProviderTest {
         mFingerprintProvider = new FingerprintProvider(mContext,
                 mBiometricStateCallback, mAuthenticationStateListeners, mSensorProps, TAG,
                 mLockoutResetDispatcher, mGestureAvailabilityDispatcher, mBiometricContext,
-                mDaemon, mBiometricHandlerProvider,
+                mDaemon, mBiometricHandlerProvider, (fqName) -> mDaemon,
                 false /* resetLockoutRequiresHardwareAuthToken */, true /* testHalEnabled */);
+
+        waitForIdle();
     }
 
     @Test
@@ -184,6 +200,7 @@ public class FingerprintProviderTest {
                 hidlFingerprintSensorConfigs, TAG, mLockoutResetDispatcher,
                 mGestureAvailabilityDispatcher, mBiometricContext, mDaemon,
                 mBiometricHandlerProvider,
+                (fqName) -> mDaemon,
                 false /* resetLockoutRequiresHardwareAuthToken */,
                 true /* testHalEnabled */);
 
@@ -288,6 +305,52 @@ public class FingerprintProviderTest {
 
         verify(mAuthSessionCoordinator).authEndedFor(anyInt(), anyInt(), anyInt(), anyLong(),
                 anyBoolean());
+    }
+
+    @Test
+    public void testSetIgnoreDisplayTouches() {
+        waitForIdle();
+
+        when(mBiometricHandlerProvider.getFingerprintHandler()).thenReturn(mFingerprintHandler);
+        mFingerprintProvider = new FingerprintProvider(mContext,
+                mBiometricStateCallback, mAuthenticationStateListeners, mSensorProps, TAG,
+                mLockoutResetDispatcher, mGestureAvailabilityDispatcher, mBiometricContext,
+                mDaemon, mBiometricHandlerProvider, (fqName) -> mDaemon,
+                false /* resetLockoutRequiresHardwareAuthToken */, true /* testHalEnabled */);
+        waitForIdle();
+
+        Mockito.reset(mFingerprintHandler);
+        mFingerprintProvider.setIgnoreDisplayTouches(0L /* requestId */, 0 /* sensorId */,
+                true /* ignoreTouches */);
+
+        // Verify that the handler is being called for setIgnoreDisplayTouches
+        verify(mFingerprintHandler).sendMessageDelayed(any(), anyLong());
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_INTERNAL_CLEANUP_FOR_ALL_PROFILES)
+    public void testGetHalInstance_whenDaemonIsNull() {
+        mFingerprintProvider.setTestHalEnabled(false);
+        for (SensorProps sensor : mSensorProps) {
+            mFingerprintProvider.mFingerprintSensors.get(sensor.commonProps.sensorId).setScheduler(
+                    mScheduler);
+
+        }
+        //Reset value of FingerprintProvider#mDaemon
+        mFingerprintProvider.binderDied();
+
+        waitForIdle();
+
+        final IFingerprint daemon = mFingerprintProvider.getHalInstance();
+
+        waitForIdle();
+
+        assertNotNull(daemon);
+        verify(mScheduler, times(ALIVE_USERS.size() * mSensorProps.length))
+                .scheduleClientMonitor(any(FingerprintInternalCleanupClient.class),
+                        any(ClientMonitorCallback.class));
+        verify(mScheduler, times(ALIVE_USERS.size() * mSensorProps.length))
+                .scheduleClientMonitor(any(FingerprintGetAuthenticatorIdClient.class));
     }
 
     private void waitForIdle() {

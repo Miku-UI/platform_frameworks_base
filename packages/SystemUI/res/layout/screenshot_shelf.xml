@@ -30,6 +30,13 @@
         android:clipChildren="false"
         android:clipToPadding="false">
         <View
+            android:id="@+id/screenshot_saving_live_region"
+            android:layout_width="1dp"
+            android:layout_height="1dp"
+            android:accessibilityLiveRegion="polite"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"/>
+        <View
             android:id="@+id/screenshot_preview_border"
             android:layout_width="0dp"
             android:layout_height="0dp"
@@ -110,28 +117,6 @@
             android:elevation="5dp"
             app:layout_constraintBottom_toBottomOf="@id/screenshot_preview_border"
             app:layout_constraintEnd_toEndOf="@id/screenshot_preview_border"/>
-        <FrameLayout
-            android:id="@+id/screenshot_dismiss_button"
-            android:layout_width="@dimen/overlay_dismiss_button_tappable_size"
-            android:layout_height="@dimen/overlay_dismiss_button_tappable_size"
-            android:elevation="7dp"
-            android:visibility="gone"
-            app:layout_constraintStart_toEndOf="@id/screenshot_preview"
-            app:layout_constraintEnd_toEndOf="@id/screenshot_preview"
-            app:layout_constraintTop_toTopOf="@id/screenshot_preview"
-            app:layout_constraintBottom_toTopOf="@id/screenshot_preview"
-            android:contentDescription="@string/screenshot_dismiss_description">
-            <ImageView
-                android:id="@+id/screenshot_dismiss_image"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_margin="@dimen/overlay_dismiss_button_margin"
-                android:background="@drawable/circular_background"
-                android:backgroundTint="@androidprv:color/materialColorPrimary"
-                android:tint="@androidprv:color/materialColorOnPrimary"
-                android:padding="4dp"
-                android:src="@drawable/ic_close"/>
-        </FrameLayout>
         <ImageView
             android:id="@+id/screenshot_scrollable_preview"
             android:layout_width="wrap_content"

@@ -84,7 +84,7 @@ public class TaskSnapshotPersisterLoaderTest extends TaskSnapshotPersisterTestBa
         assertNotNull(snapshot.getSnapshot());
         assertEquals(Configuration.ORIENTATION_PORTRAIT, snapshot.getOrientation());
 
-        snapshot.getHardwareBuffer().close();
+        snapshot.closeBuffer();
         mPersister.persistSnapshot(1, mTestUserId, snapshot);
         mSnapshotPersistQueue.waitForQueueEmpty();
         assertTrueForFiles(files, file -> !file.exists(),
@@ -122,16 +122,16 @@ public class TaskSnapshotPersisterLoaderTest extends TaskSnapshotPersisterTestBa
      */
     @Test
     public void testPurging() {
-        mPersister.persistSnapshot(100, mTestUserId, createSnapshot());
+        mPersister.persistSnapshot(100, mTestUserId, createFakeSnapshot());
         mSnapshotPersistQueue.waitForQueueEmpty();
         mSnapshotPersistQueue.setPaused(true);
-        mPersister.persistSnapshot(1, mTestUserId, createSnapshot());
+        mPersister.persistSnapshot(1, mTestUserId, createFakeSnapshot());
         mPersister.removeObsoleteFiles(new ArraySet<>(), new int[]{mTestUserId});
-        mPersister.persistSnapshot(2, mTestUserId, createSnapshot());
-        mPersister.persistSnapshot(3, mTestUserId, createSnapshot());
-        mPersister.persistSnapshot(4, mTestUserId, createSnapshot());
+        mPersister.persistSnapshot(2, mTestUserId, createFakeSnapshot());
+        mPersister.persistSnapshot(3, mTestUserId, createFakeSnapshot());
+        mPersister.persistSnapshot(4, mTestUserId, createFakeSnapshot());
         // Verify there should only keep the latest request when received a duplicated id.
-        mPersister.persistSnapshot(4, mTestUserId, createSnapshot());
+        mPersister.persistSnapshot(4, mTestUserId, createFakeSnapshot());
         // Expected 3: One remove obsolete request, two persist request.
         assertEquals(3, mSnapshotPersistQueue.peekQueueSize());
         mSnapshotPersistQueue.setPaused(false);
@@ -143,6 +143,12 @@ public class TaskSnapshotPersisterLoaderTest extends TaskSnapshotPersisterTestBa
         assertTrueForFiles(existsFiles, File::exists, " must exist");
         assertTrueForFiles(nonExistsFiles, file -> !file.exists(), " must not exist");
     }
+
+    TaskSnapshot createFakeSnapshot() {
+        return new TaskSnapshotBuilder().setTopActivityComponent(getUniqueComponentName())
+                .setIsRealSnapshot(false).build();
+    }
+
 
     @Test
     public void testGetTaskId() {

@@ -16,47 +16,45 @@
 
 package com.android.systemui.kairos.internal
 
+import androidx.collection.ScatterSet
 import com.android.systemui.kairos.internal.store.MutableMapK
 import com.android.systemui.kairos.internal.store.SingletonMapK
 import com.android.systemui.kairos.internal.store.asSingle
 import com.android.systemui.kairos.internal.store.singleOf
-import com.android.systemui.kairos.internal.util.LogIndent
+import com.android.systemui.kairos.internal.util.fastForEach
 import com.android.systemui.kairos.internal.util.hashString
 import com.android.systemui.kairos.internal.util.logDuration
 import com.android.systemui.kairos.util.Maybe
 import com.android.systemui.kairos.util.Maybe.Absent
 import com.android.systemui.kairos.util.Maybe.Present
+import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.forceInit
+import com.android.systemui.kairos.util.plus
 
 internal class MuxPromptNode<W, K, V>(
-    val name: String?,
+    nameData: NameData,
     lifecycle: MuxLifecycle<W, K, V>,
     private val spec: MuxActivator<W, K, V>,
-    factory: MutableMapK.Factory<W, K>,
-) : MuxNode<W, K, V>(lifecycle, factory) {
+) : MuxNode<W, K, V>(nameData, lifecycle) {
 
     var patchData: Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>? = null
     var patches: PatchNode? = null
 
     override fun visit(logIndent: Int, evalScope: EvalScope) {
         check(epoch < evalScope.epoch) { "node unexpectedly visited multiple times in transaction" }
-        logDuration(logIndent, "MuxPrompt.visit") {
+        logDuration(logIndent, { "MuxPrompt.visit" }) {
             val patch: Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>? = patchData
             patchData = null
 
             // If there's a patch, process it.
             patch?.let {
                 val needsReschedule = processPatch(patch, evalScope)
-                // We may need to reschedule if newly-switched-in nodes have not yet been
-                // visited within this transaction.
+                // We may need to reschedule if newly-switched-in nodes have not yet been visited
+                // within this transaction.
                 val depthIncreased = depthTracker.dirty_depthIncreased()
                 if (needsReschedule || depthIncreased) {
                     if (depthIncreased) {
                         depthTracker.schedule(evalScope.compactor, this@MuxPromptNode)
-                    }
-                    if (name != null) {
-                        logLn(
-                            "[${this@MuxPromptNode}] rescheduling (reschedule=$needsReschedule, depthIncrease=$depthIncreased)"
-                        )
                     }
                     schedule(evalScope)
                     return
@@ -66,24 +64,18 @@ internal class MuxPromptNode<W, K, V>(
 
             // If we don't need to reschedule, or there wasn't a patch at all, then we proceed
             // with merging pre-switch and post-switch results
-            val hasResult = results.isNotEmpty()
-            val compactDownstream = depthTracker.isDirty()
-            if (hasResult || compactDownstream) {
-                if (compactDownstream) {
-                    adjustDownstreamDepths(evalScope)
-                }
-                if (hasResult) {
-                    transactionCache.put(evalScope, results)
-                    if (!scheduleAll(currentLogIndent, downstreamSet, evalScope)) {
-                        evalScope.scheduleDeactivation(this@MuxPromptNode)
-                    }
+            adjustDownstreamDepths(evalScope)
+            if (results.isNotEmpty()) {
+                transactionCache.put(evalScope, results)
+                if (!scheduleAll(currentLogIndent, downstreamSet, evalScope)) {
+                    evalScope.scheduleDeactivation(this@MuxPromptNode)
                 }
             }
         }
     }
 
     // side-effect: this will populate `upstreamData` with any immediately available results
-    private fun LogIndent.processPatch(
+    private fun processPatch(
         patch: Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>,
         evalScope: EvalScope,
     ): Boolean {
@@ -103,9 +95,6 @@ internal class MuxPromptNode<W, K, V>(
         // remove and sever
         removes.forEach { k ->
             switchedIn.remove(k)?.let { branchNode: BranchNode ->
-                if (name != null) {
-                    logLn("[${this@MuxPromptNode}] removing $k")
-                }
                 val conn: NodeConnection<V> = branchNode.upstream
                 severed.add(conn)
                 conn.removeDownstream(downstream = branchNode.schedulable)
@@ -121,12 +110,9 @@ internal class MuxPromptNode<W, K, V>(
         }
 
         // add or replace
-        adds.forEach { (k, newUpstream: EventsImpl<V>) ->
+        adds.fastForEach { (k, newUpstream: EventsImpl<V>) ->
             // remove old and sever, if present
             switchedIn.remove(k)?.let { oldBranch: BranchNode ->
-                if (name != null) {
-                    logLn("[${this@MuxPromptNode}] replacing $k")
-                }
                 val conn: NodeConnection<V> = oldBranch.upstream
                 severed.add(conn)
                 conn.removeDownstream(downstream = oldBranch.schedulable)
@@ -144,9 +130,6 @@ internal class MuxPromptNode<W, K, V>(
             val newBranch = BranchNode(k)
             newUpstream.activate(evalScope, newBranch.schedulable)?.let { (conn, needsEval) ->
                 newBranch.upstream = conn
-                if (name != null) {
-                    logLn("[${this@MuxPromptNode}] switching in $k")
-                }
                 switchedIn[k] = newBranch
                 if (needsEval) {
                     upstreamData[k] = newBranch.upstream.directUpstream
@@ -172,9 +155,7 @@ internal class MuxPromptNode<W, K, V>(
             }
         }
 
-        for (severedNode in severed) {
-            severedNode.scheduleDeactivationIfNeeded(evalScope)
-        }
+        severed.fastForEach { it.scheduleDeactivationIfNeeded(evalScope) }
 
         return needsReschedule
     }
@@ -191,13 +172,13 @@ internal class MuxPromptNode<W, K, V>(
             depthTracker.applyChanges(
                 evalScope.scheduler,
                 downstreamSet,
-                muxNode = this@MuxPromptNode,
+                owner = this@MuxPromptNode,
             )
         }
     }
 
     override fun getPushEvent(logIndent: Int, evalScope: EvalScope): MuxResult<W, K, V> =
-        logDuration(logIndent, "MuxPrompt.getPushEvent") {
+        logDuration(logIndent, { "MuxPrompt.getPushEvent" }) {
             transactionCache.getCurrentValue(evalScope)
         }
 
@@ -206,7 +187,7 @@ internal class MuxPromptNode<W, K, V>(
         if (lifecycle.lifecycleState !is MuxLifecycleState.Active) return
         lifecycle.lifecycleState = MuxLifecycleState.Inactive(spec)
         // Process branch nodes
-        switchedIn.forEach { (_, branchNode) ->
+        switchedIn.forEach { _, branchNode ->
             branchNode.upstream.removeDownstreamAndDeactivateIfNeeded(
                 downstream = branchNode.schedulable
             )
@@ -220,7 +201,7 @@ internal class MuxPromptNode<W, K, V>(
     fun removeIndirectPatchNode(
         scheduler: Scheduler,
         oldDepth: Int,
-        indirectSet: Set<MuxDeferredNode<*, *, *>>,
+        indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
     ) {
         patches = null
         if (
@@ -238,8 +219,7 @@ internal class MuxPromptNode<W, K, V>(
         }
     }
 
-    override fun toString(): String =
-        "${this::class.simpleName}@$hashString${name?.let { "[$it]" }.orEmpty()}"
+    override fun toString(): String = "${this::class.simpleName}@$hashString[$nameData]"
 
     inner class PatchNode : SchedulableNode {
 
@@ -248,7 +228,7 @@ internal class MuxPromptNode<W, K, V>(
         lateinit var upstream: NodeConnection<Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>>
 
         override fun schedule(logIndent: Int, evalScope: EvalScope) {
-            logDuration(logIndent, "MuxPromptPatchNode.schedule") {
+            logDuration(logIndent, { "MuxPromptPatchNode.schedule" }) {
                 patchData = upstream.getPushEvent(currentLogIndent, evalScope)
                 this@MuxPromptNode.schedule(evalScope)
             }
@@ -261,7 +241,7 @@ internal class MuxPromptNode<W, K, V>(
         override fun moveIndirectUpstreamToDirect(
             scheduler: Scheduler,
             oldIndirectDepth: Int,
-            oldIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+            oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
             newDirectDepth: Int,
         ) {
             this@MuxPromptNode.moveIndirectUpstreamToDirect(
@@ -276,8 +256,8 @@ internal class MuxPromptNode<W, K, V>(
             scheduler: Scheduler,
             oldDepth: Int,
             newDepth: Int,
-            removals: Set<MuxDeferredNode<*, *, *>>,
-            additions: Set<MuxDeferredNode<*, *, *>>,
+            removals: ScatterSet<MuxDeferredNode<*, *, *>>,
+            additions: ScatterSet<MuxDeferredNode<*, *, *>>,
         ) {
             this@MuxPromptNode.adjustIndirectUpstream(
                 scheduler,
@@ -292,7 +272,7 @@ internal class MuxPromptNode<W, K, V>(
             scheduler: Scheduler,
             oldDirectDepth: Int,
             newIndirectDepth: Int,
-            newIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+            newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
         ) {
             this@MuxPromptNode.moveDirectUpstreamToIndirect(
                 scheduler,
@@ -309,7 +289,7 @@ internal class MuxPromptNode<W, K, V>(
         override fun removeIndirectUpstream(
             scheduler: Scheduler,
             depth: Int,
-            indirectSet: Set<MuxDeferredNode<*, *, *>>,
+            indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
         ) {
             this@MuxPromptNode.removeIndirectPatchNode(scheduler, depth, indirectSet)
         }
@@ -317,45 +297,52 @@ internal class MuxPromptNode<W, K, V>(
 }
 
 internal inline fun <A> switchPromptImplSingle(
+    nameData: NameData,
     crossinline getStorage: EvalScope.() -> EventsImpl<A>,
     crossinline getPatches: EvalScope.() -> EventsImpl<EventsImpl<A>>,
 ): EventsImpl<A> {
+    val patches =
+        mapImpl(getPatches, nameData + "patches") { newEvents, _ ->
+            singleOf(Maybe.present(newEvents)).asIterable()
+        }
     val switchPromptImpl =
         switchPromptImpl(
+            nameData,
             getStorage = { singleOf(getStorage()).asIterable() },
-            getPatches = {
-                mapImpl(getPatches) { newEvents, _ ->
-                    singleOf(Maybe.present(newEvents)).asIterable()
-                }
-            },
+            getPatches = { patches },
             storeFactory = SingletonMapK.Factory(),
         )
-    return mapImpl({ switchPromptImpl }) { map, logIndent ->
+    return mapImpl({ switchPromptImpl }, nameData + "getResult") { map, logIndent ->
         map.asSingle().getValue(Unit).getPushEvent(logIndent, this)
     }
 }
 
 internal fun <W, K, V> switchPromptImpl(
-    name: String? = null,
+    nameData: NameData,
     getStorage: EvalScope.() -> Iterable<Map.Entry<K, EventsImpl<V>>>,
     getPatches: EvalScope.() -> EventsImpl<Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>>,
     storeFactory: MutableMapK.Factory<W, K>,
 ): EventsImpl<MuxResult<W, K, V>> =
-    MuxLifecycle(MuxPromptActivator(name, getStorage, storeFactory, getPatches))
+    MuxLifecycle(MuxPromptActivator(nameData, getStorage, storeFactory, getPatches))
 
 private class MuxPromptActivator<W, K, V>(
-    private val name: String?,
+    private val nameData: NameData,
     private val getStorage: EvalScope.() -> Iterable<Map.Entry<K, EventsImpl<V>>>,
     private val storeFactory: MutableMapK.Factory<W, K>,
     private val getPatches: EvalScope.() -> EventsImpl<Iterable<Map.Entry<K, Maybe<EventsImpl<V>>>>>,
 ) : MuxActivator<W, K, V> {
+
+    init {
+        nameData.forceInit()
+    }
+
     override fun activate(
         evalScope: EvalScope,
         lifecycle: MuxLifecycle<W, K, V>,
-    ): Pair<MuxNode<W, K, V>, (() -> Unit)?>? {
+    ): Pair<MuxNode<W, K, V>, Nothing?>? {
         // Initialize mux node and switched-in connections.
         val movingNode =
-            MuxPromptNode(name, lifecycle, this, storeFactory).apply {
+            MuxPromptNode(nameData, lifecycle, this).apply {
                 initializeUpstream(evalScope, getStorage, storeFactory)
                 // Setup patches connection
                 val patchNode = PatchNode()
@@ -389,7 +376,7 @@ private class MuxPromptActivator<W, K, V>(
                     }
                 }
                 // Reset all depth adjustments, since no downstream has been notified
-                depthTracker.reset()
+                depthTracker.reset(null)
             }
 
         // Schedule for evaluation if any switched-in nodes or the patches node have
@@ -404,4 +391,6 @@ private class MuxPromptActivator<W, K, V>(
             movingNode to null
         }
     }
+
+    override fun toString(): String = "${super.toString()}[$nameData]"
 }

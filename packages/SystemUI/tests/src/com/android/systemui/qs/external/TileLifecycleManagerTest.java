@@ -16,13 +16,10 @@
 package com.android.systemui.qs.external;
 
 import static android.os.PowerExemptionManager.REASON_TILE_ONCLICK;
-import static android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf;
 import static android.service.quicksettings.TileService.START_ACTIVITY_NEEDS_PENDING_INTENT;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
-import static com.android.systemui.Flags.FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX;
-import static com.android.systemui.Flags.FLAG_QS_QUICK_REBIND_ACTIVE_TILES;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -61,14 +58,12 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IDeviceIdleController;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.FlagsParameterization;
 import android.service.quicksettings.IQSService;
 import android.service.quicksettings.IQSTileService;
 import android.service.quicksettings.TileService;
 
 import androidx.annotation.Nullable;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
@@ -87,20 +82,9 @@ import org.mockito.InOrder;
 import org.mockito.Mockito;
 import org.mockito.MockitoSession;
 
-import java.util.List;
-
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
-
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4.class)
+@RunWith(AndroidJUnit4.class)
 public class TileLifecycleManagerTest extends SysuiTestCase {
-
-    @Parameters(name = "{0}")
-    public static List<FlagsParameterization> getParams() {
-        return allCombinationsOf(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX,
-                FLAG_QS_QUICK_REBIND_ACTIVE_TILES);
-    }
 
     private final PackageManagerAdapter mMockPackageManagerAdapter =
             mock(PackageManagerAdapter.class);
@@ -120,11 +104,6 @@ public class TileLifecycleManagerTest extends SysuiTestCase {
     private TileLifecycleManager mStateManager;
     private TestContextWrapper mWrappedContext;
     private MockitoSession mMockitoSession;
-
-    public TileLifecycleManagerTest(FlagsParameterization flags) {
-        super();
-        mSetFlagsRule.setFlagsParameterization(flags);
-    }
 
     @Before
     public void setUp() throws Exception {
@@ -330,24 +309,6 @@ public class TileLifecycleManagerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX)
-    public void testNoClickIfNotListeningAnymore() throws Exception {
-        mStateManager.onTileAdded();
-        mStateManager.onStartListening();
-        mStateManager.onClick(null);
-        mStateManager.onStopListening();
-        mStateManager.executeSetBindService(true);
-        mExecutor.runAllReady();
-
-        verifyBind(1);
-        mStateManager.executeSetBindService(false);
-        mExecutor.runAllReady();
-        assertFalse(mContext.isBound(mTileServiceComponentName));
-        verify(mMockTileService, never()).onClick(null);
-    }
-
-    @Test
-    @EnableFlags(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX)
     public void testNoClickIfNotListeningBeforeClick() throws Exception {
         mStateManager.onTileAdded();
         mStateManager.onStartListening();
@@ -364,7 +325,6 @@ public class TileLifecycleManagerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX)
     public void testClickIfStopListeningBeforeProcessedClick() throws Exception {
         mStateManager.onTileAdded();
         mStateManager.onStartListening();
@@ -427,7 +387,6 @@ public class TileLifecycleManagerTest extends SysuiTestCase {
         verify(mMockTileService, times(2)).onStartListening();
     }
 
-    @EnableFlags(FLAG_QS_QUICK_REBIND_ACTIVE_TILES)
     @Test
     public void testKillProcessWhenTileServiceIsActive_withRebindFlagOn() throws Exception {
         mStateManager.onStartListening();
@@ -446,27 +405,6 @@ public class TileLifecycleManagerTest extends SysuiTestCase {
         verify(mMockTileService, times(2)).onStartListening();
     }
 
-    @DisableFlags(FLAG_QS_QUICK_REBIND_ACTIVE_TILES)
-    @Test
-    public void testKillProcessWhenTileServiceIsActive_withRebindFlagOff() throws Exception {
-        mStateManager.onStartListening();
-        mStateManager.executeSetBindService(true);
-        mExecutor.runAllReady();
-        verifyBind(1);
-        verify(mMockTileService, times(1)).onStartListening();
-
-        mStateManager.onBindingDied(mTileServiceComponentName);
-        mExecutor.runAllReady();
-        mClock.advanceTime(1000);
-        mExecutor.runAllReady();
-        verifyBind(0); // the rebind happens after 4 more seconds
-
-        mClock.advanceTime(4000);
-        mExecutor.runAllReady();
-        verifyBind(1);
-    }
-
-    @EnableFlags(FLAG_QS_QUICK_REBIND_ACTIVE_TILES)
     @Test
     public void testKillProcessWhenTileServiceIsActiveTwice_withRebindFlagOn_delaysSecondRebind()
             throws Exception {
@@ -495,35 +433,6 @@ public class TileLifecycleManagerTest extends SysuiTestCase {
         mClock.advanceTime(4000);
         mExecutor.runAllReady();
         verifyBind(1);
-    }
-
-    @DisableFlags(FLAG_QS_QUICK_REBIND_ACTIVE_TILES)
-    @Test
-    public void testKillProcessWhenTileServiceIsActiveTwice_withRebindFlagOff_rebindsFromFirstKill()
-            throws Exception {
-        mStateManager.onStartListening();
-        mStateManager.executeSetBindService(true);
-        mExecutor.runAllReady();
-        verifyBind(1);
-        verify(mMockTileService, times(1)).onStartListening();
-
-        mStateManager.onBindingDied(mTileServiceComponentName); // rebind scheduled for 5 seconds
-        mExecutor.runAllReady();
-        mClock.advanceTime(1000);
-        mExecutor.runAllReady();
-
-        verifyBind(0); // it would bind in 4 more seconds
-
-        mStateManager.onBindingDied(mTileServiceComponentName); // this does not affect the rebind
-        mExecutor.runAllReady();
-        mClock.advanceTime(1000);
-        mExecutor.runAllReady();
-
-        verifyBind(0); // only 2 seconds passed from first kill
-
-        mClock.advanceTime(3000);
-        mExecutor.runAllReady();
-        verifyBind(1); // the rebind scheduled 5 seconds from the first kill should now happen
     }
 
     @Test

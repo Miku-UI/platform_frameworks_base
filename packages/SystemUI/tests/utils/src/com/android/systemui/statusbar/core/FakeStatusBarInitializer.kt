@@ -24,7 +24,7 @@ import org.mockito.kotlin.mock
 class FakeStatusBarInitializer : StatusBarInitializer {
 
     val statusBarViewController = mock<PhoneStatusBarViewController>()
-    val statusBarTransitions = mock<PhoneStatusBarTransitions>()
+    var statusBarTransitions = mock<PhoneStatusBarTransitions>()
 
     var startedByCoreStartable: Boolean = false
         private set
@@ -42,7 +42,17 @@ class FakeStatusBarInitializer : StatusBarInitializer {
         initializedByCentralSurfaces = true
     }
 
+    override fun stop() {}
+
     override fun start() {
         startedByCoreStartable = true
+    }
+
+    fun setNewTransitions(transitions: PhoneStatusBarTransitions) {
+        statusBarTransitions = transitions
+        statusBarViewUpdatedListener?.onStatusBarViewUpdated(
+            statusBarViewController,
+            statusBarTransitions,
+        )
     }
 }

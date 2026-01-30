@@ -39,7 +39,9 @@ public interface GroupExpansionManager {
     boolean isGroupExpanded(NotificationEntry entry);
 
     /**
-     * Whether the parent associated with this notification is expanded.
+     * Whether this group or bundle is expanded.
+     * If this notification is not the root of a group (summary) or bundle (BundleEntry), it will
+     * return whether its direct parent is expanded.
      * If this notification is not part of a group or bundle, it will always return false.
      */
     boolean isGroupExpanded(EntryAdapter entry);

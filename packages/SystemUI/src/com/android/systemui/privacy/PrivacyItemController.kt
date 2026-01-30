@@ -16,6 +16,7 @@
 
 package com.android.systemui.privacy
 
+import android.location.flags.Flags.locationIndicatorsEnabled
 import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.Dumpable
 import com.android.systemui.appops.AppOpsController
@@ -47,7 +48,10 @@ class PrivacyItemController @Inject constructor(
     @VisibleForTesting
     internal companion object {
         const val TAG = "PrivacyItemController"
-        @VisibleForTesting const val TIME_TO_HOLD_INDICATORS = 5000L
+        // LINT.IfChange
+        @VisibleForTesting const val TIME_TO_HOLD_INDICATORS = 5_000L
+        @VisibleForTesting const val TIME_TO_HOLD_INDICATORS_FOR_LOCATION = 10_000L
+        // LINT.ThenChange(/core/java/android/permission/PermissionUsageHelper.java, /packages/SystemUI/src/com/android/systemui/appops/AppOpsControllerImpl.java)
     }
 
     @VisibleForTesting
@@ -181,10 +185,19 @@ class PrivacyItemController @Inject constructor(
      * @return a list that may have added items that should be kept for some time.
      */
     private fun processNewList(list: List<PrivacyItem>): List<PrivacyItem> {
+        val allPrivacyItemsAreLocation =
+            locationIndicatorsEnabled() &&
+                PrivacyConfig.Companion.privacyItemsAreLocationOnly((list + privacyList).distinct())
+        val timeToHold =
+            if (allPrivacyItemsAreLocation) {
+                TIME_TO_HOLD_INDICATORS_FOR_LOCATION
+            } else {
+                TIME_TO_HOLD_INDICATORS
+            }
         logger.logRetrievedPrivacyItemsList(list)
 
         // Anything earlier than this timestamp can be removed
-        val removeBeforeTime = systemClock.elapsedRealtime() - TIME_TO_HOLD_INDICATORS
+        val removeBeforeTime = systemClock.elapsedRealtime() - timeToHold
         val mustKeep = privacyList.filter {
             it.timeStampElapsed > removeBeforeTime && !(it isIn list)
         }

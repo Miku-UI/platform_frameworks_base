@@ -16,12 +16,17 @@
 
 package com.android.systemui.keyguard.data.repository
 
+import android.app.WallpaperColors
+import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.Point
 import androidx.core.animation.Animator
 import androidx.core.animation.ValueAnimator
+import com.android.internal.colorextraction.ColorExtractor
 import com.android.keyguard.logging.ScrimLogger
+import com.android.systemui.colorextraction.SysuiColorExtractor
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
 import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.power.data.repository.PowerRepository
@@ -35,17 +40,22 @@ import com.android.systemui.statusbar.LightRevealEffect
 import com.android.systemui.statusbar.PowerButtonReveal
 import javax.inject.Inject
 import kotlin.math.max
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 val DEFAULT_REVEAL_EFFECT = LiftReveal
 const val DEFAULT_REVEAL_DURATION = 500L
+const val MINMODE_REVEAL_DURATION = 100L
 
 /**
  * Encapsulates state relevant to the light reveal scrim, the view used to reveal/hide screen
@@ -64,8 +74,11 @@ interface LightRevealScrimRepository {
 
     val isAnimating: Boolean
 
-    /** Limit the max alpha for the scrim to allow for some transparency */
-    val maxAlpha: MutableStateFlow<Float>
+    /** Allows for transparency to see the wallpaper on AOD */
+    val wallpaperSupportsAmbientMode: MutableStateFlow<Boolean>
+
+    /** For brighter wallpapers, add a darker scrim to ensure contrast */
+    val useDarkWallpaperScrim: StateFlow<Boolean>
 
     fun startRevealAmountAnimator(reveal: Boolean, duration: Long = DEFAULT_REVEAL_DURATION)
 }
@@ -78,6 +91,8 @@ constructor(
     @ShadeDisplayAware val context: Context,
     powerRepository: PowerRepository,
     private val scrimLogger: ScrimLogger,
+    private val colorExtractor: SysuiColorExtractor,
+    @Background backgroundScope: CoroutineScope,
 ) : LightRevealScrimRepository {
     companion object {
         val TAG = LightRevealScrimRepository::class.simpleName!!
@@ -130,7 +145,25 @@ constructor(
 
     private val revealAmountAnimator = ValueAnimator.ofFloat(0f, 1f)
 
-    override val maxAlpha: MutableStateFlow<Float> = MutableStateFlow(DEFAULT_MAX_ALPHA)
+    override val wallpaperSupportsAmbientMode: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
+    override val useDarkWallpaperScrim: StateFlow<Boolean> =
+        callbackFlow {
+                fun sendLuminanceUpdate() {
+                    colorExtractor.getWallpaperColors(WallpaperManager.FLAG_LOCK)?.let {
+                        val useDarkScrim =
+                            (it.getColorHints() and WallpaperColors.HINT_SUPPORTS_DARK_TEXT) > 0
+                        trySend(useDarkScrim)
+                    }
+                }
+
+                val listener =
+                    ColorExtractor.OnColorsChangedListener { _, _ -> sendLuminanceUpdate() }
+                sendLuminanceUpdate()
+                colorExtractor.addOnColorsChangedListener(listener)
+                awaitClose { colorExtractor.removeOnColorsChangedListener(listener) }
+            }
+            .stateIn(backgroundScope, SharingStarted.Eagerly, false)
 
     override val revealAmount: Flow<Float> = callbackFlow {
         val updateListener =

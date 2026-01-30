@@ -18,7 +18,7 @@ package android.media.audiopolicy;
 /**
  * AIDL for the AudioService to signal audio volume groups changes
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAudioVolumeChangeDispatcher {
 

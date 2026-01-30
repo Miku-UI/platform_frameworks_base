@@ -19,3 +19,6 @@ per-file TimeoutRecord.java = file:/PERFORMANCE_OWNERS
 
 # ApplicationSharedMemory
 per-file *ApplicationSharedMemory* = file:/PERFORMANCE_OWNERS
+
+# Memcg memory accounting
+per-file MemcgProcMemoryUtil.java = file:/PERFORMANCE_OWNERS

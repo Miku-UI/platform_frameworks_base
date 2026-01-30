@@ -16,7 +16,7 @@
 
 package android.net;
 
-/** {@hide} */
+/** @hide */
 oneway interface INetdEventCallback {
 
     // Possible addNetdEventCallback callers.

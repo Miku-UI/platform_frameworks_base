@@ -15,6 +15,8 @@
  */
 package android.media;
 
+import android.annotation.SpecialUsers.CannotBeSpecialUser;
+import android.annotation.UserIdInt;
 import android.util.IntArray;
 
 import com.android.server.LocalServices;
@@ -72,6 +74,9 @@ public abstract class AudioManagerInternal {
      *            {@link android.os.Process#INVALID_UID} if no IME is active.
      */
     public abstract void setInputMethodServiceUid(int uid);
+
+    /** Returns whether the given user is currently playing audio. */
+    public abstract boolean isUserPlayingAudio(@CannotBeSpecialUser @UserIdInt int userId);
 
     public interface RingerModeDelegate {
         /** Called when external ringer mode is evaluated, returns the new internal ringer mode */

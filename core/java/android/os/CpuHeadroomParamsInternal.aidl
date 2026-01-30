@@ -20,7 +20,7 @@ import android.hardware.power.CpuHeadroomParams;
 
 /**
  * Changes should be synced with match function of HintManagerService#CpuHeadroomCacheItem.
- * {@hide}
+ * @hide
  */
 @JavaDerive(equals = true, toString = true)
 parcelable CpuHeadroomParamsInternal {

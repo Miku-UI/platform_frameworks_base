@@ -18,6 +18,7 @@ package com.android.server.power.stats.processor;
 import android.annotation.NonNull;
 import android.os.BatteryConsumer;
 import android.os.BatteryStats;
+import android.util.Slog;
 import android.util.SparseBooleanArray;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -33,6 +34,7 @@ import java.util.function.Consumer;
  * {@link AggregatedPowerStats} that adds up power stats from the samples found in battery history.
  */
 public class PowerStatsAggregator {
+    private static final String TAG = "PowerStatsAggregator";
     private static final long UNINITIALIZED = -1;
     private final AggregatedPowerStatsConfig mAggregatedPowerStatsConfig;
     private final SparseBooleanArray mEnabledComponents =
@@ -81,115 +83,128 @@ public class PowerStatsAggregator {
      */
     public void aggregatePowerStats(BatteryStatsHistory history, long startTimeMs, long endTimeMs,
             Consumer<AggregatedPowerStats> consumer) {
-        synchronized (this) {
-            if (mStats == null) {
-                mStats = new AggregatedPowerStats(mAggregatedPowerStatsConfig, mEnabledComponents);
+        try {
+            synchronized (this) {
+                aggregatePowerStatsLocked(history, startTimeMs, endTimeMs, consumer);
             }
-
-            boolean startedSession = false;
-            long baseTime = startTimeMs > 0 ? startTimeMs : UNINITIALIZED;
-            long lastTime = 0;
-            int lastStates = 0xFFFFFFFF;
-            int lastStates2 = 0xFFFFFFFF;
-            int lastBatteryLevel = 0;
-            try (BatteryStatsHistoryIterator iterator = history.iterate(startTimeMs, endTimeMs)) {
-                while (iterator.hasNext()) {
-                    BatteryStats.HistoryItem item = iterator.next();
-
-                    if (!startedSession) {
-                        mStats.start(item.time);
-                        if (!mStats.addClockUpdate(item.time, item.currentTime)) {
-                            break;
-                        }
-                        if (baseTime == UNINITIALIZED) {
-                            baseTime = item.time;
-                        }
-                        startedSession = true;
-                    } else if (item.cmd == BatteryStats.HistoryItem.CMD_CURRENT_TIME
-                               || item.cmd == BatteryStats.HistoryItem.CMD_RESET) {
-                        if (!mStats.addClockUpdate(item.time, item.currentTime)) {
-                            break;
-                        }
-                    }
-
-                    lastTime = item.time;
-
-                    if (item.cmd == BatteryStats.HistoryItem.CMD_UPDATE
-                            && item.batteryLevel != lastBatteryLevel) {
-                        mStats.noteBatteryLevel(item.batteryLevel, item.batteryChargeUah,
-                                item.time);
-                        lastBatteryLevel = item.batteryLevel;
-                    }
-
-                    int batteryState =
-                            (item.states & BatteryStats.HistoryItem.STATE_BATTERY_PLUGGED_FLAG) != 0
-                                    ? AggregatedPowerStatsConfig.POWER_STATE_OTHER
-                                    : AggregatedPowerStatsConfig.POWER_STATE_BATTERY;
-                    if (batteryState != mCurrentBatteryState) {
-                        mStats.setDeviceState(AggregatedPowerStatsConfig.STATE_POWER, batteryState,
-                                item.time);
-                        mCurrentBatteryState = batteryState;
-                    }
-
-                    int screenState =
-                            (item.states & BatteryStats.HistoryItem.STATE_SCREEN_ON_FLAG) != 0
-                                    ? AggregatedPowerStatsConfig.SCREEN_STATE_ON
-                                    : AggregatedPowerStatsConfig.SCREEN_STATE_OTHER;
-                    if (screenState != mCurrentScreenState) {
-                        mStats.setDeviceState(AggregatedPowerStatsConfig.STATE_SCREEN, screenState,
-                                item.time);
-                        mCurrentScreenState = screenState;
-                    }
-
-                    if ((item.states
-                            & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES)
-                            != lastStates
-                            || (item.states2
-                            & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES2)
-                            != lastStates2) {
-                        mStats.noteStateChange(item);
-                        lastStates = item.states
-                                & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES;
-                        lastStates2 = item.states2
-                                & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES2;
-                    }
-
-                    if (item.processStateChange != null) {
-                        mStats.setUidState(item.processStateChange.uid,
-                                AggregatedPowerStatsConfig.STATE_PROCESS_STATE,
-                                item.processStateChange.processState, item.time);
-                    }
-
-                    if (item.powerStats != null) {
-                        if (!mStats.isCompatible(item.powerStats)) {
-                            if (lastTime > baseTime) {
-                                mStats.setDuration(lastTime - baseTime);
-                                mStats.finish(lastTime);
-                                consumer.accept(mStats);
-                            }
-                            mStats.reset();
-                            if (!mStats.addClockUpdate(item.time, item.currentTime)) {
-                                break;
-                            }
-                            baseTime = lastTime = item.time;
-                        }
-                        mStats.addPowerStats(item.powerStats, item.time);
-                    }
-                }
-            }
-            if (startedSession) {
-                if (endTimeMs != MonotonicClock.UNDEFINED) {
-                    lastTime = endTimeMs;
-                }
-                if (lastTime > baseTime) {
-                    mStats.setDuration(lastTime - baseTime);
-                    mStats.finish(lastTime);
-                    consumer.accept(mStats);
-                }
-            }
-
-            mStats.reset();     // to free up memory
+        } catch (Exception e) {
+            Slog.e(TAG, "Cannot perform power stats aggregation"
+                    + " because battery stats history may be corrupted", e);
+            history.reset();
         }
+    }
+
+    private void aggregatePowerStatsLocked(BatteryStatsHistory history, long startTimeMs,
+            long endTimeMs, Consumer<AggregatedPowerStats> consumer) {
+        if (mStats == null) {
+            mStats = new AggregatedPowerStats(mAggregatedPowerStatsConfig, mEnabledComponents);
+        }
+
+        boolean startedSession = false;
+        long baseTime = startTimeMs > 0 ? startTimeMs : UNINITIALIZED;
+        long lastTime = 0;
+        int lastStates = 0xFFFFFFFF;
+        int lastStates2 = 0xFFFFFFFF;
+        int lastBatteryLevel = 0;
+        try (BatteryStatsHistoryIterator iterator = history.iterate(startTimeMs, endTimeMs)) {
+            while (iterator.hasNext()) {
+                BatteryStats.HistoryItem item = iterator.next();
+
+                if (!startedSession) {
+                    mStats.start(startTimeMs > 0 ? startTimeMs : item.time);
+                    if (!mStats.addClockUpdate(item.time, item.currentTime)) {
+                        break;
+                    }
+                    if (baseTime == UNINITIALIZED) {
+                        baseTime = item.time;
+                    }
+                    startedSession = true;
+                } else if (item.cmd == BatteryStats.HistoryItem.CMD_CURRENT_TIME
+                           || item.cmd == BatteryStats.HistoryItem.CMD_RESET) {
+                    if (!mStats.addClockUpdate(item.time, item.currentTime)) {
+                        break;
+                    }
+                }
+
+                lastTime = item.time;
+
+                if (item.batteryLevel != lastBatteryLevel && item.batteryLevel != 0) {
+                    mStats.noteBatteryLevel(item.batteryLevel, item.batteryChargeUah,
+                            item.time);
+                    lastBatteryLevel = item.batteryLevel;
+                }
+
+                int batteryState =
+                        (item.states & BatteryStats.HistoryItem.STATE_BATTERY_PLUGGED_FLAG) != 0
+                                ? AggregatedPowerStatsConfig.POWER_STATE_OTHER
+                                : AggregatedPowerStatsConfig.POWER_STATE_BATTERY;
+                if (batteryState != mCurrentBatteryState) {
+                    mStats.setDeviceState(AggregatedPowerStatsConfig.STATE_POWER, batteryState,
+                            item.time);
+                    mCurrentBatteryState = batteryState;
+                }
+
+                int screenState =
+                        (item.states & BatteryStats.HistoryItem.STATE_SCREEN_ON_FLAG) != 0
+                                ? AggregatedPowerStatsConfig.SCREEN_STATE_ON
+                                : AggregatedPowerStatsConfig.SCREEN_STATE_OTHER;
+                if (screenState != mCurrentScreenState) {
+                    mStats.setDeviceState(AggregatedPowerStatsConfig.STATE_SCREEN, screenState,
+                            item.time);
+                    mCurrentScreenState = screenState;
+                }
+
+                if (((item.states
+                        & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES)
+                        != lastStates
+                        || (item.states2
+                        & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES2)
+                        != lastStates2
+                        || (item.eventCode & BatteryStats.HistoryItem.EVENT_TYPE_MASK)
+                        == BatteryStats.HistoryItem.EVENT_STATE_CHANGE)
+                        && item.cmd != BatteryStats.HistoryItem.CMD_RESET) {
+                    mStats.noteStateChange(item);
+                    lastStates = item.states
+                            & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES;
+                    lastStates2 = item.states2
+                            & BatteryStats.HistoryItem.IMPORTANT_FOR_POWER_STATS_STATES2;
+                }
+
+                if (item.processStateChange != null) {
+                    mStats.setUidState(item.processStateChange.uid,
+                            AggregatedPowerStatsConfig.STATE_PROCESS_STATE,
+                            item.processStateChange.processState, item.time);
+                }
+
+                if (item.powerStats != null) {
+                    if (!mStats.isCompatible(item.powerStats)) {
+                        if (lastTime > baseTime) {
+                            mStats.setDuration(lastTime - baseTime);
+                            mStats.finish(lastTime);
+                            consumer.accept(mStats);
+                        }
+                        mStats.reset();
+                        if (!mStats.addClockUpdate(item.time, item.currentTime)) {
+                            break;
+                        }
+                        baseTime = lastTime = item.time;
+                    }
+                    mStats.addPowerStats(item.powerStats, item.time);
+                }
+            }
+        }
+        if (startedSession) {
+            if (endTimeMs != MonotonicClock.UNDEFINED) {
+                lastTime = endTimeMs;
+            }
+            if (lastTime > baseTime) {
+                mStats.setDuration(lastTime - baseTime);
+                mStats.finish(lastTime);
+                consumer.accept(mStats);
+            }
+        }
+
+        mStats.reset();     // to free up memory
     }
 
     /**

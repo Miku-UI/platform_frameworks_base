@@ -20,6 +20,7 @@ import android.annotation.CallSuper;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
+import android.content.pm.Flags;
 import android.content.pm.SigningDetails;
 import android.os.Binder;
 import android.os.Build;
@@ -91,7 +92,19 @@ public class PackageManagerLocalImpl implements PackageManagerLocal {
             @Nullable PackageState uncommittedPs) {
         return new FilteredSnapshotImpl(callingUid, user,
                 mService.snapshotComputer(/* allowLiveComputer= */ false),
-                /* parentSnapshot= */ null, uncommittedPs);
+                /* parentSnapshot= */ null, uncommittedPs, /* unowned= */ false);
+    }
+
+    @NonNull
+    @Override
+    public FilteredSnapshot withUnownedFilteredSnapshot(@NonNull PackageDataSnapshot computer) {
+        if (Flags.alternativeForDexoptCleanup()) {
+            return new FilteredSnapshotImpl(Binder.getCallingUid(), Binder.getCallingUserHandle(),
+                    computer,
+                    /* parentSnapshot= */ null, /* uncommittedPs= */ null, /* unowned= */ true);
+        } else {
+            return withFilteredSnapshot();
+        }
     }
 
     @Override
@@ -126,14 +139,28 @@ public class PackageManagerLocalImpl implements PackageManagerLocal {
         @NonNull
         protected Computer mSnapshot;
 
-        private BaseSnapshotImpl(@NonNull PackageDataSnapshot snapshot) {
+        // True if this object does not own the computer ({@link #mSnapshot}) and is not responsible
+        // for releasing the resources that the computer holds (if any).
+        private final boolean mUnowned;
+
+        private BaseSnapshotImpl(@NonNull PackageDataSnapshot snapshot, boolean unowned) {
             mSnapshot = (Computer) snapshot;
+            mUnowned = unowned;
         }
 
         @CallSuper
         @Override
         public void close() {
             mClosed = true;
+            if (mUnowned) {
+                // Short-circuit this method in the unowned case. At the time of writing, it is
+                // actually fine to execute this method to the end because it doesn't change the
+                // state of the computer but only drops the reference to it, but we aggressively
+                // early return just in case someone in the future adds some code below to release
+                // resources by changing the state of the computer and forgets to handle the unowned
+                // case.
+                return;
+            }
             mSnapshot = null;
             // TODO: Recycle snapshots?
         }
@@ -159,13 +186,13 @@ public class PackageManagerLocalImpl implements PackageManagerLocal {
         private Map<String, PackageState> mCachedUnmodifiableDisabledSystemPackageStates;
 
         private UnfilteredSnapshotImpl(@NonNull PackageDataSnapshot snapshot) {
-            super(snapshot);
+            super(snapshot, /* unowned= */ false);
         }
 
         @Override
         public FilteredSnapshot filtered(int callingUid, @NonNull UserHandle user) {
             return new FilteredSnapshotImpl(callingUid, user, mSnapshot, this,
-                    /* uncommittedPs= */ null);
+                    /* uncommittedPs= */ null, /* unowned= */ true);
         }
 
         @SuppressWarnings("RedundantSuppression")
@@ -235,8 +262,8 @@ public class PackageManagerLocalImpl implements PackageManagerLocal {
         private FilteredSnapshotImpl(int callingUid, @NonNull UserHandle user,
                 @NonNull PackageDataSnapshot snapshot,
                 @Nullable UnfilteredSnapshotImpl parentSnapshot,
-                @Nullable PackageState uncommittedPs) {
-            super(snapshot);
+                @Nullable PackageState uncommittedPs, boolean unowned) {
+            super(snapshot, unowned);
             mCallingUid = callingUid;
             mUserId = user.getIdentifier();
             mParentSnapshot = parentSnapshot;

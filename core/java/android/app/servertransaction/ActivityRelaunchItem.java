@@ -62,6 +62,7 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
 
     private final int mConfigChanges;
     private final boolean mPreserveWindow;
+    private final int mDisplayId;
 
     /**
      * A record that was properly configured for relaunch. Execution will be cancelled if not
@@ -74,7 +75,7 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
             @Nullable List<ResultInfo> pendingResults,
             @Nullable List<ReferrerIntent> pendingNewIntents, int configChanges,
             @NonNull MergedConfiguration config, boolean preserveWindow,
-            @NonNull ActivityWindowInfo activityWindowInfo) {
+            @NonNull ActivityWindowInfo activityWindowInfo, int displayId) {
         super(activityToken);
         mPendingResults = pendingResults != null ? new ArrayList<>(pendingResults) : null;
         mPendingNewIntents =
@@ -83,13 +84,14 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
         mActivityWindowInfo = new ActivityWindowInfo(activityWindowInfo);
         mConfigChanges = configChanges;
         mPreserveWindow = preserveWindow;
+        mDisplayId = displayId;
     }
 
     @Override
     public void preExecute(@NonNull ClientTransactionHandler client) {
         // The local config is already scaled so only apply if this item is from server side.
         if (!client.isExecutingLocalTransaction()) {
-            CompatibilityInfo.applyOverrideIfNeeded(mConfig);
+            CompatibilityInfo.applyOverrideIfNeeded(mConfig, mDisplayId);
         }
         mActivityClientRecord = client.prepareRelaunchActivity(getActivityToken(), mPendingResults,
                 mPendingNewIntents, mConfigChanges, mConfig, mPreserveWindow, mActivityWindowInfo);
@@ -126,6 +128,7 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
         dest.writeTypedObject(mActivityWindowInfo, flags);
         dest.writeInt(mConfigChanges);
         dest.writeBoolean(mPreserveWindow);
+        dest.writeInt(mDisplayId);
     }
 
     /** Reads from Parcel. */
@@ -137,6 +140,7 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
         mActivityWindowInfo = requireNonNull(in.readTypedObject(ActivityWindowInfo.CREATOR));
         mConfigChanges = in.readInt();
         mPreserveWindow = in.readBoolean();
+        mDisplayId = in.readInt();
     }
 
     public static final @NonNull Creator<ActivityRelaunchItem> CREATOR =
@@ -164,7 +168,8 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
                 && Objects.equals(mConfig, other.mConfig)
                 && Objects.equals(mActivityWindowInfo, other.mActivityWindowInfo)
                 && mConfigChanges == other.mConfigChanges
-                && mPreserveWindow == other.mPreserveWindow;
+                && mPreserveWindow == other.mPreserveWindow
+                && mDisplayId == other.mDisplayId;
     }
 
     @Override
@@ -177,6 +182,7 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
         result = 31 * result + Objects.hashCode(mActivityWindowInfo);
         result = 31 * result + mConfigChanges;
         result = 31 * result + (mPreserveWindow ? 1 : 0);
+        result = 31 * result + mDisplayId;
         return result;
     }
 
@@ -188,6 +194,7 @@ public class ActivityRelaunchItem extends ActivityTransactionItem {
                 + ",config=" + mConfig
                 + ",activityWindowInfo=" + mActivityWindowInfo
                 + ",configChanges=" + mConfigChanges
-                + ",preserveWindow=" + mPreserveWindow + "}";
+                + ",preserveWindow=" + mPreserveWindow
+                + ",displayId=" + mDisplayId + "}";
     }
 }

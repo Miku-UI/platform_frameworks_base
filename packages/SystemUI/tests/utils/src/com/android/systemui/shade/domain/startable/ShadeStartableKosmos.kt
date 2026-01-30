@@ -17,7 +17,6 @@
 package com.android.systemui.shade.domain.startable
 
 import android.content.applicationContext
-import com.android.systemui.biometrics.domain.interactor.displayStateInteractor
 import com.android.systemui.common.ui.data.repository.configurationRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
@@ -26,10 +25,11 @@ import com.android.systemui.log.LogBuffer
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.ShadeExpansionStateManager
 import com.android.systemui.shade.data.repository.shadeRepository
-import com.android.systemui.shade.domain.interactor.panelExpansionInteractor
+import com.android.systemui.shade.domain.interactor.shadeInteractor
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.shade.transition.ScrimShadeTransitionController
 import com.android.systemui.statusbar.notification.stack.notificationStackScrollLayoutController
-import com.android.systemui.statusbar.phone.scrimController
+import com.android.systemui.statusbar.notificationShadeDepthController
 import com.android.systemui.statusbar.policy.splitShadeStateController
 import com.android.systemui.statusbar.pulseExpansionHandler
 import com.android.systemui.util.mockito.mock
@@ -44,14 +44,14 @@ val Kosmos.shadeStartable by Fixture {
         touchLog = mock<LogBuffer>(),
         configurationRepository = configurationRepository,
         shadeRepository = shadeRepository,
+        shadeInteractorProvider = { shadeInteractor },
+        shadeModeInteractorProvider = { shadeModeInteractor },
         splitShadeStateController = splitShadeStateController,
         scrimShadeTransitionController = mock<ScrimShadeTransitionController>(),
         sceneInteractorProvider = { sceneInteractor },
-        panelExpansionInteractorProvider = { panelExpansionInteractor },
         shadeExpansionStateManager = shadeExpansionStateManager,
         pulseExpansionHandler = pulseExpansionHandler,
-        displayStateInteractor = displayStateInteractor,
         nsslc = notificationStackScrollLayoutController,
-        scrimController = scrimController,
+        depthController = notificationShadeDepthController,
     )
 }

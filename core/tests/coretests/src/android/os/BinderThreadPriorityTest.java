@@ -106,6 +106,8 @@ public class BinderThreadPriorityTest {
     public void tearDown() throws Exception {
         // HACK -- see bug 2665914 -- setThreadPriority() doesn't always set the
         // scheduler group reliably unless we start out with background priority.
+        // As of July, 2025 this looks obsolete and incorrect, probably making the
+        // hack unnecessary, but not seriously harmful.
         Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
         Process.setThreadPriority(mSavedPriority);
         assertEquals(mSavedPriority, Process.getThreadPriority(Process.myTid()));

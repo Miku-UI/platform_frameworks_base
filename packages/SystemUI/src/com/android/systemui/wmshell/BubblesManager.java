@@ -78,6 +78,7 @@ import com.android.systemui.statusbar.phone.StatusBarWindowCallback;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.statusbar.policy.SensitiveNotificationProtectionController;
 import com.android.systemui.statusbar.policy.ZenModeController;
+import com.android.systemui.topui.TopUiController;
 import com.android.wm.shell.bubbles.Bubble;
 import com.android.wm.shell.bubbles.BubbleEntry;
 import com.android.wm.shell.bubbles.Bubbles;
@@ -103,6 +104,7 @@ public class BubblesManager {
     private final Context mContext;
     private final Bubbles mBubbles;
     private final NotificationShadeWindowController mNotificationShadeWindowController;
+    private final TopUiController mTopUiController;
     private final KeyguardStateController mKeyguardStateController;
     private final ShadeController mShadeController;
     private final IStatusBarService mBarService;
@@ -134,6 +136,7 @@ public class BubblesManager {
     public static BubblesManager create(Context context,
             Optional<Bubbles> bubblesOptional,
             NotificationShadeWindowController notificationShadeWindowController,
+            TopUiController topUiController,
             KeyguardStateController keyguardStateController,
             ShadeController shadeController,
             @Nullable IStatusBarService statusBarService,
@@ -155,6 +158,7 @@ public class BubblesManager {
             return new BubblesManager(context,
                     bubblesOptional.get(),
                     notificationShadeWindowController,
+                    topUiController,
                     keyguardStateController,
                     shadeController,
                     statusBarService,
@@ -181,6 +185,7 @@ public class BubblesManager {
     BubblesManager(Context context,
             Bubbles bubbles,
             NotificationShadeWindowController notificationShadeWindowController,
+            TopUiController topUiController,
             KeyguardStateController keyguardStateController,
             ShadeController shadeController,
             @Nullable IStatusBarService statusBarService,
@@ -201,6 +206,7 @@ public class BubblesManager {
         mContext = context;
         mBubbles = bubbles;
         mNotificationShadeWindowController = notificationShadeWindowController;
+        mTopUiController = topUiController;
         mKeyguardStateController = keyguardStateController;
         mShadeController = shadeController;
         mNotificationManager = notificationManager;
@@ -343,10 +349,9 @@ public class BubblesManager {
             }
 
             @Override
-            public void requestNotificationShadeTopUi(boolean requestTopUi, String componentTag) {
-                sysuiMainExecutor.execute(() -> {
-                    mNotificationShadeWindowController.setRequestTopUi(requestTopUi, componentTag);
-                });
+            public void requestTopUi(boolean requestTopUi, String componentTag) {
+                sysuiMainExecutor.execute(
+                        () -> mTopUiController.setRequestTopUi(requestTopUi, componentTag));
             }
 
             @Override
@@ -383,6 +388,8 @@ public class BubblesManager {
 
             @Override
             public void onStackExpandChanged(boolean shouldExpand) {
+                ProtoLog.d(WM_SHELL_BUBBLES, "Updating bubbles_expanded sys flag to %b",
+                        shouldExpand);
                 sysuiMainExecutor.execute(() -> {
                     sysUiState.setFlag(QuickStepContract.SYSUI_STATE_BUBBLES_EXPANDED, shouldExpand)
                             .commitUpdate(mContext.getDisplayId());
@@ -669,7 +676,7 @@ public class BubblesManager {
 
         // Change the settings
         channel = NotificationChannelHelper.createConversationChannelIfNeeded(mContext,
-                mNotificationManager, entry, channel);
+                mNotificationManager, entry.getRanking(), entry.getSbn(), channel);
         channel.setAllowBubbles(shouldBubble);
         try {
             int currentPref = mNotificationManager.getBubblePreferenceForPackage(appPkg, appUid);

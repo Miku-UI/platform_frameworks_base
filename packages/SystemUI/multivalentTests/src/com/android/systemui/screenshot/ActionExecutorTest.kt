@@ -16,13 +16,17 @@
 
 package com.android.systemui.screenshot
 
+import android.app.ActivityOptions
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.os.UserHandle
+import android.platform.test.annotations.EnableFlags
 import android.view.Window
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_SCREENSHOT_MULTIDISPLAY_FOCUS_CHANGE
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.util.mockito.argumentCaptor
 import com.android.systemui.util.mockito.mock
@@ -38,6 +42,7 @@ import org.mockito.kotlin.capture
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyBlocking
+import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
@@ -51,21 +56,33 @@ class ActionExecutorTest : SysuiTestCase() {
     private val viewProxy = mock<ScreenshotShelfViewProxy>()
     private val onDismiss = mock<(() -> Unit)>()
     private val pendingIntent = mock<PendingIntent>()
+    private val fakeContext = mock<Context>()
 
     private lateinit var actionExecutor: ActionExecutor
 
     @Test
+    @EnableFlags(FLAG_SCREENSHOT_MULTIDISPLAY_FOCUS_CHANGE)
     fun startSharedTransition_callsLaunchIntent() = runTest {
         actionExecutor = createActionExecutor()
+        whenever(fakeContext.displayId).thenReturn(17)
+        whenever(window.context).thenReturn(fakeContext)
 
         actionExecutor.startSharedTransition(Intent(Intent.ACTION_EDIT), UserHandle.CURRENT, true)
         scheduler.advanceUntilIdle()
 
         val intentCaptor = argumentCaptor<Intent>()
+        val activityOptionsCaptor = argumentCaptor<ActivityOptions>()
         verifyBlocking(intentExecutor) {
-            launchIntent(capture(intentCaptor), eq(UserHandle.CURRENT), eq(true), any(), any())
+            launchIntent(
+                capture(intentCaptor),
+                eq(UserHandle.CURRENT),
+                eq(true),
+                capture(activityOptionsCaptor),
+                any(),
+            )
         }
         assertThat(intentCaptor.value.action).isEqualTo(Intent.ACTION_EDIT)
+        assertThat(activityOptionsCaptor.value.launchDisplayId).isEqualTo(17)
     }
 
     @Test

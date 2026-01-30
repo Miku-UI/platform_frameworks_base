@@ -58,7 +58,7 @@ object NotificationCustomContentMemoryVerifier {
         val mainColumnView =
             view.findViewById<View>(com.android.internal.R.id.notification_main_column)
         if (mainColumnView == null) {
-            Log.wtf(
+            Log.e(
                 NOTIFICATION_SERVICE_TAG,
                 "R.id.notification_main_column view should not be null!",
             )
@@ -151,7 +151,7 @@ object NotificationCustomContentMemoryVerifier {
                 computeDrawableSize(drawable.foreground) +
                     computeDrawableSize(drawable.background) +
                     computeDrawableSize(drawable.monochrome)
-            is BitmapDrawable -> drawable.bitmap.allocationByteCount
+            is BitmapDrawable -> drawable?.bitmap?.allocationByteCount ?: 0 // CAN be null in prod.
             // People can sneak large drawables into those custom memory views via resources -
             // we use the intrisic size as a proxy for how much memory rendering those will
             // take.

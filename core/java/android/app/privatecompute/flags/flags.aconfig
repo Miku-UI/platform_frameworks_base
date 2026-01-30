@@ -1,0 +1,9 @@
+package: "android.app.privatecompute.flags"
+container: "system"
+
+flag {
+    name: "enable_pcc_framework_support"
+    namespace: "private_compute"
+    description: "Enable framework support for private compute core"
+    bug: "430201829"
+}

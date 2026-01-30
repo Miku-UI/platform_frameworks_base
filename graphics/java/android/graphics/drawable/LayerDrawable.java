@@ -68,6 +68,7 @@ import java.io.IOException;
  * @attr ref android.R.styleable#LayerDrawableItem_drawable
  * @attr ref android.R.styleable#LayerDrawableItem_id
 */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class LayerDrawable extends Drawable implements Drawable.Callback {
     private static final String LOG_TAG = "LayerDrawable";
 

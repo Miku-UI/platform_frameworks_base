@@ -18,9 +18,11 @@ package com.android.systemui.log.dagger;
 
 import android.os.Build;
 
+import com.android.systemui.CoreStartable;
 import com.android.systemui.common.data.repository.PackageChangeRepository;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.deviceentry.data.repository.DeviceEntryFaceAuthRepositoryImpl;
+import com.android.systemui.log.ClearLogBuffersCommand;
 import com.android.systemui.log.LogBuffer;
 import com.android.systemui.log.LogBufferFactory;
 import com.android.systemui.log.LogcatEchoTracker;
@@ -28,15 +30,18 @@ import com.android.systemui.log.echo.LogcatEchoTrackerDebug;
 import com.android.systemui.log.echo.LogcatEchoTrackerProd;
 import com.android.systemui.log.table.TableLogBuffer;
 import com.android.systemui.log.table.TableLogBufferFactory;
-import com.android.systemui.plugins.clocks.ClockMessageBuffers;
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockMessageBuffers;
 import com.android.systemui.qs.QSFragmentLegacy;
 import com.android.systemui.qs.pipeline.shared.QSPipelineFlagsRepository;
 import com.android.systemui.qs.pipeline.shared.TileSpec;
 import com.android.systemui.util.wakelock.WakeLockLog;
 
+import dagger.Binds;
 import dagger.Lazy;
 import dagger.Module;
 import dagger.Provides;
+import dagger.multibindings.ClassKey;
+import dagger.multibindings.IntoMap;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +50,7 @@ import java.util.Map;
  * Dagger module for providing instances of {@link LogBuffer}.
  */
 @Module
-public class LogModule {
+public abstract class LogModule {
     /** Provides a logging buffer for doze-related logs. */
     @Provides
     @SysUISingleton
@@ -262,7 +267,7 @@ public class LogModule {
     @SysUISingleton
     @MediaCarouselControllerLog
     public static LogBuffer provideMediaCarouselControllerBuffer(LogBufferFactory factory) {
-        return factory.create("MediaCarouselCtlrLog", 100);
+        return factory.create("MediaCarouselCtlrLog", 150);
     }
 
     /**
@@ -327,8 +332,7 @@ public class LogModule {
     @SysUISingleton
     @KeyguardBlueprintLog
     public static LogBuffer provideKeyguardBlueprintLog(LogBufferFactory factory) {
-        // TODO(b/389987229): Reduce back to 100
-        return factory.create("KeyguardBlueprintLog", 1000);
+        return factory.create("KeyguardBlueprintLog", 100);
     }
 
     /**
@@ -338,8 +342,7 @@ public class LogModule {
     @SysUISingleton
     @KeyguardClockLog
     public static LogBuffer provideKeyguardClockLog(LogBufferFactory factory) {
-        // TODO(b/389987229): Reduce back to 100
-        return factory.create("KeyguardClockLog", 1000);
+        return factory.create("KeyguardClockLog", 100);
     }
 
     /**
@@ -349,8 +352,7 @@ public class LogModule {
     @SysUISingleton
     @KeyguardSmallClockLog
     public static LogBuffer provideKeyguardSmallClockLog(LogBufferFactory factory) {
-        // TODO(b/389987229): Reduce back to 100
-        return factory.create("KeyguardSmallClockLog", 1000);
+        return factory.create("KeyguardSmallClockLog", 100);
     }
 
     /**
@@ -360,8 +362,7 @@ public class LogModule {
     @SysUISingleton
     @KeyguardLargeClockLog
     public static LogBuffer provideKeyguardLargeClockLog(LogBufferFactory factory) {
-        // TODO(b/389987229): Reduce back to 100
-        return factory.create("KeyguardLargeClockLog", 1000);
+        return factory.create("KeyguardLargeClockLog", 100);
     }
 
     /**
@@ -650,7 +651,7 @@ public class LogModule {
     @SysUISingleton
     @VolumeLog
     public static LogBuffer provideVolumeLogBuffer(LogBufferFactory factory) {
-        return factory.create("VolumeLog", 50);
+        return factory.create("VolumeLog", 200);
     }
 
     /** Provides a {@link LogBuffer} for use by long touch event handlers. */
@@ -660,4 +661,20 @@ public class LogModule {
     public static LogBuffer providesLongPressTouchLog(LogBufferFactory factory) {
         return factory.create("LongPressViewLog", 200);
     }
+
+    /** Provides a {@link LogBuffer} for use by long touch event handlers. */
+    @Provides
+    @SysUISingleton
+    @RearDisplayLog
+    public static LogBuffer providesRearDisplayLog(LogBufferFactory factory) {
+        return factory.create("RearDisplayLog", 50);
+    }
+
+    /**
+     * Registers the clear log buffers ADB command.
+     */
+    @Binds
+    @IntoMap
+    @ClassKey(ClearLogBuffersCommand.class)
+    public abstract CoreStartable bindsClearLogBuffersCommand(ClearLogBuffersCommand command);
 }

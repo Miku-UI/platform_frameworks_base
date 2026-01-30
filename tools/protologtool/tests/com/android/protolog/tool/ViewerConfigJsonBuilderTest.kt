@@ -30,11 +30,11 @@ class ViewerConfigJsonBuilderTest {
         private val TEST1 = ViewerConfigParser.ConfigEntry("test1", LogLevel.INFO.name, TAG1)
         private val TEST2 = ViewerConfigParser.ConfigEntry("test2", LogLevel.DEBUG.name, TAG2)
         private val TEST3 = ViewerConfigParser.ConfigEntry("test3", LogLevel.ERROR.name, TAG2)
-        private val GROUP1 = LogGroup("TEST_GROUP", true, true, TAG1)
-        private val GROUP2 = LogGroup("DEBUG_GROUP", true, true, TAG2)
-        private val GROUP3 = LogGroup("DEBUG_GROUP", true, true, TAG2)
-        private val GROUP_DISABLED = LogGroup("DEBUG_GROUP", false, true, TAG2)
-        private val GROUP_TEXT_DISABLED = LogGroup("DEBUG_GROUP", true, false, TAG2)
+        private val GROUP1 = LogGroup("TEST_GROUP", true, true, TAG1, 1)
+        private val GROUP2 = LogGroup("DEBUG_GROUP", true, true, TAG2, 2)
+        private val GROUP3 = LogGroup("DEBUG_GROUP", true, true, TAG2, 3)
+        private val GROUP_DISABLED = LogGroup("DEBUG_GROUP", false, true, TAG2, 4)
+        private val GROUP_TEXT_DISABLED = LogGroup("DEBUG_GROUP", true, false, TAG2, 5)
         private const val PATH = "/tmp/test.java"
 
         private val GROUPS = listOf(GROUP1, GROUP2, GROUP3)

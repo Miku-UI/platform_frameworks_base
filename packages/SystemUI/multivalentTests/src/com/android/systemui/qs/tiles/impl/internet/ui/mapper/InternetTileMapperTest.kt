@@ -93,7 +93,7 @@ class InternetTileMapperTest : SysuiTestCase() {
             SignalIconModel.Satellite(
                 3,
                 Icon.Resource(
-                    res = R.drawable.ic_satellite_connected_2,
+                    resId = R.drawable.ic_satellite_connected_2,
                     contentDescription =
                         ContentDescription.Resource(
                             R.string.accessibility_status_bar_satellite_good_connection
@@ -120,9 +120,9 @@ class InternetTileMapperTest : SysuiTestCase() {
                 QSTileState.ActivationState.ACTIVE,
                 inputModel.secondaryLabel.loadText(context).toString(),
                 Icon.Loaded(
-                    context.getDrawable(expectedSatIcon!!.res)!!,
+                    context.getDrawable(expectedSatIcon!!.resId)!!,
                     null,
-                    expectedSatIcon.res,
+                    expectedSatIcon.resId,
                 ),
                 expectedSatIcon.contentDescription.loadContentDescription(context).toString(),
             )

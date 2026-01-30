@@ -71,9 +71,4 @@ public class NoOpInfoMediaManagerTest {
         // Make sure we return a placeholder routing session so that we avoid OOB exceptions.
         assertThat(mInfoMediaManager.getRoutingSessionsForPackage()).hasSize(1);
     }
-
-    @Test
-    public void getSelectedMediaDevices_returnsEmptyList() {
-        assertThat(mInfoMediaManager.getSelectedMediaDevices()).isEmpty();
-    }
 }

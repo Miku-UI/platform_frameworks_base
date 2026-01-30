@@ -31,16 +31,24 @@ import static android.app.usage.UsageStatsManager.STANDBY_BUCKET_RESTRICTED;
 import static android.app.usage.UsageStatsManager.STANDBY_BUCKET_WORKING_SET;
 import static android.app.usage.UsageStatsManager.standbyBucketToString;
 
+import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
+
 import android.os.FileUtils;
-import android.test.AndroidTestCase;
+
+import androidx.test.ext.junit.runners.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
+
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.Map;
 
-public class AppIdleHistoryTests extends AndroidTestCase {
-
-    File mStorageDir;
-
+@RunWith(AndroidJUnit4.class)
+public final class AppIdleHistoryTests {
     private static final String PACKAGE_1 = "com.android.testpackage1";
     private static final String PACKAGE_2 = "com.android.testpackage2";
     private static final String PACKAGE_3 = "com.android.testpackage3";
@@ -48,61 +56,67 @@ public class AppIdleHistoryTests extends AndroidTestCase {
 
     private static final int USER_ID = 0;
 
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp();
-        mStorageDir = new File(getContext().getFilesDir(), "appidle");
+    private File mStorageDir;
+
+    @Before
+    public void setUp() {
+        mStorageDir = new File(
+                InstrumentationRegistry.getInstrumentation().getTargetContext().getFilesDir(),
+                "appidle");
         mStorageDir.mkdirs();
     }
 
-    @Override
-    protected void tearDown() throws Exception {
+    @After
+    public void tearDown() {
         FileUtils.deleteContents(mStorageDir);
-        super.tearDown();
     }
 
+    @Test
     public void testFilesCreation() {
         AppIdleHistory aih = new AppIdleHistory(mStorageDir, 0);
 
-        aih.updateDisplay(true, /* elapsedRealtime= */ 1000);
-        aih.updateDisplay(false, /* elapsedRealtime= */ 2000);
+        aih.updateDisplay(/* screenOn= */ true, /* elapsedRealtime= */ 1000);
+        aih.updateDisplay(/* screenOn= */ false, /* elapsedRealtime= */ 2000);
         // Screen On time file should be written right away
-        assertTrue(aih.getScreenOnTimeFile().exists());
+        assertThat(aih.getScreenOnTimeFile().exists()).isTrue();
 
         aih.writeAppIdleTimes(USER_ID, /* elapsedRealtime= */ 2000);
         // stats file should be written now
-        assertTrue(new File(new File(mStorageDir, "users/" + USER_ID),
-                AppIdleHistory.APP_IDLE_FILENAME).exists());
+        assertThat(new File(new File(mStorageDir, "users/" + USER_ID),
+                AppIdleHistory.APP_IDLE_FILENAME).exists()).isTrue();
     }
 
+    @Test
     public void testScreenOnTime() {
         AppIdleHistory aih = new AppIdleHistory(mStorageDir, 1000);
-        aih.updateDisplay(false, 2000);
-        assertEquals(aih.getScreenOnTime(2000), 0);
-        aih.updateDisplay(true, 3000);
-        assertEquals(aih.getScreenOnTime(4000), 1000);
-        assertEquals(aih.getScreenOnTime(5000), 2000);
-        aih.updateDisplay(false, 6000);
+
+        aih.updateDisplay(/* screenOn= */ false, /* elapsedRealtime= */ 2000);
+        assertThat(aih.getScreenOnTime(2000)).isEqualTo(0);
+        aih.updateDisplay(/* screenOn= */ true, /* elapsedRealtime= */ 3000);
+        assertThat(aih.getScreenOnTime(4000)).isEqualTo(1000);
+        assertThat(aih.getScreenOnTime(5000)).isEqualTo(2000);
+        aih.updateDisplay(/* screenOn= */ false, /* elapsedRealtime= */ 6000);
         // Screen on time should not keep progressing with screen is off
-        assertEquals(aih.getScreenOnTime(7000), 3000);
-        assertEquals(aih.getScreenOnTime(8000), 3000);
+        assertThat(aih.getScreenOnTime(7000)).isEqualTo(3000);
+        assertThat(aih.getScreenOnTime(8000)).isEqualTo(3000);
         aih.writeAppIdleDurations();
 
         // Check if the screen on time is persisted across instantiations
         AppIdleHistory aih2 = new AppIdleHistory(mStorageDir, 0);
-        assertEquals(aih2.getScreenOnTime(11000), 3000);
-        aih2.updateDisplay(true, 4000);
-        aih2.updateDisplay(false, 5000);
-        assertEquals(aih2.getScreenOnTime(13000), 4000);
+        assertThat(aih2.getScreenOnTime(11000)).isEqualTo(3000);
+        aih2.updateDisplay(/* screenOn= */ true, /* elapsedRealtime= */ 4000);
+        aih2.updateDisplay(/* screenOn= */ false, /* elapsedRealtime= */ 5000);
+        assertThat(aih2.getScreenOnTime(13000)).isEqualTo(4000);
     }
 
+    @Test
     public void testBuckets() {
-        AppIdleHistory aih = new AppIdleHistory(mStorageDir, 1000);
+        AppIdleHistory aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 1000);
 
         aih.setAppStandbyBucket(PACKAGE_1, USER_ID, 1000, STANDBY_BUCKET_ACTIVE,
                 REASON_MAIN_USAGE);
         // ACTIVE means not idle
-        assertFalse(aih.isIdle(PACKAGE_1, USER_ID, 2000));
+        assertThat(aih.isIdle(PACKAGE_1, USER_ID, 2000)).isFalse();
 
         aih.setAppStandbyBucket(PACKAGE_2, USER_ID, 2000, STANDBY_BUCKET_ACTIVE,
                 REASON_MAIN_USAGE);
@@ -114,71 +128,88 @@ public class AppIdleHistoryTests extends AndroidTestCase {
         aih.setAppStandbyBucket(PACKAGE_1, USER_ID, 3000, STANDBY_BUCKET_RARE,
                 REASON_MAIN_TIMEOUT);
 
-        assertEquals(aih.getAppStandbyBucket(PACKAGE_1, USER_ID, 3000), STANDBY_BUCKET_RARE);
-        assertEquals(aih.getAppStandbyBucket(PACKAGE_2, USER_ID, 3000), STANDBY_BUCKET_ACTIVE);
-        assertEquals(aih.getAppStandbyReason(PACKAGE_1, USER_ID, 3000), REASON_MAIN_TIMEOUT);
-        assertEquals(aih.getAppStandbyBucket(PACKAGE_3, USER_ID, 3000), STANDBY_BUCKET_RESTRICTED);
-        assertEquals(aih.getAppStandbyReason(PACKAGE_3, USER_ID, 3000),
-                REASON_MAIN_FORCED_BY_SYSTEM
+        assertThat(aih.getAppStandbyBucket(PACKAGE_1, USER_ID, 3000))
+                .isEqualTo(STANDBY_BUCKET_RARE);
+        assertThat(aih.getAppStandbyBucket(PACKAGE_2, USER_ID, 3000))
+                .isEqualTo(STANDBY_BUCKET_ACTIVE);
+        assertThat(aih.getAppStandbyReason(PACKAGE_1, USER_ID, 3000))
+                .isEqualTo(REASON_MAIN_TIMEOUT);
+        assertThat(aih.getAppStandbyBucket(PACKAGE_3, USER_ID, 3000))
+                .isEqualTo(STANDBY_BUCKET_RESTRICTED);
+        assertThat(aih.getAppStandbyReason(PACKAGE_3, USER_ID, 3000))
+                .isEqualTo(REASON_MAIN_FORCED_BY_SYSTEM
                         | REASON_SUB_FORCED_SYSTEM_FLAG_BACKGROUND_RESOURCE_USAGE);
-        assertEquals(aih.getAppStandbyReason(PACKAGE_4, USER_ID, 3000),
-                REASON_MAIN_FORCED_BY_USER);
+        assertThat(aih.getAppStandbyReason(PACKAGE_4, USER_ID, 3000))
+                .isEqualTo(REASON_MAIN_FORCED_BY_USER);
 
         // RARE and RESTRICTED are considered idle
-        assertTrue(aih.isIdle(PACKAGE_1, USER_ID, 3000));
-        assertFalse(aih.isIdle(PACKAGE_2, USER_ID, 3000));
-        assertTrue(aih.isIdle(PACKAGE_3, USER_ID, 3000));
-        assertTrue(aih.isIdle(PACKAGE_4, USER_ID, 3000));
+        assertThat(aih.isIdle(PACKAGE_1, USER_ID, 3000)).isTrue();
+        assertThat(aih.isIdle(PACKAGE_2, USER_ID, 3000)).isFalse();
+        assertThat(aih.isIdle(PACKAGE_3, USER_ID, 3000)).isTrue();
+        assertThat(aih.isIdle(PACKAGE_4, USER_ID, 3000)).isTrue();
 
         // Check persistence
         aih.writeAppIdleDurations();
         aih.writeAppIdleTimes(USER_ID, /* elapsedRealtime= */ 3000);
-        aih = new AppIdleHistory(mStorageDir, 4000);
-        assertEquals(aih.getAppStandbyBucket(PACKAGE_1, USER_ID, 5000), STANDBY_BUCKET_RARE);
-        assertEquals(aih.getAppStandbyBucket(PACKAGE_2, USER_ID, 5000), STANDBY_BUCKET_ACTIVE);
-        assertEquals(aih.getAppStandbyReason(PACKAGE_1, USER_ID, 5000), REASON_MAIN_TIMEOUT);
-        assertEquals(aih.getAppStandbyBucket(PACKAGE_3, USER_ID, 3000), STANDBY_BUCKET_RESTRICTED);
-        assertEquals(aih.getAppStandbyReason(PACKAGE_3, USER_ID, 3000),
-                REASON_MAIN_FORCED_BY_SYSTEM
+        aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 4000);
+        assertThat(aih.getAppStandbyBucket(PACKAGE_1, USER_ID, 5000))
+                .isEqualTo(STANDBY_BUCKET_RARE);
+        assertThat(aih.getAppStandbyBucket(PACKAGE_2, USER_ID, 5000))
+                .isEqualTo(STANDBY_BUCKET_ACTIVE);
+        assertThat(aih.getAppStandbyReason(PACKAGE_1, USER_ID, 5000))
+                .isEqualTo(REASON_MAIN_TIMEOUT);
+        assertThat(aih.getAppStandbyBucket(PACKAGE_3, USER_ID, 3000))
+                .isEqualTo(STANDBY_BUCKET_RESTRICTED);
+        assertThat(aih.getAppStandbyReason(PACKAGE_3, USER_ID, 3000))
+                .isEqualTo(REASON_MAIN_FORCED_BY_SYSTEM
                         | REASON_SUB_FORCED_SYSTEM_FLAG_BACKGROUND_RESOURCE_USAGE);
-        assertEquals(aih.getAppStandbyReason(PACKAGE_4, USER_ID, 3000),
-                REASON_MAIN_FORCED_BY_USER);
+        assertThat(aih.getAppStandbyReason(PACKAGE_4, USER_ID, 3000))
+                .isEqualTo(REASON_MAIN_FORCED_BY_USER);
 
-        if (!Flags.avoidIdleCheck()) {
-            assertTrue(aih.shouldInformListeners(PACKAGE_1, USER_ID, 5000, STANDBY_BUCKET_RARE));
-        }
-        assertFalse(aih.shouldInformListeners(PACKAGE_1, USER_ID, 5000, STANDBY_BUCKET_RARE));
-        assertTrue(aih.shouldInformListeners(PACKAGE_1, USER_ID, 5000, STANDBY_BUCKET_FREQUENT));
+        assertThat(aih.shouldInformListeners(PACKAGE_1, USER_ID, 5000,
+                STANDBY_BUCKET_RARE)).isFalse();
+        assertThat(aih.shouldInformListeners(PACKAGE_1, USER_ID, 5000,
+                STANDBY_BUCKET_FREQUENT)).isTrue();
     }
 
-    public void testJobRunTime() throws Exception {
-        AppIdleHistory aih = new AppIdleHistory(mStorageDir, 1000);
+    @Test
+    public void testJobRunTime() {
+        AppIdleHistory aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 1000);
 
-        aih.setLastJobRunTime(PACKAGE_1, USER_ID, 2000);
-        assertEquals(Long.MAX_VALUE, aih.getTimeSinceLastJobRun(PACKAGE_2, USER_ID, 0));
-        assertEquals(4000, aih.getTimeSinceLastJobRun(PACKAGE_1, USER_ID, 6000));
+        aih.setLastJobRunTime(PACKAGE_1, USER_ID, /* elapsedRealtime= */ 2000);
+        assertThat(aih.getTimeSinceLastJobRun(PACKAGE_2, USER_ID, 0))
+                .isEqualTo(Long.MAX_VALUE);
+        assertThat(aih.getTimeSinceLastJobRun(PACKAGE_1, USER_ID, 6000))
+                .isEqualTo(4000);
 
-        aih.setLastJobRunTime(PACKAGE_2, USER_ID, 6000);
-        assertEquals(1000, aih.getTimeSinceLastJobRun(PACKAGE_2, USER_ID, 7000));
-        assertEquals(5000, aih.getTimeSinceLastJobRun(PACKAGE_1, USER_ID, 7000));
+        aih.setLastJobRunTime(PACKAGE_2, USER_ID, /* elapsedRealtime= */ 6000);
+        assertThat(aih.getTimeSinceLastJobRun(PACKAGE_2, USER_ID, 7000))
+                .isEqualTo(1000);
+        assertThat(aih.getTimeSinceLastJobRun(PACKAGE_1, USER_ID, 7000))
+                .isEqualTo(5000);
     }
 
-    public void testReason() throws Exception {
-        AppIdleHistory aih = new AppIdleHistory(mStorageDir, 1000);
+    @Test
+    public void testReason() {
+        AppIdleHistory aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 1000);
+
         aih.reportUsage(PACKAGE_1, USER_ID, STANDBY_BUCKET_ACTIVE,
                 REASON_SUB_USAGE_MOVE_TO_FOREGROUND, 2000, 0);
-        assertEquals(REASON_MAIN_USAGE | REASON_SUB_USAGE_MOVE_TO_FOREGROUND,
-                aih.getAppStandbyReason(PACKAGE_1, USER_ID, 3000));
+        assertThat(aih.getAppStandbyReason(PACKAGE_1, USER_ID, 3000))
+                .isEqualTo(REASON_MAIN_USAGE | REASON_SUB_USAGE_MOVE_TO_FOREGROUND);
         aih.setAppStandbyBucket(PACKAGE_1, USER_ID, 4000, STANDBY_BUCKET_WORKING_SET,
                 REASON_MAIN_TIMEOUT);
         aih.writeAppIdleTimes(USER_ID, /* elapsedRealtime= */ 4000);
 
-        aih = new AppIdleHistory(mStorageDir, 5000);
-        assertEquals(REASON_MAIN_TIMEOUT, aih.getAppStandbyReason(PACKAGE_1, USER_ID, 5000));
+        aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 5000);
+        assertThat(aih.getAppStandbyReason(PACKAGE_1, USER_ID, 5000))
+                .isEqualTo(REASON_MAIN_TIMEOUT);
     }
 
-    public void testNullPackage() throws Exception {
-        AppIdleHistory aih = new AppIdleHistory(mStorageDir, 1000);
+    @Test
+    public void testNullPackage() {
+        AppIdleHistory aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 1000);
+
         // Report usage of a package
         aih.reportUsage(PACKAGE_1, USER_ID, STANDBY_BUCKET_ACTIVE,
                 REASON_SUB_USAGE_MOVE_TO_FOREGROUND, 2000, 0);
@@ -188,28 +219,30 @@ public class AppIdleHistoryTests extends AndroidTestCase {
         // Persist data
         aih.writeAppIdleTimes(USER_ID, /* elapsedRealtime= */ 2000);
         // Recover data from disk
-        aih = new AppIdleHistory(mStorageDir, 5000);
+        aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 5000);
         // Verify data is intact
-        assertEquals(REASON_MAIN_USAGE | REASON_SUB_USAGE_MOVE_TO_FOREGROUND,
-                aih.getAppStandbyReason(PACKAGE_1, USER_ID, 3000));
+        assertThat(aih.getAppStandbyReason(PACKAGE_1, USER_ID, 3000))
+                .isEqualTo((REASON_MAIN_USAGE | REASON_SUB_USAGE_MOVE_TO_FOREGROUND));
     }
 
-    public void testBucketExpiryTimes() throws Exception {
-        AppIdleHistory aih = new AppIdleHistory(mStorageDir, 1000 /* elapsedRealtime */);
+    @Test
+    public void testBucketExpiryTimes() {
+        AppIdleHistory aih = new AppIdleHistory(mStorageDir,  /* elapsedRealtime= */ 1000);
+
         aih.reportUsage(PACKAGE_1, USER_ID, STANDBY_BUCKET_WORKING_SET,
                 REASON_SUB_USAGE_SLICE_PINNED,
-                2000 /* elapsedRealtime */, 6000 /* expiryRealtime */);
-        assertEquals(5000 /* expectedExpiryTimeMs */, aih.getBucketExpiryTimeMs(PACKAGE_1, USER_ID,
-                STANDBY_BUCKET_WORKING_SET, 2000 /* elapsedRealtime */));
+                /* elapsedRealtime= */ 2000,  /* expiryRealtime= */ 6000);
+        assertThat(aih.getBucketExpiryTimeMs(PACKAGE_1, USER_ID,
+                STANDBY_BUCKET_WORKING_SET,  /* elapsedRealtime= */ 2000)).isEqualTo(5000);
         aih.reportUsage(PACKAGE_2, USER_ID, STANDBY_BUCKET_FREQUENT,
                 REASON_SUB_USAGE_NOTIFICATION_SEEN,
-                2000 /* elapsedRealtime */, 3000 /* expiryRealtime */);
-        assertEquals(2000 /* expectedExpiryTimeMs */, aih.getBucketExpiryTimeMs(PACKAGE_2, USER_ID,
-                STANDBY_BUCKET_FREQUENT, 2000 /* elapsedRealtime */));
-        aih.writeAppIdleTimes(USER_ID, 4000 /* elapsedRealtime */);
+                /* elapsedRealtime= */ 2000, /* expiryRealtime= */ 3000);
+        assertThat(aih.getBucketExpiryTimeMs(PACKAGE_2, USER_ID,
+                STANDBY_BUCKET_FREQUENT,  /* elapsedRealtime= */ 2000)).isEqualTo(2000);
+        aih.writeAppIdleTimes(USER_ID,  /* elapsedRealtime= */ 4000);
 
         // Persist data
-        aih = new AppIdleHistory(mStorageDir, 5000 /* elapsedRealtime */);
+        aih = new AppIdleHistory(mStorageDir, /* elapsedRealtime= */ 5000);
         final Map<Integer, Long> expectedExpiryTimes1 = Map.of(
                 STANDBY_BUCKET_ACTIVE, 0L,
                 STANDBY_BUCKET_WORKING_SET, 5000L,
@@ -218,7 +251,7 @@ public class AppIdleHistoryTests extends AndroidTestCase {
                 STANDBY_BUCKET_RESTRICTED, 0L
         );
         // For PACKAGE_1, only WORKING_SET bucket should have an expiry time.
-        verifyBucketExpiryTimes(aih, PACKAGE_1, USER_ID, 5000 /* elapsedRealtime */,
+        verifyBucketExpiryTimes(aih, PACKAGE_1, USER_ID, /* elapsedRealtime= */ 5000,
                 expectedExpiryTimes1);
         final Map<Integer, Long> expectedExpiryTimes2 = Map.of(
                 STANDBY_BUCKET_ACTIVE, 0L,
@@ -229,20 +262,21 @@ public class AppIdleHistoryTests extends AndroidTestCase {
         );
         // For PACKAGE_2, there shouldn't be any expiry time since the one set earlier would have
         // elapsed by the time the data was persisted to disk
-        verifyBucketExpiryTimes(aih, PACKAGE_2, USER_ID, 5000 /* elapsedRealtime */,
+        verifyBucketExpiryTimes(aih, PACKAGE_2, USER_ID, /* elapsedRealtime= */ 5000,
                 expectedExpiryTimes2);
     }
 
     private void verifyBucketExpiryTimes(AppIdleHistory aih, String packageName, int userId,
-            long elapsedRealtimeMs, Map<Integer, Long> expectedExpiryTimesMs) throws Exception {
+            long elapsedRealtimeMs, Map<Integer, Long> expectedExpiryTimesMs) {
         for (Map.Entry<Integer, Long> entry : expectedExpiryTimesMs.entrySet()) {
             final int bucket = entry.getKey();
             final long expectedExpiryTimeMs = entry.getValue();
             final long actualExpiryTimeMs = aih.getBucketExpiryTimeMs(packageName, userId, bucket,
                     elapsedRealtimeMs);
-            assertEquals("Unexpected expiry time for pkg=" + packageName + ", userId=" + userId
-                            + ", bucket=" + standbyBucketToString(bucket),
-                    expectedExpiryTimeMs, actualExpiryTimeMs);
+            assertWithMessage("Unexpected expiry time for pkg=" + packageName + ", userId=" + userId
+                            + ", bucket=" + standbyBucketToString(bucket))
+                    .that(actualExpiryTimeMs)
+                    .isEqualTo(expectedExpiryTimeMs);
         }
     }
 }

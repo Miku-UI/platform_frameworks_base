@@ -30,6 +30,7 @@ android_test {
 
     srcs: [
         "src/**/*.kt",
+        "src/**/*.java",
     ],
 
     static_libs: [
@@ -46,6 +47,7 @@ android_test {
         "platform-test-annotations",
         "services.appfunctions",
         "servicestests-core-utils",
+        "testables",
         "truth",
     ],
 

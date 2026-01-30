@@ -19,18 +19,25 @@ package com.android.systemui.statusbar.pipeline.mobile.ui
 import com.android.systemui.Dumpable
 import com.android.systemui.KairosActivatable
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.awaitClose
 import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.launchEffect
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.shade.carrier.ShadeCarrierGroupController
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractorKairos
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.MobileIconsViewModelKairos
+import dagger.Provides
+import dagger.multibindings.ElementsIntoSet
 import java.io.PrintWriter
 import javax.inject.Inject
+import javax.inject.Provider
+import kotlinx.coroutines.CoroutineDispatcher
 
 /**
  * This class is intended to provide a context to collect on the
@@ -49,6 +56,7 @@ constructor(
     val mobileIconsViewModel: MobileIconsViewModelKairos,
     private val logger: MobileViewLogger,
     dumpManager: DumpManager,
+    @Main private val mainDispatcher: CoroutineDispatcher,
 ) : KairosActivatable, Dumpable {
 
     init {
@@ -61,7 +69,7 @@ constructor(
     private var shadeCarrierGroupController: ShadeCarrierGroupController? = null
 
     override fun BuildScope.activate() {
-        launchEffect {
+        launchEffect(name = nameTag("MobileUiAdapterKairos.isCollecting")) {
             isCollecting = true
             awaitClose { isCollecting = false }
         }
@@ -69,7 +77,10 @@ constructor(
         combine(mobileIconsViewModel.subscriptionIds, mobileIconsViewModel.isStackable) { a, b ->
                 Pair(a, b)
             }
-            .observe { (subIds, isStackable) ->
+            .observe(
+                coroutineContext = mainDispatcher,
+                name = nameTag("MobileUiAdapterKairos.notifyIconController"),
+            ) { (subIds, isStackable) ->
                 logger.logUiAdapterSubIdsSentToIconController(subIds, isStackable)
                 lastValue = subIds
                 if (isStackable) {
@@ -91,5 +102,15 @@ constructor(
     override fun dump(pw: PrintWriter, args: Array<out String>) {
         pw.println("isCollecting=$isCollecting")
         pw.println("Last values sent to icon controller: $lastValue")
+    }
+
+    @dagger.Module
+    object Module {
+        @Provides
+        @ElementsIntoSet
+        fun kairosActivatable(
+            impl: Provider<MobileUiAdapterKairos>
+        ): Set<@JvmSuppressWildcards KairosActivatable> =
+            if (StatusBarMobileIconKairos.isEnabled) setOf(impl.get()) else emptySet()
     }
 }

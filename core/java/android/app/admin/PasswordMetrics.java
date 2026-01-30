@@ -68,7 +68,7 @@ import java.util.Objects;
  * A class that represents the metrics of a credential that are used to decide whether or not a
  * credential meets the requirements.
  *
- * {@hide}
+ * @hide
  */
 public final class PasswordMetrics implements Parcelable {
     private static final String TAG = "PasswordMetrics";

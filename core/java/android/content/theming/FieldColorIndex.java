@@ -18,23 +18,16 @@ package android.content.theming;
 
 import android.annotation.FlaggedApi;
 
-import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.util.Objects;
 
 /** @hide */
 @FlaggedApi(android.server.Flags.FLAG_ENABLE_THEME_SERVICE)
-public class FieldColorIndex extends ThemeSettingsField<Integer, String> {
-    public FieldColorIndex(
-            String key,
-            BiConsumer<ThemeSettingsUpdater, Integer> setter,
-            Function<ThemeSettings, Integer> getter,
-            ThemeSettings defaults
-    ) {
-        super(key, setter, getter, defaults);
-    }
-
+public final class FieldColorIndex extends ThemeSettingsField<Integer, String> {
     @Override
     public Integer parse(String primitive) {
+        if (primitive == null) {
+            return null;
+        }
         try {
             return Integer.parseInt(primitive);
         } catch (NumberFormatException e) {
@@ -49,6 +42,7 @@ public class FieldColorIndex extends ThemeSettingsField<Integer, String> {
 
     @Override
     public boolean validate(Integer value) {
+        Objects.requireNonNull(value);
         return value >= -1;
     }
 

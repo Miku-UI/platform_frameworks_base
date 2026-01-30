@@ -77,6 +77,24 @@ public class AppGlobals {
     }
 
     /**
+     * Gets the value of an integer core setting.
+     *
+     * @param key The setting key.
+     * @param defaultValue The setting default value.
+     * @param deviceId The device id associated with the {@link android.content.Context} of the
+     *                 caller.
+     * @return The core settings.
+     */
+    public static int getIntCoreSetting(String key, int defaultValue, int deviceId) {
+        ActivityThread currentActivityThread = ActivityThread.currentActivityThread();
+        if (currentActivityThread != null) {
+            return currentActivityThread.getIntCoreSetting(key, defaultValue, deviceId);
+        } else {
+            return defaultValue;
+        }
+    }
+
+    /**
      * Gets the value of a float core setting.
      *
      * @param key The setting key.

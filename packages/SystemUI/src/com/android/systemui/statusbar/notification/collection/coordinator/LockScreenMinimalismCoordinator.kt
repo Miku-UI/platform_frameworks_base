@@ -28,9 +28,10 @@ import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
-import com.android.systemui.statusbar.notification.collection.PipelineEntry
+import com.android.systemui.statusbar.notification.collection.ListEntry
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
+import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.coordinator.dagger.CoordinatorScope
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifPromoter
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifSectioner
@@ -50,7 +51,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 /**
@@ -131,9 +131,6 @@ constructor(
     }
 
     private fun minimalismFeatureSettingEnabled(): Flow<Boolean> {
-        if (!NotificationMinimalism.isEnabled) {
-            return flowOf(false)
-        }
         return seenNotificationsInteractor.isLockScreenNotificationMinimalismEnabled()
     }
 
@@ -219,8 +216,7 @@ constructor(
                     NotificationMinimalism.isUnexpectedlyInLegacyMode() -> false
                     !minimalismEnabled -> false
                     seenNotificationsInteractor.isTopOngoingNotification(child) -> true
-                    !NotificationMinimalism.ungroupTopUnseen -> false
-                    else -> seenNotificationsInteractor.isTopUnseenNotification(child)
+                    else -> false
                 }
         }
 
@@ -250,6 +246,8 @@ constructor(
 
     private fun PipelineEntry.anyEntry(predicate: (NotificationEntry?) -> Boolean) =
         when {
+            // No need to check BundleEntries, because they are guaranteed to be silent
+            this !is ListEntry -> false
             predicate(representativeEntry) -> true
             this !is GroupEntry -> false
             else -> children.any(predicate)

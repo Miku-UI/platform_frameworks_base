@@ -26,6 +26,7 @@ import com.android.systemui.keyguard.domain.interactor.BurnInInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.BurnInModel
+import com.android.systemui.keyguard.shared.model.BurnInModel.Companion.MAX_LARGE_CLOCK_SCALE
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.ui.StateToValue
@@ -194,7 +195,7 @@ constructor(
             BurnInModel(
                 translationX = MathUtils.lerp(0, burnIn.translationX, interpolated).toInt(),
                 translationY = translationY,
-                scale = MathUtils.lerp(burnIn.scale, 1f, 1f - interpolated),
+                scale = MathUtils.lerp(burnIn.scale, MAX_LARGE_CLOCK_SCALE, 1f - interpolated),
                 scaleClockOnly = useScaleOnly,
             )
         }

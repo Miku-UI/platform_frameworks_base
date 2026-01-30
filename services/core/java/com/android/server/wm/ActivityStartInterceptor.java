@@ -64,6 +64,7 @@ import android.os.UserManager;
 import android.util.Pair;
 import android.util.Slog;
 import android.util.SparseArray;
+import android.view.Display;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.app.BlockedAppActivity;
@@ -158,6 +159,11 @@ class ActivityStartInterceptor {
     }
 
     private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags) {
+        return createIntentSenderForOriginalIntent(callingUid, flags, Display.INVALID_DISPLAY);
+    }
+
+    private IntentSender createIntentSenderForOriginalIntent(int callingUid, int flags,
+            int displayId) {
         ActivityOptions activityOptions = deferCrossProfileAppsAnimationIfNecessary();
         activityOptions.setPendingIntentCreatorBackgroundActivityStartMode(
                 MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
@@ -167,6 +173,9 @@ class ActivityStartInterceptor {
         if (taskFragment != null) {
             activityOptions.setLaunchTaskFragmentToken(taskFragment.getFragmentToken());
         }
+        if (displayId != Display.INVALID_DISPLAY) {
+            activityOptions.setLaunchDisplayId(displayId);
+        }
         final IIntentSender target = mService.getIntentSenderLocked(
                 INTENT_SENDER_ACTIVITY, mCallingPackage, mCallingFeatureId, callingUid, mUserId,
                 null /*token*/, null /*resultCode*/, 0 /*requestCode*/,
@@ -174,7 +183,6 @@ class ActivityStartInterceptor {
                 flags, activityOptions.toBundle());
         return new IntentSender(target);
     }
-
 
     /**
      * A helper function to obtain the targeted {@link TaskFragment} during
@@ -253,6 +261,11 @@ class ActivityStartInterceptor {
             // Replace primary home intents directed at displays that do not support primary home
             // but support secondary home with the relevant secondary home activity. Or the home
             // intent is not in the correct format.
+            return true;
+        }
+
+        if (interceptAutomatedPackageIfNeeded()) {
+            // If the app is currently being automated, we should warn the user about it.
             return true;
         }
 
@@ -552,6 +565,36 @@ class ActivityStartInterceptor {
                     null);
         }
         return intercepted;
+    }
+
+    private boolean interceptAutomatedPackageIfNeeded() {
+        if (!android.companion.virtualdevice.flags.Flags.automatedAppLaunchInterception()) {
+            return false;
+        }
+        if (mAInfo == null || mAInfo.packageName == null || mPresumableLaunchDisplayArea == null) {
+            return false;
+        }
+        Intent intent = mSupervisor.createAutomatedAppLaunchWarningIntent(
+                mAInfo.packageName, mUserId, mCallingPackage,
+                mPresumableLaunchDisplayArea.getDisplayId());
+        if (intent == null) {
+            return false;
+        }
+
+        final IntentSender target = createIntentSenderForOriginalIntent(mCallingUid,
+                FLAG_CANCEL_CURRENT | FLAG_ONE_SHOT | FLAG_IMMUTABLE,
+                mPresumableLaunchDisplayArea.getDisplayId());
+
+        mIntent = intent.putExtra(EXTRA_INTENT, target);
+
+        mCallingPid = mRealCallingPid;
+        mCallingUid = mRealCallingUid;
+        mResolvedType = null;
+
+        mRInfo = mSupervisor.resolveIntent(mIntent, mResolvedType, mUserId, 0,
+                mRealCallingUid, mRealCallingPid);
+        mAInfo = mSupervisor.resolveActivity(mIntent, mRInfo, mStartFlags, null /*profilerInfo*/);
+        return true;
     }
 
     private void normalizeHomeIntent() {

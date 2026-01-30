@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Підключення…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> під’єднано"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Підключення…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Не вдається зв’язати"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Не вдається підключитися"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> під’єднано (без телефона)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> під’єдно (без медіа)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> під’єднано (без телефона й медіа)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Рівень заряду: лівий <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, правий <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Лівий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> заряду акумулятора"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Правий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> заряду акумулятора"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Чохол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> заряду акумулятора"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Лівий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, чохол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> заряду акумулятора"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Правий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, чохол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> заряду акумулятора"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Лівий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, правий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> заряду акумулятора"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Лівий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, чохол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, правий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> заряду акумулятора"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Ліва частина: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Права частина: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Активовано"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Активовано (лише правий)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Активовано (лівий і правий)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Не вдалось оновити стан оточення"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Не вдалось оновити набір налаштувань"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Вибрано"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Активне з’єднання (лише для мультимедіа). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> заряду акумулятора."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Активне з’єднання (лише для мультимедіа). Рівень заряду: лівий <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, правий: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Гостьовий пристрій. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> заряду акумулятора."</string>
@@ -248,7 +257,7 @@
     <string name="choose_profile" msgid="343803890897657450">"Вибрати профіль"</string>
     <string name="category_personal" msgid="6236798763159385225">"Особисті"</string>
     <string name="category_work" msgid="4014193632325996115">"Робочі"</string>
-    <string name="category_private" msgid="4244892185452788977">"Приватний простір"</string>
+    <string name="category_private" msgid="4244892185452788977">"Приватні"</string>
     <string name="category_clone" msgid="1554511758987195974">"Копія профілю"</string>
     <string name="development_settings_title" msgid="140296922921597393">"Параметри розробника"</string>
     <string name="development_settings_enable" msgid="4285094651288242183">"Увімкнути параметри розробника"</string>
@@ -264,7 +273,7 @@
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Вмикати режим налагодження, коли пристрій підключено до мережі Wi-Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Помилка"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"Налагодження через Wi-Fi"</string>
-    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Щоб переглядати та використовувати доступні пристрої, увімкніть налагодження через Wi-Fi"</string>
+    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Щоб переглядати й використовувати доступні пристрої, увімкніть налагодження через Wi-Fi"</string>
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Підключати пристрій за допомогою QR-коду"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Підключати нові пристрої за допомогою сканера QR-кодів"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Підключати пристрій за допомогою коду підключення"</string>
@@ -283,7 +292,7 @@
     <string name="adb_wireless_qrcode_summary" msgid="8051414549011801917">"Підключіть пристрій через Wi‑Fi за допомогою QR-коду"</string>
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Підключення пристрою…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Не вдалося підключитися до пристрою. Надано неправильний QR-код або пристрій не підключено до тієї ж мережі."</string>
-    <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-адреса та порт"</string>
+    <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-адреса й порт"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"Відскануйте QR-код"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Підключіть пристрій через Wi‑Fi за допомогою QR-коду"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Підключіть пристрій до мережі Wi-Fi"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Коли цей режим увімкнено, MAC-адреса пристрою може змінюватися щоразу, коли він підключається до мережі з випадковими MAC-адресами."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"З тарифікацією трафіку"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Без тарифікації трафіку"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Розміри буфера журналу"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Розмір буфера журналу"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Виберіть розміри буфера журналу"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Очистити постійну пам’ять журналу?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Коли постійний журнал більше не відстежується, ми маємо видалити його дані з вашого пристрою."</string>
@@ -401,7 +410,7 @@
     <string name="show_screen_updates_summary" msgid="2126932969682087406">"Підсвічувати вікна повністю під час оновлення"</string>
     <string name="show_hw_screen_updates" msgid="2021286231267747506">"Показувати оновлення областей"</string>
     <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"Підсвічувати оновлені області у вікнах"</string>
-    <string name="show_hw_layers_updates" msgid="5268370750002509767">"Показ. апаратні оновлення"</string>
+    <string name="show_hw_layers_updates" msgid="5268370750002509767">"Показувати апаратні оновлення"</string>
     <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"Виділяти апаратні рівні зеленим під час оновлення"</string>
     <string name="debug_hw_overdraw" msgid="8944851091008756796">"Налагодити накладання GPU"</string>
     <string name="disable_overlays" msgid="4206590799671557143">"Вимк. апаратн. накладання"</string>
@@ -417,8 +426,8 @@
     <string name="transparent_navigation_bar" msgid="1933192171384678484">"Прозора панель навігації"</string>
     <string name="transparent_navigation_bar_summary" msgid="5454359021817330722">"Зробити колір фону панелі навігації прозорим за умовчанням"</string>
     <string name="window_blurs" msgid="6831008984828425106">"Дозволити розмиття вікон"</string>
-    <string name="force_msaa" msgid="4081288296137775550">"Примус. запустити 4x MSAA"</string>
-    <string name="force_msaa_summary" msgid="9070437493586769500">"Увімкнути 4x MSAA в програмах OpenGL ES 2.0"</string>
+    <string name="force_msaa" msgid="4081288296137775550">"Примусово запустити 4x MSAA"</string>
+    <string name="force_msaa_summary" msgid="9070437493586769500">"Увімкнути 4x MSAA в додатках OpenGL ES 2.0"</string>
     <string name="show_non_rect_clip" msgid="7499758654867881817">"Налагодити непрямокутну обрізку"</string>
     <string name="track_frame_time" msgid="522674651937771106">"Обробка HWUI за профілем"</string>
     <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"Увімкнути шари налагодження ГП"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> тому"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Залишилося <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Найменший"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Менший"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Малі елементи"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"За умовчанням"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Великі елементи"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Більші елементи"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Найбільші елементи"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Більший"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Дуже великий"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Надвеликий"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Найбільший"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Спеціальний масштаб (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Меню"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Введіть пароль, щоб скинути налаштування в демо-режимі"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{Підключено 1 пристрій}one{Підключено # пристрій}few{Підключено # пристрої}many{Підключено # пристроїв}other{Підключено # пристрою}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Більше часу."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Менше часу."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Збільшення"</string>
     <string name="cancel" msgid="5665114069455378395">"Скасувати"</string>
     <string name="next" msgid="2699398661093607009">"Далі"</string>
     <string name="back" msgid="5554327870352703710">"Назад"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Якщо ви зміните додаток (<xliff:g id="SWITCHAPP">%1$s</xliff:g>) або аудіовихід, поточну трансляцію буде припинено"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Змінити додаток для трансляції на <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Змінити аудіовихід"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Анімації з підказками для жесту \"Назад\""</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Увімкнути системну анімацію з підказками для жесту \"Назад\"."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Якщо вибрати це налаштування, для жесту \"Назад\" відображатиметься анімація з підказками. У файлі маніфесту атрибуту enableOnBackInvokedCallback додатка потрібно присвоїти значення true."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g>%%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Не вказано"</string>
     <string name="neuter" msgid="2075249330106127310">"Середній рід"</string>

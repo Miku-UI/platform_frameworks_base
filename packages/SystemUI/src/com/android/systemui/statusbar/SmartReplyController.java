@@ -98,10 +98,10 @@ public class SmartReplyController implements Dumpable {
     /**
      * Smart Replies and Actions have been added to the UI.
      */
-    public void smartSuggestionsAdded(final NotificationEntry entry, int replyCount,
+    public void smartSuggestionsAdded(String key, int replyCount,
             int actionCount, boolean generatedByAssistant, boolean editBeforeSending) {
         try {
-            mBarService.onNotificationSmartSuggestionsAdded(entry.getSbn().getKey(), replyCount,
+            mBarService.onNotificationSmartSuggestionsAdded(key, replyCount,
                     actionCount, generatedByAssistant, editBeforeSending);
         } catch (RemoteException e) {
             // Nothing to do, system going down

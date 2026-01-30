@@ -23,20 +23,26 @@ import com.android.systemui.biometrics.data.repository.FakeFingerprintPropertyRe
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.biometrics.shared.model.SensorStrength
-import com.android.systemui.coroutines.collectValues
 import com.android.systemui.keyguard.data.repository.FakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
+import com.android.systemui.keyguard.shared.model.KeyguardState.UNDEFINED
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionState.RUNNING
-import com.android.systemui.keyguard.shared.model.TransitionState.STARTED
 import com.android.systemui.keyguard.shared.model.TransitionStep
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectValues
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.data.repository.Transition
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.flow.flowOf
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,7 +51,6 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
     private lateinit var keyguardTransitionRepository: FakeKeyguardTransitionRepository
     private lateinit var fingerprintPropertyRepository: FakeFingerprintPropertyRepository
     private lateinit var underTest: DreamingToLockscreenTransitionViewModel
@@ -59,9 +64,10 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     @Test
     fun shortcutsAlpha_bothShortcutsReceiveLastValue() =
-        testScope.runTest {
+        kosmos.runTest {
             val valuesLeft by collectValues(underTest.shortcutsAlpha)
             val valuesRight by collectValues(underTest.shortcutsAlpha)
+            startDreamToLockscreenSceneTransition()
 
             keyguardTransitionRepository.sendTransitionSteps(
                 listOf(
@@ -81,9 +87,10 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     @Test
     fun dreamOverlayTranslationY() =
-        testScope.runTest {
+        kosmos.runTest {
             val pixels = 100
             val values by collectValues(underTest.dreamOverlayTranslationY(pixels))
+            startDreamToLockscreenSceneTransition()
 
             keyguardTransitionRepository.sendTransitionSteps(
                 listOf(
@@ -104,8 +111,9 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     @Test
     fun dreamOverlayFadeOut() =
-        testScope.runTest {
+        kosmos.runTest {
             val values by collectValues(underTest.dreamOverlayAlpha)
+            startDreamToLockscreenSceneTransition()
 
             keyguardTransitionRepository.sendTransitionSteps(
                 listOf(
@@ -126,8 +134,9 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     @Test
     fun lockscreenFadeIn() =
-        testScope.runTest {
+        kosmos.runTest {
             val values by collectValues(underTest.lockscreenAlpha)
+            startDreamToLockscreenSceneTransition()
 
             keyguardTransitionRepository.sendTransitionSteps(
                 listOf(
@@ -147,8 +156,9 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     @Test
     fun deviceEntryParentViewFadeIn() =
-        testScope.runTest {
+        kosmos.runTest {
             val values by collectValues(underTest.deviceEntryParentViewAlpha)
+            startDreamToLockscreenSceneTransition()
 
             keyguardTransitionRepository.sendTransitionSteps(
                 listOf(
@@ -168,7 +178,7 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     @Test
     fun deviceEntryBackgroundViewAppear() =
-        testScope.runTest {
+        kosmos.runTest {
             fingerprintPropertyRepository.setProperties(
                 sensorId = 0,
                 strength = SensorStrength.STRONG,
@@ -176,6 +186,7 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
                 sensorLocations = emptyMap(),
             )
             val values by collectValues(underTest.deviceEntryBackgroundViewAlpha)
+            startDreamToLockscreenSceneTransition()
 
             keyguardTransitionRepository.sendTransitionSteps(
                 listOf(
@@ -191,11 +202,13 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
             values.forEach { assertThat(it).isEqualTo(1f) }
         }
+
     @Test
     fun lockscreenTranslationY() =
-        testScope.runTest {
+        kosmos.runTest {
             val pixels = 100
             val values by collectValues(underTest.lockscreenTranslationY(pixels))
+            startDreamToLockscreenSceneTransition()
 
             keyguardTransitionRepository.sendTransitionSteps(
                 listOf(
@@ -212,13 +225,26 @@ class DreamingToLockscreenTransitionViewModelTest : SysuiTestCase() {
             values.forEach { assertThat(it).isIn(Range.closed(-100f, 0f)) }
         }
 
+    private fun Kosmos.startDreamToLockscreenSceneTransition() {
+        if (SceneContainerFlag.isEnabled) {
+            setSceneTransition(
+                Transition(from = Scenes.Dream, to = Scenes.Lockscreen, progress = flowOf(0f))
+            )
+        }
+    }
+
     private fun step(value: Float, state: TransitionState = RUNNING): TransitionStep {
         return TransitionStep(
-            from = DREAMING,
+            from =
+                if (SceneContainerFlag.isEnabled) {
+                    UNDEFINED
+                } else {
+                    DREAMING
+                },
             to = LOCKSCREEN,
             value = value,
             transitionState = state,
-            ownerName = "DreamingToLockscreenTransitionViewModelTest"
+            ownerName = "DreamingToLockscreenTransitionViewModelTest",
         )
     }
 }

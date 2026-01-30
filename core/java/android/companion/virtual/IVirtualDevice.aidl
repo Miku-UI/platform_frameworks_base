@@ -31,22 +31,14 @@ import android.companion.virtual.camera.VirtualCameraConfig;
 import android.content.ComponentName;
 import android.content.IntentFilter;
 import android.graphics.Point;
-import android.graphics.PointF;
 import android.hardware.display.IVirtualDisplayCallback;
 import android.hardware.display.VirtualDisplayConfig;
+import android.hardware.input.IVirtualInputDevice;
 import android.hardware.input.VirtualDpadConfig;
 import android.hardware.input.VirtualKeyboardConfig;
-import android.hardware.input.VirtualKeyEvent;
-import android.hardware.input.VirtualMouseButtonEvent;
 import android.hardware.input.VirtualMouseConfig;
-import android.hardware.input.VirtualMouseRelativeEvent;
-import android.hardware.input.VirtualMouseScrollEvent;
 import android.hardware.input.VirtualRotaryEncoderConfig;
-import android.hardware.input.VirtualRotaryEncoderScrollEvent;
-import android.hardware.input.VirtualStylusButtonEvent;
 import android.hardware.input.VirtualStylusConfig;
-import android.hardware.input.VirtualStylusMotionEvent;
-import android.hardware.input.VirtualTouchEvent;
 import android.hardware.input.VirtualTouchscreenConfig;
 import android.hardware.input.VirtualNavigationTouchpadConfig;
 import android.os.ResultReceiver;
@@ -152,94 +144,40 @@ interface IVirtualDevice {
     /**
      * Creates a new dpad and registers it with the input framework with the given token.
      */
-    void createVirtualDpad(in VirtualDpadConfig config, IBinder token);
+    IVirtualInputDevice createVirtualDpad(in VirtualDpadConfig config, IBinder token);
 
     /**
      * Creates a new keyboard and registers it with the input framework with the given token.
      */
-    void createVirtualKeyboard(in VirtualKeyboardConfig config, IBinder token);
+    IVirtualInputDevice createVirtualKeyboard(in VirtualKeyboardConfig config, IBinder token);
 
     /**
      * Creates a new mouse and registers it with the input framework with the given token.
      */
-    void createVirtualMouse(in VirtualMouseConfig config, IBinder token);
+    IVirtualInputDevice createVirtualMouse(in VirtualMouseConfig config, IBinder token);
 
     /**
      * Creates a new touchscreen and registers it with the input framework with the given token.
      */
-    void createVirtualTouchscreen(in VirtualTouchscreenConfig config, IBinder token);
+    IVirtualInputDevice createVirtualTouchscreen(in VirtualTouchscreenConfig config, IBinder token);
 
     /**
      * Creates a new navigation touchpad and registers it with the input framework with the given
      * token.
      */
-    void createVirtualNavigationTouchpad(in VirtualNavigationTouchpadConfig config, IBinder token);
+    IVirtualInputDevice createVirtualNavigationTouchpad(in VirtualNavigationTouchpadConfig config,
+            IBinder token);
 
     /**
      * Creates a new stylus and registers it with the input framework with the given token.
      */
-    void createVirtualStylus(in VirtualStylusConfig config, IBinder token);
+    IVirtualInputDevice createVirtualStylus(in VirtualStylusConfig config, IBinder token);
 
     /**
      * Creates a new rotary encoder and registers it with the input framework with the given token.
      */
-    void createVirtualRotaryEncoder(in VirtualRotaryEncoderConfig config, IBinder token);
-
-    /**
-     * Removes the input device corresponding to the given token from the framework.
-     */
-    void unregisterInputDevice(IBinder token);
-
-    /**
-     * Returns the ID of the device corresponding to the given token, as registered with the input
-     * framework.
-     */
-    int getInputDeviceId(IBinder token);
-
-    /**
-     * Injects a key event to the virtual dpad corresponding to the given token.
-     */
-    boolean sendDpadKeyEvent(IBinder token, in VirtualKeyEvent event);
-
-    /**
-     * Injects a key event to the virtual keyboard corresponding to the given token.
-     */
-    boolean sendKeyEvent(IBinder token, in VirtualKeyEvent event);
-
-    /**
-     * Injects a button event to the virtual mouse corresponding to the given token.
-     */
-    boolean sendButtonEvent(IBinder token, in VirtualMouseButtonEvent event);
-
-    /**
-     * Injects a relative event to the virtual mouse corresponding to the given token.
-     */
-    boolean sendRelativeEvent(IBinder token, in VirtualMouseRelativeEvent event);
-
-    /**
-     * Injects a scroll event to the virtual mouse corresponding to the given token.
-     */
-    boolean sendScrollEvent(IBinder token, in VirtualMouseScrollEvent event);
-
-    /**
-    * Injects a touch event to the virtual touch input device corresponding to the given token.
-    */
-    boolean sendTouchEvent(IBinder token, in VirtualTouchEvent event);
-
-    /**
-     * Injects a motion event from the virtual stylus input device corresponding to the given token.
-     */
-    boolean sendStylusMotionEvent(IBinder token, in VirtualStylusMotionEvent event);
-
-    /**
-     * Injects a button event from the virtual stylus input device corresponding to the given token.
-     */
-    boolean sendStylusButtonEvent(IBinder token, in VirtualStylusButtonEvent event);
-
-    /**
-     * Injects a scroll event from the virtual rotary encoder corresponding to the given token.
-     */
-    boolean sendRotaryEncoderScrollEvent(IBinder token, in VirtualRotaryEncoderScrollEvent event);
+    IVirtualInputDevice createVirtualRotaryEncoder(in VirtualRotaryEncoderConfig config,
+            IBinder token);
 
     /**
      * Returns all virtual sensors created for this device.
@@ -262,17 +200,14 @@ interface IVirtualDevice {
     void launchPendingIntent(int displayId, in PendingIntent pendingIntent,
             in ResultReceiver resultReceiver);
 
-    /**
-     * Returns the current cursor position of the mouse corresponding to the given token, in x and y
-     * coordinates.
-     */
-    PointF getCursorPosition(IBinder token);
-
     /** Sets whether to show or hide the cursor while this virtual device is active. */
     void setShowPointerIcon(boolean showPointerIcon);
 
     /** Sets an IME policy for the given display. */
     void setDisplayImePolicy(int displayId, int policy);
+
+    /** Sets the UI mode for the given display. */
+    void setDisplayUiMode(int displayId, int uiMode);
 
     /**
      * Registers an intent interceptor that will intercept an intent attempting to launch

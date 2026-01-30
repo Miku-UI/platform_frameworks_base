@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 import android.annotation.NonNull;
 import android.app.usage.NetworkStatsManager;
 import android.net.NetworkStats;
+import android.os.ConditionVariable;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.SparseArray;
@@ -38,14 +39,12 @@ import com.android.internal.os.KernelCpuUidTimeReader.KernelCpuUidUserSysTimeRea
 import com.android.internal.os.KernelSingleUidTimeReader;
 import com.android.internal.os.MonotonicClock;
 import com.android.internal.os.PowerProfile;
-import com.android.internal.power.EnergyConsumerStats;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Queue;
 
 /**
@@ -127,15 +126,10 @@ public class MockBatteryStatsImpl extends BatteryStatsImpl {
         return powerProfile;
     }
 
-    public void initMeasuredEnergyStats(String[] customBucketNames) {
-        final boolean[] supportedStandardBuckets =
-                new boolean[EnergyConsumerStats.NUMBER_STANDARD_POWER_BUCKETS];
-        Arrays.fill(supportedStandardBuckets, true);
-        synchronized (this) {
-            mEnergyConsumerStatsConfig = new EnergyConsumerStats.Config(supportedStandardBuckets,
-                    customBucketNames, new int[0], new String[]{""});
-            mGlobalEnergyConsumerStats = new EnergyConsumerStats(mEnergyConsumerStatsConfig);
-        }
+    public void awaitCompletion() {
+        ConditionVariable done = new ConditionVariable();
+        mHandler.post(done::open);
+        done.block();
     }
 
     public TimeBase getOnBatteryTimeBase() {
@@ -151,9 +145,7 @@ public class MockBatteryStatsImpl extends BatteryStatsImpl {
     }
 
     public Queue<UidToRemove> getPendingRemovedUids() {
-        synchronized (this) {
-            return mPendingRemovedUids;
-        }
+        return mPendingRemovedUids;
     }
 
     public boolean isOnBattery() {
@@ -242,12 +234,6 @@ public class MockBatteryStatsImpl extends BatteryStatsImpl {
         return this;
     }
 
-    public MockBatteryStatsImpl setSystemServerCpuThreadReader(
-            SystemServerCpuThreadReader systemServerCpuThreadReader) {
-        mSystemServerCpuThreadReader = systemServerCpuThreadReader;
-        return this;
-    }
-
     public MockBatteryStatsImpl setUserInfoProvider(UserInfoProvider provider) {
         mUserInfoProvider = provider;
         return this;
@@ -272,6 +258,12 @@ public class MockBatteryStatsImpl extends BatteryStatsImpl {
     public MockBatteryStatsImpl setPerUidModemModel(int perUidModemModel) {
         mConstants.PER_UID_MODEM_MODEL = perUidModemModel;
         mConstants.onChange();
+        return this;
+    }
+
+    public MockBatteryStatsImpl setConsumedEnergyRetriever(
+            PowerStatsCollector.ConsumedEnergyRetriever retriever) {
+        mConsumedEnergyRetriever = retriever;
         return this;
     }
 

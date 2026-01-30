@@ -244,6 +244,7 @@ public class SyncManager {
     private final NotificationManager mNotificationMgr;
     private final IBatteryStats mBatteryStats;
     private JobScheduler mJobScheduler;
+    private volatile boolean mJobSchedulerInitialized;
 
     private SyncStorageEngine mSyncStorageEngine;
 
@@ -574,10 +575,22 @@ public class SyncManager {
         mSyncStorageEngine.setJobAttributionFixed(allSyncsAttributed);
     }
 
-    private synchronized void verifyJobScheduler() {
-        if (mJobScheduler != null) {
-            return;
+    private void verifyJobScheduler() {
+        if (mJobSchedulerInitialized) return;
+        // Initialize JobScheduler
+        synchronized (this) {
+            if (initializeJobScheduler()) {
+                mJobSchedulerInitialized = true;
+            }
         }
+    }
+
+    /**
+     * Initialize JobScheduler connection and load initial sync jobs.
+     * @return true if successfully initialized
+     */
+    @GuardedBy("this")
+    private boolean initializeJobScheduler() {
         final long token = Binder.clearCallingIdentity();
         try {
             if (Log.isLoggable(TAG, Log.VERBOSE)) {
@@ -625,6 +638,8 @@ public class SyncManager {
         } finally {
             Binder.restoreCallingIdentity(token);
         }
+
+        return mJobScheduler != null;
     }
 
     /**
@@ -712,7 +727,13 @@ public class SyncManager {
         mAppCloningDeviceConfigHelper = AppCloningDeviceConfigHelper.getInstance(context);
 
         IntentFilter intentFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-        context.registerReceiver(mConnectivityIntentReceiver, intentFilter);
+
+        if (com.android.server.am.Flags.syncmanagerOffMainThread()) {
+            context.registerReceiver(mConnectivityIntentReceiver, intentFilter, null,
+                    mSyncHandler);
+        } else {
+            context.registerReceiver(mConnectivityIntentReceiver, intentFilter);
+        }
 
         intentFilter = new IntentFilter(Intent.ACTION_SHUTDOWN);
         intentFilter.setPriority(IntentFilter.SYSTEM_HIGH_PRIORITY);
@@ -723,7 +744,8 @@ public class SyncManager {
         intentFilter.addAction(Intent.ACTION_USER_UNLOCKED);
         intentFilter.addAction(Intent.ACTION_USER_STOPPED);
         mContext.registerReceiverAsUser(
-                mUserIntentReceiver, UserHandle.ALL, intentFilter, null, null);
+                mUserIntentReceiver, UserHandle.ALL, intentFilter, null,
+                com.android.server.am.Flags.syncmanagerOffMainThread() ? mSyncHandler : null);
 
 
         mPackageMonitor = new PackageMonitorImpl();

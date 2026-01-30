@@ -22,7 +22,7 @@ import android.telephony.ims.SipDetails;
 /**
  * Interface used by the framework to receive the response of the publish
  * request through {@link RcsCapabilityExchangeImplBase#publishCapabilities}
- * {@hide}
+ * @hide
  */
 oneway interface IPublishResponseCallback {
     void onCommandError(int code);

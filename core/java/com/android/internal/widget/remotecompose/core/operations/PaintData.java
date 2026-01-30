@@ -131,7 +131,7 @@ public class PaintData extends PaintOperation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("paintBundle", mPaintData);
     }
 }

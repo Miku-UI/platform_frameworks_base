@@ -47,8 +47,6 @@ import com.android.compose.animation.scene.content.state.TransitionState.Transit
 import com.android.compose.animation.scene.subjects.assertThat
 import com.android.compose.gesture.NestedDraggable
 import com.android.compose.gesture.effect.OffsetOverscrollEffectFactory
-import com.android.compose.test.MonotonicClockTestScope
-import com.android.compose.test.runMonotonicClockTest
 import com.android.mechanics.spec.InputDirection
 import com.google.common.truth.Truth.assertThat
 import kotlin.math.nextUp
@@ -59,6 +57,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.motion.compose.MonotonicClockTestScope
+import platform.test.motion.compose.runMonotonicClockTest
 
 private const val SCREEN_SIZE = 100f
 private val LAYOUT_SIZE = IntSize(SCREEN_SIZE.toInt(), SCREEN_SIZE.toInt())
@@ -130,6 +130,8 @@ class DraggableHandlerTest {
                     swipeSourceDetector = DefaultEdgeDetector,
                     swipeDetector = DefaultSwipeDetector,
                     transitionInterceptionThreshold = transitionInterceptionThreshold,
+                    decayAnimationSpec =
+                        SplineBasedFloatDecayAnimationSpec(density).generateDecayAnimationSpec(),
                     builder = scenesBuilder,
 
                     // Use testScope and not backgroundScope here because backgroundScope does not
@@ -137,8 +139,6 @@ class DraggableHandlerTest {
                     animationScope = testScope,
                     directionChangeSlop = directionChangeSlop,
                     defaultEffectFactory = defaultEffectFactory,
-                    decayAnimationSpec =
-                        SplineBasedFloatDecayAnimationSpec(density).generateDecayAnimationSpec(),
                 )
                 .apply { setContentsAndLayoutTargetSizeForTest(LAYOUT_SIZE) }
 

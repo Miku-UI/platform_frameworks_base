@@ -21,6 +21,7 @@ import androidx.test.filters.SmallTest
 import com.android.internal.widget.lockPatternUtils
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -40,6 +41,7 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @kotlinx.coroutines.ExperimentalCoroutinesApi
+@DisableSceneContainer
 class KeyguardShowWhileAwakeInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope

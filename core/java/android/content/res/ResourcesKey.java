@@ -31,6 +31,14 @@ import java.util.Objects;
 /** @hide */
 @RavenwoodKeepWholeClass
 public final class ResourcesKey {
+    /**
+     * The identity hash of owner Activity/WindowTokenClient's token. It can be zero for global
+     * resources. If the token identity is set, it means that different
+     * {@link Configuration#windowConfiguration} of {@link #mOverrideConfiguration} cannot be
+     * shared for different tokens.
+     */
+    public final int mTokenIdentity;
+
     @Nullable
     @UnsupportedAppUsage
     public final String mResDir;
@@ -67,14 +75,16 @@ public final class ResourcesKey {
 
     private final int mHash;
 
-    public ResourcesKey(@Nullable String resDir,
-                        @Nullable String[] splitResDirs,
-                        @Nullable String[] overlayPaths,
-                        @Nullable String[] libDirs,
-                        int overrideDisplayId,
-                        @Nullable Configuration overrideConfig,
-                        @Nullable CompatibilityInfo compatInfo,
-                        @Nullable ResourcesLoader[] loader) {
+    public ResourcesKey(int tokenIdentity,
+            @Nullable String resDir,
+            @Nullable String[] splitResDirs,
+            @Nullable String[] overlayPaths,
+            @Nullable String[] libDirs,
+            int overrideDisplayId,
+            @Nullable Configuration overrideConfig,
+            @Nullable CompatibilityInfo compatInfo,
+            @Nullable ResourcesLoader[] loader) {
+        mTokenIdentity = tokenIdentity;
         mResDir = resDir;
         mSplitResDirs = splitResDirs;
         mOverlayPaths = overlayPaths;
@@ -105,8 +115,8 @@ public final class ResourcesKey {
             int displayId,
             @Nullable Configuration overrideConfig,
             @Nullable CompatibilityInfo compatInfo) {
-        this(resDir, splitResDirs, overlayPaths, libDirs, displayId, overrideConfig, compatInfo,
-                null);
+        this(0 /* tokenIdentity */, resDir, splitResDirs, overlayPaths, libDirs, displayId,
+                overrideConfig, compatInfo, null /* loader */);
     }
 
     public boolean hasOverrideConfiguration() {
@@ -165,7 +175,16 @@ public final class ResourcesKey {
         if (mDisplayId != peer.mDisplayId) {
             return false;
         }
-        if (!Objects.equals(mOverrideConfiguration, peer.mOverrideConfiguration)) {
+        if (android.content.res.Flags.ignoreNonPublicConfigDiffForResourcesKey()) {
+            // Different tokens need to have their own ResourcesImpl instances to store different
+            // window configurations.
+            final boolean ignoreWindowConfig = mTokenIdentity == peer.mTokenIdentity;
+            // Do not compare the configuration fields that won't affect resources.
+            if (mOverrideConfiguration.diff(peer.mOverrideConfiguration,
+                    true /* compareUndefined */, ignoreWindowConfig /* publicOnly */) != 0) {
+                return false;
+            }
+        } else if (!Objects.equals(mOverrideConfiguration, peer.mOverrideConfiguration)) {
             return false;
         }
         if (!Objects.equals(mCompatInfo, peer.mCompatInfo)) {

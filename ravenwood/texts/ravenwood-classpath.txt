@@ -1,0 +1,54 @@
+framework-minus-apex.ravenwood.jar
+kxml2-android.jar
+json-prebuilt.jar
+ext-ravenwood.jar
+
+android.test.mock.ravenwood.jar
+hoststubgen-helper-runtime.jar
+
+# Note, when we include other services.* jars, we'll need to add
+# platform_compat_config for that module too.
+# See ravenwood-services.core-platform-compat-config.
+services.core.ravenwood-jarjar.jar
+services.fakes.ravenwood-jarjar.jar
+
+# ICU
+core-icu4j-for-host.ravenwood.jar
+icu4j-icudata-jarjar.jar
+icu4j-icutzdata-jarjar.jar
+
+# DeviceConfig
+framework-configinfrastructure.ravenwood.jar
+
+# StatsD
+framework-statsd.ravenwood.jar
+
+# Graphics
+framework-graphics.ravenwood.jar
+
+# Provide runtime versions of ravenwood-utils
+junit.jar
+truth.jar
+flag-junit.jar
+ravenwood-framework.jar
+ravenwood-junit-impl.jar
+mockito-ravenwood-prebuilt.jar
+inline-mockito-ravenwood-prebuilt.jar
+
+{TEST_JARS}
+
+# Below are the mainline API stubs. We put them after the test jar in the classpath so
+# that the test jar can include its own, non-stub version of mainline classes.
+
+# System API stubs including @SystemApi(MODULE_LIBRARIES),
+# but it doesn't contain libcore APIs, which are included in
+# all-updatable-modules-system-stubs.
+framework-updatable-stubs-module_libs_api.jar
+
+# System API stubs from all mainline modules, including ART,
+# so it contains classes in libcore (including libcore.*, dalvik.*,
+# android.system.*, java.*, org.xml, ...)
+# (It doesn't contain @SystemApi(MODULE_LIBRARIES) APIs, which are
+# covered in framework-updatable-stubs-module_libs_api. Libcore
+# doesn't have MODULE_LIBRARIES APIs.)
+all-updatable-modules-system-stubs.jar

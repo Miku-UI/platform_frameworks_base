@@ -60,10 +60,11 @@ class ScrimShadeTransitionControllerTest : SysuiTestCase() {
         deviceUnlockedInteractor = kosmos.deviceUnlockedInteractor
         sceneInteractor = kosmos.sceneInteractor
         fakeSceneDataSource = kosmos.fakeSceneDataSource
-        underTest = ScrimShadeTransitionController(
-            shadeExpansionStateManager,
-            dumpManager,
-            scrimController,
+        underTest =
+            ScrimShadeTransitionController(
+                shadeExpansionStateManager,
+                dumpManager,
+                { scrimController },
             )
         underTest.init()
     }
@@ -94,10 +95,6 @@ class ScrimShadeTransitionControllerTest : SysuiTestCase() {
 
     companion object {
         val DEFAULT_EXPANSION_EVENT =
-            ShadeExpansionChangeEvent(
-                fraction = 0.5f,
-                expanded = true,
-                tracking = true
-            )
+            ShadeExpansionChangeEvent(fraction = 0.5f, expanded = true, tracking = true)
     }
 }

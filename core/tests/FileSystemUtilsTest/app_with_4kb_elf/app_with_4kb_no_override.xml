@@ -22,7 +22,7 @@
         <uses-library android:name="android.test.runner"/>
         <activity android:name=".MainActivity"
                   android:exported="true"
-                  android:label="Home page"
+                  android:label="Home"
                   android:process=":NewProcess">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>

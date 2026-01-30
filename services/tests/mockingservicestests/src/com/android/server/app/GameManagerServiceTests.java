@@ -246,7 +246,6 @@ public class GameManagerServiceTests {
         LocalServices.addService(PowerManagerInternal.class, mMockPowerManager);
 
         mSetFlagsRule.enableFlags(Flags.FLAG_GAME_DEFAULT_FRAME_RATE);
-        mSetFlagsRule.disableFlags(Flags.FLAG_DISABLE_GAME_MODE_WHEN_APP_TOP);
     }
 
     private void mockAppCategory(String packageName, int packageUid,
@@ -2403,8 +2402,7 @@ public class GameManagerServiceTests {
     }
 
     @Test
-    public void testGamePowerMode_gameAndNotGameApps_flagOn() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_DISABLE_GAME_MODE_WHEN_APP_TOP);
+    public void testGamePowerMode_gameAndNotGameApps() throws Exception {
         GameManagerService gameManagerService = new GameManagerService(mMockContext,
                 mTestLooper.getLooper());
         int userId = ActivityManager.getCurrentUser();
@@ -2487,70 +2485,6 @@ public class GameManagerServiceTests {
                 gameUid2, ActivityManager.PROCESS_STATE_TRANSIENT_BACKGROUND, 0, 0);
         verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, true);
         verify(mMockPowerManager, times(1)).setPowerMode(Mode.GAME, false);
-        clearInvocations(mMockPowerManager);
-    }
-
-    @Test
-    public void testGamePowerMode_gameAndNotGameApps_flagOff() throws Exception {
-        mSetFlagsRule.disableFlags(Flags.FLAG_DISABLE_GAME_MODE_WHEN_APP_TOP);
-        int userId = ActivityManager.getCurrentUser();
-        GameManagerService gameManagerService = new GameManagerService(mMockContext,
-                mTestLooper.getLooper());
-
-        String nonGamePkg1 = "not.game1";
-        int nonGameUid1 = DEFAULT_PACKAGE_UID + 1;
-        mockAppCategory(nonGamePkg1, nonGameUid1, ApplicationInfo.CATEGORY_IMAGE, userId);
-
-        String gamePkg1 = "game1";
-        int gameUid1 = DEFAULT_PACKAGE_UID + 3;
-        mockAppCategory(gamePkg1, gameUid1, ApplicationInfo.CATEGORY_GAME, userId);
-
-        // non-game1 top and background with no-op
-        gameManagerService.mUidObserver.onUidStateChanged(
-                nonGameUid1, ActivityManager.PROCESS_STATE_TOP, 0, 0);
-        gameManagerService.mUidObserver.onUidStateChanged(
-                nonGameUid1, ActivityManager.PROCESS_STATE_TRANSIENT_BACKGROUND, 0, 0);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, true);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, false);
-        clearInvocations(mMockPowerManager);
-
-        // game1 top to enable game mode
-        gameManagerService.mUidObserver.onUidStateChanged(
-                gameUid1, ActivityManager.PROCESS_STATE_TOP, 0, 0);
-        verify(mMockPowerManager, times(1)).setPowerMode(Mode.GAME, true);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, false);
-        clearInvocations(mMockPowerManager);
-
-        // non-game1 in foreground to not interfere
-        gameManagerService.mUidObserver.onUidStateChanged(
-                nonGameUid1, ActivityManager.PROCESS_STATE_TOP, 0, 0);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, true);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, false);
-        clearInvocations(mMockPowerManager);
-
-        // non-game 1 in background to not interfere
-        gameManagerService.mUidObserver.onUidStateChanged(
-                nonGameUid1, ActivityManager.PROCESS_STATE_TRANSIENT_BACKGROUND, 0, 0);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, true);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, false);
-        clearInvocations(mMockPowerManager);
-
-        // move non-game1 to foreground again
-        gameManagerService.mUidObserver.onUidStateChanged(
-                nonGameUid1, ActivityManager.PROCESS_STATE_TOP, 0, 0);
-
-        // with non-game1 on top, game 1 in background to still disable game mode
-        gameManagerService.mUidObserver.onUidStateChanged(
-                gameUid1, ActivityManager.PROCESS_STATE_TRANSIENT_BACKGROUND, 0, 0);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, true);
-        verify(mMockPowerManager, times(1)).setPowerMode(Mode.GAME, false);
-        clearInvocations(mMockPowerManager);
-
-        // with non-game1 on top, game 1 in foreground to still enable game mode
-        gameManagerService.mUidObserver.onUidStateChanged(
-                gameUid1, ActivityManager.PROCESS_STATE_TOP, 0, 0);
-        verify(mMockPowerManager, times(1)).setPowerMode(Mode.GAME, true);
-        verify(mMockPowerManager, never()).setPowerMode(Mode.GAME, false);
         clearInvocations(mMockPowerManager);
     }
 

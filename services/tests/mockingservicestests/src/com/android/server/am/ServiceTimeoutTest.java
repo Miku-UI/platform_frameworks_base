@@ -30,10 +30,8 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.timeout;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import android.app.IApplicationThread;
 import android.app.usage.UsageStatsManagerInternal;
 import android.content.ComponentName;
 import android.content.Context;
@@ -58,8 +56,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import java.io.File;
 
 /**
  * Test class for the service timeout.
@@ -109,9 +105,9 @@ public final class ServiceTimeoutTest {
         final ActivityManagerService realAms = new ActivityManagerService(
                 new TestInjector(mContext), mServiceThreadRule.getThread());
         realAms.mActivityTaskManager = new ActivityTaskManagerService(mContext);
-        realAms.mActivityTaskManager.initialize(null, null, mContext.getMainLooper());
+        realAms.mActivityTaskManager.initialize(null, null, realAms.mProcessStateController,
+                mContext.getMainLooper());
         realAms.mAtmInternal = spy(realAms.mActivityTaskManager.getAtmInternal());
-        realAms.mOomAdjuster.mCachedAppOptimizer = spy(realAms.mOomAdjuster.mCachedAppOptimizer);
         realAms.mPackageManagerInt = mPackageManagerInt;
         realAms.mUsageStatsService = mUsageStatsManagerInt;
         realAms.mProcessesReady = true;
@@ -151,7 +147,7 @@ public final class ServiceTimeoutTest {
         final long now = SystemClock.uptimeMillis();
         final ServiceRecord sr = spy(ServiceRecord.newEmptyInstanceForTest(mAms));
         doNothing().when(sr).dump(any(), anyString());
-        sr.startRequested = true;
+        sr.setStartRequested(true);
         sr.executingStart = now;
 
         app.mServices.startExecutingService(sr);
@@ -178,8 +174,7 @@ public final class ServiceTimeoutTest {
         }
 
         @Override
-        public AppOpsService getAppOpsService(File recentAccessesFile, File storageFile,
-                Handler handler) {
+        public AppOpsService getAppOpsService(Handler handler) {
             return mAppOpsService;
         }
 

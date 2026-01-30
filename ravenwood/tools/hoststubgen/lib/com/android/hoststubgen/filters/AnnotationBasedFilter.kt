@@ -47,6 +47,7 @@ class AnnotationBasedFilter(
     keepAnnotations_: Set<String>,
     keepClassAnnotations_: Set<String>,
     throwAnnotations_: Set<String>,
+    throwButSupportedAnnotations_: Set<String>,
     removeAnnotations_: Set<String>,
     ignoreAnnotations_: Set<String>,
     substituteAnnotations_: Set<String>,
@@ -64,11 +65,12 @@ class AnnotationBasedFilter(
      * policy.
      */
     var annotationAllowedMembers: OutputFilter =
-        ConstantFilter(FilterPolicy.Remove, "default disallowed")
+        ConstantFilter(FilterPolicy.Remove.withReason("default disallowed"))
 
     private val keepAnnotations = convertToInternalNames(keepAnnotations_)
     private val keepClassAnnotations = convertToInternalNames(keepClassAnnotations_)
     private val throwAnnotations = convertToInternalNames(throwAnnotations_)
+    private val throwButSupportedAnnotations = convertToInternalNames(throwButSupportedAnnotations_)
     private val removeAnnotations = convertToInternalNames(removeAnnotations_)
     private val ignoreAnnotations = convertToInternalNames(ignoreAnnotations_)
     private val redirectAnnotations = convertToInternalNames(redirectAnnotations_)
@@ -86,6 +88,7 @@ class AnnotationBasedFilter(
     private val visibilityAnnotations = keepAnnotations +
             keepClassAnnotations +
             throwAnnotations +
+            throwButSupportedAnnotations +
             removeAnnotations +
             ignoreAnnotations +
             redirectAnnotations +
@@ -110,6 +113,7 @@ class AnnotationBasedFilter(
         keepAnnotations_ +
                 keepClassAnnotations_ +
                 throwAnnotations_ +
+                throwButSupportedAnnotations_ +
                 removeAnnotations_ +
                 redirectAnnotations_ +
                 substituteAnnotations_ +
@@ -127,6 +131,8 @@ class AnnotationBasedFilter(
             in keepClassAnnotations -> FilterPolicy.KeepClass.withReason(REASON_CLASS_ANNOTATION)
             in substituteAnnotations -> FilterPolicy.Substitute.withReason(REASON_ANNOTATION)
             in throwAnnotations -> FilterPolicy.Throw.withReason(REASON_ANNOTATION)
+            in throwButSupportedAnnotations -> FilterPolicy.Throw.withReason(
+                REASON_ANNOTATION + "(ThrowButSupported)", StatsLabel.Supported)
             in removeAnnotations -> FilterPolicy.Remove.withReason(REASON_ANNOTATION)
             in ignoreAnnotations -> FilterPolicy.Ignore.withReason(REASON_ANNOTATION)
             in redirectAnnotations -> FilterPolicy.Redirect.withReason(REASON_ANNOTATION)

@@ -36,6 +36,8 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
+import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.util.concurrency.DelayableExecutor
 import com.android.systemui.util.settings.SecureSettings
@@ -49,7 +51,7 @@ import kotlin.math.roundToInt
 class FontScalingDialogDelegate
 @Inject
 constructor(
-    private val context: Context,
+    @ShadeDisplayAware private val context: Context,
     private val systemUIDialogFactory: SystemUIDialog.Factory,
     private val layoutInflater: LayoutInflater,
     private val systemSettings: SystemSettings,
@@ -58,6 +60,7 @@ constructor(
     private val userTracker: UserTracker,
     @Main mainHandler: Handler,
     @Background private val backgroundDelayableExecutor: DelayableExecutor,
+    private val shadeDialogContextInteractor: ShadeDialogContextInteractor,
 ) : SystemUIDialog.Delegate {
     private val MIN_UPDATE_INTERVAL_MS: Long = 800
     private val CHANGE_BY_SEEKBAR_DELAY_MS: Long = 100
@@ -80,7 +83,8 @@ constructor(
             }
         }
 
-    override fun createDialog(): SystemUIDialog = systemUIDialogFactory.create(this)
+    override fun createDialog(): SystemUIDialog =
+        systemUIDialogFactory.create(this, shadeDialogContextInteractor.context)
 
     override fun beforeCreate(dialog: SystemUIDialog, savedInstanceState: Bundle?) {
         dialog.setTitle(R.string.font_scaling_dialog_title)

@@ -19,7 +19,7 @@ package android.telephony.satellite.stub;
 import android.telephony.satellite.stub.SatelliteSubscriptionInfo;
 
 /**
- * {@hide}
+ * @hide
  */
  parcelable SatelliteModemEnableRequestAttributes {
     /**

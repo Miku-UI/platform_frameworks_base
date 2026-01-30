@@ -32,10 +32,10 @@ import com.android.systemui.dagger.qualifiers.LongRunning
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
 import com.android.systemui.res.R
-import com.android.systemui.screenrecord.RecordingController
 import com.android.systemui.screenrecord.RecordingService
 import com.android.systemui.screenrecord.RecordingServiceStrings
 import com.android.systemui.screenrecord.ScreenMediaRecorder.SavedRecording
+import com.android.systemui.screenrecord.ScreenRecordUxController
 import com.android.systemui.settings.UserContextProvider
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil
 import com.android.traceur.MessageConstants.INTENT_EXTRA_TRACE_TYPE
@@ -47,7 +47,7 @@ import javax.inject.Inject
 class IssueRecordingService
 @Inject
 constructor(
-    controller: RecordingController,
+    controller: ScreenRecordUxController,
     @LongRunning private val bgExecutor: Executor,
     @Main handler: Handler,
     uiEventLogger: UiEventLogger,

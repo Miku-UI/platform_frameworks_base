@@ -33,6 +33,7 @@ import com.android.systemui.bouncer.ui.BouncerView
 import com.android.systemui.bouncer.ui.BouncerViewDelegate
 import com.android.systemui.classifier.FalsingCollector
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.DismissCallbackRegistry
 import com.android.systemui.keyguard.data.repository.FakeTrustRepository
 import com.android.systemui.plugins.ActivityStarter
@@ -59,6 +60,7 @@ import org.mockito.MockitoAnnotations
 @SmallTest
 @RunWithLooper(setAsMainLooper = true)
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class PrimaryBouncerInteractorTest : SysuiTestCase() {
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private lateinit var repository: KeyguardBouncerRepository

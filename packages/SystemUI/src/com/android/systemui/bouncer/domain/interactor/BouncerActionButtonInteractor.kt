@@ -22,6 +22,7 @@ import android.app.ActivityTaskManager
 import android.content.Context
 import android.content.Intent
 import android.os.UserHandle
+import android.security.Flags.secureLockDevice
 import android.telecom.TelecomManager
 import com.android.internal.R
 import com.android.internal.logging.MetricsLogger
@@ -30,6 +31,7 @@ import com.android.internal.util.EmergencyAffordanceManager
 import com.android.systemui.authentication.domain.interactor.AuthenticationInteractor
 import com.android.systemui.bouncer.data.repository.EmergencyServicesRepository
 import com.android.systemui.bouncer.shared.model.BouncerActionButtonModel
+import com.android.systemui.bouncer.shared.model.SecureLockDeviceBouncerActionButtonModel
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
@@ -37,6 +39,7 @@ import com.android.systemui.doze.DozeLogger
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionsRepository
 import com.android.systemui.telephony.domain.interactor.TelephonyInteractor
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
@@ -67,6 +70,7 @@ constructor(
     private val telephonyInteractor: TelephonyInteractor,
     private val authenticationInteractor: AuthenticationInteractor,
     private val selectedUserInteractor: SelectedUserInteractor,
+    private val secureLockDeviceInteractor: SecureLockDeviceInteractor,
     private val activityTaskManager: ActivityTaskManager,
     private val telecomManager: TelecomManager?,
     private val emergencyAffordanceManager: EmergencyAffordanceManager,
@@ -101,6 +105,38 @@ constructor(
                 }
                 .distinctUntilChanged()
         }
+
+    /**
+     * The secure lock device biometric auth bouncer action button. If `null`, the button should not
+     * be shown.
+     */
+    val secureLockDeviceActionButton: Flow<SecureLockDeviceBouncerActionButtonModel?> =
+        merge(
+                secureLockDeviceInteractor.showConfirmBiometricAuthButton.asUnitFlow,
+                secureLockDeviceInteractor.showTryAgainButton.asUnitFlow,
+            )
+            .map {
+                when {
+                    isConfirmStrongBiometricAuthButton() ->
+                        SecureLockDeviceBouncerActionButtonModel
+                            .ConfirmStrongBiometricAuthButtonModel(
+                                labelResourceId =
+                                    com.android.systemui.res.R.string.biometric_dialog_confirm,
+                                contentDescId =
+                                    com.android.systemui.res.R.string
+                                        .accessibility_confirm_biometric_auth_to_unlock,
+                            )
+                    isTryAgainButton() ->
+                        SecureLockDeviceBouncerActionButtonModel.TryAgainButtonModel(
+                            labelResourceId =
+                                com.android.systemui.res.R.string.biometric_dialog_try_again,
+                            contentDescId =
+                                com.android.systemui.res.R.string.accessibility_retry_face_auth,
+                        )
+                    else -> null // Do not show the button.
+                }
+            }
+            .distinctUntilChanged()
 
     fun onReturnToCallButtonClicked() {
         prepareToPerformAction()
@@ -155,6 +191,14 @@ constructor(
                 authenticationInteractor.getAuthenticationMethod().isSecure
             }
         }
+    }
+
+    private fun isConfirmStrongBiometricAuthButton(): Boolean {
+        return secureLockDevice() && secureLockDeviceInteractor.showConfirmBiometricAuthButton.value
+    }
+
+    private fun isTryAgainButton(): Boolean {
+        return secureLockDevice() && secureLockDeviceInteractor.showTryAgainButton.value
     }
 
     private fun prepareToPerformAction() {

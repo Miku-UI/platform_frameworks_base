@@ -43,10 +43,7 @@ import com.google.errorprone.matchers.Description;
 import com.google.errorprone.matchers.Matcher;
 import com.google.errorprone.matchers.MethodVisibility.Visibility;
 import com.google.errorprone.util.ASTHelpers;
-import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.Tree;
-import com.sun.source.util.TreePath;
 import com.sun.tools.javac.code.Symbol;
 import com.sun.tools.javac.code.Symbol.MethodSymbol;
 
@@ -69,13 +66,10 @@ public final class BluetoothPermissionChecker extends BugChecker implements Meth
             methodHasVisibility(Visibility.PUBLIC),
             not(isStatic()),
             not(methodIsConstructor()),
-            not(enclosingClass(isInsideParcelable())),
             not(enclosingClass(simpleNameMatches(Pattern.compile(".+Callback$")))),
             not(enclosingClass(isSubtypeOf("android.bluetooth.BluetoothProfileConnector"))),
             not(enclosingClass(isSubtypeOf("android.app.PropertyInvalidatedCache"))));
 
-    private static final Matcher<ClassTree> PARCELABLE_CLASS =
-            isSubtypeOf("android.os.Parcelable");
     private static final Matcher<MethodTree> BINDER_METHOD = enclosingClass(
             isSubtypeOf("android.os.IInterface"));
 
@@ -91,6 +85,10 @@ public final class BluetoothPermissionChecker extends BugChecker implements Meth
             methodIsNamed("finalize"),
             methodIsNamed("equals"),
             methodIsNamed("hashCode"),
+            methodIsNamed("writeToParcel"),
+            methodIsNamed("describeContents"),
+            methodIsNamed("createFromParcel"),
+            methodIsNamed("newArray"),
             methodIsNamed("toString"));
 
     private static final String PERMISSION_ADVERTISE = "android.permission.BLUETOOTH_ADVERTISE";
@@ -195,21 +193,5 @@ public final class BluetoothPermissionChecker extends BugChecker implements Meth
 
     private boolean isSuppressed(SuppressLint anno) {
         return (anno != null) && !Collections.disjoint(Arrays.asList(anno.value()), allNames());
-    }
-
-    private static Matcher<ClassTree> isInsideParcelable() {
-        return new Matcher<ClassTree>() {
-            @Override
-            public boolean matches(ClassTree tree, VisitorState state) {
-                final TreePath path = state.getPath();
-                for (Tree node : path) {
-                    if (node instanceof ClassTree
-                            && PARCELABLE_CLASS.matches((ClassTree) node, state)) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        };
     }
 }

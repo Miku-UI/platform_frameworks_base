@@ -133,17 +133,10 @@ public class ProtoLogViewerConfigReaderTest {
         Assume.assumeFalse(Build.FINGERPRINT.contains("robolectric"));
 
         final String[] viewerConfigPaths;
-        if (android.tracing.Flags.perfettoProtologTracing()) {
-            viewerConfigPaths = new String[] {
-                    "/system_ext/etc/wmshell.protolog.pb",
-                    "/system/etc/core.protolog.pb",
-            };
-        } else {
-            viewerConfigPaths = new String[] {
-                    "/system_ext/etc/wmshell.protolog.json.gz",
-                    "/system/etc/protolog.conf.json.gz",
-            };
-        }
+        viewerConfigPaths = new String[] {
+                "/system_ext/etc/wmshell.protolog.pb",
+                "/system/etc/core.protolog.pb",
+        };
 
         for (final var viewerConfigPath : viewerConfigPaths) {
             File f = new File(viewerConfigPath);
@@ -169,5 +162,22 @@ public class ProtoLogViewerConfigReaderTest {
         Truth.assertThat(mConfig.messageHashIsAvailableInFile(4)).isTrue();
         Truth.assertThat(mConfig.messageHashIsAvailableInFile(5)).isTrue();
         Truth.assertThat(mConfig.messageHashIsAvailableInFile(6)).isFalse();
+    }
+
+    @Test
+    public void testGetMessageDataForHashFromFile() throws IOException {
+        ProtoLogViewerConfigReader.MessageData data1 =
+                mConfig.getMessageDataForHashFromFile(1);
+        Truth.assertThat(data1).isNotNull();
+        Truth.assertThat(data1.message).isEqualTo("My Test Log Message 1 %b");
+        Truth.assertThat(data1.group).isEqualTo(TEST_GROUP_NAME);
+
+        ProtoLogViewerConfigReader.MessageData data4 =
+                mConfig.getMessageDataForHashFromFile(4);
+        Truth.assertThat(data4).isNotNull();
+        Truth.assertThat(data4.message).isEqualTo("My Test Log Message 4 %b");
+        Truth.assertThat(data4.group).isEqualTo(OTHER_TEST_GROUP_NAME);
+
+        Truth.assertThat(mConfig.getMessageDataForHashFromFile(6)).isNull();
     }
 }

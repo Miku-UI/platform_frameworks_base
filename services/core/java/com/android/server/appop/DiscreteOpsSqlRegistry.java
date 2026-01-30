@@ -141,9 +141,11 @@ public class DiscreteOpsSqlRegistry extends DiscreteOpsRegistry {
 
     @Override
     void offsetHistory(long offset) {
-        mDiscreteOpCache.offsetTimestamp(offset);
-        mDiscreteOpsDbHelper.execSQL(DiscreteOpsTable.OFFSET_ACCESS_TIME,
-                new Object[]{offset});
+        synchronized (mDiscreteOpCache) {
+            mDiscreteOpCache.offsetTimestamp(offset);
+            mDiscreteOpsDbHelper.execSQL(DiscreteOpsTable.OFFSET_ACCESS_TIME,
+                    new Object[]{offset});
+        }
     }
 
     private IntArray getAppOpCodes(@AppOpsManager.HistoricalOpsRequestFilter int filter,
@@ -247,7 +249,7 @@ public class DiscreteOpsSqlRegistry extends DiscreteOpsRegistry {
         pw.println();
     }
 
-    void migrateXmlData(List<DiscreteOp> opEvents, int chainIdOffset) {
+    void migrateDiscreteAppOpHistory(List<DiscreteOp> opEvents, long chainIdOffset) {
         mChainIdOffset = chainIdOffset;
         mDiscreteOpsDbHelper.insertDiscreteOps(opEvents);
     }
@@ -498,7 +500,7 @@ public class DiscreteOpsSqlRegistry extends DiscreteOpsRegistry {
                 if (mCache.isEmpty()) {
                     return evictedOps;
                 }
-                for (DiscreteOp discreteOp: mCache) {
+                for (DiscreteOp discreteOp : mCache) {
                     if (ops.contains(discreteOp.getOpCode())) {
                         evictedOps.add(discreteOp);
                     }
@@ -576,16 +578,15 @@ public class DiscreteOpsSqlRegistry extends DiscreteOpsRegistry {
         private final long mDiscretizedDuration;
 
         DiscreteOp(int uid, String packageName, String attributionTag, String deviceId,
-                int opCode,
-                int mOpFlags, int mAttributionFlags, int uidState, long chainId, long accessTime,
-                long duration) {
+                int opCode, int opFlags, int attributionFlags, int uidState, long chainId,
+                long accessTime, long duration) {
             this.mUid = uid;
             this.mPackageName = packageName.intern();
             this.mAttributionTag = attributionTag;
             this.mDeviceId = deviceId;
             this.mOpCode = opCode;
-            this.mOpFlags = mOpFlags;
-            this.mAttributionFlags = mAttributionFlags;
+            this.mOpFlags = opFlags;
+            this.mAttributionFlags = attributionFlags;
             this.mUidState = uidState;
             this.mChainId = chainId;
             this.mAccessTime = accessTime;
@@ -746,8 +747,8 @@ public class DiscreteOpsSqlRegistry extends DiscreteOpsRegistry {
     }
 
     // API for testing and migration
-    void deleteDatabase() {
+    boolean deleteDatabase() {
         mDiscreteOpsDbHelper.close();
-        mContext.deleteDatabase(mDatabaseFile.getName());
+        return mContext.deleteDatabase(mDatabaseFile.getAbsolutePath());
     }
 }

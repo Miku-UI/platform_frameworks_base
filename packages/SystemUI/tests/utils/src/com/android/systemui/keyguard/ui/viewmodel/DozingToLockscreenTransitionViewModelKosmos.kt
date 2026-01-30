@@ -23,5 +23,6 @@ import com.android.systemui.kosmos.Kosmos.Fixture
 val Kosmos.dozingToLockscreenTransitionViewModel by Fixture {
     DozingToLockscreenTransitionViewModel(
         animationFlow = keyguardTransitionAnimationFlow,
+        dozingTransitionFlows = dozingTransitionFlows,
     )
 }

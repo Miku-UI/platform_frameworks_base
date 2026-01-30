@@ -16,15 +16,7 @@
 package com.android.hoststubgen
 
 import java.io.PrintWriter
-import java.util.zip.CRC32
-import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
-import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
-import org.apache.commons.compress.archivers.zip.ZipFile
-
-/**
- * Whether to skip compression when adding processed entries back to a zip file.
- */
-private const val SKIP_COMPRESSION = false
+import kotlin.system.exitProcess
 
 /**
  * Name of this executable. Set it in the main method.
@@ -47,6 +39,22 @@ fun normalizeTextLine(s: String): String {
     // Remove surrounding whitespace.
     return uncommented.trim()
 }
+
+/**
+ * Get the inline comment in a string. (Opposite of [normalizeTextLine])
+ */
+fun getInlineComment(s: String): String {
+    val pos = s.indexOf('#')
+    if (pos < 0) {
+        return ""
+    }
+    return s.substring(pos + 1).trim()
+}
+
+// Note, Soong clears unknown env vars, so $HSG_ALWAYS_SHOW_STACKTRACE doesn't work
+// if the command is executed on soong. In that case, you need to change this flag directly.
+val ALWAYS_SHOW_STACKTRACE: Boolean = false ||
+    "1".equals(System.getenv("HSG_ALWAYS_SHOW_STACKTRACE"))
 
 /**
  * Concatenate list [a] and [b] and return it. As an optimization, it returns an input
@@ -117,39 +125,13 @@ inline fun runMainWithBoilerplate(realMain: () -> Unit) {
         success = true
     } catch (e: Throwable) {
         log.e("$executableName: Error: ${e.message}")
-        if (e !is UserErrorException) {
+        if (e !is UserErrorException || ALWAYS_SHOW_STACKTRACE) {
             e.printStackTrace(PrintWriter(log.getWriter(LogLevel.Error)))
         }
     } finally {
         log.i("$executableName finished")
-        log.flush()
+        allLoggers.forEach { it.flush() }
     }
 
-    System.exit(if (success) 0 else 1 )
-}
-
-/**
- * Copy a single ZIP entry to the output.
- */
-fun copyZipEntry(
-    inZip: ZipFile,
-    entry: ZipArchiveEntry,
-    out: ZipArchiveOutputStream,
-) {
-    inZip.getRawInputStream(entry).use { out.addRawArchiveEntry(entry, it) }
-}
-
-/**
- * Add a single ZIP entry with data.
- */
-fun ZipArchiveOutputStream.addBytesEntry(name: String, data: ByteArray) {
-    val newEntry = ZipArchiveEntry(name)
-    if (SKIP_COMPRESSION) {
-        newEntry.method = 0
-        newEntry.size = data.size.toLong()
-        newEntry.crc = CRC32().apply { update(data) }.value
-    }
-    putArchiveEntry(newEntry)
-    write(data)
-    closeArchiveEntry()
+    exitProcess(if (success) 0 else 1)
 }

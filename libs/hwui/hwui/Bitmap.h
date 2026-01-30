@@ -50,6 +50,8 @@ enum class BitmapPalette {
     Light,
     Dark,
     Colorful,
+    Barcode,
+    GrayScale,
 };
 
 namespace uirenderer {
@@ -62,6 +64,8 @@ class RenderThread;
 class PixelStorage;
 
 typedef void (*FreeFunc)(void* addr, void* context);
+
+static constexpr uint64_t UNDEFINED_BITMAP_ID = 0u;
 
 class Bitmap : public SkPixelRef {
 public:
@@ -98,7 +102,7 @@ public:
                                     BitmapPalette palette);
 #endif
     static sk_sp<Bitmap> createFrom(const SkImageInfo& info, size_t rowBytes, int fd, void* addr,
-                                    size_t size, bool readOnly, int64_t id);
+                                    size_t size, bool readOnly);
     static sk_sp<Bitmap> createFrom(const SkImageInfo&, SkPixelRef&);
 
     int rowBytesAsPixels() const { return rowBytes() >> mInfo.shiftPerPixel(); }
@@ -111,6 +115,9 @@ public:
     uint64_t getId() const {
         return mId;
     }
+
+    uint64_t getSourceId() const { return mSourceId; }
+    void setSourceId(uint64_t sourceId) { mSourceId = sourceId; }
 
     void getSkBitmap(SkBitmap* outBitmap);
 
@@ -166,6 +173,11 @@ public:
         return mPalette;
     }
 
+    void setPalette(BitmapPalette palette) {
+        mPalette = palette;
+        mPaletteGenerationId = getGenerationID();
+    }
+
   // returns true if rowBytes * height can be represented by a positive int32_t value
   // and places that value in size.
   static bool computeAllocationSize(size_t rowBytes, int height, size_t* size);
@@ -184,8 +196,6 @@ public:
 
   static bool compress(const SkBitmap& bitmap, JavaCompressFormat format,
                        int32_t quality, SkWStream* stream);
-
-    static constexpr uint64_t UNDEFINED_BITMAP_ID = 0u;
 private:
     static sk_sp<Bitmap> allocateAshmemBitmap(size_t size, const SkImageInfo& i, size_t rowBytes);
 
@@ -241,6 +251,8 @@ private:
     sk_sp<SkImage> mImage;  // Cache is used only for HW Bitmaps with Skia pipeline.
 
     uint64_t mId;                // unique ID for this bitmap
+    // source Id where this bitmap is orignated from
+    uint64_t mSourceId = -1;
     static uint64_t getId(PixelStorageType type);
 
     // for tracing total number and memory usage of bitmaps

@@ -23,6 +23,7 @@ import android.os.Handler;
 import android.util.TypedValue;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.os.BackgroundThread;
 import com.android.server.display.utils.AmbientFilter;
 import com.android.server.display.utils.AmbientFilterFactory;
 
@@ -117,7 +118,8 @@ public class DisplayWhiteBalanceFactory {
                 com.android.internal.R.bool.config_displayWhiteBalanceLightModeAllowed);
         final DisplayWhiteBalanceController controller = new DisplayWhiteBalanceController(
                 brightnessSensor, brightnessFilter, colorTemperatureSensor, colorTemperatureFilter,
-                throttler, displayWhiteBalanceLowLightAmbientBrightnesses,
+                throttler, BackgroundThread.getHandler(),
+                displayWhiteBalanceLowLightAmbientBrightnesses,
                 displayWhiteBalanceLowLightAmbientBrightnessesStrong,
                 displayWhiteBalanceLowLightAmbientBiases,
                 displayWhiteBalanceLowLightAmbientBiasesStrong, lowLightAmbientColorTemperature,

@@ -115,7 +115,7 @@ public class Dialog implements DialogInterface, Window.Callback,
     private ActionBar mActionBar;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     protected boolean mCancelable = true;
 

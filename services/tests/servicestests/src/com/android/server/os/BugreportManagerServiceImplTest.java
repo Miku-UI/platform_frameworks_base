@@ -242,6 +242,20 @@ public class BugreportManagerServiceImplTest {
     }
 
     @Test
+    @RequiresFlagsEnabled(android.os.Flags.FLAG_BUGREPORT_MULTI_DISPLAY_SCREENSHOT_ENABLED)
+    public void testStartBugreportWithMultiDisplayScreenshotFlag() {
+        mService.startBugreport(mCallingUid, mContext.getPackageName(),
+                new FileDescriptor(), new FileDescriptor(),
+                BugreportParams.BUGREPORT_MODE_FULL,
+                BugreportParams.BUGREPORT_FLAG_CAPTURE_MULTI_DISPLAY_SCREENSHOT,
+                new Listener(new CountDownLatch(1)),
+                /* isScreenshotRequested= */ true,
+                /* skipUserConsentUnused = */ false);
+
+        assertThat(mInjector.isBugreportStarted()).isTrue();
+    }
+
+    @Test
     public void testRetrieveBugreportWithoutFilesForCaller() throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         Listener listener = new Listener(latch);

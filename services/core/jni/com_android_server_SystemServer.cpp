@@ -28,7 +28,6 @@
 #include <memtrackproxy/MemtrackProxy.h>
 #include <nativehelper/JNIHelp.h>
 #include <pthread.h>
-#include <schedulerservice/SchedulingPolicyService.h>
 #include <sensorserviceaidl/SensorManagerAidl.h>
 #include <sensorservicehidl/SensorManager.h>
 #include <stats/StatsAidl.h>
@@ -134,23 +133,7 @@ static void android_server_SystemServer_startMemtrackProxyService(JNIEnv* env,
 }
 
 static void android_server_SystemServer_startHidlServices(JNIEnv* /* env */, jobject /* clazz */) {
-    using ::android::frameworks::schedulerservice::V1_0::ISchedulingPolicyService;
-    using ::android::frameworks::schedulerservice::V1_0::implementation::SchedulingPolicyService;
-    using ::android::hardware::configureRpcThreadpool;
-    using ::android::hidl::manager::V1_0::IServiceManager;
-
-    configureRpcThreadpool(5, false /* callerWillJoin */);
-
-    sp<ISchedulingPolicyService> schedulingService = new SchedulingPolicyService();
-    if (IServiceManager::Transport::HWBINDER ==
-        hardware::defaultServiceManager1_2()->getTransport(ISchedulingPolicyService::descriptor,
-                                                           "default")) {
-        status_t err = schedulingService->registerAsService("default");
-        LOG_ALWAYS_FATAL_IF(err != OK, "Cannot register %s: %d",
-                            ISchedulingPolicyService::descriptor, err);
-    } else {
-        ALOGW("%s is deprecated. Skipping registration.", ISchedulingPolicyService::descriptor);
-    }
+    ::android::hardware::configureRpcThreadpool(5, false /* callerWillJoin */);
 }
 
 static void android_server_SystemServer_initZygoteChildHeapProfiling(JNIEnv* /* env */,

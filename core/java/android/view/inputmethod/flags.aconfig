@@ -36,14 +36,6 @@ flag {
 }
 
 flag {
-    name: "use_handwriting_listener_for_tooltype"
-    namespace: "input_method"
-    description: "Feature flag for using handwriting spy for determining pointer toolType."
-    bug: "309554999"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "use_zero_jank_proxy"
     is_exported: true
     namespace: "input_method"
@@ -57,17 +49,6 @@ flag {
     namespace: "input_method"
     description: "Use InputMethodInfoSafeList for more reliable binder IPCs"
     bug: "339761278"
-    is_fixed_read_only: true
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "consistent_get_current_input_method_info"
-    namespace: "input_method"
-    description: "Use BindingController as the source of truth in getCurrentInputMethodInfo"
-    bug: "355034523"
     is_fixed_read_only: true
     metadata {
       purpose: PURPOSE_BUGFIX
@@ -110,14 +91,6 @@ flag {
 }
 
 flag {
-    name: "predictive_back_ime"
-    namespace: "input_method"
-    description: "Predictive back animation for IMEs"
-    bug: "322836622"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "ctrl_shift_shortcut"
     namespace: "input_method"
     description: "Ctrl+Shift shortcut to switch IMEs"
@@ -126,28 +99,6 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-  name: "defer_show_soft_input_until_session_creation"
-  namespace: "input_method"
-  description: "Defers showSoftInput until the IME session has been created."
-  bug: "337766845"
-  is_fixed_read_only: true
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "compatchange_for_zerojankproxy"
-  namespace: "input_method"
-  description: "Version-gate the sync/async nature of IMM#show/hideSoftInput() when using zeroJankProxy."
-  bug: "352594277"
-  is_fixed_read_only: true
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
 }
 
 flag {
@@ -226,12 +177,53 @@ flag {
 }
 
 flag {
-    name: "disallow_disabling_ime_navigation_bar"
-    namespace: "input_method"
-    description: "Disallows disabling the IME navigation bar through canImeRenderGesturalNavButtons"
-    bug: "402442590"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+  name: "disable_ime_restore_on_activity_create"
+  namespace: "input_method"
+  description: "Disables restoring the IME visibility after activity recreation (e.g. rotation), without an explicit show request."
+  bug: "391859600"
+}
+
+flag {
+  name: "optimize_ime_input_target_update"
+  namespace: "input_method"
+  description: "Optimizes the IME Input Target update flow by bypassing the InputMethodService, as there are no checks done there"
+  bug: "427397699"
+}
+
+flag {
+  name: "enforce_device_policy_ime"
+  namespace: "input_method"
+  description: "Only allow device policy approved IME to unlock work profile."
+  bug: "139872425"
+}
+
+flag {
+  name: "set_server_visibility_onprelayout"
+  namespace: "input_method"
+  description: "Set server visibility before performLayout to avoid additional window layout traversal."
+  bug: "427863960"
+}
+
+flag {
+  name: "deprecate_input_method_show_hide_flags"
+  namespace: "input_method"
+  description: "Deprecate unsupported show/hide flags."
+  bug: "322992891"
+}
+
+flag {
+  name: "fix_navbar_dead_zone"
+  namespace: "input_method"
+  description: "Fix DeadZone consuming events for navbar"
+  bug: "364856257"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "unify_skip_animation_once_with_initially_visible"
+  namespace: "input_method"
+  description: "Deprecating skipAnimationOnce and using initiallyVisible instead."
+  bug: "440511879"
 }

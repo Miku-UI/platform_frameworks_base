@@ -3,3 +3,7 @@ include /services/core/java/com/android/server/am/OWNERS
 per-file ApplicationStartInfoTest.java = yforta@google.com, carmenjackson@google.com, jji@google.com
 per-file CachedAppOptimizerTest.java = file:/PERFORMANCE_OWNERS
 per-file BaseBroadcastQueueTest.java = file:/BROADCASTS_OWNERS
+per-file MockingOomAdjusterTests.java = file:/OOM_ADJUSTER_OWNERS
+per-file *Activity* = file:/ACTIVITY_MANAGER_OWNERS
+per-file *Service* = file:/ACTIVITY_MANAGER_OWNERS
+per-file SettingsToPropertiesMapperTest.java = file:platform/packages/modules/ConfigInfrastructure:/OWNERS

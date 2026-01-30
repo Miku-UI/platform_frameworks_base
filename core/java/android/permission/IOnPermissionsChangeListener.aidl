@@ -18,7 +18,7 @@ package android.permission;
 
 /**
  * Listener for changes in the permissions for installed packages.
- * {@hide}
+ * @hide
  */
 oneway interface IOnPermissionsChangeListener {
     void onPermissionsChanged(int uid, String persistentDeviceId);

@@ -64,6 +64,11 @@ public final class DisableSecureLockDeviceParams implements Parcelable {
         mMessage = Objects.requireNonNull(in.readCharSequence());
     }
 
+    @NonNull
+    public CharSequence getMessage() {
+        return mMessage;
+    }
+
     public static final @NonNull Creator<DisableSecureLockDeviceParams> CREATOR =
             new Creator<DisableSecureLockDeviceParams>() {
                 @Override

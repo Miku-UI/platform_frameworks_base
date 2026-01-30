@@ -47,6 +47,8 @@ final class AppCompatConfiguration {
 
     private static final boolean DEFAULT_VALUE_ENABLE_CAMERA_COMPAT_TREATMENT = true;
 
+    private static final float DEFAULT_VALUE_CAMERA_COMPAT_MIN_ASPECT_RATIO = 16 / 9f;
+
     // Whether enabling rotation compat policy for immersive apps that prevents auto
     // rotation into non-optimal screen orientation while in fullscreen. This is needed
     // because immersive apps, such as games, are often not optimized for all
@@ -290,9 +292,16 @@ final class AppCompatConfiguration {
     // is enabled and activity is connected to the camera in fullscreen.
     private final boolean mIsCameraCompatSplitScreenAspectRatioEnabled;
 
+    // Whether camera compat treatment that simulates requested orientation is enabled.
+    // The purpose of the treatment is to mitigate issues caused by orientation mismatch between the
+    // camera buffer and the app window. This includes letterboxing fixed orientation activities
+    // connected to the camera, cropping the camera buffer (rotate-and-crop) and sandboxing display
+    // rotation to match what the apps most likely expect in their requested orientation
+    private final boolean mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled;
+
     // Which aspect ratio to use when camera compat treatment is enabled and an activity eligible
     // for treatment is connected to the camera.
-    private float mCameraCompatAspectRatio;
+    private float mCameraCompatAspectRatio = DEFAULT_VALUE_CAMERA_COMPAT_MIN_ASPECT_RATIO;
 
     // Whether activity "refresh" in camera compatibility treatment is enabled.
     // See RefreshCallbackItem for context.
@@ -305,9 +314,11 @@ final class AppCompatConfiguration {
     private boolean mIsCameraCompatRefreshCycleThroughStopEnabled = true;
 
     // Whether camera compat freeform treatment should be enabled for all eligible activities.
-    // This has the same effect as enabling the per-app override
-    // ActivityInfo.OVERRIDE_CAMERA_COMPAT_ENABLE_FREEFORM_WINDOWING_TREATMENT for every app.
-    private boolean mIsCameraCompatFreeformWindowingTreatmentEnabled = false;
+    // This has the same effect as enabling the treatment via
+    // `mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled`, and removing all opt-out
+    // overrides and properties for this treatment.
+    // This property is only settable via adb, and should be used for testing only.
+    private boolean mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled = false;
 
     // Whether should ignore app requested orientation in response to an app
     // calling Activity#setRequestedOrientation. See
@@ -372,8 +383,9 @@ final class AppCompatConfiguration {
                         .config_letterboxIsDisplayAspectRatioForFixedOrientationLetterboxEnabled);
         mIsCameraCompatSplitScreenAspectRatioEnabled = mContext.getResources().getBoolean(
                 R.bool.config_isWindowManagerCameraCompatSplitScreenAspectRatioEnabled);
-        mCameraCompatAspectRatio = mContext.getResources().getFloat(
-                R.dimen.config_windowManagerCameraCompatAspectRatio);
+        mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled = mContext.getResources()
+                .getBoolean(R.bool
+                        .config_isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
         mIsPolicyForIgnoringRequestedOrientationEnabled = mContext.getResources().getBoolean(
                 R.bool.config_letterboxIsPolicyForIgnoringRequestedOrientationEnabled);
 
@@ -1274,18 +1286,18 @@ final class AppCompatConfiguration {
     }
 
     /**
-     * @return Whether camera compatibility treatment is currently enabled.
+     * @return Whether camera compatibility force-rotate treatment is currently enabled.
      */
-    boolean isCameraCompatTreatmentEnabled() {
+    boolean isCameraCompatForceRotateTreatmentEnabled() {
         return mDeviceConfig.getFlagValue(KEY_ENABLE_CAMERA_COMPAT_TREATMENT);
     }
 
     /**
-     * @return Whether camera compatibility treatment is enabled at build time. This is used when
-     * we need to safely initialize a component before the {@link DeviceConfig} flag value is
-     * available.
+     * @return Whether camera compatibility force-rotate treatment is enabled at build time. This is
+     * used when we need to safely initialize a component before the {@link DeviceConfig} flag value
+     * is available.
      */
-    boolean isCameraCompatTreatmentEnabledAtBuildTime() {
+    boolean isCameraCompatForceRotateTreatmentEnabledAtBuildTime() {
         return mDeviceConfig.isBuildTimeFlagEnabled(KEY_ENABLE_CAMERA_COMPAT_TREATMENT);
     }
 
@@ -1351,32 +1363,57 @@ final class AppCompatConfiguration {
      * for treatment is connected to the camera.
      */
     void resetCameraCompatAspectRatio() {
-        mCameraCompatAspectRatio = mContext.getResources().getFloat(R.dimen
-                .config_windowManagerCameraCompatAspectRatio);
+        mCameraCompatAspectRatio = DEFAULT_VALUE_CAMERA_COMPAT_MIN_ASPECT_RATIO;
+    }
+
+    /**
+     * Whether the camera compatibility treatment which simulates requested orientation is allowed
+     * on this device.
+     *
+     * <p>For the treatment to activate, the following conditions also need to be met:
+     * <ul>
+     *     <li>OEM has not opted-out the app for the given device model via per-app override.
+     *     <li>App has not opted-out via manifest property.
+     *     <li>Camera is active for the package.
+     *     <li>The activity is in freeform windowing mode.
+     *     <li>The activity has fixed orientation but not "locked" or "nosensor".
+     * </ul>
+     */
+    boolean isCameraCompatSimulateRequestedOrientationTreatmentEnabled() {
+        return mIsCameraCompatSimulateRequestedOrientationTreatmentEnabled;
     }
 
     /**
      * Sets whether the camera compatibility treatment in freeform windowing mode is enabled for
      * all fixed-orientation apps when using camera.
      */
-    void setIsCameraCompatFreeformWindowingTreatmentEnabled(boolean enabled) {
-        mIsCameraCompatFreeformWindowingTreatmentEnabled = enabled;
+    void setIsCameraCompatSimReqOrientationTreatmentForceEnabled(boolean enabled) {
+        mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled = enabled;
     }
 
     /**
      * Whether the camera compatibility treatment in freeform windowing mode is enabled for all
      * fixed-orientation apps when using camera.
      */
-    boolean isCameraCompatFreeformWindowingTreatmentEnabled() {
-        return mIsCameraCompatFreeformWindowingTreatmentEnabled;
+    boolean isCameraCompatSimReqOrientationTreatmentForceEnabled() {
+        return mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled;
     }
 
     /**
      * Resets whether the camera compatibility treatment in freeform windowing mode is enabled for
      * all fixed-orientation apps when using camera.
      */
-    void resetIsCameraCompatFreeformWindowingTreatmentEnabled() {
-        mIsCameraCompatFreeformWindowingTreatmentEnabled = false;
+    void resetIsCameraCompatSimReqOrientationTreatmentForceEnabled() {
+        mIsCameraCompatSimulateRequestedOrientationTreatmentForceEnabled = false;
+    }
+
+    /**
+     * Whether any camera compat treatment is enabled, for the purpose of enabling common camera
+     * compat components.
+     */
+    boolean isAnyCameraCompatTreatmentEnabled() {
+        return isCameraCompatForceRotateTreatmentEnabled()
+                || isCameraCompatSimulateRequestedOrientationTreatmentEnabled();
     }
 
     /**

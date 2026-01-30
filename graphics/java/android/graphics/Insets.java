@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.proto.ProtoOutputStream;
 
 /**
  * An Insets instance holds four integer offsets which describe changes to the four
@@ -183,6 +184,23 @@ public final class Insets implements Parcelable {
         out.writeInt(top);
         out.writeInt(right);
         out.writeInt(bottom);
+    }
+
+    /**
+     * Write to a protocol buffer output stream.
+     * Protocol buffer message definition at {@link android.graphics.InsetsProto}
+     *
+     * @param protoOutputStream Stream to write the Insets object to.
+     * @param fieldId           Field Id of the Insets as defined in the parent message
+     * @hide
+     */
+    public void dumpDebug(@NonNull ProtoOutputStream protoOutputStream, long fieldId) {
+        final long token = protoOutputStream.start(fieldId);
+        protoOutputStream.write(InsetsProto.LEFT, left);
+        protoOutputStream.write(InsetsProto.TOP, top);
+        protoOutputStream.write(InsetsProto.RIGHT, right);
+        protoOutputStream.write(InsetsProto.BOTTOM, bottom);
+        protoOutputStream.end(token);
     }
 
     public static final @android.annotation.NonNull Parcelable.Creator<Insets> CREATOR = new Parcelable.Creator<Insets>() {

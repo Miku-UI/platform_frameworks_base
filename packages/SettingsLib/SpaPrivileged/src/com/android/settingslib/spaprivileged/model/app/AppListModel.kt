@@ -88,7 +88,7 @@ interface AppListModel<T : AppRecord> {
      * @return null if no summary should be displayed.
      */
     @Composable
-    fun getSummary(option: Int, record: T): (() -> String)? = null
+    fun getSummary(option: Int, record: T): (() -> CharSequence)? = null
 
     @Composable
     fun AppListItemModel<T>.AppItem() {

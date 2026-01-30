@@ -288,8 +288,10 @@ public final class TranslationResponse implements Parcelable {
         byte flg = in.readByte();
         boolean finalResponse = (flg & 0x8) != 0;
         int translationStatus = in.readInt();
-        SparseArray<TranslationResponseValue> translationResponseValues = (SparseArray) in.readSparseArray(TranslationResponseValue.class.getClassLoader());
-        SparseArray<ViewTranslationResponse> viewTranslationResponses = (SparseArray) in.readSparseArray(ViewTranslationResponse.class.getClassLoader());
+        SparseArray<TranslationResponseValue> translationResponseValues = in.readSparseArray(
+                TranslationResponseValue.class.getClassLoader(), TranslationResponseValue.class);
+        SparseArray<ViewTranslationResponse> viewTranslationResponses = in.readSparseArray(
+                ViewTranslationResponse.class.getClassLoader(), ViewTranslationResponse.class);
 
         this.mTranslationStatus = translationStatus;
 

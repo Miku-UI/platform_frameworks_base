@@ -17,6 +17,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.compose.compiler)
 }
 
 val androidTop: String by extra
@@ -26,27 +27,29 @@ android {
 
     defaultConfig {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        minSdk = 36
     }
 
     sourceSets {
-        sourceSets.getByName("main") {
+        named("main") {
             java.setSrcDirs(
-                listOf("$androidTop/platform_testing/libraries/screenshot/src/main/java")
+                listOf(
+                    "$androidTop/platform_testing/libraries/runner/src/main/java",
+                    "$androidTop/platform_testing/libraries/screenshot/src/main/java",
+                    "$androidTop/platform_testing/libraries/screenshot/utils/compose/src",
+                )
             )
         }
-        sourceSets.getByName("androidTest") {
+        named("androidTest") {
             kotlin.setSrcDirs(listOf("src"))
             res.setSrcDirs(listOf("res"))
             manifest.srcFile("AndroidManifest.xml")
         }
     }
-    buildFeatures {
-        compose = true
-    }
 }
 
 dependencies {
-    androidTestImplementation(project(":spa"))
-    androidTestImplementation(project(":testutils"))
+    api(project(":Spa"))
+    api(project(":Spa:testutils"))
     androidTestImplementation(libs.dexmaker.mockito)
 }

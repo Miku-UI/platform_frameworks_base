@@ -131,7 +131,7 @@ public class ColorConstant extends Operation implements Serializable {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("color", Utils.colorInt(mColor))

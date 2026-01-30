@@ -20,7 +20,7 @@ package android.window;
  * Interface to be invoked by the controlling process when a back animation has finished.
  *
  * @param trigger Whether the back gesture has passed the triggering threshold.
- * {@hide}
+ * @hide
  */
 interface IBackAnimationFinishedCallback {
     void onAnimationFinished(in boolean triggerBack);

@@ -16,15 +16,15 @@
 
 package com.android.server.wm.flicker.notification
 
+import androidx.test.filters.RequiresDevice
 import android.platform.test.rule.SettingOverrideRule
 import android.provider.Settings
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
-import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.statusBarLayerPositionAtEnd
 import org.junit.ClassRule
 import org.junit.FixMethodOrder
@@ -46,7 +46,7 @@ import org.junit.runners.Parameterized
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @FlakyTest(bugId = 384046002)
-class OpenAppFromLockscreenNotificationWarmTest(flicker: LegacyFlickerTest) :
+class OpenAppFromLockscreenNotificationWarmTest(flicker: FlickerTest) :
     OpenAppFromNotificationWarmTest(flicker) {
 
     override val transition: FlickerBuilder.() -> Unit
@@ -156,12 +156,12 @@ class OpenAppFromLockscreenNotificationWarmTest(flicker: LegacyFlickerTest) :
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.nonRotationTests()
+        fun getParams() = FlickerTestFactory.nonRotationTests()
 
         /**
          * Ensures that posted notifications will be visible on the lockscreen and not suppressed

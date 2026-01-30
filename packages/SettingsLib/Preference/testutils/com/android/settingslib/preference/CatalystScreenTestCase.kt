@@ -17,7 +17,6 @@
 package com.android.settingslib.preference
 
 import android.content.Context
-import android.platform.test.flag.junit.SetFlagsRule
 import android.util.Log
 import androidx.fragment.app.testing.FragmentScenario
 import androidx.preference.Preference
@@ -27,23 +26,18 @@ import androidx.preference.PreferenceScreen
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import java.util.concurrent.atomic.AtomicBoolean
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /** Test case for catalyst screen. */
 @RunWith(AndroidJUnit4::class)
 abstract class CatalystScreenTestCase {
-    @get:Rule val setFlagsRule = SetFlagsRule()
-
     protected val appContext: Context = ApplicationProvider.getApplicationContext()
 
     /** Catalyst screen. */
     protected abstract val preferenceScreenCreator: PreferenceScreenCreator
-
-    /** Flag to control catalyst screen. */
-    protected abstract val flagName: String
 
     /**
      * Test to compare the preference screen hierarchy between legacy screen (flag is disabled) and
@@ -54,34 +48,21 @@ abstract class CatalystScreenTestCase {
         enableCatalystScreen()
         assertThat(preferenceScreenCreator.isFlagEnabled(appContext)).isTrue()
         val catalystScreen = dumpPreferenceScreen()
-        Log.i(TAG, catalystScreen)
+        Log.i(TAG, "Catalyst screen: $catalystScreen")
 
         disableCatalystScreen()
         assertThat(preferenceScreenCreator.isFlagEnabled(appContext)).isFalse()
         val legacyScreen = dumpPreferenceScreen()
-
-        assertThat(catalystScreen).isEqualTo(legacyScreen)
+        assertWithMessage("Legacy screen: %s", legacyScreen)
+            .that(catalystScreen)
+            .isEqualTo(legacyScreen)
     }
 
-    /**
-     * Enables the catalyst screen.
-     *
-     * By default, enable the [flagName]. Override for more complex situation.
-     */
-    @Suppress("DEPRECATION")
-    protected open fun enableCatalystScreen() {
-        setFlagsRule.enableFlags(flagName)
-    }
+    /** Enables the flag to test catalyst screen. */
+    abstract fun enableCatalystScreen()
 
-    /**
-     * Disables the catalyst screen (legacy screen is shown).
-     *
-     * By default, disable the [flagName]. Override for more complex situation.
-     */
-    @Suppress("DEPRECATION")
-    protected open fun disableCatalystScreen() {
-        setFlagsRule.disableFlags(flagName)
-    }
+    /** Disables the flag to test legacy screen. */
+    abstract fun disableCatalystScreen()
 
     private fun dumpPreferenceScreen(): String {
         // Dump threads for troubleshooting when the test thread is stuck.
@@ -93,7 +74,7 @@ abstract class CatalystScreenTestCase {
             }
             .apply {
                 isDaemon = true
-                start()
+                @Suppress("DEPRECATION") start()
             }
 
         @Suppress("UNCHECKED_CAST")
@@ -115,7 +96,7 @@ abstract class CatalystScreenTestCase {
         FragmentScenario.launch(fragmentClass)
 
     private fun Preference.toString(builder: StringBuilder, indent: String = "") {
-        val clazz = javaClass
+        val clazz = getPreferenceClass(this)
         builder.append(indent).append(clazz).append(" {\n")
         val indent2 = "$indent  "
         if (clazz != PreferenceScreen::class.java) {
@@ -127,8 +108,11 @@ abstract class CatalystScreenTestCase {
         builder.append(indent2).append("order: $order\n")
         builder.append(indent2).append("isCopyingEnabled: $isCopyingEnabled\n")
         builder.append(indent2).append("isEnabled: $isEnabled\n")
+        builder.append(indent2).append("isVisible: $isVisible\n")
         builder.append(indent2).append("isIconSpaceReserved: $isIconSpaceReserved\n")
-        if (clazz != Preference::class.java && clazz != PreferenceScreen::class.java) {
+        if (
+            clazz != Preference::class.java && !PreferenceGroup::class.java.isAssignableFrom(clazz)
+        ) {
             builder.append(indent2).append("isPersistent: $isPersistent\n")
         }
         builder.append(indent2).append("isSelectable: $isSelectable\n")
@@ -142,6 +126,13 @@ abstract class CatalystScreenTestCase {
         }
         builder.append(indent).append("}\n")
     }
+
+    /**
+     * Returns the preference class to dump.
+     *
+     * Subclass could override to take care of preference widget change after migration.
+     */
+    protected open fun getPreferenceClass(preference: Preference): Class<*> = preference.javaClass
 
     companion object {
         const val TAG = "CatalystScreenTestCase"

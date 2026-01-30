@@ -16,6 +16,7 @@
 
 package com.android.server.power.stats;
 
+import android.annotation.NonNull;
 import android.hardware.power.stats.EnergyConsumerType;
 import android.os.BatteryConsumer;
 
@@ -30,6 +31,7 @@ public class CustomEnergyConsumerPowerStatsCollector extends PowerStatsCollector
             new EnergyConsumerPowerStatsLayout();
     private final EnergyConsumerPowerStatsCollector.Injector mInjector;
     private List<EnergyConsumerPowerStatsCollector> mCollectors;
+    private String[] mCustomEnergyConsumerNames;
 
     public CustomEnergyConsumerPowerStatsCollector(
             EnergyConsumerPowerStatsCollector.Injector injector) {
@@ -44,10 +46,13 @@ public class CustomEnergyConsumerPowerStatsCollector extends PowerStatsCollector
 
         ConsumedEnergyRetriever retriever = mInjector.getConsumedEnergyRetriever();
         int[] energyConsumerIds = retriever.getEnergyConsumerIds(EnergyConsumerType.OTHER);
+        mCustomEnergyConsumerNames = new String[energyConsumerIds.length];
         int powerComponentId = BatteryConsumer.FIRST_CUSTOM_POWER_COMPONENT_ID;
         mCollectors = new ArrayList<>(energyConsumerIds.length);
         for (int i = 0; i < energyConsumerIds.length; i++) {
             String name = retriever.getEnergyConsumerName(energyConsumerIds[i]);
+            mCustomEnergyConsumerNames[i] = name;
+
             EnergyConsumerPowerStatsCollector collector = new EnergyConsumerPowerStatsCollector(
                     mInjector, powerComponentId++, name, EnergyConsumerType.OTHER,
                     energyConsumerIds[i], sLayout);
@@ -55,6 +60,20 @@ public class CustomEnergyConsumerPowerStatsCollector extends PowerStatsCollector
             collector.addConsumer(this::deliverStats);
             mCollectors.add(collector);
         }
+    }
+
+    /**
+     * Returns names of custom power components, which are the power components designated
+     * with the `EnergyConsumerType.OTHER` type in the powerstats HAL API.
+     */
+    @NonNull
+    public String[] getCustomEnergyConsumerNames() {
+        if (!isEnabled()) {
+            return new String[0];
+        }
+
+        ensureInitialized();
+        return mCustomEnergyConsumerNames;
     }
 
     @Override

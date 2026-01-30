@@ -35,6 +35,8 @@ import android.graphics.RectF;
 import android.graphics.Region;
 import android.media.AudioPresentation;
 import android.media.PlaybackParams;
+import android.media.quality.MediaQualityManager;
+import android.media.quality.PictureProfileHandle;
 import android.media.tv.TvInputManager.Session;
 import android.media.tv.TvInputManager.Session.FinishedInputEventCallback;
 import android.media.tv.TvInputManager.SessionCallback;
@@ -98,6 +100,7 @@ public class TvView extends ViewGroup {
     private boolean mOverlayViewCreated;
     private Rect mOverlayViewFrame;
     private final TvInputManager mTvInputManager;
+    private final MediaQualityManager mMediaQualityManager;
     private MySessionCallback mSessionCallback;
     private TvInputCallback mCallback;
     private OnUnhandledInputEventListener mOnUnhandledInputEventListener;
@@ -194,6 +197,8 @@ public class TvView extends ViewGroup {
         mDefStyleAttr = defStyleAttr;
         resetSurfaceView();
         mTvInputManager = (TvInputManager) getContext().getSystemService(Context.TV_INPUT_SERVICE);
+        mMediaQualityManager = (MediaQualityManager) getContext().getSystemService(
+                Context.MEDIA_QUALITY_SERVICE);
         mTvAppAttributionSource = getContext().getAttributionSource();
     }
 
@@ -391,6 +396,21 @@ public class TvView extends ViewGroup {
             // MySessionCallback.this is different from mSessionCallback, we know that this callback
             // is obsolete and should ignore it.
             mSessionCallback = new MySessionCallback(inputId, channelUri, params);
+            if (mSurfaceView != null && mMediaQualityManager != null) {
+                String idForProfile = inputId;
+                TvInputInfo tvInputInfo = mTvInputManager.getTvInputInfo(inputId);
+                if (tvInputInfo != null && tvInputInfo.getParentId() != null) {
+                    idForProfile = tvInputInfo.getParentId();
+                    if (DEBUG) {
+                        Log.d(TAG, "the parent of inputId received is " + idForProfile);
+                    }
+                }
+                long handle = mMediaQualityManager.getPictureProfileForTvInput(idForProfile);
+                if (handle > 0) {
+                    PictureProfileHandle pph = new PictureProfileHandle(handle);
+                    mSurfaceView.sendPictureProfileHandle(pph);
+                }
+            }
             if (mTvInputManager != null) {
                 mTvInputManager.createSession(
                         inputId, mTvAppAttributionSource, mSessionCallback, mHandler);

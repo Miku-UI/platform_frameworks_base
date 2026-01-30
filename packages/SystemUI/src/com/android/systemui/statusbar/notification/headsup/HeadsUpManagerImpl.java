@@ -28,7 +28,6 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 import android.util.Pools;
-import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -45,7 +44,6 @@ import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.shade.domain.interactor.ShadeInteractor;
 import com.android.systemui.statusbar.StatusBarState;
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.coordinator.HeadsUpCoordinator;
 import com.android.systemui.statusbar.notification.collection.provider.OnReorderingAllowedListener;
@@ -54,7 +52,9 @@ import com.android.systemui.statusbar.notification.collection.provider.VisualSta
 import com.android.systemui.statusbar.notification.collection.render.GroupMembershipManager;
 import com.android.systemui.statusbar.notification.data.repository.HeadsUpRepository;
 import com.android.systemui.statusbar.notification.data.repository.HeadsUpRowRepository;
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
+import com.android.systemui.statusbar.notification.shared.AvalancheReplaceHunWhenCritical;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.notification.shared.NotificationThrottleHun;
 import com.android.systemui.statusbar.phone.ExpandHeadsUpOnInlineReply;
@@ -245,9 +245,9 @@ public class HeadsUpManagerImpl
                 }
             }
         };
-        globalSettings.registerContentObserverSync(
+        globalSettings.registerContentObserverAsync(
                 globalSettings.getUriFor(SETTING_HEADS_UP_SNOOZE_LENGTH_MS),
-                /* notifyForDescendants = */ false,
+                /* notifyForDescendants= */ false,
                 settingsObserver);
 
         statusBarStateController.addCallback(mStatusBarStateListener);
@@ -331,8 +331,6 @@ public class HeadsUpManagerImpl
             // Add new entry and begin managing it
             mHeadsUpEntryMap.put(entry.getKey(), headsUpEntry);
             onEntryAdded(headsUpEntry, requestedPinnedStatus);
-            // TODO(b/328390331) move accessibility events to the view layer
-            entry.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
             if (!NotificationBundleUi.isEnabled()) {
                 entry.setIsHeadsUpEntry(true);
             }
@@ -406,11 +404,6 @@ public class HeadsUpManagerImpl
             // the entry was released before this update (i.e by a listener) This can happen
             // with the groupmanager
             return;
-        }
-        // TODO(b/328390331) move accessibility events to the view layer
-        if (headsUpEntry.mEntry != null) {
-            headsUpEntry.mEntry.sendAccessibilityEvent(
-                    AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
         }
         if (requestedPinnedStatus.isPinned()) {
             headsUpEntry.updateEntry(true /* updatePostTime */, "updateNotification");
@@ -623,9 +616,9 @@ public class HeadsUpManagerImpl
             return PinnedStatus.NotPinned;
         }
 
-        if (!StatusBarNotifChips.isEnabled()
+        if (!PromotedNotificationUi.isEnabled()
                 && requestedPinnedStatus == PinnedStatus.PinnedByUser) {
-            Log.wtf(TAG, "PinnedStatus.PinnedByUser not allowed if StatusBarNotifChips flag off");
+            Log.wtf(TAG, "PinnedByUser status not allowed if PromotedNotificationUi flag off");
             return PinnedStatus.NotPinned;
         }
 
@@ -662,8 +655,6 @@ public class HeadsUpManagerImpl
             entry.demoteStickyHun();
             mHeadsUpEntryMap.remove(key);
             onEntryRemoved(finalHeadsUpEntry, reason);
-            // TODO(b/328390331) move accessibility events to the view layer
-            entry.sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED);
             if (NotificationThrottleHun.isEnabled()) {
                 finalHeadsUpEntry.cancelAutoRemovalCallbacks("removeEntry");
             } else {
@@ -963,7 +954,7 @@ public class HeadsUpManagerImpl
     @Override
     @NonNull
     public PinnedStatus pinnedHeadsUpStatus() {
-        if (!StatusBarNotifChips.isEnabled()) {
+        if (!PromotedNotificationUi.isEnabled()) {
             return mHasPinnedNotification ? PinnedStatus.PinnedBySystem : PinnedStatus.NotPinned;
         }
         return mPinnedNotificationStatus;
@@ -1189,7 +1180,8 @@ public class HeadsUpManagerImpl
     /**
      * Determines if the notification is for a critical call that must display on top of an active
      * input notification.
-     * The call isOngoing check is for a special case of incoming calls (see b/164291424).
+     * The call isOngoing check is for a special case of incoming calls where the call is not yet
+     * answered(see b/164291424).
      */
     private static boolean isCriticalCallNotif(NotificationEntry entry) {
         Notification n = entry.getSbn().getNotification();
@@ -1362,8 +1354,8 @@ public class HeadsUpManagerImpl
 
         /** Sets what pinned status this HUN is requesting. */
         void setRequestedPinnedStatus(PinnedStatus pinnedStatus) {
-            if (!StatusBarNotifChips.isEnabled() && pinnedStatus == PinnedStatus.PinnedByUser) {
-                Log.w(TAG, "PinnedByUser status not allowed if StatusBarNotifChips is disabled");
+            if (!PromotedNotificationUi.isEnabled() && pinnedStatus == PinnedStatus.PinnedByUser) {
+                Log.w(TAG, "PinnedByUser status not allowed if PromotedNotificationUi is disabled");
                 mRequestedPinnedStatus = PinnedStatus.NotPinned;
             } else {
                 mRequestedPinnedStatus = pinnedStatus;
@@ -1392,15 +1384,27 @@ public class HeadsUpManagerImpl
          * @param updatePostTime whether or not to refresh the post time
          */
         public void updateEntry(boolean updatePostTime, @Nullable String reason) {
-            updateEntry(updatePostTime, /* updateEarliestRemovalTime= */ true, reason);
+            updateEntry(
+                    updatePostTime,
+                    /* updateEarliestRemovalTime= */ true,
+                    /* ignoreSticky= */ false,
+                    reason
+            );
         }
 
         /**
          * Updates an entry's removal time.
-         * @param updatePostTime whether or not to refresh the post time
+         *
+         * @param updatePostTime            whether or not to refresh the post time
          * @param updateEarliestRemovalTime whether this update should further delay removal
+         * @param ignoreSticky              whether or not to ignore sticky and avoid canceling the
+         *                                  removal callback for an entry
+         * @param reason                    reason for the update
          */
-        public void updateEntry(boolean updatePostTime, boolean updateEarliestRemovalTime,
+        public void updateEntry(
+                boolean updatePostTime,
+                boolean updateEarliestRemovalTime,
+                boolean ignoreSticky,
                 @Nullable String reason) {
             Runnable runnable = () -> {
                 if (mEntry == null) {
@@ -1411,7 +1415,7 @@ public class HeadsUpManagerImpl
 
                 final long now = mSystemClock.elapsedRealtime();
                 if (updateEarliestRemovalTime) {
-                    if (StatusBarNotifChips.isEnabled()
+                    if (PromotedNotificationUi.isEnabled()
                             && mPinnedStatus.getValue() == PinnedStatus.PinnedByUser) {
                         mEarliestRemovalTime = now + mMinimumDisplayTimeForUserInitiated;
                     } else {
@@ -1426,7 +1430,7 @@ public class HeadsUpManagerImpl
             mAvalancheController.update(this, runnable, "updateEntry reason:"
                     + reason + " updatePostTime:" + updatePostTime);
 
-            if (isSticky()) {
+            if (!ignoreSticky && isSticky()) {
                 cancelAutoRemovalCallbacks("updateEntry (sticky)");
                 return;
             }
@@ -1436,7 +1440,12 @@ public class HeadsUpManagerImpl
                         mAvalancheController.getDuration(this, mAutoDismissTime);
 
                 if (remainingDuration instanceof RemainingDuration.HideImmediately) {
-                    /* Check if */ StatusBarNotifChips.isUnexpectedlyInLegacyMode();
+                    if (AvalancheReplaceHunWhenCritical.isEnabled()) {
+                        // Should not throw exception if either AvalancheReplaceHunWhenCritical or
+                        // PromotedNotificationUi flag is enabled
+                        return 0;
+                    }
+                    /* Check if */ PromotedNotificationUi.isUnexpectedlyInLegacyMode();
                     return 0;
                 }
 
@@ -1550,6 +1559,45 @@ public class HeadsUpManagerImpl
             return 0;
         }
 
+        /**
+         * Determines the priority of the next HUN, comparing to the current HUN
+         */
+        @NonNull
+        public NextHunPriority getNextHunPriority(HeadsUpEntry nextHeadsUpEntry) {
+            NotificationEntry nextEntry = nextHeadsUpEntry.mEntry;
+
+            if (mEntry == null && nextEntry == null) {
+                return NextHunPriority.SamePriority.INSTANCE;
+            } else if (nextEntry == null) {
+                return NextHunPriority.LowerPriority.INSTANCE;
+            } else if (mEntry == null) {
+                return NextHunPriority.HigherPriority.INSTANCE;
+            }
+
+            boolean currentCritical = hasFullScreenIntent(mEntry) || isCriticalCallNotif(mEntry);
+            boolean nextHasFsi = hasFullScreenIntent(nextEntry);
+            boolean nextIsCriticalCall = isCriticalCallNotif(nextEntry);
+
+            if (nextHasFsi || nextIsCriticalCall) {
+                // If next is critical, replace immediately regardless of current
+                StringBuilder messageBuilder = new StringBuilder("Next is critical for:");
+                if (nextIsCriticalCall) messageBuilder.append(" critical call");
+                if (nextHasFsi) messageBuilder.append(" has FSI");
+                return new NextHunPriority.ReplaceImmediately(messageBuilder.toString());
+            }
+
+            if (currentCritical) {
+                return NextHunPriority.LowerPriority.INSTANCE;
+            }
+
+            if (mRemoteInputActive && !nextHeadsUpEntry.mRemoteInputActive) {
+                return NextHunPriority.LowerPriority.INSTANCE;
+            } else if (!mRemoteInputActive && nextHeadsUpEntry.mRemoteInputActive) {
+                return NextHunPriority.HigherPriority.INSTANCE;
+            }
+            return NextHunPriority.SamePriority.INSTANCE;
+        }
+
         public int compareTo(@NonNull HeadsUpEntry headsUpEntry) {
             if (mEntry == null && headsUpEntry.mEntry == null) {
                 return 0;
@@ -1637,7 +1685,7 @@ public class HeadsUpManagerImpl
          * Clear any pending removal runnables.
          */
         public void cancelAutoRemovalCallbacks(@Nullable String reason) {
-            Runnable runnable = () -> {
+            Runnable cancellationRunnable = () -> {
                 final boolean removed = cancelAutoRemovalCallbackInternal();
 
                 if (removed) {
@@ -1646,10 +1694,11 @@ public class HeadsUpManagerImpl
             };
             if (mEntry != null && isHeadsUpEntry(mEntry.getKey())) {
                 mLogger.logAutoRemoveCancelRequest(this.mEntry, reason);
-                mAvalancheController.update(this, runnable, reason + " cancelAutoRemovalCallbacks");
+                mAvalancheController.update(this, cancellationRunnable,
+                        reason + " cancelAutoRemovalCallbacks");
             } else {
                 // Just removed
-                runnable.run();
+                cancellationRunnable.run();
             }
         }
 

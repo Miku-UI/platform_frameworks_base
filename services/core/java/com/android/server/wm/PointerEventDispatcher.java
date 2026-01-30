@@ -91,10 +91,11 @@ public class PointerEventDispatcher extends InputEventReceiver {
     /** Dispose the associated input channel and clean up the listeners. */
     @Override
     public void dispose() {
-        super.dispose();
         synchronized (mListeners) {
             mListeners.clear();
             mListenersArray = null;
         }
+        // InputEventReceiver::dispose() must be called on the Looper thread.
+        UiThread.getHandler().post(super::dispose);
     }
 }

@@ -22,7 +22,6 @@ import android.provider.Settings
 import com.android.settingslib.notification.modes.TestModeBuilder
 import com.android.settingslib.notification.modes.ZenMode
 import java.time.Duration
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -40,7 +39,7 @@ class FakeZenModeRepository : ZenModeRepository {
     private val mutableModesFlow: MutableStateFlow<List<ZenMode>> by lazy {
         MutableStateFlow(listOf(TestModeBuilder.MANUAL_DND))
     }
-    override val modes: Flow<List<ZenMode>>
+    override val modes: StateFlow<List<ZenMode>>
         get() = mutableModesFlow.asStateFlow()
 
     override fun getModes(): List<ZenMode> = mutableModesFlow.value

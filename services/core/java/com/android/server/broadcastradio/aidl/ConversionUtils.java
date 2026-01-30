@@ -215,16 +215,13 @@ final class ConversionUtils {
             case ProgramSelector.IDENTIFIER_TYPE_SXM_SERVICE_ID:
             case ProgramSelector.IDENTIFIER_TYPE_SXM_CHANNEL:
                 return ProgramSelector.PROGRAM_TYPE_SXM;
+            case ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION:
+                return ProgramSelector.PROGRAM_TYPE_FM_HD;
             default:
-                if (Flags.hdRadioImproved()) {
-                    if (idType == ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION) {
-                        return ProgramSelector.PROGRAM_TYPE_FM_HD;
-                    }
+                if (idType >= ProgramSelector.IDENTIFIER_TYPE_VENDOR_PRIMARY_START
+                        && idType <= ProgramSelector.IDENTIFIER_TYPE_VENDOR_PRIMARY_END) {
+                    return idType;
                 }
-        }
-        if (idType >= ProgramSelector.IDENTIFIER_TYPE_VENDOR_PRIMARY_START
-                && idType <= ProgramSelector.IDENTIFIER_TYPE_VENDOR_PRIMARY_END) {
-            return idType;
         }
         return ProgramSelector.PROGRAM_TYPE_INVALID;
     }
@@ -350,12 +347,8 @@ final class ConversionUtils {
         ProgramIdentifier hwId = new ProgramIdentifier();
         if (id.getType() == ProgramSelector.IDENTIFIER_TYPE_DAB_DMB_SID_EXT) {
             hwId.type = IdentifierType.DAB_SID_EXT;
-        } else if (Flags.hdRadioImproved()) {
-            if (id.getType() == ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION) {
-                hwId.type = IdentifierType.HD_STATION_LOCATION;
-            } else {
-                hwId.type = id.getType();
-            }
+        } else if (id.getType() == ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION) {
+            hwId.type = IdentifierType.HD_STATION_LOCATION;
         } else {
             hwId.type = id.getType();
         }
@@ -378,11 +371,7 @@ final class ConversionUtils {
         if (id.type == IdentifierType.DAB_SID_EXT) {
             idType = ProgramSelector.IDENTIFIER_TYPE_DAB_DMB_SID_EXT;
         } else if (id.type == IdentifierType.HD_STATION_LOCATION) {
-            if (Flags.hdRadioImproved()) {
-                idType = ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION;
-            } else {
-                return null;
-            }
+            idType = ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION;
         } else {
             idType = id.type;
         }
@@ -523,51 +512,41 @@ final class ConversionUtils {
                     builder.putString(RadioMetadata.METADATA_KEY_DAB_COMPONENT_NAME_SHORT,
                             meta[i].getDabComponentNameShort());
                     break;
+                case Metadata.genre:
+                    builder.putString(RadioMetadata.METADATA_KEY_GENRE,
+                            meta[i].getGenre());
+                    break;
+                case Metadata.commentShortDescription:
+                    builder.putString(
+                            RadioMetadata.METADATA_KEY_COMMENT_SHORT_DESCRIPTION,
+                            meta[i].getCommentShortDescription());
+                    break;
+                case Metadata.commentActualText:
+                    builder.putString(RadioMetadata.METADATA_KEY_COMMENT_ACTUAL_TEXT,
+                            meta[i].getCommentActualText());
+                    break;
+                case Metadata.commercial:
+                    builder.putString(RadioMetadata.METADATA_KEY_COMMERCIAL,
+                            meta[i].getCommercial());
+                    break;
+                case Metadata.ufids:
+                    builder.putStringArray(RadioMetadata.METADATA_KEY_UFIDS,
+                            meta[i].getUfids());
+                    break;
+                case Metadata.hdStationNameShort:
+                    builder.putString(RadioMetadata.METADATA_KEY_HD_STATION_NAME_SHORT,
+                            meta[i].getHdStationNameShort());
+                    break;
+                case Metadata.hdStationNameLong:
+                    builder.putString(RadioMetadata.METADATA_KEY_HD_STATION_NAME_LONG,
+                            meta[i].getHdStationNameLong());
+                    break;
+                case Metadata.hdSubChannelsAvailable:
+                    builder.putInt(RadioMetadata.METADATA_KEY_HD_SUBCHANNELS_AVAILABLE,
+                            meta[i].getHdSubChannelsAvailable());
+                    break;
                 default:
-                    if (Flags.hdRadioImproved()) {
-                        switch (tag) {
-                            case Metadata.genre:
-                                builder.putString(RadioMetadata.METADATA_KEY_GENRE,
-                                        meta[i].getGenre());
-                                break;
-                            case Metadata.commentShortDescription:
-                                builder.putString(
-                                        RadioMetadata.METADATA_KEY_COMMENT_SHORT_DESCRIPTION,
-                                        meta[i].getCommentShortDescription());
-                                break;
-                            case Metadata.commentActualText:
-                                builder.putString(RadioMetadata.METADATA_KEY_COMMENT_ACTUAL_TEXT,
-                                        meta[i].getCommentActualText());
-                                break;
-                            case Metadata.commercial:
-                                builder.putString(RadioMetadata.METADATA_KEY_COMMERCIAL,
-                                        meta[i].getCommercial());
-                                break;
-                            case Metadata.ufids:
-                                builder.putStringArray(RadioMetadata.METADATA_KEY_UFIDS,
-                                        meta[i].getUfids());
-                                break;
-                            case Metadata.hdStationNameShort:
-                                builder.putString(RadioMetadata.METADATA_KEY_HD_STATION_NAME_SHORT,
-                                        meta[i].getHdStationNameShort());
-                                break;
-                            case Metadata.hdStationNameLong:
-                                builder.putString(RadioMetadata.METADATA_KEY_HD_STATION_NAME_LONG,
-                                        meta[i].getHdStationNameLong());
-                                break;
-                            case Metadata.hdSubChannelsAvailable:
-                                builder.putInt(RadioMetadata.METADATA_KEY_HD_SUBCHANNELS_AVAILABLE,
-                                        meta[i].getHdSubChannelsAvailable());
-                                break;
-                            default:
-                                Slogf.w(TAG, "Ignored unknown metadata entry: %s with HD radio flag"
-                                        + " enabled", meta[i]);
-                                break;
-                        }
-                    } else {
-                        Slogf.w(TAG, "Ignored unknown metadata entry: %s with HD radio flag "
-                                + "disabled", meta[i]);
-                    }
+                    Slogf.w(TAG, "Ignored unknown metadata entry: %s", meta[i]);
                     break;
             }
         }
@@ -755,7 +734,7 @@ final class ConversionUtils {
 
     private static boolean identifierMeetsSdkVersionRequirement(ProgramSelector.Identifier id,
             int uid) {
-        if (Flags.hdRadioImproved() && !isAtLeastV(uid)) {
+        if (!isAtLeastV(uid)) {
             if (id.getType() == ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION) {
                 return false;
             }
@@ -819,7 +798,7 @@ final class ConversionUtils {
     }
 
     static boolean configFlagMeetsSdkVersionRequirement(int configFlag, int uid) {
-        if (!Flags.hdRadioImproved() || !isAtLeastV(uid)) {
+        if (!isAtLeastV(uid)) {
             return configFlag != ConfigFlag.FORCE_ANALOG_AM
                     && configFlag != ConfigFlag.FORCE_ANALOG_FM;
         }

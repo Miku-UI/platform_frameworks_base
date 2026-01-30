@@ -21,5 +21,7 @@ import android.os.looper
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 
+var Kosmos.fakeMediaControllerInteractor: FakeMediaControllerInteractor by
+    Kosmos.Fixture { FakeMediaControllerInteractor() }
 var Kosmos.mediaControllerInteractor: MediaControllerInteractor by
     Kosmos.Fixture { MediaControllerInteractorImpl(Handler(looper), testScope.testScheduler) }

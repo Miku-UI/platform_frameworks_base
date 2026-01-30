@@ -1,0 +1,112 @@
+{
+  "wm": [
+    {
+      "name": "WMShellFlickerTestsSplitScreen-CatchAll",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-CopyContentInSplitTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-DismissSplitScreenByDividerTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-DismissSplitScreenByGoHomeTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-DragDividerToResizeTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-EnterSplitScreenByDragFromAllAppsTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-EnterSplitScreenByDragFromNotificationTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-EnterSplitScreenByDragFromShortcutTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-EnterSplitScreenByDragFromTaskbarTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-EnterSplitScreenFromOverviewTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-MultipleShowImeRequestsInSplitScreenTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-SwitchAppByDoubleTapDividerTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-SwitchBackToSplitFromAnotherAppTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-SwitchBackToSplitFromHomeTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-SwitchBackToSplitFromRecentTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-SwitchBetweenSplitPairsNoPipTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-SwitchBetweenSplitPairsTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "WMShellFlickerTestsSplitScreen-UnlockKeyguardToSplitScreenTest",
+      "keywords": [
+        "device"
+      ]
+    }
+  ]
+}

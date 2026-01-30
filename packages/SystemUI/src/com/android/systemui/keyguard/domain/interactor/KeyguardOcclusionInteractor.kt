@@ -19,12 +19,14 @@ package com.android.systemui.keyguard.domain.interactor
 import android.app.ActivityManager.RunningTaskInfo
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.deviceentry.domain.interactor.DeviceUnlockedInteractor
 import com.android.systemui.keyguard.data.repository.KeyguardOcclusionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
 import com.android.systemui.util.kotlin.sample
 import dagger.Lazy
 import javax.inject.Inject
@@ -32,9 +34,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -44,7 +48,8 @@ import kotlinx.coroutines.flow.stateIn
  * secure camera.
  *
  * This should usually be used only by keyguard internal classes. Most System UI use cases should
- * use [KeyguardTransitionInteractor] to see if we're in [KeyguardState.OCCLUDED] instead.
+ * use [KeyguardTransitionInteractor] to see if we're in [KeyguardState.OCCLUDED] instead or
+ * [Scenes.Occluded] for SceneTransitionLayout.
  */
 @SysUISingleton
 class KeyguardOcclusionInteractor
@@ -54,6 +59,7 @@ constructor(
     private val repository: KeyguardOcclusionRepository,
     private val powerInteractor: PowerInteractor,
     private val transitionInteractor: KeyguardTransitionInteractor,
+    private val deviceEntryInteractor: DeviceEntryInteractor,
     private val internalTransitionInteractor: InternalKeyguardTransitionInteractor,
     keyguardInteractor: KeyguardInteractor,
     deviceUnlockedInteractor: Lazy<DeviceUnlockedInteractor>,
@@ -70,7 +76,14 @@ constructor(
      * Outside of the transition/occlusion interactors, you almost certainly don't want to use this.
      * Instead, use KeyguardTransitionInteractor to figure out if we're in KeyguardState.OCCLUDED.
      */
-    val isShowWhenLockedActivityOnTop = showWhenLockedActivityInfo.map { it.isOnTop }
+    val isShowWhenLockedActivityOnTop: StateFlow<Boolean> =
+        showWhenLockedActivityInfo
+            .map { it.isOnTop }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue = false,
+            )
 
     /** Whether we should start a transition due to the power button launch gesture. */
     fun shouldTransitionFromPowerButtonGesture(): Boolean {
@@ -137,5 +150,44 @@ constructor(
         taskInfo: RunningTaskInfo? = null,
     ) {
         repository.setShowWhenLockedActivityInfo(showWhenLockedActivityOnTop, taskInfo)
+    }
+
+    /** Has the device been entered (Gone state) or on AOD? */
+    private val isGoneOrAod: StateFlow<Boolean> =
+        anyOf(
+                transitionInteractor
+                    .transitionValue(KeyguardState.AOD)
+                    .onStart { emit(0f) }
+                    .map { it > 0 },
+                deviceEntryInteractor.isDeviceEntered,
+            )
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue = false,
+            )
+
+    /**
+     * Whether the keyguard is in an occluded state: when "show when locked" activity is present.
+     * AOD should always take precedence.
+     */
+    val isKeyguardOccluded: StateFlow<Boolean> =
+        combine(isShowWhenLockedActivityOnTop, isGoneOrAod) {
+                isShowWhenLockedActivityOnTop,
+                isGoneOrAod ->
+                isKeyguardOccluded(isShowWhenLockedActivityOnTop, isGoneOrAod)
+            }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.WhileSubscribed(),
+                initialValue =
+                    isKeyguardOccluded(isShowWhenLockedActivityOnTop.value, isGoneOrAod.value),
+            )
+
+    private fun isKeyguardOccluded(
+        isOccludingActivityShown: Boolean,
+        isGoneOrAod: Boolean,
+    ): Boolean {
+        return isOccludingActivityShown && !isGoneOrAod
     }
 }

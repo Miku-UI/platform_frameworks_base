@@ -886,32 +886,6 @@ public abstract class ApexManager {
             waitForApexService().reserveSpaceForCompressedApex(infoList);
         }
 
-        private SigningDetails getSigningDetails(PackageInfo pkg) throws PackageManagerException {
-            final int minSignatureScheme =
-                    ApkSignatureVerifier.getMinimumSignatureSchemeVersionForTargetSdk(
-                            pkg.applicationInfo.targetSdkVersion);
-            final ParseTypeImpl input = ParseTypeImpl.forDefaultParsing();
-            final ParseResult<SigningDetails> result = ApkSignatureVerifier.verify(
-                    input, pkg.applicationInfo.sourceDir, minSignatureScheme);
-            if (result.isError()) {
-                throw new PackageManagerException(result.getErrorCode(), result.getErrorMessage(),
-                        result.getException());
-            }
-            return result.getResult();
-        }
-
-        private void checkApexSignature(PackageInfo existingApexPkg, PackageInfo newApexPkg)
-                throws PackageManagerException {
-            final SigningDetails existingSigningDetails = getSigningDetails(existingApexPkg);
-            final SigningDetails newSigningDetails = getSigningDetails(newApexPkg);
-            if (!newSigningDetails.checkCapability(existingSigningDetails,
-                      SigningDetails.CertCapabilities.INSTALLED_DATA)) {
-                throw new PackageManagerException(PackageManager.INSTALL_FAILED_BAD_SIGNATURE,
-                          "APK container signature of " + newApexPkg.applicationInfo.sourceDir
-                                   + " is not compatible with currently installed on device");
-            }
-        }
-
         @Override
         ApexInfo installPackage(File apexFile, boolean force)
                 throws PackageManagerException {

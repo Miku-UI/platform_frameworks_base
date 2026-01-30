@@ -22,7 +22,7 @@ import android.security.attestationverification.VerificationToken;
 /**
  * The result of an attestation verification.
  *
- * {@hide}
+ * @hide
  */
 parcelable IVerificationResult {
     /** The result code corresponding to @VerificationResult. */

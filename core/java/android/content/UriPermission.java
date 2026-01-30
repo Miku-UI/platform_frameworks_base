@@ -38,14 +38,14 @@ public final class UriPermission implements Parcelable {
      */
     public static final long INVALID_TIME = Long.MIN_VALUE;
 
-    /** {@hide} */
+    /** @hide */
     public UriPermission(Uri uri, int modeFlags, long persistedTime) {
         mUri = uri;
         mModeFlags = modeFlags;
         mPersistedTime = persistedTime;
     }
 
-    /** {@hide} */
+    /** @hide */
     public UriPermission(Parcel in) {
         mUri = in.readParcelable(null, android.net.Uri.class);
         mModeFlags = in.readInt();

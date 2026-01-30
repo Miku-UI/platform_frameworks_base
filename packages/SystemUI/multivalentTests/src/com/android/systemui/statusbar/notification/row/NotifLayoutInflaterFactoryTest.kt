@@ -31,6 +31,8 @@ import com.android.systemui.statusbar.notification.row.NotificationRowContentBin
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.InflationFlag
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.spy
@@ -105,7 +107,7 @@ class NotifLayoutInflaterFactoryTest : SysuiTestCase() {
         assertThat(createdView).isInstanceOf(Button::class.java)
     }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun onCreateView_multipleFactory_throwIllegalStateException() {
         // GIVEN we have two factories that replaces TextViews in expanded layouts
         val layoutType = FLAG_CONTENT_VIEW_EXPANDED
@@ -124,7 +126,9 @@ class NotifLayoutInflaterFactoryTest : SysuiTestCase() {
             )
 
         // WHEN we try to inflate a TextView for the expanded layout
-        inflaterFactory.onCreateView("TextView", mContext, attrs)
+        assertThrows(IllegalStateException::class.java) {
+            inflaterFactory.onCreateView("TextView", mContext, attrs)
+        }
     }
 
     private fun createReplacementViewFactory(

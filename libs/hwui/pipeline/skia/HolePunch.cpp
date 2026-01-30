@@ -18,4 +18,4 @@
 
 using namespace android::uirenderer::skiapipeline;
 
-const std::string HOLE_PUNCH_ANNOTATION = "surface_hole_punch";
+

@@ -20,14 +20,12 @@ import static android.view.KeyCharacterMap.VIRTUAL_KEYBOARD;
 import static android.view.MotionEvent.ACTION_DOWN;
 import static android.view.MotionEvent.ACTION_HOVER_MOVE;
 import static android.view.MotionEvent.ACTION_UP;
-import static android.view.accessibility.Flags.FLAG_PREVENT_A11Y_NONTOOL_FROM_INJECTING_INTO_SENSITIVE_VIEWS;
 
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.everyItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -46,8 +44,6 @@ import android.graphics.Point;
 import android.os.Handler;
 import android.os.Message;
 import android.os.RemoteException;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.Display;
 import android.view.InputDevice;
@@ -234,7 +230,6 @@ public class MotionEventInjectorTest {
     }
 
     @Test
-    @EnableFlags(FLAG_PREVENT_A11Y_NONTOOL_FROM_INJECTING_INTO_SENSITIVE_VIEWS)
     public void testInjectEvents_fromAccessibilityTool_providesToolPolicyFlag() {
         EventStreamTransformation next = attachMockNext(mMotionEventInjector);
         injectEventsSync(mLineList, mServiceInterface, LINE_SEQUENCE,
@@ -273,25 +268,6 @@ public class MotionEventInjectorTest {
     }
 
     @Test
-    @DisableFlags({
-            FLAG_PREVENT_A11Y_NONTOOL_FROM_INJECTING_INTO_SENSITIVE_VIEWS,
-            Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX
-    })
-    public void testRegularEvent_afterGestureComplete_shouldPassToNext_withFlagInjectedFromA11y() {
-        EventStreamTransformation next = attachMockNext(mMotionEventInjector);
-        injectEventsSync(mLineList, mServiceInterface, LINE_SEQUENCE);
-        mMessageCapturingHandler.sendAllMessages(); // Send all motion events
-        reset(next);
-        mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
-        verify(next).onMotionEvent(argThat(mIsClickDown), argThat(mIsClickDown),
-                eq(WindowManagerPolicyConstants.FLAG_INJECTED_FROM_ACCESSIBILITY));
-    }
-
-    @Test
-    @EnableFlags({
-            FLAG_PREVENT_A11Y_NONTOOL_FROM_INJECTING_INTO_SENSITIVE_VIEWS,
-            Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX
-    })
     public void testRegularEvent_afterGestureComplete_shouldPassToNext_withNoPolicyFlagChanges() {
         EventStreamTransformation next = attachMockNext(mMotionEventInjector);
         injectEventsSync(mLineList, mServiceInterface, LINE_SEQUENCE);
@@ -304,26 +280,6 @@ public class MotionEventInjectorTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
-    public void testInjectEvents_withRealGestureUnderway_shouldCancelRealAndPassInjected() {
-        EventStreamTransformation next = attachMockNext(mMotionEventInjector);
-        mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
-        injectEventsSync(mLineList, mServiceInterface, LINE_SEQUENCE);
-
-        verify(next, times(2)).onMotionEvent(mCaptor1.capture(), mCaptor2.capture(), anyInt());
-        assertThat(mCaptor1.getAllValues().get(0), mIsClickDown);
-        assertThat(mCaptor1.getAllValues().get(1), IS_ACTION_CANCEL);
-        reset(next);
-
-        mMessageCapturingHandler.sendOneMessage(); // Send a motion event
-        verify(next).onMotionEvent(
-                argThat(mIsLineStart), argThat(mIsLineStart),
-                eq(WindowManagerPolicyConstants.FLAG_PASS_TO_USER
-                        | WindowManagerPolicyConstants.FLAG_INJECTED_FROM_ACCESSIBILITY));
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
     public void testInjectEvents_withRealGestureUnderway_shouldNotCancelReal_ShouldPassInjected() {
         EventStreamTransformation next = attachMockNext(mMotionEventInjector);
         mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
@@ -378,23 +334,6 @@ public class MotionEventInjectorTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
-    public void testOnMotionEvents_openInjectedGestureInProgress_shouldCancelAndNotifyAndPassReal()
-            throws RemoteException {
-        EventStreamTransformation next = attachMockNext(mMotionEventInjector);
-        injectEventsSync(mLineList, mServiceInterface, LINE_SEQUENCE);
-        mMessageCapturingHandler.sendOneMessage(); // Send a motion event
-        mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
-
-        verify(next, times(3)).onMotionEvent(mCaptor1.capture(), mCaptor2.capture(), anyInt());
-        assertThat(mCaptor1.getAllValues().get(0), mIsLineStart);
-        assertThat(mCaptor1.getAllValues().get(1), IS_ACTION_CANCEL);
-        assertThat(mCaptor1.getAllValues().get(2), mIsClickDown);
-        verify(mServiceInterface).onPerformGestureResult(LINE_SEQUENCE, false);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
     public void testOnMotionEvents_openInjectedGestureInProgress_shouldNotCancel_shouldPassReal()
             throws RemoteException {
         EventStreamTransformation next = attachMockNext(mMotionEventInjector);
@@ -426,36 +365,6 @@ public class MotionEventInjectorTest {
         assertThat(mCaptor1.getAllValues().get(1), mIsLineMiddle);
         assertThat(mCaptor1.getAllValues().get(2), mIsLineEnd);
         verify(mServiceInterface).onPerformGestureResult(LINE_SEQUENCE, true);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
-    public void testOnMotionEvents_closedInjectedGestureInProgress_shouldOnlyNotifyAndPassReal()
-            throws RemoteException {
-        EventStreamTransformation next = attachMockNext(mMotionEventInjector);
-        // Tack a click down to the end of the line
-        TouchPoint clickTouchPoint = new TouchPoint();
-        clickTouchPoint.mIsStartOfPath = true;
-        clickTouchPoint.mX = CLICK_POINT.x;
-        clickTouchPoint.mY = CLICK_POINT.y;
-        mLineList.add(new GestureStep(0, 1, new TouchPoint[] {clickTouchPoint}));
-
-        injectEventsSync(mLineList, mServiceInterface, LINE_SEQUENCE);
-
-        // Send 3 motion events, leaving the extra down in the queue
-        mMessageCapturingHandler.sendOneMessage();
-        mMessageCapturingHandler.sendOneMessage();
-        mMessageCapturingHandler.sendOneMessage();
-
-        mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
-
-        verify(next, times(4)).onMotionEvent(mCaptor1.capture(), mCaptor2.capture(), anyInt());
-        assertThat(mCaptor1.getAllValues().get(0), mIsLineStart);
-        assertThat(mCaptor1.getAllValues().get(1), mIsLineMiddle);
-        assertThat(mCaptor1.getAllValues().get(2), mIsLineEnd);
-        assertThat(mCaptor1.getAllValues().get(3), mIsClickDown);
-        verify(mServiceInterface).onPerformGestureResult(LINE_SEQUENCE, false);
-        assertFalse(mMessageCapturingHandler.hasMessages());
     }
 
     @Test
@@ -720,28 +629,6 @@ public class MotionEventInjectorTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
-    public void testContinuedGesture_realGestureArrivesInBetween_getsCanceled()
-            throws Exception {
-        EventStreamTransformation next = attachMockNext(mMotionEventInjector);
-        injectEventsSync(mContinuedLineList1, mServiceInterface, CONTINUED_LINE_SEQUENCE_1);
-        mMessageCapturingHandler.sendAllMessages(); // Send all motion events
-        verify(mServiceInterface).onPerformGestureResult(CONTINUED_LINE_SEQUENCE_1, true);
-
-        mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
-
-        injectEventsSync(mContinuedLineList2, mServiceInterface, CONTINUED_LINE_SEQUENCE_2);
-        mMessageCapturingHandler.sendAllMessages(); // Send all motion events
-        verify(mServiceInterface).onPerformGestureResult(CONTINUED_LINE_SEQUENCE_2, false);
-        verify(next, times(4)).onMotionEvent(mCaptor1.capture(), mCaptor2.capture(), anyInt());
-        List<MotionEvent> events = mCaptor1.getAllValues();
-        assertThat(events.get(0), allOf(isAtPoint(CONTINUED_LINE_START), IS_ACTION_DOWN));
-        assertThat(events.get(1), allOf(isAtPoint(CONTINUED_LINE_MID1), IS_ACTION_MOVE));
-        assertThat(events.get(2), IS_ACTION_CANCEL);
-        assertThat(events.get(3), allOf(isAtPoint(CLICK_POINT), IS_ACTION_DOWN));
-    }
-
-    @Test
     public void testClearEvents_realGestureInProgress_shouldForgetAboutGesture() {
         EventStreamTransformation next = attachMockNext(mMotionEventInjector);
         mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
@@ -755,22 +642,6 @@ public class MotionEventInjectorTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
-    public void testClearEventsOnOtherSource_realGestureInProgress_shouldNotForgetAboutGesture() {
-        EventStreamTransformation next = attachMockNext(mMotionEventInjector);
-        mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);
-        mMotionEventInjector.clearEvents(OTHER_EVENT_SOURCE);
-        injectEventsSync(mLineList, mServiceInterface, LINE_SEQUENCE);
-        mMessageCapturingHandler.sendOneMessage(); // Send a motion event
-
-        verify(next, times(3)).onMotionEvent(mCaptor1.capture(), mCaptor2.capture(), anyInt());
-        assertThat(mCaptor1.getAllValues().get(0), mIsClickDown);
-        assertThat(mCaptor1.getAllValues().get(1), IS_ACTION_CANCEL);
-        assertThat(mCaptor1.getAllValues().get(2), mIsLineStart);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_MOTION_EVENT_INJECTOR_CANCEL_FIX)
     public void testClearEventsOnOtherSource_shouldNotCancelRealOrInjectedGesture() {
         EventStreamTransformation next = attachMockNext(mMotionEventInjector);
         mMotionEventInjector.onMotionEvent(mClickDownEvent, mClickDownEvent, 0);

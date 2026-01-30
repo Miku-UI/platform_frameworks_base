@@ -26,7 +26,7 @@ import java.util.List;
  * The EncoderCapabilities class is used to retrieve the
  * capabilities for different video and audio
  * encoders supported on a specific Android platform.
- * {@hide}
+ * @hide
  */
 public class EncoderCapabilities
 {

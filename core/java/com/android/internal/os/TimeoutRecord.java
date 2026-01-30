@@ -19,9 +19,12 @@ package com.android.internal.os;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ApplicationExitInfo;
+import android.app.ApplicationExitInfo.SubReason;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.os.SystemClock;
+import android.util.Slog;
 
 import com.android.internal.os.anr.AnrLatencyTracker;
 
@@ -45,6 +48,7 @@ public class TimeoutRecord {
             TimeoutKind.APP_REGISTERED,
             TimeoutKind.SHORT_FGS_TIMEOUT,
             TimeoutKind.JOB_SERVICE,
+            TimeoutKind.APP_START,
     })
 
     @Retention(RetentionPolicy.SOURCE)
@@ -81,7 +85,9 @@ public class TimeoutRecord {
     public final AnrLatencyTracker mLatencyTracker;
 
     /** A handle to the timer that expired.  A value of null means "no timer". */
-    private AutoCloseable mExpiredTimer;
+    private Object mExpiredTimer;
+
+    private static final String TAG = "TimeoutRecord";
 
     private TimeoutRecord(@TimeoutKind int kind, @NonNull String reason, long endUptimeMillis,
             boolean endTakenBeforeLocks) {
@@ -202,21 +208,59 @@ public class TimeoutRecord {
         return TimeoutRecord.endingNow(TimeoutKind.APP_START, reason);
     }
 
-    /** Record the ID of the timer that expired. */
+    /**
+     * Record the timer that expired. The argument is an opaque handle.
+     */
     @NonNull
-    public TimeoutRecord setExpiredTimer(@Nullable AutoCloseable handle) {
+    public TimeoutRecord setExpiredTimer(@Nullable Object handle) {
         mExpiredTimer = handle;
         return this;
     }
 
-    /** Close the ExpiredTimer, if one is present. */
-    public void closeExpiredTimer() {
-        try {
-            if (mExpiredTimer != null) mExpiredTimer.close();
-        } catch (Exception e) {
-            // mExpiredTimer.close() should never, ever throw.  If it does, just rethrow as a
-            // RuntimeException.
-            throw new RuntimeException(e);
-        }
+    /**
+     * Return the expired timer.
+     */
+    @Nullable
+    public Object getExpiredTimer() {
+        return mExpiredTimer;
+    }
+
+
+    /**
+     * Maps a {@link TimeoutRecord.TimeoutKind} to its corresponding
+     * {@link ApplicationExitInfo.SubReason} for ANR (Application Not Responding)
+     * events.
+     *
+     * @return The {@link ApplicationExitInfo.SubReason} corresponding to the
+     *         internal {@code mKind}. Returns {@link ApplicationExitInfo#SUBREASON_UNKNOWN}
+     *         if the {@code mKind} does not match any known ANR subreason.
+     */
+    public @SubReason int getAppExitInfoAnrSubreason() {
+        return switch (mKind) {
+            case TimeoutRecord.TimeoutKind.APP_REGISTERED ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_APP_TRIGGERED;
+            case TimeoutRecord.TimeoutKind.APP_START ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_BIND_APPLICATION;
+            case TimeoutRecord.TimeoutKind.BROADCAST_RECEIVER ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_BROADCAST_OF_INTENT;
+            case TimeoutRecord.TimeoutKind.CONTENT_PROVIDER ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_CONTENT_PROVIDER_NOT_RESPONDING;
+            case TimeoutRecord.TimeoutKind.SERVICE_EXEC ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_EXECUTING_SERVICE;
+            case TimeoutRecord.TimeoutKind.SHORT_FGS_TIMEOUT ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_FOREGROUND_SHORT_SERVICE_TIMEOUT;
+            case TimeoutRecord.TimeoutKind.INPUT_DISPATCH_WINDOW_UNRESPONSIVE ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_INPUT_DISPATCHING_TIMEOUT;
+            case TimeoutRecord.TimeoutKind.INPUT_DISPATCH_NO_FOCUSED_WINDOW -> ApplicationExitInfo
+                    .SUBREASON_ANR_TYPE_INPUT_DISPATCHING_TIMEOUT_NO_FOCUSED_WINDOW;
+            case TimeoutRecord.TimeoutKind.JOB_SERVICE ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_JOB_SERVICE_START;
+            case TimeoutRecord.TimeoutKind.SERVICE_START ->
+                    ApplicationExitInfo.SUBREASON_ANR_TYPE_START_FOREGROUND_SERVICE;
+            default -> {
+                Slog.e(TAG, "Unknown TimeoutKind: " + mKind);
+                yield ApplicationExitInfo.SUBREASON_UNKNOWN;
+            }
+        };
     }
 }

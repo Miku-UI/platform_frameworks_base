@@ -44,13 +44,13 @@ final class Utils {
      * Request a system-wide trace.
      * Will be ignored if the device does not meet trace criteria or is being rate limited.
      */
-    static boolean traceSystem(IProfCollectd iprofcollectd, String eventName) {
+    static boolean traceSystem(IProfCollectd iprofcollectd, String eventName, int durationMs) {
         if (!checkPrerequisites(iprofcollectd)) {
             return false;
         }
         BackgroundThread.get().getThreadHandler().post(() -> {
             try {
-                iprofcollectd.trace_system(eventName);
+                iprofcollectd.trace_system(eventName, durationMs);
             } catch (RemoteException | ServiceSpecificException e) {
                 Log.e(LOG_TAG, "Failed to initiate trace: " + e.getMessage());
             }
@@ -62,13 +62,14 @@ final class Utils {
      * Request a system-wide trace after a delay.
      * Will be ignored if the device does not meet trace criteria or is being rate limited.
      */
-    static boolean traceSystem(IProfCollectd iprofcollectd, String eventName, int delayMs) {
+    static boolean traceSystem(IProfCollectd iprofcollectd, String eventName, int durationMs,
+            int delayMs) {
         if (!checkPrerequisites(iprofcollectd)) {
             return false;
         }
         BackgroundThread.get().getThreadHandler().postDelayed(() -> {
             try {
-                iprofcollectd.trace_system(eventName);
+                iprofcollectd.trace_system(eventName, durationMs);
             } catch (RemoteException | ServiceSpecificException e) {
                 Log.e(LOG_TAG, "Failed to initiate trace: " + e.getMessage());
             }

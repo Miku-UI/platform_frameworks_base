@@ -16,3 +16,6 @@ per-file LazyJniRegistrar.java = file:/PERFORMANCE_OWNERS
 per-file AnrTimer*.java = file:/PERFORMANCE_OWNERS
 
 per-file flags.aconfig = file:/PERFORMANCE_OWNERS
+
+# Long Method Tracing util
+per-file LongMethodTracer.java = benmiles@google.com, ilkos@google.com, mohamadmahmoud@google.com

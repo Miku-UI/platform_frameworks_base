@@ -16,17 +16,17 @@
 
 package com.android.systemui.statusbar.pipeline.battery.ui.composable
 
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
@@ -35,27 +35,41 @@ import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewM
 @Composable
 fun BatteryWithEstimate(
     viewModelFactory: BatteryViewModel.Factory,
-    isDark: IsAreaDark,
+    isDarkProvider: () -> IsAreaDark,
+    textColor: Color,
     showEstimate: Boolean,
     modifier: Modifier = Modifier,
+    showIcon: Boolean = true,
 ) {
     val viewModel =
         rememberViewModel(traceName = "BatteryWithEstimate") { viewModelFactory.create() }
 
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        UnifiedBattery(
-            viewModelFactory = viewModelFactory,
-            isDark = isDark,
-            modifier =
-                Modifier.fillMaxHeight()
-                    .padding(vertical = 2.dp)
-                    .align(Alignment.Bottom)
-                    .aspectRatio(viewModel.aspectRatio),
-        )
+    val batteryHeight =
+        with(LocalDensity.current) {
+            BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
+        }
+
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (showIcon) {
+            UnifiedBattery(
+                viewModel = viewModel,
+                isDarkProvider = isDarkProvider,
+                modifier = Modifier.height(batteryHeight).align(Alignment.CenterVertically),
+            )
+        }
         if (showEstimate) {
             viewModel.batteryTimeRemainingEstimate?.let {
-                Spacer(modifier.width(4.dp))
-                Text(text = it, color = Color.White)
+                Text(
+                    text = it,
+                    color = textColor,
+                    style = BatteryViewModel.getStatusBarBatteryTextStyle(LocalContext.current),
+                    maxLines = 1,
+                    modifier = Modifier.basicMarquee(iterations = 1),
+                )
             }
         }
     }

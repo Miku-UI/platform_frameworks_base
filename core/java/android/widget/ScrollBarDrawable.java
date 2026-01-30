@@ -34,7 +34,7 @@ import com.android.internal.widget.ScrollBarUtils;
  * be moved in to the view package since it is used in that lower-level layer.
  * For now, we'll hide it so it can be cleaned up later.
  *
- * {@hide}
+ * @hide
  */
 public class ScrollBarDrawable extends Drawable implements Drawable.Callback {
     private Drawable mVerticalTrack;

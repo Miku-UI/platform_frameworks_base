@@ -30,6 +30,7 @@ message ProfilerInfoProto {
     // Name of profile output file.
     optional string profile_file = 1;
     optional int32 profile_fd = 2;
+    // The sampling interval rate in microseconds.
     optional int32 sampling_interval = 3;
     optional bool auto_stop_profiler = 4;
     optional bool streaming_output = 5;
@@ -37,4 +38,7 @@ message ProfilerInfoProto {
     optional string agent = 6;
     optional int32 clock_type = 7;
     optional int32 profiler_output_version = 8;
+    optional bool profile_long_running_methods = 9;
+    // Duration in microseconds for which the tracing needs to run.
+    optional int64 duration_micros = 10;
 }

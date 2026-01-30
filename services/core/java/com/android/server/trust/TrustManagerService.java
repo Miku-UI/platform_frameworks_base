@@ -88,10 +88,10 @@ import com.android.internal.infra.AndroidFuture;
 import com.android.internal.policy.IDeviceLockedStateListener;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.widget.LockPatternUtils;
-import com.android.internal.widget.LockSettingsInternal;
-import com.android.internal.widget.LockSettingsStateListener;
 import com.android.server.LocalServices;
 import com.android.server.SystemService;
+import com.android.server.locksettings.LockSettingsInternal;
+import com.android.server.locksettings.LockSettingsStateListener;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.servicewatcher.CurrentUserServiceSupplier;
 import com.android.server.servicewatcher.ServiceWatcher;
@@ -744,22 +744,22 @@ public class TrustManagerService extends SystemService {
     }
 
     public long addEscrowToken(byte[] token, int userId) {
-        return mLockPatternUtils.addEscrowToken(token, userId,
+        return mLockSettings.addEscrowToken(token, userId,
                 (long handle, int userid) -> {
                     dispatchEscrowTokenActivatedLocked(handle, userid);
                 });
     }
 
     public boolean removeEscrowToken(long handle, int userId) {
-        return mLockPatternUtils.removeEscrowToken(handle, userId);
+        return mLockSettings.removeEscrowToken(handle, userId);
     }
 
     public boolean isEscrowTokenActive(long handle, int userId) {
-        return mLockPatternUtils.isEscrowTokenActive(handle, userId);
+        return mLockSettings.isEscrowTokenActive(handle, userId);
     }
 
     public void unlockUserWithToken(long handle, byte[] token, int userId) {
-        mLockPatternUtils.unlockUserWithToken(handle, token, userId);
+        mLockSettings.unlockUserWithToken(handle, token, userId);
     }
 
     /**
@@ -1162,8 +1162,7 @@ public class TrustManagerService extends SystemService {
         for (int i = 0; i < mActiveAgents.size(); i++) {
             AgentInfo info = mActiveAgents.valueAt(i);
             if (info.agent.isConnected()) {
-                info.agent.updateDevicePolicyFeatures();
-                changed = true;
+                changed |= info.agent.updateDevicePolicyFeatures();
             }
         }
         if (changed) {

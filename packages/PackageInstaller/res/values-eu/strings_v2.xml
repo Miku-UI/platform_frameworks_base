@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Baimena behar da"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Instalazioa blokeatu da"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Aplikazioa prestatzen…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Aplikazioa instalatu nahi duzu?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Instalatzen…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Instalatu da aplikazioa"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Berriro instalatu nahi duzu aplikazioa?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Berriro instalatzen…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Instalatu da berriro aplikazioa"</string>
+    <string name="title_update" msgid="1747328630716712391">"Aplikazioa eguneratu nahi duzu?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Aplikazioa eguneratu nahi duzu <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> erabilita?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Eguneratzen…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Eguneratu da aplikazioa"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Ezin da instalatu aplikazioa"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Instalazioa blokeatu da"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Aplikazioa ez da bateragarria"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Paketeak ez du balio"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Ez dago behar adina biltegiratzeko toki"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Aplikazioa ez dago instalatuta"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Aplikazioa desinstalatu nahi duzu?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Aplikazioaren klon hau ezabatu nahi duzu?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Aplikazio-eguneratzeak desinstalatu nahi dituzu?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Aplikazio-eguneratzeak desinstalatu nahi dituzu erabiltzaile guztientzat?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Aplikazioa desinstalatu nahi duzu erabiltzaile guztientzat?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Aplikazio hau desinstalatu nahi duzu \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" erabiltzailearentzat?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Ez da aurkitu aplikazioa"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Ezin da desinstalatu aplikazioa"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Ez da desinstalatu aplikazioa"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Aplikazioa artxibatu nahi duzu?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Aplikazio hau erabiltzaile guztientzat artxibatu nahi duzu?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Aplikazio hau artxibatu nahi duzu \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" erabiltzailearentzat?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Aplikazioa leheneratu nahi duzu?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Zerbait egin behar duzu"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Ez dago behar adina biltegiratzeko toki"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Ez zaude konektatuta Internetera"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> desgaituta dago"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ez dago instalatuta"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Arazoren bat izan da"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Normalean, &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; iturburuaren eguneratzeak jasotzen ditu aplikazioak. Aplikazioa beste iturburu batetik eguneratuz gero, baliteke aurrerantzeko eguneratzeak tabletako edozein iturburutatik jasotzea. Baliteke aplikazioaren funtzioak aldatzea."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Normalean, &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; iturburuaren eguneratzeak jasotzen ditu aplikazioak. Aplikazioa beste iturburu batetik eguneratuz gero, baliteke aurrerantzeko eguneratzeak telebistako edozein iturburutatik jasotzea. Baliteke aplikazioaren funtzioak aldatzea."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Normalean, &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; iturburuaren eguneratzeak jasotzen ditu aplikazioak. Aplikazioa beste iturburu batetik eguneratuz gero, baliteke aurrerantzeko eguneratzeak telefonoko edozein iturburutatik jasotzea. Baliteke aplikazioaren funtzioak aldatzea."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Segurtasuna bermatzeko, ezin dira instalatu iturburu honetako aplikazio ezezagunak tableta honetan. Hori aldatzeko, joan Ezarpenak atalera."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Segurtasuna bermatzeko, ezin dira instalatu iturburu honetako aplikazio ezezagunak telebista honetan. Hori aldatzeko, joan Ezarpenak atalera."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Segurtasuna bermatzeko, ezin dira instalatu iturburu honetako aplikazio ezezagunak erloju honetan. Hori aldatzeko, joan Ezarpenak atalera."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Segurtasuna bermatzeko, ezin dira instalatu iturburu honetako aplikazio ezezagunak telefono honetan. Hori aldatzeko, joan Ezarpenak atalera."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Telefonoak eta datu pertsonalek aplikazio ezezagunen erasoak jasateko arrisku handiagoa dute. Aplikazio hau instalatzen baduzu, onartu egingo duzu zeu zarela hura erabiltzeagatik telefonoari agian gertatuko zaizkion kalteen edo datu-galeren erantzulea."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Tabletak eta datu pertsonalek aplikazio ezezagunen erasoak jasateko arrisku handiagoa dute. Aplikazio hau instalatzen baduzu, onartu egingo duzu hura erabiltzeagatik tabletari agian gertatuko zaizkion kalteen edo datu-galeren erantzulea zeu izango zarela."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Telebistak eta datu pertsonalek aplikazio ezezagunen erasoak jasateko arrisku handiagoa dute. Aplikazio hau instalatzen baduzu, onartu egingo duzu hura erabiltzeagatik telebistari agian gertatuko zaizkion kalteen edo datu-galeren erantzulea zeu izango zarela."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Aplikazioa instalatzea galarazi da"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Aplikazio hau gailuan dagoen beste batekin gatazkan dago"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Aplikazioa ez da gailuarekin bateragarria"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Arazo bat dago aplikazioaren instalazio-fitxategiarekin"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Aplikazioa instalatzeko, egin toki pixka bat eta saiatu berriro"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Arazo bat dago aplikazioaren fitxategiarekin"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Aplikazioak instalatzeko aukera murriztu da"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Aplikazio ezezagunak instalatzeko aukera murriztu da"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Aplikazio honen klon bat ere badago eta ezabatu egingo da"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Aplikazioa <xliff:g id="APP_LABEL">%1$s</xliff:g> aplikazioaren klon bat da"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Aplikazioa jatorrizko bertsioarekin ordeztuko da. Aplikazioko datu guztiak kenduko dira."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Aplikazioa jatorrizko bertsioarekin ordeztuko da gailuko erabiltzaile guztientzat. Aplikazioko datu guztiak kenduko dira."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Aplikazioa laneko profiletik desinstalatuko da"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Aplikazioa eremu pribatutik desinstalatuko da"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Aplikazioa ez dago instalatutako aplikazioen zerrendan, edo dagoeneko desinstalatu da"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Erabiltzaile honek ez dauka desinstalatzeko baimenik"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Ezin izan da desinstalatu aplikazioa"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Mantendu aplikazioko datuak"</string>
+    <string name="message_archive" msgid="943853731737315850">"Aplikazioko datuak gordeko dira"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Aplikazioko datu guztiak gordeko dira"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Aplikazioko datuak gordeko dira"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Aplikazioa laneko profiletik artxibatuko da. Aplikazioko datuak gordeko dira."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Aplikazioa eremu pribatutik artxibatuko da. Aplikazioko datuak gordeko dira."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Aplikazioa <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> instalatzailetik deskargatuko da atzeko planoan"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> instalatzaileak informazio gehiago behar du aplikazioa leheneratzeko"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Aplikazioa leheneratzeko, egin tokia (&lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt;) eta saiatu berriro"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Aplikazioa leheneratzeko, egiaztatu Internetera konektatuta zaudela eta saiatu berriro"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Aplikazioa leheneratzeko, gaitu <xliff:g id="INSTALLERNAME">%1$s</xliff:g> ezarpenetan"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Aplikazioa leheneratzeko, <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> instalatu beharko duzu"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Arazo bat izan da aplikazioa leheneratzean"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> aplikazio honen zati da: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Aplikazio hau blokeatu egin da. Gailua eta datuak seguru mantentzeko, garatzaile egiaztatuen aplikazioak soilik instala daitezke.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Lortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Ez da eguneratu aplikazioa. Gailua eta datuak seguru mantentzeko, garatzaile egiaztatuen eguneratzeaksoilik instala daitezke.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Lortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Aplikazio hau ez da instalatu. Baliteke egiaztatu gabeko garatzaileen aplikazioak seguruak ez izatea.&lt;/p&gt; &lt;p&gt;Interneteko konexioa behar da aplikazioaren garatzailea egiaztatzeko. Egiaztatu konektatuta zaudela eta instala ezazu berriro. &lt;/p&gt; &lt;a href=https://g.co/android/developer&amp;gtLortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Ez da eguneratu aplikazioa. Baliteke egiaztatu gabeko garatzaileen eguneratzeak seguruak ez izatea.&lt;/p&gt; &lt;p&gt;Interneteko konexioa behar da aplikazioaren garatzailea egiaztatzeko. Egiaztatu konektatuta zaudela eta egunera ezazu berriro. &lt;/p&gt; &lt;a href=https://g.co/android/developer&amp;gtLortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Arazo bat izan da aplikazio honen garatzailea egiaztatzean. Baliteke egiaztatu gabeko garatzaileen aplikazioak seguruak ez izatea; beraz, ez da instalatu aplikazioa.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Lortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Arazo bat izan da aplikazio honen garatzailea egiaztatzean. Baliteke egiaztatu gabeko garatzaileen eguneratzeak seguruak ez izatea; beraz, ez da eguneratu aplikazioa.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Lortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Aplikazioa blokeatu egin da, arazo bat izan delako garatzailea egiaztatzean. Gailua eta datuak seguru mantentzeko, garatzaile egiaztatuen aplikazioak soilik instala daitezke.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Lortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Aplikazioa ez da eguneratu, arazo bat izan delako garatzailea egiaztatzean. Gailua eta datuak seguru mantentzeko, garatzaile egiaztatuen eguneratzeaksoilik instala daitezke.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Lortu garatzaileak egiaztatzeari buruzko informazio gehiago&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Egiaztatu gabe instalatzen baduzu, gogoan izan egiaztatu gabeko garatzaileen aplikazioek gailua eta datuak arriskuan jarriko dituztela agian."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Egiaztatu gabe eguneratzen baduzu, gogoan izan egiaztatu gabeko garatzaileen eguneratzeek gailua eta datuak arriskuan jarriko dituztela agian."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Ez da egiaztatu aplikazioaren garatzailea"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Internet gabe; ezin da egiaztatu garatzailea"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Ezin da egiaztatu aplikazioaren garatzailea"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Instalatu egiaztatu gabe"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Eguneratu egiaztatu gabe"</string>
+    <string name="button_install" msgid="7434013176505680162">"Instalatu"</string>
+    <string name="button_update" msgid="3046719350226327526">"Eguneratu"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Eguneratu halere"</string>
+    <string name="button_done" msgid="3408025390982260629">"Eginda"</string>
+    <string name="button_open" msgid="6892684987374117955">"Ireki"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Utzi"</string>
+    <string name="button_continue" msgid="107501685249826244">"Egin aurrera"</string>
+    <string name="button_close" msgid="7187308556466275899">"Itxi"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Desinstalatu"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Ezabatu"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Instalatu berriro"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Kudeatu aplikazioak"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Artxibatu"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Leheneratu"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Desinstalatu eguneratzeak"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Ezarpenak"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Saiatu berriro"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> aplikazioaren klona"</string>
+</resources>

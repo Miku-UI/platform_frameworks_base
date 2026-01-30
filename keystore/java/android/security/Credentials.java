@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@hide}
+ * @hide
  */
 public class Credentials {
     private static final String LOGTAG = "Credentials";

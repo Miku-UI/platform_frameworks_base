@@ -18,7 +18,7 @@ package com.android.ims.internal;
 
 /**
  * See RcsFeature for more information.
- * {@hide}
+ * @hide
  */
 interface IImsRcsFeature {
     //Empty Default Implementation

@@ -53,7 +53,7 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
         animationController: ScreenshotAnimationController,
         layoutInflater: LayoutInflater,
         onDismissalRequested: (event: ScreenshotEvent, velocity: Float?) -> Unit,
-        onUserInteraction: () -> Unit
+        onUserInteraction: () -> Unit,
     ) {
         val swipeGestureListener =
             SwipeGestureListener(
@@ -61,7 +61,7 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
                 onDismiss = {
                     onDismissalRequested(ScreenshotEvent.SCREENSHOT_SWIPE_DISMISSED, it)
                 },
-                onCancel = { animationController.getSwipeReturnAnimation().start() }
+                onCancel = { animationController.getSwipeReturnAnimation().start() },
             )
         view.onTouchInterceptListener = { swipeGestureListener.onMotionEvent(it) }
         view.userInteractionCallback = onUserInteraction
@@ -72,11 +72,6 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
         previewView.clipToOutline = true
         previewViewBlur.clipToOutline = true
         val actionsContainer: LinearLayout = view.requireViewById(R.id.screenshot_actions)
-        val dismissButton = view.requireViewById<View>(R.id.screenshot_dismiss_button)
-        dismissButton.visibility = if (viewModel.showDismissButton) View.VISIBLE else View.GONE
-        dismissButton.setOnClickListener {
-            onDismissalRequested(ScreenshotEvent.SCREENSHOT_EXPLICIT_DISMISSAL, null)
-        }
         val scrollingScrim: ImageView = view.requireViewById(R.id.screenshot_scrolling_scrim)
         val scrollablePreview: ImageView = view.requireViewById(R.id.screenshot_scrollable_preview)
         val badgeView = view.requireViewById<ImageView>(R.id.screenshot_badge)
@@ -114,7 +109,7 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
                                 setScrollablePreview(
                                     scrollablePreview,
                                     viewModel.preview.value,
-                                    rect
+                                    rect,
                                 )
                             } else {
                                 scrollablePreview.visibility = View.GONE
@@ -147,7 +142,7 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
                                 actions,
                                 viewModel.animationState.value,
                                 view,
-                                layoutInflater
+                                layoutInflater,
                             )
                         }
                     }
@@ -157,7 +152,7 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
                                 viewModel.actions.value,
                                 animationState,
                                 view,
-                                layoutInflater
+                                layoutInflater,
                             )
                         }
                     }
@@ -170,7 +165,7 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
         actions: List<ActionButtonViewModel>,
         animationState: AnimationState,
         view: ScreenshotShelfView,
-        layoutInflater: LayoutInflater
+        layoutInflater: LayoutInflater,
     ) {
         val actionsContainer: LinearLayout = view.requireViewById(R.id.screenshot_actions)
         val visibleActions =
@@ -235,7 +230,7 @@ constructor(private val buttonViewBinder: ActionButtonViewBinder) {
     private fun setScrollablePreview(
         scrollablePreview: ImageView,
         bitmap: Bitmap?,
-        scrollableRect: Rect
+        scrollableRect: Rect,
     ) {
         if (bitmap == null) {
             return

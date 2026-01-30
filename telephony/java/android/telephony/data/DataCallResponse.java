@@ -17,6 +17,7 @@
 
 package android.telephony.data;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -25,12 +26,15 @@ import android.annotation.SystemApi;
 import android.net.LinkAddress;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.telephony.AccessNetworkConstants;
 import android.telephony.Annotation.DataFailureCause;
 import android.telephony.DataFailCause;
 import android.telephony.PreciseDataConnectionState;
+import android.telephony.SubscriptionManager;
 import android.telephony.data.ApnSetting.ProtocolType;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.util.Preconditions;
 
 import java.lang.annotation.Retention;
@@ -50,7 +54,7 @@ import java.util.Set;
 @SystemApi
 public final class DataCallResponse implements Parcelable {
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = "LINK_STATUS_", value = {
             LINK_STATUS_UNKNOWN,
             LINK_STATUS_INACTIVE,
@@ -72,7 +76,7 @@ public final class DataCallResponse implements Parcelable {
     /** Indicates the data connection is active with physical link up. */
     public static final int LINK_STATUS_ACTIVE = 2;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = "HANDOVER_FAILURE_MODE_", value = {
             HANDOVER_FAILURE_MODE_UNKNOWN,
             HANDOVER_FAILURE_MODE_LEGACY,
@@ -144,6 +148,8 @@ public final class DataCallResponse implements Parcelable {
     private final NetworkSliceInfo mSliceInfo;
     private final List<TrafficDescriptor> mTrafficDescriptors;
     private final @PreciseDataConnectionState.NetworkValidationStatus int mNetworkValidationStatus;
+    private final @AccessNetworkConstants.TransportType int mPhysicalNetworkTransportType;
+    private final int mPhysicalNetworkSlotIndex;
 
     /**
      * @param cause Data call fail cause. {@link DataFailCause#NONE} indicates no error.
@@ -187,7 +193,9 @@ public final class DataCallResponse implements Parcelable {
                 null /* defaultQos */, Collections.emptyList() /* qosBearerSessions */,
                 null /* sliceInfo */,
                 Collections.emptyList(), /* trafficDescriptors */
-                PreciseDataConnectionState.NETWORK_VALIDATION_UNSUPPORTED);
+                PreciseDataConnectionState.NETWORK_VALIDATION_UNSUPPORTED,
+                AccessNetworkConstants.TRANSPORT_TYPE_INVALID,
+                SubscriptionManager.INVALID_SIM_SLOT_INDEX);
     }
 
     private DataCallResponse(@DataFailureCause int cause, long suggestedRetryTime, int id,
@@ -199,7 +207,9 @@ public final class DataCallResponse implements Parcelable {
             @Nullable Qos defaultQos, @NonNull List<QosBearerSession> qosBearerSessions,
             @Nullable NetworkSliceInfo sliceInfo,
             @NonNull List<TrafficDescriptor> trafficDescriptors,
-            @PreciseDataConnectionState.NetworkValidationStatus int networkValidationStatus) {
+            @PreciseDataConnectionState.NetworkValidationStatus int networkValidationStatus,
+            @AccessNetworkConstants.TransportType int physicalNetworkTransportType,
+            int physicalNetworkSlotIndex) {
         mCause = cause;
         mSuggestedRetryTime = suggestedRetryTime;
         mId = id;
@@ -220,6 +230,8 @@ public final class DataCallResponse implements Parcelable {
         mSliceInfo = sliceInfo;
         mTrafficDescriptors = new ArrayList<>(trafficDescriptors);
         mNetworkValidationStatus = networkValidationStatus;
+        mPhysicalNetworkTransportType = physicalNetworkTransportType;
+        mPhysicalNetworkSlotIndex = physicalNetworkSlotIndex;
 
         if (mLinkStatus == LINK_STATUS_ACTIVE
                 || mLinkStatus == LINK_STATUS_DORMANT) {
@@ -275,6 +287,8 @@ public final class DataCallResponse implements Parcelable {
                 TrafficDescriptor.class.getClassLoader(),
                 android.telephony.data.TrafficDescriptor.class);
         mNetworkValidationStatus = source.readInt();
+        mPhysicalNetworkTransportType = source.readInt();
+        mPhysicalNetworkSlotIndex = source.readInt();
     }
 
     /**
@@ -457,6 +471,28 @@ public final class DataCallResponse implements Parcelable {
         return mNetworkValidationStatus;
     }
 
+    /**
+     * @return The physical network transport type related to this data connection.
+     */
+    @FlaggedApi(Flags.FLAG_DATA_SERVICE_NOTIFY_IMS_DATA_NETWORK)
+    @AccessNetworkConstants.TransportType
+    public int getPhysicalNetworkTransportType() {
+        return mPhysicalNetworkTransportType;
+    }
+
+    /**
+     * @return The physical network SIM slot index if the physical network transport type of this
+     *         data connection is {@link AccessNetworkConstants#TRANSPORT_TYPE_WWAN}; otherwise,
+     *         this slot index must be {@link SubscriptionManager#INVALID_SIM_SLOT_INDEX}.
+     */
+    @FlaggedApi(Flags.FLAG_DATA_SERVICE_NOTIFY_IMS_DATA_NETWORK)
+    public int getPhysicalNetworkSlotIndex() {
+        if (mPhysicalNetworkTransportType == AccessNetworkConstants.TRANSPORT_TYPE_WWAN) {
+            return mPhysicalNetworkSlotIndex;
+        }
+        return SubscriptionManager.INVALID_SIM_SLOT_INDEX;
+    }
+
     @NonNull
     @Override
     public String toString() {
@@ -483,6 +519,9 @@ public final class DataCallResponse implements Parcelable {
            .append(" trafficDescriptors=").append(mTrafficDescriptors)
            .append(" networkValidationStatus=").append(PreciseDataConnectionState
                         .networkValidationStatusToString(mNetworkValidationStatus))
+           .append(" physicalNetworkTransportType=").append(AccessNetworkConstants
+                        .transportTypeToString(mPhysicalNetworkTransportType))
+           .append(" physicalNetworkSlotIndex=").append(mPhysicalNetworkSlotIndex)
            .append("}");
         return sb.toString();
     }
@@ -522,7 +561,9 @@ public final class DataCallResponse implements Parcelable {
                 && Objects.equals(mSliceInfo, other.mSliceInfo)
                 && mTrafficDescriptors.size() == other.mTrafficDescriptors.size() // non-null
                 && mTrafficDescriptors.containsAll(other.mTrafficDescriptors) // non-null
-                && mNetworkValidationStatus == other.mNetworkValidationStatus;
+                && mNetworkValidationStatus == other.mNetworkValidationStatus
+                && mPhysicalNetworkTransportType == other.mPhysicalNetworkTransportType
+                && mPhysicalNetworkSlotIndex == other.mPhysicalNetworkSlotIndex;
     }
 
     @Override
@@ -531,7 +572,8 @@ public final class DataCallResponse implements Parcelable {
                 mInterfaceName, Set.copyOf(mAddresses), Set.copyOf(mDnsAddresses),
                 Set.copyOf(mGatewayAddresses), Set.copyOf(mPcscfAddresses), mMtu, mMtuV4, mMtuV6,
                 mHandoverFailureMode, mPduSessionId, mDefaultQos, Set.copyOf(mQosBearerSessions),
-                mSliceInfo, Set.copyOf(mTrafficDescriptors), mNetworkValidationStatus);
+                mSliceInfo, Set.copyOf(mTrafficDescriptors), mNetworkValidationStatus,
+                mPhysicalNetworkTransportType, mPhysicalNetworkSlotIndex);
     }
 
     @Override
@@ -561,6 +603,8 @@ public final class DataCallResponse implements Parcelable {
         dest.writeParcelable(mSliceInfo, flags);
         dest.writeList(mTrafficDescriptors);
         dest.writeInt(mNetworkValidationStatus);
+        dest.writeInt(mPhysicalNetworkTransportType);
+        dest.writeInt(mPhysicalNetworkSlotIndex);
     }
 
     public static final @android.annotation.NonNull Parcelable.Creator<DataCallResponse> CREATOR =
@@ -650,6 +694,11 @@ public final class DataCallResponse implements Parcelable {
 
         private @PreciseDataConnectionState.NetworkValidationStatus int mNetworkValidationStatus =
                 PreciseDataConnectionState.NETWORK_VALIDATION_UNSUPPORTED;
+
+        private @AccessNetworkConstants.TransportType int mPhysicalNetworkTransportType =
+                AccessNetworkConstants.TRANSPORT_TYPE_INVALID;
+
+        private int mPhysicalNetworkSlotIndex = SubscriptionManager.INVALID_SIM_SLOT_INDEX;
 
         /**
          * Default constructor for Builder.
@@ -940,6 +989,31 @@ public final class DataCallResponse implements Parcelable {
         }
 
         /**
+         * Set the physical network transport type.
+         *
+         * @param transportType The physical network transport type.
+         * @return The same instance of the builder.
+         */
+        @FlaggedApi(Flags.FLAG_DATA_SERVICE_NOTIFY_IMS_DATA_NETWORK)
+        public @NonNull Builder setPhysicalNetworkTransportType(
+                @AccessNetworkConstants.TransportType int transportType) {
+            mPhysicalNetworkTransportType = transportType;
+            return this;
+        }
+
+        /**
+         * Set the physical network SIM slot index.
+         *
+         * @param slotIndex The physical network slot index.
+         * @return The same instance of the builder.
+         */
+        @FlaggedApi(Flags.FLAG_DATA_SERVICE_NOTIFY_IMS_DATA_NETWORK)
+        public @NonNull Builder setPhysicalNetworkSlotIndex(int slotIndex) {
+            mPhysicalNetworkSlotIndex = slotIndex;
+            return this;
+        }
+
+        /**
          * Build the DataCallResponse.
          *
          * @return the DataCallResponse object.
@@ -949,7 +1023,8 @@ public final class DataCallResponse implements Parcelable {
                     mProtocolType, mInterfaceName, mAddresses, mDnsAddresses, mGatewayAddresses,
                     mPcscfAddresses, mMtu, mMtuV4, mMtuV6, mHandoverFailureMode, mPduSessionId,
                     mDefaultQos, mQosBearerSessions, mSliceInfo, mTrafficDescriptors,
-                    mNetworkValidationStatus);
+                    mNetworkValidationStatus, mPhysicalNetworkTransportType,
+                    mPhysicalNetworkSlotIndex);
         }
     }
 }

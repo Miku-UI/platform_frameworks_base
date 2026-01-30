@@ -87,4 +87,7 @@ public interface DeviceAdminStringProvider {
      * Returns the dialog contents for when biometrics require parental consent.
      */
     String getDisabledBiometricsParentConsentContent();
+
+    /** Returns the dialog title when the setting is blocked by parental controls. */
+    String getDisabledByParentalControlsTitle();
 }

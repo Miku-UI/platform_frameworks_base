@@ -37,12 +37,9 @@ import android.app.servertransaction.ClientTransactionItem;
 import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.RemoteException;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
-
-import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -175,10 +172,7 @@ public class ClientLifecycleManagerTests extends SystemServiceTestsBase {
 
     @Test
     public void testLayoutDeferred() throws RemoteException {
-        spyOn(mWms.mWindowPlacerLocked);
-        doReturn(false).when(mWms.mWindowPlacerLocked).isInLayout();
-        doReturn(false).when(mWms.mWindowPlacerLocked).isTraversalScheduled();
-        doReturn(true).when(mWms.mWindowPlacerLocked).isLayoutDeferred();
+        deferLayout();
 
         // Queue transactions during layout deferred.
         mLifecycleManager.scheduleTransactionItem(mClient, mLifecycleItem);
@@ -191,14 +185,11 @@ public class ClientLifecycleManagerTests extends SystemServiceTestsBase {
         verify(mLifecycleManager, never()).scheduleTransaction(any());
 
         // Immediately dispatch when layout continue without ongoing/scheduled layout.
-        doReturn(false).when(mWms.mWindowPlacerLocked).isLayoutDeferred();
-
-        mLifecycleManager.onLayoutContinued();
+        continueLayout();
 
         verify(mLifecycleManager).scheduleTransaction(any());
     }
 
-    @EnableFlags(Flags.FLAG_CLEANUP_DISPATCH_PENDING_TRANSACTIONS_REMOTE_EXCEPTION)
     @Test
     public void testOnRemoteException_returnTrueOnSuccess() throws RemoteException {
         final boolean res = mLifecycleManager.scheduleTransactionItemNow(mClient, mTransactionItem);
@@ -206,7 +197,6 @@ public class ClientLifecycleManagerTests extends SystemServiceTestsBase {
         assertTrue(res);
     }
 
-    @EnableFlags(Flags.FLAG_CLEANUP_DISPATCH_PENDING_TRANSACTIONS_REMOTE_EXCEPTION)
     @Test
     public void testOnRemoteException_returnFalseOnFailure() throws RemoteException {
         final DeadObjectException e = new DeadObjectException();
@@ -218,21 +208,32 @@ public class ClientLifecycleManagerTests extends SystemServiceTestsBase {
         assertFalse(res);
     }
 
-    @EnableFlags(Flags.FLAG_CLEANUP_DISPATCH_PENDING_TRANSACTIONS_REMOTE_EXCEPTION)
     @Test
     public void testOnRemoteException_returnTrueForQueueing() throws RemoteException {
-        spyOn(mWms.mWindowPlacerLocked);
-        doReturn(true).when(mWms.mWindowPlacerLocked).isLayoutDeferred();
+        deferLayout();
         final DeadObjectException e = new DeadObjectException();
         doThrow(e).when(mClient).scheduleTransaction(any());
 
         final boolean res = mLifecycleManager.scheduleTransactionItem(mClient, mTransactionItem);
 
         assertTrue(res);
+        verify(mLifecycleManager, never()).scheduleTransaction(any());
 
+        continueLayout();
+
+        // Exception should be caught and logged after queue.
+        verify(mLifecycleManager).scheduleTransaction(any());
+    }
+
+    private void deferLayout() {
+        spyOn(mWms.mWindowPlacerLocked);
+        doReturn(false).when(mWms.mWindowPlacerLocked).isInLayout();
+        doReturn(false).when(mWms.mWindowPlacerLocked).isTraversalScheduled();
+        doReturn(true).when(mWms.mWindowPlacerLocked).isLayoutDeferred();
+    }
+
+    private void continueLayout() {
         doReturn(false).when(mWms.mWindowPlacerLocked).isLayoutDeferred();
         mLifecycleManager.onLayoutContinued();
-
-        verify(mLifecycleManager).scheduleTransaction(any());
     }
 }

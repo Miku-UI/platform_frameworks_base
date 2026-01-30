@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.internal.perfetto.protos.Rect.RectProto;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
@@ -235,7 +236,7 @@ public final class Rect implements Parcelable {
 
     /**
      * Write to a protocol buffer output stream.
-     * Protocol buffer message definition at {@link android.graphics.RectProto}
+     * Protocol buffer message definition at {@link android.internal.perfetto.protos.Rect.RectProto}
      *
      * @param protoOutputStream Stream to write the Rect object to.
      * @param fieldId           Field Id of the Rect as defined in the parent message
@@ -252,7 +253,7 @@ public final class Rect implements Parcelable {
 
     /**
      * Read from a protocol buffer input stream.
-     * Protocol buffer message definition at {@link android.graphics.RectProto}
+     * Protocol buffer message definition at {@link android.internal.perfetto.protos.Rect.RectProto}
      *
      * @param proto     Stream to read the Rect object from.
      * @param fieldId   Field Id of the Rect as defined in the parent message

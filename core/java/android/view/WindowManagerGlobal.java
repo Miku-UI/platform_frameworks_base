@@ -21,6 +21,8 @@ import static android.view.WindowManager.LayoutParams.LAST_APPLICATION_WINDOW;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_OPT_OUT_EDGE_TO_EDGE;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION;
 
+import static com.android.window.flags.Flags.currentAnimatorScaleUsesSharedMemory;
+
 import android.animation.ValueAnimator;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -32,6 +34,7 @@ import android.content.res.TypedArray;
 import android.graphics.HardwareRenderer;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.RemoteException;
@@ -41,6 +44,7 @@ import android.util.AndroidRuntimeException;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.BoostFramework.ScrollOptimizer;
+import android.util.ListenerGroup;
 import android.util.Log;
 import android.util.Pair;
 import android.util.SparseArray;
@@ -48,9 +52,11 @@ import android.view.inputmethod.InputMethodManager;
 import android.window.ITrustedPresentationListener;
 import android.window.InputTransferToken;
 import android.window.TrustedPresentationThresholds;
+import android.window.WindowContext;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.os.ApplicationSharedMemory;
 import com.android.internal.policy.PhoneWindow;
 import com.android.internal.util.FastPrintWriter;
 
@@ -97,16 +103,9 @@ public final class WindowManagerGlobal {
     public static final int RELAYOUT_RES_SURFACE_RESIZED = 1 << 2;
 
     /**
-     * In multi-window we force show the system bars. Because we don't want that the surface size
-     * changes in this mode, we instead have a flag whether the system bar sizes should always be
-     * consumed, so the app is treated like there is no virtual system bars at all.
-     */
-    public static final int RELAYOUT_RES_CONSUME_ALWAYS_SYSTEM_BARS = 1 << 3;
-
-    /**
      * The window manager has told the window it cannot draw this frame and should retry again.
      */
-    public static final int RELAYOUT_RES_CANCEL_AND_REDRAW = 1 << 4;
+    public static final int RELAYOUT_RES_CANCEL_AND_REDRAW = 1 << 3;
 
     /**
      * Flag for relayout: the client will be later giving
@@ -117,12 +116,6 @@ public final class WindowManagerGlobal {
 
     public static final int ADD_FLAG_IN_TOUCH_MODE = 0x1;
     public static final int ADD_FLAG_APP_VISIBLE = 0x2;
-
-    /**
-     * Like {@link #RELAYOUT_RES_CONSUME_ALWAYS_SYSTEM_BARS}, but as a "hint" when adding the
-     * window.
-     */
-    public static final int ADD_FLAG_ALWAYS_CONSUME_SYSTEM_BARS = 0x4;
 
     public static final int ADD_OKAY = 0;
     public static final int ADD_BAD_APP_TOKEN = -1;
@@ -148,6 +141,7 @@ public final class WindowManagerGlobal {
     private final Object mLock = new Object();
 
     @UnsupportedAppUsage
+    @GuardedBy("mLock")
     private final ArrayList<View> mViews = new ArrayList<View>();
     /**
      * The {@link ListenerGroup} that is associated to {@link #mViews}.
@@ -155,17 +149,23 @@ public final class WindowManagerGlobal {
      */
     @GuardedBy("mLock")
     private final ListenerGroup<List<View>> mWindowViewsListenerGroup =
-            new ListenerGroup<>(new ArrayList<>());
+            new ListenerGroup<>(new ArrayList<>(), new Handler(Looper.getMainLooper()));
     @UnsupportedAppUsage
+    @GuardedBy("mLock")
     private final ArrayList<ViewRootImpl> mRoots = new ArrayList<ViewRootImpl>();
     @UnsupportedAppUsage
+    @GuardedBy("mLock")
     private final ArrayList<WindowManager.LayoutParams> mParams =
             new ArrayList<WindowManager.LayoutParams>();
+
+    @GuardedBy("mLock")
     private final ArraySet<View> mDyingViews = new ArraySet<View>();
 
+    @GuardedBy("mLock")
     private final ArrayList<ViewRootImpl> mWindowlessRoots = new ArrayList<ViewRootImpl>();
 
     /** A context token only has one remote registration to system. */
+    @GuardedBy("mLock")
     private WeakHashMap<IBinder, ProposedRotationListenerDelegate> mProposedRotationListenerMap;
 
     private Runnable mSystemPropertyUpdater;
@@ -222,14 +222,19 @@ public final class WindowManagerGlobal {
             if (sWindowManagerService == null) {
                 sWindowManagerService = IWindowManager.Stub.asInterface(
                         ServiceManager.getService("window"));
-                try {
+                if (currentAnimatorScaleUsesSharedMemory()) {
+                    ValueAnimator.setDurationScale(
+                            ApplicationSharedMemory.getInstance().getCurrentAnimatorScale());
+                } else {
                     // Can be null if this is called before WindowManagerService is initialized.
                     if (sWindowManagerService != null) {
-                        ValueAnimator.setDurationScale(
+                        try {
+                            ValueAnimator.setDurationScale(
                                 sWindowManagerService.getCurrentAnimatorScale());
+                        } catch (RemoteException e) {
+                            throw e.rethrowFromSystemServer();
+                        }
                     }
-                } catch (RemoteException e) {
-                    throw e.rethrowFromSystemServer();
                 }
             }
             return sWindowManagerService;
@@ -336,9 +341,6 @@ public final class WindowManagerGlobal {
     public void addWindowViewsListener(@NonNull Executor executor,
             @NonNull Consumer<List<View>> consumer) {
         synchronized (mLock) {
-            if (mWindowViewsListenerGroup.isConsumerPresent(consumer)) {
-                return;
-            }
             mWindowViewsListenerGroup.addListener(executor, consumer);
         }
     }
@@ -391,11 +393,10 @@ public final class WindowManagerGlobal {
         if (display == null) {
             throw new IllegalArgumentException("display must not be null");
         }
-        if (!(params instanceof WindowManager.LayoutParams)) {
+        if (!(params instanceof WindowManager.LayoutParams wparams)) {
             throw new IllegalArgumentException("Params must be WindowManager.LayoutParams");
         }
 
-        final WindowManager.LayoutParams wparams = (WindowManager.LayoutParams) params;
         final Context context = view.getContext();
         if (parentWindow != null) {
             parentWindow.adjustLayoutParamsForSubWindow(wparams);
@@ -521,11 +522,9 @@ public final class WindowManagerGlobal {
         if (view == null) {
             throw new IllegalArgumentException("view must not be null");
         }
-        if (!(params instanceof WindowManager.LayoutParams)) {
+        if (!(params instanceof WindowManager.LayoutParams wparams)) {
             throw new IllegalArgumentException("Params must be WindowManager.LayoutParams");
         }
-
-        final WindowManager.LayoutParams wparams = (WindowManager.LayoutParams)params;
 
         view.setLayoutParams(wparams);
 
@@ -603,9 +602,7 @@ public final class WindowManagerGlobal {
         ViewRootImpl root = mRoots.get(index);
         View view = root.getView();
 
-        if (root != null) {
-            root.getImeFocusController().onWindowDismissed();
-        }
+        root.getImeFocusController().onWindowDismissed();
         boolean deferred = root.die(immediate);
         if (view != null) {
             view.assignParent(null);
@@ -616,7 +613,7 @@ public final class WindowManagerGlobal {
     }
 
     void doRemoveView(ViewRootImpl root) {
-        boolean allViewsRemoved;
+        final boolean allViewsRemoved;
         synchronized (mLock) {
             final int index = mRoots.indexOf(root);
             if (index >= 0) {
@@ -639,6 +636,13 @@ public final class WindowManagerGlobal {
 
             allViewsRemoved = mRoots.isEmpty();
             mWindowViewsListenerGroup.accept(getWindowViews());
+
+            // If we don't have any views anymore in our process, stop watching
+            // for system property changes.
+            if (allViewsRemoved && mSystemPropertyUpdater != null) {
+                SystemProperties.removeChangeCallback(mSystemPropertyUpdater);
+                mSystemPropertyUpdater = null;
+            }
         }
 
         // If we don't have any views anymore in our process, we no longer need the
@@ -922,19 +926,18 @@ public final class WindowManagerGlobal {
     private static InputChannel createInputChannel(@NonNull IBinder clientToken,
             @NonNull InputTransferToken hostToken, @NonNull SurfaceControl surfaceControl,
             @Nullable InputTransferToken inputTransferToken) {
-        InputChannel inputChannel = new InputChannel();
         try {
             // TODO (b/329860681): Use INVALID_DISPLAY for now because the displayId will be
             // selected in  SurfaceFlinger. This should be cleaned up so grantInputChannel doesn't
             // take in a displayId at all
-            WindowManagerGlobal.getWindowSession().grantInputChannel(INVALID_DISPLAY,
+            return WindowManagerGlobal.getWindowSession().grantInputChannel(INVALID_DISPLAY,
                     surfaceControl, clientToken, hostToken, 0, 0, TYPE_APPLICATION, 0, null,
-                    inputTransferToken, surfaceControl.getName(), inputChannel);
+                    inputTransferToken, surfaceControl.getName());
         } catch (RemoteException e) {
             Log.e(TAG, "Failed to create input channel", e);
             e.rethrowAsRuntimeException();
+            return null;
         }
-        return inputChannel;
     }
 
     private static void removeInputChannel(IBinder clientToken) {
@@ -1133,6 +1136,29 @@ public final class WindowManagerGlobal {
                 InputEventReceiver inputEventReceiver) {
             mClientToken = clientToken;
             mInputEventReceiver = inputEventReceiver;
+        }
+    }
+
+    /**
+     * Checks whether {@link WindowContext#getFallbackWindowType()} can be applied when
+     * {@link WindowManager#addView} or {@link WindowManager#updateViewLayout}.
+     *
+     * @param fallbackWindowType the fallback window type
+     * @param view the view that applies the window type
+     */
+    public boolean canApplyFallbackWindowType(
+            @WindowManager.LayoutParams.WindowType int fallbackWindowType,
+            @NonNull View view) {
+        synchronized (mLock) {
+            final int index = findViewLocked(view, false /* required */);
+            if (index < 0) {
+                // The view has not been added yet. Window type can be overridden.
+                return true;
+            }
+            final WindowManager.LayoutParams params = mParams.get(index);
+            // If the view has been attached, we should make sure the override type matches the
+            // existing one. The window type can't be changed after the view was added.
+            return fallbackWindowType == params.type;
         }
     }
 }

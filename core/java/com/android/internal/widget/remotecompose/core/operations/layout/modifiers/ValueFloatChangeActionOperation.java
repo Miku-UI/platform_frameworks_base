@@ -56,17 +56,17 @@ public class ValueFloatChangeActionOperation extends Operation implements Action
      *
      * @return the operation serialized name
      */
-    public String serializedName() {
+    public @NonNull String serializedName() {
         return "VALUE_FLOAT_CHANGE";
     }
 
     @Override
-    public void serializeToString(int indent, StringSerializer serializer) {
+    public void serializeToString(int indent, @NonNull StringSerializer serializer) {
         serializer.append(indent, serializedName() + " = " + mTargetValueId + " -> " + mValue);
     }
 
     @Override
-    public void apply(RemoteContext context) {}
+    public void apply(@NonNull RemoteContext context) {}
 
     @NonNull
     @Override
@@ -75,11 +75,15 @@ public class ValueFloatChangeActionOperation extends Operation implements Action
     }
 
     @Override
-    public void write(WireBuffer buffer) {}
+    public void write(@NonNull WireBuffer buffer) {}
 
     @Override
     public void runAction(
-            RemoteContext context, CoreDocument document, Component component, float x, float y) {
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            @NonNull Component component,
+            float x,
+            float y) {
         context.overrideFloat(mTargetValueId, mValue);
     }
 
@@ -90,7 +94,7 @@ public class ValueFloatChangeActionOperation extends Operation implements Action
      * @param valueId the value id
      * @param value the value to set
      */
-    public static void apply(WireBuffer buffer, int valueId, float value) {
+    public static void apply(@NonNull WireBuffer buffer, int valueId, float value) {
         buffer.start(OP_CODE);
         buffer.writeInt(valueId);
         buffer.writeFloat(value);
@@ -102,7 +106,7 @@ public class ValueFloatChangeActionOperation extends Operation implements Action
      * @param buffer the buffer to read
      * @param operations the list of operations that will be added to
      */
-    public static void read(WireBuffer buffer, List<Operation> operations) {
+    public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         int valueId = buffer.readInt();
         float value = buffer.readFloat();
         operations.add(new ValueFloatChangeActionOperation(valueId, value));
@@ -113,7 +117,7 @@ public class ValueFloatChangeActionOperation extends Operation implements Action
      *
      * @param doc to append the description to.
      */
-    public static void documentation(DocumentationBuilder doc) {
+    public static void documentation(@NonNull DocumentationBuilder doc) {
         doc.operation("Layout Operations", OP_CODE, "ValueFloatChangeActionOperation")
                 .description(
                         "ValueIntegerChange action. "
@@ -123,7 +127,7 @@ public class ValueFloatChangeActionOperation extends Operation implements Action
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER, SerializeTags.ACTION)
                 .addType("ValueFloatChangeActionOperation")

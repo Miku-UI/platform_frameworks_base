@@ -41,7 +41,6 @@ import java.util.TreeSet;
 /**
  * Handles canceling notifications when their time to live expires
  */
-@FlaggedApi(Flags.FLAG_ALL_NOTIFS_NEED_TTL)
 public class TimeToLiveHelper {
     private static final String TAG = TimeToLiveHelper.class.getSimpleName();
     private static final String ACTION = "com.android.server.notification.TimeToLiveHelper";

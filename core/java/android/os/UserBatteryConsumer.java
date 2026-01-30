@@ -32,7 +32,7 @@ import java.util.List;
 /**
  * Contains power consumption data attributed to a {@link UserHandle}.
  *
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class UserBatteryConsumer extends BatteryConsumer {

@@ -2,21 +2,6 @@ package: "android.server"
 container: "system"
 
 flag {
-     namespace: "system_performance"
-     name: "telemetry_apis_service"
-     description: "Control service portion of telemetry APIs feature."
-     is_fixed_read_only: true
-     bug: "324153471"
-}
-
-flag {
-     namespace: "system_performance"
-     name: "early_system_config_init"
-     description: "Perform earlier initialization of SystemConfig in system server startup."
-     bug: "383869534"
-}
-
-flag {
      name: "remove_text_service"
      namespace: "wear_frameworks"
      description: "Remove TextServiceManagerService on Wear"
@@ -53,13 +38,6 @@ flag {
 }
 
 flag {
-    name: "allow_network_time_update_service"
-    namespace: "wear_systems"
-    description: "Allow NetworkTimeUpdateService on Wear"
-    bug: "327508176"
-}
-
-flag {
      name: "remove_game_manager_service_from_wear"
      namespace: "wear_frameworks"
      description: "Remove GameManagerService from Wear"
@@ -80,4 +58,25 @@ flag {
      description: "Whether the Wear Gesture API is available."
      bug: "396154116"
      is_exported: true
+}
+
+flag {
+    name: "voiceinteractionmanagerservice_get_resources_in_init_thread"
+    namespace: "system_performance"
+    description: "Move VoiceInteractionManagerService getResources away from the boot critical path"
+    bug: "406841419"
+}
+
+flag {
+     name: "remove_ad_services_manager_service_from_wear"
+     namespace: "wear_frameworks"
+     description: "Remove AdServicesManagerService from Wear"
+     bug: "340928611"
+}
+
+flag {
+    namespace: "wear_system_health"
+    name: "allow_system_server_inherit_rt"
+    description: "Allow enabling real-time priority inheritance for binder services within system_server"
+    bug: "379851024"
 }

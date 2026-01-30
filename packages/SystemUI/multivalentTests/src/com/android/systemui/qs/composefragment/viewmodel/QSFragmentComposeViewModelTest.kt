@@ -19,11 +19,16 @@ package com.android.systemui.qs.composefragment.viewmodel
 import android.app.StatusBarManager
 import android.content.testableContext
 import android.graphics.Rect
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
+import com.android.systemui.Flags.FLAG_QS_COMPOSE_FRAGMENT_EARLY_EXPANSION
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.media.controls.domain.pipeline.legacyMediaDataManagerImpl
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager
@@ -31,6 +36,8 @@ import com.android.systemui.media.controls.ui.controller.mediaCarouselController
 import com.android.systemui.media.controls.ui.view.MediaHostState
 import com.android.systemui.media.controls.ui.view.qqsMediaHost
 import com.android.systemui.media.controls.ui.view.qsMediaHost
+import com.android.systemui.media.remedia.data.repository.setHasMedia
+import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
 import com.android.systemui.qs.composefragment.viewmodel.MediaState.ACTIVE_MEDIA
 import com.android.systemui.qs.composefragment.viewmodel.MediaState.ANY_MEDIA
 import com.android.systemui.qs.composefragment.viewmodel.MediaState.NO_MEDIA
@@ -38,7 +45,7 @@ import com.android.systemui.qs.fgsManagerController
 import com.android.systemui.qs.panels.domain.interactor.tileSquishinessInteractor
 import com.android.systemui.qs.panels.ui.viewmodel.setConfigurationForMediaInRow
 import com.android.systemui.res.R
-import com.android.systemui.shade.data.repository.fakeShadeRepository
+import com.android.systemui.shade.data.repository.FakeShadeRepository
 import com.android.systemui.shade.largeScreenHeaderHelper
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.disableflags.data.repository.fakeDisableFlagsRepository
@@ -63,6 +70,40 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
     fun qsExpansionValueChanges_correctExpansionState() =
         with(kosmos) {
             testScope.testWithinLifecycle {
+                underTest.setQsExpansionValue(0f)
+                assertThat(underTest.expansionState.progress).isEqualTo(0f)
+
+                underTest.setQsExpansionValue(0.3f)
+                assertThat(underTest.expansionState.progress).isEqualTo(0.3f)
+
+                underTest.setQsExpansionValue(1f)
+                assertThat(underTest.expansionState.progress).isEqualTo(1f)
+            }
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NO_EXPANSION_ON_OVERSCROLL)
+    fun qsExpansionValueChanges_whenOverScrolling_zeroExpansionState() =
+        with(kosmos) {
+            testScope.testWithinLifecycle {
+                underTest.isStackScrollerOverscrolling = true
+                underTest.setQsExpansionValue(0f)
+                assertThat(underTest.expansionState.progress).isEqualTo(0f)
+
+                underTest.setQsExpansionValue(0.3f)
+                assertThat(underTest.expansionState.progress).isEqualTo(0f)
+
+                underTest.setQsExpansionValue(1f)
+                assertThat(underTest.expansionState.progress).isEqualTo(0f)
+            }
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_NO_EXPANSION_ON_OVERSCROLL)
+    fun qsExpansionValueChanges_whenOverScrolling_nonZeroExpansionState_withFlagOff() =
+        with(kosmos) {
+            testScope.testWithinLifecycle {
+                underTest.isStackScrollerOverscrolling = true
                 underTest.setQsExpansionValue(0f)
                 assertThat(underTest.expansionState.progress).isEqualTo(0f)
 
@@ -197,6 +238,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun qqsMediaHost_initializedCorrectly() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -209,6 +252,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun qsMediaHost_initializedCorrectly() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -224,9 +269,10 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
     fun qqsMediaVisible_onlyWhenActiveMedia() =
         with(kosmos) {
             testScope.testWithinLifecycle {
-                whenever(mediaCarouselController.isLockedAndHidden()).thenReturn(false)
-
-                assertThat(underTest.qqsMediaVisible).isEqualTo(underTest.qqsMediaHost.visible)
+                if (!MediaControlsInComposeFlag.isEnabled) {
+                    whenever(mediaCarouselController.isLockedAndHidden()).thenReturn(false)
+                    assertThat(underTest.qqsMediaVisible).isEqualTo(underTest.qqsMediaHost.visible)
+                }
 
                 setMediaState(NO_MEDIA)
                 assertThat(underTest.qqsMediaVisible).isFalse()
@@ -243,9 +289,10 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
     fun qsMediaVisible_onAnyMedia() =
         with(kosmos) {
             testScope.testWithinLifecycle {
-                whenever(mediaCarouselController.isLockedAndHidden()).thenReturn(false)
-
-                assertThat(underTest.qsMediaVisible).isEqualTo(underTest.qsMediaHost.visible)
+                if (!MediaControlsInComposeFlag.isEnabled) {
+                    whenever(mediaCarouselController.isLockedAndHidden()).thenReturn(false)
+                    assertThat(underTest.qsMediaVisible).isEqualTo(underTest.qsMediaHost.visible)
+                }
 
                 setMediaState(NO_MEDIA)
                 assertThat(underTest.qsMediaVisible).isFalse()
@@ -294,7 +341,7 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
-    fun mediaInRow_mediaRecommendation_onlyQSInRow() =
+    fun mediaInRow_mediaNotActive_onlyQSInRow() =
         with(kosmos) {
             testScope.testWithinLifecycle {
                 setConfigurationForMediaInRow(mediaInRow = true)
@@ -318,6 +365,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun qqsMediaExpansion_collapsedMediaInLandscape() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -333,6 +382,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun qqsMediaExpansion_notCollapsedMediaInLandscape_alwaysExpanded() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -348,6 +399,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun qqsMediaExpansion_reactsToChangesInCollapsedMediaInLandscape() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -363,6 +416,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun applyQsScrollPositionForClipping() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -379,6 +434,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun shouldUpdateMediaSquishiness_inSplitShadeFalse_mediaSquishinessSet() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -397,6 +454,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun inSplitShade_differentStatusBarState_mediaSquishinessSet() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -418,6 +477,8 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
     fun disappearParams() =
         with(kosmos) {
             testScope.testWithinLifecycle {
@@ -438,23 +499,23 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
         }
 
     @Test
-    fun qsVisibleAndAnyShadeVisible() =
+    fun qsVisibleAndAnyShadeExpanded() =
         with(kosmos) {
             testScope.testWithinLifecycle {
+                underTest.isPanelExpanded = false
                 underTest.isQsVisible = false
-                fakeShadeRepository.setLegacyExpandedOrAwaitingInputTransfer(false)
                 assertThat(underTest.isQsVisibleAndAnyShadeExpanded).isFalse()
 
+                underTest.isPanelExpanded = false
                 underTest.isQsVisible = true
-                fakeShadeRepository.setLegacyExpandedOrAwaitingInputTransfer(false)
                 assertThat(underTest.isQsVisibleAndAnyShadeExpanded).isFalse()
 
+                underTest.isPanelExpanded = true
                 underTest.isQsVisible = false
-                fakeShadeRepository.setLegacyExpandedOrAwaitingInputTransfer(true)
                 assertThat(underTest.isQsVisibleAndAnyShadeExpanded).isFalse()
 
+                underTest.isPanelExpanded = true
                 underTest.isQsVisible = true
-                fakeShadeRepository.setLegacyExpandedOrAwaitingInputTransfer(true)
                 assertThat(underTest.isQsVisibleAndAnyShadeExpanded).isTrue()
             }
         }
@@ -473,14 +534,72 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
             }
         }
 
+    @Test
+    @DisableFlags(FLAG_QS_COMPOSE_FRAGMENT_EARLY_EXPANSION)
+    fun minExpansion_expanded_noEarlyExpansion() =
+        with(kosmos) {
+            testScope.testWithinLifecycle {
+                underTest.isQsExpanded = true
+                underTest.setQsExpansionValue(0f)
+
+                assertThat(underTest.expansionState.progress).isEqualTo(0f)
+            }
+        }
+
+    @Test
+    @EnableFlags(FLAG_QS_COMPOSE_FRAGMENT_EARLY_EXPANSION)
+    fun minExpansion_expanded_earlyExpansion() =
+        with(kosmos) {
+            testScope.testWithinLifecycle {
+                underTest.isQsExpanded = true
+                underTest.setQsExpansionValue(0f)
+                // The shade is not being collapsed
+                underTest.panelExpansionFraction = 1f
+                underTest.squishinessFraction = 1f
+
+                assertThat(underTest.expansionState.progress).isGreaterThan(0f)
+            }
+        }
+
+    @Test
+    @EnableFlags(FLAG_QS_COMPOSE_FRAGMENT_EARLY_EXPANSION)
+    fun minExpansion_expanded_collapsingShade_panelExpansion_noEarlyExpansion() =
+        with(kosmos) {
+            testScope.testWithinLifecycle {
+                underTest.isQsExpanded = true
+                underTest.setQsExpansionValue(0f)
+                underTest.panelExpansionFraction = 0.9f
+
+                assertThat(underTest.expansionState.progress).isEqualTo(0f)
+            }
+        }
+
+    @Test
+    @EnableFlags(FLAG_QS_COMPOSE_FRAGMENT_EARLY_EXPANSION)
+    fun minExpansion_expanded_collapsingShade_squishiness_noEarlyExpansion() =
+        with(kosmos) {
+            testScope.testWithinLifecycle {
+                underTest.isQsExpanded = true
+                underTest.setQsExpansionValue(0f)
+                underTest.squishinessFraction = 0.9f
+
+                assertThat(underTest.expansionState.progress).isEqualTo(0f)
+            }
+        }
+
     private fun TestScope.setMediaState(state: MediaState) {
         with(kosmos) {
             val activeMedia = state == ACTIVE_MEDIA
             val anyMedia = state != NO_MEDIA
-            whenever(legacyMediaDataManagerImpl.hasActiveMediaOrRecommendation())
-                .thenReturn(activeMedia)
-            whenever(legacyMediaDataManagerImpl.hasAnyMediaOrRecommendation()).thenReturn(anyMedia)
+            setHasMedia(visible = anyMedia, active = activeMedia)
+
+            if (MediaControlsInComposeFlag.isEnabled) return
+
+            whenever(legacyMediaDataManagerImpl.hasActiveMedia()).thenReturn(activeMedia)
+            whenever(legacyMediaDataManagerImpl.hasAnyMedia()).thenReturn(anyMedia)
+            qqsMediaHost.showsOnlyActiveMedia = true
             qqsMediaHost.updateViewVisibility()
+            qsMediaHost.showsOnlyActiveMedia = false
             qsMediaHost.updateViewVisibility()
         }
         runCurrent()
@@ -492,6 +611,10 @@ class QSFragmentComposeViewModelTest : AbstractQSFragmentComposeViewModelTest() 
             fakeConfigurationRepository.onAnyConfigurationChange()
         }
         runCurrent()
+    }
+
+    private fun FakeShadeRepository.setUserTracking(tracking: Boolean) {
+        setLegacyShadeTracking(tracking)
     }
 
     companion object {

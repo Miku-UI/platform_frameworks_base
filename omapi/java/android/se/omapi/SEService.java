@@ -32,6 +32,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.IBinder;
 import android.os.RemoteException;
+import android.os.ServiceManager;
 import android.util.Log;
 
 import java.util.HashMap;
@@ -62,6 +63,9 @@ public final class SEService {
      * @hide
      */
     public static final int NO_SUCH_ELEMENT_ERROR = 2;
+
+    /** @hide */
+    private static final String SERVICE_NAME = "android.se.omapi.ISecureElementService/default";
 
     /**
      * Interface to send call-backs to the application when the service is connected.
@@ -181,6 +185,14 @@ public final class SEService {
         mSEListener.mListener = listener;
         mSEListener.mExecutor = executor;
 
+        IBinder seService = ServiceManager.checkService(SERVICE_NAME);
+        if (seService != null) {
+            mSecureElementService = ISecureElementService.Stub.asInterface(seService);
+            Log.i(TAG, "Got SecureElementService from system, not sending intent.");
+            executor.execute(listener::onConnected);
+            return;
+        }
+
         mConnection = new ServiceConnection() {
 
             public synchronized void onServiceConnected(
@@ -199,6 +211,8 @@ public final class SEService {
             }
         };
 
+        Log.i(TAG,
+                "No SecureElementService available from system, sending intent to start it");
         Intent intent = new Intent(ISecureElementService.class.getName());
         intent.setClassName("com.android.se",
                             "com.android.se.SecureElementService");
@@ -206,6 +220,8 @@ public final class SEService {
                 mContext.bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
         if (bindingSuccessful) {
             Log.i(TAG, "bindService successful");
+        } else {
+            Log.e(TAG, "bindService failed");
         }
     }
 

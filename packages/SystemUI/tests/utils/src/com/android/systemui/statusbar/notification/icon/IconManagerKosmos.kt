@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.notification.icon
 
+import android.content.mockedContext
 import android.content.pm.launcherApps
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
@@ -32,5 +33,6 @@ val Kosmos.iconManager by
             applicationCoroutineScope,
             backgroundCoroutineContext,
             mainCoroutineContext,
+            mockedContext,
         )
     }

@@ -17,6 +17,7 @@
 package com.android.providers.settings;
 
 import android.annotation.NonNull;
+import android.content.Context;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -24,6 +25,7 @@ import android.providers.settings.BackingStoreProto;
 import android.providers.settings.CacheEntryProto;
 import android.providers.settings.GenerationRegistryProto;
 import android.util.ArrayMap;
+import android.util.LongSparseArray;
 import android.util.MemoryIntArray;
 import android.util.Slog;
 import android.util.proto.ProtoOutputStream;
@@ -50,11 +52,12 @@ final class GenerationRegistry {
 
     // Key -> backingStore mapping
     @GuardedBy("mLock")
-    private final ArrayMap<Integer, MemoryIntArray> mKeyToBackingStoreMap = new ArrayMap();
+    private final LongSparseArray<MemoryIntArray> mKeyToBackingStoreMap = new LongSparseArray<>();
 
     // Key -> (String->Index map) mapping
     @GuardedBy("mLock")
-    private final ArrayMap<Integer, ArrayMap<String, Integer>> mKeyToIndexMapMap = new ArrayMap<>();
+    private final LongSparseArray<ArrayMap<String, Integer>> mKeyToIndexMapMap =
+            new LongSparseArray<>();
 
     @GuardedBy("mLock")
     private int mNumBackingStore = 0;
@@ -68,8 +71,8 @@ final class GenerationRegistry {
     private static final String DEFAULT_MAP_KEY_FOR_UNSET_SETTINGS = "";
 
     @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
-    // Minimum number of backing stores; supports 3 users
-    static final int MIN_NUM_BACKING_STORE = 8;
+    // Minimum number of backing stores; supports 7 users
+    static final int MIN_NUM_BACKING_STORE = 16;
     // Maximum number of backing stores; supports 18 users
     static final int MAX_NUM_BACKING_STORE = 38;
 
@@ -78,10 +81,10 @@ final class GenerationRegistry {
     GenerationRegistry(int maxNumUsers) {
         // Add some buffer to maxNumUsers to accommodate corner cases when the actual number of
         // users in the system exceeds the limit
-        maxNumUsers = maxNumUsers + 2;
+        maxNumUsers = maxNumUsers + 6;
         // Number of backing stores needed for N users is (N + N + 1 + 1) = N * 2 + 2
         // N Secure backing stores and N System backing stores, 1 Config and 1 Global for all users
-        // However, we always make sure that at least 3 users and at most 18 users are supported.
+        // However, we always make sure that at least 7 users and at most 18 users are supported.
         mMaxNumBackingStore = Math.min(Math.max(maxNumUsers * 2 + 2, MIN_NUM_BACKING_STORE),
                 MAX_NUM_BACKING_STORE);
     }
@@ -90,18 +93,19 @@ final class GenerationRegistry {
      *  Increment the generation number if the setting is already cached in the backing stores.
      *  Otherwise, do nothing.
      */
-    public void incrementGeneration(int key, String name) {
-        final boolean isConfig =
-                (SettingsState.getTypeFromKey(key) == SettingsState.SETTINGS_TYPE_CONFIG);
+    public void incrementGeneration(long key, String name) {
+        final boolean isConfig = SettingsState.isConfigSettingsKey(key);
         // Only store the prefix if the mutated setting is a config
         final String indexMapKey = isConfig ? (name.split("/")[0] + "/") : name;
         incrementGenerationInternal(key, indexMapKey);
     }
 
-    private void incrementGenerationInternal(int key, @NonNull String indexMapKey) {
+    private void incrementGenerationInternal(long key, @NonNull String indexMapKey) {
         if (SettingsState.isGlobalSettingsKey(key)) {
-            // Global settings are shared across users, so ignore the userId in the key
-            key = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, UserHandle.USER_SYSTEM);
+            // Global settings are shared across users and devices, so ignore the userId and the
+            // deviceId in the key
+            key = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, UserHandle.USER_SYSTEM,
+                    Context.DEVICE_ID_DEFAULT);
         }
         synchronized (mLock) {
             final MemoryIntArray backingStore = getBackingStoreLocked(key,
@@ -132,9 +136,8 @@ final class GenerationRegistry {
 
     // A new, non-predefined setting has been inserted, increment the tracking number for all unset
     // settings
-    public void incrementGenerationForUnsetSettings(int key) {
-        final boolean isConfig =
-                (SettingsState.getTypeFromKey(key) == SettingsState.SETTINGS_TYPE_CONFIG);
+    public void incrementGenerationForUnsetSettings(long key) {
+        final boolean isConfig = SettingsState.isConfigSettingsKey(key);
         if (isConfig) {
             // No need to track new settings for configs
             return;
@@ -147,10 +150,12 @@ final class GenerationRegistry {
      *  of a cached setting. If it was not in the backing store, first create the entry in it before
      *  returning the result.
      */
-    public void addGenerationData(Bundle bundle, int key, String indexMapKey) {
+    public void addGenerationData(Bundle bundle, long key, String indexMapKey) {
         if (SettingsState.isGlobalSettingsKey(key)) {
-            // Global settings are shared across users, so ignore the userId in the key
-            key = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, UserHandle.USER_SYSTEM);
+            // Global settings are shared across users and devices, so ignore the userId
+            // and the deviceId in the key
+            key = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, UserHandle.USER_SYSTEM,
+                    Context.DEVICE_ID_DEFAULT);
         }
         synchronized (mLock) {
             final MemoryIntArray backingStore = getBackingStoreLocked(key,
@@ -181,22 +186,22 @@ final class GenerationRegistry {
         }
     }
 
-    public void addGenerationDataForUnsetSettings(Bundle bundle, int key) {
+    public void addGenerationDataForUnsetSettings(Bundle bundle, long key) {
         addGenerationData(bundle, key, /* indexMapKey= */ DEFAULT_MAP_KEY_FOR_UNSET_SETTINGS);
     }
 
-    public void onUserRemoved(int userId) {
-        final int secureKey = SettingsState.makeKey(
-                SettingsState.SETTINGS_TYPE_SECURE, userId);
-        final int systemKey = SettingsState.makeKey(
-                SettingsState.SETTINGS_TYPE_SYSTEM, userId);
+    public void onUserAndDeviceRemoved(int userId, int deviceId) {
+        final long secureKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_SECURE, userId, deviceId);
+        final long systemKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_SYSTEM, userId, deviceId);
         synchronized (mLock) {
-            if (mKeyToIndexMapMap.containsKey(secureKey)) {
+            if (mKeyToIndexMapMap.get(secureKey) != null) {
                 destroyBackingStoreLocked(secureKey);
                 mKeyToIndexMapMap.remove(secureKey);
                 mNumBackingStore = mNumBackingStore - 1;
             }
-            if (mKeyToIndexMapMap.containsKey(systemKey)) {
+            if (mKeyToIndexMapMap.get(systemKey) != null) {
                 destroyBackingStoreLocked(systemKey);
                 mKeyToIndexMapMap.remove(systemKey);
                 mNumBackingStore = mNumBackingStore - 1;
@@ -205,7 +210,7 @@ final class GenerationRegistry {
     }
 
     @GuardedBy("mLock")
-    private MemoryIntArray getBackingStoreLocked(int key, boolean createIfNotExist) {
+    private MemoryIntArray getBackingStoreLocked(long key, boolean createIfNotExist) {
         MemoryIntArray backingStore = mKeyToBackingStoreMap.get(key);
         if (!createIfNotExist) {
             return backingStore;
@@ -222,9 +227,8 @@ final class GenerationRegistry {
                 mKeyToBackingStoreMap.put(key, backingStore);
                 mNumBackingStore += 1;
                 if (DEBUG) {
-                    Slog.e(LOG_TAG, "Created backing store for "
-                            + SettingsState.keyToString(key) + " on user: "
-                            + SettingsState.getUserIdFromKey(key));
+                    Slog.e(LOG_TAG, "Created backing store for key "
+                            + SettingsState.keyToString(key));
                 }
             } catch (IOException e) {
                 Slog.e(LOG_TAG, "Error creating generation tracker", e);
@@ -234,7 +238,7 @@ final class GenerationRegistry {
     }
 
     @GuardedBy("mLock")
-    private void destroyBackingStoreLocked(int key) {
+    private void destroyBackingStoreLocked(long key) {
         MemoryIntArray backingStore = mKeyToBackingStoreMap.get(key);
         if (backingStore != null) {
             try {
@@ -249,8 +253,8 @@ final class GenerationRegistry {
         }
     }
 
-    private static int getKeyIndexLocked(int key, String indexMapKey,
-            ArrayMap<Integer, ArrayMap<String, Integer>> keyToIndexMapMap,
+    private static int getKeyIndexLocked(long key, String indexMapKey,
+            LongSparseArray<ArrayMap<String, Integer>> keyToIndexMapMap,
             MemoryIntArray backingStore, boolean createIfNotExist) throws IOException {
         ArrayMap<String, Integer> nameToIndexMap = keyToIndexMapMap.get(key);
         if (nameToIndexMap == null) {
@@ -271,8 +275,10 @@ final class GenerationRegistry {
                 nameToIndexMap.put(indexMapKey, index);
                 if (DEBUG) {
                     Slog.i(LOG_TAG, "Allocated index:" + index + " for setting:" + indexMapKey
-                            + " of type:" + SettingsState.keyToString(key)
-                            + " on user:" + SettingsState.getUserIdFromKey(key));
+                            + " of type:"
+                            + SettingsState.settingTypeToString(SettingsState.getTypeFromKey(key))
+                            + " on user:" + SettingsState.getUserIdFromKey(key)
+                            + " on device:" + SettingsState.getDeviceIdFromKey(key));
                 }
             } else {
                 if (DEBUG) {
@@ -306,10 +312,10 @@ final class GenerationRegistry {
 
             for (int i = 0; i < numBackingStores; i++) {
                 final long token = proto.start(GenerationRegistryProto.BACKING_STORES);
-                final int key = mKeyToBackingStoreMap.keyAt(i);
+                final long key = mKeyToBackingStoreMap.keyAt(i);
                 proto.write(BackingStoreProto.KEY, key);
                 proto.write(BackingStoreProto.BACKING_STORE_SIZE,
-                        mKeyToBackingStoreMap.valueAt(i).size());
+                        mKeyToBackingStoreMap.get(key).size());
                 proto.write(BackingStoreProto.NUM_CACHED_ENTRIES,
                         mKeyToIndexMapMap.get(key).size());
                 final ArrayMap<String, Integer> indexMap = mKeyToIndexMapMap.get(key);
@@ -339,7 +345,6 @@ final class GenerationRegistry {
                 }
                 proto.end(token);
             }
-
         }
     }
 
@@ -350,11 +355,12 @@ final class GenerationRegistry {
             final int numBackingStores = mKeyToBackingStoreMap.size();
             pw.println("Number of backing stores:" + numBackingStores);
             for (int i = 0; i < numBackingStores; i++) {
-                final int key = mKeyToBackingStoreMap.keyAt(i);
+                final long key = mKeyToBackingStoreMap.keyAt(i);
                 pw.print("_Backing store for type:"); pw.print(SettingsState.settingTypeToString(
                         SettingsState.getTypeFromKey(key)));
                 pw.print(" user:"); pw.print(SettingsState.getUserIdFromKey(key));
-                pw.print(" size:" + mKeyToBackingStoreMap.valueAt(i).size());
+                pw.print(" deviceId:"); pw.print(SettingsState.getDeviceIdFromKey(key));
+                pw.print(" size:" + mKeyToBackingStoreMap.get(key).size());
                 pw.println(" cachedEntries:" + mKeyToIndexMapMap.get(key).size());
                 final ArrayMap<String, Integer> indexMap = mKeyToIndexMapMap.get(key);
                 final MemoryIntArray backingStore = getBackingStoreLocked(key,

@@ -21,7 +21,6 @@ import androidx.compose.runtime.Immutable
 import com.android.systemui.qs.panels.shared.model.SizedTile
 import com.android.systemui.qs.panels.shared.model.splitInRowsSequence
 import com.android.systemui.qs.panels.ui.viewmodel.EditTileViewModel
-import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.shared.model.CategoryAndName
 
 /** Represents an item from a grid associated with a row and a span */
@@ -50,18 +49,6 @@ data class TileGridCell(
         column: Int,
     ) : this(tile = sizedTile.tile, row = row, column = column, width = sizedTile.width)
 }
-
-/**
- * Represents a [EditTileViewModel] from the edit mode available tiles grid and whether it is
- * available to add or not.
- */
-@Immutable
-data class AvailableTileGridCell(
-    override val tile: EditTileViewModel,
-    override val width: Int = 1,
-    val isAvailable: Boolean = true,
-    val key: TileSpec = tile.tileSpec,
-) : SizedTile<EditTileViewModel>, CategoryAndName by tile
 
 /** Represents an empty space used to fill incomplete rows. Will always display as a 1x1 tile */
 @Immutable

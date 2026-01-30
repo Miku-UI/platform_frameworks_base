@@ -25,13 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * THIS ANNOTATION IS EXPERIMENTAL. REACH OUT TO g/ravenwood BEFORE USING IT, OR YOU HAVE ANY
- * QUESTIONS ABOUT IT.
- *
- * Mark an item as "remove", so this cannot be used on the host side even indirectly.
- * This is the default behavior.
- *
- * @hide
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
  */
 @Target({TYPE, FIELD, METHOD, CONSTRUCTOR})
 @Retention(RetentionPolicy.CLASS)

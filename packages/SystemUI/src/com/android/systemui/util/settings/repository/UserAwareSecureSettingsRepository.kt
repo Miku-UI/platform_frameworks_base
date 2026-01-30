@@ -22,19 +22,17 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
 import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.util.settings.SecureSettings
-import javax.inject.Inject
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineDispatcher
 
 /**
  * Repository for observing values of [Settings.Secure] for the currently active user. That means
  * when user is switched and the new user has different value, flow will emit new value.
+ *
+ * Don't inject this class directly; get it as [SecureSettingsRepository] instead.
  */
-// TODO: b/377244768 - Make internal once call sites inject SecureSettingsRepository instead.
 @SysUISingleton
-class UserAwareSecureSettingsRepository
-@Inject
-constructor(
+class UserAwareSecureSettingsRepository(
     secureSettings: SecureSettings,
     userRepository: UserRepository,
     @Background backgroundDispatcher: CoroutineDispatcher,

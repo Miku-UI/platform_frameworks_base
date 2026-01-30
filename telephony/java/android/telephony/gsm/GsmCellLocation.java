@@ -20,6 +20,7 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
 import android.os.Bundle;
 import android.telephony.CellLocation;
+import android.telephony.Rlog;
 
 /**
  * Represents the cell location on a GSM phone.
@@ -28,6 +29,8 @@ import android.telephony.CellLocation;
  */
 @Deprecated
 public class GsmCellLocation extends CellLocation {
+    private static final String TAG = "GsmCellLocation";
+
     private int mLac;
     private int mCid;
     private int mPsc;
@@ -126,7 +129,10 @@ public class GsmCellLocation extends CellLocation {
 
     @Override
     public String toString() {
-        return "["+ mLac + "," + mCid + "," + mPsc + "]";
+        return "["
+                + Rlog.pii(TAG, mLac) + ","
+                + Rlog.pii(TAG, mCid) + ","
+                + Rlog.pii(TAG, mPsc) + "]";
     }
 
     /**

@@ -15,6 +15,8 @@
  */
 package android.widget;
 
+import static android.util.proto.ProtoInputStream.NO_MORE_FIELDS;
+
 import static com.android.text.flags.Flags.FLAG_NO_BREAK_NO_HYPHENATION_SPAN;
 import static com.android.text.flags.Flags.noBreakNoHyphenationSpan;
 
@@ -75,6 +77,8 @@ import androidx.annotation.NonNull;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
@@ -227,6 +231,63 @@ public class RemoteViewsSerializers {
             }
             return icon;
         };
+    }
+
+    /** Write {@link Instant} to proto. */
+    public static void writeInstantToProto(@NonNull ProtoOutputStream out,
+            @NonNull Instant instant) {
+        out.write(RemoteViewsProto.Instant.SECONDS, instant.getEpochSecond());
+        out.write(RemoteViewsProto.Instant.NANOS, instant.getNano());
+    }
+
+    /** Create {@link Instant} from proto. */
+    public static Instant createInstantFromProto(@NonNull ProtoInputStream in) throws IOException {
+        long seconds = 0;
+        int nanos = 0;
+        while (in.nextField() != NO_MORE_FIELDS) {
+            switch (in.getFieldNumber()) {
+                case (int) RemoteViewsProto.Instant.SECONDS:
+                    seconds = in.readLong(RemoteViewsProto.Instant.SECONDS);
+                    break;
+                case (int) RemoteViewsProto.Instant.NANOS:
+                    nanos = in.readInt(RemoteViewsProto.Instant.NANOS);
+                    break;
+                default:
+                    Log.w(TAG, "Unhandled field while reading Instant proto!\n"
+                            + ProtoUtils.currentFieldToString(in));
+            }
+        }
+
+        return Instant.ofEpochSecond(seconds, nanos);
+    }
+
+    /** Write {@link Duration} to proto. */
+    public static void writeDurationToProto(@NonNull ProtoOutputStream out,
+            @NonNull Duration duration) {
+        out.write(RemoteViewsProto.Duration.SECONDS, duration.getSeconds());
+        out.write(RemoteViewsProto.Duration.NANOS, duration.getNano());
+    }
+
+    /** Create {@link Duration} from proto. */
+    public static Duration createDurationFromProto(@NonNull ProtoInputStream in)
+            throws IOException {
+        long seconds = 0;
+        int nanos = 0;
+        while (in.nextField() != NO_MORE_FIELDS) {
+            switch (in.getFieldNumber()) {
+                case (int) RemoteViewsProto.Duration.SECONDS:
+                    seconds = in.readLong(RemoteViewsProto.Duration.SECONDS);
+                    break;
+                case (int) RemoteViewsProto.Duration.NANOS:
+                    nanos = in.readInt(RemoteViewsProto.Duration.NANOS);
+                    break;
+                default:
+                    Log.w(TAG, "Unhandled field while reading Duration proto!\n"
+                            + ProtoUtils.currentFieldToString(in));
+            }
+        }
+
+        return Duration.ofSeconds(seconds, nanos);
     }
 
     public static void writeCharSequenceToProto(@NonNull ProtoOutputStream out,

@@ -71,9 +71,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"Стандартната идентификация на повикванията е „забранено“. За следващото обаждане тя е разрешена."</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"Стандартната идентификация на повикванията е „разрешено“. За следващото обаждане тя е забранена."</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"Стандартната идентификация на повикванията е „разрешено“. За следващото обаждане тя е разрешена."</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"Това приложение не е съвместимо със страници с размер 16 KB. Проверката за съответствие с APK файла не бе успешна. Това приложение ще се изпълнява в режим на съвместимост с размера на страницата. За най-добра съвместимост компилирайте отново приложението така, че да поддържа страници с размер 16 KB. За повече информация вижте &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"Това приложение не е съвместимо със страници с размер 16 KB. Проверката за съответствие с ELF файла не бе успешна. Това приложение ще се изпълнява в режим на съвместимост с размера на страницата. За най-добра съвместимост компилирайте отново приложението така, че да поддържа страници с размер 16 KB. За повече информация вижте &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"Това приложение не е съвместимо със страници с размер 16 KB. Проверките за съответствие с APK и ELF файловете не бяха успешни. Това приложение ще се изпълнява в режим на съвместимост с размера на страницата. За най-добра съвместимост компилирайте отново приложението така, че да поддържа страници с размер 16 KB. За повече информация вижте &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"Това приложение не е съвместимо със страници с размер 16 KB. Проверката за подравняване за APK файла не бе успешна. Това приложение ще се изпълнява в режим на съвместимост с размера на страницата. За най-добра съвместимост компилирайте отново приложението така, че да поддържа страници с размер 16 KB. За повече информация вижте &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Следните библиотеки не поддържат подравняване с 16 KB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"Това приложение не е съвместимо със страници с размер 16 KB. Проверката за подравняване за ELF файла не бе успешна. Това приложение ще се изпълнява в режим на съвместимост с размера на страницата. За най-добра съвместимост компилирайте отново приложението така, че да поддържа страници с размер 16 KB. За повече информация вижте &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Следните библиотеки не поддържат подравняване с 16 KB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"Това приложение не е съвместимо със страници с размер 16 KB. Проверките за подравняване за APK и ELF файловете не бяха успешни. Това приложение ще се изпълнява в режим на съвместимост с размера на страницата. За най-добра съвместимост компилирайте отново приложението така, че да поддържа страници с размер 16 KB. За повече информация вижте &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Следните библиотеки не поддържат подравняване с 16 KB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"Настоящото предупреждение се показва, защото това е приложение с възможност за отстраняване на грешки, което понастоящем се тества. Ако не сте програмистът, моля, подайте сигнал до него и поискайте версия без възможност за отстраняване на грешки. &lt;br&gt;&lt;br&gt; Това приложение не е съвместимо със страници с размер 16 KB. Проверката за подравняване за APK файла не бе успешна. Изпълнете стъпките на адрес &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Следните библиотеки не поддържат подравняване с 16 KB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Настоящото предупреждение се показва, защото това е приложение с възможност за отстраняване на грешки, което понастоящем се тества. Ако не сте програмистът, моля, подайте сигнал до него и поискайте версия без възможност за отстраняване на грешки. &lt;br&gt;&lt;br&gt; Това приложение не е съвместимо със страници с размер 16 KB. Проверката за подравняване за ELF файла не бе успешна. Изпълнете стъпките на адрес &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Следните библиотеки не поддържат подравняване с 16 KB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"Настоящото предупреждение се показва, защото това е приложение с възможност за отстраняване на грешки, което понастоящем се тества. Ако не сте програмистът, моля, подайте сигнал до него и поискайте версия без възможност за отстраняване на грешки. &lt;br&gt;&lt;br&gt; Това приложение не е съвместимо със страници с размер 16 KB. Проверките за подравняване за APK и ELF файловете не бяха успешни. Изпълнете стъпките на адрес &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Следните библиотеки не поддържат подравняване с 16 KB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"Да не се показва отново"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Съвместимост на приложенията за Android"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s: Сегментът LOAD не е настроен правилно&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : Некомпресираната библиотека не е настроена правилно&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s: Сегментът LOAD и некомпресираната библиотека не са настроени правилно&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : Неизвестна грешка&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"Услугата не е обезпечена."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"Не можете да променяте настройката за идентификация на обажданията."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"Преминахте към мобилни данни от <xliff:g id="CARRIERDISPLAY">%s</xliff:g>"</string>
@@ -160,8 +169,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"Сигурност на мобилната мрежа"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"Шифроване, известия за нешифровани мрежи"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"Осъществен е достъп до ID на устройството"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"В <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> близка до вас мрежа записа уникалния идентификатор на устройството ви (IMSI или IMEI), докато използвахте SIM картата си от <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>"</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"В <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> близка до вас мрежа записа уникалния идентификатор на устройството ви (IMSI или IMEI), докато използвахте SIM картата си от <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>.\n\nТова означава, че местоположението, активността или самоличността ви са регистрирани. Това е често срещана практика, която обаче може да представлява проблем за хората, които се тревожат за поверителността си."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"В <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> близка до вас мрежа записа уникалния идентификатор на устройството ви (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>), докато използвахте SIM картата си от <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>"</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"В <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> близка до вас мрежа записа уникалния идентификатор на устройството ви, докато използвахте SIM картата си от <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>"</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"В <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> близка до вас мрежа записа уникалния идентификатор на устройството ви (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>), докато използвахте SIM картата си от <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>.\n\nТова означава, че местоположението, активността или самоличността ви са записани в регистрационни файлове. Това е обичайна практика, която обаче може да представлява проблем за хората, които се тревожат за поверителността си."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"В <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> близка до вас мрежа записа уникалния идентификатор на устройството ви, докато използвахте SIM картата си от <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>.\n\nТова означава, че местоположението, активността или самоличността ви са записани в регистрационни файлове. Това е обичайна практика, която обаче може да представлява проблем за хората, които се тревожат за поверителността си."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"Установена е връзка с шифрованата мрежа <xliff:g id="NETWORK_NAME">%1$s</xliff:g>"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"Връзката със SIM картата от <xliff:g id="NETWORK_NAME">%1$s</xliff:g> вече е по-сигурна"</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"Установена е връзка с нешифрована мрежа"</string>
@@ -289,6 +300,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"Помощ"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"Гласова помощ"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"Заключване"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"Заключване"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"999+"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"Отговор"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"Ново известие"</string>
@@ -324,8 +336,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"Превключване към служебния потребителски профил"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"Превключване към <xliff:g id="APP_NAME">%1$s</xliff:g> в личния потребителски профил"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Превключване към <xliff:g id="APP_NAME">%1$s</xliff:g> в служебния потребителски профил"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"Контакти"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"има достъп до контактите ви"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"Контакти и профили"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"осъществява достъп до контактите ви и вижда списъка с профилите ви, които могат да запазват контакти на това устройство."</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Местоположение"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"получи достъп до местоположението на това устройство"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Календар"</string>
@@ -354,10 +366,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"достъп до сензорните данни за жизнените ви показатели"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"Известия"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"показване на известията"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"Данни за XR за проследяване"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"достъп до данните за XR за вас и заобикалящата ви среда"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"поверителни данни за XR за проследяване"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"достъп до поверителните данни за проследяване, като например погледа"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"Данни за проследяване на очите"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"прецизно проследяване на движението на очите"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"Данни за движението и средата"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"проследяване на очите, лицето, тялото и зоната за сканиране"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"Точни данни за движението и зоната"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"прецизно сканиране на зоната и проследяване на главата"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"Извлича съдържанието от прозореца"</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"Инспектира съдържанието на прозорец, с който взаимодействате."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"Включи изследването чрез докосване"</string>
@@ -382,6 +396,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"Разрешава на приложението да разгъва или свива лентата на състоянието."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"показване на известия като активности на цял екран на заключено устройство"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"Дава възможност на приложението да показва известия като активности на цял екран на заключено устройство"</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"Показване на актуализации на живо"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"Разрешава на приложението да показва текущите и ограничени във времето известия в лентата на състоянието и на заключения екран"</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"Инсталиране на преки пътища"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"Разрешава на приложението да добавя към началния екран преки пътища без намеса на потребителя."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"деинсталиране на преки пътища"</string>
@@ -623,6 +639,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"Разрешаване на приложението да определя относителната позиция между устройствата с ултрашироколентови сигнали в близост"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"взаимодействие с устройствата с Wi-Fi в близост"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Разрешава на приложението да рекламира, да се свързва и да определя относителната позиция на устройствата с Wi-Fi в близост"</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"достъп до устройствата в локалната мрежа"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"Разрешава на приложението да осъществява достъп до устройствата в локалната мрежа"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"опр. на относителната позиция м/у у-вата в близост"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Разрешаване на приложението да определя относителната позиция между устройствата в близост"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Информация за предпочитаната услуга за плащане чрез NFC"</string>
@@ -653,27 +671,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"Разрешава на приложението да променя колекцията ви от снимки."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"да чете местоположенията от мултимедийната ви колекция"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"Разрешава на приложението да чете местоположенията от мултимедийната ви колекция."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"проследяване на погледа ви с ниска точност"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"Разрешава на приложението да проследява погледа ви с ниска точност."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"проследяване на погледа ви"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"Разрешава на приложението да осъществява достъп до данните за погледа ви с висока точност."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"проследяване на лицето ви"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"Разрешава на приложението да осъществява достъп до данните за проследяване на лицето."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"проследяване на ръцете ви"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"Разрешава на приложението да осъществява достъп до данните за проследяване на ръцете."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"проследяване на движенията на главата ви"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"Разрешава на приложението да осъществява достъп до данните за проследяване на движенията на главата."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"разбиране на заобикалящата ви среда"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"Разрешава на приложението да осъществява достъп до данните за проследяване на заобикалящата ви среда."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"разпознаване на заобикалящата ви среда с висока детайлност"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"Разрешава на приложението да осъществява достъп до данните за проследяване на заобикалящата ви среда с много висока детайлност."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"достъп до данните за XR, когато не е на преден план"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"Разрешава на приложението да осъществява достъп до данните за XR, когато не е на преден план."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"проследяване на движението на очите"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"Разрешава на приложението да проследява приблизителната посока на погледа ви."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"прецизно проследяване на движението на очите"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"Разрешава на приложението да проследява посоката на погледа ви."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"проследяване на движенията на лицето"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"Разрешава на приложението да проследява мимиките и движенията на лицето ви."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"проследяване на движенията на ръцете"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"Разрешава на приложението да проследява движенията на ръцете ви."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"проследяване на движенията на главата"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"Разрешава на приложението да проследява движенията на главата ви."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"сканиране на заобикалящата ви среда"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"Разрешава на приложението да сканира заобикалящата ви среда."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"сканиране на заобикалящата ви среда с висока точност"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"Разрешава на приложението да сканира заобикалящата ви среда с висока точност."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"достъп до XR за проследяване на заден план"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"Разрешава на приложението да осъществява достъп до данните за XR на заден план."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"записване на клавишите"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"Разрешава на приложението да записва клавишите, преди системата да може да обработи системните клавишни комбинации и действия."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"Използване на биометр. данни"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"Използване на биометрични данни или опцията за заключване на екрана"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"Потвърдете, че сте вие"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"Използвайте биометричните си данни, за да продължите"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"Използвайте биометричните си данни или опцията за заключване на екрана, за да продължите"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"За да продължите, потвърдете от телефона си, че това сте вие"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"За да продължите, потвърдете от таблета си, че това сте вие"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"Биометричният хардуер не е налице"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"Удостоверяването бе анулирано"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"Не е разпознато"</string>
@@ -897,6 +919,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"Предотвратява употребата на камерите на всички устройства."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"Изкл. на някои функции за закл. на екрана"</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"Предотвратява използването на някои функции за заключване на екрана."</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"Натиснете продължително клавиша Esc, за да затворите това приложение"</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"Домашен"</item>
     <item msgid="7740243458912727194">"Мобилен"</item>
@@ -1107,6 +1130,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"Отключване на SIM картата с ПИН код."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"Отключване на SIM картата с PUK код."</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"Отключване с парола."</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"Отключване с биометрични данни при сигурното заключване на устройството."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"Област на фигурата."</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"Област на плъзгане."</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1182,22 +1206,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"след <xliff:g id="COUNT">%d</xliff:g> ч"</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"след <xliff:g id="COUNT">%d</xliff:g> д"</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"след <xliff:g id="COUNT">%d</xliff:g> г."</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"преди <xliff:g id="COUNT">%d</xliff:g> мин"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"преди <xliff:g id="COUNT">%d</xliff:g> ч"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"преди <xliff:g id="COUNT">%d</xliff:g> д"</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"преди <xliff:g id="COUNT">%d</xliff:g> г."</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> мин"</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g> ч"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g> д"</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> г."</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"след <xliff:g id="COUNT">%d</xliff:g> мин"</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"след <xliff:g id="COUNT">%d</xliff:g> ч"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"след <xliff:g id="COUNT">%d</xliff:g> д"</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"след <xliff:g id="COUNT">%d</xliff:g> г."</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"преди <xliff:g id="COUNT">%d</xliff:g> мин"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"преди <xliff:g id="COUNT">%d</xliff:g> ч"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"преди <xliff:g id="COUNT">%d</xliff:g> д"</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"преди <xliff:g id="COUNT">%d</xliff:g> г."</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{преди # минута}other{преди # минути}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{преди # час}other{преди # часа}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{преди # ден}other{преди # дни}}"</string>
@@ -1478,8 +1488,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"ОТХВЪРЛЯНЕ"</string>
     <string name="select_input_method" msgid="3971267998568587025">"Избор на метод на въвеждане"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"Езикови настройки"</string>
-    <string name="show_ime" msgid="6406112007347443383">"Показване на екрана, докато физическата клавиатура е активна"</string>
-    <string name="hardware" msgid="3611039921284836033">"Ползв. на екранната клавиатура"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"Конфигуриране на <xliff:g id="DEVICE_NAME">%s</xliff:g>"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"Конфигуриране на физически клавиатури"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"Докоснете, за да изберете език и подредба"</string>
@@ -1709,6 +1717,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"Външно устройство"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"Слушалки"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"Аудио на телевизора"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"Аналогово"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"Дигитално"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"AUX"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"Система"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"Звук през Bluetooth"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"Безжичен дисплей"</string>
@@ -1804,7 +1818,8 @@
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Работа с една ръка"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Допълнително затъмняване"</string>
     <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Слухови апарати"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"Автоматично кликване"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"Автоматично кликване (време на задържане на курсора на мишката)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Клавиши за мишката"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Няма връзка"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"Свързано"</string>
     <string name="hearing_device_status_active" msgid="4770378695482566032">"Активно"</string>
@@ -1829,6 +1844,8 @@
     <string name="user_logging_out_message" msgid="7216437629179710359">"<xliff:g id="NAME">%1$s</xliff:g> излиза…"</string>
     <string name="owner_name" msgid="8713560351570795743">"Собственик"</string>
     <string name="guest_name" msgid="8502103277839834324">"Гост"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"Системен потребител"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Потребител"</string>
     <string name="error_message_title" msgid="4082495589294631966">"Грешка"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"Тази промяна не е разрешена от администратора ви"</string>
     <string name="app_not_found" msgid="3429506115332341800">"Няма намерено приложение за извършване на това действие"</string>
@@ -1969,8 +1986,8 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"Актуализирано от администратора ви.\nОтворете настройките, за да прегледате предоставените разрешения"</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"Изтрито от администратора ви"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"ОК"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"Режимът за запазване на батерията включва тъмната тема и ограничава или изключва активността на заден план, някои визуални ефекти, определени функции и някои връзки с мрежата."</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"Режимът за запазване на батерията включва тъмната тема и ограничава или изключва активността на заден план, някои визуални ефекти, определени функции и някои връзки с мрежата."</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"Режимът за запазване на батерията включва тъмната тема и ограничава или изключва активността на заден план, някои визуални ефекти, определени функции и някои връзки с мрежата."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"Режимът за запазване на батерията включва тъмната тема и ограничава или изключва активността на заден план, някои визуални ефекти, определени функции и някои връзки с мрежата."</string>
     <string name="data_saver_description" msgid="4995164271550590517">"С цел намаляване на преноса на данни функцията за икономия на данни не позволява на някои приложения да изпращат или получават данни на заден план. Понастоящем използвано от вас приложение може да използва данни, но по-рядко. Това например може да означава, че изображенията не се показват, докато не ги докоснете."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"Включване на „Икономия на данни“?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"Включване"</string>
@@ -2032,6 +2049,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"Увеличаване"</string>
     <string name="close_button_text" msgid="10603510034455258">"Затваряне"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"„<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g>“: <xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Отговор"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Видеообаждане"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Отхвърляне"</string>
@@ -2043,7 +2063,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"Промоции"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"Социални мрежи"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"Новини"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"Препоръки"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"Предложени"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"Зададохте важността на тези известия."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"Това е важно заради участващите хора."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"Персонализирано известие за приложение"</string>
@@ -2266,19 +2286,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"Контролен пад – ляво"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"Контролен пад – дясно"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"Контролен пад – център"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"Панел с настройки за типа на автоматичното кликване"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"Кликване с ляв бутон"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"Кликване с десния бутон"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"Кликване два пъти"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"Меню с опции за автоматичното кликване"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"Кликване с левия бутон"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"Кликване с десния бутон"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"Кликване два пъти"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"Преместване с плъзгане"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"Превъртане"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"Докосване и задържане"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"Пауза"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"Позиция"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"Превъртане нагоре"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"Превъртане надолу"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"Превъртане наляво"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"Превъртане надясно"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"Изход от режима за превъртане"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"Възобновяване"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"Промяна на позицията на менюто"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"Превъртане нагоре"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"Превъртане надолу"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"Превъртане наляво"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"Превъртане надясно"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"Изход от режима за превъртане"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"Панел за превъртане"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"Пакетът <xliff:g id="PACKAGE_NAME">%1$s</xliff:g> е поставен в ОГРАНИЧЕНИЯ контейнер"</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2498,7 +2520,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Съдържанието на приложението е скрито от функцията за споделяне на екрана от съображения за сигурност"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"Автоматично установена връзка със сателит"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"Можете да изпращате и получавате съобщения без мобилна или Wi-Fi мрежа"</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"Можете да изпращате и получавате съобщения и да използвате ограничени данни чрез сателит"</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"Можете да изпращате и получавате съобщения и да използвате избрани приложения чрез сателит"</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"Да се използват ли сателитни съобщения?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"Изпращайте и получавайте съобщения без мобилна или Wi-Fi мрежа"</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"Отваряне на Messages"</string>
@@ -2553,12 +2575,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"Календар"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"Калкулатор"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Карти"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"Files"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"Приложения"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"Отпечатъците ви вече не могат да бъдат разпознати. Настройте отново „Отключване с отпечатък“."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"USB устройството е свързано, когато устройството е заключено"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"USB устройството е включено, когато устройството с Android е заключено. За да използвате устройството, първо отключете Android и след това поставете отново USB устройството."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"Сигурност и поверителност"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"Отключете екрана и свържете USB отново"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"Отключете екрана, за да свържете USB"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"За да установи връзка през USB, „Разширена защита“ изисква екранът ви да бъде отключен"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"За да установи връзка през USB, „Разширена защита“ изисква екранът ви да бъде отключен"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"За по-бързо зареждане „Разширена защита“ изисква екранът ви да бъде отключен"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"За по-бързо зареждане или за да установи връзка през USB, „Разширена защита“ изисква екранът ви да бъде отключен"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"Заглушаване"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"Известията са заглушени"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"Няма да получавате известия от „Разширена защита“ за USB, докато не рестартирате устройството си"</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"Подозрителна активност на USB"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"Сигналът за данни през USB е деактивиран."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"Сигналът за данни през USB е деактивиран"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"Имате проблеми с функцията „Отключване с отпечатък“?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Докоснете, за да прегледате съвети за подобряване на практическата работа при отключване"</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Без мигане"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Натиснете продължително бутона за захранване, за да изключите телевизора"</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Сигнали за системните ресурси"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Прекомерно използване на ресурсите"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"Приложението „<xliff:g id="APP_NAME">%1$s</xliff:g>“ използва твърде много ресурси."</string>
 </resources>

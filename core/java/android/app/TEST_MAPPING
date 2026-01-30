@@ -129,6 +129,10 @@
             "file_patterns": ["(/|^)ContextImpl.java"]
         },
         {
+            "name": "CtsWindowManagerDeviceAppCompat_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
             "name": "CtsWindowManagerDeviceBackNavigation_wm_cts",
             "file_patterns": ["(/|^)ContextImpl.java"]
         },
@@ -137,7 +141,11 @@
             "file_patterns": ["(/|^)ContextImpl.java"]
         },
         {
-            "name": "CtsWindowManagerDeviceKeyguard_wm_cts",
+            "name": "CtsWindowManagerDeviceDragAndDrop_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDeviceDreams_wm_cts",
             "file_patterns": ["(/|^)ContextImpl.java"]
         },
         {
@@ -145,15 +153,27 @@
             "file_patterns": ["(/|^)ContextImpl.java"]
         },
         {
-            "name": "CtsWindowManagerDeviceTaskFragment_wm_cts",
-            "file_patterns": ["(/|^)ContextImpl.java"]
-        },
-        {
-            "name": "CtsWindowManagerDeviceWindow_wm_cts",
+            "name": "CtsWindowManagerDeviceKeyguard_wm_cts",
             "file_patterns": ["(/|^)ContextImpl.java"]
         },
         {
             "name": "CtsWindowManagerDeviceOther_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDevicePip_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDeviceTaskFragment_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDeviceTv_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDeviceWindow_wm_cts",
             "file_patterns": ["(/|^)ContextImpl.java"]
         },
         {
@@ -198,6 +218,24 @@
         {
             "file_patterns": ["(/|^)AppOpsManager.java"],
             "name": "CtsAppOpsTestCases"
+        }
+    ],
+    "desktop-presubmit": [
+        {
+            "name": "CtsWindowManagerDeviceAm_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDeviceBackNavigation_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDeviceDragAndDrop_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
+        },
+        {
+            "name": "CtsWindowManagerDevicePip_wm_cts",
+            "file_patterns": ["(/|^)ContextImpl.java"]
         }
     ]
 }

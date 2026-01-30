@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.panels.ui.compose
 
-import android.view.MotionEvent
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,12 +23,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.requiredHeight
-import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,8 +34,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInteropFilter
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.integerResource
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.android.compose.animation.scene.ContentScope
 import com.android.compose.modifiers.padding
@@ -54,7 +53,6 @@ import com.android.systemui.qs.panels.ui.compose.toolbar.EditModeButton
 import com.android.systemui.qs.panels.ui.viewmodel.PaginatedGridViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.toolbar.EditModeButtonViewModel
-import com.android.systemui.qs.ui.compose.borderOnFocus
 import com.android.systemui.res.R
 import javax.inject.Inject
 
@@ -69,18 +67,21 @@ constructor(
         tiles: List<TileViewModel>,
         modifier: Modifier,
         listening: () -> Boolean,
+        enableRevealEffect: Boolean,
     ) {
         val viewModel =
             rememberViewModel(traceName = "PaginatedGridLayout-TileGrid") {
                 viewModelFactory.create()
             }
+        val delegateGridViewModel =
+            rememberViewModel(traceName = "PaginatedGridLayout-TileGrid") {
+                delegateGridLayout.viewModelFactory.create()
+            }
 
-        val columns = viewModel.columns
         val rows = integerResource(R.integer.quick_settings_paginated_grid_num_rows)
-
         val pages =
-            remember(tiles, columns, rows) {
-                delegateGridLayout.splitIntoPages(tiles, rows = rows, columns = columns)
+            remember(tiles, rows, *delegateGridViewModel.pageKeys) {
+                delegateGridViewModel.splitIntoPages(tiles, rows)
             }
 
         val pagerState = rememberPagerState(0) { pages.size }
@@ -103,7 +104,7 @@ constructor(
             snapshotFlow { pagerState.currentPage == 0 }.collect { viewModel.inFirstPage = it }
         }
 
-        Column {
+        Column(modifier) {
             val contentPaddingValue =
                 if (pages.size > 1) {
                     InterPageSpacing
@@ -111,6 +112,15 @@ constructor(
                     0.dp
                 }
             val contentPadding = PaddingValues(horizontal = contentPaddingValue)
+            val nestedScrollConnection =
+                remember(viewModel) {
+                    object : NestedScrollConnection {
+                        override suspend fun onPreFling(available: Velocity): Velocity {
+                            viewModel.registerSideSwipeGesture()
+                            return Velocity.Zero
+                        }
+                    }
+                }
 
             /* Use negative padding equal with value equal to content padding. That way, each page
              * layout extends to the sides, but the content is as if there was no padding. That
@@ -121,12 +131,7 @@ constructor(
                 modifier =
                     Modifier.sysuiResTag("qs_pager")
                         .padding(horizontal = { -contentPaddingValue.roundToPx() })
-                        .pointerInteropFilter { event ->
-                            if (event.actionMasked == MotionEvent.ACTION_UP) {
-                                viewModel.registerSideSwipeGesture()
-                            }
-                            false
-                        },
+                        .nestedScroll(nestedScrollConnection),
                 contentPadding = contentPadding,
                 pageSpacing = if (pages.size > 1) InterPageSpacing else 0.dp,
                 beyondViewportPageCount = 1,
@@ -134,12 +139,21 @@ constructor(
             ) {
                 val page = pages[it]
 
-                with(delegateGridLayout) { TileGrid(tiles = page, modifier = Modifier, listening) }
+                with(delegateGridLayout) {
+                    TileGrid(
+                        tiles = page,
+                        modifier = Modifier,
+                        listening = listening,
+                        enableRevealEffect = false,
+                    )
+                }
             }
             FooterBar(
                 buildNumberViewModelFactory = viewModel.buildNumberViewModelFactory,
                 pagerState = pagerState,
+                showArrowsInPager = viewModel.showArrowsInPagerDots,
                 editButtonViewModelFactory = viewModel.editModeButtonViewModelFactory,
+                isVisible = { listening() && layoutState.isIdle() },
             )
         }
     }
@@ -154,7 +168,9 @@ private object Dimensions {
 private fun FooterBar(
     buildNumberViewModelFactory: BuildNumberViewModel.Factory,
     pagerState: PagerState,
+    showArrowsInPager: Boolean,
     editButtonViewModelFactory: EditModeButtonViewModel.Factory,
+    isVisible: () -> Boolean = { true },
 ) {
     val editButtonViewModel =
         rememberViewModel(traceName = "PaginatedGridLayout-editButtonViewModel") {
@@ -175,27 +191,19 @@ private fun FooterBar(
         horizontalArrangement = spacedBy(8.dp),
     ) {
         Row(Modifier.weight(1f)) {
-            BuildNumber(
-                viewModelFactory = buildNumberViewModelFactory,
-                textColor = MaterialTheme.colorScheme.onSurface,
-                modifier =
-                    Modifier.borderOnFocus(
-                            color = MaterialTheme.colorScheme.secondary,
-                            cornerSize = CornerSize(1.dp),
-                        )
-                        .wrapContentSize(),
-            )
+            BuildNumber(viewModelFactory = buildNumberViewModelFactory)
             Spacer(modifier = Modifier.weight(1f))
         }
         PagerDots(
             pagerState = pagerState,
-            activeColor = MaterialTheme.colorScheme.primary,
-            nonActiveColor = MaterialTheme.colorScheme.surfaceVariant,
+            activeColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            nonActiveColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = .5f),
             modifier = Modifier.wrapContentWidth(),
+            showArrows = showArrowsInPager,
         )
         Row(Modifier.weight(1f)) {
             Spacer(modifier = Modifier.weight(1f))
-            EditModeButton(viewModel = editButtonViewModel)
+            EditModeButton(viewModel = editButtonViewModel, isVisible = isVisible())
         }
     }
 }

@@ -107,7 +107,7 @@ public abstract class QSPanelControllerBase<T extends QSPanel> extends ViewContr
 
     private boolean mMediaVisibleFromInteractor;
 
-    private final Consumer<Boolean> mMediaOrRecommendationVisibleConsumer = mediaVisible -> {
+    private final Consumer<Boolean> mMediaVisibleConsumer = mediaVisible -> {
         mMediaVisibleFromInteractor = mediaVisible;
         setLayoutForMediaInScene();
     };
@@ -277,7 +277,7 @@ public abstract class QSPanelControllerBase<T extends QSPanel> extends ViewContr
         mJavaAdapterDisposableHandle = JavaAdapterKt.collectFlow(
                 mView,
                 getMediaVisibleFlow(),
-                mMediaOrRecommendationVisibleConsumer
+                mMediaVisibleConsumer
         );
     }
 

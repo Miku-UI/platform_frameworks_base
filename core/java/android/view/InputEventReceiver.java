@@ -21,7 +21,6 @@ import android.os.Build;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.MessageQueue;
-import android.os.Trace;
 import android.util.Log;
 import android.util.SparseIntArray;
 
@@ -45,7 +44,7 @@ public abstract class InputEventReceiver {
     // We keep references to the input channel and message queue objects here so that
     // they are not GC'd while the native peer of the receiver is using them.
     private InputChannel mInputChannel;
-    private MessageQueue mMessageQueue;
+    private Looper mLooper;
 
     // Map from InputEvent sequence numbers to dispatcher sequence numbers.
     private final SparseIntArray mSeqMap = new SparseIntArray();
@@ -55,11 +54,12 @@ public abstract class InputEventReceiver {
     private static native void nativeDispose(long receiverPtr);
     private static native void nativeFinishInputEvent(long receiverPtr, int seq, boolean handled);
     private static native boolean nativeProbablyHasInput(long receiverPtr);
-    private static native void nativeReportTimeline(long receiverPtr, int inputEventId,
-            long gpuCompletedTime, long presentTime);
     private static native boolean nativeConsumeBatchedInputEvents(long receiverPtr,
             long frameTimeNanos);
+    private static native IBinder nativeGetToken(long receiverPtr);
+    private static native long nativeGetFrameMetricsObserver(long receiverPtr);
     private static native String nativeDump(long receiverPtr, String prefix);
+
 
     /**
      * Creates an input event receiver bound to the specified input channel.
@@ -76,9 +76,9 @@ public abstract class InputEventReceiver {
         }
 
         mInputChannel = inputChannel;
-        mMessageQueue = looper.getQueue();
+        mLooper = looper;
         mReceiverPtr = nativeInit(new WeakReference<InputEventReceiver>(this),
-                mInputChannel, mMessageQueue);
+                mInputChannel, mLooper.getQueue());
 
         mCloseGuard.open("InputEventReceiver.dispose");
     }
@@ -108,6 +108,9 @@ public abstract class InputEventReceiver {
      * Must be called on the same Looper thread to which the receiver is attached.
      */
     public void dispose() {
+        if (Thread.currentThread() != mLooper.getThread()) {
+            throw new IllegalStateException("Must call dispose() on the Looper thread");
+        }
         dispose(false);
     }
 
@@ -128,7 +131,7 @@ public abstract class InputEventReceiver {
             mInputChannel.dispose();
             mInputChannel = null;
         }
-        mMessageQueue = null;
+        mLooper = null;
         Reference.reachabilityFence(this);
     }
 
@@ -231,15 +234,6 @@ public abstract class InputEventReceiver {
     }
 
     /**
-     * Report the timing / latency information for a specific input event.
-     */
-    public final void reportTimeline(int inputEventId, long gpuCompletedTime, long presentTime) {
-        Trace.traceBegin(Trace.TRACE_TAG_INPUT, "reportTimeline");
-        nativeReportTimeline(mReceiverPtr, inputEventId, gpuCompletedTime, presentTime);
-        Trace.traceEnd(Trace.TRACE_TAG_INPUT);
-    }
-
-    /**
      * Consumes all pending batched input events.
      * Must be called on the same Looper thread to which the receiver is attached.
      *
@@ -261,45 +255,26 @@ public abstract class InputEventReceiver {
         return false;
     }
 
+    protected final long getNativeFrameMetricsObserver() {
+        return nativeGetFrameMetricsObserver(mReceiverPtr);
+    }
+
     /**
      * @return Returns a token to identify the input channel.
      */
     public IBinder getToken() {
-        if (mInputChannel == null) {
+        if (mReceiverPtr == 0) {
             return null;
         }
-        return mInputChannel.getToken();
-    }
-
-    private String getShortDescription(InputEvent event) {
-        if (event instanceof MotionEvent motion) {
-            return "MotionEvent " + MotionEvent.actionToString(motion.getAction()) + " deviceId="
-                    + motion.getDeviceId() + " source=0x"
-                    + Integer.toHexString(motion.getSource()) +  " historySize="
-                    + motion.getHistorySize();
-        } else if (event instanceof KeyEvent key) {
-            return "KeyEvent " + KeyEvent.actionToString(key.getAction())
-                    + " deviceId=" + key.getDeviceId();
-        } else {
-            Log.wtf(TAG, "Illegal InputEvent type: " + event);
-            return "InputEvent";
-        }
+        return nativeGetToken(mReceiverPtr);
     }
 
     // Called from native code.
     @SuppressWarnings("unused")
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private void dispatchInputEvent(int seq, InputEvent event) {
-        if (Trace.isTagEnabled(Trace.TRACE_TAG_INPUT)) {
-            // This 'if' block is an optimization - without it, 'getShortDescription' will be
-            // called unconditionally, which is expensive.
-            Trace.traceBegin(Trace.TRACE_TAG_INPUT,
-                    "dispatchInputEvent " + getShortDescription(event));
-        }
         mSeqMap.put(event.getSequenceNumber(), seq);
         onInputEvent(event);
-        // If tracing is not enabled, `traceEnd` is a no-op (so we don't need to guard it with 'if')
-        Trace.traceEnd(Trace.TRACE_TAG_INPUT);
     }
 
     /**

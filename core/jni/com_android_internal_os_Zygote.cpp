@@ -1099,7 +1099,7 @@ static std::string getAppDataDirName(std::string_view parent_path, std::string_v
   } else {
     if (errno != ENOENT) {
       fail_fn(CREATE_ERROR("Unexpected error in getAppDataDirName: %s", strerror(errno)));
-      return nullptr;
+      return "";
     }
     {
       // Directory doesn't exist, try to search the name from inode
@@ -1736,7 +1736,6 @@ std::pair<const char*, const char*> build_version_constants[] = {
         std::pair("RELEASE_OR_PREVIEW_DISPLAY", "ro.build.version.release_or_preview_display"),
         std::pair("BASE_OS", "ro.build.version.base_os"),
         std::pair("SECURITY_PATCH", "ro.build.version.security_patch"),
-        std::pair("SDK", "ro.build.version.sdk"),
         std::pair("PREVIEW_SDK_FINGERPRINT", "ro.build.version.preview_sdk_fingerprint"),
         std::pair("CODENAME", "ro.build.version.codename"),
 };
@@ -1805,7 +1804,6 @@ static void ReloadBuildJavaConstants(JNIEnv* env) {
 
   // Reload the public int/long constants
   ReloadBuildJavaConstant(env, build_cls, "TIME", "J", "ro.build.date.utc");
-  ReloadBuildJavaConstant(env, build_version_cls, "SDK_INT", "I", "ro.build.version.sdk");
   ReloadBuildJavaConstant(env, build_version_cls, "PREVIEW_SDK_INT", "I",
                           "ro.build.version.preview_sdk");
 
@@ -1975,6 +1973,15 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids, 
                                                 "CONFIG_CGROUP_CPUACCT?")
                                  : CREATE_ERROR("createProcessGroup(%d, %d) failed: %s", uid,
                                                 /* pid= */ 0, strerror(-rc)));
+        }
+
+        if (is_system_server && UsePerAppMemcg()) {
+            // Assign system_server to the correct memory cgroup.
+            // Not all devices mount memcg so check if it is mounted first
+            // to avoid unnecessarily printing errors and denials in the logs.
+            if (!SetTaskProfiles(getpid(), std::vector<std::string>{"SystemMemoryProcess"})) {
+                ALOGE("couldn't add process %d into system memcg group", getpid());
+            }
         }
     }
 
@@ -2148,6 +2155,7 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids, 
     // Make it easier to debug audit logs by setting the main thread's name to the
     // nice name rather than "app_process".
     if (nice_name.has_value()) {
+        ALOGI("Process %d created for %s", getpid(), nice_name.value().c_str());
         SetThreadName(nice_name.value());
     } else if (is_system_server) {
         SetThreadName("system_server");
@@ -2197,81 +2205,6 @@ static uint64_t GetEffectiveCapabilityMask(JNIEnv* env) {
     }
 
     return capdata[0].effective | (static_cast<uint64_t>(capdata[1].effective) << 32);
-}
-
-static jlong CalculateBoundingCapabilities(JNIEnv* env, jint uid, jint gid, jintArray gids) {
-    jlong capabilities = 0;
-
-    /*
-     * Grant CAP_SYS_NICE to CapInh/CapPrm/CapBnd for processes that can spawn
-     * VMs.  This enables processes to execve on binaries with elevated
-     * capabilities if its file capability bits are set. This does not grant
-     * capability to the parent process(that spawns the VM) as the effective
-     * bits are not set.
-     */
-    if (MatchGid(env, gids, gid, AID_VIRTUALMACHINE)) {
-        capabilities |= (1LL << CAP_SYS_NICE);
-    }
-
-    return capabilities;
-}
-
-static jlong CalculateCapabilities(JNIEnv* env, jint uid, jint gid, jintArray gids,
-                                   bool is_child_zygote) {
-  jlong capabilities = 0;
-
-  /*
-   *  Grant the following capabilities to the Bluetooth user:
-   *    - CAP_WAKE_ALARM
-   *    - CAP_NET_ADMIN
-   *    - CAP_NET_RAW
-   *    - CAP_NET_BIND_SERVICE (for DHCP client functionality)
-   *    - CAP_SYS_NICE (for setting RT priority for audio-related threads)
-   */
-
-  if (multiuser_get_app_id(uid) == AID_BLUETOOTH) {
-    capabilities |= (1LL << CAP_WAKE_ALARM);
-    capabilities |= (1LL << CAP_NET_ADMIN);
-    capabilities |= (1LL << CAP_NET_RAW);
-    capabilities |= (1LL << CAP_NET_BIND_SERVICE);
-    capabilities |= (1LL << CAP_SYS_NICE);
-  }
-
-  if (multiuser_get_app_id(uid) == AID_NETWORK_STACK) {
-    capabilities |= (1LL << CAP_WAKE_ALARM);
-    capabilities |= (1LL << CAP_NET_ADMIN);
-    capabilities |= (1LL << CAP_NET_BROADCAST);
-    capabilities |= (1LL << CAP_NET_BIND_SERVICE);
-    capabilities |= (1LL << CAP_NET_RAW);
-  }
-
-  /*
-   * Grant CAP_BLOCK_SUSPEND to processes that belong to GID "wakelock"
-   */
-
-  if (MatchGid(env, gids, gid, AID_WAKELOCK)) {
-    capabilities |= (1LL << CAP_BLOCK_SUSPEND);
-  }
-
-  /*
-   * Grant child Zygote processes the following capabilities:
-   *   - CAP_SETUID (change UID of child processes)
-   *   - CAP_SETGID (change GID of child processes)
-   *   - CAP_SETPCAP (change capabilities of child processes)
-   */
-
-  if (is_child_zygote) {
-    capabilities |= (1LL << CAP_SETUID);
-    capabilities |= (1LL << CAP_SETGID);
-    capabilities |= (1LL << CAP_SETPCAP);
-  }
-
-  /*
-   * Containers run without some capabilities, so drop any caps that are not
-   * available.
-   */
-
-  return capabilities & GetEffectiveCapabilityMask(env);
 }
 
 /**
@@ -2384,6 +2317,81 @@ static void UnmountStorageOnInit(JNIEnv* env) {
 
 namespace android {
 
+jlong zygote::CalculateCapabilities(JNIEnv* env, jint uid, jint gid, jintArray gids,
+                                   bool is_child_zygote) {
+  jlong capabilities = 0;
+
+  /*
+   *  Grant the following capabilities to the Bluetooth user:
+   *    - CAP_WAKE_ALARM
+   *    - CAP_NET_ADMIN
+   *    - CAP_NET_RAW
+   *    - CAP_NET_BIND_SERVICE (for DHCP client functionality)
+   *    - CAP_SYS_NICE (for setting RT priority for audio-related threads)
+   */
+
+  if (multiuser_get_app_id(uid) == AID_BLUETOOTH) {
+    capabilities |= (1LL << CAP_WAKE_ALARM);
+    capabilities |= (1LL << CAP_NET_ADMIN);
+    capabilities |= (1LL << CAP_NET_RAW);
+    capabilities |= (1LL << CAP_NET_BIND_SERVICE);
+    capabilities |= (1LL << CAP_SYS_NICE);
+  }
+
+  if (multiuser_get_app_id(uid) == AID_NETWORK_STACK) {
+    capabilities |= (1LL << CAP_WAKE_ALARM);
+    capabilities |= (1LL << CAP_NET_ADMIN);
+    capabilities |= (1LL << CAP_NET_BROADCAST);
+    capabilities |= (1LL << CAP_NET_BIND_SERVICE);
+    capabilities |= (1LL << CAP_NET_RAW);
+  }
+
+  /*
+   * Grant CAP_BLOCK_SUSPEND to processes that belong to GID "wakelock"
+   */
+
+  if (MatchGid(env, gids, gid, AID_WAKELOCK)) {
+    capabilities |= (1LL << CAP_BLOCK_SUSPEND);
+  }
+
+  /*
+   * Grant child Zygote processes the following capabilities:
+   *   - CAP_SETUID (change UID of child processes)
+   *   - CAP_SETGID (change GID of child processes)
+   *   - CAP_SETPCAP (change capabilities of child processes)
+   */
+
+  if (is_child_zygote) {
+    capabilities |= (1LL << CAP_SETUID);
+    capabilities |= (1LL << CAP_SETGID);
+    capabilities |= (1LL << CAP_SETPCAP);
+  }
+
+  /*
+   * Containers run without some capabilities, so drop any caps that are not
+   * available.
+   */
+
+  return capabilities & GetEffectiveCapabilityMask(env);
+}
+
+jlong zygote::CalculateBoundingCapabilities(JNIEnv* env, jint uid, jint gid, jintArray gids) {
+    jlong capabilities = 0;
+
+    /*
+     * Grant CAP_SYS_NICE to CapInh/CapPrm/CapBnd for processes that can spawn
+     * VMs.  This enables processes to execve on binaries with elevated
+     * capabilities if its file capability bits are set. This does not grant
+     * capability to the parent process(that spawns the VM) as the effective
+     * bits are not set.
+     */
+    if (MatchGid(env, gids, gid, AID_VIRTUALMACHINE)) {
+        capabilities |= (1LL << CAP_SYS_NICE);
+    }
+
+    return capabilities;
+}
+
 /**
  * A failure function used to report fatal errors to the managed runtime.  This
  * function is often curried with the process name information and then passed
@@ -2424,9 +2432,30 @@ pid_t zygote::ForkCommon(JNIEnv* env, bool is_system_server,
                          const std::vector<int>& fds_to_close,
                          const std::vector<int>& fds_to_ignore,
                          bool is_priority_fork,
+                         bool is_top_app,
+                         bool use_fifo_ui,
                          bool purge) {
   ATRACE_CALL();
-  if (is_priority_fork) {
+  /*
+  * Number of processors configured on the device.
+  */
+  static int number_of_processors = sysconf(_SC_NPROCESSORS_CONF);
+
+  if (is_top_app && use_fifo_ui) {
+    // Set SCHED_FIFO for top-app fork where FIFO UI is enabled.
+    struct sched_param rt_param;
+    rt_param.sched_priority = 1; // 98 prio
+
+    if (number_of_processors == 1) {
+      RuntimeAbort(env, __LINE__, "Cannot set SCHED_FIFO on single-core devices.");
+    }
+
+    if (sched_setscheduler(0, SCHED_FIFO, &rt_param) != 0) {
+      ALOGE("Failed to set SCHED_FIFO: %s", strerror(errno));
+    } else {
+      ALOGW("Setting SCHED_FIFO for top-app fork");
+    }
+  } else if (is_priority_fork) {
     setpriority(PRIO_PROCESS, 0, PROCESS_PRIORITY_MAX);
   }
 
@@ -2477,11 +2506,24 @@ pid_t zygote::ForkCommon(JNIEnv* env, bool is_system_server,
   pid_t pid = fork();
 
   if (pid == 0) {
-    if (is_priority_fork) {
-      setpriority(PRIO_PROCESS, 0, PROCESS_PRIORITY_MAX);
-    } else {
-      setpriority(PRIO_PROCESS, 0, PROCESS_PRIORITY_MIN);
-    }
+    if (is_top_app && use_fifo_ui) {
+      // Explicitly set SCHED_FIFO | SCHED_RESET_ON_FORK for child's main thread to avoid other
+      // threads inheriting the main thread's FIFO scheduling policy.
+      // Empirically, SCHED_RESET_ON_FORK also applies to newly created threads.
+      // An app shall have no more than the main and render threads running at
+      // FIFO priority, thus not saturating the device with SCHED_FIFO tasks.
+      struct sched_param child_rt_param = {0};
+      child_rt_param.sched_priority = 1; // 98 prio
+      if (sched_setscheduler(0, SCHED_FIFO | SCHED_RESET_ON_FORK, &child_rt_param) != 0) {
+        ALOGE("Failed to set SCHED_FIFO | SCHED_RESET_ON_FORK: %s", strerror(errno));
+        RuntimeAbort(env, __LINE__, "Failed to set SCHED_FIFO | SCHED_RESET_ON_FORK in child");
+      }
+    } else if (is_priority_fork) {
+        setpriority(PRIO_PROCESS, 0, PROCESS_PRIORITY_MAX);
+      } else {
+        // TODO: Revisit this.
+        setpriority(PRIO_PROCESS, 0, PROCESS_PRIORITY_MIN);
+      }
 
 #if defined(__BIONIC__) && !defined(NO_RESET_STACK_PROTECTOR)
     // Reset the stack guard for the new process.
@@ -2515,7 +2557,17 @@ pid_t zygote::ForkCommon(JNIEnv* env, bool is_system_server,
   // We blocked SIGCHLD prior to a fork, we unblock it here.
   UnblockSignal(SIGCHLD, fail_fn);
 
-  if (is_priority_fork && pid != 0) {
+  if (is_top_app && use_fifo_ui && pid != 0) {
+    // Reset the scheduler to SCHED_OTHER for the Zygote process.
+    struct sched_param zero_param = {0};
+    if (sched_setscheduler(0, SCHED_OTHER, &zero_param) != 0) {
+      ALOGE("Failed to reset scheduler: %s", strerror(errno));
+      RuntimeAbort(env, __LINE__, "Failed to reset scheduler");
+    } else {
+      ALOGD("Reset scheduler to SCHED_OTHER");
+    }
+    setpriority(PRIO_PROCESS, 0, PROCESS_PRIORITY_DEFAULT);
+  } else if (is_priority_fork && pid != 0) {
     setpriority(PRIO_PROCESS, 0, PROCESS_PRIORITY_DEFAULT);
   }
 
@@ -2531,11 +2583,11 @@ static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
         JNIEnv* env, jclass, jint uid, jint gid, jintArray gids, jint runtime_flags,
         jobjectArray rlimits, jint mount_external, jstring se_info, jstring nice_name,
         jintArray managed_fds_to_close, jintArray managed_fds_to_ignore, jboolean is_child_zygote,
-        jstring instruction_set, jstring app_data_dir, jboolean is_top_app,
+        jstring instruction_set, jstring app_data_dir, jboolean is_top_app, jboolean use_fifo_ui,
         jobjectArray pkg_data_info_list, jobjectArray allowlisted_data_info_list,
         jboolean mount_data_dirs, jboolean mount_storage_dirs, jboolean mount_sysprop_overrides) {
-    jlong capabilities = CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
-    jlong bounding_capabilities = CalculateBoundingCapabilities(env, uid, gid, gids);
+    jlong capabilities = zygote::CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
+    jlong bounding_capabilities = zygote::CalculateBoundingCapabilities(env, uid, gid, gids);
 
     if (UNLIKELY(managed_fds_to_close == nullptr)) {
       zygote::ZygoteFailure(env, "zygote", nice_name,
@@ -2570,7 +2622,7 @@ static jint com_android_internal_os_Zygote_nativeForkAndSpecialize(
     }
 
     pid_t pid = zygote::ForkCommon(env, /* is_system_server= */ false, fds_to_close, fds_to_ignore,
-                                   true);
+                                   true, is_top_app == JNI_TRUE, use_fifo_ui == JNI_TRUE);
 
     if (pid == 0) {
         SpecializeCommon(env, uid, gid, gids, runtime_flags, rlimits, capabilities, capabilities,
@@ -2628,15 +2680,6 @@ static jint com_android_internal_os_Zygote_nativeForkSystemServer(
           ALOGE("System server process %d has died. Restarting Zygote!", pid);
           RuntimeAbort(env, __LINE__, "System server process has died. Restarting Zygote!");
       }
-
-      if (UsePerAppMemcg()) {
-          // Assign system_server to the correct memory cgroup.
-          // Not all devices mount memcg so check if it is mounted first
-          // to avoid unnecessarily printing errors and denials in the logs.
-          if (!SetTaskProfiles(pid, std::vector<std::string>{"SystemMemoryProcess"})) {
-              ALOGE("couldn't add process %d into system memcg group", pid);
-          }
-      }
   }
   return pid;
 }
@@ -2669,7 +2712,8 @@ static jint com_android_internal_os_Zygote_nativeForkApp(JNIEnv* env,
       ExtractJIntArray(env, "USAP", nullptr, managed_session_socket_fds)
           .value_or(std::vector<int>());
   return zygote::forkApp(env, read_pipe_fd, write_pipe_fd, session_socket_fds,
-                            args_known == JNI_TRUE, is_priority_fork == JNI_TRUE, true);
+                            args_known == JNI_TRUE, is_priority_fork == JNI_TRUE,
+                            false, false, true);
 }
 
 NO_STACK_PROTECTOR
@@ -2679,6 +2723,8 @@ int zygote::forkApp(JNIEnv* env,
                     const std::vector<int>& session_socket_fds,
                     bool args_known,
                     bool is_priority_fork,
+                    bool is_top_app,
+                    bool use_fifo_ui,
                     bool purge) {
   ATRACE_CALL();
 
@@ -2719,7 +2765,7 @@ int zygote::forkApp(JNIEnv* env,
   }
 
   return zygote::ForkCommon(env, /* is_system_server= */ false, fds_to_close,
-                            fds_to_ignore, is_priority_fork == JNI_TRUE, purge);
+                            fds_to_ignore, is_priority_fork, is_top_app, use_fifo_ui, purge);
 }
 
 static void com_android_internal_os_Zygote_nativeAllowFileAcrossFork(
@@ -2770,8 +2816,8 @@ static void com_android_internal_os_Zygote_nativeSpecializeAppProcess(
         jboolean is_top_app, jobjectArray pkg_data_info_list,
         jobjectArray allowlisted_data_info_list, jboolean mount_data_dirs,
         jboolean mount_storage_dirs, jboolean mount_sysprop_overrides) {
-    jlong capabilities = CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
-    jlong bounding_capabilities = CalculateBoundingCapabilities(env, uid, gid, gids);
+    jlong capabilities = zygote::CalculateCapabilities(env, uid, gid, gids, is_child_zygote);
+    jlong bounding_capabilities = zygote::CalculateBoundingCapabilities(env, uid, gid, gids);
 
     SpecializeCommon(env, uid, gid, gids, runtime_flags, rlimits, capabilities, capabilities,
                      bounding_capabilities, mount_external, se_info, nice_name, false,
@@ -3056,7 +3102,7 @@ static void com_android_internal_os_Zygote_nativeAllowFilesOpenedByPreload(JNIEn
 static const JNINativeMethod gMethods[] = {
         {"nativeForkAndSpecialize",
          "(II[II[[IILjava/lang/String;Ljava/lang/String;[I[IZLjava/lang/String;Ljava/lang/"
-         "String;Z[Ljava/lang/String;[Ljava/lang/String;ZZZ)I",
+         "String;ZZ[Ljava/lang/String;[Ljava/lang/String;ZZZ)I",
          (void*)com_android_internal_os_Zygote_nativeForkAndSpecialize},
         {"nativeForkSystemServer", "(II[II[[IJJ)I",
          (void*)com_android_internal_os_Zygote_nativeForkSystemServer},
@@ -3127,4 +3173,5 @@ int register_com_android_internal_os_Zygote(JNIEnv* env) {
 
   return JNI_OK;
 }
+
 }  // namespace android

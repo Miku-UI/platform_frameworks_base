@@ -20,6 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
@@ -41,6 +42,7 @@ class SmartspaceViewModelTest : SysuiTestCase() {
     private val testScope = kosmos.testScope
 
     private val powerInteractor = kosmos.powerInteractor
+    private val fakeKeyguardRepository = kosmos.fakeKeyguardRepository
     private val smartspaceViewModelFactory = kosmos.smartspaceViewModelFactory
 
     private lateinit var underTest: SmartspaceViewModel
@@ -99,5 +101,48 @@ class SmartspaceViewModelTest : SysuiTestCase() {
             val isAwake = withTimeoutOrNull(100) { underTest.isAwake.firstOrNull() }
 
             assertThat(isAwake).isNull()
+        }
+
+    @Test
+    fun generalView_dozeTimeTick_aodTimeTick() =
+        testScope.runTest {
+            underTest = smartspaceViewModelFactory.create(SmartspaceViewModel.SURFACE_GENERAL_VIEW)
+
+            fakeKeyguardRepository.dozeTimeTick()
+            val dozeTimeTick by collectLastValue(underTest.aodTimeTick)
+
+            assertThat(dozeTimeTick).isEqualTo(1)
+        }
+
+    @Test
+    fun generalView_noDozeTimeTick_noAodTimeTick() =
+        testScope.runTest {
+            underTest = smartspaceViewModelFactory.create(SmartspaceViewModel.SURFACE_GENERAL_VIEW)
+
+            val dozeTimeTick by collectLastValue(underTest.aodTimeTick)
+
+            assertThat(dozeTimeTick).isEqualTo(0)
+        }
+
+    @Test
+    fun weather_dozeTimeTick_noAodTimeTick() =
+        testScope.runTest {
+            underTest = smartspaceViewModelFactory.create(SmartspaceViewModel.SURFACE_WEATHER_VIEW)
+
+            fakeKeyguardRepository.dozeTimeTick()
+            val dozeTimeTick = withTimeoutOrNull(100) { underTest.aodTimeTick.firstOrNull() }
+
+            assertThat(dozeTimeTick).isNull()
+        }
+
+    @Test
+    fun date_dozeTimeTick_noAodTimeTick() =
+        testScope.runTest {
+            underTest = smartspaceViewModelFactory.create(SmartspaceViewModel.SURFACE_DATE_VIEW)
+
+            fakeKeyguardRepository.dozeTimeTick()
+            val dozeTimeTick = withTimeoutOrNull(100) { underTest.aodTimeTick.firstOrNull() }
+
+            assertThat(dozeTimeTick).isNull()
         }
 }

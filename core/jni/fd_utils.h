@@ -17,6 +17,7 @@
 #ifndef FRAMEWORKS_BASE_CORE_JNI_FD_UTILS_H_
 #define FRAMEWORKS_BASE_CORE_JNI_FD_UTILS_H_
 
+#include <functional>
 #include <memory>
 #include <set>
 #include <string>

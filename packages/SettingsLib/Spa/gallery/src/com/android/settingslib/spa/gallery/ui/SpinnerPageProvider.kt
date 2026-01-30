@@ -29,6 +29,7 @@ import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
 import com.android.settingslib.spa.widget.scaffold.RegularScaffold
+import com.android.settingslib.spa.widget.ui.Category
 import com.android.settingslib.spa.widget.ui.Spinner
 import com.android.settingslib.spa.widget.ui.SpinnerOption
 
@@ -39,10 +40,12 @@ object SpinnerPageProvider : SettingsPageProvider {
 
     @Composable
     fun Entry() {
-        Preference(object : PreferenceModel {
-            override val title = TITLE
-            override val onClick = navigator(name)
-        })
+        Preference(
+            object : PreferenceModel {
+                override val title = TITLE
+                override val onClick = navigator(name)
+            }
+        )
     }
 
     override fun getTitle(arguments: Bundle?): String {
@@ -58,10 +61,14 @@ object SpinnerPageProvider : SettingsPageProvider {
                 selectedId = selectedId,
                 setId = { selectedId = it },
             )
-            Preference(object : PreferenceModel {
-                override val title = "Selected id"
-                override val summary = { selectedId.toString() }
-            })
+            Category {
+                Preference(
+                    object : PreferenceModel {
+                        override val title = "Selected id"
+                        override val summary = { selectedId.toString() }
+                    }
+                )
+            }
         }
     }
 }
@@ -69,7 +76,5 @@ object SpinnerPageProvider : SettingsPageProvider {
 @Preview(showBackground = true)
 @Composable
 private fun SpinnerPagePreview() {
-    SettingsTheme {
-        SpinnerPageProvider.Page(null)
-    }
+    SettingsTheme { SpinnerPageProvider.Page(null) }
 }

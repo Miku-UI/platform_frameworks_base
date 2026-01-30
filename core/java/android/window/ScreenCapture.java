@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,803 +16,567 @@
 
 package android.window;
 
+import static com.android.graphics.surfaceflinger.flags.Flags.FLAG_READBACK_SCREENSHOT;
+
+import android.annotation.FlaggedApi;
+import android.annotation.IntDef;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
-import android.graphics.Bitmap;
+import android.annotation.SystemApi;
 import android.graphics.ColorSpace;
-import android.graphics.Gainmap;
-import android.graphics.PixelFormat;
-import android.graphics.Rect;
+import android.graphics.ParcelableColorSpace;
 import android.hardware.HardwareBuffer;
-import android.os.Build;
-import android.os.IBinder;
+import android.os.OutcomeReceiver;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.util.Log;
-import android.view.SurfaceControl;
+import android.os.RemoteException;
+import android.os.SystemProperties;
+import android.view.IWindowManager;
+import android.view.WindowManagerGlobal;
 
-import com.android.window.flags.Flags;
-
-import libcore.util.NativeAllocationRegistry;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.function.ObjIntConsumer;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.concurrent.Executor;
 
 /**
- * Handles display and layer captures for the system.
+ * Provides an API for capturing the contents of a display.
+ *
+ * <p>This class allows capturing the screen content based on specified parameters and returns the
+ * result asynchronously. It defines parameters for the capture via {@link ScreenCaptureParams} and
+ * the result via {@link ScreenCaptureResult}.
  *
  * @hide
  */
+@SystemApi
+@FlaggedApi(FLAG_READBACK_SCREENSHOT)
 public class ScreenCapture {
-    private static final String TAG = "ScreenCapture";
-    private static final int SCREENSHOT_WAIT_TIME_S = 4 * Build.HW_TIMEOUT_MULTIPLIER;
-
-    private static native int nativeCaptureDisplay(DisplayCaptureArgs captureArgs,
-            long captureListener);
-    private static native int nativeCaptureLayers(LayerCaptureArgs captureArgs,
-            long captureListener, boolean sync);
-    private static native long nativeCreateScreenCaptureListener(
-            ObjIntConsumer<ScreenshotHardwareBuffer> consumer);
-    private static native void nativeWriteListenerToParcel(long nativeObject, Parcel out);
-    private static native long nativeReadListenerFromParcel(Parcel in);
-    private static native long getNativeListenerFinalizer();
 
     /**
-     * @param captureArgs     Arguments about how to take the screenshot
-     * @param captureListener A listener to receive the screenshot callback
-     * @hide
-     */
-    public static int captureDisplay(@NonNull DisplayCaptureArgs captureArgs,
-            @NonNull ScreenCaptureListener captureListener) {
-        return nativeCaptureDisplay(captureArgs, captureListener.mNativeObject);
-    }
-
-    /**
-     * Captures all the surfaces in a display and returns a {@link ScreenshotHardwareBuffer} with
-     * the content.
+     * Parameters for a screen capture request.
      *
-     * @hide
+     * <p>This class encapsulates the various settings and configurations for a screen capture
+     * operation. Use the {@link ScreenCaptureParams.Builder} to construct an instance of this
+     * class.
      */
-    public static ScreenshotHardwareBuffer captureDisplay(
-            DisplayCaptureArgs captureArgs) {
-        SynchronousScreenCaptureListener syncScreenCapture = createSyncCaptureListener();
-        int status = captureDisplay(captureArgs, syncScreenCapture);
-        if (status != 0) {
-            return null;
-        }
+    @FlaggedApi(FLAG_READBACK_SCREENSHOT)
+    public static final class ScreenCaptureParams implements Parcelable {
 
-        try {
-            return syncScreenCapture.getBuffer();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * Captures a layer and its children and returns a {@link HardwareBuffer} with the content.
-     *
-     * @param layer      The root layer to capture.
-     * @param sourceCrop The portion of the root surface to capture; caller may pass in 'new
-     *                   Rect()' or null if no cropping is desired. If the root layer does not
-     *                   have a buffer or a crop set, then a non-empty source crop must be
-     *                   specified.
-     * @param frameScale The desired scale of the returned buffer; the raw screen will be scaled
-     *                   up/down.
-     * @return Returns a HardwareBuffer that contains the layer capture.
-     * @hide
-     */
-    public static ScreenshotHardwareBuffer captureLayers(SurfaceControl layer, Rect sourceCrop,
-            float frameScale) {
-        return captureLayers(layer, sourceCrop, frameScale, PixelFormat.RGBA_8888);
-    }
-
-    /**
-     * Captures a layer and its children and returns a {@link HardwareBuffer} with the content.
-     *
-     * @param layer      The root layer to capture.
-     * @param sourceCrop The portion of the root surface to capture; caller may pass in 'new
-     *                   Rect()' or null if no cropping is desired. If the root layer does not
-     *                   have a buffer or a crop set, then a non-empty source crop must be
-     *                   specified.
-     * @param frameScale The desired scale of the returned buffer; the raw screen will be scaled
-     *                   up/down.
-     * @param format     The desired pixel format of the returned buffer.
-     * @return Returns a HardwareBuffer that contains the layer capture.
-     * @hide
-     */
-    public static ScreenshotHardwareBuffer captureLayers(@NonNull SurfaceControl layer,
-            @Nullable Rect sourceCrop, float frameScale, int format) {
-        LayerCaptureArgs captureArgs = new LayerCaptureArgs.Builder(layer)
-                .setSourceCrop(sourceCrop)
-                .setFrameScale(frameScale)
-                .setPixelFormat(format)
-                .build();
-
-        return captureLayers(captureArgs);
-    }
-
-    /**
-     * @hide
-     */
-    public static ScreenshotHardwareBuffer captureLayers(LayerCaptureArgs captureArgs) {
-        SynchronousScreenCaptureListener syncScreenCapture = createSyncCaptureListener();
-        int status = nativeCaptureLayers(captureArgs, syncScreenCapture.mNativeObject,
-                Flags.syncScreenCapture());
-        if (status != 0) {
-            return null;
-        }
-
-        try {
-            return syncScreenCapture.getBuffer();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * Like {@link #captureLayers(SurfaceControl, Rect, float, int)} but with an array of layer
-     * handles to exclude.
-     *
-     * @hide
-     */
-    public static ScreenshotHardwareBuffer captureLayersExcluding(SurfaceControl layer,
-            Rect sourceCrop, float frameScale, int format, SurfaceControl[] exclude) {
-        LayerCaptureArgs captureArgs = new LayerCaptureArgs.Builder(layer)
-                .setSourceCrop(sourceCrop)
-                .setFrameScale(frameScale)
-                .setPixelFormat(format)
-                .setExcludeLayers(exclude)
-                .build();
-
-        return captureLayers(captureArgs);
-    }
-
-    /**
-     * @param captureArgs     Arguments about how to take the screenshot
-     * @param captureListener A listener to receive the screenshot callback
-     * @hide
-     */
-    public static int captureLayers(@NonNull LayerCaptureArgs captureArgs,
-            @NonNull ScreenCaptureListener captureListener) {
-        return nativeCaptureLayers(captureArgs, captureListener.mNativeObject, false /* sync */);
-    }
-
-    /**
-     * A wrapper around HardwareBuffer that contains extra information about how to
-     * interpret the screenshot HardwareBuffer.
-     *
-     * @hide
-     */
-    public static class ScreenshotHardwareBuffer {
-        private static final float EPSILON = 1.0f / 64.0f;
-
-        private final HardwareBuffer mHardwareBuffer;
-        private final ColorSpace mColorSpace;
-        private final boolean mContainsSecureLayers;
-        private final boolean mContainsHdrLayers;
-        private final HardwareBuffer mGainmap;
-        private final float mHdrSdrRatio;
-
-        public ScreenshotHardwareBuffer(HardwareBuffer hardwareBuffer, ColorSpace colorSpace,
-                boolean containsSecureLayers, boolean containsHdrLayers) {
-            this(hardwareBuffer, colorSpace, containsSecureLayers, containsHdrLayers, null, 1.0f);
-        }
-
-        public ScreenshotHardwareBuffer(HardwareBuffer hardwareBuffer, ColorSpace colorSpace,
-                boolean containsSecureLayers, boolean containsHdrLayers, HardwareBuffer gainmap,
-                float hdrSdrRatio) {
-            mHardwareBuffer = hardwareBuffer;
-            mColorSpace = colorSpace;
-            mContainsSecureLayers = containsSecureLayers;
-            mContainsHdrLayers = containsHdrLayers;
-            mGainmap = gainmap;
-            mHdrSdrRatio = hdrSdrRatio;
+        /** @hide */
+        @IntDef(
+                prefix = {"SECURE_CONTENT_POLICY_"},
+                value = {
+                        SECURE_CONTENT_POLICY_REDACT,
+                        SECURE_CONTENT_POLICY_CAPTURE,
+                        SECURE_CONTENT_POLICY_THROW_EXCEPTION
+                })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface SecureContentPolicy {
         }
 
         /**
-         * Create ScreenshotHardwareBuffer from an existing HardwareBuffer object.
+         * When a secure window is encountered, redact it by blacking out its content.
          *
-         * @param hardwareBuffer       The existing HardwareBuffer object
-         * @param dataspace            Dataspace describing the content.
-         *                             {@see android.hardware.DataSpace}
-         * @param containsSecureLayers Indicates whether this graphic buffer contains captured
-         *                             contents of secure layers, in which case the screenshot
-         *                             should not be persisted.
-         * @param containsHdrLayers    Indicates whether this graphic buffer contains HDR content.
+         * @hide
          */
-        private static ScreenshotHardwareBuffer createFromNative(HardwareBuffer hardwareBuffer,
-                int dataspace, boolean containsSecureLayers, boolean containsHdrLayers,
-                HardwareBuffer gainmap, float hdrSdrRatio) {
-            ColorSpace colorSpace = ColorSpace.getFromDataSpace(dataspace);
-            return new ScreenshotHardwareBuffer(hardwareBuffer,
-                    colorSpace != null ? colorSpace : ColorSpace.get(ColorSpace.Named.SRGB),
-                    containsSecureLayers, containsHdrLayers, gainmap, hdrSdrRatio);
+        public static final int SECURE_CONTENT_POLICY_REDACT = 0;
+
+        /**
+         * When a secure window is encountered, attempt to capture its content.
+         *
+         * @hide
+         */
+        public static final int SECURE_CONTENT_POLICY_CAPTURE = 1;
+
+        /**
+         * When a secure window is encountered, throw an exception.
+         *
+         * @hide
+         */
+        public static final int SECURE_CONTENT_POLICY_THROW_EXCEPTION = 2;
+
+        /** @hide */
+        @IntDef(
+                prefix = {"PROTECTED_CONTENT_POLICY_"},
+                value = {PROTECTED_CONTENT_POLICY_REDACT,
+                        PROTECTED_CONTENT_POLICY_CAPTURE,
+                        PROTECTED_CONTENT_POLICY_THROW_EXCEPTION})
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface ProtectedContentPolicy {
         }
 
-        public ColorSpace getColorSpace() {
+        /**
+         * When a protected window is encountered, redact it by blacking out its content.
+         *
+         * @hide
+         */
+        public static final int PROTECTED_CONTENT_POLICY_REDACT = 0;
+
+        /**
+         * When a protected window is encountered, capture its content. The resulting buffer will
+         * also be protected.
+         *
+         * @hide
+         */
+        public static final int PROTECTED_CONTENT_POLICY_CAPTURE = 1;
+
+        /**
+         * When a protected window is encountered, throw an exception.
+         *
+         * @hide
+         */
+        public static final int PROTECTED_CONTENT_POLICY_THROW_EXCEPTION = 2;
+
+        /** @hide */
+        @IntDef(
+                prefix = {"CAPTURE_MODE_"},
+                value = {CAPTURE_MODE_NONE, CAPTURE_MODE_REQUIRE_OPTIMIZED})
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface CaptureMode {
+        }
+
+        /**
+         * Uses the standard screenshot path. Requests the system to capture the screenshot without
+         * any restrictions on performance. This is the default capture mode.
+         */
+        public static final int CAPTURE_MODE_NONE = 0;
+
+        /**
+         * Requires the system to use an optimized capture path. This path is designed for minimal
+         * performance and power impact, making it suitable for frequent captures.
+         *
+         * <p>If the optimized path cannot be utilized due to device limitations, or unsupported
+         * capture args, the screenshot operation will throw an exception. It will NOT automatically
+         * fall back to the 'None' behavior.
+         */
+        public static final int CAPTURE_MODE_REQUIRE_OPTIMIZED = 1;
+
+        private final int mDisplayId;
+
+        @SecureContentPolicy
+        private final int mSecureContentPolicy;
+
+        @ProtectedContentPolicy
+        private final int mProtectedContentPolicy;
+
+        @CaptureMode
+        private final int mCaptureMode;
+
+        @HardwareBuffer.Format
+        private final int mPixelFormat;
+
+        private final boolean mUseDisplayInstallationOrientation;
+
+        private final boolean mIncludeSystemOverlays;
+
+        private final boolean mPreserveDisplayColors;
+
+        /** Returns the ID of the display to capture. */
+        public int getDisplayId() {
+            return mDisplayId;
+        }
+
+        /**
+         * Returns the policy for handling secure content.
+         *
+         * @see Builder#setSecureContentPolicy(int)
+         * @hide
+         */
+        public @SecureContentPolicy int getSecureContentPolicy() {
+            return mSecureContentPolicy;
+        }
+
+        /**
+         * Returns the policy for handling protected content.
+         *
+         * @see Builder#setProtectedContentPolicy(int)
+         * @hide
+         */
+        public @ProtectedContentPolicy int getProtectedContentPolicy() {
+            return mProtectedContentPolicy;
+        }
+
+        /**
+         * Returns the capture mode.
+         *
+         * @see Builder#setCaptureMode(int)
+         */
+        public @CaptureMode int getCaptureMode() {
+            return mCaptureMode;
+        }
+
+        /**
+         * Returns the pixel format for the captured image.
+         *
+         * @see Builder#setPixelFormat(int)
+         */
+        public @HardwareBuffer.Format int getPixelFormat() {
+            return mPixelFormat;
+        }
+
+        /**
+         * Returns whether to use the display's native orientation for the capture.
+         *
+         * @see Builder#setUseDisplayInstallationOrientation(boolean)
+         * @hide
+         */
+        public boolean isUseDisplayInstallationOrientation() {
+            return mUseDisplayInstallationOrientation;
+        }
+
+        /**
+         * Returns whether to include system overlays in the capture.
+         *
+         * @see Builder#setIncludeSystemOverlays(boolean)
+         * @hide
+         */
+        public boolean isIncludeSystemOverlays() {
+            return mIncludeSystemOverlays;
+        }
+
+        /**
+         * Returns whether to preserve the display's colors in the capture.
+         *
+         * @see Builder#setPreserveDisplayColors(boolean)
+         * @hide
+         */
+        public boolean isPreserveDisplayColors() {
+            return mPreserveDisplayColors;
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel out, int flags) {
+            out.writeInt(mDisplayId);
+            out.writeInt(mSecureContentPolicy);
+            out.writeInt(mProtectedContentPolicy);
+            out.writeInt(mCaptureMode);
+            out.writeInt(mPixelFormat);
+            out.writeBoolean(mUseDisplayInstallationOrientation);
+            out.writeBoolean(mIncludeSystemOverlays);
+            out.writeBoolean(mPreserveDisplayColors);
+        }
+
+        @NonNull
+        public static final Parcelable.Creator<ScreenCaptureParams> CREATOR =
+                new Parcelable.Creator<ScreenCaptureParams>() {
+                    public ScreenCaptureParams createFromParcel(Parcel in) {
+                        return new ScreenCaptureParams(in);
+                    }
+
+                    public ScreenCaptureParams[] newArray(int size) {
+                        return new ScreenCaptureParams[size];
+                    }
+                };
+
+        private ScreenCaptureParams(Parcel in) {
+            mDisplayId = in.readInt();
+            mSecureContentPolicy = in.readInt();
+            mProtectedContentPolicy = in.readInt();
+            mCaptureMode = in.readInt();
+            mPixelFormat = in.readInt();
+            mUseDisplayInstallationOrientation = in.readBoolean();
+            mIncludeSystemOverlays = in.readBoolean();
+            mPreserveDisplayColors = in.readBoolean();
+        }
+
+        private ScreenCaptureParams(
+                int displayId,
+                @SecureContentPolicy int secureContentPolicy,
+                @ProtectedContentPolicy int protectedContentPolicy,
+                @CaptureMode int captureMode,
+                @HardwareBuffer.Format int pixelFormat,
+                boolean useDisplayInstallationOrientation,
+                boolean includeSystemOverlays,
+                boolean preserveDisplayColors) {
+            mDisplayId = displayId;
+            mSecureContentPolicy = secureContentPolicy;
+            mProtectedContentPolicy = protectedContentPolicy;
+            mCaptureMode = captureMode;
+            mPixelFormat = pixelFormat;
+            mUseDisplayInstallationOrientation = useDisplayInstallationOrientation;
+            mIncludeSystemOverlays = includeSystemOverlays;
+            mPreserveDisplayColors = preserveDisplayColors;
+        }
+
+        /**
+         * Builder for creating {@link ScreenCaptureParams} instances.
+         */
+        @FlaggedApi(FLAG_READBACK_SCREENSHOT)
+        public static final class Builder {
+            private int mDisplayId;
+            @SecureContentPolicy
+            private int mSecureContentPolicy = SECURE_CONTENT_POLICY_REDACT;
+            @ProtectedContentPolicy
+            private int mProtectedContentPolicy = PROTECTED_CONTENT_POLICY_REDACT;
+            @CaptureMode
+            private int mCaptureMode = CAPTURE_MODE_NONE;
+            @HardwareBuffer.Format
+            private int mPixelFormat = HardwareBuffer.RGBA_8888;
+            private boolean mUseDisplayInstallationOrientation = false;
+            private boolean mIncludeSystemOverlays = false;
+            private boolean mPreserveDisplayColors = false;
+
+            /** Builder constructor. */
+            public Builder(int displayId) {
+                mDisplayId = displayId;
+            }
+
+            /**
+             * Specifies how to handle secure windows.
+             *
+             * <p>A secure window is a window with {@link
+             * android.view.WindowManager.LayoutParams.FLAG_SECURE} set.
+             *
+             * <p>Default value is {@link #SECURE_CONTENT_POLICY_REDACT}.
+             *
+             * @hide
+             */
+            public @NonNull Builder setSecureContentPolicy(
+                    @SecureContentPolicy int secureContentPolicy) {
+                mSecureContentPolicy = secureContentPolicy;
+                return this;
+            }
+
+            /**
+             * Specifies how to handle protected windows.
+             *
+             * <p>A protected window is a window that has buffers with the protected bit set.
+             *
+             * <p>Default value is {@link #PROTECTED_CONTENT_POLICY_REDACT}.
+             *
+             * @hide
+             */
+            public @NonNull Builder setProtectedContentPolicy(
+                    @ProtectedContentPolicy int protectedContentPolicy) {
+                mProtectedContentPolicy = protectedContentPolicy;
+                return this;
+            }
+
+            /**
+             * Sets the capture mode for the screen capture. The default capture mode is
+             * {@link #CAPTURE_MODE_NONE}.
+             */
+            public @NonNull Builder setCaptureMode(@CaptureMode int captureMode) {
+                mCaptureMode = captureMode;
+                return this;
+            }
+
+            /**
+             * Sets the desired pixel format for the captured image.
+             *
+             * <p>Default value is {@link HardwareBuffer#RGBA_8888}.
+             */
+            public @NonNull Builder setPixelFormat(@HardwareBuffer.Format int pixelFormat) {
+                mPixelFormat = pixelFormat;
+                return this;
+            }
+
+            /**
+             * Sets whether to use the display's installation orientation for the capture.
+             *
+             * <p>If {@code true}, the screenshot will be oriented according to the display's
+             * physical installation orientation, ignoring any current logical orientation.
+             *
+             * <p>If {@code false}, the screenshot will be oriented according to the current logical
+             * orientation of the display, including any software rotation.
+             *
+             * <p>Default value is {@code false}
+             *
+             * @hide
+             */
+            public @NonNull Builder setUseDisplayInstallationOrientation(
+                    boolean useDisplayInstallationOrientation) {
+                mUseDisplayInstallationOrientation = useDisplayInstallationOrientation;
+                return this;
+            }
+
+            /**
+             * Sets whether to include system overlays such as display cutouts.
+             *
+             * <p>If {@code true}, the capture includes layers that might normally be excluded, such
+             * as certain system UI elements or overlays.
+             *
+             * <p>If {@code false}, standard layer exclusion rules apply, capturing primarily
+             * user-visible content.
+             *
+             * <p>Default value is {@code false}
+             *
+             * @hide
+             */
+            public @NonNull Builder setIncludeSystemOverlays(boolean includeSystemOverlays) {
+                mIncludeSystemOverlays = includeSystemOverlays;
+                return this;
+            }
+
+            /**
+             * Set to true to preserves the native display colorspace. Useful for mixed HDR + SDR
+             * content, using identical processing as the display's.
+             *
+             * <p>Default value is {@code false}
+             *
+             * @hide
+             */
+            public @NonNull Builder setPreserveDisplayColors(boolean preserveDisplayColors) {
+                mPreserveDisplayColors = preserveDisplayColors;
+                return this;
+            }
+
+            /** Builds the ScreenCaptureParams object. */
+            public @NonNull ScreenCaptureParams build() {
+                return new ScreenCaptureParams(
+                        mDisplayId,
+                        mSecureContentPolicy,
+                        mProtectedContentPolicy,
+                        mCaptureMode,
+                        mPixelFormat,
+                        mUseDisplayInstallationOrientation,
+                        mIncludeSystemOverlays,
+                        mPreserveDisplayColors);
+            }
+        }
+    }
+
+    /**
+     * Represents the result of a screen capture operation.
+     *
+     * <p>This class encapsulates the captured image data, including the {@link HardwareBuffer}
+     * containing the pixel data and the {@link ColorSpace} describing the color information
+     * of the captured image.
+     */
+    @FlaggedApi(FLAG_READBACK_SCREENSHOT)
+    public static final class ScreenCaptureResult implements Parcelable {
+        private final ColorSpace mColorSpace;
+        private final HardwareBuffer mHardwareBuffer;
+
+        /**
+         * Returns the {@link ColorSpace} of the captured image.
+         */
+        public @NonNull ColorSpace getColorSpace() {
             return mColorSpace;
         }
 
-        public HardwareBuffer getHardwareBuffer() {
+        /**
+         * Returns the {@link HardwareBuffer} containing the captured image data.
+         */
+        public @NonNull HardwareBuffer getHardwareBuffer() {
             return mHardwareBuffer;
         }
 
-        /**
-         * Whether this screenshot contains secure layers
-         */
-        public boolean containsSecureLayers() {
-            return mContainsSecureLayers;
-        }
-
-        /**
-         * Returns whether the screenshot contains at least one HDR layer.
-         * This information may be useful for informing the display whether this screenshot
-         * is allowed to be dimmed to SDR white.
-         */
-        public boolean containsHdrLayers() {
-            return mContainsHdrLayers;
-        }
-
-        /**
-         * Copy content of ScreenshotHardwareBuffer into a hardware bitmap and return it.
-         * Note: If you want to modify the Bitmap in software, you will need to copy the Bitmap
-         * into
-         * a software Bitmap using {@link Bitmap#copy(Bitmap.Config, boolean)}
-         * <p>
-         * CAVEAT: This can be extremely slow; avoid use unless absolutely necessary; prefer to
-         * directly
-         * use the {@link HardwareBuffer} directly.
-         *
-         * @return Bitmap generated from the {@link HardwareBuffer}
-         */
-        public Bitmap asBitmap() {
-            if (mHardwareBuffer == null) {
-                Log.w(TAG, "Failed to take screenshot. Null screenshot object");
-                return null;
-            }
-
-            Bitmap bitmap = Bitmap.wrapHardwareBuffer(mHardwareBuffer, mColorSpace);
-            if (mGainmap != null) {
-                Bitmap gainmapBitmap = Bitmap.wrapHardwareBuffer(mGainmap, null);
-                Gainmap gainmap = new Gainmap(gainmapBitmap);
-                gainmap.setRatioMin(1.0f, 1.0f, 1.0f);
-                gainmap.setRatioMax(mHdrSdrRatio, mHdrSdrRatio, mHdrSdrRatio);
-                gainmap.setGamma(1.0f, 1.0f, 1.0f);
-                gainmap.setEpsilonSdr(EPSILON, EPSILON, EPSILON);
-                gainmap.setEpsilonHdr(EPSILON, EPSILON, EPSILON);
-                gainmap.setMinDisplayRatioForHdrTransition(1.0f);
-                gainmap.setDisplayRatioForFullHdr(mHdrSdrRatio);
-                bitmap.setGainmap(gainmap);
-            }
-
-            return bitmap;
-        }
-    }
-
-    /**
-     * A common arguments class used for various screenshot requests. This contains arguments that
-     * are shared between {@link DisplayCaptureArgs} and {@link LayerCaptureArgs}
-     *
-     * @hide
-     */
-    public static class CaptureArgs implements Parcelable {
-        public final int mPixelFormat;
-        public final Rect mSourceCrop = new Rect();
-        public final float mFrameScaleX;
-        public final float mFrameScaleY;
-        public final boolean mCaptureSecureLayers;
-        public final boolean mAllowProtected;
-        public final long mUid;
-        public final boolean mGrayscale;
-        final SurfaceControl[] mExcludeLayers;
-        public final boolean mHintForSeamlessTransition;
-
-        private CaptureArgs(CaptureArgs.Builder<? extends CaptureArgs.Builder<?>> builder) {
-            mPixelFormat = builder.mPixelFormat;
-            mSourceCrop.set(builder.mSourceCrop);
-            mFrameScaleX = builder.mFrameScaleX;
-            mFrameScaleY = builder.mFrameScaleY;
-            mCaptureSecureLayers = builder.mCaptureSecureLayers;
-            mAllowProtected = builder.mAllowProtected;
-            mUid = builder.mUid;
-            mGrayscale = builder.mGrayscale;
-            mExcludeLayers = builder.mExcludeLayers;
-            mHintForSeamlessTransition = builder.mHintForSeamlessTransition;
-        }
-
-        private CaptureArgs(Parcel in) {
-            mPixelFormat = in.readInt();
-            mSourceCrop.readFromParcel(in);
-            mFrameScaleX = in.readFloat();
-            mFrameScaleY = in.readFloat();
-            mCaptureSecureLayers = in.readBoolean();
-            mAllowProtected = in.readBoolean();
-            mUid = in.readLong();
-            mGrayscale = in.readBoolean();
-
-            int excludeLayersLength = in.readInt();
-            if (excludeLayersLength > 0) {
-                mExcludeLayers = new SurfaceControl[excludeLayersLength];
-                for (int index = 0; index < excludeLayersLength; index++) {
-                    mExcludeLayers[index] = SurfaceControl.CREATOR.createFromParcel(in);
-                }
-            } else {
-                mExcludeLayers = null;
-            }
-            mHintForSeamlessTransition = in.readBoolean();
-        }
-
-        /** Release any layers if set using {@link Builder#setExcludeLayers(SurfaceControl[])}. */
-        public void release() {
-            if (mExcludeLayers == null || mExcludeLayers.length == 0) {
-                return;
-            }
-
-            for (SurfaceControl surfaceControl : mExcludeLayers) {
-                if (surfaceControl != null) {
-                    surfaceControl.release();
-                }
-            }
-        }
-
-        /**
-         * Returns an array of {@link SurfaceControl#mNativeObject} corresponding to
-         * {@link #mExcludeLayers}. Used only in native code.
-         */
-        private long[] getNativeExcludeLayers() {
-            if (mExcludeLayers == null || mExcludeLayers.length == 0) {
-                return new long[0];
-            }
-
-            long[] nativeExcludeLayers = new long[mExcludeLayers.length];
-            for (int index = 0; index < mExcludeLayers.length; index++) {
-                nativeExcludeLayers[index] = mExcludeLayers[index].mNativeObject;
-            }
-
-            return nativeExcludeLayers;
-        }
-
-        /**
-         * The Builder class used to construct {@link CaptureArgs}
-         *
-         * @param <T> A builder that extends {@link CaptureArgs.Builder}
-         */
-        public static class Builder<T extends CaptureArgs.Builder<T>> {
-            private int mPixelFormat = PixelFormat.RGBA_8888;
-            private final Rect mSourceCrop = new Rect();
-            private float mFrameScaleX = 1;
-            private float mFrameScaleY = 1;
-            private boolean mCaptureSecureLayers;
-            private boolean mAllowProtected;
-            private long mUid = -1;
-            private boolean mGrayscale;
-            private SurfaceControl[] mExcludeLayers;
-            private boolean mHintForSeamlessTransition;
-
-            /**
-             * Construct a new {@link CaptureArgs} with the set parameters. The builder remains
-             * valid.
-             */
-            public CaptureArgs build() {
-                return new CaptureArgs(this);
-            }
-
-            /**
-             * The desired pixel format of the returned buffer.
-             */
-            public T setPixelFormat(int pixelFormat) {
-                mPixelFormat = pixelFormat;
-                return getThis();
-            }
-
-            /**
-             * The portion of the screen to capture into the buffer. Caller may pass  in
-             * 'new Rect()' or null if no cropping is desired.
-             */
-            public T setSourceCrop(@Nullable Rect sourceCrop) {
-                if (sourceCrop == null) {
-                    mSourceCrop.setEmpty();
-                } else {
-                    mSourceCrop.set(sourceCrop);
-                }
-                return getThis();
-            }
-
-            /**
-             * The desired scale of the returned buffer. The raw screen will be scaled up/down.
-             */
-            public T setFrameScale(float frameScale) {
-                mFrameScaleX = frameScale;
-                mFrameScaleY = frameScale;
-                return getThis();
-            }
-
-            /**
-             * The desired scale of the returned buffer, allowing separate values for x and y scale.
-             * The raw screen will be scaled up/down.
-             */
-            public T setFrameScale(float frameScaleX, float frameScaleY) {
-                mFrameScaleX = frameScaleX;
-                mFrameScaleY = frameScaleY;
-                return getThis();
-            }
-
-            /**
-             * Whether to allow the screenshot of secure layers. Warning: This should only be done
-             * if the content will be placed in a secure SurfaceControl.
-             *
-             * @see ScreenshotHardwareBuffer#containsSecureLayers()
-             */
-            public T setCaptureSecureLayers(boolean captureSecureLayers) {
-                mCaptureSecureLayers = captureSecureLayers;
-                return getThis();
-            }
-
-            /**
-             * Whether to allow the screenshot of protected (DRM) content. Warning: The screenshot
-             * cannot be read in unprotected space.
-             *
-             * @see HardwareBuffer#USAGE_PROTECTED_CONTENT
-             */
-            public T setAllowProtected(boolean allowProtected) {
-                mAllowProtected = allowProtected;
-                return getThis();
-            }
-
-            /**
-             * Set the uid of the content that should be screenshot. The code will skip any surfaces
-             * that don't belong to the specified uid.
-             */
-            public T setUid(long uid) {
-                mUid = uid;
-                return getThis();
-            }
-
-            /**
-             * Set whether the screenshot should use grayscale or not.
-             */
-            public T setGrayscale(boolean grayscale) {
-                mGrayscale = grayscale;
-                return getThis();
-            }
-
-            /**
-             * An array of {@link SurfaceControl} layer handles to exclude.
-             */
-            public T setExcludeLayers(@Nullable SurfaceControl[] excludeLayers) {
-                mExcludeLayers = excludeLayers;
-                return getThis();
-            }
-
-            /**
-             * Set whether the screenshot will be used in a system animation.
-             * This hint is used for picking the "best" colorspace for the screenshot, in particular
-             * for mixing HDR and SDR content.
-             * E.g., hintForSeamlessTransition is false, then a colorspace suitable for file
-             * encoding, such as BT2100, may be chosen. Otherwise, then the display's color space
-             * would be chosen, with the possibility of having an extended brightness range. This
-             * is important for screenshots that are directly re-routed to a SurfaceControl in
-             * order to preserve accurate colors.
-             */
-            public T setHintForSeamlessTransition(boolean hintForSeamlessTransition) {
-                mHintForSeamlessTransition = hintForSeamlessTransition;
-                return getThis();
-            }
-
-            /**
-             * Each sub class should return itself to allow the builder to chain properly
-             */
-            T getThis() {
-                return (T) this;
-            }
-        }
-
         @Override
         public int describeContents() {
             return 0;
         }
 
         @Override
-        public void writeToParcel(@NonNull Parcel dest, int flags) {
-            dest.writeInt(mPixelFormat);
-            mSourceCrop.writeToParcel(dest, flags);
-            dest.writeFloat(mFrameScaleX);
-            dest.writeFloat(mFrameScaleY);
-            dest.writeBoolean(mCaptureSecureLayers);
-            dest.writeBoolean(mAllowProtected);
-            dest.writeLong(mUid);
-            dest.writeBoolean(mGrayscale);
-            if (mExcludeLayers != null) {
-                dest.writeInt(mExcludeLayers.length);
-                for (SurfaceControl excludeLayer : mExcludeLayers) {
-                    excludeLayer.writeToParcel(dest, flags);
-                }
-            } else {
-                dest.writeInt(0);
-            }
-            dest.writeBoolean(mHintForSeamlessTransition);
+        public void writeToParcel(@NonNull Parcel out, int flags) {
+            new ParcelableColorSpace(mColorSpace).writeToParcel(out, flags);
+            mHardwareBuffer.writeToParcel(out, flags);
         }
 
-        public static final Parcelable.Creator<CaptureArgs> CREATOR =
-                new Parcelable.Creator<CaptureArgs>() {
-                    @Override
-                    public CaptureArgs createFromParcel(Parcel in) {
-                        return new CaptureArgs(in);
+        @NonNull
+        public static final Parcelable.Creator<ScreenCaptureResult> CREATOR =
+                new Parcelable.Creator<ScreenCaptureResult>() {
+                    public ScreenCaptureResult createFromParcel(Parcel in) {
+                        return new ScreenCaptureResult(in);
                     }
 
-                    @Override
-                    public CaptureArgs[] newArray(int size) {
-                        return new CaptureArgs[size];
+                    public ScreenCaptureResult[] newArray(int size) {
+                        return new ScreenCaptureResult[size];
                     }
                 };
+
+        private ScreenCaptureResult(Parcel in) {
+            mColorSpace = ParcelableColorSpace.CREATOR.createFromParcel(in).getColorSpace();
+            mHardwareBuffer = HardwareBuffer.CREATOR.createFromParcel(in);
+        }
+
+        /** ScreenCaptureResult constructor. */
+        public ScreenCaptureResult(
+                @NonNull ColorSpace colorSpace, @NonNull HardwareBuffer hardwareBuffer) {
+            mColorSpace = colorSpace;
+            mHardwareBuffer = hardwareBuffer;
+        }
+    }
+
+    /** @hide */
+    @IntDef(
+            prefix = {"SCREEN_CAPTURE_ERROR_CODE_"},
+            value = {SCREEN_CAPTURE_ERROR_CODE_UNKNOWN,
+                    SCREEN_CAPTURE_ERROR_SENSITIVE_CONTENT})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ScreenCaptureErrorCode {
     }
 
     /**
-     * The arguments class used to make display capture requests.
+     * Unknown screen capture error.
      *
      * @hide
-     * @see #nativeCaptureDisplay(DisplayCaptureArgs, long)
      */
-    public static class DisplayCaptureArgs extends CaptureArgs {
-        private final IBinder mDisplayToken;
-        private final int mWidth;
-        private final int mHeight;
-
-        private DisplayCaptureArgs(Builder builder) {
-            super(builder);
-            mDisplayToken = builder.mDisplayToken;
-            mWidth = builder.mWidth;
-            mHeight = builder.mHeight;
-        }
-
-        /**
-         * The Builder class used to construct {@link DisplayCaptureArgs}
-         */
-        public static class Builder extends CaptureArgs.Builder<Builder> {
-            private IBinder mDisplayToken;
-            private int mWidth;
-            private int mHeight;
-
-            /**
-             * Construct a new {@link LayerCaptureArgs} with the set parameters. The builder
-             * remains valid.
-             */
-            public DisplayCaptureArgs build() {
-                if (mDisplayToken == null) {
-                    throw new IllegalStateException(
-                            "Can't take screenshot with null display token");
-                }
-                return new DisplayCaptureArgs(this);
-            }
-
-            public Builder(IBinder displayToken) {
-                setDisplayToken(displayToken);
-            }
-
-            /**
-             * The display to take the screenshot of.
-             */
-            public Builder setDisplayToken(IBinder displayToken) {
-                mDisplayToken = displayToken;
-                return this;
-            }
-
-            /**
-             * Set the desired size of the returned buffer. The raw screen  will be  scaled down to
-             * this size
-             *
-             * @param width  The desired width of the returned buffer. Caller may pass in 0 if no
-             *               scaling is desired.
-             * @param height The desired height of the returned buffer. Caller may pass in 0 if no
-             *               scaling is desired.
-             */
-            public Builder setSize(int width, int height) {
-                mWidth = width;
-                mHeight = height;
-                return this;
-            }
-
-            @Override
-            Builder getThis() {
-                return this;
-            }
-        }
-    }
+    public static final int SCREEN_CAPTURE_ERROR_CODE_UNKNOWN = 1;
 
     /**
-     * The arguments class used to make layer capture requests.
+     * Screen capture failed because sensitive content (secure or protected windows) exists.
      *
      * @hide
-     * @see #nativeCaptureLayers(LayerCaptureArgs, long)
      */
-    public static class LayerCaptureArgs extends CaptureArgs {
-        private final long mNativeLayer;
-        private final boolean mChildrenOnly;
-
-        private LayerCaptureArgs(Builder builder) {
-            super(builder);
-            mChildrenOnly = builder.mChildrenOnly;
-            mNativeLayer = builder.mLayer.mNativeObject;
-        }
-
-        /**
-         * The Builder class used to construct {@link LayerCaptureArgs}
-         */
-        public static class Builder extends CaptureArgs.Builder<Builder> {
-            private SurfaceControl mLayer;
-            private boolean mChildrenOnly = true;
-
-            /**
-             * Construct a new {@link LayerCaptureArgs} with the set parameters. The builder
-             * remains valid.
-             */
-            public LayerCaptureArgs build() {
-                if (mLayer == null) {
-                    throw new IllegalStateException(
-                            "Can't take screenshot with null layer");
-                }
-                return new LayerCaptureArgs(this);
-            }
-
-            public Builder(SurfaceControl layer, CaptureArgs args) {
-                setLayer(layer);
-                setPixelFormat(args.mPixelFormat);
-                setSourceCrop(args.mSourceCrop);
-                setFrameScale(args.mFrameScaleX, args.mFrameScaleY);
-                setCaptureSecureLayers(args.mCaptureSecureLayers);
-                setAllowProtected(args.mAllowProtected);
-                setUid(args.mUid);
-                setGrayscale(args.mGrayscale);
-                setExcludeLayers(args.mExcludeLayers);
-                setHintForSeamlessTransition(args.mHintForSeamlessTransition);
-            }
-
-            public Builder(SurfaceControl layer) {
-                setLayer(layer);
-            }
-
-            /**
-             * The root layer to capture.
-             */
-            public Builder setLayer(SurfaceControl layer) {
-                mLayer = layer;
-                return this;
-            }
-
-            /**
-             * Whether to include the layer itself in the screenshot or just the children and their
-             * descendants.
-             */
-            public Builder setChildrenOnly(boolean childrenOnly) {
-                mChildrenOnly = childrenOnly;
-                return this;
-            }
-
-            @Override
-            Builder getThis() {
-                return this;
-            }
-        }
-    }
+    public static final int SCREEN_CAPTURE_ERROR_SENSITIVE_CONTENT = 2;
 
     /**
-     * The object used to receive the results when invoking screen capture requests via
-     * {@link #captureDisplay(DisplayCaptureArgs, ScreenCaptureListener)} or
-     * {@link #captureLayers(LayerCaptureArgs, ScreenCaptureListener)}
+     * Screen capture failed due to missing permissions.
      *
-     * This listener can only be used for a single call to capture content call.
+     * @hide
      */
-    public static class ScreenCaptureListener implements Parcelable {
-        final long mNativeObject;
-        private static final NativeAllocationRegistry sRegistry =
-                NativeAllocationRegistry.createMalloced(
-                        ScreenCaptureListener.class.getClassLoader(), getNativeListenerFinalizer());
+    public static final int SCREEN_CAPTURE_ERROR_MISSING_PERMISSIONS = 3;
 
-        /**
-         * @param consumer The callback invoked when the screen capture is complete.
-         */
-        public ScreenCaptureListener(ObjIntConsumer<ScreenshotHardwareBuffer> consumer) {
-            mNativeObject = nativeCreateScreenCaptureListener(consumer);
-            sRegistry.registerNativeAllocation(this, mNativeObject);
-        }
-
-        private ScreenCaptureListener(Parcel in) {
-            if (in.readBoolean()) {
-                mNativeObject = nativeReadListenerFromParcel(in);
-                sRegistry.registerNativeAllocation(this, mNativeObject);
-            } else {
-                mNativeObject = 0;
-            }
-        }
-
-        @Override
-        public int describeContents() {
-            return 0;
-        }
-
-        @Override
-        public void writeToParcel(@NonNull Parcel dest, int flags) {
-            if (mNativeObject == 0) {
-                dest.writeBoolean(false);
-            } else {
-                dest.writeBoolean(true);
-                nativeWriteListenerToParcel(mNativeObject, dest);
-            }
-        }
-
-        public static final Parcelable.Creator<ScreenCaptureListener> CREATOR =
-                new Parcelable.Creator<ScreenCaptureListener>() {
-                    @Override
-                    public ScreenCaptureListener createFromParcel(Parcel in) {
-                        return new ScreenCaptureListener(in);
+    /** Capture a screenshot. */
+    public static void capture(
+            @NonNull ScreenCaptureParams params,
+            @NonNull Executor executor,
+            @NonNull OutcomeReceiver<ScreenCaptureResult, Exception> receiver) {
+        IScreenCaptureCallback callback =
+                new IScreenCaptureCallback.Stub() {
+                    public void onSuccess(ScreenCaptureResult result) {
+                        executor.execute(() -> receiver.onResult(result));
                     }
 
-                    @Override
-                    public ScreenCaptureListener[] newArray(int size) {
-                        return new ScreenCaptureListener[0];
+                    public void onFailure(@ScreenCaptureErrorCode int errorCode) {
+                        Exception e;
+                        if (errorCode == SCREEN_CAPTURE_ERROR_MISSING_PERMISSIONS) {
+                            e =
+                                    new SecurityException(
+                                            "Caller does not have READ_FRAME_BUFFER permission");
+                        } else {
+                            e = new IllegalStateException("Screen capture failed.");
+                        }
+                        executor.execute(() -> receiver.onError(e));
                     }
                 };
-    }
-
-    /**
-     * A helper method to handle the async screencapture callbacks synchronously. This should only
-     * be used if the screencapture caller doesn't care that it blocks waiting for a screenshot.
-     *
-     * @return a {@link SynchronousScreenCaptureListener} that should be used for capture
-     * calls into SurfaceFlinger.
-     */
-    public static SynchronousScreenCaptureListener createSyncCaptureListener() {
-        ScreenshotHardwareBuffer[] bufferRef = new ScreenshotHardwareBuffer[1];
-        CountDownLatch latch = new CountDownLatch(1);
-        ObjIntConsumer<ScreenshotHardwareBuffer> consumer = (buffer, status) -> {
-            if (status != 0) {
-                bufferRef[0] = null;
-                Log.e(TAG, "Failed to generate screen capture. Error code: " + status);
+        IWindowManager wm = WindowManagerGlobal.getWindowManagerService();
+        try {
+            if (wm != null) {
+                wm.screenCapture(params, callback);
             } else {
-                bufferRef[0] = buffer;
+                receiver.onError(
+                        new IllegalStateException("Failed to retrieve WindowManagerService."));
             }
-            latch.countDown();
-        };
-
-        return new SynchronousScreenCaptureListener(consumer) {
-            // In order to avoid requiring two GC cycles to clean up the consumer and the buffer
-            // it references, the underlying JNI listener holds a weak reference to the consumer.
-            // This property exists to ensure the consumer stays alive during the listener's
-            // lifetime.
-            private ObjIntConsumer<ScreenshotHardwareBuffer> mConsumer = consumer;
-
-            @Override
-            public ScreenshotHardwareBuffer getBuffer() {
-                try {
-                    if (!latch.await(SCREENSHOT_WAIT_TIME_S, TimeUnit.SECONDS)) {
-                        Log.e(TAG, "Timed out waiting for screenshot results");
-                        return null;
-                    }
-                    return bufferRef[0];
-                } catch (Exception e) {
-                    Log.e(TAG, "Failed to wait for screen capture result", e);
-                    return null;
-                }
-            }
-        };
+        } catch (RemoteException exception) {
+            receiver.onError(new RuntimeException(exception));
+        }
     }
 
     /**
-     * Helper class to synchronously get the {@link ScreenshotHardwareBuffer} when calling
-     * {@link #captureLayers(LayerCaptureArgs, ScreenCaptureListener)} or
-     * {@link #captureDisplay(DisplayCaptureArgs, ScreenCaptureListener)}
+     * Returns true if optimized screen capture is enabled on the device.
+     *
+     * <p>If false, then capture requests with
+     * {@link ScreenCaptureParams#CAPTURE_MODE_REQUIRE_OPTIMIZED} will always fail.
      */
-    public abstract static class SynchronousScreenCaptureListener extends ScreenCaptureListener {
-        SynchronousScreenCaptureListener(ObjIntConsumer<ScreenshotHardwareBuffer> consumer) {
-            super(consumer);
-        }
+    public static boolean isScreenCaptureOptimizationEnabled() {
+        return SystemProperties.getBoolean("debug.sf.productionize_readback_screenshot", false);
+    }
 
-        /**
-         * Get the {@link ScreenshotHardwareBuffer} synchronously. This can be null if the
-         * screenshot failed or if there was no callback in {@link #SCREENSHOT_WAIT_TIME_S} seconds.
-         */
-        @Nullable
-        public abstract ScreenshotHardwareBuffer getBuffer();
+    private ScreenCapture() {
     }
 }

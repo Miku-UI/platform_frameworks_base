@@ -19,17 +19,18 @@ package android.tracing.perfetto;
 import static android.internal.perfetto.protos.TestEventOuterClass.TestEvent.PAYLOAD;
 import static android.internal.perfetto.protos.TestEventOuterClass.TestEvent.TestPayload.SINGLE_INT;
 import static android.internal.perfetto.protos.TracePacketOuterClass.TracePacket.FOR_TESTING;
+import static android.tools.traces.Utils.busyWaitForDataSourceRegistration;
+import static android.tools.traces.Utils.busyWaitTracingSessionDoesntExist;
+import static android.tools.traces.Utils.busyWaitTracingSessionExists;
+import static android.tracing.perfetto.TestUtils.createTempWriter;
 
 import static java.io.File.createTempFile;
 import static java.nio.file.Files.createTempDirectory;
 
 import android.internal.perfetto.protos.DataSourceConfigOuterClass.DataSourceConfig;
 import android.internal.perfetto.protos.TestConfigOuterClass.TestConfig;
-import android.tools.ScenarioBuilder;
 import android.tools.Tag;
 import android.tools.io.TraceType;
-import android.tools.traces.TraceConfig;
-import android.tools.traces.TraceConfigs;
 import android.tools.traces.io.ResultReader;
 import android.tools.traces.io.ResultWriter;
 import android.tools.traces.monitors.PerfettoTraceMonitor;
@@ -54,6 +55,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -63,19 +65,6 @@ import java.util.concurrent.atomic.AtomicReference;
 @RunWith(AndroidJUnit4.class)
 public class DataSourceTest {
     private final File mTracingDirectory = createTempDirectory("temp").toFile();
-
-    private final ResultWriter mWriter = new ResultWriter()
-            .forScenario(new ScenarioBuilder()
-                    .forClass(createTempFile("temp", "").getName()).build())
-            .withOutputDir(mTracingDirectory)
-            .setRunComplete();
-
-    private final TraceConfigs mTraceConfig = new TraceConfigs(
-            new TraceConfig(false, true, false),
-            new TraceConfig(false, true, false),
-            new TraceConfig(false, true, false),
-            new TraceConfig(false, true, false)
-    );
 
     private static TestDataSource sTestDataSource;
 
@@ -94,6 +83,7 @@ public class DataSourceTest {
                 args -> sTlsStateProvider.provide(args),
                 args -> sIncrementalStateProvider.provide(args));
         sTestDataSource.register(DataSourceParams.DEFAULTS);
+        busyWaitForDataSourceRegistration(sTestDataSource.name);
     }
 
     private static void setupProviders() {
@@ -114,6 +104,7 @@ public class DataSourceTest {
                 .enableCustomTrace(PerfettoConfig.DataSourceConfig.newBuilder()
                         .setName(sTestDataSource.name).build()).build();
 
+        final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
 
@@ -126,10 +117,10 @@ public class DataSourceTest {
                 protoOutputStream.end(forTestingToken);
             });
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(writer);
         }
 
-        final ResultReader reader = new ResultReader(mWriter.write(), mTraceConfig);
+        final ResultReader reader = new ResultReader(writer.write());
         final byte[] rawProtoFromFile = reader.readBytes(TraceType.PERFETTO, Tag.ALL);
         assert rawProtoFromFile != null;
         final perfetto.protos.TraceOuterClass.Trace trace = perfetto.protos.TraceOuterClass.Trace
@@ -165,7 +156,7 @@ public class DataSourceTest {
                 actualStateTestValue.set(state.testStateValue);
             });
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(createTempWriter(mTracingDirectory));
         }
 
         Truth.assertThat(actualStateTestValue.get()).isEqualTo(expectedStateTestValue);
@@ -200,10 +191,10 @@ public class DataSourceTest {
                     actualStateTestValues[index.getAndIncrement()] = state.testStateValue;
                 });
             } finally {
-                traceMonitor1.stop(mWriter);
+                traceMonitor1.stop(createTempWriter(mTracingDirectory));
             }
         } finally {
-            traceMonitor2.stop(mWriter);
+            traceMonitor2.stop(createTempWriter(mTracingDirectory));
         }
 
         Truth.assertThat(actualStateTestValues[0]).isEqualTo(expectedStateTestValues[0]);
@@ -266,7 +257,7 @@ public class DataSourceTest {
             setOutStateLatch.await(3, TimeUnit.SECONDS);
 
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(createTempWriter(mTracingDirectory));
         }
 
         Truth.assertThat(thread1ActualStateValue.get()).isEqualTo(thread1ExpectedStateValue);
@@ -294,7 +285,7 @@ public class DataSourceTest {
             sTestDataSource.trace(ctx ->
                     testStateValue.set(ctx.getIncrementalState().testStateValue));
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(createTempWriter(mTracingDirectory));
         }
 
         Truth.assertThat(testStateValue.get()).isNotEqualTo(1);
@@ -323,7 +314,7 @@ public class DataSourceTest {
         try {
             monitor.start();
         } finally {
-            monitor.stop(mWriter);
+            monitor.stop(createTempWriter(mTracingDirectory));
         }
 
         int configDummyIntValue = 0;
@@ -369,8 +360,7 @@ public class DataSourceTest {
 
         for (int i = 0; i < instanceCount; i++) {
             final ResultWriter writer = new ResultWriter()
-                    .forScenario(new ScenarioBuilder()
-                            .forClass(createTempFile("temp", "").getName()).build())
+                    .withName(createTempFile("temp", "").getName())
                     .withOutputDir(mTracingDirectory)
                     .setRunComplete();
             writers.add(writer);
@@ -421,7 +411,7 @@ public class DataSourceTest {
         for (int i = 0; i < instanceCount; i++) {
             final int expectedTracedValue = i + 1;
             final ResultWriter writer = writers.get(i);
-            final ResultReader reader = new ResultReader(writer.write(), mTraceConfig);
+            final ResultReader reader = new ResultReader(writer.write());
             final byte[] rawProtoFromFile = reader.readBytes(TraceType.PERFETTO, Tag.ALL);
             assert rawProtoFromFile != null;
             final perfetto.protos.TraceOuterClass.Trace trace =
@@ -469,7 +459,7 @@ public class DataSourceTest {
             latch.await(3, TimeUnit.SECONDS);
             Truth.assertThat(callbackCalled.get()).isTrue();
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(createTempWriter(mTracingDirectory));
         }
     }
 
@@ -505,7 +495,7 @@ public class DataSourceTest {
                 protoOutputStream.end(forTestingToken);
             });
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(createTempWriter(mTracingDirectory));
         }
 
         latch.await(3, TimeUnit.SECONDS);
@@ -514,6 +504,7 @@ public class DataSourceTest {
 
     @Test
     public void onStopCallbackTriggered() throws InterruptedException {
+        final String sessionName = "test-onstop-" + UUID.randomUUID();
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicBoolean callbackCalled = new AtomicBoolean(false);
         sInstanceProvider = (ds, idx, config) ->
@@ -529,18 +520,128 @@ public class DataSourceTest {
                 );
 
         final TraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
+                .setUniqueSessionName(sessionName)
                 .enableCustomTrace(PerfettoConfig.DataSourceConfig.newBuilder()
                         .setName(sTestDataSource.name).build()).build();
 
         try {
             traceMonitor.start();
             Truth.assertThat(callbackCalled.get()).isFalse();
+            busyWaitTracingSessionExists(sessionName);
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(createTempWriter(mTracingDirectory));
+            busyWaitTracingSessionDoesntExist(sessionName);
         }
 
         latch.await(3, TimeUnit.SECONDS);
         Truth.assertThat(callbackCalled.get()).isTrue();
+    }
+
+
+    @Test
+    public void canPostponeStop() throws InterruptedException {
+        final String sessionName = "test-postpone-stop-" + UUID.randomUUID();
+        final CountDownLatch onStopCalled = new CountDownLatch(1);
+
+        TestDataSource.DataSourceInstanceProvider instanceProvider = (ds, idx, config) ->
+                new TestDataSource.TestDataSourceInstance(
+                        ds,
+                        idx,
+                        (args) -> {},
+                        (args) -> {},
+                        (args) -> {}
+                ) {
+                    @Override
+                    public void onStop(StopCallbackArguments args) {
+                        onStopCalled.countDown();
+                    }
+                };
+        TestDataSource dataSource = new TestDataSource(
+                (ds, idx, configStream) -> instanceProvider.provide(ds, idx, configStream),
+                args -> sTlsStateProvider.provide(args),
+                args -> sIncrementalStateProvider.provide(args));
+        DataSourceParams params = new DataSourceParams.Builder().setPostponeStop(true).build();
+        dataSource.register(params);
+        busyWaitForDataSourceRegistration(dataSource.name);
+
+        final TraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
+                .setUniqueSessionName(sessionName)
+                .enableCustomTrace(PerfettoConfig.DataSourceConfig.newBuilder()
+                        .setName(dataSource.name).build()).build();
+
+        try {
+            traceMonitor.start();
+            busyWaitTracingSessionExists(sessionName);
+        } finally {
+            // stop tracing in a different thread (asynchronously) because it blocks (busy wait)
+            // till the tracing sessions actually stops (perfetto process exits)
+            new Thread(() -> traceMonitor.stop(createTempWriter(mTracingDirectory))).start();
+        }
+
+        try {
+            boolean called = onStopCalled.await(3, TimeUnit.SECONDS);
+            Truth.assertThat(called).isTrue();
+            busyWaitTracingSessionExists(sessionName); // not stopped yet (postponed)
+        } finally {
+            AtomicBoolean stopDoneCalled = new AtomicBoolean(false);
+            dataSource.trace((context) -> {
+                context.stopDone(); // postponed stop
+                stopDoneCalled.set(true);
+            });
+            Truth.assertThat(stopDoneCalled.get()).isTrue();
+        }
+
+        busyWaitTracingSessionDoesntExist(sessionName);
+    }
+
+    @Test
+    public void canUseDataSourceInstanceInTrace() throws InvalidProtocolBufferException {
+        final Object testObject = new Object();
+
+        sInstanceProvider = (ds, idx, configStream) -> {
+            final TestDataSource.TestDataSourceInstance dsInstance =
+                    new TestDataSource.TestDataSourceInstance(ds, idx);
+            dsInstance.testObject = testObject;
+            return dsInstance;
+        };
+
+        final TraceMonitor traceMonitor = PerfettoTraceMonitor.newBuilder()
+                .enableCustomTrace(PerfettoConfig.DataSourceConfig.newBuilder()
+                        .setName(sTestDataSource.name).build()).build();
+
+        final var writer = createTempWriter(mTracingDirectory);
+        try {
+            traceMonitor.start();
+            sTestDataSource.trace((ctx) -> {
+                try (TestDataSource.TestDataSourceInstance instance =
+                        ctx.getDataSourceInstanceLocked()) {
+                    if (instance != null) {
+                        final ProtoOutputStream protoOutputStream = ctx.newTracePacket();
+                        long forTestingToken = protoOutputStream.start(FOR_TESTING);
+                        long payloadToken = protoOutputStream.start(PAYLOAD);
+                        protoOutputStream.write(SINGLE_INT, instance.testObject.hashCode());
+                        protoOutputStream.end(payloadToken);
+                        protoOutputStream.end(forTestingToken);
+                    }
+                }
+            });
+        } finally {
+            traceMonitor.stop(writer);
+        }
+
+        final ResultReader reader = new ResultReader(writer.write());
+        final byte[] rawProtoFromFile = reader.readBytes(TraceType.PERFETTO, Tag.ALL);
+        assert rawProtoFromFile != null;
+        final perfetto.protos.TraceOuterClass.Trace trace = perfetto.protos.TraceOuterClass.Trace
+                .parseFrom(rawProtoFromFile);
+
+        Truth.assertThat(trace.getPacketCount()).isGreaterThan(0);
+        final List<TracePacketOuterClass.TracePacket> tracePackets = trace.getPacketList()
+                .stream().filter(TracePacketOuterClass.TracePacket::hasForTesting).toList();
+        final List<TracePacketOuterClass.TracePacket> matchingPackets = tracePackets.stream()
+                .filter(it -> it.getForTesting().getPayload().getSingleInt()
+                        == testObject.hashCode()).toList();
+        Truth.assertThat(matchingPackets).hasSize(1);
     }
 
     @Test
@@ -571,6 +672,7 @@ public class DataSourceTest {
                 .enableCustomTrace(PerfettoConfig.DataSourceConfig.newBuilder()
                         .setName(sTestDataSource.name).build()).build();
 
+        final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
             sTestDataSource.trace((ctx) -> {
@@ -582,10 +684,10 @@ public class DataSourceTest {
                 protoOutputStream.end(forTestingToken);
             });
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(writer);
         }
 
-        final ResultReader reader = new ResultReader(mWriter.write(), mTraceConfig);
+        final ResultReader reader = new ResultReader(writer.write());
         final byte[] rawProtoFromFile = reader.readBytes(TraceType.PERFETTO, Tag.ALL);
         assert rawProtoFromFile != null;
         final perfetto.protos.TraceOuterClass.Trace trace = perfetto.protos.TraceOuterClass.Trace
@@ -630,6 +732,7 @@ public class DataSourceTest {
                 .enableCustomTrace(PerfettoConfig.DataSourceConfig.newBuilder()
                         .setName(sTestDataSource.name).build()).build();
 
+        final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
             sTestDataSource.trace((ctx) -> {
@@ -641,10 +744,10 @@ public class DataSourceTest {
                 protoOutputStream.end(forTestingToken);
             });
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(writer);
         }
 
-        final ResultReader reader = new ResultReader(mWriter.write(), mTraceConfig);
+        final ResultReader reader = new ResultReader(writer.write());
         final byte[] rawProtoFromFile = reader.readBytes(TraceType.PERFETTO, Tag.ALL);
         assert rawProtoFromFile != null;
         final perfetto.protos.TraceOuterClass.Trace trace = perfetto.protos.TraceOuterClass.Trace
@@ -682,13 +785,14 @@ public class DataSourceTest {
                 .enableCustomTrace(PerfettoConfig.DataSourceConfig.newBuilder()
                         .setName(sTestDataSource.name).build()).build();
 
+        final var writer = createTempWriter(mTracingDirectory);
         try {
             traceMonitor.start();
         } finally {
-            traceMonitor.stop(mWriter);
+            traceMonitor.stop(writer);
         }
 
-        final ResultReader reader = new ResultReader(mWriter.write(), mTraceConfig);
+        final ResultReader reader = new ResultReader(writer.write());
         final byte[] rawProtoFromFile = reader.readBytes(TraceType.PERFETTO, Tag.ALL);
         assert rawProtoFromFile != null;
         final perfetto.protos.TraceOuterClass.Trace trace = perfetto.protos.TraceOuterClass.Trace

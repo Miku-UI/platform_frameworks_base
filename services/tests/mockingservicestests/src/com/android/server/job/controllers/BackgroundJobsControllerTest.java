@@ -38,6 +38,7 @@ import static org.mockito.Mockito.verify;
 import android.app.ActivityManagerInternal;
 import android.app.AppGlobals;
 import android.app.job.JobInfo;
+import android.app.usage.UsageStatsManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -205,7 +206,9 @@ public class BackgroundJobsControllerTest {
                 jobInfo, callingUid, packageName, SOURCE_USER_ID, "BJCTest", testTag);
         js.serviceProcessName = "testProcess";
         // Make sure tests aren't passing just because the default bucket is likely ACTIVE.
-        js.setStandbyBucket(FREQUENT_INDEX);
+        // Note: We are using REASON_MAIN_PREDICTED here, but any valid reason should be fine, as
+        // these tests do not depend on the reason code.
+        js.setStandbyBucket(FREQUENT_INDEX, UsageStatsManager.REASON_MAIN_PREDICTED);
         return js;
     }
 

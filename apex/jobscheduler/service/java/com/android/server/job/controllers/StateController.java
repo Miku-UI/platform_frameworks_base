@@ -159,7 +159,7 @@ public abstract class StateController {
         final boolean jobWouldBeReady = jobStatus.wouldBeReadyWithConstraint(constraint);
         if (DEBUG) {
             Slog.v(TAG, "wouldBeReadyWithConstraintLocked: " + jobStatus.toShortString()
-                    + " constraint=" + constraint
+                    + " constraint=" + JobStatus.constraintsToString(constraint)
                     + " readyWithConstraint=" + jobWouldBeReady);
         }
         if (!jobWouldBeReady) {

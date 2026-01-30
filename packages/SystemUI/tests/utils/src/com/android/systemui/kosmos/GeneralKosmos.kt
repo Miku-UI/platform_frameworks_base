@@ -34,6 +34,7 @@ import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import org.mockito.kotlin.verify
 
@@ -74,7 +75,11 @@ fun Kosmos.runTest(testBody: suspend Kosmos.() -> Unit) = let { kosmos ->
 
 fun Kosmos.runCurrent() = testScope.runCurrent()
 
+fun Kosmos.advanceUntilIdle() = testScope.advanceUntilIdle()
+
 fun Kosmos.advanceTimeBy(duration: Duration) = testScope.advanceTimeBy(duration)
+
+fun Kosmos.advanceTimeBy(delayTimeMillis: Long) = testScope.advanceTimeBy(delayTimeMillis)
 
 fun <T> Kosmos.collectLastValue(flow: Flow<T>) = testScope.collectLastValue(flow)
 

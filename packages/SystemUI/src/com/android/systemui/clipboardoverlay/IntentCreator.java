@@ -26,6 +26,7 @@ import java.util.function.Consumer;
 public interface IntentCreator {
     Intent getTextEditorIntent(Context context);
     Intent getShareIntent(ClipData clipData, Context context);
-    void getImageEditIntentAsync(Uri uri, Context context, Consumer<Intent> outputConsumer);
+    void getImageEditIntentAsync(
+            Uri uri, Context context, Consumer<Intent> outputConsumer);
     Intent getRemoteCopyIntent(ClipData clipData, Context context);
 }

@@ -18,24 +18,28 @@ package android.content.pm;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SystemApi;
+import android.annotation.TestApi;
+import android.permission.flags.Flags;
 
 import java.util.Arrays;
 import java.util.Objects;
 
 /**
- * A data class representing a package and (SHA-256 hash of) a signing certificate.
+ * A data class representing a package and an optional SHA-256 hash of its signing certificate.
  *
  * @hide
  */
 @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
-@FlaggedApi(android.permission.flags.Flags.FLAG_ENHANCED_CONFIRMATION_MODE_APIS_ENABLED)
+@TestApi
+@FlaggedApi(Flags.FLAG_ENHANCED_CONFIRMATION_MODE_APIS_ENABLED)
 public class SignedPackage {
     @NonNull
     private final SignedPackageParcel mData;
 
     /** @hide */
-    public SignedPackage(@NonNull String packageName, @NonNull byte[] certificateDigest) {
+    public SignedPackage(@NonNull String packageName, @Nullable byte[] certificateDigest) {
         SignedPackageParcel data = new SignedPackageParcel();
         data.packageName = packageName;
         data.certificateDigest = certificateDigest;
@@ -56,7 +60,14 @@ public class SignedPackage {
         return mData.packageName;
     }
 
+    /** @return the certificate digest. If none was provided, an empty array will be returned */
     public @NonNull byte[] getCertificateDigest() {
+        return Objects.requireNonNullElseGet(mData.certificateDigest, () -> new byte[0]);
+    }
+
+    /** @return the certificate digest. If none was provided, null will be returned */
+    @FlaggedApi(Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED)
+    public @Nullable byte[] getCertificateDigestOrNull() {
         return mData.certificateDigest;
     }
 

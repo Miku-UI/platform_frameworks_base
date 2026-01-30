@@ -20,20 +20,29 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.annotation.AnyThread
+import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 
 /**
  * Metadata of preference screen.
  *
+ * [PreferenceScreenMetadata] class is reused for both screen container and entry points to maintain
+ * the states (availability, enable, restriction, title, etc.) consistently. Different instances are
+ * created for screen container and entry points respectively. In case the implementation would like
+ * to perform action for container (or entry point) only, [isContainer] and [isEntryPoint] could be
+ * leveraged to distinguish current screen metadata instance is acting as container or entry point.
+ *
  * For parameterized preference screen that relies on additional information (e.g. package name,
  * language code) to build its content, the subclass must:
  * - override [arguments] in constructor
- * - add a static method `fun parameters(context: Context): List<Bundle>` (context is optional) to
+ * - override [bindingKey] to distinguish the preferences on the preference hierarchy
+ * - add a static method `fun parameters(context: Context): Flow<Bundle>` (context is optional) to
  *   provide all possible arguments
  */
 @AnyThread
-interface PreferenceScreenMetadata : PreferenceMetadata {
+interface PreferenceScreenMetadata : PreferenceGroup {
     /** Arguments to build the screen content. */
     val arguments: Bundle?
         get() = null
@@ -46,8 +55,27 @@ interface PreferenceScreenMetadata : PreferenceMetadata {
     val screenTitle: Int
         get() = title
 
+    /**
+     * String resource id to briefly describe the screen.
+     *
+     * Could be used for accessibility, search, etc.
+     */
+    val description: Int
+        @StringRes get() = 0
+
+    /** Returns if the flag (e.g. for rollout) is enabled on current screen. */
+    fun isFlagEnabled(context: Context): Boolean = true
+
     /** Returns dynamic screen title, use [screenTitle] whenever possible. */
     fun getScreenTitle(context: Context): CharSequence? = null
+
+    /** Returns if current screen metadata instance is acting as container. */
+    fun isContainer(context: PreferenceLifecycleContext): Boolean =
+        bindingKey == context.preferenceScreenKey
+
+    /** Returns if current screen metadata instance is acting as entry point. */
+    fun isEntryPoint(context: PreferenceLifecycleContext): Boolean =
+        bindingKey != context.preferenceScreenKey
 
     /** Returns the fragment class to show the preference screen. */
     fun fragmentClass(): Class<out Fragment>?
@@ -65,17 +93,61 @@ interface PreferenceScreenMetadata : PreferenceMetadata {
     /**
      * Returns the hierarchy of preference screen.
      *
-     * The implementation MUST include all preferences into the hierarchy regardless of the runtime
-     * conditions. DO NOT check any condition (except compile time flag) before adding a preference.
+     * The implementation should include all preferences into the hierarchy but pay attention to the
+     * flag guard when [hasCompleteHierarchy] is false.
+     *
+     * If the screen has different [PreferenceHierarchy] based on additional information (e.g. app
+     * filter, profile), implements [PreferenceHierarchyGenerator]. The UI framework will support
+     * switching [PreferenceHierarchy] on current screen with given type.
+     *
+     * Notes:
+     * - Do not assume the [context] is UI context.
+     * - Do not run heavy operation with the [coroutineScope], which will cause ANR.
+     * - Always launch new coroutine as child of given [coroutineScope] (structured concurrency), so
+     *   that the task will be cancelled automatically when the given [coroutineScope] is cancelled.
+     *   This mitigates potential memory leaks.
+     *
+     * @param context Context to build the hierarchy, please DO NOT assume it is UI context. This
+     *   could be activity context when it is to display UI, or application context for background
+     *   service to retrieve preference metadata.
+     * @param coroutineScope CoroutineScope to create async preference metadata elements. This could
+     *   be main thread scoped when display UI or background thread scoped for external request via
+     *   Android Service. Never run heavy operation inside the [coroutineScope] to avoid ANR.
      */
-    fun getPreferenceHierarchy(context: Context): PreferenceHierarchy
+    fun getPreferenceHierarchy(
+        context: Context,
+        coroutineScope: CoroutineScope,
+    ): PreferenceHierarchy
 
     /**
      * Returns the [Intent] to show current preference screen.
      *
+     * NOTE: Always provide action for the returned intent. Otherwise, SettingsIntelligence starts
+     * intent with com.android.settings.SEARCH_RESULT_TRAMPOLINE action instead of given activity.
+     *
      * @param metadata the preference to locate when show the screen
      */
     fun getLaunchIntent(context: Context, metadata: PreferenceMetadata?): Intent? = null
+}
+
+/**
+ * Generator of [PreferenceHierarchy] based on given type.
+ *
+ * This interface should be used together with [PreferenceScreenMetadata] and
+ * [PreferenceScreenMetadata.getPreferenceHierarchy] should return [generatePreferenceHierarchy]
+ * with default preference hierarchy type.
+ *
+ * The UI framework could leverage [PreferenceLifecycleContext.switchPreferenceHierarchy] to switch
+ * preference hierarchy with given type.
+ */
+interface PreferenceHierarchyGenerator<T> {
+
+    /** Generates [PreferenceHierarchy] with given type. */
+    fun generatePreferenceHierarchy(
+        context: Context,
+        coroutineScope: CoroutineScope,
+        hierarchyType: T,
+    ): PreferenceHierarchy
 }
 
 /**

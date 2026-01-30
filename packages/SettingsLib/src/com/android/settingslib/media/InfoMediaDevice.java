@@ -33,6 +33,7 @@ import android.graphics.drawable.Drawable;
 import android.media.MediaRoute2Info;
 import android.media.RouteListingPreference;
 
+import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.settingslib.R;
@@ -46,9 +47,10 @@ public class InfoMediaDevice extends MediaDevice {
 
     InfoMediaDevice(
             @NonNull Context context,
-            @NonNull MediaRoute2Info info,
-            @Nullable RouteListingPreference.Item item) {
-        super(context, info, item);
+            @NonNull MediaRoute2Info routeInfo,
+            @Nullable DynamicRouteAttributes dynamicRouteAttributes,
+            @Nullable RouteListingPreference.Item rlpItem) {
+        super(context, routeInfo, dynamicRouteAttributes, rlpItem);
         initDeviceRecord();
     }
 
@@ -75,9 +77,14 @@ public class InfoMediaDevice extends MediaDevice {
 
     @VisibleForTesting
     @SuppressWarnings("NewApi")
+    @DrawableRes
     int getDrawableResIdByType() {
+        return getDrawableResIdByType(mRouteInfo.getType());
+    }
+
+    static int getDrawableResIdByType(@MediaRoute2Info.Type int type) {
         int resId;
-        switch (mRouteInfo.getType()) {
+        switch (type) {
             case TYPE_GROUP:
                 resId = R.drawable.ic_media_group_device;
                 break;

@@ -20,7 +20,7 @@ import com.android.internal.view.inline.IInlineContentCallback;
 
 /**
  * Binder interface for a process to request the inline content from the other process.
- * {@hide}
+ * @hide
  */
 oneway interface IInlineContentProvider {
     void provideContent(int width, int height, in IInlineContentCallback callback);

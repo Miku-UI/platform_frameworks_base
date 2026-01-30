@@ -19,15 +19,22 @@ import android.animation.AnimatorTestRule
 import android.util.FloatProperty
 import android.util.Property
 import android.view.View
-
 import androidx.test.annotation.UiThreadTest
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.dynamicanimation.animation.DynamicAnimation
+import com.android.internal.dynamicanimation.animation.SpringForce
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.stack.AnimationProperties
 import com.android.systemui.statusbar.notification.stack.ViewState
+import com.google.common.truth.Truth.assertThat
+import kotlin.math.PI
+import kotlin.math.ceil
+import kotlin.math.exp
+import kotlin.math.floor
+import kotlin.math.pow
+import kotlin.math.sqrt
 import org.junit.Assert
 import org.junit.Before
 import org.junit.Rule
@@ -53,8 +60,7 @@ class PhysicsPropertyAnimatorTest : SysuiTestCase() {
                 return _value
             }
         }
-    @get:Rule
-    val animatorTestRule = AnimatorTestRule(this)
+    @get:Rule val animatorTestRule = AnimatorTestRule(this)
     private val property: PhysicsProperty =
         PhysicsProperty(R.id.scale_x_animator_tag, effectiveProperty)
     private var finishListener: DynamicAnimation.OnAnimationEndListener? = null
@@ -222,6 +228,38 @@ class PhysicsPropertyAnimatorTest : SysuiTestCase() {
     }
 
     @Test
+    fun testEndedBeforeStartingCleanupHandler() {
+        effectiveProperty.setValue(view, 100f)
+        val finishListener2 = Mockito.mock(DynamicAnimation.OnAnimationEndListener::class.java)
+        val animationProperties: AnimationProperties =
+            object : AnimationProperties() {
+                override fun getAnimationEndListener(
+                    property: Property<*, *>?
+                ): DynamicAnimation.OnAnimationEndListener {
+                    return finishListener2
+                }
+            }
+        animationProperties.setDelay(200)
+        PhysicsPropertyAnimator.setProperty(
+            view,
+            property,
+            200f,
+            animationProperties,
+            true,
+            finishListener,
+        )
+        val propertyData = ViewState.getChildTag(view, property.tag) as PropertyData
+        Assert.assertTrue(propertyData.endedBeforeStartingCleanupHandler != null)
+        propertyData.endedBeforeStartingCleanupHandler?.invoke(true)
+        Assert.assertTrue(propertyData.endedBeforeStartingCleanupHandler == null)
+        Assert.assertTrue(propertyData.offset == 0f)
+        Assert.assertTrue(propertyData.animator == null)
+        Assert.assertTrue(propertyData.doubleOvershootAvoidingListener == null)
+        Mockito.verify(finishListener)?.onAnimationEnd(any(), any(), any(), any())
+        Mockito.verify(finishListener2).onAnimationEnd(any(), any(), any(), any())
+    }
+
+    @Test
     fun testUsingListenerProperties() {
         val finishListener2 = Mockito.mock(DynamicAnimation.OnAnimationEndListener::class.java)
         val animationProperties: AnimationProperties =
@@ -236,5 +274,101 @@ class PhysicsPropertyAnimatorTest : SysuiTestCase() {
         val propertyData = ViewState.getChildTag(view, property.tag) as PropertyData
         propertyData.animator?.cancel()
         Mockito.verify(finishListener2).onAnimationEnd(any(), any(), any(), any())
+    }
+
+    @Test
+    fun limitOvershoot_zeroInitialDistance_doesNotModifySpring() {
+        val underTest = createTestSpring()
+
+        underTest.limitOvershoot(initialDisplacement = 0f, maxOvershoot = 100f)
+        assertThat(underTest.stiffness).isEqualTo(STIFFNESS_TEST)
+        assertThat(underTest.dampingRatio).isEqualTo(DAMPING_RATIO_TEST)
+    }
+
+    @Test
+    fun limitOvershoot_initialDistanceLessThanMaxOvershoot_doesNotModifySpring() {
+        val underTest = createTestSpring()
+
+        underTest.limitOvershoot(initialDisplacement = 50f, maxOvershoot = 100f)
+        assertThat(underTest.stiffness).isEqualTo(STIFFNESS_TEST)
+        assertThat(underTest.dampingRatio).isEqualTo(DAMPING_RATIO_TEST)
+    }
+
+    @Test
+    fun limitOvershoot_initialDistanceLessThanMaxOvershoot_negativeValue_doesNotModifySpring() {
+        val underTest = createTestSpring()
+
+        underTest.limitOvershoot(initialDisplacement = -50f, maxOvershoot = 100f)
+        assertThat(underTest.stiffness).isEqualTo(STIFFNESS_TEST)
+        assertThat(underTest.dampingRatio).isEqualTo(DAMPING_RATIO_TEST)
+    }
+
+    @Test
+    fun limitOvershoot_initialDistanceDoesNotExceedMaxOvershoot_doesNotModifySpring() {
+        val underTest = createTestSpring()
+
+        // roughly ~5.43 in this scenario
+        val maxOvershoot = calculateMaxOvershoot(DAMPING_RATIO_TEST, initialDisplacement = 100f)
+        underTest.limitOvershoot(initialDisplacement = 100f, maxOvershoot = ceil(maxOvershoot))
+
+        assertThat(underTest.stiffness).isEqualTo(STIFFNESS_TEST)
+        assertThat(underTest.dampingRatio).isEqualTo(DAMPING_RATIO_TEST)
+    }
+
+    @Test
+    fun limitOvershoot_initialDistanceDoesExceedMaxOvershoot_modifiedSpringAndStiffness() {
+        val underTest = createTestSpring()
+
+        // roughly ~5.43 in this scenario
+        val maxOvershoot = calculateMaxOvershoot(DAMPING_RATIO_TEST, initialDisplacement = 100f)
+        underTest.limitOvershoot(initialDisplacement = 100f, maxOvershoot = floor(maxOvershoot))
+
+        assertThat(underTest.stiffness).isGreaterThan(STIFFNESS_TEST)
+        assertThat(underTest.dampingRatio).isGreaterThan(DAMPING_RATIO_TEST)
+    }
+
+    @Test
+    fun limitOvershoot_whenConstrained_newParametersAreCorrect() {
+        val underTest = createTestSpring()
+
+        val maxOvershoot =
+            floor(calculateMaxOvershoot(DAMPING_RATIO_TEST, initialDisplacement = 100f))
+
+        underTest.limitOvershoot(initialDisplacement = 100f, maxOvershoot = maxOvershoot)
+
+        val dampingDisplacement100 = underTest.dampingRatio
+
+        underTest.limitOvershoot(initialDisplacement = 1000f, maxOvershoot = maxOvershoot)
+
+        val dampingDisplacement1000 = underTest.dampingRatio
+
+        // Damping must be further constrained for a bigger initial displacement
+        assertThat(dampingDisplacement1000).isGreaterThan(dampingDisplacement100)
+
+        assertThat(calculateMaxOvershoot(dampingDisplacement1000, 1000f))
+            .isWithin(0.1f)
+            .of(maxOvershoot)
+    }
+
+    companion object {
+        const val STIFFNESS_TEST = 380f
+        const val DAMPING_RATIO_TEST = .68f
+
+        fun createTestSpring() =
+            SpringForce().setStiffness(STIFFNESS_TEST).setDampingRatio(DAMPING_RATIO_TEST)
+
+        fun calculateMaxOvershoot(dampingRatio: Float, initialDisplacement: Float): Float {
+            require(dampingRatio > 0 && dampingRatio < 1)
+
+            val zeta = dampingRatio.toDouble()
+
+            val numerator = -(zeta * PI)
+            val denominator = sqrt(1.0 - zeta.pow(2))
+            val exponent = numerator / denominator
+
+            val overshootRatio = exp(exponent)
+
+            return (initialDisplacement * overshootRatio).toFloat()
+        }
     }
 }

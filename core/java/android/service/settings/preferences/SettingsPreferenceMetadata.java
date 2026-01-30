@@ -284,6 +284,11 @@ public final class SettingsPreferenceMetadata implements Parcelable {
         dest.writeBundle(mExtras);
     }
 
+    @Override
+    public String toString() {
+        return getScreenKey() + "/" + getKey();
+    }
+
     /**
      * Parcelable Creator for {@link SettingsPreferenceMetadata}.
      */

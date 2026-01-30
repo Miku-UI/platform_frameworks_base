@@ -17,6 +17,7 @@
 package android.view.inputmethod;
 
 import android.annotation.Nullable;
+import android.view.WindowManager;
 import android.view.WindowManager.LayoutParams.SoftInputModeFlags;
 
 import com.android.internal.inputmethod.StartInputFlags;
@@ -34,13 +35,13 @@ final class ViewFocusParameterInfo {
     @StartInputFlags final int mPreviousStartInputFlags;
     @StartInputReason final int mPreviousStartInputReason;
     @SoftInputModeFlags final int mPreviousSoftInputMode;
-    final int mPreviousWindowFlags;
+    @WindowManager.LayoutParams.Flags final int mPreviousWindowFlags;
 
     ViewFocusParameterInfo(@Nullable EditorInfo previousEditorInfo,
             @StartInputFlags int previousStartInputFlags,
             @StartInputReason int previousStartInputReason,
             @SoftInputModeFlags int previousSoftInputMode,
-            int previousWindowFlags) {
+            @WindowManager.LayoutParams.Flags int previousWindowFlags) {
         mPreviousEditorInfo = previousEditorInfo;
         mPreviousStartInputFlags = previousStartInputFlags;
         mPreviousStartInputReason = previousStartInputReason;
@@ -52,7 +53,7 @@ final class ViewFocusParameterInfo {
             @StartInputFlags int startInputFlags,
             @StartInputReason int startInputReason,
             @SoftInputModeFlags int softInputMode,
-            int windowFlags) {
+            @WindowManager.LayoutParams.Flags int windowFlags) {
         return mPreviousStartInputFlags == startInputFlags
                 && mPreviousStartInputReason == startInputReason
                 && mPreviousSoftInputMode == softInputMode

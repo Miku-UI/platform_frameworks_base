@@ -36,6 +36,11 @@ Device is awake, showing docking UI and listening for enabled pulsing and wake-u
 
 [DozeDockHandler][11] listens for Dock state changes from [DockManager][10] and updates the doze docking state.
 
+### DOZE_AOD_MINMODE
+Device is awake, start showing minmode UI. The default MinModeManager is provided by an empty interface at [MinModeManagerImpl][21]. SystemUI should override the MinModeManager for the DozeService to handle minmode events.
+
+[DozeMinMode][23] listens for MinMode state changes from [MinModeManager][22] and updates the doze MinMode state.
+
 ## Wake-up gestures
 Doze sensors are registered in [DozeTriggers][8] via [DozeSensors][12]. Sensors can be configured per posture for foldable devices.
 
@@ -105,3 +110,6 @@ Other helpful dumpsys commands (`adb shell dumpsys <service>`):
 [18]: /frameworks/base/packages/SystemUI/src/com/android/systemui/statusbar/phone/DozeServiceHost.java
 [19]: /frameworks/base/packages/SystemUI/plugin/src/com/android/systemui/plugins/statusbar/StatusBarStateController.java
 [20]: /frameworks/base/packages/SystemUI/docs/clock-plugins.md
+[21]: frameworks/base/packages/SystemUI/src/com/android/systemui/minmode/MinModeManagerImpl.java
+[22]: frameworks/base/packages/SystemUI/src/com/android/systemui/minmode/MinModeManager.kt
+[23]: frameworks/base/packages/SystemUI/src/com/android/systemui/doze/DozeMinMode.java

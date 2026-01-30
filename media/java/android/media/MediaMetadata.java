@@ -17,6 +17,8 @@ package android.media;
 
 import android.annotation.IntRange;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.annotation.Size;
 import android.annotation.StringDef;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ContentResolver;
@@ -30,6 +32,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.StrictMode;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.Log;
@@ -458,6 +461,7 @@ public final class MediaMetadata implements Parcelable {
      * @param key The key the value is stored under
      * @return a CharSequence value, or null
      */
+    @Nullable
     public CharSequence getText(@TextKey String key) {
         return mBundle.getCharSequence(key);
     }
@@ -471,6 +475,7 @@ public final class MediaMetadata implements Parcelable {
      * @param key The key the value is stored under
      * @return a String value, or null
      */
+    @Nullable
     public String getString(@TextKey String key) {
         CharSequence text = getText(key);
         if (text != null) {
@@ -497,12 +502,13 @@ public final class MediaMetadata implements Parcelable {
      * @param key The key the value is stored under
      * @return A {@link Rating} or null
      */
+    @Nullable
     public Rating getRating(@RatingKey String key) {
         Rating rating = null;
         try {
             rating = mBundle.getParcelable(key, android.media.Rating.class);
         } catch (Exception e) {
-            // ignore, value was not a bitmap
+            // ignore, value was not a rating
             Log.w(TAG, "Failed to retrieve a key as Rating.", e);
         }
         return rating;
@@ -515,6 +521,7 @@ public final class MediaMetadata implements Parcelable {
      * @param key The key the value is stored under
      * @return A {@link Bitmap} or null
      */
+    @Nullable
     public Bitmap getBitmap(@BitmapKey String key) {
         Bitmap bmp = null;
         try {
@@ -584,30 +591,9 @@ public final class MediaMetadata implements Parcelable {
 
         String mediaId = getString(METADATA_KEY_MEDIA_ID);
 
-        CharSequence[] text = new CharSequence[3];
+        CharSequence[] text = getTitleSubtitleAndDescription();
         Bitmap icon = null;
         Uri iconUri = null;
-
-        // First handle the case where display data is set already
-        CharSequence displayText = getText(METADATA_KEY_DISPLAY_TITLE);
-        if (!TextUtils.isEmpty(displayText)) {
-            // If they have a display title use only display data, otherwise use
-            // our best bets
-            text[0] = displayText;
-            text[1] = getText(METADATA_KEY_DISPLAY_SUBTITLE);
-            text[2] = getText(METADATA_KEY_DISPLAY_DESCRIPTION);
-        } else {
-            // Use whatever fields we can
-            int textIndex = 0;
-            int keyIndex = 0;
-            while (textIndex < text.length && keyIndex < PREFERRED_DESCRIPTION_ORDER.length) {
-                CharSequence next = getText(PREFERRED_DESCRIPTION_ORDER[keyIndex++]);
-                if (!TextUtils.isEmpty(next)) {
-                    // Fill in the next empty bit of text
-                    text[textIndex++] = next;
-                }
-            }
-        }
 
         // Get the best art bitmap we can find
         for (int i = 0; i < PREFERRED_BITMAP_ORDER.length; i++) {
@@ -653,6 +639,19 @@ public final class MediaMetadata implements Parcelable {
     }
 
     /**
+     * Returns a description string of this metadata.
+     *
+     * Note: this is for MediaSession.setMetadata() to get the description of the
+     * metadata, and it matches the previous beahvior as MediaDescription#toString()
+     *
+     * @hide
+     */
+    public String getDescriptionString() {
+        CharSequence[] text = getTitleSubtitleAndDescription();
+        return text[0] + ", " + text[1] + ", " + text[2];
+    }
+
+    /**
      * Helper for getting the String key used by {@link MediaMetadata} from the
      * integer key that {@link MediaMetadataEditor} uses.
      *
@@ -661,6 +660,7 @@ public final class MediaMetadata implements Parcelable {
      * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
+    @Nullable
     public static String getKeyFromMetadataEditorKey(int editorKey) {
         return EDITOR_KEY_MAPPING.get(editorKey, null);
     }
@@ -744,6 +744,35 @@ public final class MediaMetadata implements Parcelable {
     }
 
     /**
+     * Returns title, subtitle, description in this metadata
+     */
+    @NonNull @Size(3)
+    private CharSequence[] getTitleSubtitleAndDescription() {
+        CharSequence[] text = new CharSequence[3];
+        // First handle the case where display data is set already
+        CharSequence displayText = getText(METADATA_KEY_DISPLAY_TITLE);
+        if (!TextUtils.isEmpty(displayText)) {
+            // If they have a display title use only display data, otherwise use
+            // our best bets
+            text[0] = displayText;
+            text[1] = getText(METADATA_KEY_DISPLAY_SUBTITLE);
+            text[2] = getText(METADATA_KEY_DISPLAY_DESCRIPTION);
+        } else {
+            // Use whatever fields we can
+            int textIndex = 0;
+            int keyIndex = 0;
+            while (textIndex < text.length && keyIndex < PREFERRED_DESCRIPTION_ORDER.length) {
+                CharSequence next = getText(PREFERRED_DESCRIPTION_ORDER[keyIndex++]);
+                if (!TextUtils.isEmpty(next)) {
+                    // Fill in the next empty bit of text
+                    text[textIndex++] = next;
+                }
+            }
+        }
+        return text;
+    }
+
+    /**
      * Use to build MediaMetadata objects. The system defined metadata keys must
      * use the appropriate data type.
      */
@@ -797,7 +826,8 @@ public final class MediaMetadata implements Parcelable {
          * @param value The CharSequence value to store
          * @return The Builder to allow chaining
          */
-        public Builder putText(@TextKey String key, CharSequence value) {
+        public Builder putText(
+                    @TextKey String key, @Nullable CharSequence value) {
             if (METADATA_KEYS_TYPE.containsKey(key)) {
                 if (METADATA_KEYS_TYPE.get(key) != METADATA_TYPE_TEXT) {
                     throw new IllegalArgumentException("The " + key
@@ -839,7 +869,7 @@ public final class MediaMetadata implements Parcelable {
          * @param value The String value to store
          * @return The Builder to allow chaining
          */
-        public Builder putString(@TextKey String key, String value) {
+        public Builder putString(@TextKey String key, @Nullable String value) {
             if (METADATA_KEYS_TYPE.containsKey(key)) {
                 if (METADATA_KEYS_TYPE.get(key) != METADATA_TYPE_TEXT) {
                     throw new IllegalArgumentException("The " + key
@@ -890,7 +920,8 @@ public final class MediaMetadata implements Parcelable {
          * @param value The Rating value to store
          * @return The Builder to allow chaining
          */
-        public Builder putRating(@RatingKey String key, Rating value) {
+        public Builder putRating(
+                    @RatingKey String key, @Nullable Rating value) {
             if (METADATA_KEYS_TYPE.containsKey(key)) {
                 if (METADATA_KEYS_TYPE.get(key) != METADATA_TYPE_RATING) {
                     throw new IllegalArgumentException("The " + key
@@ -920,7 +951,8 @@ public final class MediaMetadata implements Parcelable {
          * @param value The Bitmap to store
          * @return The Builder to allow chaining
          */
-        public Builder putBitmap(@BitmapKey String key, Bitmap value) {
+        public Builder putBitmap(
+                    @BitmapKey String key, @Nullable Bitmap value) {
             if (METADATA_KEYS_TYPE.containsKey(key)) {
                 if (METADATA_KEYS_TYPE.get(key) != METADATA_TYPE_BITMAP) {
                     throw new IllegalArgumentException("The " + key
@@ -982,6 +1014,7 @@ public final class MediaMetadata implements Parcelable {
             float scale = Math.min(widthScale, heightScale);
             int height = (int) (bmp.getHeight() * scale);
             int width = (int) (bmp.getWidth() * scale);
+            StrictMode.noteSlowCall("Downscaling oversized MediaMetadata Bitmap");
             return Bitmap.createScaledBitmap(bmp, width, height, true);
         }
     }

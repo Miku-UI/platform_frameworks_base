@@ -266,13 +266,11 @@ class MenuInfoRepository {
                 mSecureSettings.getUriFor(Settings.Secure.ACCESSIBILITY_BUTTON_TARGETS),
                 /* notifyForDescendants */ false, mMenuTargetFeaturesContentObserver,
                 UserHandle.USER_CURRENT);
-        if (com.android.systemui.Flags.floatingMenuNotifyTargetsChangedOnStrictDiff()) {
-            mSecureSettings.registerContentObserverForUserSync(
-                    mSecureSettings.getUriFor(ENABLED_ACCESSIBILITY_SERVICES),
-                    /* notifyForDescendants */ false,
-                    mMenuTargetFeaturesContentObserver,
-                    UserHandle.USER_CURRENT);
-        }
+        mSecureSettings.registerContentObserverForUserSync(
+                mSecureSettings.getUriFor(ENABLED_ACCESSIBILITY_SERVICES),
+                /* notifyForDescendants */ false,
+                mMenuTargetFeaturesContentObserver,
+                UserHandle.USER_CURRENT);
         mSecureSettings.registerContentObserverForUserSync(
                 mSecureSettings.getUriFor(Settings.Secure.ACCESSIBILITY_FLOATING_MENU_SIZE),
                 /* notifyForDescendants */ false, mMenuSizeContentObserver,
@@ -287,10 +285,8 @@ class MenuInfoRepository {
                 UserHandle.USER_CURRENT);
         mContext.registerComponentCallbacks(mComponentCallbacks);
 
-        if (com.android.systemui.Flags.floatingMenuNotifyTargetsChangedOnStrictDiff()) {
-            mAccessibilityManager.addAccessibilityServicesStateChangeListener(
-                    mA11yServicesStateChangeListener);
-        }
+        mAccessibilityManager.addAccessibilityServicesStateChangeListener(
+                mA11yServicesStateChangeListener);
 
         if (com.android.settingslib.flags.Flags.hearingDeviceSetConnectionStatusReport()) {
             registerConnectionStatusListener();
@@ -317,10 +313,8 @@ class MenuInfoRepository {
         mContext.getContentResolver().unregisterContentObserver(mMenuFadeOutContentObserver);
         mContext.unregisterComponentCallbacks(mComponentCallbacks);
 
-        if (com.android.systemui.Flags.floatingMenuNotifyTargetsChangedOnStrictDiff()) {
-            mAccessibilityManager.removeAccessibilityServicesStateChangeListener(
-                    mA11yServicesStateChangeListener);
-        }
+        mAccessibilityManager.removeAccessibilityServicesStateChangeListener(
+                mA11yServicesStateChangeListener);
 
         unregisterConnectionStatusListener();
     }

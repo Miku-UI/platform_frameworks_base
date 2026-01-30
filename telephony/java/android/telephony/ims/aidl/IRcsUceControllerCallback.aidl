@@ -21,7 +21,7 @@ import android.telephony.ims.SipDetails;
 /**
  * Provides interface for RCS UCE when receive a change.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IRcsUceControllerCallback {
     void onCapabilitiesReceived(in List<RcsContactUceCapability> contactCapabilities);

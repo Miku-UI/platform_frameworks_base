@@ -412,26 +412,33 @@ TEST (UtilTest, AdjustSplitConstraintsForMinSdk) {
   std::string path;
 
   test_constraints.push_back({});
-  ASSERT_TRUE(ParseSplitParameter(CREATE_PATH("v7"),
-                                  diagnostics, &path, &test_constraints.back()));
+  ASSERT_TRUE(ParseSplitParameter(CREATE_PATH("v7"), diagnostics, &path, &test_constraints.back()));
   test_constraints.push_back({});
-  ASSERT_TRUE(ParseSplitParameter(CREATE_PATH("xhdpi"),
-                                  diagnostics, &path, &test_constraints.back()));
-  EXPECT_EQ(test_constraints.size(), 2);
+  ASSERT_TRUE(
+      ParseSplitParameter(CREATE_PATH("xhdpi"), diagnostics, &path, &test_constraints.back()));
+  test_constraints.push_back({});
+  ASSERT_TRUE(
+      ParseSplitParameter(CREATE_PATH("v38.9"), diagnostics, &path, &test_constraints.back()));
+  EXPECT_EQ(test_constraints.size(), 3);
   EXPECT_EQ(test_constraints[0].name, "v7");
   EXPECT_EQ(test_constraints[0].configs.size(), 1);
   EXPECT_NE(*test_constraints[0].configs.begin(), ConfigDescription::DefaultConfig());
   EXPECT_EQ(test_constraints[1].name, "xhdpi");
   EXPECT_EQ(test_constraints[1].configs.size(), 1);
-  EXPECT_NE(*test_constraints[0].configs.begin(), ConfigDescription::DefaultConfig());
+  EXPECT_NE(*test_constraints[1].configs.begin(), ConfigDescription::DefaultConfig());
+  EXPECT_EQ(test_constraints[2].name, "v38.9");
+  EXPECT_EQ(test_constraints[2].configs.size(), 1);
+  EXPECT_NE(*test_constraints[2].configs.begin(), ConfigDescription::DefaultConfig());
 
-  auto adjusted_contraints = AdjustSplitConstraintsForMinSdk(26, test_constraints);
-  EXPECT_EQ(adjusted_contraints.size(), 2);
+  auto adjusted_contraints = AdjustSplitConstraintsForMinSdk(40, test_constraints);
+  EXPECT_EQ(adjusted_contraints.size(), 3);
   EXPECT_EQ(adjusted_contraints[0].name, "v7");
   EXPECT_EQ(adjusted_contraints[0].configs.size(), 0);
   EXPECT_EQ(adjusted_contraints[1].name, "xhdpi");
   EXPECT_EQ(adjusted_contraints[1].configs.size(), 1);
   EXPECT_NE(*adjusted_contraints[1].configs.begin(), ConfigDescription::DefaultConfig());
+  EXPECT_EQ(adjusted_contraints[2].name, "v38.9");
+  EXPECT_EQ(adjusted_contraints[2].configs.size(), 0);
 }
 
 TEST (UtilTest, RegularExperssionsSimple) {

@@ -31,7 +31,7 @@ class BulletPreference @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
     defStyleRes: Int = 0
-) : Preference(context, attrs, defStyleAttr, defStyleRes) {
+) : Preference(context, attrs, defStyleAttr, defStyleRes), GroupSectionDividerMixin {
 
     init {
         layoutResource = R.layout.settingslib_expressive_bullet_preference

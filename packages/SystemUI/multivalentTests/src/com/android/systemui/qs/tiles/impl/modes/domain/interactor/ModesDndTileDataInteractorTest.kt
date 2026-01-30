@@ -42,7 +42,6 @@ import org.junit.runner.RunWith
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
-@EnableFlags(Flags.FLAG_MODES_UI)
 @RunWith(AndroidJUnit4::class)
 class ModesDndTileDataInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()

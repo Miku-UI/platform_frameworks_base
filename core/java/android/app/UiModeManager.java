@@ -18,6 +18,7 @@ package android.app;
 
 import static android.app.Flags.enableCurrentModeTypeBinderCache;
 import static android.app.Flags.enableNightModeBinderCache;
+import static android.app.Flags.fixContrastAndForceInvertStateForMultiUser;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
@@ -38,10 +39,13 @@ import android.os.IpcDataCache;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.ServiceManager.ServiceNotFoundException;
+import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 import android.util.Slog;
+import android.util.SparseArray;
+import android.view.Display;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.function.pooled.PooledLambda;
@@ -84,7 +88,6 @@ import java.util.stream.Stream;
 public class UiModeManager {
 
     private static final String TAG = "UiModeManager";
-
 
     /**
      * A listener with a single method that is invoked whenever the packages projecting using the
@@ -409,6 +412,8 @@ public class UiModeManager {
      *
      * @hide
      */
+    @FlaggedApi(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    @TestApi
     public static final int FORCE_INVERT_TYPE_DARK = 1;
 
     /**
@@ -418,13 +423,48 @@ public class UiModeManager {
      */
     public static final int FORCE_INVERT_TYPE_LIGHT = 2;
 
+    /** @hide */
+    @IntDef(prefix = {"FORCE_INVERT_PACKAGE_"}, value = {
+            FORCE_INVERT_PACKAGE_ALLOWED,
+            FORCE_INVERT_PACKAGE_ALWAYS_ENABLE,
+            FORCE_INVERT_PACKAGE_ALWAYS_DISABLE,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ForceInvertPackageOverrideState {}
+
+    /**
+     * Constant for {@link #getForceInvertOverrideState()}: Force invert is allowed
+     * for the package, and will be applied if the global setting is on.
+     *
+     * @hide
+     */
+    public static final int FORCE_INVERT_PACKAGE_ALLOWED = 0;
+
+    /**
+     * Constant for {@link #getForceInvertOverrideState()}: Force invert is always
+     * enabled for the package, regardless of other overrides or criteria (as long as the {@link
+     * #getForceInvertState()} global setting is on.
+     *
+     * @hide
+     */
+    public static final int FORCE_INVERT_PACKAGE_ALWAYS_ENABLE = 1;
+
+    /**
+     * Constant for {@link #getForceInvertOverrideState()}: Force invert is always
+     * disabled for the package, regardless of other overrides or criteria (as long as the {@link
+     * #getForceInvertState()} global setting is on.
+     *
+     * @hide
+     */
+    public static final int FORCE_INVERT_PACKAGE_ALWAYS_DISABLE = 2;
+
     private static Globals sGlobals;
 
     /**
      * Context required for getting the opPackageName of API caller; maybe be {@code null} if the
      * old constructor marked with UnSupportedAppUsage is used.
      */
-    private @Nullable Context mContext;
+    private final @Nullable Context mContext;
 
     private final Object mLock = new Object();
     /**
@@ -449,6 +489,8 @@ public class UiModeManager {
         private final IUiModeManager mService;
         private final Object mGlobalsLock = new Object();
 
+        // ============= Legacy values and methods ============= //
+        // TODO(b/362682063) remove when cleaning up the flag
         @ForceInvertType
         private int mForceInvertState = FORCE_INVERT_TYPE_OFF;
         private float mContrast = ContrastUtils.CONTRAST_DEFAULT_VALUE;
@@ -462,17 +504,6 @@ public class UiModeManager {
 
         private final ArrayMap<ForceInvertStateChangeListener, Executor>
                 mForceInvertStateChangeListeners = new ArrayMap<>();
-
-        Globals(IUiModeManager service) {
-            mService = service;
-            try {
-                mService.addCallback(this);
-                mContrast = mService.getContrast();
-                mForceInvertState = mService.getForceInvertState();
-            } catch (RemoteException e) {
-                Log.e(TAG, "Setup failed: UiModeManagerService is dead", e);
-            }
-        }
 
         @ForceInvertType
         private int getForceInvertState() {
@@ -495,11 +526,17 @@ public class UiModeManager {
         }
 
         @Override
-        public void notifyForceInvertStateChanged(@ForceInvertType int forceInvertState) {
+        public void notifyForceInvertStateChanged(@ForceInvertType int forceInvertState)
+                throws RemoteException {
+            notifyForceInvertStateChanged(forceInvertState, /* forceUpdate= */ false);
+        }
+
+        private void notifyForceInvertStateChanged(@ForceInvertType int forceInvertState,
+                boolean forceUpdate) {
             final Map<ForceInvertStateChangeListener, Executor> listeners = new ArrayMap<>();
             synchronized (mGlobalsLock) {
                 // if value changed in the settings, update the cached value and notify listeners
-                if (mForceInvertState == forceInvertState) {
+                if (mForceInvertState == forceInvertState && !forceUpdate) {
                     return;
                 }
 
@@ -537,13 +574,258 @@ public class UiModeManager {
 
         @Override
         public void notifyContrastChanged(float contrast) {
+            final Map<ContrastChangeListener, Executor> listeners;
             synchronized (mGlobalsLock) {
                 // if value changed in the settings, update the cached value and notify listeners
                 if (Math.abs(mContrast - contrast) < 1e-10) return;
                 mContrast = contrast;
-                mContrastChangeListeners.forEach((listener, executor) -> executor.execute(
-                        () -> listener.onContrastChanged(contrast)));
+
+                if (!fixContrastAndForceInvertStateForMultiUser()) {
+                    mContrastChangeListeners.forEach((listener, executor) -> executor.execute(
+                            () -> listener.onContrastChanged(contrast)));
+                    return;
+                }
+                listeners = new ArrayMap<>(mContrastChangeListeners);
             }
+
+            listeners.forEach((listener, executor) -> {
+                final long token = Binder.clearCallingIdentity();
+                try {
+                    executor.execute(() -> listener.onContrastChanged(contrast));
+                } finally {
+                    Binder.restoreCallingIdentity(token);
+                }
+            });
+
+
+        }
+
+        @Override
+        public void notifyForceInvertOverrideStateChanged() throws RemoteException {
+            final int forceInvertState;
+            synchronized (sGlobals.mGlobalsLock) {
+                forceInvertState = mForceInvertState;
+            }
+
+            // We just re-use the main state listener. End clients don't need the granularity of
+            // listening to the blocklist changes separately.
+            notifyForceInvertStateChanged(forceInvertState, /* forceUpdate= */ true);
+        }
+
+        // ============= End legacy values and methods ============= //
+
+        /**
+         * Map of {@link UserCallback} per user id. This will only contain one value for the current
+         * user, unless the process using this service interacts across users.
+         */
+        private final SparseArray<UserCallback> mUserCallbacks = new SparseArray<>();
+
+        Globals(IUiModeManager service) {
+            mService = service;
+            if (fixContrastAndForceInvertStateForMultiUser()) return;
+            try {
+                mService.addCallback(this, UserHandle.USER_NULL);
+                mContrast = mService.getContrast(UserHandle.USER_NULL);
+                mForceInvertState = mService.getForceInvertState(UserHandle.USER_NULL);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Setup failed: UiModeManagerService is dead", e);
+            }
+        }
+
+        private UserCallback getUserCallbackOrCreate(int userId) {
+            UserCallback userCallback = mUserCallbacks.get(userId);
+            if (userCallback == null) {
+                try {
+                    userCallback = new UserCallback(userId);
+                    mService.addCallback(userCallback, userId);
+                    mUserCallbacks.put(userId, userCallback);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+            return userCallback;
+        }
+
+        private void removeCallbackIfUnusedLocked(int userId) {
+            UserCallback userCallback = mUserCallbacks.get(userId);
+            if (userCallback == null
+                    || !userCallback.mContrastChangeListeners.isEmpty()
+                    || !userCallback.mForceInvertStateChangeListeners.isEmpty()) {
+                return;
+            }
+            try {
+                mService.removeCallback(userCallback, userId);
+                mUserCallbacks.remove(userId);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Failed to remove UiModeManagerCallback", e);
+            }
+        }
+
+        @ForceInvertType
+        private int getForceInvertState(int userId) {
+            synchronized (mGlobalsLock) {
+                UserCallback userCallback = mUserCallbacks.get(userId);
+                if (userCallback != null) {
+                    return userCallback.mForceInvertState;
+                }
+                try {
+                    return mService.getForceInvertState(userId);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+        }
+
+        private void addForceInvertStateChangeListener(ForceInvertStateChangeListener listener,
+                Executor executor, int userId) {
+            synchronized (mGlobalsLock) {
+                UserCallback userCallback = getUserCallbackOrCreate(userId);
+                userCallback.mForceInvertStateChangeListeners.put(listener, executor);
+            }
+        }
+
+        private void removeForceInvertStateChangeListener(ForceInvertStateChangeListener listener,
+                int userId) {
+            synchronized (mGlobalsLock) {
+                UserCallback userCallback = mUserCallbacks.get(userId);
+                if (userCallback != null) {
+                    userCallback.mForceInvertStateChangeListeners.remove(listener);
+                    removeCallbackIfUnusedLocked(userId);
+                }
+            }
+        }
+
+        private float getContrast(int userId) {
+            synchronized (mGlobalsLock) {
+                UserCallback userCallback = mUserCallbacks.get(userId);
+                if (userCallback != null) {
+                    return userCallback.mContrast;
+                }
+                try {
+                    return mService.getContrast(userId);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+        }
+
+        private void addContrastChangeListener(ContrastChangeListener listener, Executor executor,
+                int userId) {
+            synchronized (mGlobalsLock) {
+                UserCallback userCallback = getUserCallbackOrCreate(userId);
+                userCallback.mContrastChangeListeners.put(listener, executor);
+            }
+        }
+
+        private void removeContrastChangeListener(ContrastChangeListener listener, int userId) {
+            synchronized (mGlobalsLock) {
+                UserCallback userCallback = mUserCallbacks.get(userId);
+                if (userCallback != null) {
+                    userCallback.mContrastChangeListeners.remove(listener);
+                    removeCallbackIfUnusedLocked(userId);
+                }
+            }
+        }
+
+        @ForceInvertPackageOverrideState
+        private int getForceInvertOverrideState(int userId, String packageName) {
+            synchronized (mGlobalsLock) {
+                // This is such an infrequent operation, we don't worry about caching.
+                try {
+                    return mService.getForceInvertOverrideState(userId, packageName);
+                } catch (RemoteException e) {
+                    throw e.rethrowFromSystemServer();
+                }
+            }
+        }
+    }
+
+    /** Global class storing all listeners and cached values for a specific user id. */
+    private static class UserCallback extends  IUiModeManagerCallback.Stub {
+
+        private UserCallback(int userId) {
+            try {
+                sGlobals.mService.addCallback(this, userId);
+                mContrast = sGlobals.mService.getContrast(userId);
+                mForceInvertState = sGlobals.mService.getForceInvertState(userId);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        }
+
+        /** Cached contrast value */
+        private float mContrast = ContrastUtils.CONTRAST_DEFAULT_VALUE;
+
+        /** Cached force invert state value */
+        @ForceInvertType
+        private int mForceInvertState = FORCE_INVERT_TYPE_OFF;
+
+        /**
+         * Map that stores user provided {@link ContrastChangeListener} callbacks,
+         * and the executors on which these callbacks should be called.
+         */
+        private final ArrayMap<ContrastChangeListener, Executor>
+                mContrastChangeListeners = new ArrayMap<>();
+
+        private final ArrayMap<ForceInvertStateChangeListener, Executor>
+                mForceInvertStateChangeListeners = new ArrayMap<>();
+
+        @Override
+        public void notifyContrastChanged(float contrast) throws RemoteException {
+            synchronized (sGlobals.mGlobalsLock) {
+                // if value changed in the settings, update the cached value and notify listeners
+                Float previousContrast = mContrast;
+                if (Math.abs(previousContrast - contrast) < 1e-10) {
+                    return;
+                }
+                mContrast = contrast;
+
+                // TODO(b/438028125): why doesn't this clear calling identity like the others?
+                mContrastChangeListeners.forEach((listener, executor) ->
+                        executor.execute(() -> listener.onContrastChanged(contrast)));
+            }
+        }
+
+        @Override
+        public void notifyForceInvertStateChanged(@ForceInvertType int forceInvertState)
+                throws RemoteException {
+            notifyForceInvertStateChanged(forceInvertState, /* forceUpdate= */ false);
+        }
+
+        private void notifyForceInvertStateChanged(
+                @ForceInvertType int forceInvertState, boolean forceUpdate)
+                throws RemoteException {
+            final Map<ForceInvertStateChangeListener, Executor> listeners = new ArrayMap<>();
+            synchronized (sGlobals.mGlobalsLock) {
+                // if value changed in the settings, update the cached value and notify listeners
+                if (mForceInvertState == forceInvertState && !forceUpdate) {
+                    return;
+                }
+
+                mForceInvertState = forceInvertState;
+                listeners.putAll(mForceInvertStateChangeListeners);
+            }
+
+            listeners.forEach((listener, executor) -> {
+                final long token = Binder.clearCallingIdentity();
+                try {
+                    executor.execute(() -> listener.onForceInvertStateChanged(forceInvertState));
+                } finally {
+                    Binder.restoreCallingIdentity(token);
+                }
+            });
+        }
+
+        @Override
+        public void notifyForceInvertOverrideStateChanged() throws RemoteException {
+            final int forceInvertState;
+            synchronized (sGlobals.mGlobalsLock) {
+                forceInvertState = mForceInvertState;
+            }
+
+            // We just re-use the main state listener. End clients don't need the granularity of
+            // listening to the blocklist changes separately.
+            notifyForceInvertStateChanged(forceInvertState, /* forceUpdate= */ true);
         }
     }
 
@@ -776,10 +1058,10 @@ public class UiModeManager {
         }
     }
 
-    private Integer getCurrentModeTypeFromServer() {
+    private Integer getCurrentModeTypeFromServer(int displayId) {
         try {
             if (sGlobals != null) {
-                return sGlobals.mService.getCurrentModeType();
+                return sGlobals.mService.getCurrentModeType(displayId);
             }
             return Configuration.UI_MODE_TYPE_NORMAL;
         } catch (RemoteException e) {
@@ -791,13 +1073,13 @@ public class UiModeManager {
     /**
      * Retrieve the current running mode type for the user.
      */
-    private final IpcDataCache.QueryHandler<Void, Integer> mCurrentModeTypeQuery =
+    private final IpcDataCache.QueryHandler<Integer, Integer> mCurrentModeTypeQuery =
             new IpcDataCache.QueryHandler<>() {
 
                 @Override
                 @NonNull
-                public Integer apply(Void query) {
-                    return getCurrentModeTypeFromServer();
+                public Integer apply(Integer displayId) {
+                    return getCurrentModeTypeFromServer(displayId);
                 }
             };
 
@@ -806,7 +1088,7 @@ public class UiModeManager {
     /**
      * Cache the current running mode type for a user.
      */
-    private final IpcDataCache<Void, Integer> mCurrentModeTypeCache =
+    private final IpcDataCache<Integer, Integer> mCurrentModeTypeCache =
             new IpcDataCache<>(1, IpcDataCache.MODULE_SYSTEM,
                     CURRENT_MODE_TYPE_API, /* cacheName= */ "CurrentModeTypeCache",
                     mCurrentModeTypeQuery);
@@ -835,9 +1117,9 @@ public class UiModeManager {
      */
     public int getCurrentModeType() {
         if (enableCurrentModeTypeBinderCache()) {
-            return mCurrentModeTypeCache.query(null);
+            return mCurrentModeTypeCache.query(getDisplayId());
         } else {
-            return getCurrentModeTypeFromServer();
+            return getCurrentModeTypeFromServer(getDisplayId());
         }
     }
 
@@ -1013,10 +1295,10 @@ public class UiModeManager {
         }
     }
 
-    private Integer getNightModeFromServer() {
+    private Integer getNightModeFromServer(int displayId) {
         try {
             if (sGlobals != null) {
-                return sGlobals.mService.getNightMode();
+                return sGlobals.mService.getNightMode(displayId);
             }
             return -1;
         } catch (RemoteException e) {
@@ -1028,13 +1310,13 @@ public class UiModeManager {
     /**
      * Retrieve the night mode for the user.
      */
-    private final IpcDataCache.QueryHandler<Void, Integer> mNightModeQuery =
+    private final IpcDataCache.QueryHandler<Integer, Integer> mNightModeQuery =
             new IpcDataCache.QueryHandler<>() {
 
                 @Override
                 @NonNull
-                public Integer apply(Void query) {
-                    return getNightModeFromServer();
+                public Integer apply(Integer displayId) {
+                    return getNightModeFromServer(displayId);
                 }
             };
 
@@ -1043,7 +1325,7 @@ public class UiModeManager {
     /**
      * Cache the night mode for a user.
      */
-    private final IpcDataCache<Void, Integer> mNightModeCache =
+    private final IpcDataCache<Integer, Integer> mNightModeCache =
             new IpcDataCache<>(1, IpcDataCache.MODULE_SYSTEM,
                     NIGHT_MODE_API, /* cacheName= */ "NightModeCache", mNightModeQuery);
 
@@ -1075,9 +1357,9 @@ public class UiModeManager {
      */
     public @NightMode int getNightMode() {
         if (enableNightModeBinderCache()) {
-            return mNightModeCache.query(null);
+            return mNightModeCache.query(getDisplayId());
         } else {
-            return getNightModeFromServer();
+            return getNightModeFromServer(getDisplayId());
         }
     }
 
@@ -1517,11 +1799,14 @@ public class UiModeManager {
      */
     @FloatRange(from = -1.0f, to = 1.0f)
     public float getContrast() {
+        if (fixContrastAndForceInvertStateForMultiUser()) {
+            return sGlobals.getContrast(getUserId());
+        }
         return sGlobals.getContrast();
     }
 
     /**
-     * Registers a {@link ContrastChangeListener} for the current user.
+     * Registers a {@link ContrastChangeListener} for the user.
      *
      * @param executor The executor on which the listener should be called back.
      * @param listener The listener.
@@ -1531,17 +1816,25 @@ public class UiModeManager {
             @NonNull ContrastChangeListener listener) {
         Objects.requireNonNull(executor);
         Objects.requireNonNull(listener);
+        if (fixContrastAndForceInvertStateForMultiUser()) {
+            sGlobals.addContrastChangeListener(listener, executor, getUserId());
+            return;
+        }
         sGlobals.addContrastChangeListener(listener, executor);
     }
 
     /**
-     * Unregisters a {@link ContrastChangeListener} for the current user.
+     * Unregisters a {@link ContrastChangeListener} for the user.
      * If the listener was not registered, does nothing and returns.
      *
      * @param listener The listener to unregister.
      */
     public void removeContrastChangeListener(@NonNull ContrastChangeListener listener) {
         Objects.requireNonNull(listener);
+        if (fixContrastAndForceInvertStateForMultiUser()) {
+            sGlobals.removeContrastChangeListener(listener, getUserId());
+            return;
+        }
         sGlobals.removeContrastChangeListener(listener);
     }
 
@@ -1550,13 +1843,18 @@ public class UiModeManager {
      *
      * @hide
      */
+    @TestApi
+    @FlaggedApi(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
     @ForceInvertType
     public int getForceInvertState() {
+        if (fixContrastAndForceInvertStateForMultiUser()) {
+            return sGlobals.getForceInvertState(getUserId());
+        }
         return sGlobals.getForceInvertState();
     }
 
     /**
-     * Registers a {@link ForceInvertStateChangeListener} for the current user.
+     * Registers a {@link ForceInvertStateChangeListener} for the user.
      *
      * @param executor The executor on which the listener should be called back.
      * @param listener The listener.
@@ -1568,11 +1866,15 @@ public class UiModeManager {
             @NonNull ForceInvertStateChangeListener listener) {
         Objects.requireNonNull(executor);
         Objects.requireNonNull(listener);
+        if (fixContrastAndForceInvertStateForMultiUser()) {
+            sGlobals.addForceInvertStateChangeListener(listener, executor, getUserId());
+            return;
+        }
         sGlobals.addForceInvertStateChangeListener(listener, executor);
     }
 
     /**
-     * Unregisters a {@link ForceInvertStateChangeListener} for the current user.
+     * Unregisters a {@link ForceInvertStateChangeListener} for the user.
      * If the listener was not registered, does nothing and returns.
      *
      * @param listener The listener to unregister.
@@ -1582,6 +1884,40 @@ public class UiModeManager {
     public void removeForceInvertStateChangeListener(
             @NonNull ForceInvertStateChangeListener listener) {
         Objects.requireNonNull(listener);
+        if (fixContrastAndForceInvertStateForMultiUser()) {
+            sGlobals.removeForceInvertStateChangeListener(listener, getUserId());
+            return;
+        }
         sGlobals.removeForceInvertStateChangeListener(listener);
+    }
+
+    /**
+     * Returns the force invert override state for the current package.
+     *
+     * @hide
+     */
+    @ForceInvertPackageOverrideState
+    public int getForceInvertOverrideState() {
+        if (mContext == null) {
+            // This shouldn't really happen in practice because ViewRootImpl uses the
+            // proper constructor that fills out the context.
+            return FORCE_INVERT_PACKAGE_ALLOWED;
+        }
+        return sGlobals.getForceInvertOverrideState(getUserId(), mContext.getOpPackageName());
+    }
+
+    /**
+     * Return the context user id. If this class was built with the UnsupportedAppUsage constructor
+     * and the context is null, return the user id of this process instead.
+     */
+    private int getUserId() {
+        return mContext != null ? mContext.getUserId() : UserHandle.myUserId();
+    }
+
+    private int getDisplayId() {
+        if (!android.companion.virtualdevice.flags.Flags.deviceAwareUiMode()) {
+            return Display.DEFAULT_DISPLAY;
+        }
+        return mContext == null ? Display.DEFAULT_DISPLAY : mContext.getDisplayId();
     }
 }

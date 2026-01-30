@@ -37,6 +37,7 @@ import java.util.function.Consumer;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ComponentCallbacksController {
     @GuardedBy("mLock")
     private List<ComponentCallbacks> mComponentCallbacks;

@@ -25,7 +25,9 @@ import androidx.slice.Clock;
 
 import com.android.internal.app.AssistUtils;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.topwindoweffects.data.repository.InvocationEffectEnabler;
 
+import dagger.BindsOptionalOf;
 import dagger.Module;
 import dagger.Provides;
 
@@ -60,4 +62,7 @@ public abstract class AssistModule {
     static Clock provideSystemClock() {
         return SystemClock::uptimeMillis;
     }
+
+    @BindsOptionalOf
+    abstract InvocationEffectEnabler optionalInvocationEffectEnabler();
 }

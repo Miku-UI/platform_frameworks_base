@@ -54,8 +54,6 @@ cc_defaults {
         "hwui_lto",
     ],
 
-    cpp_std: "experimental",
-
     cflags: [
         "-DEGL_EGLEXT_PROTOTYPES",
         "-DGL_GLEXT_PROTOTYPES",
@@ -446,6 +444,8 @@ cc_defaults {
         "liblog",
         "libminikin",
         "libz",
+        "libtracing_perfetto",
+        "libperfetto_c",
     ],
 
     static_libs: [
@@ -620,6 +620,7 @@ cc_defaults {
         "Animator.cpp",
         "AnimatorManager.cpp",
         "CanvasTransform.cpp",
+        "ColorArea.cpp",
         "DamageAccumulator.cpp",
         "DeviceInfo.cpp",
         "FrameInfo.cpp",
@@ -667,6 +668,8 @@ cc_defaults {
                 "pipeline/skia/ATraceMemoryDump.cpp",
                 "pipeline/skia/GLFunctorDrawable.cpp",
                 "pipeline/skia/LayerDrawable.cpp",
+                "pipeline/skia/PersistentGraphicsCache.cpp",
+                "pipeline/skia/PipelineCache.cpp",
                 "pipeline/skia/ShaderCache.cpp",
                 "pipeline/skia/SkiaGpuPipeline.cpp",
                 "pipeline/skia/SkiaMemoryTracer.cpp",
@@ -817,6 +820,8 @@ cc_test {
         "tests/unit/MatrixTests.cpp",
         "tests/unit/OpBufferTests.cpp",
         "tests/unit/PathInterpolatorTests.cpp",
+        "tests/unit/PersistentGraphicsCacheTests.cpp",
+        "tests/unit/PipelineCacheTests.cpp",
         "tests/unit/RenderEffectCapabilityQueryTests.cpp",
         "tests/unit/RenderNodeDrawableTests.cpp",
         "tests/unit/RenderNodeTests.cpp",

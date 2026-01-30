@@ -38,7 +38,10 @@ class KeyguardQuickAffordanceOnTouchListener(
     private val falsingManager: FalsingManager?,
 ) : View.OnTouchListener {
 
-    private val longPressDurationMs = ViewConfiguration.getLongPressTimeout().toLong()
+    private val longPressDurationMs =
+        if (android.companion.virtualdevice.flags.Flags.viewconfigurationApis())
+            ViewConfiguration.get(view.context).longPressTimeoutMillis.toLong()
+        else ViewConfiguration.getLongPressTimeout().toLong()
     private var longPressAnimator: ViewPropertyAnimator? = null
     private val downDisplayCoords: PointF by lazy { PointF() }
 
@@ -70,10 +73,8 @@ class KeyguardQuickAffordanceOnTouchListener(
                     // Moving too far while performing a long-press gesture cancels that
                     // gesture.
                     if (
-                        event.rawDistanceFrom(
-                            downDisplayCoords.x,
-                            downDisplayCoords.y,
-                        ) > ViewConfiguration.getTouchSlop()
+                        event.rawDistanceFrom(downDisplayCoords.x, downDisplayCoords.y) >
+                            ViewConfiguration.getTouchSlop()
                     ) {
                         cancel()
                     }
@@ -109,9 +110,7 @@ class KeyguardQuickAffordanceOnTouchListener(
         }
     }
 
-    private fun dispatchClick(
-        configKey: String,
-    ) {
+    private fun dispatchClick(configKey: String) {
         view.setOnClickListener {
             vibratorHelper?.vibrate(
                 if (viewModel.isActivated) {
@@ -145,10 +144,7 @@ class KeyguardQuickAffordanceOnTouchListener(
          * Returns `true` if the tool type at the given pointer index is an accurate tool (like
          * stylus or mouse), which means we can trust it to not be a false click; `false` otherwise.
          */
-        private fun isUsingAccurateTool(
-            event: MotionEvent,
-            pointerIndex: Int = 0,
-        ): Boolean {
+        private fun isUsingAccurateTool(event: MotionEvent, pointerIndex: Int = 0): Boolean {
             return if (Flags.nonTouchscreenDevicesBypassFalsing()) {
                 event.device?.supportsSource(InputDevice.SOURCE_TOUCHSCREEN) == false
             } else {

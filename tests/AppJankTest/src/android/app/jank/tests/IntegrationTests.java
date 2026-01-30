@@ -19,6 +19,7 @@ package android.app.jank.tests;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.app.Activity;
@@ -33,12 +34,16 @@ import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.widget.EditText;
+import android.widget.ListView;
 
+import androidx.test.core.app.ActivityScenario;
 import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ActivityTestRule;
 import androidx.test.runner.AndroidJUnit4;
 import androidx.test.uiautomator.By;
+import androidx.test.uiautomator.Direction;
 import androidx.test.uiautomator.UiDevice;
+import androidx.test.uiautomator.UiObject2;
 import androidx.test.uiautomator.Until;
 
 import org.junit.Before;
@@ -48,6 +53,7 @@ import org.junit.runner.RunWith;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
  * This file contains tests that verify the proper functionality of the Jank Tracking feature.
@@ -244,5 +250,41 @@ public class IntegrationTests {
         pendingStats = jankTracker.getPendingJankStats();
 
         assertEquals(0, pendingStats.size());
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_INSTRUMENT_LISTVIEW_SCROLL_STATES)
+    public void confirmListView_reportsStateChanges() {
+        String resourceIdPkg = "android.app.jank.tests";
+
+        try (ActivityScenario<ListViewActivity> scenario =
+                ActivityScenario.launch(ListViewActivity.class)) {
+            UiDevice device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
+            UiObject2 listview = device.findObject(By.res(resourceIdPkg, "list_view_id"));
+            assertNotNull(listview);
+
+            // This should result in two widget state additions being added the active state being
+            // fling and the none state.
+            listview.fling(Direction.DOWN, 1000);
+
+            scenario.onActivity(
+                    activity -> {
+                        ListView listView = activity.findViewById(R.id.list_view_id);
+                        JankTracker jankTracker = listView.getJankTracker();
+
+                        ArrayList<StateTracker.StateData> stateData = new ArrayList<>();
+                        jankTracker.getAllUiStates(stateData);
+                        Map<String, Integer> aggregateData =
+                                JankUtils.aggregateCountsByState(stateData);
+
+                        long flingCount = aggregateData.get(AppJankStats.WIDGET_STATE_FLINGING);
+                        long idleCount = aggregateData.get(AppJankStats.WIDGET_STATE_NONE);
+                        assertEquals(1, flingCount);
+                        assertEquals(1, idleCount);
+                    });
+
+        } catch (Exception e) {
+            throw new RuntimeException(e.toString());
+        }
     }
 }

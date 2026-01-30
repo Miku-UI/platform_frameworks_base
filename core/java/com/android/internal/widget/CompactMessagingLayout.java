@@ -16,6 +16,8 @@
 
 package com.android.internal.widget;
 
+import static com.android.internal.widget.flags.Flags.notificationTransparentBadgeRing;
+
 import android.app.Notification;
 import android.app.Notification.MessagingStyle;
 import android.app.Person;
@@ -119,7 +121,8 @@ public class CompactMessagingLayout extends FrameLayout {
      */
     @RemotableViewMethod
     public void setNotificationBackgroundColor(int color) {
-        mNotificationBackgroundColor = color;
+        mNotificationBackgroundColor =
+                notificationTransparentBadgeRing() ? android.R.color.transparent : color;
     }
 
     /**

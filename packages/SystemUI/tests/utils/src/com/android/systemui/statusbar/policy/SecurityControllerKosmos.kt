@@ -26,7 +26,7 @@ import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.settings.userTracker
 import com.android.systemui.supervision.supervisionManager
 
-val Kosmos.securityController by Fixture {
+var Kosmos.securityController by Fixture {
     SecurityControllerImpl(
         applicationContext,
         userTracker,

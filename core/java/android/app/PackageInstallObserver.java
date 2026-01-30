@@ -21,7 +21,7 @@ import android.content.Intent;
 import android.content.pm.IPackageInstallObserver2;
 import android.os.Bundle;
 
-/** {@hide} */
+/** @hide */
 public class PackageInstallObserver {
 
     @UnsupportedAppUsage
@@ -42,7 +42,7 @@ public class PackageInstallObserver {
         }
     };
 
-    /** {@hide} */
+    /** @hide */
     public IPackageInstallObserver2 getBinder() {
         return mBinder;
     }

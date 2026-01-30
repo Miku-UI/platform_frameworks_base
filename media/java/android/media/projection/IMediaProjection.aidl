@@ -21,7 +21,7 @@ import android.media.projection.StopReason;
 import android.os.IBinder;
 import android.app.ActivityOptions.LaunchCookie;
 
-/** {@hide} */
+/** @hide */
 interface IMediaProjection {
     void start(IMediaProjectionCallback callback);
     void stop(StopReason stopReason);
@@ -57,6 +57,14 @@ interface IMediaProjection {
             + ".permission.MANAGE_MEDIA_PROJECTION)")
     int getTaskId();
 
+    /**
+     * Returns whether the projection is functioning as a recording overlay. Can only be
+     * set by specific callers.
+     */
+    @EnforcePermission("MANAGE_MEDIA_PROJECTION")
+    @JavaPassthrough(annotation = "@android.annotation.RequiresPermission(android.Manifest"
+            + ".permission.MANAGE_MEDIA_PROJECTION)")
+    boolean isRecordingOverlay();
 
     /**
      * Returns the displayId identifying the display to record. This only applies to full screen
@@ -80,6 +88,14 @@ interface IMediaProjection {
             + ".permission.MANAGE_MEDIA_PROJECTION)")
     void setTaskId(in int taskId);
 
+    /**
+     * Updates whether the projection should function as a recording overlay.
+     * Can only be set by specific callers.
+     */
+    @EnforcePermission("MANAGE_MEDIA_PROJECTION")
+    @JavaPassthrough(annotation = "@android.annotation.RequiresPermission(android.Manifest"
+            + ".permission.MANAGE_MEDIA_PROJECTION)")
+    void setRecordingOverlay(in boolean isRecordingOverlay);
 
     /**
      * Returns {@code true} if this token is still valid. A token is valid as long as the token

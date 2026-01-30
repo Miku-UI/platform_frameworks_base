@@ -22,7 +22,7 @@ import com.android.ims.internal.uce.common.CapInfo;
 import com.android.ims.internal.uce.common.StatusCode;
 import com.android.ims.internal.uce.common.UceLong;
 
-/** {@hide} */
+/** @hide */
 interface IOptionsService
 {
 

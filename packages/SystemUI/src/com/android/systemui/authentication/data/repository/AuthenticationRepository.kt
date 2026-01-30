@@ -20,22 +20,25 @@ import android.annotation.UserIdInt
 import android.app.admin.DevicePolicyManager
 import android.content.IntentFilter
 import android.os.UserHandle
+import android.security.Flags.secureLockDevice
+import android.util.Log
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.widget.LockPatternUtils
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
 import com.android.internal.widget.LockscreenCredential
 import com.android.keyguard.KeyguardSecurityModel
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
+import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Biometric
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.None
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Password
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pattern
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pin
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Sim
 import com.android.systemui.authentication.shared.model.AuthenticationResultModel
-import com.android.systemui.bouncer.shared.flag.ComposeBouncerFlags
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionsRepository
 import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.util.kotlin.onSubscriberAdded
@@ -191,7 +194,7 @@ interface AuthenticationRepository {
 class AuthenticationRepositoryImpl
 @Inject
 constructor(
-    @Application private val applicationScope: CoroutineScope,
+    @Background private val applicationScope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
     private val clock: SystemClock,
     private val getSecurityMode: Function<Int, KeyguardSecurityModel.SecurityMode>,
@@ -262,7 +265,7 @@ constructor(
     override val hasLockoutOccurred: StateFlow<Boolean> = _hasLockoutOccurred.asStateFlow()
 
     init {
-        if (ComposeBouncerFlags.isComposeBouncerOrSceneContainerEnabled()) {
+        if (SceneContainerFlag.isEnabled) {
             // Hydrate failedAuthenticationAttempts initially and whenever the selected user
             // changes.
             applicationScope.launch {
@@ -296,8 +299,22 @@ constructor(
     override suspend fun reportAuthenticationAttempt(isSuccessful: Boolean) {
         withContext(backgroundDispatcher) {
             if (isSuccessful) {
-                lockPatternUtils.userPresent(selectedUserId)
-                lockPatternUtils.reportSuccessfulPasswordAttempt(selectedUserId)
+                if (
+                    secureLockDevice() &&
+                        SceneContainerFlag.isEnabled &&
+                        lockPatternUtils
+                            .getStrongAuthForUser(selectedUserId)
+                            .and(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE) != 0
+                ) {
+                    Log.d(
+                        TAG,
+                        "Device is in secure lock device mode; awaiting second factor " +
+                            "biometric authentication before unlocking.",
+                    )
+                } else {
+                    lockPatternUtils.userPresent(selectedUserId)
+                    lockPatternUtils.reportSuccessfulPasswordAttempt(selectedUserId)
+                }
                 _hasLockoutOccurred.value = false
             } else {
                 lockPatternUtils.reportFailedPasswordAttempt(selectedUserId)
@@ -397,9 +414,14 @@ constructor(
                 KeyguardSecurityModel.SecurityMode.Password -> Password
                 KeyguardSecurityModel.SecurityMode.Pattern -> Pattern
                 KeyguardSecurityModel.SecurityMode.None -> None
+                KeyguardSecurityModel.SecurityMode.SecureLockDeviceBiometricAuth -> Biometric
                 KeyguardSecurityModel.SecurityMode.Invalid -> error("Invalid security mode!")
             }
         }
+    }
+
+    companion object {
+        private const val TAG = "AuthenticationRepository"
     }
 }
 

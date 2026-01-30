@@ -27,7 +27,7 @@ import android.os.Parcelable;
 import java.util.Objects;
 
 /**
- * {@hide}
+ * @hide
  */
 public class ResultInfo implements Parcelable {
     @UnsupportedAppUsage

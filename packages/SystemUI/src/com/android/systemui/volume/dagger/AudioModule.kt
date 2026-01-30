@@ -74,7 +74,6 @@ interface AudioModule {
                 coroutineContext,
                 coroutineScope,
                 volumeLogger,
-                com.android.systemui.Flags.useVolumeController(),
             )
 
         @Provides

@@ -52,4 +52,6 @@ public class TinyFrameworkClassWideAnnotations {
     public String unsupportedMethod() {
         return "This value shouldn't be seen on the host side.";
     }
+
+    public void experimental() {}
 }

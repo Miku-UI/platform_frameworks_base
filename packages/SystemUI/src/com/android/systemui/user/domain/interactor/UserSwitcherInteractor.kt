@@ -436,7 +436,7 @@ constructor(
                     guestUserId = currentlySelectedUserInfo.id,
                     targetUserId = repository.lastSelectedNonGuestUserId,
                     isGuestEphemeral = currentlySelectedUserInfo.isEphemeral,
-                    isKeyguardShowing = keyguardInteractor.isKeyguardShowing(),
+                    isKeyguardShowing = keyguardInteractor.isKeyguardCurrentlyShowing(),
                     onExitGuestUser = this::exitGuestUser,
                     dialogShower = dialogShower,
                 )
@@ -451,7 +451,7 @@ constructor(
                     guestUserId = currentlySelectedUserInfo.id,
                     targetUserId = newlySelectedUserId,
                     isGuestEphemeral = currentlySelectedUserInfo.isEphemeral,
-                    isKeyguardShowing = keyguardInteractor.isKeyguardShowing(),
+                    isKeyguardShowing = keyguardInteractor.isKeyguardCurrentlyShowing(),
                     onExitGuestUser = this::exitGuestUser,
                     dialogShower = dialogShower,
                 )
@@ -484,7 +484,7 @@ constructor(
                 activityStarter.startActivity(
                     CreateUserActivity.createIntentForStart(
                         applicationContext,
-                        keyguardInteractor.isKeyguardShowing(),
+                        keyguardInteractor.isKeyguardCurrentlyShowing(),
                     ),
                     /* dismissShade= */ true,
                     /* animationController */ null,
@@ -542,11 +542,17 @@ constructor(
         }
     }
 
-    fun showUserSwitcher(expandable: Expandable) {
+    /**
+     * Shows the user switcher dialog.
+     *
+     * If [context] is provided, the dialog will be created from that context. If not provided, the
+     * shade context will be used.
+     */
+    fun showUserSwitcher(expandable: Expandable?, context: Context? = null) {
         if (featureFlags.isEnabled(Flags.FULL_SCREEN_USER_SWITCHER)) {
-            showDialog(ShowDialogRequestModel.ShowUserSwitcherFullscreenDialog(expandable))
+            showDialog(ShowDialogRequestModel.ShowUserSwitcherFullscreenDialog(expandable, context))
         } else {
-            showDialog(ShowDialogRequestModel.ShowUserSwitcherDialog(expandable))
+            showDialog(ShowDialogRequestModel.ShowUserSwitcherDialog(expandable, context))
         }
     }
 
@@ -653,8 +659,8 @@ constructor(
     }
 
     private fun restartSecondaryService(@UserIdInt userId: Int) {
-        // Do not start service for user that is marked for deletion.
-        if (!manager.aliveUsers.map { it.id }.contains(userId)) {
+        // Do not start service for user that isn't running
+        if (!manager.isUserRunning(userId)) {
             return
         }
 
@@ -705,8 +711,8 @@ constructor(
         isUserSwitcherEnabled: Boolean,
     ): UserModel? {
         return when {
-            // When the user switcher is not enabled in settings, we only show the primary user.
-            !isUserSwitcherEnabled && !userInfo.isPrimary -> null
+            // When the user switcher is not enabled in settings, we only show the current user.
+            !isUserSwitcherEnabled && userInfo.id != selectedUserId -> null
             // We avoid showing disabled users.
             !userInfo.isEnabled -> null
             // We meet the conditions to return the UserModel.
@@ -758,16 +764,10 @@ constructor(
     }
 
     private suspend fun isAnyUserUnlocked(): Boolean {
-        return manager
-            .getUsers(
-                /* excludePartial= */ true,
-                /* excludeDying= */ true,
-                /* excludePreCreated= */ true,
-            )
-            .any { user ->
-                user.id != UserHandle.USER_SYSTEM &&
-                    withContext(backgroundDispatcher) { manager.isUserUnlocked(user.userHandle) }
-            }
+        return manager.getAliveUsers().any { user ->
+            user.id != UserHandle.USER_SYSTEM &&
+                withContext(backgroundDispatcher) { manager.isUserUnlocked(user.userHandle) }
+        }
     }
 
     @SuppressLint("UseCompatLoadingForDrawables")

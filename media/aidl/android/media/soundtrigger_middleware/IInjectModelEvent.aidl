@@ -19,7 +19,7 @@ package android.media.soundtrigger_middleware;
 /**
  * Interface for injecting model events into the fake ST HAL.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IInjectModelEvent {
     /**

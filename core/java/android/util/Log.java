@@ -23,9 +23,11 @@ import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.DeadSystemException;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.RuntimeInit;
 import com.android.internal.util.FastPrintWriter;
 import com.android.internal.util.LineBreakBufferedWriter;
+import com.android.internal.util.Preconditions;
 
 import dalvik.annotation.optimization.FastNative;
 
@@ -35,6 +37,7 @@ import java.io.Writer;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.net.UnknownHostException;
+import java.util.Objects;
 
 /**
  * API for sending log output.
@@ -72,8 +75,6 @@ import java.net.UnknownHostException;
  * a positive value may be considered as a successful invocation.
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
-@android.ravenwood.annotation.RavenwoodClassLoadHook(
-        "com.android.platform.test.ravenwood.runtimehelper.ClassLoadHook.onClassLoaded")
 // Uncomment the following annotation to switch to the Java substitution version.
 @android.ravenwood.annotation.RavenwoodRedirectionClass("Log_ravenwood")
 public final class Log {
@@ -504,6 +505,73 @@ public final class Log {
         lbbw.flush();
 
         return logWriter.getWritten();
+    }
+
+    /**
+     * Logs the stack trace of the method calling it, ignoring the first
+     * {@code skippedInitialLines} (which will be typically {@code 1}, which is the
+     * {@code logStackTrace()} itself), except when the calls are
+     * nested.
+     *
+     * <p> For example, {@code UserManager.logDeprecation()} is meant to log callers of that method,
+     * so {@code skippedInitialLines} is {@code 2} in that case.
+     *
+     * @hide
+     */
+    public static int logStackTrace(int bufID, int priority, String tag, String msg,
+            int skippedInitialLines) {
+        // TODO(b/432819184): logic below was copied from printlns(); ideally we should refactor
+        // these 2 methods to reuse the code, but printlns() is not unit tests (in fact, it also
+        // doesn't close lbbw)
+        ImmediateLogWriter logWriter = new ImmediateLogWriter(bufID, priority, tag);
+        int bufferSize = PreloadHolder.LOGGER_ENTRY_MAX_PAYLOAD    // Base.
+                - 2                                                // Two terminators.
+                - (tag != null ? tag.length() : 0)                 // Tag length.
+                - 32;                                              // Some slack.
+        bufferSize = Math.max(bufferSize, 100);
+
+        try (LineBreakBufferedWriter lbbw = new LineBreakBufferedWriter(logWriter, bufferSize)) {
+            logStackTrace(lbbw, bufID, priority, msg, skippedInitialLines);
+        }
+        return logWriter.getWritten();
+    }
+
+    /** @hide */
+    @VisibleForTesting
+    public static void logStackTrace(PrintWriter writer, int bufID, int priority, String msg,
+            int skippedInitialLines) {
+        Objects.requireNonNull(msg, "msg cannot be null");
+        Preconditions.checkArgumentNonnegative(skippedInitialLines,
+                "skippedInitialLines must be non-negative");
+
+        // First write the message...
+        writer.println(msg);
+
+        // ...then the elements
+        StackTraceElement[] elements = Thread.currentThread().getStackTrace();
+        // First elements come from ART, so we need to skip them until we find this method's
+        boolean foundlogStackTraceElement = false;
+        int skipped = 0; // actual number of skipped lines
+        for (int i = 0; i < elements.length; i++) {
+            StackTraceElement element = elements[i];
+            if (!foundlogStackTraceElement) {
+                if (element.getMethodName().equals("logStackTrace")) {
+                    // In theory we should check for the class name as well, but pragmatically
+                    // speaking, just checking the method is enough (as it's unlikely that ART would
+                    // have a method with that name)
+                    foundlogStackTraceElement = true;
+                }
+                continue;
+            }
+            if (skipped < skippedInitialLines) {
+                skipped++;
+                continue;
+            }
+
+            writer.printf("\t%s\n", element);
+        }
+
+        writer.flush();
     }
 
     /**

@@ -104,8 +104,8 @@ public class AppFunctionRuntimeMetadata extends GenericDocument {
     /**
      * Creates a parent schema for all app function runtime schemas.
      *
-     * <p>This schema should be set visible to the owner itself and for callers with
-     * the permission {@link android.permission.EXECUTE_APP_FUNCTIONS}.
+     * <p>This schema should be set visible to the owner itself and for callers with the permission
+     * {@link android.permission.EXECUTE_APP_FUNCTIONS}.
      */
     public static AppSearchSchema createParentAppFunctionRuntimeSchema() {
         return getAppFunctionRuntimeSchemaBuilder(RUNTIME_SCHEMA_TYPE).build();

@@ -24,7 +24,6 @@ import com.android.keyguard.KeyguardUpdateMonitorCallback
 import com.android.systemui.biometrics.AuthController
 import com.android.systemui.biometrics.shared.model.AuthenticationReason
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
@@ -34,6 +33,7 @@ import com.android.systemui.keyguard.shared.model.FailFingerprintAuthenticationS
 import com.android.systemui.keyguard.shared.model.FingerprintAuthenticationStatus
 import com.android.systemui.keyguard.shared.model.HelpFingerprintAuthenticationStatus
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -124,7 +124,8 @@ constructor(
     private fun getFpSensorType(): BiometricType? {
         return if (authController.isUdfpsSupported) BiometricType.UNDER_DISPLAY_FINGERPRINT
         else if (authController.isSfpsSupported) BiometricType.SIDE_FINGERPRINT
-        else if (authController.isRearFpsSupported) BiometricType.REAR_FINGERPRINT else null
+        else if (authController.isRearFpsSupported) BiometricType.REAR_FINGERPRINT
+        else if (authController.isUnknownFpsSupported) BiometricType.OTHER_FINGERPRINT else null
     }
 
     override val isLockedOut: StateFlow<Boolean> by lazy {

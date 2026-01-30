@@ -16,6 +16,8 @@
 
 package com.android.settingslib;
 
+import static android.app.admin.DpcAuthority.DPC_AUTHORITY;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
@@ -23,7 +25,9 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.admin.EnforcingAdmin;
 import android.content.Context;
+import android.os.UserHandle;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -53,7 +57,7 @@ public class RestrictedTopLevelPreferenceTest {
 
         mPreference.setEnabled(true);
 
-        verify(mHelper).setDisabledByAdmin(any());
+        verify(mHelper).setDisabledByEnforcingAdmin(any());
     }
 
     @Test
@@ -62,12 +66,19 @@ public class RestrictedTopLevelPreferenceTest {
 
         mPreference.setEnabled(true);
 
-        verify(mHelper, never()).setDisabledByAdmin(any());
+        verify(mHelper, never()).setDisabledByEnforcingAdmin(any());
     }
 
     @Test
     public void setDisabledByAdmin_shouldNotCallSetEnabled() {
         mPreference.setDisabledByAdmin(new RestrictedLockUtils.EnforcedAdmin());
+
+        verify(mPreference, never()).setEnabled(anyBoolean());
+    }
+
+    @Test
+    public void setDisabledByEnforcingAdmin_shouldNotCallSetEnabled() {
+        mPreference.setDisabledByAdmin(new EnforcingAdmin("pkg", DPC_AUTHORITY, UserHandle.SYSTEM));
 
         verify(mPreference, never()).setEnabled(anyBoolean());
     }

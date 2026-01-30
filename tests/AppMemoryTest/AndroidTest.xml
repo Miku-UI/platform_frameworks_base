@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<configuration description="Config for App Memory Tests">
+    <option name="test-suite-tag" value="apct"/>
+
+    <option name="config-descriptor:metadata" key="component" value="systems"/>
+    <option name="config-descriptor:metadata" key="parameter" value="not_instant_app" />
+    <option name="config-descriptor:metadata" key="parameter" value="not_multi_abi" />
+    <option name="config-descriptor:metadata" key="parameter" value="secondary_user" />
+    <option name="config-descriptor:metadata" key="parameter" value="no_foldable_states" />
+
+    <option name="install-arg" value="-t -g" />
+
+    <!-- Expose shared storage for testing purpose. -->
+    <target_preparer class="com.android.tradefed.targetprep.DisableSELinuxTargetPreparer" />
+
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="cleanup-apks" value="true"/>
+        <option name="test-file-name" value="AppMemoryTestCases.apk"/>
+    </target_preparer>
+
+    <target_preparer class="com.android.tradefed.targetprep.RunCommandTargetPreparer">
+      <option name="run-command" value="rm -rf /data/local/tmp/appmemorytest"/>
+      <option name="run-command" value="mkdir -p /data/local/tmp/appmemorytest"/>
+      <option name="run-command" value="chmod a+rw /data/local/tmp/appmemorytest"/>
+    </target_preparer>
+
+    <target_preparer class="com.android.tradefed.targetprep.PushFilePreparer">
+      <option name="push"
+              value="AppMemoryTest_Helper.apk->/data/local/tmp/appmemorytest/"/>
+    </target_preparer>
+
+    <test class="com.android.tradefed.testtype.AndroidJUnitTest">
+        <option name="package" value="android.app.memory.tests"/>
+        <option name="runner" value="androidx.test.runner.AndroidJUnitRunner"/>
+    </test>
+
+    <!-- Retrieve the heap profile.  It will be named "jheap_<n>.hprof". -->
+    <metrics_collector class="com.android.tradefed.device.metric.FilePullerLogCollector">
+        <option name="directory-keys" value="/data/local/tmp/appmemorytest" />
+        <option name="pull-pattern-keys" value="jheap-*.hprof" />
+        <option name="pull-pattern-keys" value="jheap-*.stats" />
+        <option name="collect-on-run-ended-only" value="true" />
+        <option name="clean-up" value="true" />
+    </metrics_collector>
+
+</configuration>

@@ -124,7 +124,7 @@ final class PackageList {
         return mPkgList;
     }
 
-    String[] getPackageList() {
+    String[] getPackageNames() {
         synchronized (this) {
             int size = mPkgList.size();
             if (size == 0) {

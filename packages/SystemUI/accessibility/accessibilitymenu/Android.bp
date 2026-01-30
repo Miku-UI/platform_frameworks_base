@@ -38,6 +38,7 @@ android_app {
         "androidx.preference_preference",
         "androidx.viewpager2_viewpager2",
         "com_android_systemui_flags_lib",
+        "SettingsLibCollapsingToolbarBaseActivity",
         "SettingsLibDisplayUtils",
         "SettingsLibSettingsTheme",
         "SystemUI-shared-utils",

@@ -128,8 +128,8 @@ public class OwnersTest extends DpmTestBase {
 
     private Owners makeOwners() {
         final MockSystemServices services = getServices();
-        return new Owners(services.userManager, services.userManagerInternal,
-                services.packageManagerInternal, services.activityTaskManagerInternal,
-                services.activityManagerInternal, mDeviceStateCache, services.pathProvider);
+        return new Owners(services.userManager, services.packageManagerInternal,
+                services.activityTaskManagerInternal, services.activityManagerInternal,
+                services.userManagerInternal, mDeviceStateCache, services.pathProvider);
     }
 }

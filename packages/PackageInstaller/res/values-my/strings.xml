@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"အပ်ဒိတ်လုပ်ရန်"</string>
     <string name="done" msgid="6632441120016885253">"ပြီးပြီ"</string>
     <string name="cancel" msgid="1018267193425558088">"မလုပ်တော့"</string>
+    <string name="more_details" msgid="3643407086654820243">"နောက်ထပ်အသေးစိတ်"</string>
+    <string name="dont_install" msgid="414055123295505225">"မထည့်ပါနှင့်"</string>
     <string name="installing" msgid="4921993079741206516">"ထည့်သွင်းနေသည်…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> ကို ထည့်သွင်းနေသည်…"</string>
     <string name="install_done" msgid="5987363587661783896">"အက်ပ်ထည့်သွင်းပြီးပါပြီ။"</string>
@@ -72,7 +74,7 @@
     <string name="uninstall_keep_data" msgid="7002379587465487550">"အက်ပ်ဒေတာများ၏ <xliff:g id="SIZE">%1$s</xliff:g> ကို ထားရှိရန်။"</string>
     <string name="uninstall_application_text_current_user_clone_profile" msgid="835170400160011636">"ဤအက်ပ်ကို ဖျက်လိုသလား။"</string>
     <string name="uninstall_application_text_with_clone_instance" msgid="6944473334273349036">"ဤအက်ပ်ကို ဖယ်ရှားလိုသလား။ <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> ပုံတူပွားကိုလည်း ဖျက်လိုက်မည်။"</string>
-    <string name="uninstall_application_text_current_user_private_profile" msgid="867004464945674674">"ဤအက်ပ်ကို သင့်သီးသန့်နေရာမှ ဖယ်ရှားလိုသလား။"</string>
+    <string name="uninstall_application_text_current_user_private_profile" msgid="867004464945674674">"ဤအက်ပ်ကို သင့်သီးသန့်နေရာမှ ဖြုတ်လိုသလား။"</string>
     <string name="uninstalling_notification_channel" msgid="840153394325714653">"ပရိုဂရမ်ကို ဖယ်ရှားနေပါသည်"</string>
     <string name="uninstall_failure_notification_channel" msgid="1136405866767576588">"ပရိုဂရမ်ကို ဖယ်ရှား၍မရပါ"</string>
     <string name="uninstalling" msgid="8709566347688966845">"ပရိုဂရမ်ကို ဖယ်ရှားနေသည်..."</string>

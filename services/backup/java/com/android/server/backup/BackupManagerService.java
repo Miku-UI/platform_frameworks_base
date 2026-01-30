@@ -42,6 +42,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.content.pm.UserInfo;
 import android.os.Binder;
 import android.os.FileUtils;
 import android.os.Handler;
@@ -64,6 +65,7 @@ import com.android.server.LocalServices;
 import com.android.server.SystemConfig;
 import com.android.server.SystemService;
 import com.android.server.backup.utils.RandomAccessFileUtils;
+import com.android.server.pm.UserManagerInternal;
 
 import java.io.File;
 import java.io.FileDescriptor;
@@ -129,12 +131,12 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     private final Context mContext;
-    private final UserManager mUserManager;
+    private final UserManagerInternal mUserManagerInternal;
 
+    private final Object mLock = new Object();
+
+    @GuardedBy("mLock")
     private final boolean mGlobalDisable;
-    // Lock to write backup suppress files.
-    // TODD(b/121198006): remove this object and synchronized all methods on "this".
-    private final Object mStateLock = new Object();
 
     private final Handler mHandler;
     private final Set<ComponentName> mTransportWhitelist;
@@ -155,18 +157,21 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     };
 
     /**
-     * The user that the backup is activated by default for.
+     * Tracks whether {@link UserManager#getMainUser()} returned a non-null value
+     * during {@link BackupManagerService} construction.
+     *
+     * <p>This is used to handle an edge case on first boot where the main user might be created
+     * *after* BackupManagerService starts. If the main user didn't exist at boot, we might
+     * need to stop the backup service for the system user later.
      *
-     * <p>If there is a {@link UserManager#getMainUser()}, this will be that user. If not, it will
-     * be {@link UserHandle#USER_SYSTEM}.
-     *
-     * <p>Note: on the first ever boot of a new device, this might change once the first user is
-     * unlocked. See {@link #updateDefaultBackupUserIdIfNeeded()}.
-     *
-     * @see #isBackupActivatedForUser(int)
+     * @see #stopServiceForSystemUserIfMainUserCreated()
      */
-    @UserIdInt private int mDefaultBackupUserId;
+    private boolean mDidMainUserExistAtBoot = false;
 
+    /**
+     * Tracks whether any user unlock event has occurred since the system booted.
+     * @see #stopServiceForSystemUserIfMainUserCreated()
+     */
     private boolean mHasFirstUserUnlockedSinceBoot = false;
 
     public BackupManagerService(Context context) {
@@ -176,16 +181,18 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
                 new HandlerThread(BACKUP_THREAD, Process.THREAD_PRIORITY_BACKGROUND);
         handlerThread.start();
         mHandler = new Handler(handlerThread.getLooper());
-        mUserManager = UserManager.get(context);
+        mUserManagerInternal = LocalServices.getService(UserManagerInternal.class);
         mUserServices = new SparseArray<>();
         Set<ComponentName> transportWhitelist =
                 SystemConfig.getInstance().getBackupTransportWhitelist();
         mTransportWhitelist = (transportWhitelist == null) ? emptySet() : transportWhitelist;
         mContext.registerReceiver(
                 mUserRemovedReceiver, new IntentFilter(Intent.ACTION_USER_REMOVED));
-        UserHandle mainUser = getUserManager().getMainUser();
-        mDefaultBackupUserId = mainUser == null ? UserHandle.USER_SYSTEM : mainUser.getIdentifier();
-        Slog.d(TAG, "Default backup user id = " + mDefaultBackupUserId);
+        mDidMainUserExistAtBoot = mUserManagerInternal.getMainUserId() != UserHandle.USER_NULL;
+        if (!mDidMainUserExistAtBoot) {
+            // This might happen on the first boot if BMS starts before the main user is created.
+            Slog.d(TAG, "Main user does not exist yet");
+        }
     }
 
     @VisibleForTesting
@@ -215,13 +222,13 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     /** Stored in the system user's directory and the file is indexed by the user it refers to. */
     @VisibleForTesting
-    protected File getRememberActivatedFileForNonSystemUser(int userId) {
+    protected File getRememberActivatedFileForNonSystemUser(@UserIdInt int userId) {
         return UserBackupManagerFiles.getStateFileInSystemDir(REMEMBER_ACTIVATED_FILENAME, userId);
     }
 
     /** Stored in the system user's directory and the file is indexed by the user it refers to. */
     @VisibleForTesting
-    protected File getActivatedFileForUser(int userId) {
+    protected File getActivatedFileForUser(@UserIdInt int userId) {
         return UserBackupManagerFiles.getStateFileInSystemDir(BACKUP_ACTIVATED_FILENAME, userId);
     }
 
@@ -231,7 +238,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      * When the user is removed, the user's own dir gets removed by the OS. This method ensures that
      * the part of the user backup state which is in the system dir also gets removed.
      */
-    private void onRemovedNonSystemUser(int userId) {
+    private void onRemovedNonSystemUser(@UserIdInt int userId) {
         Slog.i(TAG, "Removing state for non system user " + userId);
         File dir = UserBackupManagerFiles.getStateDirInSystemDir(userId);
         if (!FileUtils.deleteContentsAndDir(dir)) {
@@ -265,8 +272,9 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     /**
      * Deactivates the backup service for user {@code userId}.
      *
-     * If this is the system user or the {@link #mDefaultBackupUserId} user, it creates a "suppress"
-     * file for this user.
+     * If the {@code userId} is the system user OR the user's backup is initially set to active
+     * (as determined by {@code isDefaultBackupActiveUser(userId)}), it creates a "suppress" file
+     * for this user.
      *
      * Otherwise, it deleties the user's "activated" file.
      *
@@ -274,9 +282,9 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      * users until it is reactivated for the system user, at which point the per-user activation
      * status will be the source of truth.
      */
-    @GuardedBy("mStateLock")
-    private void deactivateBackupForUserLocked(int userId) throws IOException {
-        if (userId == UserHandle.USER_SYSTEM || userId == mDefaultBackupUserId) {
+    @GuardedBy("mLock")
+    private void deactivateBackupForUserLocked(@UserIdInt int userId) throws IOException {
+        if (userId == UserHandle.USER_SYSTEM || isDefaultBackupActiveUser(userId)) {
             createFile(getSuppressFileForUser(userId));
         } else {
             deleteFile(getActivatedFileForUser(userId));
@@ -286,14 +294,14 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     /**
      * Activates the backup service for user {@code userId}.
      *
-     * If this is the system user or the {@link #mDefaultBackupUserId} user, it deletes its
-     * "suppress" file.
+     * If the {@code userId} is the system user OR the user's backup is initially set to active
+     * (as determined by {@code isDefaultBackupActiveUser(userId)}), it deletes its "suppress" file.
      *
      * Otherwise, it creates the user's "activated" file.
      */
-    @GuardedBy("mStateLock")
-    private void activateBackupForUserLocked(int userId) throws IOException {
-        if (userId == UserHandle.USER_SYSTEM || userId == mDefaultBackupUserId) {
+    @GuardedBy("mLock")
+    private void activateBackupForUserLocked(@UserIdInt int userId) throws IOException {
+        if (userId == UserHandle.USER_SYSTEM || isDefaultBackupActiveUser(userId)) {
             deleteFile(getSuppressFileForUser(userId));
         } else {
             createFile(getActivatedFileForUser(userId));
@@ -307,51 +315,67 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      * @return true if the user is ready for backup and false otherwise.
      */
     @Override
-    public boolean isUserReadyForBackup(int userId) {
+    public boolean isUserReadyForBackup(@UserIdInt int userId) {
         enforceCallingPermissionOnUserId(userId, "isUserReadyForBackup()");
         return mUserServices.get(userId) != null;
     }
 
     /**
-     * If there is a "suppress" file for the system user, backup is inactive for ALL users.
+     * Determines whether backup is active for a specific user.
      *
-     * Otherwise, the below logic applies:
-     *
-     * For the {@link #mDefaultBackupUserId}, backup is active by default. Backup is only
-     * deactivated if there exists a "suppress" file for the user, which can be created by calling
-     * {@link #setBackupServiceActive}.
-     *
-     * For non-main users, backup is only active if there exists an "activated" file for the user,
-     * which can also be created by calling {@link #setBackupServiceActive}.
+     * Backup status is determined by the first matching condition in the following precedence:
+     * 1. Global suppression: If a suppression file exists for the system user
+     *    {@code UserHandle.USER_SYSTEM}, backup is disabled for all users.
+     * 2. User-specific suppression: Check if a suppression file exists for the specified user.
+     * 3. Default user activation: Check if the user's backup is initially set to active.
+     * 4. Explicit activation file: Check if an activation file exists for the user.
      */
-    private boolean isBackupActivatedForUser(int userId) {
+    private boolean isBackupActivatedForUser(@UserIdInt int userId) {
+        // 1. Global suppression.
         if (getSuppressFileForUser(UserHandle.USER_SYSTEM).exists()) {
             return false;
         }
 
-        boolean isDefaultUser = userId == mDefaultBackupUserId;
-
-        // If the default user is not the system user, we are in headless mode and the system user
-        // doesn't have an actual human user associated with it.
-        if ((userId == UserHandle.USER_SYSTEM) && !isDefaultUser) {
+        // 2. User-specific suppression.
+        if (getSuppressFileForUser(userId).exists()) {
             return false;
         }
 
-        if (isDefaultUser && getSuppressFileForUser(userId).exists()) {
+        // 3. Default user activation.
+        if (isDefaultBackupActiveUser(userId)) {
+            return true;
+        }
+
+        // 4. Explicit activation file.
+        return getActivatedFileForUser(userId).exists();
+    }
+
+    /** Determines the default activation state for backup for the specified user ID. */
+    @SuppressWarnings("AndroidFrameworkRequiresPermission")
+    private boolean isDefaultBackupActiveUser(@UserIdInt int userId) {
+        // In non-HSUM, the system user is the primary user and handles backup.
+        if (!UserManager.isHeadlessSystemUserMode()) {
+            return userId == UserHandle.USER_SYSTEM;
+        }
+
+        // In HSUM, returns false for the system user, as it's a headless/non-interactive user.
+        if (userId == UserHandle.USER_SYSTEM) {
             return false;
         }
 
-        return isDefaultUser || getActivatedFileForUser(userId).exists();
-    }
+        // Returns false if the user is not a full user.
+        if (!mUserManagerInternal.getUserInfo(userId).isFull()) {
+            return false;
+        }
 
-    @VisibleForTesting
-    protected Context getContext() {
-        return mContext;
-    }
+        // Returns true for the main user.
+        int mainUserId = mUserManagerInternal.getMainUserId();
+        if (mainUserId != UserHandle.USER_NULL && userId == mainUserId) {
+            return true;
+        }
 
-    @VisibleForTesting
-    protected UserManager getUserManager() {
-        return mUserManager;
+        // Returns true for any other full users if the flag is enabled.
+        return android.multiuser.Flags.backupActivatedForAllUsers();
     }
 
     @VisibleForTesting
@@ -364,7 +388,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      * UserBackupManagerService} and registering it with this service.
      */
     @VisibleForTesting
-    void startServiceForUser(int userId) {
+    void startServiceForUser(@UserIdInt int userId) {
         // We know that the user is unlocked here because it is called from setBackupServiceActive
         // and unlockUser which have these guarantees. So we can check if the file exists.
         if (mGlobalDisable) {
@@ -391,7 +415,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      * UserBackupManagerService} with this service and setting enabled state.
      */
     @VisibleForTesting
-    void startServiceForUser(int userId, UserBackupManagerService userBackupManagerService) {
+    void startServiceForUser(
+            @UserIdInt int userId, UserBackupManagerService userBackupManagerService) {
         mUserServices.put(userId, userBackupManagerService);
 
         Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "backup enable");
@@ -401,7 +426,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     /** Stops the backup service for user {@code userId} when the user is stopped. */
     @VisibleForTesting
-    protected void stopServiceForUser(int userId) {
+    protected void stopServiceForUser(@UserIdInt int userId) {
         UserBackupManagerService userBackupManagerService = mUserServices.removeReturnOld(userId);
 
         if (userBackupManagerService != null) {
@@ -429,7 +454,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      * Called from {@link BackupManagerService.Lifecycle} when a user {@code userId} is stopped.
      * Offloads work onto the handler thread {@link #mHandlerThread} to keep stopping time low.
      */
-    void onStopUser(int userId) {
+    void onStopUser(@UserIdInt int userId) {
         postToHandler(
                 () -> {
                     if (!mGlobalDisable) {
@@ -441,19 +466,24 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     /** Returns {@link UserBackupManagerService} for user {@code userId}. */
     @Nullable
-    public UserBackupManagerService getUserService(int userId) {
+    public UserBackupManagerService getUserService(@UserIdInt int userId) {
         return mUserServices.get(userId);
     }
 
     /**
-     * The system user and managed profiles can only be acted on by callers in the system or root
-     * processes. Other users can be acted on by callers who have both android.permission.BACKUP and
+     * Private profiles' activation status is never allowed to be changed by anyone. The system
+     * user and managed profiles can only be acted on by callers in the system or root processes.
+     * Other users can be acted on by callers who have both android.permission.BACKUP and
      * android.permission.INTERACT_ACROSS_USERS_FULL permissions.
      */
-    private void enforcePermissionsOnUser(int userId) throws SecurityException {
-        boolean isRestrictedUser =
-                userId == UserHandle.USER_SYSTEM
-                        || getUserManager().getUserInfo(userId).isManagedProfile();
+    private void enforceSetBackupServiceActiveAllowedForUser(@UserIdInt int userId)
+            throws SecurityException {
+        UserInfo userInfo = mUserManagerInternal.getUserInfo(userId);
+        if (userInfo.isPrivateProfile()) {
+            throw new SecurityException("Changing private profile backup activation not allowed");
+        }
+
+        boolean isRestrictedUser = userId == UserHandle.USER_SYSTEM || userInfo.isManagedProfile();
 
         if (isRestrictedUser) {
             int caller = binderGetCallingUid();
@@ -470,12 +500,21 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     /**
+     * Sets the active state of the backup service for a given user.
+     *
+     * This method is the entry point for activating or deactivating the backup service. It
+     * enforces the necessary permissions and then delegates to helper methods to handle the logic.
+     * If the call is for the system user, it acts as a global toggle for all users.
+     *
      * Only privileged callers should be changing the backup state. Deactivating backup in the
      * system user also deactivates backup in all users. We are not guaranteed that {@code userId}
      * is unlocked at this point yet, so handle both cases.
+     *
+     * @param userId The user for whom to change the backup service's state.
+     * @param makeActive {@code true} to activate the service, {@code false} to deactivate it.
      */
-    public void setBackupServiceActive(int userId, boolean makeActive) {
-        enforcePermissionsOnUser(userId);
+    public void setBackupServiceActive(@UserIdInt int userId, boolean makeActive) {
+        enforceSetBackupServiceActiveAllowedForUser(userId);
 
         // In Q, backup is OFF by default for non-system users. In the future, we will change that
         // to ON unless backup was explicitly deactivated with a (permissioned) call to
@@ -500,38 +539,72 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
             return;
         }
 
-        synchronized (mStateLock) {
-            Slog.i(TAG, "Making backup " + (makeActive ? "" : "in") + "active");
+        synchronized (mLock) {
+            Slog.i(TAG, "Making backup " + (makeActive ? "" : "in") + "active for user " + userId);
             if (makeActive) {
-                try {
-                    activateBackupForUserLocked(userId);
-                } catch (IOException e) {
-                    Slog.e(TAG, "Unable to persist backup service activity");
-                }
-
-                // If the user is unlocked, we can start the backup service for it. Otherwise we
-                // will start the service when the user is unlocked as part of its unlock callback.
-                if (getUserManager().isUserUnlocked(userId)) {
-                    // Clear calling identity as initialization enforces the system identity but we
-                    // can be coming from shell.
-                    final long oldId = Binder.clearCallingIdentity();
-                    try {
-                        startServiceForUser(userId);
-                    } finally {
-                        Binder.restoreCallingIdentity(oldId);
-                    }
-                }
+                handleBackupActivationLocked(userId);
             } else {
-                try {
-                    //TODO(b/121198006): what if this throws an exception?
-                    deactivateBackupForUserLocked(userId);
-                } catch (IOException e) {
-                    Slog.e(TAG, "Unable to persist backup service inactivity");
-                }
-                //TODO(b/121198006): loop through active users that have work profile and
-                // stop them as well.
-                onStopUser(userId);
+                handleBackupDeactivationLocked(userId);
             }
+        }
+    }
+
+    @GuardedBy("mLock")
+    private void handleBackupActivationLocked(@UserIdInt int userId) {
+        try {
+            activateBackupForUserLocked(userId);
+        } catch (IOException e) {
+            Slog.e(TAG, "Unable to persist backup service activity");
+        }
+
+        // Enabling for a single user.
+        if (userId != UserHandle.USER_SYSTEM) {
+            if (mUserManagerInternal.isUserUnlocked(userId)) {
+                final long oldId = Binder.clearCallingIdentity();
+                try {
+                    startServiceForUser(userId);
+                } finally {
+                    Binder.restoreCallingIdentity(oldId);
+                }
+            }
+            return;
+        }
+
+        // Globally enabling. Start services for all running users.
+        final long oldId = Binder.clearCallingIdentity();
+        try {
+            List<UserInfo> users = mUserManagerInternal.getUsers(/* excludeDying */ true);
+            for (UserInfo user : users) {
+                if (mUserManagerInternal.isUserRunning(user.id)) {
+                    startServiceForUser(user.id);
+                }
+            }
+        } finally {
+            Binder.restoreCallingIdentity(oldId);
+        }
+    }
+
+    @GuardedBy("mLock")
+    private void handleBackupDeactivationLocked(@UserIdInt int userId) {
+        try {
+            deactivateBackupForUserLocked(userId);
+        } catch (IOException e) {
+            Slog.e(TAG, "Unable to persist backup service inactivity");
+        }
+
+        // Disabling for a single user.
+        if (userId != UserHandle.USER_SYSTEM) {
+            onStopUser(userId);
+            return;
+        }
+
+        // Globally disabling. Stop services for all running users.
+        int[] userIdsToStop = new int[mUserServices.size()];
+        for (int i = 0; i < mUserServices.size(); i++) {
+            userIdsToStop[i] = mUserServices.keyAt(i);
+        }
+        for (int userToStop : userIdsToStop) {
+            onStopUser(userToStop);
         }
     }
 
@@ -544,20 +617,21 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      * @return true if the service is active.
      */
     @Override
-    public boolean isBackupServiceActive(int userId) {
+    public boolean isBackupServiceActive(@UserIdInt int userId) {
         int callingUid = Binder.getCallingUid();
         if (CompatChanges.isChangeEnabled(
                 BackupManager.IS_BACKUP_SERVICE_ACTIVE_ENFORCE_PERMISSION_IN_SERVICE, callingUid)) {
             mContext.enforceCallingOrSelfPermission(android.Manifest.permission.BACKUP,
                     "isBackupServiceActive");
         }
-        synchronized (mStateLock) {
+        synchronized (mLock) {
             return !mGlobalDisable && isBackupActivatedForUser(userId);
         }
     }
 
     @Override
-    public void dataChangedForUser(int userId, String packageName) throws RemoteException {
+    public void dataChangedForUser(@UserIdInt int userId, String packageName)
+            throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             dataChanged(userId, packageName);
         }
@@ -588,7 +662,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     @Override
     public void initializeTransportsForUser(
-            int userId, String[] transportNames, IBackupObserver observer) throws RemoteException {
+            @UserIdInt int userId, String[] transportNames, IBackupObserver observer)
+            throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             initializeTransports(userId, transportNames, observer);
         }
@@ -606,7 +681,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public void clearBackupDataForUser(int userId, String transportName, String packageName)
+    public void clearBackupDataForUser(
+            @UserIdInt int userId, String transportName, String packageName)
             throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             clearBackupData(userId, transportName, packageName);
@@ -663,7 +739,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public void restoreAtInstallForUser(int userId, String packageName, int token)
+    public void restoreAtInstallForUser(@UserIdInt int userId, String packageName, int token)
             throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             restoreAtInstall(userId, packageName, token);
@@ -689,7 +765,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public void setFrameworkSchedulingEnabledForUser(int userId, boolean isEnabled) {
+    public void setFrameworkSchedulingEnabledForUser(@UserIdInt int userId, boolean isEnabled) {
         UserBackupManagerService userBackupManagerService =
                 getServiceForUserIfCallerHasPermission(userId,
                         "setFrameworkSchedulingEnabledForUser()");
@@ -723,7 +799,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public void setAutoRestoreForUser(int userId, boolean doAutoRestore) throws RemoteException {
+    public void setAutoRestoreForUser(@UserIdInt int userId, boolean doAutoRestore)
+            throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             setAutoRestore(userId, doAutoRestore);
         }
@@ -772,8 +849,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
             return false;
         }
         UserBackupManagerService userBackupManagerService =
-                getServiceForUserIfCallerHasPermission(
-                        UserHandle.USER_SYSTEM, "setBackupPassword()");
+                getServiceForUserIfCallerHasPermission(userId, "setBackupPassword()");
 
         return userBackupManagerService != null
                 && userBackupManagerService.setBackupPassword(currentPassword, newPassword);
@@ -787,8 +863,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
             return false;
         }
         UserBackupManagerService userBackupManagerService =
-                getServiceForUserIfCallerHasPermission(
-                        UserHandle.USER_SYSTEM, "hasBackupPassword()");
+                getServiceForUserIfCallerHasPermission(userId, "hasBackupPassword()");
 
         return userBackupManagerService != null && userBackupManagerService.hasBackupPassword();
     }
@@ -859,7 +934,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public void fullTransportBackupForUser(int userId, String[] packageNames)
+    public void fullTransportBackupForUser(@UserIdInt int userId, String[] packageNames)
             throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             fullTransportBackup(userId, packageNames);
@@ -898,7 +973,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     @Override
     public void acknowledgeFullBackupOrRestoreForUser(
-            int userId,
+            @UserIdInt int userId,
             int token,
             boolean allow,
             String curPassword,
@@ -941,7 +1016,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
 
     @Override
-    public String getCurrentTransportForUser(int userId) throws RemoteException {
+    public String getCurrentTransportForUser(@UserIdInt int userId) throws RemoteException {
         return (isUserReadyForBackup(userId)) ? getCurrentTransport(userId) : null;
     }
 
@@ -967,7 +1042,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
      */
     @Override
     @Nullable
-    public ComponentName getCurrentTransportComponentForUser(int userId) {
+    public ComponentName getCurrentTransportComponentForUser(@UserIdInt int userId) {
         return (isUserReadyForBackup(userId)) ? getCurrentTransportComponent(userId) : null;
     }
 
@@ -986,7 +1061,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public String[] listAllTransportsForUser(int userId) throws RemoteException {
+    public String[] listAllTransportsForUser(@UserIdInt int userId) throws RemoteException {
         return (isUserReadyForBackup(userId)) ? listAllTransports(userId) : null;
     }
 
@@ -1007,7 +1082,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public ComponentName[] listAllTransportComponentsForUser(int userId) throws RemoteException {
+    public ComponentName[] listAllTransportComponentsForUser(@UserIdInt int userId)
+            throws RemoteException {
         return (isUserReadyForBackup(userId))
                 ? listAllTransportComponents(userId) : null;
     }
@@ -1025,11 +1101,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     @Override
     public String[] getTransportWhitelist() {
-        int userId = binderGetCallingUserId();
-        if (!isUserReadyForBackup(userId)) {
-            return null;
-        }
-        // No permission check, intentionally.
+        // The transport whitelist is a device-scoped property, so we don't check the user's backup
+        // status here.
         String[] whitelistedTransports = new String[mTransportWhitelist.size()];
         int i = 0;
         for (ComponentName component : mTransportWhitelist) {
@@ -1041,7 +1114,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     @Override
     public void updateTransportAttributesForUser(
-            int userId,
+            @UserIdInt int userId,
             ComponentName transportComponent,
             String name,
             @Nullable Intent configurationIntent,
@@ -1106,7 +1179,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public String selectBackupTransportForUser(int userId, String transport)
+    public String selectBackupTransportForUser(@UserIdInt int userId, String transport)
             throws RemoteException {
         return (isUserReadyForBackup(userId))
                 ? selectBackupTransport(userId, transport) : null;
@@ -1135,7 +1208,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public void selectBackupTransportAsyncForUser(int userId, ComponentName transport,
+    public void selectBackupTransportAsyncForUser(@UserIdInt int userId, ComponentName transport,
             ISelectBackupTransportCallback listener) throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             selectBackupTransportAsync(userId, transport, listener);
@@ -1167,7 +1240,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public Intent getConfigurationIntentForUser(int userId, String transport)
+    public Intent getConfigurationIntentForUser(@UserIdInt int userId, String transport)
             throws RemoteException {
         return isUserReadyForBackup(userId) ? getConfigurationIntent(userId, transport)
                 : null;
@@ -1195,7 +1268,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public String getDestinationStringForUser(int userId, String transport) throws RemoteException {
+    public String getDestinationStringForUser(@UserIdInt int userId, String transport)
+            throws RemoteException {
         return isUserReadyForBackup(userId) ? getDestinationString(userId, transport)
                 : null;
     }
@@ -1225,7 +1299,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public Intent getDataManagementIntentForUser(int userId, String transport)
+    public Intent getDataManagementIntentForUser(@UserIdInt int userId, String transport)
             throws RemoteException {
         return isUserReadyForBackup(userId)
                 ? getDataManagementIntent(userId, transport) : null;
@@ -1249,7 +1323,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public CharSequence getDataManagementLabelForUser(int userId, String transport)
+    public CharSequence getDataManagementLabelForUser(@UserIdInt int userId, String transport)
             throws RemoteException {
         return isUserReadyForBackup(userId) ? getDataManagementLabel(userId, transport)
                 : null;
@@ -1271,7 +1345,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
 
     @Override
     public IRestoreSession beginRestoreSessionForUser(
-            int userId, String packageName, String transportID) throws RemoteException {
+            @UserIdInt int userId, String packageName, String transportID) throws RemoteException {
         return isUserReadyForBackup(userId)
                 ? beginRestoreSession(userId, packageName, transportID) : null;
     }
@@ -1292,7 +1366,8 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public void opCompleteForUser(int userId, int token, long result) throws RemoteException {
+    public void opCompleteForUser(@UserIdInt int userId, int token, long result)
+            throws RemoteException {
         if (isUserReadyForBackup(userId)) {
             opComplete(userId, token, result);
         }
@@ -1317,7 +1392,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public long getAvailableRestoreTokenForUser(int userId, String packageName) {
+    public long getAvailableRestoreTokenForUser(@UserIdInt int userId, String packageName) {
         return isUserReadyForBackup(userId) ? getAvailableRestoreToken(userId, packageName) : 0;
     }
 
@@ -1335,7 +1410,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public boolean isAppEligibleForBackupForUser(int userId, String packageName) {
+    public boolean isAppEligibleForBackupForUser(@UserIdInt int userId, String packageName) {
         return isUserReadyForBackup(userId) && isAppEligibleForBackup(userId,
                 packageName);
     }
@@ -1350,7 +1425,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     @Override
-    public String[] filterAppsEligibleForBackupForUser(int userId, String[] packages) {
+    public String[] filterAppsEligibleForBackupForUser(@UserIdInt int userId, String[] packages) {
         return isUserReadyForBackup(userId) ? filterAppsEligibleForBackup(userId, packages) : null;
     }
 
@@ -1442,7 +1517,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
         final int[] userIds;
         final long oldId = Binder.clearCallingIdentity();
         try {
-            userIds = getUserManager().getProfileIds(callingUserId, false);
+            userIds = mUserManagerInternal.getProfileIds(callingUserId, false);
         } finally {
             Binder.restoreCallingIdentity(oldId);
         }
@@ -1696,7 +1771,7 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
             // backup is not essential for device functioning.
             mBackupManagerService.postToHandler(
                     () -> {
-                        mBackupManagerService.updateDefaultBackupUserIdIfNeeded();
+                        mBackupManagerService.stopServiceForSystemUserIfMainUserCreated();
                         mBackupManagerService.startServiceForUser(user.getUserIdentifier());
                         mBackupManagerService.mHasFirstUserUnlockedSinceBoot = true;
                     });
@@ -1714,40 +1789,38 @@ public class BackupManagerService extends IBackupManager.Stub implements BackupM
     }
 
     /**
-     * On the first ever boot of a new device, the 'main' user might not exist for a short period of
-     * time and be created after {@link BackupManagerService} is created. In this case the {@link
-     * #mDefaultBackupUserId} will be the system user initially, but we need to change it to the
-     * newly created {@link UserManager#getMainUser()} later.
-     *
-     * <p>{@link Lifecycle#onUserUnlocking(SystemService.TargetUser)} (for any user) is the earliest
-     * point where we know that a main user (if there is going to be one) is created.
+     * Handles an edge case specific to the *first boot* of a device.
+     *
+     * This method is called upon the *first* user unlock event after boot. It checks if:
+     * - This is indeed the first user unlock since boot.
+     * - The main user did *not* exist when BMS was constructed.
+     * - A main user now exists and it's *not* the system user.
+     * If all conditions are met, then the method checks if USER_SYSTEM's service should be
+     * stopped based on current state.
+     *
+     * Normally, the service for USER_SYSTEM isn't expected to be running yet when this executes
+     * during the unlock sequence. This method acts primarily as a safeguard against a rare race
+     * condition where `setBackupServiceActive(USER_SYSTEM)` could be called concurrently after
+     * the unlock task is posted but before this method runs.
      */
-    private void updateDefaultBackupUserIdIfNeeded() {
+    private void stopServiceForSystemUserIfMainUserCreated() {
         // The default user can only change before any user unlocks since boot, and it will only
         // change from the system user to a non-system user.
-        if (mHasFirstUserUnlockedSinceBoot || mDefaultBackupUserId != UserHandle.USER_SYSTEM) {
+        if (mHasFirstUserUnlockedSinceBoot || mDidMainUserExistAtBoot) {
             return;
         }
 
-        UserHandle mainUser = getUserManager().getMainUser();
-        if (mainUser == null) {
+        int mainUserId = mUserManagerInternal.getMainUserId();
+        if (mainUserId == UserHandle.USER_NULL) {
             return;
         }
 
-        if (mDefaultBackupUserId != mainUser.getIdentifier()) {
-            int oldDefaultBackupUserId = mDefaultBackupUserId;
-            mDefaultBackupUserId = mainUser.getIdentifier();
-            // We don't expect the service to be started for the old default user but we attempt to
-            // stop its service to be safe.
-            if (!isBackupActivatedForUser(oldDefaultBackupUserId)) {
-                stopServiceForUser(oldDefaultBackupUserId);
-            }
-            Slog.i(
-                    TAG,
-                    "Default backup user changed from "
-                            + oldDefaultBackupUserId
-                            + " to "
-                            + mDefaultBackupUserId);
+        if (mainUserId == UserHandle.USER_SYSTEM) {
+            return;
+        }
+
+        if (!isBackupActivatedForUser(UserHandle.USER_SYSTEM)) {
+            stopServiceForUser(UserHandle.USER_SYSTEM);
         }
     }
 }

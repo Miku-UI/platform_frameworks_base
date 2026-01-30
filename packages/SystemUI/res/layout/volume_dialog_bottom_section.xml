@@ -13,14 +13,29 @@
      See the License for the specific language governing permissions and
      limitations under the License.
 -->
-<ImageButton xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
-    android:id="@+id/volume_dialog_settings"
-    android:layout_width="@dimen/volume_dialog_button_size"
-    android:layout_height="@dimen/volume_dialog_button_size"
-    android:layout_gravity="center"
-    android:background="@drawable/ripple_drawable_20dp"
-    android:contentDescription="@string/accessibility_volume_settings"
-    android:scaleType="centerInside"
-    android:soundEffectsEnabled="false"
-    android:tint="@androidprv:color/materialColorPrimary" />
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+       xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
+
+    <com.android.systemui.volume.CaptionsToggleImageButton
+        android:id="@+id/odi_captions_icon"
+        android:src="@drawable/ic_volume_odi_captions_disabled"
+        android:layout_width="@dimen/volume_dialog_button_size"
+        android:layout_height="@dimen/volume_dialog_button_size"
+        android:tint="@androidprv:color/materialColorPrimary"
+        android:background="@drawable/volume_dialog_captions_button_transition_bg"
+        android:scaleType="centerInside"
+        android:soundEffectsEnabled="false"
+        android:visibility="gone"/>
+
+    <ImageButton
+        android:id="@+id/volume_dialog_settings"
+        android:layout_width="@dimen/volume_dialog_button_size"
+        android:layout_height="@dimen/volume_dialog_button_size"
+        android:layout_gravity="center"
+        android:background="@drawable/ripple_drawable_20dp"
+        android:contentDescription="@string/accessibility_volume_settings"
+        android:scaleType="centerInside"
+        android:soundEffectsEnabled="false"
+        android:padding="4dp"
+        android:tint="@androidprv:color/materialColorPrimary"/>
+</merge>

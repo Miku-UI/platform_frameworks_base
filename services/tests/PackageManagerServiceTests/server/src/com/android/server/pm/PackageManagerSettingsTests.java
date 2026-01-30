@@ -52,7 +52,9 @@ import android.content.pm.SharedLibraryInfo;
 import android.content.pm.SuspendDialogInfo;
 import android.content.pm.UserInfo;
 import android.content.pm.UserPackage;
+import android.content.pm.verify.developer.DeveloperVerificationStatus;
 import android.os.BaseBundle;
+import android.os.Build;
 import android.os.Message;
 import android.os.PersistableBundle;
 import android.os.Process;
@@ -67,9 +69,9 @@ import android.util.ArraySet;
 import android.util.AtomicFile;
 import android.util.LongSparseArray;
 
-import androidx.test.InstrumentationRegistry;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
-import androidx.test.runner.AndroidJUnit4;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.internal.pm.parsing.pkg.PackageImpl;
 import com.android.internal.pm.parsing.pkg.ParsedPackage;
@@ -82,6 +84,7 @@ import com.android.server.pm.pkg.ArchiveState;
 import com.android.server.pm.pkg.PackageUserState;
 import com.android.server.pm.pkg.PackageUserStateInternal;
 import com.android.server.pm.pkg.SuspendParams;
+import com.android.server.pm.verify.developer.DeveloperVerificationStatusInternal;
 import com.android.server.pm.verify.domain.DomainVerificationManagerInternal;
 import com.android.server.testutils.TestHandler;
 import com.android.server.utils.Watchable;
@@ -164,7 +167,7 @@ public class PackageManagerSettingsTests {
             try {
                 // unregister the user manager from the local service
                 LocalServices.removeServiceForTest(UserManagerInternal.class);
-                new UserManagerService(InstrumentationRegistry.getContext());
+                new UserManagerService(InstrumentationRegistry.getInstrumentation().getContext());
             } catch (Exception e) {
                 e.printStackTrace();
                 fail("Could not create user manager service; " + e);
@@ -174,7 +177,7 @@ public class PackageManagerSettingsTests {
 
     @After
     public void tearDown() throws Exception {
-        deleteFolder(InstrumentationRegistry.getContext().getFilesDir());
+        deleteFolder(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir());
     }
 
     @Test
@@ -337,7 +340,7 @@ public class PackageManagerSettingsTests {
         // write out
         settings.writeLPr(computer, /*sync=*/true);
 
-        File filesDir = InstrumentationRegistry.getContext().getFilesDir();
+        File filesDir = InstrumentationRegistry.getInstrumentation().getContext().getFilesDir();
         File packageXml = new File(filesDir, "system/packages.xml");
         File packagesReserveCopyXml = new File(filesDir, "system/packages.xml.reservecopy");
         // Primary.
@@ -675,6 +678,47 @@ public class PackageManagerSettingsTests {
         final PackageUserState readPus3 = settings.mPackages.get(PACKAGE_NAME_3)
                 .readUserState(0);
         assertThat(readPus3.getDistractionFlags(), is(distractionFlags3));
+    }
+
+    @Test
+    public void testReadSettingsVersionCodeWithNoSdkVersionFull_fromSdkVersion() {
+        /* write out files and read */
+        writeNoSdkVersionFullPackageFile();
+        Settings settings = makeSettings();
+        assertThat(settings.readLPw(computer, createFakeUsers()), is(true));
+
+        final int expectedSdkInt = 36;
+        assertThat(settings.getInternalVersion().sdkVersion, is(expectedSdkInt));
+        assertThat(settings.getInternalVersion().sdkVersionFull,
+                is(Build.parseFullVersion(String.valueOf(expectedSdkInt))));
+    }
+
+    @Test
+    public void testReadWriteSettingsVersionCodeWithSdkVersionFull() {
+        final Settings settingsUnderTest = makeSettings();
+        final String uuid = UUID.randomUUID().toString();
+
+        Settings.VersionInfo versionInfo = settingsUnderTest.findOrCreateVersion(uuid);
+        versionInfo.forceCurrent();
+
+        settingsUnderTest.writeLPr(computer, /*sync=*/ true);
+        settingsUnderTest.onVolumeForgotten(uuid);
+
+        assertThat(settingsUnderTest.readLPw(computer, createFakeUsers()), is(true));
+        Settings.VersionInfo readVersionInfo = settingsUnderTest.findOrCreateVersion(uuid);
+        assertThat(readVersionInfo.sdkVersionFull, is(Build.VERSION.SDK_INT_FULL));
+        assertThat(readVersionInfo.sdkVersion, is(Build.VERSION.SDK_INT));
+    }
+
+    @Test
+    public void testSettingsGetInternalVersionWithSdkVersionFull() {
+        final Settings settingsUnderTest = makeSettings();
+        settingsUnderTest.writeLPr(computer, /*sync=*/ true);
+        assertThat(settingsUnderTest.readLPw(computer, createFakeUsers()), is(true));
+        assertThat(settingsUnderTest.getInternalVersion().sdkVersionFull,
+                is(Build.VERSION.SDK_INT_FULL));
+        assertThat(settingsUnderTest.getInternalVersion().sdkVersion,
+                is(Build.VERSION.SDK_INT));
     }
 
     @Test
@@ -1382,11 +1426,14 @@ public class PackageManagerSettingsTests {
     private static final String PACKAGE_NAME = "com.android.bar";
     private static final String REAL_PACKAGE_NAME = "com.android.foo";
     private static final File INITIAL_CODE_PATH =
-            new File(InstrumentationRegistry.getContext().getFilesDir(), "com.android.bar-1");
+            new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                    "com.android.bar-1");
     private static final File UPDATED_CODE_PATH =
-            new File(InstrumentationRegistry.getContext().getFilesDir(), "com.android.bar-2");
+            new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                    "com.android.bar-2");
     private static final File UPDATED_CODE_PATH2 =
-            new File(InstrumentationRegistry.getContext().getFilesDir(), "com.android.bar-3");
+            new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                    "com.android.bar-3");
     private static final long INITIAL_VERSION_CODE = 10023L;
     private static final long UPDATED_VERSION_CODE = 10025L;
 
@@ -1543,7 +1590,6 @@ public class PackageManagerSettingsTests {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_IMPROVE_INSTALL_DONT_KILL)
     public void testUpdatePackageSettings02WithOldPaths() throws PackageManagerException {
         final PackageSetting testPkgSetting01 =
                 createPackageSetting(0 /*sharedUserId*/, 0 /*pkgFlags*/);
@@ -2103,6 +2149,50 @@ public class PackageManagerSettingsTests {
         assertNull(settings.getPackageLPr(PACKAGE_NAME_1).getOldPaths());
     }
 
+    @Test
+    public void testDeveloperVerificationStatus_nothingChangedAfterReboot() {
+        Settings settings = makeSettings();
+        final PackageSetting ps1 = createPackageSetting(PACKAGE_NAME_1);
+        ps1.setAppId(Process.FIRST_APPLICATION_UID);
+        ps1.setPkg(PackageImpl.forTesting(PACKAGE_NAME_1).hideAsParsed()
+                .setUid(ps1.getAppId())
+                .hideAsFinal());
+        ps1.setDeveloperVerificationStatusInternal(new DeveloperVerificationStatusInternal(
+                DeveloperVerificationStatusInternal.STATUS_INCOMPLETE_UNKNOWN,
+                DeveloperVerificationStatus.APP_METADATA_VERIFICATION_STATUS_BAD,
+                /* isLiteVerification= */ true));
+        settings.mPackages.put(PACKAGE_NAME_1, ps1);
+        settings.writeLPr(computer, /*sync=*/ true);
+        // Simulate a reboot
+        settings.mPackages.clear();
+        assertThat(settings.readLPw(computer, createFakeUsers()), is(true));
+        DeveloperVerificationStatusInternal developerVerificationStatusInternal =
+                settings.getPackageLPr(PACKAGE_NAME_1).getDeveloperVerificationStatusInternal();
+        assertThat(developerVerificationStatusInternal, notNullValue());
+        assertThat(developerVerificationStatusInternal.getInternalStatus(),
+                is(DeveloperVerificationStatusInternal.STATUS_INCOMPLETE_UNKNOWN));
+        assertThat(developerVerificationStatusInternal.getAppMetadataVerificationStatus(),
+                is(DeveloperVerificationStatus.APP_METADATA_VERIFICATION_STATUS_BAD));
+        assertThat(developerVerificationStatusInternal.isLiteVerification(), is(true));
+    }
+
+    @Test
+    public void testDeveloperVerificationStatus_isNullBeforeAndAfterReboot() {
+        Settings settings = makeSettings();
+        final PackageSetting ps1 = createPackageSetting(PACKAGE_NAME_1);
+        ps1.setAppId(Process.FIRST_APPLICATION_UID);
+        ps1.setPkg(PackageImpl.forTesting(PACKAGE_NAME_1).hideAsParsed()
+                .setUid(ps1.getAppId())
+                .hideAsFinal());
+        ps1.setDeveloperVerificationStatusInternal(null);
+        settings.mPackages.put(PACKAGE_NAME_1, ps1);
+        settings.writeLPr(computer, /*sync=*/ true);
+        // Simulate a reboot
+        settings.mPackages.clear();
+        assertThat(settings.readLPw(computer, createFakeUsers()), is(true));
+        assertNull(settings.getPackageLPr(PACKAGE_NAME_1).getDeveloperVerificationStatusInternal());
+    }
+
     private void verifyUserState(PackageUserState userState,
             boolean notLaunched, boolean stopped, boolean installed) {
         assertThat(userState.getEnabledState(), is(0));
@@ -2292,7 +2382,8 @@ public class PackageManagerSettingsTests {
     }
 
     private void writeCorruptedPackagesXml() {
-        writeFile(new File(InstrumentationRegistry.getContext().getFilesDir(), "system/packages.xml"),
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        "system/packages.xml"),
                 ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>"
                         + "<packages>"
                         + "<last-platform-version internal=\"15\" external=\"0\" />"
@@ -2302,7 +2393,8 @@ public class PackageManagerSettingsTests {
     }
 
     static void writePackagesXml(String fileName) {
-        writeFile(new File(InstrumentationRegistry.getContext().getFilesDir(), fileName),
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        fileName),
                 ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>"
                 + "<packages>"
                 + "<last-platform-version internal=\"15\" external=\"0\" fingerprint=\"foo\" />"
@@ -2371,7 +2463,8 @@ public class PackageManagerSettingsTests {
     }
 
     private void writePackageRestrictions_noSuspendingPackageXml(final int userId) {
-        writeFile(new File(InstrumentationRegistry.getContext().getFilesDir(), "system/users/"
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        "system/users/"
                         + userId + "/package-restrictions.xml"),
                 ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                         + "<package-restrictions>\n"
@@ -2386,7 +2479,8 @@ public class PackageManagerSettingsTests {
     }
 
     private void writePackageRestrictions_noSuspendParamsMapXml(final int userId) {
-        writeFile(new File(InstrumentationRegistry.getContext().getFilesDir(), "system/users/"
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        "system/users/"
                         + userId + "/package-restrictions.xml"),
                 ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                         + "<package-restrictions>\n"
@@ -2410,7 +2504,8 @@ public class PackageManagerSettingsTests {
     }
 
     private void writeCorruptedPackageRestrictions(final int userId) {
-        writeFile(new File(InstrumentationRegistry.getContext().getFilesDir(), "system/users/"
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        "system/users/"
                         + userId + "/package-restrictions.xml"),
                 ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                         + "<package-restrictions>\n"
@@ -2418,7 +2513,8 @@ public class PackageManagerSettingsTests {
     }
 
     private static void writeStoppedPackagesXml() {
-        writeFile(new File(InstrumentationRegistry.getContext().getFilesDir(), "system/packages-stopped.xml"),
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        "system/packages-stopped.xml"),
                 ( "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>"
                 + "<stopped-packages>"
                 + "<pkg name=\"com.android.app1\" nl=\"1\" />"
@@ -2428,7 +2524,8 @@ public class PackageManagerSettingsTests {
     }
 
     private static void writePackagesList() {
-        writeFile(new File(InstrumentationRegistry.getContext().getFilesDir(), "system/packages.list"),
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        "system/packages.list"),
                 ( "com.android.app1 11000 0 /data/data/com.android.app1 seinfo1"
                 + "com.android.app2 11001 0 /data/data/com.android.app2 seinfo2"
                 + "com.android.app3 11030 0 /data/data/com.android.app3 seinfo3")
@@ -2436,7 +2533,8 @@ public class PackageManagerSettingsTests {
     }
 
     private static void deleteSystemFolder() {
-        File systemFolder = new File(InstrumentationRegistry.getContext().getFilesDir(), "system");
+        File systemFolder = new File(
+                InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(), "system");
         deleteFolder(systemFolder);
     }
 
@@ -2448,6 +2546,47 @@ public class PackageManagerSettingsTests {
             }
         }
         folder.delete();
+    }
+
+    private void writeNoSdkVersionFullPackageFile() {
+        deleteSystemFolder();
+        writeFile(new File(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
+                        "system/packages.xml"),
+                ("<?xml version='1.0' encoding='utf-8' standalone='yes' ?>"
+                        + "<packages>"
+                        + "<version sdkVersion=\"36\" databaseVersion=\"3\" buildFingerprint=\"123456:userdebug\" fingerprint=\"64bc7e5656eb8ec3821157973e6eee7449333661\" />"
+                        + "<version volumeUuid=\"primary_physical\" sdkVersion=\"36\" databaseVersion=\"3\" buildFingerprint=\"123456:userdebug\" />"
+                        + "<permission-trees>"
+                        + "<item name=\"com.google.android.permtree\" package=\"com.google.android.permpackage\" />"
+                        + "</permission-trees>"
+                        + "<permissions>"
+                        + "<item name=\"android.permission.REBOOT\" package=\"android\" protection=\"18\" />"
+                        + "</permissions>"
+                        + "<package name=\"com.android.app1\" codePath=\"/system/app/app1.apk\" nativeLibraryPath=\"/data/data/com.android.app1/lib\" flags=\"1\" ft=\"1360e2caa70\" it=\"135f2f80d08\" ut=\"1360e2caa70\" version=\"1109\" sharedUserId=\"11000\">"
+                        + "<sigs count=\"1\">"
+                        + "<cert index=\"0\" key=\"" + KeySetStrings.ctsKeySetCertA + "\" />"
+                        + "</sigs>"
+                        + "<proper-signing-keyset identifier=\"1\" />"
+                        + "</package>"
+                        + "<shared-user name=\"com.android.shared1\" userId=\"11000\">"
+                        + "<sigs count=\"1\">"
+                        + "<cert index=\"1\" />"
+                        + "</sigs>"
+                        + "<perms>"
+                        + "<item name=\"android.permission.REBOOT\" />"
+                        + "</perms>"
+                        + "</shared-user>"
+                        + "<keyset-settings version=\"1\">"
+                        + "<keys>"
+                        + "<public-key identifier=\"1\" value=\"" + KeySetStrings.ctsKeySetPublicKeyA + "\" />"
+                        + "</keys>"
+                        + "<keysets>"
+                        + "<keyset identifier=\"1\">"
+                        + "<key-id identifier=\"1\" />"
+                        + "</keyset>"
+                        + "</keysets>"
+                        + "</keyset-settings>"
+                        + "</packages>").getBytes());
     }
 
     static void writeOldFiles() {
@@ -2465,7 +2604,7 @@ public class PackageManagerSettingsTests {
     }
 
     private Settings makeSettings() {
-        return new Settings(InstrumentationRegistry.getContext().getFilesDir(),
+        return new Settings(InstrumentationRegistry.getInstrumentation().getContext().getFilesDir(),
                 mRuntimePermissionsPersistence, mPermissionDataProvider,
                 mDomainVerificationManager, mHandler,
                 new PackageManagerTracedLock());

@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.notification.stack;
 
 import static com.android.systemui.Flags.physicalNotificationMovement;
-import static com.android.systemui.statusbar.notification.row.ExpandableView.HEIGHT_PROPERTY;
 import static com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_APPEAR;
 import static com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_CYCLING_IN;
 import static com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.AnimationEvent.ANIMATION_TYPE_HEADS_UP_CYCLING_OUT;
@@ -38,10 +37,8 @@ import com.android.internal.dynamicanimation.animation.DynamicAnimation;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.clocks.AnimatableClockView;
 import com.android.systemui.statusbar.NotificationShelf;
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips;
 import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpAnimator;
-import com.android.systemui.statusbar.notification.headsup.NotificationsHunSharedAnimationValues;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.ExpandableView;
 import com.android.systemui.statusbar.notification.row.StackScrollerDecorView;
@@ -103,8 +100,6 @@ public class StackStateAnimator {
 
     private ValueAnimator mTopOverScrollAnimator;
     private ValueAnimator mBottomOverScrollAnimator;
-    private int mHeadsUpAppearHeightBottom;
-    private int mStackTopMargin;
     private boolean mShadeExpanded;
     private ArrayList<ExpandableView> mTransientViewsToRemove = new ArrayList<>();
     private NotificationShelf mShelf;
@@ -694,8 +689,8 @@ public class StackStateAnimator {
                     // running anymore, the panel will instantly hide itself. We need to wait until
                     // the animation is fully finished for this though.
                     final Runnable tmpEndRunnable = endRunnable;
-                    Runnable postAnimation;
-                    Runnable startAnimation;
+                    final Runnable logAnimationStart;
+                    final Runnable logAnimationEnd;
                     if (loggable) {
                         String finalKey1 = key;
                         final boolean finalIsHeadsUp = isHeadsUp;
@@ -703,28 +698,37 @@ public class StackStateAnimator {
                                 event.animationType == ANIMATION_TYPE_HEADS_UP_DISAPPEAR
                                         ? "ANIMATION_TYPE_HEADS_UP_DISAPPEAR"
                                         : "ANIMATION_TYPE_HEADS_UP_DISAPPEAR_CLICK";
-                        startAnimation = () -> {
-                            mLogger.animationStart(finalKey1, type, finalIsHeadsUp);
-                            changingView.setInRemovalAnimation(true);
-                        };
-                        postAnimation = () -> {
-                            mLogger.animationEnd(finalKey1, type, finalIsHeadsUp);
-                            changingView.setInRemovalAnimation(false);
-                            if (tmpEndRunnable != null) {
-                                tmpEndRunnable.run();
-                            }
-                        };
+                        logAnimationStart = () -> mLogger.animationStart(finalKey1, type,
+                                finalIsHeadsUp);
+                        logAnimationEnd = () -> mLogger.animationEnd(finalKey1, type,
+                                finalIsHeadsUp);
                     } else {
-                        startAnimation = () -> {
-                            changingView.setInRemovalAnimation(true);
-                        };
-                        postAnimation = () -> {
-                            changingView.setInRemovalAnimation(false);
-                            if (tmpEndRunnable != null) {
-                                tmpEndRunnable.run();
-                            }
-                        };
+                        logAnimationStart = null;
+                        logAnimationEnd = null;
                     }
+
+                    Runnable startAnimation = () -> {
+                        if (logAnimationStart != null) {
+                            logAnimationStart.run();
+                        }
+                        changingView.setInRemovalAnimation(true);
+                    };
+                    Runnable postAnimation = () -> {
+                        if (logAnimationEnd != null) {
+                            logAnimationEnd.run();
+                        }
+                        changingView.setInRemovalAnimation(false);
+                        if (physicalNotificationMovement()) {
+                            // Finish any running animations, in case the content disappear
+                            // animation would finish earlier.
+                            // Note: a cancellation would not be finalized by onAnimationFinished().
+                            changingView.getViewState().finishAnimations(changingView);
+                        }
+                        if (tmpEndRunnable != null) {
+                            tmpEndRunnable.run();
+                        }
+                    };
+
                     long removeAnimationDelay = changingView.performRemoveAnimation(
                             ANIMATION_DURATION_HEADS_UP_DISAPPEAR,
                             0, 0.0f, true /* isHeadsUpAppear */,
@@ -749,16 +753,7 @@ public class StackStateAnimator {
     }
 
     private float getHeadsUpYTranslationStart(boolean headsUpFromBottom, boolean hasStatusBarChip) {
-        if (NotificationsHunSharedAnimationValues.isEnabled()) {
-            return mHeadsUpAnimator.getHeadsUpYTranslation(headsUpFromBottom, hasStatusBarChip);
-        }
-
-        if (headsUpFromBottom) {
-            // start from the bottom of the screen
-            return mHeadsUpAppearHeightBottom + mHeadsUpAppearStartAboveScreen;
-        }
-        // start from the top of the screen
-        return -mStackTopMargin - mHeadsUpAppearStartAboveScreen;
+        return mHeadsUpAnimator.getHeadsUpYTranslation(headsUpFromBottom, hasStatusBarChip);
     }
 
     /**
@@ -768,7 +763,7 @@ public class StackStateAnimator {
     private float getHeadsUpCyclingInYTranslationStart(boolean headsUpFromBottom) {
         if (headsUpFromBottom) {
             // start from the bottom of the screen
-            return mHeadsUpAppearHeightBottom + mHeadsUpCyclingPadding;
+            return mHeadsUpCyclingPadding;
         }
         // start from the top of the screen
         return -mHeadsUpCyclingPadding;
@@ -788,7 +783,7 @@ public class StackStateAnimator {
         final float translationDistance = mHeadsUpCyclingPadding + newHunHeight - oldHunHeight;
         if (headsUpFromBottom) {
             // start from the bottom of the screen
-            return mHeadsUpAppearHeightBottom - translationDistance;
+            return -translationDistance;
         }
         return translationDistance;
     }
@@ -836,16 +831,6 @@ public class StackStateAnimator {
         if (currentAnimator != null) {
             currentAnimator.cancel();
         }
-    }
-
-    public void setHeadsUpAppearHeightBottom(int headsUpAppearHeightBottom) {
-        NotificationsHunSharedAnimationValues.assertInLegacyMode();
-        mHeadsUpAppearHeightBottom = headsUpAppearHeightBottom;
-    }
-
-    public void setStackTopMargin(int stackTopMargin) {
-        NotificationsHunSharedAnimationValues.assertInLegacyMode();
-        mStackTopMargin = stackTopMargin;
     }
 
     public void setShadeExpanded(boolean shadeExpanded) {

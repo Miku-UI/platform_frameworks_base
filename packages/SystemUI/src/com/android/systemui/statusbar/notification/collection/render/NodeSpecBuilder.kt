@@ -16,95 +16,134 @@
 
 package com.android.systemui.statusbar.notification.collection.render
 
+import android.app.Notification
+import com.android.app.tracing.traceSection
+import com.android.systemui.statusbar.notification.Bundles
 import com.android.systemui.statusbar.notification.NotificationSectionsFeatureManager
+import com.android.systemui.statusbar.notification.OnboardingAffordanceManager
+import com.android.systemui.statusbar.notification.Summarization
+import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
+import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.listbuilder.NotifSection
 import com.android.systemui.statusbar.notification.collection.provider.SectionHeaderVisibilityProvider
 import com.android.systemui.util.Compile
-import com.android.app.tracing.traceSection
-import com.android.systemui.statusbar.notification.collection.PipelineEntry
 
 /**
  * Converts a notif list (the output of the ShadeListBuilder) into a NodeSpec, an abstract
- * representation of which views should be present in the shade. This spec will later be consumed
- * by the ViewDiffer, which will add and remove views until the shade matches the spec. Up until
- * this point, the pipeline has dealt with pure data representations of notifications (in the
- * form of NotificationEntries). In this step, NotificationEntries finally become associated with
- * the views that will represent them. In addition, we add in any non-notification views that also
- * need to present in the shade, notably the section headers.
+ * representation of which views should be present in the shade. This spec will later be consumed by
+ * the ViewDiffer, which will add and remove views until the shade matches the spec. Up until this
+ * point, the pipeline has dealt with pure data representations of notifications (in the form of
+ * NotificationEntries). In this step, NotificationEntries finally become associated with the views
+ * that will represent them. In addition, we add in any non-notification views that also need to
+ * present in the shade, notably the section headers.
  */
 class NodeSpecBuilder(
     private val mediaContainerController: MediaContainerController,
     private val sectionsFeatureManager: NotificationSectionsFeatureManager,
     private val sectionHeaderVisibilityProvider: SectionHeaderVisibilityProvider,
     private val viewBarn: NotifViewBarn,
-    private val logger: NodeSpecBuilderLogger
+    private val bundleBarn: BundleBarn,
+    private val logger: NodeSpecBuilderLogger,
+    @Bundles private val bundleOnboardingAffordanceManager: OnboardingAffordanceManager,
+    @Summarization private val summaryOnboardingAffordanceManager: OnboardingAffordanceManager,
 ) {
     private var lastSections = setOf<NotifSection?>()
 
-    fun buildNodeSpec(
-        rootController: NodeController,
-        notifList: List<PipelineEntry>
-    ): NodeSpec = traceSection("NodeSpecBuilder.buildNodeSpec") {
-        val root = NodeSpecImpl(null, rootController)
+    fun buildNodeSpec(rootController: NodeController, notifList: List<PipelineEntry>): NodeSpec =
+        traceSection("NodeSpecBuilder.buildNodeSpec") {
+            val root = NodeSpecImpl(null, rootController)
 
-        // The media container should be added as the first child of the root node
-        // TODO: Perhaps the node spec building process should be more of a pipeline of its own?
-        if (sectionsFeatureManager.isMediaControlsEnabled()) {
-            root.children.add(NodeSpecImpl(root, mediaContainerController))
-        }
-
-        var currentSection: NotifSection? = null
-        val prevSections = mutableSetOf<NotifSection?>()
-        val showHeaders = sectionHeaderVisibilityProvider.sectionHeadersVisible
-        val sectionOrder = mutableListOf<NotifSection?>()
-        val sectionHeaders = mutableMapOf<NotifSection?, NodeController?>()
-        val sectionCounts = mutableMapOf<NotifSection?, Int>()
-
-        for (entry in notifList) {
-            val section = entry.section!!
-            if (prevSections.contains(section)) {
-                throw java.lang.RuntimeException("Section ${section.label} has been duplicated")
+            // The media container should be added as the first child of the root node
+            // TODO: Perhaps the node spec building process should be more of a pipeline of its own?
+            if (sectionsFeatureManager.isMediaControlsEnabled()) {
+                root.children.add(NodeSpecImpl(root, mediaContainerController))
             }
 
-            // If this notif begins a new section, first add the section's header view
-            if (section != currentSection) {
-                if (section.headerController != currentSection?.headerController && showHeaders) {
-                    section.headerController?.let { headerController ->
-                        root.children.add(NodeSpecImpl(root, headerController))
-                        if (Compile.IS_DEBUG) {
-                            sectionHeaders[section] = headerController
+            var currentSection: NotifSection? = null
+            val prevSections = mutableSetOf<NotifSection?>()
+            val showHeaders = sectionHeaderVisibilityProvider.sectionHeadersVisible
+            val sectionOrder = mutableListOf<NotifSection?>()
+            val sectionHeaders = mutableMapOf<NotifSection?, NodeController?>()
+            val sectionCounts = mutableMapOf<NotifSection?, Int>()
+            var seenBundle = false
+            var seenMessage = false
+
+            for (entry in notifList) {
+                val section = entry.section!!
+                if (prevSections.contains(section)) {
+                    throw java.lang.RuntimeException("Section ${section.label} has been duplicated")
+                }
+
+                // If this notif begins a new section, first add the section's header view
+                if (section != currentSection) {
+                    if (
+                        section.headerController != currentSection?.headerController && showHeaders
+                    ) {
+                        section.headerController?.let { headerController ->
+                            root.children.add(NodeSpecImpl(root, headerController))
+                            if (Compile.IS_DEBUG) {
+                                sectionHeaders[section] = headerController
+                            }
                         }
                     }
+                    prevSections.add(currentSection)
+                    currentSection = section
+                    if (Compile.IS_DEBUG) {
+                        sectionOrder.add(section)
+                    }
                 }
-                prevSections.add(currentSection)
-                currentSection = section
+
+                // If needed, the AI summaries onboarding affordance should be added above the first
+                // message notification. (It should not appear if there are no messages.)
+                if (!seenMessage && isMessage(entry)) {
+                    seenMessage = true
+                    summaryOnboardingAffordanceManager.nodeController?.let { controller ->
+                        root.children.add(NodeSpecImpl(root, controller))
+                    }
+                }
+
+                // Include onboarding affordance for bundles above the first bundle, if needed.
+                if (!seenBundle && entry is BundleEntry) {
+                    seenBundle = true
+                    bundleOnboardingAffordanceManager.nodeController?.let { controller ->
+                        root.children.add(NodeSpecImpl(root, controller))
+                    }
+                }
+
+                // Finally, add the actual notif node!
+                root.children.add(buildNotifNode(root, entry))
                 if (Compile.IS_DEBUG) {
-                    sectionOrder.add(section)
+                    sectionCounts[section] = sectionCounts.getOrDefault(section, 0) + 1
                 }
             }
 
-            // Finally, add the actual notif node!
-            root.children.add(buildNotifNode(root, entry))
             if (Compile.IS_DEBUG) {
-                sectionCounts[section] = sectionCounts.getOrDefault(section, 0) + 1
+                logger.logBuildNodeSpec(lastSections, sectionHeaders, sectionCounts, sectionOrder)
+                lastSections = sectionCounts.keys
             }
+
+            return@traceSection root
         }
 
-        if (Compile.IS_DEBUG) {
-            logger.logBuildNodeSpec(lastSections, sectionHeaders, sectionCounts, sectionOrder)
-            lastSections = sectionCounts.keys
+    private fun buildNotifNode(parent: NodeSpec, entry: PipelineEntry): NodeSpec =
+        when (entry) {
+            is NotificationEntry -> NodeSpecImpl(parent, viewBarn.requireNodeController(entry))
+            is GroupEntry ->
+                NodeSpecImpl(parent, viewBarn.requireNodeController(checkNotNull(entry.summary)))
+                    .apply { entry.children.forEach { children.add(buildNotifNode(this, it)) } }
+            is BundleEntry ->
+                NodeSpecImpl(parent, bundleBarn.requireNodeController(entry)).apply {
+                    entry.children.forEach { children.add(buildNotifNode(this, it)) }
+                }
+            else -> throw RuntimeException("Unexpected entry: $entry")
         }
 
-        return@traceSection root
-    }
-
-    private fun buildNotifNode(parent: NodeSpec, entry: PipelineEntry): NodeSpec = when (entry) {
-        is NotificationEntry -> NodeSpecImpl(parent, viewBarn.requireNodeController(entry))
-        is GroupEntry ->
-            NodeSpecImpl(parent, viewBarn.requireNodeController(checkNotNull(entry.summary)))
-                .apply { entry.children.forEach { children.add(buildNotifNode(this, it)) } }
-        else -> throw RuntimeException("Unexpected entry: $entry")
+    private fun isMessage(entry: PipelineEntry): Boolean {
+        return (entry as? NotificationEntry)
+            ?.sbn
+            ?.notification
+            ?.isStyle(Notification.MessagingStyle::class.java) ?: false
     }
 }

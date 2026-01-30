@@ -20,6 +20,7 @@ import com.android.systemui.keyguard.domain.interactor.LightRevealScrimInteracto
 import com.android.systemui.statusbar.LightRevealEffect
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 
 /**
@@ -34,13 +35,15 @@ constructor(private val interactor: LightRevealScrimInteractor) {
 
     /** Max alpha for the scrim + whether to animate the change */
     val maxAlpha: Flow<Pair<Float, Boolean>> =
-        interactor.maxAlpha.map { alpha ->
-            Pair(
-                alpha,
-                // Darken immediately if going to be fully opaque
-                if (alpha == 1f) false else true,
-            )
-        }
+        interactor.maxAlpha
+            .map { alpha ->
+                Pair(
+                    alpha,
+                    // Darken immediately if going to be fully opaque
+                    if (alpha == 1f) false else true,
+                )
+            }
+            .distinctUntilChanged()
 
     fun setWallpaperSupportsAmbientMode(supportsAmbientMode: Boolean) {
         interactor.setWallpaperSupportsAmbientMode(supportsAmbientMode)

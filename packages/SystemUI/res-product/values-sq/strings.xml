@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Po luhet në këtë tablet"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Mund ta gjesh këtë telefon me \"Gjej pajisjen time\" edhe kur është i fikur"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Mund ta gjesh këtë tablet me \"Gjej pajisjen time\" edhe kur është i fikur"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Mund ta gjesh këtë telefon me \"Qendrën e gjetjes\" edhe kur është i fikur"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Mund ta gjesh këtë tablet me \"Qendrën e gjetjes\" edhe kur është i fikur"</string>
 </resources>

@@ -18,7 +18,7 @@ package com.android.internal.statusbar;
 
 import com.android.internal.logging.InstanceId;
 
-/** {@hide} */
+/** @hide */
 oneway interface ISessionListener {
     void onSessionStarted(int sessionType, in InstanceId instance);
     void onSessionEnded(int sessionType, in InstanceId instance);

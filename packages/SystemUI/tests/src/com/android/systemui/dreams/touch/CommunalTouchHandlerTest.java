@@ -21,7 +21,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import android.graphics.Rect;
 import android.graphics.Region;
@@ -29,12 +28,14 @@ import android.util.LayoutDirection;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 
-import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.testing.TestLifecycleOwner;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.ambient.touch.TouchHandler;
+import com.android.systemui.flags.DisableSceneContainer;
 import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.shared.system.InputChannelCompat;
 import com.android.systemui.statusbar.phone.CentralSurfaces;
@@ -48,9 +49,9 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicReference;
 
 @SmallTest
+@DisableSceneContainer
 @RunWith(AndroidJUnit4.class)
 public class CommunalTouchHandlerTest extends SysuiTestCase {
     private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
@@ -60,17 +61,13 @@ public class CommunalTouchHandlerTest extends SysuiTestCase {
     @Mock
     TouchHandler.TouchSession mTouchSession;
     CommunalTouchHandler mTouchHandler;
-    @Mock
-    Lifecycle mLifecycle;
+    private final LifecycleOwner mLifecycleOwner = new TestLifecycleOwner();
 
     private static final int INITIATION_WIDTH = 20;
 
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
-        AtomicReference reference = new AtomicReference<>(null);
-        when(mLifecycle.getInternalScopeRef()).thenReturn(reference);
-        when(mLifecycle.getCurrentState()).thenReturn(Lifecycle.State.CREATED);
 
         mTouchHandler = new CommunalTouchHandler(
                 Optional.of(mCentralSurfaces),
@@ -78,9 +75,9 @@ public class CommunalTouchHandlerTest extends SysuiTestCase {
                 mKosmos.getCommunalInteractor(),
                 mKosmos.getConfigurationInteractor(),
                 mKosmos.getSceneInteractor(),
+                mKosmos.getKeyguardInteractor(),
                 Optional.of(mKosmos.getMockWindowRootViewProvider()),
-                mLifecycle
-                );
+                mLifecycleOwner.getLifecycle());
     }
 
     @Test

@@ -25,15 +25,12 @@ import static org.mockito.Mockito.never;
 import static java.io.File.createTempFile;
 import static java.nio.file.Files.createTempDirectory;
 
+import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
-import android.tools.ScenarioBuilder;
 import android.tools.Tag;
-import android.tools.io.ResultArtifactDescriptor;
 import android.tools.io.TraceType;
-import android.tools.traces.TraceConfig;
-import android.tools.traces.TraceConfigs;
 import android.tools.traces.io.ResultReader;
 import android.tools.traces.io.ResultWriter;
 import android.tools.traces.monitors.PerfettoTraceMonitor;
@@ -111,17 +108,9 @@ public class ProtoLogConfigurationServiceTest {
     private final File mTracingDirectory = createTempDirectory("temp").toFile();
 
     private final ResultWriter mWriter = new ResultWriter()
-            .forScenario(new ScenarioBuilder()
-                    .forClass(createTempFile("temp", "").getName()).build())
+            .withName(createTempFile("temp", "").getName())
             .withOutputDir(mTracingDirectory)
             .setRunComplete();
-
-    private final TraceConfigs mTraceConfig = new TraceConfigs(
-            new TraceConfig(false, true, false),
-            new TraceConfig(false, true, false),
-            new TraceConfig(false, true, false),
-            new TraceConfig(false, true, false)
-    );
 
     @Captor
     ArgumentCaptor<IBinder.DeathRecipient> mDeathRecipientArgumentCaptor;
@@ -182,9 +171,8 @@ public class ProtoLogConfigurationServiceTest {
 
         traceMonitor.start();
         traceMonitor.stop(mWriter);
-        final ResultReader reader = new ResultReader(mWriter.write(), mTraceConfig);
-        final byte[] traceData = reader.getArtifact()
-                .readBytes(new ResultArtifactDescriptor(TraceType.PERFETTO, Tag.ALL));
+        final ResultReader reader = new ResultReader(mWriter.write());
+        final byte[] traceData = reader.readBytes(TraceType.PERFETTO, Tag.ALL);
 
         final Trace trace = Trace.parseFrom(traceData);
 
@@ -219,9 +207,9 @@ public class ProtoLogConfigurationServiceTest {
         Mockito.verify(mSecondMockClientBinder)
                 .linkToDeath(mSecondDeathRecipientArgumentCaptor.capture(), anyInt());
 
-        mDeathRecipientArgumentCaptor.getValue().binderDied();
+        mDeathRecipientArgumentCaptor.getValue().binderDied(mMockClientBinder);
         Mockito.verify(tracer, never()).trace(any(), any());
-        mSecondDeathRecipientArgumentCaptor.getValue().binderDied();
+        mSecondDeathRecipientArgumentCaptor.getValue().binderDied(mSecondMockClientBinder);
         Mockito.verify(tracer).trace(any(), eq(mViewerConfigFile.getAbsolutePath()));
     }
 
@@ -277,6 +265,64 @@ public class ProtoLogConfigurationServiceTest {
     }
 
     @Test
+    public void sendEnableLoggingToLogcatToAllClientsWhenNoGroupIsProvided()
+            throws RemoteException {
+        final var service = new ProtoLogConfigurationServiceImpl();
+
+        final RegisterClientArgs args = new RegisterClientArgs();
+        args.groups = new String[] { TEST_GROUP };
+        args.groupsDefaultLogcatStatus = new boolean[] { false };
+        service.registerClient(mMockClient, args);
+
+        final RegisterClientArgs secondClientArgs = new RegisterClientArgs();
+        secondClientArgs.groups = new String[] { OTHER_TEST_GROUP };
+        secondClientArgs.groupsDefaultLogcatStatus = new boolean[] { false };
+        service.registerClient(mSecondMockClient, secondClientArgs);
+
+        Truth.assertThat(service.isLoggingToLogcat(TEST_GROUP)).isFalse();
+        Truth.assertThat(service.isLoggingToLogcat(OTHER_TEST_GROUP)).isFalse();
+
+        service.enableProtoLogToLogcat(Mockito.mock(PrintWriter.class));
+
+        Truth.assertThat(service.isLoggingToLogcat(TEST_GROUP)).isTrue();
+        Truth.assertThat(service.isLoggingToLogcat(OTHER_TEST_GROUP)).isTrue();
+
+        Mockito.verify(mMockClient).toggleLogcat(eq(true),
+                Mockito.argThat(it -> it.length == 1 && it[0].equals(TEST_GROUP)));
+        Mockito.verify(mSecondMockClient).toggleLogcat(eq(true),
+                Mockito.argThat(it -> it.length == 1 && it[0].equals(OTHER_TEST_GROUP)));
+    }
+
+    @Test
+    public void sendDisableLoggingToLogcatToAllClientsWhenNoGroupIsProvided()
+            throws RemoteException {
+        final ProtoLogConfigurationService service = new ProtoLogConfigurationServiceImpl();
+
+        final RegisterClientArgs args = new RegisterClientArgs();
+        args.groups = new String[] { TEST_GROUP };
+        args.groupsDefaultLogcatStatus = new boolean[] { true };
+        service.registerClient(mMockClient, args);
+
+        final RegisterClientArgs secondClientArgs = new RegisterClientArgs();
+        secondClientArgs.groups = new String[] { OTHER_TEST_GROUP };
+        secondClientArgs.groupsDefaultLogcatStatus = new boolean[] { true };
+        service.registerClient(mSecondMockClient, secondClientArgs);
+
+        Truth.assertThat(service.isLoggingToLogcat(TEST_GROUP)).isTrue();
+        Truth.assertThat(service.isLoggingToLogcat(OTHER_TEST_GROUP)).isTrue();
+
+        service.disableProtoLogToLogcat(Mockito.mock(PrintWriter.class));
+
+        Truth.assertThat(service.isLoggingToLogcat(TEST_GROUP)).isFalse();
+        Truth.assertThat(service.isLoggingToLogcat(OTHER_TEST_GROUP)).isFalse();
+
+        Mockito.verify(mMockClient).toggleLogcat(eq(false),
+                Mockito.argThat(it -> it.length == 1 && it[0].equals(TEST_GROUP)));
+        Mockito.verify(mSecondMockClient).toggleLogcat(eq(false),
+                Mockito.argThat(it -> it.length == 1 && it[0].equals(OTHER_TEST_GROUP)));
+    }
+
+    @Test
     public void handlesToggleToLogcatBeforeClientIsRegistered() throws RemoteException {
         final ProtoLogConfigurationService service = new ProtoLogConfigurationServiceImpl();
 
@@ -292,5 +338,33 @@ public class ProtoLogConfigurationServiceTest {
 
         Mockito.verify(mMockClient).toggleLogcat(eq(true),
                 Mockito.argThat(it -> it.length == 1 && it[0].equals(TEST_GROUP)));
+    }
+
+    @Test
+    public void doesNotThrowWhenClientDiesDuringToggle() throws RemoteException {
+        // Verifies that a DeadObjectException is caught and handled gracefully.
+        final var service = new ProtoLogConfigurationServiceImpl();
+        final var mockPrintWriter = Mockito.mock(PrintWriter.class);
+
+        // Register a client.
+        final RegisterClientArgs args = new RegisterClientArgs();
+        args.groups = new String[] { TEST_GROUP };
+        args.groupsDefaultLogcatStatus = new boolean[] { false };
+        service.registerClient(mMockClient, args);
+
+        // Configure the mock client to throw DeadObjectException when toggleLogcat is called,
+        // simulating a client process that has died.
+        Mockito.doThrow(new DeadObjectException("Client died"))
+                .when(mMockClient).toggleLogcat(anyBoolean(), any());
+
+        // Call the method under test. This should not throw an exception.
+        service.enableProtoLogToLogcat(mockPrintWriter, TEST_GROUP);
+
+        // Verify that the service attempted to call the client.
+        Mockito.verify(mMockClient).toggleLogcat(eq(true),
+                Mockito.argThat(it -> it.length == 1 && it[0].equals(TEST_GROUP)));
+
+        // Verify that the failure was reported to the PrintWriter.
+        Mockito.verify(mockPrintWriter).println("- Failed (client may have died)");
     }
 }

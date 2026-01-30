@@ -17,7 +17,7 @@ package android.view;
 
 import android.view.IWindowFocusObserver;
 
-/** {@hide} */
+/** @hide */
 interface IWindowId
 {
     void registerFocusObserver(IWindowFocusObserver observer);

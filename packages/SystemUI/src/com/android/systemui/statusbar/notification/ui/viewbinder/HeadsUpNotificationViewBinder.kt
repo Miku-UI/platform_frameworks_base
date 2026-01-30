@@ -16,8 +16,9 @@
 
 package com.android.systemui.statusbar.notification.ui.viewbinder
 
+import android.graphics.RectF
 import com.android.app.tracing.coroutines.launchTraced as launch
-import com.android.systemui.statusbar.chips.ui.viewmodel.OngoingActivityChipsViewModel
+import com.android.systemui.shade.domain.interactor.ShadeStatusBarComponentsInteractor
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.shared.HeadsUpRowKey
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout
@@ -29,12 +30,13 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 
 class HeadsUpNotificationViewBinder
 @Inject
 constructor(
     private val viewModel: NotificationListViewModel,
-    private val ongoingActivityChipsViewModel: OngoingActivityChipsViewModel,
+    private val shadeStatusBarComponentsInteractor: ShadeStatusBarComponentsInteractor,
 ) {
     suspend fun bindHeadsUpNotifications(parentView: NotificationStackScrollLayout): Unit =
         coroutineScope {
@@ -43,14 +45,14 @@ constructor(
                 combine(
                         viewModel.pinnedHeadsUpRowKeys,
                         viewModel.activeHeadsUpRowKeys,
-                        ongoingActivityChipsViewModel.visibleChipKeys,
+                        visibleChipsWithBounds(),
                         ::Triple,
                     )
                     .sample(viewModel.headsUpAnimationsEnabled, ::Pair)
                     .collect { (newKeys, animationsEnabled) ->
                         val pinned = newKeys.first
                         val all = newKeys.second
-                        val statusBarChips: List<String> = newKeys.third
+                        val statusBarChips: Map<String, RectF> = newKeys.third
 
                         val added = all.union(pinned) - previousKeys
                         val removed = previousKeys - pinned
@@ -60,21 +62,21 @@ constructor(
                         if (animationsEnabled) {
                             added.forEach { key ->
                                 val row = obtainView(key)
-                                val hasStatusBarChip = statusBarChips.contains(row.key)
+                                val statusBarChipBounds: RectF? = statusBarChips[row.key]
                                 parentView.generateHeadsUpAnimation(
                                     row,
                                     /* isHeadsUp = */ true,
-                                    hasStatusBarChip,
+                                    statusBarChipBounds,
                                 )
                             }
                             removed.forEach { key ->
                                 val row = obtainView(key)
-                                val hasStatusBarChip = statusBarChips.contains(row.key)
+                                val statusBarChipBounds: RectF? = statusBarChips[row.key]
                                 if (!parentView.isBeingDragged()) {
                                     parentView.generateHeadsUpAnimation(
                                         row,
                                         /* isHeadsUp= */ false,
-                                        hasStatusBarChip,
+                                        statusBarChipBounds,
                                     )
                                 }
                                 row.markHeadsUpSeen()
@@ -98,6 +100,11 @@ constructor(
     private fun obtainView(key: HeadsUpRowKey): ExpandableNotificationRow {
         return viewModel.elementKeyFor(key) as ExpandableNotificationRow
     }
+
+    private fun visibleChipsWithBounds(): Flow<Map<String, RectF>> =
+        shadeStatusBarComponentsInteractor.ongoingActivityChipsViewModel.flatMapLatest {
+            it.visibleChipsWithBounds
+        }
 }
 
 private val NotificationStackScrollLayout.isHeadsUpAnimatingAway: Flow<Boolean>

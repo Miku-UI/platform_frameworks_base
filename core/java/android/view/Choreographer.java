@@ -17,6 +17,7 @@
 package android.view;
 
 import static android.view.flags.Flags.bufferStuffingRecovery;
+import static android.view.flags.Flags.bufferStuffingMultiRecovery;
 import static android.view.flags.Flags.FLAG_EXPECTED_PRESENTATION_TIME_API;
 import static android.view.DisplayEventReceiver.VSYNC_SOURCE_APP;
 import static android.view.DisplayEventReceiver.VSYNC_SOURCE_SURFACE_FLINGER;
@@ -37,6 +38,8 @@ import android.os.Message;
 import android.os.SystemClock;
 import android.os.SystemProperties;
 import android.os.Trace;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodReplace;
 import android.util.Log;
 import android.util.TimeUtils;
 import android.view.animation.AnimationUtils;
@@ -87,6 +90,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * to which the choreographer belongs.
  * </p>
  */
+@RavenwoodKeepWholeClass
 public final class Choreographer {
     private static final String TAG = "Choreographer";
 
@@ -104,7 +108,17 @@ public final class Choreographer {
     // for jitter and hardware variations).  Regardless of this value, the animation
     // and display loop is ultimately rate-limited by how fast new graphics buffers can
     // be dequeued.
-    private static final long DEFAULT_FRAME_DELAY = 10;
+    private static final long DEFAULT_FRAME_DELAY = getDefaultFrameDelay();
+
+    @RavenwoodReplace(reason = "run as fast as possible on ravenwood")
+    private static long getDefaultFrameDelay() {
+        return 10;
+    }
+
+    @SuppressWarnings("unused")
+    private static long getDefaultFrameDelay$ravenwood() {
+        return 1;
+    }
 
     // The number of milliseconds between animation frames.
     private static volatile long sFrameDelay = DEFAULT_FRAME_DELAY;
@@ -143,8 +157,17 @@ public final class Choreographer {
 
     // Enable/disable vsync for animations and drawing.
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 123769497)
-    private static final boolean USE_VSYNC = SystemProperties.getBoolean(
-            "debug.choreographer.vsync", true);
+    private static final boolean USE_VSYNC = getUseVsync();
+
+    @RavenwoodReplace(reason = "don't simulate vsync on ravenwood")
+    private static boolean getUseVsync() {
+        return SystemProperties.getBoolean("debug.choreographer.vsync", true);
+    }
+
+    @SuppressWarnings("unused")
+    private static boolean getUseVsync$ravenwood() {
+        return false;
+    }
 
     // Enable/disable using the frame time instead of returning now.
     private static final boolean USE_FRAME_TIME = SystemProperties.getBoolean(
@@ -353,10 +376,17 @@ public final class Choreographer {
         setFPSDivisor(SystemProperties.getInt(ThreadedRenderer.DEBUG_FPS_DIVISOR, 1));
     }
 
+    @RavenwoodReplace(blockedBy = DisplayManagerGlobal.class,
+            reason = "just use fixed refresh rate")
     private static float getRefreshRate() {
         DisplayInfo di = DisplayManagerGlobal.getInstance().getDisplayInfo(
                 Display.DEFAULT_DISPLAY);
         return di.getRefreshRate();
+    }
+
+    @SuppressWarnings("unused")
+    private static float getRefreshRate$ravenwood() {
+        return 120f;
     }
 
     /**
@@ -913,27 +943,52 @@ public final class Choreographer {
     // Returns an enum for the recovery action that should be taken in doFrame().
     BufferStuffingState.RecoveryAction updateBufferStuffingState(long frameTimeNanos,
             DisplayEventReceiver.VsyncEventData vsyncEventData) {
-        if (!mBufferStuffingState.isRecovering) {
-            if (!mBufferStuffingState.isStuffed.getAndSet(false)) {
+        // Multi-recovery allows the app to recover from stuffing multiple times within
+        // the same animation. Without multi-recovery, only 1 attempt at recovering from
+        // stuffing is attempted when it is first detected in an animation.
+        if (bufferStuffingMultiRecovery()) {
+            // Canned animations can recover from buffer stuffing whenever the
+            // client is blocked on dequeueBuffer.
+            if (mBufferStuffingState.isStuffed.getAndSet(false)) {
+                // The start of recovery
+                if (!mBufferStuffingState.isRecovering) {
+                    if (Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
+                        Trace.asyncTraceForTrackBegin(
+                                Trace.TRACE_TAG_VIEW, "Buffer stuffing recovery", "Thread "
+                                + android.os.Process.myTid() + ", recover frame", 0);
+                    }
+                    mBufferStuffingState.isRecovering = true;
+                }
+                Trace.instant(Trace.TRACE_TAG_VIEW, "buffer stuffed");
+                return BufferStuffingState.RecoveryAction.DELAY_FRAME;
+
+            // No recovery action needed when there is no buffer stuffing and
+            // no recovery currently occurring.
+            } else if (!mBufferStuffingState.isRecovering) {
                 return BufferStuffingState.RecoveryAction.NONE;
             }
-            // Canned animations can recover from buffer stuffing whenever the
-            // client is blocked on dequeueBuffer. Frame delay only occurs at
-            // the start of recovery to free a buffer.
-            mBufferStuffingState.isRecovering = true;
-            if (Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
-                Trace.asyncTraceForTrackBegin(
-                        Trace.TRACE_TAG_VIEW, "Buffer stuffing recovery", "Thread "
-                        + android.os.Process.myTid() + ", recover frame", 0);
+        } else {
+            if (!mBufferStuffingState.isRecovering) {
+                if (!mBufferStuffingState.isStuffed.getAndSet(false)) {
+                    return BufferStuffingState.RecoveryAction.NONE;
+                }
+                // Frame delay only occurs at the start of recovery to free a buffer.
+                mBufferStuffingState.isRecovering = true;
+                if (Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
+                    Trace.asyncTraceForTrackBegin(
+                            Trace.TRACE_TAG_VIEW, "Buffer stuffing recovery", "Thread "
+                            + android.os.Process.myTid() + ", recover frame", 0);
+                }
+                return BufferStuffingState.RecoveryAction.DELAY_FRAME;
             }
-            return BufferStuffingState.RecoveryAction.DELAY_FRAME;
         }
 
-        // Total number of frame delays used to detect idle state. Includes an additional
-        // expected frame delay from the natural scheduling of the next vsync event and
-        // the intentional frame delay that was scheduled when stuffing was first detected.
-        int totalFrameDelays = mBufferStuffingState.numberWaitsForNextVsync + 2;
-        long vsyncsSinceLastCallback = mLastFrameIntervalNanos > 0
+        // Recovery is actively happening. Continue the recovery or check between every
+        // frame if the animations have become idle long enough for recovery to end. The
+        // total number of frame delays used to detect idle state includes an additional
+        // expected frame delay from the natural scheduling of the next vsync event.
+        final int totalFrameDelays = mBufferStuffingState.numberWaitsForNextVsync + 1;
+        final long vsyncsSinceLastCallback = mLastFrameIntervalNanos > 0
                 ? (frameTimeNanos - mLastNoOffsetFrameTimeNanos) / mLastFrameIntervalNanos : 0;
 
         // Detected idle state due to a longer inactive period since the last vsync callback
@@ -957,8 +1012,8 @@ public final class Choreographer {
         }
         if (Trace.isTagEnabled(Trace.TRACE_TAG_VIEW)) {
             Trace.instantForTrack(
-                    Trace.TRACE_TAG_VIEW, "Buffer stuffing recovery",
-                    "Negative offset added to animation");
+                    Trace.TRACE_TAG_VIEW, "Buffer stuffing recovery", "Negative offset of "
+                    + vsyncEventData.frameInterval + " ns added to animation");
         }
         return BufferStuffingState.RecoveryAction.OFFSET;
     }
@@ -988,6 +1043,7 @@ public final class Choreographer {
                     break;
                 case DELAY_FRAME:
                     // Intentional frame delay to help reduce queued buffer count.
+                    mBufferStuffingState.numberWaitsForNextVsync++;
                     scheduleVsyncLocked();
                     return;
                 default:
@@ -1431,7 +1487,7 @@ public final class Choreographer {
             }
 
             long newPreferredDeadline = mFrameTimelines[newPreferredIndex].mDeadlineNanos;
-            if (newPreferredDeadline < minimumDeadline) {
+            if (USE_VSYNC && newPreferredDeadline < minimumDeadline) {
                 DisplayEventReceiver.VsyncEventData latestVsyncEventData =
                         displayEventReceiver.getLatestVsyncEventData();
                 if (latestVsyncEventData == null) {
@@ -1523,15 +1579,19 @@ public final class Choreographer {
                 // Otherwise, messages that predate the vsync event will be handled first.
                 long now = System.nanoTime();
                 if (timestampNanos > now) {
-                    Log.w(TAG, "Frame time is " + ((timestampNanos - now) * 0.000001f)
-                            + " ms in the future!  Check that graphics HAL is generating vsync "
-                            + "timestamps using the correct timebase.");
+                    if (DEBUG_JANK) {
+                        Log.w(TAG, "Frame time is " + ((timestampNanos - now) * 0.000001f)
+                                + " ms in the future!  Check that graphics HAL is generating vsync "
+                                + "timestamps using the correct timebase.");
+                    }
                     timestampNanos = now;
                 }
 
                 if (mHavePendingVsync) {
-                    Log.w(TAG, "Already have a pending vsync event.  There should only be "
-                            + "one at a time.");
+                    if (DEBUG_JANK) {
+                        Log.w(TAG, "Already have a pending vsync event.  There should only be "
+                                + "one at a time.");
+                    }
                 } else {
                     mHavePendingVsync = true;
                 }

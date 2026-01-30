@@ -16,7 +16,7 @@
 
 package android.os;
 
-/** {@hide} */
+/** @hide */
 interface IProcessInfoService
 {
     /**

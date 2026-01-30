@@ -19,7 +19,15 @@
 #include <utils/Log.h>
 
 #include <android/activity_manager.h>
+#include <android/app/BnProcessObserver.h>
+#include <android/app/IProcessObserver.h>
+#include <android/binder_status.h>
+#include <android/binder_auto_utils.h>
+#include <android/app/RunningAppProcessInfo.h>
 #include <binder/ActivityManager.h>
+
+#include <mutex>
+#include <vector>
 
 namespace android {
 namespace activitymanager {
@@ -191,6 +199,73 @@ void UidObserver::unregisterSelf() {
     ALOGV("UidObserver: Unregistered with ActivityManager");
 }
 
+class ProcessObserver : public app::BnProcessObserver {
+public:
+    explicit ProcessObserver(void* cookie)
+          : mOnProcessStarted(nullptr),
+            mOnForegroundActivitiesChanged(nullptr),
+            mOnForegroundServicesChanged(nullptr),
+            mOnProcessDied(nullptr),
+            mCookie(cookie) {}
+
+    void setOnProcessStarted(AActivityManager_onProcessStarted cb) { mOnProcessStarted = cb; }
+    void setOnForegroundActivitiesChanged(AActivityManager_onForegroundActivitiesChanged cb) {
+        mOnForegroundActivitiesChanged = cb;
+    }
+    void setOnForegroundServicesChanged(AActivityManager_onForegroundServicesChanged cb) {
+        mOnForegroundServicesChanged = cb;
+    }
+    void setOnProcessDied(AActivityManager_onProcessDied cb) { mOnProcessDied = cb; }
+
+    bool hasCallbacks() const {
+        return mOnProcessStarted || mOnForegroundActivitiesChanged ||
+               mOnForegroundServicesChanged || mOnProcessDied;
+    }
+
+    binder::Status onProcessStarted(int pid, int processUid, int packageUid,
+                                    const std::string& packageName,
+                                    const std::string& processName) override {
+        if (mOnProcessStarted) {
+            mOnProcessStarted(pid, processUid, packageUid, packageName.c_str(),
+                              processName.c_str(), mCookie);
+        }
+        return binder::Status::ok();
+    }
+
+    binder::Status onForegroundActivitiesChanged(int pid, int uid,
+                                                 bool foregroundActivities) override {
+        if (mOnForegroundActivitiesChanged) {
+            const AActivityManager_ForegroundActivitiesState state =
+                    foregroundActivities
+                            ? AACTIVITYMANAGER_HAS_FOREGROUND_ACTIVITIES
+                            : AACTIVITYMANAGER_NO_FOREGROUND_ACTIVITIES;
+            mOnForegroundActivitiesChanged(pid, uid, state, mCookie);
+        }
+        return binder::Status::ok();
+    }
+
+    binder::Status onForegroundServicesChanged(int pid, int uid, int32_t serviceTypes) override {
+        if (mOnForegroundServicesChanged) {
+            mOnForegroundServicesChanged(pid, uid, serviceTypes, mCookie);
+        }
+        return binder::Status::ok();
+    }
+
+    binder::Status onProcessDied(int pid, int uid) override {
+        if (mOnProcessDied) {
+            mOnProcessDied(pid, uid, mCookie);
+        }
+        return binder::Status::ok();
+    }
+
+private:
+    AActivityManager_onProcessStarted mOnProcessStarted;
+    AActivityManager_onForegroundActivitiesChanged mOnForegroundActivitiesChanged;
+    AActivityManager_onForegroundServicesChanged mOnForegroundServicesChanged;
+    AActivityManager_onProcessDied mOnProcessDied;
+    void* mCookie;
+};
+
 } // activitymanager
 } // android
 
@@ -219,6 +294,163 @@ void AActivityManager_removeUidImportanceListener(
     }
 }
 
+struct AActivityManager_ProcessObserver {
+    sp<ProcessObserver> observer;
+    bool registered = false;
+};
+
+AActivityManager_ProcessObserver* AActivityManager_createProcessObserver(void* cookie) {
+    auto handle = new AActivityManager_ProcessObserver();
+    if (!handle) {
+        return nullptr;
+    }
+    handle->observer = sp<ProcessObserver>::make(cookie);
+    if (handle->observer == nullptr) {
+        delete handle;
+        return nullptr;
+    }
+    return handle;
+}
+
+void AActivityManager_destroyProcessObserver(AActivityManager_ProcessObserver* observer) {
+    if (observer == nullptr) {
+        return;
+    }
+    if (observer->registered) {
+        gAm.unregisterProcessObserver(observer->observer);
+    }
+    delete observer;
+}
+
+void AActivityManager_ProcessObserver_setOnProcessStarted(
+        AActivityManager_ProcessObserver* observer, AActivityManager_onProcessStarted callback) {
+    if (observer && observer->observer) {
+        observer->observer->setOnProcessStarted(callback);
+    }
+}
+
+void AActivityManager_ProcessObserver_setOnForegroundActivitiesChanged(
+        AActivityManager_ProcessObserver* observer,
+        AActivityManager_onForegroundActivitiesChanged callback) {
+    if (observer && observer->observer) {
+        observer->observer->setOnForegroundActivitiesChanged(callback);
+    }
+}
+
+void AActivityManager_ProcessObserver_setOnForegroundServicesChanged(
+        AActivityManager_ProcessObserver* observer,
+        AActivityManager_onForegroundServicesChanged callback) {
+    if (observer && observer->observer) {
+        observer->observer->setOnForegroundServicesChanged(callback);
+    }
+}
+
+void AActivityManager_ProcessObserver_setOnProcessDied(
+        AActivityManager_ProcessObserver* observer, AActivityManager_onProcessDied callback) {
+    if (observer && observer->observer) {
+        observer->observer->setOnProcessDied(callback);
+    }
+}
+
+binder_status_t AActivityManager_registerProcessObserver(
+        AActivityManager_ProcessObserver* observer) {
+    if (observer == nullptr || observer->observer == nullptr) {
+        return STATUS_BAD_VALUE;
+    }
+    if (observer->registered) {
+        return STATUS_INVALID_OPERATION;
+    }
+    if (!observer->observer->hasCallbacks()) {
+        return STATUS_BAD_VALUE;
+    }
+
+    status_t status = gAm.registerProcessObserver(observer->observer);
+    if (status != OK) {
+        ALOGE("ProcessObserver: Failed to register with ActivityManager (err %d)", status);
+        return ndk::ScopedAStatus::fromStatus(status).getStatus();
+    }
+
+    observer->registered = true;
+    return STATUS_OK;
+}
+
+void AActivityManager_unregisterProcessObserver(AActivityManager_ProcessObserver* observer) {
+    if (observer == nullptr || !observer->registered) {
+        return;
+    }
+    gAm.unregisterProcessObserver(observer->observer);
+    observer->registered = false;
+}
+
+struct ARunningAppProcessInfo {
+    pid_t pid;
+    uid_t uid;
+    std::string processName;
+    std::vector<std::string> pkgList;
+    int32_t importance;
+    std::vector<const char*> pkgListCStr;
+};
+
+struct ARunningAppProcessInfoList {
+    std::vector<ARunningAppProcessInfo> list;
+};
+
+binder_status_t AActivityManager_getRunningAppProcesses(
+        ARunningAppProcessInfoList** outProcessInfoList) {
+    if (outProcessInfoList == nullptr) {
+        return STATUS_BAD_VALUE;
+    }
+
+    std::vector<app::RunningAppProcessInfo> processes;
+    status_t status = gAm.getRunningAppProcesses(&processes);
+    if (status != OK) {
+        return ndk::ScopedAStatus::fromStatus(status).getStatus();
+    }
+
+    auto* list = new ARunningAppProcessInfoList();
+    list->list.reserve(processes.size());
+
+    for (const auto& p : processes) {
+        ARunningAppProcessInfo info;
+        info.pid = p.pid;
+        info.uid = p.uid;
+        info.processName = p.processName;
+        if (p.pkgList.has_value()) {
+            for (const auto& pkg : p.pkgList.value()) {
+                if (pkg.has_value()) {
+                    info.pkgList.push_back(pkg.value());
+                }
+            }
+        }
+        info.importance = p.importance;
+
+        info.pkgListCStr.reserve(info.pkgList.size());
+        for (const auto& pkg : info.pkgList) {
+            info.pkgListCStr.push_back(pkg.c_str());
+        }
+        list->list.emplace_back(std::move(info));
+    }
+
+    *outProcessInfoList = list;
+    return STATUS_OK;
+}
+
+void AActivityManager_RunningAppProcessInfoList_destroy(const ARunningAppProcessInfoList* list) {
+    delete list;
+}
+
+size_t AActivityManager_RunningAppProcessInfoList_getSize(const ARunningAppProcessInfoList* list) {
+    return list->list.size();
+}
+
+const ARunningAppProcessInfo* AActivityManager_RunningAppProcessInfoList_get(
+        const ARunningAppProcessInfoList* list, size_t index) {
+    if (index >= list->list.size()) {
+        return nullptr;
+    }
+    return &list->list[index];
+}
+
 bool AActivityManager_isUidActive(uid_t uid) {
     return gAm.isUidActive(uid, getTag());
 }
@@ -227,3 +459,23 @@ int32_t AActivityManager_getUidImportance(uid_t uid) {
     return UidObserver::procStateToImportance(gAm.getUidProcessState(uid, getTag()));
 }
 
+pid_t ARunningAppProcessInfo_getPid(const ARunningAppProcessInfo* info) { return info->pid; }
+
+uid_t ARunningAppProcessInfo_getUid(const ARunningAppProcessInfo* info) { return info->uid; }
+
+const char* ARunningAppProcessInfo_getProcessName(const ARunningAppProcessInfo* info) {
+    return info->processName.c_str();
+}
+
+const char* const* ARunningAppProcessInfo_getPackageList(const ARunningAppProcessInfo* info,
+                                                         size_t* outNumPackages) {
+    *outNumPackages = info->pkgListCStr.size();
+    if (info->pkgListCStr.empty()) {
+        return nullptr;
+    }
+    return info->pkgListCStr.data();
+}
+
+int32_t ARunningAppProcessInfo_getImportance(const ARunningAppProcessInfo* info) {
+    return info->importance;
+}

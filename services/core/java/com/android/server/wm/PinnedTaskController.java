@@ -16,8 +16,6 @@
 
 package com.android.server.wm;
 
-import static android.app.WindowConfiguration.ROTATION_UNDEFINED;
-
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.WindowManagerDebugConfig.TAG_WM;
 
@@ -50,7 +48,6 @@ import java.io.PrintWriter;
 class PinnedTaskController {
 
     private static final String TAG = TAG_WITH_CLASS_NAME ? "PinnedTaskController" : TAG_WM;
-    private static final int DEFER_ORIENTATION_CHANGE_TIMEOUT_MS = 1000;
 
     private final WindowManagerService mService;
     private final DisplayContent mDisplayContent;
@@ -59,17 +56,8 @@ class PinnedTaskController {
     private final PinnedTaskListenerDeathHandler mPinnedTaskListenerDeathHandler =
             new PinnedTaskListenerDeathHandler();
 
-    /**
-     * Non-null if the entering PiP task will cause display rotation to change. The bounds are
-     * based on the new rotation.
-     */
-    private Rect mDestRotatedBounds;
-
     /** Whether to skip task configuration change once. */
     private boolean mFreezingTaskConfig;
-    /** Defer display orientation change if the PiP task is animating across orientations. */
-    private boolean mDeferOrientationChanging;
-    private final Runnable mDeferOrientationTimeoutRunnable;
 
     private boolean mIsImeShowing;
     private int mImeHeight;
@@ -88,7 +76,6 @@ class PinnedTaskController {
             synchronized (mService.mGlobalLock) {
                 mPinnedTaskListener = null;
                 mFreezingTaskConfig = false;
-                mDeferOrientationTimeoutRunnable.run();
             }
         }
     }
@@ -96,14 +83,6 @@ class PinnedTaskController {
     PinnedTaskController(WindowManagerService service, DisplayContent displayContent) {
         mService = service;
         mDisplayContent = displayContent;
-        mDeferOrientationTimeoutRunnable = () -> {
-            synchronized (mService.mGlobalLock) {
-                if (mDeferOrientationChanging) {
-                    continueOrientationChange();
-                    mService.mWindowPlacerLocked.requestTraversal();
-                }
-            }
-        };
         reloadResources();
     }
 
@@ -155,68 +134,12 @@ class PinnedTaskController {
     }
 
     /**
-     * Called when a fullscreen task is entering PiP with display orientation change. This is used
-     * to avoid flickering when running PiP animation across different orientations.
-     */
-    void deferOrientationChangeForEnteringPipFromFullScreenIfNeeded() {
-        final ActivityRecord topFullscreen = mDisplayContent.getActivity(
-                a -> a.providesOrientation() && !a.getTask().inMultiWindowMode());
-        if (topFullscreen == null || topFullscreen.hasFixedRotationTransform()) {
-            return;
-        }
-        final int rotation = mDisplayContent.rotationForActivityInDifferentOrientation(
-                topFullscreen);
-        if (rotation == ROTATION_UNDEFINED) {
-            return;
-        }
-        // If the next top activity will change the orientation of display, start fixed rotation to
-        // notify PipTaskOrganizer before it receives task appeared. And defer display orientation
-        // update until the new PiP bounds are set.
-        mDisplayContent.setFixedRotationLaunchingApp(topFullscreen, rotation);
-        mDeferOrientationChanging = true;
-        mService.mH.removeCallbacks(mDeferOrientationTimeoutRunnable);
-        final float animatorScale = Math.max(1, mService.getCurrentAnimatorScale());
-        mService.mH.postDelayed(mDeferOrientationTimeoutRunnable,
-                (int) (animatorScale * DEFER_ORIENTATION_CHANGE_TIMEOUT_MS));
-    }
-
-    /** Defers orientation change while there is a top fixed rotation activity. */
-    boolean shouldDeferOrientationChange() {
-        return mDeferOrientationChanging;
-    }
-
-    /**
-     * Sets the bounds for {@link #startSeamlessRotationIfNeeded} if the orientation of display
-     * will be changed.
-     */
-    void setEnterPipBounds(Rect bounds) {
-        if (!mDeferOrientationChanging) {
-            return;
-        }
-        mFreezingTaskConfig = true;
-        mDestRotatedBounds = new Rect(bounds);
-        if (!mDisplayContent.mTransitionController.isShellTransitionsEnabled()) {
-            continueOrientationChange();
-        }
-    }
-
-    /**
      * Sets a hint if the orientation of display will be changed. This is only called when
      * finishing recents animation with pending orientation change that will be handled by
      * {@link DisplayContent.FixedRotationTransitionListener}.
      */
     void setEnterPipWithRotatedTransientLaunch() {
         mFreezingTaskConfig = true;
-    }
-
-    /** Called when the activity in PiP task has PiP windowing mode (at the end of animation). */
-    private void continueOrientationChange() {
-        mDeferOrientationChanging = false;
-        mService.mH.removeCallbacks(mDeferOrientationTimeoutRunnable);
-        final WindowContainer<?> orientationSource = mDisplayContent.getLastOrientationSource();
-        if (orientationSource != null && !orientationSource.isAppTransitioning()) {
-            mDisplayContent.continueUpdateOrientationForDiffOrienLaunchingApp();
-        }
     }
 
     /**
@@ -231,8 +154,6 @@ class PinnedTaskController {
     /** Resets the states which were used to perform fixed rotation with PiP task. */
     void onCancelFixedRotationTransform() {
         mFreezingTaskConfig = false;
-        mDeferOrientationChanging = false;
-        mDestRotatedBounds = null;
     }
 
     /**
@@ -287,11 +208,7 @@ class PinnedTaskController {
 
     void dump(String prefix, PrintWriter pw) {
         pw.println(prefix + "PinnedTaskController");
-        if (mDeferOrientationChanging) pw.println(prefix + "  mDeferOrientationChanging=true");
         if (mFreezingTaskConfig) pw.println(prefix + "  mFreezingTaskConfig=true");
-        if (mDestRotatedBounds != null) {
-            pw.println(prefix + "  mPendingBounds=" + mDestRotatedBounds);
-        }
         pw.println(prefix + "  mIsImeShowing=" + mIsImeShowing);
         pw.println(prefix + "  mImeHeight=" + mImeHeight);
         pw.println(prefix + "  mMinAspectRatio=" + mMinAspectRatio);

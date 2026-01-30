@@ -21,7 +21,6 @@ import static com.android.text.flags.Flags.handwritingTrackDisabled;
 import static com.android.text.flags.Flags.handwritingUnsupportedMessage;
 import static com.android.text.flags.Flags.handwritingUnsupportedShowSoftInputFix;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -149,7 +148,10 @@ public class HandwritingInitiator {
     public HandwritingInitiator(@NonNull ViewConfiguration viewConfiguration,
             @NonNull InputMethodManager inputMethodManager) {
         mHandwritingSlop = viewConfiguration.getScaledHandwritingSlop();
-        mHandwritingTimeoutInMillis = ViewConfiguration.getLongPressTimeout();
+        mHandwritingTimeoutInMillis =
+                android.companion.virtualdevice.flags.Flags.viewconfigurationApis()
+                        ? viewConfiguration.getLongPressTimeoutMillis()
+                        : ViewConfiguration.getLongPressTimeout();
         mImm = inputMethodManager;
     }
 
@@ -330,7 +332,8 @@ public class HandwritingInitiator {
             mConnectionCount = 1;
             // A new view just gain focus. By default, we should show hover icon for it.
             mShowHoverIconForConnectedView = true;
-            if (view.isHandwritingDelegate() && tryAcceptStylusHandwritingDelegation(view)) {
+            if (view.isHandwritingDelegate()) {
+                tryAcceptStylusHandwritingDelegation(view);
                 // tryAcceptStylusHandwritingDelegation should set boolean below, however, we
                 // cannot mock IMM to return true for acceptStylusDelegation().
                 // TODO(b/324670412): we should move any dependent tests to integration and remove
@@ -477,30 +480,7 @@ public class HandwritingInitiator {
      * InputMethodManager#prepareStylusHandwritingDelegation} was previously called.
      */
     @VisibleForTesting
-    public boolean tryAcceptStylusHandwritingDelegation(@NonNull View view) {
-        if (Flags.useZeroJankProxy()) {
-            tryAcceptStylusHandwritingDelegationAsync(view);
-        } else {
-            return tryAcceptStylusHandwritingDelegationInternal(view);
-        }
-        return false;
-    }
-
-    private boolean tryAcceptStylusHandwritingDelegationInternal(@NonNull View view) {
-        String delegatorPackageName =
-                view.getAllowedHandwritingDelegatorPackageName();
-        if (delegatorPackageName == null) {
-            delegatorPackageName = view.getContext().getOpPackageName();
-        }
-        if (mImm.acceptStylusHandwritingDelegation(view, delegatorPackageName)) {
-            onDelegationAccepted(view);
-            return true;
-        }
-        return false;
-    }
-
-    @FlaggedApi(Flags.FLAG_USE_ZERO_JANK_PROXY)
-    private void tryAcceptStylusHandwritingDelegationAsync(@NonNull View view) {
+    public void tryAcceptStylusHandwritingDelegation(@NonNull View view) {
         String delegatorPackageName =
                 view.getAllowedHandwritingDelegatorPackageName();
         if (delegatorPackageName == null) {

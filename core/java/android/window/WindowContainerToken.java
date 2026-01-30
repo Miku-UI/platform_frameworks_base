@@ -78,7 +78,7 @@ public final class WindowContainerToken implements Parcelable {
 
     @Override
     public String toString() {
-        return "WCT{" + mRealToken + "}";
+        return "WCT{" + mRealToken.asBinder() + "}";
     }
 
     @Override

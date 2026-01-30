@@ -18,4 +18,4 @@ package com.android.systemui.qs.composefragment.dagger
 
 import com.android.systemui.kosmos.Kosmos
 
-var Kosmos.usingMediaInComposeFragment by Kosmos.Fixture<Boolean>()
+var Kosmos.usingMediaInComposeFragment by Kosmos.Fixture { true }

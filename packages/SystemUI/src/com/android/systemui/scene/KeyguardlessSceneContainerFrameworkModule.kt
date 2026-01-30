@@ -23,7 +23,6 @@ import com.android.systemui.scene.domain.interactor.WindowRootViewVisibilityInte
 import com.android.systemui.scene.domain.resolver.HomeSceneFamilyResolverModule
 import com.android.systemui.scene.domain.startable.KeyguardStateCallbackStartable
 import com.android.systemui.scene.domain.startable.SceneContainerStartable
-import com.android.systemui.scene.domain.startable.ScrimStartable
 import com.android.systemui.scene.domain.startable.StatusBarStartable
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.SceneContainerConfig
@@ -58,11 +57,6 @@ interface KeyguardlessSceneContainerFrameworkModule {
     @IntoMap
     @ClassKey(SceneContainerStartable::class)
     fun containerStartable(impl: SceneContainerStartable): CoreStartable
-
-    @Binds
-    @IntoMap
-    @ClassKey(ScrimStartable::class)
-    fun scrimStartable(impl: ScrimStartable): CoreStartable
 
     @Binds
     @IntoMap

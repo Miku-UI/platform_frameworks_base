@@ -33,7 +33,7 @@ parcelable CompatibilityChangeInfo;
  *
  * <p>Note: for app processes please use {@code android.compat.Compatibility} API.
  *
- * {@hide}
+ * @hide
  */
 interface IPlatformCompat {
 
@@ -366,4 +366,20 @@ interface IPlatformCompat {
      */
     @RequiresNoPermission
     IOverrideValidator getOverrideValidator();
+
+    /**
+     * Indicates whether compat change checks are logged to statsd.
+     *
+     * <p>To be only used in tests.
+     *
+     */
+    boolean isLogChangeChecksToStatsd();
+
+    /**
+     * Sets whether compat change checks should be logged to statsd.
+     *
+     * <p>To be only used in tests.
+     *
+     */
+    void setLogChangeChecksToStatsd(boolean value);
 }

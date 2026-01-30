@@ -22,18 +22,18 @@ import com.android.systemui.qs.panels.domain.interactor.quickQuickSettingsRowInt
 import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
 
 val Kosmos.quickQuickSettingsViewModelFactory by
-    Kosmos.Fixture {
-        object : QuickQuickSettingsViewModel.Factory {
-            override fun create(): QuickQuickSettingsViewModel {
-                return QuickQuickSettingsViewModel(
-                    currentTilesInteractor,
-                    qsColumnsViewModelFactory,
-                    quickQuickSettingsRowInteractor,
-                    mediaInRowInLandscapeViewModelFactory,
-                    tileSquishinessViewModel,
-                    iconTilesViewModel,
-                    tileHapticsViewModelFactoryProvider,
-                )
-            }
+Kosmos.Fixture {
+    object : QuickQuickSettingsViewModel.Factory {
+        override fun create(): QuickQuickSettingsViewModel {
+            return QuickQuickSettingsViewModel(
+                currentTilesInteractor,
+                qsColumnsViewModelFactory,
+                quickQuickSettingsRowInteractor,
+                mediaInRowInLandscapeViewModelFactory,
+                tileSquishinessViewModel,
+                iconTilesViewModel,
+                tileHapticsViewModelFactoryProvider,
+            )
         }
     }
+}

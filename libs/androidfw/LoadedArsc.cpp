@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <limits>
 #include <optional>
+#include <android_content_res.h>
 
 #include "android-base/logging.h"
 #include "android-base/stringprintf.h"
@@ -826,6 +827,8 @@ bool LoadedArsc::LoadTable(const Chunk& chunk, const LoadedIdmap* loaded_idmap,
     packages_.reserve(package_count);
   }
 
+  flag_map_.clear();
+
   ChunkIterator iter(chunk.data_ptr(), chunk.data_size());
   while (iter.HasNext()) {
     const Chunk child_chunk = iter.Next();
@@ -846,6 +849,35 @@ bool LoadedArsc::LoadTable(const Chunk& chunk, const LoadedIdmap* loaded_idmap,
           LOG(WARNING) << "Multiple RES_STRING_POOL_TYPEs found in RES_TABLE_TYPE.";
         }
         break;
+
+      case RES_TABLE_FLAG_LIST: {
+        if (android_content_res_resource_readwrite_flags()) {
+          const auto& flag_header = child_chunk.header<ResTable_flag_list>();
+          const auto start_index = child_chunk.data_ptr().convert<uint32_t>();
+          size_t count = child_chunk.data_size() / sizeof(start_index.value());
+
+          const auto end_index = start_index + count;
+          if (count > 0 && global_string_pool_->size() == 0) {
+            LOG(ERROR) << "RES_TABLE_FLAG_LIST with empty string pool";
+            return false;
+          }
+          for (auto index = start_index; index != end_index; ++index) {
+            if (!index) {
+              LOG(ERROR) << "Couldn't read RES_TABLE_FLAG_LIST.";
+              return false;
+            }
+            auto sp_index = dtohl(index.value());
+            auto flag_name = global_string_pool_->string8At(sp_index);
+            if (flag_name) {
+              flag_map_.insert({std::string(flag_name.value()), LoadedArscFlagStatus::Unknown});
+            } else {
+              LOG(ERROR) << "flag list: couldn't find flag name with index " << sp_index;
+              return false;
+            }
+          }
+        }
+      }
+      break;
 
       case RES_TABLE_PACKAGE_TYPE: {
         if (packages_seen + 1 > package_count) {
@@ -873,6 +905,16 @@ bool LoadedArsc::LoadTable(const Chunk& chunk, const LoadedIdmap* loaded_idmap,
     }
   }
 
+  if (!flag_map_.empty()) {
+    if (get_flag_values_func_) {
+      get_flag_values_func_(flag_map_);
+    } else {
+      for (auto& [_, flag_value] : flag_map_) {
+        flag_value = LoadedArscFlagStatus::AlwaysShown;
+      }
+    }
+  }
+
   if (iter.HadError()) {
     LOG(ERROR) << iter.GetLastError();
     if (iter.HadFatalError()) {
@@ -891,12 +933,15 @@ bool LoadedArsc::LoadStringPool(const LoadedIdmap* loaded_idmap) {
 
 std::unique_ptr<LoadedArsc> LoadedArsc::Load(incfs::map_ptr<void> data,
                                              const size_t length,
+                                             GetFlagValuesFunc get_flag_values_func,
                                              const LoadedIdmap* loaded_idmap,
                                              const package_property_t property_flags) {
   ATRACE_NAME("LoadedArsc::Load");
 
   // Not using make_unique because the constructor is private.
   std::unique_ptr<LoadedArsc> loaded_arsc(new LoadedArsc());
+
+  loaded_arsc->get_flag_values_func_ = std::move(get_flag_values_func);
 
   ChunkIterator iter(data, length);
   while (iter.HasNext()) {

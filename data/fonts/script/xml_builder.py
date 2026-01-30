@@ -123,7 +123,7 @@ class FallbackOrder:
     priority = None
     if family.id:
       priority = self.priority.get('id:%s' % family.id)
-    if not priority and family.lang:
+    if priority is None and family.lang:
       priority = self.priority.get('lang:%s' % family.lang)
 
     assert priority is not None, 'Unknown priority for %s' % family

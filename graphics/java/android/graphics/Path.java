@@ -37,8 +37,6 @@ import libcore.util.NativeAllocationRegistry;
  * text on a path.
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
-@android.ravenwood.annotation.RavenwoodClassLoadHook(
-        android.ravenwood.annotation.RavenwoodClassLoadHook.LIBANDROID_LOADING_HOOK)
 public class Path {
     // See b/337329128 for why we need an inner class here.
     private static class NoImagePreloadHolder {

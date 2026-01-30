@@ -25,19 +25,11 @@ import com.android.systemui.animation.LaunchableViewDelegate
 /** AppWidgetHostView that displays in communal hub to show smartspace content. */
 class SmartspaceAppWidgetHostView(context: Context) : AppWidgetHostView(context), LaunchableView {
     private val launchableViewDelegate =
-        LaunchableViewDelegate(
-            this,
-            superSetVisibility = { super.setVisibility(it) },
-        )
+        LaunchableViewDelegate(this, superSetVisibility = { super.setVisibility(it) })
 
     override fun setAppWidget(appWidgetId: Int, info: AppWidgetProviderInfo?) {
         super.setAppWidget(appWidgetId, info)
         setPadding(0, 0, 0, 0)
-    }
-
-    override fun getRemoteContextEnsuringCorrectCachedApkPath(): Context? {
-        // Silence errors
-        return null
     }
 
     override fun setShouldBlockVisibilityChanges(block: Boolean) =

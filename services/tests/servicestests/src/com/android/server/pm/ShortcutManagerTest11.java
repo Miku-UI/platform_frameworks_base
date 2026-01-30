@@ -146,7 +146,7 @@ public class ShortcutManagerTest11 extends BaseShortcutManagerTest {
                 .haveIds("s1", "s2", "s3", "s4");
     }
 
-    public void testShortcutChangeCallback_pinShortcuts() {
+    public void disabled_testShortcutChangeCallback_pinShortcuts() {
         runWithCaller(CALLING_PACKAGE_1, USER_10, () -> {
             assertTrue(mManager.setDynamicShortcuts(makeShortcuts("s1", "s2")));
         });

@@ -66,6 +66,7 @@ class FakeCustomizationProviderClient(
             )
         ),
     runtimeValues: Bundle = Bundle(),
+    initialSelections: Map<String, List<String>> = emptyMap(),
 ) : CustomizationProviderClient {
 
     private val slots = MutableStateFlow(slots)
@@ -73,7 +74,8 @@ class FakeCustomizationProviderClient(
     private val flags = MutableStateFlow(flags)
     private val runtimeValues = MutableStateFlow(runtimeValues)
 
-    private val selections = MutableStateFlow<Map<String, List<String>>>(emptyMap())
+    private val selections: MutableStateFlow<Map<String, List<String>>> =
+        MutableStateFlow(initialSelections)
 
     override suspend fun insertSelection(slotId: String, affordanceId: String) {
         val slotCapacity =

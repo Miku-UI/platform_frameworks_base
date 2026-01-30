@@ -151,16 +151,15 @@ internal class RestrictedSwitchPreferenceModel(
 
         fun getSummary(
             context: Context,
-            summaryIfNoRestricted: () -> String,
+            summaryIfNoRestricted: () -> CharSequence,
             checkedIfNoRestricted: () -> Boolean?,
             checkedIfBlockedByAdmin: Boolean? = null,
             restrictedModeSupplier: () -> RestrictedMode?,
-        ): () -> String = {
+        ): () -> CharSequence = {
             when (val restrictedMode = restrictedModeSupplier()) {
                 is NoRestricted -> summaryIfNoRestricted()
                 is BaseUserRestricted ->
                     context.getString(com.android.settingslib.R.string.disabled)
-
                 is BlockedByAdmin ->
                     restrictedMode.getSummary(checkedIfBlockedByAdmin ?: checkedIfNoRestricted())
                 is BlockedByEcm -> if (restrictedMode.isBlockedByPhoneCall()) {

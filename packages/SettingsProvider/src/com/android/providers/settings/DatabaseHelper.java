@@ -25,6 +25,7 @@ import android.database.sqlite.SQLiteStatement;
 import android.media.AudioManager;
 import android.media.AudioSystem;
 import android.net.ConnectivityManager;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Environment;
 import android.os.SystemProperties;
@@ -2105,7 +2106,7 @@ class DatabaseHelper extends SQLiteOpenHelper {
             loadSetting(stmt, Settings.System.DTMF_TONE_TYPE_WHEN_DIALING, 0);
 
             // Set default hearing aid
-            loadSetting(stmt, Settings.System.HEARING_AID, 0);
+            loadSetting(stmt, Settings.System.HEARING_AID_COMPATIBILITY, 0);
 
             // Set default tty mode
             loadSetting(stmt, Settings.System.TTY_MODE, 0);
@@ -2302,8 +2303,19 @@ class DatabaseHelper extends SQLiteOpenHelper {
             loadBooleanSetting(stmt, Settings.Global.AUTO_TIME_ZONE,
                     R.bool.def_auto_time_zone); // Sync timezone to NITZ
 
-            loadSetting(stmt, Settings.Global.STAY_ON_WHILE_PLUGGED_IN,
-                    res.getBoolean(R.bool.def_stay_on_while_plugged_in) ? 1 : 0);
+            if (Flags.useNewStayOnWhilePluggedInDefault()) {
+                loadSetting(
+                        stmt,
+                        Settings.Global.STAY_ON_WHILE_PLUGGED_IN,
+                        (res.getBoolean(R.bool.def_stay_on_while_plugged_in)
+                                ? BatteryManager.BATTERY_PLUGGED_ANY
+                                : 0));
+            } else {
+                loadSetting(
+                        stmt,
+                        Settings.Global.STAY_ON_WHILE_PLUGGED_IN,
+                        res.getBoolean(R.bool.def_stay_on_while_plugged_in) ? 1 : 0);
+            }
 
             loadIntegerSetting(stmt, Settings.Global.WIFI_SLEEP_POLICY,
                     R.integer.def_wifi_sleep_policy);

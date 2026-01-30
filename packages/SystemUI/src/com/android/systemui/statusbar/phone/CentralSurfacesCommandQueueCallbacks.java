@@ -68,9 +68,9 @@ import com.android.systemui.shade.ShadeHeaderController;
 import com.android.systemui.shade.domain.interactor.PanelExpansionInteractor;
 import com.android.systemui.shade.domain.interactor.ShadeInteractor;
 import com.android.systemui.statusbar.CommandQueue;
+import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
-import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.statusbar.policy.RemoteInputQuickSettingsDisabler;
 import com.android.systemui.wallet.controller.QuickAccessWalletController;
@@ -378,7 +378,8 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
             }
             return;
         }
-        mKeyguardInteractor.onCameraLaunchDetected(source);
+        mKeyguardInteractor.onCameraLaunchDetected(source,
+                mCameraLauncherLazy.get().willLaunchSecureIntent());
 
         if (!mCentralSurfaces.isDeviceInteractive()) {
             mPowerManager.wakeUp(SystemClock.uptimeMillis(), PowerManager.WAKE_REASON_CAMERA_LAUNCH,
@@ -626,7 +627,8 @@ public class CentralSurfacesCommandQueueCallbacks implements CommandQueue.Callba
         }
 
         if (target == PowerButtonLaunchGestureTarget.LAUNCH_CAMERA_ON_GESTURE) {
-            mKeyguardInteractor.onCameraLaunchDetected(cameraLaunchSource);
+            mKeyguardInteractor.onCameraLaunchDetected(cameraLaunchSource,
+                    mCameraLauncherLazy.get().willLaunchSecureIntent());
         }
 
         wakeUpFromAppLaunch(target);

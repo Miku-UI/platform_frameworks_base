@@ -25,7 +25,6 @@ import android.view.ViewGroup;
 import android.view.inputmethod.InputMethodManager;
 
 import com.android.printspooler.R;
-import com.android.printspooler.flags.Flags;
 
 /**
  * This class is a layout manager for the print screen. It has a sliding
@@ -94,7 +93,7 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
         // The options view is sliding under the static header but appears
         // after it in the layout, so we will draw in opposite order.
         setChildrenDrawingOrderEnabled(true);
-        setFitsSystemWindows(Flags.printEdge2edge());
+        setFitsSystemWindows(true);
     }
 
     public void setOptionsStateChangeListener(OptionsStateChangeListener listener) {
@@ -150,7 +149,7 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
         mExpandCollapseHandle = findViewById(R.id.expand_collapse_handle);
         mExpandCollapseIcon = findViewById(R.id.expand_collapse_icon);
 
-        mOptionsContainer.setFitsSystemWindows(Flags.printEdge2edge());
+        mOptionsContainer.setFitsSystemWindows(true);
         mExpandCollapseHandle.setOnClickListener(this);
         mSummaryContent.setOnClickListener(this);
 
@@ -274,28 +273,15 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
 
     @Override
     protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-        final int childLeft;
-        final int childRight;
-        final int childTop;
-        if (Flags.printEdge2edge()) {
-            childLeft = left + mPaddingLeft;
-            childRight = right - mPaddingRight;
-            childTop = top + mPaddingTop;
-        } else {
-            childLeft = left;
-            childRight = right;
-            childTop = top;
-        }
+        final int childLeft = left + mPaddingLeft;
+        final int childRight = right - mPaddingRight;
+        final int childTop = top + mPaddingTop;
         mStaticContent.layout(childLeft, childTop, childRight,
-                mStaticContent.getMeasuredHeight() + (Flags.printEdge2edge() ? mPaddingTop : 0));
+                mStaticContent.getMeasuredHeight() + mPaddingTop);
 
         if (mSummaryContent.getVisibility() != View.GONE) {
-            mSummaryContent.layout(childLeft,
-                    (Flags.printEdge2edge() ? mStaticContent.getBottom()
-                            : mStaticContent.getMeasuredHeight()), childRight,
-                    (Flags.printEdge2edge() ? mStaticContent.getBottom()
-                            : mStaticContent.getMeasuredHeight())
-                                + mSummaryContent.getMeasuredHeight());
+            mSummaryContent.layout(childLeft, mStaticContent.getBottom(), childRight,
+                    mStaticContent.getBottom() + mSummaryContent.getMeasuredHeight());
         }
 
         final int dynContentTop = mStaticContent.getBottom() + mCurrentOptionsOffsetY;
@@ -318,11 +304,11 @@ public final class PrintContentView extends ViewGroup implements View.OnClickLis
 
         mPrintButton.layout(printButtonLeft, printButtonTop, printButtonRight, printButtonBottom);
 
-        final int embContentTop = (Flags.printEdge2edge() ? mPaddingTop : 0)
+        final int embContentTop = mPaddingTop
                 + mStaticContent.getMeasuredHeight()
                 + mClosedOptionsOffsetY + mDynamicContent.getMeasuredHeight();
         final int embContentBottom = embContentTop + mEmbeddedContentContainer.getMeasuredHeight()
-                -  (Flags.printEdge2edge() ? mPaddingBottom : 0);
+                -  mPaddingBottom;
 
         mEmbeddedContentContainer.layout(childLeft, embContentTop, childRight, embContentBottom);
     }

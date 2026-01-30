@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Leidžiama šiame planšetiniame kompiuteryje"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Šį telefoną galite rasti naudodami programą „Rasti įrenginį“, net jei jis išjungtas"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Šį planšetinį kompiuterį galite rasti naudodami programą „Rasti įrenginį“, net jei jis išjungtas"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Šį telefoną galite rasti naudodami programą „Find Hub“, net jei jis išjungtas"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Šį planšetinį kompiuterį galite rasti naudodami programą „Find Hub“, net jei jis išjungtas"</string>
 </resources>

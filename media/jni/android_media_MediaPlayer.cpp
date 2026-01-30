@@ -303,10 +303,10 @@ android_media_MediaPlayer_setDataSourceCallback(JNIEnv *env, jobject thiz, jobje
     process_media_player_call(env, thiz, mp->setDataSource(callbackDataSource), "java/lang/RuntimeException", "setDataSourceCallback failed." );
 }
 
-static sp<IGraphicBufferProducer>
+static sp<MediaSurfaceType>
 getVideoSurfaceTexture(JNIEnv* env, jobject thiz) {
-    IGraphicBufferProducer * const p = (IGraphicBufferProducer*)env->GetLongField(thiz, fields.surface_texture);
-    return sp<IGraphicBufferProducer>(p);
+    MediaSurfaceType* const p = (MediaSurfaceType*)env->GetLongField(thiz, fields.surface_texture);
+    return sp<MediaSurfaceType>(p);
 }
 
 static void
@@ -317,7 +317,7 @@ decVideoSurfaceRef(JNIEnv *env, jobject thiz)
         return;
     }
 
-    sp<IGraphicBufferProducer> old_st = getVideoSurfaceTexture(env, thiz);
+    sp<MediaSurfaceType> old_st = getVideoSurfaceTexture(env, thiz);
     if (old_st != NULL) {
         old_st->decStrong((void*)decVideoSurfaceRef);
     }
@@ -336,31 +336,43 @@ setVideoSurface(JNIEnv *env, jobject thiz, jobject jsurface, jboolean mediaPlaye
 
     decVideoSurfaceRef(env, thiz);
 
-    sp<IGraphicBufferProducer> new_st;
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+    sp<Surface> surface;
     if (jsurface) {
-        sp<Surface> surface(android_view_Surface_getSurface(env, jsurface));
-        if (surface != NULL) {
-            new_st = surface->getIGraphicBufferProducer();
-            if (new_st == NULL) {
+        surface = android_view_Surface_getSurface(env, jsurface);
+        if (surface == NULL) {
+            jniThrowException(env, "java/lang/IllegalArgumentException",
+                    "The surface has been released");
+            return;
+        }
+    }
+#else
+    sp<IGraphicBufferProducer> surface;
+    if (jsurface) {
+        sp<Surface> tempSurface(android_view_Surface_getSurface(env, jsurface));
+        if (tempSurface != NULL) {
+            surface = tempSurface->getIGraphicBufferProducer();
+            if (surface == NULL) {
                 jniThrowException(env, "java/lang/IllegalArgumentException",
                     "The surface does not have a binding SurfaceTexture!");
                 return;
             }
-            new_st->incStrong((void*)decVideoSurfaceRef);
+            surface->incStrong((void*)decVideoSurfaceRef);
         } else {
             jniThrowException(env, "java/lang/IllegalArgumentException",
                     "The surface has been released");
             return;
         }
     }
+#endif
 
-    env->SetLongField(thiz, fields.surface_texture, (jlong)new_st.get());
+    env->SetLongField(thiz, fields.surface_texture, (jlong)surface.get());
 
     // This will fail if the media player has not been initialized yet. This
     // can be the case if setDisplay() on MediaPlayer.java has been called
     // before setDataSource(). The redundant call to setVideoSurfaceTexture()
     // in prepare/prepareAsync covers for this case.
-    mp->setVideoSurfaceTexture(new_st);
+    mp->setVideoSurfaceTexture(surface);
 }
 
 static void
@@ -380,7 +392,7 @@ android_media_MediaPlayer_prepare(JNIEnv *env, jobject thiz, jobject piidParcel)
 
     // Handle the case where the display surface was set before the mp was
     // initialized. We try again to make it stick.
-    sp<IGraphicBufferProducer> st = getVideoSurfaceTexture(env, thiz);
+    sp<MediaSurfaceType> st = getVideoSurfaceTexture(env, thiz);
     mp->setVideoSurfaceTexture(st);
 
     process_media_player_call( env, thiz, mp->prepare(), "java/io/IOException", "Prepare failed." );
@@ -406,7 +418,7 @@ android_media_MediaPlayer_prepareAsync(JNIEnv *env, jobject thiz, jobject piidPa
 
     // Handle the case where the display surface was set before the mp was
     // initialized. We try again to make it stick.
-    sp<IGraphicBufferProducer> st = getVideoSurfaceTexture(env, thiz);
+    sp<MediaSurfaceType> st = getVideoSurfaceTexture(env, thiz);
     mp->setVideoSurfaceTexture(st);
 
     process_media_player_call( env, thiz, mp->prepareAsync(), "java/io/IOException", "Prepare Async failed." );
@@ -1477,6 +1489,7 @@ static int register_android_media_MediaPlayer(JNIEnv *env)
                 "android/media/MediaPlayer", gMethods, NELEM(gMethods));
 }
 extern int register_android_media_JetPlayer(JNIEnv *env);
+extern int register_android_media_CodecCapabilities(JNIEnv *env);
 extern int register_android_media_Crypto(JNIEnv *env);
 extern int register_android_media_Drm(JNIEnv *env);
 extern int register_android_media_Descrambler(JNIEnv *env);
@@ -1572,6 +1585,11 @@ jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
 
     if (register_android_media_MediaCodecList(env) < 0) {
         ALOGE("ERROR: MediaCodec native registration failed");
+        goto bail;
+    }
+
+    if (register_android_media_CodecCapabilities(env) < 0) {
+        ALOGE("ERROR: CodecCapabilities native registration failed");
         goto bail;
     }
 

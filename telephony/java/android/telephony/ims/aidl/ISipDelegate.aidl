@@ -20,7 +20,7 @@ import android.telephony.ims.SipMessage;
 
 /**
  * See {@link SipDelegate} and {@link SipDelegateConnection} for docs regarding this callback.
- * {@hide}
+ * @hide
  */
 oneway interface ISipDelegate {
     void sendMessage(in SipMessage sipMessage, long configVersion);

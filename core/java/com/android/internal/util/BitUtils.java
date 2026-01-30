@@ -29,7 +29,7 @@ import java.util.function.IntFunction;
 /**
  * A utility class for handling unsigned integers and unsigned arithmetics, as well as syntactic
  * sugar methods for {@link ByteBuffer}. Useful for networking and packet manipulations.
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class BitUtils {

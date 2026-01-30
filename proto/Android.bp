@@ -52,3 +52,11 @@ filegroup {
     name: "ipconnectivity-proto-src",
     srcs: ["src/ipconnectivity.proto"],
 }
+
+python_library_host {
+    name: "framework-python-protos",
+    proto: {
+        canonical_path_from_root: false,
+    },
+    srcs: ["src/**/*.proto"],
+}

@@ -16,6 +16,7 @@
 
 package com.android.systemui.kairos
 
+import com.android.systemui.kairos.util.NameTag
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.CoroutineScope
@@ -26,13 +27,12 @@ import kotlinx.coroutines.Job
 /**
  * Scope for external side-effects triggered by the Kairos network.
  *
- * This still occurs within the context of a transaction, so general suspending calls are disallowed
- * to prevent blocking the transaction. You can [launch] new coroutines to perform long-running
- * asynchronous work. These coroutines are kept alive for the duration of the containing
- * [BuildScope] that this side-effect scope is running in.
+ * You can [launch] new coroutines to perform long-running asynchronous work. These coroutines are
+ * kept alive for the duration of the containing [BuildScope] that this side-effect scope is running
+ * in.
  */
 @ExperimentalKairosApi
-interface EffectScope : HasNetwork, TransactionScope {
+interface EffectScope : HasNetwork {
     /**
      * Creates a coroutine that is a child of this [EffectScope], and returns its future result as a
      * [Deferred].
@@ -42,6 +42,7 @@ interface EffectScope : HasNetwork, TransactionScope {
     fun <R> async(
         context: CoroutineContext = EmptyCoroutineContext,
         start: CoroutineStart = CoroutineStart.DEFAULT,
+        name: NameTag? = null,
         block: suspend KairosCoroutineScope.() -> R,
     ): Deferred<R>
 
@@ -54,8 +55,26 @@ interface EffectScope : HasNetwork, TransactionScope {
     fun launch(
         context: CoroutineContext = EmptyCoroutineContext,
         start: CoroutineStart = CoroutineStart.DEFAULT,
+        name: NameTag? = null,
         block: suspend KairosCoroutineScope.() -> Unit,
-    ): Job = async(context, start, block)
+    ): Job = async(context, start, name, block)
 }
 
+/**
+ * A combination of an [EffectScope] and a [TransactionScope], available within the lambda arguments
+ * passed to [BuildScope] `-Sync` APIs, such as [BuildScope.observeSync].
+ *
+ * This scope occurs within the context of a transaction, allowing you to
+ * [sample][TransactionScope.sample] states, but general suspending calls are disallowed to prevent
+ * blocking the transaction. You can [launch] new coroutines to perform long-running asynchronous
+ * work. These coroutines are kept alive for the duration of the containing [BuildScope] that this
+ * side-effect scope is running in.
+ */
+@ExperimentalKairosApi interface TransactionEffectScope : EffectScope, TransactionScope
+
+/**
+ * A [CoroutineScope] that also has access to a [KairosNetwork] that is bound to the former. All
+ * usages of [KairosNetwork.activateSpec] with the [kairosNetwork] will be canceled when this
+ * coroutine scope is canceled.
+ */
 @ExperimentalKairosApi interface KairosCoroutineScope : HasNetwork, CoroutineScope

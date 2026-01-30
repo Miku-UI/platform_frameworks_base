@@ -590,13 +590,14 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
                 throws FileNotFoundException {
             uri = validateIncomingUri(uri);
             uri = maybeGetUriWithoutUserId(uri);
-            enforceFilePermission(attributionSource, uri, mode);
+            final String updatedMode = validateFileMode(mode);
+            enforceFilePermission(attributionSource, uri, updatedMode);
             traceBegin(TRACE_TAG_ACTIVITY_MANAGER, "openFile: ", uri.getAuthority());
             final AttributionSource original = setCallingAttributionSource(
                     attributionSource);
             try {
                 return mInterface.openFile(
-                        uri, mode, CancellationSignal.fromTransport(cancellationSignal));
+                        uri, updatedMode, CancellationSignal.fromTransport(cancellationSignal));
             } catch (RemoteException e) {
                 throw e.rethrowAsRuntimeException();
             } finally {
@@ -611,13 +612,14 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
                 throws FileNotFoundException {
             uri = validateIncomingUri(uri);
             uri = maybeGetUriWithoutUserId(uri);
-            enforceFilePermission(attributionSource, uri, mode);
+            final String updatedMode = validateFileMode(mode);
+            enforceFilePermission(attributionSource, uri, updatedMode);
             traceBegin(TRACE_TAG_ACTIVITY_MANAGER, "openAssetFile: ", uri.getAuthority());
             final AttributionSource original = setCallingAttributionSource(
                     attributionSource);
             try {
                 return mInterface.openAssetFile(
-                        uri, mode, CancellationSignal.fromTransport(cancellationSignal));
+                        uri, updatedMode, CancellationSignal.fromTransport(cancellationSignal));
             } catch (RemoteException e) {
                 throw e.rethrowAsRuntimeException();
             } finally {
@@ -782,6 +784,25 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
             }
         }
 
+        private String validateFileMode(String mode) {
+            // We currently only support the following modes: r, w, wt, wa, rw, rwt
+            // Note: ideally, we should check against the allowed modes and throw a
+            // SecurityException if the mode doesn't match any of them but to avoid app compat
+            // issues, we're silently dropping bits which allow modifying files when the write bit
+            // is not specified.
+            if (mode != null && mode.indexOf('w') == -1) {
+                // Don't allow truncation without write
+                if (mode.indexOf('t') != -1) {
+                    mode = mode.replace("t", "");
+                }
+                // Don't allow appending without write
+                if (mode.indexOf('a') != -1) {
+                    mode = mode.replace("a", "");
+                }
+            }
+            return mode;
+        }
+
         @Override
         public int checkUriPermission(@NonNull AttributionSource attributionSource, Uri uri,
                 int uid, int modeFlags) {
@@ -943,7 +964,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
                         attributionSource), /*message*/ null);
     }
 
-    /** {@hide} */
+    /** @hide */
     @PermissionCheckerManager.PermissionResult
     protected int enforceReadPermissionInner(Uri uri,
             @NonNull AttributionSource attributionSource) throws SecurityException {
@@ -1029,7 +1050,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
                 + ", uid=" + uid + suffix);
     }
 
-    /** {@hide} */
+    /** @hide */
     @PermissionCheckerManager.PermissionResult
     protected int enforceWritePermissionInner(Uri uri,
             @NonNull AttributionSource attributionSource) throws SecurityException {
@@ -1208,6 +1229,22 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
     }
 
     /**
+     * Returns the device id associated with the {@link Context} of the caller.
+     *
+     * @see Context#getDeviceId()
+     * @hide
+     */
+    public final int getCallingDeviceId() {
+        if (android.permission.flags.Flags.deviceAwarePermissionApisEnabled()) {
+            final AttributionSource attributionSource = mCallingAttributionSource.get();
+            if (attributionSource != null) {
+                return attributionSource.getDeviceId();
+            }
+        }
+        return Context.DEVICE_ID_DEFAULT;
+    }
+
+    /**
      * @removed
      */
     @Deprecated
@@ -1253,12 +1290,12 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
      * Opaque token representing the identity of an incoming IPC.
      */
     public final class CallingIdentity {
-        /** {@hide} */
+        /** @hide */
         public final long binderToken;
-        /** {@hide} */
+        /** @hide */
         public final @Nullable AttributionSource callingAttributionSource;
 
-        /** {@hide} */
+        /** @hide */
         public CallingIdentity(long binderToken, @Nullable AttributionSource attributionSource) {
             this.binderToken = binderToken;
             this.callingAttributionSource = attributionSource;
@@ -2781,8 +2818,7 @@ public abstract class ContentProvider implements ContentInterface, ComponentCall
             if (userId != UserHandle.USER_CURRENT
                     // getUserIdFromAuthority can return USER_NULL when can't cast the userId to
                     // an int, which can cause high volume of binder calls.
-                    && (!android.multiuser.Flags.fixGetUserPropertyCache()
-                        || userId != UserHandle.USER_NULL)
+                    && userId != UserHandle.USER_NULL
                     && userId != mContext.getUserId()
                     // Since userId specified in content uri, the provider userId would be
                     // determined from it.

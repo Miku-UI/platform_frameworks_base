@@ -33,7 +33,6 @@ import android.annotation.SystemApi;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledAfter;
 import android.content.pm.PackageManager;
-import android.location.flags.Flags;
 import android.os.Build;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -555,10 +554,7 @@ public final class LocationRequest implements Parcelable {
      */
     public @IntRange(from = 0) long getMinUpdateIntervalMillis() {
         if (mMinUpdateIntervalMillis == IMPLICIT_MIN_UPDATE_INTERVAL) {
-            if (Flags.updateMinLocationRequestInterval()) {
-                return (long) (mIntervalMillis * IMPLICIT_MIN_UPDATE_INTERVAL_FACTOR);
-            }
-            return (long) (mIntervalMillis * LEGACY_IMPLICIT_MIN_UPDATE_INTERVAL_FACTOR);
+            return (long) (mIntervalMillis * IMPLICIT_MIN_UPDATE_INTERVAL_FACTOR);
         } else {
             // the min is only necessary in case someone use a deprecated function to mess with the
             // interval or min update interval

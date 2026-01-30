@@ -33,13 +33,13 @@ import android.graphics.drawable.Icon;
 import android.service.notification.StatusBarNotification;
 import android.util.ArraySet;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import com.android.internal.annotations.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
+
 import com.android.internal.util.ContrastColorUtil;
 import com.android.internal.widget.NotificationActionListLayout;
 import com.android.systemui.Dependency;
@@ -53,7 +53,6 @@ import com.android.systemui.statusbar.notification.TransformState;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.HybridNotificationView;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
-import com.android.systemui.util.DimensionKt;
 
 import java.util.function.Consumer;
 
@@ -190,54 +189,7 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
         mRemoteInputHistory = mView.findViewById(
                 com.android.internal.R.id.notification_material_reply_container);
 
-        adjustTitleAndRightIconForPromotedOngoing();
         updatePendingIntentCancellations();
-    }
-
-    private void adjustTitleAndRightIconForPromotedOngoing() {
-        if (mRow.isPromotedOngoing() && mRightIcon != null) {
-            final int horizontalMargin;
-            if (notificationsRedesignTemplates()) {
-                horizontalMargin = mView.getResources().getDimensionPixelSize(
-                    com.android.internal.R.dimen.notification_2025_margin);
-            } else {
-                horizontalMargin = (int) DimensionKt.dpToPx(16, mView.getContext());
-            }
-
-            // position right icon to the right available space from expander.
-            final ViewGroup.MarginLayoutParams rightIconLP =
-                (ViewGroup.MarginLayoutParams) mRightIcon.getLayoutParams();
-            rightIconLP.setMarginEnd(horizontalMargin);
-            mRightIcon.setLayoutParams(rightIconLP);
-
-            // if there is no title and topline view, there is nothing to adjust.
-            if (mNotificationTopLine == null && mTitle == null) {
-                return;
-            }
-
-            // align top line view to start of the right icon.
-            final int iconSize = mView.getResources().getDimensionPixelSize(
-                com.android.internal.R.dimen.notification_right_icon_size);
-            final int marginEnd = 2 * horizontalMargin + iconSize;
-            final boolean isTitleInTopLine;
-            // set margin end for the top line view if it exists
-            if (mNotificationTopLine != null) {
-                mNotificationTopLine.setHeaderTextMarginEnd(marginEnd);
-                isTitleInTopLine = mNotificationTopLine.isTitlePresent();
-            } else {
-                isTitleInTopLine = false;
-            }
-
-            // Margin is to be applied to the title only when it is in the body,
-            // but not in the title.
-            // title has too much margin on the right, so we need to reduce it
-            if (!isTitleInTopLine && mTitle != null) {
-                final ViewGroup.MarginLayoutParams titleLP =
-                    (ViewGroup.MarginLayoutParams) mTitle.getLayoutParams();
-                titleLP.setMarginEnd(marginEnd);
-                mTitle.setLayoutParams(titleLP);
-           }
-        }
     }
 
     @Nullable
@@ -501,6 +453,11 @@ public class NotificationTemplateViewWrapper extends NotificationHeaderViewWrapp
                 sUiOffloadThread = Dependency.get(UiOffloadThread.class);
             }
             return sUiOffloadThread;
+        }
+
+        @VisibleForTesting(otherwise = VisibleForTesting.NONE)
+        static void resetUiOffloadThread() {
+            sUiOffloadThread = null;
         }
 
         private final View mView;

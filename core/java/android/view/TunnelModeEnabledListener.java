@@ -22,7 +22,7 @@ import java.util.concurrent.Executor;
 
 /**
  * Listens for tunnel mode enabled/disabled events from SurfaceFlinger.
- * {@hide}
+ * @hide
  */
 public abstract class TunnelModeEnabledListener {
 

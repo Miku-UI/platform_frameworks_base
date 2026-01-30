@@ -17,19 +17,13 @@
 package com.android.systemui.flags
 
 import android.platform.test.annotations.EnableFlags
-import com.android.systemui.Flags.FLAG_KEYGUARD_WM_STATE_REFACTOR
-import com.android.systemui.Flags.FLAG_NOTIFICATION_AVALANCHE_THROTTLE_HUN
 import com.android.systemui.Flags.FLAG_SCENE_CONTAINER
 
 /**
  * This includes @[EnableFlags] to work with [SetFlagsRule] to enable all aconfig flags required by
  * that feature. It is also picked up by [SceneContainerRule] to set non-aconfig prerequisites.
  */
-@EnableFlags(
-    FLAG_KEYGUARD_WM_STATE_REFACTOR,
-    FLAG_NOTIFICATION_AVALANCHE_THROTTLE_HUN,
-    FLAG_SCENE_CONTAINER,
-)
+@EnableFlags(FLAG_SCENE_CONTAINER)
 @Retention(AnnotationRetention.RUNTIME)
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
 annotation class EnableSceneContainer

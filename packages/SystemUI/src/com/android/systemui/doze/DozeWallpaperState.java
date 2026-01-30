@@ -67,6 +67,8 @@ public class DozeWallpaperState implements DozeMachine.Part {
             case DOZE_REQUEST_PULSE:
             case DOZE_PULSE_DONE:
             case DOZE_PULSING:
+            case DOZE_PULSING_WITHOUT_UI:
+            case DOZE_PULSING_AUTH_UI:
                 isAmbientMode = true;
                 break;
             case DOZE_PULSING_BRIGHT:

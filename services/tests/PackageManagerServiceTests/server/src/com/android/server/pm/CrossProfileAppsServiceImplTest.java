@@ -46,7 +46,6 @@ import android.os.UserManager;
 import android.permission.PermissionCheckerManager;
 import android.permission.PermissionManager;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.SparseArray;
 
 import com.android.internal.util.FunctionalUtils.ThrowingRunnable;
@@ -56,7 +55,6 @@ import com.android.server.pm.permission.PermissionManagerService;
 import com.android.server.wm.ActivityTaskManagerInternal;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -111,8 +109,6 @@ public class CrossProfileAppsServiceImplTest {
     private IApplicationThread mIApplicationThread;
 
     private SparseArray<Boolean> mUserEnabled = new SparseArray<>();
-    @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Before
     public void initCrossProfileAppsServiceImpl() {
@@ -127,7 +123,6 @@ public class CrossProfileAppsServiceImplTest {
         mUserEnabled.put(PRIMARY_USER, true);
         mUserEnabled.put(PROFILE_OF_PRIMARY_USER, true);
         mUserEnabled.put(SECONDARY_USER, true);
-        mSetFlagsRule.enableFlags(android.multiuser.Flags.FLAG_ENABLE_HIDING_PROFILES);
 
         when(mUserManager.getProfileIdsExcludingHidden(anyInt(), eq(true))).thenAnswer(
                 invocation -> {

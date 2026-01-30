@@ -16,5 +16,5 @@
 
 package android.app.usage;
 
-/** {@hide} */
+/** @hide */
 parcelable BroadcastResponseStatsList;

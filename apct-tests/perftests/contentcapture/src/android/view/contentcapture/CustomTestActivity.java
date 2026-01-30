@@ -35,10 +35,15 @@ import com.android.perftests.contentcapture.R;
 public class CustomTestActivity extends Activity {
     public static final String INTENT_EXTRA_LAYOUT_ID = "layout_id";
     public static final String INTENT_EXTRA_CUSTOM_VIEWS = "custom_view_number";
+    public static final String INTENT_EXTRA_VIEW_TYPE = "view_type";
     static final String INTENT_EXTRA_FINISH_ON_IDLE = "finish";
     static final String INTENT_EXTRA_DRAW_CALLBACK = "draw_callback";
     public static final int MAX_VIEWS = 500;
+    public static final int VIEW_TYPE_CUSTOM_VIEW = 1;
+    public static final int VIEW_TYPE_TEXT_VIEW = 2;
     private static final int CUSTOM_CONTAINER_LAYOUT_ID = R.layout.test_container_activity;
+    private static final int LAYOUT_GROUP_VIRTUAL_NODES_ID =
+            R.layout.test_export_virtual_assist_node_activity;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,10 +52,19 @@ public class CustomTestActivity extends Activity {
         if (getIntent().hasExtra(INTENT_EXTRA_LAYOUT_ID)) {
             final int layoutId = getIntent().getIntExtra(INTENT_EXTRA_LAYOUT_ID,
                     /* defaultValue= */0);
+            final int view_type = getIntent().getIntExtra(INTENT_EXTRA_VIEW_TYPE, 0);
             setContentView(layoutId);
             if (layoutId == CUSTOM_CONTAINER_LAYOUT_ID) {
                 createCustomViews(findViewById(R.id.root_view),
                         getIntent().getIntExtra(INTENT_EXTRA_CUSTOM_VIEWS, MAX_VIEWS));
+            } else if (layoutId == LAYOUT_GROUP_VIRTUAL_NODES_ID) {
+                if (view_type == VIEW_TYPE_CUSTOM_VIEW) {
+                    createCustomViewsWithVirtualChildren(findViewById(R.id.group_root_view),
+                            getIntent().getIntExtra(INTENT_EXTRA_CUSTOM_VIEWS, MAX_VIEWS));
+                } else if (view_type == VIEW_TYPE_TEXT_VIEW) {
+                    createTextViews(findViewById(R.id.group_root_view),
+                            getIntent().getIntExtra(INTENT_EXTRA_CUSTOM_VIEWS, MAX_VIEWS));
+                }
             }
         }
 
@@ -98,6 +112,21 @@ public class CustomTestActivity extends Activity {
         }
         if (horizontalLayout != null) {
             root.addView(horizontalLayout);
+        }
+    }
+
+    private void createCustomViewsWithVirtualChildren(LinearLayout root, int number) {
+        for (int i = 0; i < number; i++) {
+            MyCustomViewWithA11yProvider customView = new MyCustomViewWithA11yProvider(this);
+            customView.setImportantForContentCapture(View.IMPORTANT_FOR_CONTENT_CAPTURE_YES);
+            root.addView(customView);
+        }
+    }
+
+    private void createTextViews(LinearLayout root, int number) {
+        for (int i = 0; i < number; i++) {
+            TextView textView = new TextView(this);
+            root.addView(textView);
         }
     }
 

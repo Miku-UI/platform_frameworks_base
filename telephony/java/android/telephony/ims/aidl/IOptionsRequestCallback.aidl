@@ -20,7 +20,7 @@ import android.telephony.ims.RcsContactUceCapability;
 
 /**
  * Interface used by the framework to respond to OPTIONS requests.
- * {@hide}
+ * @hide
  */
 oneway interface IOptionsRequestCallback {
     /**

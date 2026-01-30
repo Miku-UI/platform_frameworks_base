@@ -128,7 +128,8 @@ open class PrivacyEvent(override val showAnimation: Boolean = true) : StatusEven
     }
 
     override fun toString(): String {
-        return "${javaClass.simpleName}(forceVisible=$forceVisible, privacyItems=$privacyItems)"
+        return "${javaClass.simpleName}(forceVisible=$forceVisible, " +
+            "privacyItems=$privacyItems, showAnimation=$showAnimation)"
     }
 
     override fun shouldUpdateFromEvent(other: StatusEvent?): Boolean {

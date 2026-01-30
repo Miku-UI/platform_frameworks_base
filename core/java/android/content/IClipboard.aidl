@@ -23,7 +23,7 @@ import android.content.IOnPrimaryClipChangedListener;
 /**
  * Programming interface to the clipboard, which allows copying and pasting
  * between applications.
- * {@hide}
+ * @hide
  */
 interface IClipboard {
     void setPrimaryClip(in ClipData clip, String callingPackage, String attributionTag, int userId,

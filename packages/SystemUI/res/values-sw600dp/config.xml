@@ -56,4 +56,7 @@
 
     <!-- Whether volume panel should use the large screen layout or not -->
     <bool name="volume_panel_is_large_screen">true</bool>
+
+    <!-- Indicates post recording flow to use flat bottom bar to save vertical space -->
+    <bool name="screen_record_post_recording_flat_bottom_bar">true</bool>
 </resources>

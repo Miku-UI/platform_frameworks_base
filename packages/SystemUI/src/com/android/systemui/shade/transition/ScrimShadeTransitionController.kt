@@ -18,10 +18,12 @@ package com.android.systemui.shade.transition
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.PanelState
 import com.android.systemui.shade.ShadeExpansionChangeEvent
 import com.android.systemui.shade.ShadeExpansionStateManager
 import com.android.systemui.statusbar.phone.ScrimController
+import dagger.Lazy
 import java.io.PrintWriter
 import javax.inject.Inject
 
@@ -32,7 +34,7 @@ class ScrimShadeTransitionController
 constructor(
     private val shadeExpansionStateManager: ShadeExpansionStateManager,
     private val dumpManager: DumpManager,
-    private val scrimController: ScrimController,
+    private val scrimController: Lazy<ScrimController>,
 ) {
     private var lastExpansionFraction: Float? = null
     private var lastExpansionEvent: ShadeExpansionChangeEvent? = null
@@ -45,7 +47,7 @@ constructor(
         shadeExpansionStateManager.addStateListener(this::onPanelStateChanged)
         dumpManager.registerNormalDumpable(
             ScrimShadeTransitionController::class.java.simpleName,
-            this::dump
+            this::dump,
         )
     }
 
@@ -61,13 +63,11 @@ constructor(
 
     private fun onStateChanged() {
         val expansionEvent = lastExpansionEvent ?: return
-        val expansionFraction = calculateScrimExpansionFraction(expansionEvent)
-        scrimController.setRawPanelExpansionFraction(expansionFraction)
+        val expansionFraction = expansionEvent.fraction
+        if (!SceneContainerFlag.isEnabled) {
+            scrimController.get().setRawPanelExpansionFraction(expansionFraction)
+        }
         lastExpansionFraction = expansionFraction
-    }
-
-    private fun calculateScrimExpansionFraction(expansionEvent: ShadeExpansionChangeEvent): Float {
-        return expansionEvent.fraction
     }
 
     private fun dump(printWriter: PrintWriter, args: Array<String>) {

@@ -40,11 +40,9 @@ constructor(
                 if (isEnabled) {
                     activationState = QSTileState.ActivationState.ACTIVE
                     iconRes = R.drawable.qs_data_saver_icon_on
-                    secondaryLabel = resources.getStringArray(R.array.tile_states_saver)[2]
                 } else {
                     activationState = QSTileState.ActivationState.INACTIVE
                     iconRes = R.drawable.qs_data_saver_icon_off
-                    secondaryLabel = resources.getStringArray(R.array.tile_states_saver)[1]
                 }
                 icon = Icon.Loaded(resources.getDrawable(iconRes, theme), null, iconRes)
                 contentDescription = label

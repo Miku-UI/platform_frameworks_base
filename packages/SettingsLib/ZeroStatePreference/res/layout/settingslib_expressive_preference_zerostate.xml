@@ -18,6 +18,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:paddingStart="?android:attr/listPreferredItemPaddingStart"
+    android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
+    android:paddingTop="@dimen/settingslib_expressive_space_small1"
+    android:paddingBottom="@dimen/settingslib_expressive_space_small1"
     android:layout_gravity="center"
     android:gravity="center"
     android:orientation="vertical">
@@ -34,24 +38,27 @@
 
         <ImageView
             android:id="@android:id/icon"
-            android:layout_width="@dimen/settingslib_expressive_space_large3"
-            android:layout_height="@dimen/settingslib_expressive_space_large3"
+            android:layout_width="@dimen/settingslib_expressive_space_large2"
+            android:layout_height="@dimen/settingslib_expressive_space_large2"
             android:layout_gravity="center"/>
 
     </FrameLayout>
     <TextView
         android:id="@android:id/title"
-        android:layout_width="@dimen/settingslib_expressive_zero_state_title_width"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:textAppearance="@style/TextAppearance.SettingsLib.TitleMedium.Emphasized"
+        android:textColor="@color/settingslib_text_color_primary"
+        android:layout_marginHorizontal="@dimen/settingslib_expressive_space_medium1"
         android:layout_marginTop="@dimen/settingslib_expressive_space_small4"/>
     <TextView
         android:id="@android:id/summary"
-        android:layout_width="@dimen/settingslib_expressive_zero_state_title_width"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:layout_marginTop="@dimen/settingslib_expressive_space_small4"
-        android:textAppearance="?android:attr/textAppearanceSmall"
-        android:textColor="?android:attr/textColorSecondary"/>
+        android:layout_marginHorizontal="@dimen/settingslib_expressive_space_medium1"
+        android:layout_marginTop="@dimen/settingslib_expressive_space_extrasmall2"
+        android:textAppearance="@style/TextAppearance.SettingsLib.BodyMedium"
+        android:textColor="@color/settingslib_text_color_primary"/>
 </LinearLayout>

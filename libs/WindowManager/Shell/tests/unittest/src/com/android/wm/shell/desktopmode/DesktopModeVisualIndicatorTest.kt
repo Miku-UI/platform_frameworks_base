@@ -24,9 +24,11 @@ import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper.RunWithLooper
+import android.view.Display.DEFAULT_DISPLAY
 import android.view.SurfaceControl
 import androidx.test.filters.SmallTest
 import com.android.internal.policy.SystemBarUtils
+import com.android.window.flags.Flags.FLAG_ENABLE_CONNECTED_DISPLAYS_WINDOW_DRAG
 import com.android.window.flags.Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE
 import com.android.window.flags.Flags.FLAG_ENABLE_VISUAL_INDICATOR_IN_TRANSITION_BUGFIX
 import com.android.wm.shell.R
@@ -41,6 +43,7 @@ import com.android.wm.shell.shared.bubbles.BubbleDropTargetBoundsProvider
 import com.android.wm.shell.windowdecor.tiling.SnapEventHandler
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -60,6 +63,7 @@ import org.mockito.kotlin.whenever
 @RunWithLooper
 @RunWith(AndroidTestingRunner::class)
 @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
+@Ignore("Non-hermetic test - b/419771302")
 class DesktopModeVisualIndicatorTest : ShellTestCase() {
 
     @JvmField @Rule val animatorTestRule = AnimatorTestRule(this)
@@ -263,18 +267,18 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
     @Test
     fun testDefaultIndicators() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
-        var result = visualIndicator.updateIndicatorType(PointF(-10000f, 500f))
+        var result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(-10000f, 500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR)
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_SPLIT)
-        result = visualIndicator.updateIndicatorType(PointF(10000f, 500f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(10000f, 500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_RIGHT_INDICATOR)
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.DRAGGED_INTENT)
-        result = visualIndicator.updateIndicatorType(PointF(500f, 10000f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(500f, 10000f))
         assertThat(result).isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_DESKTOP_INDICATOR)
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FREEFORM)
-        result = visualIndicator.updateIndicatorType(PointF(500f, 10000f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(500f, 10000f))
         assertThat(result).isEqualTo(DesktopModeVisualIndicator.IndicatorType.NO_INDICATOR)
     }
 
@@ -285,28 +289,28 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
     )
     fun testDefaultIndicators_enableBubbleToFullscreen() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
-        var result = visualIndicator.updateIndicatorType(PointF(10f, 1500f))
+        var result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(10f, 1500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_LEFT_INDICATOR)
-        result = visualIndicator.updateIndicatorType(PointF(2390f, 1500f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(2390f, 1500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_RIGHT_INDICATOR)
 
         // Check that bubble zones are not available from split
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_SPLIT)
-        result = visualIndicator.updateIndicatorType(PointF(10f, 1500f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(10f, 1500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR)
-        result = visualIndicator.updateIndicatorType(PointF(2390f, 1500f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(2390f, 1500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_RIGHT_INDICATOR)
 
         // Check that bubble zones are not available from desktop
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FREEFORM)
-        result = visualIndicator.updateIndicatorType(PointF(10f, 1500f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(10f, 1500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR)
-        result = visualIndicator.updateIndicatorType(PointF(2390f, 1500f))
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(2390f, 1500f))
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_RIGHT_INDICATOR)
     }
@@ -324,23 +328,23 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
             isSmallTablet = true,
             isLeftRightSplit = true,
         )
-        var result = visualIndicator.updateIndicatorType(foldCenter())
+        var result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldCenter())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldLeftEdge())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldLeftEdge())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldRightEdge())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldRightEdge())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_RIGHT_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldLeftBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldLeftBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_LEFT_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldRightBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldRightBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_RIGHT_INDICATOR)
     }
@@ -359,16 +363,16 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
             isSmallTablet = true,
             isLeftRightSplit = true,
         )
-        var result = visualIndicator.updateIndicatorType(foldCenter())
+        var result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldCenter())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR)
 
         // Check that bubbles are not available from split
-        result = visualIndicator.updateIndicatorType(foldLeftBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldLeftBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_LEFT_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldRightBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldRightBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_SPLIT_RIGHT_INDICATOR)
     }
@@ -383,15 +387,15 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
             isSmallTablet = true,
             isLeftRightSplit = true,
         )
-        var result = visualIndicator.updateIndicatorType(foldCenter())
+        var result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldCenter())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldLeftBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldLeftBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_LEFT_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldRightBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldRightBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_RIGHT_INDICATOR)
     }
@@ -409,19 +413,19 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
             isSmallTablet = true,
             isLeftRightSplit = false,
         )
-        var result = visualIndicator.updateIndicatorType(foldCenter())
+        var result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldCenter())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldLeftEdge())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldLeftEdge())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_FULLSCREEN_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldLeftBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldLeftBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_LEFT_INDICATOR)
 
-        result = visualIndicator.updateIndicatorType(foldRightBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldRightBottom())
         assertThat(result)
             .isEqualTo(DesktopModeVisualIndicator.IndicatorType.TO_BUBBLE_RIGHT_INDICATOR)
 
@@ -431,11 +435,24 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
             isLeftRightSplit = false,
         )
         // No indicator as top/bottom split apps should not be dragged
-        result = visualIndicator.updateIndicatorType(foldCenter())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldCenter())
         assertThat(result).isEqualTo(DesktopModeVisualIndicator.IndicatorType.NO_INDICATOR)
-        result = visualIndicator.updateIndicatorType(foldLeftBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldLeftBottom())
         assertThat(result).isEqualTo(DesktopModeVisualIndicator.IndicatorType.NO_INDICATOR)
-        result = visualIndicator.updateIndicatorType(foldRightBottom())
+        result = visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, foldRightBottom())
+        assertThat(result).isEqualTo(DesktopModeVisualIndicator.IndicatorType.NO_INDICATOR)
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_CONNECTED_DISPLAYS_WINDOW_DRAG)
+    fun testDefaultIndicators_crossDisplayDrag_noIndicator() {
+        createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
+
+        // Simulate dragging to a point on a different display.
+        // Even though this point (-10000f, 500f) would trigger TO_SPLIT_LEFT_INDICATOR
+        // on the original display, dragging across displays should show no indicator.
+        val result = visualIndicator.updateIndicatorType(/* displayId= */ 10, PointF(-10000f, 500f))
+
         assertThat(result).isEqualTo(DesktopModeVisualIndicator.IndicatorType.NO_INDICATOR)
     }
 
@@ -451,7 +468,7 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
         desktopExecutor.flushAll()
         mainExecutor.flushAll()
-        visualIndicator.updateIndicatorType(PointF(100f, 1500f))
+        visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(100f, 1500f))
         desktopExecutor.flushAll()
         mainExecutor.flushAll()
 
@@ -472,7 +489,7 @@ class DesktopModeVisualIndicatorTest : ShellTestCase() {
         createVisualIndicator(DesktopModeVisualIndicator.DragStartState.FROM_FULLSCREEN)
         desktopExecutor.flushAll()
         mainExecutor.flushAll()
-        visualIndicator.updateIndicatorType(PointF(2300f, 1500f))
+        visualIndicator.updateIndicatorType(DEFAULT_DISPLAY, PointF(2300f, 1500f))
         desktopExecutor.flushAll()
         mainExecutor.flushAll()
 

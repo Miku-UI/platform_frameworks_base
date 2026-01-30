@@ -30,6 +30,7 @@ import java.util.Objects;
  * but more graphical control is available if you instead pass
  * the PathShape to a {@link android.graphics.drawable.ShapeDrawable}.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class PathShape extends Shape {
     private final float mStdWidth;
     private final float mStdHeight;

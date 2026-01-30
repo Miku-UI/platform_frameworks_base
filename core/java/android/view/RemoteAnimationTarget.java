@@ -17,20 +17,20 @@
 package android.view;
 
 import static android.graphics.GraphicsProtos.dumpPointProto;
-import static android.view.RemoteAnimationTargetProto.CLIP_RECT;
-import static android.view.RemoteAnimationTargetProto.CONTENT_INSETS;
-import static android.view.RemoteAnimationTargetProto.IS_TRANSLUCENT;
-import static android.view.RemoteAnimationTargetProto.LEASH;
-import static android.view.RemoteAnimationTargetProto.LOCAL_BOUNDS;
-import static android.view.RemoteAnimationTargetProto.MODE;
-import static android.view.RemoteAnimationTargetProto.POSITION;
-import static android.view.RemoteAnimationTargetProto.PREFIX_ORDER_INDEX;
-import static android.view.RemoteAnimationTargetProto.SCREEN_SPACE_BOUNDS;
-import static android.view.RemoteAnimationTargetProto.SOURCE_CONTAINER_BOUNDS;
-import static android.view.RemoteAnimationTargetProto.START_BOUNDS;
-import static android.view.RemoteAnimationTargetProto.START_LEASH;
-import static android.view.RemoteAnimationTargetProto.TASK_ID;
-import static android.view.RemoteAnimationTargetProto.WINDOW_CONFIGURATION;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.CLIP_RECT;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.CONTENT_INSETS;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.IS_TRANSLUCENT;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.LEASH;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.LOCAL_BOUNDS;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.MODE;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.POSITION;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.PREFIX_ORDER_INDEX;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.SCREEN_SPACE_BOUNDS;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.SOURCE_CONTAINER_BOUNDS;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.START_BOUNDS;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.START_LEASH;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.TASK_ID;
+import static android.internal.perfetto.protos.RemoteAnimationTarget.RemoteAnimationTargetProto.WINDOW_CONFIGURATION;
 import static android.view.WindowManager.LayoutParams.INVALID_WINDOW_TYPE;
 
 import android.annotation.ColorInt;
@@ -322,6 +322,16 @@ public class RemoteAnimationTarget implements Parcelable {
         showBackdrop = in.readBoolean();
         willShowImeOnTarget = in.readBoolean();
         rotationChange = in.readInt();
+    }
+
+    /**
+     * Releases any resources held by this animation target.
+     * @hide
+     */
+    public void release() {
+        if (leash != null) {
+            leash.release();
+        }
     }
 
     public void setShowBackdrop(boolean shouldShowBackdrop) {

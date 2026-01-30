@@ -25,13 +25,13 @@ import android.os.Temperature;
 import java.util.List;
 
 /**
- * {@hide}
+ * @hide
  */
 interface IThermalService {
     /**
       * Register a listener for thermal events.
       * @param listener the IThermalEventListener to be notified.
-      * {@hide}
+      * @hide
       */
     boolean registerThermalEventListener(in IThermalEventListener listener);
 
@@ -40,7 +40,7 @@ interface IThermalService {
       * @param listener the IThermalEventListener to be notified.
       * @param type the temperature type IThermalEventListener to be notified.
       * @return true if registered successfully.
-      * {@hide}
+      * @hide
       */
     boolean registerThermalEventListenerWithType(in IThermalEventListener listener, in int type);
 
@@ -48,14 +48,14 @@ interface IThermalService {
       * Unregister a previously-registered listener for thermal events.
       * @param listener the IThermalEventListener to no longer be notified.
       * @return true if unregistered successfully.
-      * {@hide}
+      * @hide
       */
     boolean unregisterThermalEventListener(in IThermalEventListener listener);
 
     /**
       * Get current temperature with its throttling status.
       * @return list of {@link android.os.Temperature}.
-      * {@hide}
+      * @hide
       */
     Temperature[] getCurrentTemperatures();
 
@@ -63,7 +63,7 @@ interface IThermalService {
       * Get current temperature with its throttling status on given temperature type.
       * @param type the temperature type to query.
       * @return list of {@link android.os.Temperature}.
-      * {@hide}
+      * @hide
       */
     Temperature[] getCurrentTemperaturesWithType(in int type);
 
@@ -71,7 +71,7 @@ interface IThermalService {
       * Register a listener for thermal status change.
       * @param listener the {@link android.os.IThermalStatusListener} to be notified.
       * @return true if registered successfully.
-      * {@hide}
+      * @hide
       */
     boolean registerThermalStatusListener(in IThermalStatusListener listener);
 
@@ -79,21 +79,21 @@ interface IThermalService {
       * Unregister a previously-registered listener for thermal status.
       * @param listener the {@link android.os.IThermalStatusListener} to no longer be notified.
       * @return true if unregistered successfully.
-      * {@hide}
+      * @hide
       */
     boolean unregisterThermalStatusListener(in IThermalStatusListener listener);
 
     /**
       * Get current thermal status.
       * @return status defined in {@link android.os.Temperature}.
-      * {@hide}
+      * @hide
       */
     int getCurrentThermalStatus();
 
     /**
       * Get current cooling devices.
       * @return list of {@link android.os.CoolingDevice}.
-      * {@hide}
+      * @hide
       */
     CoolingDevice[] getCurrentCoolingDevices();
 
@@ -101,7 +101,7 @@ interface IThermalService {
       * Get current cooling devices on given type.
       * @param type the cooling device type to query.
       * @return list of {@link android.os.CoolingDevice}.
-      * {@hide}
+      * @hide
       */
 
     CoolingDevice[] getCurrentCoolingDevicesWithType(in int type);
@@ -122,7 +122,7 @@ interface IThermalService {
       * Register a listener for thermal headroom change.
       * @param listener the {@link android.os.IThermalHeadroomListener} to be notified.
       * @return true if registered successfully.
-      * {@hide}
+      * @hide
       */
     boolean registerThermalHeadroomListener(in IThermalHeadroomListener listener);
 
@@ -130,7 +130,7 @@ interface IThermalService {
       * Unregister a previously-registered listener for thermal headroom.
       * @param listener the {@link android.os.IThermalHeadroomListener} to no longer be notified.
       * @return true if unregistered successfully.
-      * {@hide}
+      * @hide
       */
     boolean unregisterThermalHeadroomListener(in IThermalHeadroomListener listener);
 }

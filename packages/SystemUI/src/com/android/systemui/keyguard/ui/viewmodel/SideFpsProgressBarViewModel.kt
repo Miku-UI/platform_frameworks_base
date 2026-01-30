@@ -21,17 +21,18 @@ import android.content.Context
 import android.graphics.Point
 import androidx.annotation.VisibleForTesting
 import androidx.core.animation.addListener
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Flags
 import com.android.systemui.biometrics.domain.interactor.BiometricStatusInteractor
-import com.android.systemui.biometrics.domain.interactor.DisplayStateInteractor
 import com.android.systemui.biometrics.domain.interactor.SideFpsSensorInteractor
 import com.android.systemui.biometrics.shared.model.AuthenticationReason
-import com.android.systemui.biometrics.shared.model.DisplayRotation
-import com.android.systemui.biometrics.shared.model.isDefaultOrientation
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFingerprintAuthInteractor
+import com.android.systemui.display.domain.interactor.DisplayStateInteractor
+import com.android.systemui.display.shared.model.DisplayRotation
+import com.android.systemui.display.shared.model.isDefaultOrientation
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.shared.model.AcquiredFingerprintAuthenticationStatus
 import com.android.systemui.keyguard.shared.model.ErrorFingerprintAuthenticationStatus
@@ -59,7 +60,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onCompletion
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 @SysUISingleton
 class SideFpsProgressBarViewModel
@@ -93,7 +93,7 @@ constructor(
     private val mergedFingerprintAuthenticationStatus =
         merge(
                 biometricStatusInteractor.fingerprintAcquiredStatus,
-                deviceEntryFingerprintAuthInteractor.authenticationStatus
+                deviceEntryFingerprintAuthInteractor.authenticationStatus,
             )
             .distinctUntilChanged()
             .filter {
@@ -166,7 +166,7 @@ constructor(
     val isFingerprintAuthRunning: Flow<Boolean> =
         combine(
             deviceEntryFingerprintAuthInteractor.isRunning,
-            biometricStatusInteractor.sfpsAuthenticationReason
+            biometricStatusInteractor.sfpsAuthenticationReason,
         ) { deviceEntryAuthIsRunning, sfpsAuthReason ->
             deviceEntryAuthIsRunning ||
                 sfpsAuthReason == AuthenticationReason.BiometricPromptAuthentication
@@ -235,7 +235,7 @@ constructor(
                                                                 }
                                                             },
                                                             onStart = { _visible.value = true },
-                                                            onCancel = { _visible.value = false }
+                                                            onCancel = { _visible.value = false },
                                                         )
                                                     }
                                             _animator?.start()

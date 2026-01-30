@@ -17,6 +17,7 @@
 package android.media.session;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -47,6 +48,7 @@ import android.view.KeyEvent;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.media.mediasession.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -170,7 +172,7 @@ public final class MediaSessionManager {
     }
 
     /**
-     * Get a list of controllers for all ongoing sessions. The controllers will
+     * Get a list of controllers for all active sessions. The controllers will
      * be provided in priority order with the most important controller at index
      * 0.
      * <p>
@@ -182,7 +184,7 @@ public final class MediaSessionManager {
      *
      * @param notificationListener The enabled notification listener component.
      *            May be null.
-     * @return A list of controllers for ongoing sessions.
+     * @return A list of controllers for active sessions.
      */
     public @NonNull List<MediaController> getActiveSessions(
             @Nullable ComponentName notificationListener) {
@@ -249,7 +251,7 @@ public final class MediaSessionManager {
      *
      * @param notificationListener The enabled notification listener component. May be null.
      * @param userHandle The user handle to fetch sessions for.
-     * @return A list of controllers for ongoing sessions.
+     * @return A list of controllers for active sessions.
      * @hide
      */
     @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
@@ -290,7 +292,10 @@ public final class MediaSessionManager {
      * Session Library</a>.
      *
      * @return A list of {@link Session2Token}.
+     * @deprecated {@link MediaSession2} is deprecated.
      */
+    @FlaggedApi(Flags.FLAG_DEPRECATE_PLATFORM_MEDIASESSION2_APIS)
+    @Deprecated
     @NonNull
     public List<Session2Token> getSession2Tokens() {
         return mCommunicationManager.getSession2Tokens();
@@ -420,7 +425,10 @@ public final class MediaSessionManager {
      * Session Library</a>.
      *
      * @param listener The listener to add
+     * @deprecated {@link MediaSession2} is deprecated.
      */
+    @FlaggedApi(Flags.FLAG_DEPRECATE_PLATFORM_MEDIASESSION2_APIS)
+    @Deprecated
     public void addOnSession2TokensChangedListener(
             @NonNull OnSession2TokensChangedListener listener) {
         addOnSession2TokensChangedListener(UserHandle.myUserId(), listener,
@@ -437,7 +445,10 @@ public final class MediaSessionManager {
      *
      * @param listener The listener to add
      * @param handler The handler to call listener on.
+     * @deprecated {@link MediaSession2} is deprecated.
      */
+    @FlaggedApi(Flags.FLAG_DEPRECATE_PLATFORM_MEDIASESSION2_APIS)
+    @Deprecated
     public void addOnSession2TokensChangedListener(
             @NonNull OnSession2TokensChangedListener listener, @NonNull Handler handler) {
         Objects.requireNonNull(handler, "handler shouldn't be null");
@@ -499,7 +510,10 @@ public final class MediaSessionManager {
      * Session Library</a>.
      *
      * @param listener The listener to remove.
+     * @deprecated {@link MediaSession2} is deprecated.
      */
+    @FlaggedApi(Flags.FLAG_DEPRECATE_PLATFORM_MEDIASESSION2_APIS)
+    @Deprecated
     public void removeOnSession2TokensChangedListener(
             @NonNull OnSession2TokensChangedListener listener) {
         Objects.requireNonNull(listener, "listener shouldn't be null");
@@ -1063,7 +1077,11 @@ public final class MediaSessionManager {
      * session functionality should use the
      * <a href="{@docRoot}reference/androidx/media3/session/package-summary.html">AndroidX Media3
      * Session Library</a>.
+     *
+     * @deprecated {@link MediaSession2} is deprecated.
      */
+    @FlaggedApi(Flags.FLAG_DEPRECATE_PLATFORM_MEDIASESSION2_APIS)
+    @Deprecated
     public interface OnSession2TokensChangedListener {
         /**
          * Called when the {@link #getSession2Tokens()} is changed.

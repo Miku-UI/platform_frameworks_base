@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Зөвшөөрөл шаардлагатай"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Суулгахыг блоклосон"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Аппыг бэлтгэж байна…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Энэ аппыг суулгах уу?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Суулгаж байна…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Аппыг суулгасан"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Энэ аппыг дахин суулгах уу?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Дахин суулгаж байна…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Аппыг дахин суулгасан"</string>
+    <string name="title_update" msgid="1747328630716712391">"Энэ аппыг шинэчлэх үү?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Энэ аппыг <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>-г ашиглан шинэчлэх үү?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Шинэчилж байна…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Аппыг шинэчилсэн"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Аппыг суулгах боломжгүй байна"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Суулгахыг блоклосон"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Апп тохиромжгүй"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Багц буруу байна"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Хангалттай хадгалах сан байхгүй"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Аппыг суулгаагүй"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Энэ аппыг устгах уу?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Энэ аппын клоныг устгах уу?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Аппын шинэчлэлтийг устгах уу?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Аппын шинэчлэлтийг бүх хэрэглэгчийн хувьд устгах уу?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Энэ аппыг бүх хэрэглэгчийн хувьд устгах уу?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Энэ аппыг \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" хэрэглэгчийн хувьд устгах уу?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Апп олдсонгүй"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Энэ аппыг устгах боломжгүй"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Аппыг устгаагүй"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Энэ аппыг архивлах уу?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Энэ аппыг бүх хэрэглэгчийн хувьд архивлах уу?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Энэ аппыг \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" хэрэглэгчийн хувьд архивлах уу?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Энэ аппыг сэргээх үү?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Арга хэмжээ авах шаардлагатай"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Хангалттай хадгалах сан байхгүй"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Та офлайн байна"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>-г идэвхгүй болгосон"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>-г суулгаагүй байна"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Ямар нэг алдаа гарлаа"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Энэ апп ихэвчлэн &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;-с шинэчлэлт хүлээн авдаг. Та өөр эх сурвалж ашиглан шинэчилснээр өөрийн таблет дээрх аливаа эх сурвалжаас цаашдын шинэчлэлтийг хүлээн авч болно. Аппын ажиллагаа өөрчлөгдөж болзошгүй."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Энэ апп ихэвчлэн &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;-с шинэчлэлт хүлээн авдаг. Та өөр эх сурвалж ашиглан шинэчилснээр өөрийн ТВ дээрх аливаа эх сурвалжаас цаашдын шинэчлэлтийг хүлээн авч болно. Аппын ажиллагаа өөрчлөгдөж болзошгүй."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Энэ апп ихэвчлэн &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;-с шинэчлэлт хүлээн авдаг. Та өөр эх сурвалж ашиглан шинэчилснээр өөрийн утсан дээрх аливаа эх сурвалжаас цаашдын шинэчлэлтийг хүлээн авч болно. Аппын ажиллагаа өөрчлөгдөж болзошгүй."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Таны аюулгүй байдлыг хангах үүднээс таны таблетад энэ эх сурвалжаас тодорхойгүй апп суулгахыг одоогоор зөвшөөрөхгүй байна. Та үүнийг Тохиргооноос өөрчилж болно."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Таны аюулгүй байдлыг хангах үүднээс одоогоор таны ТВ-д энэ эх сурвалжаас тодорхойгүй апп суулгахыг зөвшөөрөхгүй байна. Та үүнийг Тохиргооноос өөрчилж болно."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Таны аюулгүй байдлыг хангах үүднээс таны цаганд энэ эх сурвалжаас тодорхойгүй апп суулгахыг одоогоор зөвшөөрөхгүй байна. Та үүнийг Тохиргооноос өөрчилж болно."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Таны аюулгүй байдлыг хангах үүднээс таны утсанд энэ эх сурвалжаас тодорхойгүй апп суулгахыг одоогоор зөвшөөрөхгүй байна. Та үүнийг Тохиргооноос өөрчилж болно."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Таны утас, хувийн өгөгдөл тодорхойгүй аппын халдлагад илүү өртөмтгий байдаг. Та энэ аппыг суулгаснаар үүний ашиглалтаас үүдэн гарч болох таны утсанд учрах аливаа гэмтэл, өгөгдөл алдагдлыг хариуцахаа зөвшөөрч байна."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Таны таблет, хувийн өгөгдөл тодорхойгүй аппын халдлагад илүү өртөмтгий байдаг. Та энэ аппыг суулгаснаар үүний ашиглалтаас үүдэн гарч болох таны таблетад учрах аливаа гэмтэл, өгөгдөл алдагдлыг хариуцахаа зөвшөөрч байна."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Таны ТВ, хувийн өгөгдөл тодорхойгүй аппын халдлагад илүү өртөмтгий байдаг. Та энэ аппыг суулгаснаар үүний ашиглалтаас үүдэн гарч болох таны ТВ-д учрах аливаа гэмтэл, өгөгдөл алдагдлыг хариуцахаа зөвшөөрч байна."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Энэ аппыг суулгахыг блоклосон"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Энэ апп таны төхөөрөмж дээр аль хэдийн байгаа апптай зөрчилдөж байна"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Энэ апп таны төхөөрөмжтэй тохиромжгүй байна"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Энэ аппын суулгалтын файлтай холбоотой асуудал гарлаа"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Энэ аппыг суулгахын тулд тодорхой хэмжээний сул зай гаргаад, дахин оролдоно уу"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Аппын файлтай холбоотой асуудал гарлаа"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Апп суулгахыг хязгаарласан"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Тодорхойгүй апп суулгахыг хязгаарласан"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Энэ аппын клон мөн байгаа бөгөөд устгана"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Энэ апп <xliff:g id="APP_LABEL">%1$s</xliff:g>-н клон юм"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Энэ аппыг үйлдвэрийн хувилбараар солино. Аппын бүх өгөгдлийг устгана."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Энэ аппыг төхөөрөмж дээрх бүх хэрэглэгчийн хувьд үйлдвэрийн хувилбараар солино. Аппын бүх өгөгдлийг устгана."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Энэ аппыг таны ажлын профайлаас устгана"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Энэ аппыг таны хаалттай орон зайгаас устгана"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Энэ аппыг суулгасан аппуудын жагсаалтаас олоогүй эсвэл аль хэдийн устгасан байна"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Одоогийн хэрэглэгчид энэ устгах үйлдлийг гүйцэтгэхийг зөвшөөрөөгүй"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Энэ аппыг устгаж чадсангүй"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Аппын өгөгдлийг хадгалах"</string>
+    <string name="message_archive" msgid="943853731737315850">"Таны аппын өгөгдлийг хадгална"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Аппын бүх өгөгдлийг хадгална"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Аппын өгөгдлийг хадгална"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Энэ аппыг таны ажлын профайлаас архивлана. Таны аппын өгөгдлийг хадгална."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Энэ аппыг таны хаалттай орон зайгаас архивлана. Таны аппын өгөгдлийг хадгална."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Энэ аппыг дэвсгэрт <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>-с татна"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"Та энэ аппыг сэргээх боломжтой болохоос өмнө <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>-д нэмэлт мэдээлэл шаардлагатай"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Энэ аппыг сэргээхийн тулд &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt;-н сул зай гаргаад, дахин оролдоно уу"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Энэ аппыг сэргээхийн тулд интернэт холболтоо шалгаад, дахин оролдоно уу"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Энэ аппыг сэргээхийн тулд Тохиргооноос <xliff:g id="INSTALLERNAME">%1$s</xliff:g>-г идэвхжүүлнэ үү"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Та энэ аппыг сэргээхийн тулд <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>-г суулгах шаардлагатай"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Энэ аппыг сэргээхээр оролдоход асуудал гарлаа"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> дараах аппын нэг хэсэг юм: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Энэ аппыг блоклосон. Өөрийн төхөөрөмж, өгөгдлийг аюулгүй байлгахад туслахын тулд зөвхөн баталгаажсан хөгжүүлэгчийн аппыг суулгаж болно.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Энэ аппыг шинэчлээгүй. Өөрийн төхөөрөмж, өгөгдлийг аюулгүй байлгахад туслахын тулд зөвхөн баталгаажсан хөгжүүлэгчийн шинэчлэлтийг суулгаж болно.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Энэ аппыг суулгаагүй. Баталгаажаагүй хөгжүүлэгчийн апп аюултай байж болзошгүй.&lt;/p&gt; &lt;p&gt;Апп хөгжүүлэгчийг баталгаажуулахын тулд интернэтэд холбогдох шаардлагатай. Холболтоо шалгаад, дараа нь дахин суулгаж үзнэ үү. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Энэ аппыг шинэчлээгүй. Баталгаажаагүй хөгжүүлэгчийн шинэчлэлт аюултай байж болзошгүй.&lt;/p&gt; &lt;p&gt;Апп хөгжүүлэгчийг баталгаажуулахын тулд интернэтэд холбогдох шаардлагатай. Холболтоо шалгаад, дараа нь дахин шинэчилж үзнэ үү. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Энэ аппын хөгжүүлэгчийг баталгаажуулахад асуудал гарлаа. Баталгаажаагүй хөгжүүлэгчийн апп аюултай байж болзошгүй тул уг аппыг суулгаагүй.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Энэ аппын хөгжүүлэгчийг баталгаажуулахад асуудал гарлаа. Баталгаажаагүй хөгжүүлэгчийн шинэчлэлт аюултай байж болзошгүй тул уг аппыг шинэчлээгүй.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Хөгжүүлэгчийг баталгаажуулахад асуудал гарсан тул энэ аппыг блоклосон. Өөрийн төхөөрөмж, өгөгдлийг аюулгүй байлгахад туслахын тулд зөвхөн баталгаажсан хөгжүүлэгчийн аппыг суулгаж болно.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Хөгжүүлэгчийг баталгаажуулахад асуудал гарсан тул энэ аппыг шинэчлээгүй. Өөрийн төхөөрөмж, өгөгдлийг аюулгүй байлгахад туслахын тулд зөвхөн баталгаажсан хөгжүүлэгчийн шинэчлэлтийг суулгаж болно.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Хөгжүүлэгчийн баталгаажуулалтын талаар нэмэлт мэдээлэл авах&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Хэрэв та баталгаажуулахгүй суулгавал баталгаажаагүй хөгжүүлэгчийн апп таны төхөөрөмж, өгөгдлийг эрсдэлд оруулж болохыг анхаарна уу."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Хэрэв та баталгаажуулахгүйгээр шинэчилбэл баталгаажаагүй хөгжүүлэгчийн шинэчлэлт таны төхөөрөмж, өгөгдлийг эрсдэлд оруулж болохыг анхаарна уу."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Апп хөгжүүлэгч баталгаажаагүй"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Интернэтгүйгээр Апп хөгжүүлэгчийг баталгаажуулах боломжгүй"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Апп хөгжүүлэгчийг баталгаажуулах боломжгүй"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Баталгаажуулахгүй суулгах"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Баталгаажуулахгүй шинэчлэх"</string>
+    <string name="button_install" msgid="7434013176505680162">"Суулгах"</string>
+    <string name="button_update" msgid="3046719350226327526">"Шинэчлэх"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Ямартай ч шинэчлэх"</string>
+    <string name="button_done" msgid="3408025390982260629">"Болсон"</string>
+    <string name="button_open" msgid="6892684987374117955">"Нээх"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Цуцлах"</string>
+    <string name="button_continue" msgid="107501685249826244">"Үргэлжлүүлэх"</string>
+    <string name="button_close" msgid="7187308556466275899">"Хаах"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Устгах"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Устгах"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Дахин суулгах"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Апп удирдах"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Архивлах"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Сэргээх"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Шинэчлэлтийг устгах"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Тохиргоо"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Дахин оролдох"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>-н клон"</string>
+</resources>

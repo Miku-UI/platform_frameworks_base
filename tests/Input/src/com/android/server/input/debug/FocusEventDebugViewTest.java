@@ -57,7 +57,7 @@ public class FocusEventDebugViewTest {
     public void setUp() throws Exception {
         Context context = InstrumentationRegistry.getContext();
         InputManagerService mockService = mock(InputManagerService.class);
-        when(mockService.monitorInput(anyString(), anyInt()))
+        when(mockService.monitorFocusInput(anyString(), anyInt()))
                 .thenReturn(InputChannel.openInputChannelPair("FocusEventDebugViewTest")[1]);
 
         mRotaryInputValueView = spy(new RotaryInputValueView(context));

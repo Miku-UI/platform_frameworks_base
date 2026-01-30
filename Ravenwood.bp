@@ -19,13 +19,21 @@ java_library {
     name: "framework-minus-apex-for-host",
     installable: false,
     static_libs: ["framework-minus-apex"],
-    srcs: [":framework-ravenwood-sources"],
     visibility: ["//frameworks/base/ravenwood"],
 }
 
 java_library {
     name: "all-updatable-modules-system-stubs-for-host",
     installable: false,
+    stem: "all-updatable-modules-system-stubs",
     static_libs: ["all-updatable-modules-system-stubs"],
+    visibility: ["//frameworks/base/ravenwood"],
+}
+
+java_library {
+    name: "framework-updatable-stubs-module_libs_api-for-host",
+    installable: false,
+    stem: "framework-updatable-stubs-module_libs_api",
+    static_libs: ["framework-updatable-stubs-module_libs_api"],
     visibility: ["//frameworks/base/ravenwood"],
 }

@@ -43,7 +43,6 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.when;
 import static com.android.server.am.ActivityManagerInternalTest.CustomThread;
 import static com.android.server.am.ActivityManagerService.Injector;
-import static com.android.server.am.Flags.FLAG_AVOID_RESOLVING_TYPE;
 import static com.android.server.am.ProcessList.NETWORK_STATE_BLOCK;
 import static com.android.server.am.ProcessList.NETWORK_STATE_NO_CHANGE;
 import static com.android.server.am.ProcessList.NETWORK_STATE_UNBLOCK;
@@ -154,7 +153,6 @@ import org.mockito.MockitoSession;
 import org.mockito.quality.Strictness;
 import org.mockito.verification.VerificationMode;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -289,7 +287,8 @@ public class ActivityManagerServiceTest {
                 mUserController);
         mAms.mConstants.mNetworkAccessTimeoutMs = 2000;
         mAms.mActivityTaskManager = new ActivityTaskManagerService(mContext);
-        mAms.mActivityTaskManager.initialize(null, null, mHandler.getLooper());
+        mAms.mActivityTaskManager.initialize(null, null, mAms.mProcessStateController,
+                mHandler.getLooper());
         mAms.mAtmInternal = mActivityTaskManagerInternal;
         mHandler.setRunnablesToIgnore(
                 List.of(mAms.mUidObserverController.getDispatchRunnableForTest()));
@@ -969,7 +968,6 @@ public class ActivityManagerServiceTest {
                         null));
     }
 
-    @RequiresFlagsEnabled(FLAG_AVOID_RESOLVING_TYPE)
     @Test
     @SuppressWarnings("GuardedBy")
     public void testBroadcastStickyIntent_verifyTypeNotResolved() throws Exception {
@@ -1594,8 +1592,7 @@ public class ActivityManagerServiceTest {
         mAms.mInternal.startForegroundServiceDelegate(options, conn);
 
         assertThat(latchHolder[0].await(5, TimeUnit.SECONDS)).isTrue();
-        assertEquals(ActivityManager.PROCESS_STATE_FOREGROUND_SERVICE,
-                app.mState.getCurProcState());
+        assertEquals(ActivityManager.PROCESS_STATE_FOREGROUND_SERVICE, app.getCurProcState());
         final long timeoutMs = 5000L;
         final VerificationMode mode = withNotification
                 ? timeout(timeoutMs) : after(timeoutMs).atMost(0);
@@ -1608,8 +1605,7 @@ public class ActivityManagerServiceTest {
         mAms.mInternal.stopForegroundServiceDelegate(options);
 
         assertThat(latchHolder[0].await(5, TimeUnit.SECONDS)).isTrue();
-        assertEquals(ActivityManager.PROCESS_STATE_CACHED_EMPTY,
-                app.mState.getCurProcState());
+        assertEquals(ActivityManager.PROCESS_STATE_CACHED_EMPTY, app.getCurProcState());
         verify(mNotificationManagerInternal, mode)
                 .cancelNotification(eq(app.info.packageName), eq(app.info.packageName),
                         eq(app.info.uid), eq(app.mPid), eq(null),
@@ -1716,8 +1712,7 @@ public class ActivityManagerServiceTest {
         }
 
         @Override
-        public AppOpsService getAppOpsService(File recentAccessesFile, File storageFile,
-                Handler handler) {
+        public AppOpsService getAppOpsService(Handler handler) {
             return mAppOpsService;
         }
 

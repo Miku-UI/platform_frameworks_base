@@ -41,5 +41,5 @@ package android.se.omapi;
 interface ISecureElementService {
   String[] getReaders();
   android.se.omapi.ISecureElementReader getReader(in String reader);
-  boolean[] isNfcEventAllowed(in String reader, in byte[] aid, in String[] packageNames, in int userId);
+  @nullable boolean[] isNfcEventAllowed(in String reader, in @nullable byte[] aid, in @nullable String[] packageNames, in int userId);
 }

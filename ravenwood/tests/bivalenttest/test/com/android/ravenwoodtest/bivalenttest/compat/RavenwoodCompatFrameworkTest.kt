@@ -18,7 +18,7 @@ package com.android.ravenwoodtest.bivalenttest.compat
 import android.app.compat.CompatChanges
 import android.compat.testing.PlatformCompatChangeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.internal.ravenwood.RavenwoodEnvironment.CompatIdsForTest
+import com.android.internal.ravenwood.RavenwoodHelperBridge.CompatIdsForTest
 import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges
 import org.junit.Assert.assertFalse

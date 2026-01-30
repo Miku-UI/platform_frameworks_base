@@ -99,4 +99,31 @@ class AppCompatLetterboxUtils {
         outInnerBounds.set(
                 transparentPolicy.isRunning() ? activity.getBounds() : window.getFrame());
     }
+
+
+    /**
+     * Returns {@code true} if the letterbox does not overlap with the bar, or the letterbox can
+     * fully cover the window frame.
+     *
+     * @param rect             The area of the window frame.
+     * @param boundsToCheck A Collection of bounds to check.
+     */
+    static boolean fullyContainsOrNotIntersects(@NonNull Rect rect, @NonNull Rect[] boundsToCheck) {
+        // TODO(b/409293223): Make this algorithm simpler and more efficient.
+        int emptyCount = 0;
+        int noOverlappingCount = 0;
+        for (Rect bounds : boundsToCheck) {
+            if (bounds.isEmpty()) {
+                // empty letterbox
+                emptyCount++;
+            } else if (!Rect.intersects(bounds, rect)) {
+                // no overlapping
+                noOverlappingCount++;
+            } else if (bounds.contains(rect)) {
+                // overlapping and covered
+                return true;
+            }
+        }
+        return (emptyCount + noOverlappingCount) == boundsToCheck.length;
+    }
 }

@@ -20,13 +20,10 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.qs.panels.domain.interactor.dynamicIconTilesInteractorFactory
 
 val Kosmos.dynamicIconTilesViewModelFactory by
-    Kosmos.Fixture {
-        object : DynamicIconTilesViewModel.Factory {
-            override fun create(): DynamicIconTilesViewModel {
-                return DynamicIconTilesViewModel(
-                    dynamicIconTilesInteractorFactory,
-                    iconTilesViewModel,
-                )
-            }
+Kosmos.Fixture {
+    object : DynamicIconTilesViewModel.Factory {
+        override fun create(): DynamicIconTilesViewModel {
+            return DynamicIconTilesViewModel(dynamicIconTilesInteractorFactory, iconTilesViewModel)
         }
     }
+}

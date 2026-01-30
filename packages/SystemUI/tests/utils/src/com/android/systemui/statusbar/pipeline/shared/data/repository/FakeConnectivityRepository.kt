@@ -68,6 +68,16 @@ class FakeConnectivityRepository : ConnectivityRepository {
                 isValidated = validated,
             )
     }
+
+    @JvmOverloads
+    fun setCarrierMergedConnected(default: Boolean = true, validated: Boolean = true) {
+        defaultConnections.value =
+            DefaultConnectionModel(
+                wifi = DefaultConnectionModel.Wifi(default),
+                carrierMerged = DefaultConnectionModel.CarrierMerged(default),
+                isValidated = validated,
+            )
+    }
 }
 
 val ConnectivityRepository.fake

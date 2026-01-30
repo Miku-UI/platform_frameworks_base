@@ -2,32 +2,10 @@ package: "com.android.server.am"
 container: "system"
 
 flag {
-    name: "oomadjuster_correctness_rewrite"
-    namespace: "backstage_power"
-    description: "Utilize new OomAdjuster implementation"
-    bug: "298055811"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "fgs_abuse_detection"
     namespace: "backstage_power"
     description: "Detect abusive FGS behavior for certain types (camera, mic, media, location)."
     bug: "295545575"
-}
-
-flag {
-    name: "fgs_boot_completed"
-    namespace: "backstage_power"
-    description: "Disable BOOT_COMPLETED broadcast FGS start for certain types"
-    bug: "296558535"
-}
-
-flag {
-    name: "fgs_disable_saw"
-    namespace: "backstage_power"
-    description: "Disable System Alert Window FGS start"
-    bug: "296558535"
 }
 
 flag {
@@ -36,20 +14,6 @@ flag {
     description: "Restrict network access for certain applications in BFGS process state"
     bug: "304347838"
 }
-# Whether to use the new while-in-use / BG-FGS-start logic
-flag {
-     namespace: "backstage_power"
-     name: "new_fgs_restriction_logic"
-     description: "Enable the new FGS restriction logic"
-     bug: "276963716"
-}
-
-flag {
-    name: "service_binding_oom_adj_policy"
-    namespace: "backstage_power"
-    description: "Optimize the service bindings by different policies like skipping oom adjuster"
-    bug: "318717054"
-}
 
 flag {
     namespace: "backstage_power"
@@ -57,56 +21,6 @@ flag {
     description: "Defer outgoing broadcasts from processes in freezable state"
     bug: "327496592"
     is_fixed_read_only: true
-}
-
-flag {
-    namespace: "backstage_power"
-    name: "avoid_repeated_bcast_re_enqueues"
-    description: "Avoid re-enqueueing a broadcast repeatedly"
-    bug: "319225224"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "backstage_power"
-    name: "log_excessive_binder_proxies"
-    description: "Log the excessive incoming binder proxies into statsd"
-    bug: "298263955"
-}
-
-flag {
-    namespace: "backstage_power"
-    name: "avoid_resolving_type"
-    description: "Avoid resolving data type for sticky broadcasts"
-    bug: "323817802"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "backstage_power"
-    name: "trace_receiver_registration"
-    description: "Add tracing for broadcast receiver registration and un-registration"
-    bug: "336385821"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "migrate_full_oomadj_updates"
-    namespace: "backstage_power"
-    description: "Migrate full updates to partial updates where possible"
-    bug: "324915545"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -122,35 +36,6 @@ flag {
     description: "Output process oom adj and other metadata to trace in updateAppFreezeStateLSP"
     bug: "345547733"
     is_fixed_read_only: true
-}
-
-flag {
-    name: "simplify_process_traversal"
-    namespace: "backstage_power"
-    description: "Simplify the OomAdjuster's process traversal mechanism."
-    bug: "336178916"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "batching_oom_adj"
-    namespace: "backstage_power"
-    description: "Batch OOM adjustment calls to LMKD"
-    bug: "244232958"
-    is_fixed_read_only: true
-}
-
-flag {
-    name: "follow_up_oomadj_updates"
-    namespace: "backstage_power"
-    description: "Schedule follow up OomAdjuster updates for time sensitive states."
-    bug: "333450932"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -170,38 +55,11 @@ flag {
 }
 
 flag {
-    name: "defer_binders_when_paused"
-    namespace: "system_performance"
-    is_fixed_read_only: true
-    description: "Defer submitting binder calls to paused processes."
-    bug: "327038797"
-}
-
-flag {
-    name: "log_broadcast_sent_event"
-    namespace: "backstage_power"
-    description: "Log the broadcast send event to Statsd"
-    bug: "355261986"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "logcat_longer_timeout"
     namespace: "stability"
     description: "Wait longer during the logcat gathering operation"
     bug: "292533246"
     is_fixed_read_only: true
-}
-
-flag {
-    name: "defer_display_events_when_frozen"
-    namespace: "system_performance"
-    is_fixed_read_only: true
-    description: "Defer submitting display events to frozen processes."
-    bug: "326315985"
 }
 
 flag {
@@ -220,21 +78,19 @@ flag {
 }
 
 flag {
-    name: "unfreeze_bind_policy_fix"
-    namespace: "backstage_power"
-    description: "Make sure shouldNotFreeze state change correctly triggers updates."
-    bug: "375691778"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "oomadjuster_prev_laddering"
     namespace: "system_performance"
     is_fixed_read_only: true
     description: "Add +X to the prev scores according to their positions in the process LRU list"
     bug: "359912586"
+}
+
+flag {
+    name: "oomadjuster_vis_laddering"
+    namespace: "backstage_power"
+    is_fixed_read_only: true
+    description: "Add +X to the vis scores according to their positions in the process LRU list"
+    bug: "421872956"
 }
 
 flag {
@@ -246,20 +102,21 @@ flag {
 }
 
 flag {
-    name: "phantom_processes_fix"
+    name: "remove_lru_spam_prevention"
     namespace: "backstage_power"
-    description: "Make sure setProcessGroupForPhantomProcessOfApp deals with phantom processes properly"
-    bug: "375058190"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    is_fixed_read_only: true
+    description: "Remove LRU spam prevention, as it's breaking the LRU"
+    bug: "421872956"
 }
 
 flag {
-    name: "use_cpu_time_capability"
+    name: "cpu_time_capability_based_freeze_policy"
     namespace: "backstage_power"
-    description: "Use PROCESS_CAPABILITY_CPU_TIME to control unfreeze state."
+    description: "Use PROCESS_CAPABILITY_CPU_TIME and PROCESS_CAPABILITY_IMPLICIT_CPU_TIME to control process freeze state."
     bug: "370817323"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -267,26 +124,6 @@ flag {
     namespace: "backstage_power"
     description: "Grant PROCESS_CAPABILITY_CPU_TIME to as many valid states and aggressively freeze other states"
     bug: "370798593"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "add_modify_raw_oom_adj_service_level"
-    namespace: "backstage_power"
-    description: "Add a SERVICE_ADJ level to the modifyRawOomAdj method"
-    bug: "374810368"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "app_start_info_isolated_process"
-    namespace: "system_performance"
-    description: "Adjust handling of isolated process records to be discarded."
-    bug: "374032823"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -310,22 +147,137 @@ flag {
 }
 
 flag {
-    name: "raise_bound_ui_service_threshold"
+    name: "lower_sms_oom_importance"
     namespace: "backstage_power"
+    description: "Lower messaging app process oom importance to PERCEPTIBLE_APP_ADJ + 1."
+    bug: "372511805"
     is_fixed_read_only: true
-    description: "Raise the threshold OomAdjuster will drop a service with UI to cached."
-    bug: "391691057"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "lower_sms_oom_importance"
+    name: "limit_logcat_collection"
+    namespace: "stability"
+    description: "Limit the number of logcat logs included to fit in dropbox entries"
+    bug: "354138103"
+}
+
+flag {
+    name: "consolidate_collect_reachable"
     namespace: "backstage_power"
-    description: "Lower messaging app process oom importance to PERCEPTIBLE_APP_ADJ + 1."
-    bug: "372511805"
+    description: "Consolidate collectReachable usage to one implementation."
+    bug: "364936739"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "syncmanager_off_main_thread"
+    namespace: "backstage_power"
+    description: "Move broadcast receivers off the main thread to reduce ANR chances"
+    bug: "409177829"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "push_broadcast_state_to_oomadjuster"
+    namespace: "backstage_power"
+    description: "Migrate OomAdjuster pulled broadcast state to a push model"
+    bug: "401350498"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "push_activity_state_to_oomadjuster"
+    namespace: "backstage_power"
+    description: "Migrate OomAdjuster pulled activity state to a push model"
+    bug: "401350380"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_long_method_tracing_on_anr_timer"
+    namespace: "stability"
+    description: "Enable Long Method Tracing for ANR Timer"
+    bug: "419753987"
     is_fixed_read_only: true
+}
+
+flag {
+    name: "enable_activity_manager_structured_service"
+    namespace: "system_performance"
+    description: "Enable ActivityManagerStructured Service"
+    bug: "419409018"
+}
+
+flag {
+    name: "not_skip_connection_recompute_for_bind_schedule_like_top_app"
+    namespace: "wear_frameworks"
+    description: "If a connection has flag BIND_SCHEDULE_LIKE_TOP_APP but the host process has not set the corresponding flag, do not skip the connection recompute."
+    bug: "417720000"
+}
+
+flag {
+    name: "use_memcg_for_compaction"
+    namespace: "system_performance"
+    description: "Update CachedAppOptimizer to use memcg reclaim for compaction"
+    bug: "377479218"
+}
+
+flag {
+    name: "auto_trigger_oomadj_updates"
+    namespace: "backstage_power"
+    description: "Automatically trigger OomAdjuster updates from ProcessStateController on state change."
+    bug: "399666866"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "psc_batch_update"
+    namespace: "backstage_power"
+    description: "Batch ProcessStateController updates triggered while a BatchSession is active."
+    bug: "399680824"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "rollout_computer_control"
+    namespace: "core_experiments_team_internal"
+    description: "Rolls out the computer_control namespace."
+    bug: "436480687"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "psc_batch_service_updates"
+    namespace: "backstage_power"
+    description: "Batch Service related ProcessStateController updates and auto trigger the update on state changes."
+    bug: "399680824"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "app_start_info_process_name_fix"
+    namespace: "system_performance"
+    description: "Use process name to lookup ProcessRecord."
+    bug: "443136429"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

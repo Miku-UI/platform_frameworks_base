@@ -66,8 +66,19 @@ constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitio
         )
 
     val lockscreenAlpha: Flow<Float> =
-        if (Flags.bouncerUiRevamp()) transitionAnimation.immediatelyTransitionTo(0.0f)
-        else emptyFlow()
+        if (Flags.bouncerUiRevamp() || Flags.newDozingKeyguardStates()) {
+            transitionAnimation.immediatelyTransitionTo(0.0f)
+        } else {
+            emptyFlow()
+        }
+
+    val nonAuthUIAlpha: Flow<Float> =
+        transitionAnimation.sharedFlow(
+            duration = TO_PRIMARY_BOUNCER_DURATION,
+            onStep = { null },
+            onCancel = { 1f },
+            onFinish = { 1f },
+        )
 
     val notificationAlpha: Flow<Float> = lockscreenAlpha
 

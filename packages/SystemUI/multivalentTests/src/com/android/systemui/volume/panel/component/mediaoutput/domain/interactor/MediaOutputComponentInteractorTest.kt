@@ -21,12 +21,14 @@ import android.content.packageManager
 import android.content.pm.PackageManager.FEATURE_PC
 import android.graphics.drawable.TestStubDrawable
 import android.media.AudioManager
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.media.flags.Flags;
+import com.android.media.flags.Flags
 import com.android.settingslib.R
+import com.android.settingslib.bluetooth.CachedBluetoothDevice
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
@@ -46,6 +48,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 private const val builtInDeviceName = "This phone"
@@ -70,6 +73,7 @@ class MediaOutputComponentInteractorTest : SysuiTestCase() {
             with(context.orCreateTestableResources) {
                 addOverride(R.drawable.ic_smartphone, testIcon)
                 addOverride(R.drawable.ic_media_tablet, testIcon)
+                addOverride(com.android.internal.R.drawable.ic_settings_bluetooth, testIcon)
 
                 addOverride(R.string.media_transfer_this_device_name_tv, builtInDeviceName)
                 addOverride(R.string.media_transfer_this_device_name_tablet, builtInDeviceName)
@@ -156,10 +160,52 @@ class MediaOutputComponentInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_PERSONAL_AUDIO_SHARING)
+    fun hasSession_stateIs_MediaSession_canOpenAudioSwitcherDuringAudioSharing() =
+        with(kosmos) {
+            testScope.runTest {
+                val cachedBluetoothDevice: CachedBluetoothDevice = mock {
+                    on { name }.thenReturn("audio_sharing_device_name")
+                }
+                with(audioSharingRepository) {
+                    setInAudioSharing(true)
+                    setPrimaryDevice(cachedBluetoothDevice)
+                }
+                mediaControllerRepository.setActiveSessions(listOf(localMediaController))
+
+                val model by collectLastValue(underTest.mediaOutputModel.filterData())
+                runCurrent()
+
+                with(model as MediaOutputComponentModel.MediaSession) {
+                    assertThat(session.appLabel).isEqualTo("local_media_controller_label")
+                    assertThat(session.packageName).isEqualTo("local.test.pkg")
+                    assertThat(session.canAdjustVolume).isTrue()
+                    assertThat(device)
+                        .isEqualTo(
+                            AudioOutputDevice.Bluetooth(
+                                "audio_sharing_device_name",
+                                testIcon,
+                                cachedBluetoothDevice,
+                            )
+                        )
+                    assertThat(isInAudioSharing).isTrue()
+                    assertThat(canOpenAudioSwitcher).isTrue()
+                }
+            }
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_PERSONAL_AUDIO_SHARING)
     fun noMediaOrCall_stateIs_Idle() =
         with(kosmos) {
             testScope.runTest {
-                audioSharingRepository.setInAudioSharing(true)
+                val cachedBluetoothDevice: CachedBluetoothDevice = mock {
+                    on { name }.thenReturn("audio_sharing_device_name")
+                }
+                with(audioSharingRepository) {
+                    setInAudioSharing(true)
+                    setPrimaryDevice(cachedBluetoothDevice)
+                }
 
                 val model by collectLastValue(underTest.mediaOutputModel.filterData())
                 runCurrent()
@@ -167,9 +213,46 @@ class MediaOutputComponentInteractorTest : SysuiTestCase() {
                 assertThat(model)
                     .isEqualTo(
                         MediaOutputComponentModel.Idle(
-                            device = AudioOutputDevice.BuiltIn("built_in_media", testIcon),
+                            device =
+                                AudioOutputDevice.Bluetooth(
+                                    "audio_sharing_device_name",
+                                    testIcon,
+                                    cachedBluetoothDevice,
+                                ),
                             isInAudioSharing = true,
                             canOpenAudioSwitcher = false,
+                        )
+                    )
+            }
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_PERSONAL_AUDIO_SHARING)
+    fun noMediaOrCall_stateIs_Idle_canOpenAudioSwitcherDuringAudioSharing() =
+        with(kosmos) {
+            testScope.runTest {
+                val cachedBluetoothDevice: CachedBluetoothDevice = mock {
+                    on { name }.thenReturn("audio_sharing_device_name")
+                }
+                with(audioSharingRepository) {
+                    setInAudioSharing(true)
+                    setPrimaryDevice(cachedBluetoothDevice)
+                }
+
+                val model by collectLastValue(underTest.mediaOutputModel.filterData())
+                runCurrent()
+
+                assertThat(model)
+                    .isEqualTo(
+                        MediaOutputComponentModel.Idle(
+                            device =
+                                AudioOutputDevice.Bluetooth(
+                                    "audio_sharing_device_name",
+                                    testIcon,
+                                    cachedBluetoothDevice,
+                                ),
+                            isInAudioSharing = true,
+                            canOpenAudioSwitcher = true,
                         )
                     )
             }

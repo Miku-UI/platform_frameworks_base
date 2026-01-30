@@ -17,11 +17,12 @@
 package com.android.systemui.keyboard.shortcut.domain.interactor
 
 import android.content.Context
-import com.android.systemui.Flags.keyboardShortcutHelperShortcutCustomizer
+import com.android.systemui.Flags.extendedAppsShortcutCategory
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyboard.shortcut.data.repository.ShortcutCategoriesRepository
 import com.android.systemui.keyboard.shortcut.extensions.toContentDescription
+import com.android.systemui.keyboard.shortcut.qualifiers.AppsShortcutCategories
 import com.android.systemui.keyboard.shortcut.qualifiers.CustomShortcutCategories
 import com.android.systemui.keyboard.shortcut.qualifiers.DefaultShortcutCategories
 import com.android.systemui.keyboard.shortcut.shared.model.Shortcut
@@ -41,17 +42,33 @@ class ShortcutHelperCategoriesInteractor
 constructor(
     @Application private val context: Context,
     @DefaultShortcutCategories defaultCategoriesRepository: ShortcutCategoriesRepository,
-    @CustomShortcutCategories customCategoriesRepositoryLazy: Lazy<ShortcutCategoriesRepository>,
+    @CustomShortcutCategories customCategoriesRepository: ShortcutCategoriesRepository,
+    @AppsShortcutCategories appsShortcutCategoryRepositoryLazy: Lazy<ShortcutCategoriesRepository>,
+    customizationModeInteractor: ShortcutHelperCustomizationModeInteractor,
 ) {
+    private val appsShortcutCategories =
+        if (extendedAppsShortcutCategory()) {
+            appsShortcutCategoryRepositoryLazy.get().categories
+        } else {
+            flowOf(emptyList())
+        }
+
     val shortcutCategories: Flow<List<ShortcutCategory>> =
-        defaultCategoriesRepository.categories.combine(
-            if (keyboardShortcutHelperShortcutCustomizer()) {
-                customCategoriesRepositoryLazy.get().categories
-            } else {
-                flowOf(emptyList())
-            }
-        ) { defaultShortcutCategories, customShortcutCategories ->
-            groupCategories(defaultShortcutCategories + customShortcutCategories)
+        combine(
+            defaultCategoriesRepository.categories,
+            customCategoriesRepository.categories,
+            appsShortcutCategories,
+            customizationModeInteractor.isCustomizationModeEnabled,
+        ) {
+            defaultShortcutCategories,
+            customShortcutCategories,
+            appsShortcutCategories,
+            isCustomizationModeEnabled ->
+            groupCategories(
+                defaultShortcutCategories +
+                    customShortcutCategories +
+                    if (isCustomizationModeEnabled) appsShortcutCategories else emptyList()
+            )
         }
 
     private fun groupCategories(

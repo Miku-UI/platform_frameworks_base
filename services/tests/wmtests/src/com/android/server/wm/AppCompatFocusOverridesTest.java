@@ -175,16 +175,14 @@ public class AppCompatFocusOverridesTest extends WindowTestsBase {
      * Runs a test scenario providing a Robot.
      */
     void runTestScenario(@NonNull Consumer<FocusOverridesRobotTest> consumer) {
-        final FocusOverridesRobotTest robot = new FocusOverridesRobotTest(mWm, mAtm, mSupervisor);
+        final FocusOverridesRobotTest robot = new FocusOverridesRobotTest(this);
         consumer.accept(robot);
     }
 
     private static class FocusOverridesRobotTest extends AppCompatRobotBase {
 
-        FocusOverridesRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        FocusOverridesRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         void checkShouldSendFakeFocusOnTopActivity(boolean expected) {

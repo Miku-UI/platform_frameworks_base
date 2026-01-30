@@ -27,6 +27,8 @@ import androidx.annotation.NonNull;
 
 import com.android.systemui.statusbar.notification.RemoteInputControllerLogger;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
+import com.android.systemui.statusbar.notification.collection.RemoteInputEntryAdapter;
+import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.policy.RemoteInputUriController;
 import com.android.systemui.statusbar.policy.RemoteInputView;
 import com.android.systemui.util.DumpUtilsKt;
@@ -41,7 +43,8 @@ import java.util.Objects;
  * Keeps track of the currently active {@link RemoteInputView}s.
  */
 public class RemoteInputController {
-    private final ArrayList<Pair<WeakReference<NotificationEntry>, Object>> mOpen
+
+    private final ArrayList<Pair<WeakReference<RemoteInputEntryAdapter>, Object>> mOpen
             = new ArrayList<>();
     private final ArrayMap<String, Object> mSpinning = new ArrayMap<>();
     private final ArrayList<Callback> mCallbacks = new ArrayList<>(3);
@@ -71,7 +74,7 @@ public class RemoteInputController {
      * @param entry the entry for which a remote input is now active.
      * @param token a token identifying the view that is managing the remote input
      */
-    public void addRemoteInput(NotificationEntry entry, Object token,
+    public void addRemoteInput(RemoteInputEntryAdapter entry, Object token,
             @CompileTimeConstant String reason) {
         Objects.requireNonNull(entry);
         Objects.requireNonNull(token);
@@ -82,14 +85,14 @@ public class RemoteInputController {
                 isActive /* isRemoteInputAlreadyActive */,
                 found /* isRemoteInputFound */,
                 reason /* reason */,
-                entry.getNotificationStyle()/* notificationStyle */);
+                entry.getStyle()/* notificationStyle */);
         if (!found) {
             mOpen.add(new Pair<>(new WeakReference<>(entry), token));
         }
         // If the remote input focus is being transferred between different notification layouts
         // (ex: Expanded->Contracted), then we don't want to re-apply.
         if (!isActive) {
-            apply(entry);
+            apply(entry, isRemoteInputActive(entry));
         }
     }
 
@@ -101,7 +104,7 @@ public class RemoteInputController {
      *              the entry is only removed if the token matches the last added token for this
      *              entry. If null, the entry is removed regardless.
      */
-    public void removeRemoteInput(NotificationEntry entry, Object token,
+    public void removeRemoteInput(NotificationEntry entry,  Object token,
             @CompileTimeConstant String reason) {
         Objects.requireNonNull(entry);
         if (entry.mRemoteEditImeVisible && entry.mRemoteEditImeAnimatingAway) {
@@ -117,7 +120,7 @@ public class RemoteInputController {
         }
 
         // If the view is being removed, this may be called even though we're not active
-        boolean remoteInputActiveForEntry = isRemoteInputActive(entry);
+        boolean remoteInputActiveForEntry =  isRemoteInputActive(entry);
         boolean remoteInputActive = isRemoteInputActive();
         mLogger.logRemoveRemoteInput(
                 entry.getKey() /* entryKey */,
@@ -126,7 +129,7 @@ public class RemoteInputController {
                 remoteInputActiveForEntry /* isRemoteInputActiveForEntry */,
                 remoteInputActive/* isRemoteInputActive */,
                 reason/* reason */,
-                entry.getNotificationStyle()/* notificationStyle */);
+                entry.getNotificationStyle() /* notificationStyle */);
 
         if (!remoteInputActiveForEntry) {
             if (mLastAppliedRemoteInputActive != null
@@ -142,7 +145,51 @@ public class RemoteInputController {
 
         pruneWeakThenRemoveAndContains(null /* contains */, entry /* remove */, token);
 
-        apply(entry);
+        apply(new RemoteInputEntryAdapter(entry), isRemoteInputActive(entry));
+    }
+
+    /**
+     * Removes a currently active remote input.
+     *
+     * @param entry the entry for which a remote input should be removed.
+     * @param token a token identifying the view that is requesting the removal. If non-null,
+     *              the entry is only removed if the token matches the last added token for this
+     *              entry. If null, the entry is removed regardless.
+     */
+    public void removeRemoteInput(RemoteInputEntryAdapter entry, Object token,
+            @CompileTimeConstant String reason) {
+        Objects.requireNonNull(entry);
+
+        if (entry.getRemoteInputImeVisible() && entry.getRemoteInputAnimatingAway()) {
+            mLogger.logRemoveRemoteInput(
+                 entry.getKey() /* entryKey */,
+                   entry.getRemoteInputImeVisible() /* remoteEditImeVisible */,
+                   entry.getRemoteInputAnimatingAway() /* remoteEditImeAnimatingAway */,
+                    isRemoteInputActive(entry) /* isRemoteInputActiveForEntry */,
+                    isRemoteInputActive()/* isRemoteInputActive */,
+                    reason/* reason */,
+                    entry.getStyle()/* notificationStyle */);
+            return;
+        }
+
+        // If the view is being removed, this may be called even though we're not active
+        boolean remoteInputActiveForEntry = isRemoteInputActive(entry);
+        boolean remoteInputActive = isRemoteInputActive();
+        if (!remoteInputActiveForEntry) {
+            if (mLastAppliedRemoteInputActive != null
+                    && mLastAppliedRemoteInputActive
+                    && !remoteInputActive) {
+                mLogger.logRemoteInputApplySkipped(
+                        entry.getKey() /* entryKey */,
+                        reason/* reason */,
+                        entry.getStyle()/* notificationStyle */);
+            }
+            return;
+        }
+
+        pruneWeakThenRemoveAndContains(null /* contains */, entry /* remove */, token);
+
+        apply(entry, isRemoteInputActive(entry));
     }
 
     /**
@@ -188,8 +235,8 @@ public class RemoteInputController {
         return mSpinning.get(key) == token;
     }
 
-    private void apply(NotificationEntry entry) {
-        mDelegate.setRemoteInputActive(entry, isRemoteInputActive(entry));
+    private void apply(RemoteInputEntryAdapter entry, boolean isRemoteInputActive) {
+        mDelegate.setRemoteInputActive(entry, isRemoteInputActive);
         boolean remoteInputActive = isRemoteInputActive();
         int N = mCallbacks.size();
         for (int i = 0; i < N; i++) {
@@ -199,7 +246,15 @@ public class RemoteInputController {
     }
 
     /**
-     * @return true if {@param entry} has an active RemoteInput
+     * @return true if "entry" has an active RemoteInput
+     */
+    public boolean isRemoteInputActive(RemoteInputEntryAdapter entry) {
+        return pruneWeakThenRemoveAndContains(entry /* contains */, null /* remove */,
+                null /* removeToken */);
+    }
+
+    /**
+     * @return true if "entry" has an active RemoteInput
      */
     public boolean isRemoteInputActive(NotificationEntry entry) {
         return pruneWeakThenRemoveAndContains(entry /* contains */, null /* remove */,
@@ -210,14 +265,44 @@ public class RemoteInputController {
      * @return true if any entry has an active RemoteInput
      */
     public boolean isRemoteInputActive() {
-        pruneWeakThenRemoveAndContains(null /* contains */, null /* remove */,
-                null /* removeToken */);
+        pruneWeakThenRemoveAndContains((RemoteInputEntryAdapter) null /* contains */,
+                (RemoteInputEntryAdapter) null /* remove */, null /* removeToken */);
         return !mOpen.isEmpty();
     }
 
     /**
-     * Prunes dangling weak references, removes entries referring to {@param remove} and returns
-     * whether {@param contains} is part of the array in a single loop.
+     * Prunes dangling weak references, removes entries referring to "remove" and returns
+     * whether "contains" is part of the array in a single loop.
+     * @param remove if non-null, removes this entry from the active remote inputs
+     * @param removeToken if non-null, only removes an entry if this matches the token when the
+     *                    entry was added.
+     * @return true if {@param contains} is in the set of active remote inputs
+     */
+    private boolean pruneWeakThenRemoveAndContains(
+            RemoteInputEntryAdapter contains, RemoteInputEntryAdapter remove, Object removeToken) {
+        boolean found = false;
+        for (int i = mOpen.size() - 1; i >= 0; i--) {
+            RemoteInputEntryAdapter item = mOpen.get(i).first.get();
+            Object itemToken = mOpen.get(i).second;
+            boolean removeTokenMatches = (removeToken == null || itemToken == removeToken);
+
+            if (item == null || (item == remove && removeTokenMatches)) {
+                mOpen.remove(i);
+            } else if (item == contains) {
+                if (removeToken != null && removeToken != itemToken) {
+                    // We need to update the token. Remove here and let caller reinsert it.
+                    mOpen.remove(i);
+                } else {
+                    found = true;
+                }
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Prunes dangling weak references, removes entries referring to "remove" and returns
+     * whether "contains" is part of the array in a single loop.
      * @param remove if non-null, removes this entry from the active remote inputs
      * @param removeToken if non-null, only removes an entry if this matches the token when the
      *                    entry was added.
@@ -227,13 +312,14 @@ public class RemoteInputController {
             NotificationEntry contains, NotificationEntry remove, Object removeToken) {
         boolean found = false;
         for (int i = mOpen.size() - 1; i >= 0; i--) {
-            NotificationEntry item = mOpen.get(i).first.get();
+            RemoteInputEntryAdapter item = mOpen.get(i).first.get();
             Object itemToken = mOpen.get(i).second;
             boolean removeTokenMatches = (removeToken == null || itemToken == removeToken);
 
-            if (item == null || (item == remove && removeTokenMatches)) {
+            if (item == null
+                    || (remove != null && item.isSameEntryAs(remove) && removeTokenMatches)) {
                 mOpen.remove(i);
-            } else if (item == contains) {
+            } else if (item.isSameEntryAs(contains)) {
                 if (removeToken != null && removeToken != itemToken) {
                     // We need to update the token. Remove here and let caller reinsert it.
                     mOpen.remove(i);
@@ -268,17 +354,17 @@ public class RemoteInputController {
         }
 
         // Make a copy because closing the remote inputs will modify mOpen.
-        ArrayList<NotificationEntry> list = new ArrayList<>(mOpen.size());
+        ArrayList<RemoteInputEntryAdapter> list = new ArrayList<>(mOpen.size());
         for (int i = mOpen.size() - 1; i >= 0; i--) {
-            NotificationEntry entry = mOpen.get(i).first.get();
-            if (entry != null && entry.rowExists()) {
+            RemoteInputEntryAdapter entry = mOpen.get(i).first.get();
+            if (entry != null && entry.getRowExists()) {
                 list.add(entry);
             }
         }
 
         for (int i = list.size() - 1; i >= 0; i--) {
-            NotificationEntry entry = list.get(i);
-            if (entry.rowExists()) {
+            RemoteInputEntryAdapter entry = list.get(i);
+            if (entry.getRowExists()) {
                 entry.closeRemoteInput();
             }
         }
@@ -288,8 +374,8 @@ public class RemoteInputController {
         mDelegate.requestDisallowLongPressAndDismiss();
     }
 
-    public void lockScrollTo(NotificationEntry entry) {
-        mDelegate.lockScrollTo(entry);
+    public void lockScrollTo(ExpandableNotificationRow row) {
+        mDelegate.lockScrollTo(row);
     }
 
     /**
@@ -308,8 +394,8 @@ public class RemoteInputController {
         pw.println(isRemoteInputActive()); // Note that this prunes the mOpen list, printed later.
         pw.println("mOpen: " + mOpen.size());
         DumpUtilsKt.withIncreasedIndent(pw, () -> {
-            for (Pair<WeakReference<NotificationEntry>, Object> open : mOpen) {
-                NotificationEntry entry = open.first.get();
+            for (Pair<WeakReference<RemoteInputEntryAdapter>, Object> open : mOpen) {
+                RemoteInputEntryAdapter entry = open.first.get();
                 pw.println(entry == null ? "???" : entry.getKey());
             }
         });
@@ -337,7 +423,7 @@ public class RemoteInputController {
         /**
          * Activate remote input if necessary.
          */
-        void setRemoteInputActive(NotificationEntry entry, boolean remoteInputActive);
+        void setRemoteInputActive(RemoteInputEntryAdapter entry, boolean remoteInputActive);
 
         /**
          * Request that the view does not dismiss nor perform long press for the current touch.
@@ -348,6 +434,6 @@ public class RemoteInputController {
          * Request that the view is made visible by scrolling to it, and keep the scroll locked until
          * the user scrolls, or {@param entry} loses focus or is detached.
          */
-        void lockScrollTo(NotificationEntry entry);
+        void lockScrollTo(ExpandableNotificationRow row);
     }
 }

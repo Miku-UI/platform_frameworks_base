@@ -18,7 +18,6 @@ package com.android.systemui.clipboardoverlay;
 
 import static android.content.ClipDescription.CLASSIFICATION_COMPLETE;
 
-import static com.android.systemui.Flags.clipboardNoninteractiveOnLockscreen;
 import static com.android.systemui.Flags.clipboardOverlayMultiuser;
 import static com.android.systemui.Flags.overrideSuppressOverlayCondition;
 import static com.android.systemui.clipboardoverlay.ClipboardOverlayEvent.CLIPBOARD_OVERLAY_ENTERED;
@@ -148,7 +147,7 @@ public class ClipboardListener implements
         }
 
         // user should not access intents before setup or while device is locked
-        if ((clipboardNoninteractiveOnLockscreen() && mKeyguardManagerForUser.isDeviceLocked())
+        if (mKeyguardManagerForUser.isDeviceLocked()
                 || !isUserSetupComplete()
                 || clipData == null // shouldn't happen, but just in case
                 || clipData.getItemCount() == 0) {

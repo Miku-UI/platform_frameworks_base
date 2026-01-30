@@ -101,7 +101,7 @@ class MobileIconInteractorKairosAdapterTest : MobileIconInteractorTestBase() {
             activeDataConnectionHasDataEnabled =
                 interactor.activeDataConnectionHasDataEnabled.toState(),
             activeDataIconInteractor =
-                interactor.activeDataIconInteractor.toState().mapLatestBuild {
+                interactor.activeDataIconInteractor.toState().mapLatestBuild() {
                     it?.let { wrap(it) }
                 },
             alwaysShowDataRatIcon = interactor.alwaysShowDataRatIcon.toState(),

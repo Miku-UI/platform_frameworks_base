@@ -17,7 +17,6 @@
 package com.android.settingslib.preference
 
 import androidx.preference.Preference
-import com.android.settingslib.metadata.MainSwitchPreference
 import com.android.settingslib.metadata.PreferenceCategory
 import com.android.settingslib.metadata.PreferenceHierarchyNode
 import com.android.settingslib.metadata.PreferenceMetadata
@@ -54,14 +53,15 @@ interface PreferenceBindingFactory {
 
 /** Default [PreferenceBindingFactory]. */
 open class DefaultPreferenceBindingFactory : PreferenceBindingFactory {
+    /** Default [PreferenceBinding]. */
+    private val defaultBinding: PreferenceBinding = object : PreferenceBinding {}
 
     override fun getPreferenceBinding(metadata: PreferenceMetadata) =
         metadata as? PreferenceBinding
             ?: when (metadata) {
                 is SwitchPreference -> SwitchPreferenceBinding.INSTANCE
                 is PreferenceCategory -> PreferenceCategoryBinding.INSTANCE
-                is MainSwitchPreference -> MainSwitchPreferenceBinding.INSTANCE
-                else -> DefaultPreferenceBinding
+                else -> defaultBinding
             }
 }
 

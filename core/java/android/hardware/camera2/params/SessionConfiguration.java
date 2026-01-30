@@ -158,7 +158,6 @@ public final class SessionConfiguration implements Parcelable {
      * @see CameraDeviceSetup#isSessionConfigurationSupported
      * @see CameraDeviceSetup#getSessionCharacteristics
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_SETUP)
     public SessionConfiguration(@SessionMode int sessionType,
             @NonNull List<OutputConfiguration> outputs) {
         mSessionType = sessionType;
@@ -426,7 +425,6 @@ public final class SessionConfiguration implements Parcelable {
      *                 recommended that camera operations are not done on the main (UI) thread.
      * @param cb A state callback interface implementation.
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_SETUP)
     public void setStateCallback(
             @NonNull @CallbackExecutor Executor executor,
             @NonNull CameraCaptureSession.StateCallback cb) {

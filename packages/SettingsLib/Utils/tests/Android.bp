@@ -1,0 +1,24 @@
+package {
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+android_app {
+    name: "SettingsLibUtilsShell",
+    platform_apis: true,
+}
+
+android_robolectric_test {
+    name: "SettingsLibUtilsTest",
+    srcs: ["src/**/*.kt"],
+    static_libs: [
+        "SettingsLibUtils",
+        "androidx.core_core-ktx",
+        "androidx.test.ext.junit",
+        "mockito-robolectric-prebuilt", // mockito deps order matters!
+        "mockito-kotlin2",
+    ],
+    associates: ["SettingsLibUtils"],
+    coverage_libs: ["SettingsLibUtils"],
+    instrumentation_for: "SettingsLibUtilsShell",
+    upstream: true,
+}

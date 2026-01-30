@@ -15,6 +15,9 @@
  */
 
 #define ATRACE_TAG ATRACE_TAG_VIEW
+#ifdef __linux__
+#include <com_android_graphics_hwui_flags.h>
+#endif
 #include <Animator.h>
 #include <DamageAccumulator.h>
 #include <Matrix.h>
@@ -35,6 +38,14 @@ using namespace uirenderer;
     (reinterpret_cast<RenderNode*>(renderNodePtr)->mutateStagingProperties().prop(val) \
         ? (reinterpret_cast<RenderNode*>(renderNodePtr)->setPropertyFieldsDirty(dirtyFlag), true) \
         : false)
+
+bool surfaceview_stretch_alignment() {
+#ifdef __linux__
+    return com::android::graphics::hwui::flags::surfaceview_stretch_alignment();
+#else
+    return true;
+#endif
+}
 
 // ----------------------------------------------------------------------------
 // DisplayList view properties
@@ -708,32 +719,50 @@ static void android_view_RenderNode_requestPositionUpdates(JNIEnv* env, jobject,
                 info.damageAccumulator->findNearestStretchEffect();
             const StretchEffect* effect = result.stretchEffect;
             if (effect) {
-                // Compute the number of pixels that the stretching container
-                // scales by.
-                // Then compute the scale factor that the child would need
-                // to scale in order to occupy the same pixel bounds.
-                auto& parentBounds = result.parentBounds;
-                auto parentWidth = parentBounds.width();
-                auto parentHeight = parentBounds.height();
-                auto& stretchDirection = effect->getStretchDirection();
-                auto stretchX = stretchDirection.x();
-                auto stretchY = stretchDirection.y();
-                auto stretchXPixels = parentWidth * std::abs(stretchX);
-                auto stretchYPixels = parentHeight * std::abs(stretchY);
-                SkMatrix stretchMatrix;
+                if (surfaceview_stretch_alignment()) {
+                    auto& parentBounds = result.parentBounds;
+                    auto parentWidth = parentBounds.width();
+                    auto parentHeight = parentBounds.height();
+                    float normalized;
+                    normalized = targetBounds.top / parentHeight;
+                    targetBounds.top = effect->computeStretchedPositionY(normalized) * parentHeight;
+                    normalized = targetBounds.bottom / parentHeight;
+                    targetBounds.bottom =
+                            effect->computeStretchedPositionY(normalized) * parentHeight;
 
-                auto childScaleX = 1 + (stretchXPixels / targetBounds.getWidth());
-                auto childScaleY = 1 + (stretchYPixels / targetBounds.getHeight());
-                auto pivotX = stretchX > 0 ? targetBounds.left : targetBounds.right;
-                auto pivotY = stretchY > 0 ? targetBounds.top : targetBounds.bottom;
-                stretchMatrix.setScale(childScaleX, childScaleY, pivotX, pivotY);
-                SkRect rect = SkRect::MakeLTRB(targetBounds.left, targetBounds.top,
-                                               targetBounds.right, targetBounds.bottom);
-                SkRect dst = stretchMatrix.mapRect(rect);
-                targetBounds.left = dst.left();
-                targetBounds.top = dst.top();
-                targetBounds.right = dst.right();
-                targetBounds.bottom = dst.bottom();
+                    normalized = targetBounds.left / parentWidth;
+                    targetBounds.left = effect->computeStretchedPositionX(normalized) * parentWidth;
+                    normalized = targetBounds.right / parentWidth;
+                    targetBounds.right =
+                            effect->computeStretchedPositionX(normalized) * parentWidth;
+                } else {
+                    // Compute the number of pixels that the stretching container
+                    // scales by.
+                    // Then compute the scale factor that the child would need
+                    // to scale in order to occupy the same pixel bounds.
+                    auto& parentBounds = result.parentBounds;
+                    auto parentWidth = parentBounds.width();
+                    auto parentHeight = parentBounds.height();
+                    auto& stretchDirection = effect->getStretchDirection();
+                    auto stretchX = stretchDirection.x();
+                    auto stretchY = stretchDirection.y();
+                    auto stretchXPixels = parentWidth * std::abs(stretchX);
+                    auto stretchYPixels = parentHeight * std::abs(stretchY);
+                    SkMatrix stretchMatrix;
+
+                    auto childScaleX = 1 + (stretchXPixels / targetBounds.getWidth());
+                    auto childScaleY = 1 + (stretchYPixels / targetBounds.getHeight());
+                    auto pivotX = stretchX > 0 ? targetBounds.left : targetBounds.right;
+                    auto pivotY = stretchY > 0 ? targetBounds.top : targetBounds.bottom;
+                    stretchMatrix.setScale(childScaleX, childScaleY, pivotX, pivotY);
+                    SkRect rect = SkRect::MakeLTRB(targetBounds.left, targetBounds.top,
+                                                   targetBounds.right, targetBounds.bottom);
+                    SkRect dst = stretchMatrix.mapRect(rect);
+                    targetBounds.left = dst.left();
+                    targetBounds.top = dst.top();
+                    targetBounds.right = dst.right();
+                    targetBounds.bottom = dst.bottom();
+                }
             } else {
                 return;
             }

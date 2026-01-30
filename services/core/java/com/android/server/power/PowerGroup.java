@@ -41,6 +41,7 @@ import android.os.PowerManagerInternal;
 import android.os.PowerSaveState;
 import android.os.Trace;
 import android.util.Slog;
+import android.util.TimeUtils;
 import android.view.Display;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -75,6 +76,8 @@ public class PowerGroup {
     private final int mGroupId;
     private final PowerManagerFlags mFeatureFlags;
 
+    private final boolean mIsDefaultGroupAdjacent;
+
     /** True if DisplayManagerService has applied all the latest display states that were requested
      *  for this group. */
     private boolean mReady;
@@ -104,9 +107,12 @@ public class PowerGroup {
     private final long mDimDuration;
     private final long mScreenOffTimeout;
 
+    private boolean mDreamManagerAttemptedDozing;
+
     PowerGroup(int groupId, PowerGroupListener wakefulnessListener, Notifier notifier,
             DisplayManagerInternal displayManagerInternal, int wakefulness, boolean ready,
-            boolean supportsSandman, long eventTime, PowerManagerFlags featureFlags) {
+            boolean supportsSandman, long eventTime, PowerManagerFlags featureFlags,
+            boolean isDefaultGroupAdjacent) {
         mGroupId = groupId;
         mWakefulnessListener = wakefulnessListener;
         mNotifier = notifier;
@@ -117,6 +123,7 @@ public class PowerGroup {
         mLastWakeTime = eventTime;
         mLastSleepTime = eventTime;
         mFeatureFlags = featureFlags;
+        mIsDefaultGroupAdjacent = isDefaultGroupAdjacent;
 
         long dimDuration = INVALID_TIMEOUT;
         long screenOffTimeout = INVALID_TIMEOUT;
@@ -145,7 +152,7 @@ public class PowerGroup {
 
     PowerGroup(int wakefulness, PowerGroupListener wakefulnessListener, Notifier notifier,
             DisplayManagerInternal displayManagerInternal, long eventTime,
-            PowerManagerFlags featureFlags) {
+            PowerManagerFlags featureFlags, boolean isDefaultGroupAdjacent) {
         mGroupId = Display.DEFAULT_DISPLAY_GROUP;
         mWakefulnessListener = wakefulnessListener;
         mNotifier = notifier;
@@ -158,6 +165,7 @@ public class PowerGroup {
         mFeatureFlags = featureFlags;
         mDimDuration = INVALID_TIMEOUT;
         mScreenOffTimeout = INVALID_TIMEOUT;
+        mIsDefaultGroupAdjacent = isDefaultGroupAdjacent;
     }
 
     long getScreenOffTimeoutOverrideLocked(long defaultScreenOffTimeout) {
@@ -205,12 +213,45 @@ public class PowerGroup {
                     mLastSleepReason = reason;
                 }
             }
+
+            // Since the group is transitioning to interactive wakefulness, we should reset the
+            // previous attempt of doze made by DreamManager
+            if (isInteractive(newWakefulness)) {
+                setDreamManagerAttemptedDozingLocked(/* dreamManagerAttemptedDozing */ false);
+            }
             mWakefulness = newWakefulness;
             mWakefulnessListener.onWakefulnessChangedLocked(mGroupId, mWakefulness, eventTime,
                     reason, uid, opUid, opPackageName, details);
             return true;
         }
         return false;
+    }
+
+    /**
+     * Sets the dreamManagerAttemptedDozing status, indicating if the DreamManager attempted to
+     * put the group to doze. This being true doesn't necessarily mean that the group is dozing
+     * as it can fail in that attempt
+     */
+    public void setDreamManagerAttemptedDozingLocked(boolean dreamManagerAttemptedDozing) {
+        Slog.i(TAG, "dreamManagerAttemptedDozing status changed to "
+                + dreamManagerAttemptedDozing + " for group " + mGroupId);
+        mDreamManagerAttemptedDozing = dreamManagerAttemptedDozing;
+    }
+
+    public boolean isDefaultOrAdjacentGroup() {
+        return isDefaultGroupAdjacent() || getGroupId() == Display.DEFAULT_DISPLAY_GROUP;
+    }
+
+    /**
+     * A group can transition from sleep to doze
+     * 1. It is a default display
+     * 2. com.android.server.display.feature.flags.Flags.separateTimeouts() is enabled
+     * 3. Is non interactive
+     */
+    public boolean canTransitionBetweenNonInteractiveStates() {
+        return (com.android.server.display.feature.flags.Flags.separateTimeouts())
+                && (getGroupId() == Display.DEFAULT_DISPLAY_GROUP)
+                && !isInteractive(getWakefulnessLocked());
     }
 
     /**
@@ -250,6 +291,10 @@ public class PowerGroup {
 
     boolean isPoweringOnLocked() {
         return mPoweringOn;
+    }
+
+    public boolean isDefaultGroupAdjacent() {
+        return mIsDefaultGroupAdjacent;
     }
 
     void setIsPoweringOnLocked(boolean isPoweringOnNew) {
@@ -313,8 +358,26 @@ public class PowerGroup {
     }
 
     boolean dozeLocked(long eventTime, int uid, @PowerManager.GoToSleepReason int reason) {
-        if (eventTime < getLastWakeTimeLocked() || !isInteractive(mWakefulness)) {
+        return dozeLocked(eventTime, uid, reason, false);
+    }
+
+    boolean dozeLocked(long eventTime, int uid, @PowerManager.GoToSleepReason int reason,
+            boolean allowSleepToDozeTransition) {
+        if (!com.android.server.display.feature.flags.Flags.separateTimeouts()) {
+            allowSleepToDozeTransition = false;
+        }
+
+        if (eventTime < getLastWakeTimeLocked() || mWakefulness == WAKEFULNESS_DOZING) {
             return false;
+        }
+        if (mWakefulness == WAKEFULNESS_ASLEEP) {
+            if (!allowSleepToDozeTransition) {
+                return false;
+            }
+
+            if (mDreamManagerAttemptedDozing) {
+                return false;
+            }
         }
 
         Trace.traceBegin(Trace.TRACE_TAG_POWER, "powerOffDisplay");
@@ -467,7 +530,7 @@ public class PowerGroup {
     // interactivity state
     private void updateScreenPolicyLocked(boolean quiescent, boolean dozeAfterScreenOff,
             boolean bootCompleted, boolean screenBrightnessBoostInProgress,
-            boolean brightWhenDozing) {
+            boolean brightWhenDozing, boolean allAdjacentGroupsAreNonInteractive) {
         final int wakefulness = getWakefulnessLocked();
         final int wakeLockSummary = getWakeLockSummaryLocked();
         int policyReason = Display.STATE_REASON_DEFAULT_POLICY;
@@ -480,7 +543,12 @@ public class PowerGroup {
         } else if (wakefulness == WAKEFULNESS_DOZING) {
             if ((wakeLockSummary & WAKE_LOCK_DOZE) != 0) {
                 policy = DisplayPowerRequest.POLICY_DOZE;
-            } else if (dozeAfterScreenOff) {
+            } else if (dozeAfterScreenOff || (mFeatureFlags.isSeparateTimeoutsFlickerEnabled()
+                    && allAdjacentGroupsAreNonInteractive
+                    && mGroupId == Display.DEFAULT_DISPLAY_GROUP)) {
+                // If we force dozeAfterScreenOff or
+                // if we have adjacent groups, but they are all non-interactive now,
+                // then set policy to OFF instead to reduce flickers.
                 policy = DisplayPowerRequest.POLICY_OFF;
             } else if (brightWhenDozing) {
                 policy = DisplayPowerRequest.POLICY_BRIGHT;
@@ -522,9 +590,10 @@ public class PowerGroup {
             PowerSaveState powerSaverState, boolean quiescent,
             boolean dozeAfterScreenOff, boolean bootCompleted,
             boolean screenBrightnessBoostInProgress, boolean waitForNegativeProximity,
-            boolean brightWhenDozing) {
+            boolean brightWhenDozing, boolean allAdjacentGroupsAreNonInteractive) {
         updateScreenPolicyLocked(quiescent, dozeAfterScreenOff,
-                bootCompleted, screenBrightnessBoostInProgress, brightWhenDozing);
+                bootCompleted, screenBrightnessBoostInProgress, brightWhenDozing,
+                allAdjacentGroupsAreNonInteractive);
         mDisplayPowerRequest.screenBrightnessOverride = screenBrightnessOverride;
         mDisplayPowerRequest.screenBrightnessOverrideTag = overrideTag;
         mDisplayPowerRequest.useProximitySensor = useProximitySensor;
@@ -561,6 +630,26 @@ public class PowerGroup {
         mNotifier.onScreenPolicyUpdate(mGroupId, mDisplayPowerRequest.policy);
         return ready;
     }
+
+    @Override
+    public String toString() {
+        return "groupId: " + mGroupId
+                + "\nuserActivitySummary=0x" + Integer.toHexString(mUserActivitySummary)
+                + "\nmWakeLockSummary=0x" + Integer.toHexString(mWakeLockSummary)
+                + "\nlastUserActivityTime=" + TimeUtils.formatUptime(mLastUserActivityTime)
+                + "\nlastUserActivityTimeNoChangeLights="
+                    + TimeUtils.formatUptime(mLastUserActivityTimeNoChangeLights)
+                + "\nmLastWakeReason=" + mLastWakeReason
+                + "\nmLastSleepReason=" + mLastSleepReason
+                + "\nmDimDuration=" + mDimDuration
+                + "\nmWakefulness=" + mWakefulness
+                + "\nmIsDefaultGroupAdjacent=" + mIsDefaultGroupAdjacent
+                + "\nmSupportsSandman=" + mSupportsSandman
+                + "\nmDreamManagerAttemptedDozing="
+                + mDreamManagerAttemptedDozing
+                + "\nmScreenOffTimeout=" + mScreenOffTimeout;
+    }
+
 
     /** Determines the respective display state reason for a given PowerManager WakeReason. */
     private static int wakeReasonToDisplayStateReason(@PowerManager.WakeReason int wakeReason) {

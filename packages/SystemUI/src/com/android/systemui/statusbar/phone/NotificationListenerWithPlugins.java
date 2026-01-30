@@ -53,7 +53,7 @@ public class NotificationListenerWithPlugins extends NotificationListenerService
     public void registerAsSystemService(Context context, ComponentName componentName,
             int currentUser) throws RemoteException {
         super.registerAsSystemService(context, componentName, currentUser);
-        mPluginManager.addPluginListener(this, NotificationListenerController.class);
+        mPluginManager.addPluginListener(this, NotificationListenerController.class, false);
     }
 
     @Override

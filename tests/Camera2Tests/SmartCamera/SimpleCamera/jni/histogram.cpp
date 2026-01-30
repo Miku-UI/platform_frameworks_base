@@ -76,13 +76,13 @@ void Java_androidx_media_filterpacks_histogram_ChromaHistogramFilter_extractChro
 
     for (int i = 0; i < hBins * sBins; ++i) histOut[i] = 0.0f;
 
-    int h, s, v;
+    int h, s;
     float hScaler = hBins / 256.0f;
     float sScaler = sBins / 256.0f;
     for( ; numPixels > 0; --numPixels) {
       h = *(pixelIn++);
       s = *(pixelIn++);
-      v = *(pixelIn++);
+      pixelIn++;
       pixelIn++;
 
       int index = static_cast<int>(s * sScaler) * hBins + static_cast<int>(h * hScaler);

@@ -17,6 +17,7 @@
 //#define LOG_NDEBUG 0
 #define LOG_TAG "MediaCodec-JNI"
 #define ATRACE_TAG  ATRACE_TAG_VIDEO
+#include <android_media_codec.h>
 #include <utils/Log.h>
 #include <utils/Trace.h>
 
@@ -24,6 +25,7 @@
 
 #include "android_media_MediaCodec.h"
 
+#include "android_media_CodecCapabilities.h"
 #include "android_media_MediaCodecLinearBlock.h"
 #include "android_media_MediaCrypto.h"
 #include "android_media_MediaDescrambler.h"
@@ -140,6 +142,8 @@ static struct {
 static struct {
     jclass capsClazz;
     jmethodID capsCtorId;
+    jclass cpasImplClazz;
+    jmethodID capsImplCtorId;
     jclass profileLevelClazz;
     jfieldID profileField;
     jfieldID levelField;
@@ -372,14 +376,13 @@ status_t JMediaCodec::setCallback(jobject cb) {
 
 status_t JMediaCodec::configure(
         const sp<AMessage> &format,
-        const sp<IGraphicBufferProducer> &bufferProducer,
+        const sp<MediaSurfaceType> &surface,
         const sp<ICrypto> &crypto,
         const sp<IDescrambler> &descrambler,
         int flags) {
     sp<Surface> client;
-    if (bufferProducer != NULL) {
-        mSurfaceTextureClient =
-            new Surface(bufferProducer, true /* controlledByApp */);
+    if (surface != NULL) {
+        mSurfaceTextureClient = mediaflagtools::surfaceTypeToSurface(surface, true);
     } else {
         mSurfaceTextureClient.clear();
     }
@@ -396,11 +399,10 @@ status_t JMediaCodec::configure(
             format, mSurfaceTextureClient, crypto, descrambler, flags);
 }
 
-status_t JMediaCodec::setSurface(
-        const sp<IGraphicBufferProducer> &bufferProducer) {
+status_t JMediaCodec::setSurface(const sp<MediaSurfaceType> &surface) {
     sp<Surface> client;
-    if (bufferProducer != NULL) {
-        client = new Surface(bufferProducer, true /* controlledByApp */);
+    if (surface != NULL) {
+        client = mediaflagtools::surfaceTypeToSurface(surface, true);
     }
     status_t err = mCodec->setSurface(client);
     if (err == OK) {
@@ -417,9 +419,8 @@ status_t JMediaCodec::detachOutputSurface() {
     return err;
 }
 
-status_t JMediaCodec::createInputSurface(
-        sp<IGraphicBufferProducer>* bufferProducer) {
-    return mCodec->createInputSurface(bufferProducer);
+status_t JMediaCodec::createInputSurface(sp<MediaSurfaceType>* surface) {
+    return mCodec->createInputSurface(surface);
 }
 
 status_t JMediaCodec::setInputSurface(
@@ -748,7 +749,7 @@ status_t JMediaCodec::getImage(
     }
 
     jobject cropRect = NULL;
-    int32_t left, top, right, bottom;
+    int32_t left = 0, top = 0, right = 0, bottom = 0;
     if (buffer->meta()->findRect("crop-rect", &left, &top, &right, &bottom)) {
         ScopedLocalRef<jclass> rectClazz(
                 env, env->FindClass("android/graphics/Rect"));
@@ -772,7 +773,7 @@ status_t JMediaCodec::getImage(
             byteBuffer, infoBuffer,
             (jboolean)!input /* readOnly */,
             (jlong)timestamp,
-            (jint)0 /* xOffset */, (jint)0 /* yOffset */, cropRect);
+            left /* xOffset */, top /* yOffset */, cropRect);
 
     // if MediaImage creation fails, return null
     if (env->ExceptionCheck()) {
@@ -998,10 +999,12 @@ static jobject getCodecCapabilitiesObject(
         env->SetIntArrayRegion(colorFormatsArray.get(), i, 1, &val);
     }
 
-    return env->NewObject(
-            gCodecInfo.capsClazz, gCodecInfo.capsCtorId,
+    jobject javaCodecCapsImpl = env->NewObject(
+            gCodecInfo.cpasImplClazz, gCodecInfo.capsImplCtorId,
             profileLevelArray.get(), colorFormatsArray.get(), isEncoder,
             defaultFormatRef.get(), detailsRef.get());
+
+    return env->NewObject(gCodecInfo.capsClazz, gCodecInfo.capsCtorId, javaCodecCapsImpl);
 }
 
 status_t JMediaCodec::getCodecInfo(JNIEnv *env, jobject *codecInfoObject) const {
@@ -1029,11 +1032,18 @@ status_t JMediaCodec::getCodecInfo(JNIEnv *env, jobject *codecInfoObject) const 
         env->NewObjectArray(mediaTypes.size(), gCodecInfo.capsClazz, NULL));
 
     for (size_t i = 0; i < mediaTypes.size(); i++) {
-        const sp<MediaCodecInfo::Capabilities> caps =
-                codecInfo->getCapabilitiesFor(mediaTypes[i].c_str());
-
-        ScopedLocalRef<jobject> capsObj(env, getCodecCapabilitiesObject(
-                env, mediaTypes[i].c_str(), isEncoder, caps));
+        jobject jCodecCaps = NULL;
+        if (android::media::codec::provider_->native_capabilites()) {
+            const std::shared_ptr<CodecCapabilities> codecCaps
+                    = codecInfo->getCodecCapsFor(mediaTypes[i].c_str());
+            jCodecCaps = convertToJavaCodecCapabiliites(env, codecCaps);
+        } else {
+            const sp<MediaCodecInfo::Capabilities> caps =
+                    codecInfo->getCapabilitiesFor(mediaTypes[i].c_str());
+            jCodecCaps = getCodecCapabilitiesObject(
+                    env, mediaTypes[i].c_str(), isEncoder, caps);
+        }
+        ScopedLocalRef<jobject> capsObj(env, jCodecCaps);
 
         env->SetObjectArrayElement(capsArrayObj.get(), i, capsObj.get());
     }
@@ -1828,11 +1838,11 @@ static void android_media_MediaCodec_native_configure(
         return;
     }
 
-    sp<IGraphicBufferProducer> bufferProducer;
+    sp<MediaSurfaceType> surface;
     if (jsurface != NULL) {
-        sp<Surface> surface(android_view_Surface_getSurface(env, jsurface));
-        if (surface != NULL) {
-            bufferProducer = surface->getIGraphicBufferProducer();
+        sp<Surface> tempSurface(android_view_Surface_getSurface(env, jsurface));
+        if (tempSurface != NULL) {
+            surface = mediaflagtools::surfaceToSurfaceType(tempSurface);
         } else {
             jniThrowException(
                     env,
@@ -1852,7 +1862,7 @@ static void android_media_MediaCodec_native_configure(
         descrambler = GetDescrambler(env, descramblerBinderObj);
     }
 
-    err = codec->configure(format, bufferProducer, crypto, descrambler, flags);
+    err = codec->configure(format, surface, crypto, descrambler, flags);
 
     throwExceptionAsNecessary(env, err, codec);
 }
@@ -1868,11 +1878,11 @@ static void android_media_MediaCodec_native_setSurface(
         return;
     }
 
-    sp<IGraphicBufferProducer> bufferProducer;
+    sp<MediaSurfaceType> surface;
     if (jsurface != NULL) {
-        sp<Surface> surface(android_view_Surface_getSurface(env, jsurface));
-        if (surface != NULL) {
-            bufferProducer = surface->getIGraphicBufferProducer();
+        sp<Surface> tempSurface(android_view_Surface_getSurface(env, jsurface));
+        if (tempSurface != NULL) {
+            surface = mediaflagtools::surfaceToSurfaceType(tempSurface);
         } else {
             jniThrowException(
                     env,
@@ -1882,7 +1892,7 @@ static void android_media_MediaCodec_native_setSurface(
         }
     }
 
-    status_t err = codec->setSurface(bufferProducer);
+    status_t err = codec->setSurface(surface);
     throwExceptionAsNecessary(env, err, codec);
 }
 
@@ -1927,8 +1937,8 @@ static jobject android_media_MediaCodec_createPersistentInputSurface(
         return NULL;
     }
 
-    sp<Surface> surface = new Surface(
-            persistentSurface->getBufferProducer(), true);
+    sp<Surface> surface = mediaflagtools::surfaceTypeToSurface(
+        persistentSurface->getSurface(), true);
     if (surface == NULL) {
         return NULL;
     }
@@ -2030,8 +2040,8 @@ static jobject android_media_MediaCodec_createInputSurface(JNIEnv* env,
     }
 
     // Tell the MediaCodec that we want to use a Surface as input.
-    sp<IGraphicBufferProducer> bufferProducer;
-    status_t err = codec->createInputSurface(&bufferProducer);
+    sp<MediaSurfaceType> surface;
+    status_t err = codec->createInputSurface(&surface);
     if (err != NO_ERROR) {
         throwExceptionAsNecessary(env, err, codec);
         return NULL;
@@ -2039,7 +2049,7 @@ static jobject android_media_MediaCodec_createInputSurface(JNIEnv* env,
 
     // Wrap the IGBP in a Java-language Surface.
     return android_view_Surface_createFromIGraphicBufferProducer(env,
-            bufferProducer);
+            mediaflagtools::surfaceTypeToIGBP(surface));
 }
 
 static void android_media_MediaCodec_start(JNIEnv *env, jobject thiz) {
@@ -3644,7 +3654,7 @@ static jobject getJavaResources(
         ScopedLocalRef<jobject> object{env, env->NewObject(
                 gGlobalResourceInfo.clazz, gGlobalResourceInfo.ctorId)};
         ScopedLocalRef<jstring> nameStr{env, env->NewStringUTF(res.mName.c_str())};
-        env->SetObjectField(object.get(), gInstanceResourceInfo.resourceId, nameStr.get());
+        env->SetObjectField(object.get(), gGlobalResourceInfo.resourceId, nameStr.get());
         env->SetLongField(object.get(), gGlobalResourceInfo.capacityId, (jlong)res.mCapacity);
         env->SetLongField(object.get(), gGlobalResourceInfo.availableId, (jlong)res.mAvailable);
         (void)env->CallBooleanMethod(resourcesObj, gArrayListInfo.addId, object.get());
@@ -3900,10 +3910,20 @@ static void android_media_MediaCodec_native_init(JNIEnv *env, jclass) {
     gCodecInfo.capsClazz = (jclass)env->NewGlobalRef(clazz.get());
 
     method = env->GetMethodID(clazz.get(), "<init>",
+            "(Landroid/media/MediaCodecInfo$CodecCapabilities$CodecCapsIntf;)V");
+    CHECK(method != NULL);
+    gCodecInfo.capsCtorId = method;
+
+    clazz.reset(env->FindClass(
+            "android/media/MediaCodecInfo$CodecCapabilities$CodecCapsLegacyImpl"));
+    CHECK(clazz.get() != NULL);
+    gCodecInfo.cpasImplClazz = (jclass)env->NewGlobalRef(clazz.get());
+
+    method = env->GetMethodID(clazz.get(), "<init>",
             "([Landroid/media/MediaCodecInfo$CodecProfileLevel;[IZ"
             "Ljava/util/Map;Ljava/util/Map;)V");
     CHECK(method != NULL);
-    gCodecInfo.capsCtorId = method;
+    gCodecInfo.capsImplCtorId = method;
 
     clazz.reset(env->FindClass("android/media/MediaCodecInfo$CodecProfileLevel"));
     CHECK(clazz.get() != NULL);

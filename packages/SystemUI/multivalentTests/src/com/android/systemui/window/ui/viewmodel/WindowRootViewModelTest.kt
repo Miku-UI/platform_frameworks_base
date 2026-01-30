@@ -16,17 +16,23 @@
 
 package com.android.systemui.window.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.communal.data.repository.communalSceneRepository
+import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.android.systemui.window.data.repository.fakeWindowRootViewBlurRepository
 import com.android.systemui.window.data.repository.windowRootViewBlurRepository
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -38,6 +44,7 @@ import org.junit.runner.RunWith
 class WindowRootViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
     val testScope = kosmos.testScope
+    private val communalRepository by lazy { kosmos.communalSceneRepository }
 
     val underTest by lazy { kosmos.windowRootViewModel }
 
@@ -46,14 +53,14 @@ class WindowRootViewModelTest : SysuiTestCase() {
         testScope.runTest {
             kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = true
             val blurRadius by collectLastValue(underTest.blurRadius)
-            val isBlurOpaque by collectLastValue(underTest.isBlurOpaque)
+            val isSurfaceOpaque by collectLastValue(underTest.isSurfaceOpaque)
             runCurrent()
 
             kosmos.fakeBouncerTransitions.first().windowBlurRadius.value = 30.0f
             runCurrent()
 
             assertThat(blurRadius).isEqualTo(30)
-            assertThat(isBlurOpaque).isEqualTo(false)
+            assertThat(isSurfaceOpaque).isEqualTo(false)
         }
 
     @Test
@@ -73,9 +80,73 @@ class WindowRootViewModelTest : SysuiTestCase() {
 
             assertThat(blurRadius).isEqualTo(0f)
 
-            kosmos.windowRootViewBlurRepository.blurRequestedByShade.value = 60
+            kosmos.windowRootViewBlurRepository.blurRequestedByShade.value = 60.0f
             runCurrent()
 
             assertThat(blurRadius).isEqualTo(0f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun blurScale_changes_onZoomOutFromGlanceableHubFlagEnabled() =
+        testScope.runTest {
+            kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = true
+            val blurScale by collectLastValue(underTest.blurScale)
+
+            // Communal scene is visible
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(ObservableTransitionState.Idle(CommunalScenes.Communal))
+            communalRepository.setTransitionState(transitionState)
+
+            kosmos.fakeGlanceableHubTransitions.first().zoomOut.value = 0.95f
+            runCurrent()
+
+            assertThat(blurScale).isEqualTo(0.95f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun blurScale_reset_onExitCommunalScene() =
+        testScope.runTest {
+            kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = true
+            val blurScale by collectLastValue(underTest.blurScale)
+
+            // Communal scene is visible
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(ObservableTransitionState.Idle(CommunalScenes.Communal))
+            communalRepository.setTransitionState(transitionState)
+
+            kosmos.fakeGlanceableHubTransitions.first().zoomOut.value = 0.95f
+            runCurrent()
+
+            assertThat(blurScale).isEqualTo(0.95f)
+
+            // Fully exits communal scene
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Blank)
+
+            // Scale is reset
+            assertThat(blurScale).isEqualTo(1f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun blurScale_doesNotChange_onZoomOutFromGlanceableHubFlagDisabled() =
+        testScope.runTest {
+            kosmos.fakeWindowRootViewBlurRepository.isBlurSupported.value = true
+            val blurScale by collectLastValue(underTest.blurScale)
+
+            // Communal scene is visible
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(ObservableTransitionState.Idle(CommunalScenes.Communal))
+            communalRepository.setTransitionState(transitionState)
+
+            kosmos.fakeGlanceableHubTransitions.first().zoomOut.value = 0.95f
+            runCurrent()
+
+            // Scale is not changed
+            assertThat(blurScale).isEqualTo(1f)
         }
 }

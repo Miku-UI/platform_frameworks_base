@@ -25,6 +25,8 @@ public class DebugLog {
 
     public static final boolean DEBUG_LAYOUT_ON = false;
 
+    private DebugLog() {}
+
     public static class Node {
         @Nullable public Node parent;
         @NonNull public String name;

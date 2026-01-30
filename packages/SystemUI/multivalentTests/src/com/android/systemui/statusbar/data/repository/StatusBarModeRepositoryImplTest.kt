@@ -17,6 +17,8 @@
 package com.android.systemui.statusbar.data.repository
 
 import android.graphics.Rect
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
@@ -30,6 +32,9 @@ import com.android.internal.view.AppearanceRegion
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.statusbar.CommandQueue
+import com.android.systemui.statusbar.StatusBarAlwaysUseRegionSampling
+import com.android.systemui.statusbar.StatusBarRegionSampling
+import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.data.model.StatusBarMode
 import com.android.systemui.statusbar.layout.BoundsPair
 import com.android.systemui.statusbar.layout.LetterboxAppearance
@@ -54,6 +59,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 
 @SmallTest
@@ -70,18 +76,15 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
         }
     private val ongoingCallRepository = kosmos.ongoingCallRepository
 
-    private val underTest =
+    private val underTest by lazy {
         StatusBarModePerDisplayRepositoryImpl(
-                testScope.backgroundScope,
-                DISPLAY_ID,
-                commandQueue,
-                letterboxAppearanceCalculator,
-                ongoingCallRepository,
-            )
-            .apply {
-                this.start()
-                this.onStatusBarViewInitialized(homeStatusBarComponent)
-            }
+            testScope.backgroundScope,
+            DISPLAY_ID,
+            commandQueue,
+            letterboxAppearanceCalculator,
+            ongoingCallRepository,
+        )
+    }
 
     private val commandQueueCallback: CommandQueue.Callbacks
         get() {
@@ -97,7 +100,34 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
             return callbackCaptor.value
         }
 
-    @Before fun setUp() {}
+    @Before
+    fun setUp() {
+        underTest.apply {
+            this.start()
+            this.onStatusBarViewInitialized(homeStatusBarComponent)
+        }
+    }
+
+    @Test
+    fun start_boundsProviderStarted() {
+        verify(statusBarBoundsProvider).start()
+    }
+
+    @Test
+    @EnableFlags(StatusBarRootModernization.FLAG_NAME)
+    fun stop_flagOn_boundsProviderStopped() {
+        underTest.stop()
+
+        verify(statusBarBoundsProvider).stop()
+    }
+
+    @Test
+    @DisableFlags(StatusBarRootModernization.FLAG_NAME)
+    fun stop_flagOff_boundsProviderNotStopped() {
+        underTest.stop()
+
+        verify(statusBarBoundsProvider, never()).stop()
+    }
 
     @Test
     fun isTransientShown_commandQueueShow_wrongDisplayId_notUpdated() {
@@ -215,21 +245,6 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
         underTest.showTransient()
 
         assertThat(underTest.isTransientShown.value).isTrue()
-    }
-
-    @Test
-    fun isTransientShown_clearTransient_false() {
-        // Start as true
-        commandQueueCallback.showTransient(
-            DISPLAY_ID,
-            WindowInsets.Type.statusBars(),
-            /* isGestureOnSystemBar= */ false,
-        )
-        assertThat(underTest.isTransientShown.value).isTrue()
-
-        underTest.clearTransient()
-
-        assertThat(underTest.isTransientShown.value).isFalse()
     }
 
     @Test
@@ -386,6 +401,88 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
             assertThat(latest!!.mode).isEqualTo(StatusBarMode.LIGHTS_OUT_TRANSPARENT)
             assertThat(latest!!.appearanceRegions)
                 .isEqualTo(newLetterboxAppearance.appearanceRegions)
+        }
+
+    @Test
+    @EnableFlags(StatusBarRegionSampling.FLAG_NAME)
+    @DisableFlags(StatusBarAlwaysUseRegionSampling.FLAG_NAME)
+    fun statusBarAppearance_a11ySamplingFlagOn_usesSampledAppearance() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+
+            underTest.setSampledAppearanceRegions(SAMPLED_APPEARANCE_REGIONS)
+            onSystemBarAttributesChanged(
+                appearance = APPEARANCE,
+                appearanceRegions = APPEARANCE_REGIONS.toTypedArray(),
+                letterboxDetails = emptyArray(),
+            )
+
+            assertThat(latest!!.appearanceRegions).isEqualTo(SAMPLED_APPEARANCE_REGIONS)
+        }
+
+    @Test
+    @EnableFlags(StatusBarAlwaysUseRegionSampling.FLAG_NAME)
+    @DisableFlags(StatusBarRegionSampling.FLAG_NAME)
+    fun statusBarAppearance_alwaysSamplingFlagOn_usesSampledAppearance() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+
+            underTest.setSampledAppearanceRegions(SAMPLED_APPEARANCE_REGIONS)
+            onSystemBarAttributesChanged(
+                appearance = APPEARANCE,
+                appearanceRegions = APPEARANCE_REGIONS.toTypedArray(),
+                letterboxDetails = emptyArray(),
+            )
+
+            assertThat(latest!!.appearanceRegions).isEqualTo(SAMPLED_APPEARANCE_REGIONS)
+        }
+
+    @Test
+    @DisableFlags(StatusBarRegionSampling.FLAG_NAME, StatusBarAlwaysUseRegionSampling.FLAG_NAME)
+    fun statusBarAppearance_bothFlagsDisabled_sampledAvailable_usesDisplayPolicyProvidedAppearance() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+
+            underTest.setSampledAppearanceRegions(SAMPLED_APPEARANCE_REGIONS)
+            onSystemBarAttributesChanged(
+                appearance = APPEARANCE,
+                appearanceRegions = APPEARANCE_REGIONS.toTypedArray(),
+                letterboxDetails = emptyArray(),
+            )
+
+            assertThat(latest!!.appearanceRegions).isEqualTo(APPEARANCE_REGIONS)
+        }
+
+    @Test
+    @EnableFlags(StatusBarRegionSampling.FLAG_NAME)
+    fun statusBarAppearance_a11yFlagEnabled_sampledUnavailable_usesDisplayPolicyProvidedAppearance() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+
+            underTest.setSampledAppearanceRegions(listOf())
+            onSystemBarAttributesChanged(
+                appearance = APPEARANCE,
+                appearanceRegions = APPEARANCE_REGIONS.toTypedArray(),
+                letterboxDetails = emptyArray(),
+            )
+
+            assertThat(latest!!.appearanceRegions).isEqualTo(APPEARANCE_REGIONS)
+        }
+
+    @Test
+    @EnableFlags(StatusBarAlwaysUseRegionSampling.FLAG_NAME)
+    fun statusBarAppearance_alwaysFlagEnabled_sampledUnavailable_usesDisplayPolicyProvidedAppearance() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.statusBarAppearance)
+
+            underTest.setSampledAppearanceRegions(listOf())
+            onSystemBarAttributesChanged(
+                appearance = APPEARANCE,
+                appearanceRegions = APPEARANCE_REGIONS.toTypedArray(),
+                letterboxDetails = emptyArray(),
+            )
+
+            assertThat(latest!!.appearanceRegions).isEqualTo(APPEARANCE_REGIONS)
         }
 
     @Test
@@ -565,6 +662,10 @@ class StatusBarModeRepositoryImplTest : SysuiTestCase() {
         private const val APPEARANCE = APPEARANCE_LIGHT_STATUS_BARS
         private val APPEARANCE_REGION = AppearanceRegion(APPEARANCE, Rect(0, 0, 150, 300))
         private val APPEARANCE_REGIONS = listOf(APPEARANCE_REGION)
+        private const val APPEARANCE_DARK = 0
+        private val SAMPLED_APPEARANCE_REGION =
+            AppearanceRegion(APPEARANCE_DARK, Rect(0, 0, 150, 300))
+        private val SAMPLED_APPEARANCE_REGIONS = listOf(SAMPLED_APPEARANCE_REGION)
         private val LETTERBOX_DETAILS =
             listOf(
                 LetterboxDetails(

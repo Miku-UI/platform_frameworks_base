@@ -38,7 +38,7 @@ import java.util.ArrayList;
  *
  * <p>MIME type filters must be correctly formatted, or an exception will be thrown.
  * Copied from support library.
- * {@hide}
+ * @hide
  */
 public final class MimeTypeFilter {
 

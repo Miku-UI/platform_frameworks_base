@@ -43,6 +43,15 @@ inline bool typeface_redesign_readonly() {
 #endif  // __ANDROID__
 }
 
+inline bool use_fontation_by_default() {
+#ifdef __ANDROID__
+    static bool flag = com_android_text_flags_use_fontation_by_default();
+    return flag;
+#else
+    return true;
+#endif  // __ANDROID__
+}
+
 }  // namespace text_feature
 
 namespace view_accessibility_flags {

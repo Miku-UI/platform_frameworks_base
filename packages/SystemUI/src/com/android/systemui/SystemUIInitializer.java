@@ -101,7 +101,8 @@ public abstract class SystemUIInitializer {
                     .setRecentTasks(mWMComponent.getRecentTasks())
                     .setBackAnimation(mWMComponent.getBackAnimation())
                     .setDesktopMode(mWMComponent.getDesktopMode())
-                    .setAppZoomOut(mWMComponent.getAppZoomOut());
+                    .setAppZoomOut(mWMComponent.getAppZoomOut())
+                    .setAppHandles(mWMComponent.getAppHandles());
 
             // Only initialize when not starting from tests since this currently initializes some
             // components that shouldn't be run in the test environment
@@ -123,7 +124,8 @@ public abstract class SystemUIInitializer {
                     .setRecentTasks(Optional.ofNullable(null))
                     .setBackAnimation(Optional.ofNullable(null))
                     .setDesktopMode(Optional.ofNullable(null))
-                    .setAppZoomOut(Optional.ofNullable(null));
+                    .setAppZoomOut(Optional.ofNullable(null))
+                    .setAppHandles(Optional.ofNullable(null));
         }
         mSysUIComponent = builder.build();
 

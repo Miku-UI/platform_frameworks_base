@@ -16,8 +16,6 @@
 
 package com.android.server.pm;
 
-import static android.content.pm.Flags.FLAG_REDUCE_BROADCASTS_FOR_COMPONENT_STATE_CHANGES;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertNotNull;
@@ -34,17 +32,20 @@ import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
+import android.app.BroadcastOptions;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.Flags;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.os.UserHandle;
 import android.platform.test.annotations.AppModeFull;
 import android.platform.test.annotations.AppModeNonSdkSandbox;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -74,7 +75,7 @@ public class BroadcastHelperTest {
             PACKAGE_CHANGED_TEST_PACKAGE_NAME + ".MainActivity";
 
     @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+    public SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     ActivityManagerInternal mMockActivityManagerInternal;
@@ -121,9 +122,32 @@ public class BroadcastHelperTest {
         mBroadcastHelper = new BroadcastHelper(mMockPackageManagerServiceInjector);
     }
 
-    @RequiresFlagsEnabled(FLAG_REDUCE_BROADCASTS_FOR_COMPONENT_STATE_CHANGES)
+    @EnableFlags({Flags.FLAG_CONSOLIDATE_PACKAGE_CHANGED_BROADCASTS,
+            Flags.FLAG_INCLUDE_BROADCAST_DEBUG_REASON})
     @Test
     public void changeNonExportedComponent_sendPackageChangedBroadcastToSystemAndApplicationItself()
+            throws Exception {
+        changeComponentAndSendPackageChangedBroadcast(false /* changeExportedComponent */,
+                new String[0] /* sharedPackages */);
+
+        ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<Bundle> captorOptions = ArgumentCaptor.forClass(Bundle.class);
+        verify(mMockActivityManagerInternal, times(1)).broadcastIntentWithCallback(
+                captorIntent.capture(), eq(null), eq(null), anyInt(), eq(null), eq(null),
+                captorOptions.capture());
+        Intent actualIntent = captorIntent.getValue();
+        assertThat(actualIntent).isNotNull();
+        assertThat(actualIntent.getPackage()).isNull();
+
+        Bundle actualOptions = captorOptions.getValue();
+        assertThat(actualOptions).isNotNull();
+        verifyIncludedPackages(actualOptions, "android", PACKAGE_CHANGED_TEST_PACKAGE_NAME);
+        verifyBroadcastDebugReason(actualOptions, PackageMetrics.STRING_TEST);
+    }
+
+    @DisableFlags(Flags.FLAG_CONSOLIDATE_PACKAGE_CHANGED_BROADCASTS)
+    @Test
+    public void changeNonExportedComponent_sendPackageChangedBroadcastToSystemAndApplicationItself_flagDisabled()
             throws Exception {
         changeComponentAndSendPackageChangedBroadcast(false /* changeExportedComponent */,
                 new String[0] /* sharedPackages */);
@@ -142,9 +166,33 @@ public class BroadcastHelperTest {
         assertThat(intent2.getPackage()).isEqualTo(PACKAGE_CHANGED_TEST_PACKAGE_NAME);
     }
 
-    @RequiresFlagsEnabled(FLAG_REDUCE_BROADCASTS_FOR_COMPONENT_STATE_CHANGES)
+    @EnableFlags({Flags.FLAG_CONSOLIDATE_PACKAGE_CHANGED_BROADCASTS,
+            Flags.FLAG_INCLUDE_BROADCAST_DEBUG_REASON})
     @Test
     public void changeNonExportedComponent_sendPackageChangedBroadcastToSharedUserIdApplications()
+            throws Exception {
+        changeComponentAndSendPackageChangedBroadcast(false /* changeExportedComponent */,
+                new String[]{"shared.package"} /* sharedPackages */);
+
+        ArgumentCaptor<Intent> captorIntent = ArgumentCaptor.forClass(Intent.class);
+        ArgumentCaptor<Bundle> captorOptions = ArgumentCaptor.forClass(Bundle.class);
+        verify(mMockActivityManagerInternal, times(1)).broadcastIntentWithCallback(
+                captorIntent.capture(), eq(null), eq(null), anyInt(), eq(null), eq(null),
+                captorOptions.capture());
+        Intent actualIntent = captorIntent.getValue();
+        assertThat(actualIntent).isNotNull();
+        assertThat(actualIntent.getPackage()).isNull();
+
+        Bundle actualOptions = captorOptions.getValue();
+        assertThat(actualOptions).isNotNull();
+        verifyIncludedPackages(actualOptions, "android", PACKAGE_CHANGED_TEST_PACKAGE_NAME,
+                "shared.package");
+        verifyBroadcastDebugReason(actualOptions, PackageMetrics.STRING_TEST);
+    }
+
+    @DisableFlags(Flags.FLAG_CONSOLIDATE_PACKAGE_CHANGED_BROADCASTS)
+    @Test
+    public void changeNonExportedComponent_sendPackageChangedBroadcastToSharedUserIdApplications_flagDisabled()
             throws Exception {
         changeComponentAndSendPackageChangedBroadcast(false /* changeExportedComponent */,
                 new String[]{"shared.package"} /* sharedPackages */);
@@ -210,7 +258,20 @@ public class BroadcastHelperTest {
 
         mBroadcastHelper.sendPackageChangedBroadcast(mMockSnapshot,
                 PACKAGE_CHANGED_TEST_PACKAGE_NAME, true /* dontKillApp */, componentNames,
-                UserHandle.USER_SYSTEM, "test" /* reason */, "test" /* reasonForTrace */,
+                UserHandle.USER_SYSTEM, "test" /* reason */, PackageMetrics.STRING_TEST,
                 Binder.getCallingUid());
+    }
+
+    private void verifyIncludedPackages(Bundle actualOptions,
+            String... expectedIncludedPackages) {
+        BroadcastOptions actualBroadcastOptions = new BroadcastOptions(actualOptions);
+        assertThat(actualBroadcastOptions.getIncludedPackages())
+                .isEqualTo(expectedIncludedPackages);
+    }
+
+    private void verifyBroadcastDebugReason(Bundle actualOptions, String expectedReason) {
+        BroadcastOptions actualBroadcastOptions = new BroadcastOptions(actualOptions);
+        assertThat(actualBroadcastOptions.getDebugReason())
+                .isEqualTo(expectedReason);
     }
 }

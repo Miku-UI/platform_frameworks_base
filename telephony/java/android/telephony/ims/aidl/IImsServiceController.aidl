@@ -28,7 +28,7 @@ import com.android.ims.internal.IImsFeatureStatusCallback;
 
 /**
  * See ImsService and MmTelFeature for more information.
- * {@hide}
+ * @hide
  */
 interface IImsServiceController {
     void setListener(IImsServiceControllerListener l);

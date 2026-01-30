@@ -19,7 +19,7 @@ package android.media;
 import android.media.IMediaScannerListener;
 
 /**
- * {@hide}
+ * @hide
  */
 interface IMediaScannerService
 {

@@ -24,12 +24,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.animation.Interpolators
-import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.chips.mediaprojection.domain.model.MediaProjectionStopDialogModel
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.chips.ui.binder.OngoingActivityChipBinder
 import com.android.systemui.statusbar.chips.ui.binder.OngoingActivityChipViewBinding
 import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModelLegacy
@@ -41,7 +40,7 @@ import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationSt
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.AnimatingOut
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.RunningChipAnim
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.ConnectedDisplaysStatusBarNotificationIconViewStore
-import com.android.systemui.statusbar.notification.shared.NotificationsLiveDataStoreRefactor
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.phone.fragment.CollapsedStatusBarFragment
 import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
 import com.android.systemui.statusbar.pipeline.shared.ui.model.VisibilityModel
@@ -74,7 +73,7 @@ interface HomeStatusBarViewBinder {
     )
 }
 
-@SysUISingleton
+@PerDisplaySingleton
 class HomeStatusBarViewBinderImpl
 @Inject
 constructor(
@@ -129,12 +128,10 @@ constructor(
                     }
                 }
 
-                if (NotificationsLiveDataStoreRefactor.isEnabled) {
-                    val lightsOutView: View = view.requireViewById(R.id.notification_lights_out)
-                    launch {
-                        viewModel.areNotificationsLightsOut.collect { show ->
-                            animateLightsOutView(lightsOutView, show)
-                        }
+                val lightsOutView: View = view.requireViewById(R.id.notification_lights_out)
+                launch {
+                    viewModel.areNotificationsLightsOut.collect { show ->
+                        animateLightsOutView(lightsOutView, show)
                     }
                 }
 
@@ -149,7 +146,7 @@ constructor(
                     }
                 }
 
-                if (!StatusBarNotifChips.isEnabled && !StatusBarChipsModernization.isEnabled) {
+                if (!PromotedNotificationUi.isEnabled && !StatusBarChipsModernization.isEnabled) {
                     val primaryChipViewBinding =
                         OngoingActivityChipBinder.createBinding(primaryChipView)
 
@@ -194,7 +191,7 @@ constructor(
                     }
                 }
 
-                if (StatusBarNotifChips.isEnabled && !StatusBarChipsModernization.isEnabled) {
+                if (PromotedNotificationUi.isEnabled && !StatusBarChipsModernization.isEnabled) {
                     // Create view bindings here so we don't keep re-fetching child views each time
                     // the chip model changes.
                     val primaryChipViewBinding =

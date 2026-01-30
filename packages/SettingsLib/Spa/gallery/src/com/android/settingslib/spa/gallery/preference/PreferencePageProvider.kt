@@ -19,6 +19,7 @@ package com.android.settingslib.spa.gallery.preference
 import android.os.Bundle
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DisabledByDefault
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.IntState
 import androidx.compose.runtime.LaunchedEffect
@@ -35,6 +36,7 @@ import com.android.settingslib.spa.framework.common.SpaEnvironmentFactory
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.gallery.R
+import com.android.settingslib.spa.widget.preference.BulletPreference
 import com.android.settingslib.spa.widget.preference.ListPreferenceModel
 import com.android.settingslib.spa.widget.preference.ListPreferenceOption
 import com.android.settingslib.spa.widget.preference.Preference
@@ -123,6 +125,21 @@ object PreferencePageProvider : SettingsPageProvider {
                         selectedId.intValue = it
                     }
                 }
+            )
+            BulletPreference(
+                title = "Bullet point title",
+                summary = "",
+                icon = Icons.Outlined.StarOutline
+            )
+            BulletPreference(
+                title = "",
+                summary = "Bullet point description. Supporting text to explain the main benefit of the feature.",
+                icon = Icons.Outlined.StarOutline
+            )
+            BulletPreference(
+                title = "Bullet point title",
+                summary = "Bullet point description. Supporting text to explain the main benefit of the feature.",
+                icon = Icons.Outlined.StarOutline
             )
         }
     }

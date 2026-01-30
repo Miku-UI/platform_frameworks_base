@@ -21,10 +21,11 @@ import android.graphics.Rect;
 import android.view.InsetsState;
 import android.view.ISurfaceControlViewHostParent;
 import android.window.ISurfaceSyncGroup;
+import android.window.InputTransferToken;
 
 /**
  * API from content embedder back to embedded content in SurfaceControlViewHost
- * {@hide}
+ * @hide
  */
 interface ISurfaceControlViewHost {
     /**
@@ -32,6 +33,7 @@ interface ISurfaceControlViewHost {
      * APIs that are blocking
      */
     oneway void onConfigurationChanged(in Configuration newConfig);
+    oneway void onDispatchAttachedToWindow(in InputTransferToken token);
     oneway void onDispatchDetachedFromWindow();
     oneway void onInsetsChanged(in InsetsState state, in Rect insetFrame);
     ISurfaceSyncGroup getSurfaceSyncGroup();

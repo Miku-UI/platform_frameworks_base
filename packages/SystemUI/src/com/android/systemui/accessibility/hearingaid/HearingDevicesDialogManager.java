@@ -42,7 +42,7 @@ import javax.inject.Inject;
 @SysUISingleton
 public class HearingDevicesDialogManager {
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final String TAG = "HearingDevicesDialogManager";
     private static final String INTERACTION_JANK_TAG = "hearing_devices_tile";
     private SystemUIDialog mDialog;

@@ -25,6 +25,7 @@ import static android.view.WindowManager.DOCKED_TOP;
 import static com.android.wm.shell.common.split.SplitLayout.PARALLAX_ALIGN_CENTER;
 import static com.android.wm.shell.common.split.SplitLayout.PARALLAX_DISMISSING;
 import static com.android.wm.shell.common.split.SplitLayout.PARALLAX_FLEX;
+import static com.android.wm.shell.common.split.SplitLayout.PARALLAX_FLEX_HYBRID;
 import static com.android.wm.shell.common.split.SplitLayout.PARALLAX_NONE;
 
 import android.graphics.Point;
@@ -36,9 +37,6 @@ import android.view.SurfaceControl;
  * usually when the divider is being moved around by the user (or during an animation).
  */
 class ResizingEffectPolicy {
-    /** The default amount to dim an app that is partially offscreen. */
-    public static float DEFAULT_OFFSCREEN_DIM = 0.32f;
-
     private final SplitLayout mSplitLayout;
     /** The parallax algorithm we are currently using. */
     private final int mParallaxType;
@@ -110,6 +108,9 @@ class ResizingEffectPolicy {
             case PARALLAX_FLEX:
                 mParallaxSpec = new FlexParallaxSpec();
                 break;
+            case PARALLAX_FLEX_HYBRID:
+                mParallaxSpec = new FlexHybridParallaxSpec();
+                break;
             case PARALLAX_NONE:
             default:
                 mParallaxSpec = new NoParallaxSpec();
@@ -123,8 +124,8 @@ class ResizingEffectPolicy {
      * {@link #mDimValue} These values will be then be applied in
      * {@link #adjustRootSurface} and {@link #adjustDimSurface} respectively.
      */
-    void applyDividerPosition(
-            int position, boolean isLeftRightSplit, DividerSnapAlgorithm snapAlgorithm) {
+    void applyDividerPosition(int position, boolean isLeftRightSplit,
+            DividerSnapAlgorithm snapAlgorithm, SplitState splitState) {
         mDimmingSide = DOCKED_INVALID;
         mRetreatingSideParallax.set(0, 0);
         mAdvancingSideParallax.set(0, 0);
@@ -162,7 +163,7 @@ class ResizingEffectPolicy {
         mParallaxSpec.getParallax(mRetreatingSideParallax, mAdvancingSideParallax, position,
                 snapAlgorithm, isLeftRightSplit, displayBounds, mRetreatingSurface,
                 mRetreatingContent, mAdvancingSurface, mAdvancingContent, mDimmingSide,
-                topLeftShrink);
+                topLeftShrink, splitState);
     }
 
     /** Applies the calculated parallax and dimming values to task surfaces. */
@@ -188,7 +189,8 @@ class ResizingEffectPolicy {
                     mTempRect2.set(mSplitLayout.getTopLeftBounds());
                     break;
             }
-        } else if (mParallaxType == PARALLAX_ALIGN_CENTER || mParallaxType == PARALLAX_FLEX) {
+        } else if (mParallaxType == PARALLAX_ALIGN_CENTER || mParallaxType == PARALLAX_FLEX
+                || mParallaxType == PARALLAX_FLEX_HYBRID) {
             switch (mShrinkSide) {
                 case DOCKED_TOP:
                 case DOCKED_LEFT:
@@ -222,6 +224,10 @@ class ResizingEffectPolicy {
         }
     }
 
+    /**
+     * Called on every frame while the user is dragging the divider to dismiss an app or move it
+     * offscreen. Sets alpha and visibility on the two provided dim layers.
+     */
     void adjustDimSurface(SurfaceControl.Transaction t,
             SurfaceControl dimLayer1, SurfaceControl dimLayer2) {
         SurfaceControl targetDimLayer;

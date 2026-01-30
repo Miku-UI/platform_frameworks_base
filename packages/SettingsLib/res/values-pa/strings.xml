@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"ਕਨੈਕਟ ਕਰ ਰਿਹਾ ਹੈ…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"ਕਨੈਕਟ ਕੀਤਾ ਹੋਇਆ<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"ਜੋੜਾਬੱਧ ਕੀਤਾ ਜਾ ਰਿਹਾ ਹੈ…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"ਜੋੜਾਬੱਧ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"ਕਨੈਕਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"ਕਨੈਕਟ ਕੀਤਾ ਹੋਇਆ (ਕੋਈ ਫ਼ੋਨ ਨਹੀਂ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"ਕਨੈਕਟ ਕੀਤਾ ਹੋਇਆ (ਕੋਈ ਮੀਡੀਆ ਨਹੀਂ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"ਕਨੈਕਟ ਕੀਤਾ ਹੋਇਆ (ਕੋਈ ਫ਼ੋਨ ਜਾਂ ਮੀਡੀਆ ਨਹੀਂ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"ਖੱਬੇ ਪਾਸੇ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ਸੱਜੇ ਪਾਸੇ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ਬੈਟਰੀ।"</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"ਖੱਬੇ ਪਾਸੇ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ਬੈਟਰੀ"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"ਸੱਜੇ ਪਾਸੇ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ਬੈਟਰੀ"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"ਕਵਰ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ਬੈਟਰੀ"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"ਖੱਬਾ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ਕਵਰ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ਬੈਟਰੀ"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"ਸੱਜਾ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ਕਵਰ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ਬੈਟਰੀ"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"ਖੱਬਾ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ਸੱਜਾ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ਬੈਟਰੀ"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"ਖੱਬਾ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ਕਵਰ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, ਸੱਜਾ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> ਬੈਟਰੀ"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"ਖੱਬੇ ਪਾਸੇ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"ਸੱਜੇ ਪਾਸੇ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"ਕਿਰਿਆਸ਼ੀਲ"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"ਕਿਰਿਆਸ਼ੀਲ (ਸਿਰਫ਼ ਸੱਜਾ)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"ਕਿਰਿਆਸ਼ੀਲ (ਖੱਬਾ ਅਤੇ ਸੱਜਾ)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"ਆਲੇ-ਦੁਆਲੇ ਨੂੰ ਅੱਪਡੇਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"ਪ੍ਰੀਸੈੱਟ ਨੂੰ ਅੱਪਡੇਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"ਚੁਣੀ ਗਈ"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"ਕਿਰਿਆਸ਼ੀਲ (ਸਿਰਫ਼ ਮੀਡੀਆ)। <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ਬੈਟਰੀ।"</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"ਕਿਰਿਆਸ਼ੀਲ (ਸਿਰਫ਼ ਮੀਡੀਆ)। ਖੱਬੇ ਪਾਸੇ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ਸੱਜੇ ਪਾਸੇ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ਬੈਟਰੀ।"</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"ਮਹਿਮਾਨ ਡੀਵਾਈਸ। <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ਬੈਟਰੀ।"</string>
@@ -209,9 +218,9 @@
     <string name="tts_settings" msgid="8130616705989351312">"ਲਿਖਤ ਤੋਂ ਬੋਲੀ ਸੈਟਿੰਗਾਂ"</string>
     <string name="tts_settings_title" msgid="7602210956640483039">"ਲਿਖਤ-ਤੋਂ-ਬੋਲੀ ਆਊਟਪੁੱਟ"</string>
     <string name="tts_default_rate_title" msgid="3964187817364304022">"ਬੋਲਣ ਦੀ ਗਤੀ"</string>
-    <string name="tts_default_rate_summary" msgid="3781937042151716987">"ਸਪੀਡ ਜਿਸਤੇ ਟੈਕਸਟ ਬੋਲਿਆ ਜਾਂਦਾ ਹੈ"</string>
+    <string name="tts_default_rate_summary" msgid="3781937042151716987">"ਸਪੀਡ ਜਿਸ \'ਤੇ ਲਿਖਤ ਨੂੰ ਬੋਲਿਆ ਜਾਂਦਾ ਹੈ"</string>
     <string name="tts_default_pitch_title" msgid="6988592215554485479">"ਪਿਚ"</string>
-    <string name="tts_default_pitch_summary" msgid="9132719475281551884">"ਬਣਾਵਟੀ ਬੋਲੀ ਦੇ ਲਹਿਜੇ \'ਤੇ ਅਸਰ ਪਾਉਂਦੀ ਹੈ"</string>
+    <string name="tts_default_pitch_summary" msgid="9132719475281551884">"ਬਣਾਉਟੀ ਬੋਲੀ ਦੇ ਲਹਿਜੇ \'ਤੇ ਅਸਰ ਪਾਉਂਦੀ ਹੈ"</string>
     <string name="tts_default_lang_title" msgid="4698933575028098940">"ਭਾਸ਼ਾ"</string>
     <string name="tts_lang_use_system" msgid="6312945299804012406">"ਸਿਸਟਮ ਭਾਸ਼ਾ ਵਰਤੋ"</string>
     <string name="tts_lang_not_selected" msgid="7927823081096056147">"ਭਾਸ਼ਾ ਨਹੀਂ ਚੁਣੀ"</string>
@@ -308,7 +317,7 @@
     <string name="wifi_non_persistent_mac_randomization" msgid="7482769677894247316">"ਵਾਈ-ਫਾਈ ਲਈ ਗੈਰ-ਸਥਾਈ MAC ਬੇਤਰਤੀਬਵਾਰ"</string>
     <string name="mobile_data_always_on" msgid="8275958101875563572">"ਮੋਬਾਈਲ ਡਾਟਾ ਹਮੇਸ਼ਾਂ ਕਿਰਿਆਸ਼ੀਲ"</string>
     <string name="tethering_hardware_offload" msgid="4116053719006939161">"ਟੈਦਰਿੰਗ ਹਾਰਡਵੇਅਰ ਐਕਸੈੱਲਰੇਸ਼ਨ"</string>
-    <string name="bluetooth_show_devices_without_names" msgid="923584526471885819">"ਅਨਾਮ ਬਲੂਟੁੱਥ ਡੀਵਾਈਸਾਂ ਦਿਖਾਓ"</string>
+    <string name="bluetooth_show_devices_without_names" msgid="923584526471885819">"ਬਿਨਾਂ ਨਾਮ ਵਾਲੇ ਬਲੂਟੁੱਥ ਡੀਵਾਈਸ ਦਿਖਾਓ"</string>
     <string name="bluetooth_disable_absolute_volume" msgid="1452342324349203434">"ਪੂਰਨ ਅਵਾਜ਼ ਨੂੰ ਬੰਦ ਕਰੋ"</string>
     <string name="bluetooth_enable_gabeldorsche" msgid="9131730396242883416">"Gabeldorsche ਨੂੰ ਚਾਲੂ ਕਰੋ"</string>
     <string name="bluetooth_select_avrcp_version_string" msgid="1710571610177659127">"ਬਲੂਟੁੱਥ AVRCP ਵਰਜਨ"</string>
@@ -328,10 +337,10 @@
     <string name="bluetooth_select_a2dp_codec_ldac_playback_quality_dialog_title" msgid="7274396574659784285">"ਬਲੂਟੁੱਥ ਆਡੀਓ LDAC\nਕੋਡੇਕ ਚੋਣ ਨੂੰ ਟ੍ਰਿਗਰ ਕਰੋ: ਪਲੇਬੈਕ ਕੁਆਲਿਟੀ"</string>
     <string name="bluetooth_select_a2dp_codec_streaming_label" msgid="2040810756832027227">"ਸਟ੍ਰੀਮਿੰਗ: <xliff:g id="STREAMING_PARAMETER">%1$s</xliff:g>"</string>
     <string name="select_private_dns_configuration_title" msgid="7887550926056143018">"ਪ੍ਰਾਈਵੇਟ DNS"</string>
-    <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"ਨਿੱਜੀ DNS ਮੋਡ ਚੁਣੋ"</string>
+    <string name="select_private_dns_configuration_dialog_title" msgid="3731422918335951912">"ਪ੍ਰਾਈਵੇਟ DNS ਮੋਡ ਚੁਣੋ"</string>
     <string name="private_dns_mode_off" msgid="7065962499349997041">"ਬੰਦ"</string>
     <string name="private_dns_mode_opportunistic" msgid="1947864819060442354">"ਸਵੈਚਲਿਤ"</string>
-    <string name="private_dns_mode_provider" msgid="3619040641762557028">"ਨਿੱਜੀ DNS ਪ੍ਰਦਾਨਕ ਹੋਸਟਨਾਮ"</string>
+    <string name="private_dns_mode_provider" msgid="3619040641762557028">"ਪ੍ਰਾਈਵੇਟ DNS ਪ੍ਰਦਾਨਕ ਦਾ ਹੋਸਟਨਾਮ"</string>
     <string name="private_dns_mode_provider_hostname_hint" msgid="6564868953748514595">"DNS ਪ੍ਰਦਾਨਕ ਦਾ ਹੋਸਟਨਾਮ ਦਾਖਲ ਕਰੋ"</string>
     <string name="private_dns_mode_provider_failure" msgid="8356259467861515108">"ਕਨੈਕਟ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ"</string>
     <string name="wifi_display_certification_summary" msgid="8111151348106907513">"ਵਾਇਰਲੈੱਸ ਡਿਸਪਲੇ ਪ੍ਰਮਾਣੀਕਰਨ ਲਈ ਵਿਕਲਪ ਦਿਖਾਓ"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"ਜਦੋਂ ਇਹ ਮੋਡ ਚਾਲੂ ਹੁੰਦਾ ਹੈ, ਤਾਂ ਇਸ ਡੀਵਾਈਸ ਦਾ MAC ਪਤਾ ਹਰ ਵਾਰ ਬਦਲ ਸਕਦਾ ਹੈ ਜਦੋਂ ਇਹ ਕਿਸੇ ਅਜਿਹੇ ਨੈੱਟਵਰਕ ਨਾਲ ਕਨੈਕਟ ਹੁੰਦਾ ਹੈ ਜਿਸ ਵਿੱਚ MAC ਬੇਤਰਤੀਬਵਾਰ ਚਾਲੂ ਹੁੰਦਾ ਹੈ।"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"ਮੀਟਰਬੱਧ ਕੀਤਾ ਗਿਆ"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"ਗੈਰ-ਮੀਟਰਬੱਧ ਕੀਤਾ ਗਿਆ"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"ਲੌਗਰ ਬਫ਼ਰ ਆਕਾਰ"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"ਲੌਗਰ ਬਫ਼ਰ ਆਕਾਰ"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"ਪ੍ਰਤੀ ਲੌਗ ਬਫ਼ਰ ਲੌਗਰ ਆਕਾਰ ਚੁਣੋ"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"ਕੀ ਲੌਗਰ ਪ੍ਰਸਿੱਸਟੈਂਟ ਸਟੋਰੇਜ ਨੂੰ ਸਾਫ਼ ਕਰਨਾ ਹੈ?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"ਜਦੋਂ ਅਸੀਂ ਪ੍ਰਸਿੱਸਟੈਂਟ ਲੌਗਰ ਨਾਲ ਨਿਗਰਾਨੀ ਨਹੀਂ ਕਰ ਰਹੇ ਹੁੰਦੇ ਹਾਂ, ਤਾਂ ਸਾਨੂੰ ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਵਿੱਚ ਮੌਜੂਦ ਲੌਗਰ ਡਾਟੇ ਨੂੰ ਮਿਟਾਉਣ ਦੀ ਲੋੜ ਪੈਂਦੀ ਹੈ।"</string>
@@ -362,7 +371,7 @@
     <string name="dev_settings_warning_message" msgid="37741686486073668">"ਇਹ ਸੈਟਿੰਗਾਂ ਕੇਵਲ ਵਿਕਾਸਕਾਰ ਦੀ ਵਰਤੋਂ ਲਈ ਹਨ। ਇਹ ਤੁਹਾਡੇ ਡੀਵਾਈਸ ਅਤੇ ਇਸਤੇ ਮੌਜੂਦ ਐਪਲੀਕੇਸ਼ਨ ਨੂੰ ਬ੍ਰੇਕ ਕਰਨ ਜਾਂ ਦੁਰਵਿਵਹਾਰ ਕਰਨ ਦਾ ਕਾਰਨ ਬਣ ਸਕਦੇ ਹਨ।"</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB \'ਤੇ ਐਪਾਂ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ"</string>
     <string name="verify_apps_over_usb_summary" msgid="1317933737581167839">"ADB/ADT ਰਾਹੀਂ ਸਥਾਪਤ ਕੀਤੀਆਂ ਐਪਾਂ ਦੀ ਹਾਨੀਕਾਰਕ ਵਿਵਹਾਰ ਲਈ ਜਾਂਚ ਕਰੋ।"</string>
-    <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"ਅਨਾਮ ਬਲੂਟੁੱਥ ਡੀਵਾਈਸ ਦਿਖਾਏ ਜਾਣਗੇ (ਸਿਰਫ਼ MAC ਪਤੇ)"</string>
+    <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"ਬਿਨਾਂ ਨਾਮ ਵਾਲੇ ਬਲੂਟੁੱਥ ਡੀਵਾਈਸ ਦਿਖਾਏ ਜਾਣਗੇ (ਸਿਰਫ਼ MAC ਪਤੇ)"</string>
     <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"ਰਿਮੋਟ ਡੀਵਾਈਸਾਂ ਨਾਲ ਅਵਾਜ਼ੀ ਸਮੱਸਿਆਵਾਂ ਜਿਵੇਂ ਕਿ ਨਾ ਪਸੰਦ ਕੀਤੀ ਜਾਣ ਵਾਲੀ ਉੱਚੀ ਅਵਾਜ਼ ਜਾਂ ਕੰਟਰੋਲ ਦੀ ਕਮੀ ਵਰਗੀ ਹਾਲਤ ਵਿੱਚ ਬਲੂਟੁੱਥ ਪੂਰਨ ਅਵਾਜ਼ ਵਿਸ਼ੇਸ਼ਤਾ ਨੂੰ ਬੰਦ ਕਰਦਾ ਹੈ।"</string>
     <string name="bluetooth_enable_gabeldorsche_summary" msgid="2054730331770712629">"ਬਲੂਟੁੱਥ Gabeldorsche ਵਿਸ਼ੇਸ਼ਤਾ ਸਟੈਕ ਨੂੰ ਚਾਲੂ ਕਰਦਾ ਹੈ।"</string>
     <string name="enhanced_connectivity_summary" msgid="1576414159820676330">"ਵਿਸਤ੍ਰਿਤ ਕਨੈਕਟੀਵਿਟੀ ਵਿਸ਼ੇਸ਼ਤਾ ਨੂੰ ਚਾਲੂ ਕਰਦਾ ਹੈ।"</string>
@@ -380,7 +389,7 @@
     <string name="select_application" msgid="2543228890535466325">"ਐਪਲੀਕੇਸ਼ਨ ਚੁਣੋ"</string>
     <string name="no_application" msgid="9038334538870247690">"ਕੁਝ ਨਹੀਂ"</string>
     <string name="wait_for_debugger" msgid="7461199843335409809">"ਡੀਬੱਗਰ ਦੀ ਉਡੀਕ ਕਰੋ"</string>
-    <string name="wait_for_debugger_summary" msgid="6846330006113363286">"ਡੀਬੱਗ ਕੀਤੀ ਐਪਲੀਕੇਸ਼ਨ ਚਲਾਉਣ ਤੋਂ ਪਹਿਲਾਂ ਅਟੈਚ ਕਰਨ ਲਈ ਡੀਬੱਗਰ ਦੀ ਉਡੀਕ ਕਰਦੀ ਹੈ"</string>
+    <string name="wait_for_debugger_summary" msgid="6846330006113363286">"ਡੀਬੱਗ ਕੀਤੀ ਐਪਲੀਕੇਸ਼ਨ, ਪ੍ਰਕਿਰਿਆ ਸ਼ੁਰੂ ਕਰਨ ਤੋਂ ਪਹਿਲਾਂ ਡੀਬੱਗਰ ਦੇ ਅਟੈਚ ਹੋਣ ਦੀ ਉਡੀਕ ਕਰਦੀ ਹੈ"</string>
     <string name="debug_input_category" msgid="7349460906970849771">"ਇਨਪੁੱਟ"</string>
     <string name="debug_drawing_category" msgid="5066171112313666619">"ਡਰਾਇੰਗ"</string>
     <string name="debug_hw_drawing_category" msgid="5830815169336975162">"ਹਾਰਡਵੇਅਰ ਐਕਸੈੱਲਰੇਟਿਡ ਰੈਂਡਰਿੰਗ"</string>
@@ -390,13 +399,13 @@
     <string name="strict_mode" msgid="889864762140862437">"ਸਟ੍ਰਿਕਟ ਮੋਡ ਚਾਲੂ ਹੈ"</string>
     <string name="strict_mode_summary" msgid="1838248687233554654">"ਐਪਾਂ ਵੱਲੋਂ ਮੁੱਖ ਥ੍ਰੈੱਡ \'ਤੇ ਲੰਬੀਆਂ ਕਾਰਵਾਈਆਂ ਕਰਨ \'ਤੇ ਸਕ੍ਰੀਨ ਫਲੈਸ਼ ਕਰੋ"</string>
     <string name="pointer_location" msgid="7516929526199520173">"ਪੁਆਇੰਟਰ ਟਿਕਾਣਾ"</string>
-    <string name="pointer_location_summary" msgid="957120116989798464">"ਸਕ੍ਰੀਨ ਓਵਰਲੇ ਮੌਜੂਦਾ ਸਪਰਸ਼ ਡਾਟਾ ਦਿਖਾ ਰਿਹਾ ਹੈ"</string>
-    <string name="show_touches" msgid="8437666942161289025">"ਟੈਪਾਂ ਦਿਖਾਓ"</string>
+    <string name="pointer_location_summary" msgid="957120116989798464">"ਸਕ੍ਰੀਨ ਓਵਰਲੇ ਵਿੱਚ ਮੌਜੂਦਾ ਸਪਰਸ਼ ਡਾਟਾ ਦੇਖੋ"</string>
+    <string name="show_touches" msgid="8437666942161289025">"ਟੈਪ ਦਿਖਾਓ"</string>
     <string name="show_touches_summary" msgid="3692861665994502193">"ਟੈਪਾਂ ਲਈ ਦ੍ਰਿਸ਼ਟੀਗਤ ਪ੍ਰਤੀਕਰਮ ਦਿਖਾਓ"</string>
     <string name="show_key_presses" msgid="6360141722735900214">"ਕੁੰਜੀ ਦਬਾਉਣ ਸੰਬੰਧੀ ਜਾਣਕਾਰੀ ਦਿਖਾਓ"</string>
-    <string name="show_key_presses_summary" msgid="725387457373015024">"ਭੌਤਿਕ ਕੁੰਜੀ ਦਬਾਉਣ ਸੰਬੰਧੀ ਦ੍ਰਿਸ਼ਟੀਗਤ ਵਿਚਾਰ ਦਿਖਾਓ"</string>
+    <string name="show_key_presses_summary" msgid="725387457373015024">"ਭੌਤਿਕ ਕੁੰਜੀ ਦਬਾਉਣ \'ਤੇ ਦ੍ਰਿਸ਼ਟੀਗਤ ਪ੍ਰਤੀਕਰਮ ਦਿਖਾਓ"</string>
     <string name="touchpad_visualizer" msgid="3707916068870825115">"ਟੱਚਪੈਡ ਇਨਪੁੱਟ ਦਿਖਾਓ"</string>
-    <string name="touchpad_visualizer_summary" msgid="4056080018119847449">"ਸਕ੍ਰੀਨ ਓਵਰਲੇ ਵਿੱਚ ਟੱਚਪੈਡ ਇਨਪੁੱਟ ਡਾਟਾ ਅਤੇ ਪਛਾਣੇ ਗਏ ਇਸ਼ਾਰੇ ਦਿਖਾਈ ਦੇ ਰਹੇ ਹਨ"</string>
+    <string name="touchpad_visualizer_summary" msgid="4056080018119847449">"ਸਕ੍ਰੀਨ ਓਵਰਲੇ ਵਿੱਚ ਟੱਚਪੈਡ ਇਨਪੁੱਟ ਡਾਟਾ ਅਤੇ ਪਛਾਣੇ ਗਏ ਇਸ਼ਾਰੇ ਦੇਖੋ"</string>
     <string name="show_screen_updates" msgid="2078782895825535494">"ਸਰਫ਼ੇਸ ਅੱਪਡੇਟ ਦਿਖਾਓ"</string>
     <string name="show_screen_updates_summary" msgid="2126932969682087406">"ਅੱਪਡੇਟ ਹੋਣ \'ਤੇ, ਸਮੁੱਚੀਆਂ ਵਿੰਡੋ ਸਰਫ਼ੇਸਾਂ ਫਲੈਸ਼ ਕਰੋ"</string>
     <string name="show_hw_screen_updates" msgid="2021286231267747506">"\'ਅੱਪਡੇਟ ਦੇਖੋ\' ਨੂੰ ਦਿਖਾਓ"</string>
@@ -409,7 +418,7 @@
     <string name="simulate_color_space" msgid="1206503300335835151">"ਰੰਗ ਸਪੇਸ ਨੂੰ ਸਿਮੂਲੇਟ ਕਰੋ"</string>
     <string name="enable_opengl_traces_title" msgid="4638773318659125196">"OpenGL ਟ੍ਰੇਸਿਜ ਨੂੰ ਚਾਲੂ ਕਰੋ"</string>
     <string name="usb_audio_disable_routing" msgid="3367656923544254975">"USB ਆਡੀਓ ਰੂਟਿੰਗ ਨੂੰ ਬੰਦ ਕਰੋ"</string>
-    <string name="usb_audio_disable_routing_summary" msgid="8768242894849534699">"USB ਆਡੀਓ ਪੈਰੀਫਰਲ ਲਈ ਸਵੈਚਲਿਤ ਰੂਟਿੰਗ ਬੰਦ ਕਰੋ"</string>
+    <string name="usb_audio_disable_routing_summary" msgid="8768242894849534699">"USB ਆਡੀਓ ਪੈਰੀਫਰਲਾਂ ਲਈ ਸਵੈਚਲਿਤ ਰੂਟਿੰਗ ਬੰਦ ਕਰੋ"</string>
     <string name="debug_layout" msgid="1659216803043339741">"ਖਾਕਾ ਸੀਮਾਵਾਂ ਦਿਖਾਓ"</string>
     <string name="debug_layout_summary" msgid="8825829038287321978">"ਕਲਿੱਪ ਸੀਮਾਵਾਂ, ਹਾਸ਼ੀਏ ਆਦਿ ਦਿਖਾਓ"</string>
     <string name="force_rtl_layout_all_locales" msgid="8690762598501599796">"ਸੱਜੇ ਤੋਂ ਖੱਬੇ ਵਾਲਾ ਖਾਕਾ ਲਾਗੂ ਕਰੋ"</string>
@@ -445,7 +454,7 @@
     <string name="show_notification_channel_warnings" msgid="3448282400127597331">"ਸੂਚਨਾ ਚੈਨਲ ਚਿਤਾਵਨੀਆਂ ਦਿਖਾਓ"</string>
     <string name="show_notification_channel_warnings_summary" msgid="68031143745094339">"ਐਪ ਵੱਲੋਂ ਵੈਧ ਚੈਨਲ ਤੋਂ ਬਿਨਾਂ ਸੂਚਨਾ ਪੋਸਟ ਕਰਨ \'ਤੇ ਸਕ੍ਰੀਨ \'ਤੇ ਚਿਤਾਵਨੀ ਦਿਖਾਉਂਦੀ ਹੈ"</string>
     <string name="force_allow_on_external" msgid="9187902444231637880">"ਐਪਾਂ ਨੂੰ ਜ਼ਬਰਦਸਤੀ ਬਾਹਰੀ ਸਟੋਰੇਜ \'ਤੇ ਆਗਿਆ ਦਿਓ"</string>
-    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"ਮੈਨੀਫੈਸਟ ਮੁੱਲਾਂ ਦੀ ਪਰਵਾਹ ਕੀਤੇ ਬਿਨਾਂ, ਕਿਸੇ ਵੀ ਐਪ ਨੂੰ ਬਾਹਰੀ ਸਟੋਰੇਜ \'ਤੇ ਲਿਖਣ ਦੇ ਯੋਗ ਬਣਾਉਂਦੀ ਹੈ"</string>
+    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"ਇਸ ਨਾਲ ਕੋਈ ਵੀ ਐਪ ਬਾਹਰੀ ਸਟੋਰੇਜ \'ਤੇ ਲਿਖਣ ਦੇ ਯੋਗ ਬਣ ਜਾਂਦੀ ਹੈ, ਭਾਂਵੇ ਉਸਦਾ ਮੈਨੀਫ਼ੈਸਟ ਮੁੱਲ ਕੋਈ ਵੀ ਹੋਵੇ"</string>
     <string name="force_resizable_activities" msgid="7143612144399959606">"ਸਰਗਰਮੀਆਂ ਨੂੰ ਜ਼ਬਰਦਸਤੀ ਆਕਾਰ ਬਦਲਣਯੋਗ ਬਣਾਓ"</string>
     <string name="force_resizable_activities_summary" msgid="2490382056981583062">"ਮੈਨੀਫ਼ੈਸਟ ਮੁੱਲਾਂ ਦੀ ਪਰਵਾਹ ਕੀਤੇ ਬਿਨਾਂ, ਮਲਟੀ-ਵਿੰਡੋ ਲਈ ਸਾਰੀਆਂ ਸਰਗਰਮੀਆਂ ਨੂੰ ਆਕਾਰ ਬਦਲਣਯੋਗ ਬਣਾਓ।"</string>
     <string name="enable_freeform_support" msgid="7599125687603914253">"ਫ੍ਰੀਫਾਰਮ ਵਿੰਡੋਜ਼ ਨੂੰ ਚਾਲੂ ਕਰੋ"</string>
@@ -538,7 +547,7 @@
     <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਕੰਟਰੋਲ ਕੀਤੀ ਗਈ"</string>
     <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"ਪ੍ਰਤਿਬੰਧਿਤ ਸੈਟਿੰਗ ਰਾਹੀਂ ਕੰਟਰੋਲ ਕੀਤੀ ਜਾਂਦੀ ਹੈ"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"ਕਾਲਾਂ ਦੌਰਾਨ ਉਪਲਬਧ ਨਹੀਂ ਹੈ"</string>
-    <string name="disabled" msgid="8017887509554714950">"ਅਯੋਗ ਬਣਾਇਆ"</string>
+    <string name="disabled" msgid="8017887509554714950">"ਬੰਦ ਹੈ"</string>
     <string name="enabled" msgid="3997122818554810678">"ਚਾਲੂ ਹੈ"</string>
     <string name="external_source_trusted" msgid="1146522036773132905">"ਮਨਜ਼ੂਰਸ਼ੁਦਾ"</string>
     <string name="external_source_untrusted" msgid="5037891688911672227">"ਗੈਰ-ਮਨਜ਼ੂਰਸ਼ੁਦਾ"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> ਪਹਿਲਾਂ"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> ਬਾਕੀ"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"ਸਭ ਤੋਂ ਛੋਟਾ"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"ਜ਼ਿਆਦਾ ਛੋਟਾ"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"ਛੋਟਾ"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"ਪੂਰਵ-ਨਿਰਧਾਰਿਤ"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"ਵੱਡਾ"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"ਜ਼ਿਆਦਾ ਵੱਡਾ"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"ਸਭ ਤੋਂ ਵੱਡੀ"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"ਕਾਫ਼ੀ ਵੱਡਾ"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"ਬਹੁਤ ਵੱਡਾ"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"ਜ਼ਿਆਦਾ ਵੱਡਾ"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"ਸਭ ਤੋਂ ਵੱਡਾ"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"ਵਿਉਂਂਤੀ (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"ਮੀਨੂ"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"ਡੈਮੋ ਮੋਡ \'ਚ ਫੈਕਟਰੀ ਰੀਸੈੱਟ ਲਈ ਪਾਸਵਰਡ ਦਿਓ"</string>
@@ -565,7 +578,7 @@
     <string name="use_system_language_to_select_input_method_subtypes" msgid="4865195835541387040">"ਸਿਸਟਮ ਭਾਸ਼ਾਵਾਂ ਦੀ ਵਰਤੋਂ ਕਰੋ"</string>
     <string name="failed_to_open_app_settings_toast" msgid="764897252657692092">"<xliff:g id="SPELL_APPLICATION_NAME">%1$s</xliff:g> ਲਈ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹਣ ਵਿੱਚ ਅਸਫਲ"</string>
     <string name="ime_security_warning" msgid="6547562217880551450">"ਇਹ ਇਨਪੁੱਟ ਵਿਧੀ ਤੁਹਾਡੇ ਵੱਲੋਂ ਟਾਈਪ ਕੀਤਾ ਜਾਣ ਵਾਲੀ ਸਾਰੀ ਲਿਖਤ ਇਕੱਤਰ ਕਰਨ ਵਿੱਚ ਸਮਰੱਥ ਹੋ ਸਕਦੀ ਹੈ, ਨਿੱਜੀ ਡਾਟਾ ਸਮੇਤ ਜਿਵੇਂ ਪਾਸਵਰਡ ਅਤੇ ਕ੍ਰੈਡਿਟ ਕਾਰਡ ਨੰਬਰ। ਇਹ <xliff:g id="IME_APPLICATION_NAME">%1$s</xliff:g> ਐਪ ਤੋਂ ਆਉਂਦਾ ਹੈ। ਕੀ ਇਹ ਸਪੈੱਲ ਚੈਕਰ ਵਰਤਣਾ ਹੈ?"</string>
-    <string name="direct_boot_unaware_dialog_message" msgid="7845398276735021548">"ਨੋਟ ਕਰੋ: ਰੀਬੂਟ ਤੋਂ ਬਾਅਦ, ਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਆਪਣਾ ਫ਼ੋਨ ਅਣਲਾਕ ਨਹੀਂ ਕਰਦੇ ਤਦ ਤੱਕ ਇਹ ਐਪ ਚਾਲੂ ਨਹੀਂ ਹੋ ਸਕਦੀ"</string>
+    <string name="direct_boot_unaware_dialog_message" msgid="7845398276735021548">"ਨੋਟ ਕਰੋ: ਰੀਬੂਟ ਤੋਂ ਬਾਅਦ, ਜਦੋਂ ਤੱਕ ਤੁਸੀਂ ਆਪਣਾ ਫ਼ੋਨ ਅਣਲਾਕ ਨਹੀਂ ਕਰਦੇ ਉਦੋਂ ਤੱਕ ਇਹ ਐਪ ਚਾਲੂ ਨਹੀਂ ਹੋ ਸਕਦੀ"</string>
     <string name="ims_reg_title" msgid="8197592958123671062">"IMS ਰਜਿਸਟਰੇਸ਼ਨ ਸਥਿਤੀ"</string>
     <string name="ims_reg_status_registered" msgid="884916398194885457">"ਰਜਿਸਟਰ ਕੀਤੀ ਗਈ"</string>
     <string name="ims_reg_status_not_registered" msgid="2989287366045704694">"ਰਜਿਸਟਰ ਨਹੀਂ ਕੀਤੀ ਗਈ"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 ਡੀਵਾਈਸ ਕਨੈਕਟ ਕੀਤਾ ਗਿਆ}one{# ਡੀਵਾਈਸ ਕਨੈਕਟ ਕੀਤਾ ਗਿਆ}other{# ਡੀਵਾਈਸ ਕਨੈਕਟ ਕੀਤੇ ਗਏ}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"ਹੋਰ ਸਮਾਂ।"</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"ਘੱਟ ਸਮਾਂ।"</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"ਵੱਡਦਰਸ਼ੀਕਰਨ"</string>
     <string name="cancel" msgid="5665114069455378395">"ਰੱਦ ਕਰੋ"</string>
     <string name="next" msgid="2699398661093607009">"ਅੱਗੇ"</string>
     <string name="back" msgid="5554327870352703710">"ਪਿੱਛੇ ਜਾਓ"</string>
@@ -650,7 +664,7 @@
     <string name="user_add_profile_item_title" msgid="3111051717414643029">"ਪ੍ਰਤਿਬੰਧਿਤ ਪ੍ਰੋਫਾਈਲ"</string>
     <string name="user_add_user_title" msgid="5457079143694924885">"ਕੀ ਨਵਾਂ ਵਰਤੋਂਕਾਰ ਸ਼ਾਮਲ ਕਰਨਾ ਹੈ?"</string>
     <string name="user_add_user_message_long" msgid="1527434966294733380">"ਤੁਸੀਂ ਵਾਧੂ ਵਰਤੋਂਕਾਰ ਬਣਾ ਕੇ ਹੋਰਾਂ ਲੋਕਾਂ ਨਾਲ ਇਹ ਡੀਵਾਈਸ ਸਾਂਝਾ ਕਰ ਸਕਦੇ ਹੋ। ਹਰੇਕ ਵਰਤੋਂਕਾਰ ਦੀ ਆਪਣੀ ਖੁਦ ਦੀ ਜਗ੍ਹਾ ਹੁੰਦੀ ਹੈ, ਜਿਸਨੂੰ ਉਹ ਐਪਾਂ ਅਤੇ ਵਾਲਪੇਪਰ ਆਦਿ ਨਾਲ ਵਿਉਂਤਬੱਧ ਕਰ ਸਕਦੇ ਹਨ। ਵਰਤੋਂਕਾਰ ਵਾਈ-ਫਾਈ ਵਰਗੀਆਂ ਡੀਵਾਈਸ ਸੈਟਿੰਗਾਂ ਨੂੰ ਵੀ ਵਿਵਸਥਿਤ ਕਰ ਸਕਦੇ ਹਨ, ਜਿਸ ਨਾਲ ਹਰੇਕ ਵਰਤੋਂਕਾਰ \'ਤੇ ਅਸਰ ਪੈਂਦਾ ਹੈ।\n\nਜਦੋਂ ਤੁਸੀਂ ਇੱਕ ਨਵਾਂ ਵਰਤੋਂਕਾਰ ਸ਼ਾਮਲ ਕਰਦੇ ਹੋ, ਉਸ ਵਿਅਕਤੀ ਨੂੰ ਆਪਣੀ ਜਗ੍ਹਾ ਸੈੱਟ ਅੱਪ ਕਰਨੀ ਪੈਂਦੀ ਹੈ।\n\nਕੋਈ ਵੀ ਵਰਤੋਂਕਾਰ ਬਾਕੀ ਸਾਰੇ ਵਰਤੋਂਕਾਰਾਂ ਦੀਆਂ ਐਪਾਂ ਨੂੰ ਅੱਪਡੇਟ ਕਰ ਸਕਦਾ ਹੈ। ਸ਼ਾਇਦ ਪਹੁੰਚਯੋਗਤਾ ਸੈਟਿੰਗਾਂ ਅਤੇ ਸੇਵਾਵਾਂ ਨੂੰ ਕਿਸੇ ਨਵੇਂ ਵਰਤੋਂਕਾਰ ਨੂੰ ਟ੍ਰਾਂਸਫਰ ਨਾ ਕੀਤਾ ਜਾ ਸਕੇ।"</string>
-    <string name="user_add_user_message_short" msgid="3295959985795716166">"ਜਦੋਂ ਤੁਸੀਂ ਇੱਕ ਨਵਾਂ ਵਰਤੋਂਕਾਰ ਸ਼ਾਮਲ ਕਰਦੇ ਹੋ, ਉਸ ਵਿਅਕਤੀ ਨੂੰ ਆਪਣੀ ਜਗ੍ਹਾ ਸੈੱਟਅੱਪ ਕਰਨ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ।\n\nਕੋਈ ਵੀ ਵਰਤੋਂਕਾਰ ਹੋਰ ਸਾਰੇ ਵਰਤੋਂਕਾਰਾਂ ਦੀਆਂ ਐਪਾਂ ਨੂੰ ਅੱਪਡੇਟ ਕਰ ਸਕਦਾ ਹੈ।"</string>
+    <string name="user_add_user_message_short" msgid="3295959985795716166">"ਜਦੋਂ ਤੁਸੀਂ ਕੋਈ ਨਵਾਂ ਵਰਤੋਂਕਾਰ ਸ਼ਾਮਲ ਕਰਦੇ ਹੋ, ਤਾਂ ਉਸ ਵਿਅਕਤੀ ਨੂੰ ਆਪਣੀ ਜਗ੍ਹਾ ਸੈੱਟਅੱਪ ਕਰਨ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ।\n\nਕੋਈ ਵੀ ਵਰਤੋਂਕਾਰ ਬਾਕੀ ਸਾਰੇ ਵਰਤੋਂਕਾਰਾਂ ਲਈ ਐਪਾਂ ਨੂੰ ਅੱਪਡੇਟ ਕਰ ਸਕਦਾ ਹੈ।"</string>
     <string name="user_grant_admin_title" msgid="5157031020083343984">"ਕੀ ਇਸ ਵਰਤੋਂਕਾਰ ਨੂੰ ਪ੍ਰਸ਼ਾਸਕ ਬਣਾਉਣਾ ਹੈ?"</string>
     <string name="user_grant_admin_message" msgid="1673791931033486709">"ਪ੍ਰਸ਼ਾਸਕਾਂ ਕੋਲ ਵਿਸ਼ੇਸ਼ ਅਧਿਕਾਰ ਹੁੰਦੇ ਹਨ ਜੋ ਹੋਰ ਵਰਤੋਂਕਾਰਾਂ ਕੋਲ ਨਹੀਂ ਹੁੰਦੇ। ਇੱਕ ਪ੍ਰਸ਼ਾਸਕ ਸਾਰੇ ਵਰਤੋਂਕਾਰਾਂ ਦਾ ਪ੍ਰਬੰਧਨ ਕਰ ਸਕਦਾ ਹੈ, ਇਸ ਡੀਵਾਈਸ ਨੂੰ ਅੱਪਡੇਟ ਜਾਂ ਰੀਸੈੱਟ ਕਰ ਸਕਦਾ ਹੈ, ਸੈਟਿੰਗਾਂ ਨੂੰ ਸੋਧ ਸਕਦਾ ਹੈ, ਸਾਰੀਆਂ ਸਥਾਪਤ ਐਪਾਂ ਨੂੰ ਦੇਖ ਸਕਦਾ ਹੈ, ਅਤੇ ਦੂਜਿਆਂ ਲਈ ਪ੍ਰਸ਼ਾਸਕ ਦੇ ਅਧਿਕਾਰਾਂ ਨੂੰ ਮਨਜ਼ੂਰ ਜਾਂ ਰੱਦ ਕਰ ਸਕਦਾ ਹੈ।"</string>
     <string name="user_grant_admin_button" msgid="5441486731331725756">"ਪ੍ਰਸ਼ਾਸਕ ਬਣਾਓ"</string>
@@ -658,7 +672,7 @@
     <string name="user_setup_dialog_message" msgid="269931619868102841">"ਇਹ ਪੱਕਾ ਕਰੋ ਕਿ ਵਿਅਕਤੀ ਡੀਵਾਈਸ ਵਰਤਣ ਅਤੇ ਆਪਣੀ ਜਗ੍ਹਾ ਦੇ ਸੈੱਟਅੱਪ ਲਈ ਉਪਲਬਧ ਹੈ"</string>
     <string name="user_setup_profile_dialog_message" msgid="4788197052296962620">"ਕੀ ਹੁਣ ਪ੍ਰੋਫਾਈਲ ਸੈੱਟ ਅੱਪ ਕਰਨੀ ਹੈ?"</string>
     <string name="user_setup_button_setup_now" msgid="1708269547187760639">"ਹੁਣੇ ਸੈੱਟ ਅੱਪ ਕਰੋ"</string>
-    <string name="user_setup_button_setup_later" msgid="8712980133555493516">"ਅਜੇ ਨਹੀਂ"</string>
+    <string name="user_setup_button_setup_later" msgid="8712980133555493516">"ਹੁਣੇ ਨਹੀਂ"</string>
     <string name="user_add_user_type_title" msgid="551279664052914497">"ਸ਼ਾਮਲ ਕਰੋ"</string>
     <string name="user_new_user_name" msgid="60979820612818840">"ਨਵਾਂ ਵਰਤੋਂਕਾਰ"</string>
     <string name="user_new_profile_name" msgid="2405500423304678841">"ਨਵੀਂ ਪ੍ਰੋਫਾਈਲ"</string>
@@ -672,7 +686,7 @@
     <string name="add_user_failed" msgid="4809887794313944872">"ਨਵਾਂ ਵਰਤੋਂਕਾਰ ਬਣਾਉਣਾ ਅਸਫਲ ਰਿਹਾ"</string>
     <string name="add_guest_failed" msgid="8074548434469843443">"ਨਵਾਂ ਮਹਿਮਾਨ ਪ੍ਰੋਫਾਈਲ ਬਣਾਉਣਾ ਅਸਫਲ ਰਿਹਾ"</string>
     <string name="user_nickname" msgid="262624187455825083">"ਉਪਨਾਮ"</string>
-    <string name="edit_user_info_message" msgid="6677556031419002895">"ਤੁਹਾਡੇ ਵੱਲੋਂ ਚੁਣਿਆ ਗਿਆ ਨਾਮ ਅਤੇ ਤਸਵੀਰ ਇਸ ਡੀਵਾਈਸ ਦੀ ਵਰਤੋਂ ਕਰਨ ਵਾਲੇ ਕਿਸੇ ਵੀ ਵਿਅਕਤੀ ਨੂੰ ਦਿਖਾਈ ਦੇਵੇਗੀ।"</string>
+    <string name="edit_user_info_message" msgid="6677556031419002895">"ਤੁਹਾਡੇ ਵੱਲੋਂ ਚੁਣਿਆ ਗਿਆ ਨਾਮ ਅਤੇ ਤਸਵੀਰ ਇਸ ਡੀਵਾਈਸ ਦੀ ਵਰਤੋਂ ਕਰਨ ਵਾਲੇ ਹਰੇਕ ਵਿਅਕਤੀ ਨੂੰ ਦਿਖਾਈ ਦੇਣਗੇ।"</string>
     <string name="user_add_user" msgid="7876449291500212468">"ਵਰਤੋਂਕਾਰ ਨੂੰ ਸ਼ਾਮਲ ਕਰੋ"</string>
     <string name="guest_new_guest" msgid="3482026122932643557">"ਮਹਿਮਾਨ ਸ਼ਾਮਲ ਕਰੋ"</string>
     <string name="guest_exit_guest" msgid="5908239569510734136">"ਮਹਿਮਾਨ ਹਟਾਓ"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"ਜੇ ਤੁਸੀਂ <xliff:g id="SWITCHAPP">%1$s</xliff:g> ਦਾ ਪ੍ਰਸਾਰਨ ਕਰਦੇ ਹੋ ਜਾਂ ਆਊਟਪੁੱਟ ਬਦਲਦੇ ਹੋ, ਤਾਂ ਤੁਹਾਡਾ ਮੌਜੂਦਾ ਪ੍ਰਸਾਰਨ ਰੁਕ ਜਾਵੇਗਾ"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> ਦਾ ਪ੍ਰਸਾਰਨ ਕਰੋ"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"ਆਊਟਪੁੱਟ ਬਦਲੋ"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"ਪਿਛਲੇ ਐਨੀਮੇਸ਼ਨਾਂ ਦਾ ਪੂਰਵ-ਅਨੁਮਾਨ"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"ਪੂਰਵ-ਅਨੁਮਾਨ ਵਾਪਸੀ ਲਈ ਸਿਸਟਮ ਐਨੀਮੇਸ਼ਨਾਂ ਨੂੰ ਚਾਲੂ ਕਰੋ।"</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"ਇਹ ਸੈਟਿੰਗ ਪੂਰਵ-ਅਨੁਮਾਨ ਇਸ਼ਾਰਾ ਐਨੀਮੇਸ਼ਨ ਲਈ ਸਿਸਟਮ ਐਨੀਮੇਸ਼ਨਾਂ ਨੂੰ ਚਾਲੂ ਕਰਦੀ ਹੈ। ਮੈਨੀਫ਼ੈਸਟ ਫ਼ਾਈਲ ਵਿੱਚ enableOnBackInvokedCallback ਸੈਟਿੰਗ ਨੂੰ ਪ੍ਰਤੀ-ਐਪ \'ਸਹੀ\' \'ਤੇ ਕਰਨ ਦੀ ਲੋੜ ਹੈ।"</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"ਨਿਰਧਾਰਿਤ ਨਹੀਂ"</string>
     <string name="neuter" msgid="2075249330106127310">"ਨਿਰਪੱਖ"</string>

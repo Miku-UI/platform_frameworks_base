@@ -58,20 +58,22 @@ final class SoftInputShowHideHistory {
         @NonNull
         final String mRequestWindowName;
         @Nullable
-        final String mImeControlTargetName;
+        final String mImeLayeringTargetName;
         @Nullable
-        final String mImeTargetNameFromWm;
+        final String mImeInputTargetName;
+        @Nullable
+        final String mImeControlTargetName;
         @Nullable
         final String mImeSurfaceParentName;
         @UserIdInt
         final int mImeUserId;
 
-        Entry(ClientState client, EditorInfo editorInfo,
-                String focusedWindowName,
+        Entry(@Nullable ClientState client, @Nullable EditorInfo editorInfo,
+                @NonNull String focusedWindowName,
                 @WindowManager.LayoutParams.SoftInputModeFlags int softInputMode,
-                @SoftInputShowHideReason int reason,
-                boolean inFullscreenMode, String requestWindowName,
-                @Nullable String imeControlTargetName, @Nullable String imeTargetName,
+                @SoftInputShowHideReason int reason, boolean inFullscreenMode,
+                @NonNull String requestWindowName, @Nullable String imeLayeringTargetName,
+                @Nullable String imeInputTargetName, @Nullable String imeControlTargetName,
                 @Nullable String imeSurfaceParentName, @UserIdInt int imeUserId) {
             mClientState = client;
             mEditorInfo = editorInfo;
@@ -82,8 +84,9 @@ final class SoftInputShowHideHistory {
             mWallTime = System.currentTimeMillis();
             mInFullscreenMode = inFullscreenMode;
             mRequestWindowName = requestWindowName;
+            mImeLayeringTargetName = imeLayeringTargetName;
+            mImeInputTargetName = imeInputTargetName;
             mImeControlTargetName = imeControlTargetName;
-            mImeTargetNameFromWm = imeTargetName;
             mImeSurfaceParentName = imeSurfaceParentName;
             mImeUserId = imeUserId;
         }
@@ -128,10 +131,13 @@ final class SoftInputShowHideHistory {
             pw.println("  requestWindowName=" + entry.mRequestWindowName);
 
             pw.print(prefix);
-            pw.println("  imeControlTargetName=" + entry.mImeControlTargetName);
+            pw.println("  imeLayeringTargetName=" + entry.mImeLayeringTargetName);
 
             pw.print(prefix);
-            pw.println("  imeTargetNameFromWm=" + entry.mImeTargetNameFromWm);
+            pw.println("  imeInputTargetName=" + entry.mImeInputTargetName);
+
+            pw.print(prefix);
+            pw.println("  imeControlTargetName=" + entry.mImeControlTargetName);
 
             pw.print(prefix);
             pw.println("  imeSurfaceParentName=" + entry.mImeSurfaceParentName);

@@ -24,16 +24,19 @@ import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.text.TextUtils;
 
+import com.android.internal.util.CollectionUtils;
 import com.android.internal.util.Parcelling;
 import com.android.internal.util.Parcelling.BuiltIn.ForStringSet;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -508,6 +511,28 @@ public class PermissionInfo extends PackageItemInfo implements Parcelable {
     @SystemApi
     public @NonNull Set<String> knownCerts = Collections.emptySet();
 
+    /**
+     * A boolean to signify if purposes are required to be declared in order to use the permission.
+     *
+     * @hide
+     */
+    public boolean requiresPurpose;
+
+    /**
+     * Specifies the minimum target SDK version for which purpose validation should be enforced.
+     *
+     * @hide
+     */
+    public int requiresPurposeTargetSdkVersion;
+
+    /**
+     * A {@link Map} of valid purposes where the key represents the name of the purpose and value
+     * represents the {@link ValidPurposeInfo} metadata associated with the purpose.
+     *
+     * @hide
+     */
+    public @NonNull Map<String, ValidPurposeInfo> validPurposes = Collections.emptyMap();
+
     /** @hide */
     public static int fixProtectionLevel(int level) {
         if (level == PROTECTION_SIGNATURE_OR_SYSTEM) {
@@ -679,6 +704,9 @@ public class PermissionInfo extends PackageItemInfo implements Parcelable {
         nonLocalizedDescription = orig.nonLocalizedDescription;
         // Note that knownCerts wasn't properly copied before Android U.
         knownCerts = orig.knownCerts;
+        requiresPurpose = orig.requiresPurpose;
+        requiresPurposeTargetSdkVersion = orig.requiresPurposeTargetSdkVersion;
+        validPurposes = orig.validPurposes;
     }
 
     /**
@@ -744,6 +772,9 @@ public class PermissionInfo extends PackageItemInfo implements Parcelable {
         dest.writeInt(requestRes);
         TextUtils.writeToParcel(nonLocalizedDescription, dest, parcelableFlags);
         sForStringSet.parcel(knownCerts, dest, parcelableFlags);
+        dest.writeBoolean(requiresPurpose);
+        dest.writeInt(requiresPurposeTargetSdkVersion);
+        writeValidPurposes(dest);
     }
 
     /** @hide */
@@ -805,5 +836,28 @@ public class PermissionInfo extends PackageItemInfo implements Parcelable {
         requestRes = source.readInt();
         nonLocalizedDescription = TextUtils.CHAR_SEQUENCE_CREATOR.createFromParcel(source);
         knownCerts = sForStringSet.unparcel(source);
+        requiresPurpose = source.readBoolean();
+        requiresPurposeTargetSdkVersion = source.readInt();
+        readValidPurposes(source);
+    }
+
+    private void readValidPurposes(@NonNull Parcel in) {
+        final Bundle bundle = in.readBundle(ValidPurposeInfo.class.getClassLoader());
+        Map<String, ValidPurposeInfo> purposes = Collections.emptyMap();
+        // Null case handling not required as null bundles are not written.
+        for (String key : bundle.keySet()) {
+            purposes =
+                    CollectionUtils.add(
+                            purposes, key, bundle.getParcelable(key, ValidPurposeInfo.class));
+        }
+        validPurposes = purposes;
+    }
+
+    private void writeValidPurposes(@NonNull Parcel dest) {
+        final Bundle bundle = new Bundle();
+        for (Map.Entry<String, ValidPurposeInfo> entry : validPurposes.entrySet()) {
+            bundle.putParcelable(entry.getKey(), entry.getValue());
+        }
+        dest.writeBundle(bundle);
     }
 }

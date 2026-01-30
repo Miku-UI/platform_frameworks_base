@@ -37,7 +37,7 @@ import java.util.function.Supplier;
 public abstract class RemovalClient<S extends BiometricAuthenticator.Identifier, T>
         extends HalClientMonitor<T> implements RemovalConsumer, EnrollmentModifier {
 
-    private static final String TAG = "Biometrics/RemovalClient";
+    private static final String TAG = "RemovalClient";
 
     private final BiometricUtils<S> mBiometricUtils;
     private final Map<Integer, Long> mAuthenticatorIds;

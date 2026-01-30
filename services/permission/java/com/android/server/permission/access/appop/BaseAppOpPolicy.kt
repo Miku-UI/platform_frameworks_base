@@ -28,6 +28,7 @@ abstract class BaseAppOpPolicy(private val persistence: BaseAppOpPersistence) : 
         get() = AppOpUri.SCHEME
 
     override fun BinaryXmlPullParser.parseUserState(state: MutableAccessState, userId: Int) {
+        // call the persistence's member extension function
         with(persistence) { this@parseUserState.parseUserState(state, userId) }
     }
 

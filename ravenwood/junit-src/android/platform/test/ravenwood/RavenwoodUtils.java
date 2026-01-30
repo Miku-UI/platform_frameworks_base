@@ -15,20 +15,22 @@
  */
 package android.platform.test.ravenwood;
 
-import static com.android.ravenwood.common.RavenwoodCommonUtils.ReflectedMethod.reflectMethod;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.MessageQueue;
+import android.util.Log;
 
-import com.android.ravenwood.common.RavenwoodCommonUtils;
+import com.android.internal.annotations.GuardedBy;
 import com.android.ravenwood.common.SneakyThrow;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Supplier;
 
 /**
  * Utilities for writing (bivalent) ravenwood tests.
@@ -37,39 +39,26 @@ public class RavenwoodUtils {
     private RavenwoodUtils() {
     }
 
-    /**
-     * Load a JNI library respecting {@code java.library.path}
-     * (which reflects {@code LD_LIBRARY_PATH}).
-     *
-     * <p>{@code libname} must be the library filename without:
-     * - directory
-     * - "lib" prefix
-     * - and the ".so" extension
-     *
-     * <p>For example, in order to load "libmyjni.so", then pass "myjni".
-     *
-     * <p>This is basically the same thing as Java's {@link System#loadLibrary(String)},
-     * but this API works slightly different on ART and on the desktop Java, namely
-     * the desktop Java version uses a different entry point method name
-     * {@code JNI_OnLoad_libname()} (note the included "libname")
-     * while ART always seems to use {@code JNI_OnLoad()}.
-     *
-     * <p>This method provides the same behavior on both the device side and on Ravenwood --
-     * it uses {@code JNI_OnLoad()} as the entry point name on both.
-     */
-    public static void loadJniLibrary(String libname) {
-        RavenwoodCommonUtils.loadJniLibrary(libname);
-    }
+    private static final int DEFAULT_TIMEOUT_SECONDS = 10;
 
-    private class MainHandlerHolder {
-        static Handler sMainHandler = new Handler(Looper.getMainLooper());
+    @GuardedBy("sHandlers")
+    private static final Map<Looper, Handler> sHandlers = new HashMap<>();
+
+    /**
+     * Return a handler for any looper.
+     */
+    @NonNull
+    private static Handler getHandler(@NonNull Looper looper) {
+        synchronized (sHandlers) {
+            return sHandlers.computeIfAbsent(looper, (l) -> new Handler(l));
+        }
     }
 
     /**
      * Returns the main thread handler.
      */
     public static Handler getMainHandler() {
-        return MainHandlerHolder.sMainHandler;
+        return getHandler(Looper.getMainLooper());
     }
 
     /**
@@ -80,6 +69,8 @@ public class RavenwoodUtils {
         var result = new AtomicReference<T>();
         var thrown = new AtomicReference<Throwable>();
         var latch = new CountDownLatch(1);
+
+        var postedHere = new MessageWasPostedHereStackTrace();
         h.post(() -> {
             try {
                 result.set(c.call());
@@ -89,12 +80,14 @@ public class RavenwoodUtils {
             latch.countDown();
         });
         try {
-            latch.await();
+            latch.await(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
             throw new RuntimeException("Interrupted while waiting on the Runnable", e);
         }
         var th = thrown.get();
         if (th != null) {
+            // Inject the current stacktrace as a cause for easier debugging.
+            postedHere.injectAsCause(th);
             SneakyThrow.sneakyThrow(th);
         }
         return result.get();
@@ -104,7 +97,6 @@ public class RavenwoodUtils {
     /**
      * Run a Runnable on Handler and wait for it to complete.
      */
-    @Nullable
     public static void runOnHandlerSync(@NonNull Handler h, @NonNull Runnable r) {
         runOnHandlerSync(h, () -> {
             r.run();
@@ -123,44 +115,65 @@ public class RavenwoodUtils {
     /**
      * Run a Runnable on main thread and wait for it to complete.
      */
-    @Nullable
-    public static void runOnMainThreadSync(@NonNull Runnable r) {
-        runOnHandlerSync(getMainHandler(), r);
+    public static void runOnMainThreadSync(@NonNull ThrowingRunnable r) {
+        runOnHandlerSync(getMainHandler(), () -> {
+            r.run();
+            return null;
+        });
     }
 
     /**
-     * Wrap the given {@link Supplier} to become memoized.
-     *
-     * The underlying {@link Supplier} will only be invoked once, and that result will be cached
-     * and returned for any future requests.
+     * Set by {@link RavenwoodDriver} to run code before {@link #waitForLooperDone(Looper)}.
      */
-    static <T> Supplier<T> memoize(ThrowingSupplier<T> supplier) {
-        return new Supplier<>() {
-            private T mInstance;
+    static volatile Runnable sPendingExceptionThrower = () -> {};
 
-            @Override
-            public T get() {
-                synchronized (this) {
-                    if (mInstance == null) {
-                        mInstance = create();
-                    }
-                    return mInstance;
-                }
-            }
+    /**
+     * Wait for a looper to be idle.
+     *
+     * When running on Ravenwood, this will also throw the pending exception, if any.
+     */
+    public static void waitForLooperDone(Looper looper) {
+        var idler = new Idler();
+        looper.getQueue().addIdleHandler(idler);
+        // Wake up the queue, if sleeping.
+        getHandler(looper).post(() -> {});
 
-            private T create() {
-                try {
-                    return supplier.get();
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        };
+        idler.waitForIdle();
+
+        sPendingExceptionThrower.run();
     }
 
-    /** Used by {@link #memoize(ThrowingSupplier)}  */
-    public interface ThrowingSupplier<T> {
-        /** */
-        T get() throws Exception;
+    /**
+     * Wait for a looper to be idle.
+     *
+     * When running on Ravenwood, this will also throw the pending exception, if any.
+     */
+    public static void waitForMainLooperDone() {
+        waitForLooperDone(Looper.getMainLooper());
+    }
+
+    private static class Idler implements MessageQueue.IdleHandler {
+        private final CountDownLatch mLatch = new CountDownLatch(1);
+
+        @Override
+        public boolean queueIdle() {
+            mLatch.countDown();
+            return false; // One-shot idle handler returns true.
+        }
+
+        public boolean waitForIdle() {
+            try {
+                return mLatch.await(DEFAULT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                Log.w("Idler", "Interrupted");
+                return false;
+            }
+        }
+    }
+
+    /** Used by {@link #runOnMainThreadSync(ThrowingRunnable)}}  */
+    public interface ThrowingRunnable {
+        /** run the code. */
+        void run() throws Exception;
     }
 }

@@ -19,7 +19,9 @@ package android.app;
 import android.app.ActivityManager;
 import android.app.IApplicationThread;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.os.Bundle;
+import android.os.IRemoteCallback;
 
 /** @hide */
 interface IAppTask {
@@ -27,7 +29,9 @@ interface IAppTask {
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)
     ActivityManager.RecentTaskInfo getTaskInfo();
     void moveToFront(in IApplicationThread appThread, in String callingPackage);
+    void moveTaskTo(in int displayId, in Rect bounds, in IRemoteCallback outcomeCallback);
     int startActivity(IBinder whoThread, String callingPackage, String callingFeatureId,
             in Intent intent, String resolvedType, in Bundle options);
     void setExcludeFromRecents(boolean exclude);
+    void requestWindowingLayer(in int layer, in IRemoteCallback outcomeCallback);
 }

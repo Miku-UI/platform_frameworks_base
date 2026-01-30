@@ -39,8 +39,8 @@ import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_CRI
 import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_LOW;
 import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_MODERATE;
 import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_NORMAL;
-import static com.android.media.flags.Flags.enableNotifyingActivityManagerWithMediaSessionStatusChange;
 import static com.android.media.flags.Flags.FLAG_ENABLE_NOTIFYING_ACTIVITY_MANAGER_WITH_MEDIA_SESSION_STATUS_CHANGE;
+import static com.android.media.flags.Flags.enableNotifyingActivityManagerWithMediaSessionStatusChange;
 import static com.android.server.am.ActivityManagerDebugConfig.LOG_WRITER_INFO;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
@@ -78,8 +78,6 @@ import android.compat.Compatibility;
 import android.content.ComponentCallbacks2;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DeviceConfigurationProto;
-import android.content.GlobalConfigurationProto;
 import android.content.IIntentReceiver;
 import android.content.Intent;
 import android.content.pm.ConfigurationInfo;
@@ -93,8 +91,11 @@ import android.content.pm.UserInfo;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
+import android.graphics.Bitmap;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
+import android.internal.perfetto.protos.Configuration.DeviceConfigurationProto;
+import android.internal.perfetto.protos.Configuration.GlobalConfigurationProto;
 import android.opengl.GLES10;
 import android.os.Binder;
 import android.os.Build;
@@ -120,6 +121,7 @@ import android.util.DebugUtils;
 import android.util.DisplayMetrics;
 import android.util.SparseArray;
 import android.util.TeeWriter;
+import android.util.proto.ProtoInputStream;
 import android.util.proto.ProtoOutputStream;
 import android.view.Choreographer;
 import android.view.Display;
@@ -142,6 +144,10 @@ import com.android.server.utils.Slogf;
 import dalvik.annotation.optimization.NeverCompile;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -154,12 +160,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import javax.microedition.khronos.egl.EGL10;
 import javax.microedition.khronos.egl.EGLConfig;
@@ -170,7 +180,6 @@ import javax.microedition.khronos.egl.EGLSurface;
 final class ActivityManagerShellCommand extends ShellCommand {
 
     static final String TAG = TAG_WITH_CLASS_NAME ? "ActivityManagerShellCommand" : TAG_AM;
-
 
     public static final String NO_CLASS_ERROR_CODE = "Error type 3";
 
@@ -209,6 +218,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
     private boolean mAttachAgentDuringBind;  // Whether agent should be attached late.
     private int mClockType; // Whether we need thread cpu / wall clock / both.
     private int mProfilerOutputVersion; // The version of the profiler output.
+    private boolean mLongRunningMethods; // Whether we need to trace only long running methods
+    private long mDurationMicros; // duration in microseconds that specifies how long to trace.
     private int mDisplayId;
     private int mTaskDisplayAreaFeatureId;
     private int mWindowingMode;
@@ -250,21 +261,13 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     return runStartActivity(pw);
                 case "start-in-vsync":
                     final ProgressWaiter waiter = new ProgressWaiter(0);
-                    final int[] startResult = new int[1];
-                    startResult[0] = -1;
                     mInternal.mUiHandler.runWithScissors(
                             () -> Choreographer.getInstance().postFrameCallback(frameTimeNanos -> {
-                                try {
-                                    startResult[0] = runStartActivity(pw);
-                                    waiter.onFinished(0, null /* extras */);
-                                } catch (Exception ex) {
-                                    getErrPrintWriter().println(
-                                            "Error: unable to start activity, " + ex);
-                                }
+                                waiter.onFinished(0, null /* extras */);
                             }),
                             USER_OPERATION_TIMEOUT_MS / 2);
                     waiter.waitForFinish(USER_OPERATION_TIMEOUT_MS);
-                    return startResult[0];
+                    return runStartActivity(pw);
                 case "startservice":
                 case "start-service":
                     return runStartService(pw, false);
@@ -284,6 +287,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     return runFreeze(pw, true);
                 case "unfreeze":
                     return runFreeze(pw, false);
+                case "isfrozen":
+                    return isFrozen(pw);
                 case "instrument":
                     getOutPrintWriter().println("Error: must be invoked through 'am instrument'.");
                     return -1;
@@ -295,6 +300,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     return runProfile(pw);
                 case "dumpheap":
                     return runDumpHeap(pw);
+                case "dumpbitmaps":
+                    return runDumpBitmaps(pw);
                 case "set-debug-app":
                     return runSetDebugApp(pw);
                 case "set-agent-app":
@@ -363,6 +370,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     return runStopUser(pw);
                 case "is-user-stopped":
                     return runIsUserStopped(pw);
+                case "logout-user":
+                    return runLogoutUser(pw);
                 case "get-started-user-state":
                     return runGetStartedUserState(pw);
                 case "track-associations":
@@ -596,6 +605,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
         mSamplingInterval = 0;
         mAutoStop = false;
         mStreaming = false;
+        mLongRunningMethods = false;
+        mDurationMicros = 0;
         mUserId = defUser;
         mDisplayId = INVALID_DISPLAY;
         mTaskDisplayAreaFeatureId = FEATURE_UNDEFINED;
@@ -796,9 +807,9 @@ final class ActivityManagerShellCommand extends ShellCommand {
                         return 1;
                     }
                 }
-                profilerInfo =
-                        new ProfilerInfo(mProfileFile, fd, mSamplingInterval, mAutoStop, mStreaming,
-                                mAgent, mAttachAgentDuringBind, mClockType, mProfilerOutputVersion);
+                profilerInfo = new ProfilerInfo(mProfileFile, fd, mSamplingInterval, mAutoStop,
+                        mStreaming, mAgent, mAttachAgentDuringBind, mClockType,
+                        mProfilerOutputVersion, mLongRunningMethods, mDurationMicros);
             }
 
             pw.println("Starting: " + intent);
@@ -1075,7 +1086,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
         final int result = mInterface.broadcastIntentWithFeature(null, null, intent, null,
                 receiver, 0, null, null, requiredPermissions, null, null,
                 android.app.AppOpsManager.OP_NONE, bundle, true, false, mUserId);
-        Slogf.i(TAG, "Enqueued broadcast %s: " + result, intent);
+        Slogf.i(TAG, "Enqueued broadcast %s: %d", intent, result);
         if (result == ActivityManager.BROADCAST_SUCCESS && !mAsync) {
             receiver.waitForFinish();
         }
@@ -1161,6 +1172,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
         mSamplingInterval = 0;
         mStreaming = false;
         mClockType = ProfilerInfo.CLOCK_TYPE_DEFAULT;
+        mLongRunningMethods = false;
+        mDurationMicros = 0;
         mProfilerOutputVersion = ProfilerInfo.OUTPUT_VERSION_DEFAULT;
 
         String process = null;
@@ -1205,6 +1218,16 @@ final class ActivityManagerShellCommand extends ShellCommand {
             cmd = getNextArgRequired();
             if ("start".equals(cmd)) {
                 start = true;
+                String opt;
+                while ((opt = getNextOption()) != null) {
+                    if (opt.equals("--longrunning")) {
+                        mLongRunningMethods = true;
+                    } else if (opt.equals("--duration")) {
+                        // Convert milliseconds to micro seconds
+                        long milliToMicro = 1000;
+                        mDurationMicros = Long.parseLong(getNextArgRequired()) * milliToMicro;
+                    }
+                }
             } else if ("stop".equals(cmd)) {
                 start = false;
             } else {
@@ -1233,16 +1256,21 @@ final class ActivityManagerShellCommand extends ShellCommand {
         // For regular method tracing  profileFile should be provided with the start command. For
         // low overhead method tracing the profileFile is optional and provided with the stop
         // command.
-        if ((start && profileType == ProfilerInfo.PROFILE_TYPE_REGULAR)
-                || (profileType == ProfilerInfo.PROFILE_TYPE_LOW_OVERHEAD
-                  && !start && getRemainingArgsCount() > 0)) {
+        boolean hasFileArg = (profileType == ProfilerInfo.PROFILE_TYPE_REGULAR && start)
+                || (profileType == ProfilerInfo.PROFILE_TYPE_LOW_OVERHEAD && !start
+                        && getRemainingArgsCount() > 0);
+        if (hasFileArg) {
             profileFile = getNextArgRequired();
             fd = openFileForSystem(profileFile, "w");
             if (fd == null) {
                 return -1;
             }
+        }
+
+        if (start || hasFileArg) {
             profilerInfo = new ProfilerInfo(profileFile, fd, mSamplingInterval, false, mStreaming,
-                    null, false, mClockType, mProfilerOutputVersion);
+                    null, false, mClockType, mProfilerOutputVersion, mLongRunningMethods,
+                    mDurationMicros);
         }
 
         if (!mInterface.profileControl(process, userId, start, profilerInfo, profileType)) {
@@ -1268,7 +1296,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
             if (isFullCompact) {
                 pw.println("Executing full compaction for " + app.mPid);
                 synchronized (mInternal.mProcLock) {
-                    mInternal.mOomAdjuster.mCachedAppOptimizer.compactApp(app,
+                    mInternal.getCachedAppOptimizer().compactApp(app,
                             CachedAppOptimizer.CompactProfile.FULL,
                             CachedAppOptimizer.CompactSource.SHELL, true);
                 }
@@ -1276,7 +1304,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
             } else if (isSomeCompact) {
                 pw.println("Executing some compaction for " + app.mPid);
                 synchronized (mInternal.mProcLock) {
-                    mInternal.mOomAdjuster.mCachedAppOptimizer.compactApp(app,
+                    mInternal.getCachedAppOptimizer().compactApp(app,
                             CachedAppOptimizer.CompactProfile.SOME,
                             CachedAppOptimizer.CompactSource.SHELL, true);
                 }
@@ -1285,7 +1313,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
         } else if (op.equals("system")) {
             pw.println("Executing system compaction");
             synchronized (mInternal.mProcLock) {
-                mInternal.mOomAdjuster.mCachedAppOptimizer.compactAllSystem();
+                mInternal.getCachedAppOptimizer().compactAllSystem();
             }
             pw.println("Finished system compaction");
         } else if (op.equals("native")) {
@@ -1301,10 +1329,10 @@ final class ActivityManagerShellCommand extends ShellCommand {
                 return -1;
             }
             if (isFullCompact) {
-                mInternal.mOomAdjuster.mCachedAppOptimizer.compactNative(
+                mInternal.getCachedAppOptimizer().compactNative(
                         CachedAppOptimizer.CompactProfile.FULL, pid);
             } else if (isSomeCompact) {
-                mInternal.mOomAdjuster.mCachedAppOptimizer.compactNative(
+                mInternal.getCachedAppOptimizer().compactNative(
                         CachedAppOptimizer.CompactProfile.SOME, pid);
             } else {
                 getErrPrintWriter().println("Error: unknown compaction type '" + op + "'");
@@ -1337,12 +1365,23 @@ final class ActivityManagerShellCommand extends ShellCommand {
             synchronized (mInternal.mProcLock) {
                 proc.mOptRecord.setFreezeSticky(isSticky);
                 if (freeze) {
-                    mInternal.mOomAdjuster.mCachedAppOptimizer.forceFreezeAppAsyncLSP(proc);
+                    mInternal.getCachedAppOptimizer().forceFreezeAppAsyncLSP(proc);
                 } else {
-                    mInternal.mOomAdjuster.mCachedAppOptimizer.unfreezeAppLSP(proc, 0, true);
+                    mInternal.getCachedAppOptimizer().unfreezeAppLSP(proc, 0, true);
                 }
             }
         }
+        return 0;
+    }
+
+    @NeverCompile
+    int isFrozen(PrintWriter pw) throws RemoteException {
+        ProcessRecord proc = getProcessFromShell();
+        if (proc == null) {
+            return -1;
+        }
+        boolean frozen = android.os.Process.isProcessFrozen(proc.mPid, proc.uid);
+        pw.println(frozen ? "true" : "false");
         return 0;
     }
 
@@ -1463,6 +1502,301 @@ final class ActivityManagerShellCommand extends ShellCommand {
             err.println("Caught InterruptedException");
         }
 
+        return 0;
+    }
+
+    final private static class BitmapDump {
+        private PrintWriter pw;
+        private ProtoInputStream proto;
+        private ZipOutputStream zos;
+        private BufferedWriter csv;
+        private String dumpFormat;
+        private boolean dumpInCSV = false;
+        private int totalBitmapCount = 0;
+        private int totalBitmapSize = 0;
+        HashMap<Long, Integer> duplicatedBitmaps;
+
+        private static final String bitmapInfoHeader =
+          "   Bitmap ID  | Width | Height |   Size     |   Config  | M |   Type   |  Source";
+        private static final String bitmapInfoSep =
+          "--------------|-------|--------|------------|-----------|---|----------|--------";
+        private static final String bitmapInfoRowFormat =
+          " %12d | %5d |  %5d | %,10d | %9.9s | %s | %8.8s | %12d";
+
+        private static final String bitmapInfoHeaderCSV =
+          "PID, Process Name, Bitmap ID, Width, Height, Size, Config, Mutable, AllocType, Source";
+        private static final String bitmapInfoRowFormatCSV =
+          "%d, %s, %d, %d, %d, %d, %s, %s, %s, %d";
+
+        BitmapDump(ProtoInputStream proto, PrintWriter pw, ZipOutputStream zos,
+                   BufferedWriter csv, String dumpFormat) {
+            this.proto = proto;
+            this.pw = pw;
+            this.zos = zos;
+            this.csv = csv;
+            this.dumpFormat = dumpFormat;
+            totalBitmapCount = 0;
+            totalBitmapSize = 0;
+            duplicatedBitmaps = new HashMap<>();
+        }
+
+        @NeverCompile
+        public void unpack() throws IOException {
+            for (int nextField = proto.nextField();
+                     nextField != ProtoInputStream.NO_MORE_FIELDS;
+                     nextField = proto.nextField()) {
+                switch (nextField) {
+                    case (int)BitmapDumpProto.APP_BITMAPS:
+                        unpackAppBitmapInfo(BitmapDumpProto.APP_BITMAPS);
+                        break;
+                    default:
+                        pw.println("unrecognized field ID: " + nextField);
+                        break;
+                }
+            }
+            pw.println("" + totalBitmapCount + " bitmaps dumped"
+                + ((dumpFormat != null) ? (" in " + dumpFormat) : "")
+                + ", total " + totalBitmapSize + " bytes");
+            for (Map.Entry<Long, Integer> entry : duplicatedBitmaps.entrySet()) {
+                Integer count = entry.getValue();
+                if (count > 1) {
+                    pw.println(String.format("bitmap from source %d has %d duplicates",
+                          entry.getKey(), count.intValue()));
+                }
+            }
+        }
+
+        @NeverCompile
+        private void unpackAppBitmapInfo(long fieldId) throws IOException {
+            int pid = -1;
+            String processName = null;
+            boolean headerPrinted = false;
+
+            long token = proto.start(fieldId);
+            for (int nextField = proto.nextField();
+                     nextField != ProtoInputStream.NO_MORE_FIELDS;
+                     nextField = proto.nextField()) {
+                switch (nextField) {
+                    case (int)BitmapDumpProto.AppBitmapInfo.PID:
+                        pid = proto.readInt(BitmapDumpProto.AppBitmapInfo.PID);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.PROCESS_NAME:
+                        processName = proto.readString(BitmapDumpProto.AppBitmapInfo.PROCESS_NAME);
+                        if (pid != -1) {
+                            pw.println("** Bitmaps for " + processName + " (pid: " + pid + ")");
+                            pw.println("");
+                        }
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BITMAPS:
+                        if (!headerPrinted) {
+                            pw.println(bitmapInfoHeader);
+                            pw.println(bitmapInfoSep);
+                            headerPrinted = true;
+                        }
+                        unpackAppBitmaps(nextField, pid, processName);
+                        break;
+                }
+            }
+            proto.end(token);
+            pw.println("");
+        }
+
+        /**
+         * See `Bitmap::getId(PixelStorageType)` in libs/hwui/hwui/Bitmap.cpp
+         * for the encoding shcmem of a bitmap mId, where the 7th decimal
+         * digit desginates the pixel storage type
+         * See `enum class PixelStorageType` in libs/hwui/hwui/bitmap.h for
+         * different pixel storage types
+         */
+        private static String pixelStorageType(long mId) {
+            int type = (int)((mId / 1000000) % 10);
+            switch (type) {
+                case 0: return "pixelref";
+                case 1: return "heap";
+                case 2: return "ashmem";
+                case 3: return "hardware";
+                default: return "unknown";
+            }
+        }
+
+        @NeverCompile
+        private void unpackAppBitmaps(long fieldId, int pid, String processName)
+                throws IOException {
+            long id = 0l, source = 0l;
+            int width = 0, height = 0, size = 0, config = 0;
+            boolean mutable = false;
+            byte[] content = null;
+
+            long token = proto.start(fieldId);
+            for (int nextField = proto.nextField();
+                     nextField != ProtoInputStream.NO_MORE_FIELDS;
+                     nextField = proto.nextField()) {
+                switch (nextField) {
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.ID:
+                        id = proto.readLong(BitmapDumpProto.AppBitmapInfo.BitmapInfo.ID);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.WIDTH:
+                        width = proto.readInt(BitmapDumpProto.AppBitmapInfo.BitmapInfo.WIDTH);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.HEIGHT:
+                        height = proto.readInt(BitmapDumpProto.AppBitmapInfo.BitmapInfo.HEIGHT);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.SIZE:
+                        size = proto.readInt(BitmapDumpProto.AppBitmapInfo.BitmapInfo.SIZE);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.MUTABLE:
+                        mutable = proto.readBoolean(
+                                              BitmapDumpProto.AppBitmapInfo.BitmapInfo.MUTABLE);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.CONFIG:
+                        config = proto.readInt(BitmapDumpProto.AppBitmapInfo.BitmapInfo.CONFIG);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.SOURCE:
+                        source = proto.readLong(BitmapDumpProto.AppBitmapInfo.BitmapInfo.SOURCE);
+                        break;
+                    case (int)BitmapDumpProto.AppBitmapInfo.BitmapInfo.CONTENT:
+                        content = proto.readBytes(BitmapDumpProto.AppBitmapInfo.BitmapInfo.CONTENT);
+                        break;
+                }
+            }
+            proto.end(token);
+
+            String strConfig = Bitmap.Config.nativeToConfig(config).name();
+            String strType = pixelStorageType(id);
+            pw.println(String.format(bitmapInfoRowFormat,
+                       id, width, height, size, strConfig,
+                       (mutable ? "X" : " "), strType, source));
+
+            if (source != 0 && source != -1) {
+                Integer count = duplicatedBitmaps.get(source);
+                duplicatedBitmaps.put(source, (count == null) ? 1 : count + 1);
+            }
+
+            if (dumpFormat != null && content != null && zos != null) {
+                String filename = String.format("pid-%d-%s/bitmap-%d.%s",
+                        pid, processName, id, dumpFormat);
+                ZipEntry entry = new ZipEntry(filename);
+                zos.putNextEntry(entry);
+                zos.write(content, 0, content.length);
+                zos.closeEntry();
+            }
+
+            if (csv != null) {
+                csv.write(String.format(bitmapInfoRowFormatCSV,
+                      pid, processName, id, width, height, size, strConfig,
+                      (mutable ? "Mutable" : "Immutable"), strType, source));
+                csv.newLine();
+            }
+
+            totalBitmapCount++;
+            totalBitmapSize += size;
+        }
+    }
+
+    @NeverCompile // Avoid size overhead of debugging code
+    int runDumpBitmaps(PrintWriter pw) throws RemoteException {
+        ArrayList<String> processes = new ArrayList<>();
+        boolean packages = false;
+        String dumpFormat = null;
+        String dumpToZip = null;
+        String dumpToCsv = null;
+        int userId = UserHandle.USER_CURRENT;
+        final PrintWriter err = getErrPrintWriter();
+
+        LocalDateTime localDateTime = LocalDateTime.now(Clock.systemDefaultZone());
+        String logNameTimeString = LOG_NAME_TIME_FORMATTER.format(localDateTime);
+        String dumpToProto = "/data/local/tmp/dumpbitmaps-" + logNameTimeString + ".proto";
+
+
+        String opt;
+        while ((opt = getNextOption()) != null) {
+            if ("--csv".equals(opt)) {
+                dumpToCsv = "/data/local/tmp/dumpbitmaps-" + logNameTimeString + ".csv";
+            } else if ("-d".equals(opt) || "--dump".equals(opt)) {
+                dumpFormat = getNextArg();
+                dumpToZip = "/data/local/tmp/dumpbitmaps-" + logNameTimeString + ".zip";
+            } else if ("-p".equals(opt)) {
+                processes.add(getNextArgRequired());
+            } else if ("-h".equals(opt) || "--help".equals(opt)) {
+                pw.println("dumpbitmaps");
+                pw.println("  [-h|--help] [--csv] [-d <format>] [-p <process>] [-p <process>] ...");
+                pw.println("  -d <format>]: dump bitmaps in <format>, which can be one of");
+                pw.println("                of png/jpg/webp, default to png. A zip file");
+                pw.println("                dumpbitmaps-<time>.zip will be created");
+                pw.println("  --csv:        output bitmap information in csv format");
+                pw.println("  -p <process>: specify process to dump bitmaps, multiple -p");
+                pw.println("                can be used.");
+                pw.println("  -h|--help:    this help message.");
+                pw.println("");
+                pw.println("If no process is specified, bitmaps of all processes will");
+                pw.println("be dumped");
+                return 0;
+            } else {
+                pw.println("Unknown argument: " + opt + "; use -h for help");
+                return -1;
+            }
+        }
+        pw.flush();
+
+        String process;
+        while ((process = getNextArg()) != null) {
+            processes.add(process);
+        }
+
+        pw.println("Now dumping into " + dumpToProto + " ...");
+        pw.flush();
+        try {
+            ParcelFileDescriptor fd = openFileForSystem(dumpToProto, "w");
+            mInterface.dumpBitmapsProto(fd, processes.toArray(new String[0]),
+                    userId, packages, dumpFormat);
+            fd.close();
+        } catch (IOException e) {
+            pw.println("dump failed: " + e);
+        }
+
+        pw.println("dump done");
+        pw.flush();
+
+        // parse the proto file and dump the information
+        try {
+            ParcelFileDescriptor pfd = openFileForSystem(dumpToProto, "r");
+            ProtoInputStream proto = new ProtoInputStream(
+                    new FileInputStream(pfd.getFileDescriptor()));
+
+            ParcelFileDescriptor zfd = null;
+            ZipOutputStream zos = null;
+
+            if (dumpToZip != null) {
+                zfd = openFileForSystem(dumpToZip, "w");
+                zos = new ZipOutputStream(new FileOutputStream(zfd.getFileDescriptor()));
+                zos.setMethod(ZipOutputStream.DEFLATED);
+                zos.setLevel(0);  // no compression
+            }
+
+            ParcelFileDescriptor cfd = null;
+            BufferedWriter csv = null;
+            if (dumpToCsv != null) {
+                cfd = openFileForSystem(dumpToCsv, "w");
+                csv = new BufferedWriter(new FileWriter(cfd.getFileDescriptor()));
+            }
+
+            BitmapDump bd = new BitmapDump(proto, pw, zos, csv, dumpFormat);
+            bd.unpack();
+            if (zos != null) {
+                pw.println("All bitmaps dumped as " + dumpFormat + " files in " + dumpToZip);
+                zos.close();
+                zfd.close();
+            }
+            if (csv != null) {
+                pw.println("Bitmap information stored in csv file " + dumpToCsv);
+                csv.close();
+                cfd.close();
+            }
+            pfd.close();
+        } catch (IOException e) {
+            pw.println("IO exception: " + e);
+        }
+        pw.flush();
         return 0;
     }
 
@@ -2777,6 +3111,18 @@ final class ActivityManagerShellCommand extends ShellCommand {
         return 0;
     }
 
+    int runLogoutUser(PrintWriter pw) {
+        int userId = UserHandle.parseUserArg(getNextArgRequired());
+        if (userId == UserHandle.USER_CURRENT) {
+            userId = mInternal.getCurrentUserId();
+        }
+        if (!mInternal.logoutUser(userId)) {
+            getErrPrintWriter().println("Failed to logout user: " + userId);
+            return -1;
+        }
+        return 0;
+    }
+
     int runGetStartedUserState(PrintWriter pw) throws RemoteException {
         mInternal.enforceCallingPermission(android.Manifest.permission.DUMP,
                 "runGetStartedUserState()");
@@ -3778,6 +4124,17 @@ final class ActivityManagerShellCommand extends ShellCommand {
                     return -1;
                 }
             }
+        } else if (toggleValue.equals("log-change-checks-to-statsd")) {
+            // Note that this is only used for testing.
+            final String value = getNextArgRequired();
+            if ("on".equals(value) || "off".equals(value)) {
+                pw.println("Setting log compat change checks to statsd " + value);
+                platformCompat.setLogChangeChecksToStatsd(value.equals("on"));
+            } else {
+                pw.println("Invalid value for logging compat change checks to statsd.");
+                return -1;
+            }
+            return 0;
         } else {
             String changeIdString = getNextArgRequired();
             try {
@@ -4403,7 +4760,7 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("      --windowingMode <WINDOWING_MODE>: The windowing mode to launch the activity into.");
             pw.println("      --activityType <ACTIVITY_TYPE>: The activity type to launch the activity as.");
             pw.println("      --display <DISPLAY_ID>: The display to launch the activity into.");
-            pw.println("      --splashscreen-icon: Show the splash screen icon on launch.");
+            pw.println("      --splashscreen-show-icon: Show the splash screen icon on launch.");
             pw.println("  start-in-vsync");
             pw.println("      Start an Activity with vsync aligned. See `start-activity` for the");
             pw.println("      possible options.");
@@ -4451,6 +4808,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("          may be either a process name or pid.  Options are:");
             pw.println("      --sticky: persists the unfrozen state for the process lifetime or");
             pw.println("                  until a freeze is triggered via shell");
+            pw.println("  isfrozen <PROCESS>");
+            pw.println("      Print the frozen status of the process (true or false)");
             pw.println("  instrument [-r] [-e <NAME> <VALUE>] [-p <FILE>] [-w]");
             pw.println("          [--user <USER_ID> | current]");
             pw.println("          [--no-hidden-api-checks [--no-test-api-access]]");
@@ -4509,6 +4868,19 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("      --user <USER_ID> | current: When supplying a process name,");
             pw.println("          specify user of process to profile; uses current user if not");
             pw.println("          specified.");
+            pw.println("  profile lowoverhead start [--longrunning --duration DURATION] <PROCESS>");
+            pw.println("      Starts a lowoverhead trace on a process. The given <PROCESS>");
+            pw.println("        argument may be either a process name or pid.  Options are:");
+            pw.println("      --longrunning: Traces methods that run longer than a specific");
+            pw.println("          threshold. This threshold is a build-time constant");
+            pw.println("      --duration DURATION: trace for the specified DURATION milliseconds.");
+            pw.println("          This argument only applies for long running traces. A default");
+            pw.println("          value is used when duration is not specified.");
+            pw.println("  profile lowoverhead stop <PROCESS> [<FILE>]");
+            pw.println("      Stops an ongoing lowoverhead trace on a process. The given");
+            pw.println("        <PROCESS> argument may be either a process name or pid.");
+            pw.println("        An optional <FILE> argument may be provided to dump the");
+            pw.println("        collected trace");
             pw.println("  dumpheap [--user <USER_ID> current] [-n] [-g] [-b <format>] ");
             pw.println("           <PROCESS> <FILE>");
             pw.println("      Dump the heap of a process.  The given <PROCESS> argument may");
@@ -4621,6 +4993,8 @@ final class ActivityManagerShellCommand extends ShellCommand {
             pw.println("      -f: force stop, even if user has an unstoppable parent.");
             pw.println("  is-user-stopped <USER_ID>");
             pw.println("      Returns whether <USER_ID> has been stopped or not.");
+            pw.println("  logout-user <USER_ID>");
+            pw.println("      Logs out the user.");
             pw.println("  get-started-user-state <USER_ID>");
             pw.println("      Gets the current state of the given started user.");
             pw.println("  track-associations");

@@ -28,9 +28,18 @@ import java.util.List;
  * @hide
  */
 public class DisplayGroup {
-
+    // Indicates that the display group is adjacent to the default group. Some of the
+    // properties that happen for such groups in conjuncture with the default groups are
+    // 1. The device will lock only when all the groups with this flag and the default group are
+    // made non interactive
+    // 2. The power button will sleep only these groups and the default group
+    public static long FLAG_DEFAULT_GROUP_ADJACENT = 1L << 1;
     private final List<LogicalDisplay> mDisplays = new ArrayList<>();
     private final int mGroupId;
+
+    private String mGroupName;
+
+    private long mFlags;
 
     private int mChangeCount;
 
@@ -41,6 +50,28 @@ public class DisplayGroup {
     /** Returns the identifier for the Group. */
     int getGroupId() {
         return mGroupId;
+    }
+
+    public String getGroupName() {
+        return mGroupName;
+    }
+
+    public void setGroupName(String groupName) {
+        mGroupName = groupName;
+    }
+
+    /**
+     * Sets the supplied flag for this display group
+     */
+    public void setFlags(long flags) {
+        mFlags |= flags;
+    }
+
+    /**
+     * Gets the flags set for this display group
+     */
+    public long getFlags() {
+        return mFlags;
     }
 
     /**
@@ -108,5 +139,7 @@ public class DisplayGroup {
             ipw.println("Display " + logicalDisplay.getDisplayIdLocked() + " "
                     + logicalDisplay.getPrimaryDisplayDeviceLocked());
         }
+        ipw.println("Group Name: " + getGroupName());
+        ipw.println("Flags: " + getFlags());
     }
 }

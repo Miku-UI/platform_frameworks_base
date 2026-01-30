@@ -42,58 +42,58 @@ public abstract class CursorAdapter extends BaseAdapter implements Filterable,
         CursorFilter.CursorFilterClient, ThemedSpinnerAdapter {
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     protected boolean mDataValid;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     protected boolean mAutoRequery;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     protected Cursor mCursor;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     protected Context mContext;
     /**
      * Context used for {@link #getDropDownView(int, View, ViewGroup)}.
-     * {@hide}
+     * @hide
      */
     protected Context mDropDownContext;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     protected int mRowIDColumn;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     protected ChangeObserver mChangeObserver;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     protected DataSetObserver mDataSetObserver;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     protected CursorFilter mCursorFilter;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     protected FilterQueryProvider mFilterQueryProvider;
 

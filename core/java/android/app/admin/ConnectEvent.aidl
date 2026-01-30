@@ -16,6 +16,6 @@
 
 package android.app.admin;
 
-/** {@hide} */
+/** @hide */
 parcelable ConnectEvent;
 

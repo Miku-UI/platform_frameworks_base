@@ -63,6 +63,7 @@ import java.io.InputStream;
  * file using the draw9patch tool, see the
  * <a href="{@docRoot}guide/developing/tools/draw9patch.html">Draw 9-patch</a> tool guide.</p></div>
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class NinePatchDrawable extends Drawable {
     // dithering helps a lot, and is pretty cheap, so default is true
     private static final boolean DEFAULT_DITHER = false;

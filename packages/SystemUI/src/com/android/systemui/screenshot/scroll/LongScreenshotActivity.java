@@ -18,6 +18,7 @@ package com.android.systemui.screenshot.scroll;
 
 import static com.android.systemui.shared.Flags.usePreferredImageEditor;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.ActivityOptions;
 import android.content.ComponentName;
@@ -368,15 +369,7 @@ public class LongScreenshotActivity extends Activity {
                         // Modify intent for shared transition if we're opening a specific editor.
                         intent.removeFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                         intent.removeFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        mTransitionView.setImageBitmap(mOutputBitmap);
-                        mTransitionView.setVisibility(View.VISIBLE);
-                        mTransitionView.setTransitionName(
-                                ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME);
-                        options = ActivityOptions.makeSceneTransitionAnimation(this,
-                                mTransitionView,
-                                ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME).toBundle();
-                        // TODO: listen for transition completing instead of finishing onStop
-                        mTransitionStarted = true;
+                        options = prepareSharedTransition();
                     }
 
                     startActivity(intent, options);
@@ -404,6 +397,35 @@ public class LongScreenshotActivity extends Activity {
                 startActivity(intent, options);
             }
         }
+    }
+
+    private Bundle prepareSharedTransition() {
+        mTransitionView.setImageBitmap(mOutputBitmap);
+        mTransitionView.setVisibility(View.VISIBLE);
+        mTransitionView.setTransitionName(
+                ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME);
+        Bundle options = ActivityOptions.makeSceneTransitionAnimation(this, mTransitionView,
+                ChooserActivity.FIRST_IMAGE_PREVIEW_TRANSITION_NAME).toBundle();
+        fadeOutActionBar();
+        // TODO: listen for transition completing instead of finishing onStop
+        mTransitionStarted = true;
+        return options;
+    }
+
+    private void fadeOutActionBar() {
+        ValueAnimator fade = ValueAnimator.ofFloat(1f, 0f);
+        View save = findViewById(R.id.save);
+        View cancel = findViewById(R.id.cancel);
+        View share = findViewById(R.id.share);
+        View edit = findViewById(R.id.edit);
+        fade.addUpdateListener(animator -> {
+            float alpha = (float) animator.getAnimatedValue();
+            save.setAlpha(alpha);
+            cancel.setAlpha(alpha);
+            share.setAlpha(alpha);
+            edit.setAlpha(alpha);
+        });
+        fade.start();
     }
 
     private void doShare(Uri uri) {

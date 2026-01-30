@@ -20,7 +20,7 @@ import android.view.DragEvent;
 
 /**
  * A callback for notifying the system when the unhandled drop is complete.
- * {@hide}
+ * @hide
  */
 oneway interface IUnhandledDragCallback {
     /**

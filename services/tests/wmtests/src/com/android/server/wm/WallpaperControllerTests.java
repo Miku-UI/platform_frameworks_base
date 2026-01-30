@@ -191,8 +191,7 @@ public class WallpaperControllerTests extends WindowTestsBase {
         dc.mWallpaperController.setWallpaperZoomOut(homeWindow, zoom);
         assertEquals(zoom, wallpaperWindow.mWallpaperZoomOut, .01f);
         verify(wallpaperWindow.mClient)
-                .dispatchWallpaperOffsets(
-                        anyFloat(), anyFloat(), anyFloat(), anyFloat(), eq(zoom), anyBoolean());
+                .dispatchWallpaperOffsets(anyFloat(), anyFloat(), anyFloat(), anyFloat(), eq(zoom));
         verify(wallpaperWindow)
                 .setWallpaperOffset(anyInt(), anyInt(), AdditionalMatchers.eq(zoomScale, .01f));
     }
@@ -223,8 +222,8 @@ public class WallpaperControllerTests extends WindowTestsBase {
         dc.mWallpaperController.setWallpaperZoomOut(homeWindow, newZoom);
         assertEquals(newZoom, wallpaperWindow.mWallpaperZoomOut, .01f);
         assertEquals(1f, wallpaperWindow.mWallpaperScale, .01f);
-        verify(wallpaperWindow.mClient).dispatchWallpaperOffsets(anyFloat(), anyFloat(), anyFloat(),
-                anyFloat(), eq(newZoom), anyBoolean());
+        verify(wallpaperWindow.mClient).dispatchWallpaperOffsets(
+                anyFloat(), anyFloat(), anyFloat(), anyFloat(), eq(newZoom));
         // As the expected scale is .9 with a zoom of .5f and min and max scale of .6 and 1.2,
         // if it's passing a scale of 1 it's not scaling the wallpaper.
         verify(wallpaperWindow).setWallpaperOffset(anyInt(), anyInt(), eq(1f));
@@ -415,8 +414,6 @@ public class WallpaperControllerTests extends WindowTestsBase {
 
     @Test
     public void testWallpaperTokenVisibilityWithTarget() {
-        mSetFlagsRule.enableFlags(
-                com.android.window.flags.Flags.FLAG_ENSURE_WALLPAPER_IN_TRANSITIONS);
         final DisplayContent dc = mDisplayContent;
         final WindowState wallpaperWindow = createWallpaperWindow(dc);
         final WallpaperWindowToken wallpaperToken = wallpaperWindow.mToken.asWallpaperToken();
@@ -485,7 +482,7 @@ public class WallpaperControllerTests extends WindowTestsBase {
         final WindowState wallpaperWindow = createWallpaperWindow(dc, INITIAL_WIDTH,
                 INITIAL_HEIGHT);
 
-        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow, false);
+        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow);
 
         // Wallpaper centering is disabled, so no offset.
         assertThat(wallpaperWindow.mXOffset).isEqualTo(0);
@@ -501,7 +498,7 @@ public class WallpaperControllerTests extends WindowTestsBase {
         final WindowState wallpaperWindow = createWallpaperWindow(dc, INITIAL_WIDTH,
                 INITIAL_HEIGHT);
 
-        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow, false);
+        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow);
 
         // Wallpaper matches first display, so has no offset.
         assertThat(wallpaperWindow.mXOffset).isEqualTo(0);
@@ -518,12 +515,12 @@ public class WallpaperControllerTests extends WindowTestsBase {
         final WindowState wallpaperWindow = createWallpaperWindow(dc, INITIAL_WIDTH,
                 INITIAL_HEIGHT);
 
-        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow, false);
+        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow);
 
         // Resize display to match second display bounds.
         resizeDisplayAndWallpaper(dc, wallpaperWindow, SECOND_WIDTH, INITIAL_HEIGHT);
 
-        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow, false);
+        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow);
 
         // Wallpaper is 300 wider than second display.
         assertThat(wallpaperWindow.mXOffset).isEqualTo(-Math.abs(INITIAL_WIDTH - SECOND_WIDTH) / 2);
@@ -539,12 +536,12 @@ public class WallpaperControllerTests extends WindowTestsBase {
         final WindowState wallpaperWindow = createWallpaperWindow(dc, INITIAL_WIDTH,
                 INITIAL_HEIGHT);
 
-        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow, false);
+        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow);
 
         // Resize display to match second display bounds.
         resizeDisplayAndWallpaper(dc, wallpaperWindow, SECOND_WIDTH, INITIAL_HEIGHT);
 
-        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow, false);
+        dc.mWallpaperController.updateWallpaperOffset(wallpaperWindow);
 
         // Wallpaper is 300 wider than second display, but offset disabled.
         assertThat(wallpaperWindow.mXOffset).isEqualTo(0);

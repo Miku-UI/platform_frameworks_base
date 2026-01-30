@@ -24,7 +24,8 @@ import android.content.Context;
 import android.content.PermissionChecker;
 import android.content.pm.PackageManager;
 import android.permission.PermissionCheckerManager;
-import android.permission.PermissionManager;
+import android.ravenwood.annotation.RavenwoodSupported;
+import android.ravenwood.annotation.RavenwoodSupported.SupportType;
 
 /**
  * PermissionEnforcer check permissions for AIDL-generated services which use
@@ -86,13 +87,13 @@ public class PermissionEnforcer {
     }
 
     /** Constructor, prefer using the fromContext static method when possible */
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = PermissionManager.class,
-            reason = "Use subclass for unit tests, such as FakePermissionEnforcer")
     public PermissionEnforcer(@NonNull Context context) {
         mContext = context;
     }
 
     @PermissionCheckerManager.PermissionResult
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "RavenwoodPermissionEnforcer",
+            comment = "Always returns PERMISSION_GRANTED on Ravenwood")
     protected int checkPermission(@NonNull String permission, @NonNull AttributionSource source) {
         return PermissionChecker.checkPermissionForDataDelivery(
             mContext, permission, PermissionChecker.PID_UNKNOWN, source, "" /* message */);
@@ -100,6 +101,8 @@ public class PermissionEnforcer {
 
     @SuppressWarnings("AndroidFrameworkClientSidePermissionCheck")
     @PermissionCheckerManager.PermissionResult
+    @RavenwoodSupported(type = SupportType.SUBCLASS, subclass = "RavenwoodPermissionEnforcer",
+            comment = "Always returns PERMISSION_GRANTED on Ravenwood")
     protected int checkPermission(@NonNull String permission, int pid, int uid) {
         if (mContext.checkPermission(permission, pid, uid) == PackageManager.PERMISSION_GRANTED) {
             return PermissionCheckerManager.PERMISSION_GRANTED;

@@ -17,6 +17,7 @@ package com.android.server.pm;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProviderInfo;
 import android.content.ComponentName;
 import android.content.Intent;
@@ -25,6 +26,7 @@ import android.content.pm.IPinItemRequest;
 import android.content.pm.LauncherApps;
 import android.content.pm.LauncherApps.PinItemRequest;
 import android.content.pm.ShortcutInfo;
+import android.os.Binder;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.util.Log;
@@ -128,7 +130,7 @@ class ShortcutRequestPinProcessor {
             }
 
             // Pin it and send the result intent.
-            if (tryAccept()) {
+            if (tryAccept(options)) {
                 mProcessor.sendResultIntent(mResultIntent, extras);
                 return true;
             } else {
@@ -136,7 +138,7 @@ class ShortcutRequestPinProcessor {
             }
         }
 
-        protected boolean tryAccept() {
+        protected boolean tryAccept(Bundle options) {
             return true;
         }
     }
@@ -165,6 +167,23 @@ class ShortcutRequestPinProcessor {
         @Override
         public Bundle getExtras() {
             return mExtras;
+        }
+
+        @Override
+        protected boolean tryAccept(Bundle options) {
+            if (options != null) {
+                int widgetId = options.getInt(
+                        AppWidgetManager.EXTRA_APPWIDGET_ID, AppWidgetManager.INVALID_APPWIDGET_ID);
+                final long token = Binder.clearCallingIdentity();
+                try {
+                    AppWidgetManager.getInstance(
+                            mProcessor.mService.mContext).setConfigActivityComplete(widgetId);
+                } finally {
+                    Binder.restoreCallingIdentity(token);
+                }
+
+            }
+            return super.tryAccept(options);
         }
     }
 
@@ -203,7 +222,7 @@ class ShortcutRequestPinProcessor {
         }
 
         @Override
-        protected boolean tryAccept() {
+        protected boolean tryAccept(Bundle options) {
             if (DEBUG) {
                 Slog.d(TAG, "Launcher accepted shortcut. ID=" + shortcutOriginal.getId()
                     + " package=" + shortcutOriginal.getPackage());
@@ -380,7 +399,7 @@ class ShortcutRequestPinProcessor {
         // (Because we can't always force enable it automatically as it may be a stale
         // manifest shortcut.)
         Preconditions.checkArgument(shortcutInfo.isEnabled(),
-                "Shortcut ID=" + shortcutInfo + " already exists but disabled.");
+                "Shortcut ID=%s already exists but disabled.", shortcutInfo);
     }
 
     private boolean startRequestConfirmActivity(ComponentName activity, int launcherUserId,

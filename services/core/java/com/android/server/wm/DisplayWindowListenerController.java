@@ -144,4 +144,38 @@ class DisplayWindowListenerController {
         }
         mDisplayListeners.finishBroadcast();
     }
+
+    void dispatchDisplayAddSystemDecorations(int displayId) {
+        int count = mDisplayListeners.beginBroadcast();
+        for (int i = 0; i < count; ++i) {
+            try {
+                mDisplayListeners.getBroadcastItem(i).onDisplayAddSystemDecorations(displayId);
+            } catch (RemoteException e) {
+            }
+        }
+        mDisplayListeners.finishBroadcast();
+    }
+
+    void dispatchDisplayRemoveSystemDecorations(int displayId) {
+        int count = mDisplayListeners.beginBroadcast();
+        for (int i = 0; i < count; ++i) {
+            try {
+                mDisplayListeners.getBroadcastItem(i).onDisplayRemoveSystemDecorations(displayId);
+            } catch (RemoteException e) {
+            }
+        }
+        mDisplayListeners.finishBroadcast();
+    }
+
+    void dispatchDisplayAnimationsDisabledChanged(int displayId, boolean disabled) {
+        int count = mDisplayListeners.beginBroadcast();
+        for (int i = 0; i < count; ++i) {
+            try {
+                mDisplayListeners.getBroadcastItem(i).onDisplayAnimationsDisabledChanged(displayId,
+                        disabled);
+            } catch (RemoteException e) {
+            }
+        }
+        mDisplayListeners.finishBroadcast();
+    }
 }

@@ -30,6 +30,8 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
+import android.media.AudioAttributes;
+import android.media.Ringtone;
 import android.os.Build;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -42,6 +44,7 @@ import android.text.TextUtils;
 import android.util.ArraySet;
 import android.view.accessibility.AccessibilityManager;
 
+import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
 
 import libcore.util.EmptyArray;
@@ -87,6 +90,21 @@ public final class AccessibilityUtils {
 
     @VisibleForTesting
     public static final String MENU_SERVICE_RELATIVE_CLASS_NAME = ".AccessibilityMenuService";
+
+    /**
+     * The delay time in milliseconds for showing the magnification button.
+     * @hide
+     */
+    public static final long MAGNIFICATION_SHOW_BUTTON_DELAY_MS = 300;
+
+    /**
+     * The interval in milliseconds for throttling UI changes and reduce IPC to show/hide the
+     * magnification mode switch button. It's set to be the same as
+     * {@link #MAGNIFICATION_SHOW_BUTTON_DELAY_MS} so that users won't notice a delay.
+     * @hide
+     */
+    public static final long MAGNIFICATION_HANDLE_UI_CHANGE_INTERVAL_MS =
+            MAGNIFICATION_SHOW_BUTTON_DELAY_MS;
 
     /**
      * {@link ComponentName} for the Accessibility Menu {@link AccessibilityService} as provided
@@ -371,5 +389,35 @@ public final class AccessibilityUtils {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the default value for
+     * {@link android.provider.Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MAGNIFY_NAV_AND_IME}.
+     *
+     * @return The {@link State} whether the default value is on or off.
+     */
+    public static int getMagnificationMagnifyKeyboardDefaultValue(Context context) {
+        return context.getResources().getBoolean(
+                R.bool.config_magnification_magnify_keyboard_default) ? State.ON : State.OFF;
+    }
+
+    /** Play a notification sound if tone isn't null. */
+    public static void playNotificationTone(Context context, Ringtone tone) {
+        // Use USAGE_ASSISTANCE_ACCESSIBILITY for TVs to ensure that TVs play the ringtone as they
+        // have less ways of providing feedback like vibration.
+        final boolean hasFeatureLeanback =
+                context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+        final int audioAttributesUsage =
+                hasFeatureLeanback
+                        ? AudioAttributes.USAGE_ASSISTANCE_ACCESSIBILITY
+                        : AudioAttributes.USAGE_NOTIFICATION_EVENT;
+
+        // Play a notification tone
+        if (tone != null) {
+            tone.setAudioAttributes(
+                    new AudioAttributes.Builder().setUsage(audioAttributesUsage).build());
+            tone.play();
+        }
     }
 }

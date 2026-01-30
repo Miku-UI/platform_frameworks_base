@@ -264,7 +264,7 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
      * Runs a test scenario providing a Robot.
      */
     void runTestScenario(@NonNull Consumer<LetterboxPolicyRobotTest> consumer) {
-        final LetterboxPolicyRobotTest robot = new LetterboxPolicyRobotTest(mWm, mAtm, mSupervisor);
+        final LetterboxPolicyRobotTest robot = new LetterboxPolicyRobotTest(this);
         consumer.accept(robot);
     }
 
@@ -286,10 +286,8 @@ public class AppCompatLetterboxPolicyTest extends WindowTestsBase {
         @Nullable
         private InsetsState mInsetsState;
 
-        LetterboxPolicyRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        LetterboxPolicyRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
             mWindowState = mock(WindowState.class);
         }
 

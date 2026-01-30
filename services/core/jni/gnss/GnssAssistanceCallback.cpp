@@ -32,7 +32,7 @@ using hardware::Void;
 
 void GnssAssistanceCallback_class_init_once(JNIEnv* env, jclass clazz) {
     method_gnssAssistanceInjectRequest =
-            env->GetStaticMethodID(clazz, "gnssAssistanceInjectRequest", "()V");
+            env->GetMethodID(clazz, "gnssAssistanceInjectRequest", "()V");
 }
 
 // Implementation of android::hardware::gnss::gnss_assistance::GnssAssistanceCallback.

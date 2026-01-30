@@ -29,6 +29,7 @@ import java.lang.annotation.RetentionPolicy;
             DeviceSettingType.DEVICE_SETTING_TYPE_MULTI_TOGGLE,
             DeviceSettingType.DEVICE_SETTING_TYPE_FOOTER,
             DeviceSettingType.DEVICE_SETTING_TYPE_HELP,
+            DeviceSettingType.DEVICE_SETTING_TYPE_BANNER,
         },
         open = true)
 public @interface DeviceSettingType {
@@ -46,4 +47,7 @@ public @interface DeviceSettingType {
 
     /** Device setting type is "help" preference. */
     int DEVICE_SETTING_TYPE_HELP = 4;
+
+    /** Device setting type is banner preference. */
+    int DEVICE_SETTING_TYPE_BANNER = 5;
 }

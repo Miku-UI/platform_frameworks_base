@@ -23,16 +23,16 @@ import android.os.UserManager
 import android.provider.Settings.Global.USER_SWITCHER_ENABLED
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.qs.SettingObserver
 import com.android.systemui.qs.footer.data.model.UserSwitcherStatusModel
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.UserInfoController
 import com.android.systemui.statusbar.policy.UserSwitcherController
 import com.android.systemui.util.settings.GlobalSettings
+import com.android.systemui.util.settings.SettingObserver
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
@@ -68,7 +68,9 @@ constructor(
         context.resources.getBoolean(R.bool.qs_show_user_switcher_for_single_user)
 
     private val userSwitchingMustGoThroughLoginScreen =
-        context.resources.getBoolean(R.bool.config_userSwitchingMustGoThroughLoginScreen)
+        context.resources.getBoolean(
+            com.android.internal.R.bool.config_userSwitchingMustGoThroughLoginScreen
+        )
 
     override val isEnabled: Flow<Boolean> = conflatedCallbackFlow {
         suspend fun updateState() {

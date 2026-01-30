@@ -7,6 +7,7 @@ import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.broadcast.FakeBroadcastDispatcher
 import com.android.systemui.broadcast.logging.BroadcastDispatcherLogger
+import com.android.systemui.common.domain.interactor.SysUIStateDisplaysInteractor
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.phone.SystemUIDialogManager
@@ -15,7 +16,7 @@ import org.mockito.Mockito.mock
 
 class SysuiTestDependency(
     val context: SysuiTestableContext,
-    private val shouldFailOnLeakedReceiver: Boolean
+    private val shouldFailOnLeakedReceiver: Boolean,
 ) {
     var fakeBroadcastDispatcher: FakeBroadcastDispatcher? = null
 
@@ -33,6 +34,7 @@ class SysuiTestDependency(
         // is missing (constructing the actual one would throw).
         // TODO(b/219008720): Remove this.
         dependency.injectMockDependency(SystemUIDialogManager::class.java)
+        dependency.injectMockDependency(SysUIStateDisplaysInteractor::class.java)
 
         // TODO(b/292141694): build out Ravenwood support for UI animations
         // Ravenwood doesn't yet provide UI animations, so we sidestep this global configuration
@@ -54,7 +56,7 @@ class SysuiTestDependency(
                 mock(DumpManager::class.java),
                 mock(BroadcastDispatcherLogger::class.java),
                 mock(UserTracker::class.java),
-                shouldFailOnLeakedReceiver
+                shouldFailOnLeakedReceiver,
             )
         dependency.injectTestDependency(BroadcastDispatcher::class.java, fakeBroadcastDispatcher)
         return dependency

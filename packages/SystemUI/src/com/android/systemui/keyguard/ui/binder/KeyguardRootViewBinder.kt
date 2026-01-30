@@ -33,9 +33,6 @@ import android.view.View.VISIBLE
 import android.view.ViewGroup
 import android.view.ViewGroup.OnHierarchyChangeListener
 import android.view.WindowInsets
-import androidx.activity.OnBackPressedDispatcher
-import androidx.activity.OnBackPressedDispatcherOwner
-import androidx.activity.setViewTreeOnBackPressedDispatcherOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
@@ -49,8 +46,8 @@ import com.android.systemui.common.ui.ConfigurationState
 import com.android.systemui.common.ui.view.onApplyWindowInsets
 import com.android.systemui.common.ui.view.onLayoutChanged
 import com.android.systemui.common.ui.view.onTouchListener
-import com.android.systemui.customization.R as customR
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryHapticsInteractor
+import com.android.systemui.initOnBackPressedDispatcherOwner
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.ui.view.layout.sections.AodPromotedNotificationSection
 import com.android.systemui.keyguard.ui.viewmodel.BurnInParameters
@@ -65,6 +62,7 @@ import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.Logger
 import com.android.systemui.log.dagger.KeyguardBlueprintLog
 import com.android.systemui.plugins.FalsingManager
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
@@ -80,7 +78,6 @@ import com.android.systemui.util.ui.AnimatedValue
 import com.android.systemui.util.ui.isAnimating
 import com.android.systemui.util.ui.stopAnimating
 import com.android.systemui.util.ui.value
-import com.android.systemui.wallpapers.ui.viewmodel.WallpaperFocalAreaViewModel
 import com.google.android.msdl.data.model.MSDLToken
 import com.google.android.msdl.domain.MSDLPlayer
 import kotlin.math.min
@@ -110,7 +107,6 @@ object KeyguardRootViewBinder {
         mainImmediateDispatcher: CoroutineDispatcher,
         msdlPlayer: MSDLPlayer?,
         @KeyguardBlueprintLog blueprintLog: LogBuffer,
-        wallpaperFocalAreaViewModel: WallpaperFocalAreaViewModel,
     ): DisposableHandle {
         val disposables = DisposableHandles()
         val childViews = mutableMapOf<Int, View>()
@@ -149,6 +145,40 @@ object KeyguardRootViewBinder {
         disposables +=
             view.repeatWhenAttached(mainImmediateDispatcher) {
                 repeatOnLifecycle(Lifecycle.State.CREATED) {
+                    if (deviceEntryHapticsInteractor != null && vibratorHelper != null) {
+                        launch {
+                            deviceEntryHapticsInteractor.playSuccessHapticOnDeviceEntry.collect {
+                                if (msdlFeedback()) {
+                                    msdlPlayer?.playToken(
+                                        MSDLToken.UNLOCK,
+                                        authInteractionProperties,
+                                    )
+                                } else {
+                                    vibratorHelper.performHapticFeedback(
+                                        view,
+                                        HapticFeedbackConstants.BIOMETRIC_CONFIRM,
+                                    )
+                                }
+                            }
+                        }
+
+                        launch {
+                            deviceEntryHapticsInteractor.playErrorHaptic.collect {
+                                if (msdlFeedback()) {
+                                    msdlPlayer?.playToken(
+                                        MSDLToken.FAILURE,
+                                        authInteractionProperties,
+                                    )
+                                } else {
+                                    vibratorHelper.performHapticFeedback(
+                                        view,
+                                        HapticFeedbackConstants.BIOMETRIC_REJECT,
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     launch("$TAG#topClippingBounds") {
                         val clipBounds = Rect()
                         viewModel.topClippingBounds.collect { clipTop ->
@@ -170,6 +200,18 @@ object KeyguardRootViewBinder {
                         viewModel.alpha(viewState).collect { alpha ->
                             view.alpha = alpha
                             childViews[burnInLayerId]?.alpha = alpha
+                        }
+                    }
+
+                    if (Flags.newDozingKeyguardStates()) {
+                        launch("$TAG#nonAuthUIAlpha") {
+                            viewModel.nonAuthUIAlpha.collect { alpha ->
+                                for (childView in childViews) {
+                                    if (!authUiIds.contains(childView.key)) {
+                                        childView.value.alpha = alpha
+                                    }
+                                }
+                            }
                         }
                     }
 
@@ -229,18 +271,9 @@ object KeyguardRootViewBinder {
             view.repeatWhenAttached {
                 repeatOnLifecycle(Lifecycle.State.CREATED) {
                     if (SceneContainerFlag.isEnabled) {
-                        view.setViewTreeOnBackPressedDispatcherOwner(
-                            object : OnBackPressedDispatcherOwner {
-                                override val onBackPressedDispatcher =
-                                    OnBackPressedDispatcher().apply {
-                                        setOnBackInvokedDispatcher(
-                                            view.viewRootImpl.onBackInvokedDispatcher
-                                        )
-                                    }
-
-                                override val lifecycle: Lifecycle =
-                                    this@repeatWhenAttached.lifecycle
-                            }
+                        view.initOnBackPressedDispatcherOwner(
+                            this@repeatWhenAttached.lifecycle,
+                            force = true,
                         )
                     }
                     launch {
@@ -328,40 +361,6 @@ object KeyguardRootViewBinder {
                     }
 
                     launch { burnInParams.collect { viewModel.updateBurnInParams(it) } }
-
-                    if (deviceEntryHapticsInteractor != null && vibratorHelper != null) {
-                        launch {
-                            deviceEntryHapticsInteractor.playSuccessHapticOnDeviceEntry.collect {
-                                if (msdlFeedback()) {
-                                    msdlPlayer?.playToken(
-                                        MSDLToken.UNLOCK,
-                                        authInteractionProperties,
-                                    )
-                                } else {
-                                    vibratorHelper.performHapticFeedback(
-                                        view,
-                                        HapticFeedbackConstants.BIOMETRIC_CONFIRM,
-                                    )
-                                }
-                            }
-                        }
-
-                        launch {
-                            deviceEntryHapticsInteractor.playErrorHaptic.collect {
-                                if (msdlFeedback()) {
-                                    msdlPlayer?.playToken(
-                                        MSDLToken.FAILURE,
-                                        authInteractionProperties,
-                                    )
-                                } else {
-                                    vibratorHelper.performHapticFeedback(
-                                        view,
-                                        HapticFeedbackConstants.BIOMETRIC_REJECT,
-                                    )
-                                }
-                            }
-                        }
-                    }
                 }
             }
 
@@ -371,19 +370,6 @@ object KeyguardRootViewBinder {
                 translationY = { childViews[burnInLayerId]?.translationY },
             )
         }
-
-        disposables +=
-            view.repeatWhenAttached {
-                repeatOnLifecycle(Lifecycle.State.STARTED) {
-                    if (wallpaperFocalAreaViewModel.hasFocalArea.value) {
-                        launch {
-                            wallpaperFocalAreaViewModel.wallpaperFocalAreaBounds.collect {
-                                wallpaperFocalAreaViewModel.setFocalAreaBounds(it)
-                            }
-                        }
-                    }
-                }
-            }
 
         disposables +=
             view.onLayoutChanged(
@@ -397,12 +383,25 @@ object KeyguardRootViewBinder {
                 )
             )
 
+        // Ensure the view reflects the final state after items are added.
+        fun onViewAdded(id: Int, view: View) {
+            when (id) {
+                aodPromotedNotificationId ->
+                    view.setAodPromotedNotifIsVisible(viewModel.isAodPromotedNotifVisible.value)
+                aodNotificationIconContainerId ->
+                    view.setAodNotifIconContainerIsVisible(
+                        viewModel.isNotifIconContainerVisible.value
+                    )
+            }
+        }
+
         // Views will be added or removed after the call to bind(). This is needed to avoid many
         // calls to findViewById
         view.setOnHierarchyChangeListener(
             object : OnHierarchyChangeListener {
                 override fun onChildViewAdded(parent: View, child: View) {
                     childViews.put(child.id, child)
+                    onViewAdded(child.id, child)
                 }
 
                 override fun onChildViewRemoved(parent: View, child: View) {
@@ -581,17 +580,18 @@ object KeyguardRootViewBinder {
     private val burnInLayerId = R.id.burn_in_layer
     private val aodPromotedNotificationId = AodPromotedNotificationSection.viewId
     private val aodNotificationIconContainerId = R.id.aod_notification_icon_container
-    private val largeClockId = customR.id.lockscreen_clock_view_large
+    private val largeClockId = ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE
     private val largeClockDateId = sharedR.id.date_smartspace_view_large
     private val largeClockWeatherId = sharedR.id.weather_smartspace_view_large
     private val bcSmartspaceId = sharedR.id.bc_smartspace_view
-    private val smallClockId = customR.id.lockscreen_clock_view
+    private val smallClockId = ClockViewIds.LOCKSCREEN_CLOCK_VIEW_SMALL
     private val indicationArea = R.id.keyguard_indication_area
     private val startButton = R.id.start_button
     private val endButton = R.id.end_button
     private val deviceEntryIcon = R.id.device_entry_icon_view
     private val nsslPlaceholderId = R.id.nssl_placeholder
     private val authInteractionProperties = AuthInteractionProperties()
+    private val authUiIds = setOf(deviceEntryIcon, indicationArea)
 
     private const val ID = "occluding_app_device_entry_unlock_msg"
     private const val AOD_ICONS_APPEAR_DURATION: Long = 200

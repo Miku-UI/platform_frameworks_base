@@ -22,8 +22,10 @@ import android.provider.Settings
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.android.internal.logging.UiEventLogger
+import com.android.systemui.compose.modifiers.sysUiResTagContainer
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
@@ -118,7 +120,8 @@ constructor(
 
                 val coroutineScope = rememberCoroutineScope()
                 VolumePanelRoot(
-                    remember(coroutineScope) { viewModelFactory.create(coroutineScope) }
+                    remember(coroutineScope) { viewModelFactory.create(coroutineScope) },
+                    Modifier.sysUiResTagContainer(),
                 )
             },
             isDraggable = false,

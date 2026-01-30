@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.night.ui.mapper
 
 import android.content.res.Resources
-import android.service.quicksettings.Tile
 import android.text.TextUtils
 import androidx.annotation.StringRes
 import com.android.systemui.accessibility.qs.QSAccessibilityModule
@@ -84,9 +83,7 @@ constructor(
                 }
             }
             is NightDisplayTileModel.AutoModeOff -> {
-                val subtitleArray = resources.getStringArray(R.array.tile_states_night)
-                return subtitleArray[
-                    if (data.isActivated) Tile.STATE_ACTIVE else Tile.STATE_INACTIVE]
+                return null
             }
             is NightDisplayTileModel.AutoModeCustom -> {
                 // User-specified time, approximated to the nearest hour.

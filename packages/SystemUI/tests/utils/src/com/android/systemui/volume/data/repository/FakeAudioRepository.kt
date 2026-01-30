@@ -58,10 +58,6 @@ class FakeAudioRepository : AudioRepository {
     val isVolumeControllerVisible: StateFlow<Boolean>
         get() = mutableIsVolumeControllerVisible.asStateFlow()
 
-    private var mutableIsInitialized: Boolean = false
-    val isInitialized: Boolean
-        get() = mutableIsInitialized
-
     private val _dispatchedKeyEvents = mutableListOf<KeyEvent>()
 
     val dispatchedKeyEvents: List<KeyEvent>
@@ -70,10 +66,6 @@ class FakeAudioRepository : AudioRepository {
             _dispatchedKeyEvents.clear()
             return currentValue
         }
-
-    override fun init() {
-        mutableIsInitialized = true
-    }
 
     private fun getAudioStreamModelState(
         audioStream: AudioStream
@@ -145,15 +137,11 @@ class FakeAudioRepository : AudioRepository {
     }
 
     suspend fun sendVolumeControllerEvent(event: VolumeControllerEvent) {
-        if (isInitialized) {
-            mutableVolumeControllerEvents.emit(event)
-        }
+        mutableVolumeControllerEvents.emit(event)
     }
 
     override suspend fun notifyVolumeControllerVisible(isVisible: Boolean) {
-        if (isInitialized) {
-            mutableIsVolumeControllerVisible.value = isVisible
-        }
+        mutableIsVolumeControllerVisible.value = isVisible
     }
 
     override fun dispatchMediaKeyEvent(event: KeyEvent) {

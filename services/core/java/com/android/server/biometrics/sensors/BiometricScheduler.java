@@ -314,8 +314,11 @@ public class BiometricScheduler<T, U> {
 
         final int currentUserId = mCurrentUserRetriever.get();
         final int nextUserId = mPendingOperations.getFirst().getTargetUserId();
+        final boolean shouldStartNextOperationIfMarkedCancelling =
+                mPendingOperations.getFirst().isMarkedCanceling();
 
-        if (nextUserId == currentUserId || mPendingOperations.getFirst().isStartUserOperation()) {
+        if (nextUserId == currentUserId || mPendingOperations.getFirst().isStartUserOperation()
+                || shouldStartNextOperationIfMarkedCancelling) {
             startNextOperationIfIdle();
         } else if (currentUserId == UserHandle.USER_NULL && mUserSwitchProvider != null) {
             final BaseClientMonitor startClient =

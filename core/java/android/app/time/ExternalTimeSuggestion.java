@@ -114,7 +114,7 @@ public final class ExternalTimeSuggestion implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     @NonNull
     public UnixEpochTime getUnixEpochTime() {

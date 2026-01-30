@@ -33,7 +33,7 @@ public class MonotonicSpline {
      * @param time the point along the curve
      * @param y the parameter at those points
      */
-    public MonotonicSpline(@Nullable float[] time, @NonNull float[] y) {
+    public MonotonicSpline(@Nullable float [] time, @NonNull float [] y) {
         if (time == null) { // if time  is null assume even 0 to 1;
             time = new float[y.length];
             for (int i = 0; i < time.length; i++) {
@@ -81,7 +81,7 @@ public class MonotonicSpline {
      *
      * @return the value points
      */
-    public float[] getArray() {
+    public @Nullable float [] getArray() {
         return mY;
     }
 
@@ -177,7 +177,7 @@ public class MonotonicSpline {
      *
      * @return the time points
      */
-    public float[] getTimePoints() {
+    public @Nullable float [] getTimePoints() {
         return mT;
     }
 

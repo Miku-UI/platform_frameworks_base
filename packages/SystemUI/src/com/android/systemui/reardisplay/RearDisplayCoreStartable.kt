@@ -20,6 +20,7 @@ import android.content.Context
 import android.hardware.devicestate.DeviceStateManager
 import android.hardware.devicestate.feature.flags.Flags
 import android.os.Handler
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityManager
 import androidx.annotation.VisibleForTesting
 import com.android.keyguard.KeyguardUpdateMonitor
@@ -29,6 +30,9 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.display.domain.interactor.RearDisplayStateInteractor
+import com.android.systemui.log.LogBuffer
+import com.android.systemui.log.core.LogLevel
+import com.android.systemui.log.dagger.RearDisplayLog
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -58,6 +62,7 @@ internal constructor(
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
     private val accessibilityManager: AccessibilityManager,
     @Background private val handler: Handler,
+    @RearDisplayLog private val buffer: LogBuffer,
 ) : CoreStartable, AutoCloseable {
 
     companion object {
@@ -113,7 +118,16 @@ internal constructor(
                                                 deviceStateManager::cancelStateRequest,
                                                 touchExplorationEnabled.get(),
                                             )
-                                        dialog = delegate.createDialog().apply { show() }
+                                        try {
+                                            dialog = delegate.createDialog().apply { show() }
+                                        } catch (e: WindowManager.InvalidDisplayException) {
+                                            buffer.log(
+                                                TAG,
+                                                LogLevel.ERROR,
+                                                "Rear display provided was unavailable",
+                                                e,
+                                            )
+                                        }
                                     }
                                 }
 

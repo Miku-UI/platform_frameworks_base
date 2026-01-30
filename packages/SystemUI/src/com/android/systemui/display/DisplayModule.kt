@@ -18,26 +18,34 @@ package com.android.systemui.display
 
 import android.hardware.display.DisplayManager
 import android.os.Handler
+import android.view.Display
+import android.view.IWindowManager
 import com.android.app.displaylib.DisplayLibBackground
 import com.android.app.displaylib.DisplayLibComponent
+import com.android.app.displaylib.DisplaysWithDecorationsRepository
+import com.android.app.displaylib.DisplaysWithDecorationsRepositoryCompat
 import com.android.app.displaylib.PerDisplayRepository
 import com.android.app.displaylib.createDisplayLibComponent
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayLib
 import com.android.systemui.display.data.repository.DeviceStateRepository
 import com.android.systemui.display.data.repository.DeviceStateRepositoryImpl
 import com.android.systemui.display.data.repository.DisplayRepository
 import com.android.systemui.display.data.repository.DisplayRepositoryImpl
 import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepository
 import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepositoryImpl
-import com.android.systemui.display.data.repository.DisplaysWithDecorationsRepository
 import com.android.systemui.display.data.repository.DisplaysWithDecorationsRepositoryImpl
 import com.android.systemui.display.data.repository.FocusedDisplayRepository
 import com.android.systemui.display.data.repository.FocusedDisplayRepositoryImpl
+import com.android.systemui.display.data.repository.KioskModeRepository
+import com.android.systemui.display.data.repository.KioskModeRepositoryImpl
 import com.android.systemui.display.data.repository.PerDisplayRepoDumpHelper
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractor
 import com.android.systemui.display.domain.interactor.ConnectedDisplayInteractorImpl
+import com.android.systemui.display.domain.interactor.DisplayStateInteractor
 import com.android.systemui.display.domain.interactor.DisplayWindowPropertiesInteractorModule
 import com.android.systemui.display.domain.interactor.RearDisplayStateInteractor
 import com.android.systemui.display.domain.interactor.RearDisplayStateInteractorImpl
@@ -72,6 +80,9 @@ interface DisplayModule {
     ): DeviceStateRepository
 
     @Binds
+    fun bindsKioskModeRepository(kioskModeRepository: KioskModeRepositoryImpl): KioskModeRepository
+
+    @Binds
     fun bindsFocusedDisplayRepository(
         focusedDisplayRepository: FocusedDisplayRepositoryImpl
     ): FocusedDisplayRepository
@@ -95,6 +106,13 @@ interface DisplayModule {
 
     companion object {
         @Provides
+        fun displayStateInteractor(
+            displayComponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>
+        ): DisplayStateInteractor {
+            return displayComponentRepo[Display.DEFAULT_DISPLAY]!!.displayStateInteractor
+        }
+
+        @Provides
         @SysUISingleton
         @IntoMap
         @ClassKey(DisplayWindowPropertiesRepository::class)
@@ -117,12 +135,14 @@ object DisplayLibModule {
     @SysUISingleton
     fun displayLibComponent(
         displayManager: DisplayManager,
+        windowManager: IWindowManager,
         @Background backgroundHandler: Handler,
         @Background bgApplicationScope: CoroutineScope,
         @Background backgroundCoroutineDispatcher: CoroutineDispatcher,
     ): DisplayLibComponent {
         return createDisplayLibComponent(
             displayManager,
+            windowManager,
             backgroundHandler,
             bgApplicationScope,
             backgroundCoroutineDispatcher,
@@ -135,5 +155,22 @@ object DisplayLibModule {
         displayLibComponent: DisplayLibComponent
     ): com.android.app.displaylib.DisplayRepository {
         return displayLibComponent.displayRepository
+    }
+
+    @Provides
+    @SysUISingleton
+    @DisplayLib
+    fun providesDisplaysWithDecorationsRepositoryFromLib(
+        displayLibComponent: DisplayLibComponent
+    ): DisplaysWithDecorationsRepository {
+        return displayLibComponent.displaysWithDecorationsRepository
+    }
+
+    @Provides
+    @SysUISingleton
+    fun providesDisplaysWithDecorationsRepositoryCompatFromLib(
+        displayLibComponent: DisplayLibComponent
+    ): DisplaysWithDecorationsRepositoryCompat {
+        return displayLibComponent.displaysWithDecorationsRepositoryCompat
     }
 }

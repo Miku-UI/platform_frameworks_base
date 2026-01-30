@@ -15,37 +15,15 @@
  */
 package com.android.settingslib.media;
 
-import static android.media.MediaRoute2Info.TYPE_AUX_LINE;
-import static android.media.MediaRoute2Info.TYPE_BLE_HEADSET;
-import static android.media.MediaRoute2Info.TYPE_BLUETOOTH_A2DP;
-import static android.media.MediaRoute2Info.TYPE_BUILTIN_SPEAKER;
-import static android.media.MediaRoute2Info.TYPE_DOCK;
-import static android.media.MediaRoute2Info.TYPE_GROUP;
-import static android.media.MediaRoute2Info.TYPE_HDMI;
-import static android.media.MediaRoute2Info.TYPE_HDMI_ARC;
-import static android.media.MediaRoute2Info.TYPE_HDMI_EARC;
-import static android.media.MediaRoute2Info.TYPE_HEARING_AID;
-import static android.media.MediaRoute2Info.TYPE_LINE_ANALOG;
-import static android.media.MediaRoute2Info.TYPE_LINE_DIGITAL;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_AUDIO_VIDEO_RECEIVER;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_CAR;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_COMPUTER;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_GAME_CONSOLE;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_SMARTPHONE;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_SMARTWATCH;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_SPEAKER;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_TABLET;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_TABLET_DOCKED;
-import static android.media.MediaRoute2Info.TYPE_REMOTE_TV;
-import static android.media.MediaRoute2Info.TYPE_UNKNOWN;
-import static android.media.MediaRoute2Info.TYPE_USB_ACCESSORY;
-import static android.media.MediaRoute2Info.TYPE_USB_DEVICE;
-import static android.media.MediaRoute2Info.TYPE_USB_HEADSET;
-import static android.media.MediaRoute2Info.TYPE_WIRED_HEADPHONES;
-import static android.media.MediaRoute2Info.TYPE_WIRED_HEADSET;
+import static android.media.MediaRoute2Info.CONNECTION_STATE_CONNECTING;
 import static android.media.session.MediaController.PlaybackInfo;
 
+import static com.android.settingslib.media.LocalMediaManager.MediaDeviceState.STATE_CONNECTING;
 import static com.android.settingslib.media.LocalMediaManager.MediaDeviceState.STATE_SELECTED;
+import static com.android.settingslib.media.MediaDeviceUtilKt.isBluetoothMediaDevice;
+import static com.android.settingslib.media.MediaDeviceUtilKt.isComplexMediaDevice;
+import static com.android.settingslib.media.MediaDeviceUtilKt.isInfoMediaDevice;
+import static com.android.settingslib.media.MediaDeviceUtilKt.isPhoneMediaDevice;
 
 import android.annotation.TargetApi;
 import android.bluetooth.BluetoothAdapter;
@@ -54,10 +32,14 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.media.MediaRoute2Info;
 import android.media.RouteListingPreference;
+import android.media.RoutingChangeInfo;
 import android.media.RoutingSessionInfo;
+import android.media.SuggestedDeviceInfo;
 import android.media.session.MediaController;
 import android.media.session.MediaSession;
 import android.os.Build;
+import android.os.Handler;
+import android.os.HandlerThread;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -67,22 +49,24 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.settingslib.bluetooth.CachedBluetoothDevice;
 import com.android.settingslib.bluetooth.LocalBluetoothManager;
-import com.android.settingslib.media.flags.Flags;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -124,6 +108,15 @@ public abstract class InfoMediaManager {
          *     android.media.MediaRoute2ProviderService#REASON_INVALID_COMMAND},
          */
         void onRequestFailed(int reason);
+
+        /**
+         * Callback for changes to the suggested device list.
+         *
+         * @param deviceSuggestions the list of suggested devices.
+         */
+        default void onDeviceSuggestionsUpdated(
+                @NonNull List<SuggestedDeviceInfo> deviceSuggestions) {
+        }
     }
 
     /** Checked exception that signals the specified package is not present in the system. */
@@ -135,19 +128,25 @@ public abstract class InfoMediaManager {
 
     private static final String TAG = "InfoMediaManager";
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
-    protected final List<MediaDevice> mMediaDevices = new CopyOnWriteArrayList<>();
+    protected final Object mLock = new Object();
+    @GuardedBy("mLock")
+    protected final List<MediaDevice> mMediaDevices = new ArrayList<>();
     @NonNull protected final Context mContext;
     @NonNull protected final String mPackageName;
     @NonNull protected final UserHandle mUserHandle;
-    private final Collection<MediaDeviceCallback> mCallbacks = new CopyOnWriteArrayList<>();
+    private final Set<MediaDeviceCallback> mCallbacks = new CopyOnWriteArraySet<>();
+    @GuardedBy("mLock")
     private MediaDevice mCurrentConnectedDevice;
     private MediaController mMediaController;
     private PlaybackInfo mLastKnownPlaybackInfo;
     private final LocalBluetoothManager mBluetoothManager;
-    private final Map<String, RouteListingPreference.Item> mPreferenceItemMap =
-            new ConcurrentHashMap<>();
+    @GuardedBy("mLock")
+    private final Map<String, List<SuggestedDeviceInfo>> mSuggestedDeviceMap = new HashMap<>();
 
     private final MediaController.Callback mMediaControllerCallback = new MediaControllerCallback();
+
+    @GuardedBy("mLock")
+    @Nullable private HandlerThread mCallbackHandlerThread;
 
     /* package */ InfoMediaManager(
             @NonNull Context context,
@@ -184,7 +183,7 @@ public abstract class InfoMediaManager {
             @Nullable MediaSession.Token token) {
         MediaController mediaController = null;
 
-        if (Flags.usePlaybackInfoForRoutingControls() && token != null) {
+        if (token != null) {
             mediaController = new MediaController(context, token);
         }
 
@@ -199,36 +198,24 @@ public abstract class InfoMediaManager {
             userHandle = android.os.Process.myUserHandle();
         }
 
-        if (Flags.useMediaRouter2ForInfoMediaManager()) {
-            try {
-                return new RouterInfoMediaManager(
-                        context, packageName, userHandle, localBluetoothManager, mediaController);
-            } catch (PackageNotAvailableException ex) {
-                // TODO: b/293578081 - Propagate this exception to callers for proper handling.
-                Log.w(TAG, "Returning a no-op InfoMediaManager for package " + packageName);
-                return new NoOpInfoMediaManager(
-                        context, packageName, userHandle, localBluetoothManager, mediaController);
-            }
-        } else {
-            return new ManagerInfoMediaManager(
+        try {
+            return new RouterInfoMediaManager(
+                    context, packageName, userHandle, localBluetoothManager, mediaController);
+        } catch (PackageNotAvailableException ex) {
+            // TODO: b/293578081 - Propagate this exception to callers for proper handling.
+            Log.w(TAG, "Returning a no-op InfoMediaManager for package " + packageName);
+            return new NoOpInfoMediaManager(
                     context, packageName, userHandle, localBluetoothManager, mediaController);
         }
     }
 
     public void startScan() {
+        Log.i(TAG, "startScan()");
         startScanOnRouter();
     }
 
-    private void updateRouteListingPreference() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            RouteListingPreference routeListingPreference =
-                    getRouteListingPreference();
-            Api34Impl.onRouteListingPreferenceUpdated(routeListingPreference,
-                    mPreferenceItemMap);
-        }
-    }
-
     public final void stopScan() {
+        Log.i(TAG, "stopScan()");
         stopScanOnRouter();
     }
 
@@ -236,17 +223,22 @@ public abstract class InfoMediaManager {
 
     protected abstract void startScanOnRouter();
 
-    protected abstract void registerRouter();
+    protected abstract void registerRouter(Executor executor);
 
     protected abstract void unregisterRouter();
 
-    protected abstract void transferToRoute(@NonNull MediaRoute2Info route);
+    protected abstract void transferToRoute(
+            @NonNull MediaRoute2Info route, @NonNull RoutingChangeInfo routingChangeInfo);
 
     protected abstract void selectRoute(
-            @NonNull MediaRoute2Info route, @NonNull RoutingSessionInfo info);
+            @NonNull MediaRoute2Info route,
+            @NonNull RoutingSessionInfo info,
+            @NonNull RoutingChangeInfo routingChangeInfo);
 
     protected abstract void deselectRoute(
-            @NonNull MediaRoute2Info route, @NonNull RoutingSessionInfo info);
+            @NonNull MediaRoute2Info route,
+            @NonNull RoutingSessionInfo info,
+            @NonNull RoutingChangeInfo routingChangeInfo);
 
     protected abstract void releaseSession(@NonNull RoutingSessionInfo sessionInfo);
 
@@ -297,27 +289,46 @@ public abstract class InfoMediaManager {
 
     protected final void rebuildDeviceList() {
         buildAvailableRoutes();
+        updateMediaDevicesSuggestionState();
     }
 
     protected final void notifyCurrentConnectedDeviceChanged() {
-        final String id = mCurrentConnectedDevice != null ? mCurrentConnectedDevice.getId() : null;
+        MediaDevice device = getCurrentConnectedDevice();
+        final String id = device != null ? device.getId() : null;
         dispatchConnectedDeviceChanged(id);
     }
 
     @RequiresApi(34)
     protected final void notifyRouteListingPreferenceUpdated(
             RouteListingPreference routeListingPreference) {
-        Api34Impl.onRouteListingPreferenceUpdated(routeListingPreference, mPreferenceItemMap);
-    }
-
-    protected final MediaDevice findMediaDevice(@NonNull String id) {
-        for (MediaDevice mediaDevice : mMediaDevices) {
-            if (mediaDevice.getId().equals(id)) {
-                return mediaDevice;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (DEBUG) {
+                if (routeListingPreference != null) {
+                    Log.d(TAG, "RouteListingPreference. useSystemOrder = "
+                            + routeListingPreference.getUseSystemOrdering());
+                    for (RouteListingPreference.Item rlpItem : routeListingPreference.getItems()) {
+                        Log.d(TAG, rlpItem.toString());
+                    }
+                }
             }
         }
-        Log.e(TAG, "findMediaDevice() can't find device with id: " + id);
-        return null;
+        // TODO: b/435500030 - update the device list whenever RLP changes.
+    }
+
+    @VisibleForTesting
+    @Nullable
+    protected final MediaDevice findMediaDevice(@NonNull String id) {
+        return getMediaDevices().stream()
+                .filter(device -> device.getId().equals(id))
+                .findFirst()
+                .orElse(null);
+    }
+
+    @NonNull
+    private List<MediaDevice> getMediaDevices() {
+        synchronized (mLock) {
+            return new ArrayList<>(mMediaDevices);
+        }
     }
 
     /**
@@ -330,18 +341,26 @@ public abstract class InfoMediaManager {
      * updates.
      */
     public final void registerCallback(@NonNull MediaDeviceCallback callback) {
-        boolean wasEmpty = mCallbacks.isEmpty();
-        if (!mCallbacks.contains(callback)) {
+        boolean firstCallbackAdded;
+        Handler callbackHandler = null;
+
+        synchronized (mLock) {
+            firstCallbackAdded = mCallbacks.isEmpty();
             mCallbacks.add(callback);
-            if (wasEmpty) {
+            if (firstCallbackAdded) {
                 mMediaDevices.clear();
-                registerRouter();
-                if (mMediaController != null) {
-                    mMediaController.registerCallback(mMediaControllerCallback);
-                }
-                updateRouteListingPreference();
-                refreshDevices();
+                mCallbackHandlerThread = new HandlerThread("callbackHandlerThread");
+                mCallbackHandlerThread.start();
+                callbackHandler = new Handler(mCallbackHandlerThread.getLooper());
             }
+        }
+
+        if (firstCallbackAdded) {
+            registerRouter(callbackHandler::post);
+            if (mMediaController != null) {
+                mMediaController.registerCallback(mMediaControllerCallback, callbackHandler);
+            }
+            refreshDevices();
         }
     }
 
@@ -351,7 +370,22 @@ public abstract class InfoMediaManager {
      * @see #registerCallback(MediaDeviceCallback)
      */
     public final void unregisterCallback(@NonNull MediaDeviceCallback callback) {
-        if (mCallbacks.remove(callback) && mCallbacks.isEmpty()) {
+        boolean lastCallbackRemoved;
+        HandlerThread callbackThread = null;
+
+        synchronized (mLock) {
+            mCallbacks.remove(callback);
+            lastCallbackRemoved = mCallbacks.isEmpty();
+            if (lastCallbackRemoved && mCallbackHandlerThread != null) {
+                callbackThread = mCallbackHandlerThread;
+                mCallbackHandlerThread = null;
+            }
+        }
+
+        if (lastCallbackRemoved) {
+            if (callbackThread != null) {
+                callbackThread.quitSafely();
+            }
             if (mMediaController != null) {
                 mMediaController.unregisterCallback(mMediaControllerCallback);
             }
@@ -360,25 +394,29 @@ public abstract class InfoMediaManager {
     }
 
     private void dispatchDeviceListAdded(@NonNull List<MediaDevice> devices) {
-        for (MediaDeviceCallback callback : getCallbacks()) {
+        Log.i(TAG, "dispatchDeviceListAdded()");
+        if (DEBUG) {
+            for (MediaDevice device : devices) {
+                Log.d(TAG, device.toString());
+            }
+        }
+        for (MediaDeviceCallback callback : mCallbacks) {
             callback.onDeviceListAdded(new ArrayList<>(devices));
         }
     }
 
     private void dispatchConnectedDeviceChanged(String id) {
-        for (MediaDeviceCallback callback : getCallbacks()) {
+        Log.i(TAG, "dispatchConnectedDeviceChanged(), id = " + id);
+        for (MediaDeviceCallback callback : mCallbacks) {
             callback.onConnectedDeviceChanged(id);
         }
     }
 
     protected void dispatchOnRequestFailed(int reason) {
-        for (MediaDeviceCallback callback : getCallbacks()) {
+        Log.i(TAG, "dispatchOnRequestFailed(), reason = " + reason);
+        for (MediaDeviceCallback callback : mCallbacks) {
             callback.onRequestFailed(reason);
         }
-    }
-
-    private Collection<MediaDeviceCallback> getCallbacks() {
-        return new CopyOnWriteArrayList<>(mCallbacks);
     }
 
     /**
@@ -386,26 +424,31 @@ public abstract class InfoMediaManager {
      * @return MediaDevice
      */
     MediaDevice getCurrentConnectedDevice() {
-        return mCurrentConnectedDevice;
+        synchronized (mLock) {
+            return mCurrentConnectedDevice;
+        }
     }
 
-    /* package */ void connectToDevice(MediaDevice device) {
+    /* package */ void connectToDevice(MediaDevice device, RoutingChangeInfo routingChangeInfo) {
+        Log.i(TAG, "connectToDevice(), device = " + device.getName() + "/" + device.getId());
         if (device.mRouteInfo == null) {
             Log.w(TAG, "Unable to connect. RouteInfo is empty");
             return;
         }
 
         device.setConnectedRecord();
-        transferToRoute(device.mRouteInfo);
+        transferToRoute(device.mRouteInfo, routingChangeInfo);
     }
 
     /**
      * Add a MediaDevice to let it play current media.
      *
      * @param device MediaDevice
+     * @param routingChangeInfo the invocation details of the media routing change.
      * @return If add device successful return {@code true}, otherwise return {@code false}
      */
-    boolean addDeviceToPlayMedia(MediaDevice device) {
+    boolean addDeviceToPlayMedia(MediaDevice device, RoutingChangeInfo routingChangeInfo) {
+        Log.i(TAG, "addDeviceToPlayMedia(), device = " + device.getName() + "/" + device.getId());
         final RoutingSessionInfo info = getActiveRoutingSession();
         if (!info.getSelectableRoutes().contains(device.mRouteInfo.getId())) {
             Log.w(TAG, "addDeviceToPlayMedia() Ignoring selecting a non-selectable device : "
@@ -413,7 +456,7 @@ public abstract class InfoMediaManager {
             return false;
         }
 
-        selectRoute(device.mRouteInfo, info);
+        selectRoute(device.mRouteInfo, info, routingChangeInfo);
         return true;
     }
 
@@ -424,7 +467,7 @@ public abstract class InfoMediaManager {
         RoutingSessionInfo activeSession = sessions.get(sessions.size() - 1);
 
         // Logic from MediaRouter2Manager#getRoutingSessionForMediaController
-        if (!Flags.usePlaybackInfoForRoutingControls() || mMediaController == null) {
+        if (mMediaController == null) {
             return activeSession;
         }
 
@@ -483,9 +526,12 @@ public abstract class InfoMediaManager {
      * Remove a {@code device} from current media.
      *
      * @param device MediaDevice
+     * @param routingChangeInfo the invocation details of the media routing change.
      * @return If device stop successful return {@code true}, otherwise return {@code false}
      */
-    boolean removeDeviceFromPlayMedia(MediaDevice device) {
+    boolean removeDeviceFromPlayMedia(MediaDevice device, RoutingChangeInfo routingChangeInfo) {
+        Log.i(TAG,
+                "removeDeviceFromPlayMedia(), device = " + device.getName() + "/" + device.getId());
         final RoutingSessionInfo info = getActiveRoutingSession();
         if (!info.getSelectedRoutes().contains(device.mRouteInfo.getId())) {
             Log.w(TAG, "removeDeviceFromMedia() Ignoring deselecting a non-deselectable device : "
@@ -493,8 +539,18 @@ public abstract class InfoMediaManager {
             return false;
         }
 
-        deselectRoute(device.mRouteInfo, info);
+        deselectRoute(device.mRouteInfo, info, routingChangeInfo);
         return true;
+    }
+
+    /**
+     * Get the current active session's release type.
+     *
+     * @return the release type of the current active session
+     */
+    @RoutingSessionInfo.ReleaseType
+    int getSessionReleaseType() {
+        return getActiveRoutingSession().getReleaseType();
     }
 
     /**
@@ -505,75 +561,9 @@ public abstract class InfoMediaManager {
         return true;
     }
 
-    /**
-     * Returns the list of {@link MediaDevice media devices} that can be added to the current {@link
-     * RoutingSessionInfo routing session}.
-     */
-    @NonNull
-    List<MediaDevice> getSelectableMediaDevices() {
-        final RoutingSessionInfo info = getActiveRoutingSession();
-
-        final List<MediaDevice> deviceList = new ArrayList<>();
-        for (MediaRoute2Info route : getSelectableRoutes(info)) {
-            deviceList.add(
-                    new InfoMediaDevice(
-                            mContext, route, mPreferenceItemMap.get(route.getId())));
-        }
-        return deviceList;
-    }
-
-    /**
-     * Returns the list of {@link MediaDevice media devices} that can be transferred to with the
-     * current {@link RoutingSessionInfo routing session} by the media route provider.
-     */
-    @NonNull
-    List<MediaDevice> getTransferableMediaDevices() {
-        final RoutingSessionInfo info = getActiveRoutingSession();
-
-        final List<MediaDevice> deviceList = new ArrayList<>();
-        for (MediaRoute2Info route : getTransferableRoutes(info)) {
-            deviceList.add(
-                    new InfoMediaDevice(mContext, route, mPreferenceItemMap.get(route.getId())));
-        }
-        return deviceList;
-    }
-
-    /**
-     * Returns the list of {@link MediaDevice media devices} that can be deselected from the current
-     * {@link RoutingSessionInfo routing session}.
-     */
-    @NonNull
-    List<MediaDevice> getDeselectableMediaDevices() {
-        final RoutingSessionInfo info = getActiveRoutingSession();
-
-        final List<MediaDevice> deviceList = new ArrayList<>();
-        for (MediaRoute2Info route : getDeselectableRoutes(info)) {
-            deviceList.add(
-                    new InfoMediaDevice(
-                            mContext, route, mPreferenceItemMap.get(route.getId())));
-            Log.d(TAG, route.getName() + " is deselectable for " + mPackageName);
-        }
-        return deviceList;
-    }
-
-    /**
-     * Returns the list of {@link MediaDevice media devices} that are selected in the current {@link
-     * RoutingSessionInfo routing session}.
-     */
-    @NonNull
-    List<MediaDevice> getSelectedMediaDevices() {
-        RoutingSessionInfo info = getActiveRoutingSession();
-
-        final List<MediaDevice> deviceList = new ArrayList<>();
-        for (MediaRoute2Info route : getSelectedRoutes(info)) {
-            deviceList.add(
-                    new InfoMediaDevice(
-                            mContext, route, mPreferenceItemMap.get(route.getId())));
-        }
-        return deviceList;
-    }
-
     /* package */ void adjustDeviceVolume(MediaDevice device, int volume) {
+        Log.i(TAG, "adjustDeviceVolume(), device = " + device.getName() + "/" + device.getId()
+                + " volume = " + volume);
         if (device.mRouteInfo == null) {
             Log.w(TAG, "Unable to set volume. RouteInfo is empty");
             return;
@@ -623,39 +613,140 @@ public abstract class InfoMediaManager {
         return getActiveRoutingSession().getName();
     }
 
+    /** Requests a suggestion from other routers. */
+    public abstract void requestDeviceSuggestion();
+
     @TargetApi(Build.VERSION_CODES.R)
     boolean shouldEnableVolumeSeekBar(RoutingSessionInfo sessionInfo) {
         return sessionInfo.isSystemSession() // System sessions are not remote
                 || sessionInfo.getVolumeHandling() != MediaRoute2Info.PLAYBACK_VOLUME_FIXED;
     }
 
-    protected final synchronized void refreshDevices() {
+    protected void notifyDeviceSuggestionUpdated(
+            String suggestingPackageName, @Nullable List<SuggestedDeviceInfo> suggestions) {
+        if (!com.android.media.flags.Flags.enableSuggestedDeviceApi()) {
+            return;
+        }
+        synchronized (mLock) {
+            if (suggestions == null) {
+                mSuggestedDeviceMap.remove(suggestingPackageName);
+            } else {
+                mSuggestedDeviceMap.put(suggestingPackageName, suggestions);
+            }
+        }
+        if (updateMediaDevicesSuggestionState()) {
+            dispatchDeviceListAdded(getMediaDevices());
+        }
+        dispatchOnDeviceSuggestionsUpdated();
+    }
+
+    private void dispatchOnDeviceSuggestionsUpdated() {
+        Log.i(TAG, "dispatchDeviceSuggestionsUpdated()");
+        for (MediaDeviceCallback callback : mCallbacks) {
+            callback.onDeviceSuggestionsUpdated(getSuggestions());
+        }
+    }
+
+    /**
+     * Gets the list of suggested devices.
+     *
+     * @return the list of suggested devices.
+     */
+    @NonNull
+    /* package */ List<SuggestedDeviceInfo> getSuggestions() {
+        return getSuggestionsWithPackage().getValue();
+    }
+
+    @NonNull
+    private Map.Entry<String, List<SuggestedDeviceInfo>> getSuggestionsWithPackage() {
+        // Give suggestions in the following order
+        // 1. Suggestions from the local router
+        // 2. Suggestions from the proxy router if only one proxy router is providing suggestions
+        // 3. No suggestion at all if multiple proxy routers are providing suggestions.
+        synchronized (mLock) {
+            List<SuggestedDeviceInfo> suggestions = mSuggestedDeviceMap.get(mPackageName);
+            if (suggestions != null) {
+                return new AbstractMap.SimpleEntry<>(mPackageName, suggestions);
+            } else if (mSuggestedDeviceMap.size() == 1) {
+                Map.Entry<String, List<SuggestedDeviceInfo>> singleEntry =
+                        mSuggestedDeviceMap.entrySet().iterator().next();
+                if (singleEntry.getValue() != null) {
+                    return singleEntry;
+                }
+            }
+        }
+        return new AbstractMap.SimpleEntry<>("", Collections.emptyList());
+    }
+
+    // Go through all current MediaDevices, and update the ones that are suggested.
+    private boolean updateMediaDevicesSuggestionState() {
+        if (!com.android.media.flags.Flags.enableSuggestedDeviceApi()) {
+            return false;
+        }
+        Set<String> suggestedDevices = new HashSet<>();
+        // Prioritize suggestions from the package, otherwise pick any.
+        Map.Entry<String, List<SuggestedDeviceInfo>> deviceSuggestionsByPackage =
+                getSuggestionsWithPackage();
+        for (SuggestedDeviceInfo suggestion : deviceSuggestionsByPackage.getValue()) {
+            suggestedDevices.add(suggestion.getRouteId());
+        }
+        boolean didUpdate = false;
+        String suggestingPackage = deviceSuggestionsByPackage.getKey();
+        boolean isSuggestedByApp = mPackageName.equals(suggestingPackage);
+        synchronized (mLock) {
+            for (MediaDevice device : mMediaDevices) {
+                boolean wasSuggested = device.isSuggestedDevice();
+                if (suggestedDevices.contains(device.getId())) {
+                    device.setIsSuggested(/* suggested= */ true, isSuggestedByApp);
+                } else {
+                    device.setIsSuggested(/* suggested= */ false, /* suggestedByApp= */ false);
+                }
+                if (wasSuggested != device.isSuggestedDevice()) {
+                    didUpdate = true;
+                }
+            }
+        }
+        return didUpdate;
+    }
+
+    protected final void refreshDevices() {
         rebuildDeviceList();
-        dispatchDeviceListAdded(mMediaDevices);
+        dispatchDeviceListAdded(getMediaDevices());
     }
 
     // MediaRoute2Info.getType was made public on API 34, but exists since API 30.
     @SuppressWarnings("NewApi")
-    private synchronized void buildAvailableRoutes() {
-        mMediaDevices.clear();
-        RoutingSessionInfo activeSession = getActiveRoutingSession();
+    private void buildAvailableRoutes() {
+        Map<String, RouteListingPreference.Item> rlpItemMap = getRouteListingPreferenceMap();
+        synchronized (mLock) {
+            mMediaDevices.clear();
+            RoutingSessionInfo activeSession = getActiveRoutingSession();
 
-        for (MediaRoute2Info route : getAvailableRoutes(activeSession)) {
-            if (DEBUG) {
-                Log.d(TAG, "buildAvailableRoutes() route : " + route.getName() + ", volume : "
-                        + route.getVolume() + ", type : " + route.getType());
+            for (MediaRoute2Info route : getAvailableRoutes(activeSession)) {
+                addMediaDeviceLocked(route, activeSession, rlpItemMap.get(route.getId()));
             }
-            addMediaDevice(route, activeSession);
-        }
 
-        // In practice, mMediaDevices should always have at least one route.
-        if (!mMediaDevices.isEmpty()) {
-            // First device on the list is always the first selected route.
-            mCurrentConnectedDevice = mMediaDevices.get(0);
+            // In practice, mMediaDevices should always have at least one route.
+            if (!mMediaDevices.isEmpty()) {
+                // First device on the list is always the first selected route.
+                mCurrentConnectedDevice = mMediaDevices.get(0);
+            }
         }
     }
 
-    private synchronized List<MediaRoute2Info> getAvailableRoutes(
+    @NonNull
+    private Map<String, RouteListingPreference.Item> getRouteListingPreferenceMap() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            RouteListingPreference routeListingPreference = getRouteListingPreference();
+            if (routeListingPreference != null) {
+                return routeListingPreference.getItems().stream().collect(
+                        Collectors.toMap(RouteListingPreference.Item::getRouteId, item -> item));
+            }
+        }
+        return new HashMap<>();
+    }
+
+    private List<MediaRoute2Info> getAvailableRoutes(
             RoutingSessionInfo activeSession) {
         List<MediaRoute2Info> availableRoutes = new ArrayList<>();
 
@@ -691,112 +782,74 @@ public abstract class InfoMediaManager {
 
     // MediaRoute2Info.getType was made public on API 34, but exists since API 30.
     @SuppressWarnings("NewApi")
+    @GuardedBy("mLock")
     @VisibleForTesting
-    void addMediaDevice(@NonNull MediaRoute2Info route, @NonNull RoutingSessionInfo activeSession) {
+    void addMediaDeviceLocked(@NonNull MediaRoute2Info route,
+            @NonNull RoutingSessionInfo activeSession,
+            @Nullable RouteListingPreference.Item rlpItem) {
+        DynamicRouteAttributes dynamicRouteAttributes =
+                getDynamicRouteAttributes(activeSession, route);
         final int deviceType = route.getType();
         MediaDevice mediaDevice = null;
-        switch (deviceType) {
-            case TYPE_UNKNOWN:
-            case TYPE_REMOTE_TV:
-            case TYPE_REMOTE_SPEAKER:
-            case TYPE_GROUP:
-            case TYPE_REMOTE_TABLET:
-            case TYPE_REMOTE_TABLET_DOCKED:
-            case TYPE_REMOTE_COMPUTER:
-            case TYPE_REMOTE_GAME_CONSOLE:
-            case TYPE_REMOTE_CAR:
-            case TYPE_REMOTE_SMARTWATCH:
-            case TYPE_REMOTE_SMARTPHONE:
-                mediaDevice =
-                        new InfoMediaDevice(
-                                mContext,
-                                route,
-                                mPreferenceItemMap.get(route.getId()));
-                break;
-            case TYPE_BUILTIN_SPEAKER:
-            case TYPE_USB_DEVICE:
-            case TYPE_USB_HEADSET:
-            case TYPE_USB_ACCESSORY:
-            case TYPE_DOCK:
-            case TYPE_HDMI:
-            case TYPE_HDMI_ARC:
-            case TYPE_HDMI_EARC:
-            case TYPE_LINE_DIGITAL:
-            case TYPE_LINE_ANALOG:
-            case TYPE_AUX_LINE:
-            case TYPE_WIRED_HEADSET:
-            case TYPE_WIRED_HEADPHONES:
-                mediaDevice =
-                        new PhoneMediaDevice(
-                                mContext,
-                                route,
-                                mPreferenceItemMap.getOrDefault(route.getId(), null));
-                break;
-            case TYPE_HEARING_AID:
-            case TYPE_BLUETOOTH_A2DP:
-            case TYPE_BLE_HEADSET:
-                if (route.getAddress() == null) {
-                    Log.e(TAG, "Ignoring bluetooth route with no set address: " + route);
-                    break;
-                }
+        if (isInfoMediaDevice(deviceType)) {
+            mediaDevice = new InfoMediaDevice(mContext, route, dynamicRouteAttributes, rlpItem);
+
+        } else if (isPhoneMediaDevice(deviceType)) {
+            mediaDevice = new PhoneMediaDevice(mContext, route, dynamicRouteAttributes, rlpItem);
+
+        } else if (isBluetoothMediaDevice(deviceType)) {
+            if (route.getAddress() == null) {
+                Log.e(TAG, "Ignoring bluetooth route with no set address: " + route);
+            } else {
                 final BluetoothDevice device =
-                        BluetoothAdapter.getDefaultAdapter()
-                                .getRemoteDevice(route.getAddress());
+                        BluetoothAdapter.getDefaultAdapter().getRemoteDevice(route.getAddress());
                 final CachedBluetoothDevice cachedDevice =
                         mBluetoothManager.getCachedDeviceManager().findDevice(device);
                 if (cachedDevice != null) {
-                    mediaDevice =
-                            new BluetoothMediaDevice(
-                                    mContext,
-                                    cachedDevice,
-                                    route,
-                                    mPreferenceItemMap.getOrDefault(route.getId(), null));
+                    mediaDevice = new BluetoothMediaDevice(mContext, cachedDevice, route,
+                            dynamicRouteAttributes, rlpItem);
                 }
-                break;
-            case TYPE_REMOTE_AUDIO_VIDEO_RECEIVER:
-                mediaDevice =
-                        new ComplexMediaDevice(
-                                mContext,
-                                route,
-                                mPreferenceItemMap.get(route.getId()));
-                break;
-            default:
-                Log.w(TAG, "addMediaDevice() unknown device type : " + deviceType);
-                break;
+            }
+        } else if (isComplexMediaDevice(deviceType)) {
+            mediaDevice = new ComplexMediaDevice(mContext, route, dynamicRouteAttributes, rlpItem);
+        } else {
+            Log.w(TAG, "createRouteToMediaDevice() unknown device type : " + deviceType);
         }
 
         if (mediaDevice != null) {
-            if (activeSession.getSelectedRoutes().contains(route.getId())) {
+            if (mediaDevice.isSelected()) {
                 mediaDevice.setState(STATE_SELECTED);
+            } else if (route.getConnectionState() == CONNECTION_STATE_CONNECTING) {
+                mediaDevice.setState(STATE_CONNECTING);
             }
             mMediaDevices.add(mediaDevice);
         }
     }
 
+    @NonNull
+    private DynamicRouteAttributes getDynamicRouteAttributes(
+            @NonNull RoutingSessionInfo activeSession, @NonNull MediaRoute2Info route) {
+        Predicate<MediaRoute2Info> isSameRoute = r -> r.getId().equals(route.getId());
+        return new DynamicRouteAttributes(
+                getTransferableRoutes(activeSession).stream().anyMatch(isSameRoute),
+                getSelectedRoutes(activeSession).stream().anyMatch(isSameRoute),
+                getSelectableRoutes(activeSession).stream().anyMatch(isSameRoute),
+                getDeselectableRoutes(activeSession).stream().anyMatch(isSameRoute)
+        );
+    }
+
+    /** Updates the state of the device and updates liteners of the updated device state. */
+    public void setDeviceState(MediaDevice device, @LocalMediaManager.MediaDeviceState int state) {
+        if (device.getState() == state) {
+            return;
+        }
+        device.setState(state);
+    }
+
     @RequiresApi(34)
     static class Api34Impl {
         @DoNotInline
-        static List<RouteListingPreference.Item> composePreferenceRouteListing(
-                RouteListingPreference routeListingPreference) {
-            boolean preferRouteListingOrdering =
-                    com.android.media.flags.Flags.enableOutputSwitcherDeviceGrouping()
-                    && preferRouteListingOrdering(routeListingPreference);
-            List<RouteListingPreference.Item> finalizedItemList = new ArrayList<>();
-            List<RouteListingPreference.Item> itemList = routeListingPreference.getItems();
-            for (RouteListingPreference.Item item : itemList) {
-                // Put suggested devices on the top first before further organization
-                if (!preferRouteListingOrdering
-                        && (item.getFlags() & RouteListingPreference.Item.FLAG_SUGGESTED) != 0) {
-                    finalizedItemList.add(0, item);
-                } else {
-                    finalizedItemList.add(item);
-                }
-            }
-            return finalizedItemList;
-        }
-
-        @DoNotInline
-        static synchronized List<MediaRoute2Info> filterDuplicatedIds(List<MediaRoute2Info> infos) {
+        static List<MediaRoute2Info> filterDuplicatedIds(List<MediaRoute2Info> infos) {
             List<MediaRoute2Info> filteredInfos = new ArrayList<>();
             Set<String> foundDeduplicationIds = new HashSet<>();
             for (MediaRoute2Info mediaRoute2Info : infos) {
@@ -814,15 +867,7 @@ public abstract class InfoMediaManager {
          * Returns an ordered list of available devices based on the provided {@code
          * routeListingPreferenceItems}.
          *
-         * <p>The resulting order if enableOutputSwitcherDeviceGrouping is disabled is:
-         *
-         * <ol>
-         *   <li>Selected routes.
-         *   <li>Not-selected system routes.
-         *   <li>Not-selected, non-system, available routes sorted by route listing preference.
-         * </ol>
-         *
-         * <p>The resulting order if enableOutputSwitcherDeviceGrouping is enabled is:
+         * <p>The resulting order is:
          *
          * <ol>
          *   <li>Selected routes sorted by route listing preference.
@@ -830,7 +875,6 @@ public abstract class InfoMediaManager {
          *   <li>Not-selected system routes.
          *   <li>Not-selected, non-system, available routes sorted by route listing preference.
          * </ol>
-         *
          *
          * @param selectedRoutes List of currently selected routes.
          * @param availableRoutes List of available routes that match the app's requested route
@@ -843,16 +887,12 @@ public abstract class InfoMediaManager {
                 List<MediaRoute2Info> availableRoutes,
                 RouteListingPreference routeListingPreference) {
             final List<RouteListingPreference.Item> routeListingPreferenceItems =
-                    Api34Impl.composePreferenceRouteListing(routeListingPreference);
+                    routeListingPreference.getItems();
 
             Set<String> sortedRouteIds = new LinkedHashSet<>();
-
-            boolean addSelectedRlpItemsFirst =
-                    com.android.media.flags.Flags.enableOutputSwitcherDeviceGrouping()
-                    && preferRouteListingOrdering(routeListingPreference);
             Set<String> selectedRouteIds = new HashSet<>();
 
-            if (addSelectedRlpItemsFirst) {
+            if (preferRouteListingOrdering(routeListingPreference)) {
                 // Add selected RLP items first
                 for (MediaRoute2Info selectedRoute : selectedRoutes) {
                     selectedRouteIds.add(selectedRoute.getId());
@@ -911,17 +951,6 @@ public abstract class InfoMediaManager {
                 RouteListingPreference routeListingPreference) {
             return routeListingPreference == null ? null
                     : routeListingPreference.getLinkedItemComponentName();
-        }
-
-        @DoNotInline
-        static void onRouteListingPreferenceUpdated(
-                RouteListingPreference routeListingPreference,
-                Map<String, RouteListingPreference.Item> preferenceItemMap) {
-            preferenceItemMap.clear();
-            if (routeListingPreference != null) {
-                routeListingPreference.getItems().forEach((item) ->
-                        preferenceItemMap.put(item.getRouteId(), item));
-            }
         }
     }
 

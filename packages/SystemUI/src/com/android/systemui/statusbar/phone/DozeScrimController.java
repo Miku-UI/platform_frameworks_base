@@ -45,6 +45,7 @@ public class DozeScrimController implements StateListener {
     private final ScrimController.Callback mScrimCallback = new ScrimController.Callback() {
         @Override
         public void onDisplayBlanked() {
+            SceneContainerFlag.assertInLegacyMode();
             if (!mDozing) {
                 mDozeLog.tracePulseDropped("onDisplayBlanked - not dozing");
                 return;
@@ -59,6 +60,7 @@ public class DozeScrimController implements StateListener {
 
         @Override
         public void onFinished() {
+            SceneContainerFlag.assertInLegacyMode();
             mDozeLog.tracePulseEvent("scrimCallback-onFinished", mDozing, mPulseReason);
 
             if (!mDozing) {
@@ -123,15 +125,30 @@ public class DozeScrimController implements StateListener {
             return;
         }
 
+        mPulseCallback = callback;
+        mPulseReason = reason;
+
         // Begin pulse. Note that it's very important that the pulse finished callback
         // be invoked when we're done so that the caller can drop the pulse wakelock.
         if (SceneContainerFlag.isEnabled()) {
             // ScrimController.Callback#onDisplayBlanked is no longer triggered when flexiglass is
             // on, but we still need to signal that pulsing has started.
+            mDozeLog.tracePulseStart(mPulseReason);
             callback.onPulseStarted();
+
+            // ScrimController.Callback#onFinished is no longer triggered when flexiglass is
+            // on, but we still need to schedule the pulse out
+            mDozeLog.tracePulseEvent("schedule pulse-out", mDozing, mPulseReason);
+            // Notifications should time out on their own.  Pulses due to notifications should
+            // instead be managed externally based off the notification's lifetime.
+            // Dock also controls the time out by itself.
+            if (mPulseReason != DozeLog.PULSE_REASON_NOTIFICATION
+                    && mPulseReason != DozeLog.PULSE_REASON_DOCKING) {
+                mHandler.postDelayed(mPulseOut, mDozeParameters.getPulseVisibleDuration());
+                mHandler.postDelayed(mPulseOutExtended,
+                        mDozeParameters.getPulseVisibleDurationExtended());
+            }
         }
-        mPulseCallback = callback;
-        mPulseReason = reason;
     }
 
     public void pulseOutNow() {

@@ -32,6 +32,12 @@ static struct {
 
 namespace android {
 
+// Populates the AudioDeviceAttributes with internal type and address. This is important when
+// using AudioDeviceAttributes equals / hashCode (e.g.: when inserting as a key in a map)
+// to identify the correct device based on type and address alone, and not other features, such
+// as name, audio descriptors or profile.
+// Note: if other elements are needed as part of AudioDeviceAttributes please create a
+// different method.
 jint createAudioDeviceAttributesFromNative(JNIEnv *env, jobject *jAudioDeviceAttributes,
                                  const AudioDeviceTypeAddr *devTypeAddr) {
     jint jStatus = (jint)AUDIO_JAVA_SUCCESS;

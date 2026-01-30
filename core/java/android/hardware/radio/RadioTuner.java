@@ -17,7 +17,6 @@
 package android.hardware.radio;
 
 import android.Manifest;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -351,7 +350,6 @@ public abstract class RadioTuner {
      * @return A {@link Bitmap} for the given image ID.
      * @throws IllegalArgumentException if id is 0 or the referenced image id no longer exists.
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     @RequiresPermission(Manifest.permission.ACCESS_BROADCAST_RADIO)
     public @NonNull Bitmap getMetadataImage(int id) {
         throw new UnsupportedOperationException(

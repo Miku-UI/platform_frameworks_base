@@ -19,7 +19,6 @@ package com.android.server.biometrics.sensors.face;
 import static android.Manifest.permission.INTERACT_ACROSS_USERS;
 import static android.Manifest.permission.MANAGE_FACE;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
-import static android.hardware.face.FaceSensorConfigurations.getIFace;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -81,7 +80,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -105,9 +103,6 @@ public class FaceService extends SystemService {
     private final AuthenticationStateListeners mAuthenticationStateListeners;
     @NonNull
     private final FaceProviderFunction mFaceProviderFunction;
-    @NonNull private final Function<String, FaceProvider> mFaceProvider;
-    @NonNull
-    private final Supplier<String[]> mAidlInstanceNameSupplier;
 
     interface FaceProviderFunction {
         FaceProvider getFaceProvider(Pair<String, SensorProps[]> filteredSensorProps,
@@ -753,16 +748,17 @@ public class FaceService extends SystemService {
     }
 
     public FaceService(Context context) {
-        this(context, null /* faceProviderFunction */, () -> IBiometricService.Stub.asInterface(
-                ServiceManager.getService(Context.BIOMETRIC_SERVICE)), null /* faceProvider */,
-                () -> getDeclaredInstances());
+        this(context,
+                BiometricContext.getInstance(context),
+                null /* faceProviderFunction */,
+                () -> IBiometricService.Stub.asInterface(
+                        ServiceManager.getService(Context.BIOMETRIC_SERVICE)));
     }
 
     @VisibleForTesting FaceService(Context context,
+            BiometricContext biometricContext,
             FaceProviderFunction faceProviderFunction,
-            Supplier<IBiometricService> biometricServiceSupplier,
-            Function<String, FaceProvider> faceProvider,
-            Supplier<String[]> aidlInstanceNameSupplier) {
+            Supplier<IBiometricService> biometricServiceSupplier) {
         super(context);
         mServiceWrapper = new FaceServiceWrapper();
         mLockoutResetDispatcher = new LockoutResetDispatcher(context);
@@ -776,35 +772,13 @@ public class FaceService extends SystemService {
                 mBiometricStateCallback.start(mRegistry.getProviders());
             }
         });
-        mAidlInstanceNameSupplier = aidlInstanceNameSupplier;
-
-        mFaceProvider = faceProvider != null ? faceProvider : (name) -> {
-            final String fqName = IFace.DESCRIPTOR + "/" + name;
-            final IFace face = getIFace(fqName);
-            if (face == null) {
-                Slog.e(TAG, "Unable to get declared service: " + fqName);
-                return null;
-            }
-            try {
-                final SensorProps[] props = face.getSensorProps();
-                return new FaceProvider(getContext(),
-                        mBiometricStateCallback, mAuthenticationStateListeners, props, name,
-                        mLockoutResetDispatcher, BiometricContext.getInstance(getContext()),
-                        false /* resetLockoutRequiresChallenge */);
-            } catch (RemoteException e) {
-                Slog.e(TAG, "Remote exception in getSensorProps: " + fqName);
-            }
-
-            return null;
-        };
 
         mFaceProviderFunction = faceProviderFunction != null ? faceProviderFunction :
                 ((filteredSensorProps, resetLockoutRequiresChallenge) -> new FaceProvider(
                         getContext(), mBiometricStateCallback, mAuthenticationStateListeners,
                         filteredSensorProps.second,
                         filteredSensorProps.first, mLockoutResetDispatcher,
-                        BiometricContext.getInstance(getContext()),
-                        resetLockoutRequiresChallenge));
+                        biometricContext, resetLockoutRequiresChallenge));
     }
 
     @Override

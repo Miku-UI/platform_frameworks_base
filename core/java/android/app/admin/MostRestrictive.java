@@ -76,7 +76,8 @@ public final class MostRestrictive<V> extends ResolutionMechanism<V> {
         mMostToLeastRestrictive = new ArrayList<>();
         int size = source.readInt();
         for (int i = 0; i < size; i++) {
-            mMostToLeastRestrictive.add(source.readParcelable(PolicyValue.class.getClassLoader()));
+            mMostToLeastRestrictive.add(
+                    source.readParcelable(PolicyValue.class.getClassLoader(), PolicyValue.class));
         }
     }
 

@@ -50,8 +50,8 @@ class AppCompatConfigurationRobot {
                 .isPolicyForIgnoringRequestedOrientationEnabled();
     }
 
-    void enableCameraCompatTreatment(boolean enabled) {
-        doReturn(enabled).when(mAppCompatConfiguration).isCameraCompatTreatmentEnabled();
+    void enableCameraCompatForceRotateTreatment(boolean enabled) {
+        doReturn(enabled).when(mAppCompatConfiguration).isCameraCompatForceRotateTreatmentEnabled();
     }
 
     void enableSplitScreenAspectRatioForUnresizableApps(boolean enabled) {
@@ -59,9 +59,14 @@ class AppCompatConfigurationRobot {
                 .getIsSplitScreenAspectRatioForUnresizableAppsEnabled();
     }
 
-    void enableCameraCompatTreatmentAtBuildTime(boolean enabled) {
+    void enableCameraCompatForceRotateTreatmentAtBuildTime(boolean enabled) {
         doReturn(enabled).when(mAppCompatConfiguration)
-                .isCameraCompatTreatmentEnabledAtBuildTime();
+                .isCameraCompatForceRotateTreatmentEnabledAtBuildTime();
+    }
+
+    void enableCameraCompatSimulateRequestedOrientationTreatment(boolean enabled) {
+        doReturn(enabled).when(mAppCompatConfiguration)
+                .isCameraCompatSimulateRequestedOrientationTreatmentEnabled();
     }
 
     void setCameraCompatAspectRatio(float aspectRatio) {

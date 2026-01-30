@@ -180,6 +180,7 @@ import java.util.Arrays;
  * <a href="{@docRoot}guide/topics/resources/drawable-resource.html">Drawable Resources</a>
  * document.</p></div>
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class Drawable {
     private static final Rect ZERO_BOUNDS_RECT = new Rect();
 
@@ -1725,4 +1726,3 @@ public abstract class Drawable {
         }
     }
 }
-

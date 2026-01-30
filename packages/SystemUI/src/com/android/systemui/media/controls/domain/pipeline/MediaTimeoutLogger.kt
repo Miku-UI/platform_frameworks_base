@@ -42,7 +42,7 @@ constructor(@MediaTimeoutListenerLog private val buffer: LogBuffer) {
                 str2 = newKey
                 bool1 = hadListener
             },
-            { "migrate from $str1 to $str2, had listener? $bool1" }
+            { "migrate from $str1 to $str2, had listener? $bool1" },
         )
 
     fun logUpdateListener(key: String, wasPlaying: Boolean) =
@@ -53,7 +53,7 @@ constructor(@MediaTimeoutListenerLog private val buffer: LogBuffer) {
                 str1 = key
                 bool1 = wasPlaying
             },
-            { "updating $str1, was playing? $bool1" }
+            { "updating $str1, was playing? $bool1" },
         )
 
     fun logDelayedUpdate(key: String) =
@@ -61,7 +61,7 @@ constructor(@MediaTimeoutListenerLog private val buffer: LogBuffer) {
             TAG,
             LogLevel.DEBUG,
             { str1 = key },
-            { "deliver delayed playback state for $str1" }
+            { "deliver delayed playback state for $str1" },
         )
 
     fun logSessionDestroyed(key: String) =
@@ -75,7 +75,7 @@ constructor(@MediaTimeoutListenerLog private val buffer: LogBuffer) {
                 str1 = key
                 str2 = state?.toString()
             },
-            { "state update: key=$str1 state=$str2" }
+            { "state update: key=$str1 state=$str2" },
         )
 
     fun logStateCallback(key: String) =
@@ -90,7 +90,7 @@ constructor(@MediaTimeoutListenerLog private val buffer: LogBuffer) {
                 bool1 = playing
                 bool2 = resumption
             },
-            { "schedule timeout $str1, playing=$bool1 resumption=$bool2" }
+            { "schedule timeout $str1, playing=$bool1 resumption=$bool2" },
         )
 
     fun logCancelIgnored(key: String) =
@@ -107,17 +107,6 @@ constructor(@MediaTimeoutListenerLog private val buffer: LogBuffer) {
                 str1 = key
                 str2 = reason
             },
-            { "timeout cancelled for $str1, reason: $str2" }
-        )
-
-    fun logRecommendationTimeoutScheduled(key: String, timeout: Long) =
-        buffer.log(
-            TAG,
-            LogLevel.VERBOSE,
-            {
-                str1 = key
-                long1 = timeout
-            },
-            { "recommendation timeout scheduled for $str1 in $long1 ms" }
+            { "timeout cancelled for $str1, reason: $str2" },
         )
 }

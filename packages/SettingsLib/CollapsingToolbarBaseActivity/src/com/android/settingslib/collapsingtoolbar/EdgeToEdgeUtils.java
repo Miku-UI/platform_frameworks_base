@@ -26,6 +26,8 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.android.settingslib.widget.SetupWizardHelper;
+
 /**
  * Util class for edge to edge.
  */
@@ -39,6 +41,10 @@ public class EdgeToEdgeUtils {
      */
     public static void enable(@NonNull ComponentActivity activity) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            return;
+        }
+
+        if (SetupWizardHelper.isAnySetupWizard(activity.getIntent())) {
             return;
         }
 

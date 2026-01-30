@@ -29,7 +29,7 @@ import com.android.keyguard.AlphaOptimizedLinearLayout;
 import com.android.systemui.plugins.DarkIconDispatcher;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
-import com.android.systemui.statusbar.notification.collection.NotificationEntry.OnSensitivityChangedListener;
+import com.android.systemui.statusbar.notification.collection.PipelineEntry;
 
 import java.util.ArrayList;
 
@@ -125,7 +125,8 @@ public class HeadsUpStatusBarView extends AlphaOptimizedLinearLayout {
         }
     }
 
-    private final OnSensitivityChangedListener mOnSensitivityChangedListener = entry -> {
+    private final PipelineEntry.OnSensitivityChangedListener mOnSensitivityChangedListener
+            = entry -> {
         if (entry != mShowingEntry) {
             throw new IllegalStateException("Got a sensitivity change for " + entry
                     + " but mShowingEntry is " + mShowingEntry);

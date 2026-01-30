@@ -21,7 +21,22 @@ import static android.app.admin.DevicePolicyResources.Strings.Core.PACKAGE_INSTA
 import static android.app.admin.DevicePolicyResources.Strings.Core.PACKAGE_UPDATED_BY_DO;
 import static android.content.pm.DataLoaderType.INCREMENTAL;
 import static android.content.pm.DataLoaderType.STREAMING;
-import static android.content.pm.Flags.cloudCompilationVerification;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_FAILED_REASON_DEVELOPER_BLOCKED;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_FAILED_REASON_NETWORK_UNAVAILABLE;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_FAILED_REASON_UNKNOWN;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_CLOSED;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_POLICY_NONE;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_USER_RESPONSE_ABORT;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_USER_RESPONSE_ERROR;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_USER_RESPONSE_INSTALL_ANYWAY;
+import static android.content.pm.PackageInstaller.DEVELOPER_VERIFICATION_USER_RESPONSE_RETRY;
+import static android.content.pm.PackageInstaller.DeveloperVerificationUserConfirmationInfo.DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_DEVELOPER_BLOCKED;
+import static android.content.pm.PackageInstaller.DeveloperVerificationUserConfirmationInfo.DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_NETWORK_UNAVAILABLE;
+import static android.content.pm.PackageInstaller.DeveloperVerificationUserConfirmationInfo.DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN;
+import static android.content.pm.PackageInstaller.EXTRA_DEVELOPER_VERIFICATION_EXTENSION_RESPONSE;
+import static android.content.pm.PackageInstaller.EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON;
+import static android.content.pm.PackageInstaller.EXTRA_DEVELOPER_VERIFICATION_LITE_PERFORMED;
+import static android.content.pm.PackageInstaller.EXTRA_PACKAGE_NAME;
 import static android.content.pm.PackageInstaller.LOCATION_DATA_APP;
 import static android.content.pm.PackageInstaller.UNARCHIVAL_OK;
 import static android.content.pm.PackageInstaller.UNARCHIVAL_STATUS_UNSET;
@@ -39,6 +54,10 @@ import static android.content.pm.PackageManager.INSTALL_FAILED_VERIFICATION_FAIL
 import static android.content.pm.PackageManager.INSTALL_PARSE_FAILED_NO_CERTIFICATES;
 import static android.content.pm.PackageManager.INSTALL_STAGED;
 import static android.content.pm.PackageManager.INSTALL_SUCCEEDED;
+import static android.content.pm.verify.developer.DeveloperVerificationSession.DEVELOPER_VERIFICATION_BYPASSED_REASON_ADB;
+import static android.content.pm.verify.developer.DeveloperVerificationSession.DEVELOPER_VERIFICATION_BYPASSED_REASON_EMERGENCY;
+import static android.content.pm.verify.developer.DeveloperVerificationSession.DEVELOPER_VERIFICATION_BYPASSED_REASON_TEST;
+import static android.content.pm.verify.developer.DeveloperVerificationSession.DEVELOPER_VERIFICATION_INCOMPLETE_NETWORK_UNAVAILABLE;
 import static android.os.Process.INVALID_UID;
 import static android.provider.DeviceConfig.NAMESPACE_PACKAGE_MANAGER_SERVICE;
 import static android.system.OsConstants.O_CREAT;
@@ -102,6 +121,8 @@ import android.content.pm.InstallationFile;
 import android.content.pm.InstallationFileParcel;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageInstaller;
+import android.content.pm.PackageInstaller.DeveloperVerificationUserConfirmationInfo;
+import android.content.pm.PackageInstaller.DeveloperVerificationUserResponse;
 import android.content.pm.PackageInstaller.PreapprovalDetails;
 import android.content.pm.PackageInstaller.SessionInfo;
 import android.content.pm.PackageInstaller.SessionParams;
@@ -112,12 +133,13 @@ import android.content.pm.PackageManager.PackageInfoFlags;
 import android.content.pm.PackageManagerInternal;
 import android.content.pm.SharedLibraryInfo;
 import android.content.pm.SigningDetails;
-import android.content.pm.dex.DexMetadataHelper;
+import android.content.pm.SigningInfo;
 import android.content.pm.parsing.ApkLite;
 import android.content.pm.parsing.ApkLiteParseUtils;
 import android.content.pm.parsing.PackageLite;
 import android.content.pm.parsing.result.ParseResult;
 import android.content.pm.parsing.result.ParseTypeImpl;
+import android.content.pm.verify.developer.DeveloperVerificationStatus;
 import android.content.pm.verify.domain.DomainSet;
 import android.content.res.ApkAssets;
 import android.content.res.AssetManager;
@@ -126,8 +148,10 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.icu.util.ULocale;
+import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Build.VERSION_CODES;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.FileBridge;
@@ -138,6 +162,7 @@ import android.os.Message;
 import android.os.OutcomeReceiver;
 import android.os.ParcelFileDescriptor;
 import android.os.ParcelableException;
+import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.RevocableFileDescriptor;
@@ -153,7 +178,6 @@ import android.os.incremental.StorageHealthCheckParams;
 import android.os.incremental.V4Signature;
 import android.os.storage.StorageManager;
 import android.provider.DeviceConfig;
-import android.provider.Settings.Global;
 import android.service.persistentdata.PersistentDataBlockManager;
 import android.stats.devicepolicy.DevicePolicyEnums;
 import android.system.ErrnoException;
@@ -190,13 +214,15 @@ import com.android.internal.util.IndentingPrintWriter;
 import com.android.internal.util.Preconditions;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
-import com.android.server.IoThread;
 import com.android.server.LocalServices;
+import com.android.server.Watchdog;
 import com.android.server.art.ArtManagedInstallFileHelper;
+import com.android.server.art.model.ValidationResult;
 import com.android.server.pm.Installer.InstallerException;
-import com.android.server.pm.dex.DexManager;
 import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.pkg.PackageStateInternal;
+import com.android.server.pm.verify.developer.DeveloperVerificationStatusInternal;
+import com.android.server.pm.verify.developer.DeveloperVerifierController;
 
 import libcore.io.IoUtils;
 import libcore.util.EmptyArray;
@@ -211,7 +237,10 @@ import java.io.FileFilter;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.security.cert.Certificate;
@@ -222,9 +251,12 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     private static final String TAG = "PackageInstallerSession";
@@ -237,8 +269,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     private static final int MSG_ON_PACKAGE_INSTALLED = 4;
     private static final int MSG_SESSION_VALIDATION_FAILURE = 5;
     private static final int MSG_PRE_APPROVAL_REQUEST = 6;
-
     private static final int MSG_ON_NATIVE_LIBS_EXTRACTED = 7;
+    private static final int MSG_ON_DEVELOPER_VERIFICATION_USER_RESPONSE = 8;
 
     /** XML constants used for persisting a session */
     static final String TAG_SESSION = "session";
@@ -313,6 +345,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     private static final String ATTR_APPLICATION_ENABLED_SETTING_PERSISTENT =
             "applicationEnabledSettingPersistent";
     private static final String ATTR_DOMAIN = "domain";
+    private static final String ATTR_INITIAL_VERIFICATION_POLICY = "initialVerificationPolicy";
+    private static final String ATTR_CURRENT_VERIFICATION_POLICY = "currentVerificationPolicy";
 
     private static final String PROPERTY_NAME_INHERIT_NATIVE = "pi.inherit_native_on_dont_kill";
     private static final int[] EMPTY_CHILD_SESSION_ARRAY = EmptyArray.INT;
@@ -326,14 +360,14 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     private static final int INCREMENTAL_STORAGE_UNHEALTHY_MONITORING_MS = 60000;
 
     /**
-     * If an app being installed targets {@link Build.VERSION_CODES#TIRAMISU API 33} and above,
-     * the app can be installed without user action.
+     * If an app being installed targets {@link Build.VERSION_CODES#UPSIDE_DOWN_CAKE API 34} and
+     * above, the app can be installed without user action.
      * See {@link PackageInstaller.SessionParams#setRequireUserAction} for other conditions required
      * to be satisfied for a silent install.
      */
     @ChangeId
-    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.TIRAMISU)
-    private static final long SILENT_INSTALL_ALLOWED = 325888262L;
+    @EnabledSince(targetSdkVersion = VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private static final long SILENT_INSTALL_ALLOWED = 420996962L;
 
     /**
      * The system supports pre-approval and update ownership features from
@@ -410,10 +444,20 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     private final PackageSessionProvider mSessionProvider;
     private final SilentUpdatePolicy mSilentUpdatePolicy;
     /**
+     * The initial verification policy assigned to this session when it was first created.
+     */
+    private final int mInitialVerificationPolicy;
+    /**
+     * The active verification policy, which might be different from the initial verification policy
+     * assigned to this session or the default policy currently used by the system.
+     */
+    private final AtomicInteger mCurrentVerificationPolicy;
+    /**
      * Note all calls must be done outside {@link #mLock} to prevent lock inversion.
      */
     private final StagingManager mStagingManager;
-
+    @NonNull
+    private final DeveloperVerifierController mDeveloperVerifierController;
     private final InstallDependencyHelper mInstallDependencyHelper;
 
     final int sessionId;
@@ -424,6 +468,25 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     /** Used for tracking whether user action was required for an install. */
     @Nullable
     private Boolean mUserActionRequired;
+
+    /**
+     * Used for tracking whether user was notified regarding an incomplete verification and the
+     * reason for the user action for developer verification. Also handles the user response.
+     */
+    private DeveloperVerificationUserActionState mDeveloperVerificationUserActionState;
+
+    /**
+     * The developer verification status which will be preserved into the package state if the
+     * installation is successful.
+     */
+    private final DeveloperVerificationStatusInternal mDeveloperVerificationStatusInternal =
+            DeveloperVerificationStatusInternal.UNKNOWN;
+
+    /**
+     * The extension response received from the developer verifier will be preserved here and
+     * reported back to the installer if non-null.
+     */
+    @Nullable private PersistableBundle mDeveloperVerificationExtensionResponse = null;
 
     /** Staging location where client data is written. */
     final File stageDir;
@@ -544,6 +607,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
 
     @GuardedBy("mLock")
     private DomainSet mPreVerifiedDomains;
+
+    @GuardedBy("mMetrics")
+    @NonNull private final SessionMetrics mMetrics;
 
     private AtomicBoolean mDependencyInstallerEnabled = new AtomicBoolean();
     private AtomicInteger mMissingSharedLibraryCount = new AtomicInteger();
@@ -795,7 +861,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             if (errorMsg != null) {
                 Slog.e(TAG, "verifySession error: " + errorMsg);
                 setSessionFailed(INSTALL_FAILED_INTERNAL_ERROR, errorMsg);
-                onSessionVerificationFailure(INSTALL_FAILED_INTERNAL_ERROR, errorMsg);
+                onSessionVerificationFailure(INSTALL_FAILED_INTERNAL_ERROR, errorMsg,
+                        /* extras= */ null);
                 return false;
             }
             return true;
@@ -817,8 +884,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     private final List<File> mResolvedStagedFiles = new ArrayList<>();
     @GuardedBy("mLock")
     private final List<File> mResolvedInheritedFiles = new ArrayList<>();
-    @GuardedBy("mLock")
-    private final List<String> mResolvedInstructionSets = new ArrayList<>();
+    @GuardedBy("mLock") private final List<String> mResolvedOatSubDirs = new ArrayList<>();
     @GuardedBy("mLock")
     private final List<String> mResolvedNativeLibPaths = new ArrayList<>();
 
@@ -851,6 +917,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     @UnarchivalStatus
     private int mUnarchivalStatus = UNARCHIVAL_STATUS_UNSET;
 
+    @GuardedBy("mLock") private final List<String> mWarnings = new ArrayList<>();
+
     private static final FileFilter sAddedApkFilter = new FileFilter() {
         @Override
         public boolean accept(File file) {
@@ -860,11 +928,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             if (file.getName().endsWith(REMOVE_MARKER_EXTENSION)) return false;
             if (file.getName().endsWith(V4Signature.EXT)) return false;
             if (isAppMetadata(file)) return false;
-            if (com.android.art.flags.Flags.artServiceV3()) {
-                if (ArtManagedInstallFileHelper.isArtManaged(file.getPath())) return false;
-            } else {
-                if (DexMetadataHelper.isDexMetadataFile(file)) return false;
-            }
+            if (ArtManagedInstallFileHelper.isArtManaged(file.getPath())) return false;
             if (ApkChecksums.isDigestOrDigestSignatureFile(file)) return false;
             return true;
         }
@@ -890,8 +954,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     private static final FileFilter sArtManagedFilter = new FileFilter() {
         @Override
         public boolean accept(File file) {
-            return !file.isDirectory() && com.android.art.flags.Flags.artServiceV3()
-                    && ArtManagedInstallFileHelper.isArtManaged(file.getPath());
+            return !file.isDirectory() && ArtManagedInstallFileHelper.isArtManaged(file.getPath());
         }
     };
 
@@ -950,6 +1013,10 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                 case MSG_ON_NATIVE_LIBS_EXTRACTED:
                     handleOnNativeLibsExtracted();
                     break;
+                case MSG_ON_DEVELOPER_VERIFICATION_USER_RESPONSE:
+                    final int responseCode = msg.arg1;
+                    handleVerificationUserResponse(responseCode);
+                    break;
             }
 
             return true;
@@ -1005,16 +1072,24 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             return false;
         }
         // Only system installers can have an emergency installer
-        if (PackageManager.PERMISSION_GRANTED
-                != snapshot.checkUidPermission(Manifest.permission.INSTALL_PACKAGES, uid)
-                && PackageManager.PERMISSION_GRANTED
-                != snapshot.checkUidPermission(Manifest.permission.INSTALL_PACKAGE_UPDATES, uid)
-                && PackageManager.PERMISSION_GRANTED
-                != snapshot.checkUidPermission(Manifest.permission.INSTALL_SELF_UPDATES, uid)) {
+        if (!hasSystemInstallerPermissions(snapshot, uid)) {
             return false;
         }
-        return (snapshot.checkUidPermission(Manifest.permission.EMERGENCY_INSTALL_PACKAGES,
-                installerUid) == PackageManager.PERMISSION_GRANTED);
+        return hasEmergencyInstallerPermission(snapshot, installerUid);
+    }
+
+    private static boolean hasSystemInstallerPermissions(Computer snapshot, int uid) {
+        return (PackageManager.PERMISSION_GRANTED
+                == snapshot.checkUidPermission(Manifest.permission.INSTALL_PACKAGES, uid)
+                || PackageManager.PERMISSION_GRANTED
+                == snapshot.checkUidPermission(Manifest.permission.INSTALL_PACKAGE_UPDATES, uid)
+                || PackageManager.PERMISSION_GRANTED
+                == snapshot.checkUidPermission(Manifest.permission.INSTALL_SELF_UPDATES, uid));
+    }
+
+    private static boolean hasEmergencyInstallerPermission(Computer snapshot, int installerUid) {
+        return snapshot.checkUidPermission(Manifest.permission.EMERGENCY_INSTALL_PACKAGES,
+                installerUid) == PackageManager.PERMISSION_GRANTED;
     }
 
     private static final int USER_ACTION_NOT_NEEDED = 0;
@@ -1196,7 +1271,10 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             @Nullable int[] childSessionIds, int parentSessionId, boolean isReady,
             boolean isFailed, boolean isApplied, int sessionErrorCode,
             String sessionErrorMessage, DomainSet preVerifiedDomains,
-            InstallDependencyHelper installDependencyHelper) {
+            @NonNull DeveloperVerifierController developerVerifierController,
+            @PackageInstaller.DeveloperVerificationPolicy int initialVerificationPolicy,
+            @PackageInstaller.DeveloperVerificationPolicy int currentVerificationPolicy,
+            InstallDependencyHelper installDependencyHelper, boolean restoredOnReboot) {
         mCallback = callback;
         mContext = context;
         mPm = pm;
@@ -1205,6 +1283,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         mSilentUpdatePolicy = silentUpdatePolicy;
         mHandler = new Handler(looper, mHandlerCallback);
         mStagingManager = stagingManager;
+        mDeveloperVerifierController = developerVerifierController;
+        mInitialVerificationPolicy = initialVerificationPolicy;
+        mCurrentVerificationPolicy = new AtomicInteger(currentVerificationPolicy);
         mInstallDependencyHelper = installDependencyHelper;
 
         this.sessionId = sessionId;
@@ -1290,6 +1371,27 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                         "Archived installation can only use Streaming System DataLoader.");
             }
         }
+
+        mMetrics = new SessionMetrics(mHandler, sessionId, userId, installerUid, params,
+                createdMillis, committedMillis, committed, childSessionIds, parentSessionId,
+                sessionErrorCode, mInitialVerificationPolicy);
+
+        // Proactively bind to the verification service if it's not already bound, for newly
+        // created sessions. Notify verifier about package name if it has been set in the session.
+        // For a multi-package installation, only connect to the verifier for the child sessions and
+        // do not do anything for the parent session.
+        if (!restoredOnReboot && shouldUseVerificationService() && !isMultiPackage()) {
+            mDeveloperVerifierController.bindToVerifierServiceIfNeeded(
+                    mPm::snapshotComputer, userId, this::onConnectionEstablished);
+            if (!TextUtils.isEmpty(params.appPackageName)) {
+                mDeveloperVerifierController.notifyPackageNameAvailable(params.appPackageName,
+                        userId);
+            }
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationBindStarted(
+                        mDeveloperVerifierController.getVerifierUidIfBound(userId));
+            }
+        }
     }
 
     PackageInstallerHistoricalSession createHistoricalSession() {
@@ -1307,7 +1409,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                     mStageDirInUse, mDestroyed, mFds.size(), mBridges.size(), mFinalStatus,
                     mFinalMessage, params, mParentSessionId, getChildSessionIdsLocked(),
                     mSessionApplied, mSessionFailed, mSessionReady, mSessionErrorCode,
-                    mSessionErrorMessage, mPreapprovalDetails, mPreVerifiedDomains, mPackageName);
+                    mSessionErrorMessage, mPreapprovalDetails, mPreVerifiedDomains, mPackageName,
+                    mInitialVerificationPolicy, mCurrentVerificationPolicy.get());
         }
     }
 
@@ -1426,6 +1529,22 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         return info;
     }
 
+    /**
+     * Generates a {@link DeveloperVerificationUserConfirmationInfo}
+     * object for this session. This will be used by the default PackageInstaller to show the
+     * appropriate dialog to the user, when a user action is required for an incomplete or failed
+     * developer verification.
+     */
+    public PackageInstaller.DeveloperVerificationUserConfirmationInfo
+                generateDeveloperVerificationUserConfirmationInfo() {
+        if (mDeveloperVerificationUserActionState == null) {
+            return null;
+        }
+        return new PackageInstaller.DeveloperVerificationUserConfirmationInfo(
+                mCurrentVerificationPolicy.get(),
+                mDeveloperVerificationUserActionState.mUserActionNeededReason);
+    }
+
     public boolean isPrepared() {
         synchronized (mLock) {
             return mPrepared;
@@ -1443,12 +1562,12 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         return mPreapprovalRequested.get();
     }
 
-    /** {@hide} */
+    /** @hide */
     boolean isCommitted() {
         return mCommitted.get();
     }
 
-    /** {@hide} */
+    /** @hide */
     boolean isDestroyed() {
         synchronized (mLock) {
             return mDestroyed;
@@ -1658,6 +1777,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     @GuardedBy("mLock")
     private List<ApkLite> getAddedApkLitesLocked() throws PackageManagerException {
         if (!isArchivedInstallation()) {
+            long addedApksSizeBytes = 0;
             List<File> files = getAddedApksLocked();
             final List<ApkLite> result = new ArrayList<>(files.size());
 
@@ -1671,8 +1791,13 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                             parseResult.getErrorMessage(), parseResult.getException());
                 }
                 result.add(parseResult.getResult());
+                addedApksSizeBytes += files.get(i).length();
             }
 
+            // As a byproduct of this parsing method, also log the total size of added APK files
+            synchronized (mMetrics) {
+                mMetrics.onAddedApksSizeBytesCalculated(addedApksSizeBytes);
+            }
             return result;
         }
 
@@ -2444,19 +2569,14 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             assertNoWriteFileTransfersOpenLocked();
 
             boolean isSecureFrpEnabled;
-            if (android.security.Flags.frpEnforcement()) {
-                PersistentDataBlockManager pdbManager =
-                        mContext.getSystemService(PersistentDataBlockManager.class);
-                if (pdbManager == null) {
-                    // Some devices may not support FRP. In that case, we can't block the install
-                    // accordingly.
-                    isSecureFrpEnabled = false;
-                } else {
-                    isSecureFrpEnabled = pdbManager.isFactoryResetProtectionActive();
-                }
+            PersistentDataBlockManager pdbManager =
+                    mContext.getSystemService(PersistentDataBlockManager.class);
+            if (pdbManager == null) {
+                // Some devices may not support FRP. In that case, we can't block the install
+                // accordingly.
+                isSecureFrpEnabled = false;
             } else {
-                isSecureFrpEnabled = Global.getInt(mContext.getContentResolver(),
-                        Global.SECURE_FRP_MODE, 0) == 1;
+                isSecureFrpEnabled = pdbManager.isFactoryResetProtectionActive();
             }
 
             if (isSecureFrpEnabled
@@ -2547,6 +2667,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                 }
                 committedMillis = System.currentTimeMillis();
             }
+            synchronized (mMetrics) {
+                mMetrics.onSessionCommitted(committedMillis);
+            }
             return true;
         } catch (PackageManagerException e) {
             throw e;
@@ -2615,17 +2738,27 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         dispatchSessionFinished(error, detailMessage, null);
     }
 
-    private void onSessionVerificationFailure(int error, String msg) {
+    private void onSessionVerificationFailure(int error, String msg, Bundle extras) {
         Slog.e(TAG, "Failed to verify session " + sessionId);
+        // Logging of developer verification failure.
+        if (extras != null && extras.containsKey(EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON)) {
+            final String packageName = getPackageName();
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationFailed(
+                        extras.getInt(EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON), packageName);
+            }
+        }
+        extras = appendDeveloperVerificationExtensionResponse(extras);
         // Dispatch message to remove session from PackageInstallerService.
-        dispatchSessionFinished(error, msg, null);
+        dispatchSessionFinished(error, msg, extras);
         maybeFinishChildSessions(error, msg);
     }
 
     private void onSessionDependencyResolveFailure(int error, String msg) {
         Slog.e(TAG, "Failed to resolve dependency for session " + sessionId);
+        Bundle extras = appendDeveloperVerificationExtensionResponse(null);
         // Dispatch message to remove session from PackageInstallerService.
-        dispatchSessionFinished(error, msg, null);
+        dispatchSessionFinished(error, msg, extras);
         maybeFinishChildSessions(error, msg);
     }
 
@@ -2876,6 +3009,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             // Commit was keeping session marked as active until now; release
             // that extra refcount so session appears idle.
             deactivate();
+            synchronized (mMetrics) {
+                mMetrics.onUserActionIntentSent();
+            }
             return;
         } else if (mUserActionRequired) {
             // If user action is required, control comes back here when the user allows
@@ -2898,9 +3034,286 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             final String completeMsg = ExceptionUtils.getCompleteMessage(e);
             final String errorMsg = PackageManager.installStatusToString(e.error, completeMsg);
             setSessionFailed(e.error, errorMsg);
-            onSessionVerificationFailure(e.error, errorMsg);
+            onSessionVerificationFailure(e.error, errorMsg, /* extras= */ null);
+        }
+        if (isVerificationServiceEnabled()) {
+            performDeveloperVerification();
+        } else {
+            // No need to check with verifier. Proceed with the rest of the verification.
+            resumeVerify();
+        }
+    }
+
+    private boolean isVerificationServiceEnabled() {
+        return Flags.verificationService();
+    }
+
+    private boolean shouldUseVerificationService() {
+        if (!isVerificationServiceEnabled()) {
+            return false;
+        }
+        if (mDeveloperVerifierController.getVerifierPackageName() == null) {
+            // The system doesn't have a verifier specified.
+            return false;
+        }
+        if ((params.installFlags & PackageManager.INSTALL_FROM_ADB) != 0) {
+            // adb installs are exempted from verification unless explicitly requested
+            if (!params.forceVerification) {
+                synchronized (mMetrics) {
+                    mMetrics.onDeveloperVerificationBypassed(
+                            DEVELOPER_VERIFICATION_BYPASSED_REASON_ADB);
+                }
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    boolean shouldAllowDeveloperVerificationEmergencyBypass(String packageName) {
+        final String verifierPackageName = mDeveloperVerifierController.getVerifierPackageName();
+        if (verifierPackageName == null) {
+            // Impossible condition. The verifier must exist because otherwise we wouldn't get
+            // here. Added to prevent lint warnings.
+            return false;
+        }
+        if (packageName == null) {
+            return false;
+        }
+        final Computer snapshot = mPm.snapshotComputer();
+        PackageStateInternal ps = snapshot.getPackageStateInternal(packageName, Process.SYSTEM_UID);
+        if (ps == null || !ps.isSystem()) {
+            // The app being installed must be a system app to be considered a critical app for
+            // the emergency bypass.
+            return false;
+        }
+        final String updateOwnerPackageName = mPm.getSystemAppUpdateOwnerPackageName(
+                verifierPackageName);
+        if (updateOwnerPackageName == null) {
+            // The verifier has not specified an update-owner in sysconfig.
+            return false;
+        }
+        final String installerPackageName = getInstallerPackageName();
+        if (installerPackageName == null) {
+            return false;
+        }
+        final PackageStateInternal psUpdateOwner = snapshot.getPackageStateInternal(
+                updateOwnerPackageName, Process.SYSTEM_UID);
+        if (psUpdateOwner == null || psUpdateOwner.getPkg() == null) {
+                return false;
+        }
+        // Validate the permissions of the sysconfig-specified update-owner
+        if (!hasSystemInstallerPermissions(snapshot, psUpdateOwner.getAppId())) {
+            return false;
+        }
+        // Check if the verifier is being updated, and the installer is the verifier's
+        // sysconfig-specified update-owner.
+        if (TextUtils.equals(verifierPackageName, packageName)
+                && TextUtils.equals(updateOwnerPackageName, installerPackageName)) {
+            Slog.d(TAG, "Bypassing developer verification because the verifier is being updated.");
+            return true;
+        }
+        // Check if the verifier's sysconfig-specified update-owner is being updated, and the
+        // installer is the verifier's sysconfig-specified update-owner.
+        if (TextUtils.equals(updateOwnerPackageName, packageName)
+                && TextUtils.equals(updateOwnerPackageName, installerPackageName)) {
+            Slog.d(TAG, "Bypassing developer verification because the update-owner of the"
+                    + " verifier which is specified in the sysconfig is being updated.");
+            return true;
+        }
+        String emergencyInstallerOfUpdateOwner = psUpdateOwner.getPkg().getEmergencyInstaller();
+        if (emergencyInstallerOfUpdateOwner == null) {
+            // The rest of the bypass checks involve the emergency installer of the update-owner.
+            // If this is no such emergency installer, no need to check further.
+            return false;
+        }
+        final PackageStateInternal psEmergencyInstallerOfUpdateOwner =
+                snapshot.getPackageStateInternal(emergencyInstallerOfUpdateOwner,
+                        Process.SYSTEM_UID);
+        if (psEmergencyInstallerOfUpdateOwner == null
+                || psEmergencyInstallerOfUpdateOwner.getPkg() == null) {
+            return false;
+        }
+        // Check the permission of the emergency installer
+        if (!hasEmergencyInstallerPermission(
+                snapshot, psEmergencyInstallerOfUpdateOwner.getAppId())) {
+            return false;
+        }
+        // Check if the emergency installer of the verifier's sysconfig-specified update-owner is
+        // being updated, and the installer is the verifier's sysconfig-specified update-owner.
+        if (TextUtils.equals(emergencyInstallerOfUpdateOwner, packageName)
+                && TextUtils.equals(updateOwnerPackageName, installerPackageName)) {
+            Slog.d(TAG, "Bypassing developer verification because the emergency installer of"
+                    + " the update-owner of the verifier which is specified in the sysconfig is"
+                    + " being updated.");
+            return true;
+        }
+        // If the app being installed is the sysconfig-specified update-owner, also allow bypassing
+        // if the installer is the app's emergency-installer.
+        if (TextUtils.equals(updateOwnerPackageName, packageName)
+                && TextUtils.equals(emergencyInstallerOfUpdateOwner, installerPackageName)) {
+            Slog.d(TAG, "Bypassing developer verification because the update-owner of the"
+                    + " verifier which is specified in the sysconfig is being updated by its"
+                    + " emergency installer.");
+            return true;
+        }
+        return false;
+    }
+
+    private void performDeveloperVerification() {
+        final CompletableFuture<DeveloperVerificationFutureResult> future;
+        if (isMultiPackage()) {
+            // This is the parent session of a multi-package session. Perform developer verification
+            // on individual child sessions but not the parent session.
+            final List<PackageInstallerSession> childSessions = getChildSessions();
+            List<CompletableFuture<DeveloperVerificationFutureResult>> futures = new ArrayList<>(
+                    childSessions.size());
+            for (int i = 0; i < childSessions.size(); i++) {
+                final PackageInstallerSession childSession = childSessions.get(i);
+                final CompletableFuture<DeveloperVerificationFutureResult> childFuture =
+                        new CompletableFuture<>();
+                childSession.startDeveloperVerificationSession(childFuture, /* retry= */ false);
+                futures.add(childFuture);
+            }
+            final CompletableFuture<DeveloperVerificationFutureResult>[] futuresArray =
+                    new CompletableFuture[futures.size()];
+            future = CompletableFuture.allOf(futures.toArray(futuresArray)).thenApply(
+                    (v) -> mergeDeveloperVerificationResults(futures));
+        } else {
+            // Not a multi-package session
+            future = new CompletableFuture<>();
+            startDeveloperVerificationSession(future, /* retry= */ false);
+        }
+        var unused = future.thenAccept(this::processDeveloperVerificationResults);
+    }
+
+    // Process multiple developer verification results from child sessions.
+    private DeveloperVerificationFutureResult mergeDeveloperVerificationResults(
+            List<CompletableFuture<DeveloperVerificationFutureResult>> futures) {
+        final List<DeveloperVerificationFutureResult> results = new ArrayList<>();
+        for (int i = 0; i < futures.size(); i++) {
+            try {
+                results.add(futures.get(i).get());
+            } catch (ExecutionException | InterruptedException e) {
+                // Ignore for now. We will do a size check right after this.
+            }
+        }
+        if (results.size() != futures.size()) {
+            // Failed to receive developer verification results from all sessions. Cannot proceed.
+            setSessionFailedDueToDeveloperVerification(
+                    /* verificationFailedReason= */ DEVELOPER_VERIFICATION_FAILED_REASON_UNKNOWN,
+                    /* includeExtraIntent= */ false,
+                    "Session failed due to missing developer verification result");
         }
 
+        boolean hasFailure = false;
+        StringBuilder errorMessage = null;
+        for (int i = 0; i < results.size(); i++) {
+            final DeveloperVerificationFutureResult result = results.get(i);
+            if (!result.mSuccess) {
+                hasFailure = true;
+                // Combine error messages from all child sessions.
+                if (errorMessage == null) {
+                    errorMessage = new StringBuilder();
+                } else {
+                    errorMessage.append("\n");
+                }
+                errorMessage.append(result.mFailedMessage);
+            }
+        }
+
+        PersistableBundle extensionResponse = null;
+        boolean isLite = false;
+        // Check if any child session has Lite mode enabled. If so, set so for the parent session.
+        final List<PackageInstallerSession> children = getChildSessions();
+        for (int i = 0; i < children.size(); i++) {
+            PackageInstallerSession child = children.get(i);
+            if (child.mDeveloperVerificationStatusInternal.isLiteVerification()) {
+                isLite = true;
+            }
+            if (child.mDeveloperVerificationExtensionResponse != null) {
+                if (extensionResponse == null) {
+                    extensionResponse = new PersistableBundle();
+                }
+                extensionResponse.putAll(child.mDeveloperVerificationExtensionResponse);
+            }
+        }
+        mDeveloperVerificationStatusInternal.setLiteVerification(isLite);
+        mDeveloperVerificationExtensionResponse = extensionResponse;
+
+        // Fail the parent session if any of the child sessions failed developer verification.
+        if (hasFailure) {
+            return DeveloperVerificationFutureResult.ofFailure(
+                    DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN,
+                    /* failedMessage= */ errorMessage.toString());
+        } else {
+            return DeveloperVerificationFutureResult.ofSuccess();
+        }
+    }
+
+    private void processDeveloperVerificationResults(
+            DeveloperVerificationFutureResult finalResult) {
+        if (finalResult.mSuccess) {
+            resumeVerify();
+        } else {
+            setSessionFailedDueToDeveloperVerification(
+                    finalResult.mVerificationFailureReason,
+                    /* includeExtraIntent= */ true,
+                    finalResult.mFailedMessage);
+        }
+    }
+
+    private void startDeveloperVerificationSession(
+            CompletableFuture<DeveloperVerificationFutureResult> future, boolean retry) {
+        final String packageName = getPackageName();
+        DeveloperVerifierCallback callback = new DeveloperVerifierCallback(future);
+        // First check if we have any local experiment for this package. If so, use previously
+        // configured test results instead of doing the real verification.
+        if (mDeveloperVerifierController.hasExperiments(packageName)) {
+            // This is a local testing environment with previously configured developer verification
+            // results. Use those results instead of doing the real developer verification.
+            mDeveloperVerifierController.startLocalExperiment(packageName, callback);
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationBypassed(
+                        DEVELOPER_VERIFICATION_BYPASSED_REASON_TEST);
+            }
+            return;
+        }
+        // If there is no real verifier or this is an ADB installation, proceed with the rest of
+        // the installation without doing developer verification.
+        if (!shouldUseVerificationService()) {
+            callback.onDeveloperVerificationSkipped();
+            return;
+        }
+        // Send request to the verifier. The result will be handled asynchronously in the callback.
+        final SigningInfo signingInfo;
+        final List<SharedLibraryInfo> declaredLibraries;
+        synchronized (mLock) {
+            signingInfo = new SigningInfo(mSigningDetails);
+            declaredLibraries =
+                    mPackageLite == null ? null : mPackageLite.getDeclaredLibraries();
+        }
+        if (!mDeveloperVerifierController.startVerificationSession(
+                mPm::snapshotComputer, userId, sessionId, packageName,
+                Uri.fromFile(stageDir), signingInfo,
+                declaredLibraries, mCurrentVerificationPolicy.get(),
+                /* extensionParams= */ params.extensionParams,
+                callback, this::onConnectionEstablished,
+                /* retry= */ retry)) {
+            // A verifier is installed but cannot be connected. Maybe notify user.
+            callback.onConnectionInfeasible();
+        } else {
+            synchronized (mMetrics) {
+                if (!retry) {
+                    mMetrics.onDeveloperVerificationRequestSent();
+                } else {
+                    mMetrics.onDeveloperVerificationRetryRequestSent();
+                }
+            }
+        }
+    }
+
+    private void resumeVerify() {
         if (mVerificationInProgress) {
             Slog.w(TAG, "Verification is already in progress for session " + sessionId);
             return;
@@ -2927,29 +3340,479 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             final String completeMsg = ExceptionUtils.getCompleteMessage(e);
             final String errorMsg = PackageManager.installStatusToString(e.error, completeMsg);
             setSessionFailed(e.error, errorMsg);
-            onSessionVerificationFailure(e.error, errorMsg);
+            onSessionVerificationFailure(e.error, errorMsg, /* extras= */ null);
         }
     }
 
     private void runExtractNativeLibraries() {
-        IoThread.getHandler().post(() -> {
+        // We create a new thread for this operation instead of using the shared `IoThread`
+        // because native library extraction can be a long-running I/O-intensive task.
+        // Using a dedicated thread prevents blocking other critical system operations that
+        // rely on the `IoThread`.
+        final Executor highPriorityExecutor = runnable -> {
+            Thread t = new Thread(() -> {
+                android.os.Process.setThreadPriority(
+                        android.os.Process.THREAD_PRIORITY_FOREGROUND);
+                runnable.run();
+            }, "extractNativeLibraries");
+            t.start();
+        };
+        CompletableFuture.runAsync(() -> {
             try {
+                synchronized (mMetrics) {
+                    mMetrics.onNativeLibExtractionStarted();
+                }
                 List<PackageInstallerSession> children = getChildSessions();
                 if (isMultiPackage()) {
                     for (PackageInstallerSession child : children) {
-                        child.extractNativeLibraries();
+                        final File libDir = child.prepareExtractNativeLibraries();
+                        if (libDir != null) {
+                            child.extractNativeLibraries(libDir);
+                        }
                     }
                 } else {
-                    extractNativeLibraries();
+                    final File libDir = prepareExtractNativeLibraries();
+                    if (libDir != null) {
+                        extractNativeLibraries(libDir);
+                    }
                 }
                 mHandler.obtainMessage(MSG_ON_NATIVE_LIBS_EXTRACTED).sendToTarget();
             } catch (PackageManagerException e) {
                 final String completeMsg = ExceptionUtils.getCompleteMessage(e);
                 final String errorMsg = PackageManager.installStatusToString(e.error, completeMsg);
                 setSessionFailed(e.error, errorMsg);
-                onSessionVerificationFailure(e.error, errorMsg);
+                onSessionVerificationFailure(e.error, errorMsg, /* extras= */ null);
+            } finally {
+                synchronized (mMetrics) {
+                    mMetrics.onNativeLibExtractionFinished();
+                }
             }
-        });
+        }, highPriorityExecutor);
+    }
+
+    private void onConnectionEstablished() {
+        // Collect then timestamp when the connection is established
+        synchronized (mMetrics) {
+            mMetrics.onDeveloperVerifierConnectionEstablished();
+        }
+    }
+
+    /**
+     * Used for the VerifierController to report status back.
+     */
+    public class DeveloperVerifierCallback {
+        private final CompletableFuture<DeveloperVerificationFutureResult> mFuture;
+        DeveloperVerifierCallback(CompletableFuture<DeveloperVerificationFutureResult> future) {
+            mFuture = future;
+        }
+        /**
+         * Called to notify that the developer verification is skipped because it is not supported
+         * or it is an installation from ADB.
+         */
+        public void onDeveloperVerificationSkipped() {
+            mHandler.post(() -> mFuture.complete(DeveloperVerificationFutureResult.ofSuccess()));
+        }
+
+        /**
+         * Called by the VerifierController when the verifier requests to change the verification
+         * policy for this session.
+         */
+        public boolean onVerificationPolicyOverridden(
+                @PackageInstaller.DeveloperVerificationPolicy int policy) {
+            if (!isValidVerificationPolicy(policy)) {
+                return false;
+            }
+            mCurrentVerificationPolicy.set(policy);
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationPolicyOverridden(policy);
+            }
+            return true;
+        }
+
+        /**
+         * Called by the session itself when the verifier cannot be connected because of infeasible
+         * reasons such as it's not installed on the target user.
+         */
+        public void onConnectionInfeasible() {
+            mHandler.post(() -> {
+                mDeveloperVerificationStatusInternal.setInternalStatus(
+                        DeveloperVerificationStatusInternal.STATUS_INFEASIBLE);
+                synchronized (mMetrics) {
+                    mMetrics.onDeveloperVerificationFinished(mDeveloperVerificationStatusInternal);
+                }
+                if (mCurrentVerificationPolicy.get() == DEVELOPER_VERIFICATION_POLICY_NONE) {
+                    // Continue with the rest of the verification and installation.
+                    mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+                    return;
+                }
+
+                if (shouldAllowDeveloperVerificationEmergencyBypass(getPackageName())) {
+                    setDeveloperVerificationBypassedForEmergency();
+                    return;
+                }
+
+                final int userActionNeededReason =
+                        DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN;
+                if (shouldSendUserActionForVerification(/* blockingFailure= */ false)) {
+                    sendDeveloperVerificationUserAction(userActionNeededReason, mFuture);
+                } else {
+                    mFuture.complete(DeveloperVerificationFutureResult.ofFailure(
+                            userActionNeededReason,
+                            /* failedMessage= */
+                            "A verifier agent is specified on device but cannot "
+                                    + "be connected because of unknown error."));
+                }
+            });
+        }
+
+        /**
+         * Called by the VerifierController when the connection has failed.
+         */
+        public void onConnectionFailed() {
+            mHandler.post(() -> {
+                mDeveloperVerificationStatusInternal.setInternalStatus(
+                        DeveloperVerificationStatusInternal.STATUS_DISCONNECTED);
+                synchronized (mMetrics) {
+                    mMetrics.onDeveloperVerificationFinished(mDeveloperVerificationStatusInternal);
+                }
+                if (mCurrentVerificationPolicy.get() == DEVELOPER_VERIFICATION_POLICY_NONE) {
+                    // Continue with the rest of the verification and installation.
+                    mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+                    return;
+                }
+
+                if (shouldAllowDeveloperVerificationEmergencyBypass(getPackageName())) {
+                    setDeveloperVerificationBypassedForEmergency();
+                    return;
+                }
+
+                final int userActionNeededReason =
+                        DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN;
+                if (shouldSendUserActionForVerification(/* blockingFailure= */ false)) {
+                    sendDeveloperVerificationUserAction(userActionNeededReason, mFuture);
+                } else {
+                    mFuture.complete(
+                            DeveloperVerificationFutureResult.ofFailure(
+                                    userActionNeededReason,
+                                    /* failedMessage= */
+                                    "A verifier agent is available on device but cannot "
+                                            + "be connected."));
+                }
+            });
+        }
+
+        /**
+         * Called by the VerifierController when the verifier has requested a timeout extension.
+         */
+        public void onTimeoutExtensionRequested() {
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationTimeoutExtensionRequested();
+            }
+        }
+
+        /**
+         * Called by the VerifierController when the verification request has timed out.
+         */
+        public void onTimeout() {
+            // Always notify the verifier, regardless of the policy.
+            mDeveloperVerifierController.notifyVerificationTimeout(sessionId, userId);
+            mHandler.post(() -> {
+                mDeveloperVerificationStatusInternal.setInternalStatus(
+                        DeveloperVerificationStatusInternal.STATUS_TIMEOUT);
+                synchronized (mMetrics) {
+                    mMetrics.onDeveloperVerificationFinished(mDeveloperVerificationStatusInternal);
+                }
+                if (mCurrentVerificationPolicy.get() == DEVELOPER_VERIFICATION_POLICY_NONE) {
+                    // Continue with the rest of the verification and installation.
+                    mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+                    return;
+                }
+
+                if (shouldAllowDeveloperVerificationEmergencyBypass(getPackageName())) {
+                    setDeveloperVerificationBypassedForEmergency();
+                    return;
+                }
+
+                final int userActionNeededReason =
+                        DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN;
+                if (shouldSendUserActionForVerification(/* blockingFailure= */ false)) {
+                    sendDeveloperVerificationUserAction(userActionNeededReason, mFuture);
+                } else {
+                    mFuture.complete(
+                            DeveloperVerificationFutureResult.ofFailure(
+                                    userActionNeededReason,
+                                    /* failedMessage= */
+                                    "Verification timed out; missing a response from the "
+                                            + "verifier within the time limit"));
+                }
+            });
+        }
+
+        /**
+         * Called by the VerifierController when the verification request has received a complete
+         * response.
+         */
+        public void onVerificationCompleteReceived(
+                @NonNull DeveloperVerificationStatus statusReceived,
+                @Nullable PersistableBundle extensionResponse) {
+            mHandler.post(() -> {
+                final int internalStatus = statusReceived.isVerified()
+                        ? DeveloperVerificationStatusInternal.STATUS_COMPLETED_WITH_PASS
+                        : DeveloperVerificationStatusInternal.STATUS_COMPLETED_WITH_REJECT;
+                mDeveloperVerificationStatusInternal.setInternalStatus(internalStatus);
+                mDeveloperVerificationStatusInternal.setAppMetadataVerificationStatus(
+                        statusReceived.getAppMetadataVerificationStatus());
+                mDeveloperVerificationStatusInternal.setLiteVerification(
+                        statusReceived.isLiteVerification());
+                mDeveloperVerificationExtensionResponse = extensionResponse;
+                synchronized (mMetrics) {
+                    mMetrics.onDeveloperVerificationFinished(mDeveloperVerificationStatusInternal);
+                }
+                if (mCurrentVerificationPolicy.get() == DEVELOPER_VERIFICATION_POLICY_NONE) {
+                    // No policy applied. Continue with the rest of the verification and install.
+                    mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+                    return;
+                }
+                if (statusReceived.isVerified()) {
+                    // Verified. Continue with the rest of the verification and install.
+                    mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+                    return;
+                }
+
+                if (shouldAllowDeveloperVerificationEmergencyBypass(getPackageName())) {
+                    setDeveloperVerificationBypassedForEmergency();
+                    return;
+                }
+
+                final int userActionNeededReason =
+                        DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_DEVELOPER_BLOCKED;
+                if (shouldSendUserActionForVerification(/* blockingFailure= */ true)) {
+                    sendDeveloperVerificationUserAction(userActionNeededReason, mFuture);
+                } else {
+                    // Package is blocked
+                    StringBuilder sb = new StringBuilder("Verifier rejected the installation");
+                    if (!TextUtils.isEmpty(statusReceived.getFailureMessage())) {
+                        sb.append(" with message: ").append(statusReceived.getFailureMessage());
+                    }
+                    mFuture.complete(DeveloperVerificationFutureResult.ofFailure(
+                            userActionNeededReason,
+                            /* failedMessage= */ sb.toString()));
+                }
+            });
+        }
+
+        /**
+         * Called by the VerifierController when the verification request has received an incomplete
+         * response.
+         */
+        public void onVerificationIncompleteReceived(int incompleteReason) {
+            mHandler.post(() -> {
+                final boolean isNetworkUnavailable =
+                        incompleteReason == DEVELOPER_VERIFICATION_INCOMPLETE_NETWORK_UNAVAILABLE;
+                final int internalStatus = isNetworkUnavailable
+                        ? DeveloperVerificationStatusInternal.STATUS_INCOMPLETE_NETWORK_UNAVAILABLE
+                        : DeveloperVerificationStatusInternal.STATUS_INCOMPLETE_UNKNOWN;
+                mDeveloperVerificationStatusInternal.setInternalStatus(internalStatus);
+                synchronized (mMetrics) {
+                    mMetrics.onDeveloperVerificationFinished(mDeveloperVerificationStatusInternal);
+                }
+                if (mCurrentVerificationPolicy.get() == DEVELOPER_VERIFICATION_POLICY_NONE) {
+                    // Continue with the rest of the verification and installation.
+                    mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+                    return;
+                }
+
+                if (shouldAllowDeveloperVerificationEmergencyBypass(getPackageName())) {
+                    setDeveloperVerificationBypassedForEmergency();
+                    return;
+                }
+
+                final int userActionNeededReason;
+                StringBuilder sb = new StringBuilder(
+                        "Verification cannot be completed because of ");
+                if (isNetworkUnavailable) {
+                    userActionNeededReason =
+                            DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_NETWORK_UNAVAILABLE;
+                    sb.append("unavailable network.");
+                } else {
+                    userActionNeededReason =
+                            DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN;
+                    sb.append("unknown reasons.");
+                }
+                if (shouldSendUserActionForVerification(/* blockingFailure= */ false)) {
+                    sendDeveloperVerificationUserAction(userActionNeededReason, mFuture);
+                } else {
+                    mFuture.complete(
+                            DeveloperVerificationFutureResult.ofFailure(
+                                    /* userActionNeededReason= */
+                                    userActionNeededReason,
+                                    /* failedMessage= */
+                                    sb.toString()));
+                }
+            });
+        }
+
+        /**
+         * Called by the VerifierController when the verification request has been bypassed by the
+         * verifier.
+         */
+        public void onVerificationBypassedReceived(int bypassReason) {
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationFinished(mDeveloperVerificationStatusInternal);
+                mMetrics.onDeveloperVerificationBypassed(bypassReason);
+            }
+            mHandler.post(() -> {
+                // The verifier informed the system to bypass the verification. Continue with the
+                // rest of the verification and installation.
+                mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+            });
+        }
+
+
+        /**
+         *  If a critical package is being updated, bypass the failed developer verification result
+         *  and directly proceed to the rest of the installation.
+         */
+        private void setDeveloperVerificationBypassedForEmergency() {
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationBypassed(
+                        DEVELOPER_VERIFICATION_BYPASSED_REASON_EMERGENCY);
+            }
+            mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+        }
+
+    }
+
+    /**
+     * User will be notified about a failed or incomplete developer verification in the
+     * following scenarios:
+     * <ul>
+     * <li>The installer is the system package installer.</li>
+     * <li>If it's a non-blocking failure and the installer targets above Baklava.</li>
+     * <li>If the installer targets Baklava or less and the installer does not have </li>
+     * {@link android.Manifest.permission#INSTALL_PACKAGES INSTALL_PACKAGES} permission.
+     * </ul>
+     * For other cases, the installer will receive a failure status code in its IntentSender
+     */
+    @SuppressWarnings("AndroidFrameworkCompatChange")
+    private boolean shouldSendUserActionForVerification(boolean blockingFailure) {
+        final Computer snapshot = mPm.snapshotComputer();
+        final String installerPackageName = getInstallerPackageName();
+        if (installerPackageName == null) {
+            // This can only happen if the installer intentionally set the installer package
+            // name of the session to be null.
+            return false;
+        }
+        ApplicationInfo installerInfo = snapshot.getApplicationInfo(
+                installerPackageName, 0, userId);
+        if (installerInfo == null) {
+            Log.w(TAG, "Could not find ApplicationInfo for " + installerPackageName);
+            return false;
+        }
+        // If the installer is the system package installer, always notify user for developer
+        // verification failures or issues.
+        if (installerPackageName.equals(mPm.getPackageInstallerPackageName())) {
+            return true;
+        }
+
+        // We directly check the target SDK of the installer instead of using CompatChange because
+        // we want to enable this check even when the current platform version is older than 37.
+        if (installerInfo.targetSdkVersion > Build.VERSION_CODES.BAKLAVA) {
+            // Target SDK of the installer > 36, non blocking failures can be bypassed upon
+            // user confirmation.
+            return !blockingFailure;
+        } else {
+            // Target SDK of the installer <= 36. Installers that do not have the
+            // privileged installation permission will need to request for user action.
+            return PackageManager.PERMISSION_GRANTED != snapshot.checkUidPermission(
+                    Manifest.permission.INSTALL_PACKAGES, installerInfo.uid);
+        }
+    }
+
+    private void sendDeveloperVerificationUserAction(int userActionNeededReason,
+            CompletableFuture<DeveloperVerificationFutureResult> future) {
+        mDeveloperVerificationUserActionState = new DeveloperVerificationUserActionState(
+                userActionNeededReason, future);
+
+        Intent intent = getDeveloperVerificationUserActionIntent();
+        final IntentSender target;
+        // If this is a child session, use the target receiver from the parent session
+        if (hasParentSessionId()) {
+            final PackageInstallerSession parentSession =
+                    mSessionProvider.getSession(getParentSessionId());
+            target = parentSession.getRemoteStatusReceiver();
+        } else {
+            target = getRemoteStatusReceiver();
+        }
+        sendOnUserActionRequired(mContext, target, sessionId, intent);
+
+        synchronized (mMetrics) {
+            mMetrics.onDeveloperVerificationUserActionRequired(userActionNeededReason);
+        }
+    }
+
+    private void setSessionFailedDueToDeveloperVerification(
+            @PackageInstaller.DeveloperVerificationFailedReason int verificationFailedReason,
+            boolean includeExtraIntent, String failedMessage) {
+        Bundle bundle = new Bundle();
+        bundle.putInt(EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON, verificationFailedReason);
+        bundle.putBoolean(EXTRA_DEVELOPER_VERIFICATION_LITE_PERFORMED,
+                mDeveloperVerificationStatusInternal.isLiteVerification());
+        if (includeExtraIntent) {
+            Intent extraIntent = getDeveloperVerificationUserActionIntent();
+            extraIntent.putExtra(EXTRA_PACKAGE_NAME, getPackageName());
+            extraIntent.putExtra(EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON,
+                    verificationFailedReason);
+            bundle.putParcelable(Intent.EXTRA_INTENT, extraIntent);
+        }
+        setSessionFailed(INSTALL_FAILED_VERIFICATION_FAILURE, failedMessage);
+        onSessionVerificationFailure(INSTALL_FAILED_VERIFICATION_FAILURE, failedMessage, bundle);
+    }
+
+    private Intent getDeveloperVerificationUserActionIntent() {
+        return new Intent(
+                PackageInstaller.ACTION_CONFIRM_DEVELOPER_VERIFICATION)
+                .setPackage(mPm.getPackageInstallerPackageName())
+                .putExtra(PackageInstaller.EXTRA_SESSION_ID, sessionId);
+    }
+
+    private static class DeveloperVerificationFutureResult {
+        final boolean mSuccess;
+        final int mVerificationFailureReason;
+        final String mFailedMessage;
+
+        static DeveloperVerificationFutureResult ofSuccess() {
+            return new DeveloperVerificationFutureResult(
+                    /* success= */ true,
+                    /* verificationFailureReason= */ DEVELOPER_VERIFICATION_FAILED_REASON_UNKNOWN,
+                    /* failedMessage= */ null);
+        }
+
+        static DeveloperVerificationFutureResult ofFailure(
+                int userActionNeededReason, String failedMessage) {
+            return new DeveloperVerificationFutureResult(
+                    /* success= */ false,
+                    /* verificationFailureReason= */
+                    getVerificationFailureReason(userActionNeededReason),
+                    /* failedMessage= */ failedMessage);
+        }
+
+        private DeveloperVerificationFutureResult(
+                boolean success,
+                int verificationFailureReason, String failedMessage) {
+            mSuccess = success;
+            mVerificationFailureReason = verificationFailureReason;
+            mFailedMessage = failedMessage;
+        }
+    }
+
+    /**
+     * Returns whether a policy is a valid verification policy.
+     */
+    public static boolean isValidVerificationPolicy(
+            @PackageInstaller.DeveloperVerificationPolicy int policy) {
+        return policy >= DEVELOPER_VERIFICATION_POLICY_NONE
+                && policy <= DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_CLOSED;
     }
 
     private IntentSender getRemoteStatusReceiver() {
@@ -3009,9 +3872,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                 }
 
                 if (isLinkPossible(fromFiles, toDir)) {
-                    if (!mResolvedInstructionSets.isEmpty()) {
+                    if (!mResolvedOatSubDirs.isEmpty()) {
                         final File oatDir = new File(toDir, "oat");
-                        createOatDirs(tempPackageName, mResolvedInstructionSets, oatDir);
+                        createOatDirs(tempPackageName, mResolvedOatSubDirs, oatDir);
                     }
                     // pre-create lib dirs for linking if necessary
                     if (!mResolvedNativeLibPaths.isEmpty()) {
@@ -3099,27 +3962,28 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     }
 
     @WorkerThread
-    private void extractNativeLibraries() throws PackageManagerException {
+    private File prepareExtractNativeLibraries() throws PackageManagerException {
         synchronized (mLock) {
-            if (mPackageLite != null) {
-                if (!isApexSession()) {
-                    synchronized (mProgressLock) {
-                        mInternalProgress = 0.5f;
-                        computeProgressLocked(true);
-                    }
-                    final File libDir = new File(stageDir, NativeLibraryHelper.LIB_DIR_NAME);
-                    if (!mayInheritNativeLibs()) {
-                        // Start from a clean slate
-                        NativeLibraryHelper.removeNativeBinariesFromDirLI(libDir, true);
-                    }
-                    // Skip native libraries processing for archival installation.
-                    if (isArchivedInstallation()) {
-                        return;
-                    }
-                    extractNativeLibraries(
-                            mPackageLite, libDir, params.abiOverride);
-                }
+            if (mPackageLite == null) {
+                return null;
             }
+            if (isApexSession()) {
+                return null;
+            }
+            synchronized (mProgressLock) {
+                mInternalProgress = 0.5f;
+                computeProgressLocked(true);
+            }
+            final File libDir = new File(stageDir, NativeLibraryHelper.LIB_DIR_NAME);
+            if (!mayInheritNativeLibs()) {
+                // Start from a clean slate
+                NativeLibraryHelper.removeNativeBinariesFromDirLI(libDir, true);
+            }
+            // Skip native libraries processing for archival installation.
+            if (isArchivedInstallation()) {
+                return null;
+            }
+            return libDir;
         }
     }
 
@@ -3128,8 +3992,14 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         synchronized (mLock) {
             markStageDirInUseLocked();
         }
+        synchronized (mMetrics) {
+            mMetrics.onSessionVerificationStarted();
+        }
         mSessionProvider.getSessionVerifier().verify(this, (error, msg) -> {
             mHandler.post(() -> {
+                synchronized (mMetrics) {
+                    mMetrics.onSessionVerificationFinished();
+                }
                 if (dispatchPendingAbandonCallback()) {
                     // No need to continue if abandoned
                     return;
@@ -3137,7 +4007,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                 if (error == INSTALL_SUCCEEDED) {
                     onVerificationComplete();
                 } else {
-                    onSessionVerificationFailure(error, msg);
+                    onSessionVerificationFailure(error, msg, /* extras= */ null);
                 }
             });
         });
@@ -3159,6 +4029,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
      * @return a future that will be completed when the whole process is completed.
      */
     private CompletableFuture<Void> install() {
+        synchronized (mMetrics) {
+            mMetrics.onInternalInstallationStarted();
+        }
         // `futures` either contains only one session (`this`) or contains one parent session
         // (`this`) and n-1 child sessions.
         List<CompletableFuture<InstallResult>> futures = installNonStaged();
@@ -3191,17 +4064,31 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                         extras.putStringArrayList(
                                 PackageInstaller.EXTRA_WARNINGS, multiPackageWarnings);
                     }
+                    extras = result.session.appendDeveloperVerificationExtensionResponse(extras);
                     result.session.dispatchSessionFinished(
                             INSTALL_SUCCEEDED, "Session installed", extras);
                 }
             } else {
                 PackageManagerException e = (PackageManagerException) t.getCause();
+                final Bundle extras = appendDeveloperVerificationExtensionResponse(null);
                 setSessionFailed(e.error,
                         PackageManager.installStatusToString(e.error, e.getMessage()));
-                dispatchSessionFinished(e.error, e.getMessage(), null);
+                dispatchSessionFinished(e.error, e.getMessage(), extras);
                 maybeFinishChildSessions(e.error, e.getMessage());
             }
         });
+    }
+
+    private Bundle appendDeveloperVerificationExtensionResponse(@Nullable Bundle extras) {
+        if (mDeveloperVerificationExtensionResponse == null) {
+            return extras;
+        }
+        if (extras == null) {
+            extras = new Bundle();
+        }
+        extras.putParcelable(EXTRA_DEVELOPER_VERIFICATION_EXTENSION_RESPONSE,
+                mDeveloperVerificationExtensionResponse);
+        return extras;
     }
 
     /**
@@ -3385,7 +4272,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             return new InstallingSession(sessionId, stageDir, localObserver, params, mInstallSource,
                     user, mSigningDetails, mInstallerUid, mPackageLite, mPreVerifiedDomains, mPm,
                     mHasAppMetadataFile, mDependencyInstallerEnabled.get(),
-                    mMissingSharedLibraryCount.get());
+                    mMissingSharedLibraryCount.get(), mDeveloperVerificationStatusInternal,
+                    mWarnings);
         }
     }
 
@@ -3585,6 +4473,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         mResolvedBaseFile = null;
         mResolvedStagedFiles.clear();
         mResolvedInheritedFiles.clear();
+        mWarnings.clear();
 
         final PackageInfo pkgInfo = mPm.snapshotComputer().getPackageInfo(
                 params.appPackageName, PackageManager.GET_SIGNATURES
@@ -3695,7 +4584,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             CollectionUtils.addAll(stagedSplitTypes, apk.getSplitTypes());
         }
 
-        if (cloudCompilationVerification()) {
+        if (com.android.art.flags.Flags.artManagedInstallFilesValidationApi()) {
+            validateArtManagedInstallFiles(artManagedFilePaths);
+        } else {
             verifySdmSignatures(artManagedFilePaths, mSigningDetails);
         }
 
@@ -3879,31 +4770,54 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                 params.setDontKillApp(false);
             }
 
-            // Inherit compiled oat directory.
             final File packageInstallDir = (new File(appInfo.getBaseCodePath())).getParentFile();
             mInheritedFilesBase = packageInstallDir;
+
+            // Keep track of all dexopt artifacts and their containing directories. If we're linking
+            // (and not copying) inherited files, we can recreate the oat directory hierarchy and
+            // link dexopt artifacts.
+            // Note that not all dexopt artifacts are necessarily needed and usable at the
+            // destination. Here, we blindly link all of them and let ART decide which ones to use.
+            // ART replaces the unusable ones during the next dexopt (typically in a later stage of
+            // the installation) and removes the unneeded ones during the next file GC (typically
+            // when the device is idle).
             final File oatDir = new File(packageInstallDir, "oat");
-            if (oatDir.exists()) {
-                final File[] archSubdirs = oatDir.listFiles();
-
-                // Keep track of all instruction sets we've seen compiled output for.
-                // If we're linking (and not copying) inherited files, we can recreate the
-                // instruction set hierarchy and link compiled output.
-                if (archSubdirs != null && archSubdirs.length > 0) {
-                    final String[] instructionSets = InstructionSets.getAllDexCodeInstructionSets();
-                    for (File archSubDir : archSubdirs) {
-                        // Skip any directory that isn't an ISA subdir.
-                        if (!ArrayUtils.contains(instructionSets, archSubDir.getName())) {
-                            continue;
+            if (Flags.alternativeForDexoptCleanup()) {
+                Path oatPath = oatDir.toPath();
+                try (Stream<Path> stream = Files.walk(oatPath)) {
+                    for (Path path : (Iterable<Path>) stream::iterator) {
+                        if (Files.isRegularFile(path)) {
+                            mResolvedInheritedFiles.add(path.toFile());
+                            String subDir = oatPath.relativize(path.getParent()).toString();
+                            if (!subDir.equals("") && !mResolvedOatSubDirs.contains(subDir)) {
+                                mResolvedOatSubDirs.add(subDir);
+                            }
                         }
+                    }
+                } catch (IOException | UncheckedIOException e) {
+                    Slog.e(TAG, "Error walking directory " + oatDir, e);
+                }
+            } else {
+                if (oatDir.exists()) {
+                    final File[] archSubdirs = oatDir.listFiles();
 
-                        File[] files = archSubDir.listFiles();
-                        if (files == null || files.length == 0) {
-                            continue;
+                    if (archSubdirs != null && archSubdirs.length > 0) {
+                        final String[] instructionSets =
+                                InstructionSets.getAllDexCodeInstructionSets();
+                        for (File archSubDir : archSubdirs) {
+                            // Skip any directory that isn't an ISA subdir.
+                            if (!ArrayUtils.contains(instructionSets, archSubDir.getName())) {
+                                continue;
+                            }
+
+                            File[] files = archSubDir.listFiles();
+                            if (files == null || files.length == 0) {
+                                continue;
+                            }
+
+                            mResolvedOatSubDirs.add(archSubDir.getName());
+                            mResolvedInheritedFiles.addAll(Arrays.asList(files));
                         }
-
-                        mResolvedInstructionSets.add(archSubDir.getName());
-                        mResolvedInheritedFiles.addAll(Arrays.asList(files));
                     }
                 }
             }
@@ -3969,7 +4883,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         if (packageLite.isUseEmbeddedDex()) {
             for (File file : mResolvedStagedFiles) {
                 if (file.getName().endsWith(".apk")
-                        && !DexManager.auditUncompressedDexInApk(file.getPath())) {
+                        && !DexOptHelper.checkUncompressedDexInApk(file.getPath())) {
                     throw new PackageManagerException(INSTALL_FAILED_INVALID_APK,
                             "Some dex are not uncompressed and aligned correctly for "
                             + mPackageName);
@@ -4008,25 +4922,6 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         }
     }
 
-    @GuardedBy("mLock")
-    private void maybeStageDexMetadataLocked(File origFile, File targetFile)
-            throws PackageManagerException {
-        final File dexMetadataFile = DexMetadataHelper.findDexMetadataForFile(origFile);
-        if (dexMetadataFile == null) {
-            return;
-        }
-
-        if (!FileUtils.isValidExtFilename(dexMetadataFile.getName())) {
-            throw new PackageManagerException(INSTALL_FAILED_INVALID_APK,
-                    "Invalid filename: " + dexMetadataFile);
-        }
-        final File targetDexMetadataFile = new File(stageDir,
-                DexMetadataHelper.buildDexMetadataPathForApk(targetFile.getName()));
-
-        stageFileLocked(dexMetadataFile, targetDexMetadataFile);
-    }
-
-    @FlaggedApi(com.android.art.flags.Flags.FLAG_ART_SERVICE_V3)
     @GuardedBy("mLock")
     private void maybeStageArtManagedInstallFilesLocked(File origFile, File targetFile,
             List<String> artManagedFilePaths) throws PackageManagerException {
@@ -4127,11 +5022,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         }
         // Stage ART managed install files (e.g., dex metadata (.dm)) and corresponding fs-verity
         // signature if present.
-        if (com.android.art.flags.Flags.artServiceV3()) {
-            maybeStageArtManagedInstallFilesLocked(origFile, targetFile, artManagedFilePaths);
-        } else {
-            maybeStageDexMetadataLocked(origFile, targetFile);
-        }
+        maybeStageArtManagedInstallFilesLocked(origFile, targetFile, artManagedFilePaths);
         // Stage checksums (.digests) if present.
         maybeStageDigestsLocked(origFile, targetFile, splitName);
     }
@@ -4152,17 +5043,10 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         maybeInheritV4SignatureLocked(origFile);
 
         // Inherit ART managed install files (e.g., dex metadata (.dm)) if present.
-        if (com.android.art.flags.Flags.artServiceV3()) {
-            for (String path : ArtManagedInstallFileHelper.filterPathsForApk(
+        for (String path : ArtManagedInstallFileHelper.filterPathsForApk(
                          artManagedFilePaths, origFile.getPath())) {
-                File artManagedFile = new File(path);
-                mResolvedInheritedFiles.add(artManagedFile);
-            }
-        } else {
-            final File dexMetadataFile = DexMetadataHelper.findDexMetadataForFile(origFile);
-            if (dexMetadataFile != null) {
-                mResolvedInheritedFiles.add(dexMetadataFile);
-            }
+            File artManagedFile = new File(path);
+            mResolvedInheritedFiles.add(artManagedFile);
         }
         // Inherit the digests if present.
         final File digestsFile = ApkChecksums.findDigestsForFile(origFile);
@@ -4325,6 +5209,44 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         return true;
     }
 
+    @FlaggedApi(com.android.art.flags.Flags.FLAG_ART_MANAGED_INSTALL_FILES_VALIDATION_API)
+    private void validateArtManagedInstallFiles(List<String> artManagedFilePaths)
+            throws PackageManagerException {
+        for (ValidationResult result :
+                ArtManagedInstallFileHelper.validateFiles(artManagedFilePaths)) {
+            switch (result.getCode()) {
+                case ValidationResult.RESULT_ACCEPTED -> {
+                }
+                case ValidationResult.RESULT_UNRECOGNIZED -> {
+                    Slog.wtf(TAG,
+                            "Unrecognized ART-managed install file path '" + result.getPath()
+                                    + "'");
+                }
+                case ValidationResult.RESULT_SHOULD_DELETE_AND_CONTINUE -> {
+                    try {
+                        Files.delete(Paths.get(result.getPath()));
+                    } catch (IOException e) {
+                        throw new PackageManagerException(INSTALL_FAILED_INTERNAL_ERROR,
+                                "Failed to delete '" + result.getPath() + "': " + e.getMessage());
+                    }
+                    mWarnings.add(result.getMessage());
+                    mResolvedStagedFiles.removeIf(
+                            f -> f.getAbsolutePath().equals(result.getPath()));
+                    artManagedFilePaths.remove(result.getPath());
+                }
+                case ValidationResult.RESULT_SHOULD_FAIL -> {
+                    throw new PackageManagerException(
+                            INSTALL_FAILED_INVALID_APK, result.getMessage());
+                }
+                default -> {
+                    Slog.wtf(TAG,
+                            "ArtManagedInstallFileHelper.validateFiles returned unknown code "
+                                    + result.getCode());
+                }
+            }
+        }
+    }
+
     /**
      * Verifies the signatures of SDM files.
      *
@@ -4441,14 +5363,12 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         throw new IOException("File: " + pathStr + " outside base: " + baseStr);
     }
 
-    private void createOatDirs(String packageName, List<String> instructionSets, File fromDir)
+    private void createOatDirs(String packageName, List<String> oatSubDirs, File fromDir)
             throws PackageManagerException {
-        for (String instructionSet : instructionSets) {
-            try {
-                mInstaller.createOatDir(packageName, fromDir.getAbsolutePath(), instructionSet);
-            } catch (InstallerException e) {
-                throw PackageManagerException.from(e);
-            }
+        try {
+            mInstaller.createOatDirs(packageName, fromDir.getAbsolutePath(), oatSubDirs);
+        } catch (InstallerException e) {
+            throw PackageManagerException.from(e);
         }
     }
 
@@ -4509,30 +5429,44 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         Slog.d(TAG, "Copied " + fromFiles.size() + " files into " + toDir);
     }
 
-    private void extractNativeLibraries(PackageLite packageLite, File libDir,
-            String abiOverride)
-            throws PackageManagerException {
-        Objects.requireNonNull(packageLite);
+    @WorkerThread
+    private void extractNativeLibraries(File libDir) throws PackageManagerException {
         NativeLibraryHelper.Handle handle = null;
         try {
-            handle = NativeLibraryHelper.Handle.create(packageLite);
+            synchronized (mLock) {
+                Objects.requireNonNull(mPackageLite);
+                try {
+                    handle = NativeLibraryHelper.Handle.create(mPackageLite);
+                } catch (IOException e) {
+                    throw new PackageManagerException(INSTALL_FAILED_INTERNAL_ERROR,
+                            "Failed to extract native libraries", e);
+                }
+                // Release the mLock before starting the native lib extraction.
+                // Use mStageDirInUse to prevent stage dir from being deleted during the extraction.
+                markStageDirInUseLocked();
+            }
+            // Native library extraction may take a very long time and we don't want to trigger
+            // a watchdog kill and crash the system server.
+            Watchdog.getInstance().pauseWatchingCurrentThread("extract_native_libraries");
             final int res = NativeLibraryHelper.copyNativeBinariesWithOverride(handle, libDir,
-                    abiOverride, isIncrementalInstallation());
+                    params.abiOverride, isIncrementalInstallation());
             if (res != INSTALL_SUCCEEDED) {
                 throw new PackageManagerException(res,
                         "Failed to extract native libraries, res=" + res);
             }
-        } catch (IOException e) {
-            throw new PackageManagerException(INSTALL_FAILED_INTERNAL_ERROR,
-                    "Failed to extract native libraries", e);
         } finally {
             IoUtils.closeQuietly(handle);
+            Watchdog.getInstance().resumeWatchingCurrentThread("extract_native_libraries");
         }
     }
 
     void setPermissionsResult(boolean accepted) {
         if (!isSealed() && !isPreapprovalRequested()) {
             throw new SecurityException("Must be sealed to accept permissions");
+        }
+
+        synchronized (mMetrics) {
+            mMetrics.onUserResponseReceived();
         }
 
         // To support pre-approval request of atomic install, we allow child session to handle
@@ -4552,6 +5486,95 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             root.dispatchSessionFinished(INSTALL_FAILED_ABORTED, "User rejected permissions", null);
             root.maybeFinishChildSessions(INSTALL_FAILED_ABORTED, "User rejected permissions");
         }
+    }
+
+    /**
+     * If a verification session was left incomplete, proceed or abort with the installation
+     * depending on the option chosen by the user.
+     *
+     * @see DeveloperVerificationUserResponse
+     */
+    public void setVerificationUserResponse(@DeveloperVerificationUserResponse int responseCode) {
+        Message msg = mHandler.obtainMessage(MSG_ON_DEVELOPER_VERIFICATION_USER_RESPONSE);
+        msg.arg1 = responseCode;
+        msg.sendToTarget();
+    }
+
+    private void handleVerificationUserResponse(
+            @DeveloperVerificationUserResponse int userResponse) {
+        if (isDestroyed() || isSessionFailed()) {
+            Log.e(TAG, "Session " + sessionId + " already abandoned or marked as failed.");
+            return;
+        }
+        if (mDeveloperVerificationUserActionState == null) {
+            Log.e(TAG, "User action was not requested for this verification. "
+                    + "SessionID: " + sessionId);
+            return;
+        }
+        if (userResponse != DEVELOPER_VERIFICATION_USER_RESPONSE_ERROR) {
+            // Only log user response when the response is not error
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationUserResponseReceived(userResponse);
+            }
+        }
+        mDeveloperVerificationUserActionState.onUserResponseReceived(userResponse);
+    }
+
+    private class DeveloperVerificationUserActionState {
+        final CompletableFuture<DeveloperVerificationFutureResult> mFuture;
+        final int mUserActionNeededReason;
+
+        DeveloperVerificationUserActionState(
+                @DeveloperVerificationUserConfirmationInfo.UserActionNeededReason
+                int userActionNeededReason,
+                CompletableFuture<DeveloperVerificationFutureResult> future)  {
+            mUserActionNeededReason = userActionNeededReason;
+            mFuture = future;
+        }
+
+        void onUserResponseReceived(@DeveloperVerificationUserResponse int userResponse) {
+            switch (userResponse) {
+                case DEVELOPER_VERIFICATION_USER_RESPONSE_ERROR,
+                     DEVELOPER_VERIFICATION_USER_RESPONSE_ABORT -> {
+                    String errorMsg = userResponse == DEVELOPER_VERIFICATION_USER_RESPONSE_ERROR
+                            ? "User could not be notified about the pending verification."
+                            : "User denied proceeding with the pending verification.";
+                    mFuture.complete(DeveloperVerificationFutureResult.ofFailure(
+                            mUserActionNeededReason, errorMsg));
+                }
+                case DEVELOPER_VERIFICATION_USER_RESPONSE_RETRY -> {
+                    // The future is not completed until the retry of developer verification has
+                    // either succeeded or aborted. If another retry is requested after this, the
+                    // the same future is reused.
+                    startDeveloperVerificationSession(mFuture, /* retry= */ true);
+                }
+
+                case DEVELOPER_VERIFICATION_USER_RESPONSE_INSTALL_ANYWAY -> {
+                    mFuture.complete(DeveloperVerificationFutureResult.ofSuccess());
+                }
+                default -> throw new IllegalArgumentException(
+                        "Invalid user response " + userResponse);
+            }
+        }
+    }
+
+    /**
+     * Translate user action code to verification failure code. When the user rejected the
+     * user action to bypass the verification, or when the user intervention was not allowed,
+     * the verification failure reason code will be returned to the installer together with
+     * the failure status code.
+     */
+    private static @PackageInstaller.DeveloperVerificationFailedReason int
+                getVerificationFailureReason(
+                        @DeveloperVerificationUserConfirmationInfo.UserActionNeededReason
+                        int userActionNeededReason) {
+        return switch (userActionNeededReason) {
+            case DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_NETWORK_UNAVAILABLE
+                    -> DEVELOPER_VERIFICATION_FAILED_REASON_NETWORK_UNAVAILABLE;
+            case DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_DEVELOPER_BLOCKED
+                    -> DEVELOPER_VERIFICATION_FAILED_REASON_DEVELOPER_BLOCKED;
+            default -> DEVELOPER_VERIFICATION_FAILED_REASON_UNKNOWN;
+        };
     }
 
     public void open() throws IOException {
@@ -5145,9 +6168,15 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         sendUpdateToRemoteStatusReceiver(returnCode, msg, extras,
                 /* forPreapproval= */ isPreapprovalRequested() && !isCommitted());
 
+        final String packageName;
         synchronized (mLock) {
             mFinalStatus = returnCode;
             mFinalMessage = msg;
+            packageName = getPackageName();
+        }
+        synchronized (mMetrics) {
+            mMetrics.onInternalInstallationFinished();
+            mMetrics.onSessionFinished(returnCode, packageName);
         }
 
         final boolean success = (returnCode == INSTALL_SUCCEEDED);
@@ -5233,6 +6262,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             assertPreparedAndNotSealedLocked("request of session " + sessionId);
             mPreapprovalDetails = details;
             setPreapprovalRemoteStatusReceiver(statusReceiver);
+        }
+        synchronized (mMetrics) {
+            mMetrics.onPreapprovalSet();
         }
     }
 
@@ -5341,6 +6373,23 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         }
     }
 
+    /**
+     * @return the initial policy for the verification request assigned to the session when created.
+     */
+    @VisibleForTesting
+    public @PackageInstaller.DeveloperVerificationPolicy int getInitialVerificationPolicy() {
+        assertCallerIsOwnerOrRoot();
+        return mInitialVerificationPolicy;
+    }
+
+    /**
+     * @return the current policy for the verification request associated with this session.
+     */
+    @VisibleForTesting
+    public @PackageInstaller.DeveloperVerificationPolicy int getCurrentVerificationPolicy() {
+        assertCallerIsOwnerOrRoot();
+        return mCurrentVerificationPolicy.get();
+    }
 
     void setSessionReady() {
         synchronized (mLock) {
@@ -5385,35 +6434,35 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         mCallback.onSessionChanged(this);
     }
 
-    /** {@hide} */
+    /** @hide */
     boolean isSessionReady() {
         synchronized (mLock) {
             return mSessionReady;
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     boolean isSessionApplied() {
         synchronized (mLock) {
             return mSessionApplied;
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     boolean isSessionFailed() {
         synchronized (mLock) {
             return mSessionFailed;
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     int getSessionErrorCode() {
         synchronized (mLock) {
             return mSessionErrorCode;
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     String getSessionErrorMessage() {
         synchronized (mLock) {
             return mSessionErrorMessage;
@@ -5511,6 +6560,17 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             }
         } catch (InstallerException ignored) {
         }
+        if (shouldUseVerificationService()
+                && !TextUtils.isEmpty(params.appPackageName)
+                && !isCommitted()) {
+            // Only notify for the cancellation if the verification request has not
+            // been sent out, which happens right after commit() is called.
+            mDeveloperVerifierController.notifyVerificationCancelled(
+                    params.appPackageName, userId);
+            synchronized (mMetrics) {
+                mMetrics.onDeveloperVerificationCancelled();
+            }
+        }
     }
 
     void dump(IndentingPrintWriter pw) {
@@ -5571,6 +6631,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         if (mPreVerifiedDomains != null) {
             pw.printPair("mPreVerifiedDomains", mPreVerifiedDomains);
         }
+        pw.printPair("mInitialVerificationPolicy", mInitialVerificationPolicy);
+        pw.printPair("mCurrentVerificationPolicy", mCurrentVerificationPolicy.get());
         pw.println();
 
         pw.decreaseIndent();
@@ -5639,6 +6701,23 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             ArrayList<String> warnings = extras.getStringArrayList(PackageInstaller.EXTRA_WARNINGS);
             if (!ArrayUtils.isEmpty(warnings)) {
                 fillIn.putStringArrayListExtra(PackageInstaller.EXTRA_WARNINGS, warnings);
+            }
+            if (extras.containsKey(EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON)) {
+                fillIn.putExtra(EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON,
+                        extras.getInt(EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON));
+            }
+            if (extras.containsKey(EXTRA_DEVELOPER_VERIFICATION_LITE_PERFORMED)) {
+                fillIn.putExtra(EXTRA_DEVELOPER_VERIFICATION_LITE_PERFORMED,
+                        extras.getInt(EXTRA_DEVELOPER_VERIFICATION_LITE_PERFORMED));
+            }
+            if (extras.containsKey(Intent.EXTRA_INTENT)) {
+                fillIn.putExtra(Intent.EXTRA_INTENT,
+                        extras.getParcelable(Intent.EXTRA_INTENT, Intent.class));
+            }
+            if (extras.containsKey(EXTRA_DEVELOPER_VERIFICATION_EXTENSION_RESPONSE)) {
+                fillIn.putExtra(EXTRA_DEVELOPER_VERIFICATION_EXTENSION_RESPONSE,
+                        extras.getParcelable(EXTRA_DEVELOPER_VERIFICATION_EXTENSION_RESPONSE,
+                                PersistableBundle.class));
             }
         }
         try {
@@ -5795,6 +6874,9 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             out.attributeInt(null, ATTR_INSTALL_REASON, params.installReason);
             writeBooleanAttribute(out, ATTR_APPLICATION_ENABLED_SETTING_PERSISTENT,
                     params.applicationEnabledSettingPersistent);
+            out.attributeInt(null, ATTR_INITIAL_VERIFICATION_POLICY, mInitialVerificationPolicy);
+            out.attributeInt(null, ATTR_CURRENT_VERIFICATION_POLICY,
+                    mCurrentVerificationPolicy.get());
 
             final boolean isDataLoader = params.dataLoaderParams != null;
             writeBooleanAttribute(out, ATTR_IS_DATALOADER, isDataLoader);
@@ -5897,6 +6979,15 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
     }
 
     /**
+     * Called to log the metrics about a session being removed due to expiration.
+     */
+    public void onSessionExpired() {
+        synchronized (mMetrics) {
+            mMetrics.onSessionExpired();
+        }
+    }
+
+    /**
      * Read new session from a {@link TypedXmlPullParser xml description} and create it.
      *
      * @param in The source of the description
@@ -5915,6 +7006,7 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
             @NonNull StagingManager stagingManager, @NonNull File sessionsDir,
             @NonNull PackageSessionProvider sessionProvider,
             @NonNull SilentUpdatePolicy silentUpdatePolicy,
+            @NonNull DeveloperVerifierController developerVerifierController,
             @NonNull InstallDependencyHelper installDependencyHelper)
             throws IOException, XmlPullParserException {
         final int sessionId = in.getAttributeInt(null, ATTR_SESSION_ID);
@@ -5945,6 +7037,10 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
         final boolean sealed = in.getAttributeBoolean(null, ATTR_SEALED, false);
         final int parentSessionId = in.getAttributeInt(null, ATTR_PARENT_SESSION_ID,
                 SessionInfo.INVALID_ID);
+        final int initialVerificationPolicy = in.getAttributeInt(null,
+                ATTR_INITIAL_VERIFICATION_POLICY, DEVELOPER_VERIFICATION_POLICY_NONE);
+        final int currentVerificationPolicy = in.getAttributeInt(null,
+                ATTR_CURRENT_VERIFICATION_POLICY, DEVELOPER_VERIFICATION_POLICY_NONE);
 
         final SessionParams params = new SessionParams(
                 SessionParams.MODE_INVALID);
@@ -6120,6 +7216,8 @@ public class PackageInstallerSession extends IPackageInstallerSession.Stub {
                 stageCid, fileArray, checksumsMap, prepared, committed, destroyed, sealed,
                 childSessionIdsArray, parentSessionId, isReady, isFailed, isApplied,
                 sessionErrorCode, sessionErrorMessage, preVerifiedDomains,
-                installDependencyHelper);
+                developerVerifierController,
+                initialVerificationPolicy, currentVerificationPolicy, installDependencyHelper,
+                /* restoredOnReboot= */ true);
     }
 }

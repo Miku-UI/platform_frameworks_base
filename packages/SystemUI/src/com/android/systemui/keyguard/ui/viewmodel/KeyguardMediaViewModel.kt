@@ -21,45 +21,39 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.Hydrator
 import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
-import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
-import com.android.systemui.utils.coroutines.flow.flatMapLatestConflated
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
+import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
+import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.flowOf
 
 class KeyguardMediaViewModel
 @AssistedInject
 constructor(
-    mediaCarouselInteractor: MediaCarouselInteractor,
-    keyguardInteractor: KeyguardInteractor,
-    shadeModeInteractor: ShadeModeInteractor,
+    val mediaViewModelFactory: MediaViewModel.Factory,
+    private val mediaCarouselInteractor: MediaCarouselInteractor,
+    private val keyguardInteractor: KeyguardInteractor,
 ) : ExclusiveActivatable() {
 
     private val hydrator = Hydrator("KeyguardMediaViewModel.hydrator")
-    /**
-     * Whether media carousel is visible on lockscreen. Media may be presented on lockscreen but
-     * still hidden on certain surfaces like AOD
-     */
-    val isMediaVisible: Boolean by
+
+    /** Whether the media notification is active */
+    val isMediaActive: Boolean by
         hydrator.hydratedStateOf(
-            traceName = "isMediaVisible",
-            source =
-                keyguardInteractor.isDozing.flatMapLatestConflated { isDozing ->
-                    if (isDozing) {
-                        flowOf(false)
-                    } else {
-                        mediaCarouselInteractor.hasActiveMediaOrRecommendation
-                    }
-                },
-            initialValue =
-                !keyguardInteractor.isDozing.value &&
-                    mediaCarouselInteractor.hasActiveMediaOrRecommendation.value,
+            traceName = "isMediaActive",
+            source = mediaCarouselInteractor.hasActiveMedia,
         )
 
-    val isShadeLayoutWide: Boolean by
-        hydrator.hydratedStateOf(
-            traceName = "isShadeLayoutWide",
-            source = shadeModeInteractor.isShadeLayoutWide,
+    val isDozing: Boolean by
+        hydrator.hydratedStateOf(traceName = "isDozing", source = keyguardInteractor.isDozing)
+
+    fun onSwipeToDismiss() = mediaCarouselInteractor.onSwipeToDismiss()
+
+    val mediaUiBehavior =
+        MediaUiBehavior(
+            isCarouselDismissible = true,
+            isCarouselScrollingEnabled = true,
+            carouselVisibility = MediaCarouselVisibility.WhenAnyCardIsActive,
         )
 
     override suspend fun onActivated(): Nothing {

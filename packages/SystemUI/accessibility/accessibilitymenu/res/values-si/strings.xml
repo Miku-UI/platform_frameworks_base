@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"පෙර තිරයට යන්න"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"මීළඟ තිරයට යන්න"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"ප්‍රවේශ්‍යතා මෙනුව ඔබගේ උපාංගය පාලනය කිරීම සඳහා විශාල තිරය මත මෙනුවක් සපයයි. ඔබට ඔබගේ උපාංගය අගුලු හැරීමට, හඬ පරිමාව සහ දීප්තිය පාලනය කිරීමට, තිර රූ ගැනීමට සහ තවත් දේ කිරීමට හැකිය."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"විශාල මෙනුව හරහා උපාංගය පාලනය කරන්න"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"විශාල මෙනුවක් සමගින් හඬ පරිමාව, දීප්තිය සහ තවත් දේ පාලනය කරන්න"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ප්‍රවේශ්‍යතා මෙනු සැකසීම්"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"විශාල බොත්තම්"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"ප්‍රවේශ්‍යතා මෙනු බොත්තම්වල ප්‍රමාණය වැඩි කරන්න"</string>

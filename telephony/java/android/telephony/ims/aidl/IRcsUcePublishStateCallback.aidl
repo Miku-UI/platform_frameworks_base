@@ -20,7 +20,7 @@ import android.telephony.ims.PublishAttributes;
 /**
  * Interface for RCS UCE publish state change callbacks.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IRcsUcePublishStateCallback {
     void onPublishUpdated(in PublishAttributes attributes);

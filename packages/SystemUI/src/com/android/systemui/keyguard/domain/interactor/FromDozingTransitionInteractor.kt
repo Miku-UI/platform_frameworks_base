@@ -34,7 +34,6 @@ import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepositor
 import com.android.systemui.keyguard.shared.model.BiometricUnlockMode.Companion.isWakeAndUnlock
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.power.domain.interactor.PowerInteractor
-import com.android.systemui.power.shared.model.WakefulnessModel
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.util.kotlin.Utils.Companion.sample as sampleCombine
 import com.android.systemui.util.kotlin.sample
@@ -98,12 +97,8 @@ constructor(
         scope.launch {
             powerInteractor.isAwake
                 .filterRelevantKeyguardStateAnd { isAwake -> isAwake }
-                .sample(keyguardInteractor.biometricUnlockState, ::Pair)
                 .collect {
-                    (
-                        _,
-                        biometricUnlockState,
-                    ) ->
+                    val biometricUnlockState = keyguardInteractor.biometricUnlockState.value
                     if (isWakeAndUnlock(biometricUnlockState.mode)) {
                         if (SceneContainerFlag.isEnabled) {
                             // TODO(b/360368320): Adapt for scene framework
@@ -119,18 +114,10 @@ constructor(
     }
 
     @SuppressLint("MissingPermission")
-    private fun shouldTransitionToCommunal(
-        shouldShowCommunal: Boolean,
-        isCommunalAvailable: Boolean,
-        wakefulness: WakefulnessModel,
-    ) =
-        if (communalSettingsInteractor.isV2FlagEnabled()) {
-            shouldShowCommunal &&
-                !wakefulness.isAwakeFromMotionOrLift() &&
-                !keyguardInteractor.isKeyguardOccluded.value
-        } else {
-            isCommunalAvailable && dreamManager.canStartDreaming(false)
-        }
+    private fun shouldTransitionToCommunal(isCommunalAvailable: Boolean) =
+        !communalSettingsInteractor.isV2FlagEnabled() &&
+            isCommunalAvailable &&
+            dreamManager.canStartDreaming(false)
 
     @OptIn(FlowPreview::class)
     @SuppressLint("MissingPermission")
@@ -155,14 +142,10 @@ constructor(
             powerInteractor.detailedWakefulness
                 .debounce(50L)
                 .filterRelevantKeyguardStateAnd { wakefulness -> wakefulness.isAwake() }
-                .sampleCombine(
-                    communalInteractor.isCommunalAvailable,
-                    communalSettingsInteractor.autoOpenEnabled,
-                )
-                .collect { (detailedWakefulness, isCommunalAvailable, shouldShowCommunal) ->
+                .sample(communalInteractor.isCommunalAvailable, ::Pair)
+                .collect { (_, isCommunalAvailable) ->
                     val isKeyguardOccludedLegacy = keyguardInteractor.isKeyguardOccluded.value
                     val primaryBouncerShowing = keyguardInteractor.primaryBouncerShowing.value
-                    val isKeyguardGoingAway = keyguardInteractor.isKeyguardGoingAway.value
 
                     if (!deviceEntryInteractor.isLockscreenEnabled()) {
                         if (!SceneContainerFlag.isEnabled) {
@@ -171,16 +154,11 @@ constructor(
                                 ownerReason = "lockscreen not enabled",
                             )
                         }
-                    } else if (canDismissLockscreen() || isKeyguardGoingAway) {
+                    } else if (canDismissLockscreen()) {
                         if (!SceneContainerFlag.isEnabled) {
                             startTransitionTo(
                                 KeyguardState.GONE,
-                                ownerReason =
-                                    if (canDismissLockscreen()) {
-                                        "canDismissLockscreen()"
-                                    } else {
-                                        "isKeyguardGoingAway"
-                                    },
+                                ownerReason = "canDismissLockscreen()",
                             )
                         }
                     } else if (primaryBouncerShowing) {
@@ -189,18 +167,15 @@ constructor(
                         }
                     } else if (isKeyguardOccludedLegacy) {
                         startTransitionTo(KeyguardState.OCCLUDED)
-                    } else if (
-                        shouldTransitionToCommunal(
-                            shouldShowCommunal,
-                            isCommunalAvailable,
-                            detailedWakefulness,
-                        )
-                    ) {
+                    } else if (shouldTransitionToCommunal(isCommunalAvailable)) {
                         if (!SceneContainerFlag.isEnabled) {
                             transitionToGlanceableHub()
                         }
                     } else {
-                        startTransitionTo(KeyguardState.LOCKSCREEN)
+                        startTransitionTo(
+                            KeyguardState.LOCKSCREEN,
+                            ownerReason = "listenForDozingToAny",
+                        )
                     }
                 }
         }
@@ -217,7 +192,6 @@ constructor(
             powerInteractor.detailedWakefulness
                 .filterRelevantKeyguardStateAnd { it.isAwake() }
                 .sampleCombine(
-                    communalSettingsInteractor.autoOpenEnabled,
                     communalInteractor.isCommunalAvailable,
                     keyguardInteractor.biometricUnlockState,
                     wakeToGoneInteractor.canWakeDirectlyToGone,
@@ -225,8 +199,7 @@ constructor(
                 )
                 .collect {
                     (
-                        detailedWakefulness,
-                        shouldShowCommunal,
+                        _,
                         isCommunalAvailable,
                         biometricUnlockState,
                         canWakeDirectlyToGone,
@@ -252,13 +225,7 @@ constructor(
                                     ownerReason = "waking from dozing",
                                 )
                             }
-                        } else if (
-                            shouldTransitionToCommunal(
-                                shouldShowCommunal,
-                                isCommunalAvailable,
-                                detailedWakefulness,
-                            )
-                        ) {
+                        } else if (shouldTransitionToCommunal(isCommunalAvailable)) {
                             if (!SceneContainerFlag.isEnabled) {
                                 transitionToGlanceableHub()
                             }

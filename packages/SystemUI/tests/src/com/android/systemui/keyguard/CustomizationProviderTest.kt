@@ -31,12 +31,14 @@ import android.view.SurfaceControlViewHost
 import androidx.test.filters.SmallTest
 import com.android.internal.widget.LockPatternUtils
 import com.android.keyguard.logging.KeyguardQuickAffordancesLogger
-import com.android.systemui.SystemUIAppComponentFactoryBase
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.accessibility.domain.interactor.accessibilityInteractor
 import com.android.systemui.animation.DialogTransitionAnimator
+import com.android.systemui.application.ContentProviderContextAvailableCallback
 import com.android.systemui.dock.DockManagerFake
 import com.android.systemui.flags.FakeFeatureFlags
 import com.android.systemui.flags.Flags
+import com.android.systemui.haptics.msdl.msdlPlayer
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceConfig
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceProviderClientFactory
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceLegacySettingSyncer
@@ -44,11 +46,13 @@ import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanc
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceRemoteUserSelectionManager
 import com.android.systemui.keyguard.data.repository.FakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.KeyguardQuickAffordanceRepository
+import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractorFactory
 import com.android.systemui.keyguard.domain.interactor.KeyguardQuickAffordanceInteractor
 import com.android.systemui.keyguard.shared.quickaffordance.KeyguardQuickAffordancesMetricsLogger
+import com.android.systemui.keyguard.ui.preview.KeyguardPreview
+import com.android.systemui.keyguard.ui.preview.KeyguardPreviewFactory
 import com.android.systemui.keyguard.ui.preview.KeyguardPreviewRenderer
-import com.android.systemui.keyguard.ui.preview.KeyguardPreviewRendererFactory
 import com.android.systemui.keyguard.ui.preview.KeyguardRemotePreviewManager
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
@@ -56,6 +60,7 @@ import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.res.R
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.settings.UserFileManager
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.shade.domain.interactor.shadeInteractor
@@ -96,7 +101,7 @@ class CustomizationProviderTest : SysuiTestCase() {
     @Mock private lateinit var keyguardStateController: KeyguardStateController
     @Mock private lateinit var userTracker: UserTracker
     @Mock private lateinit var activityStarter: ActivityStarter
-    @Mock private lateinit var previewRendererFactory: KeyguardPreviewRendererFactory
+    @Mock private lateinit var previewFactory: KeyguardPreviewFactory
     @Mock private lateinit var previewRenderer: KeyguardPreviewRenderer
     @Mock private lateinit var backgroundHandler: Handler
     @Mock private lateinit var previewSurfacePackage: SurfaceControlViewHost.SurfacePackage
@@ -105,6 +110,7 @@ class CustomizationProviderTest : SysuiTestCase() {
     @Mock private lateinit var logger: KeyguardQuickAffordancesLogger
     @Mock private lateinit var metricsLogger: KeyguardQuickAffordancesMetricsLogger
 
+    private lateinit var preview: KeyguardPreview
     private lateinit var dockManager: DockManagerFake
     private lateinit var biometricSettingsRepository: FakeBiometricSettingsRepository
 
@@ -115,11 +121,12 @@ class CustomizationProviderTest : SysuiTestCase() {
         MockitoAnnotations.initMocks(this)
         overrideResource(R.bool.custom_lockscreen_shortcuts_enabled, true)
         whenever(previewRenderer.surfacePackage).thenReturn(previewSurfacePackage)
-        whenever(previewRendererFactory.create(any())).thenReturn(previewRenderer)
+        preview = KeyguardPreview(mock(), mock(), mock(), mock(), mock(), previewRenderer)
+        whenever(previewFactory.create(any())).thenReturn(preview)
         whenever(backgroundHandler.looper).thenReturn(TestableLooper.get(this).looper)
 
         dockManager = DockManagerFake()
-        biometricSettingsRepository = FakeBiometricSettingsRepository()
+        biometricSettingsRepository = kosmos.biometricSettingsRepository
 
         underTest = CustomizationProvider()
         val localUserSelectionManager =
@@ -196,18 +203,20 @@ class CustomizationProviderTest : SysuiTestCase() {
                 launchAnimator = launchAnimator,
                 logger = logger,
                 metricsLogger = metricsLogger,
+                secureLockDeviceInteractor = { kosmos.secureLockDeviceInteractor },
                 devicePolicyManager = devicePolicyManager,
                 dockManager = dockManager,
                 biometricSettingsRepository = biometricSettingsRepository,
                 backgroundDispatcher = testDispatcher,
                 appContext = mContext,
-                accessibilityManager = mock(),
+                accessibilityInteractor = kosmos.accessibilityInteractor,
                 sceneInteractor = { kosmos.sceneInteractor },
+                msdlPlayer = kosmos.msdlPlayer,
             )
         underTest.previewManager =
             KeyguardRemotePreviewManager(
                 applicationScope = testScope.backgroundScope,
-                previewRendererFactory = previewRendererFactory,
+                previewFactory = previewFactory,
                 mainDispatcher = testDispatcher,
                 backgroundHandler = backgroundHandler,
             )
@@ -233,7 +242,7 @@ class CustomizationProviderTest : SysuiTestCase() {
 
     @Test
     fun onAttachInfo_reportsContext() {
-        val callback: SystemUIAppComponentFactoryBase.ContextAvailableCallback = mock()
+        val callback: ContentProviderContextAvailableCallback = mock()
         underTest.setContextAvailableCallback(callback)
 
         underTest.attachInfo(context, null)
@@ -392,7 +401,7 @@ class CustomizationProviderTest : SysuiTestCase() {
     fun preview() =
         testScope.runTest {
             val hostToken: IBinder = mock()
-            whenever(previewRenderer.hostToken).thenReturn(hostToken)
+            whenever(preview.repository.hostToken).thenReturn(hostToken)
             val extras = Bundle()
 
             val result = underTest.call("whatever", "anything", extras)

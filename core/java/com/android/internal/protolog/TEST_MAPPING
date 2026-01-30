@@ -2,9 +2,6 @@
   "presubmit": [
     {
       "name": "TracingTests"
-    },
-    {
-      "name": "ProtologPerfTests"
     }
   ]
 }

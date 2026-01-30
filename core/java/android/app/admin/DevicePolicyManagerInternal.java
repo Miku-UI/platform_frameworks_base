@@ -81,9 +81,18 @@ public abstract class DevicePolicyManagerInternal {
             OnCrossProfileWidgetProvidersChangeListener listener);
 
     /**
+     * Notifies the listeners that the cross profile widget provider list has changed.
+     *
+     * Should only be called by {@link com.android.server.devicepolicy.PolicyEnforcerCallbacks}.
+     */
+    public abstract void notifyCrossProfileProvidersChanged(int userId, List<String> packages);
+
+    /**
      * @param userHandle the handle of the user whose profile owner is being fetched.
      * @return the configured supervision app if it exists and is the device owner or policy owner.
+     * @deprecated Use {@link android.app.supervision.SupervisionManagerInternal} methods instead.
      */
+    @Deprecated
     public abstract @Nullable ComponentName getProfileOwnerOrDeviceOwnerSupervisionComponent(
             @NonNull UserHandle userHandle);
 
@@ -114,7 +123,9 @@ public abstract class DevicePolicyManagerInternal {
      *
      * @param uid App uid.
      * @return true if the uid is the active supervision app.
+     * @deprecated Use {@link android.app.supervision.SupervisionManagerInternal} methods instead.
      */
+    @Deprecated
     public abstract boolean isActiveSupervisionApp(int uid);
 
     /**
@@ -284,6 +295,13 @@ public abstract class DevicePolicyManagerInternal {
     public abstract void resetOp(int op, String packageName, @UserIdInt int userId);
 
     /**
+     * Returns the input method packages permitted by Device policy, {@code null} means
+     * all input methods are allowed.
+     */
+    @Nullable
+    public abstract Set<String> getPermittedInputMethodPackages(@UserIdInt int userId);
+
+    /**
      * Checks if the calling process has been granted permission to apply a device policy on a
      * specific user.
      *
@@ -319,16 +337,20 @@ public abstract class DevicePolicyManagerInternal {
 
     /**
      * Returns a map of admin to {@link Bundle} map of restrictions set by the admins for the
-     * provided {@code packageName} in the provided {@code userId}
+     * provided {@code packageName} in the provided {@code userId}.
+     *
+     * <p> App restrictions set by the DPC are always put at the front of the returned list.
      */
     public abstract List<Bundle> getApplicationRestrictionsPerAdminForUser(
             String packageName, @UserIdInt int userId);
 
-    /**
-     *  Returns a list of users who set a user restriction on a given user.
-     */
-    public abstract List<EnforcingUser> getUserRestrictionSources(String restriction,
-                @UserIdInt int userId);
+    /** Returns a list of users who set a user restriction on a given user. */
+    public abstract List<EnforcingUser> getUserRestrictionSources(
+            String restriction, @UserIdInt int userId);
+
+    /** Sets a user restriction on a given user. */
+    public abstract void setUserRestrictionForUser(
+            @NonNull String systemEntity, String key, boolean enabled, @UserIdInt int targetUser);
 
     /**
      * Enforces resolved security logging policy, should only be invoked from device policy engine.
@@ -345,4 +367,15 @@ public abstract class DevicePolicyManagerInternal {
      */
     public abstract void setInternalEventsCallback(
             @Nullable Consumer<List<SecurityLog.SecurityEvent>> callback);
+
+    /** Removes all policies associated with admins with the given `packageNames` and `userId`. */
+    public abstract void removePoliciesForAdmins(
+            @UserIdInt int userId, @NonNull List<String> packageNames);
+
+    /**
+     * Removes all local policies for the given `userId` associated with admins with the given
+     * `systemEntities` authorities.
+     */
+    public abstract void removeLocalPoliciesForSystemEntities(
+            @UserIdInt int userId, @NonNull List<String> systemEntities);
 }

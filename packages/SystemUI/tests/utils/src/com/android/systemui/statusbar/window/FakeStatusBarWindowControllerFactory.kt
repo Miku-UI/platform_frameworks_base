@@ -27,5 +27,6 @@ class FakeStatusBarWindowControllerFactory : StatusBarWindowController.Factory {
         windowManager: WindowManager,
         statusBarConfigurationController: StatusBarConfigurationController,
         contentInsetsProvider: StatusBarContentInsetsProvider,
+        displayId: Int,
     ) = FakeStatusBarWindowController()
 }

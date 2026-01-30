@@ -91,15 +91,42 @@ sealed interface SceneTransitionLayoutState {
     val transitions: SceneTransitions
 
     /**
-     * Whether we are transitioning. If [from] or [to] is empty, we will also check that they match
-     * the contents we are animating from and/or to.
+     * Whether we are idle. If [content] isn't `null`, return `true` if idle and current content
+     * contains [content]. If [content] is `null`, will return `true` if idle, regardless of current
+     * content.
+     *
+     * If this is the state of a [ContentScope.NestedSceneTransitionLayout], then this will also
+     * consider ancestors and return `true` iff *all* ancestor states are idle (and at least one of
+     * them is idle at [content], if it is not null).
+     */
+    fun isIdle(content: ContentKey? = null): Boolean
+
+    /**
+     * Whether we are transitioning. If [from] or [to] are `null`, only the non-`null` one would be
+     * checked; if both are `null`, will return `true` if any transition is ongoing.
+     *
+     * If this is the state of a [ContentScope.NestedSceneTransitionLayout], then this will also
+     * consider ancestors and return `true` if *any* ancestor is transitioning (from [from] to [to],
+     * if they are not null).
      */
     fun isTransitioning(from: ContentKey? = null, to: ContentKey? = null): Boolean
 
-    /** Whether we are transitioning from [content] to [other], or from [other] to [content]. */
+    /**
+     * Whether we are transitioning from [content] to [other], or from [other] to [content].
+     *
+     * If this is the state of a [ContentScope.NestedSceneTransitionLayout], then this will also
+     * consider ancestors and return `true` if *any* ancestor is transitioning (between [from] and
+     * [to], if they are not null).
+     */
     fun isTransitioningBetween(content: ContentKey, other: ContentKey): Boolean
 
-    /** Whether we are transitioning from or to [content]. */
+    /**
+     * Whether we are transitioning from or to [content].
+     *
+     * If this is the state of a [ContentScope.NestedSceneTransitionLayout], then this will also
+     * consider ancestors and return `true` if *any* ancestor is transitioning (from or to
+     * [content], if it is not null).
+     */
     fun isTransitioningFromOrTo(content: ContentKey): Boolean
 }
 
@@ -390,6 +417,10 @@ internal class MutableSceneTransitionLayoutStateImpl(
         }
     }
 
+    override fun isIdle(content: ContentKey?): Boolean {
+        return transitionState.isIdle(content)
+    }
+
     override fun isTransitioning(from: ContentKey?, to: ContentKey?): Boolean {
         val transition = currentTransition ?: return false
         return transition.isTransitioning(from, to)
@@ -573,6 +604,7 @@ internal class MutableSceneTransitionLayoutStateImpl(
     }
 
     override fun snapTo(scene: SceneKey, overlays: Set<OverlayKey>) {
+        Log.i(TAG, "snapTo(scene=$scene, overlays=$overlays)")
         checkThread()
 
         // Force finish all transitions.

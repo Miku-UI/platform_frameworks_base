@@ -21,5 +21,5 @@ import android.content.ComponentName;
 /** @hide */
 parcelable SignedPackageParcel {
     String packageName;
-    byte[] certificateDigest;
+    @nullable byte[] certificateDigest;
 }

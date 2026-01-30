@@ -17,6 +17,7 @@
 package com.android.systemui.plugins
 
 import com.android.systemui.kosmos.Kosmos
+import org.mockito.kotlin.mock
 
 var Kosmos.fakeDarkIconDispatcher: FakeDarkIconDispatcher by
-    Kosmos.Fixture { FakeDarkIconDispatcher() }
+    Kosmos.Fixture { FakeDarkIconDispatcher(lightBarTransitionsController = mock()) }

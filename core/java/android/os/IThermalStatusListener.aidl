@@ -18,7 +18,7 @@ package android.os;
 
 /**
  * Listener for thermal status.
- * {@hide}
+ * @hide
  */
 oneway interface IThermalStatusListener {
     /**

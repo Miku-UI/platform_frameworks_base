@@ -36,7 +36,7 @@ import java.util.List;
  * A watched {@link IntentResolver}.  The parameters are inherited from the superclass.
  * @param <F> The filter type
  * @param <R> The resolver type.
- * {@hide}
+ * @hide
  */
 public abstract class WatchedIntentResolver<F extends WatchedIntentFilter,
                                             R extends WatchedIntentFilter>

@@ -26,7 +26,7 @@ import android.os.Parcelable;
 /**
  * Represents an {@link UriPermission} granted to a package.
  *
- * {@hide}
+ * @hide
  */
 public class GrantedUriPermission implements Parcelable {
 

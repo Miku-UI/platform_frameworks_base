@@ -18,23 +18,10 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/two_target_divider"
-    android:layout_width="wrap_content"
-    android:layout_height="match_parent"
-    android:gravity="start|center_vertical"
-    android:orientation="horizontal"
-    android:paddingStart="?android:attr/listPreferredItemPaddingEnd"
-    android:paddingLeft="?android:attr/listPreferredItemPaddingEnd"
-    android:paddingVertical="@dimen/settingslib_expressive_space_extrasmall7"
-    android:filterTouchesWhenObscured="false">
+    android:filterTouchesWhenObscured="false"
+    style="?expressiveTwoTargetDividerStyle">
 
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:paddingEnd="@dimen/settingslib_expressive_space_extrasmall6"
-        android:src="@drawable/settingslib_expressive_icon_chevron"/>
+    <ImageView style="?expressiveTwoTargetDividerImageViewStyle" />
 
-    <View
-        android:layout_width="1dp"
-        android:layout_height="40dp"
-        android:background="?android:attr/listDivider" />
+    <View style="?expressiveTwoTargetDividerViewStyle" />
 </LinearLayout>

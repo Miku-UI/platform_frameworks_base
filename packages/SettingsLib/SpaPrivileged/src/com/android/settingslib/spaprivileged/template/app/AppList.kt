@@ -19,16 +19,24 @@ package com.android.settingslib.spaprivileged.template.app
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.UserHandle
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Apps
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -38,6 +46,7 @@ import com.android.settingslib.spa.framework.compose.LogCompositions
 import com.android.settingslib.spa.framework.compose.TimeMeasurer.Companion.rememberTimeMeasurer
 import com.android.settingslib.spa.framework.compose.rememberLazyListStateAndHideKeyboardWhenStartScroll
 import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
+import com.android.settingslib.spa.widget.preference.ZeroStatePreference
 import com.android.settingslib.spa.widget.ui.CategoryTitle
 import com.android.settingslib.spa.widget.ui.LazyCategory
 import com.android.settingslib.spa.widget.ui.PlaceholderTitle
@@ -73,6 +82,13 @@ data class AppListInput<T : AppRecord>(
     val header: @Composable () -> Unit,
     val noItemMessage: String? = null,
     val bottomPadding: Dp,
+    val noAppInfo: NoAppInfo = NoAppInfo(),
+)
+
+data class NoAppInfo(
+    val icon: ImageVector = Icons.Filled.Apps,
+    val title: Int = R.string.no_applications,
+    val description: Int? = null,
 )
 
 /**
@@ -81,13 +97,14 @@ data class AppListInput<T : AppRecord>(
  * This UI element will take the remaining space on the screen to show the App List.
  */
 @Composable
-fun <T : AppRecord> AppListInput<T>.AppList() {
-    AppListImpl { rememberViewModel(config, listModel, state) }
+fun <T : AppRecord> AppListInput<T>.AppList(noAppInfo: NoAppInfo = NoAppInfo()) {
+    AppListImpl(noAppInfo) { rememberViewModel(config, listModel, state) }
 }
 
 @Composable
 internal fun <T : AppRecord> AppListInput<T>.AppListImpl(
-    viewModelSupplier: @Composable () -> IAppListViewModel<T>
+    noAppInfo: NoAppInfo = NoAppInfo(),
+    viewModelSupplier: @Composable () -> IAppListViewModel<T>,
 ) {
     LogCompositions(TAG, config.userIds.toString())
     val viewModel = viewModelSupplier()
@@ -95,7 +112,7 @@ internal fun <T : AppRecord> AppListInput<T>.AppListImpl(
         val optionsState = viewModel.spinnerOptionsFlow.collectAsStateWithLifecycle(null)
         SpinnerOptions(optionsState, viewModel.optionFlow)
         val appListData = viewModel.appListDataFlow.collectAsStateWithLifecycle(null)
-        listModel.AppListWidget(appListData, header, bottomPadding, noItemMessage)
+        listModel.AppListWidget(appListData, header, bottomPadding, noItemMessage, noAppInfo)
     }
 }
 
@@ -123,34 +140,47 @@ private fun <T : AppRecord> AppListModel<T>.AppListWidget(
     header: @Composable () -> Unit,
     bottomPadding: Dp,
     noItemMessage: String?,
+    noAppInfo: NoAppInfo = NoAppInfo(),
 ) {
     val timeMeasurer = rememberTimeMeasurer(TAG)
     appListData.value?.let { (list, option) ->
         timeMeasurer.logFirst("app list first loaded")
         if (list.isEmpty()) {
-            header()
-            PlaceholderTitle(noItemMessage ?: stringResource(R.string.no_applications))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(bottom = bottomPadding)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                header()
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    if (isSpaExpressiveEnabled) {
+                        ZeroStatePreference(noAppInfo.icon, stringResource(noAppInfo.title))
+                    } else {
+                        PlaceholderTitle(noItemMessage ?: stringResource(R.string.no_applications))
+                    }
+                }
+            }
             return
         }
         if (isSpaExpressiveEnabled) {
             LazyCategory(
-                list = list,
-                entry = { index: Int ->
-                    @Composable {
-                        val appEntry = list[index]
-                        val summary = getSummary(option, appEntry.record) ?: { "" }
-                        remember(appEntry) {
-                                AppListItemModel(appEntry.record, appEntry.label, summary)
-                            }
-                            .AppItem()
-                    }
-                },
-                key = { index: Int -> list[index].record.itemKey(option) },
-                title = { index: Int -> getGroupTitle(option, list[index].record) },
+                count = list.size,
+                key = { index -> list[index].record.itemKey(option) },
                 bottomPadding = bottomPadding,
                 state = rememberLazyListStateAndHideKeyboardWhenStartScroll(),
-            ) {
-                header()
+                header = header,
+                groupTitle = { index -> getGroupTitle(option, list[index].record) },
+            ) { index: Int ->
+                val appEntry = list[index]
+                val summary = getSummary(option, appEntry.record) ?: { "" }
+                remember(appEntry) { AppListItemModel(appEntry.record, appEntry.label, summary) }
+                    .AppItem()
             }
         } else {
             LazyColumn(

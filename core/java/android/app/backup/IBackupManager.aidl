@@ -35,7 +35,7 @@ import android.content.ComponentName;
  * Apps will use the {@link android.app.backup.BackupManager} class rather than going through
  * this Binder interface directly.
  * 
- * {@hide}
+ * @hide
  */
 interface IBackupManager {
     /**

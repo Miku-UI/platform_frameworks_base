@@ -16,6 +16,7 @@
 
 package com.android.server.display;
 
+import static com.android.internal.display.BrightnessUtils.INVALID_BRIGHTNESS_IN_CONFIG;
 import static com.android.server.display.BrightnessMappingStrategy.INVALID_NITS;
 import static com.android.server.display.utils.DeviceConfigParsingUtils.ambientBrightnessThresholdsIntToFloat;
 import static com.android.server.display.utils.DeviceConfigParsingUtils.displayBrightnessThresholdsIntToFloat;
@@ -672,10 +673,6 @@ public class DisplayDeviceConfig {
 
     public static final int DEFAULT_LOW_REFRESH_RATE = 60;
 
-    // Float.NaN (used as invalid for brightness) cannot be stored in config.xml
-    // so -2 is used instead
-    public static final float INVALID_BRIGHTNESS_IN_CONFIG = -2f;
-
     @VisibleForTesting
     static final float BRIGHTNESS_DEFAULT = 0.5f;
     private static final String ETC_DIR = "etc";
@@ -920,6 +917,11 @@ public class DisplayDeviceConfig {
      * Maximum screen brightness setting when screen brightness capped in Wear Bedtime mode.
      */
     private float mBrightnessCapForWearBedtimeMode;
+
+    /**
+     * Maximum screen brightness setting when screen brightness capped in MinMode.
+     */
+    private float mBrightnessCapForMinMode;
 
     private boolean mVrrSupportEnabled;
 
@@ -1222,45 +1224,71 @@ public class DisplayDeviceConfig {
      *
      * @return the HDR brightness or BRIGHTNESS_INVALID when no mapping exists.
      */
-    public float getHdrBrightnessFromSdr(float brightness, float maxDesiredHdrSdrRatio) {
+    public float getHdrBrightnessFromSdr(float brightness, float maxDesiredHdrSdrRatio,
+            float ratioScaleFactor) {
         Spline sdrToHdrSpline = mHbmData != null ? mHbmData.sdrToHdrRatioSpline : null;
-        return getHdrBrightnessFromSdr(brightness, maxDesiredHdrSdrRatio, sdrToHdrSpline);
+        return getHdrBrightnessFromSdr(brightness, maxDesiredHdrSdrRatio, ratioScaleFactor,
+                sdrToHdrSpline);
     }
 
     /**
-     * Calculate the HDR brightness for the specified SDR brightenss, restricted by the
+     * Calculate the HDR brightness for the specified SDR brightness, restricted by the
      * maxDesiredHdrSdrRatio (the ratio between the HDR luminance and SDR luminance) and specific
      * sdrToHdrSpline
      *
      * @return the HDR brightness or BRIGHTNESS_INVALID when no mapping exists.
      */
     public float getHdrBrightnessFromSdr(float brightness, float maxDesiredHdrSdrRatio,
-            @Nullable Spline sdrToHdrSpline) {
+            float ratioScaleFactor, @Nullable Spline sdrToHdrSpline) {
         if (sdrToHdrSpline == null) {
             return PowerManager.BRIGHTNESS_INVALID;
         }
-
         float backlight = getBacklightFromBrightness(brightness);
         float nits = getNitsFromBacklight(backlight);
-        if (nits == INVALID_NITS) {
-            return PowerManager.BRIGHTNESS_INVALID;
-        }
 
-        float ratio = Math.min(sdrToHdrSpline.interpolate(nits), maxDesiredHdrSdrRatio);
-        float hdrNits = nits * ratio;
-        if (getNitsToBacklightSpline() == null) {
-            return PowerManager.BRIGHTNESS_INVALID;
-        }
-
-        float hdrBacklight = getBacklightFromNits(hdrNits);
-        hdrBacklight = Math.max(mBacklightMinimum, Math.min(mBacklightMaximum, hdrBacklight));
-        float hdrBrightness = getBrightnessFromBacklight(hdrBacklight);
-
+        float rawRatio = sdrToHdrSpline.interpolate(nits);
+        float scaledRatio = (rawRatio - 1) * ratioScaleFactor + 1;
+        float ratio = Math.min(scaledRatio, maxDesiredHdrSdrRatio);
         if (DEBUG) {
             Slog.d(TAG, "getHdrBrightnessFromSdr: sdr brightness " + brightness
                     + " backlight " + backlight
                     + " nits " + nits
-                    + " ratio " + ratio
+            );
+        }
+        return getHdrBrightnessFromSdrFromNits(nits, ratio);
+    }
+
+    /**
+     * Calculate the HDR brightness for the specified SDR brightness
+     *
+     * @return the HDR brightness or BRIGHTNESS_INVALID when no mapping exists.
+     */
+    public float getHdrBrightnessFromSdr(float brightness, float hdrSdrRatio) {
+        float backlight = getBacklightFromBrightness(brightness);
+        float nits = getNitsFromBacklight(backlight);
+        if (DEBUG) {
+            Slog.d(TAG, "getHdrBrightnessFromSdr: sdr brightness " + brightness
+                    + " backlight " + backlight
+                    + " nits " + nits
+            );
+        }
+        return getHdrBrightnessFromSdrFromNits(nits, hdrSdrRatio);
+    }
+
+    private float getHdrBrightnessFromSdrFromNits(float nits, float hdrSdrRatio) {
+        if (nits == INVALID_NITS) {
+            return PowerManager.BRIGHTNESS_INVALID;
+        }
+        float hdrNits = nits * hdrSdrRatio;
+        if (getNitsToBacklightSpline() == null) {
+            return PowerManager.BRIGHTNESS_INVALID;
+        }
+        float hdrBacklight = getBacklightFromNits(hdrNits);
+        hdrBacklight = Math.max(mBacklightMinimum, Math.min(mBacklightMaximum, hdrBacklight));
+        float hdrBrightness = getBrightnessFromBacklight(hdrBacklight);
+        if (DEBUG) {
+            Slog.d(TAG, "getHdrBrightnessFromSdr:"
+                    + " hdrSdrRatio " + hdrSdrRatio
                     + " hdrNits " + hdrNits
                     + " hdrBacklight " + hdrBacklight
                     + " hdrBrightness " + hdrBrightness
@@ -1675,6 +1703,13 @@ public class DisplayDeviceConfig {
     }
 
     /**
+     * @return Maximum screen brightness setting when screen brightness capped in MinMode.
+     */
+    public float getBrightnessCapForMinMode() {
+        return mBrightnessCapForMinMode;
+    }
+
+    /**
      * @return true if display supports dvrr
      */
     public boolean isVrrSupportEnabled() {
@@ -1895,6 +1930,7 @@ public class DisplayDeviceConfig {
                 mHdrBrightnessData = HdrBrightnessData.loadConfig(config, transitionPointProvider);
                 loadBrightnessCapForWearBedtimeMode(config);
                 loadIdleScreenRefreshRateTimeoutConfigs(config);
+                loadBrightnessCapForMinMode(config);
                 mVrrSupportEnabled = config.getSupportsVrr();
                 loadDozeBrightness(config);
             } else {
@@ -2873,8 +2909,7 @@ public class DisplayDeviceConfig {
     }
 
     private void loadIdleScreenRefreshRateTimeoutConfigs(@Nullable DisplayConfiguration config) {
-        if (mFlags.isIdleScreenRefreshRateTimeoutEnabled()
-                && config != null && config.getIdleScreenRefreshRateTimeout() != null) {
+        if (config != null && config.getIdleScreenRefreshRateTimeout() != null) {
             validateIdleScreenRefreshRateTimeoutConfig(
                     config.getIdleScreenRefreshRateTimeout());
             mIdleScreenRefreshRateTimeoutLuxThresholds = config
@@ -2883,8 +2918,7 @@ public class DisplayDeviceConfig {
     }
 
     private void loadDozeBrightness(DisplayConfiguration config) {
-        if (mFlags.isDozeBrightnessFloatEnabled() && config != null
-                && config.getDozeBrightnessSensorValueToBrightness() != null) {
+        if (config != null && config.getDozeBrightnessSensorValueToBrightness() != null) {
             List<BigDecimal> values = config.getDozeBrightnessSensorValueToBrightness().getItem();
             mDozeBrightnessSensorValueToBrightness = new float[values.size()];
             for (int i = 0; i < values.size(); i++) {
@@ -2898,8 +2932,7 @@ public class DisplayDeviceConfig {
             }
         }
 
-        if (mFlags.isDozeBrightnessFloatEnabled() && config != null
-                && config.getDefaultDozeBrightness() != null) {
+        if (config != null && config.getDefaultDozeBrightness() != null) {
             float backlight = config.getDefaultDozeBrightness().floatValue();
             mDefaultDozeBrightness = getBrightnessFromBacklight(backlight);
         } else {
@@ -3041,6 +3074,13 @@ public class DisplayDeviceConfig {
         mBrightnessCapForWearBedtimeMode = BrightnessSynchronizer.brightnessIntToFloat(
                 mContext.getResources().getInteger(com.android.internal.R.integer
                         .config_screenBrightnessCapForWearBedtimeMode));
+    }
+
+    private void loadBrightnessCapForMinMode(DisplayConfiguration config) {
+        HighBrightnessMode hbm = config.getHighBrightnessMode();
+        float hbmTransitionPoint = hbm != null ? hbm.getTransitionPoint_all().floatValue()
+                    : PowerManager.BRIGHTNESS_MAX;
+        mBrightnessCapForMinMode = hbmTransitionPoint;
     }
 
     /**

@@ -16,8 +16,8 @@
 
 package com.android.systemui.statusbar.policy.domain.model
 
-import com.android.settingslib.notification.modes.ZenIcon
 import com.android.settingslib.notification.modes.ZenMode
+import com.android.systemui.common.shared.model.Icon
 
-/** Name and icon of a [ZenMode] */
-data class ZenModeInfo(val name: String, val icon: ZenIcon)
+/** Basic display info for a [ZenMode] */
+data class ZenModeInfo(val id: String, val name: String, val icon: Icon.Loaded)

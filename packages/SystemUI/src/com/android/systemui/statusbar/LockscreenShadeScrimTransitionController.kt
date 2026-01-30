@@ -3,25 +3,31 @@ package com.android.systemui.statusbar
 import android.content.Context
 import android.util.IndentingPrintWriter
 import android.util.MathUtils
-import com.android.systemui.res.R
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.phone.ScrimController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.SplitShadeStateController
+import dagger.Lazy
 import javax.inject.Inject
 
 /** Controls the lockscreen to shade transition for scrims. */
 class LockscreenShadeScrimTransitionController
 @Inject
 constructor(
-    private val scrimController: ScrimController,
+    private val scrimController: Lazy<ScrimController>,
     @ShadeDisplayAware context: Context,
     configurationController: ConfigurationController,
     dumpManager: DumpManager,
-    splitShadeStateController: SplitShadeStateController
-) : AbstractLockscreenShadeTransitionController(context, configurationController, dumpManager,
-    splitShadeStateController) {
+    splitShadeStateController: SplitShadeStateController,
+) :
+    AbstractLockscreenShadeTransitionController(
+        context,
+        configurationController,
+        dumpManager,
+        splitShadeStateController,
+    ) {
 
     /**
      * Distance that the full shade transition takes in order for scrim to fully transition to the
@@ -51,13 +57,16 @@ constructor(
     override fun updateResources() {
         scrimTransitionDistance =
             context.resources.getDimensionPixelSize(
-                R.dimen.lockscreen_shade_scrim_transition_distance)
+                R.dimen.lockscreen_shade_scrim_transition_distance
+            )
         notificationsScrimTransitionDelay =
             context.resources.getDimensionPixelSize(
-                R.dimen.lockscreen_shade_notifications_scrim_transition_delay)
+                R.dimen.lockscreen_shade_notifications_scrim_transition_delay
+            )
         notificationsScrimTransitionDistance =
             context.resources.getDimensionPixelSize(
-                R.dimen.lockscreen_shade_notifications_scrim_transition_distance)
+                R.dimen.lockscreen_shade_notifications_scrim_transition_distance
+            )
     }
 
     override fun onDragDownAmountChanged(dragDownAmount: Float) {
@@ -65,7 +74,9 @@ constructor(
         notificationsScrimDragAmount = dragDownAmount - notificationsScrimTransitionDelay
         notificationsScrimProgress =
             MathUtils.saturate(notificationsScrimDragAmount / notificationsScrimTransitionDistance)
-        scrimController.setTransitionToFullShadeProgress(scrimProgress, notificationsScrimProgress)
+        scrimController
+            .get()
+            .setTransitionToFullShadeProgress(scrimProgress, notificationsScrimProgress)
     }
 
     override fun dump(indentingPrintWriter: IndentingPrintWriter) {
@@ -77,7 +88,8 @@ constructor(
             it.println("scrimTransitionDistance: $scrimTransitionDistance")
             it.println("notificationsScrimTransitionDelay: $notificationsScrimTransitionDelay")
             it.println(
-                "notificationsScrimTransitionDistance: $notificationsScrimTransitionDistance")
+                "notificationsScrimTransitionDistance: $notificationsScrimTransitionDistance"
+            )
             it.decreaseIndent()
             it.println("State")
             it.increaseIndent()

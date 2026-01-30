@@ -29,6 +29,8 @@ enum class HearingDevicesUiEvent(private val id: Int) : UiEventLogger.UiEventEnu
     @UiEvent(doc = "Click on the device gear to enter device detail page")
     HEARING_DEVICES_GEAR_CLICK(1853),
     @UiEvent(doc = "Select a preset from preset spinner") HEARING_DEVICES_PRESET_SELECT(1854),
+    @UiEvent(doc = "Select a preset from separated preset spinner")
+    HEARING_DEVICES_PRESET_SELECT_SEPARATED(2431),
     @UiEvent(doc = "Click on related tool") HEARING_DEVICES_RELATED_TOOL_CLICK(1856),
     @UiEvent(doc = "Change the ambient volume with unified control")
     HEARING_DEVICES_AMBIENT_CHANGE_UNIFIED(2149),

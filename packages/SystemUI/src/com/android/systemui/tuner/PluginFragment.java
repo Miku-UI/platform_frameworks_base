@@ -34,13 +34,13 @@ import androidx.preference.PreferenceScreen;
 import androidx.preference.PreferenceViewHolder;
 import androidx.preference.SwitchPreference;
 
-import com.android.internal.util.ArrayUtils;
 import com.android.systemui.Dependency;
 import com.android.systemui.plugins.PluginEnablerImpl;
 import com.android.systemui.plugins.PluginManager;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.plugins.PluginActionManager;
 import com.android.systemui.shared.plugins.PluginEnabler;
+import com.android.systemui.shared.plugins.PluginEnabler.DisableReason;
 import com.android.systemui.shared.plugins.PluginPrefs;
 
 import java.util.List;
@@ -74,7 +74,7 @@ public class PluginFragment extends PreferenceFragment {
 
     @Override
     public void onCreatePreferences(Bundle savedInstanceState, String rootKey) {
-        mPluginEnabler = new PluginEnablerImpl(getContext());
+        mPluginEnabler = new PluginEnablerImpl(getContext(), getContext().getPackageManager());
         loadPrefs();
     }
 
@@ -106,7 +106,7 @@ public class PluginFragment extends PreferenceFragment {
                 PackageManager.MATCH_DISABLED_COMPONENTS | PackageManager.GET_SERVICES);
         apps.forEach(app -> {
             if (!plugins.containsKey(app.packageName)) return;
-            if (ArrayUtils.contains(manager.getPrivilegedPlugins(), app.packageName)) {
+            if (manager.getConfig().isPackagePrivileged(app.packageName)) {
                 // Don't manage privileged plugins, they are part of the OS.
                 return;
             }
@@ -187,7 +187,7 @@ public class PluginFragment extends PreferenceFragment {
                     if (isEnabled) {
                         mPluginEnabler.setEnabled(componentName);
                     } else {
-                        mPluginEnabler.setDisabled(componentName, PluginEnabler.DISABLED_MANUALLY);
+                        mPluginEnabler.setDisabled(componentName, DisableReason.DISABLED_MANUALLY);
                     }
                     shouldSendBroadcast = true;
                 }

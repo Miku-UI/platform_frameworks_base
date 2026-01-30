@@ -30,7 +30,7 @@ import android.graphics.Bitmap;
 import android.os.ParcelFileDescriptor;
 
 /**
- *  {@hide}
+ * @hide
  */
 interface IUserManager {
 
@@ -55,22 +55,24 @@ interface IUserManager {
     void evictCredentialEncryptionKey(int userId);
     boolean removeUser(int userId);
     boolean removeUserEvenWhenDisallowed(int userId);
+    int getUserRemovability(int userId);
     void setUserName(int userId, String name);
     void setUserIcon(int userId, in Bitmap icon);
     ParcelFileDescriptor getUserIcon(int userId);
     UserInfo getPrimaryUser();
     int getMainUserId();
+    boolean isMainUser(int userId);
     int getCommunalProfileId();
-    int getPreviousFullUserToEnterForeground();
-    List<UserInfo> getUsers(boolean excludePartial, boolean excludeDying, boolean excludePreCreated);
+    int getPreviousUserToEnterForeground();
+    List<UserInfo> getUsers(boolean excludeDying);
     List<UserInfo> getProfiles(int userId, boolean enabledOnly);
     int[] getProfileIds(int userId, boolean enabledOnly);
     boolean isUserTypeEnabled(in String userType);
+    int getCurrentAllowedNumberOfUsers(in String userType);
     boolean canAddMoreUsersOfType(in String userType);
     int getRemainingCreatableUserCount(in String userType);
     int getRemainingCreatableProfileCount(in String userType, int userId);
     boolean canAddMoreProfilesToUser(in String userType, int userId, boolean allowedToRemoveOne);
-    boolean canAddMoreManagedProfiles(int userId, boolean allowedToRemoveOne);
     UserInfo getProfileParent(int userId);
     boolean isSameProfileGroup(int userId, int otherUserHandle);
     boolean isHeadlessSystemUserMode();

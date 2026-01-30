@@ -125,7 +125,7 @@ import java.util.concurrent.CompletableFuture;
 public class PackageArchiver {
 
     private static final String TAG = "PackageArchiverService";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     public static final String EXTRA_UNARCHIVE_INTENT_SENDER =
             "android.content.pm.extra.UNARCHIVE_INTENT_SENDER";
@@ -310,12 +310,15 @@ public class PackageArchiver {
 
             Slog.i(TAG, TextUtils.formatSimple("Unarchival is starting for: %s", packageName));
 
+            // If the caller is not the default launcher, always show the unarchival
+            // confirmation dialog
+            final boolean isDefaultLauncher = isDefaultLauncherApp(callerPackageName, userId);
             requestUnarchive(packageName, callerPackageName,
-                    getOrCreateLauncherListener(userId, packageName),
+                    getOrCreateLauncherListener(userId, packageName, callerPackageName),
                     UserHandle.of(userId),
                     getAppOpsManager().checkOp(
                             AppOpsManager.OP_UNARCHIVAL_CONFIRMATION, callingUid, callerPackageName)
-                            == MODE_ALLOWED);
+                            == MODE_ALLOWED || !isDefaultLauncher);
         } catch (Throwable t) {
             Slog.e(TAG, TextUtils.formatSimple(
                     "Unexpected error occurred while unarchiving package %s: %s.", packageName,
@@ -338,6 +341,22 @@ public class PackageArchiver {
         if (callingUid == Process.SHELL_UID) {
             return true;
         }
+        if (isDefaultLauncherApp(callerPackageName, userId)) {
+            return true;
+        }
+
+        // When the default launcher is not set, or when the current caller is not the default
+        // launcher, allow the caller to directly request unarchive if it is a launcher app
+        final Computer snapshot = mPm.snapshotComputer();
+        return isLauncherApp(snapshot, callerPackageName, userId);
+    }
+
+    /**
+     * Returns true if the caller is the default launcher app.
+     * @param callerPackageName The package name of the caller
+     * @param userId The user id
+     */
+    private boolean isDefaultLauncherApp(String callerPackageName, int userId) {
         String currentLauncherPackageName = getCurrentLauncherPackageName(getParentUserId(userId));
         if (currentLauncherPackageName != null && TextUtils.equals(
                 callerPackageName, currentLauncherPackageName)) {
@@ -346,13 +365,7 @@ public class PackageArchiver {
         Slog.w(TAG, TextUtils.formatSimple(
                 "Requester of unarchival: %s is not the default launcher package: %s.",
                 callerPackageName, currentLauncherPackageName));
-        // When the default launcher is not set, or when the current caller is not the default
-        // launcher, allow the caller to directly request unarchive if it is a launcher app
-        // that is a pre-installed system app.
-        final Computer snapshot = mPm.snapshotComputer();
-        final PackageStateInternal ps = snapshot.getPackageStateInternal(callerPackageName);
-        final boolean isSystem = ps != null && ps.isSystem();
-        return isSystem && isLauncherApp(snapshot, callerPackageName, userId);
+        return false;
     }
 
     private boolean isLauncherApp(Computer snapshot, String packageName, int userId) {
@@ -458,7 +471,8 @@ public class PackageArchiver {
         return true;
     }
 
-    private IntentSender getOrCreateLauncherListener(int userId, String packageName) {
+    private IntentSender getOrCreateLauncherListener(int userId, String packageName,
+            String callerPackageName) {
         Pair<Integer, String> key = Pair.create(userId, packageName);
         synchronized (mLauncherIntentSenders) {
             IntentSender intentSender = mLauncherIntentSenders.get(key);
@@ -466,7 +480,7 @@ public class PackageArchiver {
                 return intentSender;
             }
             IntentSender unarchiveIntentSender = new IntentSender(
-                    (IIntentSender) new UnarchiveIntentSender());
+                    (IIntentSender) new UnarchiveIntentSender(callerPackageName));
             mLauncherIntentSenders.put(key, unarchiveIntentSender);
             return unarchiveIntentSender;
         }
@@ -1282,6 +1296,7 @@ public class PackageArchiver {
             // Error already logged.
             return null;
         }
+        dialogIntent.putExtra(PackageInstaller.EXTRA_PACKAGE_NAME, appPackageName);
         dialogIntent.putExtra(EXTRA_INSTALLER_TITLE, installerTitle);
         return dialogIntent;
     }
@@ -1517,6 +1532,12 @@ public class PackageArchiver {
     }
 
     private class UnarchiveIntentSender extends IIntentSender.Stub {
+        private final String mCallerPackageName;
+
+        UnarchiveIntentSender(String callerPackageName) {
+            mCallerPackageName = callerPackageName;
+        }
+
         @Override
         public void send(int code, Intent intent, String resolvedType, IBinder whitelistToken,
                 IIntentReceiver finishedReceiver, String requiredPermission, Bundle options)
@@ -1526,11 +1547,11 @@ public class PackageArchiver {
             if (status == UNARCHIVAL_OK) {
                 return;
             }
+
             Intent extraIntent = intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class);
             UserHandle user = intent.getParcelableExtra(Intent.EXTRA_USER, UserHandle.class);
-            if (extraIntent != null && user != null
-                    && mAppStateHelper.isAppTopVisible(
-                    getCurrentLauncherPackageName(user.getIdentifier()))) {
+            if (extraIntent != null && user != null && mAppStateHelper.isAppTopVisible(
+                    mCallerPackageName)) {
                 extraIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 mContext.startActivityAsUser(extraIntent, user);
             }

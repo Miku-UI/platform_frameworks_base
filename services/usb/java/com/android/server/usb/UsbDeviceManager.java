@@ -241,6 +241,9 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
     private final boolean mEnableUdcSysfsUsbStateUpdate;
     private String mUdcName = "";
 
+    private static final String DEVICE_UAOA_ENABLED_PROPERTY = "ro.usb.userspace.aoa.enabled";
+    private boolean mEnableAoaUserspaceImplementation = false;
+
     /**
      * Counter for tracking UsbOperation operations.
      */
@@ -361,6 +364,22 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
         }
         mControlFds.put(UsbManager.FUNCTION_PTP, ptpFd);
 
+        boolean deviceEnabledUserspaceAoa =
+                SystemProperties.getBoolean(DEVICE_UAOA_ENABLED_PROPERTY, false);
+        Slog.i(TAG, "Device enabled userspace AOA: " + deviceEnabledUserspaceAoa);
+        mEnableAoaUserspaceImplementation =
+                android.hardware.usb.flags.Flags.enableAoaUserspaceImplementation()
+                        && deviceEnabledUserspaceAoa
+                        && nativeCheckAccessoryFfsDirectories();
+
+        Slog.i(TAG, "Enabling userspace AOA: " + mEnableAoaUserspaceImplementation);
+
+        if (mEnableAoaUserspaceImplementation) {
+            if (!nativeOpenAccessoryControl()) {
+                Slog.e(TAG, "Failed to open control for accessory");
+            }
+        }
+
         if (mUsbGadgetHal == null) {
             /**
              * Initialze the legacy UsbHandler
@@ -470,6 +489,10 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
             mUEventObserver.startObserving(USB_STATE_MATCH);
         }
 
+        if (mEnableAoaUserspaceImplementation) {
+            nativeStartVendorControlRequestMonitor();
+        }
+
         sEventLogger = new EventLogger(DUMPSYS_LOG_BUFFER, "UsbDeviceManager activity");
     }
 
@@ -532,7 +555,12 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
 
         int operationId = sUsbOperationCount.incrementAndGet();
 
-        mAccessoryStrings = nativeGetAccessoryStrings();
+        if (mEnableAoaUserspaceImplementation) {
+            mAccessoryStrings = nativeGetAccessoryStringsFromFfs();
+        } else {
+            mAccessoryStrings = nativeGetAccessoryStrings();
+        }
+
         // don't start accessory mode if our mandatory strings have not been set
         boolean enableAccessory = (mAccessoryStrings != null &&
                 mAccessoryStrings[UsbAccessory.MANUFACTURER_STRING] != null &&
@@ -874,29 +902,38 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
                 // successfully entered accessory mode
                 String[] accessoryStrings = mUsbDeviceManager.getAccessoryStrings();
                 if (accessoryStrings != null) {
-                    UsbSerialReader serialReader = new UsbSerialReader(mContext, mPermissionManager,
-                            accessoryStrings[UsbAccessory.SERIAL_STRING]);
+                    if (accessoryStrings[UsbAccessory.MANUFACTURER_STRING] != null
+                            && accessoryStrings[UsbAccessory.MODEL_STRING] != null) {
+                        UsbSerialReader serialReader =
+                                new UsbSerialReader(
+                                        mContext,
+                                        mPermissionManager,
+                                        accessoryStrings[UsbAccessory.SERIAL_STRING]);
 
-                    mCurrentAccessory = new UsbAccessory(
-                            accessoryStrings[UsbAccessory.MANUFACTURER_STRING],
-                            accessoryStrings[UsbAccessory.MODEL_STRING],
-                            accessoryStrings[UsbAccessory.DESCRIPTION_STRING],
-                            accessoryStrings[UsbAccessory.VERSION_STRING],
-                            accessoryStrings[UsbAccessory.URI_STRING],
-                            serialReader);
+                        mCurrentAccessory =
+                                new UsbAccessory(
+                                        accessoryStrings[UsbAccessory.MANUFACTURER_STRING],
+                                        accessoryStrings[UsbAccessory.MODEL_STRING],
+                                        accessoryStrings[UsbAccessory.DESCRIPTION_STRING],
+                                        accessoryStrings[UsbAccessory.VERSION_STRING],
+                                        accessoryStrings[UsbAccessory.URI_STRING],
+                                        serialReader);
 
-                    serialReader.setDevice(mCurrentAccessory);
+                        serialReader.setDevice(mCurrentAccessory);
 
-                    Slog.d(TAG, "entering USB accessory mode: " + mCurrentAccessory);
-                    // defer accessoryAttached if system is not ready
-                    if (!Flags.checkUserActionUnlocked() && mBootCompleted) {
-                        attachAccessory();
+                        Slog.d(TAG, "entering USB accessory mode: " + mCurrentAccessory);
+                        // defer accessoryAttached if system is not ready
+                        if (!Flags.checkUserActionUnlocked() && mBootCompleted) {
+                            attachAccessory();
+                        }
+                        // Defer accessoryAttached till user unlocks after boot.
+                        // When no pin pattern is set, ACTION_USER_UNLOCKED would fire anyways
+                        if (Flags.checkUserActionUnlocked() && mUserUnlockedAfterBoot) {
+                            attachAccessory();
+                        } // else handle in boot completed
+                    } else {
+                        Slog.e(TAG, "expected non-null accessory strings are null");
                     }
-                    // Defer accessoryAttached till user unlocks after boot.
-                    // When no pin pattern is set, ACTION_USER_UNLOCKED would fire anyways
-                    if (Flags.checkUserActionUnlocked() && mUserUnlockedAfterBoot) {
-                        attachAccessory();
-                    } // else handle in boot completed
                 } else {
                     Slog.e(TAG, "nativeGetAccessoryStrings failed");
                 }
@@ -2498,19 +2535,6 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
                     return;
                 }
                 try {
-                    if ((config & UsbManager.FUNCTION_ADB) != 0) {
-                        /**
-                         * Start adbd if ADB function is included in the configuration.
-                         */
-                        LocalServices.getService(AdbManagerInternal.class)
-                                .startAdbdForTransport(AdbTransportType.USB);
-                    } else {
-                        /**
-                         * Stop adbd otherwise
-                         */
-                        LocalServices.getService(AdbManagerInternal.class)
-                                .stopAdbdForTransport(AdbTransportType.USB);
-                    }
                     mUsbGadgetHal.setCurrentUsbFunctions(mCurrentRequest,
                             config, chargingFunctions,
                             SET_FUNCTIONS_TIMEOUT_MS - SET_FUNCTIONS_LEEWAY_MS, operationId);
@@ -2595,6 +2619,70 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
         }
         permissions.checkPermission(accessory, pid, uid);
         return nativeOpenAccessory();
+    }
+
+    /**
+     * opens the currently attached USB accessory to read from.
+     *
+     * @param accessory accessory to be opened.
+     * @param permissions UsbUserPermissionManager to check permissions.
+     * @param pid Pid of the caller
+     * @param uid Uid of the caller
+     */
+    public ParcelFileDescriptor openAccessoryForInputStream(
+            UsbAccessory accessory, UsbUserPermissionManager permissions, int pid, int uid) {
+        UsbAccessory currentAccessory = mHandler.getCurrentAccessory();
+        if (currentAccessory == null) {
+            throw new IllegalArgumentException("no accessory attached");
+        }
+        if (!currentAccessory.equals(accessory)) {
+            String error =
+                    accessory.toString() + " does not match current accessory " + currentAccessory;
+            throw new IllegalArgumentException(error);
+        }
+        permissions.checkPermission(accessory, pid, uid);
+        return nativeOpenAccessoryForInputStream();
+    }
+
+    /**
+     * opens the currently attached USB accessory to write to.
+     *
+     * @param accessory accessory to be opened.
+     * @param permissions UsbUserPermissionManager to check permissions.
+     * @param pid Pid of the caller
+     * @param uid Uid of the caller
+     */
+    public ParcelFileDescriptor openAccessoryForOutputStream(
+            UsbAccessory accessory, UsbUserPermissionManager permissions, int pid, int uid) {
+        UsbAccessory currentAccessory = mHandler.getCurrentAccessory();
+        if (currentAccessory == null) {
+            throw new IllegalArgumentException("no accessory attached");
+        }
+        if (!currentAccessory.equals(accessory)) {
+            String error =
+                    accessory.toString() + " does not match current accessory " + currentAccessory;
+            throw new IllegalArgumentException(error);
+        }
+        permissions.checkPermission(accessory, pid, uid);
+        return nativeOpenAccessoryForOutputStream();
+    }
+
+    public int getMaxPacketSize(UsbAccessory accessory) {
+        UsbAccessory currentAccessory = mHandler.getCurrentAccessory();
+        if (currentAccessory == null) {
+            throw new IllegalArgumentException("no accessory attached");
+        }
+        if (!currentAccessory.equals(accessory)) {
+            String error =
+                    accessory.toString() + " does not match current accessory " + currentAccessory;
+            throw new IllegalArgumentException(error);
+        }
+
+        return nativeGetMaxPacketSize();
+    }
+
+    public boolean isAccessoryFfsEnabled() {
+        return mEnableAoaUserspaceImplementation;
     }
 
     public long getCurrentFunctions() {
@@ -2729,9 +2817,43 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
         mHandler.updateState(state);
     }
 
+    /** Update accessory control state (Called by native code). */
+    @Keep
+    private void updateAccessoryState(String state) {
+        if (!mEnableAoaUserspaceImplementation) {
+            Slog.w(TAG, "Accessory state update from userspace is not supported!");
+            return;
+        }
+
+        Slog.d(TAG, "Accessory state update " + state);
+
+        if ("GETPROTOCOL".equals(state)) {
+            if (DEBUG) Slog.d(TAG, "got accessory get protocol");
+            mHandler.setAccessoryUEventTime(SystemClock.elapsedRealtime());
+            resetAccessoryHandshakeTimeoutHandler();
+        } else if ("SENDSTRING".equals(state)) {
+            if (DEBUG) Slog.d(TAG, "got accessory send string");
+            mHandler.sendEmptyMessage(MSG_INCREASE_SENDSTRING_COUNT);
+            resetAccessoryHandshakeTimeoutHandler();
+        } else if ("START".equals(state)) {
+            if (DEBUG) Slog.d(TAG, "got accessory start");
+            mHandler.removeMessages(MSG_ACCESSORY_HANDSHAKE_TIMEOUT);
+            mHandler.setStartAccessoryTrue();
+            startAccessoryMode();
+        }
+    }
+
     private native String[] nativeGetAccessoryStrings();
 
+    private native String[] nativeGetAccessoryStringsFromFfs();
+
+    private native int nativeGetMaxPacketSize();
+
     private native ParcelFileDescriptor nativeOpenAccessory();
+
+    private native ParcelFileDescriptor nativeOpenAccessoryForInputStream();
+
+    private native ParcelFileDescriptor nativeOpenAccessoryForOutputStream();
 
     private native String nativeWaitAndGetProperty(String propName);
 
@@ -2742,4 +2864,11 @@ public class UsbDeviceManager implements ActivityTaskManagerInternal.ScreenObser
     private native boolean nativeStartGadgetMonitor(String udcName);
 
     private native void nativeStopGadgetMonitor();
+
+    private native boolean nativeStartVendorControlRequestMonitor();
+
+    private native boolean nativeOpenAccessoryControl();
+
+    private native boolean nativeCheckAccessoryFfsDirectories();
+
 }

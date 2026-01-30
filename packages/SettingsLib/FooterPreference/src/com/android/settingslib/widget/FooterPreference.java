@@ -18,6 +18,8 @@ package com.android.settingslib.widget;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
+import android.content.res.TypedArray;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -43,7 +45,8 @@ import java.net.URISyntaxException;
  * A custom preference acting as "footer" of a page. It has a field for icon and text. It is added
  * to screen as the last preference.
  */
-public class FooterPreference extends Preference implements GroupSectionDividerMixin {
+public class FooterPreference extends Preference
+        implements GroupSectionDividerMixin, OnScreenWidgetMixin {
     private static final String TAG = "FooterPreference";
 
     public static final String KEY_FOOTER = "footer_preference";
@@ -56,7 +59,11 @@ public class FooterPreference extends Preference implements GroupSectionDividerM
     private FooterLearnMoreSpan mLearnMoreSpan;
 
     public FooterPreference(Context context, AttributeSet attrs) {
-        super(context, attrs, com.android.settingslib.widget.theme.R.attr.footerPreferenceStyle);
+        super(
+                applyExpressivePreferenceThemeOverlay(context),
+                attrs,
+                com.android.settingslib.widget.theme.R.attr.footerPreferenceStyle
+        );
         init();
     }
 
@@ -217,6 +224,21 @@ public class FooterPreference extends Preference implements GroupSectionDividerM
             setKey(KEY_FOOTER);
         }
         setSelectable(false);
+        setPersistent(false);
+    }
+
+    @NonNull
+    private static Context applyExpressivePreferenceThemeOverlay(@NonNull Context context) {
+        TypedArray typedArray = context.obtainStyledAttributes(new int[] {
+                com.android.settingslib.widget.theme.R.attr
+                        .expressiveFooterPreferenceTheme});
+        // Since the context is shared, only try to apply the theme if it 's not resolved.
+        if (typedArray.getResourceId(0, Resources.ID_NULL) == Resources.ID_NULL) {
+            context.getTheme().applyStyle(
+                    R.style.ThemeOverlay_ExpressiveFooterPreference, false);
+        }
+        typedArray.recycle();
+        return context;
     }
 
     /** The builder is convenient to creat a dynamic FooterPreference. */

@@ -17,6 +17,7 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 import android.content.Context
+import android.graphics.Rect
 import com.android.settingslib.Utils
 import com.android.systemui.accessibility.domain.interactor.AccessibilityInteractor
 import com.android.systemui.biometrics.domain.interactor.FingerprintPropertyInteractor
@@ -31,6 +32,7 @@ import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -45,7 +47,6 @@ constructor(
     @ShadeDisplayAware configurationInteractor: ConfigurationInteractor,
     deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     deviceEntryBackgroundViewModel: DeviceEntryBackgroundViewModel,
-    fingerprintPropertyInteractor: FingerprintPropertyInteractor,
     udfpsOverlayInteractor: UdfpsOverlayInteractor,
     alternateBouncerViewModel: AlternateBouncerViewModel,
     private val statusBarKeyguardViewManager: StatusBarKeyguardViewManager,
@@ -59,13 +60,22 @@ constructor(
         }
 
     /**
+     * Sensor location for the:
+     * - current physical display
+     * - current screen resolution
+     * - device's current orientation
+     */
+    val udfpsSensorBounds: Flow<Rect> =
+        udfpsOverlayInteractor.udfpsOverlayParams.map { it.sensorBounds }.distinctUntilChanged()
+
+    /**
      * UDFPS icon location in pixels for the current display and screen resolution, in natural
      * orientation.
      */
     val iconLocation: Flow<IconLocation> =
         isSupported.flatMapLatest { supportsUI ->
             if (supportsUI) {
-                fingerprintPropertyInteractor.udfpsSensorBounds.map { bounds ->
+                udfpsSensorBounds.map { bounds ->
                     IconLocation(
                         left = bounds.left,
                         top = bounds.top,

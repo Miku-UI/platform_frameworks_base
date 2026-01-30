@@ -28,15 +28,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.minimumInteractiveComponentSize
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -53,14 +51,18 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.android.compose.modifiers.thenIf
 import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.featurepods.popups.shared.model.HoverBehavior
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipModel
+import com.android.systemui.statusbar.featurepods.popups.ui.model.ChipIcon
+import com.android.systemui.statusbar.featurepods.popups.ui.model.ColorsModel
+import com.android.systemui.statusbar.featurepods.popups.ui.model.HoverBehavior
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipModel
 
 /**
  * A clickable chip that can show an anchored popup containing relevant system controls. The chip
@@ -68,21 +70,21 @@ import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipM
  * the chip can show text containing contextual information.
  */
 @Composable
-fun StatusBarPopupChip(viewModel: PopupChipModel.Shown, modifier: Modifier = Modifier) {
+fun StatusBarPopupChip(
+    viewModel: PopupChipModel.Shown,
+    modifier: Modifier = Modifier,
+    interactionSource: MutableInteractionSource = remember { MutableInteractionSource() },
+) {
     val hasHoverBehavior = viewModel.hoverBehavior !is HoverBehavior.None
-    val interactionSource = remember { MutableInteractionSource() }
     val hoveredState by interactionSource.collectIsHoveredAsState()
     val isHovered = hasHoverBehavior && hoveredState
     val isPopupShown = viewModel.isPopupShown
     val indication = if (hoveredState) null else LocalIndication.current
     val chipShape =
         RoundedCornerShape(dimensionResource(id = R.dimen.ongoing_activity_chip_corner_radius))
+    val colors = viewModel.colors
     val chipBackgroundColor =
-        if (isPopupShown) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.surfaceDim
-        }
+        colors.chipBackground(isPopupShown = isPopupShown, colorScheme = MaterialTheme.colorScheme)
 
     // Use a Box with `fillMaxHeight` to create a larger click surface for the chip. The visible
     // height of the chip is determined by the height of the background of the Row below. The
@@ -90,14 +92,23 @@ fun StatusBarPopupChip(viewModel: PopupChipModel.Shown, modifier: Modifier = Mod
     Box(
         contentAlignment = Alignment.Center,
         modifier =
-            modifier.minimumInteractiveComponentSize().thenIf(!isPopupShown) {
-                Modifier.clickable(
-                    onClick = { viewModel.showPopup() },
-                    indication = null,
-                    interactionSource = interactionSource,
-                )
-            },
+            modifier
+                .minimumInteractiveComponentSize()
+                .thenIf(viewModel.contentDescription != null) {
+                    Modifier.semantics { contentDescription = viewModel.contentDescription!! }
+                }
+                .thenIf(!isPopupShown) {
+                    Modifier.clickable(
+                        onClick = { viewModel.showPopup() },
+                        indication = null,
+                        interactionSource = interactionSource,
+                    )
+                },
     ) {
+        val text = viewModel.chipText
+        // End padding should be symmetrical if the text is omitted.
+        val startPadding = 4.dp
+        val endPadding = if (text != null) 8.dp else startPadding
         Row(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -107,81 +118,115 @@ fun StatusBarPopupChip(viewModel: PopupChipModel.Shown, modifier: Modifier = Mod
                     .background(chipBackgroundColor)
                     .border(
                         width = dimensionResource(id = R.dimen.ongoing_activity_chip_outline_width),
-                        color = MaterialTheme.colorScheme.outlineVariant,
+                        color =
+                            colors.chipOutline(
+                                isPopupShown = isPopupShown,
+                                colorScheme = MaterialTheme.colorScheme,
+                            ),
                         shape = chipShape,
                     )
                     .indication(interactionSource, indication)
-                    .padding(start = 4.dp, end = 8.dp),
+                    .padding(start = startPadding, end = endPadding),
         ) {
-            val iconColor =
-                if (isHovered) chipBackgroundColor else contentColorFor(chipBackgroundColor)
             val hoverBehavior = viewModel.hoverBehavior
-            val iconBackgroundColor = contentColorFor(chipBackgroundColor)
-            val iconInteractionSource = remember { MutableInteractionSource() }
-            Icon(
-                icon =
-                    when {
-                        isHovered && hoverBehavior is HoverBehavior.Button -> hoverBehavior.icon
-                        else -> viewModel.icon
-                    },
-                modifier =
-                    Modifier.height(20.dp)
-                        .width(20.dp)
-                        .thenIf(isHovered) {
-                            Modifier.background(color = iconBackgroundColor, shape = CircleShape)
-                                .padding(2.dp)
-                        }
-                        .thenIf(hoverBehavior is HoverBehavior.Button) {
-                            Modifier.clickable(
-                                role = Role.Button,
-                                onClick = (hoverBehavior as HoverBehavior.Button).onIconPressed,
-                                indication = ripple(),
-                                interactionSource = iconInteractionSource,
-                                enabled = isHovered,
-                            )
-                        },
-                tint = iconColor,
+            val chipIcons =
+                when {
+                    isHovered && hoverBehavior is HoverBehavior.Buttons -> hoverBehavior.icons
+                    else -> viewModel.icons
+                }
+
+            ChipIcons(
+                chipIcons = chipIcons,
+                colors = colors,
+                isPopupShown = isPopupShown,
+                isHovered = isHovered,
             )
 
-            val text = viewModel.chipText
-            val textStyle = MaterialTheme.typography.labelLarge
-            val textMeasurer = rememberTextMeasurer()
-            var textOverflow by remember { mutableStateOf(false) }
+            if (text != null) {
+                val textStyle = MaterialTheme.typography.labelLarge
+                val textMeasurer = rememberTextMeasurer()
+                var textOverflow by remember { mutableStateOf(false) }
 
-            Text(
-                text = text,
-                style = textStyle,
-                softWrap = false,
-                modifier =
-                    Modifier.widthIn(
-                            max =
-                                dimensionResource(id = R.dimen.ongoing_activity_chip_max_text_width)
-                        )
-                        .layout { measurables, constraints ->
-                            val placeable = measurables.measure(constraints)
-                            val intrinsicWidth =
-                                textMeasurer.measure(text, textStyle, softWrap = false).size.width
-                            textOverflow = intrinsicWidth > constraints.maxWidth
+                Text(
+                    text = text,
+                    style = textStyle,
+                    softWrap = false,
+                    color =
+                        colors.chipContent(
+                            isPopupShown = isPopupShown,
+                            colorScheme = MaterialTheme.colorScheme,
+                        ),
+                    modifier =
+                        Modifier.widthIn(
+                                max =
+                                    dimensionResource(
+                                        id = R.dimen.ongoing_activity_chip_max_text_width
+                                    )
+                            )
+                            .layout { measurables, constraints ->
+                                val placeable = measurables.measure(constraints)
+                                val intrinsicWidth =
+                                    textMeasurer
+                                        .measure(text, textStyle, softWrap = false)
+                                        .size
+                                        .width
+                                textOverflow = intrinsicWidth > constraints.maxWidth
 
-                            layout(placeable.width, placeable.height) {
-                                if (textOverflow) {
-                                    placeable.placeWithLayer(0, 0) {
-                                        compositingStrategy = CompositingStrategy.Offscreen
+                                layout(placeable.width, placeable.height) {
+                                    if (textOverflow) {
+                                        placeable.placeWithLayer(0, 0) {
+                                            compositingStrategy = CompositingStrategy.Offscreen
+                                        }
+                                    } else {
+                                        placeable.place(0, 0)
                                     }
-                                } else {
-                                    placeable.place(0, 0)
                                 }
                             }
-                        }
-                        .overflowFadeOut(
-                            hasOverflow = { textOverflow },
-                            fadeLength =
-                                dimensionResource(
-                                    id = R.dimen.ongoing_activity_chip_text_fading_edge_length
-                                ),
-                        ),
-            )
+                            .overflowFadeOut(
+                                hasOverflow = { textOverflow },
+                                fadeLength =
+                                    dimensionResource(
+                                        id = R.dimen.ongoing_activity_chip_text_fading_edge_length
+                                    ),
+                            ),
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun ChipIcons(
+    chipIcons: List<ChipIcon>,
+    colors: ColorsModel,
+    isPopupShown: Boolean,
+    isHovered: Boolean,
+) {
+    val iconHoverBackgroundColor =
+        colors.iconBackgroundOnHover(
+            isPopupShown = isPopupShown,
+            colorScheme = MaterialTheme.colorScheme,
+        )
+    val iconColor =
+        colors.icon(
+            isPopupShown = isPopupShown,
+            isHovered = isHovered,
+            colorScheme = MaterialTheme.colorScheme,
+        )
+    for (chipIcon in chipIcons) {
+        Icon(
+            icon = chipIcon.icon,
+            modifier =
+                Modifier.size(20.dp)
+                    .thenIf(chipIcon.onClick != null) {
+                        Modifier.clickable(role = Role.Button, onClick = chipIcon.onClick!!)
+                    }
+                    .thenIf(isHovered && iconHoverBackgroundColor != Color.Unspecified) {
+                        Modifier.background(color = iconHoverBackgroundColor, shape = CircleShape)
+                            .padding(2.dp)
+                    },
+            tint = iconColor,
+        )
     }
 }
 

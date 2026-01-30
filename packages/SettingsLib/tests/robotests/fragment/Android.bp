@@ -32,8 +32,8 @@ java_library {
         "androidx.fragment_fragment",
     ],
     plugins: [
-        "auto_value_plugin_1.9",
-        "auto_value_builder_plugin_1.9",
+        "auto_value_plugin",
+        "auto_value_builder_plugin",
         "Robolectric_processor",
     ],
 

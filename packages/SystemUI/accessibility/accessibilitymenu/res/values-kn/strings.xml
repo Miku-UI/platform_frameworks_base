@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"ಹಿಂದಿನ ಸ್ಕ್ರೀನ್‌ಗೆ ಹೋಗಿ"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"ಮುಂದಿನ ಸ್ಕ್ರೀನ್‌ಗೆ ಹೋಗಿ"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"ನಿಮ್ಮ ಫೋನ್ ಅನ್ನು ನಿಯಂತ್ರಿಸಲು ಆ್ಯಕ್ಸೆಸಿಬಿಲಿಟಿ ಮೆನು ದೊಡ್ಡ ಸ್ಕ್ರೀನ್ ಮೆನುವನ್ನು ಒದಗಿಸುತ್ತದೆ. ನೀವು ನಿಮ್ಮ ಸಾಧನವನ್ನು ಲಾಕ್ ಮಾಡಬಹುದು, ವಾಲ್ಯೂಮ್ ಮತ್ತು ಪ್ರಖರತೆಯನ್ನು ನಿಯಂತ್ರಿಸಬಹುದು, ಸ್ಕ್ರೀನ್‌ಶಾಟ್‌ಗಳನ್ನು ತೆಗೆದುಕೊಳ್ಳಬಹುದು ಮತ್ತು ಇನ್ನೂ ಹೆಚ್ಚಿನದನ್ನು ಮಾಡಬಹುದು."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"ದೊಡ್ಡ ಮೆನುವಿನ ಮೂಲಕ ಸಾಧನವನ್ನು ನಿಯಂತ್ರಿಸಿ"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"ದೊಡ್ಡ ಮೆನುವಿನೊಂದಿಗೆ ವಾಲ್ಯೂಮ್, ಬ್ರೈಟ್‌ನೆಸ್ ಮತ್ತು ಇನ್ನೂ ಹೆಚ್ಚಿನದನ್ನು ನಿಯಂತ್ರಿಸಿ"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ಆ್ಯಕ್ಸೆಸಿಬಿಲಿಟಿ ಮೆನು ಸೆಟ್ಟಿಂಗ್‌ಗಳು"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ದೊಡ್ಡ ಬಟನ್‌ಗಳು"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"ಆ್ಯಕ್ಸೆಸಿಬಿಲಿಟಿ ಮೆನು ಬಟನ್‌ಗಳ ಗಾತ್ರವನ್ನು ಹೆಚ್ಚಿಸಿ"</string>

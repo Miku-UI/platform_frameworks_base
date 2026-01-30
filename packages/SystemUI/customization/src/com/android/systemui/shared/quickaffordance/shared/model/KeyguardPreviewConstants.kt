@@ -18,6 +18,20 @@
 package com.android.systemui.shared.quickaffordance.shared.model
 
 object KeyguardPreviewConstants {
+    // Initialization bundle keys
+    const val KEY_CLOCK_ID = "clock_id"
+    const val KEY_CLOCK_STYLE = "clock_style"
+    const val KEY_HIDE_CLOCK = "hide_clock"
+    const val KEY_HIGHLIGHT_QUICK_AFFORDANCES = "highlight_quick_affordances"
+
+    // TODO(b/422462849): Can SurfaceViewUtils share these constants?
+    const val KEY_HOST_TOKEN = "host_token"
+    const val KEY_VIEW_WIDTH = "width"
+    const val KEY_VIEW_HEIGHT = "height"
+    const val KEY_DISPLAY_ID = "display_id"
+    const val KEY_COLORS = "wallpaper_colors"
+
+    // Message IDs
     const val MESSAGE_ID_DEFAULT_PREVIEW = 707
     const val MESSAGE_ID_HIDE_SMART_SPACE = 1111
     const val MESSAGE_ID_PREVIEW_QUICK_AFFORDANCE_SELECTED = 1988
@@ -25,8 +39,8 @@ object KeyguardPreviewConstants {
     const val MESSAGE_ID_START_CUSTOMIZING_QUICK_AFFORDANCES = 214
     const val MESSAGE_ID_PREVIEW_CLOCK_SIZE = 1119
 
+    // Message Keys
     const val KEY_HIDE_SMART_SPACE = "hide_smart_space"
-    const val KEY_HIGHLIGHT_QUICK_AFFORDANCES = "highlight_quick_affordances"
     const val KEY_INITIALLY_SELECTED_SLOT_ID = "initially_selected_slot_id"
     const val KEY_QUICK_AFFORDANCE_ID = "quick_affordance_id"
     const val KEY_SLOT_ID = "slot_id"
@@ -35,4 +49,5 @@ object KeyguardPreviewConstants {
     const val KEYGUARD_QUICK_AFFORDANCE_ID_NONE = "none"
     const val CLOCK_SIZE_DYNAMIC = "clock_size_dynamic"
     const val CLOCK_SIZE_SMALL = "clock_size_small"
+    const val DIM_ALPHA = 0.3f
 }

@@ -49,6 +49,12 @@ interface IntRangeValuePreference : PersistentPreference<Int>, ValueDescriptor {
         index in getMinValue(context)..getMaxValue(context)
 }
 
+/** A persistent preference that has a long value. */
+interface LongValuePreference : PersistentPreference<Long> {
+    override val valueType: Class<Long>
+        get() = Long::class.javaObjectType
+}
+
 /** A preference that provides a two-state toggleable option. */
 open class SwitchPreference
 @JvmOverloads
@@ -57,9 +63,3 @@ constructor(
     @StringRes override val title: Int = 0,
     @StringRes override val summary: Int = 0,
 ) : BooleanValuePreference
-
-/** A preference that provides a two-state toggleable option that can be used as a main switch. */
-open class MainSwitchPreference
-@JvmOverloads
-constructor(override val key: String, @StringRes override val title: Int = 0) :
-    BooleanValuePreference

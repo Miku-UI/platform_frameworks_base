@@ -23,6 +23,9 @@ import android.provider.Settings;
 public class SecureSettings {
 
     /**
+     * You must either add your setting here to be backed up, or add it to
+     * SettingsBackupTest#BACKUP_DENY_LIST_SECURE_SETTINGS.
+     *
      * NOTE: Settings are backed up and restored in the order they appear
      *       in this array. If you have one setting depending on another,
      *       make sure that they are ordered appropriately.
@@ -91,6 +94,7 @@ public class SecureSettings {
         Settings.Secure.KEY_REPEAT_ENABLED,
         Settings.Secure.KEY_REPEAT_TIMEOUT_MS,
         Settings.Secure.KEY_REPEAT_DELAY_MS,
+        Settings.Secure.ACCESSIBILITY_TEXT_CURSOR_BLINK_INTERVAL_MS,
         Settings.Secure.CAMERA_GESTURE_DISABLED,
         Settings.Secure.ACCESSIBILITY_AUTOCLICK_CURSOR_AREA_SIZE,
         Settings.Secure.ACCESSIBILITY_AUTOCLICK_IGNORE_MINOR_CURSOR_MOVEMENT,
@@ -106,6 +110,7 @@ public class SecureSettings {
         Settings.Secure.INCALL_POWER_BUTTON_BEHAVIOR,
         Settings.Secure.MINIMAL_POST_PROCESSING_ALLOWED,
         Settings.Secure.MIRROR_BUILT_IN_DISPLAY,
+        Settings.Secure.INCLUDE_DEFAULT_DISPLAY_IN_TOPOLOGY,
         Settings.Secure.MATCH_CONTENT_FRAME_RATE,
         Settings.Secure.NIGHT_DISPLAY_CUSTOM_START_TIME,
         Settings.Secure.NIGHT_DISPLAY_CUSTOM_END_TIME,
@@ -162,6 +167,9 @@ public class SecureSettings {
         Settings.Secure.SCREENSAVER_ACTIVATE_ON_SLEEP,
         Settings.Secure.SCREENSAVER_ACTIVATE_ON_POSTURED,
         Settings.Secure.SCREENSAVER_HOME_CONTROLS_ENABLED,
+        Settings.Secure.SCREENSAVER_RESTRICT_TO_WIRELESS_CHARGING,
+        Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR,
+        Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_ENABLED,
         Settings.Secure.SHOW_FIRST_CRASH_DIALOG_DEV_OPTION,
         Settings.Secure.VOLUME_DIALOG_DISMISS_TIMEOUT,
         Settings.Secure.VOLUME_HUSH_GESTURE,
@@ -213,6 +221,7 @@ public class SecureSettings {
         Settings.Secure.ACCESSIBILITY_BUTTON_TARGETS,
         Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CAPABILITY,
         Settings.Secure.ACCESSIBILITY_MAGNIFICATION_FOLLOW_TYPING_ENABLED,
+        Settings.Secure.ACCESSIBILITY_MAGNIFICATION_FOLLOW_KEYBOARD_ENABLED,
         Settings.Secure.ONE_HANDED_MODE_ACTIVATED,
         Settings.Secure.ONE_HANDED_MODE_ENABLED,
         Settings.Secure.ONE_HANDED_MODE_TIMEOUT,
@@ -235,9 +244,17 @@ public class SecureSettings {
         Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE,
         Settings.Secure.ACCESSIBILITY_MAGNIFICATION_JOYSTICK_ENABLED,
         Settings.Secure.ACCESSIBILITY_MAGNIFICATION_TWO_FINGER_TRIPLE_TAP_ENABLED,
+        Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MAGNIFY_NAV_AND_IME,
         Settings.Secure.ACCESSIBILITY_MOUSE_KEYS_ENABLED,
+        Settings.Secure.ACCESSIBILITY_MOUSE_KEYS_ACCELERATION,
+        Settings.Secure.ACCESSIBILITY_MOUSE_KEYS_MAX_SPEED,
+        Settings.Secure.ACCESSIBILITY_MOUSE_KEYS_USE_PRIMARY_KEYS,
         Settings.Secure.ACCESSIBILITY_PINCH_TO_ZOOM_ANYWHERE_ENABLED,
         Settings.Secure.ACCESSIBILITY_SINGLE_FINGER_PANNING_ENABLED,
+        Settings.Secure.ACTION_CORNER_TOP_LEFT_ACTION,
+        Settings.Secure.ACTION_CORNER_TOP_RIGHT_ACTION,
+        Settings.Secure.ACTION_CORNER_BOTTOM_LEFT_ACTION,
+        Settings.Secure.ACTION_CORNER_BOTTOM_RIGHT_ACTION,
         Settings.Secure.ODI_CAPTIONS_VOLUME_UI_ENABLED,
         Settings.Secure.NOTIFICATION_BUBBLES,
         Settings.Secure.LOCATION_TIME_ZONE_DETECTION_ENABLED,
@@ -271,6 +288,7 @@ public class SecureSettings {
         Settings.Secure.HUB_MODE_TUTORIAL_STATE,
         Settings.Secure.GLANCEABLE_HUB_ENABLED,
         Settings.Secure.WHEN_TO_START_GLANCEABLE_HUB,
+        Settings.Secure.GLANCEABLE_HUB_RESTRICT_TO_WIRELESS_CHARGING,
         Settings.Secure.STYLUS_BUTTONS_ENABLED,
         Settings.Secure.STYLUS_HANDWRITING_ENABLED,
         Settings.Secure.DEFAULT_NOTE_TASK_PROFILE,
@@ -304,5 +322,10 @@ public class SecureSettings {
         Settings.Secure.SELECTED_SPELL_CHECKER,
         // SELECTED_SPELL_CHECKER_SUBTYPE needs to be restored after SELECTED_SPELL_CHECKER
         Settings.Secure.SELECTED_SPELL_CHECKER_SUBTYPE,
+        Settings.Secure.HDR_BRIGHTNESS_ENABLED,
+        Settings.Secure.HDR_BRIGHTNESS_BOOST_LEVEL,
+        Settings.Secure.IDENTITY_CHECK_PROMO_CARD_SHOWN,
+        Settings.Secure.IDENTITY_CHECK_NOTIFICATION_VIEW_DETAILS_CLICKED,
+        Settings.Secure.NOTIFICATION_BUNDLES_ALWAYS_EXPAND,
     };
 }

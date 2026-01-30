@@ -167,18 +167,9 @@ bool GLEnv::InitWithNewContext() {
   }
 
   // Create dummy surface using a GLConsumer
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
-  surfaceTexture_ = new GLConsumer(0, GLConsumer::TEXTURE_EXTERNAL, /*useFenceSync=*/true,
-                                   /*isControlledByApp=*/false);
-  window_ = surfaceTexture_->getSurface();
-#else
-  sp<IGraphicBufferProducer> producer;
-  sp<IGraphicBufferConsumer> consumer;
-  BufferQueue::createBufferQueue(&producer, &consumer);
-  surfaceTexture_ = new GLConsumer(consumer, 0, GLConsumer::TEXTURE_EXTERNAL,
-          true, false);
-  window_ = new Surface(producer);
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
+  std::tie(surfaceTexture_, window_) =
+          GLConsumer::create(0, GLConsumer::TEXTURE_EXTERNAL, /*useFenceSync=*/true,
+                             /*isControlledByApp=*/false);
 
   surfaces_[0] = SurfaceWindowPair(eglCreateWindowSurface(display(), config, window_.get(), NULL), NULL);
   if (CheckEGLError("eglCreateWindowSurface")) return false;

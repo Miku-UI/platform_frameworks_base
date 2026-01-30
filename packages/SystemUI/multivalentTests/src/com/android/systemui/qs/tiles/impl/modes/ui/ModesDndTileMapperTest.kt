@@ -16,9 +16,7 @@
 
 package com.android.systemui.qs.tiles.impl.modes.ui
 
-import android.app.Flags
 import android.graphics.drawable.TestStubDrawable
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -34,7 +32,6 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(Flags.FLAG_MODES_UI)
 class ModesDndTileMapperTest : SysuiTestCase() {
     val config =
         QSTileConfigTestBuilder.build {
@@ -63,7 +60,7 @@ class ModesDndTileMapperTest : SysuiTestCase() {
         val state = underTest.map(config, model)
 
         assertThat(state.activationState).isEqualTo(QSTileState.ActivationState.INACTIVE)
-        assertThat((state.icon as Icon.Loaded).res).isEqualTo(R.drawable.qs_dnd_icon_off)
+        assertThat((state.icon as Icon.Loaded).resId).isEqualTo(R.drawable.qs_dnd_icon_off)
         assertThat(state.secondaryLabel).isNull() // Will use default label for activationState
     }
 
@@ -74,7 +71,7 @@ class ModesDndTileMapperTest : SysuiTestCase() {
         val state = underTest.map(config, model)
 
         assertThat(state.activationState).isEqualTo(QSTileState.ActivationState.ACTIVE)
-        assertThat((state.icon as Icon.Loaded).res).isEqualTo(R.drawable.qs_dnd_icon_on)
+        assertThat((state.icon as Icon.Loaded).resId).isEqualTo(R.drawable.qs_dnd_icon_on)
         assertThat(state.secondaryLabel).isNull() // Will use default label for activationState
     }
 
@@ -85,7 +82,7 @@ class ModesDndTileMapperTest : SysuiTestCase() {
         val state = underTest.map(config, model)
 
         assertThat(state.activationState).isEqualTo(QSTileState.ActivationState.ACTIVE)
-        assertThat((state.icon as Icon.Loaded).res).isEqualTo(R.drawable.qs_dnd_icon_on)
+        assertThat((state.icon as Icon.Loaded).resId).isEqualTo(R.drawable.qs_dnd_icon_on)
         assertThat(state.secondaryLabel).isEqualTo("Until 14:00")
         assertThat(state.contentDescription).isEqualTo("Do Not Disturb")
         assertThat(state.stateDescription).isEqualTo("Until 14:00")

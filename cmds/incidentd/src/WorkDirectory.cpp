@@ -642,6 +642,9 @@ void WorkDirectory::commit(const sp<ReportFile>& report, const string& pkg, cons
 
     // Load the envelope here inside the lock.
     err = report->loadEnvelope();
+    if (err != NO_ERROR) {
+        return;
+    }
 
     report->removeReport(pkg, cls);
 

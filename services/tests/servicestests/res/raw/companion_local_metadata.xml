@@ -1,0 +1,10 @@
+<bundle>
+    <pbundle_as_map name="feature1">
+        <int name="version" value="1"/>
+        <string name="data">hello</string>
+    </pbundle_as_map>
+    <pbundle_as_map name="feature2">
+        <int name="version" value="1"/>
+        <string name="data">world</string>
+    </pbundle_as_map>
+</bundle>

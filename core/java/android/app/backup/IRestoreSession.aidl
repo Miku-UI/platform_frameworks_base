@@ -23,7 +23,7 @@ import android.app.backup.IBackupManagerMonitor;
  * Binder interface used by clients who wish to manage a restore operation.  Every
  * method in this interface requires the android.permission.BACKUP permission.
  *
- * {@hide}
+ * @hide
  */
 interface IRestoreSession {
     /**

@@ -46,7 +46,7 @@ class AppCompatDeviceStateQuery {
         final DisplayContent dc = mActivityRecord.mDisplayContent;
         return dc != null && task != null && !dc.inTransition()
                 && dc.getDisplayRotation().isDeviceInPosture(
-                    DeviceStateController.DeviceState.HALF_FOLDED, isTabletop)
+                    DeviceStateController.DeviceStateEnum.HALF_FOLDED, isTabletop)
                 && task.getWindowingMode() == WINDOWING_MODE_FULLSCREEN;
     }
 

@@ -95,6 +95,7 @@ filegroup {
     name: "shared-srcs",
     srcs: [
         "src/android/app/ExampleActivity.java",
+        "src/android/app/ExampleConditionProviderService.java",
         "src/android/app/NotificationSystemUtil.java",
         "src/com/android/frameworks/tests/uiservices/DummyProvider.java",
         "src/com/android/internal/logging/InstanceIdSequenceFake.java",
@@ -129,6 +130,7 @@ android_test {
     // Include test java files but not the notification & zen ones which are separated
     srcs: [
         "src/**/*.java",
+        "src/**/*.kt",
     ],
 
     exclude_srcs: [

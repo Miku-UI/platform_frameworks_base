@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"მიმდინარეობს დაკავშირება…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"დაკავშირებულია<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"დაწყვილება…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"დაწყვილება ვერ ხერხდება"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"დაკავშირება შეუძლებელია"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"დაკავშირებულია (ტელეფონი არ არის)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"დაკავშირებულია (მედია არ არის)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"დაკავშირებულია (ტელეფონი ამ მედია არ არის)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"მარცხენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, მარჯვენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ბატარეა."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"მარცხენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ბატარეა"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"მარჯვენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ბატარეა"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"სათავსო: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ბატარეა"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"მარცხენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, სათავსო: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ბატარეა"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"მარჯვენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, სათავსო: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ბატარეა"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"მარცხენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, მარჯვენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ბატარეა"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"მარცხ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, სათ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, მარჯვ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> ბატარეა"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"მარცხენა <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"მარჯვენა <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"აქტიური"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"აქტიური (მხოლოდ მარჯვენა)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"აქტიური (მარცხენა და მარჯვენა)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"გარემოცვის განახლება ვერ მოხერხდა"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"წინასწარ დაყენებულის განახლება ვერ მოხერხდა"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"არჩეულია"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"აქტიური (მხოლოდ მედია). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>%% ბატარეა."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"აქტიური (მხოლოდ მედია), მარცხენა: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, მარჯვენა:<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ბატარეა."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"სტუმარი მოწყობილობა. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ბატარეა."</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"როდესაც ეს რეჟიმი ჩართულია, ამ მოწყობილობის MAC მისამართი შეიძლება შეიცვალოს ისეთ ქსელთან ყოველ დაკავშირებაზე, რომელსაც ჩართული აქვს MAC მისამართის რანდომიზაცია."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"ლიმიტირებული"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"არალიმიტირებული"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"ჟურნალიზაციის ბუფერის ზომები"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"ჟურნალის ბუფერის ზომა"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"აირჩიეთ ჟურნ. ზომა / ჟურნ. ბუფერზე"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"გსურთ მუდმივი ჟურნალირების მეხსიერების გასუფთავება?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"მუდმივი ჟურნალირების მეშვეობით მონიტორინგის შეწყვეტის შემდეგ, იძულებული ვიქნებით, თქვენს მოწყობილობაზე არსებული ჟურნალების მონაცემები წავშალოთ."</string>
@@ -491,7 +500,7 @@
     <string name="daltonizer_mode_deuteranomaly" msgid="3507284319584683963">"ფერთა გარჩ.ანომალია (წითელი-მწვანე)"</string>
     <string name="daltonizer_mode_protanomaly" msgid="7805583306666608440">"პროტოანომალია (წითელი-მწვანე)"</string>
     <string name="daltonizer_mode_tritanomaly" msgid="7135266249220732267">"ტრიტანომალია (ლურჯი-ყვითელი)"</string>
-    <string name="accessibility_display_daltonizer_preference_title" msgid="1810693571332381974">"ფერის კორექცია"</string>
+    <string name="accessibility_display_daltonizer_preference_title" msgid="1810693571332381974">"ფერთა კორექცია"</string>
     <string name="accessibility_display_daltonizer_preference_subtitle" msgid="1522101114585266455">"ფერთა კორექცია შეიძლება დაგეხმაროთ, როცა გსურთ:&lt;br/&gt; &lt;ol&gt; &lt;li&gt;&amp;nbsp;ფერების მეტი სიზუსტით დანახვა&lt;/li&gt; &lt;li&gt;&amp;nbsp;ფერების მოცილება, რომ უკეთ კონცენტრირდეთ&lt;/li&gt; &lt;/ol&gt;"</string>
     <string name="daltonizer_type_overridden" msgid="4509604753672535721">"უკუგებულია <xliff:g id="TITLE">%1$s</xliff:g>-ის მიერ"</string>
     <string name="power_remaining_settings_home_page" msgid="4885165789445462557">"<xliff:g id="PERCENTAGE">%1$s</xliff:g> - <xliff:g id="TIME_STRING">%2$s</xliff:g>"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"გავიდა <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"დარჩენილია <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"ყველაზე პატარა"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"უფრო პატარა"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"პატარა"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"ნაგულისხმევი"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"დიდი"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"უფრო დიდი"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"უდიდესი"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"უფრო დიდი"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"ძალიან დიდი"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"ძალიან დიდი"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"უდიდესი"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"მორგებული (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"მენიუ"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"შეიყვანეთ პაროლი დემო-რეჟიმში ქარხნულ მდგომარეობაზე დასაბრუნებლად"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{დაკავშირებულია 1 მოწყობილობა}other{დაკავშირებულია # მოწყობილობა}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"მეტი დრო."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"ნაკლები დრო."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"გადიდება"</string>
     <string name="cancel" msgid="5665114069455378395">"გაუქმება"</string>
     <string name="next" msgid="2699398661093607009">"შემდეგ"</string>
     <string name="back" msgid="5554327870352703710">"უკან"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"<xliff:g id="SWITCHAPP">%1$s</xliff:g>-ის ტრანსლაციის შემთხვევაში ან აუდიოს გამოსასვლელის შეცვლისას, მიმდინარე ტრანსლაცია შეჩერდება"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g>-ის ტრანსლაცია"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"აუდიოს გამოსასვლელის შეცვლა"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"უკან დაბრუნების ანიმაციის პროგნოზირება"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"უკან დაბრუნების პროგნოზირებადი ანიმაციისთვის სისტემის ანიმაციების ჩართვა."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"ეს პარამეტრი ჩართავს სისტემის ანიმაციებს ჟესტების პროგნოზირებადი ანიმაციებისთვის. საჭიროა, რომ აღწერის ფაილში აპის enableOnBackInvokedCallback პარამეტრი იყოს ჭეშმარიტი."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"არ არის მითითებული"</string>
     <string name="neuter" msgid="2075249330106127310">"საშუალო"</string>

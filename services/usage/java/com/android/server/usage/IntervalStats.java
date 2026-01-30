@@ -31,12 +31,13 @@ import static android.app.usage.UsageEvents.Event.KEYGUARD_SHOWN;
 import static android.app.usage.UsageEvents.Event.LOCUS_ID_SET;
 import static android.app.usage.UsageEvents.Event.NOTIFICATION_INTERRUPTION;
 import static android.app.usage.UsageEvents.Event.ROLLOVER_FOREGROUND_SERVICE;
-import static android.app.usage.UsageEvents.Event.USER_INTERACTION;
 import static android.app.usage.UsageEvents.Event.SCREEN_INTERACTIVE;
 import static android.app.usage.UsageEvents.Event.SCREEN_NON_INTERACTIVE;
 import static android.app.usage.UsageEvents.Event.SHORTCUT_INVOCATION;
 import static android.app.usage.UsageEvents.Event.STANDBY_BUCKET_CHANGED;
 import static android.app.usage.UsageEvents.Event.SYSTEM_INTERACTION;
+import static android.app.usage.UsageEvents.Event.USER_INTERACTION;
+import static android.appwidget.flags.Flags.engagementMetrics;
 
 import android.app.usage.ConfigurationStats;
 import android.app.usage.EventList;
@@ -56,12 +57,15 @@ import android.util.proto.ProtoInputStream;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
 public class IntervalStats {
     private static final String TAG = "IntervalStats";
+    private static final int MAX_EXTRA_ARRAY_LENGTH = 10;
 
     public static final int CURRENT_MAJOR_VERSION = 1;
     public static final int CURRENT_MINOR_VERSION = 1;
@@ -592,6 +596,7 @@ public class IntervalStats {
                         event.mExtras = new PersistableBundle();
                         event.mExtras.putString(UsageStatsManager.EXTRA_EVENT_CATEGORY, category);
                         event.mExtras.putString(UsageStatsManager.EXTRA_EVENT_ACTION, action);
+                        deobfuscateEventExtras(event, packagesTokenData, packageToken);
                         event.mUserInteractionExtrasToken = null;
                     }
                     break;
@@ -602,6 +607,27 @@ public class IntervalStats {
                     + Arrays.toString(omittedTokens.toArray()));
         }
         return dataOmitted;
+    }
+
+    private static void deobfuscateEventExtras(Event event, PackagesTokenData packagesTokenData,
+        int packageToken) {
+        if (!engagementMetrics() || event.mUserInteractionExtrasToken.mTokenizedExtras == null) {
+            return;
+        }
+        try {
+            final PersistableBundle tokenizedExtras =
+                PersistableBundle.readFromStream(new ByteArrayInputStream(
+                    event.mUserInteractionExtrasToken.mTokenizedExtras));
+            for (String keyToken : tokenizedExtras.keySet()) {
+                final String key = packagesTokenData.getString(packageToken,
+                    Integer.parseInt(keyToken));
+                if (key == null) continue;
+                event.mExtras.putObject(key, tokenizedExtras.get(keyToken));
+            }
+        } catch (IOException e) {
+            Slog.e(TAG, "Failed to parse tokenized extras for USER_INTERACTION"
+                + " event for " + event.mPackage, e);
+        }
     }
 
     /**
@@ -727,9 +753,73 @@ public class IntervalStats {
                             event.mUserInteractionExtrasToken.mActionToken =
                                     packagesTokenData.getTokenOrAdd(packageToken, event.mPackage,
                                             action);
+                            obfuscateEventsExtras(event, packagesTokenData, packageToken);
                         }
                     }
                     break;
+            }
+        }
+    }
+
+    private static void obfuscateEventsExtras(Event event, PackagesTokenData packagesTokenData,
+        int packageToken) {
+        if (!engagementMetrics()) return;
+        // Tokenize other keys in the bundle if present.
+        final PersistableBundle tokenizedExtras = new PersistableBundle();
+        for (String key : event.mExtras.keySet()) {
+            if (key.equals(UsageStatsManager.EXTRA_EVENT_CATEGORY)
+                || key.equals(UsageStatsManager.EXTRA_EVENT_ACTION)) {
+                continue;
+            }
+            final int keyToken = packagesTokenData.getTokenOrAdd(
+                packageToken, event.mPackage, key);
+            Object value = event.mExtras.get(key);
+            // Skip nested bundles, trim strings, and cap array length at 10.
+            if (value == null || value instanceof PersistableBundle) {
+                continue;
+            } else if (value instanceof String string) {
+                value = UsageStatsService.getTrimmedString(string);
+            } else if (value.getClass().isArray()) {
+                switch (value) {
+                    case short[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    case int[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    case long[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    case float[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    case double[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    case byte[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    case char[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    case String[] arr:
+                        value = Arrays.copyOf(arr, Integer.min(MAX_EXTRA_ARRAY_LENGTH, arr.length));
+                        break;
+                    default:
+                        continue;
+                }
+            }
+            tokenizedExtras.putObject(String.valueOf(keyToken), value);
+        }
+        if (!tokenizedExtras.isEmpty()) {
+            final ByteArrayOutputStream out = new ByteArrayOutputStream();
+            try {
+                tokenizedExtras.writeToStream(out);
+                event.mUserInteractionExtrasToken.mTokenizedExtras =
+                    out.toByteArray();
+            }  catch (IOException e) {
+                Slog.e(TAG, "Failed to write tokenized extras for USER_INTERACTION event for "
+                    + event.mPackage);
             }
         }
     }

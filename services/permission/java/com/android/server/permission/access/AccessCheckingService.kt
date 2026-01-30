@@ -16,11 +16,14 @@
 
 package com.android.server.permission.access
 
+import android.app.appfunctions.AppFunctionAccessServiceInterface
 import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.PackageManagerInternal
+import android.content.pm.SignedPackage
 import android.os.SystemProperties
 import android.os.UserHandle
+import android.permission.flags.Flags
 import com.android.internal.annotations.Keep
 import com.android.server.LocalManagerRegistry
 import com.android.server.LocalServices
@@ -28,6 +31,7 @@ import com.android.server.SystemConfig
 import com.android.server.SystemService
 import com.android.server.appop.AppOpsCheckingServiceInterface
 import com.android.server.permission.PermissionManagerLocal
+import com.android.server.permission.access.appfunction.AppFunctionAccessService
 import com.android.server.permission.access.appop.AppOpService
 import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
 import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
@@ -53,6 +57,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
 
     private lateinit var appOpService: AppOpService
     private lateinit var permissionService: PermissionService
+    private lateinit var appFunctionAccessService: AppFunctionAccessService
 
     private lateinit var packageManagerInternal: PackageManagerInternal
     private lateinit var packageManagerLocal: PackageManagerLocal
@@ -62,13 +67,18 @@ class AccessCheckingService(context: Context) : SystemService(context) {
     override fun onStart() {
         appOpService = AppOpService(this)
         permissionService = PermissionService(this)
+        appFunctionAccessService = AppFunctionAccessService(this)
 
         LocalServices.addService(AppOpsCheckingServiceInterface::class.java, appOpService)
         LocalServices.addService(PermissionManagerServiceInterface::class.java, permissionService)
+        LocalServices.addService(
+            AppFunctionAccessServiceInterface::class.java,
+            appFunctionAccessService,
+        )
 
         LocalManagerRegistry.addManager(
             PermissionManagerLocal::class.java,
-            PermissionManagerLocalImpl(this)
+            PermissionManagerLocalImpl(this),
         )
     }
 
@@ -100,7 +110,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
             configPermissions,
             privilegedPermissionAllowlistPackages,
             permissionAllowlist,
-            implicitToSourcePermissions
+            implicitToSourcePermissions,
         )
         persistence.initialize()
         persistence.read(state)
@@ -108,6 +118,9 @@ class AccessCheckingService(context: Context) : SystemService(context) {
 
         appOpService.initialize()
         permissionService.initialize()
+        if (Flags.appFunctionAccessServiceEnabled()) {
+            appFunctionAccessService.initialize()
+        }
     }
 
     private val SystemConfig.isLeanback: Boolean
@@ -153,7 +166,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
     internal fun onStorageVolumeMounted(
         volumeUuid: String?,
         packageNames: List<String>,
-        isSystemUpdated: Boolean
+        isSystemUpdated: Boolean,
     ) {
         val (packageStates, disabledSystemPackageStates) = packageManagerLocal.allPackageStates
         val knownPackages = packageManagerInternal.knownPackages
@@ -165,7 +178,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
                     knownPackages,
                     volumeUuid,
                     packageNames,
-                    isSystemUpdated
+                    isSystemUpdated,
                 )
             }
         }
@@ -180,7 +193,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
                     packageStates,
                     disabledSystemPackageStates,
                     knownPackages,
-                    packageName
+                    packageName,
                 )
             }
         }
@@ -196,7 +209,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
                     disabledSystemPackageStates,
                     knownPackages,
                     packageName,
-                    appId
+                    appId,
                 )
             }
         }
@@ -212,7 +225,7 @@ class AccessCheckingService(context: Context) : SystemService(context) {
                     disabledSystemPackageStates,
                     knownPackages,
                     packageName,
-                    userId
+                    userId,
                 )
             }
         }
@@ -229,10 +242,14 @@ class AccessCheckingService(context: Context) : SystemService(context) {
                     knownPackages,
                     packageName,
                     appId,
-                    userId
+                    userId,
                 )
             }
         }
+    }
+
+    internal fun onAgentAllowlistChanged(agentAllowlist: Set<SignedPackage>?) {
+        mutateState { with(policy) { onAgentAllowlistChanged(agentAllowlist) } }
     }
 
     internal fun onSystemReady() {
@@ -246,39 +263,40 @@ class AccessCheckingService(context: Context) : SystemService(context) {
     private val PackageManagerInternal.knownPackages: IntMap<Array<String>>
         get() =
             MutableIntMap<Array<String>>().apply {
-                this[KnownPackages.PACKAGE_INSTALLER] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_INSTALLER, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_PERMISSION_CONTROLLER] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_PERMISSION_CONTROLLER, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_VERIFIER] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_VERIFIER, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_SETUP_WIZARD] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_SETUP_WIZARD, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_SYSTEM_TEXT_CLASSIFIER] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_SYSTEM_TEXT_CLASSIFIER, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_CONFIGURATOR] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_CONFIGURATOR, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_INCIDENT_REPORT_APPROVER] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_INCIDENT_REPORT_APPROVER, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_APP_PREDICTOR] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_APP_PREDICTOR, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_COMPANION] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_COMPANION, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_RETAIL_DEMO] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_RETAIL_DEMO, UserHandle.USER_SYSTEM
-                )
-                this[KnownPackages.PACKAGE_RECENTS] = getKnownPackageNames(
-                    KnownPackages.PACKAGE_RECENTS, UserHandle.USER_SYSTEM
-                )
+                this[KnownPackages.PACKAGE_INSTALLER] =
+                    getKnownPackageNames(KnownPackages.PACKAGE_INSTALLER, UserHandle.USER_SYSTEM)
+                this[KnownPackages.PACKAGE_PERMISSION_CONTROLLER] =
+                    getKnownPackageNames(
+                        KnownPackages.PACKAGE_PERMISSION_CONTROLLER,
+                        UserHandle.USER_SYSTEM,
+                    )
+                this[KnownPackages.PACKAGE_VERIFIER] =
+                    getKnownPackageNames(KnownPackages.PACKAGE_VERIFIER, UserHandle.USER_SYSTEM)
+                this[KnownPackages.PACKAGE_SETUP_WIZARD] =
+                    getKnownPackageNames(KnownPackages.PACKAGE_SETUP_WIZARD, UserHandle.USER_SYSTEM)
+                this[KnownPackages.PACKAGE_SYSTEM_TEXT_CLASSIFIER] =
+                    getKnownPackageNames(
+                        KnownPackages.PACKAGE_SYSTEM_TEXT_CLASSIFIER,
+                        UserHandle.USER_SYSTEM,
+                    )
+                this[KnownPackages.PACKAGE_CONFIGURATOR] =
+                    getKnownPackageNames(KnownPackages.PACKAGE_CONFIGURATOR, UserHandle.USER_SYSTEM)
+                this[KnownPackages.PACKAGE_INCIDENT_REPORT_APPROVER] =
+                    getKnownPackageNames(
+                        KnownPackages.PACKAGE_INCIDENT_REPORT_APPROVER,
+                        UserHandle.USER_SYSTEM,
+                    )
+                this[KnownPackages.PACKAGE_APP_PREDICTOR] =
+                    getKnownPackageNames(
+                        KnownPackages.PACKAGE_APP_PREDICTOR,
+                        UserHandle.USER_SYSTEM,
+                    )
+                this[KnownPackages.PACKAGE_COMPANION] =
+                    getKnownPackageNames(KnownPackages.PACKAGE_COMPANION, UserHandle.USER_SYSTEM)
+                this[KnownPackages.PACKAGE_RETAIL_DEMO] =
+                    getKnownPackageNames(KnownPackages.PACKAGE_RETAIL_DEMO, UserHandle.USER_SYSTEM)
+                this[KnownPackages.PACKAGE_RECENTS] =
+                    getKnownPackageNames(KnownPackages.PACKAGE_RECENTS, UserHandle.USER_SYSTEM)
             }
 
     @OptIn(ExperimentalContracts::class)

@@ -19,25 +19,25 @@ package com.android.server.clipboard;
 import static android.app.ActivityManagerInternal.ALLOW_FULL_ONLY;
 import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_CUSTOM;
 import static android.companion.virtual.VirtualDeviceParams.POLICY_TYPE_CLIPBOARD;
-import static android.content.ClipDescription.MIMETYPE_UNKNOWN;
-import static android.content.ClipDescription.MIMETYPE_TEXT_PLAIN;
-import static android.content.ClipDescription.MIMETYPE_TEXT_HTML;
-import static android.content.ClipDescription.MIMETYPE_TEXT_URILIST;
-import static android.content.ClipDescription.MIMETYPE_TEXT_INTENT;
 import static android.content.ClipDescription.MIMETYPE_APPLICATION_ACTIVITY;
 import static android.content.ClipDescription.MIMETYPE_APPLICATION_SHORTCUT;
 import static android.content.ClipDescription.MIMETYPE_APPLICATION_TASK;
+import static android.content.ClipDescription.MIMETYPE_TEXT_HTML;
+import static android.content.ClipDescription.MIMETYPE_TEXT_INTENT;
+import static android.content.ClipDescription.MIMETYPE_TEXT_PLAIN;
+import static android.content.ClipDescription.MIMETYPE_TEXT_URILIST;
+import static android.content.ClipDescription.MIMETYPE_UNKNOWN;
 import static android.content.Context.DEVICE_ID_DEFAULT;
 import static android.content.Context.DEVICE_ID_INVALID;
 
-import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_UNKNOWN;
-import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_PLAIN;
-import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_HTML;
-import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_URILIST;
-import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_INTENT;
 import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_APPLICATION_ACTIVITY;
 import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_APPLICATION_SHORTCUT;
 import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_APPLICATION_TASK;
+import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_HTML;
+import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_INTENT;
+import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_PLAIN;
+import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_TEXT_URILIST;
+import static com.android.internal.util.FrameworkStatsLog.CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_UNKNOWN;
 import static com.android.server.clipboard.Flags.clipboardGetEventLogging;
 
 import android.Manifest;
@@ -81,6 +81,7 @@ import android.os.Parcel;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.DeviceConfig;
@@ -94,6 +95,7 @@ import android.util.SafetyProtectionUtils;
 import android.util.Slog;
 import android.util.SparseArrayMap;
 import android.util.SparseBooleanArray;
+import android.util.SparseLongArray;
 import android.view.Display;
 import android.view.autofill.AutofillManagerInternal;
 import android.view.textclassifier.TextClassificationContext;
@@ -107,6 +109,7 @@ import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.FrameworkStatsLog;
+import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.LocalServices;
 import com.android.server.SystemService;
 import com.android.server.UiThread;
@@ -155,6 +158,7 @@ public class ClipboardService extends SystemService {
     private static final int[] CLIP_DATA_TYPES_UNKNOWN = {
             CLIPBOARD_GET_EVENT_REPORTED__CLIP_DATA_TYPE__MIMETYPE_UNKNOWN
     };
+    private static final long ACCESS_NOTIFICATION_SUPPRESSION_TIMEOUT_MILLIS = 1000L;
 
     private final ActivityManagerInternal mAmInternal;
     private final IUriGrantsManager mUgm;
@@ -176,6 +180,12 @@ public class ClipboardService extends SystemService {
     @GuardedBy("mLock")
     // Maps (userId, deviceId) to Clipboard.
     private final SparseArrayMap<Integer, Clipboard> mClipboards = new SparseArrayMap<>();
+
+    /**
+     * Maps the uid to the time that clip access notification/toast suppression should end.
+     */
+    @GuardedBy("mLock")
+    private final SparseLongArray mSuppressAccessNotification = new SparseLongArray();
 
     @GuardedBy("mLock")
     private boolean mShowAccessNotifications =
@@ -240,6 +250,7 @@ public class ClipboardService extends SystemService {
     @Override
     public void onStart() {
         publishBinderService(Context.CLIPBOARD_SERVICE, new ClipboardImpl());
+        LocalServices.addService(ClipboardManagerInternal.class, new ClipboardInternalImpl());
         registerVirtualDeviceListener();
     }
 
@@ -455,6 +466,12 @@ public class ClipboardService extends SystemService {
                 || virtualDeviceIds.contains(requestedDeviceId)
                 || (clipboardDeviceId == DEVICE_ID_DEFAULT && allDevicesHaveDefaultClipboard)) {
             return clipboardDeviceId;
+        }
+
+        // The app is running on the default device, even if it requests access to some virtual
+        // device clipboard, fallback to the default clipboard.
+        if (virtualDeviceIds.isEmpty()) {
+            return DEVICE_ID_DEFAULT;
         }
 
         // Fallback to the device where the app is running, unless it uses the default clipboard.
@@ -872,7 +889,34 @@ public class ClipboardService extends SystemService {
                 }
             }
         }
-    };
+
+    }
+
+    private class ClipboardInternalImpl implements ClipboardManagerInternal {
+
+        @Override
+        public void notifyUserAuthorizedClipAccess(int uid) {
+            long elapsedRealtime = SystemClock.elapsedRealtime();
+            synchronized (mLock) {
+                mSuppressAccessNotification.put(uid,
+                        elapsedRealtime + ACCESS_NOTIFICATION_SUPPRESSION_TIMEOUT_MILLIS);
+            }
+            mWorkerHandler.postDelayed(PooledLambda.obtainRunnable(
+                            ClipboardInternalImpl::pruneExpiredNotificationSuppressionUids, this),
+                    ACCESS_NOTIFICATION_SUPPRESSION_TIMEOUT_MILLIS + 1);
+        }
+
+        private void pruneExpiredNotificationSuppressionUids() {
+            long elapsedRealtime = SystemClock.elapsedRealtime();
+            synchronized (mLock) {
+                for (int i = mSuppressAccessNotification.size() - 1; i >= 0; i--) {
+                    if (mSuppressAccessNotification.valueAt(i) < elapsedRealtime) {
+                        mSuppressAccessNotification.removeAt(i);
+                    }
+                }
+            }
+        }
+    }
 
     @GuardedBy("mLock")
     private @Nullable Clipboard getClipboardLocked(@UserIdInt int userId, int deviceId) {
@@ -1426,6 +1470,19 @@ public class ClipboardService extends SystemService {
         return false;
     }
 
+    @GuardedBy("mLock")
+    private boolean shouldSuppressAccessNotificationForUidLocked(int uid) {
+        long elapsedRealtime = SystemClock.elapsedRealtime();
+        long expiration = mSuppressAccessNotification.get(uid, elapsedRealtime);
+
+        if (expiration > elapsedRealtime) {
+            return true;
+        }
+
+        mSuppressAccessNotification.delete(uid);
+        return false;
+    }
+
     /**
      * Shows a toast to inform the user that an app has accessed the clipboard. This is only done if
      * the setting is enabled, and if the accessing app is not the source of the data and is not the
@@ -1436,6 +1493,10 @@ public class ClipboardService extends SystemService {
     private void showAccessNotificationLocked(String callingPackage, int uid, @UserIdInt int userId,
             Clipboard clipboard, int accessDeviceId) {
         if (clipboard.primaryClip == null) {
+            return;
+        }
+        // Don't notify if a trusted component has confirmed the user decided on clip access.
+        if (shouldSuppressAccessNotificationForUidLocked(uid)) {
             return;
         }
         if (Settings.Secure.getInt(getContext().getContentResolver(),

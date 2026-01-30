@@ -16,9 +16,9 @@
 
 package com.android.server.job;
 
-import static android.app.job.JobParameters.OVERRIDE_HANDLE_ABANDONED_JOBS;
 import static android.Manifest.permission.INTERACT_ACROSS_USERS_FULL;
 import static android.Manifest.permission.MANAGE_ACTIVITY_TASKS;
+import static android.app.job.JobParameters.OVERRIDE_HANDLE_ABANDONED_JOBS;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER;
 import static android.text.format.DateUtils.HOUR_IN_MILLIS;
@@ -85,7 +85,6 @@ import android.os.SystemClock;
 import android.os.Trace;
 import android.os.UserHandle;
 import android.os.WorkSource;
-import android.os.storage.StorageManagerInternal;
 import android.provider.DeviceConfig;
 import android.text.format.DateUtils;
 import android.util.ArrayMap;
@@ -109,6 +108,7 @@ import com.android.internal.os.SomeArgs;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.util.FrameworkStatsLog;
+import com.android.internal.util.IntPair;
 import com.android.modules.expresslog.Counter;
 import com.android.modules.expresslog.Histogram;
 import com.android.server.AppSchedulingModuleThread;
@@ -116,6 +116,7 @@ import com.android.server.AppStateTracker;
 import com.android.server.AppStateTrackerImpl;
 import com.android.server.DeviceIdleInternal;
 import com.android.server.LocalServices;
+import com.android.server.StorageManagerInternal;
 import com.android.server.job.JobSchedulerServiceDumpProto.PendingJob;
 import com.android.server.job.controllers.BackgroundJobsController;
 import com.android.server.job.controllers.BatteryController;
@@ -1633,18 +1634,12 @@ public class JobSchedulerService extends com.android.server.SystemService
     }
 
     @NonNull
-    public WorkSource deriveWorkSource(int sourceUid, @Nullable String sourcePackageName) {
-        if (Flags.createWorkChainByDefault()
-                || WorkSource.isChainedBatteryAttributionEnabled(getContext())) {
-            WorkSource ws = new WorkSource();
-            ws.createWorkChain()
-                    .addNode(sourceUid, null)
-                    .addNode(Process.SYSTEM_UID, "JobScheduler");
-            return ws;
-        } else {
-            return sourcePackageName == null
-                    ? new WorkSource(sourceUid) : new WorkSource(sourceUid, sourcePackageName);
-        }
+    public WorkSource deriveWorkSource(int sourceUid) {
+        WorkSource ws = new WorkSource();
+        ws.createWorkChain()
+                .addNode(sourceUid, null)
+                .addNode(Process.SYSTEM_UID, "JobScheduler");
+        return ws;
     }
 
     @Nullable
@@ -4731,6 +4726,23 @@ public class JobSchedulerService extends com.android.server.SystemService
         return bucket;
     }
 
+    public static long standbyBucketAndReasonForPackage(String packageName,
+            int userId, long elapsedNow) {
+        long bucketAndReason = sUsageStatsManagerInternal != null
+                ? sUsageStatsManagerInternal.getAppStandbyBucketAndReason(packageName, userId,
+                        elapsedNow)
+                : 0;
+        long bucketIndexAndReason = IntPair.of(
+                standbyBucketToBucketIndex(IntPair.first(bucketAndReason)),
+                IntPair.second(bucketAndReason));
+        if (DEBUG_STANDBY) {
+            Slog.v(TAG, packageName + "/" + userId + " standby bucket index: "
+                    + IntPair.first(bucketIndexAndReason) + " and reason: "
+                    + IntPair.second(bucketIndexAndReason));
+        }
+        return bucketIndexAndReason;
+    }
+
     static int safelyScaleBytesToKBForHistogram(long bytes) {
         long kilobytes = bytes / 1000;
         // Anything over Integer.MAX_VALUE or under Integer.MIN_VALUE isn't expected and will
@@ -5971,8 +5983,8 @@ public class JobSchedulerService extends com.android.server.SystemService
             pw.print(Flags.FLAG_DO_NOT_FORCE_RUSH_EXECUTION_AT_BOOT,
                     Flags.doNotForceRushExecutionAtBoot());
             pw.println();
-            pw.print(android.app.job.Flags.FLAG_IGNORE_IMPORTANT_WHILE_FOREGROUND,
-                    android.app.job.Flags.ignoreImportantWhileForeground());
+            pw.print(Flags.FLAG_UPDATE_MEDIA_BACKUP_EXEMPTION_POLICY,
+                    Flags.updateMediaBackupExemptionPolicy());
             pw.println();
             pw.print(android.app.job.Flags.FLAG_GET_PENDING_JOB_REASONS_API,
                     android.app.job.Flags.getPendingJobReasonsApi());

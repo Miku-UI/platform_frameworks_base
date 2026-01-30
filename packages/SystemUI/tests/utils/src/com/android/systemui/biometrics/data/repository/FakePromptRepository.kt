@@ -1,6 +1,8 @@
 package com.android.systemui.biometrics.data.repository
 
 import android.hardware.biometrics.PromptInfo
+import com.android.systemui.biometrics.shared.model.BiometricModalities
+import com.android.systemui.biometrics.shared.model.FallbackOptionModel
 import com.android.systemui.biometrics.shared.model.PromptKind
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +15,9 @@ class FakePromptRepository : PromptRepository {
 
     private val _promptInfo = MutableStateFlow<PromptInfo?>(null)
     override val promptInfo = _promptInfo.asStateFlow()
+
+    private val _modalities = MutableStateFlow(BiometricModalities())
+    override val modalities = _modalities.asStateFlow()
 
     private val _userId = MutableStateFlow<Int?>(null)
     override val userId = _userId.asStateFlow()
@@ -32,9 +37,14 @@ class FakePromptRepository : PromptRepository {
     private val _opPackageName: MutableStateFlow<String?> = MutableStateFlow(null)
     override val opPackageName = _opPackageName.asStateFlow()
 
+    private val _fallbackOptions: MutableStateFlow<List<FallbackOptionModel>> =
+        MutableStateFlow(emptyList())
+    override val fallbackOptions = _fallbackOptions.asStateFlow()
+
     override fun setPrompt(
         promptInfo: PromptInfo,
         userId: Int,
+        modalities: BiometricModalities,
         requestId: Long,
         gatekeeperChallenge: Long?,
         kind: PromptKind,
@@ -43,16 +53,18 @@ class FakePromptRepository : PromptRepository {
         setPrompt(
             promptInfo,
             userId,
+            modalities,
             requestId,
             gatekeeperChallenge,
             kind,
             forceConfirmation = false,
-            opPackageName = opPackageName
+            opPackageName = opPackageName,
         )
 
     fun setPrompt(
         promptInfo: PromptInfo,
         userId: Int,
+        modalities: BiometricModalities,
         requestId: Long,
         gatekeeperChallenge: Long?,
         kind: PromptKind,
@@ -61,6 +73,7 @@ class FakePromptRepository : PromptRepository {
     ) {
         _promptInfo.value = promptInfo
         _userId.value = userId
+        _modalities.value = modalities
         _requestId.value = requestId
         _challenge.value = gatekeeperChallenge
         _promptKind.value = kind
@@ -69,16 +82,23 @@ class FakePromptRepository : PromptRepository {
     }
 
     override fun unsetPrompt(requestId: Long) {
-        _promptInfo.value = null
-        _userId.value = null
-        _requestId.value = null
-        _challenge.value = null
-        _promptKind.value = PromptKind.None
-        _opPackageName.value = null
-        _isConfirmationRequired.value = false
+        if (requestId == _requestId.value) {
+            _promptInfo.value = null
+            _userId.value = null
+            _modalities.value = BiometricModalities()
+            _requestId.value = null
+            _challenge.value = null
+            _promptKind.value = PromptKind.None
+            _opPackageName.value = null
+            _isConfirmationRequired.value = false
+        }
     }
 
     fun setIsShowing(showing: Boolean) {
         _isShowing.value = showing
+    }
+
+    fun setFallbackOptions(options: List<FallbackOptionModel>) {
+        _fallbackOptions.value = options
     }
 }

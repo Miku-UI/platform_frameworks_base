@@ -33,10 +33,17 @@ import com.android.systemui.keyguard.shared.model.TransitionState.RUNNING
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.data.repository.ShowOverlay
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -52,6 +59,18 @@ class AlternateBouncerToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() 
     private val underTest by lazy { kosmos.alternateBouncerToPrimaryBouncerTransitionViewModel }
 
     private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
+
+    @Before
+    fun setUp() {
+        // Put STL in transition: Lockscreen (includes KeyguardState.ALTERNATE_BOUNCER) => Bouncer
+        kosmos.setSceneTransition(
+            ShowOverlay(
+                overlay = Overlays.Bouncer,
+                fromScene = Scenes.Lockscreen,
+                progress = flowOf(.5f),
+            )
+        )
+    }
 
     @Test
     fun deviceEntryParentViewDisappear() =
@@ -75,7 +94,6 @@ class AlternateBouncerToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() 
 
     @Test
     @EnableFlags(FLAG_BOUNCER_UI_REVAMP)
-    @BrokenWithSceneContainer(388068805)
     fun notifications_areFullyVisible_whenShadeIsOpen() =
         testScope.runTest {
             val values by collectValues(underTest.notificationAlpha)
@@ -97,6 +115,7 @@ class AlternateBouncerToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() 
 
     @Test
     @EnableFlags(FLAG_NOTIFICATION_SHADE_BLUR)
+    @BrokenWithSceneContainer(388068805)
     fun blurRadiusGoesToMaximumWhenShadeIsExpanded() =
         testScope.runTest {
             val values by collectValues(underTest.windowBlurRadius)
@@ -132,6 +151,7 @@ class AlternateBouncerToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() 
         }
 
     @Test
+    @BrokenWithSceneContainer(388068805)
     fun blurRadiusGoesFromMinToMaxWhenShadeIsNotExpanded() =
         testScope.runTest {
             val values by collectValues(underTest.windowBlurRadius)
@@ -149,7 +169,12 @@ class AlternateBouncerToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() 
     private fun step(value: Float, state: TransitionState = RUNNING): TransitionStep {
         return TransitionStep(
             from = KeyguardState.ALTERNATE_BOUNCER,
-            to = KeyguardState.PRIMARY_BOUNCER,
+            to =
+                if (SceneContainerFlag.isEnabled) {
+                    KeyguardState.UNDEFINED
+                } else {
+                    KeyguardState.PRIMARY_BOUNCER
+                },
             value = value,
             transitionState = state,
             ownerName = "AlternateBouncerToPrimaryBouncerTransitionViewModelTest",

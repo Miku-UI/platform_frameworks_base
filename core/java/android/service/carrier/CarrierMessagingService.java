@@ -16,7 +16,6 @@
 
 package android.service.carrier;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -26,8 +25,6 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.IBinder;
 import android.os.RemoteException;
-
-import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -121,7 +118,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ERROR_GENERIC_FAILURE
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ERROR_GENERIC_FAILURE = 200;
 
     /**
@@ -129,7 +125,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ERROR_NULL_PDU
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ERROR_NULL_PDU = 201;
 
     /**
@@ -137,7 +132,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ERROR_NO_SERVICE
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ERROR_NO_SERVICE = 202;
 
     /**
@@ -145,7 +139,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ERROR_LIMIT_EXCEEDED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ERROR_LIMIT_EXCEEDED = 203;
 
     /**
@@ -153,7 +146,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ERROR_FDN_CHECK_FAILURE
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ERROR_FDN_CHECK_FAILURE = 204;
 
     /**
@@ -161,7 +153,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ERROR_SHORT_CODE_NOT_ALLOWED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ERROR_SHORT_CODE_NOT_ALLOWED = 205;
 
     /**
@@ -169,7 +160,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ERROR_SHORT_CODE_NEVER_ALLOWED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ERROR_SHORT_CODE_NEVER_ALLOWED = 206;
 
     /**
@@ -177,7 +167,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_NETWORK_REJECT
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_NETWORK_REJECT = 207;
 
     /**
@@ -185,7 +174,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_INVALID_ARGUMENTS
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_INVALID_ARGUMENTS = 208;
 
     /**
@@ -193,7 +181,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_INVALID_STATE
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_INVALID_STATE = 209;
 
     /**
@@ -201,7 +188,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_INVALID_SMS_FORMAT
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_INVALID_SMS_FORMAT = 210;
 
     /**
@@ -209,7 +195,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_NETWORK_ERROR
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_NETWORK_ERROR = 211;
 
     /**
@@ -217,7 +202,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_ENCODING_ERROR
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_ENCODING_ERROR = 212;
 
     /**
@@ -225,7 +209,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_INVALID_SMSC_ADDRESS
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_INVALID_SMSC_ADDRESS = 213;
 
     /**
@@ -233,7 +216,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_OPERATION_NOT_ALLOWED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_OPERATION_NOT_ALLOWED = 214;
 
     /**
@@ -241,7 +223,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_CANCELLED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_CANCELLED = 215;
 
     /**
@@ -249,7 +230,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_REQUEST_NOT_SUPPORTED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_REQUEST_NOT_SUPPORTED = 216;
 
     /**
@@ -257,7 +237,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_SMS_BLOCKED_DURING_EMERGENCY
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_SMS_BLOCKED_DURING_EMERGENCY = 217;
 
     /**
@@ -265,7 +244,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.RESULT_SMS_SEND_RETRY_FAILED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_RESULT_SMS_SEND_RETRY_FAILED = 218;
 
     /**
@@ -281,7 +259,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_UNSPECIFIED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_UNSPECIFIED = 400;
 
     /**
@@ -289,7 +266,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_INVALID_APN
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_INVALID_APN = 401;
 
     /**
@@ -297,7 +273,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_UNABLE_CONNECT_MMS
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_UNABLE_CONNECT_MMS = 402;
 
     /**
@@ -305,7 +280,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_HTTP_FAILURE
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_HTTP_FAILURE = 403;
 
     /**
@@ -313,7 +287,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_IO_ERROR
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_IO_ERROR = 404;
 
     /**
@@ -321,7 +294,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_RETRY
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_RETRY = 405;
 
     /**
@@ -329,7 +301,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_CONFIGURATION_ERROR
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_CONFIGURATION_ERROR = 406;
 
     /**
@@ -337,7 +308,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_NO_DATA_NETWORK
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_NO_DATA_NETWORK = 407;
 
     /**
@@ -345,7 +315,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_INVALID_SUBSCRIPTION_ID
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_INVALID_SUBSCRIPTION_ID = 408;
 
     /**
@@ -353,7 +322,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_INACTIVE_SUBSCRIPTION
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_INACTIVE_SUBSCRIPTION = 409;
 
     /**
@@ -361,7 +329,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_DATA_DISABLED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_DATA_DISABLED = 410;
 
     /**
@@ -369,7 +336,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_MMS_DISABLED_BY_CARRIER
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int SEND_STATUS_MMS_ERROR_MMS_DISABLED_BY_CARRIER = 411;
 
     /** @hide */
@@ -446,7 +412,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_UNSPECIFIED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_UNSPECIFIED = 600;
 
     /**
@@ -454,7 +419,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_INVALID_APN
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_INVALID_APN = 601;
 
     /**
@@ -462,7 +426,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_UNABLE_CONNECT_MMS
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_UNABLE_CONNECT_MMS = 602;
 
     /**
@@ -470,7 +433,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_HTTP_FAILURE
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_HTTP_FAILURE = 603;
 
     /**
@@ -478,7 +440,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_IO_ERROR
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_IO_ERROR = 604;
 
     /**
@@ -486,7 +447,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_RETRY
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_RETRY = 605;
 
     /**
@@ -494,7 +454,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_CONFIGURATION_ERROR
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_CONFIGURATION_ERROR = 606;
 
     /**
@@ -502,7 +461,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_NO_DATA_NETWORK
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_NO_DATA_NETWORK = 607;
 
     /**
@@ -510,7 +468,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_INVALID_SUBSCRIPTION_ID
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_INVALID_SUBSCRIPTION_ID = 608;
 
     /**
@@ -518,7 +475,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_INACTIVE_SUBSCRIPTION
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_INACTIVE_SUBSCRIPTION = 609;
 
     /**
@@ -526,7 +482,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_DATA_DISABLED
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_DATA_DISABLED = 610;
 
     /**
@@ -534,7 +489,6 @@ public abstract class CarrierMessagingService extends Service {
      *
      * @see android.telephony.SmsManager.MMS_ERROR_MMS_DISABLED_BY_CARRIER
      */
-    @FlaggedApi(Flags.FLAG_TEMPORARY_FAILURES_IN_CARRIER_MESSAGING_SERVICE)
     public static final int DOWNLOAD_STATUS_MMS_ERROR_MMS_DISABLED_BY_CARRIER = 611;
 
     /** @hide */

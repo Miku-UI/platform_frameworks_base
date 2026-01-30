@@ -16,14 +16,15 @@
 
 package android.conscrypt;
 
-import org.conscrypt.ChannelType;
-import static org.conscrypt.TestUtils.getCommonProtocolSuites;
 import static org.conscrypt.TestUtils.newTextMessage;
 import static org.junit.Assert.assertEquals;
-
+import static org.junit.Assert.fail;
+import android.conscrypt.ServerEndpoint.MessageProcessor;
+import android.perftests.utils.BenchmarkState;
+import android.perftests.utils.PerfStatusReporter;
+import androidx.test.filters.LargeTest;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -33,20 +34,17 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
-
-import android.conscrypt.ServerEndpoint.MessageProcessor;
-
-import android.perftests.utils.BenchmarkState;
-import android.perftests.utils.PerfStatusReporter;
-import androidx.test.filters.LargeTest;
-
+import javax.net.ssl.SSLException;
 import junitparams.JUnitParamsRunner;
 import junitparams.Parameters;
-
-import org.junit.Rule;
+import org.conscrypt.ChannelType;
 import org.junit.After;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestRule;
+import org.junit.runner.Description;
 import org.junit.runner.RunWith;
+import org.junit.runners.model.Statement;
 
 /**
  * Benchmark for comparing performance of server socket implementations.
@@ -55,7 +53,40 @@ import org.junit.runner.RunWith;
 @LargeTest
 public final class ServerSocketPerfTest {
 
-    @Rule public PerfStatusReporter mPerfStatusReporter = new PerfStatusReporter();
+    private static class RetryRule implements TestRule {
+        private final int retryCount;
+
+        RetryRule(int retryCount) {
+            this.retryCount = retryCount;
+        }
+
+        @Override
+        public Statement apply(Statement base, Description description) {
+            return new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                    Throwable caughtThrowable = null;
+                    for (int i = 0; i < retryCount; i++) {
+                        try {
+                            base.evaluate();
+                            return;
+                        } catch (Throwable t) {
+                            caughtThrowable = t;
+                        }
+                    }
+                    if (caughtThrowable != null) {
+                        throw caughtThrowable;
+                    }
+                }
+            };
+        }
+    }
+
+    @Rule
+    public PerfStatusReporter mPerfStatusReporter = new PerfStatusReporter();
+
+    @Rule
+    public final TestRule retryRule = new RetryRule(3);
 
     /**
      * Provider for the benchmark configuration
@@ -71,11 +102,11 @@ public final class ServerSocketPerfTest {
             int messageSize,
             String cipher,
             ChannelType channelType) {
-          a_clientFactory = clientFactory;
-          b_serverFactory = serverFactory;
-          c_messageSize = messageSize;
-          d_cipher = cipher;
-          e_channelType = channelType;
+            a_clientFactory = clientFactory;
+            b_serverFactory = serverFactory;
+            c_messageSize = messageSize;
+            d_cipher = cipher;
+            e_channelType = channelType;
         }
         public EndpointFactory clientFactory() {
             return a_clientFactory;
@@ -98,14 +129,14 @@ public final class ServerSocketPerfTest {
         }
     }
 
-    public Collection getParams() {
+    public Collection<Object[]> getParams() {
         final List<Object[]> params = new ArrayList<>();
         for (EndpointFactory endpointFactory : EndpointFactory.values()) {
             for (ChannelType channelType : ChannelType.values()) {
                 for (int messageSize : ConscryptParams.messageSizes) {
                     for (String cipher : ConscryptParams.ciphers) {
-                        params.add(new Object[] {new Config(endpointFactory,
-                            endpointFactory, messageSize, cipher, channelType)});
+                        params.add(new Object[] {new Config(endpointFactory, endpointFactory,
+                                messageSize, cipher, channelType)});
                     }
                 }
             }
@@ -142,39 +173,43 @@ public final class ServerSocketPerfTest {
 
     private void setup(final Config config) throws Exception {
         recording.set(false);
+        stopping = false;
 
         byte[] message = newTextMessage(config.messageSize());
 
-        final ChannelType channelType = config.channelType();
-
-        socketPair.server = config.serverFactory().newServer(config.messageSize(),
-            new String[] {"TLSv1.3", "TLSv1.2"}, ciphers(config));
+        socketPair.server = config.serverFactory().newServer(
+                config.messageSize(), new String[] {"TLSv1.3", "TLSv1.2"}, ciphers(config));
         socketPair.server.init();
         socketPair.server.setMessageProcessor(new MessageProcessor() {
             @Override
             public void processMessage(byte[] inMessage, int numBytes, OutputStream os) {
                 try {
-                    try {
-                        while (!stopping) {
-                            os.write(inMessage, 0, numBytes);
-                        }
-                    } finally {
-                        os.flush();
+                    while (!stopping) {
+                        os.write(inMessage, 0, numBytes);
                     }
-                } catch (SocketException e) {
-                    // Just ignore.
+                } catch (SSLException e) {
+                    String msg = e.getMessage();
+                    if (msg == null || !msg.contains("Connection reset by peer")) {
+                        throw new RuntimeException(e);
+                    }
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    if (!stopping) {
+                        throw new RuntimeException(e);
+                    }
+                } finally {
+                    try {
+                        os.flush();
+                    } catch (IOException e) {
+                    }
                 }
             }
         });
 
         Future<?> connectedFuture = socketPair.server.start();
 
-        // Always use the same client for consistency across the benchmarks.
-        socketPair.client = config.clientFactory().newClient(
-                ChannelType.CHANNEL, socketPair.server.port(),
-                new String[] {"TLSv1.3", "TLSv1.2"}, ciphers(config));
+        socketPair.client =
+                config.clientFactory().newClient(ChannelType.CHANNEL, socketPair.server.port(),
+                        new String[] {"TLSv1.3", "TLSv1.2"}, ciphers(config));
         socketPair.client.start();
 
         // Wait for the initial connection to complete.
@@ -191,15 +226,21 @@ public final class ServerSocketPerfTest {
                 Thread thread = Thread.currentThread();
                 byte[] buffer = new byte[config.messageSize()];
                 while (!stopping && !thread.isInterrupted()) {
-                    int numBytes = socketPair.client.readMessage(buffer);
-                    if (numBytes < 0) {
-                        return;
-                    }
-                    assertEquals(config.messageSize(), numBytes);
+                    try {
+                        int numBytes = socketPair.client.readMessage(buffer);
+                        if (numBytes < 0) {
+                            return;
+                        }
+                        assertEquals(config.messageSize(), numBytes);
 
-                    // Increment the message counter if we're recording.
-                    if (recording.get()) {
-                        bytesCounter.addAndGet(numBytes);
+                        if (recording.get()) {
+                            bytesCounter.addAndGet(numBytes);
+                        }
+                    } catch (Exception e) {
+                        if (!stopping) {
+                            fail("Client read failed: " + e.getMessage());
+                        }
+                        return;
                     }
                 }
             }
@@ -208,16 +249,24 @@ public final class ServerSocketPerfTest {
 
     void close() throws Exception {
         stopping = true;
-        // Stop and wait for sending to complete.
-        if (socketPair != null) {
-            socketPair.close();
-        }
+
         if (executor != null) {
             executor.shutdown();
-            executor.awaitTermination(5, TimeUnit.SECONDS);
+            if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+            }
         }
+
         if (receivingFuture != null) {
-            receivingFuture.get(5, TimeUnit.SECONDS);
+            try {
+                receivingFuture.get(5, TimeUnit.SECONDS);
+            } catch (Exception e) {
+                // Ignore exceptions here, as the task may have been interrupted.
+            }
+        }
+
+        if (socketPair != null) {
+            socketPair.close();
         }
     }
 
@@ -230,6 +279,7 @@ public final class ServerSocketPerfTest {
             while (state.keepRunning()) {
                 recording.set(true);
                 while (bytesCounter.get() < config.messageSize()) {
+                    Thread.yield();
                 }
                 bytesCounter.set(0);
                 recording.set(false);

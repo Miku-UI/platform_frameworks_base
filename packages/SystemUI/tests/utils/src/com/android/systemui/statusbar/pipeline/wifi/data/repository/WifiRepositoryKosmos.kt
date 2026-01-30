@@ -20,3 +20,6 @@ import com.android.systemui.kosmos.Kosmos
 
 val Kosmos.fakeWifiRepository: FakeWifiRepository by Kosmos.Fixture { FakeWifiRepository() }
 var Kosmos.wifiRepository: WifiRepository by Kosmos.Fixture { fakeWifiRepository }
+
+val WifiRepository.fake
+    get() = this as FakeWifiRepository

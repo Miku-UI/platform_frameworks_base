@@ -262,7 +262,7 @@
     <item msgid="5023908510820531131">"在 <xliff:g id="AS_TYPED_COMMAND">adb shell dumpsys gfxinfo</xliff:g> 中"</item>
   </string-array>
   <string-array name="debug_hw_overdraw_entries">
-    <item msgid="1968128556747588800">"关闭"</item>
+    <item msgid="1968128556747588800">"已关闭"</item>
     <item msgid="3033215374382962216">"显示过度绘制区域"</item>
     <item msgid="3474333938380896988">"显示适合绿色弱视患者查看的区域"</item>
   </string-array>

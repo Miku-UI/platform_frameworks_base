@@ -18,6 +18,7 @@ package android.service.ondeviceintelligence;
 
 import android.app.ondeviceintelligence.Feature;
 import android.os.ParcelFileDescriptor;
+import android.os.Bundle;
 import android.os.RemoteCallback;
 
 import com.android.internal.infra.AndroidFuture;
@@ -31,4 +32,5 @@ import com.android.internal.infra.AndroidFuture;
 oneway interface IRemoteStorageService {
     void getReadOnlyFileDescriptor(in String filePath, in AndroidFuture<ParcelFileDescriptor> future);
     void getReadOnlyFeatureFileDescriptorMap(in Feature feature, in RemoteCallback remoteCallback);
+    void getFeatureMetadata(in Feature feature, in RemoteCallback remoteCallback);
 }

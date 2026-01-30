@@ -42,24 +42,24 @@ abstract class AppCompatRobotBase {
     @NonNull
     private final DesktopWindowingRobot mDesktopWindowingRobot;
 
-    AppCompatRobotBase(@NonNull WindowManagerService wm,
-            @NonNull ActivityTaskManagerService atm,
-            @NonNull ActivityTaskSupervisor supervisor,
-            int displayWidth, int displayHeight) {
-        mActivityRobot = new AppCompatActivityRobot(wm, atm, supervisor,
+    @NonNull
+    private final WindowTestsBase mWindowTestsBase;
+
+    AppCompatRobotBase(@NonNull WindowTestsBase windowTestBase, int displayWidth,
+            int displayHeight) {
+        mWindowTestsBase = windowTestBase;
+        mActivityRobot = new AppCompatActivityRobot(windowTestBase,
                 displayWidth, displayHeight, this::onPostActivityCreation,
                 this::onPostDisplayContentCreation);
         mConfigurationRobot =
-                new AppCompatConfigurationRobot(wm.mAppCompatConfiguration);
-        mOptPropRobot = new AppCompatComponentPropRobot(wm);
-        mResourcesRobot = new AppCompatResourcesRobot(wm.mContext.getResources());
+                new AppCompatConfigurationRobot(windowTestBase.mWm.mAppCompatConfiguration);
+        mOptPropRobot = new AppCompatComponentPropRobot(windowTestBase.mWm);
+        mResourcesRobot = new AppCompatResourcesRobot(windowTestBase.mWm.mContext.getResources());
         mDesktopWindowingRobot = new DesktopWindowingRobot();
     }
 
-    AppCompatRobotBase(@NonNull WindowManagerService wm,
-            @NonNull ActivityTaskManagerService atm,
-            @NonNull ActivityTaskSupervisor supervisor) {
-        this(wm, atm, supervisor, DEFAULT_DISPLAY_WIDTH, DEFAULT_DISPLAY_HEIGHT);
+    AppCompatRobotBase(@NonNull WindowTestsBase windowTestBase) {
+        this(windowTestBase, DEFAULT_DISPLAY_WIDTH, DEFAULT_DISPLAY_HEIGHT);
     }
 
     /**
@@ -117,6 +117,11 @@ abstract class AppCompatRobotBase {
     @NonNull
     DesktopWindowingRobot dw() {
         return mDesktopWindowingRobot;
+    }
+
+    @NonNull
+    WindowTestsBase testBase() {
+        return mWindowTestsBase;
     }
 
     void applyOnResources(@NonNull Consumer<AppCompatResourcesRobot> consumer) {

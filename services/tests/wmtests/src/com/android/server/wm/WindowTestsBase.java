@@ -233,8 +233,8 @@ public class WindowTestsBase extends SystemServiceTestsBase {
         displayPolicy.finishScreenTurningOn();
 
         final InsetsPolicy insetsPolicy = mDefaultDisplay.getInsetsPolicy();
-        suppressInsetsAnimation(insetsPolicy.getTransientControlTarget());
-        suppressInsetsAnimation(insetsPolicy.getPermanentControlTarget());
+        suppressInsetsAnimation(insetsPolicy.getShowingTransientControlTarget());
+        suppressInsetsAnimation(insetsPolicy.getShowingPermanentControlTarget());
 
         mTransaction = mSystemServicesTestRule.mTransaction;
 
@@ -465,7 +465,7 @@ public class WindowTestsBase extends SystemServiceTestsBase {
 
     private WindowState createCommonWindow(WindowState parent, int type, String name) {
         final WindowState win = newWindowBuilder(name, type).setParent(parent).build();
-        // Prevent common windows from been IME targets.
+        // Prevent common windows from being IME layering targets.
         win.mAttrs.flags |= FLAG_NOT_FOCUSABLE;
         return win;
     }
@@ -600,6 +600,9 @@ public class WindowTestsBase extends SystemServiceTestsBase {
         w.fillClientWindowFramesAndConfiguration(new ClientWindowFrames(),
                 new MergedConfiguration(), new ActivityWindowInfo(), true /* useLatestConfig */,
                 visible);
+        if (w.mWmService.mAlwaysSeqId) {
+            w.setLastConfigReportedToClientForTest(true);
+        }
     }
 
     /**
@@ -632,8 +635,8 @@ public class WindowTestsBase extends SystemServiceTestsBase {
     /** Creates a {@link TaskDisplayArea} right above the default one. */
     static TaskDisplayArea createTaskDisplayArea(DisplayContent displayContent,
             WindowManagerService service, String name, int displayAreaFeature) {
-        final TaskDisplayArea newTaskDisplayArea = new TaskDisplayArea(
-                displayContent, service, name, displayAreaFeature);
+        final TaskDisplayArea newTaskDisplayArea = new TaskDisplayArea(service, name,
+                displayAreaFeature, false /* createdByOrganizer */, true /* canHostHomeTask */);
         final TaskDisplayArea defaultTaskDisplayArea = displayContent.getDefaultTaskDisplayArea();
 
         // Insert the new TDA to the correct position.
@@ -770,7 +773,7 @@ public class WindowTestsBase extends SystemServiceTestsBase {
         return activity;
     }
 
-    private static void postCreateActivitySetup(ActivityRecord activity, DisplayContent dc) {
+    static void postCreateActivitySetup(ActivityRecord activity, DisplayContent dc) {
         activity.onDisplayChanged(dc);
         activity.setOccludesParent(true);
         activity.setVisible(true);
@@ -905,12 +908,12 @@ public class WindowTestsBase extends SystemServiceTestsBase {
             }
 
             @Override
-            public void showInsets(int i, boolean b, @Nullable ImeTracker.Token t)
+            public void showInsets(int i, @Nullable ImeTracker.Token t)
                     throws RemoteException {
             }
 
             @Override
-            public void hideInsets(int i, boolean b, @Nullable ImeTracker.Token t)
+            public void hideInsets(int i, @Nullable ImeTracker.Token t)
                     throws RemoteException {
             }
 
@@ -953,7 +956,7 @@ public class WindowTestsBase extends SystemServiceTestsBase {
             registerTestTransitionPlayer();
         }
         controller.requestTransitionIfNeeded(transit, 0 /* flags */, null /* trigger */,
-                wc.mDisplayContent);
+                wc.mDisplayContent, ActionChain.test());
     }
 
     /** Overrides the behavior of config_reverseDefaultRotation for the given display. */
@@ -2159,6 +2162,11 @@ public class WindowTestsBase extends SystemServiceTestsBase {
                 TransitionRequestInfo request) throws RemoteException {
             mLastTransit = Transition.fromBinder(transitToken);
             mLastRequest = request;
+        }
+
+        @Override
+        public void removeStartingWindow(StartingWindowRemovalInfo removalInfo) {
+            // Temporary method, do nothing
         }
 
         void startTransition() {

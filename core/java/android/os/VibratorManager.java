@@ -154,13 +154,17 @@ public abstract class VibratorManager {
      *
      * @param constant the ID of the requested haptic feedback. Should be one of the constants
      *          defined in {@link HapticFeedbackConstants}.
+     * @param usage one of the {@link VibrationAttributes} usages with the class
+     *          {@link VibrationAttributes#USAGE_CLASS_FEEDBACK}. Use
+     *          {@link VibrationAttributes#USAGE_UNKNOWN} if you are not sure about
+     *          and the system will assign a default usage. which usage to use,
      * @param reason the reason for this haptic feedback.
      * @param flags Additional flags as per {@link HapticFeedbackConstants}.
      * @param privFlags Additional private flags as per {@link HapticFeedbackConstants}.
      * @hide
      */
-    public void performHapticFeedback(int constant, String reason,
-            @HapticFeedbackConstants.Flags int flags,
+    public void performHapticFeedback(int constant, @VibrationAttributes.Usage int usage,
+            String reason, @HapticFeedbackConstants.Flags int flags,
             @HapticFeedbackConstants.PrivateFlags int privFlags) {
         Log.w(TAG, "performHapticFeedback is not supported");
     }

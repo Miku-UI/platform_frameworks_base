@@ -28,6 +28,7 @@ import com.android.settingslib.metadata.PreferenceHierarchyNode
 import com.android.settingslib.metadata.PreferenceRemoteOpMetricsLogger
 import com.android.settingslib.metadata.PreferenceScreenCoordinate
 import com.android.settingslib.metadata.PreferenceScreenRegistry
+import com.android.settingslib.metadata.usePreferenceHierarchyScope
 
 /**
  * Request to get preference information.
@@ -101,7 +102,7 @@ class PreferenceGetterApiHandler(
         callingPid: Int,
         callingUid: Int,
         request: PreferenceGetterRequest,
-    ): PreferenceGetterResponse {
+    ): PreferenceGetterResponse = usePreferenceHierarchyScope {
         val elapsedRealtime = SystemClock.elapsedRealtime()
         val errors = mutableMapOf<PreferenceCoordinate, Int>()
         val preferences = mutableMapOf<PreferenceCoordinate, PreferenceProto>()
@@ -128,9 +129,9 @@ class PreferenceGetterApiHandler(
             }
             val nodes = mutableMapOf<String, PreferenceHierarchyNode?>()
             for (coordinate in coordinates) nodes[coordinate.key] = null
-            screenMetadata.getPreferenceHierarchy(application).forEachRecursively {
+            screenMetadata.getPreferenceHierarchy(application, this).forEachRecursivelyAsync {
                 val metadata = it.metadata
-                val key = metadata.key
+                val key = metadata.bindingKey
                 if (nodes.containsKey(key)) nodes[key] = it
             }
             for (coordinate in coordinates) {
@@ -181,7 +182,7 @@ class PreferenceGetterApiHandler(
                 )
             }
         }
-        return PreferenceGetterResponse(errors, preferences)
+        PreferenceGetterResponse(errors, preferences)
     }
 
     override val requestCodec = PreferenceGetterRequestCodec()

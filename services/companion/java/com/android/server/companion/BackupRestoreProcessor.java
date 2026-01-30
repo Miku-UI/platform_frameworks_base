@@ -30,6 +30,7 @@ import android.companion.datatransfer.SystemDataTransferRequest;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManagerInternal;
+import android.os.PersistableBundle;
 import android.util.Slog;
 
 import com.android.internal.util.CollectionUtils;
@@ -37,6 +38,7 @@ import com.android.server.companion.association.AssociationDiskStore;
 import com.android.server.companion.association.AssociationRequestsProcessor;
 import com.android.server.companion.association.AssociationStore;
 import com.android.server.companion.association.Associations;
+import com.android.server.companion.datasync.LocalMetadataStore;
 import com.android.server.companion.datatransfer.SystemDataTransferRequestStore;
 
 import java.nio.ByteBuffer;
@@ -60,26 +62,31 @@ class BackupRestoreProcessor {
     private final SystemDataTransferRequestStore mSystemDataTransferRequestStore;
     @NonNull
     private final AssociationRequestsProcessor mAssociationRequestsProcessor;
+    @NonNull
+    private final LocalMetadataStore mLocalMetadataStore;
 
     BackupRestoreProcessor(@NonNull Context context,
                            @NonNull PackageManagerInternal packageManagerInternal,
                            @NonNull AssociationStore associationStore,
                            @NonNull AssociationDiskStore associationDiskStore,
                            @NonNull SystemDataTransferRequestStore systemDataTransferRequestStore,
-                           @NonNull AssociationRequestsProcessor associationRequestsProcessor) {
+                           @NonNull AssociationRequestsProcessor associationRequestsProcessor,
+                           @NonNull LocalMetadataStore localMetadataStore) {
         mContext = context;
         mPackageManagerInternal = packageManagerInternal;
         mAssociationStore = associationStore;
         mAssociationDiskStore = associationDiskStore;
         mSystemDataTransferRequestStore = systemDataTransferRequestStore;
         mAssociationRequestsProcessor = associationRequestsProcessor;
+        mLocalMetadataStore = localMetadataStore;
     }
 
     /**
      * Generate CDM state payload to be backed up.
      * Backup payload is formatted as following:
      * | (4) payload version | (4) AssociationInfo length | AssociationInfo XML
-     * | (4) SystemDataTransferRequest length | SystemDataTransferRequest XML (without userId)|
+     * | (4) SystemDataTransferRequest length | SystemDataTransferRequest XML (without userId)
+     * | (4) LocalMetadata length | LocalMetadata XML |
      */
     byte[] getBackupPayload(int userId) {
         Slog.i(TAG, "getBackupPayload() userId=[" + userId + "].");
@@ -91,9 +98,14 @@ class BackupRestoreProcessor {
         byte[] requestsPayload = mSystemDataTransferRequestStore.getBackupPayload(userId);
         int requestsPayloadLength = requestsPayload.length;
 
-        int payloadSize = /* 3 integers */ 12
+        // Local metadata is persisted up-to-date already
+        byte[] metadataPayload = mLocalMetadataStore.getBackupPayload(userId);
+        int metadataPayloadLength = metadataPayload.length;
+
+        int payloadSize = /* 4 integers */ 16
                 + associationsPayloadLength
-                + requestsPayloadLength;
+                + requestsPayloadLength
+                + metadataPayloadLength;
 
         return ByteBuffer.allocate(payloadSize)
                 .putInt(BACKUP_AND_RESTORE_VERSION)
@@ -101,6 +113,8 @@ class BackupRestoreProcessor {
                 .put(associationsPayload)
                 .putInt(requestsPayloadLength)
                 .put(requestsPayload)
+                .putInt(metadataPayloadLength)
+                .put(metadataPayload)
                 .array();
     }
 
@@ -129,6 +143,7 @@ class BackupRestoreProcessor {
         // error is caught early on.
         final byte[] associationsPayload;
         final byte[] requestsPayload;
+        final byte[] metadataPayload;
         try {
             // Read the bytes containing backed-up associations
             associationsPayload = new byte[buffer.getInt()];
@@ -142,6 +157,26 @@ class BackupRestoreProcessor {
             return;
         }
 
+        // Metadata was introduced in 26Q2. Ignore if the payload is older and missing the metadata
+        // payload section.
+        // Restoring local metadata can be done independently of associations and requests, so it
+        // will not return early even if the payload is mal-formatted.
+        try {
+            // Read the bytes containing backed-up local metadata
+            metadataPayload = new byte[buffer.getInt()];
+            buffer.get(metadataPayload);
+
+            // Handle conflict by prioritizing current metadata over restored metadata.
+            PersistableBundle currentMetadata = mLocalMetadataStore.getMetadataForUser(userId);
+            PersistableBundle restoredMetadata =
+                    mLocalMetadataStore.readMetadataFromPayload(metadataPayload);
+            restoredMetadata.putAll(currentMetadata);
+            mLocalMetadataStore.setMetadataForUser(userId, restoredMetadata);
+        } catch (Exception bufferException) {
+            Slog.w(TAG, "Metadata payload was malformatted or missing.", bufferException);
+        }
+
+        // Restore associations and system data transfer requests next.
         final Associations restoredAssociations = readAssociationsFromPayload(
                 associationsPayload, userId);
 
@@ -242,7 +277,7 @@ class BackupRestoreProcessor {
                     restored.getDeviceMacAddress());
             boolean matchesDeviceId = Flags.associationTag()
                     && (associationInfo.getDeviceId() != null
-                    && associationInfo.getDeviceId().isSameDevice(restored.getDeviceId()));
+                    && associationInfo.getDeviceId().equals(restored.getDeviceId()));
             return matchesMacAddress || matchesDeviceId;
         };
         AssociationInfo local = CollectionUtils.find(localAssociations, isSameDevice);

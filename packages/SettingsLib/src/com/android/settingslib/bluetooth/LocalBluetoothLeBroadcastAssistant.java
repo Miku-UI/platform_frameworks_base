@@ -31,6 +31,7 @@ import android.bluetooth.BluetoothProfile.ServiceListener;
 import android.content.Context;
 import android.os.Build;
 import android.util.Log;
+import android.util.Pair;
 
 import androidx.annotation.IntRange;
 import androidx.annotation.NonNull;
@@ -38,10 +39,13 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 
 import com.android.settingslib.R;
+import com.android.settingslib.flags.Flags;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -52,12 +56,15 @@ import java.util.concurrent.Executors;
  * BluetoothLeBroadcastAssistant.Callback} to get the result callback.
  */
 public class LocalBluetoothLeBroadcastAssistant implements LocalBluetoothProfile {
+    public static final HashSet<Integer> UNKNOWN_CHANNEL = new HashSet<>(List.of(-1));
+
     /** A derived source state based on {@link BluetoothLeBroadcastReceiveState}. */
     public enum LocalBluetoothLeBroadcastSourceState {
         UNKNOWN,
         STREAMING,
         DECRYPTION_FAILED,
         PAUSED,
+        PAUSED_BY_RECEIVER;
     }
 
     private static final String TAG = "LocalBluetoothLeBroadcastAssistant";
@@ -410,6 +417,27 @@ public class LocalBluetoothLeBroadcastAssistant implements LocalBluetoothProfile
     }
 
     /**
+     * Modifies the source associated with a specific sink and source ID.
+     *
+     * @param sink Broadcast Sink device
+     * @param sourceId Broadcast source id
+     * @param source {@link BluetoothLeBroadcastMetadata} the updated source.
+     */
+    public void modifySource(
+            @NonNull BluetoothDevice sink, @IntRange(from = 0x00, to = 0xFF) int sourceId,
+            @NonNull BluetoothLeBroadcastMetadata source) {
+        if (mService == null) {
+            Log.d(TAG, "The BluetoothLeBroadcastAssistant is null");
+            return;
+        }
+        try {
+            mService.modifySource(sink, sourceId, source);
+        } catch (IllegalArgumentException | NoSuchMethodError e) {
+            Log.w(TAG, "Error calling modifySource()", e);
+        }
+    }
+
+    /**
      * Register Broadcast Assistant Callbacks to track its state and receivers
      *
      * @param executor Executor object for callback
@@ -598,5 +626,32 @@ public class LocalBluetoothLeBroadcastAssistant implements LocalBluetoothProfile
             return LocalBluetoothLeBroadcastSourceState.PAUSED;
         }
         return LocalBluetoothLeBroadcastSourceState.UNKNOWN;
+    }
+
+    /**
+     * Returns the source connection status with channel selected based on the provided broadcast
+     * receive state and source metadata retrieved from stack.
+     */
+    public static @NonNull Pair<LocalBluetoothLeBroadcastSourceState, Set<Integer>>
+            getLocalSourceStateWithSelectedChannel(
+                @NonNull LocalBluetoothProfileManager profileManager,
+                @NonNull BluetoothDevice sink,
+                int sourceId,
+                @NonNull BluetoothLeBroadcastReceiveState state) {
+        var localSourceState = getLocalSourceState(state);
+        if (!Flags.audioStreamPlayPauseByModifySource()) {
+            return Pair.create(localSourceState, UNKNOWN_CHANNEL);
+        }
+        Set<Integer> selectedChannelIndex = BluetoothUtils.getSelectedChannelIndex(
+                profileManager, sink, sourceId);
+        if (localSourceState == LocalBluetoothLeBroadcastSourceState.PAUSED
+                && selectedChannelIndex.isEmpty()) {
+            // No channel selected meaning the user decided to de-sync to the source, we return
+            // `PAUSED_BY_RECEIVER`. In contrast, having any channel selected meaning the source
+            // paused itself, we return `PAUSED`.
+            return Pair.create(LocalBluetoothLeBroadcastSourceState.PAUSED_BY_RECEIVER,
+                    selectedChannelIndex);
+        }
+        return Pair.create(localSourceState, selectedChannelIndex);
     }
 }

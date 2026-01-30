@@ -151,6 +151,7 @@ constructor(
          * controlled by this controller.
          */
         // TODO(b/252723237): Make this non-nullable
+        @Deprecated("Jank should be measured in the dialog's window, not the origin view's")
         fun jankConfigurationBuilder(): InteractionJankMonitor.Configuration.Builder?
 
         companion object {
@@ -571,23 +572,11 @@ private class AnimatedDialog(
      * configuration change) to ensure that the dialog stays full width.
      */
     private var decorViewLayoutListener: View.OnLayoutChangeListener? = null
+    private var dialogTouchInterceptorView: ViewGroup? = null
 
     private var hasInstrumentedJank = false
 
     fun start() {
-        val cuj = controller.cuj
-        if (cuj != null) {
-            val config = controller.jankConfigurationBuilder()
-            if (config != null) {
-                if (cuj.tag != null) {
-                    config.setTag(cuj.tag)
-                }
-
-                interactionJankMonitor.begin(config)
-                hasInstrumentedJank = true
-            }
-        }
-
         // Create the dialog so that its onCreate() method is called, which usually sets the dialog
         // content.
         dialog.create()
@@ -622,9 +611,13 @@ private class AnimatedDialog(
 
                 viewGroupWithBackground
             } else {
-                val (dialogContentWithBackground, decorViewLayoutListener) =
+                val (
+                    dialogContentWithBackground,
+                    dialogTouchInterceptorView,
+                    decorViewLayoutListener) =
                     dialog.maybeForceFullscreen()!!
                 this.decorViewLayoutListener = decorViewLayoutListener
+                this.dialogTouchInterceptorView = dialogTouchInterceptorView
                 dialogContentWithBackground
             }
 
@@ -779,6 +772,14 @@ private class AnimatedDialog(
             return
         }
 
+        controller.cuj?.let { cuj ->
+            val config =
+                InteractionJankMonitor.Configuration.Builder.withView(cuj.cujType, decorView)
+            if (cuj.tag != null) config.setTag(cuj.tag)
+            interactionJankMonitor.begin(config)
+            hasInstrumentedJank = true
+        }
+
         // Show the background dim.
         dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
 
@@ -803,6 +804,9 @@ private class AnimatedDialog(
 
                 if (hasInstrumentedJank) {
                     interactionJankMonitor.end(controller.cuj!!.cujType)
+                }
+                if (Flags.qsTileTransitionInteractionRefinement()) {
+                    dialogTouchInterceptorView?.visibility = View.GONE
                 }
             },
         )
@@ -861,6 +865,12 @@ private class AnimatedDialog(
             onLaunchAnimationStart = {
                 // Remove the dim background as soon as we start the animation.
                 dialog.window?.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+
+                if (Flags.qsTileTransitionInteractionRefinement()) {
+                    // While collapsing the dialog with animation, allow other quick tiles to be
+                    // clickable.
+                    dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE)
+                }
             },
             onLaunchAnimationEnd = {
                 val dialogContentWithBackground = this.dialogContentWithBackground!!
@@ -969,6 +979,11 @@ private class AnimatedDialog(
                     state.visible = !state.visible
                     endController.onTransitionAnimationProgress(state, progress, linearProgress)
 
+                    if (Flags.qsTileTransitionInteractionRefinement()) {
+                        // animate touch Interceptor view
+                        updateTouchInterceptorViewConstraints(state)
+                    }
+
                     // If the dialog content is complex, its dimension might change during the
                     // launch animation. The animation end position might also change during the
                     // exit animation, for instance when locking the phone when the dialog is open.
@@ -981,7 +996,42 @@ private class AnimatedDialog(
                 }
             }
 
-        transitionAnimator.startAnimation(controller, endState, originalDialogBackgroundColor)
+        transitionAnimator.startAnimation(
+            controller,
+            { endController.createAnimatorState() },
+            originalDialogBackgroundColor,
+        )
+    }
+
+    private fun updateTouchInterceptorViewConstraints(state: TransitionAnimator.State) {
+        dialogTouchInterceptorView?.let { view ->
+            val currentWidth = state.right - state.left
+            val currentHeight = state.bottom - state.top
+            var currentLayoutParams = view.layoutParams
+
+            if (currentLayoutParams == null) {
+                // If the view has no LayoutParams (e.g., created programmatically but not yet added
+                // to a parent,
+                // or added to a parent that didn't assign default params), create new ones.
+                // It's crucial to use the correct LayoutParams type for the view's parent.
+                currentLayoutParams = ViewGroup.MarginLayoutParams(currentWidth, currentHeight)
+            } else {
+                // Modify the existing LayoutParams
+                currentLayoutParams.width = currentWidth
+                currentLayoutParams.height = currentHeight
+            }
+
+            if (currentLayoutParams is ViewGroup.MarginLayoutParams) {
+                /**
+                 * update the left Margin and top Margin of [touchInterceptorView] to match that of
+                 * drawable during animation
+                 */
+                currentLayoutParams.leftMargin = state.left
+                currentLayoutParams.topMargin =
+                    state.top - ((view.parent as? ViewGroup)?.paddingTop ?: 0)
+            }
+            view.layoutParams = currentLayoutParams
+        }
     }
 
     private fun shouldAnimateDialogIntoSource(): Boolean {
@@ -1007,6 +1057,7 @@ private class AnimatedDialog(
         }
 
         private var lastBounds: Rect? = null
+        private var lastParentBounds: Rect? = null
         private var currentAnimator: ValueAnimator? = null
 
         override fun onLayoutChange(
@@ -1020,6 +1071,11 @@ private class AnimatedDialog(
             oldRight: Int,
             oldBottom: Int,
         ) {
+            val oldParentBounds = lastParentBounds
+            (view.parent as ViewGroup)?.let { p ->
+                lastParentBounds = Rect(p.left, p.top, p.right, p.bottom)
+            }
+
             // Don't animate if bounds didn't actually change.
             if (left == oldLeft && top == oldTop && right == oldRight && bottom == oldBottom) {
                 // Make sure that we that the last bounds set by the animator were not overridden.
@@ -1042,8 +1098,15 @@ private class AnimatedDialog(
             val startRight = bounds.right
             val startBottom = bounds.bottom
 
+            currentAnimator?.removeAllListeners()
             currentAnimator?.cancel()
             currentAnimator = null
+
+            // When bounds changed only because parent's bounds also changed, don't animate.
+            if (lastParentBounds != oldParentBounds && oldParentBounds != null) {
+                lastBounds?.set(left, top, right, bottom)
+                return
+            }
 
             val animator =
                 ValueAnimator.ofFloat(0f, 1f).apply {

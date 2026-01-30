@@ -21,8 +21,8 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Fara á fyrri skjá"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Fara á næsta skjá"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Aðgengisvalmyndin er stór valmynd sem birtist á skjánum sem má nota til að stjórna tækinu. Þú getur læst tækinu, stjórnað hljóðstyrk og birtustigi, tekið skjámyndir og fleira."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Stjórna tæki í gegnum stóra valmynd"</string>
-    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Aðgengisvalmyndarstillingar"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Stjórnaðu hljóðstyrk, birtustigi og fleiru á stórri valmynd"</string>
+    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Stillingar aðgengisvalmyndar"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Stórir hnappar"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Stækka hnappa aðgengisvalmyndar"</string>
     <string name="pref_help_title" msgid="6871558837025010641">"Hjálp"</string>

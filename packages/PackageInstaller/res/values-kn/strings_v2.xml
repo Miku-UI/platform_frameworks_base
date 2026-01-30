@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"ಅನುಮತಿಯ ಅಗತ್ಯವಿದೆ"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವುದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"ಆ್ಯಪ್ ಅನ್ನು ಸಿದ್ಧಪಡಿಸಲಾಗುತ್ತಿದೆ…"</string>
+    <string name="title_install" msgid="6806728682404990326">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗುತ್ತಿದೆ…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿದೆ"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"ಮರುಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗುತ್ತಿದೆ…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"ಆ್ಯಪ್ ಅನ್ನು ಮರುಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿದೆ"</string>
+    <string name="title_update" msgid="1747328630716712391">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> ಬಳಸಿಕೊಂಡು ಈ ಆ್ಯಪ್ ಅನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"ಅಪ್‌ಡೇಟ್ ಆಗುತ್ತಿದೆ…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"ಆ್ಯಪ್ ಅನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಲಾಗಿದೆ"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"ಆ್ಯಪ್ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವುದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"ಆ್ಯಪ್ ಹೊಂದಾಣಿಕೆಯಾಗುವುದಿಲ್ಲ"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"ಅಮಾನ್ಯವಾದ ಪ್ಯಾಕೇಜ್"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"ಸಾಕಷ್ಟು ಸಂಗ್ರಹಣೆ ಇಲ್ಲ"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"ಆ್ಯಪ್‌ ಇನ್‌ಸ್ಟಾಲ್‌ ಮಾಡಲಾಗಿಲ್ಲ"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"ಈ ಆ್ಯಪ್ ಕ್ಲೋನ್ ಅನ್ನು ಅಳಿಸಬೇಕೇ?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"ಆ್ಯಪ್ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"ಎಲ್ಲಾ ಬಳಕೆದಾರರಿಗಾಗಿ ಈ ಆ್ಯಪ್ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"ಎಲ್ಲಾ ಬಳಕೆದಾರರಿಗಾಗಿ ಈ ಆ್ಯಪ್ ಅನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"ಬಳಕೆದಾರರಾದ \'<xliff:g id="USER_NAME">%1$s</xliff:g>\' ಗಾಗಿ ಈ ಆ್ಯಪ್ ಅನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"ಆ್ಯಪ್ ಕಂಡುಬಂದಿಲ್ಲ"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಸಾಧ್ಯವಿಲ್ಲ"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"ಆ್ಯಪ್ ಅನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿಲ್ಲ"</string>
+    <string name="title_archive" msgid="2876455228073419830">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಆರ್ಕೈವ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"ಎಲ್ಲಾ ಬಳಕೆದಾರರಿಗಾಗಿ ಈ ಆ್ಯಪ್ ಅನ್ನು ಆರ್ಕೈವ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"ಬಳಕೆದಾರರಾದ \'<xliff:g id="USER_NAME">%1$s</xliff:g>\' ಗಾಗಿ ಈ ಆ್ಯಪ್ ಅನ್ನು ಆರ್ಕೈವ್ ಮಾಡಬೇಕೇ?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಬೇಕೇ?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"ಕ್ರಮ ಕೈಗೊಳ್ಳುವ ಅಗತ್ಯವಿದೆ"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"ಸಾಕಷ್ಟು ಸಂಗ್ರಹಣೆ ಇಲ್ಲ"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"ನೀವು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿದ್ದೀರಿ"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ಅನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಲಾಗಿದೆ"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿಲ್ಲ"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"ಏನೋ ತಪ್ಪಾಗಿದೆ"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"ಈ ಆ್ಯಪ್ ಸಾಮಾನ್ಯವಾಗಿ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; ಇಂದ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತದೆ. ಬೇರೊಂದು ಮೂಲವನ್ನು ಬಳಸಿ ಅಪ್‌ಡೇಟ್ ಮಾಡುವ ಮೂಲಕ, ನಿಮ್ಮ ಟ್ಯಾಬ್ಲೆಟ್‌ನಲ್ಲಿರುವ ಯಾವುದೇ ಮೂಲದಿಂದ ನೀವು ಭವಿಷ್ಯದ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಸ್ವೀಕರಿಸಬಹುದು. ಆ್ಯಪ್‌ನ ಕಾರ್ಯಚಟುವಟಿಕೆಯು ಬದಲಾಗಬಹುದು."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"ಈ ಆ್ಯಪ್ ಸಾಮಾನ್ಯವಾಗಿ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; ಇಂದ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತದೆ. ಬೇರೊಂದು ಮೂಲವನ್ನು ಬಳಸಿ ಅಪ್‌ಡೇಟ್ ಮಾಡುವ ಮೂಲಕ, ನಿಮ್ಮ TV ಯಲ್ಲಿರುವ ಯಾವುದೇ ಮೂಲದಿಂದ ನೀವು ಭವಿಷ್ಯದ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಸ್ವೀಕರಿಸಬಹುದು. ಆ್ಯಪ್‌ನ ಕಾರ್ಯಚಟುವಟಿಕೆಯು ಬದಲಾಗಬಹುದು."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"ಈ ಆ್ಯಪ್ ಸಾಮಾನ್ಯವಾಗಿ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; ಇಂದ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಸ್ವೀಕರಿಸುತ್ತದೆ. ಬೇರೊಂದು ಮೂಲವನ್ನು ಬಳಸಿ ಅಪ್‌ಡೇಟ್‌ ಮಾಡುವ ಮೂಲಕ, ನಿಮ್ಮ ಫೋನ್‌ನಲ್ಲಿರುವ ಯಾವುದೇ ಮೂಲದಿಂದ ನೀವು ಭವಿಷ್ಯದ ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಸ್ವೀಕರಿಸಬಹುದು. ಆ್ಯಪ್‌ನ ಕಾರ್ಯಚಟುವಟಿಕೆಯು ಬದಲಾಗಬಹುದು."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"ನಿಮ್ಮ ಸುರಕ್ಷತೆಯ ದೃಷ್ಟಿಯಿಂದ, ಈ ಮೂಲದಿಂದ ಬಂದಿರುವ ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್‌ ಮಾಡಲು ಪ್ರಸ್ತುತ ನಿಮ್ಮ ಟ್ಯಾಬ್ಲೆಟ್‌ಗೆ ಅನುಮತಿಯಿಲ್ಲ. ನೀವು ಇದನ್ನು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"ನಿಮ್ಮ ಸುರಕ್ಷತೆಯ ದೃಷ್ಟಿಯಿಂದ, ಈ ಮೂಲದಿಂದ ಬಂದಿರುವ ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಪ್ರಸ್ತುತ ನಿಮ್ಮ ಟಿವಿಗೆ ಅನುಮತಿಯಿಲ್ಲ. ನೀವು ಇದನ್ನು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"ನಿಮ್ಮ ಸುರಕ್ಷತೆಯ ದೃಷ್ಟಿಯಿಂದ, ಈ ಮೂಲದಿಂದ ಬಂದಿರುವ ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್‌ ಮಾಡಲು ಪ್ರಸ್ತುತ ನಿಮ್ಮ ವಾಚ್‌ಗೆ ಅನುಮತಿಯಿಲ್ಲ. ನೀವು ಇದನ್ನು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"ನಿಮ್ಮ ಸುರಕ್ಷತೆಯ ದೃಷ್ಟಿಯಿಂದ, ಈ ಮೂಲದಿಂದ ಬಂದಿರುವ ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಪ್ರಸ್ತುತ ನಿಮ್ಮ ಫೋನ್‌ಗೆ ಅನುಮತಿಯಿಲ್ಲ. ನೀವು ಇದನ್ನು ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ ಬದಲಾಯಿಸಬಹುದು."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"ನಿಮ್ಮ ಫೋನ್ ಹಾಗೂ ವೈಯಕ್ತಿಕ ಡೇಟಾ, ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳ ದಾಳಿಗೆ ತುತ್ತಾಗುವ ಸಾಧ್ಯತೆ ಹೆಚ್ಚಿದೆ. ಈ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವ ಮೂಲಕ, ನಿಮ್ಮ ಫೋನ್‌ಗೆ ಯಾವುದೇ ಹಾನಿ ಉಂಟಾದರೆ ಅಥವಾ ಅದರ ಬಳಕೆಯಿಂದ ಡೇಟಾ ನಷ್ಟವಾದರೆ, ಅದಕ್ಕೆ ನೀವೇ ಜವಾಬ್ದಾರರು ಎಂಬುದನ್ನು ನೀವು ಒಪ್ಪಿಕೊಳ್ಳುತ್ತೀರಿ."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"ನಿಮ್ಮ ಟ್ಯಾಬ್ಲೆಟ್ ಹಾಗೂ ವೈಯಕ್ತಿಕ ಡೇಟಾ, ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳ ದಾಳಿಗೆ ತುತ್ತಾಗುವ ಸಾಧ್ಯತೆ ಹೆಚ್ಚಿದೆ. ಈ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್‌ ಮಾಡುವ ಮೂಲಕ, ನಿಮ್ಮ ಫೋನ್‌ಗೆ ಯಾವುದೇ ಹಾನಿ ಉಂಟಾದರೆ ಅಥವಾ ಅದರ ಬಳಕೆಯಿಂದ ಡೇಟಾ ನಷ್ಟವಾದರೆ, ಅದಕ್ಕೆ ನೀವೇ ಜವಾಬ್ದಾರರು ಎಂಬುದನ್ನು ನೀವು ಒಪ್ಪಿಕೊಳ್ಳುತ್ತೀರಿ."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"ನಿಮ್ಮ ಟಿವಿ ಹಾಗೂ ವೈಯಕ್ತಿಕ ಡೇಟಾ, ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳ ದಾಳಿಗೆ ತುತ್ತಾಗುವ ಸಾಧ್ಯತೆ ಹೆಚ್ಚಿದೆ. ಈ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವ ಮೂಲಕ, ನಿಮ್ಮ ಟಿವಿಗೆ ಯಾವುದೇ ಹಾನಿ ಉಂಟಾದರೆ ಅಥವಾ ಅದರ ಬಳಕೆಯಿಂದ ಡೇಟಾ ನಷ್ಟವಾದರೆ, ಅದಕ್ಕೆ ನೀವೇ ಜವಾಬ್ದಾರರು ಎಂಬುದನ್ನು ನೀವು ಒಪ್ಪಿಕೊಳ್ಳುತ್ತೀರಿ."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವುದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"ಈ ಆ್ಯಪ್, ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಈಗಾಗಲೇ ಇರುವ ಆ್ಯಪ್‌ನೊಂದಿಗೆ ಸಂಘರ್ಷ ಹೊಂದಿದೆ"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"ಈ ಆ್ಯಪ್ ನಿಮ್ಮ ಸಾಧನಕ್ಕೆ ಹೊಂದಾಣಿಕೆಯಾಗುವುದಿಲ್ಲ"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"ಈ ಆ್ಯಪ್‌ನ ಇನ್‌ಸ್ಟಾಲೇಶನ್ ಫೈಲ್‌ಗೆ ಸಂಬಂಧಿಸಿದಂತೆ ಸಮಸ್ಯೆಯಿದೆ"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು, ಒಂದಷ್ಟು ಸ್ಥಳವನ್ನು ಖಾಲಿಮಾಡಿ ಮತ್ತು ಪುನಃ ಪ್ರಯತ್ನಿಸಿ"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"ಆ್ಯಪ್ ಫೈಲ್‌ಗೆ ಸಂಬಂಧಿಸಿದಂತೆ ಸಮಸ್ಯೆಯಿದೆ"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವುದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"ಅಪರಿಚಿತ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವುದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"ಈ ಆ್ಯಪ್‌ನ ಕ್ಲೋನ್ ಸಹ ಅಸ್ತಿತ್ವದಲ್ಲಿದ್ದು, ಅದನ್ನು ಅಳಿಸಲಾಗುತ್ತದೆ"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"ಈ ಆ್ಯಪ್ <xliff:g id="APP_LABEL">%1$s</xliff:g> ನ ಕ್ಲೋನ್ ಆಗಿದೆ"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಫ್ಯಾಕ್ಟರಿ ಆವೃತ್ತಿಯೊಂದಿಗೆ ಬದಲಾಯಿಸಲಾಗುತ್ತದೆ. ಎಲ್ಲಾ ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"ಈ ಸಾಧನದಲ್ಲಿರುವ ಎಲ್ಲಾ ಬಳಕೆದಾರರಿಗಾಗಿ ಈ ಆ್ಯಪ್ ಅನ್ನು ಫ್ಯಾಕ್ಟರಿ ಆವೃತ್ತಿಯೊಂದಿಗೆ ಬದಲಾಯಿಸಲಾಗುತ್ತದೆ. ಎಲ್ಲಾ ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"ಈ ಆ್ಯಪ್ ಅನ್ನು ನಿಮ್ಮ ಉದ್ಯೋಗ ಪ್ರೊಫೈಲ್‌ನಿಂದ ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗುತ್ತದೆ"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"ಈ ಆ್ಯಪ್ ಅನ್ನು ನಿಮ್ಮ ಪ್ರೈವೆಟ್ ಸ್ಪೇಸ್‌ನಿಂದ ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗುತ್ತದೆ"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾದ ಆ್ಯಪ್‌ಗಳ ಪಟ್ಟಿಯಲ್ಲಿ ಈ ಆ್ಯಪ್ ಕಂಡುಬಂದಿಲ್ಲ, ಅಥವಾ ಅದನ್ನು ಈಗಾಗಲೇ ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿದೆ"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"ಈ ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡುವಿಕೆಯನ್ನು ಕೈಗೊಳ್ಳಲು ಪ್ರಸ್ತುತ ಬಳಕೆದಾರರಿಗೆ ಅನುಮತಿಯಿಲ್ಲ"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ಇರಿಸಿಕೊಳ್ಳಿ"</string>
+    <string name="message_archive" msgid="943853731737315850">"ನಿಮ್ಮ ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"ಎಲ್ಲಾ ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"ಈ ಆ್ಯಪ್ ಅನ್ನು ನಿಮ್ಮ ಉದ್ಯೋಗ ಪ್ರೊಫೈಲ್‌ನಿಂದ ಆರ್ಕೈವ್ ಮಾಡಲಾಗುತ್ತದೆ. ನಿಮ್ಮ ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"ಈ ಆ್ಯಪ್ ಅನ್ನು ನಿಮ್ಮ ಪ್ರೈವೆಟ್ ಸ್ಪೇಸ್‌ನಿಂದ ಆರ್ಕೈವ್ ಮಾಡಲಾಗುತ್ತದೆ. ನಿಮ್ಮ ಆ್ಯಪ್ ಡೇಟಾವನ್ನು ಸೇವ್ ಮಾಡಲಾಗುತ್ತದೆ."</string>
+    <string name="message_restore" msgid="8402726798623569969">"ಈ ಅಪ್ ಹಿನ್ನೆಲೆಯಲ್ಲಿ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ಇಂದ ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತದೆ"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"ನೀವು ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸುವ ಮುನ್ನ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ಗೆ ಹೆಚ್ಚಿನ ಮಾಹಿತಿಯ ಅಗತ್ಯವಿದೆ"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು, &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; ಸ್ಥಳವನ್ನು ಖಾಲಿ ಮಾಡಿ ಮತ್ತು ಪುನಃ ಪ್ರಯತ್ನಿಸಿ"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು, ನಿಮ್ಮ ಇಂಟರ್ನೆಟ್ ಕನೆಕ್ಷನ್ ಅನ್ನು ಪರಿಶೀಲಿಸಿ ಹಾಗೂ ಪುನಃ ಪ್ರಯತ್ನಿಸಿ"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು, ಸೆಟ್ಟಿಂಗ್‌ಗಳಲ್ಲಿ <xliff:g id="INSTALLERNAME">%1$s</xliff:g> ಅನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು, ನೀವು <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬೇಕಾಗುತ್ತದೆ"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"ಈ ಆ್ಯಪ್ ಅನ್ನು ಮರುಸ್ಥಾಪಿಸಲು ಪ್ರಯತ್ನಿಸುವಾಗ ಸಮಸ್ಯೆ ಎದುರಾಗಿದೆ"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> ಈ ಕೆಳಗಿನ ಆ್ಯಪ್‌ನ ಭಾಗವಾಗಿದೆ: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;ಈ ಆ್ಯಪ್ ಅನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ. ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಡೇಟಾವನ್ನು ಸುರಕ್ಷಿತವಾಗಿ ಇರಿಸಲು, ಪರಿಶೀಲಿಸಿದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಮಾತ್ರ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬಹುದು.&lt;/p&gt; &lt;p&gt;&lt;a href=&gt;ಡೆವಲಪರ್ ಪರಿಶೀಲನೆಯ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;&lt;/p&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;ಈ ಆ್ಯಪ್ ಅನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಲಾಗಿಲ್ಲ. ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಡೇಟಾವನ್ನು ಸುರಕ್ಷಿತವಾಗಿರಿಸಲು, ಪರಿಶೀಲಿಸಿದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಮಾತ್ರ ನವೀಕರಣಗಳನ್ನು ಸ್ಥಾಪಿಸಬಹುದು.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ಡೆವಲಪರ್ ಪರಿಶೀಲನೆಯ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;ಈ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿಲ್ಲ. ಪರಿಶೀಲಿಸದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಬರುವ ಆ್ಯಪ್‌ಗಳು ಅಸುರಕ್ಷಿತವಾಗಿರಬಹುದು.&lt;/p&gt; &lt;p&gt;ಆ್ಯಪ್ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸಲು ಇಂಟರ್ನೆಟ್ ಕನೆಕ್ಷನ್ ಅಗತ್ಯವಿದೆ. ನಿಮ್ಮ ಇಂಟರ್ನೆಟ್ ಕನೆಕ್ಷನ್ ಅನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಪುನಃ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲು ಪ್ರಯತ್ನಿಸಿ. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ಡೆವಲಪರ್ ದೃಢೀಕರಣದ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;ಈ ಆ್ಯಪ್ ಅನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಲಾಗಿಲ್ಲ. ಪರಿಶೀಲಿಸದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಬರುವ ಅಪ್‌ಡೇಟ್‌ಗಳು ಅಸುರಕ್ಷಿತವಾಗಿರಬಹುದು.&lt;/p&gt; &lt;p&gt;ಆ್ಯಪ್ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸಲು ಇಂಟರ್ನೆಟ್ ಕನೆಕ್ಷನ್ ಅಗತ್ಯವಿದೆ. ನಿಮ್ಮ ಇಂಟರ್ನೆಟ್ ಕನೆಕ್ಷನ್ ಅನ್ನು ಪರಿಶೀಲಿಸಿ, ನಂತರ ಪುನಃ ಅಪ್‌ಡೇಟ್ ಮಾಡಲು ಪ್ರಯತ್ನಿಸಿ. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ಡೆವಲಪರ್ ದೃಢೀಕರಣದ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;ಈ ಆ್ಯಪ್‌ನ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸುವಲ್ಲಿ ಸಮಸ್ಯೆ ಕಂಡುಬಂದಿದೆ. ಪರಿಶೀಲಿಸದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಬರುವ ಆ್ಯಪ್‌ಗಳು ಅಸುರಕ್ಷಿತವಾಗಿರಬಹುದು, ಆದ್ದರಿಂದ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿಲ್ಲ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ಡೆವಲಪರ್ ಪರಿಶೀಲನೆಯ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;ಈ ಆ್ಯಪ್‌ನ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸುವಲ್ಲಿ ಸಮಸ್ಯೆ ಕಂಡುಬಂದಿದೆ. ಪರಿಶೀಲಿಸದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಅಪ್‌ಡೇಟ್‌ಗಳು ಅಸುರಕ್ಷಿತವಾಗಿರಬಹುದು, ಆದ್ದರಿಂದ ಆ್ಯಪ್ ಅನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಲಾಗಿಲ್ಲ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ಡೆವಲಪರ್ ಪರಿಶೀಲನೆಯ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;ಈ ಆ್ಯಪ್‌ನ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸುವಲ್ಲಿ ಸಮಸ್ಯೆ ಇದ್ದ ಕಾರಣ ಇದನ್ನು ನಿರ್ಬಂಧಿಸಲಾಗಿದೆ. ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಡೇಟಾವನ್ನು ಸುರಕ್ಷಿತವಾಗಿರಿಸಲು, ಪರಿಶೀಲಿಸಿದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಮಾತ್ರ ಆ್ಯಪ್‌ಗಳನ್ನು ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಬಹುದು.&lt;/p&gt; &lt;p&gt;&lt;a href=&gt;ಡೆವಲಪರ್ ಪರಿಶೀಲನೆಯ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;&lt;/p&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;ಈ ಆ್ಯಪ್‌ನ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸುವಲ್ಲಿ ಸಮಸ್ಯೆ ಇದ್ದ ಕಾರಣ ಇದನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಲಾಗಿಲ್ಲ. ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಡೇಟಾವನ್ನು ಸುರಕ್ಷಿತವಾಗಿರಿಸಲು, ಪರಿಶೀಲಿಸಿದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಮಾತ್ರ ನವೀಕರಣಗಳನ್ನು ಸ್ಥಾಪಿಸಬಹುದು.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ಡೆವಲಪರ್ ಪರಿಶೀಲನೆಯ ಕುರಿತು ಇನ್ನಷ್ಟು ತಿಳಿಯಿರಿ&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"ನೀವು ಪರಿಶೀಲಿಸದೆ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿದರೆ, ಪರಿಶೀಲಿಸದ ಡೆವಲಪರ್‌ಗಳ ಆ್ಯಪ್‌ಗಳು ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಡೇಟಾವನ್ನು ಅಪಾಯಕ್ಕೆ ಸಿಲುಕಿಸಬಹುದು ಎಂಬುದನ್ನು ನೆನಪಿನಲ್ಲಿಡಿ."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"ನೀವು ಪರಿಶೀಲಿಸದೆ ಅಪ್‌ಡೇಟ್ ಮಾಡಿದರೆ, ಪರಿಶೀಲಿಸದ ಡೆವಲಪರ್‌ಗಳಿಂದ ಬರುವ ಅಪ್‌ಡೇಟ್‌ಗಳು ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಡೇಟಾವನ್ನು ಅಪಾಯಕ್ಕೆ ಸಿಲುಕಿಸಬಹುದು ಎಂಬುದನ್ನು ನೆನಪಿನಲ್ಲಿಡಿ."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"ಆ್ಯಪ್ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸಲಾಗಿಲ್ಲ"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"ಇಂಟರ್ನೆಟ್ ಇಲ್ಲ, ಆ್ಯಪ್ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"ಆ್ಯಪ್ ಡೆವಲಪರ್ ಅನ್ನು ಪರಿಶೀಲಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"ಪರಿಶೀಲಿಸದೇ ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"ಪರಿಶೀಲಿಸದೇ ಅಪ್‌ಡೇಟ್ ಮಾಡಿ"</string>
+    <string name="button_install" msgid="7434013176505680162">"ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ"</string>
+    <string name="button_update" msgid="3046719350226327526">"ಅಪ್‌ಡೇಟ್ ಮಾಡಿ"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"ಹೇಗಿದ್ದರೂ ಅಪ್‌ಡೇಟ್ ಮಾಡಿ"</string>
+    <string name="button_done" msgid="3408025390982260629">"ಮುಗಿದಿದೆ"</string>
+    <string name="button_open" msgid="6892684987374117955">"ತೆರೆಯಿರಿ"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"ರದ್ದುಮಾಡಿ"</string>
+    <string name="button_continue" msgid="107501685249826244">"ಮುಂದುವರಿಸಿ"</string>
+    <string name="button_close" msgid="7187308556466275899">"ಮುಚ್ಚಿರಿ"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ"</string>
+    <string name="button_delete" msgid="1050833585936159792">"ಅಳಿಸಿ"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"ಮರುಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"ಆ್ಯಪ್‌ಗಳನ್ನು ನಿರ್ವಹಿಸಿ"</string>
+    <string name="button_archive" msgid="2719647830439699121">"ಆರ್ಕೈವ್ ಮಾಡಿ"</string>
+    <string name="button_restore" msgid="4388317532933866637">"ಮರುಸ್ಥಾಪಿಸಿ"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"ಅಪ್‌ಡೇಟ್‌ಗಳನ್ನು ಅನ್‌ಇನ್‌ಸ್ಟಾಲ್ ಮಾಡಿ"</string>
+    <string name="button_settings" msgid="3837571366246132287">"ಸೆಟ್ಟಿಂಗ್‌ಗಳು"</string>
+    <string name="button_retry" msgid="6736082260813816198">"ಪುನಃ ಪ್ರಯತ್ನಿಸಿ"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> ಕ್ಲೋನ್"</string>
+</resources>

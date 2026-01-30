@@ -35,3 +35,24 @@ flag {
     description: "This flag waits for alsa scan results for audio device"
     bug: "378826805"
 }
+
+flag {
+    name: "enable_usb4"
+    namespace: "desktop_connectivity"
+    description: "This flag enables USB4 and Thunderbolt support"
+    bug: "369430205"
+}
+
+flag {
+    name: "enable_usb_authorization"
+    namespace: "desktop_connectivity"
+    description: "This flag enables USB authorization"
+    bug: "409385933"
+}
+
+flag {
+    name: "default_allow_pci_tunnels"
+    namespace: "desktop_connectivity"
+    description: "This flag allows PCI tunnels for testing and dogfooding"
+    bug: "369430205"
+}

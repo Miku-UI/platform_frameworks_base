@@ -17,6 +17,7 @@
 package com.android.systemui.volume.dialog.sliders.domain.interactor
 
 import com.android.settingslib.volume.shared.model.AudioStream
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.plugins.VolumeDialogController
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
@@ -25,6 +26,7 @@ import com.android.systemui.volume.dialog.shared.model.VolumeDialogStreamModel
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.domain.model.VolumeDialogSliderType
 import javax.inject.Inject
+import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -33,6 +35,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 
 /** Operates a state of particular slider of the Volume Dialog. */
 @VolumeDialogSliderScope
@@ -40,6 +43,7 @@ class VolumeDialogSliderInteractor
 @Inject
 constructor(
     private val sliderType: VolumeDialogSliderType,
+    @Background private val backgroundContext: CoroutineContext,
     @VolumeDialog private val coroutineScope: CoroutineScope,
     volumeDialogStateInteractor: VolumeDialogStateInteractor,
     private val volumeDialogController: VolumeDialogController,
@@ -49,7 +53,7 @@ constructor(
     val isDisabledByZenMode: Flow<Boolean> =
         if (zenModeInteractor.canBeBlockedByZenMode(sliderType)) {
             zenModeInteractor.activeModesBlockingStream(AudioStream(sliderType.audioStream)).map {
-                it.mainMode != null
+                it.main != null
             }
         } else {
             flowOf(false)
@@ -68,10 +72,12 @@ constructor(
             .stateIn(coroutineScope, SharingStarted.Eagerly, null)
             .filterNotNull()
 
-    fun setStreamVolume(userLevel: Int) {
-        with(volumeDialogController) {
-            setStreamVolume(sliderType.audioStream, userLevel)
-            setActiveStream(sliderType.audioStream)
+    suspend fun setStreamVolume(userLevel: Int) {
+        withContext(backgroundContext) {
+            with(volumeDialogController) {
+                setStreamVolume(sliderType.audioStream, userLevel, true)
+                setActiveStream(sliderType.audioStream, true)
+            }
         }
     }
 }

@@ -1,0 +1,109 @@
+<!--
+  Copyright (C) 2025 The Android Open Source Project
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+    android:id="@+id/cd_bottom_sheet"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/connected_display_dialog_bg"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingHorizontal="@dimen/dialog_side_padding"
+        android:paddingTop="@dimen/dialog_top_padding">
+
+        <ImageView
+            android:id="@+id/connected_display_dialog_icon"
+            android:layout_width="@dimen/connected_display_dialog_logo_size"
+            android:layout_height="@dimen/connected_display_dialog_logo_size"
+            android:background="@drawable/circular_background"
+            android:backgroundTint="@androidprv:color/materialColorSecondary"
+            android:importantForAccessibility="no"
+            android:padding="6dp"
+            android:src="@drawable/stat_sys_connected_display"
+            android:tint="@androidprv:color/materialColorOnSecondary" />
+
+        <TextView
+            android:id="@+id/connected_display_dialog_title"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="4dp"
+            android:gravity="center"
+            android:text="@string/connected_display_dialog_title"
+            android:textAppearance="@style/TextAppearance.Dialog.Title" />
+
+        <CheckBox
+            android:id="@+id/save_connection_preference"
+            android:paddingStart="8dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="8dp"
+            android:text="@string/remember_choice"
+            android:textAppearance="@style/TextAppearance.Dialog.Body"
+            android:textSize="18sp" />
+
+        <TextView
+            android:id="@+id/dual_display_warning"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginVertical="4dp"
+            android:gravity="center"
+            android:text="@string/connected_display_dialog_dual_display_stop_warning"
+            android:textAppearance="@style/TextAppearance.Dialog.Body"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/start_desktop_mode"
+                style="@style/Widget.Dialog.Button"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/start_desktop_mode"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/start_mirroring"
+                style="@style/Widget.Dialog.Button.BorderButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/start_mirroring"
+                android:textSize="18sp" />
+
+            <Button
+                android:id="@+id/cancel"
+                style="@style/Widget.Dialog.Button.BorderButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/btn_borderless_rect"
+                android:layout_marginBottom="@dimen/dialog_bottom_padding"
+                android:minHeight="48dp"
+                android:text="@string/cancel"
+                android:textSize="18sp" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

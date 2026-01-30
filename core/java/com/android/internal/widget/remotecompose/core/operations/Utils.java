@@ -14,11 +14,13 @@
  * limitations under the License.
  */
 package com.android.internal.widget.remotecompose.core.operations;
-
 import android.annotation.NonNull;
 
 /** Utilities to be used across all core operations */
 public class Utils {
+
+    private Utils() {}
+
     /**
      * Convert an integer id into a float
      *
@@ -147,6 +149,24 @@ public class Utils {
                         + s.getMethodName()
                         + "() "
                         + str);
+    }
+
+    /**
+     * Utility to produce a studio clickable log string
+     *
+     * @param str string to append
+     * @return the string + (filename.xxx:line ).
+     */
+    public static @NonNull String logString(@NonNull String str) {
+        StackTraceElement s = new Throwable().getStackTrace()[1];
+        return ("("
+                + s.getFileName()
+                + ":"
+                + s.getLineNumber()
+                + "). "
+                + s.getMethodName()
+                + "() "
+                + str);
     }
 
     /**
@@ -317,7 +337,6 @@ public class Utils {
         int r = (argb >> 16) & 0xFF;
         int g = (argb >> 8) & 0xFF;
         int b = argb & 0xFF;
-        float hsl1, hsl2, hsl3;
         final float rf = r / 255f;
         final float gf = g / 255f;
         final float bf = b / 255f;
@@ -362,13 +381,12 @@ public class Utils {
         final float min = Math.min(rf, Math.min(gf, bf));
         final float deltaMaxMin = max - min;
         float s;
-        float l = (max + min) / 2f;
+        //        float l = (max + min) / 2f;
         if (max == min) {
             // Monochromatic
             s = 0f;
         } else {
-
-            s = deltaMaxMin / (1f - Math.abs(2f * l - 1f));
+            s = deltaMaxMin / max;
         }
 
         return s;
@@ -388,8 +406,7 @@ public class Utils {
         final float gf = g / 255f;
         final float bf = b / 255f;
         final float max = Math.max(rf, Math.max(gf, bf));
-        final float min = Math.min(rf, Math.min(gf, bf));
 
-        return (max + min) / 2f;
+        return max;
     }
 }

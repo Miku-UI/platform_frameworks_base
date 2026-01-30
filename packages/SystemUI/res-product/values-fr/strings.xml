@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Lecture sur cette tablette…"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Vous pouvez localiser ce téléphone avec Localiser mon appareil même lorsqu\'il est éteint"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Vous pouvez localiser cette tablette avec Localiser mon appareil même lorsqu\'elle est éteinte"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Vous pouvez localiser ce téléphone avec Localiser, même lorsqu\'il est éteint"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Vous pouvez localiser cette tablette avec Localiser même lorsqu\'elle est éteinte"</string>
 </resources>

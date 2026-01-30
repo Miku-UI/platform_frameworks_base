@@ -18,6 +18,7 @@ package com.android.server.wm;
 
 import static android.content.pm.ActivityInfo.FORCE_NON_RESIZE_APP;
 import static android.content.pm.ActivityInfo.FORCE_RESIZE_APP;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_OVERRIDE_FORCE_RESIZE_APP;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_RESIZEABLE_ACTIVITY_OVERRIDES;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY;
 
@@ -26,6 +27,7 @@ import static com.android.server.wm.AppCompatUtils.isChangeEnabled;
 import android.annotation.NonNull;
 import android.annotation.UserIdInt;
 import android.content.pm.PackageManager;
+import android.util.proto.ProtoOutputStream;
 
 import com.android.server.wm.utils.OptPropFactory;
 
@@ -115,5 +117,9 @@ class AppCompatResizeOverrides {
     /** @see android.view.WindowManager#PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY */
     boolean allowRestrictedResizability() {
         return mAllowRestrictedResizability.getAsBoolean();
+    }
+
+    public void dumpDebug(@NonNull ProtoOutputStream proto) {
+        proto.write(SHOULD_OVERRIDE_FORCE_RESIZE_APP, shouldOverrideForceResizeApp());
     }
 }

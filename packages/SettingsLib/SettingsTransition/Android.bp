@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibSettingsTransition",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -22,14 +23,4 @@ android_library {
 
     sdk_version: "system_current",
     min_sdk_version: "29",
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.adservices",
-        "com.android.cellbroadcast",
-        "com.android.devicelock",
-        "com.android.extservices",
-        "com.android.permission",
-        "com.android.healthfitness",
-        "com.android.mediaprovider",
-    ],
 }

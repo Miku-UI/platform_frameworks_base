@@ -39,12 +39,14 @@
             android:orientation="horizontal">
             <RadioGroup
                 android:id="@+id/zen_radio_buttons"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
+                android:layout_weight="1"
                 android:layout_height="wrap_content" />
             <LinearLayout
                 android:id="@+id/zen_radio_buttons_content"
-                android:layout_width="fill_parent"
-                android:layout_height="fill_parent"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
                 android:orientation="vertical"/>
         </com.android.settingslib.notification.modes.ZenRadioLayout>
     </LinearLayout>

@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Ապակողպեք գաղտնաբառով/մատնահետքով"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Ապակողպեք նախշով/մատնահետքով"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Լրացուցիչ պաշտպանության համար սարքը կողպվել է"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Երկքայլ հաստատում"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Օգտագործել մատնահետքով ապակողպումը"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Օգտագործել դեմքով ապակողպում"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Օգտագործել մատնահետքով կամ դեմքով ապակողպումը"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Արգելափակումից հետո հարկավոր է մուտքագրել PIN կոդը"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Արգելափակումից հետո հարկավոր է մուտքագրել գաղտնաբառը"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Արգելափակումից հետո հարկավոր է գծել նախշը"</string>

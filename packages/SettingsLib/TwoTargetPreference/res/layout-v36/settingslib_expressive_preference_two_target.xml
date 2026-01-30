@@ -15,30 +15,20 @@
   limitations under the License.
   -->
 
-<LinearLayout
+<com.android.settingslib.widget.DrawableStateLinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="?android:attr/listPreferredItemHeightSmall"
-    android:gravity="center_vertical"
-    android:background="?android:attr/selectableItemBackground"
-    android:paddingStart="?android:attr/listPreferredItemPaddingStart"
-    android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
-    android:clipToPadding="false">
+    android:theme="?expressiveTwoTargetPreferenceTheme"
+    style="?expressiveTwoTargetPreferenceRootStyle">
 
-    <include layout="@layout/settingslib_expressive_preference_icon_frame"/>
+    <include layout="@layout/settingslib_expressive_preference_icon_frame" />
 
     <include layout="@layout/settingslib_expressive_preference_text_frame" />
 
     <include layout="@layout/settingslib_expressive_two_target_divider" />
 
-    <!-- Preference should place its actual preference widget here. -->
     <LinearLayout
         android:id="@android:id/widget_frame"
-        android:layout_width="wrap_content"
-        android:layout_height="match_parent"
-        android:minWidth="@dimen/two_target_min_width"
-        android:gravity="center"
-        android:orientation="vertical" />
-
-</LinearLayout>
+        style="?expressiveTwoTargetPreferenceWidgetFrameStyle" />
+</com.android.settingslib.widget.DrawableStateLinearLayout>

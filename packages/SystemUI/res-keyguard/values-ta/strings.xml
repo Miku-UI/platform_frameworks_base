@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"கடவுச்சொல்/கைரேகை முயலவும்"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"பேட்டர்ன்/கைரேகை முயலவும்"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"பாதுகாப்பிற்காக, பணிக்கொள்கை மூலம் இது பூட்டப்பட்டது"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"இருபடிச் சரிபார்ப்பு"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"கைரேகை அன்லாக்கைப் பயன்படுத்துங்கள்"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"முகம் காட்டித் திறத்தலைப் பயன்படுத்துங்கள்"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"கைரேகை அன்லாக் அல்லது முகம் காட்டித் திறத்தலைப் பயன்படுத்துங்கள்"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"முழுப் பூட்டு காரணமாகப் பின் தேவை"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"முழுப் பூட்டு காரணமாகக் கடவுச்சொல் தேவை"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"முழுப் பூட்டு காரணமாகப் பேட்டர்ன் தேவை"</string>
@@ -104,7 +108,7 @@
     <string name="kg_password_pin_failed" msgid="5136259126330604009">"சிம் பின் செயல்பாடு தோல்வியடைந்தது!"</string>
     <string name="kg_password_puk_failed" msgid="6778867411556937118">"சிம் PUK செயல்பாடு தோல்வியடைந்தது!"</string>
     <string name="accessibility_ime_switch_button" msgid="9082358310194861329">"உள்ளீட்டு முறையை மாற்றும்"</string>
-    <string name="airplane_mode" msgid="2528005343938497866">"விமானப் பயன்முறை"</string>
+    <string name="airplane_mode" msgid="2528005343938497866">"விமான மோட்"</string>
     <string name="kg_prompt_reason_restart_pattern" msgid="3321211830602827742">"சாதனம் மீண்டும் தொடங்கியதால் பேட்டர்ன் தேவை"</string>
     <string name="kg_prompt_reason_restart_pin" msgid="2672166323886110512">"சாதனம் மீண்டும் தொடங்கியதால் பின் தேவை"</string>
     <string name="kg_prompt_reason_restart_password" msgid="3967993994418885887">"சாதனம் மீண்டும் தொடங்கியதால் கடவுச்சொல் தேவை"</string>

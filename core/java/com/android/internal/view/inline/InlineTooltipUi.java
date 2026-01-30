@@ -320,7 +320,7 @@ public final class InlineTooltipUi extends PopupWindow implements AutoCloseable 
                 params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
                 params.privateFlags |=
-                        WindowManager.LayoutParams.PRIVATE_FLAG_NOT_MAGNIFIABLE;
+                        WindowManager.LayoutParams.PRIVATE_FLAG_INPUT_METHOD_WINDOW;
                 mContentContainer.addOnLayoutChangeListener(mAnchoredOnLayoutChangeListener);
                 mWm.addView(mContentContainer, params);
                 mShowing = true;

@@ -24,18 +24,21 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
+import com.android.systemui.keyguard.domain.interactor.biometricUnlockInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
+import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildPromotedOngoingEntry
 import com.android.systemui.statusbar.notification.domain.interactor.renderNotificationListInteractor
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
+import com.android.systemui.statusbar.notification.promoted.fake
+import com.android.systemui.statusbar.notification.promoted.showPromotedNotificationsOnAOD
 import com.android.systemui.statusbar.phone.ongoingcall.EnableChipsModernization
 import com.android.systemui.statusbar.policy.domain.interactor.sensitiveNotificationProtectionInteractor
 import com.android.systemui.statusbar.policy.mockSensitiveNotificationProtectionController
@@ -49,7 +52,7 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+@EnableFlags(PromotedNotificationUi.FLAG_NAME)
 @EnableChipsModernization
 class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
@@ -60,11 +63,15 @@ class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
             keyguardInteractor = keyguardInteractor,
             sensitiveNotificationProtectionInteractor = sensitiveNotificationProtectionInteractor,
             dumpManager = dumpManager,
+            biometricUnlockInteractor = biometricUnlockInteractor,
+            showPromotedNotificationsOnAOD = showPromotedNotificationsOnAOD,
         )
     }
 
     @Before
     fun setUp() {
+        // by default, showing RON on AOD is enabled
+        kosmos.showPromotedNotificationsOnAOD.fake.isEnabled = true
         kosmos.statusBarNotificationChipsInteractor.start()
     }
 
@@ -77,6 +84,22 @@ class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
                         .setContentTitle("REDACTED")
                         .build()
                 )
+        }
+
+    @Test
+    fun content_null_when_showing_ron_on_aod_disabled() =
+        kosmos.runTest {
+            // GIVEN a promoted entry
+            val ronEntry = buildPublicPrivatePromotedOngoing()
+
+            setKeyguardLocked(false)
+            setScreenSharingProtectionActive(false)
+            showPromotedNotificationsOnAOD.fake.isEnabled = false
+            renderNotificationListInteractor.setRenderedList(listOf(ronEntry))
+
+            // THEN aod content is null
+            val content by collectLastValue(underTest.content)
+            assertThat(content).isNull()
         }
 
     @Test
@@ -129,8 +152,28 @@ class AODPromotedNotificationsInteractorTest : SysuiTestCase() {
             assertThat(content!!.title).isEqualTo("REDACTED")
         }
 
+    @Test
+    fun content_sensitive_unlocked_biometricUnlockDismissesKeyguard() =
+        kosmos.runTest {
+            // GIVEN a promoted entry
+            val ronEntry = buildPublicPrivatePromotedOngoing()
+
+            setKeyguardLocked(true)
+            setScreenSharingProtectionActive(false)
+            kosmos.fakeKeyguardRepository.setBiometricUnlockState(
+                BiometricUnlockMode.UNLOCK_COLLAPSING
+            )
+
+            renderNotificationListInteractor.setRenderedList(listOf(ronEntry))
+
+            // THEN aod content remains redacted
+            val content by collectLastValue(underTest.content)
+            assertThat(content).isNotNull()
+            assertThat(content!!.title).isEqualTo("REDACTED")
+        }
+
     private fun Kosmos.setKeyguardLocked(locked: Boolean) {
-        fakeKeyguardRepository.setKeyguardDismissible(!locked)
+        fakeKeyguardRepository.setHasTrust(!locked)
     }
 
     private fun Kosmos.setScreenSharingProtectionActive(active: Boolean) {

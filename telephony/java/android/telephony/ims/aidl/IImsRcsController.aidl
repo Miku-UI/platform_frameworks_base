@@ -35,7 +35,7 @@ import com.android.internal.telephony.ISipDialogStateCallback;
 /**
  * Interface used to interact with the Telephony IMS.
  *
- * {@hide}
+ * @hide
  */
 interface IImsRcsController {
     // IMS RCS registration commands

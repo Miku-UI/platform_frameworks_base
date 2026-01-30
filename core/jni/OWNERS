@@ -2,7 +2,7 @@
 per-file *Camera*,*camera* = file:platform/frameworks/av:/camera/OWNERS
 
 # Connectivity
-per-file android_net_* = jchalard@google.com, lorenzo@google.com, reminv@google.com, satk@google.com
+per-file android_net_* = jchalard@google.com, lorenzo@google.com, reminv@google.com, larsberg@google.com
 
 # Choreographer
 per-file android_view_DisplayEventReceiver* = file:platform/frameworks/native:/services/surfaceflinger/OWNERS
@@ -30,6 +30,7 @@ per-file android_view_WindowManagerGlobal.cpp = file:/services/core/java/com/and
 per-file android_window_* = file:/services/core/java/com/android/server/wm/OWNERS
 
 # Resources
+per-file Android.bp = file:/core/java/android/content/res/OWNERS
 per-file android_content_res_* = file:/core/java/android/content/res/OWNERS
 per-file android_util_AssetManager* = file:/core/java/android/content/res/OWNERS
 per-file android_util_StringBlock* = file:/core/java/android/content/res/OWNERS
@@ -120,3 +121,9 @@ per-file android_tracing_Perfetto* = file:platform/development:/tools/winscope/O
 # ApplicationSharedMemory
 per-file *ApplicationSharedMemory* = file:/PERFORMANCE_OWNERS
 per-file *PropertyInvalidatedCache* = file:/PERFORMANCE_OWNERS
+
+# MessageQueue
+per-file *MessageQueue* = file:/MESSAGE_QUEUE_OWNERS
+
+# Perfetto SDK
+per-file android_os_Perfetto* = file:/PERFETTO_OWNERS

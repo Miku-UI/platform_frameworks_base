@@ -18,9 +18,14 @@ package com.android.systemui.volume.dialog.sliders.ui.viewmodel
 
 import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.volume.dialog.domain.interactor.desktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.sliders.domain.interactor.volumeDialogSliderInputEventsInteractor
 
 val Kosmos.volumeDialogOverscrollViewModel by
     Kosmos.Fixture {
-        VolumeDialogOverscrollViewModel(applicationContext, volumeDialogSliderInputEventsInteractor)
+        VolumeDialogOverscrollViewModel(
+            applicationContext,
+            volumeDialogSliderInputEventsInteractor,
+            desktopAudioTileDetailsFeatureInteractor,
+        )
     }

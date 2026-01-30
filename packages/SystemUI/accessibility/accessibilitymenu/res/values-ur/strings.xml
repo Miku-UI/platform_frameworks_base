@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"پچھلی اسکرین پر جائیں"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"اگلی اسکرین پر جائیں"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"اپنے آلے کو کنٹرول کرنے کے لیے ایکسیسبیلٹی مینیو ایک بڑا آن اسکرین مینیو فراہم کرتا ہے۔ آپ اپنا آلہ مقفل، والیوم اور چمک کو کنٹرول، اسکرین شاٹ لینے کے ساتھ اور مزید بہت کچھ کر سکتے ہیں۔"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"بڑے مینیو کے ذریعے آلہ کنٹرول کریں"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"ایک بڑے مینیو کے ساتھ والیوم، چمک اور مزید کو کنٹرول کریں"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ایکسیسبیلٹی مینیو کی ترتیبات"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"بڑے بٹنز"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"ایکسیسبیلٹی مینیو بٹنز کا سائز بڑھائیں"</string>

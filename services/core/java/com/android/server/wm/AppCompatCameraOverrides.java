@@ -19,10 +19,13 @@ package com.android.server.wm;
 import static android.content.pm.ActivityInfo.OVERRIDE_CAMERA_COMPAT_DISABLE_FORCE_ROTATION;
 import static android.content.pm.ActivityInfo.OVERRIDE_CAMERA_COMPAT_DISABLE_REFRESH;
 import static android.content.pm.ActivityInfo.OVERRIDE_CAMERA_COMPAT_DISABLE_SIMULATE_REQUESTED_ORIENTATION;
-import static android.content.pm.ActivityInfo.OVERRIDE_CAMERA_COMPAT_ENABLE_FREEFORM_WINDOWING_TREATMENT;
 import static android.content.pm.ActivityInfo.OVERRIDE_CAMERA_COMPAT_ENABLE_REFRESH_VIA_PAUSE;
 import static android.content.pm.ActivityInfo.OVERRIDE_MIN_ASPECT_RATIO_ONLY_FOR_CAMERA;
 import static android.content.pm.ActivityInfo.OVERRIDE_ORIENTATION_ONLY_FOR_CAMERA;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_ALLOW_SIMULATE_REQUESTED_ORIENTATION_FOR_CAMERA_COMPAT;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_FORCE_ROTATE_FOR_CAMERA_COMPAT;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_REFRESH_ACTIVITY_FOR_CAMERA_COMPAT;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_REFRESH_ACTIVITY_VIA_PAUSE_FOR_CAMERA_COMPAT;
 import static android.view.WindowManager.PROPERTY_CAMERA_COMPAT_ALLOW_FORCE_ROTATION;
 import static android.view.WindowManager.PROPERTY_CAMERA_COMPAT_ALLOW_SIMULATE_REQUESTED_ORIENTATION;
 import static android.view.WindowManager.PROPERTY_CAMERA_COMPAT_ALLOW_REFRESH;
@@ -33,13 +36,15 @@ import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_ATM;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_WITH_CLASS_NAME;
 import static com.android.server.wm.AppCompatUtils.isChangeEnabled;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
+import android.util.proto.ProtoOutputStream;
 import android.window.DesktopModeFlags;
 
 import com.android.server.wm.utils.OptPropFactory;
-import com.android.window.flags.Flags;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -49,6 +54,24 @@ class AppCompatCameraOverrides {
 
     private static final String TAG = TAG_WITH_CLASS_NAME
             ? "AppCompatCameraOverrides" : TAG_ATM;
+
+
+    /** There is no active or requested refresh for the activity. */
+    static final int NONE = 0;
+
+    /** A request was made for this activity to be refreshed, but it hasn't started yet. */
+    static final int REQUESTED = 1;
+
+    /** The activity is currently refreshing. */
+    static final int IN_PROGRESS = 2;
+
+    @IntDef(value = {
+            NONE,
+            REQUESTED,
+            IN_PROGRESS,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ActivityRefreshState {}
 
     @NonNull
     private final ActivityRecord mActivityRecord;
@@ -64,7 +87,7 @@ class AppCompatCameraOverrides {
     private final OptPropFactory.OptProp mCameraCompatEnableRefreshViaPauseOptProp;
     @NonNull
     private final OptPropFactory.OptProp mCameraCompatAllowForceRotationOptProp;
-    @Nullable
+    @NonNull
     private final OptPropFactory.OptProp mCameraCompatAllowOrientationTreatmentOptProp;
 
     AppCompatCameraOverrides(@NonNull ActivityRecord activityRecord,
@@ -75,21 +98,26 @@ class AppCompatCameraOverrides {
         mAppCompatCameraOverridesState = new AppCompatCameraOverridesState();
         mAllowMinAspectRatioOverrideOptProp = optPropBuilder.create(
                 PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE);
-        final BooleanSupplier isCameraCompatTreatmentEnabled = AppCompatUtils.asLazy(
-                mAppCompatConfiguration::isCameraCompatTreatmentEnabled);
+        final BooleanSupplier isCameraCompatForceRotateTreatmentEnabled = AppCompatUtils.asLazy(
+                mAppCompatConfiguration::isCameraCompatForceRotateTreatmentEnabled);
+        final BooleanSupplier isCameraCompatSimulateRequestedOrientationTreatmentEnabled =
+                AppCompatUtils.asLazy(mAppCompatConfiguration
+                        ::isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
+        final BooleanSupplier isAnyCameraCompatTreatmentEnabled = AppCompatUtils.asLazy(
+                mAppCompatConfiguration::isAnyCameraCompatTreatmentEnabled);
+
         mCameraCompatAllowRefreshOptProp = optPropBuilder.create(
                 PROPERTY_CAMERA_COMPAT_ALLOW_REFRESH,
-                isCameraCompatTreatmentEnabled);
+                isAnyCameraCompatTreatmentEnabled);
         mCameraCompatEnableRefreshViaPauseOptProp = optPropBuilder.create(
                 PROPERTY_CAMERA_COMPAT_ENABLE_REFRESH_VIA_PAUSE,
-                isCameraCompatTreatmentEnabled);
+                isAnyCameraCompatTreatmentEnabled);
         mCameraCompatAllowForceRotationOptProp = optPropBuilder.create(
                 PROPERTY_CAMERA_COMPAT_ALLOW_FORCE_ROTATION,
-                isCameraCompatTreatmentEnabled);
-        mCameraCompatAllowOrientationTreatmentOptProp =
-                Flags.enableCameraCompatForDesktopWindowingOptOut() ? optPropBuilder.create(
+                isCameraCompatForceRotateTreatmentEnabled);
+        mCameraCompatAllowOrientationTreatmentOptProp = optPropBuilder.create(
                 PROPERTY_CAMERA_COMPAT_ALLOW_SIMULATE_REQUESTED_ORIENTATION,
-                isCameraCompatTreatmentEnabled) : null;
+                isCameraCompatSimulateRequestedOrientationTreatmentEnabled);
     }
 
     /**
@@ -114,7 +142,7 @@ class AppCompatCameraOverrides {
 
     /**
      * Whether activity is eligible for activity "refresh" after camera compat force rotation
-     * treatment. See {@link DisplayRotationCompatPolicy} for context.
+     * treatment. See {@link AppCompatCameraDisplayRotationPolicy} for context.
      *
      * <p>This treatment is enabled when the following conditions are met:
      * <ul>
@@ -131,7 +159,7 @@ class AppCompatCameraOverrides {
     /**
      * Whether activity should be "refreshed" after the camera compat force rotation treatment
      * using the "resumed -> paused -> resumed" cycle rather than the "resumed -> ... -> stopped
-     * -> ... -> resumed" cycle. See {@link DisplayRotationCompatPolicy} for context.
+     * -> ... -> resumed" cycle. See {@link AppCompatCameraDisplayRotationPolicy} for context.
      *
      * <p>This treatment is enabled when the following conditions are met:
      * <ul>
@@ -149,7 +177,7 @@ class AppCompatCameraOverrides {
 
     /**
      * Whether activity is eligible for camera compat force rotation treatment. See {@link
-     * DisplayRotationCompatPolicy} for context.
+     * AppCompatCameraDisplayRotationPolicy} for context.
      *
      * <p>This treatment is enabled when the following conditions are met:
      * <ul>
@@ -177,22 +205,18 @@ class AppCompatCameraOverrides {
      * <li>Activity is opted-in using per-app override, or the treatment is enabled for all apps.
      * </ul>
      */
-    boolean shouldApplyFreeformTreatmentForCameraCompat() {
+    boolean shouldApplyCameraCompatSimReqOrientationTreatment() {
         return DesktopModeFlags.ENABLE_CAMERA_COMPAT_SIMULATE_REQUESTED_ORIENTATION.isTrue()
-                && (shouldEnableCameraCompatFreeformTreatmentForApp()
-                || shouldEnableCameraCompatFreeformTreatmentForAllApps());
+                && (shouldEnableCameraCompatSimulateRequestedOrientationTreatmentForApp()
+                || shouldForceEnableCameraCompatSimulateRequestedOrientationTreatment());
     }
 
-    private boolean shouldEnableCameraCompatFreeformTreatmentForApp() {
-        if (mCameraCompatAllowOrientationTreatmentOptProp != null) {
-            // OptProp is not-null iff the opt-out flag is on.
-            return mCameraCompatAllowOrientationTreatmentOptProp
-                    .shouldEnableWithOptOutOverrideAndProperty(isChangeEnabled(mActivityRecord,
-                            OVERRIDE_CAMERA_COMPAT_DISABLE_SIMULATE_REQUESTED_ORIENTATION));
-        } else {
-            return isChangeEnabled(mActivityRecord,
-                    OVERRIDE_CAMERA_COMPAT_ENABLE_FREEFORM_WINDOWING_TREATMENT);
-        }
+    private boolean shouldEnableCameraCompatSimulateRequestedOrientationTreatmentForApp() {
+        return mAppCompatConfiguration
+                .isCameraCompatSimulateRequestedOrientationTreatmentEnabled()
+                && mCameraCompatAllowOrientationTreatmentOptProp
+                        .shouldEnableWithOptOutOverrideAndProperty(isChangeEnabled(mActivityRecord,
+                                OVERRIDE_CAMERA_COMPAT_DISABLE_SIMULATE_REQUESTED_ORIENTATION));
     }
 
     /**
@@ -201,13 +225,29 @@ class AppCompatCameraOverrides {
      *
      * <p>This can be enabled via adb only.
      */
-    private boolean shouldEnableCameraCompatFreeformTreatmentForAllApps() {
+    private boolean shouldForceEnableCameraCompatSimulateRequestedOrientationTreatment() {
         return mActivityRecord.mWmService.mAppCompatConfiguration
-                .isCameraCompatFreeformWindowingTreatmentEnabled();
+                .isCameraCompatSimReqOrientationTreatmentForceEnabled();
     }
 
     boolean isOverrideOrientationOnlyForCameraEnabled() {
         return isChangeEnabled(mActivityRecord, OVERRIDE_ORIENTATION_ONLY_FOR_CAMERA);
+    }
+
+    /**
+     * Whether activity "refresh" was requested but not finished in {@link #activityResumedLocked}.
+     */
+    @ActivityRefreshState
+    int getActivityRefreshState() {
+        return mAppCompatCameraOverridesState.mActivityRefreshState;
+    }
+
+    /**
+     * @param refreshState Whether activity "refresh" is requested, pending (in progress), or not
+     *                    needed, in {@link #activityResumedLocked}.
+     */
+    void setActivityRefreshState(@ActivityRefreshState int refreshState) {
+        mAppCompatCameraOverridesState.mActivityRefreshState = refreshState;
     }
 
     /**
@@ -234,10 +274,26 @@ class AppCompatCameraOverrides {
                 && !mActivityRecord.shouldCreateAppCompatDisplayInsets();
     }
 
+    public void dumpDebug(@NonNull ProtoOutputStream proto) {
+        proto.write(SHOULD_FORCE_ROTATE_FOR_CAMERA_COMPAT, shouldForceRotateForCameraCompat());
+        proto.write(SHOULD_REFRESH_ACTIVITY_FOR_CAMERA_COMPAT,
+                shouldRefreshActivityForCameraCompat());
+        proto.write(SHOULD_REFRESH_ACTIVITY_VIA_PAUSE_FOR_CAMERA_COMPAT,
+                shouldRefreshActivityViaPauseForCameraCompat());
+        proto.write(SHOULD_ALLOW_SIMULATE_REQUESTED_ORIENTATION_FOR_CAMERA_COMPAT,
+                shouldApplyCameraCompatSimReqOrientationTreatment());
+    }
+
     static class AppCompatCameraOverridesState {
+        // Whether activity "refresh" was requested, in progress, or not needed, following the
+        // camera compat treatment applied by AppCompatCameraSimReqOrientationPolicy
+        // (AppCompatCameraDisplayRotationPolicy is being sunset so it is left unchanged).
+        @ActivityRefreshState
+        private int mActivityRefreshState = NONE;
+
         // Whether activity "refresh" was requested but not finished in
-        // ActivityRecord#activityResumedLocked following the camera compat force rotation in
-        // DisplayRotationCompatPolicy.
+        // ActivityRecord#activityResumedLocked following the camera compat treatment applied by
+        // AppCompatCameraDisplayRotationPolicy or AppCompatCameraSimReqOrientationPolicy.
         private boolean mIsRefreshRequested;
     }
 }

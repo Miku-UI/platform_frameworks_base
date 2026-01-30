@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Միանում է..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Միացավ <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> սարքին"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Զուգակցում..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Չհաջողվեց զուգակցել"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Չհաջողվեց միանալ"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Միացավ <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> սարքին (հեռախոս չկա)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Միացավ <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> սարքին (մեդիա չկա)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Միացավ <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> սարքին (հեռախոս կամ մեդիա չկա)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Ձախ ականջակալի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, աջ ականջակալի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>։"</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Ձախ ականջակալի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Աջ ականջակալի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Պատյանի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Ձախ սարքի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, պատյանի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Աջ սարքի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, պատյանի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Ձախ սարքի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, աջ սարքի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (ձախ), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (պատյան), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> (աջ)"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Ձախը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Աջը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Ակտիվ է"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Ակտիվ է (միայն աջ)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Ակտիվ է (ձախ և աջ)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Չհաջողվեց թարմացնել շրջակայքի կարգավիճակը"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Չհաջողվեց թարմացնել կարգավորումների հավաքածուն"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Ընտրված է"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Ակտիվ է (միայն մեդիա)։ Մարտկոցի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>։"</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Ակտիվ է (միայն մեդիա)։ Ձախ ականջակալի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, աջ ականջակալի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>։"</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Հյուրի սարք։ Մարտկոցի լիցքը՝ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>։"</string>
@@ -317,7 +326,7 @@
     <string name="bluetooth_select_map_version_dialog_title" msgid="7085934373987428460">"Ընտրել Bluetooth MAP-ի տարբերակը"</string>
     <string name="bluetooth_select_a2dp_codec_type" msgid="952001408455456494">"Bluetooth աուդիո կոդեկ"</string>
     <string name="bluetooth_select_a2dp_codec_type_dialog_title" msgid="7510542404227225545">"Գործարկել Bluetooth աուդիո կոդեկը\nԸնտրություն"</string>
-    <string name="bluetooth_select_a2dp_codec_sample_rate" msgid="1638623076480928191">"Bluetooth աուդիոյի ընդհատավորման հաճախականությունը"</string>
+    <string name="bluetooth_select_a2dp_codec_sample_rate" msgid="1638623076480928191">"Bluetooth աուդիո սեմփլինգի հաճախականությունը"</string>
     <string name="bluetooth_select_a2dp_codec_sample_rate_dialog_title" msgid="5876305103137067798">"Գործարկել Bluetooth աուդիո կոդեկը\nԸնտրություն՝ ընդհատավորման հաճախականություն"</string>
     <string name="bluetooth_select_a2dp_codec_type_help_info" msgid="8647200416514412338">"Եթե տարրը մոխրագույն է, նշանակում է, որ չի աջակցվում հեռախոսի համ ականջակալի կողմից։"</string>
     <string name="bluetooth_select_a2dp_codec_bits_per_sample" msgid="6253965294594390806">"Bluetooth աուդիո, բիթ / նմուշ"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Երբ այս ռեժիմը միացված է, MAC հասցեն կարող է փոխվել ամեն անգամ, երբ սարքը միանա որևէ ցանցի, որում միացված է MAC հասցեների պատահական ընտրությունը։"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Վճարովի թրաֆիկ"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Անսահմանափակ թրաֆիկ"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Մատյանի բուֆերի չափերը"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Մատյանի բուֆերի չափ"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Ընտրեք տեղեկամատյանի չափը մեկ պահնակի համար"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Ջնջե՞լ մատյանի մշտական հիշողությունը:"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Մշտական տվյալների գրանցման մատյանի միջոցով վերահսկողությունը դադարեցնելու դեպքում մենք պարտավոր ենք ջնջել մատյանի տվյալները, որոնք պահվում են ձեր սարքում:"</string>
@@ -363,7 +372,7 @@
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Ստուգել հավելվածները USB-ի նկատմամբ"</string>
     <string name="verify_apps_over_usb_summary" msgid="1317933737581167839">"Ստուգել հավելվածների անվտանգությունը ADB/ADT-ի միջոցով տեղադրված լինելու դեպքում։"</string>
     <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"Bluetooth սարքերը կցուցադրվեն առանց անունների (միայն MAC հասցեները)"</string>
-    <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"Կասեցնում է Bluetooth-ի ձայնի բացարձակ ուժգնության գործառույթը՝ հեռավոր սարքերի հետ ձայնի ուժգնությանը վերաբերող խնդիրներ ունենալու դեպքում (օրինակ, երբ ձայնի ուժգնությունն անընդունելի է կամ դրա կառավարումը հնարավոր չէ):"</string>
+    <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"Կասեցնում է Bluetooth-ի ձայնի բացարձակ ուժգնության գործառույթը՝ հեռավոր սարքերի հետ ձայնի ուժգնությանը վերաբերող խնդիրներ ունենալու դեպքում (օրինակ՝ երբ ձայնի ուժգնությունն անընդունելի է, կամ դրա կառավարումը հնարավոր չէ):"</string>
     <string name="bluetooth_enable_gabeldorsche_summary" msgid="2054730331770712629">"Միացնել Bluetooth Gabeldorsche գործառույթի զտիչը"</string>
     <string name="enhanced_connectivity_summary" msgid="1576414159820676330">"Միացնում է «Տվյալների լավացված փոխանակում» գործառույթը։"</string>
     <string name="enable_terminal_title" msgid="3834790541986303654">"Տեղային տերմինալ"</string>
@@ -388,7 +397,7 @@
     <string name="debug_monitoring_category" msgid="1597387133765424994">"Մշտադիտարկում"</string>
     <string name="window_management_category" msgid="2015535427098365170">"Պատուհանների կառավարում"</string>
     <string name="strict_mode" msgid="889864762140862437">"Խիստ ռեժիմն ակտիվացված է"</string>
-    <string name="strict_mode_summary" msgid="1838248687233554654">"Լուսավորել էկրանը` ծրագրի գլխավոր շղթայի վրա երկար աշխատելիս"</string>
+    <string name="strict_mode_summary" msgid="1838248687233554654">"Լուսավորել էկրանը՝ ծրագրի գլխավոր շղթայի վրա երկար աշխատելիս"</string>
     <string name="pointer_location" msgid="7516929526199520173">"Նշորդի տեղադրությունը"</string>
     <string name="pointer_location_summary" msgid="957120116989798464">"Էկրանի վերադրումը ցույց է տալիս ընթացիկ հպման տվյալները"</string>
     <string name="show_touches" msgid="8437666942161289025">"Ցույց տալ հպումները"</string>
@@ -408,8 +417,8 @@
     <string name="disable_overlays_summary" msgid="1954852414363338166">"Միշտ օգտագործել GPU-ն՝ էկրանի կազմման համար"</string>
     <string name="simulate_color_space" msgid="1206503300335835151">"Նմանակել գունատարածքը"</string>
     <string name="enable_opengl_traces_title" msgid="4638773318659125196">"Ակտիվացնել OpenGL հետքերը"</string>
-    <string name="usb_audio_disable_routing" msgid="3367656923544254975">"Անջատել USB աուդիո երթուղումը"</string>
-    <string name="usb_audio_disable_routing_summary" msgid="8768242894849534699">"Անջատել ավտոմատ երթուղումը դեպի USB աուդիո սարքեր"</string>
+    <string name="usb_audio_disable_routing" msgid="3367656923544254975">"Անջատել USB աուդիո երթուղավորումը"</string>
+    <string name="usb_audio_disable_routing_summary" msgid="8768242894849534699">"Անջատել ավտոմատ երթուղավորումը դեպի USB աուդիո սարքեր"</string>
     <string name="debug_layout" msgid="1659216803043339741">"Ցույց տալ տարրերի չափերը"</string>
     <string name="debug_layout_summary" msgid="8825829038287321978">"Ցույց տալ կտրվածքի սահմանները, լուսանցքները և այլն"</string>
     <string name="force_rtl_layout_all_locales" msgid="8690762598501599796">"Ուղղությունը դարձնել RTL"</string>
@@ -434,7 +443,7 @@
     <string name="window_animation_scale_title" msgid="5236381298376812508">"Պատուհանի շարժապատկեր"</string>
     <string name="transition_animation_scale_title" msgid="1278477690695439337">"Անցումների շարժապատկեր"</string>
     <string name="animator_duration_scale_title" msgid="7082913931326085176">"Շարժանկարի տևողության սանդղակ"</string>
-    <string name="overlay_display_devices_title" msgid="5411894622334469607">"Կրկնաստեղծել երկրորդական էկրան"</string>
+    <string name="overlay_display_devices_title" msgid="5411894622334469607">"Երկրորդական էկրանների նմանակում"</string>
     <string name="shade_display_awareness_title" msgid="8000009404669495876">"Երանգի ցուցադրման դիրքը"</string>
     <string name="debug_applications_category" msgid="5394089406638954196">"Հավելվածներ"</string>
     <string name="immediately_destroy_activities" msgid="1826287490705167403">"Չպահել գործողությունները"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> առաջ"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Մնացել է <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Ամենափոքր"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Ավելի փոքր"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Փոքր"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Կանխադրված"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Մեծ"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Ավելի մեծ"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Ամենամեծ"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Ավելի մեծ"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Շատ մեծ"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Գերմեծ"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Ամենամեծ"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Հատուկ (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Ընտրացանկ"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Մուտքագրեք գաղտնաբառը՝ ցուցադրական ռեժիմում գործարանային կարգավորումների վերականգնում կատարելու համար"</string>
@@ -565,7 +578,7 @@
     <string name="use_system_language_to_select_input_method_subtypes" msgid="4865195835541387040">"Օգտագործել համակարգի լեզուները"</string>
     <string name="failed_to_open_app_settings_toast" msgid="764897252657692092">"Չստացվեց ցույց տալ <xliff:g id="SPELL_APPLICATION_NAME">%1$s</xliff:g>-ի տվյալները"</string>
     <string name="ime_security_warning" msgid="6547562217880551450">"Այս ներմուծման եղանակը հնարավորություն է տալիս հավաքել ձեր մուտքագրած ողջ տեքստը՝ ընդգրկելով անձնական տեղեկություններ, ինչպես գաղտնաբառն ու բանկային քարտի համարները: Սկզբնաղբյուրը <xliff:g id="IME_APPLICATION_NAME">%1$s</xliff:g> հավելվածն է: Կիրառե՞լ այս եղանակը:"</string>
-    <string name="direct_boot_unaware_dialog_message" msgid="7845398276735021548">"Ուշադրություն. Վերաբեռնումից հետո այս հավելվածը չի գործարկվի մինչև չապակողպեք հեռախոսը"</string>
+    <string name="direct_boot_unaware_dialog_message" msgid="7845398276735021548">"Ուշադրություն. վերաբեռնումից հետո այս հավելվածը չի գործարկվի, մինչև չապակողպեք սարքը"</string>
     <string name="ims_reg_title" msgid="8197592958123671062">"IMS ծառայության գրանցման կարգավիճակը"</string>
     <string name="ims_reg_status_registered" msgid="884916398194885457">"Գրանցված է"</string>
     <string name="ims_reg_status_not_registered" msgid="2989287366045704694">"Գրանցված չէ"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{Միացած է 1 սարք}one{Միացած է # սարք}other{Միացած է # սարք}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Ավելացնել ժամանակը:"</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Պակասեցնել ժամանակը:"</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Խոշորացում"</string>
     <string name="cancel" msgid="5665114069455378395">"Չեղարկել"</string>
     <string name="next" msgid="2699398661093607009">"Առաջ"</string>
     <string name="back" msgid="5554327870352703710">"Հետ"</string>
@@ -607,7 +621,7 @@
     <string name="media_transfer_this_device_name_tv" msgid="8508713779441163887">"Այս հեռուստացույցը"</string>
     <string name="media_transfer_dock_speaker_device_name" msgid="2856219597113881950">"Դոկ-կայանով բարձրախոս"</string>
     <string name="media_transfer_external_device_name" msgid="2588672258721846418">"Արտաքին սարք"</string>
-    <string name="media_transfer_default_device_name" msgid="4315604017399871828">"Միացված սարք"</string>
+    <string name="media_transfer_default_device_name" msgid="4315604017399871828">"Կապակցված սարք"</string>
     <string name="media_transfer_this_phone" msgid="7194341457812151531">"Այս հեռախոսը"</string>
     <string name="media_transfer_digital_line_name" msgid="312091711951124301">"S/PDIF"</string>
     <string name="media_transfer_analog_line_name" msgid="1841163866716302104">"Անալոգային"</string>
@@ -666,7 +680,7 @@
     <string name="profile_info_settings_title" msgid="105699672534365099">"Պրոֆիլի տեղեկություններ"</string>
     <string name="user_need_lock_message" msgid="4311424336209509301">"Նախքան դուք կկարողանաք ստեղծել սահմանափակ պրոֆիլ, դուք պետք է կարգավորեք էկրանի կողպումը` ձեր ծրագրերը և անձնական տվյալները պաշտպանելու համար:"</string>
     <string name="user_set_lock_button" msgid="1427128184982594856">"Կարգավորել կողպումը"</string>
-    <string name="user_switch_to_user" msgid="6975428297154968543">"Անցնել <xliff:g id="USER_NAME">%s</xliff:g> պրոֆիլին"</string>
+    <string name="user_switch_to_user" msgid="6975428297154968543">"Մուտք գործել որպես <xliff:g id="USER_NAME">%s</xliff:g>"</string>
     <string name="creating_new_user_dialog_message" msgid="7232880257538970375">"Ստեղծվում է օգտատիրոջ նոր պրոֆիլ…"</string>
     <string name="creating_new_guest_dialog_message" msgid="1114905602181350690">"Նոր հյուրի ստեղծում…"</string>
     <string name="add_user_failed" msgid="4809887794313944872">"Չհաջողվեց ստեղծել նոր օգտատեր"</string>
@@ -689,7 +703,7 @@
     <string name="grant_admin" msgid="4323199171790522574">"Այո, տրամադրել ադմինիստրատորի իրավունքներ"</string>
     <string name="not_grant_admin" msgid="3557849576157702485">"Ոչ, չտրամադրել ադմինիստրատորի իրավունքներ"</string>
     <string name="guest_exit_dialog_button" msgid="1736401897067442044">"Դուրս գալ"</string>
-    <string name="guest_exit_dialog_title_non_ephemeral" msgid="7675327443743162986">"Պահե՞լ հյուրի ռեժիմի պատմությունը"</string>
+    <string name="guest_exit_dialog_title_non_ephemeral" msgid="7675327443743162986">"Պահե՞լ աշխատաշրջանի պատմությունը"</string>
     <string name="guest_exit_dialog_message_non_ephemeral" msgid="223385323235719442">"Պահեք ընթացիկ աշխատաշրջանի պատմությունը կամ ջնջեք հավելվածներն ու տվյալները"</string>
     <string name="guest_exit_clear_data_button" msgid="3425812652180679014">"Ջնջել"</string>
     <string name="guest_exit_save_data_button" msgid="3690974510644963547">"Պահել"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Եթե հեռարձակեք <xliff:g id="SWITCHAPP">%1$s</xliff:g> հավելվածը կամ փոխեք աուդիո ելքը, ձեր ընթացիկ հեռարձակումը կկանգնեցվի։"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Հեռարձակել <xliff:g id="SWITCHAPP">%1$s</xliff:g> հավելվածը"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Փոխել աուդիո ելքը"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"«Հետ» ժեստի հուշման շարժանկարներ"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Միացնել համակարգի անիմացիաները «Հետ» ժեստի հուշման համար"</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Այս կարգավորման միջոցով կարելի է միացնել համակարգային շարժանկարները ժեստի հուշման համար։ Կարգավորումը պահանջում է մանիֆեստի ֆայլում սահմանել true արժեքը per-app enableOnBackInvokedCallback հատկության համար։"</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Նշված չէ"</string>
     <string name="neuter" msgid="2075249330106127310">"Չեզոք"</string>

@@ -17,8 +17,6 @@
 package com.android.systemui.qs.tiles.impl.battery.doman.interactor
 
 import android.os.UserHandle
-import android.platform.test.annotations.EnabledOnRavenwood
-import android.testing.LeakCheck
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -26,8 +24,10 @@ import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
 import com.android.systemui.qs.tiles.impl.battery.domain.interactor.BatterySaverTileDataInteractor
+import com.android.systemui.statusbar.pipeline.battery.data.repository.batteryRepository
+import com.android.systemui.statusbar.policy.batteryController
+import com.android.systemui.statusbar.policy.fake
 import com.android.systemui.testKosmos
-import com.android.systemui.utils.leaks.FakeBatteryController
 import com.google.common.truth.Truth
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toCollection
@@ -37,15 +37,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class BatterySaverTileDataInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
-    private val batteryController = FakeBatteryController(LeakCheck())
+    private val batteryController = kosmos.batteryController.fake
     private val testUser = UserHandle.of(1)
-    private val underTest =
-        BatterySaverTileDataInteractor(testScope.testScheduler, batteryController)
+    private val underTest = BatterySaverTileDataInteractor(kosmos.batteryRepository)
 
     @Test
     fun availability_isTrue() =
@@ -87,11 +85,11 @@ class BatterySaverTileDataInteractorTest : SysuiTestCase() {
             runCurrent()
             Truth.assertThat(data!!.isPluggedIn).isFalse()
 
-            batteryController.isPluggedIn = true
+            batteryController.fake._isPluggedIn = true
             runCurrent()
             Truth.assertThat(data!!.isPluggedIn).isTrue()
 
-            batteryController.isPluggedIn = false
+            batteryController.fake._isPluggedIn = false
             runCurrent()
             Truth.assertThat(data!!.isPluggedIn).isFalse()
         }

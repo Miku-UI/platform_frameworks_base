@@ -287,10 +287,10 @@ public class RemoteViewsAdapterTest {
         latch.await(20, TimeUnit.SECONDS);
     }
 
-    private static class ViewsFactory extends IRemoteViewsFactory.Stub {
+    public static class ViewsFactory extends IRemoteViewsFactory.Stub {
 
         public LockedValue<RemoteViews> loadingView = new LockedValue<>();
-        public LockedValue<RemoteViews>[] views;
+        public final LockedValue<RemoteViews>[] views;
 
         private int mCount;
 
@@ -356,7 +356,7 @@ public class RemoteViewsAdapterTest {
 
         @Override
         public RemoteViews.RemoteCollectionItems getRemoteCollectionItems(int capSize,
-                int capBitmapSize) {
+                int capBitmapSize, boolean invalidateData) throws RemoteException {
             RemoteViews.RemoteCollectionItems.Builder itemsBuilder =
                     new RemoteViews.RemoteCollectionItems.Builder();
             itemsBuilder.setHasStableIds(hasStableIds())
@@ -381,7 +381,7 @@ public class RemoteViewsAdapterTest {
         }
     }
 
-    private static class LockedValue<T> {
+    public static class LockedValue<T> {
 
         private final CountDownLatch mLatch = new CountDownLatch(1);
         private T mValue;

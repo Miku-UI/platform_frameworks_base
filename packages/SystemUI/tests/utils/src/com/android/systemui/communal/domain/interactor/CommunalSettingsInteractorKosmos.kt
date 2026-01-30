@@ -22,6 +22,7 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.process.domain.interactor.processInteractor
 import com.android.systemui.settings.userTracker
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
 
@@ -32,6 +33,7 @@ val Kosmos.communalSettingsInteractor by Fixture {
         bgDispatcher = testDispatcher,
         repository = communalSettingsRepository,
         userInteractor = selectedUserInteractor,
+        processInteractor = processInteractor,
         userTracker = userTracker,
     )
 }

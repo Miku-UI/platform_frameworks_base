@@ -111,14 +111,14 @@ public final class UsageStatsManager {
     /**
      * The number of available intervals. Does not include {@link #INTERVAL_BEST}, since it
      * is a pseudo interval (it actually selects a real interval).
-     * {@hide}
+     * @hide
      */
     public static final int INTERVAL_COUNT = 4;
 
 
     /**
      * The app is exempted for some reason and the bucket cannot be changed.
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int STANDBY_BUCKET_EXEMPTED = 5;
@@ -169,7 +169,7 @@ public final class UsageStatsManager {
 
     /**
      * The app has never been used.
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int STANDBY_BUCKET_NEVER = 50;
@@ -443,7 +443,7 @@ public final class UsageStatsManager {
     private final IUsageStatsManager mService;
 
     /**
-     * {@hide}
+     * @hide
      */
     public UsageStatsManager(Context context, IUsageStatsManager service) {
         mContext = context;
@@ -460,7 +460,6 @@ public final class UsageStatsManager {
      * period.
      * </p>
      *
-     * <p> The caller must have {@link android.Manifest.permission#PACKAGE_USAGE_STATS} </p>
      * <em>Note: Starting from {@link android.os.Build.VERSION_CODES#R Android R}, if the user's
      * device is not in an unlocked state (as defined by {@link UserManager#isUserUnlocked()}),
      * then {@code null} will be returned.</em>
@@ -480,6 +479,7 @@ public final class UsageStatsManager {
      * @see #INTERVAL_BEST
      */
     @UserHandleAware
+    @RequiresPermission(android.Manifest.permission.PACKAGE_USAGE_STATS)
     public List<UsageStats> queryUsageStats(int intervalType, long beginTime, long endTime) {
         try {
             @SuppressWarnings("unchecked")
@@ -498,7 +498,7 @@ public final class UsageStatsManager {
      * Gets the hardware configurations the device was in for the given time range, aggregated by
      * the specified interval. The results are ordered as in
      * {@link #queryUsageStats(int, long, long)}.
-     * <p> The caller must have {@link android.Manifest.permission#PACKAGE_USAGE_STATS} </p>
+     *
      * <em>Note: Starting from {@link android.os.Build.VERSION_CODES#R Android R}, if the user's
      * device is not in an unlocked state (as defined by {@link UserManager#isUserUnlocked()}),
      * then {@code null} will be returned.</em>
@@ -511,6 +511,7 @@ public final class UsageStatsManager {
      *                in terms of "Unix time", see {@link java.lang.System#currentTimeMillis}.
      * @return A list of {@link ConfigurationStats}
      */
+    @RequiresPermission(android.Manifest.permission.PACKAGE_USAGE_STATS)
     public List<ConfigurationStats> queryConfigurations(int intervalType, long beginTime,
             long endTime) {
         try {
@@ -539,7 +540,6 @@ public final class UsageStatsManager {
      *     <li>{@link UsageEvents.Event#KEYGUARD_HIDDEN}</li>
      * </ul>
      *
-     * <p> The caller must have {@link android.Manifest.permission#PACKAGE_USAGE_STATS} </p>
      * <em>Note: Starting from {@link android.os.Build.VERSION_CODES#R Android R}, if the user's
      * device is not in an unlocked state (as defined by {@link UserManager#isUserUnlocked()}),
      * then {@code null} will be returned.</em>
@@ -558,6 +558,7 @@ public final class UsageStatsManager {
      * @see #INTERVAL_YEARLY
      * @see #INTERVAL_BEST
      */
+    @RequiresPermission(android.Manifest.permission.PACKAGE_USAGE_STATS)
     public List<EventStats> queryEventStats(int intervalType, long beginTime, long endTime) {
         try {
             @SuppressWarnings("unchecked")
@@ -575,7 +576,7 @@ public final class UsageStatsManager {
     /**
      * Query for events in the given time range. Events are only kept by the system for a few
      * days.
-     * <p> The caller must have {@link android.Manifest.permission#PACKAGE_USAGE_STATS} </p>
+     *
      * <em>Note: Starting from {@link android.os.Build.VERSION_CODES#R Android R}, if the user's
      * device is not in an unlocked state (as defined by {@link UserManager#isUserUnlocked()}),
      * then {@code null} will be returned.</em>
@@ -586,7 +587,14 @@ public final class UsageStatsManager {
      * @param endTime The exclusive end of the range of events to include in the results. Defined
      *                in terms of "Unix time", see {@link java.lang.System#currentTimeMillis}.
      * @return A {@link UsageEvents}.
+     * @deprecated Use {@link #queryEvents(UsageEventsQuery)} instead because it allows a caller to
+     * filter the results by event types and packages they're interested in.
+     * Future Android versions may no longer support this API due to performance and memory
+     * concerns.
      */
+    @FlaggedApi(Flags.FLAG_DEPRECATE_OLD_QUERY_EVENTS_API)
+    @Deprecated
+    @RequiresPermission(android.Manifest.permission.PACKAGE_USAGE_STATS)
     public UsageEvents queryEvents(long beginTime, long endTime) {
         try {
             UsageEvents iter = mService.queryEvents(beginTime, endTime,
@@ -656,7 +664,6 @@ public final class UsageStatsManager {
      * A convenience method that queries for all stats in the given range (using the best interval
      * for that range), merges the resulting data, and keys it by package name.
      * See {@link #queryUsageStats(int, long, long)}.
-     * <p> The caller must have {@link android.Manifest.permission#PACKAGE_USAGE_STATS} </p>
      *
      * @param beginTime The inclusive beginning of the range of stats to include in the results.
      *                  Defined in terms of "Unix time", see
@@ -665,6 +672,7 @@ public final class UsageStatsManager {
      *                in terms of "Unix time", see {@link java.lang.System#currentTimeMillis}.
      * @return A {@link java.util.Map} keyed by package name
      */
+    @RequiresPermission(android.Manifest.permission.PACKAGE_USAGE_STATS)
     public Map<String, UsageStats> queryAndAggregateUsageStats(long beginTime, long endTime) {
         List<UsageStats> stats = queryUsageStats(INTERVAL_BEST, beginTime, endTime);
         if (stats.isEmpty()) {
@@ -721,7 +729,7 @@ public final class UsageStatsManager {
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     public void setAppInactive(String packageName, boolean inactive) {
         try {
@@ -761,9 +769,9 @@ public final class UsageStatsManager {
     }
 
     /**
-     * {@hide}
-     * Returns the current standby bucket of the specified app. The caller must hold the permission
-     * android.permission.PACKAGE_USAGE_STATS.
+     * @hide
+     * Returns the current standby bucket of the specified app.
+     *
      * @param packageName the package for which to fetch the current standby bucket.
      */
     @SystemApi
@@ -778,7 +786,7 @@ public final class UsageStatsManager {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Changes an app's standby bucket to the provided value. The caller can only set the standby
      * bucket for a different app than itself. The caller will not be able to change an app's
      * standby bucket if that app is in the {@link #STANDBY_BUCKET_RESTRICTED} bucket.
@@ -799,10 +807,9 @@ public final class UsageStatsManager {
     }
 
     /**
-     * {@hide}
-     * Returns the current standby bucket of every app that has a bucket assigned to it.
-     * The caller must hold the permission android.permission.PACKAGE_USAGE_STATS. The key of the
-     * returned Map is the package name and the value is the bucket assigned to the package.
+     * @hide
+     * Returns the current standby bucket of every app that has a bucket assigned to it. The key
+     * of the returned Map is the package name and the value is the bucket assigned to the package.
      * @see #getAppStandbyBucket()
      */
     @SystemApi
@@ -825,7 +832,7 @@ public final class UsageStatsManager {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Changes the app standby bucket for multiple apps at once. The Map is keyed by the package
      * name and the value is one of STANDBY_BUCKET_*. The caller will not be able to change an
      * app's standby bucket if that app is in the {@link #STANDBY_BUCKET_RESTRICTED} bucket.
@@ -853,7 +860,7 @@ public final class UsageStatsManager {
      * Return the lowest bucket this app can ever enter.
      *
      * @param packageName the package for which to fetch the minimum allowed standby bucket.
-     * {@hide}
+     * @hide
      */
     @StandbyBuckets
     @RequiresPermission(android.Manifest.permission.PACKAGE_USAGE_STATS)
@@ -1292,6 +1299,11 @@ public final class UsageStatsManager {
     }
 
     /** @hide */
+    public static int getMainReason(int standbyReason) {
+        return (standbyReason & REASON_MAIN_MASK);
+    }
+
+    /** @hide */
     public static String reasonToString(int standbyReason) {
         final int subReason = standbyReason & REASON_SUB_MASK;
         StringBuilder sb = new StringBuilder();
@@ -1426,7 +1438,7 @@ public final class UsageStatsManager {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Temporarily allowlist the specified app for a short duration. This is to allow an app
      * receiving a high priority message to be able to access the network and acquire wakelocks
      * even if the device is in power-save mode or the app is currently considered inactive.

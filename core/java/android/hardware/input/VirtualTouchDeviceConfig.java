@@ -34,12 +34,16 @@ abstract class VirtualTouchDeviceConfig extends VirtualInputDeviceConfig {
 
     VirtualTouchDeviceConfig(@NonNull Builder<? extends Builder<?>> builder) {
         super(builder);
+        checkForAssociatedDisplay();
+
         mWidth = builder.mWidth;
         mHeight = builder.mHeight;
     }
 
     VirtualTouchDeviceConfig(@NonNull Parcel in) {
         super(in);
+        checkForAssociatedDisplay();
+
         mWidth = in.readInt();
         mHeight = in.readInt();
     }

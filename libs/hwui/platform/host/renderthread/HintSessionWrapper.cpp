@@ -39,9 +39,11 @@ void HintSessionWrapper::updateTargetWorkDuration(long targetWorkDurationNanos) 
 
 void HintSessionWrapper::reportActualWorkDuration(long actualDurationNanos) {}
 
-void HintSessionWrapper::sendLoadResetHint() {}
+void HintSessionWrapper::sendCpuLoadResetHint() {}
 
-void HintSessionWrapper::sendLoadIncreaseHint() {}
+void HintSessionWrapper::sendCpuLoadIncreaseHint() {}
+
+void HintSessionWrapper::sendGpuLoadIncreaseHint() {}
 
 bool HintSessionWrapper::alive() {
     return false;

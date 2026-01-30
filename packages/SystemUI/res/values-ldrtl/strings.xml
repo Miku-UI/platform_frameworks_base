@@ -19,4 +19,16 @@
 <resources>
     <!-- Recents: Text that shows above the navigation bar after launching several apps. [CHAR LIMIT=NONE] -->
     <string name="recents_quick_scrub_onboarding">Drag left to quickly switch apps</string>
+
+    <!--
+    Content of user education tooltip shown to teach the user that they can swipe down from the top
+    right edge of the display to expand the notification shade panel.
+    -->
+    <string name="dual_shade_educational_tooltip_notifs">Swipe from the top right to open notifications</string>
+
+    <!--
+    Content of user education tooltip shown to teach the user that they can swipe down from the top
+    left edge of the display to expand the Quick Settings shade panel.
+    -->
+    <string name="dual_shade_educational_tooltip_qs">Swipe from the top left to open Quick Settings</string>
 </resources>

@@ -22,6 +22,7 @@ import android.content.ComponentName;
 import android.hardware.fingerprint.IUdfpsRefreshRateRequestCallback;
 import android.inputmethodservice.InputMethodService.BackDispositionMode;
 import android.inputmethodservice.InputMethodService.ImeWindowVisibility;
+import android.media.session.MediaSession;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.UserHandle;
@@ -261,10 +262,13 @@ public interface StatusBarManagerInternal {
     /**
      * Shows the media output switcher dialog.
      *
-     * @param targetPackageName of the session for which the output switcher is shown.
+     * @param targetPackageName The package name for which to show the output switcher.
+     * @param targetUserHandle The UserHandle on which the output switcher should run.
+     * @param sessionToken An optional specific MediaSession to use instead of the default.
      * @see com.android.internal.statusbar.IStatusBar#showMediaOutputSwitcher
      */
-    void showMediaOutputSwitcher(String targetPackageName, UserHandle targetUserHandle);
+    void showMediaOutputSwitcher(String targetPackageName, UserHandle targetUserHandle,
+            @Nullable MediaSession.Token sessionToken);
 
     /**
      * Add a tile to the Quick Settings Panel

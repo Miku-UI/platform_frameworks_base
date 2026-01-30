@@ -23,19 +23,23 @@
 #include "native/core/gl_env.h"
 #include <media/mediarecorder.h>
 
-#include <gui/IGraphicBufferProducer.h>
+#include <gui/Flags.h> // Remove with MediaSurfaceType and WB_MEDIA_MIGRATION.
+
 #include <gui/Surface.h>
+#include <gui/view/Surface.h>
 #include <utils/Errors.h>
 #include <system/window.h>
-
 
 using android::filterfw::GLEnv;
 using android::filterfw::WindowHandle;
 using android::MediaRecorder;
 using android::sp;
-using android::IGraphicBufferProducer;
 using android::Surface;
 
+#if not COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+#include <gui/IGraphicBufferProducer.h>
+using android::IGraphicBufferProducer;
+#endif
 
 class NativeWindowHandle : public WindowHandle {
   public:
@@ -285,16 +289,25 @@ jint Java_android_filterfw_core_GLEnvironment_nativeAddSurfaceFromMediaRecorder(
     // Ask the mediarecorder to return a handle to a surfacemediasource
     // This will talk to the StageFrightRecorder via MediaRecorderClient
     // over binder calls
+
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+    sp<Surface> surfaceTC = mr->querySurfaceMediaSourceFromMediaServer();
+    if (surfaceTC == nullptr) {
+        ALOGE("GLEnvironment: Error- MediaRecorder returned a null \
+                <IGraphicBufferProducer> handle.");
+        return -1;
+    }
+#else
     sp<IGraphicBufferProducer> surfaceMS = mr->querySurfaceMediaSourceFromMediaServer();
     if (surfaceMS == NULL) {
-      ALOGE("GLEnvironment: Error- MediaRecorder returned a null \
-              <IGraphicBufferProducer> handle.");
-      return -1;
+        ALOGE("GLEnvironment: Error- MediaRecorder returned a null \
+                <IGraphicBufferProducer> handle.");
+        return -1;
     }
     sp<Surface> surfaceTC = new Surface(surfaceMS);
+#endif
     // Get the ANativeWindow
     sp<ANativeWindow> window = surfaceTC;
-
 
     if (window == NULL) {
       ALOGE("GLEnvironment: Error creating window!");

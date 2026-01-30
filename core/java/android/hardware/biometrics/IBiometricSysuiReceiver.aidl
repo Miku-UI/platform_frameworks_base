@@ -32,4 +32,8 @@ oneway interface IBiometricSysuiReceiver {
     void onDialogAnimatedIn(boolean startFingerprintNow);
     // Notifies that the fingerprint should start now (after onDialogAnimatedIn(false)).
     void onStartFingerprintNow();
+    // Notifies that authentication should be paused
+    void onPauseAuthentication();
+    // Notifies that authentication should resume
+    void onResumeAuthentication();
 }

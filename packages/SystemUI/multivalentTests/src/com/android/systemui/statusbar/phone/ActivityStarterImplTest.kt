@@ -18,15 +18,12 @@ package com.android.systemui.statusbar.phone
 
 import android.app.PendingIntent
 import android.content.Intent
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.shared.Flags as SharedFlags
 import com.android.systemui.statusbar.SysuiStatusBarStateController
 import com.android.systemui.testKosmos
 import com.android.systemui.util.concurrency.FakeExecutor
@@ -40,9 +37,7 @@ import org.mockito.Mock
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
-import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
-import org.mockito.kotlin.never
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -66,10 +61,6 @@ class ActivityStarterImplTest : SysuiTestCase() {
             )
     }
 
-    @EnableFlags(
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LIBRARY,
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LONG_LIVED,
-    )
     @EnableSceneContainer
     @Test
     fun registerTransition_forwardsTheRequest() {
@@ -87,29 +78,6 @@ class ActivityStarterImplTest : SysuiTestCase() {
         }
     }
 
-    @DisableFlags(
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LIBRARY,
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LONG_LIVED,
-    )
-    @Test
-    fun registerTransition_doesNotForwardTheRequest_whenFlaggedOff() {
-        with(kosmos) {
-            testScope.runTest {
-                val cookie = mock(ActivityTransitionAnimator.TransitionCookie::class.java)
-                val controllerFactory =
-                    mock(ActivityTransitionAnimator.ControllerFactory::class.java)
-
-                underTest.registerTransition(cookie, controllerFactory, testScope)
-
-                verify(activityStarterInternal, never()).registerTransition(any(), any(), any())
-            }
-        }
-    }
-
-    @EnableFlags(
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LIBRARY,
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LONG_LIVED,
-    )
     @EnableSceneContainer
     @Test
     fun unregisterTransition_forwardsTheRequest() {
@@ -118,19 +86,6 @@ class ActivityStarterImplTest : SysuiTestCase() {
         underTest.unregisterTransition(cookie)
 
         verify(activityStarterInternal).unregisterTransition(eq(cookie))
-    }
-
-    @DisableFlags(
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LIBRARY,
-        SharedFlags.FLAG_RETURN_ANIMATION_FRAMEWORK_LONG_LIVED,
-    )
-    @Test
-    fun unregisterTransition_doesNotForwardTheRequest_whenFlaggedOff() {
-        val cookie = mock(ActivityTransitionAnimator.TransitionCookie::class.java)
-
-        underTest.unregisterTransition(cookie)
-
-        verify(activityStarterInternal, never()).unregisterTransition(any())
     }
 
     @Test

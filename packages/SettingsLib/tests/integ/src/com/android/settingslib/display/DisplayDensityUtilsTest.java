@@ -49,9 +49,14 @@ import org.mockito.MockitoAnnotations;
 @RunWith(AndroidJUnit4.class)
 public class DisplayDensityUtilsTest {
 
-    private static final float MAX_SCALE = 1.33f;
-    private static final float MIN_SCALE = 0.85f;
+    private static final float MAX_SCALE_INTERNAL = 1.33f;
+    private static final float MIN_SCALE_INTERNAL = 0.85f;
     private static final float MIN_INTERVAL = 0.09f;
+
+    private static final float MAX_SCALE_EXTERNAL = 1.5f;
+    private static final float MIN_SCALE_EXTERNAL = 0.8f;
+    private static final float MAX_SCALE_EXTERNAL_EXTENDED = 2f;
+    private static final float MIN_SCALE_EXTERNAL_EXTENDED = 0.5f;
     @Mock
     private Context mContext;
     @Mock
@@ -72,10 +77,10 @@ public class DisplayDensityUtilsTest {
         mWindowManagerToRestore = WindowManagerGlobal.getWindowManagerService();
         WindowManagerGlobal.setWindowManagerServiceForSystemProcess(mIWindowManager);
         when(mContext.getResources()).thenReturn(mResources);
-        when(mResources.getFraction(R.fraction.display_density_max_scale, 1, 1)).thenReturn(
-                MAX_SCALE);
-        when(mResources.getFraction(R.fraction.display_density_min_scale, 1, 1)).thenReturn(
-                MIN_SCALE);
+        when(mResources.getFraction(R.fraction.display_density_max_scale, 1, 1))
+                .thenReturn(MAX_SCALE_INTERNAL);
+        when(mResources.getFraction(R.fraction.display_density_min_scale, 1, 1))
+                .thenReturn(MIN_SCALE_INTERNAL);
         when(mResources.getFraction(R.fraction.display_density_min_scale_interval, 1,
                 1)).thenReturn(MIN_INTERVAL);
         when(mResources.getString(anyInt())).thenReturn("summary");
@@ -88,8 +93,8 @@ public class DisplayDensityUtilsTest {
 
     @Test
     public void createDisplayDensityUtil_onlyDefaultDisplay() throws RemoteException {
-        var info = createDisplayInfoForDisplay(
-                Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL, 2560, 1600, 320);
+        var info = createDisplayInfoForDisplay(Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL,
+                2560, 1600, 320, /* isSizeMissing= */ false);
         var display = new Display(mDisplayManagerGlobal, info.displayId, info,
                 (DisplayAdjustments) null);
         doReturn(new Display[]{display}).when(mDisplayManager).getDisplays(any());
@@ -104,7 +109,7 @@ public class DisplayDensityUtilsTest {
     public void createDisplayDensityUtil_multipleInternalDisplays() throws RemoteException {
         // Default display
         var defaultDisplayInfo = createDisplayInfoForDisplay(Display.DEFAULT_DISPLAY,
-                Display.TYPE_INTERNAL, 2000, 2000, 390);
+                Display.TYPE_INTERNAL, 2000, 2000, 390, false);
         var defaultDisplay = new Display(mDisplayManagerGlobal, defaultDisplayInfo.displayId,
                 defaultDisplayInfo,
                 (DisplayAdjustments) null);
@@ -112,7 +117,7 @@ public class DisplayDensityUtilsTest {
 
         // Create another internal display
         var internalDisplayInfo = createDisplayInfoForDisplay(1, Display.TYPE_INTERNAL,
-                2000, 1000, 390);
+                2000, 1000, 390, /* isSizeMissing= */ false);
         var internalDisplay = new Display(mDisplayManagerGlobal, internalDisplayInfo.displayId,
                 internalDisplayInfo,
                 (DisplayAdjustments) null);
@@ -128,17 +133,24 @@ public class DisplayDensityUtilsTest {
 
     @Test
     public void createDisplayDensityUtil_forExternalDisplay() throws RemoteException {
+        // Configure resources
+        when(mResources.getFraction(R.fraction.external_display_density_max_scale,
+                1, 1)).thenReturn(MAX_SCALE_EXTERNAL_EXTENDED);
+        when(mResources.getFraction(R.fraction.external_display_density_min_scale,
+                1, 1)).thenReturn(MIN_SCALE_EXTERNAL_EXTENDED);
         // Default display
-        var defaultDisplayInfo = createDisplayInfoForDisplay(Display.DEFAULT_DISPLAY,
-                Display.TYPE_INTERNAL, 2000, 2000, 390);
+        var defaultDisplayInfo = createDisplayInfoForDisplay(
+                Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL, 2000, 2000,
+                390, /* isSizeMissing= */ false);
         var defaultDisplay = new Display(mDisplayManagerGlobal, defaultDisplayInfo.displayId,
                 defaultDisplayInfo,
                 (DisplayAdjustments) null);
         doReturn(defaultDisplay).when(mDisplayManager).getDisplay(defaultDisplayInfo.displayId);
 
         // Create external display
-        var externalDisplayInfo = createDisplayInfoForDisplay(/* displayId= */ 2,
-                Display.TYPE_EXTERNAL, 1920, 1080, 85);
+        var externalDisplayInfo = createDisplayInfoForDisplay(
+                /* displayId= */ 2, Display.TYPE_EXTERNAL, 1920, 1080,
+                85, /* isSizeMissing= */ false);
         var externalDisplay = new Display(mDisplayManagerGlobal, externalDisplayInfo.displayId,
                 externalDisplayInfo,
                 (DisplayAdjustments) null);
@@ -150,17 +162,98 @@ public class DisplayDensityUtilsTest {
         mDisplayDensityUtils = new DisplayDensityUtils(mContext,
                 (info) -> info.displayId == externalDisplayInfo.displayId);
 
-        assertThat(mDisplayDensityUtils.getValues()).isEqualTo(new int[]{72, 85, 94, 102, 112});
+        assertThat(mDisplayDensityUtils.getValues())
+                .isEqualTo(new int[]{42, 56, 70, 85, 102, 118, 136, 152, 170});
+    }
+
+    @Test
+    public void createDisplayDensityUtil_forExternalDisplay_displaySizeMissing()
+            throws RemoteException {
+        // Configure resources
+        when(mResources.getFraction(R.fraction.external_display_density_max_scale,
+                1, 1)).thenReturn(MAX_SCALE_EXTERNAL_EXTENDED);
+        when(mResources.getFraction(R.fraction.external_display_density_min_scale,
+                1, 1)).thenReturn(MIN_SCALE_EXTERNAL_EXTENDED);
+        // Default display
+        var defaultDisplayInfo = createDisplayInfoForDisplay(
+                Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL, 2000, 2000,
+                390, /* isSizeMissing= */ false);
+        var defaultDisplay = new Display(mDisplayManagerGlobal, defaultDisplayInfo.displayId,
+                defaultDisplayInfo,
+                (DisplayAdjustments) null);
+        doReturn(defaultDisplay).when(mDisplayManager).getDisplay(defaultDisplayInfo.displayId);
+
+        // Create external display
+        var externalDisplayInfo = createDisplayInfoForDisplay(
+                /* displayId= */ 2, Display.TYPE_EXTERNAL, 1920, 1080,
+                85, /* isSizeMissing= */true);
+        var externalDisplay = new Display(mDisplayManagerGlobal, externalDisplayInfo.displayId,
+                externalDisplayInfo,
+                (DisplayAdjustments) null);
+
+        doReturn(new Display[]{externalDisplay, defaultDisplay}).when(mDisplayManager).getDisplays(
+                any());
+        doReturn(externalDisplay).when(mDisplayManager).getDisplay(externalDisplayInfo.displayId);
+
+        mDisplayDensityUtils = new DisplayDensityUtils(mContext,
+                (info) -> info.displayId == externalDisplayInfo.displayId);
+
+        assertThat(mDisplayDensityUtils.getValues())
+                .isEqualTo(new int[]{42, 56, 70, 85, 102, 118, 136, 152, 170});
+    }
+
+
+    @Test
+    public void createDisplayDensityUtil_forExternalDisplay_lowerMaxScale()
+            throws RemoteException {
+        // Configure resources
+        when(mResources.getFraction(R.fraction.external_display_density_max_scale,
+                1, 1)).thenReturn(MAX_SCALE_EXTERNAL_EXTENDED);
+        when(mResources.getFraction(R.fraction.external_display_density_min_scale,
+                1, 1)).thenReturn(MIN_SCALE_EXTERNAL_EXTENDED);
+        // Default display
+        var defaultDisplayInfo = createDisplayInfoForDisplay(
+                Display.DEFAULT_DISPLAY, Display.TYPE_INTERNAL, 2000, 2000,
+                390, /* isSizeMissing= */ false);
+        var defaultDisplay = new Display(mDisplayManagerGlobal, defaultDisplayInfo.displayId,
+                defaultDisplayInfo,
+                (DisplayAdjustments) null);
+        doReturn(defaultDisplay).when(mDisplayManager).getDisplay(defaultDisplayInfo.displayId);
+
+        // Create external display with low resolution to test the case where max scale value is
+        // calculated from the maxDensity / defaultDensity instead of the fraction constant.
+        var externalDisplayInfo = createDisplayInfoForDisplay(/* displayId= */ 2,
+                Display.TYPE_EXTERNAL, 240, 240, 85, /* isSizeMissing= */ true);
+        var externalDisplay = new Display(mDisplayManagerGlobal, externalDisplayInfo.displayId,
+                externalDisplayInfo,
+                (DisplayAdjustments) null);
+
+        doReturn(new Display[]{externalDisplay, defaultDisplay}).when(mDisplayManager).getDisplays(
+                any());
+        doReturn(externalDisplay).when(mDisplayManager).getDisplay(externalDisplayInfo.displayId);
+
+        mDisplayDensityUtils = new DisplayDensityUtils(mContext,
+                (info) -> info.displayId == externalDisplayInfo.displayId);
+
+        assertThat(mDisplayDensityUtils.getValues())
+                .isEqualTo(new int[]{42, 56, 70, 85, 92, 102, 110, 120});
     }
 
     private DisplayInfo createDisplayInfoForDisplay(int displayId, int displayType,
-            int width, int height, int density) throws RemoteException {
+            int width, int height, int density, boolean isSizeMissing) throws RemoteException {
         var displayInfo = new DisplayInfo();
         displayInfo.displayId = displayId;
         displayInfo.type = displayType;
         displayInfo.logicalWidth = width;
         displayInfo.logicalHeight = height;
         displayInfo.logicalDensityDpi = density;
+        if (isSizeMissing) {
+            displayInfo.physicalYDpi = 0;
+            displayInfo.physicalXDpi = 0;
+        } else {
+            displayInfo.physicalXDpi = 100;
+            displayInfo.physicalYDpi = 100;
+        }
 
         doReturn(displayInfo).when(mDisplayManagerGlobal).getDisplayInfo(displayInfo.displayId);
         doReturn(displayInfo.logicalDensityDpi).when(mIWindowManager).getInitialDisplayDensity(

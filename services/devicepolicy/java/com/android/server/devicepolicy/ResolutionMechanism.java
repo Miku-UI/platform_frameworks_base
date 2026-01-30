@@ -21,14 +21,16 @@ import android.app.admin.PolicyValue;
 
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Objects;
 
 abstract class ResolutionMechanism<V> {
+
     /**
      * The most generic resolution logic where we know both the policy value and the admin who
      * sets it.
      */
     @Nullable
-    abstract PolicyValue<V> resolve(LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies);
+    abstract ResolvedPolicy<V> resolve(LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies);
 
     /**
      * A special resolution logic that does not care about admins who set them. Only applicable to
@@ -40,4 +42,8 @@ abstract class ResolutionMechanism<V> {
     }
 
     abstract android.app.admin.ResolutionMechanism<V> getParcelableResolutionMechanism();
+
+    public boolean isPolicyApplied(PolicyValue<V> value, PolicyValue<V> currentResolvedPolicy) {
+        return Objects.equals(value.getValue(), currentResolvedPolicy.getValue());
+    }
 }

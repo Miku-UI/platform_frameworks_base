@@ -257,6 +257,7 @@ TEST(CursorWindowTest, Inflate) {
     ASSERT_ALIGNED(w);
 }
 
+#ifdef __linux__
 TEST(CursorWindowTest, ParcelEmpty) {
     CREATE_WINDOW_2M;
 
@@ -390,5 +391,6 @@ TEST(CursorWindowTest, ParcelLarge) {
     }
     ASSERT_ALIGNED(w);
 }
+#endif
 
 } // android

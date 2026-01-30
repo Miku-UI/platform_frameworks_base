@@ -274,7 +274,9 @@ struct ResState {
                                      package_property_t flags) {
     ResState state;
     state.zip_assets = zip.get();
-    if ((state.apk_assets = ApkAssets::Load(std::move(zip), flags)) == nullptr) {
+
+    // TODO: b/437989879 - Add support for r/w flags in idmap
+    if ((state.apk_assets = ApkAssets::Load(std::move(zip), nullptr, flags)) == nullptr) {
       return Error("failed to load apk asset for '%s'",
                    state.zip_assets->GetDebugName().c_str());
     }

@@ -27,4 +27,13 @@ android_test_helper_app {
     manifest: "AndroidManifest.xml",
     srcs: ["src/**/*.java"],
     static_libs: ["compatibility-device-util-axt"],
+    jni_libs: ["libfsveritytestapp_jni"],
+    compile_multilib: "both",
+}
+
+cc_library {
+    name: "libfsveritytestapp_jni",
+    header_libs: ["jni_headers"],
+    shared_libs: ["libnativehelper"],
+    srcs: ["jni/*.cpp"],
 }

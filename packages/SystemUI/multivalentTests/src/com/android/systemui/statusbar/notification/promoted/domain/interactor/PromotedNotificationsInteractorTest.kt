@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.notification.promoted.domain.interactor
 
 import android.app.Notification.FLAG_FOREGROUND_SERVICE
 import android.app.Notification.FLAG_ONGOING_EVENT
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -34,7 +35,6 @@ import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.screenrecord.data.repository.screenRecordRepository
 import com.android.systemui.statusbar.chips.call.ui.viewmodel.CallChipViewModelTest.Companion.createStatusBarIconViewOrNull
 import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.core.StatusBarRootModernization
 import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
 import com.android.systemui.statusbar.notification.collection.buildOngoingCallEntry
@@ -57,7 +57,6 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @EnableFlags(
     PromotedNotificationUi.FLAG_NAME,
-    StatusBarNotifChips.FLAG_NAME,
     StatusBarChipsModernization.FLAG_NAME,
     StatusBarRootModernization.FLAG_NAME,
 )
@@ -74,7 +73,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
     @Test
     fun orderedChipNotificationKeys_containsNonPromotedCalls() =
         kosmos.runTest {
-            // GIVEN a call and a promoted ongoing notification
+            // GIVEN a non-promoted call and a promoted ongoing notification
             val callEntry = buildOngoingCallEntry(promoted = false)
             val ronEntry = buildPromotedOngoingEntry()
             val otherEntry = buildNotificationEntry(tag = "other")
@@ -86,30 +85,29 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            // THEN the order of the notification keys should be the call then the RON
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|call|0", "0|test_pkg|0|ron|0")
-                .inOrder()
+            // THEN both the call and the notif are in the list
+            assertThat(orderedChipNotificationKeys).containsExactly(callEntry.key, ronEntry.key)
         }
 
     @Test
-    fun orderedChipNotificationKeys_containsPromotedCalls() =
+    fun orderedChipNotificationKeys_containsPromotedCalls_callNotFirst() =
         kosmos.runTest {
-            // GIVEN a call and a promoted ongoing notification
+            // GIVEN a promoted call and a promoted ongoing notification
             val callEntry = buildOngoingCallEntry(promoted = true)
             val ronEntry = buildPromotedOngoingEntry()
             val otherEntry = buildNotificationEntry(tag = "other")
 
             renderNotificationListInteractor.setRenderedList(
-                listOf(callEntry, ronEntry, otherEntry)
+                listOf(ronEntry, callEntry, otherEntry)
             )
 
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            // THEN the order of the notification keys should be the call then the RON
+            // THEN the call notif is considered a *promoted notification* chip not a *call* chip,
+            // so the order should match the incoming order
             assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|call|0", "0|test_pkg|0|ron|0")
+                .containsExactly(ronEntry.key, callEntry.key)
                 .inOrder()
         }
 
@@ -118,7 +116,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             renderNotificationListInteractor.setRenderedList(emptyList())
 
@@ -150,7 +150,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val screenRecordEntry = buildNotificationEntry(tag = "record", promoted = true)
             renderNotificationListInteractor.setRenderedList(listOf(screenRecordEntry))
@@ -158,9 +160,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|record|0")
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(screenRecordEntry.key).inOrder()
         }
 
     @Test
@@ -168,7 +168,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val screenRecordEntry =
                 buildNotificationEntry(tag = "record", promoted = false) {
@@ -179,9 +181,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|record|0")
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(screenRecordEntry.key).inOrder()
         }
 
     @Test
@@ -189,7 +189,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val screenRecordEntry =
                 buildNotificationEntry(tag = "record", promoted = false) {
@@ -200,9 +202,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|record|0")
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(screenRecordEntry.key).inOrder()
         }
 
     @Test
@@ -210,7 +210,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val screenRecordEntry =
                 buildNotificationEntry(tag = "record", promoted = false) {
@@ -230,7 +232,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val fgsEntry =
                 buildNotificationEntry(tag = "recordFgs", promoted = false) {
@@ -245,9 +249,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|recordFgs|0")
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(fgsEntry.key).inOrder()
         }
 
     @Test
@@ -255,7 +257,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val ongoingEntry =
                 buildNotificationEntry(tag = "recordOngoing", promoted = false) {
@@ -270,9 +274,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|recordOngoing|0")
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(ongoingEntry.key).inOrder()
         }
 
     @Test
@@ -280,7 +282,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val ongoingAndFgsEntry =
                 buildNotificationEntry(tag = "recordBoth", promoted = false) {
@@ -305,7 +309,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
             assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|recordBoth|0")
+                .containsExactly(ongoingAndFgsEntry.key)
                 .inOrder()
         }
 
@@ -314,7 +318,9 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             screenRecordRepository.screenRecordState.value = ScreenRecordModel.Recording
             fakeMediaProjectionRepository.mediaProjectionState.value =
-                MediaProjectionState.Projecting.EntireScreen(hostPackage = "test_pkg")
+                MediaProjectionState.Projecting.EntireScreen(
+                    hostPackage = "com.android.systemui.tests"
+                )
 
             val entry1 =
                 buildNotificationEntry(tag = "entry1", promoted = false) {
@@ -337,7 +343,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -355,7 +361,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -366,7 +372,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys).containsExactly("0|test_pkg|0|proj|0").inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(mediaProjEntry.key).inOrder()
         }
 
     @Test
@@ -374,7 +380,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -388,7 +394,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys).containsExactly("0|test_pkg|0|proj|0").inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(mediaProjEntry.key).inOrder()
         }
 
     @Test
@@ -396,7 +402,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -410,7 +416,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys).containsExactly("0|test_pkg|0|proj|0").inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(mediaProjEntry.key).inOrder()
         }
 
     @Test
@@ -418,7 +424,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -441,7 +447,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -459,9 +465,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|projFgs|0")
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(fgsEntry.key).inOrder()
         }
 
     @Test
@@ -469,7 +473,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -487,9 +491,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
             val orderedChipNotificationKeys by
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
-            assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|projOngoing|0")
-                .inOrder()
+            assertThat(orderedChipNotificationKeys).containsExactly(ongoingEntry.key).inOrder()
         }
 
     @Test
@@ -497,7 +499,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -525,7 +527,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
                 collectLastValue(underTest.orderedChipNotificationKeys)
 
             assertThat(orderedChipNotificationKeys)
-                .containsExactly("0|test_pkg|0|projBoth|0")
+                .containsExactly(ongoingAndFgsEntry.key)
                 .inOrder()
         }
 
@@ -534,7 +536,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             fakeMediaProjectionRepository.mediaProjectionState.value =
                 MediaProjectionState.Projecting.SingleTask(
-                    hostPackage = "test_pkg",
+                    hostPackage = "com.android.systemui.tests",
                     hostDeviceName = null,
                     createTask(taskId = 1),
                 )
@@ -643,7 +645,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
                 collectLastValue(underTest.aodPromotedNotification)
 
             // THEN the ron is first because the call has no content
-            assertThat(topPromotedNotificationContent?.key).isEqualTo("0|test_pkg|0|ron|0")
+            assertThat(topPromotedNotificationContent?.key).isEqualTo(ronEntry.key)
         }
 
     @Test
@@ -662,7 +664,7 @@ class PromotedNotificationsInteractorTest : SysuiTestCase() {
                 collectLastValue(underTest.aodPromotedNotification)
 
             // THEN the call is the top notification
-            assertThat(topPromotedNotificationContent?.key).isEqualTo("0|test_pkg|0|call|0")
+            assertThat(topPromotedNotificationContent?.key).isEqualTo(callEntry.key)
         }
 
     @Test

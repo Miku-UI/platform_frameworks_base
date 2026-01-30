@@ -52,6 +52,7 @@ public class LocalBluetoothManager {
 
     /** The broadcast receiver event manager. */
     private final BluetoothEventManager mEventManager;
+    private int mCachedFocussedDisplayId = -1;
 
     @Nullable
     public static synchronized LocalBluetoothManager getInstance(Context context,
@@ -149,6 +150,7 @@ public class LocalBluetoothManager {
         if (context != null) {
             Log.d(TAG, "setting foreground activity to non-null context");
             mForegroundActivity = new WeakReference<>(context);
+            mCachedFocussedDisplayId = context.getDisplayId();
         } else {
             if (mForegroundActivity != null) {
                 Log.d(TAG, "setting foreground activity to null");
@@ -167,6 +169,11 @@ public class LocalBluetoothManager {
 
     public LocalBluetoothProfileManager getProfileManager() {
         return mProfileManager;
+    }
+
+    /** The displayId cached from the latest focussed display. */
+    public int getCachedFocussedDisplayId() {
+        return mCachedFocussedDisplayId;
     }
 
     public interface BluetoothManagerCallback {

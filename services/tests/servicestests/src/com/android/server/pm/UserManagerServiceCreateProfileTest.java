@@ -165,7 +165,7 @@ public class UserManagerServiceCreateProfileTest {
         List<UserInfo> users = mUserManagerService.getUsers(/* excludeDying */ false);
         UserInfo system = users.get(0);
         int max = mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED);
-        if (max < 0) {
+        if (!android.multiuser.Flags.decoupleMaxUsersFromProfiles() && max < 0) {
             // Indicates no max. Instead of infinite, we'll just do 10.
             max = 10;
         }
@@ -193,8 +193,10 @@ public class UserManagerServiceCreateProfileTest {
 
         // Edge case of reuse that only applies if we ever support 3 managed profiles
         // We should prioritise using lower badge indexes
-        int max = mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED);
-        if (max < 0 || max > 2) {
+        boolean legacyUnlimitedCheck = !android.multiuser.Flags.decoupleMaxUsersFromProfiles()
+                && mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0;
+        if (mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) > 2
+                || legacyUnlimitedCheck) {
             UserInfo profileBadgeOne = addProfile(secondaryUser);
             profileBadgeOne.profileBadge = 1;
             // 0 and 2 are free, we should reuse 0 rather than 2.
@@ -208,51 +210,53 @@ public class UserManagerServiceCreateProfileTest {
     public void testCanAddMoreManagedProfiles_removeProfile() {
         // if device is low-ram or doesn't support managed profiles for some other reason, just
         // skip the test
-        if (!mUserManagerService.canAddMoreManagedProfiles(UserHandle.USER_SYSTEM,
-                false /* disallow remove */)) {
+        if (!mUserManagerService.canAddMoreProfilesToUser(USER_TYPE_PROFILE_MANAGED,
+                UserHandle.USER_SYSTEM, false)) {
             return;
         }
-        if (mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0) {
+        if (android.multiuser.Flags.decoupleMaxUsersFromProfiles() &&
+                mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0) {
             // Indicates no limit, so we cannot run this test;
             return;
         }
 
         // GIVEN we've reached the limit of managed profiles possible on the system user
-        while (mUserManagerService.canAddMoreManagedProfiles(UserHandle.USER_SYSTEM,
-                false /* disallow remove */)) {
+        while (mUserManagerService.canAddMoreProfilesToUser(USER_TYPE_PROFILE_MANAGED,
+                UserHandle.USER_SYSTEM, false)) {
             addProfile(mUserManagerService.getPrimaryUser());
         }
 
         // THEN you should be able to add a new profile if you remove an existing one
         assertTrue("Cannot add a managed profile by removing another one",
-                mUserManagerService.canAddMoreManagedProfiles(UserHandle.USER_SYSTEM,
-                        true /* allow remove */));
+                mUserManagerService.canAddMoreProfilesToUser(
+                        USER_TYPE_PROFILE_MANAGED, UserHandle.USER_SYSTEM, true));
     }
 
     @Test
     public void testCanAddMoreManagedProfiles_removeDisabledProfile() {
         // if device is low-ram or doesn't support managed profiles for some other reason, just
         // skip the test
-        if (!mUserManagerService.canAddMoreManagedProfiles(UserHandle.USER_SYSTEM,
-                false /* disallow remove */)) {
+        if (!mUserManagerService.canAddMoreProfilesToUser(USER_TYPE_PROFILE_MANAGED,
+                UserHandle.USER_SYSTEM, false)) {
             return;
         }
-        if (mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0) {
+        if (!android.multiuser.Flags.decoupleMaxUsersFromProfiles() &&
+                mUserManagerService.getMaxUsersOfTypePerParent(USER_TYPE_PROFILE_MANAGED) < 0) {
             // Indicates no limit, so we cannot run this test;
             return;
         }
 
         // GIVEN we've reached the limit of managed profiles possible on the system user
         // GIVEN that the profiles are not enabled yet
-        while (mUserManagerService.canAddMoreManagedProfiles(UserHandle.USER_SYSTEM,
-                false /* disallow remove */)) {
+        while (mUserManagerService.canAddMoreProfilesToUser(USER_TYPE_PROFILE_MANAGED,
+                UserHandle.USER_SYSTEM, false)) {
             addProfile(mUserManagerService.getPrimaryUser(), true /* disabled */);
         }
 
         // THEN you should be able to add a new profile if you remove an existing one
         assertTrue("Cannot add a managed profile by removing another one",
-                mUserManagerService.canAddMoreManagedProfiles(UserHandle.USER_SYSTEM,
-                        true /* allow remove */));
+                mUserManagerService.canAddMoreProfilesToUser(
+                        USER_TYPE_PROFILE_MANAGED, UserHandle.USER_SYSTEM, true));
     }
 
     @Test
@@ -297,9 +301,6 @@ public class UserManagerServiceCreateProfileTest {
         LocalServices.addService(DeviceStorageMonitorInternal.class, dsmMock);
 
         UserManagerService userManagerServiceSpy = Mockito.spy(mUserManagerService);
-        Mockito.doReturn(false).when(userManagerServiceSpy).canAddMoreManagedProfiles(
-                Mockito.anyInt(), Mockito.anyBoolean());
-
         Mockito.doReturn(false).when(userManagerServiceSpy).canAddMoreProfilesToUser(
                 Mockito.anyString(), Mockito.anyInt(), Mockito.anyBoolean());
 

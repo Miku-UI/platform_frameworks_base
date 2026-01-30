@@ -86,7 +86,7 @@ public final class AdbDebuggingManagerTest {
     private AdbDebuggingManager mManager;
     private AdbDebuggingManager.AdbDebuggingThread mThread;
     private AdbDebuggingManager.AdbDebuggingHandler mHandler;
-    private AdbDebuggingManager.AdbKeyStore mKeyStore;
+    private AdbKeyStore mKeyStore;
     private BlockingQueue<TestResult> mBlockingQueue;
     private long mOriginalAllowedConnectionTime;
     private File mAdbKeyXmlFile;
@@ -116,7 +116,6 @@ public final class AdbDebuggingManagerTest {
         mHandler = mManager.mHandler;
         mThread.setHandler(mHandler);
 
-        mHandler.initKeyStore();
         mKeyStore = mHandler.mAdbKeyStore;
 
         mOriginalAllowedConnectionTime = mKeyStore.getAllowedConnectionTime();
@@ -277,9 +276,14 @@ public final class AdbDebuggingManagerTest {
         // Send a message to the handler to persist the updated keystore and verify a new key store
         // backed by the XML file contains the key.
         persistKeyStore();
+        AdbKeyStore newKeyStore = new AdbKeyStore(
+                mContext,
+                mAdbKeyXmlFile,
+                mAdbKeyFile,
+                mFakeTicker);
         assertTrue(
                 "The key with the 'Always allow' option selected was not persisted in the keystore",
-                mManager.new AdbKeyStore().isKeyAuthorized(TEST_KEY_1));
+                newKeyStore.isKeyAuthorized(TEST_KEY_1));
 
         // Get the current last connection time to ensure it is updated in the persisted keystore.
         long lastConnectionTime = mKeyStore.getLastConnectionTime(TEST_KEY_1);
@@ -293,10 +297,15 @@ public final class AdbDebuggingManagerTest {
         // Persist the updated last connection time and verify a new key store backed by the XML
         // file contains the updated connection time.
         persistKeyStore();
+        newKeyStore = new AdbKeyStore(
+                mContext,
+                mAdbKeyXmlFile,
+                mAdbKeyFile,
+                mFakeTicker);
         assertNotEquals(
                 "The last connection time in the key file was not updated after the update "
                         + "connection time message", lastConnectionTime,
-                mManager.new AdbKeyStore().getLastConnectionTime(TEST_KEY_1));
+                newKeyStore.getLastConnectionTime(TEST_KEY_1));
         // Verify that the key is in the adb_keys file
         assertTrue("The key was not in the adb_keys file after persisting the keystore",
                 isKeyInFile(TEST_KEY_1, mAdbKeyFile));
@@ -641,7 +650,11 @@ public final class AdbDebuggingManagerTest {
         setAllowedConnectionTime(Settings.Global.DEFAULT_ADB_ALLOWED_CONNECTION_TIME);
 
         // The untracked keys should be added to the keystore as part of the constructor.
-        AdbDebuggingManager.AdbKeyStore adbKeyStore = mManager.new AdbKeyStore();
+        AdbKeyStore adbKeyStore = new AdbKeyStore(
+                mContext,
+                mAdbKeyXmlFile,
+                mAdbKeyFile,
+                mFakeTicker);
 
         // Verify that the connection time for each test key is within a small value of the current
         // time.
@@ -762,7 +775,11 @@ public final class AdbDebuggingManagerTest {
         persistKeyStore();
 
         mFakeTicker.advance(10);
-        AdbDebuggingManager.AdbKeyStore newKeyStore = mManager.new AdbKeyStore();
+        AdbKeyStore newKeyStore = new AdbKeyStore(
+                mContext,
+                mAdbKeyXmlFile,
+                mAdbKeyFile,
+                mFakeTicker);
 
         assertEquals(
                 "KeyStore not populated from the XML file.",
@@ -825,7 +842,11 @@ public final class AdbDebuggingManagerTest {
         mKeyStore.addTrustedNetwork(trustedNetwork);
         persistKeyStore();
 
-        AdbDebuggingManager.AdbKeyStore newKeyStore = mManager.new AdbKeyStore();
+        AdbKeyStore newKeyStore = new AdbKeyStore(
+                mContext,
+                mAdbKeyXmlFile,
+                mAdbKeyFile,
+                mFakeTicker);
 
         assertTrue(
                 "Persisted trusted network not found in new keystore instance.",
@@ -873,7 +894,7 @@ public final class AdbDebuggingManagerTest {
 
     @Test
     public void testPairingThread_MdnsServiceName_RFC6335() {
-        assertTrue(isValidMdnsServiceName(AdbDebuggingManager.PairingThread.SERVICE_PROTOCOL));
+        assertTrue(isValidMdnsServiceName(AdbPairingThread.SERVICE_PROTOCOL));
     }
 
     private boolean isValidMdnsServiceName(String name) {

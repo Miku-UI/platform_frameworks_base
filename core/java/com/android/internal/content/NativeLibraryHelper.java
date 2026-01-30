@@ -51,6 +51,8 @@ import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -188,7 +190,7 @@ public class NativeLibraryHelper {
             String abiToCopy, boolean extractNativeLibs, boolean debuggable,
             boolean pageSizeCompatDisabled);
 
-    private static native int nativeCheckAlignment(
+    private static native AlignmentResult nativeCheckAlignment(
             long handle,
             String sharedLibraryPath,
             String abi,
@@ -455,11 +457,9 @@ public class NativeLibraryHelper {
      * @param handle APK file to scan for native libraries
      * @param libraryRoot directory for libraries
      * @param abiOverride abiOverride for package
-     * @return {@link Modes from ApplicationInfo.PageSizeAppCompat} if successful or error code
-     *     which suggests undefined mode
+     * @return {@link AlignmentResult} if successful or null
      */
-    @ApplicationInfo.PageSizeAppCompatFlags
-    public static int checkAlignmentForCompatMode(
+    public static AlignmentResult checkAlignmentForCompatMode(
             Handle handle,
             String libraryRoot,
             boolean nativeLibraryRootRequiresIsa,
@@ -467,7 +467,7 @@ public class NativeLibraryHelper {
         // Keep the code below in sync with copyNativeBinariesForSupportedAbi
         int abi = findSupportedAbi(handle, Build.SUPPORTED_64_BIT_ABIS);
         if (abi < 0) {
-            return ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
+            return null;
         }
 
         final String supportedAbi = Build.SUPPORTED_64_BIT_ABIS[abi];
@@ -478,20 +478,26 @@ public class NativeLibraryHelper {
         }
 
         int mode = ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED;
+        List<LibraryAlignmentInfo> unalignedLibraries = new ArrayList<LibraryAlignmentInfo>();
+
         for (long apkHandle : handle.apkHandles) {
-            int res =
+            AlignmentResult res =
                     nativeCheckAlignment(
                             apkHandle,
                             subDir,
                             Build.SUPPORTED_64_BIT_ABIS[abi],
                             handle.extractNativeLibs,
                             handle.debuggable);
-            if (res == ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_ERROR) {
-                return res;
+            if (res == null) {
+                return null;
             }
-            mode |= res;
+            mode |= res.flags;
+            if (res.unalignedLibraries != null) {
+                Collections.addAll(unalignedLibraries, res.unalignedLibraries);
+            }
         }
-        return mode;
+
+        return new AlignmentResult(mode, unalignedLibraries.toArray(new LibraryAlignmentInfo[0]));
     }
 
     public static long sumNativeBinariesWithOverride(Handle handle, String abiOverride)
@@ -610,5 +616,20 @@ public class NativeLibraryHelper {
             }
         }
         return false;
+    }
+
+    /**
+     * A container to hold the complete result of a native library alignment check.
+     */
+    public static class AlignmentResult {
+        @ApplicationInfo.PageSizeAppCompatFlags
+        public final int flags;
+        public final LibraryAlignmentInfo[] unalignedLibraries;
+
+        public AlignmentResult(@ApplicationInfo.PageSizeAppCompatFlags int flags,
+                LibraryAlignmentInfo[] unalignedLibraries) {
+            this.flags = flags;
+            this.unalignedLibraries = unalignedLibraries;
+        }
     }
 }

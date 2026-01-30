@@ -19,7 +19,7 @@ package android.location;
 import android.location.GnssStatus;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IGnssStatusListener
 {

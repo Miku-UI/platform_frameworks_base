@@ -1047,12 +1047,12 @@ public class RingtoneManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static Uri getCacheForType(int type) {
         return getCacheForType(type, UserHandle.getCallingUserId());
     }
 
-    /** {@hide} */
+    /** @hide */
     public static Uri getCacheForType(int type, int userId) {
         if ((type & TYPE_RINGTONE) != 0) {
             return ContentProvider.maybeAddUserId(Settings.System.RINGTONE_CACHE_URI, userId);
@@ -1091,7 +1091,7 @@ public class RingtoneManager {
         }
 
         if (Flags.enableRingtoneHapticsCustomization()
-                && Utils.hasVibration(defaultRingtoneUri)) {
+                && Utils.hasVibrationParameter(defaultRingtoneUri)) {
             // skip to check TYPE_ALARM because the customized haptic hasn't enabled in alarm
             if (defaultRingtoneUri.toString()
                     .contains(Settings.System.DEFAULT_RINGTONE_URI.toString())) {

@@ -17,6 +17,7 @@
 package android.app;
 
 import static android.Manifest.permission.POST_NOTIFICATIONS;
+import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
 import static android.app.NotificationChannel.DEFAULT_CHANNEL_ID;
 import static android.content.pm.PackageManager.PERMISSION_GRANTED;
 import static android.service.notification.Flags.notificationClassification;
@@ -28,11 +29,16 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
+import android.annotation.SpecialUsers.CannotBeSpecialUser;
+import android.annotation.SpecialUsers.SpecialUser;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.annotation.UserHandleAware;
+import android.annotation.UserIdInt;
 import android.annotation.WorkerThread;
 import android.app.Notification.Builder;
 import android.app.compat.CompatChanges;
@@ -90,6 +96,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.Executor;
 
@@ -288,6 +295,21 @@ public class NotificationManager {
             "android.app.action.AUTOMATIC_ZEN_RULE_STATUS_CHANGED";
 
     /**
+     * Intent that is broadcast when the Zen configuration has changed. This includes any
+     * modification to a {@code ZenRule}, including creation, modification, deletion, or activation
+     * status change of {@link AutomaticZenRule} instances or the manual DND rule.
+     *
+     * <p>This broadcast is only sent to packages holding the
+     * {@link android.Manifest.permission#MANAGE_NOTIFICATIONS} permission (which is only allowed
+     * for system processes).
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstant.SdkConstantType.BROADCAST_INTENT_ACTION)
+    public static final String ACTION_ZEN_CONFIGURATION_CHANGED_INTERNAL =
+            "android.app.action.ZEN_CONFIGURATION_CHANGED_INTERNAL";
+
+    /**
      * Integer extra for {@link #ACTION_AUTOMATIC_ZEN_RULE_STATUS_CHANGED} containing the state of
      * the {@link AutomaticZenRule}.
      *
@@ -442,7 +464,7 @@ public class NotificationManager {
      * @hide
      */
     @SdkConstant(SdkConstant.SdkConstantType.BROADCAST_INTENT_ACTION)
-    @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
+    @SystemApi(client = MODULE_LIBRARIES)
     public static final String ACTION_NOTIFICATION_LISTENER_ENABLED_CHANGED =
             "android.app.action.NOTIFICATION_LISTENER_ENABLED_CHANGED";
 
@@ -663,13 +685,13 @@ public class NotificationManager {
 
     private final InstantSource mClock;
     private final RateLimiter mUpdateRateLimiter = new RateLimiter("notify (update)",
-            "notifications.value_client_throttled_notify_update",
             MAX_NOTIFICATION_UPDATE_RATE);
     private final RateLimiter mUnnecessaryCancelRateLimiter = new RateLimiter("cancel (dupe)",
-            "notifications.value_client_throttled_cancel_duplicate",
             MAX_NOTIFICATION_UNNECESSARY_CANCEL_RATE);
-    // Value is KNOWN_STATUS_ENQUEUED/_CANCELLED
-    private final LruCache<NotificationKey, Integer> mKnownNotifications = new LruCache<>(100);
+    // KnownStatus is KNOWN_STATUS_ENQUEUED/_CANCELLED
+    private record KnownNotification(int knownStatus, OptionalInt progressState) {}
+    private final LruCache<NotificationKey, KnownNotification> mKnownNotifications =
+            new LruCache<>(100);
     private final Object mThrottleLock = new Object();
 
     @UnsupportedAppUsage
@@ -692,20 +714,20 @@ public class NotificationManager {
         return getService();
     }
 
-    /** {@hide} */
+    /** @hide */
     public NotificationManager(Context context)
     {
         this(context, SystemClock.elapsedRealtimeClock());
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public NotificationManager(Context context, InstantSource clock) {
         mContext = context;
         mClock = clock;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public static NotificationManager from(Context context) {
         return (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
@@ -745,6 +767,7 @@ public class NotificationManager {
      * @param notification A {@link Notification} object describing what to
      *        show the user. Must not be null.
      */
+    @UserHandleAware(specialUsersAllowed = { SpecialUser.USER_ALL, SpecialUser.USER_CURRENT})
     public void notify(String tag, int id, Notification notification)
     {
         notifyAsUser(tag, id, notification, mContext.getUser());
@@ -772,6 +795,7 @@ public class NotificationManager {
      * @param notification A {@link Notification} object describing what to
      *        show the user. Must not be null.
      */
+    @UserHandleAware(specialUsersAllowed = { SpecialUser.USER_ALL, SpecialUser.USER_CURRENT})
     public void notifyAsPackage(@NonNull String targetPackage, @Nullable String tag, int id,
             @NonNull Notification notification) {
         INotificationManager service = service();
@@ -795,7 +819,7 @@ public class NotificationManager {
      */
     @UnsupportedAppUsage
     public void notifyAsUser(@Nullable String tag, int id, Notification notification,
-            UserHandle user)
+            @CanBeALL @CanBeCURRENT UserHandle user)
     {
         INotificationManager service = service();
         String pkg = mContext.getPackageName();
@@ -826,16 +850,30 @@ public class NotificationManager {
         if (Flags.nmBinderPerfThrottleNotify()) {
             NotificationKey key = new NotificationKey(user, pkg, tag, id);
             synchronized (mThrottleLock) {
-                Integer status = mKnownNotifications.get(key);
-                if (status != null && status == KNOWN_STATUS_ENQUEUED
-                        && !notification.hasCompletedProgress()) {
-                    if (mUpdateRateLimiter.eventExceedsRate()) {
-                        mUpdateRateLimiter.recordRejected(key);
-                        return true;
+                KnownNotification status = mKnownNotifications.get(key);
+                if (Flags.notificationUpdateSheddingAllowProgressCompletion()) {
+                    if (status != null && status.knownStatus == KNOWN_STATUS_ENQUEUED
+                            && status.progressState.orElse(-1) == notification.getProgressState()) {
+                        if (mUpdateRateLimiter.eventExceedsRate()) {
+                            mUpdateRateLimiter.recordRejected(key);
+                            return true;
+                        }
+                        mUpdateRateLimiter.recordAccepted();
                     }
-                    mUpdateRateLimiter.recordAccepted();
+                    mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_ENQUEUED,
+                                OptionalInt.of(notification.getProgressState())));
+                } else {
+                    if (status != null && status.knownStatus == KNOWN_STATUS_ENQUEUED
+                            && !notification.hasCompletedProgress()) {
+                        if (mUpdateRateLimiter.eventExceedsRate()) {
+                            mUpdateRateLimiter.recordRejected(key);
+                            return true;
+                        }
+                        mUpdateRateLimiter.recordAccepted();
+                    }
+                    mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_ENQUEUED,
+                            OptionalInt.empty()));
                 }
-                mKnownNotifications.put(key, KNOWN_STATUS_ENQUEUED);
             }
         }
 
@@ -853,16 +891,14 @@ public class NotificationManager {
         private final RateEstimator mInputRateEstimator;
         private final RateEstimator mOutputRateEstimator;
         private final String mName;
-        private final String mCounterName;
         private final float mLimitRate;
 
         private Instant mLogSilencedUntil;
 
-        private RateLimiter(String name, String counterName, float limitRate) {
+        private RateLimiter(String name, float limitRate) {
             mInputRateEstimator = new RateEstimator();
             mOutputRateEstimator = new RateEstimator();
             mName = name;
-            mCounterName = counterName;
             mLimitRate = limitRate;
         }
 
@@ -880,14 +916,6 @@ public class NotificationManager {
             Instant now = mClock.instant();
             if (mLogSilencedUntil != null && now.isBefore(mLogSilencedUntil)) {
                 return;
-            }
-
-            if (Flags.nmBinderPerfLogNmThrottling()) {
-                try {
-                    service().incrementCounter(mCounterName);
-                } catch (RemoteException e) {
-                    Slog.w(TAG, "Ignoring error while trying to log " + mCounterName, e);
-                }
             }
 
             long nowMillis = now.toEpochMilli();
@@ -955,6 +983,7 @@ public class NotificationManager {
      *  {@link android.service.notification.NotificationListenerService notification listeners}
      *  will be informed so they can remove the notification from their UIs.</p>
      */
+    @UserHandleAware(specialUsersAllowed = { SpecialUser.USER_ALL, SpecialUser.USER_CURRENT})
     public void cancel(@Nullable String tag, int id)
     {
         cancelAsUser(tag, id, mContext.getUser());
@@ -980,6 +1009,7 @@ public class NotificationManager {
      * @param tag A string identifier for this notification.  May be {@code null}.
      * @param id An identifier for this notification.
      */
+    @UserHandleAware(specialUsersAllowed = { SpecialUser.USER_ALL, SpecialUser.USER_CURRENT})
     public void cancelAsPackage(@NonNull String targetPackage, @Nullable String tag, int id) {
         if (discardCancel(mContext.getUser(), targetPackage, tag, id)) {
             return;
@@ -998,7 +1028,7 @@ public class NotificationManager {
      * @hide
      */
     @UnsupportedAppUsage
-    public void cancelAsUser(@Nullable String tag, int id, UserHandle user)
+    public void cancelAsUser(@Nullable String tag, int id, @CanBeALL @CanBeCURRENT UserHandle user)
     {
         String pkg = mContext.getPackageName();
         if (discardCancel(user, pkg, tag, id)) {
@@ -1023,15 +1053,16 @@ public class NotificationManager {
         if (Flags.nmBinderPerfThrottleNotify()) {
             NotificationKey key = new NotificationKey(user, pkg, tag, id);
             synchronized (mThrottleLock) {
-                Integer status = mKnownNotifications.get(key);
-                if (status != null && status == KNOWN_STATUS_CANCELLED) {
+                KnownNotification status = mKnownNotifications.get(key);
+                if (status != null && status.knownStatus == KNOWN_STATUS_CANCELLED) {
                     if (mUnnecessaryCancelRateLimiter.eventExceedsRate()) {
                         mUnnecessaryCancelRateLimiter.recordRejected(key);
                         return true;
                     }
                     mUnnecessaryCancelRateLimiter.recordAccepted();
                 }
-                mKnownNotifications.put(key, KNOWN_STATUS_CANCELLED);
+                mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_CANCELLED,
+                        OptionalInt.empty()));
             }
         }
 
@@ -1042,6 +1073,7 @@ public class NotificationManager {
      * Cancel all previously shown notifications. See {@link #cancel} for the
      * detailed behavior.
      */
+    @UserHandleAware(specialUsersAllowed = { SpecialUser.USER_ALL, SpecialUser.USER_CURRENT})
     public void cancelAll()
     {
         String pkg = mContext.getPackageName();
@@ -1051,7 +1083,8 @@ public class NotificationManager {
             synchronized (mThrottleLock) {
                 for (NotificationKey key : mKnownNotifications.snapshot().keySet()) {
                     if (key.pkg.equals(pkg) && key.user.equals(user)) {
-                        mKnownNotifications.put(key, KNOWN_STATUS_CANCELLED);
+                        mKnownNotifications.put(key, new KnownNotification(KNOWN_STATUS_CANCELLED,
+                                OptionalInt.empty()));
                     }
                 }
             }
@@ -1109,6 +1142,7 @@ public class NotificationManager {
      *
      * See {@link #setNotificationDelegate(String)}.
      */
+    @UserHandleAware
     public boolean canNotifyAsPackage(@NonNull String pkg) {
         INotificationManager service = service();
         try {
@@ -1256,6 +1290,7 @@ public class NotificationManager {
      * a channel as a notification delegate, call this method from a context created for that
      * package (see {@link Context#createPackageContext(String, int)}).</p>
      */
+    @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public NotificationChannel getNotificationChannel(String channelId) {
         if (Flags.nmBinderPerfCacheChannels()) {
             return getChannelFromList(channelId,
@@ -1287,6 +1322,7 @@ public class NotificationManager {
      * instead return the parent channel with the given channel ID, or {@code null} if neither
      * exists.</p>
      */
+    @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public @Nullable NotificationChannel getNotificationChannel(@NonNull String channelId,
             @NonNull String conversationId) {
         if (Flags.nmBinderPerfCacheChannels()) {
@@ -1315,6 +1351,7 @@ public class NotificationManager {
      * method from a context created for that package (see
      * {@link Context#createPackageContext(String, int)}).</p>
      */
+    @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public List<NotificationChannel> getNotificationChannels() {
         if (Flags.nmBinderPerfCacheChannels()) {
             List<NotificationChannel> channelList = mNotificationChannelListCache.query(
@@ -1403,6 +1440,7 @@ public class NotificationManager {
      *
      * The channel group must belong to your package, or null will be returned.
      */
+    @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public NotificationChannelGroup getNotificationChannelGroup(String channelGroupId) {
         if (Flags.nmBinderPerfCacheChannels()) {
             String pkgName = mContext.getPackageName();
@@ -1428,6 +1466,7 @@ public class NotificationManager {
     /**
      * Returns all notification channel groups belonging to the calling app.
      */
+    @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public List<NotificationChannelGroup> getNotificationChannelGroups() {
         if (Flags.nmBinderPerfCacheChannels()) {
             String pkgName = mContext.getPackageName();
@@ -1526,7 +1565,7 @@ public class NotificationManager {
     private record NotificationChannelQuery(
             String callingPkg,
             String targetPkg,
-            int userId) {}
+            @CannotBeSpecialUser @UserIdInt int userId) {}
 
     private final IpcDataCache.QueryHandler<String, Map<String, NotificationChannelGroup>>
             mNotificationChannelGroupsQueryHandler = new IpcDataCache.QueryHandler<>() {
@@ -1740,14 +1779,10 @@ public class NotificationManager {
      * {@link Settings#ACTION_AUTOMATIC_ZEN_RULE_SETTINGS}.
      */
     public boolean areAutomaticZenRulesUserManaged() {
-        if (Flags.modesUi()) {
-            PackageManager pm = mContext.getPackageManager();
-            return !pm.hasSystemFeature(PackageManager.FEATURE_WATCH)
-                    && !pm.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
-                    && !pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
-        } else {
-            return false;
-        }
+        PackageManager pm = mContext.getPackageManager();
+        return !pm.hasSystemFeature(PackageManager.FEATURE_WATCH)
+                && !pm.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE)
+                && !pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
     }
 
     /**
@@ -2021,6 +2056,7 @@ public class NotificationManager {
      *
      * @see Notification.Builder#setBubbleMetadata(Notification.BubbleMetadata)
      */
+    @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public boolean areBubblesEnabled() {
         INotificationManager service = service();
         try {
@@ -2204,7 +2240,7 @@ public class NotificationManager {
     public void allowAssistantAdjustment(@NonNull String capability) {
         INotificationManager service = service();
         try {
-            service.allowAssistantAdjustment(capability);
+            service.allowAssistantAdjustment(mContext.getUserId(), capability);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -2218,7 +2254,7 @@ public class NotificationManager {
     public void disallowAssistantAdjustment(@NonNull String capability) {
         INotificationManager service = service();
         try {
-            service.disallowAssistantAdjustment(capability);
+            service.disallowAssistantAdjustment(mContext.getUserId(), capability);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -2241,9 +2277,17 @@ public class NotificationManager {
     @TestApi
     @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
     public void setAssistantAdjustmentKeyTypeState(@Adjustment.Types int type, boolean enabled) {
+        setAssistantClassificationTypeState(type, enabled);
+    }
+
+    /**
+     * @hide
+     */
+    @FlaggedApi(android.service.notification.Flags.FLAG_NOTIFICATION_CLASSIFICATION)
+    public void setAssistantClassificationTypeState(@Adjustment.Types int type, boolean enabled) {
         INotificationManager service = service();
         try {
-            service.setAssistantAdjustmentKeyTypeState(type, enabled);
+            service.setAssistantClassificationTypeState(type, enabled);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -2309,7 +2353,10 @@ public class NotificationManager {
     }
 
     /** @hide */
-    public void setNotificationPolicyAccessGranted(String pkg, boolean granted) {
+    @FlaggedApi(android.companion.Flags.FLAG_ENABLE_MEDICAL_PROFILE)
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.MANAGE_NOTIFICATIONS)
+    public void setNotificationPolicyAccessGranted(@NonNull String pkg, boolean granted) {
         INotificationManager service = service();
         try {
             service.setNotificationPolicyAccessGranted(pkg, granted);
@@ -2336,10 +2383,10 @@ public class NotificationManager {
             throw e.rethrowFromSystemServer();
         }
     }
+
     /**
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_MODES_UI)
     public void setManualZenRuleDeviceEffects(@NonNull ZenDeviceEffects effects) {
         INotificationManager service = service();
         try {
@@ -2374,7 +2421,9 @@ public class NotificationManager {
      */
     @SystemApi
     @TestApi
-    @UserHandleAware(enabledSinceTargetSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM)
+    @UserHandleAware(
+            enabledSinceTargetSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM,
+            specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     @RequiresPermission(android.Manifest.permission.MANAGE_NOTIFICATION_LISTENERS)
     public void setNotificationListenerAccessGranted(
             @NonNull ComponentName listener, boolean granted, boolean userSet) {
@@ -2392,8 +2441,8 @@ public class NotificationManager {
     }
 
     /** @hide */
-    public void setNotificationListenerAccessGrantedForUser(ComponentName listener, int userId,
-            boolean granted) {
+    public void setNotificationListenerAccessGrantedForUser(ComponentName listener,
+            @CannotBeSpecialUser @UserIdInt int userId, boolean granted) {
         INotificationManager service = service();
         try {
             service.setNotificationListenerAccessGrantedForUser(listener, userId, granted, true);
@@ -2433,12 +2482,14 @@ public class NotificationManager {
      */
     @SystemApi
     @RequiresPermission(android.Manifest.permission.MANAGE_NOTIFICATION_LISTENERS)
+    @UserHandleAware(specialUsersAllowed = SpecialUser.DISALLOW_EVERY)
     public @NonNull List<ComponentName> getEnabledNotificationListeners() {
         return getEnabledNotificationListeners(mContext.getUserId());
     }
 
     /** @hide */
-    public List<ComponentName> getEnabledNotificationListeners(int userId) {
+    public List<ComponentName> getEnabledNotificationListeners(
+            @CannotBeSpecialUser @UserIdInt int userId) {
         INotificationManager service = service();
         try {
             return service.getEnabledNotificationListeners(userId);
@@ -3275,6 +3326,7 @@ public class NotificationManager {
      *
      * @return An array of {@link StatusBarNotification}.
      */
+    @UserHandleAware(specialUsersAllowed = { SpecialUser.USER_ALL, SpecialUser.USER_CURRENT})
     public StatusBarNotification[] getActiveNotifications() {
         final INotificationManager service = service();
         final String pkg = mContext.getPackageName();

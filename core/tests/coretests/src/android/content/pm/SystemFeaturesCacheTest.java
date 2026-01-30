@@ -22,7 +22,6 @@ import static android.content.pm.PackageManager.FEATURE_WATCH;
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
-import static org.junit.Assume.assumeTrue;
 
 import android.util.ArrayMap;
 
@@ -149,8 +148,7 @@ public class SystemFeaturesCacheTest {
     }
 
     @Test
-    public void testSingletonAutomaticallySetWithFeatureEnabled() {
-        assumeTrue(android.content.pm.Flags.cacheSdkSystemFeatures());
+    public void testSingletonAutomaticallySet() {
         assertThat(SystemFeaturesCache.hasInstance()).isTrue();
         assertThat(SystemFeaturesCache.getInstance()).isNotNull();
     }

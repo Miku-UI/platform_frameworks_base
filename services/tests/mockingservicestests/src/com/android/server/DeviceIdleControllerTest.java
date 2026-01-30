@@ -50,6 +50,7 @@ import static com.android.server.DeviceIdleController.stateToString;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
@@ -61,6 +62,7 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.longThat;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.timeout;
@@ -72,6 +74,7 @@ import android.app.IActivityManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -90,6 +93,7 @@ import android.os.PowerManagerInternal;
 import android.os.PowerSaveState;
 import android.os.SystemClock;
 import android.os.WearModeManagerInternal;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.DeviceConfig;
@@ -177,6 +181,7 @@ public class DeviceIdleControllerTest {
         volatile long nowUptime;
         boolean useMotionSensor = true;
         boolean isLocationPrefetchEnabled = true;
+        boolean isSmallBatteryDevice = false;
 
         InjectorForTest(Context ctx) {
             super(ctx);
@@ -276,6 +281,11 @@ public class DeviceIdleControllerTest {
         boolean useMotionSensor() {
             return useMotionSensor;
         }
+
+        @Override
+        boolean isSmallBatteryDevice() {
+            return isSmallBatteryDevice;
+        }
     }
 
     private class AnyMotionDetectorForTest extends AnyMotionDetector {
@@ -341,6 +351,8 @@ public class DeviceIdleControllerTest {
                 .spyStatic(LocalServices.class)
                 .startMocking();
         spyOn(getContext());
+        spyOn(getContext().getResources());
+        spyOn(getContext().getPackageManager());
         doReturn(null).when(getContext()).registerReceiver(any(), any());
         doReturn(mock(IBatteryStats.class)).when(() -> BatteryStatsService.getService());
         doReturn(mock(ActivityManagerInternal.class))
@@ -426,7 +438,8 @@ public class DeviceIdleControllerTest {
 
     @Test
     @EnableFlags(Flags.FLAG_USE_CPU_TIME_FOR_TEMP_ALLOWLIST)
-    public void testTempAllowlistCountsUptime() {
+    @DisableFlags(Flags.FLAG_STOP_POWER_SAVE_TEMP_WHITELIST_BROADCAST)
+    public void testTempAllowlistCountsUptime_flagDisabled() {
         doNothing().when(getContext()).sendBroadcastAsUser(any(), any(), any(), any());
         final int testUid = 12345;
         final long durationMs = 4300;
@@ -462,6 +475,47 @@ public class DeviceIdleControllerTest {
                 argThat(m -> m.what == MSG_TEMP_APP_WHITELIST_TIMEOUT && m.arg1 == testUid),
                 anyLong());
         assertFalse(mDeviceIdleController.mTempWhitelistAppIdEndTimes.contains(testUid));
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_USE_CPU_TIME_FOR_TEMP_ALLOWLIST,
+            Flags.FLAG_STOP_POWER_SAVE_TEMP_WHITELIST_BROADCAST})
+    public void testTempAllowlistCountsUptime() {
+        final int testUid = 12345;
+        final long durationMs = 4300;
+        final long startTime = 100; // Arbitrary starting point in time.
+        mInjector.nowUptime = mInjector.nowElapsed = startTime;
+
+        mDeviceIdleController.addPowerSaveTempWhitelistAppDirectInternal(0, testUid, durationMs,
+                TEMPORARY_ALLOW_LIST_TYPE_FOREGROUND_SERVICE_ALLOWED, true, REASON_OTHER, "test");
+
+        assertEquals(startTime + durationMs,
+                mDeviceIdleController.mTempWhitelistAppIdEndTimes.get(testUid).first.value);
+
+        final InOrder inorder = inOrder(mHandler);
+        // mHandler is already stubbed to do nothing on handleMessage.
+        inorder.verify(mHandler).sendMessageDelayed(
+                argThat(m -> m.what == MSG_TEMP_APP_WHITELIST_TIMEOUT && m.arg1 == testUid),
+                eq(durationMs));
+
+        mInjector.nowElapsed += durationMs;
+        mInjector.nowUptime += 2;
+        // Elapsed time moved past the expiration but not uptime. The check should be rescheduled.
+        mDeviceIdleController.checkTempAppWhitelistTimeout(testUid);
+        inorder.verify(mHandler).sendMessageDelayed(
+                argThat(m -> m.what == MSG_TEMP_APP_WHITELIST_TIMEOUT && m.arg1 == testUid),
+                eq(durationMs - 2));
+        assertEquals(startTime + durationMs,
+                mDeviceIdleController.mTempWhitelistAppIdEndTimes.get(testUid).first.value);
+
+        mInjector.nowUptime += durationMs;
+        // Uptime moved past the expiration time. Uid should be removed from the temp allowlist.
+        mDeviceIdleController.checkTempAppWhitelistTimeout(testUid);
+        inorder.verify(mHandler, never()).sendMessageDelayed(
+                argThat(m -> m.what == MSG_TEMP_APP_WHITELIST_TIMEOUT && m.arg1 == testUid),
+                anyLong());
+        assertFalse(mDeviceIdleController.mTempWhitelistAppIdEndTimes.contains(testUid));
+        verify(getContext(), never()).sendBroadcastAsUser(any(), any(), any(), any());
     }
 
     @Test
@@ -587,6 +641,33 @@ public class DeviceIdleControllerTest {
         // Test changing from quick doze on to quick doze off.
         mDeviceIdleController.updateQuickDozeFlagLocked(false);
         assertFalse(mDeviceIdleController.isQuickDozeEnabled());
+    }
+
+    @Test
+    public void testStateUnchanged_QuickDozeOn_ForceIdleOn() {
+        enterDeepState(STATE_ACTIVE);
+        mDeviceIdleController.setForceIdleEnabledForTest(true);
+        setQuickDozeEnabled(true);
+        setChargingOn(false);
+        setScreenOn(false);
+        verifyStateConditions(STATE_ACTIVE);
+        assertTrue(mDeviceIdleController.isQuickDozeEnabled());
+    }
+
+    @Test
+    public void testStateActiveToStateQuickDozeDelay_ForceIdleOff() {
+        setAlarmSoon(false);
+        InOrder inOrder = inOrder(mDeviceIdleController);
+
+        enterDeepState(STATE_ACTIVE);
+        mDeviceIdleController.setForceIdleEnabledForTest(false);
+        setQuickDozeEnabled(true);
+        setChargingOn(false);
+        setScreenOn(false);
+        verifyStateConditions(STATE_QUICK_DOZE_DELAY);
+        assertTrue(mDeviceIdleController.isQuickDozeEnabled());
+        inOrder.verify(mDeviceIdleController)
+                .scheduleAlarmLocked(eq(mConstants.QUICK_DOZE_DELAY_TIMEOUT));
     }
 
     @Test
@@ -795,6 +876,51 @@ public class DeviceIdleControllerTest {
 
         mDeviceIdleController.becomeInactiveIfAppropriateLocked();
         verifyLightStateConditions(LIGHT_STATE_INACTIVE);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_NON_SCHEDULED_EXIT_FROM_IDLE_PENDING)
+    public void testTransitionPastIdlePending_idleAfterInactiveIsZero() {
+        setAlarmSoon(false);
+        mConstants.IDLE_AFTER_INACTIVE_TIMEOUT = 0;
+        enterDeepState(STATE_INACTIVE);
+        clearInvocations(mDeviceIdleController);
+
+        mDeviceIdleController.stepIdleStateLocked("testing");
+
+        // Expect that the step function above goes past STATE_IDLE_PENDING without scheduling
+        // any alarm, because IDLE_AFTER_INACTIVE_TIMEOUT = 0.
+        assertNotEquals(STATE_IDLE_PENDING, mDeviceIdleController.getState());
+        verify(mDeviceIdleController, never()).scheduleAlarmLocked(0);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_NON_SCHEDULED_EXIT_FROM_IDLE_PENDING)
+    public void testTransitionPastIdlePending_idleAfterInactiveIsZero_nonScheduledExitFlagOff() {
+        setAlarmSoon(false);
+        mConstants.IDLE_AFTER_INACTIVE_TIMEOUT = 0;
+        enterDeepState(STATE_INACTIVE);
+        clearInvocations(mDeviceIdleController);
+
+        mDeviceIdleController.stepIdleStateLocked("testing");
+
+        verifyStateConditions(STATE_IDLE_PENDING);
+        verify(mDeviceIdleController).scheduleAlarmLocked(0);
+    }
+
+    @Test
+    public void testTransitionPastIdlePending_idleAfterInactiveIsNotZero() {
+        setAlarmSoon(false);
+        mConstants.IDLE_AFTER_INACTIVE_TIMEOUT = 352;
+        enterDeepState(STATE_INACTIVE);
+        clearInvocations(mDeviceIdleController);
+
+        mDeviceIdleController.stepIdleStateLocked("testing");
+
+        // Because IDLE_AFTER_INACTIVE_TIMEOUT > 0, we expect the state to stay at
+        // STATE_IDLE_PENDING, and an alarm to be scheduled to step past this state.
+        verifyStateConditions(STATE_IDLE_PENDING);
+        verify(mDeviceIdleController).scheduleAlarmLocked(352);
     }
 
     @Test
@@ -2735,6 +2861,54 @@ public class DeviceIdleControllerTest {
         assertTrue(mDeviceIdleController.isQuickDozeEnabled());
     }
 
+    @Test
+    public void testInactiveConstants_smallBatteryDevice_configValuesOverriden() {
+        setupIntResource(com.android.internal.R.integer.device_idle_inactive_to_ms, 1234);
+        setupIntResource(com.android.internal.R.integer.device_idle_idle_after_inactive_to_ms, 567);
+        setupPackageManagerFeature(PackageManager.FEATURE_WATCH, false);
+        mInjector = new InjectorForTest(getContext());
+        mInjector.isSmallBatteryDevice = true;
+
+        cleanupDeviceIdleController();
+        setupDeviceIdleController();
+
+        assertEquals(
+                mConstants.DEFAULT_INACTIVE_TIMEOUT_SMALL_BATTERY, mConstants.INACTIVE_TIMEOUT);
+        assertEquals(
+                mConstants.DEFAULT_IDLE_AFTER_INACTIVE_TIMEOUT_SMALL_BATTERY,
+                mConstants.IDLE_AFTER_INACTIVE_TIMEOUT);
+    }
+
+    @Test
+    public void testInactiveConstants_nonSmallBatteryDevice_configValuesNotOverriden() {
+        setupIntResource(com.android.internal.R.integer.device_idle_inactive_to_ms, 1234);
+        setupIntResource(com.android.internal.R.integer.device_idle_idle_after_inactive_to_ms, 567);
+        setupPackageManagerFeature(PackageManager.FEATURE_WATCH, false);
+        mInjector = new InjectorForTest(getContext());
+        mInjector.isSmallBatteryDevice = false;
+
+        cleanupDeviceIdleController();
+        setupDeviceIdleController();
+
+        assertEquals(1234, mConstants.INACTIVE_TIMEOUT);
+        assertEquals(567, mConstants.IDLE_AFTER_INACTIVE_TIMEOUT);
+    }
+
+    @Test
+    public void testInactiveConstants_smallBatteryWatch_configValuesNotOverriden() {
+        setupIntResource(com.android.internal.R.integer.device_idle_inactive_to_ms, 1234);
+        setupIntResource(com.android.internal.R.integer.device_idle_idle_after_inactive_to_ms, 567);
+        setupPackageManagerFeature(PackageManager.FEATURE_WATCH, true);
+        mInjector = new InjectorForTest(getContext());
+        mInjector.isSmallBatteryDevice = true;
+
+        cleanupDeviceIdleController();
+        setupDeviceIdleController();
+
+        assertEquals(1234, mConstants.INACTIVE_TIMEOUT);
+        assertEquals(567, mConstants.IDLE_AFTER_INACTIVE_TIMEOUT);
+    }
+
     private void enterDeepState(int state) {
         switch (state) {
             case STATE_ACTIVE:
@@ -2867,6 +3041,15 @@ public class DeviceIdleControllerTest {
         } else {
             doReturn(Long.MAX_VALUE).when(mAlarmManager).getNextWakeFromIdleTime();
         }
+    }
+
+    private void setupIntResource(int resId, int value) {
+        when(getContext().getResources().getInteger(resId)).thenReturn(value);
+    }
+
+    private void setupPackageManagerFeature(String feature, boolean isFeaturePresent) {
+        when(getContext().getPackageManager().hasSystemFeature(feature))
+                .thenReturn(isFeaturePresent);
     }
 
     private void verifyStateConditions(int expectedState) {

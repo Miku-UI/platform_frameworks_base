@@ -16,6 +16,8 @@
 
 package android.app.admin;
 
+import static android.app.admin.flags.Flags.FLAG_CROSS_PROFILE_WIDGET_PROVIDER_BULK_APIS;
+
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
@@ -170,9 +172,8 @@ public final class DevicePolicyIdentifiers {
 
     /**
      * String identifier for {@link DevicePolicyManager#addCrossProfileWidgetProvider}.
-     *
-     * @hide
      */
+    @FlaggedApi(FLAG_CROSS_PROFILE_WIDGET_PROVIDER_BULK_APIS)
     public static final String CROSS_PROFILE_WIDGET_PROVIDER_POLICY = "crossProfileWidgetProvider";
 
     /**
@@ -202,6 +203,29 @@ public final class DevicePolicyIdentifiers {
      */
     @FlaggedApi(android.app.admin.flags.Flags.FLAG_SET_MTE_POLICY_COEXISTENCE)
     public static final String MEMORY_TAGGING_POLICY = "memoryTagging";
+
+    /**
+     * String identifier for {@link DevicePolicyManager#setManagedProfileContactsAccessPolicy}.
+     *
+     * @hide
+     */
+    public static final String MANAGED_PROFILE_CONTACTS_ACCESS_POLICY =
+            "managedProfileContactsAccess";
+
+    /**
+     * String identifier for {@link DevicePolicyManager#setManagedProfileCallerIdAccessPolicy}.
+     *
+     * @hide
+     */
+    public static final String MANAGED_PROFILE_CALLER_ID_ACCESS_POLICY =
+            "managedProfileCallerIdAccess";
+
+    /**
+     * String identifier for {@link DevicePolicyManager#setMaximumTimeToLock}.
+     * @hide
+     */
+    public static final String MAX_TIME_TO_LOCK_POLICY = "maxTimeToLock";
+
 
     /**
      * @hide

@@ -27,6 +27,7 @@ import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.res.Configuration;
 import android.os.IBinder;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.MergedConfiguration;
 import android.view.SurfaceControl;
 import android.window.ActivityWindowInfo;
@@ -45,6 +46,7 @@ import java.util.Map;
  *
  * @hide
  */
+@RavenwoodKeepWholeClass
 public abstract class ClientTransactionHandler {
 
     private boolean mIsExecutingLocalTransaction;

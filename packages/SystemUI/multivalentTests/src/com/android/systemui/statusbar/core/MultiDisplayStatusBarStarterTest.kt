@@ -36,6 +36,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 
@@ -53,6 +54,8 @@ class MultiDisplayStatusBarStarterTest : SysuiTestCase() {
     private val fakeInitializerStore = kosmos.fakeStatusBarInitializerStore
     private val fakePrivacyDotStore = kosmos.fakePrivacyDotWindowControllerStore
     private val fakeLightBarStore = kosmos.fakeLightBarControllerStore
+    private val fakeStatusBarIconRefreshPerDisplayRepository =
+        kosmos.statusBarIconRefreshPerDisplayRepository
 
     // Lazy, so that @EnableFlags is set before initializer is instantiated.
     private val underTest by lazy { kosmos.multiDisplayStatusBarStarter }
@@ -89,12 +92,17 @@ class MultiDisplayStatusBarStarterTest : SysuiTestCase() {
     @Test
     fun start_triggerAddDisplaySystemDecoration_startsOrchestratorForDisplay() =
         testScope.runTest {
+            fakeStatusBarIconRefreshPerDisplayRepository.add(DISPLAY_2, mock())
+
             underTest.start()
             runCurrent()
 
+            assertThat(fakeStatusBarIconRefreshPerDisplayRepository[DISPLAY_2]).isNotNull()
             fakeDisplayRepository.triggerAddDisplaySystemDecorationEvent(
                 displayId = DEFAULT_DISPLAY
             )
+            fakeDisplayRepository.addDisplay(DISPLAY_2)
+            runCurrent()
             fakeDisplayRepository.triggerAddDisplaySystemDecorationEvent(displayId = DISPLAY_2)
             runCurrent()
 

@@ -26,11 +26,11 @@ import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.statusbar.NotificationRemoteInputManager
 import com.android.systemui.statusbar.chips.notification.domain.interactor.StatusBarNotificationChipsInteractor
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.chips.uievents.StatusBarChipsUiEventLogger
 import com.android.systemui.statusbar.notification.NotifPipelineFlags
 import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
+import com.android.systemui.statusbar.notification.collection.ListEntry
 import com.android.systemui.statusbar.notification.collection.NotifCollection
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
@@ -54,6 +54,7 @@ import com.android.systemui.statusbar.notification.interruption.VisualInterrupti
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionDecisionProviderImpl.DecisionImpl
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionType
 import com.android.systemui.statusbar.notification.logKey
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.row.NotificationActionClickManager
 import com.android.systemui.statusbar.notification.shared.GroupHunAnimationFix
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
@@ -125,7 +126,7 @@ constructor(
             mRemoteInputManager.addActionPressListener(mActionPressListener)
         }
 
-        if (StatusBarNotifChips.isEnabled) {
+        if (PromotedNotificationUi.isEnabled) {
             applicationScope.launch {
                 statusBarNotificationChipsInteractor.promotedNotificationChipTapEvent.collect {
                     onPromotedNotificationChipTapEvent(it)
@@ -141,7 +142,7 @@ constructor(
      * Must be run on the main thread.
      */
     private fun onPromotedNotificationChipTapEvent(key: String) {
-        StatusBarNotifChips.unsafeAssertInNewMode()
+        PromotedNotificationUi.unsafeAssertInNewMode()
 
         val entry = notifCollection.getEntry(key)
         if (entry == null) {
@@ -155,9 +156,9 @@ constructor(
 
         if (isCurrentlyHeadsUp) {
             // If the chip's notif is currently showing as heads up, then we'll stop showing it.
-            statusBarChipsUiEventLogger.logChipTapToHide(entry.sbn.instanceId)
+            statusBarChipsUiEventLogger.logChipTapToHide(key, entry.sbn.instanceId)
         } else {
-            statusBarChipsUiEventLogger.logChipTapToShow(entry.sbn.instanceId)
+            statusBarChipsUiEventLogger.logChipTapToShow(key, entry.sbn.instanceId)
         }
 
         val posted =
@@ -299,8 +300,11 @@ constructor(
                     mInterruptLogger.logDecision(
                         VisualInterruptionType.PEEK.name,
                         childToReceiveParentHeadsUp,
-                        DecisionImpl(shouldInterrupt = false,
-                            logReason = "disqualified-transfer-target"))
+                        DecisionImpl(
+                            shouldInterrupt = false,
+                            logReason = "disqualified-transfer-target",
+                        ),
+                    )
                     postedEntries.forEach {
                         it.shouldHeadsUpEver = false
                         it.shouldHeadsUpAgain = false
@@ -410,13 +414,12 @@ constructor(
             cleanUpEntryTimes()
         }
 
-    private fun isDisqualifiedChild(entry: NotificationEntry): Boolean  {
+    private fun isDisqualifiedChild(entry: NotificationEntry): Boolean {
         if (entry.channel == null || entry.channel.id == null) {
             return false
         }
         return entry.channel.id in SYSTEM_RESERVED_IDS
     }
-
 
     /**
      * Find the posted child with the newest when, and return it if it is isolated and has
@@ -459,20 +462,29 @@ constructor(
         mutableMapOf<String, GroupLocation>().also { map ->
             list.forEach { topLevelEntry ->
                 when (topLevelEntry) {
-                    is NotificationEntry -> map[topLevelEntry.key] = GroupLocation.Isolated
-                    is GroupEntry -> {
-                        topLevelEntry.summary?.let { summary ->
-                            map[summary.key] = GroupLocation.Summary
-                        }
-                        topLevelEntry.children.forEach { child ->
-                            map[child.key] = GroupLocation.Child
-                        }
+                    is BundleEntry -> {
+                        map[topLevelEntry.key] = GroupLocation.Bundle
                     }
-                    is BundleEntry -> map[topLevelEntry.key] = GroupLocation.Bundle
-                    else -> error("unhandled type $topLevelEntry")
+                    is ListEntry -> {
+                        getGroupLocationsByKey(topLevelEntry, map)
+                    }
                 }
             }
         }
+
+    private fun getGroupLocationsByKey(entry: ListEntry, map: MutableMap<String, GroupLocation>) {
+        when (entry) {
+            is GroupEntry -> {
+                entry.summary?.let { summary -> map[summary.key] = GroupLocation.Summary }
+                entry.children.forEach { child -> map[child.key] = GroupLocation.Child }
+            }
+
+            is NotificationEntry -> {
+                map[entry.key] = GroupLocation.Isolated
+            }
+            else -> error("unhandled type $entry")
+        }
+    }
 
     private fun handlePostedEntry(posted: PostedEntry, hunMutator: HunMutator, scenario: String) {
         mLogger.logPostedEntryWillEvaluate(posted, scenario)
@@ -492,7 +504,7 @@ constructor(
                     if (posted.isHeadsUpEntry) {
                         val pinnedStatus =
                             if (posted.shouldHeadsUpAgain) {
-                                if (StatusBarNotifChips.isEnabled && posted.isPinnedByUser) {
+                                if (PromotedNotificationUi.isEnabled && posted.isPinnedByUser) {
                                     PinnedStatus.PinnedByUser
                                 } else {
                                     PinnedStatus.PinnedBySystem
@@ -505,14 +517,19 @@ constructor(
                 } else { // shouldHeadsUpEver = false
                     if (posted.isHeadsUpEntry) {
                         if (notificationSkipSilentUpdates()) {
-                            if (posted.isPinnedByUser) {
-                                // We don't want this to be interrupting anymore, let's remove it
+                            if (
+                                posted.isPinnedByUser ||
+                                    mHeadsUpManager.canRemoveImmediately(posted.entry.key)
+                            ) {
+                                // We don't want this to be interrupting anymore, let's remove it.
                                 // If the notification is pinned by the user, the only way a user
                                 // can un-pin it by tapping the status bar notification chip. Since
                                 // that's a clear user action, we should remove the HUN immediately
                                 // instead of waiting for any sort of minimum timeout.
                                 // TODO(b/401068530) Ensure that status bar chip HUNs are not
                                 //  removed for silent update
+                                // If we can remove the notification immediately, let's remove it in
+                                // this update.
                                 hunMutator.removeNotification(
                                     posted.key,
                                     /* releaseImmediately= */ true,
@@ -548,7 +565,7 @@ constructor(
     }
 
     private fun bindForAsyncHeadsUp(posted: PostedEntry) {
-        val isPinnedByUser = StatusBarNotifChips.isEnabled && posted.isPinnedByUser
+        val isPinnedByUser = PromotedNotificationUi.isEnabled && posted.isPinnedByUser
         // TODO: Add a guarantee to bindHeadsUpView of some kind of callback if the bind is
         //  cancelled so that we don't need to have this sad timeout hack.
         mEntriesBindingUntil[posted.key] = mNow + BIND_TIMEOUT
@@ -927,7 +944,10 @@ constructor(
             override fun getComparator(): NotifComparator {
                 return object : NotifComparator("HeadsUp") {
                     override fun compare(o1: PipelineEntry, o2: PipelineEntry): Int =
-                        mHeadsUpManager.compare(o1.representativeEntry, o2.representativeEntry)
+                        mHeadsUpManager.compare(
+                            o1.asListEntry()?.representativeEntry,
+                            o2.asListEntry()?.representativeEntry,
+                        )
                 }
             }
 
@@ -941,14 +961,18 @@ constructor(
         object : OnHeadsUpChangedListener {
             override fun onHeadsUpStateChanged(entry: NotificationEntry, isHeadsUp: Boolean) {
                 if (!isHeadsUp) {
-                    mNotifPromoter.invalidateList("headsUpEnded: ${entry.logKey}")
-                    mHeadsUpViewBinder.unbindHeadsUpView(entry)
-                    endNotifLifetimeExtensionIfExtended(entry)
+                    mExecutor.execute {
+                        mNotifPromoter.invalidateList("headsUpEnded: ${entry.logKey}")
+                        mHeadsUpViewBinder.unbindHeadsUpView(entry)
+                        endNotifLifetimeExtensionIfExtended(entry)
+                    }
                 }
             }
 
             override fun onHeadsUpAnimatingAwayEnded(entry: NotificationEntry) {
-                mNotifPromoter.invalidateList("headsUpAnimatingAwayEnded: ${entry.logKey}")
+                mExecutor.execute {
+                    mNotifPromoter.invalidateList("headsUpAnimatingAwayEnded: ${entry.logKey}")
+                }
             }
         }
 
@@ -969,7 +993,7 @@ constructor(
 
     private fun isHeadsUpAnimatingAway(entry: PipelineEntry): Boolean {
         if (!GroupHunAnimationFix.isEnabled) return false
-        return entry.representativeEntry?.row?.isHeadsUpAnimatingAway ?: false
+        return entry.asListEntry()?.representativeEntry?.row?.isHeadsUpAnimatingAway ?: false
     }
 
     /**

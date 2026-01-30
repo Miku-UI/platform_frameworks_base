@@ -271,6 +271,7 @@ public class ActivityOptionsTest {
                 case "android.activity.pendingIntentLaunchFlags":
                     // KEY_PENDING_INTENT_LAUNCH_FLAGS
                 case "android.activity.alwaysOnTop": // KEY_TASK_ALWAYS_ON_TOP
+                case "android.activity.reparentLeafTaskToTda": // KEY_REPARENT_LEAF_TASK_TO_TDA
                 case "android.activity.taskOverlay": // KEY_TASK_OVERLAY
                 case "android.activity.taskOverlayCanResume": // KEY_TASK_OVERLAY_CAN_RESUME
                 case "android.activity.avoidMoveToFront": // KEY_AVOID_MOVE_TO_FRONT
@@ -301,6 +302,7 @@ public class ActivityOptionsTest {
                 case "android:activity.overrideTaskTransition": // KEY_OVERRIDE_TASK_TRANSITION
                 case "android.activity.removeWithTaskOrganizer": // KEY_REMOVE_WITH_TASK_ORGANIZER
                 case "android.activity.launchTypeBubble": // KEY_LAUNCHED_FROM_BUBBLE
+                case "android.activity.launchNextToBubble": // KEY_LAUNCH_NEXT_TO_BUBBLE
                 case "android.activity.splashScreenStyle": // KEY_SPLASH_SCREEN_STYLE
                 case "android.activity.launchIntoPipParams": // KEY_LAUNCH_INTO_PIP_PARAMS
                 case "android.activity.dismissKeyguardIfInsecure": // KEY_DISMISS_KEYGUARD_IF_INSECURE
@@ -310,6 +312,7 @@ public class ActivityOptionsTest {
                 case "android:activity.animAbortListener": // KEY_ANIM_ABORT_LISTENER
                 case "android.activity.allowPassThroughOnTouchOutside":
                     // KEY_ALLOW_PASS_THROUGH_ON_TOUCH_OUTSIDE
+                case "android.activity.windowingLayer": // KEY_WINDOWING_LAYER
                     // Existing keys
 
                     break;

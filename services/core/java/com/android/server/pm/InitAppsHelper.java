@@ -176,6 +176,7 @@ final class InitAppsHelper {
         mApexManager.notifyScanResult(apexScanResults);
 
         scanSystemDirs(packageParser, mExecutorService);
+
         // Parse overlay configuration files to set default enable state, mutability, and
         // priority of system overlays.
         final ArrayMap<String, File> apkInApexPreInstalledPaths = new ArrayMap<>();
@@ -310,12 +311,52 @@ final class InitAppsHelper {
         }
     }
 
+    static class ScanParams {
+        public final @Nullable File scanDir;
+        public final int parseFlags;
+        public final int scanFlags;
+        public final @Nullable ApexManager.ActiveApexInfo apexInfo;
+
+        private ScanParams(File scanDir, int parseFlags, int scanFlags,
+                ApexManager.ActiveApexInfo apexInfo) {
+            this.scanDir = scanDir;
+            this.parseFlags = parseFlags;
+            this.scanFlags = scanFlags;
+            this.apexInfo = apexInfo;
+        }
+
+        public static ScanParams forApexDirScan(int parseFlags, int scanFlags) {
+            return new ScanParams(null, parseFlags, scanFlags, null);
+        }
+
+        public static ScanParams forApkPartitionScan(File scanDir, int parseFlags, int scanFlags) {
+            return new ScanParams(scanDir, parseFlags, scanFlags, null);
+        }
+
+        public static ScanParams forApkInApexScan(File scanDir, int parseFlags, int scanFlags,
+                ApexManager.ActiveApexInfo apexInfo) {
+            // When scanning apk in apexes, we want to check the maxSdkVersion.
+            return new ScanParams(scanDir, parseFlags | PARSE_APK_IN_APEX, scanFlags, apexInfo);
+        }
+    }
+
+    // Helper function for collecting input scan parameters to be processed in parallel later.
+    @GuardedBy({"mPm.mInstallLock", "mPm.mLock"})
+    private void collectScanParams(List<ScanParams> scanParamsList, File scanDir,
+            int parseFlags, int scanFlags, PackageParser2 packageParser,
+            ExecutorService executorService, ApexManager.ActiveApexInfo apexInfo) {
+        scanParamsList.add((scanFlags & SCAN_AS_APK_IN_APEX) != 0
+                ? ScanParams.forApkInApexScan(scanDir, parseFlags, scanFlags, apexInfo)
+                : ScanParams.forApkPartitionScan(scanDir, parseFlags, scanFlags));
+    }
+
     /**
      * First part of init dir scanning
      */
     @GuardedBy({"mPm.mInstallLock", "mPm.mLock"})
     private void scanSystemDirs(PackageParser2 packageParser, ExecutorService executorService) {
         File frameworkDir = new File(Environment.getRootDirectory(), "framework");
+        List<ScanParams> scanParamsList = new ArrayList<>();
 
         // Collect vendor/product/system_ext overlay packages. (Do this before scanning
         // any apps.)
@@ -326,30 +367,33 @@ final class InitAppsHelper {
             if (partition.getOverlayFolder() == null) {
                 continue;
             }
-            scanDirTracedLI(partition.getOverlayFolder(),
-                    mSystemParseFlags, mSystemScanFlags | partition.scanFlag,
-                    packageParser, executorService, partition.apexInfo);
+            collectScanParams(scanParamsList, partition.getOverlayFolder(),
+                      mSystemParseFlags, mSystemScanFlags | partition.scanFlag, packageParser,
+                      executorService, partition.apexInfo);
         }
-
-        scanDirTracedLI(frameworkDir,
-                mSystemParseFlags, mSystemScanFlags | SCAN_NO_DEX | SCAN_AS_PRIVILEGED,
-                packageParser, executorService, null);
-        if (!mPm.mPackages.containsKey("android")) {
-            throw new IllegalStateException(
-                    "Failed to load frameworks package; check log for warnings");
-        }
+        collectScanParams(scanParamsList, frameworkDir, mSystemParseFlags,
+                  mSystemScanFlags | SCAN_NO_DEX | SCAN_AS_PRIVILEGED, packageParser,
+                  executorService, null);
 
         for (int i = 0, size = mDirsToScanAsSystem.size(); i < size; i++) {
             final ScanPartition partition = mDirsToScanAsSystem.get(i);
             if (partition.getPrivAppFolder() != null) {
-                scanDirTracedLI(partition.getPrivAppFolder(),
+                collectScanParams(scanParamsList, partition.getPrivAppFolder(),
                         mSystemParseFlags,
                         mSystemScanFlags | SCAN_AS_PRIVILEGED | partition.scanFlag,
                         packageParser, executorService, partition.apexInfo);
             }
-            scanDirTracedLI(partition.getAppFolder(),
-                    mSystemParseFlags, mSystemScanFlags | partition.scanFlag,
-                    packageParser, executorService, partition.apexInfo);
+            collectScanParams(scanParamsList, partition.getAppFolder(), mSystemParseFlags,
+                    mSystemScanFlags | partition.scanFlag, packageParser, executorService,
+                    partition.apexInfo);
+        }
+
+        // Scan all directories with the parameters contained in scanParamsList.
+        parallelScanDirTracedLI(scanParamsList, packageParser, executorService);
+
+        if (!mPm.mPackages.containsKey("android")) {
+            throw new IllegalStateException(
+                    "Failed to load frameworks package; check log for warnings");
         }
     }
 
@@ -370,12 +414,20 @@ final class InitAppsHelper {
             @Nullable ApexManager.ActiveApexInfo apexInfo) {
         Trace.traceBegin(TRACE_TAG_PACKAGE_MANAGER, "scanDir [" + scanDir.getAbsolutePath() + "]");
         try {
-            if ((scanFlags & SCAN_AS_APK_IN_APEX) != 0) {
-                // when scanning apk in apexes, we want to check the maxSdkVersion
-                parseFlags |= PARSE_APK_IN_APEX;
-            }
             mInstallPackageHelper.installPackagesFromDir(scanDir, parseFlags,
                     scanFlags, packageParser, executorService, apexInfo);
+        } finally {
+            Trace.traceEnd(TRACE_TAG_PACKAGE_MANAGER);
+        }
+    }
+
+    @GuardedBy({"mPm.mInstallLock", "mPm.mLock"})
+    private void parallelScanDirTracedLI(List<ScanParams> scanParamsList,
+            PackageParser2 packageParser, ExecutorService executorService) {
+        Trace.traceBegin(TRACE_TAG_PACKAGE_MANAGER, "parallelScanDir");
+        try {
+            mInstallPackageHelper.parallelInstallPackagesFromDirs(scanParamsList,
+                    packageParser, executorService);
         } finally {
             Trace.traceEnd(TRACE_TAG_PACKAGE_MANAGER);
         }

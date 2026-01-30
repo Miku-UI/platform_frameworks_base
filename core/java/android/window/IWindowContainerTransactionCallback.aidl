@@ -20,7 +20,7 @@ import android.view.SurfaceControl;
 
 /**
  * See WindowOrganizer#applyTransaction.
- * {@hide}
+ * @hide
  */
 oneway interface IWindowContainerTransactionCallback {
     /** Called upon completion of WindowOrganizer#applyTransaction */

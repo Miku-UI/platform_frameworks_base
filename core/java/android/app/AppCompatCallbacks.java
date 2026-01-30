@@ -33,6 +33,7 @@ public final class AppCompatCallbacks implements Compatibility.BehaviorChangeDel
     private final long[] mDisabledChanges;
     private final long[] mLoggableChanges;
     private final ChangeReporter mChangeReporter;
+    private boolean mLogChangeChecksToStatsD = false;
 
     /**
      * Install this class into the current process using the disabled and loggable changes lists.
@@ -40,17 +41,33 @@ public final class AppCompatCallbacks implements Compatibility.BehaviorChangeDel
      * @param disabledChanges Set of compatibility changes that are disabled for this process.
      * @param loggableChanges Set of compatibility changes that we want to log.
      */
-    public static void install(long[] disabledChanges, long[] loggableChanges) {
+    public static void install(
+            long[] disabledChanges, long[] loggableChanges) {
         Compatibility.setBehaviorChangeDelegate(
-                new AppCompatCallbacks(disabledChanges, loggableChanges));
+                new AppCompatCallbacks(disabledChanges, loggableChanges, false));
     }
 
-    private AppCompatCallbacks(long[] disabledChanges, long[] loggableChanges) {
+    /**
+     * Install this class into the current process using the disabled and loggable changes lists.
+     *
+     * @param disabledChanges Set of compatibility changes that are disabled for this process.
+     * @param loggableChanges Set of compatibility changes that we want to log.
+     * @param logChangeChecksToStatsD Whether to log change checks to statsd.
+     */
+    public static void install(
+            long[] disabledChanges, long[] loggableChanges, boolean logChangeChecksToStatsD) {
+        Compatibility.setBehaviorChangeDelegate(
+                new AppCompatCallbacks(disabledChanges, loggableChanges, logChangeChecksToStatsD));
+    }
+
+    private AppCompatCallbacks(
+            long[] disabledChanges, long[] loggableChanges, boolean logChangeChecksToStatsD) {
         mDisabledChanges = Arrays.copyOf(disabledChanges, disabledChanges.length);
         mLoggableChanges = Arrays.copyOf(loggableChanges, loggableChanges.length);
         Arrays.sort(mDisabledChanges);
         Arrays.sort(mLoggableChanges);
         mChangeReporter = new ChangeReporter(ChangeReporter.SOURCE_APP_PROCESS);
+        mLogChangeChecksToStatsD = logChangeChecksToStatsD;
     }
 
     /**
@@ -65,25 +82,33 @@ public final class AppCompatCallbacks implements Compatibility.BehaviorChangeDel
     }
 
     public void onChangeReported(long changeId) {
-        boolean isLoggable = changeIdInChangeList(mLoggableChanges, changeId);
-        reportChange(changeId, ChangeReporter.STATE_LOGGED, isLoggable);
+        isChangeEnabledAndReport(changeId, true);
     }
 
     public boolean isChangeEnabled(long changeId) {
+        boolean isLoggable = mLogChangeChecksToStatsD ||
+            changeIdInChangeList(mLoggableChanges, changeId);
+        if (!isLoggable) {
+            boolean isEnabled = !changeIdInChangeList(mDisabledChanges, changeId);
+            return isEnabled;
+        }
+        return isChangeEnabledAndReport(changeId, mLogChangeChecksToStatsD);
+    }
+
+    private boolean isChangeEnabledAndReport(long changeId, boolean doStatsLog) {
         boolean isEnabled = !changeIdInChangeList(mDisabledChanges, changeId);
-        boolean isLoggable = changeIdInChangeList(mLoggableChanges, changeId);
         if (isEnabled) {
             // Not present in the disabled changeId array
-            reportChange(changeId, ChangeReporter.STATE_ENABLED, isLoggable);
+            reportChange(changeId, ChangeReporter.STATE_ENABLED, doStatsLog);
             return true;
         }
-        reportChange(changeId, ChangeReporter.STATE_DISABLED, isLoggable);
+        reportChange(changeId, ChangeReporter.STATE_DISABLED, doStatsLog);
         return false;
     }
 
-    private void reportChange(long changeId, int state, boolean isLoggable) {
+    private void reportChange(long changeId, int state, boolean doStatsLog) {
         int uid = Process.myUid();
-        mChangeReporter.reportChange(uid, changeId, state, false, isLoggable);
+        mChangeReporter.reportChange(uid, changeId, state, false, doStatsLog);
     }
 
 }

@@ -46,6 +46,7 @@ import android.util.Log;
 import android.util.SparseArray;
 import android.util.TypedValue;
 import android.view.HapticFeedbackConstants;
+import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.RenderNodeAnimator;
 import android.view.View;
@@ -55,6 +56,8 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
 import android.view.animation.AnimationUtils;
 import android.view.animation.Interpolator;
+
+import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.R;
 import com.android.internal.graphics.ColorUtils;
@@ -148,6 +151,8 @@ public class LockPatternView extends View {
     private boolean mInputEnabled = true;
     @UnsupportedAppUsage
     private boolean mInStealthMode = false;
+    private InputMode mInputMode = InputMode.Swipe;
+    private boolean mClickInputSupported = false;
     @UnsupportedAppUsage
     private boolean mPatternInProgress = false;
     private boolean mFadePattern = true;
@@ -264,7 +269,7 @@ public class LockPatternView extends View {
         Animator activationAnimator;
         @Nullable
         Animator deactivationAnimator;
-     }
+    }
 
     /**
      * How to display the current pattern.
@@ -291,31 +296,83 @@ public class LockPatternView extends View {
     }
 
     /**
+     * Input behavior types of the UI
+     */
+    public enum InputMode {
+
+        /**
+         * A user is entering the pattern using swiping, e.g. with a finger, stylus or with
+         * touch exploration support
+         */
+        Swipe,
+
+        /**
+         * A user is entering the pattern using click, e.g. with a finger, mouse or track pad
+         */
+        Click
+    }
+
+    /**
      * The call back interface for detecting patterns entered by the user.
      */
     public static interface OnPatternListener {
 
         /**
          * A new pattern has begun.
+         *
+         * @deprecated use {@link #onPatternStart(InputMode)}
          */
-        void onPatternStart();
+        @Deprecated
+        default void onPatternStart() {}
+
+        /**
+         * A new pattern has begun.
+         * @param inputMode The input mode that was used to enter the pattern.
+         */
+        default void onPatternStart(InputMode inputMode) {
+            onPatternStart();
+        }
 
         /**
          * The pattern was cleared.
          */
-        void onPatternCleared();
+        default void onPatternCleared() {}
 
         /**
          * The user extended the pattern currently being drawn by one cell.
          * @param pattern The pattern with newly added cell.
+         *
+         * @deprecated use {@link #onPatternCellAdded(List<Cell>, InputMode)}
          */
-        void onPatternCellAdded(List<Cell> pattern);
+        @Deprecated
+        default void onPatternCellAdded(List<Cell> pattern) {}
+
+        /**
+         * The user extended the pattern currently being drawn by one cell.
+         * @param pattern The pattern with newly added cell.
+         * @param inputMode The input mode that was used to enter the pattern.
+         */
+        default void onPatternCellAdded(List<Cell> pattern, InputMode inputMode) {
+            onPatternCellAdded(pattern);
+        }
 
         /**
          * A pattern was detected from the user.
          * @param pattern The pattern.
+         *
+         * @deprecated use {@link #onPatternDetected(List<Cell>, InputMode)}
          */
-        void onPatternDetected(List<Cell> pattern);
+        @Deprecated
+        default void onPatternDetected(List<Cell> pattern) {}
+
+        /**
+         * A pattern was detected from the user.
+         * @param pattern The pattern.
+         * @param inputMode The input mode that was used to enter the pattern.
+         */
+        default void onPatternDetected(List<Cell> pattern, InputMode inputMode) {
+            onPatternDetected(pattern);
+        }
     }
 
     /** An external haptics player for pattern updates. */
@@ -373,9 +430,9 @@ public class LockPatternView extends View {
         mPathPaint.setStrokeWidth(mPathWidth);
 
         mLineFadeOutAnimationDurationMs =
-            getResources().getInteger(R.integer.lock_pattern_line_fade_out_duration);
+                getResources().getInteger(R.integer.lock_pattern_line_fade_out_duration);
         mLineFadeOutAnimationDelayMs =
-            getResources().getInteger(R.integer.lock_pattern_line_fade_out_delay);
+                getResources().getInteger(R.integer.lock_pattern_line_fade_out_delay);
 
         mFadePatternAnimationDurationMs =
                 getResources().getInteger(R.integer.lock_pattern_fade_pattern_duration);
@@ -448,6 +505,25 @@ public class LockPatternView extends View {
     @UnsupportedAppUsage
     public void setInStealthMode(boolean inStealthMode) {
         mInStealthMode = inStealthMode;
+    }
+
+    /**
+     * Get the current input mode
+     * @return Current input mode of the view.
+     */
+    @VisibleForTesting
+    public InputMode getInputMode() {
+        return mInputMode;
+    }
+
+    /**
+     * Set whether the view supports click input mode.  If true, a pattern
+     * can be entered using sequential clicks.
+     *
+     * @param clickInputSupported Whether tap input is supported.
+     */
+    public void setClickInputSupported(boolean clickInputSupported) {
+        mClickInputSupported = clickInputSupported;
     }
 
     /**
@@ -626,7 +702,7 @@ public class LockPatternView extends View {
     private void notifyCellAdded() {
         // sendAccessEvent(R.string.lockscreen_access_pattern_cell_added);
         if (mOnPatternListener != null) {
-            mOnPatternListener.onPatternCellAdded(mPattern);
+            mOnPatternListener.onPatternCellAdded(new ArrayList(mPattern), mInputMode);
         }
         // Disable used cells for accessibility as they get added
         if (DEBUG_A11Y) Log.v(TAG, "ivnalidating root because cell was added.");
@@ -635,14 +711,14 @@ public class LockPatternView extends View {
 
     private void notifyPatternStarted() {
         if (mOnPatternListener != null) {
-            mOnPatternListener.onPatternStart();
+            mOnPatternListener.onPatternStart(mInputMode);
         }
     }
 
     @UnsupportedAppUsage
     private void notifyPatternDetected() {
         if (mOnPatternListener != null) {
-            mOnPatternListener.onPatternDetected(mPattern);
+            mOnPatternListener.onPatternDetected(new ArrayList(mPattern), mInputMode);
         }
     }
 
@@ -1141,31 +1217,68 @@ public class LockPatternView extends View {
             return false;
         }
 
-        switch(event.getAction()) {
-            case MotionEvent.ACTION_DOWN:
-                handleActionDown(event);
-                return true;
-            case MotionEvent.ACTION_UP:
-                handleActionUp();
-                return true;
-            case MotionEvent.ACTION_MOVE:
-                handleActionMove(event);
-                return true;
-            case MotionEvent.ACTION_CANCEL:
-                if (mPatternInProgress) {
-                    setPatternInProgress(false);
-                    resetPattern();
-                    notifyPatternCleared();
-                }
-                if (PROFILE_DRAWING) {
-                    if (mDrawingProfilingStarted) {
-                        Debug.stopMethodTracing();
-                        mDrawingProfilingStarted = false;
-                    }
-                }
-                return true;
+        final int source = event.getSource();
+        final boolean sourceIsMouse =
+                (source & InputDevice.SOURCE_MOUSE) == InputDevice.SOURCE_MOUSE;
+        final boolean sourceIsTouch = !sourceIsMouse;
+
+        if ((AccessibilityManager.getInstance(mContext).isTouchExplorationEnabled()
+                || sourceIsTouch) && mInputMode == InputMode.Click) {
+            // Switch to swipe mode
+            // Only if current pattern is not already valid
+            if (mPattern.size() >= LockPatternUtils.MIN_LOCK_PATTERN_SIZE
+                    && mPatternDisplayMode != DisplayMode.Wrong) {
+                return false;
+            }
+            switchInputMode(InputMode.Swipe);
+        } else if (mClickInputSupported && sourceIsMouse && mInputMode == InputMode.Swipe) {
+            // Switch to click mode
+            // Valid pattern is already preserved by enablement check above
+            switchInputMode(InputMode.Click);
         }
-        return false;
+
+        if (mInputMode == InputMode.Click) {
+            return switch (event.getAction()) {
+                // Handle ACTION_DOWN event. Otherwise the ACTION_UP event wouldn't be received
+                case MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> true;
+                case MotionEvent.ACTION_UP -> {
+                    handleActionMouseUp(event);
+                    yield true;
+                }
+                case MotionEvent.ACTION_CANCEL -> {
+                    handleActionCancel();
+                    yield true;
+                }
+                default -> false;
+            };
+        } else {
+            return switch (event.getAction()) {
+                case MotionEvent.ACTION_DOWN -> {
+                    handleActionDown(event);
+                    yield true;
+                }
+                case MotionEvent.ACTION_UP -> {
+                    handleActionUp();
+                    yield true;
+                }
+                case MotionEvent.ACTION_MOVE -> {
+                    handleActionMove(event);
+                    yield true;
+                }
+                case MotionEvent.ACTION_CANCEL -> {
+                    handleActionCancel();
+                    yield true;
+                }
+                default -> false;
+            };
+        }
+    }
+
+    private void switchInputMode(InputMode inputMode) {
+        setPatternInProgress(false);
+        resetPattern();
+        mInputMode = inputMode;
+        notifyPatternCleared();
     }
 
     private void setPatternInProgress(boolean progress) {
@@ -1267,6 +1380,33 @@ public class LockPatternView extends View {
         }
     }
 
+    private void handleActionMouseUp(MotionEvent event) {
+        if (mPatternDisplayMode == DisplayMode.Wrong) {
+            resetPattern();
+        }
+        final float x = event.getX();
+        final float y = event.getY();
+        final int previousPatternSize = mPattern.size();
+        final Cell hitCell = detectAndAddHit(x, y);
+        if (hitCell != null) {
+            if (previousPatternSize == 0) {
+                setPatternInProgress(true);
+                mPatternDisplayMode = DisplayMode.Correct;
+                notifyPatternStarted();
+            }
+            notifyPatternDetected();
+            invalidate();
+            mInProgressX = getCenterXForColumn(hitCell.column);
+            mInProgressY = getCenterYForRow(hitCell.row);
+        }
+        if (PROFILE_DRAWING) {
+            if (!mDrawingProfilingStarted) {
+                Debug.startMethodTracing("LockPatternDrawing");
+                mDrawingProfilingStarted = true;
+            }
+        }
+    }
+
     private void deactivateLastCell() {
         Cell lastCell = mPattern.get(mPattern.size() - 1);
         startCellDeactivatedAnimation(lastCell, /* fillInGap= */ false);
@@ -1287,6 +1427,7 @@ public class LockPatternView extends View {
             }
         }
     }
+
     private void handleActionDown(MotionEvent event) {
         resetPattern();
         final float x = event.getX();
@@ -1316,6 +1457,20 @@ public class LockPatternView extends View {
             if (!mDrawingProfilingStarted) {
                 Debug.startMethodTracing("LockPatternDrawing");
                 mDrawingProfilingStarted = true;
+            }
+        }
+    }
+
+    private void handleActionCancel() {
+        if (mPatternInProgress) {
+            setPatternInProgress(false);
+            resetPattern();
+            notifyPatternCleared();
+        }
+        if (PROFILE_DRAWING) {
+            if (mDrawingProfilingStarted) {
+                Debug.stopMethodTracing();
+                mDrawingProfilingStarted = false;
             }
         }
     }
@@ -1449,7 +1604,7 @@ public class LockPatternView extends View {
                 anyCircles = true;
 
                 if (mLineFadeStart[i] == 0) {
-                  mLineFadeStart[i] = SystemClock.elapsedRealtime();
+                    mLineFadeStart[i] = SystemClock.elapsedRealtime();
                 }
 
                 float centerX = getCenterXForColumn(cell.column);
@@ -1660,7 +1815,7 @@ public class LockPatternView extends View {
         return new SavedState(superState,
                 patternString,
                 mPatternDisplayMode.ordinal(),
-                mInputEnabled, mInStealthMode);
+                mInputEnabled, mInputMode.ordinal(), mInStealthMode);
     }
 
     @Override
@@ -1672,6 +1827,7 @@ public class LockPatternView extends View {
                 LockPatternUtils.byteArrayToPattern(ss.getSerializedPattern().getBytes()));
         mPatternDisplayMode = DisplayMode.values()[ss.getDisplayMode()];
         mInputEnabled = ss.isInputEnabled();
+        mInputMode = InputMode.values()[ss.getInputMode()];
         mInStealthMode = ss.isInStealthMode();
     }
 
@@ -1690,6 +1846,7 @@ public class LockPatternView extends View {
         private final String mSerializedPattern;
         private final int mDisplayMode;
         private final boolean mInputEnabled;
+        private final int mInputMode;
         private final boolean mInStealthMode;
 
         /**
@@ -1697,11 +1854,12 @@ public class LockPatternView extends View {
          */
         @UnsupportedAppUsage
         private SavedState(Parcelable superState, String serializedPattern, int displayMode,
-                boolean inputEnabled, boolean inStealthMode) {
+                boolean inputEnabled, int inputMode, boolean inStealthMode) {
             super(superState);
             mSerializedPattern = serializedPattern;
             mDisplayMode = displayMode;
             mInputEnabled = inputEnabled;
+            mInputMode = inputMode;
             mInStealthMode = inStealthMode;
         }
 
@@ -1714,22 +1872,27 @@ public class LockPatternView extends View {
             mSerializedPattern = in.readString();
             mDisplayMode = in.readInt();
             mInputEnabled = (Boolean) in.readValue(null);
+            mInputMode = in.readInt();
             mInStealthMode = (Boolean) in.readValue(null);
         }
 
-        public String getSerializedPattern() {
+        String getSerializedPattern() {
             return mSerializedPattern;
         }
 
-        public int getDisplayMode() {
+        int getDisplayMode() {
             return mDisplayMode;
         }
 
-        public boolean isInputEnabled() {
+        boolean isInputEnabled() {
             return mInputEnabled;
         }
 
-        public boolean isInStealthMode() {
+        int getInputMode() {
+            return mInputMode;
+        }
+
+        boolean isInStealthMode() {
             return mInStealthMode;
         }
 
@@ -1739,6 +1902,7 @@ public class LockPatternView extends View {
             dest.writeString(mSerializedPattern);
             dest.writeInt(mDisplayMode);
             dest.writeValue(mInputEnabled);
+            dest.writeInt(mInputMode);
             dest.writeValue(mInStealthMode);
         }
 

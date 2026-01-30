@@ -63,13 +63,13 @@ import androidx.annotation.VisibleForTesting;
 import com.android.internal.statusbar.LetterboxDetails;
 import com.android.internal.view.AppearanceRegion;
 import com.android.systemui.Dumpable;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.model.SysUiState;
 import com.android.systemui.navigationbar.gestural.EdgeBackGestureHandler;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.shared.recents.utilities.Utilities;
 import com.android.systemui.shared.statusbar.phone.BarTransitions;
@@ -178,7 +178,6 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
 
         @Override
         public void hide() {
-            clearTransient();
         }
     };
 
@@ -505,6 +504,10 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
     @Override
     public void setImeWindowStatus(int displayId, @ImeWindowVisibility int vis,
             @BackDispositionMode int backDisposition, boolean showImeSwitcher) {
+        if (displayId != mDefaultDisplayId) {
+            return;
+        }
+
         final boolean isImeVisible = mNavBarHelper.isImeVisible(vis);
         final int flags = Utilities.updateNavbarFlagsFromIme(mNavbarFlags, backDisposition,
                 isImeVisible, showImeSwitcher);
@@ -533,8 +536,10 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
 
     @Override
     public void disable(int displayId, int state1, int state2, boolean animate) {
-        mDisabledFlags = state1;
-        updateSysuiFlags();
+        if (displayId == mDefaultDisplayId) {
+            mDisabledFlags = state1;
+            updateSysuiFlags();
+        }
         mLauncherProxyService.disable(displayId, state1, state2, animate);
     }
 
@@ -544,16 +549,18 @@ public class TaskbarDelegate implements CommandQueue.Callbacks,
             @InsetsType int requestedVisibleTypes, String packageName,
             LetterboxDetails[] letterboxDetails) {
         mLauncherProxyService.onSystemBarAttributesChanged(displayId, behavior);
+        if (displayId != mDefaultDisplayId) {
+            return;
+        }
+
         boolean nbModeChanged = false;
         if (mAppearance != appearance) {
             mAppearance = appearance;
             nbModeChanged = updateTransitionMode(
                     transitionMode(mTaskbarTransientShowing, appearance));
         }
-        if (displayId == mDefaultDisplayId) {
-            mLightBarController.onNavigationBarAppearanceChanged(appearance, nbModeChanged,
-                    mTransitionMode, navbarColorManagedByIme);
-        }
+        mLightBarController.onNavigationBarAppearanceChanged(appearance, nbModeChanged,
+                mTransitionMode, navbarColorManagedByIme);
         if (mBehavior != behavior) {
             mBehavior = behavior;
             updateSysuiFlags();

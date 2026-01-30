@@ -23,6 +23,8 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.mockingDetails;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -32,13 +34,17 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.content.res.TypedArray;
+import android.os.Binder;
+import android.os.IBinder;
 import android.os.Looper;
 import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.dreams.DreamService;
 import android.service.dreams.Flags;
 import android.service.dreams.IDreamOverlayCallback;
 import android.testing.TestableLooper;
 import android.view.KeyEvent;
+import android.view.WindowManager;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -46,13 +52,19 @@ import androidx.test.runner.AndroidJUnit4;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
 
+import java.lang.ref.WeakReference;
+
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class DreamServiceTest {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private static final String TEST_PACKAGE_NAME = "com.android.frameworks.dreamservicetests";
 
     private TestableLooper mTestableLooper;
@@ -191,7 +203,6 @@ public class DreamServiceTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_DREAM_WAKE_REDIRECT)
     public void testRedirect() throws Exception {
         TestDreamEnvironment environment = new TestDreamEnvironment.Builder(mTestableLooper)
                 .setDreamOverlayPresent(true)
@@ -207,6 +218,20 @@ public class DreamServiceTest {
     }
 
     @Test
+    public void testCallbackInvalidAfterDestroy() {
+        final IBinder binder = new Binder();
+        final DreamService service = Mockito.mock(DreamService.class);
+        final WeakReference<DreamService> serviceRef = new WeakReference<>(service);
+        DreamService.DreamActivityCallbacks callbacks = new DreamService.DreamActivityCallbacks(
+                binder, serviceRef);
+        callbacks.onActivityDestroyed();
+        assertThat(mockingDetails(service).getInvocations().size()).isNotEqualTo(0);
+        clearInvocations(service);
+        callbacks.onActivityDestroyed();
+        assertThat(mockingDetails(service).getInvocations().size()).isEqualTo(0);
+    }
+
+    @Test
     @EnableFlags(Flags.FLAG_DREAM_HANDLES_CONFIRM_KEYS)
     public void testPartialKeyHandling() throws Exception {
         TestDreamEnvironment environment = new TestDreamEnvironment.Builder(mTestableLooper)
@@ -215,6 +240,27 @@ public class DreamServiceTest {
 
         // Ensure service does not crash from only receiving up event.
         environment.dispatchKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_SPACE));
+    }
+
+    @Test
+    public void testSetBrightness() throws Exception {
+        final float screenBrightness = .45f;
+        TestDreamEnvironment environment = new TestDreamEnvironment.Builder(mTestableLooper)
+                .build();
+        environment.advance(TestDreamEnvironment.DREAM_STATE_DREAM_ACTIVITY_CREATED);
+        environment.setDreamScreenBrightness(screenBrightness);
+        final WindowManager.LayoutParams params = environment.getLatestLayoutParams();
+        assertThat(params.screenBrightness).isEqualTo(screenBrightness);
+    }
+
+    @Test
+    public void testSetBrightnessNoWindowEarlyExits() throws Exception {
+        final float screenBrightness = .45f;
+        TestDreamEnvironment environment = new TestDreamEnvironment.Builder(mTestableLooper)
+                .build();
+
+        // This call should not crash
+        environment.setDreamScreenBrightness(screenBrightness);
     }
 
     @Test
@@ -248,7 +294,7 @@ public class DreamServiceTest {
         environment.comeToFront();
         mTestableLooper.processAllMessages();
 
-        // Overlay client receives call.
+        // Overlay client does not receives call.
         verify(environment.getDreamOverlayClient(), never()).comeToFront();
     }
 }

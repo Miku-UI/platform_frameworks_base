@@ -20,9 +20,11 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.statusbar.notification.data.repository.HeadsUpRepository
 import com.android.systemui.statusbar.notification.data.repository.HeadsUpRowRepository
+import com.android.systemui.statusbar.notification.headsup.PinnedStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.forEach
 import kotlinx.coroutines.flow.map
 
 val Kosmos.headsUpNotificationRepository by Fixture { FakeHeadsUpNotificationRepository() }
@@ -49,7 +51,9 @@ class FakeHeadsUpNotificationRepository : HeadsUpRepository {
     }
 
     override fun unpinAll(userUnPinned: Boolean) {
-        // do nothing
+        orderedHeadsUpRows.value.forEach { row ->
+            (row.pinnedStatus as? MutableStateFlow<PinnedStatus>)?.value = PinnedStatus.NotPinned
+        }
     }
 
     override fun releaseAfterExpansion() {

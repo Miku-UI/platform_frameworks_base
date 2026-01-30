@@ -18,6 +18,7 @@ package com.android.internal.telephony;
 
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
+import android.app.AppOpsManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.pm.ApplicationInfo;
@@ -321,25 +322,53 @@ public final class CarrierAppUtils {
                 enabledCarrierPackages.toArray(packageNames);
                 permissionManager.grantDefaultPermissionsToEnabledCarrierApps(packageNames,
                         UserHandle.of(userId), TelephonyUtils.DIRECT_EXECUTOR, isSuccess -> { });
+                // Carrier privileged apps need unfiltered access to SMS, as they are often related
+                // to providing phone services (including SMS)
+                grantReceiveSensitiveNotificationsToCarrierApps(context, enabledCarrierPackages,
+                        userId);
             }
         } catch (PackageManager.NameNotFoundException e) {
             Log.w(TAG, "Could not reach PackageManager", e);
         }
     }
 
-    private static boolean shouldUpdateEnabledState(ApplicationInfo appInfo, int enabledSetting) {
-        if (Flags.cleanupCarrierAppUpdateEnabledStateLogic()) {
-            return !isUpdatedSystemApp(appInfo)
-                    && (enabledSetting == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
-                            || enabledSetting
-                                    == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED
-                            || (appInfo.flags & ApplicationInfo.FLAG_INSTALLED) == 0);
-        } else {
-            return !isUpdatedSystemApp(appInfo)
-                            && enabledSetting == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
-                    || enabledSetting == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED
-                    || (appInfo.flags & ApplicationInfo.FLAG_INSTALLED) == 0;
+    /**
+     * Grants the {@link AppOpsManager#OPSTR_RECEIVE_SENSITIVE_NOTIFICATIONS} permission
+     * to the specified carrier apps for the given user.
+     *
+     * <p>This permission allows apps to receive notifications that may contain sensitive
+     * information, such as one-time passwords (OTPs) from SMS messages. This is granted to
+     * carrier-privileged apps that require access to such information for providing phone services.
+     *
+     * @param context The context to use for accessing system services.
+     * @param packageNames A list of package names of the carrier apps to grant the permission to.
+     * @param user The user ID for which to grant the permission.
+     */
+    private static void grantReceiveSensitiveNotificationsToCarrierApps(Context context,
+            List<String> packageNames, int user) {
+        if (!Flags.redactOtpSms()) {
+            return;
         }
+        PackageManager pm = context.getPackageManager();
+        AppOpsManager aom = context.getSystemService(AppOpsManager.class);
+        for (String packageName : packageNames) {
+            int uid;
+            try {
+                uid = pm.getPackageUidAsUser(packageName, user);
+            } catch (PackageManager.NameNotFoundException e) {
+                continue;
+            }
+            aom.setUidMode(AppOpsManager.OPSTR_RECEIVE_SENSITIVE_NOTIFICATIONS, uid,
+                    AppOpsManager.MODE_ALLOWED);
+        }
+    }
+
+    private static boolean shouldUpdateEnabledState(ApplicationInfo appInfo, int enabledSetting) {
+        return !isUpdatedSystemApp(appInfo)
+                && (enabledSetting == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
+                        || enabledSetting
+                                == PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED
+                        || (appInfo.flags & ApplicationInfo.FLAG_INSTALLED) == 0);
     }
 
     /**

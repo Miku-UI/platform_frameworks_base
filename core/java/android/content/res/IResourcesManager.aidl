@@ -21,7 +21,7 @@ import android.os.RemoteCallback;
 /**
  * Api for getting information about resources.
  *
- * {@hide}
+ * @hide
  */
 interface IResourcesManager {
     boolean dumpResources(in String process,

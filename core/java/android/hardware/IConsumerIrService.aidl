@@ -16,7 +16,7 @@
 
 package android.hardware;
 
-/** {@hide} */
+/** @hide */
 interface IConsumerIrService
 {
     @RequiresNoPermission

@@ -17,7 +17,10 @@
 package com.android.server.am;
 
 import static android.app.ActivityManager.PROCESS_STATE_NONEXISTENT;
+import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_ACTIVITY;
+import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_BROADCAST_RECEIVER;
 import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_EMPTY;
+import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_STARTED_SERVICE;
 
 import android.app.IApplicationThread;
 import android.app.ProcessMemoryState.HostingComponentType;
@@ -33,6 +36,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.procstats.ProcessState;
 import com.android.internal.app.procstats.ProcessStats;
 import com.android.server.am.ProcessList.ProcStateMemTracker;
+import com.android.server.am.psc.ProcessRecordInternal;
 import com.android.server.power.stats.BatteryStatsImpl;
 
 import java.io.PrintWriter;
@@ -44,7 +48,7 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * TODO(b/297542292): Update PSS names with RSS once AppProfiler's PSS profiling has been replaced.
  */
-final class ProcessProfileRecord {
+final class ProcessProfileRecord implements ProcessRecordInternal.StartedServiceObserver {
     final ProcessRecord mApp;
 
     private final ActivityManagerService mService;
@@ -72,12 +76,6 @@ final class ProcessProfileRecord {
      */
     @GuardedBy("mProfilerLock")
     private long mNextPssTime;
-
-    /**
-     * Initial memory pss of process for idle maintenance.
-     */
-    @GuardedBy("mProfilerLock")
-    private long mInitialIdlePssOrRss;
 
     /**
      * Last computed memory pss.
@@ -353,16 +351,6 @@ final class ProcessProfileRecord {
     @GuardedBy("mProfilerLock")
     void setNextPssTime(long nextPssTime) {
         mNextPssTime = nextPssTime;
-    }
-
-    @GuardedBy("mProfilerLock")
-    long getInitialIdlePssOrRss() {
-        return mInitialIdlePssOrRss;
-    }
-
-    @GuardedBy("mProfilerLock")
-    void setInitialIdlePssOrRss(long initialIdlePssOrRss) {
-        mInitialIdlePssOrRss = initialIdlePssOrRss;
     }
 
     @GuardedBy("mProfilerLock")
@@ -648,7 +636,7 @@ final class ProcessProfileRecord {
     }
 
     @GuardedBy({"mService", "mProfilerLock"})
-    void updateProcState(ProcessStateRecord state) {
+    void updateProcState(ProcessRecordInternal state) {
         mSetProcState = state.getCurProcState();
         mSetAdj = state.getCurAdj();
         mCurRawAdj = state.getCurRawAdj();
@@ -746,5 +734,32 @@ final class ProcessProfileRecord {
             TimeUtils.formatDuration(mCurCpuTime.get() - lastCpuTime, pw);
         }
         pw.println();
+    }
+
+    @Override
+    public void onHasStartedServicesChanged(boolean hasStartedServices) {
+        if (hasStartedServices) {
+            addHostingComponentType(HOSTING_COMPONENT_TYPE_STARTED_SERVICE);
+        } else {
+            clearHostingComponentType(HOSTING_COMPONENT_TYPE_STARTED_SERVICE);
+        }
+    }
+
+    @Override
+    public void onIsReceivingBroadcastChanged(boolean isReceivingBroadcast) {
+        if (isReceivingBroadcast) {
+            addHostingComponentType(HOSTING_COMPONENT_TYPE_BROADCAST_RECEIVER);
+        } else {
+            clearHostingComponentType(HOSTING_COMPONENT_TYPE_BROADCAST_RECEIVER);
+        }
+    }
+
+    @Override
+    public void onHasActivitiesChanged(boolean hasActivities) {
+        if (hasActivities) {
+            addHostingComponentType(HOSTING_COMPONENT_TYPE_ACTIVITY);
+        } else {
+            clearHostingComponentType(HOSTING_COMPONENT_TYPE_ACTIVITY);
+        }
     }
 }

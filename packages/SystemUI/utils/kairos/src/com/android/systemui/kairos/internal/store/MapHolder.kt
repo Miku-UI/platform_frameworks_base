@@ -16,8 +16,6 @@
 
 package com.android.systemui.kairos.internal.store
 
-import com.android.systemui.kairos.internal.util.ConcurrentNullableHashMap
-
 @JvmInline
 internal value class MapHolder<K, V>(val unwrapped: Map<K, V>) :
     MapK<MapHolder.W, K, V>, Map<K, V> by unwrapped {
@@ -28,8 +26,7 @@ internal value class MapHolder<K, V>(val unwrapped: Map<K, V>) :
 internal inline fun <K, V> MapK<MapHolder.W, K, V>.asMapHolder(): MapHolder<K, V> =
     this as MapHolder<K, V>
 
-// TODO: preserve insertion order?
-internal class ConcurrentHashMapK<K, V>(private val storage: ConcurrentNullableHashMap<K, V>) :
+internal class HashMapK<K, V>(private val storage: HashMap<K, V>) :
     MutableMapK<MapHolder.W, K, V>, MutableMap<K, V> by storage {
 
     override fun readOnlyCopy() = MapHolder(storage.toMap())
@@ -38,15 +35,8 @@ internal class ConcurrentHashMapK<K, V>(private val storage: ConcurrentNullableH
 
     class Factory<K> : MutableMapK.Factory<MapHolder.W, K> {
         override fun <V> create(capacity: Int?) =
-            ConcurrentHashMapK<K, V>(
-                capacity?.let { ConcurrentNullableHashMap(capacity) } ?: ConcurrentNullableHashMap()
-            )
+            HashMapK<K, V>(capacity?.let { HashMap(capacity) } ?: HashMap())
 
-        override fun <V> create(input: MapK<MapHolder.W, K, V>) =
-            ConcurrentHashMapK(
-                ConcurrentNullableHashMap<K, V>().apply {
-                    input.asMapHolder().unwrapped.forEach { (k, v) -> set(k, v) }
-                }
-            )
+        override fun <V> create(input: MapK<MapHolder.W, K, V>) = HashMapK(HashMap<K, V>(input))
     }
 }

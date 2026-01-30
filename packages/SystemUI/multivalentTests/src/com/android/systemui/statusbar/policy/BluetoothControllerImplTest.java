@@ -47,8 +47,8 @@ import com.android.systemui.SysuiTestCase;
 import com.android.systemui.bluetooth.BluetoothLogger;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.settings.UserTracker;
-import com.android.systemui.statusbar.policy.bluetooth.BluetoothRepository;
-import com.android.systemui.statusbar.policy.bluetooth.FakeBluetoothRepository;
+import com.android.systemui.statusbar.policy.bluetooth.data.repository.BluetoothRepository;
+import com.android.systemui.statusbar.policy.bluetooth.data.repository.FakeBluetoothRepository;
 import com.android.systemui.util.concurrency.FakeExecutor;
 import com.android.systemui.util.time.FakeSystemClock;
 

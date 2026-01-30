@@ -20,6 +20,8 @@ import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -29,6 +31,9 @@ import androidx.core.graphics.green
 import androidx.core.graphics.red
 import androidx.core.graphics.toColorInt
 import androidx.test.core.app.ApplicationProvider.getApplicationContext
+import com.android.wm.shell.Flags.FLAG_ENABLE_BUBBLE_TO_FULLSCREEN
+import com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE
+import com.android.wm.shell.shared.bubbles.DragZoneFactory.BubbleBarPropertiesProvider
 import com.android.wm.shell.shared.bubbles.DragZoneFactory.DesktopWindowModeChecker
 import com.android.wm.shell.shared.bubbles.DragZoneFactory.SplitScreenModeChecker
 import com.android.wm.shell.shared.bubbles.DragZoneFactory.SplitScreenModeChecker.SplitScreenMode
@@ -44,6 +49,7 @@ import platform.test.screenshot.ViewScreenshotTestRule
 import platform.test.screenshot.ViewScreenshotTestRule.Mode
 import platform.test.screenshot.getEmulatedDevicePathConfig
 
+@EnableFlags(FLAG_ENABLE_BUBBLE_TO_FULLSCREEN, FLAG_ENABLE_CREATE_ANY_BUBBLE)
 @RunWith(ParameterizedAndroidJunit4::class)
 class DragZoneFactoryScreenshotTest(private val param: Param) {
     companion object {
@@ -90,6 +96,7 @@ class DragZoneFactoryScreenshotTest(private val param: Param) {
                 is DraggedObject.Bubble -> "bubble"
                 is DraggedObject.BubbleBar -> "bubbleBar"
                 is DraggedObject.ExpandedView -> "expandedView"
+                is DraggedObject.LauncherIcon -> "launcherIcon"
             }
 
         private val splitScreenModeName =
@@ -105,6 +112,8 @@ class DragZoneFactoryScreenshotTest(private val param: Param) {
 
         override fun toString() = "${emulationSpec}_$testName"
     }
+
+    @get:Rule val flagsRule = SetFlagsRule()
 
     @get:Rule
     val screenshotRule =
@@ -133,26 +142,44 @@ class DragZoneFactoryScreenshotTest(private val param: Param) {
             DeviceConfig.create(context, context.getSystemService(WindowManager::class.java)!!)
         val splitScreenModeChecker = SplitScreenModeChecker { param.splitScreenMode }
         val desktopWindowModeChecker = DesktopWindowModeChecker { true }
+        val bubbleBarPropertiesProvider = object : BubbleBarPropertiesProvider {
+            override fun getHeight() = 80
+            override fun getWidth() = 100
+            override fun getBottomPadding() = 40
+        }
         return DragZoneFactory(
             context,
             deviceConfig,
             splitScreenModeChecker,
-            desktopWindowModeChecker
+            desktopWindowModeChecker,
+            bubbleBarPropertiesProvider,
         )
     }
 
     private fun FrameLayout.addZoneView(zone: DragZone) {
         val view = View(context)
         this.addView(view, 0)
-        view.layoutParams = FrameLayout.LayoutParams(zone.bounds.width(), zone.bounds.height())
-        view.background = createZoneDrawable(zone.color)
-        view.x = zone.bounds.left.toFloat()
-        view.y = zone.bounds.top.toFloat()
+        when (val bounds = zone.bounds) {
+            is DragZone.Bounds.RectZone -> {
+                view.layoutParams =
+                    FrameLayout.LayoutParams(bounds.rect.width(), bounds.rect.height())
+                view.background = createZoneDrawable(zone.color, GradientDrawable.RECTANGLE)
+                view.x = bounds.rect.left.toFloat()
+                view.y = bounds.rect.top.toFloat()
+            }
+            is DragZone.Bounds.CircleZone -> {
+                view.layoutParams =
+                    FrameLayout.LayoutParams(bounds.radius * 2, bounds.radius * 2)
+                view.background = createZoneDrawable(zone.color, GradientDrawable.OVAL)
+                view.x = (bounds.x - bounds.radius).toFloat()
+                view.y = (bounds.y - bounds.radius).toFloat()
+            }
+        }
     }
 
-    private fun createZoneDrawable(@ColorInt color: Int): Drawable {
+    private fun createZoneDrawable(@ColorInt color: Int, zoneShape: Int): Drawable {
         val shape = GradientDrawable()
-        shape.shape = GradientDrawable.RECTANGLE
+        shape.shape = zoneShape
         shape.setColor(Color.argb(128, color.red, color.green, color.blue))
         shape.setStroke(2, color)
         return shape

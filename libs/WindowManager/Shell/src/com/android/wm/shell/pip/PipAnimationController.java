@@ -675,7 +675,7 @@ public class PipAnimationController {
                 // This is done for entering case only.
                 if (isInPipDirection(direction)) {
                     final float aspectRatio = endBounds.width() / (float) endBounds.height();
-                    adjustedSourceRectHint.set(PipUtils.getEnterPipWithOverlaySrcRectHint(
+                    adjustedSourceRectHint.set(PipUtils.getPseudoSourceRectHint(
                             startBounds, aspectRatio));
                 }
             } else {

@@ -25,6 +25,10 @@ import android.annotation.RequiresPermission;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.database.ContentObserver;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
@@ -32,17 +36,26 @@ import android.net.NetworkRequest;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.ITradeInMode;
+import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.provider.Settings;
 import android.provider.Settings.SettingNotFoundException;
 import android.service.persistentdata.PersistentDataBlockManager;
 import android.util.Slog;
+import android.view.SurfaceControl;
+
+import com.android.server.display.DisplayControl;
+import com.android.server.health.HealthServiceWrapper;
 
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.NoSuchElementException;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class TradeInModeService extends SystemService {
     private static final String TAG = "TradeInModeService";
@@ -127,8 +140,7 @@ public final class TradeInModeService extends SystemService {
         @Override
         @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
         public boolean start() {
-            mContext.enforceCallingOrSelfPermission("android.permission.ENTER_TRADE_IN_MODE",
-                    "Cannot enter trade-in mode foyer");
+            enforceEnterTradeInModePermission();
             final int state = getTradeInModeState();
             if (state == TIM_STATE_FOYER) {
                 return true;
@@ -166,15 +178,8 @@ public final class TradeInModeService extends SystemService {
         @Override
         @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
         public boolean enterEvaluationMode() {
-            mContext.enforceCallingOrSelfPermission("android.permission.ENTER_TRADE_IN_MODE",
-                    "Cannot enter trade-in evaluation mode");
-            final int state = getTradeInModeState();
-            if (state != TIM_STATE_FOYER) {
-                Slog.e(TAG, "Cannot enter evaluation mode in state: " + state);
-                return false;
-            }
-            if (isFrpActive()) {
-                Slog.e(TAG, "Cannot enter evaluation mode, FRP lock is present.");
+            enforceEnterTradeInModePermission();
+            if (!checkEvaluationModePreconditions()) {
                 return false;
             }
             if (!scheduleTradeInModeWipe()) {
@@ -197,9 +202,8 @@ public final class TradeInModeService extends SystemService {
         @Override
         @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
         public boolean isEvaluationModeAllowed() {
-            mContext.enforceCallingOrSelfPermission("android.permission.ENTER_TRADE_IN_MODE",
-                    "Cannot test for trade-in evaluation mode allowed");
-            return !isFrpActive();
+            enforceEnterTradeInModePermission();
+            return checkEvaluationModePreconditions();
         }
 
         @Override
@@ -243,9 +247,106 @@ public final class TradeInModeService extends SystemService {
             return isForceEnabledForTesting();
         }
 
-        private void enforceTestingPermissions() {
+        @Override
+        @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
+        public int[] getScreenPartStatus() throws RemoteException {
+            enforceEnterTradeInModePermission();
+            int[] statuses = new int[DisplayControl.getPhysicalDisplayIds().length];
+            int index = 0;
+            // loop through all displayId to find id of internal display
+            for (long physicalDisplayId : DisplayControl.getPhysicalDisplayIds()) {
+                SurfaceControl.StaticDisplayInfo info = SurfaceControl.getStaticDisplayInfo(physicalDisplayId);
+                if (info != null && info.isInternal) {
+                    statuses[index++] = info.screenPartStatus;
+                }
+            }
+            return statuses;
+        }
+
+        @Override
+        @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
+        public int getHingeCount() throws RemoteException {
+            enforceEnterTradeInModePermission();
+            android.hardware.health.HingeInfo[] info = getHealthService().getHingeInfo();
+            return (info == null) ? 0 : info.length;
+        }
+
+        @Override
+        @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
+        public int getFoldCount(int hingeId) throws RemoteException {
+            enforceEnterTradeInModePermission();
+            int hingeCount = getHingeCount();
+            if (hingeId >= hingeCount) {
+                Slog.e(TAG, "Hinge " + hingeId + " is greater than hinge count: " + hingeCount);
+                return -1;
+            }
+            return getHealthService().getHingeInfo()[hingeId].numTimesFolded;
+        }
+
+        @Override
+        @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
+        public int getHingeLifeSpan(int hingeId) throws RemoteException {
+            enforceEnterTradeInModePermission();
+            int hingeCount = getHingeCount();
+            if (hingeId >= hingeCount) {
+                Slog.e(TAG, "Hinge " + hingeId + " is greater than hinge count: " + hingeCount);
+                return -1;
+            }
+            return getHealthService().getHingeInfo()[hingeId].expectedHingeLifespan;
+        }
+
+        @Override
+        @RequiresPermission(android.Manifest.permission.ENTER_TRADE_IN_MODE)
+        public int getMoistureIntrusionDetected(long timeoutMillis) throws RemoteException {
+            enforceEnterTradeInModePermission();
+            SensorManager m = (SensorManager) mContext.getSystemService(Context.SENSOR_SERVICE);
+            Sensor moistureDetectionSensor = m.getDefaultSensor(Sensor.TYPE_MOISTURE_INTRUSION);
+
+            final CountDownLatch latch = new CountDownLatch(1);
+            final AtomicInteger sensorValueHolder = new AtomicInteger(); // Default to timeout
+
+            SensorEventListener listener = new SensorEventListener() {
+                @Override
+                public void onSensorChanged(SensorEvent event) {
+                    if (event.values[0] == 0.0) {
+                        sensorValueHolder.set(0);
+                    } else if (event.values[0] == 1.0) {
+                        sensorValueHolder.set(1);
+                    } else {
+                        Slog.e(TAG, "Moisture Sensor returned unexpected value: " + event.values[0]);
+                    }
+                    latch.countDown();
+                }
+
+                @Override
+                public void onAccuracyChanged(Sensor sensor, int accuracy) {
+                }
+            };
+            if (moistureDetectionSensor != null) {
+                m.registerListener(listener, moistureDetectionSensor,
+                        SensorManager.SENSOR_DELAY_NORMAL);
+            }
+            try {
+                if (latch.await(timeoutMillis, TimeUnit.MILLISECONDS)) {
+                    return sensorValueHolder.get();
+                } else {
+                    m.unregisterListener(listener, moistureDetectionSensor);
+                    return ITradeInMode.MoistureIntrusionStatus.UNSUPPORTED;
+                }
+            } catch (InterruptedException e) {
+                return ITradeInMode.MoistureIntrusionStatus.UNSUPPORTED;
+            } finally {
+                m.unregisterListener(listener, moistureDetectionSensor);
+            }
+        }
+
+        private void enforceEnterTradeInModePermission() {
             mContext.enforceCallingOrSelfPermission("android.permission.ENTER_TRADE_IN_MODE",
-                    "Caller must have ENTER_TRADE_IN_MODE permission");
+                    "caller missing ENTER_TRADE_IN_MODE permission");
+        }
+
+        private void enforceTestingPermissions() {
+            enforceEnterTradeInModePermission();
             if (!isDebuggable()) {
                 throw new SecurityException("ro.debuggable must be set to 1");
             }
@@ -318,6 +419,32 @@ public final class TradeInModeService extends SystemService {
     private void setAdbEnabled(boolean enabled) {
         final ContentResolver cr = mContext.getContentResolver();
         Settings.Global.putInt(cr, Settings.Global.ADB_ENABLED, enabled ? 1 : 0);
+    }
+
+    private HealthServiceWrapper getHealthService() {
+        try {
+            HealthServiceWrapper health = HealthServiceWrapper.create(null);
+            return health;
+        } catch (RemoteException ex) {
+            Slog.e(TAG, "health: (RemoteException)");
+            throw ex.rethrowFromSystemServer();
+        } catch (NoSuchElementException ex) {
+            Slog.e(TAG, "health: cannot register callback. (no supported health HAL service)");
+            throw ex;
+        }
+    }
+
+    private boolean checkEvaluationModePreconditions() {
+        final int state = getTradeInModeState();
+        if (!(state == TIM_STATE_FOYER || (isDebuggable() && state == TIM_STATE_UNSET))) {
+            Slog.i(TAG, "Cannot enter evaluation mode in state: " + state);
+            return false;
+        }
+        if (isFrpActive()) {
+            Slog.i(TAG, "Cannot enter evaluation mode, FRP lock is present.");
+            return false;
+        }
+        return true;
     }
 
     private int getTradeInModeState() {

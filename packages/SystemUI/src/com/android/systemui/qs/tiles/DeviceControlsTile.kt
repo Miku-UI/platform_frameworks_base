@@ -40,6 +40,7 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.qs.QSHost
 import com.android.systemui.qs.QsEventLogger
 import com.android.systemui.qs.logging.QSLogger
+import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.res.R
 import java.util.concurrent.atomic.AtomicBoolean
@@ -58,6 +59,7 @@ constructor(
     activityStarter: ActivityStarter,
     qsLogger: QSLogger,
     private val controlsComponent: ControlsComponent,
+    private val panelInteractor: PanelInteractor,
 ) :
     QSTileImpl<QSTile.State>(
         host,
@@ -125,12 +127,16 @@ constructor(
 
         mUiHandler.post {
             val showOverLockscreenWhenLocked = state.state == Tile.STATE_ACTIVE
-            mActivityStarter.startActivity(
-                intent,
-                true /* dismissShade */,
-                animationController,
-                showOverLockscreenWhenLocked,
-            )
+            if (controlsComponent.getControlsUiController().get().isShowing) {
+                panelInteractor.collapsePanels()
+            } else {
+                mActivityStarter.startActivity(
+                    intent,
+                    true /* dismissShade */,
+                    animationController,
+                    showOverLockscreenWhenLocked,
+                )
+            }
         }
     }
 

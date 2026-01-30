@@ -132,7 +132,7 @@ public final class AmbientContextManager {
     private final IAmbientContextManager mService;
 
     /**
-     * {@hide}
+     * @hide
      */
     public AmbientContextManager(Context context, IAmbientContextManager service) {
         mContext = context;

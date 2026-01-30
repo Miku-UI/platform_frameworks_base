@@ -17,6 +17,7 @@
 package android.telephony.data;
 
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
@@ -34,11 +35,14 @@ import android.os.Looper;
 import android.os.Message;
 import android.os.RemoteException;
 import android.telephony.AccessNetworkConstants.RadioAccessNetworkType;
+import android.telephony.AccessNetworkConstants.TransportType;
+import android.telephony.Annotation.DataState;
 import android.util.Log;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.telephony.IIntegerConsumer;
+import com.android.internal.telephony.flags.Flags;
 import com.android.internal.util.FunctionalUtils;
 import com.android.telephony.Rlog;
 
@@ -72,7 +76,7 @@ public abstract class DataService extends Service {
     @SdkConstant(SdkConstant.SdkConstantType.SERVICE_ACTION)
     public static final String SERVICE_INTERFACE = "android.telephony.data.DataService";
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = "REQUEST_REASON_", value = {
             REQUEST_REASON_UNKNOWN,
             REQUEST_REASON_NORMAL,
@@ -81,7 +85,7 @@ public abstract class DataService extends Service {
     @Retention(RetentionPolicy.SOURCE)
     public @interface SetupDataReason {}
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = "REQUEST_REASON_", value = {
             REQUEST_REASON_UNKNOWN,
             REQUEST_REASON_NORMAL,
@@ -120,6 +124,10 @@ public abstract class DataService extends Service {
     private static final int DATA_SERVICE_REQUEST_UNREGISTER_APN_UNTHROTTLED           = 15;
     private static final int DATA_SERVICE_INDICATION_APN_UNTHROTTLED                   = 16;
     private static final int DATA_SERVICE_REQUEST_VALIDATION                           = 17;
+    private static final int DATA_SERVICE_REQUEST_SET_USER_DATA_ENABLED                = 18;
+    private static final int DATA_SERVICE_REQUEST_SET_USER_DATA_ROAMING_ENABLED        = 19;
+    private static final int DATA_SERVICE_REQUEST_NOTIFY_IMS_DATA_NETWORK              = 20;
+
 
     private final HandlerThread mHandlerThread;
 
@@ -426,6 +434,53 @@ public abstract class DataService extends Service {
         }
 
         /**
+         * Indicates that the user data setting has changed state. This API is for informational
+         * purposes, the provider must not block any subsequent setup data call requests.
+         *
+         * @param enabled  Whether the user mobile data is enabled.
+         * @param executor The callback executor for the response.
+         * @param resultCodeCallback Listener for the {@link DataServiceCallback.ResultCode} that
+         *     set user data enabled to the DataService and checks if the request has been
+         *     submitted.
+         */
+        @FlaggedApi(Flags.FLAG_DATA_SERVICE_USER_DATA_TOGGLE_NOTIFY)
+        public void notifyUserDataEnabled(boolean enabled,
+                @NonNull @CallbackExecutor Executor executor,
+                @NonNull @DataServiceCallback.ResultCode Consumer<Integer> resultCodeCallback) {
+            Objects.requireNonNull(executor, "executor cannot be null");
+            Objects.requireNonNull(resultCodeCallback, "resultCodeCallback cannot be null");
+            Log.d(TAG, "notifyUserDataEnabled: " + enabled);
+
+            // The default implementation is to return unsupported.
+            executor.execute(() -> resultCodeCallback
+                    .accept(DataServiceCallback.RESULT_ERROR_UNSUPPORTED));
+        }
+
+        /**
+         * Indicates that the user data roaming setting has changed state. This API is for
+         * informational purposes, the provider must not block any subsequent setup data call
+         * requests.
+         *
+         * @param enabled  Whether the user mobile data roaming is enabled.
+         * @param executor The callback executor for the response.
+         * @param resultCodeCallback Listener for the {@link DataServiceCallback.ResultCode} that
+         *     set user data roaming enabled to the DataService and checks if the request has been
+         *     submitted.
+         */
+        @FlaggedApi(Flags.FLAG_DATA_SERVICE_USER_DATA_TOGGLE_NOTIFY)
+        public void notifyUserDataRoamingEnabled(boolean enabled,
+                @NonNull @CallbackExecutor Executor executor,
+                @NonNull @DataServiceCallback.ResultCode Consumer<Integer> resultCodeCallback) {
+            Objects.requireNonNull(executor, "executor cannot be null");
+            Objects.requireNonNull(resultCodeCallback, "resultCodeCallback cannot be null");
+            Log.d(TAG, "notifyUserDataRoamingEnabled: " + enabled);
+
+            // The default implementation is to return unsupported.
+            executor.execute(() -> resultCodeCallback
+                    .accept(DataServiceCallback.RESULT_ERROR_UNSUPPORTED));
+        }
+
+        /**
          * Notify the system that current data call list changed. Data service must invoke this
          * method whenever there is any data call status changed.
          *
@@ -469,6 +524,33 @@ public abstract class DataService extends Service {
                                     callback)).sendToTarget();
                 }
             }
+        }
+
+        /**
+         * Notify IMS data network.
+         *
+         * @param accessNetwork The access network type.
+         * @param dataNetworkState The data network connection state.
+         * @param physicalTransportType The physical transport type of the data network.
+         * @param physicalNetworkSlotIndex The slot index while the physical transport type is
+         *        {@link TRANSPORT_TYPE_WWAN}. If the physical transport type is
+         *        {@link TRANSPORT_TYPE_WLAN}, this slot index will be
+         *        {@link SubscriptionManager#INVALID_SIM_SLOT_INDEX}.
+         * @param executor The callback executor for the response.
+         * @param resultCodeCallback Listener for the {@link DataServiceCallback.ResultCode} that
+         *     notify IMS data network to the DataService and checks if the request has been
+         *     submitted.
+         */
+        @FlaggedApi(Flags.FLAG_DATA_SERVICE_NOTIFY_IMS_DATA_NETWORK)
+        public void notifyImsDataNetwork(@RadioAccessNetworkType int accessNetwork,
+                @DataState int dataNetworkState, @TransportType int physicalTransportType,
+                int physicalNetworkSlotIndex, @NonNull @CallbackExecutor Executor executor,
+                @NonNull @DataServiceCallback.ResultCode Consumer<Integer> resultCodeCallback) {
+            Objects.requireNonNull(executor, "executor cannot be null");
+            Objects.requireNonNull(resultCodeCallback, "resultCodeCallback cannot be null");
+            // The default implementation is to return unsupported.
+            executor.execute(() -> resultCodeCallback
+                    .accept(DataServiceCallback.RESULT_ERROR_UNSUPPORTED));
         }
 
         /**
@@ -588,6 +670,51 @@ public abstract class DataService extends Service {
         public final IIntegerConsumer callback;
         ValidationRequest(int cid, Executor executor, IIntegerConsumer callback) {
             this.cid = cid;
+            this.executor = executor;
+            this.callback = callback;
+        }
+    }
+
+    private static final class NotifyUserDataEnabledRequest {
+        public final boolean enabled;
+        public final Executor executor;
+        public final IIntegerConsumer callback;
+
+        NotifyUserDataEnabledRequest(boolean enabled, Executor executor,
+                IIntegerConsumer callback) {
+            this.enabled = enabled;
+            this.executor = executor;
+            this.callback = callback;
+        }
+    }
+
+    private static final class NotifyUserDataRoamingEnabledRequest {
+        public final boolean enabled;
+        public final Executor executor;
+        public final IIntegerConsumer callback;
+
+        NotifyUserDataRoamingEnabledRequest(boolean enabled, Executor executor,
+                IIntegerConsumer callback) {
+            this.enabled = enabled;
+            this.executor = executor;
+            this.callback = callback;
+        }
+    }
+
+    private static final class NotifyImsDataNetworkRequest {
+        public final int accessNetwork;
+        public final int dataNetworkState;
+        public final int physicalTransportType;
+        public final int physicalNetworkSlotIndex;
+        public final Executor executor;
+        public final IIntegerConsumer callback;
+        NotifyImsDataNetworkRequest(int accessNetwork, int dataNetworkState,
+                int physicalTransportType, int physicalNetworkSlotIndex,
+                Executor executor, IIntegerConsumer callback) {
+            this.accessNetwork = accessNetwork;
+            this.dataNetworkState = dataNetworkState;
+            this.physicalTransportType = physicalTransportType;
+            this.physicalNetworkSlotIndex = physicalNetworkSlotIndex;
             this.executor = executor;
             this.callback = callback;
         }
@@ -743,6 +870,45 @@ public abstract class DataService extends Service {
                             validationRequest.executor,
                             FunctionalUtils
                                     .ignoreRemoteException(validationRequest.callback::accept));
+                    break;
+                case DATA_SERVICE_REQUEST_SET_USER_DATA_ENABLED:
+                    if (serviceProvider == null) break;
+                    if (Flags.dataServiceUserDataToggleNotify()) {
+                        NotifyUserDataEnabledRequest notifyUserDataEnabledRequest =
+                                (NotifyUserDataEnabledRequest) message.obj;
+                        serviceProvider.notifyUserDataEnabled(notifyUserDataEnabledRequest.enabled,
+                                notifyUserDataEnabledRequest.executor,
+                                FunctionalUtils
+                                        .ignoreRemoteException(
+                                                notifyUserDataEnabledRequest.callback::accept));
+                    }
+                    break;
+                case DATA_SERVICE_REQUEST_SET_USER_DATA_ROAMING_ENABLED:
+                    if (serviceProvider == null) break;
+                    if (Flags.dataServiceUserDataToggleNotify()) {
+                        NotifyUserDataRoamingEnabledRequest notifyUserDataRoamingEnabledRequest =
+                                (NotifyUserDataRoamingEnabledRequest) message.obj;
+                        serviceProvider.notifyUserDataRoamingEnabled(
+                                notifyUserDataRoamingEnabledRequest.enabled,
+                                notifyUserDataRoamingEnabledRequest.executor,
+                                FunctionalUtils.ignoreRemoteException(
+                                        notifyUserDataRoamingEnabledRequest.callback::accept));
+                    }
+                    break;
+                case DATA_SERVICE_REQUEST_NOTIFY_IMS_DATA_NETWORK:
+                    if (serviceProvider == null) break;
+                    if (Flags.dataServiceNotifyImsDataNetwork()) {
+                        NotifyImsDataNetworkRequest notifyImsDataNetworkRequest =
+                                (NotifyImsDataNetworkRequest) message.obj;
+                        serviceProvider.notifyImsDataNetwork(
+                                notifyImsDataNetworkRequest.accessNetwork,
+                                notifyImsDataNetworkRequest.dataNetworkState,
+                                notifyImsDataNetworkRequest.physicalTransportType,
+                                notifyImsDataNetworkRequest.physicalNetworkSlotIndex,
+                                notifyImsDataNetworkRequest.executor,
+                                FunctionalUtils.ignoreRemoteException(
+                                        notifyImsDataNetworkRequest.callback::accept));
+                    }
                     break;
             }
         }
@@ -931,6 +1097,48 @@ public abstract class DataService extends Service {
                     new ValidationRequest(cid, mHandlerExecutor, resultCodeCallback);
             mHandler.obtainMessage(DATA_SERVICE_REQUEST_VALIDATION,
                     slotIndex, 0, validationRequest).sendToTarget();
+        }
+
+        @Override
+        public void notifyUserDataEnabled(int slotIndex, boolean enabled,
+                IIntegerConsumer resultCodeCallback) {
+            if (resultCodeCallback == null) {
+                loge("notifyUserDataEnabled: resultCodeCallback is null");
+                return;
+            }
+            NotifyUserDataEnabledRequest request = new NotifyUserDataEnabledRequest(enabled,
+                    mHandlerExecutor, resultCodeCallback);
+            mHandler.obtainMessage(DATA_SERVICE_REQUEST_SET_USER_DATA_ENABLED,
+                    slotIndex, 0, request).sendToTarget();
+        }
+
+        @Override
+        public void notifyUserDataRoamingEnabled(int slotIndex, boolean enabled,
+                IIntegerConsumer resultCodeCallback) {
+            if (resultCodeCallback == null) {
+                loge("notifyUserDataEnabled: resultCodeCallback is null");
+                return;
+            }
+            NotifyUserDataRoamingEnabledRequest request =
+                    new NotifyUserDataRoamingEnabledRequest(enabled, mHandlerExecutor,
+                            resultCodeCallback);
+            mHandler.obtainMessage(DATA_SERVICE_REQUEST_SET_USER_DATA_ROAMING_ENABLED,
+                    slotIndex, 0, request).sendToTarget();
+        }
+
+        @Override
+        public void notifyImsDataNetwork(int slotIndex, @RadioAccessNetworkType int accessNetwork,
+                @DataState int dataNetworkState, @TransportType int physicalTransportType,
+                int physicalNetworkSlotIndex, @NonNull IIntegerConsumer resultCodeCallback) {
+            if (resultCodeCallback == null) {
+                loge("notifyImsDataNetwork: resultCodeCallback is null");
+                return;
+            }
+            NotifyImsDataNetworkRequest request = new NotifyImsDataNetworkRequest(accessNetwork,
+                    dataNetworkState, physicalTransportType, physicalNetworkSlotIndex,
+                    mHandlerExecutor, resultCodeCallback);
+            mHandler.obtainMessage(DATA_SERVICE_REQUEST_NOTIFY_IMS_DATA_NETWORK,
+                slotIndex, 0, request).sendToTarget();
         }
     }
 

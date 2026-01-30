@@ -1492,7 +1492,7 @@ public final class FadeManagerConfiguration implements Parcelable {
 
         private void validateContentType(int contentType) {
             Preconditions.checkArgument(AudioAttributes.isSdkContentType(contentType),
-                    "Invalid content type: ", contentType);
+                    "Invalid content type: %d", contentType);
         }
 
         private void validateFadeConfigurations() {

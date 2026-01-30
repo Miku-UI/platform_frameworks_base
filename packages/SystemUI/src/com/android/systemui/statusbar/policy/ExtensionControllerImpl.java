@@ -92,19 +92,13 @@ public class ExtensionControllerImpl implements ExtensionController {
 
         @Override
         public <P extends T> ExtensionController.ExtensionBuilder<T> withPlugin(Class<P> cls) {
-            return withPlugin(cls, PluginManager.Helper.getAction(cls));
-        }
-
-        @Override
-        public <P extends T> ExtensionController.ExtensionBuilder<T> withPlugin(Class<P> cls,
-                String action) {
-            return withPlugin(cls, action, null);
+            return withPlugin(cls, null);
         }
 
         @Override
         public <P> ExtensionController.ExtensionBuilder<T> withPlugin(Class<P> cls,
-                String action, PluginConverter<T, P> converter) {
-            mExtension.addPlugin(action, cls, converter);
+                PluginConverter<T, P> converter) {
+            mExtension.addPlugin(cls, converter);
             return this;
         }
 
@@ -206,8 +200,8 @@ public class ExtensionControllerImpl implements ExtensionController {
             mProducers.add(new Default(def));
         }
 
-        public <P> void addPlugin(String action, Class<P> cls, PluginConverter<T, P> converter) {
-            mProducers.add(new PluginItem(action, cls, converter));
+        public <P> void addPlugin(Class<P> cls, PluginConverter<T, P> converter) {
+            mProducers.add(new PluginItem(cls, converter));
         }
 
         public void addTunerFactory(TunerFactory<T> factory, String[] keys) {
@@ -226,9 +220,9 @@ public class ExtensionControllerImpl implements ExtensionController {
             private final PluginConverter<T, P> mConverter;
             private T mItem;
 
-            public PluginItem(String action, Class<P> cls, PluginConverter<T, P> converter) {
+            PluginItem(Class<P> cls, PluginConverter<T, P> converter) {
                 mConverter = converter;
-                mPluginManager.addPluginListener(action, this, cls);
+                mPluginManager.addPluginListener(this, cls, false);
             }
 
             @Override

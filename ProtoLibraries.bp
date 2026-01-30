@@ -291,3 +291,54 @@ cc_library {
         },
     },
 }
+
+// ====  rust proto library  ==============================
+rust_protobuf {
+    name: "libframework_privacy_protos_rs",
+    protos: [
+        "core/proto/android/privacy.proto",
+    ],
+    crate_name: "framework_privacy_protos_rs",
+    source_stem: "framework_privacy_protos_rs_source",
+    header_libs: ["libprotobuf-cpp-lite"],
+    proto_flags: [
+        "-I external/protobuf/src",
+    ],
+    host_supported: true,
+}
+
+rust_protobuf {
+    name: "libframework_component_name_protos_rs",
+    protos: [
+        "core/proto/android/content/component_name.proto",
+    ],
+    rustlibs: [
+        "libframework_privacy_protos_rs",
+    ],
+    crate_name: "framework_component_name_protos_rs",
+    source_stem: "framework_component_name_protos_rs_source",
+    proto_flags: [
+        "-I .",
+        "-I external/protobuf/src",
+    ],
+    host_supported: true,
+}
+
+rust_protobuf {
+    name: "libframework_usb_protos_rs",
+    protos: [
+        "core/proto/android/service/usb.proto",
+    ],
+    rustlibs: [
+        "libframework_service_enums_protos_rs",
+        "libframework_privacy_protos_rs",
+        "libframework_component_name_protos_rs",
+    ],
+    crate_name: "framework_usb_protos_rs",
+    source_stem: "framework_usb_protos_rs_source",
+    proto_flags: [
+        "-I .",
+        "-I external/protobuf/src",
+    ],
+    host_supported: true,
+}

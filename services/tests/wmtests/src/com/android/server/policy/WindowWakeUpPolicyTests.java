@@ -17,8 +17,8 @@
 package com.android.server.policy;
 
 import static android.os.PowerManager.WAKE_REASON_CAMERA_LAUNCH;
-import static android.os.PowerManager.WAKE_REASON_LID;
 import static android.os.PowerManager.WAKE_REASON_GESTURE;
+import static android.os.PowerManager.WAKE_REASON_LID;
 import static android.os.PowerManager.WAKE_REASON_POWER_BUTTON;
 import static android.os.PowerManager.WAKE_REASON_WAKE_KEY;
 import static android.os.PowerManager.WAKE_REASON_WAKE_MOTION;
@@ -29,12 +29,6 @@ import static android.view.KeyEvent.KEYCODE_HOME;
 import static android.view.KeyEvent.KEYCODE_POWER;
 import static android.view.KeyEvent.KEYCODE_STEM_PRIMARY;
 
-import static com.android.internal.R.bool.config_allowTheaterModeWakeFromKey;
-import static com.android.internal.R.bool.config_allowTheaterModeWakeFromPowerKey;
-import static com.android.internal.R.bool.config_allowTheaterModeWakeFromMotion;
-import static com.android.internal.R.bool.config_allowTheaterModeWakeFromCameraLens;
-import static com.android.internal.R.bool.config_allowTheaterModeWakeFromLidSwitch;
-import static com.android.internal.R.bool.config_allowTheaterModeWakeFromGesture;
 import static com.android.server.policy.Flags.FLAG_SUPPORT_INPUT_WAKEUP_DELEGATE;
 import static com.android.server.power.feature.flags.Flags.FLAG_PER_DISPLAY_WAKE_BY_TOUCH;
 
@@ -59,7 +53,6 @@ import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
-import android.provider.Settings;
 import android.view.Display;
 import android.view.WindowManager;
 
@@ -79,6 +72,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import java.util.function.BooleanSupplier;
+
 /**
  * Test class for {@link WindowWakeUpPolicy}.
  *
@@ -134,7 +128,6 @@ public final class WindowWakeUpPolicyTests {
     @Test
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testMotionWakeUpDelegation_wakePowerManagerIfDelegateDoesNotHandleWake() {
-        setTheaterModeEnabled(false);
         mSetFlagsRule.enableFlags(FLAG_SUPPORT_INPUT_WAKEUP_DELEGATE);
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
         LocalServices.getService(WindowWakeUpPolicyInternal.class)
@@ -162,7 +155,6 @@ public final class WindowWakeUpPolicyTests {
     @Test
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testKeyWakeUpDelegation_wakePowerManagerIfDelegateDoesNotHandleWake() {
-        setTheaterModeEnabled(false);
         mSetFlagsRule.enableFlags(FLAG_SUPPORT_INPUT_WAKEUP_DELEGATE);
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
         LocalServices.getService(WindowWakeUpPolicyInternal.class)
@@ -187,60 +179,11 @@ public final class WindowWakeUpPolicyTests {
     }
 
     @Test
-    public void testDelegatedKeyWakeIsSubjectToPolicyChecks() {
-        mSetFlagsRule.enableFlags(FLAG_SUPPORT_INPUT_WAKEUP_DELEGATE);
-        setDelegatedKeyWakeUpResult(true);
-        setTheaterModeEnabled(true);
-        setBooleanRes(config_allowTheaterModeWakeFromKey, false);
-        setBooleanRes(config_allowTheaterModeWakeFromPowerKey, false);
-        mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
-        LocalServices.getService(WindowWakeUpPolicyInternal.class)
-                .setInputWakeUpDelegate(mInputWakeUpDelegate);
-
-        // Check that the wake up does not happen because the theater mode policy check fails.
-        assertThat(mPolicy.wakeUpFromKey(DEFAULT_DISPLAY, 200, KEYCODE_POWER, true)).isFalse();
-        verify(mInputWakeUpDelegate, never()).wakeUpFromKey(anyLong(), anyInt(), anyBoolean());
-    }
-
-    @Test
-    public void testDelegatedMotionWakeIsSubjectToPolicyChecks() {
-        mSetFlagsRule.enableFlags(FLAG_SUPPORT_INPUT_WAKEUP_DELEGATE);
-        setDelegatedMotionWakeUpResult(true);
-        setTheaterModeEnabled(true);
-        setBooleanRes(config_allowTheaterModeWakeFromMotion, false);
-        mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
-        LocalServices.getService(WindowWakeUpPolicyInternal.class)
-                .setInputWakeUpDelegate(mInputWakeUpDelegate);
-
-        // Check that the wake up does not happen because the theater mode policy check fails.
-        assertThat(mPolicy.wakeUpFromMotion(
-                mDefaultDisplay.getDisplayId(), 200, SOURCE_TOUCHSCREEN, true, false)).isFalse();
-        verify(mInputWakeUpDelegate, never())
-                .wakeUpFromMotion(anyLong(), anyInt(), anyBoolean(), anyBoolean());
-    }
-
-    @Test
-    @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
-    public void testTheaterModeChecksNotAppliedWhenScreenIsOn() {
-        mSetFlagsRule.enableFlags(FLAG_SUPPORT_INPUT_WAKEUP_DELEGATE);
-        setDefaultDisplayState(Display.STATE_ON);
-        setTheaterModeEnabled(true);
-        setBooleanRes(config_allowTheaterModeWakeFromMotion, false);
-        mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
-
-        mPolicy.wakeUpFromMotion(
-                mDefaultDisplay.getDisplayId(), 200L, SOURCE_TOUCHSCREEN, true, false);
-
-        verify(mPowerManager).wakeUp(200L, WAKE_REASON_WAKE_MOTION, "android.policy:MOTION");
-    }
-
-    @Test
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testWakeUpFromMotion() {
         runPowerManagerUpChecks(
                 () -> mPolicy.wakeUpFromMotion(mDefaultDisplay.getDisplayId(),
                         mClock.uptimeMillis(), SOURCE_TOUCHSCREEN, true, false),
-                config_allowTheaterModeWakeFromMotion,
                 WAKE_REASON_WAKE_MOTION,
                 "android.policy:MOTION");
     }
@@ -248,7 +191,6 @@ public final class WindowWakeUpPolicyTests {
     @Test
     @EnableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testWakeUpFromMotion_perDisplayWakeByTouchEnabled() {
-        setTheaterModeEnabled(false);
         final int displayId = 555;
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
 
@@ -265,7 +207,6 @@ public final class WindowWakeUpPolicyTests {
     @Test
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testWakeUpFromMotion_perDisplayWakeByTouchDisabled() {
-        setTheaterModeEnabled(false);
         final int displayId = 555;
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
 
@@ -287,42 +228,16 @@ public final class WindowWakeUpPolicyTests {
         runPowerManagerUpChecks(
                 () -> mPolicy.wakeUpFromKey(
                         DEFAULT_DISPLAY, mClock.uptimeMillis(), KEYCODE_HOME, true),
-                config_allowTheaterModeWakeFromKey,
                 WAKE_REASON_WAKE_KEY,
                 "android.policy:KEY");
     }
 
     @Test
-    @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
-    public void testWakeUpFromKey_powerKey() {
-        // Disable the resource affecting all wake keys because it affects power key as well.
-        // That way, power key wake during theater mode will solely be controlled by
-        // `config_allowTheaterModeWakeFromPowerKey` in the checks.
-        setBooleanRes(config_allowTheaterModeWakeFromKey, false);
-
-        // Test with power key
-        runPowerManagerUpChecks(
-                () -> mPolicy.wakeUpFromKey(
-                        DEFAULT_DISPLAY, mClock.uptimeMillis(), KEYCODE_POWER, true),
-                config_allowTheaterModeWakeFromPowerKey,
-                WAKE_REASON_POWER_BUTTON,
-                "android.policy:POWER");
-
-        // Test that power key wake ups happen during theater mode as long as wake-keys are allowed
-        // even if the power-key specific theater mode config is disabled.
-        setBooleanRes(config_allowTheaterModeWakeFromPowerKey, false);
-        runPowerManagerUpChecks(
-                () -> mPolicy.wakeUpFromKey(
-                        DEFAULT_DISPLAY, mClock.uptimeMillis(), KEYCODE_POWER, false),
-                config_allowTheaterModeWakeFromKey,
-                WAKE_REASON_POWER_BUTTON,
-                "android.policy:POWER");
-    }
-
-    @Test
     @EnableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
+    @DisableFlags({com.android.server.display.feature.flags.Flags.FLAG_SEPARATE_TIMEOUTS,
+            com.android.server.power.feature.flags.Flags
+                    .FLAG_WAKE_ADJACENT_DISPLAYS_ON_WAKEUP_CALL})
     public void testWakeUpFromKey_invalidDisplay_perDisplayWakeByTouchEnabled() {
-        setTheaterModeEnabled(false);
         final int displayId = Display.INVALID_DISPLAY;
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
 
@@ -336,11 +251,27 @@ public final class WindowWakeUpPolicyTests {
     }
 
     @Test
+    @EnableFlags({com.android.server.display.feature.flags.Flags.FLAG_SEPARATE_TIMEOUTS,
+            com.android.server.power.feature.flags.Flags
+                    .FLAG_WAKE_ADJACENT_DISPLAYS_ON_WAKEUP_CALL})
+    public void testWakeUpFromKey_invalidDisplay_makesDisplayIdIndependentWakeupCall() {
+        final int displayId = Display.INVALID_DISPLAY;
+        mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
+
+        boolean displayWokeUp = mPolicy.wakeUpFromKey(
+                displayId, mClock.uptimeMillis(), KEYCODE_POWER, /* isDown= */ false);
+
+        // Verify that default display is woken up
+        assertThat(displayWokeUp).isTrue();
+        verify(mPowerManager).wakeUp(anyLong(), eq(WAKE_REASON_POWER_BUTTON),
+                eq("android.policy:POWER"));
+    }
+
+    @Test
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testWakeUpFromLid() {
         runPowerManagerUpChecks(
                 () -> mPolicy.wakeUpFromLid(),
-                config_allowTheaterModeWakeFromLidSwitch,
                 WAKE_REASON_LID,
                 "android.policy:LID");
     }
@@ -350,7 +281,6 @@ public final class WindowWakeUpPolicyTests {
     public void testWakeUpFromWakeGesture() {
         runPowerManagerUpChecks(
                 () -> mPolicy.wakeUpFromWakeGesture(),
-                config_allowTheaterModeWakeFromGesture,
                 WAKE_REASON_GESTURE,
                 "android.policy:GESTURE");
     }
@@ -360,7 +290,6 @@ public final class WindowWakeUpPolicyTests {
     public void testwakeUpFromCameraCover() {
         runPowerManagerUpChecks(
                 () -> mPolicy.wakeUpFromCameraCover(mClock.uptimeMillis()),
-                config_allowTheaterModeWakeFromCameraLens,
                 WAKE_REASON_CAMERA_LAUNCH,
                 "android.policy:CAMERA_COVER");
     }
@@ -368,81 +297,30 @@ public final class WindowWakeUpPolicyTests {
     @Test
     @DisableFlags({FLAG_PER_DISPLAY_WAKE_BY_TOUCH})
     public void testWakeUpFromPowerKeyCameraGesture() {
-        // Disable the resource affecting all wake keys because it affects power key as well.
-        // That way, power key wake during theater mode will solely be controlled by
-        // `config_allowTheaterModeWakeFromPowerKey` in the checks.
-        setBooleanRes(config_allowTheaterModeWakeFromKey, false);
-
         runPowerManagerUpChecks(
                 () -> mPolicy.wakeUpFromPowerKeyCameraGesture(),
-                config_allowTheaterModeWakeFromPowerKey,
                 WAKE_REASON_CAMERA_LAUNCH,
                 "android.policy:CAMERA_GESTURE_PREVENT_LOCK");
     }
 
     private void runPowerManagerUpChecks(
             BooleanSupplier wakeUpCall,
-            int theatherModeWakeResId,
             int expectedWakeReason,
             String expectedWakeDetails) {
-        // Test under theater mode enabled.
-        setTheaterModeEnabled(true);
-
         Mockito.reset(mPowerManager);
-        setBooleanRes(theatherModeWakeResId, true);
-        LocalServices.removeServiceForTest(WindowWakeUpPolicyInternal.class);
-        mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
-        setUptimeMillis(200);
-        assertWithMessage("Wake should happen in theater mode when config allows it.")
-                .that(wakeUpCall.getAsBoolean()).isTrue();
-        verify(mPowerManager).wakeUp(200L, expectedWakeReason, expectedWakeDetails);
-
-        Mockito.reset(mPowerManager);
-        setBooleanRes(theatherModeWakeResId, false);
-        LocalServices.removeServiceForTest(WindowWakeUpPolicyInternal.class);
-        mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
-        setUptimeMillis(250);
-        assertWithMessage("Wake should not happen in theater mode when config disallows it.")
-                .that(wakeUpCall.getAsBoolean()).isFalse();
-        verifyNoPowerManagerWakeUp();
-
-        // Cases when theater mode is disabled.
-        setTheaterModeEnabled(false);
-
-        Mockito.reset(mPowerManager);
-        setBooleanRes(theatherModeWakeResId, true);
         LocalServices.removeServiceForTest(WindowWakeUpPolicyInternal.class);
         mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
         setUptimeMillis(300);
-        assertWithMessage("Wake should happen when not in theater mode.")
-                .that(wakeUpCall.getAsBoolean()).isTrue();
+        assertWithMessage("Device should wake up.").that(wakeUpCall.getAsBoolean()).isTrue();
         verify(mPowerManager).wakeUp(300L, expectedWakeReason, expectedWakeDetails);
-
-        Mockito.reset(mPowerManager);
-        setBooleanRes(theatherModeWakeResId, false);
-        LocalServices.removeServiceForTest(WindowWakeUpPolicyInternal.class);
-        mPolicy = new WindowWakeUpPolicy(mContextSpy, mClock);
-        setUptimeMillis(350);
-        assertWithMessage("Wake should happen when not in theater mode.")
-                .that(wakeUpCall.getAsBoolean()).isTrue();
-        verify(mPowerManager).wakeUp(350L, expectedWakeReason, expectedWakeDetails);
     }
 
     private void verifyNoPowerManagerWakeUp() {
         verify(mPowerManager, never()).wakeUp(anyLong(), anyInt(), anyString());
     }
 
-    private void setBooleanRes(int resId, boolean val) {
-        when(mResourcesSpy.getBoolean(resId)).thenReturn(val);
-    }
-
     private void setUptimeMillis(long uptimeMillis) {
         when(mClock.uptimeMillis()).thenReturn(uptimeMillis);
-    }
-
-    private void setTheaterModeEnabled(boolean enabled) {
-        Settings.Global.putInt(
-                mContextSpy.getContentResolver(), Settings.Global.THEATER_MODE_ON, enabled ? 1 : 0);
     }
 
     private void setDelegatedMotionWakeUpResult(boolean result) {

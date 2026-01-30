@@ -187,10 +187,6 @@ public final class HubMessage implements Parcelable {
 
     @Override
     public int hashCode() {
-        if (!Flags.fixApiCheck()) {
-            return super.hashCode();
-        }
-
         return Objects.hash(
                 mMessageType,
                 Arrays.hashCode(mMessageBody),

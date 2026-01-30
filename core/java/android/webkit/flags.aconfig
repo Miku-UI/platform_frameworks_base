@@ -44,9 +44,8 @@ flag {
 }
 
 flag {
-    name: "use_b_entry_point"
+    name: "always_enforce_thread_checking"
     namespace: "webview"
-    description: "Use B-specific entry point to WebView APK"
-    bug: "373617389"
-    is_fixed_read_only: true
+    description: "Always enforce that WebView APIs are called on the same thread"
+    bug: "440569275"
 }

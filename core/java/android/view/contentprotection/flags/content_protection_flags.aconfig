@@ -2,27 +2,6 @@ package: "android.view.contentprotection.flags"
 container: "system"
 
 flag {
-    name: "blocklist_update_enabled"
-    namespace: "content_protection"
-    description: "If true, content protection blocklist is mutable and can be updated."
-    bug: "301658008"
-}
-
-flag {
-    name: "parse_groups_config_enabled"
-    namespace: "content_protection"
-    description: "If true, content protection groups config will be parsed."
-    bug: "302187922"
-}
-
-flag {
-    name: "setting_ui_enabled"
-    namespace: "content_protection"
-    description: "If true, content protection setting ui is displayed in Settings > Privacy & Security > More security & privacy."
-    bug: "305792348"
-}
-
-flag {
     name: "create_accessibility_overlay_app_op_enabled"
     is_exported: true
     namespace: "content_protection"

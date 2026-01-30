@@ -48,7 +48,7 @@ import java.util.regex.Pattern;
  * to the event log. The audit watching job scans the event log periodically while idle to find AVC
  * audit messages indicating use of dynamic native code and adds the information to
  * {@link DynamicCodeLogger}.
- * {@hide}
+ * @hide
  */
 public class DynamicCodeLoggingService extends JobService {
     private static final String TAG = DynamicCodeLoggingService.class.getName();
@@ -78,6 +78,9 @@ public class DynamicCodeLoggingService extends JobService {
      * Schedule our jobs with the {@link JobScheduler}.
      */
     public static void schedule(Context context) {
+        if (com.android.server.flags.Flags.dynamicCodeLoggingServiceRemoval()) {
+            return;
+        }
         ComponentName serviceName = new ComponentName(
                 "android", DynamicCodeLoggingService.class.getName());
 

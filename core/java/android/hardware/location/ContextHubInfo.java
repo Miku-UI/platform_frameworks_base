@@ -384,10 +384,6 @@ public class ContextHubInfo implements Parcelable {
 
     @Override
     public int hashCode() {
-        if (!Flags.fixApiCheck()) {
-            return super.hashCode();
-        }
-
         return Objects.hash(mId, mName, mVendor, mToolchain, mToolchainVersion,
                 getStaticSwVersion(), mChrePlatformId, mPeakMips,
                 mStoppedPowerDrawMw, mSleepPowerDrawMw, mPeakPowerDrawMw,

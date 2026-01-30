@@ -56,7 +56,8 @@ public final class TrafficDescriptor implements Parcelable {
         // prohibited to modify/extend the allowed list, especially passing the real package name to
         // the network.
         private static final Set<String> ALLOWED_APP_IDS = Set.of(
-                "ENTERPRISE", "PRIORITIZE_LATENCY", "PRIORITIZE_BANDWIDTH", "CBS"
+                "ENTERPRISE", "PRIORITIZE_LATENCY", "PRIORITIZE_BANDWIDTH", "CBS",
+                "PRIORITIZE_UNIFIED_COMMUNICATIONS"
         );
 
         /** OS id in UUID format. */

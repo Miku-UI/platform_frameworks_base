@@ -43,7 +43,7 @@
     The Accessibility Menu provides a large on-screen menu to control your device. You can lock your device, control volume and brightness, take screenshots, and more.
   </string>
   <!-- Short summary of app that appears as subtext on the service preference in Settings -->
-  <string name="accessibility_menu_summary">Control device via large menu</string>
+  <string name="accessibility_menu_summary">Control volume, brightness, and more with a large menu</string>
 
   <!-- String defining the settings name -->
   <string name="accessibility_menu_settings_name">Accessibility Menu Settings</string>

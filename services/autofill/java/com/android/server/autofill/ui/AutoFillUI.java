@@ -231,7 +231,8 @@ public final class AutoFillUI {
             }
             hideAllUiThread(callback);
             mFillUi = new FillUi(context, response, focusedId, filterText, mOverlayControl,
-                    serviceLabel, serviceIcon, mUiModeMgr.isNightMode(), maxInputLengthForAutofill,
+                    serviceLabel, serviceIcon, mUiModeMgr.isNightMode(context.getDisplayId()),
+                    maxInputLengthForAutofill,
                     new FillUi.Callback() {
                 @Override
                 public void onResponsePicked(FillResponse response) {
@@ -412,7 +413,8 @@ public final class AutoFillUI {
                 public void startIntentSender(IntentSender intentSender, Intent intent) {
                     callback.startIntentSender(intentSender, intent);
                 }
-            }, mUiModeMgr.isNightMode(), isUpdate, compatMode, showServiceIcon);
+            }, mUiModeMgr.isNightMode(context.getDisplayId()), isUpdate, compatMode,
+                    showServiceIcon);
 
             mSaveEventLogger.maybeSetLatencySaveUiDisplayMillis();
         });
@@ -447,7 +449,7 @@ public final class AutoFillUI {
             hideAllUiThread(callback);
             mFillDialog = new DialogFillUi(mContext, response, focusedId, filterText,
                     serviceIcon, servicePackageName, componentName, mOverlayControl,
-                    mUiModeMgr.isNightMode(), new DialogFillUi.UiCallback() {
+                    mUiModeMgr.isNightMode(mContext.getDisplayId()), new DialogFillUi.UiCallback() {
                         @Override
                         public void onResponsePicked(FillResponse response) {
                             log(MetricsEvent.TYPE_DETAIL);
@@ -566,7 +568,8 @@ public final class AutoFillUI {
         pw.println("Autofill UI");
         final String prefix = "  ";
         final String prefix2 = "    ";
-        pw.print(prefix); pw.print("Night mode: "); pw.println(mUiModeMgr.isNightMode());
+        pw.print(prefix); pw.print("Night mode: ");
+        pw.println(mUiModeMgr.isNightMode(mContext.getDisplayId()));
         if (mFillUi != null) {
             pw.print(prefix); pw.println("showsFillUi: true");
             mFillUi.dump(pw, prefix2);

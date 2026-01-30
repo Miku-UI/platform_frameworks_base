@@ -29,7 +29,7 @@ import java.io.PrintWriter;
  * Merged configuration updates automatically whenever global or override configs are updated via
  * setters.
  *
- * {@hide}
+ * @hide
  */
 public class MergedConfiguration implements Parcelable {
 

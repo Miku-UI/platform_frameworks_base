@@ -17,9 +17,14 @@
 package com.android.systemui.common.shared.model
 
 import android.annotation.DrawableRes
+import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import androidx.compose.runtime.Stable
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.graphics.drawable.toBitmap
 import com.android.systemui.common.shared.model.Icon.Loaded
+import java.util.Objects
 
 /**
  * Models an icon, that can either be already [loaded][Icon.Loaded] or be a [reference]
@@ -28,55 +33,98 @@ import com.android.systemui.common.shared.model.Icon.Loaded
 @Stable
 sealed class Icon {
     abstract val contentDescription: ContentDescription?
+    abstract val resId: Int?
 
+    /**
+     * An icon that is already loaded.
+     *
+     * @param resId The resource ID of the icon. For when we want to have Loaded icon, but still
+     *   keep a reference to the resource id. A use case would be for tests that have to compare
+     *   animated drawables.
+     * @param packageName The package that owns [resId]. Null if it belongs to the current
+     *   (Systemui) package.
+     */
     data class Loaded
     @JvmOverloads
     constructor(
         val drawable: Drawable,
         override val contentDescription: ContentDescription?,
         /**
-         * Serves as an id to compare two instances. When provided this is used alongside
-         * [contentDescription] to determine equality. This is useful when comparing icons
-         * representing the same UI, but with different [drawable] instances.
+         * Together with [packageName], serves as an id to compare two instances. When provided this
+         * is used alongside [contentDescription] to determine equality. This is useful when
+         * comparing icons representing the same UI, but with different [drawable] instances.
          */
-        @DrawableRes val res: Int? = null,
+        @DrawableRes override val resId: Int? = null,
+        val packageName: String? = null,
     ) : Icon() {
+        init {
+            if (packageName != null) {
+                require(resId != null) {
+                    "resId is required if packageName is not null (got $packageName)"
+                }
+            }
+        }
 
         override fun equals(other: Any?): Boolean {
-            val that = other as? Loaded ?: return false
-
-            if (this.res != null && that.res != null) {
-                return this.res == that.res && this.contentDescription == that.contentDescription
+            if (other !is Loaded) {
+                return false
             }
 
-            return this.res == that.res &&
-                this.drawable == that.drawable &&
-                this.contentDescription == that.contentDescription
+            // If both icons provide a resId, only use package+resId for identification, so that
+            // drawable copies or mutations of the same base resource are considered equal.
+            if (this.resId != null && other.resId != null) {
+                return this.resId == other.resId &&
+                    this.packageName == other.packageName &&
+                    this.contentDescription == other.contentDescription
+            }
+
+            // Otherwise, compare everything.
+            return this.resId == other.resId &&
+                this.packageName == other.packageName &&
+                this.drawable == other.drawable &&
+                this.contentDescription == other.contentDescription
         }
 
         override fun hashCode(): Int {
-            var result = contentDescription?.hashCode() ?: 0
-            result =
-                if (res != null) {
-                    31 * result + res.hashCode()
-                } else {
-                    31 * result + drawable.hashCode()
-                }
-            return result
+            return if (resId != null) {
+                Objects.hash(resId, packageName, contentDescription)
+            } else {
+                Objects.hash(drawable, contentDescription)
+            }
         }
     }
 
+    /** An icon that is a reference to a resource belonging to the current (SystemUI) package. */
     data class Resource(
-        @DrawableRes val res: Int,
+        @DrawableRes override val resId: Int,
         override val contentDescription: ContentDescription?,
     ) : Icon()
 }
 
 /**
- * Creates [Icon.Loaded] for a given drawable with an optional [contentDescription] and an optional
- * [res].
+ * Creates [Icon.Loaded] for a given drawable with an optional [contentDescription], [resId] and
+ * [resPackage].
  */
 fun Drawable.asIcon(
     contentDescription: ContentDescription? = null,
-    @DrawableRes res: Int? = null,
-): Loaded = Loaded(this, contentDescription, res)
+    @DrawableRes resId: Int? = null,
+    resPackage: String? = null,
+): Loaded = Loaded(this, contentDescription, resId, resPackage)
+
+/**
+ * Creates [ImageBitmap] for a given [Icon.Loaded]. It avoids IllegalArgumentException by providing
+ * 1x1 bitmap if [Drawable.getIntrinsicWidth] or [Drawable.getIntrinsicHeight] is <= 0
+ */
+fun Loaded.asImageBitmap(): ImageBitmap {
+    return with(drawable) {
+        if (this is BitmapDrawable) {
+            bitmap.asImageBitmap()
+        } else {
+            toBitmap(
+                    width = intrinsicWidth.takeIf { it > 0 } ?: 1,
+                    height = intrinsicWidth.takeIf { it > 0 } ?: 1,
+                )
+                .asImageBitmap()
+        }
+    }
+}

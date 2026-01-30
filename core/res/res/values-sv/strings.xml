@@ -71,9 +71,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"Nummerpresentatörens standardinställning är blockerad. Nästa samtal: Inte blockerad"</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"Nummerpresentatörens standardinställning är inte blockerad. Nästa samtal: Blockerad"</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"Nummerpresentatörens standardinställning är inte blockerad. Nästa samtal: Inte blockerad"</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"Den här appen är inte kompatibel med 16 KB. APK-justeringskontrollen misslyckades. Appen körs i kompatibilitetsläget för sidstorlek. För bästa möjliga kompatibilitet bör du kompilera appen igen med stöd för 16 kB. Läs mer på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"Den här appen är inte kompatibel med 16 KB. ELF-justeringskontrollen misslyckades. Appen körs i kompatibilitetsläget för sidstorlek. För bästa möjliga kompatibilitet bör du kompilera appen igen med stöd för 16 kB. Läs mer på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"Den här appen är inte kompatibel med 16 kB. APK- och ELF-justeringskontrollerna misslyckades. Appen körs i kompatibilitetsläget för sidstorlek. För bästa möjliga kompatibilitet bör du kompilera appen igen med stöd för 16 kB. Läs mer på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"Den här appen är inte kompatibel med 16 kB. APK-kontrollen misslyckades. Appen körs i kompatibilitetsläget för sidstorlek. För bästa möjliga kompatibilitet bör du kompilera appen igen med stöd för 16 kB. Läs mer på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Följande bibliotek har inte anpassats för 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"Den här appen är inte kompatibel med 16 kB. ELF-kontrollen misslyckades. Appen körs i kompatibilitetsläget för sidstorlek. För bästa möjliga kompatibilitet bör du kompilera appen igen med stöd för 16 kB. Läs mer på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Följande bibliotek har inte anpassats för 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"Den här appen är inte kompatibel med 16 kB. APK- och ELF-kontrollerna misslyckades. Appen körs i kompatibilitetsläget för sidstorlek. För bästa möjliga kompatibilitet bör du kompilera appen igen med stöd för 16 kB. Läs mer på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Följande bibliotek har inte anpassats för 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"Den här varningen visas eftersom det här är en felsökningsbar app som för närvarande testas. Om du inte är utvecklaren rapporterar du detta till utvecklaren och ber om en app som inte är felsökningsbar. &lt;br&gt;&lt;br&gt; Den här appen är inte kompatibel med 16 kB. APK-kontrollen misslyckades. Följ stegen på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Följande bibliotek har inte anpassats för 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Den här varningen visas eftersom det här är en felsökningsbar app som för närvarande testas. Om du inte är utvecklaren rapporterar du detta till utvecklaren och ber om en app som inte är felsökningsbar. &lt;br&gt;&lt;br&gt; Den här appen är inte kompatibel med 16 kB. ELF-kontrollen misslyckades. Följ stegen på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Följande bibliotek har inte anpassats för 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"Den här varningen visas eftersom det här är en felsökningsbar app som för närvarande testas. Om du inte är utvecklaren rapporterar du detta till utvecklaren och ber om en app som inte är felsökningsbar. &lt;br&gt;&lt;br&gt; Den här appen är inte kompatibel med 16 kB. APK- och ELF-kontrollerna misslyckades. Följ stegen på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Följande bibliotek har inte anpassats för 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"Visa inte igen"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Kompatibilitet med Android-appar"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s : LOAD-segmentet är inte anpassat för detta&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : Det okomprimerade biblioteket är inte anpassat för detta&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s : LOAD-segmentet och det okomprimerade biblioteket är inte anpassade för detta&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : Okänt fel&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"Tjänsten är inte etablerad."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"Det går inte att ändra inställningen för nummerpresentatör."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"Du har bytt mobildata till <xliff:g id="CARRIERDISPLAY">%s</xliff:g>"</string>
@@ -160,8 +169,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"Mobilnätverkssäkerhet"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"Kryptering, aviseringar för okrypterade nätverk"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"Enhets-id har kommits åt"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"Kl. <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> loggade ett nätverk i närheten din enhets unika id (IMSI- eller IMEI-nummer) medan det använde ditt SIM-kort från <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>"</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"Kl. <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> loggade ett nätverk i närheten din enhets unika id (IMSI- eller IMEI-nummer) medan det använde ditt SIM-kort från <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>.\n\nDetta innebär att din plats, aktivitet eller identitet har loggats. Detta är allmän praxis, men kan vara ett problem för personer som är måna om sin integritet."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"Kl. <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerade ett nätverk i närheten din enhets unika id (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>) medan det använde ditt SIM-kort från <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>"</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"Kl. <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerade ett nätverk i närheten din enhets unika id medan det använde ditt SIM-kort från <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>"</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"Kl. <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerade ett nätverk i närheten din enhets unika id (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>) medan det använde ditt SIM-kort från <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>.\n\nDetta innebär att din plats, aktivitet eller identitet har loggats. Detta är allmän praxis, men kan vara ett problem för personer som är måna om sin integritet."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"Kl. <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerade ett nätverk i närheten din enhets unika id medan det använde ditt SIM-kort från <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>.\n\nDetta innebär att din plats, aktivitet eller identitet har loggats. Detta är allmän praxis, men kan vara ett problem för personer som är måna om sin integritet."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"Ansluten till det krypterade nätverket <xliff:g id="NETWORK_NAME">%1$s</xliff:g>"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"Anlutningen för SIM-kortet från <xliff:g id="NETWORK_NAME">%1$s</xliff:g> är säkrare nu"</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"Ansluten till okrypterat nätverk"</string>
@@ -289,6 +300,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"Hjälp"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"Voice Assist"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"Låsning"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"Lås"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"999+"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"Svara"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"Ny avisering"</string>
@@ -324,8 +336,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"Byt till jobbprofilen"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"Byt till privat profil i <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Byt till jobbprofil i <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"Kontakter"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"få tillgång till dina kontakter"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"Kontakter och konton"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"få åtkomst till dina kontakter och se listan över de konton som kan spara kontakter på den här enheten"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Plats"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"komma åt enhetens platsuppgifter"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Kalender"</string>
@@ -354,10 +366,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"få åtkomst till sensordata om dina vitalparametrar"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"Aviseringar"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"visa aviseringar"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"XR-spårningsdata"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"få åtkomst till XR-data om dig och din omgivning"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"känslig XR-spårningsdata"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"få åtkomst till känslig spårningsdata, som ögonrörelser"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"Ögonspårningsdata"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"spåra ögonrörelser exakt"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"Rörelse- och områdesdata"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"spåra ögon, ansikte, kropp och skanna område"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"Exakt rörelse- och områdesdata"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"skanna området och spåra huvudet exakt"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"Hämta fönsterinnehåll"</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"Granska innehållet i ett fönster som du interagerar med."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"Aktivera Explore by touch"</string>
@@ -382,6 +396,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"Tillåter att appen expanderar eller komprimerar statusfältet."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"visa aviseringar som aktiviteter i helskärm på en låst enhet"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"Tillåter att appen visar aviseringar som aktiviteter i helskärm på en låst enhet"</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"Visa liveuppdateringar"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"Tillåter att appen visar pågående, tidskänsliga aviseringar i statusfältet och på låsskärmen"</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"Installera genvägar"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"Tillåter att en app lägger till genvägar på startskärmen utan åtgärd från användaren."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"avinstallera genvägar"</string>
@@ -623,6 +639,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"Tillåt att appen fastställer den relativa positionen mellan Ultra Wideband-enheter i närheten"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"interagera med wifi-enheter i närheten"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Tillåter appen att sända ut till, ansluta till och fastställa relativ position för wifi-enheter i närheten"</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"åtkomst till enheter i det lokala nätverket"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"Tillåter att appen får åtkomst till enheter i det lokala nätverket"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"fastställa relativ position för enheter i närheten"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Tillåt att appen fastställer den relativa positionen mellan enheter i närheten"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Information kopplad till standardtjänsten för NFC-betalning"</string>
@@ -653,27 +671,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"Tillåter att appen gör ändringar i din fotosamling."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"läsa av platser i din mediesamling"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"Tillåter att appen läser av platser i din mediesamling."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"spåra dina ungefärliga ögonrörelser"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"Tillåter att appen spårar dina ungefärliga ögonrörelser."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"spåra var du tittar"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"Tillåter att appen får åtkomst till exakta ögonrörelser."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"spåra ditt ansikte"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"Tillåter att appen får åtkomst till data om ansiktsspårning."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"spåra dina händer"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"Tillåter att appen får åtkomst till data om handspårning."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"spåra ditt huvud"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"Tillåter att appen får åtkomst till data om huvudspårning."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"förstå din omgivning"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"Tillåter att appen får åtkomst till spårningsdata om omgivningen runtomkring dig."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"förstå din omgivning i detalj"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"Tillåter att appen får åtkomst till spårningsdata om omgivningen runtomkring dig i mycket hög detalj."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"få åtkomst till XR-data när appen inte är i förgrunden"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"Tillåter att appen får åtkomst till XR-data när den inte är i förgrunden."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"spåra ögonrörelser"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"Tillåter att appen spårar ungefärlig riktning på din blick."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"spåra ögonrörelser exakt"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"Tillåter att appen spårar riktningen på din blick."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"spåra ansiktsrörelser"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"Tillåter att appen spårar dina ansiktsrörelser och ansiktsuttryck."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"spåra handrörelser"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"Tillåter att appen spårar dina handrörelser."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"spåra huvudrörelser"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"Tillåter att appen spårar dina huvudrörelser."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"skanna omgivningen"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"Tillåter att appen skannar din omgivning."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"skanna omgivningen exakt"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"Tillåter att appen skannar din omgivning exakt."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"få åtkomst till XR-spårning i bakgrunden"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"Tillåter att appen får åtkomst till XR-data i bakgrunden."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"registrera tangenter"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"Tillåter att appen registrerar tangenter innan systemet kan bearbeta kortkommandon och åtgärder."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"Använd biometri"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"Använd biometrisk data eller skärmlåset"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"Verifiera din identitet"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"Fortsätt med hjälp av din biometriska data"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"Fortsätt med hjälp av din biometriska data eller skärmlåset"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"Verifiera din identitet på telefonen för att fortsätta"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"Verifiera din identitet på surfplattan för att fortsätta"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"Biometrisk hårdvara är inte tillgänglig"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"Autentiseringen avbröts"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"Identifierades inte"</string>
@@ -897,6 +919,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"Förhindra att enhetens kameror används."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"Inaktivera vissa skärmlåsfunk."</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"Förhindra användning av vissa skärmlåsfunktioner."</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"Tryck länge på Esc för att stänga den här appen"</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"Hem"</item>
     <item msgid="7740243458912727194">"Mobil"</item>
@@ -1107,6 +1130,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"Lås upp med SIM-kortets pinkod."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"Lås upp med SIM-kortets PUK-kod."</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"Lås upp med lösenord."</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"Biometrisk upplåsning för säkert enhetslås."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"Fält för mönster."</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"Fält med dragreglage."</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1182,22 +1206,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"om <xliff:g id="COUNT">%d</xliff:g> tim"</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"om <xliff:g id="COUNT">%d</xliff:g> d"</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"om <xliff:g id="COUNT">%d</xliff:g> år"</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"för <xliff:g id="COUNT">%d</xliff:g> m sedan"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"för <xliff:g id="COUNT">%d</xliff:g> h sedan"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"för <xliff:g id="COUNT">%d</xliff:g> d sedan"</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"för <xliff:g id="COUNT">%d</xliff:g> år sedan"</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> min"</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g> d"</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> år"</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"om <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"om <xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"om <xliff:g id="COUNT">%d</xliff:g> d"</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"om <xliff:g id="COUNT">%d</xliff:g> år"</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"för <xliff:g id="COUNT">%d</xliff:g> min sedan"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"för <xliff:g id="COUNT">%d</xliff:g> h sedan"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"för <xliff:g id="COUNT">%d</xliff:g> d sedan"</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"för <xliff:g id="COUNT">%d</xliff:g> år sedan"</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{För # minut sedan}other{För # minuter sedan}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{För # timme sedan}other{För # timmar sedan}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{För # dag sedan}other{För # dagar sedan}}"</string>
@@ -1478,8 +1488,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"AVVISA"</string>
     <string name="select_input_method" msgid="3971267998568587025">"Välj inmatningsmetod"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"Språkinställningar"</string>
-    <string name="show_ime" msgid="6406112007347443383">"Ha kvar det på skärmen när det fysiska tangentbordet används"</string>
-    <string name="hardware" msgid="3611039921284836033">"Använd skärmtangentbord"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"Konfigurera <xliff:g id="DEVICE_NAME">%s</xliff:g>"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"Konfigurera fysiska tangentbord"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"Tryck om du vill välja språk och layout"</string>
@@ -1709,6 +1717,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"Extern enhet"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"Hörlurar"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"Tv-ljud"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"Analog"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"Digital"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"AUX"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"System"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"Bluetooth-ljud"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"Trådlös skärm"</string>
@@ -1734,7 +1748,7 @@
     <string name="kg_wrong_pin" msgid="3680925703673166482">"Fel PIN-kod"</string>
     <string name="kg_pattern_instructions" msgid="8366024510502517748">"Rita ditt grafiska lösenord"</string>
     <string name="kg_sim_pin_instructions" msgid="6479401489471690359">"Ange PIN-kod för SIM-kortet"</string>
-    <string name="kg_pin_instructions" msgid="7355933174673539021">"Ange PIN-kod"</string>
+    <string name="kg_pin_instructions" msgid="7355933174673539021">"Ange pinkod"</string>
     <string name="kg_password_instructions" msgid="7179782578809398050">"Ange lösenord"</string>
     <string name="kg_puk_enter_puk_hint" msgid="6696187482616360994">"SIM-kortet är nu inaktiverat. Ange PUK-koden för att fortsätta. Kontakta operatören om du vill ha mer information."</string>
     <string name="kg_puk_enter_pin_hint" msgid="8190982314659429770">"Ange önskad PIN-kod"</string>
@@ -1804,7 +1818,8 @@
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Enhandsläge"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Extradimmat"</string>
     <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Hörhjälpmedel"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"Automatiskt klick"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"Automatiskt klick (hovringstid)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Mustangenter"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Frånkopplad"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"Ansluten"</string>
     <string name="hearing_device_status_active" msgid="4770378695482566032">"Aktiv"</string>
@@ -1829,6 +1844,8 @@
     <string name="user_logging_out_message" msgid="7216437629179710359">"Loggar ut <xliff:g id="NAME">%1$s</xliff:g> …"</string>
     <string name="owner_name" msgid="8713560351570795743">"Ägare"</string>
     <string name="guest_name" msgid="8502103277839834324">"Gäst"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"Systemanvändare"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Användare"</string>
     <string name="error_message_title" msgid="4082495589294631966">"Fel"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"Administratören tillåter inte denna ändring"</string>
     <string name="app_not_found" msgid="3429506115332341800">"Ingen app som kan hantera åtgärden hittades"</string>
@@ -1969,8 +1986,8 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"Har uppdaterats av administratören.\nÖppna inställningarna för att se behörigheter som beviljats"</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"Administratören raderade paketet"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"OK"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"I batterisparläget aktiveras mörkt tema medan bakgrundsaktivitet, vissa visuella effekter och funktioner samt vissa nätverksanslutningar begränsas eller inaktiveras."</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"I batterisparläget aktiveras mörkt tema medan bakgrundsaktivitet, vissa visuella effekter och funktioner samt vissa nätverksanslutningar begränsas eller inaktiveras."</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"I batterisparläget aktiveras mörkt tema medan bakgrundsaktivitet, vissa visuella effekter och funktioner samt vissa nätverksanslutningar begränsas eller inaktiveras."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"I batterisparläget aktiveras mörkt tema medan bakgrundsaktivitet, vissa visuella effekter och funktioner samt vissa nätverksanslutningar begränsas eller inaktiveras."</string>
     <string name="data_saver_description" msgid="4995164271550590517">"Med Databesparing kan du minska dataanvändningen genom att hindra en del appar från att skicka eller ta emot data i bakgrunden. Appar som du använder kan komma åt data, men det sker kanske inte lika ofta. Detta innebär t.ex. att bilder inte visas förrän du trycker på dem."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"Vill du aktivera Databesparing?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"Aktivera"</string>
@@ -2032,6 +2049,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"Maximera"</string>
     <string name="close_button_text" msgid="10603510034455258">"Stäng"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g>: <xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Svara"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Video"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Avvisa"</string>
@@ -2043,7 +2063,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"Kampanjer"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"Socialt"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"Nyheter"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"Rekommendationer"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"Förslag"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"Du anger hur viktiga aviseringarna är."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"Detta är viktigt på grund av personerna som deltar."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"Anpassad appavisering"</string>
@@ -2266,19 +2286,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"Styrkors, vänster"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"Styrkors, höger"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"Styrkors, mitten"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"Inställningspanel för typ av automatiskt klick"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"Vänsterklick"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"Högerklicka"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"Dubbelklicka"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"Alternativmeny för automatiska klick"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"Vänsterklicka"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"Högerklicka"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"Dubbelklicka"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"Trycka och dra"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"Scrolla"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"Tryck länge"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"Pausa"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"Position"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"Scrolla uppåt"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"Scrolla nedåt"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"Scrolla åt vänster"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"Scrolla åt höger"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"Avsluta scrollningsläget"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"Återuppta"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"Ändra menyns plats"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"Scrolla uppåt"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"Scrolla nedåt"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"Scrolla åt vänster"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"Scrolla åt höger"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"Avsluta scrollningsläget"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"Scrollningspanel"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"<xliff:g id="PACKAGE_NAME">%1$s</xliff:g> har placerats i hinken RESTRICTED"</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2498,7 +2520,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Av säkerhetsskäl döljs appinnehållet vid skärmdelning"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"Automatiskt ansluten till satellit"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"Du kan skicka och ta emot meddelanden utan mobil- eller wifi-nätverk"</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"Du kan skicka och ta emot meddelanden och använda begränsad data via satellit"</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"Du kan skicka och ta emot meddelanden och använda utvalda appar via satellit"</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"Vill du använda satellitmeddelanden?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"Skicka och ta emot meddelanden utan ett mobil- eller wifi-nätverk"</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"Öppna Messages"</string>
@@ -2553,12 +2575,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"Kalender"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"Kalkylator"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Maps"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"Files"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"Appar"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"Det går inte längre att känna igen dina fingeravtryck. Ställ in fingeravtryckslås igen."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"USB-enhet ansluten när enheten är låst"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"USB-enheten är ansluten när Android är låst. Om du vill använda enheten måste du först låsa upp Android och sedan sätta i USB-enheten igen."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"Säkerhet och integritet"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"Lås upp skärmen och anslut USB igen"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"Lås upp skärmen för att ansluta ett USB"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"Avancerat skydd kräver att skärmen är upplåst för att initiera en USB-anslutning"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"Avancerat skydd kräver att skärmen är upplåst för att initiera en USB-anslutning"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"Avancerat skydd kräver att skärmen är upplåst för snabbare laddning"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"Avancerat skydd kräver att skärmen är upplåst för snabbare laddning eller för att initiera en USB-anslutning"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"Stäng av ljudet"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"Ljudet har stängts av för aviseringar"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"Du får inga USB-aviseringar för Avancerat skydd förrän du startar om enheten"</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"Misstänkt USB-aktivitet"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"USB-datasignalen har inaktiverats."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"USB-datasignalen har inaktiverats"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"Har du problem med fingeravtryckslåset?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Tryck för att se tips om hur du kan förbättra upplåsningen"</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Utan blinkning"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Tryck länge på av/på-knappen för att stänga av tv:n"</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Aviseringar om systemresurser"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Överanvändning av resurser"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"Appen <xliff:g id="APP_NAME">%1$s</xliff:g> använder för många resurser."</string>
 </resources>

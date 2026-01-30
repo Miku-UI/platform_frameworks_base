@@ -18,9 +18,7 @@ package com.android.internal.os;
 
 import android.os.Binder;
 import android.text.TextUtils;
-
 import com.android.internal.annotations.VisibleForTesting;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -38,8 +36,6 @@ import java.util.HashMap;
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 public class BinderTransactionNameResolver {
     private static final Method NO_GET_DEFAULT_TRANSACTION_NAME_METHOD;
-    private static final boolean USE_TRANSACTION_CODES_FOR_UNKNOWN_METHODS =
-            Flags.useTransactionCodesForUnknownMethods();
 
     /**
      * Generates the default transaction method name, which is just the transaction code.
@@ -85,13 +81,9 @@ public class BinderTransactionNameResolver {
 
         try {
             String methodName = (String) method.invoke(null, transactionCode);
-            if (USE_TRANSACTION_CODES_FOR_UNKNOWN_METHODS) {
-                return TextUtils.isEmpty(methodName)
-                        ? String.valueOf(transactionCode)
-                        : methodName;
-            } else {
-                return methodName;
-            }
+            return TextUtils.isEmpty(methodName)
+                    ? String.valueOf(transactionCode)
+                    : methodName;
         } catch (IllegalAccessException | InvocationTargetException e) {
             throw new RuntimeException(e);
         }

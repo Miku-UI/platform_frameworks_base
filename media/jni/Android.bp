@@ -15,20 +15,35 @@ license {
     ],
 }
 
+filegroup {
+    name: "jni_exports",
+    srcs: ["jni_exports.lds"],
+    visibility: [":__subpackages__"],
+}
+
+cc_defaults {
+    name: "media_jni_lib_defaults",
+    version_script: ":jni_exports",
+}
+
 cc_library_shared {
     name: "libmedia_jni",
 
     defaults: [
         "aconfig_lib_cc_static_link.defaults",
         "libcodec2-internal-defaults",
+        "media_jni_lib_defaults",
+        "android.hardware.drm-media_drm-ndk-shared",
     ],
     min_sdk_version: "",
 
     srcs: [
+        "JetPlayer.cpp",
+        "android_media_CodecCapabilities.cpp",
         "android_media_JetPlayer.cpp",
-        "android_media_MediaCrypto.cpp",
         "android_media_MediaCodec.cpp",
         "android_media_MediaCodecList.cpp",
+        "android_media_MediaCrypto.cpp",
         "android_media_MediaDataSource.cpp",
         "android_media_MediaDescrambler.cpp",
         "android_media_MediaDrm.cpp",
@@ -46,49 +61,47 @@ cc_library_shared {
         "android_mtp_MtpDatabase.cpp",
         "android_mtp_MtpDevice.cpp",
         "android_mtp_MtpServer.cpp",
-        "JetPlayer.cpp",
     ],
 
     shared_libs: [
+        "android.companion.virtual.virtualdevice_aidl-cpp",
+        "android.hardware.cas.native@1.0",
+        "android.hardware.cas@1.0",
+        "android.hardware.drm@1.3",
+        "android.hardware.drm@1.4",
+        "android.hardware.tv.tuner-V3-ndk",
+        "android.hidl.memory@1.0",
+        "android.hidl.token@1.0-utils",
         "audioclient-types-aidl-cpp",
         "av-types-aidl-cpp",
         "framework-permission-aidl-cpp",
         "libandroid_runtime",
+        "libandroidfw",
         "libaudioclient",
-        "libnativehelper",
-        "libnativewindow",
-        "libutils",
         "libbinder",
-        "libmedia",
-        "libmedia_codeclist",
-        "libmedia_omx",
-        "libmediametrics",
-        "libmediadrm",
-        "libmediadrmmetrics_consumer",
-        "libhwui",
-        "libui",
-        "liblog",
+        "libcamera_client",
         "libcutils",
         "libgui",
-        "libstagefright",
-        "libstagefright_foundation",
-        "libcamera_client",
-        "libmtp",
-        "libpiex",
-        "libandroidfw",
         "libhidlallocatorutils",
         "libhidlbase",
+        "libhwui",
+        "liblog",
+        "libmedia",
+        "libmedia_codeclist",
+        "libmedia_codeclist_capabilities",
+        "libmedia_omx",
+        "libmediadrm",
+        "libmediadrmmetrics_consumer",
+        "libmediametrics",
+        "libmtp",
+        "libnativehelper",
+        "libnativewindow",
+        "libpiex",
         "libsonivox",
-        "server_configurable_flags",
-        "android.companion.virtual.virtualdevice_aidl-cpp",
-        "android.hardware.cas@1.0",
-        "android.hardware.cas.native@1.0",
-        "android.hardware.drm@1.3",
-        "android.hardware.drm@1.4",
-        "android.hidl.memory@1.0",
-        "android.hidl.token@1.0-utils",
-        "android.hardware.drm-V1-ndk",
-        "android.hardware.tv.tuner-V3-ndk",
+        "libstagefright",
+        "libstagefright_foundation",
+        "libui",
+        "libutils",
     ],
 
     header_libs: [
@@ -97,11 +110,10 @@ cc_library_shared {
     ],
 
     static_libs: [
-        "libgrallocusage",
-        "libmedia_midiiowrapper",
         "android.companion.virtualdevice.flags-aconfig-cc",
         "android.media.codec-aconfig-cc",
-        "android.media.playback.flags-aconfig-cc",
+        "libgrallocusage",
+        "libmedia_midiiowrapper",
     ],
 
     include_dirs: [
@@ -120,8 +132,8 @@ cc_library_shared {
         "-Wall",
         "-Werror",
         "-Wno-error=deprecated-declarations",
-        "-Wunused",
         "-Wunreachable-code",
+        "-Wunused",
     ],
 
     // TODO(b/330503129) Workaround build breakage.
@@ -146,8 +158,8 @@ cc_library_shared {
     shared_libs: [
         "android.hardware.graphics.bufferqueue@2.0",
         "android.hardware.tv.tuner-V3-ndk",
-        "libbinder_ndk",
         "libandroid_runtime",
+        "libbinder_ndk",
         "libcutils",
         "libfmq",
         "libhidlbase",
@@ -181,7 +193,7 @@ cc_library_shared {
         "-Wall",
         "-Werror",
         "-Wno-error=deprecated-declarations",
-        "-Wunused",
         "-Wunreachable-code",
+        "-Wunused",
     ],
 }

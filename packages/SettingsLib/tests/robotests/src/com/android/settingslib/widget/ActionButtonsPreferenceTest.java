@@ -215,6 +215,41 @@ public class ActionButtonsPreferenceTest {
     }
 
     @Test
+    public void onBindViewHolder_setContentDescription_shouldShowSameContentDescription() {
+        mPref.setButton1Text(com.android.settingslib.R.string.install_other_apps)
+                .setButton1Description(android.R.string.copy);
+        mPref.setButton2Text(com.android.settingslib.R.string.install_other_apps)
+                .setButton2Description(android.R.string.cut);
+        mPref.setButton3Text(com.android.settingslib.R.string.install_other_apps)
+                .setButton3Description(android.R.string.paste);
+        mPref.setButton4Text(com.android.settingslib.R.string.install_other_apps)
+                .setButton4Description(android.R.string.cancel);
+
+        mPref.onBindViewHolder(mHolder);
+
+        assertThat(mRootView.findViewById(R.id.button1).getContentDescription().toString())
+                .isEqualTo(mContext.getText(android.R.string.copy).toString());
+        assertThat(mRootView.findViewById(R.id.button2).getContentDescription().toString())
+                .isEqualTo(mContext.getText(android.R.string.cut).toString());
+        assertThat(mRootView.findViewById(R.id.button3).getContentDescription().toString())
+                .isEqualTo(mContext.getText(android.R.string.paste).toString());
+        assertThat(mRootView.findViewById(R.id.button4).getContentDescription().toString())
+                .isEqualTo(mContext.getText(android.R.string.cancel).toString());
+    }
+
+    @Test
+    public void onBindViewHolder_noContentDescription_shouldUseButtonTextAsContentDescription() {
+        mPref.setButton1Text(com.android.settingslib.R.string.install_other_apps);
+
+        mPref.onBindViewHolder(mHolder);
+
+        assertThat(mRootView.findViewById(R.id.button1).getContentDescription().toString())
+                .isEqualTo(mContext.getText(
+                        com.android.settingslib.R.string.install_other_apps
+                ).toString());
+    }
+
+    @Test
     public void onBindViewHolder_setButtonIcon_iconMustDisplayAboveText() {
         mPref.setButton1Text(com.android.settingslib.R.string.install_other_apps);
         mPref.setButton1Icon(com.android.internal.R.drawable.ic_plus);
@@ -368,24 +403,28 @@ public class ActionButtonsPreferenceTest {
         when(pref.setButton1Enabled(anyBoolean())).thenReturn(pref);
         when(pref.setButton1Visible(anyBoolean())).thenReturn(pref);
         when(pref.setButton1OnClickListener(any(View.OnClickListener.class))).thenReturn(pref);
+        when(pref.setButton1Description(anyInt())).thenReturn(pref);
 
         when(pref.setButton2Text(anyInt())).thenReturn(pref);
         when(pref.setButton2Icon(anyInt())).thenReturn(pref);
         when(pref.setButton2Enabled(anyBoolean())).thenReturn(pref);
         when(pref.setButton2Visible(anyBoolean())).thenReturn(pref);
         when(pref.setButton2OnClickListener(any(View.OnClickListener.class))).thenReturn(pref);
+        when(pref.setButton2Description(anyInt())).thenReturn(pref);
 
         when(pref.setButton3Text(anyInt())).thenReturn(pref);
         when(pref.setButton3Icon(anyInt())).thenReturn(pref);
         when(pref.setButton3Enabled(anyBoolean())).thenReturn(pref);
         when(pref.setButton3Visible(anyBoolean())).thenReturn(pref);
         when(pref.setButton3OnClickListener(any(View.OnClickListener.class))).thenReturn(pref);
+        when(pref.setButton3Description(anyInt())).thenReturn(pref);
 
         when(pref.setButton4Text(anyInt())).thenReturn(pref);
         when(pref.setButton4Icon(anyInt())).thenReturn(pref);
         when(pref.setButton4Enabled(anyBoolean())).thenReturn(pref);
         when(pref.setButton4Visible(anyBoolean())).thenReturn(pref);
         when(pref.setButton4OnClickListener(any(View.OnClickListener.class))).thenReturn(pref);
+        when(pref.setButton4Description(anyInt())).thenReturn(pref);
         return pref;
     }
 }

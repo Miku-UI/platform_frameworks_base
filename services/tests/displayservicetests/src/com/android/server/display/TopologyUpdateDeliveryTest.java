@@ -174,11 +174,11 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
         // Change the topology
         int primaryDisplayId = 3;
         DisplayTopology.TreeNode root = new DisplayTopology.TreeNode(primaryDisplayId,
-                /* width= */ 600, /* height= */ 400, DisplayTopology.TreeNode.POSITION_LEFT,
-                /* offset= */ 0);
+                /* logicalWidth= */ 600, /* logicalHeight= */ 400, /* logicalDensity= */ 160,
+                DisplayTopology.POSITION_LEFT, /* offset= */ 0);
         DisplayTopology.TreeNode child = new DisplayTopology.TreeNode(/* displayId= */ 1,
-                /* width= */ 800, /* height= */ 600, DisplayTopology.TreeNode.POSITION_LEFT,
-                /* offset= */ 0);
+                /* logicalWidth= */ 800, /* logicalHeight= */ 600, /* logicalDensity= */ 160,
+                DisplayTopology.POSITION_LEFT, /* offset= */ 0);
         root.addChild(child);
         DisplayTopology topology = new DisplayTopology(root, primaryDisplayId);
         mDisplayManager.setDisplayTopology(topology);
@@ -222,8 +222,7 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
     /**
      * The app is frozen and the test verifies that no updates are delivered to the frozen app.
      */
-    @RequiresFlagsEnabled({com.android.server.am.Flags.FLAG_DEFER_DISPLAY_EVENTS_WHEN_FROZEN,
-            com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY})
+    @RequiresFlagsEnabled(com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY)
     @Test
     public void testTopologyUpdateFrozen() {
         assumeTrue(isAppFreezerEnabled());
@@ -233,8 +232,7 @@ public class TopologyUpdateDeliveryTest extends EventDeliveryTestBase {
     /**
      * The app is cached and frozen and the test verifies that no updates are delivered to the app.
      */
-    @RequiresFlagsEnabled({com.android.server.am.Flags.FLAG_DEFER_DISPLAY_EVENTS_WHEN_FROZEN,
-            com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY})
+    @RequiresFlagsEnabled(com.android.server.display.feature.flags.Flags.FLAG_DISPLAY_TOPOLOGY)
     @Test
     public void testTopologyUpdateCachedFrozen() {
         assumeTrue(isAppFreezerEnabled());

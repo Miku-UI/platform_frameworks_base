@@ -23,10 +23,13 @@ import static com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_3_1
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_3_45_45_10;
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SplitScreenState;
 
+import android.annotation.NonNull;
 import android.graphics.Rect;
 import android.graphics.RectF;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * A class that manages the "state" of split screen. See {@link SplitScreenState} for definitions.
@@ -34,10 +37,13 @@ import java.util.List;
 public class SplitState {
     private @SplitScreenState int mState = NOT_IN_SPLIT;
     private SplitSpec mSplitSpec;
+    private final Set<SplitStateChangeListener> mListeners = new HashSet<>();
+
 
     /** Updates the current state of split screen on this device. */
     public void set(@SplitScreenState int newState) {
         mState = newState;
+        notifyListeners();
     }
 
     /** Reports the current state of split screen on this device. */
@@ -67,11 +73,56 @@ public class SplitState {
         return getLayout(mState);
     }
 
+    /** Returns whether a given Rect is partially offscreen on the current display. */
+    boolean isOffscreen(Rect rect) {
+        return mSplitSpec.isOffscreen(rect);
+    }
+
     /** @return {@code true} if at least one app is partially offscreen in the current layout. */
-    public boolean currentStateSupportsOffscreenApps() {
+    public boolean currentStateHasOffscreenApps() {
         return mState == SNAP_TO_2_10_90
                 || mState == SNAP_TO_2_90_10
                 || mState == SNAP_TO_3_10_45_45
                 || mState == SNAP_TO_3_45_45_10;
+    }
+
+    /**
+     * Registers a listener to receive notifications when the split state changes.
+     * Multiple instances of the same listener will not be tolerated. Don't be weird.
+     *
+     * @param listener The listener to register.
+     */
+    public void registerSplitStateChangeListener(@NonNull SplitStateChangeListener listener) {
+        mListeners.add(listener);
+    }
+
+    /**
+     * Unregisters a listener, so it no longer receives notifications.
+     *
+     * @param listener The listener to unregister.
+     */
+    public void unregisterSplitStateChangeListener(@NonNull SplitStateChangeListener listener) {
+        mListeners.remove(listener);
+    }
+
+    /**
+     * Notifies all registered listeners of the current split state.
+     */
+    private void notifyListeners() {
+        for (SplitStateChangeListener listener : mListeners) {
+            listener.onSplitStateChanged(mState);
+        }
+    }
+
+    /**
+     * An interface for listeners that want to be notified of split state changes.
+     */
+    public interface SplitStateChangeListener {
+        /**
+         * Called when the split state of the splitter changes.
+         *
+         * @param splitState The new split state.
+         */
+        void onSplitStateChanged(@SplitScreenState int splitState);
     }
 }

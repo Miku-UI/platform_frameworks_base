@@ -22,7 +22,6 @@ import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import android.provider.Settings
 import androidx.test.filters.SmallTest
-import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.internal.logging.uiEventLoggerFake
 import com.android.systemui.Flags.FLAG_COMMUNAL_HUB
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
@@ -39,13 +38,8 @@ import com.android.systemui.flags.Flags.COMMUNAL_SERVICE_ENABLED
 import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
-import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
-import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
-import com.android.systemui.keyguard.shared.model.KeyguardState
-import com.android.systemui.keyguard.shared.model.TransitionState
-import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.collectLastValue
@@ -62,15 +56,11 @@ import com.google.common.truth.Truth.assertThat
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.advanceTimeBy
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito
-import org.mockito.kotlin.verify
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
@@ -103,12 +93,10 @@ class CommunalSceneStartableTest(flags: FlagsParameterization) : SysuiTestCase()
                 communalInteractor = communalInteractor,
                 communalSettingsInteractor = communalSettingsInteractor,
                 communalSceneInteractor = communalSceneInteractor,
-                keyguardTransitionInteractor = keyguardTransitionInteractor,
                 keyguardInteractor = keyguardInteractor,
                 systemSettings = fakeSettings,
                 notificationShadeWindowController = notificationShadeWindowController,
                 bgScope = applicationCoroutineScope,
-                applicationScope = applicationCoroutineScope,
                 mainDispatcher = testDispatcher,
                 uiEventLogger = uiEventLoggerFake,
             )
@@ -424,107 +412,6 @@ class CommunalSceneStartableTest(flags: FlagsParameterization) : SysuiTestCase()
             assertThat(uiEventLoggerFake.logs.first().eventId)
                 .isEqualTo(CommunalUiEvent.COMMUNAL_HUB_TIMEOUT.id)
             assertThat(uiEventLoggerFake.numLogs()).isEqualTo(1)
-        }
-
-    @Test
-    @DisableFlags(FLAG_SCENE_CONTAINER)
-    @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
-    fun glanceableHubOrientationAware_idleOnCommunal() =
-        kosmos.runTest {
-            communalSceneInteractor.changeScene(CommunalScenes.Communal, "test")
-
-            val scene by collectLastValue(communalSceneInteractor.currentScene)
-            assertThat(scene).isEqualTo(CommunalScenes.Communal)
-
-            verify(notificationShadeWindowController).setGlanceableHubOrientationAware(true)
-        }
-
-    @Test
-    @DisableFlags(FLAG_SCENE_CONTAINER)
-    @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
-    fun glanceableHubOrientationAware_transitioningToCommunal() =
-        kosmos.runTest {
-            val progress = MutableStateFlow(0f)
-            val targetScene = CommunalScenes.Communal
-            val currentScene = CommunalScenes.Blank
-            val transitionState =
-                MutableStateFlow(
-                    ObservableTransitionState.Transition(
-                        fromScene = currentScene,
-                        toScene = targetScene,
-                        currentScene = flowOf(targetScene),
-                        progress = progress,
-                        isInitiatedByUserInput = false,
-                        isUserInputOngoing = flowOf(false),
-                    )
-                )
-            communalSceneInteractor.setTransitionState(transitionState)
-
-            // Partially transition.
-            progress.value = .4f
-
-            val scene by collectLastValue(communalSceneInteractor.currentScene)
-            assertThat(scene).isEqualTo(CommunalScenes.Blank)
-
-            verify(notificationShadeWindowController).setGlanceableHubOrientationAware(true)
-        }
-
-    @Test
-    @DisableFlags(FLAG_SCENE_CONTAINER)
-    @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
-    fun glanceableHubOrientationAware_communalToDreaming() =
-        kosmos.runTest {
-            communalSceneInteractor.changeScene(CommunalScenes.Communal, "test")
-
-            verify(notificationShadeWindowController).setGlanceableHubOrientationAware(true)
-            Mockito.clearInvocations(notificationShadeWindowController)
-
-            val progress = MutableStateFlow(0f)
-            val currentScene = CommunalScenes.Communal
-            val targetScene = CommunalScenes.Blank
-            val transitionState =
-                MutableStateFlow(
-                    ObservableTransitionState.Transition(
-                        fromScene = currentScene,
-                        toScene = targetScene,
-                        currentScene = flowOf(targetScene),
-                        progress = progress,
-                        isInitiatedByUserInput = false,
-                        isUserInputOngoing = flowOf(false),
-                    )
-                )
-            communalSceneInteractor.setTransitionState(transitionState)
-
-            // Partially transitioned out of Communal scene
-            progress.value = .4f
-
-            // Started keyguard transitioning from hub -> dreaming.
-            fakeKeyguardTransitionRepository.sendTransitionStep(
-                TransitionStep(
-                    from = KeyguardState.GLANCEABLE_HUB,
-                    to = KeyguardState.DREAMING,
-                    transitionState = TransitionState.STARTED,
-                )
-            )
-            verify(notificationShadeWindowController).setGlanceableHubOrientationAware(true)
-            Mockito.clearInvocations(notificationShadeWindowController)
-
-            fakeKeyguardTransitionRepository.sendTransitionStep(
-                from = KeyguardState.GLANCEABLE_HUB,
-                to = KeyguardState.DREAMING,
-                transitionState = TransitionState.RUNNING,
-                value = 0.5f,
-            )
-
-            // Transitioned to dreaming.
-            fakeKeyguardTransitionRepository.sendTransitionStep(
-                from = KeyguardState.GLANCEABLE_HUB,
-                to = KeyguardState.DREAMING,
-                transitionState = TransitionState.FINISHED,
-                value = 1f,
-            )
-            // Not on hub anymore, let other states take control
-            verify(notificationShadeWindowController).setGlanceableHubOrientationAware(false)
         }
 
     /**

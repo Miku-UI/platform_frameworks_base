@@ -37,7 +37,7 @@ class SpaEnvironmentTest {
 
     @Test
     fun testSpaEnvironmentFactory() {
-        SpaEnvironmentFactory.reset()
+        SpaEnvironmentFactory.clear()
         Truth.assertThat(SpaEnvironmentFactory.isReady()).isFalse()
         Assert.assertThrows(UnsupportedOperationException::class.java) {
             SpaEnvironmentFactory.instance
@@ -50,7 +50,7 @@ class SpaEnvironmentTest {
 
     @Test
     fun testSpaEnvironmentFactoryForPreview() {
-        SpaEnvironmentFactory.reset()
+        SpaEnvironmentFactory.clear()
         composeTestRule.setContent {
             Truth.assertThat(SpaEnvironmentFactory.isReady()).isFalse()
             SpaEnvironmentFactory.resetForPreview()

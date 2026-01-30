@@ -22,21 +22,14 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.TextView
-import com.android.systemui.Flags
-import com.android.systemui.media.controls.ui.animation.accentPrimaryFromScheme
 import com.android.systemui.media.controls.ui.animation.onPrimaryFromScheme
 import com.android.systemui.media.controls.ui.animation.primaryFromScheme
-import com.android.systemui.media.controls.ui.animation.surfaceFromScheme
-import com.android.systemui.media.controls.ui.animation.textPrimaryFromScheme
 import com.android.systemui.monet.ColorScheme
 import com.android.systemui.res.R
 
 /**
  * A view holder for the guts menu of a media player. The guts are shown when the user long-presses
  * on the media player.
- *
- * Both [MediaViewHolder] and [RecommendationViewHolder] use the same guts menu layout, so this
- * class helps share logic between the two.
  */
 class GutsViewHolder(itemView: View) {
     val gutsText: TextView = itemView.requireViewById(R.id.remove_text)
@@ -47,8 +40,7 @@ class GutsViewHolder(itemView: View) {
     val settings: ImageButton = itemView.requireViewById(R.id.settings)
 
     private var isDismissible: Boolean = true
-    // TODO(media_controls_a11y_colors): make private
-    var colorScheme: ColorScheme? = null
+    private var colorScheme: ColorScheme? = null
     private var textColorFixed: Int? = null
 
     /** Marquees the main text of the guts menu. */
@@ -73,15 +65,9 @@ class GutsViewHolder(itemView: View) {
     fun setColors(scheme: ColorScheme) {
         colorScheme = scheme
 
-        if (Flags.mediaControlsA11yColors()) {
-            textColorFixed?.let { setTextColor(it) }
-            setPrimaryColor(primaryFromScheme(scheme))
-            setOnPrimaryColor(onPrimaryFromScheme(scheme))
-        } else {
-            setSurfaceColor(surfaceFromScheme(scheme))
-            setTextPrimaryColor(textPrimaryFromScheme(scheme))
-            setAccentPrimaryColor(accentPrimaryFromScheme(scheme))
-        }
+        textColorFixed?.let { setTextColor(it) }
+        setPrimaryColor(primaryFromScheme(scheme))
+        setOnPrimaryColor(onPrimaryFromScheme(scheme))
     }
 
     private fun setPrimaryColor(color: Int) {
@@ -104,34 +90,6 @@ class GutsViewHolder(itemView: View) {
 
         if (isDismissible) {
             cancelText.setTextColor(color)
-        }
-    }
-
-    /** Sets the surface color on all guts views that use it. */
-    @Deprecated("Remove with media_controls_a11y_colors")
-    fun setSurfaceColor(surfaceColor: Int) {
-        dismissText.setTextColor(surfaceColor)
-        if (!isDismissible) {
-            cancelText.setTextColor(surfaceColor)
-        }
-    }
-
-    /** Sets the primary accent color on all guts views that use it. */
-    @Deprecated("Remove with media_controls_a11y_colors")
-    fun setAccentPrimaryColor(accentPrimary: Int) {
-        val accentColorList = ColorStateList.valueOf(accentPrimary)
-        settings.imageTintList = accentColorList
-        cancelText.backgroundTintList = accentColorList
-        dismissText.backgroundTintList = accentColorList
-    }
-
-    /** Sets the primary text color on all guts views that use it. */
-    @Deprecated("Remove with media_controls_a11y_colors")
-    fun setTextPrimaryColor(textPrimary: Int) {
-        val textColorList = ColorStateList.valueOf(textPrimary)
-        gutsText.setTextColor(textColorList)
-        if (isDismissible) {
-            cancelText.setTextColor(textColorList)
         }
     }
 

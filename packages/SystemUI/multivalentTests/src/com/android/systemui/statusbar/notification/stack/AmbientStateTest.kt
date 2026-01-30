@@ -33,6 +33,7 @@ import com.android.systemui.statusbar.notification.data.repository.HeadsUpReposi
 import com.android.systemui.statusbar.notification.headsup.AvalancheController
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
+import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
@@ -48,9 +49,10 @@ private const val MAX_PULSE_HEIGHT = 100000f
 @RunWith(ParameterizedAndroidJunit4::class)
 @SmallTest
 class AmbientStateTest(flags: FlagsParameterization) : SysuiTestCase() {
+    private val kosmos = testKosmos()
 
     private val dumpManager = mock<DumpManager>()
-    private val sectionProvider = StackScrollAlgorithm.SectionProvider { _, _ -> false }
+    private val sectionProvider = kosmos.stackScrollAlgorithmSectionProvider
     private val bypassController = StackScrollAlgorithm.BypassController { false }
     private val statusBarKeyguardViewManager = mock<StatusBarKeyguardViewManager>()
     private val largeScreenShadeInterpolator = mock<LargeScreenShadeInterpolator>()
@@ -395,17 +397,18 @@ class AmbientStateTest(flags: FlagsParameterization) : SysuiTestCase() {
 
         assertThat(sut.isClosing).isFalse()
     }
+
     // endregion
 
     // region isPulsing
     @Test
     @EnableFlags(NotificationBundleUi.FLAG_NAME)
     fun isPulsing_key() {
-        whenever(headsupRepository.isHeadsUpEntry(anyString())).thenReturn(true);
+        whenever(headsupRepository.isHeadsUpEntry(anyString())).thenReturn(true)
         sut.isPulsing = true
         assertThat(sut.isPulsing("key")).isTrue()
 
-        whenever(headsupRepository.isHeadsUpEntry(anyString())).thenReturn(false);
+        whenever(headsupRepository.isHeadsUpEntry(anyString())).thenReturn(false)
         sut.isPulsing = true
         assertThat(sut.isPulsing("key")).isFalse()
     }

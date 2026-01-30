@@ -231,6 +231,11 @@ public final class AccessibilityWindowInfo implements Parcelable {
 
     /**
      * Gets the root node in the window's hierarchy.
+     * <p>
+     * Returns {@code null} if connection is invalid. Otherwise, always returns a node, even if the
+     * root is considered unimportant for accessibility. In this case, calling
+     * {@link AccessibilityNodeInfo#isImportantForAccessibility()} on the returned node will return
+     * {@code false}.
      *
      * @return The root node.
      */
@@ -240,6 +245,11 @@ public final class AccessibilityWindowInfo implements Parcelable {
 
     /**
      * Gets the root node in the window's hierarchy.
+     * <p>
+     * Returns {@code null} if connection is invalid. Otherwise, always returns a node, even if the
+     * root is considered unimportant for accessibility. In this case, calling
+     * {@link AccessibilityNodeInfo#isImportantForAccessibility()} on the returned node will return
+     * {@code false}.
      *
      * @param prefetchingStrategy the prefetching strategy.
      * @return The root node.
@@ -659,10 +669,11 @@ public final class AccessibilityWindowInfo implements Parcelable {
      * <p>
      * <strong>Note:</strong> If this method returns false this info is obsolete
      * since it represents a window that is no longer exist.
-     * </p>
      *
-     * @hide
+     * @return {@code true} if the refresh succeeded. {@code false} if this window is
+     * no longer in the window tree (and thus it has become stale).
      */
+    @FlaggedApi(Flags.FLAG_ENABLE_REFRESH_WINDOW_INFO)
     public boolean refresh() {
         if (mConnectionId == UNDEFINED_CONNECTION_ID || mId == UNDEFINED_WINDOW_ID) {
             return false;

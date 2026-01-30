@@ -24,7 +24,7 @@ import android.os.Bundle;
  * activity manager as part of registering for an intent broadcasts, and is
  * called when it receives intents.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IIntentReceiver {
     @UnsupportedAppUsage

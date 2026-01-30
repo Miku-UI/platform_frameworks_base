@@ -16,14 +16,14 @@
 
 package com.android.systemui.statusbar.featurepods.media.ui.viewmodel
 
-import android.content.testableContext
+import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.statusbar.featurepods.media.domain.interactor.mediaControlChipInteractor
 
 private val Kosmos.mediaControlChipViewModel: MediaControlChipViewModel by
     Kosmos.Fixture {
         MediaControlChipViewModel(
-            applicationContext = testableContext,
+            applicationContext = applicationContext,
             mediaControlChipInteractor = mediaControlChipInteractor,
         )
     }

@@ -45,6 +45,7 @@ import com.android.systemui.statusbar.pipeline.mobile.util.FakeSubscriptionManag
 import com.android.systemui.statusbar.pipeline.mobile.util.SubscriptionManagerProxy
 import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoModeWifiDataSource
+import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoModeWifiDataSourceKairos
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.wifiRepository
 import com.android.systemui.util.mockito.mockFixture
 import org.mockito.kotlin.mock
@@ -63,7 +64,7 @@ val Kosmos.fakeMobileConnectionsRepositoryKairos by ActivatedKairosFixture {
 val Kosmos.demoMobileConnectionsRepositoryKairos by ActivatedKairosFixture {
     DemoMobileConnectionsRepositoryKairos(
         mobileDataSource = demoModeMobileConnectionDataSourceKairos,
-        wifiDataSource = wifiDataSource,
+        wifiDataSource = wifiDataSourceKairos,
         context = applicationContext,
         logFactory = tableLogBufferFactory,
     )
@@ -76,6 +77,11 @@ val Kosmos.demoModeMobileConnectionDataSourceKairos:
 }
 
 val Kosmos.wifiDataSource: DemoModeWifiDataSource by mockFixture()
+
+@ExperimentalKairosApi
+val Kosmos.wifiDataSourceKairos: DemoModeWifiDataSourceKairos by ActivatedKairosFixture {
+    DemoModeWifiDataSourceKairos(wifiDataSource)
+}
 
 @ExperimentalKairosApi
 class FakeDemoModeMobileConnectionDataSourceKairos(kairos: KairosNetwork) :
@@ -100,6 +106,9 @@ val Kosmos.mobileRepositorySwitcherKairos:
 @ExperimentalKairosApi
 val Kosmos.demoMobileConnectionsRepositoryKairosFactory:
     DemoMobileConnectionsRepositoryKairos.Factory by Fixture {
+    // query the wifiDataSourceKairos fixture here, so that it is ready to go when the factory is
+    // invoked
+    val wifiDataSource = wifiDataSourceKairos
     DemoMobileConnectionsRepositoryKairos.Factory {
         DemoMobileConnectionsRepositoryKairos(
             mobileDataSource = demoModeMobileConnectionDataSourceKairos,

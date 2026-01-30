@@ -105,6 +105,31 @@ class GlanceableHubToPrimaryBouncerTransitionViewModelTest : SysuiTestCase() {
 
     @Test
     @DisableSceneContainer
+    fun notificationBlurRadiusGoesToMaxWithShadeExpandedOverGlanceableHub() =
+        kosmos.runTest {
+            val values by collectValues(underTest.notificationBlurRadius)
+            keyguardWindowBlurTestUtil.shadeExpanded(true)
+
+            keyguardWindowBlurTestUtil.assertTransitionToBlurRadius(
+                transitionProgress = listOf(0.0f, 0.2f, 0.3f, 0.65f, 0.7f, 1.0f),
+                startValue = blurConfig.maxBlurRadiusPx,
+                endValue = blurConfig.maxBlurRadiusPx,
+                actualValuesProvider = { values },
+                transitionFactory = { step, transitionState ->
+                    TransitionStep(
+                        from = KeyguardState.GLANCEABLE_HUB,
+                        to = KeyguardState.PRIMARY_BOUNCER,
+                        value = step,
+                        transitionState = transitionState,
+                        ownerName = "GlanceableHubToPrimaryBouncerTransitionViewModelTest",
+                    )
+                },
+                checkInterpolatedValues = false,
+            )
+        }
+
+    @Test
+    @DisableSceneContainer
     @DisableFlags(FLAG_GLANCEABLE_HUB_V2)
     fun willDelayBouncerAppearAnimation_flagDisabled_isFalse() =
         kosmos.runTest {

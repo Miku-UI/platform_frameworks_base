@@ -34,7 +34,6 @@ import android.util.Log;
 import android.util.Slog;
 import android.webkit.UserPackage;
 import android.webkit.WebViewFactory;
-import android.webkit.WebViewFactoryProvider;
 import android.webkit.WebViewProviderInfo;
 import android.webkit.WebViewZygote;
 
@@ -244,11 +243,6 @@ public class SystemImpl implements SystemInterface {
             throws NameNotFoundException {
         PackageManager pm = mContext.getPackageManager();
         return pm.getPackageInfo(configInfo.packageName, PACKAGE_FLAGS);
-    }
-
-    @Override
-    public boolean isCompatibleImplementationPackage(PackageInfo packageInfo) {
-        return WebViewFactoryProvider.isCompatibleImplementationPackage(packageInfo);
     }
 
     @Override

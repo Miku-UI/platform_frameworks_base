@@ -113,7 +113,7 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
      * A class to manage {@link ITaskFragmentOrganizer} and its organized
      * {@link TaskFragment TaskFragments}.
      */
-    private class TaskFragmentOrganizerState implements IBinder.DeathRecipient {
+    private class TaskFragmentOrganizerState {
         @NonNull
         private final ArrayList<TaskFragment> mOrganizedTaskFragments = new ArrayList<>();
         private final int mOrganizerUid;
@@ -182,6 +182,13 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
         private final ArrayMap<IBinder, Transition.ReadyCondition> mInFlightTransactions =
                 new ArrayMap<>();
 
+        /** Listener for process death event. */
+        private final WindowProcessController.Listener mProcessListener = () -> {
+            synchronized (mGlobalLock) {
+                handleAppDied();
+            }
+        };
+
         TaskFragmentOrganizerState(@NonNull ITaskFragmentOrganizer organizer, int pid, int uid,
                 boolean isSystemOrganizer) {
             mAppThread = getAppThread(pid, uid);
@@ -189,18 +196,15 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
             mOrganizerPid = pid;
             mOrganizerUid = uid;
             mIsSystemOrganizer = isSystemOrganizer;
-            try {
-                mOrganizer.asBinder().linkToDeath(this, 0 /*flags*/);
-            } catch (RemoteException e) {
-                Slog.e(TAG, "TaskFragmentOrganizer failed to register death recipient");
-            }
+
+            registerProcessDiedHandler(pid);
         }
 
-        @Override
-        public void binderDied() {
-            synchronized (mGlobalLock) {
-                removeOrganizer(mOrganizer, "client died");
-            }
+        private void handleAppDied() {
+            // TODO(b/419688177): remove the debug log
+            ProtoLog.d(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN,
+                    "TaskFragmentOrganizer=%s died", mOrganizer);
+            removeOrganizer(mOrganizer, "client died");
         }
 
         void restore(@NonNull ITaskFragmentOrganizer organizer, int pid) {
@@ -216,10 +220,13 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
                     mOrganizedTaskFragments.remove(taskFragment);
                 }
             }
-            try {
-                mOrganizer.asBinder().linkToDeath(this, 0 /*flags*/);
-            } catch (RemoteException e) {
-                Slog.e(TAG, "TaskFragmentOrganizer failed to register death recipient");
+            registerProcessDiedHandler(pid);
+        }
+
+        private void registerProcessDiedHandler(int pid) {
+            final WindowProcessController wpc = mAtmService.mProcessMap.getProcess(pid);
+            if (wpc != null) {
+                wpc.addListener(mProcessListener);
             }
         }
 
@@ -258,14 +265,17 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
                 taskFragment.onTaskFragmentOrganizerRemoved();
             }
 
+            final ActionChain chain = wasVisible
+                    ? mAtmService.mChainTracker.startTransit("TF.dispose") : null;
             final TransitionController transitionController = mAtmService.getTransitionController();
-            if (wasVisible && transitionController.isShellTransitionsEnabled()
-                    && !transitionController.isCollecting()) {
+            if (chain != null && transitionController.isShellTransitionsEnabled()
+                    && !chain.isCollecting()) {
                 final Task task = mOrganizedTaskFragments.get(0).getTask();
                 final boolean containsNonEmbeddedActivity =
                         task != null && task.getActivity(a -> !a.isEmbedded()) != null;
-                transitionController.requestStartTransition(
-                        transitionController.createTransition(WindowManager.TRANSIT_CLOSE),
+                chain.attachTransition(
+                        transitionController.createTransition(WindowManager.TRANSIT_CLOSE));
+                transitionController.requestStartTransition(chain.getTransition(),
                         // The task will be removed if all its activities are embedded, then the
                         // task is the trigger.
                         containsNonEmbeddedActivity ? null : task,
@@ -286,9 +296,20 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
                 }
             } finally {
                 mAtmService.continueWindowLayout();
+                if (chain != null) {
+                    mAtmService.mChainTracker.endPartial();
+                }
             }
 
-            for (int i = mDeferredTransitions.size() - 1; i >= 0; i--) {
+            // TODO(b/419688177): reduce the debug log to WM_DEBUG_WINDOW_TRANSITIONS
+            final int size = mDeferredTransitions.size();
+            if (size > 0) {
+                ProtoLog.d(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN,
+                        "TaskFragmentOrganizer process died before handling all deferred"
+                                + " transitions. Continue the rest as cleanup. # of defer=%d",
+                        size);
+            }
+            for (int i = size - 1; i >= 0; i--) {
                 // Cleanup any running transaction to unblock the current transition.
                 onTransactionFinished(mDeferredTransitions.keyAt(i));
             }
@@ -296,7 +317,11 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
                 // Cleanup any in-flight transactions to unblock the transition.
                 mInFlightTransactions.valueAt(i).meetAlternate("disposed(" + reason + ")");
             }
-            mOrganizer.asBinder().unlinkToDeath(this, 0 /* flags */);
+            final WindowProcessController wpc = mAtmService.mProcessMap.getProcess(
+                    mOrganizerPid);
+            if (wpc != null) {
+                wpc.removeListener(mProcessListener);
+            }
         }
 
         @NonNull
@@ -484,13 +509,14 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
             }
             final int transitionId = mWindowOrganizerController.getTransitionController()
                     .getCollectingTransitionId();
-            ProtoLog.v(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS,
+            // TODO(b/419688177): reduce the debug log to WM_DEBUG_WINDOW_TRANSITIONS
+            ProtoLog.v(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN,
                     "Defer transition id=%d for TaskFragmentTransaction=%s", transitionId,
                     transaction.getTransactionToken());
             mDeferredTransitions.put(transaction.getTransactionToken(), transitionId);
             mWindowOrganizerController.getTransitionController().deferTransitionReady();
             final Transition.ReadyCondition transactionApplied = new Transition.ReadyCondition(
-                    "task-fragment transaction", transaction);
+                    "task-fragment transaction", transaction, !Flags.migrateBasicLegacyReady());
             mWindowOrganizerController.getTransitionController().waitFor(transactionApplied);
             mInFlightTransactions.put(transaction.getTransactionToken(), transactionApplied);
         }
@@ -498,6 +524,8 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
         /** Called when the transaction is finished. */
         void onTransactionFinished(@NonNull IBinder transactionToken) {
             if (!mDeferredTransitions.containsKey(transactionToken)) {
+                // This can happen if there was no collecting transition when the transaction was
+                // dispatched, which is expected.
                 return;
             }
             final int transitionId = mDeferredTransitions.remove(transactionToken);
@@ -505,13 +533,14 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
                     || mWindowOrganizerController.getTransitionController()
                     .getCollectingTransitionId() != transitionId) {
                 // This can happen when the transition is timeout or abort.
-                ProtoLog.w(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS,
+                ProtoLog.w(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN,
                         "Deferred transition id=%d has been continued before the"
                                 + " TaskFragmentTransaction=%s is finished",
                         transitionId, transactionToken);
                 return;
             }
-            ProtoLog.v(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS,
+            // TODO(b/419688177): reduce the debug log to WM_DEBUG_WINDOW_TRANSITIONS
+            ProtoLog.v(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN,
                     "Continue transition id=%d for TaskFragmentTransaction=%s", transitionId,
                     transactionToken);
             mWindowOrganizerController.getTransitionController().continueTransitionReady();
@@ -534,8 +563,7 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
     @Override
     public void registerOrganizer(@NonNull ITaskFragmentOrganizer organizer,
             boolean isSystemOrganizer, @NonNull Bundle outSavedState) {
-        registerOrganizerInternal(organizer,
-                Flags.taskFragmentSystemOrganizerFlag() && isSystemOrganizer, outSavedState);
+        registerOrganizerInternal(organizer, isSystemOrganizer, outSavedState);
     }
 
     private void registerOrganizerInternal(
@@ -715,6 +743,11 @@ public class TaskFragmentOrganizerController extends ITaskFragmentOrganizerContr
                 if (condition != null) {
                     condition.meet();
                 }
+            } else {
+                // TODO(b/419688177): remove the debug log
+                ProtoLog.w(WmProtoLogGroups.WM_DEBUG_WINDOW_TRANSITIONS_MIN,
+                        "onTransactionHandled: called from unregistered organizer"
+                                + " transactionToken=%s organizer=%s", transactionToken, organizer);
             }
         }
     }

@@ -16,8 +16,6 @@
 
 package com.android.systemui.accessibility;
 
-import static com.android.systemui.accessibility.MagnificationImpl.DELAY_SHOW_MAGNIFICATION_TIMEOUT_MS;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -30,6 +28,7 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.hardware.display.DisplayManager;
+import android.hardware.input.InputManager;
 import android.os.RemoteException;
 import android.provider.Settings;
 import android.testing.TestableLooper;
@@ -43,9 +42,10 @@ import android.view.accessibility.IRemoteMagnificationAnimationCallback;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.accessibility.util.AccessibilityUtils;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.model.SysUiState;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.settings.FakeDisplayTracker;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.util.settings.SecureSettings;
@@ -95,6 +95,8 @@ public class IMagnificationConnectionTest extends SysuiTestCase {
     private IWindowManager mIWindowManager;
     @Mock
     private WindowManagerProvider mWindowManagerProvider;
+    @Mock
+    private InputManager mInputManager;
 
     private IMagnificationConnection mIMagnificationConnection;
     private MagnificationImpl mMagnification;
@@ -116,7 +118,8 @@ public class IMagnificationConnectionTest extends SysuiTestCase {
                 mTestableLooper.getLooper(), mContext.getMainExecutor(), mCommandQueue,
                 mModeSwitchesController, mSysUiState, mLauncherProxyService, mSecureSettings,
                 mDisplayTracker, getContext().getSystemService(DisplayManager.class),
-                mA11yLogger, mIWindowManager, mAccessibilityManager, mWindowManagerProvider);
+                mA11yLogger, mIWindowManager, mAccessibilityManager, mWindowManagerProvider,
+                mInputManager);
         mMagnification.mWindowMagnificationControllerSupplier =
                 new FakeWindowMagnificationControllerSupplier(
                         mContext.getSystemService(DisplayManager.class));
@@ -196,10 +199,10 @@ public class IMagnificationConnectionTest extends SysuiTestCase {
         // showMagnificationButton request to Magnification.
         processAllPendingMessages();
 
-        // The delayed message would be processed after DELAY_SHOW_MAGNIFICATION_TIMEOUT_MS.
-        // So call this processAllPendingMessages with a timeout to verify the showButton
-        // will be called.
-        int timeout = DELAY_SHOW_MAGNIFICATION_TIMEOUT_MS + 100;
+        // The delayed message would be processed after
+        // AccessibilityUtils.MAGNIFICATION_SHOW_BUTTON_DELAY_MS. So call this
+        // processAllPendingMessages with a timeout to verify the showButton will be called.
+        long timeout = AccessibilityUtils.MAGNIFICATION_SHOW_BUTTON_DELAY_MS + 100;
         processAllPendingMessages(timeout);
         verify(mModeSwitchesController).showButton(TEST_DISPLAY,
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN);
@@ -218,7 +221,7 @@ public class IMagnificationConnectionTest extends SysuiTestCase {
 
         // The isMagnificationSettingsShowing will be checked after timeout, so
         // process all message after a timeout here to verify the showButton will not be called.
-        processAllPendingMessages(DELAY_SHOW_MAGNIFICATION_TIMEOUT_MS + 100);
+        processAllPendingMessages(AccessibilityUtils.MAGNIFICATION_SHOW_BUTTON_DELAY_MS + 100);
         verify(mModeSwitchesController, never()).showButton(TEST_DISPLAY,
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN);
     }
@@ -245,7 +248,7 @@ public class IMagnificationConnectionTest extends SysuiTestCase {
 
         // Call this processAllPendingMessages with a timeout to ensure the delayed show button
         // message should be removed and thus the showButton will not be called after timeout.
-        int timeout = DELAY_SHOW_MAGNIFICATION_TIMEOUT_MS + 100;
+        long timeout = AccessibilityUtils.MAGNIFICATION_SHOW_BUTTON_DELAY_MS + 100;
         processAllPendingMessages(/* timeForwardMs= */ timeout);
         verify(mModeSwitchesController, never()).showButton(TEST_DISPLAY,
                 Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN);
@@ -277,7 +280,7 @@ public class IMagnificationConnectionTest extends SysuiTestCase {
         processAllPendingMessages(/* timeForwardMs=*/ 0);
     }
 
-    private void processAllPendingMessages(int timeForwardMs) {
+    private void processAllPendingMessages(long timeForwardMs) {
         if (timeForwardMs > 0) {
             mTestableLooper.moveTimeForward(timeForwardMs);
         }

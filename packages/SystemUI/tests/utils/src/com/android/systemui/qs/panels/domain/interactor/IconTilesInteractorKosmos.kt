@@ -21,7 +21,6 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.log.core.FakeLogBuffer
 import com.android.systemui.qs.panels.data.repository.defaultLargeTilesRepository
-import com.android.systemui.qs.panels.data.repository.largeTileSpanRepository
 import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
 
 val Kosmos.iconTilesInteractor by
@@ -31,7 +30,6 @@ val Kosmos.iconTilesInteractor by
             currentTilesInteractor,
             qsPreferencesInteractor,
             uiEventLoggerFake,
-            largeTileSpanRepository,
             FakeLogBuffer.Factory.create(),
             applicationCoroutineScope,
         )

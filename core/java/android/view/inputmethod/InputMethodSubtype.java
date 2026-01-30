@@ -17,7 +17,6 @@
 package android.view.inputmethod;
 
 import android.annotation.AnyThread;
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringRes;
@@ -77,7 +76,7 @@ public final class InputMethodSubtype implements Parcelable {
     // TODO: remove this
     private static final String EXTRA_KEY_UNTRANSLATABLE_STRING_IN_SUBTYPE_NAME =
             "UntranslatableReplacementStringInSubtypeName";
-    /** {@hide} */
+    /** @hide */
     public static final int SUBTYPE_ID_NONE = 0;
 
     private static final String SUBTYPE_MODE_KEYBOARD = "keyboard";
@@ -214,13 +213,9 @@ public final class InputMethodSubtype implements Parcelable {
          *
          * @see #getLayoutDisplayName
          */
-        @FlaggedApi(Flags.FLAG_IME_SWITCHER_REVAMP_API)
         @NonNull
         public InputMethodSubtypeBuilder setLayoutLabelResource(
                 @StringRes int layoutLabelResId) {
-            if (!Flags.imeSwitcherRevampApi()) {
-                return this;
-            }
             mLayoutLabelResId = layoutLabelResId;
             return this;
         }
@@ -236,13 +231,9 @@ public final class InputMethodSubtype implements Parcelable {
          *
          * @see #getLayoutDisplayName
          */
-        @FlaggedApi(Flags.FLAG_IME_SWITCHER_REVAMP_API)
         @NonNull
         public InputMethodSubtypeBuilder setLayoutLabelNonLocalized(
                 @NonNull CharSequence layoutLabelNonLocalized) {
-            if (!Flags.imeSwitcherRevampApi()) {
-                return this;
-            }
             Objects.requireNonNull(layoutLabelNonLocalized,
                     "layoutLabelNonLocalized cannot be null");
             mLayoutLabelNonLocalized = layoutLabelNonLocalized;
@@ -478,7 +469,6 @@ public final class InputMethodSubtype implements Parcelable {
     /**
      * Returns the layout label string resource identifier.
      */
-    @FlaggedApi(Flags.FLAG_IME_SWITCHER_REVAMP_API)
     @StringRes
     public int getLayoutLabelResource() {
         return mLayoutLabelResId;
@@ -487,7 +477,6 @@ public final class InputMethodSubtype implements Parcelable {
     /**
      * Returns the non-localized layout label.
      */
-    @FlaggedApi(Flags.FLAG_IME_SWITCHER_REVAMP_API)
     @NonNull
     public CharSequence getLayoutLabelNonLocalized() {
         return mLayoutLabelNonLocalized;
@@ -748,12 +737,8 @@ public final class InputMethodSubtype implements Parcelable {
      * @return the layout display name.
      */
     @NonNull
-    @FlaggedApi(Flags.FLAG_IME_SWITCHER_REVAMP_API)
     public CharSequence getLayoutDisplayName(@NonNull Context context,
             @NonNull ApplicationInfo imeAppInfo) {
-        if (!Flags.imeSwitcherRevampApi()) {
-            return "";
-        }
         Objects.requireNonNull(context, "context cannot be null");
         Objects.requireNonNull(imeAppInfo, "imeAppInfo cannot be null");
         if (mLayoutLabelResId == 0) {

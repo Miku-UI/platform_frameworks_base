@@ -19,7 +19,9 @@ package com.android.systemui.statusbar.chips.sharetoapp.ui.view
 import android.content.Context
 import android.os.Bundle
 import android.view.View
+import com.android.systemui.Flags
 import com.android.systemui.res.R
+import com.android.systemui.statusbar.chips.mediaprojection.domain.model.ProjectionChipModel
 import com.android.systemui.statusbar.chips.mediaprojection.ui.view.EndMediaProjectionDialogHelper
 import com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel.ShareToAppChipViewModel.Companion.SHARE_TO_APP_ICON
 import com.android.systemui.statusbar.phone.SystemUIDialog
@@ -32,17 +34,17 @@ class EndGenericShareToAppDialogDelegate(
     private val endMediaProjectionDialogHelper: EndMediaProjectionDialogHelper,
     private val context: Context,
     private val stopAction: () -> Unit,
+    private val state: ProjectionChipModel.Projecting,
 ) : SystemUIDialog.Delegate {
     override fun createDialog(): SystemUIDialog {
-        return endMediaProjectionDialogHelper.createDialog(this)
+        return endMediaProjectionDialogHelper.createDialog(context, this)
     }
 
     override fun beforeCreate(dialog: SystemUIDialog, savedInstanceState: Bundle?) {
-        val message = context.getString(R.string.share_to_app_stop_dialog_message_generic)
         with(dialog) {
             setIcon(SHARE_TO_APP_ICON)
             setTitle(R.string.share_to_app_stop_dialog_title_generic)
-            setMessage(message)
+            setMessage(getMessage())
             // No custom on-click, because the dialog will automatically be dismissed when the
             // button is clicked anyway.
             setNegativeButton(R.string.close_dialog_button, /* onClick= */ null)
@@ -55,6 +57,20 @@ class EndGenericShareToAppDialogDelegate(
                     ?.decorView
                     ?.setAccessibilityDataSensitive(View.ACCESSIBILITY_DATA_SENSITIVE_YES)
             }
+        }
+    }
+
+    private fun getMessage(): String {
+        if (!Flags.statusBarShareDialogWithAppName()) {
+            return context.getString(R.string.share_to_app_stop_dialog_message_generic)
+        }
+
+        val hostAppName =
+            endMediaProjectionDialogHelper.getAppName(state.projectionState.hostPackage)
+        return if (hostAppName != null) {
+            context.getString(R.string.share_to_app_stop_dialog_message_with_host_app, hostAppName)
+        } else {
+            context.getString(R.string.share_to_app_stop_dialog_message_generic)
         }
     }
 }

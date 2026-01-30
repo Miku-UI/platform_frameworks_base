@@ -48,6 +48,7 @@ import java.util.Map;
  */
 public final class PrintAttributes implements Parcelable {
     /** @hide */
+    // LINT.IfChange
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true, prefix = { "COLOR_MODE_" }, value = {
             COLOR_MODE_MONOCHROME,
@@ -62,9 +63,12 @@ public final class PrintAttributes implements Parcelable {
 
     private static final int VALID_COLOR_MODES =
             COLOR_MODE_MONOCHROME | COLOR_MODE_COLOR;
+    // Update BuiltInPrintService stats logger too.
+    // LINT.ThenChange(/packages/PrintSpooler/src/com/android/printspooler/stats/StatsAsyncLogger.kt)
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
+    // LINT.IfChange
     @IntDef(flag = true, prefix = { "DUPLEX_MODE_" }, value = {
             DUPLEX_MODE_NONE,
             DUPLEX_MODE_LONG_EDGE,
@@ -81,6 +85,8 @@ public final class PrintAttributes implements Parcelable {
 
     private static final int VALID_DUPLEX_MODES =
             DUPLEX_MODE_NONE | DUPLEX_MODE_LONG_EDGE | DUPLEX_MODE_SHORT_EDGE;
+    // Update BuiltInPrintService stats logger too.
+    // LINT.ThenChange(/packages/PrintSpooler/src/com/android/printspooler/stats/StatsAsyncLogger.kt)
 
     private @Nullable MediaSize mMediaSize;
     private @Nullable Resolution mResolution;
@@ -462,6 +468,7 @@ public final class PrintAttributes implements Parcelable {
         private static final Map<String, MediaSize> sIdToMediaSizeMap =
                 new ArrayMap<>();
 
+        // LINT.IfChange
         /**
          * Unknown media size in portrait mode.
          * <p>
@@ -840,6 +847,8 @@ public final class PrintAttributes implements Parcelable {
         public static final @NonNull MediaSize JPN_OE_PHOTO_L =
                 new MediaSize("JPN_OE_PHOTO_L", "android",
                         R.string.mediasize_japanese_l, 3500, 5000);
+        // Update BuiltInPrintService stats logger too.
+        // LINT.ThenChange(/packages/PrintSpooler/src/com/android/printspooler/stats/StatsAsyncLogger.kt)
 
         private final @NonNull String mId;
         /**@hide */

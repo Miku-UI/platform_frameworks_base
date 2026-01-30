@@ -17,6 +17,7 @@ package android.view.contentcapture;
 
 import static android.view.contentcapture.CustomTestActivity.INTENT_EXTRA_CUSTOM_VIEWS;
 import static android.view.contentcapture.CustomTestActivity.INTENT_EXTRA_LAYOUT_ID;
+import static android.view.contentcapture.CustomTestActivity.INTENT_EXTRA_VIEW_TYPE;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
@@ -279,11 +280,22 @@ public abstract class AbstractContentCapturePerfTestCase {
         return intent;
     }
 
+    protected Intent getLaunchIntent(int layoutId, int numViews, int viewType) {
+        final Intent intent = getLaunchIntent(layoutId, numViews);
+        intent.putExtra(INTENT_EXTRA_VIEW_TYPE, viewType);
+        return intent;
+    }
+
     /**
      * Launch test activity with give layout and parameter
      */
     protected CustomTestActivity launchActivity(int layoutId, int numViews) {
         final Intent intent = getLaunchIntent(layoutId, numViews);
+        return (CustomTestActivity) sInstrumentation.startActivitySync(intent);
+    }
+
+    protected CustomTestActivity launchActivity(int layoutId, int numViews, int viewType) {
+        final Intent intent = getLaunchIntent(layoutId, numViews, viewType);
         return (CustomTestActivity) sInstrumentation.startActivitySync(intent);
     }
 }

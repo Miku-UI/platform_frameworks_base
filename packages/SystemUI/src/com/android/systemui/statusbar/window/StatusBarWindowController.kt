@@ -66,8 +66,12 @@ interface StatusBarWindowController {
         animationController: ActivityTransitionAnimator.Controller,
     ): Optional<ActivityTransitionAnimator.Controller>
 
-    /** Set force status bar visible. */
-    fun setForceStatusBarVisible(forceStatusBarVisible: Boolean)
+    /**
+     * Set force status bar visible.
+     *
+     * @param source the class that requested the new visibility, used for logging.
+     */
+    fun setForceStatusBarVisible(forceStatusBarVisible: Boolean, source: String)
 
     /**
      * Sets whether an ongoing process requires the status bar to be forced visible.
@@ -76,10 +80,12 @@ interface StatusBarWindowController {
      * process **takes priority**. For example, if {@link this#setForceStatusBarVisible} is set to
      * false but this method is set to true, then the status bar **will** be visible.
      *
+     * @param source the class that requested the new visibility, used for logging.
+     *
      * TODO(b/195839150): We should likely merge this method and {@link
      *   this#setForceStatusBarVisible} together and use some sort of ranking system instead.
      */
-    fun setOngoingProcessRequiresStatusBarVisible(visible: Boolean)
+    fun setOngoingProcessRequiresStatusBarVisible(visible: Boolean, source: String)
 
     fun interface Factory {
         fun create(
@@ -87,6 +93,7 @@ interface StatusBarWindowController {
             windowManager: WindowManager,
             statusBarConfigurationController: StatusBarConfigurationController,
             contentInsetsProvider: StatusBarContentInsetsProvider,
+            displayId: Int,
         ): StatusBarWindowController
     }
 }

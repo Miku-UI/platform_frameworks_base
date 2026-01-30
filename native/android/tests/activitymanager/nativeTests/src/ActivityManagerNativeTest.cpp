@@ -18,9 +18,16 @@
 
 #include <android-base/logging.h>
 #include <android/activity_manager.h>
+#include <android/app/BnProcessObserver.h>
+#include <android/app/RunningAppProcessInfo.h>
+#include <binder/ActivityManager.h>
 #include <binder/PermissionController.h>
 #include <binder/ProcessState.h>
 #include <gtest/gtest.h>
+
+#include <vector>
+
+#include "gmock/gmock.h"
 
 constexpr const char* kTestPackage = "com.android.tests.UidImportanceHelper";
 constexpr const char* kTestActivity = "com.android.tests.UidImportanceHelper.MainActivity";
@@ -136,4 +143,55 @@ TEST_F(ActivityManagerNativeTest, testUidImportance) {
 
     AActivityManager_removeUidImportanceListener(mUidObserver);
     mUidObserver = nullptr;
+}
+
+TEST_F(ActivityManagerNativeTest, testGetRunningAppProcesses) {
+    EXPECT_TRUE(ShellHelper::Start(kTestPackage, kTestActivity));
+    waitForImportance(AACTIVITYMANAGER_IMPORTANCE_FOREGROUND, kEventTimeoutUs);
+    android::ActivityManager am;
+    std::vector<android::app::RunningAppProcessInfo> infos;
+    am.getRunningAppProcesses(&infos);
+
+    android::status_t status = am.getRunningAppProcesses(&infos);
+    EXPECT_EQ(status, android::OK) << "Unexpected error from am.getRunningAppProcesses: "
+                                   << android::statusToString(status);
+    for (const auto& info : infos) {
+        LOG(INFO) << "Process name: " << info.processName;
+    }
+    EXPECT_TRUE(std::any_of(infos.cbegin(), infos.cend(),
+                            [](const auto& info) { return info.processName == kTestPackage; }));
+}
+
+class MockProcessObserver : public android::app::BnProcessObserver {
+public:
+    MOCK_METHOD(android::binder::Status, onProcessStarted,
+                (int32_t pid, int32_t processUid, int32_t packageUid,
+                 const std::string& packageName, const std::string& processName),
+                (override));
+    MOCK_METHOD(android::binder::Status, onForegroundActivitiesChanged,
+                (int32_t /*pid*/, int32_t /*uid*/, bool /*foregroundActivities*/), (override));
+    MOCK_METHOD(android::binder::Status, onForegroundServicesChanged,
+                (int32_t /*pid*/, int32_t /*uid*/, int32_t /*serviceTypes*/), (override));
+    MOCK_METHOD(android::binder::Status, onProcessDied, (int32_t pid, int32_t uid), (override));
+};
+
+TEST_F(ActivityManagerNativeTest, testProcessObserver) {
+    uid_t testAppUid;
+    EXPECT_TRUE(getUidForPackage(kTestPackage, testAppUid));
+
+    android::sp<testing::NiceMock<MockProcessObserver>> mock_process_observer =
+            new testing::NiceMock<MockProcessObserver>();
+    android::ActivityManager am;
+    am.registerProcessObserver(mock_process_observer);
+    EXPECT_TRUE(ShellHelper::Start(kTestPackage, kTestActivity));
+    waitForImportance(AACTIVITYMANAGER_IMPORTANCE_FOREGROUND, kEventTimeoutUs);
+    std::vector<android::app::RunningAppProcessInfo> infos;
+    am.getRunningAppProcesses(&infos);
+    auto it = std::find_if(infos.cbegin(), infos.cend(),
+                           [](const auto& info) { return info.processName == kTestPackage; });
+    EXPECT_NE(it, infos.cend());
+    int pid = it->pid;
+    EXPECT_TRUE(ShellHelper::Stop(kTestPackage));
+    EXPECT_CALL(*mock_process_observer, onProcessDied(pid, testAppUid));
+    am.unregisterProcessObserver(mock_process_observer);
 }

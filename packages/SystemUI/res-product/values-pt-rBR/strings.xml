@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Mídia tocando neste tablet"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Você pode localizar o smartphone com o Encontre Meu Dispositivo mesmo se ele estiver desligado"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Você pode localizar o tablet com o Encontre Meu Dispositivo mesmo se ele estiver desligado"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Você pode encontrar o celular com o Localizador mesmo se ele estiver desligado"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Você pode encontrar o tablet com o Localizador mesmo se ele estiver desligado"</string>
 </resources>

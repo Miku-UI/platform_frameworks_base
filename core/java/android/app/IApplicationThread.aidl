@@ -18,6 +18,7 @@ package android.app;
 
 import android.app.ActivityOptions.SceneTransitionInfo;
 import android.app.ContentProviderHolder;
+import android.app.HandoffActivityData;
 import android.app.IInstrumentationWatcher;
 import android.app.IUiAutomationConnection;
 import android.app.ProfilerInfo;
@@ -65,7 +66,7 @@ import java.util.Map;
  * the activity manager by an application  when it starts up, for the activity
  * manager to tell the application about things it needs to do.
  *
- * {@hide}
+ * @hide
  */
 @JavaDelegator
 oneway interface IApplicationThread {
@@ -93,8 +94,8 @@ oneway interface IApplicationThread {
             in CompatibilityInfo compatInfo, in Map services,
             in Bundle coreSettings, in String buildSerial, in AutofillOptions autofillOptions,
             in ContentCaptureOptions contentCaptureOptions, in long[] disabledCompatChanges,
-            in long[] loggableCompatChanges, in SharedMemory serializedSystemFontMap,
-            in FileDescriptor applicationSharedMemoryFd,
+            in long[] loggableCompatChanges, in boolean logChangeChecksToStatsD,
+            in SharedMemory serializedSystemFontMap, in FileDescriptor applicationSharedMemoryFd,
             long startRequestedElapsedTime, long startRequestedUptime);
     void runIsolatedEntryPoint(in String entryPoint, in String[] entryPointArgs);
     void scheduleExit();
@@ -102,10 +103,10 @@ oneway interface IApplicationThread {
     void updateTimeZone();
     void processInBackground();
     @UnsupportedAppUsage
-    void scheduleBindService(IBinder token,
+    void scheduleBindService(IBinder token, IBinder bindToken,
             in Intent intent, boolean rebind, int processState, long bindSeq);
     @UnsupportedAppUsage
-    void scheduleUnbindService(IBinder token,
+    void scheduleUnbindService(IBinder token, IBinder bindToken,
             in Intent intent);
     void dumpService(in ParcelFileDescriptor fd, IBinder servicetoken,
             in String[] args);
@@ -142,6 +143,7 @@ oneway interface IApplicationThread {
             boolean dumpInfo, boolean dumpDalvik, boolean dumpSummaryOnly, boolean dumpUnreachable,
             in String[] args);
     void dumpGfxInfo(in ParcelFileDescriptor fd, in String[] args);
+    void dumpBitmapsProto(in ParcelFileDescriptor fd, in String dumpFormat);
     void dumpCacheInfo(in ParcelFileDescriptor fd, in String[] args);
     void dumpProvider(in ParcelFileDescriptor fd, IBinder servicetoken,
             in String[] args);
@@ -187,4 +189,5 @@ oneway interface IApplicationThread {
     void schedulePing(in RemoteCallback pong);
     void getExecutableMethodFileOffsets(in MethodDescriptor methodDescriptor,
             in IOffsetCallback resultCallback);
+    void requestHandoffActivityData(in IBinder requestToken, in List<IBinder> activityTokens);
 }

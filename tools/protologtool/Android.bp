@@ -34,6 +34,7 @@ java_test_host {
     test_suites: ["general-tests"],
     srcs: [
         "tests/**/*.kt",
+        "tests/**/*.java",
     ],
     test_options: {
         unit_test: true,

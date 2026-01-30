@@ -17,6 +17,8 @@
 package com.android.systemui.statusbar;
 
 import static com.android.keyguard.BouncerPanelExpansionCalculator.aboutToShowBouncerProgress;
+import static com.android.systemui.Flags.notificationRowTransparency;
+import static com.android.systemui.Flags.physicalNotificationMovement;
 import static com.android.systemui.util.ColorUtilKt.hexColorString;
 
 import android.content.Context;
@@ -245,6 +247,7 @@ public class NotificationShelf extends ActivatableNotificationView {
             }
 
             viewState.hidden = !mAmbientState.isShadeExpanded()
+                    || mAmbientState.isPulsing()
                     || algorithmState.firstViewInShelf == null;
 
             final int indexOfFirstViewInShelf = algorithmState.visibleChildren.indexOf(
@@ -369,7 +372,7 @@ public class NotificationShelf extends ActivatableNotificationView {
             right = isLayoutRtl() ? containerWidth : shelfWidth;
         }
 
-        final float top = mClipTopAmount;
+        final float top = Math.max(mClipTopAmount, mTopOverlap);
         final float bottom = getActualHeight();
 
         return isXInView(localX, slop, left, right)
@@ -473,6 +476,8 @@ public class NotificationShelf extends ActivatableNotificationView {
         int baseZHeight = mAmbientState.getBaseZHeight();
         int clipTopAmount = 0;
 
+        boolean needsToResetOverrideTint = true;
+
         for (int i = 0; i < getHostLayoutChildCount(); i++) {
             ExpandableView child = getHostLayoutChildAt(i);
             if (!child.needsClippingToShelf() || child.getVisibility() == GONE) {
@@ -505,6 +510,7 @@ public class NotificationShelf extends ActivatableNotificationView {
                     mNotGoneIndex = notGoneIndex;
                     setTintColor(previousColor);
                     setOverrideTintColor(colorTwoBefore, transitionAmount);
+                    needsToResetOverrideTint = false;
 
                 } else if (mNotGoneIndex == -1) {
                     colorTwoBefore = previousColor;
@@ -531,6 +537,11 @@ public class NotificationShelf extends ActivatableNotificationView {
             if (child instanceof ActivatableNotificationView anv) {
                 updateCornerRoundnessOnScroll(anv, viewStart, shelfStart);
             }
+        }
+
+        if (notificationRowTransparency() && needsToResetOverrideTint) {
+            setTintColor(NO_COLOR);
+            setOverrideTintColor(NO_COLOR, 0 /* overrideAmount */);
         }
 
         clipTransientViews();
@@ -669,9 +680,10 @@ public class NotificationShelf extends ActivatableNotificationView {
 
     private void updateIconClipAmount(ExpandableNotificationRow row) {
         float maxTop = row.getTranslationY();
-        if (getClipTopAmount() != 0) {
+        int clipTopAmount = Math.max(getClipTopAmount(), mTopOverlap);
+        if (clipTopAmount != 0) {
             // if the shelf is clipped, lets make sure we also clip the icon
-            maxTop = Math.max(maxTop, getTranslationY() + getClipTopAmount());
+            maxTop = Math.max(maxTop, getTranslationY() + clipTopAmount);
         }
         StatusBarIconView icon = NotificationBundleUi.isEnabled()
                 ? row.getEntryAdapter().getIcons().getShelfIcon()
@@ -690,6 +702,10 @@ public class NotificationShelf extends ActivatableNotificationView {
         StatusBarIconView icon = NotificationBundleUi.isEnabled()
                 ? row.getEntryAdapter().getIcons().getShelfIcon()
                 : row.getEntryLegacy().getIcons().getShelfIcon();
+        if (icon == null) {
+            // TODO(b/399736937) remove this when adding bundle icon implementation
+            return;
+        }
         boolean needsContinuousClipping = ViewState.isAnimatingY(icon) && !mAmbientState.isDozing();
         boolean isContinuousClipping = icon.getTag(TAG_CONTINUOUS_CLIPPING) != null;
         if (needsContinuousClipping && !isContinuousClipping) {
@@ -925,7 +941,7 @@ public class NotificationShelf extends ActivatableNotificationView {
         iconState.setAlpha(ICON_ALPHA_INTERPOLATOR.getInterpolation(transitionAmount));
         boolean isAppearing = row.isDrawingAppearAnimation() && !row.isInShelf();
         iconState.hidden = isAppearing
-                || (view instanceof ExpandableNotificationRow
+                || (!physicalNotificationMovement() && view instanceof ExpandableNotificationRow
                 && ((ExpandableNotificationRow) view).isMinimized()
                 && mShelfIcons.areIconsOverflowing())
                 || (transitionAmount == 0.0f && !iconState.isAnimating(icon))
@@ -937,7 +953,7 @@ public class NotificationShelf extends ActivatableNotificationView {
 
         // Fade in icons at shelf start
         // This is important for conversation icons, which are badged and need x reset
-        iconState.setXTranslation(mShelfIcons.getActualPaddingStart());
+        iconState.setXTranslation(mShelfIcons.getLeftBound());
 
         final boolean stayingInShelf = row.isInShelf() && !row.isTransformingIntoShelf();
         if (stayingInShelf) {
@@ -1091,6 +1107,7 @@ public class NotificationShelf extends ActivatableNotificationView {
             DumpUtilsKt.withIncreasedIndent(pw, () -> {
                 pw.println("mActualWidth: " + mActualWidth);
                 pw.println("mStatusBarHeight: " + mStatusBarHeight);
+                pw.println("isOnKeyguard: " + isOnKeyguard());
             });
         }
     }

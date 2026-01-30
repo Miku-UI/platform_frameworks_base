@@ -30,7 +30,7 @@ fun SettingsIcon(imageVector: ImageVector) {
         imageVector = imageVector,
         contentDescription = null,
         modifier = Modifier.size(SettingsDimension.itemIconSize),
-        tint = MaterialTheme.colorScheme.onSurface,
+        tint = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 

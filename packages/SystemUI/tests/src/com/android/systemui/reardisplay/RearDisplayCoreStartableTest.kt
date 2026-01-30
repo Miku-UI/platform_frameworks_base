@@ -32,6 +32,7 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.log.core.FakeLogBuffer
 import com.android.systemui.rearDisplayInnerDialogDelegateFactory
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.testKosmos
@@ -66,6 +67,7 @@ class RearDisplayCoreStartableTest : SysuiTestCase() {
             kosmos.keyguardUpdateMonitor,
             kosmos.accessibilityManager,
             kosmos.fakeExecutorHandler,
+            FakeLogBuffer.Factory.create(),
         )
 
     @Before

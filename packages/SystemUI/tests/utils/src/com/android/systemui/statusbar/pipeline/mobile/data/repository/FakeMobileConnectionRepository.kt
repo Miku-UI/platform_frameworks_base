@@ -70,7 +70,7 @@ class FakeMobileConnectionRepository(
 
     override suspend fun isInEcmMode(): Boolean = isInEcmMode
 
-    fun setDataEnabled(enabled: Boolean) {
+    override fun setDataEnabled(enabled: Boolean) {
         _dataEnabled.value = enabled
     }
 

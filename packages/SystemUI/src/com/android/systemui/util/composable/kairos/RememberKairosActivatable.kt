@@ -22,17 +22,19 @@ import androidx.compose.runtime.remember
 import com.android.systemui.KairosActivatable
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
+import com.android.systemui.kairos.util.nameTag
 
 @ExperimentalKairosApi
 @Composable
 fun <T : KairosActivatable> rememberKairosActivatable(
+    name: String,
     kairosNetwork: KairosNetwork,
     key: Any = Unit,
     factory: () -> T,
 ): T {
     val instance = remember(key, factory) { factory() }
     LaunchedEffect(instance, kairosNetwork) {
-        kairosNetwork.activateSpec { instance.run { activate() } }
+        kairosNetwork.activateSpec(nameTag(name)) { instance.run { activate() } }
     }
     return instance
 }

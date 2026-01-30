@@ -26,7 +26,7 @@ import java.util.Map;
 /**
  * Interface used by the framework to receive the response of the subscribe
  * request through {@link RcsCapabilityExchangeImplBase#subscribeForCapabilities}
- * {@hide}
+ * @hide
  */
 oneway interface ISubscribeResponseCallback {
     void onCommandError(int code);

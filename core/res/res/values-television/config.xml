@@ -73,4 +73,8 @@
 
     <!-- Android TV does not have a Recents UI by default. -->
     <bool name="config_hasRecents">false</bool>
+
+    <!-- Rectangle with rounded corners shape mask to be used for {@link AdaptiveIconDrawable} banners. -->
+    <string name="config_banner_mask" translatable="false">"M0 10C0 4.47716 2.5184 0 5.625 0H94.375C97.4816 0 100 4.47715 100 10V90C100 95.5229 97.4816 100 94.375 100H5.625C2.5184 100 0 95.5229 0 90V10Z"</string>
+
 </resources>

@@ -28,22 +28,25 @@
     <string name="chooser_title" msgid="2235819929238267637">"Choose a <xliff:g id="PROFILE_NAME">%1$s</xliff:g> to set up"</string>
     <string name="single_device_title" msgid="4199861437545438606">"Looking for a <xliff:g id="PROFILE_NAME">%1$s</xliff:g>"</string>
     <string name="summary_watch" msgid="8134580124808507407">"This app will be allowed to sync info, like the name of someone calling, and access these permissions on your <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
+    <string name="profile_name_fitness_tracker" msgid="3107192493390199691">"fitness tracker"</string>
     <string name="confirmation_title_glasses" msgid="8288346850537727333">"Allow &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; to manage &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
     <string name="profile_name_glasses" msgid="3506504967216601277">"device"</string>
     <string name="summary_glasses" msgid="5469208629679579157">"This app will be allowed to access these permissions on your <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
-    <string name="title_app_streaming" msgid="1047090167914857893">"Allow &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; to stream your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>’s apps and system features to &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
-    <string name="summary_app_streaming" msgid="7990244299655610920">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> will have access to anything that’s visible or played on your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>, including audio, photos, payment info, passwords, and messages.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> will be able to stream apps to <xliff:g id="DEVICE_NAME">%3$s</xliff:g> until you remove access to this permission."</string>
-    <string name="helper_summary_app_streaming" msgid="1872657107404139828">"<xliff:g id="APP_NAME">%1$s</xliff:g> is requesting permission on behalf of <xliff:g id="DEVICE_NAME">%2$s</xliff:g> to stream apps and system features from your <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
+    <string name="profile_name_medical" msgid="5617160509499466400">"medical device"</string>
+    <string name="title_app_streaming" msgid="237666000400427614">"Allow &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; to stream apps and system features between your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> and &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
+    <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> will be granted the following permissions:"</string>
+    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> will have access to anything that’s visible or played on your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>, including audio, photos, payment info, passwords, and messages.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> will be able to stream apps to <xliff:g id="DEVICE_NAME">%3$s</xliff:g> until you remove access to this permission."</string>
+    <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> is requesting permission on behalf of <xliff:g id="DEVICE_NAME">%2$s</xliff:g> to stream apps and system features between your devices"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
-    <string name="title_computer" msgid="4782923323932440751">"Allow &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; to access this information from your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
-    <string name="summary_computer" msgid="3798467601598297062"></string>
+    <string name="title_computer" msgid="5040395223341777259">"Allow &lt;strong&gt;<xliff:g id="DISPLAY_NAME">%3$s</xliff:g>&lt;/strong&gt; to access this information from your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>"</string>
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> is requesting permission on behalf of your <xliff:g id="DEVICE_NAME">%2$s</xliff:g> to access your <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>’s photos, media, and notifications"</string>
-    <string name="title_nearby_device_streaming" msgid="2727103756701741359">"Allow &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; to stream your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>’s apps to &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
-    <string name="summary_nearby_device_streaming" msgid="70434958004946884">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> will have access to anything that’s visible or played on <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, including audio, photos, payment info, passwords, and messages.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> will be able to stream apps to <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> until you remove access to this permission."</string>
+    <string name="title_nearby_device_streaming" msgid="5342768208699657581">"Allow &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; to stream apps and system features between your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> and &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;?"</string>
+    <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> will be granted the following permissions:"</string>
+    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> will have access to anything that’s visible or played on <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, including audio, photos, payment info, passwords, and messages.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> will be able to stream apps to <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> until you remove access to this permission."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> is requesting permission on behalf of <xliff:g id="DEVICE_NAME">%2$s</xliff:g> to stream apps from your <xliff:g id="DEVICE_TYPE">%3$s</xliff:g>"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"Allow &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; to stream audio and system features between your <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> and &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt;?"</string>
-    <string name="summary_virtual_device" msgid="3502592544171322817">"<xliff:g id="APP_NAME_0">%2$s</xliff:g> will have access to anything that’s played on <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%2$s</xliff:g> will be able to stream audio to <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> until you remove access to this permission."</string>
+    <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> will be granted the following permissions:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"device"</string>
     <string name="summary_generic" msgid="1761976003668044801">"This app will be able to sync info, like the name of someone calling, between your phone and the chosen device"</string>
     <string name="consent_yes" msgid="8344487259618762872">"Allow"</string>
@@ -67,6 +70,11 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"Change media output"</string>
     <string name="permission_storage" msgid="6831099350839392343">"Photos and media"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"Notifications"</string>
+    <string name="permission_create_virtual_device" msgid="1102905050922460040">"Stream data to your <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
+    <string name="permission_add_mirror_display" msgid="3743433250535606288">"Mirror your screen"</string>
+    <string name="permission_add_trusted_display" msgid="9052824856626276723">"Stream apps"</string>
+    <string name="permission_schedule_exact_alarm" msgid="5680932535987512225">"Set alarms and reminders"</string>
+    <string name="permission_bypass_dnd" msgid="1241123166903040347">"Bypass Do Not Disturb settings"</string>
     <string name="permission_phone_summary" msgid="8246321093970051702">"Make and manage phone calls"</string>
     <string name="permission_call_logs_summary" msgid="7545243592757693321">"Read and write phone call log"</string>
     <string name="permission_sms_summary" msgid="8499509535410068616">"Send and view SMS messages"</string>
@@ -75,9 +83,15 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"Record audio"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"Find, connect to, and determine the relative position of nearby devices"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"Read all notifications, including information like contacts, messages, and photos"</string>
-    <string name="permission_notifications_summary" msgid="2272810466047367030">"• Read all notifications, including info like contacts, messages, and photos&lt;br/&gt;• Send notifications&lt;br/&gt;&lt;br/&gt;You can manage this app\'s ability to read and send notifications anytime in Settings &gt; Notifications."</string>
+    <string name="permission_notifications_summary" msgid="6819393427371255636">"• Read all notifications, including info like contacts, messages, and photos&lt;br/&gt;• Send you notifications&lt;br/&gt;&lt;br/&gt;You can manage this app\'s ability to read and send notifications anytime in Settings &gt; Notifications."</string>
     <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_post_notifications_summary" msgid="1099188848900200165">"Send you notifications"</string>
+    <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"Stream microphone, camera and other sensor data from &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; to your <xliff:g id="DEVICE_TYPE">%2$s</xliff:g>."</string>
+    <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"Record, cast or share your <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>’s screen to &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> will have access to anything that’s visible or played on your <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>, including audio, photos, payment info, passwords and messages."</string>
+    <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"Stream your <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>’s apps to &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> will have access to anything that’s visible or played on <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, including audio, photos, payment info, passwords and messages, even when your <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> is locked."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"Access a list of available devices and control which one streams or casts audio or video from other apps"</string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
+    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
     <string name="device_type" product="default" msgid="8268703872070046263">"phone"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"tablet"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"tv"</string>

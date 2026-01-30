@@ -16,12 +16,10 @@
 
 package com.android.systemui.statusbar.notification.icon.ui.viewbinder
 
-import com.android.systemui.statusbar.notification.collection.NotifCollection
+import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerViewBinder.IconViewStore
 import javax.inject.Inject
 
 /** [IconViewStore] for the always-on display. */
-class AlwaysOnDisplayNotificationIconViewStore
-@Inject
-constructor(notifCollection: NotifCollection) :
-    IconViewStore by (notifCollection.iconViewStoreBy { it.aodIcon })
+class AlwaysOnDisplayNotificationIconViewStore @Inject constructor(notifPipeline: NotifPipeline) :
+    IconViewStore by (notifPipeline.iconViewStoreBy { it.aodIcon })

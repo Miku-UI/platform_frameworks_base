@@ -16,4 +16,6 @@
 
 package android.app.timezonedetector;
 
+import android.app.timezonedetector.TelephonySignal;
+
 parcelable TelephonyTimeZoneSuggestion;

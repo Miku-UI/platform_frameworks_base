@@ -16,8 +16,6 @@
 
 package com.android.keyguard;
 
-import static com.android.systemui.Flags.notifyPasswordTextViewUserActivityInBackground;
-
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.AnimatorSet;
@@ -226,6 +224,12 @@ public class PasswordTextView extends BasePasswordTextView {
 
     @Override
     protected void onDelete(int index) {
+        if (index >= mTextChars.size()) {
+            // An inconsistency was detected. The parent class deleted a char which is not present
+            // in this one. call reset() to restart
+            reset(false, false);
+            return;
+        }
         CharState charState = mTextChars.get(index);
         charState.startRemoveAnimation(0, 0);
     }
@@ -255,14 +259,6 @@ public class PasswordTextView extends BasePasswordTextView {
         } else {
             mTextChars.clear();
         }
-    }
-
-    @Override
-    protected void onUserActivity() {
-        if (!notifyPasswordTextViewUserActivityInBackground()) {
-            mPM.userActivity(SystemClock.uptimeMillis(), false);
-        }
-        super.onUserActivity();
     }
 
     /**

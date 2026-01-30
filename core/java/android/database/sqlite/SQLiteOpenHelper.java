@@ -25,13 +25,9 @@ import android.database.DatabaseErrorHandler;
 import android.database.SQLException;
 import android.database.sqlite.SQLiteDatabase.CursorFactory;
 import android.os.FileUtils;
-import android.util.ArrayMap;
 import android.util.Log;
 
-import com.android.internal.annotations.GuardedBy;
-
 import java.io.File;
-import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -182,7 +178,7 @@ public abstract class SQLiteOpenHelper implements AutoCloseable {
         setOpenParamsBuilder(openParamsBuilder);
 
         Object lock = null;
-        if (!Flags.concurrentOpenHelper() || mName == null) {
+        if (mName == null) {
             lock = new Object();
         } else {
             lock = sDbLock.computeIfAbsent(mName, (String k) -> new Object());

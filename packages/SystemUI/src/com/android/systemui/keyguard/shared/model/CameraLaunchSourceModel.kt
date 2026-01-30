@@ -18,5 +18,6 @@ package com.android.systemui.keyguard.shared.model
 /** Camera launch source, with type and time detected */
 data class CameraLaunchSourceModel(
     val type: CameraLaunchType = CameraLaunchType.IGNORE,
+    val isSecureCamera: Boolean = false,
     val detectedTime: Long = System.currentTimeMillis(),
 )

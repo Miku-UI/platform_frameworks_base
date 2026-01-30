@@ -18,7 +18,7 @@ package com.android.internal.os;
 
 import android.os.ParcelFileDescriptor;
 
-/** {@hide} */
+/** @hide */
 interface IParcelFileDescriptorFactory {
     // NOTE: implementors should carefully sanitize the incoming name
     // using something like FileUtils.isValidExtFilename()

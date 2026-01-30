@@ -18,6 +18,7 @@ package com.android.settingslib.volume.data.repository
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothLeAudio
 import android.bluetooth.BluetoothLeBroadcast
 import android.bluetooth.BluetoothLeBroadcastAssistant
 import android.bluetooth.BluetoothLeBroadcastReceiveState
@@ -26,6 +27,8 @@ import android.bluetooth.BluetoothVolumeControl
 import android.content.ContentResolver
 import android.content.Context
 import android.database.ContentObserver
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import android.provider.Settings
 import androidx.test.core.app.ApplicationProvider
@@ -36,11 +39,13 @@ import com.android.settingslib.bluetooth.BluetoothEventManager
 import com.android.settingslib.bluetooth.BluetoothUtils
 import com.android.settingslib.bluetooth.CachedBluetoothDevice
 import com.android.settingslib.bluetooth.CachedBluetoothDeviceManager
+import com.android.settingslib.bluetooth.LeAudioProfile
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcast
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant
 import com.android.settingslib.bluetooth.LocalBluetoothManager
 import com.android.settingslib.bluetooth.LocalBluetoothProfileManager
 import com.android.settingslib.bluetooth.VolumeControlProfile
+import com.android.settingslib.flags.Flags
 import com.google.common.truth.Truth
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.launchIn
@@ -83,6 +88,8 @@ class AudioSharingRepositoryTest {
 
     @Mock private lateinit var volumeControl: VolumeControlProfile
 
+    @Mock private lateinit var leAudio: LeAudioProfile
+
     @Mock private lateinit var eventManager: BluetoothEventManager
 
     @Mock private lateinit var deviceManager: CachedBluetoothDeviceManager
@@ -104,6 +111,8 @@ class AudioSharingRepositoryTest {
     private lateinit var assistantCallbackCaptor:
             ArgumentCaptor<BluetoothLeBroadcastAssistant.Callback>
 
+    @Captor private lateinit var leAudioCallbackCaptor: ArgumentCaptor<BluetoothLeAudio.Callback>
+
     @Captor private lateinit var btCallbackCaptor: ArgumentCaptor<BluetoothCallback>
 
     @Captor private lateinit var contentObserverCaptor: ArgumentCaptor<ContentObserver>
@@ -123,6 +132,7 @@ class AudioSharingRepositoryTest {
         `when`(profileManager.leAudioBroadcastProfile).thenReturn(broadcast)
         `when`(profileManager.leAudioBroadcastAssistantProfile).thenReturn(assistant)
         `when`(profileManager.volumeControlProfile).thenReturn(volumeControl)
+        `when`(profileManager.leAudioProfile).thenReturn(leAudio)
         `when`(btManager.eventManager).thenReturn(eventManager)
         `when`(btManager.cachedDeviceManager).thenReturn(deviceManager)
         `when`(broadcast.isEnabled(null)).thenReturn(true)
@@ -160,6 +170,7 @@ class AudioSharingRepositoryTest {
             `when`(broadcast.isProfileReady).thenReturn(true)
             `when`(assistant.isProfileReady).thenReturn(true)
             `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
             val states = mutableListOf<Boolean?>()
             underTest.inAudioSharing.onEach { states.add(it) }.launchIn(backgroundScope)
             runCurrent()
@@ -192,7 +203,8 @@ class AudioSharingRepositoryTest {
     }
 
     @Test
-    fun primaryGroupIdChange_emitValues() {
+    @DisableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
+    fun primaryGroupIdChange_getValueFromContentResolver_emitValues() {
         testScope.runTest {
             val groupIds = mutableListOf<Int?>()
             underTest.primaryGroupId.onEach { groupIds.add(it) }.launchIn(backgroundScope)
@@ -209,6 +221,30 @@ class AudioSharingRepositoryTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
+    fun primaryGroupIdChange_getValueFromApi_emitValues() {
+        testScope.runTest {
+            `when`(broadcast.isProfileReady).thenReturn(true)
+            `when`(assistant.isProfileReady).thenReturn(true)
+            `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
+            `when`(leAudio.broadcastToUnicastFallbackGroup).thenReturn(TEST_GROUP_ID_INVALID)
+            val groupIds = mutableListOf<Int?>()
+            underTest.primaryGroupId.onEach { groupIds.add(it) }.launchIn(backgroundScope)
+            runCurrent()
+            triggerPrimaryGroupIdChanged()
+            runCurrent()
+
+            Truth.assertThat(groupIds)
+                .containsExactly(
+                    TEST_GROUP_ID_INVALID,
+                    TEST_GROUP_ID2
+                )
+        }
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
     fun primaryDeviceChange_emitValues() {
         testScope.runTest {
             `when`(assistant.allConnectedDevices).thenReturn(listOf(device1, device2))
@@ -217,6 +253,26 @@ class AudioSharingRepositoryTest {
             underTest.primaryDevice.onEach { devices.add(it) }.launchIn(backgroundScope)
             runCurrent()
             triggerContentObserverChange()
+            runCurrent()
+
+            Truth.assertThat(devices).containsExactly(null, cachedDevice2)
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
+    fun primaryDeviceChange_getPrimaryGroupIdFromApi_emitValues() {
+        testScope.runTest {
+            `when`(broadcast.isProfileReady).thenReturn(true)
+            `when`(assistant.isProfileReady).thenReturn(true)
+            `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
+            `when`(assistant.allConnectedDevices).thenReturn(listOf(device1, device2))
+
+            val devices = mutableListOf<CachedBluetoothDevice?>()
+            underTest.primaryDevice.onEach { devices.add(it) }.launchIn(backgroundScope)
+            runCurrent()
+            triggerPrimaryGroupIdChanged()
             runCurrent()
 
             Truth.assertThat(devices).containsExactly(null, cachedDevice2)
@@ -234,11 +290,13 @@ class AudioSharingRepositoryTest {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
     fun secondaryGroupIdChange_profileReady_emitValues() {
         testScope.runTest {
             `when`(broadcast.isProfileReady).thenReturn(true)
             `when`(assistant.isProfileReady).thenReturn(true)
             `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
             val groupIds = mutableListOf<Int?>()
             underTest.secondaryGroupId.onEach { groupIds.add(it) }.launchIn(backgroundScope)
             runCurrent()
@@ -284,11 +342,65 @@ class AudioSharingRepositoryTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
+    fun secondaryGroupIdChange_getPrimaryGroupIdFromApi_profileReady_emitValues() {
+        testScope.runTest {
+            `when`(broadcast.isProfileReady).thenReturn(true)
+            `when`(assistant.isProfileReady).thenReturn(true)
+            `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
+            val groupIds = mutableListOf<Int?>()
+            underTest.secondaryGroupId.onEach { groupIds.add(it) }.launchIn(backgroundScope)
+            runCurrent()
+            triggerSourceAddedWithGetPrimaryGroupApi()
+            runCurrent()
+            triggerPrimaryGroupIdChanged()
+            runCurrent()
+            triggerSourceRemovedWithGetPrimaryGroupApi()
+            runCurrent()
+            triggerSourceAddedWithGetPrimaryGroupApi()
+            runCurrent()
+            triggerProfileConnectionChangeWithGetPrimaryGroupApi(
+                BluetoothAdapter.STATE_CONNECTING, BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT
+            )
+            runCurrent()
+            triggerProfileConnectionChangeWithGetPrimaryGroupApi(
+                BluetoothAdapter.STATE_DISCONNECTED, BluetoothProfile.LE_AUDIO
+            )
+            runCurrent()
+            triggerProfileConnectionChangeWithGetPrimaryGroupApi(
+                BluetoothAdapter.STATE_DISCONNECTED, BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT
+            )
+            runCurrent()
+
+            Truth.assertThat(groupIds)
+                .containsExactly(
+                    TEST_GROUP_ID_INVALID,
+                    TEST_GROUP_ID2,
+                    TEST_GROUP_ID1,
+                    TEST_GROUP_ID_INVALID,
+                    TEST_GROUP_ID2,
+                    TEST_GROUP_ID_INVALID
+                )
+            Truth.assertThat(logger.logs)
+                .containsAtLeastElementsIn(
+                    listOf(
+                        "onSecondaryGroupIdChanged groupId=$TEST_GROUP_ID_INVALID",
+                        "onSecondaryGroupIdChanged groupId=$TEST_GROUP_ID2",
+                        "onSecondaryGroupIdChanged groupId=$TEST_GROUP_ID1",
+                    )
+                ).inOrder()
+        }
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
     fun secondaryDeviceChange_emitValues() {
         testScope.runTest {
             `when`(broadcast.isProfileReady).thenReturn(true)
             `when`(assistant.isProfileReady).thenReturn(true)
             `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
             val devices = mutableListOf<CachedBluetoothDevice?>()
             underTest.secondaryDevice.onEach { devices.add(it) }.launchIn(backgroundScope)
             runCurrent()
@@ -307,11 +419,37 @@ class AudioSharingRepositoryTest {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
+    fun secondaryDeviceChange_getPrimaryGroupIdFromApi_emitValues() {
+        testScope.runTest {
+            `when`(broadcast.isProfileReady).thenReturn(true)
+            `when`(assistant.isProfileReady).thenReturn(true)
+            `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
+            val devices = mutableListOf<CachedBluetoothDevice?>()
+            underTest.secondaryDevice.onEach { devices.add(it) }.launchIn(backgroundScope)
+            runCurrent()
+            triggerSourceAddedWithGetPrimaryGroupApi()
+            runCurrent()
+            triggerPrimaryGroupIdChanged()
+            runCurrent()
+
+            Truth.assertThat(devices)
+                .containsExactly(
+                    null,
+                    cachedDevice2,
+                    cachedDevice1,
+                )
+        }
+    }
+
+    @Test
     fun volumeMapChange_profileReady_emitValues() {
         testScope.runTest {
             `when`(broadcast.isProfileReady).thenReturn(true)
             `when`(assistant.isProfileReady).thenReturn(true)
             `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
             val volumeMaps = mutableListOf<GroupIdToVolumes?>()
             underTest.volumeMap.onEach { volumeMaps.add(it) }.launchIn(backgroundScope)
             runCurrent()
@@ -354,6 +492,7 @@ class AudioSharingRepositoryTest {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
     fun setSecondaryVolume_setValue() {
         testScope.runTest {
             Settings.Secure.putInt(
@@ -361,6 +500,29 @@ class AudioSharingRepositoryTest {
                 BluetoothUtils.getPrimaryGroupIdUriForBroadcast(),
                 TEST_GROUP_ID2
             )
+            `when`(assistant.allConnectedDevices).thenReturn(listOf(device1, device2))
+            underTest.setSecondaryVolume(TEST_VOLUME1)
+
+            runCurrent()
+            verify(volumeControl).setDeviceVolume(device1, TEST_VOLUME1, true)
+            Truth.assertThat(logger.logs)
+                .isEqualTo(
+                    listOf(
+                        "onSetVolumeRequested volume=$TEST_VOLUME1",
+                    )
+                )
+        }
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ADOPT_PRIMARY_GROUP_MANAGEMENT_API_V2)
+    fun setSecondaryVolume_getPrimaryGroupIdFromApi_setValue() {
+        testScope.runTest {
+            `when`(broadcast.isProfileReady).thenReturn(true)
+            `when`(assistant.isProfileReady).thenReturn(true)
+            `when`(volumeControl.isProfileReady).thenReturn(true)
+            `when`(leAudio.isProfileReady).thenReturn(true)
+            `when`(leAudio.broadcastToUnicastFallbackGroup).thenReturn(TEST_GROUP_ID2)
             `when`(assistant.allConnectedDevices).thenReturn(listOf(device1, device2))
             underTest.setSecondaryVolume(TEST_VOLUME1)
 
@@ -404,6 +566,13 @@ class AudioSharingRepositoryTest {
         assistantCallbackCaptor.value.sourceAdded(device1)
     }
 
+    private fun triggerSourceAddedWithGetPrimaryGroupApi() {
+        verify(assistant).registerServiceCallBack(any(), assistantCallbackCaptor.capture())
+        `when`(leAudio.broadcastToUnicastFallbackGroup).thenReturn(TEST_GROUP_ID1)
+        `when`(assistant.allConnectedDevices).thenReturn(listOf(device1, device2))
+        assistantCallbackCaptor.value.sourceAdded(device1)
+    }
+
     private fun triggerSourceRemoved() {
         verify(assistant).registerServiceCallBack(any(), assistantCallbackCaptor.capture())
         `when`(assistant.allConnectedDevices).thenReturn(listOf(device1))
@@ -415,6 +584,13 @@ class AudioSharingRepositoryTest {
         assistantCallbackCaptor.value.sourceRemoved(device2)
     }
 
+    private fun triggerSourceRemovedWithGetPrimaryGroupApi() {
+        verify(assistant).registerServiceCallBack(any(), assistantCallbackCaptor.capture())
+        `when`(assistant.allConnectedDevices).thenReturn(listOf(device1))
+        `when`(leAudio.broadcastToUnicastFallbackGroup).thenReturn(TEST_GROUP_ID1)
+        assistantCallbackCaptor.value.sourceRemoved(device2)
+    }
+
     private fun triggerProfileConnectionChange(state: Int, profile: Int) {
         verify(eventManager).registerCallback(btCallbackCaptor.capture())
         `when`(assistant.allConnectedDevices).thenReturn(listOf(device1))
@@ -423,6 +599,13 @@ class AudioSharingRepositoryTest {
             BluetoothUtils.getPrimaryGroupIdUriForBroadcast(),
             TEST_GROUP_ID1
         )
+        btCallbackCaptor.value.onProfileConnectionStateChanged(cachedDevice2, state, profile)
+    }
+
+    private fun triggerProfileConnectionChangeWithGetPrimaryGroupApi(state: Int, profile: Int) {
+        verify(eventManager).registerCallback(btCallbackCaptor.capture())
+        `when`(assistant.allConnectedDevices).thenReturn(listOf(device1))
+        `when`(leAudio.broadcastToUnicastFallbackGroup).thenReturn(TEST_GROUP_ID1)
         btCallbackCaptor.value.onProfileConnectionStateChanged(cachedDevice2, state, profile)
     }
 
@@ -440,6 +623,12 @@ class AudioSharingRepositoryTest {
             TEST_GROUP_ID2
         )
         contentObserverCaptor.value.primaryChanged()
+    }
+
+    private fun triggerPrimaryGroupIdChanged() {
+        verify(leAudio).registerCallback(any(), leAudioCallbackCaptor.capture())
+        `when`(leAudio.broadcastToUnicastFallbackGroup).thenReturn(TEST_GROUP_ID2)
+        leAudioCallbackCaptor.value.onBroadcastToUnicastFallbackGroupChanged(TEST_GROUP_ID2)
     }
 
     private fun triggerVolumeMapChange(change: Pair<BluetoothDevice, Int>) {

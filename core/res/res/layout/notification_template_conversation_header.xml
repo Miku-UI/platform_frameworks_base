@@ -140,7 +140,7 @@
         android:layout_marginStart="@dimen/notification_conversation_header_separating_margin"
         android:baseline="10dp"
         android:scaleType="fitCenter"
-        android:src="@drawable/ic_dialog_alert_material"
+        android:src="@drawable/ic_android_security_privacy_alert_fill_material"
         android:visibility="gone"
         android:contentDescription="@string/notification_phishing_alert_content_description"
         />

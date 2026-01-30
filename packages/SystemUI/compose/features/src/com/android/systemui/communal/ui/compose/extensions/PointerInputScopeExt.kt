@@ -18,15 +18,20 @@ package com.android.systemui.communal.ui.compose.extensions
 
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.AwaitPointerEventScope
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.util.fastAny
 import androidx.compose.ui.util.fastForEach
+import kotlin.math.abs
 import kotlinx.coroutines.coroutineScope
 
 /**
@@ -92,4 +97,31 @@ suspend fun PointerInputScope.consumeAllGestures() = coroutineScope {
             .changes
             .forEach(PointerInputChange::consume)
     }
+}
+
+/**
+ * Horizontal swipe gestures on a composable will not propagate to its parent composable unless they
+ * originate within the specified swipeable region.
+ */
+fun Modifier.consumeHorizontalDragGestures(swipeableRegion: Rect? = null): Modifier {
+    return this.then(
+        Modifier.pointerInput(Unit) {
+            var isOriginatedFromSwipeableRegion = false
+            detectHorizontalDragGestures(
+                onDragStart = { offset ->
+                    isOriginatedFromSwipeableRegion = swipeableRegion?.contains(offset) == true
+                },
+                onDragEnd = { isOriginatedFromSwipeableRegion = false },
+                onDragCancel = { isOriginatedFromSwipeableRegion = false },
+                onHorizontalDrag = { change, dragAmount ->
+                    if (
+                        !isOriginatedFromSwipeableRegion &&
+                            abs(dragAmount) > viewConfiguration.touchSlop
+                    ) {
+                        change.consume()
+                    }
+                },
+            )
+        }
+    )
 }

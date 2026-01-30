@@ -43,10 +43,12 @@ public final class VirtualMouseConfig extends VirtualInputDeviceConfig implement
 
     private VirtualMouseConfig(@NonNull VirtualMouseConfig.Builder builder) {
         super(builder);
+        checkForAssociatedDisplay();
     }
 
     private VirtualMouseConfig(@NonNull Parcel in) {
         super(in);
+        checkForAssociatedDisplay();
     }
 
     @Override

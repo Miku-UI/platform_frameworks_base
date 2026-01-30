@@ -16,14 +16,13 @@
 
 package com.android.systemui.statusbar.notification.collection
 
-import com.android.internal.logging.MetricsLogger
 import com.android.systemui.statusbar.notification.NotificationActivityStarter
 import com.android.systemui.statusbar.notification.collection.coordinator.VisualStabilityCoordinator
 import com.android.systemui.statusbar.notification.collection.provider.HighPriorityProvider
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier
 import com.android.systemui.statusbar.notification.row.NotificationActionClickManager
-import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider
+import com.android.systemui.statusbar.notification.row.OnUserInteractionCallback
 import javax.inject.Inject
 
 /** Creates an appropriate EntryAdapter for the entry type given */
@@ -31,29 +30,30 @@ class EntryAdapterFactoryImpl
 @Inject
 constructor(
     private val notificationActivityStarter: NotificationActivityStarter,
-    private val metricsLogger: MetricsLogger,
     private val peopleNotificationIdentifier: PeopleNotificationIdentifier,
-    private val iconStyleProvider: NotificationIconStyleProvider,
     private val visualStabilityCoordinator: VisualStabilityCoordinator,
     private val notificationActionClickManager: NotificationActionClickManager,
     private val highPriorityProvider: HighPriorityProvider,
     private val headsUpManager: HeadsUpManager,
+    private val onUserInteractionCallback: OnUserInteractionCallback,
+    private val notifPipeline: NotifPipeline,
 ) : EntryAdapterFactory {
-    override fun create(entry: PipelineEntry): EntryAdapter {
-        return if (entry is NotificationEntry) {
-            NotificationEntryAdapter(
-                notificationActivityStarter,
-                metricsLogger,
-                peopleNotificationIdentifier,
-                iconStyleProvider,
-                visualStabilityCoordinator,
-                notificationActionClickManager,
-                highPriorityProvider,
-                headsUpManager,
-                entry,
-            )
-        } else {
-            BundleEntryAdapter(highPriorityProvider, (entry as BundleEntry))
+    override fun create(entry: PipelineEntry): EntryAdapter =
+        when (entry) {
+            is NotificationEntry ->
+                NotificationEntryAdapter(
+                    notificationActivityStarter,
+                    peopleNotificationIdentifier,
+                    visualStabilityCoordinator,
+                    notificationActionClickManager,
+                    highPriorityProvider,
+                    headsUpManager,
+                    onUserInteractionCallback,
+                    entry,
+                    notifPipeline,
+                )
+            is BundleEntry ->
+                BundleEntryAdapter(highPriorityProvider, onUserInteractionCallback, entry)
+            else -> error("Cannot create entry adapter for $entry")
         }
-    }
 }

@@ -24,7 +24,6 @@ import android.telephony.TelephonyManager.DATA_ACTIVITY_NONE
 import android.telephony.TelephonyManager.DATA_ACTIVITY_OUT
 import com.android.settingslib.SignalIcon.MobileIconGroup
 import com.android.settingslib.mobile.TelephonyIcons
-import com.android.systemui.Flags
 import com.android.systemui.KairosActivatable
 import com.android.systemui.KairosBuilder
 import com.android.systemui.dagger.SysUISingleton
@@ -32,7 +31,9 @@ import com.android.systemui.demomode.DemoMode.COMMAND_NETWORK
 import com.android.systemui.demomode.DemoModeController
 import com.android.systemui.kairos.Events
 import com.android.systemui.kairos.ExperimentalKairosApi
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairosBuilder
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.model.FakeNetworkEventModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.model.FakeNetworkEventModel.Mobile
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.model.FakeNetworkEventModel.MobileDisabled
@@ -67,7 +68,9 @@ constructor(demoModeController: DemoModeController) :
     private val _mobileCommands: Flow<FakeNetworkEventModel?> =
         demoCommandStream.map { args -> args.toMobileEvent() }
     override val mobileEvents: Events<FakeNetworkEventModel?> = buildEvents {
-        _mobileCommands.toEvents()
+        _mobileCommands.toEvents(
+            nameTag("DemoModeMobileConnectionDataSourceKairosImpl.mobileEvents")
+        )
     }
 
     private fun Bundle.toMobileEvent(): FakeNetworkEventModel? {
@@ -122,7 +125,7 @@ constructor(demoModeController: DemoModeController) :
             fun kairosActivatable(
                 impl: Provider<DemoModeMobileConnectionDataSourceKairosImpl>
             ): Set<@JvmSuppressWildcards KairosActivatable> =
-                if (Flags.statusBarMobileIconKairos()) setOf(impl.get()) else emptySet()
+                if (StatusBarMobileIconKairos.isEnabled) setOf(impl.get()) else emptySet()
         }
     }
 }

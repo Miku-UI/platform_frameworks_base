@@ -27,7 +27,8 @@ import com.android.settingslib.media.BluetoothMediaDevice
 import com.android.settingslib.media.MediaDevice
 import com.android.settingslib.media.PhoneMediaDevice
 import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.stub
 
 @SuppressLint("StaticFieldLeak") // These are mocks
 object TestMediaDevicesFactory {
@@ -35,21 +36,21 @@ object TestMediaDevicesFactory {
     fun builtInMediaDevice(
         deviceName: String = "built_in_media",
         deviceIcon: Drawable? = TestStubDrawable(),
-    ): MediaDevice = mock {
-        whenever(name).thenReturn(deviceName)
-        whenever(icon).thenReturn(deviceIcon)
-        whenever(deviceType).thenReturn(MediaDevice.MediaDeviceType.TYPE_PHONE_DEVICE)
-    }
+    ) =
+        mock<MediaDevice>().stub {
+            on { name } doReturn deviceName
+            on { icon } doReturn deviceIcon
+            on { deviceType } doReturn MediaDevice.MediaDeviceType.TYPE_PHONE_DEVICE
+        }
 
     fun wiredMediaDevice(
         deviceName: String = "wired_media",
         deviceIcon: Drawable? = TestStubDrawable(),
-    ): MediaDevice =
-        mock<PhoneMediaDevice> {
-            whenever(deviceType)
-                .thenReturn(MediaDevice.MediaDeviceType.TYPE_3POINT5_MM_AUDIO_DEVICE)
-            whenever(name).thenReturn(deviceName)
-            whenever(icon).thenReturn(deviceIcon)
+    ) =
+        mock<PhoneMediaDevice>().stub {
+            on { name } doReturn deviceName
+            on { icon } doReturn deviceIcon
+            on { deviceType } doReturn MediaDevice.MediaDeviceType.TYPE_3POINT5_MM_AUDIO_DEVICE
         }
 
     fun bluetoothMediaDevice(
@@ -58,38 +59,38 @@ object TestMediaDevicesFactory {
         deviceAddress: String = "bt_media_device",
     ): BluetoothMediaDevice {
         val bluetoothDevice =
-            mock<BluetoothDevice> {
-                whenever(name).thenReturn(deviceName)
-                whenever(address).thenReturn(deviceAddress)
+            mock<BluetoothDevice>().stub {
+                on { name } doReturn deviceName
+                on { address } doReturn deviceAddress
             }
         val leAudioProfile =
-            mock<LeAudioProfile> {
-                whenever(profileId).thenReturn(BluetoothProfile.LE_AUDIO)
-                whenever(isEnabled(bluetoothDevice)).thenReturn(true)
+            mock<LeAudioProfile>().stub {
+                on { profileId } doReturn BluetoothProfile.LE_AUDIO
+                on { isEnabled(bluetoothDevice) } doReturn true
             }
-        val cachedBluetoothDevice: CachedBluetoothDevice = mock {
-            whenever(isHearingAidDevice).thenReturn(true)
-            whenever(address).thenReturn(deviceAddress)
-            whenever(device).thenReturn(bluetoothDevice)
-            whenever(name).thenReturn(deviceName)
-            whenever(profiles).thenReturn(listOf(leAudioProfile))
-        }
-        return mock<BluetoothMediaDevice> {
-            whenever(name).thenReturn(deviceName)
-            whenever(icon).thenReturn(deviceIcon)
-            whenever(cachedDevice).thenReturn(cachedBluetoothDevice)
-            whenever(deviceType).thenReturn(MediaDevice.MediaDeviceType.TYPE_BLUETOOTH_DEVICE)
+        val cachedBluetoothDevice =
+            mock<CachedBluetoothDevice>().stub {
+                on { name } doReturn deviceName
+                on { address } doReturn deviceAddress
+                on { device } doReturn bluetoothDevice
+                on { isHearingDevice } doReturn true
+                on { profiles } doReturn listOf(leAudioProfile)
+            }
+        return mock<BluetoothMediaDevice>().stub {
+            on { name } doReturn deviceName
+            on { icon } doReturn deviceIcon
+            on { cachedDevice } doReturn cachedBluetoothDevice
+            on { deviceType } doReturn MediaDevice.MediaDeviceType.TYPE_BLUETOOTH_DEVICE
         }
     }
 
     fun remoteMediaDevice(
         deviceName: String = "remote_media",
         deviceIcon: Drawable? = TestStubDrawable(),
-    ): MediaDevice {
-        return mock<MediaDevice> {
-            whenever(name).thenReturn(deviceName)
-            whenever(icon).thenReturn(deviceIcon)
-            whenever(deviceType).thenReturn(MediaDevice.MediaDeviceType.TYPE_CAST_DEVICE)
+    ) =
+        mock<MediaDevice>().stub {
+            on { name } doReturn deviceName
+            on { icon } doReturn deviceIcon
+            on { deviceType } doReturn MediaDevice.MediaDeviceType.TYPE_CAST_DEVICE
         }
-    }
 }

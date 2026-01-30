@@ -27,7 +27,6 @@ import android.net.Uri;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
-import android.view.View;
 import android.view.inputmethod.ImeTracker;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
@@ -302,7 +301,7 @@ public final class InputMethodPrivilegedOperations {
         ImeTracker.forLogging().onProgress(statsToken, ImeTracker.PHASE_IME_PRIVILEGED_OPERATIONS);
         try {
             final AndroidFuture<Void> future = new AndroidFuture<>();
-            ops.hideMySoftInput(statsToken, flags, reason, future);
+            ops.hideMySoftInput(statsToken, future);
             CompletableFutureUtil.getResult(future);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -324,7 +323,7 @@ public final class InputMethodPrivilegedOperations {
         ImeTracker.forLogging().onProgress(statsToken, ImeTracker.PHASE_IME_PRIVILEGED_OPERATIONS);
         try {
             final AndroidFuture<Void> future = new AndroidFuture<>();
-            ops.showMySoftInput(statsToken, flags, reason, future);
+            ops.showMySoftInput(statsToken, future);
             CompletableFutureUtil.getResult(future);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -422,35 +421,6 @@ public final class InputMethodPrivilegedOperations {
         }
         try {
             ops.notifyUserActionAsync();
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    /**
-     * Calls {@link IInputMethodPrivilegedOperations#applyImeVisibilityAsync(IBinder, boolean,
-     * ImeTracker.Token)}.
-     *
-     * @param showOrHideInputToken placeholder token that maps to window requesting
-     *        {@link android.view.inputmethod.InputMethodManager#showSoftInput(View, int)} or
-     *        {@link android.view.inputmethod.InputMethodManager#hideSoftInputFromWindow(IBinder,
-     *        int)}
-     * @param setVisible {@code true} to set IME visible, else hidden.
-     * @param statsToken the token tracking the current IME request.
-     */
-    @AnyThread
-    public void applyImeVisibilityAsync(IBinder showOrHideInputToken, boolean setVisible,
-            @NonNull ImeTracker.Token statsToken) {
-        final IInputMethodPrivilegedOperations ops = mOps.getAndWarnIfNull();
-        if (ops == null) {
-            ImeTracker.forLogging().onFailed(statsToken,
-                    ImeTracker.PHASE_IME_PRIVILEGED_OPERATIONS);
-            return;
-        }
-        ImeTracker.forLogging().onProgress(statsToken,
-                ImeTracker.PHASE_IME_PRIVILEGED_OPERATIONS);
-        try {
-            ops.applyImeVisibilityAsync(showOrHideInputToken, setVisible, statsToken);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

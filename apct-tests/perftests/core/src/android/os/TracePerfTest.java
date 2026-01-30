@@ -46,7 +46,14 @@ public class TracePerfTest {
 
     private static final String FOO = "foo";
     private static final Category FOO_CATEGORY = new Category(FOO);
+    private static final com.android.internal.dev.perfetto.sdk.PerfettoTrace.Category
+            FOO_CATEGORY_V3 = new com.android.internal.dev.perfetto.sdk.PerfettoTrace.Category(FOO);
     private static final Category UNREGISTERED_CATEGORY = new Category("unregistered");
+    private static final com.android.internal.dev.perfetto.sdk.PerfettoTrace.Category
+            UNREGISTERED_CATEGORY_V3 =
+                    new com.android.internal.dev.perfetto.sdk.PerfettoTrace.Category(
+                            "unregistered");
+
     private static PerfettoTrace.Session sPerfettoSession;
 
     @BeforeClass
@@ -54,6 +61,7 @@ public class TracePerfTest {
         ShellHelper.runShellCommandRaw("atrace -c --async_start -a *");
         PerfettoTrace.register(false /* isBackendInProcess */);
         FOO_CATEGORY.register();
+        FOO_CATEGORY_V3.register();
         sPerfettoSession = new PerfettoTrace.Session(false /* isBackendInProcess */,
                                                       getTraceConfig(FOO).toByteArray());
     }
@@ -178,6 +186,88 @@ public class TracePerfTest {
         BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
         while (state.keepRunning()) {
             PerfettoTrace.begin(UNREGISTERED_CATEGORY, "message_queue_receive")
+                    .beginProto()
+                    .beginNested(2004 /* message_queue */)
+                    .addField(1 /* sending_thread_name */, "foo")
+                    .endNested()
+                    .endProto()
+                    .setTerminatingFlow(5)
+                    .emit();
+        }
+    }
+
+    @Test
+    public void testInstantPerfettoV3() {
+        com.android.internal.dev.perfetto.sdk.PerfettoTrace.instant(FOO_CATEGORY_V3, "testInstantP")
+                .emit();
+
+        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        while (state.keepRunning()) {
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace.instant(
+                            FOO_CATEGORY_V3, "testInstantP")
+                    .emit();
+        }
+    }
+
+    @Test
+    public void testInstantPerfettoV3WithArgs() {
+        com.android.internal.dev.perfetto.sdk.PerfettoTrace.instant(FOO_CATEGORY_V3, "testInstantP")
+                .addArg("foo", "bar")
+                .setFlow(1)
+                .emit();
+
+        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        while (state.keepRunning()) {
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace.instant(
+                            FOO_CATEGORY_V3, "testInstantP")
+                    .addArg("foo", "bar")
+                    .setFlow(1)
+                    .emit();
+        }
+    }
+
+    @Test
+    public void testInstantPerfettoV3WithProto() {
+        com.android.internal.dev.perfetto.sdk.PerfettoTrace.begin(
+                        FOO_CATEGORY_V3, "message_queue_receive")
+                .beginProto()
+                .beginNested(2004 /* message_queue */)
+                .addField(1 /* sending_thread_name */, "foo")
+                .endNested()
+                .endProto()
+                .setTerminatingFlow(5)
+                .emit();
+
+        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        while (state.keepRunning()) {
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace.begin(
+                            FOO_CATEGORY_V3, "message_queue_receive")
+                    .beginProto()
+                    .beginNested(2004 /* message_queue */)
+                    .addField(1 /* sending_thread_name */, "foo")
+                    .endNested()
+                    .endProto()
+                    .setTerminatingFlow(5)
+                    .emit();
+        }
+    }
+
+    @Test
+    public void testInstantPerfettoV3WithProtoUnregistered() {
+        com.android.internal.dev.perfetto.sdk.PerfettoTrace.begin(
+                        UNREGISTERED_CATEGORY_V3, "message_queue_receive")
+                .beginProto()
+                .beginNested(2004 /* message_queue */)
+                .addField(1 /* sending_thread_name */, "foo")
+                .endNested()
+                .endProto()
+                .setTerminatingFlow(5)
+                .emit();
+
+        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        while (state.keepRunning()) {
+            com.android.internal.dev.perfetto.sdk.PerfettoTrace.begin(
+                            UNREGISTERED_CATEGORY_V3, "message_queue_receive")
                     .beginProto()
                     .beginNested(2004 /* message_queue */)
                     .addField(1 /* sending_thread_name */, "foo")

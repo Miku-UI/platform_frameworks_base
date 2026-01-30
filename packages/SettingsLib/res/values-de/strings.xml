@@ -36,19 +36,19 @@
     <string name="wifi_security_none" msgid="7392696451280611452">"Keine"</string>
     <string name="wifi_security_wep" msgid="1413627788581122366">"WEP"</string>
     <string name="wifi_security_wpa" msgid="1072450904799930636">"WPA-Personal"</string>
-    <string name="wifi_security_wpa2" msgid="4038267581230425543">"WPA2-Personal"</string>
-    <string name="wifi_security_wpa_wpa2" msgid="946853615482465986">"WPA/WPA2-Personal"</string>
-    <string name="wifi_security_eap" msgid="6179633834446852269">"WPA/WPA2/WPA3-Enterprise"</string>
+    <string name="wifi_security_wpa2" msgid="4038267581230425543">"WPA2 Personal"</string>
+    <string name="wifi_security_wpa_wpa2" msgid="946853615482465986">"WPA/WPA2 Personal"</string>
+    <string name="wifi_security_eap" msgid="6179633834446852269">"WPA/WPA2/WPA3 Enterprise"</string>
     <string name="wifi_security_eap_wpa" msgid="6189023812330549957">"WPA-Enterprise"</string>
-    <string name="wifi_security_eap_wpa_wpa2" msgid="1089879674896108216">"WPA/WPA2-Enterprise"</string>
-    <string name="wifi_security_eap_wpa2_wpa3" msgid="2952912020876252266">"WPA2/WPA3-Enterprise"</string>
-    <string name="wifi_security_eap_wpa3" msgid="7961135182909018796">"WPA3-Enterprise"</string>
+    <string name="wifi_security_eap_wpa_wpa2" msgid="1089879674896108216">"WPA/WPA2 Enterprise"</string>
+    <string name="wifi_security_eap_wpa2_wpa3" msgid="2952912020876252266">"WPA2/WPA3 Enterprise"</string>
+    <string name="wifi_security_eap_wpa3" msgid="7961135182909018796">"WPA3 Enterprise"</string>
     <string name="wifi_security_passpoint" msgid="2209078477216565387">"Passpoint"</string>
     <string name="wifi_security_sae" msgid="3644520541721422843">"WPA3-Personal"</string>
     <string name="wifi_security_psk_sae" msgid="8135104122179904684">"WPA2/WPA3-Personal"</string>
     <string name="wifi_security_none_owe" msgid="5241745828327404101">"Keinse/Enhanced Open"</string>
     <string name="wifi_security_owe" msgid="3343421403561657809">"Enhanced Open"</string>
-    <string name="wifi_security_eap_suiteb" msgid="415842785991698142">"WPA3-Enterprise 192 Bit"</string>
+    <string name="wifi_security_eap_suiteb" msgid="415842785991698142">"WPA3 Enterprise 192 Bit"</string>
     <string name="wifi_remembered" msgid="3266709779723179188">"Gespeichert"</string>
     <string name="wifi_disconnected" msgid="7054450256284661757">"Nicht verbunden"</string>
     <string name="wifi_disabled_generic" msgid="2651916945380294607">"Deaktiviert"</string>
@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Verbindung wird hergestellt..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Mit <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> verbunden"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Wird gekoppelt…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Koppeln nicht möglich"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Verbindung nicht möglich"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Mit <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> verbunden (kein Telefon-Audio)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Mit <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> verbunden (kein Medien-Audio)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Mit <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> verbunden (weder Telefon- noch Medien-Audio)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Akku links: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Akku rechts: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Akku links: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Akku rechts: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Akkustand des Case: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Akkustand links: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Case: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Akkustand rechts: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Case: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Akkustand links: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, rechts: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Akkustand links: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Case: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, rechts: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Links – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Rechts – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Aktiv"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Aktiv (nur rechts)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Aktiv (links und rechts)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Status der Umgebungsgeräusche konnte nicht aktualisiert werden"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Voreinstellung konnte nicht aktualisiert werden"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Ausgewählt"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Aktiv (nur Medien). Akku: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Aktiv (nur Medien). Akku links: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Akku rechts: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Gastgerät. Akku: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -208,7 +217,7 @@
     <string name="launch_defaults_none" msgid="8049374306261262709">"Keine Standardeinstellungen festgelegt"</string>
     <string name="tts_settings" msgid="8130616705989351312">"Sprachausgabe"</string>
     <string name="tts_settings_title" msgid="7602210956640483039">"Sprachausgabe"</string>
-    <string name="tts_default_rate_title" msgid="3964187817364304022">"Sprechgeschwindigkeit"</string>
+    <string name="tts_default_rate_title" msgid="3964187817364304022">"Sprech­geschwindigkeit"</string>
     <string name="tts_default_rate_summary" msgid="3781937042151716987">"Geschwindigkeit, mit der der Text gesprochen wird"</string>
     <string name="tts_default_pitch_title" msgid="6988592215554485479">"Tonlage"</string>
     <string name="tts_default_pitch_summary" msgid="9132719475281551884">"Beeinflusst den Ton der künstlichen Sprache"</string>
@@ -289,8 +298,8 @@
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Bitte stell eine WLAN-Verbindung her"</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"ADB, Debug, Dev"</string>
     <string name="bugreport_in_power" msgid="8664089072534638709">"Verknüpfung zu Fehlerbericht"</string>
-    <string name="bugreport_in_power_summary" msgid="1885529649381831775">"Im Ein-/Aus-Menü wird eine Option zum Erstellen eines Fehlerberichts angezeigt"</string>
-    <string name="keep_screen_on" msgid="1187161672348797558">"Bildschirm aktiv lassen"</string>
+    <string name="bugreport_in_power_summary" msgid="1885529649381831775">"Im Ein/Aus-Menü wird eine Option zum Erstellen eines Fehlerberichts angezeigt"</string>
+    <string name="keep_screen_on" msgid="1187161672348797558">"Display aktiv lassen"</string>
     <string name="keep_screen_on_summary" msgid="1510731514101925829">"Display wird beim Laden nie in den Ruhezustand versetzt"</string>
     <string name="bt_hci_snoop_log" msgid="7291287955649081448">"Bluetooth HCI-Snoop-Protokoll aktivieren"</string>
     <string name="bt_hci_snoop_log_summary" msgid="6808538971394092284">"Bluetooth-Pakete erfassen. Nach der Änderung muss Bluetooth aus- und wieder eingeschaltet werden"</string>
@@ -299,11 +308,11 @@
     <string name="confirm_enable_oem_unlock_title" msgid="8249318129774367535">"OEM-Entsperrung zulassen?"</string>
     <string name="confirm_enable_oem_unlock_text" msgid="854131050791011970">"Achtung: Der Geräteschutz funktioniert auf diesem Gerät nicht, solange diese Einstellung aktiviert ist."</string>
     <string name="mock_location_app" msgid="6269380172542248304">"App für simulierte Standorte auswählen"</string>
-    <string name="mock_location_app_not_set" msgid="6972032787262831155">"Keine App für simulierte Standorte eingerichtet"</string>
+    <string name="mock_location_app_not_set" msgid="6972032787262831155">"Keine App für simulierte Standorte festgelegt"</string>
     <string name="mock_location_app_set" msgid="4706722469342913843">"App für simulierte Standorte: <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="debug_networking_category" msgid="6829757985772659599">"Netzwerke"</string>
     <string name="wifi_display_certification" msgid="1805579519992520381">"Zertifizierung für kabellose Übertragung"</string>
-    <string name="wifi_verbose_logging" msgid="1785910450009679371">"Ausführliche WLAN-Protokollierung aktivieren"</string>
+    <string name="wifi_verbose_logging" msgid="1785910450009679371">"Ausführliches WLAN-Logging aktivieren"</string>
     <string name="wifi_scan_throttling" msgid="2985624788509913617">"Drosselung der WLAN-Suche"</string>
     <string name="wifi_non_persistent_mac_randomization" msgid="7482769677894247316">"Nicht persistente, zufällige Generierung von MAC-Adressen für WLAN"</string>
     <string name="mobile_data_always_on" msgid="8275958101875563572">"Mobile Datennutzung immer aktiviert"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Wenn dieser Modus aktiviert ist, kann sich die MAC-Adresse dieses Geräts bei jeder Verbindung mit einem Netzwerk ändern, bei dem die MAC-Adressen zufällig generiert werden."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Kostenpflichtig"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Ohne Datenlimit"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Logger-Puffergrößen"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Logger-Zwischenspeichergröße"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Größe pro Protokollpuffer wählen"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Speicher der dauerhaften Protokollierung löschen?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Wenn keine Überwachung über eine dauerhafte Protokollierung mehr stattfindet, sind wir dazu verpflichtet, die Protokolldaten auf deinem Gerät zu löschen."</string>
@@ -362,7 +371,7 @@
     <string name="dev_settings_warning_message" msgid="37741686486073668">"Diese Einstellungen sind ausschließlich für Entwicklungszwecke gedacht. Sie können dein Gerät und die darauf installierten Apps beschädigen oder zu unerwünschtem Verhalten führen."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Über USB installierte Apps prüfen"</string>
     <string name="verify_apps_over_usb_summary" msgid="1317933737581167839">"Über ADB/ADT installierte Apps werden auf schädliches Verhalten geprüft"</string>
-    <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"Bluetooth-Geräte werden ohne Namen und nur mit ihren MAC-Adressen angezeigt"</string>
+    <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"Bluetooth-Geräte werden ohne Namen und nur mit ihrer MAC-Adresse angezeigt"</string>
     <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"Deaktiviert die Funktion „Absolute Lautstärkeregelung“ für Bluetooth-Geräte, falls auf Remote-Geräten Probleme mit der Lautstärke auftreten, wie beispielsweise übermäßig laute Wiedergabe oder fehlende Steuerungsmöglichkeiten."</string>
     <string name="bluetooth_enable_gabeldorsche_summary" msgid="2054730331770712629">"Aktiviert das Bluetooth-Gabeldorsche-Funktionspaket."</string>
     <string name="enhanced_connectivity_summary" msgid="1576414159820676330">"Aktiviert die Funktion \"Verbesserte Konnektivität\"."</string>
@@ -403,7 +412,7 @@
     <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"Ansichten in Fenstern blinken beim Rendern"</string>
     <string name="show_hw_layers_updates" msgid="5268370750002509767">"Aktualisierungen von Hardwareschichten hervorheben"</string>
     <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"Hardwareschichten blinken beim Aktualisieren grün"</string>
-    <string name="debug_hw_overdraw" msgid="8944851091008756796">"GPU-Overdraw debuggen"</string>
+    <string name="debug_hw_overdraw" msgid="8944851091008756796">"GPU-Überschneidung debuggen"</string>
     <string name="disable_overlays" msgid="4206590799671557143">"HW-Overlays deaktivieren"</string>
     <string name="disable_overlays_summary" msgid="1954852414363338166">"Für Bildschirm-Compositing immer GPU verwenden"</string>
     <string name="simulate_color_space" msgid="1206503300335835151">"Farbraum simulieren"</string>
@@ -423,10 +432,10 @@
     <string name="track_frame_time" msgid="522674651937771106">"HWUI-Rendering-Profil"</string>
     <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"GPU-Debug-Ebenen zulassen"</string>
     <string name="enable_gpu_debug_layers_summary" msgid="4921521407377170481">"Debug-Apps das Laden von GPU-Debug-Ebenen erlauben"</string>
-    <string name="enable_verbose_vendor_logging" msgid="1196698788267682072">"Ausführliche Protokollierung aktivieren"</string>
-    <string name="enable_verbose_vendor_logging_summary" msgid="5426292185780393708">"Schließt zusätzliche gerätespezifische Anbieterprotokolle in Fehlerberichten ein, die private Informationen enthalten, den Akkuverbrauch erhöhen und/oder zusätzlichen Speicher benötigen können."</string>
+    <string name="enable_verbose_vendor_logging" msgid="1196698788267682072">"Ausführliches Vendor-Logging aktivieren"</string>
+    <string name="enable_verbose_vendor_logging_summary" msgid="5426292185780393708">"Nimmt zusätzliche gerätespezifische Vendor-Logs in Fehlerberichte auf, die private Informationen enthalten, den Akkuverbrauch erhöhen und/oder zusätzlichen Speicher benötigen können."</string>
     <string name="enable_verbose_vendor_logging_checkbox" msgid="3864578373293835530">"Nach einem Tag deaktivieren"</string>
-    <string name="verbose_vendor_logging_notification_title" msgid="6811217272559843592">"Ausführliche Vendoren-Protokollierung beendet"</string>
+    <string name="verbose_vendor_logging_notification_title" msgid="6811217272559843592">"Ausführliches Vendor-Logging beendet"</string>
     <string name="verbose_vendor_logging_notification_summary" msgid="5226524769774370942">"Für einen Tag aktiviert"</string>
     <string name="verbose_vendor_logging_notification_action" msgid="1190831050259046071">"Für einen weiteren Tag aktivieren"</string>
     <string name="verbose_vendor_logging_preference_summary_will_disable" msgid="6175431593394522553">"Wird nach einem Tag deaktiviert"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"Vor <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Restlaufzeit: <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Minimale Größe"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Kleiner"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Klein"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Standard"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Groß"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Größer"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Am größten"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Größer"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Sehr groß"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Extragroß"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Maximale Größe"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Benutzerdefiniert (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menü"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Passwort eingeben, um Gerät im Demomodus auf Werkseinstellungen zurückzusetzen"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 Gerät verbunden}other{# Geräte verbunden}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Mehr Zeit."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Weniger Zeit."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Vergrößerung"</string>
     <string name="cancel" msgid="5665114069455378395">"Abbrechen"</string>
     <string name="next" msgid="2699398661093607009">"Weiter"</string>
     <string name="back" msgid="5554327870352703710">"Zurück"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Wenn du <xliff:g id="SWITCHAPP">%1$s</xliff:g> streamst oder die Ausgabe änderst, wird dein aktueller Stream beendet"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> streamen"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Ausgabe ändern"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Animationen für intelligente „Zurück“-Touch-Geste"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Du kannst Systemanimationen für die intelligente „Zurück“-Touch-Geste aktivieren."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Diese Einstellung aktiviert Systemanimationen für intelligente Touch-Gesten. Dazu muss in der Manifestdatei enableOnBackInvokedCallback auf App-Ebene auf „true“ gesetzt werden."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Nicht angegeben"</string>
     <string name="neuter" msgid="2075249330106127310">"Neutrum"</string>

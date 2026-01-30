@@ -45,9 +45,9 @@ import android.util.SparseArray;
 import com.android.internal.R;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.systemui.CoreStartable;
-import com.android.systemui.SystemUIApplication;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.statusbar.notification.NotificationUtils;
 import com.android.systemui.util.NotificationChannels;
 
 import java.util.List;
@@ -251,7 +251,7 @@ public class StorageNotification implements CoreStartable {
                                 .setCategory(Notification.CATEGORY_SYSTEM)
                                 .setDeleteIntent(buildSnoozeIntent(fsUuid))
                                 .extend(new Notification.TvExtender());
-                SystemUIApplication.overrideNotificationAppName(mContext, builder, false);
+                NotificationUtils.overrideNotificationAppName(mContext, builder, false);
 
                 mNotificationManager.notifyAsUser(fsUuid, SystemMessage.NOTE_STORAGE_PRIVATE,
                         builder.build(), UserHandle.ALL);
@@ -279,7 +279,7 @@ public class StorageNotification implements CoreStartable {
                             .setLocalOnly(true)
                             .setCategory(Notification.CATEGORY_ERROR)
                             .extend(new Notification.TvExtender());
-            SystemUIApplication.overrideNotificationAppName(mContext, builder, false);
+            NotificationUtils.overrideNotificationAppName(mContext, builder, false);
 
             mNotificationManager.notifyAsUser(disk.getId(), SystemMessage.NOTE_STORAGE_DISK,
                     builder.build(), UserHandle.ALL);
@@ -424,6 +424,8 @@ public class StorageNotification implements CoreStartable {
                         .setDeleteIntent(buildSnoozeIntent(vol.getFsUuid()))
                         .build();
             }
+        } else if (isTv()) {
+            return null;
         } else {
             final CharSequence title = disk.getDescription();
             final CharSequence text = mContext.getString(
@@ -554,7 +556,7 @@ public class StorageNotification implements CoreStartable {
                         .setCategory(Notification.CATEGORY_PROGRESS)
                         .setProgress(100, status, false)
                         .setOngoing(true);
-        SystemUIApplication.overrideNotificationAppName(mContext, builder, false);
+        NotificationUtils.overrideNotificationAppName(mContext, builder, false);
 
         mNotificationManager.notifyAsUser(move.packageName, SystemMessage.NOTE_STORAGE_MOVE,
                 builder.build(), UserHandle.ALL);
@@ -604,7 +606,7 @@ public class StorageNotification implements CoreStartable {
                         .setLocalOnly(true)
                         .setCategory(Notification.CATEGORY_SYSTEM)
                         .setAutoCancel(true);
-        SystemUIApplication.overrideNotificationAppName(mContext, builder, false);
+        NotificationUtils.overrideNotificationAppName(mContext, builder, false);
 
         mNotificationManager.notifyAsUser(move.packageName, SystemMessage.NOTE_STORAGE_MOVE,
                 builder.build(), UserHandle.ALL);
@@ -638,7 +640,7 @@ public class StorageNotification implements CoreStartable {
                         .setVisibility(Notification.VISIBILITY_PUBLIC)
                         .setLocalOnly(true)
                         .extend(new Notification.TvExtender());
-        SystemUIApplication.overrideNotificationAppName(mContext, builder, false);
+        NotificationUtils.overrideNotificationAppName(mContext, builder, false);
         return builder;
     }
 

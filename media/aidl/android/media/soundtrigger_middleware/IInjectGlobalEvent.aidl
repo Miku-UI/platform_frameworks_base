@@ -20,7 +20,7 @@ import android.media.soundtrigger_middleware.IAcknowledgeEvent;
 
 /**
  * Interface for injecting global events to the fake STHAL.
- * {@hide}
+ * @hide
  */
 oneway interface IInjectGlobalEvent {
 

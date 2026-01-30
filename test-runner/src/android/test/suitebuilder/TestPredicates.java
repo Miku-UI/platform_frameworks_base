@@ -25,7 +25,7 @@ import com.android.internal.util.Predicate;
 import java.lang.annotation.Annotation;
 
 /**
- * {@hide} Not needed for 1.0 SDK.
+ * @hide Not needed for 1.0 SDK.
  */
 public class TestPredicates {
 

@@ -37,7 +37,7 @@ import android.app.timedetector.TelephonyTimeSuggestion;
  * interface directly. See {@link android.app.timedetector.TimeDetectorService} for more complete
  * documentation.
  *
- * {@hide}
+ * @hide
  */
 interface ITimeDetectorService {
   TimeCapabilitiesAndConfig getCapabilitiesAndConfig();

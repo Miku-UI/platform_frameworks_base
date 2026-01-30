@@ -4,7 +4,7 @@
     <string name="app_label" msgid="8016145283189546017">"ອຸປະກອນປ້ອນຂໍ້ມູນ"</string>
     <string name="keyboard_layouts_label" msgid="6688773268302087545">"ແປ້ນພິມ Android"</string>
     <string name="keyboard_layout_english_uk_label" msgid="6664258463319999632">"ອັງກິດ (ສະຫະລັດຊະອານາຈັກ)"</string>
-    <string name="keyboard_layout_english_us_label" msgid="8994890249649106291">"ອັງກິດ (ສະຫະລັດຯ)"</string>
+    <string name="keyboard_layout_english_us_label" msgid="8994890249649106291">"ອັງກິດ (ສະຫະລັດ)"</string>
     <string name="keyboard_layout_english_us_intl" msgid="3705168594034233583">"ອັງກິດ (ສະຫະລັດຯ), ແບບສາກົນ"</string>
     <string name="keyboard_layout_english_us_colemak_label" msgid="4194969610343455380">"ອັງກິດ (ສະຫະລັດຯ), ແບບ Colemak"</string>
     <string name="keyboard_layout_english_us_dvorak_label" msgid="793528923171145202">"ອັງກິດ (ສະຫະລັດຯ), ແບບ Dvorak"</string>

@@ -4,6 +4,7 @@ per-file ContextImpl.java = *
 
 # ActivityManager
 per-file ActivityManager* = file:/ACTIVITY_MANAGER_OWNERS
+per-file ActivityManager* = file:platform/system/zygote:/OWNERS
 per-file Application.java = file:/ACTIVITY_MANAGER_OWNERS
 per-file ApplicationErrorReport* = file:/ACTIVITY_MANAGER_OWNERS
 per-file ApplicationLoaders.java = file:/ACTIVITY_MANAGER_OWNERS
@@ -12,6 +13,7 @@ per-file ContentProviderHolder* = file:/ACTIVITY_MANAGER_OWNERS
 per-file *ForegroundService* = file:/ACTIVITY_MANAGER_OWNERS
 per-file IActivityController.aidl = file:/ACTIVITY_MANAGER_OWNERS
 per-file IActivityManager.aidl = file:/ACTIVITY_MANAGER_OWNERS
+per-file IActivityManager.aidl = file:platform/system/zygote:/OWNERS
 per-file IApplicationThread.aidl = file:/ACTIVITY_MANAGER_OWNERS
 per-file IAppTraceRetriever.aidl = file:/ACTIVITY_MANAGER_OWNERS
 per-file IForegroundServiceObserver.aidl = file:/ACTIVITY_MANAGER_OWNERS
@@ -52,6 +54,10 @@ per-file ActivityThread.java = file:RESOURCES_OWNERS
 
 # Alarm
 per-file *Alarm* = file:/apex/jobscheduler/ALARM_OWNERS
+
+# AndroidForwardingOs
+per-file AndroidForwardingOs.java = file:/ACTIVITY_MANAGER_OWNERS
+per-file AndroidForwardingOS.java = file:RESOURCES_OWNERS
 
 # AppOps
 per-file *AppOp* = file:/core/java/android/permission/OWNERS

@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Жаңыртуу"</string>
     <string name="done" msgid="6632441120016885253">"Бүттү"</string>
     <string name="cancel" msgid="1018267193425558088">"Жокко чыгаруу"</string>
+    <string name="more_details" msgid="3643407086654820243">"Толук маалымат"</string>
+    <string name="dont_install" msgid="414055123295505225">"Орнотулбасын"</string>
     <string name="installing" msgid="4921993079741206516">"Орнотулууда…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> орнотулууда…"</string>
     <string name="install_done" msgid="5987363587661783896">"Колдонмо орнотулду."</string>
@@ -64,7 +66,7 @@
     <string name="archive_application_text_current_user_work_profile" msgid="1450487362134779752">"Бул колдонмо жумуш профилиңизде архивделсинби? Жеке маалыматыңыз сакталат"</string>
     <string name="archive_application_text_user" msgid="2586558895535581451">"Бул колдонмо <xliff:g id="USERNAME">%1$s</xliff:g> үчүн архивделсинби? Жеке маалыматыңыз сакталат"</string>
     <string name="archive_application_text_current_user_private_profile" msgid="1958423158655599132">"Бул колдонмо жеке мейкиндиктен архивделсинби? Жеке маалыматыңыз сакталат"</string>
-    <string name="uninstall_application_text_all_users" msgid="575491774380227119">"Бул колдонмо "<b>"бардык"</b>" колдонуучулардан алынып салынсынбы? Бул колдонмо жана анын дайындары бул түзмөктүн "<b>"бардык"</b>" колдонуучуларынан өчүрүлөт."</string>
+    <string name="uninstall_application_text_all_users" msgid="575491774380227119">"Бул колдонмону "<b>"бардык"</b>" колдонуучулар үчүн өчүрөсүзбү? Өчүрсөңүз, бул түзмөктүн "<b>"бардык"</b>" колдонуучулары аны жана андагы нерселерди колдоно албай калышат."</string>
     <string name="uninstall_application_text_user" msgid="498072714173920526">"Бул колдонмону <xliff:g id="USERNAME">%1$s</xliff:g> үчүн чыгарып саласызбы?"</string>
     <string name="uninstall_application_text_current_user_work_profile" msgid="8788387739022366193">"Бул колдонмону жумуш профилиңизден чыгарып саласызбы?"</string>
     <string name="uninstall_update_text" msgid="863648314632448705">"Бул колдонмонун баштапкы версиясы орнотулсунбу? Бардык дайындар өчүп калат."</string>

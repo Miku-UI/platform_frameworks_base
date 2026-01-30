@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"সংযোগ কৰি থকা হৈছে…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> সংযোগ কৰা হ’ল"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"পেয়াৰ কৰি থকা হৈছে…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"পেয়াৰ কৰিব নোৱাৰি"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"সংযোগ কৰিব নোৱাৰি"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"সংযোগ কৰা হ’ল (ফ\'ন নাই)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"সংযোগ কৰা হ’ল (মিডিয়া নাই)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"সংযোগ কৰা হ’ল (কোনো ফ\'ন বা মিডিয়া নাই)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"বাওঁ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, সোঁ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> বেটাৰী।"</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"বাকী আছে: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> বেটাৰী"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"সোঁ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> বেটাৰী"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"কে’ছ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> বেটাৰী"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"বাওঁফাল: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, কে’ছ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> বেটাৰী"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"সোঁফাল: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, কে’ছ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> বেটাৰী"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"বাওঁফাল: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, সোঁফাল: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> বেটাৰী"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"বাওঁ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, কেন্দ্ৰ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, সোঁ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> বেটাৰী"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"বাওঁফালে <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"সোঁফালে <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"সক্ৰিয়"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"সক্ৰিয় হৈ আছে (কেৱল সোঁফালৰটো)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"সক্ৰিয় হৈ আছে (বাওঁফালৰটো আৰু সোঁফালৰটো)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"আশ-পাশ আপডে’ট কৰিব পৰা নগ’ল"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"প্ৰিছেট আপডে’ট কৰিব পৰা নগ’ল"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"বাছনি কৰা হৈছে"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"সক্ৰিয় হৈ আছে (কেৱল মিডিয়া)। <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> বেটাৰী।"</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"সক্ৰিয় হৈ আছে (কেৱল মিডিয়া)। বাওঁ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, সোঁ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> বেটাৰী।"</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"অতিথিৰ ডিভাইচ। <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> বেটাৰী।"</string>
@@ -180,7 +189,7 @@
     <string name="bluetooth_talkback_phone" msgid="868393783858123880">"ফ\'ন"</string>
     <string name="bluetooth_talkback_imaging" msgid="8781682986822514331">"ইমেজিং"</string>
     <string name="bluetooth_talkback_headphone" msgid="8613073829180337091">"হেডফ\'ন"</string>
-    <string name="bluetooth_talkback_input_peripheral" msgid="5133944817800149942">"ইনপুট সম্পৰ্কীয় বাহ্য় ডিভাইচ"</string>
+    <string name="bluetooth_talkback_input_peripheral" msgid="5133944817800149942">"ইনপুট সম্পৰ্কীয় বাহ্য ডিভাইচ"</string>
     <string name="bluetooth_talkback_hearing_aids" msgid="3983279945542595479">"শ্ৰৱণ যন্ত্ৰ"</string>
     <string name="bluetooth_talkback_bluetooth" msgid="1143241359781999989">"ব্লুটুথ"</string>
     <string name="accessibility_wifi_off" msgid="1195445715254137155">"ৱাই-ফাই অফ হৈ আছে।"</string>
@@ -283,12 +292,12 @@
     <string name="adb_wireless_qrcode_summary" msgid="8051414549011801917">"এটা কিউআৰ ক’ড স্কেন কৰি ৱাই-ফাইৰে ডিভাইচ পেয়াৰ কৰক"</string>
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"ডিভাইচ পেয়াৰ কৰি থকা হৈছে…"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"ডিভাইচটো পেয়াৰ কৰিব পৰা নগ’ল। কিউআৰ ক’ডটো ভুল অথবা ডিভাইচটো একেটা নেটৱৰ্কৰ সৈতে সংযোগ কৰা হোৱা নাই।"</string>
-    <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"আইপি ঠিকনা &amp; প’ৰ্ট"</string>
+    <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"আইপি ঠিকনা আৰু প’ৰ্ট"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"কিউআৰ ক’ড স্কেন কৰক"</string>
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"এটা কিউআৰ ক’ড স্কেন কৰি ৱাই-ফাইৰে ডিভাইচ পেয়াৰ কৰক"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"অনুগ্ৰহ কৰি এটা ৱাই-ফাই নেটৱর্কলৈ সংযোগ কৰক"</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"adb, ডিবাগ, dev"</string>
-    <string name="bugreport_in_power" msgid="8664089072534638709">"বাগ ৰিপৰ্টৰ শ্ৱৰ্টকাট"</string>
+    <string name="bugreport_in_power" msgid="8664089072534638709">"বাগ ৰিপ’ৰ্টৰ শ্ৱৰ্টকাট"</string>
     <string name="bugreport_in_power_summary" msgid="1885529649381831775">"পাৱাৰ মেনুত বাগ প্ৰতিবেদন গ্ৰহণ কৰিবলৈ এটা বুটাম দেখুৱাওক"</string>
     <string name="keep_screen_on" msgid="1187161672348797558">"জাগ্ৰত কৰি ৰাখক"</string>
     <string name="keep_screen_on_summary" msgid="1510731514101925829">"চাৰ্জ হৈ থকাৰ সময়ত স্ক্ৰীন কেতিয়াও সুপ্ত অৱস্থালৈ নাযায়"</string>
@@ -335,12 +344,12 @@
     <string name="private_dns_mode_provider_hostname_hint" msgid="6564868953748514595">"ডিএনএছ সেৱা যোগানকাৰীৰ হ\'ষ্টনাম দিয়ক"</string>
     <string name="private_dns_mode_provider_failure" msgid="8356259467861515108">"সংযোগ কৰিব পৰা নগ\'ল"</string>
     <string name="wifi_display_certification_summary" msgid="8111151348106907513">"বেতাঁৰ ডিছপ্লে’ প্ৰমাণপত্ৰৰ বাবে বিকল্পসমূহ দেখুৱাওক"</string>
-    <string name="wifi_verbose_logging_summary" msgid="4993823188807767892">"ৱাই-ফাই লগিঙৰ মাত্ৰা বঢ়াওক, Wi‑Fi পিকাৰত প্ৰতি SSID RSSI দেখুৱাওক"</string>
+    <string name="wifi_verbose_logging_summary" msgid="4993823188807767892">"ৱাই-ফাই লগিঙৰ মাত্ৰা বঢ়াওক, ৱাই-ফাই পিকাৰত প্ৰতি SSID RSSI দেখুৱাওক"</string>
     <string name="wifi_scan_throttling_summary" msgid="2577105472017362814">"বেটাৰীৰ খৰচ কমায় আৰু নেটৱৰ্কৰ কাৰ্যক্ষমতা বৃদ্ধি কৰে"</string>
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"এই ম’ডটো সক্ষম হৈ থাকিলে, এই ডিভাইচটোৱে MAC যাদৃচ্ছিকীকৰণ সক্ষম কৰি থোৱা কোনো নেটৱৰ্কত প্ৰতিবাৰ সংযোগ হোৱাৰ সময়ত ইয়াৰ MAC ঠিকনাটো হয়তো সলনি হ’ব।"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"নিৰিখ-নিৰ্দিষ্ট"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"নিৰিখ অনিৰ্দিষ্ট"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"লগাৰৰ বাফাৰৰ আকাৰ"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"লগাৰৰ বাফাৰৰ আকাৰ"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"প্ৰতিটো লগ বাফাৰত ল\'গাৰৰ আকাৰ বাছনি কৰক"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"লগাৰৰ স্থায়ী ষ্ট’ৰেজৰ বস্তুবোৰ মচিবনে?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"পাৰ্ছিছটেণ্ট লগাৰ ব্যৱহাৰ কৰ নিৰীক্ষণ নকৰাৰ সময়ত, আমি আপোনাৰ ডিভাইচত থকা লগাৰ ডেটা নিৱাসীক মচা দৰকাৰ।"</string>
@@ -480,7 +489,7 @@
     <string name="runningservices_settings_summary" msgid="1046080643262665743">"বৰ্তমান চলি থকা সেৱাসমূহ চাওক আৰু নিয়ন্ত্ৰণ কৰক"</string>
     <string name="select_webview_provider_title" msgid="3917815648099445503">"ৱেবভিউ প্ৰয়োগ"</string>
     <string name="select_webview_provider_dialog_title" msgid="2444261109877277714">"ৱেবভিউ প্ৰয়োগ ছেট কৰক"</string>
-    <string name="select_webview_provider_toast_text" msgid="8512254949169359848">"বাছনিটো এতিয়া আৰু মান্য় নহয়। আকৌ চেষ্টা কৰক।"</string>
+    <string name="select_webview_provider_toast_text" msgid="8512254949169359848">"বাছনিটো এতিয়া আৰু মান্য নহয়। আকৌ চেষ্টা কৰক।"</string>
     <string name="webview_launch_devtools_title" msgid="8009687433555367112">"WebView DevTools"</string>
     <string name="webview_launch_devtools_no_package" msgid="3182544553665113721">"WebView পেকেজ বিচাৰি পোৱা নগ’ল।"</string>
     <string name="webview_launch_devtools_no_activity" msgid="4066006313619617140">"DevTools লঞ্চ কৰিব পৰা নগ’ল।"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> আগত"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> বাকী আছে"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"আটাইতকৈ সৰু"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"অধিক সৰু"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"সৰু"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"ডিফ’ল্ট"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"ডাঙৰ"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"বৃহত্তৰ"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"সকলোতকৈ ডাঙৰ"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"অধিক ডাঙৰ"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"বেছি ডাঙৰ"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"বেছি ডাঙৰ আকাৰৰ"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"সকলোতকৈ ডাঙৰ"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"নিজৰ উপযোগিতা অনুযায়ী (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"মেনু"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"ডেম’ ম\'ডত ফেক্টৰী ৰিছেট কৰিবলৈ পাছৱৰ্ড দিয়ক"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{১ টা ডিভাইচ সংযোগ কৰা হৈছে}one{# টা ডিভাইচ সংযোগ কৰা হৈছে}other{# টা ডিভাইচ সংযোগ কৰা হৈছে}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"অধিক সময়।"</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"কম সময়।"</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"বিবৰ্ধন"</string>
     <string name="cancel" msgid="5665114069455378395">"বাতিল কৰক"</string>
     <string name="next" msgid="2699398661093607009">"পৰৱৰ্তী"</string>
     <string name="back" msgid="5554327870352703710">"উভতি যাওক"</string>
@@ -649,7 +663,7 @@
     <string name="user_add_user_item_title" msgid="2394272381086965029">"ব্যৱহাৰকাৰী"</string>
     <string name="user_add_profile_item_title" msgid="3111051717414643029">"সীমিত প্ৰ\'ফাইল"</string>
     <string name="user_add_user_title" msgid="5457079143694924885">"নতুন ব্যৱহাৰকাৰী যোগ কৰিবনে?"</string>
-    <string name="user_add_user_message_long" msgid="1527434966294733380">"আপুনি অতিৰিক্ত ব্যৱহাৰকাৰীক যোগ কৰি এই ডিভাইচটো অন্য় ব্য়ক্তিৰ সৈতে শ্বেয়াৰ কৰিব পাৰে। প্ৰতিজন ব্যৱহাৰকাৰীৰ বাবে নিজাকৈ ঠাই আছে যাক তেওঁলোকে এপ্, ৱালপেপাৰ আৰু অন্য়ান্য় বস্তুৰ বাবে নিজৰ উপযোগিতা অনুযায়ী ব্যৱহাৰ কৰিব পাৰে। ব্যৱহাৰকাৰীসকলে সকলোকে প্ৰভাৱান্বিত কৰা ৱাই-ফাইৰ নিচিনা ডিভাইচৰ ছেটিং সাল-সলনি কৰিবও পাৰে।\n\nআপুনি যেতিয়া কোনো নতুন ব্যৱহাৰকাৰীক যোগ কৰে সেই ব্য়ক্তিজনে নিজেই নিজৰ বাবে ঠাই ছেট আপ কৰিব লাগিব।\n\nসকলো ব্যৱহাৰকাৰীয়ে অন্য় ব্যৱহাৰকাৰীৰ বাবে এপ্‌সমূহ আপডে’ট কৰিব পাৰে। সাধ্য় সুবিধাসমূহৰ ছেটিং আৰু সেৱাসমূহ নতুন ব্যৱহাৰকাৰীলৈ স্থানান্তৰ নহ\'বও পাৰে।"</string>
+    <string name="user_add_user_message_long" msgid="1527434966294733380">"আপুনি অতিৰিক্ত ব্যৱহাৰকাৰীক যোগ কৰি এই ডিভাইচটো অন্য ব্যক্তিৰ সৈতে শ্বেয়াৰ কৰিব পাৰে। প্ৰতিজন ব্যৱহাৰকাৰীৰ বাবে নিজাকৈ ঠাই আছে যাক তেওঁলোকে এপ্, ৱালপেপাৰ আৰু অন্যান্য বস্তুৰ বাবে নিজৰ উপযোগিতা অনুযায়ী ব্যৱহাৰ কৰিব পাৰে। ব্যৱহাৰকাৰীসকলে সকলোকে প্ৰভাৱান্বিত কৰা ৱাই-ফাইৰ নিচিনা ডিভাইচৰ ছেটিং সাল-সলনি কৰিবও পাৰে।\n\nআপুনি যেতিয়া কোনো নতুন ব্যৱহাৰকাৰীক যোগ কৰে সেই ব্যক্তিজনে নিজেই নিজৰ বাবে ঠাই ছেট আপ কৰিব লাগিব।\n\nসকলো ব্যৱহাৰকাৰীয়ে অন্য ব্যৱহাৰকাৰীৰ বাবে এপ্‌সমূহ আপডে’ট কৰিব পাৰে। সাধ্য সুবিধাসমূহৰ ছেটিং আৰু সেৱাসমূহ নতুন ব্যৱহাৰকাৰীলৈ স্থানান্তৰ নহ\'বও পাৰে।"</string>
     <string name="user_add_user_message_short" msgid="3295959985795716166">"আপুনি যেতিয়া এগৰাকী নতুন ব্যৱহাৰকাৰী যোগ কৰে, তেওঁ নিজৰ ঠাই ছেট আপ কৰাৰ প্ৰয়োজন।\n\nযিকোনো ব্যৱহাৰকাৰীয়ে অন্য সকলো ব্যৱহাৰকাৰীৰ বাবে এপ্ আপডে\'ট কৰিব পাৰে।"</string>
     <string name="user_grant_admin_title" msgid="5157031020083343984">"এই ব্যৱহাৰকাৰীগৰাকীক এগৰাকী প্ৰশাসক বনাবনে?"</string>
     <string name="user_grant_admin_message" msgid="1673791931033486709">"প্ৰশাসকৰ ওচৰত কিছুমান বিশেষাধিকাৰ আছে, যিবোৰ অন্য ব্যৱহাৰকাৰীৰ নাই। এগৰাকী প্ৰশাসকে সকলো ব্যৱহাৰকাৰীক পৰিচালনা কৰিব, এই ডিভাইচটো আপডে’ট অথবা ৰিছেট কৰিব, ছেটিং সংশোধন কৰিব, ইনষ্টল কৰি থোৱা আটাইবোৰ এপ্ চাব আৰু অন্য লোকৰ বাবে প্ৰশাসকৰ বিশেষাধিকাৰ প্ৰদান কৰিব অথবা প্ৰত্যাহাৰ কৰিব পাৰে।"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"যদি আপুনি <xliff:g id="SWITCHAPP">%1$s</xliff:g>ৰ সম্প্ৰচাৰ কৰে অথবা আউটপুট সলনি কৰে, তেন্তে, আপোনাৰ বৰ্তমানৰ সম্প্ৰচাৰ বন্ধ হৈ যাব"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> সম্প্ৰচাৰ কৰক"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"আউটপুট সলনি কৰক"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"প্ৰেডিক্টিভ বেক এনিমেশ্বন"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"প্ৰেডিক্টিভ বেকৰ বাবে ছিষ্টেম এনিমেশ্বন সক্ষম কৰক।"</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"এই ছেটিংটোৱে প্ৰেডিক্টিভ বেক এনিমেশ্বনৰ বাবে ছিষ্টেম এনিমেশ্বন সক্ষম কৰে। ইয়াৰ বাবে মেনিফেষ্ট ফাইলত প্ৰতি এপত enableOnBackInvokedCallback সত্য বুলি ছেট কৰাৰ প্ৰয়োজন।"</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"নিৰ্দিষ্ট কৰা হোৱা নাই"</string>
     <string name="neuter" msgid="2075249330106127310">"ক্লীৱ লিংগ"</string>

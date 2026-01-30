@@ -16,6 +16,8 @@
 
 package com.android.systemui.doze;
 
+import static com.android.internal.display.BrightnessUtils.INVALID_BRIGHTNESS_IN_CONFIG;
+
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.Resources;
@@ -28,6 +30,7 @@ import android.text.format.DateUtils;
 import android.util.KeyValueListParser;
 import android.util.Log;
 
+import com.android.internal.display.BrightnessSynchronizer;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.res.R;
 
@@ -49,33 +52,19 @@ public class AlwaysOnDisplayPolicy {
 
     static final String KEY_SCREEN_BRIGHTNESS_ARRAY = "screen_brightness_array";
     static final String KEY_DIMMING_SCRIM_ARRAY = "dimming_scrim_array";
+    static final String KEY_WALLPAPER_DIMMING_SCRIM_ARRAY = "wallpaper_dimming_scrim_array";
     static final String KEY_PROX_SCREEN_OFF_DELAY_MS = "prox_screen_off_delay";
     static final String KEY_PROX_COOLDOWN_TRIGGER_MS = "prox_cooldown_trigger";
     static final String KEY_PROX_COOLDOWN_PERIOD_MS = "prox_cooldown_period";
     static final String KEY_WALLPAPER_VISIBILITY_MS = "wallpaper_visibility_timeout";
     static final String KEY_WALLPAPER_FADE_OUT_MS = "wallpaper_fade_out_duration";
 
-
-    /**
-     * Integer in the scale [1, 255] used to dim the screen while dozing.
-     *
-     * @see R.integer.config_screenBrightnessDoze
-     */
-    public int defaultDozeBrightness;
-
-    /**
-     * Integer in the scale [1, 255] used to dim the screen just before the screen turns off.
-     *
-     * @see R.integer.config_screenBrightnessDim
-     */
-    public int dimBrightness;
-
     /**
      * Float in the scale [0, 1] used to dim the screen just before the screen turns off.
-     *
-     * @see R.integer.config_screenBrightnessDimFloat
+     * Read from {@link R.integer.config_screenBrightnessDimFloat}. If undefined,
+     * {@link R.integer.config_screenBrightnessDim} is used as a fallback.
      */
-    public float dimBrightnessFloat;
+    public float dimBrightness;
 
     /**
      * Integer array to map ambient brightness type to real screen brightness in the integer scale
@@ -93,6 +82,14 @@ public class AlwaysOnDisplayPolicy {
      * @see #KEY_DIMMING_SCRIM_ARRAY
      */
     public int[] dimmingScrimArray;
+
+    /**
+     * Integer array to map ambient brightness type to dimming scrim for aod wallpaper.
+     *
+     * @see Settings.Global#ALWAYS_ON_DISPLAY_CONSTANTS
+     * @see #KEY_WALLPAPER_DIMMING_SCRIM_ARRAY
+     */
+    public int[] wallpaperDimmingScrimArray;
 
     /**
      * Delay time(ms) from covering the prox to turning off the screen.
@@ -193,18 +190,22 @@ public class AlwaysOnDisplayPolicy {
                         DEFAULT_WALLPAPER_FADE_OUT_MS);
                 wallpaperVisibilityDuration = mParser.getLong(KEY_WALLPAPER_VISIBILITY_MS,
                         DEFAULT_WALLPAPER_VISIBILITY_MS);
-                defaultDozeBrightness = resources.getInteger(
-                        com.android.internal.R.integer.config_screenBrightnessDoze);
-                dimBrightness = resources.getInteger(
-                        com.android.internal.R.integer.config_screenBrightnessDim);
-                dimBrightnessFloat = resources.getFloat(
+                dimBrightness = resources.getFloat(
                         com.android.internal.R.dimen.config_screenBrightnessDimFloat);
+                if (dimBrightness == INVALID_BRIGHTNESS_IN_CONFIG) {
+                    dimBrightness = BrightnessSynchronizer.brightnessIntToFloat(
+                            resources.getInteger(
+                                    com.android.internal.R.integer.config_screenBrightnessDim));
+                }
                 screenBrightnessArray = mParser.getIntArray(KEY_SCREEN_BRIGHTNESS_ARRAY,
                         resources.getIntArray(
                                 R.array.config_doze_brightness_sensor_to_brightness));
                 dimmingScrimArray = mParser.getIntArray(KEY_DIMMING_SCRIM_ARRAY,
                         resources.getIntArray(
                                 R.array.config_doze_brightness_sensor_to_scrim_opacity));
+                wallpaperDimmingScrimArray = mParser.getIntArray(KEY_WALLPAPER_DIMMING_SCRIM_ARRAY,
+                        resources.getIntArray(
+                                R.array.config_doze_brightness_sensor_to_wallpaper_scrim_opacity));
             }
         }
     }

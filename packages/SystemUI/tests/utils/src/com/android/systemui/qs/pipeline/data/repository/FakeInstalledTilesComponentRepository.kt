@@ -21,6 +21,9 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.drawable.Drawable
+import android.os.Bundle
+import android.service.quicksettings.TileService
+import android.service.quicksettings.TileService.Categories
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -61,7 +64,9 @@ class FakeInstalledTilesComponentRepository : InstalledTilesComponentRepository 
             serviceName: String,
             serviceIcon: Drawable? = null,
             appName: String = "",
-            appIcon: Drawable? = null
+            appIcon: Drawable? = null,
+            isSystemApp: Boolean = false,
+            @Categories category: String? = null,
         ): ServiceInfo {
             val appInfo =
                 object : ApplicationInfo() {
@@ -71,6 +76,10 @@ class FakeInstalledTilesComponentRepository : InstalledTilesComponentRepository 
 
                     override fun loadIcon(pm: PackageManager?): Drawable? {
                         return appIcon
+                    }
+
+                    override fun isSystemApp(): Boolean {
+                        return isSystemApp
                     }
                 }
             val serviceInfo =
@@ -87,6 +96,12 @@ class FakeInstalledTilesComponentRepository : InstalledTilesComponentRepository 
                         packageName = componentName.packageName
                         name = componentName.className
                         applicationInfo = appInfo
+                        category?.let {
+                            metaData =
+                                Bundle().apply {
+                                    putString(TileService.META_DATA_TILE_CATEGORY, it)
+                                }
+                        }
                     }
             return serviceInfo
         }

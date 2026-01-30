@@ -18,21 +18,21 @@
 
 package android.processor.immutability
 
-import com.sun.tools.javac.code.Symbol
-import com.sun.tools.javac.code.Type
 import javax.annotation.processing.AbstractProcessor
 import javax.annotation.processing.ProcessingEnvironment
 import javax.annotation.processing.RoundEnvironment
 import javax.lang.model.SourceVersion
 import javax.lang.model.element.Element
 import javax.lang.model.element.ElementKind
+import javax.lang.model.element.ExecutableElement
 import javax.lang.model.element.Modifier
 import javax.lang.model.element.TypeElement
+import javax.lang.model.type.DeclaredType
 import javax.lang.model.type.TypeKind
 import javax.lang.model.type.TypeMirror
 import javax.tools.Diagnostic
 
-val IMMUTABLE_ANNOTATION_NAME = Immutable::class.qualifiedName
+val IMMUTABLE_ANNOTATION_NAME = Immutable::class.qualifiedName!!
 
 class ImmutabilityProcessor : AbstractProcessor() {
 
@@ -77,12 +77,12 @@ class ImmutabilityProcessor : AbstractProcessor() {
 
     private lateinit var ignoredSuperTypes: List<TypeMirror>
     private lateinit var ignoredExactTypes: List<TypeMirror>
+    private val seenTypesByPolicy =
+        mutableMapOf<Set<Immutable.Policy.Exception>, MutableSet<TypeMirror>>() // Use MutableSet
 
-    private val seenTypesByPolicy = mutableMapOf<Set<Immutable.Policy.Exception>, Set<Type>>()
+    override fun getSupportedSourceVersion() = SourceVersion.latestSupported()
 
-    override fun getSupportedSourceVersion() = SourceVersion.latest()!!
-
-    override fun getSupportedAnnotationTypes() = setOf(Immutable::class.qualifiedName)
+    override fun getSupportedAnnotationTypes() = setOf(Immutable::class.qualifiedName!!)
 
     override fun init(processingEnv: ProcessingEnvironment) {
         super.init(processingEnv)
@@ -105,7 +105,7 @@ class ImmutabilityProcessor : AbstractProcessor() {
                     parentChain = emptyList(),
                     seenTypesByPolicy = seenTypesByPolicy,
                     elementToPrint = it,
-                    classType = it as Symbol.TypeSymbol,
+                    classType = it as TypeElement,
                     parentPolicyExceptions = emptySet()
                 )
             }
@@ -117,9 +117,9 @@ class ImmutabilityProcessor : AbstractProcessor() {
      */
     private fun visitClass(
         parentChain: List<String>,
-        seenTypesByPolicy: MutableMap<Set<Immutable.Policy.Exception>, Set<Type>>,
+        seenTypesByPolicy: MutableMap<Set<Immutable.Policy.Exception>, MutableSet<TypeMirror>>,
         elementToPrint: Element,
-        classType: Symbol.TypeSymbol,
+        classType: TypeElement,
         parentPolicyExceptions: Set<Immutable.Policy.Exception>,
     ): Boolean {
         if (isIgnored(classType)) return false
@@ -128,10 +128,9 @@ class ImmutabilityProcessor : AbstractProcessor() {
         val newPolicyExceptions = parentPolicyExceptions + policyAnnotation?.exceptions.orEmpty()
 
         // If already seen this type with the same policies applied, skip it
-        val seenTypes = seenTypesByPolicy[newPolicyExceptions]
+        val seenTypes = seenTypesByPolicy.getOrPut(newPolicyExceptions) { mutableSetOf() }
         val type = classType.asType()
-        if (seenTypes?.contains(type) == true) return false
-        seenTypesByPolicy[newPolicyExceptions] = seenTypes.orEmpty() + type
+        if (!seenTypes.add(type)) return false // Use add() for MutableSet
 
         val allowFinalClassesFinalFields =
             newPolicyExceptions.contains(Immutable.Policy.Exception.FINAL_CLASSES_WITH_FINAL_FIELDS)
@@ -140,10 +139,10 @@ class ImmutabilityProcessor : AbstractProcessor() {
             .filterNot(::isIgnored)
 
         val hasFieldError = filteredElements
-            .filter { it.getKind() == ElementKind.FIELD }
+            .filter { it.kind == ElementKind.FIELD }
             .fold(false) { anyError, field ->
-                if (field.isStatic) {
-                    if (!field.isPrivate) {
+                if (field.modifiers.contains(Modifier.STATIC)) {
+                    if (!field.modifiers.contains(Modifier.PRIVATE)) {
                         val finalityError = !field.modifiers.contains(Modifier.FINAL)
                         if (finalityError) {
                             printError(parentChain, field, MessageUtils.staticNonFinalFailure())
@@ -151,22 +150,23 @@ class ImmutabilityProcessor : AbstractProcessor() {
 
                         // Must call visitType first so it doesn't get short circuited by the ||
                         visitType(
-                            parentChain = parentChain,
-                            seenTypesByPolicy = seenTypesByPolicy,
-                            symbol = field,
-                            type = field.type,
-                            parentPolicyExceptions = parentPolicyExceptions
+                            parentChain,
+                            seenTypesByPolicy,
+                            field,
+                            field.asType(),
+                            newPolicyExceptions
                         ) || anyError || finalityError
+                    } else {
+                        anyError
                     }
-                    return@fold anyError
                 } else {
                     val isFinal = field.modifiers.contains(Modifier.FINAL)
                     if (!isFinal || !allowFinalClassesFinalFields) {
                         printError(parentChain, field, MessageUtils.memberNotMethodFailure())
-                        return@fold true
+                        true
+                    } else {
+                        anyError
                     }
-
-                    return@fold anyError
                 }
             }
 
@@ -174,10 +174,9 @@ class ImmutabilityProcessor : AbstractProcessor() {
         // the error on the class declaration rather than on the method that returns the type.
         // Although it doesn't matter too much either way.
         val hasClassError = filteredElements
-            .filter { it.getKind() == ElementKind.CLASS }
-            .map { it as Symbol.ClassSymbol }
+            .filter { it.kind == ElementKind.CLASS }
+            .map { it as TypeElement }
             .fold(false) { anyError, innerClass ->
-                // Must call visitClass first so it doesn't get short circuited by the ||
                 visitClass(
                     parentChain,
                     seenTypesByPolicy,
@@ -190,19 +189,18 @@ class ImmutabilityProcessor : AbstractProcessor() {
         val newChain = parentChain + "$classType"
 
         val hasMethodError = filteredElements
-            .asSequence()
-            .filter { it.getKind() == ElementKind.METHOD }
-            .map { it as Symbol.MethodSymbol }
-            .filterNot { it.isStatic }
-            .filterNot { IGNORED_METHODS.contains(it.name.toString()) }
+            .filter { it.kind == ElementKind.METHOD }
+            .map { it as ExecutableElement }
+            .filterNot { it.modifiers.contains(Modifier.STATIC) }
+            .filterNot { IGNORED_METHODS.contains(it.simpleName.toString()) }
             .fold(false) { anyError, method ->
                 // Must call visitMethod first so it doesn't get short circuited by the ||
-                visitMethod(newChain, seenTypesByPolicy, method, newPolicyExceptions) || anyError
+                visitMethod(newChain, seenTypesByPolicy, method, newPolicyExceptions) ||
+                        anyError // Use method to point to current method in the errors
             }
 
         val className = classType.simpleName.toString()
-        val isRegularClass = classType.getKind() == ElementKind.CLASS
-
+        val isRegularClass = classType.kind == ElementKind.CLASS
         var anyError = hasFieldError || hasClassError || hasMethodError
 
         // If final classes are not considered OR there's a non-field failure, also check for
@@ -217,17 +215,35 @@ class ImmutabilityProcessor : AbstractProcessor() {
                 anyError = true
             }
 
-            if (classType.getKind() != ElementKind.INTERFACE) {
+            if (classType.kind != ElementKind.INTERFACE) {
                 printError(parentChain, elementToPrint, MessageUtils.nonInterfaceClassFailure())
                 anyError = true
             }
         }
 
-        // Check all of the super classes, since methods in those classes are also accessible
-        (classType as? Symbol.ClassSymbol)?.run {
-            (interfaces + superclass).forEach {
-                val element = it.asElement() ?: return@forEach
-                visitClass(parentChain, seenTypesByPolicy, element, element, newPolicyExceptions)
+        (classType.interfaces).forEach { // Only process interfaces here
+            val element = processingEnv.typeUtils.asElement(it) ?: return@forEach
+            if (element is TypeElement) {
+                visitClass(
+                    parentChain,
+                    seenTypesByPolicy,
+                    element,
+                    element,
+                    newPolicyExceptions
+                ) // element as the class type, the element parameter
+            }
+        }
+        val superClass = classType.superclass
+        if (superClass.kind != TypeKind.NONE) { // Verify that kind is NONE
+            val superClassElement = processingEnv.typeUtils.asElement(superClass)
+            if (superClassElement is TypeElement) {
+                visitClass(
+                    parentChain,
+                    seenTypesByPolicy,
+                    superClassElement,
+                    superClassElement,
+                    newPolicyExceptions
+                )
             }
         }
 
@@ -246,13 +262,13 @@ class ImmutabilityProcessor : AbstractProcessor() {
      */
     private fun visitMethod(
         parentChain: List<String>,
-        seenTypesByPolicy: MutableMap<Set<Immutable.Policy.Exception>, Set<Type>>,
-        method: Symbol.MethodSymbol,
+        seenTypesByPolicy: MutableMap<Set<Immutable.Policy.Exception>, MutableSet<TypeMirror>>,
+        method: ExecutableElement,
         parentPolicyExceptions: Set<Immutable.Policy.Exception>,
     ): Boolean {
         val returnType = method.returnType
         val typeName = returnType.toString()
-        when (returnType.kind) {
+        return when (returnType.kind) {
             TypeKind.BOOLEAN,
             TypeKind.BYTE,
             TypeKind.SHORT,
@@ -262,28 +278,29 @@ class ImmutabilityProcessor : AbstractProcessor() {
             TypeKind.FLOAT,
             TypeKind.DOUBLE,
             TypeKind.NONE,
-            TypeKind.NULL -> {
-                // Do nothing
-            }
+            TypeKind.NULL -> false
+
             TypeKind.VOID -> {
-                if (!method.isConstructor) {
+                if (!method.simpleName.contentEquals("<init>")) {
                     printError(parentChain, method, MessageUtils.voidReturnFailure())
-                    return true
-                }
+                    true
+                } else false
             }
+
             TypeKind.ARRAY -> {
                 printError(parentChain, method, MessageUtils.arrayFailure())
-                return true
+                true
             }
-            TypeKind.DECLARED -> {
-                return visitType(
+
+            TypeKind.DECLARED ->
+                visitType(
                     parentChain,
                     seenTypesByPolicy,
                     method,
-                    method.returnType,
+                    returnType,
                     parentPolicyExceptions
                 )
-            }
+
             TypeKind.ERROR,
             TypeKind.TYPEVAR,
             TypeKind.WILDCARD,
@@ -292,25 +309,24 @@ class ImmutabilityProcessor : AbstractProcessor() {
             TypeKind.OTHER,
             TypeKind.UNION,
             TypeKind.INTERSECTION,
-                // Java 9+
-                // TypeKind.MODULE,
             null -> {
                 printError(
-                    parentChain, method,
+                    parentChain,
+                    method,
                     MessageUtils.genericTypeKindFailure(typeName = typeName)
                 )
-                return true
+                true
             }
+
             else -> {
                 printError(
-                    parentChain, method,
+                    parentChain,
+                    method,
                     MessageUtils.genericTypeKindFailure(typeName = typeName)
                 )
-                return true
+                true
             }
         }
-
-        return false
     }
 
     /**
@@ -318,107 +334,132 @@ class ImmutabilityProcessor : AbstractProcessor() {
      */
     private fun visitType(
         parentChain: List<String>,
-        seenTypesByPolicy: MutableMap<Set<Immutable.Policy.Exception>, Set<Type>>,
-        symbol: Symbol,
-        type: Type,
+        seenTypesByPolicy: MutableMap<Set<Immutable.Policy.Exception>, MutableSet<TypeMirror>>,
+        element: Element,
+        type: TypeMirror,
         parentPolicyExceptions: Set<Immutable.Policy.Exception>,
         nonInterfaceClassFailure: () -> String = { MessageUtils.nonInterfaceReturnFailure() },
     ): Boolean {
         // Skip if the symbol being considered is itself ignored
-        if (isIgnored(symbol)) return false
-
         // Skip if the type being checked, like for a typeArg or return type, is ignored
-        if (isIgnored(type)) return false
-
         // Skip if that typeArg is itself ignored when inspected at the class header level
-        if (isIgnored(type.asElement())) return false
+        if (isIgnored(element) || isIgnored(type) ||
+            isIgnored(processingEnv.typeUtils.asElement(type))) return false
 
-        if (type.isPrimitive) return false
-        if (type.isPrimitiveOrVoid) {
-            printError(parentChain, symbol, MessageUtils.voidReturnFailure())
+        if (type.kind.isPrimitive) return false
+        if (type.kind == TypeKind.VOID) {
+            printError(parentChain, element, MessageUtils.voidReturnFailure())
             return true
         }
 
-        val policyAnnotation = symbol.getAnnotation(Immutable.Policy::class.java)
+        val policyAnnotation = element.getAnnotation(Immutable.Policy::class.java)
         val newPolicyExceptions = parentPolicyExceptions + policyAnnotation?.exceptions.orEmpty()
 
-        // Collection (and Map) types are ignored for the interface check as they have immutability
-        // enforced through a runtime exception which must be verified in a separate runtime test
-        val isMap = processingEnv.typeUtils.isAssignable(type, mapType)
-        if (!processingEnv.typeUtils.isAssignable(type, collectionType) && !isMap) {
-            if (!type.isInterface && !newPolicyExceptions
+        // Key Change: Check assignability *only* if we know it's a declared type,
+        // and only *after* other checks
+        if (type is DeclaredType) {
+            val isMap = processingEnv.typeUtils.isAssignable(type, mapType)
+            if (!processingEnv.typeUtils.isAssignable(type, collectionType) && !isMap) {
+                val isInterface =
+                    processingEnv.typeUtils.asElement(type)?.kind == ElementKind.INTERFACE
+                if (!isInterface && !newPolicyExceptions
                     .contains(Immutable.Policy.Exception.FINAL_CLASSES_WITH_FINAL_FIELDS)
-            ) {
-                printError(parentChain, symbol, nonInterfaceClassFailure())
-                return true
-            } else {
-                return visitClass(
-                    parentChain, seenTypesByPolicy, symbol,
-                    processingEnv.typeUtils.asElement(type) as Symbol.TypeSymbol,
-                    newPolicyExceptions,
-                )
-            }
-        }
-
-        var anyError = false
-
-        type.typeArguments.forEachIndexed { index, typeArg ->
-            if (isIgnored(typeArg.asElement())) return@forEachIndexed
-
-            val argError =
-                visitType(parentChain, seenTypesByPolicy, symbol, typeArg, newPolicyExceptions) {
-                    MessageUtils.nonInterfaceReturnFailure(
-                        prefix = when {
-                            !isMap -> ""
-                            index == 0 -> "Key " + typeArg.asElement().simpleName
-                            else -> "Value " + typeArg.asElement().simpleName
-                        }, index = index
-                    )
+                ) {
+                    printError(parentChain, element, nonInterfaceClassFailure())
+                    return true
                 }
-            anyError = anyError || argError
+                val elementResult = processingEnv.typeUtils.asElement(type)
+                if (elementResult is TypeElement) {
+                    return visitClass(
+                        parentChain, seenTypesByPolicy, element, elementResult, newPolicyExceptions
+                    )
+                } else {
+                    return false
+                }
+            }
+            var anyError = false
+            type.typeArguments.forEachIndexed { index, typeArg ->
+                if (isIgnored(processingEnv.typeUtils.asElement(typeArg))) return@forEachIndexed
+                val argError =
+                    visitType(
+                        parentChain,
+                        seenTypesByPolicy,
+                        element,
+                        typeArg,
+                        newPolicyExceptions
+                    ) {
+                        val typeArgElement = processingEnv.typeUtils.asElement(typeArg)
+                        MessageUtils.nonInterfaceReturnFailure(
+                            prefix =
+                            when {
+                                !isMap -> ""
+                                index == 0 -> "Key " + (typeArgElement?.simpleName ?: "")
+                                else -> "Value " + (typeArgElement?.simpleName ?: "")
+                            },
+                            index = index
+                        )
+                    }
+                anyError = anyError || argError
+            }
+            return anyError
         }
-
-        return anyError
+        return false
     }
 
-    private fun printError(
-        parentChain: List<String>,
-        element: Element,
-        message: String,
-    ) = processingEnv.messager.printMessage(
-        Diagnostic.Kind.ERROR,
-        parentChain.plus(element.simpleName).joinToString() + "\n\t " + message,
-        element,
-    )
+    private fun printError(parentChain: List<String>, element: Element, message: String) {
+        processingEnv.messager.printMessage(
+            Diagnostic.Kind.ERROR,
+            parentChain.plus(element.simpleName).joinToString() + "\n\t " + message,
+            element,
+        )
+    }
 
     private fun ProcessingEnvironment.erasedType(typeName: String) =
         elementUtils.getTypeElement(typeName)?.asType()?.let(typeUtils::erasure)
 
-    private fun isIgnored(type: Type) =
-        (type.getAnnotation(Immutable.Ignore::class.java) != null)
-                || (ignoredSuperTypes.any { type.isAssignable(it) })
-                || (ignoredExactTypes.any { type.isSameType(it) })
-
-    private fun isIgnored(symbol: Symbol) = when {
-        // Anything annotated as @Ignore is always ignored
-        symbol.getAnnotation(Immutable.Ignore::class.java) != null -> true
-        // Then ignore exact types, regardless of what kind they are
-        ignoredExactTypes.any { symbol.type.isSameType(it) } -> true
-        // Then only allow methods through, since other types (fields) are usually a failure
-        symbol.getKind() != ElementKind.METHOD -> false
-        // Finally, check for any ignored super types
-        else -> ignoredSuperTypes.any { symbol.type.isAssignable(it) }
+    private fun isIgnored(type: TypeMirror): Boolean {
+        return try {
+            val ignoreAnnotation =
+                type.annotationMirrors.find {
+                    it.annotationType.toString() == Immutable.Ignore::class.qualifiedName
+                }
+            ignoreAnnotation != null ||
+                    ignoredSuperTypes.any { processingEnv.typeUtils.isAssignable(type, it) } ||
+                    ignoredExactTypes.any { processingEnv.typeUtils.isSameType(type, it) }
+        } catch (e: IllegalArgumentException) {
+            false // If isAssignable/isSameType throws, consider it not ignored.
+        }
     }
 
-    private fun TypeMirror.isAssignable(type: TypeMirror) = try {
-        processingEnv.typeUtils.isAssignable(this, type)
-    } catch (ignored: Exception) {
-        false
-    }
+    private fun isIgnored(element: Element): Boolean {
 
-    private fun TypeMirror.isSameType(type: TypeMirror) = try {
-        processingEnv.typeUtils.isSameType(this, type)
-    } catch (ignored: Exception) {
-        false
+        return try {
+            when {
+                // Anything annotated as @Ignore is always ignored
+                element.annotationMirrors.any {
+                    it.annotationType.toString() == Immutable.Ignore::class.qualifiedName
+                } -> true
+
+                // Then ignore exact types, regardless of what kind they are
+                ignoredExactTypes.any {
+                    processingEnv.typeUtils.isSameType(
+                        element.asType(),
+                        it
+                    )
+                } -> true
+
+                // Then only allow methods through, since other types (fields) are usually a failure
+                element.kind != ElementKind.METHOD -> false
+                // Finally, check for any ignored super types
+                else -> ignoredSuperTypes.any {
+                    processingEnv.typeUtils.isAssignable(
+                        element.asType(),
+                        it
+                    )
+                }
+            }
+        } catch (e: IllegalArgumentException) {
+            false
+        }
     }
 }

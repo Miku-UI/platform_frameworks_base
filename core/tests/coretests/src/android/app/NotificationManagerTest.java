@@ -17,6 +17,7 @@
 package android.app;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -34,6 +35,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
+import android.os.ParcelFileDescriptor;
 import android.os.UserHandle;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
@@ -42,6 +44,7 @@ import android.platform.test.flag.junit.SetFlagsRule;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import org.junit.After;
 import org.junit.Before;
@@ -49,10 +52,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.time.Instant;
 import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @RunWith(AndroidJUnit4.class)
 @SmallTest
@@ -63,12 +71,14 @@ public class NotificationManagerTest {
 
     private NotificationManagerWithMockService mNotificationManager;
     private final FakeClock mClock = new FakeClock();
+    private UiAutomation mUiAutomation;
 
     private PackageTestableContext mContext;
 
     @Before
     public void setUp() {
         mContext = new PackageTestableContext(ApplicationProvider.getApplicationContext());
+        mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         mNotificationManager = new NotificationManagerWithMockService(mContext, mClock);
 
         // Caches must be in test mode in order to be used in tests.
@@ -142,6 +152,78 @@ public class NotificationManagerTest {
     }
 
     @Test
+    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
+            Flags.FLAG_NOTIFICATION_UPDATE_SHEDDING_ALLOW_PROGRESS_COMPLETION})
+    public void notifyAsPackage_advanceProgress_isThrottled() throws Exception {
+        for (int i = 0; i < 100; i++) {
+            Notification advance = new Notification.Builder(mContext, "channel")
+                    .setSmallIcon(android.R.drawable.star_big_on)
+                    .setProgress(200, i, false)
+                    .build();
+            mNotificationManager.notifyAsPackage("some.package.name", "tag", 1, advance);
+            mClock.advanceByMillis(5);
+        }
+
+        verify(mNotificationManager.mBackendService, atLeast(20)).enqueueNotificationWithTag(
+                eq("some.package.name"), any(), any(), anyInt(), any(), anyInt());
+        verify(mNotificationManager.mBackendService, atMost(30)).enqueueNotificationWithTag(
+                eq("some.package.name"), any(), any(), anyInt(), any(), anyInt());
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
+            Flags.FLAG_NOTIFICATION_UPDATE_SHEDDING_ALLOW_PROGRESS_COMPLETION})
+    public void notifyAsPackage_completesProgress_isNotThrottled() throws Exception {
+        for (int i = 0; i < 100; i++) {
+            Notification advance = new Notification.Builder(mContext, "channel")
+                    .setSmallIcon(android.R.drawable.star_big_on)
+                    .setProgress(200, i, false)
+                    .build();
+            mNotificationManager.notifyAsPackage("some.package.name", "tag", 1, advance);
+            mClock.advanceByMillis(5);
+        }
+
+        verify(mNotificationManager.mBackendService, atMost(30)).enqueueNotificationWithTag(
+                eq("some.package.name"), any(), any(), anyInt(), any(), anyInt());
+
+        // Now, post one more notification that brings the progress bar to the end.
+        Notification finished = new Notification.Builder(mContext, "channel")
+                .setProgress(200, 200, false)
+                .setSmallIcon(android.R.drawable.star_big_on)
+                .build();
+        mNotificationManager.notifyAsPackage("some.package.name", "tag", 1, finished);
+
+        verify(mNotificationManager.mBackendService).enqueueNotificationWithTag(
+                eq("some.package.name"), any(), any(), anyInt(), eq(finished), anyInt());
+    }
+
+    @Test
+    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
+            Flags.FLAG_NOTIFICATION_UPDATE_SHEDDING_ALLOW_PROGRESS_COMPLETION})
+    public void notifyAsPackage_removesProgress_isNotThrottled() throws Exception {
+        for (int i = 0; i < 100; i++) {
+            Notification advance = new Notification.Builder(mContext, "channel")
+                    .setSmallIcon(android.R.drawable.star_big_on)
+                    .setProgress(200, i, false)
+                    .build();
+            mNotificationManager.notifyAsPackage("some.package.name", "tag", 1, advance);
+            mClock.advanceByMillis(5);
+        }
+
+        verify(mNotificationManager.mBackendService, atMost(30)).enqueueNotificationWithTag(
+                eq("some.package.name"), any(), any(), anyInt(), any(), anyInt());
+
+        // Now, post one more notification that removes the progress bar.
+        Notification noProgress = new Notification.Builder(mContext, "channel")
+                .setSmallIcon(android.R.drawable.star_big_on)
+                .build();
+        mNotificationManager.notifyAsPackage("some.package.name", "tag", 1, noProgress);
+
+        verify(mNotificationManager.mBackendService).enqueueNotificationWithTag(
+                eq("some.package.name"), any(), any(), anyInt(), eq(noProgress), anyInt());
+    }
+
+    @Test
     @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
     public void cancel_unnecessaryAndRapid_isThrottled() throws Exception {
 
@@ -206,7 +288,7 @@ public class NotificationManagerTest {
 
     @Test
     @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
-    public void enqueue_afterCancel_isNotUpdateAndIsNotThrottled() throws Exception {
+    public void notify_afterCancel_isNotUpdateAndIsNotThrottled() throws Exception {
         // First, hit the enqueue threshold.
         Notification n = exampleNotification();
         for (int i = 0; i < 100; i++) {
@@ -226,7 +308,7 @@ public class NotificationManagerTest {
 
     @Test
     @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
-    public void enqueue_afterCancelAsPackage_isNotUpdateAndIsNotThrottled() throws Exception {
+    public void notify_afterCancelAsPackage_isNotUpdateAndIsNotThrottled() throws Exception {
         // First, hit the enqueue threshold.
         Notification n = exampleNotification();
         for (int i = 0; i < 100; i++) {
@@ -246,7 +328,7 @@ public class NotificationManagerTest {
 
     @Test
     @EnableFlags(Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY)
-    public void enqueue_afterCancelAll_isNotUpdateAndIsNotThrottled() throws Exception {
+    public void notify_afterCancelAll_isNotUpdateAndIsNotThrottled() throws Exception {
         // First, hit the enqueue threshold.
         Notification n = exampleNotification();
         for (int i = 0; i < 100; i++) {
@@ -265,26 +347,24 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
-            Flags.FLAG_NM_BINDER_PERF_LOG_NM_THROTTLING})
+    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY})
     public void notify_rapidUpdate_logsOncePerSecond() throws Exception {
         Notification n = exampleNotification();
+        clearSlog();
 
         for (int i = 0; i < 650; i++) {
             mNotificationManager.notify(1, n);
             mClock.advanceByMillis(10);
         }
 
-        // Runs for a total of 6.5 seconds, so should log once (when RateEstimator catches up) + 6
-        // more times (after 1 second each).
-        verify(mNotificationManager.mBackendService, times(7)).incrementCounter(
-                eq("notifications.value_client_throttled_notify_update"));
+        assertSlogContains("Shedding notify \\(update\\) of .*, rate limit \\(.*\\) exceeded", 7);
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY,
-            Flags.FLAG_NM_BINDER_PERF_LOG_NM_THROTTLING})
+    @EnableFlags({Flags.FLAG_NM_BINDER_PERF_THROTTLE_NOTIFY})
     public void cancel_unnecessaryAndRapid_logsOncePerSecond() throws Exception {
+        clearSlog();
+
         for (int i = 0; i < 650; i++) {
             mNotificationManager.cancel(1);
             mClock.advanceByMillis(10);
@@ -292,8 +372,7 @@ public class NotificationManagerTest {
 
         // Runs for a total of 6.5 seconds, so should log once (when RateEstimator catches up) + 6
         // more times (after 1 second each).
-        verify(mNotificationManager.mBackendService, times(7)).incrementCounter(
-                eq("notifications.value_client_throttled_cancel_duplicate"));
+        assertSlogContains("Shedding cancel \\(dupe\\) of .*, rate limit \\(.*\\) exceeded", 7);
     }
 
     @Test
@@ -590,7 +669,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI)
     public void areAutomaticZenRulesUserManaged_handheld_isTrue() {
         PackageManager pm = mock(PackageManager.class);
         when(pm.hasSystemFeature(any())).thenReturn(false);
@@ -600,7 +678,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI)
     public void areAutomaticZenRulesUserManaged_auto_isFalse() {
         PackageManager pm = mock(PackageManager.class);
         when(pm.hasSystemFeature(eq(PackageManager.FEATURE_AUTOMOTIVE))).thenReturn(true);
@@ -610,7 +687,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI)
     public void areAutomaticZenRulesUserManaged_tv_isFalse() {
         PackageManager pm = mock(PackageManager.class);
         when(pm.hasSystemFeature(eq(PackageManager.FEATURE_LEANBACK))).thenReturn(true);
@@ -620,7 +696,6 @@ public class NotificationManagerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI)
     public void areAutomaticZenRulesUserManaged_watch_isFalse() {
         PackageManager pm = mock(PackageManager.class);
         when(pm.hasSystemFeature(eq(PackageManager.FEATURE_WATCH))).thenReturn(true);
@@ -719,6 +794,38 @@ public class NotificationManagerTest {
 
         private void advanceByMillis(long millis) {
             mNowMillis += millis;
+        }
+    }
+
+    private void clearSlog() throws Exception {
+        try (ParcelFileDescriptor unused = mUiAutomation.executeShellCommand("logcat -c")) {
+            Thread.sleep(500); // Give logcat time to settle.
+        }
+    }
+
+    private void assertSlogContains(String entry, int times) throws Exception {
+        Thread.sleep(500); // Give logcat time to settle.
+        String logcat = readSlog();
+        Matcher matcher = Pattern.compile(entry).matcher(logcat);
+        assertWithMessage("Checking output " + logcat + " for occurrences of " + entry)
+                .that(matcher.results().toList()).hasSize(times);
+    }
+
+    private String readSlog() throws IOException {
+        // Dumps the system (Slog) log (-d), filters for our specific tag at Warning level (W),
+        // and silences all other tags (*:S).
+        String command = "logcat -d -b system NotificationManager:W *:S";
+        try (ParcelFileDescriptor pfd = mUiAutomation.executeShellCommand(command)) {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(
+                            new ParcelFileDescriptor.AutoCloseInputStream(pfd)))) {
+                StringBuilder logBuilder = new StringBuilder();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    logBuilder.append(line).append("\n");
+                }
+                return logBuilder.toString();
+            }
         }
     }
 }

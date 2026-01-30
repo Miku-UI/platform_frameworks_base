@@ -24,6 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
+import android.app.timezonedetector.TelephonySignal;
 import android.os.ShellCommand;
 import android.platform.test.annotations.Presubmit;
 
@@ -35,6 +36,7 @@ import org.junit.runner.RunWith;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.Set;
 
 @RunWith(AndroidJUnit4.class)
 @SmallTest
@@ -134,6 +136,39 @@ public class TelephonyTimeZoneSuggestionTest {
             two.addDebugInfo("Debug info 2");
             assertEquals(one, two);
         }
+
+        TelephonySignal signal1 = new TelephonySignal("310", null, "us", Set.of("us"), null);
+        builder1.setTelephonySignal(signal1);
+        {
+            TelephonyTimeZoneSuggestion one = builder1.build();
+            TelephonyTimeZoneSuggestion two = builder2.build();
+            assertNotEquals(one, two);
+        }
+
+        TelephonySignal signal2 = new TelephonySignal("310", null, "us", Set.of("us"), null);
+        builder2.setTelephonySignal(signal2);
+        {
+            TelephonyTimeZoneSuggestion one = builder1.build();
+            TelephonyTimeZoneSuggestion two = builder2.build();
+            assertEquals(one, two);
+        }
+
+        // DebugInfo must not be considered in equals().
+        {
+            TelephonyTimeZoneSuggestion one = builder1.build();
+            TelephonyTimeZoneSuggestion two = builder2.build();
+            one.addDebugInfo("Debug info 1");
+            two.addDebugInfo("Debug info 2");
+            assertEquals(one, two);
+        }
+
+        TelephonySignal signal3 = new TelephonySignal("310", "780", "us", Set.of("us"), null);
+        builder2.setTelephonySignal(signal3);
+        {
+            TelephonyTimeZoneSuggestion one = builder1.build();
+            TelephonyTimeZoneSuggestion two = builder2.build();
+            assertNotEquals(one, two);
+        }
     }
 
     @Test(expected = RuntimeException.class)
@@ -165,6 +200,12 @@ public class TelephonyTimeZoneSuggestionTest {
         builder.setQuality(TelephonyTimeZoneSuggestion.QUALITY_SINGLE_ZONE);
         TelephonyTimeZoneSuggestion suggestion1 = builder.build();
         assertRoundTripParcelable(suggestion1);
+
+        TelephonySignal signal = new TelephonySignal("310", null, "us", Set.of("us"), null);
+        builder.setTelephonySignal(signal);
+        TelephonyTimeZoneSuggestion suggestion2 = builder.build();
+        assertRoundTripParcelable(suggestion2);
+        assertEquals(signal, suggestion2.getTelephonySignal());
 
         // DebugInfo should also be stored (but is not checked by equals()
         String debugString = "This is debug info";

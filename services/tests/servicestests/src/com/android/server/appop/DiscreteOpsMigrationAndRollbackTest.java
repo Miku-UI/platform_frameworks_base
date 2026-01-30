@@ -43,15 +43,17 @@ import java.util.List;
 public class DiscreteOpsMigrationAndRollbackTest {
     private final Context mContext =
             InstrumentationRegistry.getInstrumentation().getTargetContext();
-    private static final String DATABASE_NAME = "test_app_ops.db";
-    private static final int RECORD_COUNT = 500;
+    private static final String DISCRETE_OPS_DB_NAME = "test_app_ops.db";
+    private static final String DISCRETE_OPS_UNIFIED_SCHEMA_DB_NAME = "test_app_ops2.db";
     private final File mMockDataDirectory = mContext.getDir("mock_data", Context.MODE_PRIVATE);
+    private static final int RECORD_COUNT = 500;
     final Object mLock = new Object();
 
     @After
     @Before
     public void clean() {
-        mContext.deleteDatabase(DATABASE_NAME);
+        mContext.deleteDatabase(DISCRETE_OPS_DB_NAME);
+        mContext.deleteDatabase(DISCRETE_OPS_UNIFIED_SCHEMA_DB_NAME);
         FileUtils.deleteContents(mMockDataDirectory);
     }
 
@@ -76,11 +78,11 @@ public class DiscreteOpsMigrationAndRollbackTest {
         assertThat(xmlRegistry.readLargestChainIdFromDiskLocked()).isEqualTo(RECORD_COUNT);
         assertThat(xmlRegistry.getAllDiscreteOps().mUids.size()).isEqualTo(RECORD_COUNT);
 
-        // migration to sql registry
+        // migration to sqlite registry
         DiscreteOpsSqlRegistry sqlRegistry = new DiscreteOpsSqlRegistry(mContext,
-                mContext.getDatabasePath(DATABASE_NAME));
+                mContext.getDatabasePath(DISCRETE_OPS_DB_NAME));
         sqlRegistry.systemReady();
-        DiscreteOpsMigrationHelper.migrateDiscreteOpsToSqlite(xmlRegistry, sqlRegistry);
+        DiscreteOpsMigrationHelper.migrateFromXmlToSqlite(xmlRegistry, sqlRegistry);
         List<DiscreteOpsSqlRegistry.DiscreteOp> sqlOps = sqlRegistry.getAllDiscreteOps();
 
         assertThat(xmlRegistry.getAllDiscreteOps().mUids).isEmpty();
@@ -89,10 +91,10 @@ public class DiscreteOpsMigrationAndRollbackTest {
     }
 
     @Test
-    public void migrateFromSqliteToXml() {
-        // write to sql registry
+    public void rollbackFromSqliteToXml() {
+        // write to sqlite registry
         DiscreteOpsSqlRegistry sqlRegistry = new DiscreteOpsSqlRegistry(mContext,
-                mContext.getDatabasePath(DATABASE_NAME));
+                mContext.getDatabasePath(DISCRETE_OPS_DB_NAME));
         sqlRegistry.systemReady();
         for (int i = 1; i <= RECORD_COUNT; i++) {
             DiscreteOpsSqlRegistry.DiscreteOp opEvent =
@@ -111,13 +113,153 @@ public class DiscreteOpsMigrationAndRollbackTest {
         assertThat(sqlRegistry.getAllDiscreteOps().size()).isEqualTo(RECORD_COUNT);
         assertThat(sqlRegistry.getLargestAttributionChainId()).isEqualTo(RECORD_COUNT);
 
-        // migration to xml registry
+        // rollback to xml registry
         DiscreteOpsXmlRegistry xmlRegistry = new DiscreteOpsXmlRegistry(mLock, mMockDataDirectory);
         xmlRegistry.systemReady();
-        DiscreteOpsMigrationHelper.migrateDiscreteOpsToXml(sqlRegistry, xmlRegistry);
+        DiscreteOpsMigrationHelper.rollbackFromSqliteToXml(sqlRegistry, xmlRegistry);
         DiscreteOpsXmlRegistry.DiscreteOps xmlOps = xmlRegistry.getAllDiscreteOps();
 
         assertThat(sqlRegistry.getAllDiscreteOps()).isEmpty();
+        assertThat(xmlOps.mLargestChainId).isEqualTo(RECORD_COUNT);
+        assertThat(xmlOps.mUids.size()).isEqualTo(RECORD_COUNT);
+    }
+
+    @Test
+    public void migrateFromSqliteToUnifiedSchemaSqlite() {
+        // write to sqlite registry
+        DiscreteOpsSqlRegistry sqlRegistry = new DiscreteOpsSqlRegistry(mContext,
+                mContext.getDatabasePath(DISCRETE_OPS_DB_NAME));
+        sqlRegistry.systemReady();
+        for (int i = 1; i <= RECORD_COUNT; i++) {
+            DiscreteOpsSqlRegistry.DiscreteOp opEvent =
+                    new DiscreteOpBuilder(mContext)
+                            .setChainId(i)
+                            .setUid(RECORD_COUNT + i) // make all records unique
+                            .build();
+            sqlRegistry.recordDiscreteAccess(opEvent.getUid(), opEvent.getPackageName(),
+                    opEvent.getDeviceId(), opEvent.getOpCode(), opEvent.getAttributionTag(),
+                    opEvent.getOpFlags(), opEvent.getUidState(), opEvent.getAccessTime(),
+                    opEvent.getDuration(), opEvent.getAttributionFlags(),
+                    (int) opEvent.getChainId());
+        }
+        // flush records from cache to the database.
+        sqlRegistry.shutdown();
+        assertThat(sqlRegistry.getAllDiscreteOps().size()).isEqualTo(RECORD_COUNT);
+        assertThat(sqlRegistry.getLargestAttributionChainId()).isEqualTo(RECORD_COUNT);
+
+        // migration to unified schema sqlite registry
+        AppOpHistoryHelper appOpHistoryHelper = new AppOpHistoryHelper(mContext,
+                mContext.getDatabasePath(DISCRETE_OPS_UNIFIED_SCHEMA_DB_NAME),
+                HistoricalRegistry.AggregationTimeWindow.SHORT, 1);
+        appOpHistoryHelper.systemReady(
+                Duration.ofMinutes(1).toMillis(), Duration.ofDays(7).toMillis());
+        DiscreteOpsMigrationHelper.migrateFromSqliteToUnifiedSchemaSqlite(
+                sqlRegistry, appOpHistoryHelper);
+        List<AggregatedAppOpAccessEvent> appOps = appOpHistoryHelper.getAppOpHistory();
+
+        assertThat(sqlRegistry.getAllDiscreteOps()).isEmpty();
+        assertThat(appOps.size()).isEqualTo(RECORD_COUNT);
+        assertThat(appOpHistoryHelper.getLargestAttributionChainId()).isEqualTo(RECORD_COUNT);
+    }
+
+    @Test
+    public void rollbackFromUnifiedSchemaSqliteToSqlite() {
+        // write to unified schema sqlite registry
+        AppOpHistoryHelper appOpHistoryHelper = new AppOpHistoryHelper(mContext,
+                mContext.getDatabasePath(DISCRETE_OPS_UNIFIED_SCHEMA_DB_NAME),
+                HistoricalRegistry.AggregationTimeWindow.SHORT, 1);
+        appOpHistoryHelper.systemReady(Duration.ofMinutes(1).toMillis(),
+                Duration.ofDays(7).toMillis());
+        for (int i = 1; i <= RECORD_COUNT; i++) {
+            appOpHistoryHelper.incrementOpAccessedCount(AppOpsManager.OP_COARSE_LOCATION,
+                    RECORD_COUNT + i, mContext.getPackageName(),
+                    VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,  null,
+                    UID_STATE_FOREGROUND, AppOpsManager.OP_FLAG_SELF, System.currentTimeMillis(),
+                    ATTRIBUTION_FLAG_ACCESSOR, i, 1, false);
+        }
+        // flush records from cache to the database.
+        appOpHistoryHelper.persistPendingHistory();
+        assertThat(appOpHistoryHelper.getAppOpHistory().size()).isEqualTo(RECORD_COUNT);
+        assertThat(appOpHistoryHelper.getLargestAttributionChainId()).isEqualTo(RECORD_COUNT);
+
+        // now rollback to sql registry
+        DiscreteOpsSqlRegistry sqlRegistry = new DiscreteOpsSqlRegistry(mContext,
+                mContext.getDatabasePath(DISCRETE_OPS_DB_NAME));
+        sqlRegistry.systemReady();
+        DiscreteOpsMigrationHelper.rollbackFromUnifiedSchemaSqliteToSqlite(
+                appOpHistoryHelper, sqlRegistry);
+        List<DiscreteOpsSqlRegistry.DiscreteOp> sqlOps = sqlRegistry.getAllDiscreteOps();
+
+        assertThat(appOpHistoryHelper.getAppOpHistory()).isEmpty();
+        assertThat(sqlOps.size()).isEqualTo(RECORD_COUNT);
+        assertThat(sqlRegistry.getLargestAttributionChainId()).isEqualTo(RECORD_COUNT);
+    }
+
+    @Test
+    public void migrateFromXmlToUnifiedSchemaSqlite() {
+        // write records to xml registry
+        DiscreteOpsXmlRegistry xmlRegistry = new DiscreteOpsXmlRegistry(mLock, mMockDataDirectory);
+        xmlRegistry.systemReady();
+        for (int i = 1; i <= RECORD_COUNT; i++) {
+            DiscreteOpsSqlRegistry.DiscreteOp opEvent =
+                    new DiscreteOpBuilder(mContext)
+                            .setChainId(i)
+                            .setUid(10000 + i) // make all records unique
+                            .build();
+            xmlRegistry.recordDiscreteAccess(opEvent.getUid(), opEvent.getPackageName(),
+                    opEvent.getDeviceId(), opEvent.getOpCode(), opEvent.getAttributionTag(),
+                    opEvent.getOpFlags(), opEvent.getUidState(), opEvent.getAccessTime(),
+                    opEvent.getDuration(), opEvent.getAttributionFlags(),
+                    (int) opEvent.getChainId());
+        }
+        xmlRegistry.writeAndClearOldAccessHistory();
+        assertThat(xmlRegistry.readLargestChainIdFromDiskLocked()).isEqualTo(RECORD_COUNT);
+        assertThat(xmlRegistry.getAllDiscreteOps().mUids.size()).isEqualTo(RECORD_COUNT);
+
+        // migration to unified schema sqlite registry
+        AppOpHistoryHelper appOpHistoryHelper = new AppOpHistoryHelper(mContext,
+                mContext.getDatabasePath(DISCRETE_OPS_UNIFIED_SCHEMA_DB_NAME),
+                HistoricalRegistry.AggregationTimeWindow.SHORT, 1);
+        appOpHistoryHelper.systemReady(Duration.ofMinutes(1).toMillis(),
+                Duration.ofDays(7).toMillis());
+        DiscreteOpsMigrationHelper.migrateFromXmlToUnifiedSchemaSqlite(
+                xmlRegistry, appOpHistoryHelper);
+
+        List<AggregatedAppOpAccessEvent> appops = appOpHistoryHelper.getAppOpHistory();
+
+        assertThat(xmlRegistry.getAllDiscreteOps().mUids).isEmpty();
+        assertThat(appops.size()).isEqualTo(RECORD_COUNT);
+        assertThat(appOpHistoryHelper.getLargestAttributionChainId()).isEqualTo(RECORD_COUNT);
+    }
+
+    @Test
+    public void rollbackFromUnifiedSchemaSqliteToXml() {
+        // write to unified schema sqlite registry
+        AppOpHistoryHelper appOpHistoryHelper = new AppOpHistoryHelper(mContext,
+                mContext.getDatabasePath(DISCRETE_OPS_UNIFIED_SCHEMA_DB_NAME),
+                HistoricalRegistry.AggregationTimeWindow.SHORT, 1);
+        appOpHistoryHelper.systemReady(Duration.ofMinutes(1).toMillis(),
+                Duration.ofDays(7).toMillis());
+        for (int i = 1; i <= RECORD_COUNT; i++) {
+            appOpHistoryHelper.incrementOpAccessedCount(AppOpsManager.OP_COARSE_LOCATION,
+                    RECORD_COUNT + i, mContext.getPackageName(),
+                    VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,  null,
+                    UID_STATE_FOREGROUND, AppOpsManager.OP_FLAG_SELF, System.currentTimeMillis(),
+                    ATTRIBUTION_FLAG_ACCESSOR, i, 1, false);
+        }
+        // flush records from cache to the database.
+        appOpHistoryHelper.persistPendingHistory();
+        assertThat(appOpHistoryHelper.getAppOpHistory().size()).isEqualTo(RECORD_COUNT);
+        assertThat(appOpHistoryHelper.getLargestAttributionChainId()).isEqualTo(RECORD_COUNT);
+
+        // now rollback to xml registry
+        DiscreteOpsXmlRegistry xmlRegistry = new DiscreteOpsXmlRegistry(mLock, mMockDataDirectory);
+        xmlRegistry.systemReady();
+        DiscreteOpsMigrationHelper.rollbackFromUnifiedSchemaSqliteToXml(
+                appOpHistoryHelper, xmlRegistry);
+        DiscreteOpsXmlRegistry.DiscreteOps xmlOps = xmlRegistry.getAllDiscreteOps();
+
+        assertThat(appOpHistoryHelper.getAppOpHistory()).isEmpty();
         assertThat(xmlOps.mLargestChainId).isEqualTo(RECORD_COUNT);
         assertThat(xmlOps.mUids.size()).isEqualTo(RECORD_COUNT);
     }

@@ -19,9 +19,9 @@ package com.android.systemui.keyguard.domain.interactor
 import android.media.AudioManager
 import android.view.KeyEvent
 import com.android.settingslib.volume.data.repository.AudioRepository
-import com.android.systemui.bouncer.shared.flag.ComposeBouncerFlags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.lifecycle.ExclusiveActivatable
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.telephony.domain.interactor.TelephonyInteractor
 import javax.inject.Inject
 
@@ -42,7 +42,7 @@ constructor(
      * @return whether the event was consumed as a media key.
      */
     fun processMediaKeyEvent(event: KeyEvent): Boolean {
-        if (ComposeBouncerFlags.isUnexpectedlyInLegacyMode()) {
+        if (SceneContainerFlag.isUnexpectedlyInLegacyMode()) {
             return false
         }
         val keyCode = event.keyCode

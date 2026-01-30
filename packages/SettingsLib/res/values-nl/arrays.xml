@@ -295,9 +295,9 @@
     <item msgid="7521112827893653392">"Op focus gebaseerd"</item>
   </string-array>
   <string-array name="shade_display_awareness_summaries">
-    <item msgid="2964753205732912921">"Alleen paneel tonen op apparaatscherm"</item>
+    <item msgid="2964753205732912921">"Paneel alleen tonen op apparaatscherm"</item>
     <item msgid="1955398604822147783">"Venster tonen op één extern scherm"</item>
-    <item msgid="391477482416751568">"Venster tonen op scherm waarop de laatst interactie met de statusbalk was"</item>
+    <item msgid="391477482416751568">"Toon venster op scherm met de laatste interactie met de statusbalk"</item>
     <item msgid="1746820128097981528">"Venster tonen op laatste gefocuste scherm"</item>
   </string-array>
   <string-array name="shade_display_awareness_values">

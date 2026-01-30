@@ -15,22 +15,34 @@
  */
 package android.view.contentcapture;
 
+import static android.view.contentcapture.CustomTestActivity.VIEW_TYPE_CUSTOM_VIEW;
+import static android.view.contentcapture.CustomTestActivity.VIEW_TYPE_TEXT_VIEW;
 import static com.android.compatibility.common.util.ActivitiesWatcher.ActivityLifecycle.DESTROYED;
+import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Intent;
 import android.os.RemoteCallback;
 import android.perftests.utils.BenchmarkState;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.service.contentcapture.ContentCaptureService;
 import android.view.View;
-
+import android.view.contentcapture.flags.Flags;
 import androidx.test.filters.LargeTest;
 
 import com.android.compatibility.common.util.ActivitiesWatcher.ActivityWatcher;
 import com.android.perftests.contentcapture.R;
 
+import org.junit.Assert;
+import org.junit.Rule;
 import org.junit.Test;
 
 @LargeTest
 public class LoginTest extends AbstractContentCapturePerfTestCase {
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule =
+            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Test
     public void testLaunchActivity() throws Throwable {
@@ -228,6 +240,117 @@ public class LoginTest extends AbstractContentCapturePerfTestCase {
                 view.onVisibilityAggregated(true);
                 state.pauseTiming();
             });
+            state.resumeTiming();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_EXPORT_ASSIST_VIRTUAL_NODE_TO_CCAPI)
+    public void testNotifyVirtualChildrenAppearedWithCustomView_1() throws Throwable {
+        testNumberOfTypeViewAppearedEvents(
+                R.layout.test_export_virtual_assist_node_activity,
+                /* numberOfViews= */ 1,
+                /* expectedViewAppearedCounts= */ 6,
+                VIEW_TYPE_CUSTOM_VIEW);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_EXPORT_ASSIST_VIRTUAL_NODE_TO_CCAPI)
+    public void testNotifyVirtualChildrenAppearedWithCustomView_10() throws Throwable {
+        testNumberOfTypeViewAppearedEvents(
+                R.layout.test_export_virtual_assist_node_activity,
+                /* numberOfViews= */ 10,
+                /* expectedViewAppearedCounts= */ 51,
+                VIEW_TYPE_CUSTOM_VIEW);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_EXPORT_ASSIST_VIRTUAL_NODE_TO_CCAPI)
+    public void testNotifyVirtualChildrenAppearedWithCustomView_100() throws Throwable {
+        testNumberOfTypeViewAppearedEvents(
+                R.layout.test_export_virtual_assist_node_activity,
+                /* numberOfViews= */ 100,
+                /* expectedViewAppearedCounts= */ 501,
+                VIEW_TYPE_CUSTOM_VIEW);
+    }
+
+    @Test
+    public void testWithTextView_500() throws Throwable {
+        testNumberOfTypeViewAppearedEvents(
+                R.layout.test_export_virtual_assist_node_activity,
+                /* numberOfViews= */ 500,
+                /* expectedViewAppearedCounts= */ 501,
+                VIEW_TYPE_TEXT_VIEW);
+    }
+
+    private void testNumberOfTypeViewAppearedEvents(
+            int layoutId, int numberOfViews,
+            int expectedViewAppearedCounts, int viewType) throws Throwable {
+        // Arrange
+        MyContentCaptureService service = enableService();
+        CustomTestActivity activity = launchActivity(layoutId, numberOfViews, viewType);
+        View rootView = activity.findViewById(R.id.group_root_view);
+        long eventTimeoutMs = 20000;
+        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+
+        // Act
+        while (state.keepRunning()) {
+            state.pauseTiming();
+            service.clearEvents();
+            // Trigger content capture structure provision.
+            sInstrumentation.runOnMainSync(() -> rootView.setVisibility(View.GONE));
+            sInstrumentation.waitForIdleSync();
+            state.resumeTiming();
+            sInstrumentation.runOnMainSync(() -> rootView.setVisibility(View.VISIBLE));
+            sInstrumentation.waitForIdleSync();
+            state.pauseTiming();
+            service.waitForAppearedEvents(expectedViewAppearedCounts, eventTimeoutMs);
+
+            // Assert
+            Assert.assertEquals("Expected " + expectedViewAppearedCounts
+                            + " TYPE_VIEW_APPEARED events", expectedViewAppearedCounts,
+                    service.getAppearedCount());
+            state.resumeTiming();
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_REDUCE_BINDER_TRANSACTION_ENABLED)
+    public void testBatchFlushMetrics_flagEnabled() throws Throwable {
+        // Arrange
+        MyContentCaptureService service = enableService();
+        CustomTestActivity activity =
+                launchActivity(
+                        R.layout.test_export_virtual_assist_node_activity, 3, VIEW_TYPE_TEXT_VIEW);
+        View groupRootView = activity.findViewById(R.id.group_root_view);
+        int sessionId = groupRootView.getContentCaptureSession().getId();
+        int expectedFlushCount = 2;
+        int expectedViewAppearedCount = 4;  // 3 TextViews + 1 container
+        int eventTimeoutMs = 10000;
+        BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+
+        // Act
+        while (state.keepRunning()) {
+            state.pauseTiming();
+            service.clearEvents();
+            ContentCaptureService.PendingMetrics pendingMetrics =
+                    service.mPendingMetrics.get(sessionId);
+            if (pendingMetrics != null) {
+                pendingMetrics.getMetrics().reset();
+            }
+            sInstrumentation.runOnMainSync(() -> groupRootView.setVisibility(View.GONE));
+            sInstrumentation.waitForIdleSync();
+            state.resumeTiming();
+
+            sInstrumentation.runOnMainSync(() -> groupRootView.setVisibility(View.VISIBLE));
+            sInstrumentation.waitForIdleSync();
+            state.pauseTiming();
+            service.waitForFlushEvents(expectedFlushCount, eventTimeoutMs);
+
+            // Assert
+            assertThat(service.getAppearedCount()).isEqualTo(expectedViewAppearedCount);
+            assertThat(service.mPendingMetrics.get(sessionId).getMetrics().viewAppearedCount)
+                    .isEqualTo(expectedViewAppearedCount);
             state.resumeTiming();
         }
     }

@@ -16,6 +16,7 @@
 
 package com.android.server.wm;
 
+import android.annotation.NonNull;
 import android.content.res.Configuration;
 
 /**
@@ -24,8 +25,12 @@ import android.content.res.Configuration;
 public interface ConfigurationContainerListener {
 
     /** @see ConfigurationContainer#onRequestedOverrideConfigurationChanged */
-    default void onRequestedOverrideConfigurationChanged(Configuration overrideConfiguration) {}
+    default void onRequestedOverrideConfigurationChanged(
+            @NonNull Configuration overrideConfiguration) {
+    }
 
     /** Called when new merged override configuration is reported. */
-    default void onMergedOverrideConfigurationChanged(Configuration mergedOverrideConfiguration) {}
+    default void onMergedOverrideConfigurationChanged(
+            @NonNull Configuration mergedOverrideConfiguration) {
+    }
 }

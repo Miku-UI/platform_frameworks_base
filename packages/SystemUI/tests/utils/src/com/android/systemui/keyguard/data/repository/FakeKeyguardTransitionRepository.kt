@@ -18,7 +18,6 @@
 package com.android.systemui.keyguard.data.repository
 
 import android.annotation.FloatRange
-import com.android.systemui.Flags.transitionRaceCondition
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionInfo
@@ -33,9 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.TestScope
@@ -90,16 +87,6 @@ class FakeKeyguardTransitionRepository(
         testScope,
     )
 
-    private val _currentTransitionInfo: MutableStateFlow<TransitionInfo> =
-        MutableStateFlow(
-            TransitionInfo(
-                ownerName = "",
-                from = KeyguardState.OFF,
-                to = KeyguardState.LOCKSCREEN,
-                animator = null,
-            )
-        )
-    override var currentTransitionInfoInternal = _currentTransitionInfo.asStateFlow()
     override var currentTransitionInfo =
         TransitionInfo(
             ownerName = "",
@@ -315,13 +302,8 @@ class FakeKeyguardTransitionRepository(
         validateStep: Boolean = true,
     ) {
         if (step.transitionState == TransitionState.STARTED) {
-            if (transitionRaceCondition()) {
-                currentTransitionInfo =
-                    TransitionInfo(from = step.from, to = step.to, animator = null, ownerName = "")
-            } else {
-                _currentTransitionInfo.value =
-                    TransitionInfo(from = step.from, to = step.to, animator = null, ownerName = "")
-            }
+            currentTransitionInfo =
+                TransitionInfo(from = step.from, to = step.to, animator = null, ownerName = "")
         }
 
         _transitions.replayCache.last().let { lastStep ->
@@ -367,12 +349,7 @@ class FakeKeyguardTransitionRepository(
     }
 
     override suspend fun startTransition(info: TransitionInfo): UUID? {
-        if (transitionRaceCondition()) {
-            currentTransitionInfo = info
-        } else {
-            _currentTransitionInfo.value = info
-        }
-
+        currentTransitionInfo = info
         if (sendTransitionStepsOnStartTransition) {
             sendTransitionSteps(from = info.from, to = info.to, testScope = testScope)
         }
@@ -415,11 +392,11 @@ class FakeKeyguardTransitionRepository(
     override suspend fun forceFinishCurrentTransition() {
         _transitions.tryEmit(
             TransitionStep(
-                _currentTransitionInfo.value.from,
-                _currentTransitionInfo.value.to,
+                currentTransitionInfo.from,
+                currentTransitionInfo.to,
                 1f,
                 TransitionState.FINISHED,
-                ownerName = _currentTransitionInfo.value.ownerName,
+                ownerName = currentTransitionInfo.ownerName,
             )
         )
     }

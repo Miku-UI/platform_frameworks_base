@@ -20,7 +20,9 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.os.Parcel
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState
+import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.UNKNOWN_CHANNEL
 import com.android.settingslib.bluetooth.PrivateBroadcastReceiveData.Companion.isValid
+import java.util.HashSet
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -38,7 +40,8 @@ class PrivateBroadcastReceiveDataTest {
             sourceId = 1,
             broadcastId = 2,
             programInfo = "Test Program",
-            state = LocalBluetoothLeBroadcastSourceState.STREAMING
+            state = LocalBluetoothLeBroadcastSourceState.STREAMING,
+            selectedChannelIndex = UNKNOWN_CHANNEL
         )
 
         val parcel = Parcel.obtain()
@@ -56,7 +59,8 @@ class PrivateBroadcastReceiveDataTest {
             sink = sink,
             sourceId = 1,
             broadcastId = 2,
-            state = LocalBluetoothLeBroadcastSourceState.STREAMING
+            state = LocalBluetoothLeBroadcastSourceState.STREAMING,
+            selectedChannelIndex = HashSet.newHashSet(1)
         )
         assertTrue(data.isValid())
     }
@@ -67,7 +71,8 @@ class PrivateBroadcastReceiveDataTest {
             sink = null,
             sourceId = 1,
             broadcastId = 2,
-            state = LocalBluetoothLeBroadcastSourceState.STREAMING
+            state = LocalBluetoothLeBroadcastSourceState.STREAMING,
+            selectedChannelIndex = HashSet.newHashSet(1)
         )
         assertFalse(data.isValid())
     }
@@ -78,7 +83,8 @@ class PrivateBroadcastReceiveDataTest {
             sink = sink,
             sourceId = -1,
             broadcastId = 2,
-            state = LocalBluetoothLeBroadcastSourceState.STREAMING
+            state = LocalBluetoothLeBroadcastSourceState.STREAMING,
+            selectedChannelIndex = HashSet.newHashSet(1)
         )
         assertFalse(data.isValid())
     }
@@ -89,7 +95,8 @@ class PrivateBroadcastReceiveDataTest {
             sink = sink,
             sourceId = 1,
             broadcastId = -1,
-            state = LocalBluetoothLeBroadcastSourceState.STREAMING
+            state = LocalBluetoothLeBroadcastSourceState.STREAMING,
+            selectedChannelIndex = HashSet.newHashSet(1)
         )
         assertFalse(data.isValid())
     }
@@ -100,7 +107,8 @@ class PrivateBroadcastReceiveDataTest {
             sink = sink,
             sourceId = 1,
             broadcastId = 2,
-            state = null
+            state = null,
+            selectedChannelIndex = HashSet.newHashSet(1)
         )
         assertFalse(data.isValid())
     }
@@ -110,6 +118,7 @@ class PrivateBroadcastReceiveDataTest {
         assertTrue(PrivateBroadcastReceiveData(sink, 1, 1, state = LocalBluetoothLeBroadcastSourceState.STREAMING).isValid())
         assertTrue(PrivateBroadcastReceiveData(sink, 1, 1, state = LocalBluetoothLeBroadcastSourceState.PAUSED).isValid())
         assertTrue(PrivateBroadcastReceiveData(sink, 1, 1, state = LocalBluetoothLeBroadcastSourceState.DECRYPTION_FAILED).isValid())
+        assertTrue(PrivateBroadcastReceiveData(sink, 1, 1, state = LocalBluetoothLeBroadcastSourceState.PAUSED_BY_RECEIVER).isValid())
     }
 
     private companion object {

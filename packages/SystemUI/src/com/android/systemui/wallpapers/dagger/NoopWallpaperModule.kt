@@ -17,14 +17,32 @@
 package com.android.systemui.wallpapers.dagger
 
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.wallpapers.WallpaperPresentationEnabled
 import com.android.systemui.wallpapers.data.repository.NoopWallpaperRepository
 import com.android.systemui.wallpapers.data.repository.WallpaperRepository
+import com.android.systemui.wallpapers.domain.interactor.DisplayWallpaperPresentationInteractor.WallpaperPresentationType
+import com.android.systemui.wallpapers.ui.presentation.WallpaperPresentationFactory
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
+import dagger.multibindings.Multibinds
 
 @Module
 interface NoopWallpaperModule {
     @Binds
     @SysUISingleton
     fun bindWallpaperRepository(impl: NoopWallpaperRepository): WallpaperRepository
+
+    @Multibinds
+    fun bindWallpaperPresentationFactories():
+        Map<
+            @JvmSuppressWildcards
+            WallpaperPresentationType,
+            @JvmSuppressWildcards
+            WallpaperPresentationFactory,
+        >
+
+    companion object {
+        @Provides @WallpaperPresentationEnabled fun providesWallpaperPresentationEnabled() = false
+    }
 }

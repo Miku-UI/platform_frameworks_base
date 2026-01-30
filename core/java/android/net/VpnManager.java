@@ -16,6 +16,7 @@
 
 package android.net;
 
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
 import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
 
 import static com.android.internal.util.Preconditions.checkNotNull;
@@ -25,6 +26,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SdkConstant;
 import android.annotation.SystemApi;
 import android.annotation.UserIdInt;
@@ -34,6 +36,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.net.platform.flags.Flags;
+import android.os.Build;
 import android.os.RemoteException;
 
 import com.android.internal.net.LegacyVpnInfo;
@@ -60,6 +63,8 @@ import java.util.List;
  *
  * @see Ikev2VpnProfile
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 public class VpnManager {
     /** Type representing a lack of VPN @hide */
     @SystemApi(client = MODULE_LIBRARIES)

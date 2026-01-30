@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.chips.notification.domain.interactor
 
 import android.annotation.SuppressLint
+import android.app.Flags
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
@@ -26,9 +27,9 @@ import com.android.systemui.log.core.Logger
 import com.android.systemui.statusbar.chips.StatusBarChipLogTags.pad
 import com.android.systemui.statusbar.chips.StatusBarChipsLog
 import com.android.systemui.statusbar.chips.notification.domain.model.NotificationChipModel
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor.Companion.isOngoingCallNotification
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.util.kotlin.pairwise
 import com.android.systemui.util.time.SystemClock
 import javax.inject.Inject
@@ -75,7 +76,7 @@ constructor(
         _promotedNotificationChipTapEvent.asSharedFlow()
 
     suspend fun onPromotedNotificationChipTapped(key: String) {
-        StatusBarNotifChips.unsafeAssertInNewMode()
+        PromotedNotificationUi.unsafeAssertInNewMode()
         _promotedNotificationChipTapEvent.emit(key)
     }
 
@@ -95,19 +96,12 @@ constructor(
 
     /**
      * The notifications that are promoted and ongoing.
-     *
-     * Explicitly does *not* include any ongoing call notifications, even if the call notifications
-     * meet the promotion criteria. Those call notifications will be handled by
-     * [com.android.systemui.statusbar.chips.call.domain.CallChipInteractor] instead. See
-     * b/388521980.
      */
     private val promotedOngoingNotifications =
-        activeNotificationsInteractor.promotedOngoingNotifications.map { notifs ->
-            notifs.filterNot { it.isOngoingCallNotification() }
-        }
+        activeNotificationsInteractor.promotedOngoingNotifications
 
     override fun start() {
-        if (!StatusBarNotifChips.isEnabled) {
+        if (!PromotedNotificationUi.isEnabled) {
             return
         }
 
@@ -150,7 +144,7 @@ constructor(
      * hide chips that have [NotificationChipModel.isAppVisible] as true.
      */
     val allNotificationChips: Flow<List<NotificationChipModel>> =
-        if (StatusBarNotifChips.isEnabled) {
+        if (PromotedNotificationUi.isEnabled) {
                 // For all our current interactors...
                 promotedNotificationInteractors.flatMapLatest { interactors ->
                     if (interactors.isNotEmpty()) {

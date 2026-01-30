@@ -15,6 +15,7 @@
  */
 package android.content.pm;
 
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
 import static android.content.Intent.LOCAL_FLAG_FROM_SYSTEM;
 
 import android.Manifest;
@@ -22,6 +23,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
@@ -48,7 +50,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 /**
  * <p><code>ShortcutManager</code> executes operations on an app's set of <i>shortcuts</i>, which
@@ -66,6 +67,8 @@ import java.util.concurrent.ExecutionException;
  * <h3>Retrieving class instances</h3>
  * <!-- Provides a heading for the content filled in by the @SystemService annotation below -->
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @SystemService(Context.SHORTCUT_SERVICE)
 public class ShortcutManager {
     private static final String TAG = "ShortcutManager";

@@ -28,7 +28,6 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@android.platform.test.annotations.EnabledOnRavenwood
 class FoldPostureTest : SysuiTestCase() {
 
     @Test

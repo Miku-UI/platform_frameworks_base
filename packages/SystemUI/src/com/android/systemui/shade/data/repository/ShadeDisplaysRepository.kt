@@ -17,6 +17,7 @@
 package com.android.systemui.shade.data.repository
 
 import android.provider.Settings.Global.DEVELOPMENT_SHADE_DISPLAY_AWARENESS
+import android.provider.Settings.Secure.MIRROR_BUILT_IN_DISPLAY
 import android.view.Display
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -25,6 +26,7 @@ import com.android.systemui.keyguard.data.repository.KeyguardRepository
 import com.android.systemui.shade.ShadeOnDefaultDisplayWhenLocked
 import com.android.systemui.shade.display.ShadeDisplayPolicy
 import com.android.systemui.util.settings.GlobalSettings
+import com.android.systemui.util.settings.SecureSettings
 import com.android.systemui.util.settings.SettingsProxyExt.observerFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -75,7 +77,8 @@ interface MutableShadeDisplaysRepository : ShadeDisplaysRepository {
 class ShadeDisplaysRepositoryImpl
 @Inject
 constructor(
-    globalSettings: GlobalSettings,
+    private val globalSettings: GlobalSettings,
+    private val secureSettings: SecureSettings,
     defaultPolicy: ShadeDisplayPolicy,
     @Background bgScope: CoroutineScope,
     policies: Set<@JvmSuppressWildcards ShadeDisplayPolicy>,
@@ -99,12 +102,26 @@ constructor(
             .distinctUntilChanged()
             .stateIn(bgScope, SharingStarted.Eagerly, defaultPolicy)
 
+    private val mirroringEnabled: StateFlow<Boolean> =
+        secureSettings
+            .observerFlow(MIRROR_BUILT_IN_DISPLAY)
+            .map { isMirroring() }
+            .stateIn(bgScope, SharingStarted.Eagerly, isMirroring())
+
+    private fun isMirroring() = secureSettings.getInt(MIRROR_BUILT_IN_DISPLAY, default = 0) == 1
+
     private val displayIdFromPolicy: Flow<Int> =
-        policy
-            .flatMapLatest { it.displayId }
-            .combine(displayRepository.displayIds) { policyDisplayId, availableIds ->
-                if (policyDisplayId !in availableIds) Display.DEFAULT_DISPLAY else policyDisplayId
+        combine(
+            policy.flatMapLatest { it.displayId },
+            displayRepository.displayIds,
+            mirroringEnabled,
+        ) { policyDisplayId, availableIds, isMirroring ->
+            when {
+                isMirroring -> Display.DEFAULT_DISPLAY
+                policyDisplayId !in availableIds -> Display.DEFAULT_DISPLAY
+                else -> policyDisplayId
             }
+        }
 
     private val keyguardAwareDisplayPolicy: Flow<Int> =
         if (!shadeOnDefaultDisplayWhenLocked) {

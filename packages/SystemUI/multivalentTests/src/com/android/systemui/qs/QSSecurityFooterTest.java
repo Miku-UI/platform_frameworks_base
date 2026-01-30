@@ -14,9 +14,6 @@
 
 package com.android.systemui.qs;
 
-import static android.app.admin.DevicePolicyManager.DEVICE_OWNER_TYPE_DEFAULT;
-import static android.app.admin.DevicePolicyManager.DEVICE_OWNER_TYPE_FINANCED;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static junit.framework.Assert.assertEquals;
@@ -42,7 +39,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
-import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunWithLooper;
@@ -65,7 +61,11 @@ import com.android.systemui.qs.footer.domain.model.SecurityButtonConfig;
 import com.android.systemui.res.R;
 import com.android.systemui.security.data.model.SecurityModel;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.shade.domain.interactor.FakeShadeDialogContextInteractor;
+import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor;
 import com.android.systemui.statusbar.policy.SecurityController;
+import com.android.systemui.supervision.data.model.SupervisionModel;
+import com.android.systemui.supervision.data.repository.FakeSupervisionRepository;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -96,7 +96,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
     private static final String PARENTAL_CONTROLS_LABEL = "Parental Control App";
     private static final ComponentName DEVICE_OWNER_COMPONENT =
             new ComponentName("TestDPC", "Test");
-    private static final int DEFAULT_ICON_ID = R.drawable.ic_info_outline;
+    private static final int DEFAULT_ICON_ID = R.drawable.ic_qs_footer_info;
 
     private QSSecurityFooterUtils mFooterUtils;
     @Mock
@@ -109,6 +109,7 @@ public class QSSecurityFooterTest extends SysuiTestCase {
     private DialogTransitionAnimator mDialogTransitionAnimator;
     @Mock
     private BroadcastDispatcher mBroadcastDispatcher;
+    private ShadeDialogContextInteractor mShadeDialogContextInteractor;
 
     private TestableLooper mTestableLooper;
 
@@ -117,29 +118,28 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         MockitoAnnotations.initMocks(this);
         mTestableLooper = TestableLooper.get(this);
         Looper looper = mTestableLooper.getLooper();
+        mShadeDialogContextInteractor = new FakeShadeDialogContextInteractor(mContext);
         Handler mainHandler = new Handler(looper);
-        // TODO(b/259908270): remove
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_DEVICE_POLICY_MANAGER,
-                DevicePolicyManager.ADD_ISFINANCED_DEVICE_FLAG, "true",
-                /* makeDefault= */ false);
         when(mUserTracker.getUserInfo()).thenReturn(mock(UserInfo.class));
         mFooterUtils = new QSSecurityFooterUtils(getContext(),
                 getContext().getSystemService(DevicePolicyManager.class), mUserTracker,
                 mainHandler, mActivityStarter, mSecurityController, looper,
-                mDialogTransitionAnimator);
+                mDialogTransitionAnimator, mShadeDialogContextInteractor);
 
         when(mSecurityController.getDeviceOwnerComponentOnAnyUser())
                 .thenReturn(DEVICE_OWNER_COMPONENT);
         when(mSecurityController.isFinancedDevice()).thenReturn(false);
-        // TODO(b/259908270): remove
-        when(mSecurityController.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_DEFAULT);
     }
 
     @Nullable
     private SecurityButtonConfig getButtonConfig() {
+        return getButtonConfig(null);
+    }
+
+    @Nullable
+    private SecurityButtonConfig getButtonConfig(@Nullable SupervisionModel supervisionModel) {
         SecurityModel securityModel = SecurityModel.create(mSecurityController);
-        return mFooterUtils.getButtonConfig(securityModel);
+        return mFooterUtils.getButtonConfig(securityModel, supervisionModel);
     }
 
     private void assertIsDefaultIcon(Icon icon) {
@@ -148,12 +148,12 @@ public class QSSecurityFooterTest extends SysuiTestCase {
 
     private void assertIsIconResource(Icon icon, @IdRes int res) {
         assertThat(icon).isInstanceOf(Icon.Resource.class);
-        assertEquals(res, ((Icon.Resource) icon).getRes());
+        assertThat(res).isEqualTo(icon.getResId());
     }
 
     private void assertIsIconDrawable(Icon icon, Drawable drawable) {
         assertThat(icon).isInstanceOf(Icon.Loaded.class);
-        assertEquals(drawable, ((Icon.Loaded) icon).getDrawable());
+        assertThat(drawable).isEqualTo(((Icon.Loaded) icon).getDrawable());
     }
 
     @Test
@@ -195,9 +195,6 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         when(mSecurityController.getDeviceOwnerOrganizationName())
                 .thenReturn(MANAGING_ORGANIZATION);
         when(mSecurityController.isFinancedDevice()).thenReturn(true);
-        // TODO(b/259908270): remove
-        when(mSecurityController.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_FINANCED);
 
         SecurityButtonConfig buttonConfig = getButtonConfig();
         assertNotNull(buttonConfig);
@@ -508,9 +505,6 @@ public class QSSecurityFooterTest extends SysuiTestCase {
     public void testGetManagementTitleForFinancedDevice() {
         when(mSecurityController.isDeviceManaged()).thenReturn(true);
         when(mSecurityController.isFinancedDevice()).thenReturn(true);
-        // TODO(b/259908270): remove
-        when(mSecurityController.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_FINANCED);
 
         assertEquals(mContext.getString(R.string.monitoring_title_financed_device,
                 MANAGING_ORGANIZATION),
@@ -539,9 +533,6 @@ public class QSSecurityFooterTest extends SysuiTestCase {
     public void testGetManagementMessage_deviceOwner_asFinancedDevice() {
         when(mSecurityController.isDeviceManaged()).thenReturn(true);
         when(mSecurityController.isFinancedDevice()).thenReturn(true);
-        // TODO(b/259908270): remove
-        when(mSecurityController.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_FINANCED);
 
         assertEquals(mContext.getString(R.string.monitoring_financed_description_named_management,
                 MANAGING_ORGANIZATION, MANAGING_ORGANIZATION),
@@ -670,7 +661,8 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         // We use the default icon when there is no admin icon.
         when(mSecurityController.getIcon(any())).thenReturn(null);
         SecurityButtonConfig buttonConfig = getButtonConfig();
-        assertEquals(mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+        assertEquals(
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
                 buttonConfig.getText());
         assertIsDefaultIcon(buttonConfig.getIcon());
 
@@ -679,7 +671,8 @@ public class QSSecurityFooterTest extends SysuiTestCase {
 
         buttonConfig = getButtonConfig();
         assertNotNull(buttonConfig);
-        assertEquals(mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+        assertEquals(
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
                 buttonConfig.getText());
         assertIsIconDrawable(buttonConfig.getIcon(), testDrawable);
 
@@ -700,7 +693,8 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         // We use the default icon when there is no admin icon.
         when(mSecurityController.getIcon()).thenReturn(null);
         SecurityButtonConfig buttonConfig = getButtonConfig();
-        assertEquals(mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+        assertEquals(
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
                 buttonConfig.getText());
         assertIsDefaultIcon(buttonConfig.getIcon());
 
@@ -709,7 +703,8 @@ public class QSSecurityFooterTest extends SysuiTestCase {
 
         buttonConfig = getButtonConfig();
         assertNotNull(buttonConfig);
-        assertEquals(mContext.getString(R.string.quick_settings_disclosure_parental_controls),
+        assertEquals(
+                mContext.getString(R.string.quick_settings_disclosure_parental_controls),
                 buttonConfig.getText());
         assertIsIconDrawable(buttonConfig.getIcon(), testDrawable);
 
@@ -721,7 +716,65 @@ public class QSSecurityFooterTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS)
+    @EnableFlags({
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
+        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+    })
+    public void testParentalControls_newSupervisionApisGetInfoFromSupervisionModel() {
+        // Make sure the security footer is visible, so that the images are updated.
+        when(mSecurityController.isProfileOwnerOfOrganizationOwnedDevice()).thenReturn(true);
+        SupervisionModel supervisionModel =
+                new SupervisionModel(
+                        /* isSupervisionEnabled= */ true,
+                        /* label= */ null,
+                        /* icon= */ null,
+                        /* footerText= */ mContext.getString(
+                                R.string.quick_settings_disclosure_pin_protection),
+                        /* disclaimerText= */ null);
+
+        // We use the default icon when there is no admin icon.
+        SecurityButtonConfig buttonConfig = getButtonConfig(supervisionModel);
+        assertEquals(
+                mContext.getString(R.string.quick_settings_disclosure_pin_protection),
+                buttonConfig.getText());
+        assertIsDefaultIcon(buttonConfig.getIcon());
+
+        Drawable testDrawable = new VectorDrawable();
+        supervisionModel =
+                new SupervisionModel(
+                        /* isSupervisionEnabled= */ true,
+                        /* label= */ null,
+                        /* icon= */ testDrawable,
+                        /* footerText= */ mContext.getString(
+                                R.string.quick_settings_disclosure_pin_protection),
+                        /* disclaimerText= */ null);
+
+        buttonConfig = getButtonConfig(supervisionModel);
+        assertNotNull(buttonConfig);
+        assertEquals(
+                mContext.getString(R.string.quick_settings_disclosure_pin_protection),
+                buttonConfig.getText());
+        assertIsIconDrawable(buttonConfig.getIcon(), testDrawable);
+
+        // Ensure the primary icon is back to default after parental controls are gone
+        supervisionModel =
+                new SupervisionModel(
+                        /* isSupervisionEnabled= */ false,
+                        /* label= */ null,
+                        /* icon= */ testDrawable,
+                        /* footerText= */ mContext.getString(
+                                R.string.quick_settings_disclosure_pin_protection),
+                        /* disclaimerText= */ null);
+        buttonConfig = getButtonConfig(supervisionModel);
+        assertNotNull(buttonConfig);
+        assertIsDefaultIcon(buttonConfig.getIcon());
+    }
+
+    @Test
+    @DisableFlags({
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
+        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+    })
     public void testParentalControlsDialog() {
         when(mSecurityController.isParentalControlsEnabled()).thenReturn(true);
         when(mSecurityController.getLabel(any())).thenReturn(PARENTAL_CONTROLS_LABEL);
@@ -729,17 +782,56 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         View view = mFooterUtils.createDialogView(getContext());
         TextView textView = (TextView) view.findViewById(R.id.parental_controls_title);
         assertEquals(PARENTAL_CONTROLS_LABEL, textView.getText().toString());
+        TextView contentView = view.findViewById(R.id.parental_controls_warning);
+        assertEquals(
+                mContext.getString(R.string.monitoring_description_parental_controls),
+                contentView.getText().toString());
     }
 
     @Test
     @EnableFlags(android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS)
-    public void testParentalControlsDialog_newSupervisionApis() {
+    @DisableFlags(android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
+    public void testParentalControlsDialog_newSupervisionApisDefaultDisclaimerText() {
+        FakeSupervisionRepository supervisionRepository = new FakeSupervisionRepository();
+        supervisionRepository.setIsSupervisionEnabled(true);
+        supervisionRepository.setLabel(PARENTAL_CONTROLS_LABEL);
         when(mSecurityController.isParentalControlsEnabled()).thenReturn(true);
         when(mSecurityController.getLabel()).thenReturn(PARENTAL_CONTROLS_LABEL);
+        when(mSecurityController.getSupervisionModel())
+                .thenReturn(supervisionRepository.getSupervisionModel());
 
         View view = mFooterUtils.createDialogView(getContext());
         TextView textView = (TextView) view.findViewById(R.id.parental_controls_title);
         assertEquals(PARENTAL_CONTROLS_LABEL, textView.getText().toString());
+        TextView contentView = view.findViewById(R.id.parental_controls_warning);
+        assertEquals(
+                mContext.getString(R.string.monitoring_description_parental_controls),
+                contentView.getText().toString());
+    }
+
+    @Test
+    @EnableFlags({
+        android.app.supervision.flags.Flags.FLAG_DEPRECATE_DPM_SUPERVISION_APIS,
+        android.app.supervision.flags.Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE
+    })
+    public void testParentalControlsDialog_newSupervisionApisCustomDisclaimerText() {
+        FakeSupervisionRepository supervisionRepository = new FakeSupervisionRepository();
+        supervisionRepository.setIsSupervisionEnabled(true);
+        supervisionRepository.setLabel(PARENTAL_CONTROLS_LABEL);
+        supervisionRepository.setDisclaimerText(
+                mContext.getString(R.string.monitoring_description_pin_protection));
+        when(mSecurityController.isParentalControlsEnabled()).thenReturn(true);
+        when(mSecurityController.getLabel()).thenReturn(PARENTAL_CONTROLS_LABEL);
+        when(mSecurityController.getSupervisionModel())
+                .thenReturn(supervisionRepository.getSupervisionModel());
+
+        View view = mFooterUtils.createDialogView(getContext());
+        TextView textView = view.findViewById(R.id.parental_controls_title);
+        assertEquals(PARENTAL_CONTROLS_LABEL, textView.getText().toString());
+        TextView contentView = view.findViewById(R.id.parental_controls_warning);
+        assertEquals(
+                mContext.getString(R.string.monitoring_description_pin_protection),
+                contentView.getText().toString());
     }
 
     @Test
@@ -748,9 +840,6 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         when(mSecurityController.getDeviceOwnerOrganizationName())
                 .thenReturn(MANAGING_ORGANIZATION);
         when(mSecurityController.isFinancedDevice()).thenReturn(true);
-        // TODO(b/259908270): remove
-        when(mSecurityController.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_FINANCED);
 
         View view = mFooterUtils.createDialogView(getContext());
 
@@ -772,9 +861,6 @@ public class QSSecurityFooterTest extends SysuiTestCase {
         when(mSecurityController.getDeviceOwnerOrganizationName())
                 .thenReturn(MANAGING_ORGANIZATION);
         when(mSecurityController.isFinancedDevice()).thenReturn(true);
-        // TODO(b/259908270): remove
-        when(mSecurityController.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_FINANCED);
 
         Expandable expandable = mock(Expandable.class);
         when(expandable.dialogTransitionController(any())).thenReturn(

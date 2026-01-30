@@ -36,6 +36,7 @@ import com.android.systemui.res.R
 import com.android.systemui.testKosmos
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.util.mockito.any
+import com.android.systemui.util.wrapper.LockPatternCheckerWrapper
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -67,6 +68,7 @@ class KeyguardSimPukViewControllerTest : SysuiTestCase() {
         KeyguardMessageAreaController<BouncerKeyguardMessageArea>
     @Mock private lateinit var mUserActivityNotifier: UserActivityNotifier
     @Mock private lateinit var inputManager: InputManager
+    @Mock private lateinit var lockPatternChecker: LockPatternCheckerWrapper
 
     private val kosmos = testKosmos()
 
@@ -105,6 +107,7 @@ class KeyguardSimPukViewControllerTest : SysuiTestCase() {
                 kosmos.bouncerHapticPlayer,
                 mUserActivityNotifier,
                 inputManager,
+                lockPatternChecker,
             )
         underTest.init()
     }

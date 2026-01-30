@@ -72,9 +72,7 @@ public class InputMethodInfoTest {
         assertThat(imi.supportsInlineSuggestionsWithTouchExploration(), is(false));
         assertThat(imi.supportsStylusHandwriting(), is(false));
         assertThat(imi.createStylusHandwritingSettingsActivityIntent(), equalTo(null));
-        if (mFlagsValueProvider.getBoolean(Flags.FLAG_IME_SWITCHER_REVAMP_API)) {
-            assertThat(imi.createImeLanguageSettingsActivityIntent(), equalTo(null));
-        }
+        assertThat(imi.createImeLanguageSettingsActivityIntent(), equalTo(null));
     }
 
     @Test

@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.data.repository
 
 import android.view.Display
+import com.android.internal.view.AppearanceRegion
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.statusbar.data.model.StatusBarAppearance
 import com.android.systemui.statusbar.data.model.StatusBarMode
@@ -48,20 +49,26 @@ class FakeStatusBarModePerDisplayRepository : StatusBarModePerDisplayRepository 
     override val statusBarAppearance = MutableStateFlow<StatusBarAppearance?>(null)
     override val statusBarMode = MutableStateFlow(StatusBarMode.TRANSPARENT)
     override val ongoingProcessRequiresStatusBarVisible = MutableStateFlow(false)
+    var fakeSampledAppearanceRegions: List<AppearanceRegion>? = null
 
     override fun showTransient() {
         isTransientShown.value = true
     }
 
-    override fun clearTransient() {
+    fun abortTransient() {
         isTransientShown.value = false
     }
 
     override fun start() {}
 
     override fun stop() {}
+
     override fun setOngoingProcessRequiresStatusBarVisible(requiredVisible: Boolean) {
         ongoingProcessRequiresStatusBarVisible.value = requiredVisible
+    }
+
+    override fun setSampledAppearanceRegions(appearanceRegions: List<AppearanceRegion>) {
+        fakeSampledAppearanceRegions = appearanceRegions
     }
 
     override fun onStatusBarViewInitialized(component: HomeStatusBarComponent) {}

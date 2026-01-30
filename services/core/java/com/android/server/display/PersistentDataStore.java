@@ -16,9 +16,12 @@
 
 package com.android.server.display;
 
+import static android.hardware.display.DisplayManager.EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_ASK;
+
 import android.annotation.Nullable;
 import android.graphics.Point;
 import android.hardware.display.BrightnessConfiguration;
+import android.hardware.display.DisplayManager.ExternalDisplayConnection;
 import android.hardware.display.WifiDisplay;
 import android.os.Handler;
 import android.util.AtomicFile;
@@ -130,10 +133,13 @@ final class PersistentDataStore {
     private static final String TAG_RESOLUTION_WIDTH = "resolution-width";
     private static final String TAG_RESOLUTION_HEIGHT = "resolution-height";
     private static final String TAG_REFRESH_RATE = "refresh-rate";
-
     private static final String TAG_BRIGHTNESS_NITS_FOR_DEFAULT_DISPLAY =
             "brightness-nits-for-default-display";
+    private static final String TAG_CONNECTION_PREFERENCE = "connection-preference";
+
     public static final int DEFAULT_USER_ID = -1;
+    public static final int DEFAULT_CONNECTION_PREFERENCE =
+            EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_ASK;
 
     // Remembered Wifi display devices.
     private ArrayList<WifiDisplay> mRememberedWifiDisplays = new ArrayList<WifiDisplay>();
@@ -435,6 +441,48 @@ final class PersistentDataStore {
         return mGlobalBrightnessConfigurations.getBrightnessConfiguration(userSerial);
     }
 
+    /**
+     * Sets and persists the connection preference for a given display device.
+     * <p>
+     * The preference is only stored if the device has a stable unique ID. This method marks the
+     * data store as dirty if the preference changes, triggering a subsequent save operation.
+     *
+     * @param device The display device for which to set the preference.
+     * @param preference The connection preference to set, as defined by the
+     * {@code @ExternalDisplayConnection} values in {@link android.hardware.display.DisplayManager}.
+     * @return {@code true} if the preference was successfully updated, {@code false} if the value
+     * was unchanged or if the device does not have a stable unique ID.
+     */
+    public boolean setConnectionPreference(
+            DisplayDevice device,
+            @ExternalDisplayConnection int preference
+    ) {
+        if (!device.hasStableUniqueId()) return false;
+        DisplayState state = getDisplayState(device.getUniqueId(), /* createIfAbsent= */ true);
+
+        if (state.setConnectionPreference(preference)) {
+            setDirty();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Gets the saved connection preference for a given display device.
+     *
+     * @param device The display device for which to retrieve the preference.
+     * @return The stored {@code @ExternalDisplayConnection} preference for the device, or a default
+     * value if no preference has been saved or if the device lacks a stable unique ID.
+     */
+    public @ExternalDisplayConnection int getConnectionPreference(DisplayDevice device) {
+        if (!device.hasStableUniqueId()) return DEFAULT_CONNECTION_PREFERENCE;
+        DisplayState state = getDisplayState(device.getUniqueId(), /* createIfAbsent= */ false);
+        if (state == null) {
+            return DEFAULT_CONNECTION_PREFERENCE;
+        }
+        return state.getConnectionPreference();
+    }
+
     private DisplayState getDisplayState(String uniqueId, boolean createIfAbsent) {
         loadIfNeeded();
         DisplayState state = mDisplayStates.get(uniqueId);
@@ -663,6 +711,8 @@ final class PersistentDataStore {
         private BrightnessConfigurations mDisplayBrightnessConfigurations =
                 new BrightnessConfigurations();
 
+        private int mConnectionPreference = EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_ASK;
+
         public boolean setColorMode(int colorMode) {
             if (colorMode == mColorMode) {
                 return false;
@@ -732,6 +782,18 @@ final class PersistentDataStore {
             return mRefreshRate;
         }
 
+        public int getConnectionPreference() {
+            return mConnectionPreference;
+        }
+
+        public boolean setConnectionPreference(int preference) {
+            if (preference == mConnectionPreference) {
+                return false;
+            }
+            mConnectionPreference = preference;
+            return true;
+        }
+
         public void loadFromXml(TypedXmlPullParser parser)
                 throws IOException, XmlPullParserException {
             final int outerDepth = parser.getDepth();
@@ -760,6 +822,10 @@ final class PersistentDataStore {
                         String refreshRate = parser.nextText();
                         mRefreshRate = Float.parseFloat(refreshRate);
                         break;
+                    case TAG_CONNECTION_PREFERENCE:
+                        String connectionPreference = parser.nextText();
+                        mConnectionPreference = Integer.parseInt(connectionPreference);
+                        break;
                 }
             }
         }
@@ -779,6 +845,10 @@ final class PersistentDataStore {
             serializer.startTag(null, TAG_BRIGHTNESS_CONFIGURATIONS);
             mDisplayBrightnessConfigurations.saveToXml(serializer);
             serializer.endTag(null, TAG_BRIGHTNESS_CONFIGURATIONS);
+
+            serializer.startTag(null, TAG_CONNECTION_PREFERENCE);
+            serializer.text(Integer.toString(mConnectionPreference));
+            serializer.endTag(null, TAG_CONNECTION_PREFERENCE);
 
             serializer.startTag(null, TAG_RESOLUTION_WIDTH);
             serializer.text(Integer.toString(mWidth));
@@ -802,6 +872,7 @@ final class PersistentDataStore {
             }
             pw.println(prefix + "DisplayBrightnessConfigurations: ");
             mDisplayBrightnessConfigurations.dump(pw, prefix);
+            pw.println(prefix + "ConnectionPreference=" + mConnectionPreference);
             pw.println(prefix + "Resolution=" + mWidth + " " + mHeight);
             pw.println(prefix + "RefreshRate=" + mRefreshRate);
         }

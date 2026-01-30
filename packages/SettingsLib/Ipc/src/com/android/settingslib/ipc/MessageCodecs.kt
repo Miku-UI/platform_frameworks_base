@@ -19,7 +19,7 @@ package com.android.settingslib.ipc
 import android.os.Bundle
 
 /** [MessageCodec] for [Int]. */
-object IntMessageCodec : MessageCodec<Int> {
+class IntMessageCodec : MessageCodec<Int> {
     override fun encode(data: Int): Bundle = Bundle(1).apply { putInt(null, data) }
 
     override fun decode(data: Bundle): Int = data.getInt(null)

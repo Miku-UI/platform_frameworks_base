@@ -16,21 +16,21 @@
 
 package com.android.systemui.keyguard.data.quickaffordance
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.haptics.FakeVibratorHelper
+import com.android.systemui.haptics.msdl.fakeMSDLPlayer
+import com.android.systemui.haptics.vibratorHelper
 import com.android.systemui.keyguard.domain.interactor.keyguardQuickAffordanceHapticViewModelFactory
-import com.android.systemui.keyguard.domain.interactor.keyguardQuickAffordanceInteractor
-import com.android.systemui.keyguard.ui.viewmodel.KeyguardQuickAffordanceHapticViewModel
-import com.android.systemui.keyguard.ui.viewmodel.KeyguardQuickAffordanceViewModel
+import com.android.systemui.keyguard.ui.binder.KeyguardBottomAreaVibrations
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.shared.keyguard.shared.model.KeyguardQuickAffordanceSlots
 import com.android.systemui.testKosmos
+import com.google.android.msdl.data.model.MSDLToken
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,74 +41,104 @@ class KeyguardQuickAffordanceHapticViewModelTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
-    private val slotId = KeyguardQuickAffordanceSlots.SLOT_ID_BOTTOM_START
-    private val configKey = "$slotId::home"
-    private val keyguardQuickAffordanceInteractor = kosmos.keyguardQuickAffordanceInteractor
-    private val viewModelFlow =
-        MutableStateFlow(KeyguardQuickAffordanceViewModel(configKey = configKey, slotId = slotId))
+    private val vibratorHelper = kosmos.vibratorHelper as FakeVibratorHelper
+    private val msdlPlayer = kosmos.fakeMSDLPlayer
 
-    private val underTest =
-        kosmos.keyguardQuickAffordanceHapticViewModelFactory.create(viewModelFlow)
+    private val underTest = kosmos.keyguardQuickAffordanceHapticViewModelFactory.create()
 
+    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
-    fun whenLaunchingFromTriggeredResult_hapticStateIsLaunch() =
+    fun onQuickAffordanceClick_playsShadeEffect() =
         testScope.runTest {
-            // GIVEN that the result from triggering the affordance launched an activity or dialog
-            val hapticState by collectLastValue(underTest.quickAffordanceHapticState)
-            keyguardQuickAffordanceInteractor.setLaunchingFromTriggeredResult(
-                KeyguardQuickAffordanceConfig.LaunchingFromTriggeredResult(true, configKey)
-            )
-            runCurrent()
+            underTest.onQuickAffordanceClick()
 
-            // THEN the haptic state indicates that a launch haptics must play
-            assertThat(hapticState)
-                .isEqualTo(KeyguardQuickAffordanceHapticViewModel.HapticState.LAUNCH)
+            assertThat(vibratorHelper.hasVibratedWithEffects(KeyguardBottomAreaVibrations.Shake))
+                .isTrue()
+            assertThat(msdlPlayer.tokensPlayed.isEmpty()).isTrue()
         }
 
+    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
-    fun whenNotLaunchFromTriggeredResult_hapticStateDoesNotEmit() =
+    fun onQuickAffordanceClick_playsFailureToken() =
         testScope.runTest {
-            // GIVEN that the result from triggering the affordance did not launch an activity or
-            // dialog
-            val hapticState by collectLastValue(underTest.quickAffordanceHapticState)
-            keyguardQuickAffordanceInteractor.setLaunchingFromTriggeredResult(
-                KeyguardQuickAffordanceConfig.LaunchingFromTriggeredResult(false, configKey)
-            )
-            runCurrent()
+            underTest.onQuickAffordanceClick()
 
-            // THEN there is no haptic state to play any feedback
-            assertThat(hapticState)
-                .isEqualTo(KeyguardQuickAffordanceHapticViewModel.HapticState.NO_HAPTICS)
+            assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.FAILURE)
+            assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
         }
 
+    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
-    fun onQuickAffordanceTogglesToActivated_hapticStateIsToggleOn() =
+    fun onUpdateActivatedHistory_withoutLongPress_whenToggling_doesNotPlayHaptics() =
+        testScope.runTest {
+            // GIVEN that the isActivated state toggles without a long-press called
+            assertThat(underTest.longPressed).isFalse()
+            underTest.updateActivatedHistory(false)
+            underTest.updateActivatedHistory(true)
+
+            // THEN no haptics play
+            assertThat(msdlPlayer.tokensPlayed.isEmpty()).isTrue()
+            assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
+        }
+
+    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
+    @Test
+    fun onUpdateActivatedHistory_togglesToActivated_playsMSDLSwitchOnToken() =
         testScope.runTest {
             // GIVEN that an affordance toggles from deactivated to activated
-            val hapticState by collectLastValue(underTest.quickAffordanceHapticState)
             toggleQuickAffordance(on = true)
 
-            // THEN the haptic state reflects that a toggle on haptics should play
-            assertThat(hapticState)
-                .isEqualTo(KeyguardQuickAffordanceHapticViewModel.HapticState.TOGGLE_ON)
+            // THEN the switch on token plays
+            assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.SWITCH_ON)
+            assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
         }
 
+    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
     @Test
-    fun onQuickAffordanceTogglesToDeactivated_hapticStateIsToggleOff() =
+    fun onUpdateActivatedHistory_togglesToDeactivated_playsMSDLSwitchOffToken() =
         testScope.runTest {
             // GIVEN that an affordance toggles from activated to deactivated
-            val hapticState by collectLastValue(underTest.quickAffordanceHapticState)
             toggleQuickAffordance(on = false)
 
-            // THEN the haptic state reflects that a toggle off haptics should play
-            assertThat(hapticState)
-                .isEqualTo(KeyguardQuickAffordanceHapticViewModel.HapticState.TOGGLE_OFF)
+            // THEN the switch off token plays
+            assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.SWITCH_OFF)
+            assertThat(vibratorHelper.totalVibrations).isEqualTo(0)
         }
 
-    private fun TestScope.toggleQuickAffordance(on: Boolean) {
+    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
+    @Test
+    fun onUpdateActivatedHistory_togglesToActivated__playsActivatedEffect() =
+        testScope.runTest {
+            // GIVEN that an affordance toggles from deactivated to activated
+            toggleQuickAffordance(on = true)
+
+            // THEN the activated effect plays
+            assertThat(
+                    vibratorHelper.hasVibratedWithEffects(KeyguardBottomAreaVibrations.Activated)
+                )
+                .isTrue()
+            assertThat(msdlPlayer.tokensPlayed.isEmpty()).isTrue()
+        }
+
+    @DisableFlags(Flags.FLAG_MSDL_FEEDBACK)
+    @Test
+    fun onUpdateActivatedHistory_togglesToDeactivated_playsDeactivatedEffect() =
+        testScope.runTest {
+            // GIVEN that an affordance toggles from activated to deactivated
+            toggleQuickAffordance(on = false)
+
+            // THEN the deactivated effect plays
+            assertThat(
+                    vibratorHelper.hasVibratedWithEffects(KeyguardBottomAreaVibrations.Deactivated)
+                )
+                .isTrue()
+            assertThat(msdlPlayer.tokensPlayed.isEmpty()).isTrue()
+        }
+
+    private fun toggleQuickAffordance(on: Boolean) {
+        underTest.onQuickAffordanceLongPress(isActivated = false)
         underTest.updateActivatedHistory(!on)
-        runCurrent()
+        underTest.onQuickAffordanceLongPress(isActivated = true)
         underTest.updateActivatedHistory(on)
-        runCurrent()
     }
 }

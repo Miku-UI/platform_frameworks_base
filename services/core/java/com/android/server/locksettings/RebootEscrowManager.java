@@ -18,14 +18,14 @@ package com.android.server.locksettings;
 
 import static android.os.UserHandle.USER_SYSTEM;
 
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_ESCROW_NOT_READY;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_KEYSTORE_FAILURE;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_NONE;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_NO_ESCROW_KEY;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_NO_PROVIDER;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_PROVIDER_MISMATCH;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_STORE_ESCROW_KEY;
-import static com.android.internal.widget.LockSettingsInternal.ArmRebootEscrowErrorCode;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_ESCROW_NOT_READY;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_KEYSTORE_FAILURE;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_NONE;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_NO_ESCROW_KEY;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_NO_PROVIDER;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_PROVIDER_MISMATCH;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_STORE_ESCROW_KEY;
+import static com.android.server.locksettings.LockSettingsInternal.ArmRebootEscrowErrorCode;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -50,7 +50,6 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.IndentingPrintWriter;
-import com.android.internal.widget.RebootEscrowListener;
 import com.android.server.pm.UserManagerInternal;
 
 import java.io.IOException;

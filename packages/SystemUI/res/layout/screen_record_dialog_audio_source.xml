@@ -27,6 +27,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:textAppearance="?android:attr/textAppearanceMedium"
+        android:fontFamily="variable-label-large"
         android:textSize="14sp"
         android:textColor="@color/material_dynamic_neutral10"/>
     <TextView
@@ -34,5 +35,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textAppearance="?android:attr/textAppearanceSmall"
+        android:fontFamily="variable-body-small"
+        android:textSize="12sp"
         android:textColor="@color/material_dynamic_neutral_variant30"/>
 </LinearLayout>

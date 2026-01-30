@@ -27,7 +27,6 @@ import static android.service.notification.NotificationServiceProto.RULE_TYPE_UN
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
-import android.app.Flags;
 import android.app.NotificationManager;
 import android.content.pm.PackageManager;
 import android.os.Process;
@@ -128,8 +127,8 @@ class ZenModeEventLogger {
      * Reassign callingUid in mChangeState if we have more specific information that warrants it
      * (for instance, if the change is automatic and due to an automatic rule change).
      *
-     * <p>When Flags.modesUi() is enabled, we reassign the calling UID to the package UID in all
-     * changes whose source is not system or system UI, as long as there is only one rule changed.
+     * <p>We reassign the calling UID to the package UID in all changes whose source is not system
+     * or system UI, as long as there is only one rule changed.
      */
     private void maybeReassignCallingUid() {
         int userId = Process.INVALID_UID;
@@ -148,23 +147,13 @@ class ZenModeEventLogger {
             userId = mChangeState.mNewConfig.user;  // mNewConfig must not be null if enabler exists
         }
 
-        // The conditions where we should consider reassigning UID for an automatic rule change
-        // (pre-modes_ui):
-        //   - we've determined it's not a user action
-        //   - our current best guess is that the calling uid is system/sysui
-        // When Flags.modesUi() is true, we get the package UID for the changed rule, as long as:
+        // We get the package UID for the changed rule, as long as:
         //   - the change does not originate from the system based on change origin
         //   - there is only one rule changed
         if (mChangeState.getChangedRuleType() == RULE_TYPE_AUTOMATIC) {
-            if (Flags.modesUi()) {
-                // ignore anything whose origin is system
-                if (mChangeState.isFromSystemOrSystemUi()) {
-                    return;
-                }
-            } else {
-                if (mChangeState.getIsUserAction() || !mChangeState.isFromSystemOrSystemUi()) {
-                    return;
-                }
+            // ignore anything whose origin is system
+            if (mChangeState.isFromSystemOrSystemUi()) {
+                return;
             }
 
             // Only try to get the package UID if there's exactly one changed automatic rule. If
@@ -369,8 +358,7 @@ class ZenModeEventLogger {
                 // a diff in the manual rule doesn't *necessarily* mean that it's responsible for
                 // the change -- only if it's been added or removed or updated.
                 if (manualDiff.wasAdded() || manualDiff.wasRemoved()
-                        || (Flags.modesUi()
-                        && (manualDiff.becameActive() || manualDiff.becameInactive()))) {
+                        || manualDiff.becameActive() || manualDiff.becameInactive()) {
                     return RULE_TYPE_MANUAL;
                 }
             }
@@ -489,13 +477,9 @@ class ZenModeEventLogger {
 
         /**
          * Get the config change origin associated with this change, which is stored in mOrigin.
-         * Only useable if modes_ui is true.
          */
         int getChangeOrigin() {
-            if (Flags.modesUi()) {
-                return mOrigin;
-            }
-            return 0;
+            return mOrigin;
         }
 
         /**

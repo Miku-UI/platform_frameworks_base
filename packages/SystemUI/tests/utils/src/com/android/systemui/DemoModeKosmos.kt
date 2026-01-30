@@ -16,10 +16,21 @@
 
 package com.android.systemui
 
+import android.content.testableContext
+import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.demomode.DemoModeController
+import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.util.mockito.mock
+import com.android.systemui.util.settings.fakeGlobalSettings
 
 val Kosmos.mockDemoModeController by Kosmos.Fixture { mock<DemoModeController>() }
 
-var Kosmos.demoModeController by Kosmos.Fixture { mockDemoModeController }
+var Kosmos.demoModeController by Kosmos.Fixture {
+    DemoModeController(
+        context = testableContext ,
+        dumpManager = dumpManager,
+        globalSettings = fakeGlobalSettings,
+        broadcastDispatcher = broadcastDispatcher,
+    )
+}

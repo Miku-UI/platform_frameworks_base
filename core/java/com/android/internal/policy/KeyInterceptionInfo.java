@@ -24,13 +24,15 @@ public class KeyInterceptionInfo {
     // Window layout params attributes.
     public final int layoutParamsType;
     public final int layoutParamsPrivateFlags;
+    public final int layoutParamsInputFeatures;
     // Debug friendly name to help identify the window
     public final String windowTitle;
     public final int windowOwnerUid;
 
-    public KeyInterceptionInfo(int type, int flags, String title, int uid) {
+    public KeyInterceptionInfo(int type, int flags, int inputFeatures, String title, int uid) {
         layoutParamsType = type;
         layoutParamsPrivateFlags = flags;
+        layoutParamsInputFeatures = inputFeatures;
         windowTitle = title;
         windowOwnerUid = uid;
     }

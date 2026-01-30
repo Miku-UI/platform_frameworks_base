@@ -18,30 +18,35 @@ package com.android.server.appfunctions;
 
 import static android.app.appfunctions.AppFunctionRuntimeMetadata.PROPERTY_APP_FUNCTION_STATIC_METADATA_QUALIFIED_ID;
 import static android.app.appfunctions.AppFunctionStaticMetadataHelper.APP_FUNCTION_INDEXER_PACKAGE;
+import static android.app.appfunctions.AppFunctionStaticMetadataHelper.APP_FUNCTION_STATIC_NAMESPACE;
 import static android.app.appfunctions.AppFunctionStaticMetadataHelper.PROPERTY_FUNCTION_ID;
 
 import android.Manifest;
 import android.annotation.BinderThread;
-import android.annotation.RequiresPermission;
 import android.annotation.NonNull;
-import android.content.Context;
-import android.content.pm.UserInfo;
-import android.os.UserManager;
-import android.util.IndentingPrintWriter;
+import android.annotation.RequiresPermission;
 import android.app.appfunctions.AppFunctionRuntimeMetadata;
 import android.app.appfunctions.AppFunctionStaticMetadataHelper;
 import android.app.appsearch.AppSearchManager;
-import android.app.appsearch.AppSearchManager.SearchContext;
-import android.app.appsearch.JoinSpec;
 import android.app.appsearch.GenericDocument;
+import android.app.appsearch.JoinSpec;
 import android.app.appsearch.SearchResult;
 import android.app.appsearch.SearchSpec;
+import android.content.Context;
+import android.content.pm.UserInfo;
+import android.os.UserManager;
+import android.util.ArrayMap;
+import android.util.IndentingPrintWriter;
 
 import java.io.PrintWriter;
 import java.lang.reflect.Array;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 public final class AppFunctionDumpHelper {
     private static final String TAG = AppFunctionDumpHelper.class.getSimpleName();
@@ -52,7 +57,8 @@ public final class AppFunctionDumpHelper {
     @BinderThread
     @RequiresPermission(
             anyOf = {Manifest.permission.CREATE_USERS, Manifest.permission.MANAGE_USERS})
-    public static void dumpAppFunctionsState(@NonNull Context context, @NonNull PrintWriter w) {
+    public static void dumpAppFunctionsState(
+            @NonNull Context context, @NonNull PrintWriter w, @NonNull String[] args) {
         UserManager userManager = context.getSystemService(UserManager.class);
         if (userManager == null) {
             w.println("Couldn't retrieve UserManager.");
@@ -67,40 +73,96 @@ public final class AppFunctionDumpHelper {
                     "AppFunction state for user " + userInfo.getUserHandle().getIdentifier() + ":");
             pw.increaseIndent();
             dumpAppFunctionsStateForUser(
-                    context.createContextAsUser(userInfo.getUserHandle(), /* flags= */ 0), pw);
+                    context.createContextAsUser(userInfo.getUserHandle(), /* flags= */ 0),
+                    pw,
+                    isVerboseMode(args));
             pw.decreaseIndent();
         }
     }
 
-    private static void dumpAppFunctionsStateForUser(
-            @NonNull Context context, @NonNull IndentingPrintWriter pw) {
+    private static boolean isVerboseMode(String[] args) {
+        for (String arg : args) {
+            if (arg.equals("--verbose") || arg.equals("-v")) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Returns a map where the key is the package name and the value is its appfunction state. */
+    static Map<String, List<SearchResult>> queryAppFunctionsStateForUser(
+            @NonNull Context context, boolean isVerbose)
+            throws ExecutionException, InterruptedException {
         AppSearchManager appSearchManager = context.getSystemService(AppSearchManager.class);
         if (appSearchManager == null) {
-            pw.println("Couldn't retrieve AppSearchManager.");
-            return;
+            throw new IllegalStateException("Couldn't retrieve AppSearchManager.");
         }
+
+        Map<String, List<SearchResult>> packageSearchResults = new ArrayMap<>();
 
         try (FutureGlobalSearchSession searchSession =
                 new FutureGlobalSearchSession(appSearchManager, Runnable::run)) {
-            pw.println();
-
             try (FutureSearchResults futureSearchResults =
-                    searchSession.search("", buildAppFunctionMetadataSearchSpec()).get(); ) {
+                    searchSession
+                            .search("", buildAppFunctionMetadataSearchSpec(isVerbose))
+                            .get(); ) {
                 List<SearchResult> searchResultsList;
                 do {
                     searchResultsList = futureSearchResults.getNextPage().get();
                     for (SearchResult searchResult : searchResultsList) {
-                        dumpAppFunctionMetadata(pw, searchResult);
+                        String packageName =
+                                searchResult
+                                        .getGenericDocument()
+                                        .getPropertyString(
+                                                AppFunctionStaticMetadataHelper
+                                                        .PROPERTY_PACKAGE_NAME);
+                        packageSearchResults
+                                .computeIfAbsent(packageName, (k) -> new ArrayList<>())
+                                .add(searchResult);
                     }
                 } while (!searchResultsList.isEmpty());
             }
+        }
+        return packageSearchResults;
+    }
 
+    private static void dumpAppFunctionsStateForUser(
+            @NonNull Context context, @NonNull IndentingPrintWriter pw, boolean isVerbose) {
+        try {
+            Map<String, List<SearchResult>> packageSearchResults =
+                    queryAppFunctionsStateForUser(context, isVerbose);
+            dumpSearchResults(pw, packageSearchResults);
         } catch (Exception e) {
             pw.println("Failed to dump AppFunction state: " + e);
         }
     }
 
-    private static SearchSpec buildAppFunctionMetadataSearchSpec() {
+    private static void dumpSearchResults(
+            IndentingPrintWriter pw, Map<String, List<SearchResult>> packageSearchResults) {
+        for (Map.Entry<String, List<SearchResult>> entry : packageSearchResults.entrySet()) {
+            pw.println();
+            pw.println("AppFunctionDocument(s) for package: " + entry.getKey());
+
+            pw.increaseIndent();
+            for (SearchResult result : entry.getValue()) {
+                pw.println();
+                if (result.getGenericDocument()
+                        .getSchemaType()
+                        .startsWith(AppFunctionStaticMetadataHelper.STATIC_SCHEMA_TYPE)) {
+                    dumpAppFunctionMetadata(pw, result);
+                } else {
+                    pw.println(result.getGenericDocument().getSchemaType() + ": ");
+                    pw.increaseIndent();
+                    writeGenericDocumentProperties(pw, result.getGenericDocument());
+                    pw.decreaseIndent();
+                }
+            }
+            pw.decreaseIndent();
+        }
+    }
+
+    private static SearchSpec buildAppFunctionMetadataSearchSpec(boolean isVerbose) {
         SearchSpec runtimeMetadataSearchSpec =
                 new SearchSpec.Builder()
                         .addFilterPackageNames(APP_FUNCTION_INDEXER_PACKAGE)
@@ -113,7 +175,12 @@ public final class AppFunctionDumpHelper {
 
         return new SearchSpec.Builder()
                 .addFilterPackageNames(APP_FUNCTION_INDEXER_PACKAGE)
-                .addFilterSchemas(AppFunctionStaticMetadataHelper.STATIC_SCHEMA_TYPE)
+                .addFilterNamespaces(APP_FUNCTION_STATIC_NAMESPACE)
+                .addFilterSchemas(
+                        // Retrieve all documents if isVerbose is true.
+                        isVerbose
+                                ? Collections.emptyList()
+                                : List.of(AppFunctionStaticMetadataHelper.STATIC_SCHEMA_TYPE))
                 .setJoinSpec(joinSpec)
                 .build();
     }

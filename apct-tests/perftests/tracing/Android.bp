@@ -12,23 +12,41 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+filegroup {
+    name: "ui-tracing-metric-specs",
+    srcs: [
+        "metric_specs/*",
+    ],
+}
+
 android_test {
-    name: "ProtologPerfTests",
+    name: "UiTracingPerfTests",
     team: "trendy_team_windowing_tools",
-    srcs: ["src/**/*.java"],
+    srcs: [
+        "src/**/*.java",
+        "src/**/*.kt",
+    ],
     static_libs: [
-        "androidx.test.rules",
+        "WindowManager-Shell",
         "androidx.annotation_annotation",
+        "androidx.test.ext.junit",
+        "androidx.test.rules",
         "apct-perftests-utils",
         "collector-device-lib",
-        "platform-test-annotations",
+        "collector-device-lib-platform",
+        "flickerlib-parsers",
         "perfetto_trace_java_protos",
+        "platform-test-annotations",
+        "services.core",
     ],
     test_suites: [
         "device-tests",
-        "automotive-tests",
+        "performance-tests",
     ],
-    data: [":perfetto_artifacts"],
+    data: [
+        ":perfetto_artifacts",
+        ":ui-tracing-metric-specs",
+    ],
     platform_apis: true,
     certificate: "platform",
 }

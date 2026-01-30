@@ -27,14 +27,14 @@ import com.android.systemui.power.shared.model.WakefulnessState
 import dagger.Binds
 import dagger.Module
 import javax.inject.Inject
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 @SysUISingleton
 class FakePowerRepository @Inject constructor() : PowerRepository {
     private val _isInteractive = MutableStateFlow(true)
-    override val isInteractive: Flow<Boolean> = _isInteractive.asStateFlow()
+    override val isInteractive: StateFlow<Boolean> = _isInteractive.asStateFlow()
 
     private val _wakefulness = MutableStateFlow(WakefulnessModel())
     override val wakefulness = _wakefulness.asStateFlow()

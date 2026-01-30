@@ -505,6 +505,31 @@ public class LaunchParamsControllerTests extends WindowTestsBase {
     }
 
     /**
+     * Ensures that {@link LaunchParamsModifier} request for bounds to be cleared during layout
+     * is honored if window is in multiwindow mode.
+     */
+    @Test
+    public void testLayoutTaskBoundsChangeMultiWindow_applyRequestedEmptyBounds() {
+        final Rect emptyBounds = new Rect();
+
+        final LaunchParams params = new LaunchParams();
+        params.mBounds.set(emptyBounds);
+        params.mBoundsSet = true;
+        final InstrumentedPositioner positioner = new InstrumentedPositioner(RESULT_DONE, params);
+        final Task task = new TaskBuilder(mAtm.mTaskSupervisor)
+                .setWindowingMode(WINDOWING_MODE_MULTI_WINDOW).build();
+        task.setBounds(10, 20, 30, 40);
+
+        mController.registerModifier(positioner);
+
+        assertNotEquals(emptyBounds, task.getBounds());
+
+        layoutTask(task);
+
+        assertEquals(emptyBounds, task.getRequestedOverrideBounds());
+    }
+
+    /**
      * Ensures that {@link LaunchParamsModifier} requests specifying bounds during
      * layout are set to last non-fullscreen bounds.
      */
@@ -554,6 +579,26 @@ public class LaunchParamsControllerTests extends WindowTestsBase {
         // requested bounds are expected.
         assertEquals(expected,
                 task.getRequestedOverrideConfiguration().windowConfiguration.getAppBounds());
+    }
+
+    /*
+     * Tests that the preferred root task is propagated through the controller.
+     */
+    @Test
+    public void testPreferredRootTaskPropagation() {
+        final Task preferredRootTask = new TaskBuilder(mAtm.mTaskSupervisor).build();
+        final LaunchParams params = new LaunchParams();
+        params.mPreferredRootTask = preferredRootTask;
+        final InstrumentedPositioner positioner = new InstrumentedPositioner(RESULT_DONE, params);
+
+        mController.registerModifier(positioner);
+
+        final LaunchParams result = new LaunchParams();
+
+        mController.calculate(null /*task*/, null /*layout*/, null /*activity*/, null /*source*/,
+                null /*options*/, null /*request*/, PHASE_BOUNDS, result);
+
+        assertEquals(preferredRootTask, result.mPreferredRootTask);
     }
 
     public static class InstrumentedPositioner implements LaunchParamsModifier {

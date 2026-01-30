@@ -23,7 +23,7 @@ import com.android.ims.internal.uce.common.UceLong;
 import com.android.ims.internal.uce.common.StatusCode;
 
 /** IPresenceService
-{@hide} */
+@hide */
 interface IPresenceService
 {
 

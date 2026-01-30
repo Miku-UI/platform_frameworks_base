@@ -39,10 +39,10 @@ package android.se.omapi;
 /* @hide */
 @VintfStability
 interface ISecureElementSession {
-  byte[] getAtr();
+  @nullable byte[] getAtr();
   void close();
   void closeChannels();
   boolean isClosed();
-  android.se.omapi.ISecureElementChannel openBasicChannel(in byte[] aid, in byte p2, in android.se.omapi.ISecureElementListener listener);
-  android.se.omapi.ISecureElementChannel openLogicalChannel(in byte[] aid, in byte p2, in android.se.omapi.ISecureElementListener listener);
+  @nullable android.se.omapi.ISecureElementChannel openBasicChannel(in @nullable byte[] aid, in byte p2, in android.se.omapi.ISecureElementListener listener);
+  @nullable android.se.omapi.ISecureElementChannel openLogicalChannel(in @nullable byte[] aid, in byte p2, in android.se.omapi.ISecureElementListener listener);
 }

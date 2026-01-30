@@ -30,7 +30,7 @@ import java.util.Set;
  * See the full {@link android.test} package description for information about
  * getting test results.
  *
- * {@hide} Not needed for 1.0 SDK.
+ * @hide Not needed for 1.0 SDK.
  */
 @Deprecated
 class TestPrinter implements TestListener {

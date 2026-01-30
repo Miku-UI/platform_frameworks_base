@@ -51,24 +51,24 @@ import android.util.SparseIntArray;
 public final class UsageStats implements Parcelable {
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public String mPackageName;
 
     /**
-     * {@hide}
+     * @hide
      */
     public int mPackageToken = -1;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public long mBeginTimeStamp;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public long mEndTimeStamp;
@@ -76,7 +76,7 @@ public final class UsageStats implements Parcelable {
     /**
      * Last time an activity is at foreground (have focus), this is corresponding to
      * {@link android.app.usage.UsageEvents.Event#ACTIVITY_RESUMED} event.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public long mLastTimeUsed;
@@ -89,26 +89,26 @@ public final class UsageStats implements Parcelable {
 
     /**
      * Total time this package's activity is in foreground.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public long mTotalTimeInForeground;
 
     /**
      * Total time this package's activity is visible.
-     * {@hide}
+     * @hide
      */
     public long mTotalTimeVisible;
 
     /**
      * Last time foreground service is started.
-     * {@hide}
+     * @hide
      */
     public long mLastTimeForegroundServiceUsed;
 
     /**
      * Total time this package's foreground service is started.
-     * {@hide}
+     * @hide
      */
     public long mTotalTimeForegroundServiceUsed;
 
@@ -122,18 +122,18 @@ public final class UsageStats implements Parcelable {
     public long mLastTimeComponentUsed;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public int mLaunchCount;
 
     /**
-     * {@hide}
+     * @hide
      */
     public int mAppLaunchCount;
 
     /** Last activity ACTIVITY_RESUMED or ACTIVITY_PAUSED event.
-     * {@hide}
+     * @hide
      * @deprecated use {@link #mActivities} instead.
      */
     @UnsupportedAppUsage
@@ -144,7 +144,7 @@ public final class UsageStats implements Parcelable {
      * Key is instanceId of the activity (ActivityRecode appToken hashCode)..
      * Value is this activity's last event, one of ACTIVITY_RESUMED, ACTIVITY_PAUSED or
      * ACTIVITY_STOPPED.
-     * {@hide}
+     * @hide
      */
     public SparseIntArray mActivities = new SparseIntArray();
     /**
@@ -152,22 +152,22 @@ public final class UsageStats implements Parcelable {
      * When a foreground service is stopped, it is removed from this set.
      * Key is foreground service class name.
      * Value is the foreground service's last event, it is FOREGROUND_SERVICE_START.
-     * {@hide}
+     * @hide
      */
     public ArrayMap<String, Integer> mForegroundServices = new ArrayMap<>();
 
     /**
-     * {@hide}
+     * @hide
      */
     public ArrayMap<String, ArrayMap<String, Integer>> mChooserCounts = new ArrayMap<>();
 
     /**
-     * {@hide}
+     * @hide
      */
     public SparseArray<SparseIntArray> mChooserCountsObfuscated = new SparseArray<>();
 
     /**
-     * {@hide}
+     * @hide
      */
     @TestApi
     public UsageStats() {
@@ -193,7 +193,7 @@ public final class UsageStats implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     public UsageStats getObfuscatedForInstantApp() {
         final UsageStats ret = new UsageStats(this);

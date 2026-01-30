@@ -317,16 +317,13 @@ public final class TimeDetectorStrategyImpl implements TimeDetectorStrategy {
         // detected time if, for example, the age of all suggestions are considered.
         NetworkTimeSuggestion lastNetworkSuggestion = mLastNetworkSuggestion.get();
         if (lastNetworkSuggestion == null || !lastNetworkSuggestion.equals(suggestion)) {
-            if (com.android.internal.os.Flags.applicationSharedMemoryEnabled()
-                    && android.os.Flags.networkTimeUsesSharedMemory()) {
-                UnixEpochTime networkUnixEpochTime = suggestion.getUnixEpochTime();
-                long lastNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis =
-                        networkUnixEpochTime.getUnixEpochTimeMillis()
-                                - networkUnixEpochTime.getElapsedRealtimeMillis();
-                ApplicationSharedMemory.getInstance()
-                        .setLatestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis(
-                                lastNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis);
-            }
+            UnixEpochTime networkUnixEpochTime = suggestion.getUnixEpochTime();
+            long lastNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis =
+                    networkUnixEpochTime.getUnixEpochTimeMillis()
+                            - networkUnixEpochTime.getElapsedRealtimeMillis();
+            ApplicationSharedMemory.getInstance()
+                    .setLatestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis(
+                            lastNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis);
 
             mLastNetworkSuggestion.set(suggestion);
             notifyNetworkTimeUpdateListenersAsynchronously();
@@ -360,11 +357,8 @@ public final class TimeDetectorStrategyImpl implements TimeDetectorStrategy {
 
     @Override
     public synchronized void clearLatestNetworkSuggestion() {
-        if (com.android.internal.os.Flags.applicationSharedMemoryEnabled()
-                && android.os.Flags.networkTimeUsesSharedMemory()) {
-            ApplicationSharedMemory.getInstance()
-                    .clearLatestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis();
-        }
+        ApplicationSharedMemory.getInstance()
+                .clearLatestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis();
         mLastNetworkSuggestion.set(null);
         notifyNetworkTimeUpdateListenersAsynchronously();
 

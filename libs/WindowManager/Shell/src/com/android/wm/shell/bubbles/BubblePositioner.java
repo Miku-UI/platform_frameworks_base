@@ -25,7 +25,6 @@ import android.graphics.Insets;
 import android.graphics.PointF;
 import android.graphics.Rect;
 import android.graphics.RectF;
-import android.view.Surface;
 import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
@@ -37,6 +36,8 @@ import com.android.wm.shell.R;
 import com.android.wm.shell.shared.bubbles.BubbleBarLocation;
 import com.android.wm.shell.shared.bubbles.BubbleDropTargetBoundsProvider;
 import com.android.wm.shell.shared.bubbles.DeviceConfig;
+
+import java.io.PrintWriter;
 
 /**
  * Keeps track of display size, configuration, and specific bubble sizes. One place for all
@@ -68,7 +69,6 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     private Context mContext;
     private DeviceConfig mDeviceConfig;
     private Rect mScreenRect;
-    private @Surface.Rotation int mRotation = Surface.ROTATION_0;
     private Insets mInsets;
     private boolean mImeVisible;
     /**
@@ -103,9 +103,9 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     private int mManageButtonHeight;
     private int mOverflowHeight;
     private int mMinimumFlyoutWidthLargeScreen;
-    private int mBarExpViewDropTargetPaddingTop;
+    private int mBarExpViewDropTargetWidth;
+    private int mBarExpViewDropTargetHeight;
     private int mBarExpViewDropTargetPaddingBottom;
-    private int mBarExpViewDropTargetPaddingHorizontal;
     private int mBarDropTargetWidth;
     private int mBarDropTargetHeight;
 
@@ -132,12 +132,12 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     public void update(DeviceConfig deviceConfig) {
         mDeviceConfig = deviceConfig;
         ProtoLog.d(WM_SHELL_BUBBLES, "update positioner: "
-                        + "rotation=%d insets=%s largeScreen=%b "
+                        + "insets=%s largeScreen=%b "
                         + "smallTablet=%b isBubbleBar=%b bounds=%s",
-                mRotation, deviceConfig.getInsets(), deviceConfig.isLargeScreen(),
+                deviceConfig.getInsets(), deviceConfig.isLargeScreen(),
                 deviceConfig.isSmallTablet(), mShowingInBubbleBar,
                 deviceConfig.getWindowBounds());
-        updateInternal(mRotation, deviceConfig.getInsets(), deviceConfig.getWindowBounds());
+        updateInternal(deviceConfig.getInsets(), deviceConfig.getWindowBounds());
     }
 
     /** Returns the device config being used. */
@@ -146,7 +146,7 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     }
 
     @VisibleForTesting
-    public void updateInternal(int rotation, Insets insets, Rect bounds) {
+    public void updateInternal(Insets insets, Rect bounds) {
         BubbleStackView.RelativeStackPosition prevStackPosition = null;
         if (mRestingStackPosition != null && mScreenRect != null && !mScreenRect.equals(bounds)) {
             // Save the resting position as a relative position with the previous bounds, at the
@@ -154,7 +154,6 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
             prevStackPosition = new BubbleStackView.RelativeStackPosition(getRestingPosition(),
                     getAllowableStackPositionRegion(1));
         }
-        mRotation = rotation;
         mInsets = insets;
 
         mScreenRect = new Rect(bounds);
@@ -177,12 +176,12 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
                 res.getDimensionPixelSize(R.dimen.bubble_bar_expanded_view_width),
                 mPositionRect.width() - 2 * mExpandedViewPadding
         );
-        mBarExpViewDropTargetPaddingTop = res.getDimensionPixelSize(
-                R.dimen.bubble_bar_expanded_view_drop_target_padding_top);
+        mBarExpViewDropTargetWidth = res.getDimensionPixelSize(
+                com.android.wm.shell.shared.R.dimen.drop_target_expanded_view_width);
+        mBarExpViewDropTargetHeight = res.getDimensionPixelSize(
+                com.android.wm.shell.shared.R.dimen.drop_target_expanded_view_height);
         mBarExpViewDropTargetPaddingBottom = res.getDimensionPixelSize(
-                R.dimen.bubble_bar_expanded_view_drop_target_padding_bottom);
-        mBarExpViewDropTargetPaddingHorizontal = res.getDimensionPixelSize(
-                R.dimen.bubble_bar_expanded_view_drop_target_padding_horizontal);
+                com.android.wm.shell.shared.R.dimen.drop_target_expanded_view_padding_bottom);
         mBarDropTargetWidth = res.getDimensionPixelSize(R.dimen.bubble_bar_drop_target_width);
         mBarDropTargetHeight = res.getDimensionPixelSize(R.dimen.bubble_bar_drop_target_height);
 
@@ -860,6 +859,31 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
                 screen.bottom);
     }
 
+
+    /**
+     * Populates {@param out} with the rest bounds of an expanded bubble on screen.
+     * <p>
+     * TODO: b/417226976
+     *  Never used for the overflow or for floating mode on large screen -- bubble bar & phone
+     *  floating only.
+     */
+    public void getTaskViewRestBounds(Rect out) {
+        if (isShowingInBubbleBar()) {
+            getBubbleBarExpandedViewBounds(isBubbleBarOnLeft(), false /* isOverflow */, out);
+        } else {
+            final int top = getExpandedViewYTopAligned();
+            // Can assume left false because that only matters for floating on large screen which
+            // is never used here.
+            final int width = getTaskViewContentWidth(false /* onLeft */);
+            // TODO (b/419347947): this assumes max height for the bubble, chat bubbles can have
+            //  variable height if the developer overrides; will matter for move chat to fullscreen
+            final int height = getMaxExpandedViewHeight(false /* overflow */);
+            final int[] paddings = getExpandedViewContainerPadding(false /* onLeft */,
+                    false /* overflow */);
+            out.set(paddings[0], top, paddings[0] + width, top + height);
+        }
+    }
+
     //
     // Bubble bar specific sizes below.
     //
@@ -893,11 +917,9 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
         return mBubbleBarLocation.isOnLeft(mDeviceConfig.isRtl());
     }
 
-    /**
-     * Set top coordinate of bubble bar on screen
-     */
-    public void setBubbleBarTopOnScreen(int topOnScreen) {
-        mBubbleBarTopOnScreen = topOnScreen;
+    /** Updates the top coordinate of bubble bar on screen. */
+    public void updateBubbleBarTopOnScreen(int bubbleBarTopToScreenBottom) {
+        mBubbleBarTopOnScreen = getScreenRect().bottom - bubbleBarTopToScreenBottom;
     }
 
     /**
@@ -996,15 +1018,14 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
     public Rect getBubbleBarExpandedViewDropTargetBounds(boolean onLeft) {
         Rect bounds = new Rect();
         getBubbleBarExpandedViewBounds(onLeft, false, bounds);
-        // Drop target bounds are based on expanded view bounds with some padding added
-        int leftPadding = onLeft ? 0 : mBarExpViewDropTargetPaddingHorizontal;
-        int rightPadding = onLeft ? mBarExpViewDropTargetPaddingHorizontal : 0;
-        bounds.inset(
-                leftPadding,
-                mBarExpViewDropTargetPaddingTop,
-                rightPadding,
-                mBarExpViewDropTargetPaddingBottom
-        );
+        // Position based on expanded view bounds and adjust the size
+        if (onLeft) {
+            bounds.right = bounds.left + mBarExpViewDropTargetWidth;
+        } else {
+            bounds.left = bounds.right - mBarExpViewDropTargetWidth;
+        }
+        bounds.bottom = mScreenRect.bottom - mBarExpViewDropTargetPaddingBottom;
+        bounds.top = bounds.bottom - mBarExpViewDropTargetHeight;
         return bounds;
     }
 
@@ -1022,5 +1043,21 @@ public class BubblePositioner implements BubbleDropTargetBoundsProvider {
             bounds.left = bounds.right - mBarDropTargetWidth;
         }
         return bounds;
+    }
+
+    /** Description of current positioner state. */
+    void dump(PrintWriter pw) {
+        pw.println("BubblePositioner state:");
+        pw.println("  mScreenRect= " + mScreenRect);
+        pw.println("  mPositionRect= " + mPositionRect);
+        pw.println("  mInsets= " + mInsets);
+        pw.println("  mImeVisible= " + mImeVisible);
+        pw.println("  mImeHeight= " + mImeHeight);
+        pw.println("  mMaxBubbles= " + mMaxBubbles);
+        pw.println("  mRestingStackPosition= " + mRestingStackPosition);
+        pw.println("  mShowingInBubbleBar= " + mShowingInBubbleBar);
+        pw.println("  mBubbleBarLocation= " + mBubbleBarLocation);
+        pw.println("  mBubbleBarTopOnScreen= " + mBubbleBarTopOnScreen);
+        pw.println();
     }
 }

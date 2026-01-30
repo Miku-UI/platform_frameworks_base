@@ -56,14 +56,9 @@ public class PluginManager {
     PluginManager(Context context, DisplayManagerFlags flags, Injector injector) {
         Set<PluginType<?>> enabledTypes = injector.getEnabledPluginTypes(flags);
         mPluginStorage = injector.getPluginStorage(enabledTypes);
-        if (flags.isPluginManagerEnabled()) {
-            mPlugins = Collections.unmodifiableList(injector.loadPlugins(
-                    context, mPluginStorage, enabledTypes));
-            Slog.d(TAG, "loaded Plugins:" + mPlugins);
-        } else {
-            mPlugins = List.of();
-            Slog.d(TAG, "PluginManager disabled");
-        }
+        mPlugins = Collections.unmodifiableList(injector.loadPlugins(
+                context, mPluginStorage, enabledTypes));
+        Slog.d(TAG, "loaded Plugins:" + mPlugins);
     }
 
     /**

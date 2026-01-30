@@ -83,7 +83,7 @@ public class UidObserverController {
 
     UidObserverController(@NonNull Handler handler) {
         mHandler = handler;
-        mValidateUids = new ActiveUids(null /* service */, false /* postChangesToAtm */);
+        mValidateUids = new ActiveUids(null);
     }
 
     IBinder register(@NonNull IUidObserver observer, int which, int cutpoint,

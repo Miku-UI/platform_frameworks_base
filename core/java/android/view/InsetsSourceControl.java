@@ -19,9 +19,9 @@ package android.view;
 import static android.graphics.PointProto.X;
 import static android.graphics.PointProto.Y;
 import static android.util.SequenceUtils.getInitSeq;
-import static android.view.InsetsSourceControlProto.LEASH;
-import static android.view.InsetsSourceControlProto.POSITION;
-import static android.view.InsetsSourceControlProto.TYPE_NUMBER;
+import static android.internal.perfetto.protos.Insetssourcecontrol.InsetsSourceControlProto.LEASH;
+import static android.internal.perfetto.protos.Insetssourcecontrol.InsetsSourceControlProto.POSITION;
+import static android.internal.perfetto.protos.Insetssourcecontrol.InsetsSourceControlProto.TYPE_NUMBER;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -40,28 +40,35 @@ import java.util.function.Consumer;
 
 /**
  * Represents a parcelable object to allow controlling a single {@link InsetsSource}.
+ *
  * @hide
  */
 public class InsetsSourceControl implements Parcelable {
 
     private final int mId;
-    private final @InsetsType int mType;
-    private final @Nullable SurfaceControl mLeash;
+    @InsetsType
+    private final int mType;
+    @Nullable
+    private final SurfaceControl mLeash;
     private final boolean mInitiallyVisible;
+    @NonNull
     private final Point mSurfacePosition;
 
     // This is used while playing an insets animation regardless of the relative frame. This would
     // be the insets received by the bounds of its source window.
+    @NonNull
     private Insets mInsetsHint;
 
     private boolean mSkipAnimationOnce;
+    @WriteFlags
     private int mParcelableFlags;
 
     /** The token tracking the current IME request */
-    private @Nullable ImeTracker.Token mImeStatsToken;
+    @Nullable
+    private ImeTracker.Token mImeStatsToken;
 
     public InsetsSourceControl(int id, @InsetsType int type, @Nullable SurfaceControl leash,
-            boolean initiallyVisible, Point surfacePosition, Insets insetsHint) {
+            boolean initiallyVisible, @NonNull Point surfacePosition, @NonNull Insets insetsHint) {
         mId = id;
         mType = type;
         mLeash = leash;
@@ -70,7 +77,7 @@ public class InsetsSourceControl implements Parcelable {
         mInsetsHint = insetsHint;
     }
 
-    public InsetsSourceControl(InsetsSourceControl other) {
+    public InsetsSourceControl(@NonNull InsetsSourceControl other) {
         mId = other.mId;
         mType = other.mType;
         if (other.mLeash != null) {
@@ -85,7 +92,7 @@ public class InsetsSourceControl implements Parcelable {
         mImeStatsToken = other.getImeStatsToken();
     }
 
-    public InsetsSourceControl(Parcel in) {
+    public InsetsSourceControl(@NonNull Parcel in) {
         mId = in.readInt();
         mType = in.readInt();
         mLeash = in.readTypedObject(SurfaceControl.CREATOR);
@@ -100,6 +107,7 @@ public class InsetsSourceControl implements Parcelable {
         return mId;
     }
 
+    @InsetsType
     public int getType() {
         return mType;
     }
@@ -110,7 +118,8 @@ public class InsetsSourceControl implements Parcelable {
      *
      * @return the leash.
      */
-    public @Nullable SurfaceControl getLeash() {
+    @Nullable
+    public SurfaceControl getLeash() {
         return mLeash;
     }
 
@@ -126,11 +135,12 @@ public class InsetsSourceControl implements Parcelable {
         return true;
     }
 
+    @NonNull
     public Point getSurfacePosition() {
         return mSurfacePosition;
     }
 
-    public void setInsetsHint(Insets insets) {
+    public void setInsetsHint(@NonNull Insets insets) {
         mInsetsHint = insets;
     }
 
@@ -138,6 +148,7 @@ public class InsetsSourceControl implements Parcelable {
         mInsetsHint = Insets.of(left, top, right, bottom);
     }
 
+    @NonNull
     public Insets getInsetsHint() {
         return mInsetsHint;
     }
@@ -153,7 +164,7 @@ public class InsetsSourceControl implements Parcelable {
     /**
      * Get the state whether the current control needs to skip animation or not.
      *
-     * Note that this is a one-time check that the state is only valid and can be called when
+     * <p>Note that this is a one-time check that the state is only valid and can be called when
      * {@link InsetsController#applyAnimation} to check if the current control can skip animation
      * at this time, and then will clear the state value.
      */
@@ -172,7 +183,7 @@ public class InsetsSourceControl implements Parcelable {
         mImeStatsToken = imeStatsToken;
     }
 
-    public void setParcelableFlags(int parcelableFlags) {
+    public void setParcelableFlags(@WriteFlags int parcelableFlags) {
         mParcelableFlags = parcelableFlags;
     }
 
@@ -182,7 +193,7 @@ public class InsetsSourceControl implements Parcelable {
     }
 
     @Override
-    public void writeToParcel(Parcel dest, int flags) {
+    public void writeToParcel(@NonNull Parcel dest, @WriteFlags int flags) {
         dest.writeInt(mId);
         dest.writeInt(mType);
         dest.writeTypedObject(mLeash, mParcelableFlags);
@@ -193,7 +204,7 @@ public class InsetsSourceControl implements Parcelable {
         dest.writeTypedObject(mImeStatsToken, mParcelableFlags);
     }
 
-    public void release(Consumer<SurfaceControl> surfaceReleaseConsumer) {
+    public void release(@NonNull Consumer<SurfaceControl> surfaceReleaseConsumer) {
         if (mLeash != null && mLeash.isValid()) {
             surfaceReleaseConsumer.accept(mLeash);
         }
@@ -236,7 +247,7 @@ public class InsetsSourceControl implements Parcelable {
                 + "}";
     }
 
-    public void dump(String prefix, PrintWriter pw) {
+    public void dump(@NonNull String prefix, @NonNull PrintWriter pw) {
         pw.print(prefix);
         pw.print("InsetsSourceControl mId="); pw.print(Integer.toHexString(mId));
         pw.print(" mType="); pw.print(WindowInsets.Type.toString(mType));
@@ -249,7 +260,8 @@ public class InsetsSourceControl implements Parcelable {
         pw.println();
     }
 
-    public static final @NonNull Creator<InsetsSourceControl> CREATOR = new Creator<>() {
+    @NonNull
+    public static final Creator<InsetsSourceControl> CREATOR = new Creator<>() {
         public InsetsSourceControl createFromParcel(Parcel in) {
             return new InsetsSourceControl(in);
         }
@@ -265,7 +277,7 @@ public class InsetsSourceControl implements Parcelable {
      * @param proto   Stream to write the state to
      * @param fieldId FieldId of InsetsSource as defined in the parent message
      */
-    public void dumpDebug(ProtoOutputStream proto, long fieldId) {
+    public void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         final long surfaceToken = proto.start(POSITION);
         proto.write(X, mSurfacePosition.x);
@@ -286,7 +298,8 @@ public class InsetsSourceControl implements Parcelable {
      */
     public static class Array implements Parcelable {
 
-        private @Nullable InsetsSourceControl[] mControls;
+        @Nullable
+        private InsetsSourceControl[] mControls;
 
         /** To make sure the info update between client and system server is in order. */
         private int mSeq = getInitSeq();
@@ -335,7 +348,8 @@ public class InsetsSourceControl implements Parcelable {
         }
 
         /** Gets the controls. */
-        public @Nullable InsetsSourceControl[] get() {
+        @Nullable
+        public InsetsSourceControl[] get() {
             return mControls;
         }
 
@@ -352,7 +366,7 @@ public class InsetsSourceControl implements Parcelable {
         }
 
         /** Sets the given flags to all controls. */
-        public void setParcelableFlags(int parcelableFlags) {
+        public void setParcelableFlags(@WriteFlags int parcelableFlags) {
             if (mControls == null) {
                 return;
             }
@@ -368,18 +382,19 @@ public class InsetsSourceControl implements Parcelable {
             return 0;
         }
 
-        public void readFromParcel(Parcel in) {
+        public void readFromParcel(@NonNull Parcel in) {
             mControls = in.createTypedArray(InsetsSourceControl.CREATOR);
             mSeq = in.readInt();
         }
 
         @Override
-        public void writeToParcel(Parcel out, int flags) {
+        public void writeToParcel(@NonNull Parcel out, @WriteFlags int flags) {
             out.writeTypedArray(mControls, flags);
             out.writeInt(mSeq);
         }
 
-        public static final @NonNull Creator<Array> CREATOR = new Creator<>() {
+        @NonNull
+        public static final Creator<Array> CREATOR = new Creator<>() {
             public Array createFromParcel(Parcel in) {
                 return new Array(in);
             }

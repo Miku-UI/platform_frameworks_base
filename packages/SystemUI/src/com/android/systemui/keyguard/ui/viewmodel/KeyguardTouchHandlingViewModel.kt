@@ -17,30 +17,89 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
-import com.android.systemui.dagger.SysUISingleton
+import android.graphics.Rect
+import androidx.compose.runtime.getValue
+import com.android.systemui.Flags
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTouchHandlingInteractor
-import javax.inject.Inject
+import com.android.systemui.lifecycle.ExclusiveActivatable
+import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.plugins.FalsingManager
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.google.android.msdl.data.model.MSDLToken
+import com.google.android.msdl.domain.MSDLPlayer
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 
 /** Models UI state to support top-level touch handling in the lock screen. */
-@SysUISingleton
+@OptIn(ExperimentalCoroutinesApi::class)
 class KeyguardTouchHandlingViewModel
-@Inject
+@AssistedInject
 constructor(
     private val interactor: KeyguardTouchHandlingInteractor,
-) {
+    private val msdlPlayer: MSDLPlayer,
+    private val falsingManager: FalsingManager,
+    deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
+) : ExclusiveActivatable() {
+    private val hydrator = Hydrator("KeyguardTouchHandlingViewModel.hydrator")
+
+    /**
+     * Bounds of the UDFPS accessibility overlay. This is needed in order to prevent interrupted
+     * accessibility feedback from user interaction where the keyguard touch handling view and the
+     * accessibility overlay overlap.
+     */
+    val accessibilityOverlayBoundsWhenListeningForUdfps: Flow<Rect?> =
+        combine(
+            interactor.udfpsAccessibilityOverlayBounds,
+            deviceEntryUdfpsInteractor.isListeningForUdfps,
+        ) { bounds, isListeningForUdfps ->
+            if (isListeningForUdfps) {
+                bounds
+            } else {
+                null
+            }
+        }
 
     /** Whether the long-press handling feature should be enabled. */
-    val isLongPressHandlingEnabled: Flow<Boolean> = interactor.isLongPressHandlingEnabled
+    val isLongPressHandlingEnabled: Boolean by
+        hydrator.hydratedStateOf(
+            traceName = "longPressHandlingEnabled",
+            initialValue = false,
+            source = interactor.isLongPressHandlingEnabled,
+        )
 
     /** Whether the double tap handling feature should be enabled. */
-    val isDoubleTapHandlingEnabled: Flow<Boolean> = interactor.isDoubleTapHandlingEnabled
+    val isDoubleTapHandlingEnabled: Boolean by
+        hydrator.hydratedStateOf(
+            traceName = "doubleTapHandlingEnabled",
+            initialValue = false,
+            source = interactor.isDoubleTapHandlingEnabled,
+        )
 
-    /** Notifies that the user has long-pressed on the lock screen.
+    override suspend fun onActivated(): Nothing {
+        hydrator.activate()
+    }
+
+    /**
+     * Notifies that the user has long-pressed on the lock screen.
      *
      * @param isA11yAction: Whether the action was performed as an a11y action
      */
     fun onLongPress(isA11yAction: Boolean) {
+        if (
+            SceneContainerFlag.isEnabled &&
+                !isA11yAction &&
+                falsingManager.isFalseLongTap(FalsingManager.LOW_PENALTY)
+        ) {
+            return
+        }
+
+        if (Flags.msdlFeedback()) {
+            msdlPlayer.playToken(MSDLToken.LONG_PRESS)
+        }
         interactor.onLongPress(isA11yAction)
     }
 
@@ -59,6 +118,12 @@ constructor(
 
     /** Notifies that the lockscreen has been double clicked. */
     fun onDoubleClick() {
+        if (SceneContainerFlag.isEnabled && falsingManager.isFalseDoubleTap()) return
         interactor.onDoubleClick()
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(): KeyguardTouchHandlingViewModel
     }
 }

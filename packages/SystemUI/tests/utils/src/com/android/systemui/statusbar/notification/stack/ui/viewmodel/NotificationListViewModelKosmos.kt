@@ -20,8 +20,11 @@ import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarouselInteractor
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
-import com.android.systemui.statusbar.chips.ui.viewmodel.ongoingActivityChipsViewModel
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
+import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
 import com.android.systemui.statusbar.domain.interactor.remoteInputInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.activeNotificationsInteractor
 import com.android.systemui.statusbar.notification.emptyshade.ui.viewmodel.emptyShadeViewModelFactory
@@ -30,23 +33,27 @@ import com.android.systemui.statusbar.notification.shelf.ui.viewmodel.notificati
 import com.android.systemui.statusbar.notification.stack.domain.interactor.headsUpNotificationInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationStackInteractor
 import com.android.systemui.statusbar.policy.domain.interactor.userSetupInteractor
-import java.util.Optional
 
 val Kosmos.notificationListViewModel by Fixture {
     NotificationListViewModel(
-        notificationShelfViewModel,
-        hideListViewModel,
-        ongoingActivityChipsViewModel,
-        footerViewModelFactory,
-        emptyShadeViewModelFactory,
-        Optional.of(notificationListLoggerViewModel),
-        activeNotificationsInteractor,
-        notificationStackInteractor,
-        headsUpNotificationInteractor,
-        remoteInputInteractor,
-        shadeInteractor,
-        userSetupInteractor,
-        testDispatcher,
-        dumpManager,
+        shelf = notificationShelfViewModel,
+        hideListViewModel = hideListViewModel,
+        shadeStatusBarComponentsInteractor = shadeStatusBarComponentsInteractor,
+        footerViewModelFactory = footerViewModelFactory,
+        emptyShadeViewModelFactory = emptyShadeViewModelFactory,
+        bundleOnboarding = bundleOnboardingViewModel,
+        summarizationOnboarding = summarizationOnboardingViewModel,
+        logger = notificationListLoggerViewModel,
+        sceneInteractor = sceneInteractor,
+        activeNotificationsInteractor = activeNotificationsInteractor,
+        notificationStackInteractor = notificationStackInteractor,
+        headsUpNotificationInteractor = headsUpNotificationInteractor,
+        mediaCarouselInteractor = mediaCarouselInteractor,
+        remoteInputInteractor = remoteInputInteractor,
+        shadeInteractor = shadeInteractor,
+        shadeModeInteractor = shadeModeInteractor,
+        userSetupInteractor = userSetupInteractor,
+        bgDispatcher = testDispatcher,
+        dumpManager = dumpManager,
     )
 }

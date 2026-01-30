@@ -26,7 +26,6 @@ import android.app.AppOpsManager.AttributionFlags;
 import android.app.AppOpsManagerInternal.CheckOpsDelegate;
 import android.app.SyncNotedAppOp;
 import android.content.AttributionSource;
-import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.os.Binder;
 import android.os.IBinder;
@@ -46,6 +45,8 @@ import com.android.internal.util.function.QuadFunction;
 import com.android.internal.util.function.TriFunction;
 import com.android.internal.util.function.UndecFunction;
 import com.android.server.LocalServices;
+import com.android.server.pm.PackageManagerService;
+import com.android.server.pm.PackageMetrics;
 import com.android.server.pm.permission.PermissionManagerServiceInternal.CheckPermissionDelegate;
 
 import java.util.List;
@@ -168,7 +169,8 @@ public interface AccessCheckDelegate extends CheckPermissionDelegate, CheckOpsDe
                 mDelegatePermissions = permissions;
                 mDelegateAllPermissions = permissions == null;
             }
-            PackageManager.invalidatePackageInfoCache();
+            PackageManagerService.invalidatePackageInfoCache(
+                    PackageMetrics.INVALIDATION_REASON_SET_SHELL_PERMISSION_DELEGATE);
         }
 
         @Override
@@ -178,7 +180,8 @@ public interface AccessCheckDelegate extends CheckPermissionDelegate, CheckOpsDe
                 mDelegatePermissions = null;
                 mDelegateAllPermissions = false;
             }
-            PackageManager.invalidatePackageInfoCache();
+            PackageManagerService.invalidatePackageInfoCache(
+                    PackageMetrics.INVALIDATION_REASON_REMOVE_SHELL_PERMISSION_DELEGATE);
         }
 
         @Override
@@ -201,7 +204,8 @@ public interface AccessCheckDelegate extends CheckPermissionDelegate, CheckOpsDe
 
                 perUidOverrides.put(permission, state);
             }
-            PackageManager.invalidatePackageInfoCache();
+            PackageManagerService.invalidatePackageInfoCache(
+                    PackageMetrics.INVALIDATION_REASON_ADD_OVERRIDE_PERMISSION_STATE);
         }
 
         @Override
@@ -226,7 +230,8 @@ public interface AccessCheckDelegate extends CheckPermissionDelegate, CheckOpsDe
                     mOverridePermissionStates = null;
                 }
             }
-            PackageManager.invalidatePackageInfoCache();
+            PackageManagerService.invalidatePackageInfoCache(
+                    PackageMetrics.INVALIDATION_REASON_REMOVE_OVERRIDE_PERMISSION_STATE);
         }
 
         @Override
@@ -242,7 +247,8 @@ public interface AccessCheckDelegate extends CheckPermissionDelegate, CheckOpsDe
                     mOverridePermissionStates = null;
                 }
             }
-            PackageManager.invalidatePackageInfoCache();
+            PackageManagerService.invalidatePackageInfoCache(
+                    PackageMetrics.INVALIDATION_REASON_CLEAR_OVERRIDE_PERMISSION_STATE);
         }
 
         @Override
@@ -250,7 +256,8 @@ public interface AccessCheckDelegate extends CheckPermissionDelegate, CheckOpsDe
             synchronized (mLock) {
                 mOverridePermissionStates = null;
             }
-            PackageManager.invalidatePackageInfoCache();
+            PackageManagerService.invalidatePackageInfoCache(
+                    PackageMetrics.INVALIDATION_REASON_CLEAR_ALL_OVERRIDE_PERMISSION_STATE);
         }
 
         @Override
@@ -301,20 +308,27 @@ public interface AccessCheckDelegate extends CheckPermissionDelegate, CheckOpsDe
                 @NonNull String persistentDeviceId, @UserIdInt int userId,
                 @NonNull QuadFunction<String, String, String, Integer, Integer> superImpl) {
             boolean useShellDelegate;
+            boolean hasOverridePermissionStates;
 
             synchronized (mLock) {
                 useShellDelegate = !SHELL_PKG.equals(packageName)
                         && TextUtils.equals(mDelegatePackage, packageName)
                         && isDelegatePermission(permissionName);
+                hasOverridePermissionStates = mOverridePermissionStates != null;
+            }
 
-                if (!useShellDelegate && mOverridePermissionStates != null) {
-                    int uid = LocalServices.getService(PackageManagerInternal.class)
-                                    .getPackageUid(packageName, 0, userId);
-                    if (uid >= 0) {
-                        Map<String, Integer> permissionGrants = mOverridePermissionStates.get(uid);
-                        if (permissionGrants != null
-                                && permissionGrants.containsKey(permissionName)) {
-                            return permissionGrants.get(permissionName);
+            if (!useShellDelegate && hasOverridePermissionStates) {
+                int uid = LocalServices.getService(PackageManagerInternal.class)
+                        .getPackageUid(packageName, 0, userId);
+                if (uid >= 0) {
+                    synchronized (mLock) {
+                        if (mOverridePermissionStates != null) {
+                            Map<String, Integer> permissionGrants =
+                                    mOverridePermissionStates.get(uid);
+                            if (permissionGrants != null
+                                    && permissionGrants.containsKey(permissionName)) {
+                                return permissionGrants.get(permissionName);
+                            }
                         }
                     }
                 }

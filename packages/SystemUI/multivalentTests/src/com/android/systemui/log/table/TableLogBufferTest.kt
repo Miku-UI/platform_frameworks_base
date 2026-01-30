@@ -19,12 +19,15 @@ package com.android.systemui.log.table
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.log.FakeLogProxy
 import com.android.systemui.log.LogcatEchoTracker
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.log.table.TableChange.Companion.IS_INITIAL_PREFIX
 import com.android.systemui.log.table.TableChange.Companion.MAX_STRING_LENGTH
 import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert
+import org.junit.Assert.assertThrows
 import java.io.PrintWriter
 import java.io.StringWriter
 import org.junit.Before
@@ -53,7 +56,7 @@ class TableLogBufferTest : SysuiTestCase() {
         outputWriter = StringWriter()
 
         underTest =
-            TableLogBuffer(
+            TableLogBufferImpl(
                 MAX_SIZE,
                 NAME,
                 systemClock,
@@ -62,15 +65,17 @@ class TableLogBufferTest : SysuiTestCase() {
             )
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun maxSizeZero_throwsException() {
-        TableLogBuffer(
-            maxSize = 0,
-            "name",
-            systemClock,
-            logcatEchoTracker,
-            localLogcat = localLogcat,
-        )
+        assertThrows(IllegalArgumentException::class.java) {
+            TableLogBufferImpl(
+                maxSize = 0,
+                "name",
+                systemClock,
+                logcatEchoTracker,
+                localLogcat = localLogcat,
+            )
+        }
     }
 
     @Test
@@ -94,7 +99,7 @@ class TableLogBufferTest : SysuiTestCase() {
         assertThat(logLines(dumpedString).last()).isEqualTo(FOOTER_PREFIX + NAME)
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun dumpChanges_str_separatorNotAllowedInPrefix() {
         val next =
             object : TestDiffable() {
@@ -102,10 +107,12 @@ class TableLogBufferTest : SysuiTestCase() {
                     row.logChange("columnName", "stringValue")
                 }
             }
-        underTest.logDiffs("some${SEPARATOR}thing", TestDiffable(), next)
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("some${SEPARATOR}thing", TestDiffable(), next)
+        }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun dumpChanges_bool_separatorNotAllowedInPrefix() {
         val next =
             object : TestDiffable() {
@@ -113,10 +120,13 @@ class TableLogBufferTest : SysuiTestCase() {
                     row.logChange("columnName", true)
                 }
             }
-        underTest.logDiffs("some${SEPARATOR}thing", TestDiffable(), next)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("some${SEPARATOR}thing", TestDiffable(), next)
+        }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun dumpChanges_int_separatorNotAllowedInPrefix() {
         val next =
             object : TestDiffable() {
@@ -124,10 +134,12 @@ class TableLogBufferTest : SysuiTestCase() {
                     row.logChange("columnName", 567)
                 }
             }
-        underTest.logDiffs("some${SEPARATOR}thing", TestDiffable(), next)
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("some${SEPARATOR}thing", TestDiffable(), next)
+        }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun dumpChanges_str_separatorNotAllowedInColumnName() {
         val next =
             object : TestDiffable() {
@@ -135,10 +147,13 @@ class TableLogBufferTest : SysuiTestCase() {
                     row.logChange("column${SEPARATOR}Name", "stringValue")
                 }
             }
-        underTest.logDiffs("prefix", TestDiffable(), next)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("prefix", TestDiffable(), next)
+        }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun dumpChanges_bool_separatorNotAllowedInColumnName() {
         val next =
             object : TestDiffable() {
@@ -146,10 +161,13 @@ class TableLogBufferTest : SysuiTestCase() {
                     row.logChange("column${SEPARATOR}Name", true)
                 }
             }
-        underTest.logDiffs("prefix", TestDiffable(), next)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("prefix", TestDiffable(), next)
+        }
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun dumpChanges_int_separatorNotAllowedInColumnName() {
         val next =
             object : TestDiffable() {
@@ -157,7 +175,10 @@ class TableLogBufferTest : SysuiTestCase() {
                     row.logChange("column${SEPARATOR}Name", 456)
                 }
             }
-        underTest.logDiffs("prefix", TestDiffable(), next)
+
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.logDiffs("prefix", TestDiffable(), next)
+        }
     }
 
     @Test

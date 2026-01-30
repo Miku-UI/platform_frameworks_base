@@ -81,11 +81,6 @@ public class PhoneConstants {
     // anything outside of that, a cdma + lte phone is still CDMA_PHONE
     public static final int PHONE_TYPE_CDMA_LTE = RILConstants.CDMA_LTE_PHONE;
 
-    // Modes for LTE_ON_CDMA
-    public static final int LTE_ON_CDMA_UNKNOWN = RILConstants.LTE_ON_CDMA_UNKNOWN;
-    public static final int LTE_ON_CDMA_FALSE = RILConstants.LTE_ON_CDMA_FALSE;
-    public static final int LTE_ON_CDMA_TRUE = RILConstants.LTE_ON_CDMA_TRUE;
-
     // Number presentation type for caller id display (From internal/Connection.java)
     @UnsupportedAppUsage
     public static final int PRESENTATION_ALLOWED = 1;    // normal

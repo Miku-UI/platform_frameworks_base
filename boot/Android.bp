@@ -33,6 +33,7 @@ soong_config_module_type {
         "release_crashrecovery_module",
         "release_ondevice_intelligence_module",
         "release_package_profiling_module",
+        "release_telephony_module",
     ],
     properties: [
         "fragments",
@@ -192,6 +193,15 @@ custom_platform_bootclasspath {
                 {
                     apex: "com.android.profiling",
                     module: "com.android.profiling-bootclasspath-fragment",
+                },
+            ],
+        },
+        release_telephony_module: {
+            fragments: [
+                // only used if telephony is enabled.
+                {
+                    apex: "com.android.telephonycore",
+                    module: "com.android.telephony-bootclasspath-fragment",
                 },
             ],
         },

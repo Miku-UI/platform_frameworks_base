@@ -321,4 +321,59 @@ public class BiometricFrameworkStatsLogger {
         }
         return BiometricsProtoEnums.FOLD_UNKNOWN;
     }
+
+    static String modalityToString(int modality) {
+        if (modality == BiometricsProtoEnums.MODALITY_FACE) {
+            return "face";
+        }
+        if (modality == BiometricsProtoEnums.MODALITY_FINGERPRINT) {
+            return "fingerprint";
+        }
+        if (modality == BiometricsProtoEnums.MODALITY_IRIS) {
+            return "iris";
+        }
+        return "unknown";
+    }
+
+    static String clientToString(int client) {
+        if (client == BiometricsProtoEnums.CLIENT_KEYGUARD) {
+            return "keyguard";
+        }
+        if (client == BiometricsProtoEnums.CLIENT_BIOMETRIC_PROMPT) {
+            return "biometric prompt";
+        }
+        if (client == BiometricsProtoEnums.CLIENT_FINGERPRINT_MANAGER) {
+            return "fingerprint manager";
+        }
+        return "unknown";
+    }
+
+    static String actionToString(int action) {
+        if (action == BiometricsProtoEnums.ACTION_AUTHENTICATE) {
+            return "authenticate";
+        }
+        if (action == BiometricsProtoEnums.ACTION_ENROLL) {
+            return "enroll";
+        }
+        if (action == BiometricsProtoEnums.ACTION_ENUMERATE) {
+            return "enumerate";
+        }
+        if (action == BiometricsProtoEnums.ACTION_REMOVE) {
+            return "remove";
+        }
+        return "unknown";
+    }
+
+    static String authenticatedStateToString(int state) {
+        if (state == FrameworkStatsLog.BIOMETRIC_AUTHENTICATED__STATE__REJECTED) {
+            return "rejected";
+        }
+        if (state == FrameworkStatsLog.BIOMETRIC_AUTHENTICATED__STATE__PENDING_CONFIRMATION) {
+            return "pending confirmation";
+        }
+        if (state == FrameworkStatsLog.BIOMETRIC_AUTHENTICATED__STATE__CONFIRMED) {
+            return "confirmed";
+        }
+        return "unknown";
+    }
 }

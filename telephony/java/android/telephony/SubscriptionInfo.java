@@ -912,7 +912,6 @@ public class SubscriptionInfo implements Parcelable {
      * {@code false} otherwise.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CARRIER_ROAMING_NB_IOT_NTN)
     public boolean isSatelliteESOSSupported() {
         return mIsSatelliteESOSSupported;
     }
@@ -1862,7 +1861,6 @@ public class SubscriptionInfo implements Parcelable {
          * Carrier Roaming NB-IOT Satellite, {@code false} otherwise.
          * @return The builder.
          */
-        @FlaggedApi(Flags.FLAG_CARRIER_ROAMING_NB_IOT_NTN)
         @NonNull
         public Builder setSatelliteESOSSupported(boolean isSatelliteESOSSupported) {
             mIsSatelliteESOSSupported = isSatelliteESOSSupported;

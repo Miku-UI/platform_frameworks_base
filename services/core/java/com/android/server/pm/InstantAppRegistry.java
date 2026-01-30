@@ -55,6 +55,7 @@ import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.XmlUtils;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
+import com.android.server.art.DexUseManagerLocal;
 import com.android.server.pm.parsing.PackageInfoUtils;
 import com.android.server.pm.parsing.pkg.AndroidPackageUtils;
 import com.android.server.pm.permission.PermissionManagerServiceInternal;
@@ -83,6 +84,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -793,13 +795,13 @@ public class InstantAppRegistry implements Watchable, Snappable {
             return true;
         }
 
-        List<String> packagesToDelete = null;
+        List<PackageToDelete> packagesToDelete = new ArrayList<>();
 
-        final int[] allUsers;
         final long now = System.currentTimeMillis();
+        final DexUseManagerLocal dexUseManagerLocal = DexOptHelper.getDexUseManagerLocal();
 
         // Prune first installed instant apps
-        allUsers = mUserManager.getUserIds();
+        final int[] allUsers = mUserManager.getUserIds();
 
         final ArrayMap<String, ? extends PackageStateInternal> packageStates =
                 computer.getPackageStates();
@@ -811,8 +813,11 @@ public class InstantAppRegistry implements Watchable, Snappable {
                 continue;
             }
 
-            if (now - ps.getTransientState().getLatestPackageUseTimeInMills()
-                    < maxInstalledCacheDuration) {
+            long lastUsedAtMillis = com.android.art.flags.Flags.packageLastUsedApi()
+                    ? dexUseManagerLocal.getPackageLastUsedAtMillis(pkg.getPackageName())
+                    : ps.getTransientState().getLatestPackageUseTimeInMills();
+
+            if (now - lastUsedAtMillis < maxInstalledCacheDuration) {
                 continue;
             }
 
@@ -829,67 +834,23 @@ public class InstantAppRegistry implements Watchable, Snappable {
                 }
             }
             if (installedOnlyAsInstantApp) {
-                if (packagesToDelete == null) {
-                    packagesToDelete = new ArrayList<>();
-                }
-                packagesToDelete.add(pkg.getPackageName());
+                packagesToDelete.add(new PackageToDelete(pkg.getPackageName(), lastUsedAtMillis,
+                        PackageStateUtils.getEarliestFirstInstallTime(ps.getUserStates())));
             }
         }
 
-        if (packagesToDelete != null) {
-            packagesToDelete.sort((String lhs, String rhs) -> {
-                final PackageStateInternal lhsPkgState = packageStates.get(lhs);
-                final PackageStateInternal rhsPkgState = packageStates.get(rhs);
-                final AndroidPackage lhsPkg = lhsPkgState == null ? null : lhsPkgState.getPkg();
-                final AndroidPackage rhsPkg = rhsPkgState == null ? null : rhsPkgState.getPkg();
-                if (lhsPkg == null && rhsPkg == null) {
-                    return 0;
-                } else if (lhsPkg == null) {
-                    return -1;
-                } else if (rhsPkg == null) {
-                    return 1;
-                } else {
-                    final PackageStateInternal lhsPs =
-                            packageStates.get(lhsPkg.getPackageName());
-                    if (lhsPs == null) {
-                        return 0;
-                    }
+        packagesToDelete.sort(Comparator.<PackageToDelete>comparingLong(p -> p.lastUsedAtMillis())
+                        .thenComparingLong(p -> p.earliestFirstInstallTimeMillis()));
 
-                    final PackageStateInternal rhsPs =
-                            packageStates.get(rhsPkg.getPackageName());
-                    if (rhsPs == null) {
-                        return 0;
-                    }
-
-                    if (lhsPs.getTransientState().getLatestPackageUseTimeInMills() >
-                            rhsPs.getTransientState().getLatestPackageUseTimeInMills()) {
-                        return 1;
-                    } else if (lhsPs.getTransientState().getLatestPackageUseTimeInMills() <
-                            rhsPs.getTransientState().getLatestPackageUseTimeInMills()) {
-                        return -1;
-                    } else if (
-                            PackageStateUtils.getEarliestFirstInstallTime(lhsPs.getUserStates())
-                                    > PackageStateUtils.getEarliestFirstInstallTime(
-                                    rhsPs.getUserStates())) {
-                        return 1;
-                    } else {
-                        return -1;
-                    }
-                }
-            });
-        }
-
-        if (packagesToDelete != null) {
-            final int packageCount = packagesToDelete.size();
-            for (int i = 0; i < packageCount; i++) {
-                final String packageToDelete = packagesToDelete.get(i);
-                if (mDeletePackageHelper.deletePackageX(packageToDelete,
-                        PackageManager.VERSION_CODE_HIGHEST,
-                        UserHandle.USER_SYSTEM, PackageManager.DELETE_ALL_USERS,
-                        true /*removedBySystem*/) == PackageManager.DELETE_SUCCEEDED) {
-                    if (file.getUsableSpace() >= neededSpace) {
-                        return true;
-                    }
+        final int packageCount = packagesToDelete.size();
+        for (int i = 0; i < packageCount; i++) {
+            final String packageToDelete = packagesToDelete.get(i).packageName();
+            if (mDeletePackageHelper.deletePackageX(packageToDelete,
+                        PackageManager.VERSION_CODE_HIGHEST, UserHandle.USER_SYSTEM,
+                        PackageManager.DELETE_ALL_USERS, true /*removedBySystem*/)
+                    == PackageManager.DELETE_SUCCEEDED) {
+                if (file.getUsableSpace() >= neededSpace) {
+                    return true;
                 }
             }
         }
@@ -1417,4 +1378,7 @@ public class InstantAppRegistry implements Watchable, Snappable {
             persistInstantApplicationCookie(cookie, pkg.getPackageName(), cookieFile, userId);
         }
     }
+
+    private record PackageToDelete(
+            String packageName, long lastUsedAtMillis, long earliestFirstInstallTimeMillis) {}
 }

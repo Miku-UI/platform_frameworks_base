@@ -711,6 +711,25 @@ abstract class MobileIconsInteractorTestBase : SysuiTestCase() {
         }
 
     @Test
+    fun isSingleCarrier_twoOpportunisticSubscriptions_true() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.isSingleCarrier)
+
+            val (sub3, sub4) =
+                createSubscriptionPair(
+                    subscriptionIds = Pair(SUB_3_ID, SUB_4_ID),
+                    opportunistic = Pair(true, true),
+                    grouped = true,
+                )
+            connectionsRepository.setSubscriptions(listOf(sub3, sub4))
+            connectionsRepository.setActiveMobileDataSubscriptionId(SUB_3_ID)
+            whenever(carrierConfigTracker.alwaysShowPrimarySignalBarInOpportunisticNetworkDefault)
+                .thenReturn(false)
+
+            assertThat(latest).isEqualTo(true)
+        }
+
+    @Test
     fun isSingleCarrier_updates() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.isSingleCarrier)
@@ -935,6 +954,20 @@ abstract class MobileIconsInteractorTestBase : SysuiTestCase() {
             assertThat(latest).isTrue()
 
             connectionsRepository.setSubscriptions(listOf(SUB_1, SUB_2, SUB_3_OPP))
+            assertThat(latest).isFalse()
+        }
+
+    /** Regression test for b/431929674 */
+    @Test
+    @EnableFlags(NewStatusBarIcons.FLAG_NAME, StatusBarRootModernization.FLAG_NAME)
+    fun isStackable_removeAllSubscriptions() =
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.isStackable)
+
+            connectionsRepository.setSubscriptions(listOf(SUB_1, SUB_2))
+            assertThat(latest).isTrue()
+
+            connectionsRepository.setSubscriptions(emptyList())
             assertThat(latest).isFalse()
         }
 

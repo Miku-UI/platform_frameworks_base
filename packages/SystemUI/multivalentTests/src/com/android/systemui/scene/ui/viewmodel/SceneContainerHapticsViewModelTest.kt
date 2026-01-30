@@ -29,6 +29,7 @@ import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.haptics.msdl.fakeMSDLPlayer
 import com.android.systemui.kosmos.testScope
@@ -39,9 +40,11 @@ import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.disableDualShade
 import com.android.systemui.shade.domain.interactor.enableDualShade
+import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.testKosmos
 import com.google.android.msdl.data.model.MSDLToken
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
@@ -54,6 +57,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.verifyNoMoreInteractions
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @EnableSceneContainer
@@ -209,7 +213,55 @@ class SceneContainerHapticsViewModelTest : SysuiTestCase() {
             verifyNoMoreInteractions(view)
         }
 
-    private fun createTransitionState(from: SceneKey, to: ContentKey) =
+    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
+    @Test
+    fun onRemoteUserInteraction_withValidSceneTransition_playsMSDLShadePullHaptics() =
+        testScope.runTest {
+            kosmos.disableDualShade()
+            val isUserInteracting by collectLastValue(kosmos.shadeInteractor.isUserInteracting)
+
+            // GIVEN a valid scene transition to play haptics that initiated remotely
+            val validTransition =
+                createTransitionState(from = Scenes.Gone, to = Scenes.Shade, byUser = false)
+            sceneInteractor.onRemoteUserInputStarted("remote input")
+
+            // WHEN the transition occurs
+            sceneInteractor.setTransitionState(MutableStateFlow(validTransition))
+            runCurrent()
+            assertThat(isUserInteracting).isTrue()
+
+            // THEN the expected token plays without interaction properties
+            assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
+            assertThat(msdlPlayer.latestPropertiesPlayed).isNull()
+        }
+
+    @EnableFlags(Flags.FLAG_MSDL_FEEDBACK)
+    @Test
+    fun onRemoteUserInteraction_withValidOverlayTransition_playsMSDLShadePullHaptics() =
+        testScope.runTest {
+            kosmos.enableDualShade()
+            val isUserInteracting by collectLastValue(kosmos.shadeInteractor.isUserInteracting)
+
+            // GIVEN a valid scene transition to play haptics that initiated remotely
+            val validTransition =
+                createTransitionState(
+                    from = Scenes.Gone,
+                    to = Overlays.NotificationsShade,
+                    byUser = false,
+                )
+            sceneInteractor.onRemoteUserInputStarted("remote input")
+
+            // WHEN the transition occurs
+            sceneInteractor.setTransitionState(MutableStateFlow(validTransition))
+            runCurrent()
+            assertThat(isUserInteracting).isTrue()
+
+            // THEN the expected token plays without interaction properties
+            assertThat(msdlPlayer.latestTokenPlayed).isEqualTo(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
+            assertThat(msdlPlayer.latestPropertiesPlayed).isNull()
+        }
+
+    private fun createTransitionState(from: SceneKey, to: ContentKey, byUser: Boolean = true) =
         when (to) {
             is SceneKey ->
                 ObservableTransitionState.Transition(
@@ -217,7 +269,7 @@ class SceneContainerHapticsViewModelTest : SysuiTestCase() {
                     toScene = to,
                     currentScene = flowOf(from),
                     progress = MutableStateFlow(0.2f),
-                    isInitiatedByUserInput = true,
+                    isInitiatedByUserInput = byUser,
                     isUserInputOngoing = flowOf(true),
                 )
             is OverlayKey ->
@@ -228,7 +280,7 @@ class SceneContainerHapticsViewModelTest : SysuiTestCase() {
                     currentScene = from,
                     currentOverlays = sceneInteractor.currentOverlays,
                     progress = MutableStateFlow(0.2f),
-                    isInitiatedByUserInput = true,
+                    isInitiatedByUserInput = byUser,
                     isUserInputOngoing = flowOf(true),
                     previewProgress = flowOf(0f),
                     isInPreviewStage = flowOf(false),

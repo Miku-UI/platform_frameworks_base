@@ -16,8 +16,8 @@
 
 package android.view;
 
-import static android.view.WindowManager.LayoutParams.FIRST_SUB_WINDOW;
-import static android.view.WindowManager.LayoutParams.LAST_SUB_WINDOW;
+import static android.view.WindowManager.LayoutParams.INVALID_WINDOW_TYPE;
+import static android.view.WindowManager.LayoutParams.isSubWindowType;
 import static android.window.WindowProviderService.isWindowProviderService;
 
 import static com.android.window.flags.Flags.screenRecordingCallbacks;
@@ -80,12 +80,18 @@ import java.util.function.IntConsumer;
  * provides a window manager for adding windows that are associated with that
  * activity -- the window manager will not normally allow you to add arbitrary
  * windows that are not associated with an activity.
+ * <p>
+ * Note that extending {@code WindowManagerImpl} for {@link WindowManager} customization may lead to
+ * crashes since {@link Window} and {@link WindowContext} may also customize
+ * {@code WindowManagerImpl}, such as providing {@link #mParentWindow}
+ * or {@link #mWindowContextToken}. Users should customize {@link WindowManager} via
+ * {@link WindowManagerWrapper}.
  *
  * @see WindowManager
  * @see WindowManagerGlobal
  * @hide
  */
-public class WindowManagerImpl implements WindowManager {
+public final class WindowManagerImpl implements WindowManager {
     private static final String TAG = "WindowManager";
 
     @UnsupportedAppUsage
@@ -93,7 +99,7 @@ public class WindowManagerImpl implements WindowManager {
     @UiContext
     @VisibleForTesting
     public final Context mContext;
-    private final Window mParentWindow;
+    private Window mParentWindow;
 
     /**
      * If {@link LayoutParams#token} is {@code null} and no parent window is specified, the value
@@ -128,12 +134,9 @@ public class WindowManagerImpl implements WindowManager {
         mWindowMetricsController = new WindowMetricsController(mContext);
     }
 
-    public WindowManagerImpl createLocalWindowManager(Window parentWindow) {
+    @Override
+    public WindowManager createLocalWindowManager(Window parentWindow) {
         return new WindowManagerImpl(mContext, parentWindow, mWindowContextToken);
-    }
-
-    public WindowManagerImpl createPresentationWindowManager(Context displayContext) {
-        return new WindowManagerImpl(displayContext, mParentWindow, mWindowContextToken);
     }
 
     /** Creates a {@link WindowManager} for a {@link WindowContext}. */
@@ -153,7 +156,13 @@ public class WindowManagerImpl implements WindowManager {
     }
 
     @Override
+    public void setParentWindow(@NonNull Window parentWindow) {
+        mParentWindow = parentWindow;
+    }
+
+    @Override
     public void addView(@NonNull View view, @NonNull ViewGroup.LayoutParams params) {
+        fallbackWindowTypeIfNeeded(params, view);
         applyTokens(params);
         mGlobal.addView(view, params, mContext.getDisplayNoVerify(), mParentWindow,
                 mContext.getUserId());
@@ -161,15 +170,15 @@ public class WindowManagerImpl implements WindowManager {
 
     @Override
     public void updateViewLayout(@NonNull View view, @NonNull ViewGroup.LayoutParams params) {
+        fallbackWindowTypeIfNeeded(params, view);
         applyTokens(params);
         mGlobal.updateViewLayout(view, params);
     }
 
     private void applyTokens(@NonNull ViewGroup.LayoutParams params) {
-        if (!(params instanceof WindowManager.LayoutParams)) {
+        if (!(params instanceof LayoutParams wparams)) {
             throw new IllegalArgumentException("Params must be WindowManager.LayoutParams");
         }
-        final WindowManager.LayoutParams wparams = (WindowManager.LayoutParams) params;
         assertWindowContextTypeMatches(wparams.type);
         // Only use the default token if we don't have a parent window and a token.
         if (mDefaultToken != null && mParentWindow == null && wparams.token == null) {
@@ -179,16 +188,10 @@ public class WindowManagerImpl implements WindowManager {
     }
 
     private void assertWindowContextTypeMatches(@LayoutParams.WindowType int windowType) {
-        if (!(mContext instanceof WindowProvider)) {
+        if (!(mContext instanceof WindowProvider windowProvider)) {
             return;
         }
-        // Don't need to check sub-window type because sub window should be allowed to be attached
-        // to the parent window.
-        if (windowType >= FIRST_SUB_WINDOW && windowType <= LAST_SUB_WINDOW) {
-            return;
-        }
-        final WindowProvider windowProvider = (WindowProvider) mContext;
-        if (windowProvider.getWindowType() == windowType) {
+        if (windowProvider.isSelfOrSubWindowType(windowType)) {
             return;
         }
         IllegalArgumentException exception = new IllegalArgumentException("Window type mismatch."
@@ -204,6 +207,41 @@ public class WindowManagerImpl implements WindowManager {
         // window types. Usually it's because the Window Context is a WindowProviderService.
         StrictMode.onIncorrectContextUsed("WindowContext's window type must"
                 + " match type in WindowManager.LayoutParams", exception);
+    }
+
+    /**
+     * Fallbacks to {@link WindowContext#getFallbackWindowType()} if the type of the window context
+     * associated window is not {@link WindowContext#isSelfOrSubWindowType}.
+     *
+     * @param params the passed {@link android.view.WindowManager.LayoutParams}
+     * @param view   the window that are going to be attached or relayout
+     */
+    private void fallbackWindowTypeIfNeeded(
+            @NonNull ViewGroup.LayoutParams params,
+            @NonNull View view) {
+        if (!(params instanceof WindowManager.LayoutParams wparams)) {
+            throw new IllegalArgumentException("Params must be WindowManager.LayoutParams");
+        }
+        if (!(mContext instanceof WindowProvider windowProvider)) {
+            return;
+        }
+        final int windowTypeOverride = windowProvider.getFallbackWindowType();
+        if (windowTypeOverride == INVALID_WINDOW_TYPE) {
+            return;
+        }
+        if (windowProvider.isSelfOrSubWindowType(wparams.type)) {
+            // Don't need to override the type if the type is valid for this WindowContext.
+            return;
+        }
+        if (!mGlobal.canApplyFallbackWindowType(windowTypeOverride, view)) {
+            return;
+        }
+        if (isSubWindowType(windowTypeOverride) && mParentWindow == null) {
+            throw new IllegalArgumentException("Sub-window must be attached to the parent window."
+                    + " Please try to obtain WindowManager from a window class, call "
+                    + "WindowContext#attachWindow before adding any sub-windows.");
+        }
+        wparams.type = windowTypeOverride;
     }
 
     @Override
@@ -290,18 +328,19 @@ public class WindowManagerImpl implements WindowManager {
     }
 
     @Override
-    public void setShouldShowSystemDecors(int displayId, boolean shouldShow) {
-        try {
-            WindowManagerGlobal.getWindowManagerService()
-                    .setShouldShowSystemDecors(displayId, shouldShow);
-        } catch (RemoteException e) {
-        }
-    }
-
-    @Override
     public boolean shouldShowSystemDecors(int displayId) {
         try {
             return WindowManagerGlobal.getWindowManagerService().shouldShowSystemDecors(displayId);
+        } catch (RemoteException e) {
+        }
+        return false;
+    }
+
+    @Override
+    public boolean isEligibleForDesktopMode(int displayId) {
+        try {
+            return WindowManagerGlobal.getWindowManagerService()
+                    .isEligibleForDesktopMode(displayId);
         } catch (RemoteException e) {
         }
         return false;

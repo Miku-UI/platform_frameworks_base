@@ -132,10 +132,6 @@ public class MemoryRegion implements Parcelable{
 
     @Override
     public int hashCode() {
-        if (!Flags.fixApiCheck()) {
-            return super.hashCode();
-        }
-
         return Objects.hash(mSizeBytes, mSizeBytesFree, mIsReadable,
                 mIsWritable, mIsExecutable);
     }

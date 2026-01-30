@@ -17,5 +17,7 @@
 package com.android.systemui.media.controls.domain.pipeline
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.Kosmos.Fixture
+import org.mockito.kotlin.mock
 
-var Kosmos.mediaDataManager: MediaDataManager by Kosmos.Fixture()
+var Kosmos.mediaDataManager by Fixture { mock<MediaDataManager>() }

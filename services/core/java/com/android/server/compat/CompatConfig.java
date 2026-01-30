@@ -42,7 +42,7 @@ import com.android.internal.compat.CompatibilityOverridesToRemoveByPackageConfig
 import com.android.internal.compat.CompatibilityOverridesToRemoveConfig;
 import com.android.internal.compat.IOverrideValidator;
 import com.android.internal.compat.OverrideAllowedState;
-import com.android.internal.ravenwood.RavenwoodEnvironment;
+import com.android.internal.ravenwood.RavenwoodHelperBridge;
 import com.android.server.compat.config.Change;
 import com.android.server.compat.config.Config;
 import com.android.server.compat.overrides.ChangeOverrides;
@@ -127,7 +127,7 @@ final class CompatConfig {
     @SuppressWarnings("unused")
     private void loadConfigFiles$ravenwood() {
         final var configDir = new File(
-                RavenwoodEnvironment.getInstance().getRavenwoodRuntimePath()
+                RavenwoodHelperBridge.getInstance().getRavenwoodRuntimePath()
                         + APP_COMPAT_DATA_DIR_RAVENWOOD);
         initConfigFromLib(configDir, (file) -> file.getName().endsWith(OVERRIDES_FILE_RAVENWOOD));
     }
@@ -179,7 +179,7 @@ final class CompatConfig {
         for (CompatChange c : mChanges.values()) {
             long changeId = c.getId();
             boolean isLatestSdk = isChangeTargetingLatestSdk(c, app.targetSdkVersion);
-            if (c.isEnabled(app, mAndroidBuildClassifier) && isLatestSdk) {
+            if (c.isEnabled(app, mAndroidBuildClassifier) && isLatestSdk && !c.getNoLogging()) {
                 loggable.add(changeId);
             }
         }
@@ -726,7 +726,6 @@ final class CompatConfig {
         try (InputStream in = new BufferedInputStream(new FileInputStream(configFile))) {
             Config config = com.android.server.compat.config.XmlParser.read(in);
             for (Change change : config.getCompatChange()) {
-                Slog.d(TAG, "Adding: " + change.toString());
                 mChanges.put(change.getId(), new CompatChange(change));
             }
         } catch (IOException | DatatypeConfigurationException | XmlPullParserException e) {

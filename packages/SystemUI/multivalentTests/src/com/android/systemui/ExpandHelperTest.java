@@ -21,7 +21,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
-import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunWithLooper;
 
 import androidx.core.animation.ObjectAnimator;
@@ -31,10 +30,9 @@ import androidx.test.filters.SmallTest;
 
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.systemui.animation.AnimatorTestRule;
-import com.android.systemui.flags.FakeFeatureFlagsClassic;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.media.NotificationMediaManager;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -49,10 +47,10 @@ public class ExpandHelperTest extends SysuiTestCase {
     @Rule
     public final AnimatorTestRule mAnimatorTestRule = new AnimatorTestRule(this);
 
-    private final FakeFeatureFlagsClassic mFeatureFlags = new FakeFeatureFlagsClassic();
     private ExpandableNotificationRow mRow;
     private ExpandHelper mExpandHelper;
     private ExpandHelper.Callback mCallback;
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
 
     @Before
     public void setUp() throws Exception {
@@ -60,12 +58,7 @@ public class ExpandHelperTest extends SysuiTestCase {
         mDependency.injectMockDependency(NotificationMediaManager.class);
         allowTestableLooperAsMainThread();
         Context context = getContext();
-        NotificationTestHelper helper = new NotificationTestHelper(
-                mContext,
-                mDependency,
-                TestableLooper.get(this),
-                mFeatureFlags);
-        mRow = helper.createRow();
+        mRow = mKosmos.createRow();
         mCallback = mock(ExpandHelper.Callback.class);
         mExpandHelper = new ExpandHelper(context, mCallback, 10, 100);
     }

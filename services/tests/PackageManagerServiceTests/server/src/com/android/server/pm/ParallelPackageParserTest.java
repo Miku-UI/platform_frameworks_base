@@ -16,6 +16,8 @@
 
 package com.android.server.pm;
 
+import static com.android.server.pm.InitAppsHelper.ScanParams;
+
 import android.platform.test.annotations.Presubmit;
 import android.util.Log;
 
@@ -58,7 +60,7 @@ public class ParallelPackageParserTest {
         int fileCount = 15;
         for (int i = 0; i < fileCount; i++) {
             File file = new File("f" + i);
-            mParser.submit(file, 0);
+            mParser.submit(file, ScanParams.forApkPartitionScan(null, 0, 0));
             submittedFiles.add(file);
             Log.d(TAG, "submitting " + file);
         }

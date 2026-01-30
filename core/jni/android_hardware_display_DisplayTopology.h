@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <android-base/result.h>
 #include <input/DisplayTopologyGraph.h>
 
 #include "jni.h"
@@ -26,7 +27,7 @@ namespace android {
  * Copies the contents of a DVM DisplayTopology object to a new native DisplayTopology instance.
  * Returns DisplayTopology.
  */
-extern DisplayTopologyGraph android_hardware_display_DisplayTopologyGraph_toNative(
-        JNIEnv* env, jobject eventObj);
+extern base::Result<const DisplayTopologyGraph>
+android_hardware_display_DisplayTopologyGraph_toNative(JNIEnv* env, jobject eventObj);
 
 } // namespace android

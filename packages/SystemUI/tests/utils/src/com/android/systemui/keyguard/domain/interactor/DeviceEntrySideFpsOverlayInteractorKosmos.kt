@@ -23,6 +23,7 @@ import com.android.systemui.bouncer.domain.interactor.primaryBouncerInteractor
 import com.android.systemui.keyguard.data.repository.deviceEntryFingerprintAuthRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 
 val Kosmos.deviceEntrySideFpsOverlayInteractor: DeviceEntrySideFpsOverlayInteractor by
     Kosmos.Fixture {
@@ -30,6 +31,7 @@ val Kosmos.deviceEntrySideFpsOverlayInteractor: DeviceEntrySideFpsOverlayInterac
             context = applicationContext,
             deviceEntryFingerprintAuthRepository = deviceEntryFingerprintAuthRepository,
             sceneInteractor = sceneInteractor,
+            secureLockDeviceInteractor = secureLockDeviceInteractor,
             primaryBouncerInteractor = primaryBouncerInteractor,
             alternateBouncerInteractor = alternateBouncerInteractor,
             keyguardUpdateMonitor = keyguardUpdateMonitor,

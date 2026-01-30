@@ -4,6 +4,7 @@ per-file IntentForwarderActivity.java = file:/core/java/android/app/admin/WorkPr
 per-file NetInitiatedActivity.java = file:/location/java/android/location/OWNERS
 per-file *BatteryStats* = file:/BATTERY_STATS_OWNERS
 per-file *SoundTrigger* = file:/media/java/android/media/soundtrigger/OWNERS
+per-file SetScreenLockDialogContract.java = file:platform/packages/apps/Settings:/src/com/android/settings/privatespace/OWNERS
 
 # Chooser and Resolver.
 per-file *Chooser* = file:chooser/OWNERS

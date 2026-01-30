@@ -33,13 +33,13 @@ public final class PictureInPictureUiState implements Parcelable {
     private final boolean mIsStashed;
     private final boolean mIsTransitioningToPip;
 
-    /** {@hide} */
+    /** @hide */
     PictureInPictureUiState(Parcel in) {
         mIsStashed = in.readBoolean();
         mIsTransitioningToPip = in.readBoolean();
     }
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public PictureInPictureUiState(boolean isStashed) {
         this(isStashed, false /* isEnteringPip */);

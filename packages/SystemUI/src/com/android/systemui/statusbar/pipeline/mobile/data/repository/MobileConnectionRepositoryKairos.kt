@@ -134,6 +134,9 @@ interface MobileConnectionRepositoryKairos {
     /** Observable tracking [TelephonyManager.isDataConnectionAllowed] */
     val dataEnabled: State<Boolean>
 
+    /** Enables/disables data. See [TelephonyManager.setDataEnabledForReason] */
+    fun setDataEnabled(enabled: Boolean)
+
     /**
      * See [TelephonyManager.getCdmaEnhancedRoamingIndicatorDisplayNumber]. This bit only matters if
      * the connection type is CDMA.

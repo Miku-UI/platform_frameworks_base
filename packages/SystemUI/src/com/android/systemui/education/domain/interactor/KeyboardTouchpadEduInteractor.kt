@@ -19,6 +19,8 @@ package com.android.systemui.education.domain.interactor
 import android.os.SystemProperties
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.CoreStartable
+import com.android.systemui.LauncherProxyService
+import com.android.systemui.LauncherProxyService.LauncherProxyListener
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
 import com.android.systemui.contextualeducation.GestureType
 import com.android.systemui.contextualeducation.GestureType.ALL_APPS
@@ -37,8 +39,6 @@ import com.android.systemui.inputdevice.tutorial.data.repository.DeviceType
 import com.android.systemui.inputdevice.tutorial.data.repository.DeviceType.KEYBOARD
 import com.android.systemui.inputdevice.tutorial.data.repository.DeviceType.TOUCHPAD
 import com.android.systemui.inputdevice.tutorial.data.repository.TutorialSchedulerRepository
-import com.android.systemui.recents.LauncherProxyService
-import com.android.systemui.recents.LauncherProxyService.LauncherProxyListener
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import java.time.Clock
 import java.time.Instant

@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Gaan na vorige skerm toe"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Gaan na volgende skerm toe"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Die Toeganklikheidkieslys bied ’n groot kieslys op die skerm om jou toestel te beheer. Jy kan jou toestel sluit, volume en helderheid beheer, skermskote neem, en meer."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Beheer toestel deur groot kieslys"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Beheer volume, helderheid en meer met ’n groot kieslys"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Toeganklikheidkieslys-instellings"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Groot knoppies"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Maak Toeganklikheidkieslys-knoppies groter"</string>

@@ -28,7 +28,7 @@ import java.util.Random;
 
 /**
  * Java wrapper for MTP/PTP support as USB responder.
- * {@hide}
+ * @hide
  */
 public class MtpServer implements Runnable {
 

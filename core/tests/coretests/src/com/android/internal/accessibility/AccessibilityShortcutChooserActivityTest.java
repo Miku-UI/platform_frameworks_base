@@ -53,8 +53,6 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.os.Bundle;
 import android.os.Handler;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.support.test.uiautomator.By;
 import android.support.test.uiautomator.UiDevice;
 import android.support.test.uiautomator.UiObject2;
@@ -93,9 +91,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RunWith(AndroidJUnit4.class)
 public class AccessibilityShortcutChooserActivityTest {
     private static final String ONE_HANDED_MODE = "One-Handed mode";
-    private static final String ALLOW_LABEL = "Allow";
-    private static final String DENY_LABEL = "Deny";
-    private static final String UNINSTALL_LABEL = "Uninstall";
     private static final String EDIT_LABEL = "Edit shortcuts";
     private static final String LIST_TITLE_LABEL = "Choose features to use";
     private static final String TEST_LABEL = "TEST_LABEL";
@@ -106,9 +101,6 @@ public class AccessibilityShortcutChooserActivityTest {
     private UiDevice mDevice;
     private ActivityScenario<TestAccessibilityShortcutChooserActivity> mScenario;
     private TestAccessibilityShortcutChooserActivity mActivity;
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -375,7 +367,7 @@ public class AccessibilityShortcutChooserActivityTest {
                 // AccessibilityManager. Debug here if observing unexpected issues
                 // with UI inspection or interaction.
                 return new AccessibilityManager(this, new Handler(getMainLooper()),
-                        sAccessibilityManagerService, /* userId= */ 0, /* serviceConnect= */ true);
+                        sAccessibilityManagerService, getUserId(), /* serviceConnect= */ true);
             }
             if (Context.KEYGUARD_SERVICE.equals(name)) {
                 return sKeyguardManager;

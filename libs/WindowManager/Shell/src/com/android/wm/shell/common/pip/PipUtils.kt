@@ -16,12 +16,13 @@
 package com.android.wm.shell.common.pip
 
 import android.app.ActivityTaskManager
-import android.app.AppGlobals
 import android.app.RemoteAction
+import android.app.TaskInfo
 import android.app.WindowConfiguration
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager
+import android.content.res.Configuration
+import android.content.res.Configuration.UI_MODE_NIGHT_MASK
 import android.graphics.PointF
 import android.graphics.Rect
 import android.os.RemoteException
@@ -29,11 +30,15 @@ import android.util.DisplayMetrics
 import android.util.Log
 import android.util.Pair
 import android.util.TypedValue
+import android.window.DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_PIP
 import android.window.TaskSnapshot
+import android.window.TaskSnapshotManager
 import android.window.TransitionInfo
 import com.android.internal.protolog.ProtoLog
+import com.android.wm.shell.shared.pip.PipFlags
 import com.android.wm.shell.Flags
 import com.android.wm.shell.protolog.ShellProtoLogGroup
+import java.io.PrintWriter
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -137,7 +142,12 @@ object PipUtils {
     @JvmStatic
     fun getTaskSnapshot(taskId: Int, isLowResolution: Boolean): TaskSnapshot? {
         return if (taskId <= 0) null else try {
-            ActivityTaskManager.getService().getTaskSnapshot(taskId, isLowResolution)
+            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+                TaskSnapshotManager.getInstance().getTaskSnapshot(taskId,
+                    TaskSnapshotManager.convertRetrieveFlag(isLowResolution))
+            } else {
+                ActivityTaskManager.getService().getTaskSnapshot(taskId, isLowResolution)
+            }
         } catch (e: RemoteException) {
             Log.e(TAG, "Failed to get task snapshot, taskId=$taskId", e)
             null
@@ -146,11 +156,11 @@ object PipUtils {
 
 
     /**
-     * Returns a fake source rect hint for animation purposes when app-provided one is invalid.
+     * Returns a pseudo source rect hint for animation purposes when app-provided one is invalid.
      * Resulting adjusted source rect hint lets the app icon in the content overlay to stay visible.
      */
     @JvmStatic
-    fun getEnterPipWithOverlaySrcRectHint(appBounds: Rect, aspectRatio: Float): Rect {
+    fun getPseudoSourceRectHint(appBounds: Rect, aspectRatio: Float): Rect {
         val appBoundsAspRatio = appBounds.width().toFloat() / appBounds.height()
         val width: Int
         val height: Int
@@ -231,6 +241,12 @@ object PipUtils {
         outPos.set(startActPosInTaskEndX, startActPosInTaskEndY)
     }
 
+    @JvmStatic
+    fun isContentPip(pipTaskInfo: TaskInfo?): Boolean {
+        if (pipTaskInfo == null) return false
+        return pipTaskInfo.launchIntoPipHostTaskId != -1
+    }
+
     /**
      * Calculates the transform and crop to apply on a Task surface in order for the config-at-end
      * activity inside it (original-size activity transformed to match it's hint rect to the final
@@ -304,22 +320,27 @@ object PipUtils {
         outCrop.bottom = roundOut(outCrop.top + startBounds.height() * hintToEndScaleY)
     }
 
-    private var isPip2ExperimentEnabled: Boolean? = null
-
     /**
-     * Returns true if PiP2 implementation should be used. Besides the trunk stable flag,
-     * system property can be used to override this read only flag during development.
-     * It's currently limited to phone form factor, i.e., not enabled on ARC / TV.
+     * Returns true if the system theme is the dark theme.
      */
     @JvmStatic
-    fun isPip2ExperimentEnabled(): Boolean {
-        if (isPip2ExperimentEnabled == null) {
-            val isArc = AppGlobals.getPackageManager().hasSystemFeature(
-                "org.chromium.arc", 0)
-            val isTv = AppGlobals.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_LEANBACK, 0)
-            isPip2ExperimentEnabled = Flags.enablePip2() && !isArc && !isTv
-        }
-        return isPip2ExperimentEnabled as Boolean
+    fun Context.isDarkSystemTheme(): Boolean {
+        return (resources.configuration.uiMode and UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+    }
+
+    /**
+     * Dumps information held by this class.
+     */
+    @JvmStatic
+    fun dump(pw: PrintWriter, prefix: String) {
+        pw.println("$prefix$TAG")
+        val innerPrefix1 = "$prefix  "
+        val innerPrefix2 = "$innerPrefix1  "
+        pw.println("${innerPrefix1}isPipUmoExperienceEnabled=${PipFlags.isPipUmoExperienceEnabled}")
+        pw.println("${innerPrefix1}isPip2ExperimentEnabled=${PipFlags.isPip2ExperimentEnabled}")
+        pw.println("${innerPrefix2}enablePip2=${Flags.enablePip2()}")
+        pw.println("${innerPrefix2}enablePip2OnTv=${Flags.enablePip2OnTv()}")
+        pw.println("${innerPrefix2}enableDwPip=${ENABLE_DESKTOP_WINDOWING_PIP.isTrue}")
     }
 }

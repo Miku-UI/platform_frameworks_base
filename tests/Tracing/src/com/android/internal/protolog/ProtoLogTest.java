@@ -21,18 +21,54 @@ import static org.junit.Assert.assertThrows;
 import android.platform.test.annotations.Presubmit;
 
 import com.android.internal.protolog.common.IProtoLogGroup;
+import com.android.wm.shell.protolog.ShellProtoLogGroup;
 
 import com.google.common.truth.Truth;
 
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** Test class for {@link ProtoLog}. */
 @SuppressWarnings("ConstantConditions")
 @Presubmit
 @RunWith(JUnit4.class)
 public class ProtoLogTest {
+
+    ProtoLogController mController;
+
+    @Before
+    public void setUp() {
+        mController = ProtoLog.getControllerInstanceForTest();
+        ProtoLog.setControllerInstanceForTest(new ProtoLogController());
+    }
+
+    @After
+    public void tearDown() {
+        final var testProtoLogController = ProtoLog.getControllerInstanceForTest();
+        testProtoLogController.tearDown();
+        ProtoLog.setControllerInstanceForTest(mController);
+    }
+
+    @Test
+    public void log_whenUninitialized_doesNotThrow() {
+        // This test verifies that calling any ProtoLog logging method before the
+        // system is initialized does not cause a crash. The change this test covers
+        // replaced an IllegalStateException with a Log.wtf() call.
+
+        // The test passes if no exception is thrown for any of the log levels.
+        ProtoLog.d(TEST_GROUP_1, "Debug log call before init");
+        ProtoLog.v(TEST_GROUP_1, "Verbose log call before init");
+        ProtoLog.i(TEST_GROUP_1, "Info log call before init");
+        ProtoLog.w(TEST_GROUP_1, "Warning log call before init");
+        ProtoLog.e(TEST_GROUP_1, "Error log call before init");
+        ProtoLog.wtf(TEST_GROUP_1, "WTF log call before init");
+    }
 
     @Test
     public void canRunProtoLogInitMultipleTimes() {
@@ -65,23 +101,42 @@ public class ProtoLogTest {
         Truth.assertThat(assertion).hasMessageThat().contains("collision");
     }
 
-    private static final IProtoLogGroup TEST_GROUP_1 = new ProtoLogGroup("TEST_TAG_1", 1);
-    private static final IProtoLogGroup TEST_GROUP_2 = new ProtoLogGroup("TEST_TAG_2", 2);
-    private static final IProtoLogGroup TEST_GROUP_WITH_COLLISION =
-            new ProtoLogGroup("TEST_TAG_WITH_COLLISION", 1);
+    @Test
+    public void noIdCollisionsBetweenGroups() {
+        final var collectionOfKnowGroups = new ArrayList<IProtoLogGroup>();
+        collectionOfKnowGroups.addAll(List.of(WmProtoLogGroups.values()));
+        collectionOfKnowGroups.addAll(List.of(ShellProtoLogGroup.values()));
+        collectionOfKnowGroups.add(new ProtoLogGroup("TEST_GROUP"));
+        collectionOfKnowGroups.add(new ProtoLogGroup("OTHER_TEST_GROUP"));
 
-    private static class ProtoLogGroup implements IProtoLogGroup {
+        for (int i = 0; i < collectionOfKnowGroups.size(); i++) {
+            for (int j = i + 1; j < collectionOfKnowGroups.size(); j++) {
+                final var group1 = collectionOfKnowGroups.get(i);
+                final var group2 = collectionOfKnowGroups.get(j);
+                Truth.assertWithMessage(
+                        "ID collision between " + group1.name() + " and " + group2.name())
+                        .that(group1.getId()).isNotEqualTo(group2.getId());
+            }
+        }
+    }
+
+    private static final IProtoLogGroup TEST_GROUP_1 = new TestProtoLogGroup("TEST_TAG_1", 1);
+    private static final IProtoLogGroup TEST_GROUP_2 = new TestProtoLogGroup("TEST_TAG_2", 2);
+    private static final IProtoLogGroup TEST_GROUP_WITH_COLLISION =
+            new TestProtoLogGroup("TEST_TAG_WITH_COLLISION", 1);
+
+    private static class TestProtoLogGroup implements IProtoLogGroup {
         private final boolean mEnabled;
         private volatile boolean mLogToProto;
         private volatile boolean mLogToLogcat;
         private final String mTag;
         private final int mId;
 
-        ProtoLogGroup(String tag, int id) {
+        TestProtoLogGroup(String tag, int id) {
             this(true, true, false, tag, id);
         }
 
-        ProtoLogGroup(
+        TestProtoLogGroup(
                 boolean enabled, boolean logToProto, boolean logToLogcat, String tag, int id) {
             this.mEnabled = enabled;
             this.mLogToProto = logToProto;
@@ -101,28 +156,13 @@ public class ProtoLogTest {
         }
 
         @Override
-        public boolean isLogToProto() {
-            return mLogToProto;
-        }
-
-        @Override
         public boolean isLogToLogcat() {
             return mLogToLogcat;
         }
 
         @Override
-        public boolean isLogToAny() {
-            return mLogToLogcat || mLogToProto;
-        }
-
-        @Override
         public String getTag() {
             return mTag;
-        }
-
-        @Override
-        public void setLogToProto(boolean logToProto) {
-            this.mLogToProto = logToProto;
         }
 
         @Override

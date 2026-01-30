@@ -21,14 +21,26 @@ import androidx.compose.ui.Modifier
 import com.android.compose.animation.scene.ContentScope
 import com.android.systemui.qs.panels.ui.viewmodel.TileGridViewModel
 
+/**
+ * Displays a grid of tiles with an optional reveal animation.
+ *
+ * @param enableRevealEffect If `true`, the tiles will animate using the reveal animation.
+ */
 @Composable
 fun ContentScope.TileGrid(
     viewModel: TileGridViewModel,
     modifier: Modifier = Modifier,
     listening: () -> Boolean = { true },
+    enableRevealEffect: Boolean = false,
 ) {
     val gridLayout = viewModel.gridLayout
     val tiles = viewModel.tileViewModels
-
-    with(gridLayout) { TileGrid(tiles, modifier, listening) }
+    with(gridLayout) {
+        TileGrid(
+            tiles = tiles,
+            modifier = modifier,
+            listening = listening,
+            enableRevealEffect = enableRevealEffect,
+        )
+    }
 }

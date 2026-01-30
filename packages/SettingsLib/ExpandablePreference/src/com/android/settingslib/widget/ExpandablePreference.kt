@@ -34,6 +34,11 @@ class ExpandablePreference @JvmOverloads constructor(
     private var isExpanded = false
     private var expandIcon: ImageView? = null
     private var isDirty = true // Flag to track changes
+    var onPreferenceExpansionStateChangeListener: OnPreferenceExpansionStateChangeListener? = null
+
+    interface OnPreferenceExpansionStateChangeListener {
+        fun onExpansionStateChange(isExpanded: Boolean)
+    }
 
     init {
         layoutResource = com.android.settingslib.widget.theme.R.layout.settingslib_expressive_preference

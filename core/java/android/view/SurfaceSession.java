@@ -23,7 +23,7 @@ import android.os.Build;
  * An instance of this class represents a connection to the surface
  * flinger, from which you can create one or more Surface instances that will
  * be composited to the screen.
- * {@hide}
+ * @hide
  */
 public final class SurfaceSession {
     // Note: This field is accessed by native code.

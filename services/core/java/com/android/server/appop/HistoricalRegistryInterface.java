@@ -21,15 +21,16 @@ import android.annotation.Nullable;
 import android.app.AppOpsManager;
 import android.content.ContentResolver;
 import android.os.RemoteCallback;
+import android.util.ArraySet;
 
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * A registry to record app operation access events, which are generated upon an application's
- * access to private data or system resources. These events are stored in both aggregated
- * and individual/discrete formats.
+ * A registry interface for historical app ops bookkeeping. This interface provides method to
+ * record & read app op access events. {@link LegacyHistoricalRegistry} provides xml
+ * implementation, {@link HistoricalRegistry} provides sqlite implementation.
  */
 public interface HistoricalRegistryInterface {
     /**
@@ -45,9 +46,10 @@ public interface HistoricalRegistryInterface {
     /**
      * Dumps aggregated/historical events to the console based on the filters.
      */
-    void dump(String prefix, PrintWriter pw, int filterUid,
+    void dumpAggregatedData(String prefix, PrintWriter pw, int filterUid,
             @Nullable String filterPackage, @Nullable String filterAttributionTag, int filterOp,
-            @AppOpsManager.HistoricalOpsRequestFilter int filter);
+            @AppOpsManager.HistoricalOpsRequestFilter int filter, @NonNull SimpleDateFormat sdf,
+            @NonNull Date date);
 
     /**
      * Dumps discrete/individual events to the console based on filters.
@@ -57,6 +59,14 @@ public interface HistoricalRegistryInterface {
             @AppOpsManager.HistoricalOpsRequestFilter int filter, int dumpOp,
             @NonNull SimpleDateFormat sdf, @NonNull Date date, @NonNull String prefix,
             int nDiscreteOps);
+
+    /**
+     * Dumps aggregated/historical events to the console based on the filters.
+     */
+    void dump(String prefix, PrintWriter pw, int filterUid,
+            @Nullable String filterPackage, @Nullable String filterAttributionTag, int filterOp,
+            @AppOpsManager.HistoricalOpsRequestFilter int filter, @NonNull SimpleDateFormat sdf,
+            @NonNull Date date, boolean includeDiscreteOps, int limit, boolean dumpHistory);
 
     /**
      * Record duration for given op.
@@ -75,14 +85,15 @@ public interface HistoricalRegistryInterface {
             @AppOpsManager.UidState int uidState,
             @AppOpsManager.OpFlags int flags, long accessTime,
             @AppOpsManager.AttributionFlags int attributionFlags, int attributionChainId,
-            int accessCount);
+            int accessCount, boolean isStartOrResume);
 
     /**
      * Record rejected counts for given op.
      */
     void incrementOpRejectedCount(int op, int uid, @NonNull String packageName,
-            @Nullable String attributionTag, @AppOpsManager.UidState int uidState,
-            @AppOpsManager.OpFlags int flags);
+            @NonNull String deviceId, @Nullable String attributionTag,
+            @AppOpsManager.UidState int uidState, @AppOpsManager.OpFlags int flags,
+            long rejectTime, int rejectCount);
 
     /**
      * Read historical ops from both aggregated and discrete events based on input filter.
@@ -93,6 +104,16 @@ public interface HistoricalRegistryInterface {
             long endTimeMillis,
             @AppOpsManager.OpFlags int flags, @Nullable String[] attributionExemptPkgs,
             @NonNull RemoteCallback callback);
+
+    /**
+     * Returns a set of recently used package names based on given op names and other filters.
+     */
+    default @NonNull ArraySet<String> getRecentlyUsedPackageNames(@NonNull String[] opNames,
+            @AppOpsManager.OpHistoryFlags int historyFlags,
+            @AppOpsManager.HistoricalOpsRequestFilter int filter, long beginTimeMillis,
+            long endTimeMillis, @AppOpsManager.OpFlags int opFlags) {
+        return new ArraySet<>();
+    }
 
     /**
      * Remove app op events for a given UID and package.
@@ -134,6 +155,11 @@ public interface HistoricalRegistryInterface {
      * Offsets the history by the given duration.
      */
     void offsetHistory(long offsetMillis);
+
+      /**
+     * Offsets discrete history by the given duration.
+     */
+    void offsetDiscreteHistory(long offsetMillis);
 
     /**
      * Retrieve historical app op stats for a period form disk.

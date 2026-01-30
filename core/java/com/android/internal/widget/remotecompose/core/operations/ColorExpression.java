@@ -103,6 +103,7 @@ public class ColorExpression extends Operation implements VariableSupport, Seria
      * @param value the value of the color
      */
     public ColorExpression(int id, float hue, float sat, float value) {
+        mId = id;
         mMode = HSV_MODE;
         mAlpha = 0xFF;
         mOutHue = mHue = hue;
@@ -408,9 +409,8 @@ public class ColorExpression extends Operation implements VariableSupport, Seria
      */
     public static void apply(
             @NonNull WireBuffer buffer, int id, float alpha, float red, float green, float blue) {
-        int param1 = (Float.isNaN(alpha)) ? IDARGB_MODE : ARGB_MODE;
-        param1 |=
-                (Float.isNaN(alpha)) ? Utils.idFromNan(alpha) << 16 : ((int) (alpha * 1024)) << 16;
+        int param1 = Float.isNaN(alpha) ? IDARGB_MODE : ARGB_MODE;
+        param1 |= Float.isNaN(alpha) ? Utils.idFromNan(alpha) << 16 : ((int) (alpha * 1024)) << 16;
         int param2 = Float.floatToRawIntBits(red);
         int param3 = Float.floatToRawIntBits(green);
         int param4 = Float.floatToRawIntBits(blue);
@@ -506,7 +506,7 @@ public class ColorExpression extends Operation implements VariableSupport, Seria
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("id", mId);
         switch (mMode) {
             case COLOR_COLOR_INTERPOLATE:
@@ -517,6 +517,7 @@ public class ColorExpression extends Operation implements VariableSupport, Seria
                 serializer.add("startColor", mColor1, mOutColor1);
                 serializer.add("endColor", mColor2, mOutColor2);
                 serializer.add("startColor", mTween, mOutTween);
+                // TODO this is the wrong serialization for a tween
                 break;
             case HSV_MODE:
                 serializer.add("mode", "HSV");

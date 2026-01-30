@@ -33,8 +33,9 @@ import com.android.settingslib.spaprivileged.template.common.UserProfilePager
 /**
  * The full screen template for an App List page.
  *
+ * @param showSystemAppsInitially default false. If true, show system apps initially.
  * @param noMoreOptions default false. If true, then do not display more options action button,
- * including the "Show System" / "Hide System" action.
+ *   including the "Show System" / "Hide System" action.
  * @param header the description header appears before all the applications.
  */
 @Composable
@@ -42,6 +43,7 @@ fun <T : AppRecord> AppListPage(
     title: String,
     listModel: AppListModel<T>,
     showInstantApps: Boolean = false,
+    showSystemAppsInitially: Boolean = false,
     noMoreOptions: Boolean = false,
     matchAnyUserForAdmin: Boolean = false,
     noItemMessage: String? = null,
@@ -49,7 +51,7 @@ fun <T : AppRecord> AppListPage(
     header: @Composable () -> Unit = {},
     appList: @Composable AppListInput<T>.() -> Unit = { AppList() },
 ) {
-    var showSystem by rememberSaveable { mutableStateOf(false) }
+    var showSystem by rememberSaveable { mutableStateOf(showSystemAppsInitially) }
     SearchScaffold(
         title = title,
         actions = {

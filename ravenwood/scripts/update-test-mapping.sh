@@ -20,8 +20,10 @@
 
 set -e
 
-# Tests that shouldn't be in presubmit.
-EXEMPT='^(SystemUiRavenTests)$'
+# Tests that shouldn't be in presubmit:
+# - See b/440069724 for CarSystemUIRavenTests and CarLibHostUnitTest
+# - RavenwoodUiTest_exp uses experimental APIs, so it shouldn't be executed.
+EXEMPT='^(SystemUiRavenTests|CtsViewTestCasesRavenwood|CarSystemUIRavenTests|CarLibHostUnitTest|RavenwoodUiTest_exp)$'
 
 is_car() {
     local module="$1"
@@ -90,6 +92,7 @@ main() {
     echo "Updated $test_mapping"
 
     # `|| true` is needed because of `set -e`.
+    # (Otherwise, this script would fail when there's a diff.)
     diff -u "$test_mapping_bak" "$test_mapping" || true
     return 0
 }

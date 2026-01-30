@@ -16,24 +16,27 @@
 
 package android.view;
 
-import static android.view.InsetsAnimationControlImplProto.CURRENT_ALPHA;
-import static android.view.InsetsAnimationControlImplProto.IS_CANCELLED;
-import static android.view.InsetsAnimationControlImplProto.IS_FINISHED;
-import static android.view.InsetsAnimationControlImplProto.PENDING_ALPHA;
-import static android.view.InsetsAnimationControlImplProto.PENDING_FRACTION;
-import static android.view.InsetsAnimationControlImplProto.PENDING_INSETS;
-import static android.view.InsetsAnimationControlImplProto.SHOWN_ON_FINISH;
-import static android.view.InsetsAnimationControlImplProto.TMP_MATRIX;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.CURRENT_ALPHA;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.IS_CANCELLED;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.IS_FINISHED;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.PENDING_ALPHA;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.PENDING_FRACTION;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.PENDING_INSETS;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.SHOWN_ON_FINISH;
+import static android.internal.perfetto.protos.Insetsanimationcontrolimpl.InsetsAnimationControlImplProto.TMP_MATRIX;
 import static android.view.InsetsController.ANIMATION_TYPE_RESIZE;
 
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
+import android.annotation.FloatRange;
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.util.SparseArray;
 import android.util.proto.ProtoOutputStream;
+import android.view.InsetsController.AnimationType;
 import android.view.InsetsController.LayoutInsetsDuringAnimation;
 import android.view.WindowInsets.Type.InsetsType;
 import android.view.WindowInsetsAnimation.Bounds;
@@ -42,23 +45,31 @@ import android.view.inputmethod.ImeTracker;
 
 /**
  * Runs a fake animation of resizing insets to produce insets animation callbacks.
+ *
  * @hide
  */
 public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner,
         InternalInsetsAnimationController, WindowInsetsAnimationControlListener {
 
+    @NonNull
     private final InsetsState mFromState;
+    @NonNull
     private final InsetsState mToState;
-    private final @InsetsType int mTypes;
+    @InsetsType
+    private final int mTypes;
+    @NonNull
     private final WindowInsetsAnimation mAnimation;
+    @NonNull
     private final InsetsAnimationControlCallbacks mController;
+    @Nullable
     private ValueAnimator mAnimator;
     private boolean mCancelled;
     private boolean mFinished;
 
-    public InsetsResizeAnimationRunner(Rect frame, InsetsState fromState, InsetsState toState,
-            Interpolator interpolator, long duration, @InsetsType int types,
-            InsetsAnimationControlCallbacks controller) {
+    public InsetsResizeAnimationRunner(@NonNull Rect frame, @NonNull Rect hostBounds,
+            @NonNull InsetsState fromState, @NonNull InsetsState toState, Interpolator interpolator,
+            long duration, @InsetsType int types,
+            @NonNull InsetsAnimationControlCallbacks controller) {
         mFromState = fromState;
         mToState = toState;
         mTypes = types;
@@ -66,33 +77,38 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
         mAnimation = new WindowInsetsAnimation(types, interpolator, duration);
         mAnimation.setAlpha(1f);
         final Insets fromInsets = fromState.calculateInsets(
-                frame, types, false /* ignoreVisibility */);
+                frame, hostBounds, types, false /* ignoreVisibility */);
         final Insets toInsets = toState.calculateInsets(
-                frame, types, false /* ignoreVisibility */);
+                frame, hostBounds, types, false /* ignoreVisibility */);
         controller.startAnimation(this, this, types, mAnimation,
                 new Bounds(Insets.min(fromInsets, toInsets), Insets.max(fromInsets, toInsets)));
     }
 
+    @InsetsType
     @Override
     public int getTypes() {
         return mTypes;
     }
 
+    @InsetsType
     @Override
     public int getControllingTypes() {
         return mTypes;
     }
 
+    @NonNull
     @Override
     public WindowInsetsAnimation getAnimation() {
         return mAnimation;
     }
 
+    @AnimationType
     @Override
     public int getAnimationType() {
         return ANIMATION_TYPE_RESIZE;
     }
 
+    @NonNull
     @Override
     public SurfaceParamsApplier getSurfaceParamsApplier() {
         return SurfaceParamsApplier.DEFAULT;
@@ -122,7 +138,8 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
     }
 
     @Override
-    public void onReady(WindowInsetsAnimationController controller, int types) {
+    public void onReady(@NonNull WindowInsetsAnimationController controller,
+            @InsetsType int types) {
         if (mCancelled) {
             return;
         }
@@ -144,14 +161,15 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
     }
 
     @Override
-    public boolean applyChangeInsets(InsetsState outState) {
+    public boolean applyChangeInsets(@Nullable InsetsState outState) {
         if (mCancelled) {
             return false;
         }
         final float fraction = mAnimation.getInterpolatedFraction();
         InsetsState.traverse(mFromState, mToState, new InsetsState.OnTraverseCallbacks() {
             @Override
-            public void onIdMatch(InsetsSource fromSource, InsetsSource toSource) {
+            public void onIdMatch(@NonNull InsetsSource fromSource,
+                    @NonNull InsetsSource toSource) {
                 final Rect fromFrame = fromSource.getFrame();
                 final Rect toFrame = toSource.getFrame();
                 final Rect frame = new Rect(
@@ -163,7 +181,9 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
                         new InsetsSource(fromSource.getId(), fromSource.getType());
                 source.setFrame(frame);
                 source.setVisible(toSource.isVisible());
-                outState.addSource(source);
+                if (outState != null) {
+                    outState.addSource(source);
+                }
             }
         });
         if (mFinished) {
@@ -173,7 +193,7 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
     }
 
     @Override
-    public void dumpDebug(ProtoOutputStream proto, long fieldId) {
+    public void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         proto.write(IS_CANCELLED, mCancelled);
         proto.write(IS_FINISHED, mFinished);
@@ -186,33 +206,40 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
         proto.end(token);
     }
 
+    @NonNull
     @Override
     public Insets getHiddenStateInsets() {
         return Insets.NONE;
     }
 
+    @NonNull
     @Override
     public Insets getShownStateInsets() {
         return Insets.NONE;
     }
 
+    @NonNull
     @Override
     public Insets getCurrentInsets() {
         return Insets.NONE;
     }
 
+    @FloatRange(from = 0f, to = 1f)
     @Override
     public float getCurrentFraction() {
         return 0;
     }
 
+    @FloatRange(from = 0f, to = 1f)
     @Override
     public float getCurrentAlpha() {
         return 0;
     }
 
     @Override
-    public void setInsetsAndAlpha(Insets insets, float alpha, float fraction) {
+    public void setInsetsAndAlpha(@Nullable Insets insets,
+            @FloatRange(from = 0f, to = 1f) float alpha,
+            @FloatRange(from = 0f, to = 1f) float fraction) {
     }
 
     @Override
@@ -225,11 +252,11 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
     }
 
     @Override
-    public void notifyControlRevoked(int types) {
+    public void notifyControlRevoked(@InsetsType int types) {
     }
 
     @Override
-    public void updateSurfacePosition(SparseArray<InsetsSourceControl> controls) {
+    public void updateSurfacePosition(@NonNull SparseArray<InsetsSourceControl> controls) {
     }
 
     @Override
@@ -257,11 +284,11 @@ public class InsetsResizeAnimationRunner implements InsetsAnimationControlRunner
     }
 
     @Override
-    public void onFinished(WindowInsetsAnimationController controller) {
+    public void onFinished(@NonNull WindowInsetsAnimationController controller) {
     }
 
     @Override
-    public void onCancelled(WindowInsetsAnimationController controller) {
+    public void onCancelled(@Nullable WindowInsetsAnimationController controller) {
     }
 
     @Override

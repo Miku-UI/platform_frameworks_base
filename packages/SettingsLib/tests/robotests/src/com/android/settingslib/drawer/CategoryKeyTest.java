@@ -62,8 +62,10 @@ public class CategoryKeyTest {
         allKeys.add(CategoryKey.CATEGORY_SMART_BATTERY_SETTINGS);
         allKeys.add(CategoryKey.CATEGORY_COMMUNAL_SETTINGS);
         allKeys.add(CategoryKey.CATEGORY_SUPERVISION);
+        allKeys.add(CategoryKey.CATEGORY_MEDIA_CONTROLS_SETTINGS);
+        allKeys.add(CategoryKey.CATEGORY_PRIVACY_CONTROLS);
         // DO NOT REMOVE ANYTHING ABOVE
 
-        assertThat(allKeys.size()).isEqualTo(21);
+        assertThat(allKeys.size()).isEqualTo(23);
     }
 }

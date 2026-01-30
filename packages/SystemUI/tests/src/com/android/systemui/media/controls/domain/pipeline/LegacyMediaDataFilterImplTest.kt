@@ -26,7 +26,6 @@ import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.controls.ui.controller.MediaPlayerData
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
-import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
 import java.util.concurrent.Executor
 import org.junit.Before
@@ -67,14 +66,12 @@ class LegacyMediaDataFilterImplTest : SysuiTestCase() {
     private lateinit var dataMain: MediaData
     private lateinit var dataGuest: MediaData
     private lateinit var dataPrivateProfile: MediaData
-    private val clock = FakeSystemClock()
 
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
         MediaPlayerData.clear()
-        mediaDataFilter =
-            LegacyMediaDataFilterImpl(userTracker, lockscreenUserManager, executor, clock)
+        mediaDataFilter = LegacyMediaDataFilterImpl(userTracker, lockscreenUserManager, executor)
         mediaDataFilter.mediaDataManager = mediaDataManager
         mediaDataFilter.addListener(listener)
 
@@ -116,8 +113,7 @@ class LegacyMediaDataFilterImplTest : SysuiTestCase() {
         mediaDataFilter.onMediaDataLoaded(KEY, null, dataMain)
 
         // THEN we should tell the listener
-        verify(listener)
-            .onMediaDataLoaded(eq(KEY), eq(null), eq(dataMain), eq(true), eq(0), eq(false))
+        verify(listener).onMediaDataLoaded(eq(KEY), eq(null), eq(dataMain), eq(true))
     }
 
     @Test
@@ -126,8 +122,7 @@ class LegacyMediaDataFilterImplTest : SysuiTestCase() {
         mediaDataFilter.onMediaDataLoaded(KEY, null, dataGuest)
 
         // THEN we should NOT tell the listener
-        verify(listener, never())
-            .onMediaDataLoaded(any(), any(), any(), anyBoolean(), anyInt(), anyBoolean())
+        verify(listener, never()).onMediaDataLoaded(any(), any(), any(), anyBoolean())
     }
 
     @Test
@@ -173,12 +168,10 @@ class LegacyMediaDataFilterImplTest : SysuiTestCase() {
         setUser(USER_GUEST)
 
         // THEN we should add back the guest user media
-        verify(listener)
-            .onMediaDataLoaded(eq(KEY_ALT), eq(null), eq(dataGuest), eq(true), eq(0), eq(false))
+        verify(listener).onMediaDataLoaded(eq(KEY_ALT), eq(null), eq(dataGuest), eq(true))
 
         // but not the main user's
-        verify(listener, never())
-            .onMediaDataLoaded(eq(KEY), any(), eq(dataMain), anyBoolean(), anyInt(), anyBoolean())
+        verify(listener, never()).onMediaDataLoaded(eq(KEY), any(), eq(dataMain), anyBoolean())
     }
 
     @Test

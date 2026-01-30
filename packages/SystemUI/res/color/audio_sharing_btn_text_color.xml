@@ -14,8 +14,9 @@
   ~ limitations under the License.
   -->
 
-<selector xmlns:android="http://schemas.android.com/apk/res/android" >
+<selector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
     <item android:state_activated="true"
-        android:color="@color/qs_dialog_btn_filled_text_color" />
-    <item android:color="@color/qs_dialog_btn_outline_text" />
+        android:color="@androidprv:color/materialColorOnPrimary" />
+    <item android:color="@androidprv:color/materialColorOnSurface" />
 </selector>

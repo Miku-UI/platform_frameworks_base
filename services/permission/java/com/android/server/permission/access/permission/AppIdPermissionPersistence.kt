@@ -54,7 +54,7 @@ class AppIdPermissionPersistence {
 
     private fun BinaryXmlPullParser.parsePermissions(
         state: MutableAccessState,
-        isPermissionTree: Boolean
+        isPermissionTree: Boolean,
     ) {
         val systemState = state.mutateSystemState(WriteMode.NONE)
         val permissions =
@@ -79,7 +79,7 @@ class AppIdPermissionPersistence {
                 Slog.w(
                     LOG_TAG,
                     "Dropping permission ${permission.name} from unknown package" +
-                        " $packageName when parsing permissions"
+                        " $packageName when parsing permissions",
                 )
                 permissions.removeAt(permissionIndex)
                 systemState.requestWriteMode(WriteMode.ASYNCHRONOUS)
@@ -124,7 +124,7 @@ class AppIdPermissionPersistence {
 
     private fun BinaryXmlSerializer.serializePermissions(
         tagName: String,
-        permissions: IndexedMap<String, Permission>
+        permissions: IndexedMap<String, Permission>,
     ) {
         tag(tagName) { permissions.forEachIndexed { _, _, it -> serializePermission(it) } }
     }
@@ -205,7 +205,7 @@ class AppIdPermissionPersistence {
 
     private fun BinaryXmlSerializer.serializeAppId(
         appId: Int,
-        permissionFlags: IndexedMap<String, Int>
+        permissionFlags: IndexedMap<String, Int>,
     ) {
         tag(TAG_APP_ID) {
             attributeInt(ATTR_ID, appId)

@@ -24,10 +24,10 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.keyguard.shared.model.ClockSize
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
-import com.android.systemui.plugins.clocks.ClockConfig
-import com.android.systemui.plugins.clocks.ClockController
-import com.android.systemui.plugins.clocks.ClockFaceController
-import com.android.systemui.plugins.clocks.ClockFaceLayout
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockConfig
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockFaceController
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockFaceLayout
 import com.android.systemui.util.mockito.whenever
 import kotlin.test.Test
 import kotlinx.coroutines.flow.MutableStateFlow

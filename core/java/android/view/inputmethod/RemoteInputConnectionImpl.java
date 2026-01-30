@@ -54,6 +54,7 @@ import android.view.ViewRootImpl;
 
 import com.android.internal.infra.AndroidFuture;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.ImeTracing;
 import com.android.internal.inputmethod.InputConnectionCommandHeader;
@@ -1130,8 +1131,7 @@ final class RemoteInputConnectionImpl extends IRemoteInputConnection.Stub {
             Log.w(TAG, "requestCursorUpdates on inactive InputConnection");
             return false;
         }
-        if (mParentInputMethodManager.mRequestCursorUpdateDisplayIdCheck.get()
-                && mParentInputMethodManager.getDisplayId() != imeDisplayId) {
+        if (mParentInputMethodManager.getDisplayId() != imeDisplayId) {
             // requestCursorUpdates() is not currently supported across displays.
             return false;
         }
@@ -1435,6 +1435,70 @@ final class RemoteInputConnectionImpl extends IRemoteInputConnection.Stub {
      */
     public IRemoteAccessibilityInputConnection asIRemoteAccessibilityInputConnection() {
         return mAccessibilityInputConnection;
+    }
+
+    private final IRemoteComputerControlInputConnection mComputerControlInputConnection =
+            new IRemoteComputerControlInputConnection.Stub() {
+
+                @Dispatching(cancellable = true)
+                @Override
+                public void commitText(@NonNull InputConnectionCommandHeader header,
+                        @NonNull CharSequence text, int newCursorPosition) {
+                    dispatchWithTracing("commitTextFromComputerControl", () -> {
+                        if (!checkSessionId(header)) {
+                            return; // cancelled.
+                        }
+                        InputConnection ic = getInputConnection();
+                        if (ic == null || mDeactivateRequested.get()) {
+                            Log.w(TAG, "commitText on inactive InputConnection");
+                            return;
+                        }
+                        ic.commitText(text, newCursorPosition);
+                    });
+                }
+
+                @Dispatching(cancellable = true)
+                @Override
+                public void replaceText(@NonNull InputConnectionCommandHeader header, int start,
+                        int end, @NonNull CharSequence text, int newCursorPosition) {
+                    dispatchWithTracing("replaceTextFromComputerControl", () -> {
+                        if (!checkSessionId(header)) {
+                            return; // cancelled.
+                        }
+                        InputConnection ic = getInputConnection();
+                        if (ic == null || mDeactivateRequested.get()) {
+                            Log.w(TAG, "replaceText on inactive InputConnection");
+                            return;
+                        }
+                        ic.replaceText(start, end, text, newCursorPosition,
+                                null /* textAttribute */);
+                    });
+                }
+
+                @Dispatching(cancellable = true)
+                @Override
+                public void sendKeyEvent(@NonNull InputConnectionCommandHeader header,
+                        @NonNull KeyEvent event) {
+                    dispatchWithTracing("sendKeyEventFromComputerControl", () -> {
+                        if (!checkSessionId(header)) {
+                            return; // cancelled.
+                        }
+                        InputConnection ic = getInputConnection();
+                        if (ic == null || mDeactivateRequested.get()) {
+                            Log.w(TAG, "sendKeyEvent on inactive InputConnection");
+                            return;
+                        }
+                        ic.sendKeyEvent(event);
+                    });
+                }
+            };
+
+    /**
+     * @return {@link IRemoteComputerControlInputConnection} associated with this object.
+     */
+    @NonNull
+    public IRemoteComputerControlInputConnection asIRemoteComputerControlInputConnection() {
+        return mComputerControlInputConnection;
     }
 
     private void dispatch(@NonNull Runnable runnable) {

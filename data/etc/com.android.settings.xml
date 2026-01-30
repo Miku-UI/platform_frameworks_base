@@ -70,5 +70,6 @@
         <permission name="android.permission.SATELLITE_COMMUNICATION" />
         <permission name="android.permission.READ_SYSTEM_GRAMMATICAL_GENDER" />
         <permission name="android.permission.SET_BIOMETRIC_DIALOG_ADVANCED" />
+        <permission name="android.permission.MANAGE_SAFETY_CENTER" />
     </privapp-permissions>
 </permissions>

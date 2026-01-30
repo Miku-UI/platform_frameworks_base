@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"પાસવર્ડ અથવા ફિંગરપ્રિન્ટ વડે અનલૉક કરો"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"પૅટર્ન અથવા ફિંગરપ્રિન્ટ વડે અનલૉક કરો"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"વધારાની સુરક્ષા માટે, ઑફિસની પૉલિસી અનુસાર ડિવાઇસ લૉક કરવામાં આવ્યું"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"2-પગલાંમાં ચકાસણી"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"ફિંગરપ્રિન્ટ અનલૉક સુવિધાનો ઉપયોગ કરો"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"ફેસ અનલૉક સુવિધાનો ઉપયોગ કરો"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"ફિંગરપ્રિન્ટ કે ફેસ અનલૉક સુવિધાનો ઉપયોગ કરો"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"પિન પછી પાસવર્ડ આવશ્યક છે"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"લૉકડાઉન પછી પાસવર્ડ આવશ્યક છે"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"પૅટર્ન પછી પાસવર્ડ આવશ્યક છે"</string>

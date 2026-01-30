@@ -47,9 +47,10 @@ import com.android.internal.logging.UiEventLogger;
 import com.android.launcher3.icons.IconProvider;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
-import com.android.wm.shell.bubbles.bar.BubbleBarDragListener;
+import com.android.wm.shell.bubbles.bar.DragToBubbleController;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.ShellExecutor;
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState;
 import com.android.wm.shell.sysui.ShellCommandHandler;
 import com.android.wm.shell.sysui.ShellController;
 import com.android.wm.shell.sysui.ShellInit;
@@ -60,8 +61,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
-import dagger.Lazy;
 
 /**
  * Tests for the drag and drop controller.
@@ -94,18 +93,21 @@ public class DragAndDropControllerTest extends ShellTestCase {
     private Transitions mTransitions;
     @Mock
     private GlobalDragListener mGlobalDragListener;
+
     @Mock
-    private Lazy<BubbleBarDragListener> mBubbleBarDragControllerLazy;
+    private DragToBubbleController mDragToBubbleController;
+    private FakeDesktopState mDesktopState;
 
     private DragAndDropController mController;
 
     @Before
     public void setUp() throws RemoteException {
+        mDesktopState = new FakeDesktopState();
         MockitoAnnotations.initMocks(this);
         mController = new DragAndDropController(mContext, mShellInit, mShellController,
                 mShellCommandHandler, mShellTaskOrganizer, mDisplayController, mUiEventLogger,
-                mIconProvider, mGlobalDragListener, mTransitions, mBubbleBarDragControllerLazy,
-                mMainExecutor);
+                mIconProvider, mGlobalDragListener, mTransitions, () -> mDragToBubbleController,
+                mMainExecutor, mDesktopState);
         mController.onInit();
     }
 

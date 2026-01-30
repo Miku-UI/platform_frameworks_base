@@ -34,6 +34,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
+import android.content.pm.UserInfo;
 import android.content.res.Resources;
 import android.hardware.biometrics.IBiometricSensorReceiver;
 import android.hardware.biometrics.common.CommonProps;
@@ -49,6 +50,7 @@ import android.os.RemoteException;
 import android.os.UserManager;
 import android.os.test.TestLooper;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
@@ -56,6 +58,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
 import com.android.server.biometrics.BiometricHandlerProvider;
+import com.android.server.biometrics.Flags;
 import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.sensors.AuthSessionCoordinator;
 import com.android.server.biometrics.sensors.AuthenticationStateListeners;
@@ -74,7 +77,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.ArrayList;
+import java.util.List;
 
 @Presubmit
 @SmallTest
@@ -85,6 +88,7 @@ public class FaceProviderTest {
             DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private static final String TAG = "FaceProviderTest";
+    private static final List<Integer> ALIVE_USERS = List.of(0, 1, 2);
 
     private static final float FRR_THRESHOLD = 0.2f;
 
@@ -110,6 +114,8 @@ public class FaceProviderTest {
     private BiometricScheduler<IFace, ISession> mScheduler;
     @Mock
     AuthSessionCoordinator mAuthSessionCoordinator;
+    @Mock
+    private IBinder mBinder;
 
     private final TestLooper mLooper = new TestLooper();
     private SensorProps[] mSensorProps;
@@ -121,9 +127,10 @@ public class FaceProviderTest {
         MockitoAnnotations.initMocks(this);
 
         when(mContext.getSystemService(Context.USER_SERVICE)).thenReturn(mUserManager);
-        when(mUserManager.getAliveUsers()).thenReturn(new ArrayList<>());
+        when(mUserManager.getAliveUsers()).thenReturn(
+                ALIVE_USERS.stream().map(i -> new UserInfo(i, "", 0)).toList());
         when(mDaemon.createSession(anyInt(), anyInt(), any())).thenReturn(mock(ISession.class));
-
+        when(mDaemon.asBinder()).thenReturn(mBinder);
         when(mContext.getResources()).thenReturn(mResources);
         when(mResources.getFraction(R.fraction.config_biometricNotificationFrrThreshold, 1, 1))
                 .thenReturn(FRR_THRESHOLD);
@@ -146,8 +153,10 @@ public class FaceProviderTest {
 
         mFaceProvider = new FaceProvider(mContext, mBiometricStateCallback,
                 mAuthenticationStateListeners, mSensorProps, TAG, mLockoutResetDispatcher,
-                mBiometricContext, mDaemon, mBiometricHandlerProvider,
+                mBiometricContext, mDaemon, mBiometricHandlerProvider, (fqName) -> mDaemon,
                 false /* resetLockoutRequiresChallenge */, false /* testHalEnabled */);
+
+        waitForIdle();
     }
 
     @Test
@@ -181,7 +190,8 @@ public class FaceProviderTest {
         mFaceProvider = new FaceProvider(mContext,
                 mBiometricStateCallback, mAuthenticationStateListeners, hidlFaceSensorConfig, TAG,
                 mLockoutResetDispatcher, mBiometricContext, mDaemon,
-                mBiometricHandlerProvider, true /* resetLockoutRequiresChallenge */,
+                mBiometricHandlerProvider, (fqName) -> mDaemon,
+                true /* resetLockoutRequiresChallenge */,
                 true /* testHalEnabled */);
 
         assertThat(mFaceProvider.mFaceSensors.get(faceId)
@@ -281,6 +291,30 @@ public class FaceProviderTest {
 
         verify(mAuthSessionCoordinator).authEndedFor(anyInt(), anyInt(), anyInt(), anyLong(),
                 anyBoolean());
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_INTERNAL_CLEANUP_FOR_ALL_PROFILES)
+    public void testGetHalInstance_whenDaemonIsNull() {
+        mFaceProvider.setTestHalEnabled(false);
+        for (SensorProps sensor: mSensorProps) {
+            mFaceProvider.mFaceSensors.get(sensor.commonProps.sensorId).setScheduler(mScheduler);
+        }
+        //Reset value of FaceProvider#mDaemon
+        mFaceProvider.binderDied();
+
+        waitForIdle();
+
+        final IFace daemon = mFaceProvider.getHalInstance();
+
+        waitForIdle();
+
+        assertNotNull(daemon);
+        verify(mScheduler, times(ALIVE_USERS.size() * mSensorProps.length))
+                .scheduleClientMonitor(any(FaceInternalCleanupClient.class),
+                        any(ClientMonitorCallback.class));
+        verify(mScheduler, times(ALIVE_USERS.size() * mSensorProps.length))
+                .scheduleClientMonitor(any(FaceGetAuthenticatorIdClient.class));
     }
 
     private void waitForIdle() {

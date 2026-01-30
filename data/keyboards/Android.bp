@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
 genrule {
     name: "validate_framework_keymaps",
     srcs: [
-        "*.kl",
-        "*.kcm",
         "*.idc",
+        "*.kcm",
+        "*.kl",
     ],
     tools: ["validatekeymaps"],
     out: ["stamp"],
@@ -33,7 +37,6 @@ prebuilt_usr_keylayout {
     srcs: [
         "*.kl",
     ],
-    no_full_install: true,
 }
 
 prebuilt_usr_keychars {
@@ -41,7 +44,6 @@ prebuilt_usr_keychars {
     srcs: [
         "*.kcm",
     ],
-    no_full_install: true,
 }
 
 prebuilt_usr_idc {
@@ -49,5 +51,36 @@ prebuilt_usr_idc {
     srcs: [
         "*.idc",
     ],
-    no_full_install: true,
+}
+
+genrule {
+    name: "keychars_test_data",
+    srcs: [
+        "Generic.kcm",
+        "Vendor_18d1_Product_0200.kcm",
+        "Vendor_18d1_Product_5018.kcm",
+        "Virtual.kcm",
+    ],
+    cmd: "mkdir -p $(genDir)/system/usr/keychars/ " +
+        "&& " +
+        "cp $(in) $(genDir)/system/usr/keychars/ ",
+    out: [
+        "system/usr/keychars/Generic.kcm",
+        "system/usr/keychars/Vendor_18d1_Product_0200.kcm",
+        "system/usr/keychars/Vendor_18d1_Product_5018.kcm",
+        "system/usr/keychars/Virtual.kcm",
+    ],
+}
+
+genrule {
+    name: "keylayout_test_data",
+    srcs: [
+        "Generic.kl",
+    ],
+    cmd: "mkdir -p $(genDir)/system/usr/keylayout/ " +
+        "&& " +
+        "cp $(in) $(genDir)/system/usr/keylayout/ ",
+    out: [
+        "system/usr/keylayout/Generic.kl",
+    ],
 }

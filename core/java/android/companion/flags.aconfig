@@ -64,3 +64,66 @@ flag {
     description: "Enable set device icon API"
     bug: "341057668"
 }
+
+flag {
+    name: "enable_task_continuity"
+    is_exported: true
+    namespace: "desktop_better_together"
+    description: "Enable task continuity API"
+    bug: "400970610"
+}
+
+flag {
+    name: "association_verification"
+    is_exported: true
+    namespace: "companion"
+    description: "Enable association verification APIs"
+    bug: "371198526"
+}
+
+flag {
+    name: "notify_association_removed"
+    is_exported: true
+    namespace: "companion"
+    description: "Enable association removed event API"
+    bug: "398042032"
+}
+
+flag {
+    name: "enable_data_sync"
+    is_exported: true
+    namespace: "companion"
+    description: "Enable data sync APIs"
+    bug: "422195296"
+}
+
+flag {
+    name: "enable_medical_profile"
+    is_exported: true
+    namespace: "companion"
+    description: "Enable medical profile"
+    bug: "414859687"
+}
+
+flag {
+    name: "band_device_profile"
+    is_exported: true
+    namespace: "companion"
+    description: "Introduce a new device profile for band categories"
+    bug: "420665366"
+}
+
+flag {
+    name: "enable_remote_app_access"
+    is_exported: false
+    namespace: "desktop_better_together"
+    description: "Enable the Remote App Access API"
+    bug: "400970610"
+}
+
+flag {
+    name: "enable_universal_clipboard"
+    namespace: "desktop_better_together"
+    description: "Enable Universal Clipboard feature"
+    bug: "432068758"
+}

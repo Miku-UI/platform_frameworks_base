@@ -235,6 +235,7 @@ message DisplayContentProto {
     optional IdentifierProto input_method_input_target_identifier = 41;
     optional IdentifierProto input_method_control_target_identifier = 42;
     optional IdentifierProto current_focus_identifier = 43;
+    optional RemoteInsetsControlTargetProto remote_insets_control_target = 44;
 }
 
 /* represents DisplayArea object */
@@ -339,6 +340,7 @@ message TaskProto {
     optional string affinity = 29;
     optional bool has_child_pip_activity = 30;
     optional TaskFragmentProto task_fragment = 31;
+    optional string task_name = 32;
 }
 
 /* represents TaskFragment */
@@ -404,6 +406,8 @@ message ActivityRecordProto {
     optional bool should_enable_user_aspect_ratio_settings = 45;
     optional bool is_user_fullscreen_override_enabled = 46;
     optional int64 request_open_in_browser_education_timestamp = 47;
+    optional bool should_allow_simulate_requested_orientation_for_camera_compat = 48;
+    optional .android.graphics.RectProto safe_region_bounds = 49;
 }
 
 /* represents WindowToken */
@@ -471,8 +475,15 @@ message WindowStateProto {
     repeated .android.view.InsetsSourceProto mergedLocalInsetsSources = 47;
     optional int32 requested_visible_types = 48;
     optional .android.graphics.RectProto dim_bounds = 49;
-    optional int32 prepare_sync_seq_id = 50;
+    optional int32 buffer_seq_id = 50;
     optional int32 sync_seq_id = 51;
+}
+
+// represents RemoteInsetsControlTarget
+message RemoteInsetsControlTargetProto {
+    optional IdentifierProto identifier = 1;
+    optional int32 requested_visible_types = 2;
+    optional int32 animating_types = 3;
 }
 
 message IdentifierProto {
@@ -621,7 +632,7 @@ message ImeInsetsSourceProviderProto {
     optional InsetsSourceProviderProto insets_source_provider = 1;
     optional WindowStateProto ime_target_from_ime = 2 [deprecated = true];
     optional bool is_ime_layout_drawn = 3 [deprecated=true];
-    optional IdentifierProto ime_target_from_ime_identifier = 4;
+    optional IdentifierProto ime_target_from_ime_identifier = 4 [deprecated = true];
 }
 
 message BackNavigationProto {

@@ -75,6 +75,10 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -82,6 +86,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -365,7 +370,7 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
         // If no X.Builder, look for X() constructor.
         try {
             Object instance = constructEmpty(clazz, where, excludingClasses, specialGenerator);
-            invokeAllSetters(instance, where.plus(clazz), /* allOverloads= */ false,
+            invokeAllSetters(instance, where.plus(instance.getClass()), /* allOverloads= */ false,
                     /* includingVoidMethods= */ false, excludingClasses, specialGenerator);
             return instance;
         } catch (Exception e) {
@@ -375,7 +380,7 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
 
     private static Object constructEmpty(Class<?> clazz, Location where,
             ImmutableSet<Class<?>> excludingClasses, SpecialParameterGenerator specialGenerator) {
-        Constructor<?> bestConstructor;
+        Constructor<?> bestConstructor = null;
         if (PREFERRED_CONSTRUCTORS.containsKey(clazz)) {
             // Use the preferred constructor.
             bestConstructor = PREFERRED_CONSTRUCTORS.get(clazz);
@@ -390,9 +395,11 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
                         String.format("Extender class %s doesn't have a zero-parameter constructor",
                                 clazz.getName()));
             }
-        } else {
-            // Look for a non-deprecated constructor using any of the "interesting" parameters.
+        } else if (!Modifier.isAbstract(clazz.getModifiers())) {
+            // If a concrete class, look for a constructor. It should be accessible, not deprecated,
+            // and ideally using the "interesting" parameters.
             List<Constructor<?>> allConstructors = Arrays.stream(clazz.getConstructors())
+                    .filter(c -> !Modifier.isPrivate(c.getModifiers()))
                     .filter(c -> c.getAnnotation(Deprecated.class) == null)
                     .collect(Collectors.toList());
             bestConstructor = ReflectionUtils.chooseBestOverload(allConstructors, where);
@@ -428,6 +435,29 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
                 throw new UnsupportedOperationException(
                         "Error invoking constructor-like static method "
                                 + bestFactoryMethod.getName() + " for " + clazz.getName(), e);
+            }
+        }
+
+        // If the class is abstract, try to find a suitable subclass.
+        if (Modifier.isAbstract(clazz.getModifiers())) {
+            List<Class<?>> subclasses = ReflectionUtils.getConcreteSubclasses(clazz,
+                    clazz.getDeclaringClass());
+            if (subclasses.isEmpty()) {
+                throw new UnsupportedOperationException(
+                        clazz.getName() + " is abstract and I couldn't find a concrete subclass");
+            }
+            // Pick a random subclass. In general randomness is a bad idea in tests (flakes), but we
+            // get better coverage (over multiple runs) and the error message will make it clear
+            // which subclass failed the test. The alternative would be to add a further branching
+            // factor here, which is more complex and time consuming.
+            Class<?> chosenSubclass = subclasses.get(
+                    ThreadLocalRandom.current().nextInt(0, subclasses.size()));
+            try {
+                return constructEmpty(chosenSubclass, where, excludingClasses, specialGenerator);
+            } catch (Exception e) {
+                throw new UnsupportedOperationException(
+                        "Tried to construct a " + chosenSubclass.getName() + " to act as a "
+                                + clazz.getName() + " but I wasn't able to instantiate it", e);
             }
         }
 
@@ -519,14 +549,19 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
     }
 
     private static class ReflectionUtils {
-        static ImmutableSet<Class<?>> getConcreteSubclasses(Class<?> clazz,
+        static ImmutableList<Class<?>> getConcreteSubclasses(Class<?> clazz,
                 Class<?> containerClass) {
-            return ImmutableSet.copyOf(
+            if (containerClass == null) {
+                throw new IllegalArgumentException("Asked to find subclasses of " + clazz.getName()
+                        + " without a containing class. This is impossible using Java reflection");
+            }
+            return ImmutableList.copyOf(
                     Arrays.stream(containerClass.getDeclaredClasses())
                             .filter(
                                     innerClass -> clazz.isAssignableFrom(innerClass)
                                             && !Modifier.isAbstract(innerClass.getModifiers()))
-                            .collect(Collectors.toSet()));
+                            .distinct()
+                            .collect(Collectors.toList()));
         }
 
         static String methodToString(Executable executable) {
@@ -641,7 +676,7 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
                         .build();
         private static final ImmutableSet<Class<?>> MOCKED_CLASSES = ImmutableSet.of();
 
-        private static final ImmutableMap<Class<?>, Object> PRIMITIVE_VALUES =
+        private static final ImmutableMap<Class<?>, Object> BASIC_TYPE_VALUES =
                 ImmutableMap.<Class<?>, Object>builder()
                         .put(boolean.class, false)
                         .put(byte.class, (byte) 4)
@@ -651,6 +686,10 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
                         .put(float.class, 33.33f)
                         .put(double.class, 3333.3333d)
                         .put(char.class, 'N')
+                        .put(Instant.class, Instant.ofEpochMilli(1747306630000L))
+                        .put(Duration.class, Duration.ofSeconds(10))
+                        .put(LocalDate.class, LocalDate.of(1789, 7, 14))
+                        .put(LocalTime.class, LocalTime.of(17, 0))
                         .build();
 
         private final Context mContext;
@@ -664,10 +703,10 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
         static boolean canGenerate(Class<?> clazz) {
             return INTERESTING_CLASSES_WITH_SPECIAL_GENERATION.contains(clazz)
                     || MOCKED_CLASSES.contains(clazz)
+                    || BASIC_TYPE_VALUES.containsKey(clazz)
                     || clazz.equals(Context.class)
                     || clazz.equals(Bundle.class)
                     || clazz.equals(Bitmap.class)
-                    || clazz.isPrimitive()
                     || clazz.equals(CharSequence.class) || clazz.equals(String.class);
         }
 
@@ -730,8 +769,8 @@ public class NotificationVisitUrisTest extends UiServiceTestCase {
             }
 
             // ~Primitives
-            if (PRIMITIVE_VALUES.containsKey(clazz)) {
-                return PRIMITIVE_VALUES.get(clazz);
+            if (BASIC_TYPE_VALUES.containsKey(clazz)) {
+                return BASIC_TYPE_VALUES.get(clazz);
             }
             if (clazz.equals(CharSequence.class) || clazz.equals(String.class)) {
                 return where + "->string";

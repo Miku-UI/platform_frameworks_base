@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.os.SystemClock;
 import android.os.Trace;
 import android.os.VibrationEffect;
-import android.os.vibrator.Flags;
 import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationEffectSegment;
 import android.util.Slog;
@@ -42,37 +41,10 @@ final class SetAmplitudeVibratorStep extends AbstractComposedVibratorStep {
     static final int REPEATING_EFFECT_ON_DURATION = 5000; // 5s
 
     SetAmplitudeVibratorStep(VibrationStepConductor conductor, long startTime,
-            VibratorController controller, VibrationEffect.Composed effect, int index,
+            HalVibrator vibrator, VibrationEffect.Composed effect, int index,
             long pendingVibratorOffDeadline) {
         // This step has a fixed startTime coming from the timings of the waveform it's playing.
-        super(conductor, startTime, controller, effect, index, pendingVibratorOffDeadline);
-    }
-
-    @Override
-    public boolean acceptVibratorCompleteCallback(int vibratorId) {
-        if (Flags.fixVibrationThreadCallbackHandling()) {
-            // TODO: remove this method once flag removed.
-            return super.acceptVibratorCompleteCallback(vibratorId);
-        }
-        // Ensure the super method is called and will reset the off timeout and boolean flag.
-        // This is true if the vibrator was ON and this callback has the same vibratorId.
-        if (!super.acceptVibratorCompleteCallback(vibratorId)) {
-            return false;
-        }
-
-        // Timings are tightly controlled here, so only trigger this step if the vibrator was
-        // supposed to be ON but has completed prematurely, to turn it back on as soon as
-        // possible. If the vibrator turned off during a zero-amplitude step, just wait for
-        // the correct start time of this step before playing it.
-        boolean shouldAcceptCallback =
-                (SystemClock.uptimeMillis() < startTime) && (controller.getCurrentAmplitude() > 0);
-
-        if (VibrationThread.DEBUG) {
-            Slog.d(VibrationThread.TAG,
-                    "Amplitude step received completion callback from " + vibratorId
-                            + ", accepted = " + shouldAcceptCallback);
-        }
-        return shouldAcceptCallback;
+        super(conductor, startTime, vibrator, effect, index, pendingVibratorOffDeadline);
     }
 
     @NonNull
@@ -93,23 +65,20 @@ final class SetAmplitudeVibratorStep extends AbstractComposedVibratorStep {
             if (mVibratorCompleteCallbackReceived && latency < 0) {
                 // This step was run early because the vibrator turned off prematurely.
                 // Turn it back on and return this same step to run at the exact right time.
-                turnVibratorBackOn(/* remainingDuration= */ -latency);
-                return Arrays.asList(new SetAmplitudeVibratorStep(conductor, startTime, controller,
-                        effect, segmentIndex, mPendingVibratorOffDeadline));
+                return turnVibratorBackOn(/* remainingDuration= */ -latency);
             }
 
             VibrationEffectSegment segment = effect.getSegments().get(segmentIndex);
-            if (!(segment instanceof StepSegment)) {
+            if (!(segment instanceof StepSegment stepSegment)) {
                 Slog.w(VibrationThread.TAG,
                         "Ignoring wrong segment for a SetAmplitudeVibratorStep: " + segment);
                 // Use original startTime to avoid propagating latencies to the waveform.
-                return nextSteps(startTime, /* segmentsPlayed= */ 1);
+                return skipStep(startTime);
             }
 
-            StepSegment stepSegment = (StepSegment) segment;
             if (stepSegment.getDuration() == 0) {
                 // Use original startTime to avoid propagating latencies to the waveform.
-                return nextSteps(startTime, /* segmentsPlayed= */ 1);
+                return skipStep(startTime);
             }
 
             float amplitude = stepSegment.getAmplitude();
@@ -124,10 +93,15 @@ final class SetAmplitudeVibratorStep extends AbstractComposedVibratorStep {
                     // cycle before setting the amplitude.
                     long onDuration = getVibratorOnDuration(effect, segmentIndex);
                     if (onDuration > 0) {
-                        startVibrating(onDuration);
+                        long vibratorOnResult = startVibrating(onDuration, amplitude);
+                        if (vibratorOnResult <= 0) {
+                            // Error turning vibrator ON, cancel the waveform playback.
+                            return cancelStep();
+                        }
                     }
+                } else {
+                    changeAmplitude(amplitude);
                 }
-                changeAmplitude(amplitude);
             }
 
             // Use original startTime to avoid propagating latencies to the waveform.
@@ -138,38 +112,41 @@ final class SetAmplitudeVibratorStep extends AbstractComposedVibratorStep {
         }
     }
 
-    private void turnVibratorBackOn(long remainingDuration) {
+    private List<Step> turnVibratorBackOn(long remainingDuration) {
         long onDuration = getVibratorOnDuration(effect, segmentIndex);
-        if (onDuration <= 0) {
-            // Vibrator is supposed to go back off when this step starts, so just leave it off.
-            return;
-        }
-        onDuration += remainingDuration;
+        if (onDuration > 0) {
+            onDuration += remainingDuration;
+            if (VibrationThread.DEBUG) {
+                Slog.d(VibrationThread.TAG,
+                        "Turning the vibrator back ON using the remaining duration of "
+                                + remainingDuration + "ms, for a total of " + onDuration + "ms");
+            }
 
-        if (VibrationThread.DEBUG) {
-            Slog.d(VibrationThread.TAG,
-                    "Turning the vibrator back ON using the remaining duration of "
-                            + remainingDuration + "ms, for a total of " + onDuration + "ms");
+            float expectedAmplitude = vibrator.getCurrentAmplitude();
+            long vibratorOnResult = startVibrating(onDuration, expectedAmplitude);
+            if (vibratorOnResult <= 0) {
+                // Error turning vibrator back ON, cancel the waveform playback.
+                return cancelStep();
+            }
         }
-
-        float expectedAmplitude = controller.getCurrentAmplitude();
-        long vibratorOnResult = startVibrating(onDuration);
-        if (vibratorOnResult > 0) {
-            // Set the amplitude back to the value it was supposed to be playing at.
-            changeAmplitude(expectedAmplitude);
-        }
+        // Return this same step to be played at the correct time.
+        return Arrays.asList(new SetAmplitudeVibratorStep(conductor, startTime, vibrator,
+                effect, segmentIndex, mPendingVibratorOffDeadline));
     }
 
-    private long startVibrating(long duration) {
+    private long startVibrating(long duration, float amplitude) {
         if (VibrationThread.DEBUG) {
             Slog.d(VibrationThread.TAG,
-                    "Turning on vibrator " + controller.getVibratorInfo().getId() + " for "
+                    "Turning on vibrator " + vibrator.getInfo().getId() + " for "
                             + duration + "ms");
         }
         int stepId = conductor.nextVibratorCallbackStepId(getVibratorId());
-        long vibratorOnResult = controller.on(duration, getVibration().id, stepId);
+        long vibratorOnResult = vibrator.on(getVibration().id, stepId, duration);
         handleVibratorOnResult(vibratorOnResult);
         getVibration().stats.reportVibratorOn(vibratorOnResult);
+        if (vibratorOnResult > 0) {
+            changeAmplitude(amplitude);
+        }
         return vibratorOnResult;
     }
 
@@ -186,10 +163,10 @@ final class SetAmplitudeVibratorStep extends AbstractComposedVibratorStep {
         long timing = 0;
         while (i < segmentCount) {
             VibrationEffectSegment segment = segments.get(i);
-            if (!(segment instanceof StepSegment)
+            if (!(segment instanceof StepSegment step)
                     // play() will ignore segments with zero duration, so it's important that
                     // zero-duration segments don't affect this method.
-                    || (segment.getDuration() > 0 && ((StepSegment) segment).getAmplitude() == 0)) {
+                    || (segment.getDuration() > 0 && step.getAmplitude() == 0)) {
                 break;
             }
             timing += segment.getDuration();

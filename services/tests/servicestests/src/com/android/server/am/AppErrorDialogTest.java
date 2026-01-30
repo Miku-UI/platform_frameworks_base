@@ -40,8 +40,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.File;
-
 /**
  * Build/Install/Run:
  *  atest FrameworksServicesTests:AppErrorDialogTest
@@ -73,8 +71,7 @@ public class AppErrorDialogTest {
         mContext = getInstrumentation().getTargetContext();
         mService = new ActivityManagerService(new ActivityManagerService.Injector(mContext) {
             @Override
-            public AppOpsService getAppOpsService(File recentAccessesFile, File storageFile,
-                    Handler handler) {
+            public AppOpsService getAppOpsService(Handler handler) {
                 return null;
             }
 
@@ -89,7 +86,8 @@ public class AppErrorDialogTest {
             }
         }, mServiceThreadRule.getThread());
         mService.mActivityTaskManager = new ActivityTaskManagerService(mContext);
-        mService.mActivityTaskManager.initialize(null, null, mContext.getMainLooper());
+        mService.mActivityTaskManager.initialize(null, null, mService.mProcessStateController,
+                mContext.getMainLooper());
     }
 
     @Test

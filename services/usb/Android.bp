@@ -28,6 +28,10 @@ java_library_static {
         "android.hardware.usb.gadget-V1-java",
     ],
 
+    required: [
+        "libusb4_policies_jni",
+    ],
+
     static_libs: [
         "android.hardware.usb-V1.0-java",
         "android.hardware.usb-V1.1-java",

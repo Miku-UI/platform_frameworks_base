@@ -19,9 +19,10 @@ package com.android.systemui.statusbar.notification.row.icon
 import android.content.applicationContext
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.util.time.fakeSystemClock
 import org.mockito.kotlin.mock
 
 val Kosmos.mockAppIconProvider by Kosmos.Fixture { mock<AppIconProvider>() }
 
-val Kosmos.appIconProvider by
-    Kosmos.Fixture { AppIconProviderImpl(applicationContext, dumpManager) }
+var Kosmos.appIconProvider: AppIconProvider by
+    Kosmos.Fixture { AppIconProviderImpl(applicationContext, dumpManager, fakeSystemClock) }

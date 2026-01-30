@@ -21,6 +21,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.mobile.TelephonyIcons
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
@@ -87,6 +88,7 @@ class MobileIconsViewModelTest : SysuiTestCase() {
                     override val hasDataCapabilities = true
                     override val shouldShowActivityConfig = false
                 },
+                logcatTableLogBuffer(kosmos, "summaryLogger"),
                 testScope.backgroundScope,
             )
 

@@ -87,7 +87,7 @@ class AnimatorTestRuleToolkitTest {
         val recordedMotion =
             record(
                 animatedBox,
-                MotionControl { awaitFrames(count = 26) },
+                MotionControl { awaitFrames(count = 25) },
                 sampleIntervalMs = 20L,
                 recordScreenshots = true,
             )
@@ -103,7 +103,7 @@ class AnimatorTestRuleToolkitTest {
         val recordedMotion =
             record(
                 animatedBox,
-                MotionControl { awaitFrames(count = 26) },
+                MotionControl { awaitFrames(count = 25) },
                 sampleIntervalMs = 20L,
                 recordScreenshots = false,
             )

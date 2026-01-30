@@ -26,6 +26,7 @@ import android.app.ActivityOptions;
 import android.app.BroadcastOptions;
 import android.app.PendingIntent;
 import android.app.ambientcontext.AmbientContextEvent;
+import android.app.wearable.Flags;
 import android.app.wearable.IWearableSensingCallback;
 import android.app.wearable.IWearableSensingManager;
 import android.app.wearable.WearableSensingDataRequest;
@@ -38,9 +39,7 @@ import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
 import android.os.RemoteCallback;
-import android.os.ResultReceiver;
 import android.os.SharedMemory;
-import android.os.ShellCallback;
 import android.os.UserHandle;
 import android.provider.DeviceConfig;
 import android.service.wearable.WearableSensingDataRequester;
@@ -49,12 +48,14 @@ import android.util.Slog;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.util.DumpUtils;
 import com.android.server.SystemService;
 import com.android.server.infra.AbstractMasterSystemService;
 import com.android.server.infra.FrameworkResourcesServiceNameResolver;
 import com.android.server.utils.quota.MultiRateLimiter;
 
 import java.io.FileDescriptor;
+import java.io.PrintWriter;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
@@ -668,15 +669,34 @@ public class WearableSensingManagerService
         }
 
         @Override
-        public void onShellCommand(
-                FileDescriptor in,
-                FileDescriptor out,
-                FileDescriptor err,
-                String[] args,
-                ShellCallback callback,
-                ResultReceiver resultReceiver) {
-            new WearableSensingShellCommand(WearableSensingManagerService.this)
-                    .exec(this, in, out, err, args, callback, resultReceiver);
+        public int handleShellCommand(
+                @NonNull ParcelFileDescriptor in,
+                @NonNull ParcelFileDescriptor out,
+                @NonNull ParcelFileDescriptor err,
+                @NonNull String[] args) {
+            return new WearableSensingShellCommand(WearableSensingManagerService.this)
+                    .exec(
+                            this,
+                            in.getFileDescriptor(),
+                            out.getFileDescriptor(),
+                            err.getFileDescriptor(),
+                            args);
+        }
+
+
+        @Override
+        protected void dump(FileDescriptor fd, PrintWriter pw, String[] args) {
+            if (!Flags.enableWearableSensingManagerServiceDump()) {
+                return;
+            }
+
+            if (!DumpUtils.checkDumpPermission(mContext, TAG, pw)) {
+                return;
+            }
+
+            synchronized (mLock) {
+                dumpLocked("", pw);
+            }
         }
 
         @Nullable

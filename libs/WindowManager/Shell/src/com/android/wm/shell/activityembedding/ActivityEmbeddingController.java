@@ -80,9 +80,7 @@ public class ActivityEmbeddingController implements Transitions.TransitionHandle
     @Nullable
     public static ActivityEmbeddingController create(@NonNull Context context,
             @NonNull ShellInit shellInit, @NonNull Transitions transitions) {
-        return Transitions.ENABLE_SHELL_TRANSITIONS
-                ? new ActivityEmbeddingController(context, shellInit, transitions)
-                : null;
+        return new ActivityEmbeddingController(context, shellInit, transitions);
     }
 
     /** Registers to handle transitions. */

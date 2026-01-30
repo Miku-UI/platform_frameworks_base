@@ -34,12 +34,13 @@ namespace android {
 class PerfettoDataSourceInstance {
 public:
     PerfettoDataSourceInstance(JNIEnv* env, jobject javaDataSourceInstance,
-                               PerfettoDsInstanceIndex inst_idx);
+                               PerfettoDsInstanceIndex inst_idx, bool postpone_stop);
     ~PerfettoDataSourceInstance();
 
     void onStart(JNIEnv* env);
     void onFlush(JNIEnv* env);
-    void onStop(JNIEnv* env);
+    void onStop(JNIEnv* env, struct PerfettoDsOnStopArgs* args);
+    void stopDone();
 
     jobject GetJavaDataSourceInstance() {
         return mJavaDataSourceInstance;
@@ -52,5 +53,7 @@ public:
 private:
     PerfettoDsInstanceIndex inst_idx;
     jobject mJavaDataSourceInstance;
+    bool postpone_stop;
+    struct PerfettoDsAsyncStopper* async_stopper;
 };
 } // namespace android

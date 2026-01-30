@@ -19,20 +19,25 @@ package com.android.settingslib.spa.gallery.scaffold
 import android.os.Bundle
 import androidx.compose.runtime.Composable
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
+import com.android.settingslib.spa.widget.scaffold.RegularScaffold
+import com.android.settingslib.spa.widget.ui.Category
 
 object PagerMainPageProvider : SettingsPageProvider {
     override val name = "PagerMain"
-    private val owner = createSettingsPage()
     private const val TITLE = "Category: Pager"
 
-    override fun buildEntry(arguments: Bundle?) = listOf(
-        NonScrollablePagerPageProvider.buildInjectEntry().setLink(fromPage = owner).build(),
-        ScrollablePagerPageProvider.buildInjectEntry().setLink(fromPage = owner).build(),
-    )
+    @Composable
+    override fun Page(arguments: Bundle?) {
+        RegularScaffold(TITLE) {
+            Category {
+                NonScrollablePagerPageProvider.Entry()
+                ScrollablePagerPageProvider.Entry()
+            }
+        }
+    }
 
     @Composable
     fun Entry() {
@@ -41,6 +46,4 @@ object PagerMainPageProvider : SettingsPageProvider {
             override val onClick = navigator(name)
         })
     }
-
-    override fun getTitle(arguments: Bundle?) = TITLE
 }

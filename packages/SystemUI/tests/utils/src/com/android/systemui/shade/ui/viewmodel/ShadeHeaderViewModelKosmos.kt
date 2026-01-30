@@ -18,40 +18,47 @@
 
 package com.android.systemui.shade.ui.viewmodel
 
-import android.content.applicationContext
 import com.android.systemui.battery.batteryMeterViewControllerFactory
+import com.android.systemui.clock.domain.interactor.clockInteractor
+import com.android.systemui.desktop.domain.interactor.desktopInteractor
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.kairos
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.plugins.activityStarter
+import com.android.systemui.scene.domain.interactor.dualShadeEducationInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.privacyChipInteractor
-import com.android.systemui.shade.domain.interactor.shadeHeaderClockInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
+import com.android.systemui.statusbar.phone.domain.interactor.shadeDarkIconInteractor
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
-import com.android.systemui.statusbar.phone.ui.tintedIconManagerFactory
+import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.batteryViewModelAlwaysShowPercentFactory
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.mobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.mobileIconsViewModel
+import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.mobileIconsViewModelKairos
+import com.android.systemui.statusbar.systemstatusicons.ui.viewmodel.systemStatusIconsViewModelFactory
 import org.mockito.kotlin.mock
 
 val Kosmos.shadeHeaderViewModel: ShadeHeaderViewModel by
     Kosmos.Fixture {
         ShadeHeaderViewModel(
-            context = applicationContext,
             activityStarter = activityStarter,
             sceneInteractor = sceneInteractor,
             shadeInteractor = shadeInteractor,
             shadeModeInteractor = shadeModeInteractor,
+            shadeDarkIconInteractor = shadeDarkIconInteractor,
             mobileIconsInteractor = mobileIconsInteractor,
             mobileIconsViewModel = mobileIconsViewModel,
             privacyChipInteractor = privacyChipInteractor,
-            clockInteractor = shadeHeaderClockInteractor,
-            tintedIconManagerFactory = tintedIconManagerFactory,
+            clockInteractor = clockInteractor,
             batteryMeterViewControllerFactory = batteryMeterViewControllerFactory,
             statusBarIconController = mock<StatusBarIconController>(),
+            batteryViewModelFactory = batteryViewModelAlwaysShowPercentFactory,
             kairosNetwork = kairos,
-            mobileIconsViewModelKairos = mock(),
+            mobileIconsViewModelKairos = { mobileIconsViewModelKairos },
+            dualShadeEducationInteractor = dualShadeEducationInteractor,
+            desktopInteractor = desktopInteractor,
+            systemStatusIconsViewModelFactory = systemStatusIconsViewModelFactory,
         )
     }
 

@@ -100,7 +100,7 @@ int32_t AMotionEvent_getAction(const AInputEvent* motion_event) {
 }
 
 int32_t AMotionEvent_getFlags(const AInputEvent* motion_event) {
-    return static_cast<const MotionEvent*>(motion_event)->getFlags() &
+    return static_cast<const MotionEvent*>(motion_event)->getFlags().get() &
             ~AMOTION_EVENT_PRIVATE_FLAG_MASK;
 }
 

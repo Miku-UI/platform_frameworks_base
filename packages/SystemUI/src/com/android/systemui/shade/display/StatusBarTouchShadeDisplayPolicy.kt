@@ -23,6 +23,7 @@ import com.android.app.tracing.coroutines.launchTraced
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.display.data.repository.DisplayRepository
+import com.android.systemui.display.data.repository.FocusedDisplayRepository
 import com.android.systemui.shade.domain.interactor.NotificationShadeElement
 import com.android.systemui.shade.domain.interactor.QSShadeElement
 import com.android.systemui.shade.domain.interactor.ShadeExpandedStateInteractor.ShadeElement
@@ -51,6 +52,7 @@ class StatusBarTouchShadeDisplayPolicy
 @Inject
 constructor(
     displayRepository: DisplayRepository,
+    private val focusedDisplayRepository: FocusedDisplayRepository,
     @Background private val backgroundScope: CoroutineScope,
     private val qsShadeElement: Lazy<QSShadeElement>,
     private val notificationElement: Lazy<NotificationShadeElement>,
@@ -67,19 +69,31 @@ constructor(
 
     private var removalListener: Job? = null
 
-    /** Called when the status bar on the given display is touched. */
-    fun onStatusBarTouched(event: MotionEvent, statusBarWidth: Int) {
+    /** Called when the status bar or launcher homescreen on the given display is touched. */
+    fun onStatusBarOrLauncherTouched(event: MotionEvent, statusBarWidth: Int) {
         ShadeWindowGoesAround.isUnexpectedlyInLegacyMode()
-        updateShadeDisplayIfNeeded(event)
-        updateExpansionIntent(event, statusBarWidth)
+        updateShadeDisplayIfNeeded(event.displayId)
+        val element = classifyStatusBarEvent(event, statusBarWidth)
+        updateExpansionIntent(element)
     }
+
+    private fun onKeyboardShortcut(element: ShadeElement) {
+        ShadeWindowGoesAround.isUnexpectedlyInLegacyMode()
+        updateShadeDisplayIfNeeded(focusedDisplayRepository.focusedDisplayId.value)
+        updateExpansionIntent(element)
+    }
+
+    /** Called when notification panel keyboard shortcut is pressed. */
+    fun onNotificationPanelKeyboardShortcut() = onKeyboardShortcut(notificationElement.get())
+
+    /** Called when quick settings panel keyboard shortcut is pressed. */
+    fun onQSPanelKeyboardShortcut() = onKeyboardShortcut(qsShadeElement.get())
 
     override fun consumeExpansionIntent(): ShadeElement? {
         return latestIntent.getAndSet(null)
     }
 
-    private fun updateExpansionIntent(event: MotionEvent, statusBarWidth: Int) {
-        val element = classifyStatusBarEvent(event, statusBarWidth)
+    private fun updateExpansionIntent(element: ShadeElement) {
         latestIntent.set(element)
         timeoutJob?.cancel()
         timeoutJob =
@@ -89,13 +103,12 @@ constructor(
             }
     }
 
-    private fun updateShadeDisplayIfNeeded(event: MotionEvent) {
-        val statusBarDisplayId = event.displayId
-        if (statusBarDisplayId !in availableDisplayIds.value) {
-            Log.e(TAG, "Got touch on unknown display $statusBarDisplayId")
+    private fun updateShadeDisplayIfNeeded(newDisplayId: Int) {
+        if (newDisplayId !in availableDisplayIds.value) {
+            Log.e(TAG, "Cannot update display id to unknown display $newDisplayId")
             return
         }
-        currentDisplayId.value = statusBarDisplayId
+        currentDisplayId.value = newDisplayId
         if (removalListener == null) {
             // Lazy start this at the first invocation. it's fine to let it run also when the policy
             // is not selected anymore, as the job doesn't do anything until someone subscribes to

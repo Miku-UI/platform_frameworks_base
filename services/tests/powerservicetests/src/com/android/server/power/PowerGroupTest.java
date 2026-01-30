@@ -41,8 +41,13 @@ import static com.android.server.power.PowerManagerService.WAKE_LOCK_SCREEN_BRIG
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
@@ -54,6 +59,10 @@ import android.hardware.display.DisplayManagerInternal;
 import android.os.PowerManager;
 import android.os.PowerSaveState;
 import android.platform.test.annotations.EnableFlags;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.Display;
 
@@ -62,6 +71,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.internal.util.LatencyTracker;
 import com.android.server.LocalServices;
 import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
+import com.android.server.display.feature.flags.Flags;
 import com.android.server.power.feature.PowerManagerFlags;
 
 import org.junit.Before;
@@ -101,6 +111,10 @@ public class PowerGroupTest {
     @Rule
     public SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule =
+            DeviceFlagsValueProvider.createCheckFlagsRule();
+
     private PowerGroup mPowerGroup;
     @Mock private PowerGroup.PowerGroupListener mWakefulnessCallbackMock;
     @Mock private Notifier mNotifier;
@@ -115,11 +129,13 @@ public class PowerGroupTest {
         when(mFeatureFlags.isPolicyReasonInDisplayPowerRequestEnabled()).thenReturn(true);
         mPowerGroup = new PowerGroup(GROUP_ID, mWakefulnessCallbackMock, mNotifier,
                 mDisplayManagerInternal, WAKEFULNESS_AWAKE, /* ready= */ true,
-                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags);
+                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags,
+                /* isDefaultGroupAdjacent */  true);
     }
 
     @Test
     public void testWakePowerGroup() {
+        assertTrue(mPowerGroup.isDefaultGroupAdjacent());
         mPowerGroup.sleepLocked(TIMESTAMP1, UID, GO_TO_SLEEP_REASON_APPLICATION);
         verify(mWakefulnessCallbackMock).onWakefulnessChangedLocked(eq(GROUP_ID),
                 eq(WAKEFULNESS_ASLEEP), eq(TIMESTAMP1), eq(GO_TO_SLEEP_REASON_APPLICATION),
@@ -135,6 +151,7 @@ public class PowerGroupTest {
 
     @Test
     public void testDreamPowerGroup() {
+        assertTrue(mPowerGroup.isDefaultGroupAdjacent());
         assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_AWAKE);
         mPowerGroup.dreamLocked(TIMESTAMP1, UID, /* allowWake= */ false);
         assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_DREAMING);
@@ -147,6 +164,7 @@ public class PowerGroupTest {
 
     @Test
     public void testDozePowerGroup() {
+        assertTrue(mPowerGroup.isDefaultGroupAdjacent());
         assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_AWAKE);
         mPowerGroup.dozeLocked(TIMESTAMP1, UID, GO_TO_SLEEP_REASON_TIMEOUT);
         assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_DOZING);
@@ -297,11 +315,59 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_DIM);
         assertThat(displayPowerRequest.policyReason).isEqualTo(STATE_REASON_MOTION);
+        assertThat(displayPowerRequest.screenBrightnessOverride).isWithin(PRECISION).of(BRIGHTNESS);
+        assertThat(displayPowerRequest.screenBrightnessOverrideTag.toString()).isEqualTo(tag);
+        assertThat(displayPowerRequest.useProximitySensor).isEqualTo(false);
+        assertThat(displayPowerRequest.boostScreenBrightness).isEqualTo(false);
+        assertThat(displayPowerRequest.dozeScreenState).isEqualTo(Display.STATE_UNKNOWN);
+        assertThat(displayPowerRequest.dozeScreenBrightness).isEqualTo(
+                PowerManager.BRIGHTNESS_INVALID_FLOAT);
+        assertThat(displayPowerRequest.useNormalBrightnessForDoze).isFalse();
+        assertThat(displayPowerRequest.lowPowerMode).isEqualTo(batterySaverEnabled);
+        assertThat(displayPowerRequest.screenLowPowerBrightnessFactor).isWithin(PRECISION).of(
+                brightnessFactor);
+    }
+
+    @Test
+    public void testUpdateWhileAwake_UpdatesDisplayPowerRequest_policyOff() {
+        when(mFeatureFlags.isSeparateTimeoutsFlickerEnabled()).thenReturn(true);
+        mPowerGroup.dozeLocked(TIMESTAMP1, UID, GO_TO_SLEEP_REASON_APPLICATION);
+
+        final boolean batterySaverEnabled = true;
+        float brightnessFactor = 0.7f;
+        PowerSaveState powerSaveState = new PowerSaveState.Builder()
+                .setBatterySaverEnabled(batterySaverEnabled)
+                .setBrightnessFactor(brightnessFactor)
+                .build();
+
+        CharSequence tag = "my/tag";
+        mPowerGroup.updateLocked(/* screenBrightnessOverride= */ BRIGHTNESS,
+                /* overrideTag= */ tag,
+                /* useProximitySensor= */ false,
+                /* boostScreenBrightness= */ false,
+                /* dozeScreenStateOverride= */ Display.STATE_ON,
+                /* dozeScreenStateReason= */ Display.STATE_REASON_DEFAULT_POLICY,
+                /* dozeScreenBrightness= */ BRIGHTNESS_DOZE,
+                /* useNormalBrightnessForDoze= */ false,
+                /* overrideDrawWakeLock= */ false,
+                powerSaveState,
+                /* quiescent= */ false,
+                /* dozeAfterScreenOff= */ false,
+                /* bootCompleted= */ true,
+                /* screenBrightnessBoostInProgress= */ false,
+                /* waitForNegativeProximity= */ false,
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ true);
+        DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
+                mPowerGroup.mDisplayPowerRequest;
+        assertThat(displayPowerRequest.policy).isEqualTo(POLICY_OFF);
+        assertThat(displayPowerRequest.policyReason).isEqualTo(STATE_REASON_DEFAULT_POLICY);
         assertThat(displayPowerRequest.screenBrightnessOverride).isWithin(PRECISION).of(BRIGHTNESS);
         assertThat(displayPowerRequest.screenBrightnessOverrideTag.toString()).isEqualTo(tag);
         assertThat(displayPowerRequest.useProximitySensor).isEqualTo(false);
@@ -337,7 +403,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policyReason).isEqualTo(STATE_REASON_DEFAULT_POLICY);
@@ -359,7 +426,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         displayPowerRequest = mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policyReason).isEqualTo(STATE_REASON_DEFAULT_POLICY);
     }
@@ -392,7 +460,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_DOZE);
@@ -437,7 +506,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_DOZE);
@@ -480,7 +550,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_OFF);
@@ -526,7 +597,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_OFF);
@@ -545,6 +617,76 @@ public class PowerGroupTest {
         assertThat(displayPowerRequest.lowPowerMode).isEqualTo(batterySaverEnabled);
         assertThat(displayPowerRequest.screenLowPowerBrightnessFactor).isWithin(PRECISION).of(
                 brightnessFactor);
+    }
+
+    @Test
+    public void dozeLocked_alreadyDozing_returnsFalse() {
+        mPowerGroup.dozeLocked(TIMESTAMP1, UID, GO_TO_SLEEP_REASON_APPLICATION);
+        assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_DOZING);
+
+        // Flag state shouldn't matter for this check
+        boolean result = mPowerGroup.dozeLocked(TIMESTAMP2, UID,
+                PowerManager.GO_TO_SLEEP_REASON_TIMEOUT, true);
+
+        assertFalse("Should return false if already dozing", result);
+        assertEquals(WAKEFULNESS_DOZING, mPowerGroup.getWakefulnessLocked());
+        verify(mWakefulnessCallbackMock, never()).onWakefulnessChangedLocked(anyInt(), anyInt(),
+                anyLong(), anyInt(), anyInt(), anyInt(), anyString(), anyString());
+    }
+
+    // --- Tests with separateTimeouts Flag DISABLED ---
+
+    @Test
+    @RequiresFlagsDisabled(Flags.FLAG_SEPARATE_TIMEOUTS)
+    public void dozeLocked_flagDisabled_fromAsleep_returnsFalse() throws Exception {
+        mPowerGroup.sleepLocked(TIMESTAMP1, UID, GO_TO_SLEEP_REASON_TIMEOUT);
+        assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_ASLEEP);
+
+        // allowSleepToDozeTransition is ignored when flag is false
+        boolean result = mPowerGroup.dozeLocked(TIMESTAMP2, UID,
+                PowerManager.GO_TO_SLEEP_REASON_TIMEOUT, true);
+
+        assertFalse("Should return false from ASLEEP when flag is disabled", result);
+        assertEquals(WAKEFULNESS_ASLEEP, mPowerGroup.getWakefulnessLocked());
+        verify(mWakefulnessCallbackMock, never()).onWakefulnessChangedLocked(anyInt(), anyInt(),
+                anyLong(), anyInt(), anyInt(), anyInt(), anyString(), anyString());
+    }
+
+    // --- Tests with separateTimeouts Flag ENABLED ---
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_SEPARATE_TIMEOUTS)
+    public void dozeLocked_flagEnabled_fromAsleep_allowTransitionFalse_returnsFalse() {
+        mPowerGroup.sleepLocked(TIMESTAMP1, UID, GO_TO_SLEEP_REASON_TIMEOUT);
+        assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_ASLEEP);
+
+        boolean result = mPowerGroup.dozeLocked(TIMESTAMP2, UID,
+                PowerManager.GO_TO_SLEEP_REASON_TIMEOUT);
+
+        assertFalse("Should return false from ASLEEP when transition not allowed", result);
+        assertEquals(WAKEFULNESS_ASLEEP, mPowerGroup.getWakefulnessLocked());
+        verify(mWakefulnessCallbackMock, never()).onWakefulnessChangedLocked(anyInt(), anyInt(),
+                anyLong(), anyInt(), anyInt(), anyInt(), anyString(), anyString());
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_SEPARATE_TIMEOUTS)
+    public void dozeLocked_flagEnabled_fromAsleep_allowTransitionTrue_doesNotReturnEarly() {
+        mPowerGroup.sleepLocked(TIMESTAMP1, UID, GO_TO_SLEEP_REASON_TIMEOUT);
+        assertThat(mPowerGroup.getWakefulnessLocked()).isEqualTo(WAKEFULNESS_ASLEEP);
+
+        boolean result = mPowerGroup.dozeLocked(TIMESTAMP2, UID,
+                PowerManager.GO_TO_SLEEP_REASON_TIMEOUT, /* allowSleepToDozeTransition */ true);
+
+        // We only test that it didn't return false *early*. The actual transition happens later.
+        // The result should be true because a state change *will* occur.
+        assertTrue("Should return true from ASLEEP when transition allowed", result);
+        // Verify the state *did* change (to DOZING)
+        assertEquals(WAKEFULNESS_DOZING, mPowerGroup.getWakefulnessLocked());
+        verify(mWakefulnessCallbackMock).onWakefulnessChangedLocked(eq(GROUP_ID),
+                eq(WAKEFULNESS_DOZING), eq(TIMESTAMP2),
+                eq(PowerManager.GO_TO_SLEEP_REASON_TIMEOUT), eq(UID),
+                eq(0), eq(null), eq(null));
     }
 
     @Test
@@ -572,7 +714,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_OFF);
@@ -615,7 +758,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_BRIGHT);
@@ -656,7 +800,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ false,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_BRIGHT);
@@ -698,7 +843,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ false,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_BRIGHT);
@@ -739,7 +885,8 @@ public class PowerGroupTest {
                 /* bootCompleted= */ true,
                 /* screenBrightnessBoostInProgress= */ true,
                 /* waitForNegativeProximity= */ false,
-                /* brightWhenDozing= */ false);
+                /* brightWhenDozing= */ false,
+                /* allAdjacentGroupsAreNonInteractive= */ false);
         DisplayManagerInternal.DisplayPowerRequest displayPowerRequest =
                 mPowerGroup.mDisplayPowerRequest;
         assertThat(displayPowerRequest.policy).isEqualTo(POLICY_BRIGHT);
@@ -772,12 +919,25 @@ public class PowerGroupTest {
 
         mPowerGroup = new PowerGroup(NON_DEFAULT_GROUP_ID, mWakefulnessCallbackMock, mNotifier,
                 mDisplayManagerInternal, WAKEFULNESS_AWAKE, /* ready= */ true,
-                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags);
+                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags,
+                /* isDefaultGroupAdjacent */  true);
 
         assertThat(mPowerGroup.getScreenDimDurationOverrideLocked(DEFAULT_TIMEOUT))
                 .isEqualTo(DEFAULT_TIMEOUT);
         assertThat(mPowerGroup.getScreenOffTimeoutOverrideLocked(DEFAULT_TIMEOUT))
                 .isEqualTo(DEFAULT_TIMEOUT);
+    }
+
+    @Test
+    public void test_isNotDefaultGroupAdjacent() {
+        LocalServices.removeServiceForTest(VirtualDeviceManagerInternal.class);
+        LocalServices.addService(VirtualDeviceManagerInternal.class, null);
+
+        mPowerGroup = new PowerGroup(NON_DEFAULT_GROUP_ID, mWakefulnessCallbackMock, mNotifier,
+                mDisplayManagerInternal, WAKEFULNESS_AWAKE, /* ready= */ true,
+                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags,
+                /* isDefaultGroupAdjacent */  false);
+        assertFalse(mPowerGroup.isDefaultGroupAdjacent());
     }
 
     @EnableFlags(android.companion.virtualdevice.flags.Flags.FLAG_DEVICE_AWARE_DISPLAY_POWER)
@@ -795,7 +955,8 @@ public class PowerGroupTest {
 
         mPowerGroup = new PowerGroup(NON_DEFAULT_GROUP_ID, mWakefulnessCallbackMock, mNotifier,
                 mDisplayManagerInternal, WAKEFULNESS_AWAKE, /* ready= */ true,
-                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags);
+                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags,
+                /* isDefaultGroupAdjacent */  true);
 
         assertThat(mPowerGroup.getScreenDimDurationOverrideLocked(DEFAULT_TIMEOUT))
                 .isEqualTo(DEFAULT_TIMEOUT);
@@ -825,7 +986,8 @@ public class PowerGroupTest {
 
         mPowerGroup = new PowerGroup(NON_DEFAULT_GROUP_ID, mWakefulnessCallbackMock, mNotifier,
                 mDisplayManagerInternal, WAKEFULNESS_AWAKE, /* ready= */ true,
-                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags);
+                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags,
+                /* isDefaultGroupAdjacent */  true);
 
         assertThat(mPowerGroup.getScreenDimDurationOverrideLocked(DEFAULT_TIMEOUT))
                 .isEqualTo(dimDurationOverride);
@@ -855,7 +1017,8 @@ public class PowerGroupTest {
 
         mPowerGroup = new PowerGroup(NON_DEFAULT_GROUP_ID, mWakefulnessCallbackMock, mNotifier,
                 mDisplayManagerInternal, WAKEFULNESS_AWAKE, /* ready= */ true,
-                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags);
+                /* supportsSandman= */ true, TIMESTAMP_CREATE, mFeatureFlags,
+                /* isDefaultGroupAdjacent */  true);
 
         assertThat(mPowerGroup.getScreenDimDurationOverrideLocked(DEFAULT_TIMEOUT))
                 .isEqualTo(screenOffTimeoutOverride);

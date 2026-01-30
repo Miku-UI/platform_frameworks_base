@@ -17,6 +17,7 @@
 
 package com.android.systemui.lifecycle
 
+import android.annotation.SuppressLint
 import android.view.View
 import android.view.ViewTreeObserver
 import androidx.annotation.MainThread
@@ -24,6 +25,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import androidx.lifecycle.lifecycleScope
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.coroutines.newTracingContext
 import com.android.systemui.util.Assert
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
@@ -41,14 +43,14 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /**
  * Runs the given [block] every time the [View] becomes attached (or immediately after calling this
  * function, if the view was already attached), automatically canceling the work when the `View`
  * becomes detached.
  *
- * Only use from the main thread.
+ * Only use from the main thread. (Unless you are sure that the view is freshly inflated and not
+ * attached to a window, in which case you can pass `assertOnMainThread = false`.)
  *
  * When [block] is run, it is run in the context of a [ViewLifecycleOwner] which the caller can use
  * to launch jobs, with confidence that the jobs will be properly canceled when the view is
@@ -62,6 +64,9 @@ import com.android.app.tracing.coroutines.launchTraced as launch
  *   invoked on.
  * @param block The block of code that should be run when the view becomes attached. It can end up
  *   being invoked multiple times if the view is reattached after being detached.
+ * @param assertOnMainThread In general, callers should always be on the main thread. However, in
+ *   some rare cases views are inflated on a background thread. If the caller knows that the view is
+ *   freshly inflated, they can choose to skip this assertion.
  * @return A [DisposableHandle] to invoke when the caller of the function destroys its [View] and is
  *   no longer interested in the [block] being run the next time its attached. Calling this is an
  *   optional optimization as the logic will be properly cleaned up and destroyed each time the view
@@ -70,9 +75,12 @@ import com.android.app.tracing.coroutines.launchTraced as launch
 @MainThread
 fun View.repeatWhenAttached(
     coroutineContext: CoroutineContext = EmptyCoroutineContext,
+    assertOnMainThread: Boolean = true,
     block: suspend LifecycleOwner.(View) -> Unit,
 ): DisposableHandle {
-    Assert.isMainThread()
+    if (assertOnMainThread) {
+        Assert.isMainThread()
+    }
     val view = this
     // The suspend block will run on the app's main thread unless the caller supplies a different
     // dispatcher to use. We don't want it to run on the Dispatchers.Default thread pool as
@@ -146,13 +154,20 @@ private fun createLifecycleOwnerAndRun(
  * └───────────────┴───────────────────┴──────────────┴─────────────────┘
  * ```
  */
-class ViewLifecycleOwner(private val view: View) : LifecycleOwner {
+class ViewLifecycleOwner(private val view: View, useSeparateThreadUnsafe: Boolean = false) :
+    LifecycleOwner {
 
     private val windowVisibleListener =
         ViewTreeObserver.OnWindowVisibilityChangeListener { updateState() }
     private val windowFocusListener = ViewTreeObserver.OnWindowFocusChangeListener { updateState() }
 
-    private val registry = LifecycleRegistry(this)
+    @SuppressLint("VisibleForTests") // required due to "createUnsafe" usage
+    private val registry =
+        if (useSeparateThreadUnsafe) {
+            LifecycleRegistry.createUnsafe(this)
+        } else {
+            LifecycleRegistry(this)
+        }
 
     fun onCreate() {
         registry.currentState = Lifecycle.State.CREATED
@@ -262,7 +277,7 @@ enum class WindowLifecycleState {
      * Indicates that the [View] is attached to a [android.view.Window], and the window is visible
      * and focused.
      */
-    FOCUSED
+    FOCUSED,
 }
 
 private val View.isAttached

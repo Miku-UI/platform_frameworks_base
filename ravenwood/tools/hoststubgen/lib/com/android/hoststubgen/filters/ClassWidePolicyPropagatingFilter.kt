@@ -52,7 +52,7 @@ class ClassWidePolicyPropagatingFilter(
 
     private fun getClassWidePolicy(className: String, resolve: Boolean): FilterPolicyWithReason? {
         outermostFilter.getPolicyForClass(className).let { policy ->
-            if (policy.policy == FilterPolicy.KeepClass) {
+            if (policy.policy.isClassWide) {
                 val p = if (resolve) {
                     policy.policy.resolveClassWidePolicy()
                 } else {

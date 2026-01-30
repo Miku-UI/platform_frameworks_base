@@ -18,6 +18,7 @@ package com.android.systemui.qs;
 
 import static android.app.StatusBarManager.DISABLE2_QUICK_SETTINGS;
 
+import static com.android.systemui.flags.SceneContainerFlagParameterizationKt.parameterizeSceneContainerFlag;
 import static com.android.systemui.statusbar.StatusBarState.KEYGUARD;
 import static com.android.systemui.statusbar.StatusBarState.SHADE;
 import static com.android.systemui.statusbar.StatusBarState.SHADE_LOCKED;
@@ -42,6 +43,7 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.graphics.Rect;
 import android.os.Bundle;
+import android.platform.test.flag.junit.FlagsParameterization;
 import android.testing.TestableLooper.RunWithLooper;
 import android.view.Display;
 import android.view.LayoutInflater;
@@ -52,12 +54,12 @@ import android.widget.FrameLayout;
 import androidx.compose.ui.platform.ComposeView;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleOwner;
-import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.keyguard.BouncerPanelExpansionCalculator;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.dump.DumpManager;
+import com.android.systemui.flags.DisableSceneContainer;
 import com.android.systemui.flags.EnableSceneContainer;
 import com.android.systemui.media.controls.ui.view.MediaHost;
 import com.android.systemui.qs.customize.QSCustomizerController;
@@ -83,7 +85,12 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-@RunWith(AndroidJUnit4.class)
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
+import java.util.List;
+
+@RunWith(ParameterizedAndroidJunit4.class)
 @RunWithLooper(setAsMainLooper = true)
 @SmallTest
 public class QSImplTest extends SysuiTestCase {
@@ -119,6 +126,15 @@ public class QSImplTest extends SysuiTestCase {
 
     private QSImpl mUnderTest;
 
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        return parameterizeSceneContainerFlag();
+    }
+
+    public QSImplTest(FlagsParameterization flags) {
+        super();
+        mSetFlagsRule.setFlagsParameterization(flags);
+    }
 
     @Before
     public void setup() {
@@ -160,7 +176,7 @@ public class QSImplTest extends SysuiTestCase {
 
     @Test
     public void transitionToFullShade_smallScreen_alphaAlways1() {
-        setIsSmallScreen();
+        mUnderTest.setIsNotificationPanelFullWidth(true);
         setStatusBarCurrentAndUpcomingState(StatusBarState.SHADE);
         boolean isTransitioningToFullShade = true;
         float transitionProgress = 0.5f;
@@ -174,7 +190,7 @@ public class QSImplTest extends SysuiTestCase {
 
     @Test
     public void transitionToFullShade_largeScreen_alphaLargeScreenShadeInterpolator() {
-        setIsLargeScreen();
+        mUnderTest.setIsNotificationPanelFullWidth(false);
         setStatusBarCurrentAndUpcomingState(StatusBarState.SHADE);
         boolean isTransitioningToFullShade = true;
         float transitionProgress = 0.5f;
@@ -188,6 +204,7 @@ public class QSImplTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void
             transitionToFullShade_onKeyguard_noBouncer_setsAlphaUsingLinearInterpolator() {
         setStatusBarCurrentAndUpcomingState(KEYGUARD);
@@ -289,6 +306,7 @@ public class QSImplTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void setQsExpansion_inSplitShade_setsFooterActionsExpansion_basedOnPanelExpFraction() {
         // Random test values without any meaning. They just have to be different from each other.
         float expansion = 0.123f;
@@ -306,6 +324,7 @@ public class QSImplTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void setQsExpansion_notInSplitShade_setsFooterActionsExpansion_basedOnExpansion() {
         // Random test values without any meaning. They just have to be different from each other.
         float expansion = 0.123f;
@@ -500,6 +519,7 @@ public class QSImplTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void testUpdateQSBounds_setMediaClipCorrectly() {
         disableSplitShade();
 
@@ -516,6 +536,7 @@ public class QSImplTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void testQsUpdatesQsAnimatorWithUpcomingState() {
         setStatusBarCurrentAndUpcomingState(SHADE);
         mUnderTest.onUpcomingStateChanged(KEYGUARD);
@@ -689,14 +710,6 @@ public class QSImplTest extends SysuiTestCase {
             locationOnScreen[1] = top;
             return null;
         }).when(view).getLocationOnScreen(any(int[].class));
-    }
-
-    private void setIsLargeScreen() {
-        mUnderTest.setIsNotificationPanelFullWidth(false);
-    }
-
-    private void setIsSmallScreen() {
-        mUnderTest.setIsNotificationPanelFullWidth(true);
     }
 
     private void setHeaderBounds(int left, int top, int right, int bottom) {

@@ -34,14 +34,17 @@ import android.os.Trace;
 import android.util.DisplayMetrics;
 import android.util.Half;
 import android.util.Log;
+import android.util.proto.ProtoOutputStream;
 import android.view.ThreadedRenderer;
+
+import com.android.server.am.BitmapDumpProto;
 
 import dalvik.annotation.optimization.CriticalNative;
 
 import libcore.util.NativeAllocationRegistry;
 
-import java.io.IOException;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.lang.ref.WeakReference;
 import java.nio.Buffer;
@@ -103,11 +106,12 @@ public final class Bitmap implements Parcelable {
 
     private static volatile int sDefaultDensity = -1;
 
-    /**
-     * This id is not authoritative and can be duplicated if an ashmem bitmap is decoded from a
-     * parcel.
-     */
     private long mId;
+
+    // source id of the bitmap where this bitmap was created from, e.g.
+    // in the case of ashmem bitmap received, mSourceId is the mId of
+    // the bitmap from the sender
+    private long mSourceId = -1;
 
     /**
      * For backwards compatibility, allows the app layer to change the default
@@ -135,19 +139,47 @@ public final class Bitmap implements Parcelable {
     private static final WeakHashMap<Bitmap, Void> sAllBitmaps = new WeakHashMap<>();
 
     /**
-     * @hide
+     * Two NativeAllocationRegistry instances are used to register the native
+     * allocation for each bitmap:
+     *
+     *   1. One with a no-op free function for updating the native allocation
+     *      size of the pixel data only, without actually releasing the native
+     *      object that's associated with the bitmap instance.
+     *
+     *   2. sRegistry is the other static one with a valid freeFunction and a
+     *      default (estimated) size to actually release the native object
+     *      associated with this bitmap.
+     *
+     *  mRecycler is the cleaner runner from #1, and is used in Bitmap#recycle()
+     *  to update the native allocation size associated with the pixel data
+     *  released.
      */
-    private static NativeAllocationRegistry getRegistry(boolean malloc, long size) {
+    private static NativeAllocationRegistry sRegistry = null;
+
+    private Runnable mRecycler;
+
+    private void registerNativeAllocation(boolean malloc) {
         final long free = nativeGetNativeFinalizer();
+        final long noop = nativeGetNativeNoop();
+        final int size = getAllocationByteCount();
+        NativeAllocationRegistry registry;
         if (com.android.libcore.readonly.Flags.nativeMetrics()) {
             Class cls = Bitmap.class;
-            return malloc ? NativeAllocationRegistry.createMalloced(cls, free, size)
-                          : NativeAllocationRegistry.createNonmalloced(cls, free, size);
+            if (sRegistry == null) {
+                sRegistry = NativeAllocationRegistry.createMalloced(cls, free);
+            }
+            registry = malloc ? NativeAllocationRegistry.createMalloced(cls, noop, size)
+                              : NativeAllocationRegistry.createNonmalloced(cls, noop, size);
         } else {
             ClassLoader loader = Bitmap.class.getClassLoader();
-            return malloc ? NativeAllocationRegistry.createMalloced(loader, free, size)
-                          : NativeAllocationRegistry.createNonmalloced(loader, free, size);
+            if (sRegistry == null) {
+                sRegistry = NativeAllocationRegistry.createMalloced(loader, free);
+            }
+            registry = malloc ? NativeAllocationRegistry.createMalloced(loader, noop, size)
+                              : NativeAllocationRegistry.createNonmalloced(loader, noop, size);
         }
+        mRecycler = registry.registerNativeAllocation(this, mNativePtr);
+        sRegistry.registerNativeAllocation(this, mNativePtr);
     }
 
     /**
@@ -182,8 +214,8 @@ public final class Bitmap implements Parcelable {
         }
 
         mNativePtr = nativeBitmap;
-        final int allocationByteCount = getAllocationByteCount();
-        getRegistry(fromMalloc, allocationByteCount).registerNativeAllocation(this, mNativePtr);
+        mSourceId = nativeGetSourceId(mNativePtr);
+        registerNativeAllocation(fromMalloc);
 
         synchronized (Bitmap.class) {
           sAllBitmaps.put(this, null);
@@ -381,15 +413,18 @@ public final class Bitmap implements Parcelable {
     }
 
     /**
-     * Free the native object associated with this bitmap, and clear the
-     * reference to the pixel data. This will not free the pixel data synchronously;
-     * it simply allows it to be garbage collected if there are no other references.
-     * The bitmap is marked as "dead", meaning it will throw an exception if
-     * getPixels() or setPixels() is called, and will draw nothing. This operation
-     * cannot be reversed, so it should only be called if you are sure there are no
-     * further uses for the bitmap. This is an advanced call, and normally need
-     * not be called, since the normal GC process will free up this memory when
-     * there are no more references to this bitmap.
+     * Immediately releases the pixel data associated with this Bitmap.
+     *
+     * <p>Call this method to release a Bitmap that is certainly no longer needed, such as with a
+     * Bitmap that was created as an intermediate buffer in a transformation. Calling this
+     * method will release the pixel memory immediately, rather than wait for a future Garbage
+     * Collection.
+     * <p>Avoid calling this method on Bitmaps that were used in a View or that may be referenced
+     * elsewhere, as it may be unsafe.
+     *
+     * <p>After calling this method, any subsequent attempt to access the bitmap's pixel data
+     * (e.g., using {@code getPixels()} or {@code setPixels()}) will throw an exception, and the
+     * bitmap will draw nothing. This operation cannot be reversed.
      */
     public void recycle() {
         if (!mRecycled) {
@@ -397,6 +432,9 @@ public final class Bitmap implements Parcelable {
             mNinePatchChunk = null;
             mRecycled = true;
             mHardwareBuffer = null;
+            if (mRecycler != null) {
+                mRecycler.run();
+            }
         }
     }
 
@@ -609,8 +647,11 @@ public final class Bitmap implements Parcelable {
             this.nativeInt = ni;
         }
 
+        /**
+         * @hide
+         */
         @UnsupportedAppUsage
-        static Config nativeToConfig(int ni) {
+        public static Config nativeToConfig(int ni) {
             return sConfigs[ni];
         }
     }
@@ -1542,6 +1583,21 @@ public final class Bitmap implements Parcelable {
             this.nativeInt = nativeInt;
         }
         final int nativeInt;
+
+        /**
+         * @hide
+         */
+        public static @Nullable CompressFormat from(@NonNull String format) {
+            if (format.equals("jpg") || format.equals("jpeg")) {
+                return CompressFormat.JPEG;
+            } else if (format.equals("png")) {
+                return CompressFormat.PNG;
+            } else if (format.equals("webp")) {
+                return CompressFormat.WEBP_LOSSLESS;
+            } else {
+                return null;
+            }
+        }
     }
 
     /**
@@ -1552,6 +1608,7 @@ public final class Bitmap implements Parcelable {
         private int format;
         private long[] natives;
         private byte[][] buffers;
+        private int[] sizes;
         private int max;
 
         public DumpData(@NonNull CompressFormat format, int max) {
@@ -1559,12 +1616,14 @@ public final class Bitmap implements Parcelable {
             this.format = format.nativeInt;
             this.natives = new long[max];
             this.buffers = new byte[max][];
+            this.sizes = new int[max];
             this.count = 0;
         }
 
-        public void add(long nativePtr, byte[] buffer) {
+        public void add(long nativePtr, byte[] buffer, int size) {
             natives[count] = nativePtr;
             buffers[count] = buffer;
+            sizes[count] = size;
             count = (count >= max) ? max : count + 1;
         }
 
@@ -1578,6 +1637,18 @@ public final class Bitmap implements Parcelable {
      */
     private static DumpData dumpData = null;
 
+    private static ArrayList<Bitmap> getAllBitmaps() {
+        final ArrayList<Bitmap> allBitmaps;
+        synchronized (Bitmap.class) {
+          allBitmaps = new ArrayList<>(sAllBitmaps.size());
+          for (Bitmap bitmap : sAllBitmaps.keySet()) {
+            if (bitmap != null && !bitmap.isRecycled()) {
+              allBitmaps.add(bitmap);
+            }
+          }
+        }
+        return allBitmaps;
+    }
 
     /**
      * @hide
@@ -1592,36 +1663,67 @@ public final class Bitmap implements Parcelable {
             dumpData = null;
             return;
         }
-        final CompressFormat fmt;
-        if (format.equals("jpg") || format.equals("jpeg")) {
-            fmt = CompressFormat.JPEG;
-        } else if (format.equals("png")) {
-            fmt = CompressFormat.PNG;
-        } else if (format.equals("webp")) {
-            fmt = CompressFormat.WEBP_LOSSLESS;
-        } else {
+
+        final CompressFormat fmt = CompressFormat.from(format);
+        if (fmt == null) {
             Log.w(TAG, "No bitmaps dumped: unrecognized format " + format);
             return;
         }
 
-        final ArrayList<Bitmap> allBitmaps;
-        synchronized (Bitmap.class) {
-          allBitmaps = new ArrayList<>(sAllBitmaps.size());
-          for (Bitmap bitmap : sAllBitmaps.keySet()) {
-            if (bitmap != null && !bitmap.isRecycled()) {
-              allBitmaps.add(bitmap);
-            }
-          }
-        }
-
+        final ArrayList<Bitmap> allBitmaps = getAllBitmaps();
         dumpData = new DumpData(fmt, allBitmaps.size());
         for (Bitmap bitmap : allBitmaps) {
             ByteArrayOutputStream bas = new ByteArrayOutputStream();
             if (bitmap.compress(fmt, 90, bas)) {
-                dumpData.add(bitmap.getNativeInstance(), bas.toByteArray());
+                dumpData.add(bitmap.getNativeInstance(), bas.toByteArray(),
+                        bitmap.getAllocationByteCount());
             }
         }
         Log.i(TAG, dumpData.size() + "/" + allBitmaps.size() + " bitmaps dumped");
+    }
+
+    /**
+     * @hide
+     *
+     * Dump information of all the bitmaps into the protobuf stream. If dumpFormat
+     * is specified, compress the bitmaps and store the content.
+     *
+     * @param proto       protobuf stream for storing bitmap information
+     * @param dumpFormat  if not null, specify the format of the compressed image
+     */
+    public static void dumpAll(ProtoOutputStream proto, @Nullable String dumpFormat) {
+        final ArrayList<Bitmap> allBitmaps = getAllBitmaps();
+
+        if (allBitmaps.size() == 0) {
+            return;
+        }
+
+        for (Bitmap bitmap : allBitmaps) {
+            int bytes = bitmap.getAllocationByteCount();
+            int config = bitmap.getConfig().nativeInt;
+
+            final long token = proto.start(BitmapDumpProto.AppBitmapInfo.BITMAPS);
+            proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.ID, bitmap.mId);
+            proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.WIDTH, bitmap.mWidth);
+            proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.HEIGHT, bitmap.mHeight);
+            proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.SIZE, bytes);
+            proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.MUTABLE, bitmap.isMutable());
+            proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.CONFIG, config);
+            proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.SOURCE, bitmap.mSourceId);
+            if (dumpFormat != null) {
+                try {
+                    ByteArrayOutputStream bas = new ByteArrayOutputStream();
+                    if (bitmap.compress(CompressFormat.from(dumpFormat), 90, bas)) {
+                        proto.write(BitmapDumpProto.AppBitmapInfo.BitmapInfo.CONTENT,
+                                    bas.toByteArray());
+                    }
+                    bas.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "failed to compress bitmap-" + bitmap.mId + ": " + e);
+                }
+            }
+            proto.end(token);
+        }
     }
 
     /**
@@ -2531,6 +2633,7 @@ public final class Bitmap implements Parcelable {
     private static native Bitmap nativeCopyAshmemConfig(long nativeSrcBitmap, int nativeConfig);
     private static native int nativeGetAshmemFD(long nativeBitmap);
     private static native long nativeGetNativeFinalizer();
+    private static native long nativeGetNativeNoop();
     private static native void nativeRecycle(long nativeBitmap);
     @UnsupportedAppUsage
     private static native void nativeReconfigure(long nativeBitmap, int width, int height,
@@ -2594,6 +2697,8 @@ public final class Bitmap implements Parcelable {
 
     private static native Gainmap nativeExtractGainmap(long nativePtr);
     private static native void nativeSetGainmap(long bitmapPtr, long gainmapPtr);
+    private static native long nativeGetSourceId(long nativePtr);
+    private static native void nativeSetSourceId(long nativePtr, long sourceId);
 
     // ---------------- @CriticalNative -------------------
 

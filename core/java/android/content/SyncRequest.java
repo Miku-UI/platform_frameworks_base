@@ -63,7 +63,7 @@ public class SyncRequest implements Parcelable {
     private final boolean mIsScheduledAsExpeditedJob;
 
     /**
-     * {@hide}
+     * @hide
      * @return whether this sync is periodic or one-time. A Sync Request must be
      *         either one of these or an InvalidStateException will be thrown in
      *         Builder.build().
@@ -73,7 +73,7 @@ public class SyncRequest implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      * @return whether this sync is expedited.
      */
     public boolean isExpedited() {
@@ -81,7 +81,7 @@ public class SyncRequest implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      * @return whether this sync is scheduled as an expedited job.
      */
     public boolean isScheduledAsExpeditedJob() {
@@ -89,7 +89,7 @@ public class SyncRequest implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      *
      * @return account object for this sync.
      * @throws IllegalArgumentException if this function is called for a request that targets a
@@ -100,7 +100,7 @@ public class SyncRequest implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      *
      * @return provider for this sync.
      * @throws IllegalArgumentException if this function is called for a request that targets a
@@ -111,7 +111,7 @@ public class SyncRequest implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Retrieve bundle for this SyncRequest. Will not be null.
      */
     public Bundle getBundle() {
@@ -119,14 +119,14 @@ public class SyncRequest implements Parcelable {
     }
 
     /**
-     * {@hide}
+     * @hide
      * @return the earliest point in time that this sync can be scheduled.
      */
     public long getSyncFlexTime() {
         return mSyncFlexTimeSecs;
     }
     /**
-     * {@hide}
+     * @hide
      * @return the last point in time at which this sync must scheduled.
      */
     public long getSyncRunTime() {
@@ -178,7 +178,7 @@ public class SyncRequest implements Parcelable {
         mAuthority = in.readString();
     }
 
-    /** {@hide} Protected ctor to instantiate anonymous SyncRequest. */
+    /** @hide Protected ctor to instantiate anonymous SyncRequest. */
     protected SyncRequest(SyncRequest.Builder b) {
         mSyncFlexTimeSecs = b.mSyncFlexTimeSecs;
         mSyncRunTimeSecs = b.mSyncRunTimeSecs;

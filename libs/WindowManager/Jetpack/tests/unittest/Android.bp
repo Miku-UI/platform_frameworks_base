@@ -19,11 +19,11 @@ package {
     // to get the below license kinds:
     //   SPDX-license-identifier-Apache-2.0
     default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_wm_jetpack",
 }
 
 android_test {
     name: "WMJetpackUnitTests",
-    team: "trendy_team_windowing_sdk",
     // To make the test run via TEST_MAPPING
     test_suites: ["device-tests"],
 
@@ -65,9 +65,50 @@ android_test {
     },
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Begin breakdowns for WMJetpackUnitTests module
+
 test_module_config {
-    name: "WMJetpackUnitTests_Presubmit",
+    name: "WMJetpackUnitTests_Area",
+    base: "WMJetpackUnitTests",
+    team: "trendy_team_rear_display",
+    test_suites: ["device-tests"],
+    include_filters: ["androidx.window.extensions.area"],
+    include_annotations: ["android.platform.test.annotations.Presubmit"],
+}
+
+test_module_config {
+    name: "WMJetpackUnitTests_ActivityEmbedding",
+    base: "WMJetpackUnitTests",
+    team: "trendy_team_activity_embedding",
+    test_suites: ["device-tests"],
+    include_filters: ["androidx.window.extensions.embedding"],
+    include_annotations: ["android.platform.test.annotations.Presubmit"],
+}
+
+test_module_config {
+    name: "WMJetpackUnitTests_Layout",
     base: "WMJetpackUnitTests",
     test_suites: ["device-tests"],
+    include_filters: ["androidx.window.extensions.layout"],
     include_annotations: ["android.platform.test.annotations.Presubmit"],
+}
+
+test_module_config {
+    name: "WMJetpackUnitTests_Other",
+    base: "WMJetpackUnitTests",
+    test_suites: ["device-tests"],
+    exclude_filters: [
+        "androidx.window.extensions.area",
+        "androidx.window.extensions.embedding",
+        "androidx.window.extensions.layout",
+    ],
+    include_annotations: ["android.platform.test.annotations.Presubmit"],
+}
+
+test_module_config {
+    name: "WMJetpackUnitTests_Postsubmit",
+    base: "WMJetpackUnitTests",
+    test_suites: ["device-tests"],
+    exclude_annotations: ["android.platform.test.annotations.Presubmit"],
 }

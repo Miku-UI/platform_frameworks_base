@@ -21,7 +21,7 @@
 #include <nativehelper/JNIHelp.h>
 #include <stats_event.h>
 #include <stats_pull_atom_callback.h>
-#include <statslog.h>
+#include <statslog_surfaceflinger.h>
 
 #include "stats/SurfaceFlingerPuller.h"
 
@@ -38,10 +38,12 @@ static AStatsManager_PullAtomCallbackReturn onSurfaceFlingerPullCallback(int32_t
 static void initializeNativePullers(JNIEnv* env, jobject javaObject) {
     // Surface flinger layer & global info.
     gSurfaceFlingerPuller = server::stats::SurfaceFlingerPuller();
-    AStatsManager_setPullAtomCallback(android::util::SURFACEFLINGER_STATS_GLOBAL_INFO,
+    AStatsManager_setPullAtomCallback(android::surfaceflinger::stats::
+                                              SURFACEFLINGER_STATS_GLOBAL_INFO,
                                       /* metadata= */ nullptr, onSurfaceFlingerPullCallback,
                                       /* cookie= */ nullptr);
-    AStatsManager_setPullAtomCallback(android::util::SURFACEFLINGER_STATS_LAYER_INFO,
+    AStatsManager_setPullAtomCallback(android::surfaceflinger::stats::
+                                              SURFACEFLINGER_STATS_LAYER_INFO,
                                       /* metadata= */ nullptr, onSurfaceFlingerPullCallback,
                                       /* cookie= */ nullptr);
 }

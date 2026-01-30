@@ -20,7 +20,7 @@ import android.hosttest.annotation.HostSideTestKeep;
 import android.hosttest.annotation.HostSideTestStaticInitializerKeep;
 
 @HostSideTestClassLoadHook(
-        "com.android.hoststubgen.test.tinyframework.TinyFrameworkClassLoadHook.onClassLoaded")
+        "com.android.hoststubgen.test.tinyframework.TinyFrameworkHooks.onClassLoaded")
 @HostSideTestKeep
 @HostSideTestStaticInitializerKeep
 public class TinyFrameworkClassWithInitializerStub {

@@ -21,7 +21,6 @@ import android.hardware.input.InputManager.StickyModifierStateListener
 import android.hardware.input.StickyModifierState
 import android.provider.Settings
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyboard.stickykeys.StickyKeysLogger
@@ -32,7 +31,8 @@ import com.android.systemui.keyboard.stickykeys.shared.model.ModifierKey.ALT_GR
 import com.android.systemui.keyboard.stickykeys.shared.model.ModifierKey.CTRL
 import com.android.systemui.keyboard.stickykeys.shared.model.ModifierKey.META
 import com.android.systemui.keyboard.stickykeys.shared.model.ModifierKey.SHIFT
-import com.android.systemui.util.settings.repository.UserAwareSecureSettingsRepository
+import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
@@ -52,8 +52,7 @@ class StickyKeysRepositoryImpl
 constructor(
     private val inputManager: InputManager,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
-    // TODO: b/377244768 - Change to inject SecureSettingsRepository
-    secureSettingsRepository: UserAwareSecureSettingsRepository,
+    secureSettingsRepository: SecureSettingsRepository,
     private val stickyKeysLogger: StickyKeysLogger,
 ) : StickyKeysRepository {
 

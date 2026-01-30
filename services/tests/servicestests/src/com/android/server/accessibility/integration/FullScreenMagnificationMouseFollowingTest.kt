@@ -15,7 +15,6 @@
  */
 package com.android.server.accessibility.integration
 
-import android.Manifest
 import android.accessibility.cts.common.AccessibilityDumpOnFailureRule
 import android.accessibility.cts.common.InstrumentedAccessibilityService
 import android.accessibility.cts.common.InstrumentedAccessibilityServiceTestRule
@@ -23,31 +22,32 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.accessibilityservice.MagnificationConfig
 import android.app.Activity
-import android.app.Instrumentation
+import android.app.ActivityOptions
 import android.app.UiAutomation
-import android.companion.virtual.VirtualDeviceManager
+import android.app.WindowConfiguration
 import android.graphics.PointF
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
-import android.hardware.input.InputManager
-import android.hardware.input.VirtualMouse
-import android.hardware.input.VirtualMouseConfig
-import android.hardware.input.VirtualMouseRelativeEvent
-import android.os.Handler
-import android.os.Looper
+import android.graphics.Rect
 import android.os.OutcomeReceiver
 import android.platform.test.annotations.RequiresFlagsEnabled
+import android.platform.test.flag.junit.CheckFlagsRule
+import android.platform.test.flag.junit.DeviceFlagsValueProvider
+import android.provider.Settings
 import android.testing.PollingCheck
+import android.util.Log
 import android.view.Display
 import android.view.InputDevice
 import android.view.MotionEvent
-import android.virtualdevice.cts.common.VirtualDeviceRule
+import android.view.WindowInsets
+import android.view.WindowManager
+import android.view.WindowManager.LayoutParams
+import androidx.lifecycle.Lifecycle
+import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.android.compatibility.common.util.SettingsStateChangerRule
 import com.android.server.accessibility.Flags
 import com.google.common.truth.Truth.assertThat
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
@@ -56,47 +56,75 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import org.junit.rules.RuleChain
 import org.junit.runner.RunWith
+import platform.test.desktop.DesktopMouseTestRule
 
-// Convenient extension functions for float.
-private const val EPS = 0.00001f
+// Convenient extension functions.
+// Injecting mouse move is in integer in PX. Allowing at most 1px error.
+private const val EPS = 1f
 private fun Float.nearEq(other: Float) = abs(this - other) < EPS
-private fun PointF.nearEq(other: PointF) = this.x.nearEq(other.x) && this.y.nearEq(other.y)
 
 /** End-to-end tests for full screen magnification following mouse cursor. */
 @RunWith(AndroidJUnit4::class)
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_MAGNIFICATION_FOLLOWS_MOUSE_WITH_POINTER_MOTION_FILTER)
 class FullScreenMagnificationMouseFollowingTest {
+    private val TAG = FullScreenMagnificationMouseFollowingTest::class.java.simpleName
 
-    private lateinit var instrumentation: Instrumentation
+    private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private lateinit var uiAutomation: UiAutomation
 
-    private val magnificationAccessibilityServiceRule =
+    @get:Rule(order = 0)
+    val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+
+    @get:Rule(order = 1)
+    val immersiveModeConfirmationDialogSettingsRule =
+        SettingsStateChangerRule(
+            instrumentation.context,
+            Settings.Secure.IMMERSIVE_MODE_CONFIRMATIONS,
+            "confirmed"
+        )
+
+    @get:Rule(order = 2)
+    val magnificationCapabilitySettingsRule =
+        SettingsStateChangerRule(
+            instrumentation.context,
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CAPABILITY,
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_ALL.toString()
+        )
+
+    @get:Rule(order = 3)
+    val magnificationModeSettingsRule =
+        SettingsStateChangerRule(
+            instrumentation.context,
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE,
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_FULLSCREEN.toString()
+        )
+
+    @get:Rule(order = 4)
+    val desktopMouseRule = DesktopMouseTestRule()
+
+    @get:Rule(order = 5)
+    val magnificationAccessibilityServiceRule =
         InstrumentedAccessibilityServiceTestRule<TestMagnificationAccessibilityService>(
             TestMagnificationAccessibilityService::class.java, false
         )
+
+    @get:Rule(order = 6)
+    val a11yDumpRule: AccessibilityDumpOnFailureRule = AccessibilityDumpOnFailureRule()
+
     private lateinit var service: TestMagnificationAccessibilityService
+    private lateinit var controller: AccessibilityService.MagnificationController
+    private val displayId = Display.DEFAULT_DISPLAY
+    private var activityScenario: ActivityScenario<TestActivity>? = null
 
-    // virtualDeviceRule tears down `virtualDevice` and `virtualDisplay`.
-    // Note that CheckFlagsRule is a part of VirtualDeviceRule. See its javadoc.
-    val virtualDeviceRule: VirtualDeviceRule =
-        VirtualDeviceRule.withAdditionalPermissions(Manifest.permission.MANAGE_ACTIVITY_TASKS)
-    private lateinit var virtualDevice: VirtualDeviceManager.VirtualDevice
-    private lateinit var virtualDisplay: VirtualDisplay
-
-    // Once created, it's our responsibility to close the mouse.
-    private lateinit var virtualMouse: VirtualMouse
-
-    @get:Rule
-    val ruleChain: RuleChain =
-        RuleChain.outerRule(virtualDeviceRule)
-            .around(magnificationAccessibilityServiceRule)
-            .around(AccessibilityDumpOnFailureRule())
+    private lateinit var displaySize: Rect
+    private var displayWidth = 0
+    private var displayHeight = 0
+    private var centerX = 0f
+    private var centerY = 0f
 
     @Before
     fun setUp() {
-        instrumentation = InstrumentationRegistry.getInstrumentation()
         uiAutomation =
             instrumentation.getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES)
         uiAutomation.serviceInfo =
@@ -104,19 +132,34 @@ class FullScreenMagnificationMouseFollowingTest {
                 flags = flags or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             }
 
-        prepareVirtualDevices()
+        // Disables showing a dialog to prevent it interfering with the test.
+        uiAutomation
+            .executeShellCommand("setprop debug.wm.disable_deprecated_target_sdk_dialog 1")
+            .close()
 
-        launchTestActivityFullscreen(virtualDisplay.display.displayId)
+        displaySize =
+            instrumentation.context.getSystemService(WindowManager::class.java)
+                .maximumWindowMetrics.bounds
+        displayWidth = displaySize.width()
+        displayHeight = displaySize.height()
+        centerX = displaySize.exactCenterX()
+        centerY = displaySize.exactCenterY()
+
+        launchTestActivityFullscreen(displayId)
 
         service = magnificationAccessibilityServiceRule.enableService()
-        service.observingDisplayId = virtualDisplay.display.displayId
+        service.observingDisplayId = displayId
+
+        controller = service.getMagnificationController(displayId)
     }
 
     @After
     fun cleanUp() {
-        if (this::virtualMouse.isInitialized) {
-            virtualMouse.close()
-        }
+        activityScenario?.close()
+
+        uiAutomation
+            .executeShellCommand("setprop debug.wm.disable_deprecated_target_sdk_dialog 0")
+            .close()
     }
 
     // Note on continuous movement:
@@ -131,68 +174,73 @@ class FullScreenMagnificationMouseFollowingTest {
 
     @Test
     fun testContinuous_toBottomRight() {
+        setCursorFollowingMode(
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE_CONTINUOUS
+        )
+
         ensureMouseAtCenter()
 
-        val controller = service.getMagnificationController(virtualDisplay.display.displayId)
-
-        scaleTo(controller, 2f)
-        assertMagnification(controller, scale = 2f, CENTER_X, CENTER_Y)
+        scaleTo(2f)
+        assertMagnification(scale = 2f, centerX, centerY)
 
         // Move cursor by (10, 15)
         // This will move magnification center by (5, 7.5)
-        sendMouseMove(10f, 15f)
-        assertCursorLocation(CENTER_X + 10, CENTER_Y + 15)
-        assertMagnification(controller, scale = 2f, CENTER_X + 5, CENTER_Y + 7.5f)
+        sendMouseMove(10, 15)
+        assertCursorLocation(centerX + 10, centerY + 15)
+        assertMagnification(scale = 2f, centerX + 5, centerY + 7.5f)
 
         // Move cursor to the rest of the way to the edge.
-        sendMouseMove(DISPLAY_WIDTH - 10, DISPLAY_HEIGHT - 15)
-        assertCursorLocation(DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1)
-        assertMagnification(controller, scale = 2f, DISPLAY_WIDTH * 3 / 4, DISPLAY_HEIGHT * 3 / 4)
+        sendMouseMove(displayWidth - 10, displayHeight - 15)
+        assertCursorLocation(displayWidth - 1f, displayHeight - 1f)
+        assertMagnification(scale = 2f, displayWidth * 3f / 4, displayHeight * 3f / 4)
 
         // Move cursor further won't move the magnification.
-        sendMouseMove(100f, 100f)
-        assertCursorLocation(DISPLAY_WIDTH - 1, DISPLAY_HEIGHT - 1)
+        sendMouseMove(100, 100)
+        assertCursorLocation(displayWidth - 1f, displayHeight - 1f)
     }
 
     @Test
     fun testContinuous_toTopLeft() {
+        setCursorFollowingMode(
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE_CONTINUOUS
+        )
+
         ensureMouseAtCenter()
 
-        val controller = service.getMagnificationController(virtualDisplay.display.displayId)
-
-        scaleTo(controller, 3f)
-        assertMagnification(controller, scale = 3f, CENTER_X, CENTER_Y)
+        scaleTo(3f)
+        assertMagnification(scale = 3f, centerX, centerY)
 
         // Move cursor by (-30, -15)
         // This will move magnification center by (-20, -10)
-        sendMouseMove(-30f, -15f)
-        assertCursorLocation(CENTER_X - 30, CENTER_Y - 15)
-        assertMagnification(controller, scale = 3f, CENTER_X - 20, CENTER_Y - 10)
+        sendMouseMove(-30, -15)
+        assertCursorLocation(centerX - 30, centerY - 15)
+        assertMagnification(scale = 3f, centerX - 20, centerY - 10)
 
         // Move cursor to the rest of the way to the edge.
-        sendMouseMove(-CENTER_X + 30, -CENTER_Y + 15)
+        sendMouseMove(-centerX.toInt() + 30, -centerY.toInt() + 15)
         assertCursorLocation(0f, 0f)
-        assertMagnification(controller, scale = 3f, DISPLAY_WIDTH / 6, DISPLAY_HEIGHT / 6)
+        assertMagnification(scale = 3f, displayWidth / 6f, displayHeight / 6f)
 
         // Move cursor further won't move the magnification.
-        sendMouseMove(-100f, -100f)
+        sendMouseMove(-100, -100)
         assertCursorLocation(0f, 0f)
-        assertMagnification(controller, scale = 3f, DISPLAY_WIDTH / 6, DISPLAY_HEIGHT / 6)
+        assertMagnification(scale = 3f, displayWidth / 6f, displayHeight / 6f)
+    }
+
+    private fun setCursorFollowingMode(mode: Int) {
+        Settings.Secure.putInt(
+            instrumentation.context.contentResolver,
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_CURSOR_FOLLOWING_MODE,
+            mode
+        )
     }
 
     private fun ensureMouseAtCenter() {
-        val displayCenter = PointF(320f, 240f)
-        val cursorLocation = virtualMouse.cursorPosition
-        if (!cursorLocation.nearEq(displayCenter)) {
-            sendMouseMove(displayCenter.x - cursorLocation.x, displayCenter.y - cursorLocation.y)
-            assertCursorLocation(320f, 240f)
-        }
+        desktopMouseRule.move(displayId, centerX.toInt(), centerY.toInt())
     }
 
-    private fun sendMouseMove(dx: Float, dy: Float) {
-        virtualMouse.sendRelativeEvent(
-            VirtualMouseRelativeEvent.Builder().setRelativeX(dx).setRelativeY(dy).build()
-        )
+    private fun sendMouseMove(dx: Int, dy: Int) {
+        desktopMouseRule.moveDelta(dx, dy)
     }
 
     /**
@@ -205,7 +253,7 @@ class FullScreenMagnificationMouseFollowingTest {
         }
     }
 
-    private fun scaleTo(controller: AccessibilityService.MagnificationController, scale: Float) {
+    private fun scaleTo(scale: Float) {
         val config =
             MagnificationConfig.Builder()
                 .setActivated(true)
@@ -218,7 +266,6 @@ class FullScreenMagnificationMouseFollowingTest {
     }
 
     private fun assertMagnification(
-        controller: AccessibilityService.MagnificationController,
         scale: Float = Float.NaN, centerX: Float = Float.NaN, centerY: Float = Float.NaN
     ) {
         PollingCheck.check(
@@ -226,67 +273,19 @@ class FullScreenMagnificationMouseFollowingTest {
             MAGNIFICATION_TIMEOUT.inWholeMilliseconds
         ) check@{
             val actual = controller.getMagnificationConfig() ?: return@check false
-            actual.isActivated &&
+            val result = actual.isActivated &&
                 (actual.mode == MagnificationConfig.MAGNIFICATION_MODE_FULLSCREEN) &&
                 (scale.isNaN() || scale.nearEq(actual.scale)) &&
                 (centerX.isNaN() || centerX.nearEq(actual.centerX)) &&
                 (centerY.isNaN() || centerY.nearEq(actual.centerY))
-        }
-    }
 
-    /**
-     * Sets up a virtual display and a virtual mouse for the test. The virtual mouse is associated
-     * with the virtual display.
-     */
-    private fun prepareVirtualDevices() {
-        val deviceLatch = CountDownLatch(1)
-        val im = instrumentation.context.getSystemService(InputManager::class.java)
-        val inputDeviceListener =
-            object : InputManager.InputDeviceListener {
-                override fun onInputDeviceAdded(deviceId: Int) {
-                    onInputDeviceChanged(deviceId)
-                }
-
-                override fun onInputDeviceRemoved(deviceId: Int) {}
-
-                override fun onInputDeviceChanged(deviceId: Int) {
-                    val device = im.getInputDevice(deviceId) ?: return
-                    if (device.vendorId == VIRTUAL_MOUSE_VENDOR_ID &&
-                        device.productId == VIRTUAL_MOUSE_PRODUCT_ID
-                    ) {
-                        deviceLatch.countDown()
-                    }
-                }
+            // Log check results during polling.
+            if (!result) {
+                Log.d(TAG, "Actual config: $actual")
             }
-        im.registerInputDeviceListener(inputDeviceListener, Handler(Looper.getMainLooper()))
 
-        virtualDevice = virtualDeviceRule.createManagedVirtualDevice()
-        virtualDisplay =
-            virtualDeviceRule.createManagedVirtualDisplay(
-                virtualDevice,
-                VirtualDeviceRule
-                    .createDefaultVirtualDisplayConfigBuilder(
-                        DISPLAY_WIDTH.toInt(),
-                        DISPLAY_HEIGHT.toInt()
-                    )
-                    .setFlags(
-                        DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC
-                            or DisplayManager.VIRTUAL_DISPLAY_FLAG_TRUSTED
-                            or DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY
-                    )
-            )!!
-        virtualMouse =
-            virtualDevice.createVirtualMouse(
-                VirtualMouseConfig.Builder()
-                    .setVendorId(VIRTUAL_MOUSE_VENDOR_ID)
-                    .setProductId(VIRTUAL_MOUSE_PRODUCT_ID)
-                    .setAssociatedDisplayId(virtualDisplay.display.displayId)
-                    .setInputDeviceName("VirtualMouse")
-                    .build()
-            )
-
-        deviceLatch.await(UI_IDLE_GLOBAL_TIMEOUT.inWholeSeconds, TimeUnit.SECONDS)
-        im.unregisterInputDeviceListener(inputDeviceListener)
+            result
+        }
     }
 
     /**
@@ -295,28 +294,42 @@ class FullScreenMagnificationMouseFollowingTest {
      * display.
      */
     private fun launchTestActivityFullscreen(displayId: Int) {
+        activityScenario = ActivityScenario.launch(
+            TestActivity::class.java,
+            ActivityOptions.makeBasic().apply { launchDisplayId = displayId }.toBundle()
+        )
+
         val future = CompletableFuture<Void?>()
         val fullscreenCallback =
             object : OutcomeReceiver<Void, Throwable> {
                 override fun onResult(result: Void?) {
                     future.complete(null)
                 }
-
                 override fun onError(error: Throwable) {
                     future.completeExceptionally(error)
                 }
             }
 
-        val activity =
-            virtualDeviceRule.startActivityOnDisplaySync<TestActivity>(
-                displayId,
-                TestActivity::class.java
-            )
-        instrumentation.runOnMainSync {
-            activity.requestFullscreenMode(
-                Activity.FULLSCREEN_MODE_REQUEST_ENTER,
-                fullscreenCallback
-            )
+        activityScenario!!.moveToState(Lifecycle.State.RESUMED).onActivity { activity ->
+            // Lay out content ignoring display cutout and insets, to make the window fullscreen.
+            activity.window.attributes =
+                activity.window.attributes.apply {
+                    layoutInDisplayCutoutMode =
+                        LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                }
+            activity.window.insetsController?.hide(WindowInsets.Type.all())
+
+            val windowingMode =
+                activity.resources.configuration.windowConfiguration.windowingMode
+            if (windowingMode == WindowConfiguration.WINDOWING_MODE_FULLSCREEN) {
+                // Already fullscreen. No need to toggle.
+                future.complete(null)
+            } else {
+                activity.requestFullscreenMode(
+                    Activity.FULLSCREEN_MODE_REQUEST_ENTER,
+                    fullscreenCallback
+                )
+            }
         }
         future.get(UI_IDLE_GLOBAL_TIMEOUT.inWholeSeconds, TimeUnit.SECONDS)
 
@@ -362,17 +375,9 @@ class FullScreenMagnificationMouseFollowingTest {
     class TestActivity : Activity()
 
     companion object {
-        private const val VIRTUAL_MOUSE_VENDOR_ID = 123
-        private const val VIRTUAL_MOUSE_PRODUCT_ID = 456
-
         private val CURSOR_TIMEOUT = 1.seconds
         private val MAGNIFICATION_TIMEOUT = 3.seconds
         private val UI_IDLE_TIMEOUT = 500.milliseconds
         private val UI_IDLE_GLOBAL_TIMEOUT = 5.seconds
-
-        private const val DISPLAY_WIDTH = 640.0f
-        private const val DISPLAY_HEIGHT = 480.0f
-        private const val CENTER_X = DISPLAY_WIDTH / 2f
-        private const val CENTER_Y = DISPLAY_HEIGHT / 2f
     }
 }

@@ -16,8 +16,9 @@
 
 package com.android.server.wm;
 
-import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_ABORT;
+import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP;
 
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.internal.perfetto.protos.DataSourceConfigOuterClass.DataSourceConfig;
 import android.internal.perfetto.protos.WindowmanagerConfig.WindowManagerConfig;
@@ -34,18 +35,34 @@ import android.util.proto.ProtoInputStream;
 
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class WindowTracingDataSource extends DataSource<WindowTracingDataSource.Instance,
         WindowTracingDataSource.TlsState, Void> {
+
+    @IntDef({
+            com.android.server.wm.WindowTracingDataSource.Status.STARTING,
+            com.android.server.wm.WindowTracingDataSource.Status.STARTED,
+            com.android.server.wm.WindowTracingDataSource.Status.STOPPING,
+            com.android.server.wm.WindowTracingDataSource.Status.STOPPED,
+    })
+    @interface Status {
+        int STARTING = 0;
+        int STARTED = 1;
+        int STOPPING = 2;
+        int STOPPED = 3;
+    }
+
     public static class TlsState {
         public final Config mConfig;
-        public final AtomicBoolean mIsStarting = new AtomicBoolean(true);
+        public final AtomicInteger mStatus;
 
-        private TlsState(Config config) {
+        private TlsState(Config config, AtomicInteger status) {
             mConfig = config;
+            mStatus = status;
         }
     }
+
 
     public static class Config {
         public final @WindowTracingLogLevel int mLogLevel;
@@ -59,12 +76,34 @@ public final class WindowTracingDataSource extends DataSource<WindowTracingDataS
         }
     }
 
-    public abstract static class Instance extends DataSourceInstance {
+    public static class Instance extends DataSourceInstance {
         public final Config mConfig;
+        public final AtomicInteger mStatus = new AtomicInteger(Status.STARTING);
+        private final WeakReference<WindowTracingPerfetto> mWindowTracing;
 
-        public Instance(DataSource dataSource, int instanceIndex, Config config) {
+        public Instance(DataSource dataSource,
+                int instanceIndex,
+                Config config,
+                WeakReference<WindowTracingPerfetto> windowTracing) {
             super(dataSource, instanceIndex);
             mConfig = config;
+            mWindowTracing = windowTracing;
+        }
+
+        @Override
+        protected void onStart(StartCallbackArguments args) {
+            WindowTracingPerfetto windowTracing = mWindowTracing.get();
+            if (windowTracing != null) {
+                windowTracing.onStart(mConfig);
+            }
+        }
+
+        @Override
+        protected void onStop(StopCallbackArguments args) {
+            WindowTracingPerfetto windowTracing = mWindowTracing.get();
+            if (windowTracing != null) {
+                windowTracing.onStop(this);
+            }
         }
     }
 
@@ -84,7 +123,8 @@ public final class WindowTracingDataSource extends DataSource<WindowTracingDataS
         DataSourceParams params =
                 new DataSourceParams.Builder()
                         .setBufferExhaustedPolicy(
-                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_ABORT)
+                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP)
+                        .setPostponeStop(true)
                         .build();
         register(params);
         Log.i(TAG, "Registered with perfetto service");
@@ -94,23 +134,9 @@ public final class WindowTracingDataSource extends DataSource<WindowTracingDataS
     public Instance createInstance(ProtoInputStream configStream, int instanceIndex) {
         final Config config = parseDataSourceConfig(configStream);
 
-        return new Instance(this, instanceIndex, config != null ? config : CONFIG_DEFAULT) {
-            @Override
-            protected void onStart(StartCallbackArguments args) {
-                WindowTracingPerfetto windowTracing = mWindowTracing.get();
-                if (windowTracing != null) {
-                    windowTracing.onStart(mConfig);
-                }
-            }
-
-            @Override
-            protected void onStop(StopCallbackArguments args) {
-                WindowTracingPerfetto windowTracing = mWindowTracing.get();
-                if (windowTracing != null) {
-                    windowTracing.onStop(mConfig);
-                }
-            }
-        };
+        return new Instance(this,
+                instanceIndex,
+                config != null ? config : CONFIG_DEFAULT, mWindowTracing);
     }
 
     @Override
@@ -119,9 +145,9 @@ public final class WindowTracingDataSource extends DataSource<WindowTracingDataS
         try (Instance dsInstance = args.getDataSourceInstanceLocked()) {
             if (dsInstance == null) {
                 // Datasource instance has been removed
-                return new TlsState(CONFIG_DEFAULT);
+                return new TlsState(CONFIG_DEFAULT,  new AtomicInteger(Status.STARTING));
             }
-            return new TlsState(dsInstance.mConfig);
+            return new TlsState(dsInstance.mConfig, dsInstance.mStatus);
         }
     }
 

@@ -15,36 +15,29 @@
 
 package com.android.systemui.statusbar.notification.icon.domain.interactor
 
+import android.content.applicationContext
 import android.platform.test.annotations.DisableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
+import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryBypassRepository
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.statusbar.data.repository.notificationListenerSettingsRepository
 import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior
-import com.android.systemui.statusbar.notification.data.model.activeNotificationModel
-import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
+import com.android.systemui.statusbar.notification.data.repository.getPipelineModels
+import com.android.systemui.statusbar.notification.data.repository.getPopulatedActiveNotificationsStore
 import com.android.systemui.statusbar.notification.data.repository.notificationsKeyguardViewStateRepository
-import com.android.systemui.statusbar.notification.domain.interactor.activeNotificationsInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.headsUpNotificationIconInteractor
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.aodPromotedNotificationInteractor
-import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentBuilder
-import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel
-import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel.Style.Base
-import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModels
-import com.android.systemui.statusbar.notification.shared.byIsAmbient
-import com.android.systemui.statusbar.notification.shared.byIsLastMessageFromReply
-import com.android.systemui.statusbar.notification.shared.byIsPromoted
-import com.android.systemui.statusbar.notification.shared.byIsPulsing
-import com.android.systemui.statusbar.notification.shared.byIsRowDismissed
-import com.android.systemui.statusbar.notification.shared.byIsSilent
-import com.android.systemui.statusbar.notification.shared.byIsSuppressedFromStatusBar
-import com.android.systemui.statusbar.notification.shared.byKey
+import com.android.systemui.statusbar.notification.shared.ActiveBundleModel
+import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
+import com.android.systemui.statusbar.notification.shared.ActivePipelineEntryModel
+import com.android.systemui.statusbar.notification.shared.byAssociatedNotifModel
+import com.android.systemui.statusbar.notification.shared.byIconIsAmbient
+import com.android.systemui.statusbar.notification.shared.byIconNotifKey
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationsKeyguardInteractor
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.eq
@@ -61,27 +54,34 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NotificationIconsInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
-    private val activeNotificationListRepository = kosmos.activeNotificationListRepository
-    private val notificationsKeyguardInteractor = kosmos.notificationsKeyguardInteractor
-    private val aodPromotedNotificationInteractor = kosmos.aodPromotedNotificationInteractor
+    private val testScope
+        get() = kosmos.testScope
+
+    private val activeNotificationListRepository
+        get() = kosmos.activeNotificationListRepository
+
+    private val notificationsKeyguardInteractor
+        get() = kosmos.notificationsKeyguardInteractor
 
     private val underTest =
         NotificationIconsInteractor(
-            kosmos.activeNotificationsInteractor,
+            kosmos.activeNotificationListRepository,
             kosmos.bubblesOptional,
             kosmos.headsUpNotificationIconInteractor,
             kosmos.aodPromotedNotificationInteractor,
             kosmos.notificationsKeyguardViewStateRepository,
+            kosmos.applicationContext,
         )
+
+    private lateinit var testIcons: List<ActivePipelineEntryModel>
 
     @Before
     fun setup() {
         testScope.apply {
             activeNotificationListRepository.activeNotifications.value =
-                ActiveNotificationsStore.Builder()
-                    .apply { testIcons.forEach(::addIndividualNotif) }
-                    .build()
+                kosmos.getPopulatedActiveNotificationsStore()
+            testIcons =
+                activeNotificationListRepository.activeNotifications.value.getPipelineModels()
         }
     }
 
@@ -89,7 +89,9 @@ class NotificationIconsInteractorTest : SysuiTestCase() {
     fun filteredEntrySet() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet())
-            assertThat(filteredSet).containsExactlyElementsIn(testIcons)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsExactlyElementsIn(testIcons)
         }
 
     @Test
@@ -97,31 +99,42 @@ class NotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             whenever(kosmos.bubbles.isBubbleExpanded(eq("notif1"))).thenReturn(true)
             val filteredSet by collectLastValue(underTest.filteredNotifSet())
-            assertThat(filteredSet).comparingElementsUsing(byKey).doesNotContain("notif1")
+            assertThat(filteredSet).comparingElementsUsing(byIconNotifKey).doesNotContain("notif1")
         }
 
     @Test
     fun filteredEntrySet_noAmbient() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet(showAmbient = false))
-            assertThat(filteredSet).comparingElementsUsing(byIsAmbient).doesNotContain(true)
+            assertThat(filteredSet).comparingElementsUsing(byIconIsAmbient).doesNotContain(true)
             assertThat(filteredSet)
-                .comparingElementsUsing(byIsSuppressedFromStatusBar)
-                .doesNotContain(true)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter {
+                        (it is ActiveNotificationModel && it.isSuppressedFromStatusBar) ||
+                            (it is ActiveBundleModel && it.key == "bundle2")
+                    }
+                )
         }
 
     @Test
     fun filteredEntrySet_noLowPriority() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet(showLowPriority = false))
-            assertThat(filteredSet).comparingElementsUsing(byIsSilent).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(testIcons.filter { it is ActiveNotificationModel && it.isSilent })
         }
 
     @Test
     fun filteredEntrySet_noDismissed() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet(showDismissed = false))
-            assertThat(filteredSet).comparingElementsUsing(byIsRowDismissed).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.isRowDismissed }
+                )
         }
 
     @Test
@@ -130,8 +143,10 @@ class NotificationIconsInteractorTest : SysuiTestCase() {
             val filteredSet by
                 collectLastValue(underTest.filteredNotifSet(showRepliedMessages = false))
             assertThat(filteredSet)
-                .comparingElementsUsing(byIsLastMessageFromReply)
-                .doesNotContain(true)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.isLastMessageFromReply }
+                )
         }
 
     @Test
@@ -139,7 +154,9 @@ class NotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet(showPulsing = false))
             notificationsKeyguardInteractor.setNotificationsFullyHidden(false)
-            assertThat(filteredSet).comparingElementsUsing(byIsPulsing).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(testIcons.filter { it is ActiveNotificationModel && it.isPulsing })
         }
 
     @Test
@@ -147,14 +164,20 @@ class NotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet(showPulsing = false))
             notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
-            assertThat(filteredSet).comparingElementsUsing(byIsPulsing).contains(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsAnyIn(testIcons.filter { it is ActiveNotificationModel && it.isPulsing })
         }
 
     @Test
     fun filteredEntrySet_showAodPromoted() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet(showAodPromoted = true))
-            assertThat(filteredSet).comparingElementsUsing(byIsPromoted).contains(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsAnyIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.promotedContent != null }
+                )
         }
     }
 
@@ -162,7 +185,11 @@ class NotificationIconsInteractorTest : SysuiTestCase() {
     fun filteredEntrySet_noAodPromoted() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.filteredNotifSet(showAodPromoted = false))
-            assertThat(filteredSet).comparingElementsUsing(byIsPromoted).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.promotedContent != null }
+                )
         }
     }
 }
@@ -171,21 +198,25 @@ class NotificationIconsInteractorTest : SysuiTestCase() {
 @RunWith(AndroidJUnit4::class)
 class AlwaysOnDisplayNotificationIconsInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
+    private val testScope
+        get() = kosmos.testScope
 
-    private val underTest =
-        AlwaysOnDisplayNotificationIconsInteractor(
-            kosmos.testDispatcher,
-            kosmos.deviceEntryInteractor,
-            kosmos.notificationIconsInteractor,
-        )
+    private val underTest
+        get() = kosmos.alwaysOnDisplayNotificationIconsInteractor
+
+    private val activeNotificationListRepository
+        get() = kosmos.activeNotificationListRepository
+
+    private lateinit var testIcons: List<ActivePipelineEntryModel>
 
     @Before
     fun setup() {
-        kosmos.activeNotificationListRepository.activeNotifications.value =
-            ActiveNotificationsStore.Builder()
-                .apply { testIcons.forEach(::addIndividualNotif) }
-                .build()
+        testScope.apply {
+            activeNotificationListRepository.activeNotifications.value =
+                kosmos.getPopulatedActiveNotificationsStore()
+            testIcons =
+                activeNotificationListRepository.activeNotifications.value.getPipelineModels()
+        }
     }
 
     @Test
@@ -193,24 +224,33 @@ class AlwaysOnDisplayNotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             whenever(kosmos.bubbles.isBubbleExpanded(eq("notif1"))).thenReturn(true)
             val filteredSet by collectLastValue(underTest.aodNotifs)
-            assertThat(filteredSet).comparingElementsUsing(byKey).doesNotContain("notif1")
+            assertThat(filteredSet).comparingElementsUsing(byIconNotifKey).doesNotContain("notif1")
         }
 
     @Test
     fun filteredEntrySet_noAmbient() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.aodNotifs)
-            assertThat(filteredSet).comparingElementsUsing(byIsAmbient).doesNotContain(true)
+            assertThat(filteredSet).comparingElementsUsing(byIconIsAmbient).doesNotContain(true)
             assertThat(filteredSet)
-                .comparingElementsUsing(byIsSuppressedFromStatusBar)
-                .doesNotContain(true)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter {
+                        (it is ActiveNotificationModel && it.isSuppressedFromStatusBar) ||
+                            (it is ActiveBundleModel && it.key == "bundle2")
+                    }
+                )
         }
 
     @Test
     fun filteredEntrySet_noDismissed() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.aodNotifs)
-            assertThat(filteredSet).comparingElementsUsing(byIsRowDismissed).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.isRowDismissed }
+                )
         }
 
     @Test
@@ -218,44 +258,54 @@ class AlwaysOnDisplayNotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.aodNotifs)
             assertThat(filteredSet)
-                .comparingElementsUsing(byIsLastMessageFromReply)
-                .doesNotContain(true)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.isLastMessageFromReply }
+                )
         }
 
     @Test
     fun filteredEntrySet_showPulsing_notifsNotFullyHidden_bypassDisabled() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.aodNotifs)
-            kosmos.fakeDeviceEntryRepository.setBypassEnabled(false)
+            kosmos.fakeDeviceEntryBypassRepository.setBypassEnabled(false)
             kosmos.notificationsKeyguardInteractor.setNotificationsFullyHidden(false)
-            assertThat(filteredSet).comparingElementsUsing(byIsPulsing).contains(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsAnyIn(testIcons.filter { it is ActiveNotificationModel && it.isPulsing })
         }
 
     @Test
     fun filteredEntrySet_showPulsing_notifsFullyHidden_bypassDisabled() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.aodNotifs)
-            kosmos.fakeDeviceEntryRepository.setBypassEnabled(false)
+            kosmos.fakeDeviceEntryBypassRepository.setBypassEnabled(false)
             kosmos.notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
-            assertThat(filteredSet).comparingElementsUsing(byIsPulsing).contains(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsAnyIn(testIcons.filter { it is ActiveNotificationModel && it.isPulsing })
         }
 
     @Test
     fun filteredEntrySet_noPulsing_notifsNotFullyHidden_bypassEnabled() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.aodNotifs)
-            kosmos.fakeDeviceEntryRepository.setBypassEnabled(true)
+            kosmos.fakeDeviceEntryBypassRepository.setBypassEnabled(true)
             kosmos.notificationsKeyguardInteractor.setNotificationsFullyHidden(false)
-            assertThat(filteredSet).comparingElementsUsing(byIsPulsing).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(testIcons.filter { it is ActiveNotificationModel && it.isPulsing })
         }
 
     @Test
     fun filteredEntrySet_showPulsing_notifsFullyHidden_bypassEnabled() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.aodNotifs)
-            kosmos.fakeDeviceEntryRepository.setBypassEnabled(true)
+            kosmos.fakeDeviceEntryBypassRepository.setBypassEnabled(true)
             kosmos.notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
-            assertThat(filteredSet).comparingElementsUsing(byIsPulsing).contains(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsAnyIn(testIcons.filter { it is ActiveNotificationModel && it.isPulsing })
         }
 }
 
@@ -271,13 +321,18 @@ class StatusBarNotificationIconsInteractorTest : SysuiTestCase() {
             kosmos.notificationListenerSettingsRepository,
         )
 
+    private val activeNotificationListRepository
+        get() = kosmos.activeNotificationListRepository
+
+    private lateinit var testIcons: List<ActivePipelineEntryModel>
+
     @Before
     fun setup() {
         testScope.apply {
-            kosmos.activeNotificationListRepository.activeNotifications.value =
-                ActiveNotificationsStore.Builder()
-                    .apply { testIcons.forEach(::addIndividualNotif) }
-                    .build()
+            activeNotificationListRepository.activeNotifications.value =
+                kosmos.getPopulatedActiveNotificationsStore()
+            testIcons =
+                activeNotificationListRepository.activeNotifications.value.getPipelineModels()
         }
     }
 
@@ -286,17 +341,22 @@ class StatusBarNotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             whenever(kosmos.bubbles.isBubbleExpanded(eq("notif1"))).thenReturn(true)
             val filteredSet by collectLastValue(underTest.statusBarNotifs)
-            assertThat(filteredSet).comparingElementsUsing(byKey).doesNotContain("notif1")
+            assertThat(filteredSet).comparingElementsUsing(byIconNotifKey).doesNotContain("notif1")
         }
 
     @Test
     fun filteredEntrySet_noAmbient() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.statusBarNotifs)
-            assertThat(filteredSet).comparingElementsUsing(byIsAmbient).doesNotContain(true)
+            assertThat(filteredSet).comparingElementsUsing(byIconIsAmbient).doesNotContain(true)
             assertThat(filteredSet)
-                .comparingElementsUsing(byIsSuppressedFromStatusBar)
-                .doesNotContain(true)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter {
+                        (it is ActiveNotificationModel && it.isSuppressedFromStatusBar) ||
+                            (it is ActiveBundleModel && it.key == "bundle2")
+                    }
+                )
         }
 
     @Test
@@ -304,7 +364,13 @@ class StatusBarNotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.statusBarNotifs)
             kosmos.notificationListenerSettingsRepository.showSilentStatusIcons.value = false
-            assertThat(filteredSet).comparingElementsUsing(byIsSilent).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter {
+                        (it is ActiveNotificationModel && it.isSilent) || (it is ActiveBundleModel)
+                    }
+                )
         }
 
     @Test
@@ -312,14 +378,24 @@ class StatusBarNotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.statusBarNotifs)
             kosmos.notificationListenerSettingsRepository.showSilentStatusIcons.value = true
-            assertThat(filteredSet).comparingElementsUsing(byIsSilent).contains(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsAnyIn(
+                    testIcons.filter {
+                        (it is ActiveNotificationModel && it.isSilent) || (it is ActiveBundleModel)
+                    }
+                )
         }
 
     @Test
     fun filteredEntrySet_noDismissed() =
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.statusBarNotifs)
-            assertThat(filteredSet).comparingElementsUsing(byIsRowDismissed).doesNotContain(true)
+            assertThat(filteredSet)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.isRowDismissed }
+                )
         }
 
     @Test
@@ -327,8 +403,10 @@ class StatusBarNotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.statusBarNotifs)
             assertThat(filteredSet)
-                .comparingElementsUsing(byIsLastMessageFromReply)
-                .doesNotContain(true)
+                .comparingElementsUsing(byAssociatedNotifModel)
+                .containsNoneIn(
+                    testIcons.filter { it is ActiveNotificationModel && it.isLastMessageFromReply }
+                )
         }
 
     @Test
@@ -337,25 +415,6 @@ class StatusBarNotificationIconsInteractorTest : SysuiTestCase() {
         testScope.runTest {
             val filteredSet by collectLastValue(underTest.statusBarNotifs)
             kosmos.headsUpNotificationIconInteractor.setIsolatedIconNotificationKey("notif5")
-            assertThat(filteredSet).comparingElementsUsing(byKey).contains("notif5")
+            assertThat(filteredSet).comparingElementsUsing(byIconNotifKey).contains("notif5")
         }
-}
-
-private val testIcons =
-    listOf(
-        activeNotificationModel(key = "notif1"),
-        activeNotificationModel(key = "notif2", isAmbient = true),
-        activeNotificationModel(key = "notif3", isRowDismissed = true),
-        activeNotificationModel(key = "notif4", isSilent = true),
-        activeNotificationModel(key = "notif5", isLastMessageFromReply = true),
-        activeNotificationModel(key = "notif6", isSuppressedFromStatusBar = true),
-        activeNotificationModel(key = "notif7", isPulsing = true),
-        activeNotificationModel(key = "notif8", promotedContent = promotedContent("notif8", Base)),
-    )
-
-private fun promotedContent(
-    key: String,
-    style: PromotedNotificationContentModel.Style,
-): PromotedNotificationContentModels {
-    return PromotedNotificationContentBuilder(key).applyToShared { this.style = style }.build()
 }

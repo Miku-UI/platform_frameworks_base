@@ -31,8 +31,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -52,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -62,6 +65,7 @@ import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.android.compose.PlatformSlider
@@ -81,6 +85,7 @@ import com.android.systemui.volume.ui.compose.slider.AccessibilityParams
 import com.android.systemui.volume.ui.compose.slider.Haptics
 import com.android.systemui.volume.ui.compose.slider.Slider
 import com.android.systemui.volume.ui.compose.slider.SliderIcon
+import com.google.common.annotations.VisibleForTesting
 import kotlin.math.round
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -97,6 +102,8 @@ fun VolumeSlider(
     hapticsViewModelFactory: SliderHapticsViewModel.Factory?,
     onValueChangeFinished: (() -> Unit)? = null,
     button: (@Composable RowScope.() -> Unit)? = null,
+    showLabel: Boolean = true,
+    dimensions: VolumeSliderDimensions = VolumeSliderDimensions.Defaults
 ) {
     if (!Flags.volumeRedesign()) {
         LegacyVolumeSlider(
@@ -112,15 +119,19 @@ fun VolumeSlider(
     }
 
     Column(modifier = modifier.animateContentSize()) {
-        Text(
-            text = state.label,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.fillMaxWidth().clearAndSetSemantics {},
-        )
+        if (showLabel) {
+            Text(
+                text = state.label,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth().clearAndSetSemantics {},
+            )
+        }
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = dimensions.verticalPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             val materialSliderColors =
@@ -130,85 +141,119 @@ fun VolumeSlider(
                     disabledActiveTickColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                     disabledInactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 )
-            Slider(
-                value = state.value,
-                valueRange = state.valueRange,
-                onValueChanged = onValueChange,
-                onValueChangeFinished = { onValueChangeFinished?.invoke() },
-                colors = materialSliderColors,
-                isEnabled = state.isEnabled,
-                stepDistance = state.step,
-                accessibilityParams =
-                    AccessibilityParams(
-                        contentDescription = state.a11yContentDescription,
-                        stateDescription = state.a11yStateDescription,
-                    ),
-                track = { sliderState ->
-                    SliderTrack(
-                        sliderState = sliderState,
-                        colors = materialSliderColors,
-                        isEnabled = state.isEnabled,
-                        activeTrackStartIcon =
-                            state.icon?.let { icon ->
-                                { iconsState ->
-                                    SliderIcon(
-                                        icon = {
-                                            Icon(icon = icon, modifier = Modifier.size(24.dp))
-                                        },
-                                        isVisible = iconsState.isActiveTrackStartIconVisible,
-                                    )
-                                }
-                            },
-                        inactiveTrackStartIcon =
-                            state.icon?.let { icon ->
-                                { iconsState ->
-                                    SliderIcon(
-                                        icon = {
-                                            Icon(icon = icon, modifier = Modifier.size(24.dp))
-                                        },
-                                        isVisible = !iconsState.isActiveTrackStartIconVisible,
-                                    )
-                                }
-                            },
-                    )
-                },
-                thumb = { sliderState, interactionSource ->
-                    SliderDefaults.Thumb(
-                        sliderState = sliderState,
-                        interactionSource = interactionSource,
-                        enabled = state.isEnabled,
-                        colors = materialSliderColors,
-                        thumbSize = DpSize(4.dp, 52.dp),
-                    )
-                },
-                haptics =
-                    hapticsViewModelFactory?.let {
-                        Haptics.Enabled(
-                            hapticsViewModelFactory = it,
-                            hapticFilter = state.hapticFilter,
-                            orientation = Orientation.Horizontal,
+            if (state is SliderState.Empty) {
+                // reserve the space for the slider to avoid excess resizing
+                Spacer(modifier = Modifier
+                    .weight(1f)
+                    .height(dimensions.thumbHeight))
+            } else {
+                Slider(
+                    value = state.value,
+                    valueRange = state.valueRange,
+                    onValueChanged = onValueChange,
+                    onValueChangeFinished = { onValueChangeFinished?.invoke() },
+                    colors = materialSliderColors,
+                    isEnabled = state.isEnabled,
+                    stepDistance = state.step,
+                    accessibilityParams =
+                        AccessibilityParams(
+                            contentDescription = state.a11yContentDescription,
+                            stateDescription = state.a11yStateDescription,
+                        ),
+                    track = { sliderState ->
+                        SliderTrack(
+                            sliderState = sliderState,
+                            colors = materialSliderColors,
+                            isEnabled = state.isEnabled,
+                            trackSize = dimensions.trackHeight,
+                            activeTrackEndIcon =
+                                state.icon?.let { icon ->
+                                    { iconsState ->
+                                        SliderIcon(
+                                            icon = {
+                                                Icon(
+                                                    icon = icon,
+                                                    tint = null,
+                                                    modifier =
+                                                        Modifier.size(24.dp)
+                                                            .testTag(
+                                                                VolumeSlidersMotionTestKeys
+                                                                    .ACTIVE_ICON_TAG
+                                                            ),
+                                                )
+                                            },
+                                            isVisible = !iconsState.isInactiveTrackEndIconVisible,
+                                        )
+                                    }
+                                },
+                            inactiveTrackEndIcon =
+                                state.icon?.let { icon ->
+                                    { iconsState ->
+                                        SliderIcon(
+                                            icon = {
+                                                Icon(
+                                                    icon = icon,
+                                                    tint = null,
+                                                    modifier =
+                                                        Modifier.size(24.dp)
+                                                            .testTag(
+                                                                VolumeSlidersMotionTestKeys
+                                                                    .INACTIVE_ICON_TAG
+                                                            ),
+                                                )
+                                            },
+                                            isVisible = iconsState.isInactiveTrackEndIconVisible,
+                                        )
+                                    }
+                                },
                         )
-                    } ?: Haptics.Disabled,
-                modifier = Modifier.weight(1f).sysuiResTag(state.label),
-            )
+                    },
+                    thumb = { sliderState, interactionSource ->
+                        SliderDefaults.Thumb(
+                            sliderState = sliderState,
+                            interactionSource = interactionSource,
+                            enabled = state.isEnabled,
+                            colors = materialSliderColors,
+                            thumbSize = DpSize(dimensions.thumbWidth, dimensions.thumbHeight),
+                        )
+                    },
+                    haptics =
+                        hapticsViewModelFactory?.let {
+                            Haptics.Enabled(
+                                hapticsViewModelFactory = it,
+                                hapticConfigs =
+                                    VolumeHapticsConfigsProvider.continuousConfigs(
+                                        state.hapticFilter
+                                    ),
+                                orientation = Orientation.Horizontal,
+                            )
+                        } ?: Haptics.Disabled,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(dimensions.thumbHeight)
+                        .sysuiResTag(state.label),
+                )
+            }
             button?.invoke(this)
         }
         state.disabledMessage?.let { disabledMessage ->
             AnimatedVisibility(visible = !state.isEnabled) {
                 Row(
-                    modifier = Modifier.padding(bottom = 12.dp),
+                    modifier =
+                        Modifier.padding(bottom = 12.dp)
+                            .testTag(VolumeSlidersMotionTestKeys.DISABLED_MESSAGE_TAG),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     MaterialIcon(
                         painter = painterResource(R.drawable.ic_error_outline),
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
                         text = disabledMessage,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MaterialTheme.colorScheme.onSurface,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.basicMarquee().clearAndSetSemantics {},
                     )
@@ -364,16 +409,15 @@ private fun setUpHapticsViewModel(
     hapticsViewModelFactory: SliderHapticsViewModel.Factory?,
 ): SliderHapticsViewModel? {
     return hapticsViewModelFactory?.let {
+        val configs =
+            VolumeHapticsConfigsProvider.discreteConfigs(valueRange.stepSize(), hapticFilter)
         rememberViewModel(traceName = "SliderHapticsViewModel") {
                 it.create(
                     interactionSource,
                     valueRange,
                     Orientation.Horizontal,
-                    VolumeHapticsConfigsProvider.sliderHapticFeedbackConfig(
-                        valueRange,
-                        hapticFilter,
-                    ),
-                    VolumeHapticsConfigsProvider.seekableSliderTrackerConfig,
+                    configs.hapticFeedbackConfig,
+                    configs.sliderTrackerConfig,
                 )
             }
             .also { hapticsViewModel ->
@@ -389,5 +433,30 @@ private fun setUpHapticsViewModel(
                         }
                 }
             }
+    }
+}
+
+private fun ClosedFloatingPointRange<Float>.stepSize(): Float = 1f / (endInclusive - start)
+
+@VisibleForTesting
+object VolumeSlidersMotionTestKeys {
+    const val ACTIVE_ICON_TAG = "Volume_Slider_activeStartIcon"
+    const val INACTIVE_ICON_TAG = "Volume_Slider_inactiveStartIcon"
+    const val DISABLED_MESSAGE_TAG = "disabledMessage"
+}
+
+data class VolumeSliderDimensions(
+    val thumbHeight: Dp,
+    val thumbWidth: Dp,
+    val trackHeight: Dp,
+    val verticalPadding: Dp
+) {
+    companion object {
+        val Defaults = VolumeSliderDimensions(
+            thumbHeight = 52.dp,
+            thumbWidth = 4.dp,
+            trackHeight = 40.dp,
+            verticalPadding = 4.dp
+        )
     }
 }

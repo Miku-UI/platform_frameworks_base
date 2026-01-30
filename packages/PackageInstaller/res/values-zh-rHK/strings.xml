@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"更新"</string>
     <string name="done" msgid="6632441120016885253">"完成"</string>
     <string name="cancel" msgid="1018267193425558088">"取消"</string>
+    <string name="more_details" msgid="3643407086654820243">"更多詳情"</string>
+    <string name="dont_install" msgid="414055123295505225">"不要安裝"</string>
     <string name="installing" msgid="4921993079741206516">"正在安裝…"</string>
     <string name="installing_app" msgid="1165095864863849422">"正在安裝「<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>」…"</string>
     <string name="install_done" msgid="5987363587661783896">"已安裝應用程式。"</string>

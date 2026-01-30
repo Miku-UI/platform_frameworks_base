@@ -62,7 +62,7 @@ class MobileConnectionRepositoryKairosAdapterTest : MobileConnectionRepositoryTe
                             flags,
                         )
                     }
-                    adapter = MobileConnectionRepositoryKairosAdapter(repo, systemUiCarrierConfig)
+                    adapter = MobileConnectionRepositoryKairosAdapter(repo)
                     Unit
                 }
             }

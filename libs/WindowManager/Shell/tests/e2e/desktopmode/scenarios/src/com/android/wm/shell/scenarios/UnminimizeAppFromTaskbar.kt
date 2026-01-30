@@ -17,27 +17,23 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
-import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.device.apphelpers.CalculatorAppHelper
-import android.tools.flicker.rules.ChangeDisplayOrientationRule
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
-import com.android.window.flags.Flags
-import com.android.wm.shell.Utils
 import org.junit.After
-import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 @Ignore("Test Base Class")
-abstract class UnminimizeAppFromTaskbar(val rotation: Rotation = Rotation.ROTATION_0) {
+abstract class UnminimizeAppFromTaskbar(
+    val rotation: Rotation = Rotation.ROTATION_0
+) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
@@ -47,17 +43,8 @@ abstract class UnminimizeAppFromTaskbar(val rotation: Rotation = Rotation.ROTATI
     private val calculatorHelper = CalculatorAppHelper(instrumentation)
     private val calculatorApp = DesktopModeAppHelper(calculatorHelper)
 
-
-    @Rule
-    @JvmField val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, rotation)
-
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopWindowingMode() && tapl.isTablet)
-        tapl.setEnableRotation(true)
-        tapl.setExpectedRotation(rotation.value)
-        tapl.enableTransientTaskbar(false)
-        ChangeDisplayOrientationRule.setRotation(rotation)
         testApp.enterDesktopMode(wmHelper, device)
         tapl.showTaskbarIfHidden()
         calculatorApp.launchViaIntent(wmHelper)

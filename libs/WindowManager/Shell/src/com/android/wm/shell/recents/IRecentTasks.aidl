@@ -21,6 +21,7 @@ import android.app.IApplicationThread;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Bundle;
+import android.window.WindowContainerTransaction;
 
 import com.android.wm.shell.recents.IRecentsAnimationRunner;
 import com.android.wm.shell.recents.IRecentTasksListener;
@@ -55,5 +56,6 @@ interface IRecentTasks {
      * Starts a recents transition.
      */
     oneway void startRecentsTransition(in PendingIntent intent, in Intent fillIn, in Bundle options,
-                    IApplicationThread appThread, IRecentsAnimationRunner listener) = 5;
+                    in @nullable WindowContainerTransaction wct, IApplicationThread appThread,
+                    IRecentsAnimationRunner listener) = 5;
 }

@@ -173,6 +173,28 @@ TEST_F(TableMergerTest, OverrideResourceWithOverlay) {
               Pointee(Field(&BinaryPrimitive::value, Field(&android::Res_value::data, Eq(0u)))));
 }
 
+TEST_F(TableMergerTest, OverrideFlagDisabledResourceWithOverlay) {
+  std::unique_ptr<Value> foo1 = ResourceUtils::TryParseBool("true");
+  foo1->SetFlag(FeatureFlagAttribute{"foo", false});
+  foo1->SetFlagStatus(FlagStatus::Disabled);
+  std::unique_ptr<ResourceTable> base =
+      test::ResourceTableBuilder().AddValue("bool/foo", std::move(foo1)).Build();
+
+  std::unique_ptr<Value> foo2 = ResourceUtils::TryParseBool("true");
+  foo2->SetFlag(FeatureFlagAttribute{"foo", false});
+  foo2->SetFlagStatus(FlagStatus::Disabled);
+  std::unique_ptr<ResourceTable> overlay =
+      test::ResourceTableBuilder().AddValue("bool/foo", std::move(foo2)).Build();
+
+  ResourceTable final_table;
+  TableMergerOptions options;
+  options.auto_add_overlay = true;
+  TableMerger merger(context_.get(), &final_table, options);
+
+  ASSERT_TRUE(merger.Merge({}, base.get(), false /*overlay*/));
+  ASSERT_TRUE(merger.Merge({}, overlay.get(), true /*overlay*/));
+}
+
 TEST_F(TableMergerTest, DoNotOverrideResourceComment) {
   std::unique_ptr<Value> foo_original = ResourceUtils::TryParseBool("true");
   foo_original->SetComment(android::StringPiece("Original foo comment"));

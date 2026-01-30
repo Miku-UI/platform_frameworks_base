@@ -24,7 +24,6 @@ import com.android.systemui.kosmos.Kosmos.Fixture
 val Kosmos.alternateBouncerToPrimaryBouncerTransitionViewModel by Fixture {
     AlternateBouncerToPrimaryBouncerTransitionViewModel(
         animationFlow = keyguardTransitionAnimationFlow,
-        shadeDependentFlows = shadeDependentFlows,
         blurConfig = blurConfig,
     )
 }

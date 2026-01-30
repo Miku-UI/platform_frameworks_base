@@ -27,5 +27,6 @@ val Kosmos.primaryBouncerToDozingTransitionViewModel by Fixture {
         deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
         animationFlow = keyguardTransitionAnimationFlow,
         blurConfig = blurConfig,
+        dozingTransitionFlows = dozingTransitionFlows,
     )
 }

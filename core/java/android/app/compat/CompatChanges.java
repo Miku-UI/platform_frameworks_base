@@ -33,8 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * CompatChanges APIs - to be used by platform code only (including mainline
- * modules).
+ * Compat Framework APIs
  *
  * @hide
  */

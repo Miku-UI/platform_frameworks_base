@@ -24,6 +24,8 @@ import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.android.systemui.volume.localMediaController
+import com.android.systemui.volume.localPlaybackInfo
+import com.android.systemui.volume.localPlaybackStateBuilder
 import com.android.systemui.volume.mediaControllerRepository
 import com.android.systemui.volume.mediaDeviceSessionInteractor
 import com.android.systemui.volume.mediaOutputInteractor
@@ -35,6 +37,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -60,6 +63,7 @@ class MediaDeviceSessionInteractorTest : SysuiTestCase() {
     fun playbackInfo_returnsPlaybackInfo() {
         with(kosmos) {
             testScope.runTest {
+                whenever(localMediaController.playbackInfo).thenReturn(localPlaybackInfo)
                 val session by
                     collectLastValue(mediaOutputInteractor.defaultActiveMediaSession.filterData())
                 runCurrent()
@@ -75,6 +79,8 @@ class MediaDeviceSessionInteractorTest : SysuiTestCase() {
     fun playbackState_returnsPlaybackState() {
         with(kosmos) {
             testScope.runTest {
+                whenever(localMediaController.playbackState)
+                    .thenReturn(localPlaybackStateBuilder.build())
                 val session by
                     collectLastValue(mediaOutputInteractor.defaultActiveMediaSession.filterData())
                 runCurrent()

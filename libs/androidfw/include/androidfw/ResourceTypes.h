@@ -228,10 +228,10 @@ struct ResChunk_header
     // (if any).
     uint16_t headerSize;
 
-    // Total size of this chunk (in bytes).  This is the chunkSize plus
+    // Total size of this chunk (in bytes).  This is the headerSize plus
     // the size of any data associated with the chunk.  Adding this value
     // to the chunk allows you to completely skip its contents (including
-    // any child chunks).  If this value is the same as chunkSize, there is
+    // any child chunks).  If this value is the same as headerSize, there is
     // no data associated with the chunk.
     uint32_t size;
 };
@@ -262,6 +262,9 @@ enum {
     RES_TABLE_OVERLAYABLE_TYPE        = 0x0204,
     RES_TABLE_OVERLAYABLE_POLICY_TYPE = 0x0205,
     RES_TABLE_STAGED_ALIAS_TYPE       = 0x0206,
+    RES_TABLE_FLAGGED                 = 0x0207,
+    RES_TABLE_FLAG_LIST               = 0x0208,
+
 };
 
 /**
@@ -715,6 +718,29 @@ struct ResXMLTree_attrExt
     uint16_t styleIndex;
 };
 
+enum  ResXMLTreeExtDescriptor : uint8_t {
+    PADDING = 0x00,
+    FLAG_INFO = 0x01,
+};
+
+struct ResXMLTreeFlagExt {
+
+    // defines the type of the extended element structure
+    ResXMLTreeExtDescriptor descriptor;
+
+    // if the flag condition is negated
+    bool flag_negated;
+
+    // a hole for 4-byte alignment
+    uint16_t reserved;
+
+    // The reference into the string pool that the flag name is stored at
+    ResStringPool_ref flag_name;
+};
+
+static_assert(sizeof(ResXMLTreeFlagExt) == 8);
+
+
 struct ResXMLTree_attribute
 {
     // Namespace of this attribute.
@@ -758,6 +784,12 @@ public:
         const void*                 curExt;
     };
 
+    struct ResXMLFlagInfo
+    {
+      uint32_t flagNameIndex;
+      bool flagNegated;
+    };
+
     void restart();
 
     const ResStringPool& getStrings() const;
@@ -793,7 +825,9 @@ public:
     // associated with a START_TAG:
     
     size_t getAttributeCount() const;
-    
+
+    std::optional<ResXMLFlagInfo> getFlagInfo() const;
+
     // Returns -1 if no namespace, -2 if idx out of range.
     int32_t getAttributeNamespaceID(size_t idx) const;
     const char16_t* getAttributeNamespace(size_t idx, size_t* outLen) const;
@@ -988,7 +1022,7 @@ struct ResTable_config
             //   codes ('fr', 'en' etc. etc.). The high bit for both bytes is
             //   zero.
             //
-            // - A single 16 bit little endian packed value representing an
+            // - A single 16 bit big-endian packed value representing an
             //   ISO-639-2 3 letter language code. This will be of the form:
             //
             //   {1, t, t, t, t, t, s, s, s, s, s, f, f, f, f, f}
@@ -1001,7 +1035,7 @@ struct ResTable_config
             // For backwards compatibility, languages that have unambiguous
             // two letter codes are represented in that format.
             //
-            // The layout is always bigendian irrespective of the runtime
+            // The layout is always big-endian irrespective of the runtime
             // architecture.
             char language[2];
             
@@ -1015,7 +1049,7 @@ struct ResTable_config
             //   in the same manner as the language codes, though we should need
             //   only 10 bits to represent them, instead of the 15.
             //
-            // The layout is always bigendian irrespective of the runtime
+            // The layout is always big-endian irrespective of the runtime
             // architecture.
             char country[2];
         };
@@ -1143,8 +1177,9 @@ struct ResTable_config
     union {
         struct {
             uint16_t sdkVersion;
-            // For now minorVersion must always be 0!!!  Its meaning
-            // is currently undefined.
+
+            // Until Baklava, this was always set to and assumed to be 0.
+            // After Baklava, this started to be used with minor SDK releases.
             uint16_t minorVersion;
         };
         uint32_t version;
@@ -1567,6 +1602,37 @@ union ResTable_sparseTypeEntry {
 
 static_assert(sizeof(ResTable_sparseTypeEntry) == sizeof(uint32_t),
         "ResTable_sparseTypeEntry must be 4 bytes in size");
+
+/**
+ * A container for other chunks all of whose values are behind a given flag.
+ *
+ * The flag_name_index is the index of the flag name in the value string pool.
+ *
+ * When the android runtime encounters this chunk it will check the flag against its current value.
+ * If the flag is enabled and flag_negated is false or it is disabled and flag_negated is true, the
+ * runtime will then process all of the chunks inside of it normally. Otherwise the entire chunk is
+ * skipped.
+ *
+ * Currently this is chunk should be contained in a ResTable_typeSpec and contain any number of
+ * ResTable_type.
+ */
+struct ResTable_flagged {
+  struct ResChunk_header header;
+
+  ResStringPool_ref flag_name_index;
+  bool flag_negated;
+  uint8_t padding[3];
+};
+
+/**
+ * A chunk that contains a list of the names of all the read/write flags used by the
+ * ResTable_flagged chunks in the file. Specifically, all data after the header is an array of
+ * ResStringPool_ref objects for the flag names in no specific order. References use the global
+ * values stringpool.
+ */
+struct ResTable_flag_list {
+  struct ResChunk_header header;
+};
 
 struct ResTable_map_entry;
 

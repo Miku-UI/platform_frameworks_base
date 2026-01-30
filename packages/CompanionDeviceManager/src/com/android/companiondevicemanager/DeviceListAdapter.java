@@ -100,8 +100,16 @@ class DeviceListAdapter extends RecyclerView.Adapter<DeviceListAdapter.ViewHolde
     }
 
     void setDevices(List<DeviceFilterPair<?>> devices) {
+        final int oldSize = mDevices == null ? 0 : mDevices.size();
         mDevices = devices;
-        notifyItemRangeInserted(devices.size(), mDevices.size());
+        final int newSize = mDevices.size();
+        if (newSize > oldSize) {
+            notifyItemRangeInserted(oldSize, newSize - oldSize);
+        } else if (newSize < oldSize) {
+            // Items were removed. simply refresh the whole list.
+            notifyDataSetChanged();
+        }
+        // If newSize == oldSize, nothing has changed, so no notification is needed.
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {

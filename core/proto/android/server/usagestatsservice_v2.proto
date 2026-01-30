@@ -154,4 +154,5 @@ message ObfuscatedPackagesProto {
 message ObfuscatedUserInteractionExtrasProto {
   optional int32 category_token = 1;
   optional int32 action_token = 2;
+  optional bytes tokenized_extras = 3;
 }

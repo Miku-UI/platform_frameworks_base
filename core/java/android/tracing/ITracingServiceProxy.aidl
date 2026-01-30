@@ -21,7 +21,7 @@ import android.tracing.TraceReportParams;
 /**
  * Binder interface for the TracingServiceProxy running in system_server.
  *
- * {@hide}
+ * @hide
  */
 interface ITracingServiceProxy {
     /**

@@ -116,12 +116,6 @@ constructor(
         onSceneAboutToChangeListener.add(processor)
     }
 
-    /** Unregisters a previously registered listener. */
-    fun unregisterSceneStateProcessor(processor: OnSceneAboutToChangeListener) {
-        SceneContainerFlag.assertInLegacyMode()
-        onSceneAboutToChangeListener.remove(processor)
-    }
-
     /**
      * Asks for an asynchronous scene witch to [newScene], which will use the corresponding
      * installed transition or the one specified by [transitionKey], if provided.
@@ -143,7 +137,14 @@ constructor(
                 return@launch
             }
 
-            if (currentScene.value == newScene) return@launch
+            if (currentScene.value == newScene) {
+                // If the same Blank scene, notify listeners since the next keyguard state might
+                // require an update.
+                if (newScene == CommunalScenes.Blank && keyguardState != null) {
+                    notifyListeners(newScene, keyguardState)
+                }
+                return@launch
+            }
             logger.logSceneChangeRequested(
                 from = currentScene.value,
                 to = newScene,
@@ -162,7 +163,7 @@ constructor(
         delayMillis: Long = 0,
         keyguardState: KeyguardState? = null,
     ) {
-        applicationScope.launch("$TAG#snapToScene") {
+        applicationScope.launch("$TAG#snapToScene", mainImmediateDispatcher) {
             if (SceneContainerFlag.isEnabled) {
                 sceneInteractor.snapToScene(
                     toScene = newScene.toSceneContainerSceneKey(),
@@ -180,7 +181,30 @@ constructor(
                 isInstant = true,
             )
             notifyListeners(newScene, keyguardState)
-            repository.snapToScene(newScene)
+            repository.instantlyTransitionTo(newScene)
+        }
+    }
+
+    fun showHubFromPowerButton() {
+        val loggingReason = "showing hub from power button"
+        applicationScope.launch("$TAG#showHubFromPowerButton", mainImmediateDispatcher) {
+            if (SceneContainerFlag.isEnabled) {
+                sceneInteractor.changeScene(
+                    toScene = CommunalScenes.Communal.toSceneContainerSceneKey(),
+                    loggingReason = loggingReason,
+                )
+                return@launch
+            }
+
+            if (currentScene.value == CommunalScenes.Communal) return@launch
+            logger.logSceneChangeRequested(
+                from = currentScene.value,
+                to = CommunalScenes.Communal,
+                reason = loggingReason,
+                isInstant = true,
+            )
+            notifyListeners(CommunalScenes.Communal, null)
+            repository.showHubFromPowerButton()
         }
     }
 
@@ -206,6 +230,16 @@ constructor(
                     initialValue = repository.currentScene.value,
                 )
         }
+
+    /** Target scene requested has changed from the previous transition. */
+    val targetSceneChanged: StateFlow<Boolean> =
+        currentScene
+            .pairwiseBy(initialValue = repository.currentScene.value) { old, new -> old != new }
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.Eagerly,
+                initialValue = false,
+            )
 
     private val _editModeState = MutableStateFlow<EditModeState?>(null)
     /**
@@ -334,6 +368,12 @@ constructor(
                 started = SharingStarted.WhileSubscribed(),
                 initialValue = false,
             )
+
+    /** Flow that emits a boolean if user is swiping between two scenes. */
+    val isCommunalSceneTransitioning: Flow<Boolean> =
+        transitionState
+            .map { it is ObservableTransitionState.Transition && it.isInitiatedByUserInput }
+            .distinctUntilChanged()
 
     private companion object {
         const val TAG = "CommunalSceneInteractor"

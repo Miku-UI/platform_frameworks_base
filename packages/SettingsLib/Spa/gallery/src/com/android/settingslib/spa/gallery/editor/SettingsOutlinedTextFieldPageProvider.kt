@@ -23,9 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.editor.SettingsOutlinedTextField
@@ -38,10 +36,6 @@ private const val TITLE = "Sample SettingsOutlinedTextField"
 object SettingsOutlinedTextFieldPageProvider : SettingsPageProvider {
     override val name = "SettingsOutlinedTextField"
 
-    override fun getTitle(arguments: Bundle?): String {
-        return TITLE
-    }
-
     @Composable
     override fun Page(arguments: Bundle?) {
         var value by remember { mutableStateOf("Enabled Value") }
@@ -50,25 +44,24 @@ object SettingsOutlinedTextFieldPageProvider : SettingsPageProvider {
                 value = value,
                 label = "OutlinedTextField Enabled",
                 enabled = true,
-                onTextChange = {value = it})
+                onTextChange = { value = it },
+            )
         }
     }
 
-    fun buildInjectEntry(): SettingsEntryBuilder {
-        return SettingsEntryBuilder.createInject(owner = createSettingsPage())
-            .setUiLayoutFn {
-                Preference(object : PreferenceModel {
-                    override val title = TITLE
-                    override val onClick = navigator(name)
-                })
+    @Composable
+    fun Entry() {
+        Preference(
+            object : PreferenceModel {
+                override val title = TITLE
+                override val onClick = navigator(name)
             }
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun SettingsOutlinedTextFieldPagePreview() {
-    SettingsTheme {
-        SettingsOutlinedTextFieldPageProvider.Page(null)
-    }
+    SettingsTheme { SettingsOutlinedTextFieldPageProvider.Page(null) }
 }

@@ -98,10 +98,22 @@ public class DozeUi implements DozeMachine.Part {
                     @Override
                     public void onPulseStarted() {
                         try {
-                            mMachine.requestState(
-                                    reason == DozeLog.PULSE_REASON_SENSOR_WAKE_REACH
-                                            ? DozeMachine.State.DOZE_PULSING_BRIGHT
-                                            : DozeMachine.State.DOZE_PULSING);
+                            DozeMachine.State requestState = DozeMachine.State.DOZE_PULSING;
+                            if (reason == DozeLog.PULSE_REASON_SENSOR_WAKE_REACH) {
+                                requestState = DozeMachine.State.DOZE_PULSING_BRIGHT;
+                            }
+
+                            if (com.android.systemui.Flags.newDozingKeyguardStates()) {
+                                if (reason == DozeLog.REASON_SENSOR_UDFPS_LONG_PRESS
+                                        || reason == DozeLog.REASON_SENSOR_QUICK_PICKUP) {
+                                    requestState = DozeMachine.State.DOZE_PULSING_WITHOUT_UI;
+                                } else if (reason
+                                        == DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI) {
+                                    requestState = DozeMachine.State.DOZE_PULSING_AUTH_UI;
+                                }
+                            }
+
+                            mMachine.requestState(requestState);
                         } catch (IllegalStateException e) {
                             // It's possible that the pulse was asynchronously cancelled while
                             // we were waiting for it to start (under stress conditions.)
@@ -157,6 +169,8 @@ public class DozeUi implements DozeMachine.Part {
         switch (state) {
             case DOZE_REQUEST_PULSE:
             case DOZE_PULSING:
+            case DOZE_PULSING_WITHOUT_UI:
+            case DOZE_PULSING_AUTH_UI:
             case DOZE_PULSING_BRIGHT:
             case DOZE_PULSE_DONE:
                 mHost.setAnimateWakeup(true);

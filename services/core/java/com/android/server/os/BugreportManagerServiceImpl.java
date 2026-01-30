@@ -238,6 +238,11 @@ class BugreportManagerServiceImpl extends IDumpstate.Stub {
          */
         void addBugreportFileForCaller(
                 Pair<Integer, String> caller, String bugreportFile, boolean keepOnRetrieval) {
+            synchronized (mLock) {
+                if (!mReadBugreportMapping) {
+                    readBugreportMappingLocked();
+                }
+            }
             addBugreportMapping(caller, bugreportFile);
             synchronized (mLock) {
                 if (onboardingBugreportV2Enabled()) {
@@ -651,7 +656,8 @@ class BugreportManagerServiceImpl extends IDumpstate.Stub {
                 && mode != BugreportParams.BUGREPORT_MODE_WEAR
                 && mode != BugreportParams.BUGREPORT_MODE_TELEPHONY
                 && mode != BugreportParams.BUGREPORT_MODE_WIFI
-                && mode != BugreportParams.BUGREPORT_MODE_ONBOARDING) {
+                && mode != BugreportParams.BUGREPORT_MODE_ONBOARDING
+                && mode != BugreportParams.BUGREPORT_MODE_BLUETOOTH) {
             Slog.w(TAG, "Unknown bugreport mode: " + mode);
             throw new IllegalArgumentException("Unknown bugreport mode: " + mode);
         }
@@ -661,7 +667,8 @@ class BugreportManagerServiceImpl extends IDumpstate.Stub {
         flags = clearBugreportFlag(flags,
                 BugreportParams.BUGREPORT_FLAG_USE_PREDUMPED_UI_DATA
                         | BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT
-                        | BugreportParams.BUGREPORT_FLAG_KEEP_BUGREPORT_ON_RETRIEVAL);
+                        | BugreportParams.BUGREPORT_FLAG_KEEP_BUGREPORT_ON_RETRIEVAL
+                        | BugreportParams.BUGREPORT_FLAG_CAPTURE_MULTI_DISPLAY_SCREENSHOT);
         if (flags != 0) {
             Slog.w(TAG, "Unknown bugreport flags: " + flags);
             throw new IllegalArgumentException("Unknown bugreport flags: " + flags);

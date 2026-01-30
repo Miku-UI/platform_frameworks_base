@@ -20,6 +20,7 @@ import static com.android.settingslib.RestrictedLockUtils.EnforcedAdmin;
 
 import android.annotation.UserIdInt;
 import android.app.AlertDialog;
+import android.app.admin.EnforcingAdmin;
 import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.Intent;
@@ -217,7 +218,7 @@ public class InputMethodPreference extends PrimarySwitchPreference
         // This preference should also be disabled in case the admin does not allow this input
         // method.
         if (isAlwaysChecked) {
-            setDisabledByAdmin(null);
+            setDisabledByAdmin((EnforcingAdmin) null);
             setSwitchEnabled(false);
         } else if (!mIsAllowedByOrganization) {
             EnforcedAdmin admin =

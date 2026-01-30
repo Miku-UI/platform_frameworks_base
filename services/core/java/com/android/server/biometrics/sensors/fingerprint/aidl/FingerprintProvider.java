@@ -17,8 +17,6 @@
 package com.android.server.biometrics.sensors.fingerprint.aidl;
 
 import static android.hardware.fingerprint.FingerprintManager.SENSOR_ID_ANY;
-import static android.hardware.fingerprint.FingerprintSensorConfigurations.getIFingerprint;
-import static android.hardware.fingerprint.FingerprintSensorConfigurations.remapFqName;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -43,6 +41,7 @@ import android.hardware.fingerprint.Fingerprint;
 import android.hardware.fingerprint.FingerprintAuthenticateOptions;
 import android.hardware.fingerprint.FingerprintEnrollOptions;
 import android.hardware.fingerprint.FingerprintManager;
+import android.hardware.fingerprint.FingerprintSensorConfigurations;
 import android.hardware.fingerprint.FingerprintSensorPropertiesInternal;
 import android.hardware.fingerprint.IFingerprintServiceReceiver;
 import android.hardware.fingerprint.IUdfpsOverlayController;
@@ -96,6 +95,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Function;
 
 /**
  * Provider for a single instance of the {@link IFingerprint} HAL.
@@ -123,13 +123,12 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
     @NonNull
     private final LockoutResetDispatcher mLockoutResetDispatcher;
     @NonNull
-    private final ActivityTaskManager mActivityTaskManager;
-    @NonNull
     private final BiometricTaskStackListener mTaskStackListener;
     // for requests that do not use biometric prompt
     @NonNull private final AtomicLong mRequestCounter = new AtomicLong(0);
     @NonNull private final BiometricContext mBiometricContext;
     @NonNull private final BiometricHandlerProvider mBiometricHandlerProvider;
+    @NonNull private final Function<String, IFingerprint> mGetIFingerprint;
     @Nullable private IFingerprint mDaemon;
     @Nullable private IUdfpsOverlayController mUdfpsOverlayController;
     private final AuthSessionCoordinator mAuthSessionCoordinator;
@@ -153,8 +152,8 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
                         continue; // Keyguard is always allowed
                     }
 
-                    if (Utils.isBackground(client.getOwnerString())
-                            && !client.isAlreadyDone()) {
+                    if (Utils.isBackground(ActivityTaskManager.getInstance(),
+                            client.getOwnerString()) && !client.isAlreadyDone()) {
                         Slog.e(getTag(), "Stopping background authentication,"
                                 + " currentClient: " + client);
                         mFingerprintSensors.valueAt(i).getScheduler()
@@ -177,6 +176,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
         this(context, biometricStateCallback, authenticationStateListeners, props, halInstanceName,
                 lockoutResetDispatcher, gestureAvailabilityDispatcher, biometricContext,
                 null /* daemon */, BiometricHandlerProvider.getInstance(),
+                FingerprintSensorConfigurations::getIFingerprint,
                 resetLockoutRequiresHardwareAuthToken, false /* testHalEnabled */);
     }
 
@@ -189,6 +189,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
             @NonNull BiometricContext biometricContext,
             @Nullable IFingerprint daemon,
             @NonNull BiometricHandlerProvider biometricHandlerProvider,
+            @NonNull Function<String, IFingerprint> getIFingerprint,
             boolean resetLockoutRequiresHardwareAuthToken,
             boolean testHalEnabled) {
         mContext = context;
@@ -198,11 +199,11 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
         mFingerprintSensors = new SensorList<>(ActivityManager.getService());
         mHandler = biometricHandlerProvider.getFingerprintHandler();
         mLockoutResetDispatcher = lockoutResetDispatcher;
-        mActivityTaskManager = ActivityTaskManager.getInstance();
         mTaskStackListener = new BiometricTaskStackListener();
         mBiometricContext = biometricContext;
         mAuthSessionCoordinator = mBiometricContext.getAuthSessionCoordinator();
         mDaemon = daemon;
+        mGetIFingerprint = getIFingerprint;
         mTestHalEnabled = testHalEnabled;
         mBiometricHandlerProvider = biometricHandlerProvider;
 
@@ -289,15 +290,6 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
         return TAG + "/" + mHalInstanceName;
     }
 
-    boolean hasHalInstance() {
-        if (mTestHalEnabled) {
-            return true;
-        }
-        return (ServiceManager.checkService(
-                remapFqName(IFingerprint.DESCRIPTOR + "/" + mHalInstanceName))
-                != null);
-    }
-
     @Nullable
     @VisibleForTesting
     synchronized IFingerprint getHalInstance() {
@@ -333,7 +325,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
 
         Slog.d(getTag(), "Daemon was null, reconnecting");
 
-        mDaemon = getIFingerprint(IFingerprint.DESCRIPTOR + "/" + mHalInstanceNameCurrent);
+        mDaemon = mGetIFingerprint.apply(IFingerprint.DESCRIPTOR + "/" + mHalInstanceNameCurrent);
         if (mDaemon == null) {
             Slog.e(getTag(), "Unable to get daemon");
             return null;
@@ -347,7 +339,11 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
 
         for (int i = 0; i < mFingerprintSensors.size(); i++) {
             final int sensorId = mFingerprintSensors.keyAt(i);
-            scheduleLoadAuthenticatorIds(sensorId);
+            if (Flags.internalCleanupForAllProfiles()) {
+                processFingerprintForProfiles(sensorId);
+            } else {
+                scheduleLoadAuthenticatorIds(sensorId);
+            }
             scheduleInternalCleanup(sensorId, ActivityManager.getCurrentUser(),
                     null /* callback */);
         }
@@ -418,6 +414,15 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
         }
     }
 
+    private void processFingerprintForProfiles(int sensorId) {
+        for (UserInfo user : UserManager.get(mContext).getAliveUsers()) {
+            if (user.id != ActivityManager.getCurrentUser()) {
+                scheduleInternalCleanup(sensorId, user.id, null /* callback */);
+            }
+            scheduleLoadAuthenticatorIdsForUser(sensorId, user.id);
+        }
+    }
+
     /**
      * Schedules FingerprintGetAuthenticatorIdClient for specific sensor and user.
      */
@@ -440,7 +445,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
         mHandler.post(() -> {
             final InvalidationRequesterClient<Fingerprint> client =
                     new InvalidationRequesterClient<>(mContext, userId, sensorId,
-                            BiometricLogger.ofUnknown(mContext),
+                            BiometricLogger.ofUnknown(mContext, mHandler),
                             mBiometricContext,
                             mFingerprintSensors.get(sensorId).getFingerprintUtilsInstance());
             scheduleForSensor(sensorId, client);
@@ -695,7 +700,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
 
     private BiometricLogger createLogger(int statsAction, int statsClient,
             AuthenticationStatsCollector authenticationStatsCollector) {
-        return new BiometricLogger(mContext, BiometricsProtoEnums.MODALITY_FINGERPRINT,
+        return new BiometricLogger(mContext, mHandler, BiometricsProtoEnums.MODALITY_FINGERPRINT,
                 statsAction, statsClient, authenticationStatsCollector);
     }
 
@@ -792,7 +797,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
 
     @Override
     public void setIgnoreDisplayTouches(long requestId, int sensorId, boolean ignoreTouches) {
-        if (Flags.setIgnoreSpeedUp()) {
+        mHandler.post(() -> {
             try {
                 mFingerprintSensors.get(
                         sensorId).getLazySession().get().getSession().setIgnoreDisplayTouches(
@@ -801,17 +806,7 @@ public class FingerprintProvider implements IBinder.DeathRecipient, ServiceProvi
             } catch (Exception e) {
                 Slog.w(getTag(), "setIgnore failed", e);
             }
-        } else {
-            mFingerprintSensors.get(sensorId).getScheduler().getCurrentClientIfMatches(
-                requestId, (client) -> {
-                    if (!(client instanceof Udfps)) {
-                        Slog.e(getTag(),
-                                "setIgnoreDisplayTouches received during client: " + client);
-                        return;
-                    }
-                    ((Udfps) client).setIgnoreDisplayTouches(ignoreTouches);
-                });
-        }
+        });
     }
 
     @Override

@@ -43,7 +43,10 @@ data class TileUiState(
     val handlesSecondaryClick: Boolean,
     val sideDrawable: Drawable?,
     val accessibilityUiState: AccessibilityUiState,
-)
+) {
+    val isToggleable: Boolean
+        get() = accessibilityUiState.toggleableState != null
+}
 
 data class AccessibilityUiState(
     val contentDescription: String,
@@ -63,12 +66,16 @@ fun QSTile.State.toUiState(resources: Resources): TileUiState {
     // State handling and description
     val stateDescription = StringBuilder()
     val stateText =
-        if (accessibilityRole == Role.Switch || state == Tile.STATE_UNAVAILABLE) {
+        if (
+            accessibilityRole == Role.Switch ||
+                state == Tile.STATE_UNAVAILABLE ||
+                handlesSecondaryClick
+        ) {
             getStateText(resources)
         } else {
             ""
         }
-    val secondaryLabel = getSecondaryLabel(stateText)
+    val secondaryLabel = getSecondaryLabel(if (state == Tile.STATE_UNAVAILABLE) stateText else "")
     if (!TextUtils.isEmpty(stateText)) {
         stateDescription.append(stateText)
     }

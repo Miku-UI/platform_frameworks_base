@@ -20,11 +20,9 @@ import android.os.Bundle
 import androidx.annotation.VisibleForTesting
 import com.android.settingslib.SignalIcon
 import com.android.settingslib.mobile.MobileMappings
-import com.android.systemui.Flags
 import com.android.systemui.KairosActivatable
 import com.android.systemui.KairosBuilder
 import com.android.systemui.activated
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoModeController
@@ -36,10 +34,13 @@ import com.android.systemui.kairos.flatMap
 import com.android.systemui.kairos.map
 import com.android.systemui.kairos.switchEvents
 import com.android.systemui.kairos.switchIncremental
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairosBuilder
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.DemoMobileConnectionsRepositoryKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.prod.MobileConnectionsRepositoryKairosImpl
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import dagger.Binds
 import dagger.Provides
 import dagger.multibindings.ElementsIntoSet
@@ -99,13 +100,17 @@ constructor(
                 demoModeController.addCallback(callback)
                 awaitClose { demoModeController.removeCallback(callback) }
             }
-            .toState(demoModeController.isInDemoMode)
+            .toState(
+                demoModeController.isInDemoMode,
+                nameTag("MobileRepositorySwitcherKairos.isDemoMode"),
+            )
     }
 
     // Convenient definition flow for the currently active repo (based on demo mode or not)
     @VisibleForTesting
     val activeRepo: State<MobileConnectionsRepositoryKairos> = buildState {
-        isDemoMode.mapLatestBuild { demoMode ->
+        isDemoMode.mapLatestBuild(nameTag("MobileRepositorySwitcherKairos.activeRepo")) { demoMode
+            ->
             if (demoMode) {
                 activated { demoRepositoryFactory.create() }
             } else {
@@ -165,7 +170,7 @@ constructor(
             fun kairosActivatable(
                 impl: Provider<MobileRepositorySwitcherKairos>
             ): Set<@JvmSuppressWildcards KairosActivatable> =
-                if (Flags.statusBarMobileIconKairos()) setOf(impl.get()) else emptySet()
+                if (StatusBarMobileIconKairos.isEnabled) setOf(impl.get()) else emptySet()
         }
     }
 }

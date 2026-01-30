@@ -19,8 +19,8 @@ package com.android.systemui.screenrecord
 import javax.inject.Qualifier
 
 /**
- * Logs for screen record events. See [com.android.systemui.screenrecord.RecordingController] and
- * [com.android.systemui.screenrecord.RecordingControllerLogger].
+ * Logs for screen record events. See [com.android.systemui.screenrecord.ScreenRecordUxController]
+ * and [com.android.systemui.screenrecord.RecordingControllerLogger].
  */
 @Qualifier
 @MustBeDocumented

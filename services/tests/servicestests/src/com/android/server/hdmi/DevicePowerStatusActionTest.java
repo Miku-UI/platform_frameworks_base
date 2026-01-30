@@ -59,6 +59,7 @@ import java.util.Collections;
 public class DevicePowerStatusActionTest {
 
     private static final int TIMEOUT_MS = HdmiConfig.TIMEOUT_MS + 1;
+    private static final int RETRY_ON_TIMEOUT = 3;
 
     private Context mContextSpy;
     private HdmiControlService mHdmiControlService;
@@ -200,10 +201,12 @@ public class DevicePowerStatusActionTest {
         mTestLooper.moveTimeForward(TIMEOUT_MS);
         mTestLooper.dispatchAll();
 
-        assertThat(mNativeWrapper.getResultMessages()).contains(expected);
-        mNativeWrapper.clearResultMessages();
-        mTestLooper.moveTimeForward(TIMEOUT_MS);
-        mTestLooper.dispatchAll();
+        for (int i = 0; i < RETRY_ON_TIMEOUT; i++) {
+            assertThat(mNativeWrapper.getResultMessages()).contains(expected);
+            mNativeWrapper.clearResultMessages();
+            mTestLooper.moveTimeForward(TIMEOUT_MS);
+            mTestLooper.dispatchAll();
+        }
 
         verify(mCallbackMock).onComplete(HdmiControlManager.POWER_STATUS_UNKNOWN);
     }

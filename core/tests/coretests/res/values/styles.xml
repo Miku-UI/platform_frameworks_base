@@ -84,5 +84,33 @@
         <item name="android:fontFeatureSettings">\"smcp\"</item>
         <item name="android:fontVariationSettings">\'wdth\' 150</item>
     </style>
+    <style name="ActionBarContextViewTheme" parent="android:Theme.NoTitleBar">
+        <item name="android:actionModeStyle">@style/ActionBarContextViewActionModeTheme</item>
+    </style>
+    <style name="ActionBarContextViewActionModeTheme">
+        <item name="android:paddingLeft">10px</item>
+        <item name="android:paddingTop">20px</item>
+        <item name="android:paddingRight">30px</item>
+        <item name="android:paddingBottom">40px</item>
+        <item name="android:height">200px</item>
+    </style>
 
+    <style name="ForceDarkAllowed" />
+    <style name="ForceDarkAllowed.Light">
+        <item name="android:isLightTheme">true</item>
+        <item name="android:forceDarkAllowed">true</item>
+    </style>
+    <style name="ForceDarkAllowed.Dark">
+        <item name="android:isLightTheme">false</item>
+        <item name="android:forceDarkAllowed">true</item>
+    </style>
+    <style name="ForceDarkAllowedFalse" />
+    <style name="ForceDarkAllowedFalse.Light">
+        <item name="android:isLightTheme">true</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
+    <style name="ForceDarkAllowedFalse.Dark">
+        <item name="android:isLightTheme">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
 </resources>

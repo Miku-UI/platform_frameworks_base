@@ -21,6 +21,7 @@ import android.view.SurfaceControl;
 import android.os.IBinder;
 import android.view.RemoteAnimationAdapter;
 import android.window.IDisplayAreaOrganizerController;
+import android.window.IMultitaskingController;
 import android.window.ITaskFragmentOrganizerController;
 import android.window.ITaskOrganizerController;
 import android.window.ITransitionMetricsReporter;
@@ -80,6 +81,9 @@ interface IWindowOrganizerController {
 
     /** @return An interface enabling the management of task fragment organizers. */
     ITaskFragmentOrganizerController getTaskFragmentOrganizerController();
+
+    /** @return An interface enabling the management of some multi-window features like Bubbles. */
+    IMultitaskingController getMultitaskingController();
 
     /**
      * Registers a transition player with Core. There is only one of these active at a time so

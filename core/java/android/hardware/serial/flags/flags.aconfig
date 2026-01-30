@@ -2,8 +2,8 @@ package: "android.hardware.serial.flags"
 container: "system"
 
 flag {
-    name: "enable_serial_api"
-    namespace: "serial"
+    name: "enable_wired_serial_api"
+    namespace: "web_apps_on_chromeos_and_android"
     description: "Feature flag to enable serial API"
     bug: "369155426"
     is_exported: true

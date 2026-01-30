@@ -1,0 +1,11 @@
+# This file contains tests that we want to skip in "run-ravenwood-tests.sh -s"
+
+# These tests are too slow
+SystemUiRavenTests
+CtsIcuTestCasesRavenwood
+CarSystemUIRavenTests
+
+# These tests break too often
+PowerStatsTestsRavenwood
+CarServiceHostUnitTest
+CarLibHostUnitTest

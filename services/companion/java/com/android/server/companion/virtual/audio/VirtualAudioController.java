@@ -23,6 +23,7 @@ import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.companion.virtual.audio.IAudioConfigChangedCallback;
 import android.companion.virtual.audio.IAudioRoutingCallback;
+import android.companion.virtual.audio.VirtualAudioDevice;
 import android.content.AttributionSource;
 import android.content.Context;
 import android.media.AudioManager;
@@ -37,8 +38,6 @@ import android.util.Slog;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.modules.expresslog.Counter;
-import com.android.server.companion.virtual.GenericWindowPolicyController;
-import com.android.server.companion.virtual.GenericWindowPolicyController.RunningAppsChangedListener;
 import com.android.server.companion.virtual.audio.AudioPlaybackDetector.AudioPlaybackCallback;
 import com.android.server.companion.virtual.audio.AudioRecordingDetector.AudioRecordingCallback;
 
@@ -50,8 +49,7 @@ import java.util.List;
  * running applications and playback configuration changes in order to correctly re-route audio and
  * then notify clients of these changes.
  */
-public final class VirtualAudioController implements AudioPlaybackCallback,
-        AudioRecordingCallback, RunningAppsChangedListener {
+public final class VirtualAudioController implements AudioPlaybackCallback, AudioRecordingCallback {
     private static final String TAG = "VirtualAudioController";
     private static final int UPDATE_REROUTING_APPS_DELAY_MS = 2000;
 
@@ -62,10 +60,11 @@ public final class VirtualAudioController implements AudioPlaybackCallback,
     private final AudioRecordingDetector mAudioRecordingDetector;
     private final Object mLock = new Object();
     @GuardedBy("mLock")
+    private boolean mListening = false;
+    @GuardedBy("mLock")
     private final ArraySet<Integer> mRunningAppUids = new ArraySet<>();
     @GuardedBy("mLock")
     private ArraySet<Integer> mPlayingAppUids = new ArraySet<>();
-    private GenericWindowPolicyController mGenericWindowPolicyController;
     private final Object mCallbackLock = new Object();
     @GuardedBy("mCallbackLock")
     private IAudioRoutingCallback mRoutingCallback;
@@ -87,16 +86,17 @@ public final class VirtualAudioController implements AudioPlaybackCallback,
      * for audio capture and injection.
      */
     public void startListening(
-            @NonNull GenericWindowPolicyController genericWindowPolicyController,
             @NonNull IAudioRoutingCallback routingCallback,
             @Nullable IAudioConfigChangedCallback configChangedCallback) {
-        mGenericWindowPolicyController = genericWindowPolicyController;
-        mGenericWindowPolicyController.registerRunningAppsChangedListener(/* listener= */ this);
         synchronized (mCallbackLock) {
             mRoutingCallback = routingCallback;
             mConfigChangedCallback = configChangedCallback;
         }
         synchronized (mLock) {
+            if (mListening) {
+                Slog.e(TAG, "Already listening to running applications");
+            }
+            mListening = true;
             mRunningAppUids.clear();
             mPlayingAppUids.clear();
         }
@@ -111,25 +111,26 @@ public final class VirtualAudioController implements AudioPlaybackCallback,
      * for audio capture and injection.
      */
     public void stopListening() {
+        synchronized (mLock) {
+            mListening = false;
+        }
         if (mHandler.hasCallbacks(mUpdateAudioRoutingRunnable)) {
             mHandler.removeCallbacks(mUpdateAudioRoutingRunnable);
         }
         mAudioPlaybackDetector.unregister();
         mAudioRecordingDetector.unregister();
-        if (mGenericWindowPolicyController != null) {
-            mGenericWindowPolicyController.unregisterRunningAppsChangedListener(
-                    /* listener= */ this);
-            mGenericWindowPolicyController = null;
-        }
         synchronized (mCallbackLock) {
             mRoutingCallback = null;
             mConfigChangedCallback = null;
         }
     }
 
-    @Override
-    public void onRunningAppsChanged(ArraySet<Integer> runningUids) {
+    /** Updates the set of tracked UIDs. */
+    public void onRunningAppsChanged(@NonNull ArraySet<Integer> runningUids) {
         synchronized (mLock) {
+            if (!mListening) {
+                return;
+            }
             if (mRunningAppUids.equals(runningUids)) {
                 // Ignore no-op events.
                 return;

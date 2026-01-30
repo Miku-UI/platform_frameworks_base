@@ -30,7 +30,10 @@ import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.qs.tileimpl.QSTileImpl.ResourceIcon
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.connectivity.WifiIcons
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
+import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.airplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.data.repository.fake
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.ethernet.domain.EthernetInteractor
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
@@ -40,7 +43,8 @@ import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIc
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractorImpl
 import com.android.systemui.statusbar.pipeline.mobile.util.FakeMobileMappingsProxy
 import com.android.systemui.statusbar.pipeline.shared.data.model.DefaultConnectionModel
-import com.android.systemui.statusbar.pipeline.shared.data.repository.FakeConnectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
 import com.android.systemui.statusbar.pipeline.shared.ui.model.SignalIcon
 import com.android.systemui.statusbar.pipeline.shared.ui.viewmodel.InternetTileViewModel.Companion.NOT_CONNECTED_NETWORKS_UNAVAILABLE
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.FakeWifiRepository
@@ -51,13 +55,15 @@ import com.android.systemui.statusbar.pipeline.wifi.ui.model.WifiIcon
 import com.android.systemui.statusbar.policy.data.repository.FakeUserSetupRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.util.CarrierConfigTracker
-import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -67,8 +73,9 @@ class InternetTileViewModelTest : SysuiTestCase() {
     private lateinit var underTest: InternetTileViewModel
     private lateinit var mobileIconsInteractor: MobileIconsInteractor
 
-    private val airplaneModeRepository = FakeAirplaneModeRepository()
-    private val connectivityRepository = FakeConnectivityRepository()
+    private val airplaneModeRepository = kosmos.airplaneModeRepository.fake
+    private val airplaneModeInteractor = kosmos.airplaneModeInteractor
+    private val connectivityRepository = kosmos.connectivityRepository.fake
     private val ethernetInteractor = EthernetInteractor(connectivityRepository)
     private val wifiRepository = FakeWifiRepository()
     private val userSetupRepo = FakeUserSetupRepository()
@@ -84,6 +91,8 @@ class InternetTileViewModelTest : SysuiTestCase() {
     private val mobileConnectionRepository =
         FakeMobileConnectionRepository(SUB_1_ID, tableLogBuffer)
 
+    private val mobileContextProvider = mock<MobileContextProvider>()
+
     private val flags =
         FakeFeatureFlagsClassic().also {
             it.set(Flags.FILTER_PROVISIONING_NETWORK_SUBSCRIPTIONS, true)
@@ -93,6 +102,8 @@ class InternetTileViewModelTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
+        whenever(mobileContextProvider.getMobileContextForSub(any(), any())).thenReturn(context)
+
         mobileConnectionRepository.apply {
             setNetworkTypeKey(mobileConnectionsRepository.GSM_KEY)
             isInService.value = true
@@ -120,10 +131,11 @@ class InternetTileViewModelTest : SysuiTestCase() {
 
         underTest =
             InternetTileViewModel(
-                airplaneModeRepository,
+                airplaneModeInteractor,
                 connectivityRepository,
                 ethernetInteractor,
                 mobileIconsInteractor,
+                mobileContextProvider,
                 wifiInteractor,
                 context,
                 testScope.backgroundScope,
@@ -153,11 +165,7 @@ class InternetTileViewModelTest : SysuiTestCase() {
         testScope.runTest {
             val latest by collectLastValue(underTest.tileModel)
 
-            val networkModel =
-                WifiNetworkModel.Active.of(
-                    level = 4,
-                    ssid = "test ssid",
-                )
+            val networkModel = WifiNetworkModel.Active.of(level = 4, ssid = "test ssid")
             val wifiIcon =
                 WifiIcon.fromModel(model = networkModel, context = context, showHotspotInfo = false)
                     as WifiIcon.Visible
@@ -390,11 +398,7 @@ class InternetTileViewModelTest : SysuiTestCase() {
 
     private fun setWifiNetworkWithHotspot(hotspot: WifiNetworkModel.HotspotDeviceType) {
         val networkModel =
-            WifiNetworkModel.Active.of(
-                level = 4,
-                ssid = "test ssid",
-                hotspotDeviceType = hotspot,
-            )
+            WifiNetworkModel.Active.of(level = 4, ssid = "test ssid", hotspotDeviceType = hotspot)
 
         connectivityRepository.setWifiConnected()
         wifiRepository.setIsWifiDefault(true)

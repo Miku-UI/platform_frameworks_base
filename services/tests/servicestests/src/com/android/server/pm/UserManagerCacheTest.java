@@ -115,7 +115,6 @@ public final class UserManagerCacheTest {
 
     @MediumTest
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_CACHE_USER_INFO_READ_ONLY)
     public void testUserInfoAfterLocaleChange() throws Exception {
         UserInfo userInfo = mUserManager.createGuest(mContext);
         mUsersToRemove.add(userInfo.id);
@@ -144,7 +143,6 @@ public final class UserManagerCacheTest {
 
     @MediumTest
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_CACHE_USER_INFO_READ_ONLY)
     public void testGetUserInfo10kSpam() throws Exception {
         UserInfo cachedUserInfo = mUserManager.getUserInfo(mOriginalCurrentUserId);
         for (int i = 0; i < 10000; i++) {
@@ -160,7 +158,6 @@ public final class UserManagerCacheTest {
 
     @MediumTest
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_CACHE_USER_INFO_READ_ONLY)
     public void testSetUserAdmin() throws Exception {
         UserInfo userInfo = mUserManager.createUser("SecondaryUser",
                 UserManager.USER_TYPE_FULL_SECONDARY, /*flags=*/ 0);
@@ -182,7 +179,6 @@ public final class UserManagerCacheTest {
 
     @MediumTest
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_CACHE_USER_INFO_READ_ONLY)
     public void testRevokeUserAdmin() throws Exception {
         UserInfo userInfo = mUserManager.createUser("Admin",
                 UserManager.USER_TYPE_FULL_SECONDARY, /*flags=*/ UserInfo.FLAG_ADMIN);
@@ -202,7 +198,6 @@ public final class UserManagerCacheTest {
 
     @MediumTest
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_CACHE_USER_INFO_READ_ONLY)
     public void testRevokeUserAdminFromNonAdmin() throws Exception {
         UserInfo userInfo = mUserManager.createUser("NonAdmin",
                 UserManager.USER_TYPE_FULL_SECONDARY, /*flags=*/ 0);
@@ -223,7 +218,6 @@ public final class UserManagerCacheTest {
 
     @MediumTest
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_CACHE_USER_INFO_READ_ONLY)
     public void testSetUserName_withContextUserId() throws Exception {
         assumeManagedUsersSupported();
         final String newName = "Managed_user 1";

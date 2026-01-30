@@ -67,7 +67,7 @@ public class TabHost extends FrameLayout implements ViewTreeObserver.OnTouchMode
     private List<TabSpec> mTabSpecs = new ArrayList<TabSpec>(2);
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(trackingBug = 137825207, maxTargetSdk = Build.VERSION_CODES.Q,
             publicAlternatives = "Use {@code androidx.viewpager.widget.ViewPager} and "
@@ -78,7 +78,7 @@ public class TabHost extends FrameLayout implements ViewTreeObserver.OnTouchMode
     private View mCurrentView = null;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     protected LocalActivityManager mLocalActivityManager = null;
     @UnsupportedAppUsage(trackingBug = 137825207, maxTargetSdk = Build.VERSION_CODES.Q,

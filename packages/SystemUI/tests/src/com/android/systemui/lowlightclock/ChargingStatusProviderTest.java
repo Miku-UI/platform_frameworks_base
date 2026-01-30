@@ -26,16 +26,22 @@ import static org.mockito.Mockito.when;
 import android.content.res.Resources;
 import android.os.BatteryManager;
 import android.os.RemoteException;
-import android.testing.AndroidTestingRunner;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.app.IBatteryStats;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.settingslib.fuelgauge.BatteryStatus;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
+import com.android.systemui.statusbar.KeyguardIndicationController;
+
+import dagger.Lazy;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +51,7 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 @SmallTest
-@RunWith(AndroidTestingRunner.class)
+@RunWith(AndroidJUnit4.class)
 public class ChargingStatusProviderTest extends SysuiTestCase {
     @Mock
     private Resources mResources;
@@ -53,6 +59,10 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     private IBatteryStats mBatteryInfo;
     @Mock
     private KeyguardUpdateMonitor mKeyguardUpdateMonitor;
+    @Mock
+    private Lazy<KeyguardIndicationController> mKeyguardIndicationControllerLazy;
+    @Mock
+    private KeyguardIndicationController mKeyguardIndicationController;
     @Mock
     private ChargingStatusProvider.Callback mCallback;
 
@@ -62,8 +72,13 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     public void setup() {
         MockitoAnnotations.initMocks(this);
 
+        when(mKeyguardIndicationControllerLazy.get()).thenReturn(mKeyguardIndicationController);
         mProvider = new ChargingStatusProvider(
-                mContext, mResources, mBatteryInfo, mKeyguardUpdateMonitor);
+                mContext,
+                mResources,
+                mBatteryInfo,
+                mKeyguardUpdateMonitor,
+                mKeyguardIndicationControllerLazy);
     }
 
     @Test
@@ -143,6 +158,7 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
     public void testChargingStatusReportsChargingLimitedWhenOverheated() {
         ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
                 ArgumentCaptor.forClass(KeyguardUpdateMonitorCallback.class);
@@ -156,6 +172,7 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
     public void testChargingStatusReportsChargedWhenCharged() {
         ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
                 ArgumentCaptor.forClass(KeyguardUpdateMonitorCallback.class);
@@ -169,6 +186,7 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
     public void testChargingStatusReportsPluggedInWhenDockedAndChargingTimeUnknown() throws
             RemoteException {
         ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
@@ -185,6 +203,7 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
     public void testChargingStatusReportsTimeRemainingWhenDockedAndCharging() throws
             RemoteException {
         ArgumentCaptor<KeyguardUpdateMonitorCallback> keyguardUpdateMonitorCallbackArgumentCaptor =
@@ -198,6 +217,14 @@ public class ChargingStatusProviderTest extends SysuiTestCase {
                 .onRefreshBatteryInfo(getChargingBattery());
         verify(mResources).getString(
                 eq(R.string.keyguard_indication_charging_time_dock), any(), any());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LOWLIGHT_CLOCK_USES_KEYGUARD_CHARGING_STATUS)
+    public void testAsksKeyguardForChargingStatusWhenFlagEnabled() {
+        mProvider.startUsing(mCallback);
+        verify(mCallback).onChargingStatusChanged(false, null);
+        verify(mKeyguardIndicationController).getPowerChargingString();
     }
 
     private BatteryStatus getUnpluggedBattery() {

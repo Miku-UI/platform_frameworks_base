@@ -35,7 +35,9 @@ class RecoverableKeyStoreDbHelper extends SQLiteOpenHelper {
 
     // v6 - added user id serial number.
     // v7 - added bad guess counter for remote LSKF check;
+    // v8 - added field to store LSKF salt.
     static final int DATABASE_VERSION_7 = 7;
+    static final int DATABASE_VERSION_8 = 8;
     private static final String DATABASE_NAME = "recoverablekeystore.db";
 
     private static final String SQL_CREATE_KEYS_ENTRY =
@@ -69,6 +71,16 @@ class RecoverableKeyStoreDbHelper extends SQLiteOpenHelper {
                     + UserMetadataEntry.COLUMN_NAME_USER_SERIAL_NUMBER + " INTEGER DEFAULT -1,"
                     + UserMetadataEntry.COLUMN_NAME_BAD_REMOTE_GUESS_COUNTER
                     + " INTEGER DEFAULT 0)";
+
+    private static final String SQL_CREATE_USER_METADATA_ENTRY_FOR_V8 =
+            "CREATE TABLE " + UserMetadataEntry.TABLE_NAME + "( "
+                    + UserMetadataEntry._ID + " INTEGER PRIMARY KEY,"
+                    + UserMetadataEntry.COLUMN_NAME_USER_ID + " INTEGER UNIQUE,"
+                    + UserMetadataEntry.COLUMN_NAME_PLATFORM_KEY_GENERATION_ID + " INTEGER,"
+                    + UserMetadataEntry.COLUMN_NAME_USER_SERIAL_NUMBER + " INTEGER DEFAULT -1,"
+                    + UserMetadataEntry.COLUMN_NAME_BAD_REMOTE_GUESS_COUNTER
+                    + " INTEGER DEFAULT 0,"
+                    + UserMetadataEntry.COLUMN_NAME_LSKF_SALT + " BLOB)";
 
     private static final String SQL_CREATE_RECOVERY_SERVICE_METADATA_ENTRY =
             "CREATE TABLE " + RecoveryServiceMetadataEntry.TABLE_NAME + " ("
@@ -118,13 +130,13 @@ class RecoverableKeyStoreDbHelper extends SQLiteOpenHelper {
     }
 
     private static int getDbVersion(Context context) {
-        return DATABASE_VERSION_7;
+        return DATABASE_VERSION_8;
     }
 
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(SQL_CREATE_KEYS_ENTRY);
-        db.execSQL(SQL_CREATE_USER_METADATA_ENTRY_FOR_V7);
+        db.execSQL(SQL_CREATE_USER_METADATA_ENTRY_FOR_V8);
         db.execSQL(SQL_CREATE_RECOVERY_SERVICE_METADATA_ENTRY);
         db.execSQL(SQL_CREATE_ROOT_OF_TRUST_ENTRY);
     }
@@ -173,8 +185,13 @@ class RecoverableKeyStoreDbHelper extends SQLiteOpenHelper {
                 }
                 oldVersion = 7;
             }
+            if (oldVersion < 8 && newVersion >= 8) {
+                upgradeDbForVersion8(db);
+                oldVersion = 8;
+            }
         } catch (SQLiteException e) {
-            Log.e(TAG, "Recreating recoverablekeystore after unexpected upgrade error.", e);
+            Log.e(TAG, "Recreating recoverablekeystore database after unexpected upgrade error.",
+                    e);
             dropAllKnownTables(db); // Wipe database.
             onCreate(db);
             return;
@@ -232,6 +249,12 @@ class RecoverableKeyStoreDbHelper extends SQLiteOpenHelper {
                 UserMetadataEntry.COLUMN_NAME_BAD_REMOTE_GUESS_COUNTER,
                 "INTEGER DEFAULT 0",
                  /*defaultStr=*/ null);
+    }
+
+    private void upgradeDbForVersion8(SQLiteDatabase db) {
+        Log.d(TAG, "Updating recoverable keystore database to version 8");
+        addColumnToTable(db, UserMetadataEntry.TABLE_NAME,
+                UserMetadataEntry.COLUMN_NAME_LSKF_SALT, "BLOB", /*defaultStr=*/ null);
     }
 
     private static void addColumnToTable(

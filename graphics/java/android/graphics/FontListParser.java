@@ -309,6 +309,12 @@ public class FontListParser {
             @Nullable Map<String, File> updatableFontMap, boolean allowNonExistingFile)
             throws XmlPullParserException, IOException {
         final String name = parser.getAttributeValue(null, "name");
+        final String fallback;
+        if (com.android.text.flags.Flags.customFallbackForCustomization()) {
+            fallback = parser.getAttributeValue(null, "fallback");
+        } else {
+            fallback = null;
+        }
         throwIfAttributeExists("lang", parser);
         throwIfAttributeExists("variant", parser);
         throwIfAttributeExists("ignore", parser);
@@ -318,7 +324,7 @@ public class FontListParser {
         if (family == null) {
             return null;
         }
-        return new NamedFamilyList(Collections.singletonList(family), name);
+        return new NamedFamilyList(Collections.singletonList(family), name, fallback);
     }
 
     /**
@@ -329,6 +335,12 @@ public class FontListParser {
             @Nullable Map<String, File> updatableFontMap, boolean allowNonExistingFile)
             throws XmlPullParserException, IOException {
         final String name = parser.getAttributeValue(null, "name");
+        final String fallback;
+        if (com.android.text.flags.Flags.customFallbackForCustomization()) {
+            fallback = parser.getAttributeValue(null, "fallback");
+        } else {
+            fallback = null;
+        }
         final List<FontConfig.FontFamily> familyList = new ArrayList<>();
         while (keepReading(parser)) {
             if (parser.getEventType() != XmlPullParser.START_TAG) continue;
@@ -352,7 +364,7 @@ public class FontListParser {
         if (familyList.isEmpty()) {
             return null;
         }
-        return new FontConfig.NamedFamilyList(familyList, name);
+        return new FontConfig.NamedFamilyList(familyList, name, fallback);
     }
 
     /** Matches leading and trailing XML whitespace. */

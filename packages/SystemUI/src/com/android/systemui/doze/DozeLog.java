@@ -20,6 +20,7 @@ import static android.os.PowerManager.WAKE_REASON_BIOMETRIC;
 import static android.os.PowerManager.WAKE_REASON_GESTURE;
 import static android.os.PowerManager.WAKE_REASON_LIFT;
 import static android.os.PowerManager.WAKE_REASON_PLUGGED_IN;
+import static android.os.PowerManager.WAKE_REASON_POWER_BUTTON;
 import static android.os.PowerManager.WAKE_REASON_TAP;
 
 import android.annotation.IntDef;
@@ -33,6 +34,7 @@ import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.systemui.Dumpable;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dump.DumpManager;
+import com.android.systemui.keyguard.shared.model.FingerprintAuthenticationStatus;
 import com.android.systemui.statusbar.policy.DevicePostureController;
 
 import com.google.errorprone.annotations.CompileTimeConstant;
@@ -278,6 +280,26 @@ public class DozeLog implements Dumpable {
         mProxStats[reason][near ? 0 : 1].append();
     }
 
+    /**
+     * Appends usudfps screen-off pulse event to the logs.
+     * @param state the state while usudfps screen-off pulse event raised.
+     */
+    public void traceUltrasonicScreenOffPulseEvent(FingerprintAuthenticationStatus state) {
+        if (state == null) return;
+        mLogger.logUltrasonicScreenOffPulseEvent(state);
+    }
+
+    /**
+     * Appends fingerprint screen-off pulse event to the logs.
+     * @param state the authentication state that caused the pulse request
+     * @param failureCount number of fingerprint failures during this AOD session
+     */
+    public void traceFingerprintScreenOffPulseEvent(FingerprintAuthenticationStatus state,
+            int failureCount) {
+        if (state == null) return;
+        mLogger.logFingerprintScreenOffPulseEvent(state, failureCount);
+    }
+
     @Override
     public void dump(@NonNull PrintWriter pw, @NonNull String[] args) {
         synchronized (DozeLog.class) {
@@ -370,20 +392,6 @@ public class DozeLog implements Dumpable {
     }
 
     /**
-     * Logs the car mode started event.
-     */
-    public void traceCarModeStarted() {
-        mLogger.logCarModeStarted();
-    }
-
-    /**
-     * Logs the car mode ended event.
-     */
-    public void traceCarModeEnded() {
-        mLogger.logCarModeEnded();
-    }
-
-    /**
      * Appends power save changes that may cause a new doze state
      * @param powerSaveActive true if power saving is active
      * @param nextState the state that we'll transition to
@@ -403,23 +411,13 @@ public class DozeLog implements Dumpable {
 
     /**
      * Appends new AOD screen brightness to logs
-     * @param brightness display brightness setting between 1 and 255
-     * @param afterRequest whether the request has successfully been sent else false for it's
-     *                        about to be requested
-     */
-    public void traceDozeScreenBrightness(int brightness, boolean afterRequest) {
-        mLogger.logDozeScreenBrightness(brightness, afterRequest);
-    }
-
-    /**
-     * Appends new AOD screen brightness to logs
      * @param brightness display brightness setting between {@link PowerManager#BRIGHTNESS_MIN} and
      *                   {@link PowerManager#BRIGHTNESS_MAX}
      * @param afterRequest whether the request has successfully been sent else false for it's
      *                        about to be requested
      */
-    public void traceDozeScreenBrightnessFloat(float brightness, boolean afterRequest) {
-        mLogger.logDozeScreenBrightnessFloat(brightness, afterRequest);
+    public void traceDozeScreenBrightness(float brightness, boolean afterRequest) {
+        mLogger.logDozeScreenBrightness(brightness, afterRequest);
     }
 
     /**
@@ -427,7 +425,15 @@ public class DozeLog implements Dumpable {
     * @param scrimOpacity
      */
     public void traceSetAodDimmingScrim(float scrimOpacity) {
-        mLogger.logSetAodDimmingScrim((long) scrimOpacity);
+        mLogger.logSetAodDimmingScrim(scrimOpacity);
+    }
+
+    /**
+     * Appends new AOD wallpaper dimming scrim opacity to logs
+     * @param scrimOpacity
+     */
+    public void traceSetAodWallpaperDimmingScrim(float scrimOpacity) {
+        mLogger.logSetAodWallpaperDimmingScrim(scrimOpacity);
     }
 
     /**
@@ -539,6 +545,9 @@ public class DozeLog implements Dumpable {
             case REASON_SENSOR_UDFPS_LONG_PRESS: return "udfps";
             case REASON_SENSOR_QUICK_PICKUP: return "quickPickup";
             case PULSE_REASON_FINGERPRINT_ACTIVATED: return "fingerprint-triggered";
+            case PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI: return "fingerprint-pulse-auth-ui";
+            case PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI: return "fingerprint-pulse-full-ui";
+            case PULSE_REASON_MINMODE: return "minmode";
             default: throw new IllegalArgumentException("invalid reason: " + pulseReason);
         }
     }
@@ -557,6 +566,8 @@ public class DozeLog implements Dumpable {
                 return WAKE_REASON_BIOMETRIC;
             case PULSE_REASON_DOCKING:
                 return WAKE_REASON_PLUGGED_IN;
+            case PULSE_REASON_MINMODE:
+                return WAKE_REASON_POWER_BUTTON;
             default:
                 return WAKE_REASON_GESTURE;
         }
@@ -567,8 +578,11 @@ public class DozeLog implements Dumpable {
             PULSE_REASON_SENSOR_SIGMOTION, REASON_SENSOR_PICKUP, REASON_SENSOR_DOUBLE_TAP,
             PULSE_REASON_SENSOR_LONG_PRESS, PULSE_REASON_DOCKING, REASON_SENSOR_WAKE_UP_PRESENCE,
             PULSE_REASON_SENSOR_WAKE_REACH, REASON_SENSOR_TAP,
-            REASON_SENSOR_UDFPS_LONG_PRESS, REASON_SENSOR_QUICK_PICKUP,
-            PULSE_REASON_FINGERPRINT_ACTIVATED
+            PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI,
+            PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI,
+            REASON_SENSOR_UDFPS_LONG_PRESS,
+            REASON_SENSOR_QUICK_PICKUP,
+            PULSE_REASON_FINGERPRINT_ACTIVATED, PULSE_REASON_MINMODE
     })
     public @interface Reason {}
     public static final int PULSE_REASON_NONE = -1;
@@ -585,6 +599,9 @@ public class DozeLog implements Dumpable {
     public static final int REASON_SENSOR_UDFPS_LONG_PRESS = 10;
     public static final int REASON_SENSOR_QUICK_PICKUP = 11;
     public static final int PULSE_REASON_FINGERPRINT_ACTIVATED = 12;
+    public static final int PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI = 13;
+    public static final int PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI = 14;
+    public static final int PULSE_REASON_MINMODE = 15;
 
-    public static final int TOTAL_REASONS = 13;
+    public static final int TOTAL_REASONS = 16;
 }

@@ -77,9 +77,7 @@ class SettingsScreenshotTestRule(
         // correctly.
         composeRule.setContent {
             SettingsTheme {
-                Surface(
-                    color = MaterialTheme.colorScheme.background,
-                ) {
+                Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
                     content()
                 }
             }

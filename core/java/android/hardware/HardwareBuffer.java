@@ -71,6 +71,14 @@ public final class HardwareBuffer implements Parcelable, AutoCloseable {
             R_16,
             RG_1616,
             RGBA_10101010,
+            R_12,
+            R_14,
+            RG_1212,
+            RG_1414,
+            RGBA_12121212,
+            RGBA_14141414,
+            BGRA_1010102,
+            BGRX_1010102,
     })
     public @interface Format {
     }
@@ -142,6 +150,87 @@ public final class HardwareBuffer implements Parcelable, AutoCloseable {
     /** Format: 10 bits each red, green, blue, alpha */
     @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_V)
     public static final int RGBA_10101010 = 0x3b;
+    /**
+     * 16 bit format with a single 12-bit component. The format is 16 bits
+     * unsigned integer that has 12 bits of R component in the top 12 bits
+     * of the 16-bit word with the bottom 4 bits unused.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_12_14)
+    public static final int R_12 = 0x3d;
+     /**
+     * 16 bit format with a single 14-bit component. The format is 16-bit
+     * unsigned integer that has 14 bits of R component in the top 14 bits
+     * of the 16-bit word with the bottom 2 bits unused.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_12_14)
+    public static final int R_14 = 0x3e;
+    /**
+     * 32-bit format that has 12-bit R and G components, in that order,
+     * from the lowest memory address to the highest memory address. The
+     * format is 32-bit unsigned integer that has a 12-bit R component
+     * in the top 12 bits of the word in bytes 0..1, and a 12-bit G
+     * component in the top 12 bits of the word in bytes 2..3, with the
+     * bottom 4 bits of each word unused.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_12_14)
+    public static final int RG_1212 = 0x3f;
+    /**
+     * 32-bit format that has 14-bit R and G components, in that order,
+     * from the lowest memory address to the highest memory address. The
+     * format is 32-bit unsigned integer that has a 14-bit R component
+     * in the top 14 bits of the word in bytes 0..1, and a 14-bit G
+     * component in the top 14 bits of the word in bytes 2..3, with the
+     * bottom 2 bits of each word unused.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_12_14)
+    public static final int RG_1414 = 0x40;
+    /**
+     * 64-bit format that has 12-bit R, G, B, and A components, in that order,
+     * from the lowest memory address to the highest memory address. The
+     * format is 64-bit unsigned integer that has a 12-bit R component in
+     * the top 12 bits of the word in bytes 0..1, a 12-bit G component in
+     * the top 12 bits of the word in bytes 2..3, a 12-bit B component in
+     * the top 12 bits of the word in bytes 4..5, and a 12-bit A component
+     * in the top 12 bits of the word in bytes 6..7, with the bottom 4 bits
+     * of each word unused.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_12_14)
+    public static final int RGBA_12121212 = 0x41;
+    /**
+     * 64-bit format that has 14-bit R, G, B, and A components, in that order,
+     * from the lowest memory address to the highest memory address. The
+     * format is 64-bit unsigned integer that has a 14-bit R component in
+     * the top 14 bits of the word in bytes 0..1, a 14-bit G component in
+     * the top 14 bits of the word in bytes 2..3, a 14-bit B component in
+     * the top 14 bits of the word in bytes 4..5, and a 14-bit A component
+     * in the top 14 bits of the word in bytes 6..7, with the bottom 2 bits
+     * of each word unused.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_12_14)
+    public static final int RGBA_14141414 = 0x42;
+
+/**
+     * 32-bit packed format that has 2-bit A, 10-bit R, G, and B components,
+     * in that order, from the most-significant bits to the least-significant
+     * bits.
+     *
+     * The component values are unsigned normalized to the range [0, 1], whose
+     * interpretation is defined by the dataspace.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_BGRA_1010102)
+    public static final int BGRA_1010102 = 0x43;
+
+    /**
+     * 32-bit packed format that has 2-bit unused, 10-bit R, G, and B components,
+     * in that order, from the most-significant bits to the least-significant
+     * bits.
+     *
+     * The component values are unsigned normalized to the range [0, 1], whose
+     * interpretation is defined by the dataspace.
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_REQUESTED_FORMATS_BGRA_1010102)
+    public static final int BGRX_1010102 = 0x44;
+
 
     // Note: do not rename, this field is used by native code
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)

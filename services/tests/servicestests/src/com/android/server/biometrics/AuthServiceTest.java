@@ -17,9 +17,9 @@
 package com.android.server.biometrics;
 
 import static android.Manifest.permission.MANAGE_BIOMETRIC;
+import static android.Manifest.permission.SET_BIOMETRIC_DIALOG_ADVANCED;
 import static android.Manifest.permission.TEST_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
-import static android.adaptiveauth.Flags.FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS;
 import static android.hardware.biometrics.BiometricAuthenticator.TYPE_NONE;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_ERROR_CANCELED;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_SUCCESS;
@@ -35,6 +35,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -44,6 +45,7 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.hardware.biometrics.AuthenticationStateListener;
+import android.hardware.biometrics.BiometricEnrollmentStatusInternal;
 import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.IBiometricEnabledOnKeyguardCallback;
 import android.hardware.biometrics.IBiometricService;
@@ -102,7 +104,8 @@ public class AuthServiceTest {
     public final CheckFlagsRule mCheckFlagsRule =
             DeviceFlagsValueProvider.createCheckFlagsRule();
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     private Context mContext;
@@ -471,7 +474,6 @@ public class AuthServiceTest {
 
     @Test
     public void testRegisterAuthenticationStateListener_callsFaceService() throws Exception {
-        mSetFlagsRule.enableFlags(FLAG_REPORT_BIOMETRIC_AUTH_ATTEMPTS);
         setInternalAndTestBiometricPermissions(mContext, true /* hasPermission */);
 
         mAuthService = new AuthService(mContext, mInjector);
@@ -519,18 +521,124 @@ public class AuthServiceTest {
         verify(mBiometricService).getLastAuthenticationTime(eq(mUserId), eq(authenticators));
     }
 
+    @Test
+    public void testGetEnrollmentStatus_throwsSecurityException() throws Exception {
+        setInternalAndTestBiometricPermissions(mContext, false /* hasPermission */);
+        setSensorProperties();
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+
+        assertThrows(SecurityException.class, () -> {
+            mAuthService.mImpl.getEnrollmentStatusList(mUserId, TEST_OP_PACKAGE_NAME);
+        });
+    }
+
+    @Test
+    public void testGetEnrollmentStatus_callsFingerprintAndFaceService() throws Exception {
+        setInternalAndTestBiometricPermissions(mContext, true /* hasPermission */);
+        setSensorProperties();
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+
+        final List<BiometricEnrollmentStatusInternal> statusList =
+                mAuthService.mImpl.getEnrollmentStatusList(mUserId, TEST_OP_PACKAGE_NAME);
+
+        waitForIdle();
+        assertEquals(BiometricManager.Authenticators.BIOMETRIC_STRONG, statusList.get(
+                0).getStatus().getStrength());
+        assertEquals(BiometricManager.Authenticators.BIOMETRIC_CONVENIENCE, statusList.get(
+                1).getStatus().getStrength());
+
+        verify(mFaceService).getEnrolledFaces(eq(0), eq(mUserId), eq(TEST_OP_PACKAGE_NAME));
+        verify(mFingerprintService).getEnrolledFingerprints(eq(mUserId), eq(TEST_OP_PACKAGE_NAME),
+                eq("tag"));
+    }
+
+    @Test
+    public void testGetEnrollmentStatus_withNonCallingId_throwsSecurityException()
+            throws Exception {
+        setInternalAndTestBiometricPermissions(mContext, true /* hasPermission */);
+        setPermission(mContext, USE_BIOMETRIC_INTERNAL, false /* hasPermission */);
+
+        final @UserIdInt int nonCallingId = UserHandle.MIN_SECONDARY_USER_ID + 1;
+        setSensorProperties();
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+
+        assertThrows(SecurityException.class, () -> {
+            mAuthService.mImpl.getEnrollmentStatusList(nonCallingId, TEST_OP_PACKAGE_NAME);
+        });
+    }
+
+    @Test
+    public void testGetEnrollmentStatus_withNonCallingId_callsFingerprintAndFaceService()
+            throws Exception {
+        setInternalAndTestBiometricPermissions(mContext, true /* hasPermission */);
+        final @UserIdInt int nonCallingId = UserHandle.MIN_SECONDARY_USER_ID + 1;
+        setSensorProperties();
+        mAuthService = new AuthService(mContext, mInjector);
+        mAuthService.onStart();
+
+        final List<BiometricEnrollmentStatusInternal> statusList =
+                mAuthService.mImpl.getEnrollmentStatusList(nonCallingId, TEST_OP_PACKAGE_NAME);
+
+        waitForIdle();
+        assertEquals(BiometricManager.Authenticators.BIOMETRIC_STRONG, statusList.get(
+                0).getStatus().getStrength());
+        assertEquals(BiometricManager.Authenticators.BIOMETRIC_CONVENIENCE, statusList.get(
+                1).getStatus().getStrength());
+
+        verify(mFaceService, times(0)).getEnrolledFaces(eq(0), eq(mUserId),
+                eq(TEST_OP_PACKAGE_NAME));
+        verify(mFingerprintService, times(0)).getEnrolledFingerprints(eq(mUserId),
+                eq(TEST_OP_PACKAGE_NAME), eq("tag"));
+        verify(mFaceService).getEnrolledFaces(eq(0), eq(nonCallingId),
+                eq(TEST_OP_PACKAGE_NAME));
+        verify(mFingerprintService).getEnrolledFingerprints(eq(nonCallingId),
+                eq(TEST_OP_PACKAGE_NAME), eq("tag"));
+    }
+
+    private void setSensorProperties() throws Exception {
+        List<FaceSensorPropertiesInternal> faceProps = List.of(new FaceSensorPropertiesInternal(
+                0 /* id */,
+                FaceSensorProperties.STRENGTH_CONVENIENCE,
+                1 /* maxTemplatesAllowed */,
+                new ArrayList<>() /* componentInfo */,
+                FaceSensorProperties.TYPE_UNKNOWN,
+                true /* supportsFaceDetection */,
+                true /* supportsSelfIllumination */,
+                false /* resetLockoutRequiresChallenge */));
+        List<FingerprintSensorPropertiesInternal> fpProps = List.of(
+                new FingerprintSensorPropertiesInternal(1 /* id */,
+                        SensorProperties.STRENGTH_STRONG,
+                        5 /* maxEnrollmentsPerUser */,
+                        new ArrayList<>() /* componentInfo */,
+                        FingerprintSensorProperties.TYPE_UDFPS_OPTICAL,
+                        false /* resetLockoutRequiresHardwareAuthToken */));
+        when(mFaceService.getSensorPropertiesInternal(eq(TEST_OP_PACKAGE_NAME))).thenReturn(
+                faceProps);
+        when(mFingerprintService.getSensorPropertiesInternal(eq(TEST_OP_PACKAGE_NAME))).thenReturn(
+                fpProps);
+        when(mContext.getAttributionTag()).thenReturn("tag");
+    }
+
     private static void setInternalAndTestBiometricPermissions(
             Context context, boolean hasPermission) {
-        for (String p : List.of(TEST_BIOMETRIC, MANAGE_BIOMETRIC, USE_BIOMETRIC_INTERNAL)) {
-            when(context.checkCallingPermission(eq(p))).thenReturn(hasPermission
-                    ? PackageManager.PERMISSION_GRANTED : PackageManager.PERMISSION_DENIED);
-            when(context.checkCallingOrSelfPermission(eq(p))).thenReturn(hasPermission
-                    ? PackageManager.PERMISSION_GRANTED : PackageManager.PERMISSION_DENIED);
-            final Stubber doPermCheck =
-                    hasPermission ? doNothing() : doThrow(SecurityException.class);
-            doPermCheck.when(context).enforceCallingPermission(eq(p), any());
-            doPermCheck.when(context).enforceCallingOrSelfPermission(eq(p), any());
+        for (String p : List.of(TEST_BIOMETRIC, MANAGE_BIOMETRIC, USE_BIOMETRIC_INTERNAL,
+                SET_BIOMETRIC_DIALOG_ADVANCED)) {
+            setPermission(context, p, hasPermission);
         }
+    }
+
+    private static void setPermission(Context context, String permission, boolean hasPermission) {
+        when(context.checkCallingPermission(eq(permission))).thenReturn(hasPermission
+                ? PackageManager.PERMISSION_GRANTED : PackageManager.PERMISSION_DENIED);
+        when(context.checkCallingOrSelfPermission(eq(permission))).thenReturn(hasPermission
+                ? PackageManager.PERMISSION_GRANTED : PackageManager.PERMISSION_DENIED);
+        final Stubber doPermCheck =
+                hasPermission ? doNothing() : doThrow(SecurityException.class);
+        doPermCheck.when(context).enforceCallingPermission(eq(permission), any());
+        doPermCheck.when(context).enforceCallingOrSelfPermission(eq(permission), any());
     }
 
     private static void waitForIdle() {

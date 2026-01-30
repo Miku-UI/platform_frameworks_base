@@ -38,6 +38,8 @@ import com.android.internal.pm.pkg.component.ParsedProcessImpl
 import com.android.internal.pm.pkg.component.ParsedProvider
 import com.android.internal.pm.pkg.component.ParsedProviderImpl
 import com.android.internal.pm.pkg.component.ParsedService
+import com.android.internal.pm.pkg.component.ParsedUsesPermissionImpl
+import com.android.internal.pm.pkg.component.ParsedValidPurposeImpl
 import com.android.server.pm.PackageSetting
 import com.android.server.pm.PackageSettingBuilder
 import com.android.server.pm.pkg.AndroidPackage
@@ -57,7 +59,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 class PackageStateTest {
-
     companion object {
         private val IGNORED_TYPES = listOf(
                 "java.io.File",
@@ -199,6 +200,10 @@ class PackageStateTest {
             setOf("TESTEMBEDDINGCERT")
 
         (pkg.permissions.first() as ParsedPermissionImpl).knownCerts = setOf("TESTEMBEDDINGCERT")
+        (pkg.permissions.first() as ParsedPermissionImpl).validPurposes = listOf(
+            ParsedValidPurposeImpl("validPurpose", 20))
+        (pkg.usesPermissionMapping.values.first() as ParsedUsesPermissionImpl)
+                .purposes = setOf("validPurpose")
 
         (pkg.providers.first() as ParsedProviderImpl).apply {
             addPathPermission(PathPermission("pattern", PatternMatcher.PATTERN_LITERAL,

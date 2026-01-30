@@ -32,13 +32,13 @@ import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.qualifiers.UiBackground
 import com.android.systemui.haptics.slider.SliderHapticFeedbackFilter
 import com.android.systemui.haptics.slider.compose.ui.SliderHapticsViewModel
-import com.android.systemui.modes.shared.ModesUiIcons
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.domain.interactor.ZenModeInteractor
 import com.android.systemui.util.kotlin.combine
 import com.android.systemui.volume.domain.interactor.AudioSharingInteractor
 import com.android.systemui.volume.panel.shared.VolumePanelLogger
 import com.android.systemui.volume.panel.ui.VolumePanelUiEvent
+import com.google.common.annotations.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -147,12 +147,8 @@ constructor(
         }
     }
 
-    override fun getSliderHapticsViewModelFactory(): SliderHapticsViewModel.Factory? =
-        if (Flags.hapticsForComposeSliders() && slider.value != SliderState.Empty) {
-            hapticsViewModelFactory
-        } else {
-            null
-        }
+    override fun getSliderHapticsViewModelFactory(): SliderHapticsViewModel.Factory =
+        hapticsViewModelFactory
 
     private suspend fun AudioStreamModel.toState(
         isEnabled: Boolean,
@@ -233,31 +229,21 @@ constructor(
     // TODO: b/372213356 - Figure out the correct messages for VOICE_CALL and RING.
     //  In fact, VOICE_CALL should not be affected by interruption filtering at all.
     private fun streamDisabledMessage(): Flow<String> {
-        return if (ModesUiIcons.isEnabled) {
-            if (audioStream.value == AudioManager.STREAM_NOTIFICATION) {
-                flowOf(context.getString(R.string.stream_notification_unavailable))
-            } else {
-                if (zenModeInteractor.canBeBlockedByZenMode(audioStream)) {
-                    zenModeInteractor
-                        .activeModesBlockingStream(audioStream)
-                        .map { blockingZenModes ->
-                            blockingZenModes.mainMode?.name?.let {
-                                context.getString(R.string.stream_unavailable_by_modes, it)
-                            } ?: context.getString(R.string.stream_unavailable_by_unknown)
-                        }
-                        .distinctUntilChanged()
-                } else {
-                    flowOf(context.getString(R.string.stream_unavailable_by_unknown))
-                }
-            }
+        return if (audioStream.value == AudioManager.STREAM_NOTIFICATION) {
+            flowOf(context.getString(R.string.stream_notification_unavailable))
         } else {
-            flowOf(
-                if (audioStream.value == AudioManager.STREAM_NOTIFICATION) {
-                    context.getString(R.string.stream_notification_unavailable)
-                } else {
-                    context.getString(R.string.stream_alarm_unavailable)
-                }
-            )
+            if (zenModeInteractor.canBeBlockedByZenMode(audioStream)) {
+                zenModeInteractor
+                    .activeModesBlockingStream(audioStream)
+                    .map { blockingZenModes ->
+                        blockingZenModes.main?.name?.let {
+                            context.getString(R.string.stream_unavailable_by_modes, it)
+                        } ?: context.getString(R.string.stream_unavailable_by_unknown)
+                    }
+                    .distinctUntilChanged()
+            } else {
+                flowOf(context.getString(R.string.stream_unavailable_by_unknown))
+            }
         }
     }
 
@@ -305,7 +291,7 @@ constructor(
         return Icon.Loaded(
             drawable = context.getDrawable(iconResource)!!,
             contentDescription = null,
-            res = iconResource,
+            resId = iconResource,
         )
     }
 
@@ -363,4 +349,20 @@ constructor(
     private companion object {
         const val TAG = "AudioStreamSliderViewModel"
     }
+}
+
+object AudioStreamSliderTestTags {
+
+    @VisibleForTesting
+    val testTagsByStream =
+        mapOf(
+            AudioStream(AudioManager.STREAM_MUSIC) to "Media",
+            AudioStream(AudioManager.STREAM_VOICE_CALL) to "Call",
+            AudioStream(AudioManager.STREAM_RING) to "Ring",
+            AudioStream(AudioManager.STREAM_NOTIFICATION) to "Notification",
+            AudioStream(AudioManager.STREAM_ALARM) to "Alarm",
+        )
+
+    fun testTag(audioStream: AudioStream): String =
+        testTagsByStream.getOrDefault(audioStream, "Volume slider")
 }

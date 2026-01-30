@@ -24,6 +24,7 @@ import android.media.projection.MediaProjectionManager
 import android.media.projection.StopReason
 import android.os.Handler
 import android.view.ContentRecordingSession
+import android.view.ContentRecordingSession.RECORD_CONTENT_BELOW_OVERLAY
 import android.view.ContentRecordingSession.RECORD_CONTENT_DISPLAY
 import com.android.systemui.Flags
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
@@ -158,9 +159,6 @@ constructor(
             .mapLatest {
                 when (it) {
                     is CallbackEvent.OnStart -> {
-                        if (!Flags.statusBarShowAudioOnlyProjectionChip()) {
-                            return@mapLatest MediaProjectionState.NotProjecting
-                        }
                         // It's possible for a projection to be audio-only, in which case `OnStart`
                         // will occur but `OnRecordingSessionSet` will not. We should still consider
                         // us to be projecting even if only audio is projecting. See b/373308507.
@@ -213,7 +211,11 @@ constructor(
                 displayManager.getDisplay(session.virtualDisplayId)?.name
             }
 
-        if (session.contentToRecord == RECORD_CONTENT_DISPLAY || session.tokenToRecord == null) {
+        if (
+            session.contentToRecord == RECORD_CONTENT_DISPLAY ||
+                session.contentToRecord == RECORD_CONTENT_BELOW_OVERLAY ||
+                session.tokenToRecord == null
+        ) {
             return MediaProjectionState.Projecting.EntireScreen(hostPackage, hostDeviceName)
         }
         val matchingTask =

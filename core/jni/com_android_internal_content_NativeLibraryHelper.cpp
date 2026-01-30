@@ -62,6 +62,18 @@ enum install_status_t {
     NO_NATIVE_LIBRARIES = -114
 };
 
+struct {
+    jclass clazz;
+    jmethodID constructor;
+    jfieldID libraryName;
+    jfieldID errorCode;
+} gLibraryAlignmentInfo;
+
+struct {
+    jclass clazz;
+    jmethodID constructor;
+} gAlignmentResult;
+
 // These code should match with PageSizeAppCompatFlags inside ApplicationInfo.java
 constexpr int PAGE_SIZE_APP_COMPAT_FLAG_ERROR = -1;
 constexpr int PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED = 0;
@@ -272,7 +284,6 @@ static install_status_t copyFileIfChanged(JNIEnv* env, void* arg, ZipFileRO* zip
     jboolean debuggable = *(jboolean*)args[2];
     jboolean app_compat_16kb = *(jboolean*)args[3];
     jboolean pageSizeCompatDisabled = *(jboolean*)args[4];
-    install_status_t ret = INSTALL_SUCCEEDED;
 
     ScopedUtfChars nativeLibPath(env, *javaNativeLibPath);
 
@@ -706,8 +717,7 @@ static jint checkAlignment(JNIEnv* env, jstring javaNativeLibPath, jboolean extr
                            ZipFileRO* zipFile, ZipEntryRO zipEntry, const char* fileName) {
     int mode = PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED;
     // Need two separate install status for APK and ELF alignment
-    static const size_t kPageSize = getpagesize();
-    jint ret = INSTALL_SUCCEEDED;
+    static const size_t kPageSize16Kb = 16384;
 
     ScopedUtfChars nativeLibPath(env, javaNativeLibPath);
     if (extractNativeLibs) {
@@ -730,10 +740,10 @@ static jint checkAlignment(JNIEnv* env, jstring javaNativeLibPath, jboolean extr
         return PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
     }
 
-    if (offset % kPageSize != 0) {
+    if (offset % kPageSize16Kb != 0) {
         ALOGW("Library '%s' is not PAGE(%zu)-aligned - will not be able to open it directly "
               "from apk.\n",
-              fileName, kPageSize);
+              fileName, kPageSize16Kb);
         mode |= PAGE_SIZE_APP_COMPAT_FLAG_UNCOMPRESSED_LIBS_NOT_ALIGNED;
         ALOGI("Setting page size compat mode "
               "PAGE_SIZE_APP_COMPAT_FLAG_UNCOMPRESSED_LIBS_NOT_ALIGNED for %s",
@@ -748,22 +758,20 @@ static jint checkAlignment(JNIEnv* env, jstring javaNativeLibPath, jboolean extr
     return mode;
 }
 
-// TODO(b/371049373): This function is copy of iterateOverNativeFiles with different way of handling
-// and combining return values for all ELF and APKs. Find a way to consolidate two functions.
-static jint com_android_internal_content_NativeLibraryHelper_checkApkAlignment(
+static jobject com_android_internal_content_NativeLibraryHelper_checkApkAlignment(
         JNIEnv* env, jclass clazz, jlong apkHandle, jstring javaNativeLibPath, jstring javaCpuAbi,
         jboolean extractNativeLibs, jboolean debuggable) {
     int mode = PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED;
     ZipFileRO* zipFile = reinterpret_cast<ZipFileRO*>(apkHandle);
     if (zipFile == nullptr) {
         ALOGE("zipfile handle is null");
-        return PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
+        return nullptr;
     }
 
     auto result = NativeLibrariesIterator::create(zipFile);
     if (!result.ok()) {
         ALOGE("Can't iterate over native libs for file:%s", zipFile->getZipFileName());
-        return PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
+        return nullptr;
     }
     std::unique_ptr<NativeLibrariesIterator> it(std::move(result.value()));
 
@@ -771,14 +779,20 @@ static jint com_android_internal_content_NativeLibraryHelper_checkApkAlignment(
     if (cpuAbi.c_str() == nullptr) {
         ALOGE("cpuAbi is nullptr");
         // This would've thrown, so this return code isn't observable by Java.
-        return PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
+        return nullptr;
     }
+
+    struct LibInfo {
+        std::string name;
+        int errorCode;
+    };
+    std::vector<LibInfo> unalignedLibsInfo;
 
     while (true) {
         auto next = it->next();
         if (!next.ok()) {
             ALOGE("next iterator not found Error:%d", next.error());
-            return PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
+            return nullptr;
         }
         auto entry = next.value();
         if (entry == nullptr) {
@@ -799,13 +813,46 @@ static jint com_android_internal_content_NativeLibraryHelper_checkApkAlignment(
             if (ret == PAGE_SIZE_APP_COMPAT_FLAG_ERROR) {
                 ALOGE("Alignment check returned for zipfile: %s, entry:%s",
                       zipFile->getZipFileName(), lastSlash + 1);
-                return PAGE_SIZE_APP_COMPAT_FLAG_ERROR;
+                return nullptr;
             }
             mode |= ret;
+            unalignedLibsInfo.push_back({fileName, ret});
         }
     }
 
-    return mode;
+    // Create and Populate the Java Object Array for LibraryAlignmentInfo
+    ScopedLocalRef<jobjectArray> unalignedInfoObjects(env, nullptr);
+    if (!unalignedLibsInfo.empty()) {
+        unalignedInfoObjects.reset(env->NewObjectArray(unalignedLibsInfo.size(),
+                                                       gLibraryAlignmentInfo.clazz, nullptr));
+        if (unalignedInfoObjects.get() == nullptr) {
+            ALOGE("Failed to allocate libinfo array for zipfile: %s", zipFile->getZipFileName());
+            return nullptr;
+        }
+
+        for (size_t index = 0; index < unalignedLibsInfo.size(); ++index) {
+            ScopedLocalRef<jobject> libInfo(env,
+                                            env->NewObject(gLibraryAlignmentInfo.clazz,
+                                                           gLibraryAlignmentInfo.constructor));
+
+            ScopedLocalRef<jstring> libName(env,
+                                            env->NewStringUTF(
+                                                    unalignedLibsInfo[index].name.c_str()));
+            jint errorCode = unalignedLibsInfo[index].errorCode;
+
+            env->SetObjectField(libInfo.get(), gLibraryAlignmentInfo.libraryName, libName.get());
+            env->SetIntField(libInfo.get(), gLibraryAlignmentInfo.errorCode, errorCode);
+            env->SetObjectArrayElement(unalignedInfoObjects.get(), index, libInfo.get());
+        }
+    }
+
+    // Create the final result object.
+    ScopedLocalRef<jobject> finalResultObj(env,
+                                           env->NewObject(gAlignmentResult.clazz,
+                                                          gAlignmentResult.constructor, mode,
+                                                          unalignedInfoObjects.get()));
+
+    return finalResultObj.release();
 }
 
 static void
@@ -828,12 +875,30 @@ static const JNINativeMethod gMethods[] = {
          (void*)com_android_internal_content_NativeLibraryHelper_findSupportedAbi},
         {"hasRenderscriptBitcode", "(J)I",
          (void*)com_android_internal_content_NativeLibraryHelper_hasRenderscriptBitcode},
-        {"nativeCheckAlignment", "(JLjava/lang/String;Ljava/lang/String;ZZ)I",
+        {"nativeCheckAlignment",
+         "(JLjava/lang/String;Ljava/lang/String;ZZ)Lcom/android/internal/content/"
+         "NativeLibraryHelper$AlignmentResult;",
          (void*)com_android_internal_content_NativeLibraryHelper_checkApkAlignment},
 };
 
 int register_com_android_internal_content_NativeLibraryHelper(JNIEnv *env)
 {
+    jclass libInfoClass = FindClassOrDie(env, "com/android/internal/content/LibraryAlignmentInfo");
+    gLibraryAlignmentInfo.clazz = MakeGlobalRefOrDie(env, libInfoClass);
+    gLibraryAlignmentInfo.constructor =
+            GetMethodIDOrDie(env, gLibraryAlignmentInfo.clazz, "<init>", "()V");
+    gLibraryAlignmentInfo.libraryName =
+            GetFieldIDOrDie(env, gLibraryAlignmentInfo.clazz, "libraryName", "Ljava/lang/String;");
+    gLibraryAlignmentInfo.errorCode =
+            GetFieldIDOrDie(env, gLibraryAlignmentInfo.clazz, "errorCode", "I");
+
+    jclass alignmentResultClass =
+            FindClassOrDie(env, "com/android/internal/content/NativeLibraryHelper$AlignmentResult");
+    gAlignmentResult.clazz = MakeGlobalRefOrDie(env, alignmentResultClass);
+    gAlignmentResult.constructor =
+            GetMethodIDOrDie(env, gAlignmentResult.clazz, "<init>",
+                             "(I[Lcom/android/internal/content/LibraryAlignmentInfo;)V");
+
     return RegisterMethodsOrDie(env,
             "com/android/internal/content/NativeLibraryHelper", gMethods, NELEM(gMethods));
 }

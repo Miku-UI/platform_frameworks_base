@@ -35,7 +35,7 @@ import com.android.systemui.communal.ui.viewmodel.CommunalLockIconViewModel
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.flags.FeatureFlagsClassic
 import com.android.systemui.flags.Flags
-import com.android.systemui.keyguard.ui.composable.blueprint.BlueprintAlignmentLines
+import com.android.systemui.keyguard.ui.composable.layout.LockIconAlignmentLines
 import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.TouchHandlingViewLogger
@@ -96,10 +96,10 @@ constructor(
                         height = placeable.height,
                         alignmentLines =
                             mapOf(
-                                BlueprintAlignmentLines.LockIcon.Left to lockIconBounds.left,
-                                BlueprintAlignmentLines.LockIcon.Top to lockIconBounds.top,
-                                BlueprintAlignmentLines.LockIcon.Right to lockIconBounds.right,
-                                BlueprintAlignmentLines.LockIcon.Bottom to lockIconBounds.bottom,
+                                LockIconAlignmentLines.Left to lockIconBounds.left,
+                                LockIconAlignmentLines.Top to lockIconBounds.top,
+                                LockIconAlignmentLines.Right to lockIconBounds.right,
+                                LockIconAlignmentLines.Bottom to lockIconBounds.bottom,
                             ),
                     ) {
                         placeable.place(0, 0)
@@ -127,7 +127,7 @@ constructor(
         val scaleFactor = authController.scaleFactor
         val bottomPaddingPx =
             context.resources.getDimensionPixelSize(
-                com.android.systemui.customization.R.dimen.lock_icon_margin_bottom
+                com.android.systemui.customization.clocks.R.dimen.lock_icon_margin_bottom
             )
         val heightPx = windowViewBounds.bottom.toFloat()
         val (center, radius) =

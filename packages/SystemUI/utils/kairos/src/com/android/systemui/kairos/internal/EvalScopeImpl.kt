@@ -28,6 +28,9 @@ import com.android.systemui.kairos.emptyEvents
 import com.android.systemui.kairos.init
 import com.android.systemui.kairos.mapCheap
 import com.android.systemui.kairos.switchEvents
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 
 internal class EvalScopeImpl(networkScope: NetworkScope, deferScope: DeferScope) :
     EvalScope, NetworkScope by networkScope, DeferScope by deferScope, TransactionScope {
@@ -50,32 +53,25 @@ internal class EvalScopeImpl(networkScope: NetworkScope, deferScope: DeferScope)
 
     override val now: Events<Unit> by lazy {
         var result by EventsLoop<Unit>()
+        val switchOff = result.mapCheap { emptyEvents }
+        val nameTag = nameTag { "now(epoch=$epoch)" }.toNameData("TransactionScope.now")
         result =
             StateInit(
                     constInit(
-                        "now",
+                        nameTag,
                         activatedStateSource(
-                            "now",
-                            "now",
+                            nameTag + "switchedIn",
                             this,
-                            { result.mapCheap { emptyEvents }.init.connect(evalScope = this) },
-                            CompletableLazy(
-                                EventsInit(
-                                    constInit(
-                                        "now",
-                                        EventsImplCheap {
-                                            ActivationResult(
-                                                connection = NodeConnection(AlwaysNode, AlwaysNode),
-                                                needsEval = true,
-                                            )
-                                        },
-                                    )
-                                )
-                            ),
+                            { switchOff.init.connect(evalScope = this) },
+                            lazyOf(EventsInit(constInit(nameTag + "always", alwaysImpl))),
                         ),
                     )
                 )
-                .switchEvents()
+                .switchEvents(nameTag)
         result
     }
+}
+
+private val alwaysImpl = EventsImplCheap {
+    ActivationResult(connection = NodeConnection(AlwaysNode, AlwaysNode), needsEval = true)
 }

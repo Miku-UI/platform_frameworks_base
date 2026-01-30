@@ -16,7 +16,16 @@
 
 package com.android.systemui.shade
 
+import android.view.View
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.res.R
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
-var Kosmos.notificationShadeWindowView by Kosmos.Fixture { mock<NotificationShadeWindowView>() }
+var Kosmos.notificationShadeWindowView by
+    Kosmos.Fixture {
+        mock<NotificationShadeWindowView>().apply {
+            whenever(viewTreeObserver).thenReturn(mockViewTreeObserver)
+            whenever(findViewById<View>(R.id.notification_panel)).thenReturn(notificationPanelView)
+        }
+    }

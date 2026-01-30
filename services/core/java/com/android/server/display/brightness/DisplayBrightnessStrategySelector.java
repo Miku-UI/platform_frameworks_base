@@ -16,6 +16,8 @@
 
 package com.android.server.display.brightness;
 
+import static android.hardware.display.DisplayManagerInternal.DisplayPowerRequest.POLICY_DOZE;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -27,6 +29,7 @@ import android.view.Display;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.server.display.DisplayDeviceConfig;
 import com.android.server.display.brightness.strategy.AutoBrightnessFallbackStrategy;
 import com.android.server.display.brightness.strategy.AutomaticBrightnessStrategy;
 import com.android.server.display.brightness.strategy.AutomaticBrightnessStrategy2;
@@ -115,14 +118,16 @@ public class DisplayBrightnessStrategySelector {
      * The constructor of DozeBrightnessStrategy.
      */
     public DisplayBrightnessStrategySelector(Context context, Injector injector, int displayId,
-            DisplayManagerFlags flags) {
+            DisplayManagerFlags flags, DisplayDeviceConfig config) {
         if (injector == null) {
             injector = new Injector();
         }
         mContext = context;
         mDisplayManagerFlags = flags;
         mDisplayId = displayId;
-        mDozeBrightnessStrategy = injector.getDozeBrightnessStrategy();
+        mDozeBrightnessStrategy = injector.getDozeBrightnessStrategy(mDisplayManagerFlags, context,
+                displayId, BrightnessUtils.clampAbsoluteBrightness(
+                        config.getDefaultDozeBrightness()));
         mScreenOffBrightnessStrategy = injector.getScreenOffBrightnessStrategy();
         mOverrideBrightnessStrategy = injector.getOverrideBrightnessStrategy();
         mTemporaryBrightnessStrategy = injector.getTemporaryBrightnessStrategy();
@@ -173,10 +178,11 @@ public class DisplayBrightnessStrategySelector {
         int targetDisplayState = strategySelectionRequest.getTargetDisplayState();
         DisplayPowerRequest displayPowerRequest = strategySelectionRequest
                 .getDisplayPowerRequest();
-        setAllowAutoBrightnessWhileDozing(strategySelectionRequest.getDisplayOffloadSession());
+        setAllowAutoBrightnessWhileDozing(strategySelectionRequest.getDisplayOffloadSession(),
+                displayPowerRequest.useNormalBrightnessForDoze);
         if (targetDisplayState == Display.STATE_OFF) {
             displayBrightnessStrategy = mScreenOffBrightnessStrategy;
-        } else if (shouldUseDozeBrightnessStrategy(displayPowerRequest)) {
+        } else if (shouldUseDozeBrightnessStrategy(displayPowerRequest, targetDisplayState)) {
             displayBrightnessStrategy = mDozeBrightnessStrategy;
         } else if (BrightnessUtils.isValidBrightnessValue(
                 mFollowerBrightnessStrategy.getBrightnessToFollow())) {
@@ -265,6 +271,19 @@ public class DisplayBrightnessStrategySelector {
         return mOverrideBrightnessStrategy;
     }
 
+    public DozeBrightnessStrategy getDozeBrightnessStrategy() {
+        return mDozeBrightnessStrategy;
+    }
+
+    /**
+     * Update the config values. Needs to be called when the underlying display device changes.
+     * @param config The Display Device Config
+     */
+    void onDisplayChanged(DisplayDeviceConfig config) {
+        getDozeBrightnessStrategy().setDefaultDozeBrightness(
+                BrightnessUtils.clampAbsoluteBrightness(config.getDefaultDozeBrightness()));
+    }
+
     /**
      * Dumps the state of this class.
      */
@@ -289,9 +308,10 @@ public class DisplayBrightnessStrategySelector {
 
     @VisibleForTesting
     void setAllowAutoBrightnessWhileDozing(
-            DisplayManagerInternal.DisplayOffloadSession displayOffloadSession) {
+            DisplayManagerInternal.DisplayOffloadSession displayOffloadSession,
+            boolean useNormalBrightnessForDoze) {
         mAllowAutoBrightnessWhileDozing = mAllowAutoBrightnessWhileDozingConfig;
-        if (mDisplayManagerFlags.isDisplayOffloadEnabled()
+        if (!useNormalBrightnessForDoze && mDisplayManagerFlags.isDisplayOffloadEnabled()
                 && displayOffloadSession != null) {
             mAllowAutoBrightnessWhileDozing &= displayOffloadSession.allowAutoBrightnessInDoze();
         }
@@ -345,16 +365,39 @@ public class DisplayBrightnessStrategySelector {
     /**
      * Validates if the conditions are met to qualify for the DozeBrightnessStrategy.
      */
-    private boolean shouldUseDozeBrightnessStrategy(DisplayPowerRequest displayPowerRequest) {
+    private boolean shouldUseDozeBrightnessStrategy(
+            DisplayManagerInternal.DisplayPowerRequest displayPowerRequest,
+            int targetDisplayState) {
+        // Check mAllowAutoBrightnessWhileDozingConfig, not mAllowAutoBrightnessWhileDozing. If
+        // the first one is true but the second is false, it means that the offload session
+        // temporarily disabled auto-brightness, in which case we want to use
+        // FallbackBrightnessStrategy to keep the current brightness, not DozeBrightnessStrategy.
+        if (mAutomaticBrightnessStrategy.shouldUseAutoBrightness()
+                && mAllowAutoBrightnessWhileDozingConfig) {
+            // Auto-brightness in doze is enabled so we shouldn't use this strategy
+            return false;
+        }
+
+        // Exception check (controlled by feature flag) - use doze brightness if one of following is
+        // true:
+        // 1. The target `state` isDozeState
+        // 2. There's no exception (useNormalBrightnessForDoze)
+        boolean normalBrightnessExceptionCheck =
+                !mDisplayManagerFlags.isNormalBrightnessForDozeParameterEnabled(mContext)
+                        || !displayPowerRequest.useNormalBrightnessForDoze || Display.isDozeState(
+                        targetDisplayState);
+
+        // If the flag is disabled, only use the strategy if there's a valid override from Dream
+        // Manager (the original behavior)
+        boolean overrideDozeBrightnessCheck = mDisplayManagerFlags.isDozeBrightnessStrategyEnabled()
+                || BrightnessUtils.isValidBrightnessValue(displayPowerRequest.dozeScreenBrightness);
+
         // We are not checking the targetDisplayState, but rather relying on the policy because
-        // a user can define a different display state(displayPowerRequest.dozeScreenState) too
+        // a user can define a different display state (displayPowerRequest.dozeScreenState) too
         // in the request with the Doze policy and user might request an override to force certain
         // brightness.
-        return (!mDisplayManagerFlags.isNormalBrightnessForDozeParameterEnabled(mContext)
-                || !displayPowerRequest.useNormalBrightnessForDoze)
-                && displayPowerRequest.policy == DisplayPowerRequest.POLICY_DOZE
-                && !mAllowAutoBrightnessWhileDozing
-                && BrightnessUtils.isValidBrightnessValue(displayPowerRequest.dozeScreenBrightness);
+        return displayPowerRequest.policy == POLICY_DOZE && normalBrightnessExceptionCheck
+                && overrideDozeBrightnessCheck;
     }
 
     @VisibleForTesting
@@ -363,8 +406,9 @@ public class DisplayBrightnessStrategySelector {
             return new ScreenOffBrightnessStrategy();
         }
 
-        DozeBrightnessStrategy getDozeBrightnessStrategy() {
-            return new DozeBrightnessStrategy();
+        DozeBrightnessStrategy getDozeBrightnessStrategy(DisplayManagerFlags flags,
+                Context context, int displayId, float defaultDozeBrightness) {
+            return new DozeBrightnessStrategy(flags, context, displayId, defaultDozeBrightness);
         }
 
         OverrideBrightnessStrategy getOverrideBrightnessStrategy() {

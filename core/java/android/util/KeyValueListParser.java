@@ -197,7 +197,7 @@ public class KeyValueListParser {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Parse a duration in millis based on java.time.Duration or just a number (millis)
      */
     public long getDurationMillis(String key, long def) {

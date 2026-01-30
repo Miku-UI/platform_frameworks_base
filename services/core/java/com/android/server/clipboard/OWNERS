@@ -1,3 +1,7 @@
+# Bug component: 1745187
+
+include platform/frameworks/base:/core/java/android/permission/OWNERS
+
 per-file EmulatorClipboardMonitor.java = bohu@google.com,rkir@google.com
 
 olilan@google.com

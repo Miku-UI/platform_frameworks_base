@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.phone
 import android.annotation.StyleRes
 import android.app.Dialog
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -29,8 +30,12 @@ import android.view.WindowManager.LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS
 import android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_SUB_PANEL
 import androidx.activity.ComponentDialog
 import androidx.annotation.VisibleForTesting
+import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.common.domain.interactor.SysUIStateDisplaysInteractor
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.model.StateChange
 import com.android.systemui.res.R
+import com.android.systemui.shared.system.QuickStepContract
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.onConfigChanged
 import dagger.Lazy
@@ -42,7 +47,6 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /** A dialog shown as a bottom sheet. */
 class SystemUIBottomSheetDialog
@@ -54,6 +58,8 @@ constructor(
     private val delegate: DialogDelegate<in Dialog>,
     private val windowLayout: WindowLayout,
     theme: Int,
+    private val dialogManager: SystemUIDialogManager,
+    private val sysUIStateDisplaysInteractor: SysUIStateDisplaysInteractor,
 ) : ComponentDialog(context, theme) {
 
     private var job: Job? = null
@@ -71,7 +77,7 @@ constructor(
             setType(TYPE_STATUS_BAR_SUB_PANEL)
             addPrivateFlags(SYSTEM_FLAG_SHOW_FOR_ALL_USERS or PRIVATE_FLAG_NO_MOVE_ANIMATION)
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            setGravity(Gravity.BOTTOM)
+            setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
             decorView.setPadding(0, 0, 0, 0)
             attributes =
                 attributes.apply {
@@ -95,12 +101,23 @@ constructor(
                     .launchIn(this)
             }
         delegate.onStart(this)
+        dialogManager.setShowing(this, /* showing= */ true)
+        setDialogShowingFlag(true)
     }
 
     override fun onStop() {
         job?.cancel()
         delegate.onStop(this)
+        dialogManager.setShowing(this, /* showing= */ false)
+        setDialogShowingFlag(false)
         super.onStop()
+    }
+
+    private fun setDialogShowingFlag(showing: Boolean) {
+        sysUIStateDisplaysInteractor.setFlags(
+            context.displayId,
+            StateChange().setFlag(QuickStepContract.SYSUI_STATE_DIALOG_SHOWING, showing),
+        )
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -115,6 +132,8 @@ constructor(
         @Application private val coroutineScope: CoroutineScope,
         private val defaultWindowLayout: Lazy<WindowLayout.LimitedEdgeToEdge>,
         private val configurationController: ConfigurationController,
+        private val dialogManager: SystemUIDialogManager,
+        private val sysUIStateDisplaysInteractor: SysUIStateDisplaysInteractor,
     ) {
 
         fun create(
@@ -129,6 +148,8 @@ constructor(
                 delegate = delegate,
                 windowLayout = windowLayout,
                 theme = theme,
+                dialogManager = dialogManager,
+                sysUIStateDisplaysInteractor = sysUIStateDisplaysInteractor,
             )
     }
 
@@ -154,6 +175,31 @@ constructor(
                             context.resources.getBoolean(R.bool.config_edgeToEdgeBottomSheetDialog)
                         val width = if (edgeToEdgeHorizontally) MATCH_PARENT else WRAP_CONTENT
 
+                        Layout(width, WRAP_CONTENT)
+                    }
+            }
+        }
+
+        class ExternalDisplayDialogWindowLayout
+        @Inject
+        constructor(
+            @Application private val context: Context,
+            private val configurationController: ConfigurationController,
+        ) : WindowLayout {
+            override fun calculate(): Flow<Layout> {
+                return configurationController.onConfigChanged
+                    .onStart { emit(context.resources.configuration) }
+                    .map { config ->
+                        val width =
+                            if (config.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                                // In landscape, set the window to a fixed width
+                                context.resources.getDimensionPixelSize(
+                                    R.dimen.connected_display_dialog_landscape_width
+                                )
+                            } else {
+                                // In portrait, make the window match the parent
+                                MATCH_PARENT
+                            }
                         Layout(width, WRAP_CONTENT)
                     }
             }

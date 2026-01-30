@@ -286,7 +286,7 @@ public final class Bundle extends BaseBundle implements Cloneable, Parcelable {
         return super.getClassLoader();
     }
 
-    /** {@hide} */
+    /** @hide */
     public boolean setAllowFds(boolean allowFds) {
         final boolean orig = (mFlags & FLAG_ALLOW_FDS) != 0;
         if (allowFds) {
@@ -297,7 +297,7 @@ public final class Bundle extends BaseBundle implements Cloneable, Parcelable {
         return orig;
     }
 
-    /** {@hide} */
+    /** @hide */
     public void enableTokenVerification() {
         mFlags |= FLAG_VERIFY_TOKENS_PRESENT;
     }
@@ -321,7 +321,7 @@ public final class Bundle extends BaseBundle implements Cloneable, Parcelable {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public static Bundle setDefusable(Bundle bundle, boolean defusable) {
         if (bundle != null) {
@@ -478,7 +478,7 @@ public final class Bundle extends BaseBundle implements Cloneable, Parcelable {
         return super.hasIntent();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public void putObject(@Nullable String key, @Nullable Object value) {
         if (value instanceof Byte) {
@@ -662,7 +662,7 @@ public final class Bundle extends BaseBundle implements Cloneable, Parcelable {
         mFlags &= ~FLAG_HAS_BINDERS_KNOWN;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public void putParcelableList(String key, List<? extends Parcelable> value) {
         unparcel();

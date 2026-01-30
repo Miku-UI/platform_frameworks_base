@@ -17,10 +17,12 @@
 package android.hardware.usb;
 
 import android.hardware.usb.IUsbOperationInternal;
+import android.hardware.usb.InternalUsbDataSignalDisableReason;
 
 /** @hide */
 interface IUsbManagerInternal {
 
     /* Disable/enable USB data on a port for System Service callers. */
-    boolean enableUsbDataSignal(boolean enable, int disableReason);
+    boolean enableUsbDataSignal(boolean enable, InternalUsbDataSignalDisableReason disableReason);
 }
+

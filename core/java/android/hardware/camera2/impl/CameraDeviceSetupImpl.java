@@ -17,7 +17,6 @@
 package android.hardware.camera2.impl;
 
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.content.Context;
 import android.hardware.ICameraService;
 import android.hardware.camera2.CameraAccessException;
@@ -34,11 +33,8 @@ import android.os.ServiceSpecificException;
 
 import androidx.annotation.NonNull;
 
-import com.android.internal.camera.flags.Flags;
-
 import java.util.concurrent.Executor;
 
-@FlaggedApi(Flags.FLAG_CAMERA_DEVICE_SETUP)
 public class CameraDeviceSetupImpl extends CameraDevice.CameraDeviceSetup {
     private final String mCameraId;
     private final CameraManager mCameraManager;

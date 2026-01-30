@@ -12,22 +12,6 @@ flag {
 }
 
 flag {
-  name: "allows_screen_size_decoupled_from_status_bar_and_cutout"
-  namespace: "large_screen_experiences_app_compat"
-  description: "When necessary, configuration decoupled from status bar and display cutout"
-  bug: "291870756"
-  is_fixed_read_only: true
-}
-
-flag {
-  name: "movable_cutout_configuration"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Make it possible to move cutout across edges through device config"
-  bug: "302387383"
-  is_fixed_read_only: true
-}
-
-flag {
   name: "density_390_api"
   is_exported: true
   namespace: "large_screen_experiences_app_compat"
@@ -58,29 +42,6 @@ flag {
 }
 
 flag {
-  name: "allow_hide_scm_button"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether we should allow hiding the size compat restart button"
-  bug: "318840081"
-}
-
-flag {
-  name: "configurable_font_scale_default"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether the font_scale is read from a device dependent configuration file"
-  bug: "319808237"
-  is_fixed_read_only: true
-}
-
-flag {
-  name: "camera_compat_for_freeform"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether to apply Camera Compat treatment to fixed-orientation apps in freeform windowing mode"
-  bug: "314952133"
-  is_fixed_read_only: true
-}
-
-flag {
   name: "camera_compat_fullscreen_pick_same_task_activity"
   namespace: "large_screen_experiences_app_compat"
   description: "Limit undo of camera compat treatment to the same task that started the treatment."
@@ -88,22 +49,24 @@ flag {
 }
 
 flag {
+    name: "camera_compat_landscape_camera_support"
+    namespace: "large_screen_experiences_app_compat"
+    description: "Whether to support landscape cameras in camera compat."
+    bug: "432651608"
+}
+
+flag {
+    name: "camera_compat_unify_camera_policies"
+    namespace: "large_screen_experiences_app_compat"
+    description: "Whether to use simulate-requested-orientation camera compat treatment instead of a force-rotate one."
+    bug: "432218134"
+}
+
+flag {
   name: "scrolling_from_letterbox"
   namespace: "large_screen_experiences_app_compat"
   description: "Whether to enable app scrolling from gestures from letterbox area"
   bug: "353697519"
-}
-
-flag {
-  name: "app_compat_async_relayout"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether we use the SurfaceViewHost overload to apply a change in /n"
-               "position and size in a Transaction provided by a callback invoked /n"
-               "after the View relayout."
-  bug: "322463856"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
 }
 
 flag {
@@ -118,6 +81,86 @@ flag {
 }
 
 flag {
+  name: "app_compat_refactoring_rounded_corners"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether the rounded corners refactoring for letterboxing in shell is enabled./n"
+  bug: "375124280"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "app_compat_refactoring_fix_multiwindow_task_hierarchy"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether Task id detection for split screen should be enabled."
+  bug: "432244895"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "app_compat_refactoring_set_appbounds_to_null_when_empty"
+  namespace: "large_screen_experiences_app_compat"
+  description: "When enabled empty appBounds are set as null."
+  bug: "438406944"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "app_compat_refactoring_force_change_for_letterbox_transitions"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether a Change should always sent for Letterbox transition."
+  bug: "432347028"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "app_compat_refactoring_use_activity_leash_for_letterboxing"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether the Activity leash should be used as reference for letterbox surfaces."
+  bug: "443245627"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "app_compat_refactoring_rounded_corners_animation"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether the rounded corners for letterboxing in shell are animated"
+  bug: "431139480"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "app_compat_refactoring_skip_starting_window_letterbox"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Skip letterboxing on starting window if not related to the current activity."
+  bug: "431928994"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "enable_transition_on_activity_set_requested_orientation"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether a Transition should be created after setRequestedOrientation"
+  bug: "409043134"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
   name: "letterbox_background_wallpaper"
   namespace: "large_screen_experiences_app_compat"
   description: "Whether the blurred letterbox wallpaper background is enabled by default"
@@ -125,10 +168,13 @@ flag {
 }
 
 flag {
-    name: "enable_compatui_sysui_launcher"
+    name: "enable_compatui_sysui_launcher_fix"
     namespace: "large_screen_experiences_app_compat"
     description: "Enables sysui animation for user aspect ratio button"
     bug: "300357441"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -148,19 +194,20 @@ flag {
 }
 
 flag {
-  name: "release_user_aspect_ratio_wm"
-  namespace: "large_screen_experiences_app_compat"
-  description: "Whether to release UserAspectRatioSettingsWindowManager when button is hidden"
-  bug: "385049711"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "backup_and_restore_for_user_aspect_ratio_settings"
   namespace: "large_screen_experiences_app_compat"
   description: "Whether B&R for user aspect ratio settings is enabled"
   bug: "396650383"
   is_fixed_read_only: true
+}
+
+flag {
+  name: "restore_user_aspect_ratio_settings_using_service"
+  namespace: "large_screen_experiences_app_compat"
+  description: "Whether a system service should handle setting restored user aspect ratio settings for apps that install after SUW is complete."
+  bug: "413014252"
+  is_fixed_read_only: true
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }

@@ -313,7 +313,7 @@ package android.location {
     method @FloatRange(from=-3600.0F, to=3600.0f) public double getDeltaT();
     method @FloatRange(from=-0.004F, to=0.004f) public double getDeltaTDot();
     method @FloatRange(from=0.0f, to=0.03f) public double getEccentricity();
-    method @IntRange(from=0, to=31) public int getFrequencyChannelNumber();
+    method @IntRange(from=0xfffffff9, to=6) public int getFrequencyChannelNumber();
     method public int getHealthState();
     method @FloatRange(from=-1.0F, to=1.0f) public double getLambda();
     method @FloatRange(from=-1.0F, to=1.0f) public double getOmega();
@@ -333,7 +333,7 @@ package android.location {
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setDeltaT(@FloatRange(from=-3600.0F, to=3600.0f) double);
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setDeltaTDot(@FloatRange(from=-0.004F, to=0.004f) double);
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setEccentricity(@FloatRange(from=0.0f, to=0.03f) double);
-    method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setFrequencyChannelNumber(@IntRange(from=0, to=31) int);
+    method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setFrequencyChannelNumber(@IntRange(from=0xfffffff9, to=6) int);
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setGlonassM(boolean);
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setHealthState(int);
     method @NonNull public android.location.GlonassAlmanac.GlonassSatelliteAlmanac.Builder setLambda(@FloatRange(from=-1.0F, to=1.0f) double);
@@ -487,6 +487,7 @@ package android.location {
     method @FloatRange(from=0.0f, to=8192.0f) public double getRootA();
     method @IntRange(from=0) public int getSvHealth();
     method @IntRange(from=1) public int getSvid();
+    method @FlaggedApi("android.location.flags.support_toa_in_gnss_satellite_almanac") @IntRange(from=0, to=604800) public int getToaSeconds();
     method public void writeToParcel(@NonNull android.os.Parcel, int);
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GnssAlmanac.GnssSatelliteAlmanac> CREATOR;
   }
@@ -505,6 +506,7 @@ package android.location {
     method @NonNull public android.location.GnssAlmanac.GnssSatelliteAlmanac.Builder setRootA(@FloatRange(from=0.0f, to=8192.0f) double);
     method @NonNull public android.location.GnssAlmanac.GnssSatelliteAlmanac.Builder setSvHealth(@IntRange(from=0) int);
     method @NonNull public android.location.GnssAlmanac.GnssSatelliteAlmanac.Builder setSvid(@IntRange(from=1) int);
+    method @FlaggedApi("android.location.flags.support_toa_in_gnss_satellite_almanac") @NonNull public android.location.GnssAlmanac.GnssSatelliteAlmanac.Builder setToaSeconds(@IntRange(from=0, to=604800) int);
   }
 
   @FlaggedApi("android.location.flags.gnss_assistance_interface") public final class GnssAssistance implements android.os.Parcelable {
@@ -513,6 +515,7 @@ package android.location {
     method @Nullable public android.location.GalileoAssistance getGalileoAssistance();
     method @Nullable public android.location.GlonassAssistance getGlonassAssistance();
     method @Nullable public android.location.GpsAssistance getGpsAssistance();
+    method @FlaggedApi("android.location.flags.support_ionex_assistance") @Nullable public android.location.IonexAssistance getIonexAssistance();
     method @Nullable public android.location.QzssAssistance getQzssAssistance();
     method public void writeToParcel(@NonNull android.os.Parcel, int);
     field @NonNull public static final android.os.Parcelable.Creator<android.location.GnssAssistance> CREATOR;
@@ -525,6 +528,7 @@ package android.location {
     method @NonNull public android.location.GnssAssistance.Builder setGalileoAssistance(@Nullable android.location.GalileoAssistance);
     method @NonNull public android.location.GnssAssistance.Builder setGlonassAssistance(@Nullable android.location.GlonassAssistance);
     method @NonNull public android.location.GnssAssistance.Builder setGpsAssistance(@Nullable android.location.GpsAssistance);
+    method @FlaggedApi("android.location.flags.support_ionex_assistance") @NonNull public android.location.GnssAssistance.Builder setIonexAssistance(@Nullable android.location.IonexAssistance);
     method @NonNull public android.location.GnssAssistance.Builder setQzssAssistance(@Nullable android.location.QzssAssistance);
   }
 
@@ -1048,6 +1052,79 @@ package android.location {
     method @NonNull public android.location.GpsSatelliteEphemeris.GpsSatelliteHealth.Builder setSvHealth(@IntRange(from=0, to=63) int);
   }
 
+  @FlaggedApi("android.location.flags.support_ionex_assistance") public final class IonexAssistance implements android.os.Parcelable {
+    method public int describeContents();
+    method @NonNull public android.location.IonexAssistance.Header getHeader();
+    method @NonNull public android.location.IonexAssistance.TecMapSnapshot getTecMapSnapshot();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance> CREATOR;
+  }
+
+  public static final class IonexAssistance.Axes implements android.os.Parcelable {
+    ctor public IonexAssistance.Axes(@NonNull android.location.IonexAssistance.Axis, @NonNull android.location.IonexAssistance.Axis);
+    method public int describeContents();
+    method @NonNull public android.location.IonexAssistance.Axis getLatitudeAxis();
+    method @NonNull public android.location.IonexAssistance.Axis getLongitudeAxis();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance.Axes> CREATOR;
+  }
+
+  public static final class IonexAssistance.Axis implements android.os.Parcelable {
+    ctor public IonexAssistance.Axis(@FloatRange(from=-180.0F, to=180.0f) double, @FloatRange(from=-180.0F, to=180.0f) double, @IntRange(from=0) int);
+    method public int describeContents();
+    method @FloatRange(from=-180.0F, to=180.0f) public double getDeltaDeg();
+    method @IntRange(from=1) public int getNumPoints();
+    method @FloatRange(from=-180.0F, to=180.0f) public double getStartDeg();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance.Axis> CREATOR;
+  }
+
+  public static final class IonexAssistance.Builder {
+    ctor public IonexAssistance.Builder();
+    method @NonNull public android.location.IonexAssistance build();
+    method @NonNull public android.location.IonexAssistance.Builder setHeader(@NonNull android.location.IonexAssistance.Header);
+    method @NonNull public android.location.IonexAssistance.Builder setTecMapSnapshot(@NonNull android.location.IonexAssistance.TecMapSnapshot);
+  }
+
+  public static final class IonexAssistance.Header implements android.os.Parcelable {
+    method public int describeContents();
+    method @NonNull public android.location.IonexAssistance.Axes getAxesInfo();
+    method @FloatRange(from=0.0, fromInclusive=false) public float getBaseRadiusKm();
+    method @FloatRange(from=0.0, fromInclusive=false) public float getHeightKm();
+    method public int getMappingFunction();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance.Header> CREATOR;
+    field public static final int MAPPING_FUNCTION_COSZ = 1; // 0x1
+    field public static final int MAPPING_FUNCTION_NONE = 0; // 0x0
+    field public static final int MAPPING_FUNCTION_QFAC = 2; // 0x2
+  }
+
+  public static final class IonexAssistance.Header.Builder {
+    ctor public IonexAssistance.Header.Builder();
+    method @NonNull public android.location.IonexAssistance.Header build();
+    method @NonNull public android.location.IonexAssistance.Header.Builder setAxesInfo(@NonNull android.location.IonexAssistance.Axes);
+    method @NonNull public android.location.IonexAssistance.Header.Builder setBaseRadiusKm(@FloatRange(from=0.0, fromInclusive=false) float);
+    method @NonNull public android.location.IonexAssistance.Header.Builder setHeightKm(@FloatRange(from=0.0, fromInclusive=false) float);
+    method @NonNull public android.location.IonexAssistance.Header.Builder setMappingFunction(int);
+  }
+
+  public static final class IonexAssistance.TecMapSnapshot implements android.os.Parcelable {
+    method public int describeContents();
+    method @IntRange(from=0) public long getEpochTimeSeconds();
+    method @NonNull public java.util.List<java.lang.Float> getRmsMap();
+    method @NonNull public java.util.List<java.lang.Float> getTecMap();
+    method public void writeToParcel(@NonNull android.os.Parcel, int);
+    field @NonNull public static final android.os.Parcelable.Creator<android.location.IonexAssistance.TecMapSnapshot> CREATOR;
+  }
+
+  public static final class IonexAssistance.TecMapSnapshot.Builder {
+    ctor public IonexAssistance.TecMapSnapshot.Builder();
+    method @NonNull public android.location.IonexAssistance.TecMapSnapshot build();
+    method @IntRange(from=0) @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setEpochTimeSeconds(@IntRange(from=0) long);
+    method @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setRmsMap(@NonNull java.util.List<java.lang.Float>);
+    method @NonNull public android.location.IonexAssistance.TecMapSnapshot.Builder setTecMap(@NonNull java.util.List<java.lang.Float>);
+  }
+
   @FlaggedApi("android.location.flags.gnss_assistance_interface") public final class IonosphericCorrection implements android.os.Parcelable {
     ctor public IonosphericCorrection(@IntRange(from=0) long, @NonNull android.location.GnssCorrectionComponent);
     method public int describeContents();
@@ -1178,6 +1255,7 @@ package android.location {
   public class LocationManager {
     method @Deprecated @FlaggedApi("android.location.flags.deprecate_provider_request_apis") @RequiresPermission(allOf={android.Manifest.permission.LOCATION_HARDWARE, android.Manifest.permission.INTERACT_ACROSS_USERS}) public void addProviderRequestChangedListener(@NonNull java.util.concurrent.Executor, @NonNull android.location.provider.ProviderRequest.ChangedListener);
     method @Deprecated @RequiresPermission(android.Manifest.permission.LOCATION_HARDWARE) public void flushGnssBatch();
+    method @FlaggedApi("android.location.flags.change_get_adas_allowlist_from_hidden_to_system") @NonNull @RequiresPermission(android.Manifest.permission.READ_LOCATION_BYPASS_ALLOWLIST) public android.os.PackageTagsList getAdasAllowlist();
     method @Deprecated @RequiresPermission(anyOf={android.Manifest.permission.ACCESS_COARSE_LOCATION, android.Manifest.permission.ACCESS_FINE_LOCATION}) public void getCurrentLocation(@NonNull android.location.LocationRequest, @Nullable android.os.CancellationSignal, @NonNull java.util.concurrent.Executor, @NonNull java.util.function.Consumer<android.location.Location>);
     method @Nullable public String getExtraLocationControllerPackage();
     method @Deprecated public int getGnssBatchSize();

@@ -53,7 +53,7 @@ class ShortcutCustomizationModeRepositoryTest : SysuiTestCase() {
         testScope.runTest {
             val customizationMode by collectLastValue(repo.isCustomizationModeEnabled)
             helper.showFromActivity()
-            repo.toggleCustomizationMode(isCustomizing = true)
+            repo.toggleCustomizationMode(isEnabled = true)
             assertThat(customizationMode).isTrue()
         }
     }
@@ -63,8 +63,8 @@ class ShortcutCustomizationModeRepositoryTest : SysuiTestCase() {
         testScope.runTest {
             val customizationMode by collectLastValue(repo.isCustomizationModeEnabled)
             helper.showFromActivity()
-            repo.toggleCustomizationMode(isCustomizing = true)
-            repo.toggleCustomizationMode(isCustomizing = false)
+            repo.toggleCustomizationMode(isEnabled = true)
+            repo.toggleCustomizationMode(isEnabled = false)
             assertThat(customizationMode).isFalse()
         }
     }
@@ -74,7 +74,7 @@ class ShortcutCustomizationModeRepositoryTest : SysuiTestCase() {
         testScope.runTest {
             val customizationMode by collectLastValue(repo.isCustomizationModeEnabled)
             helper.showFromActivity()
-            repo.toggleCustomizationMode(isCustomizing = true)
+            repo.toggleCustomizationMode(isEnabled = true)
             helper.hideFromActivity()
             assertThat(customizationMode).isFalse()
         }

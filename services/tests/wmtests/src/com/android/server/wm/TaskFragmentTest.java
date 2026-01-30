@@ -20,6 +20,7 @@ import static android.Manifest.permission.EMBED_ANY_APP_IN_UNTRUSTED_MODE;
 import static android.Manifest.permission.MANAGE_ACTIVITY_TASKS;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_HOME;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
@@ -67,6 +68,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.os.Binder;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.view.SurfaceControl;
 import android.view.View;
@@ -326,6 +328,178 @@ public class TaskFragmentTest extends WindowTestsBase {
     }
 
     @Test
+    public void testVisibility_behindEmptyTaskThatFillsParentBounds_visible() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, an empty fullscreen task.
+        createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+
+        assertEquals(TASK_FRAGMENT_VISIBILITY_VISIBLE,
+                bottomTask.getVisibility(null /* starting */));
+    }
+
+    @Test
+    public void testVisibility_behindOpaqueTaskFillingParentBounds_invisible() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, an opaque fullscreen task.
+        final Task topTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        final ActivityRecord topActivity = createActivityRecord(topTask);
+        topActivity.setOccludesParent(true);
+
+        assertEquals(TASK_FRAGMENT_VISIBILITY_INVISIBLE,
+                bottomTask.getVisibility(topActivity /* starting */));
+    }
+
+    @Test
+    public void testVisibility_behindTranslucentTaskFillingParentBounds_visibleBehindTranslucent() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, a translucent fullscreen task.
+        final Task topTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        final ActivityRecord topActivity = createActivityRecord(topTask);
+        topActivity.setOccludesParent(false);
+
+        assertEquals(TASK_FRAGMENT_VISIBILITY_VISIBLE_BEHIND_TRANSLUCENT,
+                bottomTask.getVisibility(topActivity /* starting */));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SEE_THROUGH_TASK_FRAGMENTS)
+    public void testVisibility_behindOpaqueNestedFreeformTasksNotFillingParenBounds_visible() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, a freeform root task with a freeform child task with an opaque activity.
+        final Task topTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FREEFORM, ACTIVITY_TYPE_STANDARD);
+        final Task topTaskChild = createTaskInRootTask(topTask, 0 /* userId */);
+        topTaskChild.setWindowingMode(WINDOWING_MODE_FREEFORM);
+        topTaskChild.setBounds(1, 1, 2, 2); // It does not fill its parent.
+        final ActivityRecord topActivity = createActivityRecord(topTaskChild);
+        topActivity.setOccludesParent(true);
+
+        // The freeform root should not affect the bottom's visibility because it does not fill
+        // its parent.
+        assertEquals(TASK_FRAGMENT_VISIBILITY_VISIBLE,
+                bottomTask.getVisibility(topActivity /* starting */));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SEE_THROUGH_TASK_FRAGMENTS)
+    public void testVisibility_behindOpaqueNestedFreeformTasksThatFillParenBounds_invisible() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, a freeform root task with a freeform child task with an opaque activity.
+        final Task topTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FREEFORM, ACTIVITY_TYPE_STANDARD);
+        final Task topTaskChild = createTaskInRootTask(topTask, 0 /* userId */);
+        topTaskChild.setWindowingMode(WINDOWING_MODE_FREEFORM);
+        topTaskChild.setBounds(null); // Fills parent.
+        final ActivityRecord topActivity = createActivityRecord(topTaskChild);
+        topActivity.setOccludesParent(true);
+
+        // The freeform root should not affect the bottom's visibility because it does not fill
+        // its parent.
+        assertEquals(TASK_FRAGMENT_VISIBILITY_INVISIBLE,
+                bottomTask.getVisibility(topActivity /* starting */));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SEE_THROUGH_TASK_FRAGMENTS)
+    public void testVisibility_behindTranslucentNestedFreeformFillingBounds_visBehindTranslucent() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, a freeform root task with a freeform child task with a translucent
+        // activity.
+        final Task topTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FREEFORM, ACTIVITY_TYPE_STANDARD);
+        final Task topTaskChild = createTaskInRootTask(topTask, 0 /* userId */);
+        topTaskChild.setWindowingMode(WINDOWING_MODE_FREEFORM);
+        topTaskChild.setBounds(null);
+        final ActivityRecord topActivity = createActivityRecord(topTaskChild);
+        topActivity.setOccludesParent(false);
+
+        // The freeform root should not affect the bottom's visibility because it does not fill
+        // its parent.
+        assertEquals(TASK_FRAGMENT_VISIBILITY_VISIBLE_BEHIND_TRANSLUCENT,
+                bottomTask.getVisibility(topActivity /* starting */));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SEE_THROUGH_TASK_FRAGMENTS)
+    public void testVisibility_behindAtLeastOneNonFillingAdjacentTaskFragments_invisible() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, two adjacent task fragments but one is non-filling.
+        final Task topTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        final Rect top = new Rect();
+        final Rect bottom = new Rect();
+        topTask.getBounds().splitVertically(top, bottom);
+        final TaskFragment topAdjacentTaskFragment1 = createTaskFragmentWithActivity(topTask);
+        topAdjacentTaskFragment1.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
+        topAdjacentTaskFragment1.setBounds(top);
+        topAdjacentTaskFragment1.getTopMostActivity().setBounds(new Rect(0, 0, 1, 1));
+        final TaskFragment topAdjacentTaskFragment2 = createTaskFragmentWithActivity(topTask);
+        topAdjacentTaskFragment2.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
+        topAdjacentTaskFragment2.setBounds(bottom);
+        topAdjacentTaskFragment2.getTopMostActivity().setBounds(null);
+        topAdjacentTaskFragment2.setAdjacentTaskFragments(
+                new TaskFragment.AdjacentSet(topAdjacentTaskFragment2, topAdjacentTaskFragment1));
+
+        // Bottom task should be invisible since an activity is always filling.
+        assertEquals(TASK_FRAGMENT_VISIBILITY_INVISIBLE,
+                bottomTask.getVisibility(null /* starting */));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_SEE_THROUGH_TASK_FRAGMENTS)
+    public void testVisibility_behindFillingAdjacentTaskFragments_invisible() {
+        // A fullscreen task with an opaque activity.
+        final Task bottomTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        createActivityRecord(bottomTask);
+        // Above it, two adjacent task fragments that are filling.
+        final Task topTask = createTask(mDisplayContent.getDefaultTaskDisplayArea(),
+                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD);
+        final Rect top = new Rect();
+        final Rect bottom = new Rect();
+        topTask.getBounds().splitVertically(top, bottom);
+        final TaskFragment topAdjacentTaskFragment1 = createTaskFragmentWithActivity(topTask);
+        topAdjacentTaskFragment1.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
+        topAdjacentTaskFragment1.setBounds(top);
+        topAdjacentTaskFragment1.getTopMostActivity().setVisible(true);
+        topAdjacentTaskFragment1.getTopMostActivity().visibleIgnoringKeyguard = true;
+        final TaskFragment topAdjacentTaskFragment2 = createTaskFragmentWithActivity(topTask);
+        topAdjacentTaskFragment2.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
+        topAdjacentTaskFragment2.setBounds(bottom);
+        topAdjacentTaskFragment2.getTopMostActivity().setVisible(true);
+        topAdjacentTaskFragment2.getTopMostActivity().visibleIgnoringKeyguard = true;
+        topAdjacentTaskFragment2.setAdjacentTaskFragments(
+                new TaskFragment.AdjacentSet(topAdjacentTaskFragment2, topAdjacentTaskFragment1));
+
+        assertEquals(TASK_FRAGMENT_VISIBILITY_INVISIBLE,
+                bottomTask.getVisibility(null /* starting */));
+    }
+
+    @Test
     public void testFindTopNonFinishingActivity_ignoresLaunchedFromBubbleActivities() {
         final ActivityOptions opts = ActivityOptions.makeBasic();
         opts.setTaskAlwaysOnTop(true);
@@ -391,7 +565,7 @@ public class TaskFragmentTest extends WindowTestsBase {
         taskFragment0.setBounds(taskFragmentBounds);
         taskFragment0.setAdjacentTaskFragments(
                 new TaskFragment.AdjacentSet(taskFragment0, taskFragment1));
-        taskFragment0.setCompanionTaskFragment(taskFragment1);
+        taskFragment0.setCompanionTaskFragment(taskFragment1, null /* toBeFinishedActivity */);
         taskFragment0.setAnimationParams(new TaskFragmentAnimationParams.Builder()
                 .setAnimationBackgroundColor(Color.GREEN)
                 .build());
@@ -403,7 +577,7 @@ public class TaskFragmentTest extends WindowTestsBase {
         assertNotEquals(TaskFragmentAnimationParams.DEFAULT, taskFragment0.getAnimationParams());
 
         // Move activity to pinned root task.
-        mRootWindowContainer.moveActivityToPinnedRootTask(activity, "test");
+        mRootWindowContainer.moveActivityToPinnedRootTaskForTest(activity, "test");
 
         // Ensure taskFragment requested config is reset.
         assertEquals(taskFragment0, activity.getOrganizedTaskFragment());
@@ -433,7 +607,7 @@ public class TaskFragmentTest extends WindowTestsBase {
         spyOn(mAtm.mTaskFragmentOrganizerController);
 
         // Move activity to pinned.
-        mRootWindowContainer.moveActivityToPinnedRootTask(activity0, "test");
+        mRootWindowContainer.moveActivityToPinnedRootTaskForTest(activity0, "test");
 
         // Ensure taskFragment requested config is reset.
         assertTrue(taskFragment0.mClearedTaskFragmentForPip);
@@ -467,7 +641,7 @@ public class TaskFragmentTest extends WindowTestsBase {
                 .createActivityCount(1)
                 .build();
         final ActivityRecord activity = taskFragment.getTopMostActivity();
-        mRootWindowContainer.moveActivityToPinnedRootTask(activity, "test");
+        mRootWindowContainer.moveActivityToPinnedRootTaskForTest(activity, "test");
         spyOn(mAtm.mTaskFragmentOrganizerController);
         assertEquals(mIOrganizer, activity.mLastTaskFragmentOrganizerBeforePip);
 
@@ -862,6 +1036,7 @@ public class TaskFragmentTest extends WindowTestsBase {
         final TaskFragment tf = createTaskFragmentWithActivity(task);
         final ActivityRecord activity = tf.getTopMostActivity();
         tf.setVisibleRequested(true);
+        activity.visibleIgnoringKeyguard = true;
         tf.setOverrideOrientation(SCREEN_ORIENTATION_BEHIND);
 
         // Should report the override orientation
@@ -954,9 +1129,14 @@ public class TaskFragmentTest extends WindowTestsBase {
         // Return Task bounds if dimming on parent Task.
         final Rect dimBounds = new Rect();
         mTaskFragment.setEmbeddedDimArea(EMBEDDED_DIM_AREA_PARENT_TASK);
-        final Dimmer dimmer = mTaskFragment.getDimmer();
-        spyOn(dimmer);
-        doReturn(taskBounds).when(dimmer).getDimBounds();
+        if (com.android.window.flags.Flags.removeGetDimmer()) {
+            task.setVisibleRequested(true);
+            task.mDimmer.adjustAppearance(mock(WindowState.class), 1, 0);
+        } else {
+            final Dimmer dimmer = mTaskFragment.getDimmer();
+            spyOn(dimmer);
+            doReturn(taskBounds).when(dimmer).getDimBounds();
+        }
         mTaskFragment.getDimBounds(dimBounds);
         assertEquals(taskBounds, dimBounds);
 
@@ -993,7 +1173,9 @@ public class TaskFragmentTest extends WindowTestsBase {
         final ActivityRecord appLeftBottom = taskFragmentLeft.getBottomMostActivity();
         final ActivityRecord appRightTop = taskFragmentRight.getTopMostActivity();
         appLeftTop.setVisibleRequested(true);
+        appLeftTop.setVisible(true);
         appRightTop.setVisibleRequested(true);
+        appRightTop.setVisible(true);
         final WindowState winLeftTop = createAppWindow(appLeftTop, "winLeftTop");
         final WindowState winLeftBottom = createAppWindow(appLeftBottom, "winLeftBottom");
         final WindowState winRightTop = createAppWindow(appRightTop, "winRightTop");
@@ -1061,9 +1243,9 @@ public class TaskFragmentTest extends WindowTestsBase {
         taskFragmentRight.setResumedActivity(appRightTop, "test");
         assertEquals(appRightTop, task.getDisplayContent().mFocusedApp);
 
-        // Ensure the focused app is updated when the left activity resumed.
+        // Ensure the focused app is NOT updated when the left activity resumed.
         taskFragmentLeft.setResumedActivity(appLeftTop, "test");
-        assertEquals(appLeftTop, task.getDisplayContent().mFocusedApp);
+        assertEquals(appRightTop, task.getDisplayContent().mFocusedApp);
     }
 
     @Test

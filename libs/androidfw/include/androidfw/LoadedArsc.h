@@ -17,6 +17,7 @@
 #ifndef LOADEDARSC_H_
 #define LOADEDARSC_H_
 
+#include <functional>
 #include <map>
 #include <memory>
 #include <set>
@@ -31,6 +32,7 @@
 #include "androidfw/Chunk.h"
 #include "androidfw/Idmap.h"
 #include "androidfw/ResourceTypes.h"
+#include "androidfw/sorted_vector_set.h"
 #include "androidfw/Util.h"
 
 namespace android {
@@ -238,7 +240,7 @@ class LoadedPackage {
   // Populates a set of strings representing locales.
   // If `canonicalize` is set to true, each locale is transformed into its canonical format
   // before being inserted into the set. This may cause some equivalent locales to de-dupe.
-  using Locales = std::set<std::string, std::less<>>;
+  using Locales = sorted_vector_set<std::string>;
   void CollectLocales(bool canonicalize, Locales* out_locales) const;
 
   // type_idx is TT - 1 from 0xPPTTEEEE.
@@ -311,6 +313,22 @@ class LoadedPackage {
   std::unordered_map<std::string, std::string> overlayable_map_;
 };
 
+// Possible statuses for android feature flags
+enum class LoadedArscFlagStatus {
+  Enabled,
+  Disabled,
+  AlwaysShown,
+  AlwaysHidden,
+  Unknown
+};
+
+// A map from flag name to enabled status, during resource loading we can check flag values to
+// determine if values should be included
+using FlagMap = std::unordered_map<std::string, LoadedArscFlagStatus>;
+
+// A callback that take a flag map and populates the enabled status for each of the flags
+using GetFlagValuesFunc = std::function<void(FlagMap&)>;
+
 // Read-only view into a resource table. This class validates all data
 // when loading, including offsets and lengths.
 class LoadedArsc {
@@ -320,6 +338,7 @@ class LoadedArsc {
 
   static std::unique_ptr<LoadedArsc> Load(incfs::map_ptr<void> data,
                                           size_t length,
+                                          GetFlagValuesFunc get_flag_values_func = nullptr,
                                           const LoadedIdmap* loaded_idmap = nullptr,
                                           package_property_t property_flags = 0U);
 
@@ -353,8 +372,9 @@ class LoadedArsc {
 
   std::unique_ptr<ResStringPool> global_string_pool_ = util::make_unique<ResStringPool>();
   std::vector<std::unique_ptr<const LoadedPackage>> packages_;
+  GetFlagValuesFunc get_flag_values_func_;
+  FlagMap flag_map_;
 };
-
 }  // namespace android
 
 #endif /* LOADEDARSC_H_ */

@@ -21,8 +21,8 @@ import com.android.compose.animation.scene.TransitionBuilder
 import com.android.compose.animation.scene.reveal.ContainerRevealHaptics
 import com.android.compose.animation.scene.reveal.verticalContainerReveal
 import com.android.mechanics.behavior.VerticalExpandContainerSpec
-import com.android.systemui.keyguard.ui.composable.blueprint.ClockElementKeys
 import com.android.systemui.notifications.ui.composable.NotificationsShade
+import com.android.systemui.plugins.keyguard.ui.composable.elements.LockscreenElementKeys
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.shade.ui.composable.OverlayShade
 import kotlin.time.Duration.Companion.milliseconds
@@ -35,10 +35,7 @@ fun TransitionBuilder.toNotificationsShadeTransition(
     spec = tween(durationMillis = (DefaultDuration * durationScale).inWholeMilliseconds.toInt())
 
     // Ensure the clock isn't clipped by the shade outline during the transition from lockscreen.
-    sharedElement(
-        ClockElementKeys.smallClockElementKey,
-        elevateInContent = Overlays.NotificationsShade,
-    )
+    sharedElement(LockscreenElementKeys.Clock.Small, elevateInContent = Overlays.NotificationsShade)
 
     verticalContainerReveal(NotificationsShade.Elements.Panel, shadeExpansionMotion, revealHaptics)
 

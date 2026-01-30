@@ -39,6 +39,9 @@ import android.view.IWindowManager;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.logging.MetricsLogger;
+import com.android.server.LocalServices;
+import com.android.server.wm.ActivityTaskManagerInternal;
+import com.android.server.wm.WindowManagerInternal;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -221,11 +224,18 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
 
         // Ensure that the current activity supports assist data
         boolean isAssistDataAllowed = false;
-        try {
-            isAssistDataAllowed = mActivityTaskManager.isAssistDataAllowed();
-        } catch (RemoteException e) {
-            // Should never happen
+        if (com.android.window.flags.Flags.supportGeminiOnMultiDisplay()) {
+            isAssistDataAllowed = LocalServices.getService(
+                    ActivityTaskManagerInternal.class).isAssistDataForActivitiesAllowed(
+                    activityTokens);
+        } else {
+            try {
+                isAssistDataAllowed = mActivityTaskManager.isAssistDataAllowed();
+            } catch (RemoteException e) {
+                // Should never happen
+            }
         }
+
         allowFetchData &= isAssistDataAllowed;
         allowFetchScreenshot &= fetchData && isAssistDataAllowed
                 && (mRequestScreenshotAppOps != OP_NONE);
@@ -291,12 +301,17 @@ public class AssistDataRequester extends IAssistDataReceiver.Stub {
             if (mAppOpsManager.noteOpNoThrow(mRequestScreenshotAppOps, callingUid,
                     callingPackage, callingAttributionTag, /* message */ null) == MODE_ALLOWED
                     && allowFetchScreenshot) {
-                try {
-                    MetricsLogger.count(mContext, "assist_with_screen", 1);
-                    mPendingScreenshotCount++;
-                    mWindowManager.requestAssistScreenshot(this);
-                } catch (RemoteException e) {
-                    // Can't happen
+                MetricsLogger.count(mContext, "assist_with_screen", 1);
+                mPendingScreenshotCount++;
+                if (com.android.window.flags.Flags.supportGeminiOnMultiDisplay()) {
+                    LocalServices.getService(WindowManagerInternal.class).requestAssistScreenshot(
+                            this, activityTokens.get(0));
+                } else {
+                    try {
+                        mWindowManager.requestAssistScreenshot(this);
+                    } catch (RemoteException e) {
+                        // Can't happen
+                    }
                 }
             } else {
                 if (mCallbacks.canHandleReceivedAssistDataLocked()) {

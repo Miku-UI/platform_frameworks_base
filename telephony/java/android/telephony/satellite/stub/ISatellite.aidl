@@ -27,7 +27,7 @@ import android.telephony.satellite.stub.SystemSelectionSpecifier;
 import android.telephony.satellite.stub.SatelliteModemEnableRequestAttributes;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ISatellite {
     /**

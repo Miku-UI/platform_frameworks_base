@@ -388,7 +388,7 @@ public class RowLayout extends LayoutManager {
     }
 
     @Override
-    public void getLocationInWindow(@NonNull float[] value, boolean forSelf) {
+    public void getLocationInWindow(@NonNull float [] value, boolean forSelf) {
         super.getLocationInWindow(value, forSelf);
 
         if (!forSelf && mHorizontalScrollDelegate instanceof ScrollModifierOperation) {
@@ -513,7 +513,7 @@ public class RowLayout extends LayoutManager {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         super.serialize(serializer);
         serializer.add("verticalPositioning", getPositioningString(mVerticalPositioning));
         serializer.add("horizontalPositioning", getPositioningString(mHorizontalPositioning));

@@ -53,6 +53,9 @@ public final class BLASTBufferQueue {
     private static native void nativeSetWaitForBufferReleaseCallback(long ptr,
             WaitForBufferReleaseCallback callback);
 
+    private static native void nativeSetCornerRadiiCallback(
+            long ptr, CornerRadiiCallback callback);
+
     public interface TransactionHangCallback {
         void onTransactionHang(String reason);
     }
@@ -66,6 +69,16 @@ public final class BLASTBufferQueue {
          * that the client was blocked on buffer release.
          */
         void onWaitForBufferRelease(long durationNanos);
+    }
+
+    public interface CornerRadiiCallback {
+        /**
+         * Indicates that the client is waiting on buffer release
+         * due to no free buffers being available to render into.
+         * @param cornerRadii The length of time in nanoseconds
+         * that the client was blocked on buffer release.
+         */
+        void onCornerRadiiChanged(float[] cornerRadii);
     }
 
     /** Create a new connection with the surface flinger. */
@@ -224,5 +237,12 @@ public final class BLASTBufferQueue {
      */
     public void setWaitForBufferReleaseCallback(WaitForBufferReleaseCallback waitCallback) {
         nativeSetWaitForBufferReleaseCallback(mNativeObject, waitCallback);
+    }
+
+     /**
+     * Propagate callback to receive corner radii on the Surface.
+     */
+    public void setCornerRadiiCallback(CornerRadiiCallback callback) {
+        nativeSetCornerRadiiCallback(mNativeObject, callback);
     }
 }

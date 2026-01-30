@@ -30,7 +30,6 @@ import android.widget.LinearLayout;
 import androidx.collection.MutableIntObjectMap;
 
 import com.android.internal.statusbar.StatusBarIcon;
-import com.android.systemui.Flags;
 import com.android.systemui.demomode.DemoMode;
 import com.android.systemui.kairos.ExperimentalKairosApi;
 import com.android.systemui.kairos.KairosNetwork;
@@ -39,6 +38,7 @@ import com.android.systemui.plugins.DarkIconDispatcher.DarkReceiver;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.StatusBarIconView;
 import com.android.systemui.statusbar.StatusIconDisplayable;
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapterKairos;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger;
 import com.android.systemui.statusbar.pipeline.mobile.ui.view.ModernStatusBarMobileView;
@@ -273,7 +273,7 @@ public class DemoStatusIcons extends StatusIconContainer implements DemoMode, Da
             MobileViewLogger mobileViewLogger,
             int subId) {
         Log.d(TAG, "addModernMobileView (subId=" + subId + ")");
-        if (Flags.statusBarMobileIconKairos()) {
+        if (StatusBarMobileIconKairos.isEnabled()) {
             Pair<ModernStatusBarMobileView, Job> viewAndJob =
                     ModernStatusBarMobileView.constructAndBind(
                             mobileContext,
@@ -349,7 +349,7 @@ public class DemoStatusIcons extends StatusIconContainer implements DemoMode, Da
             ModernStatusBarMobileView mobileView = matchingModernMobileView(
                     (ModernStatusBarMobileView) view);
             if (mobileView != null) {
-                if (Flags.statusBarMobileIconKairos()) {
+                if (StatusBarMobileIconKairos.isEnabled()) {
                     Job job = mBindingJobs.remove(mobileView.getSubId());
                     if (job != null) {
                         job.cancel(new CancellationException());

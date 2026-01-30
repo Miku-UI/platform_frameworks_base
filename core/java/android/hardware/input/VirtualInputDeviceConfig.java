@@ -16,7 +16,10 @@
 
 package android.hardware.input;
 
+import static com.android.hardware.input.Flags.createVirtualKeyboardApi;
+
 import android.annotation.NonNull;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.view.Display;
@@ -59,9 +62,12 @@ public abstract class VirtualInputDeviceConfig {
         mAssociatedDisplayId = builder.mAssociatedDisplayId;
         mInputDeviceName = Objects.requireNonNull(builder.mInputDeviceName, "Missing device name");
 
-        if (mAssociatedDisplayId == Display.INVALID_DISPLAY) {
-            throw new IllegalArgumentException(
-                    "Display association is required for virtual input devices.");
+        // Check if no display association is allowed.
+        if (!createVirtualKeyboardApi()) {
+            if (mAssociatedDisplayId == Display.INVALID_DISPLAY) {
+                throw new IllegalArgumentException(
+                        "Display association is required for virtual input devices.");
+            }
         }
 
         // Comparison is greater or equal because the device name must fit into a const char*
@@ -116,6 +122,21 @@ public abstract class VirtualInputDeviceConfig {
     @NonNull
     public String getInputDeviceName() {
         return mInputDeviceName;
+    }
+
+    /**
+     * Checks if a display ID is valid.
+     * @throws IllegalArgumentException if an invalid display is associated with this device.
+     *
+     * @see Builder#setAssociatedDisplayId(int)
+     *
+     * @hide
+     */
+    public void checkForAssociatedDisplay() {
+        if (getAssociatedDisplayId() == Display.INVALID_DISPLAY) {
+            throw new IllegalArgumentException(
+                    "Display association is required for virtual devices.");
+        }
     }
 
     void writeToParcel(@NonNull Parcel dest, int flags) {
@@ -174,15 +195,32 @@ public abstract class VirtualInputDeviceConfig {
         }
 
         /**
-         * Sets the associated display ID of the virtual input device. Required.
+         * Sets the associated display ID of the virtual input device.
          *
-         * <p>The input device is restricted to the display with the given ID and may not send
-         * events to any other display.</p>
-         * <p>The corresponding display must be trusted or mirror display.</p>
+         * <p>If an explicit display association is specified, the associated display must be owned
+         * by the caller. The virtual input device is restricted to the display with the given ID
+         * and may not send events to any other display.</p>
+         * <p>The specified display must be trusted or mirror display.</p>
+         *
+         * <p>If there is no specific display ID to associate with, use
+         * {@link Display.DEFAULT_DISPLAY} or {@link Display.INVALID_DISPLAY}.
+         * Using {@link Display.INVALID_DISPLAY} requires the caller to be have either
+         * {@link android.Manifest.permission#INJECT_KEY_EVENTS} or
+         * {@link android.Manifest.permission#INJECT_EVENTS}
+         * </p>
+         *
+         * <p>Use {@link Display.DEFAULT_DISPLAY} if the virtual input device should only send
+         * events to the primary default display. Events will not be sent to focused windows of the
+         * non-primary display, e.g. extended monitor.</p>
+         * <p>Use {@link Display.INVALID_DISPLAY} if there is no display association and
+         * will only send events to the currently focused window of the currently focused display.
+         * ONLY allowed for virtual input devices that exclusively sends key events, i.e. keyboard
+         * and dpad, and if the caller has either of the aforementioned permissions.</p>
          *
          * @see android.hardware.display.DisplayManager#VIRTUAL_DISPLAY_FLAG_TRUSTED
          * @see android.hardware.display.DisplayManager#VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR
          */
+        @SuppressLint("RequiresPermission")
         @NonNull
         public T setAssociatedDisplayId(int displayId) {
             mAssociatedDisplayId = displayId;

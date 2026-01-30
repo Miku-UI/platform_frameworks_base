@@ -222,7 +222,7 @@ jobject MediaMetricsJNI::nativeToJavaPersistableBundle(JNIEnv *env,
 
 // ----------------------------------------------------------------------------
 
-static constexpr JNINativeMethod gMethods[] = {
+static const JNINativeMethod gMethods[] = {
     {"native_submit_bytebuffer", "(Ljava/nio/ByteBuffer;I)I",
             (void *)android_media_MediaMetrics_submit_bytebuffer},
 };

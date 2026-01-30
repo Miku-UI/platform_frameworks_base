@@ -21,7 +21,7 @@ import android.telephony.ims.SipMessage;
 /**
  * See {@link DelegateMessageCallback} and {@link DelegateConnectionMessageCallback} for docs
  * regarding this callback.
- * {@hide}
+ * @hide
  */
 oneway interface ISipDelegateMessageCallback {
    void onMessageReceived(in SipMessage message);

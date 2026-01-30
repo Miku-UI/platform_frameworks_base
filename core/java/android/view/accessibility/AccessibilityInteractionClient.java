@@ -49,7 +49,7 @@ import android.util.SparseLongArray;
 import android.view.Display;
 import android.view.SurfaceControl;
 import android.view.ViewConfiguration;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
@@ -830,8 +830,8 @@ public final class AccessibilityInteractionClient
                     // Create a ScreenCaptureListener to receive the screenshot directly from
                     // SurfaceFlinger instead of requiring an extra IPC from the app:
                     //   A11yService -> App -> SurfaceFlinger -> A11yService
-                    ScreenCapture.ScreenCaptureListener listener =
-                            new ScreenCapture.ScreenCaptureListener(
+                    ScreenCaptureInternal.ScreenCaptureListener listener =
+                            new ScreenCaptureInternal.ScreenCaptureListener(
                                     (screenshot, status) -> {
                                         if (status != 0) {
                                             sendTakeScreenshotOfWindowError(
@@ -839,8 +839,7 @@ public final class AccessibilityInteractionClient
                                                             .ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR,
                                                     interactionId);
                                         } else {
-                                            sendWindowScreenshotSuccess(screenshot,
-                                                    interactionId);
+                                            sendWindowScreenshotSuccess(screenshot, interactionId);
                                         }
                                     });
                     connection.takeScreenshotOfWindow(accessibilityWindowId, interactionId,
@@ -1348,11 +1347,11 @@ public final class AccessibilityInteractionClient
     /**
      * Sends the result of a window screenshot request to the requesting client.
      *
-     * {@link #takeScreenshotOfWindow} does not perform synchronous waiting, so this method
-     * does not notify any wait lock.
+     * <p>{@link #takeScreenshotOfWindow} does not perform synchronous waiting, so this method does
+     * not notify any wait lock.
      */
-    private void sendWindowScreenshotSuccess(ScreenCapture.ScreenshotHardwareBuffer screenshot,
-            int interactionId) {
+    private void sendWindowScreenshotSuccess(
+            ScreenCaptureInternal.ScreenshotHardwareBuffer screenshot, int interactionId) {
         if (screenshot == null) {
             sendTakeScreenshotOfWindowError(
                     AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR, interactionId);

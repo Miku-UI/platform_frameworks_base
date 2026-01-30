@@ -37,7 +37,7 @@ import java.util.function.Consumer;
  * @param <S> The proto class type of the encapsulating proto
  * @param <T> The proto class type of the individual entry protos in the buffer
  *
- * {@hide}
+ * @hide
  */
 public class TraceBuffer<P, S extends P, T extends P> {
     private final ProtoProvider<P, S, T> mProtoProvider;

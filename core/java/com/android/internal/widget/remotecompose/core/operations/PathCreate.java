@@ -35,6 +35,11 @@ import com.android.internal.widget.remotecompose.core.serialize.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * A path create operation.
+ * Works with PathAppend.
+ * TODO implement winding rule
+ */
 public class PathCreate extends PaintOperation implements VariableSupport, Serializable {
     private static final int OP_CODE = Operations.PATH_CREATE;
     private static final String CLASS_NAME = "PathCreate";
@@ -77,7 +82,7 @@ public class PathCreate extends PaintOperation implements VariableSupport, Seria
 
     @NonNull
     @Override
-    public String deepToString(String indent) {
+    public String deepToString(@NonNull String indent) {
         return pathString(mFloatPath);
     }
 
@@ -182,7 +187,7 @@ public class PathCreate extends PaintOperation implements VariableSupport, Seria
      * @return the text representing the path
      */
     @NonNull
-    public static String pathString(@Nullable float[] path) {
+    public static String pathString(@Nullable float [] path) {
         if (path == null) {
             return "null";
         }
@@ -231,17 +236,17 @@ public class PathCreate extends PaintOperation implements VariableSupport, Seria
     }
 
     @Override
-    public void paint(PaintContext context) {
+    public void paint(@NonNull PaintContext context) {
         apply(context.getContext());
     }
 
     @Override
     public void apply(@NonNull RemoteContext context) {
-        context.loadPathData(mInstanceId, mOutputPath);
+        context.loadPathData(mInstanceId, 0, mOutputPath);
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("id", mInstanceId).addPath("path", mFloatPath);
     }
 }

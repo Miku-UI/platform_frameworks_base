@@ -1,5 +1,6 @@
 package com.android.systemui.biometrics.ui.binder
 
+import android.hardware.biometrics.Flags
 import android.os.UserHandle
 import android.view.KeyEvent
 import android.view.View
@@ -13,6 +14,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.biometrics.domain.interactor.BiometricPromptView
 import com.android.systemui.biometrics.ui.CredentialPasswordView
 import com.android.systemui.biometrics.ui.CredentialView
 import com.android.systemui.biometrics.ui.IPinPad
@@ -20,6 +22,7 @@ import com.android.systemui.biometrics.ui.viewmodel.CredentialViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.res.R
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 
@@ -63,16 +66,51 @@ object CredentialPasswordViewBinder {
             }
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // dismiss on a valid credential check
-                launch {
-                    viewModel.validatedAttestation.collect { attestation ->
-                        if (attestation != null) {
-                            imeManager.hideSoftInputFromWindow(
-                                view.windowToken,
-                                0, // flag
+                if (Flags.bpFallbackOptions()) {
+                    launch {
+                        viewModel.currentView.collect { currentView ->
+                            // Hide keyboard if we are no longer on credential screen
+                            if (currentView != BiometricPromptView.CREDENTIAL) {
+                                imeManager.hideSoftInputFromWindow(
+                                    view.windowToken,
+                                    0, // flag
+                                )
+                            }
+                        }
+                    }
+
+                    launch {
+                        combine(
+                                viewModel.validatedAttestation,
+                                viewModel.isCredentialAllowed,
+                                ::Pair,
                             )
-                            host.onCredentialMatched(attestation)
-                        } else {
-                            passwordField.setText("")
+                            .collect { (attestation, isAllowed) ->
+                                if (attestation != null) {
+                                    imeManager.hideSoftInputFromWindow(
+                                        view.windowToken,
+                                        0, // flag
+                                    )
+                                    host.onCredentialMatched(attestation, isAllowed)
+                                    viewModel.resetAttestation()
+                                } else {
+                                    passwordField.setText("")
+                                }
+                            }
+                    }
+                } else {
+                    launch {
+                        viewModel.validatedAttestation.collect { attestation ->
+                            if (attestation != null) {
+                                imeManager.hideSoftInputFromWindow(
+                                    view.windowToken,
+                                    0, // flag
+                                )
+                                host.onCredentialMatched(attestation)
+                                viewModel.resetAttestation()
+                            } else {
+                                passwordField.setText("")
+                            }
                         }
                     }
                 }

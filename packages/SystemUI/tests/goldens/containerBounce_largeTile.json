@@ -1,0 +1,336 @@
+{
+  "frame_ids": [
+    "before",
+    0,
+    16,
+    32,
+    48,
+    64,
+    80,
+    96,
+    112,
+    128,
+    144,
+    160,
+    176,
+    192,
+    208,
+    224,
+    240,
+    256,
+    272,
+    288,
+    304,
+    320,
+    336,
+    "after"
+  ],
+  "features": [
+    {
+      "name": "tile-small_previous",
+      "type": "dpSize",
+      "data_points": [
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96,
+          "height": 72
+        },
+        {
+          "width": 95.42857,
+          "height": 72
+        },
+        {
+          "width": 94.57143,
+          "height": 72
+        },
+        {
+          "width": 93.71429,
+          "height": 72
+        },
+        {
+          "width": 93.14286,
+          "height": 72
+        },
+        {
+          "width": 92.28571,
+          "height": 72
+        },
+        {
+          "width": 91.42857,
+          "height": 72
+        },
+        {
+          "width": 90.85714,
+          "height": 72
+        },
+        {
+          "width": 90,
+          "height": 72
+        },
+        {
+          "width": 89.14286,
+          "height": 72
+        },
+        {
+          "width": 90.85714,
+          "height": 72
+        },
+        {
+          "width": 92.85714,
+          "height": 72
+        },
+        {
+          "width": 94.28571,
+          "height": 72
+        },
+        {
+          "width": 95.14286,
+          "height": 72
+        },
+        {
+          "width": 95.71429,
+          "height": 72
+        },
+        {
+          "width": 96,
+          "height": 72
+        },
+        {
+          "width": 96.28571,
+          "height": 72
+        },
+        {
+          "width": 96.57143,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        }
+      ]
+    },
+    {
+      "name": "tile-large_clicked",
+      "type": "dpSize",
+      "data_points": [
+        {
+          "width": 201.71428,
+          "height": 72
+        },
+        {
+          "width": 201.71428,
+          "height": 72
+        },
+        {
+          "width": 201.71428,
+          "height": 72
+        },
+        {
+          "width": 203.14285,
+          "height": 72
+        },
+        {
+          "width": 204.85715,
+          "height": 72
+        },
+        {
+          "width": 206.28572,
+          "height": 72
+        },
+        {
+          "width": 207.71428,
+          "height": 72
+        },
+        {
+          "width": 209.42857,
+          "height": 72
+        },
+        {
+          "width": 210.85715,
+          "height": 72
+        },
+        {
+          "width": 212.57143,
+          "height": 72
+        },
+        {
+          "width": 214,
+          "height": 72
+        },
+        {
+          "width": 215.42857,
+          "height": 72
+        },
+        {
+          "width": 217.14285,
+          "height": 72
+        },
+        {
+          "width": 214,
+          "height": 72
+        },
+        {
+          "width": 209.42857,
+          "height": 72
+        },
+        {
+          "width": 207.14285,
+          "height": 72
+        },
+        {
+          "width": 205.42857,
+          "height": 72
+        },
+        {
+          "width": 204,
+          "height": 72
+        },
+        {
+          "width": 203.14285,
+          "height": 72
+        },
+        {
+          "width": 202.57143,
+          "height": 72
+        },
+        {
+          "width": 202.28572,
+          "height": 72
+        },
+        {
+          "width": 202,
+          "height": 72
+        },
+        {
+          "width": 201.71428,
+          "height": 72
+        },
+        {
+          "width": 201.71428,
+          "height": 72
+        }
+      ]
+    },
+    {
+      "name": "tile-small_next",
+      "type": "dpSize",
+      "data_points": [
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96,
+          "height": 72
+        },
+        {
+          "width": 95.42857,
+          "height": 72
+        },
+        {
+          "width": 94.57143,
+          "height": 72
+        },
+        {
+          "width": 93.71429,
+          "height": 72
+        },
+        {
+          "width": 93.14286,
+          "height": 72
+        },
+        {
+          "width": 92.28571,
+          "height": 72
+        },
+        {
+          "width": 91.42857,
+          "height": 72
+        },
+        {
+          "width": 90.85714,
+          "height": 72
+        },
+        {
+          "width": 90,
+          "height": 72
+        },
+        {
+          "width": 89.14286,
+          "height": 72
+        },
+        {
+          "width": 90.85714,
+          "height": 72
+        },
+        {
+          "width": 92.85714,
+          "height": 72
+        },
+        {
+          "width": 94.28571,
+          "height": 72
+        },
+        {
+          "width": 95.14286,
+          "height": 72
+        },
+        {
+          "width": 95.71429,
+          "height": 72
+        },
+        {
+          "width": 96,
+          "height": 72
+        },
+        {
+          "width": 96.28571,
+          "height": 72
+        },
+        {
+          "width": 96.57143,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        },
+        {
+          "width": 96.85714,
+          "height": 72
+        }
+      ]
+    }
+  ]
+}

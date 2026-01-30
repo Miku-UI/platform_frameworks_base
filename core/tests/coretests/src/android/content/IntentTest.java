@@ -286,7 +286,6 @@ public class IntentTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.content.flags.Flags.FLAG_INTENT_SAVE_TO_XML_PACKAGE)
     public void testSaveToXmlAndRestore() throws Exception {
         // Create an intent and set fields.
         Intent original = new Intent();

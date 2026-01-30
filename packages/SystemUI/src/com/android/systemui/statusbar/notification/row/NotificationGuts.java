@@ -47,6 +47,8 @@ public class NotificationGuts extends FrameLayout {
 
     private Drawable mBackground;
     private int mClipTopAmount;
+    private int mTopOverlap;
+    private int mBottomOverlap;
     private int mClipBottomAmount;
     private int mActualHeight;
     private boolean mExposed;
@@ -135,11 +137,6 @@ public class NotificationGuts extends FrameLayout {
          * view on the lockscreen
          */
         boolean needsFalsingProtection();
-
-        /**
-         * Equivalent to {@link View#setAccessibilityDelegate(AccessibilityDelegate)}
-         */
-        void setAccessibilityDelegate(AccessibilityDelegate gutsContentAccessibilityDelegate);
     }
 
     public interface OnGutsClosedListener {
@@ -174,7 +171,11 @@ public class NotificationGuts extends FrameLayout {
 
     public void setGutsContent(GutsContent content) {
         content.setGutsParent(this);
-        content.setAccessibilityDelegate(mGutsContentAccessibilityDelegate);
+        if (!(content instanceof BundleHeaderGutsContent)) {
+            // Skip accessibility delegate for bundle header guts, as the info there is handled
+            // on the Compose side.
+            content.getContentView().setAccessibilityDelegate(mGutsContentAccessibilityDelegate);
+        }
         mGutsContent = content;
         removeAllViews();
         addView(mGutsContent.getContentView());
@@ -197,8 +198,9 @@ public class NotificationGuts extends FrameLayout {
     }
 
     private void draw(Canvas canvas, Drawable drawable) {
-        int top = mClipTopAmount;
-        int bottom = mActualHeight - mClipBottomAmount;
+        int top = Math.max(mClipTopAmount, mTopOverlap);
+        int clipBottomAmount = Math.max(mClipBottomAmount, mBottomOverlap);
+        int bottom = mActualHeight - clipBottomAmount;
         if (drawable != null && top < bottom) {
             drawable.setBounds(0, top, getWidth(), bottom);
             drawable.draw(canvas);
@@ -368,6 +370,28 @@ public class NotificationGuts extends FrameLayout {
 
     public void setClipTopAmount(int clipTopAmount) {
         mClipTopAmount = clipTopAmount;
+        invalidate();
+    }
+
+    /**
+     * Sets the overlap on the top of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipTopAmount, however it is a separate way to clip which is usually
+     * then combined with the clipTopAmount to take the maximum.
+     */
+    public void setTopOverlap(int topOverlap) {
+        mTopOverlap = topOverlap;
+        invalidate();
+    }
+
+    /**
+     * Sets the overlap on the bottom of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipBottomAmount, however it is a separate way to clip which is usually
+     * then combined with the clipBottomAmount to take the maximum.
+     */
+    public void setBottomOverlap(int bottomOverlap) {
+        mBottomOverlap = bottomOverlap;
         invalidate();
     }
 

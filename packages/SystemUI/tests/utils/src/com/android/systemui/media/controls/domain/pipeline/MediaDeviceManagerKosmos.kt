@@ -24,6 +24,7 @@ import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.media.controls.util.fakeMediaControllerFactory
 import com.android.systemui.media.controls.util.localMediaManagerFactory
+import com.android.systemui.media.controls.util.suggestedDeviceManagerFactory
 import com.android.systemui.media.muteawait.mediaMuteAwaitConnectionManagerFactory
 import com.android.systemui.statusbar.policy.configurationController
 
@@ -33,6 +34,7 @@ val Kosmos.mediaDeviceManager by
             context = applicationContext,
             controllerFactory = fakeMediaControllerFactory,
             localMediaManagerFactory = localMediaManagerFactory,
+            suggestedDeviceManagerFactory = suggestedDeviceManagerFactory,
             mr2manager = { MediaRouter2Manager.getInstance(applicationContext) },
             muteAwaitConnectionManagerFactory = mediaMuteAwaitConnectionManagerFactory,
             configurationController = configurationController,

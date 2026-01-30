@@ -29,11 +29,14 @@
     <include layout="@layout/notification_2025_conversation_header"/>
 
     <com.android.internal.widget.RemeasuringLinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="top"
-            android:clipChildren="false"
-            android:orientation="vertical">
+        android:id="@+id/notification_main_column_container"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:clipChildren="false"
+        android:orientation="vertical"
+        android:importantForAccessibility="yes"
+        >
 
         <!-- Note: the top margin is being set in code based on the estimated space needed for
         the header text. -->
@@ -50,12 +53,17 @@
 
             <include layout="@layout/notification_2025_title"/>
 
+            <!-- Using padding instead of margin so that we can allow the children to draw in that
+            space. This is used when the sender name of the top message is hidden due to it matching
+            the name in the header, to avoid duplication. By ignoring the padding, we bring the
+            message up directly under the sender name in the header. -->
             <com.android.internal.widget.MessagingLinearLayout
                 android:id="@+id/notification_messaging"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="@dimen/notification_2025_margin"
+                android:paddingTop="@dimen/notification_2025_margin"
                 android:clipChildren="false"
+                android:clipToPadding="false"
                 android:spacing="@dimen/notification_2025_messaging_spacing" />
         </com.android.internal.widget.RemeasuringLinearLayout>
 

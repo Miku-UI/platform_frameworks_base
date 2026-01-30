@@ -38,7 +38,6 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.ViewGroup.LayoutParams;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
@@ -231,7 +230,6 @@ public class KeyboardView extends View implements View.OnClickListener {
 
     private static final int REPEAT_INTERVAL = 50; // ~20 keys per second
     private static final int REPEAT_START_DELAY = 400;
-    private static final int LONGPRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout();
 
     private static int MAX_NEARBY_KEYS = 12;
     private int[] mDistances = new int[MAX_NEARBY_KEYS];
@@ -1292,7 +1290,7 @@ public class KeyboardView extends View implements View.OnClickListener {
                 }
                 if (mCurrentKey != NOT_A_KEY) {
                     Message msg = mHandler.obtainMessage(MSG_LONGPRESS, me);
-                    mHandler.sendMessageDelayed(msg, LONGPRESS_TIMEOUT);
+                    mHandler.sendMessageDelayed(msg, getLongPressTimeoutMillis());
                 }
                 showPreview(keyIndex);
                 break;
@@ -1325,7 +1323,7 @@ public class KeyboardView extends View implements View.OnClickListener {
                     // Start new longpress if key has changed
                     if (keyIndex != NOT_A_KEY) {
                         Message msg = mHandler.obtainMessage(MSG_LONGPRESS, me);
-                        mHandler.sendMessageDelayed(msg, LONGPRESS_TIMEOUT);
+                        mHandler.sendMessageDelayed(msg, getLongPressTimeoutMillis());
                     }
                 }
                 showPreview(mCurrentKey);

@@ -42,6 +42,8 @@ import android.view.HapticFeedbackConstants;
 import android.view.View;
 import android.view.accessibility.AccessibilityManager;
 
+import androidx.annotation.NonNull;
+
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.UiEventLogger;
@@ -61,6 +63,7 @@ import com.android.systemui.scene.domain.interactor.WindowRootViewVisibilityInte
 import com.android.systemui.settings.UserContextProvider;
 import com.android.systemui.shade.ShadeController;
 import com.android.systemui.shade.ShadeDisplayAware;
+import com.android.systemui.shared.system.ActivityManagerWrapper;
 import com.android.systemui.statusbar.NotificationLockscreenUserManager;
 import com.android.systemui.statusbar.NotificationPresenter;
 import com.android.systemui.statusbar.StatusBarState;
@@ -81,6 +84,11 @@ import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.util.kotlin.JavaAdapter;
 import com.android.systemui.wmshell.BubblesManager;
 
+import kotlin.Unit;
+import kotlin.jvm.functions.Function0;
+import kotlin.jvm.functions.Function2;
+
+import java.util.List;
 import java.util.Optional;
 
 import javax.inject.Inject;
@@ -140,6 +148,7 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
     private NotifGutsViewListener mGutsListener;
     private final HeadsUpManager mHeadsUpManager;
     private final ActivityStarter mActivityStarter;
+    private final ActivityManagerWrapper mActivityManagerWrapper;
 
     @Inject
     public NotificationGutsManager(
@@ -171,7 +180,8 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
             DeviceProvisionedController deviceProvisionedController,
             MetricsLogger metricsLogger,
             HeadsUpManager headsUpManager,
-            ActivityStarter activityStarter) {
+            ActivityStarter activityStarter,
+            ActivityManagerWrapper activityManagerWrapper) {
         mContext = context;
         mMainHandler = mainHandler;
         mBgHandler = bgHandler;
@@ -201,6 +211,7 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
         mMetricsLogger = metricsLogger;
         mHeadsUpManager = headsUpManager;
         mActivityStarter = activityStarter;
+        mActivityManagerWrapper = activityManagerWrapper;
     }
 
     public void setUpWithPresenter(NotificationPresenter presenter,
@@ -240,6 +251,7 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
      * channel.
      */
     public static final String EXTRA_SHOW_FRAGMENT_ARGUMENTS = ":settings:show_fragment_args";
+
     private void startAppNotificationSettingsActivity(String packageName, final int appUid,
             final NotificationChannel channel, ExpandableNotificationRow row) {
         final Intent intent = new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS);
@@ -297,13 +309,15 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
                 ? row.getEntryAdapter().getRanking()
                 : row.getEntryLegacy().getRanking();
 
-        if (sbn == null || ranking == null) {
+        if ((sbn == null || ranking == null) && !row.isBundle()) {
             // only valid for notification rows
             return false;
         }
 
         row.setGutsView(item);
-        row.setTag(sbn.getPackageName());
+        if (sbn != null) {
+            row.setTag(sbn.getPackageName());
+        }
         row.getGuts().setClosedListener((NotificationGuts g) -> {
             row.onGutsClosed();
             if (!g.willBeRemoved() && !row.isRemoved()) {
@@ -329,23 +343,24 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
             }
         });
 
-        View gutsView = item.getGutsView();
+        Object gutsContent = item.getGutsContent();
 
         try {
-            if (gutsView instanceof NotificationSnooze) {
-                initializeSnoozeView(row, sbn, ranking, (NotificationSnooze) gutsView);
-            } else if (gutsView instanceof NotificationInfo) {
-                initializeNotificationInfo(row, sbn, ranking, (NotificationInfo) gutsView);
-            } else if (gutsView instanceof NotificationConversationInfo) {
+            if (gutsContent instanceof NotificationSnooze ns) {
+                initializeSnoozeView(row, sbn, ranking, ns);
+            } else if (gutsContent instanceof NotificationInfo ni) {
+                initializeNotificationInfo(row, sbn, ranking, ni);
+            } else if (gutsContent instanceof NotificationConversationInfo nci) {
                 initializeConversationNotificationInfo(
-                        row, sbn, ranking, (NotificationConversationInfo) gutsView);
-            } else if (gutsView instanceof PartialConversationInfo) {
-                initializePartialConversationNotificationInfo(row, sbn, ranking,
-                        (PartialConversationInfo) gutsView);
-            } else if (gutsView instanceof FeedbackInfo) {
-                initializeFeedbackInfo(row, sbn, ranking, (FeedbackInfo) gutsView);
-            } else if (gutsView instanceof PromotedPermissionGutsContent) {
-                initializeDemoteView(row, sbn, (PromotedPermissionGutsContent) gutsView);
+                        row, sbn, ranking, nci);
+            } else if (gutsContent instanceof PartialConversationInfo pci) {
+                initializePartialConversationNotificationInfo(row, sbn, ranking, pci);
+            } else if (gutsContent instanceof FeedbackInfo fi) {
+                initializeFeedbackInfo(row, sbn, ranking, fi);
+            } else if (gutsContent instanceof PromotedPermissionGutsContent ppgc) {
+                initializeDemoteView(sbn, ppgc);
+            } else if (gutsContent instanceof BundledNotificationInfo bni) {
+                initializeBundledNotificationInfo(row, sbn, ranking, bni);
             }
             return true;
         } catch (Exception e) {
@@ -378,24 +393,19 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
     /**
      * Sets up the {@link NotificationSnooze} inside the notification row's guts.
      *
-     * @param row view to set up the guts for
      * @param demoteGuts view to set up/bind within {@code row}
      */
     private void initializeDemoteView(
-            final ExpandableNotificationRow row,
-            StatusBarNotification sbn,
-            PromotedPermissionGutsContent demoteGuts) {
-        demoteGuts.setStatusBarNotification(sbn);
-        demoteGuts.setOnDemoteAction(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                try {
-                    // TODO(b/391661009): Signal AutomaticPromotionCoordinator here
-                    mNotificationManager.setCanBePromoted(
-                            sbn.getPackageName(), sbn.getUid(), false, true);
-                } catch (RemoteException e) {
-                    Log.e(TAG, "Couldn't revoke live update permission", e);
-                }
+            @NonNull StatusBarNotification sbn,
+            @NonNull PromotedPermissionGutsContent demoteGuts) {
+        demoteGuts.setOnDemoteAction(v -> {
+            try {
+                mNotificationManager.setCanBePromoted(
+                        sbn.getPackageName(), sbn.getUid(), false, true);
+                mPackageDemotionInteractor.onPackageDemoted(sbn.getPackageName(), sbn.getUid());
+                mUiEventLogger.log(NotificationControlsEvent.NOTIFICATION_DEMOTION_COMMIT);
+            } catch (RemoteException e) {
+                Log.e(TAG, "Couldn't revoke live update permission", e);
             }
         });
     }
@@ -420,6 +430,74 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
 
         feedbackInfo.bindGuts(pmUser, sbn, ranking, row, mAssistantFeedbackController,
                 mStatusBarService, this);
+    }
+
+    /**
+     * Sets up the {@link BundledNotificationInfo} inside the notification row's guts.
+     * @param row view to set up the guts for
+     * @param notificationInfoView view to set up/bind within {@code row}
+     */
+    @VisibleForTesting
+    void initializeBundledNotificationInfo(
+            final ExpandableNotificationRow row,
+            final StatusBarNotification sbn,
+            final NotificationListenerService.Ranking ranking,
+            NotificationInfo notificationInfoView) throws Exception {
+        NotificationGuts guts = row.getGuts();
+        String packageName = sbn.getPackageName();
+        UserHandle userHandle = sbn.getUser();
+        PackageManager pmUser = CentralSurfaces.getPackageManagerForUser(
+                mContext, userHandle.getIdentifier());
+
+        NotificationInfo.OnSettingsClickListener onSettingsClick =
+                (View v, NotificationChannel channel, int appUid) -> {
+                    mMetricsLogger.action(MetricsProto.MetricsEvent.ACTION_NOTE_INFO);
+                    guts.resetFalsingCheck();
+                    mOnSettingsClickListener.onSettingsClick(sbn.getKey());
+                    startBundleSettingsActivity(appUid, row);
+                };
+
+        NotificationInfo.OnFeedbackClickListener onNasFeedbackClick = (View v, Intent intent) -> {
+            guts.resetFalsingCheck();
+            mUiEventLogger.log(NotificationFeedbackEvent.NOTIFICATION_FEEDBACK_BUNDLE,
+                    sbn.getInstanceId());
+            mNotificationActivityStarter.startNotificationGutsIntent(intent, sbn.getUid(), row);
+        };
+
+        notificationInfoView.bindNotification(
+                pmUser,
+                mNotificationManager,
+                mAppIconProvider,
+                mIconStyleProvider,
+                mOnUserInteractionCallback,
+                mChannelEditorDialogController,
+                mPackageDemotionInteractor,
+                packageName,
+                ranking,
+                sbn,
+                NotificationBundleUi.isEnabled() ? null : row.getEntryLegacy(),
+                NotificationBundleUi.isEnabled() ? row.getEntryAdapter() : null,
+                onSettingsClick,
+                null,
+                onNasFeedbackClick,
+                mUiEventLogger,
+                mDeviceProvisionedController.isDeviceProvisioned(),
+                NotificationBundleUi.isEnabled()
+                        ? !row.getEntryAdapter().isBlockable()
+                        : row.getIsNonblockable(),
+                row.canViewBeDismissed(),
+                NotificationBundleUi.isEnabled()
+                        ? row.getEntryAdapter().isHighPriority()
+                        : mHighPriorityProvider.isHighPriority(row.getEntryLegacy()),
+                mAssistantFeedbackController,
+                mMetricsLogger,
+                row.getDismissButtonOnClickListener());
+    }
+
+    private void startBundleSettingsActivity(final int appUid,
+            ExpandableNotificationRow row) {
+        final Intent intent = new Intent(Settings.ACTION_NOTIFICATION_BUNDLES);
+        mNotificationActivityStarter.startNotificationGutsIntent(intent, appUid, row);
     }
 
     /**
@@ -490,7 +568,7 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
                         : mHighPriorityProvider.isHighPriority(row.getEntryLegacy()),
                 mAssistantFeedbackController,
                 mMetricsLogger,
-                row.getCloseButtonOnClickListener(row));
+                row.getDismissButtonOnClickListener());
     }
 
     /**
@@ -522,6 +600,11 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
             };
         }
 
+        NotificationInfo.OnFeedbackClickListener onNasFeedbackClick = (View v, Intent intent) -> {
+            guts.resetFalsingCheck();
+            mNotificationActivityStarter.startNotificationGutsIntent(intent, sbn.getUid(), row);
+        };
+
         notificationInfoView.bindNotification(
                 pmUser,
                 mNotificationManager,
@@ -530,6 +613,7 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
                 ranking,
                 sbn,
                 onSettingsClick,
+                onNasFeedbackClick,
                 mDeviceProvisionedController.isDeviceProvisioned(),
                 NotificationBundleUi.isEnabled()
                         ? !row.getEntryAdapter().isBlockable()
@@ -554,19 +638,10 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
         UserHandle userHandle = sbn.getUser();
         PackageManager pmUser = CentralSurfaces.getPackageManagerForUser(
                 mContext, userHandle.getIdentifier());
-        final NotificationConversationInfo.OnAppSettingsClickListener onAppSettingsClick =
-                (View v, Intent intent) -> {
-                    mMetricsLogger.action(MetricsProto.MetricsEvent.ACTION_APP_NOTE_SETTINGS);
-                    guts.resetFalsingCheck();
-                    mNotificationActivityStarter.startNotificationGutsIntent(intent, sbn.getUid(),
-                            row);
-                };
 
         final NotificationConversationInfo.OnConversationSettingsClickListener
                 onConversationSettingsListener =
-                () -> {
-                    startConversationSettingsActivity(sbn.getUid(), row);
-                };
+                () -> startConversationSettingsActivity(sbn.getUid(), row);
 
         if (!userHandle.equals(UserHandle.ALL)
                 || mLockscreenUserManager.getCurrentUserId() == UserHandle.USER_SYSTEM) {
@@ -584,6 +659,8 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
 
         NotificationInfo.OnFeedbackClickListener onNasFeedbackClick = (View v, Intent intent) -> {
             guts.resetFalsingCheck();
+            mUiEventLogger.log(NotificationFeedbackEvent.NOTIFICATION_FEEDBACK_CONVERSATION,
+                    sbn.getInstanceId());
             mNotificationActivityStarter.startNotificationGutsIntent(intent, sbn.getUid(), row);
         };
 
@@ -610,7 +687,7 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
                 mBubblesManagerOptional,
                 mShadeController,
                 row.canViewBeDismissed(),
-                row.getCloseButtonOnClickListener(row));
+                row.getDismissButtonOnClickListener());
     }
 
     /**
@@ -661,10 +738,6 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
         mNotificationGutsExposed = guts;
     }
 
-    public ExpandableNotificationRow.LongPressListener getNotificationLongClicker() {
-        return this::openGuts;
-    }
-
     /**
      * Opens guts on the given ExpandableNotificationRow {@code view}. This handles opening guts for
      * the normal half-swipe and long-press use cases via a circular reveal. When the blocking
@@ -681,10 +754,8 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
             int x,
             int y,
             NotificationMenuRowPlugin.MenuItem menuItem) {
-        if (menuItem.getGutsView() instanceof NotificationGuts.GutsContent) {
-            NotificationGuts.GutsContent gutsView =
-                    (NotificationGuts.GutsContent)  menuItem.getGutsView();
-            if (gutsView.needsFalsingProtection()) {
+        if (menuItem.getGutsContent() instanceof NotificationGuts.GutsContent gutsContent) {
+            if (gutsContent.needsFalsingProtection()) {
                 if (mStatusBarStateController instanceof StatusBarStateControllerImpl) {
                     ((StatusBarStateControllerImpl) mStatusBarStateController)
                             .setLeaveOpenOnKeyguardHide(true);
@@ -724,6 +795,12 @@ public class NotificationGutsManager implements NotifGutsViewManager, CoreStarta
 
         if (view.getWindowToken() == null) {
             Log.e(TAG, "Trying to show notification guts, but not attached to window");
+            return false;
+        }
+
+        if (mActivityManagerWrapper.isLockTaskKioskModeActive()) {
+            // If the device is locked in kiosk mode, the user should not be able to access
+            // notification guts to change any settings.
             return false;
         }
 

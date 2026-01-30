@@ -128,10 +128,7 @@ constructor(
     }
 
     /** Notifies the item for a user has been clicked. */
-    fun onUserListItemClicked(
-        record: UserRecord,
-        dialogShower: DialogShower?,
-    ) {
+    fun onUserListItemClicked(record: UserRecord, dialogShower: DialogShower?) {
         mUserSwitcherInteractor.onRecordSelected(record, dialogShower)
     }
 
@@ -184,7 +181,7 @@ constructor(
 
     /** Whether keyguard is showing. */
     val isKeyguardShowing: Boolean
-        get() = keyguardInteractor.isKeyguardShowing()
+        get() = keyguardInteractor.isKeyguardCurrentlyShowing()
 
     /** Starts an activity with the given [Intent]. */
     fun startActivity(intent: Intent) {

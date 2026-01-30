@@ -25,6 +25,7 @@ import android.annotation.DrawableRes;
 import android.annotation.NonNull;
 import android.annotation.TestApi;
 import android.app.ActivityThread;
+import android.companion.virtualdevice.flags.Flags;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.Intent;
@@ -510,6 +511,14 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
     private OnScrollListener mOnScrollListener;
 
     /**
+     * Optional callback to notify client when scroll state has changed. This is used internally
+     * to track state changes for Jank metrics. A separate OnScrollListener is used in order to
+     * avoid overwriting any existing OnScrollListener apps may have set.
+     */
+    @UnsupportedAppUsage
+    private OnScrollListener mOnScrollStateChangeListener;
+
+    /**
      * Keeps track of our accessory window
      */
     @UnsupportedAppUsage
@@ -653,6 +662,12 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
     private int mLastScrollState = OnScrollListener.SCROLL_STATE_IDLE;
 
     /**
+     * The last scroll state reported to {@link #mOnScrollStateChangeListener}, used for internal
+     * tracking of scroll state changes.
+     */
+    private int mPreviousOnScrollListenerState = OnScrollListener.SCROLL_STATE_IDLE;
+
+    /**
      * Indicates that reporting positions of child views to content capture is enabled via
      * DeviceConfig.
      */
@@ -685,6 +700,7 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
 
     @UnsupportedAppUsage
     private int mTouchSlop;
+    private int mTapTimeoutMillis;
     private float mDensityScale;
 
     private float mVerticalScrollFactor;
@@ -1009,6 +1025,8 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
 
         final ViewConfiguration configuration = ViewConfiguration.get(mContext);
         mTouchSlop = configuration.getScaledTouchSlop();
+        mTapTimeoutMillis = Flags.viewconfigurationApis()
+                ? configuration.getTapTimeoutMillis() : ViewConfiguration.getTapTimeout();
         mVerticalScrollFactor = configuration.getScaledVerticalScrollFactor();
         mMinimumVelocity = configuration.getScaledMinimumFlingVelocity();
         mMaximumVelocity = configuration.getScaledMaximumFlingVelocity();
@@ -1605,6 +1623,15 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
         }
         // placeholder values, View's implementation does not use these.
         onScrollChanged(0, 0, 0, 0);
+    }
+
+    /**
+     * Set the listener that will receive notifications only when scroll state changes.
+     *
+     * @hide
+     */
+    protected void setOnScrollStateChangeListener(OnScrollListener listener) {
+        mOnScrollStateChangeListener = listener;
     }
 
     /**
@@ -2986,10 +3013,10 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
 
             final boolean longClickable = isLongClickable();
             Drawable d = selector.getCurrent();
+            final int longPressTimeoutMillis = getLongPressTimeoutMillis();
             if (d != null && d instanceof TransitionDrawable) {
                 if (longClickable) {
-                    ((TransitionDrawable) d).startTransition(
-                            ViewConfiguration.getLongPressTimeout());
+                    ((TransitionDrawable) d).startTransition(longPressTimeoutMillis);
                 } else {
                     ((TransitionDrawable) d).resetTransition();
                 }
@@ -2999,7 +3026,7 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
                     mPendingCheckForKeyLongPress = new CheckForKeyLongPress();
                 }
                 mPendingCheckForKeyLongPress.rememberWindowAttachCount();
-                postDelayed(mPendingCheckForKeyLongPress, ViewConfiguration.getLongPressTimeout());
+                postDelayed(mPendingCheckForKeyLongPress, longPressTimeoutMillis);
             }
         }
     }
@@ -3601,14 +3628,14 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
                         positionSelector(mMotionPosition, child);
                         refreshDrawableState();
 
-                        final int longPressTimeout = ViewConfiguration.getLongPressTimeout();
                         final boolean longClickable = isLongClickable();
-
+                        final int longPressTimeoutMillis = getLongPressTimeoutMillis();
                         if (mSelector != null) {
                             final Drawable d = mSelector.getCurrent();
                             if (d != null && d instanceof TransitionDrawable) {
                                 if (longClickable) {
-                                    ((TransitionDrawable) d).startTransition(longPressTimeout);
+                                    ((TransitionDrawable) d).startTransition(
+                                            longPressTimeoutMillis);
                                 } else {
                                     ((TransitionDrawable) d).resetTransition();
                                 }
@@ -3622,7 +3649,7 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
                             }
                             mPendingCheckForLongPress.setCoords(x, y);
                             mPendingCheckForLongPress.rememberWindowAttachCount();
-                            postDelayed(mPendingCheckForLongPress, longPressTimeout);
+                            postDelayed(mPendingCheckForLongPress, longPressTimeoutMillis);
                         } else {
                             mTouchMode = TOUCH_MODE_DONE_WAITING;
                         }
@@ -4120,7 +4147,7 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
 
                     mPendingCheckForTap.x = ev.getX();
                     mPendingCheckForTap.y = ev.getY();
-                    postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());
+                    postDelayed(mPendingCheckForTap, mTapTimeoutMillis);
                 }
             }
 
@@ -4914,6 +4941,11 @@ public abstract class AbsListView extends AdapterView<ListAdapter> implements Te
                 mLastScrollState = newState;
                 mOnScrollListener.onScrollStateChanged(this, newState);
             }
+        }
+
+        if (newState != mPreviousOnScrollListenerState && mOnScrollStateChangeListener != null) {
+            mPreviousOnScrollListenerState = newState;
+            mOnScrollStateChangeListener.onScrollStateChanged(this, newState);
         }
 
         // When scrolling, we want to report changes in the active children to Content Capture,

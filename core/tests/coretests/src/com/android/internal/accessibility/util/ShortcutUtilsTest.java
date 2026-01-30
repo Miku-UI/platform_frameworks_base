@@ -23,6 +23,7 @@ import static com.android.internal.accessibility.common.ShortcutConstants.SERVIC
 import static com.android.internal.accessibility.common.ShortcutConstants.USER_SHORTCUT_TYPES;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.DEFAULT;
 import static com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType.SOFTWARE;
+import static com.android.server.testutils.MockitoUtilsKt.eq;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -434,14 +435,15 @@ public class ShortcutUtilsTest {
     private void clearMockShortcutTypes() throws RemoteException {
         for (int shortcutType : ShortcutConstants.USER_SHORTCUT_TYPES) {
             when(mAccessibilityManagerService
-                    .getAccessibilityShortcutTargets(shortcutType)).thenReturn(List.of());
+                    .getAccessibilityShortcutTargets(
+                            eq(shortcutType), anyInt())).thenReturn(List.of());
         }
     }
 
     private void mockShortcutType(int shortcutType, String componentName)
             throws RemoteException {
-        when(mAccessibilityManagerService.getAccessibilityShortcutTargets(shortcutType))
-                .thenReturn(List.of(componentName));
+        when(mAccessibilityManagerService.getAccessibilityShortcutTargets(
+                eq(shortcutType), anyInt())).thenReturn(List.of(componentName));
     }
 
     static final class ShortcutTypeValueProvider implements

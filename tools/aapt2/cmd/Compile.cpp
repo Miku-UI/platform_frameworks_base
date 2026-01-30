@@ -789,7 +789,7 @@ int Compile(IAaptContext* context, io::IFileCollection* inputs, IArchiveWriter* 
   auto file_iterator  = inputs->Iterator();
   while (file_iterator->HasNext()) {
     auto file = file_iterator->Next();
-    std::string path = file->GetSource().path;
+    const std::string& path = file->GetSource().path;
 
     // Skip hidden input files
     if (file::IsHidden(path)) {
@@ -806,9 +806,18 @@ int Compile(IAaptContext* context, io::IFileCollection* inputs, IArchiveWriter* 
     ResourcePathData path_data;
     if (auto maybe_path_data = ExtractResourcePathData(
         path, inputs->GetDirSeparator(), &err_str, options)) {
-      path_data = maybe_path_data.value();
+      path_data = std::move(maybe_path_data.value());
     } else {
       context->GetDiagnostics()->Error(android::DiagMessage(file->GetSource()) << err_str);
+      error = true;
+      continue;
+    }
+
+    if (path_data.config.minorVersion != 0 && path_data.config.sdkVersion < SDK_BAKLAVA) {
+      context->GetDiagnostics()->Error(
+          android::DiagMessage(file->GetSource())
+          << "SDK version in '" << path_data.config
+          << "' is not valid: minor versions are only available since v" << SDK_BAKLAVA);
       error = true;
       continue;
     }
@@ -820,7 +829,6 @@ int Compile(IAaptContext* context, io::IFileCollection* inputs, IArchiveWriter* 
       // We use a different extension (not necessary anymore, but avoids altering the existing
       // build system logic).
       path_data.extension = "arsc";
-
     } else if (const ResourceType* type = ParseResourceType(path_data.resource_dir)) {
       if (*type != ResourceType::kRaw) {
         if (*type == ResourceType::kXml || path_data.extension == "xml") {
@@ -839,8 +847,7 @@ int Compile(IAaptContext* context, io::IFileCollection* inputs, IArchiveWriter* 
 
     // Treat periods as a reserved character that should not be present in a file name
     // Legacy support for AAPT which did not reserve periods
-    if (compile_func != &CompileFile && !options.legacy_mode
-        && std::count(path_data.name.begin(), path_data.name.end(), '.') != 0) {
+    if (compile_func != &CompileFile && !options.legacy_mode && path_data.name.contains('.')) {
       error = true;
       context->GetDiagnostics()->Error(android::DiagMessage(file->GetSource())
                                        << "file name cannot contain '.' other than for"

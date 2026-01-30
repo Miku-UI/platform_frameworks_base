@@ -23,12 +23,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * THIS ANNOTATION IS EXPERIMENTAL. REACH OUT TO g/ravenwood BEFORE USING IT, OR YOU HAVE ANY
- * QUESTIONS ABOUT IT.
- *
- * If a method has this annotation, it will throw on the host side.
- *
- * @hide
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
  */
 @Target({METHOD, CONSTRUCTOR})
 @Retention(RetentionPolicy.CLASS)

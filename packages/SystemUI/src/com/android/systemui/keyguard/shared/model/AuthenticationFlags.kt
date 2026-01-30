@@ -23,7 +23,7 @@ data class AuthenticationFlags(val userId: Int, val flag: Int) {
     val isInUserLockdown =
         containsFlag(
             flag,
-            LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN
+            LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN,
         )
 
     val isPrimaryAuthRequiredAfterReboot =
@@ -38,7 +38,19 @@ data class AuthenticationFlags(val userId: Int, val flag: Int) {
     val isPrimaryAuthRequiredAfterDpmLockdown =
         containsFlag(
             flag,
-            LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_DPM_LOCK_NOW
+            LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_DPM_LOCK_NOW,
+        )
+
+    val isPrimaryAuthRequiredForSecureLockDevice =
+        containsFlag(
+            flag,
+            LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+        )
+
+    val isStrongBiometricAuthRequiredForSecureLockDevice =
+        containsFlag(
+            flag,
+            LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
         )
 
     val someAuthRequiredAfterUserRequest =
@@ -47,13 +59,13 @@ data class AuthenticationFlags(val userId: Int, val flag: Int) {
     val someAuthRequiredAfterTrustAgentExpired =
         containsFlag(
             flag,
-            LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_TRUSTAGENT_EXPIRED
+            LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_TRUSTAGENT_EXPIRED,
         )
 
     val isPrimaryAuthRequiredForUnattendedUpdate =
         containsFlag(
             flag,
-            LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_FOR_UNATTENDED_UPDATE
+            LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_FOR_UNATTENDED_UPDATE,
         )
 
     /** Either Class 3 biometrics or primary auth can be used to unlock the device. */
@@ -61,13 +73,19 @@ data class AuthenticationFlags(val userId: Int, val flag: Int) {
         containsFlag(
             flag,
             LockPatternUtils.StrongAuthTracker
-                .STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT
+                .STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT,
         )
 
     val isSomeAuthRequiredAfterAdaptiveAuthRequest =
         containsFlag(
             flag,
-            LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_ADAPTIVE_AUTH_REQUEST
+            LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_ADAPTIVE_AUTH_REQUEST,
+        )
+
+    val isSomeAuthRequiredAfterWatchDisconnected =
+        containsFlag(
+            flag,
+            LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_WATCH_DISCONNECTED,
         )
 }
 

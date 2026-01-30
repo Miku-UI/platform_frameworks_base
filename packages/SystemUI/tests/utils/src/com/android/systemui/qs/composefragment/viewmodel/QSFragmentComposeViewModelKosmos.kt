@@ -21,12 +21,14 @@ import androidx.lifecycle.LifecycleCoroutineScope
 import com.android.internal.logging.uiEventLoggerFake
 import com.android.systemui.classifier.domain.interactor.falsingInteractor
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryBypassInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.log.table.logcatTableLogBuffer
+import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarouselInteractor
 import com.android.systemui.media.controls.ui.view.qqsMediaHost
 import com.android.systemui.media.controls.ui.view.qsMediaHost
+import com.android.systemui.media.remedia.ui.viewmodel.factory.mediaViewModelFactory
 import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragment
 import com.android.systemui.qs.footerActionsController
 import com.android.systemui.qs.footerActionsViewModelFactory
@@ -35,7 +37,6 @@ import com.android.systemui.qs.panels.ui.viewmodel.inFirstPageViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.mediaInRowInLandscapeViewModelFactory
 import com.android.systemui.qs.panels.ui.viewmodel.quickQuickSettingsViewModelFactory
 import com.android.systemui.qs.ui.viewmodel.quickSettingsContainerViewModelFactory
-import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.largeScreenHeaderHelper
 import com.android.systemui.shade.transition.largeScreenShadeInterpolator
 import com.android.systemui.statusbar.disableflags.domain.interactor.disableFlagsInteractor
@@ -54,11 +55,10 @@ val Kosmos.qsFragmentComposeViewModelFactory by
                     footerActionsViewModelFactory,
                     footerActionsController,
                     sysuiStatusBarStateController,
-                    deviceEntryInteractor,
+                    deviceEntryBypassInteractor,
                     disableFlagsInteractor,
                     keyguardTransitionInteractor,
                     largeScreenShadeInterpolator,
-                    shadeInteractor,
                     configurationInteractor,
                     largeScreenHeaderHelper,
                     tileSquishinessInteractor,
@@ -71,6 +71,8 @@ val Kosmos.qsFragmentComposeViewModelFactory by
                     usingMediaInComposeFragment,
                     uiEventLoggerFake,
                     lifecycleScope,
+                    mediaCarouselInteractor,
+                    mediaViewModelFactory,
                 )
             }
         }

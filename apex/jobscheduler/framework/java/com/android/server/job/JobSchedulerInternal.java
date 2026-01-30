@@ -26,7 +26,7 @@ import java.util.List;
 
 /**
  * JobScheduler local system service interface.
- * {@hide} Only for use within the system server.
+ * @hide Only for use within the system server.
  */
 public interface JobSchedulerInternal {
 

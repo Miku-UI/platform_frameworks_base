@@ -35,19 +35,21 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.widget.TextView
 import androidx.annotation.VisibleForTesting
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
-import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.motion.widget.MotionLayout
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.app.animation.Interpolators
-import com.android.settingslib.Utils
+import com.android.compose.theme.PlatformTheme
+import com.android.keyguard.AlphaOptimizedLinearLayout
 import com.android.systemui.Dumpable
+import com.android.systemui.Flags.notificationShadeBlur
 import com.android.systemui.animation.ShadeInterpolation
 import com.android.systemui.battery.BatteryMeterView
 import com.android.systemui.battery.BatteryMeterView.MODE_ESTIMATE
@@ -71,14 +73,20 @@ import com.android.systemui.shade.carrier.ShadeCarrierGroupController
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
 import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.core.NewStatusBarIcons
+import com.android.systemui.statusbar.core.RudimentaryBattery
 import com.android.systemui.statusbar.data.repository.StatusBarContentInsetsProviderStore
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.phone.StatusIconContainer
 import com.android.systemui.statusbar.phone.StatusOverlayHoverListenerFactory
+import com.android.systemui.statusbar.phone.domain.interactor.IsAreaDark
 import com.android.systemui.statusbar.phone.ui.StatusBarIconController
 import com.android.systemui.statusbar.phone.ui.TintedIconManager
+import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryWithChargeStatus
 import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryWithEstimate
+import com.android.systemui.statusbar.pipeline.battery.ui.composable.ShowPercentMode
+import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryNextToPercentViewModel
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel
+import com.android.systemui.statusbar.pipeline.shared.ui.view.SystemStatusIconsLayoutHelper
 import com.android.systemui.statusbar.policy.Clock
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.NextAlarmController
@@ -114,7 +122,8 @@ constructor(
     private val shadeDisplaysRepositoryLazy: Lazy<ShadeDisplaysRepository>,
     private val variableDateViewControllerFactory: VariableDateViewController.Factory,
     @Named(SHADE_HEADER) private val batteryMeterViewController: BatteryMeterViewController,
-    private val batteryViewModelFactory: BatteryViewModel.Factory,
+    private val unifiedBatteryViewModelFactory: BatteryViewModel.AlwaysShowPercent.Factory,
+    private val tandemBatteryViewModelFactory: BatteryNextToPercentViewModel.Factory,
     private val dumpManager: DumpManager,
     private val shadeCarrierGroupControllerBuilder: ShadeCarrierGroupController.Builder,
     private val combinedShadeHeadersConstraintManager: CombinedShadeHeadersConstraintManager,
@@ -131,7 +140,7 @@ constructor(
                 if (ShadeWindowGoesAround.isEnabled) {
                     // ShadeDisplaysRepository is the source of truth for display id when
                     // ShadeWindowGoesAround.isEnabled
-                    shadeDisplaysRepositoryLazy.get().displayId.value
+                    shadeDisplaysRepositoryLazy.get().pendingDisplayId.value
                 } else {
                     context.displayId
                 }
@@ -140,10 +149,12 @@ constructor(
     companion object {
         /** IDs for transitions and constraints for the [MotionLayout]. */
         @VisibleForTesting internal val HEADER_TRANSITION_ID = R.id.header_transition
+
         @VisibleForTesting
         internal val LARGE_SCREEN_HEADER_TRANSITION_ID = R.id.large_screen_header_transition
         @VisibleForTesting internal val QQS_HEADER_CONSTRAINT = R.id.qqs_header_constraint
         @VisibleForTesting internal val QS_HEADER_CONSTRAINT = R.id.qs_header_constraint
+
         @VisibleForTesting
         internal val LARGE_SCREEN_HEADER_CONSTRAINT = R.id.large_screen_header_constraint
 
@@ -322,14 +333,29 @@ constructor(
             override fun onDensityOrFontScaleChanged() {
                 clock.setTextAppearance(R.style.TextAppearance_QS_Status)
                 date.setTextAppearance(R.style.TextAppearance_QS_Status)
-                mShadeCarrierGroup.updateTextAppearance(R.style.TextAppearance_QS_Status)
+                mShadeCarrierGroup.updateTextAppearanceAndTint(
+                    R.style.TextAppearance_QS_Status,
+                    getFgColor(),
+                    getBgColor(),
+                )
                 loadConstraints()
                 header.minHeight =
                     resources.getDimensionPixelSize(R.dimen.large_screen_shade_header_min_height)
                 lastInsets?.let { updateConstraintsForInsets(header, it) }
                 updateResources()
                 updateCarrierGroupPadding()
-                clock.onDensityOrFontScaleChanged()
+                if (!ShadeWindowGoesAround.isEnabled) {
+                    // the clock handles the config change itself.
+                    clock.onDensityOrFontScaleChanged()
+                }
+            }
+
+            override fun onThemeChanged() {
+                updateColors()
+            }
+
+            override fun onUiModeChanged() {
+                updateColors()
             }
         }
 
@@ -341,10 +367,8 @@ constructor(
     override fun onInit() {
         variableDateViewControllerFactory.create(date as VariableDateView).init()
 
-        val fgColor =
-            Utils.getColorAttrDefaultColor(header.context, android.R.attr.textColorPrimary)
-        val bgColor =
-            Utils.getColorAttrDefaultColor(header.context, android.R.attr.textColorPrimaryInverse)
+        val fgColor = getFgColor()
+        val bgColor = getBgColor()
 
         iconManager = tintedIconManagerFactory.create(iconContainer, StatusBarLocation.QS)
         iconManager.setTint(fgColor, bgColor)
@@ -357,36 +381,87 @@ constructor(
 
             batteryIcon.isVisible = true
             batteryIcon.updateColors(
-                fgColor /* foreground */,
-                bgColor /* background */,
+                fgColor, /* foreground */
+                bgColor, /* background */
                 fgColor, /* single tone (current default) */
             )
         } else {
+            // Configure the correct margins for the system icon container
+            val statusIcons = mView.requireViewById<AlphaOptimizedLinearLayout>(R.id.statusIcons)
+            SystemStatusIconsLayoutHelper.configurePaddingForNewStatusBarIcons(statusIcons)
+
             // Configure the compose battery view
-            val batteryComposeView =
-                ComposeView(mView.context).apply {
-                    setContent {
-                        id = R.id.battery_meter_composable_view
-                        val showBatteryEstimate by showBatteryEstimate.collectAsStateWithLifecycle()
-                        BatteryWithEstimate(
-                            modifier = Modifier.height(17.dp).wrapContentWidth(),
-                            viewModelFactory = batteryViewModelFactory,
-                            isDark = { true },
-                            showEstimate = showBatteryEstimate,
-                        )
-                    }
-                }
+            val batteryComposeView = createBatteryComposeView()
             mView.requireViewById<ViewGroup>(R.id.hover_system_icons_container).apply {
                 addView(batteryComposeView, -1)
             }
         }
 
         carrierIconSlots =
-            listOf(header.context.getString(com.android.internal.R.string.status_bar_mobile))
+            listOf(
+                header.context.getString(com.android.internal.R.string.status_bar_mobile),
+                header.context.getString(com.android.internal.R.string.status_bar_stacked_mobile),
+            )
         mShadeCarrierGroupController =
             shadeCarrierGroupControllerBuilder.setShadeCarrierGroup(mShadeCarrierGroup).build()
 
         privacyIconsController.onParentVisible()
+    }
+
+    private fun getBgColor() =
+        if (notificationShadeBlur()) {
+            header.context.getColor(R.color.shade_header_text_color_bg)
+        } else {
+            android.graphics.Color.BLACK
+        }
+
+    private fun getFgColor() =
+        if (notificationShadeBlur()) {
+            header.context.getColor(R.color.shade_header_text_color)
+        } else {
+            android.graphics.Color.WHITE
+        }
+
+    private fun createBatteryComposeView(): ComposeView {
+        return if (RudimentaryBattery.isEnabled) {
+            ComposeView(mView.context).apply {
+                setContent {
+                    PlatformTheme {
+                        id = R.id.battery_meter_composable_view
+                        val showBatteryEstimate by showBatteryEstimate.collectAsStateWithLifecycle()
+                        val dark = isSystemInDarkTheme()
+                        BatteryWithChargeStatus(
+                            modifier = Modifier.wrapContentSize(),
+                            viewModelFactory = tandemBatteryViewModelFactory,
+                            isDarkProvider = { IsAreaDark { dark } },
+                            showPercentMode =
+                                if (showBatteryEstimate) ShowPercentMode.PreferEstimate
+                                else ShowPercentMode.Always,
+                        )
+                    }
+                }
+            }
+        } else {
+            ComposeView(mView.context).apply {
+                setContent {
+                    PlatformTheme {
+                        id = R.id.battery_meter_composable_view
+                        val showBatteryEstimate by showBatteryEstimate.collectAsStateWithLifecycle()
+                        val dark = isSystemInDarkTheme()
+                        BatteryWithEstimate(
+                            modifier = Modifier.wrapContentSize(),
+                            viewModelFactory = unifiedBatteryViewModelFactory,
+                            isDarkProvider = { IsAreaDark { dark } },
+                            textColor =
+                                if (notificationShadeBlur())
+                                    Color(context.getColor(R.color.shade_header_text_color))
+                                else Color.White,
+                            showEstimate = showBatteryEstimate,
+                        )
+                    }
+                }
+            }
+        }
     }
 
     override fun onViewAttached() {
@@ -462,6 +537,17 @@ constructor(
         header
             .getConstraintSet(LARGE_SCREEN_HEADER_CONSTRAINT)
             .load(context, resources.getXml(R.xml.large_screen_shade_header))
+    }
+
+    private fun updateColors() {
+        clock.setTextAppearance(R.style.TextAppearance_QS_Status)
+        date.setTextAppearance(R.style.TextAppearance_QS_Status)
+        mShadeCarrierGroup.updateTextAppearanceAndTint(
+            R.style.TextAppearance_QS_Status,
+            getFgColor(),
+            getBgColor(),
+        )
+        iconManager.setTint(getFgColor(), getBgColor())
     }
 
     private fun updateCarrierGroupPadding() {

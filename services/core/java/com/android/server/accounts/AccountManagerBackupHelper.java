@@ -152,9 +152,9 @@ public final class AccountManagerBackupHelper {
                 .getUserAccounts(userId);
         synchronized (accounts.dbLock) {
             synchronized (accounts.cacheLock) {
-                List<Pair<String, Integer>> allAccountGrants = accounts.accountsDb
+                Pair<String[], int[]> allAccountGrants = accounts.accountsDb
                         .findAllAccountGrants();
-                if (allAccountGrants.isEmpty()) {
+                if (allAccountGrants.first == null || allAccountGrants.first.length == 0) {
                     return null;
                 }
                 try {
@@ -166,9 +166,11 @@ public final class AccountManagerBackupHelper {
 
                     PackageManager packageManager = mAccountManagerService.mContext
                             .getPackageManager();
-                    for (Pair<String, Integer> grant : allAccountGrants) {
-                        final String accountName = grant.first;
-                        final int uid = grant.second;
+                    final String[] accountNames = allAccountGrants.first;
+                    final int[] uids = allAccountGrants.second;
+                    for (int i = 0; i < accountNames.length; i++) {
+                        final String accountName = accountNames[i];
+                        final int uid = uids[i];
 
                         final String[] packageNames = packageManager.getPackagesForUid(uid);
                         if (packageNames == null) {

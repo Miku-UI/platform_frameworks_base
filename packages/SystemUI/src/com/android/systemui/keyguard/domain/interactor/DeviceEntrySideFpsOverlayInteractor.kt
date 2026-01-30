@@ -17,6 +17,7 @@
 package com.android.systemui.keyguard.domain.interactor
 
 import android.content.Context
+import android.security.Flags.secureLockDevice
 import android.util.Log
 import com.android.keyguard.KeyguardUpdateMonitor
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
@@ -27,6 +28,7 @@ import com.android.systemui.res.R
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor
 import com.android.systemui.shade.ShadeDisplayAware
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +53,7 @@ constructor(
     deviceEntryFingerprintAuthRepository: DeviceEntryFingerprintAuthRepository,
     private val sceneInteractor: SceneInteractor,
     private val primaryBouncerInteractor: PrimaryBouncerInteractor,
+    secureLockDeviceInteractor: SecureLockDeviceInteractor,
     alternateBouncerInteractor: AlternateBouncerInteractor,
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
 ) {
@@ -61,6 +64,31 @@ constructor(
     private val isBouncerOverlayActive: Flow<Boolean> =
         if (SceneContainerFlag.isEnabled) {
             sceneInteractor.currentOverlays.map { Overlays.Bouncer in it }.distinctUntilChanged()
+        } else {
+            flowOf(false)
+        }
+
+    private val isBiometricAuthRequestedForSecureLockDevice: Flow<Boolean> =
+        if (secureLockDevice()) {
+            secureLockDeviceInteractor.requiresStrongBiometricAuthForSecureLockDevice
+        } else {
+            flowOf(false)
+        }
+
+    /**
+     * Indicates when secure lock device is requesting SFPS auth and the SFPS indicator should be
+     * shown on the UI
+     */
+    val showIndicatorForSecureLockDeviceBiometricAuth: Flow<Boolean> =
+        if (secureLockDevice()) {
+            isBiometricAuthRequestedForSecureLockDevice
+                .map { biometricAuthRequested ->
+                    biometricAuthRequested &&
+                        keyguardUpdateMonitor.isFingerprintDetectionRunning &&
+                        keyguardUpdateMonitor.isUnlockingWithFingerprintAllowed
+                }
+                .distinctUntilChanged()
+                .onEach { Log.d(TAG, "showIndicatorForSecureLockDeviceBiometricAuth updated: $it") }
         } else {
             flowOf(false)
         }
@@ -94,10 +122,17 @@ constructor(
      * sensor indicator.
      */
     val showIndicatorForDeviceEntry: Flow<Boolean> =
-        combine(showIndicatorForPrimaryBouncer, showIndicatorForAlternateBouncer) {
+        combine(
+                showIndicatorForPrimaryBouncer,
+                showIndicatorForAlternateBouncer,
+                showIndicatorForSecureLockDeviceBiometricAuth,
+            ) {
                 showForPrimaryBouncer,
-                showForAlternateBouncer ->
-                showForPrimaryBouncer || showForAlternateBouncer
+                showForAlternateBouncer,
+                showIndicatorForSecureLockDeviceBiometricAuth ->
+                showForPrimaryBouncer ||
+                    showForAlternateBouncer ||
+                    showIndicatorForSecureLockDeviceBiometricAuth
             }
             .distinctUntilChanged()
             .onEach { Log.d(TAG, "showIndicatorForDeviceEntry updated: $it") }

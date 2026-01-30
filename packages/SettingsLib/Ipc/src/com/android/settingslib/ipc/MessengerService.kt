@@ -25,6 +25,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.Message
 import android.os.Messenger
+import android.os.TransactionTooLargeException
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import kotlinx.coroutines.CoroutineScope
@@ -139,7 +140,14 @@ open class MessengerService(
                 Log.e(TAG, "Internal error when handle [txnId=$txnId,apiId=$apiId]", e)
             }
             try {
-                replyTo.send(response)
+                try {
+                    replyTo.send(response)
+                } catch (e: TransactionTooLargeException) {
+                    Log.w(TAG, "[txnId=$txnId,apiId=$apiId] $e")
+                    response.data = null
+                    response.arg2 = ApiServiceException.CODE_INTERNAL_ERROR
+                    replyTo.send(response)
+                }
             } catch (e: Exception) {
                 Log.w(TAG, "Fail to send response for [txnId=$txnId,apiId=$apiId]", e)
                 // nothing to do

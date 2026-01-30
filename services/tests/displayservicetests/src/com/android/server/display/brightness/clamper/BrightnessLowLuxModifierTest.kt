@@ -17,6 +17,8 @@ package com.android.server.display.brightness.clamper
 
 import android.os.UserHandle
 import android.platform.test.annotations.RequiresFlagsEnabled
+import android.platform.test.flag.junit.CheckFlagsRule
+import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.testing.TestableContext
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.server.display.DisplayDeviceConfig
@@ -26,12 +28,15 @@ import com.android.server.testutils.TestHandler
 import com.android.server.testutils.whenever
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.mock
 
 private const val USER_ID = UserHandle.USER_CURRENT
 
 class BrightnessLowLuxModifierTest {
+    @get:Rule
+    val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     private var mockClamperChangeListener =
         mock<BrightnessClamperController.ClamperChangeListener>()

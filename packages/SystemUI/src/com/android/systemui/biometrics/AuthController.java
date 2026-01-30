@@ -19,6 +19,7 @@ package com.android.systemui.biometrics;
 import static android.hardware.biometrics.BiometricAuthenticator.TYPE_FACE;
 import static android.hardware.biometrics.BiometricAuthenticator.TYPE_FINGERPRINT;
 import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_REAR;
+import static android.hardware.fingerprint.FingerprintSensorProperties.TYPE_UNKNOWN;
 import static android.view.Display.INVALID_DISPLAY;
 
 import static com.android.systemui.Flags.contAuthPlugin;
@@ -65,9 +66,12 @@ import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.MotionEvent;
 import android.view.WindowManager;
+import android.widget.Toast;
+import android.window.DesktopExperienceFlags;
 
 import com.android.internal.R;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.hidden_from_bootclasspath.android.hardware.biometrics.Flags;
 import com.android.internal.jank.InteractionJankMonitor;
 import com.android.internal.os.SomeArgs;
 import com.android.internal.widget.LockPatternUtils;
@@ -77,11 +81,13 @@ import com.android.systemui.biometrics.domain.interactor.PromptSelectorInteracto
 import com.android.systemui.biometrics.plugins.AuthContextPlugins;
 import com.android.systemui.biometrics.shared.model.UdfpsOverlayParams;
 import com.android.systemui.biometrics.ui.viewmodel.CredentialViewModel;
+import com.android.systemui.biometrics.ui.viewmodel.PromptFallbackViewModel;
 import com.android.systemui.biometrics.ui.viewmodel.PromptViewModel;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
+import com.android.systemui.display.data.repository.FocusedDisplayRepository;
 import com.android.systemui.doze.DozeReceiver;
 import com.android.systemui.keyguard.WakefulnessLifecycle;
 import com.android.systemui.keyguard.data.repository.BiometricType;
@@ -132,7 +138,7 @@ public class AuthController implements
         DozeReceiver {
 
     private static final String TAG = "AuthController";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final int SENSOR_PRIVACY_DELAY = 500;
 
     private final Handler mHandler;
@@ -192,8 +198,12 @@ public class AuthController implements
     private final DisplayInfo mCachedDisplayInfo = new DisplayInfo();
     @NonNull private final VibratorHelper mVibratorHelper;
     @NonNull private final MSDLPlayer mMSDLPlayer;
+    @NonNull private final PromptFallbackViewModel.Factory mPromptFallbackViewModelFactory;
 
     private final WindowManagerProvider mWindowManagerProvider;
+    private final FocusedDisplayRepository mFocusedDisplayRepository;
+
+    private Toast mSecondaryDisplayToast;
 
     @VisibleForTesting
     final TaskStackListener mTaskStackListener = new TaskStackListener() {
@@ -228,7 +238,7 @@ public class AuthController implements
             mCurrentDialog = null;
 
             for (Callback cb : mCallbacks) {
-                cb.onBiometricPromptDismissed();
+                cb.onBiometricPromptDismissed(reason);
             }
 
             try {
@@ -239,6 +249,8 @@ public class AuthController implements
             } catch (RemoteException e) {
                 Log.e(TAG, "Remote exception", e);
             }
+
+            cancelSecondaryDisplayToast();
         }
     }
 
@@ -364,6 +376,8 @@ public class AuthController implements
                         mSfpsEnrolledForUser.put(userId, hasEnrollments);
                     } else if (prop.sensorType == TYPE_REAR) {
                         sensorBiometricType = BiometricType.REAR_FINGERPRINT;
+                    } else {
+                        sensorBiometricType = BiometricType.OTHER_FINGERPRINT;
                     }
                     break;
                 }
@@ -478,7 +492,37 @@ public class AuthController implements
         try {
             receiver.onStartFingerprintNow();
         } catch (RemoteException e) {
-            Log.e(TAG, "RemoteException when sending onDialogAnimatedIn", e);
+            Log.e(TAG, "RemoteException when sending onStartFingerprintNow", e);
+        }
+    }
+
+    @Override
+    public void onPauseAuthentication(long requestId) {
+        final IBiometricSysuiReceiver receiver = getCurrentReceiver(requestId);
+        if (receiver == null) {
+            Log.e(TAG, "onPauseAuthentication: Receiver is null");
+            return;
+        }
+
+        try {
+            receiver.onPauseAuthentication();
+        } catch (RemoteException e) {
+            Log.e(TAG, "RemoteException when sending onPauseAuthentication", e);
+        }
+    }
+
+    @Override
+    public void onResumeAuthentication(long requestId) {
+        final IBiometricSysuiReceiver receiver = getCurrentReceiver(requestId);
+        if (receiver == null) {
+            Log.e(TAG, "onResumeAuthentication: Receiver is null");
+            return;
+        }
+
+        try {
+            receiver.onResumeAuthentication();
+        } catch (RemoteException e) {
+            Log.e(TAG, "RemoteException when sending onResumeAuthentication", e);
         }
     }
 
@@ -512,6 +556,7 @@ public class AuthController implements
     @Override
     public void onDismissed(@BiometricPrompt.DismissedReason int reason,
             @Nullable byte[] credentialAttestation, long requestId) {
+        cancelSecondaryDisplayToast();
         if (mCurrentDialog != null && requestId != mCurrentDialog.getRequestId()) {
             Log.w(TAG, "requestId doesn't match, skip onDismissed");
             return;
@@ -666,6 +711,7 @@ public class AuthController implements
         }
         onDialogDismissed(reason);
     }
+
     @Inject
     public AuthController(@Main Context context,
             @Application CoroutineScope applicationCoroutineScope,
@@ -693,7 +739,9 @@ public class AuthController implements
             @NonNull VibratorHelper vibratorHelper,
             @NonNull KeyguardManager keyguardManager,
             @NonNull MSDLPlayer msdlPlayer,
-            WindowManagerProvider windowManagerProvider) {
+            WindowManagerProvider windowManagerProvider,
+            @NonNull PromptFallbackViewModel.Factory promptFallbackViewModelFactory,
+            @NonNull FocusedDisplayRepository focusedDisplayRepository) {
         mContext = context;
         mExecution = execution;
         mUserManager = userManager;
@@ -717,6 +765,7 @@ public class AuthController implements
         mApplicationCoroutineScope = applicationCoroutineScope;
         mVibratorHelper = vibratorHelper;
         mMSDLPlayer = msdlPlayer;
+        mPromptFallbackViewModelFactory = promptFallbackViewModelFactory;
 
         mLogContextInteractor = logContextInteractor;
         mPromptSelectorInteractor = promptSelectorInteractorProvider;
@@ -755,6 +804,7 @@ public class AuthController implements
         mSensorPrivacyManager = context.getSystemService(SensorPrivacyManager.class);
 
         mWindowManagerProvider = windowManagerProvider;
+        mFocusedDisplayRepository = focusedDisplayRepository;
     }
 
     // TODO(b/229290039): UDFPS controller should manage its dimensions on its own. Remove this.
@@ -1006,6 +1056,22 @@ public class AuthController implements
         return false;
     }
 
+    /**
+     * @return true if fps HW is supported on this device, but location is unknown. Can return
+     * true even if the user has not enrolled fps. This may be false if called before
+     * onAllAuthenticatorsRegistered.
+     */
+    public boolean isUnknownFpsSupported() {
+        if (mFpProps != null) {
+            for (FingerprintSensorPropertiesInternal prop: mFpProps) {
+                if (prop.sensorType == TYPE_UNKNOWN) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private String getNotRecognizedString(@Modality int modality) {
         final int messageRes;
         final int userId = mCurrentDialogArgs.argi1;
@@ -1052,18 +1118,21 @@ public class AuthController implements
                 SensorPrivacyManager.TOGGLE_TYPE_SOFTWARE, SensorPrivacyManager.Sensors.CAMERA)) {
             isCameraPrivacyEnabled = true;
         }
-        // TODO(b/141025588): Create separate methods for handling hard and soft errors.
+
         final boolean isSoftError = (error == BiometricConstants.BIOMETRIC_PAUSED_REJECTED
                 || error == BiometricConstants.BIOMETRIC_ERROR_TIMEOUT
                 || error == BiometricConstants.BIOMETRIC_ERROR_RE_ENROLL
+                || error == BiometricConstants.BIOMETRIC_ERROR_UNABLE_TO_PROCESS
                 || isCameraPrivacyEnabled);
         if (mCurrentDialog != null) {
-            if (mCurrentDialog.isAllowDeviceCredentials() && isLockout) {
+            if (isLockout && (Flags.bpFallbackOptions()
+                    || mCurrentDialog.isAllowDeviceCredentials())) {
                 if (DEBUG) Log.d(TAG, "onBiometricError, lockout");
                 mCurrentDialog.animateToCredentialUI(true /* isError */);
             } else if (isSoftError) {
                 final String errorMessage = (error == BiometricConstants.BIOMETRIC_PAUSED_REJECTED
-                        || error == BiometricConstants.BIOMETRIC_ERROR_TIMEOUT)
+                        || error == BiometricConstants.BIOMETRIC_ERROR_TIMEOUT
+                        || error == BiometricConstants.BIOMETRIC_ERROR_UNABLE_TO_PROCESS)
                         ? getNotRecognizedString(modality)
                         : getErrorString(modality, error, vendorCode);
                 if (DEBUG) Log.d(TAG, "onBiometricError, soft error: " + errorMessage);
@@ -1093,6 +1162,8 @@ public class AuthController implements
     public void hideAuthenticationDialog(long requestId) {
         if (DEBUG) Log.d(TAG, "hideAuthenticationDialog: " + mCurrentDialog);
 
+        cancelSecondaryDisplayToast();
+
         if (mCurrentDialog == null) {
             // Could be possible if the caller canceled authentication after credential success
             // but before the client was notified.
@@ -1107,7 +1178,7 @@ public class AuthController implements
 
         mCurrentDialog.dismissFromSystemServer();
         for (Callback cb : mCallbacks) {
-            cb.onBiometricPromptDismissed();
+            cb.onBiometricPromptDismissed(BiometricPrompt.DISMISSED_REASON_SERVER_REQUESTED);
         }
 
         // BiometricService will have already sent the callback to the client in this case.
@@ -1182,6 +1253,8 @@ public class AuthController implements
 
     private void showDialog(SomeArgs args, boolean skipAnimation,
             @Nullable PromptViewModel viewModel) {
+        mExecution.assertIsMainThread();
+
         mCurrentDialogArgs = args;
 
         final PromptInfo promptInfo = (PromptInfo) args.arg1;
@@ -1195,6 +1268,8 @@ public class AuthController implements
         final String opPackageName = (String) args.arg6;
         final long operationId = args.argl1;
         final long requestId = args.argl2;
+
+        cancelSecondaryDisplayToast();
 
         // Create a new dialog but do not replace the current one yet.
         final AuthContainerView newDialog = buildDialog(
@@ -1233,7 +1308,7 @@ public class AuthController implements
 
         mReceiver = (IBiometricSysuiReceiver) args.arg2;
         for (Callback cb : mCallbacks) {
-            cb.onBiometricPromptShown();
+            cb.onBiometricPromptShown(promptInfo);
         }
         mCurrentDialog = newDialog;
 
@@ -1245,10 +1320,35 @@ public class AuthController implements
             WindowManager wm = getWindowManagerForUser(userId);
             if (wm != null) {
                 mCurrentDialog.show(wm);
+                maybeShowSecondaryDisplayToast();
             } else {
                 closeDialog(BiometricPrompt.DISMISSED_REASON_ERROR_NO_WM,
                         "unable to get WM instance for user");
             }
+        }
+    }
+
+    private void maybeShowSecondaryDisplayToast() {
+        if (!DesktopExperienceFlags.SHOW_BIOMETRIC_PROMPT_SECONDARY_DISPLAY_MESSAGE.isTrue()) return;
+        int focusedDisplayId = mFocusedDisplayRepository.getFocusedDisplayId().getValue();
+        if (focusedDisplayId != Display.DEFAULT_DISPLAY) {
+            Display focusedDisplay = mDisplayManager.getDisplay(focusedDisplayId);
+            if (focusedDisplay != null) {
+                mSecondaryDisplayToast = Toast.makeText(
+                        mContext.createDisplayContext(focusedDisplay),
+                        R.string.biometric_dialog_secondary_display_toast,
+                        Toast.LENGTH_LONG);
+                mSecondaryDisplayToast.show();
+            }
+        }
+    }
+
+    private void cancelSecondaryDisplayToast() {
+        mExecution.assertIsMainThread();
+
+        if (mSecondaryDisplayToast != null) {
+            mSecondaryDisplayToast.cancel();
+            mSecondaryDisplayToast = null;
         }
     }
 
@@ -1287,7 +1387,7 @@ public class AuthController implements
         }
 
         for (Callback cb : mCallbacks) {
-            cb.onBiometricPromptDismissed();
+            cb.onBiometricPromptDismissed(reason);
         }
 
         mReceiver = null;
@@ -1336,7 +1436,8 @@ public class AuthController implements
         return new AuthContainerView(config, mApplicationCoroutineScope, mFpProps, mFaceProps,
                 wakefulnessLifecycle, userManager, mContextPlugins, lockPatternUtils,
                 mInteractionJankMonitor, mPromptSelectorInteractor, viewModel,
-                mCredentialViewModelProvider, bgExecutor, mVibratorHelper, mMSDLPlayer);
+                mCredentialViewModelProvider, bgExecutor, mVibratorHelper, mMSDLPlayer,
+                mPromptFallbackViewModelFactory);
     }
 
     @Override
@@ -1399,9 +1500,23 @@ public class AuthController implements
         default void onBiometricPromptShown() {}
 
         /**
+         * Called when the biometric prompt starts showing.
+         */
+        default void onBiometricPromptShown(PromptInfo promptInfo) {
+            onBiometricPromptShown();
+        }
+
+        /**
          * Called when the biometric prompt is no longer showing.
          */
         default void onBiometricPromptDismissed() {}
+
+        /**
+         * Called when the biometric prompt is no longer showing.
+         */
+        default void onBiometricPromptDismissed(@BiometricPrompt.DismissedReason int reason) {
+            onBiometricPromptDismissed();
+        }
 
         /**
          * Called when the location of the fingerprint sensor changes. The location in pixels can

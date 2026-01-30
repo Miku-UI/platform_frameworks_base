@@ -101,6 +101,7 @@ public class Events {
     public static final int DISMISS_REASON_USB_OVERHEAD_ALARM_CHANGED = 9;
     public static final int DISMISS_REASON_CSD_WARNING_TIMEOUT = 10;
     public static final int DISMISS_REASON_POSTURE_CHANGED = 11;
+    public static final int DISMISS_REASON_QUICK_SETTINGS_EXPANDED = 12;
 
     public static final String[] DISMISS_REASONS = {
             "unknown",
@@ -114,7 +115,8 @@ public class Events {
             "output_chooser",
             "usb_temperature_below_threshold",
             "csd_warning_timeout",
-            "posture_changed"
+            "posture_changed",
+            "quick_settings_expanded"
     };
 
     public static final int SHOW_REASON_UNKNOWN = 0;
@@ -184,7 +186,10 @@ public class Events {
         // reserving 141 for DISMISS_REASON_OUTPUT_CHOOSER which is currently unused
         @UiEvent(doc = "The volume dialog was dismissed because the usb high temperature alarm "
                  + "changed")
-        VOLUME_DIALOG_DISMISS_USB_TEMP_ALARM_CHANGED(142);
+        VOLUME_DIALOG_DISMISS_USB_TEMP_ALARM_CHANGED(142),
+        @UiEvent(doc = "The volume dialog was dismissed because the quick settings shade was "
+                + "expanded")
+        VOLUME_DIALOG_DISMISS_QUICK_SETTINGS(2345);
 
         private final int mId;
         VolumeDialogCloseEvent(int id) {
@@ -210,6 +215,8 @@ public class Events {
                     return VOLUME_DIALOG_DISMISS_STREAM_GONE;
                 case DISMISS_REASON_USB_OVERHEAD_ALARM_CHANGED:
                     return VOLUME_DIALOG_DISMISS_USB_TEMP_ALARM_CHANGED;
+                case DISMISS_REASON_QUICK_SETTINGS_EXPANDED:
+                    return VOLUME_DIALOG_DISMISS_QUICK_SETTINGS;
             }
             return INVALID;
         }

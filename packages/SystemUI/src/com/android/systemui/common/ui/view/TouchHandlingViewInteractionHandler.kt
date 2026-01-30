@@ -17,6 +17,7 @@
 
 package com.android.systemui.common.ui.view
 
+import android.companion.virtualdevice.flags.Flags
 import android.content.Context
 import android.graphics.Point
 import android.view.GestureDetector
@@ -25,12 +26,11 @@ import android.view.ViewConfiguration
 import com.android.systemui.log.TouchHandlingViewLogger
 import kotlin.math.pow
 import kotlin.math.sqrt
-import kotlin.properties.Delegates
 import kotlinx.coroutines.DisposableHandle
 
 /** Encapsulates logic to handle complex touch interactions with a [TouchHandlingView]. */
 class TouchHandlingViewInteractionHandler(
-    context: Context,
+    private val context: Context,
     /**
      * Callback to run the given [Runnable] with the given delay, returning a [DisposableHandle]
      * allowing the delayed runnable to be canceled before it is run.
@@ -92,14 +92,16 @@ class TouchHandlingViewInteractionHandler(
             },
         )
 
+    private val doubleTapTimeoutMillis =
+        if (Flags.viewconfigurationApis()) ViewConfiguration.get(context).doubleTapTimeoutMillis
+        else ViewConfiguration.getDoubleTapTimeout()
+
     fun onTouchEvent(event: MotionEvent): Boolean {
         if (isDoubleTapHandlingEnabled) {
             gestureDetector.onTouchEvent(event)
             if (event.actionMasked == MotionEvent.ACTION_UP && doubleTapAwaitingUp) {
                 lastDoubleTapDownEventTime?.let { time ->
-                    if (
-                        event.eventTime - time < ViewConfiguration.getDoubleTapTimeout()
-                    ) {
+                    if (event.eventTime - time < doubleTapTimeoutMillis) {
                         cancelScheduledLongPress()
                         onDoubleTapDetected()
                     }

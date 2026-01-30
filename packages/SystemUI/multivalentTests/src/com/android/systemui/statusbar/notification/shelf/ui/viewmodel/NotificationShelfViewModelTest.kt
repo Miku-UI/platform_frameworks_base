@@ -20,13 +20,13 @@ import android.os.PowerManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testCase
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.plugins.statusbar.statusBarStateController
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.shade.domain.interactor.enableDualShade
@@ -36,7 +36,6 @@ import com.android.systemui.statusbar.lockscreenShadeTransitionController
 import com.android.systemui.statusbar.phone.screenOffAnimationController
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.eq
@@ -50,26 +49,22 @@ import org.mockito.kotlin.whenever
 class NotificationShelfViewModelTest : SysuiTestCase() {
 
     private val kosmos =
-        testKosmos().apply {
+        testKosmos().useUnconfinedTestDispatcher().apply {
             testCase = this@NotificationShelfViewModelTest
             lockscreenShadeTransitionController = mock()
             screenOffAnimationController = mock()
             statusBarStateController = mock()
             whenever(screenOffAnimationController.allowWakeUpIfDozing()).thenReturn(true)
         }
-    private val deviceEntryFaceAuthRepository = kosmos.fakeDeviceEntryFaceAuthRepository
-    private val keyguardRepository = kosmos.fakeKeyguardRepository
-    private val powerRepository = kosmos.fakePowerRepository
-    private val keyguardTransitionController by lazy { kosmos.lockscreenShadeTransitionController }
 
-    private val underTest by lazy { kosmos.notificationShelfViewModel }
+    private val underTest: NotificationShelfViewModel by lazy { kosmos.notificationShelfViewModel }
 
     @Test
     fun canModifyColorOfNotifications_whenKeyguardNotShowing() =
         kosmos.runTest {
             val canModifyNotifColor by collectLastValue(underTest.canModifyColorOfNotifications)
 
-            keyguardRepository.setKeyguardShowing(false)
+            fakeKeyguardRepository.setKeyguardShowing(false)
 
             assertThat(canModifyNotifColor).isTrue()
         }
@@ -79,8 +74,8 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val canModifyNotifColor by collectLastValue(underTest.canModifyColorOfNotifications)
 
-            keyguardRepository.setKeyguardShowing(true)
-            deviceEntryFaceAuthRepository.isBypassEnabled.value = false
+            fakeKeyguardRepository.setKeyguardShowing(true)
+            fakeDeviceEntryFaceAuthRepository.isBypassEnabled.value = false
 
             assertThat(canModifyNotifColor).isTrue()
         }
@@ -90,8 +85,8 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val canModifyNotifColor by collectLastValue(underTest.canModifyColorOfNotifications)
 
-            keyguardRepository.setKeyguardShowing(true)
-            deviceEntryFaceAuthRepository.isBypassEnabled.value = true
+            fakeKeyguardRepository.setKeyguardShowing(true)
+            fakeDeviceEntryFaceAuthRepository.isBypassEnabled.value = true
 
             assertThat(canModifyNotifColor).isFalse()
         }
@@ -101,7 +96,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val isClickable by collectLastValue(underTest.isClickable)
 
-            keyguardRepository.setKeyguardShowing(true)
+            fakeKeyguardRepository.setKeyguardShowing(true)
 
             assertThat(isClickable).isTrue()
         }
@@ -111,7 +106,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val isClickable by collectLastValue(underTest.isClickable)
 
-            keyguardRepository.setKeyguardShowing(false)
+            fakeKeyguardRepository.setKeyguardShowing(false)
 
             assertThat(isClickable).isFalse()
         }
@@ -123,9 +118,10 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
 
             underTest.onShelfClicked()
 
-            assertThat(powerRepository.lastWakeReason).isNotNull()
-            assertThat(powerRepository.lastWakeReason).isEqualTo(PowerManager.WAKE_REASON_GESTURE)
-            verify(keyguardTransitionController).goToLockedShade(Mockito.isNull(), eq(true))
+            assertThat(fakePowerRepository.lastWakeReason).isNotNull()
+            assertThat(fakePowerRepository.lastWakeReason)
+                .isEqualTo(PowerManager.WAKE_REASON_GESTURE)
+            verify(lockscreenShadeTransitionController).goToLockedShade(Mockito.isNull(), eq(true))
         }
 
     @Test
@@ -134,7 +130,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val isShelfAlignedToEnd by collectLastValue(underTest.isAlignedToEnd)
 
-            kosmos.enableSplitShade()
+            enableSplitShade()
 
             assertThat(isShelfAlignedToEnd).isTrue()
         }
@@ -145,7 +141,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val isShelfAlignedToEnd by collectLastValue(underTest.isAlignedToEnd)
 
-            kosmos.enableSingleShade()
+            enableSingleShade()
 
             assertThat(isShelfAlignedToEnd).isFalse()
         }
@@ -156,7 +152,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val isShelfAlignedToEnd by collectLastValue(underTest.isAlignedToEnd)
 
-            kosmos.enableDualShade(wideLayout = true)
+            enableDualShade(wideLayout = true)
 
             assertThat(isShelfAlignedToEnd).isFalse()
         }
@@ -167,7 +163,7 @@ class NotificationShelfViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val isShelfAlignedToEnd by collectLastValue(underTest.isAlignedToEnd)
 
-            kosmos.enableDualShade(wideLayout = false)
+            enableDualShade(wideLayout = false)
 
             assertThat(isShelfAlignedToEnd).isFalse()
         }

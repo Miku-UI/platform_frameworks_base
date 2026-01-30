@@ -16,13 +16,17 @@
 
 package com.android.internal.widget.floatingtoolbar;
 
+import android.annotation.IntDef;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.graphics.Rect;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.selectiontoolbar.SelectionToolbarManager;
 import android.widget.PopupWindow;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.List;
 
 /**
@@ -30,6 +34,19 @@ import java.util.List;
  *
  */
 public interface FloatingToolbarPopup {
+
+    int TOOLBAR_STATE_SHOWN = 1;
+    int TOOLBAR_STATE_HIDDEN = 2;
+    int TOOLBAR_STATE_DISMISSED = 3;
+
+    @IntDef(prefix = {"TOOLBAR_STATE_"}, value = {
+            TOOLBAR_STATE_SHOWN,
+            TOOLBAR_STATE_HIDDEN,
+            TOOLBAR_STATE_DISMISSED
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @interface ToolbarState {
+    }
 
     /**
      * Sets the suggested dp width of this floating toolbar.
@@ -88,10 +105,14 @@ public interface FloatingToolbarPopup {
             @Nullable PopupWindow.OnDismissListener onDismiss);
 
     /**
-     * Returns {@link LocalFloatingToolbarPopup} implementation.
+     * Returns {@link RemoteFloatingToolbarPopup} implementation if the system selection toolbar
+     * enabled, otherwise returns {@link LocalFloatingToolbarPopup} implementation.
      */
     static FloatingToolbarPopup createInstance(Context context, View parent) {
-        return new LocalFloatingToolbarPopup(context, parent);
+        boolean enabled = SelectionToolbarManager.isRemoteSelectionToolbarEnabled(context);
+        return enabled
+                ? new RemoteFloatingToolbarPopup(context, parent)
+                : new LocalFloatingToolbarPopup(context, parent);
     }
 
 }

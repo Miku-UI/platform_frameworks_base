@@ -18,9 +18,11 @@ package com.android.systemui.qs.tiles.impl.modes.ui.mapper
 
 import android.app.Flags
 import android.graphics.drawable.TestStubDrawable
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.settingslib.notification.modes.TestModeBuilder
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.asIcon
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfigTestBuilder
@@ -34,7 +36,6 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(Flags.FLAG_MODES_UI)
 class ModesTileMapperTest : SysuiTestCase() {
     val config =
         QSTileConfigTestBuilder.build {
@@ -57,9 +58,16 @@ class ModesTileMapperTest : SysuiTestCase() {
         )
 
     @Test
-    fun inactiveState() {
+    @DisableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
+    fun inactiveState_legacy() {
         val icon = TestStubDrawable("res123").asIcon()
-        val model = ModesTileModel(isActivated = false, activeModes = emptyList(), icon = icon)
+        val model =
+            ModesTileModel(
+                isActivated = false,
+                activeModes = emptyList(),
+                icon = icon,
+                quickMode = TestModeBuilder.MANUAL_DND,
+            )
 
         val state = underTest.map(config, model)
 
@@ -69,9 +77,16 @@ class ModesTileMapperTest : SysuiTestCase() {
     }
 
     @Test
-    fun activeState_oneMode() {
+    @DisableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
+    fun activeState_oneMode_legacy() {
         val icon = TestStubDrawable("res123").asIcon()
-        val model = ModesTileModel(isActivated = true, activeModes = listOf("DND"), icon = icon)
+        val model =
+            ModesTileModel(
+                isActivated = true,
+                activeModes = activeModesList("DND"),
+                icon = icon,
+                quickMode = TestModeBuilder.MANUAL_DND,
+            )
 
         val state = underTest.map(config, model)
 
@@ -81,13 +96,15 @@ class ModesTileMapperTest : SysuiTestCase() {
     }
 
     @Test
-    fun activeState_multipleModes() {
+    @DisableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
+    fun activeState_multipleModes_legacy() {
         val icon = TestStubDrawable("res123").asIcon()
         val model =
             ModesTileModel(
                 isActivated = true,
-                activeModes = listOf("Mode 1", "Mode 2", "Mode 3"),
+                activeModes = activeModesList("Mode 1", "Mode 2", "Mode 3"),
                 icon = icon,
+                quickMode = TestModeBuilder.MANUAL_DND,
             )
 
         val state = underTest.map(config, model)
@@ -98,12 +115,87 @@ class ModesTileMapperTest : SysuiTestCase() {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
+    fun inactiveState() {
+        val icon = TestStubDrawable("res123").asIcon()
+        val model =
+            ModesTileModel(
+                isActivated = false,
+                activeModes = emptyList(),
+                icon = icon,
+                quickMode = TestModeBuilder.MANUAL_DND,
+            )
+
+        val state = underTest.map(config, model)
+
+        assertThat(state.activationState).isEqualTo(QSTileState.ActivationState.INACTIVE)
+        assertThat(state.icon).isEqualTo(icon)
+        assertThat(state.label).isEqualTo("Modes")
+        assertThat(state.secondaryLabel).isEqualTo("")
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
+    fun activeState_oneMode() {
+        val icon = TestStubDrawable("res123").asIcon()
+        val model =
+            ModesTileModel(
+                isActivated = true,
+                activeModes = activeModesList("DND"),
+                icon = icon,
+                quickMode = TestModeBuilder.MANUAL_DND,
+            )
+
+        val state = underTest.map(config, model)
+
+        assertThat(state.activationState).isEqualTo(QSTileState.ActivationState.ACTIVE)
+        assertThat(state.icon).isEqualTo(icon)
+        assertThat(state.label).isEqualTo("DND")
+        assertThat(state.secondaryLabel).isEqualTo("On")
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
+    fun activeState_multipleModes() {
+        val icon = TestStubDrawable("res123").asIcon()
+        val model =
+            ModesTileModel(
+                isActivated = true,
+                activeModes = activeModesList("Mode 1", "Mode 2", "Mode 3"),
+                icon = icon,
+                quickMode = TestModeBuilder.MANUAL_DND,
+            )
+
+        val state = underTest.map(config, model)
+
+        assertThat(state.activationState).isEqualTo(QSTileState.ActivationState.ACTIVE)
+        assertThat(state.icon).isEqualTo(icon)
+        assertThat(state.label).isEqualTo("3 Modes")
+        assertThat(state.secondaryLabel).isEqualTo("On")
+    }
+
+    @Test
     fun state_modelHasIconResId_includesIconResId() {
-        val icon = TestStubDrawable("res123").asIcon(res = 123)
-        val model = ModesTileModel(isActivated = false, activeModes = emptyList(), icon = icon)
+        val icon = TestStubDrawable("res123").asIcon(resId = 123)
+        val model =
+            ModesTileModel(
+                isActivated = false,
+                activeModes = emptyList(),
+                icon = icon,
+                quickMode = TestModeBuilder.MANUAL_DND,
+            )
 
         val state = underTest.map(config, model)
 
         assertThat(state.icon).isEqualTo(icon)
+    }
+
+    private fun activeModesList(vararg modeIdsAndNames: String): List<ModesTileModel.ActiveMode> {
+        return modeIdsAndNames.map {
+            // For testing purposes, we use the same value for id and name, but replicate
+            // the flagged behavior of the DataInteractor.
+            if (Flags.modesUiTileReactivatesLast()) ModesTileModel.ActiveMode(it, it)
+            else ModesTileModel.ActiveMode(null, it)
+        }
     }
 }

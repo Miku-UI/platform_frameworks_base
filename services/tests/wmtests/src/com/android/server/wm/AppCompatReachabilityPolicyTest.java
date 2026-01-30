@@ -228,8 +228,7 @@ public class AppCompatReachabilityPolicyTest extends WindowTestsBase {
      * Runs a test scenario providing a Robot.
      */
     void runTestScenario(@NonNull Consumer<ReachabilityPolicyRobotTest> consumer) {
-        final ReachabilityPolicyRobotTest robot =
-                new ReachabilityPolicyRobotTest(mWm, mAtm, mSupervisor);
+        final ReachabilityPolicyRobotTest robot = new ReachabilityPolicyRobotTest(this);
         consumer.accept(robot);
     }
 
@@ -237,10 +236,8 @@ public class AppCompatReachabilityPolicyTest extends WindowTestsBase {
 
         private final Supplier<Rect> mLetterboxInnerBoundsSupplier = spy(Rect::new);
 
-        ReachabilityPolicyRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        ReachabilityPolicyRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         @Override

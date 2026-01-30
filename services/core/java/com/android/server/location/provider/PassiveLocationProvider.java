@@ -37,7 +37,7 @@ import java.util.Collections;
  * for clients that want to listen passively without actually triggering
  * location updates.
  *
- * {@hide}
+ * @hide
  */
 public class PassiveLocationProvider extends AbstractLocationProvider {
 

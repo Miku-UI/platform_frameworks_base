@@ -85,9 +85,12 @@ import com.android.server.AnimationThread;
 import com.android.server.DisplayThread;
 import com.android.server.LocalServices;
 import com.android.server.LockGuard;
+import com.android.server.UiModeManagerInternal;
 import com.android.server.UiThread;
 import com.android.server.Watchdog;
 import com.android.server.am.ActivityManagerService;
+import com.android.server.am.ProcessStateController;
+import com.android.server.am.psc.AsyncBatchSession;
 import com.android.server.display.DisplayControl;
 import com.android.server.display.color.ColorDisplayService;
 import com.android.server.firewall.IntentFirewall;
@@ -99,7 +102,6 @@ import com.android.server.policy.PermissionPolicyInternal;
 import com.android.server.statusbar.StatusBarManagerInternal;
 import com.android.server.testutils.StubTransaction;
 import com.android.server.uri.UriGrantsManagerInternal;
-import com.android.window.flags.Flags;
 
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -344,12 +346,16 @@ public class SystemServicesTestRule implements TestRule {
             channels[0].dispose();
             return channels[1];
         };
-        when(mImService.monitorInput(anyString(), anyInt())).thenAnswer(newInputChannel);
+        when(mImService.monitorFocusInput(anyString(), anyInt())).thenAnswer(newInputChannel);
         when(mImService.createInputChannel(anyString())).thenAnswer(newInputChannel);
 
         // StatusBarManagerInternal
         final StatusBarManagerInternal sbmi = mock(StatusBarManagerInternal.class);
         doReturn(sbmi).when(() -> LocalServices.getService(eq(StatusBarManagerInternal.class)));
+
+        // UiModeManagerInternal
+        final UiModeManagerInternal ummi = mock(UiModeManagerInternal.class);
+        doReturn(ummi).when(() -> LocalServices.getService(eq(UiModeManagerInternal.class)));
 
         // UserManagerInternal
         final UserManagerInternal umi = mock(UserManagerInternal.class);
@@ -407,10 +413,14 @@ public class SystemServicesTestRule implements TestRule {
         mTransaction = spy(StubTransaction.class);
 
         mWmService = WindowManagerServiceTestSupport.setUpService(mContext, mImService,
-                new TestWindowManagerPolicy(), mAtmService, new TestDisplayWindowSettingsProvider(),
-                mTransaction, new MockSurfaceControlBuilder(), mAppCompat);
+                new TestWindowManagerPolicy(), mAtmService,
+                new TestDisplayWindowSettingsProvider(mContext), mTransaction,
+                new MockSurfaceControlBuilder(), mAppCompat);
 
         spyOn(mWmService);
+        // Do nothing to show EmulatorDisplayOverlay
+        doNothing().when(mWmService).showEmulatorDisplayOverlay();
+
         spyOn(mWmService.mRoot);
         // Invoked during {@link ActivityStack} creation.
         doNothing().when(mWmService.mRoot).updateUIDsPresentOnDisplay();
@@ -499,6 +509,7 @@ public class SystemServicesTestRule implements TestRule {
         LocalServices.removeServiceForTest(ColorDisplayService.ColorDisplayServiceInternal.class);
         LocalServices.removeServiceForTest(UsageStatsManagerInternal.class);
         LocalServices.removeServiceForTest(StatusBarManagerInternal.class);
+        LocalServices.removeServiceForTest(UiModeManagerInternal.class);
         LocalServices.removeServiceForTest(UserManagerInternal.class);
         LocalServices.removeServiceForTest(GrammaticalInflectionManagerInternal.class);
     }
@@ -653,7 +664,12 @@ public class SystemServicesTestRule implements TestRule {
             final IntentFirewall intentFirewall = mock(IntentFirewall.class);
             doReturn(true).when(intentFirewall).checkStartActivity(
                     any(), anyInt(), anyInt(), nullable(String.class), any());
-            initialize(intentFirewall, null /* intentController */,
+            final ProcessStateController psc = mock(ProcessStateController.class);
+            final ProcessStateController.ActivityStateAsyncUpdater asau = mock(
+                    ProcessStateController.ActivityStateAsyncUpdater.class);
+            doReturn(mock(AsyncBatchSession.class)).when(asau).startBatchSession();
+            doReturn(asau).when(psc).createActivityStateAsyncUpdater(any());
+            initialize(intentFirewall, null /* intentController */, psc,
                     DisplayThread.getHandler().getLooper());
             spyOn(getLifecycleManager());
             spyOn(getLockTaskController());
@@ -663,12 +679,10 @@ public class SystemServicesTestRule implements TestRule {
             spyOn(appWarnings);
             doNothing().when(appWarnings).onStartActivity(any());
 
-            if (Flags.trackSystemUiContextBeforeWms()) {
-                final Context uiContext = getUiContext();
-                spyOn(uiContext);
-                doNothing().when(uiContext).registerComponentCallbacks(any());
-                doNothing().when(uiContext).unregisterComponentCallbacks(any());
-            }
+            final Context uiContext = getUiContext();
+            spyOn(uiContext);
+            doNothing().when(uiContext).registerComponentCallbacks(any());
+            doNothing().when(uiContext).unregisterComponentCallbacks(any());
         }
 
         @Override

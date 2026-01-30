@@ -4,12 +4,12 @@ import android.app.ActivityManager
 import android.os.Handler
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.LauncherProxyService
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.model.SysUiState
 import com.android.systemui.navigationbar.gestural.EdgeBackGestureHandler
 import com.android.systemui.plugins.statusbar.StatusBarStateController
-import com.android.systemui.recents.LauncherProxyService
 import com.android.systemui.settings.DisplayTracker
 import com.android.systemui.shared.system.QuickStepContract
 import com.android.systemui.shared.system.TaskStackChangeListeners

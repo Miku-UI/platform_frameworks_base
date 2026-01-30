@@ -741,6 +741,86 @@ public class PackageWatchdogTest {
     }
 
     /**
+     * Test explicit health check state resets after a package reaches terminal state.
+     */
+    @Test
+    public void testExplicitHealthCheckStateResets() {
+        TestController controller = new TestController();
+        PackageWatchdog watchdog = createWatchdog(controller, true /* withPackagesReady */);
+        TestObserver observer = new TestObserver(OBSERVER_NAME_1,
+                PackageHealthObserverImpact.USER_IMPACT_LEVEL_30);
+        observer.setPersistent(true); // don't let the observer get pruned
+
+        // Start observing with explicit health checks for APP_A and APP_B
+        controller.setSupportedPackages(Arrays.asList(APP_A, APP_B));
+        watchdog.registerHealthObserver(mTestExecutor, observer);
+        watchdog.startExplicitHealthCheck(Arrays.asList(APP_A, APP_B), LONG_DURATION, observer);
+
+        // Run handler so requests are dispatched to the controller
+        mTestLooper.dispatchAll();
+
+        // Verify we requested health checks for APP_A and APP_B
+        List<String> requestedPackages = controller.getRequestedPackages();
+        assertThat(requestedPackages).containsExactly(APP_A, APP_B);
+
+        // Mark APP_A as PASSED
+        controller.setPackagePassed(APP_A);
+
+        // Then expire APP_B
+        moveTimeForwardAndDispatch(SHORT_DURATION);
+
+        // Verify that only APP_B has FAILED
+        assertThat(observer.mMitigatedPackages).containsExactly(APP_B);
+
+        // Run handler so requests/cancellations are dispatched to the controller
+        mTestLooper.dispatchAll();
+        // Verify no active health check requests
+        assertThat(controller.getRequestedPackages()).isEmpty();
+
+        // Start explicit health check again
+        watchdog.startExplicitHealthCheck(Arrays.asList(APP_A, APP_B), LONG_DURATION, observer);
+
+        // Run handler so requests/cancellations are dispatched to the controller
+        mTestLooper.dispatchAll();
+
+        // Verify that health checks were requested again for APP_A and APP_B
+        requestedPackages = controller.getRequestedPackages();
+        assertThat(requestedPackages).containsExactly(APP_A, APP_B);
+    }
+
+    /**
+     * Assert that random package failures do not cause explicit health check failure.
+     */
+    @Test
+    public void testExplicitHealthCheck_doesNotMitigateUnrelatedPackageFailure() {
+        // setup test observer with watchdog
+        TestObserver observer = new TestObserver(OBSERVER_NAME_1);
+        observer.setMayObservePackages(true);
+        observer.setPersistent(true);
+        PackageWatchdog watchdog = createWatchdog();
+        watchdog.registerHealthObserver(mTestExecutor, observer);
+
+        // Start an explicit health check for a different package (APP_B)
+        // This is required to ensure that mUptimeAtLastStateSync is > 0
+        watchdog.startExplicitHealthCheck(List.of(APP_B),
+                PackageWatchdog.DEFAULT_OBSERVING_DURATION_MS * 2,
+                        observer);
+        mTestLooper.dispatchAll();
+
+        // Trigger unrelated package failure without breaching DEFAULT_TRIGGER_FAILURE_COUNT
+        // and move time forward, which causes health check duration to expire
+        watchdog.notifyPackageFailure(List.of(new VersionedPackage(APP_A, VERSION_CODE)),
+                PackageWatchdog.FAILURE_REASON_UNKNOWN);
+        moveTimeForwardAndDispatch(PackageWatchdog.DEFAULT_OBSERVING_DURATION_MS + 1);
+
+        // Simulates SHUTDOWN broadcast for Package Watchdog
+        watchdog.writeNow();
+        mTestLooper.dispatchAll();
+
+        assertThat(observer.mMitigatedPackages).doesNotContain(APP_A);
+    }
+
+    /**
      * Tests failure when health check duration is different from package observation duration
      * Failure is also notified only once.
      */
@@ -836,20 +916,26 @@ public class PackageWatchdogTest {
         // Verify now failed
         assertThat(m2.handleElapsedTimeLocked(SHORT_DURATION)).isEqualTo(HealthCheckState.FAILED);
 
-        // Verify transition: inactive -> failed
+        // Verify transition: inactive -> failed -> inactive
         // Verify initially inactive
         assertThat(m3.getHealthCheckStateLocked()).isEqualTo(HealthCheckState.INACTIVE);
         // Verify now failed because package expired
         assertThat(m3.handleElapsedTimeLocked(LONG_DURATION)).isEqualTo(HealthCheckState.FAILED);
         // Verify remains failed even when asked to pass
         assertThat(m3.tryPassHealthCheckLocked()).isEqualTo(HealthCheckState.FAILED);
+        // Verify that state resets to INACTIVE
+        m3.resetHealthState(LONG_DURATION);
+        assertThat(m3.getHealthCheckStateLocked()).isEqualTo(HealthCheckState.INACTIVE);
 
-        // Verify transition: passed
+        // Verify transition: passed -> inactive
         assertThat(m4.getHealthCheckStateLocked()).isEqualTo(HealthCheckState.PASSED);
         // Verify remains passed even if health check fails
         assertThat(m4.handleElapsedTimeLocked(SHORT_DURATION)).isEqualTo(HealthCheckState.PASSED);
         // Verify remains passed even if package expires
         assertThat(m4.handleElapsedTimeLocked(LONG_DURATION)).isEqualTo(HealthCheckState.PASSED);
+        // Verify that state resets to INACTIVE
+        m4.resetHealthState(LONG_DURATION);
+        assertThat(m4.getHealthCheckStateLocked()).isEqualTo(HealthCheckState.INACTIVE);
     }
 
     @Test

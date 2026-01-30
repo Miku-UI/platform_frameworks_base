@@ -40,6 +40,7 @@ import android.os.SystemClock;
  * @attr ref android.R.styleable#LayerDrawableItem_id
  *
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class TransitionDrawable extends LayerDrawable implements Drawable.Callback {
 
     /**

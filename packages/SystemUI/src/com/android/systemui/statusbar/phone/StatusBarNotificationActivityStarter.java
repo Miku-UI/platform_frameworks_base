@@ -19,6 +19,8 @@ package com.android.systemui.statusbar.phone;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED;
 import static android.service.notification.NotificationListenerService.REASON_CLICK;
 
+import static com.android.systemui.statusbar.phone.ActivityStarterUtilsKt.addCookieIfNeeded;
+import static com.android.systemui.statusbar.phone.ActivityStarterUtilsKt.createActivityOptions;
 import static com.android.systemui.statusbar.phone.CentralSurfaces.getActivityOptions;
 
 import android.app.ActivityManager;
@@ -36,7 +38,6 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserHandle;
-import android.provider.Settings;
 import android.service.dreams.IDreamManager;
 import android.service.notification.StatusBarNotification;
 import android.text.TextUtils;
@@ -46,7 +47,6 @@ import android.view.View;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 
-import com.android.internal.jank.InteractionJankMonitor;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.statusbar.NotificationVisibility;
 import com.android.internal.util.FrameworkStatsLog;
@@ -56,6 +56,7 @@ import com.android.systemui.EventLogTags;
 import com.android.systemui.animation.ActivityTransitionAnimator;
 import com.android.systemui.assist.AssistManager;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.plugins.ActivityStarter;
@@ -77,7 +78,6 @@ import com.android.systemui.statusbar.notification.NotificationLaunchAnimatorCon
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.provider.LaunchFullScreenIntentProvider;
 import com.android.systemui.statusbar.notification.collection.render.NotificationVisibilityProvider;
-import com.android.systemui.statusbar.notification.emptyshade.shared.ModesEmptyShadeFix;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpUtil;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
@@ -87,6 +87,8 @@ import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.wmshell.BubblesManager;
 
 import dagger.Lazy;
+
+import kotlinx.coroutines.CoroutineScope;
 
 import java.util.List;
 import java.util.Optional;
@@ -121,6 +123,7 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
 
     private final Handler mMainThreadHandler;
     private final Executor mUiBgExecutor;
+    private final CoroutineScope mApplicationScope;
 
     private final NotificationVisibilityProvider mVisibilityProvider;
     private final HeadsUpManager mHeadsUpManager;
@@ -161,6 +164,7 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
             ShadeDialogContextInteractor contextInteractor,
             @Main Handler mainThreadHandler,
             @Background Executor uiBgExecutor,
+            @Application CoroutineScope applicationScope,
             NotificationVisibilityProvider visibilityProvider,
             HeadsUpManager headsUpManager,
             ActivityStarter activityStarter,
@@ -194,6 +198,7 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
         mContextInteractor = contextInteractor;
         mMainThreadHandler = mainThreadHandler;
         mUiBgExecutor = uiBgExecutor;
+        mApplicationScope = applicationScope;
         mVisibilityProvider = visibilityProvider;
         mHeadsUpManager = headsUpManager;
         mActivityStarter = activityStarter;
@@ -506,24 +511,53 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
                             mCommandQueue,
                             displayId,
                             isActivityIntent);
-            mActivityTransitionAnimator.startPendingIntentWithAnimation(
-                    animationController,
-                    animate,
-                    intent.getCreatorPackage(),
-                    (adapter) -> {
-                        long eventTime = row.getAndResetLastActionUpTime();
-                        Bundle options = eventTime > 0
-                                ? getActivityOptions(
-                                displayId,
-                                adapter,
-                                mKeyguardStateController.isShowing(),
-                                eventTime)
-                                : getActivityOptions(displayId, adapter);
-                        int result = intent.sendAndReturnResult(mContext, 0, fillInIntent, null,
-                                null, null, options);
-                        mLogger.logSendPendingIntent(entry, intent, result);
-                        return result;
-                    });
+
+            if (ActivityTransitionAnimator.Companion.shellMigrationEnabled()) {
+                ActivityTransitionAnimator.Controller controllerWithCookie =
+                        addCookieIfNeeded(animationController);
+                ActivityTransitionAnimator.TransitionCookie cookie =
+                        controllerWithCookie != null
+                                ? controllerWithCookie.getTransitionCookie() : null;
+
+                mActivityTransitionAnimator.startPendingIntentWithAnimation(
+                        controllerWithCookie,
+                        mApplicationScope,
+                        animate,
+                        (transition) -> {
+                            long eventTime = row.getAndResetLastActionUpTime();
+                            Bundle options = eventTime > 0
+                                    ? createActivityOptions(
+                                    displayId,
+                                    transition,
+                                    cookie,
+                                    mKeyguardStateController.isShowing(),
+                                    eventTime)
+                                    : createActivityOptions(displayId, transition, cookie);
+                            int result = intent.sendAndReturnResult(mContext, 0, fillInIntent, null,
+                                    null, null, options);
+                            mLogger.logSendPendingIntent(entry, intent, result);
+                            return result;
+                        });
+            } else {
+                mActivityTransitionAnimator.startPendingIntentWithAnimation(
+                        animationController,
+                        animate,
+                        intent.getCreatorPackage(),
+                        (adapter) -> {
+                            long eventTime = row.getAndResetLastActionUpTime();
+                            Bundle options = eventTime > 0
+                                    ? getActivityOptions(
+                                    displayId,
+                                    adapter,
+                                    mKeyguardStateController.isShowing(),
+                                    eventTime)
+                                    : getActivityOptions(displayId, adapter);
+                            int result = intent.sendAndReturnResult(mContext, 0, fillInIntent, null,
+                                    null, null, options);
+                            mLogger.logSendPendingIntent(entry, intent, result);
+                            return result;
+                        });
+            }
         } catch (PendingIntent.CanceledException e) {
             // the stack trace isn't very helpful here.
             // Just log the exception message.
@@ -551,65 +585,36 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
                                     displayId,
                                     true /* isActivityIntent */);
 
-                    mActivityTransitionAnimator.startIntentWithAnimation(
-                            animationController, animate, intent.getPackage(),
-                            (adapter) -> TaskStackBuilder.create(mContext)
-                                    .addNextIntentWithParentStack(intent)
-                                    .startActivities(getActivityOptions(
-                                                    displayId,
-                                                    adapter),
-                                            new UserHandle(UserHandle.getUserId(appUid))));
-                });
-                return true;
-            }
+                    if (ActivityTransitionAnimator.Companion.shellMigrationEnabled()) {
+                        ActivityTransitionAnimator.Controller controllerWithCookie =
+                                addCookieIfNeeded(animationController);
+                        ActivityTransitionAnimator.TransitionCookie cookie =
+                                controllerWithCookie != null
+                                        ? controllerWithCookie.getTransitionCookie() : null;
 
-            @Override
-            public boolean willRunAnimationOnKeyguard() {
-                return animate;
-            }
-        };
-        mActivityStarter.dismissKeyguardThenExecute(onDismissAction, null,
-                false /* afterKeyguardGone */);
-    }
-
-    @Override
-    public void startHistoryIntent(View view, boolean showHistory) {
-        ModesEmptyShadeFix.assertInLegacyMode();
-        final int displayId = mContextInteractor.getContext().getDisplayId();
-        boolean animate = mActivityStarter.shouldAnimateLaunch(true /* isActivityIntent */);
-        ActivityStarter.OnDismissAction onDismissAction = new ActivityStarter.OnDismissAction() {
-            @Override
-            public boolean onDismiss() {
-                AsyncTask.execute(() -> {
-                    Intent intent = showHistory ? new Intent(
-                            Settings.ACTION_NOTIFICATION_HISTORY) : new Intent(
-                            Settings.ACTION_NOTIFICATION_SETTINGS);
-                    TaskStackBuilder tsb = TaskStackBuilder.create(mContext)
-                            .addNextIntent(new Intent(Settings.ACTION_NOTIFICATION_SETTINGS));
-                    if (showHistory) {
-                        tsb.addNextIntent(intent);
+                        mActivityTransitionAnimator.startIntentWithAnimation(
+                                controllerWithCookie,
+                                mApplicationScope,
+                                animate,
+                                (transition) -> TaskStackBuilder.create(mContext)
+                                        .addNextIntentWithParentStack(intent)
+                                        .startActivities(
+                                                createActivityOptions(
+                                                        displayId,
+                                                        transition,
+                                                        cookie),
+                                                new UserHandle(UserHandle.getUserId(appUid))));
+                    } else {
+                        mActivityTransitionAnimator.startIntentWithAnimation(
+                                animationController,
+                                animate,
+                                intent.getPackage(),
+                                (adapter) -> TaskStackBuilder.create(mContext)
+                                        .addNextIntentWithParentStack(intent)
+                                        .startActivities(
+                                                getActivityOptions(displayId, adapter),
+                                                new UserHandle(UserHandle.getUserId(appUid))));
                     }
-
-                    ActivityTransitionAnimator.Controller viewController =
-                            ActivityTransitionAnimator.Controller.fromView(view,
-                                    InteractionJankMonitor.CUJ_SHADE_APP_LAUNCH_FROM_HISTORY_BUTTON
-                            );
-                    ActivityTransitionAnimator.Controller animationController =
-                            viewController == null ? null
-                                    : new StatusBarTransitionAnimatorController(
-                                            viewController,
-                                            mShadeAnimationInteractor,
-                                            mShadeController,
-                                            mNotificationShadeWindowController,
-                                            mCommandQueue,
-                                            displayId,
-                                            true /* isActivityIntent */);
-
-                    mActivityTransitionAnimator.startIntentWithAnimation(
-                            animationController, animate, intent.getPackage(),
-                            (adapter) -> tsb.startActivities(
-                                    getActivityOptions(displayId, adapter),
-                                    mUserTracker.getUserHandle()));
                 });
                 return true;
             }
@@ -748,5 +753,4 @@ public class StatusBarNotificationActivityStarter implements NotificationActivit
         }
         return true;
     }
-
 }

@@ -16,6 +16,9 @@
 
 package android.media;
 
+import static android.media.audio.Flags.FLAG_DEVICE_VOLUME_APIS;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -44,7 +47,7 @@ public final class VolumeInfo implements Parcelable {
     private static final String TAG = "VolumeInfo";
 
     private final boolean mUsesStreamType; // false implies AudioVolumeGroup is used
-    private final boolean mHasMuteCommand;
+    private final boolean mHasMuteState;
     private final boolean mIsMuted;
     private final int mVolIndex;
     private final int mMinVolIndex;
@@ -55,11 +58,11 @@ public final class VolumeInfo implements Parcelable {
     private static IAudioService sService;
     private static VolumeInfo sDefaultVolumeInfo;
 
-    private VolumeInfo(boolean usesStreamType, boolean hasMuteCommand, boolean isMuted,
+    private VolumeInfo(boolean usesStreamType, boolean hasMuteState, boolean isMuted,
             int volIndex, int minVolIndex, int maxVolIndex,
             AudioVolumeGroup volGroup, int streamType) {
         mUsesStreamType = usesStreamType;
-        mHasMuteCommand = hasMuteCommand;
+        mHasMuteState = hasMuteState;
         mIsMuted = isMuted;
         mVolIndex = volIndex;
         mMinVolIndex = minVolIndex;
@@ -84,7 +87,7 @@ public final class VolumeInfo implements Parcelable {
      * @throws IllegalStateException when called on a VolumeInfo not configured for
      *      stream types.
      */
-    public @AudioManager.PublicStreamTypes int getStreamType() {
+    public @AudioManager.VolumeControlStreamTypes int getStreamType() {
         if (!mUsesStreamType) {
             throw new IllegalStateException("VolumeInfo doesn't use stream types");
         }
@@ -117,9 +120,21 @@ public final class VolumeInfo implements Parcelable {
     /**
      * Return whether this instance is conveying a mute state
      * @return true if the muted state was explicitly set for this instance
+     * @deprecated use {@link #hasMuteState()} instead
      */
+    @Deprecated
+    @FlaggedApi(FLAG_DEVICE_VOLUME_APIS)
     public boolean hasMuteCommand() {
-        return mHasMuteCommand;
+        return mHasMuteState;
+    }
+
+    /**
+     * Return whether this instance is conveying a mute state
+     * @return true if the muted state was explicitly set for this instance
+     */
+    @FlaggedApi(FLAG_DEVICE_VOLUME_APIS)
+    public boolean hasMuteState() {
+        return mHasMuteState;
     }
 
     /**
@@ -191,8 +206,8 @@ public final class VolumeInfo implements Parcelable {
      */
     public static final class Builder {
         private boolean mUsesStreamType = true; // false implies AudioVolumeGroup is used
-        private @AudioManager.PublicStreamTypes int mStreamType = AudioManager.STREAM_MUSIC;
-        private boolean mHasMuteCommand = false;
+        private @AudioManager.VolumeControlStreamTypes int mStreamType = AudioManager.STREAM_MUSIC;
+        private boolean mHasMuteState = false;
         private boolean mIsMuted = false;
         private int mVolIndex = INDEX_NOT_SET;
         private int mMinVolIndex = INDEX_NOT_SET;
@@ -202,8 +217,8 @@ public final class VolumeInfo implements Parcelable {
         /**
          * Builder constructor for stream type-based VolumeInfo
          */
-        public Builder(@AudioManager.PublicStreamTypes int streamType) {
-            if (!AudioManager.isPublicStreamType(streamType)) {
+        public Builder(@AudioManager.VolumeControlStreamTypes int streamType) {
+            if (!AudioManager.isVolumeControlStreamType(streamType)) {
                 throw new IllegalArgumentException("Not a valid public stream type " + streamType);
             }
             mUsesStreamType = true;
@@ -228,7 +243,7 @@ public final class VolumeInfo implements Parcelable {
             Objects.requireNonNull(info);
             mUsesStreamType = info.mUsesStreamType;
             mStreamType = info.mStreamType;
-            mHasMuteCommand = info.mHasMuteCommand;
+            mHasMuteState = info.mHasMuteState;
             mIsMuted = info.mIsMuted;
             mVolIndex = info.mVolIndex;
             mMinVolIndex = info.mMinVolIndex;
@@ -242,7 +257,7 @@ public final class VolumeInfo implements Parcelable {
          * @return the same builder instance
          */
         public @NonNull Builder setMuted(boolean isMuted) {
-            mHasMuteCommand = true;
+            mHasMuteState = true;
             mIsMuted = isMuted;
             return this;
         }
@@ -306,7 +321,7 @@ public final class VolumeInfo implements Parcelable {
                 throw new IllegalArgumentException("Min volume index:" + mMinVolIndex
                         + " greater than max index:" + mMaxVolIndex);
             }
-            return new VolumeInfo(mUsesStreamType, mHasMuteCommand, mIsMuted,
+            return new VolumeInfo(mUsesStreamType, mHasMuteState, mIsMuted,
                     mVolIndex, mMinVolIndex, mMaxVolIndex,
                     mVolGroup, mStreamType);
         }
@@ -316,7 +331,7 @@ public final class VolumeInfo implements Parcelable {
     // Parcelable
     @Override
     public int hashCode() {
-        return Objects.hash(mUsesStreamType, mHasMuteCommand, mStreamType, mIsMuted,
+        return Objects.hash(mUsesStreamType, mHasMuteState, mStreamType, mIsMuted,
                 mVolIndex, mMinVolIndex, mMaxVolIndex, mVolGroup);
     }
 
@@ -328,7 +343,7 @@ public final class VolumeInfo implements Parcelable {
         VolumeInfo that = (VolumeInfo) o;
         return ((mUsesStreamType == that.mUsesStreamType)
                 && (mStreamType == that.mStreamType)
-                && (mHasMuteCommand == that.mHasMuteCommand)
+                && (mHasMuteState == that.mHasMuteState)
                 && (mIsMuted == that.mIsMuted)
                 && (mVolIndex == that.mVolIndex)
                 && (mMinVolIndex == that.mMinVolIndex)
@@ -341,7 +356,7 @@ public final class VolumeInfo implements Parcelable {
         return new String("VolumeInfo:"
                 + (mUsesStreamType ? (" streamType:" + mStreamType)
                     : (" volGroup:" + mVolGroup))
-                + (mHasMuteCommand ? (" muted:" + mIsMuted) : ("[no mute cmd]"))
+                + (mHasMuteState ? (" muted:" + mIsMuted) : ("[no mute cmd]"))
                 + ((mVolIndex != INDEX_NOT_SET) ? (" volIndex:" + mVolIndex) : "")
                 + ((mMinVolIndex != INDEX_NOT_SET) ? (" min:" + mMinVolIndex) : "")
                 + ((mMaxVolIndex != INDEX_NOT_SET) ? (" max:" + mMaxVolIndex) : ""));
@@ -356,7 +371,7 @@ public final class VolumeInfo implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeBoolean(mUsesStreamType);
         dest.writeInt(mStreamType);
-        dest.writeBoolean(mHasMuteCommand);
+        dest.writeBoolean(mHasMuteState);
         dest.writeBoolean(mIsMuted);
         dest.writeInt(mVolIndex);
         dest.writeInt(mMinVolIndex);
@@ -369,7 +384,7 @@ public final class VolumeInfo implements Parcelable {
     private VolumeInfo(@NonNull Parcel in) {
         mUsesStreamType = in.readBoolean();
         mStreamType = in.readInt();
-        mHasMuteCommand = in.readBoolean();
+        mHasMuteState = in.readBoolean();
         mIsMuted = in.readBoolean();
         mVolIndex = in.readInt();
         mMinVolIndex = in.readInt();
@@ -382,7 +397,7 @@ public final class VolumeInfo implements Parcelable {
     }
 
     public static final @NonNull Parcelable.Creator<VolumeInfo> CREATOR =
-            new Parcelable.Creator<VolumeInfo>() {
+            new Parcelable.Creator<>() {
                 /**
                  * Rebuilds a VolumeInfo previously stored with writeToParcel().
                  * @param p Parcel object to read the VolumeInfo from

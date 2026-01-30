@@ -21,10 +21,8 @@ import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.app.ActivityThread;
 import android.app.Application;
-import android.app.ResourcesManager;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
-import android.content.pm.ApplicationInfo;
 import android.content.res.Resources;
 import android.graphics.Canvas;
 import android.graphics.RecordingCanvas;
@@ -33,8 +31,6 @@ import android.os.Trace;
 import android.util.SparseArray;
 import android.view.View;
 import android.view.ViewRootImpl;
-
-import com.android.internal.util.ArrayUtils;
 
 /**
  * Delegate used by the WebView provider implementation to access
@@ -177,40 +173,9 @@ public final class WebViewDelegate {
     }
 
     /**
-     * Adds the WebView asset path to {@link android.content.res.AssetManager}.
-     * If {@link android.content.res.Flags#FLAG_REGISTER_RESOURCE_PATHS} is enabled, this function
-     * will be a no-op because the asset paths appending work will only be handled by
-     * {@link android.content.res.Resources#registerResourcePaths(String, ApplicationInfo)},
-     * otherwise it behaves the old way.
+     * No-op.
      */
-    public void addWebViewAssetPath(Context context) {
-        if (android.content.res.Flags.registerResourcePaths()) {
-            return;
-        }
-
-        final String[] newAssetPaths =
-                WebViewFactory.getLoadedPackageInfo().applicationInfo.getAllApkPaths();
-        final ApplicationInfo appInfo = context.getApplicationInfo();
-
-        // Build the new library asset path list.
-        String[] newLibAssets = appInfo.sharedLibraryFiles;
-        for (String newAssetPath : newAssetPaths) {
-            newLibAssets = ArrayUtils.appendElement(String.class, newLibAssets, newAssetPath);
-        }
-
-        if (newLibAssets != appInfo.sharedLibraryFiles) {
-            // Update the ApplicationInfo object with the new list.
-            // We know this will persist and future Resources created via ResourcesManager
-            // will include the shared library because this ApplicationInfo comes from the
-            // underlying LoadedApk in ContextImpl, which does not change during the life of the
-            // application.
-            appInfo.sharedLibraryFiles = newLibAssets;
-
-            // Update existing Resources with the WebView library.
-            ResourcesManager.getInstance().appendLibAssetsForMainAssetPath(
-                    appInfo.getBaseResourcePath(), newAssetPaths);
-        }
-    }
+    public void addWebViewAssetPath(Context context) {}
 
     /**
      * Returns whether WebView should run in multiprocess mode.

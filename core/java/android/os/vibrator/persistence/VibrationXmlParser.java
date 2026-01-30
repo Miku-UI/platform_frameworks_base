@@ -16,9 +16,6 @@
 
 package android.os.vibrator.persistence;
 
-import static android.os.vibrator.Flags.FLAG_VIBRATION_XML_APIS;
-
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -122,7 +119,6 @@ import java.util.List;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_VIBRATION_XML_APIS)
 public final class VibrationXmlParser {
 
     /**
@@ -195,7 +191,6 @@ public final class VibrationXmlParser {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(FLAG_VIBRATION_XML_APIS)
     @NonNull
     public static ParsedVibration parse(@NonNull InputStream inputStream) throws IOException {
         return parseDocument(new InputStreamReader(inputStream, StandardCharsets.UTF_8));
@@ -216,7 +211,6 @@ public final class VibrationXmlParser {
      * @hide
      */
     @SystemApi
-    @FlaggedApi(FLAG_VIBRATION_XML_APIS)
     @NonNull
     public static VibrationEffect parseVibrationEffect(@NonNull InputStream inputStream)
             throws IOException {

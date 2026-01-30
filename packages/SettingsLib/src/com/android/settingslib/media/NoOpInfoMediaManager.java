@@ -19,6 +19,7 @@ package com.android.settingslib.media;
 import android.content.Context;
 import android.media.MediaRoute2Info;
 import android.media.RouteListingPreference;
+import android.media.RoutingChangeInfo;
 import android.media.RoutingSessionInfo;
 import android.media.session.MediaController;
 import android.os.UserHandle;
@@ -30,6 +31,7 @@ import com.android.settingslib.bluetooth.LocalBluetoothManager;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.Executor;
 
 /**
  * No-op implementation of {@link InfoMediaManager}.
@@ -72,7 +74,7 @@ import java.util.List;
     }
 
     @Override
-    protected void registerRouter() {
+    protected void registerRouter(Executor executor) {
         // Do nothing.
     }
 
@@ -87,17 +89,24 @@ import java.util.List;
     }
 
     @Override
-    protected void transferToRoute(@NonNull MediaRoute2Info route) {
+    protected void transferToRoute(
+            @NonNull MediaRoute2Info route, @NonNull RoutingChangeInfo routingChangeInfo) {
         // Do nothing.
     }
 
     @Override
-    protected void selectRoute(@NonNull MediaRoute2Info route, @NonNull RoutingSessionInfo info) {
+    protected void selectRoute(
+            @NonNull MediaRoute2Info route,
+            @NonNull RoutingSessionInfo info,
+            @NonNull RoutingChangeInfo routingChangeInfo) {
         // Do nothing.
     }
 
     @Override
-    protected void deselectRoute(@NonNull MediaRoute2Info route, @NonNull RoutingSessionInfo info) {
+    protected void deselectRoute(
+            @NonNull MediaRoute2Info route,
+            @NonNull RoutingSessionInfo info,
+            @NonNull RoutingChangeInfo routingChangeInfo) {
         // Do nothing.
     }
 
@@ -174,5 +183,10 @@ import java.util.List;
     @Override
     protected List<MediaRoute2Info> getTransferableRoutes(@NonNull String packageName) {
         return Collections.emptyList();
+    }
+
+    @Override
+    public void requestDeviceSuggestion() {
+        // no-op, not supported by NoOpInfoMediaManager
     }
 }

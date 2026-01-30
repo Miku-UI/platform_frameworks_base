@@ -101,3 +101,23 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "use_new_stay_on_while_plugged_in_default"
+    namespace: "desktop_pnp"
+    description: "Sets the default for def_stay_on_while_plugged_in to BATTERY_PLUGGED_ANY from BATTERY_PLUGGED_AC."
+    bug: "403621105"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "allow_default_value_for_text_show_password"
+    namespace: "desktop_privacy"
+    description: "Allows setting a default value for Settings.System.TEXT_SHOW_PASSWORD."
+    bug: "339270220"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

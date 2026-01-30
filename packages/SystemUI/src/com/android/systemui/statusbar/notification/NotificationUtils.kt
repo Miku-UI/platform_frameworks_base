@@ -19,13 +19,18 @@ package com.android.systemui.statusbar.notification
 import android.service.notification.StatusBarNotification
 import com.android.systemui.statusbar.notification.collection.PipelineEntry
 
-/** Get the notification key, reformatted for logging, for the (optional) entry  */
+/** Get the notification key, reformatted for logging, for the (optional) entry */
 val PipelineEntry?.logKey: String?
     get() = this?.let { NotificationUtils.logKey(it) }
 
-/** Get the notification key, reformatted for logging, for the (optional) sbn  */
+/** Get the notification key, reformatted for logging, for the entry */
+@get:JvmName("getLogKeyNonNull")
+val PipelineEntry.logKey: String
+    get() = NotificationUtils.logKey(this)
+
+/** Get the notification key, reformatted for logging, for the (optional) sbn */
 val StatusBarNotification?.logKey: String?
     get() = this?.key?.let { NotificationUtils.logKey(it) }
 
-/** Removes newlines from the notification key to prettify apps that have these in the tag  */
+/** Removes newlines from the notification key to prettify apps that have these in the tag */
 fun logKey(key: String?): String? = NotificationUtils.logKey(key)

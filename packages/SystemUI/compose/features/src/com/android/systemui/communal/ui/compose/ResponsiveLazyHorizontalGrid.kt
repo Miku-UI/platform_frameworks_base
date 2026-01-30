@@ -17,6 +17,7 @@
 package com.android.systemui.communal.ui.compose
 
 import android.content.res.Configuration
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.ScrollableDefaults
@@ -33,6 +34,7 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -55,6 +57,9 @@ import com.android.systemui.communal.util.WindowSizeUtils.COMPACT_WIDTH
  * Renders a responsive [LazyHorizontalGrid] with dynamic columns and rows. Each cell will maintain
  * the specified aspect ratio, but is otherwise resizeable in order to best fill the available
  * space.
+ *
+ * @param cellAspectRatio The aspect ratio (width / height) for each cell. Use 0f for flexible
+ *   aspect ratio, allowing cells to fill all available space.
  */
 @Composable
 fun ResponsiveLazyHorizontalGrid(
@@ -63,6 +68,7 @@ fun ResponsiveLazyHorizontalGrid(
     state: LazyGridState = rememberLazyGridState(),
     setContentOffset: (offset: Offset) -> Unit = {},
     minContentPadding: PaddingValues = PaddingValues(0.dp),
+    animateContentPadding: Boolean = false,
     minHorizontalArrangement: Dp = 0.dp,
     minVerticalArrangement: Dp = 0.dp,
     flingBehavior: FlingBehavior = ScrollableDefaults.flingBehavior(),
@@ -70,7 +76,6 @@ fun ResponsiveLazyHorizontalGrid(
     overscrollEffect: OverscrollEffect? = rememberOverscrollEffect(),
     content: LazyGridScope.(sizeInfo: SizeInfo) -> Unit,
 ) {
-    check(cellAspectRatio > 0f) { "Aspect ratio must be greater than 0, but was $cellAspectRatio" }
     check(minHorizontalArrangement.value >= 0f && minVerticalArrangement.value >= 0f) {
         "Horizontal and vertical arrangements must be non-negative, but were " +
             "$minHorizontalArrangement and $minVerticalArrangement, respectively."
@@ -146,14 +151,31 @@ fun ResponsiveLazyHorizontalGrid(
         val finalStartPadding = minStartPadding + evenlyDistributedWidth
         val finalEndPadding = minEndPadding + evenlyDistributedWidth
         val finalTopPadding = minTopPadding + extraHeight / 2
+        val finalBottomPadding = minBottomPadding + extraHeight / 2
 
-        val finalContentPadding =
-            PaddingValues(
-                start = finalStartPadding,
-                end = finalEndPadding,
-                top = finalTopPadding,
-                bottom = minBottomPadding + extraHeight / 2,
-            )
+        val finalContentPadding: PaddingValues
+        if (animateContentPadding) {
+            val finalStartPaddingAnimated by animateDpAsState(finalStartPadding)
+            val finalTopPaddingAnimated by animateDpAsState(finalTopPadding)
+            val finalEndPaddingAnimated by animateDpAsState(finalEndPadding)
+            val finalBottomPaddingAnimated by animateDpAsState(finalBottomPadding)
+
+            finalContentPadding =
+                PaddingValues(
+                    start = finalStartPaddingAnimated,
+                    top = finalTopPaddingAnimated,
+                    end = finalEndPaddingAnimated,
+                    bottom = finalBottomPaddingAnimated,
+                )
+        } else {
+            finalContentPadding =
+                PaddingValues(
+                    start = finalStartPadding,
+                    top = finalTopPadding,
+                    end = finalEndPadding,
+                    bottom = finalBottomPadding,
+                )
+        }
 
         with(density) { setContentOffset(Offset(finalStartPadding.toPx(), finalTopPadding.toPx())) }
 
@@ -195,7 +217,10 @@ private fun calculateUsedSpace(cellSize: Dp, numCells: Int, padding: Dp, cellSpa
     cellSize * numCells + padding + (numCells - 1) * cellSpacing
 
 private fun calculateClosestSize(maxWidth: Dp, maxHeight: Dp, aspectRatio: Float): DpSize {
-    return if (maxWidth / maxHeight > aspectRatio) {
+    return if (aspectRatio <= 0f) {
+        // Flexible aspect ratio. Allow cell to fill max width and height.
+        DpSize(maxWidth, maxHeight)
+    } else if (maxWidth / maxHeight > aspectRatio) {
         // Target is too wide, shrink width
         DpSize(maxHeight * aspectRatio, maxHeight)
     } else {
@@ -275,6 +300,6 @@ private fun calculateNumCellsWidth(width: Dp) =
 private fun calculateNumCellsHeight(height: Dp) =
     when {
         height >= 1000.dp -> 3
-        height >= COMPACT_HEIGHT -> 2
+        height >= COMPACT_HEIGHT -> 3
         else -> 1
     }

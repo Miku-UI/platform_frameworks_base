@@ -22,7 +22,7 @@ import android.app.IAlarmCompleteListener;
  * AlarmManager#set() variants that take an AlarmReceiver callback object
  * rather than a PendingIntent.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAlarmListener {
     void doAlarm(in IAlarmCompleteListener callback);

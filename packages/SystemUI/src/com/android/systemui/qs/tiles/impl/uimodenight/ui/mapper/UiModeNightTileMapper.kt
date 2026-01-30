@@ -44,8 +44,6 @@ constructor(@ShadeDisplayAware private val resources: Resources, private val the
     override fun map(config: QSTileConfig, data: UiModeNightTileModel): QSTileState =
         with(data) {
             QSTileState.build(resources, theme, config.uiConfig) {
-                var shouldSetSecondaryLabel = false
-
                 if (isPowerSave) {
                     secondaryLabel =
                         resources.getString(
@@ -89,11 +87,9 @@ constructor(@ShadeDisplayAware private val resources: Resources, private val the
                             )
                     } else {
                         secondaryLabel = null // undefined type of nightModeCustomType
-                        shouldSetSecondaryLabel = true
                     }
                 } else {
                     secondaryLabel = null
-                    shouldSetSecondaryLabel = true
                 }
 
                 contentDescription =
@@ -101,19 +97,10 @@ constructor(@ShadeDisplayAware private val resources: Resources, private val the
                     else TextUtils.concat(label, ", ", secondaryLabel)
                 if (isPowerSave) {
                     activationState = QSTileState.ActivationState.UNAVAILABLE
-                    if (shouldSetSecondaryLabel)
-                        secondaryLabel = resources.getStringArray(R.array.tile_states_dark)[0]
                 } else {
                     activationState =
                         if (isNightMode) QSTileState.ActivationState.ACTIVE
                         else QSTileState.ActivationState.INACTIVE
-
-                    if (shouldSetSecondaryLabel) {
-                        secondaryLabel =
-                            if (activationState == QSTileState.ActivationState.INACTIVE)
-                                resources.getStringArray(R.array.tile_states_dark)[1]
-                            else resources.getStringArray(R.array.tile_states_dark)[2]
-                    }
                 }
 
                 val iconRes =

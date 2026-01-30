@@ -1,0 +1,10 @@
+package: "android.service.quicksettings"
+container: "system"
+
+flag {
+  name: "quicksettings_tile_categories"
+  namespace: "systemui"
+  description: "This flag enables using tile categories for tile services."
+  bug: "417203376"
+  is_exported: true
+}

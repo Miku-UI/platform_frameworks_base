@@ -16,26 +16,26 @@
 
 package com.android.internal.inputmethod;
 
-import static android.view.inputmethod.InputConnectionCallProto.GET_CURSOR_CAPS_MODE;
-import static android.view.inputmethod.InputConnectionCallProto.GET_EXTRACTED_TEXT;
-import static android.view.inputmethod.InputConnectionCallProto.GET_SELECTED_TEXT;
-import static android.view.inputmethod.InputConnectionCallProto.GET_SURROUNDING_TEXT;
-import static android.view.inputmethod.InputConnectionCallProto.GET_TEXT_AFTER_CURSOR;
-import static android.view.inputmethod.InputConnectionCallProto.GET_TEXT_BEFORE_CURSOR;
-import static android.view.inputmethod.InputConnectionCallProto.GetExtractedText.REQUEST;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GET_CURSOR_CAPS_MODE;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GET_EXTRACTED_TEXT;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GET_SELECTED_TEXT;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GET_SURROUNDING_TEXT;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GET_TEXT_AFTER_CURSOR;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GET_TEXT_BEFORE_CURSOR;
+import static android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GetExtractedText.REQUEST;
 
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GetCursorCapsMode;
+import android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GetExtractedText;
+import android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GetSelectedText;
+import android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GetSurroundingText;
+import android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GetTextAfterCursor;
+import android.internal.perfetto.protos.Inputconnection.InputConnectionCallProto.GetTextBeforeCursor;
 import android.util.proto.ProtoOutputStream;
 import android.view.inputmethod.ExtractedText;
 import android.view.inputmethod.ExtractedTextRequest;
-import android.view.inputmethod.InputConnectionCallProto.GetCursorCapsMode;
-import android.view.inputmethod.InputConnectionCallProto.GetExtractedText;
-import android.view.inputmethod.InputConnectionCallProto.GetSelectedText;
-import android.view.inputmethod.InputConnectionCallProto.GetSurroundingText;
-import android.view.inputmethod.InputConnectionCallProto.GetTextAfterCursor;
-import android.view.inputmethod.InputConnectionCallProto.GetTextBeforeCursor;
 import android.view.inputmethod.SurroundingText;
 
 /**

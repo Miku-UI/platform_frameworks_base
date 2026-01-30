@@ -98,16 +98,15 @@ class BackgroundBlurActivity : Activity(), SeekBar.OnSeekBarChangeListener  {
         backgroundAlphaSeekBar = requireViewById(R.id.set_background_alpha)
         blurBehindSeekBar = requireViewById(R.id.set_blur_behind)
         dimAmountSeekBar = requireViewById(R.id.set_dim_amount)
-
-        arrayOf(blurBackgroundSeekBar, backgroundAlphaSeekBar, blurBehindSeekBar, dimAmountSeekBar)
-                .forEach {
-                    it.setOnSeekBarChangeListener(this)
-                }
     }
 
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         getWindowManager().addCrossWindowBlurEnabledListener(blurEnabledListener)
+        arrayOf(blurBackgroundSeekBar, backgroundAlphaSeekBar, blurBehindSeekBar, dimAmountSeekBar)
+                .forEach {
+                    it.setOnSeekBarChangeListener(this)
+                }
     }
 
     override fun onDetachedFromWindow() {

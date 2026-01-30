@@ -259,9 +259,7 @@ abstract class RequestSession<T, U, V> implements CredentialManagerUi.Credential
             mProviders.values().forEach(ProviderSession::cancelProviderRemoteSession);
         }
         mRequestSessionStatus = RequestSessionStatus.COMPLETE;
-        if (Flags.fixMetricDuplicationEmits()) {
-            logTrackOneCandidatesAndPrepareFinalPhaseLogs(apiStatus);
-        }
+        logTrackOneCandidatesAndPrepareFinalPhaseLogs(apiStatus);
         mRequestSessionMetric.logApiCalledAtFinish(apiStatus);
         mProviders.clear();
         clearRequestSessionLocked();
@@ -282,6 +280,9 @@ abstract class RequestSession<T, U, V> implements CredentialManagerUi.Credential
         } else if (isRespondingWithSuccess(apiStatus)) {
             mRequestSessionMetric.collectFinalPhaseProviderMetricStatus(/*hasException=*/ false,
                     ProviderStatusForMetrics.FINAL_SUCCESS);
+        }
+        if (Flags.metricBugfixesContinued()) {
+            mRequestSessionMetric.captureMissingLogMetadata();
         }
     }
 
@@ -364,11 +365,6 @@ abstract class RequestSession<T, U, V> implements CredentialManagerUi.Credential
      * @param response the response associated with the API call that just completed
      */
     protected void respondToClientWithResponseAndFinish(V response) {
-        if (!Flags.fixMetricDuplicationEmits()) {
-            mRequestSessionMetric.logCandidateAggregateMetrics(mProviders);
-            mRequestSessionMetric.collectFinalPhaseProviderMetricStatus(/*hasException=*/ false,
-                    ProviderStatusForMetrics.FINAL_SUCCESS);
-        }
         if (mRequestSessionStatus == RequestSessionStatus.COMPLETE) {
             Slog.w(TAG, "Request has already been completed. This is strange.");
             return;
@@ -383,10 +379,6 @@ abstract class RequestSession<T, U, V> implements CredentialManagerUi.Credential
             finishSession(/*propagateCancellation=*/false,
                     ApiStatus.SUCCESS.getMetricCode());
         } catch (RemoteException e) {
-            if (!Flags.fixMetricDuplicationEmits()) {
-                mRequestSessionMetric.collectFinalPhaseProviderMetricStatus(
-                        /*hasException=*/ true, ProviderStatusForMetrics.FINAL_FAILURE);
-            }
             Slog.e(TAG, "Issue while responding to client with a response : " + e);
             finishSession(/*propagateCancellation=*/false, ApiStatus.FAILURE.getMetricCode());
         }
@@ -399,11 +391,6 @@ abstract class RequestSession<T, U, V> implements CredentialManagerUi.Credential
      * @param errorMsg  the error message given back in the flow
      */
     protected void respondToClientWithErrorAndFinish(String errorType, String errorMsg) {
-        if (!Flags.fixMetricDuplicationEmits()) {
-            mRequestSessionMetric.logCandidateAggregateMetrics(mProviders);
-            mRequestSessionMetric.collectFinalPhaseProviderMetricStatus(
-                    /*hasException=*/ true, ProviderStatusForMetrics.FINAL_FAILURE);
-        }
         if (mRequestSessionStatus == RequestSessionStatus.COMPLETE) {
             Slog.w(TAG, "Request has already been completed. This is strange.");
             return;
@@ -419,9 +406,6 @@ abstract class RequestSession<T, U, V> implements CredentialManagerUi.Credential
         }
         boolean isUserCanceled = errorType.contains(MetricUtilities.USER_CANCELED_SUBSTRING);
         if (isUserCanceled) {
-            if (!Flags.fixMetricDuplicationEmits()) {
-                mRequestSessionMetric.setHasExceptionFinalPhase(/* hasException */ false);
-            }
             finishSession(/*propagateCancellation=*/false,
                     ApiStatus.USER_CANCELED.getMetricCode());
         } else {

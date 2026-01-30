@@ -16,12 +16,15 @@
 
 package com.android.systemui.qs.panels.ui.viewmodel
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import com.android.systemui.haptics.msdl.qs.TileHapticsViewModelFactoryProvider
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.Hydrator
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QQS
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
+import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
 import com.android.systemui.qs.panels.domain.interactor.QuickQuickSettingsRowInteractor
 import com.android.systemui.qs.panels.shared.model.SizedTileImpl
 import com.android.systemui.qs.panels.shared.model.splitInRowsSequence
@@ -46,8 +49,10 @@ constructor(
 ) : ExclusiveActivatable() {
 
     private val hydrator = Hydrator("QuickQuickSettingsViewModel")
-    private val qsColumnsViewModel = qsColumnsViewModelFactory.create(LOCATION_QQS)
-    private val mediaInRowViewModel = mediaInRowInLandscapeViewModelFactory.create(LOCATION_QQS)
+
+    private val qsColumnsViewModel = qsColumnsViewModelFactory.create(LOCATION_QQS, mediaUiBehavior)
+    private val mediaInRowViewModel =
+        mediaInRowInLandscapeViewModelFactory.create(LOCATION_QQS, mediaUiBehavior)
 
     val columns: Int
         get() = qsColumnsViewModel.columns
@@ -70,11 +75,8 @@ constructor(
             source = quickQuickSettingsRowInteractor.rows,
         )
 
-    private val largeTilesSpan by
-        hydrator.hydratedStateOf(
-            traceName = "largeTilesSpan",
-            source = iconTilesViewModel.largeTilesSpan,
-        )
+    private val largeTilesSpan: Int
+        get() = qsColumnsViewModel.largeSpan
 
     private val currentTiles by
         hydrator.hydratedStateOf(traceName = "currentTiles", source = tilesInteractor.currentTiles)
@@ -100,4 +102,15 @@ constructor(
     }
 
     private fun TileSpec.width(): Int = if (largeTiles.contains(this)) largeTilesSpan else 1
+
+    companion object {
+        /** Behavior of the media carousel in quick quick settings */
+        @VisibleForTesting
+        val mediaUiBehavior: MediaUiBehavior
+            get() =
+                MediaUiBehavior(
+                    isCarouselDismissible = true,
+                    carouselVisibility = MediaCarouselVisibility.WhenAnyCardIsActive,
+                )
+    }
 }

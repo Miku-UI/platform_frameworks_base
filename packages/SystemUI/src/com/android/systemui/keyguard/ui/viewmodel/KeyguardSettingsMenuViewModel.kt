@@ -35,7 +35,7 @@ constructor(
     val isVisible: Flow<Boolean> = interactor.isMenuVisible
     val shouldOpenSettings: Flow<Boolean> = interactor.shouldOpenSettings
 
-    val icon: Icon = Icon.Resource(res = R.drawable.ic_palette, contentDescription = null)
+    val icon: Icon = Icon.Resource(resId = R.drawable.ic_palette, contentDescription = null)
 
     val text: Text = Text.Resource(res = R.string.lock_screen_settings)
 

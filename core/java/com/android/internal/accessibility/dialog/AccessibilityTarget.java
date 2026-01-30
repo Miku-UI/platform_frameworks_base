@@ -185,10 +185,7 @@ public abstract class AccessibilityTarget implements TargetOperations, OnTargetS
      */
     @VisibleForTesting
     public static boolean isRecognizedShortcutType(@UserShortcutType int shortcutType) {
-        int mask = SOFTWARE | HARDWARE;
-        if (android.provider.Flags.a11yStandaloneGestureEnabled()) {
-            mask = mask | GESTURE;
-        }
+        int mask = SOFTWARE | HARDWARE | GESTURE;
         return (shortcutType != 0 && (shortcutType & mask) == shortcutType);
     }
 }

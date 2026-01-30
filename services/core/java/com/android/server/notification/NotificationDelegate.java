@@ -35,7 +35,7 @@ public interface NotificationDelegate {
             String pkg, int userId, String key,
             @NotificationStats.DismissalSurface int dismissalSurface,
             @NotificationStats.DismissalSentiment int dismissalSentiment,
-            NotificationVisibility nv);
+            NotificationVisibility nv, boolean fromBundle);
     void onNotificationError(int callingUid, int callingPid,
             String pkg, String tag, int id,
             int uid, int initialPid, String message, int userId);

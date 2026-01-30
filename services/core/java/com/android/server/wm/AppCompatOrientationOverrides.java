@@ -26,6 +26,7 @@ import static android.content.pm.ActivityInfo.OVERRIDE_UNDEFINED_ORIENTATION_TO_
 import static android.content.pm.ActivityInfo.OVERRIDE_UNDEFINED_ORIENTATION_TO_PORTRAIT;
 import static android.content.pm.ActivityInfo.OVERRIDE_USE_DISPLAY_LANDSCAPE_NATURAL_ORIENTATION;
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_IGNORE_ORIENTATION_REQUEST_LOOP;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_DISPLAY_ORIENTATION_OVERRIDE;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_IGNORING_ORIENTATION_REQUEST_WHEN_LOOP_DETECTED;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE;
@@ -37,6 +38,7 @@ import static com.android.server.wm.AppCompatUtils.asLazy;
 import static com.android.server.wm.AppCompatUtils.isChangeEnabled;
 
 import android.annotation.NonNull;
+import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.wm.utils.OptPropFactory;
@@ -192,6 +194,10 @@ class AppCompatOrientationOverrides {
 
     private boolean isCompatChangeEnabled(long overrideChangeId) {
         return mActivityRecord.info.isChangeEnabled(overrideChangeId);
+    }
+
+    public void dumpDebug(@NonNull ProtoOutputStream proto) {
+        proto.write(SHOULD_IGNORE_ORIENTATION_REQUEST_LOOP, shouldIgnoreOrientationRequestLoop());
     }
 
     static class OrientationOverridesState {

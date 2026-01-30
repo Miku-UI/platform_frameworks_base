@@ -89,7 +89,6 @@ public class TouchState {
     private MotionEvent mLastInjectedHoverEvent;
     // The last injected hover event used for performing clicks.
     private MotionEvent mLastInjectedHoverEventForClick;
-    private boolean mHasResetInputDispatcherState;
     // The time of the last injected down.
     private long mLastInjectedDownEventTime;
     // Keep track of which pointers sent to the system are down.
@@ -224,16 +223,11 @@ public class TouchState {
             case AccessibilityEvent.TYPE_TOUCH_INTERACTION_END:
                 // When interaction ends, check if there are still down pointers.
                 // If there are any down pointers, go directly to TouchExploring instead.
-                if (com.android.server.accessibility.Flags
-                        .pointerUpMotionEventInTouchExploration()) {
-                    if (mReceivedPointerTracker.mReceivedPointersDown > 0) {
-                        startTouchExploring();
-                    } else {
-                        setState(STATE_CLEAR);
-                        // We will clear when we actually handle the next ACTION_DOWN.
-                    }
+                if (mReceivedPointerTracker.mReceivedPointersDown > 0) {
+                    startTouchExploring();
                 } else {
                     setState(STATE_CLEAR);
+                    // We will clear when we actually handle the next ACTION_DOWN.
                 }
                 break;
             case AccessibilityEvent.TYPE_TOUCH_EXPLORATION_GESTURE_START:
@@ -374,14 +368,6 @@ public class TouchState {
     /** @return The time of the last injected down event. */
     public long getLastInjectedDownEventTime() {
         return mLastInjectedDownEventTime;
-    }
-
-    boolean hasResetInputDispatcherState() {
-        return mHasResetInputDispatcherState;
-    }
-
-    void setHasResetInputDispatcherState(boolean value) {
-        mHasResetInputDispatcherState = value;
     }
 
     public int getLastTouchedWindowId() {

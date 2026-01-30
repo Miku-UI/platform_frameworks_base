@@ -17,11 +17,10 @@
 package com.android.systemui.qs.tiles
 
 import android.os.Handler
-import android.platform.test.flag.junit.FlagsParameterization
-import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import android.provider.Settings
 import android.safetycenter.SafetyCenterManager
 import android.testing.TestableLooper
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
 import com.android.systemui.SysuiTestCase
@@ -31,10 +30,7 @@ import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.qs.QSHost
 import com.android.systemui.qs.QsEventLogger
-import com.android.systemui.qs.flags.QSComposeFragment
-import com.android.systemui.qs.flags.QsInCompose.isEnabled
 import com.android.systemui.qs.logging.QSLogger
-import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tileimpl.QSTileImpl.DrawableIconWithRes
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.IndividualSensorPrivacyController
@@ -47,27 +43,15 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.MockitoAnnotations
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
 
-@RunWith(ParameterizedAndroidJunit4::class)
+@RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @SmallTest
-class MicrophoneToggleTileTest(flags: FlagsParameterization) : SysuiTestCase() {
+class MicrophoneToggleTileTest : SysuiTestCase() {
     companion object {
         /* isBlocked */
         const val MICROPHONE_TOGGLE_ENABLED: Boolean = false
         const val MICROPHONE_TOGGLE_DISABLED: Boolean = true
-
-        @JvmStatic
-        @Parameters(name = "{0}")
-        fun getParams(): List<FlagsParameterization> {
-            return allCombinationsOf(QSComposeFragment.FLAG_NAME)
-        }
-    }
-
-    init {
-        mSetFlagsRule.setFlagsParameterization(flags)
     }
 
     @Mock private lateinit var host: QSHost
@@ -148,6 +132,8 @@ class MicrophoneToggleTileTest(flags: FlagsParameterization) : SysuiTestCase() {
                 keyguardStateController,
                 safetyCenterManager,
             )
+        micTile.initialize()
+        testableLooper.processAllMessages()
         assertThat(micTile.longClickIntent?.action).isEqualTo(Settings.ACTION_PRIVACY_CONTROLS)
         micTile.destroy()
         testableLooper.processAllMessages()
@@ -171,16 +157,14 @@ class MicrophoneToggleTileTest(flags: FlagsParameterization) : SysuiTestCase() {
                 keyguardStateController,
                 safetyCenterManager,
             )
+        micTile.initialize()
+        testableLooper.processAllMessages()
         assertThat(micTile.longClickIntent?.action).isEqualTo(Settings.ACTION_PRIVACY_SETTINGS)
         micTile.destroy()
         testableLooper.processAllMessages()
     }
 
     private fun createExpectedIcon(resId: Int): QSTile.Icon {
-        return if (isEnabled) {
-            DrawableIconWithRes(mContext.getDrawable(resId), resId)
-        } else {
-            QSTileImpl.ResourceIcon.get(resId)
-        }
+        return DrawableIconWithRes(mContext.getDrawable(resId), resId)
     }
 }

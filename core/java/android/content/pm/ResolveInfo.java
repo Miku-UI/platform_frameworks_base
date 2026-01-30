@@ -207,7 +207,7 @@ public class ResolveInfo implements Parcelable {
      */
     private final boolean mAutoResolutionAllowed;
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public ComponentInfo getComponentInfo() {
         if (activityInfo != null) return activityInfo;

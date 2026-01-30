@@ -16,6 +16,8 @@
 
 package com.android.systemui.clipboardoverlay;
 
+import static com.android.systemui.Flags.clipboardOverlayMultiuser;
+
 import android.content.ClipData;
 import android.content.ClipDescription;
 import android.content.ComponentName;
@@ -26,6 +28,7 @@ import android.text.TextUtils;
 
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.res.R;
+import com.android.systemui.settings.UserTracker;
 
 import java.util.function.Consumer;
 
@@ -37,8 +40,12 @@ public class DefaultIntentCreator implements IntentCreator {
     private static final String EDIT_SOURCE_CLIPBOARD = "clipboard";
     private static final String REMOTE_COPY_ACTION = "android.intent.action.REMOTE_COPY";
 
+    private final UserTracker mUserTracker;
+
     @Inject
-    public DefaultIntentCreator() {}
+    public DefaultIntentCreator(UserTracker userTracker) {
+        mUserTracker = userTracker;
+    }
 
     public Intent getTextEditorIntent(Context context) {
         Intent intent = new Intent(context, EditTextActivity.class);
@@ -72,10 +79,14 @@ public class DefaultIntentCreator implements IntentCreator {
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
+        if (clipboardOverlayMultiuser()) {
+            chooserIntent.prepareToLeaveUser(mUserTracker.getUserId());
+        }
         return chooserIntent;
     }
 
-    public void getImageEditIntentAsync(Uri uri, Context context, Consumer<Intent> outputConsumer) {
+    public void getImageEditIntentAsync(
+            Uri uri, Context context, Consumer<Intent> outputConsumer) {
         String editorPackage = context.getString(R.string.config_screenshotEditor);
         Intent editIntent = new Intent(Intent.ACTION_EDIT);
         if (!TextUtils.isEmpty(editorPackage)) {
@@ -85,6 +96,9 @@ public class DefaultIntentCreator implements IntentCreator {
         editIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         editIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         editIntent.putExtra(EXTRA_EDIT_SOURCE, EDIT_SOURCE_CLIPBOARD);
+        if (clipboardOverlayMultiuser()) {
+            editIntent.prepareToLeaveUser(mUserTracker.getUserId());
+        }
         outputConsumer.accept(editIntent);
     }
 
@@ -99,6 +113,9 @@ public class DefaultIntentCreator implements IntentCreator {
         nearbyIntent.setClipData(clipData);
         nearbyIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         nearbyIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        if (clipboardOverlayMultiuser()) {
+            nearbyIntent.prepareToLeaveUser(mUserTracker.getUserId());
+        }
         return nearbyIntent;
     }
 }

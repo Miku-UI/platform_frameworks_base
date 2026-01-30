@@ -25,9 +25,7 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class DeviceProvisioningInteractor
 @Inject
-constructor(
-    private val repository: DeviceProvisioningRepository,
-) {
+constructor(private val repository: DeviceProvisioningRepository) {
     /**
      * Whether this device has been provisioned.
      *
@@ -37,5 +35,9 @@ constructor(
 
     fun isDeviceProvisioned(): Boolean {
         return repository.isDeviceProvisioned()
+    }
+
+    fun getProvisionedTimestamp(): DeviceProvisioningRepository.ProvisionedTimestamp {
+        return repository.getProvisionedTimestamp()
     }
 }

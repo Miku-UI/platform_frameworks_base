@@ -18,11 +18,10 @@ package com.android.server.wm;
 
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.view.Display.DEFAULT_DISPLAY;
 import static android.window.DisplayAreaOrganizer.FEATURE_DEFAULT_TASK_CONTAINER;
 import static android.window.DisplayAreaOrganizer.FEATURE_VENDOR_FIRST;
 
-import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
-import static com.android.server.wm.DisplayArea.Type.ABOVE_TASKS;
 import static com.android.server.wm.WindowContainer.POSITION_BOTTOM;
 import static com.android.server.wm.WindowContainer.POSITION_TOP;
 
@@ -30,7 +29,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doReturn;
 
 import android.platform.test.annotations.Presubmit;
 import android.util.Pair;
@@ -106,36 +105,47 @@ public class DisplayAreaPolicyTests extends WindowTestsBase {
 
     @Test
     public void testDisplayAreaGroup_taskPositionChanged_updatesDisplayAreaGroupPosition() {
-        final WindowManagerService wms = mWm;
-        final DisplayContent displayContent = mock(DisplayContent.class);
-        doReturn(true).when(displayContent).isTrusted();
-        final RootDisplayArea root = new SurfacelessDisplayAreaRoot(wms);
-        final RootDisplayArea group1 = new SurfacelessDisplayAreaRoot(wms, "group1",
-                FEATURE_VENDOR_FIRST + 1);
-        final RootDisplayArea group2 = new SurfacelessDisplayAreaRoot(wms, "group2",
-                FEATURE_VENDOR_FIRST + 2);
-        final TaskDisplayArea taskDisplayArea1 = new TaskDisplayArea(displayContent, wms, "Tasks1",
-                FEATURE_DEFAULT_TASK_CONTAINER);
-        final TaskDisplayArea taskDisplayArea2 = new TaskDisplayArea(displayContent, wms, "Tasks2",
-                FEATURE_VENDOR_FIRST + 3);
-        final TaskDisplayArea taskDisplayArea3 = new TaskDisplayArea(displayContent, wms, "Tasks3",
-                FEATURE_VENDOR_FIRST + 4);
-        final TaskDisplayArea taskDisplayArea4 = new TaskDisplayArea(displayContent, wms, "Tasks4",
-                FEATURE_VENDOR_FIRST + 5);
-        final TaskDisplayArea taskDisplayArea5 = new TaskDisplayArea(displayContent, wms, "Tasks5",
-                FEATURE_VENDOR_FIRST + 6);
-        final DisplayArea.Tokens ime = new DisplayArea.Tokens(wms, ABOVE_TASKS, "Ime");
-        final DisplayAreaPolicy policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
-                        .setImeContainer(ime)
-                        .setTaskDisplayAreas(Lists.newArrayList(taskDisplayArea1, taskDisplayArea2))
-                )
-                .addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(group1)
-                        .setTaskDisplayAreas(Lists.newArrayList(taskDisplayArea3, taskDisplayArea4))
-                )
-                .addDisplayAreaGroupHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(group2)
-                        .setTaskDisplayAreas(Lists.newArrayList(taskDisplayArea5)))
-                .build(wms);
+        final TaskDisplayArea taskDisplayArea1 = new TaskDisplayArea(mWm,
+                "Tasks1", FEATURE_DEFAULT_TASK_CONTAINER,
+                false /* createdByOrganizer */, true /* canHostHomeTask*/);
+        final TaskDisplayArea taskDisplayArea2 = new TaskDisplayArea(mWm,
+                "Tasks2", FEATURE_VENDOR_FIRST + 3,
+                false /* createdByOrganizer */, true /* canHostHomeTask*/);
+        final TaskDisplayArea taskDisplayArea3 = new TaskDisplayArea(mWm,
+                "Tasks3", FEATURE_VENDOR_FIRST + 4,
+                false /* createdByOrganizer */, true /* canHostHomeTask*/);
+        final TaskDisplayArea taskDisplayArea4 = new TaskDisplayArea(mWm,
+                "Tasks4", FEATURE_VENDOR_FIRST + 5,
+                false /* createdByOrganizer */, true /* canHostHomeTask*/);
+        final TaskDisplayArea taskDisplayArea5 = new TaskDisplayArea(mWm,
+                "Tasks5", FEATURE_VENDOR_FIRST + 6,
+                false /* createdByOrganizer */, true /* canHostHomeTask*/);
+        final DisplayAreaPolicy.Provider policyProvider =
+                (wmService, content, root, imeContainer) -> {
+                    final RootDisplayArea group1 = new SurfacelessDisplayAreaRoot(wmService,
+                            "group1", FEATURE_VENDOR_FIRST + 1);
+                    final RootDisplayArea group2 = new SurfacelessDisplayAreaRoot(wmService,
+                            "group2", FEATURE_VENDOR_FIRST + 2);
+                    final DisplayAreaPolicyBuilder.HierarchyBuilder rootHierarchy =
+                            new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
+                                    .setImeContainer(imeContainer)
+                                    .setTaskDisplayAreas(Lists.newArrayList(
+                                            taskDisplayArea1, taskDisplayArea2));
+                    return new DisplayAreaPolicyBuilder(
+                            DEFAULT_DISPLAY, rootHierarchy)
+                            .addDisplayAreaGroupHierarchy(
+                                    new DisplayAreaPolicyBuilder.HierarchyBuilder(group1)
+                                            .setTaskDisplayAreas(Lists.newArrayList(
+                                                    taskDisplayArea3, taskDisplayArea4))
+                            )
+                            .addDisplayAreaGroupHierarchy(
+                                    new DisplayAreaPolicyBuilder.HierarchyBuilder(group2)
+                                            .setTaskDisplayAreas(Lists.newArrayList(
+                                                    taskDisplayArea5)))
+                            .build(wmService);
+                };
+        final DisplayContent dc = createDisplayContentWithDisplayAreaPolicy(policyProvider);
+        final DisplayAreaPolicy policy = dc.mDisplayAreaPolicy;
         final Task stack1 = taskDisplayArea1.createRootTask(
                 WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
         final Task stack3 = taskDisplayArea3.createRootTask(
@@ -174,25 +184,29 @@ public class DisplayAreaPolicyTests extends WindowTestsBase {
 
     @Test
     public void testTaskDisplayAreasCanHostHomeTask() {
-        final WindowManagerService wms = mWm;
-        final DisplayContent displayContent = mock(DisplayContent.class);
-        doReturn(true).when(displayContent).isTrusted();
-        doReturn(true).when(displayContent).isHomeSupported();
-        final RootDisplayArea root = new SurfacelessDisplayAreaRoot(wms);
-        final TaskDisplayArea taskDisplayAreaWithHome = new TaskDisplayArea(displayContent, wms,
-                "Tasks1", FEATURE_DEFAULT_TASK_CONTAINER);
-        final TaskDisplayArea taskDisplayAreaWithNoHome = new TaskDisplayArea(displayContent, wms,
-                "Tasks2", FEATURE_VENDOR_FIRST + 1, false, false);
-        final DisplayArea.Tokens ime = new DisplayArea.Tokens(wms, ABOVE_TASKS, "Ime");
-        final DisplayAreaPolicy policy = new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
-                        .setImeContainer(ime)
-                        .setTaskDisplayAreas(Lists.newArrayList(taskDisplayAreaWithHome,
-                                taskDisplayAreaWithNoHome))
-                )
-                .build(wms);
+        final TaskDisplayArea taskDisplayAreaWithHome = new TaskDisplayArea(mWm,
+                "Tasks1", FEATURE_DEFAULT_TASK_CONTAINER,
+                false /* createdByOrganizer */, true /* canHostHomeTask*/);
+        final TaskDisplayArea taskDisplayAreaWithNoHome = new TaskDisplayArea(mWm,
+                "Tasks2", FEATURE_VENDOR_FIRST + 1,
+                false /* createdByOrganizer */, false /* canHostHomeTask*/);
+        final DisplayAreaPolicy.Provider policyProvider =
+                (wmService, content, root, imeContainer) -> {
+                    final DisplayAreaPolicyBuilder.HierarchyBuilder rootHierarchy =
+                            new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
+                                    .setImeContainer(imeContainer)
+                                    .setTaskDisplayAreas(Lists.newArrayList(
+                                            taskDisplayAreaWithHome, taskDisplayAreaWithNoHome));
+                    return new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY, rootHierarchy)
+                            .build(wmService);
+                };
+        final DisplayContent dc = createDisplayContentWithDisplayAreaPolicy(policyProvider);
+        doReturn(true).when(dc).isHomeSupported();
+        final DisplayAreaPolicy policy = dc.mDisplayAreaPolicy;
+
         assertTaskDisplayAreaPresentAndCanHaveHome(policy, FEATURE_DEFAULT_TASK_CONTAINER, true);
         assertTaskDisplayAreaPresentAndCanHaveHome(policy, FEATURE_VENDOR_FIRST + 1, false);
+
         final Task stackHome = taskDisplayAreaWithHome.getOrCreateRootHomeTask(true);
         final Task stackNoHome = taskDisplayAreaWithNoHome.getOrCreateRootHomeTask(true);
         assertNotNull(stackHome);
@@ -227,22 +241,31 @@ public class DisplayAreaPolicyTests extends WindowTestsBase {
     }
 
     private Pair<DisplayAreaPolicy, List<TaskDisplayArea>> createPolicyWith2TaskDisplayAreas() {
-        final SurfacelessDisplayAreaRoot root = new SurfacelessDisplayAreaRoot(mWm);
-        final DisplayArea.Tokens ime = new DisplayArea.Tokens(mWm, ABOVE_TASKS, "Ime");
-        final DisplayContent displayContent = mock(DisplayContent.class);
-        doReturn(true).when(displayContent).isTrusted();
-        final TaskDisplayArea taskDisplayArea1 = new TaskDisplayArea(displayContent, mWm, "Tasks1",
-                FEATURE_DEFAULT_TASK_CONTAINER);
-        final TaskDisplayArea taskDisplayArea2 = new TaskDisplayArea(displayContent, mWm, "Tasks2",
-                FEATURE_VENDOR_FIRST);
         final List<TaskDisplayArea> taskDisplayAreaList = new ArrayList<>();
-        taskDisplayAreaList.add(taskDisplayArea1);
-        taskDisplayAreaList.add(taskDisplayArea2);
+        final DisplayAreaPolicy.Provider policyProvider =
+                (wmService, content, root, imeContainer) -> {
+                    final TaskDisplayArea taskDisplayArea1 = new TaskDisplayArea(wmService,
+                            "Tasks1", FEATURE_DEFAULT_TASK_CONTAINER,
+                            false /* createdByOrganizer */, true /* canHostHomeTask*/);
+                    final TaskDisplayArea taskDisplayArea2 = new TaskDisplayArea(wmService,
+                            "Tasks2", FEATURE_VENDOR_FIRST,
+                            false /* createdByOrganizer */, true /* canHostHomeTask*/);
+                    taskDisplayAreaList.add(taskDisplayArea1);
+                    taskDisplayAreaList.add(taskDisplayArea2);
+                    final DisplayAreaPolicyBuilder.HierarchyBuilder rootHierarchy =
+                            new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
+                                    .setImeContainer(imeContainer)
+                                    .setTaskDisplayAreas(taskDisplayAreaList);
+                    return new DisplayAreaPolicyBuilder(DEFAULT_DISPLAY, rootHierarchy)
+                            .build(wmService);
+                };
+        final DisplayContent dc = createDisplayContentWithDisplayAreaPolicy(policyProvider);
+        return Pair.create(dc.mDisplayAreaPolicy, taskDisplayAreaList);
+    }
 
-        return Pair.create(new DisplayAreaPolicyBuilder()
-                .setRootHierarchy(new DisplayAreaPolicyBuilder.HierarchyBuilder(root)
-                        .setImeContainer(ime)
-                        .setTaskDisplayAreas(taskDisplayAreaList))
-                .build(mWm), taskDisplayAreaList);
+    private DisplayContent createDisplayContentWithDisplayAreaPolicy(
+            DisplayAreaPolicy.Provider policyProvider) {
+        doReturn(policyProvider).when(mWm).getDisplayAreaPolicyProvider();
+        return createNewDisplay();
     }
 }

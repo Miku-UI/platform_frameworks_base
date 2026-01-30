@@ -226,6 +226,13 @@ interface IVoiceInteractionManagerService {
     void setUiHints(in Bundle hints);
 
     /**
+     * Enables the invocation effect when the system launches a new session.
+     * Caller must be the active voice interaction service via
+     * {@link Settings.Secure.VOICE_INTERACTION_SERVICE}.
+     */
+    void setInvocationEffectEnabled(boolean enabled);
+
+    /**
      * Requests a list of supported actions from a specific activity.
      */
     void requestDirectActions(in IBinder token, int taskId, IBinder assistToken,

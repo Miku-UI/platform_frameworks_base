@@ -21,7 +21,6 @@ import static android.location.provider.ProviderProperties.POWER_USAGE_HIGH;
 
 import android.annotation.Nullable;
 import android.content.Context;
-import android.location.flags.Flags;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -90,12 +89,8 @@ public class GnssOverlayLocationProvider extends LocationProviderBase {
     public GnssOverlayLocationProvider(Context context) {
         super(context, TAG, PROPERTIES);
 
-        if (Flags.missingAttributionTagsInOverlay()) {
-            Context contextWithAttribution = context.createAttributionContext(ATTRIBUTION_TAG);
-            mLocationManager = contextWithAttribution.getSystemService(LocationManager.class);
-        } else {
-            mLocationManager = context.getSystemService(LocationManager.class);
-        }
+        Context contextWithAttribution = context.createAttributionContext(ATTRIBUTION_TAG);
+        mLocationManager = contextWithAttribution.getSystemService(LocationManager.class);
     }
 
     void start() {

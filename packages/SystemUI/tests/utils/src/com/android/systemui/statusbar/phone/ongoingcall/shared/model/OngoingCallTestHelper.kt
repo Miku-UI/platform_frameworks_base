@@ -27,6 +27,8 @@ import com.android.systemui.statusbar.notification.data.model.activeNotification
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
 import com.android.systemui.statusbar.notification.data.repository.addNotif
 import com.android.systemui.statusbar.notification.data.repository.removeNotif
+import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentBuilder
+import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModels
 import com.android.systemui.statusbar.notification.shared.CallType
 import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
@@ -40,9 +42,11 @@ fun inCallModel(
     intent: PendingIntent? = null,
     notificationKey: String = "test",
     appName: String = "",
+    requestedPromotion: Boolean = false,
     promotedContent: PromotedNotificationContentModels? = null,
     isAppVisible: Boolean = false,
     instanceId: InstanceId? = null,
+    packageName: String = "fake.package.name",
 ) =
     OngoingCallModel.InCall(
         startTimeMs,
@@ -50,9 +54,11 @@ fun inCallModel(
         intent,
         notificationKey,
         appName,
+        requestedPromotion,
         promotedContent,
         isAppVisible,
         instanceId,
+        packageName,
     )
 
 object OngoingCallTestHelper {
@@ -77,16 +83,26 @@ object OngoingCallTestHelper {
      * @param key the notification key to be associated with the call notification
      */
     fun Kosmos.addOngoingCallState(
-        key: String = "notif",
+        key: String = DEFAULT_KEY,
         startTimeMs: Long = 1000L,
         statusBarChipIconView: StatusBarIconView? = createStatusBarIconViewOrNull(),
-        promotedContent: PromotedNotificationContentModels? = null,
+        requestedPromotion: Boolean = false,
+        promotedContent: PromotedContentInput = PromotedContentInput.Default,
         contentIntent: PendingIntent? = null,
         uid: Int = DEFAULT_UID,
         appName: String = "Fake name",
         isAppVisible: Boolean = false,
         instanceId: InstanceId? = null,
+        packageName: String = "fake.package.name",
     ) {
+        val actualPromotedContent =
+            when (promotedContent) {
+                is PromotedContentInput.Default -> null
+                is PromotedContentInput.OverrideToNull -> null
+                is PromotedContentInput.OverrideToValue -> {
+                    promotedContent.value
+                }
+            }
         if (StatusBarChipsModernization.isEnabled) {
             activityManagerRepository.fake.startingIsAppVisibleValue = isAppVisible
             activeNotificationListRepository.addNotif(
@@ -96,10 +112,12 @@ object OngoingCallTestHelper {
                     callType = CallType.Ongoing,
                     statusBarChipIcon = statusBarChipIconView,
                     contentIntent = contentIntent,
-                    promotedContent = promotedContent,
+                    requestedPromotion = requestedPromotion,
+                    promotedContent = actualPromotedContent,
                     uid = uid,
                     appName = appName,
                     instanceId = instanceId,
+                    packageName = packageName,
                 )
             )
         } else {
@@ -110,12 +128,23 @@ object OngoingCallTestHelper {
                     intent = contentIntent,
                     notificationKey = key,
                     appName = appName,
-                    promotedContent = promotedContent,
+                    requestedPromotion = requestedPromotion,
+                    promotedContent = actualPromotedContent,
                     isAppVisible = isAppVisible,
                     instanceId = instanceId,
+                    packageName = packageName,
                 )
             )
         }
+    }
+
+    sealed interface PromotedContentInput {
+        data object Default : PromotedContentInput
+
+        data object OverrideToNull : PromotedContentInput
+
+        data class OverrideToValue(val value: PromotedNotificationContentModels) :
+            PromotedContentInput
     }
 
     private fun createStatusBarIconViewOrNull(): StatusBarIconView? =
@@ -125,5 +154,16 @@ object OngoingCallTestHelper {
             mock<StatusBarIconView>()
         }
 
+    /**
+     * Creates a starting point for [PromotedNotificationContentBuilder] that should be used
+     * whenever a call notification is promoted.
+     */
+    fun callPromotedContentBuilder(key: String = DEFAULT_KEY): PromotedNotificationContentBuilder {
+        return PromotedNotificationContentBuilder(key).applyToShared {
+            this.style = PromotedNotificationContentModel.Style.Call
+        }
+    }
+
     private const val DEFAULT_UID = 886
+    private const val DEFAULT_KEY = "notif"
 }

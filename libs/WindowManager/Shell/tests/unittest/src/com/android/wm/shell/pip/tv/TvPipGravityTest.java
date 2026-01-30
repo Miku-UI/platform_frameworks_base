@@ -23,13 +23,16 @@ import static android.view.KeyEvent.KEYCODE_DPAD_UP;
 
 import static org.junit.Assert.assertEquals;
 
+import android.content.Context;
 import android.view.Gravity;
 
 import com.android.wm.shell.ShellTestCase;
+import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.pip.LegacySizeSpecSource;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipSnapAlgorithm;
 import com.android.wm.shell.common.pip.SizeSpecSource;
+import com.android.wm.shell.sysui.ShellInit;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -40,11 +43,18 @@ import java.util.Locale;
 
 public class TvPipGravityTest extends ShellTestCase {
 
+    private static final String TV_PIP_PREFS = "tv_pip_preferences";
+    private static final String KEY_LAST_PIP_GRAVITY = "last_user_pip_gravity";
+
     private static final float VERTICAL_EXPANDED_ASPECT_RATIO = 1f / 3;
     private static final float HORIZONTAL_EXPANDED_ASPECT_RATIO = 3f;
 
     @Mock
     private PipSnapAlgorithm mMockPipSnapAlgorithm;
+    @Mock
+    private DisplayController mDisplayController;
+    @Mock
+    private ShellInit mShellInit;
 
     private TvPipBoundsState mTvPipBoundsState;
     private TvPipBoundsAlgorithm mTvPipBoundsAlgorithm;
@@ -56,7 +66,12 @@ public class TvPipGravityTest extends ShellTestCase {
         assumeTelevision();
 
         MockitoAnnotations.initMocks(this);
-        mPipDisplayLayoutState = new PipDisplayLayoutState(mContext);
+        mContext.getSharedPreferences(TV_PIP_PREFS, Context.MODE_PRIVATE)
+                .edit().clear().commit();
+        mPipDisplayLayoutState = new PipDisplayLayoutState(mContext, mDisplayController,
+                mShellInit);
+        // Directly call onInit instead of using ShellInit
+        mPipDisplayLayoutState.onInit();
         mSizeSpecSource = new LegacySizeSpecSource(mContext, mPipDisplayLayoutState);
         mTvPipBoundsState = new TvPipBoundsState(mContext, mSizeSpecSource,
                 mPipDisplayLayoutState);
@@ -145,14 +160,17 @@ public class TvPipGravityTest extends ShellTestCase {
     }
 
     @Test
-    public void updateGravity_collapse() {
+    public void updateGravity_collapseVertical() {
         // Vertical expansion
         mTvPipBoundsState.setDesiredTvExpandedAspectRatio(VERTICAL_EXPANDED_ASPECT_RATIO, true);
         assertGravityAfterCollapse(Gravity.CENTER_VERTICAL | Gravity.RIGHT,
                 Gravity.BOTTOM | Gravity.RIGHT);
         assertGravityAfterCollapse(Gravity.CENTER_VERTICAL | Gravity.LEFT,
                 Gravity.BOTTOM | Gravity.LEFT);
+    }
 
+    @Test
+    public void updateGravity_collapseHorizontal() {
         // Horizontal expansion
         mTvPipBoundsState.setDesiredTvExpandedAspectRatio(HORIZONTAL_EXPANDED_ASPECT_RATIO, true);
         assertGravityAfterCollapse(Gravity.TOP | Gravity.CENTER_HORIZONTAL,
@@ -334,6 +352,73 @@ public class TvPipGravityTest extends ShellTestCase {
         setRTL(false);
         assertEquals(mTvPipBoundsState.getTvPipPreviousCollapsedGravity(),
                 Gravity.BOTTOM | Gravity.RIGHT);
+    }
+
+    @Test
+    public void persistence_loadsLastGravityOnStart() {
+        // Save a non-default gravity to SharedPreferences.
+        mContext.getSharedPreferences(TV_PIP_PREFS, Context.MODE_PRIVATE).edit()
+                .putInt(KEY_LAST_PIP_GRAVITY, Gravity.TOP | Gravity.LEFT).commit();
+        TvPipBoundsState newState = new TvPipBoundsState(mContext, mSizeSpecSource,
+                mPipDisplayLayoutState);
+        checkGravity(newState.getTvPipGravity(), Gravity.TOP | Gravity.LEFT);
+    }
+
+    @Test
+    public void persistence_loadsLastGravityOnReset() {
+        // Save a non-default gravity to SharedPreferences.
+        mContext.getSharedPreferences(TV_PIP_PREFS, Context.MODE_PRIVATE).edit()
+                .putInt(KEY_LAST_PIP_GRAVITY, Gravity.BOTTOM | Gravity.LEFT).commit();
+        mTvPipBoundsState.resetTvPipState();
+        checkGravity(mTvPipBoundsState.getTvPipGravity(), Gravity.BOTTOM | Gravity.LEFT);
+    }
+
+    @Test
+    public void persistence_savesCollapsedGravityWhenExpandedHorizontal() {
+        // Horizontal expansion from non-default corner.
+        mTvPipBoundsState.setDesiredTvExpandedAspectRatio(HORIZONTAL_EXPANDED_ASPECT_RATIO, true);
+        assertGravityAfterExpansion(Gravity.TOP | Gravity.LEFT,
+                Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        int savedGravity = mContext.getSharedPreferences(TV_PIP_PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_LAST_PIP_GRAVITY, -1);
+        checkGravity(savedGravity, Gravity.TOP | Gravity.LEFT);
+    }
+
+    @Test
+    public void persistence_savesCollapsedGravityWhenExpandedVertical() {
+        // Vertical expansion from non-default corner.
+        mTvPipBoundsState.setDesiredTvExpandedAspectRatio(VERTICAL_EXPANDED_ASPECT_RATIO, true);
+        assertGravityAfterExpansion(Gravity.TOP | Gravity.RIGHT,
+                Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        int savedGravity = mContext.getSharedPreferences(TV_PIP_PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_LAST_PIP_GRAVITY, -1);
+        checkGravity(savedGravity, Gravity.TOP | Gravity.RIGHT);
+    }
+
+    @Test
+    public void persistence_savesMovedCollapsedGravityWhenExpandedHorizontal() {
+        // Horizontal Expansion.
+        mTvPipBoundsState.setDesiredTvExpandedAspectRatio(HORIZONTAL_EXPANDED_ASPECT_RATIO, true);
+        assertGravityAfterExpansion(Gravity.BOTTOM | Gravity.RIGHT,
+                Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        // Move the expanded PiP up.
+        moveAndCheckGravity(KEYCODE_DPAD_UP, Gravity.TOP | Gravity.CENTER_HORIZONTAL, true);
+        int savedGravity = mContext.getSharedPreferences(TV_PIP_PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_LAST_PIP_GRAVITY, -1);
+        checkGravity(savedGravity, Gravity.TOP | Gravity.RIGHT);
+    }
+
+    @Test
+    public void persistence_savesMovedCollapsedGravityWhenExpandedVertical() {
+        // Vertical Expansion.
+        mTvPipBoundsState.setDesiredTvExpandedAspectRatio(VERTICAL_EXPANDED_ASPECT_RATIO, true);
+        assertGravityAfterExpansion(Gravity.BOTTOM | Gravity.RIGHT,
+                Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        // Move the expanded PiP left.
+        moveAndCheckGravity(KEYCODE_DPAD_LEFT, Gravity.CENTER_VERTICAL | Gravity.LEFT, true);
+        int savedGravity = mContext.getSharedPreferences(TV_PIP_PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_LAST_PIP_GRAVITY, -1);
+        checkGravity(savedGravity, Gravity.BOTTOM | Gravity.LEFT);
     }
 
 }

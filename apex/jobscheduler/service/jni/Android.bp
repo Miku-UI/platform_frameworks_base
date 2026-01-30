@@ -10,7 +10,6 @@ package {
 cc_library_shared {
     name: "libalarm_jni",
 
-    cpp_std: "c++2a",
     cflags: [
         "-Wall",
         "-Werror",

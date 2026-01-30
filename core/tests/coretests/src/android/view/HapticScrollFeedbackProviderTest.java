@@ -16,11 +16,10 @@
 
 package android.view;
 
-import static android.os.vibrator.Flags.FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED;
-import static android.view.flags.Flags.FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION;
 import static android.view.HapticFeedbackConstants.SCROLL_ITEM_FOCUS;
 import static android.view.HapticFeedbackConstants.SCROLL_LIMIT;
 import static android.view.HapticFeedbackConstants.SCROLL_TICK;
+import static android.view.flags.Flags.FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -76,7 +75,6 @@ public final class HapticScrollFeedbackProviderTest {
         mView = new TestView(InstrumentationRegistry.getContext());
         mProvider = new HapticScrollFeedbackProvider(mView, mMockViewConfig,
                 /* isFromView= */ false);
-        mSetFlagsRule.disableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
     }
 
     @Test
@@ -117,7 +115,6 @@ public final class HapticScrollFeedbackProviderTest {
     @Test
     public void testRotaryEncoder_inputDeviceCustomized_noFeedbackWhenViewBasedFeedbackIsEnabled() {
         mSetFlagsRule.disableFlags(FLAG_DYNAMIC_VIEW_ROTARY_HAPTICS_CONFIGURATION);
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
 
         when(mMockViewConfig.isViewBasedRotaryEncoderHapticScrollFeedbackEnabled())
                 .thenReturn(true);
@@ -132,7 +129,8 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* isStart= */ true);
 
-        assertThat(mView.mHapticFeedbackRequests).hasSize(0);
+        assertNoFeedback(mView);
+        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
     }
 
     @Test
@@ -159,7 +157,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testRotaryEncoder_inputDeviceCustomized_feedbackWhenDisregardingViewBasedScrollHaptics() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider = new HapticScrollFeedbackProvider(mView, mMockViewConfig,
@@ -183,7 +180,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                 SCROLL_LIMIT, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -211,8 +208,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testNoFeedbackWhenFeedbackIsDisabled_inputDeviceCustomized() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
-
         setHapticScrollFeedbackEnabled(false);
         // Call different types scroll feedback methods; non of them should produce feedback because
         // feedback has been disabled.
@@ -231,7 +226,8 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* deltaInPixels= */ -300);
 
-        assertThat(mView.mHapticFeedbackRequests).hasSize(0);
+        assertNoFeedback(mView);
+        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
     }
 
     @Test
@@ -244,7 +240,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testSnapToItem_inputDeviceCustomized() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -258,7 +253,7 @@ public final class HapticScrollFeedbackProviderTest {
                 new HapticFeedbackRequest(
                         SCROLL_ITEM_FOCUS, INPUT_DEVICE_2, InputDevice.SOURCE_TOUCHSCREEN));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -275,7 +270,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_start() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -288,7 +282,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                 SCROLL_LIMIT, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -305,7 +299,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_stop() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -318,7 +311,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                 SCROLL_LIMIT, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -337,8 +330,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollProgress_inputDeviceCustomized_zeroTickInterval() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
-
         setHapticScrollTickInterval(0);
 
         mProvider.onScrollProgress(
@@ -348,7 +339,8 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* deltaInPixels= */ 20);
 
-        assertThat(mView.mHapticFeedbackRequests).hasSize(0);
+        assertNoFeedback(mView);
+        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
     }
 
     @Test
@@ -375,7 +367,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollProgress_inputDeviceCustomized_progressEqualsOrExceedsPositiveThreshold() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
         setHapticScrollTickInterval(100);
 
@@ -383,7 +374,8 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* deltaInPixels= */ 20);
 
-        assertThat(mView.mHapticFeedbackRequests).hasSize(0);
+        assertNoFeedback(mView);
+        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
 
         mProvider.onScrollProgress(
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
@@ -396,7 +388,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                     SCROLL_TICK, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -427,7 +419,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollProgress_inputDeviceCustomized_progressEqualsOrExceedsNegativeThreshold() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
         setHapticScrollTickInterval(100);
 
@@ -435,7 +426,8 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* deltaInPixels= */ -20);
 
-        assertThat(mView.mHapticFeedbackRequests).hasSize(0);
+        assertNoFeedback(mView);
+        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
 
         mProvider.onScrollProgress(
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
@@ -451,7 +443,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                     SCROLL_TICK, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -494,7 +486,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollProgress_inputDeviceCustomized_positiveAndNegativeProgresses() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
         setHapticScrollTickInterval(100);
 
@@ -506,14 +497,16 @@ public final class HapticScrollFeedbackProviderTest {
                 /* deltaInPixels= */ -90);
 
         // total pixel abs = 70
-        assertThat(mView.mHapticFeedbackRequests).hasSize(0);
+        assertNoFeedback(mView);
+        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
 
         mProvider.onScrollProgress(
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* deltaInPixels= */ 10);
 
         // total pixel abs = 60
-        assertThat(mView.mHapticFeedbackRequests).hasSize(0);
+        assertNoFeedback(mView);
+        assertThat(mView.mFeedbackForInputDevices).hasSize(0);
 
         mProvider.onScrollProgress(
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
@@ -522,7 +515,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                     SCROLL_TICK, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
 
         mProvider.onScrollProgress(
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
@@ -537,7 +530,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                     SCROLL_TICK, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -553,7 +546,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollProgress_inputDeviceCustomized_singleProgressExceedsThreshold() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
         setHapticScrollTickInterval(100);
 
@@ -563,7 +555,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                     SCROLL_TICK, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -583,7 +575,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_startAndEndLimit_inputDeviceCustomized_playsOnlyOneFeedback() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -601,7 +592,7 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* isStart= */ true);
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -621,7 +612,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_doubleStartLimit_inputDeviceCustomized_playsOnlyOneFeedback() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -639,7 +629,7 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* isStart= */ true);
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -659,7 +649,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_doubleEndLimit_inputDeviceCustomized_playsOnlyOneFeedback() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -677,7 +666,7 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* isStart= */ false);
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -703,7 +692,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_notEnabledWithZeroProgress() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -728,7 +716,7 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* isStart= */ false);
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -751,7 +739,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_enabledWithProgress() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -776,7 +763,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                 SCROLL_LIMIT, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -798,7 +785,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_enabledWithSnap() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         // 1st enabled limit by snap
@@ -822,7 +808,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                 SCROLL_LIMIT, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -844,7 +830,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_notEnabledWithDissimilarSnap() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -866,7 +851,7 @@ public final class HapticScrollFeedbackProviderTest {
                 INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER, MotionEvent.AXIS_SCROLL,
                 /* isStart= */ false);
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -889,7 +874,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_enabledWithDissimilarProgress() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -912,7 +896,7 @@ public final class HapticScrollFeedbackProviderTest {
         requests.add(new HapticFeedbackRequest(
                 SCROLL_LIMIT, INPUT_DEVICE_1, InputDevice.SOURCE_ROTARY_ENCODER));
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
@@ -966,7 +950,6 @@ public final class HapticScrollFeedbackProviderTest {
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_doesNotEnabledWithMotionFromDifferentDeviceId() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -990,12 +973,11 @@ public final class HapticScrollFeedbackProviderTest {
                 MotionEvent.AXIS_SCROLL,
                 /* isStart= */ false);
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     @Test
     public void testScrollLimit_inputDeviceCustomized_doesNotEnabledWithMotionFromDifferentSource() {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
         List<HapticFeedbackRequest> requests = new ArrayList<>();
 
         mProvider.onSnapToItem(
@@ -1018,7 +1000,7 @@ public final class HapticScrollFeedbackProviderTest {
                 MotionEvent.AXIS_SCROLL,
                 /* isStart= */ false);
 
-        assertThat(mView.mHapticFeedbackRequests).containsExactlyElementsIn(requests).inOrder();
+        assertThat(mView.mFeedbackForInputDevices).containsExactlyElementsIn(requests).inOrder();
     }
 
     private void assertNoFeedback(TestView view) {
@@ -1054,7 +1036,7 @@ public final class HapticScrollFeedbackProviderTest {
 
     private static class TestView extends View {
         final Map<Integer, Integer> mFeedbackCount = new HashMap<>();
-        final List<HapticFeedbackRequest> mHapticFeedbackRequests = new ArrayList<>();
+        final List<HapticFeedbackRequest> mFeedbackForInputDevices = new ArrayList<>();
 
         TestView(Context context) {
             super(context);
@@ -1062,18 +1044,23 @@ public final class HapticScrollFeedbackProviderTest {
 
         @Override
         public boolean performHapticFeedback(int feedback) {
-            if (!mFeedbackCount.containsKey(feedback)) {
-                mFeedbackCount.put(feedback, 0);
-            }
-            mFeedbackCount.put(feedback, mFeedbackCount.get(feedback) + 1);
+            incrementFeedbackCount(feedback);
             return true;
         }
 
         @Override
         public void performHapticFeedbackForInputDevice(int feedback, int inputDeviceId,
                 int inputSource, int flags) {
-            mHapticFeedbackRequests.add(
+            incrementFeedbackCount(feedback);
+            mFeedbackForInputDevices.add(
                     new HapticFeedbackRequest(feedback, inputDeviceId, inputSource));
+        }
+
+        private void incrementFeedbackCount(int feedback) {
+            if (!mFeedbackCount.containsKey(feedback)) {
+                mFeedbackCount.put(feedback, 0);
+            }
+            mFeedbackCount.put(feedback, mFeedbackCount.get(feedback) + 1);
         }
     }
 

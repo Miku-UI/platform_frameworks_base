@@ -17,6 +17,7 @@
 #include <gtest/gtest.h>
 
 #include "AnimationContext.h"
+#include "FeatureFlags.h"
 #include "IContextFactory.h"
 #include "renderthread/CanvasContext.h"
 #include "renderthread/VulkanManager.h"
@@ -77,4 +78,98 @@ RENDERTHREAD_TEST(CanvasContext, buildLayerDoesntLeak) {
             EXPECT_FALSE(instance->hasVkContext());
         }
     }
+}
+
+RENDERTHREAD_TEST(CanvasContext, forceInvertColorArea_detectsLightTheme) {
+    if (!view_accessibility_flags::force_invert_color()) {
+        GTEST_SKIP() << "Test only applies when force_invert_colorarea_detector flag is enabled";
+    }
+    Properties::setIsForceInvertEnabled(true);
+    auto buttonNode =
+            TestUtils::createNode(0, 0, 50, 100, [](RenderProperties& props, Canvas& canvas) {
+                Paint paint;
+                paint.setStyle(SkPaint::Style::kFill_Style);
+                paint.setColor(0xFFEE11CC);
+
+                canvas.drawRoundRect(0, 0, 50, 100, 5, 5, paint);
+            });
+    auto panelNode = TestUtils::createNode(0, 0, 100, 200,
+                                           [buttonNode](RenderProperties& props, Canvas& canvas) {
+                                               Paint paint;
+                                               paint.setStyle(SkPaint::Style::kFill_Style);
+                                               paint.setColor(0xEE111111);
+
+                                               canvas.drawRect(0, 0, 100, 200, paint);
+                                               canvas.drawRenderNode(buttonNode.get());
+                                           });
+
+    auto node = TestUtils::createNode(0, 0, 200, 400,
+                                      [panelNode](RenderProperties& props, Canvas& canvas) {
+                                          canvas.drawColor(0xFFEEEEE1, SkBlendMode::kSrc);
+
+                                          canvas.drawRenderNode(panelNode.get());
+                                      });
+    node->mutateStagingProperties().mutateLayerProperties().setType(LayerType::RenderLayer);
+
+    auto& cacheManager = renderThread.cacheManager();
+    ContextFactory contextFactory;
+    std::unique_ptr<CanvasContext> canvasContext(
+            CanvasContext::create(renderThread, false, node.get(), &contextFactory, 0, 0));
+    canvasContext->setForceDark(android::uirenderer::ForceDarkType::FORCE_INVERT_COLOR_DARK);
+
+    EXPECT_EQ(canvasContext->getColorArea().getPolarity(), Unknown);
+
+    canvasContext->prepareAndDraw(node.get());
+
+    EXPECT_EQ(canvasContext->getColorArea().getPolarity(), Light);
+
+    Properties::setIsForceInvertEnabled(false);
+    renderThread.destroyRenderingContext();
+}
+
+RENDERTHREAD_TEST(CanvasContext, forceInvertColorArea_detectsDarkTheme) {
+    if (!view_accessibility_flags::force_invert_color()) {
+        GTEST_SKIP() << "Test only applies when force_invert_colorarea_detector flag is enabled";
+    }
+    Properties::setIsForceInvertEnabled(true);
+    auto buttonNode =
+            TestUtils::createNode(0, 0, 50, 100, [](RenderProperties& props, Canvas& canvas) {
+                Paint paint;
+                paint.setStyle(SkPaint::Style::kFill_Style);
+                paint.setColor(0xFFFF5566);
+
+                canvas.drawRoundRect(0, 0, 50, 100, 5, 5, paint);
+            });
+    auto panelNode = TestUtils::createNode(0, 0, 100, 200,
+                                           [buttonNode](RenderProperties& props, Canvas& canvas) {
+                                               Paint paint;
+                                               paint.setStyle(SkPaint::Style::kFill_Style);
+                                               paint.setColor(0xFFCCCCCC);
+
+                                               canvas.drawRect(0, 0, 100, 200, paint);
+                                               canvas.drawRenderNode(buttonNode.get());
+                                           });
+
+    auto node = TestUtils::createNode(0, 0, 200, 400,
+                                      [panelNode](RenderProperties& props, Canvas& canvas) {
+                                          canvas.drawColor(0xFF030102, SkBlendMode::kSrc);
+
+                                          canvas.drawRenderNode(panelNode.get());
+                                      });
+    node->mutateStagingProperties().mutateLayerProperties().setType(LayerType::RenderLayer);
+
+    auto& cacheManager = renderThread.cacheManager();
+    ContextFactory contextFactory;
+    std::unique_ptr<CanvasContext> canvasContext(
+            CanvasContext::create(renderThread, false, node.get(), &contextFactory, 0, 0));
+    canvasContext->setForceDark(android::uirenderer::ForceDarkType::FORCE_INVERT_COLOR_DARK);
+
+    EXPECT_EQ(canvasContext->getColorArea().getPolarity(), Unknown);
+
+    canvasContext->prepareAndDraw(node.get());
+
+    EXPECT_EQ(canvasContext->getColorArea().getPolarity(), Dark);
+
+    Properties::setIsForceInvertEnabled(false);
+    renderThread.destroyRenderingContext();
 }

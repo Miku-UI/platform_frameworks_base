@@ -16,79 +16,27 @@
 
 package com.android.systemui.wallpapers.data.repository
 
-import android.graphics.PointF
-import android.graphics.RectF
 import com.android.systemui.dagger.SysUISingleton
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-
-interface WallpaperFocalAreaRepository {
-
-    /** The top of shortcut in screen, used by wallpaper to find remaining space in lockscreen */
-    val shortcutAbsoluteTop: StateFlow<Float>
-
-    val notificationStackAbsoluteBottom: StateFlow<Float>
-
-    val wallpaperFocalAreaBounds: StateFlow<RectF>
-
-    /** It will be true when wallpaper requires focal area info. */
-    val hasFocalArea: StateFlow<Boolean>
-
-    /** top of notifications without bcsmartspace in small clock settings */
-    val notificationDefaultTop: StateFlow<Float>
-
-    fun setShortcutAbsoluteTop(top: Float)
-
-    /** Set bottom of notifications from notification stack, used as top for focal area bounds */
-    fun setNotificationStackAbsoluteBottom(bottom: Float)
-
-    fun setWallpaperFocalAreaBounds(bounds: RectF)
-
-    fun setNotificationDefaultTop(top: Float)
-
-    fun setTapPosition(tapPosition: PointF)
-}
 
 @SysUISingleton
-class WallpaperFocalAreaRepositoryImpl
-@Inject
-constructor(val wallpaperRepository: WallpaperRepository) : WallpaperFocalAreaRepository {
+class WallpaperFocalAreaRepository @Inject constructor() {
+    /** The top of shortcut in screen, used by wallpaper to find remaining space in lockscreen */
+    val shortcutAbsoluteTop = MutableStateFlow(-1F)
 
-    private val _shortcutAbsoluteTop = MutableStateFlow(0F)
-    override val shortcutAbsoluteTop = _shortcutAbsoluteTop.asStateFlow()
+    val notificationStackAbsoluteBottom = MutableStateFlow(-1F)
 
-    private val _notificationStackAbsoluteBottom = MutableStateFlow(0F)
-    override val notificationStackAbsoluteBottom = _notificationStackAbsoluteBottom.asStateFlow()
+    /**
+     * Top edge of the notification placeholder. Used to calculate the absolute stack bottom and as
+     * a focal area top constraint for wide shade layouts.
+     */
+    val notificationDefaultTop = MutableStateFlow(-1F)
 
-    private val _wallpaperFocalAreaBounds = MutableStateFlow(RectF(0F, 0F, 0F, 0F))
-    override val wallpaperFocalAreaBounds: StateFlow<RectF> =
-        _wallpaperFocalAreaBounds.asStateFlow()
+    /** This is for bcsmartspace, not for date and weather */
+    val smartspaceCardBottom = MutableStateFlow(-1F)
 
-    private val _notificationDefaultTop = MutableStateFlow(0F)
-    override val notificationDefaultTop: StateFlow<Float> = _notificationDefaultTop.asStateFlow()
+    val smallClockViewBottom = MutableStateFlow(-1F)
 
-    override val hasFocalArea = wallpaperRepository.shouldSendFocalArea
-
-    override fun setShortcutAbsoluteTop(top: Float) {
-        _shortcutAbsoluteTop.value = top
-    }
-
-    override fun setNotificationStackAbsoluteBottom(bottom: Float) {
-        _notificationStackAbsoluteBottom.value = bottom
-    }
-
-    override fun setNotificationDefaultTop(top: Float) {
-        _notificationDefaultTop.value = top
-    }
-
-    override fun setWallpaperFocalAreaBounds(bounds: RectF) {
-        _wallpaperFocalAreaBounds.value = bounds
-        wallpaperRepository.sendLockScreenLayoutChangeCommand(bounds)
-    }
-
-    override fun setTapPosition(tapPosition: PointF) {
-        wallpaperRepository.sendTapCommand(tapPosition)
-    }
+    val mediaPlayerBottom = MutableStateFlow(-1F)
 }

@@ -20,7 +20,13 @@ import com.android.internal.logging.InstanceId
 import com.android.systemui.animation.Expandable
 import com.android.systemui.plugins.qs.QSTile
 
-class FakeQSTile(var user: Int, var available: Boolean = true) : QSTile {
+class FakeQSTile(
+    var user: Int,
+    var available: Boolean = true,
+    val onClick: () -> Unit = {},
+    val onLongClick: () -> Unit = {},
+    val onSecondaryClick: () -> Unit = {},
+) : QSTile {
     private var tileSpec: String? = null
     private var destroyed = false
     var hasDetailsViewModel: Boolean = true
@@ -54,11 +60,17 @@ class FakeQSTile(var user: Int, var available: Boolean = true) : QSTile {
         callbacks.clear()
     }
 
-    override fun click(expandable: Expandable?) {}
+    override fun click(expandable: Expandable?) {
+        onClick()
+    }
 
-    override fun secondaryClick(expandable: Expandable?) {}
+    override fun secondaryClick(expandable: Expandable?) {
+        onSecondaryClick()
+    }
 
-    override fun longClick(expandable: Expandable?) {}
+    override fun longClick(expandable: Expandable?) {
+        onLongClick()
+    }
 
     override fun userSwitch(currentUser: Int) {
         user = currentUser

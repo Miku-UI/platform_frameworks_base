@@ -133,3 +133,29 @@ android_test_helper_app {
     ],
     manifest: "AndroidManifestApp8.xml",
 }
+
+android_test_helper_app {
+    name: "PackageParserTestApp9",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    manifest: "AndroidManifestApp9.xml",
+}
+
+android_test_helper_app {
+    name: "PackageParserTestApp10",
+    sdk_version: "current",
+    srcs: ["**/*.java"],
+    dex_preopt: {
+        enabled: false,
+    },
+    optimize: {
+        enabled: false,
+    },
+    manifest: "AndroidManifestApp10.xml",
+}

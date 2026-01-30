@@ -153,7 +153,7 @@ public abstract class EventDeliveryTestBase {
                     mContext.startActivity(intent);
                 },
                 android.Manifest.permission.START_ACTIVITIES_FROM_SDK_SANDBOX);
-        waitLatch(mLatchActivityLaunch);
+        waitLatch(mLatchActivityLaunch, "Failed to launch test activity");
 
         try {
             String cmd = "pidof " + getTestPackage();
@@ -202,7 +202,7 @@ public abstract class EventDeliveryTestBase {
                     mInstrumentation.startActivitySync(intent2);
                 },
                 android.Manifest.permission.START_ACTIVITIES_FROM_SDK_SANDBOX);
-        waitLatch(mLatchActivityCached);
+        waitLatch(mLatchActivityCached, "Failed to make test activity cached");
     }
 
     // Sleep, ignoring interrupts.
@@ -249,9 +249,11 @@ public abstract class EventDeliveryTestBase {
     /**
      * Wait for CountDownLatch with timeout
      */
-    private void waitLatch(CountDownLatch latch) {
+    private void waitLatch(CountDownLatch latch, String errorMsg) {
         try {
-            latch.await(TEST_FAILURE_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
+            if (!latch.await(TEST_FAILURE_TIMEOUT_MSEC, TimeUnit.MILLISECONDS)) {
+                fail(errorMsg);
+            }
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }

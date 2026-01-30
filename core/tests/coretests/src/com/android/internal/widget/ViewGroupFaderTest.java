@@ -20,12 +20,9 @@ import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentat
 
 import android.content.Context;
 import android.content.res.Resources;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.SetFlagsRule;
 import android.test.AndroidTestCase;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.flags.Flags;
 
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -59,8 +56,6 @@ public class ViewGroupFaderTest extends AndroidTestCase {
     @Mock
     private ViewGroupFader.ChildViewBoundsProvider mChildViewBoundsProvider;
 
-    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
-
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
@@ -77,31 +72,16 @@ public class ViewGroupFaderTest extends AndroidTestCase {
     }
 
     /** This test checks that for each child of the parent viewgroup,
-     * updateListElementFades is called for each of its child, when the Flag is set to true
+     * updateListElementFades is called for each of its child
      */
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_FADING_VIEW_GROUP)
-    public void testFadingAndScrollingAnimationWorking_FlagOn() {
+    public void testFadingAndScrollingAnimationWorking() {
         mViewGroup.addView(mViewGroup1);
         mViewGroupFader.updateFade();
 
         for (int i = 0; i < mViewGroup.getChildCount(); i++) {
             View child = mViewGroup.getChildAt(i);
             verify(mockViewGroupFader).updateListElementFades((ViewGroup)child,true);
-        }
-    }
-
-    /** This test checks that for each child of the parent viewgroup,
-     * updateListElementFades is never called for each of its child, when the Flag is set to false
-     */
-    @Test
-    public void testFadingAndScrollingAnimationNotWorking_FlagOff() {
-        mViewGroup.addView(mViewGroup1);
-        mViewGroupFader.updateFade();
-
-        for (int i = 0; i < mViewGroup.getChildCount(); i++) {
-            View child = mViewGroup.getChildAt(i);
-            verify(mockViewGroupFader,never()).updateListElementFades((ViewGroup)child,true);
         }
     }
 }

@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,12 +50,12 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Process;
 import android.os.RemoteException;
+import android.os.ResultReceiver;
 import android.os.ServiceManager;
 import android.util.ArraySet;
 import android.view.InputChannel;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ImeTracker;
-import android.window.ImeOnBackInvokedDispatcher;
 
 import androidx.test.platform.app.InstrumentationRegistry;
 
@@ -64,6 +65,7 @@ import com.android.internal.inputmethod.IInputMethod;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IInputMethodSession;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputBindResult;
 import com.android.internal.protolog.IProtoLogConfigurationService;
@@ -71,9 +73,9 @@ import com.android.internal.view.IInputMethodManager;
 import com.android.server.LocalServices;
 import com.android.server.ServiceThread;
 import com.android.server.SystemService;
+import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
 import com.android.server.input.InputManagerInternal;
 import com.android.server.pm.UserManagerInternal;
-import com.android.server.wm.ImeTargetVisibilityPolicy;
 import com.android.server.wm.WindowManagerInternal;
 
 import org.junit.After;
@@ -85,13 +87,13 @@ import org.mockito.quality.Strictness;
 
 /** Base class for testing {@link InputMethodManagerService}. */
 public class InputMethodManagerServiceTestBase {
-    private static final int NO_VERIFY_SHOW_FLAGS = -1;
-
     protected static final String TEST_SELECTED_IME_ID = "test.ime";
     protected static final String TEST_EDITOR_PKG_NAME = "test.editor";
     protected static final String TEST_FOCUSED_WINDOW_NAME = "test.editor/activity";
+    protected static final int CLIENT_DISPLAY_ID = 123;
     protected static final WindowManagerInternal.ImeTargetInfo TEST_IME_TARGET_INFO =
             new WindowManagerInternal.ImeTargetInfo(
+                    TEST_FOCUSED_WINDOW_NAME,
                     TEST_FOCUSED_WINDOW_NAME,
                     TEST_FOCUSED_WINDOW_NAME,
                     TEST_FOCUSED_WINDOW_NAME,
@@ -118,14 +120,16 @@ public class InputMethodManagerServiceTestBase {
     @Mock protected IBinder mWindowToken;
     @Mock protected IRemoteInputConnection mMockFallbackInputConnection;
     @Mock protected IRemoteAccessibilityInputConnection mMockRemoteAccessibilityInputConnection;
-    @Mock protected ImeOnBackInvokedDispatcher mMockImeOnBackInvokedDispatcher;
+    @Mock protected ResultReceiver mMockImeBackCallbackReceiver;
+    @Mock
+    protected IRemoteComputerControlInputConnection mRemoteComputerControlInputConnection;
     @Mock protected IInputMethodManager.Stub mMockIInputMethodManager;
     @Mock protected IPlatformCompat.Stub mMockIPlatformCompat;
     @Mock protected IInputMethod mMockInputMethod;
     @Mock protected IBinder mMockInputMethodBinder;
     @Mock protected IInputManager mMockIInputManager;
-    @Mock protected ImeTargetVisibilityPolicy mMockImeTargetVisibilityPolicy;
     @Mock protected IProtoLogConfigurationService.Stub mMockProtoLogConfigurationService;
+    @Mock protected VirtualDeviceManagerInternal mMockVirtualDeviceManagerInternal;
 
     protected Context mContext;
     protected MockitoSession mMockingSession;
@@ -182,7 +186,7 @@ public class InputMethodManagerServiceTestBase {
         addLocalServiceMock(PackageManagerInternal.class, mMockPackageManagerInternal);
         addLocalServiceMock(InputManagerInternal.class, mMockInputManagerInternal);
         addLocalServiceMock(UserManagerInternal.class, mMockUserManagerInternal);
-        addLocalServiceMock(ImeTargetVisibilityPolicy.class, mMockImeTargetVisibilityPolicy);
+        addLocalServiceMock(VirtualDeviceManagerInternal.class, mMockVirtualDeviceManagerInternal);
 
         doReturn(mMockIInputMethodManager)
                 .when(() -> ServiceManager.getServiceOrThrow(Context.INPUT_METHOD_SERVICE));
@@ -224,6 +228,8 @@ public class InputMethodManagerServiceTestBase {
         when(mMockIPlatformCompat.isChangeEnabledByUid(anyLong(), anyInt())).thenReturn(true);
         when(mMockUserManagerInternal.isUserRunning(anyInt())).thenReturn(true);
         when(mMockUserManagerInternal.getProfileIds(anyInt(), anyBoolean()))
+                .thenReturn(new int[] {0});
+        when(mMockUserManagerInternal.getProfileIds(anyInt(), anyBoolean(), anyBoolean()))
                 .thenReturn(new int[] {0});
         when(mMockUserManagerInternal.getUserIds()).thenReturn(new int[] {0});
         when(mMockActivityManagerInternal.isSystemReady()).thenReturn(true);
@@ -301,7 +307,7 @@ public class InputMethodManagerServiceTestBase {
 
         // Call InputMethodManagerService#addClient() as a preparation to start interacting with it.
         mInputMethodManagerService.addClient(mMockInputMethodClient, mMockFallbackInputConnection,
-                0 /* selfReportedDisplayId */);
+                CLIENT_DISPLAY_ID /* selfReportedDisplayId */);
         createSessionForClient(mMockInputMethodClient);
     }
 
@@ -331,32 +337,24 @@ public class InputMethodManagerServiceTestBase {
         mRegisteredLocalServices.forEach(LocalServices::removeServiceForTest);
     }
 
-    protected void verifyShowSoftInput(boolean setVisible, boolean showSoftInput)
-            throws RemoteException {
-        verifyShowSoftInput(setVisible, showSoftInput, NO_VERIFY_SHOW_FLAGS);
-    }
-
-    protected void verifyShowSoftInput(boolean setVisible, boolean showSoftInput, int showFlags)
+    protected void verifyShowSoftInput(boolean showSoftInput)
             throws RemoteException {
         synchronized (ImfLock.class) {
-            verify(mMockInputMethodBindingController, times(setVisible ? 1 : 0))
+            verify(mMockInputMethodBindingController, never())
                     .setCurrentMethodVisible();
         }
         verify(mMockInputMethod, times(showSoftInput ? 1 : 0))
-                .showSoftInput(any() /* showInputToken */ , notNull() /* statsToken */,
-                        showFlags != NO_VERIFY_SHOW_FLAGS ? eq(showFlags) : anyInt() /* flags*/,
-                        any() /* resultReceiver */);
+                .showSoftInput(notNull() /* statsToken */);
     }
 
-    protected void verifyHideSoftInput(boolean setNotVisible, boolean hideSoftInput)
+    protected void verifyHideSoftInput(boolean hideSoftInput)
             throws RemoteException {
         synchronized (ImfLock.class) {
-            verify(mMockInputMethodBindingController, times(setNotVisible ? 1 : 0))
+            verify(mMockInputMethodBindingController, never())
                     .setCurrentMethodNotVisible();
         }
         verify(mMockInputMethod, times(hideSoftInput ? 1 : 0))
-                .hideSoftInput(any() /* hideInputToken */, notNull() /* statsToken */,
-                        anyInt() /* flags */, any() /* resultReceiver */);
+                .hideSoftInput(notNull() /* statsToken */);
     }
 
     protected void verifySetImeVisibility(boolean setVisible, boolean invoked) {

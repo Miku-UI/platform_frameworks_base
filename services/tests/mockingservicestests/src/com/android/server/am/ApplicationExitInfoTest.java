@@ -141,7 +141,8 @@ public class ApplicationExitInfoTest {
         mInjector = new TestInjector(mContext);
         mAms = new ActivityManagerService(mInjector, mServiceThreadRule.getThread());
         mAms.mActivityTaskManager = new ActivityTaskManagerService(mContext);
-        mAms.mActivityTaskManager.initialize(null, null, mContext.getMainLooper());
+        mAms.mActivityTaskManager.initialize(null, null, mAms.mProcessStateController,
+                mContext.getMainLooper());
         mAms.mAtmInternal = spy(mAms.mActivityTaskManager.getAtmInternal());
         mAms.mPackageManagerInt = mPackageManagerInt;
         doReturn(new ComponentName("", "")).when(mPackageManagerInt).getSystemUiServiceComponent();
@@ -812,8 +813,8 @@ public class ApplicationExitInfoTest {
         final int traceEnd = 8192;
         createRandomFile(traceFile, traceSize);
         assertEquals(traceSize, traceFile.length());
-        mAppExitInfoTracker.handleLogAnrTrace(app.getPid(), app.uid, app.getPackageList(),
-                traceFile, traceStart, traceEnd);
+        mAppExitInfoTracker.handleLogAnrTrace(app.getPid(), app.uid,
+                app.getProcessPackageNames(), traceFile, traceStart, traceEnd);
 
         noteAppKill(app, ApplicationExitInfo.REASON_OTHER,
                 ApplicationExitInfo.SUBREASON_TOO_MANY_EMPTY, app1Description2, now9);
@@ -1243,7 +1244,7 @@ public class ApplicationExitInfoTest {
                     dummyPackageName, dummyClassName), "", definingUid, ""));
         }
         app.mServices.setConnectionGroup(connectionGroup);
-        app.mState.setReportedProcState(procState);
+        app.setReportedProcState(procState);
         app.mProfile.setLastMemInfo(spy(new Debug.MemoryInfo()));
         app.mProfile.setLastPss(pss);
         app.mProfile.setLastRss(rss);
@@ -1320,8 +1321,7 @@ public class ApplicationExitInfoTest {
         }
 
         @Override
-        public AppOpsService getAppOpsService(File recentAccessesFile, File storageFile,
-                Handler handler) {
+        public AppOpsService getAppOpsService(Handler handler) {
             return mAppOpsService;
         }
 

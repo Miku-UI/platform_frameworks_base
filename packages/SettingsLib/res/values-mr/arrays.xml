@@ -55,7 +55,7 @@
   </string-array>
   <string-array name="hdcp_checking_summaries">
     <item msgid="4045840870658484038">"कधीही HDCP तपासणी वापरू नका"</item>
-    <item msgid="8254225038262324761">"केवळ DRM सामग्रीसाठी HDCP तपासणी वापरा"</item>
+    <item msgid="8254225038262324761">"केवळ DRM आशयासाठी HDCP तपासणी वापरा"</item>
     <item msgid="6421717003037072581">"नेहमी HDCP तपासणी वापरा"</item>
   </string-array>
   <string-array name="bt_hci_snoop_log_entries">
@@ -267,7 +267,7 @@
     <item msgid="3474333938380896988">"हरित असंगतिसाठी क्षेत्रे दर्शवा"</item>
   </string-array>
   <string-array name="app_process_limit_entries">
-    <item msgid="794656271086646068">"मानक मर्यादा"</item>
+    <item msgid="794656271086646068">"सर्वसाधारण मर्यादा"</item>
     <item msgid="8628438298170567201">"एकही पार्श्वभूमी प्रक्रिया नाही"</item>
     <item msgid="915752993383950932">"जास्तीत जास्त 1 प्रक्रिया"</item>
     <item msgid="8554877790859095133">"जास्तीत जास्त 2 प्रक्रिया"</item>

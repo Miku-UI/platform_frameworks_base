@@ -50,6 +50,8 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.biometrics.AuthController;
 import com.android.systemui.biometrics.UdfpsController;
+import com.android.systemui.flags.DisableSceneContainer;
+import com.android.systemui.flags.EnableSceneContainer;
 import com.android.systemui.keyguard.domain.interactor.DozeInteractor;
 import com.android.systemui.statusbar.phone.DozeParameters;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
@@ -230,6 +232,7 @@ public class DozeScreenStateTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void test_animatesPausing() {
         ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
         doAnswer(invocation -> null).when(mDozeHost).prepareForGentleSleep(captor.capture());
@@ -246,6 +249,7 @@ public class DozeScreenStateTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void test_animatesOff() {
         ArgumentCaptor<Runnable> captor = ArgumentCaptor.forClass(Runnable.class);
         doAnswer(invocation -> null).when(mDozeHost).prepareForGentleSleep(captor.capture());
@@ -258,6 +262,19 @@ public class DozeScreenStateTest extends SysuiTestCase {
         mHandlerFake.dispatchQueuedMessages();
         verify(mDozeHost).prepareForGentleSleep(eq(captor.getValue()));
         captor.getValue().run();
+        assertEquals(Display.STATE_OFF, mServiceFake.screenState);
+    }
+
+    @Test
+    @EnableSceneContainer
+    public void aodPausedDisplayOff() {
+        mHandlerFake.setMode(QUEUEING);
+
+        mScreen.transitionTo(UNINITIALIZED, INITIALIZED);
+        mScreen.transitionTo(INITIALIZED, DOZE_AOD_PAUSING);
+        mScreen.transitionTo(DOZE_AOD_PAUSING, DOZE_AOD_PAUSED);
+
+        mHandlerFake.dispatchQueuedMessages();
         assertEquals(Display.STATE_OFF, mServiceFake.screenState);
     }
 

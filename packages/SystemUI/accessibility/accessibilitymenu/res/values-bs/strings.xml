@@ -21,8 +21,8 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Idi na prethodni ekran"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Idi na sljedeći ekran"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Meni za pristupačnost pruža veliki meni na ekranu za upravljanje uređajem. Možete zaključati uređaj, kontrolirati jačinu zvuka i osvjetljenje, praviti snimke ekrana i drugo."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Upravljajte uređajem putem velikog menija"</string>
-    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Postavke Menija za pristupačnost"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Upravljanje jačinom zvuka, osvijetljenošću i drugim stavkama putem velikog menija"</string>
+    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Postavke menija za pristupačnost"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Velika dugmad"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Povećajte dugmad menija za pristupačnost"</string>
     <string name="pref_help_title" msgid="6871558837025010641">"Pomoć"</string>

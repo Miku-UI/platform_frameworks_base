@@ -21,14 +21,27 @@ import static android.app.PendingIntent.FLAG_IMMUTABLE;
 import static android.app.PendingIntent.FLAG_ONE_SHOT;
 import static android.companion.CompanionDeviceManager.RESULT_INTERNAL_ERROR;
 import static android.companion.CompanionDeviceManager.RESULT_SECURITY_ERROR;
+import static android.companion.CompanionResources.EXTRA_APPLICATION_CALLBACK;
+import static android.companion.CompanionResources.EXTRA_ASSOCIATION;
+import static android.companion.CompanionResources.EXTRA_ASSOCIATION_REQUEST;
+import static android.companion.CompanionResources.EXTRA_FORCE_CANCEL_CONFIRMATION;
+import static android.companion.CompanionResources.EXTRA_MAC_ADDRESS;
+import static android.companion.CompanionResources.EXTRA_RESULT_RECEIVER;
+import static android.companion.CompanionResources.PERMISSION_NOTIFICATIONS;
+import static android.companion.CompanionResources.PERMISSION_NOTIFICATION_LISTENER_ACCESS;
+import static android.companion.CompanionResources.RESULT_CODE_ASSOCIATION_APPROVED;
+import static android.companion.CompanionResources.RESULT_CODE_ASSOCIATION_CREATED;
 import static android.content.ComponentName.createRelative;
 import static android.content.pm.PackageManager.FEATURE_WATCH;
 
 import static com.android.server.companion.utils.PackageUtils.enforceUsesCompanionDeviceFeature;
+import static com.android.server.companion.utils.PermissionsUtils.PERM_SET_TO_PERMS;
 import static com.android.server.companion.utils.PermissionsUtils.enforcePermissionForCreatingAssociation;
 import static com.android.server.companion.utils.RolesUtils.addRoleHolderForAssociation;
+import static com.android.server.companion.utils.RolesUtils.getPermsForProfile;
 import static com.android.server.companion.utils.RolesUtils.isRoleHolder;
 import static com.android.server.companion.utils.RolesUtils.isRolelessProfile;
+import static com.android.server.companion.utils.Utils.generateRandom128BitKey;
 import static com.android.server.companion.utils.Utils.prepareForIpc;
 
 import static java.util.Objects.requireNonNull;
@@ -42,19 +55,23 @@ import android.app.PendingIntent;
 import android.companion.AssociatedDevice;
 import android.companion.AssociationInfo;
 import android.companion.AssociationRequest;
+import android.companion.CompanionDeviceManager;
 import android.companion.DeviceId;
 import android.companion.Flags;
 import android.companion.IAssociationRequestCallback;
+import android.companion.ICompanionDeviceManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManagerInternal;
 import android.graphics.drawable.Icon;
 import android.net.MacAddress;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.PersistableBundle;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
 import android.os.UserHandle;
@@ -63,8 +80,10 @@ import android.util.Slog;
 
 import com.android.internal.R;
 import com.android.server.companion.CompanionDeviceManagerService;
+import com.android.server.companion.transport.Transport;
 import com.android.server.companion.utils.PackageUtils;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
@@ -76,7 +95,7 @@ import java.util.Set;
  * <li> Requests validation and checking if the package that would own the association holds all
  * necessary permissions.
  * <li> Communication with the requester via a provided
- * {@link android.companion.CompanionDeviceManager.Callback}.
+ * {@link CompanionDeviceManager.Callback}.
  * <li> Constructing an {@link Intent} for collecting user's approval (if needed), and handling the
  * approval.
  * <li> Calling to {@link CompanionDeviceManagerService} to create an association when/if the
@@ -97,11 +116,11 @@ import java.util.Set;
  * {@link #createAssociationAndNotifyApplication(AssociationRequest, String, int, MacAddress, IAssociationRequestCallback, ResultReceiver)}
  * which after calling to  {@link CompanionDeviceManagerService} to create an association, notifies
  * the requester via
- * {@link android.companion.CompanionDeviceManager.Callback#onAssociationCreated(AssociationInfo)}.
+ * {@link CompanionDeviceManager.Callback#onAssociationCreated(AssociationInfo)}.
  *
  * If the user's approval is required: an {@link AssociationRequestsProcessor} constructs a
  * {@link PendingIntent} for the approval UI and sends it back to the requester via
- * {@link android.companion.CompanionDeviceManager.Callback#onAssociationPending(IntentSender)}.
+ * {@link CompanionDeviceManager.Callback#onAssociationPending(IntentSender)}.
  * When/if user approves the request,  {@link AssociationRequestsProcessor} receives a "callback"
  * from the Approval UI in via {@link #mOnRequestConfirmationReceiver} and invokes
  * {@link #processAssociationRequestApproval(AssociationRequest, IAssociationRequestCallback, ResultReceiver, MacAddress)}
@@ -115,20 +134,6 @@ import java.util.Set;
 @SuppressLint("LongLogTag")
 public class AssociationRequestsProcessor {
     private static final String TAG = "CDM_AssociationRequestsProcessor";
-
-    // AssociationRequestsProcessor <-> UI
-    private static final String EXTRA_APPLICATION_CALLBACK = "application_callback";
-    private static final String EXTRA_ASSOCIATION_REQUEST = "association_request";
-    private static final String EXTRA_RESULT_RECEIVER = "result_receiver";
-    private static final String EXTRA_FORCE_CANCEL_CONFIRMATION = "cancel_confirmation";
-
-    // AssociationRequestsProcessor -> UI
-    private static final int RESULT_CODE_ASSOCIATION_CREATED = 0;
-    private static final String EXTRA_ASSOCIATION = "association";
-
-    // UI -> AssociationRequestsProcessor
-    private static final int RESULT_CODE_ASSOCIATION_APPROVED = 0;
-    private static final String EXTRA_MAC_ADDRESS = "mac_address";
 
     private static final int ASSOCIATE_WITHOUT_PROMPT_MAX_PER_TIME_WINDOW = 5;
     private static final long ASSOCIATE_WITHOUT_PROMPT_WINDOW_MS = 60 * 60 * 1000; // 60 min;
@@ -158,7 +163,7 @@ public class AssociationRequestsProcessor {
 
     /**
      * Handle incoming {@link AssociationRequest}s, sent via
-     * {@link android.companion.ICompanionDeviceManager#associate(AssociationRequest,
+     * {@link ICompanionDeviceManager#associate(AssociationRequest,
      * IAssociationRequestCallback, String, int)}
      */
     public void processNewAssociationRequest(@NonNull AssociationRequest request,
@@ -214,6 +219,7 @@ public class AssociationRequestsProcessor {
         request.setPackageName(packageName);
         request.setUserId(userId);
         request.setSkipPrompt(mayAssociateWithoutPrompt(packageName, userId));
+        request.setRequestedPerms(getPermsForProfile(request.getDeviceProfile()));
 
         // 2b.2. Prepare extras and create an Intent.
         final Bundle extras = new Bundle();
@@ -310,11 +316,32 @@ public class AssociationRequestsProcessor {
         final int id = mAssociationStore.getNextId();
         final long timestamp = System.currentTimeMillis();
 
-        final AssociationInfo association = new AssociationInfo(id, userId, packageName,
-                 macAddress, displayName, deviceProfile, associatedDevice,
-                selfManaged, /* notifyOnDeviceNearby */ false, /* revoked */ false,
-                /* pending */ false, timestamp, Long.MAX_VALUE, /* systemDataSyncFlags */ 0,
-                deviceIcon, /* deviceId */ null);
+        // Automatically set transport flags based on device profile.
+        int transportFlags = 0;
+        if (AssociationRequest.DEVICE_PROFILE_WEARABLE_SENSING.equals(deviceProfile)) {
+            // Wearable sensing devices are always granted extended patch diff.
+            transportFlags |= Transport.FLAG_EXTEND_PATCH_DIFF;
+        }
+
+        final AssociationInfo association =
+                new AssociationInfo.Builder(id, userId, packageName)
+                        .setDeviceMacAddress(macAddress)
+                        .setDisplayName(displayName)
+                        .setDeviceProfile(deviceProfile)
+                        .setAssociatedDevice(associatedDevice)
+                        .setSelfManaged(selfManaged)
+                        .setNotifyOnDeviceNearby(false)
+                        .setRevoked(false)
+                        .setPending(false)
+                        .setTimeApproved(timestamp)
+                        .setLastTimeConnected(Long.MAX_VALUE)
+                        .setSystemDataSyncFlags(0)
+                        .setTransportFlags(transportFlags)
+                        .setDeviceIcon(deviceIcon)
+                        .setDeviceId(null)
+                        .setPackagesToNotify(null)
+                        .setMetadata(new PersistableBundle())
+                        .build();
 
         if (skipRoleGrant) {
             Slog.i(TAG, "Created association for " + association.getDeviceProfile() + " and userId="
@@ -386,13 +413,21 @@ public class AssociationRequestsProcessor {
     /**
      * Set Device id for the association.
      */
-    public void setDeviceId(int associationId, DeviceId deviceId) {
+    public DeviceId setDeviceId(int associationId, DeviceId deviceId) {
         Slog.i(TAG, "Setting DeviceId=[" + deviceId + "] to id=[" + associationId + "]...");
 
         AssociationInfo association = mAssociationStore.getAssociationWithCallerChecks(
                 associationId);
-        association = (new AssociationInfo.Builder(association)).setDeviceId(deviceId).build();
+        DeviceId newDeviceId = null;
+
+        if (deviceId != null) {
+            newDeviceId = new DeviceId(
+                    deviceId.getCustomId(), deviceId.getMacAddress(), generateRandom128BitKey());
+        }
+        association = (new AssociationInfo.Builder(association)).setDeviceId(newDeviceId).build();
         mAssociationStore.updateAssociation(association);
+
+        return newDeviceId;
     }
 
     private void sendCallbackAndFinish(@Nullable AssociationInfo association,
@@ -474,11 +509,11 @@ public class AssociationRequestsProcessor {
                     }
 
                     final AssociationRequest request = data.getParcelable(EXTRA_ASSOCIATION_REQUEST,
-                            android.companion.AssociationRequest.class);
+                            AssociationRequest.class);
                     final IAssociationRequestCallback callback = IAssociationRequestCallback.Stub
                             .asInterface(data.getBinder(EXTRA_APPLICATION_CALLBACK));
                     final ResultReceiver resultReceiver = data.getParcelable(EXTRA_RESULT_RECEIVER,
-                            android.os.ResultReceiver.class);
+                            ResultReceiver.class);
 
                     requireNonNull(request);
                     requireNonNull(callback);
@@ -489,7 +524,7 @@ public class AssociationRequestsProcessor {
                         macAddress = null;
                     } else {
                         macAddress = data.getParcelable(EXTRA_MAC_ADDRESS,
-                                android.net.MacAddress.class);
+                                MacAddress.class);
                         requireNonNull(macAddress);
                     }
 
@@ -519,5 +554,44 @@ public class AssociationRequestsProcessor {
         }
 
         return PackageUtils.isPackageAllowlisted(mContext, mPackageManagerInternal, packageName);
+    }
+
+    /**
+     * Get app requested permissions for the profile.
+     */
+    private ArrayList<Integer> getRequestedPermsForProfile(int userId, String packageName,
+                                                           String profile) {
+        ArrayList<Integer> requestedPermsForProfile = new ArrayList<>(getPermsForProfile(profile));
+        if (requestedPermsForProfile.isEmpty()) {
+            return null;
+        }
+        PackageInfo packageInfo = PackageUtils.getPackageInfo(mContext, userId, packageName);
+        if (packageInfo != null) {
+            List<String> requestedPermissions = Arrays.asList(packageInfo.requestedPermissions);
+            // Loop thru profile perm sets and check if the app requested one of the perms per set.
+            for (Integer permSet : getPermsForProfile(profile)) {
+                if (!PERM_SET_TO_PERMS.containsKey(permSet)) {
+                    continue;
+                }
+                boolean atLeastOnePermInSetRequested = false;
+                for (String perm : PERM_SET_TO_PERMS.get(permSet)) {
+                    if (requestedPermissions.contains(perm)) {
+                        atLeastOnePermInSetRequested = true;
+                        break;
+                    }
+                }
+                if (!atLeastOnePermInSetRequested) {
+                    requestedPermsForProfile.remove(permSet);
+                }
+            }
+
+            // Special logic: If the profile contains both NLA and NOTIFICATIONS, just leave
+            // the NOTIFICATIONS because the desc contains both perms already.
+            if (requestedPermsForProfile.contains(PERMISSION_NOTIFICATION_LISTENER_ACCESS)
+                    && requestedPermsForProfile.contains(PERMISSION_NOTIFICATIONS)) {
+                requestedPermsForProfile.remove(PERMISSION_NOTIFICATION_LISTENER_ACCESS);
+            }
+        }
+        return requestedPermsForProfile;
     }
 }

@@ -28,7 +28,6 @@ import android.content.pm.ResolveInfo;
 import android.content.pm.ServiceInfo;
 import android.credentials.CredentialManager;
 import android.credentials.CredentialProviderInfo;
-import android.credentials.flags.Flags;
 import android.service.credentials.CredentialProviderInfoFactory;
 import android.service.credentials.CredentialProviderService;
 import android.util.Slog;
@@ -161,21 +160,14 @@ public final class CredentialManagerServiceImpl extends
         if (mInfo != null && mInfo.getServiceInfo() != null
                 && mInfo.getServiceInfo().getComponentName()
                 .getPackageName().equals(packageName)) {
-            if (Flags.packageUpdateFixEnabled()) {
-                try {
-                    updateCredentialProviderInfo(mInfo.getServiceInfo().getComponentName(),
-                            mInfo.isSystemProvider());
-                } catch (SecurityException | PackageManager.NameNotFoundException
-                         | NullPointerException e) {
-                    Slog.w(TAG, "Unable to update provider, must be removed: " + e.getMessage());
-                    mMaster.handleServiceRemovedMultiModeLocked(mInfo.getComponentName(), mUserId);
-                }
-            } else {
-                try {
-                    newServiceInfoLocked(mInfo.getServiceInfo().getComponentName());
-                } catch (PackageManager.NameNotFoundException e) {
-                    Slog.e(TAG, "Issue while updating serviceInfo: " + e.getMessage());
-                }
+            try {
+                updateCredentialProviderInfo(mInfo.getServiceInfo()
+                    .getComponentName(), mInfo.isSystemProvider());
+            } catch (SecurityException | PackageManager.NameNotFoundException
+                     | NullPointerException e) {
+                Slog.w(TAG, "Unable to update provider, must be removed: " + e.getMessage());
+                mMaster.handleServiceRemovedMultiModeLocked(
+                    mInfo.getComponentName(), mUserId);
             }
         }
     }

@@ -19,7 +19,7 @@ package android.media;
 import android.media.IRemoteDisplayCallback;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IRemoteDisplayProvider {
     void setCallback(in IRemoteDisplayCallback callback);

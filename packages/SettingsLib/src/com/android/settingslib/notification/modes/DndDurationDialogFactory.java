@@ -26,13 +26,11 @@ import android.service.notification.ZenModeConfig;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.CompoundButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.ScrollView;
-import android.widget.TextView;
 
 import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.app.AlertDialog;
@@ -150,7 +148,7 @@ public class DndDurationDialogFactory {
         }
         View contentView = mLayoutInflater.inflate(R.layout.zen_mode_duration_dialog,
                 null);
-        ScrollView container = (ScrollView) contentView.findViewById(R.id.zen_duration_container);
+        ScrollView container = contentView.findViewById(R.id.zen_duration_container);
 
         mZenRadioGroup = container.findViewById(R.id.zen_radio_buttons);
         mZenRadioGroupContent = container.findViewById(R.id.zen_radio_buttons_content);
@@ -161,10 +159,10 @@ public class DndDurationDialogFactory {
             mZenRadioGroup.addView(radioButton);
             radioButton.setId(i);
 
-            final View radioButtonContent = mLayoutInflater.inflate(R.layout.zen_mode_condition,
-                    mZenRadioGroupContent, false);
-            radioButtonContent.setId(i + MAX_MANUAL_DND_OPTIONS);
-            mZenRadioGroupContent.addView(radioButtonContent);
+            final View radioButtonExtraContent = mLayoutInflater.inflate(
+                    R.layout.zen_mode_condition_plusminus, mZenRadioGroupContent, false);
+            radioButtonExtraContent.setId(i + MAX_MANUAL_DND_OPTIONS);
+            mZenRadioGroupContent.addView(radioButtonExtraContent);
         }
 
         return contentView;
@@ -204,45 +202,12 @@ public class DndDurationDialogFactory {
             tag.countdownZenDuration = currZenDuration;
         }
 
-        tag.rb.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                if (isChecked) {
-                    tag.rb.setChecked(true);
-                }
-                tag.line1.setStateDescription(
-                        isChecked ? buttonView.getContext().getString(
-                                com.android.internal.R.string.selected) : null);
-            }
-        });
-
         updateUi(tag, row, rowIndex);
     }
 
     @VisibleForTesting
     protected ConditionTag getConditionTagAt(int index) {
         return (ConditionTag) mZenRadioGroupContent.getChildAt(index).getTag();
-    }
-
-
-    private void setupUi(ConditionTag tag, View row) {
-        if (tag.lines == null) {
-            tag.lines = row.findViewById(android.R.id.content);
-        }
-
-        if (tag.line1 == null) {
-            tag.line1 = (TextView) row.findViewById(android.R.id.text1);
-        }
-
-        // text2 is not used in zen duration dialog
-        row.findViewById(android.R.id.text2).setVisibility(View.GONE);
-
-        tag.lines.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                tag.rb.setChecked(true);
-            }
-        });
     }
 
     private void updateButtons(ConditionTag tag, View row, int rowIndex) {
@@ -254,7 +219,7 @@ public class DndDurationDialogFactory {
                 @Override
                 public void onClick(View v) {
                     onClickTimeButton(row, tag, false /*down*/, rowIndex);
-                    tag.lines.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+                    tag.rb.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
                 }
             });
 
@@ -262,7 +227,7 @@ public class DndDurationDialogFactory {
                 @Override
                 public void onClick(View v) {
                     onClickTimeButton(row, tag, true /*up*/, rowIndex);
-                    tag.lines.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+                    tag.rb.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
                 }
             });
             minusButton.setVisibility(View.VISIBLE);
@@ -285,10 +250,6 @@ public class DndDurationDialogFactory {
 
     @VisibleForTesting
     protected void updateUi(ConditionTag tag, View row, int rowIndex) {
-        if (tag.lines == null) {
-            setupUi(tag, row);
-        }
-
         updateButtons(tag, row, rowIndex);
 
         String radioContentText = "";
@@ -307,7 +268,7 @@ public class DndDurationDialogFactory {
                 break;
         }
 
-        tag.line1.setText(radioContentText);
+        tag.rb.setText(radioContentText);
     }
 
     @VisibleForTesting
@@ -344,8 +305,6 @@ public class DndDurationDialogFactory {
     @VisibleForTesting
     protected static class ConditionTag {
         public RadioButton rb;
-        public View lines;
-        public TextView line1;
         public int countdownZenDuration; // only important for countdown radio button
     }
 }

@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.phone.ongoingcall
 import com.android.systemui.Flags
 import com.android.systemui.flags.FlagToken
 import com.android.systemui.flags.RefactorFlagUtils
+import com.android.systemui.statusbar.core.StatusBarRootModernization
 
 /** Helper for reading or using the status_bar_use_interactor_for_call_chip flag state. */
 @Suppress("NOTHING_TO_INLINE")
@@ -36,7 +37,7 @@ object StatusBarChipsModernization {
     /** Is the refactor enabled */
     @JvmStatic
     inline val isEnabled
-        get() = Flags.statusBarChipsModernization() && Flags.statusBarRootModernization()
+        get() = Flags.statusBarChipsModernization() && StatusBarRootModernization.isEnabled
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the

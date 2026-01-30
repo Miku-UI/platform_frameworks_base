@@ -18,6 +18,7 @@ package com.android.systemui.communal
 
 import android.app.StatsManager
 import android.util.StatsEvent
+import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
 import com.android.systemui.CoreStartable
 import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
@@ -28,7 +29,6 @@ import com.android.systemui.shared.system.SysUiStatsLog
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 @SysUISingleton
 class CommunalMetricsStartable

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 The Android Open Source Project
+ * Copyright (C) 2025 The Android Open Source Project
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,8 +37,6 @@ import java.io.PrintWriter;
  *
  * - Call {@link #bind()} to create a connection.
  * - Call {@link #unbind()} to disconnect.  Make sure to disconnect when the user stops.
- *
- * Add onConnected/onDisconnected callbacks as needed.
  *
  * When the target process gets killed (by OOM-killer, etc), then the activity manager will
  * re-connect the connection automatically, in which case onServiceDisconnected() gets called
@@ -138,6 +136,7 @@ public abstract class PersistentConnection<T> {
 
                 scheduleStableCheckLocked();
             }
+            onConnected(mService);
         }
 
         @Override
@@ -153,6 +152,7 @@ public abstract class PersistentConnection<T> {
                 // Note we won't increase the rebind timeout here, because we don't explicitly
                 // rebind in this case.
             }
+            onDisconnected();
         }
 
         @Override
@@ -173,6 +173,7 @@ public abstract class PersistentConnection<T> {
 
                 scheduleRebindLocked();
             }
+            onDisconnected();
         }
     };
 
@@ -205,6 +206,22 @@ public abstract class PersistentConnection<T> {
     }
 
     protected abstract int getBindFlags();
+
+    /**
+     * Called when the service is successfully connected.
+     *
+     * <p>Note: This method is called without holding {@link #mLock}.
+     *
+     * @param service The interface to the connected service.
+     */
+    protected void onConnected(@NonNull T service) {}
+
+    /**
+     * Called when the service is disconnected or the binding dies.
+     *
+     * <p>Note: This method is called without holding {@link #mLock}.
+     */
+    protected void onDisconnected() {}
 
     /**
      * @return whether {@link #bind()} has been called and {@link #unbind()} hasn't.

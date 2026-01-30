@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Conectando..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Conectado a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Vinculando..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Non se puido realizar a vinculación"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Non se puido establecer a conexión"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Conectado a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> (sen teléfono)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Conectado a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> (sen audio multimedia)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Conectado a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> (sen tel./audio multimedia)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Esquerdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> de batería. Dereito: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Esquerdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería."</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Dereito: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería."</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Estoxo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Esquerdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, estoxo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Dereito: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, estoxo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Esquerdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, dereito: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"E: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, C: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> de batería"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Esquerdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Dereito: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Activo"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Activo (só o dereito)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Activos (o esquerdo e o dereito)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Non se puido actualizar o ambiente"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Non se puido actualizar a configuración predeterminada"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Seleccionado"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Activo (só contido multimedia). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Activo (só contido multimedia). Esquerdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> de batería. Dereito: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Dispositivo convidado. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería."</string>
@@ -340,11 +349,11 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Cando este modo está activado, o enderezo MAC pode cambiar cada vez que este dispositivo se conecte a unha rede que teña activada a orde aleatoria de enderezos MAC"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Rede sen tarifa plana"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Rede con tarifa plana"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Tamaño dos búfers do rexistrador"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Tamaño do búfer do rexistrador"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Seleccionar tamaño do rexistrador por búfer"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Queres borrar o almacenamento persistente do rexistrador?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Cando xa non se supervisa a actividade co rexistrador de forma persistente, debemos borrar os datos do rexistrador almacenados no dispositivo."</string>
-    <string name="select_logpersist_title" msgid="447071974007104196">"Almacenar de forma persistente"</string>
+    <string name="select_logpersist_title" msgid="447071974007104196">"Almacenar datos de rexistro de forma persistente"</string>
     <string name="select_logpersist_dialog_title" msgid="7745193591195485594">"Seleccionar búfers de rexistro para gardalos de forma continua no dispositivo"</string>
     <string name="select_usb_configuration_title" msgid="6339801314922294586">"Seleccionar configuración USB"</string>
     <string name="select_usb_configuration_dialog_title" msgid="3579567144722589237">"Seleccionar configuración USB"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"Hai <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Queda: <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Tamaño mínimo"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Tamaño máis pequeno"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Tamaño pequeno"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Predeterminado"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Tamaño grande"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Tamaño máis grande"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Tamaño máximo"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Tamaño máis grande"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Tamaño moi grande"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Tamaño extragrande"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Tamaño máximo"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Personalizado (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menú"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Insire contrasinal para restablec. en demostración"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 dispositivo conectado}other{# dispositivos conectados}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Máis tempo."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Menos tempo."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Ampliación"</string>
     <string name="cancel" msgid="5665114069455378395">"Cancelar"</string>
     <string name="next" msgid="2699398661093607009">"Seguinte"</string>
     <string name="back" msgid="5554327870352703710">"Atrás"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Se emites contido a través de <xliff:g id="SWITCHAPP">%1$s</xliff:g> ou cambias de saída, a emisión en curso deterase"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Emitir contido a través de <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Cambiar de saída"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Animacións de retroceso preditivo"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Activa as animacións do sistema para o retroceso preditivo."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Esta opción de configuración activa as animacións xestuais preditivas. É preciso definir enableOnBackInvokedCallback como True (verdadeiro) para cada aplicación no ficheiro de manifesto."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Sen especificar"</string>
     <string name="neuter" msgid="2075249330106127310">"Neutro"</string>

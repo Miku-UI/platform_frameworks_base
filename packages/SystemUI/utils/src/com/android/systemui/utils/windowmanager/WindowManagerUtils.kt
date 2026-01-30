@@ -33,17 +33,7 @@ object WindowManagerUtils {
         return if (!enableViewCaptureTracing()) {
             context.getSystemService(WindowManager::class.java)
         } else {
-            /**
-             * We use this token to supply windowContextToken to [WindowManager] for
-             * [WindowContext].
-             */
-            val windowContextToken = context.windowContextToken
-
-            ViewCaptureAwareWindowManagerFactory.getInstance(
-                context,
-                parent = null,
-                windowContextToken,
-            )
+            ViewCaptureAwareWindowManagerFactory.getInstance(context)
         }
     }
 }

@@ -21,9 +21,7 @@ import com.android.modules.utils.BasicShellCommandHandler;
 import java.io.PrintWriter;
 import java.util.Objects;
 
-/**
- * Interprets and executes 'adb shell cmd adb [args]'.
- */
+/** Interprets and executes 'adb shell cmd adb [args]'. */
 class AdbShellCommand extends BasicShellCommandHandler {
 
     private final AdbService mService;
@@ -40,16 +38,17 @@ class AdbShellCommand extends BasicShellCommandHandler {
 
         final PrintWriter pw = getOutPrintWriter();
         switch (cmd) {
-            case "is-wifi-supported": {
+            case "is-wifi-supported" -> {
                 pw.println(Boolean.toString(mService.isAdbWifiSupported()));
                 return 0;
             }
-            case "is-wifi-qr-supported": {
+            case "is-wifi-qr-supported" -> {
                 pw.println(Boolean.toString(mService.isAdbWifiQrSupported()));
                 return 0;
             }
-            default:
+            default -> {
                 return handleDefaultCommands(cmd);
+            }
         }
     }
 

@@ -56,7 +56,7 @@ class InstalledTilesComponentRepositoryImpl
 constructor(
     @ShadeDisplayAware private val context: Context,
     @Background private val backgroundScope: CoroutineScope,
-    private val packageChangeRepository: PackageChangeRepository
+    private val packageChangeRepository: PackageChangeRepository,
 ) : InstalledTilesComponentRepository {
 
     @GuardedBy("userMap") private val userMap = mutableMapOf<Int, StateFlow<List<ServiceInfo>>>()
@@ -80,12 +80,7 @@ constructor(
                 if (context.userId == userId) {
                     context.packageManager
                 } else {
-                    context
-                        .createContextAsUser(
-                            UserHandle.of(userId),
-                            /* flags */ 0,
-                        )
-                        .packageManager
+                    context.createContextAsUser(UserHandle.of(userId), /* flags */ 0).packageManager
                 }
             packageChangeRepository
                 .packageChanged(UserHandle.of(userId))
@@ -119,7 +114,8 @@ constructor(
             ResolveInfoFlags.of(
                 (PackageManager.GET_SERVICES or
                         PackageManager.MATCH_DIRECT_BOOT_AWARE or
-                        PackageManager.MATCH_DIRECT_BOOT_UNAWARE)
+                        PackageManager.MATCH_DIRECT_BOOT_UNAWARE or
+                        PackageManager.GET_META_DATA)
                     .toLong()
             )
     }

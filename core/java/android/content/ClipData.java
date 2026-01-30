@@ -21,8 +21,6 @@ import static android.content.ContentResolver.SCHEME_ANDROID_RESOURCE;
 import static android.content.ContentResolver.SCHEME_CONTENT;
 import static android.content.ContentResolver.SCHEME_FILE;
 
-import static com.android.window.flags.Flags.FLAG_DELEGATE_UNHANDLED_DRAGS;
-
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -230,7 +228,6 @@ public class ClipData implements Parcelable {
         /**
          * A builder for a ClipData Item.
          */
-        @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
         public static final class Builder {
             private CharSequence mText;
             private String mHtmlText;
@@ -241,7 +238,6 @@ public class ClipData implements Parcelable {
             /**
              * Sets the text for the item to be constructed.
              */
-            @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
             @NonNull
             public Builder setText(@Nullable CharSequence text) {
                 mText = text;
@@ -251,7 +247,6 @@ public class ClipData implements Parcelable {
             /**
              * Sets the HTML text for the item to be constructed.
              */
-            @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
             @NonNull
             public Builder setHtmlText(@Nullable String htmlText) {
                 mHtmlText = htmlText;
@@ -261,7 +256,6 @@ public class ClipData implements Parcelable {
             /**
              * Sets the Intent for the item to be constructed.
              */
-            @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
             @NonNull
             public Builder setIntent(@Nullable Intent intent) {
                 mIntent = intent;
@@ -276,7 +270,6 @@ public class ClipData implements Parcelable {
              * If there is a fixed lifetime for this ClipData (ie. for drag and drop), the system
              * will cancel the IntentSender when it is no longer used.
              */
-            @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
             @NonNull
             public Builder setIntentSender(@Nullable IntentSender intentSender) {
                 if (intentSender != null && !intentSender.isImmutable()) {
@@ -289,7 +282,6 @@ public class ClipData implements Parcelable {
             /**
              * Sets the URI for the item to be constructed.
              */
-            @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
             @NonNull
             public Builder setUri(@Nullable Uri uri) {
                 mUri = uri;
@@ -299,7 +291,6 @@ public class ClipData implements Parcelable {
             /**
              * Constructs a new Item with the properties set on this builder.
              */
-            @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
             @NonNull
             public Item build() {
                 return new Item(mText, mHtmlText, mIntent, mIntentSender, mUri);
@@ -413,7 +404,6 @@ public class ClipData implements Parcelable {
         /**
          * Returns the {@link IntentSender} in this Item.
          */
-        @FlaggedApi(FLAG_DELEGATE_UNHANDLED_DRAGS)
         @Nullable
         public IntentSender getIntentSender() {
             return mIntentSender;
@@ -499,7 +489,7 @@ public class ClipData implements Parcelable {
             try {
                 resolver = context.getContentResolver();
             } catch (Exception e) {
-                Log.w(TAG, "Failed to obtain ContentResolver: " + e);
+                Log.w(TAG, "Failed to obtain ContentResolver", e);
             }
 
             // If this Item has a URI value, try using that.
@@ -1205,7 +1195,7 @@ public class ClipData implements Parcelable {
         // No process boundaries on Ravenwood; ignored
     }
 
-    /** {@hide} */
+    /** @hide */
     @android.ravenwood.annotation.RavenwoodThrow
     public void prepareToEnterProcess(AttributionSource source) {
         final int size = mItems.size();

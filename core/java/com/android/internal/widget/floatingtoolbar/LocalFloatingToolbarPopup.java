@@ -148,8 +148,8 @@ public final class LocalFloatingToolbarPopup implements FloatingToolbarPopup {
         }
     };
 
-    private boolean mDismissed = true; // tracks whether this popup is dismissed or dismissing.
-    private boolean mHidden; // tracks whether this popup is hidden or hiding.
+    // Tracks this toolbar popup state.
+    private @ToolbarState int mState = TOOLBAR_STATE_DISMISSED;
 
     /* Calculated sizes for panels and overflow button. */
     private final Size mOverflowButtonSize;
@@ -358,8 +358,7 @@ public final class LocalFloatingToolbarPopup implements FloatingToolbarPopup {
             return;
         }
 
-        mHidden = false;
-        mDismissed = false;
+        mState = TOOLBAR_STATE_SHOWN;
         cancelDismissAndHideAnimations();
         cancelOverflowAnimations();
 
@@ -376,12 +375,11 @@ public final class LocalFloatingToolbarPopup implements FloatingToolbarPopup {
 
     @Override
     public void dismiss() {
-        if (mDismissed) {
+        if (mState == TOOLBAR_STATE_DISMISSED) {
             return;
         }
 
-        mHidden = false;
-        mDismissed = true;
+        mState = TOOLBAR_STATE_DISMISSED;
         mHideAnimation.cancel();
 
         runDismissAnimation();
@@ -394,19 +392,19 @@ public final class LocalFloatingToolbarPopup implements FloatingToolbarPopup {
             return;
         }
 
-        mHidden = true;
+        mState = TOOLBAR_STATE_HIDDEN;
         runHideAnimation();
         setZeroTouchableSurface();
     }
 
     @Override
     public boolean isShowing() {
-        return !mDismissed && !mHidden;
+        return mState == TOOLBAR_STATE_SHOWN;
     }
 
     @Override
     public boolean isHidden() {
-        return mHidden;
+        return mState == TOOLBAR_STATE_HIDDEN;
     }
 
     /**

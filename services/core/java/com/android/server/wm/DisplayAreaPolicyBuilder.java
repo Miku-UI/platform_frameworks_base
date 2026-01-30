@@ -31,6 +31,8 @@ import static android.window.DisplayAreaOrganizer.KEY_ROOT_DISPLAY_AREA_ID;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_WINDOW_ORGANIZER;
 
+import static java.util.Objects.requireNonNull;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityOptions;
@@ -148,7 +150,10 @@ import java.util.function.Function;
 @Keep
 class DisplayAreaPolicyBuilder {
 
-    @Nullable private HierarchyBuilder mRootHierarchyBuilder;
+    private final int mDisplayId;
+    @NonNull
+    private final HierarchyBuilder mRootHierarchyBuilder;
+    @NonNull
     private final ArrayList<HierarchyBuilder> mDisplayAreaGroupHierarchyBuilders =
             new ArrayList<>();
 
@@ -159,23 +164,25 @@ class DisplayAreaPolicyBuilder {
      * {@link #mDisplayAreaGroupHierarchyBuilders}.
      * @see DefaultSelectRootForWindowFunction as an example.
      **/
-    @Nullable private BiFunction<Integer, Bundle, RootDisplayArea> mSelectRootForWindowFunc;
+    @Nullable
+    private BiFunction<Integer, Bundle, RootDisplayArea> mSelectRootForWindowFunc;
 
-    @Nullable private Function<Bundle, TaskDisplayArea> mSelectTaskDisplayAreaFunc;
+    @Nullable
+    private Function<Bundle, TaskDisplayArea> mSelectTaskDisplayAreaFunc;
 
-    /** Defines the root hierarchy for the whole logical display. */
-    DisplayAreaPolicyBuilder setRootHierarchy(HierarchyBuilder rootHierarchyBuilder) {
-        mRootHierarchyBuilder = rootHierarchyBuilder;
-        return this;
+    DisplayAreaPolicyBuilder(int displayId, @NonNull HierarchyBuilder rootHierarchyBuilder) {
+        mDisplayId = displayId;
+        mRootHierarchyBuilder = requireNonNull(rootHierarchyBuilder);
     }
 
     /**
      * Defines a DisplayAreaGroup hierarchy. Its root will be added as a child of the root
      * hierarchy.
      */
+    @NonNull
     DisplayAreaPolicyBuilder addDisplayAreaGroupHierarchy(
-            HierarchyBuilder displayAreaGroupHierarchy) {
-        mDisplayAreaGroupHierarchyBuilders.add(displayAreaGroupHierarchy);
+            @NonNull HierarchyBuilder displayAreaGroupHierarchy) {
+        mDisplayAreaGroupHierarchyBuilders.add(requireNonNull(displayAreaGroupHierarchy));
         return this;
     }
 
@@ -183,8 +190,9 @@ class DisplayAreaPolicyBuilder {
      * The policy will use this function to find the root to place windows in.
      * @see DefaultSelectRootForWindowFunction as an example.
      */
+    @NonNull
     DisplayAreaPolicyBuilder setSelectRootForWindowFunc(
-            BiFunction<Integer, Bundle, RootDisplayArea> selectRootForWindowFunc) {
+            @Nullable BiFunction<Integer, Bundle, RootDisplayArea> selectRootForWindowFunc) {
         mSelectRootForWindowFunc = selectRootForWindowFunc;
         return this;
     }
@@ -193,35 +201,31 @@ class DisplayAreaPolicyBuilder {
      * The policy will use this function to find the {@link TaskDisplayArea}.
      * @see DefaultSelectTaskDisplayAreaFunction as an example.
      */
+    @NonNull
     DisplayAreaPolicyBuilder setSelectTaskDisplayAreaFunc(
-            Function<Bundle, TaskDisplayArea> selectTaskDisplayAreaFunc) {
+            @Nullable Function<Bundle, TaskDisplayArea> selectTaskDisplayAreaFunc) {
         mSelectTaskDisplayAreaFunc = selectTaskDisplayAreaFunc;
         return this;
     }
 
     /**
      * Makes sure the setting meets the requirement:
-     * 1. {@link #mRootHierarchyBuilder} must be set.
-     * 2. {@link RootDisplayArea} and {@link TaskDisplayArea} must have unique ids.
-     * 3. {@link Feature} below the same {@link RootDisplayArea} must have unique ids.
-     * 4. There must be exactly one {@link HierarchyBuilder} that contains the IME container.
-     * 5. There must be exactly one {@link HierarchyBuilder} that contains the default
+     * 1. {@link RootDisplayArea} and {@link TaskDisplayArea} must have unique ids.
+     * 2. {@link Feature} below the same {@link RootDisplayArea} must have unique ids.
+     * 3. There must be exactly one {@link HierarchyBuilder} that contains the IME container.
+     * 4. There must be exactly one {@link HierarchyBuilder} that contains the default
      *    {@link TaskDisplayArea} with id
      *    {@link DisplayAreaOrganizer#FEATURE_DEFAULT_TASK_CONTAINER}.
-     * 6. None of the ids is greater than {@link DisplayAreaOrganizer#FEATURE_VENDOR_LAST}.
+     * 5. None of the ids is greater than {@link DisplayAreaOrganizer#FEATURE_VENDOR_LAST}.
      */
     private void validate() {
-        if (mRootHierarchyBuilder == null) {
-            throw new IllegalStateException("Root must be set for the display area policy.");
-        }
-
         final Set<Integer> uniqueIdSet = new ArraySet<>();
         final Set<Integer> allIdSet = new ArraySet<>();
         validateIds(mRootHierarchyBuilder, uniqueIdSet, allIdSet);
         boolean containsImeContainer = mRootHierarchyBuilder.mImeContainer != null;
         boolean containsDefaultTda = containsDefaultTaskDisplayArea(mRootHierarchyBuilder);
         for (int i = 0; i < mDisplayAreaGroupHierarchyBuilders.size(); i++) {
-            HierarchyBuilder hierarchyBuilder = mDisplayAreaGroupHierarchyBuilders.get(i);
+            final HierarchyBuilder hierarchyBuilder = mDisplayAreaGroupHierarchyBuilders.get(i);
             validateIds(hierarchyBuilder, uniqueIdSet, allIdSet);
 
             if (hierarchyBuilder.mTaskDisplayAreas.isEmpty()) {
@@ -263,7 +267,8 @@ class DisplayAreaPolicyBuilder {
     }
 
     /** Checks if the given hierarchy contains the default {@link TaskDisplayArea}. */
-    private static boolean containsDefaultTaskDisplayArea(HierarchyBuilder displayAreaHierarchy) {
+    private static boolean containsDefaultTaskDisplayArea(
+            @NonNull HierarchyBuilder displayAreaHierarchy) {
         for (int i = 0; i < displayAreaHierarchy.mTaskDisplayAreas.size(); i++) {
             if (displayAreaHierarchy.mTaskDisplayAreas.get(i).mFeatureId
                     == FEATURE_DEFAULT_TASK_CONTAINER) {
@@ -274,7 +279,7 @@ class DisplayAreaPolicyBuilder {
     }
 
     /** Returns {@code true} if the feature id can be used to put all window content. */
-    static boolean canBeWindowingLayer(int featureId) {
+    private static boolean canBeWindowingLayer(int featureId) {
         return featureId == FEATURE_WINDOWED_MAGNIFICATION || featureId == FEATURE_WINDOWING_LAYER;
     }
 
@@ -290,8 +295,8 @@ class DisplayAreaPolicyBuilder {
      *                    unique,
      * @param allIdSet ids of {@link RootDisplayArea}, {@link TaskDisplayArea} and {@link Feature}.
      */
-    private static void validateIds(HierarchyBuilder displayAreaHierarchy,
-            Set<Integer> uniqueIdSet, Set<Integer> allIdSet) {
+    private static void validateIds(@NonNull HierarchyBuilder displayAreaHierarchy,
+            @NonNull Set<Integer> uniqueIdSet, @NonNull Set<Integer> allIdSet) {
         // Root must have unique id.
         final int rootId = displayAreaHierarchy.mRoot.mFeatureId;
         if (!allIdSet.add(rootId) || !uniqueIdSet.add(rootId)) {
@@ -339,8 +344,9 @@ class DisplayAreaPolicyBuilder {
         allIdSet.addAll(featureIdSet);
     }
 
-    Result build(WindowManagerService wmService) {
-        if (mRootHierarchyBuilder != null && !mRootHierarchyBuilder.hasValidWindowingLayer()) {
+    @NonNull
+    Result build(@NonNull WindowManagerService wmService) {
+        if (!mRootHierarchyBuilder.hasValidWindowingLayer()) {
             // Need an additional top layer for screen level animation.
             mRootHierarchyBuilder.mFeatures.add(0 /* top level index */, new Feature.Builder(
                     wmService.mPolicy, "WindowingLayer", FEATURE_WINDOWING_LAYER)
@@ -362,7 +368,7 @@ class DisplayAreaPolicyBuilder {
             mSelectRootForWindowFunc = new DefaultSelectRootForWindowFunction(
                     mRootHierarchyBuilder.mRoot, displayAreaGroupRoots);
         }
-        return new Result(wmService, mRootHierarchyBuilder.mRoot, displayAreaGroupRoots,
+        return new Result(wmService, mDisplayId, mRootHierarchyBuilder.mRoot, displayAreaGroupRoots,
                 mSelectRootForWindowFunc, mSelectTaskDisplayAreaFunc);
     }
 
@@ -376,17 +382,20 @@ class DisplayAreaPolicyBuilder {
      */
     private static class DefaultSelectRootForWindowFunction implements
             BiFunction<Integer, Bundle, RootDisplayArea> {
-        final RootDisplayArea mDisplayRoot;
-        final List<RootDisplayArea> mDisplayAreaGroupRoots;
+        @NonNull
+        private final RootDisplayArea mDisplayRoot;
+        @NonNull
+        private final List<RootDisplayArea> mDisplayAreaGroupRoots;
 
-        DefaultSelectRootForWindowFunction(RootDisplayArea displayRoot,
-                List<RootDisplayArea> displayAreaGroupRoots) {
-            mDisplayRoot = displayRoot;
-            mDisplayAreaGroupRoots = Collections.unmodifiableList(displayAreaGroupRoots);
+        DefaultSelectRootForWindowFunction(@NonNull RootDisplayArea displayRoot,
+                @NonNull List<RootDisplayArea> displayAreaGroupRoots) {
+            mDisplayRoot = requireNonNull(displayRoot);
+            mDisplayAreaGroupRoots = Collections.unmodifiableList(
+                    requireNonNull(displayAreaGroupRoots));
         }
 
         @Override
-        public RootDisplayArea apply(Integer windowType, Bundle options) {
+        public RootDisplayArea apply(@NonNull Integer windowType, @Nullable Bundle options) {
             if (mDisplayAreaGroupRoots.isEmpty()) {
                 return mDisplayRoot;
             }
@@ -418,12 +427,15 @@ class DisplayAreaPolicyBuilder {
      */
     private static class DefaultSelectTaskDisplayAreaFunction implements
             Function<Bundle, TaskDisplayArea> {
-        private final TaskDisplayArea mDefaultTaskDisplayArea;
-        private final int mDisplayId;
 
-        DefaultSelectTaskDisplayAreaFunction(TaskDisplayArea defaultTaskDisplayArea) {
+        private final int mDisplayId;
+        @NonNull
+        private final TaskDisplayArea mDefaultTaskDisplayArea;
+
+        DefaultSelectTaskDisplayAreaFunction(int displayId,
+                @NonNull TaskDisplayArea defaultTaskDisplayArea) {
+            mDisplayId = displayId;
             mDefaultTaskDisplayArea = defaultTaskDisplayArea;
-            mDisplayId = defaultTaskDisplayArea.getDisplayId();
         }
 
         @Override
@@ -461,19 +473,23 @@ class DisplayAreaPolicyBuilder {
         private static final int LEAF_TYPE_IME_CONTAINERS = 2;
         private static final int LEAF_TYPE_TOKENS = 0;
 
+        @NonNull
         private final RootDisplayArea mRoot;
+        @NonNull
         private final ArrayList<DisplayAreaPolicyBuilder.Feature> mFeatures = new ArrayList<>();
+        @NonNull
         private final ArrayList<TaskDisplayArea> mTaskDisplayAreas = new ArrayList<>();
         @Nullable
         private DisplayArea.Tokens mImeContainer;
 
-        HierarchyBuilder(RootDisplayArea root) {
-            mRoot = root;
+        HierarchyBuilder(@NonNull RootDisplayArea root) {
+            mRoot = requireNonNull(root);
         }
 
         /** Adds {@link Feature} that applies to layers under this container. */
-        HierarchyBuilder addFeature(DisplayAreaPolicyBuilder.Feature feature) {
-            mFeatures.add(feature);
+        @NonNull
+        HierarchyBuilder addFeature(@NonNull DisplayAreaPolicyBuilder.Feature feature) {
+            mFeatures.add(requireNonNull(feature));
             return this;
         }
 
@@ -481,14 +497,16 @@ class DisplayAreaPolicyBuilder {
          * Sets {@link TaskDisplayArea} that are children of this hierarchy root.
          * {@link DisplayArea} group must have at least one {@link TaskDisplayArea}.
          */
-        HierarchyBuilder setTaskDisplayAreas(List<TaskDisplayArea> taskDisplayAreas) {
+        @NonNull
+        HierarchyBuilder setTaskDisplayAreas(@NonNull List<TaskDisplayArea> taskDisplayAreas) {
             mTaskDisplayAreas.clear();
-            mTaskDisplayAreas.addAll(taskDisplayAreas);
+            mTaskDisplayAreas.addAll(requireNonNull(taskDisplayAreas));
             return this;
         }
 
         /** Sets IME container as a child of this hierarchy root. */
-        HierarchyBuilder setImeContainer(DisplayArea.Tokens imeContainer) {
+        @NonNull
+        HierarchyBuilder setImeContainer(@Nullable DisplayArea.Tokens imeContainer) {
             mImeContainer = imeContainer;
             return this;
         }
@@ -534,7 +552,7 @@ class DisplayAreaPolicyBuilder {
             //      - otherwise we create a new DisplayArea below the last feature that applied
             //        to the current layer
 
-            PendingArea[] areaForLayer = new PendingArea[maxWindowLayerCount];
+            final PendingArea[] areaForLayer = new PendingArea[maxWindowLayerCount];
             final PendingArea root = new PendingArea(null, 0, null);
             Arrays.fill(areaForLayer, root);
 
@@ -612,7 +630,7 @@ class DisplayAreaPolicyBuilder {
         }
 
         /** Adds all {@link TaskDisplayArea} to the application layer. */
-        private void addTaskDisplayAreasToApplicationLayer(PendingArea parentPendingArea) {
+        private void addTaskDisplayAreasToApplicationLayer(@NonNull PendingArea parentPendingArea) {
             final int count = mTaskDisplayAreas.size();
             for (int i = 0; i < count; i++) {
                 PendingArea leafArea =
@@ -625,7 +643,7 @@ class DisplayAreaPolicyBuilder {
 
         /** Adds roots of the DisplayAreaGroups to the application layer. */
         private void addDisplayAreaGroupsToApplicationLayer(
-                DisplayAreaPolicyBuilder.PendingArea parentPendingArea,
+                @NonNull DisplayAreaPolicyBuilder.PendingArea parentPendingArea,
                 @Nullable List<HierarchyBuilder> displayAreaGroupHierarchyBuilders) {
             if (displayAreaGroupHierarchyBuilders == null) {
                 return;
@@ -646,7 +664,7 @@ class DisplayAreaPolicyBuilder {
             return !mFeatures.isEmpty() && canBeWindowingLayer(mFeatures.get(0).mId);
         }
 
-        private static int typeOfLayer(WindowManagerPolicy policy, int layer) {
+        private static int typeOfLayer(@NonNull WindowManagerPolicy policy, int layer) {
             if (layer == APPLICATION_LAYER) {
                 return LEAF_TYPE_TASK_CONTAINERS;
             } else if (layer == policy.getWindowLayerFromTypeLw(TYPE_INPUT_METHOD)
@@ -660,25 +678,29 @@ class DisplayAreaPolicyBuilder {
 
     /** Supplier interface to provide a new created {@link DisplayArea}. */
     interface NewDisplayAreaSupplier {
-        DisplayArea create(WindowManagerService wms, DisplayArea.Type type, String name,
-                int featureId);
+        @Nullable
+        DisplayArea create(@NonNull WindowManagerService wms, DisplayArea.Type type,
+                @NonNull String name, int featureId);
     }
 
     /**
      * A feature that requires {@link DisplayArea DisplayArea(s)}.
      */
     static class Feature {
+        @NonNull
         private final String mName;
         private final int mId;
+        @NonNull
         private final boolean[] mWindowLayers;
+        @NonNull
         private final NewDisplayAreaSupplier mNewDisplayAreaSupplier;
 
-        private Feature(String name, int id, boolean[] windowLayers,
-                NewDisplayAreaSupplier newDisplayAreaSupplier) {
-            mName = name;
+        private Feature(@NonNull String name, int id, @NonNull boolean[] windowLayers,
+                @NonNull NewDisplayAreaSupplier newDisplayAreaSupplier) {
+            mName = requireNonNull(name);
             mId = id;
-            mWindowLayers = windowLayers;
-            mNewDisplayAreaSupplier = newDisplayAreaSupplier;
+            mWindowLayers = requireNonNull(windowLayers);
+            mNewDisplayAreaSupplier = requireNonNull(newDisplayAreaSupplier);
         }
 
         /**
@@ -699,11 +721,11 @@ class DisplayAreaPolicyBuilder {
         }
 
         static class Builder {
-            private final WindowManagerPolicy mPolicy;
-            private final String mName;
+            @NonNull private final WindowManagerPolicy mPolicy;
+            @NonNull private final String mName;
             private final int mId;
-            private final boolean[] mLayers;
-            private NewDisplayAreaSupplier mNewDisplayAreaSupplier = DisplayArea::new;
+            @NonNull private final boolean[] mLayers;
+            @NonNull private NewDisplayAreaSupplier mNewDisplayAreaSupplier = DisplayArea::new;
             private boolean mExcludeRoundedCorner = true;
 
             /**
@@ -719,9 +741,9 @@ class DisplayAreaPolicyBuilder {
              * @param name the name of the feature.
              * @param id of the feature. {@see Feature#getId}
              */
-            Builder(WindowManagerPolicy policy, String name, int id) {
-                mPolicy = policy;
-                mName = name;
+            Builder(@NonNull WindowManagerPolicy policy, @NonNull String name, int id) {
+                mPolicy = requireNonNull(policy);
+                mName = requireNonNull(name);
                 mId = id;
                 mLayers = new boolean[mPolicy.getMaxWindowLayer() + 1];
             }
@@ -729,6 +751,7 @@ class DisplayAreaPolicyBuilder {
             /**
              * Set that the feature applies to all window types.
              */
+            @NonNull
             Builder all() {
                 Arrays.fill(mLayers, true);
                 return this;
@@ -737,6 +760,7 @@ class DisplayAreaPolicyBuilder {
             /**
              * Set that the feature applies to the given window types.
              */
+            @NonNull
             Builder and(int... types) {
                 for (int i = 0; i < types.length; i++) {
                     int type = types[i];
@@ -748,6 +772,7 @@ class DisplayAreaPolicyBuilder {
             /**
              * Set that the feature does not apply to the given window types.
              */
+            @NonNull
             Builder except(int... types) {
                 for (int i = 0; i < types.length; i++) {
                     int type = types[i];
@@ -760,6 +785,7 @@ class DisplayAreaPolicyBuilder {
              * Set that the feature applies window types that are layerd at or below the layer of
              * the given window type.
              */
+            @NonNull
             Builder upTo(int typeInclusive) {
                 final int max = layerFromType(typeInclusive, false);
                 for (int i = 0; i < max; i++) {
@@ -773,18 +799,22 @@ class DisplayAreaPolicyBuilder {
              * Sets the function to create new {@link DisplayArea} for this feature. By default, it
              * uses {@link DisplayArea}'s constructor.
              */
-            Builder setNewDisplayAreaSupplier(NewDisplayAreaSupplier newDisplayAreaSupplier) {
-                mNewDisplayAreaSupplier = newDisplayAreaSupplier;
+            @NonNull
+            Builder setNewDisplayAreaSupplier(
+                    @NonNull NewDisplayAreaSupplier newDisplayAreaSupplier) {
+                mNewDisplayAreaSupplier = requireNonNull(newDisplayAreaSupplier);
                 return this;
             }
 
             // TODO(b/155340867): consider to remove the logic after using pure Surface for rounded
             // corner overlay.
+            @NonNull
             Builder setExcludeRoundedCornerOverlay(boolean excludeRoundedCorner) {
                 mExcludeRoundedCorner = excludeRoundedCorner;
                 return this;
             }
 
+            @NonNull
             Feature build() {
                 if (mExcludeRoundedCorner) {
                     // Always put the rounded corner layer to the top most layer.
@@ -810,47 +840,55 @@ class DisplayAreaPolicyBuilder {
     }
 
     static class Result extends DisplayAreaPolicy {
-        final List<RootDisplayArea> mDisplayAreaGroupRoots;
+        @NonNull
+        private final List<RootDisplayArea> mDisplayAreaGroupRoots;
+        @VisibleForTesting
+        @NonNull
         final BiFunction<Integer, Bundle, RootDisplayArea> mSelectRootForWindowFunc;
+        @NonNull
         private final Function<Bundle, TaskDisplayArea> mSelectTaskDisplayAreaFunc;
+        @NonNull
         private final TaskDisplayArea mDefaultTaskDisplayArea;
 
-        Result(WindowManagerService wmService, RootDisplayArea root,
-                List<RootDisplayArea> displayAreaGroupRoots,
-                BiFunction<Integer, Bundle, RootDisplayArea> selectRootForWindowFunc,
-                Function<Bundle, TaskDisplayArea> selectTaskDisplayAreaFunc) {
+        Result(@NonNull WindowManagerService wmService,
+                int displayId,
+                @NonNull RootDisplayArea root,
+                @NonNull List<RootDisplayArea> displayAreaGroupRoots,
+                @NonNull  BiFunction<Integer, Bundle, RootDisplayArea> selectRootForWindowFunc,
+                @Nullable Function<Bundle, TaskDisplayArea> selectTaskDisplayAreaFunc) {
             super(wmService, root);
             mDisplayAreaGroupRoots = Collections.unmodifiableList(displayAreaGroupRoots);
             mSelectRootForWindowFunc = selectRootForWindowFunc;
 
             // Cache the default TaskDisplayArea for quick access.
-            mDefaultTaskDisplayArea = mRoot.getItemFromTaskDisplayAreas(taskDisplayArea ->
+            final TaskDisplayArea defaultTda = mRoot.getItemFromTaskDisplayAreas(taskDisplayArea ->
                     taskDisplayArea.mFeatureId == FEATURE_DEFAULT_TASK_CONTAINER
                             ? taskDisplayArea
                             : null);
-            if (mDefaultTaskDisplayArea == null) {
+            if (defaultTda == null) {
                 throw new IllegalStateException(
                         "No display area with FEATURE_DEFAULT_TASK_CONTAINER");
             }
+            mDefaultTaskDisplayArea = defaultTda;
             mSelectTaskDisplayAreaFunc = selectTaskDisplayAreaFunc != null
                     ? selectTaskDisplayAreaFunc
-                    : new DefaultSelectTaskDisplayAreaFunction(mDefaultTaskDisplayArea);
+                    : new DefaultSelectTaskDisplayAreaFunction(displayId, mDefaultTaskDisplayArea);
         }
 
         @Override
-        public void addWindow(WindowToken token) {
+        public void addWindow(@NonNull WindowToken token) {
             DisplayArea.Tokens area = findAreaForToken(token);
             area.addChild(token);
         }
 
         @VisibleForTesting
-        DisplayArea.Tokens findAreaForToken(WindowToken token) {
+        DisplayArea.Tokens findAreaForToken(@NonNull WindowToken token) {
             return mSelectRootForWindowFunc.apply(token.windowType, token.mOptions)
                     .findAreaForTokenInLayer(token);
         }
 
         @Override
-        public DisplayArea.Tokens findAreaForWindowType(int type, Bundle options,
+        public DisplayArea.Tokens findAreaForWindowType(int type, @Nullable Bundle options,
                 boolean ownerCanManageAppTokens, boolean roundedCornerOverlay) {
             return mSelectRootForWindowFunc.apply(type, options).findAreaForWindowTypeInLayer(type,
                     ownerCanManageAppTokens, roundedCornerOverlay);
@@ -868,7 +906,7 @@ class DisplayAreaPolicyBuilder {
 
         @Override
         public List<DisplayArea<? extends WindowContainer>> getDisplayAreas(int featureId) {
-            List<DisplayArea<? extends WindowContainer>> displayAreas = new ArrayList<>();
+            final List<DisplayArea<? extends WindowContainer>> displayAreas = new ArrayList<>();
             getDisplayAreas(mRoot, featureId, displayAreas);
             for (int i = 0; i < mDisplayAreaGroupRoots.size(); i++) {
                 getDisplayAreas(mDisplayAreaGroupRoots.get(i), featureId, displayAreas);
@@ -876,11 +914,11 @@ class DisplayAreaPolicyBuilder {
             return displayAreas;
         }
 
-        private static void getDisplayAreas(RootDisplayArea root, int featureId,
-                List<DisplayArea<? extends WindowContainer>> displayAreas) {
-            List<Feature> features = root.mFeatures;
+        private static void getDisplayAreas(@NonNull RootDisplayArea root, int featureId,
+                @NonNull List<DisplayArea<? extends WindowContainer>> displayAreas) {
+            final List<Feature> features = root.mFeatures;
             for (int i = 0; i < features.size(); i++) {
-                Feature feature = features.get(i);
+                final Feature feature = features.get(i);
                 if (feature.mId == featureId) {
                     displayAreas.addAll(root.mFeatureToDisplayAreas.get(feature));
                 }
@@ -917,14 +955,17 @@ class DisplayAreaPolicyBuilder {
     }
 
     static class PendingArea {
-        final int mMinLayer;
-        final ArrayList<PendingArea> mChildren = new ArrayList<>();
-        final Feature mFeature;
-        final PendingArea mParent;
-        int mMaxLayer;
+        private final int mMinLayer;
+        @NonNull
+        private final ArrayList<PendingArea> mChildren = new ArrayList<>();
+        @Nullable
+        private final Feature mFeature;
+        @Nullable
+        private final PendingArea mParent;
+        private int mMaxLayer;
 
         /** If not {@code null}, use this instead of creating a {@link DisplayArea.Tokens}. */
-        @Nullable DisplayArea mExisting;
+        @Nullable private DisplayArea mExisting;
 
         /**
          * Whether to skip creating a {@link DisplayArea.Tokens} if {@link #mExisting} is
@@ -934,9 +975,9 @@ class DisplayAreaPolicyBuilder {
          * {@link HierarchyBuilder#LEAF_TYPE_TASK_CONTAINERS}, because we don't want to create
          * {@link DisplayArea.Tokens} for them even if they are not set.
          */
-        boolean mSkipTokens = false;
+        private boolean mSkipTokens = false;
 
-        PendingArea(Feature feature, int minLayer, PendingArea parent) {
+        PendingArea(@Nullable Feature feature, int minLayer, @Nullable PendingArea parent) {
             mMinLayer = minLayer;
             mFeature = feature;
             mParent = parent;
@@ -949,8 +990,9 @@ class DisplayAreaPolicyBuilder {
             return mMaxLayer;
         }
 
-        void instantiateChildren(DisplayArea<DisplayArea> parent, DisplayArea.Tokens[] areaForLayer,
-                int level, Map<Feature, List<DisplayArea<WindowContainer>>> areas) {
+        void instantiateChildren(@NonNull DisplayArea<DisplayArea> parent,
+                @NonNull DisplayArea.Tokens[] areaForLayer,
+                int level, @NonNull Map<Feature, List<DisplayArea<WindowContainer>>> areas) {
             mChildren.sort(Comparator.comparingInt(pendingArea -> pendingArea.mMinLayer));
             for (int i = 0; i < mChildren.size(); i++) {
                 final PendingArea child = mChildren.get(i);
@@ -969,8 +1011,8 @@ class DisplayAreaPolicyBuilder {
         }
 
         @Nullable
-        private DisplayArea createArea(DisplayArea<DisplayArea> parent,
-                DisplayArea.Tokens[] areaForLayer) {
+        private DisplayArea createArea(@NonNull DisplayArea<DisplayArea> parent,
+                @NonNull DisplayArea.Tokens[] areaForLayer) {
             if (mExisting != null) {
                 if (mExisting.asTokens() != null) {
                     // Store the WindowToken container for layers
@@ -981,7 +1023,7 @@ class DisplayAreaPolicyBuilder {
             if (mSkipTokens) {
                 return null;
             }
-            DisplayArea.Type type;
+            final DisplayArea.Type type;
             if (mMinLayer > APPLICATION_LAYER) {
                 type = DisplayArea.Type.ABOVE_TASKS;
             } else if (mMaxLayer < APPLICATION_LAYER) {
@@ -1000,7 +1042,8 @@ class DisplayAreaPolicyBuilder {
             }
         }
 
-        private void fillAreaForLayers(DisplayArea.Tokens leaf, DisplayArea.Tokens[] areaForLayer) {
+        private void fillAreaForLayers(@NonNull DisplayArea.Tokens leaf,
+                @NonNull DisplayArea.Tokens[] areaForLayer) {
             for (int i = mMinLayer; i <= mMaxLayer; i++) {
                 areaForLayer[i] = leaf;
             }

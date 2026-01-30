@@ -581,6 +581,7 @@ TEST(ProtoSerializeTest, SerializeDeserializeConfiguration) {
   ExpectConfigSerializes("300x200");
 
   ExpectConfigSerializes("v8");
+  ExpectConfigSerializes("v19876.23450");
 
   ExpectConfigSerializes("en-feminine");
   ExpectConfigSerializes("en-neuter-v34");
@@ -588,7 +589,7 @@ TEST(ProtoSerializeTest, SerializeDeserializeConfiguration) {
 
   ExpectConfigSerializes(
       "mcc123-mnc456-b+en+GB-masculine-ldltr-sw300dp-w300dp-h400dp-large-long-round-widecg-highdr-"
-      "land-car-night-xhdpi-stylus-keysexposed-qwerty-navhidden-dpad-300x200-v23");
+      "land-car-night-xhdpi-stylus-keysexposed-qwerty-navhidden-dpad-300x200-v42.1");
 }
 
 TEST(ProtoSerializeTest, SerializeAndDeserializeOverlayable) {

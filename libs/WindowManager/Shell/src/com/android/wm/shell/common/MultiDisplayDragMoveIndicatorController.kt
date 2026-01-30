@@ -18,8 +18,9 @@ package com.android.wm.shell.common
 import android.app.ActivityManager.RunningTaskInfo
 import android.graphics.RectF
 import android.view.SurfaceControl
+import android.window.DesktopExperienceFlags
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
-import com.android.wm.shell.shared.annotations.ShellDesktopThread
+import com.android.wm.shell.desktopmode.ShellDesktopState
 
 /**
  * Controller to manage the indicators that show users the current position of the dragged window on
@@ -29,96 +30,122 @@ class MultiDisplayDragMoveIndicatorController(
     private val displayController: DisplayController,
     private val rootTaskDisplayAreaOrganizer: RootTaskDisplayAreaOrganizer,
     private val indicatorSurfaceFactory: MultiDisplayDragMoveIndicatorSurface.Factory,
-    @ShellDesktopThread private val desktopExecutor: ShellExecutor,
+    private val shellDesktopState: ShellDesktopState,
 ) {
-    @ShellDesktopThread
     private val dragIndicators =
         mutableMapOf<Int, MutableMap<Int, MultiDisplayDragMoveIndicatorSurface>>()
 
     /**
-     * Called during drag move, which started at [startDisplayId]. Updates the position and
-     * visibility of the drag move indicators for the [taskInfo] based on [boundsDp] on the
-     * destination displays ([displayIds]) as the dragged window moves. [transactionSupplier]
-     * provides a [SurfaceControl.Transaction] for applying changes to the indicator surfaces.
-     *
-     * It is executed on the [desktopExecutor] to prevent blocking the main thread and avoid jank,
-     * as creating and manipulating surfaces can be expensive.
+     * Called during drag move, which started at [startDisplayId] and currently at
+     * [currentDisplayid]. Updates the position and visibility of the drag move indicators for the
+     * [taskInfo] based on [boundsDp] on the destination displays ([displayIds]) as the dragged
+     * window moves. [transactionSupplier] provides a [SurfaceControl.Transaction] for applying
+     * changes to the indicator surfaces.
      */
     fun onDragMove(
         boundsDp: RectF,
+        currentDisplayId: Int,
         startDisplayId: Int,
+        taskLeash: SurfaceControl,
         taskInfo: RunningTaskInfo,
         displayIds: Set<Int>,
         transactionSupplier: () -> SurfaceControl.Transaction,
     ) {
-        desktopExecutor.execute {
-            for (displayId in displayIds) {
-                if (displayId == startDisplayId) {
-                    // No need to render indicators on the original display where the drag started.
-                    continue
-                }
-                val displayLayout = displayController.getDisplayLayout(displayId) ?: continue
-                val shouldBeVisible =
-                    RectF.intersects(RectF(boundsDp), displayLayout.globalBoundsDp())
+        val startDisplayDpi =
+            displayController.getDisplayLayout(startDisplayId)?.densityDpi() ?: return
+        val transaction = transactionSupplier()
+        for (displayId in displayIds) {
+            val allowDropToDisplay =
                 if (
-                    dragIndicators[taskInfo.taskId]?.containsKey(displayId) != true &&
-                        !shouldBeVisible
-                ) {
-                    // Skip this display if:
-                    // - It doesn't have an existing indicator that needs to be updated, AND
-                    // - The latest dragged window bounds don't intersect with this display.
-                    continue
+                    DesktopExperienceFlags.ENABLE_BLOCK_NON_DESKTOP_DISPLAY_WINDOW_DRAG_BUGFIX
+                        .isTrue
+                )
+                    shellDesktopState.isEligibleWindowDropTarget(displayId)
+                else shellDesktopState.isDesktopModeSupportedOnDisplay(displayId)
+            if (
+                (displayId == startDisplayId &&
+                    !DesktopExperienceFlags.ENABLE_WINDOW_DROP_SMOOTH_TRANSITION.isTrue) ||
+                    !allowDropToDisplay
+            ) {
+                // No need to render indicators on displays that do not support desktop mode.
+                continue
+            }
+            val displayLayout = displayController.getDisplayLayout(displayId) ?: continue
+            val displayContext = displayController.getDisplayContext(displayId) ?: continue
+            val visibility =
+                if (RectF.intersects(RectF(boundsDp), displayLayout.globalBoundsDp())) {
+                    if (displayId == currentDisplayId) {
+                        MultiDisplayDragMoveIndicatorSurface.Visibility.VISIBLE
+                    } else {
+                        MultiDisplayDragMoveIndicatorSurface.Visibility.TRANSLUCENT
+                    }
+                } else {
+                    MultiDisplayDragMoveIndicatorSurface.Visibility.INVISIBLE
                 }
+            if (
+                dragIndicators[taskInfo.taskId]?.containsKey(displayId) != true &&
+                    visibility == MultiDisplayDragMoveIndicatorSurface.Visibility.INVISIBLE
+            ) {
+                // Skip this display if:
+                // - It doesn't have an existing indicator that needs to be updated, AND
+                // - The latest dragged window bounds don't intersect with this display.
+                continue
+            }
 
-                val boundsPx =
-                    MultiDisplayDragMoveBoundsCalculator.convertGlobalDpToLocalPxForRect(
-                        boundsDp,
-                        displayLayout,
-                    )
+            val boundsPx =
+                MultiDisplayDragMoveBoundsCalculator.convertGlobalDpToLocalPxForRect(
+                    boundsDp,
+                    displayLayout,
+                )
 
-                // Get or create the inner map for the current task.
-                val dragIndicatorsForTask =
-                    dragIndicators.getOrPut(taskInfo.taskId) { mutableMapOf() }
-                dragIndicatorsForTask[displayId]?.also { existingIndicator ->
-                    val transaction = transactionSupplier()
-                    existingIndicator.relayout(boundsPx, transaction, shouldBeVisible)
-                    transaction.apply()
-                } ?: run {
-                    val newIndicator =
-                        indicatorSurfaceFactory.create(
-                            taskInfo,
-                            displayController.getDisplay(displayId),
-                        )
+            // Get or create the inner map for the current task.
+            val dragIndicatorsForTask = dragIndicators.getOrPut(taskInfo.taskId) { mutableMapOf() }
+            dragIndicatorsForTask[displayId]?.also { existingIndicator ->
+                existingIndicator.relayout(boundsPx, transaction, visibility)
+            }
+                ?: run {
+                    val newIndicator = indicatorSurfaceFactory.create(displayContext, taskLeash)
                     newIndicator.show(
-                        transactionSupplier(),
+                        transaction,
                         taskInfo,
                         rootTaskDisplayAreaOrganizer,
                         displayId,
                         boundsPx,
+                        visibility,
+                        displayLayout.densityDpi().toFloat() / startDisplayDpi.toFloat(),
                     )
                     dragIndicatorsForTask[displayId] = newIndicator
                 }
-            }
         }
+        transaction.apply()
     }
 
     /**
      * Called when the drag ends. Disposes of the drag move indicator surfaces associated with the
-     * given [taskId]. [transactionSupplier] provides a [SurfaceControl.Transaction] for applying
-     * changes to the indicator surfaces.
-     *
-     * It is executed on the [desktopExecutor] to ensure that any pending `onDragMove` operations
-     * have completed before disposing of the surfaces.
+     * given [taskId] and applies the surface changes with the provided [transaction].
      */
-    fun onDragEnd(taskId: Int, transactionSupplier: () -> SurfaceControl.Transaction) {
-        desktopExecutor.execute {
-            dragIndicators.remove(taskId)?.values?.takeIf { it.isNotEmpty() }?.let { indicators ->
-                val transaction = transactionSupplier()
-                indicators.forEach { indicator ->
-                    indicator.disposeSurface(transaction)
+    fun onDragEnd(taskId: Int, transaction: SurfaceControl.Transaction) {
+        dragIndicators
+            .remove(taskId)
+            ?.values
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { indicators ->
+                indicators.forEach { indicator -> indicator.dispose(transaction) }
+                if (!DesktopExperienceFlags.ENABLE_WINDOW_DROP_SMOOTH_TRANSITION.isTrue) {
+                    transaction.apply()
                 }
-                transaction.apply()
+            }
+    }
+
+    /**
+     * Disposes all of the indicator surfaces with the [transaction].
+     */
+    fun disposeAllIndicators(transaction: SurfaceControl.Transaction) {
+        dragIndicators.values.forEach { innerIndicatorMap ->
+            innerIndicatorMap.values.forEach { indicator ->
+                indicator.dispose(transaction)
             }
         }
+        dragIndicators.clear()
     }
 }

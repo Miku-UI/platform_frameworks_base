@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"ลากไปทางซ้ายเพื่อสลับแอปอย่างรวดเร็ว"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"ปัดจากด้านขวาบนเพื่อเปิดการแจ้งเตือน"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"ปัดจากด้านซ้ายบนเพื่อเปิดการตั้งค่าด่วน"</string>
 </resources>

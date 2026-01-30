@@ -16,6 +16,10 @@
 
 package com.android.systemui.statusbar.chips.ui.compose
 
+import android.graphics.RectF
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -25,17 +29,26 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.graphics.toAndroidRectF
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.unit.dp
 import com.android.systemui.compose.modifiers.sysuiResTag
-import com.android.systemui.res.R
 import com.android.systemui.statusbar.chips.StatusBarChipsReturnAnimations
 import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModel
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerViewBinder
 
+/**
+ * Composable for all ongoing activity chips shown in the status bar.
+ *
+ * @param onChipBoundsChanged should be invoked each time any chip has their on-screen bounds
+ *   changed.
+ */
 @Composable
 fun OngoingActivityChips(
     chips: MultipleOngoingActivityChipsModel,
     iconViewStore: NotificationIconContainerViewBinder.IconViewStore?,
+    onChipBoundsChanged: (String, RectF) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (StatusBarChipsReturnAnimations.isEnabled) {
@@ -50,24 +63,50 @@ fun OngoingActivityChips(
         }
     }
 
-    val shownChips = chips.active.filter { !it.isHidden }
-    if (shownChips.isNotEmpty()) {
+    val activeChips = chips.active
+    if (activeChips.isNotEmpty()) {
+        // For performance reasons, only create the Row if we have chips. See b/401241197.
         Row(
-            modifier =
-                modifier
-                    .fillMaxHeight()
-                    .padding(start = dimensionResource(R.dimen.ongoing_activity_chip_margin_start)),
+            // The status bar clock will have some end padding so we don't need as much padding
+            // at the beginning of the row (but we need more padding between chips)
+            modifier = modifier.fillMaxHeight().padding(start = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement =
-                Arrangement.spacedBy(dimensionResource(R.dimen.ongoing_activity_chip_margin_start)),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            shownChips.forEach {
+            activeChips.forEach {
                 key(it.key) {
-                    OngoingActivityChip(
-                        model = it,
-                        iconViewStore = iconViewStore,
-                        modifier = Modifier.sysuiResTag(it.key),
-                    )
+                    val chipModifier =
+                        Modifier.sysuiResTag(it.key).onGloballyPositioned { coordinates ->
+                            onChipBoundsChanged.invoke(
+                                it.key,
+                                coordinates.boundsInWindow().toAndroidRectF(),
+                            )
+                        }
+                    if (activeChips.size == 1) {
+                        // AnimatedVisibility works well if we have just 1 active chip, but it
+                        // causes some problems if there's 2 chips and then one chip becomes hidden.
+                        // For now, use AnimatedVisibility only if we only have 1 active chip. See
+                        // b/393581408.
+                        AnimatedVisibility(
+                            visible = !it.isHidden,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                        ) {
+                            OngoingActivityChip(
+                                model = it,
+                                iconViewStore = iconViewStore,
+                                modifier = chipModifier,
+                            )
+                        }
+                    } else {
+                        if (!it.isHidden) {
+                            OngoingActivityChip(
+                                model = it,
+                                iconViewStore = iconViewStore,
+                                modifier = chipModifier,
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -14,11 +14,15 @@
      limitations under the License.
 -->
 
-<resources>
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+  xmlns:androidprv="http://schemas.android.com/apk/prv/res/android">
 
     <color name="print_preview_scrim_color">#99000000</color>
 
     <color name="unselected_page_background_color">#C0C0C0</color>
 
     <color name="material_grey_500">#ffa3a3a3</color>
+    <color name="ic_pdf_printer_color">@androidprv:color/materialColorPrimary</color>
+
+    <color name="print_button_background">@androidprv:color/materialColorPrimary</color>
 </resources>

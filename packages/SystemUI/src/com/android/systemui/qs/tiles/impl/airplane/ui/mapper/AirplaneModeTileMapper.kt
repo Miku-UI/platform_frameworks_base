@@ -44,10 +44,8 @@ constructor(@ShadeDisplayAware private val resources: Resources, val theme: Them
             icon = Icon.Loaded(resources.getDrawable(iconRes, theme), null, iconRes)
             if (data.isEnabled) {
                 activationState = QSTileState.ActivationState.ACTIVE
-                secondaryLabel = resources.getStringArray(R.array.tile_states_airplane)[2]
             } else {
                 activationState = QSTileState.ActivationState.INACTIVE
-                secondaryLabel = resources.getStringArray(R.array.tile_states_airplane)[1]
             }
             contentDescription = label
             supportedActions =

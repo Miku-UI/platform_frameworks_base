@@ -39,7 +39,12 @@ import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.statusbar.connectivity.WifiPickerTrackerFactory
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import com.android.systemui.statusbar.pipeline.shared.data.repository.connectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.data.repository.fake
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.prod.WifiRepositoryImpl.Companion.WIFI_NETWORK_DEFAULT
+import com.android.systemui.statusbar.pipeline.wifi.data.repository.prod.WifiRepositoryImpl.Companion.WIFI_TOGGLE_OPTIMISTIC_PAUSE_TIMEOUT_MS
+import com.android.systemui.statusbar.pipeline.wifi.data.repository.prod.WifiRepositoryImpl.Companion.WIFI_TOGGLE_OPTIMISTIC_SCANNING_TIMEOUT_MS
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiScanEntry
 import com.android.systemui.testKosmos
@@ -73,6 +78,7 @@ import org.mockito.kotlin.whenever
 class WifiRepositoryImplTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val userRepository = kosmos.fakeUserRepository
+    private val connectivityRepository = kosmos.connectivityRepository
 
     // Using lazy means that the class will only be constructed once it's fetched. Because the
     // repository internally sets some values on construction, we need to set up some test
@@ -82,6 +88,7 @@ class WifiRepositoryImplTest : SysuiTestCase() {
         WifiRepositoryImpl(
             mContext,
             userRepository,
+            connectivityRepository,
             testScope.backgroundScope,
             executor,
             dispatcher,
@@ -1291,6 +1298,112 @@ class WifiRepositoryImplTest : SysuiTestCase() {
             // THEN we do NOT re-create WifiPickerTracker because the multiuser flag is off
             verify(wifiPickerTrackerFactory, never()).create(any(), any(), any(), any())
             verify(wifiPickerTracker, never()).onStop()
+        }
+
+    @Test
+    fun wifiToggleState_initialValueIsNormal() =
+        testScope.runTest {
+            assertThat(underTest.wifiToggleState.value).isEqualTo(WifiToggleState.Normal)
+        }
+
+    @Test
+    fun pauseWifi_callsManager() =
+        testScope.runTest {
+            underTest.pauseWifi()
+
+            verify(wifiManager).startRestrictingAutoJoinToSubscriptionId(any())
+        }
+
+    @Test
+    fun pauseWifi_afterScanning_resetsStateToNormalOnSuccess() =
+        testScope.runTest {
+            val toggleState by collectLastValue(underTest.wifiToggleState)
+
+            underTest.scanForWifi()
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
+
+            underTest.pauseWifi()
+            connectivityRepository.fake.setWifiConnected(default = false, validated = false)
+
+            assertThat(toggleState).isEqualTo(WifiToggleState.Normal)
+        }
+
+    @Test
+    fun pauseWifi_afterScanning_resetsStateToNormalOnTimeout() =
+        testScope.runTest {
+            val toggleState by collectLastValue(underTest.wifiToggleState)
+
+            underTest.scanForWifi()
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
+
+            underTest.pauseWifi()
+            testScope.testScheduler.advanceTimeBy(WIFI_TOGGLE_OPTIMISTIC_PAUSE_TIMEOUT_MS)
+
+            assertThat(toggleState).isEqualTo(WifiToggleState.Normal)
+        }
+
+    @Test
+    fun scanForWifi_setsStateToScanningAndCallsManager() =
+        testScope.runTest {
+            val toggleState by collectLastValue(underTest.wifiToggleState)
+
+            underTest.scanForWifi()
+
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
+            verify(wifiManager).stopRestrictingAutoJoinToSubscriptionId()
+            verify(wifiManager).startScan()
+        }
+
+    @Test
+    fun scanForWifi_doesNotResetToNormalOnCarrierMerged() =
+        testScope.runTest {
+            val toggleState by collectLastValue(underTest.wifiToggleState)
+
+            underTest.scanForWifi()
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
+
+            connectivityRepository.fake.setCarrierMergedConnected()
+
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
+        }
+
+    @Test
+    fun scanForWifi_resetsStateToNormalOnSuccess() =
+        testScope.runTest {
+            val toggleState by collectLastValue(underTest.wifiToggleState)
+
+            underTest.scanForWifi()
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
+
+            connectivityRepository.fake.setWifiConnected()
+
+            assertThat(toggleState).isEqualTo(WifiToggleState.Normal)
+        }
+
+    @Test
+    fun scanForWifi_resetsStateToNormalOnTimeout() =
+        testScope.runTest {
+            val toggleState by collectLastValue(underTest.wifiToggleState)
+
+            underTest.scanForWifi()
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
+
+            testScope.testScheduler.advanceTimeBy(WIFI_TOGGLE_OPTIMISTIC_SCANNING_TIMEOUT_MS)
+
+            assertThat(toggleState).isEqualTo(WifiToggleState.Normal)
+        }
+
+    @Test
+    fun enableWifi_enablesWifiAndScans() =
+        testScope.runTest {
+            val toggleState by collectLastValue(underTest.wifiToggleState)
+
+            underTest.enableWifi()
+
+            verify(wifiManager).setWifiEnabled(true)
+            verify(wifiManager).stopRestrictingAutoJoinToSubscriptionId()
+            verify(wifiManager).startScan()
+            assertThat(toggleState).isEqualTo(WifiToggleState.Scanning)
         }
 
     private fun getCallback(): WifiPickerTracker.WifiPickerTrackerCallback {

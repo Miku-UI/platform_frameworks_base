@@ -15,11 +15,13 @@
  */
 package com.android.wm.shell.windowdecor;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager.RunningTaskInfo;
 import android.app.ActivityTaskManager;
 import android.app.IActivityTaskManager;
 import android.content.Context;
 import android.hardware.input.InputManager;
+import android.os.Handler;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
@@ -47,6 +49,7 @@ import com.android.wm.shell.shared.annotations.ShellMainThread;
 import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.sysui.ShellInit;
 import com.android.wm.shell.transition.FocusTransitionObserver;
+import com.android.wm.shell.transition.Transitions;
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHost;
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHostSupplier;
 
@@ -60,6 +63,8 @@ public abstract class CarWindowDecorViewModel
 
     private final ShellTaskOrganizer mTaskOrganizer;
     private final Context mContext;
+    private final @NonNull @ShellMainThread Handler mHandler;
+    private final @NonNull Transitions mTransitions;
     private final @ShellBackgroundThread ShellExecutor mBgExecutor;
     private final ShellExecutor mMainExecutor;
     private final DisplayController mDisplayController;
@@ -72,6 +77,8 @@ public abstract class CarWindowDecorViewModel
 
     public CarWindowDecorViewModel(
             Context context,
+            @NonNull @ShellMainThread Handler handler,
+            @NonNull Transitions transitions,
             @ShellMainThread ShellExecutor mainExecutor,
             @ShellBackgroundThread ShellExecutor bgExecutor,
             ShellInit shellInit,
@@ -82,6 +89,8 @@ public abstract class CarWindowDecorViewModel
             FocusTransitionObserver focusTransitionObserver,
             WindowDecorViewHostSupplier<WindowDecorViewHost> windowDecorViewHostSupplier) {
         mContext = context;
+        mHandler = handler;
+        mTransitions = transitions;
         mMainExecutor = mainExecutor;
         mBgExecutor = bgExecutor;
         mTaskOrganizer = taskOrganizer;
@@ -101,7 +110,7 @@ public abstract class CarWindowDecorViewModel
     }
 
     @Override
-    public void onFocusedTaskChanged(int taskId, boolean isFocusedOnDisplay,
+    public void onFocusedTaskChanged(RunningTaskInfo taskInfo, boolean isFocusedOnDisplay,
             boolean isFocusedGlobally) {
         // no-op
     }
@@ -238,6 +247,8 @@ public abstract class CarWindowDecorViewModel
         final CarWindowDecoration windowDecoration =
                 new CarWindowDecoration(
                         mContext,
+                        mHandler,
+                        mTransitions,
                         mContext.createContextAsUser(UserHandle.of(taskInfo.userId), 0 /* flags */),
                         mDisplayController,
                         mTaskOrganizer,

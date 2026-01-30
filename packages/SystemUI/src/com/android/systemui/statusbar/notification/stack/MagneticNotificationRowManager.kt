@@ -32,6 +32,9 @@ import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
  */
 interface MagneticNotificationRowManager {
 
+    /** Set a new [SwipeInfoProvider]. */
+    fun setInfoProvider(swipeInfoProvider: SwipeInfoProvider?)
+
     /**
      * Notifies a change in the device density. The density can be used to compute the values of
      * thresholds in pixels.
@@ -82,15 +85,30 @@ interface MagneticNotificationRowManager {
      * after calls to [setMagneticRowTranslation].
      *
      * @param[row] [ExpandableNotificationRow] that stopped whose interaction stopped.
+     * @param[dismissing] If the interaction ended because the row is dismissing. If false, it is
+     *   assumed that the row is snapping back instead.
      * @param[velocity] Optional velocity at the end of the interaction. Use this to trigger
      *   animations with a start velocity.
      */
-    fun onMagneticInteractionEnd(row: ExpandableNotificationRow, velocity: Float? = null)
+    fun onMagneticInteractionEnd(
+        row: ExpandableNotificationRow,
+        dismissing: Boolean,
+        velocity: Float? = null,
+    )
 
     /**
      * Determine if a magnetic row swiped is dismissible according to the end velocity of the swipe.
      */
     fun isMagneticRowSwipedDismissible(row: ExpandableNotificationRow, endVelocity: Float): Boolean
+
+    /**
+     * Query the direction in which the magnetic row was detached.
+     *
+     * @param[row] The magnetic row swiped.
+     * @return 1 if the row was detached towards the right, -1 if detached towards the left, and 0
+     *   if the row hasn't detached yet, or if the row is not being swiped.
+     */
+    fun getDetachDirection(row: ExpandableNotificationRow): Int
 
     /* Reset any roundness that magnetic targets may have */
     fun resetRoundness()
@@ -105,18 +123,27 @@ interface MagneticNotificationRowManager {
      */
     fun reset()
 
+    /** A provider for the [MagneticNotificationRowManager] to query swipe information. */
+    interface SwipeInfoProvider {
+
+        /* Get the current velocity of a swipe */
+        fun getCurrentSwipeVelocity(): Float
+    }
+
     companion object {
         /** Detaching threshold in dp */
-        const val MAGNETIC_DETACH_THRESHOLD_DP = 56
+        const val MAGNETIC_DETACH_THRESHOLD_DP = 72
 
         /** Re-attaching threshold in dp */
-        const val MAGNETIC_ATTACH_THRESHOLD_DP = 40
+        const val MAGNETIC_ATTACH_THRESHOLD_DP = 56
 
         /* An empty implementation of a manager */
         @JvmStatic
         val Empty: MagneticNotificationRowManager
             get() =
                 object : MagneticNotificationRowManager {
+                    override fun setInfoProvider(swipeInfoProvider: SwipeInfoProvider?) {}
+
                     override fun onDensityChange(density: Float) {}
 
                     override fun setMagneticAndRoundableTargets(
@@ -132,6 +159,7 @@ interface MagneticNotificationRowManager {
 
                     override fun onMagneticInteractionEnd(
                         row: ExpandableNotificationRow,
+                        dismissing: Boolean,
                         velocity: Float?,
                     ) {}
 
@@ -139,6 +167,8 @@ interface MagneticNotificationRowManager {
                         row: ExpandableNotificationRow,
                         endVelocity: Float,
                     ): Boolean = false
+
+                    override fun getDetachDirection(row: ExpandableNotificationRow): Int = 0
 
                     override fun resetRoundness() {}
 

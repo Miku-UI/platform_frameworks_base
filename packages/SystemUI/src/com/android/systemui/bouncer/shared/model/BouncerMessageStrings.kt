@@ -16,7 +16,9 @@
 
 package com.android.systemui.bouncer.shared.model
 
+import android.security.Flags.secureLockDevice
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
+import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Biometric
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Password
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pattern
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel.Pin
@@ -35,8 +37,21 @@ object BouncerMessageStrings {
 
     fun defaultMessage(
         securityMode: AuthenticationMethodModel,
-        fpAuthIsAllowed: Boolean
+        fpAuthIsAllowed: Boolean,
+        faceAuthIsAllowed: Boolean = false,
+        secureLockDeviceEnabled: Boolean = false,
     ): BouncerMessagePair {
+        if (secureLockDevice() && secureLockDeviceEnabled) {
+            return when (securityMode) {
+                Biometric ->
+                    authRequiredForSecureLockDeviceStrongBiometricAuth(
+                        fpAuthIsAllowed,
+                        faceAuthIsAllowed,
+                    )
+                else -> authRequiredForSecureLockDevicePrimaryAuth(securityMode)
+            }
+        }
+
         return when (securityMode) {
             Pattern -> Pair(patternDefaultMessage(fpAuthIsAllowed), 0)
             Password -> Pair(passwordDefaultMessage(fpAuthIsAllowed), 0)
@@ -47,8 +62,20 @@ object BouncerMessageStrings {
 
     fun incorrectSecurityInput(
         securityMode: AuthenticationMethodModel,
-        fpAuthIsAllowed: Boolean
+        fpAuthIsAllowed: Boolean,
+        secureLockDeviceEnabled: Boolean = false,
     ): BouncerMessagePair {
+        if (secureLockDevice() && secureLockDeviceEnabled) {
+            val secondaryMsgId: Int =
+                when (securityMode) {
+                    Pattern -> R.string.kg_wrong_pattern_try_again
+                    Password -> R.string.kg_wrong_password_try_again
+                    Pin -> R.string.kg_wrong_pin_try_again
+                    else -> 0
+                }
+            return Pair(R.string.kg_prompt_title_after_secure_lock_device, secondaryMsgId)
+        }
+
         val secondaryMessage = incorrectSecurityInputSecondaryMessage(fpAuthIsAllowed)
         return when (securityMode) {
             Pattern -> Pair(R.string.kg_wrong_pattern_try_again, secondaryMessage)
@@ -65,6 +92,7 @@ object BouncerMessageStrings {
     fun incorrectFingerprintInput(securityMode: AuthenticationMethodModel): BouncerMessagePair {
         val primaryMessage = R.string.kg_fp_not_recognized
         return when (securityMode) {
+            Biometric -> Pair(R.string.kg_prompt_title_after_secure_lock_device, primaryMessage)
             Pattern -> Pair(primaryMessage, R.string.kg_bio_try_again_or_pattern)
             Password -> Pair(primaryMessage, R.string.kg_bio_try_again_or_password)
             Pin -> Pair(primaryMessage, R.string.kg_bio_try_again_or_pin)
@@ -74,12 +102,13 @@ object BouncerMessageStrings {
 
     fun incorrectFaceInput(
         securityMode: AuthenticationMethodModel,
-        fpAuthIsAllowed: Boolean
+        fpAuthIsAllowed: Boolean,
     ): BouncerMessagePair {
         return if (fpAuthIsAllowed) incorrectFaceInputWithFingerprintAllowed(securityMode)
         else {
             val primaryMessage = R.string.bouncer_face_not_recognized
             when (securityMode) {
+                Biometric -> Pair(R.string.kg_prompt_title_after_secure_lock_device, primaryMessage)
                 Pattern -> Pair(primaryMessage, R.string.kg_bio_try_again_or_pattern)
                 Password -> Pair(primaryMessage, R.string.kg_bio_try_again_or_password)
                 Pin -> Pair(primaryMessage, R.string.kg_bio_try_again_or_pin)
@@ -93,6 +122,7 @@ object BouncerMessageStrings {
     ): BouncerMessagePair {
         val secondaryMsg = R.string.bouncer_face_not_recognized
         return when (securityMode) {
+            Biometric -> Pair(R.string.kg_prompt_title_after_secure_lock_device, secondaryMsg)
             Pattern -> Pair(patternDefaultMessage(true), secondaryMsg)
             Password -> Pair(passwordDefaultMessage(true), secondaryMsg)
             Pin -> Pair(pinDefaultMessage(true), secondaryMsg)
@@ -124,7 +154,7 @@ object BouncerMessageStrings {
 
     fun authRequiredAfterAdaptiveAuthRequest(
         securityMode: AuthenticationMethodModel,
-        fpAuthIsAllowed: Boolean
+        fpAuthIsAllowed: Boolean,
     ): BouncerMessagePair {
         val secondaryMsg = R.string.kg_prompt_after_adaptive_auth_lock
         return when (securityMode) {
@@ -144,6 +174,66 @@ object BouncerMessageStrings {
             Pin -> Pair(pinDefaultMessage(false), R.string.kg_prompt_after_user_lockdown_pin)
             else -> EmptyMessage
         }
+    }
+
+    fun authRequiredForSecureLockDevicePrimaryAuth(
+        securityMode: AuthenticationMethodModel
+    ): BouncerMessagePair {
+        return when (securityMode) {
+            Pattern ->
+                Pair(
+                    R.string.kg_prompt_title_after_secure_lock_device,
+                    patternDefaultMessage(false),
+                )
+            Password ->
+                Pair(
+                    R.string.kg_prompt_title_after_secure_lock_device,
+                    passwordDefaultMessage(false),
+                )
+            Pin -> Pair(R.string.kg_prompt_title_after_secure_lock_device, pinDefaultMessage(false))
+            else -> EmptyMessage
+        }
+    }
+
+    fun authRequiredForSecureLockDeviceStrongBiometricAuth(
+        isFingerprintAllowedOnBouncer: Boolean,
+        isFaceAllowedOnBouncer: Boolean,
+    ): BouncerMessagePair {
+        return if (isFingerprintAllowedOnBouncer && isFaceAllowedOnBouncer) {
+            Pair(
+                R.string.kg_prompt_title_after_secure_lock_device,
+                R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex,
+            )
+        } else if (isFingerprintAllowedOnBouncer) {
+            Pair(
+                R.string.kg_prompt_title_after_secure_lock_device,
+                R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint,
+            )
+        } else if (isFaceAllowedOnBouncer) {
+            Pair(
+                R.string.kg_prompt_title_after_secure_lock_device,
+                R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face,
+            )
+        } else EmptyMessage
+    }
+
+    // TODO(b/405120698): on adding confirm button, update to this bouncer message from
+    //  BouncerMessageInteractor (pre-flexiglass) or BouncerMessageViewModel (post-flexiglass)
+    fun pendingFaceAuthConfirmationForSecureLockDevice(): BouncerMessagePair {
+        return Pair(
+            R.string.kg_prompt_title_after_secure_lock_device,
+            R.string.keyguard_face_successful_unlock_confirm_button,
+        )
+    }
+
+    fun retryAuthenticationForSecureLockDevice(
+        fpAuthIsAllowed: Boolean,
+        faceAuthIsAllowed: Boolean,
+    ): BouncerMessagePair {
+        return authRequiredForSecureLockDeviceStrongBiometricAuth(
+            fpAuthIsAllowed,
+            faceAuthIsAllowed,
+        )
     }
 
     fun authRequiredForUnattendedUpdate(
@@ -182,7 +272,7 @@ object BouncerMessageStrings {
 
     fun nonStrongAuthTimeout(
         securityMode: AuthenticationMethodModel,
-        fpAuthIsAllowed: Boolean
+        fpAuthIsAllowed: Boolean,
     ): BouncerMessagePair {
         val secondaryMsg = R.string.kg_prompt_auth_timeout
         return when (securityMode) {
@@ -195,7 +285,7 @@ object BouncerMessageStrings {
 
     fun faceLockedOut(
         securityMode: AuthenticationMethodModel,
-        fpAuthIsAllowed: Boolean
+        fpAuthIsAllowed: Boolean,
     ): BouncerMessagePair {
         val secondaryMsg = R.string.kg_face_locked_out
         return when (securityMode) {
@@ -206,7 +296,19 @@ object BouncerMessageStrings {
         }
     }
 
-    fun class3AuthLockedOut(securityMode: AuthenticationMethodModel): BouncerMessagePair {
+    fun class3AuthLockedOut(
+        securityMode: AuthenticationMethodModel,
+        isSecureLockDeviceEnabled: Boolean = false,
+    ): BouncerMessagePair {
+        if (isSecureLockDeviceEnabled) {
+            val primaryResId = R.string.kg_prompt_title_after_secure_lock_device
+            return when (securityMode) {
+                Pattern -> Pair(primaryResId, R.string.kg_bio_too_many_attempts_pattern)
+                Password -> Pair(primaryResId, R.string.kg_bio_too_many_attempts_password)
+                Pin -> Pair(primaryResId, R.string.kg_bio_too_many_attempts_pin)
+                else -> EmptyMessage
+            }
+        }
         return when (securityMode) {
             Pattern -> Pair(patternDefaultMessage(false), R.string.kg_bio_too_many_attempts_pattern)
             Password ->
@@ -218,7 +320,7 @@ object BouncerMessageStrings {
 
     fun trustAgentDisabled(
         securityMode: AuthenticationMethodModel,
-        fpAuthIsAllowed: Boolean
+        fpAuthIsAllowed: Boolean,
     ): BouncerMessagePair {
         val secondaryMsg = R.string.kg_trust_agent_disabled
         return when (securityMode) {
@@ -234,17 +336,17 @@ object BouncerMessageStrings {
             Pattern ->
                 Pair(
                     R.string.kg_too_many_failed_attempts_countdown,
-                    R.string.kg_primary_auth_locked_out_pattern
+                    R.string.kg_primary_auth_locked_out_pattern,
                 )
             Password ->
                 Pair(
                     R.string.kg_too_many_failed_attempts_countdown,
-                    R.string.kg_primary_auth_locked_out_password
+                    R.string.kg_primary_auth_locked_out_password,
                 )
             Pin ->
                 Pair(
                     R.string.kg_too_many_failed_attempts_countdown,
-                    R.string.kg_primary_auth_locked_out_pin
+                    R.string.kg_primary_auth_locked_out_pin,
                 )
             else -> EmptyMessage
         }

@@ -52,7 +52,7 @@ import android.text.TextUtils;
 import android.util.Slog;
 import android.view.SurfaceControl;
 import android.view.SurfaceControlViewHost.SurfacePackage;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
@@ -855,47 +855,54 @@ final class GameServiceProviderInstanceImpl implements GameServiceProviderInstan
         final SurfacePackage overlaySurfacePackage = gameSessionRecord.getSurfacePackage();
         final SurfaceControl overlaySurfaceControl =
                 overlaySurfacePackage != null ? overlaySurfacePackage.getSurfaceControl() : null;
-        mBackgroundExecutor.execute(() -> {
-            final ScreenCapture.LayerCaptureArgs.Builder layerCaptureArgsBuilder =
-                    new ScreenCapture.LayerCaptureArgs.Builder(/* layer */ null);
-            if (overlaySurfaceControl != null) {
-                SurfaceControl[] excludeLayers = new SurfaceControl[1];
-                excludeLayers[0] = overlaySurfaceControl;
-                layerCaptureArgsBuilder.setExcludeLayers(excludeLayers);
-            }
-            final Bitmap bitmap = mWindowManagerService.captureTaskBitmap(taskId,
-                    layerCaptureArgsBuilder);
-            if (bitmap == null) {
-                Slog.w(TAG, "Could not get bitmap for id: " + taskId);
-                callback.complete(GameScreenshotResult.createInternalErrorResult());
-            } else {
-                final RunningTaskInfo runningTaskInfo =
-                        mGameTaskInfoProvider.getRunningTaskInfo(taskId);
-                if (runningTaskInfo == null) {
-                    Slog.w(TAG, "Could not get running task info for id: " + taskId);
-                    callback.complete(GameScreenshotResult.createInternalErrorResult());
-                }
-                final Rect crop = runningTaskInfo.configuration.windowConfiguration.getBounds();
-                final Consumer<Uri> completionConsumer = (uri) -> {
-                    if (uri == null) {
+        mBackgroundExecutor.execute(
+                () -> {
+                    final ScreenCaptureInternal.LayerCaptureArgs.Builder layerCaptureArgsBuilder =
+                            new ScreenCaptureInternal.LayerCaptureArgs.Builder(/* layer */ null);
+                    if (overlaySurfaceControl != null) {
+                        SurfaceControl[] excludeLayers = new SurfaceControl[1];
+                        excludeLayers[0] = overlaySurfaceControl;
+                        layerCaptureArgsBuilder.setExcludeLayers(excludeLayers);
+                    }
+                    final Bitmap bitmap =
+                            mWindowManagerService.captureTaskBitmap(
+                                    taskId, layerCaptureArgsBuilder);
+                    if (bitmap == null) {
+                        Slog.w(TAG, "Could not get bitmap for id: " + taskId);
                         callback.complete(GameScreenshotResult.createInternalErrorResult());
                     } else {
-                        callback.complete(GameScreenshotResult.createSuccessResult());
+                        final RunningTaskInfo runningTaskInfo =
+                                mGameTaskInfoProvider.getRunningTaskInfo(taskId);
+                        if (runningTaskInfo == null) {
+                            Slog.w(TAG, "Could not get running task info for id: " + taskId);
+                            callback.complete(GameScreenshotResult.createInternalErrorResult());
+                        }
+                        final Rect crop =
+                                runningTaskInfo.configuration.windowConfiguration.getBounds();
+                        final Consumer<Uri> completionConsumer =
+                                (uri) -> {
+                                    if (uri == null) {
+                                        callback.complete(
+                                                GameScreenshotResult.createInternalErrorResult());
+                                    } else {
+                                        callback.complete(
+                                                GameScreenshotResult.createSuccessResult());
+                                    }
+                                };
+                        ScreenshotRequest request =
+                                new ScreenshotRequest.Builder(
+                                                TAKE_SCREENSHOT_PROVIDED_IMAGE, SCREENSHOT_OTHER)
+                                        .setTopComponent(gameSessionRecord.getComponentName())
+                                        .setTaskId(taskId)
+                                        .setUserId(mUserHandle.getIdentifier())
+                                        .setBitmap(bitmap)
+                                        .setBoundsOnScreen(crop)
+                                        .setInsets(Insets.NONE)
+                                        .build();
+                        mScreenshotHelper.takeScreenshot(
+                                request, BackgroundThread.getHandler(), completionConsumer);
                     }
-                };
-                ScreenshotRequest request = new ScreenshotRequest.Builder(
-                        TAKE_SCREENSHOT_PROVIDED_IMAGE, SCREENSHOT_OTHER)
-                        .setTopComponent(gameSessionRecord.getComponentName())
-                        .setTaskId(taskId)
-                        .setUserId(mUserHandle.getIdentifier())
-                        .setBitmap(bitmap)
-                        .setBoundsOnScreen(crop)
-                        .setInsets(Insets.NONE)
-                        .build();
-                mScreenshotHelper.takeScreenshot(
-                        request, BackgroundThread.getHandler(), completionConsumer);
-            }
-        });
+                });
     }
 
     private void restartGame(int taskId) {

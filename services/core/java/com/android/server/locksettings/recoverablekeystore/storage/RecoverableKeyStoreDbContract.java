@@ -103,6 +103,11 @@ class RecoverableKeyStoreDbContract {
          * Number of invalid lockscreen credentials guess from a remote device.
          */
         static final String COLUMN_NAME_BAD_REMOTE_GUESS_COUNTER = "bad_remote_guess_counter";
+
+        /**
+         * Salt used to create previous keychain snapshot.
+         */
+        static final String COLUMN_NAME_LSKF_SALT = "lskf_salt";
     }
 
     /**

@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"ಈ ಟ್ಯಾಬ್ಲೆಟ್‌ನಲ್ಲಿ ಪ್ಲೇ ಮಾಡಲಾಗುತ್ತಿದೆ"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"ಪವರ್ ಆಫ್ ಆಗಿರುವಾಗಲೂ ನೀವು Find My Device ಮೂಲಕ ಈ ಫೋನ್ ಅನ್ನು ಪತ್ತೆ ಮಾಡಬಹುದು"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"ಪವರ್ ಆಫ್ ಆಗಿರುವಾಗಲೂ ನೀವು Find My Device ಮೂಲಕ ಈ ಟ್ಯಾಬ್ಲೆಟ್‌‌ ಅನ್ನು ಪತ್ತೆ ಮಾಡಬಹುದು"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"ಪವರ್ ಆಫ್ ಆಗಿದ್ದರೂ ಸಹ ನೀವು Find Hub ಮೂಲಕ ಈ ಫೋನ್ ಅನ್ನು ಪತ್ತೆ ಮಾಡಬಹುದು"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"ಪವರ್ ಆಫ್ ಆಗಿದ್ದರೂ ಸಹ ನೀವು Find Hub ಮೂಲಕ ಈ ಟ್ಯಾಬ್ಲೆಟ್ ಅನ್ನು ಪತ್ತೆ ಮಾಡಬಹುದು"</string>
 </resources>

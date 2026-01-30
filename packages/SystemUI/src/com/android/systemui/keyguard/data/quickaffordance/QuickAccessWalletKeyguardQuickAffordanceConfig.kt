@@ -26,7 +26,6 @@ import android.service.quickaccesswallet.WalletCard
 import android.util.Log
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.SysUISingleton
@@ -34,6 +33,7 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.wallet.controller.QuickAccessWalletController
 import com.android.systemui.wallet.util.getPaymentCards
 import javax.inject.Inject
@@ -117,6 +117,7 @@ constructor(
         return when {
             !walletController.walletClient.isWalletServiceAvailable ->
                 KeyguardQuickAffordanceConfig.PickerScreenState.UnavailableOnDevice
+
             !isWalletAvailable() ->
                 KeyguardQuickAffordanceConfig.PickerScreenState.Disabled(
                     explanation =
@@ -124,6 +125,7 @@ constructor(
                             R.string.wallet_quick_affordance_unavailable_install_the_app
                         )
                 )
+
             queryCards().isEmpty() ->
                 KeyguardQuickAffordanceConfig.PickerScreenState.Disabled(
                     explanation =
@@ -131,6 +133,7 @@ constructor(
                             R.string.wallet_quick_affordance_unavailable_configure_the_app
                         )
                 )
+
             else -> KeyguardQuickAffordanceConfig.PickerScreenState.Default()
         }
     }
@@ -181,14 +184,22 @@ constructor(
         tileIcon: Drawable?,
     ): KeyguardQuickAffordanceConfig.LockScreenState {
         return if (isFeatureEnabled && hasCard && tileIcon != null) {
-            KeyguardQuickAffordanceConfig.LockScreenState.Visible(
-                icon =
+            val drawable = tileIcon.constantState?.newDrawable()
+            val icon =
+                if (drawable != null) {
                     Icon.Loaded(
-                        drawable = tileIcon,
+                        drawable = drawable,
                         contentDescription =
                             ContentDescription.Resource(res = R.string.accessibility_wallet_button),
                     )
-            )
+                } else {
+                    Icon.Resource(
+                        resId = R.drawable.ic_wallet_lockscreen,
+                        contentDescription =
+                            ContentDescription.Resource(res = R.string.accessibility_wallet_button),
+                    )
+                }
+            KeyguardQuickAffordanceConfig.LockScreenState.Visible(icon = icon)
         } else {
             KeyguardQuickAffordanceConfig.LockScreenState.Hidden
         }

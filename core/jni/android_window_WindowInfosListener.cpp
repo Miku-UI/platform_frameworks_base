@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
 #define LOG_TAG "WindowInfosListener"
 
@@ -136,25 +135,30 @@ jlong nativeCreate(JNIEnv* env, jclass clazz, jobject obj) {
 }
 
 void destroyNativeService(void* ptr) {
-    WindowInfosListener* listener = reinterpret_cast<WindowInfosListener*>(ptr);
+    sp<WindowInfosListener> listener =
+            sp<WindowInfosListener>::fromExisting(reinterpret_cast<WindowInfosListener*>(ptr));
     SurfaceComposerClient::getDefault()->removeWindowInfosListener(listener);
     listener->decStrong((void*)nativeCreate);
 }
 
 jobject nativeRegister(JNIEnv* env, jclass clazz, jlong ptr) {
-    sp<WindowInfosListener> listener = reinterpret_cast<WindowInfosListener*>(ptr);
-    std::pair<std::vector<gui::WindowInfo>, std::vector<gui::DisplayInfo>> initialInfo;
-    SurfaceComposerClient::getDefault()->addWindowInfosListener(listener, &initialInfo);
+    sp<WindowInfosListener> listener =
+            sp<WindowInfosListener>::fromExisting(reinterpret_cast<WindowInfosListener*>(ptr));
+    android::base::Result<gui::WindowInfosUpdate> result =
+            SurfaceComposerClient::getDefault()->addWindowInfosListener(std::move(listener));
 
-    ScopedLocalRef<jobjectArray> jWindowHandlesArray(env, fromWindowInfos(env, initialInfo.first));
-    ScopedLocalRef<jobjectArray> jDisplayInfoArray(env, fromDisplayInfos(env, initialInfo.second));
+    ScopedLocalRef<jobjectArray> jWindowHandlesArray(env,
+                                                     fromWindowInfos(env, result->windowInfos));
+    ScopedLocalRef<jobjectArray> jDisplayInfoArray(env,
+                                                   fromDisplayInfos(env, result->displayInfos));
 
     return env->NewObject(gPairClassInfo.clazz, gPairClassInfo.ctor, jWindowHandlesArray.get(),
                           jDisplayInfoArray.get());
 }
 
 void nativeUnregister(JNIEnv* env, jclass clazz, jlong ptr) {
-    sp<WindowInfosListener> listener = reinterpret_cast<WindowInfosListener*>(ptr);
+    sp<WindowInfosListener> listener =
+            sp<WindowInfosListener>::fromExisting(reinterpret_cast<WindowInfosListener*>(ptr));
     SurfaceComposerClient::getDefault()->removeWindowInfosListener(listener);
 }
 

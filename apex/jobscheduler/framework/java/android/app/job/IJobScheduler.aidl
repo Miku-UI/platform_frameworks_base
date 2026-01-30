@@ -26,7 +26,7 @@ import java.util.Map;
 
  /**
   * IPC interface that supports the app-facing {@link #JobScheduler} api.
-  * {@hide}
+  * @hide
   */
 interface IJobScheduler {
     int schedule(String namespace, in JobInfo job);

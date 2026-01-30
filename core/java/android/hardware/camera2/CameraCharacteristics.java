@@ -19,6 +19,7 @@ package android.hardware.camera2;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.hardware.camera2.impl.CameraMetadataNative;
@@ -748,6 +749,142 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
         return mProperties.getPhysicalCameraIds();
     }
 
+    /**
+     * Builder class for creating {@link CameraCharacteristics} instances.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.companion.virtualdevice.flags.Flags.FLAG_VIRTUAL_CAMERA_METADATA)
+    public static final class Builder {
+        private final CameraMetadataNative mNativeMetadata;
+
+        /**
+         * Builder for creating {@link CameraCharacteristics}.
+         */
+        public Builder() {
+            mNativeMetadata = new CameraMetadataNative();
+        }
+
+        /**
+         * Builder for creating {@link CameraCharacteristics} starting from a copy of
+         * the passed characteristics.
+         */
+        public Builder(@NonNull CameraCharacteristics characteristics) {
+            mNativeMetadata = new CameraMetadataNative(characteristics.getNativeMetadata());
+        }
+
+        /**
+         * Sets a camera characteristics field to a value. The field definitions can be found in
+         * {@link CameraCharacteristics}.
+         *
+         * <p>Setting a field to {@code null} will remove that field from the camera
+         * characteristics.
+         * Unless the field is optional, removing it will likely produce an error from the camera
+         * device when the camera characteristics are set.</p>
+         *
+         * @param key   The metadata field to write.
+         * @param value The value to set the field to, which must be of a matching type to the key.
+         */
+        @SuppressLint("KotlinOperator")
+        @NonNull
+        public <T> Builder set(@NonNull CameraCharacteristics.Key<T> key, T value) {
+            mNativeMetadata.set(key, value);
+            return this;
+        }
+
+        /**
+         * Sets the {@link CameraCharacteristics.Key}s available for the
+         * {@link CameraCharacteristics}. Any key not listed here won't be queryable by the
+         * application using the configured camera.
+         */
+        @SuppressLint("MissingGetterMatchingBuilder") // the getter method is getKeys()
+        @NonNull
+        public Builder setAvailableCharacteristicsKeys(
+                @Nullable List<CameraCharacteristics.Key<?>> availableCharacteristicsKeys) {
+            int[] characteristicsTags = null;
+            if (availableCharacteristicsKeys != null) {
+                characteristicsTags = new int[availableCharacteristicsKeys.size()];
+                for (int i = 0; i < availableCharacteristicsKeys.size(); i++) {
+                    characteristicsTags[i] =
+                            availableCharacteristicsKeys.get(i).getNativeKey().getTag();
+                }
+            }
+            mNativeMetadata.set(CameraCharacteristics.REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
+                    characteristicsTags);
+
+            return this;
+        }
+
+        /**
+         * Sets the {@link CaptureRequest.Key}s available for the {@link CaptureRequest}.
+         */
+        @NonNull
+        public Builder setAvailableCaptureRequestKeys(
+                @Nullable List<CaptureRequest.Key<?>> availableCaptureRequestKeys) {
+            int[] captureRequestTags = null;
+            if (availableCaptureRequestKeys != null) {
+                captureRequestTags = new int[availableCaptureRequestKeys.size()];
+                for (int i = 0; i < availableCaptureRequestKeys.size(); i++) {
+                    captureRequestTags[i] =
+                            availableCaptureRequestKeys.get(i).getNativeKey().getTag();
+                }
+            }
+            mNativeMetadata.set(CameraCharacteristics.REQUEST_AVAILABLE_REQUEST_KEYS,
+                    captureRequestTags);
+
+            return this;
+        }
+
+        /**
+         * Sets the {@link CaptureResult.Key}s available for the {@link CaptureResult}.
+         */
+        @NonNull
+        public Builder setAvailableCaptureResultKeys(
+                @Nullable List<CaptureResult.Key<?>> availableCaptureResultKeys) {
+            int[] captureResultTags = null;
+            if (availableCaptureResultKeys != null) {
+                captureResultTags = new int[availableCaptureResultKeys.size()];
+                for (int i = 0; i < availableCaptureResultKeys.size(); i++) {
+                    captureResultTags[i] =
+                            availableCaptureResultKeys.get(i).getNativeKey().getTag();
+                }
+            }
+            mNativeMetadata.set(CameraCharacteristics.REQUEST_AVAILABLE_RESULT_KEYS,
+                    captureResultTags);
+
+            return this;
+        }
+
+        /**
+         * Sets the {@link CaptureRequest.Key}s available for the {@link SessionConfiguration}.
+         */
+        @NonNull
+        public Builder setAvailableSessionKeys(
+                @Nullable List<CaptureRequest.Key<?>> availableSessionKeys) {
+            int[] sessionTags = null;
+            if (availableSessionKeys != null) {
+                sessionTags = new int[availableSessionKeys.size()];
+                for (int i = 0; i < availableSessionKeys.size(); i++) {
+                    sessionTags[i] = availableSessionKeys.get(i).getNativeKey().getTag();
+                }
+            }
+            mNativeMetadata.set(CameraCharacteristics.REQUEST_AVAILABLE_SESSION_KEYS, sessionTags);
+
+            return this;
+        }
+
+        /**
+         * Builds the {@link CameraCharacteristics} object with the set
+         * {@link CameraCharacteristics.Key}s.
+         *
+         * @return A new {@link CameraCharacteristics} instance.
+         */
+        public @NonNull CameraCharacteristics build() {
+            return new CameraCharacteristics(mNativeMetadata);
+        }
+    }
+
     /*@O~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~@~
      * The key entries below this point are generated from metadata
      * definitions in /system/media/camera/docs. Do not modify by hand or
@@ -1431,7 +1568,6 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
      */
     @PublicKey
     @NonNull
-    @FlaggedApi(Flags.FLAG_CAMERA_AE_MODE_LOW_LIGHT_BOOST)
     public static final Key<android.util.Range<Float>> CONTROL_LOW_LIGHT_BOOST_INFO_LUMINANCE_RANGE =
             new Key<android.util.Range<Float>>("android.control.lowLightBoostInfoLuminanceRange", new TypeReference<android.util.Range<Float>>() {{ }});
 
@@ -1687,10 +1823,9 @@ public final class CameraCharacteristics extends CameraMetadata<CameraCharacteri
     /**
      * <p>List of focal lengths for {@link CaptureRequest#LENS_FOCAL_LENGTH android.lens.focalLength} that are supported by this camera
      * device.</p>
-     * <p>If optical zoom is not supported, this list will only contain
-     * a single value corresponding to the fixed focal length of the
-     * device. Otherwise, this list will include every focal length supported
-     * by the camera device, in ascending order.</p>
+     * <p>In most cases this list will only contain a single value corresponding
+     * to the fixed focal length of the device. Otherwise, this list will include
+     * every focal length supported by the camera device, in ascending order.</p>
      * <p><b>Units</b>: Millimeters</p>
      * <p><b>Range of valid values:</b><br></p>
      * <p>Values are &gt; 0</p>

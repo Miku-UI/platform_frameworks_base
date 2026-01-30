@@ -133,7 +133,11 @@ public class DragSession {
         // TODO: This should technically check & respect config_supportsNonResizableMultiWindow
         dragItemSupportsSplitscreen = activityInfo == null
                 || ActivityInfo.isResizeableMode(activityInfo.resizeMode);
-        appData = mInitialDragData.getItemAt(0).getIntent();
-        launchableIntent = DragUtils.getLaunchIntent(mInitialDragData, mInitialDragFlags);
+        appData = DragUtils.isAppDrag(getClipDescription())
+                ? mInitialDragData.getItemAt(0).getIntent()
+                : null;
+        launchableIntent = appData != null
+                ? null
+                : DragUtils.getLaunchIntent(mInitialDragData, mInitialDragFlags);
     }
 }

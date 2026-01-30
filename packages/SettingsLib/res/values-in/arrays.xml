@@ -297,7 +297,7 @@
   <string-array name="shade_display_awareness_summaries">
     <item msgid="2964753205732912921">"Tampilkan shade hanya di layar perangkat"</item>
     <item msgid="1955398604822147783">"Tampilkan menu di satu layar eksternal"</item>
-    <item msgid="391477482416751568">"Tampilkan menu di layar yang terakhir kali berinteraksi dengan status bar-nya"</item>
+    <item msgid="391477482416751568">"Tampilkan menu di layar yang status bar-nya terakhir kali memperoleh interaksi"</item>
     <item msgid="1746820128097981528">"Tampilkan menu di layar yang terakhir difokuskan"</item>
   </string-array>
   <string-array name="shade_display_awareness_values">

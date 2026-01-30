@@ -120,10 +120,8 @@ public class DisplayInsetsControllerTest extends ShellTestCase {
                 WindowInsets.Type.defaultVisible());
         mInsetsControllersByDisplayId.get(DEFAULT_DISPLAY).insetsChanged(null);
         mInsetsControllersByDisplayId.get(DEFAULT_DISPLAY).insetsControlChanged(null, null);
-        mInsetsControllersByDisplayId.get(DEFAULT_DISPLAY).showInsets(0, false,
-                ImeTracker.Token.empty());
-        mInsetsControllersByDisplayId.get(DEFAULT_DISPLAY).hideInsets(0, false,
-                ImeTracker.Token.empty());
+        mInsetsControllersByDisplayId.get(DEFAULT_DISPLAY).showInsets(0, ImeTracker.Token.empty());
+        mInsetsControllersByDisplayId.get(DEFAULT_DISPLAY).hideInsets(0, ImeTracker.Token.empty());
         mExecutor.flushAll();
 
         assertTrue(defaultListener.topFocusedWindowChangedCount == 1);
@@ -142,10 +140,8 @@ public class DisplayInsetsControllerTest extends ShellTestCase {
                 WindowInsets.Type.defaultVisible());
         mInsetsControllersByDisplayId.get(SECOND_DISPLAY).insetsChanged(null);
         mInsetsControllersByDisplayId.get(SECOND_DISPLAY).insetsControlChanged(null, null);
-        mInsetsControllersByDisplayId.get(SECOND_DISPLAY).showInsets(0, false,
-                ImeTracker.Token.empty());
-        mInsetsControllersByDisplayId.get(SECOND_DISPLAY).hideInsets(0, false,
-                ImeTracker.Token.empty());
+        mInsetsControllersByDisplayId.get(SECOND_DISPLAY).showInsets(0, ImeTracker.Token.empty());
+        mInsetsControllersByDisplayId.get(SECOND_DISPLAY).hideInsets(0, ImeTracker.Token.empty());
         mExecutor.flushAll();
 
         assertTrue(defaultListener.topFocusedWindowChangedCount == 1);
@@ -217,12 +213,12 @@ public class DisplayInsetsControllerTest extends ShellTestCase {
         }
 
         @Override
-        public void showInsets(int types, boolean fromIme, @Nullable ImeTracker.Token statsToken) {
+        public void showInsets(int types, @Nullable ImeTracker.Token statsToken) {
             showInsetsCount++;
         }
 
         @Override
-        public void hideInsets(int types, boolean fromIme, @Nullable ImeTracker.Token statsToken) {
+        public void hideInsets(int types, @Nullable ImeTracker.Token statsToken) {
             hideInsetsCount++;
         }
     }

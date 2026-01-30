@@ -64,7 +64,6 @@ import com.android.internal.logging.UiEventLogger;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.settingslib.Utils;
 import com.android.settingslib.fuelgauge.BatterySaverUtils;
-import com.android.systemui.SystemUIApplication;
 import com.android.systemui.animation.DialogCuj;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.Expandable;
@@ -73,6 +72,7 @@ import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.res.R;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.statusbar.notification.NotificationUtils;
 import com.android.systemui.statusbar.phone.SystemUIDialog;
 import com.android.systemui.statusbar.policy.BatteryController;
 import com.android.systemui.util.NotificationChannels;
@@ -288,7 +288,7 @@ public class PowerNotificationWarnings implements PowerUI.WarningsUI {
                         .setContentText(mContext.getString(R.string.invalid_charger_text))
                         .setColor(mContext.getColor(
                                 com.android.internal.R.color.system_notification_accent_color));
-        SystemUIApplication.overrideNotificationAppName(mContext, nb, false);
+        NotificationUtils.overrideNotificationAppName(mContext, nb, false);
         final Notification n = nb.build();
         mNoMan.cancelAsUser(TAG_BATTERY, SystemMessage.NOTE_POWER_LOW, UserHandle.ALL);
         mNoMan.notifyAsUser(TAG_BATTERY, SystemMessage.NOTE_BAD_CHARGER, n, UserHandle.ALL);
@@ -337,7 +337,7 @@ public class PowerNotificationWarnings implements PowerUI.WarningsUI {
         }
         nb.setOnlyAlertOnce(!mPlaySound);
         mPlaySound = false;
-        SystemUIApplication.overrideNotificationAppName(mContext, nb, false);
+        NotificationUtils.overrideNotificationAppName(mContext, nb, false);
         final Notification n = nb.build();
         mNoMan.cancelAsUser(TAG_BATTERY, SystemMessage.NOTE_BAD_CHARGER, UserHandle.ALL);
         mNoMan.notifyAsUser(TAG_BATTERY, SystemMessage.NOTE_POWER_LOW, n, UserHandle.ALL);
@@ -375,7 +375,7 @@ public class PowerNotificationWarnings implements PowerUI.WarningsUI {
                 mContext.getString(R.string.no_auto_saver_action),
                 pendingBroadcast(ACTION_AUTO_SAVER_NO_THANKS));
 
-        SystemUIApplication.overrideNotificationAppName(mContext, nb, false);
+        NotificationUtils.overrideNotificationAppName(mContext, nb, false);
 
         final Notification n = nb.build();
         mNoMan.notifyAsUser(
@@ -444,7 +444,7 @@ public class PowerNotificationWarnings implements PowerUI.WarningsUI {
                         .setDeleteIntent(pendingBroadcast(ACTION_DISMISSED_TEMP_WARNING))
                         .setColor(Utils.getColorAttrDefaultColor(mContext,
                                 android.R.attr.colorError));
-        SystemUIApplication.overrideNotificationAppName(mContext, nb, false);
+        NotificationUtils.overrideNotificationAppName(mContext, nb, false);
         final Notification n = nb.build();
         mNoMan.notifyAsUser(TAG_TEMPERATURE, SystemMessage.NOTE_HIGH_TEMP, n, UserHandle.ALL);
     }
@@ -531,7 +531,7 @@ public class PowerNotificationWarnings implements PowerUI.WarningsUI {
                                 pendingBroadcast(ACTION_DISMISSED_THERMAL_SHUTDOWN_WARNING))
                         .setColor(Utils.getColorAttrDefaultColor(mContext,
                                 android.R.attr.colorError));
-        SystemUIApplication.overrideNotificationAppName(mContext, nb, false);
+        NotificationUtils.overrideNotificationAppName(mContext, nb, false);
         final Notification n = nb.build();
         mNoMan.notifyAsUser(
                 TAG_TEMPERATURE, SystemMessage.NOTE_THERMAL_SHUTDOWN, n, UserHandle.ALL);
@@ -547,7 +547,7 @@ public class PowerNotificationWarnings implements PowerUI.WarningsUI {
             return;
         }
 
-        final SystemUIDialog d = new SystemUIDialog(mContext, R.style.Theme_SystemUI_Dialog_Alert);
+        final SystemUIDialog d = mSystemUIDialogFactory.create();
         d.setCancelable(false);
         d.setIconAttribute(android.R.attr.alertDialogIcon);
         d.setTitle(R.string.high_temp_alarm_title);

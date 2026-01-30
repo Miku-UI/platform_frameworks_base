@@ -32,19 +32,12 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class DozingToGoneTransitionViewModel
 @Inject
-constructor(
-    animationFlow: KeyguardTransitionAnimationFlow,
-) : DeviceEntryIconTransition {
+constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTransition {
 
     private val transitionAnimation =
         animationFlow
-            .setup(
-                duration = TO_GONE_DURATION,
-                edge = Edge.create(from = DOZING, to = Scenes.Gone),
-            )
-            .setupWithoutSceneContainer(
-                edge = Edge.create(from = DOZING, to = GONE),
-            )
+            .setup(duration = TO_GONE_DURATION, edge = Edge.create(from = DOZING, to = Scenes.Gone))
+            .setupWithoutSceneContainer(edge = Edge.create(from = DOZING, to = GONE))
 
     fun lockscreenAlpha(viewState: ViewStateAccessor): Flow<Float> {
         return transitionAnimation.sharedFlow(
@@ -53,6 +46,14 @@ constructor(
             onStep = { 0f },
         )
     }
+
+    val nonAuthUIAlpha: Flow<Float> =
+        transitionAnimation.sharedFlow(
+            duration = TO_GONE_DURATION,
+            onStep = { null },
+            onCancel = { 1f },
+            onFinish = { 1f },
+        )
 
     override val deviceEntryParentViewAlpha: Flow<Float> =
         transitionAnimation.immediatelyTransitionTo(0f)

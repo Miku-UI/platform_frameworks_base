@@ -18,7 +18,7 @@ package android.content.pm;
 
 import android.content.Intent;
 
-/** {@hide} */
+/** @hide */
 oneway interface IPackageDeleteObserver2 {
     void onUserActionRequired(in Intent intent);
     @UnsupportedAppUsage

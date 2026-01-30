@@ -509,6 +509,8 @@ public class PackageInfo implements Parcelable {
     @Nullable
     private String mApexPackageName;
 
+    private boolean mIsAppMetadataVerified;
+
     public PackageInfo() {
     }
 
@@ -563,6 +565,22 @@ public class PackageInfo implements Parcelable {
      */
     public void setApexPackageName(@Nullable String apexPackageName) {
         mApexPackageName = apexPackageName;
+    }
+
+    /**
+     * Returns the verification status of the App Metadata of the package. This status is set at the
+     * package installation time by the developer verification service provider.
+     */
+    @FlaggedApi(android.content.pm.Flags.FLAG_VERIFICATION_SERVICE)
+    public boolean isAppMetadataVerified() {
+        return mIsAppMetadataVerified;
+    }
+
+    /**
+     * @hide
+     */
+    public void setIsAppMetadataVerified(boolean isVerified) {
+        mIsAppMetadataVerified = isVerified;
     }
 
     @Override
@@ -639,6 +657,7 @@ public class PackageInfo implements Parcelable {
         } else {
             dest.writeInt(0);
         }
+        dest.writeBoolean(mIsAppMetadataVerified);
         dest.restoreAllowSquashing(prevAllowSquashing);
     }
 
@@ -709,5 +728,6 @@ public class PackageInfo implements Parcelable {
         if (hasApexPackageName != 0) {
             mApexPackageName = source.readString8();
         }
+        mIsAppMetadataVerified = source.readBoolean();
     }
 }

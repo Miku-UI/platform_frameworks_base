@@ -19,14 +19,18 @@ package com.android.systemui.qs
 import android.content.res.Configuration
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.FlagsParameterization
+import android.testing.TestableLooper.RunWithLooper
 import android.view.ContextThemeWrapper
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import android.view.ViewTreeObserver
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
 import com.android.internal.logging.testing.UiEventLoggerFake
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.haptics.qs.QSLongPressEffect
 import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
 import com.android.systemui.media.controls.ui.view.MediaHost
@@ -35,11 +39,13 @@ import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.qs.customize.QSCustomizerController
 import com.android.systemui.qs.logging.QSLogger
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener
 import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController
 import com.android.systemui.util.leak.RotationUtils
 import javax.inject.Provider
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
@@ -53,10 +59,13 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.MockitoAnnotations
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 @SmallTest
-@RunWith(AndroidJUnit4::class)
-class QuickQSPanelControllerTest : SysuiTestCase() {
+@RunWith(ParameterizedAndroidJunit4::class)
+@RunWithLooper(setAsMainLooper = true)
+class QuickQSPanelControllerTest(flags: FlagsParameterization) : SysuiTestCase() {
 
     @Mock private lateinit var quickQSPanel: QuickQSPanel
     @Mock private lateinit var qsHost: QSHost
@@ -71,6 +80,7 @@ class QuickQSPanelControllerTest : SysuiTestCase() {
     @Mock private lateinit var longPressEffectProvider: Provider<QSLongPressEffect>
     @Mock private lateinit var mediaCarouselInteractor: MediaCarouselInteractor
     @Mock private lateinit var configurationController: ConfigurationController
+    @Mock private lateinit var mockViewTreeObserver: ViewTreeObserver
 
     private val usingMediaPlayer: Boolean
         get() = false
@@ -82,6 +92,18 @@ class QuickQSPanelControllerTest : SysuiTestCase() {
 
     private lateinit var controller: TestQuickQSPanelController
 
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return FlagsParameterization.allCombinationsOf().andSceneContainer()
+        }
+    }
+
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
+
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
@@ -92,6 +114,16 @@ class QuickQSPanelControllerTest : SysuiTestCase() {
         whenever(quickQSPanel.resources).thenReturn(mContext.resources)
         whenever(quickQSPanel.context)
             .thenReturn(ContextThemeWrapper(context, R.style.Theme_SystemUI_QuickSettings))
+
+        // When SceneContainerFlag is enabled, QSPanelControllerBase.onInit calls
+        // registerForMediaInteractorChanges. This in turn calls JavaAdapterKt.collectFlow,
+        // which requires specific mocks for MediaCarouselInteractor and the View's
+        // ViewTreeObserver to prevent NullPointerExceptions during test setup.
+        if (SceneContainerFlag.isEnabled) {
+            whenever(mediaCarouselInteractor.hasActiveMedia).thenReturn(MutableStateFlow(false))
+            whenever(quickQSPanel.viewTreeObserver).thenReturn(mockViewTreeObserver)
+            whenever(mockViewTreeObserver.isAlive).thenReturn(true)
+        }
 
         controller =
             TestQuickQSPanelController(
@@ -141,6 +173,7 @@ class QuickQSPanelControllerTest : SysuiTestCase() {
 
     @Test
     @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
+    @DisableSceneContainer
     fun mediaExpansion_afterConfigChange_inLandscape_collapsedInLandscapeTrue_updatesToCollapsed_old() {
         verify(quickQSPanel).addOnConfigurationChangedListener(captor.capture())
 
@@ -157,6 +190,7 @@ class QuickQSPanelControllerTest : SysuiTestCase() {
 
     @Test
     @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
+    @DisableSceneContainer
     fun mediaExpansion_afterConfigChange_inLandscape_collapsedInLandscapeTrue_updatesToCollapsed() {
         verify(configurationController).addCallback(configCaptor.capture())
 
@@ -173,6 +207,7 @@ class QuickQSPanelControllerTest : SysuiTestCase() {
 
     @Test
     @DisableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
+    @DisableSceneContainer
     fun mediaExpansion_afterConfigChange_landscape_collapsedInLandscapeFalse_remainsExpanded_old() {
         verify(quickQSPanel).addOnConfigurationChangedListener(captor.capture())
         reset(mediaHost)
@@ -186,6 +221,7 @@ class QuickQSPanelControllerTest : SysuiTestCase() {
 
     @Test
     @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
+    @DisableSceneContainer
     fun mediaExpansion_afterConfigChange_landscape_collapsedInLandscapeFalse_remainsExpanded() {
         verify(configurationController).addCallback(configCaptor.capture())
         reset(mediaHost)

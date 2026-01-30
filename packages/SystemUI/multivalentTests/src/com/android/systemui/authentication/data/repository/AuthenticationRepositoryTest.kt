@@ -19,14 +19,18 @@ package com.android.systemui.authentication.data.repository
 import android.app.admin.DevicePolicyManager
 import android.content.Intent
 import android.content.pm.UserInfo
+import android.platform.test.annotations.EnableFlags
+import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.widget.LockPatternUtils
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
 import com.android.keyguard.KeyguardSecurityModel
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fake
@@ -46,7 +50,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Mock
+import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.never
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -111,6 +117,13 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
             mobileConnectionsRepository.fake.isAnySimSecure.value = true
             assertThat(authMethod).isEqualTo(AuthenticationMethodModel.Sim)
             assertThat(underTest.getAuthenticationMethod()).isEqualTo(AuthenticationMethodModel.Sim)
+
+            setSecurityModeAndDispatchBroadcast(
+                KeyguardSecurityModel.SecurityMode.SecureLockDeviceBiometricAuth
+            )
+            assertThat(authMethod).isEqualTo(AuthenticationMethodModel.Biometric)
+            assertThat(underTest.getAuthenticationMethod())
+                .isEqualTo(AuthenticationMethodModel.Biometric)
         }
 
     @Test
@@ -194,6 +207,19 @@ class AuthenticationRepositoryTest : SysuiTestCase() {
 
             underTest.reportAuthenticationAttempt(isSuccessful = true)
             assertThat(hasLockoutOccurred).isFalse()
+        }
+
+    @EnableSceneContainer
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun doesNotReportUnlock_afterPrimaryAuthInSecureLockDevice() =
+        testScope.runTest {
+            whenever(lockPatternUtils.getStrongAuthForUser(anyInt()))
+                .thenReturn(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE)
+
+            underTest.reportAuthenticationAttempt(true)
+            verify(lockPatternUtils, never()).userPresent(anyInt())
+            verify(lockPatternUtils, never()).reportSuccessfulPasswordAttempt(anyInt())
         }
 
     private fun setSecurityModeAndDispatchBroadcast(

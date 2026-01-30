@@ -71,9 +71,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"Nummervisning er begrenset som standard. Neste anrop: Ikke begrenset"</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"Nummervisning er ikke begrenset som standard. Neste anrop: Begrenset"</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"Nummervisning er ikke begrenset som standard. Neste anrop: Ikke begrenset"</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"Denne appen er ikke kompatibel med 16 kB. Kontrollen av APK-justering mislyktes. Denne appen kjøres i modus for sideformatkompatibilitet. For å få best mulig kompatibilitet bør du kompilere appen på nytt med støtte for 16 kB. Du finner mer informasjon på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"Denne appen er ikke kompatibel med 16 kB. Kontrollen av ELF-justering mislyktes. Denne appen kjøres i modus for sideformatkompatibilitet. For å få best mulig kompatibilitet bør du kompilere appen på nytt med støtte for 16 kB. Du finner mer informasjon på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"Denne appen er ikke kompatibel med 16 kB. APK- og ELF-justeringskontrollene mislyktes. Denne appen kjøres i modus for sideformatkompatibilitet. For å få best mulig kompatibilitet bør du kompilere appen på nytt med støtte for 16 kB. Du finner mer informasjon på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"Denne appen er ikke kompatibel med 16 kB. Kontrollen av APK-innretting mislyktes. Denne appen kjøres i modus for sideformatkompatibilitet. For å få best mulig kompatibilitet bør du kompilere appen på nytt med støtte for 16 kB. Du finner mer informasjon på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Følgende biblioteker er ikke innrettet med 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"Denne appen er ikke kompatibel med 16 kB. Kontrollen av ELF-innretting mislyktes. Denne appen kjøres i modus for sideformatkompatibilitet. For å få best mulig kompatibilitet bør du kompilere appen på nytt med støtte for 16 kB. Du finner mer informasjon på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Følgende biblioteker er ikke innrettet med 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"Denne appen er ikke kompatibel med 16 kB. APK- og ELF-justeringskontrollene mislyktes. Denne appen kjøres i modus for sideformatkompatibilitet. For å få best mulig kompatibilitet bør du kompilere appen på nytt med støtte for 16 kB. Du finner mer informasjon på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Følgende biblioteker er ikke innrettet med 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"Denne advarselen vises fordi dette er en app som kan feilsøkes, og som testes. Hvis du ikke er utvikleren, kan du rapportere dette til utvikleren og be om en app som ikke er feilsøkbar. &lt;br&gt;&lt;br&gt; Denne appen er ikke kompatibel med 16 kB. Kontrollen av APK-innretting mislyktes. Følg fremgangsmåten på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Følgende biblioteker er ikke innrettet med 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Denne advarselen vises fordi dette er en app som kan feilsøkes, og som testes. Hvis du ikke er utvikleren, kan du rapportere dette til utvikleren og be om en app som ikke er feilsøkbar. &lt;br&gt;&lt;br&gt; Denne appen er ikke kompatibel med 16 kB. Kontrollen av ELF-innretting mislyktes. Følg fremgangsmåten på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Følgende biblioteker er ikke innrettet med 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"Denne advarselen vises fordi dette er en app som kan feilsøkes, og som testes. Hvis du ikke er utvikleren, kan du rapportere dette til utvikleren og be om en app som ikke er feilsøkbar. &lt;br&gt;&lt;br&gt; Denne appen er ikke kompatibel med 16 kB. APK- og ELF-justeringskontrollene mislyktes. Følg fremgangsmåten på &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Følgende biblioteker er ikke innrettet med 16 kB: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"Ikke vis igjen"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Kompatibilitet med Android-apper"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s : LOAD-segmentet er ikke innrettet&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : Det ukomprimerte biblioteket er ikke innrettet&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s : LOAD-segmentet og det ukomprimerte biblioteket er ikke innrettet&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : Ukjent feil&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"SIM-kortet er ikke tilrettelagt for tjenesten."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"Du kan ikke endre innstillingen for anrops-ID."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"Byttet data til <xliff:g id="CARRIERDISPLAY">%s</xliff:g>"</string>
@@ -160,8 +169,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"Sikkerhet for mobilnettverk"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"Kryptering, varsler for ukrypterte nettverk"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"Enhets-ID-en er lest"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerte et nettverk i nærheten enhetens unike ID (IMSI eller IMEI) mens du brukte <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>-SIM-kortet"</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerte et nettverk i nærheten den unike ID-en (IMSI eller IMEI) til enheten din mens du brukte SIM-kortet fra <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>.\n\nDette betyr at posisjonen, aktiviteten eller identiteten din er registrert. Dette er en vanlig praksis, men kan være et problem for folk som er opptatt av personvern."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerte et nettverk i nærheten den unike ID-en (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>) til enheten din mens du brukte <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-kortet"</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerte et nettverk i nærheten den unike ID-en til enheten din mens du brukte <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-kortet"</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerte et nettverk i nærheten den unike ID-en (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>) til enheten din mens du brukte <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-kortet.\n\nDette betyr at posisjonen, aktiviteten eller identiteten din er registrert. Dette er en vanlig praksis, men kan være et problem for folk som er opptatt av personvern."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> registrerte et nettverk i nærheten den unike ID-en til enheten din mens du brukte <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-kortet.\n\nDette betyr at posisjonen, aktiviteten eller identiteten din er registrert. Dette er en vanlig praksis, men kan være et problem for folk som er opptatt av personvern."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"Koblet til det krypterte nettverket <xliff:g id="NETWORK_NAME">%1$s</xliff:g>"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"Tilkoblingen til SIM-kortet fra <xliff:g id="NETWORK_NAME">%1$s</xliff:g> er sikrere nå"</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"Koblet til et ukryptert nettverk"</string>
@@ -289,6 +300,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"Hjelp"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"Talehjelp"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"Låsing"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"Lås"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"999+"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"Svar"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"Nytt varsel"</string>
@@ -324,8 +336,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"Bytt til jobbprofil"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"Bytt til <xliff:g id="APP_NAME">%1$s</xliff:g> for personlig bruk"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Bytt til <xliff:g id="APP_NAME">%1$s</xliff:g> for jobb"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"Kontakter"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"se kontaktene dine"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"Kontakter og kontoer"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"åpne kontaktene dine og se listen over kontoene dine som kan lagre kontakter på denne enheten"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Posisjon"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"få tilgang til enhetens plassering"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Kalender"</string>
@@ -354,10 +366,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"få tilgang til sensordata om de vitale tegnene dine"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"Varsler"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"vise varsler"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"XR-sporingsdata"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"lese XR-data om deg og omgivelsene dine"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"sensitive XR-sporingsdata"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"lese sensitive sporingsdata, for eksempel øyebevegelser"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"Øyesporingsdata"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"spore øyebevegelser nøyaktig"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"Bevegelses- og områdedata"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"spore øyne, ansikt og kropp og skanne området"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"Nøyaktige bevegelses- og områdedata"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"skann området nøyaktig og spor hodet"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"hente innhold i vinduer"</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"Appen analyserer innholdet i vinduer du samhandler med."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"slå på berøringsutforsking"</string>
@@ -382,6 +396,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"Lar appen utvide eller skjule statuslinjen."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"vis varsler som aktiviteter i fullskjerm på en låst enhet"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"Gir appen tillatelse til å vise varsler som aktiviteter i fullskjerm på en låst enhet"</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"Vis direkteoppdateringer"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"Lar appen vise pågående, tidssensitive varsler i statusfeltet og på låseskjermen"</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"installere snarveier"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"Lar appen legge til snarveier på startsiden uten å involvere brukeren."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"avinstallere snarveier"</string>
@@ -623,6 +639,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"tillate at appen fastslår den relative posisjonen mellom enheter i nærheten som bruker ultrabredbånd"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"samhandle med wifi-enheter i nærheten"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Lar appen annonsere, koble til og fastslå den relative posisjonen til wifi-enheter i nærheten"</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"bruke enheter på det lokale nettverket"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"Gir appen tilgang til enheter på det lokale nettverket"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"Relativ posisjon mellom enheter i nærheten"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Tillat at appen avgjør den relative posisjonen mellom enheter i nærheten"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Informasjon om prioritert NFC-betalingstjeneste"</string>
@@ -653,27 +671,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"Lar appen gjøre endringer i bildesamlingen din."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"lese posisjoner fra mediesamlingen din"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"Lar appen lese posisjoner fra mediesamlingen din."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"spore omtrentlige øyebevegelser"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"Lar appen spore de omtrentlige øyebevegelsene dine."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"spore hvor du ser"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"Gir appen tilgang til nøyaktige data om øyebevegelser."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"spore ansiktet ditt"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"Gir appen tilgang til data for ansiktssporing."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"spore hendene dine"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"Gir appen tilgang til data for håndsporing."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"spore hodet ditt"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"Gir appen tilgang til data for hodesporing."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"forstå omgivelsene like rundt deg"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"Gir appen tilgang til sporingsdata om omgivelsene like rundt deg."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"forstå omgivelsene like rundt deg med høyt detaljnivå"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"Gir appen tilgang til sporingsdata om omgivelsene like rundt deg med svært høyt detaljnivå."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"bruke XR-data når appen ikke er i forgrunnen"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"Gir appen tilgang til XR-data når den ikke er i forgrunnen."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"spore øyebevegelser"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"Lar appen spore omtrent i hvilken retning du ser."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"spore øyebevegelser nøyaktig"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"Lar appen spore i hvilken retning du ser."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"spore ansiktsbevegelser"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"Lar appen spore ansiktsbevegelsene og -uttrykkene dine."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"spore håndbevegelser"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"Lar appen spore håndbevegelsene dine."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"spore hodebevegelser"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"Lar appen spore hodebevegelsene dine."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"skanne området rundt deg"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"Lar appen skanne omgivelsene dine."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"skanne området rundt deg nøyaktig"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"Lar appen skanne omgivelsene dine nøyaktig."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"bruk XR-sporing i bakgrunnen"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"Gir appen tilgang til XR-data i bakgrunnen."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"registrer taster"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"Lar appen registrere taster før systemet kan behandle systemhurtigtaster og -handlinger."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"Bruk biometri"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"Bruk biometri eller skjermlås"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"Bekreft at det er deg"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"Bruk biometri for å fortsette"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"Bruk biometri eller skjermlåsen for å fortsette"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"Bekreft at det er deg, på telefonen for å fortsette"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"Bekreft at det er deg, på nettbrettet for å fortsette"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"Biometrisk maskinvare er utilgjengelig"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"Autentiseringen er avbrutt"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"Ikke gjenkjent"</string>
@@ -897,6 +919,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"Hindre bruk av alle kameraer på enheten."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"Deaktivering av skjermlåsfunksjoner"</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"Forhindrer bruk av enkelte skjermlåsfunksjoner."</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"Trykk lenge på ESC-tasten for å lukke denne appen"</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"Hjemmenummer"</item>
     <item msgid="7740243458912727194">"Mobil"</item>
@@ -952,7 +975,7 @@
     <string name="phoneTypeCar" msgid="4604775148963129195">"Bil"</string>
     <string name="phoneTypeCompanyMain" msgid="4482773154536455441">"Firma hoved"</string>
     <string name="phoneTypeIsdn" msgid="2496238954533998512">"ISDN"</string>
-    <string name="phoneTypeMain" msgid="5199722006991000111">"Hoved"</string>
+    <string name="phoneTypeMain" msgid="5199722006991000111">"Primær"</string>
     <string name="phoneTypeOtherFax" msgid="3037145630364770357">"Faks annen"</string>
     <string name="phoneTypeRadio" msgid="2637819130239264771">"Radio"</string>
     <string name="phoneTypeTelex" msgid="2558783611711876562">"Teleks"</string>
@@ -1107,6 +1130,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"PIN-opplåsing for SIM-kort."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"PUK-opplåsing for SIM-kort."</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"Passordopplåsning."</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"Biometrisk opplåsing for sikker enhetslås."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"Mønsterområde."</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"Dra-felt."</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1182,22 +1206,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"om <xliff:g id="COUNT">%d</xliff:g> t"</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"om <xliff:g id="COUNT">%d</xliff:g> d"</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"om <xliff:g id="COUNT">%d</xliff:g> år"</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"for <xliff:g id="COUNT">%d</xliff:g>m siden"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"for <xliff:g id="COUNT">%d</xliff:g>t siden"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"for <xliff:g id="COUNT">%d</xliff:g>d siden"</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"for <xliff:g id="COUNT">%d</xliff:g> år siden"</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> min"</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g>t"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g>d"</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> år"</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"om <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"om <xliff:g id="COUNT">%d</xliff:g>t"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"om <xliff:g id="COUNT">%d</xliff:g>d"</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"om <xliff:g id="COUNT">%d</xliff:g> år"</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"for <xliff:g id="COUNT">%d</xliff:g> min siden"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"for <xliff:g id="COUNT">%d</xliff:g>t siden"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"for <xliff:g id="COUNT">%d</xliff:g>d siden"</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"for <xliff:g id="COUNT">%d</xliff:g> år siden"</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{for # minutt siden}other{For # minutter siden}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{# time siden}other{# timer siden}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{For # dag siden}other{For # dager siden}}"</string>
@@ -1478,8 +1488,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"AVSLÅ"</string>
     <string name="select_input_method" msgid="3971267998568587025">"Velg inndatametode"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"Språkinnstillinger"</string>
-    <string name="show_ime" msgid="6406112007347443383">"Ha den på skjermen mens det fysiske tastaturet er aktivt"</string>
-    <string name="hardware" msgid="3611039921284836033">"Bruk skjermtastaturet"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"Konfigurer <xliff:g id="DEVICE_NAME">%s</xliff:g>"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"Konfigurer de fysiske tastaturene"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"Trykk for å velge språk og layout"</string>
@@ -1709,6 +1717,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"Ekstern enhet"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"Hodetelefoner"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"TV-lyd"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"Analog"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"Digital"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"AUX"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"System"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"Bluetooth-lyd"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"Trådløs skjerm"</string>
@@ -1799,12 +1813,13 @@
     <string name="done_accessibility_shortcut_menu_button" msgid="3668407723770815708">"Ferdig"</string>
     <string name="disable_accessibility_shortcut" msgid="5806091378745232383">"Slå av snarveien"</string>
     <string name="leave_accessibility_shortcut_on" msgid="6543362062336990814">"Bruk snarveien"</string>
-    <string name="color_inversion_feature_name" msgid="2672824491933264951">"Fargeinvertering"</string>
+    <string name="color_inversion_feature_name" msgid="2672824491933264951">"Farge&amp;#173;invertering"</string>
     <string name="color_correction_feature_name" msgid="7975133554160979214">"Fargekorrigering"</string>
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Enhåndsmodus"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Ekstra dimmet"</string>
     <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Høreapparater"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"Autoklikk"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"Autoklikk (holdetid)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Musetaster"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Frakoblet"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"Tilkoblet"</string>
     <string name="hearing_device_status_active" msgid="4770378695482566032">"Aktiv"</string>
@@ -1829,6 +1844,8 @@
     <string name="user_logging_out_message" msgid="7216437629179710359">"Logger av <xliff:g id="NAME">%1$s</xliff:g> …"</string>
     <string name="owner_name" msgid="8713560351570795743">"Eier"</string>
     <string name="guest_name" msgid="8502103277839834324">"Gjest"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"Systembruker"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Bruker"</string>
     <string name="error_message_title" msgid="4082495589294631966">"Feil"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"Denne endringen er ikke tillatt av administratoren"</string>
     <string name="app_not_found" msgid="3429506115332341800">"Finner ingen apper som kan utføre denne handlingen"</string>
@@ -1969,8 +1986,8 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"Oppdatert av administratoren din.\nGå til innstillingene for å se hvilke tillatelser som er gitt"</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"Slettet av administratoren din"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"OK"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"Batterisparing slår på mørkt tema og begrenser eller slår av bakgrunnsaktivitet, enkelte visuelle effekter, noen funksjoner og noen nettverkstilkoblinger."</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"Batterisparing slår på mørkt tema og begrenser eller slår av bakgrunnsaktivitet, enkelte visuelle effekter, noen funksjoner og noen nettverkstilkoblinger."</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"Batterisparing slår på mørkt tema og begrenser eller slår av bakgrunnsaktivitet, enkelte visuelle effekter, noen funksjoner og noen nettverkstilkoblinger."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"Batterisparing slår på mørkt tema og begrenser eller slår av bakgrunnsaktivitet, enkelte visuelle effekter, noen funksjoner og noen nettverkstilkoblinger."</string>
     <string name="data_saver_description" msgid="4995164271550590517">"Datasparing hindrer noen apper fra å sende og motta data i bakgrunnen, for å redusere dataforbruket. Aktive apper kan bruke data, men kanskje ikke så mye som ellers – for eksempel vises ikke bilder før du trykker på dem."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"Vil du slå på Datasparing?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"Slå på"</string>
@@ -2032,6 +2049,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"Maksimer"</string>
     <string name="close_button_text" msgid="10603510034455258">"Lukk"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g><xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Svar"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Video"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Avvis"</string>
@@ -2043,7 +2063,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"Promoteringer"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"Sosialt"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"Nyheter"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"Anbefalinger"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"Foreslått"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"Du angir viktigheten for disse varslene."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"Dette er viktig på grunn av folkene som er involvert."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"Tilpasset appvarsel"</string>
@@ -2266,19 +2286,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"Venstre på styrepilene"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"Høyre på styrepilene"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"Midt på styrepilene"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"Innstillingspanel for type autoklikk"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"Venstreklikk"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"Høyreklikk"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"Dobbeltklikk"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"Alternativmeny for autoklikk"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"Venstreklikk"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"Høyreklikk"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"Dobbeltklikk"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"Dra"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"Rull"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"Trykk og hold"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"Sett på pause"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"Plassér"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"Rull opp"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"Rull ned"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"Rull til venstre"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"Rull til høyre"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"Avslutt rullemodus"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"Gjenoppta"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"Endre menyposisjonen"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"Rull opp"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"Rull ned"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"Rull til venstre"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"Rull til høyre"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"Avslutt rullemodus"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"Rullepanel"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"<xliff:g id="PACKAGE_NAME">%1$s</xliff:g> er blitt plassert i TILGANGSBEGRENSET-toppmappen"</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2427,7 +2449,7 @@
     <string name="window_magnification_prompt_title" msgid="2876703640772778215">"Nye innstillinger for forstørring"</string>
     <string name="window_magnification_prompt_content" msgid="8159173903032344891">"Nå kan du forstørre en del av skjermen"</string>
     <string name="turn_on_magnification_settings_action" msgid="8521433346684847700">"Slå på i innstillingene"</string>
-    <string name="dismiss_action" msgid="1728820550388704784">"Avvis"</string>
+    <string name="dismiss_action" msgid="1728820550388704784">"Lukk"</string>
     <string name="sensor_privacy_start_use_mic_notification_content_title" msgid="2420858361276370367">"Opphev blokkeringen av enhetsmikrofonen"</string>
     <string name="sensor_privacy_start_use_camera_notification_content_title" msgid="7287720213963466672">"Opphev blokkeringen av enhetskameraet"</string>
     <string name="sensor_privacy_start_use_notification_content_text" msgid="7595608891015777346">"For &lt;b&gt;<xliff:g id="APP">%s</xliff:g>&lt;/b&gt; og alle apper og tjenester"</string>
@@ -2498,7 +2520,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Av sikkerhetsgrunner er appinnholdet skjult for skjermdelingen"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"Automatisk tilkoblet satellitt"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"Du kan sende og motta meldinger uten mobil- eller wifi-nettverk"</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"Du kan sende og motta meldinger og bruke begrensede data via satellitt"</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"Du kan sende og motta meldinger samt bruke utvalgte apper via satellitt"</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"Vil du bruke satellittmeldinger?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"Send og motta meldinger uten mobil- eller wifi-nettverk"</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"Åpne Meldinger"</string>
@@ -2553,12 +2575,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"Kalender"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"Kalkulator"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Maps"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"Files"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"Apper"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"Fingeravtrykkene dine kan ikke gjenkjennes lenger. Konfigurer opplåsing med fingeravtrykk på nytt."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"USB-enheten er koblet til når den er låst"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"USB-enheten er koblet til når Android er låst. Før du kan bruke enheten, må du låse opp Android og så sette inn USB-enheten på nytt."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"Sikkerhet og personvern"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"Lås opp skjermen og koble til USB på nytt"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"Lås opp skjermen for å koble til USB"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"Avansert beskyttelse krever at skjermen er låst opp for å starte USB-tilkobling"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"Avansert beskyttelse krever at skjermen er låst opp for å starte USB-tilkobling"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"Avansert beskyttelse krever at skjermen er låst opp for raskere lading"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"For å lade raskere eller starte USB-tilkobling krever Avansert beskyttelse at skjermen er låst opp"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"Kutt lyden"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"Varsler er dempet"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"Du mottar ikke USB-varsler for Avansert beskyttelse før du starter enheten på nytt"</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"Mistenkelig USB-aktivitet"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"USB-datasignalet er slått av."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"USB-datasignalet er slått av"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"Har du problemer med Opplåsing med fingeravtrykk?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Trykk for å se tips om hvordan du kan forbedre opplåsingsopplevelsen"</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Ikke blink"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Trykk lenge på av/på-knappen for å slå av TV-en"</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Varsler om systemressurser"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Overforbruk av ressurser"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"Appen «<xliff:g id="APP_NAME">%1$s</xliff:g>» bruker for mye ressurser."</string>
 </resources>

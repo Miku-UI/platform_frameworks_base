@@ -228,19 +228,11 @@ class MenuAnimationController {
                 createSpringForce(),
                 finalPositionX);
 
-        if (com.android.systemui.Flags.floatingMenuDisplayCutoutSupport()) {
-            flingThenSpringMenuWith(DynamicAnimation.TRANSLATION_Y,
-                    velocityY,
-                    FLING_FRICTION_SCALAR,
-                    createSpringForce(),
-                    (finalPositionY != position.y) ? finalPositionY : null);
-        } else {
-            flingThenSpringMenuWith(DynamicAnimation.TRANSLATION_Y,
-                    velocityY,
-                    FLING_FRICTION_SCALAR,
-                    createSpringForce(),
-                    /* finalPosition= */ null);
-        }
+        flingThenSpringMenuWith(DynamicAnimation.TRANSLATION_Y,
+                velocityY,
+                FLING_FRICTION_SCALAR,
+                createSpringForce(),
+                (finalPositionY != position.y) ? finalPositionY : null);
     }
 
     private void flingThenSpringMenuWith(DynamicAnimation.ViewProperty property, float velocity,
@@ -523,8 +515,9 @@ class MenuAnimationController {
         mHandler.removeCallbacksAndMessages(/* token= */ null);
     }
 
-    void startTuckedAnimationPreview() {
+    Animation startTuckedAnimationPreview() {
         fadeInNowIfEnabled();
+        mMenuView.clearAnimation();
 
         final float toXValue = isOnLeftSide()
                 ? -ANIMATION_TO_X_VALUE
@@ -537,10 +530,10 @@ class MenuAnimationController {
         animation.setDuration(ANIMATION_DURATION_MS);
         animation.setRepeatMode(Animation.REVERSE);
         animation.setInterpolator(new OvershootInterpolator());
-        animation.setRepeatCount(Animation.INFINITE);
         animation.setStartOffset(ANIMATION_START_OFFSET_MS);
 
         mMenuView.startAnimation(animation);
+        return animation;
     }
 
     private Handler createUiHandler() {

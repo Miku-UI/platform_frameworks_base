@@ -147,8 +147,8 @@ public class SmartReplyControllerTest extends SysuiTestCase {
     public void testShowSmartSuggestions_logsToStatusBar() throws RemoteException {
         final boolean generatedByAsssistant = true;
         final boolean editBeforeSending = true;
-        mSmartReplyController.smartSuggestionsAdded(mEntry, TEST_CHOICE_COUNT, TEST_ACTION_COUNT,
-                generatedByAsssistant, editBeforeSending);
+        mSmartReplyController.smartSuggestionsAdded(mEntry.getKey(), TEST_CHOICE_COUNT,
+                TEST_ACTION_COUNT, generatedByAsssistant, editBeforeSending);
 
         // Check we log the result to the status bar service.
         verify(mIStatusBarService).onNotificationSmartSuggestionsAdded(mSbn.getKey(),

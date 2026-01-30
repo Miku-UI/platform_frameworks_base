@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.chips.mediaprojection.ui.view
 
 import android.app.ActivityManager
+import android.content.Context
 import android.content.DialogInterface
 import android.content.pm.PackageManager
 import android.util.Log
@@ -31,13 +32,26 @@ import javax.inject.Inject
 class EndMediaProjectionDialogHelper
 @Inject
 constructor(
+    private val applicationContext: Context,
     private val dialogFactory: SystemUIDialog.Factory,
     private val dialogTransitionAnimator: DialogTransitionAnimator,
     private val packageManager: PackageManager,
 ) {
-    /** Creates a new [SystemUIDialog] using the given delegate. */
-    fun createDialog(delegate: SystemUIDialog.Delegate): SystemUIDialog {
-        return dialogFactory.create(delegate)
+    /** Creates a new [SystemUIDialog] using the given [Context] and [SystemUIDialog.Delegate]. */
+    fun createDialog(context: Context, delegate: SystemUIDialog.Delegate): SystemUIDialog {
+        return dialogFactory.create(delegate, getDisplaySpecificContext(context))
+    }
+
+    private fun getDisplaySpecificContext(context: Context): Context {
+        if (context == this.applicationContext) {
+            // Default application context can create dialogs without an issue.
+            return context
+        }
+        // Display specific contexts created with context.createWindowContext(<TYPE>) can only
+        // add windows of the same type specified in <TYPE>.
+        // SystemUIDialog adds a window of TYPE_STATUS_BAR_SUB_PANEL.
+        // We need to create a simple display specific context to create a dialog.
+        return context.createDisplayContext(context.display)
     }
 
     /**

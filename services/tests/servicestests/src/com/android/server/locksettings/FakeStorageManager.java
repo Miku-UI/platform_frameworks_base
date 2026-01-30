@@ -20,13 +20,15 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.util.ArrayMap;
 
+import java.util.Arrays;
+
 public class FakeStorageManager {
 
     private final ArrayMap<Integer, byte[]> mUserSecrets = new ArrayMap<>();
 
     public void setCeStorageProtection(int userId, byte[] secret) {
         assertThat(mUserSecrets).doesNotContainKey(userId);
-        mUserSecrets.put(userId, secret);
+        mUserSecrets.put(userId, Arrays.copyOf(secret, secret.length));
     }
 
     public byte[] getUserUnlockToken(int userId) {

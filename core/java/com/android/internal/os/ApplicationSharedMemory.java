@@ -351,9 +351,29 @@ public class ApplicationSharedMemory implements AutoCloseable {
         return nativeReadSystemFeaturesCache(mPtr);
     }
 
+    /** Sets the current animator scale from the WindowManagerService.
+     */
+    public void setCurrentAnimatorScale(float scale) {
+        checkMutable();
+        nativeSetCurrentAnimatorScale(mPtr, scale);
+    }
+
+    /** Returns the current animator scale set by the WindowManagerService.
+     */
+    public float getCurrentAnimatorScale() {
+        checkMapped();
+        return nativeGetCurrentAnimatorScale(mPtr);
+    }
+
     @FastNative
     private static native void nativeWriteSystemFeaturesCache(long ptr, int[] cache);
 
     @FastNative
     private static native int[] nativeReadSystemFeaturesCache(long ptr);
+
+    @FastNative
+    private static native void nativeSetCurrentAnimatorScale(long ptr, float scale);
+
+    @FastNative
+    private static native float nativeGetCurrentAnimatorScale(long ptr);
 }

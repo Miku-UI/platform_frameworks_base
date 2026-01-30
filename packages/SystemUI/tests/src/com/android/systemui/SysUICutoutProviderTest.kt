@@ -50,6 +50,31 @@ class SysUICutoutProviderTest : SysuiTestCase() {
     }
 
     @Test
+    fun cutoutInfo_dependsOnInjectedDisplayContext() {
+        // This test verifies that the provider's output depends on the display from the
+        // injected context. This is critical for multi-display scenarios, where different
+        // displays can have different cutout properties.
+
+        // GIVEN a provider for an external display with NO cutout
+        val externalDisplay = createDisplay(uniqueId = "external", cutout = null)
+        val externalContext = context.createDisplayContext(externalDisplay)
+        val externalProvider = SysUICutoutProviderImpl(externalContext, fakeProtectionLoader)
+
+        // THEN it returns no cutout info
+        assertThat(externalProvider.cutoutInfoForCurrentDisplayAndRotation()).isNull()
+
+        // GIVEN a provider for an internal display WITH a cutout
+        val internalDisplay = createDisplay(uniqueId = "internal", cutout = mock())
+        val internalContext = context.createDisplayContext(internalDisplay)
+        val internalProvider = SysUICutoutProviderImpl(internalContext, fakeProtectionLoader)
+
+        // THEN it returns the correct cutout info
+        val internalCutoutInfo = internalProvider.cutoutInfoForCurrentDisplayAndRotation()
+        assertThat(internalCutoutInfo).isNotNull()
+        assertThat(internalCutoutInfo!!.cutout).isEqualTo(internalDisplay.cutout)
+    }
+
+    @Test
     fun cutoutInfoForCurrentDisplay_returnsCutout() {
         val cutoutDisplay = createDisplay()
         val cutoutDisplayContext = context.createDisplayContext(cutoutDisplay)

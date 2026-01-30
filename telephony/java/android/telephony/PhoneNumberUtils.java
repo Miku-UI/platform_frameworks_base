@@ -58,7 +58,7 @@ import java.util.regex.Pattern;
  * Various utilities for dealing with phone number strings.
  */
 public class PhoneNumberUtils {
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = "BCD_EXTENDED_TYPE_", value = {
             BCD_EXTENDED_TYPE_EF_ADN,
             BCD_EXTENDED_TYPE_CALLED_PARTY,

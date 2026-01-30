@@ -20,7 +20,6 @@ import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST;
 import static android.os.Trace.TRACE_TAG_ACTIVITY_MANAGER;
 import static android.text.TextUtils.formatSimple;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -1135,9 +1134,7 @@ public abstract class Service extends ContextWrapper implements ComponentCallbac
         } catch (RemoteException ex) {
         }
         onTimeout(startId);
-        if (Flags.introduceNewServiceOntimeoutCallback()) {
-            onTimeout(startId, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
-        }
+        onTimeout(startId, ServiceInfo.FOREGROUND_SERVICE_TYPE_SHORT_SERVICE);
     }
 
     /**
@@ -1189,9 +1186,7 @@ public abstract class Service extends ContextWrapper implements ComponentCallbac
             }
         } catch (RemoteException ex) {
         }
-        if (Flags.introduceNewServiceOntimeoutCallback()) {
-            onTimeout(startId, fgsType);
-        }
+        onTimeout(startId, fgsType);
     }
 
     /**
@@ -1220,7 +1215,6 @@ public abstract class Service extends ContextWrapper implements ComponentCallbac
      * @param fgsType the {@link ServiceInfo.ForegroundServiceType foreground service type} which
      *                caused the timeout.
      */
-    @FlaggedApi(Flags.FLAG_INTRODUCE_NEW_SERVICE_ONTIMEOUT_CALLBACK)
     public void onTimeout(int startId, @ForegroundServiceType int fgsType) {
     }
 }

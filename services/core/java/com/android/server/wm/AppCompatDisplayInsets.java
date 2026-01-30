@@ -22,6 +22,9 @@ import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
 import static android.view.Surface.ROTATION_270;
 import static android.view.Surface.ROTATION_90;
 
+import static com.android.server.wm.AppCompatUtils.computeAspectRatio;
+import static com.android.server.wm.AppCompatUtils.isInDesktopMode;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.res.Configuration;
@@ -49,6 +52,8 @@ class AppCompatDisplayInsets {
      * the unresizable activity is first shown.
      */
     final boolean mIsInFixedOrientationOrAspectRatioLetterbox;
+    /** The original aspect ratio of the activity. */
+    final float mAspectRatio;
     /**
      * The nonDecorInsets for each rotation. Includes the navigation bar and cutout insets. It
      * is used to compute the appBounds.
@@ -60,6 +65,11 @@ class AppCompatDisplayInsets {
      * {@link Configuration#screenHeightDp}.
      */
     final Rect[] mStableInsets = new Rect[4];
+    /**
+     * Whether the activity was originally launched in desktop mode or not. Used for the heuristic
+     * to determine whether the app should be upscaled or not.
+     */
+    final boolean mInDesktopMode;
 
     /** Constructs the environment to simulate the bounds behavior of the given container. */
     AppCompatDisplayInsets(@NonNull DisplayContent display, @NonNull ActivityRecord container,
@@ -67,6 +77,8 @@ class AppCompatDisplayInsets {
         mOriginalRotation = display.getRotation();
         mIsFloating = container.getWindowConfiguration().tasksAreFloating();
         mOriginalRequestedOrientation = container.getRequestedConfigurationOrientation();
+        mInDesktopMode = isInDesktopMode(container.mAtmService.mContext,
+                container.getWindowConfiguration().getWindowingMode());
         if (mIsFloating) {
             final Rect containerBounds = container.getWindowConfiguration().getBounds();
             mWidth = containerBounds.width();
@@ -79,6 +91,7 @@ class AppCompatDisplayInsets {
                 mStableInsets[rotation] = emptyRect;
             }
             mIsInFixedOrientationOrAspectRatioLetterbox = false;
+            mAspectRatio = computeAspectRatio(containerBounds);
             return;
         }
 
@@ -139,6 +152,10 @@ class AppCompatDisplayInsets {
             updateInsetsForBounds(unfilledContainerBounds, dw, dh, mNonDecorInsets[rotation]);
             updateInsetsForBounds(unfilledContainerBounds, dw, dh, mStableInsets[rotation]);
         }
+
+        final Rect appBounds = new Rect(filledContainerBounds);
+        appBounds.inset(mNonDecorInsets[filledContainerRotation]);
+        mAspectRatio = computeAspectRatio(appBounds);
     }
 
     /**

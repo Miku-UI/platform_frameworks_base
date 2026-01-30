@@ -36,28 +36,21 @@
 
 #include "Properties.h"
 #include "RenderThread.h"
-#include "pipeline/skia/ShaderCache.h"
+#include "pipeline/skia/PersistentGraphicsCache.h"
 #include "renderstate/RenderState.h"
 
 namespace android {
 namespace uirenderer {
 namespace renderthread {
 
-// Not all of these are strictly required, but are all enabled if present.
-static std::array<std::string_view, 25> sEnableExtensions{
-        VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
-        VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+// Not all of these are strictly required, but are all enabled if present. Only
+// extensions that hwui itself wants to use are added. The ones implicitly used by Skia
+// are added by Skia itself via VulkanPreferredFeatures.
+static std::array<std::string_view, 26> sEnableExtensions{
         VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
         VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
-        VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
-        VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE1_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE2_EXTENSION_NAME,
-        VK_KHR_MAINTENANCE3_EXTENSION_NAME,
-        VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME,
         VK_KHR_SURFACE_EXTENSION_NAME,
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        VK_EXT_BLEND_OPERATION_ADVANCED_EXTENSION_NAME,
         VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
         VK_EXT_IMAGE_DRM_FORMAT_MODIFIER_EXTENSION_NAME,
         VK_ANDROID_EXTERNAL_MEMORY_ANDROID_HARDWARE_BUFFER_EXTENSION_NAME,
@@ -79,23 +72,6 @@ static bool shouldEnableExtension(const std::string_view& extension) {
         }
     }
     return false;
-}
-
-static void free_features_extensions_structs(const VkPhysicalDeviceFeatures2& features) {
-    // All Vulkan structs that could be part of the features chain will start with the
-    // structure type followed by the pNext pointer. We cast to the CommonVulkanHeader
-    // so we can get access to the pNext for the next struct.
-    struct CommonVulkanHeader {
-        VkStructureType sType;
-        void* pNext;
-    };
-
-    void* pNext = features.pNext;
-    while (pNext) {
-        void* current = pNext;
-        pNext = static_cast<CommonVulkanHeader*>(current)->pNext;
-        free(current);
-    }
 }
 
 #define GET_PROC(F) m##F = (PFN_vk##F)vkGetInstanceProcAddr(VK_NULL_HANDLE, "vk" #F)
@@ -141,12 +117,12 @@ VulkanManager::~VulkanManager() {
     mInstanceExtensions.clear();
     mDeviceExtensionsOwner.clear();
     mDeviceExtensions.clear();
-    free_features_extensions_structs(mPhysicalDeviceFeatures2);
     mPhysicalDeviceFeatures2 = {};
+    mDeviceFaultFeatures = {};
+    mGlobalPriorityQueryFeatures = {};
 }
 
-void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
-                                VkPhysicalDeviceFeatures2& features) {
+void VulkanManager::setupDevice() {
     VkResult err;
 
     constexpr VkApplicationInfo app_info = {
@@ -187,6 +163,12 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
         }
         LOG_ALWAYS_FATAL_IF(!hasKHRSurfaceExtension || !hasKHRAndroidSurfaceExtension);
     }
+
+    // Let Skia enable instance extensions.
+    mVulkanFeatures.init(mAPIVersion);
+    mVulkanFeatures.addToInstanceExtensions(mInstanceExtensionsOwner.data(),
+                                            mInstanceExtensionsOwner.size(),
+                                            mInstanceExtensions);
 
     const VkInstanceCreateInfo instance_create = {
             VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,  // sType
@@ -259,6 +241,10 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
     }
     LOG_ALWAYS_FATAL_IF(mGraphicsQueueIndex == queueCount);
 
+    mPhysicalDeviceFeatures2 = {};
+    mPhysicalDeviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+    void** tailPNext = &mPhysicalDeviceFeatures2.pNext;
+
     {
         uint32_t extensionCount = 0;
         err = mEnumerateDeviceExtensionProperties(mPhysicalDevice, nullptr, &extensionCount,
@@ -269,6 +255,7 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
                                                   mDeviceExtensionsOwner.data());
         LOG_ALWAYS_FATAL_IF(VK_SUCCESS != err);
         bool hasKHRSwapchainExtension = false;
+        bool hasGlobalPriority = mAPIVersion >= VK_API_VERSION_1_4;
         for (const VkExtensionProperties& extension : mDeviceExtensionsOwner) {
             if (!shouldEnableExtension(extension.extensionName)) {
                 ALOGV("Not enabling device extension %s", extension.extensionName);
@@ -279,9 +266,41 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
             if (!strcmp(extension.extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME)) {
                 hasKHRSwapchainExtension = true;
             }
+            else if (!strcmp(extension.extensionName, VK_EXT_DEVICE_FAULT_EXTENSION_NAME)) {
+                mDeviceFaultFeatures = {};
+                mDeviceFaultFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT;
+                *tailPNext = &mDeviceFaultFeatures;
+                tailPNext = &mDeviceFaultFeatures.pNext;
+            }
+            else if (!strcmp(extension.extensionName, VK_KHR_GLOBAL_PRIORITY_EXTENSION_NAME) ||
+                     !strcmp(extension.extensionName,
+                             VK_EXT_GLOBAL_PRIORITY_QUERY_EXTENSION_NAME)) {
+                hasGlobalPriority = true;
+            }
         }
         LOG_ALWAYS_FATAL_IF(!hasKHRSwapchainExtension);
+
+        if (hasGlobalPriority) {
+            mGlobalPriorityQueryFeatures = {};
+            mGlobalPriorityQueryFeatures.sType =
+                    VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_EXT;
+            *tailPNext = &mGlobalPriorityQueryFeatures;
+            tailPNext = &mGlobalPriorityQueryFeatures.pNext;
+        }
     }
+
+    // Let Skia add features to be queried.
+    mVulkanFeatures.addFeaturesToQuery(mDeviceExtensionsOwner.data(),
+                                       mDeviceExtensionsOwner.size(), mPhysicalDeviceFeatures2);
+
+    // Query to get the physical device features
+    mGetPhysicalDeviceFeatures2(mPhysicalDevice, &mPhysicalDeviceFeatures2);
+    // Robust buffer access can reduce performance on some platforms. It is not needed by
+    // HWUI.
+    mPhysicalDeviceFeatures2.features.robustBufferAccess = VK_FALSE;
+
+    // Let Skia enable extensions and features.
+    mVulkanFeatures.addFeaturesToEnable(mDeviceExtensions, mPhysicalDeviceFeatures2);
 
     auto getProc = [](const char* proc_name, VkInstance instance, VkDevice device) {
         if (device != VK_NULL_HANDLE) {
@@ -290,71 +309,13 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
         return vkGetInstanceProcAddr(instance, proc_name);
     };
 
-    grExtensions.init(getProc, mInstance, mPhysicalDevice, mInstanceExtensions.size(),
+    mExtensions.init(getProc, mInstance, mPhysicalDevice, mInstanceExtensions.size(),
                       mInstanceExtensions.data(), mDeviceExtensions.size(),
                       mDeviceExtensions.data());
 
-    LOG_ALWAYS_FATAL_IF(!grExtensions.hasExtension(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, 1));
+    LOG_ALWAYS_FATAL_IF(!mExtensions.hasExtension(VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME, 1));
 
-    memset(&features, 0, sizeof(VkPhysicalDeviceFeatures2));
-    features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    features.pNext = nullptr;
 
-    // Setup all extension feature structs we may want to use.
-    void** tailPNext = &features.pNext;
-
-    if (grExtensions.hasExtension(VK_EXT_BLEND_OPERATION_ADVANCED_EXTENSION_NAME, 2)) {
-        VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT* blend;
-        blend = (VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT*)malloc(
-                sizeof(VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT));
-        LOG_ALWAYS_FATAL_IF(!blend);
-        blend->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_FEATURES_EXT;
-        blend->pNext = nullptr;
-        *tailPNext = blend;
-        tailPNext = &blend->pNext;
-    }
-
-    VkPhysicalDeviceSamplerYcbcrConversionFeatures* ycbcrFeature;
-    ycbcrFeature = (VkPhysicalDeviceSamplerYcbcrConversionFeatures*)malloc(
-            sizeof(VkPhysicalDeviceSamplerYcbcrConversionFeatures));
-    LOG_ALWAYS_FATAL_IF(!ycbcrFeature);
-    ycbcrFeature->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES;
-    ycbcrFeature->pNext = nullptr;
-    *tailPNext = ycbcrFeature;
-    tailPNext = &ycbcrFeature->pNext;
-
-    if (grExtensions.hasExtension(VK_EXT_DEVICE_FAULT_EXTENSION_NAME, 1)) {
-        VkPhysicalDeviceFaultFeaturesEXT* deviceFaultFeatures =
-                new VkPhysicalDeviceFaultFeaturesEXT;
-        deviceFaultFeatures->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT;
-        deviceFaultFeatures->pNext = nullptr;
-        *tailPNext = deviceFaultFeatures;
-        tailPNext = &deviceFaultFeatures->pNext;
-    }
-
-    if (grExtensions.hasExtension(VK_EXT_RGBA10X6_FORMATS_EXTENSION_NAME, 1)) {
-        VkPhysicalDeviceRGBA10X6FormatsFeaturesEXT* formatFeatures =
-                new VkPhysicalDeviceRGBA10X6FormatsFeaturesEXT;
-        formatFeatures->sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RGBA10X6_FORMATS_FEATURES_EXT;
-        formatFeatures->pNext = nullptr;
-        *tailPNext = formatFeatures;
-        tailPNext = &formatFeatures->pNext;
-    }
-
-    VkPhysicalDeviceGlobalPriorityQueryFeaturesEXT* globalPriorityQueryFeatures =
-            new VkPhysicalDeviceGlobalPriorityQueryFeaturesEXT;
-    globalPriorityQueryFeatures->sType =
-            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GLOBAL_PRIORITY_QUERY_FEATURES_EXT;
-    globalPriorityQueryFeatures->pNext = nullptr;
-    globalPriorityQueryFeatures->globalPriorityQuery = false;
-    *tailPNext = globalPriorityQueryFeatures;
-    tailPNext = &globalPriorityQueryFeatures->pNext;
-
-    // query to get the physical device features
-    mGetPhysicalDeviceFeatures2(mPhysicalDevice, &features);
-    // this looks like it would slow things down,
-    // and we can't depend on it on all platforms
-    features.features.robustBufferAccess = VK_FALSE;
 
     float queuePriorities[kRequestedQueueCount] = {0.0};
 
@@ -363,7 +324,7 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
     VkDeviceQueueGlobalPriorityCreateInfoEXT queuePriorityCreateInfo;
 
     if (Properties::contextPriority != 0 &&
-        grExtensions.hasExtension(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME, 2)) {
+        mExtensions.hasExtension(VK_EXT_GLOBAL_PRIORITY_EXTENSION_NAME, 2)) {
         VkQueueGlobalPriorityEXT globalPriority;
         switch (Properties::contextPriority) {
             case EGL_CONTEXT_PRIORITY_LOW_IMG:
@@ -381,8 +342,7 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
 
         // check if the requested priority is reported by the query
         bool attachGlobalPriority = false;
-        if (uirenderer::Properties::queryGlobalPriority &&
-            globalPriorityQueryFeatures->globalPriorityQuery) {
+        if (mGlobalPriorityQueryFeatures.globalPriorityQuery) {
             for (uint32_t i = 0; i < queuePriorityProps[mGraphicsQueueIndex].priorityCount; i++) {
                 if (queuePriorityProps[mGraphicsQueueIndex].priorities[i] == globalPriority) {
                     attachGlobalPriority = true;
@@ -430,7 +390,7 @@ void VulkanManager::setupDevice(skgpu::VulkanExtensions& grExtensions,
 
     const VkDeviceCreateInfo deviceInfo = {
             VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,  // sType
-            &features,                             // pNext
+            &mPhysicalDeviceFeatures2,             // pNext
             0,                                     // VkDeviceCreateFlags
             1,                                     // queueCreateInfoCount
             &queueInfo,                            // pQueueCreateInfos
@@ -474,7 +434,7 @@ void VulkanManager::initialize() {
         LOG_ALWAYS_FATAL_IF(mEnumerateInstanceVersion(&instanceVersion));
         LOG_ALWAYS_FATAL_IF(instanceVersion < VK_MAKE_VERSION(1, 1, 0));
 
-        this->setupDevice(mExtensions, mPhysicalDeviceFeatures2);
+        this->setupDevice();
 
         mGetDeviceQueue(mDevice, mGraphicsQueueIndex, 0, &mGraphicsQueue);
         mGetDeviceQueue(mDevice, mGraphicsQueueIndex, 1, &mAHBUploadQueue);
@@ -794,7 +754,7 @@ VulkanManager::VkDrawResult VulkanManager::finishFrame(SkSurface* surface) {
         mQueueWaitIdle(mGraphicsQueue);
     }
 
-    skiapipeline::ShaderCache::get().onVkFrameFlushed(context);
+    skiapipeline::PersistentGraphicsCache::get().onVkFrameFlushed(context);
 
     return drawResult;
 }

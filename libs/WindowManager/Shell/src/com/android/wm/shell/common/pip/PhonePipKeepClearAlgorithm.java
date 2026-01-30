@@ -23,6 +23,8 @@ import android.os.SystemProperties;
 import android.util.ArraySet;
 import android.view.Gravity;
 
+import androidx.annotation.NonNull;
+
 import com.android.wm.shell.R;
 
 import java.util.Set;
@@ -30,7 +32,8 @@ import java.util.Set;
 /**
  * Calculates the adjusted position that does not occlude keep clear areas.
  */
-public class PhonePipKeepClearAlgorithm implements PipKeepClearAlgorithmInterface {
+public class PhonePipKeepClearAlgorithm implements PipKeepClearAlgorithmInterface,
+        PipDisplayLayoutState.DisplayIdListener {
 
     private boolean mKeepClearAreaGravityEnabled =
             SystemProperties.getBoolean(
@@ -39,14 +42,21 @@ public class PhonePipKeepClearAlgorithm implements PipKeepClearAlgorithmInterfac
     protected int mKeepClearAreasPadding;
     private int mImeOffset;
 
-    public PhonePipKeepClearAlgorithm(Context context) {
+    public PhonePipKeepClearAlgorithm(Context context,
+            PipDisplayLayoutState pipDisplayLayoutState) {
         reloadResources(context);
+        pipDisplayLayoutState.addDisplayIdListener(this);
     }
 
     private void reloadResources(Context context) {
         final Resources res = context.getResources();
         mKeepClearAreasPadding = res.getDimensionPixelSize(R.dimen.pip_keep_clear_areas_padding);
         mImeOffset = res.getDimensionPixelSize(R.dimen.pip_ime_offset);
+    }
+
+    @Override
+    public void onDisplayIdChanged(@NonNull Context context) {
+        reloadResources(context);
     }
 
     /**

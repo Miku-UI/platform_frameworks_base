@@ -18,7 +18,6 @@ package com.android.systemui.dagger
 
 import com.android.keyguard.KeyguardBiometricLockoutLogger
 import com.android.systemui.CoreStartable
-import com.android.systemui.Flags.unfoldLatencyTrackingFix
 import com.android.systemui.LatencyTester
 import com.android.systemui.SliceBroadcastRelayHandler
 import com.android.systemui.accessibility.Magnification
@@ -28,7 +27,6 @@ import com.android.systemui.bouncer.domain.startable.BouncerStartable
 import com.android.systemui.clipboardoverlay.ClipboardListener
 import com.android.systemui.complication.ComplicationTypesUpdater
 import com.android.systemui.complication.DreamClockTimeComplication
-import com.android.systemui.controls.dagger.StartControlsStartableModule
 import com.android.systemui.dagger.qualifiers.PerUser
 import com.android.systemui.dreams.AssistantAttentionMonitor
 import com.android.systemui.dreams.DreamMonitor
@@ -38,6 +36,7 @@ import com.android.systemui.globalactions.GlobalActionsComponent
 import com.android.systemui.haptics.msdl.MSDLCoreStartable
 import com.android.systemui.keyboard.KeyboardUI
 import com.android.systemui.keyboard.PhysicalKeyboardCoreStartable
+import com.android.systemui.keyevent.SysUIKeyGestureEventInitializer
 import com.android.systemui.keyguard.KeyguardViewConfigurator
 import com.android.systemui.keyguard.KeyguardViewMediator
 import com.android.systemui.keyguard.data.quickaffordance.MuteQuickAffordanceCoreStartable
@@ -50,48 +49,32 @@ import com.android.systemui.media.taptotransfer.MediaTttCommandLineHelper
 import com.android.systemui.media.taptotransfer.receiver.MediaTttChipControllerReceiver
 import com.android.systemui.media.taptotransfer.sender.MediaTttSenderCoordinator
 import com.android.systemui.mediaprojection.taskswitcher.MediaProjectionTaskSwitcherCoreStartable
-import com.android.systemui.settings.MultiUserUtilsModule
 import com.android.systemui.shortcut.ShortcutKeyDispatcher
 import com.android.systemui.smartpixels.SmartPixelsReceiver
 import com.android.systemui.statusbar.ImmersiveModeConfirmation
 import com.android.systemui.statusbar.gesture.GesturePointerEventListener
 import com.android.systemui.statusbar.notification.InstantAppNotifier
 import com.android.systemui.statusbar.notification.headsup.StatusBarHeadsUpChangeListener
-import com.android.systemui.statusbar.policy.BatteryControllerStartable
 import com.android.systemui.stylus.StylusUsiPowerStartable
 import com.android.systemui.temporarydisplay.chipbar.ChipbarCoordinator
-import com.android.systemui.theme.ThemeOverlayController
-import com.android.systemui.unfold.DisplaySwitchLatencyTracker
-import com.android.systemui.unfold.NoCooldownDisplaySwitchLatencyTracker
 import com.android.systemui.usb.StorageNotification
 import com.android.systemui.util.NotificationChannels
-import com.android.systemui.util.StartBinderLoggerModule
-import com.android.systemui.wallpapers.dagger.WallpaperModule
 import com.android.systemui.wmshell.WMShell
 import dagger.Binds
 import dagger.Module
-import dagger.Provides
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
-import javax.inject.Provider
 
 /**
- * DEPRECATED: DO NOT ADD THINGS TO THIS FILE.
+ * DEPRECATED: DO NOT ADD THINGS TO THIS FILE. b/427499553
  *
  * Add a feature specific daggger module for what you are working on. Bind your CoreStartable there.
  * Include that module where it is needed.
  *
- * @deprecated
+ * @deprecated b/427499553
  */
-@Module(
-    includes =
-        [
-            MultiUserUtilsModule::class,
-            StartControlsStartableModule::class,
-            StartBinderLoggerModule::class,
-            WallpaperModule::class,
-        ]
-)
+@Deprecated("Do not add things to this file.")
+@Module()
 abstract class SystemUICoreStartableModule {
     /** Inject into BiometricNotificationService */
     @Binds
@@ -201,12 +184,6 @@ abstract class SystemUICoreStartableModule {
     @IntoMap
     @ClassKey(StorageNotification::class)
     abstract fun bindStorageNotification(sysui: StorageNotification): CoreStartable
-
-    /** Inject into ThemeOverlayController. */
-    @Binds
-    @IntoMap
-    @ClassKey(ThemeOverlayController::class)
-    abstract fun bindThemeOverlayController(sysui: ThemeOverlayController): CoreStartable
 
     /** Inject into MediaOutputSwitcherDialogUI. */
     @Binds
@@ -326,12 +303,6 @@ abstract class SystemUICoreStartableModule {
     @ClassKey(HomeControlsDreamStartable::class)
     abstract fun bindHomeControlsDreamStartable(impl: HomeControlsDreamStartable): CoreStartable
 
-    /** Binds {@link BatteryControllerStartable} as a {@link CoreStartable}. */
-    @Binds
-    @IntoMap
-    @ClassKey(BatteryControllerStartable::class)
-    abstract fun bindsBatteryControllerStartable(impl: BatteryControllerStartable): CoreStartable
-
     @Binds
     @IntoMap
     @ClassKey(MSDLCoreStartable::class)
@@ -359,14 +330,10 @@ abstract class SystemUICoreStartableModule {
     @ClassKey(ComplicationTypesUpdater::class)
     abstract fun bindComplicationTypesUpdater(updater: ComplicationTypesUpdater): CoreStartable
 
-    companion object {
-        @Provides
-        @IntoMap
-        @ClassKey(DisplaySwitchLatencyTracker::class)
-        fun provideDisplaySwitchLatencyTracker(
-            noCoolDownVariant: Provider<NoCooldownDisplaySwitchLatencyTracker>,
-            coolDownVariant: Provider<DisplaySwitchLatencyTracker>,
-        ): CoreStartable =
-            if (unfoldLatencyTrackingFix()) coolDownVariant.get() else noCoolDownVariant.get()
-    }
+    @Binds
+    @IntoMap
+    @ClassKey(SysUIKeyGestureEventInitializer::class)
+    abstract fun bindSysUIKeyGestureEventInitializer(
+        keyGestureEventInitializer: SysUIKeyGestureEventInitializer
+    ): CoreStartable
 }

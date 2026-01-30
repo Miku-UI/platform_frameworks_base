@@ -15,6 +15,6 @@
 -->
 
 <shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="@color/materialColorSurfaceContainer" />
+    <solid android:color="@color/accessibility_autoclick_type_button_container_background" />
     <corners android:radius="24dp" />
 </shape>

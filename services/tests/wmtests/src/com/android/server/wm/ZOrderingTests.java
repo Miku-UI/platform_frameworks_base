@@ -43,6 +43,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.server.wm.WindowStateAnimator.PRESERVED_SURFACE_LAYER;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -51,7 +52,7 @@ import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.platform.test.annotations.Presubmit;
 import android.view.SurfaceControl;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 import androidx.test.filters.SmallTest;
 
@@ -226,7 +227,7 @@ public class ZOrderingTests extends WindowTestsBase {
 
     @Test
     public void testAssignWindowLayers_ForImeWithNoTarget() {
-        mDisplayContent.setImeLayeringTarget(null);
+        mDisplayContent.setImeLayeringTarget(null /* target */);
         mDisplayContent.assignChildLayers(mTransaction);
 
         // The Ime has an higher base layer than app windows and lower base layer than system
@@ -293,8 +294,11 @@ public class ZOrderingTests extends WindowTestsBase {
         final WindowState imeAppTarget = createWindow("imeAppTarget");
         final WindowState appAboveImeTarget = createWindow("appAboveImeTarget");
 
+        mDisplayContent.setImeInputTarget(imeAppTarget);
         mDisplayContent.setImeLayeringTarget(imeAppTarget);
-        mDisplayContent.setImeControlTarget(imeAppTarget);
+        assertWithMessage("IME control target was updated")
+                .that(mDisplayContent.getImeControlTarget()).isEqualTo(imeAppTarget);
+        mDisplayContent.mTransitionController.mBuildingTransitionLayers = true;
         mDisplayContent.assignChildLayers(mTransaction);
 
         // Ime should be above all app windows except for non-fullscreen app window above it and
@@ -312,7 +316,7 @@ public class ZOrderingTests extends WindowTestsBase {
     }
 
     @Test
-    public void testAssignWindowLayers_ForImeNonAppImeTarget() {
+    public void testAssignWindowLayers_ForImeNonAppImeLayeringTarget() {
         final WindowState imeSystemOverlayTarget = newWindowBuilder("imeSystemOverlayTarget",
                 TYPE_SYSTEM_OVERLAY).setDisplay(mDisplayContent).setOwnerCanAddInternalSystemWindow(
                 true).build();
@@ -320,8 +324,8 @@ public class ZOrderingTests extends WindowTestsBase {
         mDisplayContent.setImeLayeringTarget(imeSystemOverlayTarget);
         mDisplayContent.assignChildLayers(mTransaction);
 
-        // The IME target base layer is higher than all window except for the nav bar window, so the
-        // IME should be above all windows except for the nav bar.
+        // The IME layering target base layer is higher than all window except for the nav bar
+        // window, so the IME should be above all windows except for the nav bar.
         assertWindowHigher(mImeWindow, imeSystemOverlayTarget);
         assertWindowHigher(mImeWindow, mChildAppWindowAbove);
         assertWindowHigher(mImeWindow, mAppWindow);
@@ -329,7 +333,7 @@ public class ZOrderingTests extends WindowTestsBase {
         // The IME has a higher base layer than the status bar so we may expect it to go
         // above the status bar once they are both in the Non-App layer, as past versions of this
         // test enforced. However this seems like the wrong behavior unless the status bar is the
-        // IME target.
+        // IME layering target.
         assertWindowHigher(mNavBarWindow, mImeWindow);
         assertWindowHigher(mStatusBarWindow, mImeWindow);
 
@@ -339,8 +343,10 @@ public class ZOrderingTests extends WindowTestsBase {
 
     @Test
     public void testAssignWindowLayers_ForStatusBarImeTarget() {
+        mDisplayContent.setImeInputTarget(mStatusBarWindow);
         mDisplayContent.setImeLayeringTarget(mStatusBarWindow);
-        mDisplayContent.setImeControlTarget(mStatusBarWindow);
+        assertWithMessage("IME control target was updated")
+                .that(mDisplayContent.getImeControlTarget()).isEqualTo(mStatusBarWindow);
         mDisplayContent.assignChildLayers(mTransaction);
 
         assertWindowHigher(mImeWindow, mChildAppWindowAbove);
@@ -369,6 +375,7 @@ public class ZOrderingTests extends WindowTestsBase {
                 ACTIVITY_TYPE_HOME).setDisplay(mDisplayContent).build();
         final WindowState anyWindow2 = createWindow("anyWindow2");
 
+        mDisplayContent.mTransitionController.mBuildingTransitionLayers = true;
         mDisplayContent.assignChildLayers(mTransaction);
 
         assertWindowHigher(dockedStackWindow, homeActivityWindow);
@@ -405,7 +412,8 @@ public class ZOrderingTests extends WindowTestsBase {
                 TYPE_APPLICATION).setWindowToken(mAppWindow.mActivityRecord).build();
         mDisplayContent.setImeInputTarget(imeAppTarget);
         mDisplayContent.setImeLayeringTarget(imeAppTarget);
-        mDisplayContent.setImeControlTarget(imeAppTarget);
+        assertWithMessage("IME control target was updated")
+                .that(mDisplayContent.getImeControlTarget()).isEqualTo(imeAppTarget);
 
         // Set a popup IME layering target and keeps the original IME control target behinds it.
         final WindowState popupImeTargetWin = newWindowBuilder("popupImeTargetWin",
@@ -464,11 +472,13 @@ public class ZOrderingTests extends WindowTestsBase {
 
     @Test
     public void testPopupWindowAndParentIsImeTarget_expectHigherThanIme_inMultiWindow() {
-        // Simulate the app window is in multi windowing mode and being IME target
+        // Simulate the app window is in multi windowing mode and is IME layering and input target
         mAppWindow.getConfiguration().windowConfiguration.setWindowingMode(
                 WINDOWING_MODE_MULTI_WINDOW);
-        mDisplayContent.setImeLayeringTarget(mAppWindow);
         mDisplayContent.setImeInputTarget(mAppWindow);
+        mDisplayContent.setImeLayeringTarget(mAppWindow);
+        assertWithMessage("IME control target was updated")
+                .that(mDisplayContent.getImeControlTarget()).isEqualTo(mAppWindow);
         makeWindowVisible(mImeWindow);
 
         // Create a popupWindow
@@ -488,11 +498,13 @@ public class ZOrderingTests extends WindowTestsBase {
 
     @Test
     public void testSystemDialogWindow_expectHigherThanIme_inMultiWindow() {
-        // Simulate the app window is in multi windowing mode and being IME target
+        // Simulate the app window is in multi windowing mode and is IME layering and input target
         mAppWindow.getConfiguration().windowConfiguration.setWindowingMode(
                 WINDOWING_MODE_MULTI_WINDOW);
-        mDisplayContent.setImeLayeringTarget(mAppWindow);
         mDisplayContent.setImeInputTarget(mAppWindow);
+        mDisplayContent.setImeLayeringTarget(mAppWindow);
+        assertWithMessage("IME control target was updated")
+                .that(mDisplayContent.getImeControlTarget()).isEqualTo(mAppWindow);
         makeWindowVisible(mImeWindow);
 
         // Create a popupWindow
@@ -516,20 +528,20 @@ public class ZOrderingTests extends WindowTestsBase {
         final Task task = createTask(mDisplayContent);
         final WindowState imeAppTarget = createAppWindow(task, TYPE_APPLICATION, "imeAppTarget");
         final Rect bounds = mImeWindow.getParentFrame();
-        final ScreenCapture.ScreenshotHardwareBuffer imeBuffer =
-                ScreenCapture.captureLayersExcluding(mImeWindow.getSurfaceControl(),
-                bounds, 1.0f, PixelFormat.RGB_565, null);
+        final ScreenCaptureInternal.ScreenshotHardwareBuffer imeBuffer =
+                ScreenCaptureInternal.captureLayersExcluding(
+                        mImeWindow.getSurfaceControl(), bounds, 1.0f, PixelFormat.RGB_565, null);
 
         spyOn(mDisplayContent.mWmService.mTaskSnapshotController);
         doReturn(imeBuffer).when(mDisplayContent.mWmService.mTaskSnapshotController)
-                .snapshotImeFromAttachedTask(task);
+                .screenshotImeFromAttachedTask(task);
 
         mDisplayContent.showImeScreenshot(imeAppTarget);
 
         assertEquals(imeAppTarget, mDisplayContent.mImeScreenshot.getImeTarget());
         assertNotNull(mDisplayContent.mImeScreenshot);
-        assertZOrderGreaterThan(mTransaction,
-                mDisplayContent.mImeScreenshot.getImeScreenshotSurface(),
+        assertNotNull(imeBuffer);
+        assertZOrderGreaterThan(mTransaction, mDisplayContent.mImeScreenshot.getSurface(),
                 imeAppTarget.mSurfaceControl);
     }
 }

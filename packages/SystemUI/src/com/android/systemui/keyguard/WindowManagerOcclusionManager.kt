@@ -21,16 +21,24 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Matrix
+import android.os.IBinder
 import android.os.RemoteException
 import android.util.Log
 import android.view.IRemoteAnimationFinishedCallback
 import android.view.IRemoteAnimationRunner
 import android.view.RemoteAnimationTarget
+import android.view.SurfaceControl
 import android.view.SyncRtSurfaceTransactionApplier
 import android.view.SyncRtSurfaceTransactionApplier.SurfaceParams
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+import android.view.WindowManager.TRANSIT_OPEN
+import android.window.IRemoteTransition
+import android.window.IRemoteTransitionFinishedCallback
+import android.window.RemoteTransitionStub
+import android.window.TransitionInfo
+import android.window.WindowContainerTransaction
 import androidx.annotation.VisibleForTesting
 import com.android.app.animation.Interpolators
 import com.android.internal.jank.InteractionJankMonitor
@@ -39,6 +47,7 @@ import com.android.keyguard.KeyguardViewController
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyguard.domain.interactor.KeyguardOcclusionInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
@@ -49,6 +58,7 @@ import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import java.util.concurrent.Executor
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
 
 private val UNOCCLUDE_ANIMATION_DURATION = 250
 private val UNOCCLUDE_TRANSLATE_DISTANCE_PERCENT = 0.1f
@@ -87,6 +97,7 @@ constructor(
     @ShadeDisplayAware val context: Context,
     val interactionJankMonitor: InteractionJankMonitor,
     @Main executor: Executor,
+    @Application val applicationScope: CoroutineScope,
     val dreamingToLockscreenTransitionViewModel: DreamingToLockscreenTransitionViewModel,
     val occlusionInteractor: KeyguardOcclusionInteractor,
 ) {
@@ -96,7 +107,67 @@ constructor(
         )
     val windowCornerRadius = ScreenDecorationsUtils.getWindowCornerRadius(context)
 
+    var occludeTransitionFinishedCallback: IRemoteTransitionFinishedCallback? = null
+
     var occludeAnimationFinishedCallback: IRemoteAnimationFinishedCallback? = null
+
+    /**
+     * Remote transition provided to Shell, which will be used if an occluding activity is launched
+     * and Shell wants us to animate it in. This is used as a signal that we are now occluded, and
+     * should update our state accordingly.
+     */
+    val occludeTransition: IRemoteTransition =
+        object : RemoteTransitionStub() {
+            var delegate: IRemoteTransition? = null
+
+            override fun startAnimation(
+                token: IBinder?,
+                info: TransitionInfo?,
+                t: SurfaceControl.Transaction?,
+                finishCallback: IRemoteTransitionFinishedCallback?,
+            ) {
+                Log.d(TAG, "occludeTransition#startAnimation")
+                // Wrap the callback so that it's guaranteed to be nulled out once called.
+                occludeTransitionFinishedCallback =
+                    object : IRemoteTransitionFinishedCallback.Stub() {
+                        override fun onTransitionFinished(
+                            wct: WindowContainerTransaction?,
+                            sct: SurfaceControl.Transaction?,
+                        ) {
+                            finishCallback?.onTransitionFinished(wct, sct)
+                            occludeTransitionFinishedCallback = null
+                        }
+                    }
+                keyguardOcclusionInteractor.setWmNotifiedShowWhenLockedActivityOnTop(
+                    showWhenLockedActivityOnTop = true,
+                    taskInfo = info?.changes?.firstOrNull { it.mode == TRANSIT_OPEN }?.taskInfo,
+                )
+                delegate =
+                    activityTransitionAnimator.createOriginTransition(
+                        occludeAnimationController,
+                        applicationScope,
+                        isDialogLaunch = false,
+                        transitionHelper = KeyguardTransitionHelper(),
+                    )
+                delegate?.startAnimation(token, info, t, finishCallback)
+            }
+
+            override fun mergeAnimation(
+                transition: IBinder?,
+                info: TransitionInfo?,
+                t: SurfaceControl.Transaction?,
+                mergeTarget: IBinder?,
+                finishCallback: IRemoteTransitionFinishedCallback?,
+            ) {
+                Log.d(TAG, "occludeTransition#mergeAnimation")
+                delegate?.mergeAnimation(transition, info, t, mergeTarget, finishCallback)
+            }
+
+            override fun onTransitionConsumed(transition: IBinder?, aborted: Boolean) {
+                Log.d(TAG, "occludeTransition#onTransitionConsumed")
+                delegate?.onTransitionConsumed(transition, aborted)
+            }
+        }
 
     /**
      * Animation runner provided to WindowManager, which will be used if an occluding activity is

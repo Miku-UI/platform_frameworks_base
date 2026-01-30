@@ -20,7 +20,6 @@ import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
 
 import android.content.pm.ApplicationInfo;
-import android.os.ProfilingServiceHelper;
 import android.os.ProfilingTrigger;
 import android.os.SystemClock;
 import android.os.Trace;
@@ -244,7 +243,7 @@ class AnrHelper {
 
                 if (android.os.profiling.Flags.systemTriggeredProfilingNew() && r.mAppInfo != null
                         && r.mAppInfo.packageName != null) {
-                    ProfilingServiceHelper.getInstance().onProfilingTriggerOccurred(
+                    mService.sendProfilingTrigger(
                             r.mUid,
                             r.mAppInfo.packageName,
                             ProfilingTrigger.TRIGGER_TYPE_ANR);

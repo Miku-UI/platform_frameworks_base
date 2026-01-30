@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"പാസ്‌വേഡ്/വിരലടയാളം കൊണ്ട് അൺലോക്ക് ചെയ്യൂ"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"പാറ്റേൺ/വിരലടയാളം കൊണ്ട് അൺലോക്ക് ചെയ്യൂ"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"അധിക സുരക്ഷയ്ക്ക്, ഔദ്യോഗിക നയം ഉപകരണം ലോക്ക് ചെയ്തു"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"2-ഘട്ട പരിശോധിച്ചുറപ്പിക്കൽ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"ഫിംഗർപ്രിന്റ് അൺലോക്ക് ഉപയോഗിക്കുക"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"ഫെയ്‌സ് അൺലോക്ക് ഉപയോഗിക്കുക"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"ഫിംഗർപ്രിന്റ് അല്ലെങ്കിൽ ഫെയ്‌സ് അൺലോക്ക് ഉപയോഗിക്കുക"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"ലോക്ക്‌ഡൗണിന് ശേഷം പിൻ നൽകേണ്ടതുണ്ട്"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"ലോക്ക്‌ഡൗണിന് ശേഷം പാസ്‌വേഡ് നൽകേണ്ടതുണ്ട്"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"ലോക്ക്‌ഡൗണിന് ശേഷം പാറ്റേൺ വരയ്‌ക്കേണ്ടതുണ്ട്"</string>

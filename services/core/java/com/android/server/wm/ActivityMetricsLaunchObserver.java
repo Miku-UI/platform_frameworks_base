@@ -143,10 +143,11 @@ public class ActivityMetricsLaunchObserver {
      *           but cannot coalesce to the existing one, e.g. to a different display.
      * @param name The launching activity name.
      * @param temperature The temperature at which a launch sequence had started.
-     * @param userId The id of the user the activity is being launched for.
+     * @param processName The name of the process that the launching activity belongs to.
+     * @param uid The uid of the process that the launching activity belongs to.
      */
     public void onActivityLaunched(long id, ComponentName name, @Temperature int temperature,
-            int userId) {
+            String processName, int uid) {
     }
 
     /**

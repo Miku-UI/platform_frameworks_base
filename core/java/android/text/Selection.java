@@ -536,7 +536,7 @@ public class Selection {
         return true;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static interface PositionIterator {
         public static final int DONE = BreakIterator.DONE;
 
@@ -544,7 +544,7 @@ public class Selection {
         public int following(int position);
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public static boolean moveToPreceding(
             Spannable text, PositionIterator iter, boolean extendSelection) {
@@ -559,7 +559,7 @@ public class Selection {
         return true;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public static boolean moveToFollowing(
             Spannable text, PositionIterator iter, boolean extendSelection) {

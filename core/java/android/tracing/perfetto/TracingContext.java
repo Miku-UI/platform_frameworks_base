@@ -53,9 +53,33 @@ public class TracingContext<DataSourceInstanceType extends DataSourceInstance, T
      * @return A proto output stream to write a trace packet proto to
      */
     public ProtoOutputStream newTracePacket() {
-        final ProtoOutputStream os = new ProtoOutputStream(0);
+        return newTracePacket(0);
+    }
+
+    /**
+     * Creates a new output stream to be used to write a trace packet to. The output stream will be
+     * encoded to the proto binary representation when the callback trace function finishes and
+     * send over to the native side to be included in the proto buffer.
+     *
+     * @param estimatedPacketSizeInBytes The estimated size of the trace packet. This will help
+     *                                   avoid over allocating memory. We allocate an initial buffer
+     *                                   of this size on trace packet creation.
+     *                                   If set to 0 8kb is used.
+     * @return A proto output stream to write a trace packet proto to
+     */
+    public ProtoOutputStream newTracePacket(int estimatedPacketSizeInBytes) {
+        final ProtoOutputStream os = new ProtoOutputStream(estimatedPacketSizeInBytes);
         mTracePackets.add(os);
         return os;
+    }
+
+    /**
+     * Gets the index of the data source instance this tracing context is associated with.
+     *
+     * @return The index of the data source instance.
+     */
+    public int getInstanceIndex() {
+        return mInstanceIndex;
     }
 
     /**
@@ -94,6 +118,24 @@ public class TracingContext<DataSourceInstanceType extends DataSourceInstance, T
         }
 
         return incrementalState;
+    }
+
+    /**
+     * Stop the data source instance (whose stop operation was previously postponed
+     * with DataSourceParams#postponeStop).
+     */
+    public void stopDone() {
+        mDataSource.stopDoneDataSourceInstance(mInstanceIndex);
+    }
+
+    /**
+     * Gets the datasource instance for this state with a lock.
+     * releaseDataSourceInstanceLocked must be called before this can be called again.
+     * @return The data source instance for this state.
+     *         Null if the datasource instance no longer exists.
+     */
+    public DataSourceInstanceType getDataSourceInstanceLocked() {
+        return mDataSource.getDataSourceInstanceLocked(mInstanceIndex);
     }
 
     protected byte[][] getAndClearAllPendingTracePackets() {

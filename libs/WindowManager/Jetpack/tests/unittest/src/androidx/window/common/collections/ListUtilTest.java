@@ -18,6 +18,8 @@ package androidx.window.common.collections;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.platform.test.annotations.Presubmit;
+
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -27,8 +29,9 @@ import java.util.List;
  * Test class for {@link ListUtil}.
  *
  * Build/Install/Run:
- *  atest WMJetpackUnitTests:ListUtil
+ *  atest WMJetpackUnitTests:ListUtilTest
  */
+@Presubmit
 public class ListUtilTest {
 
     @Test

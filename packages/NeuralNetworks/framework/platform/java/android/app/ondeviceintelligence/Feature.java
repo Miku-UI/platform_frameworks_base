@@ -16,9 +16,6 @@
 
 package android.app.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
-
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -32,7 +29,6 @@ import android.os.PersistableBundle;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public final class Feature implements Parcelable {
     private final int mId;
     @Nullable

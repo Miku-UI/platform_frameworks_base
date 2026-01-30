@@ -19,6 +19,7 @@ package android.provider;
 import android.accounts.Account;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
+import android.annotation.LongDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -3018,8 +3019,6 @@ public final class ContactsContract {
                     com.android.internal.R.string.config_rawContactsLocalAccountType));
         }
 
-
-
         /**
          * Class containing utility methods around the default account.
          * New raw contacts requested to be inserted without a specified {@link Account} will be
@@ -5785,7 +5784,7 @@ public final class ContactsContract {
          * @param contactId Contact ID, which can potentially be a managed profile contact ID.
          * @return A map from a mimetype to a list of the entity content values.
          *
-         * {@hide}
+         * @hide
          */
         @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
         @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS)
@@ -9252,6 +9251,18 @@ public final class ContactsContract {
          * @hide
          */
         String IS_DEFAULT = "x_is_default";
+
+        /**
+         * The attributes of account to which this row belongs.
+         * @hide
+         */
+        String ACCOUNT_ATTRIBUTES = HIDDEN_COLUMN_PREFIX + "account_attributes";
+
+        /**
+         * Flag indicating if the account's owner has modifies the account attributes.
+         * @hide
+         */
+        String HAS_OWNER_SET_ATTRIBUTES = HIDDEN_COLUMN_PREFIX + "has_owner_set_attributes";
     }
 
     /**
@@ -9375,6 +9386,36 @@ public final class ContactsContract {
         public static final String KEY_DEFAULT_ACCOUNT = "key_default_account";
 
         /**
+         * The method to invoke in order to overwrite the account attributes.
+         *
+         * @hide
+         */
+        public static final String SET_ACCOUNT_ATTRIBUTES_METHOD =
+                "setAccountAttributes";
+
+        /**
+         * The method to invoke in order to reset the account attributes.
+         *
+         * @hide
+         */
+        public static final String RESET_ACCOUNT_ATTRIBUTES_METHOD =
+                "resetAccountAttributes";
+
+        /**
+         * The method to invoke in order to get the account attributes.
+         *
+         * @hide
+         */
+        public static final String GET_ACCOUNT_ATTRIBUTES_METHOD = "getAccountAttributes";
+
+        /**
+         * Key in the bundle for the account attributes.
+         *
+         * @hide
+         */
+        public static final String KEY_ACCOUNT_ATTRIBUTES = "key_account_attributes";
+
+        /**
          * Get the account that is set as the default account for new contacts, which should be
          * initially selected when creating a new contact on contact management apps.
          * If the setting has not been set by any app, it will return null. Once the setting
@@ -9383,9 +9424,8 @@ public final class ContactsContract {
          * @param resolver the ContentResolver to query.
          * @return the default account for new contacts, or null if it's not set or set to NULL
          * account.
-         *
          * @deprecated This API is only supported up to Android version
-         *      * {@link Build.VERSION_CODES#VANILLA_ICE_CREAM}. On later versions,
+         * * {@link Build.VERSION_CODES#VANILLA_ICE_CREAM}. On later versions,
          * {@link ContactsContract.RawContacts.DefaultAccount#getDefaultAccountForNewContacts}
          * should be used.
          */
@@ -9409,11 +9449,10 @@ public final class ContactsContract {
          * </ol>
          *
          * @param resolver the ContentResolver to query.
-         * @param account the account to be set to default.
+         * @param account  the account to be set to default.
          * @hide
-         *
          * @deprecated This API is only supported up to Android version
-         *      * {@link Build.VERSION_CODES#VANILLA_ICE_CREAM}. On later versions,
+         * * {@link Build.VERSION_CODES#VANILLA_ICE_CREAM}. On later versions,
          * {@link ContactsContract.RawContacts.DefaultAccount#setDefaultAccountForNewContacts}
          * should be used.
          */
@@ -9430,6 +9469,202 @@ public final class ContactsContract {
             }
 
             resolver.call(ContactsContract.AUTHORITY_URI, SET_DEFAULT_ACCOUNT_METHOD, null, extras);
+        }
+
+        @FlaggedApi(Flags.FLAG_NEW_ACCOUNT_ATTRIBUTES_API_ENABLED)
+        public static final class AccountAttributes {
+            private AccountAttributes() {}
+
+            /**
+             * Indicates that the primary, canonical storage location and authoritative source
+             * for contacts associated with this account is the local device. These contacts
+             * are not synchronized with any external service.
+             * An account can only have one of attributes among {@code ATTRIBUTE_DATA_ORIGIN_LOCAL},
+             * {@code ATTRIBUTE_DATA_ORIGIN_SIM} and {@code ATTRIBUTE_DATA_ORIGIN_CLOUD}.
+             */
+            public static final long ATTRIBUTE_DATA_ORIGIN_LOCAL = 1L;
+
+            /**
+             * Indicates that contacts associated with this account are stored directly on the SIM
+             * card.
+             * * An account can only have one of attributes among
+             * {@code ATTRIBUTE_DATA_ORIGIN_LOCAL},
+             * * {@code ATTRIBUTE_DATA_ORIGIN_SIM} and {@code ATTRIBUTE_DATA_ORIGIN_CLOUD}.
+             */
+            public static final long ATTRIBUTE_DATA_ORIGIN_SIM = 1L << 1;
+
+            /**
+             * Indicates that the primary, canonical storage location and authoritative source
+             * for contacts associated with this account is a cloud service. This applies
+             * regardless of whether contacts were initially created on the device and then
+             * synchronized to the cloud, or if they were created directly in the cloud and
+             * downloaded to the device. The cloud serves as the central hub for persistence
+             * and synchronization across devices.
+             * An account can only have one of attributes among {@code ATTRIBUTE_DATA_ORIGIN_LOCAL},
+             * {@code ATTRIBUTE_DATA_ORIGIN_SIM} and {@code ATTRIBUTE_DATA_ORIGIN_CLOUD}.
+             */
+            public static final long ATTRIBUTE_DATA_ORIGIN_CLOUD = 1 << 2;
+
+            /**
+             * Indicates that contacts associated with this account are synchronized
+             * from the device to the cloud. Local changes (creations, edits, deletions)
+             * are uploaded to the authoritative source.
+             * A two-way sync accounts have both {@code ATTRIBUTE_SYNC_MODE_UP_SYNC} and
+             * {@code ATTRIBUTE_SYNC_MODE_DOWN_SYNC} attributes.
+             */
+            public static final long ATTRIBUTE_SYNC_MODE_UP_SYNC = 1L << 3;
+
+            /**
+             * Indicates that contacts associated with this account are
+             * synchronized from a cloud account to the device. Local
+             * changes (creations, edits, deletions) are generally not uploaded
+             * to the cloud via this sync mechanism.
+             * A two-way sync account has both {@code ATTRIBUTE_SYNC_MODE_UP_SYNC} and
+             * {@code ATTRIBUTE_SYNC_MODE_DOWN_SYNC} attributes.
+             */
+            public static final long ATTRIBUTE_SYNC_MODE_DOWN_SYNC = 1L << 4;
+
+            /**
+             * Indicates that this account has declared custom or non-standard
+             * contact data fields (e.g., those defined via custom MIME types in `contacts.xml`
+             * or other extensibility mechanisms). This data often provides supplementary
+             * information and may not be directly user-editable via the standard Contacts app.
+             */
+            public static final long ATTRIBUTE_DATA_TYPE_CUSTOM_DECLARED = 1L << 5;
+
+            /**
+             * @hide
+             */
+            @LongDef(flag = true, value = {
+                    ATTRIBUTE_DATA_ORIGIN_LOCAL,
+                    ATTRIBUTE_DATA_ORIGIN_SIM,
+                    ATTRIBUTE_DATA_ORIGIN_CLOUD,
+                    ATTRIBUTE_SYNC_MODE_UP_SYNC,
+                    ATTRIBUTE_SYNC_MODE_DOWN_SYNC,
+                    ATTRIBUTE_DATA_TYPE_CUSTOM_DECLARED
+            })
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface AttributeFlags {
+            }
+        }
+
+        /**
+         * Returns the attributes of a given account as a 64-bit bitmask.
+         *
+         * <p>A return value of {@code 0L} indicates the account exists but has no specific
+         * attributes enabled or set.
+         *
+         * @param resolver The {@link ContentResolver} to use for the query.
+         * @param account  The account to query. If {@code null}, this queries the attributes of
+         *                 the <strong>local, device-only account</strong> (where both account_name
+         *                 and account_type are null).
+         * @param dataSet  The data set specific to the account type, which may be {@code null}.
+         * @return A {@code long} representing the attributes bitmask.
+         * @throws IllegalStateException if the specified account does not exist or its
+         *                               attributes could not be determined.
+         */
+        @FlaggedApi(Flags.FLAG_NEW_ACCOUNT_ATTRIBUTES_API_ENABLED)
+        @RequiresPermission(android.Manifest.permission.READ_CONTACTS)
+        public static @AccountAttributes.AttributeFlags long getAccountAttributes(
+                @NonNull ContentResolver resolver,
+                @Nullable Account account, @Nullable String dataSet) {
+            Bundle extras = new Bundle();
+            if (account != null) {
+                extras.putString(ACCOUNT_NAME, account.name);
+                extras.putString(ACCOUNT_TYPE, account.type);
+            }
+            if (!TextUtils.isEmpty(dataSet)) {
+                extras.putString(DATA_SET, dataSet);
+            }
+
+            Bundle response = nullSafeCall(resolver, ContactsContract.AUTHORITY_URI,
+                    GET_ACCOUNT_ATTRIBUTES_METHOD, null, extras);
+            if (response == null || !response.containsKey(KEY_ACCOUNT_ATTRIBUTES)) {
+                throw new IllegalStateException(String.format(
+                        "Could not determine attributes for account: %s, data_set: %s", account,
+                        dataSet));
+            }
+            return response.getLong(KEY_ACCOUNT_ATTRIBUTES);
+        }
+
+        /**
+         * Sets the attributes for a given account with a new set of flags.
+         *
+         * <p><b>Warning:</b> This is a destructive operation. Any attributes previously
+         * set on the account will be cleared and replaced by the provided {@code newAttributes}.
+         *
+         * <p>The provided bitmask must be valid and free of semantic conflicts (e.g.,
+         * containing more than one {@code DATA_ORIGIN} type).
+         *
+         * <h4>Security</h4>
+         * <p> This method requires that the calling application to be the authenticator
+         * for the account's type.
+         *
+         * @param resolver      The {@code ContentResolver} to use for the update.
+         * @param account       @param account The target account.
+         * @param dataSet       The data set within the account, which may be {@code null}.
+         * @param newAttributes The complete new bitmask of attributes to apply.
+         * @throws IllegalArgumentException if {@code newAttributes} contains any undefined
+         *                                  bits, has semantic conflicts, or the account is
+         *                                  otherwise invalid.
+         * @throws SecurityException        if the calling package is not the authenticator for the
+         *                                  account type.
+         * @see android.accounts.AccountManager#getAuthenticatorTypes()
+         */
+        @FlaggedApi(Flags.FLAG_NEW_ACCOUNT_ATTRIBUTES_API_ENABLED)
+        @RequiresPermission(android.Manifest.permission.WRITE_CONTACTS)
+        public static void setAccountAttributes(@NonNull ContentResolver resolver,
+                @Nullable Account account, @Nullable String dataSet,
+                @AccountAttributes.AttributeFlags long newAttributes) {
+            Bundle extras = new Bundle();
+            if (account != null) {
+                extras.putString(ACCOUNT_NAME, account.name);
+                extras.putString(ACCOUNT_TYPE, account.type);
+            }
+            if (!TextUtils.isEmpty(dataSet)) {
+                extras.putString(DATA_SET, dataSet);
+            }
+            extras.putLong(KEY_ACCOUNT_ATTRIBUTES, newAttributes);
+            nullSafeCall(resolver, ContactsContract.AUTHORITY_URI,
+                    SET_ACCOUNT_ATTRIBUTES_METHOD, null,
+                    extras);
+        }
+
+        /**
+         * Resets the attributes for a given account to their system-evaluated defaults.
+         *
+         * <p>This operation removes any explicit overrides set via
+         * {@link #setAccountAttributes} and causes the system to immediately re-evaluate the
+         * account's attributes based on its type and other characteristics
+         *
+         * <h4>Security</h4>
+         * <p>This method requires that the calling application be the authenticator for the
+         * account's type, as defined in {@link android.accounts.AccountManager}.
+         *
+         * @param resolver The {@code ContentResolver} to use for the update.
+         * @param account  @param account The target account.
+         * @param dataSet  The data set within the account, which may be {@code null}.
+         * @throws IllegalArgumentException if the target account is otherwise invalid.
+         * @throws SecurityException        if the calling package is not the authenticator for the
+         *                                  account type.
+         * @see android.accounts.AccountManager#getAuthenticatorTypes()
+         */
+        @FlaggedApi(Flags.FLAG_NEW_ACCOUNT_ATTRIBUTES_API_ENABLED)
+        @RequiresPermission(android.Manifest.permission.WRITE_CONTACTS)
+        public static void resetAccountAttributes(@NonNull ContentResolver resolver,
+                @Nullable Account account, @Nullable String dataSet) {
+            Bundle extras = new Bundle();
+            if (account != null) {
+                extras.putString(ACCOUNT_NAME, account.name);
+                extras.putString(ACCOUNT_TYPE, account.type);
+            }
+            if (!TextUtils.isEmpty(dataSet)) {
+                extras.putString(DATA_SET, dataSet);
+            }
+            // No need to put attributes, the method name implies the action.
+            nullSafeCall(resolver, ContactsContract.AUTHORITY_URI,
+                    RESET_ACCOUNT_ATTRIBUTES_METHOD, null,
+                    extras);
         }
     }
 

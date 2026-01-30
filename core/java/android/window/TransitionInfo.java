@@ -184,7 +184,7 @@ public final class TransitionInfo implements Parcelable {
 
     /** @hide */
     @Retention(RetentionPolicy.SOURCE)
-    @IntDef(prefix = { "FLAG_" }, value = {
+    @IntDef(prefix = { "FLAG_" }, flag = true, value = {
             FLAG_NONE,
             FLAG_SHOW_WALLPAPER,
             FLAG_IS_WALLPAPER,
@@ -655,7 +655,7 @@ public final class TransitionInfo implements Parcelable {
         private @ColorInt int mBackgroundColor;
         private SurfaceControl mSnapshot = null;
         private float mSnapshotLuma;
-        private ComponentName mActivityComponent = null;
+        private ActivityTransitionInfo mActivityTransitionInfo = null;
         private AnimationOptions mAnimationOptions = null;
         private IBinder mTaskFragmentToken = null;
 
@@ -664,7 +664,7 @@ public final class TransitionInfo implements Parcelable {
             mLeash = leash;
         }
 
-        private Change(Parcel in) {
+        private Change(@NonNull Parcel in) {
             mContainer = in.readTypedObject(WindowContainerToken.CREATOR);
             mParent = in.readTypedObject(WindowContainerToken.CREATOR);
             mLastParent = in.readTypedObject(WindowContainerToken.CREATOR);
@@ -687,7 +687,7 @@ public final class TransitionInfo implements Parcelable {
             mBackgroundColor = in.readInt();
             mSnapshot = in.readTypedObject(SurfaceControl.CREATOR);
             mSnapshotLuma = in.readFloat();
-            mActivityComponent = in.readTypedObject(ComponentName.CREATOR);
+            mActivityTransitionInfo = in.readTypedObject(ActivityTransitionInfo.CREATOR);
             mAnimationOptions = in.readTypedObject(AnimationOptions.CREATOR);
             mTaskFragmentToken = in.readStrongBinder();
         }
@@ -713,7 +713,9 @@ public final class TransitionInfo implements Parcelable {
             out.mBackgroundColor = mBackgroundColor;
             out.mSnapshot = mSnapshot != null ? new SurfaceControl(mSnapshot, "localRemote") : null;
             out.mSnapshotLuma = mSnapshotLuma;
-            out.mActivityComponent = mActivityComponent;
+            if (mActivityTransitionInfo != null) {
+                out.mActivityTransitionInfo = new ActivityTransitionInfo(mActivityTransitionInfo);
+            }
             out.mAnimationOptions = mAnimationOptions;
             out.mTaskFragmentToken = mTaskFragmentToken;
             return out;
@@ -818,9 +820,9 @@ public final class TransitionInfo implements Parcelable {
             mSnapshotLuma = luma;
         }
 
-        /** Sets the component-name of the container. Container must be an Activity. */
-        public void setActivityComponent(@Nullable ComponentName component) {
-            mActivityComponent = component;
+        /** Sets the activity-specific transition information. Container must be an Activity. */
+        public void setActivityTransitionInfo(@Nullable ActivityTransitionInfo info) {
+            mActivityTransitionInfo = info;
         }
 
         /**
@@ -982,7 +984,16 @@ public final class TransitionInfo implements Parcelable {
         /** @return the component-name of this container (if it is an activity). */
         @Nullable
         public ComponentName getActivityComponent() {
-            return mActivityComponent;
+            return mActivityTransitionInfo != null ? mActivityTransitionInfo.getComponent() : null;
+        }
+
+        /**
+         * @return the activity-specific transition information, or {@code null} if this container
+         * is not an activity.
+         */
+        @Nullable
+        public ActivityTransitionInfo getActivityTransitionInfo() {
+            return mActivityTransitionInfo;
         }
 
         /**
@@ -1026,7 +1037,7 @@ public final class TransitionInfo implements Parcelable {
             dest.writeInt(mBackgroundColor);
             dest.writeTypedObject(mSnapshot, flags);
             dest.writeFloat(mSnapshotLuma);
-            dest.writeTypedObject(mActivityComponent, flags);
+            dest.writeTypedObject(mActivityTransitionInfo, flags);
             dest.writeTypedObject(mAnimationOptions, flags);
             dest.writeStrongBinder(mTaskFragmentToken);
         }
@@ -1098,13 +1109,16 @@ public final class TransitionInfo implements Parcelable {
             if (mLastParent != null) {
                 sb.append(" lastParent="); sb.append(mLastParent);
             }
-            if (mActivityComponent != null) {
-                sb.append(" component=");
-                sb.append(mActivityComponent.flattenToShortString());
+            if (mActivityTransitionInfo != null) {
+                sb.append(" activity=").append(mActivityTransitionInfo);
             }
             if (mTaskInfo != null) {
                 sb.append(" taskParent=");
                 sb.append(mTaskInfo.parentTaskId);
+                sb.append(" winMode=");
+                sb.append(mTaskInfo.getWindowingMode());
+                sb.append(" userId=");
+                sb.append(mTaskInfo.userId);
             }
             if (mAnimationOptions != null) {
                 sb.append(" opt=").append(mAnimationOptions);

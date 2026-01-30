@@ -20,7 +20,6 @@ import android.annotation.FloatRange;
 import android.os.SystemProperties;
 import android.util.MathUtils;
 import android.view.MotionEvent;
-import android.view.RemoteAnimationTarget;
 
 import java.io.PrintWriter;
 
@@ -52,6 +51,7 @@ public class BackTouchTracker {
     private int mSwipeEdge;
     private boolean mShouldUpdateStartLocation = false;
     private TouchTrackerState mState = TouchTrackerState.INITIAL;
+    private boolean mIsInterceptedMotionEvent;
 
     /**
      * Updates the tracker with a new motion event.
@@ -117,6 +117,20 @@ public class BackTouchTracker {
         return mState == TouchTrackerState.FINISHED;
     }
 
+    /**
+     * Returns whether current app should not receive motion event.
+     */
+    public boolean isInterceptedMotionEvent() {
+        return mIsInterceptedMotionEvent;
+    }
+
+    /**
+     * Marks the app will not receive motion event from current gesture.
+     */
+    public void setMotionEventIntercepted() {
+        mIsInterceptedMotionEvent = true;
+    }
+
     /** Sets the start location of the back gesture. */
     public void setGestureStartLocation(float touchX, float touchY, int swipeEdge) {
         mInitTouchX = touchX;
@@ -135,6 +149,16 @@ public class BackTouchTracker {
         mShouldUpdateStartLocation = false;
     }
 
+    /**
+     * Updates the swipe edge. This is useful when it's not clear yet which swipe edge the gesture
+     * is performed on from the start of the gesture (for example trackpad back gestures).
+     *
+     * @param swipeEdge the updated swipeEdge value
+     */
+    public void updateSwipeEdge(@BackEvent.SwipeEdge int swipeEdge) {
+        mSwipeEdge = swipeEdge;
+    }
+
     /** Resets the tracker. */
     public void reset() {
         mInitTouchX = 0;
@@ -144,18 +168,18 @@ public class BackTouchTracker {
         mState = TouchTrackerState.INITIAL;
         mSwipeEdge = BackEvent.EDGE_LEFT;
         mShouldUpdateStartLocation = false;
+        mIsInterceptedMotionEvent = false;
     }
 
     /** Creates a start {@link BackMotionEvent}. */
-    public BackMotionEvent createStartEvent(RemoteAnimationTarget target) {
+    public BackMotionEvent createStartEvent() {
         return new BackMotionEvent(
                 /* touchX = */ mInitTouchX,
                 /* touchY = */ mInitTouchY,
                 /* frameTimeMillis = */ 0,
                 /* progress = */ 0,
                 /* triggerBack = */ mTriggerBack,
-                /* swipeEdge = */ mSwipeEdge,
-                /* departingAnimationTarget = */ target);
+                /* swipeEdge = */ mSwipeEdge);
     }
 
     /** Creates a progress {@link BackMotionEvent}. */
@@ -239,8 +263,7 @@ public class BackTouchTracker {
                 /* frameTimeMillis = */ 0,
                 /* progress = */ progress,
                 /* triggerBack = */ mTriggerBack,
-                /* swipeEdge = */ mSwipeEdge,
-                /* departingAnimationTarget = */ null);
+                /* swipeEdge = */ mSwipeEdge);
     }
 
     /** Sets the thresholds for computing progress. */

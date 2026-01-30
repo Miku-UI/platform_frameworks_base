@@ -36,6 +36,7 @@ import com.android.internal.app.AbstractMultiProfilePagerAdapter.QuietModeManage
 import com.android.internal.app.chooser.TargetInfo;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.function.Function;
 
 /*
@@ -175,6 +176,11 @@ public class ResolverWrapperActivity extends ResolverActivity {
         return super.getResolverRankerServiceUserHandleListInternal(userHandle);
     }
 
+    @Override
+    protected boolean filterLastUsedConfig() {
+        return sOverrides.filterLastUsedConfig.orElseGet(super::filterLastUsedConfig);
+    }
+
     /**
      * We cannot directly mock the activity created since instrumentation creates it.
      * <p>
@@ -196,6 +202,7 @@ public class ResolverWrapperActivity extends ResolverActivity {
         public boolean isQuietModeEnabled;
         public QuietModeManager mQuietModeManager;
         public CrossProfileIntentsChecker mCrossProfileIntentsChecker;
+        public Optional<Boolean> filterLastUsedConfig;
 
         public void reset() {
             onSafelyStartInternalCallback = null;
@@ -210,6 +217,7 @@ public class ResolverWrapperActivity extends ResolverActivity {
             myUserId = null;
             hasCrossProfileIntents = true;
             isQuietModeEnabled = false;
+            filterLastUsedConfig = Optional.empty();
 
             mQuietModeManager = new QuietModeManager() {
                 @Override

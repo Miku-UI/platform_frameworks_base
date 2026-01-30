@@ -16,7 +16,7 @@
 
 package com.android.internal.inputmethod;
 
-import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_ABORT;
+import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -55,7 +55,7 @@ final class ImeTracingPerfettoImpl extends ImeTracing {
         DataSourceParams params =
                 new DataSourceParams.Builder()
                         .setBufferExhaustedPolicy(
-                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_ABORT)
+                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP)
                         .setNoFlush(true)
                         .setWillNotifyOnStop(false)
                         .build();

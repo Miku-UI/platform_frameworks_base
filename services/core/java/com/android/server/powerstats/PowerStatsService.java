@@ -217,19 +217,15 @@ public class PowerStatsService extends SystemService {
 
         @Override
         public void getSupportedPowerMonitors(@NonNull ResultReceiver resultReceiver) {
-            if (Flags.verifyNonNullArguments()) {
-                Objects.requireNonNull(resultReceiver);
-            }
+            Objects.requireNonNull(resultReceiver);
             getHandler().post(() -> getSupportedPowerMonitorsImpl(resultReceiver));
         }
 
         @Override
         public void getPowerMonitorReadings(@NonNull int[] powerMonitorIds,
                 @NonNull ResultReceiver resultReceiver) {
-            if (Flags.verifyNonNullArguments()) {
-                Objects.requireNonNull(powerMonitorIds);
-                Objects.requireNonNull(resultReceiver);
-            }
+            Objects.requireNonNull(powerMonitorIds);
+            Objects.requireNonNull(resultReceiver);
             int callingUid = Binder.getCallingUid();
             getHandler().post(() ->
                     getPowerMonitorReadingsImpl(powerMonitorIds, resultReceiver, callingUid));

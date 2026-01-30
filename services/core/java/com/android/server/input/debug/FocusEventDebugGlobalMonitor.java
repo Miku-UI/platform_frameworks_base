@@ -31,7 +31,7 @@ class FocusEventDebugGlobalMonitor extends InputEventReceiver {
     private final FocusEventDebugView mDebugView;
 
     FocusEventDebugGlobalMonitor(FocusEventDebugView debugView, InputManagerService service) {
-        super(service.monitorInput("FocusEventDebugGlobalMonitor", Display.DEFAULT_DISPLAY),
+        super(service.monitorFocusInput("FocusEventDebugGlobalMonitor", Display.DEFAULT_DISPLAY),
             UiThread.getHandler().getLooper());
         mDebugView = debugView;
     }

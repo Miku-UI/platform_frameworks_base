@@ -207,9 +207,9 @@ class TransitionAnimatorTest(
             .createAnimation(
                 controller,
                 controller.createAnimatorState(),
-                endState,
+                { endState },
                 backgroundLayer,
-                fadeWindowBackgroundLayer,
+                { fadeWindowBackgroundLayer },
                 drawHole,
                 startVelocity = startVelocity,
             )
@@ -230,7 +230,7 @@ class TransitionAnimatorTest(
             sampleIntervalMs = 16L
         } else {
             assertTrue { animation is TransitionAnimator.InterpolatedAnimation }
-            motionControl = MotionControl { awaitFrames(count = 26) }
+            motionControl = MotionControl { awaitFrames(count = 25) }
             sampleIntervalMs = 20L
         }
 

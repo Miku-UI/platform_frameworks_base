@@ -27,7 +27,6 @@ import android.credentials.GetCredentialRequest;
 import android.credentials.IGetCredentialCallback;
 import android.credentials.IPrepareGetCredentialCallback;
 import android.credentials.PrepareGetCredentialResponseInternal;
-import android.credentials.flags.Flags;
 import android.credentials.selection.GetCredentialProviderData;
 import android.credentials.selection.ProviderData;
 import android.credentials.selection.RequestInfo;
@@ -61,12 +60,8 @@ public class PrepareGetRequestSession extends GetRequestSession {
         int numTypes = (request.getCredentialOptions().stream()
                 .map(CredentialOption::getType).collect(
                         Collectors.toSet())).size(); // Dedupe type strings
-        if (!Flags.fixMetricDuplicationEmits()) {
-            mRequestSessionMetric.collectGetFlowInitialMetricInfo(request);
-        } else {
-            mRequestSessionMetric.collectGetFlowInitialMetricInfo(request,
+        mRequestSessionMetric.collectGetFlowInitialMetricInfo(request,
                     /*isApiPrepared=*/ true);
-        }
         mPrepareGetCredentialCallback = prepareGetCredentialCallback;
 
         Slog.i(TAG, "PrepareGetRequestSession constructed.");

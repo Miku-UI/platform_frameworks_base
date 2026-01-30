@@ -26,11 +26,11 @@ import com.android.systemui.deviceentry.shared.model.SuccessFaceAuthenticationSt
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.keyguard.domain.interactor.KeyguardBypassInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
+import com.android.systemui.keyguard.domain.interactor.KeyguardOcclusionInteractor
 import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
 import com.android.systemui.keyguard.shared.model.BiometricUnlockModel
 import com.android.systemui.keyguard.shared.model.BiometricUnlockSource
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
-import com.android.systemui.scene.domain.interactor.SceneContainerOcclusionInteractor
 import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
@@ -81,7 +81,7 @@ constructor(
     keyguardBypassInteractor: KeyguardBypassInteractor,
     keyguardUpdateMonitor: KeyguardUpdateMonitor,
     keyguardInteractor: KeyguardInteractor,
-    sceneContainerOcclusionInteractor: SceneContainerOcclusionInteractor,
+    occlusionInteractor: KeyguardOcclusionInteractor,
     sceneInteractor: SceneInteractor,
     dumpManager: DumpManager,
 ) : FlowDumperImpl(dumpManager) {
@@ -114,7 +114,7 @@ constructor(
                 alternateBouncerInteractor.isVisible,
                 keyguardBypassInteractor.isBypassAvailable,
                 isUnlockedWithStrongFaceUnlock,
-                sceneContainerOcclusionInteractor.isOccludingActivityShown,
+                occlusionInteractor.isKeyguardOccluded,
                 sceneInteractor.currentScene,
                 isShowingBouncerOverlay,
             ) {
@@ -226,7 +226,7 @@ constructor(
             .filterIsInstance<SuccessFaceAuthenticationStatus>()
             .sampleFilter(
                 combine(
-                    sceneContainerOcclusionInteractor.isOccludingActivityShown,
+                    occlusionInteractor.isKeyguardOccluded,
                     keyguardBypassInteractor.isBypassAvailable,
                     keyguardBypassInteractor.canBypass,
                     ::Triple,

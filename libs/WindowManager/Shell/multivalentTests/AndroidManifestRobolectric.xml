@@ -3,6 +3,8 @@
     <application>
         <activity android:name="com.android.wm.shell.bubbles.bar.BubbleBarAnimationHelperTest$TestActivity"
             android:exported="true"/>
+        <activity android:name="com.android.wm.shell.bubbles.bar.BubbleBarMenuViewControllerTest$TestActivity"
+            android:exported="true"/>
     </application>
 </manifest>
 

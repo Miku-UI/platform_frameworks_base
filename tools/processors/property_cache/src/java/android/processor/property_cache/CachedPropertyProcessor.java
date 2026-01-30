@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableSet;
 
 import java.io.IOException;
 import java.io.Writer;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -66,6 +67,18 @@ public class CachedPropertyProcessor extends AbstractProcessor {
         return false;
     }
 
+    private List<ExecutableElement> getAnnotatedMethods(TypeElement classElement) {
+        List<ExecutableElement> annotatedMethods = new ArrayList<>();
+        final List<ExecutableElement> methods =
+                ElementFilter.methodsIn(classElement.getEnclosedElements());
+        for (ExecutableElement method : methods) {
+            if (method.getAnnotation(CachedProperty.class) != null) {
+                annotatedMethods.add(method);
+            }
+        }
+        return annotatedMethods;
+    }
+
     private void generateCachedClass(TypeElement classElement, Filer filer) throws IOException {
         String packageName =
                 processingEnv
@@ -73,29 +86,33 @@ public class CachedPropertyProcessor extends AbstractProcessor {
                         .getPackageOf(classElement)
                         .getQualifiedName()
                         .toString();
-        String className = classElement.getSimpleName().toString() + "Cache";
-        JavaFileObject jfo = filer.createSourceFile(packageName + "." + className);
-        Writer writer = jfo.openWriter();
-        writer.write("package " + packageName + ";\n\n");
-        writer.write("import android.os.IpcDataCache;\n");
-        writer.write("\n    /** \n    * This class is auto-generated \n    * @hide \n    **/");
-        writer.write("\npublic class " + className + " {\n");
+        final List<ExecutableElement> methods = getAnnotatedMethods(classElement);
+        if (methods.size() == 0) {
+            return;
+        } else {
+            final String className = new CacheConfig(classElement, methods.get(0))
+                    .getGeneratedClassName();
+            JavaFileObject jfo = filer.createSourceFile(packageName + "." + className);
+            Writer writer = jfo.openWriter();
+            writer.write("package " + packageName + ";\n\n");
+            writer.write("import android.os.IpcDataCache;\n");
+            writer.write("\n    /** \n    * This class is auto-generated \n    * @hide \n    **/");
+            writer.write("\npublic class " + className + " {\n");
 
-        List<ExecutableElement> methods =
-                ElementFilter.methodsIn(classElement.getEnclosedElements());
-        String initCache = String.format(Constants.METHOD_COMMENT,
-                " - initialise all caches for class " + className)
-                + "\npublic static void initCache() {";
-        for (ExecutableElement method : methods) {
-            if (method.getAnnotation(CachedProperty.class) != null) {
-                mIpcDataCacheComposer.generatePropertyCache(writer, classElement, method);
-                initCache += "\n    " + mIpcDataCacheComposer.generateInvalidatePropertyCall();
+            String initCache = String.format(Constants.METHOD_COMMENT,
+                    " - initialise all caches for class " + className)
+                    + "\npublic static void initCache() {";
+            for (ExecutableElement method : methods) {
+                CacheConfig cacheConfig = new CacheConfig(classElement, method);
+                mIpcDataCacheComposer.generatePropertyCache(writer, cacheConfig);
+                initCache += "\n    " + mIpcDataCacheComposer
+                        .generateInvalidatePropertyCall();
             }
+            initCache += "\n}";
+            writer.write(initCache);
+            writer.write("\n}");
+            writer.write("\n");
+            writer.close();
         }
-        initCache += "\n}";
-        writer.write(initCache);
-        writer.write("\n}");
-        writer.write("\n");
-        writer.close();
     }
 }

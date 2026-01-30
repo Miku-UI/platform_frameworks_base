@@ -24,6 +24,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -33,9 +34,7 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class AodToGoneTransitionViewModel
 @Inject
-constructor(
-    animationFlow: KeyguardTransitionAnimationFlow,
-) : DeviceEntryIconTransition {
+constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTransition {
 
     private val transitionAnimation =
         animationFlow
@@ -43,9 +42,7 @@ constructor(
                 duration = FromAodTransitionInteractor.TO_GONE_DURATION,
                 edge = Edge.create(from = AOD, to = Scenes.Gone),
             )
-            .setupWithoutSceneContainer(
-                edge = Edge.create(from = AOD, to = GONE),
-            )
+            .setupWithoutSceneContainer(edge = Edge.create(from = AOD, to = GONE))
 
     /**
      * AOD -> GONE should fade out the lockscreen contents. This transition plays both during wake
@@ -62,13 +59,23 @@ constructor(
     }
 
     fun notificationAlpha(viewState: ViewStateAccessor): Flow<Float> {
-        var startAlpha = 1f
-        return transitionAnimation.sharedFlow(
-            duration = 200.milliseconds,
-            onStart = { startAlpha = viewState.alpha() },
-            onStep = { startAlpha },
-            onFinish = { 1f },
-        )
+        if (SceneContainerFlag.isEnabled) {
+            // Keep notifications hidden until the end of the transition to prevent flickers, then
+            // reset the alpha to 1.
+            return transitionAnimation.sharedFlow(
+                duration = 200.milliseconds,
+                onStep = { 0f },
+                onFinish = { 1f },
+            )
+        } else {
+            var startAlpha = 1f
+            return transitionAnimation.sharedFlow(
+                duration = 200.milliseconds,
+                onStart = { startAlpha = viewState.alpha() },
+                onStep = { startAlpha },
+                onFinish = { 1f },
+            )
+        }
     }
 
     override val deviceEntryParentViewAlpha = transitionAnimation.immediatelyTransitionTo(0f)

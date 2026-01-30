@@ -40,6 +40,7 @@ android_library {
         "androidx.savedstate_savedstate",
         "androidx.window_window",
         "//frameworks/libs/systemui:tracinglib-platform",
+        "//frameworks/libs/systemui:mechanics",
     ],
 
     kotlincflags: [

@@ -43,6 +43,14 @@ class FakeBatteryControllerImpl : BatteryController {
             }
         }
 
+    var _isExtremePowerSave = false
+        set(value) {
+            if (field != value) {
+                field = value
+                listeners.forEach { it.onExtremeBatterySaverChanged(field) }
+            }
+        }
+
     var _isPluggedIn = false
         set(value) {
             if (field != value) {
@@ -75,6 +83,14 @@ class FakeBatteryControllerImpl : BatteryController {
             }
         }
 
+    var _isIncompatibleCharging = false
+        set(value) {
+            if (field != value) {
+                field = value
+                listeners.forEach { it.onIsIncompatibleChargingChanged(field) }
+            }
+        }
+
     var _isAodPowerSave = false
 
     var _isReverseSupported = false
@@ -100,6 +116,7 @@ class FakeBatteryControllerImpl : BatteryController {
         listener.onBatteryUnknownStateChanged(_isStateUnknown)
         listener.onWirelessChargingChanged(_isWirelessCharging)
         listener.onIsBatteryDefenderChanged(_isDefender)
+        listener.onIsIncompatibleChargingChanged(_isIncompatibleCharging)
     }
 
     override fun removeCallback(listener: BatteryStateChangeCallback) {

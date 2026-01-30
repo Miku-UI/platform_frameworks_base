@@ -20,11 +20,10 @@ import static android.os.Process.FIRST_APPLICATION_UID;
 import static org.junit.Assert.assertEquals;
 
 import android.os.Binder;
-import android.os.Build;
 import android.os.Process;
 import android.system.Os;
 
-import com.android.ravenwood.RavenwoodRuntimeState;
+import com.android.ravenwood.RavenwoodVmState;
 
 import dalvik.system.VMRuntime;
 
@@ -34,7 +33,7 @@ public class IdentityTest {
 
     @Test
     public void testUid() {
-        assertEquals(FIRST_APPLICATION_UID, RavenwoodRuntimeState.sUid);
+        assertEquals(FIRST_APPLICATION_UID, RavenwoodVmState.getUid());
         assertEquals(FIRST_APPLICATION_UID, Os.getuid());
         assertEquals(FIRST_APPLICATION_UID, Process.myUid());
         assertEquals(FIRST_APPLICATION_UID, Binder.getCallingUid());
@@ -42,7 +41,7 @@ public class IdentityTest {
 
     @Test
     public void testPid() {
-        int pid = RavenwoodRuntimeState.sPid;
+        int pid = RavenwoodVmState.getPid();
         assertEquals(pid, Os.getpid());
         assertEquals(pid, Process.myPid());
         assertEquals(pid, Binder.getCallingPid());
@@ -50,8 +49,7 @@ public class IdentityTest {
 
     @Test
     public void testTargetSdkLevel() {
-        assertEquals(Build.VERSION_CODES.CUR_DEVELOPMENT, RavenwoodRuntimeState.CUR_DEVELOPMENT);
-        assertEquals(RavenwoodRuntimeState.sTargetSdkLevel,
+        assertEquals(RavenwoodVmState.getTargetSdkLevel(),
                 VMRuntime.getRuntime().getTargetSdkVersion());
     }
 }

@@ -49,13 +49,13 @@ import kotlin.reflect.KProperty
  *     onExecute: (cmd: MyCommand, pw: PrintWriter) -> ()
  * ) : ParseableCommand(name) {
  *     val flag1 by flag(
- *         shortName = "-f",
- *         longName = "--flag",
+ *         shortName = "f",
+ *         longName = "flag",
  *         required = false,
  *     )
  *     val param1: String by param(
- *         shortName = "-a",
- *         longName = "--args",
+ *         shortName = "a",
+ *         longName = "args",
  *         valueParser = Type.String
  *     ).required()
  *     val param2: Int by param(..., valueParser = Type.Int)
@@ -237,11 +237,7 @@ abstract class ParseableCommand(val name: String, val description: String? = nul
         }
     }
 
-    fun flag(
-        longName: String,
-        shortName: String? = null,
-        description: String = "",
-    ): Flag {
+    fun flag(longName: String, shortName: String? = null, description: String = ""): Flag {
         if (!checkShortName(shortName)) {
             throw IllegalArgumentException(
                 "Flag short name must be one character long, or null. Got ($shortName)"
@@ -280,9 +276,7 @@ abstract class ParseableCommand(val name: String, val description: String? = nul
         return parser.param(long, short, description, valueParser)
     }
 
-    fun <T : ParseableCommand> subCommand(
-        command: T,
-    ) = parser.subCommand(command)
+    fun <T : ParseableCommand> subCommand(command: T) = parser.subCommand(command)
 
     /** For use in conjunction with [param], makes the parameter required */
     fun <T : Any> SingleArgParamOptional<T>.required(): SingleArgParam<T> = parser.require(this)

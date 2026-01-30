@@ -25,13 +25,15 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
-import android.os.SystemProperties;
+import android.platform.test.annotations.EnableFlags;
 import android.view.SurfaceControl;
 import android.window.WindowContainerTransaction;
 
@@ -40,9 +42,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.launcher3.icons.IconProvider;
+import com.android.wm.shell.Flags;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
 import com.android.wm.shell.TestRunningTaskInfoBuilder;
+import com.android.wm.shell.bubbles.BubbleController;
 import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.windowdecor.WindowDecorViewModel;
 
@@ -55,6 +59,8 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -76,6 +82,8 @@ public final class StageTaskListenerTests extends ShellTestCase {
     private IconProvider mIconProvider;
     @Mock
     private WindowDecorViewModel mWindowDecorViewModel;
+    @Mock
+    private BubbleController mBubbleController;
     @Spy
     private WindowContainerTransaction mWct;
     @Captor
@@ -96,11 +104,13 @@ public final class StageTaskListenerTests extends ShellTestCase {
                 mSyncQueue,
                 mIconProvider,
                 Optional.of(mWindowDecorViewModel),
-                STAGE_TYPE_UNDEFINED);
+                STAGE_TYPE_UNDEFINED,
+                Optional.of(mBubbleController));
         mRootTask = new TestRunningTaskInfoBuilder().build();
         mRootTask.parentTaskId = INVALID_TASK_ID;
         mSurfaceControl = new SurfaceControl.Builder().setName("test").build();
         mStageTaskListener.onTaskAppeared(mRootTask, mSurfaceControl);
+        when(mBubbleController.shouldBeAppBubble(any())).thenReturn(false);
     }
 
     @Test
@@ -116,7 +126,7 @@ public final class StageTaskListenerTests extends ShellTestCase {
     @Test
     public void testRootTaskAppeared() {
         assertThat(mStageTaskListener.mRootTaskInfo.taskId).isEqualTo(mRootTask.taskId);
-        verify(mCallbacks).onRootTaskAppeared();
+        verify(mCallbacks).onRootTaskAppeared(mRootTask);
         verify(mCallbacks, never()).onStageVisibilityChanged(mStageTaskListener);
     }
 
@@ -187,5 +197,96 @@ public final class StageTaskListenerTests extends ShellTestCase {
 
         mStageTaskListener.deactivate(mWct);
         assertThat(mStageTaskListener.isActive()).isFalse();
+    }
+
+    @Test
+    public void testGetAllVisibleChildTaskIds() {
+        final ActivityManager.RunningTaskInfo taskVisible1 =
+                new TestRunningTaskInfoBuilder()
+                        .setTaskId(1)
+                        .setVisible(true)
+                        .setVisibleRequested(true)
+                        .build();
+        final ActivityManager.RunningTaskInfo taskInvisible2 =
+                new TestRunningTaskInfoBuilder()
+                        .setTaskId(2)
+                        .setVisible(false)
+                        .build();
+        final ActivityManager.RunningTaskInfo taskVisible3 =
+                new TestRunningTaskInfoBuilder()
+                        .setTaskId(3)
+                        .setVisible(true)
+                        .setVisibleRequested(true)
+                        .build();
+        final ActivityManager.RunningTaskInfo taskVisible4 =
+                new TestRunningTaskInfoBuilder()
+                        .setTaskId(4)
+                        .setVisible(true)
+                        .setVisibleRequested(true)
+                        .build();
+        final ActivityManager.RunningTaskInfo taskInvisible5 =
+                new TestRunningTaskInfoBuilder()
+                        .setTaskId(5)
+                        .setVisible(false)
+                        .build();
+        final List<Integer> visibleTaskIds = Arrays.asList(taskVisible1.taskId, taskVisible3.taskId,
+                taskVisible4.taskId);
+
+        mStageTaskListener.mChildrenTaskInfo.clear();
+        assertThat(mStageTaskListener.mChildrenTaskInfo.size() == 0).isTrue();
+
+        mStageTaskListener.mChildrenTaskInfo.put(taskVisible1.taskId, taskVisible1);
+        mStageTaskListener.mChildrenTaskInfo.put(taskInvisible2.taskId, taskInvisible2);
+        mStageTaskListener.mChildrenTaskInfo.put(taskVisible3.taskId, taskVisible3);
+        mStageTaskListener.mChildrenTaskInfo.put(taskVisible4.taskId, taskVisible4);
+        mStageTaskListener.mChildrenTaskInfo.put(taskInvisible5.taskId, taskInvisible5);
+
+        final List<Integer> ids = mStageTaskListener.getAllVisibleChildTaskIds();
+        assertThat(ids.size() == 3).isTrue();
+        assertTrue("List should contain all visible taskIds",
+                ids.containsAll(visibleTaskIds));
+        assertFalse("List should not contain invisible taskId2",
+                ids.contains(taskInvisible2.taskId));
+        assertFalse("List should not contain invisible taskId5",
+                ids.contains(taskInvisible5.taskId));
+
+        // Clear the mChildrenTaskInfo.
+        mStageTaskListener.mChildrenTaskInfo.clear();
+        assertThat(mStageTaskListener.mChildrenTaskInfo.size() == 0).isTrue();
+    }
+
+    @Test
+    public void testTaskVanished_notifyChildTaskNotPresent() {
+        final ActivityManager.RunningTaskInfo task =
+                new TestRunningTaskInfoBuilder()
+                        .setTaskId(1)
+                        .setVisible(true)
+                        .setVisibleRequested(true)
+                        .build();
+        mStageTaskListener.mChildrenTaskInfo.put(task.taskId, task);
+        mStageTaskListener.onTaskVanished(task);
+
+        assertThat(mStageTaskListener.containsTask(task.taskId)).isFalse();
+        verify(mCallbacks).onChildTaskStatusChanged(mStageTaskListener, task.taskId,
+                /* present= */ false, /* visible= */ true);
+    }
+
+    @EnableFlags(Flags.FLAG_FIX_EXIT_SPLIT_ON_ENTER_BUBBLE)
+    @Test
+    public void testTaskVanished_bubbleTask_notifyChildTaskMovedToBubble() {
+        final ActivityManager.RunningTaskInfo task =
+                new TestRunningTaskInfoBuilder()
+                        .setTaskId(1)
+                        .setVisible(true)
+                        .setVisibleRequested(true)
+                        .build();
+        mStageTaskListener.mChildrenTaskInfo.put(task.taskId, task);
+
+        when(mBubbleController.shouldBeAppBubble(task)).thenReturn(true);
+
+        mStageTaskListener.onTaskVanished(task);
+
+        assertThat(mStageTaskListener.containsTask(task.taskId)).isFalse();
+        verify(mCallbacks).onChildTaskMovedToBubble(mStageTaskListener, task.taskId);
     }
 }

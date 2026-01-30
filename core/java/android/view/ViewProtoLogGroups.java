@@ -16,12 +16,9 @@
 
 package android.view;
 
-import android.annotation.NonNull;
-import android.view.inputmethod.Flags;
+import android.view.inputmethod.ImeTracker;
 
 import com.android.internal.protolog.ProtoLogGroup;
-
-import java.util.UUID;
 
 /**
  * Defines logging groups for ProtoLog.
@@ -31,12 +28,27 @@ import java.util.UUID;
  *
  * @hide
  */
-final class ViewProtoLogGroups {
-    final static ProtoLogGroup IME_INSETS_CONTROLLER = new ProtoLogGroup(
-        "IME_INSETS_CONTROLLER", "InsetsController", Flags.refactorInsetsController());
+public final class ViewProtoLogGroups {
+    static final ProtoLogGroup IME_INSETS_CONTROLLER = new ProtoLogGroup(
+            "IME_INSETS_CONTROLLER", "InsetsController", true /* logToLogcat */);
+    static final ProtoLogGroup INSETS_CONTROLLER_DEBUG = new ProtoLogGroup(
+            "INSETS_CONTROLLER_DEBUG", "InsetsController", false /* logToLogcat */);
+    static final ProtoLogGroup INSETS_ANIMATION_CONTROLLER = new ProtoLogGroup(
+            "INSETS_ANIMATION_CONTROLLER", "InsetsAnimationCtrlImpl", false /* logToLogcat */);
+    public static final ProtoLogGroup IME_TRACKER = new ProtoLogGroup(
+            "IME_TRACKER", ImeTracker.TAG, true /* logToLogcat */);
+    public static final ProtoLogGroup INPUT_METHOD_MANAGER_DEBUG = new ProtoLogGroup(
+            "INPUT_METHOD_MANAGER", "InputMethodManager", false /* logToLogcat */);
+    public static final ProtoLogGroup INPUT_METHOD_MANAGER_WITH_LOGCAT = new ProtoLogGroup(
+            "INPUT_METHOD_MANAGER_LOGCAT", "InputMethodManager", true /* logToLogcat */);
 
-    final static ProtoLogGroup[] ALL_GROUPS = {
-        IME_INSETS_CONTROLLER
+    static final ProtoLogGroup[] ALL_GROUPS = {
+            IME_INSETS_CONTROLLER,
+            INSETS_CONTROLLER_DEBUG,
+            INSETS_ANIMATION_CONTROLLER,
+            IME_TRACKER,
+            INPUT_METHOD_MANAGER_WITH_LOGCAT,
+            INPUT_METHOD_MANAGER_DEBUG,
     };
 }
 

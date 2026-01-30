@@ -34,6 +34,7 @@ import android.app.Service;
 import android.content.ComponentName;
 import android.content.ContentCaptureOptions;
 import android.content.Context;
+import android.content.LocusId;
 import android.graphics.Canvas;
 import android.os.Binder;
 import android.os.Handler;
@@ -42,6 +43,7 @@ import android.os.Looper;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.os.ServiceManager;
+import android.util.ArraySet;
 import android.util.Dumpable;
 import android.util.Log;
 import android.util.Slog;
@@ -500,6 +502,9 @@ public final class ContentCaptureManager {
     @NonNull
     final ContentCaptureOptions mOptions;
 
+    @Nullable
+    private Set<ContentCaptureCondition> mContentCaptureConditionBuffer;
+
     // Flags used for starting session.
     @GuardedBy("mLock")
     private int mFlags;
@@ -756,6 +761,20 @@ public final class ContentCaptureManager {
         if (mainSession != null && mainSession.isDisabled()) return false;
 
         return true;
+    }
+
+    /**
+     * @hide
+     */
+    boolean isContentCaptureConditionEnabled(ContentCaptureCondition condition) {
+        if (mContentCaptureConditionBuffer == null) {
+            mContentCaptureConditionBuffer = new ArraySet<>();
+            Set<ContentCaptureCondition> conditions = getContentCaptureConditions();
+            if (conditions != null) {
+                mContentCaptureConditionBuffer.addAll(conditions);
+            }
+        }
+        return mContentCaptureConditionBuffer.contains(condition);
     }
 
     /**

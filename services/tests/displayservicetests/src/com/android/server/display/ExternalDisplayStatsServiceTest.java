@@ -154,7 +154,7 @@ public class ExternalDisplayStatsServiceTest {
     public void testDisplayInteractivityChangesWhileMirroring(
             @TestParameter final boolean isExternalDisplayUsedForAudio) {
         mExternalDisplayStatsService.onDisplayConnected(mMockedLogicalDisplay);
-        mExternalDisplayStatsService.onDisplayAdded(EXTERNAL_DISPLAY_ID);
+        mExternalDisplayStatsService.onDisplayContentModeChange(EXTERNAL_DISPLAY_ID);
         mHandler.flush();
         assertThat(mInteractivityReceiver).isNotNull();
 
@@ -234,7 +234,7 @@ public class ExternalDisplayStatsServiceTest {
         initAudioPlayback(isExternalDisplayUsedForAudio);
         clearInvocations(mMockedInjector);
 
-        mExternalDisplayStatsService.onDisplayAdded(EXTERNAL_DISPLAY_ID);
+        mExternalDisplayStatsService.onDisplayContentModeChange(EXTERNAL_DISPLAY_ID);
         verify(mMockedInjector).writeLog(FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED,
                 FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED__STATE__MIRRORING,
                 /*numberOfDisplays=*/ 1,
@@ -250,9 +250,33 @@ public class ExternalDisplayStatsServiceTest {
         clearInvocations(mMockedInjector);
 
         when(mMockedInjector.isExtendedDisplayEnabled()).thenReturn(true);
-        mExternalDisplayStatsService.onDisplayAdded(EXTERNAL_DISPLAY_ID);
+        mExternalDisplayStatsService.onDisplayContentModeChange(EXTERNAL_DISPLAY_ID);
         verify(mMockedInjector).writeLog(FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED,
                 FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED__STATE__EXTENDED,
+                /*numberOfDisplays=*/ 1,
+                isExternalDisplayUsedForAudio);
+    }
+
+    @Test
+    public void testOnDisplayContentModeChange(
+            @TestParameter final boolean isExternalDisplayUsedForAudio) {
+        mExternalDisplayStatsService.onDisplayConnected(mMockedLogicalDisplay);
+        mHandler.flush();
+        initAudioPlayback(isExternalDisplayUsedForAudio);
+        clearInvocations(mMockedInjector);
+
+        when(mMockedInjector.isExtendedDisplayEnabled()).thenReturn(true);
+        mExternalDisplayStatsService.onDisplayContentModeChange(EXTERNAL_DISPLAY_ID);
+        verify(mMockedInjector).writeLog(FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED,
+                FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED__STATE__EXTENDED,
+                /*numberOfDisplays=*/ 1,
+                isExternalDisplayUsedForAudio);
+
+        clearInvocations(mMockedInjector);
+        when(mMockedInjector.isExtendedDisplayEnabled()).thenReturn(false);
+        mExternalDisplayStatsService.onDisplayContentModeChange(EXTERNAL_DISPLAY_ID);
+        verify(mMockedInjector).writeLog(FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED,
+                FrameworkStatsLog.EXTERNAL_DISPLAY_STATE_CHANGED__STATE__MIRRORING,
                 /*numberOfDisplays=*/ 1,
                 isExternalDisplayUsedForAudio);
     }
@@ -263,7 +287,7 @@ public class ExternalDisplayStatsServiceTest {
         mExternalDisplayStatsService.onDisplayConnected(mMockedLogicalDisplay);
         mHandler.flush();
         initAudioPlayback(isExternalDisplayUsedForAudio);
-        mExternalDisplayStatsService.onDisplayAdded(EXTERNAL_DISPLAY_ID);
+        mExternalDisplayStatsService.onDisplayContentModeChange(EXTERNAL_DISPLAY_ID);
         clearInvocations(mMockedInjector);
 
         mExternalDisplayStatsService.onDisplayDisabled(EXTERNAL_DISPLAY_ID);
@@ -299,7 +323,7 @@ public class ExternalDisplayStatsServiceTest {
         mExternalDisplayStatsService.onDisplayConnected(mMockedLogicalDisplay);
         mHandler.flush();
         initAudioPlayback(isExternalDisplayUsedForAudio);
-        mExternalDisplayStatsService.onDisplayAdded(EXTERNAL_DISPLAY_ID);
+        mExternalDisplayStatsService.onDisplayContentModeChange(EXTERNAL_DISPLAY_ID);
         clearInvocations(mMockedInjector);
 
         mExternalDisplayStatsService.onPresentationWindowAdded(EXTERNAL_DISPLAY_ID);

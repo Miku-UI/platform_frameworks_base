@@ -39,8 +39,6 @@ import androidx.window.extensions.embedding.SplitController;
 import androidx.window.extensions.layout.WindowLayoutComponent;
 import androidx.window.extensions.layout.WindowLayoutComponentImpl;
 
-import com.android.window.flags.Flags;
-
 import java.util.Objects;
 
 
@@ -58,10 +56,6 @@ class WindowExtensionsImpl implements WindowExtensions {
     private static final int NO_LEVEL_OVERRIDE = -1;
 
     private static final int EXTENSIONS_VERSION_V9 = 9;
-
-    private static final int EXTENSIONS_VERSION_V8 = 8;
-
-    private static final int EXTENSIONS_VERSION_V7 = 7;
 
     private final Object mLock = new Object();
     private volatile DeviceStateManagerFoldingFeatureProducer mFoldingFeatureProducer;
@@ -82,10 +76,7 @@ class WindowExtensionsImpl implements WindowExtensions {
      */
     @VisibleForTesting
     static int getExtensionsVersionCurrentPlatform() {
-        if (Flags.wlinfoOncreate()) {
-            return EXTENSIONS_VERSION_V9;
-        }
-        return EXTENSIONS_VERSION_V8;
+        return EXTENSIONS_VERSION_V9;
     }
 
     private String generateLogMessage() {

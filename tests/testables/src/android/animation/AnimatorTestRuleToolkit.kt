@@ -62,17 +62,17 @@ fun captureDrawable(drawable: Drawable): Bitmap {
     // If either dimension is 0 this will fail, so we set it to 1 pixel instead.
     return drawable.toBitmap(
         width =
-        if (width > 0) {
-            width
-        } else {
-            1
-        },
+            if (width > 0) {
+                width
+            } else {
+                1
+            },
         height =
-        if (height > 0) {
-            height
-        } else {
-            1
-        },
+            if (height > 0) {
+                height
+            } else {
+                1
+            },
     )
 }
 
@@ -205,7 +205,7 @@ private class MotionControlImpl(
     }
 
     override suspend fun awaitFrames(count: Int) {
-        onFrame.take(count).collect {}
+        onFrame.take(count + 1).collect {}
     }
 
     private fun MotionControlFn.launch(): Job {

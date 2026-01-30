@@ -88,27 +88,30 @@ constructor(
 
         val topPadding =
             context.resources.getDimensionPixelSize(R.dimen.below_clock_padding_start_icons)
-
         constraintSet.apply {
-            val isShadeLayoutWide = shadeModeInteractor.isShadeLayoutWide.value
+            val isFullWidthShade = shadeModeInteractor.isFullWidthShade.value
 
-            if (isShadeLayoutWide) {
-                // When in split shade, align with top of smart space:
-                connect(viewId, TOP, R.id.smart_space_barrier_top, TOP, 0)
-
-                // and occupy the right half of the screen:
-                connect(viewId, START, R.id.split_shade_guideline, START, 0)
-                connect(viewId, END, PARENT_ID, END, 0)
-
-                // TODO(b/369151941): Calculate proper right padding here (when in split shade, it's
-                // bigger than what the Composable applies!)
-            } else {
-                // When not in split shade, place below smart space:
+            if (isFullWidthShade) {
+                // When in full-width shade, place below smart space:
                 connect(viewId, TOP, R.id.smart_space_barrier_bottom, BOTTOM, topPadding)
 
                 // and occupy the full width of the screen:
                 connect(viewId, START, PARENT_ID, START, 0)
                 connect(viewId, END, PARENT_ID, END, 0)
+            } else {
+                // When in wide shade layout, align with top of smart space:
+                connect(viewId, TOP, R.id.smart_space_barrier_top, TOP, 0)
+
+                // and occupy the right half of the screen:
+                val marginEnd =
+                    context.resources.getDimensionPixelSize(
+                        R.dimen.notification_panel_margin_horizontal
+                    )
+                connect(viewId, START, R.id.split_shade_guideline, START, 0)
+                connect(viewId, END, PARENT_ID, END, marginEnd)
+
+                // TODO(b/369151941): Calculate proper right padding here (when in split shade, it's
+                // bigger than what the Composable applies!)
             }
 
             constrainWidth(viewId, ConstraintSet.MATCH_CONSTRAINT)

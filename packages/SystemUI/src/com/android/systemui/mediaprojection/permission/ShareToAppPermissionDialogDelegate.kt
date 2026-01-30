@@ -17,11 +17,13 @@ package com.android.systemui.mediaprojection.permission
 
 import android.app.AlertDialog
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjectionConfig
 import android.os.Bundle
 import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger
 import com.android.systemui.res.R
 import java.util.function.Consumer
+import kotlinx.coroutines.Runnable
 
 /**
  * Dialog to select screen recording options for sharing the screen to another app on the same
@@ -81,20 +83,7 @@ class ShareToAppPermissionDialogDelegate(
                     overrideDisableSingleAppOption,
                 )
             val options =
-                listOf(
-                    ScreenShareOption(
-                        mode = SINGLE_APP,
-                        spinnerText =
-                            R.string
-                                .media_projection_entry_app_permission_dialog_option_text_single_app,
-                        warningText =
-                            R.string
-                                .media_projection_entry_app_permission_dialog_warning_single_app,
-                        startButtonText =
-                            R.string
-                                .media_projection_entry_generic_permission_dialog_continue_single_app,
-                        spinnerDisabledText = singleAppDisabledText,
-                    ),
+                mutableListOf(
                     ScreenShareOption(
                         mode = ENTIRE_SCREEN,
                         spinnerText =
@@ -108,12 +97,48 @@ class ShareToAppPermissionDialogDelegate(
                                 .media_projection_entry_app_permission_dialog_continue_entire_screen,
                     )
                 )
-            return if (singleAppDisabledText != null) {
-                // Make sure "Entire screen" is the first option when "Single App" is disabled.
-                options.reversed()
-            } else {
-                options
+            if (
+                com.android.media.projection.flags.Flags
+                    .mediaProjectionConnectedDisplayScreenSharing()
+            ) {
+                val displayManager = context.getSystemService(DisplayManager::class.java)
+                options +=
+                    MediaProjectionPermissionUtils.getConnectedDisplays(displayManager).map {
+                        ScreenShareOption(
+                            ENTIRE_SCREEN,
+                            R.string
+                                .screen_share_permission_dialog_option_text_entire_screen_for_display,
+                            warningText =
+                                R.string
+                                    .media_projection_entry_app_permission_dialog_warning_entire_screen,
+                            startButtonText =
+                                R.string
+                                    .media_projection_entry_app_permission_dialog_continue_entire_screen,
+                            displayId = it.displayId,
+                            displayName = it.name,
+                        )
+                    }
             }
+            val singleAppOption =
+                ScreenShareOption(
+                    mode = SINGLE_APP,
+                    spinnerText =
+                        R.string
+                            .media_projection_entry_app_permission_dialog_option_text_single_app,
+                    warningText =
+                        R.string.media_projection_entry_app_permission_dialog_warning_single_app,
+                    startButtonText =
+                        R.string
+                            .media_projection_entry_generic_permission_dialog_continue_single_app,
+                    spinnerDisabledText = singleAppDisabledText,
+                )
+            if (singleAppDisabledText != null) {
+                // Make sure "Entire screen" is the first option when "Single App" is disabled.
+                options.add(singleAppOption)
+            } else {
+                options.add(0, singleAppOption)
+            }
+            return options
         }
     }
 }

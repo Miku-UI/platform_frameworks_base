@@ -225,7 +225,10 @@ public class GestureLauncherService extends SystemService {
         GESTURE_CAMERA_DOUBLE_TAP_POWER(660),
 
         @UiEvent(doc = "The user multi-tapped power quickly enough to signal an emergency.")
-        GESTURE_EMERGENCY_TAP_POWER(661);
+        GESTURE_EMERGENCY_TAP_POWER(661),
+
+        @UiEvent(doc = "The user double-tapped power quickly enough to launch the wallet.")
+        GESTURE_WALLET_DOUBLE_TAP_POWER(2236);
 
         private final int mId;
 
@@ -753,6 +756,9 @@ public class GestureLauncherService extends SystemService {
                     + powerTapInterval + "ms");
             launchWallet = launchWalletViaSysuiCallbacks() ?
                     handleWalletGesture() : sendGestureTargetActivityPendingIntent();
+            if (launchWallet) {
+                mUiEventLogger.log(GestureLauncherEvent.GESTURE_WALLET_DOUBLE_TAP_POWER);
+            }
         } else if (launchEmergencyGesture) {
             Slog.i(TAG, "Emergency gesture detected, launching.");
             launchEmergencyGesture = handleEmergencyGesture();

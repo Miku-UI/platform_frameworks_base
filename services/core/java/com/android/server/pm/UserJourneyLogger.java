@@ -68,6 +68,8 @@ public class UserJourneyLogger {
     public static final int ERROR_CODE_NULL_USER_INFO = 4;
     public static final int ERROR_CODE_USER_ALREADY_AN_ADMIN = 5;
     public static final int ERROR_CODE_USER_IS_NOT_AN_ADMIN = 6;
+    public static final int ERROR_CODE_INVALID_USER_TYPE = 7;
+    public static final int ERROR_CODE_USER_IS_LAST_ADMIN = 8;
 
     @IntDef(prefix = {"ERROR_CODE"}, value = {
             ERROR_CODE_UNSPECIFIED,
@@ -76,7 +78,9 @@ public class UserJourneyLogger {
             ERROR_CODE_NULL_USER_INFO,
             ERROR_CODE_USER_ALREADY_AN_ADMIN,
             ERROR_CODE_USER_IS_NOT_AN_ADMIN,
-            ERROR_CODE_INVALID_SESSION_ID
+            ERROR_CODE_INVALID_SESSION_ID,
+            ERROR_CODE_INVALID_USER_TYPE,
+            ERROR_CODE_USER_IS_LAST_ADMIN,
     })
     public @interface UserJourneyErrorCode {
     }
@@ -102,6 +106,10 @@ public class UserJourneyLogger {
             FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__JOURNEY__REVOKE_ADMIN;
     public static final int USER_JOURNEY_USER_LIFECYCLE =
             FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__JOURNEY__USER_LIFECYCLE;
+    public static final int USER_JOURNEY_DEMOTE_MAIN_USER =
+            FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__JOURNEY__DEMOTE_MAIN_USER;
+    public static final int USER_JOURNEY_PROMOTE_MAIN_USER =
+            FrameworkStatsLog.USER_LIFECYCLE_JOURNEY_REPORTED__JOURNEY__PROMOTE_MAIN_USER;
 
     @IntDef(prefix = {"USER_JOURNEY"}, value = {
             USER_JOURNEY_UNKNOWN,
@@ -113,7 +121,9 @@ public class UserJourneyLogger {
             USER_JOURNEY_USER_REMOVE,
             USER_JOURNEY_GRANT_ADMIN,
             USER_JOURNEY_REVOKE_ADMIN,
-            USER_JOURNEY_USER_LIFECYCLE
+            USER_JOURNEY_USER_LIFECYCLE,
+            USER_JOURNEY_DEMOTE_MAIN_USER,
+            USER_JOURNEY_PROMOTE_MAIN_USER
     })
     public @interface UserJourney {
     }

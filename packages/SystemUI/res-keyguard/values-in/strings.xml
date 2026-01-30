@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Buka kunci dengan sandi atau sidik jari"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Buka kunci dengan pola atau sidik jari"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Untuk keamanan tambahan, perangkat dikunci oleh kebijakan kantor"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Verifikasi 2 Langkah"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Gunakan Buka dengan Sidik Jari"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Gunakan Buka dengan Wajah"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Gunakan Buka dengan Sidik Jari atau Buka dengan Wajah"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"PIN diperlukan setelah kunci total"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Sandi diperlukan setelah kunci total"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Pola diperlukan setelah kunci total"</string>

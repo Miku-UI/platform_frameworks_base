@@ -313,8 +313,8 @@ public class KeyCharacterMap implements Parcelable {
     private static native KeyCharacterMap nativeObtainEmptyKeyCharacterMap(int deviceId);
     private static native boolean nativeEquals(long ptr1, long ptr2);
 
-    private static native void nativeApplyOverlay(long ptr, String layoutDescriptor,
-            String overlay);
+    private static native KeyCharacterMap nativeObtainMapWithOverlay(long ptrForBaseMap,
+            String layoutDescriptor, String overlay);
     private static native int nativeGetMappedKey(long ptr, int scanCode);
 
     private KeyCharacterMap(Parcel in) {
@@ -387,13 +387,13 @@ public class KeyCharacterMap implements Parcelable {
      * @hide
      */
     public static KeyCharacterMap load(@NonNull String layoutDescriptor, @NonNull String overlay) {
-        KeyCharacterMap kcm = KeyCharacterMap.load(VIRTUAL_KEYBOARD);
-        kcm.applyOverlay(layoutDescriptor, overlay);
-        return kcm;
-    }
-
-    private void applyOverlay(@NonNull String layoutDescriptor, @NonNull String overlay) {
-        nativeApplyOverlay(mPtr, layoutDescriptor, overlay);
+        KeyCharacterMap virtualKcm = KeyCharacterMap.load(VIRTUAL_KEYBOARD);
+        KeyCharacterMap kcmWithOverlay = nativeObtainMapWithOverlay(virtualKcm.mPtr,
+                layoutDescriptor, overlay);
+        if (kcmWithOverlay == null) {
+            return virtualKcm;
+        }
+        return kcmWithOverlay;
     }
 
     /**

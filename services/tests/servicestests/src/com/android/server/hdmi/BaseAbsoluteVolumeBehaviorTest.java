@@ -166,6 +166,7 @@ public abstract class BaseAbsoluteVolumeBehaviorTest {
                 HdmiControlManager.VOLUME_CONTROL_DISABLED);
         mHdmiControlService.setHdmiCecConfig(mHdmiCecConfig);
         mHdmiControlService.setDeviceConfig(new FakeDeviceConfigWrapper());
+        mHdmiControlService.setAvbDisabled(false);  // enable Avb as required by test
 
         mNativeWrapper = new FakeNativeWrapper();
         mNativeWrapper.setPhysicalAddress(getPhysicalAddress());

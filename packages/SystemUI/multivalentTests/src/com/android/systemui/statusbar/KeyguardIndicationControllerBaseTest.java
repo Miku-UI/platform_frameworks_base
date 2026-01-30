@@ -16,9 +16,6 @@
 
 package com.android.systemui.statusbar;
 
-import static android.app.admin.DevicePolicyManager.DEVICE_OWNER_TYPE_DEFAULT;
-
-import static com.android.systemui.flags.Flags.KEYGUARD_TALKBACK_FIX;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_TRANSIENT;
 import static com.android.systemui.keyguard.ScreenLifecycle.SCREEN_ON;
 
@@ -49,7 +46,6 @@ import android.content.Context;
 import android.hardware.fingerprint.FingerprintManager;
 import android.os.Looper;
 import android.os.UserManager;
-import android.provider.DeviceConfig;
 import android.testing.TestableLooper;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityManager;
@@ -69,6 +65,7 @@ import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.BouncerMessageInteractor;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.deviceentry.domain.interactor.BiometricMessageInteractor;
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBiometricSettingsInteractor;
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor;
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFingerprintAuthInteractor;
 import com.android.systemui.dock.DockManager;
@@ -78,9 +75,12 @@ import com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController;
 import com.android.systemui.keyguard.ScreenLifecycle;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractorFactory;
 import com.android.systemui.keyguard.util.IndicationHelper;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.res.R;
+import com.android.systemui.securelockdevice.data.repository.FakeSecureLockDeviceRepository;
+import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.phone.KeyguardBypassController;
 import com.android.systemui.statusbar.phone.KeyguardIndicationTextView;
@@ -101,14 +101,14 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
-
     protected static final String ORGANIZATION_NAME = "organization";
 
-    protected static final ComponentName DEVICE_OWNER_COMPONENT = new ComponentName(
-            "com.android.foo",
-            "bar");
+    private static final ComponentName DEVICE_OWNER_COMPONENT =
+            new ComponentName("com.android.foo", "bar");
 
     protected static final int TEST_STRING_RES = R.string.keyguard_indication_trust_unlocked;
+
+    protected KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
 
     protected String mDisclosureWithOrganization;
     protected String mDisclosureGeneric;
@@ -170,6 +170,9 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
     protected AlarmManager mAlarmManager;
     @Mock
     protected UserTracker mUserTracker;
+    @Mock
+    protected DeviceEntryBiometricSettingsInteractor mDeviceEntryBiometricSettingsInteractor;
+
     @Captor
     protected ArgumentCaptor<DockManager.AlignmentStateListener> mAlignmentListener;
     @Captor
@@ -191,6 +194,8 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
     protected ScreenLifecycle.Observer mScreenObserver;
     protected BroadcastReceiver mBroadcastReceiver;
     protected IndicationHelper mIndicationHelper;
+    protected FakeSecureLockDeviceRepository mSecureLockDeviceRepository;
+    protected SecureLockDeviceInteractor mSecureLockDeviceInteractor;
     protected FakeExecutor mExecutor = new FakeExecutor(new FakeSystemClock());
     protected TestableLooper mTestableLooper;
     protected final int mCurrentUserId = 1;
@@ -208,13 +213,11 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
         MockitoAnnotations.initMocks(this);
         mInstrumentation = InstrumentationRegistry.getInstrumentation();
         mTestableLooper = TestableLooper.get(this);
+        mSecureLockDeviceRepository = mKosmos.getFakeSecureLockDeviceRepository();
+        mSecureLockDeviceInteractor = mKosmos.getSecureLockDeviceInteractor();
         mTextView = new KeyguardIndicationTextView(mContext);
         mTextView.setAnimationsEnabled(false);
 
-        // TODO(b/259908270): remove
-        DeviceConfig.setProperty(DeviceConfig.NAMESPACE_DEVICE_POLICY_MANAGER,
-                DevicePolicyManager.ADD_ISFINANCED_DEVICE_FLAG, "true",
-                /* makeDefault= */ false);
         mContext.addMockSystemService(Context.DEVICE_POLICY_SERVICE, mDevicePolicyManager);
         mContext.addMockSystemService(UserManager.class, mUserManager);
         mContext.addMockSystemService(Context.TRUST_SERVICE, mock(TrustManager.class));
@@ -237,9 +240,6 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
         when(mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser())
                 .thenReturn(DEVICE_OWNER_COMPONENT);
         when(mDevicePolicyManager.isFinancedDevice()).thenReturn(false);
-        // TODO(b/259908270): remove
-        when(mDevicePolicyManager.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_DEFAULT);
 
         when(mDevicePolicyResourcesManager.getString(anyString(), any()))
                 .thenReturn(mDisclosureGeneric);
@@ -256,6 +256,9 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
         when(mUserLogoutInteractor.isLogoutEnabled()).thenReturn(mockLogoutEnabledFlow);
 
         mIndicationHelper = new IndicationHelper(mKeyguardUpdateMonitor);
+
+        when(mDeviceEntryBiometricSettingsInteractor.getAuthenticationFlags())
+                .thenReturn(mock(StateFlow.class));
 
         mWakeLock = new WakeLockFake();
         mWakeLockBuilder = new WakeLockFake.Builder(mContext);
@@ -279,7 +282,6 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
         }
 
         mFlags = new FakeFeatureFlags();
-        mFlags.set(KEYGUARD_TALKBACK_FIX, true);
         mController = new KeyguardIndicationController(
                 mContext,
                 mTestableLooper.getLooper(),
@@ -294,13 +296,14 @@ public class KeyguardIndicationControllerBaseTest extends SysuiTestCase {
                 mAlarmManager,
                 mUserTracker,
                 mock(BouncerMessageInteractor.class),
-                mFlags,
                 mIndicationHelper,
+                mDeviceEntryBiometricSettingsInteractor,
                 KeyguardInteractorFactory.create(mFlags).getKeyguardInteractor(),
                 mBiometricMessageInteractor,
                 mDeviceEntryFingerprintAuthInteractor,
                 mDeviceEntryFaceAuthInteractor,
-                mUserLogoutInteractor
+                mUserLogoutInteractor,
+                () -> mSecureLockDeviceInteractor
         );
         mController.init();
         mController.setIndicationArea(mIndicationArea);

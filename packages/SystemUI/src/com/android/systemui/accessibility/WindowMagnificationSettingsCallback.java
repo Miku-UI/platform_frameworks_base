@@ -42,6 +42,20 @@ public interface WindowMagnificationSettingsCallback {
     void onSetDiagonalScrolling(boolean enable);
 
     /**
+     * Called when set magnify typing.
+     *
+     * @param enable Magnify typing enable value.
+     */
+    void onSetMagnifyTyping(boolean enable);
+
+    /**
+     * Called when set magnify keyboard.
+     *
+     * @param enable Magnify keyboard enable value.
+     */
+    void onSetMagnifyKeyboard(boolean enable);
+
+    /**
      * Called when change magnification size on free mode.
      *
      * @param enable Free mode enable value.

@@ -40,6 +40,7 @@ import android.app.assist.AssistContent;
 import android.app.assist.AssistStructure;
 import android.content.ComponentName;
 import android.content.ContentCaptureOptions;
+import android.content.Intent;
 import android.content.pm.ActivityPresentationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
@@ -61,6 +62,7 @@ import android.service.voice.VoiceInteractionManagerInternal;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.EventLog;
+import android.util.Log;
 import android.util.Slog;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
@@ -354,8 +356,9 @@ final class ContentCapturePerUserService
         // Make sure service is bound, just in case the initial connection failed somehow
         mRemoteService.ensureBoundLocked();
 
+        final ActivityId activityId = new ActivityId(taskId, shareableActivityToken);
         final ContentCaptureServerSession newSession = new ContentCaptureServerSession(mLock,
-                activityToken, new ActivityId(taskId, shareableActivityToken), this, componentName,
+                activityToken, activityId, this, componentName,
                 clientReceiver, taskId, displayId, sessionId, uid, flags);
         if (mMaster.verbose) {
             Slog.v(TAG, "startSession(): new session for "
@@ -492,6 +495,17 @@ final class ContentCapturePerUserService
         for (int i = 0; i < mSessions.size(); i++) {
             final ContentCaptureServerSession session = mSessions.valueAt(i);
             if (session.mActivityToken.equals(activityToken)) {
+                return session;
+            }
+        }
+        return null;
+    }
+
+    @GuardedBy("mLock")
+    private ContentCaptureServerSession getSession(@NonNull ActivityId activityId) {
+        for (int i = 0; i < mSessions.size(); i++) {
+            final ContentCaptureServerSession session = mSessions.valueAt(i);
+            if (session.isActivitySession(activityId)) {
                 return session;
             }
         }

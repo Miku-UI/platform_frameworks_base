@@ -20,6 +20,7 @@ import android.content.applicationContext
 import android.view.windowManager
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.biometrics.fingerprintInteractiveToAuthProvider
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos

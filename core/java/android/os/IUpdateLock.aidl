@@ -19,7 +19,7 @@ package android.os;
 /**
  * Direct interface to the UpdateLockService's functionality
  *
- * {@hide}
+ * @hide
  */
 interface IUpdateLock {
     void acquireUpdateLock(IBinder token, String tag);

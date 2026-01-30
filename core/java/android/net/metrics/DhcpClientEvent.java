@@ -27,7 +27,7 @@ import android.text.TextUtils;
 
 /**
  * An event recorded when a DhcpClient state machine transitions to a new state.
- * {@hide}
+ * @hide
  * @deprecated The event may not be sent in Android S and above. The events
  * are logged by a single caller in the system using signature permissions
  * and that caller is migrating to statsd.

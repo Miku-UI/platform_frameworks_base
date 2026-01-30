@@ -4,88 +4,10 @@ container: "system"
 # NOTE: Keep alphabetized to help limit merge conflicts from multiple simultaneous editors.
 
 flag {
-    name: "add_window_token_without_lock"
-    namespace: "accessibility"
-    description: "Calls WMS.addWindowToken without holding A11yManagerService#mLock"
-    bug: "297972548"
-}
-
-flag {
-    name: "allow_secure_screenshots"
-    namespace: "accessibility"
-    description: "Allow certain AccessibilityServices to take screenshots of FLAG_SECURE screens"
-    bug: "373705911"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "always_allow_observing_touch_events"
-    namespace: "accessibility"
-    description: "Always allows InputFilter observing SOURCE_TOUCHSCREEN events, even if touch exploration is enabled."
-    bug: "344604959"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "resettable_dynamic_properties"
-    namespace: "accessibility"
-    description: "Maintains initial copies of a11yServiceInfo dynamic properties so they can reset on disconnect."
-    bug: "312386990"
-}
-
-flag {
     name: "cleanup_a11y_overlays"
     namespace: "accessibility"
     description: "Removes all attached accessibility overlays when a service is removed."
     bug: "271490102"
-}
-
-flag {
-    name: "clear_default_from_a11y_shortcut_target_service_restore"
-    namespace: "accessibility"
-    description: "Clears the config_defaultAccessibilityService from B&R for ACCESSIBILITY_SHORTCUT_TARGET_SERVICE."
-    bug: "341374402"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "clear_shortcuts_when_activity_updates_to_service"
-    namespace: "accessibility"
-    description: "When an a11y activity is updated to an a11y service, clears the associated shortcuts so that we don't skip the AccessibilityServiceWarning."
-    bug: "358092445"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "deprecate_package_list_observer"
-    namespace: "accessibility"
-    description: "Stops using the deprecated PackageListObserver."
-    bug: "304561459"
-}
-
-flag {
-    name: "disable_continuous_shortcut_on_force_stop"
-    namespace: "accessibility"
-    description: "When a package is force stopped, remove the button shortcuts of any continuously-running shortcuts."
-    bug: "198018180"
-}
-
-flag {
-    name: "do_not_reset_key_event_state"
-    namespace: "accessibility"
-    description: "Don't reset the event stream state when receiving an event without policy flag FLAG_PASS_TO_USER. Just pass it through the pipeline."
-    bug: "331900630"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -103,24 +25,24 @@ flag {
 }
 
 flag {
-    name: "enable_hardware_shortcut_disables_warning"
+    name: "enable_braille_suw_immediate_connections"
     namespace: "accessibility"
-    description: "When the user purposely enables the hardware shortcut, preemptively disables the first-time warning message."
-    bug: "287065325"
+    description: "Whether to allow Braille devices to connect automatically in the SUW."
+    bug: "400776305"
 }
 
 flag {
     name: "enable_low_vision_generic_feedback"
     namespace: "accessibility"
     description: "Use generic feedback for low vision."
-    bug: "393981463"
+    bug: "398736573"
 }
 
 flag {
     name: "enable_low_vision_hats"
     namespace: "accessibility"
     description: "Use HaTS for low vision feedback."
-    bug: "380346799"
+    bug: "397794341"
 }
 
 flag {
@@ -152,37 +74,17 @@ flag {
 }
 
 flag {
-    name: "enable_magnification_keyboard_control"
+    name: "enable_magnification_magnify_nav_bar_and_ime"
     namespace: "accessibility"
-    description: "Whether to enable keyboard control for magnification"
-    bug: "355487062"
+    description: "Whether to enable magnify navigation bar and ime on full screen"
+    bug: "342509709"
 }
 
 flag {
-    name: "event_dispatcher_raw_event"
+    name: "enable_mouse_key_enhancement"
     namespace: "accessibility"
-    description: "Fixes EventDispatcher#sendMotionEvent callers to properly provide raw event"
-    bug: "385812366"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "fix_drag_pointer_when_ending_drag"
-    namespace: "accessibility"
-    description: "Send the correct pointer id when transitioning from dragging to delegating states."
-    bug: "300002193"
-}
-
-flag {
-    name: "focus_click_point_window_bounds_from_a11y_window_info"
-    namespace: "accessibility"
-    description: "Uses A11yWindowInfo bounds for focus click point bounds checking"
-    bug: "317166487"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Whether user can change mouse key acceleration, speed and use numeric keypad."
+    bug: "409330539"
 }
 
 flag {
@@ -203,26 +105,6 @@ flag {
 }
 
 flag {
-    name: "magnification_enlarge_pointer_bugfix"
-    namespace: "accessibility"
-    description: "When fullscreen magnification is enabled, pointer icon is enlarged"
-    bug: "355734856"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "manager_avoid_receiver_timeout"
-    namespace: "accessibility"
-    description: "Register receivers on background handler so they have more time to complete"
-    bug: "333890389"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "manager_lifecycle_user_change"
     namespace: "accessibility"
     description: "Use A11yManagerService's Lifecycle to change users, instead of listening for user changed events."
@@ -233,94 +115,13 @@ flag {
 }
 
 flag {
-    name: "motion_event_injector_cancel_fix"
+    name: "notify_qs_tile_changed_after_user_initialization"
     namespace: "accessibility"
-    description: "Fix the ACTION_CANCEL logic used in MotionEventInjector to avoid InputDispatcher inconsistency"
-    bug: "384451671"
+    description: "Pause SysUI notifying QuickSettings tiles changed until the user in AMS finishes initialization."
+    bug: "392560794"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-    name: "package_monitor_dedicated_thread"
-    namespace: "accessibility"
-    description: "Runs the A11yManagerService PackageMonitor on a dedicated thread"
-    bug: "348138695"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "manager_package_monitor_logic_fix"
-    namespace: "accessibility"
-    description: "Corrects the return values of the HandleForceStop function"
-    bug: "337392123"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "pinch_zoom_zero_min_span"
-    namespace: "accessibility"
-    description: "Whether to set min span of ScaleGestureDetector to zero."
-    bug: "295327792"
-}
-
-flag {
-    name: "pointer_up_motion_event_in_touch_exploration"
-    namespace: "accessibility"
-    description: "Allows POINTER_UP motionEvents to trigger during touch exploration."
-    bug: "374930391"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "proxy_use_apps_on_virtual_device_listener"
-    namespace: "accessibility"
-    description: "Fixes race condition described in b/286587811"
-    bug: "286587811"
-}
-
-flag {
-    name: "remove_on_window_infos_changed_handler"
-    namespace: "accessibility"
-    description: "Updates onWindowInfosChanged() to run without posting to a handler."
-    bug: "333834990"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "reset_hover_event_timer_on_action_up"
-    namespace: "accessibility"
-    description: "Reset the timer for sending hover events on receiving ACTION_UP to guarantee the correct amount of time is available between taps."
-    bug: "326260351"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "reset_input_dispatcher_before_first_touch_exploration"
-    namespace: "accessibility"
-    description: "Resets InputDispatcher state by sending ACTION_CANCEL before the first TouchExploration hover events"
-    bug: "364408887"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "scan_packages_without_lock"
-    namespace: "accessibility"
-    description: "Scans packages for accessibility service/activity info without holding the A11yMS lock"
-    bug: "295969873"
 }
 
 flag {
@@ -331,16 +132,6 @@ flag {
 }
 
 flag {
-    name: "send_hover_events_based_on_event_stream"
-    namespace: "accessibility"
-    description: "Send hover enter and exit based on the state of the hover event stream rather than the internal state of the touch explorer state machine. Because of the nondeterministic nature of gesture detection when done in talkback, relying on the internal state can cause crashes."
-    bug: "314251047"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "enable_color_correction_saturation"
     namespace: "accessibility"
     description: "Feature allows users to change color correction saturation for daltonizer."
@@ -348,20 +139,20 @@ flag {
 }
 
 flag {
-    name: "skip_package_change_before_user_switch"
+    name: "throttle_motion_events_for_ui_update"
     namespace: "accessibility"
-    description: "Skip onSomePackageChanged callback if the SwitchUser signal is not received yet."
-    bug: "340927041"
+    description: "Throttles motion events for requesting the System UI to update magnification UIs."
+    bug: "435498747"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "hearing_input_change_when_comm_device"
+    name: "touch_explorer_a11y_events_include_display_id"
     namespace: "accessibility"
-    description: "Listen to the CommunicationDeviceChanged to show hearing device input notification."
-    bug: "394070235"
+    description: "When sending an A11y event, TouchExplorer will include its displayId"
+    bug: "431092453"
     metadata {
         purpose: PURPOSE_BUGFIX
     }

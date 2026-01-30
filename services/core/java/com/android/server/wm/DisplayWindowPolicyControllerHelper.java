@@ -21,7 +21,6 @@ import static android.content.pm.ActivityInfo.FLAG_CAN_DISPLAY_ON_REMOTE_DEVICES
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.WindowConfiguration;
-import android.companion.virtualdevice.flags.Flags;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.IntentSender;
@@ -29,6 +28,7 @@ import android.content.pm.ActivityInfo;
 import android.os.Process;
 import android.os.UserHandle;
 import android.util.ArraySet;
+import android.util.Pair;
 import android.util.Slog;
 import android.view.Display;
 import android.window.DisplayWindowPolicyController;
@@ -56,10 +56,10 @@ class DisplayWindowPolicyControllerHelper {
     private ActivityRecord mTopRunningActivity = null;
 
     /**
-     * All the uids of non-finishing activity on this display.
+     * All the uid and package pairs of non-finishing activity on this display.
      * @see DisplayWindowPolicyController#onRunningAppsChanged(ArraySet)
      */
-    private ArraySet<Integer> mRunningUid = new ArraySet<>();
+    private ArraySet<Pair<Integer, String>> mRunningUidPackagePairs = new ArraySet<>();
 
     DisplayWindowPolicyControllerHelper(DisplayContent displayContent) {
         mDisplayContent = displayContent;
@@ -129,14 +129,13 @@ class DisplayWindowPolicyControllerHelper {
     }
 
     private boolean launchAllowedByDisplayPolicy(ActivityInfo aInfo) {
-        if (!Flags.enforceRemoteDeviceOptOutOnAllVirtualDisplays()) {
-            return true;
-        }
         int displayType = mDisplayContent.getDisplay().getType();
         if (displayType != Display.TYPE_VIRTUAL && displayType != Display.TYPE_WIFI) {
             return true;
         }
-        if ((aInfo.flags & FLAG_CAN_DISPLAY_ON_REMOTE_DEVICES) == 0) {
+
+        if ((aInfo.flags & FLAG_CAN_DISPLAY_ON_REMOTE_DEVICES) == 0
+                && (mDisplayContent.getDisplay().getFlags() & Display.FLAG_SECURE) == 0) {
             Slog.d(TAG,
                     String.format("Checking activity launch on display %d, activity requires"
                                     + " android:canDisplayOnRemoteDevices=true",
@@ -185,12 +184,12 @@ class DisplayWindowPolicyControllerHelper {
             }
         }
 
-        // Update running uid.
+        // Update the running uid and package pairs.
         final boolean[] notifyChanged = {false};
-        ArraySet<Integer> runningUids = new ArraySet<>();
+        ArraySet<Pair<Integer, String>> uidPackagePairs = new ArraySet<>();
         mDisplayContent.forAllActivities((r) -> {
             if (!r.finishing) {
-                notifyChanged[0] |= runningUids.add(r.getUid());
+                notifyChanged[0] |= uidPackagePairs.add(new Pair<>(r.getUid(), r.info.packageName));
             }
         });
 
@@ -198,9 +197,9 @@ class DisplayWindowPolicyControllerHelper {
         // existence of 3 in the forAllActivities() loop.
         // Old set: 1,2,3
         // New set: 1,2
-        if (notifyChanged[0] || (mRunningUid.size() != runningUids.size())) {
-            mRunningUid = runningUids;
-            mDisplayWindowPolicyController.onRunningAppsChanged(runningUids);
+        if (notifyChanged[0] || (mRunningUidPackagePairs.size() != uidPackagePairs.size())) {
+            mRunningUidPackagePairs = uidPackagePairs;
+            mDisplayWindowPolicyController.onRunningAppsChanged(uidPackagePairs);
         }
     }
 

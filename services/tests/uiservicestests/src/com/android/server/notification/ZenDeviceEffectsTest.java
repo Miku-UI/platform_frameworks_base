@@ -20,7 +20,10 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertThrows;
 
+import android.annotation.SuppressLint;
 import android.os.Parcel;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.ZenDeviceEffects;
 
@@ -41,7 +44,44 @@ public class ZenDeviceEffectsTest extends UiServiceTestCase {
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
     public void builder() {
+        ZenDeviceEffects deviceEffects =
+                new ZenDeviceEffects.Builder()
+                        .setShouldDimWallpaper(true)
+                        .setShouldDisableTapToWake(true)
+                        .setShouldDisableTapToWake(false)
+                        .setShouldDisableTiltToWake(true)
+                        .setShouldMaximizeDoze(true)
+                        .setShouldUseNightMode(false)
+                        .setShouldUseNightLight(true)
+                        .setShouldSuppressAmbientDisplay(false)
+                        .setShouldSuppressAmbientDisplay(true)
+                        .setBrightnessCap(0.5f)
+                        .addExtraEffect("WILL BE GONE")
+                        .setExtraEffects(ImmutableSet.of("1", "2"))
+                        .addExtraEffects(ImmutableSet.of("3", "4"))
+                        .addExtraEffect("5")
+                        .build();
+
+        assertThat(deviceEffects.shouldDimWallpaper()).isTrue();
+        assertThat(deviceEffects.shouldDisableAutoBrightness()).isFalse();
+        assertThat(deviceEffects.shouldDisableTapToWake()).isFalse();
+        assertThat(deviceEffects.shouldDisableTiltToWake()).isTrue();
+        assertThat(deviceEffects.shouldDisableTouch()).isFalse();
+        assertThat(deviceEffects.shouldDisplayGrayscale()).isFalse();
+        assertThat(deviceEffects.shouldUseNightLight()).isTrue();
+        assertThat(deviceEffects.shouldMaximizeDoze()).isTrue();
+        assertThat(deviceEffects.shouldMinimizeRadioUsage()).isFalse();
+        assertThat(deviceEffects.shouldUseNightMode()).isFalse();
+        assertThat(deviceEffects.shouldSuppressAmbientDisplay()).isTrue();
+        assertThat(deviceEffects.getBrightnessCap()).isEqualTo(0.5f);
+        assertThat(deviceEffects.getExtraEffects()).containsExactly("1", "2", "3", "4", "5");
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
+    public void builder_brightnessCapFlagDisabled() {
         ZenDeviceEffects deviceEffects =
                 new ZenDeviceEffects.Builder()
                         .setShouldDimWallpaper(true)
@@ -74,6 +114,7 @@ public class ZenDeviceEffectsTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
     public void builder_fromInstance() {
         ZenDeviceEffects original = new ZenDeviceEffects.Builder()
                 .setShouldDimWallpaper(true)
@@ -82,6 +123,37 @@ public class ZenDeviceEffectsTest extends UiServiceTestCase {
                 .setShouldSuppressAmbientDisplay(true)
                 .addExtraEffect("1")
                 .build();
+
+        ZenDeviceEffects modified =
+                new ZenDeviceEffects.Builder(original)
+                        .setShouldDisplayGrayscale(true)
+                        .setShouldUseNightMode(false)
+                        .setShouldUseNightLight(true)
+                        .setBrightnessCap(0.5f)
+                        .addExtraEffect("2")
+                        .build();
+
+        assertThat(modified.shouldDimWallpaper()).isTrue(); // from original
+        assertThat(modified.shouldDisableTiltToWake()).isTrue(); // from original
+        assertThat(modified.shouldDisplayGrayscale()).isTrue(); // updated
+        assertThat(modified.shouldUseNightLight()).isTrue(); // updated
+        assertThat(modified.shouldUseNightMode()).isFalse(); // updated
+        assertThat(modified.shouldSuppressAmbientDisplay()).isTrue(); // from original
+        assertThat(modified.getBrightnessCap()).isEqualTo(0.5f); // updated
+        assertThat(modified.getExtraEffects()).containsExactly("1", "2"); // updated
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
+    public void builder_fromInstance_brightnessCapFlagDisabled() {
+        ZenDeviceEffects original =
+                new ZenDeviceEffects.Builder()
+                        .setShouldDimWallpaper(true)
+                        .setShouldDisableTiltToWake(true)
+                        .setShouldUseNightMode(true)
+                        .setShouldSuppressAmbientDisplay(true)
+                        .addExtraEffect("1")
+                        .build();
 
         ZenDeviceEffects modified =
                 new ZenDeviceEffects.Builder(original)
@@ -126,15 +198,65 @@ public class ZenDeviceEffectsTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
+    public void builder_add_retainsLowerBrightnessCap() {
+        ZenDeviceEffects zde1 = new ZenDeviceEffects.Builder().setBrightnessCap(0.5f).build();
+        ZenDeviceEffects zde2 = new ZenDeviceEffects.Builder().setBrightnessCap(0.6f).build();
+
+        ZenDeviceEffects add1 = new ZenDeviceEffects.Builder().add(zde1).add(zde2).build();
+        ZenDeviceEffects add2 = new ZenDeviceEffects.Builder().add(zde2).add(zde1).build();
+
+        ZenDeviceEffects expected = new ZenDeviceEffects.Builder().setBrightnessCap(0.5f).build();
+        assertThat(add1).isEqualTo(expected);
+        assertThat(add2).isEqualTo(expected);
+    }
+
+    @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
     public void writeToParcel_parcelsAndUnparcels() {
-        ZenDeviceEffects source = new ZenDeviceEffects.Builder()
-                .setShouldDimWallpaper(true)
-                .setShouldDisableTouch(true)
-                .setShouldMinimizeRadioUsage(true)
-                .setShouldUseNightMode(true)
-                .setShouldSuppressAmbientDisplay(true)
-                .setExtraEffects(ImmutableSet.of("1", "2", "3"))
-                .build();
+        ZenDeviceEffects source =
+                new ZenDeviceEffects.Builder()
+                        .setShouldDimWallpaper(true)
+                        .setShouldDisableTouch(true)
+                        .setShouldMinimizeRadioUsage(true)
+                        .setShouldUseNightMode(true)
+                        .setShouldSuppressAmbientDisplay(true)
+                        .setBrightnessCap(0.5f)
+                        .setExtraEffects(ImmutableSet.of("1", "2", "3"))
+                        .build();
+
+        Parcel parcel = Parcel.obtain();
+        ZenDeviceEffects copy;
+        try {
+            source.writeToParcel(parcel, 0);
+            parcel.setDataPosition(0);
+            copy = ZenDeviceEffects.CREATOR.createFromParcel(parcel);
+        } finally {
+            parcel.recycle();
+        }
+
+        assertThat(copy.shouldDimWallpaper()).isTrue();
+        assertThat(copy.shouldDisableTouch()).isTrue();
+        assertThat(copy.shouldMinimizeRadioUsage()).isTrue();
+        assertThat(copy.shouldUseNightMode()).isTrue();
+        assertThat(copy.shouldSuppressAmbientDisplay()).isTrue();
+        assertThat(copy.shouldDisplayGrayscale()).isFalse();
+        assertThat(copy.getBrightnessCap()).isEqualTo(0.5f);
+        assertThat(copy.getExtraEffects()).containsExactly("1", "2", "3");
+    }
+
+    @Test
+    @DisableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
+    public void writeToParcel_parcelsAndUnparcels_brightnessCapFlagDisabled() {
+        ZenDeviceEffects source =
+                new ZenDeviceEffects.Builder()
+                        .setShouldDimWallpaper(true)
+                        .setShouldDisableTouch(true)
+                        .setShouldMinimizeRadioUsage(true)
+                        .setShouldUseNightMode(true)
+                        .setShouldSuppressAmbientDisplay(true)
+                        .setExtraEffects(ImmutableSet.of("1", "2", "3"))
+                        .build();
 
         Parcel parcel = Parcel.obtain();
         ZenDeviceEffects copy;
@@ -178,6 +300,17 @@ public class ZenDeviceEffectsTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
+    public void hasEffects_brightnessCapSet_returnsTrue() {
+        ZenDeviceEffects effects = new ZenDeviceEffects.Builder().setBrightnessCap(0.5f).build();
+        assertThat(effects.hasEffects()).isTrue();
+        effects = new ZenDeviceEffects.Builder().setBrightnessCap(0f).build();
+        assertThat(effects.hasEffects()).isTrue();
+        effects = new ZenDeviceEffects.Builder().setBrightnessCap(1f).build();
+        assertThat(effects.hasEffects()).isTrue();
+    }
+
+    @Test
     public void validate_extrasLength() {
         ZenDeviceEffects okay = new ZenDeviceEffects.Builder()
                 .addExtraEffect("short")
@@ -199,5 +332,22 @@ public class ZenDeviceEffectsTest extends UiServiceTestCase {
         okay.validate(); // No exception.
         pushingIt.validate(); // No exception.
         assertThrows(Exception.class, () -> excessive.validate());
+    }
+
+    @Test
+    @SuppressLint("Range")
+    @EnableFlags(android.service.notification.Flags.FLAG_APPLY_BRIGHTNESS_CLAMPING_FOR_MODES)
+    public void validate_brightnessCapRange() {
+        ZenDeviceEffects okay = new ZenDeviceEffects.Builder().setBrightnessCap(0.5f).build();
+
+        ZenDeviceEffects lessThanZeroFixed =
+                new ZenDeviceEffects.Builder().setBrightnessCap(-0.1f).build();
+
+        ZenDeviceEffects moreThanOneFixed =
+                new ZenDeviceEffects.Builder().setBrightnessCap(1.1f).build();
+
+        okay.validate(); // No exception.
+        assertThrows(IllegalArgumentException.class, lessThanZeroFixed::validate);
+        assertThrows(IllegalArgumentException.class, moreThanOneFixed::validate);
     }
 }

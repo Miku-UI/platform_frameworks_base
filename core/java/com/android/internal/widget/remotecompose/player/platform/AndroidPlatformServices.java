@@ -68,8 +68,7 @@ public class AndroidPlatformServices implements Platform {
     }
 
     @Override
-    @Nullable
-    public float[] pathToFloatArray(@NonNull Object path) {
+    public @Nullable float[] pathToFloatArray(@NonNull Object path) {
         //        if (path is RemotePath) {
         //            return path.createFloatArray()
         //        }
@@ -82,7 +81,7 @@ public class AndroidPlatformServices implements Platform {
     }
 
     @Override
-    public void log(LogCategory category, String message) {
+    public void log(@NonNull LogCategory category, @NonNull String message) {
         switch (category) {
             case DEBUG:
                 Log.d(LOG_TAG, message);
@@ -108,7 +107,6 @@ public class AndroidPlatformServices implements Platform {
             estimatedSize++;
         }
 
-        PathIterator iter = path.getPathIterator();
         float[] pathFloat = new float[estimatedSize * 10];
 
         int count = 0;
@@ -147,5 +145,75 @@ public class AndroidPlatformServices implements Platform {
         }
 
         return Arrays.copyOf(pathFloat, count);
+    }
+
+    /**
+     * Parse a path represented as a string and returns a Path object
+     *
+     * @param pathData string representation of a path
+     * @return Path object
+     */
+    @Override
+    public @NonNull Object parsePath(@NonNull String pathData) {
+        Path path = new Path();
+        float[] cords = new float[6];
+
+        String[] commands = pathData.split("(?=[MmZzLlHhVvCcSsQqTtAa])");
+        for (String command : commands) {
+            char cmd = command.charAt(0);
+            String[] values = command.substring(1).trim().split("[,\\s]+");
+            switch (cmd) {
+                case 'M':
+                    path.moveTo(Float.parseFloat(values[0]), Float.parseFloat(values[1]));
+                    break;
+                case 'L':
+                    for (int i = 0; i < values.length; i += 2) {
+                        path.lineTo(Float.parseFloat(values[i]), Float.parseFloat(values[i + 1]));
+                    }
+                    break;
+                case 'H':
+                    for (String value : values) {
+                        path.lineTo(Float.parseFloat(value), cords[1]);
+                    }
+                    break;
+                case 'C':
+                    for (int i = 0; i < values.length; i += 6) {
+                        path.cubicTo(
+                                Float.parseFloat(values[i]),
+                                Float.parseFloat(values[i + 1]),
+                                Float.parseFloat(values[i + 2]),
+                                Float.parseFloat(values[i + 3]),
+                                Float.parseFloat(values[i + 4]),
+                                Float.parseFloat(values[i + 5]));
+                    }
+                    break;
+                case 'S':
+                    for (int i = 0; i < values.length; i += 4) {
+                        path.cubicTo(
+                                2 * cords[0] - cords[2],
+                                2 * cords[1] - cords[3],
+                                Float.parseFloat(values[i]),
+                                Float.parseFloat(values[i + 1]),
+                                Float.parseFloat(values[i + 2]),
+                                Float.parseFloat(values[i + 3]));
+                    }
+                    break;
+                case 'Z':
+                    path.close();
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unsupported command: " + cmd);
+            }
+            if (cmd != 'Z' && cmd != 'H') {
+                cords[0] = Float.parseFloat(values[values.length - 2]);
+                cords[1] = Float.parseFloat(values[values.length - 1]);
+                if (cmd == 'C' || cmd == 'S') {
+                    cords[2] = Float.parseFloat(values[values.length - 4]);
+                    cords[3] = Float.parseFloat(values[values.length - 3]);
+                }
+            }
+        }
+
+        return path;
     }
 }

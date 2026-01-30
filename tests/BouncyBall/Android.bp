@@ -1,0 +1,24 @@
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+android_app {
+    name: "BouncyBallTest",
+    manifest: "app/src/main/AndroidManifest.xml",
+    srcs: ["app/src/main/java/**/*.java"],
+    resource_dirs: ["app/src/main/res"],
+    // We want to build against the latest APIs in the tree
+    sdk_version: "current",
+    // We set a specific target version so this can be installed on released
+    // devices for testing.
+    target_sdk_version: "36",
+    // Our focus is on testing more recent devices.  So we limit how far back
+    // this goes.  Specifically, we only allow going back to Android 11, where
+    // Context.getDisplay() was introduced.
+    min_sdk_version: "30",
+}

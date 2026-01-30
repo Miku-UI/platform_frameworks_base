@@ -24,7 +24,6 @@ import static com.android.server.pm.AppsFilterUtils.requestsQueryAllPackages;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.content.pm.Flags;
 import android.content.pm.SigningDetails;
 import android.os.Binder;
 import android.os.Handler;
@@ -320,8 +319,7 @@ public abstract class AppsFilterBase implements AppsFilterSnapshot {
     }
 
     private static boolean isQueryableBySdkSandbox(int callingUid, int targetUid) {
-        return Flags.allowSdkSandboxQueryIntentActivities()
-                && targetUid == Process.getAppUidForSdkSandboxUid(callingUid);
+        return targetUid == Process.getAppUidForSdkSandboxUid(callingUid);
     }
 
     /**

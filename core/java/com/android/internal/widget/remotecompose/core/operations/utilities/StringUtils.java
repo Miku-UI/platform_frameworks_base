@@ -21,6 +21,9 @@ import java.util.Arrays;
 
 /** Utilities for string manipulation */
 public class StringUtils {
+
+    private StringUtils() {}
+
     /**
      * Converts a float into a string. Providing a defined number of characters before and after the
      * decimal point.
@@ -57,7 +60,7 @@ public class StringUtils {
             integerPartString = integerPartString.substring(iLen - beforeDecimalPoint);
         }
         if (afterDecimalPoint == 0) {
-            return ((isNeg) ? "-" : "") + integerPartString;
+            return (isNeg ? "-" : "") + integerPartString;
         }
         // Convert fractional part to string and pad with zeros
 
@@ -89,6 +92,6 @@ public class StringUtils {
             fact = fact + new String(c);
         }
 
-        return ((isNeg) ? "-" : "") + integerPartString + "." + fact;
+        return (isNeg ? "-" : "") + integerPartString + "." + fact;
     }
 }

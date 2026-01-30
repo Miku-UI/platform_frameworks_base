@@ -24,7 +24,6 @@ import android.view.SurfaceControl;
 import com.android.server.display.feature.DisplayManagerFlags;
 
 import java.io.PrintWriter;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * A display adapter makes zero or more display devices available to the system
@@ -47,11 +46,6 @@ abstract class DisplayAdapter {
     public static final int DISPLAY_DEVICE_EVENT_ADDED = 1;
     public static final int DISPLAY_DEVICE_EVENT_CHANGED = 2;
     public static final int DISPLAY_DEVICE_EVENT_REMOVED = 3;
-
-    /**
-     * Used to generate globally unique display mode ids.
-     */
-    private static final AtomicInteger NEXT_DISPLAY_MODE_ID = new AtomicInteger(1);  // 0 = no mode.
 
     // Called with SyncRoot lock held.
     DisplayAdapter(DisplayManagerService.SyncRoot syncRoot, Context context, Handler handler,
@@ -126,17 +120,6 @@ abstract class DisplayAdapter {
      */
     protected final void sendTraversalRequestLocked() {
         mHandler.post(() -> mListener.onTraversalRequested());
-    }
-
-    public static Display.Mode createMode(int width, int height, float refreshRate) {
-        return createMode(width, height, refreshRate, refreshRate, new float[0], new int[0]);
-    }
-
-    public static Display.Mode createMode(int width, int height, float refreshRate, float vsyncRate,
-            float[] alternativeRefreshRates,
-            @Display.HdrCapabilities.HdrType int[] supportedHdrTypes) {
-        return new Display.Mode(NEXT_DISPLAY_MODE_ID.getAndIncrement(), width, height, refreshRate,
-                vsyncRate, /* isSynthetic= */ false, alternativeRefreshRates, supportedHdrTypes);
     }
 
     static int getPowerModeForState(int state) {

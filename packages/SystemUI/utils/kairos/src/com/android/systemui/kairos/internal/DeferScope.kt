@@ -22,28 +22,22 @@ internal interface DeferScope {
     fun <R> deferAsync(block: () -> R): Lazy<R>
 }
 
-internal inline fun <A> deferScope(block: DeferScope.() -> A): A {
-    val scope =
-        object : DeferScope {
-            val deferrals = ArrayDeque<() -> Unit>() // TODO: store lazies instead?
+internal class DeferScopeImpl : DeferScope {
+    val deferrals = ArrayDeque<() -> Unit>()
 
-            fun drainDeferrals() {
-                while (deferrals.isNotEmpty()) {
-                    deferrals.removeFirst().invoke()
-                }
-            }
-
-            override fun deferAction(block: () -> Unit) {
-                deferrals.add(block)
-            }
-
-            override fun <R> deferAsync(block: () -> R): Lazy<R> =
-                lazy(block).also { deferrals.add { it.value } }
+    fun drainDeferrals() {
+        while (deferrals.isNotEmpty()) {
+            deferrals.removeFirst().invoke()
         }
-    return scope.block().also { scope.drainDeferrals() }
-}
+    }
 
-internal object NoValue
+    override fun deferAction(block: () -> Unit) {
+        deferrals.add(block)
+    }
+
+    override fun <R> deferAsync(block: () -> R): Lazy<R> =
+        lazy(LazyThreadSafetyMode.NONE, block).also { deferrals.add { it.value } }
+}
 
 internal class CompletableLazy<T>(
     private var _value: Any? = NoValue,
@@ -63,4 +57,6 @@ internal class CompletableLazy<T>(
         }
 
     override fun isInitialized(): Boolean = _value !== NoValue
+
+    private object NoValue
 }

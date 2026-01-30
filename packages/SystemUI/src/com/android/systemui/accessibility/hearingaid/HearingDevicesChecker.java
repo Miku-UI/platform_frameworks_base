@@ -70,7 +70,7 @@ public class HearingDevicesChecker {
         }
 
         return mLocalBluetoothManager.getCachedDeviceManager().getCachedDevicesCopy().stream()
-                .anyMatch(device -> device.isHearingAidDevice()
+                .anyMatch(device -> device.isHearingDevice()
                         && device.getBondState() != BluetoothDevice.BOND_NONE
                         && !isExclusivelyManagedBluetoothDevice(device));
     }

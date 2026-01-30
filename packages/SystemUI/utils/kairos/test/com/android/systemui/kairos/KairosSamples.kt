@@ -40,10 +40,10 @@ class KairosSamples {
         val ints = emitter.mapMaybe { it.toIntOrNull().toMaybe() }
 
         var observedInput: String? = null
-        emitter.observe { observedInput = it }
+        emitter.observeSync { observedInput = it }
 
         var observedInt: Int? = null
-        ints.observe { observedInt = it }
+        ints.observeSync { observedInt = it }
 
         launchEffect {
             // parse succeeds
@@ -76,7 +76,7 @@ class KairosSamples {
             }
 
         var observedSquare: Int? = null
-        squared.observe { observedSquare = it }
+        squared.observeSync { observedSquare = it }
 
         launchEffect {
             emitter.emit(10)
@@ -97,7 +97,7 @@ class KairosSamples {
         val squared = emitter.map { it * it }
 
         var observedSquare: Int? = null
-        squared.observe { observedSquare = it }
+        squared.observeSync { observedSquare = it }
 
         launchEffect {
             emitter.emit(10)
@@ -117,7 +117,7 @@ class KairosSamples {
         newCount = emitter.map { count.sample() + 1 }
 
         var observedCount = 0
-        count.observe { observedCount = it }
+        count.observeSync { observedCount = it }
 
         launchEffect {
             emitter.emit(Unit)
@@ -136,7 +136,7 @@ class KairosSamples {
         count = emitter.map { count.sample() + 1 }.holdState(0)
 
         var observedCount = 0
-        count.observe { observedCount = it }
+        count.observeSync { observedCount = it }
 
         launchEffect {
             emitter.emit(Unit)
@@ -154,11 +154,11 @@ class KairosSamples {
         val state = emitter.holdState(0)
 
         var numEmissions = 0
-        emitter.observe { numEmissions++ }
+        emitter.observeSync { numEmissions++ }
 
         var observedState = 0
         var numChangeEmissions = 0
-        state.changes.observe {
+        state.changes.observeSync {
             observedState = it
             numChangeEmissions++
         }
@@ -198,10 +198,10 @@ class KairosSamples {
         val (lefts, rights) = emitter.partitionThese()
 
         var observedLeft: Int? = null
-        lefts.observe { observedLeft = it }
+        lefts.observeSync { observedLeft = it }
 
         var observedRight: String? = null
-        rights.observe { observedRight = it }
+        rights.observeSync { observedRight = it }
 
         launchEffect {
             emitter.emit(These.first(10))
@@ -228,7 +228,7 @@ class KairosSamples {
         val output = mergeLeft(fizzbuzz, emitter.mapCheap { it.toString() })
 
         var observedOutput: String? = null
-        output.observe { observedOutput = it }
+        output.observeSync { observedOutput = it }
 
         launchEffect {
             emitter.emit(1)
@@ -257,13 +257,13 @@ class KairosSamples {
         val groupB = grouped["B"]
 
         var numEmissions = 0
-        emitter.observe { numEmissions++ }
+        emitter.observeSync { numEmissions++ }
 
         var observedA: Int? = null
-        groupA.observe { observedA = it }
+        groupA.observeSync { observedA = it }
 
         var observedB: Int? = null
-        groupB.observe { observedB = it }
+        groupB.observeSync { observedB = it }
 
         launchEffect {
             // emit to group A
@@ -308,7 +308,7 @@ class KairosSamples {
             negate.map { negate -> if (negate) emitter.map { it * -1 } else emitter }.switchEvents()
 
         var observed: Int? = null
-        output.observe { observed = it }
+        output.observeSync { observed = it }
 
         launchEffect {
             // emit like normal
@@ -341,10 +341,10 @@ class KairosSamples {
         val promptSwitch = switchedIn.switchEventsPromptly()
 
         var observedDeferred: Int? = null
-        deferredSwitch.observe { observedDeferred = it }
+        deferredSwitch.observeSync { observedDeferred = it }
 
         var observedPrompt: Int? = null
-        promptSwitch.observe { observedPrompt = it }
+        promptSwitch.observeSync { observedPrompt = it }
 
         launchEffect {
             emitter.emit(3)
@@ -375,7 +375,7 @@ class KairosSamples {
         var store = 0
         val transactional = transactionally { store++ }
 
-        effect {
+        effectSync {
             assertEquals(store, 0)
             assertEquals(transactional.sample(), 0)
             assertEquals(store, 1)
@@ -388,18 +388,18 @@ class KairosSamples {
 
     fun BuildScope.states() {
         val constantState = stateOf(10)
-        effect { assertEquals(constantState.sample(), 10) }
+        effectSync { assertEquals(constantState.sample(), 10) }
 
         val mappedConstantState: State<Int> = constantState.map { it * 2 }
-        effect { assertEquals(mappedConstantState.sample(), 20) }
+        effectSync { assertEquals(mappedConstantState.sample(), 20) }
 
         val emitter = MutableEvents<Int>()
         val heldState: State<Int?> = emitter.holdState(null)
-        effect { assertEquals(heldState.sample(), null) }
+        effectSync { assertEquals(heldState.sample(), null) }
 
         var observed: Int? = null
         var wasObserved = false
-        heldState.observe {
+        heldState.observeSync {
             observed = it
             wasObserved = true
         }
@@ -412,10 +412,10 @@ class KairosSamples {
         val combinedStates: State<Pair<Int, Int?>> =
             combine(mappedConstantState, heldState) { a, b -> Pair(a, b) }
 
-        effect { assertEquals(combinedStates.sample(), 20 to null) }
+        effectSync { assertEquals(combinedStates.sample(), 20 to null) }
 
         var observedPair: Pair<Int, Int?>? = null
-        combinedStates.observe { observedPair = it }
+        combinedStates.observeSync { observedPair = it }
         launchEffect {
             emitter.emit(12)
             assertEquals(observedPair, 20 to 12)
@@ -427,11 +427,11 @@ class KairosSamples {
     fun BuildScope.holdState() {
         val emitter = MutableEvents<Int>()
         val heldState: State<Int?> = emitter.holdState(null)
-        effect { assertEquals(heldState.sample(), null) }
+        effectSync { assertEquals(heldState.sample(), null) }
 
         var observed: Int? = null
         var wasObserved = false
-        heldState.observe {
+        heldState.observeSync {
             observed = it
             wasObserved = true
         }
@@ -456,7 +456,7 @@ class KairosSamples {
         val squared: State<Int> = held.map { it * it }
 
         var observed: Int? = null
-        squared.observe { observed = it }
+        squared.observeSync { observed = it }
 
         launchEffect {
             assertEquals(observed, 0)
@@ -476,7 +476,7 @@ class KairosSamples {
         val combined = squared.combine(negated) { a, b -> Pair(a, b) }
 
         val observed = mutableListOf<Pair<Int, Int>>()
-        combined.observe { observed.add(it) }
+        combined.observeSync { observed.add(it) }
 
         launchEffect {
             emitter.emit(10)
@@ -502,7 +502,7 @@ class KairosSamples {
             toggleState.flatMap { b -> if (b) firstCount else secondCount }
 
         var observed: Int? = null
-        activeCount.observe { observed = it }
+        activeCount.observeSync { observed = it }
 
         launchEffect {
             assertEquals(observed, 0)
@@ -532,10 +532,10 @@ class KairosSamples {
         val squared = incremental.mapValues { (key, value) -> value * value }
 
         var observedUpdate: MapPatch<String, Int>? = null
-        squared.updates.observe { observedUpdate = it }
+        squared.updates.observeSync { observedUpdate = it }
 
         var observedState: Map<String, Int>? = null
-        squared.observe { observedState = it }
+        squared.observeSync { observedState = it }
 
         launchEffect {
             assertEquals(observedState, emptyMap())
@@ -570,7 +570,7 @@ class KairosSamples {
         val merged: Events<Map<String, Int>> = incremental.mergeEventsIncrementally()
 
         var observed: Map<String, Int>? = null
-        merged.observe { observed = it }
+        merged.observeSync { observed = it }
 
         launchEffect {
             // add events entry: A
@@ -614,10 +614,10 @@ class KairosSamples {
         val promptMerge: Events<Map<String, Int>> = incremental.mergeEventsIncrementallyPromptly()
 
         var observedDeferred: Map<String, Int>? = null
-        deferredMerge.observe { observedDeferred = it }
+        deferredMerge.observeSync { observedDeferred = it }
 
         var observedPrompt: Map<String, Int>? = null
-        promptMerge.observe { observedPrompt = it }
+        promptMerge.observeSync { observedPrompt = it }
 
         launchEffect {
             val emitterA = MutableEvents<Int>()

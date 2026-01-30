@@ -20,7 +20,6 @@ import static android.content.Intent.ACTION_USER_SWITCHED;
 import static android.location.LocationManager.GPS_PROVIDER;
 import static android.location.LocationManager.NETWORK_PROVIDER;
 import static android.location.LocationRequest.QUALITY_HIGH_ACCURACY;
-import static android.location.LocationRequest.QUALITY_LOW_POWER;
 import static android.location.provider.ProviderProperties.ACCURACY_FINE;
 import static android.location.provider.ProviderProperties.POWER_USAGE_LOW;
 
@@ -35,7 +34,6 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.location.LocationRequest;
-import android.location.flags.Flags;
 import android.location.provider.LocationProviderBase;
 import android.location.provider.ProviderProperties;
 import android.location.provider.ProviderRequest;
@@ -90,11 +88,7 @@ public class FusedLocationProvider extends LocationProviderBase {
 
     public FusedLocationProvider(Context context) {
         super(context, TAG, PROPERTIES);
-        if (Flags.missingAttributionTagsInOverlay()) {
-            mContext = context.createAttributionContext(ATTRIBUTION_TAG);
-        } else {
-            mContext = context;
-        }
+        mContext = context.createAttributionContext(ATTRIBUTION_TAG);
         mLocationManager = Objects.requireNonNull(mContext.getSystemService(LocationManager.class));
 
         mGpsListener = new ChildLocationListener(GPS_PROVIDER);
@@ -175,11 +169,8 @@ public class FusedLocationProvider extends LocationProviderBase {
             mNlpPresent = mLocationManager.hasProvider(NETWORK_PROVIDER);
         }
 
-        boolean requestAllowsGps =
-                Flags.limitFusedGps()
-                    ? mRequest.getQuality() == QUALITY_HIGH_ACCURACY
-                        && mRequest.getIntervalMillis() <= MAX_GPS_INTERVAL_MS
-                    : !mNlpPresent || mRequest.getQuality() < QUALITY_LOW_POWER;
+        boolean requestAllowsGps = mRequest.getQuality() == QUALITY_HIGH_ACCURACY
+                && mRequest.getIntervalMillis() <= MAX_GPS_INTERVAL_MS;
         long gpsInterval =
                 mGpsPresent && requestAllowsGps
                         ? mRequest.getIntervalMillis() : INTERVAL_DISABLED;

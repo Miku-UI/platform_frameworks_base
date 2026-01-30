@@ -375,11 +375,13 @@ public class AccessibilityMenuService extends AccessibilityService
 
     @Override
     public boolean onUnbind(Intent intent) {
-        unregisterReceiver(mHideMenuReceiver);
-        unregisterReceiver(mToggleMenuReceiver);
-        mDisplayManager.unregisterDisplayListener(mDisplayListener);
-        mPrefs.unregisterOnSharedPreferenceChangeListener(mSharedPreferenceChangeListener);
-        sInitialized = false;
+        if (sInitialized) {
+            unregisterReceiver(mHideMenuReceiver);
+            unregisterReceiver(mToggleMenuReceiver);
+            mDisplayManager.unregisterDisplayListener(mDisplayListener);
+            mPrefs.unregisterOnSharedPreferenceChangeListener(mSharedPreferenceChangeListener);
+            sInitialized = false;
+        }
         if (mA11yMenuLayout != null) {
             mA11yMenuLayout.clearLayout();
             mA11yMenuLayout = null;

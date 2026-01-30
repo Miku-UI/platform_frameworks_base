@@ -31,7 +31,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNot
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
@@ -109,10 +111,11 @@ constructor(
     override suspend fun handleAudioSourceWhenReady() {
         withContext(backgroundDispatcher) {
             if (audioSharingAvailable()) {
+                audioSharingRepository.isAudioSharingProfilesReady.filter { it }.first()
                 audioSharingRepository.leAudioBroadcastProfile?.let { profile ->
                     merge(
-                            // Register and start listen to onBroadcastMetadataChanged (means ready
-                            // to add source)
+                            // Register and start listen to onBroadcastMetadataChanged
+                            // (means ready to add source)
                             audioSharingStartedEvents.receiveAsFlow().map { true },
                             // When session is off or failed to start, stop listening to
                             // onBroadcastMetadataChanged as we won't be adding source
@@ -122,9 +125,9 @@ constructor(
                         )
                         .mapNotNull { shouldListenToMetadata ->
                             if (shouldListenToMetadata) {
-                                // onBroadcastMetadataChanged could emit multiple times during one
-                                // audio sharing session, we only perform add source on the first
-                                // time
+                                // onBroadcastMetadataChanged could emit multiple times
+                                // during one audio sharing session, we only perform add
+                                // source on the first time
                                 profile.onBroadcastMetadataChanged.firstOrNull()
                             } else {
                                 null

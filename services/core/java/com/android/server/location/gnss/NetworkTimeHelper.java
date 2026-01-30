@@ -19,7 +19,6 @@ import android.annotation.CurrentTimeMillisLong;
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
 import android.content.Context;
-import android.location.flags.Flags;
 import android.os.Looper;
 
 import java.io.PrintWriter;
@@ -56,13 +55,7 @@ abstract class NetworkTimeHelper {
     static NetworkTimeHelper create(
             @NonNull Context context, @NonNull Looper looper,
             @NonNull InjectTimeCallback injectTimeCallback) {
-        if (!Flags.useLegacyNtpTime()) {
-            TimeDetectorNetworkTimeHelper.Environment environment =
-                    new TimeDetectorNetworkTimeHelper.EnvironmentImpl(looper);
-            return new TimeDetectorNetworkTimeHelper(environment, injectTimeCallback);
-        } else {
-            return new NtpNetworkTimeHelper(context, looper, injectTimeCallback);
-        }
+        return new NtpNetworkTimeHelper(context, looper, injectTimeCallback);
     }
 
     /**

@@ -28,9 +28,9 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.common.ui.view.SeekBarWithIconButtonsView
-import com.android.systemui.model.SysUiState
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
+import com.android.systemui.shade.domain.interactor.FakeShadeDialogContextInteractor
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.statusbar.phone.SystemUIDialog.DEFAULT_DISMISS_ON_DEVICE_LOCK
 import com.android.systemui.statusbar.phone.SystemUIDialogManager
@@ -44,8 +44,6 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.any
-import org.mockito.ArgumentMatchers.anyBoolean
-import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mock
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.verify
@@ -75,7 +73,6 @@ class FontScalingDialogDelegateTest : SysuiTestCase() {
     @Mock private lateinit var dialogManager: SystemUIDialogManager
     @Mock private lateinit var dialogFactory: SystemUIDialog.Factory
     @Mock private lateinit var userTracker: UserTracker
-    @Mock private lateinit var sysuiState: SysUiState
     @Mock private lateinit var mDialogTransitionAnimator: DialogTransitionAnimator
 
     @Before
@@ -90,7 +87,6 @@ class FontScalingDialogDelegateTest : SysuiTestCase() {
         secureSettings = fakeSettings
         systemClock = FakeSystemClock()
         backgroundDelayableExecutor = FakeExecutor(systemClock)
-        whenever(sysuiState.setFlag(anyLong(), anyBoolean())).thenReturn(sysuiState)
 
         fontScalingDialogDelegate =
             spy(
@@ -104,6 +100,7 @@ class FontScalingDialogDelegateTest : SysuiTestCase() {
                     userTracker,
                     mainHandler,
                     backgroundDelayableExecutor,
+                    FakeShadeDialogContextInteractor(mContext),
                 )
             )
 
@@ -113,7 +110,6 @@ class FontScalingDialogDelegateTest : SysuiTestCase() {
                 0,
                 DEFAULT_DISMISS_ON_DEVICE_LOCK,
                 dialogManager,
-                sysuiState,
                 fakeBroadcastDispatcher,
                 mDialogTransitionAnimator,
                 fontScalingDialogDelegate,

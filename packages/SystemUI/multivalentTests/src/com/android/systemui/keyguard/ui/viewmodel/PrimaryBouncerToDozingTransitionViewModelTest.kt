@@ -32,8 +32,14 @@ import com.android.systemui.keyguard.shared.model.TransitionState.RUNNING
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.data.repository.HideOverlay
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -55,6 +61,16 @@ class PrimaryBouncerToDozingTransitionViewModelTest : SysuiTestCase() {
         fingerprintPropertyRepository = kosmos.fingerprintPropertyRepository
         biometricSettingsRepository = kosmos.biometricSettingsRepository
         underTest = kosmos.primaryBouncerToDozingTransitionViewModel
+
+        // Put STL in transition: Bouncer => Lockscreen transition (includes KeyguardState.DOZING)
+        kosmos.setSceneTransition(
+            HideOverlay(
+                overlay = Overlays.Bouncer,
+                toScene = Scenes.Lockscreen,
+                currentOverlays = flowOf(setOf(Overlays.Bouncer)),
+                progress = flowOf(.5f),
+            )
+        )
     }
 
     @Test
@@ -137,7 +153,12 @@ class PrimaryBouncerToDozingTransitionViewModelTest : SysuiTestCase() {
 
     private fun step(value: Float, state: TransitionState = RUNNING): TransitionStep {
         return TransitionStep(
-            from = KeyguardState.PRIMARY_BOUNCER,
+            from =
+                if (SceneContainerFlag.isEnabled) {
+                    KeyguardState.UNDEFINED
+                } else {
+                    KeyguardState.PRIMARY_BOUNCER
+                },
             to = KeyguardState.DOZING,
             value = value,
             transitionState = state,

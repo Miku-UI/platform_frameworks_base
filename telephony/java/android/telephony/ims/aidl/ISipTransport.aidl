@@ -23,7 +23,7 @@ import android.telephony.ims.aidl.ISipDelegateStateCallback;
 
 /**
  * Interface for commands to the SIP Transport implementation.
- * {@hide}
+ * @hide
  */
 oneway interface ISipTransport {
     void createSipDelegate(int subId, in DelegateRequest request, ISipDelegateStateCallback dc,

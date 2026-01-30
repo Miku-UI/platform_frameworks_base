@@ -7,7 +7,6 @@
         { "include-filter": "android.app.cts.ActivityManagerTest" },
         { "include-filter": "android.app.cts.ActivityManagerProcessStateTest" },
         { "include-filter": "android.app.cts.ServiceTest" },
-        { "include-filter": "android.app.cts.ActivityManagerFgsBgStartTest" },
         { "include-filter": "android.app.cts.ForceStopTest" },
         {
           "include-annotation": "android.platform.test.annotations.Presubmit"
@@ -69,13 +68,18 @@
       "name": "CtsAppDataIsolationHostTestCases"
     },
     {
+      "name": "CtsAppFgsTestCases",
+      "options": [
+        { "include-filter": "android.app.cts.fgstest.ActivityManagerFgsBgStartTest" }
+      ]
+    },
+    {
       "name": "CtsAppTestCases",
       "options": [
         { "include-filter": "android.app.cts.TaskDescriptionTest" },
         { "include-filter": "android.app.cts.ActivityManagerTest" },
         { "include-filter": "android.app.cts.ActivityManagerProcessStateTest" },
-        { "include-filter": "android.app.cts.ServiceTest" },
-        { "include-filter": "android.app.cts.ActivityManagerFgsBgStartTest" }
+        { "include-filter": "android.app.cts.ServiceTest" }
       ]
     },
     {

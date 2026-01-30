@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"権限が必要です"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"インストールはブロックされました"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"アプリを準備しています…"</string>
+    <string name="title_install" msgid="6806728682404990326">"このアプリをインストールしますか？"</string>
+    <string name="title_installing" msgid="3738380766257176010">"インストールしています…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"アプリをインストールしました"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"このアプリを再インストールしますか？"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"再インストールしています…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"アプリを再インストールしました"</string>
+    <string name="title_update" msgid="1747328630716712391">"このアプリを更新しますか？"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> を使用してこのアプリを更新しますか？"</string>
+    <string name="title_updating" msgid="5449073288264173554">"更新しています…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"アプリを更新しました"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"アプリをインストールできません"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"インストールはブロックされました"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"アプリが対応していません"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"パッケージが無効です"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"空き容量が不足しています"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"アプリがインストールされていません"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"このアプリをアンインストールしますか？"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"このアプリのクローンを削除しますか？"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"アプリ アップデートをアンインストールしますか？"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"すべてのユーザーに対してアプリ アップデートをアンインストールしますか？"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"すべてのユーザーに対してこのアプリをアンインストールしますか？"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"ユーザー「<xliff:g id="USER_NAME">%1$s</xliff:g>」に対してこのアプリをアンインストールしますか？"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"アプリが見つかりません"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"このアプリをアンインストールできません"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"アプリをアンインストールできませんでした"</string>
+    <string name="title_archive" msgid="2876455228073419830">"このアプリをアーカイブしますか？"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"すべてのユーザーに対してこのアプリをアーカイブしますか？"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"ユーザー「<xliff:g id="USER_NAME">%1$s</xliff:g>」に対してこのアプリをアーカイブしますか？"</string>
+    <string name="title_restore" msgid="8934911753892124574">"このアプリを復元しますか？"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"ご対応のお願い"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"空き容量が不足しています"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"オフラインです"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> は無効です"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> がインストールされていません"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"エラーが発生しました"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"このアプリは通常、&lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; からアップデートを受信しています。別の提供元を使用して更新すると、お使いのタブレットで今後のアップデートを任意の提供元から受け取ることになります。アプリの機能は変更される場合があります。"</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"このアプリは通常、&lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; からアップデートを受信しています。別の提供元を使用して更新すると、お使いのテレビで今後のアップデートを任意の提供元から受け取ることになります。アプリの機能は変更される場合があります。"</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"このアプリは通常、&lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; からアップデートを受信しています。別の提供元を使用して更新すると、お使いのスマートフォンで今後のアップデートを任意の提供元から受け取ることになります。アプリの機能は変更される場合があります。"</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"セキュリティ上の理由から、お使いのタブレットでは現在、この提供元からの不明なアプリをインストールすることはできません。これは [設定] で変更できます。"</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"セキュリティ上の理由から、お使いのテレビでは現在、この提供元からの不明なアプリをインストールすることはできません。これは [設定] で変更できます。"</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"セキュリティ上の理由から、お使いのウォッチでは現在、この提供元からの不明なアプリをインストールすることはできません。これは [設定] で変更できます。"</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"セキュリティ上の理由から、お使いのスマートフォンでは現在、この提供元からの不明なアプリをインストールすることはできません。これは [設定] で変更できます。"</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"不明なアプリをインストールすると、スマートフォンや個人データの保護が低下します。この提供元からアプリをインストールすることで、それに伴って生じかねないスマートフォンへの侵害やデータ損失について、各自が責任を負うことに同意します。"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"不明なアプリをインストールすると、タブレットや個人データへの攻撃を受けやすくなります。このアプリをインストールすることで、アプリの使用により生じる恐れのあるタブレットの損傷やデータの損失について、ご自身が単独で責任を負うことに同意することになります。"</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"不明なアプリをインストールすると、テレビや個人データへの攻撃を受けやすくなります。このアプリをインストールすることで、アプリの使用により生じる恐れあるテレビの損傷やデータの損失について、ご自身が単独で責任を負うことに同意することになります。"</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"このアプリのインストールはブロックされました"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"このアプリはデバイスにインストール済みのアプリと競合します"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"このアプリはお使いのデバイスに対応していません"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"このアプリのインストール ファイルに問題があります"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"このアプリをインストールするには、空き容量を増やしてから、もう一度お試しください"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"アプリのファイルに問題があります"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"アプリのインストールが制限されています"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"不明なアプリのインストールが制限されています"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"このアプリにはクローンも存在しており、削除されます"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"このアプリは <xliff:g id="APP_LABEL">%1$s</xliff:g> のクローンです"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"このアプリは出荷時のバージョンに置き換えられます。アプリデータはすべて削除されます。"</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"このアプリは、デバイス上のすべてのユーザーに対して出荷時のバージョンに置き換えられます。アプリデータはすべて削除されます。"</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"このアプリは仕事用プロファイルからアンインストールされます"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"このアプリはプライベート スペースからアンインストールされます"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"このアプリは、インストール済みアプリのリストにないか、またはすでにアンインストールされています"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"このアンインストール操作は現在のユーザーには許可されていません"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"このアプリをアンインストールできませんでした"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"アプリデータを保持してください"</string>
+    <string name="message_archive" msgid="943853731737315850">"アプリデータは保存されます"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"アプリデータはすべて保存されます"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"アプリデータは保存されます"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"このアプリは仕事用プロファイルからアーカイブされます。アプリデータは保存されます。"</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"このアプリはプライベート スペースからアーカイブされます。アプリデータは保存されます。"</string>
+    <string name="message_restore" msgid="8402726798623569969">"このアプリは <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> からバックグラウンドでダウンロードされます"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"このアプリを復元するには、<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> に詳細情報を提供する必要があります"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"このアプリを復元するには、空き容量を &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; 増やしてから、もう一度お試しください"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"このアプリを復元するには、インターネット接続を確認してからもう一度お試しください"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"このアプリを復元するには、[設定] で <xliff:g id="INSTALLERNAME">%1$s</xliff:g> を有効にしてください"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"このアプリを復元するには、<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> をインストールする必要があります"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"このアプリを復元しようとしたときに問題が発生しました"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> はアプリ（<xliff:g id="APP_NAME">%2$s</xliff:g>）の一部です"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;このアプリはブロックされています。デバイスとデータの安全を保つため、インストールできるのは確認済みのデベロッパーのアプリのみです。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;このアプリは更新されませんでした。デバイスとデータの安全を保つため、インストールできるのは確認済みのデベロッパーによるアップデートのみです。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;このアプリはインストールされませんでした。未確認のデベロッパーのアプリは安全ではない恐れがあります。&lt;/p&gt;&lt;p&gt;アプリ デベロッパーを確認するには、インターネット接続が必要です。接続を確認してから、もう一度インストールをお試しください。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;このアプリは更新されませんでした。未確認のデベロッパーによるアップデートは安全ではない恐れがあります。&lt;/p&gt;&lt;p&gt;アプリ デベロッパーを確認するには、インターネット接続が必要です。接続を確認してから、もう一度更新をお試しください。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;このアプリのデベロッパーの確認で問題が発生しました。未確認のデベロッパーのアプリは安全ではない恐れがあるため、アプリはインストールされませんでした。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;このアプリのデベロッパーの確認で問題が発生しました。未確認のデベロッパーによるアップデートは安全ではない恐れがあるため、アプリは更新されませんでした。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;デベロッパーの確認で問題が発生したため、このアプリはブロックされました。デバイスとデータの安全を保つため、インストールできるのは確認済みのデベロッパーのアプリのみです。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;デベロッパーの確認で問題が発生したため、このアプリは更新されませんでした。デバイスとデータの安全を保つため、インストールできるのは確認済みのデベロッパーによるアップデートのみです。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;デベロッパーの確認の詳細&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"確認せずにインストールする場合、未確認のデベロッパーのアプリはデバイスやデータを危険にさらす恐れがあることにご注意ください。"</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"確認せずに更新する場合、未確認のデベロッパーによるアップデートはデバイスやデータを危険にさらす恐れがあることにご注意ください。"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"未確認のアプリ デベロッパーです"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"アプリ デベロッパーを確認できません"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"アプリ デベロッパーを確認できません"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"確認せずにインストール"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"確認せずに更新"</string>
+    <string name="button_install" msgid="7434013176505680162">"インストール"</string>
+    <string name="button_update" msgid="3046719350226327526">"更新"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"更新する"</string>
+    <string name="button_done" msgid="3408025390982260629">"完了"</string>
+    <string name="button_open" msgid="6892684987374117955">"開く"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"キャンセル"</string>
+    <string name="button_continue" msgid="107501685249826244">"続行"</string>
+    <string name="button_close" msgid="7187308556466275899">"閉じる"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"アンインストール"</string>
+    <string name="button_delete" msgid="1050833585936159792">"削除"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"再インストール"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"アプリを管理"</string>
+    <string name="button_archive" msgid="2719647830439699121">"アーカイブ"</string>
+    <string name="button_restore" msgid="4388317532933866637">"復元"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"アップデートをアンインストール"</string>
+    <string name="button_settings" msgid="3837571366246132287">"設定"</string>
+    <string name="button_retry" msgid="6736082260813816198">"再試行"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> のクローン"</string>
+</resources>

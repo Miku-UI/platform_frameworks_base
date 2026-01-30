@@ -29,7 +29,7 @@ import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.TaskStackListenerCallback
 import com.android.wm.shell.common.TaskStackListenerImpl
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus
+import com.android.wm.shell.shared.desktopmode.DesktopState
 import com.android.wm.shell.sysui.ShellInit
 
 /** Handles task resizing to respect orientation change of non-resizeable activities in desktop. */
@@ -41,10 +41,11 @@ class DesktopActivityOrientationChangeHandler(
     private val resizeHandler: ToggleResizeDesktopTaskTransitionHandler,
     private val desktopUserRepositories: DesktopUserRepositories,
     private val displayController: DisplayController,
+    private val desktopState: DesktopState,
 ) {
 
     init {
-        if (DesktopModeStatus.canEnterDesktopMode(context)) {
+        if (desktopState.canEnterDesktopMode) {
             shellInit.addInitCallback({ onInit() }, this)
         }
     }

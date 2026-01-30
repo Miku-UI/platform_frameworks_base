@@ -20,9 +20,7 @@ import com.android.systemui.shared.notifications.data.repository.NotificationSet
 import kotlinx.coroutines.flow.StateFlow
 
 /** Encapsulates business logic for interacting with notification settings. */
-class NotificationSettingsInteractor(
-    private val repository: NotificationSettingsRepository,
-) {
+class NotificationSettingsInteractor(private val repository: NotificationSettingsRepository) {
     val isNotificationHistoryEnabled = repository.isNotificationHistoryEnabled
 
     /** Should notifications be visible on the lockscreen? */
@@ -39,4 +37,7 @@ class NotificationSettingsInteractor(
         repository.setShowNotificationsOnLockscreenEnabled(!current)
     }
 
-    val isCooldownEnabled = repository.isCooldownEnabled}
+    val isCooldownEnabled = repository.isCooldownEnabled
+
+    val shouldExpandBundles = repository.shouldExpandBundles
+}

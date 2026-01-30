@@ -27,6 +27,8 @@ import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager;
 import com.android.systemui.media.controls.ui.controller.MediaHostStatesManager;
 import com.android.systemui.media.controls.ui.view.MediaHost;
 import com.android.systemui.media.dream.dagger.MediaComplicationComponent;
+import com.android.systemui.media.remedia.data.MediaDataModule;
+import com.android.systemui.media.remedia.ui.MediaUiModule;
 import com.android.systemui.media.taptotransfer.receiver.MediaTttReceiverLogBuffer;
 import com.android.systemui.media.taptotransfer.sender.MediaTttSenderLogBuffer;
 
@@ -38,7 +40,9 @@ import javax.inject.Named;
 /** Dagger module for the media package. */
 @Module(
         includes = {
-            MediaDomainModule.class
+            MediaDomainModule.class,
+            MediaDataModule.class,
+            MediaUiModule.class,
         },
         subcomponents = {
         MediaComplicationComponent.class,

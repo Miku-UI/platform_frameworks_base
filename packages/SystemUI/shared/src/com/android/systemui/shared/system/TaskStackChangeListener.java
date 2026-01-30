@@ -114,4 +114,10 @@ public interface TaskStackChangeListener {
      * LockTaskController.
      */
     default void onLockTaskModeChanged(int mode) { }
+
+    /**
+     * Called when a task is removed due to launching a new task. This normally means the previous
+     * task is being replaced with a new one.
+     */
+    default void onRecentTaskRemovedForAddTask(int taskId) { }
 }

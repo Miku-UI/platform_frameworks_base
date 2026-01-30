@@ -16,5 +16,4 @@
 
 <resources>
     <dimen name="settingslib_expressive_zero_state_background_size">160dp</dimen>
-    <dimen name="settingslib_expressive_zero_state_title_width">316dp</dimen>
 </resources>

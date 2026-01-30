@@ -102,11 +102,26 @@ class AudioSharingInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    fun audioSourceStateUpdate_profileNotReady_returnEmpty() =
+        with(kosmos) {
+            testScope.runTest {
+                bluetoothTileDialogAudioSharingRepository.setAudioSharingAvailable(true)
+                bluetoothTileDialogAudioSharingRepository.setInAudioSharing(true)
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(false)
+                val value by collectLastValue(underTest.audioSourceStateUpdate)
+                runCurrent()
+
+                assertThat(value).isNull()
+            }
+        }
+
+    @Test
     fun audioSourceStateUpdate_notInAudioSharing_returnEmpty() =
         with(kosmos) {
             testScope.runTest {
                 bluetoothTileDialogAudioSharingRepository.setAudioSharingAvailable(true)
                 bluetoothTileDialogAudioSharingRepository.setInAudioSharing(false)
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(true)
                 val value by collectLastValue(underTest.audioSourceStateUpdate)
                 runCurrent()
 
@@ -120,6 +135,7 @@ class AudioSharingInteractorTest : SysuiTestCase() {
             testScope.runTest {
                 bluetoothTileDialogAudioSharingRepository.setAudioSharingAvailable(true)
                 bluetoothTileDialogAudioSharingRepository.setInAudioSharing(true)
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(true)
                 val value by collectLastValue(underTest.audioSourceStateUpdate)
                 runCurrent()
                 bluetoothTileDialogAudioSharingRepository.emitAudioSourceStateUpdate()
@@ -159,6 +175,23 @@ class AudioSharingInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    fun handleAudioSourceWhenReady_profileNotReady_sourceNotAdded() =
+        with(kosmos) {
+            testScope.runTest {
+                bluetoothTileDialogAudioSharingRepository.setAudioSharingAvailable(true)
+                bluetoothTileDialogAudioSharingRepository.setLeAudioBroadcastProfile(
+                    localBluetoothLeBroadcast
+                )
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(false)
+                val job = launch { underTest.handleAudioSourceWhenReady() }
+                runCurrent()
+
+                assertThat(bluetoothTileDialogAudioSharingRepository.sourceAdded).isFalse()
+                job.cancel()
+            }
+        }
+
+    @Test
     fun handleAudioSourceWhenReady_hasProfileButAudioSharingNeverTriggered_sourceNotAdded() =
         with(kosmos) {
             testScope.runTest {
@@ -166,6 +199,7 @@ class AudioSharingInteractorTest : SysuiTestCase() {
                 bluetoothTileDialogAudioSharingRepository.setLeAudioBroadcastProfile(
                     localBluetoothLeBroadcast
                 )
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(true)
                 val job = launch { underTest.handleAudioSourceWhenReady() }
                 runCurrent()
 
@@ -184,6 +218,7 @@ class AudioSharingInteractorTest : SysuiTestCase() {
                 bluetoothTileDialogAudioSharingRepository.setLeAudioBroadcastProfile(
                     localBluetoothLeBroadcast
                 )
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(true)
                 val job = launch { underTest.handleAudioSourceWhenReady() }
                 runCurrent()
                 // Verify callback registered for onBroadcastStartedOrStopped
@@ -209,6 +244,7 @@ class AudioSharingInteractorTest : SysuiTestCase() {
                 bluetoothTileDialogAudioSharingRepository.setLeAudioBroadcastProfile(
                     localBluetoothLeBroadcast
                 )
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(true)
                 val job = launch { underTest.handleAudioSourceWhenReady() }
                 runCurrent()
                 // Verify callback registered for onBroadcastStartedOrStopped
@@ -234,6 +270,7 @@ class AudioSharingInteractorTest : SysuiTestCase() {
                 bluetoothTileDialogAudioSharingRepository.setLeAudioBroadcastProfile(
                     localBluetoothLeBroadcast
                 )
+                bluetoothTileDialogAudioSharingRepository.setIsAudioSharingProfilesReady(true)
                 val job = launch { underTest.handleAudioSourceWhenReady() }
                 runCurrent()
                 // Verify callback registered for onBroadcastStartedOrStopped

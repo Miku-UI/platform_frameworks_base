@@ -15,5 +15,5 @@
  */
 package android.app.blob;
 
-/** {@hide} */
+/** @hide */
 parcelable BlobInfo;

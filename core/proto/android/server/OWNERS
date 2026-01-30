@@ -1,2 +1,5 @@
 per-file activitymanagerservice.proto = file:/services/core/java/com/android/server/am/OWNERS
 per-file window*.proto = file:/services/core/java/com/android/server/wm/OWNERS
+per-file power*.proto = file:/services/core/java/com/android/server/power/OWNERS
+per-file usagestatsservice*.proto = file:/services/usage/OWNERS
+per-file jobscheduler.proto = file:/apex/jobscheduler/JOB_OWNERS

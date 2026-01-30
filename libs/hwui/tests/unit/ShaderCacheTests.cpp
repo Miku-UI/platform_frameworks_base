@@ -371,6 +371,10 @@ TEST(ShaderCacheTest, testCacheValidation) {
 
 using namespace android::uirenderer;
 RENDERTHREAD_TEST(ShaderCacheTest, testOnVkFrameFlushed) {
+    if (hwui_flags::separate_pipeline_cache()) {
+        GTEST_SKIP() << "This test is only applicable when the separate_pipeline_cache aconfig "
+                        "flag is disabled";
+    }
     if (Properties::getRenderPipelineType() != RenderPipelineType::SkiaVulkan) {
         // RENDERTHREAD_TEST declares both SkiaVK and SkiaGL variants.
         GTEST_SKIP() << "This test is only applicable to RenderPipelineType::SkiaVulkan";

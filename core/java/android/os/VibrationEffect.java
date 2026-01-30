@@ -32,8 +32,6 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.hardware.vibrator.IVibrator;
-import android.hardware.vibrator.V1_0.EffectStrength;
-import android.hardware.vibrator.V1_3.Effect;
 import android.net.Uri;
 import android.os.vibrator.BasicPwleSegment;
 import android.os.vibrator.Flags;
@@ -60,6 +58,7 @@ import java.util.Objects;
 import java.util.StringJoiner;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.IntStream;
 
 /**
  * A VibrationEffect describes a haptic effect to be performed by a {@link Vibrator}.
@@ -91,40 +90,46 @@ public abstract class VibrationEffect implements Parcelable {
     /**
      * A click effect. Use this effect as a baseline, as it's the most common type of click effect.
      */
-    public static final int EFFECT_CLICK = Effect.CLICK;
+    // Internally this maps to the HAL constant Effect::CLICK
+    public static final int EFFECT_CLICK = 0;
 
     /**
      * A double click effect.
      */
-    public static final int EFFECT_DOUBLE_CLICK = Effect.DOUBLE_CLICK;
+    // Internally this maps to the HAL constant Effect::DOUBLE_CLICK
+    public static final int EFFECT_DOUBLE_CLICK = 1;
 
     /**
      * A tick effect. This effect is less strong compared to {@link #EFFECT_CLICK}.
      */
-    public static final int EFFECT_TICK = Effect.TICK;
+    // Internally this maps to the HAL constant Effect::TICK
+    public static final int EFFECT_TICK = 2;
 
     /**
      * A thud effect.
      * @see #get(int)
      * @hide
      */
+    // Internally this maps to the HAL constant Effect::THUD
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @TestApi
-    public static final int EFFECT_THUD = Effect.THUD;
+    public static final int EFFECT_THUD = 3;
 
     /**
      * A pop effect.
      * @see #get(int)
      * @hide
      */
+    // Internally this maps to the HAL constant Effect::POP
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @TestApi
-    public static final int EFFECT_POP = Effect.POP;
+    public static final int EFFECT_POP = 4;
 
     /**
      * A heavy click effect. This effect is stronger than {@link #EFFECT_CLICK}.
      */
-    public static final int EFFECT_HEAVY_CLICK = Effect.HEAVY_CLICK;
+    // Internally this maps to the HAL constant Effect::HEAVY_CLICK
+    public static final int EFFECT_HEAVY_CLICK = 5;
 
     /**
      * A texture effect meant to replicate soft ticks.
@@ -136,20 +141,24 @@ public abstract class VibrationEffect implements Parcelable {
      * @see #get(int)
      * @hide
      */
+    // Internally this maps to the HAL constant Effect::TEXTURE_TICK
     @TestApi
-    public static final int EFFECT_TEXTURE_TICK = Effect.TEXTURE_TICK;
+    public static final int EFFECT_TEXTURE_TICK = 21;
 
-    /** {@hide} */
+    /** @hide */
+    // Internally this maps to the HAL constant EffectStrength::LIGHT
     @TestApi
-    public static final int EFFECT_STRENGTH_LIGHT = EffectStrength.LIGHT;
+    public static final int EFFECT_STRENGTH_LIGHT = 0;
 
-    /** {@hide} */
+    /** @hide */
+    // Internally this maps to the HAL constant EffectStrength::MEDIUM
     @TestApi
-    public static final int EFFECT_STRENGTH_MEDIUM = EffectStrength.MEDIUM;
+    public static final int EFFECT_STRENGTH_MEDIUM = 1;
 
-    /** {@hide} */
+    /** @hide */
+    // Internally this maps to the HAL constant EffectStrength::STRONG
     @TestApi
-    public static final int EFFECT_STRENGTH_STRONG = EffectStrength.STRONG;
+    public static final int EFFECT_STRENGTH_STRONG = 2;
 
     /**
      * Ringtone patterns. They may correspond with the device's ringtone audio, or may just be a
@@ -158,25 +167,10 @@ public abstract class VibrationEffect implements Parcelable {
      * @see #get(Uri, Context)
      * @hide
      */
+    // Internally this maps to the HAL constant Effect::RINGTONE_*
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     @TestApi
-    public static final int[] RINGTONES = {
-        Effect.RINGTONE_1,
-        Effect.RINGTONE_2,
-        Effect.RINGTONE_3,
-        Effect.RINGTONE_4,
-        Effect.RINGTONE_5,
-        Effect.RINGTONE_6,
-        Effect.RINGTONE_7,
-        Effect.RINGTONE_8,
-        Effect.RINGTONE_9,
-        Effect.RINGTONE_10,
-        Effect.RINGTONE_11,
-        Effect.RINGTONE_12,
-        Effect.RINGTONE_13,
-        Effect.RINGTONE_14,
-        Effect.RINGTONE_15
-    };
+    public static final int[] RINGTONES = IntStream.rangeClosed(6, 20).toArray();
 
     /** @hide */
     @IntDef(prefix = { "EFFECT_" }, value = {
@@ -650,6 +644,19 @@ public abstract class VibrationEffect implements Parcelable {
      *                    scale down the intensity, values larger than 1 will scale up
      * @return this if there is no scaling to be done, or a copy of this effect with scaled
      *         vibration intensity otherwise
+     *
+     * @hide
+     */
+    @NonNull
+    public abstract VibrationEffect scaleLinearly(float scaleFactor);
+
+    /**
+     * Applies given scale factor as adaptive scale.
+     *
+     * @param scaleFactor scale factor to be applied to the intensity. Values within [0,1) will
+     *                    scale down the intensity, values larger than 1 will scale up
+     * @return this if there is no scaling to be done, or a copy of this effect with scaled
+     *         vibration intensity otherwise
      * @hide
      */
     @NonNull
@@ -1012,6 +1019,13 @@ public abstract class VibrationEffect implements Parcelable {
         /** @hide */
         @NonNull
         @Override
+        public Composed scaleLinearly(float scaleFactor) {
+            return applyToSegments(VibrationEffectSegment::scaleLinearly, scaleFactor);
+        }
+
+        /** @hide */
+        @NonNull
+        @Override
         public Composed applyAdaptiveScale(float scaleFactor) {
             return applyToSegments(VibrationEffectSegment::scaleLinearly, scaleFactor);
         }
@@ -1274,6 +1288,13 @@ public abstract class VibrationEffect implements Parcelable {
         /** @hide */
         @NonNull
         @Override
+        public VibrationEffect scaleLinearly(float scaleFactor) {
+            return scale(scaleFactor);
+        }
+
+        /** @hide */
+        @NonNull
+        @Override
         public VibrationEffect applyAdaptiveScale(float scaleFactor) {
             if (Float.compare(mAdaptiveScale, scaleFactor) == 0) {
                 return this;
@@ -1513,32 +1534,39 @@ public abstract class VibrationEffect implements Parcelable {
          *
          * @hide
          */
+        // Internally this maps to the HAL constant CompositePrimitive::NOOP
         public static final int PRIMITIVE_NOOP = 0;
         /**
          * This effect should produce a sharp, crisp click sensation.
          */
+        // Internally this maps to the HAL constant CompositePrimitive::CLICK
         public static final int PRIMITIVE_CLICK = 1;
         /**
          * A haptic effect that simulates downwards movement with gravity. Often
          * followed by extra energy of hitting and reverberation to augment
          * physicality.
          */
+        // Internally this maps to the HAL constant CompositePrimitive::THUD
         public static final int PRIMITIVE_THUD = 2;
         /**
          * A haptic effect that simulates spinning momentum.
          */
+        // Internally this maps to the HAL constant CompositePrimitive::SPIN
         public static final int PRIMITIVE_SPIN = 3;
         /**
          * A haptic effect that simulates quick upward movement against gravity.
          */
+        // Internally this maps to the HAL constant CompositePrimitive::QUICK_RISE
         public static final int PRIMITIVE_QUICK_RISE = 4;
         /**
          * A haptic effect that simulates slow upward movement against gravity.
          */
+        // Internally this maps to the HAL constant CompositePrimitive::SLOW_RISE
         public static final int PRIMITIVE_SLOW_RISE = 5;
         /**
          * A haptic effect that simulates quick downwards movement with gravity.
          */
+        // Internally this maps to the HAL constant CompositePrimitive::QUICK_FALL
         public static final int PRIMITIVE_QUICK_FALL = 6;
         /**
          * This very short effect should produce a light crisp sensation intended

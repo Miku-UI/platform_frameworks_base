@@ -35,6 +35,21 @@ public class ProtoLogViewerConfigReader {
     }
 
     /**
+     * Data class for a log message from the viewer config.
+     */
+    public static class MessageData {
+        @NonNull
+        public final String message;
+        @NonNull
+        public final String group;
+
+        public MessageData(@NonNull String message, @NonNull String group) {
+            this.message = message;
+            this.group = group;
+        }
+    }
+
+    /**
      * Returns message format string for its hash or null if unavailable
      * or the viewer config is not loaded into memory.
      */
@@ -130,6 +145,56 @@ public class ProtoLogViewerConfigReader {
         return false;
     }
 
+    /**
+     * Returns the message data for a given message hash from the viewer config file.
+     *
+     * @param messageHash The hash of the message we are looking for in the viewer config file.
+     * @return The {@link MessageData} if the message is found, null otherwise.
+     * @throws IOException if there was an issue reading the viewer config file.
+     */
+    @Nullable
+    public MessageData getMessageDataForHashFromFile(long messageHash)
+            throws IOException {
+        try (var pisWrapper = mViewerConfigInputStreamProvider.getInputStream()) {
+            final var pis = pisWrapper.get();
+
+            String foundMessage = null;
+            long foundGroupId = -1;
+            final LongSparseArray<String> groupMap = new LongSparseArray<>();
+
+            while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
+                if (pis.getFieldNumber() == (int) MESSAGES) {
+                    final long inMessageToken = pis.start(MESSAGES);
+                    ParsedMessage parsedMessage = readMessage(pis);
+                    if (parsedMessage.messageId == messageHash) {
+                        foundMessage = parsedMessage.message;
+                        foundGroupId = parsedMessage.groupId;
+                    }
+
+                    pis.end(inMessageToken);
+                } else if (pis.getFieldNumber() == (int) GROUPS) {
+                    final long inMessageToken = pis.start(GROUPS);
+
+                    long groupId = 0;
+                    ParsedGroup parsedGroup = readGroup(pis);
+                    if (parsedGroup.groupName != null) {
+                        groupMap.put(parsedGroup.groupId, parsedGroup.groupName);
+                    }
+                    pis.end(inMessageToken);
+                }
+            }
+
+            if (foundMessage != null) {
+                String groupName = groupMap.get(foundGroupId);
+                if (groupName != null) {
+                    return new MessageData(foundMessage, groupName);
+                }
+            }
+        }
+
+        return null;
+    }
+
     @NonNull
     private Map<Long, String> loadViewerConfigMappingForGroup(@NonNull String group)
             throws IOException {
@@ -141,38 +206,22 @@ public class ProtoLogViewerConfigReader {
             while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
                 if (pis.getFieldNumber() == (int) MESSAGES) {
                     final long inMessageToken = pis.start(MESSAGES);
+                    ParsedMessage parsedMessage = readMessage(pis);
 
-                    long messageId = 0;
-                    String message = null;
-                    int groupId = 0;
-                    while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
-                        switch (pis.getFieldNumber()) {
-                            case (int) MESSAGE_ID:
-                                messageId = pis.readLong(MESSAGE_ID);
-                                break;
-                            case (int) MESSAGE:
-                                message = pis.readString(MESSAGE);
-                                break;
-                            case (int) GROUP_ID:
-                                groupId = pis.readInt(GROUP_ID);
-                                break;
-                        }
-                    }
-
-                    if (groupId == 0) {
+                    if (parsedMessage.groupId == 0) {
                         throw new IOException("Failed to get group id");
                     }
 
-                    if (messageId == 0) {
+                    if (parsedMessage.messageId == 0) {
                         throw new IOException("Failed to get message id");
                     }
 
-                    if (message == null) {
+                    if (parsedMessage.message == null) {
                         throw new IOException("Failed to get message string");
                     }
 
-                    if (groupId == targetGroupId) {
-                        hashesForGroup.put(messageId, message);
+                    if (parsedMessage.groupId == targetGroupId) {
+                        hashesForGroup.put(parsedMessage.messageId, parsedMessage.message);
                     }
 
                     pis.end(inMessageToken);
@@ -190,22 +239,9 @@ public class ProtoLogViewerConfigReader {
             while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
                 if (pis.getFieldNumber() == (int) GROUPS) {
                     final long inMessageToken = pis.start(GROUPS);
-
-                    long groupId = 0;
-                    String groupName = null;
-                    while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
-                        switch (pis.getFieldNumber()) {
-                            case (int) ID:
-                                groupId = pis.readInt(ID);
-                                break;
-                            case (int) NAME:
-                                groupName = pis.readString(NAME);
-                                break;
-                        }
-                    }
-
-                    if (Objects.equals(groupName, group)) {
-                        return groupId;
+                    ParsedGroup parsedGroup = readGroup(pis);
+                    if (Objects.equals(parsedGroup.groupName, group)) {
+                        return parsedGroup.groupId;
                     }
 
                     pis.end(inMessageToken);
@@ -214,5 +250,49 @@ public class ProtoLogViewerConfigReader {
         }
 
         throw new RuntimeException("Group " + group + " not found in viewer config");
+    }
+
+    private static class ParsedMessage {
+        long messageId = 0;
+        String message = null;
+        int groupId = 0;
+    }
+
+    private static ParsedMessage readMessage(ProtoInputStream pis) throws IOException {
+        final ParsedMessage result = new ParsedMessage();
+        while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
+            switch (pis.getFieldNumber()) {
+                case (int) MESSAGE_ID:
+                    result.messageId = pis.readLong(MESSAGE_ID);
+                    break;
+                case (int) MESSAGE:
+                    result.message = pis.readString(MESSAGE);
+                    break;
+                case (int) GROUP_ID:
+                    result.groupId = pis.readInt(GROUP_ID);
+                    break;
+            }
+        }
+        return result;
+    }
+
+    private static class ParsedGroup {
+        long groupId = 0;
+        String groupName = null;
+    }
+
+    private static ParsedGroup readGroup(ProtoInputStream pis) throws IOException {
+        final ParsedGroup result = new ParsedGroup();
+        while (pis.nextField() != ProtoInputStream.NO_MORE_FIELDS) {
+            switch (pis.getFieldNumber()) {
+                case (int) ID:
+                    result.groupId = pis.readInt(ID);
+                    break;
+                case (int) NAME:
+                    result.groupName = pis.readString(NAME);
+                    break;
+            }
+        }
+        return result;
     }
 }

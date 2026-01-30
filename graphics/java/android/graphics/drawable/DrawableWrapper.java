@@ -47,6 +47,7 @@ import java.io.IOException;
 /**
  * Drawable container with only one child element.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class DrawableWrapper extends Drawable implements Drawable.Callback {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private DrawableWrapperState mState;

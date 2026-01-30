@@ -21,6 +21,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -31,11 +32,13 @@ import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class OccludedToAodTransitionViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
     val testScope = kosmos.testScope
@@ -43,7 +46,13 @@ class OccludedToAodTransitionViewModelTest : SysuiTestCase() {
     val biometricSettingsRepository = kosmos.biometricSettingsRepository
     val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
     val fingerprintPropertyRepository = kosmos.fingerprintPropertyRepository
-    val underTest = kosmos.occludedToAodTransitionViewModel
+
+    private lateinit var underTest: OccludedToAodTransitionViewModel
+
+    @Before
+    fun setup() {
+        underTest = kosmos.occludedToAodTransitionViewModel
+    }
 
     @Test
     fun deviceEntryBackgroundViewAlpha() =
@@ -143,14 +152,14 @@ class OccludedToAodTransitionViewModelTest : SysuiTestCase() {
 
     private fun step(
         value: Float,
-        state: TransitionState = TransitionState.RUNNING
+        state: TransitionState = TransitionState.RUNNING,
     ): TransitionStep {
         return TransitionStep(
             from = KeyguardState.OCCLUDED,
             to = KeyguardState.AOD,
             value = value,
             transitionState = state,
-            ownerName = "OccludedToAodTransitionViewModelTest"
+            ownerName = "OccludedToAodTransitionViewModelTest",
         )
     }
 }

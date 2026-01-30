@@ -26,8 +26,9 @@ val Kosmos.windowRootViewBlurRepository: WindowRootViewBlurRepository by
     Kosmos.Fixture { fakeWindowRootViewBlurRepository }
 
 class FakeWindowRootViewBlurRepository : WindowRootViewBlurRepository {
-    override val blurRequestedByShade: MutableStateFlow<Int> = MutableStateFlow(0)
-    override val isBlurOpaque: MutableStateFlow<Boolean> = MutableStateFlow(false)
+    override val blurRequestedByShade: MutableStateFlow<Float> = MutableStateFlow(0.0f)
+    override val scaleRequestedByShade: MutableStateFlow<Float> = MutableStateFlow(1.0f)
     override val isBlurSupported: MutableStateFlow<Boolean> = MutableStateFlow(false)
     override var blurAppliedListener: BlurAppliedListener? = null
+    override val trackingShadeMotion: MutableStateFlow<Boolean> = MutableStateFlow(false)
 }

@@ -19,9 +19,12 @@ package android.hardware.biometrics;
 import android.hardware.biometrics.AuthenticationStateListener;
 import android.hardware.biometrics.IBiometricEnabledOnKeyguardCallback;
 import android.hardware.biometrics.IBiometricServiceReceiver;
+import android.hardware.biometrics.IIdentityCheckStateListener;
+import android.hardware.biometrics.IdentityCheckStatus;
 import android.hardware.biometrics.IInvalidationCallback;
 import android.hardware.biometrics.ITestSession;
 import android.hardware.biometrics.ITestSessionCallback;
+import android.hardware.biometrics.BiometricEnrollmentStatusInternal;
 import android.hardware.biometrics.PromptInfo;
 import android.hardware.biometrics.SensorPropertiesInternal;
 
@@ -36,6 +39,10 @@ interface IAuthService {
     // Creates a test session with the specified sensorId
     @EnforcePermission("TEST_BIOMETRIC")
     ITestSession createTestSession(int sensorId, ITestSessionCallback callback, String opPackageName);
+
+    //Sets Identity Check status for testing purpose
+    @EnforcePermission("TEST_BIOMETRIC")
+    void setIdentityCheckTestStatus(in IdentityCheckStatus identityCheckStatus);
 
     // Retrieve static sensor properties for all biometric sensors
     @EnforcePermission("TEST_BIOMETRIC")
@@ -64,6 +71,9 @@ interface IAuthService {
     // Checks if any biometrics are enrolled.
     boolean hasEnrolledBiometrics(int userId, String opPackageName);
 
+    // Return the current biometrics enrollment status.
+    List<BiometricEnrollmentStatusInternal> getEnrollmentStatusList(int userId, String opPackageName);
+
     // Register callback for when keyguard biometric eligibility changes.
     void registerEnabledOnKeyguardCallback(IBiometricEnabledOnKeyguardCallback callback);
 
@@ -72,6 +82,12 @@ interface IAuthService {
 
     // Unregister listener for changes to authentication state.
     void unregisterAuthenticationStateListener(AuthenticationStateListener listener);
+
+    // Register listener for when Identity Check state changes.
+    void registerIdentityCheckStateListener(IIdentityCheckStateListener listener);
+
+    // Unregister listener for when Identity Check state changes.
+    void unregisterIdentityCheckStateListener(IIdentityCheckStateListener listener);
 
     // Requests all BIOMETRIC_STRONG sensors to have their authenticatorId invalidated for the
     // specified user. This happens when enrollments have been added on devices with multiple

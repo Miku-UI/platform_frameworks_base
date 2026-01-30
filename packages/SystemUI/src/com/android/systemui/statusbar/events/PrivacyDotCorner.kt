@@ -16,6 +16,10 @@
 
 package com.android.systemui.statusbar.events
 
+import android.view.DisplayCutout.BOUNDS_POSITION_BOTTOM
+import android.view.DisplayCutout.BOUNDS_POSITION_LEFT
+import android.view.DisplayCutout.BOUNDS_POSITION_RIGHT
+import android.view.DisplayCutout.BOUNDS_POSITION_TOP
 import android.view.Gravity
 import android.view.Surface
 
@@ -25,30 +29,40 @@ enum class PrivacyDotCorner(
     val gravity: Int,
     val innerGravity: Int,
     val title: String,
+    val alignedBound1: Int,
+    val alignedBound2: Int,
 ) {
     TopLeft(
         index = 0,
         gravity = Gravity.TOP or Gravity.LEFT,
         innerGravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT,
         title = "TopLeft",
+        alignedBound1 = BOUNDS_POSITION_TOP,
+        alignedBound2 = BOUNDS_POSITION_LEFT,
     ),
     TopRight(
         index = 1,
         gravity = Gravity.TOP or Gravity.RIGHT,
         innerGravity = Gravity.CENTER_VERTICAL or Gravity.LEFT,
         title = "TopRight",
+        alignedBound1 = BOUNDS_POSITION_TOP,
+        alignedBound2 = BOUNDS_POSITION_RIGHT,
     ),
     BottomRight(
         index = 2,
         gravity = Gravity.BOTTOM or Gravity.RIGHT,
         innerGravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT,
         title = "BottomRight",
+        alignedBound1 = BOUNDS_POSITION_BOTTOM,
+        alignedBound2 = BOUNDS_POSITION_RIGHT,
     ),
     BottomLeft(
         index = 3,
         gravity = Gravity.BOTTOM or Gravity.LEFT,
         innerGravity = Gravity.CENTER_VERTICAL or Gravity.LEFT,
         title = "BottomLeft",
+        alignedBound1 = BOUNDS_POSITION_BOTTOM,
+        alignedBound2 = BOUNDS_POSITION_LEFT,
     ),
 }
 

@@ -44,6 +44,7 @@ import static com.android.server.am.BroadcastRecord.getReceiverPackageName;
 import static com.android.server.am.BroadcastRecord.getReceiverProcessName;
 import static com.android.server.am.BroadcastRecord.getReceiverUid;
 import static com.android.server.am.BroadcastRecord.isDeliveryStateTerminal;
+import static com.android.window.flags.Flags.balCheckBroadcastWhenDispatched;
 
 import android.annotation.CheckResult;
 import android.annotation.NonNull;
@@ -77,7 +78,6 @@ import android.text.format.DateUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
-import android.util.MathUtils;
 import android.util.Pair;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -282,10 +282,6 @@ class BroadcastQueueImpl extends BroadcastQueue {
     private static final int MSG_PROCESS_FREEZABLE_CHANGED = 6;
     private static final int MSG_UID_STATE_CHANGED = 7;
 
-    // Required when Flags.anrTimerServiceEnabled is false.  This constant should be deleted if and
-    // when the flag is fused on.
-    private static final int MSG_DELIVERY_TIMEOUT_SOFT = 8;
-
     private void enqueueUpdateRunningList() {
         mLocalHandler.removeMessages(MSG_UPDATE_RUNNING_LIST);
         mLocalHandler.sendEmptyMessage(MSG_UPDATE_RUNNING_LIST);
@@ -298,14 +294,6 @@ class BroadcastQueueImpl extends BroadcastQueue {
             case MSG_UPDATE_RUNNING_LIST: {
                 updateRunningList();
                 return true;
-            }
-            // Required when Flags.anrTimerServiceEnabled is false.  This case should be deleted if
-            // and when the flag is fused on.
-            case MSG_DELIVERY_TIMEOUT_SOFT: {
-                synchronized (mService) {
-                    deliveryTimeoutSoftLocked((BroadcastProcessQueue) msg.obj, msg.arg1);
-                    return true;
-                }
             }
             case MSG_DELIVERY_TIMEOUT: {
                 deliveryTimeout((BroadcastProcessQueue) msg.obj);
@@ -519,7 +507,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
 
             final boolean processWarm = queue.isProcessWarm();
             if (processWarm) {
-                mService.mOomAdjuster.unfreezeTemporarily(queue.app,
+                mService.unfreezeTemporarily(queue.app,
                         CachedAppOptimizer.UNFREEZE_REASON_START_RECEIVER);
                 // The process could be killed as part of unfreezing. So, check again if it
                 // is still warm.
@@ -803,7 +791,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
             }
             queue.enqueueOutgoingBroadcast(r);
             mHistory.onBroadcastFrozenLocked(r);
-            mService.mOomAdjuster.mCachedAppOptimizer.freezeAppAsyncImmediateLSP(r.callerApp);
+            mService.getCachedAppOptimizer().freezeAppAsyncImmediateLSP(r.callerApp);
             return;
         }
         if (DEBUG_BROADCAST || r.debugLog()) {
@@ -839,9 +827,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
 
             // If this receiver is going to be skipped, skip it now itself and don't even enqueue
             // it.
-            final String skipReason = Flags.avoidNoteOpAtEnqueue()
-                    ? mSkipPolicy.shouldSkipAtEnqueueMessage(r, receiver)
-                    : mSkipPolicy.shouldSkipMessage(r, receiver);
+            final String skipReason = mSkipPolicy.shouldSkipAtEnqueueMessage(r, receiver);
             if (skipReason != null) {
                 setDeliveryState(null, null, r, i, receiver, BroadcastRecord.DELIVERY_SKIPPED,
                         "skipped by policy at enqueue: " + skipReason);
@@ -1164,7 +1150,9 @@ class BroadcastQueueImpl extends BroadcastQueue {
             queue.setTimeoutScheduled(false);
         }
 
-        if (r.mBackgroundStartPrivileges.allowsAny()) {
+        if (r.mBackgroundStartPrivileges.allowsAny()
+                && (r.realCallingUid != app.uid || !balCheckBroadcastWhenDispatched())) {
+            // allow the broadcast receiver potential privileges if it is not sent to itself
             app.addOrUpdateBackgroundStartPrivileges(r, r.mBackgroundStartPrivileges);
 
             final long timeout = r.isForeground() ? mFgConstants.ALLOW_BG_ACTIVITY_START_TIMEOUT
@@ -1180,7 +1168,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
                     == PowerExemptionManager.TEMPORARY_ALLOW_LIST_TYPE_APP_FREEZING_DELAYED) {
                 // Only delay freezer, don't add to any temp allowlist
                 // TODO: Add a unit test
-                mService.mOomAdjuster.mCachedAppOptimizer.unfreezeTemporarily(app,
+                mService.getCachedAppOptimizer().unfreezeTemporarily(app,
                         CachedAppOptimizer.UNFREEZE_REASON_START_RECEIVER,
                         r.options.getTemporaryAppAllowlistDuration());
             } else {
@@ -1205,14 +1193,14 @@ class BroadcastQueueImpl extends BroadcastQueue {
                     mService.mPackageManagerInt.grantImplicitAccess(r.userId, r.intent,
                             UserHandle.getAppId(app.uid), r.callingUid, true);
                 }
-                queue.lastProcessState = app.mState.getCurProcState();
+                queue.lastProcessState = app.getCurProcState();
                 if (receiver instanceof BroadcastFilter) {
                     notifyScheduleRegisteredReceiver(app, r, (BroadcastFilter) receiver);
                     thread.scheduleRegisteredReceiver(
                             ((BroadcastFilter) receiver).receiverList.receiver,
                             receiverIntent, r.resultCode, r.resultData, r.resultExtras,
                             r.ordered, r.initialSticky, assumeDelivered, r.userId,
-                            app.mState.getReportedProcState(),
+                            app.getReportedProcState(),
                             r.shareIdentity ? r.callingUid : Process.INVALID_UID,
                             r.shareIdentity ? r.callerPackage : null);
                     // TODO: consider making registered receivers of unordered
@@ -1227,7 +1215,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
                     thread.scheduleReceiver(receiverIntent, ((ResolveInfo) receiver).activityInfo,
                             null, r.resultCode, r.resultData, r.resultExtras, r.ordered,
                             assumeDelivered, r.userId,
-                            app.mState.getReportedProcState(),
+                            app.getReportedProcState(),
                             r.shareIdentity ? r.callingUid : Process.INVALID_UID,
                             r.shareIdentity ? r.callerPackage : null);
                 }
@@ -1265,7 +1253,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
         final ProcessRecord app = r.resultToApp;
         final IApplicationThread thread = (app != null) ? app.getOnewayThread() : null;
         if (thread != null) {
-            mService.mOomAdjuster.unfreezeTemporarily(
+            mService.unfreezeTemporarily(
                     app, CachedAppOptimizer.UNFREEZE_REASON_FINISH_RECEIVER);
             if (r.shareIdentity && app.uid != r.callingUid) {
                 mService.mPackageManagerInt.grantImplicitAccess(r.userId, r.intent,
@@ -1277,7 +1265,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
                         r.resultTo, r.intent,
                         r.resultCode, r.resultData, r.resultExtras, false, r.initialSticky,
                         assumeDelivered, r.userId,
-                        app.mState.getReportedProcState(),
+                        app.getReportedProcState(),
                         r.shareIdentity ? r.callingUid : Process.INVALID_UID,
                         r.shareIdentity ? r.callerPackage : null);
             } catch (RemoteException e) {
@@ -1296,13 +1284,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
     @GuardedBy("mService")
     private void startDeliveryTimeoutLocked(@NonNull BroadcastProcessQueue queue,
             int softTimeoutMillis) {
-        if (mAnrTimer.serviceEnabled()) {
-            mAnrTimer.start(queue, softTimeoutMillis);
-        } else {
-            queue.lastCpuDelayTime = queue.app.getCpuDelayTime();
-            mLocalHandler.sendMessageDelayed(Message.obtain(mLocalHandler,
-                    MSG_DELIVERY_TIMEOUT_SOFT, softTimeoutMillis, 0, queue), softTimeoutMillis);
-        }
+        mAnrTimer.start(queue, softTimeoutMillis);
     }
 
     // Required when Flags.anrTimerServiceEnabled is false. This function can be replaced with a
@@ -1310,26 +1292,6 @@ class BroadcastQueueImpl extends BroadcastQueue {
     @GuardedBy("mService")
     private void cancelDeliveryTimeoutLocked(@NonNull BroadcastProcessQueue queue) {
         mAnrTimer.cancel(queue);
-        if (!mAnrTimer.serviceEnabled()) {
-            mLocalHandler.removeMessages(MSG_DELIVERY_TIMEOUT_SOFT, queue);
-        }
-    }
-
-    // Required when Flags.anrTimerServiceEnabled is false.  This function can be deleted entirely
-    // if and when the flag is fused on.
-    @GuardedBy("mService")
-    private void deliveryTimeoutSoftLocked(@NonNull BroadcastProcessQueue queue,
-            int softTimeoutMillis) {
-        if (queue.app != null) {
-            // Instead of immediately triggering an ANR, extend the timeout by
-            // the amount of time the process was runnable-but-waiting; we're
-            // only willing to do this once before triggering an hard ANR
-            final long cpuDelayTime = queue.app.getCpuDelayTime() - queue.lastCpuDelayTime;
-            final long hardTimeoutMillis = MathUtils.constrain(cpuDelayTime, 0, softTimeoutMillis);
-            mAnrTimer.start(queue, hardTimeoutMillis);
-        } else {
-            deliveryTimeoutLocked(queue);
-        }
     }
 
     private void deliveryTimeout(@NonNull BroadcastProcessQueue queue) {
@@ -1351,7 +1313,9 @@ class BroadcastQueueImpl extends BroadcastQueue {
         BroadcastAnrTimer(@NonNull Handler handler) {
             super(Objects.requireNonNull(handler),
                     MSG_DELIVERY_TIMEOUT, "BROADCAST_TIMEOUT",
-                    new AnrTimer.Args().extend(true).freeze(true));
+                    new AnrTimer.Args()
+                            .extend(true)
+                            .longMethodTracing(Flags.enableLongMethodTracingOnAnrTimer()));
         }
 
         @Override
@@ -1469,11 +1433,11 @@ class BroadcastQueueImpl extends BroadcastQueue {
         if (deliveryState == BroadcastRecord.DELIVERY_TIMEOUT) {
             r.anrCount++;
             if (app != null && !app.isDebugging()) {
-                final AutoCloseable timer = mAnrTimer.accept(queue);
                 final String packageName = getReceiverPackageName(receiver);
                 final String className = getReceiverClassName(receiver);
                 TimeoutRecord tr = TimeoutRecord.forBroadcastReceiver(r.intent, packageName,
-                        className).setExpiredTimer(timer);
+                        className);
+                mAnrTimer.accept(queue, tr);
                 mService.appNotResponding(queue.app, tr);
             } else {
                 mAnrTimer.discard(queue);
@@ -2034,6 +1998,9 @@ class BroadcastQueueImpl extends BroadcastQueue {
                 leaf = leaf.processNameNext;
             }
         }
+
+        checkState(mHistory.getPendingBroadcastsCount() < mConstants.EXCESSIVE_PENDING_BROADCASTS,
+                "excessive pending broadcasts");
     }
 
     @SuppressWarnings("CheckResult")
@@ -2123,19 +2090,20 @@ class BroadcastQueueImpl extends BroadcastQueue {
     @GuardedBy("mService")
     private void notifyStartedRunning(@NonNull BroadcastProcessQueue queue) {
         if (queue.app != null) {
-            queue.incrementCurAppReceivers();
-
             // Don't bump its LRU position if it's in the background restricted.
             if (mService.mInternal.getRestrictionLevel(
                     queue.uid) < ActivityManager.RESTRICTION_LEVEL_RESTRICTED_BUCKET) {
                 mService.updateLruProcessLocked(queue.app, false, null);
             }
 
-            mService.mOomAdjuster.unfreezeTemporarily(queue.app,
+            mService.unfreezeTemporarily(queue.app,
                     CachedAppOptimizer.UNFREEZE_REASON_START_RECEIVER);
 
+            mService.mProcessStateController.noteBroadcastDeliveryStarted(queue.app,
+                    queue.getPreferredSchedulingGroupLocked());
             if (queue.runningOomAdjusted) {
-                queue.app.mState.forceProcessStateUpTo(ActivityManager.PROCESS_STATE_RECEIVER);
+                mService.mProcessStateController.forceProcessStateUpTo(queue.app,
+                        ActivityManager.PROCESS_STATE_RECEIVER);
                 mService.enqueueOomAdjTargetLocked(queue.app);
             }
         }
@@ -2148,8 +2116,7 @@ class BroadcastQueueImpl extends BroadcastQueue {
     @GuardedBy("mService")
     private void notifyStoppedRunning(@NonNull BroadcastProcessQueue queue) {
         if (queue.app != null) {
-            queue.decrementCurAppReceivers();
-
+            mService.mProcessStateController.noteBroadcastDeliveryEnded(queue.app);
             if (queue.runningOomAdjusted) {
                 mService.enqueueOomAdjTargetLocked(queue.app);
             }

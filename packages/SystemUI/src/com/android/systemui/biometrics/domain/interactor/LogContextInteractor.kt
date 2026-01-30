@@ -176,6 +176,7 @@ constructor(
             KeyguardState.LOCKSCREEN,
             KeyguardState.OCCLUDED,
             KeyguardState.ALTERNATE_BOUNCER,
+            KeyguardState.GLANCEABLE_HUB,
             KeyguardState.PRIMARY_BOUNCER -> AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN
             KeyguardState.AOD -> AuthenticateOptions.DISPLAY_STATE_AOD
             KeyguardState.OFF,

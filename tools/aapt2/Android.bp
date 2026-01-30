@@ -50,9 +50,17 @@ cc_defaults {
             enabled: true,
             cflags: ["-Wno-maybe-uninitialized"],
             ldflags: ["-static"],
+            host_ldlibs: [
+                // Required by stack tracing code bundled with protobuf
+                "-ldbghelp",
+            ],
         },
         darwin: {
             cflags: ["-D_DARWIN_UNLIMITED_STREAMS"],
+            host_ldlibs: [
+                // Required by protobuf
+                "-framework CoreFoundation",
+            ],
         },
     },
     header_libs: [
@@ -60,6 +68,7 @@ cc_defaults {
         "native_headers",
     ],
     static_libs: [
+        "android.content.res.flags-aconfig-cc-host-ro",
         "libandroidfw",
         "libutils",
         "liblog",
@@ -114,7 +123,7 @@ cc_library_host_static {
         "link/AutoVersioner.cpp",
         "link/FeatureFlagsFilter.cpp",
         "link/FlaggedXmlVersioner.cpp",
-        "link/FlagDisabledResourceRemover.cpp",
+        "link/FlagNotEnabledResourceRemover.cpp",
         "link/ManifestFixer.cpp",
         "link/NoDefaultResourceRemover.cpp",
         "link/PrivateAttributeMover.cpp",

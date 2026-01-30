@@ -42,9 +42,11 @@ import android.net.wifi.sharedconnectivity.app.KnownNetwork;
 import android.net.wifi.sharedconnectivity.app.KnownNetworkConnectionStatus;
 import android.net.wifi.sharedconnectivity.app.NetworkProviderInfo;
 import android.net.wifi.sharedconnectivity.app.SharedConnectivitySettingsState;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.Process;
 import android.os.RemoteException;
 
 import androidx.annotation.NonNull;
@@ -421,10 +423,18 @@ public class SharedConnectivityServiceTest {
     }
 
     private SharedConnectivitySettingsState buildSettingsState() {
-        return new SharedConnectivitySettingsState.Builder().setInstantTetherEnabled(true)
-                .setInstantTetherSettingsPendingIntent(
-                        PendingIntent.getActivity(mContext, 0, new Intent(),
-                                PendingIntent.FLAG_IMMUTABLE))
-                .setExtras(Bundle.EMPTY).build();
+        PendingIntent pendingIntent = null;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            pendingIntent = PendingIntent.getActivityAsUser(mContext, 0, new Intent(),
+                    PendingIntent.FLAG_IMMUTABLE, null, Process.myUserHandle());
+        } else {
+            pendingIntent = PendingIntent.getActivity(mContext, 0, new Intent(),
+                    PendingIntent.FLAG_IMMUTABLE);
+        }
+        return new SharedConnectivitySettingsState.Builder()
+            .setInstantTetherEnabled(true)
+            .setInstantTetherSettingsPendingIntent(pendingIntent)
+            .setExtras(Bundle.EMPTY)
+            .build();
     }
 }

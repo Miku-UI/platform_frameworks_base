@@ -26,7 +26,7 @@ import android.window.WindowContainerTransaction;
  * @param wct An optional WindowContainerTransaction to apply before the transition finished.
  * @param sct An optional Surface Transaction that is added to the end of the finish/cleanup
  *            transaction. This is applied by shell.Transitions (before submitting the wct).
- * {@hide}
+ * @hide
  */
 interface IRemoteTransitionFinishedCallback {
     void onTransitionFinished(in WindowContainerTransaction wct, in SurfaceControl.Transaction sct);

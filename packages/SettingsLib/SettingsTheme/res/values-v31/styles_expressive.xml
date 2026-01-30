@@ -17,12 +17,13 @@
 
 <resources>
     <style name="SettingsLibButtonStyle.Expressive.Filled"
-        parent="@style/Widget.Material3Expressive.Button.Icon">
+        parent="@style/Widget.Material3Expressive.Button">
         <item name="android:theme">@style/Theme.Material3.DynamicColors.DayNight</item>
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:gravity">center</item>
         <item name="android:textAppearance">@style/TextAppearance.SettingsLib.LabelLarge</item>
+        <item name="iconGravity">textStart</item>
     </style>
 
     <style name="SettingsLibButtonStyle.Expressive.Filled.Large">
@@ -40,6 +41,7 @@
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:gravity">center</item>
+        <item name="iconGravity">textStart</item>
     </style>
 
     <style name="SettingsLibButtonStyle.Expressive.Icon.Filled.Large">
@@ -52,12 +54,13 @@
     </style>
 
     <style name="SettingsLibButtonStyle.Expressive.Tonal"
-        parent="@style/Widget.Material3Expressive.Button.TonalButton.Icon">
+        parent="@style/Widget.Material3Expressive.Button.TonalButton">
         <item name="android:theme">@style/Theme.Material3.DynamicColors.DayNight</item>
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:gravity">center</item>
         <item name="android:textAppearance">@style/TextAppearance.SettingsLib.LabelLarge</item>
+        <item name="iconGravity">textStart</item>
     </style>
 
     <style name="SettingsLibButtonStyle.Expressive.Tonal.Large">
@@ -75,6 +78,7 @@
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:gravity">center</item>
+        <item name="iconGravity">textStart</item>
     </style>
 
     <style name="SettingsLibButtonStyle.Expressive.Icon.Tonal.Large">
@@ -87,12 +91,13 @@
     </style>
 
     <style name="SettingsLibButtonStyle.Expressive.Outline"
-        parent="@style/Widget.Material3Expressive.Button.OutlinedButton.Icon">
+        parent="@style/Widget.Material3Expressive.Button.OutlinedButton">
         <item name="android:theme">@style/Theme.Material3.DynamicColors.DayNight</item>
         <item name="android:layout_width">wrap_content</item>
         <item name="android:layout_height">wrap_content</item>
         <item name="android:gravity">center</item>
         <item name="android:textAppearance">@style/TextAppearance.SettingsLib.LabelLarge</item>
+        <item name="iconGravity">textStart</item>
     </style>
 
     <style name="SettingsLibButtonStyle.Expressive.Outline.Large">

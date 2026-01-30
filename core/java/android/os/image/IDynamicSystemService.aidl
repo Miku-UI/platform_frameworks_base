@@ -18,7 +18,7 @@ package android.os.image;
 import android.gsi.AvbPublicKey;
 import android.gsi.GsiProgress;
 
-/** {@hide} */
+/** @hide */
 interface IDynamicSystemService
 {
     /**

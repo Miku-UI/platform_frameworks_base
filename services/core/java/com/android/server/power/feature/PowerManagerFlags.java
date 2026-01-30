@@ -37,11 +37,6 @@ public class PowerManagerFlags {
             Flags.FLAG_ENABLE_EARLY_SCREEN_TIMEOUT_DETECTOR,
             Flags::enableEarlyScreenTimeoutDetector);
 
-    private final FlagState mEnableScreenTimeoutPolicyListenerApi = new FlagState(
-            Flags.FLAG_ENABLE_SCREEN_TIMEOUT_POLICY_LISTENER_API,
-            Flags::enableScreenTimeoutPolicyListenerApi
-    );
-
     private final FlagState mImproveWakelockLatency = new FlagState(
             Flags.FLAG_IMPROVE_WAKELOCK_LATENCY,
             Flags::improveWakelockLatency
@@ -52,9 +47,6 @@ public class PowerManagerFlags {
             Flags::perDisplayWakeByTouch
     );
 
-    private final FlagState mFrameworkWakelockInfo =
-            new FlagState(Flags.FLAG_FRAMEWORK_WAKELOCK_INFO, Flags::frameworkWakelockInfo);
-
     private final FlagState mPolicyReasonInDisplayPowerRequest = new FlagState(
             Flags.FLAG_POLICY_REASON_IN_DISPLAY_POWER_REQUEST,
             Flags::policyReasonInDisplayPowerRequest
@@ -62,6 +54,10 @@ public class PowerManagerFlags {
 
     private final FlagState mMoveWscLoggingToNotifier =
             new FlagState(Flags.FLAG_MOVE_WSC_LOGGING_TO_NOTIFIER, Flags::moveWscLoggingToNotifier);
+
+    private final FlagState mLockOnUnplug =
+            new FlagState(Flags.FLAG_LOCK_ON_UNPLUG,
+                    Flags::lockOnUnplug);
 
     private final FlagState mWakelockAttributionViaWorkchain =
             new FlagState(Flags.FLAG_WAKELOCK_ATTRIBUTION_VIA_WORKCHAIN,
@@ -71,14 +67,31 @@ public class PowerManagerFlags {
             new FlagState(Flags.FLAG_DISABLE_FROZEN_PROCESS_WAKELOCKS,
                     Flags::disableFrozenProcessWakelocks);
 
+    private final FlagState mForceDisableWakelocks =
+            new FlagState(Flags.FLAG_FORCE_DISABLE_WAKELOCKS, Flags::forceDisableWakelocks);
+
+    private final FlagState mEnableAppWakelockDataSource =
+            new FlagState(Flags.FLAG_ENABLE_APP_WAKELOCK_DATA_SOURCE,
+                    Flags::enableAppWakelockDataSource);
+
+    private final FlagState mPartialSleepWakelocks = new FlagState(
+            Flags.FLAG_PARTIAL_SLEEP_WAKELOCKS,
+            Flags::partialSleepWakelocks
+    );
+
+    private final FlagState mSeparateTimeoutsFlicker = new FlagState(
+            Flags.FLAG_SEPARATE_TIMEOUTS_FLICKER,
+            Flags::separateTimeoutsFlicker
+    );
+
+    private final FlagState mWakeAdjacentDisplaysOnWakeupCall = new FlagState(
+            Flags.FLAG_WAKE_ADJACENT_DISPLAYS_ON_WAKEUP_CALL,
+            Flags::wakeAdjacentDisplaysOnWakeupCall
+    );
+
     /** Returns whether early-screen-timeout-detector is enabled on not. */
     public boolean isEarlyScreenTimeoutDetectorEnabled() {
         return mEarlyScreenTimeoutDetectorFlagState.isEnabled();
-    }
-
-    /** Returns whether screen timeout policy listener APIs are enabled on not. */
-    public boolean isScreenTimeoutPolicyListenerApiEnabled() {
-        return mEnableScreenTimeoutPolicyListenerApi.isEnabled();
     }
 
     /**
@@ -93,13 +106,6 @@ public class PowerManagerFlags {
      */
     public boolean isPerDisplayWakeByTouchEnabled() {
         return mPerDisplayWakeByTouch.isEnabled();
-    }
-
-    /**
-     * @return Whether FrameworkWakelockInfo atom logging is enabled or not.
-     */
-    public boolean isFrameworkWakelockInfoEnabled() {
-        return mFrameworkWakelockInfo.isEnabled();
     }
 
     /**
@@ -118,6 +124,13 @@ public class PowerManagerFlags {
     }
 
     /**
+     * @return {@code true} if the flag for the flicker when timing out bugfix is enabled
+     */
+    public boolean isSeparateTimeoutsFlickerEnabled() {
+        return mSeparateTimeoutsFlicker.isEnabled();
+    }
+
+    /**
      * @return Whether the wakelock attribution via workchain is enabled
      */
     public boolean isWakelockAttributionViaWorkchainEnabled() {
@@ -125,10 +138,46 @@ public class PowerManagerFlags {
     }
 
     /**
+     * @return Whether to lock when all remaining adjacent displays are asleep.
+     */
+    public boolean isLockOnUnplugEnabled() {
+        return mLockOnUnplug.isEnabled();
+    }
+
+    /**
      * @return Whether the feature to disable the frozen process wakelocks is enabled
      */
     public boolean isDisableFrozenProcessWakelocksEnabled() {
         return mDisableFrozenProcessWakelocks.isEnabled();
+    }
+
+    /**
+     * @return Whether the feature to force disable wakelocks is enabled
+     */
+    public boolean isForceDisableWakelocksEnabled() {
+        return mForceDisableWakelocks.isEnabled();
+    }
+
+    /**
+     * @return Whether the new Perfetto data source for tracing app wakelocks is enabled
+     */
+    public boolean isAppWakelockDataSourceEnabled() {
+        return mEnableAppWakelockDataSource.isEnabled();
+    }
+
+    /**
+     * @return Whether new wakelock to keep device asleep - for the user, but ensures the CPU
+     * remains awake - is enabled.
+     */
+    public boolean isPartialSleepWakelocksFeatureEnabled() {
+        return mPartialSleepWakelocks.isEnabled();
+    }
+
+    /**
+     * @return Whether the system should wakeup the adjacent displays too on a wakeup call
+     */
+    public boolean isWakeAdjacentDisplaysOnWakeupCallEnabled() {
+        return mWakeAdjacentDisplaysOnWakeupCall.isEnabled();
     }
 
     /**
@@ -140,10 +189,15 @@ public class PowerManagerFlags {
         pw.println(" " + mEarlyScreenTimeoutDetectorFlagState);
         pw.println(" " + mImproveWakelockLatency);
         pw.println(" " + mPerDisplayWakeByTouch);
-        pw.println(" " + mFrameworkWakelockInfo);
         pw.println(" " + mMoveWscLoggingToNotifier);
+        pw.println(" " + mLockOnUnplug);
         pw.println(" " + mWakelockAttributionViaWorkchain);
         pw.println(" " + mDisableFrozenProcessWakelocks);
+        pw.println(" " + mForceDisableWakelocks);
+        pw.println(" " + mEnableAppWakelockDataSource);
+        pw.println(" " + mPartialSleepWakelocks);
+        pw.println(" " + mSeparateTimeoutsFlicker);
+        pw.println(" " + mWakeAdjacentDisplaysOnWakeupCall);
     }
 
     private static class FlagState {

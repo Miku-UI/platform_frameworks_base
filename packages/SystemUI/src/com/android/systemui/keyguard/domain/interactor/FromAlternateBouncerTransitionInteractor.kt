@@ -17,7 +17,9 @@
 package com.android.systemui.keyguard.domain.interactor
 
 import android.animation.ValueAnimator
+import android.util.Log
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.Flags
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
 import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
@@ -33,7 +35,6 @@ import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
-import com.android.systemui.util.kotlin.Utils.Companion.sample as sampleCombine
 import com.android.wm.shell.shared.animation.Interpolators
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -113,20 +114,18 @@ constructor(
                 // This should eventually be removed in favor of
                 // [KeyguardTransitionInteractor#startDismissKeyguardTransition]
                 .onEach { delay(150L) }
-                .sampleCombine(
-                    keyguardInteractor.primaryBouncerShowing,
-                    powerInteractor.isAwake,
-                    keyguardInteractor.isAodAvailable,
-                    communalSceneInteractor.isIdleOnCommunal,
-                    keyguardInteractor.isDreaming,
-                    keyguardInteractor.isKeyguardOccluded,
-                )
-                .filterRelevantKeyguardStateAnd {
-                    (isAlternateBouncerShowing, isPrimaryBouncerShowing, _, _, _, _) ->
-                    !isAlternateBouncerShowing && !isPrimaryBouncerShowing
-                }
-                .collect { (_, _, isAwake, isAodAvailable, isIdleOnCommunal, isDreaming, isOccluded)
-                    ->
+                .filterRelevantKeyguardState()
+                .collect { isAlternateBouncerShowing ->
+                    if (isAlternateBouncerShowing || keyguardInteractor.primaryBouncerShowing.value) {
+                        return@collect
+                    }
+
+                    val isDreaming = keyguardInteractor.isAbleToDream.value
+                    val isOccluded = keyguardInteractor.isKeyguardOccluded.value
+                    val isIdleOnCommunal = communalSceneInteractor.isIdleOnCommunal.value
+                    val isAodAvailable = keyguardInteractor.isAodAvailable.value
+                    val isAwake = powerInteractor.detailedWakefulness.value.isAwake()
+
                     // When unlocking over glanceable hub to enter edit mode, transitioning directly
                     // to GONE prevents the lockscreen flash. Let listenForAlternateBouncerToGone
                     // handle it.
@@ -191,7 +190,21 @@ constructor(
                     },
                 )
                 .filterRelevantKeyguardState()
-                .collect { startTransitionTo(KeyguardState.GONE) }
+                .collect {
+                    val editModeState = communalSceneInteractor.editModeState.value
+                    if (Flags.hubEditModeTransition() && editModeState != null) {
+                        Log.i(
+                            TAG,
+                            "Ignoring isKeyguardGoingAway due to editModeState: $editModeState",
+                        )
+                        // If transitioning to hub edit mode, do nothing here. The keyguard state
+                        // change to GONE happens as a result of moving away from the communal
+                        // scene, which is triggered by the edit mode activity.
+                        return@collect
+                    }
+
+                    startTransitionTo(KeyguardState.GONE)
+                }
         }
     }
 
@@ -235,5 +248,6 @@ constructor(
         val TO_LOCKSCREEN_DURATION = 300.milliseconds
         val TO_OCCLUDED_DURATION = TRANSITION_DURATION_MS
         val TO_PRIMARY_BOUNCER_DURATION = TRANSITION_DURATION_MS
+        val TO_DREAMING_DURATION = TRANSITION_DURATION_MS
     }
 }

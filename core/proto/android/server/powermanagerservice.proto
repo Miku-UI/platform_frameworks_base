@@ -51,6 +51,7 @@ message PowerManagerServiceDumpProto {
         optional bool is_stay_awake = 6;
         optional bool is_doze = 7;
         optional bool is_draw = 8;
+        optional bool is_partial_sleep = 9;
     }
     message UserActivityProto {
         option (.android.msg_privacy).dest = DEST_AUTOMATIC;
@@ -339,6 +340,10 @@ message PowerServiceSettingsAndConfigurationDumpProto {
     optional sint32 attentive_timeout_config_ms = 38;
     // The attentive warning duration config value in milliseconds.
     optional sint32 attentive_warning_duration_config_ms = 39;
+    // Whether dreams should be activated when device is postured (stationary and upright)
+    optional bool are_dreams_activate_while_postured_setting = 40;
+    // True if dreams should only be activated while wireless charging.
+    optional bool are_dreams_activate_only_while_wireless_charging = 41;
 }
 
 message BatterySaverStateMachineProto {

@@ -23,7 +23,7 @@ import android.view.SurfaceControl;
 
 /**
  * See WindowOrganizer#applyTransaction.
- * {@hide}
+ * @hide
  */
 @TestApi
 public abstract class WindowContainerTransactionCallback {

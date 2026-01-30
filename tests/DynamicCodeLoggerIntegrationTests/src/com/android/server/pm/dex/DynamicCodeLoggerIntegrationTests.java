@@ -27,16 +27,22 @@ import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
 import android.os.SystemClock;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.EventLog;
 import android.util.EventLog.Event;
 
 import androidx.test.filters.LargeTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.server.flags.Flags;
+
 import dalvik.system.DexClassLoader;
 
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -67,6 +73,7 @@ import java.util.concurrent.TimeUnit;
  */
 @LargeTest
 @RunWith(JUnit4.class)
+@RequiresFlagsDisabled(Flags.FLAG_DYNAMIC_CODE_LOGGING_SERVICE_REMOVAL)
 public final class DynamicCodeLoggerIntegrationTests {
 
     private static final String SHA_256 = "SHA-256";
@@ -88,6 +95,10 @@ public final class DynamicCodeLoggerIntegrationTests {
     // code loading and checking the logs on each try.)
     private static final int AUDIT_LOG_RETRIES = 10;
     private static final int RETRY_DELAY_MS = 500;
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule =
+            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private static Context sContext;
     private static int sMyUid;

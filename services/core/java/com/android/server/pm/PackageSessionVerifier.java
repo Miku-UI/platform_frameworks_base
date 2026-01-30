@@ -363,11 +363,18 @@ final class PackageSessionVerifier {
         // only apex part of the train will be applied, leaving device in an inconsistent state.
         Slog.d(TAG, "Marking session " + session.sessionId() + " as ready");
         session.setSessionReady();
+        // If the session is abandoned while it's being staged/verified, the session can't be marked
+        // as ready. Let's abort the session by throwing PackageManagerException. The apex session
+        // will be aborted as well in the exception handler.
         if (session.isSessionReady()) {
             final boolean hasApex = session.containsApexSession();
             if (hasApex) {
                 mApexManager.markStagedSessionReady(session.sessionId());
             }
+        } else {
+            Slog.e(TAG, "Failed to mark session " + session.sessionId() + " as ready.");
+            throw new PackageManagerException(PackageManager.INSTALL_FAILED_INTERNAL_ERROR,
+                    "Session is abandoned.");
         }
     }
 

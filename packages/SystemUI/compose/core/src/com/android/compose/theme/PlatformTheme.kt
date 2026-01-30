@@ -14,18 +14,24 @@
  * limitations under the License.
  */
 
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.android.compose.theme
 
 import android.content.Context
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import com.android.app.tracing.TraceUtils
 import com.android.compose.theme.AndroidColorScheme.Companion.color
 import com.android.compose.theme.typography.TypeScaleTokens
 import com.android.compose.theme.typography.TypefaceNames
@@ -42,8 +48,19 @@ import com.android.internal.R
 fun PlatformTheme(isDarkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
     val context = LocalContext.current
 
-    val colorScheme = remember(context, isDarkTheme) { platformColorScheme(isDarkTheme, context) }
-    val androidColorScheme = remember(context, isDarkTheme) { AndroidColorScheme(context) }
+    // Force recreate the color schemes if the theme might have changed.
+    val currentAssetsSeq = LocalConfiguration.current.assetsSeq
+    val colorScheme =
+        remember(context, isDarkTheme, currentAssetsSeq) {
+            TraceUtils.trace("PlatformTheme.colorScheme") {
+                platformColorScheme(isDarkTheme, context)
+            }
+        }
+    val androidColorScheme =
+        remember(context, isDarkTheme, currentAssetsSeq) {
+            TraceUtils.trace("PlatformTheme.androidColorScheme") { AndroidColorScheme(context) }
+        }
+
     val typefaceNames = remember(context) { TypefaceNames.get(context) }
     val typefaceTokens = remember(typefaceNames) { TypefaceTokens(typefaceNames) }
     val typography =
@@ -57,7 +74,11 @@ fun PlatformTheme(isDarkTheme: Boolean = isSystemInDarkTheme(), content: @Compos
         }
     val windowSizeClass = calculateWindowSizeClass()
 
-    MaterialTheme(colorScheme = colorScheme, typography = typography) {
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = typography,
+        motionScheme = ExpressiveMotionScheme,
+    ) {
         CompositionLocalProvider(
             LocalAndroidColorScheme provides androidColorScheme,
             LocalWindowSizeClass provides windowSizeClass,
@@ -91,3 +112,5 @@ private fun platformColorScheme(isDarkTheme: Boolean, context: Context): ColorSc
             )
     }
 }
+
+private val ExpressiveMotionScheme = MotionScheme.expressive()

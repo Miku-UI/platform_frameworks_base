@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Cần có quyền"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Đã chặn cài đặt"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Đang chuẩn bị ứng dụng…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Cài đặt ứng dụng này?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Đang cài đặt…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Đã cài đặt ứng dụng"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Cài đặt lại ứng dụng này?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Đang cài đặt lại…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Đã cài đặt lại ứng dụng"</string>
+    <string name="title_update" msgid="1747328630716712391">"Cập nhật ứng dụng này?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Cập nhật ứng dụng này bằng <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Đang cập nhật…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Đã cập nhật ứng dụng"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Không cài đặt được ứng dụng"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Đã chặn cài đặt"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Ứng dụng không tương thích"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Gói không hợp lệ"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Không đủ dung lượng lưu trữ"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Ứng dụng chưa được cài đặt"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Gỡ cài đặt ứng dụng này?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Xoá bản sao của ứng dụng này?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Gỡ cài đặt bản cập nhật ứng dụng?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Gỡ cài đặt bản cập nhật ứng dụng cho tất cả người dùng?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Gỡ cài đặt ứng dụng này cho tất cả người dùng?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Gỡ cài đặt ứng dụng này cho người dùng \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Không tìm thấy ứng dụng"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Không gỡ cài đặt được ứng dụng này"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Ứng dụng chưa được gỡ cài đặt"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Lưu trữ ứng dụng này?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Lưu trữ ứng dụng này cho tất cả người dùng?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Lưu trữ ứng dụng này cho người dùng \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Khôi phục ứng dụng này?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Việc cần làm"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Không đủ dung lượng lưu trữ"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Bạn không có kết nối mạng"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> đã bị tắt"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"Bạn chưa cài đặt <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Đã xảy ra lỗi"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Ứng dụng này thường nhận các bản cập nhật qua &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Khi cập nhật qua một nguồn khác, bạn có thể nhận các bản cập nhật trong tương lai từ nguồn bất kỳ trên máy tính bảng của mình. Chức năng của ứng dụng có thể thay đổi."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Ứng dụng này thường nhận các bản cập nhật qua &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Khi cập nhật qua một nguồn khác, bạn có thể nhận các bản cập nhật trong tương lai từ nguồn bất kỳ trên TV của mình. Chức năng của ứng dụng có thể thay đổi."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Ứng dụng này thường nhận các bản cập nhật qua &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Khi cập nhật qua một nguồn khác, bạn có thể nhận các bản cập nhật trong tương lai từ nguồn bất kỳ trên điện thoại của mình. Chức năng của ứng dụng có thể thay đổi."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Để bảo mật, máy tính bảng của bạn hiện không được phép cài đặt các ứng dụng không xác định từ nguồn này. Bạn có thể thay đổi tuỳ chọn này trong phần Cài đặt."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Để bảo mật, TV của bạn hiện không được phép cài đặt các ứng dụng không xác định từ nguồn này. Bạn có thể thay đổi tuỳ chọn này trong phần Cài đặt."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Để bảo mật, đồng hồ của bạn hiện không được phép cài đặt các ứng dụng không xác định từ nguồn này. Bạn có thể thay đổi tuỳ chọn này trong phần Cài đặt."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Để bảo mật, điện thoại của bạn hiện không được phép cài đặt các ứng dụng không xác định từ nguồn này. Bạn có thể thay đổi tuỳ chọn này trong phần Cài đặt."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Điện thoại và dữ liệu cá nhân của bạn dễ bị các ứng dụng không xác định tấn công hơn. Bằng cách cài đặt ứng dụng này, bạn đồng ý tự chịu trách nhiệm cho mọi hỏng hóc đối với điện thoại của mình hoặc mất mát dữ liệu có thể phát sinh từ việc dùng ứng dụng này."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Máy tính bảng và dữ liệu cá nhân của bạn dễ bị các ứng dụng không xác định tấn công hơn. Bằng cách cài đặt ứng dụng này, bạn đồng ý tự chịu trách nhiệm cho mọi hỏng hóc đối với máy tính bảng của mình hoặc mất mát dữ liệu có thể phát sinh từ việc dùng ứng dụng này."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"TV và dữ liệu cá nhân của bạn dễ bị các ứng dụng không xác định tấn công hơn. Bằng cách cài đặt ứng dụng này, bạn đồng ý tự chịu trách nhiệm cho mọi hỏng hóc đối với TV của mình hoặc mất mát dữ liệu có thể phát sinh từ việc dùng ứng dụng này."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Ứng dụng này đã bị chặn cài đặt"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Ứng dụng này xung đột với một ứng dụng đã có trên thiết bị của bạn"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Ứng dụng này không tương thích với thiết bị của bạn"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Tệp cài đặt của ứng dụng này bị lỗi"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Để cài đặt ứng dụng này, hãy giải phóng dung lượng rồi thử lại"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Tệp ứng dụng bị lỗi"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Đã hạn chế việc cài đặt ứng dụng"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Đã hạn chế việc cài đặt các ứng dụng không xác định"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Một bản sao của ứng dụng này cũng tồn tại và sẽ bị xoá"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Ứng dụng này là bản sao của <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Ứng dụng này sẽ được thay thế bằng phiên bản gốc. Mọi dữ liệu ứng dụng sẽ bị xoá."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Ứng dụng này sẽ được thay thế bằng phiên bản gốc đối với mọi người dùng trên thiết bị. Mọi dữ liệu ứng dụng sẽ bị xoá."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Ứng dụng này sẽ bị gỡ cài đặt khỏi hồ sơ công việc của bạn"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Ứng dụng này sẽ bị gỡ cài đặt khỏi không gian riêng tư của bạn"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Ứng dụng này không có trong danh sách ứng dụng đã cài đặt hoặc đã bị gỡ cài đặt"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Người dùng hiện tại không được phép thực hiện việc gỡ cài đặt này"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Không gỡ cài đặt được ứng dụng này"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Giữ lại dữ liệu ứng dụng"</string>
+    <string name="message_archive" msgid="943853731737315850">"Dữ liệu ứng dụng của bạn sẽ được lưu"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Mọi dữ liệu ứng dụng sẽ được lưu"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Dữ liệu ứng dụng sẽ được lưu"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Ứng dụng này sẽ được lưu trữ khỏi hồ sơ công việc của bạn. Dữ liệu ứng dụng của bạn sẽ được lưu."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Ứng dụng này sẽ được lưu trữ khỏi không gian riêng tư của bạn. Dữ liệu ứng dụng của bạn sẽ được lưu."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Ứng dụng này sẽ tải xuống từ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ở chế độ nền"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> cần có thêm thông tin để bạn có thể khôi phục ứng dụng này"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Để khôi phục ứng dụng này, hãy giải phóng &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; rồi thử lại"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Để khôi phục ứng dụng này, hãy kiểm tra kết nối Internet rồi thử lại"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Để khôi phục ứng dụng này, hãy bật <xliff:g id="INSTALLERNAME">%1$s</xliff:g> trong phần Cài đặt"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Để khôi phục ứng dụng này, bạn cần cài đặt <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Đã xảy ra vấn đề khi tìm cách khôi phục ứng dụng này"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> là một phần của ứng dụng sau: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Ứng dụng này đã bị chặn. Để giúp đảm bảo an toàn cho thiết bị và dữ liệu, bạn chỉ nên cài đặt ứng dụng của các nhà phát triển đã xác minh.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Ứng dụng này chưa được cập nhật. Để giúp đảm bảo an toàn cho thiết bị và dữ liệu, bạn chỉ nên cài đặt bản cập nhật của các nhà phát triển đã xác minh.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Ứng dụng này chưa được cài đặt. Các ứng dụng của nhà phát triển chưa được xác minh có thể không an toàn.&lt;/p&gt; &lt;p&gt;Bạn cần có kết nối Internet để xác minh nhà phát triển ứng dụng. Hãy kiểm tra kết nối của bạn rồi thử cài đặt lại. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Ứng dụng này chưa được cập nhật. Bản cập nhật của các nhà phát triển chưa được xác minh có thể không an toàn.&lt;/p&gt; &lt;p&gt;Bạn cần có kết nối Internet để xác minh nhà phát triển ứng dụng. Hãy kiểm tra kết nối của bạn rồi thử cập nhật lại. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Đã xảy ra sự cố khi xác minh nhà phát triển của ứng dụng này. Ứng dụng của các nhà phát triển chưa được xác minh có thể không an toàn nên ứng dụng này chưa được cài đặt.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Đã xảy ra sự cố khi xác minh nhà phát triển của ứng dụng này. Bản cập nhật của các nhà phát triển chưa được xác minh có thể không an toàn nên ứng dụng này chưa được cập nhật.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Ứng dụng này bị chặn do đã xảy ra sự cố khi xác minh nhà phát triển. Để giúp đảm bảo an toàn cho thiết bị và dữ liệu, bạn chỉ nên cài đặt ứng dụng của các nhà phát triển đã xác minh.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Ứng dụng này chưa được cập nhật vì đã xảy ra sự cố khi xác minh nhà phát triển. Để giúp đảm bảo an toàn cho thiết bị và dữ liệu, bạn chỉ nên cài đặt bản cập nhật của các nhà phát triển đã xác minh.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Tìm hiểu thêm về quy trình xác minh nhà phát triển&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Xin lưu ý rằng nếu bạn cài đặt mà không xác minh, các ứng dụng của nhà phát triển chưa được xác minh có thể gây rủi ro cho thiết bị và dữ liệu của bạn."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Xin lưu ý rằng nếu bạn cập nhật mà không xác minh, các bản cập nhật của nhà phát triển chưa được xác minh có thể gây rủi ro cho thiết bị và dữ liệu của bạn."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Nhà phát triển ứng dụng này chưa được xác minh"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Không thể xác minh nhà phát triển ứng dụng này vì không có Internet"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Không xác minh được nhà phát triển ứng dụng này"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Cài đặt mà không xác minh"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Cập nhật mà không xác minh"</string>
+    <string name="button_install" msgid="7434013176505680162">"Cài đặt"</string>
+    <string name="button_update" msgid="3046719350226327526">"Cập nhật"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Vẫn cập nhật"</string>
+    <string name="button_done" msgid="3408025390982260629">"Xong"</string>
+    <string name="button_open" msgid="6892684987374117955">"Mở"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Huỷ"</string>
+    <string name="button_continue" msgid="107501685249826244">"Tiếp tục"</string>
+    <string name="button_close" msgid="7187308556466275899">"Đóng"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Gỡ cài đặt"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Xoá"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Cài đặt lại"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Quản lý ứng dụng"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Lưu trữ"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Khôi phục"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Gỡ cài đặt bản cập nhật"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Cài đặt"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Thử lại"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Bản sao của <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+</resources>

@@ -47,8 +47,6 @@ import android.window.TaskSnapshot;
 import com.android.server.LocalServices;
 import com.android.server.pm.UserManagerInternal;
 import com.android.server.wm.BaseAppSnapshotPersister.PersistInfoProvider;
-import com.android.window.flags.Flags;
-
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -122,6 +120,8 @@ class TaskSnapshotPersisterTestBase extends WindowTestsBase {
 
     @After
     public void tearDown() {
+        mSnapshotPersistQueue.setPaused(false);
+        mSnapshotPersistQueue.waitForQueueEmpty();
         cleanDirectory();
     }
 
@@ -147,11 +147,7 @@ class TaskSnapshotPersisterTestBase extends WindowTestsBase {
     File[] convertFilePath(@NonNull String... fileNames) {
         final File[] files = new File[fileNames.length];
         final String path;
-        if (Flags.scrambleSnapshotFileName()) {
-            path = mPersister.mPersistInfoProvider.getDirectory(mTestUserId).getPath();
-        } else {
-            path = FILES_DIR.getPath() + "/snapshots/";
-        }
+        path = mPersister.mPersistInfoProvider.getDirectory(mTestUserId).getPath();
         for (int i = 0; i < fileNames.length; i++) {
             files[i] = new File(path, fileNames[i]);
         }
@@ -184,6 +180,8 @@ class TaskSnapshotPersisterTestBase extends WindowTestsBase {
         private int mRotation = Surface.ROTATION_0;
         private int mWidth = SNAPSHOT_WIDTH;
         private int mHeight = SNAPSHOT_HEIGHT;
+        private int mDensityDpi = 300;
+        private long mCaptureTime = 0;
         private ComponentName mTopActivityComponent = new ComponentName("", "");
 
         TaskSnapshotBuilder() {
@@ -230,6 +228,16 @@ class TaskSnapshotPersisterTestBase extends WindowTestsBase {
             return this;
         }
 
+        TaskSnapshotBuilder setDensityDpi(int densityDpi) {
+            mDensityDpi = densityDpi;
+            return this;
+        }
+
+        TaskSnapshotBuilder setCaptureTime(long captureTime) {
+            mCaptureTime = captureTime;
+            return this;
+        }
+
         TaskSnapshot build() {
             // To satisfy existing tests, ensure the graphics buffer is always 100x100, and
             // compute the ize of the task according to mScaleFraction.
@@ -241,7 +249,7 @@ class TaskSnapshotPersisterTestBase extends WindowTestsBase {
             Canvas c = buffer.lockCanvas();
             c.drawColor(Color.RED);
             buffer.unlockCanvasAndPost(c);
-            return new TaskSnapshot(MOCK_SNAPSHOT_ID, 0 /* captureTime */, mTopActivityComponent,
+            return new TaskSnapshot(MOCK_SNAPSHOT_ID, mCaptureTime, mTopActivityComponent,
                     HardwareBuffer.createFromGraphicBuffer(buffer),
                     ColorSpace.get(ColorSpace.Named.SRGB), ORIENTATION_PORTRAIT,
                     mRotation, taskSize, TEST_CONTENT_INSETS, TEST_LETTERBOX_INSETS,
@@ -250,7 +258,7 @@ class TaskSnapshotPersisterTestBase extends WindowTestsBase {
                     // disk.
                     false /* isLowResolution */,
                     mIsRealSnapshot, mWindowingMode, mSystemUiVisibility, mIsTranslucent,
-                    false /* hasImeSurface */, 0 /* uiMode */);
+                    false /* hasImeSurface */, 0 /* uiMode */, mDensityDpi);
         }
     }
 }

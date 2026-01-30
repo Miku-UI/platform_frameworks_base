@@ -23,7 +23,6 @@ import android.widget.ViewFlipper
 import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.InflationFlag
 import com.android.systemui.statusbar.notification.row.ui.viewbinder.NotificationViewFlipperBinder
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.NotificationViewFlipperViewModel
-import com.android.systemui.statusbar.notification.shared.NotificationViewFlipperPausing
 import javax.inject.Inject
 
 /**
@@ -35,10 +34,6 @@ class NotificationViewFlipperFactory
 constructor(
     private val viewModel: NotificationViewFlipperViewModel,
 ) : NotifRemoteViewsFactory {
-    init {
-        /* check if */ NotificationViewFlipperPausing.isUnexpectedlyInLegacyMode()
-    }
-
     override fun instantiate(
         row: ExpandableNotificationRow,
         @InflationFlag layoutType: Int,

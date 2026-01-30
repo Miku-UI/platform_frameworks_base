@@ -101,8 +101,8 @@ constructor(
      *   cannot be created), and they won't be able to be added.
      */
     val tiles: Flow<List<EditTileViewModel>> =
-        isEditing.flatMapLatest {
-            if (it) {
+        isEditing.flatMapLatest { isEditing ->
+            if (isEditing) {
                 val editTilesData = editTilesListInteractor.getTilesToEdit()
                 // Query only the non current platform tiles, as any current tile is clearly
                 // available
@@ -115,6 +115,11 @@ constructor(
                 currentTilesInteractor.currentTiles
                     .map { tiles ->
                         val currentSpecs = tiles.map { it.spec }
+                        val dualTargetSpecs =
+                            tiles
+                                .filter { it.tile.state.handlesSecondaryClick }
+                                .map { it.spec }
+                                .toSet()
                         val canRemoveTiles = currentSpecs.size > minTilesInteractor.minNumberOfTiles
                         val allTiles = editTilesData.stockTiles + editTilesData.customTiles
                         val allTilesMap = allTiles.associateBy { it.tileSpec }
@@ -125,6 +130,7 @@ constructor(
                             .filterNot { it.tileSpec in unavailable }
                             .map {
                                 val current = it.tileSpec in currentSpecs
+                                val isDualTarget = current && it.tileSpec in dualTargetSpecs
                                 val availableActions = buildSet {
                                     if (current) {
                                         add(AvailableEditActions.MOVE)
@@ -140,7 +146,9 @@ constructor(
                                     it.icon,
                                     it.label,
                                     it.appName,
+                                    it.appIcon,
                                     current,
+                                    isDualTarget,
                                     availableActions,
                                     it.category,
                                 )

@@ -22,7 +22,7 @@ import android.os.Bundle;
  *  Listener for speech recognition events, used with RecognitionService.
  *  This gives you both the final recognition results, as well as various
  *  intermediate events that can be used to show visual feedback to the user.
- *  {@hide}
+ * @hide
  */
 oneway interface IRecognitionListener {
     /**

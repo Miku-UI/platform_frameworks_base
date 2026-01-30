@@ -73,7 +73,7 @@ public class BatteryStatsUserLifecycleTests {
             return;
         }
 
-        assumeTrue(UserManager.getMaxSupportedUsers() > 1);
+        assumeTrue(UserManager.getMaxSwitchableUsers() > 1);
     }
 
     @Before

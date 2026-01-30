@@ -33,7 +33,7 @@ val Kosmos.brightnessSliderViewModelFactory: BrightnessSliderViewModel.Factory b
                     screenBrightnessInteractor = screenBrightnessInteractor,
                     brightnessPolicyEnforcementInteractor = brightnessPolicyEnforcementInteractor,
                     hapticsViewModelFactory = sliderHapticsViewModelFactory,
-                    brightnessMirrorShowingInteractor = brightnessMirrorShowingInteractor,
+                    brightnessMirrorShowingInteractorLazy = { brightnessMirrorShowingInteractor },
                     supportsMirroring = allowsMirroring,
                     falsingInteractor = falsingInteractor,
                     brightnessWarningToast = brightnessWarningToast,

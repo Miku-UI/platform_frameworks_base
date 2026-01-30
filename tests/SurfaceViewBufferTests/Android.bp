@@ -63,9 +63,6 @@ cc_library_shared {
         "liblog",
         "libandroid",
     ],
-    include_dirs: [
-        "system/core/include",
-    ],
     stl: "libc++_static",
     cflags: [
         "-Werror",

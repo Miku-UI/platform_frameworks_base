@@ -16,6 +16,7 @@
 
 package com.android.server.biometrics.sensors;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.content.Context;
 import android.content.Intent;
@@ -31,6 +32,7 @@ import com.android.server.biometrics.AuthenticationStatsCollector;
 import com.android.server.biometrics.BiometricsProto;
 import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.log.BiometricLogger;
+import com.android.server.pm.PackageManagerService;
 
 import java.util.Arrays;
 import java.util.function.Supplier;
@@ -40,7 +42,7 @@ import java.util.function.Supplier;
  */
 public abstract class EnrollClient<T> extends AcquisitionClient<T> implements EnrollmentModifier {
 
-    private static final String TAG = "Biometrics/EnrollClient";
+    private static final String TAG = "EnrollClient";
 
     protected final byte[] mHardwareAuthToken;
     protected final int mTimeoutSec;
@@ -168,6 +170,7 @@ public abstract class EnrollClient<T> extends AcquisitionClient<T> implements En
                 AuthenticationStatsCollector.ACTION_LAST_ENROLL_TIME_CHANGED);
         intent.putExtra(Intent.EXTRA_USER_HANDLE, getTargetUserId());
         intent.putExtra(AuthenticationStatsCollector.EXTRA_MODALITY, modality);
-        getContext().sendBroadcast(intent);
+        intent.setPackage(PackageManagerService.PLATFORM_PACKAGE_NAME);
+        getContext().sendBroadcast(intent, Manifest.permission.USE_BIOMETRIC_INTERNAL);
     }
 }

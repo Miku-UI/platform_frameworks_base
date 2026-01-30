@@ -62,12 +62,12 @@ public class PowerStatsCollectorTest {
         mCollector = new PowerStatsCollector(mHandler, 60000, mock(PowerStatsUidResolver.class),
                 mMockClock) {
             @Override
-            protected PowerStats collectStats() {
+            protected PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
                 return new PowerStats(
                         new PowerStats.Descriptor(0, 0, null, 0, 0, new PersistableBundle()));
             }
         };
-        mCollector.addConsumer(stats -> mCollectedStats = stats);
+        mCollector.addConsumer((stats, elapsedRealtime, uptime) -> mCollectedStats = stats);
         mCollector.setEnabled(true);
     }
 

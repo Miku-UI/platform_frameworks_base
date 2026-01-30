@@ -295,7 +295,7 @@
     <item msgid="7521112827893653392">"Na základe označenia"</item>
   </string-array>
   <string-array name="shade_display_awareness_summaries">
-    <item msgid="2964753205732912921">"Zobraziť panel iba na obrazovke zariadenia"</item>
+    <item msgid="2964753205732912921">"Zobrazovať panel iba na obrazovke zariadenia"</item>
     <item msgid="1955398604822147783">"Zobraziť panel na jednej externej obrazovke"</item>
     <item msgid="391477482416751568">"Zobraziť panel na obrazovke, na ktorej došlo naposledy k interakcii so stavovým riadkom"</item>
     <item msgid="1746820128097981528">"Zobraziť panel na poslednej označenej obrazovke"</item>

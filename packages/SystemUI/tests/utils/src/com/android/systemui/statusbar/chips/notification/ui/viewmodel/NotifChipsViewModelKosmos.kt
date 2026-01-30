@@ -20,6 +20,7 @@ import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
+import com.android.systemui.statusbar.chips.statusBarChipsLogger
 import com.android.systemui.statusbar.notification.stack.domain.interactor.headsUpNotificationInteractor
 import com.android.systemui.util.time.fakeSystemClock
 
@@ -31,5 +32,6 @@ val Kosmos.notifChipsViewModel: NotifChipsViewModel by
             statusBarNotificationChipsInteractor,
             headsUpNotificationInteractor,
             fakeSystemClock,
+            logBuffer = statusBarChipsLogger,
         )
     }

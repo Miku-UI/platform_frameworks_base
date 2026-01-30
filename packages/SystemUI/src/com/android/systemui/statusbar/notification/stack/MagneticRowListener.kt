@@ -24,14 +24,11 @@ interface MagneticRowListener {
     /**
      * Set a translation due to a magnetic attachment.
      *
-     * If a magnetic animation is running, [trackEagerly] decides if the new translation is applied
-     * immediately or if the animation finishes first. When applying the translation immediately,
-     * the change in translation must be greater than a touch slop threshold.
+     * If a magnetic animation is running, the animation animates to a new position.
      *
      * @param[translation] Incoming gesture translation.
-     * @param[trackEagerly] Whether we eagerly track the incoming translation or not.
      */
-    fun setMagneticTranslation(translation: Float, trackEagerly: Boolean = true)
+    fun setMagneticTranslation(translation: Float)
 
     /**
      * Trigger the magnetic behavior when the row detaches or snaps back from its magnetic
@@ -56,4 +53,7 @@ interface MagneticRowListener {
 
     /** Can the row be dismissed. */
     fun canRowBeDismissed(): Boolean
+
+    /** Get the logging key associated with this [MagneticRowListener] */
+    fun getRowLoggingKey(): String
 }

@@ -140,6 +140,30 @@ class CommunalAppWidgetViewModelTest(flags: FlagsParameterization) : SysuiTestCa
                 )
         }
 
+    @Test
+    fun removeListener() =
+        kosmos.runTest {
+            val listener = mock<AppWidgetHostListener>()
+
+            underTest.setListener(123, listener)
+            runAll()
+            underTest.removeListener(123)
+
+            verify(appWidgetHost).removeListener(123)
+        }
+
+    @Test
+    fun removeListener_HSUM() =
+        kosmos.runTest {
+            fakeGlanceableHubMultiUserHelper.setIsInHeadlessSystemUser(true)
+            val listener = mock<AppWidgetHostListener>()
+
+            underTest.setListener(123, listener)
+            runAll()
+
+            verify(listener).updateAppWidget(any())
+        }
+
     private fun Kosmos.runAll() {
         runCurrent()
         fakeExecutor.runAllReady()

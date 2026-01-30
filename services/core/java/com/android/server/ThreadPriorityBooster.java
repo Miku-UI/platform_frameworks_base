@@ -21,7 +21,10 @@ import static android.os.Process.myTid;
 import static android.os.Process.setThreadPriority;
 
 /**
- * Utility class to boost threads in sections where important locks are held.
+ * Utility class to boost threads in sections where important locks are held.  All priority values
+ * are Posix setpriority() niceness values, not Java priorities.  Does not affect
+ * java.lang.Thread.getPriority(), which may thus become inconsistent with the actual process
+ * "niceness".  Blindly overwrites other priority adjustments made while priority is "boosted".
  */
 public class ThreadPriorityBooster {
 

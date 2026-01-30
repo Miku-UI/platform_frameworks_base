@@ -17,11 +17,14 @@
 package com.android.systemui.shade.transition
 
 import android.util.MathUtils
+import androidx.annotation.VisibleForTesting
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 import javax.inject.Inject
 
 /** Interpolator responsible for the split shade. */
-internal class SplitShadeInterpolator @Inject internal constructor() :
-    LargeScreenShadeInterpolator {
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+class SplitShadeInterpolator @Inject constructor() : LargeScreenShadeInterpolator {
 
     override fun getBehindScrimAlpha(fraction: Float): Float {
         // Start delay: 0%
@@ -58,6 +61,6 @@ internal class SplitShadeInterpolator @Inject internal constructor() :
             /* rangeMax= */ 1f,
             /* valueMin= */ start,
             /* valueMax= */ end,
-            /* value= */ fraction
+            /* value= */ fraction,
         )
 }

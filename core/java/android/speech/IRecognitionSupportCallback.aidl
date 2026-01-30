@@ -23,7 +23,7 @@ import android.speech.RecognitionSupport;
  *  Callback for speech recognition support checks, used with RecognitionService.
  *  This provides the {@link RecognitionSupport} for a given recognition request, callers can use
  *  it to check whether RecognitionService can fulfill a given recognition request.
- *  {@hide}
+ * @hide
  */
 oneway interface IRecognitionSupportCallback {
     void onSupportResult(in RecognitionSupport recognitionSupport);

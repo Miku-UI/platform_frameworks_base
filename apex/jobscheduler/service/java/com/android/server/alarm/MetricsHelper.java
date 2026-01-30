@@ -114,7 +114,8 @@ class MetricsHelper {
                 a.repeatInterval != 0,
                 reasonToStatsReason(a.exactAllowReason),
                 AlarmManagerService.isRtc(a.type),
-                ActivityManager.processStateAmToProto(callerProcState));
+                ActivityManager.processStateAmToProto(callerProcState),
+                a.listener != null);
     }
 
     static void pushAlarmBatchDelivered(

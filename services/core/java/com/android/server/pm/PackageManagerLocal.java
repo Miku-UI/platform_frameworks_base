@@ -27,6 +27,7 @@ import android.os.UserHandle;
 
 import com.android.server.pm.pkg.PackageState;
 import com.android.server.pm.pkg.SharedUserApi;
+import com.android.server.pm.snapshot.PackageDataSnapshot;
 
 import java.io.IOException;
 import java.lang.annotation.Retention;
@@ -124,6 +125,15 @@ public interface PackageManagerLocal {
     @SuppressWarnings("UserHandleName") // Ignore naming convention, not invoking action as user
     @NonNull
     FilteredSnapshot withFilteredSnapshot(int callingUid, @NonNull UserHandle user);
+
+    /**
+     * Same as {@link #withFilteredSnapshot()}, but from an existing snapshot computer. The created
+     * object does not own the computer and is not responsible for releasing the resources that the
+     * computer holds (if any).
+     *
+     * @hide
+     */
+    @NonNull FilteredSnapshot withUnownedFilteredSnapshot(@NonNull PackageDataSnapshot computer);
 
     /**
      * Add a pair of signing details so that packages signed with {@code oldSigningDetails} will

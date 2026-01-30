@@ -16,24 +16,27 @@
 
 package com.android.settingslib.preference
 
+import androidx.preference.Preference
 import androidx.preference.PreferenceDataStore
 import androidx.preference.PreferenceGroup
 import androidx.preference.PreferenceScreen
 import com.android.settingslib.datastore.KeyValueStore
 import com.android.settingslib.metadata.PersistentPreference
 import com.android.settingslib.metadata.PreferenceHierarchy
+import com.android.settingslib.metadata.PreferenceMetadata
 import com.android.settingslib.metadata.PreferenceScreenMetadata
 
 /** Inflates [PreferenceHierarchy] into given [PreferenceGroup] recursively. */
 fun PreferenceScreen.inflatePreferenceHierarchy(
     preferenceBindingFactory: PreferenceBindingFactory,
     hierarchy: PreferenceHierarchy,
+    storages: MutableMap<KeyValueStore, PreferenceDataStore>,
 ) =
     inflatePreferenceHierarchy(
         hierarchy.metadata as PreferenceScreenMetadata,
         preferenceBindingFactory,
         hierarchy,
-        mutableMapOf(),
+        storages,
     )
 
 /** Inflates [PreferenceHierarchy] into given [PreferenceGroup] recursively. */
@@ -48,9 +51,9 @@ private fun PreferenceGroup.inflatePreferenceHierarchy(
         val metadata = it.metadata
         val preferenceBinding =
             preferenceBindingFactory.getPreferenceBinding(metadata) ?: return@forEach
-        val widget = preferenceBinding.createWidget(context)
+        val preference = preferenceBinding.createWidget(context)
         if (it is PreferenceHierarchy) {
-            val preferenceGroup = widget as PreferenceGroup
+            val preferenceGroup = preference as PreferenceGroup
             // MUST add preference before binding, otherwise exception is raised when add child
             addPreference(preferenceGroup)
             preferenceGroup.inflatePreferenceHierarchy(
@@ -60,16 +63,22 @@ private fun PreferenceGroup.inflatePreferenceHierarchy(
                 storages,
             )
         } else {
-            (metadata as? PersistentPreference<*>)?.storage(context)?.let { storage ->
-                widget.preferenceDataStore =
-                    storages.getOrPut(storage) {
-                        storage.toPreferenceDataStore(preferenceScreenMetadata, metadata)
-                    }
-            }
-            preferenceBindingFactory.bind(widget, it, preferenceBinding)
+            preference.setPreferenceDataStore(metadata, preferenceScreenMetadata, storages)
+            preferenceBindingFactory.bind(preference, it, preferenceBinding)
             // MUST add preference after binding for persistent preference to get initial value
             // (preference key is set within bind method)
-            addPreference(widget)
+            addPreference(preference)
         }
+    }
+}
+
+internal fun Preference.setPreferenceDataStore(
+    metadata: PreferenceMetadata,
+    screenMetadata: PreferenceScreenMetadata,
+    storages: MutableMap<KeyValueStore, PreferenceDataStore>,
+) {
+    (metadata as? PersistentPreference<*>)?.storage(context)?.let { storage ->
+        preferenceDataStore =
+            storages.getOrPut(storage) { storage.toPreferenceDataStore(screenMetadata, metadata) }
     }
 }

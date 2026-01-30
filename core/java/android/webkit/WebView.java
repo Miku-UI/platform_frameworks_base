@@ -121,8 +121,10 @@ public class WebView extends AbsoluteLayout
     // Throwing an exception for incorrect thread usage if the
     // build target is JB MR2 or newer. Defaults to false, and is
     // set in the WebView constructor.
+    // If `alwaysEnforceThreadChecking` flag is true, we will always throw an exception
+    // irrespective of the value of this field.
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    private static volatile boolean sEnforceThreadChecking = false;
+    private static volatile boolean sEnforceThreadChecking = Flags.alwaysEnforceThreadChecking();
 
     /**
      *  Transportation object for returning WebView across thread boundaries.
@@ -437,8 +439,10 @@ public class WebView extends AbsoluteLayout
             throw new RuntimeException(
                 "WebView cannot be initialized on a thread that has no Looper.");
         }
-        sEnforceThreadChecking = context.getApplicationInfo().targetSdkVersion >=
-                Build.VERSION_CODES.JELLY_BEAN_MR2;
+        if (!Flags.alwaysEnforceThreadChecking()) {
+            sEnforceThreadChecking = context.getApplicationInfo().targetSdkVersion
+                    >= Build.VERSION_CODES.JELLY_BEAN_MR2;
+        }
         checkThread();
 
         ensureProviderCreated();
@@ -2661,7 +2665,7 @@ public class WebView extends AbsoluteLayout
             Log.w(LOGTAG, Log.getStackTraceString(throwable));
             StrictMode.onWebViewMethodCalledOnWrongThread(throwable);
 
-            if (sEnforceThreadChecking) {
+            if (Flags.alwaysEnforceThreadChecking() || sEnforceThreadChecking) {
                 throw new RuntimeException(throwable);
             }
         }

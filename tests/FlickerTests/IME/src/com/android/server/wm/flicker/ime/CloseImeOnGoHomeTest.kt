@@ -18,11 +18,12 @@ package com.android.server.wm.flicker.ime
 
 import android.platform.test.annotations.PlatinumTest
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.Rotation
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.BaseTest
 import com.android.server.wm.flicker.helpers.ImeAppHelper
@@ -36,10 +37,11 @@ import org.junit.runners.Parameterized
  * Test IME window closing to home transitions.
  * To run this test: `atest FlickerTestsIme:CloseImeOnGoHomeTest`
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class CloseImeOnGoHomeTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+class CloseImeOnGoHomeTest(flicker: FlickerTest) : BaseTest(flicker) {
     private val testApp = ImeAppHelper(instrumentation)
 
     /** {@inheritDoc} */
@@ -114,7 +116,7 @@ class CloseImeOnGoHomeTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 supportedRotations = listOf(Rotation.ROTATION_0)
             )
     }

@@ -148,7 +148,7 @@ public class WifiPowerStatsCollector extends PowerStatsCollector {
     }
 
     @Override
-    public PowerStats collectStats() {
+    public PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
         if (!ensureInitialized()) {
             return null;
         }
@@ -169,7 +169,7 @@ public class WifiPowerStatsCollector extends PowerStatsCollector {
 
         if (mObserver != null) {
             mObserver.onWifiPowerStatsRetrieved(activityInfo, networkStatsDeltas,
-                    mClock.elapsedRealtime(), mClock.uptimeMillis());
+                    elapsedRealtimeMs, uptimeMs);
         }
         return mPowerStats;
     }

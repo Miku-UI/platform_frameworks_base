@@ -28,6 +28,7 @@ import com.android.systemui.log.assertLogsWtf
 import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator
 import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator.Companion.TAG_ANIMATOR_TRANSLATION_Y
 import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator.Companion.Y_TRANSLATION
+import com.android.systemui.statusbar.notification.PropertyData
 import org.junit.Assert
 import org.junit.Rule
 import org.junit.Test
@@ -90,6 +91,70 @@ class ViewStateTest : SysuiTestCase() {
         }
         viewState.animateTo(animatedView, animationProperties)
         Assert.assertTrue(PhysicsPropertyAnimator.isAnimating(animatedView, Y_TRANSLATION))
+    }
+
+    @Test
+    fun testCancellationCallsHandlers() {
+        val animatedView = View(context)
+        viewState.setUsePhysicsForMovement(true)
+        viewState.applyToView(animatedView)
+        viewState.yTranslation = 100f
+        val animationFilter = AnimationFilter().animateY()
+        val animationProperties = object : AnimationProperties() {
+            override fun getAnimationFilter(): AnimationFilter {
+                return animationFilter
+            }
+        }
+        animationProperties.delay = 100
+        viewState.animateTo(animatedView, animationProperties)
+        Assert.assertFalse(PhysicsPropertyAnimator.isAnimating(animatedView, Y_TRANSLATION))
+        val propertyData =
+            ViewState.getChildTag(animatedView, TAG_ANIMATOR_TRANSLATION_Y) as PropertyData
+        Assert.assertTrue(
+            "no handler set to cancel delayed animation",
+            propertyData.endedBeforeStartingCleanupHandler != null
+        )
+        viewState.cancelAnimations(animatedView)
+        Assert.assertTrue(
+            "Handler is still set after canceling early",
+            propertyData.endedBeforeStartingCleanupHandler == null
+        )
+        Assert.assertTrue(
+            "offset not reset after cancelling",
+            propertyData.offset == 0f
+        )
+    }
+
+    @Test
+    fun testSkipToEndCallsHandlers() {
+        val animatedView = View(context)
+        viewState.setUsePhysicsForMovement(true)
+        viewState.applyToView(animatedView)
+        viewState.yTranslation = 100f
+        val animationFilter = AnimationFilter().animateY()
+        val animationProperties = object : AnimationProperties() {
+            override fun getAnimationFilter(): AnimationFilter {
+                return animationFilter
+            }
+        }
+        animationProperties.delay = 100
+        viewState.animateTo(animatedView, animationProperties)
+        Assert.assertFalse(PhysicsPropertyAnimator.isAnimating(animatedView, Y_TRANSLATION))
+        val propertyData =
+            ViewState.getChildTag(animatedView, TAG_ANIMATOR_TRANSLATION_Y) as PropertyData
+        Assert.assertTrue(
+            "no handler set to cancel delayed animation",
+            propertyData.endedBeforeStartingCleanupHandler != null
+        )
+        viewState.finishAnimations(animatedView)
+        Assert.assertTrue(
+            "Handler is still set after canceling early",
+            propertyData.endedBeforeStartingCleanupHandler == null
+        )
+        Assert.assertTrue(
+            "offset not reset after cancelling",
+            propertyData.offset == 0f
+        )
     }
 
     @Test

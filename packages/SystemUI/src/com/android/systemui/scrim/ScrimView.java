@@ -55,7 +55,7 @@ import java.util.concurrent.Executor;
  */
 public class ScrimView extends View {
     private static final String TAG = "ScrimView";
-    private static final boolean isDebugLoggable = Build.isDebuggable() || Log.isLoggable(TAG,
+    private static final boolean isDebugLoggable = Build.IS_ENG || Log.isLoggable(TAG,
             Log.DEBUG);
 
     private final Object mColorLock = new Object();

@@ -31,8 +31,10 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiMethod
+import com.intellij.psi.PsiModifier
 import com.intellij.psi.PsiNameIdentifierOwner
 import com.intellij.psi.SyntheticElement
+import org.objectweb.asm.Type
 import java.io.File
 
 
@@ -154,7 +156,8 @@ data class ClassInfo (
                 return listOf(mi)
             }
         }
-        log.w("Method $fullName.$methodName found, but none match description '$methodDesc'")
+        log.w("Method $fullName.$methodName found, but none match description '$methodDesc'" +
+                " (simplified: '$simpleDesc'))")
         return null
     }
 }
@@ -218,6 +221,10 @@ fun typeToSimpleDesc(origType: String): String {
     return arrayPrefix + "L" + type + ";"
 }
 
+fun isConstructor(method: PsiMethod): Boolean {
+    return method.name == method.containingClass?.name
+}
+
 /**
  * Get a "simple" description of a method.
  *
@@ -229,6 +236,19 @@ fun getSimpleDesc(method: PsiMethod): String {
     val sb = StringBuilder()
 
     sb.append("(")
+
+    // If it's a non-static class's ctor, add the parent class name to the argument list.
+    if (isConstructor(method)) {
+        method.containingClass?.let { containingClass ->
+            containingClass.containingClass?.let { outerClass ->
+                // If the containing class has an outer class, and it's not static,
+                // then it's a non-static nested clss.
+                if (!containingClass.hasModifierProperty(PsiModifier.STATIC)) {
+                    sb.append("L" + outerClass.name + ";")
+                }
+            }
+        }
+    }
 
     val params = method.parameterList
     for (i in 0..<params.parametersCount) {
@@ -249,17 +269,37 @@ fun getSimpleDesc(method: PsiMethod): String {
     return sb.toString()
 }
 
-private val reTypeFinder = "L.*/".toRegex()
+private val reTypeFinder = "L.*[/$]".toRegex()
 
+/**
+ * Take a method descriptor, and return a "simplified" version that's
+ * compatible to what we can get from PSI.
+ *
+ * Namely, when reading information of a method with PSI, the arg type parameters
+ * are not resolved to fully-qualified names. We could try to resolve them using the imports
+ * by ourselves, but we just cheat and drop all the package names from the type names.
+ *
+ * This method does the same conversion to a "real" descriptor. i.e.
+ * - We drop the return type.
+ * - For each argument type, we drop the package name.
+ */
 private fun simplifyMethodDesc(origMethodDesc: String): String {
-    // We don't need the return type, so remove everything after the ')'.
-    val pos = origMethodDesc.indexOf(')')
-    var desc = if (pos < 0) { origMethodDesc } else { origMethodDesc.substring(0, pos + 1) }
+    val ret = StringBuilder()
+    ret.append('(')
+    Type.getArgumentTypes(origMethodDesc).forEach { type ->
+        val desc = type.descriptor
 
-    // Then we remove the package names from all the class names.
-    // i.e. convert "Ljava/lang/String" to "LString".
-
-    return desc.replace(reTypeFinder, "L")
+        // If it's not an array or an abject, just add it.
+        if (!desc.startsWith('[') && !desc.startsWith('L')) {
+            ret.append(desc)
+            return@forEach
+        }
+        // Otherwise, append the simplified version.
+        ret.append(desc.replace(reTypeFinder, "L"))
+    }
+    ret.append(')')
+    // No need to add the return type.
+    return ret.toString()
 }
 
 /**
@@ -290,17 +330,19 @@ class SourceLoader(
             throw GeneralUserErrorException("No source files found.")
         }
 
+        fun loadClasses(list: Iterable<PsiClass>?) {
+            list?.forEach { clazz ->
+                loadClass(clazz)?.let { classes.add(it) }
+
+                loadClasses(clazz.innerClasses.asIterable())
+            }
+        }
+
         log.iTime("Parsing source files") {
             log.withIndent {
                 for (file in psiFiles.asSequence().distinct()) {
                     val classesInFile = (file as? PsiClassOwner)?.classes?.toList()
-                    classesInFile?.forEach { clazz ->
-                        loadClass(clazz)?.let { classes.add(it) }
-
-                        clazz.innerClasses.forEach { inner ->
-                            loadClass(inner)?.let { classes.add(it) }
-                        }
-                    }
+                    loadClasses(classesInFile)
                 }
             }
         }
@@ -375,8 +417,7 @@ class SourceLoader(
     }
 
     private fun resolveMethodName(method: PsiMethod): String {
-        val clazz = method.containingClass!!
-        if (clazz.name == method.name) {
+        if (isConstructor(method)) {
             return "<init>" // It's a constructor.
         }
         return method.name

@@ -15,6 +15,8 @@
  */
 package com.android.internal.widget.remotecompose.core.operations.utilities.easing;
 
+import android.annotation.NonNull;
+
 /** The standard interface to Easing functions */
 public abstract class Easing {
     int mType;
@@ -80,7 +82,7 @@ public abstract class Easing {
      * @param value
      * @return
      */
-    public static String getString(int value) {
+    public static @NonNull String getString(int value) {
         switch (value) {
             case CUBIC_STANDARD:
                 return "CUBIC_STANDARD";

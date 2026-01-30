@@ -21,8 +21,14 @@ package com.android.systemui.communal.shared.model
  * between the hub on communal scene, and the edit mode activity after unlocking the keyguard.
  */
 enum class EditModeState(val value: Int) {
-    // starting activity after dismissing keyguard
+    // Received intent to start edit mode. User may need to authenticate first.
     STARTING(0),
-    // activity content is showing
-    SHOWING(1),
+    // Edit mode activity created. SystemUI starts showing a background to obscure the activity
+    // launching below.
+    CREATED(1),
+    // Edit mode activity fully launched and now ready to show. This is a signal to SystemUI for
+    // transitions to start.
+    READY_TO_SHOW(2),
+    // Edit mode activity is showing.
+    SHOWING(3),
 }

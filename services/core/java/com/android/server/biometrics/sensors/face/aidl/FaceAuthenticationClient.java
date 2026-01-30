@@ -16,7 +16,6 @@
 
 package com.android.server.biometrics.sensors.face.aidl;
 
-import static android.adaptiveauth.Flags.reportBiometricAuthAttempts;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_NOT_DETECTED;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_SENSOR_DIRTY;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_UNKNOWN;
@@ -270,18 +269,16 @@ public class FaceAuthenticationClient
                 0 /* vendorError */,
                 getTargetUserId()));
 
-        if (reportBiometricAuthAttempts()) {
-            if (authenticated) {
-                mAuthenticationStateListeners.onAuthenticationSucceeded(
-                    new AuthenticationSucceededInfo.Builder(BiometricSourceType.FACE,
-                            getRequestReason(), mIsStrongBiometric, getTargetUserId()).build()
-                );
-            } else {
-                mAuthenticationStateListeners.onAuthenticationFailed(
-                        new AuthenticationFailedInfo.Builder(BiometricSourceType.FACE,
-                                getRequestReason(), getTargetUserId()).build()
-                );
-            }
+        if (authenticated) {
+            mAuthenticationStateListeners.onAuthenticationSucceeded(
+                new AuthenticationSucceededInfo.Builder(BiometricSourceType.FACE,
+                        getRequestReason(), mIsStrongBiometric, getTargetUserId()).build()
+            );
+        } else {
+            mAuthenticationStateListeners.onAuthenticationFailed(
+                    new AuthenticationFailedInfo.Builder(BiometricSourceType.FACE,
+                            getRequestReason(), getTargetUserId()).build()
+            );
         }
     }
 

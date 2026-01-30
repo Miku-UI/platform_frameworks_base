@@ -16,6 +16,7 @@
 
 package android.hardware.input;
 
+import android.graphics.PointF;
 import android.graphics.Rect;
 import android.hardware.input.AidlInputGestureData;
 import android.hardware.input.HostUsiVersion;
@@ -30,8 +31,10 @@ import android.hardware.input.IKeyGestureEventListener;
 import android.hardware.input.IKeyGestureHandler;
 import android.hardware.input.IStickyModifierStateListener;
 import android.hardware.input.ITabletModeChangedListener;
+import android.hardware.input.IVirtualInputDevice;
 import android.hardware.input.KeyboardLayoutSelectionResult;
 import android.hardware.input.TouchCalibration;
+import android.hardware.input.VirtualKeyboardConfig;
 import android.os.CombinedVibration;
 import android.hardware.input.IInputSensorEventListener;
 import android.hardware.input.IKeyEventActivityListener;
@@ -41,6 +44,7 @@ import android.hardware.lights.Light;
 import android.hardware.lights.LightState;
 import android.os.IBinder;
 import android.os.IVibratorStateListener;
+import android.os.PointerCaptureMode;
 import android.os.VibrationEffect;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
@@ -82,6 +86,10 @@ interface IInputManager {
     // This method exists only for compatibility purposes and may be removed in a future release.
     @UnsupportedAppUsage
     boolean injectInputEvent(in InputEvent ev, int mode);
+
+    @EnforcePermission(anyOf = {"INJECT_KEY_EVENTS", "INJECT_EVENTS"})
+    IVirtualInputDevice createVirtualKeyboard(in IBinder token,
+            in VirtualKeyboardConfig config);
 
     // Injects an input event into the system. The caller must have the INJECT_EVENTS permission.
     // The caller can target windows owned by a certain UID by providing a valid UID, or by
@@ -161,7 +169,7 @@ interface IInputManager {
     boolean setPointerIcon(in PointerIcon icon, int displayId, int deviceId, int pointerId,
             in IBinder inputToken);
 
-    oneway void requestPointerCapture(IBinder inputChannelToken, boolean enabled);
+    oneway void requestPointerCapture(IBinder inputChannelToken, PointerCaptureMode mode);
 
     /** Create an input monitor for gestures. */
     InputMonitor monitorGestureInput(IBinder token, String name, int displayId);
@@ -260,42 +268,42 @@ interface IInputManager {
 
     KeyGlyphMap getKeyGlyphMap(int deviceId);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     void registerKeyGestureEventListener(IKeyGestureEventListener listener);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     void unregisterKeyGestureEventListener(IKeyGestureEventListener listener);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     void registerKeyGestureHandler(in int[] keyGesturesToHandle, IKeyGestureHandler handler);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     void unregisterKeyGestureHandler(IKeyGestureHandler handler);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     AidlInputGestureData getInputGesture(int userId, in AidlInputGestureData.Trigger trigger);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     int addCustomInputGesture(int userId, in AidlInputGestureData data);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     int removeCustomInputGesture(int userId, in AidlInputGestureData data);
 
-    @PermissionManuallyEnforced
+    @EnforcePermission("MANAGE_KEY_GESTURES")
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
             + "android.Manifest.permission.MANAGE_KEY_GESTURES)")
     void removeAllCustomInputGestures(int userId, int tag);
@@ -305,4 +313,10 @@ interface IInputManager {
     AidlInputGestureData[] getAppLaunchBookmarks();
 
     void resetLockedModifierState();
+
+    void setMouseScalingEnabled(boolean enabled, int displayId);
+
+    PointF getCursorPositionInPhysicalDisplay(int displayId);
+
+    PointF getCursorPositionInLogicalDisplay(int displayId);
 }

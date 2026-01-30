@@ -20,8 +20,11 @@ import static android.Manifest.permission.ACCESS_CONTEXTUAL_SEARCH;
 
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
+import android.app.Activity;
 import android.app.contextualsearch.flags.Flags;
 import android.content.Context;
 import android.os.IBinder;
@@ -29,21 +32,24 @@ import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.util.Log;
+import android.view.Display;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * {@link ContextualSearchManager} is a system service to facilitate contextual search experience on
- * configured Android devices.
- * <p>
- * This class lets a caller start contextual search by calling {@link #startContextualSearch}
- * method.
+ * configured Android devices. This involves capturing screenshots that the Contextual Search system
+ * app presents to the user for interaction, such as selecting content on the screenshot to get a
+ * search result or take an action such as calling a phone number or translating text.
+ *
+ * @hide
  */
-@FlaggedApi(Flags.FLAG_SELF_INVOCATION)
+@SystemApi
 public final class ContextualSearchManager {
 
     /**
@@ -254,6 +260,31 @@ public final class ContextualSearchManager {
     }
 
     /**
+     * Used to check whether contextual search is available on the device. If this method returns
+     * {code false}, you should not add any UI related to this feature, nor call
+     * {@link #startContextualSearch(Activity, ContextualSearchConfig)}. It's rare but possible that
+     * the return value of this method will change in subsequent calls, e.g. if the Contextual
+     * Search app is disabled or enabled by the user.
+     *
+     * @see #startContextualSearch(Activity, ContextualSearchConfig)
+     * @return {@code true} if contextual search is currently available, {@code false} otherwise
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_CONFIG_PARAMETERS)
+    @SystemApi
+    public boolean isContextualSearchAvailable() {
+        if (DEBUG) Log.d(TAG, "isContextualSearchAvailable");
+        try {
+            return mService.isContextualSearchAvailable();
+        } catch (RemoteException e) {
+            if (DEBUG) Log.e(TAG, "Failed to determine isContextualSearchAvailable", e);
+            e.rethrowFromSystemServer();
+        }
+        return false;
+    }
+
+    /**
      * Used to start contextual search for a given system entrypoint.
      * <p>
      *     When {@link #startContextualSearch} is called, the system server does the following:
@@ -261,10 +292,13 @@ public final class ContextualSearchManager {
      *         <li>Resolves the activity using the package name and intent filter. The package name
      *             is fetched from the config specified in ContextualSearchManagerService.
      *             The activity must have ACTION_LAUNCH_CONTEXTUAL_SEARCH specified in its manifest.
-     *         <li>Puts the required extras in the launch intent.
+     *         <li>Puts the required extras in the launch intent, which may include a
+     *         {@link android.media.projection.MediaProjection} session.
      *         <li>Launches the activity.
      *     </ul>
      * </p>
+     *
+     * <p>This method will fail silently if Contextual Search is not available on the device.
      *
      * @param entrypoint the invocation entrypoint
      *
@@ -273,12 +307,54 @@ public final class ContextualSearchManager {
     @RequiresPermission(ACCESS_CONTEXTUAL_SEARCH)
     @SystemApi
     public void startContextualSearch(@Entrypoint int entrypoint) {
+        if (DEBUG) Log.d(TAG, "startContextualSearch; entrypoint: " + entrypoint);
+        startContextualSearchInternal(entrypoint, null);
+    }
+
+    /**
+     * Used to start contextual search for a given system entrypoint.
+     * <p>
+     *     When {@link #startContextualSearch} is called, the system server does the following:
+     *     <ul>
+     *         <li>Resolves the activity using the package name and intent filter. The package name
+     *             is fetched from the config specified in ContextualSearchManagerService.
+     *             The activity must have ACTION_LAUNCH_CONTEXTUAL_SEARCH specified in its manifest.
+     *         <li>Puts the required extras in the launch intent, which may include a
+     *         {@link android.media.projection.MediaProjection} session.
+     *         <li>Launches the activity.
+     *     </ul>
+     * </p>
+     *
+     * <p>This method will fail silently if Contextual Search is not available on the device.
+     *
+     * @param entrypoint the invocation entrypoint
+     * @param config the invocation configuration parameters. If {@code null}, default configuration
+     *               will be applied, including launching on {@link Display#DEFAULT_DISPLAY}.
+     *
+     * @hide
+     */
+    @RequiresPermission(ACCESS_CONTEXTUAL_SEARCH)
+    @FlaggedApi(Flags.FLAG_CONFIG_PARAMETERS)
+    @SystemApi
+    public void startContextualSearch(@Entrypoint int entrypoint,
+            @Nullable ContextualSearchConfig config) {
+        startContextualSearchInternal(entrypoint, config);
+    }
+
+    /**
+     * Internal method to start contextual search with an entrypoint and optional config.
+     */
+    @RequiresPermission(ACCESS_CONTEXTUAL_SEARCH)
+    private void startContextualSearchInternal(@Entrypoint int entrypoint,
+            @Nullable ContextualSearchConfig config) {
         if (!VALID_ENTRYPOINT_VALUES.contains(entrypoint)) {
             throw new IllegalArgumentException("Invalid entrypoint: " + entrypoint);
         }
-        if (DEBUG) Log.d(TAG, "startContextualSearch for entrypoint: " + entrypoint);
+        if (DEBUG) {
+            Log.d(TAG, "startContextualSearch; entrypoint: " + entrypoint + "; config: " + config);
+        }
         try {
-            mService.startContextualSearch(entrypoint);
+            mService.startContextualSearch(entrypoint, config);
         } catch (RemoteException e) {
             if (DEBUG) Log.d(TAG, "Failed to startContextualSearch", e);
             e.rethrowFromSystemServer();
@@ -286,19 +362,39 @@ public final class ContextualSearchManager {
     }
 
     /**
-     * Used to start contextual search from within an app.
+     * Used to start Contextual Search from within an app. This will send a screenshot to the
+     * Contextual Search app designated by the device manufacturer. The user can then select content
+     * on the screenshot to get a search result or take an action such as calling a phone number or
+     * translating the text. Note that the screenshot will capture the full display and may include
+     * content outside of your Activity, e.g. in split screen mode.
      *
-     * <p>System apps should use the available System APIs rather than this method.
+     * <p>Prior to calling this method or showing any UI related to it, you should verify that
+     * Contextual Search is available on the device by using {@link #isContextualSearchAvailable()}.
+     * Otherwise, this method will fail silently.
      *
-     * @throws SecurityException if the caller does not have a foreground Activity.
+     * <p>Note: The system will use the display ID of your activity unless a displayId is specified
+     * in the config. This is strongly discouraged unless you have a specific reason to specify a
+     * different display.
+     *
+     * @see #isContextualSearchAvailable()
+     * @param activity your foreground Activity from which the search is started
+     * @param config the invocation configuration parameters. If {@code null}, default configuration
+     *               will be applied, including launching the search on the same display as your
+     *               activity.
+     * @throws SecurityException if the caller does not have a foreground Activity
+     *
+     * @hide
      */
-    @FlaggedApi(Flags.FLAG_SELF_INVOCATION)
-    public void startContextualSearch() {
-        if (DEBUG) Log.d(TAG, "startContextualSearch from app");
+    @FlaggedApi(Flags.FLAG_CONFIG_PARAMETERS)
+    @SystemApi
+    public void startContextualSearch(@NonNull Activity activity,
+            @Nullable ContextualSearchConfig config) {
+        Objects.requireNonNull(activity);
+        if (DEBUG) Log.d(TAG, "startContextualSearchForActivity(" + activity + ", " + config + ")");
         try {
-            mService.startContextualSearchForForegroundApp();
+            mService.startContextualSearchForActivity(activity.getActivityToken(), config);
         } catch (RemoteException e) {
-            if (DEBUG) Log.d(TAG, "Failed to startContextualSearch", e);
+            if (DEBUG) Log.d(TAG, "Failed to startContextualSearchForActivity", e);
             e.rethrowFromSystemServer();
         }
     }

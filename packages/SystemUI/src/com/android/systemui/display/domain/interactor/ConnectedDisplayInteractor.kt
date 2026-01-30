@@ -19,6 +19,7 @@ package com.android.systemui.display.domain.interactor
 import android.companion.virtual.VirtualDeviceManager
 import android.view.Display
 import com.android.app.displaylib.DisplayRepository as DisplayRepositoryFromLib
+import com.android.app.displaylib.ExternalDisplayConnectionType
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.display.data.repository.DeviceStateRepository
@@ -68,6 +69,23 @@ interface ConnectedDisplayInteractor {
 
     /** Represents a connected display that has not been enabled yet for the UI layer. */
     interface PendingDisplay {
+        /** Logical id assigned to each display, provided via [Display.getDisplayId] */
+        val id: Int
+
+        /**
+         * The saved connection preference for the display, either desktop, mirroring or show the
+         * dialog. Defaults to [ExternalDisplayConnectionType.NOT_SPECIFIED], if no value saved.
+         */
+        val connectionType: ExternalDisplayConnectionType
+
+        /**
+         * Updates the saved connection preference for the display, triggered by the connection
+         * dialog's "remember my choice" checkbox
+         *
+         * @see ConnectingDisplayViewModel
+         */
+        suspend fun updateConnectionPreference(connectionType: ExternalDisplayConnectionType)
+
         /** Enables the display, making it available to the system. */
         suspend fun enable()
 
@@ -142,6 +160,15 @@ constructor(
     private fun DisplayRepositoryFromLib.PendingDisplay.toInteractorPendingDisplay():
         PendingDisplay =
         object : PendingDisplay {
+            override val id: Int = this@toInteractorPendingDisplay.id
+
+            override val connectionType: ExternalDisplayConnectionType =
+                this@toInteractorPendingDisplay.connectionType
+
+            override suspend fun updateConnectionPreference(
+                connectionType: ExternalDisplayConnectionType
+            ) = this@toInteractorPendingDisplay.updateConnectionPreference(connectionType)
+
             override suspend fun enable() = this@toInteractorPendingDisplay.enable()
 
             override suspend fun ignore() = this@toInteractorPendingDisplay.ignore()

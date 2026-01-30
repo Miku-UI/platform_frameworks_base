@@ -36,7 +36,6 @@ import static com.android.server.am.PendingIntentRecord.cancelReasonToString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -228,7 +227,7 @@ public class PendingIntentControllerTest {
     }
 
     @Test
-    public void testSendWithBundleExtras() {
+    public void testSend_withBundleExtras_passesLaunchDisplayId() {
         final PendingIntentRecord pir = createPendingIntentRecord(0);
         final ActivityOptions activityOptions = ActivityOptions.makeBasic();
         activityOptions.setLaunchDisplayId(2);
@@ -261,15 +260,11 @@ public class PendingIntentControllerTest {
                 any() // broadcastAllowList
         );
         final Bundle result = resultExtrasCaptor.getValue();
-        if (com.android.window.flags.Flags.supportWidgetIntentsOnConnectedDisplay()) {
-            // Check that only launchDisplayId in ActivityOptions is passed via resultExtras.
-            final ActivityOptions expected = ActivityOptions.makeBasic().setLaunchDisplayId(2);
-            assertBundleEquals(expected.toBundle(), result);
-            // Check that launchTaskId is dropped in resultExtras.
-            assertNotEquals(123, ActivityOptions.fromBundle(result).getLaunchTaskId());
-        } else {
-            assertNull(result);
-        }
+        // Check that only launchDisplayId in ActivityOptions is passed via resultExtras.
+        final ActivityOptions expected = ActivityOptions.makeBasic().setLaunchDisplayId(2);
+        assertBundleEquals(expected.toBundle(), result);
+        // Check that launchTaskId is dropped in resultExtras.
+        assertNotEquals(123, ActivityOptions.fromBundle(result).getLaunchTaskId());
     }
 
     private void assertBundleEquals(@NonNull Bundle expected, @NonNull Bundle observed) {

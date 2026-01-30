@@ -20,8 +20,6 @@ import android.os.BatteryStats;
 import android.os.BatteryUsageStats;
 import android.os.BatteryUsageStatsQuery;
 
-import com.android.server.power.optimization.Flags;
-
 public class BatteryStatsDumpHelperImpl implements BatteryStats.BatteryStatsDumpHelper {
     private final BatteryUsageStatsProvider mBatteryUsageStatsProvider;
 
@@ -34,10 +32,11 @@ public class BatteryStatsDumpHelperImpl implements BatteryStats.BatteryStatsDump
         BatteryUsageStatsQuery.Builder builder = new BatteryUsageStatsQuery.Builder()
                 .setMaxStatsAgeMs(0);
         if (detailed) {
-            builder.includePowerModels().includeProcessStateData().includeVirtualUids();
-            if (Flags.batteryUsageStatsByPowerAndScreenState()) {
-                builder.includePowerStateData().includeScreenStateData();
-            }
+            builder.includePowerModels()
+                    .includeProcessStateData()
+                    .includePowerStateData()
+                    .includeScreenStateData()
+                    .includeVirtualUids();
         }
         return mBatteryUsageStatsProvider.getBatteryUsageStats((BatteryStatsImpl) batteryStats,
                 builder.build());

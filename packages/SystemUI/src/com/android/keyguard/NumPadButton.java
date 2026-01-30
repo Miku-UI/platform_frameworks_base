@@ -30,6 +30,7 @@ import androidx.annotation.Nullable;
 
 import com.android.systemui.Flags;
 import com.android.systemui.bouncer.shared.constants.PinBouncerConstants.Color;
+import com.android.systemui.bouncer.ui.BouncerColors;
 import com.android.systemui.res.R;
 
 /**
@@ -140,7 +141,8 @@ public class NumPadButton extends AlphaOptimizedImageButton implements NumPadAni
             }
             Drawable bgDrawable = getContext().getDrawable(R.drawable.num_pad_key_background);
             if (Flags.bouncerUiRevamp2() && bgDrawable != null) {
-                bgDrawable.setTint(Color.actionBg);
+                int bgColor = BouncerColors.pinActionBg(getContext());
+                bgDrawable.setTint(bgColor);
             }
             setBackground(bgDrawable);
         }

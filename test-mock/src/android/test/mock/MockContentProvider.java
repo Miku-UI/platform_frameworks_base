@@ -358,7 +358,7 @@ public class MockContentProvider extends ContentProvider {
         throw new UnsupportedOperationException("unimplemented mock method call");
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public int checkUriPermission(@NonNull Uri uri, int uid, @Intent.AccessUriMode int modeFlags) {
         throw new UnsupportedOperationException("unimplemented mock method call");

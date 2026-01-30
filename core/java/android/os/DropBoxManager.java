@@ -202,6 +202,16 @@ public class DropBoxManager {
             mFlags = flags;
         }
 
+        private Entry(@NonNull IDropBoxManagerService.Entry internalEntry) {
+            if (internalEntry == null) throw new NullPointerException("internalEntry == null");
+
+            mTag = internalEntry.tag;
+            mTimeMillis = internalEntry.timestampMillis;
+            mData = internalEntry.data;
+            mFileDescriptor = internalEntry.fd;
+            mFlags = internalEntry.flags;
+        }
+
         /** Close the input stream associated with this entry. */
         public void close() {
             try { if (mFileDescriptor != null) mFileDescriptor.close(); } catch (IOException e) { }
@@ -266,15 +276,9 @@ public class DropBoxManager {
         public static final @android.annotation.NonNull Parcelable.Creator<Entry> CREATOR = new Parcelable.Creator() {
             public Entry[] newArray(int size) { return new Entry[size]; }
             public Entry createFromParcel(Parcel in) {
-                String tag = in.readString();
-                long millis = in.readLong();
-                int flags = in.readInt();
-                if ((flags & HAS_BYTE_ARRAY) != 0) {
-                    return new Entry(tag, millis, in.createByteArray(), flags & ~HAS_BYTE_ARRAY);
-                } else {
-                    ParcelFileDescriptor pfd = ParcelFileDescriptor.CREATOR.createFromParcel(in);
-                    return new Entry(tag, millis, pfd, flags);
-                }
+                IDropBoxManagerService.Entry internalEntry =
+                        IDropBoxManagerService.Entry.CREATOR.createFromParcel(in);
+                return internalEntry == null ? null : new Entry(internalEntry);
             }
         };
 
@@ -283,19 +287,21 @@ public class DropBoxManager {
         }
 
         public void writeToParcel(Parcel out, int flags) {
-            out.writeString(mTag);
-            out.writeLong(mTimeMillis);
-            if (mFileDescriptor != null) {
-                out.writeInt(mFlags & ~HAS_BYTE_ARRAY);  // Clear bit just to be safe
-                mFileDescriptor.writeToParcel(out, flags);
-            } else {
-                out.writeInt(mFlags | HAS_BYTE_ARRAY);
-                out.writeByteArray(mData);
-            }
+            toInternalEntry().writeToParcel(out, flags);
+        }
+
+        private IDropBoxManagerService.Entry toInternalEntry() {
+            IDropBoxManagerService.Entry internalEntry = new IDropBoxManagerService.Entry();
+            internalEntry.tag = mTag;
+            internalEntry.timestampMillis = mTimeMillis;
+            internalEntry.fd = mFileDescriptor;
+            internalEntry.flags = mFlags;
+            internalEntry.data = mData;
+            return internalEntry;
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public DropBoxManager(Context context, IDropBoxManagerService service) {
         mContext = context;
         mService = service;
@@ -393,8 +399,9 @@ public class DropBoxManager {
     @RequiresPermission(allOf = { READ_DROPBOX_DATA, PACKAGE_USAGE_STATS })
     public @Nullable Entry getNextEntry(String tag, long msec) {
         try {
-            return mService.getNextEntryWithAttribution(tag, msec, mContext.getOpPackageName(),
-                    mContext.getAttributionTag());
+            IDropBoxManagerService.Entry entry = mService.getNextEntryWithAttribution(
+                    tag, msec, mContext.getOpPackageName(), mContext.getAttributionTag());
+            return entry == null ? null : new Entry(entry);
         } catch (SecurityException e) {
             if (mContext.getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.P) {
                 throw e;

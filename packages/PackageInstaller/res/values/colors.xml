@@ -17,4 +17,11 @@
 
 <resources>
     <color name="bigIconColor">#C8CCCE</color>
+
+    <color name="onPrimaryColor">@android:color/system_on_primary_light</color>
+    <color name="onSurfaceColor">@android:color/system_on_surface_light</color>
+    <color name="onSurfaceVariantColor">@android:color/system_on_surface_variant_light</color>
+    <color name="outlineVariantColor">@android:color/system_outline_variant_light</color>
+    <color name="primaryColor">@android:color/system_primary_light</color>
+    <color name="surfaceContainerHighColor">@android:color/system_surface_container_high_light</color>
 </resources>

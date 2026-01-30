@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Afspilles på denne tablet"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Du kan finde denne telefon med Find min enhed, også selvom den er slukket"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Du kan finde denne tablet med Find min enhed, også selvom den er slukket"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Du kan finde denne telefon med Find Hub, også selvom den er slukket"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Du kan finde denne tablet med Find Hub, også selvom den er slukket"</string>
 </resources>

@@ -15,29 +15,141 @@
   ~ limitations under the License.
   -->
 <resources>
-    <style name="AlertDialog">
-        <item name="fullDark">@empty</item>
-        <item name="topDark">@empty</item>
-        <item name="centerDark">@empty</item>
-        <item name="bottomDark">@empty</item>
-        <item name="fullBright">@empty</item>
-        <item name="topBright">@empty</item>
-        <item name="centerBright">@empty</item>
-        <item name="bottomBright">@empty</item>
-        <item name="bottomMedium">@empty</item>
-        <item name="centerMedium">@empty</item>
-        <item name="layout">@layout/alert_dialog_material</item>
-        <item name="listLayout">@layout/select_dialog_material</item>
-        <item name="progressLayout">@layout/progress_dialog_material</item>
-        <item name="horizontalProgressLayout">@layout/alert_dialog_progress_material</item>
-        <item name="listItemLayout">@layout/select_dialog_item_material</item>
-        <item name="multiChoiceItemLayout">@layout/select_dialog_multichoice_material</item>
-        <item name="singleChoiceItemLayout">@layout/select_dialog_singlechoice_material</item>
-        <item name="controllerType">@integer/config_alertDialogController</item>
-        <item name="selectionScrollOffset">@dimen/config_alertDialogSelectionScrollOffset</item>
-        <item name="needsDefaultBackgrounds">false</item>
+
+    <style name="TextAppearance.PackageInstaller.Title" parent="@android:style/TextAppearance.DeviceDefault.Headline">
     </style>
-    <style name="TextAppearance">
-        <item name="textSize">16sp</item>
+
+    <style name="TextAppearance.PackageInstaller.AppLabel" parent="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle">
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
+        <item name="android:textFontWeight">600</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.CustomMessage" parent="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle">
+        <item name="android:textColor">?android:attr/textColorSecondary</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.KeepData.Heading" parent="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle">
+        <item name="android:textColor">?android:attr/textColorSecondary</item>
+        <item name="android:textFontWeight">600</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.KeepData.SubHeading" parent="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle">
+        <item name="android:textColor">?android:attr/textColorSecondary</item>
+    </style>
+
+    <!-- Material design -->
+    <style name="Widget.PackageInstaller.Material.ButtonBar" parent="">
+        <item name="android:textAppearance">@android:style/TextAppearance.DeviceDefault.Widget.Button</item>
+    </style>
+
+    <style name="Widget.PackageInstaller.Material.WindowTitle" parent="@style/MaterialAlertDialog.Material3.Title.Text">
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:singleLine">false</item>
+        <item name="android:maxLines">4</item>
+        <item name="android:textAppearance">@style/TextAppearance.PackageInstaller.Material.Title</item>
+    </style>
+
+    <style name="Widget.PackageInstaller.Material.Button" parent="@style/Widget.Material3.Button.TextButton.Dialog">
+        <item name="android:insetBottom">4dp</item>
+        <item name="android:insetTop">4dp</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:minHeight">@dimen/button_min_height</item>
+        <item name="android:textAppearance">@style/TextAppearance.PackageInstaller.LabelLarge</item>
+        <item name="android:textColor">@color/primaryColor</item>
+    </style>
+
+    <style name="Widget.PackageInstaller.Material.Button.Colored" parent="@style/Widget.Material3.Button">
+        <item name="android:insetBottom">4dp</item>
+        <item name="android:insetTop">4dp</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:minHeight">@dimen/button_min_height</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.PackageInstaller.LabelLarge</item>
+        <item name="android:textColor">@color/onPrimaryColor</item>
+        <item name="backgroundTint">@color/primaryColor</item>
+    </style>
+
+    <style name="Widget.PackageInstaller.Material.Button.Outlined" parent="@style/Widget.Material3.Button.OutlinedButton">
+        <item name="android:insetBottom">4dp</item>
+        <item name="android:insetTop">4dp</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:minHeight">@dimen/button_min_height</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:textAppearance">@style/TextAppearance.PackageInstaller.LabelLarge</item>
+        <item name="android:textColor">@color/primaryColor</item>
+        <item name="strokeColor">@color/outlineVariantColor</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.HeadlineSmall" parent="@android:style/TextAppearance.DeviceDefault.Headline">
+        <item name="android:fontFamily">variable-headline-small</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">32sp</item>
+        <item name="android:hyphenationFrequency">normalFast</item>
+        <item name="android:lineBreakWordStyle">phrase</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.LabelLarge" parent="@android:style/TextAppearance.DeviceDefault.Medium">
+        <item name="android:fontFamily">variable-label-large</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:hyphenationFrequency">normalFast</item>
+        <item name="android:lineBreakWordStyle">phrase</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.BodyMedium" parent="@android:style/TextAppearance.DeviceDefault">
+        <item name="android:fontFamily">variable-body-medium</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">20sp</item>
+        <item name="android:hyphenationFrequency">normalFast</item>
+        <item name="android:lineBreakWordStyle">phrase</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.TitleMedium" parent="@android:style/TextAppearance.DeviceDefault.Medium">
+        <item name="android:fontFamily">variable-title-medium</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:letterSpacing">0</item>
+        <item name="android:lineHeight">24sp</item>
+        <item name="android:hyphenationFrequency">normalFast</item>
+        <item name="android:lineBreakWordStyle">phrase</item>
+        <item name="android:textAllCaps">false</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.Material.AppLabel" parent="@style/TextAppearance.PackageInstaller.TitleMedium">
+        <item name="android:textColor">@color/onSurfaceColor</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.Material.CustomMessage" parent="@style/TextAppearance.PackageInstaller.BodyMedium">
+        <item name="android:textColor">@color/onSurfaceVariantColor</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.Material.KeepData.Heading" parent="@style/TextAppearance.PackageInstaller.LabelLarge">
+        <item name="android:textColor">@color/onSurfaceVariantColor</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.Material.KeepData.SubHeading" parent="@style/TextAppearance.PackageInstaller.BodyMedium">
+        <item name="android:textColor">@color/onSurfaceVariantColor</item>
+    </style>
+
+    <style name="TextAppearance.PackageInstaller.Material.Title" parent="@style/TextAppearance.PackageInstaller.HeadlineSmall">
+        <item name="android:textColor">@color/onSurfaceColor</item>
+    </style>
+
+    <style name="ShapeAppearance">
+        <item name="cornerSize">@dimen/alert_dialog_radius</item>
+    </style>
+
+    <style name="PackageInstaller.ProgressBarStyle.Linear" parent="Widget.Material3.LinearProgressIndicator">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="indicatorColor">@color/primaryColor</item>
+        <item name="trackColor">@color/outlineVariantColor</item>
+        <item name="trackCornerRadius">4dp</item>
     </style>
 </resources>

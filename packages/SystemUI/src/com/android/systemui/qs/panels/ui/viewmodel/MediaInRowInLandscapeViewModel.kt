@@ -22,9 +22,13 @@ import androidx.compose.runtime.getValue
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.Hydrator
+import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
 import com.android.systemui.media.controls.ui.controller.MediaHostStatesManager
 import com.android.systemui.media.controls.ui.controller.MediaLocation
 import com.android.systemui.media.controls.ui.view.MediaHostState
+import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
+import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
 import com.android.systemui.qs.composefragment.dagger.QSFragmentComposeModule
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
@@ -51,7 +55,9 @@ constructor(
     shadeModeInteractor: ShadeModeInteractor,
     private val mediaHostStatesManager: MediaHostStatesManager,
     @Named(QSFragmentComposeModule.QS_USING_MEDIA_PLAYER) private val usingMedia: Boolean,
+    mediaCarouselInteractor: MediaCarouselInteractor,
     @Assisted @MediaLocation private val inLocation: Int,
+    @Assisted private val mediaUiBehavior: MediaUiBehavior,
 ) : ExclusiveActivatable() {
 
     private val hydrator = Hydrator("MediaInRowInLanscapeViewModel - $inLocation")
@@ -78,27 +84,39 @@ constructor(
             traceName = "isMediaVisible",
             initialValue = false,
             source =
-                conflatedCallbackFlow {
-                        val callback =
-                            object : MediaHostStatesManager.Callback {
-                                override fun onHostStateChanged(
-                                    location: Int,
-                                    mediaHostState: MediaHostState,
-                                ) {
-                                    if (location == inLocation) {
-                                        trySend(mediaHostState.visible)
+                if (MediaControlsInComposeFlag.isEnabled) {
+                    if (
+                        mediaUiBehavior.carouselVisibility ==
+                            MediaCarouselVisibility.WhenAnyCardIsActive
+                    ) {
+                        mediaCarouselInteractor.hasActiveMedia
+                    } else {
+                        mediaCarouselInteractor.hasAnyMedia
+                    }
+                } else {
+                    conflatedCallbackFlow {
+                            val callback =
+                                object : MediaHostStatesManager.Callback {
+                                    override fun onHostStateChanged(
+                                        location: Int,
+                                        mediaHostState: MediaHostState,
+                                    ) {
+                                        if (location == inLocation) {
+                                            trySend(mediaHostState.visible)
+                                        }
                                     }
                                 }
-                            }
-                        mediaHostStatesManager.addCallback(callback)
+                            mediaHostStatesManager.addCallback(callback)
 
-                        awaitClose { mediaHostStatesManager.removeCallback(callback) }
-                    }
-                    .onStart {
-                        emit(
-                            mediaHostStatesManager.mediaHostStates.get(inLocation)?.visible ?: false
-                        )
-                    },
+                            awaitClose { mediaHostStatesManager.removeCallback(callback) }
+                        }
+                        .onStart {
+                            emit(
+                                mediaHostStatesManager.mediaHostStates.get(inLocation)?.visible
+                                    ?: false
+                            )
+                        }
+                },
         )
 
     override suspend fun onActivated(): Nothing {
@@ -107,7 +125,10 @@ constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(@MediaLocation inLocation: Int): MediaInRowInLandscapeViewModel
+        fun create(
+            @MediaLocation inLocation: Int,
+            mediaUiBehavior: MediaUiBehavior,
+        ): MediaInRowInLandscapeViewModel
     }
 }
 

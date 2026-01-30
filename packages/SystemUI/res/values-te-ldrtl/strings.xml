@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"యాప్‌లను శీఘ్రంగా స్విచ్ చేయడానికి ఎడమ వైపునకు లాగండి"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"పైన కుడి వైపు నుండి స్వైప్ చేసి నోటిఫికేషన్‌లను తెరవండి"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"ఎగువ ఎడమ వైపు నుండి స్వైప్ చేసి క్విక్ సెట్టింగ్‌లను తెరవండి"</string>
 </resources>

@@ -21,7 +21,6 @@ import android.os.UserHandle
 import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.flags.FeatureFlagsClassic
-import com.android.systemui.flags.Flags as FlagsClassic
 import javax.inject.Inject
 
 @SysUISingleton
@@ -39,10 +38,4 @@ class MediaFlags @Inject constructor(private val featureFlags: FeatureFlagsClass
         val featureFlag = Flags.mediaControlsButtonMedia3()
         return featureFlag && compatFlag
     }
-
-    /**
-     * If true, keep active media controls for the lifetime of the MediaSession, regardless of
-     * whether the underlying notification was dismissed
-     */
-    fun isRetainingPlayersEnabled() = featureFlags.isEnabled(FlagsClassic.MEDIA_RETAIN_SESSIONS)
 }

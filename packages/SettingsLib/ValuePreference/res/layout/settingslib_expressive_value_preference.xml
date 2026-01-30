@@ -15,31 +15,76 @@
     limitations under the License.
   -->
 
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:minHeight="72dp"
-    android:gravity="center_vertical"
+    android:paddingTop="@dimen/settingslib_expressive_space_extrasmall4"
     android:paddingStart="?android:attr/listPreferredItemPaddingStart"
     android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
-    android:background="?android:attr/selectableItemBackground"
-    android:clipToPadding="false"
     android:baselineAligned="false"
-    android:filterTouchesWhenObscured="false">
+    android:clipToPadding="false"
+    android:filterTouchesWhenObscured="false"
+    android:gravity="center_vertical"
+    android:minHeight="?android:attr/listPreferredItemHeight">
 
-  <include layout="@layout/settingslib_expressive_preference_icon_frame"/>
+    <LinearLayout
+        android:id="@+id/value_container_1"
+        android:layout_width="@dimen/settingslib_expressive_space_none"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:background="@drawable/settingslib_value_preference_background"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:minHeight="?android:attr/listPreferredItemHeight">
 
-  <include layout="@layout/settingslib_expressive_value_preference_text_frame"/>
+        <include layout="@layout/settingslib_expressive_value_preference_text_frame"/>
 
-  <!-- Preference should place its actual preference widget here. -->
-  <LinearLayout
-      android:id="@android:id/widget_frame"
-      android:layout_width="wrap_content"
-      android:layout_height="match_parent"
-      android:gravity="end|center_vertical"
-      android:paddingStart="@dimen/settingslib_expressive_space_small1"
-      android:paddingEnd="0dp"
-      android:orientation="vertical"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/value_container_2"
+        android:layout_width="@dimen/settingslib_expressive_space_none"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:layout_marginStart="@dimen/settingslib_expressive_space_small1"
+        android:background="@drawable/settingslib_value_preference_background"
+        android:visibility="gone"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:minHeight="?android:attr/listPreferredItemHeight">
+
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="@dimen/settingslib_expressive_space_small1"
+            android:paddingEnd="@dimen/settingslib_expressive_space_small1"
+            android:filterTouchesWhenObscured="false"
+            android:paddingVertical="@dimen/settingslib_expressive_space_small1">
+
+            <TextView
+                android:id="@+id/title2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="start"
+                android:ellipsize="marquee"
+                android:singleLine="true"
+                android:textAlignment="viewStart"
+                android:textAppearance="@style/TextAppearance.SettingsLib.DisplaySmall"
+                android:textColor="@color/settingslib_text_color_primary"/>
+
+            <TextView
+                android:id="@+id/summary2"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignStart="@id/title2"
+                android:layout_below="@id/title2"
+                android:layout_gravity="start"
+                android:maxLines="2"
+                android:textAlignment="viewStart"
+                android:textAppearance="?android:attr/textAppearanceListItemSecondary"
+                android:textColor="?android:attr/textColorSecondary"/>
+        </RelativeLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

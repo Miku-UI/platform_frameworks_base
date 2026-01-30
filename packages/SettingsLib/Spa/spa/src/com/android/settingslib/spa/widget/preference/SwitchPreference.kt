@@ -32,7 +32,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import com.android.settingslib.spa.framework.theme.SettingsDimension
 import com.android.settingslib.spa.framework.theme.SettingsTheme
-import com.android.settingslib.spa.framework.util.EntryHighlight
 import com.android.settingslib.spa.framework.util.wrapOnSwitchWithLog
 import com.android.settingslib.spa.widget.ui.SettingsIcon
 import com.android.settingslib.spa.widget.ui.SettingsSwitch
@@ -49,7 +48,7 @@ interface SwitchPreferenceModel {
     /**
      * The summary of this [SwitchPreference].
      */
-    val summary: () -> String
+    val summary: () -> CharSequence
         get() = { "" }
 
     /**
@@ -90,22 +89,27 @@ interface SwitchPreferenceModel {
  */
 @Composable
 fun SwitchPreference(model: SwitchPreferenceModel) {
-    EntryHighlight {
-        InternalSwitchPreference(
-            title = model.title,
-            summary = model.summary,
-            icon = model.icon,
-            checked = model.checked(),
-            changeable = model.changeable(),
-            onCheckedChange = model.onCheckedChange,
-        )
-    }
+    SwitchPreference(model = model, modifier = Modifier)
+}
+
+@Composable
+internal fun SwitchPreference(model: SwitchPreferenceModel, modifier: Modifier) {
+    InternalSwitchPreference(
+        title = model.title,
+        modifier = modifier,
+        summary = model.summary,
+        icon = model.icon,
+        checked = model.checked(),
+        changeable = model.changeable(),
+        onCheckedChange = model.onCheckedChange,
+    )
 }
 
 @Composable
 internal fun InternalSwitchPreference(
     title: String,
-    summary: () -> String = { "" },
+    modifier: Modifier = Modifier,
+    summary: () -> CharSequence = { "" },
     icon: @Composable (() -> Unit)? = null,
     checked: Boolean?,
     changeable: Boolean = true,
@@ -117,9 +121,9 @@ internal fun InternalSwitchPreference(
     val indication = LocalIndication.current
     val onChangeWithLog = wrapOnSwitchWithLog(onCheckedChange)
     val interactionSource = remember { MutableInteractionSource() }
-    val modifier =
+    val localModifier =
         if (checked != null && onChangeWithLog != null) {
-            Modifier.toggleable(
+            modifier.toggleable(
                 value = checked,
                 interactionSource = interactionSource,
                 indication = indication,
@@ -127,11 +131,11 @@ internal fun InternalSwitchPreference(
                 role = Role.Switch,
                 onValueChange = onChangeWithLog,
             )
-        } else Modifier
+        } else modifier
     BasePreference(
         title = title,
         summary = summary,
-        modifier = modifier,
+        modifier = localModifier,
         enabled = { changeable },
         paddingStart = paddingStart,
         paddingEnd = paddingEnd,

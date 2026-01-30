@@ -16,6 +16,7 @@
 
 package com.android.server.wm.flicker.service.notification.flicker
 
+import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.flicker.FlickerConfig
@@ -28,6 +29,7 @@ import com.android.server.wm.flicker.service.notification.scenarios.OpenAppFromN
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@RequiresDevice
 @RunWith(FlickerServiceJUnit4ClassRunner::class)
 class OpenAppFromNotificationCold3ButtonNavPortrait :
     OpenAppFromNotificationCold(NavBar.MODE_3BUTTON, Rotation.ROTATION_0) {

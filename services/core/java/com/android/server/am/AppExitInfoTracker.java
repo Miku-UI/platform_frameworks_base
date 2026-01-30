@@ -782,7 +782,7 @@ public final class AppExitInfoTracker {
             }
             proto.flush();
             af.finishWrite(out);
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             Slog.w(TAG, "Unable to write historical app exit info into persistent storage: " + e);
             af.failWrite(out);
         }
@@ -1042,11 +1042,11 @@ public final class AppExitInfoTracker {
             info.setProcessName(app.processName);
             info.setConnectionGroup(app.mServices.getConnectionGroup());
             info.setPackageName(app.info.packageName);
-            info.setPackageList(app.getPackageList());
+            info.setPackageList(app.getProcessPackageNames());
             info.setReason(ApplicationExitInfo.REASON_UNKNOWN);
             info.setSubReason(ApplicationExitInfo.SUBREASON_UNKNOWN);
             info.setStatus(0);
-            info.setImportance(procStateToImportance(app.mState.getReportedProcState()));
+            info.setImportance(procStateToImportance(app.getReportedProcState()));
             info.setPss(app.mProfile.getLastPss());
             info.setRss(app.mProfile.getLastRss());
             info.setTimestamp(timestamp);

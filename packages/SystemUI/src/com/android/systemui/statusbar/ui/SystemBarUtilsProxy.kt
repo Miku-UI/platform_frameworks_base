@@ -30,19 +30,20 @@ import kotlin.math.max
  * Developers should almost always prefer [SystemBarUtilsState] instead.
  */
 interface SystemBarUtilsProxy {
-    fun getStatusBarHeight(): Int
-    fun getStatusBarHeaderHeightKeyguard(): Int
+    fun getStatusBarHeight(context: Context? = null): Int
+
+    fun getStatusBarHeaderHeightKeyguard(context: Context? = null): Int
 }
 
-class SystemBarUtilsProxyImpl
-@Inject
-constructor(
-    @Application private val context: Context,
-) : SystemBarUtilsProxy {
-    override fun getStatusBarHeight(): Int = SystemBarUtils.getStatusBarHeight(context)
-    override fun getStatusBarHeaderHeightKeyguard(): Int {
-        val cutout = context.display.cutout
-        val waterfallInsetTop = if (cutout == null) 0 else cutout.waterfallInsets.top
+class SystemBarUtilsProxyImpl @Inject constructor(@Application private val appContext: Context) :
+    SystemBarUtilsProxy {
+    override fun getStatusBarHeight(context: Context?): Int {
+        return SystemBarUtils.getStatusBarHeight(context ?: appContext)
+    }
+
+    override fun getStatusBarHeaderHeightKeyguard(context: Context?): Int {
+        val context = context ?: appContext
+        val waterfallInsetTop = context.display.cutout?.waterfallInsets?.top ?: 0
         val statusBarHeaderHeightKeyguard =
             context.resources.getDimensionPixelSize(R.dimen.status_bar_header_height_keyguard)
         return max(getStatusBarHeight(), statusBarHeaderHeightKeyguard + waterfallInsetTop)

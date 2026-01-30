@@ -332,7 +332,6 @@ public abstract class Window {
     private boolean mDestroyed;
 
     private boolean mOverlayWithDecorCaptionEnabled = true;
-    private boolean mCloseOnSwipeEnabled = false;
 
     /**
      * To check if toolkitSetFrameRateReadOnly flag is enabled
@@ -362,7 +361,7 @@ public abstract class Window {
          *
          * @return boolean Return true if this event was consumed.
          */
-        public boolean dispatchKeyEvent(KeyEvent event);
+        boolean dispatchKeyEvent(KeyEvent event);
 
         /**
          * Called to process a key shortcut event.
@@ -373,7 +372,7 @@ public abstract class Window {
          * @param event The key shortcut event.
          * @return True if this event was consumed.
          */
-        public boolean dispatchKeyShortcutEvent(KeyEvent event);
+        boolean dispatchKeyShortcutEvent(KeyEvent event);
 
         /**
          * Called to process touch screen events.  At the very least your
@@ -385,7 +384,7 @@ public abstract class Window {
          *
          * @return boolean Return true if this event was consumed.
          */
-        public boolean dispatchTouchEvent(MotionEvent event);
+        boolean dispatchTouchEvent(MotionEvent event);
 
         /**
          * Called to process trackball events.  At the very least your
@@ -397,7 +396,7 @@ public abstract class Window {
          *
          * @return boolean Return true if this event was consumed.
          */
-        public boolean dispatchTrackballEvent(MotionEvent event);
+        boolean dispatchTrackballEvent(MotionEvent event);
 
         /**
          * Called to process generic motion events.  At the very least your
@@ -409,7 +408,7 @@ public abstract class Window {
          *
          * @return boolean Return true if this event was consumed.
          */
-        public boolean dispatchGenericMotionEvent(MotionEvent event);
+        boolean dispatchGenericMotionEvent(MotionEvent event);
 
         /**
          * Called to process population of {@link AccessibilityEvent}s.
@@ -418,7 +417,7 @@ public abstract class Window {
          *
          * @return boolean Return true if event population was completed.
          */
-        public boolean dispatchPopulateAccessibilityEvent(AccessibilityEvent event);
+        boolean dispatchPopulateAccessibilityEvent(AccessibilityEvent event);
 
         /**
          * Instantiate the view to display in the panel for 'featureId'.
@@ -432,7 +431,7 @@ public abstract class Window {
          * @see #onPreparePanel
          */
         @Nullable
-        public View onCreatePanelView(int featureId);
+        View onCreatePanelView(int featureId);
 
         /**
          * Initialize the contents of the menu for panel 'featureId'.  This is
@@ -496,7 +495,7 @@ public abstract class Window {
          * This is called whenever the current window attributes change.
          *
          */
-        public void onWindowAttributesChanged(WindowManager.LayoutParams attrs);
+        void onWindowAttributesChanged(WindowManager.LayoutParams attrs);
 
         /**
          * This hook is called whenever the content view of the screen changes
@@ -506,7 +505,7 @@ public abstract class Window {
          * {@link Window#addContentView(View, android.view.ViewGroup.LayoutParams)
          * Window.addContentView}).
          */
-        public void onContentChanged();
+        void onContentChanged();
 
         /**
          * This hook is called whenever the window focus changes.  See
@@ -515,21 +514,21 @@ public abstract class Window {
          *
          * @param hasFocus Whether the window now has focus.
          */
-        public void onWindowFocusChanged(boolean hasFocus);
+        void onWindowFocusChanged(boolean hasFocus);
 
         /**
          * Called when the window has been attached to the window manager.
          * See {@link View#onAttachedToWindow() View.onAttachedToWindow()}
          * for more information.
          */
-        public void onAttachedToWindow();
+        void onAttachedToWindow();
 
         /**
          * Called when the window has been detached from the window manager.
          * See {@link View#onDetachedFromWindow() View.onDetachedFromWindow()}
          * for more information.
          */
-        public void onDetachedFromWindow();
+        void onDetachedFromWindow();
 
         /**
          * Called when a panel is being closed.  If another logical subsequent
@@ -549,7 +548,7 @@ public abstract class Window {
          *
          * @see android.app.Activity#onSearchRequested()
          */
-        public boolean onSearchRequested();
+        boolean onSearchRequested();
 
         /**
          * Called when the user signals the desire to start a search.
@@ -558,7 +557,7 @@ public abstract class Window {
          *                   start a search.
          * @return true if search launched, false if activity refuses (blocks)
          */
-        public boolean onSearchRequested(SearchEvent searchEvent);
+        boolean onSearchRequested(SearchEvent searchEvent);
 
         /**
          * Called when an action mode is being started for this window. Gives the
@@ -572,7 +571,7 @@ public abstract class Window {
          * @return The ActionMode that was started, or null if the system should present it
          */
         @Nullable
-        public ActionMode onWindowStartingActionMode(ActionMode.Callback callback);
+        ActionMode onWindowStartingActionMode(ActionMode.Callback callback);
 
         /**
          * Called when an action mode is being started for this window. Gives the
@@ -585,7 +584,7 @@ public abstract class Window {
          * @return The ActionMode that was started, or null if the system should present it
          */
         @Nullable
-        public ActionMode onWindowStartingActionMode(ActionMode.Callback callback, int type);
+        ActionMode onWindowStartingActionMode(ActionMode.Callback callback, int type);
 
         /**
          * Called when an action mode has been started. The appropriate mode callback
@@ -593,7 +592,7 @@ public abstract class Window {
          *
          * @param mode The new mode that has just been started.
          */
-        public void onActionModeStarted(ActionMode mode);
+        void onActionModeStarted(ActionMode mode);
 
         /**
          * Called when an action mode has been finished. The appropriate mode callback
@@ -601,7 +600,7 @@ public abstract class Window {
          *
          * @param mode The mode that was just finished.
          */
-        public void onActionModeFinished(ActionMode mode);
+        void onActionModeFinished(ActionMode mode);
 
         /**
          * Called when Keyboard Shortcuts are requested for the current window.
@@ -610,15 +609,15 @@ public abstract class Window {
          * @param menu The current menu, which may be null.
          * @param deviceId The id for the connected device the shortcuts should be provided for.
          */
-        default public void onProvideKeyboardShortcuts(
-                List<KeyboardShortcutGroup> data, @Nullable Menu menu, int deviceId) { };
+        default void onProvideKeyboardShortcuts(
+                List<KeyboardShortcutGroup> data, @Nullable Menu menu, int deviceId) { }
 
         /**
          * Called when pointer capture is enabled or disabled for the current window.
          *
          * @param hasCapture True if the window has pointer capture.
          */
-        default public void onPointerCaptureChanged(boolean hasCapture) { };
+        default void onPointerCaptureChanged(boolean hasCapture) { }
     }
 
     /** @hide */
@@ -853,32 +852,94 @@ public abstract class Window {
     }
 
     /**
-     * Set the window manager for use by this Window to, for example,
+     * Creates and sets the window manager for use by this Window to, for example,
      * display panels.  This is <em>not</em> used for displaying the
      * Window itself -- that must be done by the client.
+     * <p>
+     * If {@code wm} is not {@code null}, this method will creates a new instance of
+     * {@link WindowManager} with this window attached based on {@code wm}, or, otherwise,
+     * based on {@link WindowManager} obtained from {@link #getContext()}.
      *
-     * @param wm The window manager for adding new windows.
+     * @param wm the window manager for adding new windows.
+     * @param appToken the token of the window, which applies to
+     *     the {@link WindowManager.LayoutParams#token} of {@link #getAttributes()} if specified.
+     * @param appName the name of the window, which applies to
+     *     the {@link WindowManager.LayoutParams#getTitle()} of {@link #getAttributes()}
+     *     if specified.
      */
     public void setWindowManager(WindowManager wm, IBinder appToken, String appName) {
         setWindowManager(wm, appToken, appName, false);
     }
 
     /**
-     * Set the window manager for use by this Window to, for example,
+     * Creates and sets the window manager for use by this Window to, for example,
      * display panels.  This is <em>not</em> used for displaying the
      * Window itself -- that must be done by the client.
+     * <p>
+     * If {@code wm} is not {@code null}, this method will creates a new instance of
+     * {@link WindowManager} with this window attached based on {@code wm}, or, otherwise,
+     * based on {@link WindowManager} obtained from {@link #getContext()}.
      *
-     * @param wm The window manager for adding new windows.
+     * @param wm the window manager for adding new windows.
+     * @param appToken the token of the window, which applies to
+     *     the {@link WindowManager.LayoutParams#token} of {@link #getAttributes()} if specified.
+     * @param appName the name of the window, which applies to
+     *     the {@link WindowManager.LayoutParams#getTitle()} of {@link #getAttributes()}
+     *     if specified.
+     * @param hardwareAccelerated indicate whether this window or its sub-windows should be hardware
+     *     accelerated, which is default to {@code false}.
      */
     public void setWindowManager(WindowManager wm, IBinder appToken, String appName,
             boolean hardwareAccelerated) {
+        setWindowManager(wm, appToken, appName, hardwareAccelerated, true /* createNewInstance */);
+    }
+
+    /**
+     * Sets the window manager for use by this Window to, for example,
+     * display panels.
+     * <p>
+     * If caller wants to create a new instance, this method will create a new instance of
+     * {@link WindowManager} with this window attached based on {@code wm}, if specified, or
+     * the {@link WindowManager} obtained from {@link #getContext()}.
+     * <p>
+     * Otherwise, this method attach this window via {@link WindowManager#setParentWindow} to either
+     * provided {@code wm} or the {@link WindowManager} obtained from {@link #getContext()}.
+     * <p>
+     * This is <em>not</em> used for displaying the
+     * Window itself -- that must be done by the client.
+     *
+     * @param wm the window manager for adding new windows.
+     * @param appToken the token of the window, which applies to
+     *     the {@link WindowManager.LayoutParams#token} of {@link #getAttributes()}
+     *     if specified.
+     * @param appName the name of the window, which applies to
+     *     the {@link WindowManager.LayoutParams#getTitle()} of {@link #getAttributes()}
+     *     if specified.
+     * @param hardwareAccelerated indicate whether this window or its sub-windows should be hardware
+     *     accelerated, which is default to {@code false}.
+     * @param createLocalWindowManager indicate whether this window creates a new instance of
+     *     {@link WindowManager} with this window attached, which is {@code true} by default.
+     *
+     * @hide
+     */
+    public void setWindowManager(
+            @Nullable WindowManager wm,
+            @Nullable IBinder appToken,
+            @Nullable String appName,
+            boolean hardwareAccelerated,
+            boolean createLocalWindowManager) {
         mAppToken = appToken;
         mAppName = appName;
         mHardwareAccelerated = hardwareAccelerated;
         if (wm == null) {
             wm = (WindowManager)mContext.getSystemService(Context.WINDOW_SERVICE);
         }
-        mWindowManager = ((WindowManagerImpl)wm).createLocalWindowManager(this);
+        if (createLocalWindowManager) {
+            mWindowManager = wm.createLocalWindowManager(this);
+        } else {
+            mWindowManager = wm;
+            wm.setParentWindow(this);
+        }
     }
 
     void adjustLayoutParamsForSubWindow(WindowManager.LayoutParams wp) {
@@ -1316,7 +1377,7 @@ public abstract class Window {
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     protected void dispatchWindowAttributesChanged(WindowManager.LayoutParams attrs) {
         if (mCallback != null) {
@@ -1373,7 +1434,6 @@ public abstract class Window {
      * @see #getDesiredHdrHeadroom()
      * @see Display#getHdrSdrRatio()
      */
-    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_LIMITED_HDR)
     public void setDesiredHdrHeadroom(
             @FloatRange(from = 0.0f, to = 10000.0) float desiredHeadroom) {
         final WindowManager.LayoutParams attrs = getAttributes();
@@ -1386,7 +1446,6 @@ public abstract class Window {
      * @return The amount of HDR headroom set, or 0 for automatic/default behavior.
      * @see #setDesiredHdrHeadroom(float)
      */
-    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_LIMITED_HDR)
     public float getDesiredHdrHeadroom() {
         return getAttributes().getDesiredHdrHeadroom();
     }
@@ -1645,10 +1704,7 @@ public abstract class Window {
         final boolean isOutside =
                 event.getAction() == MotionEvent.ACTION_UP && isOutOfBounds(context, event)
                 || event.getAction() == MotionEvent.ACTION_OUTSIDE;
-        if (mCloseOnTouchOutside && peekDecorView() != null && isOutside) {
-            return true;
-        }
-        return false;
+        return mCloseOnTouchOutside && peekDecorView() != null && isOutside;
     }
 
     /* Sets the Sustained Performance requirement for the calling window.

@@ -23,6 +23,7 @@ import android.annotation.Nullable;
 import android.content.Context;
 import android.graphics.fonts.Font;
 import android.graphics.fonts.FontFamily;
+import android.graphics.fonts.FontFileUtil;
 import android.graphics.fonts.FontManager;
 import android.graphics.fonts.FontUpdateRequest;
 import android.graphics.fonts.FontVariationAxis;
@@ -48,6 +49,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
+import java.nio.ByteBuffer;
+import java.nio.NioUtils;
+import java.nio.channels.FileChannel;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
@@ -146,6 +150,19 @@ public class FontManagerShellCommand extends ShellCommand {
         if (font.getFontFamilyName() != null) {
             sb.append(", fallback = ");
             sb.append(font.getFontFamilyName());
+        }
+
+        try (FileInputStream in = new FileInputStream(font.getFile())) {
+            FileChannel fc = in.getChannel();
+            ByteBuffer buffer = fc.map(FileChannel.MapMode.READ_ONLY, 0, fc.size());
+            try {
+                float rev = (float) FontFileUtil.getRevision(buffer, font.getTtcIndex()) / 0xFFFF;
+                sb.append(String.format(", rev=%.3f", rev));
+            } finally {
+                NioUtils.freeDirectBuffer(buffer);
+            }
+        } catch (IOException e) {
+            sb.append(", rev=IO ERROR");
         }
         w.println(sb.toString());
 

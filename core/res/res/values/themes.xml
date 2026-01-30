@@ -897,9 +897,8 @@ please see themes_device_defaults.xml.
     <!-- @hide Special theme for the default system Activity-based Alert dialogs. -->
     <style name="Theme.Dialog.Confirmation" parent="Theme.DeviceDefault.Dialog.Alert.DayNight" />
 
-    <!-- @hide Theme for GameSessionTrampolineActivity that prevents showing UI and activity
-         transitions. -->
-    <style name="Theme.GameSessionTrampoline">
+    <!-- @hide Theme for invisible activity that prevents showing UI and activity transitions. -->
+    <style name="Theme.HiddenWindowTrampoline">
         <item name="backgroundDimEnabled">false</item>
         <item name="colorBackgroundCacheHint">@null</item>
         <item name="navigationBarColor">@color/transparent</item>

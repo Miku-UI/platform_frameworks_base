@@ -17,6 +17,11 @@
 package com.android.server;
 
 import static android.Manifest.permission.MODIFY_DAY_NIGHT_MODE;
+import static android.app.UiModeManager.FORCE_INVERT_PACKAGE_ALWAYS_DISABLE;
+import static android.app.UiModeManager.FORCE_INVERT_PACKAGE_ALWAYS_ENABLE;
+import static android.app.UiModeManager.FORCE_INVERT_PACKAGE_ALLOWED;
+import static android.app.UiModeManager.FORCE_INVERT_TYPE_DARK;
+import static android.app.UiModeManager.FORCE_INVERT_TYPE_OFF;
 import static android.app.UiModeManager.MODE_ATTENTION_THEME_OVERLAY_DAY;
 import static android.app.UiModeManager.MODE_ATTENTION_THEME_OVERLAY_NIGHT;
 import static android.app.UiModeManager.MODE_ATTENTION_THEME_OVERLAY_OFF;
@@ -89,19 +94,24 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.test.FakePermissionEnforcer;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.service.dreams.DreamManagerInternal;
 import android.test.mock.MockContentResolver;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
+import android.view.Display;
 
+import com.android.internal.R;
 import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.server.twilight.TwilightListener;
 import com.android.server.twilight.TwilightManager;
 import com.android.server.twilight.TwilightState;
 import com.android.server.wm.WindowManagerInternal;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -255,6 +265,11 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         mService = mUiManagerService.getService();
     }
 
+    @After
+    public void tearDown() {
+        Settings.System.resetToDefaults(mContentResolver, /* TAG= */ null);
+    }
+
     private <T> void addLocalService(Class<T> clazz, T service) {
         LocalServices.removeServiceForTest(clazz);
         LocalServices.addService(clazz, service);
@@ -402,9 +417,7 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
 
     @Test
     public void setNightModeActivated_permissionToChangeOtherUsers() throws RemoteException {
-        SystemService.TargetUser user = mock(SystemService.TargetUser.class);
-        doReturn(9).when(user).getUserIdentifier();
-        mUiManagerService.onUserSwitching(user, user);
+        switchUser(9);
         when(mContext.checkCallingOrSelfPermission(
                 eq(Manifest.permission.INTERACT_ACROSS_USERS)))
                 .thenReturn(PackageManager.PERMISSION_DENIED);
@@ -714,7 +727,7 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         try {
             mService.setNightModeActivated(false);
         } catch (SecurityException e) { /* we should ignore this update config exception*/ }
-        assertEquals(MODE_NIGHT_NO, mService.getNightMode());
+        assertEquals(MODE_NIGHT_NO, mService.getNightMode(Display.DEFAULT_DISPLAY));
     }
 
     @Test
@@ -725,7 +738,7 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         try {
             mService.setNightModeActivated(true);
         } catch (SecurityException e) { /* we should ignore this update config exception*/ }
-        assertEquals(MODE_NIGHT_YES, mService.getNightMode());
+        assertEquals(MODE_NIGHT_YES, mService.getNightMode(Display.DEFAULT_DISPLAY));
     }
 
     @Test
@@ -736,7 +749,7 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         try {
             mService.setNightModeActivated(true);
         } catch (SecurityException e) { /* we should ignore this update config exception*/ }
-        assertEquals(MODE_NIGHT_AUTO, mService.getNightMode());
+        assertEquals(MODE_NIGHT_AUTO, mService.getNightMode(Display.DEFAULT_DISPLAY));
     }
 
     @Test
@@ -908,6 +921,62 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         mTimeChangedCallback.onReceive(mContext, new Intent(Intent.ACTION_TIME_CHANGED));
         verify(mAlarmManager, atLeast(2))
                 .setExact(anyInt(), anyLong(), anyString(), any(), any());
+    }
+
+    @Test
+    public void customTime_clearsOverrides_whenOverrideOnIsSet() throws RemoteException {
+        when(mPowerManager.isInteractive()).thenReturn(false);
+
+        mService.setNightMode(MODE_NIGHT_CUSTOM);
+        LocalTime scheduleStart = LocalTime.now().plusHours(2);
+        LocalTime scheduleEnd = LocalTime.now().plusHours(3);
+        mService.setCustomNightModeStart(scheduleStart.toNanoOfDay() / 1000);
+        mService.setCustomNightModeEnd(scheduleEnd.toNanoOfDay() / 1000);
+        assertThat(isNightModeActivated()).isFalse();
+
+        mService.setNightModeActivated(true);
+
+        //Verify override is set and night mode is ON due to override
+        Boolean[] overrides = mUiManagerService.getNightModeOverrides();
+        assertThat(overrides[0]).isTrue();  // mOverrideNightModeOn
+        assertThat(overrides[1]).isFalse(); // mOverrideNightModeOff
+        assertThat(isNightModeActivated()).isTrue(); // Night mode is ON due to override
+
+        LocalTime newStartTime = LocalTime.now().plusHours(1);
+        mService.setCustomNightModeStart(newStartTime.toNanoOfDay() / 1000);
+
+        // Verify overrides are cleared
+        overrides = mUiManagerService.getNightModeOverrides();
+        assertThat(overrides[0]).isFalse(); // mOverrideNightModeOn should be cleared
+        assertThat(overrides[1]).isFalse(); // mOverrideNightModeOff should be cleared
+    }
+
+    @Test
+    public void customTime_clearsOverrides_whenOverrideOffIsSet() throws RemoteException {
+        when(mPowerManager.isInteractive()).thenReturn(false);
+
+        mService.setNightMode(MODE_NIGHT_CUSTOM);
+        LocalTime scheduleStart = LocalTime.now().minusHours(2);
+        LocalTime scheduleEnd = LocalTime.now().plusHours(3);
+        mService.setCustomNightModeStart(scheduleStart.toNanoOfDay() / 1000);
+        mService.setCustomNightModeEnd(scheduleEnd.toNanoOfDay() / 1000);
+        assertThat(isNightModeActivated()).isTrue();
+
+        mService.setNightModeActivated(false);
+
+        //Verify override is set and night mode is OFF due to override
+        Boolean[] overrides = mUiManagerService.getNightModeOverrides();
+        assertThat(overrides[0]).isFalse();  // mOverrideNightModeOn
+        assertThat(overrides[1]).isTrue(); // mOverrideNightModeOff
+        assertThat(isNightModeActivated()).isFalse(); // Night mode is ON due to override
+
+        LocalTime newEndTime = LocalTime.now().plusHours(1);
+        mService.setCustomNightModeStart(newEndTime.toNanoOfDay() / 1000);
+
+        // Verify overrides are cleared
+        overrides = mUiManagerService.getNightModeOverrides();
+        assertThat(overrides[0]).isFalse(); // mOverrideNightModeOn should be cleared
+        assertThat(overrides[1]).isFalse(); // mOverrideNightModeOff should be cleared
     }
 
     @Test
@@ -1323,7 +1392,8 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
                 .thenReturn(TestInjector.DEFAULT_CALLING_UID + 1);
 
         assertThrows(SecurityException.class, () -> mService.enableCarMode(0, 0, PACKAGE_NAME));
-        assertThat(mService.getCurrentModeType()).isNotEqualTo(Configuration.UI_MODE_TYPE_CAR);
+        assertThat(mService.getCurrentModeType(Display.DEFAULT_DISPLAY))
+                .isNotEqualTo(Configuration.UI_MODE_TYPE_CAR);
     }
 
     @Test
@@ -1336,7 +1406,8 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         mService = mUiManagerService.getService();
 
         mService.enableCarMode(0, 0, PACKAGE_NAME);
-        assertThat(mService.getCurrentModeType()).isEqualTo(Configuration.UI_MODE_TYPE_CAR);
+        assertThat(mService.getCurrentModeType(Display.DEFAULT_DISPLAY))
+                .isEqualTo(Configuration.UI_MODE_TYPE_CAR);
     }
 
     @Test
@@ -1344,19 +1415,22 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
                 .thenReturn(TestInjector.DEFAULT_CALLING_UID);
         mService.enableCarMode(0, 0, PACKAGE_NAME);
-        assertThat(mService.getCurrentModeType()).isEqualTo(Configuration.UI_MODE_TYPE_CAR);
+        assertThat(mService.getCurrentModeType(Display.DEFAULT_DISPLAY))
+                .isEqualTo(Configuration.UI_MODE_TYPE_CAR);
         when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
                 .thenReturn(TestInjector.DEFAULT_CALLING_UID + 1);
 
         assertThrows(SecurityException.class,
                 () -> mService.disableCarModeByCallingPackage(0, PACKAGE_NAME));
-        assertThat(mService.getCurrentModeType()).isEqualTo(Configuration.UI_MODE_TYPE_CAR);
+        assertThat(mService.getCurrentModeType(Display.DEFAULT_DISPLAY))
+                .isEqualTo(Configuration.UI_MODE_TYPE_CAR);
 
         // Clean up
         when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
                 .thenReturn(TestInjector.DEFAULT_CALLING_UID);
         mService.disableCarModeByCallingPackage(0, PACKAGE_NAME);
-        assertThat(mService.getCurrentModeType()).isNotEqualTo(Configuration.UI_MODE_TYPE_CAR);
+        assertThat(mService.getCurrentModeType(Display.DEFAULT_DISPLAY))
+                .isNotEqualTo(Configuration.UI_MODE_TYPE_CAR);
     }
 
     @Test
@@ -1369,10 +1443,12 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
         mService = mUiManagerService.getService();
 
         mService.enableCarMode(0, 0, PACKAGE_NAME);
-        assertThat(mService.getCurrentModeType()).isEqualTo(Configuration.UI_MODE_TYPE_CAR);
+        assertThat(mService.getCurrentModeType(Display.DEFAULT_DISPLAY))
+                .isEqualTo(Configuration.UI_MODE_TYPE_CAR);
 
         mService.disableCarModeByCallingPackage(0, PACKAGE_NAME);
-        assertThat(mService.getCurrentModeType()).isNotEqualTo(Configuration.UI_MODE_TYPE_CAR);
+        assertThat(mService.getCurrentModeType(Display.DEFAULT_DISPLAY))
+                .isNotEqualTo(Configuration.UI_MODE_TYPE_CAR);
     }
 
     @Test
@@ -1512,6 +1588,222 @@ public class UiModeManagerServiceTest extends UiServiceTestCase {
     @Test
     public void testAttentionModeThemeOverlay_nightModeEnabled() throws RemoteException {
         testAttentionModeThemeOverlay(true);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    @DisableFlags(android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER)
+    public void getForceInvertState_nightModeFalse_returnsOff_legacy() throws RemoteException {
+        mService.setNightModeActivated(false);
+
+        assertThat(mUiManagerService.getForceInvertStateInternal())
+                .isEqualTo(FORCE_INVERT_TYPE_OFF);
+    }
+
+    @Test
+    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
+            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
+    public void getForceInvertState_nightModeFalse_returnsOff() throws RemoteException {
+        int testUserId = 9;
+        switchUser(testUserId);
+
+        mService.setNightModeActivated(false);
+
+        assertThat(mUiManagerService.getForceInvertStateInternal(testUserId))
+                .isEqualTo(FORCE_INVERT_TYPE_OFF);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    @DisableFlags(android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER)
+    public void getForceInvertState_nightModeTrueAndForceInvertOff_returnsOff_legacy()
+            throws RemoteException {
+        mService.setNightModeActivated(true);
+
+        Settings.Secure.putInt(
+                mContentResolver,
+                Settings.Secure.ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED,
+                /* value= */ 0);
+
+        assertThat(mUiManagerService.getForceInvertStateInternal())
+                .isEqualTo(FORCE_INVERT_TYPE_OFF);
+    }
+
+    @Test
+    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
+            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
+    public void getForceInvertState_nightModeTrueAndForceInvertOff_returnsOff()
+            throws RemoteException {
+        int testUserId = 9;
+        switchUser(testUserId);
+
+        mService.setNightModeActivated(true);
+        Settings.Secure.putIntForUser(
+                mContentResolver,
+                Settings.Secure.ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED,
+                /* value= */ 0,
+                /* userId= */ testUserId);
+
+        assertThat(mUiManagerService.getForceInvertStateInternal(testUserId))
+                .isEqualTo(FORCE_INVERT_TYPE_OFF);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    @DisableFlags(android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER)
+    public void getForceInvertState_nightModeTrueAndForceInvertOn_returnsDark_legacy()
+            throws Exception {
+        mService.setNightModeActivated(true);
+        Settings.Secure.putInt(
+                mContentResolver,
+                Settings.Secure.ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED,
+                /* value= */ 1);
+
+        assertThat(mUiManagerService.getForceInvertStateInternal())
+                .isEqualTo(FORCE_INVERT_TYPE_DARK);
+    }
+
+    @Test
+    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
+            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
+    public void getForceInvertState_nightModeTrueAndForceInvertOn_returnsDark() throws Exception {
+        int testUserId = 9;
+        switchUser(testUserId);
+
+        mService.setNightModeActivated(true);
+        Settings.Secure.putIntForUser(
+                mContentResolver,
+                Settings.Secure.ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED,
+                /* value= */ 1,
+                /* userId = */ testUserId);
+
+        assertThat(mUiManagerService.getForceInvertStateInternal(testUserId))
+                .isEqualTo(FORCE_INVERT_TYPE_DARK);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    public void getForceInvertOverrideState_bogusPackageName_throwsException() throws Exception {
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
+                .thenReturn(TestInjector.DEFAULT_CALLING_UID + 1);
+
+        assertThrows(SecurityException.class,
+                () -> mService.getForceInvertOverrideState(0, PACKAGE_NAME));
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    public void getForceInvertOverrideState_noOverrides_returnsAllowed() throws Exception {
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
+                .thenReturn(TestInjector.DEFAULT_CALLING_UID);
+        int testUserId = 9;
+        switchUser(testUserId);
+
+        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALLOWED);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    public void getForceInvertOverrideState_packageInDisableList_returnsDisable() throws Exception {
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
+                .thenReturn(TestInjector.DEFAULT_CALLING_UID);
+        int testUserId = 9;
+        switchUser(testUserId);
+        Settings.System.putStringForUser(
+                mContentResolver,
+                Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE,
+                PACKAGE_NAME,
+                testUserId);
+
+        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_DISABLE);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    public void getForceInvertOverrideState_packageInEnableList_returnsEnable() throws Exception {
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
+                .thenReturn(TestInjector.DEFAULT_CALLING_UID);
+        int testUserId = 9;
+        switchUser(testUserId);
+        Settings.System.putStringForUser(
+                mContentResolver,
+                Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_ENABLE,
+                PACKAGE_NAME,
+                testUserId);
+
+        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_ENABLE);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    public void getForceInvertOverrideState_packageInBlockList_returnsDisable() throws Exception {
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
+                .thenReturn(TestInjector.DEFAULT_CALLING_UID);
+        when(mResources.getStringArray(R.array.config_forceInvertPackageBlocklist))
+                .thenReturn(new String[]{PACKAGE_NAME});
+        int testUserId = 9;
+        switchUser(testUserId);
+
+        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_DISABLE);
+    }
+
+    @Test
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    public void getForceInvertOverrideState_packageInBlockList_overrideEnabled_returnsEnable()
+            throws Exception {
+        when(mPackageManager.getPackageUidAsUser(eq(PACKAGE_NAME), anyInt()))
+                .thenReturn(TestInjector.DEFAULT_CALLING_UID);
+        when(mResources.getStringArray(R.array.config_forceInvertPackageBlocklist))
+                .thenReturn(new String[]{PACKAGE_NAME});
+        int testUserId = 9;
+        switchUser(testUserId);
+        Settings.System.putStringForUser(
+                mContentResolver,
+                Settings.System.ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_ENABLE,
+                PACKAGE_NAME,
+                testUserId);
+
+        assertThat(mService.getForceInvertOverrideState(testUserId, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_ENABLE);
+        assertThat(mService.getForceInvertOverrideState(testUserId + 1, PACKAGE_NAME))
+                .isEqualTo(FORCE_INVERT_PACKAGE_ALWAYS_DISABLE);
+    }
+
+    @Test
+    @EnableFlags({ android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR,
+            android.app.Flags.FLAG_FIX_CONTRAST_AND_FORCE_INVERT_STATE_FOR_MULTI_USER })
+    public void nightModeFalse_batterySaverOn_forceInvertTypeDark() throws RemoteException {
+        int testUserId = 9;
+        switchUser(testUserId);
+        Settings.Secure.putIntForUser(
+                mContentResolver,
+                Settings.Secure.ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED,
+                /* value= */ 1,
+                /* userId = */ testUserId);
+        mService.setNightMode(MODE_NIGHT_NO);
+        when(mTwilightState.isNight()).thenReturn(false);
+        mService.setNightMode(MODE_NIGHT_AUTO);
+
+        // night NO
+        assertFalse(isNightModeActivated());
+
+        mPowerSaveConsumer.accept(
+                new PowerSaveState.Builder().setBatterySaverEnabled(true).build());
+
+        // night YES
+        assertTrue(isNightModeActivated());
+        assertThat(mUiManagerService.getForceInvertStateInternal(testUserId))
+                .isEqualTo(FORCE_INVERT_TYPE_DARK);
+    }
+
+    private void switchUser(int userId) {
+        SystemService.TargetUser user = mock(SystemService.TargetUser.class);
+        doReturn(userId).when(user).getUserIdentifier();
+        mUiManagerService.onUserSwitching(user, user);
     }
 
     private void triggerDockIntent() {

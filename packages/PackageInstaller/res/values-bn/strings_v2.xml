@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"অনুমতি দিতে হবে"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ইনস্টল করার সুবিধা ব্লক করা হয়েছে"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"অ্যাপ রেডি হচ্ছে…"</string>
+    <string name="title_install" msgid="6806728682404990326">"এই অ্যাপ ইনস্টল করতে চান?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ইনস্টল করা হচ্ছে…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"অ্যাপ ইনস্টল করা হয়েছে"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"এই অ্যাপ আবার ইনস্টল করতে চান?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"আবার ইনস্টল করা হচ্ছে…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"অ্যাপ আবার ইনস্টল করা হয়েছে"</string>
+    <string name="title_update" msgid="1747328630716712391">"এই অ্যাপ আপডেট করতে চান?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> থেকে এই অ্যাপ আপডেট করতে চান?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"আপডেট করা হচ্ছে…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"অ্যাপ আপডেট করা হয়েছে"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"অ্যাপ ইনস্টল করা যায়নি"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ইনস্টল করার সুবিধা ব্লক করা হয়েছে"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"এই ডিভাইসে অ্যাপ কাজ করবে না"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"ভুল প্যাকেজ"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"পর্যাপ্ত স্টোরেজ নেই"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"অ্যাপটি ইনস্টল করা হয়নি"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"এই অ্যাপটি আনইনস্টল করতে চান?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"এই অ্যাপের ক্লোন মুছতে চান?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"অ্যাপের আপডেট আনইনস্টল করতে চান?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"সব ব্যবহারকারীর জন্য অ্যাপের আপডেট আনইনস্টল করতে চান?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"সব ব্যবহারকারীর জন্য এই অ্যাপ আনইনস্টল করতে চান?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"\"<xliff:g id="USER_NAME">%1$s</xliff:g>\" ব্যবহারকারীর জন্য এই অ্যাপ আনইনস্টল করতে চান?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"অ্যাপ খুঁজে পাওয়া যায়নি"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"এই অ্যাপ আনইনস্টল করা যায়নি"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"অ্যাপ আনইনস্টল করা হয়নি"</string>
+    <string name="title_archive" msgid="2876455228073419830">"এই অ্যাপ আর্কাইভ করতে চান?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"সব ব্যবহারকারীর জন্য এই অ্যাপ আর্কাইভ করতে চান?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"\"<xliff:g id="USER_NAME">%1$s</xliff:g>\" ব্যবহারকারীর জন্য এই অ্যাপ আর্কাইভ করতে চান?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"এই অ্যাপ ফিরিয়ে আনতে চান?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"ব্যবস্থা নিতে হবে"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"পর্যাপ্ত স্টোরেজ নেই"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"আপনি অফলাইন আছেন"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> বন্ধ করা হয়েছে"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ইনস্টল করা নেই"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"কোনও সমস্যা হয়েছে"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"এই অ্যাপ সাধারণত &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; থেকে আপডেট হয়। অন্য কোনও সোর্স থেকে আপডেট করলে, আপনার ট্যাবলেটে ভবিষ্যতে যেকোনও সোর্স থেকে আপডেট পেতে পারেন। ফলে অ্যাপের কার্যকারিতা পরিবর্তন হতে পারে।"</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"এই অ্যাপ সাধারণত &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; থেকে আপডেট হয়। অন্য কোনও সোর্স থেকে আপডেট করলে, আপনার টিভিতে ভবিষ্যতে যেকোনও সোর্স থেকে আপডেট পেতে পারেন। ফলে অ্যাপের কার্যকারিতা পরিবর্তন হতে পারে।"</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"এই অ্যাপ সাধারণত &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; থেকে আপডেট হয়। অন্য কোনও সোর্স থেকে আপডেট করলে, আপনার ফোনে ভবিষ্যতে যেকোনও সোর্স থেকে আপডেট পেতে পারেন। ফলে অ্যাপের কার্যকারিতা পরিবর্তন হতে পারে।"</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"আপনার নিরাপত্তার কথা ভেবে, এই সোর্স থেকে বর্তমানে আপনার ট্যাবে অজানা অ্যাপ ইনস্টল করার অনুমতি নেই। আপনি সেটিংস থেকে এটি পরিবর্তন করতে পারবেন।"</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"আপনার নিরাপত্তার কথা ভেবে, এই সোর্স থেকে বর্তমানে আপনার টিভিতে অজানা অ্যাপ ইনস্টল করা যাবে না। আপনি সেটিংস থেকে এটি পরিবর্তন করতে পারবেন।"</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"আপনার নিরাপত্তার কথা ভেবে, বর্তমানে এই সোর্স থেকে আপনার স্মার্ট ওয়াচে অজানা অ্যাপ ইনস্টল করা যাবে না। আপনি সেটিংস থেকে এটি পরিবর্তন করতে পারবেন।"</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"আপনার নিরাপত্তার কথা ভেবে, এই সোর্স থেকে বর্তমানে আপনার ফোনে অজানা অ্যাপ ইনস্টল করা যাবে না। আপনি সেটিংস থেকে এটি পরিবর্তন করতে পারবেন।"</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"অজানা অ্যাপ থেকে আপনার ফোন এবং ব্যক্তিগত ডেটায় ঝুঁকির সম্ভাবনা বেশি থাকে। এই অ্যাপ ইনস্টল করার মাধ্যমে আপনি সম্মতি দিচ্ছেন যে এটি ব্যবহার করার পর আপনার ফোন বা ব্যক্তিগত ডেটার কোনও ক্ষতি হলে, তার দায় আপনার।"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"অজানা অ্যাপ থেকে আপনার ট্যাবলেট এবং ব্যক্তিগত ডেটায় ঝুঁকির সম্ভাবনা বেশি থাকে। এই অ্যাপ ইনস্টল করার মাধ্যমে আপনি সম্মতি দিচ্ছেন যে এটি ব্যবহার করার পর আপনার ফোন বা ব্যক্তিগত ডেটার কোনও ক্ষতি হলে, তার দায় আপনার।"</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"অজানা অ্যাপ থেকে আপনার টিভি এবং ব্যক্তিগত ডেটায় ঝুঁকির সম্ভাবনা বেশি থাকে। এই অ্যাপ ইনস্টল করার মাধ্যমে আপনি সম্মতি দিচ্ছেন যে এটি ব্যবহার করার পর আপনার টিভি বা ব্যক্তিগত ডেটার কোনও ক্ষতি হলে, তার দায় আপনার।"</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"এই অ্যাপটি ইনস্টল করা থেকে ব্লক করা হয়েছে"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"এই অ্যাপ আপনার ডিভাইসে আগে থেকেই থাকা একটি অ্যাপের সাথে মিলে যাচ্ছে"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"আপনার ডিভাইসে এই অ্যাপ চলবে না"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"এই অ্যাপের ইনস্টলেশন ফাইলে কোনও সমস্যা রয়েছে"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"এই অ্যাপ ইনস্টল করতে, ডিভাইসের জায়গা খালি করে আবার চেষ্টা করুন"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"অ্যাপ ফাইলে কোনও সমস্যা রয়েছে"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"অ্যাপ ইনস্টল করার সুবিধা সীমিত করা হয়েছে"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"অজানা অ্যাপ ইনস্টল করার সুবিধা সীমিত করা হয়েছে"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"এছাড়াও এই অ্যাপের একটি ক্লোন রয়েছে এবং সেটি মুছে ফেলা হবে"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"এই অ্যাপ হল <xliff:g id="APP_LABEL">%1$s</xliff:g>-এর ক্লোন"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"এই অ্যাপের ভার্সন বদল করে ফ্যাক্টরি ভার্সন করে দেওয়া হবে। অ্যাপের সব ডেটা সরিয়ে দেওয়া হবে।"</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"ডিভাইসের সব ব্যবহারকারীদের জন্য এই অ্যাপের ভার্সন বদল করে ফ্যাক্টরি ভার্সন করে দেওয়া হবে। অ্যাপের সব ডেটা সরিয়ে দেওয়া হবে।"</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"এই অ্যাপটি আপনার অফিস প্রোফাইল থেকে আনইনস্টল করা হবে"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"এই অ্যাপ আপনার প্রাইভেট স্পেস থেকে আনইনস্টল করা হবে"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"ইনস্টল করা অ্যাপের তালিকায় এই অ্যাপ খুঁজে পাওয়া যায়নি অথবা এটি আগেই আনইনস্টল করা হয়েছে"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"বর্তমান ব্যবহারকারীর এই আনইনস্টল করতে পারবেন না"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"এই অ্যাপ আনইনস্টল করা যায়নি"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"অ্যাপ ডেটা মুছতে চাই না"</string>
+    <string name="message_archive" msgid="943853731737315850">"আপনার অ্যাপ ডেটা সেভ করা হবে"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"সব অ্যাপ ডেটা সেভ করা হবে"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"অ্যাপ ডেটা সেভ করা হবে"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"এই অ্যাপটি আপনার অফিস প্রোফাইল থেকে আর্কাইভ করা হবে। আপনার অ্যাপ ডেটা সেভ করা হবে।"</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"এই অ্যাপটি আপনার প্রাইভেট স্পেস থেকে আর্কাইভ করা হবে। আপনার অ্যাপ ডেটা সেভ করা হবে।"</string>
+    <string name="message_restore" msgid="8402726798623569969">"ব্যাকগ্রাউন্ডে অ্যাপটি <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> থেকে ডাউনলোড করা হবে"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"এই অ্যাপ ফিরিয়ে আনার আগে <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>-এর আরও তথ্য প্রয়োজন"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"এই অ্যাপ ফিরিয়ে আনতে, &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; খালি করে আবার চেষ্টা করুন"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"এই অ্যাপ ফিরিয়ে আনতে, ইন্টারনেট কানেকশন চেক করে আবার চেষ্টা করুন"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"এই অ্যাপ ফিরিয়ে আনতে, সেটিংসে গিয়ে <xliff:g id="INSTALLERNAME">%1$s</xliff:g> চালু করুন"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"এই অ্যাপ ফিরিয়ে আনতে, আপনাকে <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ইনস্টল করতে হবে"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"এই অ্যাপ ফিরিয়ে আনার সময় সমস্যা কোনও হয়েছে"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> হল নিচে উল্লেখ করা অ্যাপের অংশ: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;এই অ্যাপ ব্লক করা হয়েছে। আপনার ডিভাইস ও ডেটা সুরক্ষিত রাখতে, শুধুমাত্র যাচাই করা ডেভেলপারদের অ্যাপ ইনস্টল করা যাবে।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;এই অ্যাপ আপডেট করা হয়নি। আপনার ডিভাইস ও ডেটা সুরক্ষিত রাখতে, শুধুমাত্র যাচাই করা ডেভেলপারদের আপডেট ইনস্টল করা যাবে।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;এই অ্যাপ ইনস্টল করা হয়নি। যাচাই করা হয়নি এমন ডেভেলপারদের অ্যাপ সুরক্ষিত নাও হতে পারে।&lt;/p&gt; &lt;p&gt;অ্যাপ ডেভেলপার যাচাইকরণের জন্য ইন্টারনেট কানেকশন থাকতে হবে। কানেকশন চেক করে আবার ইনস্টল করার চেষ্টা করুন। &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;এই অ্যাপ আপডেট করা হয়নি। যাচাই না করা ডেভেলপারদের আপডেট সুরক্ষিত নাও হতে পারে।&lt;/p&gt; &lt;p&gt;অ্যাপ ডেভেলপারের যাচাইকরণের জন্য ইন্টারনেট কানেকশন থাকতে হবে। কানেকশন চেক করে আবার আপডেট করার চেষ্টা করুন। &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;এই অ্যাপের ডেভেলপার যাচাইকরণের সময় কোনও সমস্যা হয়েছে। যাচাই করা হয়নি এমন ডেভেলপারদের অ্যাপ সুরক্ষিত নাও হতে পারে, তাই অ্যাপটি ইনস্টল করা হয়নি।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;এই অ্যাপের ডেভেলপার যাচাইকরণের সময় কোনও সমস্যা হয়েছে। যাচাই করা হয়নি এমন ডেভেলপারদের আপডেট সুরক্ষিত নাও হতে পারে, তাই অ্যাপটি আপডেট করা হয়নি।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;ডেভেলপারকে যাচাই করার সময় কোনও সমস্যা হওয়ার কারণে এই অ্যাপ ব্লক করা হয়েছে। আপনার ডিভাইস ও ডেটা সুরক্ষিত রাখতে, শুধুমাত্র যাচাই করা ডেভেলপারদের অ্যাপ ইনস্টল করা যাবে।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;ডেভেলপার যাচাইকরণের সময় সমস্যা হওয়ায় এই অ্যাপ আপডেট করা হয়নি। আপনার ডিভাইস ও ডেটা সুরক্ষিত রাখতে, শুধুমাত্র যাচাই করা ডেভেলপারদের আপডেট ইনস্টল করা যাবে।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ডেভেলপার যাচাইকরণ সম্পর্কে আরও জানুন&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"যাচাই না করেই ইনস্টল করলে, মনে রাখবেন, যাচাই না করা ডেভেলপারদের অ্যাপ আপনার ডিভাইস ও ডেটার জন্য ঝুঁকির কারণ হতে পারে।"</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"যাচাই না করেই আপডেট করলে, মনে রাখবেন, যাচাই না করানো ডেভেলপারদের থেকে আপডেট আপনার ডিভাইস ও ডেটার জন্য ঝুঁকির কারণ হতে পারে।"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"অ্যাপ ডেভেলপারকে যাচাই করা হয়নি"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"ইন্টারনেট নেই, অ্যাপ ডেভেলপার যাচাই করা যাচ্ছে না"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"অ্যাপ ডেভেলপারকে যাচাই করা যাচ্ছে না"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"যাচাই না করেই ইনস্টল করুন"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"যাচাই না করেই আপডেট করুন"</string>
+    <string name="button_install" msgid="7434013176505680162">"ইনস্টল করুন"</string>
+    <string name="button_update" msgid="3046719350226327526">"আপডেট করুন"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"তাও আপডেট করতে চাই"</string>
+    <string name="button_done" msgid="3408025390982260629">"হয়ে গেছে"</string>
+    <string name="button_open" msgid="6892684987374117955">"খুলুন"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"বাতিল করুন"</string>
+    <string name="button_continue" msgid="107501685249826244">"চালিয়ে যান"</string>
+    <string name="button_close" msgid="7187308556466275899">"বন্ধ করুন"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"আনইনস্টল করুন"</string>
+    <string name="button_delete" msgid="1050833585936159792">"মুছুন"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"আবার ইনস্টল করুন"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"অ্যাপ ম্যানেজ করুন"</string>
+    <string name="button_archive" msgid="2719647830439699121">"আর্কাইভ করুন"</string>
+    <string name="button_restore" msgid="4388317532933866637">"ফিরিয়ে আনুন"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"আপডেট আনইনস্টল করুন"</string>
+    <string name="button_settings" msgid="3837571366246132287">"সেটিংস"</string>
+    <string name="button_retry" msgid="6736082260813816198">"আবার চেষ্টা করুন"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> ক্লোন"</string>
+</resources>

@@ -22,14 +22,17 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.constraintlayout.widget.Barrier
 import com.android.internal.widget.CachingIconView
+import com.android.systemui.Flags.enableSuggestedDeviceUi
+import com.android.systemui.FontStyles.GSF_BODY_MEDIUM
 import com.android.systemui.FontStyles.GSF_HEADLINE_SMALL
-import com.android.systemui.FontStyles.GSF_LABEL_LARGE
 import com.android.systemui.FontStyles.GSF_LABEL_MEDIUM
 import com.android.systemui.FontStyles.GSF_TITLE_MEDIUM
+import com.android.systemui.FontStyles.GSF_TITLE_MEDIUM_EMPHASIZED
 import com.android.systemui.res.R
 import com.android.systemui.surfaceeffects.loadingeffect.LoadingEffectView
 import com.android.systemui.surfaceeffects.ripple.MultiRippleView
@@ -59,6 +62,15 @@ class MediaViewHolder constructor(itemView: View) {
     val seamlessText = itemView.requireViewById<TextView>(R.id.media_seamless_text)
     val seamlessButton = itemView.requireViewById<View>(R.id.media_seamless_button)
 
+    // Suggestions
+    val deviceSuggestionContainer =
+        itemView.findViewById<ViewGroup>(R.id.device_suggestion_container)
+    val deviceSuggestionText = itemView.findViewById<TextView>(R.id.device_suggestion_text)
+    val deviceSuggestionIcon = itemView.findViewById<ImageView>(R.id.device_suggestion_icon)
+    val deviceSuggestionConnectingIcon =
+        itemView.findViewById<ProgressBar>(R.id.device_suggestion_progressbar)
+    val deviceSuggestionButton = itemView.findViewById<View>(R.id.device_suggestion_button)
+
     // Seekbar views
     val seekBar = itemView.requireViewById<SeekBar>(R.id.media_progress_bar)
     // These views are only shown while the user is actively scrubbing
@@ -80,6 +92,10 @@ class MediaViewHolder constructor(itemView: View) {
 
     val actionsTopBarrier = itemView.requireViewById<Barrier>(R.id.media_action_barrier_top)
 
+    // Pagination
+    val pageLeft = itemView.requireViewById<ImageButton>(R.id.page_left)
+    val pageRight = itemView.requireViewById<ImageButton>(R.id.page_right)
+
     fun getAction(id: Int): ImageButton {
         return when (id) {
             R.id.actionPlayPause -> actionPlayPause
@@ -96,10 +112,6 @@ class MediaViewHolder constructor(itemView: View) {
         }
     }
 
-    fun getTransparentActionButtons(): List<ImageButton> {
-        return listOf(actionNext, actionPrev, action0, action1, action2, action3, action4)
-    }
-
     fun marquee(start: Boolean, delay: Long) {
         gutsViewHolder.marquee(start, delay, TAG)
     }
@@ -113,7 +125,12 @@ class MediaViewHolder constructor(itemView: View) {
          */
         @JvmStatic
         fun create(inflater: LayoutInflater, parent: ViewGroup): MediaViewHolder {
-            val mediaView = inflater.inflate(R.layout.media_session_view, parent, false)
+            val mediaView =
+                if (enableSuggestedDeviceUi()) {
+                    inflater.inflate(R.layout.media_session_view_with_suggestion, parent, false)
+                } else {
+                    inflater.inflate(R.layout.media_session_view, parent, false)
+                }
             mediaView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
             // Because this media view (a TransitionLayout) is used to measure and layout the views
             // in various states before being attached to its parent, we can't depend on the default
@@ -125,27 +142,34 @@ class MediaViewHolder constructor(itemView: View) {
             }
         }
 
-        val controlsIds =
-            setOf(
-                R.id.icon,
-                R.id.app_name,
-                R.id.header_title,
-                R.id.header_artist,
-                R.id.media_explicit_indicator,
-                R.id.media_seamless,
-                R.id.media_progress_bar,
-                R.id.actionPlayPause,
-                R.id.actionNext,
-                R.id.actionPrev,
-                R.id.action0,
-                R.id.action1,
-                R.id.action2,
-                R.id.action3,
-                R.id.action4,
-                R.id.icon,
-                R.id.media_scrubbing_elapsed_time,
-                R.id.media_scrubbing_total_time,
-            )
+        val controlsIds: Set<Int> =
+            mutableSetOf(
+                    R.id.icon,
+                    R.id.app_name,
+                    R.id.header_title,
+                    R.id.header_artist,
+                    R.id.media_explicit_indicator,
+                    R.id.media_seamless,
+                    R.id.media_progress_bar,
+                    R.id.actionPlayPause,
+                    R.id.actionNext,
+                    R.id.actionPrev,
+                    R.id.action0,
+                    R.id.action1,
+                    R.id.action2,
+                    R.id.action3,
+                    R.id.action4,
+                    R.id.icon,
+                    R.id.media_scrubbing_elapsed_time,
+                    R.id.media_scrubbing_total_time,
+                    R.id.page_left,
+                    R.id.page_right,
+                )
+                .apply {
+                    if (enableSuggestedDeviceUi()) {
+                        add(R.id.device_suggestion_container)
+                    }
+                }
 
         // Buttons used for notification-based actions
         val genericButtonIds =
@@ -171,6 +195,8 @@ class MediaViewHolder constructor(itemView: View) {
                 R.id.header_artist,
                 R.id.media_explicit_indicator,
                 R.id.actionPlayPause,
+                R.id.page_left,
+                R.id.page_right,
             )
 
         val backgroundIds =
@@ -182,8 +208,10 @@ class MediaViewHolder constructor(itemView: View) {
             )
 
         val headlineSmallTF: Typeface = Typeface.create(GSF_HEADLINE_SMALL, Typeface.NORMAL)
+        val titleMediumEmphasizedTF: Typeface =
+            Typeface.create(GSF_TITLE_MEDIUM_EMPHASIZED, Typeface.NORMAL)
         val titleMediumTF: Typeface = Typeface.create(GSF_TITLE_MEDIUM, Typeface.NORMAL)
         val labelMediumTF: Typeface = Typeface.create(GSF_LABEL_MEDIUM, Typeface.NORMAL)
-        val labelLargeTF: Typeface = Typeface.create(GSF_LABEL_LARGE, Typeface.NORMAL)
+        val bodyMediumTF: Typeface = Typeface.create(GSF_BODY_MEDIUM, Typeface.NORMAL)
     }
 }

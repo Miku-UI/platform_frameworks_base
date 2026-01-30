@@ -16,6 +16,8 @@
 
 package android.os;
 
+import static android.os.Flags.FLAG_BLUETOOTH_BUGREPORT_MODE;
+
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.SystemApi;
@@ -85,7 +87,8 @@ public final class BugreportParams {
             BUGREPORT_MODE_WEAR,
             BUGREPORT_MODE_TELEPHONY,
             BUGREPORT_MODE_WIFI,
-            BUGREPORT_MODE_ONBOARDING
+            BUGREPORT_MODE_ONBOARDING,
+            BUGREPORT_MODE_BLUETOOTH
     })
     public @interface BugreportMode {}
 
@@ -131,11 +134,18 @@ public final class BugreportParams {
     public static final int BUGREPORT_MODE_ONBOARDING = IDumpstate.BUGREPORT_MODE_ONBOARDING;
 
     /**
+     * Options for a lightweight bugreport that only includes a few sections related to
+     * Bluetooth.
+     */
+    @FlaggedApi(FLAG_BLUETOOTH_BUGREPORT_MODE)
+    public static final int BUGREPORT_MODE_BLUETOOTH = IDumpstate.BUGREPORT_MODE_BLUETOOTH;
+
+    /**
      * The maximum value of supported bugreport mode.
      * @hide
      */
     @TestApi
-    public static final int BUGREPORT_MODE_MAX_VALUE = BUGREPORT_MODE_ONBOARDING;
+    public static final int BUGREPORT_MODE_MAX_VALUE = BUGREPORT_MODE_BLUETOOTH;
 
     /**
      * Defines acceptable flags for customizing bugreport requests.
@@ -145,7 +155,8 @@ public final class BugreportParams {
     @IntDef(flag = true, prefix = { "BUGREPORT_FLAG_" }, value = {
             BUGREPORT_FLAG_USE_PREDUMPED_UI_DATA,
             BUGREPORT_FLAG_DEFER_CONSENT,
-            BUGREPORT_FLAG_KEEP_BUGREPORT_ON_RETRIEVAL
+            BUGREPORT_FLAG_KEEP_BUGREPORT_ON_RETRIEVAL,
+            BUGREPORT_FLAG_CAPTURE_MULTI_DISPLAY_SCREENSHOT
     })
     public @interface BugreportFlag {}
 
@@ -178,4 +189,12 @@ public final class BugreportParams {
     @FlaggedApi(Flags.FLAG_ONBOARDING_BUGREPORT_V2_ENABLED)
     public static final int BUGREPORT_FLAG_KEEP_BUGREPORT_ON_RETRIEVAL =
             IDumpstate.BUGREPORT_FLAG_KEEP_BUGREPORT_ON_RETRIEVAL;
+
+    /**
+     * Flag for taking screenshots of all displays.
+     */
+    @FlaggedApi(android.os.Flags.FLAG_BUGREPORT_MULTI_DISPLAY_SCREENSHOT_ENABLED)
+    public static final int BUGREPORT_FLAG_CAPTURE_MULTI_DISPLAY_SCREENSHOT =
+            IDumpstate.BUGREPORT_FLAG_CAPTURE_MULTI_DISPLAY_SCREENSHOT;
+
 }

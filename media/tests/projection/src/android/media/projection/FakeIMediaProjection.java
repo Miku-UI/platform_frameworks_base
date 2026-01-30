@@ -34,6 +34,7 @@ public final class FakeIMediaProjection extends IMediaProjection.Stub {
     LaunchCookie mLaunchCookie = null;
     IMediaProjectionCallback mIMediaProjectionCallback = null;
     int mDisplayId = Display.DEFAULT_DISPLAY;
+    boolean mRecordingOverlay = false;
 
     FakeIMediaProjection(PermissionEnforcer enforcer) {
         super(enforcer);
@@ -111,6 +112,20 @@ public final class FakeIMediaProjection extends IMediaProjection.Stub {
     public void setTaskId(int taskId) throws RemoteException {
         setTaskId_enforcePermission();
         mTaskId = taskId;
+    }
+
+    @Override
+    @EnforcePermission(MANAGE_MEDIA_PROJECTION)
+    public void setRecordingOverlay(boolean isRecordingOverlay) throws RemoteException {
+        setRecordingOverlay_enforcePermission();
+        mRecordingOverlay = isRecordingOverlay;
+    }
+
+    @Override
+    @EnforcePermission(MANAGE_MEDIA_PROJECTION)
+    public boolean isRecordingOverlay() throws RemoteException {
+        isRecordingOverlay_enforcePermission();
+        return mRecordingOverlay;
     }
 
     @Override

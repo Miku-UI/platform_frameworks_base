@@ -21,12 +21,13 @@ package {
 
 java_library {
     name: "kairos",
-    host_supported: true,
     kotlincflags: ["-opt-in=com.android.systemui.kairos.ExperimentalKairosApi"],
     srcs: ["src/**/*.kt"],
     static_libs: [
         "kotlin-stdlib",
         "kotlinx_coroutines",
+        "tracinglib-platform",
+        "androidx.collection_collection",
     ],
 }
 

@@ -113,7 +113,7 @@ public class TextAttribute extends PaintOperation implements Serializable {
         int id = buffer.readInt();
         int textId = buffer.readInt();
         short type = (short) buffer.readShort();
-        short len = (short) buffer.readShort();
+        buffer.readShort(); // len
         operations.add(new TextAttribute(id, textId, type));
     }
 
@@ -136,7 +136,7 @@ public class TextAttribute extends PaintOperation implements Serializable {
         return indent + toString();
     }
 
-    @NonNull float[] mBounds = new float[4];
+    @NonNull float [] mBounds = new float[4];
 
     @Override
     public void paint(@NonNull PaintContext context) {
@@ -171,7 +171,7 @@ public class TextAttribute extends PaintOperation implements Serializable {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("id", mId)

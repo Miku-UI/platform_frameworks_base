@@ -46,6 +46,7 @@ import java.util.HashMap;
  *
  * @hide Pending API finalization.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class DrawableInflater {
     private static final HashMap<String, Constructor<? extends Drawable>> CONSTRUCTOR_MAP =
             new HashMap<>();

@@ -38,6 +38,7 @@ import org.junit.runner.RunWith;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 /**
@@ -289,37 +290,75 @@ abstract class BaseSettingsProviderTest {
         }
     }
 
-    protected static void setSettingViaShell(int type, String name, String value,
-            boolean makeDefault) throws IOException {
-        setSettingViaShell(type, name, value, null, makeDefault);
-    }
-
-    protected static void setSettingViaShell(int type, String name, String value,
-            String token, boolean makeDefault) throws IOException {
+    protected static String getSettingViaShell(int type, String name, int userId, int deviceId)
+            throws Exception {
+        byte[] result;
         switch (type) {
             case SETTING_TYPE_GLOBAL: {
-                executeShellCommand("settings put global " + name + " "
-                        + value + (token != null ? " " + token : "")
-                        + (makeDefault ? " default" : ""));
+                result = executeShellCommand("settings get --user " + userId + " --deviceId "
+                        + deviceId + " global " + name);
 
             } break;
 
             case SETTING_TYPE_SECURE: {
-                executeShellCommand("settings put secure " + name + " "
-                        + value + (token != null ? " " + token : "")
-                        + (makeDefault ? " default" : ""));
+                result = executeShellCommand("settings get --user " + userId + " --deviceId "
+                        + deviceId + " secure " + name);
             } break;
 
             case SETTING_TYPE_SYSTEM: {
-                executeShellCommand("settings put system " + name + " "
-                        + value + (token != null ? " " + token : "")
-                        + (makeDefault ? " default" : ""));
+                result = executeShellCommand("settings get --user " + userId + " --deviceId "
+                        + deviceId + " system " + name);
             } break;
 
             default: {
                 throw new IllegalArgumentException("Invalid type: " + type);
             }
         }
+        // Remove trailing line breaks from the output.
+        String resultStr = new String(result, StandardCharsets.UTF_8).replaceAll("\n", "");
+        return "null".equals(resultStr) ? null : resultStr;
+    }
+
+    protected static void setSettingViaShell(int type, String name, String value,
+            boolean makeDefault) throws IOException {
+        setSettingViaShell(type, name, value, null /* token */, makeDefault);
+    }
+
+    protected static void setSettingViaShell(int type, String name, String value,
+            String token, boolean makeDefault) throws IOException {
+        setSettingViaShell(type, name, value, token, makeDefault, null /* user */,
+                Context.DEVICE_ID_DEFAULT);
+    }
+
+    protected static void setSettingViaShell(int type, String name, String value,
+            int userId, int deviceId) throws Exception {
+        setSettingViaShell(type, name, value, null /* token */, true /* makeDefault */,
+                String.valueOf(userId), deviceId);
+    }
+
+    private static void setSettingViaShell(int type, String name, String value,
+            String token, boolean makeDefault, String user, int deviceId) throws IOException {
+        String settingType;
+        switch (type) {
+            case SETTING_TYPE_GLOBAL: {
+                settingType = "global";
+            } break;
+
+            case SETTING_TYPE_SECURE: {
+                settingType = "secure";
+            } break;
+
+            case SETTING_TYPE_SYSTEM: {
+                settingType = "system";
+            } break;
+
+            default: {
+                throw new IllegalArgumentException("Invalid type: " + type);
+            }
+        }
+        executeShellCommand("settings put" + (user != null ? (" --user " + user) : "")
+                + " --deviceId " + deviceId + " " + settingType + " " + name + " " + value
+                + (token != null ? " " + token : "") + (makeDefault ? " default" : ""));
     }
 
     protected Context getContext() {
@@ -366,9 +405,9 @@ abstract class BaseSettingsProviderTest {
         }
     }
 
-    protected static void executeShellCommand(String command) throws IOException {
+    private static byte[] executeShellCommand(String command) throws IOException {
         InputStream is = new FileInputStream(InstrumentationRegistry.getInstrumentation()
                 .getUiAutomation().executeShellCommand(command).getFileDescriptor());
-        Streams.readFully(is);
+        return Streams.readFully(is);
     }
 }

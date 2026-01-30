@@ -40,6 +40,7 @@ import android.inputmethodservice.InputMethodService.BackDispositionMode;
 import android.inputmethodservice.InputMethodService.ImeWindowVisibility;
 import android.media.INearbyMediaDevicesProvider;
 import android.media.MediaRoute2Info;
+import android.media.session.MediaSession;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -85,8 +86,9 @@ import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * This class takes the functions from IStatusBar that come in on
@@ -198,7 +200,7 @@ public class CommandQueue extends IStatusBar.Stub implements
     private static final String SHOW_IME_SWITCHER_KEY = "showImeSwitcherKey";
 
     private final Object mLock = new Object();
-    private final ArrayList<Callbacks> mCallbacks = new ArrayList<>();
+    private final List<Callbacks> mCallbacks = new CopyOnWriteArrayList<Callbacks>();
     private final Handler mHandler = new H(Looper.getMainLooper());
     /** A map of display id - disable flag pair */
     private final SparseArray<Pair<Integer, Integer>> mDisplayDisabled = new SparseArray<>();
@@ -222,8 +224,8 @@ public class CommandQueue extends IStatusBar.Stub implements
             }
             // This callback is registered with {@link #mHandler} that already posts to run on
             // main thread, so it is safe to dispatch directly.
-            for (int i = mCallbacks.size() - 1; i >= 0; i--) {
-                mCallbacks.get(i).onDisplayRemoved(displayId);
+            for (Callbacks callback : mCallbacks) {
+                callback.onDisplayRemoved(displayId);
             }
         }
     };
@@ -574,7 +576,8 @@ public class CommandQueue extends IStatusBar.Stub implements
         /**
          * @see IStatusBar#showMediaOutputSwitcher
          */
-        default void showMediaOutputSwitcher(String packageName, UserHandle userHandle) {}
+        default void showMediaOutputSwitcher(String packageName, UserHandle userHandle,
+                @Nullable MediaSession.Token sessionToken) {}
 
         /**
          * @see IStatusBar#confirmImmersivePrompt
@@ -1279,15 +1282,15 @@ public class CommandQueue extends IStatusBar.Stub implements
             // window switched to another display for single-session IME case.
             sendImeNotVisibleStatusForPrevNavBar();
         }
-        for (int i = 0; i < mCallbacks.size(); i++) {
-            mCallbacks.get(i).setImeWindowStatus(displayId, vis, backDisposition, showImeSwitcher);
+        for (Callbacks callback : mCallbacks) {
+            callback.setImeWindowStatus(displayId, vis, backDisposition, showImeSwitcher);
         }
         mLastUpdatedImeDisplayId = displayId;
     }
 
     private void sendImeNotVisibleStatusForPrevNavBar() {
-        for (int i = 0; i < mCallbacks.size(); i++) {
-            mCallbacks.get(i).setImeWindowStatus(mLastUpdatedImeDisplayId, 0 /* vis */,
+        for (Callbacks callback : mCallbacks) {
+            callback.setImeWindowStatus(mLastUpdatedImeDisplayId, 0 /* vis */,
                     BACK_DISPOSITION_DEFAULT, false /* showImeSwitcher */);
         }
     }
@@ -1455,7 +1458,8 @@ public class CommandQueue extends IStatusBar.Stub implements
         }
     }
     @Override
-    public void showMediaOutputSwitcher(String packageName, UserHandle userHandle) {
+    public void showMediaOutputSwitcher(String packageName, UserHandle userHandle,
+            @Nullable MediaSession.Token sessionToken) {
         int callingUid = Binder.getCallingUid();
         if (callingUid != 0 && callingUid != Process.SYSTEM_UID) {
             throw new SecurityException("Call only allowed from system server.");
@@ -1464,6 +1468,7 @@ public class CommandQueue extends IStatusBar.Stub implements
             SomeArgs args = SomeArgs.obtain();
             args.arg1 = packageName;
             args.arg2 = userHandle;
+            args.arg3 = sessionToken;
             mHandler.obtainMessage(MSG_SHOW_MEDIA_OUTPUT_SWITCHER, args).sendToTarget();
         }
     }
@@ -1534,14 +1539,14 @@ public class CommandQueue extends IStatusBar.Stub implements
     @Override
     public void moveFocusedTaskToFullscreen(int displayId) {
         SomeArgs args = SomeArgs.obtain();
-        args.arg1 = displayId;
+        args.argi1 = displayId;
         mHandler.obtainMessage(MSG_MOVE_FOCUSED_TASK_TO_FULLSCREEN, args).sendToTarget();
     }
 
     @Override
     public void moveFocusedTaskToDesktop(int displayId) {
         SomeArgs args = SomeArgs.obtain();
-        args.arg1 = displayId;
+        args.argi1 = displayId;
         mHandler.obtainMessage(MSG_ENTER_DESKTOP, args).sendToTarget();
     }
 
@@ -1558,14 +1563,14 @@ public class CommandQueue extends IStatusBar.Stub implements
                     switch (msg.arg1) {
                         case OP_SET_ICON: {
                             Pair<String, StatusBarIcon> p = (Pair<String, StatusBarIcon>) msg.obj;
-                            for (int i = 0; i < mCallbacks.size(); i++) {
-                                mCallbacks.get(i).setIcon(p.first, p.second);
+                            for (Callbacks callback : mCallbacks) {
+                                callback.setIcon(p.first, p.second);
                             }
                             break;
                         }
                         case OP_REMOVE_ICON:
-                            for (int i = 0; i < mCallbacks.size(); i++) {
-                                mCallbacks.get(i).removeIcon((String) msg.obj);
+                            for (Callbacks callback : mCallbacks) {
+                                callback.removeIcon((String) msg.obj);
                             }
                             break;
                     }
@@ -1573,8 +1578,8 @@ public class CommandQueue extends IStatusBar.Stub implements
                 }
                 case MSG_DISABLE:
                     SomeArgs args = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).disable(args.argi1, args.argi2, args.argi3,
+                    for (Callbacks callback : mCallbacks) {
+                        callback.disable(args.argi1, args.argi2, args.argi3,
                                 args.argi4 != 0 /* animate */);
                     }
                     break;
@@ -1587,35 +1592,34 @@ public class CommandQueue extends IStatusBar.Stub implements
                             displaysWithDisableStates.entrySet()) {
                         int displayId = displayWithDisableStates.getKey();
                         Pair<Integer, Integer> states = displayWithDisableStates.getValue();
-                        for (int i = 0; i < mCallbacks.size(); i++) {
-                            mCallbacks.get(i).disable(displayId, states.first, states.second,
-                                    animate);
+                        for (Callbacks callback : mCallbacks) {
+                            callback.disable(displayId, states.first, states.second, animate);
                         }
                     }
                     break;
                 case MSG_EXPAND_NOTIFICATIONS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).animateExpandNotificationsPanel();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.animateExpandNotificationsPanel();
                     }
                     break;
                 case MSG_COLLAPSE_PANELS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).animateCollapsePanels(msg.arg1, msg.arg2 != 0);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.animateCollapsePanels(msg.arg1, msg.arg2 != 0);
                     }
                     break;
                 case MSG_TOGGLE_NOTIFICATION_PANEL:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).toggleNotificationsPanel();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.toggleNotificationsPanel();
                     }
                     break;
                 case MSG_EXPAND_SETTINGS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).animateExpandSettingsPanel((String) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.animateExpandSettingsPanel((String) msg.obj);
                     }
                     break;
                 case MSG_TOGGLE_QUICK_SETTINGS_PANEL:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).toggleQuickSettingsPanel();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.toggleQuickSettingsPanel();
                     }
                     break;
                 case MSG_SHOW_IME_BUTTON:
@@ -1625,159 +1629,159 @@ public class CommandQueue extends IStatusBar.Stub implements
                             args.argi4 != 0 /* showImeSwitcher */);
                     break;
                 case MSG_SHOW_RECENT_APPS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showRecentApps(msg.arg1 != 0);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showRecentApps(msg.arg1 != 0);
                     }
                     break;
                 case MSG_HIDE_RECENT_APPS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).hideRecentApps(msg.arg1 != 0, msg.arg2 != 0);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.hideRecentApps(msg.arg1 != 0, msg.arg2 != 0);
                     }
                     break;
                 case MSG_TOGGLE_TASKBAR:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).toggleTaskbar();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.toggleTaskbar();
                     }
                     break;
                 case MSG_TOGGLE_RECENT_APPS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).toggleRecentApps();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.toggleRecentApps();
                     }
                     break;
                 case MSG_PRELOAD_RECENT_APPS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).preloadRecentApps();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.preloadRecentApps();
                     }
                     break;
                 case MSG_CANCEL_PRELOAD_RECENT_APPS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).cancelPreloadRecentApps();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.cancelPreloadRecentApps();
                     }
                     break;
                 case MSG_DISMISS_KEYBOARD_SHORTCUTS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).dismissKeyboardShortcutsMenu();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.dismissKeyboardShortcutsMenu();
                     }
                     break;
                 case MSG_TOGGLE_KEYBOARD_SHORTCUTS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).toggleKeyboardShortcutsMenu(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.toggleKeyboardShortcutsMenu(msg.arg1);
                     }
                     break;
                 case MSG_SET_WINDOW_STATE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).setWindowState(msg.arg1, msg.arg2, (int) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.setWindowState(msg.arg1, msg.arg2, (int) msg.obj);
                     }
                     break;
                 case MSG_SHOW_SCREEN_PIN_REQUEST:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showScreenPinningRequest(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showScreenPinningRequest(msg.arg1);
                     }
                     break;
                 case MSG_APP_TRANSITION_PENDING:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).appTransitionPending(msg.arg1, msg.arg2 != 0);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.appTransitionPending(msg.arg1, msg.arg2 != 0);
                     }
                     break;
                 case MSG_APP_TRANSITION_CANCELLED:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).appTransitionCancelled(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.appTransitionCancelled(msg.arg1);
                     }
                     break;
                 case MSG_APP_TRANSITION_STARTING:
                     args = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).appTransitionStarting(args.argi1, (long) args.arg1,
+                    for (Callbacks callback : mCallbacks) {
+                        callback.appTransitionStarting(args.argi1, (long) args.arg1,
                                 (long) args.arg2, args.argi2 != 0 /* forced */);
                     }
                     break;
                 case MSG_APP_TRANSITION_FINISHED:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).appTransitionFinished(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.appTransitionFinished(msg.arg1);
                     }
                     break;
                 case MSG_ASSIST_DISCLOSURE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showAssistDisclosure();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showAssistDisclosure();
                     }
                     break;
                 case MSG_START_ASSIST:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).startAssist((Bundle) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.startAssist((Bundle) msg.obj);
                     }
                     break;
                 case MSG_CAMERA_LAUNCH_GESTURE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onCameraLaunchGestureDetected(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onCameraLaunchGestureDetected(msg.arg1);
                     }
                     break;
                 case MSG_WALLET_ACTION_LAUNCH_GESTURE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onWalletLaunchGestureDetected();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onWalletLaunchGestureDetected();
                     }
                     break;
                 case MSG_EMERGENCY_ACTION_LAUNCH_GESTURE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onEmergencyActionLaunchGestureDetected();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onEmergencyActionLaunchGestureDetected();
                     }
                     break;
                 case MSG_SHOW_PICTURE_IN_PICTURE_MENU:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showPictureInPictureMenu();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showPictureInPictureMenu();
                     }
                     break;
                 case MSG_ADD_QS_TILE: {
                     SomeArgs someArgs = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).addQsTileToFrontOrEnd(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.addQsTileToFrontOrEnd(
                                 (ComponentName) someArgs.arg1, (boolean) someArgs.arg2);
                     }
                     someArgs.recycle();
                     break;
                 }
                 case MSG_REMOVE_QS_TILE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).remQsTile((ComponentName) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.remQsTile((ComponentName) msg.obj);
                     }
                     break;
                 case MSG_SET_QS_TILES:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).setQsTiles((String[]) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.setQsTiles((String[]) msg.obj);
                     }
                     break;
                 case MSG_CLICK_QS_TILE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).clickTile((ComponentName) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.clickTile((ComponentName) msg.obj);
                     }
                     break;
                 case MSG_TOGGLE_APP_SPLIT_SCREEN:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).toggleSplitScreen();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.toggleSplitScreen();
                     }
                     break;
                 case MSG_HANDLE_SYSTEM_KEY:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).handleSystemKey((KeyEvent) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.handleSystemKey((KeyEvent) msg.obj);
                     }
                     break;
                 case MSG_SHOW_GLOBAL_ACTIONS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).handleShowGlobalActionsMenu();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.handleShowGlobalActionsMenu();
                     }
                     break;
                 case MSG_SHOW_SHUTDOWN_UI:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).handleShowShutdownUi(msg.arg1 != 0, (String) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.handleShowShutdownUi(msg.arg1 != 0, (String) msg.obj);
                     }
                     break;
                 case MSG_SET_TOP_APP_HIDES_STATUS_BAR:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).setTopAppHidesStatusBar(msg.arg1 != 0);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.setTopAppHidesStatusBar(msg.arg1 != 0);
                     }
                     break;
                 case MSG_ROTATION_PROPOSAL:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onRotationProposal(msg.arg1, msg.arg2 != 0);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onRotationProposal(msg.arg1, msg.arg2 != 0);
                     }
                     break;
                 case MSG_BIOMETRIC_SHOW: {
@@ -1785,8 +1789,8 @@ public class CommandQueue extends IStatusBar.Stub implements
                     mHandler.removeMessages(MSG_BIOMETRIC_HELP);
                     mHandler.removeMessages(MSG_BIOMETRIC_AUTHENTICATED);
                     SomeArgs someArgs = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showAuthenticationDialog(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showAuthenticationDialog(
                                 (PromptInfo) someArgs.arg1,
                                 (IBiometricSysuiReceiver) someArgs.arg2,
                                 (int[]) someArgs.arg3 /* sensorIds */,
@@ -1802,16 +1806,16 @@ public class CommandQueue extends IStatusBar.Stub implements
                 }
                 case MSG_BIOMETRIC_AUTHENTICATED: {
                     SomeArgs someArgs = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onBiometricAuthenticated(someArgs.argi1 /* modality */);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onBiometricAuthenticated(someArgs.argi1 /* modality */);
                     }
                     someArgs.recycle();
                     break;
                 }
                 case MSG_BIOMETRIC_HELP: {
                     SomeArgs someArgs = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onBiometricHelp(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onBiometricHelp(
                                 someArgs.argi1 /* modality */,
                                 (String) someArgs.arg1 /* message */);
                     }
@@ -1820,8 +1824,8 @@ public class CommandQueue extends IStatusBar.Stub implements
                 }
                 case MSG_BIOMETRIC_ERROR: {
                     SomeArgs someArgs = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onBiometricError(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onBiometricError(
                                 someArgs.argi1 /* modality */,
                                 someArgs.argi2 /* error */,
                                 someArgs.argi3 /* vendorCode */
@@ -1832,58 +1836,58 @@ public class CommandQueue extends IStatusBar.Stub implements
                 }
                 case MSG_BIOMETRIC_HIDE: {
                     final SomeArgs someArgs = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).hideAuthenticationDialog(someArgs.argl1 /* requestId */);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.hideAuthenticationDialog(someArgs.argl1 /* requestId */);
                     }
                     someArgs.recycle();
                     break;
                 }
                 case MSG_SET_BIOMETRICS_LISTENER:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).setBiometricContextListener(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.setBiometricContextListener(
                                 (IBiometricContextListener) msg.obj);
                     }
                     break;
                 case MSG_SET_UDFPS_REFRESH_RATE_CALLBACK:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).setUdfpsRefreshRateCallback(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.setUdfpsRefreshRateCallback(
                                 (IUdfpsRefreshRateRequestCallback) msg.obj);
                     }
                     break;
                 case MSG_SHOW_CHARGING_ANIMATION:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showWirelessChargingAnimation(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showWirelessChargingAnimation(msg.arg1);
                     }
                     break;
                 case MSG_SHOW_PINNING_TOAST_ENTER_EXIT:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showPinningEnterExitToast((Boolean) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showPinningEnterExitToast((Boolean) msg.obj);
                     }
                     break;
                 case MSG_SHOW_PINNING_TOAST_ESCAPE:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showPinningEscapeToast();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showPinningEscapeToast();
                     }
                     break;
                 case MSG_DISPLAY_ADD_SYSTEM_DECORATIONS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onDisplayAddSystemDecorations(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onDisplayAddSystemDecorations(msg.arg1);
                     }
                     break;
                 case MSG_DISPLAY_REMOVE_SYSTEM_DECORATIONS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onDisplayRemoveSystemDecorations(msg.arg1);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onDisplayRemoveSystemDecorations(msg.arg1);
                     }
                     break;
                 case MSG_RECENTS_ANIMATION_STATE_CHANGED:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onRecentsAnimationStateChanged(msg.arg1 > 0);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onRecentsAnimationStateChanged(msg.arg1 > 0);
                     }
                     break;
                 case MSG_SYSTEM_BAR_CHANGED:
                     args = (SomeArgs) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onSystemBarAttributesChanged(args.argi1, args.argi2,
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onSystemBarAttributesChanged(args.argi1, args.argi2,
                                 (AppearanceRegion[]) args.arg1, args.argi3 == 1, args.argi4,
                                 args.argi5, (String) args.arg3, (LetterboxDetails[]) args.arg4);
                     }
@@ -1895,8 +1899,8 @@ public class CommandQueue extends IStatusBar.Stub implements
                     final int types = args.argi2;
                     final boolean isGestureOnSystemBar = args.argi3 != 0;
                     args.recycle();
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showTransient(displayId, types, isGestureOnSystemBar);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showTransient(displayId, types, isGestureOnSystemBar);
                     }
                     break;
                 }
@@ -1905,19 +1909,19 @@ public class CommandQueue extends IStatusBar.Stub implements
                     final int displayId = args.argi1;
                     final int types = args.argi2;
                     args.recycle();
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).abortTransient(displayId, types);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.abortTransient(displayId, types);
                     }
                     break;
                 }
                 case MSG_SHOW_INATTENTIVE_SLEEP_WARNING:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showInattentiveSleepWarning();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showInattentiveSleepWarning();
                     }
                     break;
                 case MSG_DISMISS_INATTENTIVE_SLEEP_WARNING:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).dismissInattentiveSleepWarning((Boolean) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.dismissInattentiveSleepWarning((Boolean) msg.obj);
                     }
                     break;
                 case MSG_SHOW_TOAST: {
@@ -1947,8 +1951,8 @@ public class CommandQueue extends IStatusBar.Stub implements
                     break;
                 }
                 case MSG_TRACING_STATE_CHANGED:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).onTracingStateChanged((Boolean) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.onTracingStateChanged((Boolean) msg.obj);
                     }
                     break;
                 case MSG_SUPPRESS_AMBIENT_DISPLAY:
@@ -1957,13 +1961,13 @@ public class CommandQueue extends IStatusBar.Stub implements
                     }
                     break;
                 case MSG_REQUEST_MAGNIFICATION_CONNECTION:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).requestMagnificationConnection((Boolean) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.requestMagnificationConnection((Boolean) msg.obj);
                     }
                     break;
                 case MSG_SET_NAVIGATION_BAR_LUMA_SAMPLING_ENABLED:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).setNavigationBarLumaSamplingEnabled(msg.arg1,
+                    for (Callbacks callback : mCallbacks) {
+                        callback.setNavigationBarLumaSamplingEnabled(msg.arg1,
                                 msg.arg2 != 0);
                     }
                     break;
@@ -1973,18 +1977,18 @@ public class CommandQueue extends IStatusBar.Stub implements
                     CharSequence appName = (CharSequence) args.arg2;
                     CharSequence label = (CharSequence) args.arg3;
                     Icon icon = (Icon) args.arg4;
-                    IAddTileResultCallback callback = (IAddTileResultCallback) args.arg5;
+                    IAddTileResultCallback tileResultcallback = (IAddTileResultCallback) args.arg5;
                     int callingUid = (int) args.arg6;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).requestAddTile(callingUid,
-                                componentName, appName, label, icon, callback);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.requestAddTile(callingUid,
+                                componentName, appName, label, icon, tileResultcallback);
                     }
                     args.recycle();
                     break;
                 case MSG_TILE_SERVICE_REQUEST_CANCEL:
                     String packageName = (String) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).cancelRequestAddTile(packageName);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.cancelRequestAddTile(packageName);
                     }
                     break;
                 case MSG_MEDIA_TRANSFER_SENDER_STATE:
@@ -1993,8 +1997,8 @@ public class CommandQueue extends IStatusBar.Stub implements
                     MediaRoute2Info routeInfo = (MediaRoute2Info) args.arg2;
                     IUndoMediaTransferCallback undoCallback =
                             (IUndoMediaTransferCallback) args.arg3;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).updateMediaTapToTransferSenderDisplay(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.updateMediaTapToTransferSenderDisplay(
                                 displayState, routeInfo, undoCallback);
                     }
                     args.recycle();
@@ -2005,40 +2009,40 @@ public class CommandQueue extends IStatusBar.Stub implements
                     MediaRoute2Info receiverRouteInfo = (MediaRoute2Info) args.arg2;
                     Icon appIcon = (Icon) args.arg3;
                     appName = (CharSequence) args.arg4;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).updateMediaTapToTransferReceiverDisplay(
+                    for (Callbacks callback : mCallbacks) {
+                        callback.updateMediaTapToTransferReceiverDisplay(
                                 receiverDisplayState, receiverRouteInfo, appIcon, appName);
                     }
                     args.recycle();
                     break;
                 case MSG_REGISTER_NEARBY_MEDIA_DEVICE_PROVIDER:
                     INearbyMediaDevicesProvider provider = (INearbyMediaDevicesProvider) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).registerNearbyMediaDevicesProvider(provider);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.registerNearbyMediaDevicesProvider(provider);
                     }
                     break;
                 case MSG_UNREGISTER_NEARBY_MEDIA_DEVICE_PROVIDER:
                     provider = (INearbyMediaDevicesProvider) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).unregisterNearbyMediaDevicesProvider(provider);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.unregisterNearbyMediaDevicesProvider(provider);
                     }
                     break;
                 case MSG_TILE_SERVICE_REQUEST_LISTENING_STATE:
                     ComponentName component = (ComponentName) msg.obj;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).requestTileServiceListeningState(component);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.requestTileServiceListeningState(component);
                     }
                     break;
                 case MSG_SHOW_REAR_DISPLAY_DIALOG:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showRearDisplayDialog((Integer) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showRearDisplayDialog((Integer) msg.obj);
                     }
                     break;
                 case MSG_MOVE_FOCUSED_TASK_TO_FULLSCREEN: {
                     args = (SomeArgs) msg.obj;
                     int displayId = args.argi1;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).moveFocusedTaskToFullscreen(displayId);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.moveFocusedTaskToFullscreen(displayId);
                     }
                     break;
                 }
@@ -2046,28 +2050,29 @@ public class CommandQueue extends IStatusBar.Stub implements
                     args = (SomeArgs) msg.obj;
                     int displayId = args.argi1;
                     boolean leftOrTop = args.argi2 != 0;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).moveFocusedTaskToStageSplit(displayId, leftOrTop);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.moveFocusedTaskToStageSplit(displayId, leftOrTop);
                     }
                     break;
                 }
                 case MSG_SET_SPLITSCREEN_FOCUS:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).setSplitscreenFocus((Boolean) msg.obj);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.setSplitscreenFocus((Boolean) msg.obj);
                     }
                     break;
                 case MSG_SHOW_MEDIA_OUTPUT_SWITCHER:
                     args = (SomeArgs) msg.obj;
                     String clientPackageName = (String) args.arg1;
                     UserHandle clientUserHandle = (UserHandle) args.arg2;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).showMediaOutputSwitcher(clientPackageName,
-                                clientUserHandle);
+                    MediaSession.Token sessionToken = (MediaSession.Token) args.arg3;
+                    for (Callbacks callback : mCallbacks) {
+                        callback.showMediaOutputSwitcher(clientPackageName,
+                                clientUserHandle, sessionToken);
                     }
                     break;
                 case MSG_CONFIRM_IMMERSIVE_PROMPT:
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).confirmImmersivePrompt();
+                    for (Callbacks callback : mCallbacks) {
+                        callback.confirmImmersivePrompt();
                     }
                     break;
                 case MSG_IMMERSIVE_CHANGED:
@@ -2075,16 +2080,16 @@ public class CommandQueue extends IStatusBar.Stub implements
                     int rootDisplayAreaId = args.argi1;
                     boolean isImmersiveMode = args.argi2 != 0;
                     int windowType = args.argi3;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).immersiveModeChanged(rootDisplayAreaId, isImmersiveMode,
+                    for (Callbacks callback : mCallbacks) {
+                        callback.immersiveModeChanged(rootDisplayAreaId, isImmersiveMode,
                                 windowType);
                     }
                     break;
                 case MSG_ENTER_DESKTOP: {
                     args = (SomeArgs) msg.obj;
                     int displayId = args.argi1;
-                    for (int i = 0; i < mCallbacks.size(); i++) {
-                        mCallbacks.get(i).moveFocusedTaskToDesktop(displayId);
+                    for (Callbacks callback : mCallbacks) {
+                        callback.moveFocusedTaskToDesktop(displayId);
                     }
                     break;
                 }

@@ -424,5 +424,9 @@ message SystemMessage {
     // Notify the hearing aid user that input device can be changed to builtin device or hearing device.
     // Package: android
     NOTE_HEARING_DEVICE_INPUT_SWITCH = 1012;
+
+    // Notify the user that USB is disabled when a USB device is connected.
+    // Package: android
+    NOTE_USB_DATA_PROTECTION_REMINDER = 1013;
   }
 }

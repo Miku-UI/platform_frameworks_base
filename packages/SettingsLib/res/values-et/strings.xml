@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Ühendamine ..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Ühendatud <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Sidumine ..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Ei saa siduda"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Ei saa ühendada"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Ühendatud (telefoni pole)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Ühendatud (meediat pole)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Ühendatud (telefoni ega meediat pole)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Aku: V: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, P: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Vasak: aku <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Parem: aku <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Ümbris: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> aku:"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Vasak: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ümbris: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> akut"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Parem: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ümbris: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> akut"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Vasak: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, parem: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> akut"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"V: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Ü: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, P: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> akut"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Vasakpoolne: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Parempoolne: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Aktiivne"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Aktiivne (ainult parem)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Aktiivne (vasak ja parem)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Ümbritsevate helide seadeid ei saanud värskendada"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Eelseadistust ei saanud värskendada."</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Valitud"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Aktiivne (ainult meedia). Aku <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Aktiivne (ainult meedia). Aku: V: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, P: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Külalisseade. Aku: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -264,7 +273,7 @@
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Silumisrežiim, kui WiFi-ühendus on olemas"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Viga"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"Juhtmevaba silumine"</string>
-    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Saadaolevate seadmete nägemiseks ja kasutamiseks lülitage sisse juhtmevaba silumine"</string>
+    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Saadaolevate seadmete nägemiseks ja kasutamiseks lülitage sisse juhtmevaba silumine."</string>
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Seadme sidumine QR-koodiga"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Uute seadmete sidumine QR-koodiskanneriga"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Seadme sidumine sidumiskoodiga"</string>
@@ -280,12 +289,12 @@
     <string name="adb_pairing_device_dialog_pairing_code_label" msgid="3639239786669722731">"WiFi sidumiskood"</string>
     <string name="adb_pairing_device_dialog_failed_title" msgid="3426758947882091735">"Sidumine ei õnnestunud"</string>
     <string name="adb_pairing_device_dialog_failed_msg" msgid="6611097519661997148">"Veenduge, et seade oleks ühendatud samasse võrku."</string>
-    <string name="adb_wireless_qrcode_summary" msgid="8051414549011801917">"Siduge seade WiFi kaudu, skannides QR-koodi"</string>
+    <string name="adb_wireless_qrcode_summary" msgid="8051414549011801917">"Siduge seade WiFi kaudu, skannides QR-koodi."</string>
     <string name="adb_wireless_verifying_qrcode_text" msgid="6123192424916029207">"Seadme sidumine …"</string>
     <string name="adb_qrcode_pairing_device_failed_msg" msgid="6936292092592914132">"Seadme sidumine ebaõnnestus. QR-kood oli vale või seade ei ole ühendatud samasse võrku."</string>
     <string name="adb_wireless_ip_addr_preference_title" msgid="8335132107715311730">"IP-aadress ja port"</string>
     <string name="adb_wireless_qrcode_pairing_title" msgid="1906409667944674707">"QR-koodi skannimine"</string>
-    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Siduge seade WiFi kaudu, skannides QR-koodi"</string>
+    <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Siduge seade WiFi kaudu, skannides QR-koodi."</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Looge ühendus WiFi-võrguga"</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"adb, silumine, arendus"</string>
     <string name="bugreport_in_power" msgid="8664089072534638709">"Veaaruande otsetee"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Kui see režiim on lubatud, võidakse selle seadme MAC-aadressi muuta iga kord, kui see ühendatakse võrguga, milles on juhuslikustatud MAC-aadressi määramine lubatud."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Mahupõhine"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Mittemahupõhine"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Logija puhvri suurused"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Logija puhvri suurus"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Vali logija suur. logipuhvri kohta"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Kas kustutada logija püsivalt salvestatud andmed?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Kui me ei kasuta jälgimiseks enam püsivat logijat, peame teie seadmes asuvad logijaandmed eemaldama."</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> tagasi"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> on jäänud"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Väikseim"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Väiksem"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Väike"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Vaikeseade"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Suur"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Suurem"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Suurim"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Suurem"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Väga suur"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Ülisuur"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Suurim"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Kohandatud (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menüü"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Sisestage parool, et demorežiimis tehaseseadetele lähtestada"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 seade on ühendatud}other{# seadet on ühendatud}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Pikem aeg."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Lühem aeg."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Suurendus"</string>
     <string name="cancel" msgid="5665114069455378395">"Tühista"</string>
     <string name="next" msgid="2699398661093607009">"Edasi"</string>
     <string name="back" msgid="5554327870352703710">"Tagasi"</string>
@@ -696,7 +710,7 @@
     <string name="guest_exit_button" msgid="5774985819191803960">"Välju külalisrežiimist"</string>
     <string name="guest_reset_button" msgid="2515069346223503479">"Lähtesta külastajaseanss"</string>
     <string name="guest_exit_quick_settings_button" msgid="1912362095913765471">"Välju külastajaseansist"</string>
-    <string name="guest_notification_ephemeral" msgid="7263252466950923871">"Kõik tegevused kustutatakse väljumisel"</string>
+    <string name="guest_notification_ephemeral" msgid="7263252466950923871">"Kõik tegevused kustutatakse väljumisel."</string>
     <string name="guest_notification_non_ephemeral" msgid="6843799963012259330">"Võite tegevused väljumisel salvestada või kustutada."</string>
     <string name="guest_notification_non_ephemeral_non_first_login" msgid="8009307983766934876">"Seansi tegevuste kohe kustutamiseks lähtestage; või salvestage või kustutage need väljumisel."</string>
     <string name="user_image_photo_selector" msgid="433658323306627093">"Valige foto"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Kui kannate rakendust <xliff:g id="SWITCHAPP">%1$s</xliff:g> üle või muudate väljundit, peatatakse teie praegune ülekanne"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Rakenduse <xliff:g id="SWITCHAPP">%1$s</xliff:g> ülekandmine"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Väljundi muutmine"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Tagasiliigutuse prognoosi animatsioon"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Lubage süsteemi animatsioonid, et näha prognoositud tagasiliigutusi."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"See seade võimaldab süsteemi animatsioonidel prognoosida tagasiliigutusi. See nõuab manifestifailis rakendusepõhise atribuudi enableOnBackInvokedCallback määramist tõeseks."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g>%%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Pole määratud"</string>
     <string name="neuter" msgid="2075249330106127310">"Kesksugu"</string>

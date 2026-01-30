@@ -1,0 +1,123 @@
+metric_bundles {
+  row {
+    values {
+      double_value: 10.0
+    }
+    values {
+      double_value: 20.0
+    }
+    values {
+      double_value: 13.333333333333334
+    }
+    dimension {
+      string_value: "com.android.systemui"
+    }
+    dimension {
+      string_value: "mem.gralloc.buffers"
+    }
+  }
+  row {
+    values {
+      double_value: 15.0
+    }
+    values {
+      double_value: 25.0
+    }
+    values {
+      double_value: 15.0
+    }
+    dimension {
+      string_value: "com.google.android.apps.nexuslauncher"
+    }
+    dimension {
+      string_value: "mem.gralloc.buffers"
+    }
+  }
+  specs {
+    id: "android_gralloc_buffers_per_process_metric_min_val"
+    dimensions: "process_name"
+    dimensions: "counter_name"
+    value: "min_val"
+    query {
+      inner_query_id: "gralloc_buffers_counter_span"
+      group_by {
+        column_names: "process_name"
+        column_names: "counter_name"
+        aggregates {
+          column_name: "metric_val"
+          op: MIN
+          result_column_name: "min_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: MAX
+          result_column_name: "max_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: DURATION_WEIGHTED_MEAN
+          result_column_name: "avg_val"
+        }
+      }
+    }
+    bundle_id: "android_gralloc_buffers_per_process_metric"
+  }
+  specs {
+    id: "android_gralloc_buffers_per_process_metric_max_val"
+    dimensions: "process_name"
+    dimensions: "counter_name"
+    value: "max_val"
+    query {
+      inner_query_id: "gralloc_buffers_counter_span"
+      group_by {
+        column_names: "process_name"
+        column_names: "counter_name"
+        aggregates {
+          column_name: "metric_val"
+          op: MIN
+          result_column_name: "min_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: MAX
+          result_column_name: "max_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: DURATION_WEIGHTED_MEAN
+          result_column_name: "avg_val"
+        }
+      }
+    }
+    bundle_id: "android_gralloc_buffers_per_process_metric"
+  }
+  specs {
+    id: "android_gralloc_buffers_per_process_metric_avg_val"
+    dimensions: "process_name"
+    dimensions: "counter_name"
+    value: "avg_val"
+    query {
+      inner_query_id: "gralloc_buffers_counter_span"
+      group_by {
+        column_names: "process_name"
+        column_names: "counter_name"
+        aggregates {
+          column_name: "metric_val"
+          op: MIN
+          result_column_name: "min_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: MAX
+          result_column_name: "max_val"
+        }
+        aggregates {
+          column_name: "metric_val"
+          op: DURATION_WEIGHTED_MEAN
+          result_column_name: "avg_val"
+        }
+      }
+    }
+    bundle_id: "android_gralloc_buffers_per_process_metric"
+  }
+}

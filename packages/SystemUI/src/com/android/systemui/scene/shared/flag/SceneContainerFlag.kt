@@ -18,48 +18,29 @@
 
 package com.android.systemui.scene.shared.flag
 
-import com.android.systemui.Flags.FLAG_SCENE_CONTAINER
 import com.android.systemui.Flags.sceneContainer
-import com.android.systemui.flags.FlagToken
 import com.android.systemui.flags.RefactorFlagUtils
-import com.android.systemui.keyguard.KeyguardWmStateRefactor
-import com.android.systemui.statusbar.notification.shared.NotificationThrottleHun
 
 /** Helper for reading or using the scene container flag state. */
 object SceneContainerFlag {
     /** The flag description -- not an aconfig flag name */
     const val DESCRIPTION = "SceneContainerFlag"
 
+    /**
+     * Whether the flag is enabled on the current variant. If this is set to `false`, then it the
+     * value of the actual aconfig flag doesn't matter and [isEnabled] will always return `false`.
+     *
+     * Some variants of System UI, for example Automotive OS, do not support the scene container
+     * framework. In order for that variant to be able to force it off, this property must be set to
+     * `false` as early as possible in the runtime of the app (ideally, in the constructor the
+     * Application class).
+     */
+    @JvmField var isEnabledOnVariant: Boolean = true
+
     @JvmStatic
     inline val isEnabled
-        get() =
-            sceneContainer() && // mainAconfigFlag
-                KeyguardWmStateRefactor.isEnabled &&
-                NotificationThrottleHun.isEnabled
-
-    // NOTE: Changes should also be made in getSecondaryFlags and @EnableSceneContainer
-
-    /** The main aconfig flag. */
-    inline fun getMainAconfigFlag() = FlagToken(FLAG_SCENE_CONTAINER, sceneContainer())
-
-    /** The set of secondary flags which must be enabled for scene container to work properly */
-    inline fun getSecondaryFlags(): Sequence<FlagToken> =
-        sequenceOf(
-            KeyguardWmStateRefactor.token,
-            NotificationThrottleHun.token,
-            // NOTE: Changes should also be made in isEnabled and @EnableSceneContainer
-        )
-
-    /** The full set of requirements for SceneContainer */
-    inline fun getAllRequirements(): Sequence<FlagToken> {
-        return sequenceOf(getMainAconfigFlag()) + getSecondaryFlags()
-    }
-
-    /** Return all dependencies of this flag in pairs where [Pair.first] depends on [Pair.second] */
-    inline fun getFlagDependencies(): Sequence<Pair<FlagToken, FlagToken>> {
-        val mainAconfigFlag = getMainAconfigFlag()
-        return getSecondaryFlags().map { mainAconfigFlag to it }
-    }
+        // NOTE: Changes should also be made in @EnableSceneContainer
+        get() = sceneContainer() && isEnabledOnVariant
 
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the
@@ -86,19 +67,4 @@ object SceneContainerFlag {
     @Deprecated("Avoid crashing.", ReplaceWith("if (this.isUnexpectedlyInLegacyMode()) return"))
     inline fun unsafeAssertInNewMode() =
         RefactorFlagUtils.unsafeAssertInNewMode(isEnabled, DESCRIPTION)
-
-    /** Returns a developer-readable string that describes the current requirement list. */
-    @JvmStatic
-    fun requirementDescription(): String {
-        return buildString {
-            getAllRequirements().forEachIndexed { index, requirement ->
-                if (index > 0) {
-                    append('\n')
-                }
-
-                append(if (requirement.isEnabled) "    [MET]" else "[NOT MET]")
-                append(" ${requirement.name}")
-            }
-        }
-    }
 }

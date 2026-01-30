@@ -24,6 +24,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
+import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -35,15 +36,15 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class DreamingToLockscreenTransitionViewModel
 @Inject
-constructor(
-    animationFlow: KeyguardTransitionAnimationFlow,
-) : DeviceEntryIconTransition {
+constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTransition {
 
     private val transitionAnimation =
-        animationFlow.setup(
-            duration = TO_LOCKSCREEN_DURATION,
-            edge = Edge.create(from = DREAMING, to = LOCKSCREEN),
-        )
+        animationFlow
+            .setup(
+                duration = TO_LOCKSCREEN_DURATION,
+                edge = Edge.create(from = Scenes.Dream, to = LOCKSCREEN),
+            )
+            .setupWithoutSceneContainer(Edge.create(from = DREAMING, to = LOCKSCREEN))
 
     /** Dream overlay y-translation on exit */
     fun dreamOverlayTranslationY(translatePx: Int): Flow<Float> {
@@ -56,10 +57,7 @@ constructor(
 
     /** Dream overlay views alpha - fade out */
     val dreamOverlayAlpha: Flow<Float> =
-        transitionAnimation.sharedFlow(
-            duration = 250.milliseconds,
-            onStep = { 1f - it },
-        )
+        transitionAnimation.sharedFlow(duration = 250.milliseconds, onStep = { 1f - it })
 
     /** Lockscreen views y-translation */
     fun lockscreenTranslationY(translatePx: Int): Flow<Float> {
@@ -97,4 +95,6 @@ constructor(
             onCancel = { 1f },
             onStep = { it },
         )
+
+    val statusBarAlpha: Flow<Float> = lockscreenAlpha
 }

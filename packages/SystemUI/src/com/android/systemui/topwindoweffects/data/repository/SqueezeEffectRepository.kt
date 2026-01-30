@@ -16,8 +16,26 @@
 
 package com.android.systemui.topwindoweffects.data.repository
 
+import java.io.PrintWriter
 import kotlinx.coroutines.flow.Flow
 
 interface SqueezeEffectRepository {
-    val isSqueezeEffectEnabled: Flow<Boolean>
+
+    val isSqueezeEffectHapticEnabled: Boolean
+
+    val isEffectEnabled: Flow<Boolean>
+
+    val isPowerButtonPressedAsSingleGesture: Flow<Boolean>
+
+    val isPowerButtonLongPressed: Flow<Boolean>
+
+    fun getInvocationEffectInitialDelayMillis(): Long
+
+    fun getInvocationEffectInAnimationDurationMillis(): Long
+
+    fun getInvocationEffectOutAnimationDurationMillis(): Long
+
+    fun useHapticRumble(): Boolean
+
+    fun dump(pw: PrintWriter, args: Array<out String>)
 }

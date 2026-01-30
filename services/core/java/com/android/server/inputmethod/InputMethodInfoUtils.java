@@ -16,6 +16,7 @@
 
 package com.android.server.inputmethod;
 
+import static com.android.server.inputmethod.ImeProtoLogGroup.IMMS_DEBUG;
 import static com.android.server.inputmethod.SubtypeUtils.SUBTYPE_MODE_ANY;
 import static com.android.server.inputmethod.SubtypeUtils.SUBTYPE_MODE_KEYBOARD;
 
@@ -27,6 +28,8 @@ import android.text.TextUtils;
 import android.util.Slog;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
+
+import com.android.internal.protolog.ProtoLog;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -237,8 +240,10 @@ final class InputMethodInfoUtils {
         return firstMatchingIme;
     }
 
-    static InputMethodInfo getMostApplicableDefaultIME(List<InputMethodInfo> enabledImes) {
+    static InputMethodInfo getMostApplicableDefaultIME(
+            @Nullable List<InputMethodInfo> enabledImes) {
         if (enabledImes == null || enabledImes.isEmpty()) {
+            ProtoLog.d(IMMS_DEBUG, "getMostApplicableDefaultIME: enabledIMEs are empty");
             return null;
         }
         // We'd prefer to fall back on a system IME, since that is safer.
@@ -252,6 +257,7 @@ final class InputMethodInfoUtils {
             }
             if (imi.isSystem() && SubtypeUtils.containsSubtypeOf(imi, ENGLISH_LOCALE,
                     false /* checkCountry */, SUBTYPE_MODE_KEYBOARD)) {
+                ProtoLog.d(IMMS_DEBUG, "getMostApplicableDefaultIME: found %s", imi.getId());
                 return imi;
             }
             if (firstFoundSystemIme < 0 && imi.isSystem()) {

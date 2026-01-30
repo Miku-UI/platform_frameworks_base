@@ -28,6 +28,7 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ActivityInfo;
 import android.util.ArraySet;
+import android.util.Pair;
 
 import java.io.PrintWriter;
 import java.util.List;
@@ -68,7 +69,6 @@ public abstract class DisplayWindowPolicyController {
     public DisplayWindowPolicyController() {
         synchronized (mSupportedWindowingModes) {
             mSupportedWindowingModes.add(WindowConfiguration.WINDOWING_MODE_FULLSCREEN);
-            mSupportedWindowingModes.add(WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW);
         }
     }
 
@@ -179,8 +179,11 @@ public abstract class DisplayWindowPolicyController {
      * This is called when the apps that contains running activities on the display has changed.
      * The running activities refer to the non-finishing activities regardless of they are running
      * in a process.
+     *
+     * @param uidPackagePairs Set of pairs of UID and package name corresponding to all activities
+     *   currently present on the display.
      */
-    public void onRunningAppsChanged(ArraySet<Integer> runningUids) {}
+    public void onRunningAppsChanged(ArraySet<Pair<Integer, String>> uidPackagePairs) {}
 
     /**
      * This is called when an Activity is entering PIP.

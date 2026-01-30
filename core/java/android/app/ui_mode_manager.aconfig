@@ -21,3 +21,13 @@ flag {
          purpose: PURPOSE_BUGFIX
      }
 }
+
+flag {
+     namespace: "systemui"
+     name: "fix_contrast_and_force_invert_state_for_multi_user"
+     description: "Fixes contrast and force invert state APIs for multi user and HSUM cases."
+     bug: "362682063"
+     metadata {
+         purpose: PURPOSE_BUGFIX
+     }
+}

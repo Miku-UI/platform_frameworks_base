@@ -23,7 +23,6 @@ import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CANT
 import static android.app.admin.DevicePolicyResources.Strings.Core.RESOLVER_CROSS_PROFILE_BLOCKED_TITLE;
 import static android.content.ContentProvider.getUriWithoutUserId;
 import static android.content.ContentProvider.getUserIdFromUri;
-import static android.service.chooser.Flags.notifySingleItemChangeOnIconLoad;
 import static android.stats.devicepolicy.DevicePolicyEnums.RESOLVER_EMPTY_STATE_NO_SHARING_TO_PERSONAL;
 import static android.stats.devicepolicy.DevicePolicyEnums.RESOLVER_EMPTY_STATE_NO_SHARING_TO_WORK;
 
@@ -212,7 +211,7 @@ public class ChooserActivity extends ResolverActivity implements
     private static final String CHIP_LABEL_METADATA_KEY = "android.service.chooser.chip_label";
     private static final String CHIP_ICON_METADATA_KEY = "android.service.chooser.chip_icon";
 
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private static final boolean USE_PREDICTION_MANAGER_FOR_SHARE_ACTIVITIES = true;
     // TODO(b/123088566) Share these in a better way.
@@ -493,11 +492,9 @@ public class ChooserActivity extends ResolverActivity implements
     private final ChooserHandler mChooserHandler = new ChooserHandler();
 
     private class ChooserHandler extends Handler {
-        private static final int LIST_VIEW_UPDATE_MESSAGE = 6;
         private static final int SHORTCUT_MANAGER_ALL_SHARE_TARGET_RESULTS = 7;
 
         private void removeAllMessages() {
-            removeMessages(LIST_VIEW_UPDATE_MESSAGE);
             removeMessages(SHORTCUT_MANAGER_ALL_SHARE_TARGET_RESULTS);
         }
 
@@ -508,16 +505,6 @@ public class ChooserActivity extends ResolverActivity implements
             }
 
             switch (msg.what) {
-                case LIST_VIEW_UPDATE_MESSAGE:
-                    if (DEBUG) {
-                        Log.d(TAG, "LIST_VIEW_UPDATE_MESSAGE; ");
-                    }
-
-                    UserHandle userHandle = (UserHandle) msg.obj;
-                    mChooserMultiProfilePagerAdapter.getListAdapterForUserHandle(userHandle)
-                            .refreshListView();
-                    break;
-
                 case SHORTCUT_MANAGER_ALL_SHARE_TARGET_RESULTS:
                     if (DEBUG) Log.d(TAG, "SHORTCUT_MANAGER_ALL_SHARE_TARGET_RESULTS");
                     final ServiceResultInfo[] resultInfos = (ServiceResultInfo[]) msg.obj;
@@ -926,16 +913,21 @@ public class ChooserActivity extends ResolverActivity implements
             List<ResolveInfo> rList,
             boolean filterLastUsed) {
         int selectedProfile = findSelectedProfile();
+        List<Intent> crossProfileIntents = sanitizePayloadIntents(mIntents);
         ChooserGridAdapter personalAdapter = createChooserGridAdapter(
                 /* context */ this,
-                /* payloadIntents */ mIntents,
+                /* payloadIntents */ selectedProfile == PROFILE_PERSONAL
+                        ? mIntents
+                        : crossProfileIntents,
                 selectedProfile == PROFILE_PERSONAL ? initialIntents : null,
                 rList,
                 filterLastUsed,
                 /* userHandle */ getPersonalProfileUserHandle());
         ChooserGridAdapter workAdapter = createChooserGridAdapter(
                 /* context */ this,
-                /* payloadIntents */ mIntents,
+                /* payloadIntents */ selectedProfile == PROFILE_WORK
+                        ? mIntents
+                        : crossProfileIntents,
                 selectedProfile == PROFILE_WORK ? initialIntents : null,
                 rList,
                 filterLastUsed,
@@ -2826,14 +2818,6 @@ public class ChooserActivity extends ResolverActivity implements
         return mMaxTargetsPerRow;
     }
 
-    @Override // ChooserListCommunicator
-    public void sendListViewUpdateMessage(UserHandle userHandle) {
-        Message msg = Message.obtain();
-        msg.what = ChooserHandler.LIST_VIEW_UPDATE_MESSAGE;
-        msg.obj = userHandle;
-        mChooserHandler.sendMessageDelayed(msg, mListViewUpdateDelayMs);
-    }
-
     @Override
     public void onListRebuilt(ResolverListAdapter listAdapter, boolean rebuildComplete) {
         setupScrollListener();
@@ -3237,9 +3221,7 @@ public class ChooserActivity extends ResolverActivity implements
                     notifyDataSetChanged();
                 }
             });
-            if (notifySingleItemChangeOnIconLoad()) {
-                wrappedAdapter.setOnIconLoadedListener(this::onTargetIconLoaded);
-            }
+            wrappedAdapter.setOnIconLoadedListener(this::onTargetIconLoaded);
         }
 
         private void onTargetIconLoaded(DisplayResolveInfo info) {
@@ -3412,9 +3394,7 @@ public class ChooserActivity extends ResolverActivity implements
 
         @Override
         public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-            if (notifySingleItemChangeOnIconLoad()) {
-                mBoundViewHolders.add((ViewHolderBase) holder);
-            }
+            mBoundViewHolders.add((ViewHolderBase) holder);
             int viewType = ((ViewHolderBase) holder).getViewType();
             switch (viewType) {
                 case VIEW_TYPE_DIRECT_SHARE:
@@ -3430,17 +3410,13 @@ public class ChooserActivity extends ResolverActivity implements
 
         @Override
         public void onViewRecycled(RecyclerView.ViewHolder holder) {
-            if (notifySingleItemChangeOnIconLoad()) {
-                mBoundViewHolders.remove((ViewHolderBase) holder);
-            }
+            mBoundViewHolders.remove((ViewHolderBase) holder);
             super.onViewRecycled(holder);
         }
 
         @Override
         public boolean onFailedToRecycleView(RecyclerView.ViewHolder holder) {
-            if (notifySingleItemChangeOnIconLoad()) {
-                mBoundViewHolders.remove((ViewHolderBase) holder);
-            }
+            mBoundViewHolders.remove((ViewHolderBase) holder);
             return super.onFailedToRecycleView(holder);
         }
 
@@ -4332,5 +4308,33 @@ public class ChooserActivity extends ResolverActivity implements
                 target.getScore(),
                 target.getComponentName(),
                 target.getIntentExtras());
+    }
+
+    /**
+     * Returns a copy of provided intents with explicit targeting information is removed from each
+     * intent in the list, as well as from its selector {@link Intent#getSelector}. Specifically,
+     * the values that would be returned by {@link Intent#getPackage} and
+     * {@link Intent#getComponent} are cleared for both the main intent and its selector. This
+     * sanitization is performed because explicit intents could otherwise be used to bypass the
+     * device's cross-profile sharing policy settings.
+     */
+    @NonNull
+    @VisibleForTesting
+    public static List<Intent> sanitizePayloadIntents(@NonNull List<Intent> intents) {
+        return intents.stream().map((intent) -> {
+            if (intent == null) {
+                return null;
+            }
+            Intent sanitized = new Intent(intent);
+            sanitized.setPackage(null);
+            sanitized.setComponent(null);
+            if (sanitized.getSelector() != null) {
+                Intent selector = new Intent(sanitized.getSelector());
+                selector.setPackage(null);
+                selector.setComponent(null);
+                sanitized.setSelector(selector);
+            }
+            return sanitized;
+        }).collect(Collectors.toList());
     }
 }

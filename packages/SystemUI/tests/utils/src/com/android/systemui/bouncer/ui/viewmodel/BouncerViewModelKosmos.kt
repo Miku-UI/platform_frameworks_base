@@ -18,6 +18,7 @@ package com.android.systemui.bouncer.ui.viewmodel
 
 import android.app.admin.devicePolicyManager
 import android.content.applicationContext
+import com.android.keyguard.domain.interactor.keyguardKeyboardInteractor
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.bouncer.domain.interactor.bouncerActionButtonInteractor
@@ -30,8 +31,10 @@ import com.android.systemui.keyguard.domain.interactor.keyguardDismissActionInte
 import com.android.systemui.keyguard.domain.interactor.keyguardMediaKeyInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
 import com.android.systemui.user.ui.viewmodel.userSwitcherViewModel
+import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
 import kotlinx.coroutines.flow.StateFlow
 
 val Kosmos.bouncerUserActionsViewModel by Fixture { BouncerUserActionsViewModel() }
@@ -60,6 +63,8 @@ val Kosmos.bouncerOverlayContentViewModel by Fixture {
         keyguardMediaKeyInteractor = keyguardMediaKeyInteractor,
         bouncerActionButtonInteractor = bouncerActionButtonInteractor,
         keyguardDismissActionInteractor = keyguardDismissActionInteractor,
+        sceneInteractor = sceneInteractor,
+        windowRootViewBlurInteractor = windowRootViewBlurInteractor,
     )
 }
 
@@ -83,6 +88,7 @@ val Kosmos.pinBouncerViewModelFactory by Fixture {
                 applicationContext = applicationContext,
                 interactor = bouncerInteractor,
                 simBouncerInteractor = simBouncerInteractor,
+                keyguardKeyboardInteractor = keyguardKeyboardInteractor,
                 isInputEnabled = isInputEnabled,
                 onIntentionalUserInput = onIntentionalUserInput,
                 authenticationMethod = authenticationMethod,

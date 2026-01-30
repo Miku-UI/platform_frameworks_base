@@ -16,7 +16,7 @@
 
 package com.android.wm.shell.transition.tracing;
 
-import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP;
+import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP;
 
 import android.internal.perfetto.protos.ShellTransitionOuterClass.ShellHandlerMapping;
 import android.internal.perfetto.protos.ShellTransitionOuterClass.ShellHandlerMappings;
@@ -24,6 +24,7 @@ import android.internal.perfetto.protos.ShellTransitionOuterClass.ShellTransitio
 import android.internal.perfetto.protos.TracePacketOuterClass.TracePacket;
 import android.os.SystemClock;
 import android.os.Trace;
+import android.tracing.TracingUtils;
 import android.tracing.perfetto.DataSourceParams;
 import android.tracing.perfetto.InitArguments;
 import android.tracing.perfetto.Producer;
@@ -52,7 +53,7 @@ public class PerfettoTransitionTracer implements TransitionTracer {
         DataSourceParams params =
                 new DataSourceParams.Builder()
                         .setBufferExhaustedPolicy(
-                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP)
+                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP)
                         .build();
         mDataSource.register(params);
     }
@@ -69,7 +70,8 @@ public class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logDispatched");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logDispatched"));
         try {
             doLogDispatched(transitionId, handler);
         } finally {
@@ -116,7 +118,8 @@ public class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logMergeRequested");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logMergeRequested"));
         try {
             doLogMergeRequested(mergeRequestedTransitionId, playingTransitionId);
         } finally {
@@ -148,7 +151,8 @@ public class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logMerged");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logMerged"));
         try {
             doLogMerged(mergedTransitionId, playingTransitionId);
         } finally {
@@ -179,7 +183,8 @@ public class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logAborted");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logAborted-shellSide"));
         try {
             doLogAborted(transitionId);
         } finally {

@@ -20,9 +20,11 @@ import android.annotation.NonNull;
 import android.media.AudioAttributes;
 import android.media.AudioDeviceAttributes;
 import android.media.AudioSystem;
+import android.media.audiopolicy.AudioProductStrategy;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -34,6 +36,7 @@ public class NoOpAudioSystemAdapter extends AudioSystemAdapter {
     private boolean mIsMicMuted = false;
     private boolean mMuteMicrophoneFails = false;
     private boolean mIsStreamActive = false;
+    private List<AudioProductStrategy> mAudioProductStrategies = Collections.emptyList();
 
     public void configureIsMicrophoneMuted(boolean muted) {
         mIsMicMuted = muted;
@@ -45,6 +48,15 @@ public class NoOpAudioSystemAdapter extends AudioSystemAdapter {
 
     public void configureMuteMicrophoneToFail(boolean fail) {
         mMuteMicrophoneFails = fail;
+    }
+
+    /**
+     * Configure the audio product strategies.
+     *
+     * @param strategies that will be returned by getAudioProductStrategies()
+     */
+    public void configureAudioProductStrategies(List<AudioProductStrategy> strategies) {
+        mAudioProductStrategies = strategies;
     }
 
     //-----------------------------------------------------------------
@@ -143,6 +155,36 @@ public class NoOpAudioSystemAdapter extends AudioSystemAdapter {
     }
 
     @Override
+    public int setVolumeIndexForGroup(int groupId, int index, boolean muted, int device) {
+        return AudioSystem.AUDIO_STATUS_OK;
+    }
+
+    @Override
+    public int getVolumeIndexForGroup(int groupId, int device) {
+        return AudioSystem.AUDIO_STATUS_OK;
+    }
+
+    @Override
+    public int getMinVolumeIndexForGroup(int groupId) {
+        return AudioSystem.AUDIO_STATUS_OK;
+    }
+
+    @Override
+    public int setMinVolumeIndexForGroup(int groupId, int index) {
+        return AudioSystem.AUDIO_STATUS_OK;
+    }
+
+    @Override
+    public int getMaxVolumeIndexForGroup(int groupId) {
+        return AudioSystem.AUDIO_STATUS_OK;
+    }
+
+    @Override
+    public int setMaxVolumeIndexForGroup(int groupId, int index) {
+        return AudioSystem.AUDIO_STATUS_OK;
+    }
+
+    @Override
     @NonNull
     public ArrayList<AudioDeviceAttributes> getDevicesForAttributes(
             @NonNull AudioAttributes attributes, boolean forVolume) {
@@ -152,5 +194,10 @@ public class NoOpAudioSystemAdapter extends AudioSystemAdapter {
     @Override
     public int setMasterMute(boolean muted) {
         return AudioSystem.AUDIO_STATUS_OK;
+    }
+
+    @Override
+    public List<AudioProductStrategy> getAudioProductStrategies(boolean filterInternal) {
+        return mAudioProductStrategies;
     }
 }

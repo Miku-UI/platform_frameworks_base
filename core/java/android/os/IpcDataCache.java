@@ -24,26 +24,10 @@ import android.annotation.SystemApi;
 import android.annotation.TestApi;
 import android.app.PropertyInvalidatedCache;
 import android.app.PropertyInvalidatedCache.Args;
-import android.text.TextUtils;
 import android.util.ArraySet;
-
-import com.android.internal.annotations.GuardedBy;
-import com.android.internal.util.FastPrintWriter;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Random;
-import java.util.Set;
-import java.util.WeakHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * LRU cache that's invalidated when an opaque value in a property changes. Self-synchronizing,
@@ -295,7 +279,8 @@ public class IpcDataCache<Query, Result> extends PropertyInvalidatedCache<Query,
             MODULE_TEST,
             MODULE_SYSTEM,
             MODULE_BLUETOOTH,
-            MODULE_TELEPHONY
+            MODULE_TELEPHONY,
+            MODULE_ADSERVICES,
         }
     )
     @Retention(RetentionPolicy.SOURCE)
@@ -324,6 +309,15 @@ public class IpcDataCache<Query, Result> extends PropertyInvalidatedCache<Query,
     @SystemApi(client=SystemApi.Client.MODULE_LIBRARIES)
     @TestApi
     public static final String MODULE_BLUETOOTH = PropertyInvalidatedCache.MODULE_BLUETOOTH;
+
+    /**
+     * The module used for adservices caches.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_IPC_DATA_CACHE_MODULE_ADSERVICES)
+    @SystemApi(client=SystemApi.Client.MODULE_LIBRARIES)
+    @TestApi
+    public static final String MODULE_ADSERVICES = PropertyInvalidatedCache.MODULE_ADSERVICES;
 
     /**
      * Make a new property invalidated cache.  The key is computed from the module and api
@@ -411,7 +405,7 @@ public class IpcDataCache<Query, Result> extends PropertyInvalidatedCache<Query,
      * 1. Instance-per-cache: create a static instance of this class using the same
      *    parameters as would have been given to IpcDataCache (or
      *    PropertyInvalidatedCache).  This static instance provides a hook for the
-     *    invalidateCache() and disableForLocalProcess() calls, which, generally, must
+     *    invalidateCache() and disableForCurrentProcess() calls, which, generally, must
      *    also be static.
      *
      * 2. Short-hand for shared configuration parameters: create an instance of this class
@@ -616,7 +610,7 @@ public class IpcDataCache<Query, Result> extends PropertyInvalidatedCache<Query,
      * @hide
      */
     public IpcDataCache(@NonNull Config config, @NonNull RemoteCall<Query, Result> remoteCall) {
-      this(config, android.multiuser.Flags.cachingDevelopmentImprovements() ?
+      this(config,
         new QueryHandler<Query, Result>() {
             @Override
             public Result apply(Query query) {
@@ -626,7 +620,7 @@ public class IpcDataCache<Query, Result> extends PropertyInvalidatedCache<Query,
                     throw e.rethrowFromSystemServer();
                 }
             }
-        } : new SystemServerCallHandler<>(remoteCall));
+        });
     }
 
 
@@ -638,7 +632,6 @@ public class IpcDataCache<Query, Result> extends PropertyInvalidatedCache<Query,
      *     bypassed.
      * @hide
      */
-    @FlaggedApi(android.multiuser.Flags.FLAG_CACHING_DEVELOPMENT_IMPROVEMENTS)
     public IpcDataCache(@NonNull Config config,
             @NonNull RemoteCall<Query, Result> remoteCall,
             @NonNull BypassCall<Query> bypass) {
@@ -746,8 +739,9 @@ public class IpcDataCache<Query, Result> extends PropertyInvalidatedCache<Query,
      * @throws IllegalStateException if the process is not running an instrumentation test.
      * @hide
      */
-    @FlaggedApi(android.os.Flags.FLAG_IPC_DATA_CACHE_TEST_APIS)
+    @FlaggedApi(android.os.Flags.FLAG_IPC_DATA_CACHE_TESTMODE_APIS)
     @SystemApi(client=SystemApi.Client.MODULE_LIBRARIES)
+    @TestApi
     public static void setCacheTestMode(boolean mode) {
         // Trunk-stable flagging requires that this API have a name different from the existing
         // setTestMode() API.  However, the functionality is identical.

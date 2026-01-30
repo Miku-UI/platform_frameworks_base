@@ -23,20 +23,15 @@ import java.io.File;
 final class CleanUpArgs {
     @NonNull
     private final String mPackageName;
-    @NonNull
-    private final File mCodeFile;
-    @NonNull
-    private final String[] mInstructionSets;
+    @NonNull private final File mCodeFile;
 
     /**
-     * Create args that describe an existing installed package. Typically used
-     * when cleaning up old installs.
+     * Create args that describe an existing installed package. Typically used when cleaning up old
+     * installs.
      */
-    CleanUpArgs(@NonNull String packageName, @NonNull String codePath,
-                @NonNull String[] instructionSets) {
+    CleanUpArgs(@NonNull String packageName, @NonNull String codePath) {
         mPackageName = packageName;
         mCodeFile = new File(codePath);
-        mInstructionSets = instructionSets;
     }
 
     @NonNull
@@ -53,10 +48,5 @@ final class CleanUpArgs {
     /** @see PackageSetting#getPath() */
     String getCodePath() {
         return mCodeFile.getAbsolutePath();
-    }
-
-    @NonNull
-    String[] getInstructionSets() {
-        return mInstructionSets;
     }
 }

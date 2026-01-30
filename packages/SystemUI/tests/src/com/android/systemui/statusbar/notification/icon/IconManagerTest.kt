@@ -35,7 +35,10 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.controls.controller.AuxiliaryPersistenceWrapperTest.Companion.any
+import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
+import com.android.systemui.statusbar.notification.collection.BundleEntry
+import com.android.systemui.statusbar.notification.collection.BundleSpec
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
 import com.android.systemui.statusbar.notification.collection.notifcollection.CommonNotifCollection
@@ -49,6 +52,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.Mockito.anyInt
+import org.mockito.Mockito.spy
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
 
@@ -63,6 +67,7 @@ class IconManagerTest : SysuiTestCase() {
 
     private var id = 0
     private val context = InstrumentationRegistry.getTargetContext()
+    private val shadeContext = spy(context)
 
     @Mock private lateinit var shortcut: ShortcutInfo
     @Mock private lateinit var shortcutIc: Icon
@@ -104,6 +109,7 @@ class IconManagerTest : SysuiTestCase() {
                 testScope,
                 bgContext,
                 mainContext,
+                shadeContext,
             )
     }
 
@@ -277,6 +283,52 @@ class IconManagerTest : SysuiTestCase() {
         entry?.let { iconManager.updateIcons(it) }
         testScope.runCurrent()
         assertThat(entry?.icons?.shelfIcon?.sourceIcon).isEqualTo(shortcutIc)
+    }
+
+    @Test
+    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
+    fun createIcons_forEntry_shelfIconCreatedWithShadeContext() {
+        val entry =
+            notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = true)
+        entry?.let { iconManager.createIcons(it) }
+
+        assertThat(entry?.icons?.shelfIcon?.context).isEqualTo(shadeContext)
+        assertThat(entry?.icons?.shelfIcon?.context).isNotEqualTo(context)
+    }
+
+    @Test
+    @DisableFlags(ShadeWindowGoesAround.FLAG_NAME)
+    fun createIcons_forEntry_shelfIconCreatedWithoutShadeContext() {
+        val entry =
+            notificationEntry(hasShortcut = true, hasMessageSenderIcon = true, hasLargeIcon = true)
+        entry?.let { iconManager.createIcons(it) }
+
+        assertThat(entry?.icons?.shelfIcon?.context).isNotEqualTo(shadeContext)
+        assertThat(entry?.icons?.shelfIcon?.context).isEqualTo(context)
+    }
+
+    @Test
+    @EnableFlags(ShadeWindowGoesAround.FLAG_NAME)
+    fun createIcons_forBundleEntry_withContextProvided_createsShelfIconWithProvidedContext() {
+        val entry = BundleEntry(BundleSpec.NEWS)
+        val newContext = spy(context)
+        iconManager.createIcons(newContext, entry)
+
+        assertThat(entry.icons.shelfIcon?.context).isEqualTo(newContext)
+        assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(shadeContext)
+        assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(context)
+    }
+
+    @Test
+    @DisableFlags(ShadeWindowGoesAround.FLAG_NAME)
+    fun createIcons_forBundleEntry_shelfIconCreatedWithoutShadeContext() {
+        val entry = BundleEntry(BundleSpec.NEWS)
+        val newContext = spy(context)
+        iconManager.createIcons(newContext, entry)
+
+        assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(newContext)
+        assertThat(entry.icons.shelfIcon?.context).isNotEqualTo(shadeContext)
+        assertThat(entry.icons.shelfIcon?.context).isEqualTo(context)
     }
 
     private fun notificationEntry(

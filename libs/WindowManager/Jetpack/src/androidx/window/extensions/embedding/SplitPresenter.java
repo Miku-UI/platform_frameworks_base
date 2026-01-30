@@ -367,7 +367,8 @@ class SplitPresenter extends JetpackTaskFragmentOrganizer {
                 rule, splitAttributes);
         startActivityToSide(wct, primaryContainer.getTaskFragmentToken(), primaryRelBounds,
                 launchingActivity, secondaryContainer.getTaskFragmentToken(), secondaryRelBounds,
-                activityIntent, activityOptions, rule, windowingMode, splitAttributes);
+                activityIntent, activityOptions, rule, windowingMode, splitAttributes,
+                secondaryContainer.getActivityToFinishOnExit(primaryContainer));
         if (isPlaceholder) {
             // When placeholder is launched in split, we should keep the focus on the primary.
             wct.requestFocusOnTaskFragment(primaryContainer.getTaskFragmentToken());
@@ -432,7 +433,9 @@ class SplitPresenter extends JetpackTaskFragmentOrganizer {
                     secondaryContainer.getTaskFragmentToken(), splitRule);
         }
         setCompanionTaskFragment(wct, primaryContainer.getTaskFragmentToken(),
-                secondaryContainer.getTaskFragmentToken(), splitRule, isStacked);
+                secondaryContainer.getTaskFragmentToken(), splitRule, isStacked,
+                primaryContainer.getActivityToFinishOnExit(secondaryContainer),
+                secondaryContainer.getActivityToFinishOnExit(primaryContainer));
 
         // Sets the dim area when the two TaskFragments are adjacent.
         final boolean dimOnTask = !isStacked
@@ -640,20 +643,20 @@ class SplitPresenter extends JetpackTaskFragmentOrganizer {
 
     @Override
     void setCompanionTaskFragment(@NonNull WindowContainerTransaction wct, @NonNull IBinder primary,
-                                  @Nullable IBinder secondary) {
+            @Nullable IBinder secondary, @Nullable IBinder toBeFinishedActivity) {
         final TaskFragmentContainer container = mController.getContainer(primary);
         if (container == null) {
             throw new IllegalStateException("setCompanionTaskFragment on TaskFragment that is"
                     + " not registered with controller.");
         }
 
-        if (container.isLastCompanionTaskFragmentEqual(secondary)) {
+        if (container.isLastCompanionTaskFragmentEqual(secondary, toBeFinishedActivity)) {
             // Return early if the same companion TaskFragment was already requested
             return;
         }
 
-        container.setLastCompanionTaskFragment(secondary);
-        super.setCompanionTaskFragment(wct, primary, secondary);
+        container.setLastCompanionTaskFragment(secondary, toBeFinishedActivity);
+        super.setCompanionTaskFragment(wct, primary, secondary, toBeFinishedActivity);
     }
 
     /**
@@ -859,19 +862,25 @@ class SplitPresenter extends JetpackTaskFragmentOrganizer {
         if (!shouldShowSplit(splitAttributes)) {
             // If the client side hasn't received TaskFragmentInfo yet, we can't change TaskFragment
             // bounds. Return failure to create a new SplitContainer which fills task bounds.
-            if (splitContainer.getPrimaryContainer().getInfo() == null
-                    || splitContainer.getSecondaryContainer().getInfo() == null) {
+            final TaskFragmentContainer primaryContainer = splitContainer.getPrimaryContainer();
+            final TaskFragmentContainer secondaryContainer = splitContainer.getSecondaryContainer();
+            if (primaryContainer.areLastRequestedBoundsEqual(null)
+                    && secondaryContainer.areLastRequestedBoundsEqual(null)
+                    && secondaryContainer.isLastAdjacentTaskFragmentEqual(null, null)) {
+                // No need to update since it is already expanded.
+                return RESULT_EXPANDED;
+            }
+            if (primaryContainer.getInfo() == null || secondaryContainer.getInfo() == null) {
                 return RESULT_EXPAND_FAILED_NO_TF_INFO;
             }
-            final IBinder primaryToken =
-                    splitContainer.getPrimaryContainer().getTaskFragmentToken();
-            final IBinder secondaryToken =
-                    splitContainer.getSecondaryContainer().getTaskFragmentToken();
-            expandTaskFragment(wct, splitContainer.getPrimaryContainer());
-            expandTaskFragment(wct, splitContainer.getSecondaryContainer());
+            expandTaskFragment(wct, primaryContainer);
+            expandTaskFragment(wct, secondaryContainer);
             // Set the companion TaskFragment when the two containers stacked.
-            setCompanionTaskFragment(wct, primaryToken, secondaryToken,
-                    splitContainer.getSplitRule(), true /* isStacked */);
+            setCompanionTaskFragment(wct, primaryContainer.getTaskFragmentToken(),
+                    secondaryContainer.getTaskFragmentToken(), splitContainer.getSplitRule(),
+                    true /* isStacked */,
+                    primaryContainer.getActivityToFinishOnExit(secondaryContainer),
+                    secondaryContainer.getActivityToFinishOnExit(primaryContainer));
             return RESULT_EXPANDED;
         }
         return RESULT_NOT_EXPANDED;

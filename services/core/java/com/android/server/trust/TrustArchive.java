@@ -38,6 +38,7 @@ public class TrustArchive {
     private static final int TYPE_AGENT_STOPPED = 5;
     private static final int TYPE_MANAGING_TRUST = 6;
     private static final int TYPE_POLICY_CHANGED = 7;
+    private static final int TYPE_USER_LOCKED = 8;
 
     private static final int HISTORY_LIMIT = 200;
 
@@ -102,6 +103,10 @@ public class TrustArchive {
 
     public void logDevicePolicyChanged() {
         addEvent(new Event(TYPE_POLICY_CHANGED, UserHandle.USER_ALL, null, null, 0, 0, false));
+    }
+
+    public void logUserLocked(int userId, ComponentName agent) {
+        addEvent(new Event(TYPE_USER_LOCKED, userId, agent, null, 0, 0, false));
     }
 
     private void addEvent(Event e) {
@@ -191,6 +196,8 @@ public class TrustArchive {
                 return "ManagingTrust";
             case TYPE_POLICY_CHANGED:
                 return "DevicePolicyChanged";
+            case TYPE_USER_LOCKED:
+                return "UserLocked";
             default:
                 return "Unknown(" + type + ")";
         }

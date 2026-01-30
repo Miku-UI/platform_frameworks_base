@@ -25,15 +25,16 @@ import android.os.HandlerThread;
 import android.platform.test.annotations.Presubmit;
 import android.provider.Settings;
 
+import com.android.server.LocalServices;
 import com.android.server.backup.FullBackupJob;
 import com.android.server.backup.JobIdManager;
 import com.android.server.backup.KeyValueBackupJob;
 import com.android.server.backup.TransportManager;
 import com.android.server.backup.UserBackupManagerService;
 import com.android.server.backup.testing.BackupManagerServiceTestUtils;
+import com.android.server.pm.UserManagerInternal;
 import com.android.server.testing.shadows.ShadowApplicationPackageManager;
 import com.android.server.testing.shadows.ShadowSystemServiceRegistry;
-import com.android.server.testing.shadows.ShadowUserManager;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -58,7 +59,6 @@ import java.io.File;
             ShadowApplicationPackageManager.class,
             ShadowJobScheduler.class,
             ShadowSystemServiceRegistry.class,
-            ShadowUserManager.class
         })
 @Presubmit
 public class SetupObserverTest {
@@ -66,6 +66,7 @@ public class SetupObserverTest {
     private static final int USER_ID = 10;
 
     @Mock private TransportManager mTransportManager;
+    @Mock private UserManagerInternal mUserManagerInternal;
 
     private Context mContext;
     private UserBackupManagerService mUserBackupManagerService;
@@ -76,6 +77,8 @@ public class SetupObserverTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
+        LocalServices.removeServiceForTest(UserManagerInternal.class);
+        LocalServices.addService(UserManagerInternal.class, mUserManagerInternal);
         mContext = RuntimeEnvironment.application;
         mHandlerThread = BackupManagerServiceTestUtils.startSilentBackupThread(TAG);
         mUserBackupManagerService =

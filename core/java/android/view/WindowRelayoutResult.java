@@ -43,17 +43,13 @@ public final class WindowRelayoutResult implements Parcelable {
     @NonNull
     public final MergedConfiguration mergedConfiguration;
 
-    /** Object in which is placed the new display surface. */
-    @NonNull
-    public final SurfaceControl surfaceControl;
-
     /** The current insets state in the system. */
     @NonNull
     public final InsetsState insetsState;
 
-    /** Objects which allow controlling {@link InsetsSource}s. */
-    @NonNull
-    public final InsetsSourceControl.Array activeControls;
+    /** Objects which allow controlling {@link InsetsSource}s or {@code null} if no changes. */
+    @Nullable
+    public InsetsSourceControl.Array activeControls;
 
     /** The latest sync seq id for the relayout configuration. */
     public int syncSeqId;
@@ -65,35 +61,49 @@ public final class WindowRelayoutResult implements Parcelable {
     @Nullable
     public ActivityWindowInfo activityWindowInfo;
 
+    /** Only use this constructor from tests. */
     public WindowRelayoutResult() {
-        this(new ClientWindowFrames(), new MergedConfiguration(), new SurfaceControl(),
+        this(new ClientWindowFrames(), new MergedConfiguration(),
                 new InsetsState(), new InsetsSourceControl.Array());
     }
 
+    public WindowRelayoutResult(WindowRelayoutResult copyFrom) {
+        this(new ClientWindowFrames(copyFrom.frames),
+                new MergedConfiguration(copyFrom.mergedConfiguration),
+                new InsetsState(copyFrom.insetsState, true /* copySources */),
+                copyFrom.activeControls != null
+                        ? new InsetsSourceControl.Array(copyFrom.activeControls, true /* copy */)
+                        : null);
+        syncSeqId = copyFrom.syncSeqId;
+        if (copyFrom.activityWindowInfo != null) {
+            activityWindowInfo = new ActivityWindowInfo(copyFrom.activityWindowInfo);
+        }
+    }
+
     /**
-     * Stores information to pass for {@link IWindowSession#relayout}.
+     * Stores information about a window's layout coming from WMCore. When used with
+     * {@link IWindowSession#relayout} and {@link IWindowSession#addToDisplay}, it acts as an out
+     * parameter. For {@link IWindow#resized}, it's passed as a dataclass.
      *
      * @param frames              The window frames used by the client side for layout.
      * @param mergedConfiguration New config container that holds global, override and merged
      *                            config for window, if it is now becoming visible and the merged
      *                            config has changed since it was last displayed.
-     * @param surfaceControl      Object in which is placed the new display surface.
      * @param insetsState         The current insets state in the system.
      * @param activeControls      Objects which allow controlling {@link InsetsSource}s.
      */
     public WindowRelayoutResult(@NonNull ClientWindowFrames frames,
-            @NonNull MergedConfiguration mergedConfiguration,
-            @NonNull SurfaceControl surfaceControl, @NonNull InsetsState insetsState,
-            @NonNull InsetsSourceControl.Array activeControls) {
+            @NonNull MergedConfiguration mergedConfiguration, @NonNull InsetsState insetsState,
+            @Nullable InsetsSourceControl.Array activeControls) {
         this.frames = requireNonNull(frames);
         this.mergedConfiguration = requireNonNull(mergedConfiguration);
-        this.surfaceControl = requireNonNull(surfaceControl);
         this.insetsState = requireNonNull(insetsState);
-        this.activeControls = requireNonNull(activeControls);
+        this.activeControls = activeControls;
     }
 
     private WindowRelayoutResult(@NonNull Parcel in) {
-        this();
+        this(new ClientWindowFrames(), new MergedConfiguration(), new InsetsState(),
+                null /* controls */);
         readFromParcel(in);
     }
 
@@ -101,9 +111,8 @@ public final class WindowRelayoutResult implements Parcelable {
     public void readFromParcel(@NonNull Parcel in) {
         frames.readFromParcel(in);
         mergedConfiguration.readFromParcel(in);
-        surfaceControl.readFromParcel(in);
         insetsState.readFromParcel(in);
-        activeControls.readFromParcel(in);
+        activeControls = in.readTypedObject(InsetsSourceControl.Array.CREATOR);
         syncSeqId = in.readInt();
         activityWindowInfo = in.readTypedObject(ActivityWindowInfo.CREATOR);
     }
@@ -112,9 +121,8 @@ public final class WindowRelayoutResult implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         frames.writeToParcel(dest, flags);
         mergedConfiguration.writeToParcel(dest, flags);
-        surfaceControl.writeToParcel(dest, flags);
         insetsState.writeToParcel(dest, flags);
-        activeControls.writeToParcel(dest, flags);
+        dest.writeTypedObject(activeControls, flags);
         dest.writeInt(syncSeqId);
         dest.writeTypedObject(activityWindowInfo, flags);
     }

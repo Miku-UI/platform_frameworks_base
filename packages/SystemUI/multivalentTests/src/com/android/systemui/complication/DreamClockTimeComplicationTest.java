@@ -137,7 +137,7 @@ public class DreamClockTimeComplicationTest extends SysuiTestCase {
     @Test
     public void testComplicationViewHolderContentAccessors() {
         final DreamClockTimeComplication.DreamClockTimeViewHolder viewHolder =
-                new DreamClockTimeComplication.DreamClockTimeViewHolder(mView, mLayoutParams,
+                new DreamClockTimeComplication.DreamClockTimeViewHolder(mView, () -> mLayoutParams,
                         mViewController);
         assertThat(viewHolder.getView()).isEqualTo(mView);
         assertThat(viewHolder.getLayoutParams()).isEqualTo(mLayoutParams);

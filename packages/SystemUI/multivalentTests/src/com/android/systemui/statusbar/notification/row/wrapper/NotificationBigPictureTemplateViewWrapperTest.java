@@ -33,8 +33,10 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.R;
 import com.android.internal.widget.BigPictureNotificationImageView;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
+import com.android.systemui.statusbar.notification.collection.NotificationEntry;
+import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -46,14 +48,15 @@ public class NotificationBigPictureTemplateViewWrapperTest extends SysuiTestCase
 
     private View mView;
     private ExpandableNotificationRow mRow;
-
+    private NotificationEntry mEntry;
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
 
     @Before
     public void setup() throws Exception {
-        NotificationTestHelper helper = new NotificationTestHelper(mContext, mDependency);
         mView = LayoutInflater.from(mContext).inflate(
                 com.android.internal.R.layout.notification_template_material_big_picture, null);
-        mRow = helper.createRow();
+        mEntry = mKosmos.buildNotificationEntry(NotificationEntryBuilder::done);
+        mRow = mKosmos.createRow(mEntry);
     }
 
     @Test
@@ -61,9 +64,9 @@ public class NotificationBigPictureTemplateViewWrapperTest extends SysuiTestCase
         NotificationViewWrapper wrapper = new NotificationBigPictureTemplateViewWrapper(
                 mContext, mView, mRow);
         // should be Icon.class
-        mRow.getEntry().getSbn().getNotification().setSmallIcon(
+        mEntry.getSbn().getNotification().setSmallIcon(
                 Icon.createWithResource(mContext, 0));
-        mRow.getEntry().getSbn().getNotification().extras.putParcelable(
+        mEntry.getSbn().getNotification().extras.putParcelable(
                 Notification.EXTRA_LARGE_ICON_BIG, new Bundle());
         wrapper.onContentUpdated(mRow);
     }

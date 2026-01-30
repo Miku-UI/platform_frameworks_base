@@ -17,6 +17,7 @@
 package android.media;
 
 import static android.media.audio.Flags.FLAG_ROUTED_DEVICE_IDS;
+import static android.media.mediarecorder.Flags.FLAG_APV_RECORDING_SUPPORT;
 
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
@@ -169,7 +170,10 @@ public class MediaRecorder implements AudioRouting,
          */
         try (ScopedParcelState attributionSourceState = context.getAttributionSource()
                 .asScopedParcelState()) {
-            native_setup(new WeakReference<>(this), ActivityThread.currentPackageName(),
+            String name = ActivityThread.currentPackageName() == null
+                    ? context.getApplicationInfo().packageName
+                    : ActivityThread.currentPackageName();
+            native_setup(new WeakReference<>(this), name,
                     attributionSourceState.getParcel());
         }
     }
@@ -703,15 +707,27 @@ public class MediaRecorder implements AudioRouting,
        * in include/media/mediarecorder.h!
        */
         private VideoEncoder() {}
+        /** Default video codec */
         public static final int DEFAULT = 0;
+        /** H.263 video codec */
         public static final int H263 = 1;
+        /** H.264 video codec */
         public static final int H264 = 2;
+        /** MPEG-4 SP video codec */
         public static final int MPEG_4_SP = 3;
+        /** VP8 video codec */
         public static final int VP8 = 4;
+        /** HEVC/H.265 video codec */
         public static final int HEVC = 5;
+        /** VP9 video codec */
         public static final int VP9 = 6;
+        /** Dolby Vision video codec */
         public static final int DOLBY_VISION = 7;
+        /** AV1 video codec */
         public static final int AV1 = 8;
+        /** APV video codec */
+        @FlaggedApi(FLAG_APV_RECORDING_SUPPORT)
+        public static final int APV = 9;
     }
 
     /**
@@ -727,6 +743,7 @@ public class MediaRecorder implements AudioRouting,
         VideoEncoder.VP9,
         VideoEncoder.DOLBY_VISION,
         VideoEncoder.AV1,
+        VideoEncoder.APV,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface VideoEncoderValues {}
@@ -1498,55 +1515,55 @@ public class MediaRecorder implements AudioRouting,
      * events are unhidden so that application knows how to extract the track
      * id and the informational event type from onInfo callback.
      *
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_LIST_START        = 1000;
     /** Signal the completion of the track for the recording session.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_COMPLETION_STATUS = 1000;
     /** Indicate the recording progress in time (ms) during recording.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_PROGRESS_IN_TIME  = 1001;
     /** Indicate the track type: 0 for Audio and 1 for Video.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_TYPE              = 1002;
     /** Provide the track duration information.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_DURATION_MS       = 1003;
     /** Provide the max chunk duration in time (ms) for the given track.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_MAX_CHUNK_DUR_MS  = 1004;
     /** Provide the total number of recordd frames.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_ENCODED_FRAMES    = 1005;
     /** Provide the max spacing between neighboring chunks for the given track.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INTER_CHUNK_TIME_MS    = 1006;
     /** Provide the elapsed time measuring from the start of the recording
      * till the first output frame of the given track is received, excluding
      * any intentional start time offset of a recording session for the
      * purpose of eliminating the recording sound in the recorded file.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_INITIAL_DELAY_MS  = 1007;
     /** Provide the start time difference (delay) betweeen this track and
      * the start of the movie.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_START_OFFSET_MS   = 1008;
     /** Provide the total number of data (in kilo-bytes) encoded.
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_DATA_KBYTES       = 1009;
     /**
-     * {@hide}
+     * @hide
      */
     public static final int MEDIA_RECORDER_TRACK_INFO_LIST_END          = 2000;
 

@@ -32,10 +32,18 @@ fun TransitionBuilder.toQuickSettingsShadeTransition(
 ) {
     spec = tween(durationMillis = (DefaultDuration * durationScale).inWholeMilliseconds.toInt())
 
-    verticalContainerReveal(QuickSettingsShade.Elements.Panel, shadeExpansionMotion, revealHaptics)
+    verticalContainerReveal(
+        container = QuickSettingsShade.Elements.Panel,
+        motionSpec = shadeExpansionMotion,
+        haptics = revealHaptics,
+        useMechanics = true,
+    )
 
     fractionRange(end = .5f) { fade(OverlayShade.Elements.Scrim) }
-    fractionRange(start = .5f) { fade(QuickSettingsShade.Elements.StatusBar) }
+    fractionRange(start = .5f) {
+        fade(QuickSettingsShade.Elements.StatusBar)
+        fade(QuickSettingsShade.Elements.Header)
+    }
 }
 
 private val DefaultDuration = 300.milliseconds

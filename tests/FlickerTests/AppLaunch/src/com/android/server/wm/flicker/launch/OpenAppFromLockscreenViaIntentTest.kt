@@ -17,15 +17,14 @@
 package com.android.server.wm.flicker.launch
 
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
 import android.tools.Rotation
-import android.tools.flicker.annotation.FlickerServiceCompatible
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
-import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.helpers.NonResizeableAppHelper
 import com.android.server.wm.flicker.launch.common.OpenAppFromLockscreenTransition
 import org.junit.Assume
@@ -60,11 +59,10 @@ import org.junit.runners.Parameterized
  * ```
  */
 @RequiresDevice
-@FlickerServiceCompatible
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-open class OpenAppFromLockscreenViaIntentTest(flicker: LegacyFlickerTest) :
+open class OpenAppFromLockscreenViaIntentTest(flicker: FlickerTest) :
     OpenAppFromLockscreenTransition(flicker) {
     override val testApp = NonResizeableAppHelper(instrumentation)
 
@@ -211,13 +209,13 @@ open class OpenAppFromLockscreenViaIntentTest(flicker: LegacyFlickerTest) :
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 supportedNavigationModes = listOf(NavBar.MODE_GESTURAL),
                 supportedRotations = listOf(Rotation.ROTATION_0)
             )

@@ -17,27 +17,28 @@
 package com.android.wm.shell.desktopmode
 
 import android.app.ActivityManager
+import android.app.ActivityManager.RunningTaskInfo
 import android.content.Context
-import android.os.Handler
 import android.os.IBinder
 import android.view.SurfaceControl
+import android.view.WindowManager.TRANSIT_CLOSE
 import android.view.WindowManager.TRANSIT_TO_BACK
 import android.window.DesktopExperienceFlags
 import android.window.DesktopModeFlags
 import android.window.TransitionInfo
 import android.window.WindowContainerTransaction
 import androidx.annotation.VisibleForTesting
-import com.android.internal.jank.InteractionJankMonitor
 import com.android.internal.protolog.ProtoLog
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.MinimizeReason
 import com.android.wm.shell.desktopmode.DesktopModeEventLogger.Companion.UnminimizeReason
+import com.android.wm.shell.desktopmode.data.DesktopRepository
 import com.android.wm.shell.desktopmode.multidesks.DesksOrganizer
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
-import com.android.wm.shell.shared.annotations.ShellMainThread
 import com.android.wm.shell.sysui.UserChangeListener
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.transition.Transitions.TransitionObserver
+import com.android.wm.shell.windowdecor.tiling.SnapEventHandler
 
 /**
  * Keeps track of minimized tasks and limits the number of tasks shown in Desktop Mode.
@@ -47,19 +48,18 @@ import com.android.wm.shell.transition.Transitions.TransitionObserver
  * TODO(b/400634379): Separate two responsibilities of this class into two classes.
  */
 class DesktopTasksLimiter(
-    transitions: Transitions,
+    private val transitions: Transitions,
     private val desktopUserRepositories: DesktopUserRepositories,
     private val shellTaskOrganizer: ShellTaskOrganizer,
     private val desksOrganizer: DesksOrganizer,
+    private val desktopMixedTransitionHandler: DesktopMixedTransitionHandler,
     private val maxTasksLimit: Int?,
-    private val interactionJankMonitor: InteractionJankMonitor,
-    private val context: Context,
-    @ShellMainThread private val handler: Handler,
 ) {
     private val minimizeTransitionObserver = MinimizeTransitionObserver()
     @VisibleForTesting val leftoverMinimizedTasksRemover = LeftoverMinimizedTasksRemover()
 
     private var userId: Int
+    lateinit var snapEventHandler: SnapEventHandler
 
     init {
         maxTasksLimit?.let {
@@ -76,6 +76,9 @@ class DesktopTasksLimiter(
             logV("Starting limiter without the task limit")
         }
     }
+
+    /** Describes a task launch that might trigger a task limit minimize transition. */
+    data class LaunchDetails(val deskId: Int, val taskId: Int?)
 
     data class TaskDetails(
         val displayId: Int,
@@ -103,6 +106,7 @@ class DesktopTasksLimiter(
 
     // TODO(b/333018485): replace this observer when implementing the minimize-animation
     private inner class MinimizeTransitionObserver : TransitionObserver {
+        private val pendingTaskLimitTransitionTokens = mutableMapOf<IBinder, LaunchDetails>()
         private val pendingTransitionTokensAndTasks = mutableMapOf<IBinder, TaskDetails>()
         private val activeTransitionTokensAndTasks = mutableMapOf<IBinder, TaskDetails>()
         private val pendingUnminimizeTransitionTokensAndTasks = mutableMapOf<IBinder, TaskDetails>()
@@ -110,6 +114,10 @@ class DesktopTasksLimiter(
 
         fun addPendingTransitionToken(transition: IBinder, taskDetails: TaskDetails) {
             pendingTransitionTokensAndTasks[transition] = taskDetails
+        }
+
+        fun addPendingTaskLimitTransitionToken(transition: IBinder, details: LaunchDetails) {
+            pendingTaskLimitTransitionTokens[transition] = details
         }
 
         fun addPendingUnminimizeTransitionToken(transition: IBinder, taskDetails: TaskDetails) {
@@ -120,6 +128,9 @@ class DesktopTasksLimiter(
             return pendingTransitionTokensAndTasks[transition]
                 ?: activeTransitionTokensAndTasks[transition]
         }
+
+        fun hasTaskLimitTransition(transition: IBinder): Boolean =
+            pendingTaskLimitTransitionTokens.contains(transition)
 
         fun getUnminimizingTask(transition: IBinder): TaskDetails? {
             return pendingUnminimizeTransitionTokensAndTasks[transition]
@@ -133,8 +144,90 @@ class DesktopTasksLimiter(
             finishTransaction: SurfaceControl.Transaction,
         ) {
             val taskRepository = desktopUserRepositories.current
+            handleTaskLimitTransitionReady(taskRepository, transition, info)
             handleMinimizeTransitionReady(taskRepository, transition, info)
             handleUnminimizeTransitionReady(transition)
+        }
+
+        /**
+         * Handles [#onTransitionReady()] for transitions that might trigger task limit minimize.
+         */
+        private fun handleTaskLimitTransitionReady(
+            taskRepository: DesktopRepository,
+            transition: IBinder,
+            info: TransitionInfo,
+        ) {
+            val launchDetails = pendingTaskLimitTransitionTokens.remove(transition) ?: return
+            logV("handleTaskLimitTransitionReady, transition=$transition, info=$info")
+            markClosingTasks(taskRepository, info, launchDetails)
+            transitions.runOnIdle {
+                val expandedTaskIds =
+                    taskRepository.getExpandedTasksIdsInDeskOrdered(launchDetails.deskId).filter {
+                        !taskRepository.isClosingTask(it)
+                    }
+                logV("runOnIdle, expandedTasks=$expandedTaskIds, after transition=$transition")
+                triggerMinimizeTransition(launchDetails.deskId, expandedTaskIds)
+            }
+        }
+
+        private fun markClosingTasks(
+            taskRepository: DesktopRepository,
+            info: TransitionInfo,
+            launchDetails: LaunchDetails,
+        ) {
+            // markClosingTasks() is a workaround while
+            // ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS is ramping up, so don't run this
+            // logic when that flag has been enabled.
+            if (DesktopExperienceFlags.ENABLE_WINDOWING_TRANSITION_HANDLERS_OBSERVERS.isTrue) {
+                return
+            }
+            info.changes.forEach { change ->
+                val taskInfo = change.taskInfo ?: return@forEach
+                if (change.mode != TRANSIT_CLOSE || !taskInfo.isFreeform) {
+                    return@forEach
+                }
+                taskRepository.addClosingTask(
+                    taskInfo.displayId,
+                    launchDetails.deskId,
+                    taskInfo.taskId,
+                )
+            }
+        }
+
+        private fun triggerMinimizeTransition(deskId: Int, expandedTaskIds: List<Int>) {
+            val task = getRunningTaskToMinimize(expandedTaskIds) ?: return
+            logV("triggerMinimizeTransition, found running task -> start transition, %s", task)
+            val wct = WindowContainerTransaction()
+            addMinimizeChange(deskId, task, wct)
+            snapEventHandler.removeTaskIfTiled(task.displayId, task.taskId)
+            val transition =
+                desktopMixedTransitionHandler.startTaskLimitMinimizeTransition(wct, task.taskId)
+            addPendingMinimizeChange(
+                transition,
+                task.displayId,
+                task.taskId,
+                MinimizeReason.TASK_LIMIT,
+            )
+        }
+
+        private fun getRunningTaskToMinimize(expandedTaskIds: List<Int>): RunningTaskInfo? {
+            var taskIds = expandedTaskIds
+            for (i in 1..expandedTaskIds.size) {
+                val taskIdToMinimize =
+                    getTaskIdToMinimize(taskIds, /* launchingNewIntent= */ false) ?: return null
+                val task = shellTaskOrganizer.getRunningTaskInfo(taskIdToMinimize)
+                if (task != null) {
+                    return task
+                } else {
+                    logW(
+                        "Tried to minimize non-running task#%s, Try next task instead.",
+                        taskIdToMinimize,
+                    )
+                }
+                // Ignore the non-existing task
+                taskIds = taskIds.minus(taskIdToMinimize)
+            }
+            return null
         }
 
         private fun handleMinimizeTransitionReady(
@@ -180,7 +273,18 @@ class DesktopTasksLimiter(
             val taskChange =
                 info.changes.find { change -> change.taskInfo?.taskId == taskDetails.taskId }
             val taskRepository = desktopUserRepositories.current
-            if (taskChange == null) return !taskRepository.isVisibleTask(taskDetails.taskId)
+            if (taskChange == null) {
+                if (!taskRepository.isVisibleTask(taskDetails.taskId)) {
+                    return true
+                }
+                // if the task is expanded on the desk but not wm visible, we can still mark it as
+                // minimized.
+                if (taskRepository.isActiveTask(taskDetails.taskId)) {
+                    val taskInfo = shellTaskOrganizer.getRunningTaskInfo(taskDetails.taskId)
+                    return taskInfo?.isVisible == false
+                }
+                return false
+            }
             return taskChange.mode == TRANSIT_TO_BACK
         }
 
@@ -276,15 +380,35 @@ class DesktopTasksLimiter(
             )
         taskIdToMinimize
             ?.let { shellTaskOrganizer.getRunningTaskInfo(it) }
-            ?.let { task ->
-                if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-                    wct.reorder(task.token, /* onTop= */ false)
-                } else {
-                    desksOrganizer.minimizeTask(wct, deskId, task)
-                }
-            }
+            ?.let { task -> addMinimizeChange(deskId, task, wct) }
         return taskIdToMinimize
     }
+
+    private fun addMinimizeChange(
+        deskId: Int,
+        task: ActivityManager.RunningTaskInfo,
+        wct: WindowContainerTransaction,
+    ) =
+        if (DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
+            desksOrganizer.minimizeTask(wct, deskId, task)
+        } else {
+            wct.reorder(task.token, /* onTop= */ false)
+        }
+
+    /**
+     * Add a pending transition to trigger a new minimize transition in case the pending transition
+     * takes us over the task limit.
+     */
+    fun addPendingTaskLimitTransition(transition: IBinder, deskId: Int, taskId: Int?) =
+        minimizeTransitionObserver.addPendingTaskLimitTransitionToken(
+            transition,
+            LaunchDetails(deskId, taskId),
+        )
+
+    /** For testing only: returns whether there are any pending task limit transitions. */
+    @VisibleForTesting
+    fun hasTaskLimitTransitionForTesting(transition: IBinder) =
+        minimizeTransitionObserver.hasTaskLimitTransition(transition)
 
     /**
      * Add a pending minimize transition change to update the list of minimized apps once the
@@ -338,8 +462,15 @@ class DesktopTasksLimiter(
         launchingNewIntent: Boolean,
     ): Int? {
         val newTasksOpening = if (launchingNewIntent) 1 else 0
-        if (visibleOrderedTasks.size + newTasksOpening <= (maxTasksLimit ?: Int.MAX_VALUE)) {
-            logV("No need to minimize; tasks below limit")
+        val taskLimit = (maxTasksLimit ?: Int.MAX_VALUE)
+        if (visibleOrderedTasks.size + newTasksOpening <= taskLimit) {
+            logV(
+                "No need to minimize; tasks below limit, " +
+                    " visible tasks: %s, new task: %s, task limit: %s",
+                visibleOrderedTasks,
+                launchingNewIntent,
+                taskLimit,
+            )
             // No need to minimize anything
             return null
         }
@@ -360,6 +491,10 @@ class DesktopTasksLimiter(
 
     private fun logV(msg: String, vararg arguments: Any?) {
         ProtoLog.v(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
+    }
+
+    private fun logW(msg: String, vararg arguments: Any?) {
+        ProtoLog.w(WM_SHELL_DESKTOP_MODE, "%s: $msg", TAG, *arguments)
     }
 
     private companion object {

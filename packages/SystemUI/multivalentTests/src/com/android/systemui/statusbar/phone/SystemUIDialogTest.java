@@ -33,6 +33,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.Configuration;
+import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.ravenwood.RavenwoodRule;
@@ -41,14 +43,17 @@ import android.testing.TestableLooper.RunWithLooper;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.app.displaylib.fakes.FakePerDisplayRepository;
 import com.android.systemui.Dependency;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.animation.back.BackAnimationSpec;
 import com.android.systemui.broadcast.BroadcastDispatcher;
+import com.android.systemui.display.data.repository.FakeDisplayRepository;
 import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.model.SysUiState;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -67,11 +72,20 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @SmallTest
 public class SystemUIDialogTest extends SysuiTestCase {
 
+    private static final int DEFAULT_WIDTH = 1920;
+    private static final int DEFAULT_HEIGHT = 1080;
+    private static final int DEFAULT_DENSITY = 160;
+
     @Mock
     private BroadcastDispatcher mBroadcastDispatcher;
     @Mock
     private SystemUIDialog.Delegate mDelegate;
     private SysUiState mSysUiState;
+    private FakeDisplayRepository mDisplayRepository;
+    private SysUiState mConnectedDisplaySysUiState;
+    private FakePerDisplayRepository<SysUiState> mStateRepository;
+    private VirtualDisplay mConnectedDisplay;
+    private int mConnectedDisplayId;
 
     // TODO(b/292141694): build out Ravenwood support for DeviceFlagsValueProvider
     // Ravenwood already has solid support for SetFlagsRule, but CheckFlagsRule will be added soon
@@ -84,9 +98,29 @@ public class SystemUIDialogTest extends SysuiTestCase {
         MockitoAnnotations.initMocks(this);
         KosmosJavaAdapter kosmos = new KosmosJavaAdapter(this);
         mSysUiState = kosmos.getSysuiState();
+        mDisplayRepository = kosmos.getDisplayRepository();
+        mStateRepository = kosmos.getFakeSysUIStatePerDisplayRepository();
+
+        mConnectedDisplay = mContext.getSystemService(DisplayManager.class).createVirtualDisplay(
+                SystemUIDialogTest.class.getSimpleName(), DEFAULT_WIDTH, DEFAULT_HEIGHT,
+                DEFAULT_DENSITY, /* surface= */ null, /* flags= */ 0);
+        mConnectedDisplayId = mConnectedDisplay.getDisplay().getDisplayId();
+        mDisplayRepository.addDisplayBlocking(mConnectedDisplayId);
+        mConnectedDisplaySysUiState = kosmos.getSysUiStateFactory().create(mConnectedDisplayId);
+        mStateRepository.add(mConnectedDisplayId, mConnectedDisplaySysUiState);
+
+        mDependency.injectTestDependency(SystemUIDialogManager.class,
+                kosmos.getSystemUIDialogManager());
         mDependency.injectTestDependency(BroadcastDispatcher.class, mBroadcastDispatcher);
         when(mDelegate.getBackAnimationSpec(ArgumentMatchers.any()))
                 .thenReturn(mock(BackAnimationSpec.class));
+    }
+
+    @After
+    public void tearDown() {
+        mDisplayRepository.removeDisplayBlocking(mConnectedDisplayId);
+        mStateRepository.remove(mConnectedDisplayId);
+        mConnectedDisplay.release();
     }
 
     @Test
@@ -107,7 +141,6 @@ public class SystemUIDialogTest extends SysuiTestCase {
         verify(mBroadcastDispatcher).unregisterReceiver(
                 ArgumentMatchers.eq(broadcastReceiverCaptor.getValue()));
     }
-
 
     @Test
     public void testNoRegisterReceiver() {
@@ -151,7 +184,8 @@ public class SystemUIDialogTest extends SysuiTestCase {
         assertFalse(dialog.isShowing());
     }
 
-    @Test public void startAndStopAreCalled() {
+    @Test
+    public void startAndStopAreCalled() {
         AtomicBoolean calledStart = new AtomicBoolean(false);
         AtomicBoolean calledStop = new AtomicBoolean(false);
         SystemUIDialog dialog = new SystemUIDialog(mContext) {
@@ -201,6 +235,34 @@ public class SystemUIDialogTest extends SysuiTestCase {
         assertThat((mSysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING) != 0).isFalse();
     }
 
+    @Test
+    public void perDisplaySysuiStateUpdated() {
+        SystemUIDialog connectedDisplayDialog = createDialogWithDelegate(
+                mContext.createDisplayContext(mConnectedDisplay.getDisplay()),
+                mDelegate, /* shouldAcsDismissDialog */ true);
+        SystemUIDialog primaryDisplayDialog =
+                createDialogWithDelegate(mContext, mDelegate, /* shouldAcsDismissDialog */ true);
+
+        primaryDisplayDialog.show();
+        assertThat((mSysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING) != 0).isTrue();
+        assertThat((mConnectedDisplaySysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING)
+                != 0).isFalse();
+
+        connectedDisplayDialog.show();
+        assertThat((mSysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING) != 0).isTrue();
+        assertThat((mConnectedDisplaySysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING)
+                != 0).isTrue();
+
+        primaryDisplayDialog.dismiss();
+        assertThat((mSysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING) != 0).isFalse();
+        assertThat((mConnectedDisplaySysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING)
+                != 0).isTrue();
+
+        connectedDisplayDialog.dismiss();
+        assertThat((mSysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING) != 0).isFalse();
+        assertThat((mConnectedDisplaySysUiState.getFlags() & SYSUI_STATE_DIALOG_SHOWING)
+                != 0).isFalse();
+    }
 
     @Test
     public void delegateIsCalled_inCorrectOrder() {
@@ -222,12 +284,11 @@ public class SystemUIDialogTest extends SysuiTestCase {
         inOrder.verify(mDelegate).onStop(dialog);
     }
 
-    private SystemUIDialog createDialogWithDelegate(Context context,
+    private static SystemUIDialog createDialogWithDelegate(Context context,
             SystemUIDialog.Delegate delegate, boolean shouldAcsdDismissDialog) {
         SystemUIDialog.Factory factory = new SystemUIDialog.Factory(
-                getContext(),
+                context,
                 Dependency.get(SystemUIDialogManager.class),
-                mSysUiState,
                 Dependency.get(BroadcastDispatcher.class),
                 Dependency.get(DialogTransitionAnimator.class)
         );

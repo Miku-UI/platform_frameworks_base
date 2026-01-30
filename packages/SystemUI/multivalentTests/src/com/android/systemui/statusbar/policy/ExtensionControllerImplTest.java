@@ -17,6 +17,7 @@ package com.android.systemui.statusbar.policy;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -83,8 +84,8 @@ public class ExtensionControllerImplTest extends SysuiTestCase {
                 .withPlugin(OverlayPlugin.class)
                 .build();
         ArgumentCaptor<PluginListener> listener = ArgumentCaptor.forClass(PluginListener.class);
-        verify(mPluginManager).addPluginListener(eq(OverlayPlugin.ACTION), listener.capture(),
-                eq(OverlayPlugin.class));
+        verify(mPluginManager).addPluginListener(listener.capture(),
+                eq(OverlayPlugin.class), eq(false));
 
         listener.getValue().onPluginConnected(plugin, null);
         assertEquals(plugin, ext.get());
@@ -163,7 +164,7 @@ public class ExtensionControllerImplTest extends SysuiTestCase {
                 .withDefault(() -> def)
                 .withUiMode(Configuration.UI_MODE_TYPE_CAR, () -> uiMode)
                 .withTunerFactory(factory)
-                .withPlugin(Object.class, "some_action")
+                .withPlugin(Object.class)
                 .build();
 
         // Test default first.
@@ -188,7 +189,7 @@ public class ExtensionControllerImplTest extends SysuiTestCase {
 
         // Lastly, check a plugin.
         ArgumentCaptor<PluginListener> listener = ArgumentCaptor.forClass(PluginListener.class);
-        verify(mPluginManager).addPluginListener(any(), listener.capture(), any());
+        verify(mPluginManager).addPluginListener(listener.capture(), any(), anyBoolean());
         listener.getValue().onPluginConnected(plugin, null);
         assertEquals(plugin, ext.get());
     }

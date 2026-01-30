@@ -16,7 +16,6 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
-import android.platform.test.annotations.EnableFlags
 import android.view.KeyEvent
 import android.view.KeyEvent.ACTION_DOWN
 import android.view.KeyEvent.ACTION_UP
@@ -25,8 +24,8 @@ import android.view.KeyEvent.KEYCODE_MEDIA_PLAY
 import android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_COMPOSE_BOUNCER
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.telephony.data.repository.fakeTelephonyRepository
@@ -41,7 +40,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(FLAG_COMPOSE_BOUNCER)
+@EnableSceneContainer
 class KeyguardMediaKeyInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope

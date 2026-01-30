@@ -68,11 +68,8 @@ internal object AllShadeDisplayPoliciesModule {
     @Provides
     @ElementsIntoSet
     fun provideShadeDisplayPolicies(
-        defaultPolicy: DefaultDisplayShadePolicy,
-        externalPolicy: AnyExternalShadeDisplayPolicy,
-        statusBarPolicy: StatusBarTouchShadeDisplayPolicy,
-        focusPolicy: FocusShadeDisplayPolicy,
+        statusBarPolicy: StatusBarTouchShadeDisplayPolicy
     ): Set<ShadeDisplayPolicy> {
-        return setOf(defaultPolicy, externalPolicy, statusBarPolicy, focusPolicy)
+        return setOf(statusBarPolicy)
     }
 }

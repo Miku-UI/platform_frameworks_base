@@ -23,7 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeRight
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
 import com.android.compose.theme.PlatformTheme
@@ -89,7 +89,7 @@ class BrightnessSliderMotionTest : SysuiTestCase() {
         motionTestRule.runTest(timeout = 30.seconds) {
             val motion =
                 recordMotion(
-                    content = { BrightnessSliderUnderTest(100) },
+                    content = { BrightnessSliderUnderTest(0) },
                     ComposeRecordingSpec(
                         MotionControl(delayReadyToPlay = { awaitCondition { !isAnimating } }) {
                             coroutineScope {
@@ -97,7 +97,11 @@ class BrightnessSliderMotionTest : SysuiTestCase() {
                                     performTouchInputAsync(
                                         onNode(hasTestTag("com.android.systemui:id/slider"))
                                     ) {
-                                        swipeLeft(startX = right, endX = left, durationMillis = 500)
+                                        swipeRight(
+                                            startX = left,
+                                            endX = right,
+                                            durationMillis = 500,
+                                        )
                                     }
                                 }
                                 val animationEnd = async {

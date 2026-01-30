@@ -26,7 +26,7 @@ import com.android.systemui.statusbar.policy.splitShadeStateController
 
 val Kosmos.lockscreenShadeScrimTransitionController by Fixture {
     LockscreenShadeScrimTransitionController(
-        scrimController = scrimController,
+        scrimController = { scrimController },
         context = applicationContext,
         configurationController = configurationController,
         dumpManager = dumpManager,

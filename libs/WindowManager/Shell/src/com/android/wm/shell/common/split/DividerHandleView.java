@@ -80,19 +80,7 @@ public class DividerHandleView extends View {
     private int mHoveringWidth;
     private int mHoveringHeight;
     private boolean mIsLeftRightSplit;
-    private boolean mIsSplitScreen;
 
-    /**
-     * Notifies the divider of ui mode change.
-     *
-     * @param isDarkMode Whether the mode is ui dark mode.
-     */
-    public void onUiModeChange(boolean isDarkMode) {
-        if (!mIsSplitScreen) {
-            mPaint.setColor(getTilingHandleColor(isDarkMode));
-            invalidate();
-        }
-    }
     public DividerHandleView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
         mPaint.setColor(getResources().getColor(R.color.docked_divider_handle, null));
@@ -116,24 +104,19 @@ public class DividerHandleView extends View {
     }
 
     /**
-     * Used by tiling infrastructure to specify display light/dark mode and
-     * whether handle colors should be overridden on display mode change in case
-     * of non split screen.
-     * @param isSplitScreen Whether the divider is used by split screen or tiling.
-     * @param isDarkMode Whether the mode is ui dark mode.
+     * Sets the color for the divider handle view.
+     * Optionally invalidates the view to trigger a redraw if the change should be
+     * reflected immediately.
+     *
+     * @param color The ARGB color to set for the divider handle view.
+     * @param invalidateView True if the view should be invalidated
+     *                       to redraw with the new color, false otherwise.
      */
-    public void setup(boolean isSplitScreen, boolean isDarkMode) {
-        mIsSplitScreen = isSplitScreen;
-        if (!mIsSplitScreen) {
-            mPaint.setColor(getTilingHandleColor(isDarkMode));
-            setAlpha(.9f);
+    public void setColor(int color, boolean invalidateView) {
+        mPaint.setColor(color);
+        if (invalidateView) {
+            invalidate();
         }
-    }
-
-    private int getTilingHandleColor(Boolean isDarkMode) {
-        return isDarkMode ? getResources().getColor(
-                R.color.tiling_handle_background_dark, null /* theme */) : getResources().getColor(
-                R.color.tiling_handle_background_light, null /* theme */);
     }
 
     /** sets whether it's a left/right or top/bottom split */

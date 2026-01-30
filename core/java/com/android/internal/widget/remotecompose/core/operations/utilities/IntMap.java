@@ -63,6 +63,21 @@ public class IntMap<T> {
     }
 
     /**
+     * Insert all the key values from the given map
+     *
+     * @param map
+     */
+    public void putAll(@NonNull IntMap<T> map) {
+        for (int i = 0; i < map.mValues.size(); i++) {
+            int key = map.mKeys[i];
+            if (key != NOT_PRESENT) {
+                T value = map.get(key);
+                put(key, value);
+            }
+        }
+    }
+
+    /**
      * Return the value associated with the given key
      *
      * @param key

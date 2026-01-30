@@ -258,19 +258,53 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                 }
             }
         }
+
         if (Flags.enableSqliteAppopsAccesses()) {
+            DiscreteOpsSqlRegistry sqlRegistry = (DiscreteOpsSqlRegistry) mDiscreteRegistry;
             if (DiscreteOpsXmlRegistry.getDiscreteOpsDir().exists()) {
-                DiscreteOpsSqlRegistry sqlRegistry = (DiscreteOpsSqlRegistry) mDiscreteRegistry;
-                DiscreteOpsXmlRegistry xmlRegistry = new DiscreteOpsXmlRegistry(mContext);
-                DiscreteOpsMigrationHelper.migrateDiscreteOpsToSqlite(xmlRegistry, sqlRegistry);
+                Slog.i(LOG_TAG, "migrate discrete ops from xml to sqlite.");
+                DiscreteOpsXmlRegistry xmlRegistry = new DiscreteOpsXmlRegistry(mInMemoryLock);
+                xmlRegistry.systemReady();
+                DiscreteOpsMigrationHelper.migrateFromXmlToSqlite(
+                        xmlRegistry, sqlRegistry);
+            } else if (HistoricalRegistry.getDiscreteOpsDatabaseFile().exists()) {
+                // roll back from unified schema sqlite to discrete ops sqlite.
+                Slog.i(LOG_TAG, "rollback discrete ops from unified sqlite to sqlite.");
+                AppOpHistoryHelper appOpHistoryHelper = getAppOpHistoryHelper();
+                DiscreteOpsMigrationHelper.rollbackFromUnifiedSchemaSqliteToSqlite(
+                        appOpHistoryHelper, sqlRegistry);
             }
         } else {
-            if (DiscreteOpsDbHelper.getDatabaseFile().exists()) { // roll-back sqlite
+            if (HistoricalRegistry.getDiscreteOpsDatabaseFile().exists()) {
+                Slog.i(LOG_TAG, "rollback discrete ops from unified sqlite to xml.");
+                DiscreteOpsXmlRegistry xmlRegistry = new DiscreteOpsXmlRegistry(mInMemoryLock);
+                AppOpHistoryHelper appOpHistoryHelper = getAppOpHistoryHelper();
+                DiscreteOpsMigrationHelper.rollbackFromUnifiedSchemaSqliteToXml(
+                        appOpHistoryHelper, xmlRegistry);
+                if (HistoricalRegistry.historicalOpsDbExist()) {
+                    HistoricalRegistry.deleteHistoricalOpsDb(mContext);
+                }
+            } else if (DiscreteOpsDbHelper.getDatabaseFile().exists()) {
+                Slog.i(LOG_TAG, "rollback discrete ops from sqlite to xml.");
                 DiscreteOpsSqlRegistry sqlRegistry = new DiscreteOpsSqlRegistry(mContext);
+                sqlRegistry.systemReady();
                 DiscreteOpsXmlRegistry xmlRegistry = (DiscreteOpsXmlRegistry) mDiscreteRegistry;
-                DiscreteOpsMigrationHelper.migrateDiscreteOpsToXml(sqlRegistry, xmlRegistry);
+                DiscreteOpsMigrationHelper.rollbackFromSqliteToXml(sqlRegistry, xmlRegistry);
             }
+
+
         }
+    }
+
+    private @NonNull AppOpHistoryHelper getAppOpHistoryHelper() {
+        AppOpHistoryHelper appOpHistoryHelper = new AppOpHistoryHelper(mContext,
+                HistoricalRegistry.getDiscreteOpsDatabaseFile(),
+                HistoricalRegistry.AggregationTimeWindow.SHORT,
+                HistoricalRegistry.getDiscreteOpsDatabaseVersion());
+        appOpHistoryHelper.systemReady(
+                HistoricalRegistry.getDiscreteOpsQuantizationMillis(),
+                HistoricalRegistry.getAppOpsHistoryRetentionMillis());
+        return appOpHistoryHelper;
     }
 
     private boolean isPersistenceInitializedMLocked() {
@@ -294,13 +328,16 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                 switch (key) {
                     case Settings.Global.APPOP_HISTORY_MODE: {
                         modeValue = parts[1].trim();
-                    } break;
+                    }
+                    break;
                     case Settings.Global.APPOP_HISTORY_BASE_INTERVAL_MILLIS: {
                         baseSnapshotIntervalValue = parts[1].trim();
-                    } break;
+                    }
+                    break;
                     case Settings.Global.APPOP_HISTORY_INTERVAL_MULTIPLIER: {
                         intervalMultiplierValue = parts[1].trim();
-                    } break;
+                    }
+                    break;
                     default: {
                         Slog.w(LOG_TAG, "Unknown parameter: " + parameter);
                     }
@@ -315,7 +352,8 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                 final int intervalCompressionMultiplier = Integer.parseInt(intervalMultiplierValue);
                 setHistoryParameters(mode, baseSnapshotInterval, intervalCompressionMultiplier);
                 return;
-            } catch (NumberFormatException ignored) { }
+            } catch (NumberFormatException ignored) {
+            }
         }
         Slog.w(LOG_TAG, "Bad value for" + Settings.Global.APPOP_HISTORY_PARAMETERS
                 + "=" + setting + " resetting!");
@@ -323,9 +361,10 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
 
 
     @Override
-    public void dump(String prefix, PrintWriter pw, int filterUid,
+    public void dumpAggregatedData(String prefix, PrintWriter pw, int filterUid,
             @Nullable String filterPackage, @Nullable String filterAttributionTag, int filterOp,
-            @HistoricalOpsRequestFilter int filter) {
+            @HistoricalOpsRequestFilter int filter,
+            @NonNull SimpleDateFormat sdf, @NonNull Date date) {
         synchronized (mOnDiskLock) {
             synchronized (mInMemoryLock) {
                 pw.println();
@@ -379,7 +418,16 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                 dumpOp, sdf, date, prefix, nDiscreteOps);
     }
 
-    @HistoricalMode int getMode() {
+    @Override
+    public void dump(String prefix, PrintWriter pw, int filterUid, @Nullable String filterPackage,
+            @Nullable String filterAttributionTag, int filterOp, int filter,
+            @NonNull SimpleDateFormat sdf, @NonNull Date date,
+            boolean includeDiscreteOps, int limit, boolean dumpHistory) {
+        // no-op, legacy registry dump discrete and aggregate data in separate methods.
+    }
+
+    @HistoricalMode
+    int getMode() {
         synchronized (mInMemoryLock) {
             return mMode;
         }
@@ -504,7 +552,7 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
             @NonNull String deviceId, @Nullable String attributionTag, @UidState int uidState,
             @OpFlags int flags, long accessTime,
             @AppOpsManager.AttributionFlags int attributionFlags, int attributionChainId,
-            int accessCount) {
+            int accessCount, boolean isStartOrResume) {
         synchronized (mInMemoryLock) {
             if (mMode == AppOpsManager.HISTORICAL_MODE_ENABLED_ACTIVE) {
                 if (!isPersistenceInitializedMLocked()) {
@@ -524,7 +572,8 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
 
     @Override
     public void incrementOpRejectedCount(int op, int uid, @NonNull String packageName,
-            @Nullable String attributionTag, @UidState int uidState, @OpFlags int flags) {
+            @NonNull String deviceId, @Nullable String attributionTag, @UidState int uidState,
+            @OpFlags int flags, long rejectTime, int rejectCount) {
         synchronized (mInMemoryLock) {
             if (mMode == AppOpsManager.HISTORICAL_MODE_ENABLED_ACTIVE) {
                 if (!isPersistenceInitializedMLocked()) {
@@ -532,8 +581,8 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                     return;
                 }
                 getUpdatedPendingHistoricalOpsMLocked(
-                        System.currentTimeMillis()).increaseRejectCount(op, uid, packageName,
-                        attributionTag, uidState, flags, 1);
+                        rejectTime).increaseRejectCount(op, uid, packageName,
+                        attributionTag, uidState, flags, rejectCount);
             }
         }
     }
@@ -618,6 +667,10 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                 mPersistence.persistHistoricalOpsDLocked(history);
             }
         }
+    }
+
+    @Override
+    public void offsetDiscreteHistory(long offsetMillis) {
         mDiscreteRegistry.offsetHistory(offsetMillis);
     }
 
@@ -830,6 +883,14 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
         }
     }
 
+    static boolean historicalOpsDirExist() {
+        return Persistence.sHistoricalAppOpsDir.exists();
+    }
+
+    static void deleteHistoricalOpsDir() {
+        Persistence.sHistoricalAppOpsDir.delete();
+    }
+
     private static final class Persistence {
         private static final boolean DEBUG = false;
 
@@ -905,7 +966,7 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                 }
                 final Set<String> oldFileNames = getHistoricalFileNames(oldBaseDir);
                 handlePersistHistoricalOpsRecursiveDLocked(newBaseDir, oldBaseDir, ops,
-                        oldFileNames,  0);
+                        oldFileNames, 0);
                 if (DEBUG) {
                     filesInvariant.stopTracking(newBaseDir);
                 }
@@ -916,14 +977,16 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
             }
         }
 
-        @Nullable List<HistoricalOps> readHistoryRawDLocked() {
+        @Nullable
+        List<HistoricalOps> readHistoryRawDLocked() {
             return collectHistoricalOpsBaseDLocked(Process.INVALID_UID /*filterUid*/,
                     null /*filterPackageName*/, null /*filterAttributionTag*/,
                     null /*filterOpNames*/, 0 /*filter*/, 0 /*filterBeginTimeMills*/,
                     Long.MAX_VALUE /*filterEndTimeMills*/, AppOpsManager.OP_FLAGS_ALL);
         }
 
-        @Nullable List<HistoricalOps> readHistoryDLocked() {
+        @Nullable
+        List<HistoricalOps> readHistoryDLocked() {
             final List<HistoricalOps> result = readHistoryRawDLocked();
             // Take into account in memory state duration.
             if (result != null) {
@@ -1257,7 +1320,7 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                     cumulativeOverflowMillis);
         }
 
-        private @Nullable  List<HistoricalOps> readHistoricalOpsLocked(@NonNull File file,
+        private @Nullable List<HistoricalOps> readHistoricalOpsLocked(@NonNull File file,
                 int filterUid, @Nullable String filterPackageName,
                 @Nullable String filterAttributionTag, @Nullable String[] filterOpNames,
                 @HistoricalOpsRequestFilter int filter, long filterBeginTimeMillis,
@@ -1499,7 +1562,7 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
                 ops.increaseRejectCount(op, uid, packageName, attributionTag, uidState, flags,
                         rejectCount);
             }
-            long accessDuration =  parser.getAttributeLong(null, ATTR_ACCESS_DURATION, 0);
+            long accessDuration = parser.getAttributeLong(null, ATTR_ACCESS_DURATION, 0);
             if (accessDuration > 0) {
                 if (!Double.isNaN(filterScale)) {
                     accessDuration = (long) HistoricalOps.round(
@@ -1758,7 +1821,7 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
             return builder.toString();
         }
 
-        private static Set<String> getHistoricalFileNames(@NonNull File historyDir)  {
+        private static Set<String> getHistoricalFileNames(@NonNull File historyDir) {
             final File[] files = historyDir.listFiles();
             if (files == null) {
                 return Collections.emptySet();
@@ -1910,7 +1973,7 @@ final class LegacyHistoricalRegistry implements HistoricalRegistryInterface {
 
         @Override
         public void visitHistoricalOp(HistoricalOp ops) {
-            if ((mFilter & FILTER_BY_OP_NAMES) != 0  && mFilterOp != ops.getOpCode()) {
+            if ((mFilter & FILTER_BY_OP_NAMES) != 0 && mFilterOp != ops.getOpCode()) {
                 return;
             }
             mWriter.print(mEntryPrefix);

@@ -20,7 +20,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringRes;
 import android.app.AutomaticZenRule;
-import android.app.Flags;
 import android.content.Context;
 import android.service.notification.ZenModeConfig.EventInfo;
 import android.service.notification.ZenModeConfig.ScheduleInfo;
@@ -52,9 +51,7 @@ public final class SystemZenRules {
                 if (rule.type == AutomaticZenRule.TYPE_UNKNOWN) {
                     upgradeSystemProviderRule(context, rule);
                 }
-                if (Flags.modesUi()) {
-                    rule.allowManualInvocation = true;
-                }
+                rule.allowManualInvocation = true;
             }
         }
     }

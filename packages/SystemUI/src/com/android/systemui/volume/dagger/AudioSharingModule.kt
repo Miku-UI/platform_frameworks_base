@@ -16,10 +16,8 @@
 
 package com.android.systemui.volume.dagger
 
-import com.android.settingslib.flags.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.volume.domain.interactor.AudioSharingInteractor
-import com.android.systemui.volume.domain.interactor.AudioSharingInteractorEmptyImpl
 import com.android.systemui.volume.domain.interactor.AudioSharingInteractorImpl
 import dagger.Lazy
 import dagger.Module
@@ -33,13 +31,7 @@ interface AudioSharingModule {
         @Provides
         @SysUISingleton
         fun provideAudioSharingInteractor(
-            impl: Lazy<AudioSharingInteractorImpl>,
-            emptyImpl: Lazy<AudioSharingInteractorEmptyImpl>,
-        ): AudioSharingInteractor =
-            if (Flags.volumeDialogAudioSharingFix() || Flags.audioSharingDeveloperOption()) {
-                impl.get()
-            } else {
-                emptyImpl.get()
-            }
+            impl: Lazy<AudioSharingInteractorImpl>
+        ): AudioSharingInteractor = impl.get()
     }
 }

@@ -215,7 +215,6 @@ public class RadioManager {
      *
      * <p>Some radio technologies may not support this, i.e. DAB.
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int CONFIG_FORCE_ANALOG_FM = 10;
 
     /**
@@ -227,7 +226,6 @@ public class RadioManager {
      *
      * <p>Some radio technologies may not support this, i.e. DAB.
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final int CONFIG_FORCE_ANALOG_AM = 11;
 
     /** @hide */
@@ -1752,21 +1750,18 @@ public class RadioManager {
         /**
          * @return {@code true} if the signal has been acquired.
          */
-        @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
         public boolean isSignalAcquired() {
             return (mInfoFlags & FLAG_SIGNAL_ACQUIRED) != 0;
         }
         /**
          * @return {@code true} if HD Station Information Service (SIS) information is available.
          */
-        @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
         public boolean isHdSisAvailable() {
             return (mInfoFlags & FLAG_HD_SIS_ACQUIRED) != 0;
         }
         /**
          * @return {@code true} if HD audio is available.
          */
-        @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
         public boolean isHdAudioAvailable() {
             return (mInfoFlags & FLAG_HD_AUDIO_ACQUIRED) != 0;
         }

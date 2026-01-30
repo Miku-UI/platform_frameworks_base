@@ -55,7 +55,7 @@
   </string-array>
   <string-array name="hdcp_checking_summaries">
     <item msgid="4045840870658484038">"HDCP परीक्षण कहिल्यै प्रयोग नगर्नुहोस्"</item>
-    <item msgid="8254225038262324761">"DRM सामग्रीको लागि मात्र HDCP जाँचको प्रयोग गर्नुहोस्"</item>
+    <item msgid="8254225038262324761">"DRM कन्टेन्टका हकमा मात्र HDCP जाँचको प्रयोग गर्नुहोस्"</item>
     <item msgid="6421717003037072581">"सधैँ HDCP जाँच प्रयोग गर्नुहोस्"</item>
   </string-array>
   <string-array name="bt_hci_snoop_log_entries">
@@ -193,13 +193,13 @@
     <item msgid="2983219471251787208">"प्रति लग बफर ८ एम.बि."</item>
   </string-array>
   <string-array name="select_logpersist_titles">
-    <item msgid="704720725704372366">"निष्क्रिय"</item>
+    <item msgid="704720725704372366">"अफ"</item>
     <item msgid="6014837961827347618">"सबै"</item>
     <item msgid="7387060437894578132">"रेडियो बाहेक सबै"</item>
     <item msgid="7300881231043255746">"कर्नेल मात्र"</item>
   </string-array>
   <string-array name="select_logpersist_summaries">
-    <item msgid="97587758561106269">"निष्क्रिय"</item>
+    <item msgid="97587758561106269">"अफ"</item>
     <item msgid="7126170197336963369">"सबै लग बफर"</item>
     <item msgid="7167543126036181392">"रेडियो सम्बन्धी लगका बफरहरू बाहेक सबै"</item>
     <item msgid="5135340178556563979">"कर्नेलको लग सम्बन्धी बफर मात्र"</item>

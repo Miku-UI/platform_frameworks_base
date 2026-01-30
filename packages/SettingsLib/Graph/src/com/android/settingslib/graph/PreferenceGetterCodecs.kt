@@ -17,10 +17,10 @@
 package com.android.settingslib.graph
 
 import android.os.Bundle
-import android.os.Parcel
 import com.android.settingslib.graph.proto.PreferenceProto
 import com.android.settingslib.ipc.MessageCodec
 import com.android.settingslib.metadata.PreferenceCoordinate
+import com.android.settingslib.metadata.useParcel
 import java.util.Arrays
 
 /** Message codec for [PreferenceGetterRequest]. */
@@ -57,30 +57,28 @@ class PreferenceGetterResponseCodec : MessageCodec<PreferenceGetterResponse> {
 
     private fun Map<PreferenceCoordinate, Int>.toErrorsByteArray(): ByteArray? {
         if (isEmpty()) return null
-        val parcel = Parcel.obtain()
-        parcel.writeInt(size)
-        for ((coordinate, code) in this) {
-            coordinate.writeToParcel(parcel, 0)
-            parcel.writeInt(code)
+        return useParcel { parcel ->
+            parcel.writeInt(size)
+            for ((coordinate, code) in this) {
+                coordinate.writeToParcel(parcel, 0)
+                parcel.writeInt(code)
+            }
+            parcel.marshall()
         }
-        val bytes = parcel.marshall()
-        parcel.recycle()
-        return bytes
     }
 
     private fun Map<PreferenceCoordinate, PreferenceProto>.toPreferencesByteArray(): ByteArray? {
         if (isEmpty()) return null
-        val parcel = Parcel.obtain()
-        parcel.writeInt(size)
-        for ((coordinate, preferenceProto) in this) {
-            coordinate.writeToParcel(parcel, 0)
-            val data = preferenceProto.toByteArray()
-            parcel.writeInt(data.size)
-            parcel.writeByteArray(data)
+        return useParcel { parcel ->
+            parcel.writeInt(size)
+            for ((coordinate, preferenceProto) in this) {
+                coordinate.writeToParcel(parcel, 0)
+                val data = preferenceProto.toByteArray()
+                parcel.writeInt(data.size)
+                parcel.writeByteArray(data)
+            }
+            parcel.marshall()
         }
-        val bytes = parcel.marshall()
-        parcel.recycle()
-        return bytes
     }
 
     override fun decode(data: Bundle) =
@@ -91,34 +89,34 @@ class PreferenceGetterResponseCodec : MessageCodec<PreferenceGetterResponse> {
 
     private fun ByteArray?.toErrors(): Map<PreferenceCoordinate, Int> {
         if (this == null) return emptyMap()
-        val parcel = Parcel.obtain()
-        parcel.unmarshall(this, 0, size)
-        parcel.setDataPosition(0)
-        val count = parcel.readInt()
-        val errors = mutableMapOf<PreferenceCoordinate, Int>()
-        repeat(count) {
-            val coordinate = PreferenceCoordinate(parcel)
-            errors[coordinate] = parcel.readInt()
+        return useParcel { parcel ->
+            parcel.unmarshall(this, 0, size)
+            parcel.setDataPosition(0)
+            val count = parcel.readInt()
+            val errors = mutableMapOf<PreferenceCoordinate, Int>()
+            repeat(count) {
+                val coordinate = PreferenceCoordinate(parcel)
+                errors[coordinate] = parcel.readInt()
+            }
+            errors
         }
-        parcel.recycle()
-        return errors
     }
 
     private fun ByteArray?.toPreferences(): Map<PreferenceCoordinate, PreferenceProto> {
         if (this == null) return emptyMap()
-        val parcel = Parcel.obtain()
-        parcel.unmarshall(this, 0, size)
-        parcel.setDataPosition(0)
-        val count = parcel.readInt()
-        val preferences = mutableMapOf<PreferenceCoordinate, PreferenceProto>()
-        repeat(count) {
-            val coordinate = PreferenceCoordinate(parcel)
-            val bytes = parcel.readInt()
-            val array = ByteArray(bytes).also { parcel.readByteArray(it) }
-            preferences[coordinate] = PreferenceProto.parseFrom(array)
+        return useParcel { parcel ->
+            parcel.unmarshall(this, 0, size)
+            parcel.setDataPosition(0)
+            val count = parcel.readInt()
+            val preferences = mutableMapOf<PreferenceCoordinate, PreferenceProto>()
+            repeat(count) {
+                val coordinate = PreferenceCoordinate(parcel)
+                val bytes = parcel.readInt()
+                val array = ByteArray(bytes).also { parcel.readByteArray(it) }
+                preferences[coordinate] = PreferenceProto.parseFrom(array)
+            }
+            preferences
         }
-        parcel.recycle()
-        return preferences
     }
 
     companion object {

@@ -99,7 +99,8 @@ private:
 };
 
 void BufferQueue::createBufferQueue(sp<IGraphicBufferProducer>* outProducer,
-                                    sp<IGraphicBufferConsumer>* outConsumer) {
+                                    sp<IGraphicBufferConsumer>* outConsumer,
+                                    bool consumerIsSurfaceFlinger) {
     sp<HostBufferQueue> obj(new HostBufferQueue());
 
     *outProducer = obj;

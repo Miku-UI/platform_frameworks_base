@@ -145,8 +145,9 @@ public class DisplayAreaTest extends WindowTestsBase {
     public void testAsDisplayArea() {
         final WindowContainer windowContainer = new WindowContainer(mWm);
         final DisplayArea<WindowContainer> displayArea = new DisplayArea<>(mWm, ANY, "DA");
-        final TaskDisplayArea taskDisplayArea = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA", FEATURE_DEFAULT_TASK_CONTAINER);
+        final TaskDisplayArea taskDisplayArea = new TaskDisplayArea(mWm, "TDA",
+                FEATURE_DEFAULT_TASK_CONTAINER, false /* createdByOrganizer */,
+                true /* canHostHomeTask */);
 
         assertThat(windowContainer.asDisplayArea()).isNull();
         assertThat(displayArea.asDisplayArea()).isEqualTo(displayArea);
@@ -218,12 +219,13 @@ public class DisplayAreaTest extends WindowTestsBase {
                 new DisplayArea<>(mWm, ANY, "DA1");
         final DisplayArea<DisplayArea> da2 =
                 new DisplayArea<>(mWm, ANY, "DA2");
-        final TaskDisplayArea tda1 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA1", FEATURE_DEFAULT_TASK_CONTAINER);
-        final TaskDisplayArea tda2 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA2", FEATURE_VENDOR_FIRST);
-        final TaskDisplayArea tda3 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA3", FEATURE_VENDOR_FIRST + 1);
+        final TaskDisplayArea tda1 = new TaskDisplayArea(mWm, "TDA1",
+                FEATURE_DEFAULT_TASK_CONTAINER, false /* createdByOrganizer */,
+                true /* canHostHomeTask */);
+        final TaskDisplayArea tda2 = new TaskDisplayArea(mWm, "TDA2", FEATURE_VENDOR_FIRST,
+                false /* createdByOrganizer */, true /* canHostHomeTask */);
+        final TaskDisplayArea tda3 = new TaskDisplayArea(mWm, "TDA3", FEATURE_VENDOR_FIRST + 1,
+                false /* createdByOrganizer */, true /* canHostHomeTask */);
         root.addChild(da1, POSITION_TOP);
         root.addChild(da2, POSITION_TOP);
         da1.addChild(tda1, POSITION_TOP);
@@ -314,10 +316,11 @@ public class DisplayAreaTest extends WindowTestsBase {
     public void testForAllTaskDisplayAreas_returnsWhenCallbackReturnTrue() {
         final RootDisplayArea root =
                 new DisplayAreaPolicyBuilderTest.SurfacelessDisplayAreaRoot(mWm);
-        final TaskDisplayArea tda1 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA1", FEATURE_DEFAULT_TASK_CONTAINER);
-        final TaskDisplayArea tda2 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA2", FEATURE_VENDOR_FIRST);
+        final TaskDisplayArea tda1 = new TaskDisplayArea(mWm, "TDA1",
+                FEATURE_DEFAULT_TASK_CONTAINER, false /* createdByOrganizer */,
+                true /* canHostHomeTask */);
+        final TaskDisplayArea tda2 = new TaskDisplayArea(mWm, "TDA2", FEATURE_VENDOR_FIRST,
+                false /* createdByOrganizer */, true /* canHostHomeTask */);
         root.addChild(tda1, POSITION_TOP);
         root.addChild(tda2, POSITION_TOP);
 
@@ -342,10 +345,11 @@ public class DisplayAreaTest extends WindowTestsBase {
     public void testReduceOnAllTaskDisplayAreas_returnsTheAccumulativeResult() {
         final RootDisplayArea root =
                 new DisplayAreaPolicyBuilderTest.SurfacelessDisplayAreaRoot(mWm);
-        final TaskDisplayArea tda1 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA1", FEATURE_DEFAULT_TASK_CONTAINER);
-        final TaskDisplayArea tda2 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA2", FEATURE_VENDOR_FIRST);
+        final TaskDisplayArea tda1 = new TaskDisplayArea(mWm, "TDA1",
+                FEATURE_DEFAULT_TASK_CONTAINER, false /* createdByOrganizer */,
+                true /* canHostHomeTask */);
+        final TaskDisplayArea tda2 = new TaskDisplayArea(mWm, "TDA2", FEATURE_VENDOR_FIRST,
+                false /* createdByOrganizer */, true /* canHostHomeTask */);
         root.addChild(tda1, POSITION_TOP);
         root.addChild(tda2, POSITION_TOP);
 
@@ -368,10 +372,11 @@ public class DisplayAreaTest extends WindowTestsBase {
     public void testGetItemFromTaskDisplayAreas_returnsWhenCallbackReturnNotNull() {
         final RootDisplayArea root =
                 new DisplayAreaPolicyBuilderTest.SurfacelessDisplayAreaRoot(mWm);
-        final TaskDisplayArea tda1 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA1", FEATURE_DEFAULT_TASK_CONTAINER);
-        final TaskDisplayArea tda2 = new TaskDisplayArea(null /* displayContent */,
-                mWm, "TDA2", FEATURE_VENDOR_FIRST);
+        final TaskDisplayArea tda1 = new TaskDisplayArea(mWm, "TDA1",
+                FEATURE_DEFAULT_TASK_CONTAINER, false /* createdByOrganizer */,
+                true /* canHostHomeTask */);
+        final TaskDisplayArea tda2 = new TaskDisplayArea(mWm, "TDA2", FEATURE_VENDOR_FIRST,
+                false /* createdByOrganizer */, true /* canHostHomeTask */);
         root.addChild(tda1, POSITION_TOP);
         root.addChild(tda2, POSITION_TOP);
 

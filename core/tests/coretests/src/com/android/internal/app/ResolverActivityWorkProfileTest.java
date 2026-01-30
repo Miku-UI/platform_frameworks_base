@@ -328,7 +328,7 @@ public class ResolverActivityWorkProfileTest {
             }
         });
 
-        onView(withId(R.id.contentPanel))
+        onView(withId(R.id.title_container))
                 .perform(swipeUp());
         waitForIdle();
     }

@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Prisijungiama..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Prisijungta (<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>)"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Susiejama..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Nepavyksta susieti"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Nepavyksta prisijungti"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Prisijungta (<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>), (telefono nėra)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Prisijungta (<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>), (medijos nėra)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Prisijungta (<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>), (telef. ar medijos nėra)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Akumuliatoriaus lygis kairėje: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, dešinėje: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Akumuliatoriaus lygis kairėje: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Akumuliatoriaus lygis dešinėje: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Dėklas: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> akumuliatoriaus įkrova"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Kairė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, dėklas: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> akumuliatoriaus įkrova"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Dešinė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, dėklas: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> akumuliatoriaus įkrova"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Kairė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, dešinė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> akumuliatoriaus įkrova"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Kairė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, dėklas: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, dešinė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> akumuliatoriaus įkrova"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Kairė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Dešinė: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Aktyvus"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Aktyvus (tik dešiniojoje pusėje)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Aktyvus (kairiojoje ir dešiniojoje pusėse)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Nepavyko atnaujinti aplinkos"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Išankstinių nustatymų atnaujinti nepavyko"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Pasirinkta"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Aktyvus (tik medija). Akumuliatorius lygis: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Aktyvus (tik medija), akumuliatoriaus lygis kairėje: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, dešinėje: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Svečio įrenginys. Akumuliatorius lygis: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -246,7 +255,7 @@
     <item msgid="6946761421234586000">"400 proc."</item>
   </string-array>
     <string name="choose_profile" msgid="343803890897657450">"Profilio pasirinkimas"</string>
-    <string name="category_personal" msgid="6236798763159385225">"Asmeninės"</string>
+    <string name="category_personal" msgid="6236798763159385225">"Asmeninis"</string>
     <string name="category_work" msgid="4014193632325996115">"Darbo"</string>
     <string name="category_private" msgid="4244892185452788977">"Privatus"</string>
     <string name="category_clone" msgid="1554511758987195974">"Identiška kopija"</string>
@@ -290,7 +299,7 @@
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"ADB, derinti, kūrėjas"</string>
     <string name="bugreport_in_power" msgid="8664089072534638709">"Pranešimo apie riktą spartusis klavišas"</string>
     <string name="bugreport_in_power_summary" msgid="1885529649381831775">"Rodyti pranešimo apie riktą mygtuką maitinimo meniu"</string>
-    <string name="keep_screen_on" msgid="1187161672348797558">"Veikti"</string>
+    <string name="keep_screen_on" msgid="1187161672348797558">"Ekrano neišjungti"</string>
     <string name="keep_screen_on_summary" msgid="1510731514101925829">"Kraunant ekranas niekada neveiks miego režimu"</string>
     <string name="bt_hci_snoop_log" msgid="7291287955649081448">"Įgalinti „Bluetooth“ HCI šnipinėjimo žurnalą"</string>
     <string name="bt_hci_snoop_log_summary" msgid="6808538971394092284">"Fiksuoti „Bluetooth“ paketus. (Perjungti „Bluetooth“ pakeitus šį nustatymą)"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Kai įgalintas šis režimas, šio įrenginio MAC adresas gali keistis kas kartą prisijungus prie tinklo, kuriame įgalintas atsitiktinis MAC parinkimas."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Matuojamas"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Neišmatuotas"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Registruotuvo buferio dydžiai"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Registruotuvo buferio dydis"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Pasir. registr. dydž. žurn. bufer."</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Išvalyti nuolatinę registruotuvo saugyklą?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Kai nebestebime naudodami nuolatinį registruotuvą, turime ištrinti įrenginyje esančius registruotuvo duomenis."</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"Prieš <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Liko <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Mažiausias"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Mažesnis"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Mažas"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Numatytasis"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Didelis"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Didesnis"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Didžiausias"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Didesnis"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Labai didelis"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Itin didelis"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Didžiausias"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Tinkintas (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Meniu"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Įv. slapt. ir atk. gam. nust. dem. rež."</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{Prijungtas vienas įrenginys}one{Prijungtas # įrenginys}few{Prijungti # įrenginiai}many{Prijungta # įrenginio}other{Prijungta # įrenginių}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Daugiau laiko."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Mažiau laiko."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Didinimas"</string>
     <string name="cancel" msgid="5665114069455378395">"Atšaukti"</string>
     <string name="next" msgid="2699398661093607009">"Kitas"</string>
     <string name="back" msgid="5554327870352703710">"Atgal"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Jei transliuosite „<xliff:g id="SWITCHAPP">%1$s</xliff:g>“ arba pakeisite išvestį, dabartinė transliacija bus sustabdyta"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Transliuoti „<xliff:g id="SWITCHAPP">%1$s</xliff:g>“"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Keisti išvestį"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Numatomos grįžimo atgal gestų animacijos"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Įgalinkite sistemos animacijas, kad būtų galima naudoti numatomus grįžimo atgal gestus."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Šis nustatymas įgalina numatomų grįžimo atgal gestų sistemos animacijas. Aprašo faile programos lauką „enableOnBackInvokedCallback“ reikia nustatyti į vertę „true“."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Nenurodyta"</string>
     <string name="neuter" msgid="2075249330106127310">"Bevardė giminė"</string>

@@ -151,6 +151,10 @@ public class BroadcastHistory {
         mSummaryHistoryNext = ringAdvance(mSummaryHistoryNext, 1, MAX_BROADCAST_SUMMARY_HISTORY);
     }
 
+    public int getPendingBroadcastsCount() {
+        return mPendingBroadcasts.size();
+    }
+
     private int ringAdvance(int x, final int increment, final int ringSize) {
         x += increment;
         if (x < 0) return (ringSize - 1);

@@ -26,6 +26,7 @@ import com.android.compose.animation.scene.Edge
 import com.android.compose.animation.scene.SwipeDetector
 import com.android.compose.animation.scene.SwipeSource
 import com.android.compose.animation.scene.SwipeSourceDetector
+import com.android.systemui.Flags
 import kotlin.math.abs
 
 /**
@@ -49,11 +50,21 @@ class CommunalSwipeDetector(private var lastDirection: SwipeSource.Resolved? = n
     }
 
     override fun detectSwipe(change: PointerInputChange): Boolean {
-        if (change.positionChange().x > 0) {
-            lastDirection = Edge.Resolved.Left
-        } else {
-            lastDirection = Edge.Resolved.Right
+        if (
+            Flags.glanceableHubV2() &&
+                change.positionChange().y < 0 &&
+                abs(change.positionChange().y / change.positionChange().x) > TRAVEL_RATIO_THRESHOLD
+        ) {
+            lastDirection = Edge.Resolved.Bottom
+            return true
         }
+
+        lastDirection =
+            if (change.positionChange().x > 0) {
+                Edge.Resolved.Left
+            } else {
+                Edge.Resolved.Right
+            }
 
         // Determine whether the ratio of the distance traveled horizontally to the distance
         // traveled vertically exceeds the threshold.

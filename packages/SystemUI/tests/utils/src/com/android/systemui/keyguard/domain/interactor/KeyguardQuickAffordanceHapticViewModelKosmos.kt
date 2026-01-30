@@ -16,20 +16,15 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
+import com.android.systemui.haptics.msdl.msdlPlayer
+import com.android.systemui.haptics.vibratorHelper
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardQuickAffordanceHapticViewModel
-import com.android.systemui.keyguard.ui.viewmodel.KeyguardQuickAffordanceViewModel
 import com.android.systemui.kosmos.Kosmos
-import kotlinx.coroutines.flow.Flow
 
 val Kosmos.keyguardQuickAffordanceHapticViewModelFactory by
     Kosmos.Fixture {
         object : KeyguardQuickAffordanceHapticViewModel.Factory {
-            override fun create(
-                quickAffordanceViewModel: Flow<KeyguardQuickAffordanceViewModel>
-            ): KeyguardQuickAffordanceHapticViewModel =
-                KeyguardQuickAffordanceHapticViewModel(
-                    quickAffordanceViewModel,
-                    keyguardQuickAffordanceInteractor,
-                )
+            override fun create(): KeyguardQuickAffordanceHapticViewModel =
+                KeyguardQuickAffordanceHapticViewModel(msdlPlayer, vibratorHelper)
         }
     }

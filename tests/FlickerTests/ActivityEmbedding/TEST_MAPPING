@@ -1,0 +1,76 @@
+{
+  "wm": [
+    {
+      "name": "FlickerTestsActivityEmbedding-CatchAll",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-close-CloseSecondaryActivityInSplitTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-layoutchange-HorizontalSplitChangeRatioTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-open-MainActivityStartsSecondaryWithAlwaysExpandTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-open-OpenActivityEmbeddingPlaceholderSplitTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-open-OpenActivityEmbeddingSecondaryToSplitTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-open-OpenThirdActivityOverSplitTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-open-OpenTrampolineActivityTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-pip-SecondaryActivityEnterPipTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-rotation-RotateSplitNoChangeTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-rtl-RTLStartSecondaryWithPlaceholderTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsActivityEmbedding-splitscreen-EnterSystemSplitTest",
+      "keywords": [
+        "device"
+      ]
+    }
+  ]
+}

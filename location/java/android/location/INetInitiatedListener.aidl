@@ -18,7 +18,7 @@
 package android.location;
 
 /**
- * {@hide}
+ * @hide
  */
 interface INetInitiatedListener
 {

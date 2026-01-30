@@ -21,7 +21,7 @@ import android.media.AudioPlaybackConfiguration;
 /**
  * AIDL for the PlaybackActivityMonitor in AudioService to signal audio playback updates.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IPlaybackConfigDispatcher {
 

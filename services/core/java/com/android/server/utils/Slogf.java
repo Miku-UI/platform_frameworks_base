@@ -24,6 +24,9 @@ import android.util.TimingsTraceLog;
 
 import com.android.internal.annotations.GuardedBy;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
+
 import java.util.Formatter;
 import java.util.Locale;
 
@@ -123,12 +126,12 @@ public final class Slogf {
         Slog.wtfQuiet(tag, msg);
     }
 
-    /** Same as {@link Slog#wtfStack(String, String). */
+    /** Same as {@link Slog#wtfStack(String, String)}. */
     public static int wtfStack(String tag, String msg) {
         return Slog.wtfStack(tag, msg);
     }
 
-    /** Same as {@link Slog#wtf(String, Throwable). */
+    /** Same as {@link Slog#wtf(String, Throwable)}. */
     public static int wtf(String tag, Throwable tr) {
         return Slog.wtf(tag, tr);
     }
@@ -144,67 +147,85 @@ public final class Slogf {
     }
 
     /** Logs a {@link Log.VERBOSE} message. */
-    public static void v(String tag, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void v(String tag, @FormatString String format, @Nullable Object... args) {
         v(tag, getMessage(format, args));
     }
 
     /** Logs a {@link Log.VERBOSE} message with a throwable. */
-    public static void v(String tag, Throwable throwable, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void v(String tag, Throwable throwable, @FormatString String format,
+            @Nullable Object... args) {
         v(tag, getMessage(format, args), throwable);
     }
 
     /** Logs a {@link Log.DEBUG} message. */
-    public static void d(String tag, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void d(String tag, @FormatString String format, @Nullable Object... args) {
         d(tag, getMessage(format, args));
     }
 
     /** Logs a {@link Log.DEBUG} message with a throwable. */
-    public static void d(String tag, Throwable throwable, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void d(String tag, Throwable throwable, @FormatString String format,
+            @Nullable Object... args) {
         d(tag, getMessage(format, args), throwable);
     }
 
     /** Logs a {@link Log.INFO} message. */
-    public static void i(String tag, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void i(String tag, @FormatString String format, @Nullable Object... args) {
         i(tag, getMessage(format, args));
     }
 
     /** Logs a {@link Log.INFO} message with a throwable. */
-    public static void i(String tag, Throwable throwable, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void i(String tag, Throwable throwable, @FormatString String format,
+            @Nullable Object... args) {
         i(tag, getMessage(format, args), throwable);
     }
 
     /** Logs a {@link Log.WARN} message. */
-    public static void w(String tag, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void w(String tag, @FormatString String format, @Nullable Object... args) {
         w(tag, getMessage(format, args));
     }
 
     /** Logs a {@link Log.WARN} message with a throwable. */
-    public static void w(String tag, Throwable throwable, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void w(String tag, Throwable throwable, @FormatString String format,
+            @Nullable Object... args) {
         w(tag, getMessage(format, args), throwable);
     }
 
     /** Logs a {@link Log.ERROR} message. */
-    public static void e(String tag, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void e(String tag, @FormatString String format, @Nullable Object... args) {
         e(tag, getMessage(format, args));
     }
 
     /** Logs a {@link Log.ERROR} message with a throwable. */
-    public static void e(String tag, Throwable throwable, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void e(String tag, Throwable throwable, @FormatString String format,
+            @Nullable Object... args) {
         e(tag, getMessage(format, args), throwable);
     }
 
     /** Logs a {@code wtf} message. */
-    public static void wtf(String tag, String format, @Nullable Object... args) {
+    @FormatMethod
+    public static void wtf(String tag, @FormatString String format, @Nullable Object... args) {
         wtf(tag, getMessage(format, args));
     }
 
     /** Logs a {@code wtf} message with a throwable. */
-    public static void wtf(String tag, Throwable throwable, String format,
+    @FormatMethod
+    public static void wtf(String tag, Throwable throwable, @FormatString String format,
             @Nullable Object... args) {
         wtf(tag, getMessage(format, args), throwable);
     }
 
-    private static String getMessage(String format, @Nullable Object... args) {
+    @FormatMethod
+    private static String getMessage(@FormatString String format, @Nullable Object... args) {
         synchronized (sMessageBuilder) {
             sFormatter.format(format, args);
             String message = sMessageBuilder.toString();

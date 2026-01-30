@@ -85,7 +85,6 @@ import android.util.SparseBooleanArray;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.IAppOpsCallback;
 import com.android.internal.app.IAppOpsService;
-import com.android.internal.infra.AndroidFuture;
 import com.android.internal.util.IntPair;
 import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.FgThread;
@@ -109,7 +108,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 
 /**
  * This is a permission policy that governs over all permission mechanism
@@ -562,7 +560,6 @@ public final class PermissionPolicyService extends SystemService {
         final TimingsTraceAndSlog t = new TimingsTraceAndSlog();
         t.traceBegin("Permission_grant_default_permissions-" + userId);
         if (mPackageManagerInternal.isPermissionUpgradeNeeded(userId)) {
-            grantOrUpgradeDefaultRuntimePermissions(userId);
             updateUserSensitive(userId);
             mPackageManagerInternal.updateRuntimePermissionsFingerprint(userId);
         }
@@ -594,47 +591,6 @@ public final class PermissionPolicyService extends SystemService {
 
         synchronized (mLock) {
             mIsStarted.delete(user.getUserIdentifier());
-        }
-    }
-
-    private void grantOrUpgradeDefaultRuntimePermissions(@UserIdInt int userId) {
-        if (PermissionManager.USE_ACCESS_CHECKING_SERVICE) {
-            return;
-        }
-
-        if (DEBUG) Slog.i(LOG_TAG, "grantOrUpgradeDefaultPerms(" + userId + ")");
-        final TimingsTraceAndSlog t = new TimingsTraceAndSlog();
-
-        // Now call into the permission controller to apply policy around permissions
-        final AndroidFuture<Boolean> future = new AndroidFuture<>();
-
-        // We need to create a local manager that does not schedule work on the main
-        // there as we are on the main thread and want to block until the work is
-        // completed or we time out.
-        final PermissionControllerManager permissionControllerManager =
-                new PermissionControllerManager(
-                        getUserContext(getContext(), UserHandle.of(userId)),
-                        PermissionThread.getHandler());
-        permissionControllerManager.grantOrUpgradeDefaultRuntimePermissions(
-                PermissionThread.getExecutor(), successful -> {
-                    if (successful) {
-                        future.complete(null);
-                    } else {
-                        // We are in an undefined state now, let us crash and have
-                        // rescue party suggest a wipe to recover to a good one.
-                        final String message = "Error granting/upgrading runtime permissions"
-                                + " for user " + userId;
-                        Slog.wtf(LOG_TAG, message);
-                        future.completeExceptionally(new IllegalStateException(message));
-                    }
-                });
-        try {
-            t.traceBegin("Permission_callback_waiting-" + userId);
-            future.get();
-        } catch (InterruptedException | ExecutionException e) {
-            throw new IllegalStateException(e);
-        } finally {
-            t.traceEnd();
         }
     }
 

@@ -68,7 +68,7 @@ public class RoundedCornersTest {
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
-        mConfiguration = Configuration.EMPTY;
+        mConfiguration = new Configuration();
     }
 
     final RoundedCorners mRoundedCorners = new RoundedCorners(

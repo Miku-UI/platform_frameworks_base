@@ -29,7 +29,6 @@ import static android.os.UserHandle.PER_USER_RANGE;
 
 import android.annotation.BytesLong;
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -61,7 +60,6 @@ import android.os.Binder;
 import android.os.Build;
 import android.os.Environment;
 import android.os.FileUtils;
-import android.os.Flags;
 import android.os.Handler;
 import android.os.IInstalld;
 import android.os.IVold;
@@ -143,27 +141,27 @@ public class StorageManager {
     private static final String TAG = "StorageManager";
     private static final boolean LOCAL_LOGV = Log.isLoggable(TAG, Log.VERBOSE);
 
-    /** {@hide} */
+    /** @hide */
     public static final String PROP_PRIMARY_PHYSICAL = "ro.vold.primary_physical";
-    /** {@hide} */
+    /** @hide */
     public static final String PROP_HAS_ADOPTABLE = "vold.has_adoptable";
-    /** {@hide} */
+    /** @hide */
     public static final String PROP_HAS_RESERVED = "vold.has_reserved";
-    /** {@hide} */
+    /** @hide */
     public static final String PROP_ADOPTABLE = "persist.sys.adoptable";
-    /** {@hide} */
+    /** @hide */
     public static final String PROP_SDCARDFS = "persist.sys.sdcardfs";
-    /** {@hide} */
+    /** @hide */
     public static final String PROP_VIRTUAL_DISK = "persist.sys.virtual_disk";
-    /** {@hide} */
+    /** @hide */
     public static final String PROP_FORCED_SCOPED_STORAGE_WHITELIST =
             "forced_scoped_storage_whitelist";
 
-    /** {@hide} */
+    /** @hide */
     public static final String UUID_PRIVATE_INTERNAL = null;
-    /** {@hide} */
+    /** @hide */
     public static final String UUID_PRIMARY_PHYSICAL = "primary_physical";
-    /** {@hide} */
+    /** @hide */
     public static final String UUID_SYSTEM = "system";
 
     // NOTE: See comments around #convert for more details.
@@ -187,11 +185,11 @@ public class StorageManager {
     public static final UUID UUID_DEFAULT = UUID
             .fromString("41217664-9172-527a-b3d5-edabb50a7d69");
 
-    /** {@hide} */
+    /** @hide */
     public static final UUID UUID_PRIMARY_PHYSICAL_ = UUID
             .fromString("0f95a519-dae7-5abf-9519-fbd6209e05fd");
 
-    /** {@hide} */
+    /** @hide */
     public static final UUID UUID_SYSTEM_ = UUID
             .fromString("5d258386-e60d-59e3-826d-0089cdd42cc0");
 
@@ -250,27 +248,27 @@ public class StorageManager {
      */
     public static final String EXTRA_REQUESTED_BYTES = "android.os.storage.extra.REQUESTED_BYTES";
 
-    /** {@hide} */
+    /** @hide */
     public static final int DEBUG_ADOPTABLE_FORCE_ON = 1 << 0;
-    /** {@hide} */
+    /** @hide */
     public static final int DEBUG_ADOPTABLE_FORCE_OFF = 1 << 1;
-    /** {@hide} */
+    /** @hide */
     public static final int DEBUG_SDCARDFS_FORCE_ON = 1 << 2;
-    /** {@hide} */
+    /** @hide */
     public static final int DEBUG_SDCARDFS_FORCE_OFF = 1 << 3;
-    /** {@hide} */
+    /** @hide */
     public static final int DEBUG_VIRTUAL_DISK = 1 << 4;
 
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_STORAGE_DE = IInstalld.FLAG_STORAGE_DE;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_STORAGE_CE = IInstalld.FLAG_STORAGE_CE;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_STORAGE_EXTERNAL = IInstalld.FLAG_STORAGE_EXTERNAL;
     /** @hide */
     public static final int FLAG_STORAGE_SDK = IInstalld.FLAG_STORAGE_SDK;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = "FLAG_STORAGE_", value = {
             FLAG_STORAGE_DE,
             FLAG_STORAGE_CE,
@@ -281,18 +279,18 @@ public class StorageManager {
     public @interface StorageFlags {
     }
 
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_FOR_WRITE = 1 << 8;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_REAL_STATE = 1 << 9;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_INCLUDE_INVISIBLE = 1 << 10;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_INCLUDE_RECENT = 1 << 11;
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_INCLUDE_SHARED_PROFILE = 1 << 12;
 
-    /** {@hide} */
+    /** @hide */
     public static final int FSTRIM_FLAG_DEEP = IVold.FSTRIM_FLAG_DEEP_TRIM;
 
     /** @hide The volume is not encrypted. */
@@ -345,7 +343,7 @@ public class StorageManager {
                     .api("getVolumeList").maxEntries(VOLUME_LIST_CACHE_MAX), "getVolumeList",
                     sVolumeListQuery);
 
-    /** {@hide} */
+    /** @hide */
     public static void invalidateVolumeListCache() {
         sVolumeListCache.invalidateCache();
     }
@@ -506,7 +504,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     @UnsupportedAppUsage
     public static StorageManager from(Context context) {
@@ -837,7 +835,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public @NonNull List<DiskInfo> getDisks() {
         try {
@@ -847,7 +845,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public @Nullable DiskInfo findDiskById(String id) {
         Preconditions.checkNotNull(id);
@@ -860,7 +858,7 @@ public class StorageManager {
         return null;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public @Nullable VolumeInfo findVolumeById(String id) {
         Preconditions.checkNotNull(id);
@@ -873,7 +871,7 @@ public class StorageManager {
         return null;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public @Nullable VolumeInfo findVolumeByUuid(String fsUuid) {
         Preconditions.checkNotNull(fsUuid);
@@ -886,7 +884,7 @@ public class StorageManager {
         return null;
     }
 
-    /** {@hide} */
+    /** @hide */
     public @Nullable VolumeRecord findRecordByUuid(String fsUuid) {
         Preconditions.checkNotNull(fsUuid);
         // TODO; go directly to service to make this faster
@@ -898,7 +896,7 @@ public class StorageManager {
         return null;
     }
 
-    /** {@hide} */
+    /** @hide */
     public @Nullable VolumeInfo findPrivateForEmulated(VolumeInfo emulatedVol) {
         if (emulatedVol != null) {
             String id = emulatedVol.getId();
@@ -912,7 +910,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public @Nullable VolumeInfo findEmulatedForPrivate(VolumeInfo privateVol) {
         if (privateVol != null) {
@@ -923,7 +921,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public @Nullable VolumeInfo findVolumeByQualifiedUuid(String volumeUuid) {
         if (Objects.equals(StorageManager.UUID_PRIVATE_INTERNAL, volumeUuid)) {
             return findVolumeById(VolumeInfo.ID_PRIVATE_INTERNAL);
@@ -970,7 +968,7 @@ public class StorageManager {
         throw new FileNotFoundException("Failed to find a storage device for " + path);
     }
 
-    /** {@hide} */
+    /** @hide */
     public @NonNull File findPathForUuid(String volumeUuid) throws FileNotFoundException {
         final VolumeInfo vol = findVolumeByQualifiedUuid(volumeUuid);
         if (vol != null) {
@@ -992,7 +990,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public @NonNull List<VolumeInfo> getVolumes() {
         try {
@@ -1002,7 +1000,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public @NonNull List<VolumeInfo> getWritablePrivateVolumes() {
         try {
             final ArrayList<VolumeInfo> res = new ArrayList<>();
@@ -1017,7 +1015,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public @NonNull List<VolumeRecord> getVolumeRecords() {
         try {
             return Arrays.asList(mStorageManager.getVolumeRecords(0));
@@ -1026,7 +1024,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public @Nullable String getBestVolumeDescription(VolumeInfo vol) {
         if (vol == null) return null;
@@ -1050,7 +1048,7 @@ public class StorageManager {
         return null;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public @Nullable VolumeInfo getPrimaryPhysicalVolume() {
         final List<VolumeInfo> vols = getVolumes();
@@ -1062,7 +1060,7 @@ public class StorageManager {
         return null;
     }
 
-    /** {@hide} */
+    /** @hide */
     public void mount(String volId) {
         try {
             mStorageManager.mount(volId);
@@ -1071,7 +1069,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public void unmount(String volId) {
         try {
@@ -1081,7 +1079,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void format(String volId) {
         try {
@@ -1091,7 +1089,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public long benchmark(String volId) {
         final CompletableFuture<PersistableBundle> result = new CompletableFuture<>();
@@ -1114,7 +1112,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void benchmark(String volId, IVoldTaskListener listener) {
         try {
             mStorageManager.benchmark(volId, listener);
@@ -1123,7 +1121,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void partitionPublic(String diskId) {
         try {
@@ -1133,7 +1131,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void partitionPrivate(String diskId) {
         try {
             mStorageManager.partitionPrivate(diskId);
@@ -1142,7 +1140,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void partitionMixed(String diskId, int ratio) {
         try {
             mStorageManager.partitionMixed(diskId, ratio);
@@ -1151,7 +1149,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void wipeAdoptableDisks() {
         // We only wipe devices in "adoptable" locations, which are in a
         // long-term stable slot/location on the device, where apps have a
@@ -1175,7 +1173,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void setVolumeNickname(String fsUuid, String nickname) {
         try {
             mStorageManager.setVolumeNickname(fsUuid, nickname);
@@ -1184,7 +1182,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void setVolumeInited(String fsUuid, boolean inited) {
         try {
             mStorageManager.setVolumeUserFlags(fsUuid, inited ? VolumeRecord.USER_FLAG_INITED : 0,
@@ -1194,7 +1192,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void setVolumeSnoozed(String fsUuid, boolean snoozed) {
         try {
             mStorageManager.setVolumeUserFlags(fsUuid, snoozed ? VolumeRecord.USER_FLAG_SNOOZED : 0,
@@ -1204,7 +1202,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void forgetVolume(String fsUuid) {
         try {
             mStorageManager.forgetVolume(fsUuid);
@@ -1280,12 +1278,12 @@ public class StorageManager {
         throw new IllegalStateException("Unknown volume for " + uri);
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @Nullable StorageVolume getStorageVolume(File file, int userId) {
         return getStorageVolume(getVolumeList(userId, 0), file);
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private static @Nullable StorageVolume getStorageVolume(StorageVolume[] volumes, File file) {
         if (file == null) {
@@ -1394,20 +1392,20 @@ public class StorageManager {
         return getVolumeList(mContext.getUserId(), FLAG_REAL_STATE | FLAG_INCLUDE_INVISIBLE)[0];
     }
 
-    /** {@hide} */
+    /** @hide */
     public static Pair<String, Long> getPrimaryStoragePathAndSize() {
         return Pair.create(null,
                 FileUtils.roundStorageSize(Environment.getDataDirectory().getTotalSpace()
                         + Environment.getRootDirectory().getTotalSpace()));
     }
 
-    /** {@hide} */
+    /** @hide */
     public long getPrimaryStorageSize() {
         return FileUtils.roundStorageSize(Environment.getDataDirectory().getTotalSpace()
                 + Environment.getRootDirectory().getTotalSpace());
     }
 
-    /** {@hide} */
+    /** @hide */
     public long getInternalStorageBlockDeviceSize() {
         try {
             return mStorageManager.getInternalStorageBlockDeviceSize();
@@ -1416,7 +1414,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public void mkdirs(File file) {
         BlockGuard.getVmPolicy().onPathAccess(file.getAbsolutePath());
         try {
@@ -1431,7 +1429,7 @@ public class StorageManager {
         return getVolumeList(mContext.getUserId(), 0);
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public static @NonNull StorageVolume[] getVolumeList(int userId, int flags) {
         try {
@@ -1477,7 +1475,7 @@ public class StorageManager {
         return getPrimaryVolume(getVolumeList());
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @NonNull StorageVolume getPrimaryVolume(StorageVolume[] volumes) {
         for (StorageVolume volume : volumes) {
             if (volume.isPrimary()) {
@@ -1494,7 +1492,7 @@ public class StorageManager {
      * @hide
      */
     public static final int DEFAULT_STORAGE_THRESHOLD_PERCENT_HIGH = 20;
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public static final String
             STORAGE_THRESHOLD_PERCENT_HIGH_KEY = "storage_threshold_percent_high";
@@ -1513,7 +1511,7 @@ public class StorageManager {
      * @hide
      */
     public static final int DEFAULT_CACHE_RESERVE_PERCENT_HIGH = 10;
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public static final String CACHE_RESERVE_PERCENT_HIGH_KEY = "cache_reserve_percent_high";
     /**
@@ -1523,7 +1521,7 @@ public class StorageManager {
      * @hide
      */
     public static final int DEFAULT_CACHE_RESERVE_PERCENT_LOW = 2;
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public static final String CACHE_RESERVE_PERCENT_LOW_KEY = "cache_reserve_percent_low";
 
@@ -1638,55 +1636,6 @@ public class StorageManager {
     }
 
     /**
-     * Creates the keys for a user's credential-encrypted (CE) and device-encrypted (DE) storage.
-     * <p>
-     * This creates the user's CE key and DE key for internal storage, then adds them to the kernel.
-     * Then, if the user is not ephemeral, this stores the DE key (encrypted) on flash.  (The CE key
-     * is not stored until {@link IStorageManager#setCeStorageProtection()}.)
-     * <p>
-     * This does not create the CE and DE directories themselves.  For that, see {@link
-     * #prepareUserStorage()}.
-     * <p>
-     * This is only intended to be called by UserManagerService, as part of creating a user.
-     *
-     * @param userId    ID of the user
-     * @param ephemeral whether the user is ephemeral
-     * @throws RuntimeException on error.  The user's keys already existing is considered an error.
-     * @hide
-     */
-    public void createUserStorageKeys(int userId, boolean ephemeral) {
-        try {
-            mStorageManager.createUserStorageKeys(userId, ephemeral);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    /**
-     * Destroys the keys for a user's credential-encrypted (CE) and device-encrypted (DE) storage.
-     * <p>
-     * This evicts the keys from the kernel (if present), which "locks" the corresponding
-     * directories.  Then, this deletes the encrypted keys from flash.  This operates on all the
-     * user's CE and DE keys, for both internal and adoptable storage.
-     * <p>
-     * This does not destroy the CE and DE directories themselves.  For that, see {@link
-     * #destroyUserStorage()}.
-     * <p>
-     * This is only intended to be called by UserManagerService, as part of removing a user.
-     *
-     * @param userId ID of the user
-     * @throws RuntimeException on error.  On error, as many things as possible are still destroyed.
-     * @hide
-     */
-    public void destroyUserStorageKeys(int userId) {
-        try {
-            mStorageManager.destroyUserStorageKeys(userId);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    /**
      * Locks the user's credential-encrypted (CE) storage.
      *
      * @hide
@@ -1694,24 +1643,6 @@ public class StorageManager {
     public void lockCeStorage(int userId) {
         try {
             mStorageManager.lockCeStorage(userId);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    /** {@hide} */
-    public void prepareUserStorage(String volumeUuid, int userId, int flags) {
-        try {
-            mStorageManager.prepareUserStorage(volumeUuid, userId, flags);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    /** {@hide} */
-    public void destroyUserStorage(String volumeUuid, int userId, int flags) {
-        try {
-            mStorageManager.destroyUserStorage(volumeUuid, userId, flags);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -1756,7 +1687,7 @@ public class StorageManager {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Is this device encrypted?
      * <p>
      * Note: all devices launching with Android 10 (API level 29) or later are
@@ -1770,7 +1701,7 @@ public class StorageManager {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Does this device have file-based encryption (FBE) enabled?
      *
      * @return true if the device has file-based encryption enabled.
@@ -1782,7 +1713,7 @@ public class StorageManager {
         return RoSystemProperties.CRYPTO_FILE_ENCRYPTED;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static boolean hasAdoptable() {
         switch (SystemProperties.get(PROP_ADOPTABLE)) {
             case "force_on":
@@ -1953,7 +1884,7 @@ public class StorageManager {
      * no longer valid. Clients should check the appropriate permissions directly
      * instead (e.g. READ_MEDIA_IMAGES).
      *
-     * {@hide}
+     * @hide
      */
     @Deprecated
     public boolean checkPermissionReadImages(boolean enforce,
@@ -1984,7 +1915,7 @@ public class StorageManager {
         return checkPermissionAndAppOp(enforce, pid, uid, packageName, featureId, permission, op);
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public @NonNull ParcelFileDescriptor openProxyFileDescriptor(
             int mode, ProxyFileDescriptorCallback callback, Handler handler, ThreadFactory factory)
@@ -2036,7 +1967,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public @NonNull ParcelFileDescriptor openProxyFileDescriptor(
             int mode, ProxyFileDescriptorCallback callback)
             throws IOException {
@@ -2074,7 +2005,7 @@ public class StorageManager {
         return openProxyFileDescriptor(mode, callback, handler, null);
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public int getProxyFileDescriptorMountPointId() {
         synchronized (mFuseAppLoopLock) {
@@ -2491,28 +2422,28 @@ public class StorageManager {
     /**
      * Default project ID for files on external storage
      *
-     * {@hide}
+     * @hide
      */
     public static final int PROJECT_ID_EXT_DEFAULT = 1000;
 
     /**
      * project ID for audio files on external storage
      *
-     * {@hide}
+     * @hide
      */
     public static final int PROJECT_ID_EXT_MEDIA_AUDIO = 1001;
 
     /**
      * project ID for video files on external storage
      *
-     * {@hide}
+     * @hide
      */
     public static final int PROJECT_ID_EXT_MEDIA_VIDEO = 1002;
 
     /**
      * project ID for image files on external storage
      *
-     * {@hide}
+     * @hide
      */
     public static final int PROJECT_ID_EXT_MEDIA_IMAGE = 1003;
 
@@ -2686,7 +2617,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     private static void setCacheBehavior(File path, String name, boolean enabled)
             throws IOException {
         if (!path.isDirectory()) {
@@ -2710,7 +2641,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     private static boolean isCacheBehavior(File path, String name) throws IOException {
         try {
             Os.getxattr(path.getAbsolutePath(), name);
@@ -2789,7 +2720,7 @@ public class StorageManager {
         return uuid.length() == 9 && uuid.charAt(4) == '-';
     }
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public static @NonNull UUID convert(@Nullable String uuid) {
         // UUID_PRIVATE_INTERNAL is null, so this accepts nullable input
@@ -2817,7 +2748,7 @@ public class StorageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public static @NonNull String convert(@NonNull UUID storageUuid) {
         if (UUID_DEFAULT.equals(storageUuid)) {
@@ -3019,7 +2950,6 @@ public class StorageManager {
      * @return Percentage of the remaining useful lifetime of the internal storage device.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_STORAGE_LIFETIME_API)
     @SystemApi
     @RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE)
     public int getInternalStorageRemainingLifetime() {

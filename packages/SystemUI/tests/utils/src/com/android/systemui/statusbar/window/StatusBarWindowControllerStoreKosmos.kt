@@ -28,7 +28,7 @@ val Kosmos.multiDisplayStatusBarWindowControllerStore by
     Kosmos.Fixture {
         MultiDisplayStatusBarWindowControllerStore(
             backgroundApplicationScope = applicationCoroutineScope,
-            controllerFactory = { _, _, _, _ -> mock() },
+            controllerFactory = { _, _, _, _, _ -> mock() },
             displayWindowPropertiesRepository = displayWindowPropertiesRepository,
             statusBarConfigurationControllerStore = statusBarConfigurationControllerStore,
             statusBarContentInsetsProviderStore = statusBarContentInsetsProviderStore,

@@ -432,7 +432,7 @@ abstract class ParcelableComponentTest(
 
         val allTestedFunctions = params.filter(Param::verifyFunctionName).flatMap {
             listOfNotNull(it.getFunctionName, it.setFunctionName)
-        }
+        }.distinct() // It's ok if a function is tested multiple times.
         expect.that(allTestedFunctions).containsExactlyElementsIn(expectedFunctions)
     }
 

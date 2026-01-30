@@ -15,7 +15,6 @@
  */
 package android.hardware.radio;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -152,7 +151,6 @@ public final class RadioMetadata implements Parcelable {
      * of short content description and actual text (see NRSC-G200-A and id3v2.3.0
      * for more info).
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final String METADATA_KEY_COMMENT_SHORT_DESCRIPTION =
             "android.hardware.radio.metadata.COMMENT_SHORT_DESCRIPTION";
 
@@ -161,7 +159,6 @@ public final class RadioMetadata implements Parcelable {
      *
      * @see #METADATA_KEY_COMMENT_SHORT_DESCRIPTION
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final String METADATA_KEY_COMMENT_ACTUAL_TEXT =
             "android.hardware.radio.metadata.COMMENT_ACTUAL_TEXT";
 
@@ -171,7 +168,6 @@ public final class RadioMetadata implements Parcelable {
      * <p>Commercial is application specific and generally used to facilitate the
      * sale of products and services (see NRSC-G200-A and id3v2.3.0 for more info).
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final String METADATA_KEY_COMMERCIAL =
             "android.hardware.radio.metadata.COMMERCIAL";
 
@@ -182,7 +178,6 @@ public final class RadioMetadata implements Parcelable {
      * identifier of the current content, or of an advertised product or
      * service (see NRSC-G200-A and id3v2.3.0 for more info).
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final String METADATA_KEY_UFIDS = "android.hardware.radio.metadata.UFIDS";
 
     /**
@@ -190,7 +185,6 @@ public final class RadioMetadata implements Parcelable {
      *
      * <p>It can be up to 12 characters (see SY_IDD_1020s for more info).
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final String METADATA_KEY_HD_STATION_NAME_SHORT =
             "android.hardware.radio.metadata.HD_STATION_NAME_SHORT";
 
@@ -199,7 +193,6 @@ public final class RadioMetadata implements Parcelable {
      *
      * <p>(see SY_IDD_1020s for more info)
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final String METADATA_KEY_HD_STATION_NAME_LONG =
             "android.hardware.radio.metadata.HD_STATION_NAME_LONG";
 
@@ -212,7 +205,6 @@ public final class RadioMetadata implements Parcelable {
      * from LSB represent HD-2 to HD-8 subchannel (supplemental program services, SPS)
      * respectively.
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public static final String METADATA_KEY_HD_SUBCHANNELS_AVAILABLE =
             "android.hardware.radio.metadata.HD_SUBCHANNELS_AVAILABLE";
 
@@ -369,8 +361,7 @@ public final class RadioMetadata implements Parcelable {
             return false;
         }
         for (String key : mBundle.keySet()) {
-            if (Flags.hdRadioImproved() && Objects.equals(METADATA_KEYS_TYPE.get(key),
-                    METADATA_TYPE_TEXT_ARRAY)) {
+            if (Objects.equals(METADATA_KEYS_TYPE.get(key), METADATA_TYPE_TEXT_ARRAY)) {
                 if (!Arrays.equals(mBundle.getStringArray(key), otherBundle.getStringArray(key))) {
                     return false;
                 }
@@ -410,8 +401,7 @@ public final class RadioMetadata implements Parcelable {
 
             sb.append(keyDisp);
             sb.append('=');
-            if (Flags.hdRadioImproved() && Objects.equals(METADATA_KEYS_TYPE.get(key),
-                    METADATA_TYPE_TEXT_ARRAY)) {
+            if (Objects.equals(METADATA_KEYS_TYPE.get(key), METADATA_TYPE_TEXT_ARRAY)) {
                 String[] stringArrayValue = mBundle.getStringArray(key);
                 sb.append('[');
                 for (int i = 0; i < stringArrayValue.length; i++) {
@@ -511,7 +501,6 @@ public final class RadioMetadata implements Parcelable {
      * @throws IllegalArgumentException if the metadata with the key is not found in
      * metadata or the key is not of bitmap-key type
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     public int getBitmapId(@NonNull String key) {
         Objects.requireNonNull(key, "Metadata key can not be null");
         if (!METADATA_KEY_ICON.equals(key) && !METADATA_KEY_ART.equals(key)) {
@@ -546,7 +535,6 @@ public final class RadioMetadata implements Parcelable {
      * @throws IllegalArgumentException if the metadata with the key is not found in
      * metadata or the key is not of string-array type
      */
-    @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
     @NonNull
     public String[] getStringArray(@NonNull String key) {
         Objects.requireNonNull(key, "Metadata key can not be null");
@@ -774,7 +762,6 @@ public final class RadioMetadata implements Parcelable {
          * @throws NullPointerException if key or value is null
          * @throws IllegalArgumentException if the key is not string-array-type key
          */
-        @FlaggedApi(Flags.FLAG_HD_RADIO_IMPROVED)
         @NonNull
         public Builder putStringArray(@NonNull String key, @NonNull String[] value) {
             Objects.requireNonNull(key, "Key can not be null");

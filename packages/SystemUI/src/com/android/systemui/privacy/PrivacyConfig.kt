@@ -16,16 +16,18 @@
 
 package com.android.systemui.privacy
 
+import android.location.flags.Flags.locationIndicatorsEnabled
 import android.provider.DeviceConfig
 import com.android.internal.annotations.VisibleForTesting
+import com.android.internal.annotations.WeaklyReferencedCallback
 import com.android.internal.config.sysui.SystemUiDeviceConfigFlags
 import com.android.systemui.Dumpable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.res.R
 import com.android.systemui.util.DeviceConfigProxy
 import com.android.systemui.util.asIndenting
-import com.android.systemui.util.annotations.WeaklyReferencedCallback
 import com.android.systemui.util.concurrency.DelayableExecutor
 import com.android.systemui.util.withIncreasedIndent
 import java.io.PrintWriter
@@ -33,78 +35,93 @@ import java.lang.ref.WeakReference
 import javax.inject.Inject
 
 @SysUISingleton
-class PrivacyConfig @Inject constructor(
+class PrivacyConfig
+@Inject
+constructor(
     @Main private val uiExecutor: DelayableExecutor,
     private val deviceConfigProxy: DeviceConfigProxy,
-    dumpManager: DumpManager
+    dumpManager: DumpManager,
 ) : Dumpable {
 
     @VisibleForTesting
-    internal companion object {
+    companion object {
         const val TAG = "PrivacyConfig"
         private const val MIC_CAMERA = SystemUiDeviceConfigFlags.PROPERTY_MIC_CAMERA_ENABLED
-        private const val LOCATION = SystemUiDeviceConfigFlags.PROPERTY_LOCATION_INDICATORS_ENABLED
         private const val MEDIA_PROJECTION =
-                SystemUiDeviceConfigFlags.PROPERTY_MEDIA_PROJECTION_INDICATORS_ENABLED
+            SystemUiDeviceConfigFlags.PROPERTY_MEDIA_PROJECTION_INDICATORS_ENABLED
         private const val DEFAULT_MIC_CAMERA = true
-        private const val DEFAULT_LOCATION = false
         private const val DEFAULT_MEDIA_PROJECTION = true
+
+        fun getPrivacyColor(locationOnly: Boolean): Int {
+            if (locationOnly) {
+                return R.color.privacy_chip_location_only_background
+            }
+            return R.color.privacy_chip_background
+        }
+
+        fun privacyItemsAreLocationOnly(privacyItems: List<PrivacyItem>): Boolean {
+            return privacyItems.isNotEmpty() &&
+                privacyItems.all { it.privacyType == PrivacyType.TYPE_LOCATION }
+        }
     }
 
     private val callbacks = mutableListOf<WeakReference<Callback>>()
 
     var micCameraAvailable = isMicCameraEnabled()
         private set
-    var locationAvailable = isLocationEnabled()
+
+    var locationAvailable = locationIndicatorsEnabled()
         private set
+
     var mediaProjectionAvailable = isMediaProjectionEnabled()
         private set
 
     private val devicePropertiesChangedListener =
-            DeviceConfig.OnPropertiesChangedListener { properties ->
-                if (DeviceConfig.NAMESPACE_PRIVACY == properties.namespace) {
-                    // Running on the ui executor so can iterate on callbacks
-                    if (properties.keyset.contains(MIC_CAMERA)) {
-                        micCameraAvailable = properties.getBoolean(MIC_CAMERA, DEFAULT_MIC_CAMERA)
-                        callbacks.forEach { it.get()?.onFlagMicCameraChanged(micCameraAvailable) }
-                    }
+        DeviceConfig.OnPropertiesChangedListener { properties ->
+            if (DeviceConfig.NAMESPACE_PRIVACY == properties.namespace) {
+                // Running on the ui executor so can iterate on callbacks
+                if (properties.keyset.contains(MIC_CAMERA)) {
+                    micCameraAvailable = properties.getBoolean(MIC_CAMERA, DEFAULT_MIC_CAMERA)
+                    callbacks.forEach { it.get()?.onFlagMicCameraChanged(micCameraAvailable) }
+                }
 
-                    if (properties.keyset.contains(LOCATION)) {
-                        locationAvailable = properties.getBoolean(LOCATION, DEFAULT_LOCATION)
-                        callbacks.forEach { it.get()?.onFlagLocationChanged(locationAvailable) }
-                    }
+                if (locationAvailable) {
+                    callbacks.forEach { it.get()?.onFlagLocationChanged(locationAvailable) }
+                }
 
-                    if (properties.keyset.contains(MEDIA_PROJECTION)) {
-                        mediaProjectionAvailable =
-                                properties.getBoolean(MEDIA_PROJECTION, DEFAULT_MEDIA_PROJECTION)
-                        callbacks.forEach {
-                            it.get()?.onFlagMediaProjectionChanged(mediaProjectionAvailable)
-                        }
+                if (properties.keyset.contains(MEDIA_PROJECTION)) {
+                    mediaProjectionAvailable =
+                        properties.getBoolean(MEDIA_PROJECTION, DEFAULT_MEDIA_PROJECTION)
+                    callbacks.forEach {
+                        it.get()?.onFlagMediaProjectionChanged(mediaProjectionAvailable)
                     }
                 }
             }
+        }
 
     init {
         dumpManager.registerNormalDumpable(TAG, this)
         deviceConfigProxy.addOnPropertiesChangedListener(
-                DeviceConfig.NAMESPACE_PRIVACY,
-                uiExecutor,
-                devicePropertiesChangedListener)
+            DeviceConfig.NAMESPACE_PRIVACY,
+            uiExecutor,
+            devicePropertiesChangedListener,
+        )
     }
 
     private fun isMicCameraEnabled(): Boolean {
-        return deviceConfigProxy.getBoolean(DeviceConfig.NAMESPACE_PRIVACY,
-                MIC_CAMERA, DEFAULT_MIC_CAMERA)
-    }
-
-    private fun isLocationEnabled(): Boolean {
-        return deviceConfigProxy.getBoolean(DeviceConfig.NAMESPACE_PRIVACY,
-                LOCATION, DEFAULT_LOCATION)
+        return deviceConfigProxy.getBoolean(
+            DeviceConfig.NAMESPACE_PRIVACY,
+            MIC_CAMERA,
+            DEFAULT_MIC_CAMERA,
+        )
     }
 
     private fun isMediaProjectionEnabled(): Boolean {
-        return deviceConfigProxy.getBoolean(DeviceConfig.NAMESPACE_PRIVACY,
-                MEDIA_PROJECTION, DEFAULT_MEDIA_PROJECTION)
+        return deviceConfigProxy.getBoolean(
+            DeviceConfig.NAMESPACE_PRIVACY,
+            MEDIA_PROJECTION,
+            DEFAULT_MEDIA_PROJECTION,
+        )
     }
 
     fun addCallback(callback: Callback) {
@@ -116,9 +133,7 @@ class PrivacyConfig @Inject constructor(
     }
 
     private fun addCallback(callback: WeakReference<Callback>) {
-        uiExecutor.execute {
-            callbacks.add(callback)
-        }
+        uiExecutor.execute { callbacks.add(callback) }
     }
 
     private fun removeCallback(callback: WeakReference<Callback>) {
@@ -137,9 +152,7 @@ class PrivacyConfig @Inject constructor(
             ipw.println("mediaProjectionAvailable: $mediaProjectionAvailable")
             ipw.println("Callbacks:")
             ipw.withIncreasedIndent {
-                callbacks.forEach { callback ->
-                    callback.get()?.let { ipw.println(it) }
-                }
+                callbacks.forEach { callback -> callback.get()?.let { ipw.println(it) } }
             }
         }
         ipw.flush()

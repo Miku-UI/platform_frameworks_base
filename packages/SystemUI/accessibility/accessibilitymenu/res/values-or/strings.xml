@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"ପୂର୍ବବର୍ତ୍ତୀ ସ୍କ୍ରିନ୍‍କୁ ଯାଆନ୍ତୁ"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"ପରବର୍ତ୍ତୀ ସ୍କ୍ରିନ୍‍କୁ ଯାଆନ୍ତୁ"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"ଆପଣଙ୍କ ଡିଭାଇସକୁ ନିୟନ୍ତ୍ରଣ କରିବା ପାଇଁ ଆକ୍ସେସିବିଲିଟୀ ମେନୁ ଏକ ବଡ଼ ଅନ-ସ୍କ୍ରିନ ମେନୁ ପ୍ରଦାନ କରେ। ଆପଣ ଆପଣଙ୍କ ଡିଭାଇସକୁ ଲକ କରିପାରିବେ, ଭଲ୍ୟୁମ ଓ ଉଜ୍ଜ୍ୱଳତାକୁ ନିୟନ୍ତ୍ରଣ କରିପାରିବେ, ସ୍କ୍ରିନସଟ ନେଇପାରିବେ ଏବଂ ଆହୁରି ଅନେକ କିଛି କରିପାରିବେ।"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"ବଡ଼ ମେନୁ ମାଧ୍ୟମରେ ଡିଭାଇସକୁ ନିୟନ୍ତ୍ରଣ କରନ୍ତୁ"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"ଏକ ବଡ଼ ମେନୁ ମାଧ୍ୟମରେ ଭଲ୍ୟୁମ, ଉଜ୍ଜ୍ୱଳତା ଏବଂ ଆହୁରି ଅନେକ କିଛି ନିୟନ୍ତ୍ରଣ କରନ୍ତୁ"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ଆକ୍ସେସିବିଲିଟୀ ମେନୁ ସେଟିଂସ"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ବଡ଼ ବଟନ"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"ଆକ୍ସେସିବିଲିଟୀ ମେନୁ ବଟନର ଆକାର ବଢ଼ାନ୍ତୁ"</string>

@@ -34,7 +34,7 @@ import com.android.internal.widget.remotecompose.core.operations.utilities.easin
  * <p>Handles position, size and visibility
  */
 public class AnimateMeasure {
-    private long mStartTime = System.currentTimeMillis();
+    private final long mStartTime;
     private final @NonNull Component mComponent;
     private final @NonNull ComponentMeasure mOriginal;
     private final @NonNull ComponentMeasure mTarget;

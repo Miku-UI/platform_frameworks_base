@@ -18,6 +18,7 @@
 package com.android.systemui.common.ui.view
 
 import android.annotation.SuppressLint
+import android.companion.virtualdevice.flags.Flags
 import android.content.Context
 import android.os.Bundle
 import android.util.AttributeSet
@@ -39,7 +40,7 @@ import kotlinx.coroutines.DisposableHandle
  * to start consuming gestures, set the gesture's enable function ([setLongPressHandlingEnabled],
  * [setDoublePressHandlingEnabled]) to `true`.
  */
-class TouchHandlingView(
+open class TouchHandlingView(
     context: Context,
     attrs: AttributeSet?,
     longPressDuration: () -> Long,
@@ -54,7 +55,15 @@ class TouchHandlingView(
     constructor(
         context: Context,
         attrs: AttributeSet?,
-    ) : this(context, attrs, { ViewConfiguration.getLongPressTimeout().toLong() })
+    ) : this(
+        context,
+        attrs,
+        {
+            if (Flags.viewconfigurationApis())
+                ViewConfiguration.get(context).longPressTimeoutMillis.toLong()
+            else ViewConfiguration.getLongPressTimeout().toLong()
+        },
+    )
 
     interface Listener {
         /** Notifies that a long-press has been detected by the given view. */

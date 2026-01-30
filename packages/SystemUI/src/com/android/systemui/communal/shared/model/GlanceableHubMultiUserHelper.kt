@@ -33,6 +33,9 @@ interface GlanceableHubMultiUserHelper {
     /** Whether the current process is running in the headless system user. */
     fun isInHeadlessSystemUser(): Boolean
 
+    /** Whether the current process is running in the system user. */
+    fun isSystemUser(): Boolean
+
     /**
      * Asserts that the current process is running in the headless system user.
      *
@@ -57,7 +60,11 @@ class GlanceableHubMultiUserHelperImpl @Inject constructor(private val userHandl
     override fun isHeadlessSystemUserMode(): Boolean = UserManager.isHeadlessSystemUserMode()
 
     override fun isInHeadlessSystemUser(): Boolean {
-        return isHeadlessSystemUserMode() && userHandle.isSystem
+        return isHeadlessSystemUserMode() && isSystemUser()
+    }
+
+    override fun isSystemUser(): Boolean {
+        return userHandle.isSystem
     }
 
     override fun assertInHeadlessSystemUser() {

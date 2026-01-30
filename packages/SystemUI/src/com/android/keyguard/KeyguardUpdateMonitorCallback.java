@@ -22,10 +22,10 @@ import android.view.WindowManagerPolicyConstants;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.android.internal.annotations.WeaklyReferencedCallback;
 import com.android.settingslib.fuelgauge.BatteryStatus;
-import com.android.systemui.plugins.clocks.WeatherData;
+import com.android.systemui.plugins.keyguard.data.model.WeatherData;
 import com.android.systemui.statusbar.KeyguardIndicationController;
-import com.android.systemui.util.annotations.WeaklyReferencedCallback;
 
 import java.util.TimeZone;
 
@@ -258,8 +258,11 @@ public class KeyguardUpdateMonitorCallback {
             BiometricSourceType biometricSourceType) { }
 
     /**
-     * Called when the state that the user hasn't used strong authentication since quite some time
-     * has changed.
+     * Called when the strong auth state changes and primary auth may be required.
+     * If responding to a change in strong auth state from this method, use
+     * {@link KeyguardUpdateMonitor} as the source for truth for strong auth state.
+     * For example:
+     *  - {@link KeyguardUpdateMonitor#isUserInLockdown(int)}
      */
     public void onStrongAuthStateChanged(int userId) { }
 

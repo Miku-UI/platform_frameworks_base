@@ -18,7 +18,6 @@ package android.window;
 
 import android.annotation.FloatRange;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.view.RemoteAnimationTarget;
@@ -39,8 +38,6 @@ public final class BackMotionEvent implements Parcelable {
 
     @BackEvent.SwipeEdge
     private final int mSwipeEdge;
-    @Nullable
-    private final RemoteAnimationTarget mDepartingAnimationTarget;
 
     /**
      * Creates a new {@link BackMotionEvent} instance.
@@ -53,8 +50,6 @@ public final class BackMotionEvent implements Parcelable {
      * @param progress Value between 0 and 1 on how far along the back gesture is.
      * @param triggerBack Indicates whether the back arrow is in the triggered state or not
      * @param swipeEdge Indicates which edge the swipe starts from.
-     * @param departingAnimationTarget The remote animation target of the departing
-     *                                 application window.
      */
     public BackMotionEvent(
             float touchX,
@@ -62,15 +57,13 @@ public final class BackMotionEvent implements Parcelable {
             long frameTimeMillis,
             float progress,
             boolean triggerBack,
-            @BackEvent.SwipeEdge int swipeEdge,
-            @Nullable RemoteAnimationTarget departingAnimationTarget) {
+            @BackEvent.SwipeEdge int swipeEdge) {
         mTouchX = touchX;
         mTouchY = touchY;
         mFrameTimeMillis = frameTimeMillis;
         mProgress = progress;
         mTriggerBack = triggerBack;
         mSwipeEdge = swipeEdge;
-        mDepartingAnimationTarget = departingAnimationTarget;
     }
 
     private BackMotionEvent(@NonNull Parcel in) {
@@ -79,7 +72,6 @@ public final class BackMotionEvent implements Parcelable {
         mProgress = in.readFloat();
         mTriggerBack = in.readBoolean();
         mSwipeEdge = in.readInt();
-        mDepartingAnimationTarget = in.readTypedObject(RemoteAnimationTarget.CREATOR);
         mFrameTimeMillis = in.readLong();
     }
 
@@ -108,7 +100,6 @@ public final class BackMotionEvent implements Parcelable {
         dest.writeFloat(mProgress);
         dest.writeBoolean(mTriggerBack);
         dest.writeInt(mSwipeEdge);
-        dest.writeTypedObject(mDepartingAnimationTarget, flags);
         dest.writeLong(mFrameTimeMillis);
     }
 
@@ -160,16 +151,6 @@ public final class BackMotionEvent implements Parcelable {
         return mFrameTimeMillis;
     }
 
-    /**
-     * Returns the {@link RemoteAnimationTarget} of the top departing application window,
-     * or {@code null} if the top window should not be moved for the current type of back
-     * destination.
-     */
-    @Nullable
-    public RemoteAnimationTarget getDepartingAnimationTarget() {
-        return mDepartingAnimationTarget;
-    }
-
     @Override
     public String toString() {
         return "BackMotionEvent{"
@@ -179,7 +160,6 @@ public final class BackMotionEvent implements Parcelable {
                 + ", mProgress=" + mProgress
                 + ", mTriggerBack=" + mTriggerBack
                 + ", mSwipeEdge=" + mSwipeEdge
-                + ", mDepartingAnimationTarget=" + mDepartingAnimationTarget
                 + "}";
     }
 }

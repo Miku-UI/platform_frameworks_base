@@ -54,6 +54,7 @@ import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.internal.util.test.FakeSettingsProviderRule;
 import com.android.server.biometrics.Flags;
 import com.android.server.biometrics.Utils;
+import com.android.server.biometrics.log.BiometricContext;
 import com.android.server.biometrics.sensors.face.aidl.FaceProvider;
 
 import org.junit.Before;
@@ -96,6 +97,8 @@ public class FaceServiceTest {
     private IBinder mToken;
     @Mock
     private IFaceServiceReceiver mFaceServiceReceiver;
+    @Mock
+    private BiometricContext mBiometricContext;
 
     private FaceService mFaceService;
     private final FaceSensorPropertiesInternal mSensorPropsDefault =
@@ -132,18 +135,12 @@ public class FaceServiceTest {
     }
 
     private void initService() {
-        mFaceService = new FaceService(mContext,
+        mFaceService = new FaceService(mContext, mBiometricContext,
                 (filteredSensorProps, resetLockoutRequiresChallenge) -> {
                     if (NAME_DEFAULT.equals(filteredSensorProps.first)) return mFaceProviderDefault;
                     if (NAME_VIRTUAL.equals(filteredSensorProps.first)) return mFaceProviderVirtual;
                     return null;
-                }, () -> mIBiometricService,
-                (name) -> {
-                    if (NAME_DEFAULT.equals(name)) return mFaceProviderDefault;
-                    if (NAME_VIRTUAL.equals(name)) return mFaceProviderVirtual;
-                    return null;
-                },
-                () -> new String[]{NAME_DEFAULT, NAME_VIRTUAL});
+                }, () -> mIBiometricService);
     }
 
     @Test

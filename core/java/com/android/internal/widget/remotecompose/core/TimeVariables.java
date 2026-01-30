@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 package com.android.internal.widget.remotecompose.core;
-
 import android.annotation.NonNull;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -24,13 +24,32 @@ import java.time.ZoneOffset;
 
 /** This generates the standard system variables for time. */
 public class TimeVariables {
+    private @NonNull Clock mClock;
+
+    public TimeVariables() {
+        this(new SystemClock());
+    }
+
+    public TimeVariables(@NonNull Clock clock) {
+        this.mClock = clock;
+    }
+
+    /** Returns the current clock. */
+    public @NonNull Clock getClock() {
+        return mClock;
+    }
 
     /**
      * This class populates all time variables in the system
      *
      * @param context
+     * @param zoneId
+     * @param dateTime
      */
-    public void updateTime(@NonNull RemoteContext context, ZoneId zoneId, LocalDateTime dateTime) {
+    public void updateTime(
+            @NonNull RemoteContext context,
+            @NonNull ZoneId zoneId,
+            @NonNull LocalDateTime dateTime) {
         // This define the time in the format
         // seconds run from Midnight=0 quantized to seconds hour 0..3599
         // minutes run from Midnight=0 quantized to minutes 0..1439
@@ -46,6 +65,9 @@ public class TimeVariables {
         int currentSeconds = minute * 60 + seconds;
         float sec = currentSeconds + dateTime.getNano() * 1E-9f;
         int day_week = dateTime.getDayOfWeek().getValue();
+        int day_of_month = dateTime.getDayOfMonth();
+        int day_of_year = dateTime.getDayOfYear();
+        int year = dateTime.getYear();
 
         OffsetDateTime offsetDateTime = dateTime.atZone(zoneId).toOffsetDateTime();
         ZoneOffset offset = offsetDateTime.getOffset();
@@ -59,8 +81,11 @@ public class TimeVariables {
         context.loadFloat(RemoteContext.ID_TIME_IN_MIN, currentMinute);
         context.loadFloat(RemoteContext.ID_TIME_IN_HR, hour);
         context.loadFloat(RemoteContext.ID_CALENDAR_MONTH, month);
-        context.loadFloat(RemoteContext.ID_DAY_OF_MONTH, month);
+        context.loadFloat(RemoteContext.ID_DAY_OF_MONTH, day_of_month); // Fixed 1.1
         context.loadFloat(RemoteContext.ID_WEEK_DAY, day_week);
+        context.loadFloat(RemoteContext.ID_DAY_OF_YEAR, day_of_year);
+        context.loadFloat(RemoteContext.ID_YEAR, year);
+
         context.loadFloat(
                 RemoteContext.ID_API_LEVEL,
                 CoreDocument.getDocumentApiLevel() + CoreDocument.BUILD);
@@ -72,9 +97,6 @@ public class TimeVariables {
      * @param context
      */
     public void updateTime(@NonNull RemoteContext context) {
-        ZoneId zone = ZoneId.systemDefault();
-        LocalDateTime dateTime = LocalDateTime.now(zone);
-
-        updateTime(context, zone, dateTime);
+        updateTime(context, mClock.getZone(), LocalDateTime.now(mClock));
     }
 }

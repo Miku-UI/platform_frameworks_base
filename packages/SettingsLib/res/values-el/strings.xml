@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Σύνδεση..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Σε σύνδεση<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Σύζευξη..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Δεν είναι δυνατή η σύζευξη"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Δεν είναι δυνατή η σύνδεση"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Σε σύνδεση (χωρίς τηλέφωνο)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Σε σύνδεση (χωρίς μέσα)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Σε σύνδεση (χωρίς τηλέφωνο ή μέσα)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Α: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Δ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> μπαταρία."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Αριστερά: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> μπαταρία"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Δεξιά: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> μπαταρία"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Θήκη: μπαταρία <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Αριστερά: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Θήκη: μπαταρία <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Δεξιά: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Θήκη: μπαταρία <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Αριστερά: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Δεξιά: μπαταρία <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Α: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Θ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, Δ: μπαταρία<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Αριστερό <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Δεξί <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Ενεργό"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Ενεργό (μόνο το δεξί)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Ενεργό (αριστερό και δεξί)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Δεν ήταν δυνατή η ενημέρωση των ήχων περιβάλλοντος"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Δεν ήταν δυνατή η ενημέρωση της προεπιλογής"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Επιλεγμένο"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Ενεργό (μόνο για μέσα). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> μπαταρία."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Ενεργό (μόνο για μέσα). Α: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Δ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> μπαταρία."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Συσκευή επισκέπτη. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> μπαταρία."</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Όταν ενεργοποιηθεί αυτή η λειτουργία, η διεύθυνση MAC αυτής της συσκευής μπορεί να αλλάζει κάθε φορά που συνδέεται σε ένα δίκτυο όπου έχει ενεργοποιηθεί η τυχαία σειρά διευθύνσεων MAC."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Μέτρηση με βάση τη χρήση"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Χωρίς μέτρηση με βάση τη χρήση"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Μέγεθος προσωρινής μνήμης για τη λειτ. καταγραφής"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Μέγεθος προσωρινής μνήμης για τη λειτουργία καταγραφής"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Μέγεθος αρχείων κατ/φής ανά προ/νή μνήμη αρχείου κατ/φής"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Εκκαθάριση αποθηκευτικού χώρου μόνιμων αρχείων καταγραφής;"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Όταν δεν γίνεται πλέον παρακολούθηση με μόνιμο αρχείο καταγραφής, θα πρέπει να διαγραφούν τα δεδομένα του αρχείου καταγραφής στη συσκευή σας."</string>
@@ -421,7 +430,7 @@
     <string name="force_msaa_summary" msgid="9070437493586769500">"Ενεργοποίηση 4x MSAA σε εφαρμογές OpenGL ES 2.0"</string>
     <string name="show_non_rect_clip" msgid="7499758654867881817">"Αποσφαλμάτωση σε λειτουργίες μη ορθογώνιας περιοχής"</string>
     <string name="track_frame_time" msgid="522674651937771106">"Απόδοση HWUI προφίλ"</string>
-    <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"Ενεργ. επιπ. εντ. σφ. GPU"</string>
+    <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"Ενεργ. επιπ. αποσφ. GPU"</string>
     <string name="enable_gpu_debug_layers_summary" msgid="4921521407377170481">"Φόρτωση επιπ. εντοπ. σφ. GPU για εφαρμ. αντιμ. σφ."</string>
     <string name="enable_verbose_vendor_logging" msgid="1196698788267682072">"Ενεργ. λεπτ. καταγραφής προμ."</string>
     <string name="enable_verbose_vendor_logging_summary" msgid="5426292185780393708">"Συμπερίληψη πρόσθετων αρχείων καταγραφής προμηθευτή για συγκεκριμένες συσκευές στις αναφορές σφαλμάτων, τα οποία ενδέχεται να περιέχουν ιδιωτικές πληροφορίες, να χρησιμοποιούν περισσότερη μπαταρία ή/και να χρησιμοποιούν περισσότερο αποθηκευτικό χώρο."</string>
@@ -535,7 +544,7 @@
     <string name="battery_info_status_charging_on_hold" msgid="6364355145521694438">"Η φόρτιση τέθηκε σε αναμονή"</string>
     <string name="battery_info_status_charging_v2" msgid="6118522107222245505">"Φόρτιση"</string>
     <string name="battery_info_status_charging_fast_v2" msgid="1825439848151256589">"Γρήγορη φόρτιση"</string>
-    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Ελέγχονται από το διαχειριστή"</string>
+    <string name="disabled_by_admin_summary_text" msgid="5343911767402923057">"Ελέγχονται από τον διαχειριστή"</string>
     <string name="disabled_by_app_ops_text" msgid="8373595926549098012">"Ελέγχεται από τη Ρύθμιση με περιορισμό"</string>
     <string name="disabled_in_phone_call_text" msgid="6568931334337318320">"Μη διαθέσιμη κατά τη διάρκεια κλήσεων"</string>
     <string name="disabled" msgid="8017887509554714950">"Απενεργοποιημένη"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"Πριν <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Απομένουν <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Μικρότερο δυνατό"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Μικρότερο"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Μικρά"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Προεπιλογή"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Μεγάλα"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Πιο μεγάλα"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Μεγαλύτερα"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Μεγαλύτερο"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Πολύ μεγάλο"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Πάρα πολύ μεγάλο"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Μεγαλύτερο δυνατό"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Προσαρμοσμένη (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Μενού"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Εισαγάγετε κωδικό πρόσβασης για επαναφορά εργοστασιακών ρυθμίσεων στη λειτουργία επίδειξης"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 συνδεδεμένη συσκευή}other{# συνδεδεμένες συσκευές}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Περισσότερη ώρα."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Λιγότερη ώρα."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Μεγιστοποίηση"</string>
     <string name="cancel" msgid="5665114069455378395">"Ακύρωση"</string>
     <string name="next" msgid="2699398661093607009">"Επόμενο"</string>
     <string name="back" msgid="5554327870352703710">"Πίσω"</string>
@@ -683,7 +697,7 @@
     <string name="guest_remove_guest_confirm_button" msgid="7858123434954143879">"Κατάργηση"</string>
     <string name="guest_resetting" msgid="7822120170191509566">"Επαναφορά επισκέπτη…"</string>
     <string name="guest_reset_and_restart_dialog_title" msgid="3396657008451616041">"Επαναφορά περιόδου σύνδεσης επισκέπτη;"</string>
-    <string name="guest_reset_and_restart_dialog_message" msgid="2764425635305200790">"Με αυτόν τον τρόπο θα ξεκινήσει μια νέα περίοδος σύνδεσης επισκέπτη και θα διαγραφούν όλες οι εφαρμογές και τα δεδομένα από την τρέχουσα περίοδο σύνδεσης"</string>
+    <string name="guest_reset_and_restart_dialog_message" msgid="2764425635305200790">"Με αυτόν τον τρόπο θα ξεκινήσει μια νέα περίοδος λειτουργίας επισκέπτη και θα διαγραφούν όλες οι εφαρμογές και τα δεδομένα από την τρέχουσα περίοδο λειτουργίας"</string>
     <string name="guest_exit_dialog_title" msgid="1846494656849381804">"Έξοδος από λειτ. επισκέπτη;"</string>
     <string name="guest_exit_dialog_message" msgid="1743218864242719783">"Θα διαγραφούν εφαρμογές και δεδομένα από την τρέχουσα περίοδο σύνδεσης επισκέπτη"</string>
     <string name="grant_admin" msgid="4323199171790522574">"Ναι, να γίνει εκχώρηση δικαιωμάτων διαχειριστή"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Εάν κάνετε μετάδοση με την εφαρμογή <xliff:g id="SWITCHAPP">%1$s</xliff:g> ή αλλάξετε την έξοδο, η τρέχουσα μετάδοση θα σταματήσει"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Μετάδοση με την εφαρμογή <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Αλλαγή εξόδου"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Κινούμ. εικόνες μετάβασης προς τα πίσω με πρόβλεψη"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Ενεργοποίηση κινούμενων εικόνων συστήματος για μετάβαση προς τα πίσω με πρόβλεψη."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Αυτή η ρύθμιση ενεργοποιεί τις κινούμενες εικόνες συστήματος για τις κινούμενες εικόνες κινήσεων με πρόβλεψη. Απαιτεί τη ρύθμιση της παραμέτρου enableOnBackInvokedCallback ως αληθούς σε κάθε εφαρμογή στο αρχείο μανιφέστου."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g>%%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Δεν έχει καθοριστεί"</string>
     <string name="neuter" msgid="2075249330106127310">"Ουδέτερο"</string>

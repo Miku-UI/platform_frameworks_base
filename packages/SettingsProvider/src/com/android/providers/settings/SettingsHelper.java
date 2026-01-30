@@ -103,7 +103,7 @@ public class SettingsHelper {
      * @see Secure#SETTINGS_TO_BACKUP
      * @see Global#SETTINGS_TO_BACKUP
      *
-     * {@hide}
+     * @hide
      */
     private static final ArraySet<String> sBroadcastOnRestore;
     private static final ArraySet<String> sBroadcastOnRestoreSystemUI;
@@ -212,10 +212,7 @@ public class SettingsHelper {
         }
 
         // Get datatype for B&R metrics logging.
-        String datatype = "";
-        if (areAgentMetricsEnabled()) {
-            datatype = SettingsBackupRestoreKeys.getKeyFromUri(destination);
-        }
+        String datatype = SettingsBackupRestoreKeys.getKeyFromUri(destination);
 
         sendBroadcast = sBroadcastOnRestore.contains(name);
         sendBroadcastSystemUI = sBroadcastOnRestoreSystemUI.contains(name);
@@ -224,15 +221,11 @@ public class SettingsHelper {
         if (sendBroadcast) {
             // TODO: http://b/22388012
             oldValue = table.lookup(cr, name, UserHandle.USER_SYSTEM);
-        } else if (sendBroadcastSystemUI) {
+        } else if (sendBroadcastSystemUI || sendBroadcastAccessibility) {
             // This is only done for broadcasts sent to system ui as the consumers are known.
             // It would probably be correct to do it for the ones sent to the system, but consumers
             // may be depending on the current behavior.
             oldValue = table.lookup(cr, name, context.getUserId());
-        } else if (sendBroadcastAccessibility) {
-            int userId = android.view.accessibility.Flags.restoreA11ySecureSettingsOnHsumDevice()
-                    ? context.getUserId() : UserHandle.USER_SYSTEM;
-            oldValue = table.lookup(cr, name, userId);
         }
 
         try {
@@ -303,7 +296,7 @@ public class SettingsHelper {
             contentValues.put(Settings.NameValueTable.NAME, name);
             contentValues.put(Settings.NameValueTable.VALUE, value);
             cr.insert(destination, contentValues);
-            if (areAgentMetricsEnabled()) {
+            if (mBackupRestoreEventLogger != null) {
                 mBackupRestoreEventLogger.logItemsRestored(datatype, /* count= */ 1);
             }
         } catch (Exception e) {
@@ -312,7 +305,7 @@ public class SettingsHelper {
             sendBroadcastSystemUI = false;
             sendBroadcastAccessibility = false;
             Log.e(TAG, "Failed to restore setting name: " + name + " + value: " + value, e);
-            if (areAgentMetricsEnabled()) {
+            if (mBackupRestoreEventLogger != null) {
                 mBackupRestoreEventLogger.logItemsRestoreFailed(
                     datatype, /* count= */ 1, ERROR_FAILED_TO_RESTORE_SETTING);
             }
@@ -338,11 +331,8 @@ public class SettingsHelper {
                     context.sendBroadcastAsUser(intent, context.getUser(), null);
                 }
                 if (sendBroadcastAccessibility) {
-                    UserHandle userHandle =
-                            android.view.accessibility.Flags.restoreA11ySecureSettingsOnHsumDevice()
-                                    ? context.getUser() : UserHandle.SYSTEM;
                     intent.setPackage("android");
-                    context.sendBroadcastAsUser(intent, userHandle, null);
+                    context.sendBroadcastAsUser(intent, context.getUser(), null);
                 }
             }
         }
@@ -434,15 +424,6 @@ public class SettingsHelper {
             return;
         }
 
-        // If the ringtone/notification has vibration, we backup original value in onBackupValue.
-        // So use the value directly for restoring.
-        if ((ringtoneType == RingtoneManager.TYPE_RINGTONE
-                || ringtoneType == RingtoneManager.TYPE_NOTIFICATION)
-                && hasVibrationSettings(value, ringtoneType)) {
-            RingtoneManager.setActualDefaultRingtoneUri(mContext, ringtoneType, Uri.parse(value));
-            return;
-        }
-
         Uri ringtoneUri = null;
         try {
             ringtoneUri =
@@ -452,6 +433,23 @@ public class SettingsHelper {
             Log.w(TAG, "Failed to resolve " + value + ": " + e);
             // Unrecognized or invalid Uri, don't restore
             return;
+        }
+
+        // If the restored ringtoneUri for ringtone/notification has vibration, we backup the
+        // original value in onBackupValue. So use the value directly for restoring.
+        if ((ringtoneType == RingtoneManager.TYPE_RINGTONE
+                || ringtoneType == RingtoneManager.TYPE_NOTIFICATION)
+                && hasVibrationSettings(value, ringtoneType)) {
+            final Uri vibrationUri = Utils.getVibrationUri(Uri.parse(value));
+            if (ringtoneUri != null && vibrationUri != null) {
+                ringtoneUri = ringtoneUri.buildUpon()
+                        .appendQueryParameter(Utils.VIBRATION_URI_PARAM, vibrationUri.toString())
+                        .build();
+                Log.v(TAG, "setActualDefaultRingtoneUri type: " + ringtoneType + ", uri: "
+                        + ringtoneUri + ", vibration: " + vibrationUri);
+                RingtoneManager.setActualDefaultRingtoneUri(mContext, ringtoneType, ringtoneUri);
+                return;
+            }
         }
 
         Log.v(TAG, "setActualDefaultRingtoneUri type: " + ringtoneType + ", uri: " + ringtoneUri);
@@ -510,16 +508,10 @@ public class SettingsHelper {
     }
 
     private boolean shouldSkipAndLetBroadcastHandlesRestoreLogic(String settingName) {
-        boolean restoreHandledByBroadcast = Settings.Secure.ACCESSIBILITY_QS_TARGETS.equals(
-                settingName)
-                || Settings.Secure.ACCESSIBILITY_SHORTCUT_TARGET_SERVICE.equals(settingName);
-        if (android.view.accessibility.Flags.restoreA11ySecureSettingsOnHsumDevice()) {
-            restoreHandledByBroadcast |=
-                    Settings.Secure.ACCESSIBILITY_BUTTON_TARGETS.equals(settingName)
-                            || Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES.equals(settingName);
-        }
-
-        return restoreHandledByBroadcast;
+        return Settings.Secure.ACCESSIBILITY_QS_TARGETS.equals(settingName)
+                || Settings.Secure.ACCESSIBILITY_SHORTCUT_TARGET_SERVICE.equals(settingName)
+                || Settings.Secure.ACCESSIBILITY_BUTTON_TARGETS.equals(settingName)
+                || Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES.equals(settingName);
     }
 
     private void setAutoRestore(boolean enabled) {
@@ -757,7 +749,7 @@ public class SettingsHelper {
     }
 
     private boolean hasVibrationSettings(String value, int type) {
-        if (Utils.hasVibration(Uri.parse(value)) && mContext.getResources().getBoolean(
+        if (Utils.hasVibrationParameter(Uri.parse(value)) && mContext.getResources().getBoolean(
                 com.android.internal.R.bool.config_ringtoneVibrationSettingsSupported)) {
             if (type == RingtoneManager.TYPE_RINGTONE) {
                 return android.media.audio.Flags.enableRingtoneHapticsCustomization();
@@ -805,12 +797,12 @@ public class SettingsHelper {
 
             am.updatePersistentConfigurationWithAttribution(config, mContext.getOpPackageName(),
                     mContext.getAttributionTag());
-            if (areAgentMetricsEnabled()) {
+            if (mBackupRestoreEventLogger != null) {
                 mBackupRestoreEventLogger
                     .logItemsRestored(SettingsBackupRestoreKeys.KEY_LOCALE, localeList.size());
             }
         } catch (RemoteException e) {
-            if (areAgentMetricsEnabled()) {
+            if (mBackupRestoreEventLogger != null) {
                 mBackupRestoreEventLogger
                     .logItemsRestoreFailed(
                         SettingsBackupRestoreKeys.KEY_LOCALE,
@@ -836,9 +828,5 @@ public class SettingsHelper {
      */
     void setBackupRestoreEventLogger(BackupRestoreEventLogger backupRestoreEventLogger) {
         mBackupRestoreEventLogger = backupRestoreEventLogger;
-    }
-
-    private boolean areAgentMetricsEnabled() {
-        return Flags.enableMetricsSettingsBackupAgents() && mBackupRestoreEventLogger != null;
     }
 }

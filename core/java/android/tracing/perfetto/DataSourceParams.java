@@ -33,6 +33,7 @@ public class DataSourceParams {
     @IntDef(value = {
         PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP,
         PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_ABORT,
+        PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface PerfettoDsBufferExhausted {}
@@ -46,18 +47,25 @@ public class DataSourceParams {
     // after a while.
     public static final int PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_ABORT = 1;
 
+    // If the data source runs out of space when trying to acquire a new chunk,
+    // it will stall, retry and eventually drop data if a free chunk is not
+    // acquired after a few seconds.
+    public static final int PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP = 2;
+
     public static DataSourceParams DEFAULTS = new DataSourceParams.Builder().build();
 
     private DataSourceParams(@PerfettoDsBufferExhausted int bufferExhaustedPolicy,
-            boolean willNotifyOnStop, boolean noFlush) {
+            boolean willNotifyOnStop, boolean noFlush, boolean postponeStop) {
         this.bufferExhaustedPolicy = bufferExhaustedPolicy;
         this.willNotifyOnStop = willNotifyOnStop;
         this.noFlush = noFlush;
+        this.postponeStop = postponeStop;
     }
 
     public final @PerfettoDsBufferExhausted int bufferExhaustedPolicy;
     public final boolean willNotifyOnStop;
     public final boolean noFlush;
+    public final boolean postponeStop;
 
     /**
      * DataSource Parameters builder
@@ -97,16 +105,28 @@ public class DataSourceParams {
         }
 
         /**
+         * Tells the tracing service to postpone the stopping of a data source instance.
+         *
+         * The client is then responsible to finalize the data source stop by calling
+         * DataSourceInstance#stopDone().
+         */
+        public Builder setPostponeStop(boolean value) {
+            this.mPostponeStop = value;
+            return this;
+        }
+
+        /**
          * Build the DataSource parameters.
          */
         public DataSourceParams build() {
-            return new DataSourceParams(
-                    this.mBufferExhaustedPolicy, this.mWillNotifyOnStop, this.mNoFlush);
+            return new DataSourceParams(this.mBufferExhaustedPolicy, this.mWillNotifyOnStop,
+                    this.mNoFlush, this.mPostponeStop);
         }
 
         private @PerfettoDsBufferExhausted int mBufferExhaustedPolicy =
                 PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP;
         private boolean mWillNotifyOnStop = true;
         private boolean mNoFlush = false;
+        private boolean mPostponeStop = false;
     }
 }

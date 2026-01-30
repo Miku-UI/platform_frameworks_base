@@ -287,10 +287,6 @@ public final class InputMethodDebug {
                 return "DISPLAY_INSETS_CHANGED";
             case SoftInputShowHideReason.DISPLAY_CONTROLS_CHANGED:
                 return "DISPLAY_CONTROLS_CHANGED";
-            case SoftInputShowHideReason.UNBIND_CURRENT_METHOD:
-                return "UNBIND_CURRENT_METHOD";
-            case SoftInputShowHideReason.HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED:
-                return "HIDE_SOFT_INPUT_ON_ANIMATION_STATE_CHANGED";
             case SoftInputShowHideReason.HIDE_SOFT_INPUT_REQUEST_HIDE_WITH_CONTROL:
                 return "HIDE_SOFT_INPUT_REQUEST_HIDE_WITH_CONTROL";
             case SoftInputShowHideReason.SHOW_SOFT_INPUT_IME_TOGGLE_SOFT_INPUT:
@@ -307,6 +303,8 @@ public final class InputMethodDebug {
                 return "HIDE_WINDOW_LOST_FOCUS";
             case SoftInputShowHideReason.IME_REQUESTED_CHANGED_LISTENER:
                 return "IME_REQUESTED_CHANGED_LISTENER";
+            case SoftInputShowHideReason.HIDE_FOR_BUBBLES_WHEN_LOCKED:
+                return "HIDE_FOR_BUBBLES_WHEN_LOCKED";
             default:
                 return "Unknown=" + reason;
         }

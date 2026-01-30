@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"ପାସୱାର୍ଡ ବା ଟିପଚିହ୍ନ ଜରିଆରେ ଅନଲକ କର"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"ପାଟର୍ନ ବା ଟିପଚିହ୍ନ ଜରିଆରେ ଅନଲକ କର"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"ସୁରକ୍ଷା ପାଇଁ କାର୍ଯ୍ୟ ନୀତି ଅନୁସାରେ ଡିଭାଇସ ଲକ ହୋଇଛି"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"2-ଷ୍ଟେପ ଯାଞ୍ଚକରଣ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"ଫିଙ୍ଗରପ୍ରିଣ୍ଟ ଅନଲକ ବ୍ୟବହାର କରନ୍ତୁ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"ଫେସ ଅନଲକ ବ୍ୟବହାର କରନ୍ତୁ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"ଟିପଚିହ୍ନ କିମ୍ବା ଫେସ ଅନଲକ ବ୍ୟବହାର କରନ୍ତୁ"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"ଲକଡାଉନ ହେବା ପରେ PIN ଆବଶ୍ୟକ"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"ଲକଡାଉନ ହେବା ପରେ ପାସୱାର୍ଡ ଆବଶ୍ୟକ"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"ଲକଡାଉନ ହେବା ପରେ ପାଟର୍ନ ଆବଶ୍ୟକ"</string>

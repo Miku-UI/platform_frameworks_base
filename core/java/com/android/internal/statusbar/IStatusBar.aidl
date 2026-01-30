@@ -26,6 +26,8 @@ import android.hardware.biometrics.PromptInfo;
 import android.hardware.fingerprint.IUdfpsRefreshRateRequestCallback;
 import android.media.INearbyMediaDevicesProvider;
 import android.media.MediaRoute2Info;
+import android.media.session.MediaSession;
+
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.os.UserHandle;
@@ -400,10 +402,11 @@ oneway interface IStatusBar
      * Shows the media output switcher dialog.
      *
      * @param targetPackageName The package name for which to show the output switcher.
-     * @param targetUserHandle The UserHandle on which the package for which to show the output
-     *     switcher is running.
+     * @param targetUserHandle The UserHandle on which the output switcher should run.
+     * @param sessionToken An optional specific MediaSession to use instead of the default.
      */
-    void showMediaOutputSwitcher(String targetPackageName, in UserHandle targetUserHandle);
+    void showMediaOutputSwitcher(String targetPackageName, in UserHandle targetUserHandle,
+        in @nullable MediaSession.Token sessionToken);
 
     /** Enters desktop mode from the current focused app.
     *

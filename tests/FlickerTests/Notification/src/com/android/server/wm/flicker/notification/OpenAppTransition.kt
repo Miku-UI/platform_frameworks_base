@@ -17,15 +17,16 @@
 package com.android.server.wm.flicker.notification
 
 import android.tools.device.apphelpers.StandardAppHelper
-import android.tools.flicker.legacy.LegacyFlickerTest
+import android.tools.flicker.FlickerTest
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
 import com.android.server.wm.flicker.BaseTest
+import android.tools.helpers.RecentTasksUtils
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import org.junit.Test
 
 /** Base class for app launch tests */
-abstract class OpenAppTransition(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+abstract class OpenAppTransition(flicker: FlickerTest) : BaseTest(flicker) {
     protected open val testApp: StandardAppHelper = SimpleAppHelper(instrumentation)
 
     protected fun clearOverview() {
@@ -33,8 +34,7 @@ abstract class OpenAppTransition(flicker: LegacyFlickerTest) : BaseTest(flicker)
         // it is open - can't just kill it because that would remove the notification.
         tapl.expectedRotationCheckEnabled = false
         tapl.goHome()
-        tapl.workspace.switchToOverview()
-        tapl.overview.dismissAllTasks()
+        RecentTasksUtils.clearAllVisibleRecentTasks(instrumentation)
     }
 
     /**

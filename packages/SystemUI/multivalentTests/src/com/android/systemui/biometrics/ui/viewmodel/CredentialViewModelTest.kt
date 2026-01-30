@@ -7,14 +7,21 @@ import com.android.systemui.biometrics.data.repository.FakePromptRepository
 import com.android.systemui.biometrics.domain.interactor.CredentialStatus
 import com.android.systemui.biometrics.domain.interactor.FakeCredentialInteractor
 import com.android.systemui.biometrics.domain.interactor.PromptCredentialInteractor
+import com.android.systemui.biometrics.domain.interactor.promptSelectorInteractor
 import com.android.systemui.biometrics.promptInfo
+import com.android.systemui.biometrics.shared.model.BiometricModalities
 import com.android.systemui.biometrics.shared.model.PromptKind
+import com.android.systemui.haptics.msdl.msdlPlayer
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.shade.domain.interactor.shadeInteractor
+import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -34,17 +41,26 @@ class CredentialViewModelTest : SysuiTestCase() {
 
     private lateinit var viewModel: CredentialViewModel
 
+    private val kosmos = testKosmos()
+
     @Before
     fun setup() {
         viewModel =
             CredentialViewModel(
                 mContext,
-                PromptCredentialInteractor(dispatcher, promptRepository, credentialInteractor)
+                PromptCredentialInteractor(dispatcher, promptRepository, credentialInteractor),
+                kosmos.shadeInteractor,
+                kosmos.promptSelectorInteractor,
+                kosmos.msdlPlayer,
             )
+
+        kosmos.testScope.runCurrent()
     }
 
     @Test fun setsPinInputFlags() = setsInputFlags(PromptKind.Pin, expectFlags = true)
+
     @Test fun setsPasswordInputFlags() = setsInputFlags(PromptKind.Password, expectFlags = false)
+
     @Test fun setsPatternInputFlags() = setsInputFlags(PromptKind.Pattern, expectFlags = false)
 
     private fun setsInputFlags(type: PromptKind, expectFlags: Boolean) =
@@ -61,8 +77,10 @@ class CredentialViewModelTest : SysuiTestCase() {
         }
 
     @Test fun isStealthIgnoredByPin() = isStealthMode(PromptKind.Pin, expectStealth = false)
+
     @Test
     fun isStealthIgnoredByPassword() = isStealthMode(PromptKind.Password, expectStealth = false)
+
     @Test fun isStealthUsedByPattern() = isStealthMode(PromptKind.Pattern, expectStealth = true)
 
     private fun isStealthMode(type: PromptKind, expectStealth: Boolean) =
@@ -170,7 +188,14 @@ class CredentialViewModelTest : SysuiTestCase() {
     ) =
         runTest(dispatcher) {
             init()
-            promptRepository.setPrompt(promptInfo(), USER_ID, REQUEST_ID, OPERATION_ID, kind)
+            promptRepository.setPrompt(
+                promptInfo(),
+                USER_ID,
+                BiometricModalities(),
+                REQUEST_ID,
+                OPERATION_ID,
+                kind,
+            )
             block()
         }
 }

@@ -265,7 +265,11 @@ public class IntrusionDetectionService extends SystemService {
     }
 
     private void transport(List<IntrusionDetectionEvent> events) {
-        mIntrusionDetectionEventTransportConnection.addData(events);
+        try {
+            mIntrusionDetectionEventTransportConnection.addData(events);
+        } catch (Throwable t) {
+            Slog.e(TAG, "Failed to transport data: ", t);
+        }
     }
 
     @Override

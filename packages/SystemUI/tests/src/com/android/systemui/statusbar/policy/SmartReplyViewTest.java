@@ -15,16 +15,14 @@
 package com.android.systemui.statusbar.policy;
 
 import static android.view.View.MeasureSpec;
-
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertNull;
 import static junit.framework.Assert.assertTrue;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.Notification;
@@ -36,17 +34,20 @@ import android.content.IntentFilter;
 import android.content.res.Resources;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.Icon;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
+import android.text.Annotation;
+import android.text.Spannable;
+import android.text.SpannableString;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
-
 import androidx.test.filters.SmallTest;
-
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.keyguard.KeyguardUpdateMonitor;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.ActivityStarter.OnDismissAction;
@@ -60,17 +61,6 @@ import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil;
-
-import kotlin.sequences.Sequence;
-import kotlin.sequences.SequencesKt;
-
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -79,6 +69,14 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+import kotlin.sequences.Sequence;
+import kotlin.sequences.SequencesKt;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
 
 @RunWith(AndroidTestingRunner.class)
 @TestableLooper.RunWithLooper
@@ -112,13 +110,21 @@ public class SmartReplyViewTest extends SysuiTestCase {
     private SmartActionInflaterImpl mSmartActionInflater;
     private KeyguardDismissUtil mKeyguardDismissUtil;
 
-    @Mock private SmartReplyConstants mConstants;
-    @Mock private ActivityStarter mActivityStarter;
-    @Mock private HeadsUpManager mHeadsUpManager;
-    @Mock private NotificationRemoteInputManager mNotificationRemoteInputManager;
-    @Mock private SmartReplyController mSmartReplyController;
-    @Mock private  KeyguardStateController mKeyguardStateController;
-    @Mock private  SysuiStatusBarStateController mStatusBarStateController;
+    @Mock
+    private SmartReplyConstants mConstants;
+    @Mock
+    private ActivityStarter mActivityStarter;
+    @Mock
+    private HeadsUpManager mHeadsUpManager;
+    @Mock
+    private NotificationRemoteInputManager mNotificationRemoteInputManager;
+    @Mock
+    private SmartReplyController mSmartReplyController;
+    @Mock
+    private KeyguardStateController mKeyguardStateController;
+    @Mock
+    private SysuiStatusBarStateController mStatusBarStateController;
+    @Mock private SmartReplyLogger mSmartReplyLogger;
 
     @Before
     public void setUp() {
@@ -145,6 +151,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
         mContainer = new View(mContext, null);
         mView = SmartReplyView.inflate(mContext, mConstants);
+        mView.setSmartReplyLogger(mSmartReplyLogger);
 
         final Resources res = mContext.getResources();
         mSpacing = res.getDimensionPixelSize(R.dimen.smart_reply_button_spacing);
@@ -202,7 +209,9 @@ public class SmartReplyViewTest extends SysuiTestCase {
         mKeyguardDismissUtil = new KeyguardDismissUtil(
                 mKeyguardStateController, mStatusBarStateController, mActivityStarter) {
             public void executeWhenUnlocked(ActivityStarter.OnDismissAction action,
-                    boolean requiresShadeOpen, boolean afterKeyguardGone) { }};
+                    boolean requiresShadeOpen, boolean afterKeyguardGone) {
+            }
+        };
         mSmartReplyInflater = new SmartReplyInflaterImpl(
                 mConstants,
                 mKeyguardDismissUtil,
@@ -264,6 +273,27 @@ public class SmartReplyViewTest extends SysuiTestCase {
         setSmartReplies(TEST_CHOICES);
         mView.getChildAt(0).performClick();
         assertEquals(View.GONE, mContainer.getVisibility());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testSendSmartReply_controllerCalledForSmartReply() {
+        CharSequence[] testChoices = createChoicesWithAnimatedReply();
+        setSmartReplies(testChoices);
+        mView.getChildAt(2).performClick();
+        verify(mSmartReplyController).smartReplySent(mEntry, 2, testChoices[2],
+                MetricsEvent.LOCATION_UNKNOWN, false /* modifiedBeforeSending */);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testSendSmartReply_controllerCalledForAnimatedReply() {
+        CharSequence[] testChoices = createChoicesWithAnimatedReply();
+        setSmartReplies(testChoices);
+        mView.getChildAt(0).performClick();
+        // Verify the reply to display after button tap is the choice text without attribution text.
+        verify(mSmartReplyController).smartReplySent(mEntry, 0, testChoices[0],
+                MetricsEvent.LOCATION_UNKNOWN, false /* modifiedBeforeSending */);
     }
 
     @Test
@@ -516,7 +546,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
         List<Button> replyButtons =
                 inflateSmartReplies(
                         choices, false /* fromAssistant */, useDelayedOnClickListener)
-                .collect(Collectors.toList());
+                        .collect(Collectors.toList());
         mView.addPreInflatedButtons(replyButtons);
     }
 
@@ -537,6 +567,25 @@ public class SmartReplyViewTest extends SysuiTestCase {
         return IntStream.range(0, choices.length).mapToObj(idx ->
                 mSmartReplyInflater.inflateReplyButton(
                         mView, mEntry, smartReplies, idx, choices[idx], useDelayedOnClickListener));
+    }
+
+    private CharSequence[] createChoicesWithAnimatedReply() {
+        CharSequence choice1 = addAnnotationToChoice("Hello", true, "attr2");
+        CharSequence choice2 = "What's up?";
+        CharSequence choice3 = "I'm here";
+        return new CharSequence[]{choice1, choice2, choice3};
+    }
+
+    private SpannableString addAnnotationToChoice(CharSequence choice, boolean isAnimatedReply,
+            String attrText) {
+        SpannableString spannableString = new SpannableString(choice);
+        if (isAnimatedReply) {
+            spannableString.setSpan(new Annotation("isAnimatedReply", "1"), 0, choice.length(),
+                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        spannableString.setSpan(new Annotation("attributionText", attrText), 0, choice.length(),
+                Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return spannableString;
     }
 
     private Notification.Action createAction(String actionTitle) {
@@ -578,12 +627,12 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     private void setSmartRepliesAndActions(CharSequence[] choices, String[] actionTitles) {
         setSmartRepliesAndActions(choices, actionTitles, false /* fromAssistant */,
-                true /* useDelayedOnClickListener */);
+                true /* useDelayedOnClickListener */, false /* animatedAction */);
     }
 
     private void setSmartRepliesAndActions(
             CharSequence[] choices, String[] actionTitles, boolean fromAssistant,
-            boolean useDelayedOnClickListener) {
+            boolean useDelayedOnClickListener, boolean animatedAction) {
         mView.resetSmartSuggestions(mContainer);
         Sequence<Button> inflatedReplies = SequencesKt.asSequence(
                 inflateSmartReplies(choices, fromAssistant, useDelayedOnClickListener)
@@ -592,15 +641,37 @@ public class SmartReplyViewTest extends SysuiTestCase {
                 createActions(actionTitles), fromAssistant);
         Sequence<Button> inflatedSmartActions = SequencesKt.asSequence(
                 IntStream.range(0, smartActions.actions.size())
-                        .mapToObj(idx -> mSmartActionInflater.inflateActionButton(
-                                mView,
-                                mEntry,
-                                smartActions,
-                                idx,
-                                smartActions.actions.get(idx),
-                                useDelayedOnClickListener,
-                                getContext()))
+                        .mapToObj(idx -> {
+                            Button actionButton = mSmartActionInflater.inflateActionButton(
+                                    mView,
+                                    mEntry,
+                                    smartActions,
+                                    idx,
+                                    smartActions.actions.get(idx),
+                                    useDelayedOnClickListener,
+                                    getContext());
+
+                            if (actionButton != null && animatedAction) {
+                                ViewGroup.LayoutParams params = actionButton.getLayoutParams();
+                                SmartReplyView.LayoutParams srvLayoutParams;
+
+                                if (params instanceof SmartReplyView.LayoutParams) {
+                                    srvLayoutParams = (SmartReplyView.LayoutParams) params;
+                                } else if (params != null) {
+                                    srvLayoutParams = (SmartReplyView.LayoutParams) mView.generateLayoutParams(params);
+                                    actionButton.setLayoutParams(srvLayoutParams);
+                                } else {
+                                    srvLayoutParams = (SmartReplyView.LayoutParams) mView.generateDefaultLayoutParams();
+                                    actionButton.setLayoutParams(srvLayoutParams); // Apply the new LayoutParams
+                                }
+                                // Set the button type to make it animated action
+                                srvLayoutParams.mButtonType = SmartReplyView.SmartButtonType.ANIMATED_ACTION;
+                            }
+
+                            return actionButton;
+                        })
                         .iterator());
+
         mView.addPreInflatedButtons(
                 SequencesKt.toList(SequencesKt.plus(inflatedReplies, inflatedSmartActions)));
         mView.setSmartRepliesGeneratedByAssistant(fromAssistant);
@@ -627,13 +698,13 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
         Iterable<Button> inflatedReplies = SequencesKt.asIterable(SequencesKt.asSequence(
                 IntStream.range(0, smartReplies.choices.size()).mapToObj(
-                        idx -> mSmartReplyInflater.inflateReplyButton(
-                                mView,
-                                mEntry,
-                                smartReplies,
-                                idx,
-                                smartReplies.choices.get(idx),
-                                true /* delayOnClickListener */))
+                                idx -> mSmartReplyInflater.inflateReplyButton(
+                                        mView,
+                                        mEntry,
+                                        smartReplies,
+                                        idx,
+                                        smartReplies.choices.get(idx),
+                                        true /* delayOnClickListener */))
                         .iterator()));
         for (Button current : inflatedReplies) {
             if (previous != null) {
@@ -683,6 +754,14 @@ public class SmartReplyViewTest extends SysuiTestCase {
         assertEqualPadding(expected, actual);
     }
 
+    private static void assertAnimatedActionButtonShownWithEqualMeasures(
+            View expected, View actual, int index) {
+        assertReplyButtonShownWithEqualMeasures(expected, actual);
+        SmartReplyView.LayoutParams params =
+                (SmartReplyView.LayoutParams) actual.getLayoutParams();
+        assertEquals("Button " + index + " should be of type ANIMATED_ACTION",
+                SmartReplyView.SmartButtonType.ANIMATED_ACTION, params.mButtonType);
+    }
     private static void assertReplyButtonShown(View view) {
         assertTrue(((SmartReplyView.LayoutParams) view.getLayoutParams()).isShown());
     }
@@ -763,7 +842,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_shortSmartActions() {
-        String[] actions = new String[] {"Hi", "Hello", "Bye"};
+        String[] actions = new String[]{"Hi", "Hello", "Bye"};
         // All choices should be displayed as SINGLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(new CharSequence[0], 1, createActions(actions));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
@@ -779,7 +858,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testLayout_shortSmartActions() {
-        String[] actions = new String[] {"Hi", "Hello", "Bye"};
+        String[] actions = new String[]{"Hi", "Hello", "Bye"};
         // All choices should be displayed as SINGLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(new CharSequence[0], 1, createActions(actions));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
@@ -799,7 +878,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_smartActionWithTwoLines() {
-        String[] actions = new String[] {"Hi", "Hello\neveryone", "Bye"};
+        String[] actions = new String[]{"Hi", "Hello\neveryone", "Bye"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(new CharSequence[0], 2, createActions(actions));
@@ -816,7 +895,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testLayout_smartActionWithTwoLines() {
-        String[] actions = new String[] {"Hi", "Hello\neveryone", "Bye"};
+        String[] actions = new String[]{"Hi", "Hello\neveryone", "Bye"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(new CharSequence[0], 2, createActions(actions));
@@ -836,7 +915,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_smartActionWithThreeLines() {
-        String[] actions = new String[] {"Hi", "Hello\nevery\nbody", "Bye"};
+        String[] actions = new String[]{"Hi", "Hello\nevery\nbody", "Bye"};
 
         // The action with three lines should NOT be displayed. All other actions should be
         // displayed as SINGLE-line smart action buttons.
@@ -855,7 +934,7 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testLayout_smartActionWithThreeLines() {
-        String[] actions = new String[] {"Hi", "Hello\nevery\nbody", "Bye"};
+        String[] actions = new String[]{"Hi", "Hello\nevery\nbody", "Bye"};
 
         // The action with three lines should NOT be displayed. All other actions should be
         // displayed as SINGLE-line smart action buttons.
@@ -878,11 +957,11 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_squeezeLongestSmartAction() {
-        String[] actions = new String[] {"Short", "Short", "Looooooong replyyyyy"};
+        String[] actions = new String[]{"Short", "Short", "Looooooong replyyyyy"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(new CharSequence[0], 2,
-                createActions(new String[] {"Short", "Short", "Looooooong \nreplyyyyy"}));
+                createActions(new String[]{"Short", "Short", "Looooooong \nreplyyyyy"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartActions(actions);
@@ -898,11 +977,11 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testLayout_squeezeLongestSmartAction() {
-        String[] actions = new String[] {"Short", "Short", "Looooooong replyyyyy"};
+        String[] actions = new String[]{"Short", "Short", "Looooooong replyyyyy"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(new CharSequence[0], 2,
-                createActions(new String[] {"Short", "Short", "Looooooong \nreplyyyyy"}));
+                createActions(new String[]{"Short", "Short", "Looooooong \nreplyyyyy"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
         expectedView.layout(10, 10, 10 + expectedView.getMeasuredWidth(),
                 10 + expectedView.getMeasuredHeight());
@@ -921,11 +1000,11 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_dropLongestSmartAction() {
-        String[] actions = new String[] {"Short", "Short", "LooooooongUnbreakableReplyyyyy"};
+        String[] actions = new String[]{"Short", "Short", "LooooooongUnbreakableReplyyyyy"};
 
         // Short actions should be shown as single line views
         ViewGroup expectedView = buildExpectedView(
-                new CharSequence[0], 1, createActions(new String[] {"Short", "Short"}));
+                new CharSequence[0], 1, createActions(new String[]{"Short", "Short"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
         expectedView.layout(10, 10, 10 + expectedView.getMeasuredWidth(),
                 10 + expectedView.getMeasuredHeight());
@@ -965,15 +1044,15 @@ public class SmartReplyViewTest extends SysuiTestCase {
         Drawable singleLineDrawable = singleLineButton.getCompoundDrawablesRelative()[0]; // start
         Drawable doubleLineDrawable = doubleLineButton.getCompoundDrawablesRelative()[0]; // start
         assertEquals(singleLineDrawable.getBounds().width(),
-                     doubleLineDrawable.getBounds().width());
+                doubleLineDrawable.getBounds().width());
         assertEquals(singleLineDrawable.getBounds().height(),
-                     doubleLineDrawable.getBounds().height());
+                doubleLineDrawable.getBounds().height());
     }
 
     @Test
     public void testMeasure_shortChoicesAndActions() {
-        CharSequence[] choices = new String[] {"Hi", "Hello"};
-        String[] actions = new String[] {"Bye"};
+        CharSequence[] choices = new String[]{"Hi", "Hello"};
+        String[] actions = new String[]{"Bye"};
         // All choices should be displayed as SINGLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(choices, 1, createActions(actions));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
@@ -989,12 +1068,12 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_choicesAndActionsSqueezeLongestAction() {
-        CharSequence[] choices = new String[] {"Short", "Short"};
-        String[] actions = new String[] {"Looooooong replyyyyy"};
+        CharSequence[] choices = new String[]{"Short", "Short"};
+        String[] actions = new String[]{"Looooooong replyyyyy"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(choices, 2,
-                createActions(new String[] {"Looooooong \nreplyyyyy"}));
+                createActions(new String[]{"Looooooong \nreplyyyyy"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(choices, actions);
@@ -1010,12 +1089,12 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_choicesAndActionsPrioritizeActionsOnlyActions() {
-        String[] choices = new String[] {"Reply"};
-        String[] actions = new String[] {"Looooooong actioooon", "second action", "third action"};
+        String[] choices = new String[]{"Reply"};
+        String[] actions = new String[]{"Looooooong actioooon", "second action", "third action"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
         ViewGroup expectedView = buildExpectedView(new String[0], 2,
-                createActions(new String[] {
+                createActions(new String[]{
                         "Looooooong \nactioooon", "second \naction", "third \naction"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
@@ -1035,12 +1114,12 @@ public class SmartReplyViewTest extends SysuiTestCase {
 
     @Test
     public void testMeasure_choicesAndActionsPrioritizeActions() {
-        String[] choices = new String[] {"Short", "longer reply"};
-        String[] actions = new String[] {"Looooooong actioooon", "second action"};
+        String[] choices = new String[]{"Short", "longer reply"};
+        String[] actions = new String[]{"Looooooong actioooon", "second action"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
-        ViewGroup expectedView = buildExpectedView(new String[] {"Short"}, 2,
-                createActions(new String[] {"Looooooong \nactioooon", "second \naction"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{"Short"}, 2,
+                createActions(new String[]{"Looooooong \nactioooon", "second \naction"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(choices, actions);
@@ -1065,13 +1144,13 @@ public class SmartReplyViewTest extends SysuiTestCase {
      */
     @Test
     public void testMeasure_skipTooLongActions() {
-        String[] choices = new String[] {};
-        String[] actions = new String[] {
+        String[] choices = new String[]{};
+        String[] actions = new String[]{
                 "a1", "a2", "this action is soooooooo long it's ridiculous", "a4"};
 
         // All actions should be displayed as DOUBLE-line smart action buttons.
-        ViewGroup expectedView = buildExpectedView(new String[] {}, 1 /* lineCount */,
-                createActions(new String[] {"a1", "a2", "a4"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{}, 1 /* lineCount */,
+                createActions(new String[]{"a1", "a2", "a4"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(choices, actions);
@@ -1092,12 +1171,12 @@ public class SmartReplyViewTest extends SysuiTestCase {
      */
     @Test
     public void testMeasure_skipTooLongReplies() {
-        String[] choices = new String[] {
+        String[] choices = new String[]{
                 "r1", "r2", "this reply is soooooooo long it's ridiculous", "r4"};
-        String[] actions = new String[] {};
+        String[] actions = new String[]{};
 
         // All replies should be displayed as single-line smart reply buttons.
-        ViewGroup expectedView = buildExpectedView(new String[] {"r1", "r2", "r4"},
+        ViewGroup expectedView = buildExpectedView(new String[]{"r1", "r2", "r4"},
                 1 /* lineCount */, Collections.emptyList());
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
@@ -1119,14 +1198,14 @@ public class SmartReplyViewTest extends SysuiTestCase {
      */
     @Test
     public void testMeasure_skipTooLongRepliesAndActions() {
-        String[] choices = new String[] {
+        String[] choices = new String[]{
                 "r1", "r2", "this reply is soooooooo long it's ridiculous", "r4"};
-        String[] actions = new String[] {
+        String[] actions = new String[]{
                 "a1", "ThisActionIsSooooooooLongItsRidiculousIPromise"};
 
         // All replies should be displayed as single-line smart reply buttons.
-        ViewGroup expectedView = buildExpectedView(new String[] {"r1", "r2", "r4"},
-                1 /* lineCount */, createActions(new String[] {"a1"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{"r1", "r2", "r4"},
+                1 /* lineCount */, createActions(new String[]{"a1"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(choices, actions);
@@ -1152,15 +1231,16 @@ public class SmartReplyViewTest extends SysuiTestCase {
         mView.setMinNumSystemGeneratedReplies(3);
 
         // Add 2 replies when the minimum is 3 -> we should end up with 0 replies.
-        String[] choices = new String[] {"reply1", "reply2"};
-        String[] actions = new String[] {"action1"};
+        String[] choices = new String[]{"reply1", "reply2"};
+        String[] actions = new String[]{"action1"};
 
-        ViewGroup expectedView = buildExpectedView(new String[] {}, 1,
-                createActions(new String[] {"action1"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{}, 1,
+                createActions(new String[]{"action1"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(
-                choices, actions, true /* fromAssistant */, true /* useDelayedOnClickListener */);
+                choices, actions, true /* fromAssistant */, true /* useDelayedOnClickListener */,
+                false /* not animated action */);
         mView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         // 395, 168
@@ -1178,15 +1258,16 @@ public class SmartReplyViewTest extends SysuiTestCase {
         when(mConstants.getMinNumSystemGeneratedReplies()).thenReturn(2);
 
         // Add 2 replies when the minimum is 3 -> we should end up with 0 replies.
-        String[] choices = new String[] {"reply1", "reply2"};
-        String[] actions = new String[] {"action1"};
+        String[] choices = new String[]{"reply1", "reply2"};
+        String[] actions = new String[]{"action1"};
 
-        ViewGroup expectedView = buildExpectedView(new String[] {"reply1", "reply2"}, 1,
-                createActions(new String[] {"action1"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{"reply1", "reply2"}, 1,
+                createActions(new String[]{"action1"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(
-                choices, actions, true /* fromAssistant */, true /* useDelayedOnClickListener */);
+                choices, actions, true /* fromAssistant */, true /* useDelayedOnClickListener */,
+                false /* not animated action */);
         mView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         assertEqualMeasures(expectedView, mView);
@@ -1207,16 +1288,17 @@ public class SmartReplyViewTest extends SysuiTestCase {
         mView.setMinNumSystemGeneratedReplies(2);
 
         // Add 2 replies when the minimum is 3 -> we should end up with 0 replies.
-        String[] choices = new String[] {"This is a very long two-line reply."};
-        String[] actions = new String[] {"Short action"};
+        String[] choices = new String[]{"This is a very long two-line reply."};
+        String[] actions = new String[]{"Short action"};
 
         // The action should be displayed on one line only - since it fits!
-        ViewGroup expectedView = buildExpectedView(new String[] {}, 1 /* lineCount */,
-                createActions(new String[] {"Short action"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{}, 1 /* lineCount */,
+                createActions(new String[]{"Short action"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(
-                choices, actions, true /* fromAssistant */, true /* useDelayedOnClickListener */);
+                choices, actions, true /* fromAssistant */, true /* useDelayedOnClickListener */,
+                false /* not animated action */);
         mView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         assertEqualMeasures(expectedView, mView);
@@ -1234,12 +1316,12 @@ public class SmartReplyViewTest extends SysuiTestCase {
     public void testMeasure_maxNumActions() {
         when(mConstants.getMaxNumActions()).thenReturn(2);
 
-        String[] choices = new String[] {};
-        String[] actions = new String[] {"a1", "a2", "a3", "a4"};
+        String[] choices = new String[]{};
+        String[] actions = new String[]{"a1", "a2", "a3", "a4"};
 
         // All replies should be displayed as single-line smart reply buttons.
-        ViewGroup expectedView = buildExpectedView(new String[] {},
-                1 /* lineCount */, createActions(new String[] {"a1", "a2"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{},
+                1 /* lineCount */, createActions(new String[]{"a1", "a2"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(choices, actions);
@@ -1264,12 +1346,12 @@ public class SmartReplyViewTest extends SysuiTestCase {
     public void testMeasure_maxNumActions_noLimit() {
         when(mConstants.getMaxNumActions()).thenReturn(-1);
 
-        String[] choices = new String[] {};
-        String[] actions = new String[] {"a1", "a2", "a3", "a4"};
+        String[] choices = new String[]{};
+        String[] actions = new String[]{"a1", "a2", "a3", "a4"};
 
         // All replies should be displayed as single-line smart reply buttons.
-        ViewGroup expectedView = buildExpectedView(new String[] {},
-                1 /* lineCount */, createActions(new String[] {"a1", "a2", "a3", "a4"}));
+        ViewGroup expectedView = buildExpectedView(new String[]{},
+                1 /* lineCount */, createActions(new String[]{"a1", "a2", "a3", "a4"}));
         expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
 
         setSmartRepliesAndActions(choices, actions);
@@ -1286,5 +1368,230 @@ public class SmartReplyViewTest extends SysuiTestCase {
                 expectedView.getChildAt(2), mView.getChildAt(2)); // a3
         assertReplyButtonShownWithEqualMeasures(
                 expectedView.getChildAt(3), mView.getChildAt(3)); // a4
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testMeasure_animatedReplies_areShownAndMeasuredCorrectly() {
+
+        // Define 3 animated replies
+        CharSequence animatedChoice0 = addAnnotationToChoice("animated_reply0", true, "attr0");
+        CharSequence animatedChoice1 = addAnnotationToChoice("animated_reply1", true, "attr1");
+        CharSequence animatedChoice2 = addAnnotationToChoice("animated_reply2", true, "attr2");
+
+        CharSequence[] choicesToDisplayAndExpect =
+                new CharSequence[]{animatedChoice0, animatedChoice1, animatedChoice2};
+        String[] actions = new String[]{};
+
+        ViewGroup expectedView = buildExpectedView(choicesToDisplayAndExpect, 1 /* lineCount */);
+        expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        setSmartRepliesAndActions(
+                choicesToDisplayAndExpect,
+                actions,
+                true /* fromAssistant */,
+                true /* useDelayedOnClickListener */,
+                false /* not animated action */);
+
+        mView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        assertEqualLayouts(expectedView, mView);
+        assertEqualLayouts(expectedView.getChildAt(0), mView.getChildAt(0));
+        assertEqualLayouts(expectedView.getChildAt(1), mView.getChildAt(1));
+        assertEqualLayouts(expectedView.getChildAt(2), mView.getChildAt(2));
+        verify(mSmartReplyLogger).logAnimatedReplyChipVisibleEvent();
+        verify(mSmartReplyLogger, never()).logAnimatedActionChipVisibleEvent();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testMeasure_animatedActions_areShownAndMeasuredCorrectly() {
+
+        // Define 3 animated actions
+        String animatedAction0 = "animated_action0";
+        String animatedAction1 = "animated_action1";
+        String animatedAction2 = "animated_action2";
+
+        String[] actions = new String[]{animatedAction0, animatedAction1, animatedAction2};
+        CharSequence[] choices = new CharSequence[]{};
+
+        ViewGroup expectedView = buildExpectedView(choices, 1 /* lineCount */,
+                createActions(actions));
+        expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        setSmartRepliesAndActions(
+                choices,
+                actions,
+                true /* fromAssistant */,
+                true /* useDelayedOnClickListener */,
+                true /* animated action */);
+
+        mView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        assertEqualMeasures(expectedView, mView);
+        assertEqualLayouts(expectedView, mView);
+        assertAnimatedActionButtonShownWithEqualMeasures(
+                expectedView.getChildAt(0), mView.getChildAt(0), 0);
+        assertEqualLayouts(expectedView.getChildAt(0), mView.getChildAt(0));
+
+        assertAnimatedActionButtonShownWithEqualMeasures(
+                expectedView.getChildAt(1), mView.getChildAt(1), 1);
+        assertEqualLayouts(expectedView.getChildAt(1), mView.getChildAt(1));
+
+        assertAnimatedActionButtonShownWithEqualMeasures(
+                expectedView.getChildAt(2), mView.getChildAt(2), 2);
+        assertEqualLayouts(expectedView.getChildAt(2), mView.getChildAt(2));
+        verify(mSmartReplyLogger, never()).logAnimatedReplyChipVisibleEvent();
+        verify(mSmartReplyLogger).logAnimatedActionChipVisibleEvent();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testMeasure_animatedRepliesAndActions_showAllAnimatedRepliesAndHideActions() {
+
+        // Define 2 animated replies
+        CharSequence animatedChoice0 = addAnnotationToChoice("animated_reply0", true, "attr0");
+        CharSequence animatedChoice1 = addAnnotationToChoice("animated_reply1", true, "attr1");
+
+        CharSequence[] animatedChoices = new CharSequence[]{animatedChoice0, animatedChoice1};
+        CharSequence[] allChoices =
+                new CharSequence[]{"A Normal Smart Reply", animatedChoice0, animatedChoice1};
+        String[] actions = new String[]{"action1", "action2", "action3"};
+
+        // We expect to show all animated replies and no actions
+        ViewGroup expectedView = buildExpectedView(animatedChoices, 1 /* lineCount */,
+                createActions(new String[]{"action1"}));
+        expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        setSmartRepliesAndActions(
+                allChoices,
+                actions,
+                true /* fromAssistant */,
+                true /* useDelayedOnClickListener */,
+                false /* not animated action */);
+
+        mView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        assertEqualLayouts(expectedView, mView);
+        assertEqualLayouts(expectedView.getChildAt(0), mView.getChildAt(1));
+        assertEqualLayouts(expectedView.getChildAt(1), mView.getChildAt(2));
+        assertEqualLayouts(expectedView.getChildAt(2), mView.getChildAt(0));
+        verify(mSmartReplyLogger).logAnimatedReplyChipVisibleEvent();
+        verify(mSmartReplyLogger, never()).logAnimatedActionChipVisibleEvent();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testMeasure_animatedRepliesAndAnimatedActions_prioritizeAnimatedReplies() {
+
+        // Define 2 animated replies
+        CharSequence animatedChoice0 = addAnnotationToChoice("animated_reply0", true, "attr0");
+        CharSequence animatedChoice1 = addAnnotationToChoice("animated_reply1", true, "attr1");
+
+        CharSequence[] animatedChoices = new CharSequence[]{animatedChoice0, animatedChoice1};
+        CharSequence[] allChoices =
+                new CharSequence[]{"A Normal Smart Reply", animatedChoice0, animatedChoice1};
+        String[] actions = new String[]{"action1", "action2", "action3"};
+
+        // We expect to show all animated replies and no actions
+        ViewGroup expectedView = buildExpectedView(animatedChoices, 1 /* lineCount */,
+                createActions(new String[]{"action1"}));
+        expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        setSmartRepliesAndActions(
+                allChoices,
+                actions,
+                true /* fromAssistant */,
+                true /* useDelayedOnClickListener */,
+                true /* animated action */);
+
+        mView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        assertEqualLayouts(expectedView, mView);
+        assertEqualLayouts(expectedView.getChildAt(0), mView.getChildAt(1));
+        assertEqualLayouts(expectedView.getChildAt(1), mView.getChildAt(2));
+        assertEqualLayouts(expectedView.getChildAt(2), mView.getChildAt(3));
+        verify(mSmartReplyLogger).logAnimatedReplyChipVisibleEvent();
+        verify(mSmartReplyLogger).logAnimatedActionChipVisibleEvent();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testMeasure_animatedRepliesAndActions_notEnoughSpace_showOnlyAnimatedReplies() {
+
+        // Define 3 animated replies
+        CharSequence animatedChoice0 = addAnnotationToChoice("animated_reply0", true, "attr0");
+        CharSequence animatedChoice1 = addAnnotationToChoice("animated_reply1", true, "attr1");
+        CharSequence animatedChoice2 = addAnnotationToChoice("animated_reply2", true, "attr2");
+
+        CharSequence[] allChoices =
+                new CharSequence[]{"A Normal Smart Reply", animatedChoice0, animatedChoice1,
+                        animatedChoice2};
+        String[] actions = new String[]{"action1", "action2", "action3"};
+
+        // We expect to show only 2 animated replies
+        CharSequence[] expectedAnimatedChoices =
+                new CharSequence[]{animatedChoice0, animatedChoice1,
+                        animatedChoice2};
+        ViewGroup expectedView = buildExpectedView(expectedAnimatedChoices, 1 /* lineCount */);
+        expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        setSmartRepliesAndActions(
+                allChoices,
+                actions,
+                true /* fromAssistant */,
+                true /* useDelayedOnClickListener */,
+                false /* not animated action */);
+
+        mView.measure(
+                MeasureSpec.makeMeasureSpec(expectedView.getMeasuredWidth(), MeasureSpec.AT_MOST),
+                MeasureSpec.UNSPECIFIED);
+
+        assertEqualLayouts(expectedView, mView);
+        assertEqualLayouts(expectedView.getChildAt(0), mView.getChildAt(0));
+        assertEqualLayouts(expectedView.getChildAt(1), mView.getChildAt(1));
+        assertEqualLayouts(expectedView.getChildAt(2), mView.getChildAt(2));
+        verify(mSmartReplyLogger).logAnimatedReplyChipVisibleEvent();
+        verify(mSmartReplyLogger, never()).logAnimatedActionChipVisibleEvent();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT)
+    public void testMeasure_animatedActionsAndSmartReplies_showAllAnimatedActionsAndHideReplies() {
+
+        // Define 3 animated actions
+        String animatedAction0 = "animated_action0";
+        String animatedAction1 = "animated_action1";
+        String animatedAction2 = "animated_action1";
+
+        String[] actions = new String[]{animatedAction0, animatedAction1, animatedAction2};
+        CharSequence[] choices = new CharSequence[]{"reply1", "reply2", "reply3"};
+
+
+        // We expect to show all animated actions and no replies
+        ViewGroup expectedView = buildExpectedView(new CharSequence[]{}, 1 /* lineCount */,
+                createActions(actions));
+        expectedView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED);
+
+        setSmartRepliesAndActions(
+                choices,
+                actions,
+                true /* fromAssistant */,
+                true /* useDelayedOnClickListener */,
+                true /* animated action */);
+
+        mView.measure(
+                MeasureSpec.makeMeasureSpec(expectedView.getMeasuredWidth(), MeasureSpec.AT_MOST),
+                MeasureSpec.UNSPECIFIED);
+
+        assertEqualMeasures(expectedView, mView);
+        assertEqualLayouts(expectedView, mView);
+
+        // Verify that all replies are hidden
+        assertReplyButtonHidden(mView.getChildAt(0));
+        assertReplyButtonHidden(mView.getChildAt(1));
+        assertReplyButtonHidden(mView.getChildAt(2));
+        verify(mSmartReplyLogger, never()).logAnimatedReplyChipVisibleEvent();
+        verify(mSmartReplyLogger).logAnimatedActionChipVisibleEvent();
     }
 }

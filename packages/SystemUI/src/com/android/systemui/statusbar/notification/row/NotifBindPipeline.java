@@ -16,6 +16,8 @@
 
 package com.android.systemui.statusbar.notification.row;
 
+import static com.android.systemui.Flags.notificationRowIsRemovedFix;
+
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.widget.FrameLayout;
@@ -217,6 +219,13 @@ public final class NotifBindPipeline {
             }
             mStage.deleteStageParams(entry);
             mStartProcessor.cancel(entry);
+        }
+
+        @Override
+        public void onEntryRemoved(NotificationEntry entry, int reason) {
+            if (notificationRowIsRemovedFix()) {
+                entry.removeRow();
+            }
         }
     };
 

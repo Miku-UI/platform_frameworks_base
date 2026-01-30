@@ -55,6 +55,7 @@ import java.io.InputStream;
  * <img src="{@docRoot}reference/android/images/text/style/imagespan.png" />
  * <figcaption>Text with <code>ImageSpan</code>s aligned bottom and baseline.</figcaption>
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ImageSpan extends DynamicDrawableSpan {
 
     @Nullable

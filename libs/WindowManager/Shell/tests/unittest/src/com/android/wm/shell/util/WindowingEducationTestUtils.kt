@@ -22,6 +22,8 @@ import android.content.pm.ActivityInfo
 import android.graphics.Rect
 import com.android.wm.shell.desktopmode.CaptionState
 import com.android.wm.shell.desktopmode.education.data.WindowingEducationProto
+import com.android.wm.shell.windowdecor.viewholder.AppHandleIdentifier
+import org.mockito.kotlin.mock
 
 /**
  * Create an instance of [CaptionState.AppHandle] with parameters as properties.
@@ -32,13 +34,16 @@ fun createAppHandleState(
     runningTaskInfo: RunningTaskInfo = createTaskInfo(),
     isHandleMenuExpanded: Boolean = false,
     globalAppHandleBounds: Rect = Rect(),
-    isCapturedLinkAvailable: Boolean = false
+    appHandleIdentifier: AppHandleIdentifier = mock(),
+    isFocused: Boolean = true,
 ): CaptionState.AppHandle =
     CaptionState.AppHandle(
         runningTaskInfo = runningTaskInfo,
         isHandleMenuExpanded = isHandleMenuExpanded,
         globalAppHandleBounds = globalAppHandleBounds,
-        isCapturedLinkAvailable = isCapturedLinkAvailable)
+        appHandleIdentifier = appHandleIdentifier,
+        isFocused = isFocused,
+    )
 
 /**
  * Create an instance of [CaptionState.AppHeader] with parameters as properties.
@@ -49,13 +54,14 @@ fun createAppHeaderState(
     runningTaskInfo: RunningTaskInfo = createTaskInfo(),
     isHeaderMenuExpanded: Boolean = false,
     globalAppChipBounds: Rect = Rect(),
-    isCapturedLinkAvailable: Boolean = false
+    isFocused: Boolean = true,
 ): CaptionState.AppHeader =
     CaptionState.AppHeader(
         runningTaskInfo = runningTaskInfo,
         isHeaderMenuExpanded = isHeaderMenuExpanded,
         globalAppChipBounds = globalAppChipBounds,
-        isCapturedLinkAvailable = isCapturedLinkAvailable)
+        isFocused = isFocused,
+    )
 
 /**
  * Create an instance of [RunningTaskInfo] with parameters as properties.

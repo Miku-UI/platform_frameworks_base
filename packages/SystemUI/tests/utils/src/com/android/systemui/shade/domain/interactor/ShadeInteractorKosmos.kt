@@ -45,6 +45,7 @@ val Kosmos.shadeInteractorSceneContainerImpl by
             scope = applicationCoroutineScope,
             sceneInteractor = sceneInteractor,
             shadeModeInteractor = shadeModeInteractor,
+            shadeRepository = shadeRepository,
         )
     }
 val Kosmos.shadeInteractorLegacyImpl by
@@ -69,6 +70,7 @@ val Kosmos.shadeInteractorImpl by
             userSetupRepository = userSetupRepository,
             userSwitcherInteractor = userSwitcherInteractor,
             baseShadeInteractor = baseShadeInteractor,
+            sceneInteractor = sceneInteractor,
         )
     }
 var Kosmos.notificationElement: NotificationShadeElement by

@@ -1,5 +1,5 @@
 {
-  "presubmit": [
+  "wm": [
     {
       "name": "TracingTests"
     }

@@ -35,6 +35,7 @@ import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
 import com.android.systemui.qs.tiles.impl.internet.domain.model.InternetTileModel
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.connectivity.WifiIcons
+import com.android.systemui.statusbar.connectivity.ui.MobileContextProvider
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.FakeAirplaneModeRepository
 import com.android.systemui.statusbar.pipeline.ethernet.domain.EthernetInteractor
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
@@ -55,13 +56,15 @@ import com.android.systemui.statusbar.pipeline.wifi.ui.model.WifiIcon
 import com.android.systemui.statusbar.policy.data.repository.FakeUserSetupRepository
 import com.android.systemui.testKosmos
 import com.android.systemui.util.CarrierConfigTracker
-import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -89,6 +92,8 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
     private val mobileConnectionRepository =
         FakeMobileConnectionRepository(SUB_1_ID, tableLogBuffer)
 
+    private val mobileContextProvider = mock<MobileContextProvider>()
+
     private val flags =
         FakeFeatureFlagsClassic().also {
             it.set(Flags.FILTER_PROVISIONING_NETWORK_SUBSCRIPTIONS, true)
@@ -98,6 +103,8 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
+        whenever(mobileContextProvider.getMobileContextForSub(any(), any())).thenReturn(context)
+
         mobileConnectionRepository.apply {
             setNetworkTypeKey(mobileConnectionsRepository.GSM_KEY)
             isInService.value = true
@@ -144,6 +151,7 @@ class InternetTileDataInteractorTest : SysuiTestCase() {
                 connectivityRepository,
                 ethernetInteractor,
                 mobileIconsInteractor,
+                mobileContextProvider,
                 wifiInteractor,
             )
     }

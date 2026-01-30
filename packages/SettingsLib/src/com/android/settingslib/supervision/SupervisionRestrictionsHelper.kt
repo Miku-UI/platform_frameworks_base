@@ -17,6 +17,10 @@
 package com.android.settingslib.supervision
 
 import android.app.admin.DeviceAdminReceiver
+import android.app.admin.EnforcingAdmin
+import android.app.admin.RoleAuthority
+import android.app.role.RoleManager
+import android.app.supervision.SupervisionAppService
 import android.app.supervision.SupervisionManager
 import android.content.ComponentName
 import android.content.Context
@@ -39,6 +43,37 @@ object SupervisionRestrictionsHelper {
         restriction: String,
         user: UserHandle,
     ): EnforcedAdmin? {
+        if (!supervisionEnabled(context, user.identifier)) {
+            return null
+        }
+        return EnforcedAdmin(getSupervisionComponent(context, user.identifier), restriction, user)
+    }
+
+    /**
+     * Creates an instance of [EnforcingAdmin] that uses the correct supervision component or
+     * returns null if supervision is not enabled.
+     */
+    @JvmStatic
+    fun createEnforcingAdmin(context: Context, user: UserHandle): EnforcingAdmin? {
+        if (!supervisionEnabled(context, user.identifier)) {
+            return null
+        }
+        val componentName = getSupervisionComponent(context, user.identifier)
+        val packageName = componentName?.packageName ?: ""
+        return EnforcingAdmin(
+            packageName,
+            RoleAuthority(setOf(RoleManager.ROLE_SYSTEM_SUPERVISION)),
+            user,
+            componentName,
+        )
+    }
+
+    private fun supervisionEnabled(context: Context, userId: Int): Boolean {
+        val supervisionManager = context.getSystemService(SupervisionManager::class.java)
+        return supervisionManager?.isSupervisionEnabledForUser(userId) == true
+    }
+
+    private fun getSupervisionComponent(context: Context, userId: Int): ComponentName? {
         val supervisionManager = context.getSystemService(SupervisionManager::class.java)
         val supervisionAppPackage = supervisionManager?.activeSupervisionAppPackage ?: return null
         var supervisionComponent: ComponentName? = null
@@ -46,9 +81,9 @@ object SupervisionRestrictionsHelper {
         // Try to find the service whose package matches the active supervision app.
         val resolveSupervisionApps =
             context.packageManager.queryIntentServicesAsUser(
-                Intent("android.app.action.BIND_SUPERVISION_APP_SERVICE"),
+                Intent(SupervisionAppService.ACTION_SUPERVISION_APP_SERVICE),
                 PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS,
-                user.identifier,
+                userId,
             )
         resolveSupervisionApps
             .mapNotNull { it.serviceInfo?.componentName }
@@ -62,7 +97,7 @@ object SupervisionRestrictionsHelper {
                 context.packageManager.queryBroadcastReceiversAsUser(
                     Intent(DeviceAdminReceiver.ACTION_DEVICE_ADMIN_ENABLED),
                     PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS,
-                    user.identifier,
+                    userId,
                 )
             resolveDeviceAdmins
                 .mapNotNull { it.activityInfo?.componentName }
@@ -73,6 +108,6 @@ object SupervisionRestrictionsHelper {
         if (supervisionComponent == null) {
             Log.d(SupervisionLog.TAG, "Could not find the supervision component.")
         }
-        return EnforcedAdmin(supervisionComponent, restriction, user)
+        return supervisionComponent
     }
 }

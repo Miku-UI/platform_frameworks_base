@@ -84,13 +84,13 @@ public class QuickQSPanelController extends QSPanelControllerBase<QuickQSPanel> 
         if (!SceneContainerFlag.isEnabled()) {
             updateMediaExpansion();
             mMediaHost.setShowsOnlyActiveMedia(true);
-            mMediaHost.init(MediaHierarchyManager.LOCATION_QQS);
         }
+        mMediaHost.init(MediaHierarchyManager.LOCATION_QQS);
     }
 
     @Override
     StateFlow<Boolean> getMediaVisibleFlow() {
-        return mMediaCarouselInteractor.getHasActiveMediaOrRecommendation();
+        return mMediaCarouselInteractor.getHasActiveMedia();
     }
 
     private void updateMediaExpansion() {

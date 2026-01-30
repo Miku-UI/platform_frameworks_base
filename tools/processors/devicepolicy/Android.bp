@@ -1,0 +1,60 @@
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_enterprise",
+}
+
+java_library_host {
+    name: "DevicePolicyAnnotationProcessorHostLibrary",
+    srcs: [
+        "src/**/*.kt",
+        "annotations/**/*.java",
+    ],
+    use_tools_jar: true,
+    static_libs: ["jsonlib"],
+}
+
+java_plugin {
+    name: "DevicePolicyAnnotationProcessor",
+    processor_class: "android.processor.devicepolicy.PolicyProcessor",
+    static_libs: ["DevicePolicyAnnotationProcessorHostLibrary"],
+}
+
+java_library {
+    name: "DevicePolicyAnnotation",
+    srcs: ["annotations/**/*.java"],
+    sdk_version: "core_current",
+    host_supported: true,
+}
+
+java_test_host {
+    name: "DevicePolicyAnnotationProcessorTests",
+
+    srcs: ["test/src/**/*.kt"],
+
+    static_libs: [
+        "compile-testing-prebuilt",
+        "junit",
+        "truth",
+        "kotlin-reflect",
+        "DevicePolicyAnnotationProcessorHostLibrary",
+    ],
+
+    java_resources: [":DevicePolicyAnnotationProcessorTestSource"],
+    test_suites: ["general-tests"],
+}
+
+filegroup {
+    name: "DevicePolicyAnnotationProcessorTestSource",
+    srcs: [
+        // We need the java sources for compiler tests.
+        ":framework-metalava-annotations",
+        "test/resources/**/*.java",
+        "test/resources/**/*.json",
+    ],
+    visibility: ["//visibility:private"],
+}

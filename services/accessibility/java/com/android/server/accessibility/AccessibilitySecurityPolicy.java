@@ -18,7 +18,6 @@ package com.android.server.accessibility;
 
 import static android.accessibilityservice.AccessibilityService.SoftKeyboardController.ENABLE_IME_FAIL_BY_ADMIN;
 import static android.accessibilityservice.AccessibilityService.SoftKeyboardController.ENABLE_IME_SUCCESS;
-import static android.companion.AssociationRequest.DEVICE_PROFILE_APP_STREAMING;
 
 import android.Manifest;
 import android.accessibilityservice.AccessibilityService;
@@ -26,7 +25,6 @@ import android.accessibilityservice.AccessibilityServiceInfo;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManager;
-import android.app.role.RoleManager;
 import android.appwidget.AppWidgetManagerInternal;
 import android.content.ComponentName;
 import android.content.Context;
@@ -47,6 +45,8 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.inputmethod.InputMethodInfo;
 
 import com.android.internal.util.ArrayUtils;
+import com.android.server.LocalServices;
+import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
 import com.android.server.inputmethod.InputMethodManagerInternal;
 
 import libcore.util.EmptyArray;
@@ -440,6 +440,10 @@ public class AccessibilitySecurityPolicy {
     /**
      * Returns the parent userId of the profile according to the specified userId.
      *
+     * <p>For accessibility purposes, a supervising profile, which is a shell profile used for
+     * setting up parental controls and doesn't have its own accessibility settings, is viewed as a
+     * child of the current user.
+     *
      * @param userId The userId to check
      * @return the parent userId of the profile, or self if no parent exist
      */
@@ -447,6 +451,12 @@ public class AccessibilitySecurityPolicy {
         if (userId != mAccessibilityUserManager.getCurrentUserIdLocked()) {
             final long identity = Binder.clearCallingIdentity();
             try {
+                if (android.multiuser.Flags.allowSupervisingProfile()) {
+                    UserInfo userInfo = mUserManager.getUserInfo(userId);
+                    if (userInfo != null && userInfo.isSupervisingProfile()) {
+                        return mAccessibilityUserManager.getCurrentUserIdLocked();
+                    }
+                }
                 UserInfo parent = mUserManager.getProfileParent(userId);
                 if (parent != null) {
                     return parent.getUserHandle().getIdentifier();
@@ -515,7 +525,8 @@ public class AccessibilitySecurityPolicy {
                 || userId == UserHandle.USER_CURRENT_OR_SELF);
     }
 
-    private boolean isValidPackageForUid(String packageName, int uid) {
+    /** Returns true if the package name belongs to the calling uid. */
+    public boolean isValidPackageForUid(String packageName, int uid) {
         final long token = Binder.clearCallingIdentity();
         try {
             // Since we treat calls from a profile as if made by its parent, using
@@ -675,39 +686,31 @@ public class AccessibilitySecurityPolicy {
         }
     }
 
+    /** Returns true if the display belongs to one of the caller's virtual devices. */
+    private boolean displayBelongsToCaller(int callingUid, int proxyDisplayId) {
+        final VirtualDeviceManagerInternal localVdm = LocalServices.getService(
+                VirtualDeviceManagerInternal.class);
+        if (localVdm == null) {
+            return false;
+        }
+        int deviceId = localVdm.getDeviceIdForDisplayId(proxyDisplayId);
+        return callingUid == localVdm.getDeviceOwnerUid(deviceId);
+    }
+
     /**
      * Throws a SecurityException if the caller has neither the MANAGE_ACCESSIBILITY permission nor
-     * the COMPANION_DEVICE_APP_STREAMING role.
+     * owns the provided displayId in any VirtualDevice.
      */
-    public void checkForAccessibilityPermissionOrRole() {
+    public void checkForAccessibilityPermissionOrDisplayOwnership(int displayId) {
         final boolean canManageAccessibility =
                 mContext.checkCallingOrSelfPermission(Manifest.permission.MANAGE_ACCESSIBILITY)
                         == PackageManager.PERMISSION_GRANTED;
         if (canManageAccessibility) {
             return;
         }
-        final int callingUid = Binder.getCallingUid();
-        final long identity = Binder.clearCallingIdentity();
-        try {
-            final RoleManager roleManager = mContext.getSystemService(RoleManager.class);
-            if (roleManager != null) {
-                final List<String> holders = roleManager.getRoleHoldersAsUser(
-                        DEVICE_PROFILE_APP_STREAMING, UserHandle.getUserHandleForUid(callingUid));
-                final String[] packageNames = mPackageManager.getPackagesForUid(callingUid);
-                if (packageNames != null) {
-                    for (String packageName : packageNames) {
-                        if (holders.contains(packageName)) {
-                            return;
-                        }
-                    }
-                }
-            }
-            throw new SecurityException(
-                    "Cannot register a proxy for a device without the "
-                            + "android.app.role.COMPANION_DEVICE_APP_STREAMING role or the"
-                            + " MANAGE_ACCESSIBILITY permission.");
-        } finally {
-            Binder.restoreCallingIdentity(identity);
+        if (!displayBelongsToCaller(Binder.getCallingUid(), displayId)) {
+            throw new SecurityException("The display " + displayId + " does not belong to"
+                    + " the caller.");
         }
     }
 

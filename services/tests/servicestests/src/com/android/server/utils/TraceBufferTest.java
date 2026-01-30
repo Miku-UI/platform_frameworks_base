@@ -16,9 +16,9 @@
 
 package com.android.server.utils;
 
-import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
+import static android.internal.perfetto.protos.Windowmanager.WindowManagerTraceFileProto.MAGIC_NUMBER;
 
-import static com.android.server.wm.WindowManagerTraceFileProto.MAGIC_NUMBER;
+import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;

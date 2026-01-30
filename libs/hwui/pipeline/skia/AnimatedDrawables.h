@@ -63,7 +63,7 @@ struct RippleDrawableParams {
     sp<uirenderer::CanvasPropertyPrimitive> radius;
     sp<uirenderer::CanvasPropertyPrimitive> progress;
     sp<uirenderer::CanvasPropertyPrimitive> turbulencePhase;
-    SkColor color;
+    SkColor4f color;
     sp<uirenderer::CanvasPropertyPaint> paint;
     SkRuntimeShaderBuilder effectBuilder;
 };
@@ -81,8 +81,7 @@ public:
 
         SkRuntimeShaderBuilder::BuilderUniform uniform = effectBuilder.uniform("in_color");
         if (uniform.fVar != nullptr) {
-            uniform = SkV4{SkColorGetR(params.color) / 255.0f, SkColorGetG(params.color) / 255.0f,
-                           SkColorGetB(params.color) / 255.0f, SkColorGetA(params.color) / 255.0f};
+            uniform = SkV4{params.color.fR, params.color.fG, params.color.fB, params.color.fA};
         }
 
         const float CIRCLE_X_1 = 0.01 * cos(SCALE * 0.55);

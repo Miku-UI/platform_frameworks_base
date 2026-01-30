@@ -15,7 +15,7 @@
  */
 
 #include "SkiaRecordingCanvas.h"
-#include "hwui/Paint.h"
+
 #include <SkBlendMode.h>
 #include <SkData.h>
 #include <SkDrawable.h>
@@ -24,12 +24,15 @@
 #include <SkMatrix.h>
 #include <SkPaint.h>
 #include <SkPoint.h>
+#include <SkRRect.h>
 #include <SkRect.h>
 #include <SkRefCnt.h>
-#include <SkRRect.h>
 #include <SkSamplingOptions.h>
 #include <SkTypes.h>
+#include <src/image/SkImage_Base.h>
+
 #include "CanvasTransform.h"
+#include "hwui/Paint.h"
 #ifdef __ANDROID__ // Layoutlib does not support Layers
 #include "Layer.h"
 #include "LayerDrawable.h"
@@ -243,7 +246,15 @@ void SkiaRecordingCanvas::onFilterPaint(android::Paint& paint) {
     //  It's better than nothing, though
     SkImage* image = shader ? shader->isAImage(nullptr, nullptr) : nullptr;
     if (image) {
-        mDisplayList->mMutableImages.push_back(image);
+        // This could be a hardware bitmap, in which case the type will be kLazy and attempting
+        // to pin the image will fail. This will incorrectly block us from releasing the UI
+        // thread, hurting performance.
+        // Inspect the type directly to handle this, as we know that if it's not kRasterPinnable
+        // then it isn't a mutable bitmap.
+        auto ib = as_IB(image);
+        if (ib->type() == SkImage_Base::Type::kRasterPinnable) {
+            mDisplayList->mMutableImages.push_back(image);
+        }
     }
 }
 

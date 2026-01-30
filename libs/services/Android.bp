@@ -35,6 +35,7 @@ cc_library_shared {
         "libcutils",
         "liblog",
         "libutils",
+        "dropboxmanager_aidl-cpp",
     ],
     header_libs: [
         "libbase_headers",
@@ -42,7 +43,6 @@ cc_library_shared {
     aidl: {
         libs: [
             "ILogcatManagerService_aidl",
-            "IDropBoxManagerService_aidl",
         ],
     },
 
@@ -55,4 +55,51 @@ cc_library_shared {
         "-Wunused",
         "-Wunreachable-code",
     ],
+}
+
+rust_defaults {
+    name: "libdropbox_rs_defaults",
+    srcs: ["src/dropboxmanager.rs"],
+    prefer_rlib: true,
+    rustlibs: [
+        "libanyhow",
+        "libbinder_rs",
+        "liblog_rust",
+        "liblogger",
+        "librustutils",
+        "dropboxmanager_aidl-rust",
+    ],
+}
+
+rust_library {
+    name: "libdropbox_rs",
+    crate_name: "dropbox_rs",
+    defaults: ["libdropbox_rs_defaults"],
+    visibility: [
+        "//packages/modules/Virtualization:__subpackages__",
+    ],
+    apex_available: [
+        "com.android.virt",
+    ],
+}
+
+rust_test {
+    name: "DropBoxManagerTestRust",
+    team: "trendy_team_framework_bpm",
+    defaults: ["libdropbox_rs_defaults"],
+    require_root: true,
+}
+
+cc_test {
+    name: "DropBoxManagerTestCpp",
+    team: "trendy_team_framework_bpm",
+    srcs: [
+        "test/DropBoxManagerTest.cpp",
+    ],
+    shared_libs: [
+        "libbase",
+        "libservices",
+        "libutils",
+    ],
+    require_root: true,
 }

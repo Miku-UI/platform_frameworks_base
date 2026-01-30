@@ -165,8 +165,6 @@ public interface ShadeController extends CoreStartable {
 
     /**
      * Close the shade if it was open
-     *
-     * @return true if the shade was open, else false
      */
     void collapseShade();
 

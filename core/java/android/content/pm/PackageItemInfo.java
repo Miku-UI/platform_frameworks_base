@@ -227,7 +227,7 @@ public class PackageItemInfo {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @android.ravenwood.annotation.RavenwoodThrow(blockedBy = android.content.res.Resources.class)
     public CharSequence loadUnsafeLabel(PackageManager pm) {
         if (nonLocalizedLabel != null) {

@@ -18,7 +18,7 @@ package android.app;
 
 import android.os.IRemoteCallback;
 
-/** {@hide} */
+/** @hide */
 oneway interface IUserSwitchObserver {
     void onBeforeUserSwitching(int newUserId, IRemoteCallback reply);
     void onUserSwitching(int newUserId, IRemoteCallback reply);

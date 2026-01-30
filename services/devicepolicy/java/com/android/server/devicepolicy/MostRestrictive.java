@@ -19,9 +19,11 @@ package com.android.server.devicepolicy;
 import android.annotation.NonNull;
 import android.app.admin.PolicyValue;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 final class MostRestrictive<V> extends ResolutionMechanism<V> {
 
@@ -32,8 +34,26 @@ final class MostRestrictive<V> extends ResolutionMechanism<V> {
     }
 
     @Override
-    PolicyValue<V> resolve(@NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies) {
-        return resolve(new ArrayList<>(adminPolicies.values()));
+    ResolvedPolicy<V> resolve(
+            @NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies) {
+        if (adminPolicies.isEmpty()) {
+            return null;
+        }
+        // Check for the policy values in order of most to least restrictive to find the most
+        // restrictive value set by admins. The most restrictive value will be applied as the
+        // resolved policy value and the admin who has set it will be returned as the
+        // contributing admin. If there are multiple admins who has set the most restrictive
+        // value, they all will be added to the contributing admins set.
+        for (PolicyValue<V> value : mMostToLeastRestrictive) {
+            Set<EnforcingAdmin> admins = adminPolicies.entrySet().stream().filter(
+                    e -> e.getValue().equals(value)).map(Map.Entry::getKey).collect(
+                    Collectors.toSet());
+            if (!admins.isEmpty()) {
+                return new ResolvedPolicy<>(value, admins);
+            }
+        }
+        // Return first set policy if none can be found in known values
+        return new ResolvedPolicy<>(adminPolicies.firstEntry());
     }
 
     @Override

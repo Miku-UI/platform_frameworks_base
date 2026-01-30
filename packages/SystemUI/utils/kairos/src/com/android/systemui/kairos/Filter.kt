@@ -20,11 +20,19 @@ import com.android.systemui.kairos.internal.constInit
 import com.android.systemui.kairos.internal.filterImpl
 import com.android.systemui.kairos.internal.filterPresentImpl
 import com.android.systemui.kairos.util.Maybe
+import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
 import com.android.systemui.kairos.util.toMaybe
+import com.android.systemui.kairos.util.toNameData
 
 /** Return an [Events] that emits from the original [Events] only when [state] is `true`. */
 @ExperimentalKairosApi
-fun <A> Events<A>.filter(state: State<Boolean>): Events<A> = filter { state.sample() }
+fun <A> Events<A>.filter(state: State<Boolean>): Events<A> =
+    filter(nameTag("Events.filter(State)").toNameData("Events.filter(State)"), state)
+
+internal fun <A> Events<A>.filter(nameData: NameData, state: State<Boolean>): Events<A> =
+    filter(nameData) { state.sample() }
 
 /**
  * Returns an [Events] containing only values of the original [Events] that are not null.
@@ -36,7 +44,11 @@ fun <A> Events<A>.filter(state: State<Boolean>): Events<A> = filter { state.samp
  * @see mapNotNull
  */
 @ExperimentalKairosApi
-fun <A> Events<A?>.filterNotNull(): Events<A> = mapCheap { it.toMaybe() }.filterPresent()
+fun <A> Events<A?>.filterNotNull(): Events<A> =
+    filterNotNull(nameTag("Events.filterNotNull").toNameData("Events.filterNotNull"))
+
+internal fun <A> Events<A?>.filterNotNull(nameData: NameData): Events<A> =
+    mapCheap(nameData + "mapToMaybe") { it.toMaybe() }.filterPresent(nameData)
 
 /**
  * Returns an [Events] containing only values of the original [Events] that are instances of [A].
@@ -63,7 +75,10 @@ inline fun <reified A> Events<*>.filterIsInstance(): Events<A> =
  */
 @ExperimentalKairosApi
 fun <A> Events<Maybe<A>>.filterPresent(): Events<A> =
-    EventsInit(constInit(name = null, filterPresentImpl { init.connect(evalScope = this) }))
+    filterPresent(nameTag("Events.filterPresent").toNameData("Events.filterPresent"))
+
+internal fun <A> Events<Maybe<A>>.filterPresent(nameData: NameData): Events<A> =
+    EventsInit(constInit(nameData, filterPresentImpl(nameData) { init.connect(evalScope = this) }))
 
 /**
  * Returns an [Events] containing only values of the original [Events] that satisfy the given
@@ -77,7 +92,13 @@ fun <A> Events<Maybe<A>>.filterPresent(): Events<A> =
  * @see mapMaybe
  */
 @ExperimentalKairosApi
-fun <A> Events<A>.filter(predicate: TransactionScope.(A) -> Boolean): Events<A> {
-    val pulse = filterImpl({ init.connect(evalScope = this) }) { predicate(it) }
-    return EventsInit(constInit(name = null, pulse))
+fun <A> Events<A>.filter(predicate: TransactionScope.(A) -> Boolean): Events<A> =
+    filter(nameTag("Events.filter").toNameData("Events.filter"), predicate)
+
+internal fun <A> Events<A>.filter(
+    nameData: NameData,
+    predicate: TransactionScope.(A) -> Boolean,
+): Events<A> {
+    val impl = filterImpl(nameData, { init.connect(evalScope = this) }) { predicate(it) }
+    return EventsInit(constInit(nameData, impl))
 }

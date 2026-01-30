@@ -25,9 +25,11 @@ import android.view.SurfaceControl;
 import android.window.DisplayAreaAppearedInfo;
 import android.window.DisplayAreaInfo;
 import android.window.DisplayAreaOrganizer;
+import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.android.internal.protolog.ProtoLog;
 import com.android.wm.shell.sysui.ShellInit;
@@ -140,6 +142,11 @@ public class RootDisplayAreaOrganizer extends DisplayAreaOrganizer {
 
         wct.setWindowingMode(displayAreaInfo.token, windowingMode);
         return wct;
+    }
+
+    @Nullable
+    public WindowContainerToken getDisplayTokenForDisplay(int displayId) {
+        return mDisplayAreasInfo.get(displayId).token;
     }
 
     public void dump(@NonNull PrintWriter pw, String prefix) {

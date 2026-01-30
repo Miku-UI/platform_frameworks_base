@@ -19,5 +19,6 @@
     <string name="mode">Touch</string>
     <string name="display_mode">Mode</string>
     <string name="frame_rate">Frame Rate</string>
+    <string name="supported_refresh_rates">Supported Refresh Rates</string>
     <string name="multi_display">multi-display</string>
 </resources>

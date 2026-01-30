@@ -17,7 +17,6 @@
 package com.android.server.display.brightness.strategy;
 
 import static android.hardware.display.DisplayManagerInternal.DisplayPowerRequest.POLICY_DOZE;
-import static android.hardware.display.DisplayManagerInternal.DisplayPowerRequest.POLICY_OFF;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -26,6 +25,7 @@ import android.hardware.SensorManager;
 import android.os.Handler;
 import android.os.SystemClock;
 import android.util.IndentingPrintWriter;
+import android.view.Display;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.display.BrightnessMappingStrategy;
@@ -112,9 +112,10 @@ public final class AutoBrightnessFallbackStrategy implements DisplayBrightnessSt
             StrategySelectionNotifyRequest strategySelectionNotifyRequest) {
         if (mScreenOffBrightnessSensorController != null) {
             int policy = strategySelectionNotifyRequest.getDisplayPowerRequest().policy;
+            int state = strategySelectionNotifyRequest.getTargetDisplayState();
             mScreenOffBrightnessSensorController.setLightSensorEnabled(
                     strategySelectionNotifyRequest.isAutoBrightnessEnabled() && mIsDisplayEnabled
-                            && (policy == POLICY_OFF || (policy == POLICY_DOZE
+                            && (state == Display.STATE_OFF || (policy == POLICY_DOZE
                             && !strategySelectionNotifyRequest
                             .isAllowAutoBrightnessWhileDozingConfig()))
                             && mLeadDisplayId == Layout.NO_LEAD_DISPLAY);

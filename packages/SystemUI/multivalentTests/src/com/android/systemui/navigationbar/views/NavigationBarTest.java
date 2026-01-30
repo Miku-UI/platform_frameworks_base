@@ -76,7 +76,6 @@ import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.view.WindowMetrics;
 import android.view.accessibility.AccessibilityManager;
-import android.view.inputmethod.Flags;
 import android.view.inputmethod.InputMethodManager;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -84,6 +83,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.UiEventLogger;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.SysuiTestableContext;
 import com.android.systemui.accessibility.AccessibilityButtonModeObserver;
@@ -105,8 +105,8 @@ import com.android.systemui.navigationbar.views.buttons.KeyButtonView;
 import com.android.systemui.navigationbar.views.buttons.NavBarButtonClickLogger;
 import com.android.systemui.navigationbar.views.buttons.NavbarOrientationTrackingLogger;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.recents.Recents;
+import com.android.systemui.rotation.RotationPolicyWrapper;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.FakeDisplayTracker;
 import com.android.systemui.settings.UserContextProvider;
@@ -120,6 +120,7 @@ import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.NotificationRemoteInputManager;
 import com.android.systemui.statusbar.NotificationShadeDepthController;
 import com.android.systemui.statusbar.NotificationShadeWindowController;
+import com.android.systemui.statusbar.data.repository.LightBarControllerStore;
 import com.android.systemui.statusbar.phone.AutoHideControllerStore;
 import com.android.systemui.statusbar.phone.CentralSurfaces;
 import com.android.systemui.statusbar.phone.LightBarController;
@@ -196,6 +197,8 @@ public class NavigationBarTest extends SysuiTestCase {
     private SysUiState mMockSysUiState;
     @Mock
     private Handler mHandler;
+    @Mock
+    private RotationPolicyWrapper mMockRotationPolicyWrapper;
 
     @Mock
     private Handler mBgHandler;
@@ -213,7 +216,7 @@ public class NavigationBarTest extends SysuiTestCase {
     @Mock
     private LightBarController mLightBarController;
     @Mock
-    private LightBarController.Factory mLightBarcontrollerFactory;
+    private LightBarControllerStore mLightBarControllerStore;
     @Mock
     private WindowManager mWindowManager;
     @Mock
@@ -257,8 +260,7 @@ public class NavigationBarTest extends SysuiTestCase {
     @Before
     public void setup() throws Exception {
         MockitoAnnotations.initMocks(this);
-
-        when(mLightBarcontrollerFactory.create(any(Context.class))).thenReturn(mLightBarController);
+        when(mLightBarControllerStore.forDisplay(anyInt())).thenReturn(mLightBarController);
         when(mNavigationBarView.getHomeButton()).thenReturn(mHomeButton);
         when(mNavigationBarView.getRecentsButton()).thenReturn(mRecentsButton);
         when(mNavigationBarView.getAccessibilityButton()).thenReturn(mAccessibilityButton);
@@ -275,6 +277,7 @@ public class NavigationBarTest extends SysuiTestCase {
         when(mNavigationBarView.getResources()).thenReturn(mResources);
         when(mNavigationBarView.getViewRootImpl()).thenReturn(mViewRootImpl);
         when(mEdgeBackGestureHandlerFactory.create(any())).thenReturn(mEdgeBackGestureHandler);
+        when(mLauncherProxyService.isSystemOrVisibleBgUser()).thenReturn(true);
         setupSysuiDependency();
         // This class inflates views that call Dependency.get, thus these injections are still
         // necessary.
@@ -450,17 +453,9 @@ public class NavigationBarTest extends SysuiTestCase {
 
         verify(mUiEventLogger).log(NAVBAR_IME_SWITCHER_BUTTON_TAP);
         verify(mUiEventLogger, never()).log(NAVBAR_IME_SWITCHER_BUTTON_LONGPRESS);
-        if (Flags.imeSwitcherRevamp()) {
-            verify(mInputMethodManager)
-                    .onImeSwitchButtonClickFromSystem(mNavigationBar.mDisplayId);
-            verify(mInputMethodManager, never()).showInputMethodPickerFromSystem(
-                    anyBoolean() /* showAuxiliarySubtypes */, anyInt() /* displayId */);
-        } else {
-            verify(mInputMethodManager, never())
-                    .onImeSwitchButtonClickFromSystem(anyInt() /* displayId */);
-            verify(mInputMethodManager).showInputMethodPickerFromSystem(
-                    true /* showAuxiliarySubtypes */, mNavigationBar.mDisplayId);
-        }
+        verify(mInputMethodManager).onImeSwitchButtonClickFromSystem(mNavigationBar.mDisplayId);
+        verify(mInputMethodManager, never()).showInputMethodPickerFromSystem(
+                anyBoolean() /* showAuxiliarySubtypes */, anyInt() /* displayId */);
     }
 
     @Test
@@ -470,15 +465,9 @@ public class NavigationBarTest extends SysuiTestCase {
         mNavigationBar.onImeSwitcherLongClick(mImeSwitchButtonView);
 
         verify(mUiEventLogger, never()).log(NAVBAR_IME_SWITCHER_BUTTON_TAP);
-        if (Flags.imeSwitcherRevamp()) {
-            verify(mUiEventLogger).log(NAVBAR_IME_SWITCHER_BUTTON_LONGPRESS);
-            verify(mInputMethodManager).showInputMethodPickerFromSystem(
-                    true /* showAuxiliarySubtypes */, mNavigationBar.mDisplayId);
-        } else {
-            verify(mUiEventLogger, never()).log(NAVBAR_IME_SWITCHER_BUTTON_LONGPRESS);
-            verify(mInputMethodManager, never()).showInputMethodPickerFromSystem(
-                    anyBoolean() /* showAuxiliarySubtypes */, anyInt() /* displayId */);
-        }
+        verify(mUiEventLogger).log(NAVBAR_IME_SWITCHER_BUTTON_LONGPRESS);
+        verify(mInputMethodManager).showInputMethodPickerFromSystem(
+                true /* showAuxiliarySubtypes */, mNavigationBar.mDisplayId);
     }
 
     @Test
@@ -701,13 +690,13 @@ public class NavigationBarTest extends SysuiTestCase {
                 mock(PanelExpansionInteractor.class),
                 mock(NotificationRemoteInputManager.class),
                 mock(NotificationShadeDepthController.class),
+                mMockRotationPolicyWrapper,
                 mHandler,
                 mFakeExecutor,
                 mFakeExecutor,
                 mUiEventLogger,
                 mNavBarHelper,
-                mLightBarController,
-                mLightBarcontrollerFactory,
+                mLightBarControllerStore,
                 mAutoHideControllerStore,
                 Optional.of(mTelecomManager),
                 mInputMethodManager,

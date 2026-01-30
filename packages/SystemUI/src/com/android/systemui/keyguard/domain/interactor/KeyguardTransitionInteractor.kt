@@ -53,7 +53,6 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.channelFlow
@@ -93,7 +92,6 @@ constructor(
                     extraBufferCapacity = 2,
                     onBufferOverflow = BufferOverflow.DROP_OLDEST,
                 )
-                .also { it.tryEmit(0f) }
                 .traceAs("KTF-${state.name}")
         }
     }
@@ -144,26 +142,43 @@ constructor(
             )
 
     init {
-        // Collect non-canceled steps and emit transition values.
-        scope.launch("KTF-update-non-canceled") {
-            repository.transitions
-                .filter { it.transitionState != TransitionState.CANCELED }
-                .collect { step ->
-                    val value =
-                        if (step.transitionState == TransitionState.FINISHED) 1f else step.value
-                    getTransitionValueFlow(step.from).emit(1f - value)
-                    getTransitionValueFlow(step.to).emit(value)
-                }
+        // Create on startup to avoid overhead during first transition
+        for (state in KeyguardState.entries) {
+            getTransitionValueFlow(state).tryEmit(0f)
         }
 
-        scope.launch("KTF-update-transitionMap") {
-            repository.transitions.collect {
+        scope.launch("KTF-transition-update") {
+            repository.transitions.collect { step ->
+                // Collect non-canceled steps and emit transition values.
+                if (step.transitionState != TransitionState.CANCELED) {
+                    val value =
+                        if (step.transitionState == TransitionState.FINISHED) 1f else step.value
+                    getTransitionValueFlow(step.from).tryEmit(1f - value)
+                    getTransitionValueFlow(step.to).tryEmit(value)
+                }
+
                 // FROM->TO
-                transitionMap[Edge.create(it.from, it.to)]?.emit(it)
+                transitionMap[Edge.create(step.from, step.to)]?.tryEmit(step)
                 // FROM->(ANY)
-                transitionMap[Edge.create(it.from, null)]?.emit(it)
+                transitionMap[Edge.create(step.from, null)]?.tryEmit(step)
                 // (ANY)->TO
-                transitionMap[Edge.create(null, it.to)]?.emit(it)
+                transitionMap[Edge.create(null, step.to)]?.tryEmit(step)
+
+                // Safety: When any transition is FINISHED, ensure all other transitionValue flows
+                // other than the FINISHED state are reset to a value of 0f. There have been rare
+                // but severe bugs that get the device stuck in a bad state when these are not
+                // properly reset.
+                if (step.transitionState == TransitionState.FINISHED) {
+                    for (state in KeyguardState.entries) {
+                        if (state != step.to) {
+                            val flow = getTransitionValueFlow(state)
+                            val replayCache = flow.replayCache
+                            if (!replayCache.isEmpty() && replayCache.last() != 0f) {
+                                flow.tryEmit(0f)
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -186,25 +201,6 @@ constructor(
                     )
                 }
             }
-        }
-
-        // Safety: When any transition is FINISHED, ensure all other transitionValue flows other
-        // than the FINISHED state are reset to a value of 0f. There have been rare but severe
-        // bugs that get the device stuck in a bad state when these are not properly reset.
-        scope.launch("KTF-update-finished") {
-            repository.transitions
-                .filter { it.transitionState == TransitionState.FINISHED }
-                .collect {
-                    for (state in KeyguardState.entries) {
-                        if (state != it.to) {
-                            val flow = getTransitionValueFlow(state)
-                            val replayCache = flow.replayCache
-                            if (!replayCache.isEmpty() && replayCache.last() != 0f) {
-                                flow.emit(0f)
-                            }
-                        }
-                    }
-                }
         }
 
         if (keyguardTransitionForceFinishOnScreenOff()) {
@@ -524,7 +520,7 @@ constructor(
      * 5. LOCKSCREEN -> GONE is allowed to FINISH. currentKeyguardState=GONE;
      *    finishedKeyguardState=GONE.
      */
-    val currentKeyguardState: SharedFlow<KeyguardState> =
+    val currentKeyguardState: StateFlow<KeyguardState> =
         repository.transitions
             .mapLatest {
                 if (it.transitionState == TransitionState.FINISHED) {
@@ -641,7 +637,7 @@ constructor(
         return startedKeyguardTransitionStep.value.to
     }
 
-    private val finishedKeyguardState: StateFlow<KeyguardState> =
+    val finishedKeyguardState: StateFlow<KeyguardState> =
         repository.transitions
             .filter { it.transitionState == TransitionState.FINISHED }
             .map { it.to }

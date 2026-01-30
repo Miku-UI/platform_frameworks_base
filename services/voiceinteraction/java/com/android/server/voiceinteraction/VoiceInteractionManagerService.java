@@ -16,6 +16,7 @@
 
 package com.android.server.voiceinteraction;
 
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION;
@@ -81,7 +82,6 @@ import android.service.voice.IMicrophoneHotwordDetectionVoiceInteractionCallback
 import android.service.voice.IVisualQueryDetectionVoiceInteractionCallback;
 import android.service.voice.IVoiceInteractionSession;
 import android.service.voice.VoiceInteractionManagerInternal;
-import android.service.voice.VoiceInteractionManagerInternal.WearableHotwordDetectionCallback;
 import android.service.voice.VoiceInteractionService;
 import android.service.voice.VoiceInteractionServiceInfo;
 import android.service.voice.VoiceInteractionSession;
@@ -90,7 +90,8 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Log;
 import android.util.Slog;
-import android.window.ScreenCapture;
+import android.window.DesktopExperienceFlags;
+import android.window.ScreenCaptureInternal;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
@@ -110,6 +111,7 @@ import com.android.internal.util.DumpUtils;
 import com.android.server.FgThread;
 import com.android.server.LocalServices;
 import com.android.server.SoundTriggerInternal;
+import com.android.server.SystemServerInitThreadPool;
 import com.android.server.SystemService;
 import com.android.server.UiThread;
 import com.android.server.pm.UserManagerInternal;
@@ -127,8 +129,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 
 /**
  * SystemService that publishes an IVoiceInteractionManagerService.
@@ -346,6 +349,13 @@ public class VoiceInteractionManagerService extends SystemService {
         public void onPreCreatedUserConversion(int userId) {
             Slogf.d(TAG, "onPreCreatedUserConversion(%d): calling onRoleHoldersChanged() again",
                     userId);
+            if (mServiceStub.mRoleObserver == null) {
+                try {
+                    mServiceStub.mRoleObserver = mServiceStub.mRoleObserverFuture.get();
+                } catch (ExecutionException | InterruptedException e) {
+                    Slogf.wtf(TAG, "Unable to get role observer for user %d", userId);
+                }
+            }
             mServiceStub.mRoleObserver.onRoleHoldersChanged(RoleManager.ROLE_ASSISTANT,
                                                 UserHandle.of(userId));
         }
@@ -416,11 +426,23 @@ public class VoiceInteractionManagerService extends SystemService {
 
         private final boolean mEnableService;
         // TODO(b/226201975): remove reference once RoleService supports pre-created users
-        private final RoleObserver mRoleObserver;
+        private final Future<RoleObserver> mRoleObserverFuture;
+        private RoleObserver mRoleObserver;
 
         VoiceInteractionManagerServiceStub() {
             mEnableService = shouldEnableService(mContext);
-            mRoleObserver = new RoleObserver(mContext.getMainExecutor());
+
+            // If this flag is enabled, initialize in SystemServerInitThreadPool. This is intended
+            // to avoid blocking system_server start on loading resources.
+            if (android.server.Flags.voiceinteractionmanagerserviceGetResourcesInInitThread()) {
+                mRoleObserver = null;
+                mRoleObserverFuture = SystemServerInitThreadPool.submit(() -> {
+                    return new RoleObserver(mContext.getMainExecutor());
+                }, "RoleObserver");
+            } else {
+                mRoleObserver = new RoleObserver(mContext.getMainExecutor());
+                mRoleObserverFuture = null;
+            }
         }
 
         void handleUserStop(String packageName, int userHandle) {
@@ -854,9 +876,9 @@ public class VoiceInteractionManagerService extends SystemService {
                 Slog.w(TAG, "no available voice interaction services found for user " + user);
                 return null;
             }
-            // Find first system package.  We never want to allow third party services to
-            // be automatically selected, because those require approval of the user.
-            VoiceInteractionServiceInfo foundInfo = null;
+            final String defaultAssistant = getDefaultAssistant();
+            // Assign to the first available system voice interactor that is part of either
+            // the default assistant or the passed package
             for (int i = 0; i < numAvailable; i++) {
                 ServiceInfo cur = available.get(i).serviceInfo;
                 if ((cur.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
@@ -868,19 +890,22 @@ public class VoiceInteractionManagerService extends SystemService {
                     Slog.w(TAG,
                             "Bad interaction service " + cur.packageName + "/"
                                     + cur.name + ": " + info.getParseError());
-                } else if (foundInfo == null) {
-                    foundInfo = info;
-                } else {
-                    Slog.w(TAG, "More than one voice interaction service, "
-                            + "picking first "
-                            + new ComponentName(
-                            foundInfo.getServiceInfo().packageName,
-                            foundInfo.getServiceInfo().name)
-                            + " over "
-                            + new ComponentName(cur.packageName, cur.name));
+                } else if (!info.getSupportsAssist()) {
+                    // skip if it doesn't support assistant
+                    Slog.i(TAG, "Interaction service "
+                            + cur.packageName + "/" + cur.name + " doesn't support assistant");
+                } else if (cur.packageName.equals(defaultAssistant)
+                            || cur.packageName.equals(packageName)) {
+                    return info;
                 }
             }
-            return foundInfo;
+            return null;
+        }
+
+        @Nullable
+        public String getDefaultAssistant() {
+            String assistant = mContext.getString(R.string.config_defaultAssistant);
+            return TextUtils.isEmpty(assistant) ? null : assistant;
         }
 
         ComponentName getCurInteractor(int userHandle) {
@@ -933,12 +958,20 @@ public class VoiceInteractionManagerService extends SystemService {
                         }
                     }
                 }
-                if (numAvailable > 1) {
-                    Slog.w(TAG, "more than one voice recognition service found, picking first");
+
+                // If prefPackage isn't found then only default to system recognizer.
+                // prefPackage could be either the current recognizer or the default recognizer.
+                for (int i = 0; i < numAvailable; i++) {
+                    ServiceInfo serviceInfo = available.get(i).getServiceInfo();
+                    if ((serviceInfo.applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) == 0) {
+                        continue;
+                    }
+                    return new ComponentName(serviceInfo.packageName, serviceInfo.name);
                 }
 
-                ServiceInfo serviceInfo = available.get(0).getServiceInfo();
-                return new ComponentName(serviceInfo.packageName, serviceInfo.name);
+                Slog.w(TAG, "no auto selectable voice recognition services found for user "
+                        + userHandle);
+                return null;
             }
         }
 
@@ -2319,6 +2352,10 @@ public class VoiceInteractionManagerService extends SystemService {
             synchronized (this) {
                 enforceIsCurrentVoiceInteractionService();
 
+                final boolean enableAssistStructure = hints.getBoolean("enable_assist_structure");
+                if (mImpl != null) {
+                    mImpl.setEnableAssistStructure(enableAssistStructure);
+                }
                 final int size = mVoiceInteractionSessionListeners.beginBroadcast();
                 for (int i = 0; i < size; ++i) {
                     final IVoiceInteractionSessionListener listener =
@@ -2327,6 +2364,25 @@ public class VoiceInteractionManagerService extends SystemService {
                         listener.onSetUiHints(hints);
                     } catch (RemoteException e) {
                         Slog.e(TAG, "Error delivering UI hints.", e);
+                    }
+                }
+                mVoiceInteractionSessionListeners.finishBroadcast();
+            }
+        }
+
+        @Override
+        public void setInvocationEffectEnabled(boolean enabled) {
+            synchronized (this) {
+                enforceIsCurrentVoiceInteractionService();
+
+                final int size = mVoiceInteractionSessionListeners.beginBroadcast();
+                for (int i = 0; i < size; ++i) {
+                    final IVoiceInteractionSessionListener listener =
+                            mVoiceInteractionSessionListeners.getBroadcastItem(i);
+                    try {
+                        listener.onSetInvocationEffectEnabled(enabled);
+                    } catch (RemoteException e) {
+                        Slog.e(TAG, "Error delivering set invocation effect enabled.", e);
                     }
                 }
                 mVoiceInteractionSessionListeners.finishBroadcast();
@@ -2676,10 +2732,11 @@ public class VoiceInteractionManagerService extends SystemService {
                                 switchImplementationIfNeededLocked(true);
                             }
                         }
-                        return;
                     }
 
-                    if (curAssistant != null) {
+                    // If interactor isn't null, then we would have done the needed checks already
+                    // in the above code.
+                    if (curInteractor == null && curAssistant != null) {
                         int change = isPackageDisappearing(curAssistant.getPackageName());
                         if (change == PACKAGE_PERMANENT_CHANGE) {
                             // If the currently set assistant is being removed, then we should
@@ -2747,7 +2804,8 @@ public class VoiceInteractionManagerService extends SystemService {
                     isManagedProfileVisible = true;
                 }
             }
-            final ScreenCapture.ScreenshotHardwareBuffer shb = mWmInternal.takeAssistScreenshot();
+            final ScreenCaptureInternal.ScreenshotHardwareBuffer shb =
+                    mWmInternal.takeAssistScreenshot();
             final Bitmap bm = shb != null ? shb.asBitmap() : null;
             // Now that everything is fetched, putting it in the launchIntent.
             if (bm != null) {
@@ -2773,6 +2831,9 @@ public class VoiceInteractionManagerService extends SystemService {
             final ActivityOptions opts = ActivityOptions.makeCustomTaskAnimation(mContext,
                     /* enterResId= */ 0, /* exitResId= */ 0, null, null, null);
             opts.setDisableStartingWindow(true);
+            if (DesktopExperienceFlags.ENABLE_FREEFORM_DISPLAY_LAUNCH_PARAMS.isTrue()) {
+                opts.setLaunchWindowingMode(WINDOWING_MODE_FULLSCREEN);
+            }
             int resultCode = mAtmInternal.startActivityWithScreenshot(launchIntent,
                     mContext.getPackageName(), Binder.getCallingUid(), Binder.getCallingPid(), null,
                     opts.toBundle(), userId);
@@ -2809,6 +2870,9 @@ public class VoiceInteractionManagerService extends SystemService {
 
                 @Override
                 public void onSetUiHints(Bundle args) throws RemoteException {}
+
+                @Override
+                public void onSetInvocationEffectEnabled(boolean enabled) throws RemoteException {}
 
                 @Override
                 public IBinder asBinder() {

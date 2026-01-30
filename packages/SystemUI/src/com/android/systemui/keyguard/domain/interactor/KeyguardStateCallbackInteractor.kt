@@ -19,6 +19,7 @@ package com.android.systemui.keyguard.domain.interactor
 import android.app.trust.TrustManager
 import android.os.DeadObjectException
 import android.os.RemoteException
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.policy.IKeyguardStateCallback
 import com.android.systemui.CoreStartable
 import com.android.systemui.bouncer.domain.interactor.SimBouncerInteractor
@@ -28,13 +29,10 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.DismissCallbackRegistry
 import com.android.systemui.keyguard.KeyguardWmStateRefactor
 import com.android.systemui.keyguard.shared.model.KeyguardState
-import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.collectLatest
-import com.android.app.tracing.coroutines.launchTraced as launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -61,12 +59,12 @@ constructor(
     private val callbacks = mutableListOf<IKeyguardStateCallback>()
 
     override fun start() {
-        if (!KeyguardWmStateRefactor.isEnabled || SceneContainerFlag.isEnabled) {
+        if (!KeyguardWmStateRefactor.isEnabled) {
             return
         }
 
         applicationScope.launch {
-            wmLockscreenVisibilityInteractor.lockscreenVisibility.collectLatest { visible ->
+            wmLockscreenVisibilityInteractor.lockscreenVisibility.collect { (visible, _) ->
                 val iterator = callbacks.iterator()
                 withContext(backgroundDispatcher) {
                     while (iterator.hasNext()) {
@@ -94,7 +92,7 @@ constructor(
         }
 
         applicationScope.launch {
-            trustInteractor.isTrusted.collectLatest { isTrusted ->
+            trustInteractor.isTrusted.collect { isTrusted ->
                 val iterator = callbacks.iterator()
                 withContext(backgroundDispatcher) {
                     while (iterator.hasNext()) {
@@ -112,7 +110,7 @@ constructor(
         }
 
         applicationScope.launch {
-            simBouncerInteractor.isAnySimSecure.collectLatest { isSimSecured ->
+            simBouncerInteractor.isAnySimSecure.collect { isSimSecured ->
                 val iterator = callbacks.iterator()
                 withContext(backgroundDispatcher) {
                     while (iterator.hasNext()) {

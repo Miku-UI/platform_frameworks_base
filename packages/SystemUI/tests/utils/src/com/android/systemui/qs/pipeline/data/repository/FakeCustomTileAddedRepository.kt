@@ -21,6 +21,7 @@ import android.content.ComponentName
 class FakeCustomTileAddedRepository : CustomTileAddedRepository {
 
     private val tileAddedRegistry = mutableSetOf<Pair<Int, ComponentName>>()
+    private val version = mutableMapOf<Int, Int>()
 
     override fun isTileAdded(componentName: ComponentName, userId: Int): Boolean {
         return (userId to componentName) in tileAddedRegistry
@@ -32,5 +33,17 @@ class FakeCustomTileAddedRepository : CustomTileAddedRepository {
         } else {
             tileAddedRegistry.remove(userId to componentName)
         }
+    }
+
+    override fun removeNonCurrentTiles(currentTiles: List<ComponentName>, userId: Int) {
+        tileAddedRegistry.removeIf { it.first == userId && it.second !in currentTiles }
+    }
+
+    override fun getVersion(userId: Int): Int {
+        return version.getOrDefault(userId, 1)
+    }
+
+    override fun setVersion(version: Int, userId: Int) {
+        this.version.put(userId, version)
     }
 }

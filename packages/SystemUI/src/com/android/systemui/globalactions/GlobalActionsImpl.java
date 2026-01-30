@@ -19,7 +19,7 @@ import static android.app.StatusBarManager.DISABLE2_GLOBAL_ACTIONS;
 import android.content.Context;
 
 import com.android.systemui.plugins.GlobalActions;
-import com.android.systemui.statusbar.BlurUtils;
+import com.android.systemui.shade.ShadeController;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
@@ -31,26 +31,27 @@ public class GlobalActionsImpl implements GlobalActions, CommandQueue.Callbacks 
     private final Context mContext;
     private final KeyguardStateController mKeyguardStateController;
     private final DeviceProvisionedController mDeviceProvisionedController;
-    private final BlurUtils mBlurUtils;
     private final CommandQueue mCommandQueue;
     private final GlobalActionsDialogLite mGlobalActionsDialog;
     private boolean mDisabled;
     private ShutdownUi mShutdownUi;
+    private ShadeController mShadeController;
 
     @Inject
     public GlobalActionsImpl(Context context, CommandQueue commandQueue,
-            GlobalActionsDialogLite globalActionsDialog, BlurUtils blurUtils,
+            GlobalActionsDialogLite globalActionsDialog,
             KeyguardStateController keyguardStateController,
             DeviceProvisionedController deviceProvisionedController,
+            ShadeController shadeController,
             ShutdownUi shutdownUi) {
         mContext = context;
         mGlobalActionsDialog = globalActionsDialog;
         mKeyguardStateController = keyguardStateController;
         mDeviceProvisionedController = deviceProvisionedController;
         mCommandQueue = commandQueue;
-        mBlurUtils = blurUtils;
         mCommandQueue.addCallback(this);
         mShutdownUi = shutdownUi;
+        mShadeController = shadeController;
     }
 
     @Override
@@ -70,6 +71,7 @@ public class GlobalActionsImpl implements GlobalActions, CommandQueue.Callbacks 
     @Override
     public void showShutdownUi(boolean isReboot, String reason) {
         mShutdownUi.showShutdownUi(isReboot, reason);
+        mShadeController.instantCollapseShade();
     }
     @Override
     public void disable(int displayId, int state1, int state2, boolean animate) {

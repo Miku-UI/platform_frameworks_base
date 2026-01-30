@@ -229,6 +229,8 @@ public class ChooseTypeAndAccountActivity extends Activity
                 setNonLabelThemeAndCallSuperCreate(savedInstanceState);
                 if (mSetOfRelevantAccountTypes.size() == 1) {
                     runAddAccountForAuthenticator(mSetOfRelevantAccountTypes.iterator().next());
+                    super.onCreate(savedInstanceState);
+                    return; // Don't populate unnecessary UI elements.
                 } else {
                     startChooseAccountTypeActivity();
                 }

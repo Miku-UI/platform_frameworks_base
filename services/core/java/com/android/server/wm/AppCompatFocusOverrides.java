@@ -17,11 +17,13 @@
 package com.android.server.wm;
 
 import static android.content.pm.ActivityInfo.OVERRIDE_ENABLE_COMPAT_FAKE_FOCUS;
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SHOULD_SEND_COMPAT_FAKE_FOCUS;
 import static android.view.WindowManager.PROPERTY_COMPAT_ENABLE_FAKE_FOCUS;
 
 import static com.android.server.wm.AppCompatUtils.isChangeEnabled;
 
 import android.annotation.NonNull;
+import android.util.proto.ProtoOutputStream;
 
 import com.android.server.wm.utils.OptPropFactory;
 
@@ -65,4 +67,7 @@ class AppCompatFocusOverrides {
                 && !mActivityRecord.inFreeformWindowingMode();
     }
 
+    public void dumpDebug(@NonNull ProtoOutputStream proto) {
+        proto.write(SHOULD_SEND_COMPAT_FAKE_FOCUS, shouldSendFakeFocus());
+    }
 }

@@ -19,7 +19,7 @@ package android.telephony.satellite.stub;
 import android.telephony.satellite.stub.SatelliteInfo;
 
 /**
- * {@hide}
+ * @hide
  */
 parcelable SystemSelectionSpecifier {
     /** Network plmn associated with channel information. */

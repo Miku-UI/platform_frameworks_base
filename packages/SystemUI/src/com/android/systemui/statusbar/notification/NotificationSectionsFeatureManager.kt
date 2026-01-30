@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.notification
 
 import android.content.Context
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.Utils
 import javax.inject.Inject
@@ -28,6 +29,7 @@ class NotificationSectionsFeatureManager
 constructor(@ShadeDisplayAware val context: Context) {
 
     fun isMediaControlsEnabled(): Boolean {
-        return Utils.useQsMediaPlayer(context)
+        // in SceneContainer media is not hosted by the NSSL, so we don't need a a node for it
+        return !SceneContainerFlag.isEnabled && Utils.useQsMediaPlayer(context)
     }
 }

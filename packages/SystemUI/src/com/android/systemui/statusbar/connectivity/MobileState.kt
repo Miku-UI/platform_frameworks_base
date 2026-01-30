@@ -22,17 +22,18 @@ import android.telephony.ServiceState
 import android.telephony.SignalStrength
 import android.telephony.TelephonyDisplayInfo
 import android.telephony.TelephonyManager
-import com.android.internal.annotations.VisibleForTesting
+import androidx.annotation.VisibleForTesting
 import com.android.settingslib.SignalIcon.MobileIconGroup
 import com.android.settingslib.Utils
 import com.android.settingslib.mobile.MobileStatusTracker.MobileStatus
 import com.android.settingslib.mobile.TelephonyIcons
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 import java.lang.IllegalArgumentException
 
-/**
- * Box for all policy-related state used in [MobileSignalController]
- */
-internal class MobileState(
+/** Box for all policy-related state used in [MobileSignalController] */
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+class MobileState(
     @JvmField var networkName: String? = null,
     @JvmField var networkNameData: String? = null,
     @JvmField var dataSim: Boolean = false,
@@ -48,19 +49,26 @@ internal class MobileState(
     @JvmField var defaultDataOff: Boolean = false,
 ) : ConnectivityState() {
 
-    @JvmField var telephonyDisplayInfo = TelephonyDisplayInfo(TelephonyManager.NETWORK_TYPE_UNKNOWN,
-            TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE, false, false, false)
+    @JvmField
+    var telephonyDisplayInfo =
+        TelephonyDisplayInfo(
+            TelephonyManager.NETWORK_TYPE_UNKNOWN,
+            TelephonyDisplayInfo.OVERRIDE_NETWORK_TYPE_NONE,
+            false,
+            false,
+            false,
+        )
     @JvmField var serviceState: ServiceState? = null
     @JvmField var signalStrength: SignalStrength? = null
 
     var carrierId = TelephonyManager.UNKNOWN_CARRIER_ID
 
-    @VisibleForTesting
-    var networkTypeResIdCache: NetworkTypeResIdCache = NetworkTypeResIdCache()
+    @VisibleForTesting var networkTypeResIdCache: NetworkTypeResIdCache = NetworkTypeResIdCache()
 
     /** @return true if this state is disabled or not default data */
     val isDataDisabledOrNotDefault: Boolean
-        get() = (iconGroup === TelephonyIcons.DATA_DISABLED ||
+        get() =
+            (iconGroup === TelephonyIcons.DATA_DISABLED ||
                 iconGroup === TelephonyIcons.NOT_DEFAULT_DATA) && userSetup
 
     /** @return if this state is considered to have inbound activity */
@@ -79,8 +87,11 @@ internal class MobileState(
     }
 
     override fun copyFrom(other: ConnectivityState) {
-        val o = other as? MobileState ?: throw IllegalArgumentException(
-                "MobileState can only update from another MobileState")
+        val o =
+            other as? MobileState
+                ?: throw IllegalArgumentException(
+                    "MobileState can only update from another MobileState"
+                )
 
         super.copyFrom(o)
         networkName = o.networkName
@@ -135,7 +146,6 @@ internal class MobileState(
     }
 
     /**
-     *
      * Load the (potentially customized) icon resource id for the current network type. Note that
      * this operation caches the result. Note that reading the [MobileIconGroup.dataType] field
      * directly will not yield correct results in cases where the carrierId has an associated
@@ -190,51 +200,58 @@ internal class MobileState(
     }
 
     override fun tableColumns(): List<String> {
-        val columns = listOf("dataSim",
-            "carrierId",
-            "networkName",
-            "networkNameData",
-            "dataConnected",
-            "roaming",
-            "isDefault",
-            "isEmergency",
-            "airplaneMode",
-            "carrierNetworkChangeMode",
-            "userSetup",
-            "dataState",
-            "defaultDataOff",
-            "showQuickSettingsRatIcon",
-            "voiceServiceState",
-            "isInService",
-            "networkTypeIconCache",
-            "serviceState",
-            "signalStrength",
-            "displayInfo")
+        val columns =
+            listOf(
+                "dataSim",
+                "carrierId",
+                "networkName",
+                "networkNameData",
+                "dataConnected",
+                "roaming",
+                "isDefault",
+                "isEmergency",
+                "airplaneMode",
+                "carrierNetworkChangeMode",
+                "userSetup",
+                "dataState",
+                "defaultDataOff",
+                "showQuickSettingsRatIcon",
+                "voiceServiceState",
+                "isInService",
+                "networkTypeIconCache",
+                "serviceState",
+                "signalStrength",
+                "displayInfo",
+            )
 
         return super.tableColumns() + columns
     }
 
     override fun tableData(): List<String> {
-        val columns = listOf(dataSim,
-                carrierId,
-                networkName,
-                networkNameData,
-                dataConnected,
-                roaming,
-                isDefault,
-                isEmergency,
-                airplaneMode,
-                carrierNetworkChangeMode,
-                userSetup,
-                dataState,
-                defaultDataOff,
-                showQuickSettingsRatIcon(),
-                getVoiceServiceState(),
-                isInService(),
-                networkTypeResIdCache,
-                serviceState?.minLog() ?: "(null)",
-                signalStrength?.minLog() ?: "(null)",
-                telephonyDisplayInfo).map { it.toString() }
+        val columns =
+            listOf(
+                    dataSim,
+                    carrierId,
+                    networkName,
+                    networkNameData,
+                    dataConnected,
+                    roaming,
+                    isDefault,
+                    isEmergency,
+                    airplaneMode,
+                    carrierNetworkChangeMode,
+                    userSetup,
+                    dataState,
+                    defaultDataOff,
+                    showQuickSettingsRatIcon(),
+                    getVoiceServiceState(),
+                    isInService(),
+                    networkTypeResIdCache,
+                    serviceState?.minLog() ?: "(null)",
+                    signalStrength?.minLog() ?: "(null)",
+                    telephonyDisplayInfo,
+                )
+                .map { it.toString() }
 
         return super.tableData() + columns
     }
@@ -291,14 +308,12 @@ internal class MobileState(
 /** toString() is a little more verbose than we need. Just log the fields we read */
 private fun ServiceState.minLog(): String {
     return "serviceState={" +
-            "state=$state," +
-            "isEmergencyOnly=$isEmergencyOnly," +
-            "roaming=$roaming," +
-            "operatorNameAlphaShort=$operatorAlphaShort}"
+        "state=$state," +
+        "isEmergencyOnly=$isEmergencyOnly," +
+        "roaming=$roaming," +
+        "operatorNameAlphaShort=$operatorAlphaShort}"
 }
 
 private fun SignalStrength.minLog(): String {
-    return "signalStrength={" +
-            "isGsm=$isGsm," +
-            "level=$level}"
+    return "signalStrength={" + "isGsm=$isGsm," + "level=$level}"
 }

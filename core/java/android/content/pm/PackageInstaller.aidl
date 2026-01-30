@@ -20,3 +20,4 @@ parcelable PackageInstaller.InstallConstraints;
 parcelable PackageInstaller.SessionParams;
 parcelable PackageInstaller.SessionInfo;
 parcelable PackageInstaller.PreapprovalDetails;
+parcelable PackageInstaller.DeveloperVerificationUserConfirmationInfo;

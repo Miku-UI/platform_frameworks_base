@@ -180,6 +180,11 @@ public class HubEndpoint {
                     final HubEndpointSession activeSession = getActiveSession(sessionId);
                     if (activeSession == null) {
                         Log.w(TAG, "onSessionClosed: session not active, id=" + sessionId);
+                    } else {
+                        activeSession.setClosed();
+                        synchronized (mLock) {
+                            mActiveSessions.remove(sessionId);
+                        }
                     }
 
                     // Execute the callback
@@ -187,12 +192,6 @@ public class HubEndpoint {
                         mLifecycleCallbackExecutor.execute(
                                 () -> {
                                     mLifecycleCallback.onSessionClosed(activeSession, reason);
-
-                                    // Remove the session object first to call
-                                    activeSession.setClosed();
-                                    synchronized (mLock) {
-                                        mActiveSessions.remove(sessionId);
-                                    }
                                     invokeCallbackFinished();
                                 });
                     } else {

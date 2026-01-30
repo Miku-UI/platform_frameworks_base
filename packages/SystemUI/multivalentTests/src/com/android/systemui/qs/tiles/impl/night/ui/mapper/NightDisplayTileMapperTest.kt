@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.night.ui.mapper
 
 import android.graphics.drawable.TestStubDrawable
-import android.service.quicksettings.Tile
 import android.text.TextUtils
 import android.widget.Switch
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -70,11 +69,7 @@ class NightDisplayTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(config, inputModel)
 
-        val expectedState =
-            createNightDisplayTileState(
-                QSTileState.ActivationState.INACTIVE,
-                context.resources.getStringArray(R.array.tile_states_night)[Tile.STATE_INACTIVE],
-            )
+        val expectedState = createNightDisplayTileState(QSTileState.ActivationState.INACTIVE, null)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
@@ -85,11 +80,7 @@ class NightDisplayTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(config, inputModel)
 
-        val expectedState =
-            createNightDisplayTileState(
-                QSTileState.ActivationState.INACTIVE,
-                context.resources.getStringArray(R.array.tile_states_night)[Tile.STATE_INACTIVE],
-            )
+        val expectedState = createNightDisplayTileState(QSTileState.ActivationState.INACTIVE, null)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
@@ -99,11 +90,7 @@ class NightDisplayTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(config, inputModel)
 
-        val expectedState =
-            createNightDisplayTileState(
-                QSTileState.ActivationState.ACTIVE,
-                context.resources.getStringArray(R.array.tile_states_night)[Tile.STATE_ACTIVE],
-            )
+        val expectedState = createNightDisplayTileState(QSTileState.ActivationState.ACTIVE, null)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
@@ -113,11 +100,7 @@ class NightDisplayTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(config, inputModel)
 
-        val expectedState =
-            createNightDisplayTileState(
-                QSTileState.ActivationState.ACTIVE,
-                context.resources.getStringArray(R.array.tile_states_night)[Tile.STATE_ACTIVE],
-            )
+        val expectedState = createNightDisplayTileState(QSTileState.ActivationState.ACTIVE, null)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 

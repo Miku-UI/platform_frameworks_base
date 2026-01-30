@@ -16,9 +16,6 @@
 
 package android.app.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
-
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -35,7 +32,6 @@ import java.lang.annotation.RetentionPolicy;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public interface DownloadCallback {
     int DOWNLOAD_FAILURE_STATUS_UNKNOWN = 0;
 

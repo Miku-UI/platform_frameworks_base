@@ -22,24 +22,24 @@ import com.android.internal.annotations.CachedPropertyDefaults;
 
 import java.util.Date;
 
-@CachedPropertyDefaults(max = 4, module = "bluetooth")
+@CachedPropertyDefaults(max = 4, module = "bluetooth", name = "TestCache")
 public class Custom {
     BirthdayManagerService mService = new BirthdayManagerService();
-    Object mCache = new CustomCache();
+    Object mCache = new TestCache();
 
     public Custom() {
-        CustomCache.initCache();
+        TestCache.initCache();
     }
 
     /**
-     * Testing custom class values to generate static IpcDataCache
+     * Testing custom class values to generate static IpcDataCache and caching nulls
      *
      * @param userId - user Id
      * @return birthday date of given user Id
      */
-    @CachedProperty()
+    @CachedProperty(cacheNulls = true)
     public Date getBirthday(int userId) {
-        return CustomCache.getBirthday(mService::getBirthday, userId);
+        return TestCache.getBirthday(mService::getBirthday, userId);
     }
 
     /**
@@ -50,7 +50,7 @@ public class Custom {
      */
     @CachedProperty(mods = {CacheModifier.STATIC})
     public int getDaysTillBirthday(int userId) {
-        return CustomCache.getDaysTillBirthday(mService::getDaysTillBirthday, userId);
+        return TestCache.getDaysTillBirthday(mService::getDaysTillBirthday, userId);
     }
 
     /**
@@ -61,7 +61,7 @@ public class Custom {
      */
     @CachedProperty(mods = {})
     public int getDaysSinceBirthday(int userId) {
-        return ((CustomCache) mCache).getDaysSinceBirthday(mService::getDaysSinceBirthday, userId);
+        return ((TestCache) mCache).getDaysSinceBirthday(mService::getDaysSinceBirthday, userId);
     }
 
     /**
@@ -71,7 +71,7 @@ public class Custom {
      */
     @CachedProperty(mods = {CacheModifier.STATIC}, max = 1)
     public int getDaysTillMyBirthday() {
-        return CustomCache.getDaysTillMyBirthday((Void) -> mService.getDaysTillMyBirthday());
+        return TestCache.getDaysTillMyBirthday((Void) -> mService.getDaysTillMyBirthday());
     }
 
     /**
@@ -82,7 +82,7 @@ public class Custom {
      */
     @CachedProperty(mods = {}, max = 1, api = "my_unique_key")
     public int getDaysSinceMyBirthday() {
-        return ((CustomCache) mCache).getDaysSinceMyBirthday(
+        return ((TestCache) mCache).getDaysSinceMyBirthday(
                 (Void) -> mService.getDaysSinceMyBirthday());
     }
 
@@ -93,7 +93,7 @@ public class Custom {
      */
     @CachedProperty(module = "telephony")
     public String getBirthdayWishesFromUser(int userId) {
-        return CustomCache.getBirthdayWishesFromUser(mService::getBirthdayWishesFromUser,
+        return TestCache.getBirthdayWishesFromUser(mService::getBirthdayWishesFromUser,
                 userId);
     }
 

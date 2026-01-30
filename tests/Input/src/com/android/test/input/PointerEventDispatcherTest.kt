@@ -24,7 +24,6 @@ import android.view.WindowManagerPolicyConstants.PointerEventListener
 import com.android.server.UiThread
 import com.android.server.wm.PointerEventDispatcher
 import org.junit.After
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 
@@ -87,11 +86,11 @@ class PointerEventDispatcherTest {
         motionEvent.source = InputDevice.SOURCE_TOUCHSCREEN
         val seq = 10
         mSender.sendInputEvent(seq, motionEvent)
-        val finishedSignal = mSender.getFinishedSignal()
 
         // Since the listener raises an exception during the event handling, the event should be
         // marked as 'not handled'.
-        assertEquals(SpyInputEventSender.FinishedSignal(seq, handled = false), finishedSignal)
+        mSender.assertReceivedFinishedSignal(seq, handled = false)
+
         // Ensure that there aren't double finish calls.
         mSender.assertNoEvents()
     }

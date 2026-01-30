@@ -16,14 +16,17 @@
 
 package com.android.settingslib.bluetooth.devicesettings.data.repository
 
-import android.bluetooth.BluetoothAdapter
 import android.content.Context
 import android.text.TextUtils
+import com.android.settingslib.R
 import com.android.settingslib.bluetooth.CachedBluetoothDevice
 import com.android.settingslib.bluetooth.devicesettings.ActionSwitchPreference
+import com.android.settingslib.bluetooth.devicesettings.BannerPreference
+import com.android.settingslib.bluetooth.devicesettings.ButtonInfo
 import com.android.settingslib.bluetooth.devicesettings.DeviceSetting
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingAction
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingContract
+import com.android.settingslib.bluetooth.devicesettings.DeviceSettingDefaultIcon
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingFooterPreference
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingHelpPreference
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingId
@@ -33,6 +36,7 @@ import com.android.settingslib.bluetooth.devicesettings.DeviceSettingPendingInte
 import com.android.settingslib.bluetooth.devicesettings.DeviceSettingsConfig
 import com.android.settingslib.bluetooth.devicesettings.MultiTogglePreference
 import com.android.settingslib.bluetooth.devicesettings.ToggleInfo
+import com.android.settingslib.bluetooth.devicesettings.shared.model.ButtonModel
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingActionModel
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigItemModel
 import com.android.settingslib.bluetooth.devicesettings.shared.model.DeviceSettingConfigItemModel.AppProvidedItem
@@ -68,12 +72,11 @@ interface DeviceSettingRepository {
 
 class DeviceSettingRepositoryImpl(
     private val context: Context,
-    private val bluetoothAdaptor: BluetoothAdapter,
     private val coroutineScope: CoroutineScope,
     private val backgroundCoroutineContext: CoroutineContext,
 ) : DeviceSettingRepository {
     private val connectionCache:
-        LoadingCache<CachedBluetoothDevice, DeviceSettingServiceConnection> =
+            LoadingCache<CachedBluetoothDevice, DeviceSettingServiceConnection> =
         CacheBuilder.newBuilder()
             .weakValues()
             .build(
@@ -84,7 +87,6 @@ class DeviceSettingRepositoryImpl(
                         DeviceSettingServiceConnection(
                             cachedDevice,
                             context,
-                            bluetoothAdaptor,
                             coroutineScope,
                             backgroundCoroutineContext,
                         )
@@ -209,11 +211,39 @@ class DeviceSettingRepositoryImpl(
                     intent = pref.intent,
                 )
 
+            is BannerPreference ->
+                DeviceSettingModel.BannerPreference(
+                    cachedDevice = cachedDevice,
+                    id = settingId,
+                    title = pref.title,
+                    message = pref.message,
+                    icon = pref.icon.toModel(),
+                    positiveButton = pref.positiveButtonInfo?.toModel(),
+                    negativeButton = pref.negativeButtonInfo?.toModel(),
+                )
+
             else -> DeviceSettingModel.Unknown(cachedDevice, settingId)
         }
 
     private fun ToggleInfo.toModel(): ToggleModel =
         ToggleModel(label, DeviceSettingIcon.BitmapIcon(icon))
+
+    private fun com.android.settingslib.bluetooth.devicesettings.DeviceSettingIcon.toModel():
+            DeviceSettingIcon? {
+        val bitmapIcon = customizedIcon
+        if (bitmapIcon != null) {
+            return DeviceSettingIcon.BitmapIcon(bitmapIcon)
+        }
+        when (defaultIcon) {
+            // TODO: Add more supported default icon type here
+            DeviceSettingDefaultIcon.DEVICE_SETTING_DEFAULT_ICON_WARNING ->
+                return DeviceSettingIcon.ResourceIcon(R.drawable.bluetooth_warning_icon)
+        }
+        return null
+    }
+
+    private fun ButtonInfo.toModel(): ButtonModel =
+        ButtonModel(label, action.toModel())
 
     companion object {
         private val EXPANDABLE_SETTING_IDS =

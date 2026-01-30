@@ -116,7 +116,7 @@ class QSTileViewModelImplTest : SysuiTestCase() {
                 .isEqualTo(
                     "test_spec:\n" +
                         "    QSTileState(" +
-                        "icon=Resource(res=0, contentDescription=Resource(res=0)), " +
+                        "icon=Resource(resId=0, contentDescription=Resource(res=0)), " +
                         "label=test_data, " +
                         "activationState=INACTIVE, " +
                         "secondaryLabel=null, " +

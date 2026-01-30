@@ -23,11 +23,9 @@ import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_STARTING;
 
 import android.annotation.BinderThread;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityManager.TaskDescription;
 import android.graphics.Paint;
-import android.graphics.Rect;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Trace;
@@ -39,10 +37,10 @@ import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 import android.view.SurfaceControl;
 import android.view.View;
+import android.view.ViewRootImpl;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
 import android.view.WindowRelayoutResult;
-import android.window.ActivityWindowInfo;
 import android.window.ClientWindowFrames;
 import android.window.SnapshotDrawerUtils;
 import android.window.StartingWindowInfo;
@@ -74,6 +72,8 @@ public class TaskSnapshotWindow {
 
     private final boolean mHasImeSurface;
 
+    private int mSeqId = -1;
+
     static TaskSnapshotWindow create(StartingWindowInfo info, IBinder appToken,
             TaskSnapshot snapshot, ShellExecutor splashScreenExecutor,
             @NonNull Runnable clearWindowHandler) {
@@ -89,9 +89,12 @@ public class TaskSnapshotWindow {
         ProtoLog.v(ShellProtoLogGroup.WM_SHELL_STARTING_WINDOW,
                 "create taskSnapshot surface for task: %d", taskId);
 
+        final int format = com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()
+                ? snapshot.getHardwareBufferFormat()
+                : snapshot.getHardwareBuffer().getFormat();
         final WindowManager.LayoutParams layoutParams = SnapshotDrawerUtils.createLayoutParameters(
                 info, TITLE_FORMAT + taskId, TYPE_APPLICATION_STARTING,
-                snapshot.getHardwareBuffer().getFormat(), appToken);
+                format, appToken);
         if (layoutParams == null) {
             Slog.e(TAG, "TaskSnapshotWindow no layoutParams");
             return null;
@@ -117,13 +120,13 @@ public class TaskSnapshotWindow {
 
         final InsetsState tmpInsetsState = new InsetsState();
         final InputChannel tmpInputChannel = new InputChannel();
-        final float[] sizeCompatScale = { 1f };
 
         try {
             Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "TaskSnapshot#addToDisplay");
+            final WindowRelayoutResult addRes = new WindowRelayoutResult(new ClientWindowFrames(),
+                    new MergedConfiguration(), tmpInsetsState, tmpControls);
             final int res = session.addToDisplay(window, layoutParams, View.GONE, displayId,
-                    info.requestedVisibleTypes, tmpInputChannel, tmpInsetsState, tmpControls,
-                    new Rect(), sizeCompatScale);
+                    info.requestedVisibleTypes, tmpInputChannel, addRes);
             Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
             if (res < 0) {
                 Slog.w(TAG, "Failed to add snapshot starting window res=" + res);
@@ -135,9 +138,9 @@ public class TaskSnapshotWindow {
         try {
             Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "TaskSnapshot#relayout");
             final WindowRelayoutResult outRelayoutResult = new WindowRelayoutResult(tmpFrames,
-                    tmpMergedConfiguration, surfaceControl, tmpInsetsState, tmpControls);
+                    tmpMergedConfiguration, tmpInsetsState, tmpControls);
             session.relayout(window, layoutParams, -1, -1, View.VISIBLE, 0, 0, 0,
-                    outRelayoutResult);
+                    outRelayoutResult, surfaceControl);
             Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
         } catch (RemoteException e) {
             snapshotSurface.clearWindowSynced();
@@ -199,7 +202,8 @@ public class TaskSnapshotWindow {
 
     private void reportDrawn() {
         try {
-            mSession.finishDrawing(mWindow, null /* postDrawTransaction */, Integer.MAX_VALUE);
+            mSession.finishDrawing(mWindow, null /* postDrawTransaction */,
+                    ViewRootImpl.NoPreloadHolder.sAlwaysSeqId ? mSeqId : Integer.MAX_VALUE);
         } catch (RemoteException e) {
             clearWindowSynced();
         }
@@ -214,24 +218,32 @@ public class TaskSnapshotWindow {
 
         @BinderThread
         @Override
-        public void resized(ClientWindowFrames frames, boolean reportDraw,
-                MergedConfiguration mergedConfiguration, InsetsState insetsState,
-                boolean forceLayout, boolean alwaysConsumeSystemBars, int displayId, int seqId,
-                boolean dragResizing, @Nullable ActivityWindowInfo activityWindowInfo) {
+        public void resized(WindowRelayoutResult layout, boolean reportDraw, boolean forceLayout,
+                int displayId, boolean syncWithBuffers, boolean dragResizing) {
             final TaskSnapshotWindow snapshot = mOuter.get();
             if (snapshot == null) {
                 return;
             }
             snapshot.mSplashScreenExecutor.execute(() -> {
-                if (mergedConfiguration != null
-                        && snapshot.mOrientationOnCreation
-                        != mergedConfiguration.getMergedConfiguration().orientation) {
+                final boolean clearSnapshot = layout.mergedConfiguration != null
+                        && (snapshot.mOrientationOnCreation != layout.mergedConfiguration
+                                .getMergedConfiguration().orientation);
+                if (clearSnapshot) {
                     // The orientation of the screen is changing. We better remove the snapshot
                     // ASAP as we are going to wait on the new window in any case to unfreeze
                     // the screen, and the starting window is not needed anymore.
                     snapshot.clearWindowSynced();
-                } else if (reportDraw) {
+                } else if (!ViewRootImpl.NoPreloadHolder.sAlwaysSeqId && reportDraw) {
                     if (snapshot.mHasDrawn) {
+                        snapshot.reportDrawn();
+                    }
+                }
+                if (ViewRootImpl.NoPreloadHolder.sAlwaysSeqId
+                        && layout.syncSeqId > snapshot.mSeqId) {
+                    snapshot.mSeqId = layout.syncSeqId;
+                    if (snapshot.mHasDrawn
+                            // Consider "cleared" as drawn (since it has "drawn emptiness")
+                            || clearSnapshot) {
                         snapshot.reportDrawn();
                     }
                 }

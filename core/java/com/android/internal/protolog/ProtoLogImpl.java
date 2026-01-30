@@ -17,8 +17,6 @@
 package com.android.internal.protolog;
 
 import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.CACHE_UPDATER;
-import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.LEGACY_OUTPUT_FILE_PATH;
-import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.LEGACY_VIEWER_CONFIG_PATH;
 import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.LOG_GROUPS;
 import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.VIEWER_CONFIG_PATH;
 
@@ -45,12 +43,6 @@ public class ProtoLogImpl {
 
     @ProtoLogToolInjected(VIEWER_CONFIG_PATH)
     private static String sViewerConfigPath;
-
-    @ProtoLogToolInjected(LEGACY_VIEWER_CONFIG_PATH)
-    private static String sLegacyViewerConfigPath;
-
-    @ProtoLogToolInjected(LEGACY_OUTPUT_FILE_PATH)
-    private static String sLegacyOutputFilePath;
 
     @ProtoLogToolInjected(LOG_GROUPS)
     private static TreeMap<String, IProtoLogGroup> sLogGroups;
@@ -110,44 +102,32 @@ public class ProtoLogImpl {
                     + "viewerConfigPath = " + sViewerConfigPath);
 
             final var groups = sLogGroups.values().toArray(new IProtoLogGroup[0]);
-            if (android.tracing.Flags.perfettoProtologTracing()) {
-                var viewerConfigFile = new File(sViewerConfigPath);
-                if (!viewerConfigFile.exists()) {
-                    // TODO(b/353530422): Remove - temporary fix to unblock b/352290057
-                    // In robolectric tests the viewer config file isn't current available, so we
-                    // cannot use the ProcessedPerfettoProtoLogImpl.
-                    Log.e(LOG_TAG, "Failed to find viewer config file " + sViewerConfigPath
-                            + " when setting up " + ProtoLogImpl.class.getSimpleName() + ". "
-                            + "ProtoLog will not work here!");
+            var viewerConfigFile = new File(sViewerConfigPath);
+            if (!viewerConfigFile.exists()) {
+                // TODO(b/353530422): Remove - temporary fix to unblock b/352290057
+                // In robolectric tests the viewer config file isn't current available, so we
+                // cannot use the ProcessedPerfettoProtoLogImpl.
+                Log.e(LOG_TAG, "Failed to find viewer config file " + sViewerConfigPath
+                        + " when setting up " + ProtoLogImpl.class.getSimpleName() + ". "
+                        + "ProtoLog will not work here!");
 
-                    sServiceInstance = new NoViewerConfigProtoLogImpl();
-                } else {
-                    var datasource = ProtoLog.getSharedSingleInstanceDataSource();
-                    try {
-                        var processedProtoLogImpl =
-                                new ProcessedPerfettoProtoLogImpl(datasource, sViewerConfigPath,
-                                        sCacheUpdater, groups);
-                        sServiceInstance = processedProtoLogImpl;
-                        processedProtoLogImpl.enable();
-                    } catch (ServiceManager.ServiceNotFoundException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+                sServiceInstance = new NoViewerConfigProtoLogImpl();
             } else {
-                sServiceInstance = createLegacyProtoLogImpl(groups);
+                var datasource = ProtoLog.getSharedSingleInstanceDataSource();
+                try {
+                    var processedProtoLogImpl =
+                            new ProcessedPerfettoProtoLogImpl(datasource, sViewerConfigPath,
+                                    sCacheUpdater, groups);
+                    sServiceInstance = processedProtoLogImpl;
+                    processedProtoLogImpl.enable();
+                } catch (ServiceManager.ServiceNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
             }
 
             sCacheUpdater.update(sServiceInstance);
         }
         return sServiceInstance;
-    }
-
-    private static LegacyProtoLogImpl createLegacyProtoLogImpl(IProtoLogGroup[] groups) {
-        var protologImpl = new LegacyProtoLogImpl(
-                sLegacyOutputFilePath, sLegacyViewerConfigPath, sCacheUpdater);
-        protologImpl.registerGroups(groups);
-
-        return protologImpl;
     }
 
     @VisibleForTesting

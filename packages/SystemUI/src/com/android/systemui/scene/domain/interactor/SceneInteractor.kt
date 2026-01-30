@@ -250,8 +250,8 @@ constructor(
      * scene, any current transition will be canceled and an animation to the target scene will be
      * started.
      *
-     * If [Overlays.Bouncer] is showing, we trigger an instant scene change as it will not be user-
-     * visible, and trigger a transition to hide the bouncer.
+     * If [hideAllOverlays] is `true`, any visible overlays will be hidden (with transition), even
+     * if the scene change is rejected.
      */
     @JvmOverloads
     fun changeScene(
@@ -260,10 +260,10 @@ constructor(
         transitionKey: TransitionKey? = null,
         sceneState: Any? = null,
         forceSettleToTargetScene: Boolean = false,
+        hideAllOverlays: Boolean = true,
     ) {
         val currentSceneKey = currentScene.value
         val resolvedScene = sceneFamilyResolvers.get()[toScene]?.resolvedScene?.value ?: toScene
-        val bouncerShowing = Overlays.Bouncer in currentOverlays.value
 
         if (resolvedScene == currentSceneKey && forceSettleToTargetScene) {
             logger.logSceneChangeCancellation(scene = resolvedScene, sceneState = sceneState)
@@ -273,6 +273,12 @@ constructor(
             repository.freezeAndAnimateToCurrentState()
         }
 
+        if (hideAllOverlays) {
+            currentOverlays.value.forEach {
+                hideOverlay(it, "Hiding overlay ${it.debugName} due to scene change request")
+            }
+        }
+
         if (
             !validateSceneChange(
                 from = currentSceneKey,
@@ -280,12 +286,6 @@ constructor(
                 loggingReason = loggingReason,
             )
         ) {
-            if (bouncerShowing) {
-                hideOverlay(
-                    Overlays.Bouncer,
-                    "Scene change cancelled but hiding bouncer for: ($loggingReason)",
-                )
-            }
             return
         }
 
@@ -299,22 +299,19 @@ constructor(
             isInstant = false,
         )
 
-        if (bouncerShowing) {
-            repository.snapToScene(resolvedScene)
-            hideOverlay(Overlays.Bouncer, "Hiding on changeScene for: ($loggingReason)")
-        } else {
-            repository.changeScene(resolvedScene, transitionKey)
-        }
+        repository.changeScene(resolvedScene, transitionKey)
     }
 
     /**
      * Requests a scene change to the given scene.
      *
      * The change is instantaneous and not animated; it will be observable in the next frame and
-     * there will be no transition animation. If [Overlays.Bouncer] is showing, it will instantly be
-     * hidden.
+     * there will be no transition animation.
+     *
+     * If [hideAllOverlays] is `true`, any visible overlays will be instantly hidden, even if the
+     * scene change is rejected.
      */
-    fun snapToScene(toScene: SceneKey, loggingReason: String) {
+    fun snapToScene(toScene: SceneKey, loggingReason: String, hideAllOverlays: Boolean = true) {
         val currentSceneKey = currentScene.value
         val resolvedScene =
             sceneFamilyResolvers.get()[toScene]?.let { familyResolver ->
@@ -331,6 +328,9 @@ constructor(
                 loggingReason = loggingReason,
             )
         ) {
+            if (hideAllOverlays) {
+                repository.instantlyTransitionTo(overlays = emptySet())
+            }
             return
         }
 
@@ -342,8 +342,10 @@ constructor(
             isInstant = true,
         )
 
-        repository.snapToScene(resolvedScene)
-        instantlyHideOverlay(Overlays.Bouncer, "Hiding on snapToScene for: ($loggingReason)")
+        repository.instantlyTransitionTo(
+            scene = resolvedScene,
+            overlays = emptySet<OverlayKey>().takeIf { hideAllOverlays },
+        )
     }
 
     /**
@@ -411,7 +413,7 @@ constructor(
 
         logger.logOverlayChangeRequested(to = overlay, reason = loggingReason)
 
-        repository.instantlyShowOverlay(overlay)
+        repository.instantlyTransitionTo(overlays = currentOverlays.value + overlay)
     }
 
     /**
@@ -427,7 +429,7 @@ constructor(
 
         logger.logOverlayChangeRequested(from = overlay, reason = loggingReason)
 
-        repository.instantlyHideOverlay(overlay)
+        repository.instantlyTransitionTo(overlays = currentOverlays.value - overlay)
     }
 
     /**
@@ -468,11 +470,12 @@ constructor(
     fun setVisible(isVisible: Boolean, loggingReason: String) {
         val wasVisible = repository.isVisible.value
         if (wasVisible == isVisible) {
+            logger.logVisibilityRejection(to = isVisible, reason = loggingReason)
             return
         }
 
         logger.logVisibilityChange(from = wasVisible, to = isVisible, reason = loggingReason)
-        return repository.setVisible(isVisible)
+        repository.setVisible(isVisible)
     }
 
     /**
@@ -703,14 +706,6 @@ constructor(
             else -> true
         }
     }
-
-    /** Returns a flow indicating if the currently visible scene can be resolved from [family]. */
-    fun isCurrentSceneInFamily(family: SceneKey): Flow<Boolean> =
-        currentScene.map { currentScene -> isSceneInFamily(currentScene, family) }
-
-    /** Returns `true` if [scene] can be resolved from [family]. */
-    fun isSceneInFamily(scene: SceneKey, family: SceneKey): Boolean =
-        sceneFamilyResolvers.get()[family]?.includesScene(scene) == true
 
     /**
      * Returns a filtered version of [unfiltered], without action-result entries that would navigate

@@ -55,6 +55,7 @@ import com.android.systemui.res.R;
 import com.android.systemui.statusbar.policy.DevicePostureController;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.concurrency.DelayableExecutor;
+import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
 
 import java.util.List;
 
@@ -137,11 +138,13 @@ public class KeyguardPasswordViewController
             SelectedUserInteractor selectedUserInteractor,
             KeyguardKeyboardInteractor keyguardKeyboardInteractor,
             BouncerHapticPlayer bouncerHapticPlayer,
-            UserActivityNotifier userActivityNotifier) {
+            UserActivityNotifier userActivityNotifier,
+            LockPatternCheckerWrapper lockPatternCheckerWrapper
+    ) {
         super(view, keyguardUpdateMonitor, securityMode, lockPatternUtils, keyguardSecurityCallback,
                 messageAreaControllerFactory, latencyTracker, falsingCollector,
                 emergencyButtonController, featureFlags, selectedUserInteractor,
-                bouncerHapticPlayer, userActivityNotifier);
+                bouncerHapticPlayer, userActivityNotifier, lockPatternCheckerWrapper);
         mKeyguardSecurityCallback = keyguardSecurityCallback;
         mInputMethodManager = inputMethodManager;
         mPostureController = postureController;

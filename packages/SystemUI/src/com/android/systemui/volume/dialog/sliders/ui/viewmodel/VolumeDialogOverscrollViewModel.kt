@@ -20,6 +20,7 @@ import android.content.Context
 import android.view.MotionEvent
 import android.view.animation.PathInterpolator
 import com.android.systemui.res.R
+import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.domain.interactor.VolumeDialogSliderInputEventsInteractor
 import com.android.systemui.volume.dialog.sliders.shared.model.SliderInputEvent
@@ -42,7 +43,11 @@ class VolumeDialogOverscrollViewModel
 constructor(
     context: Context,
     private val inputEventsInteractor: VolumeDialogSliderInputEventsInteractor,
+    desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
 ) {
+
+    // Use horizontal volume dialog if the audio tile details view is enabled
+    private val isVolumeDialogVertical = !desktopAudioTileDetailsFeatureInteractor.isEnabled()
 
     /**
      * This is the ratio between the pointer distance and the dialog offset. The pointer has to
@@ -63,10 +68,16 @@ constructor(
         sliderValue
             .filterNotNull()
             .map { slider ->
-                when (slider.value) {
-                    slider.min -> 1f
-                    slider.max -> -1f
-                    else -> 0f
+                val directionForVertical =
+                    when (slider.value) {
+                        slider.min -> 1f
+                        slider.max -> -1f
+                        else -> 0f
+                    }
+                if (isVolumeDialogVertical) {
+                    directionForVertical
+                } else {
+                    -directionForVertical
                 }
             }
             .distinctUntilChanged()
@@ -103,7 +114,12 @@ constructor(
                     return@transform
                 }
                 val currentStartPosition = startPosition
-                val newPosition: Float = touchEvent.y
+                val newPosition: Float =
+                    if (isVolumeDialogVertical) {
+                        touchEvent.y
+                    } else {
+                        touchEvent.x
+                    }
                 if (currentStartPosition == null) {
                     startPosition = newPosition
                 } else {

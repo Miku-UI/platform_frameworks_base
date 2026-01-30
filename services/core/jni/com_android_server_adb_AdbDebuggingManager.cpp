@@ -91,28 +91,18 @@ static void native_pairing_cancel(JNIEnv* /* env */, jclass /* clazz */) {
     }
 }
 
-static jboolean native_pairing_wait(JNIEnv* env, jobject thiz) {
+static jstring native_pairing_wait(JNIEnv* env, jobject thiz) {
     ALOGI("Waiting for pairing server to complete");
     std::unique_lock<std::mutex> lock(sWaiter->mutex_);
     if (!sWaiter->is_valid_.has_value()) {
         sWaiter->cv_.wait(lock, [&]() { return sWaiter->is_valid_.has_value(); });
     }
     if (!*(sWaiter->is_valid_)) {
-        return JNI_FALSE;
+        return nullptr;
     }
 
-    // Create a Java string for the public key.
     char* peer_public_key = reinterpret_cast<char*>(sWaiter->peer_info_.data);
-    jstring jpublickey = env->NewStringUTF(peer_public_key);
-    if (jpublickey == nullptr) {
-      return JNI_FALSE;
-    }
-
-    // Write to PairingThread.mPublicKey.
-    jclass clazz = env->GetObjectClass(thiz);
-    jfieldID mPublicKey = env->GetFieldID(clazz, "mPublicKey", "Ljava/lang/String;");
-    env->SetObjectField(thiz, mPublicKey, jpublickey);
-    return JNI_TRUE;
+    return env->NewStringUTF(peer_public_key);
 }
 
 // ----------------------------------------------------------------------------
@@ -122,12 +112,11 @@ static const JNINativeMethod gPairingThreadMethods[] = {
         {"native_pairing_start", "(Ljava/lang/String;Ljava/lang/String;)I",
          (void*)native_pairing_start},
         {"native_pairing_cancel", "()V", (void*)native_pairing_cancel},
-        {"native_pairing_wait", "()Z", (void*)native_pairing_wait},
+        {"native_pairing_wait", "()Ljava/lang/String;", (void*)native_pairing_wait},
 };
 
 int register_android_server_AdbDebuggingManager(JNIEnv* env) {
-    return jniRegisterNativeMethods(env,
-                                    "com/android/server/adb/AdbDebuggingManager$PairingThread",
+    return jniRegisterNativeMethods(env, "com/android/server/adb/AdbPairingThread",
                                     gPairingThreadMethods, NELEM(gPairingThreadMethods));
 }
 

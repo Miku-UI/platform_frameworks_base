@@ -70,8 +70,8 @@ public final class DragResizeWindowGeometry {
 
         mDisabledEdge = disabledEdge;
 
-        mLargeTaskCorners = new TaskCorners(mTaskSize, largeCornerSize, disabledEdge);
-        mFineTaskCorners = new TaskCorners(mTaskSize, fineCornerSize, disabledEdge);
+        mLargeTaskCorners = new TaskCorners(mTaskSize, largeCornerSize);
+        mFineTaskCorners = new TaskCorners(mTaskSize, fineCornerSize);
 
         // Save touch areas for each edge.
         mTaskEdges = new TaskEdges(mTaskSize, mResizeHandleEdgeOutset, mDisabledEdge);
@@ -260,10 +260,6 @@ public final class DragResizeWindowGeometry {
     @DragPositioningCallback.CtrlType
     private int checkDistanceFromCenter(@DragPositioningCallback.CtrlType int ctrlType, float x,
             float y) {
-        if ((mDisabledEdge == DisabledEdge.RIGHT && (ctrlType & CTRL_TYPE_RIGHT) != 0)
-                || mDisabledEdge == DisabledEdge.LEFT && ((ctrlType & CTRL_TYPE_LEFT) != 0)) {
-            return CTRL_TYPE_UNDEFINED;
-        }
         final Point cornerRadiusCenter = calculateCenterForCornerRadius(ctrlType);
         double distanceFromCenter = Math.hypot(x - cornerRadiusCenter.x, y - cornerRadiusCenter.y);
 
@@ -349,31 +345,29 @@ public final class DragResizeWindowGeometry {
         private final @NonNull Rect mRightTopCornerBounds;
         private final @NonNull Rect mLeftBottomCornerBounds;
         private final @NonNull Rect mRightBottomCornerBounds;
-        private final @NonNull DisabledEdge mDisabledEdge;
 
-        TaskCorners(@NonNull Size taskSize, int cornerSize, DisabledEdge disabledEdge) {
+        TaskCorners(@NonNull Size taskSize, int cornerSize) {
             mCornerSize = cornerSize;
-            mDisabledEdge = disabledEdge;
             final int cornerRadius = cornerSize / 2;
-            mLeftTopCornerBounds = (disabledEdge == DisabledEdge.LEFT) ? new Rect() : new Rect(
+            mLeftTopCornerBounds = new Rect(
                     -cornerRadius,
                     -cornerRadius,
                     cornerRadius,
                     cornerRadius);
 
-            mRightTopCornerBounds = (disabledEdge == DisabledEdge.RIGHT) ? new Rect() : new Rect(
+            mRightTopCornerBounds = new Rect(
                     taskSize.getWidth() - cornerRadius,
                     -cornerRadius,
                     taskSize.getWidth() + cornerRadius,
                     cornerRadius);
 
-            mLeftBottomCornerBounds = (disabledEdge == DisabledEdge.LEFT) ? new Rect() : new Rect(
+            mLeftBottomCornerBounds = new Rect(
                     -cornerRadius,
                     taskSize.getHeight() - cornerRadius,
                     cornerRadius,
                     taskSize.getHeight() + cornerRadius);
 
-            mRightBottomCornerBounds = (disabledEdge == DisabledEdge.RIGHT) ? new Rect() : new Rect(
+            mRightBottomCornerBounds = new Rect(
                     taskSize.getWidth() - cornerRadius,
                     taskSize.getHeight() - cornerRadius,
                     taskSize.getWidth() + cornerRadius,
@@ -384,14 +378,10 @@ public final class DragResizeWindowGeometry {
          * Updates the region to include all four corners.
          */
         void union(Region region) {
-            if (mDisabledEdge != DisabledEdge.RIGHT) {
-                region.union(mRightTopCornerBounds);
-                region.union(mRightBottomCornerBounds);
-            }
-            if (mDisabledEdge != DisabledEdge.LEFT) {
-                region.union(mLeftTopCornerBounds);
-                region.union(mLeftBottomCornerBounds);
-            }
+            region.union(mRightTopCornerBounds);
+            region.union(mRightBottomCornerBounds);
+            region.union(mLeftTopCornerBounds);
+            region.union(mLeftBottomCornerBounds);
         }
 
         /**
@@ -529,7 +519,8 @@ public final class DragResizeWindowGeometry {
             return this.mTopEdgeBounds.equals(other.mTopEdgeBounds)
                     && this.mLeftEdgeBounds.equals(other.mLeftEdgeBounds)
                     && this.mRightEdgeBounds.equals(other.mRightEdgeBounds)
-                    && this.mBottomEdgeBounds.equals(other.mBottomEdgeBounds);
+                    && this.mBottomEdgeBounds.equals(other.mBottomEdgeBounds)
+                    && this.mDisabledEdge.equals(other.mDisabledEdge);
         }
 
         @Override

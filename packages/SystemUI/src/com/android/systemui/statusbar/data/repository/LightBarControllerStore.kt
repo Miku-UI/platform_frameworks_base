@@ -20,6 +20,7 @@ import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.display.data.repository.DisplayRepository
 import com.android.systemui.display.data.repository.PerDisplayStore
 import com.android.systemui.statusbar.phone.LightBarController
@@ -43,7 +44,7 @@ constructor(
     private val factory: LightBarControllerImpl.Factory,
     private val displayScopeRepository: PerDisplayRepository<CoroutineScope>,
     private val statusBarModeRepositoryStore: StatusBarModeRepositoryStore,
-    private val darkIconDispatcherStore: DarkIconDispatcherStore,
+    private val displaySubComponentRepository: PerDisplayRepository<SystemUIDisplaySubcomponent>,
 ) :
     LightBarControllerStore,
     StatusBarPerDisplayStoreImpl<LightBarController>(
@@ -52,7 +53,8 @@ constructor(
     ) {
 
     override fun createInstanceForDisplay(displayId: Int): LightBarController? {
-        val darkIconDispatcher = darkIconDispatcherStore.forDisplay(displayId) ?: return null
+        val displaySubComponent = displaySubComponentRepository[displayId] ?: return null
+        val darkIconDispatcher = displaySubComponent.darkIconDispatcher
         val statusBarModePerDisplayRepository =
             statusBarModeRepositoryStore.forDisplay(displayId) ?: return null
         val displayScope = displayScopeRepository[displayId] ?: return null

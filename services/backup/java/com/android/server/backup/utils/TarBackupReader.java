@@ -31,9 +31,9 @@ import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_FULL_RESTORE_
 import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_MISSING_SIGNATURE;
 import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_RESTORE_ANY_VERSION;
 import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_SYSTEM_APP_NO_AGENT;
-import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_V_TO_U_RESTORE_PKG_ELIGIBLE;
 import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_VERSIONS_MATCH;
 import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_VERSION_OF_BACKUP_OLDER;
+import static android.app.backup.BackupManagerMonitor.LOG_EVENT_ID_V_TO_U_RESTORE_PKG_ELIGIBLE;
 
 import static com.android.server.backup.BackupManagerService.DEBUG;
 import static com.android.server.backup.BackupManagerService.TAG;
@@ -41,8 +41,10 @@ import static com.android.server.backup.UserBackupManagerService.BACKUP_MANIFEST
 import static com.android.server.backup.UserBackupManagerService.BACKUP_MANIFEST_VERSION;
 import static com.android.server.backup.UserBackupManagerService.BACKUP_METADATA_FILENAME;
 import static com.android.server.backup.UserBackupManagerService.BACKUP_WIDGET_METADATA_TOKEN;
+import static com.android.server.backup.UserBackupManagerService.CROSS_PLATFORM_MANIFEST_FILENAME;
 import static com.android.server.backup.UserBackupManagerService.SHARED_BACKUP_AGENT_PACKAGE;
 
+import android.annotation.Nullable;
 import android.app.backup.BackupAgent;
 import android.app.backup.BackupManagerMonitor;
 import android.app.backup.FullBackup;
@@ -61,6 +63,7 @@ import android.util.Slog;
 
 import com.android.server.backup.FileMetadata;
 import com.android.server.backup.Flags;
+import com.android.server.backup.crossplatform.CrossPlatformManifest;
 import com.android.server.backup.restore.RestorePolicy;
 
 import java.io.ByteArrayInputStream;
@@ -212,8 +215,9 @@ public class TarBackupReader {
 
                     // if it's a manifest or metadata payload we're done, otherwise parse
                     // out the domain into which the file will be restored
-                    if (!info.path.equals(BACKUP_MANIFEST_FILENAME) &&
-                            !info.path.equals(BACKUP_METADATA_FILENAME)) {
+                    if (!info.path.equals(BACKUP_MANIFEST_FILENAME)
+                            && !info.path.equals(CROSS_PLATFORM_MANIFEST_FILENAME)
+                            && !info.path.equals(BACKUP_METADATA_FILENAME)) {
                         slash = info.path.indexOf('/');
                         if (slash < 0) {
                             throw new IOException("Illegal semantic path in non-manifest "
@@ -376,6 +380,53 @@ public class TarBackupReader {
         }
 
         return null;
+    }
+
+    /**
+     * Parses the cross-platform manifest from the tar file and returns it.
+     * @throws IOException in case of an error.
+     */
+    @Nullable
+    public CrossPlatformManifest readCrossPlatformManifest(FileMetadata info) throws IOException {
+        // Fail on suspiciously large manifest files
+        if (info.size > 64 * 1024) {
+            throw new IOException(
+                    "Restore cross platform manifest too big; corrupt? size=" + info.size);
+        }
+
+        byte[] buffer = new byte[(int) info.size];
+        if (DEBUG) {
+            Slog.i(TAG, "   readCrossPlatformManifest() looking for " + info.size + " bytes");
+        }
+        if (readExactly(mInputStream, buffer, 0, (int) info.size) == info.size) {
+            mBytesReadListener.onBytesRead(info.size);
+        } else {
+            throw new IOException("Unexpected EOF in cross-platform manifest");
+        }
+        CrossPlatformManifest manifest = CrossPlatformManifest.parseFrom(buffer);
+        if (!manifest.getPackageName().equals(info.packageName)) {
+            Slog.i(
+                    TAG,
+                    "Expected package "
+                            + info.packageName
+                            + " but restore manifest claims "
+                            + manifest.getPackageName());
+            Bundle monitoringExtras =
+                    mBackupManagerMonitorEventSender.putMonitoringExtra(
+                            null, EXTRA_LOG_EVENT_PACKAGE_NAME, info.packageName);
+            monitoringExtras =
+                    mBackupManagerMonitorEventSender.putMonitoringExtra(
+                            monitoringExtras,
+                            EXTRA_LOG_MANIFEST_PACKAGE_NAME,
+                            manifest.getPackageName());
+            mBackupManagerMonitorEventSender.monitorEvent(
+                    LOG_EVENT_ID_EXPECTED_DIFFERENT_PACKAGE,
+                    null,
+                    LOG_EVENT_CATEGORY_BACKUP_MANAGER_POLICY,
+                    monitoringExtras);
+            return null;
+        }
+        return manifest;
     }
 
     /**

@@ -77,10 +77,10 @@ constructor(
     private var interactionJankMonitor: InteractionJankMonitor =
         InteractionJankMonitor.getInstance(),
 
-    /** [ViewTransitionRegistry] to store the mapping of transitioning view and its token */
-    private val transitionRegistry: IViewTransitionRegistry? =
+    /** [ViewTransitionRegistryImpl] to store the mapping of transitioning view and its token */
+    private val transitionRegistry: ViewTransitionRegistry? =
         if (Flags.decoupleViewControllerInAnimlib()) {
-            ViewTransitionRegistry.instance
+            ViewTransitionRegistryImpl.instance
         } else {
             null
         },
@@ -213,15 +213,11 @@ constructor(
 
         background = findBackground(ghostedView)
 
-        if (TransitionAnimator.returnAnimationsEnabled() && isEphemeral) {
-            ghostedView.addOnAttachStateChangeListener(detachListener)
-        }
+        if (isEphemeral) ghostedView.addOnAttachStateChangeListener(detachListener)
     }
 
     override fun onDispose() {
-        if (TransitionAnimator.returnAnimationsEnabled()) {
-            ghostedView.removeOnAttachStateChangeListener(detachListener)
-        }
+        ghostedView.removeOnAttachStateChangeListener(detachListener)
         transitionToken?.let { token -> transitionRegistry?.unregister(token) }
     }
 

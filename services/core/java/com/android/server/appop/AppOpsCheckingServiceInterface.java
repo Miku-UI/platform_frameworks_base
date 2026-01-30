@@ -23,6 +23,8 @@ import android.util.SparseIntArray;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import java.util.List;
+
 /**
  * Interface for accessing and modifying modes for app-ops i.e. package and uid modes.
  * This interface also includes functions for added and removing op mode watchers.
@@ -71,6 +73,14 @@ public interface AppOpsCheckingServiceInterface {
      * @param userId for which the package is installed in.
      */
     SparseIntArray getNonDefaultPackageModes(String packageName, int userId);
+
+    /**
+     * Returns a list of uids that have the given op in the given op uid mode
+     * @param op The op whose mode should be checked
+     * @param mode The mode the op should be in
+     * @param userId The user ID to check.
+     */
+    @NonNull List<Integer> getUidsWithOpMode(int op, int mode, int userId);
 
     /**
      * Returns the app-op mode for a particular app-op of a uid.

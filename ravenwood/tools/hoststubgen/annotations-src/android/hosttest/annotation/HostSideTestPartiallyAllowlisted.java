@@ -21,6 +21,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+/**
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
+ */
 @Target({TYPE})
 @Retention(RetentionPolicy.CLASS)
 public @interface HostSideTestPartiallyAllowlisted {

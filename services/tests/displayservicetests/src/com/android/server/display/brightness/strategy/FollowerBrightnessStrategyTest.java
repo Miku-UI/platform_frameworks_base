@@ -62,7 +62,7 @@ public class FollowerBrightnessStrategyTest {
                 mFollowerBrightnessStrategy.updateBrightness(
                         new StrategyExecutionRequest(displayPowerRequest, 0.2f,
                                 /* userSetBrightnessChanged= */ false,
-                                /* isStylusBeingUsed */ false));
+                                /* isStylusBeingUsed */ false, /* offloadSession= */ null));
         assertEquals(expectedDisplayBrightnessState, updatedDisplayBrightnessState);
     }
 

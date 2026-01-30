@@ -948,10 +948,11 @@ public class LayoutTest {
 
        Text  |   Background
      ========================
-        al   |    BW
+        a    |    BW
+        l    |    WW
         w    |    WW
-        ei   |    WW
-        \t;  |    WW
+        ei\t |    WW
+        ;    |    BB
         s    |    BB
         df   |    BB
         s    |    BB
@@ -1012,7 +1013,7 @@ public class LayoutTest {
         expect.that(removeAlpha(backgroundCommands.get(3).paint.getColor()))
                 .isEqualTo(Color.WHITE);
         expect.that(removeAlpha(backgroundCommands.get(4).paint.getColor()))
-                .isEqualTo(Color.WHITE);
+                .isEqualTo(Color.BLACK);
         expect.that(removeAlpha(backgroundCommands.get(5).paint.getColor()))
                 .isEqualTo(Color.BLACK);
         expect.that(removeAlpha(backgroundCommands.get(6).paint.getColor()))
@@ -1038,6 +1039,71 @@ public class LayoutTest {
     @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
     public void highContrastTextEnabled_testWhiteSpaceAtStart_drawsCorrectBackgroundsOnText() {
         SpannableString spannedText = new SpannableString(" HelloWorld!");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testSingleEmoji_drawsSameBackgrounds() {
+        SpannableString spannedText = new SpannableString(" 😀 ");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testTwoEmojis_drawsSameBackgrounds() {
+        SpannableString spannedText = new SpannableString(" 😀😀 ");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testSingleTextBetweenEmoji_drawsCorrectBackgroundsOnText() {
+        // TODO(b/405847642): Find a way to verify emojis at the beginning and end of a string are
+        // rendered without rectangles.
+        SpannableString spannedText = new SpannableString("😀!😀");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testEmojiWithinText_drawsSameBackgroundswithText() {
+        SpannableString spannedText = new SpannableString("Hello😀World");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testEmojiWithinTextWithSpace_drawsSameBackgrounds() {
+        SpannableString spannedText = new SpannableString("Hello 😀 World");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testEmojiAtStart_drawsCorrectBackgroundsOnText() {
+        SpannableString spannedText = new SpannableString("😀HelloWorld");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testLeadingEmojiWithSpace_drawsCorrectBackgroundsOnText() {
+        SpannableString spannedText = new SpannableString("😀 HelloWorld");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testEmojiAtEnd_drawsCorrectBackgroundsOnText() {
+        SpannableString spannedText = new SpannableString("HelloWorld😀");
+        testSpannableStringAppliesAllColorsCorrectly(spannedText);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(FLAG_HIGH_CONTRAST_TEXT_SMALL_TEXT_RECT)
+    public void highContrastTextEnabled_testEmojiAtEndWithSpace_drawsCorrectBackgroundsOnText() {
+        SpannableString spannedText = new SpannableString("HelloWorld 😀");
         testSpannableStringAppliesAllColorsCorrectly(spannedText);
     }
 

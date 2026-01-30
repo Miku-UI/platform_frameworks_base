@@ -20,6 +20,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.android.hoststubgen.test.tinyframework.R.Nested;
+import com.android.hoststubgen.test.tinyframework.TinyFrameworkHooks.MethodInfo;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -28,6 +29,7 @@ import org.junit.rules.ExpectedException;
 import java.io.FileDescriptor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 
 public class TinyFrameworkClassTest {
     @Rule
@@ -69,16 +71,26 @@ public class TinyFrameworkClassTest {
 
     @Test
     public void testSubstituteNative() {
+        assertThat(TinyFrameworkForTextPolicy.nativeAddThree(1)).isEqualTo(4);
+    }
+
+    @Test
+    public void testExperimental() {
+        TinyFrameworkHooks.sExperimentalMethodCalls.clear();
+
         TinyFrameworkForTextPolicy tfc = new TinyFrameworkForTextPolicy();
-        assertThat(tfc.nativeAddThree(1)).isEqualTo(4);
+
+        assertThat(tfc.addFour(1)).isEqualTo(5);
+        assertThat(TinyFrameworkHooks.sExperimentalMethodCalls).containsExactly(
+                new MethodInfo(TinyFrameworkForTextPolicy.class, "addFour", "(I)I")
+        );
     }
 
     @Test
     public void testUnsupportedMethod() {
         TinyFrameworkForTextPolicy tfc = new TinyFrameworkForTextPolicy();
 
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage("not yet supported");
+        thrown.expect(TinyFrameworkUnsupportedApiException.class);
         tfc.unsupportedMethod();
     }
 
@@ -146,9 +158,7 @@ public class TinyFrameworkClassTest {
 
     @Test
     public void testSubstituteNativeWithThrow() {
-        thrown.expect(RuntimeException.class);
-        thrown.expectMessage("not yet supported");
-
+        thrown.expect(TinyFrameworkUnsupportedApiException.class);
         TinyFrameworkNative.nativeStillNotSupported();
     }
 
@@ -178,23 +188,45 @@ public class TinyFrameworkClassTest {
     }
 
     @Test
-    public void testClassLoadHook() {
+    public void testClassLoadHook() throws ClassNotFoundException {
         assertThat(TinyFrameworkClassWithInitializerStub.sInitialized).isTrue();
 
-        // Having this line before assertThat() will ensure these class are already loaded.
+        // Make sure the 2 other classes are loaded. We have to do this because obtaining the
+        // j.l.Class instances of these classes is not enough to trigger <clinit>.
+        Class.forName(TinyFrameworkAnnotations.class.getName());
+        Class.forName(TinyFrameworkForTextPolicy.class.getName());
+
+        // The following classes have a class load hook, so they should be registered.
         var classes = new Class[]{
                 TinyFrameworkClassWithInitializerStub.class,
                 TinyFrameworkAnnotations.class,
                 TinyFrameworkForTextPolicy.class,
         };
-
-        // The following classes have a class load hook, so they should be registered.
-        assertThat(TinyFrameworkClassLoadHook.sLoadedClasses)
-                .containsAnyIn(classes);
+        assertThat(TinyFrameworkHooks.sLoadedClasses).containsAtLeastElementsIn(classes);
 
         // This class doesn't have a class load hook, so shouldn't be included.
-        assertThat(TinyFrameworkClassLoadHook.sLoadedClasses)
+        assertThat(TinyFrameworkHooks.sLoadedClasses)
                 .doesNotContain(TinyFrameworkNestedClasses.class);
+    }
+
+    @Test
+    public void testMethodCallHook() {
+        TinyFrameworkHooks.sCalledMethods = new ArrayList<>();
+        try {
+            TinyFrameworkForTextPolicy tfc = new TinyFrameworkForTextPolicy();
+            tfc.addOne(1);
+            tfc.addTwo(2);
+            TinyFrameworkForTextPolicy.nativeAddThree(3);
+
+            assertThat(TinyFrameworkHooks.sCalledMethods).containsExactly(
+                    new MethodInfo(TinyFrameworkForTextPolicy.class, "<init>", "()V"),
+                    new MethodInfo(TinyFrameworkForTextPolicy.class, "addOne", "(I)I"),
+                    new MethodInfo(TinyFrameworkForTextPolicy.class, "addTwo", "(I)I"),
+                    new MethodInfo(TinyFrameworkForTextPolicy.class, "nativeAddThree", "(I)I")
+            ).inOrder();
+        } finally {
+            TinyFrameworkHooks.sCalledMethods = null;
+        }
     }
 
     @Test

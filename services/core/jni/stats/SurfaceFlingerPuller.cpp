@@ -20,7 +20,7 @@
 
 #include <gui/SurfaceComposerClient.h>
 #include <log/log.h>
-#include <statslog.h>
+#include <statslog_surfaceflinger.h>
 #include <timestatsatomsproto/TimeStatsAtomsProtoHeader.h>
 
 #include <vector>
@@ -29,7 +29,7 @@ namespace android {
 namespace server {
 namespace stats {
 
-using android::util::BytesField;
+using android::surfaceflinger::stats::BytesField;
 using std::optional;
 
 namespace {
@@ -58,9 +58,9 @@ AStatsManager_PullAtomCallbackReturn SurfaceFlingerPuller::pull(int32_t atomTag,
     }
 
     switch (atomTag) {
-        case android::util::SURFACEFLINGER_STATS_GLOBAL_INFO:
+        case android::surfaceflinger::stats::SURFACEFLINGER_STATS_GLOBAL_INFO:
             return parseGlobalInfoPull(pullDataProto, data);
-        case android::util::SURFACEFLINGER_STATS_LAYER_INFO:
+        case android::surfaceflinger::stats::SURFACEFLINGER_STATS_LAYER_INFO:
             return parseLayerInfoPull(pullDataProto, data);
         default:
             ALOGW("Invalid atom id for surfaceflinger pullers: %" PRId32, atomTag);
@@ -92,21 +92,23 @@ AStatsManager_PullAtomCallbackReturn SurfaceFlingerPuller::parseGlobalInfoPull(
             return AStatsManager_PULL_SKIP;
         }
 
-        android::util::addAStatsEvent(data, android::util::SURFACEFLINGER_STATS_GLOBAL_INFO,
-                                      atom.total_frames(), atom.missed_frames(),
-                                      atom.client_composition_frames(), atom.display_on_millis(),
-                                      atom.animation_millis(), atom.event_connection_count(),
-                                      frameDuration.value(), renderEngineTime.value(),
-                                      atom.total_timeline_frames(), atom.total_janky_frames(),
-                                      atom.total_janky_frames_with_long_cpu(),
-                                      atom.total_janky_frames_with_long_gpu(),
-                                      atom.total_janky_frames_sf_unattributed(),
-                                      atom.total_janky_frames_app_unattributed(),
-                                      atom.total_janky_frames_sf_scheduling(),
-                                      atom.total_jank_frames_sf_prediction_error(),
-                                      atom.total_jank_frames_app_buffer_stuffing(),
-                                      atom.display_refresh_rate_bucket(), deadlineMisses.value(),
-                                      predictionErrors.value(), atom.render_rate_bucket());
+        android::surfaceflinger::stats::
+                addAStatsEvent(data,
+                               android::surfaceflinger::stats::SURFACEFLINGER_STATS_GLOBAL_INFO,
+                               atom.total_frames(), atom.missed_frames(),
+                               atom.client_composition_frames(), atom.display_on_millis(),
+                               atom.animation_millis(), atom.event_connection_count(),
+                               frameDuration.value(), renderEngineTime.value(),
+                               atom.total_timeline_frames(), atom.total_janky_frames(),
+                               atom.total_janky_frames_with_long_cpu(),
+                               atom.total_janky_frames_with_long_gpu(),
+                               atom.total_janky_frames_sf_unattributed(),
+                               atom.total_janky_frames_app_unattributed(),
+                               atom.total_janky_frames_sf_scheduling(),
+                               atom.total_jank_frames_sf_prediction_error(),
+                               atom.total_jank_frames_app_buffer_stuffing(),
+                               atom.display_refresh_rate_bucket(), deadlineMisses.value(),
+                               predictionErrors.value(), atom.render_rate_bucket());
     }
     return AStatsManager_PULL_SUCCESS;
 }
@@ -146,24 +148,25 @@ AStatsManager_PullAtomCallbackReturn SurfaceFlingerPuller::parseLayerInfoPull(
             return AStatsManager_PULL_SKIP;
         }
 
-        android::util::addAStatsEvent(data, android::util::SURFACEFLINGER_STATS_LAYER_INFO,
-                                      atom.layer_name().c_str(), atom.total_frames(),
-                                      atom.dropped_frames(), present2Present.value(),
-                                      post2present.value(), acquire2Present.value(),
-                                      latch2Present.value(), desired2Present.value(),
-                                      post2Acquire.value(), atom.late_acquire_frames(),
-                                      atom.bad_desired_present_frames(), atom.uid(),
-                                      atom.total_timeline_frames(), atom.total_janky_frames(),
-                                      atom.total_janky_frames_with_long_cpu(),
-                                      atom.total_janky_frames_with_long_gpu(),
-                                      atom.total_janky_frames_sf_unattributed(),
-                                      atom.total_janky_frames_app_unattributed(),
-                                      atom.total_janky_frames_sf_scheduling(),
-                                      atom.total_jank_frames_sf_prediction_error(),
-                                      atom.total_jank_frames_app_buffer_stuffing(),
-                                      atom.display_refresh_rate_bucket(), atom.render_rate_bucket(),
-                                      frameRateVote.value(), appDeadlineMisses.value(),
-                                      atom.game_mode(), present2PresentDelta.value());
+        android::surfaceflinger::stats::
+                addAStatsEvent(data,
+                               android::surfaceflinger::stats::SURFACEFLINGER_STATS_LAYER_INFO,
+                               atom.layer_name().c_str(), atom.total_frames(),
+                               atom.dropped_frames(), present2Present.value(), post2present.value(),
+                               acquire2Present.value(), latch2Present.value(),
+                               desired2Present.value(), post2Acquire.value(),
+                               atom.late_acquire_frames(), atom.bad_desired_present_frames(),
+                               atom.uid(), atom.total_timeline_frames(), atom.total_janky_frames(),
+                               atom.total_janky_frames_with_long_cpu(),
+                               atom.total_janky_frames_with_long_gpu(),
+                               atom.total_janky_frames_sf_unattributed(),
+                               atom.total_janky_frames_app_unattributed(),
+                               atom.total_janky_frames_sf_scheduling(),
+                               atom.total_jank_frames_sf_prediction_error(),
+                               atom.total_jank_frames_app_buffer_stuffing(),
+                               atom.display_refresh_rate_bucket(), atom.render_rate_bucket(),
+                               frameRateVote.value(), appDeadlineMisses.value(), atom.game_mode(),
+                               present2PresentDelta.value());
     }
     return AStatsManager_PULL_SUCCESS;
 }

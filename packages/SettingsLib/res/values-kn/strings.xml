@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"ಸಂಪರ್ಕಗೊಳಿಸಲಾಗುತ್ತಿದೆ..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> ಗೆ ಸಂಪರ್ಕಗೊಂಡಿದೆ"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"ಜೋಡಿಸಲಾಗುತ್ತಿದೆ..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"ಜೋಡಿಸಲು ಸಾಧ್ಯವಿಲ್ಲ"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"ಕನೆಕ್ಟ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"ಸಂಪರ್ಕಗೊಂಡಿದೆ (ಫೋನ್ ಇಲ್ಲ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"ಸಂಪರ್ಕಗೊಂಡಿದೆ (ಮಾಧ್ಯಮವಿಲ್ಲ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"ಸಂಪರ್ಕಗೊಂಡಿದೆ (ಫೋನ್ ಅಥವಾ ಮಾಧ್ಯಮವಿಲ್ಲ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"ಎಡ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ಬಲ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ಬ್ಯಾಟರಿ ಮಟ್ಟ."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"ಎಡ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ಬ್ಯಾಟರಿ ಮಟ್ಟ"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"ಬಲ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ಬ್ಯಾಟರಿ ಮಟ್ಟ"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"ಕೇಸ್: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ಬ್ಯಾಟರಿ"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"ಬ್ಯಾಟರಿ ಮಟ್ಟ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ಕೇಸ್: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ಬ್ಯಾಟರಿ"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"ಬಲ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ಕೇಸ್: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ಬ್ಯಾಟರಿ"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"ಎಡ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ಬಲ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ಬ್ಯಾಟರಿ"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, C: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> ಬ್ಯಾಟರಿ"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"ಎಡ ಭಾಗದ ಬ್ಯಾಟರಿ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"ಬಲ ಭಾಗದ ಬ್ಯಾಟರಿ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"ಸಕ್ರಿಯ"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"ಸಕ್ರಿಯವಾಗಿದೆ (ಬಲಕಿವಿಯ ಸಾಧನ ಮಾತ್ರ)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"ಸಕ್ರಿಯವಾಗಿವೆ (ಎಡ ಮತ್ತು ಬಲಕಿವಿಯ ಸಾಧನಗಳು)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"ಆ್ಯಂಬಿಯೆಂಟ್ ಸ್ಥಿತಿಯನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"ಪ್ರಿಸೆಟ್ ಅನ್ನು ಅಪ್‌ಡೇಟ್ ಮಾಡಲು ಸಾಧ್ಯವಾಗುತ್ತಿಲ್ಲ"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"ಆಯ್ಕೆಮಾಡಲಾಗಿದೆ"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"ಸಕ್ರಿಯವಾಗಿದೆ (ಮೀಡಿಯಾ ಮಾತ್ರ). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ಬ್ಯಾಟರಿ ಮಟ್ಟ."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"ಸಕ್ರಿಯವಾಗಿದೆ (ಮೀಡಿಯಾ ಮಾತ್ರ). ಎಡ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, ಬಲ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ಬ್ಯಾಟರಿ ಮಟ್ಟ."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"ಅತಿಥಿ ಸಾಧನ. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ಬ್ಯಾಟರಿ ಮಟ್ಟ."</string>
@@ -209,7 +218,7 @@
     <string name="tts_settings" msgid="8130616705989351312">"ಪಠ್ಯದಿಂದ ಧ್ವನಿಯ ಸೆಟ್ಟಿಂಗ್‌ಗಳು"</string>
     <string name="tts_settings_title" msgid="7602210956640483039">"ಟೆಕ್ಸ್ಟ್-ಟು-ಸ್ಪೀಚ್ ಔಟ್‌ಪುಟ್‌"</string>
     <string name="tts_default_rate_title" msgid="3964187817364304022">"ಧ್ವನಿಯ ಪ್ರಮಾಣ"</string>
-    <string name="tts_default_rate_summary" msgid="3781937042151716987">"ಪಠ್ಯವನ್ನು ಹೇಳಿದ ವೇಗ"</string>
+    <string name="tts_default_rate_summary" msgid="3781937042151716987">"ಪಠ್ಯವನ್ನು ಮಾತಿನಲ್ಲಿ ಹೇಳುವ ವೇಗ"</string>
     <string name="tts_default_pitch_title" msgid="6988592215554485479">"ಪಿಚ್"</string>
     <string name="tts_default_pitch_summary" msgid="9132719475281551884">"ಸಂಯೋಜಿತ ಧ್ವನಿಯ ಟೋನ್ ಮೇಲೆ ಪರಿಣಾಮ ಬೀರುತ್ತದೆ"</string>
     <string name="tts_default_lang_title" msgid="4698933575028098940">"ಭಾಷೆ"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"ಈ ಮೋಡ್ ಅನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿದಾಗ, MAC ಯಾದೃಚ್ಛಿಕರಣವನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿದ ನೆಟ್‌ವರ್ಕ್‌ಗೆ ಕನೆಕ್ಟ್ ಮಾಡಿದಾಗ ಈ ಸಾಧನದ MAC ವಿಳಾಸವು ಪ್ರತಿ ಬಾರಿಯೂ ಬದಲಾಗಬಹುದು."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"ಮೀಟರ್ಡ್ ನೆಟ್‌ವರ್ಕ್"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"ಮೀಟರ್ ಮಾಡಲಾಗಿಲ್ಲ"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"ಲಾಗರ್ ಬಫರ್ ಗಾತ್ರಗಳು"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"ಲಾಗರ್ ಬಫರ್ ಗಾತ್ರ"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"ಪ್ರತಿ ಲಾಗ್ ಬಫರ್‌ಗೆ ಲಾಗರ್ ಗಾತ್ರಗಳನ್ನು ಆಯ್ಕೆಮಾಡಿ"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"ಶಾಶ್ವತವಾಗಿರುವ ಸಂಗ್ರಹಣೆ ಲಾಗರ್ ಅನ್ನು ತೆರವುಗೊಳಿಸುವುದೇ?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"ನಾವು ನಿರಂತರವಾಗಿ ಲಾಗರ್ ಮೂಲಕ ಮೇಲ್ವಿಚಾರಣೆ ಮಾಡದಿರುವಾಗ, ನಿಮ್ಮ ಸಾಧನದಲ್ಲಿ ಸಂಗ್ರಹವಾಗಿರುವಂತಹ ಲಾಗರ್ ಡೇಟಾವನ್ನು ಅಳಿಸುವುದು ನಮಗೆ ಅಗತ್ಯವಿರುತ್ತದೆ."</string>
@@ -361,7 +370,7 @@
     <string name="dev_settings_warning_title" msgid="8251234890169074553">"ಅಭಿವೃದ್ಧಿಯ ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ಅನುಮತಿಸುವುದೇ?"</string>
     <string name="dev_settings_warning_message" msgid="37741686486073668">"ಈ ಸೆಟ್ಟಿಂಗ್‌ಗಳು ಅಭಿವೃದ್ಧಿಯ ಬಳಕೆಗೆ ಮಾತ್ರ. ಅವುಗಳು ನಿಮ್ಮ ಸಾಧನ ಮತ್ತು ಅಪ್ಲಿಕೇಶನ್‌‌ಗಳಿಗೆ ಧಕ್ಕೆ ಮಾಡಬಹುದು ಅಥವಾ ಅವು ಸರಿಯಾಗಿ ಕಾರ್ಯನಿರ್ವಹಿಸದಿರುವಂತೆ ಮಾಡಬಹುದು."</string>
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"USB ಮೂಲಕ ಆ್ಯಪ್‌ ಪರಿಶೀಲಿಸಿ"</string>
-    <string name="verify_apps_over_usb_summary" msgid="1317933737581167839">"ಹಾನಿಮಾಡುವಂತಹ ವರ್ತನೆಗಾಗಿ ADB/ADT ಮೂಲಕ ಸ್ಥಾಪಿಸಲಾದ ಅಪ್ಲಿಕೇಶನ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಿ."</string>
+    <string name="verify_apps_over_usb_summary" msgid="1317933737581167839">"ಹಾನಿಮಾಡುವಂತಹ ವರ್ತನೆಗೆ ADB/ADT ಮೂಲಕ ಸ್ಥಾಪಿಸಲಾದ ಆ್ಯಪ್‌ಗಳನ್ನು ಪರಿಶೀಲಿಸಿ."</string>
     <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"ಹೆಸರುಗಳಿಲ್ಲದ (ಕೇವಲ MAC ವಿಳಾಸಗಳು ಮಾತ್ರ) ಬ್ಲೂಟೂತ್ ಸಾಧನಗಳನ್ನು ಪ್ರದರ್ಶಿಸಲಾಗುತ್ತದೆ"</string>
     <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"ರಿಮೋಟ್ ಸಾಧನಗಳಲ್ಲಿ ಕಂಡುಬರುವ ಸ್ವೀಕಾರಾರ್ಹವಲ್ಲದ ಜೋರಾದ ವಾಲ್ಯೂಮ್ ಅಥವಾ ನಿಯಂತ್ರಣದ ಕೊರತೆಯಂತಹ ವಾಲ್ಯೂಮ್ ಸಮಸ್ಯೆಗಳಂತಹ ಸಂದರ್ಭದಲ್ಲಿ ಬ್ಲೂಟೂತ್‍ನ ನಿಚ್ಚಳ ವಾಲ್ಯೂಮ್ ವೈಶಿಷ್ಟ್ಯವನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸುತ್ತದೆ."</string>
     <string name="bluetooth_enable_gabeldorsche_summary" msgid="2054730331770712629">"ಬ್ಲೂಟೂತ್ Gabeldorsche ವೈಶಿಷ್ಟ್ಯದ ಸ್ಟ್ಯಾಕ್‌ ಅನ್ನು ಸಕ್ರಿಯಗೊಳಿಸುತ್ತದೆ."</string>
@@ -466,7 +475,7 @@
     <item msgid="4548987861791236754">"ಕಣ್ಣಿಗೆ ಕಾಣಿಸುವ ರೀತಿಯಲ್ಲಿ ನೈಸರ್ಗಿಕ ಬಣ್ಣಗಳು"</item>
     <item msgid="1282170165150762976">"ಡಿಜಿಟಲ್ ವಿಷಯಕ್ಕಾಗಿ ಆಪ್ಟಿಮೈಜ್ ಮಾಡಲಾಗಿರುವ ಬಣ್ಣಗಳು"</item>
   </string-array>
-    <string name="inactive_apps_title" msgid="5372523625297212320">"ಸ್ಟ್ಯಾಂಡ್‌ಬೈ ಅಪ್ಲಿಕೇಶನ್‌ಗಳು"</string>
+    <string name="inactive_apps_title" msgid="5372523625297212320">"ಸ್ಟ್ಯಾಂಡ್‌ಬೈ ಆ್ಯಪ್‍‍ಗಳು"</string>
     <string name="inactive_app_inactive_summary" msgid="3161222402614236260">"ನಿಷ್ಕ್ರಿಯ. ಟಾಗಲ್ ಮಾಡಲು ಟ್ಯಾಪ್ ಮಾಡಿ."</string>
     <string name="inactive_app_active_summary" msgid="8047630990208722344">"ಸಕ್ರಿಯ. ಟಾಗಲ್ ಮಾಡಲು ಟ್ಯಾಪ್ ಮಾಡಿ."</string>
     <string name="standby_bucket_summary" msgid="5128193447550429600">"ಆ್ಯಪ್‌ ಸ್ಟ್ಯಾಂಡ್‌ಬೈ ಸ್ಥಿತಿ:<xliff:g id="BUCKET"> %s</xliff:g>"</string>
@@ -478,7 +487,7 @@
     <string name="transcode_disable_cache" msgid="3160069309377467045">"ಟ್ರಾನ್ಸ್‌ಕೋಡಿಂಗ್ ಕ್ಯಾಷ್ ಅನ್ನು ನಿಷ್ಕ್ರಿಯಗೊಳಿಸಿ"</string>
     <string name="runningservices_settings_title" msgid="6460099290493086515">"ರನ್‌ ಆಗುತ್ತಿರುವ ಸೇವೆಗಳು"</string>
     <string name="runningservices_settings_summary" msgid="1046080643262665743">"ಈಗ ರನ್‌ ಆಗುತ್ತಿರುವ ಸೇವೆಗಳನ್ನು ವೀಕ್ಷಿಸಿ ಮತ್ತು ನಿಯಂತ್ರಿಸಿ"</string>
-    <string name="select_webview_provider_title" msgid="3917815648099445503">"WebView ಹೊಂದಿಸಿ"</string>
+    <string name="select_webview_provider_title" msgid="3917815648099445503">"WebView ಅನುಷ್ಠಾನಗೊಳಿಸಿ"</string>
     <string name="select_webview_provider_dialog_title" msgid="2444261109877277714">"WebView ಅನುಷ್ಠಾನಗೊಳಿಸುವಿಕೆಯನ್ನು ಸೆಟ್ ಮಾಡಿ"</string>
     <string name="select_webview_provider_toast_text" msgid="8512254949169359848">"ಈ ಆಯ್ಕೆಯು ಇನ್ನು ಮುಂದೆ ಮಾನ್ಯವಾಗಿರುವುದಿಲ್ಲ. ಮತ್ತೊಮ್ಮೆ ಪ್ರಯತ್ನಿಸಿ."</string>
     <string name="webview_launch_devtools_title" msgid="8009687433555367112">"WebView DevTools"</string>
@@ -491,8 +500,8 @@
     <string name="daltonizer_mode_deuteranomaly" msgid="3507284319584683963">"ಡ್ಯೂಟರ್‌ನೋಮಲಿ (ಕೆಂಪು-ಹಸಿರು)"</string>
     <string name="daltonizer_mode_protanomaly" msgid="7805583306666608440">"ಪ್ರೊಟನೋಮಲಿ (ಕೆಂಪು-ಹಸಿರು)"</string>
     <string name="daltonizer_mode_tritanomaly" msgid="7135266249220732267">"ಟ್ರಿಟನೋಮಲಿ (ನೀಲಿ-ಹಳದಿ)"</string>
-    <string name="accessibility_display_daltonizer_preference_title" msgid="1810693571332381974">"ಬಣ್ಣ ತಿದ್ದುಪಡಿ"</string>
-    <string name="accessibility_display_daltonizer_preference_subtitle" msgid="1522101114585266455">"ನೀವು ಹೆಚ್ಚು ಸ್ಪಷ್ಟವಾದ ಬಣ್ಣಗಳನ್ನು ನೋಡಲು ಬಯಸಿದರೆ :&lt;br/&gt; &lt;ol&gt; &lt;li&gt;&amp;nbsp; ಬಣ್ಣದ ತಿದ್ದುಪಡಿಯು ಸಹಾಯಕವಾಗಿರುತ್ತದೆ; ಗಮನವನ್ನು ಕೇಂದ್ರೀಕರಿಸಲು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಬಣ್ಣಗಳನ್ನು ತೆಗೆದುಹಾಕಿ &lt;/li&gt; &lt;/ol&gt;"</string>
+    <string name="accessibility_display_daltonizer_preference_title" msgid="1810693571332381974">"ಕಲರ್ ಕರೆಕ್ಷನ್"</string>
+    <string name="accessibility_display_daltonizer_preference_subtitle" msgid="1522101114585266455">"ನೀವು ಹೆಚ್ಚು ಸ್ಪಷ್ಟವಾದ ಬಣ್ಣಗಳನ್ನು ನೋಡಲು ಬಯಸಿದರೆ :&lt;br/&gt; &lt;ol&gt; &lt;li&gt;&amp;nbsp; ಕಲರ್ ಕರೆಕ್ಷನ್ ಸಹಾಯಕವಾಗಿರುತ್ತದೆ; ಗಮನವನ್ನು ಕೇಂದ್ರೀಕರಿಸಲು ನಿಮಗೆ ಸಹಾಯ ಮಾಡಲು ಬಣ್ಣಗಳನ್ನು ತೆಗೆದುಹಾಕಿ &lt;/li&gt; &lt;/ol&gt;"</string>
     <string name="daltonizer_type_overridden" msgid="4509604753672535721">"<xliff:g id="TITLE">%1$s</xliff:g> ಮೂಲಕ ಅತಿಕ್ರಮಿಸುತ್ತದೆ"</string>
     <string name="power_remaining_settings_home_page" msgid="4885165789445462557">"<xliff:g id="PERCENTAGE">%1$s</xliff:g> - <xliff:g id="TIME_STRING">%2$s</xliff:g>"</string>
     <string name="power_charging_on_hold_settings_home_page" msgid="7690464049464805856">"<xliff:g id="LEVEL">%1$s</xliff:g> - ಬ್ಯಾಟರಿಯನ್ನು ರಕ್ಷಿಸಲು ಚಾರ್ಜಿಂಗ್ ಅನ್ನು ಹೋಲ್ಡ್‌ ಮಾಡಲಾಗಿದೆ"</string>
@@ -507,7 +516,7 @@
     <string name="power_discharge_by_only_enhanced" msgid="3268796172652988877">"ನಿಮ್ಮ ಬಳಕೆ ಆಧರಿಸಿ <xliff:g id="TIME">%1$s</xliff:g> ವರೆಗೆ ರನ್ ಆಗಲಿದೆ"</string>
     <string name="power_discharge_by" msgid="4113180890060388350">"<xliff:g id="TIME">%1$s</xliff:g> (<xliff:g id="LEVEL">%2$s</xliff:g>) ಸಮಯದವರೆಗೆ ರನ್ ಆಗಲಿದೆ"</string>
     <string name="power_discharge_by_only" msgid="92545648425937000">"<xliff:g id="TIME">%1$s</xliff:g> ಸಮಯದವರೆಗೆ ರನ್ ಆಗಲಿದೆ"</string>
-    <string name="power_discharge_by_only_short" msgid="5883041507426914446">"<xliff:g id="TIME">%1$s</xliff:g> ವರೆಗೆ ಇರುತ್ತದೆ"</string>
+    <string name="power_discharge_by_only_short" msgid="5883041507426914446">"<xliff:g id="TIME">%1$s</xliff:g> ವರೆಗೆ"</string>
     <string name="power_suggestion_battery_run_out" msgid="6332089307827787087">"<xliff:g id="TIME">%1$s</xliff:g> ಗಳಲ್ಲಿ ಬ್ಯಾಟರಿ ಮುಕ್ತಾಯವಾಗಬಹುದು"</string>
     <string name="power_remaining_less_than_duration_only" msgid="8956656616031395152">"<xliff:g id="THRESHOLD">%1$s</xliff:g> ಕ್ಕಿಂತ ಕಡಿಮೆ ಸಮಯ ಉಳಿದಿದೆ"</string>
     <string name="power_remaining_less_than_duration" msgid="318215464914990578">"<xliff:g id="THRESHOLD">%1$s</xliff:g> ಕ್ಕಿಂತ ಕಡಿಮೆ ಸಮಯ ಉಳಿದಿದೆ (<xliff:g id="LEVEL">%2$s</xliff:g>)"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> ಹಿಂದೆ"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> ಉಳಿದಿದೆ"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"ಅತಿ ಚಿಕ್ಕದು"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"ಚಿಕ್ಕದು"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"ಸಣ್ಣದು"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"ಡಿಫಾಲ್ಟ್"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"ದೊಡ್ಡದು"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"ಸ್ವಲ್ಪ ದೊಡ್ಡ"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"ದೊಡ್ಡ"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"ದೊಡ್ಡದು"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"ಅತ್ಯಂತ ದೊಡ್ಡದು"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"ತುಂಬಾ ದೊಡ್ಡದು"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"ಅತಿ ದೊಡ್ಡದು"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"ಕಸ್ಟಮ್ (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"ಮೆನು"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"ಫ್ಯಾಕ್ಟರಿ ರಿಸೆಟ್‌ಗೆ ಪಾಸ್‌ವರ್ಡ್ ನಮೂದಿಸಿ"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 ಸಾಧನವನ್ನು ಕನೆಕ್ಟ್ ಮಾಡಲಾಗಿದೆ}one{# ಸಾಧನಗಳನ್ನು ಕನೆಕ್ಟ್ ಮಾಡಲಾಗಿದೆ}other{# ಸಾಧನಗಳನ್ನು ಕನೆಕ್ಟ್ ಮಾಡಲಾಗಿದೆ}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"ಹೆಚ್ಚು ಸಮಯ."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"ಕಡಿಮೆ ಸಮಯ."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"ಹಿಗ್ಗಿಸುವಿಕೆ"</string>
     <string name="cancel" msgid="5665114069455378395">"ರದ್ದುಮಾಡಿ"</string>
     <string name="next" msgid="2699398661093607009">"ಮುಂದಿನದು"</string>
     <string name="back" msgid="5554327870352703710">"ಹಿಂದಕ್ಕೆ"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"ನೀವು <xliff:g id="SWITCHAPP">%1$s</xliff:g> ಅನ್ನು ಪ್ರಸಾರ ಮಾಡಿದರೆ ಅಥವಾ ಔಟ್‌ಪುಟ್ ಅನ್ನು ಬದಲಾಯಿಸಿದರೆ, ನಿಮ್ಮ ಪ್ರಸ್ತುತ ಪ್ರಸಾರವು ಸ್ಥಗಿತಗೊಳ್ಳುತ್ತದೆ"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> ಅನ್ನು ಪ್ರಸಾರ ಮಾಡಿ"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"ಔಟ್‌ಪುಟ್ ಅನ್ನು ಬದಲಾಯಿಸಿ"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"ಮುನ್ಸೂಚಕ ಬ್ಯಾಕ್ ಆ್ಯನಿಮೇಶನ್‌ಗಳು"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"ಮುನ್ಸೂಚಕ ಬ್ಯಾಕ್ ಗೆಸ್ಚರ್‌ಗಾಗಿ ಸಿಸ್ಟಂ ಆ್ಯನಿಮೇಶನ್‌ಗಳನ್ನು ಸಕ್ರಿಯಗೊಳಿಸಿ."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"ಮುನ್ನೋಟದ ಗೆಸ್ಚರ್ ಆ್ಯನಿಮೇಶನ್‌ಗಾಗಿ ಸಿಸ್ಟಂ ಆ್ಯನಿಮೇಶನ್‌ಗಳನ್ನು ಈ ಸೆಟ್ಟಿಂಗ್ ಸಕ್ರಿಯಗೊಳಿಸುತ್ತವೆ. ಇದನ್ನು ಮಾಡಲು, ಪ್ರತಿ ಆ್ಯಪ್‌ನ ಮ್ಯಾನಿಫೆಸ್ಟ್ ಫೈಲ್‌ನಲ್ಲಿರುವ enableOnBackInvokedCallback ಪ್ಯಾರಾಮೀಟರ್ ಅನ್ನು ಸರಿ ಎಂದು ಹೊಂದಿಸಬೇಕು."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"ನಿರ್ದಿಷ್ಟಪಡಿಸಲಾಗಿಲ್ಲ"</string>
     <string name="neuter" msgid="2075249330106127310">"ನಪುಂಸಕ"</string>

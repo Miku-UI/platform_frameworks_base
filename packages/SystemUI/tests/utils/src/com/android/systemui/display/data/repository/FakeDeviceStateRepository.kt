@@ -23,8 +23,10 @@ import kotlinx.coroutines.flow.StateFlow
 class FakeDeviceStateRepository : DeviceStateRepository {
     private val flow = MutableStateFlow(DeviceStateRepository.DeviceState.UNKNOWN)
 
-    /** Emits [value] as [displays] flow value. */
-    suspend fun emit(value: DeviceStateRepository.DeviceState) = flow.emit(value)
+    /** Emits [value] as [state]. */
+    fun emit(value: DeviceStateRepository.DeviceState) {
+        flow.value = value
+    }
 
     override val state: StateFlow<DeviceStateRepository.DeviceState>
         get() = flow

@@ -18,8 +18,9 @@
 package com.android.systemui.biometrics.data.repository
 
 import android.util.Size
-import com.android.systemui.biometrics.shared.model.DisplayRotation
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.data.repository.DisplayStateRepository
+import com.android.systemui.display.shared.model.DisplayRotation
 import dagger.Binds
 import dagger.Module
 import javax.inject.Inject
@@ -29,17 +30,21 @@ import kotlinx.coroutines.flow.asStateFlow
 
 @SysUISingleton
 class FakeDisplayStateRepository @Inject constructor() : DisplayStateRepository {
-    private val _isInRearDisplayMode = MutableStateFlow<Boolean>(false)
+
+    private val _isInRearDisplayMode = MutableStateFlow(false)
     override val isInRearDisplayMode: StateFlow<Boolean> = _isInRearDisplayMode.asStateFlow()
 
-    private val _currentRotation = MutableStateFlow<DisplayRotation>(DisplayRotation.ROTATION_0)
+    private val _currentRotation = MutableStateFlow(DisplayRotation.ROTATION_0)
     override val currentRotation: StateFlow<DisplayRotation> = _currentRotation.asStateFlow()
 
-    private val _currentDisplaySize = MutableStateFlow<Size>(Size(0, 0))
+    private val _currentDisplaySize = MutableStateFlow(Size(0, 0))
     override val currentDisplaySize: StateFlow<Size> = _currentDisplaySize.asStateFlow()
 
-    private val _isLargeScreen = MutableStateFlow<Boolean>(false)
+    private val _isLargeScreen = MutableStateFlow(false)
     override val isLargeScreen: StateFlow<Boolean> = _isLargeScreen.asStateFlow()
+
+    private val _isWideScreen = MutableStateFlow(false)
+    override val isWideScreen: StateFlow<Boolean> = _isWideScreen.asStateFlow()
 
     override val isReverseDefaultRotation = false
 
@@ -57,6 +62,14 @@ class FakeDisplayStateRepository @Inject constructor() : DisplayStateRepository 
 
     fun setIsLargeScreen(isLargeScreen: Boolean) {
         _isLargeScreen.value = isLargeScreen
+        if (isLargeScreen) {
+            // Large necessarily implies wide, but not vice-versa.
+            setIsWideScreen(true)
+        }
+    }
+
+    fun setIsWideScreen(isWideScreen: Boolean) {
+        _isWideScreen.value = isWideScreen
     }
 }
 

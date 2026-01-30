@@ -27,5 +27,6 @@ val Kosmos.accessibilityActionsViewModelKosmos by Fixture {
         communalInteractor = communalInteractor,
         keyguardTransitionInteractor = keyguardTransitionInteractor,
         keyguardInteractor = keyguardInteractor,
+        keyguardTouchHandlingFactory = keyguardTouchHandlingViewModelFactory,
     )
 }

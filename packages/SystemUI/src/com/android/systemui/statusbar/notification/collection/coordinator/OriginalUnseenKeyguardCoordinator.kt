@@ -102,7 +102,7 @@ constructor(
                         !it.isTransitioning(to = Scenes.Gone) && !it.isIdle(Scenes.Gone)
                     }
                 } else {
-                    keyguardTransitionInteractor.transitions.map { step ->
+                    keyguardTransitionInteractor.transitionState.map { step ->
                         step.to != KeyguardState.GONE
                     }
                 }

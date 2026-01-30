@@ -33,7 +33,7 @@ import com.android.internal.os.IResultReceiver;
 /**
  * Mediator between apps being auto-filled and auto-fill service implementations.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAutoFillManager {
     // Returns flags: FLAG_ADD_CLIENT_ENABLED | FLAG_ADD_CLIENT_DEBUG | FLAG_ADD_CLIENT_VERBOSE
@@ -72,4 +72,7 @@ oneway interface IAutoFillManager {
     void setAutofillIdsAttemptedForRefill(int sessionId, in List<AutofillId> ids, int userId);
     void notifyImeAnimationStart(int sessionId, long startTimeMs, int userId);
     void notifyImeAnimationEnd(int sessionId, long endTimeMs, int userId);
+    // For SystemUI to notify AutofillManager that a remote fill has occurred.
+    void autofillRemoteApp(IBinder activityToken, int taskId, in AutofillId id,
+        in AutofillValue value, int userId);
 }

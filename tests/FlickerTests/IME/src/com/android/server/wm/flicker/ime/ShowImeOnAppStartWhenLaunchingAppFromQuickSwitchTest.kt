@@ -17,12 +17,13 @@
 package com.android.server.wm.flicker.ime
 
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.BaseTest
 import com.android.server.wm.flicker.helpers.ImeShownOnAppStartHelper
@@ -38,11 +39,12 @@ import org.junit.runners.Parameterized
  * Test IME windows switching with 2-Buttons or gestural navigation.
  * To run this test: `atest FlickerTestsIme:ShowImeOnAppStartWhenLaunchingAppFromQuickSwitchTest`
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @Presubmit
-class ShowImeOnAppStartWhenLaunchingAppFromQuickSwitchTest(flicker: LegacyFlickerTest) :
+class ShowImeOnAppStartWhenLaunchingAppFromQuickSwitchTest(flicker: FlickerTest) :
     BaseTest(flicker) {
     private val testApp = SimpleAppHelper(instrumentation)
     private val imeTestApp =
@@ -120,7 +122,7 @@ class ShowImeOnAppStartWhenLaunchingAppFromQuickSwitchTest(flicker: LegacyFlicke
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 supportedNavigationModes = listOf(NavBar.MODE_GESTURAL),
                 supportedRotations = listOf(Rotation.ROTATION_0)
             )

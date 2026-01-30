@@ -15,30 +15,50 @@
 
 package com.android.systemui.statusbar.notification.shared
 
+import com.android.systemui.statusbar.notification.icon.domain.interactor.ActiveNotificationIconModel
 import com.google.common.truth.Correspondence
 
 val byKey: Correspondence<ActiveNotificationModel, String> =
     Correspondence.transforming({ it.key }, "has a key of")
-val byIsAmbient: Correspondence<ActiveNotificationModel, Boolean> =
+val byIconIsAmbient: Correspondence<ActiveNotificationIconModel, Boolean> =
     Correspondence.transforming({ it.isAmbient }, "has an isAmbient value of")
-val byIsSuppressedFromStatusBar: Correspondence<ActiveNotificationModel, Boolean> =
+val byAssociatedNotifModel: Correspondence<ActiveNotificationIconModel, ActivePipelineEntryModel> =
     Correspondence.transforming(
-        { it.isSuppressedFromStatusBar },
-        "has an isSuppressedFromStatusBar value of",
+        /* actualTransform = */ { it },
+        /* expectedTransform = */ { expected ->
+            checkNotNull(expected)
+            when (expected) {
+                is ActiveBundleModel ->
+                    ActiveNotificationIconModel(
+                        expected.key,
+                        expected.key,
+                        expected.icon,
+                        expected.icon,
+                        expected.icon,
+                        false,
+                    )
+                is ActiveNotificationGroupModel ->
+                    ActiveNotificationIconModel(
+                        expected.key,
+                        expected.summary.groupKey!!,
+                        expected.summary.shelfIcon,
+                        expected.summary.statusBarIcon,
+                        expected.summary.aodIcon,
+                        expected.summary.isAmbient,
+                    )
+                is ActiveNotificationModel ->
+                    ActiveNotificationIconModel(
+                        expected.key,
+                        expected.groupKey!!,
+                        expected.shelfIcon,
+                        expected.statusBarIcon,
+                        expected.aodIcon,
+                        expected.isAmbient,
+                    )
+            }
+        },
+        /* description = */ "is icon model of",
     )
-val byIsSilent: Correspondence<ActiveNotificationModel, Boolean> =
-    Correspondence.transforming({ it.isSilent }, "has an isSilent value of")
-val byIsRowDismissed: Correspondence<ActiveNotificationModel, Boolean> =
-    Correspondence.transforming({ it.isRowDismissed }, "has an isRowDismissed value of")
-val byIsLastMessageFromReply: Correspondence<ActiveNotificationModel, Boolean> =
-    Correspondence.transforming(
-        { it.isLastMessageFromReply },
-        "has an isLastMessageFromReply value of",
-    )
-val byIsPulsing: Correspondence<ActiveNotificationModel, Boolean> =
-    Correspondence.transforming({ it.isPulsing }, "has an isPulsing value of")
-val byIsPromoted: Correspondence<ActiveNotificationModel, Boolean> =
-    Correspondence.transforming(
-        { it.promotedContent != null },
-        "has (or doesn't have) a promoted content model",
-    )
+
+val byIconNotifKey: Correspondence<ActiveNotificationIconModel, String> =
+    Correspondence.transforming({ it.notifKey }, "has a notifKey of")

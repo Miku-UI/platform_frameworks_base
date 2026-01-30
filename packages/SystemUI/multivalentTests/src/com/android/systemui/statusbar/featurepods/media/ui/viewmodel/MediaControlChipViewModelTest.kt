@@ -21,17 +21,17 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.flags.parameterizeSceneContainerFlag
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.media.controls.data.repository.mediaFilterRepository
 import com.android.systemui.media.controls.domain.pipeline.MediaDataManager
 import com.android.systemui.media.controls.shared.model.MediaData
-import com.android.systemui.media.controls.shared.model.MediaDataLoadingModel
-import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.media.remedia.data.repository.mediaRepository
+import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
 import com.android.systemui.statusbar.featurepods.media.domain.interactor.mediaControlChipInteractor
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipModel
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipModel
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
@@ -105,12 +105,9 @@ class MediaControlChipViewModelTest(flags: FlagsParameterization) : SysuiTestCas
         }
 
     private fun updateMedia(mediaData: MediaData) {
-        if (SceneContainerFlag.isEnabled) {
-            val instanceId = mediaData.instanceId
-            kosmos.mediaFilterRepository.addSelectedUserMediaEntry(mediaData)
-            kosmos.mediaFilterRepository.addMediaDataLoadingState(
-                MediaDataLoadingModel.Loaded(instanceId)
-            )
+        if (MediaControlsInComposeFlag.isEnabled) {
+            kosmos.mediaRepository.addCurrentUserMediaEntry(mediaData)
+            kosmos.runCurrent()
         } else {
             mediaControlChipInteractor.updateMediaControlChipModelLegacy(mediaData)
         }

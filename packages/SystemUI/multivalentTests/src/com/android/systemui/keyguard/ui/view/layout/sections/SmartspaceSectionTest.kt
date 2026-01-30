@@ -27,18 +27,16 @@ import androidx.constraintlayout.widget.ConstraintSet.VISIBLE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.customization.R as customR
 import com.android.systemui.keyguard.KeyguardUnlockAnimationController
 import com.android.systemui.keyguard.domain.interactor.KeyguardBlueprintInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardSmartspaceInteractor
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardSmartspaceViewModel
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.res.R
 import com.android.systemui.shared.R as sharedR
 import com.android.systemui.statusbar.lockscreen.LockscreenSmartspaceController
-import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import dagger.Lazy
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +45,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.any
+import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
@@ -69,8 +69,11 @@ class SmartspaceSectionTest : SysuiTestCase() {
 
     private val clockShouldBeCentered = MutableStateFlow(false)
     private val hasCustomWeatherDataDisplay = MutableStateFlow(false)
+    private val shouldDateWeatherBeBelowSmallClock = MutableStateFlow(true)
+    private val shouldDateWeatherBeBelowLargeClock = MutableStateFlow(true)
     private val isWeatherVisibleFlow = MutableStateFlow(false)
-    private val isShadeLayoutWide = MutableStateFlow(false)
+    private val isFullWidthShade = MutableStateFlow(true)
+    private val isLargeClockVisible = MutableStateFlow(true)
 
     @Before
     fun setup() {
@@ -91,13 +94,19 @@ class SmartspaceSectionTest : SysuiTestCase() {
             .thenReturn(smartspaceView)
         whenever(lockscreenSmartspaceController.buildAndConnectWeatherView(any(), any()))
             .thenReturn(weatherView)
-        whenever(lockscreenSmartspaceController.buildAndConnectDateView(any(), any())).thenReturn(dateView)
+        whenever(lockscreenSmartspaceController.buildAndConnectDateView(any(), any()))
+            .thenReturn(dateView)
         whenever(keyguardClockViewModel.hasCustomWeatherDataDisplay)
             .thenReturn(hasCustomWeatherDataDisplay)
+        whenever(keyguardClockViewModel.isLargeClockVisible).thenReturn(isLargeClockVisible)
+        whenever(keyguardClockViewModel.shouldDateWeatherBeBelowSmallClock)
+            .thenReturn(shouldDateWeatherBeBelowSmallClock)
+        whenever(keyguardClockViewModel.shouldDateWeatherBeBelowLargeClock)
+            .thenReturn(shouldDateWeatherBeBelowLargeClock)
         whenever(keyguardClockViewModel.clockShouldBeCentered).thenReturn(clockShouldBeCentered)
         whenever(keyguardSmartspaceViewModel.isSmartspaceEnabled).thenReturn(true)
         whenever(keyguardSmartspaceViewModel.isWeatherVisible).thenReturn(isWeatherVisibleFlow)
-        whenever(keyguardSmartspaceViewModel.isShadeLayoutWide).thenReturn(isShadeLayoutWide)
+        whenever(keyguardSmartspaceViewModel.isFullWidthShade).thenReturn(isFullWidthShade)
         constraintSet = ConstraintSet()
     }
 
@@ -123,6 +132,7 @@ class SmartspaceSectionTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun testAddViews_smartspaceEnabled_notDateWeatherDecoupled() {
         whenever(keyguardSmartspaceViewModel.isDateWeatherDecoupled).thenReturn(false)
         underTest.addViews(constraintLayout)
@@ -144,7 +154,7 @@ class SmartspaceSectionTest : SysuiTestCase() {
     @Test
     @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun testConstraintsWhenShadeLayoutIsWide() {
-        isShadeLayoutWide.value = true
+        isFullWidthShade.value = false
 
         underTest.addViews(constraintLayout)
         underTest.applyConstraints(constraintSet)
@@ -165,7 +175,8 @@ class SmartspaceSectionTest : SysuiTestCase() {
         assertThat(smartspaceConstraints.layout.topToBottom).isEqualTo(dateView.id)
 
         val dateConstraints = constraintSet.getConstraint(dateView.id)
-        assertThat(dateConstraints.layout.topToBottom).isEqualTo(customR.id.lockscreen_clock_view)
+        assertThat(dateConstraints.layout.topToBottom)
+            .isEqualTo(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_SMALL)
     }
 
     @Test

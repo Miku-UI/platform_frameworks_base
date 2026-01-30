@@ -23,8 +23,11 @@ import static org.junit.Assert.fail;
 import android.os.SystemClock;
 import android.platform.test.annotations.Presubmit;
 
+import androidx.test.filters.LargeTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.CountDownLatch;
@@ -39,11 +42,11 @@ import org.junit.runner.RunWith;
 @RunWith(AndroidJUnit4.class)
 public class RateLimitingCacheTest {
 
-    private int mCounter = 0;
+    private volatile int mCounter = 0;
 
     @Before
     public void before() {
-        mCounter = -1;
+        mCounter = 0;
     }
 
     private final RateLimitingCache.ValueFetcher<Integer> mFetcher = () -> {
@@ -59,12 +62,12 @@ public class RateLimitingCacheTest {
         TestRateLimitingCache<Integer> s = new TestRateLimitingCache<>(0);
 
         int first = s.get(mFetcher);
-        assertEquals(first, 0);
+        assertEquals(1, first);
         int second = s.get(mFetcher);
-        assertEquals(second, 1);
+        assertEquals(2, second);
         s.advanceTime(20);
         int third = s.get(mFetcher);
-        assertEquals(third, 2);
+        assertEquals(3, third);
     }
 
     /**
@@ -76,17 +79,17 @@ public class RateLimitingCacheTest {
         TestRateLimitingCache<Integer> s = new TestRateLimitingCache<>(100);
 
         int first = s.get(mFetcher);
-        assertEquals(first, 0);
+        assertEquals(1, first);
         int second = s.get(mFetcher);
         // Too early to change
-        assertEquals(second, 0);
+        assertEquals(1, second);
         s.advanceTime(150);
         int third = s.get(mFetcher);
         // Changed by now
-        assertEquals(third, 1);
+        assertEquals(2, third);
         int fourth = s.get(mFetcher);
         // Too early to change again
-        assertEquals(fourth, 1);
+        assertEquals(2, fourth);
     }
 
     /**
@@ -98,11 +101,11 @@ public class RateLimitingCacheTest {
         TestRateLimitingCache<Integer> s = new TestRateLimitingCache<>(-1);
 
         int first = s.get(mFetcher);
-        assertEquals(first, 0);
+        assertEquals(1, first);
         s.advanceTime(200);
         // Should return the original value every time
         int second = s.get(mFetcher);
-        assertEquals(second, 0);
+        assertEquals(1, second);
     }
 
     /**
@@ -132,32 +135,44 @@ public class RateLimitingCacheTest {
      */
     @Test
     public void testMultipleThreads() throws InterruptedException {
-        final long periodMillis = 1000;
+        // Definitely won't have more than one period elapsed during the test.
+        final long periodMillis = 1_000 * 60 * 10;  // 10 minutes
         final int maxCountPerPeriod = 10;
         final RateLimitingCache<Integer> s =
                 new RateLimitingCache<>(periodMillis, maxCountPerPeriod);
 
-        Thread t1 = new Thread(() -> {
-            for (int i = 0; i < 100; i++) {
-                s.get(mFetcher);
+        final int maxIncrementsPerWorker = 1_000;
+        Runnable work = new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < maxIncrementsPerWorker; i++) {
+                    s.get(mFetcher);
+                }
             }
-        });
-        Thread t2 = new Thread(() -> {
-            for (int i = 0; i < 100; i++) {
-                s.get(mFetcher);
-            }
-        });
+        };
 
-        final long startTimeMillis = SystemClock.elapsedRealtime();
-        t1.start();
-        t2.start();
-        t1.join();
-        t2.join();
-        final long endTimeMillis = SystemClock.elapsedRealtime();
+        final int numWorkers = 5;
+        List<Thread> workers = new ArrayList<>(numWorkers);
+        for (int i = 0; i < numWorkers; i++) {
+            workers.add(new Thread(work));
+        }
+        for (Thread worker : workers) {
+            worker.start();
+        }
+        for (Thread worker : workers) {
+            worker.join();
+        }
 
-        final long periodsElapsed = 1 + ((endTimeMillis - startTimeMillis) / periodMillis);
-        final long expected = Math.min(100 + 100, periodsElapsed * maxCountPerPeriod) - 1;
-        assertEquals(mCounter, expected);
+        final long expectedAtMost =
+                Math.min(
+                        // No more than the max increments that each worker can do
+                        // times the number of workers
+                        maxIncrementsPerWorker * numWorkers,
+                        // Workers may race and get at most one more increment each
+                        maxCountPerPeriod + numWorkers);
+        assertTrue(
+                "mCounter should be <=" + expectedAtMost + " but was " + mCounter,
+                mCounter <= expectedAtMost);
     }
 
     /**
@@ -209,7 +224,7 @@ public class RateLimitingCacheTest {
         t1.join();
         t2.join();
 
-        assertEquals(counter.get(), 2);
+        assertEquals(2, counter.get());
     }
 
     /**
@@ -218,6 +233,7 @@ public class RateLimitingCacheTest {
      * of order.
      */
     @Test
+    @LargeTest
     public void testMultipleThreads_cachedValueNeverGoesBackInTime() throws InterruptedException {
         final long periodMillis = 10;
         final int maxCountPerPeriod = 3;

@@ -343,6 +343,14 @@ BroadcastBehavior: android.telephony.euicc.EuiccManager#ACTION_OTA_STATUS_CHANGE
     Field 'ACTION_OTA_STATUS_CHANGED' is missing @BroadcastBehavior
 
 
+CompileTimeConstant: android.hardware.camera2.CameraManager#ROTATION_OVERRIDE_NONE:
+    All constants must be defined at compile time: android.hardware.camera2.CameraManager#ROTATION_OVERRIDE_NONE
+CompileTimeConstant: android.hardware.camera2.CameraManager#ROTATION_OVERRIDE_OVERRIDE_TO_PORTRAIT:
+    All constants must be defined at compile time: android.hardware.camera2.CameraManager#ROTATION_OVERRIDE_OVERRIDE_TO_PORTRAIT
+CompileTimeConstant: android.hardware.camera2.CameraManager#ROTATION_OVERRIDE_ROTATION_ONLY:
+    All constants must be defined at compile time: android.hardware.camera2.CameraManager#ROTATION_OVERRIDE_ROTATION_ONLY
+
+
 DeprecationMismatch: android.accounts.AccountManager#newChooseAccountIntent(android.accounts.Account, java.util.ArrayList<android.accounts.Account>, String[], boolean, String, String, String[], android.os.Bundle):
     Method android.accounts.AccountManager.newChooseAccountIntent(android.accounts.Account, java.util.ArrayList<android.accounts.Account>, String[], boolean, String, String, String[], android.os.Bundle): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match
 DeprecationMismatch: android.app.Activity#enterPictureInPictureMode():
@@ -533,6 +541,8 @@ KotlinKeyword: android.app.Notification#when:
 
 MissingNullability: android.app.AppDetailsActivity#onCreate(android.os.Bundle) parameter #0:
     Missing nullability on parameter `savedInstanceState` in method `onCreate`
+MissingNullability: android.hardware.camera2.CameraManager#getRotationOverride(android.content.Context, android.content.pm.PackageManager, String):
+    Missing nullability on method `getRotationOverride` return
 MissingNullability: android.view.contentcapture.ViewNode.ViewStructureImpl#setHintIdEntry(String) parameter #0:
     Missing nullability on parameter `entryName` in method `setHintIdEntry`
 MissingNullability: android.widget.ImageView#isDefaultFocusHighlightNeeded(android.graphics.drawable.Drawable, android.graphics.drawable.Drawable) parameter #0:
@@ -545,16 +555,62 @@ OptionalBuilderConstructorArgument: android.service.notification.ZenPolicy.Build
     Builder constructor arguments must be mandatory (i.e. not @Nullable): parameter policy in android.service.notification.ZenPolicy.Builder(android.service.notification.ZenPolicy policy)
 
 
+OverlappingConstants: android.app.appfunctions.AppFunctionManager#ACCESS_FLAG_MASK_OTHER:
+    Found overlapping flag constant values: `ACCESS_FLAG_MASK_OTHER` with value 6 (0x6) and overlapping flag value 31 (0x1f) from `ACCESS_FLAG_MASK_ALL`
+
+
 ProtectedMember: android.app.AppDetailsActivity#onCreate(android.os.Bundle):
     Protected methods not allowed; must be public: method android.app.AppDetailsActivity.onCreate(android.os.Bundle)}
 ProtectedMember: android.view.ViewGroup#resetResolvedDrawables():
     Protected methods not allowed; must be public: method android.view.ViewGroup.resetResolvedDrawables()}
 
 
+RequiresPermission: android.accounts.AccountManager#addAccount(String, String, String[], android.os.Bundle, android.app.Activity, android.accounts.AccountManagerCallback<android.os.Bundle>, android.os.Handler):
+    Method 'addAccount' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#addAccountExplicitly(android.accounts.Account, String, android.os.Bundle):
+    Method 'addAccountExplicitly' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#blockingGetAuthToken(android.accounts.Account, String, boolean):
+    Method 'blockingGetAuthToken' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#clearPassword(android.accounts.Account):
+    Method 'clearPassword' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#confirmCredentials(android.accounts.Account, android.os.Bundle, android.app.Activity, android.accounts.AccountManagerCallback<android.os.Bundle>, android.os.Handler):
+    Method 'confirmCredentials' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#editProperties(String, android.app.Activity, android.accounts.AccountManagerCallback<android.os.Bundle>, android.os.Handler):
+    Method 'editProperties' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#getAccountsByType(String):
+    Method 'getAccountsByType' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
 RequiresPermission: android.accounts.AccountManager#getAccountsByTypeAndFeatures(String, String[], android.accounts.AccountManagerCallback<android.accounts.Account[]>, android.os.Handler):
     Method 'getAccountsByTypeAndFeatures' documentation mentions permissions without declaring @RequiresPermission
+RequiresPermission: android.accounts.AccountManager#getAuthToken(android.accounts.Account, String, android.os.Bundle, android.app.Activity, android.accounts.AccountManagerCallback<android.os.Bundle>, android.os.Handler):
+    Method 'getAuthToken' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#getAuthToken(android.accounts.Account, String, android.os.Bundle, boolean, android.accounts.AccountManagerCallback<android.os.Bundle>, android.os.Handler):
+    Method 'getAuthToken' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#getAuthTokenByFeatures(String, String, String[], android.app.Activity, android.os.Bundle, android.os.Bundle, android.accounts.AccountManagerCallback<android.os.Bundle>, android.os.Handler):
+    Method 'getAuthTokenByFeatures' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#getPassword(android.accounts.Account):
+    Method 'getPassword' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#getUserData(android.accounts.Account, String):
+    Method 'getUserData' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
 RequiresPermission: android.accounts.AccountManager#hasFeatures(android.accounts.Account, String[], android.accounts.AccountManagerCallback<java.lang.Boolean>, android.os.Handler):
     Method 'hasFeatures' documentation mentions permissions without declaring @RequiresPermission
+RequiresPermission: android.accounts.AccountManager#invalidateAuthToken(String, String):
+    Method 'invalidateAuthToken' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#peekAuthToken(android.accounts.Account, String):
+    Method 'peekAuthToken' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#removeAccount(android.accounts.Account, android.accounts.AccountManagerCallback<java.lang.Boolean>, android.os.Handler):
+    Method 'removeAccount' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#removeAccountExplicitly(android.accounts.Account):
+    Method 'removeAccountExplicitly' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#renameAccount(android.accounts.Account, String, android.accounts.AccountManagerCallback<android.accounts.Account>, android.os.Handler):
+    Method 'renameAccount' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#setAuthToken(android.accounts.Account, String, String):
+    Method 'setAuthToken' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#setPassword(android.accounts.Account, String):
+    Method 'setPassword' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#setUserData(android.accounts.Account, String, String):
+    Method 'setUserData' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
+RequiresPermission: android.accounts.AccountManager#updateCredentials(android.accounts.Account, String, android.os.Bundle, android.app.Activity, android.accounts.AccountManagerCallback<android.os.Bundle>, android.os.Handler):
+    Method 'updateCredentials' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
 RequiresPermission: android.app.ActivityManager#addOnUidImportanceListener(android.app.ActivityManager.OnUidImportanceListener, int):
     Method 'addOnUidImportanceListener' documentation mentions permissions already declared by @RequiresPermission
 RequiresPermission: android.app.ActivityManager#getHistoricalProcessExitReasons(String, int, int):
@@ -777,6 +833,8 @@ RequiresPermission: android.app.backup.RestoreSession#restorePackages(long, andr
     Method 'restorePackages' documentation mentions permissions without declaring @RequiresPermission
 RequiresPermission: android.app.backup.RestoreSession#restorePackages(long, android.app.backup.RestoreObserver, java.util.Set<java.lang.String>, android.app.backup.BackupManagerMonitor):
     Method 'restorePackages' documentation mentions permissions without declaring @RequiresPermission
+RequiresPermission: android.app.contextualsearch.ContextualSearchManager#startContextualSearch(int):
+    Method 'startContextualSearch' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
 RequiresPermission: android.app.job.JobInfo.Builder#setRequiredNetwork(android.net.NetworkRequest):
     Method 'setRequiredNetwork' documentation mentions permissions without declaring @RequiresPermission
 RequiresPermission: android.app.job.JobInfo.Builder#setRequiredNetworkType(int):
@@ -1189,6 +1247,8 @@ RequiresPermission: android.os.PowerManager#forceSuspend():
     Method 'forceSuspend' documentation mentions permissions already declared by @RequiresPermission
 RequiresPermission: android.os.PowerManager#getPowerSaveModeTrigger():
     Method 'getPowerSaveModeTrigger' documentation mentions permissions without declaring @RequiresPermission
+RequiresPermission: android.os.PowerManager#goToSleep(long, int, int):
+    Method 'goToSleep' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
 RequiresPermission: android.os.PowerManager#newWakeLock(int, String):
     Method 'newWakeLock' documentation mentions permissions without declaring @RequiresPermission
 RequiresPermission: android.os.PowerManager#reboot(String):
@@ -1511,6 +1571,8 @@ RequiresPermission: android.telephony.TelephonyManager#getSystemSelectionChannel
     Method 'getSystemSelectionChannels' documentation mentions permissions already declared by @RequiresPermission
 RequiresPermission: android.telephony.TelephonyManager#getTelephonyHistograms():
     Method 'getTelephonyHistograms' documentation mentions permissions already declared by @RequiresPermission
+RequiresPermission: android.telephony.TelephonyManager#getUiccCardsInfo():
+    Method 'getUiccCardsInfo' documentation duplicates auto-generated documentation by @RequiresPermission. If the permissions are only required under certain circumstances use conditional=true to suppress the auto-documentation
 RequiresPermission: android.telephony.TelephonyManager#getVisualVoicemailPackageName():
     Method 'getVisualVoicemailPackageName' documentation mentions permissions already declared by @RequiresPermission
 RequiresPermission: android.telephony.TelephonyManager#getVoiceActivationState():
@@ -2027,8 +2089,6 @@ UnflaggedApi: android.companion.AssociationInfo.Builder#setTimeApproved(long):
     New API must be flagged with @FlaggedApi: method android.companion.AssociationInfo.Builder.setTimeApproved(long)
 UnflaggedApi: android.companion.CompanionDeviceManager#MESSAGE_REQUEST_PING:
     New API must be flagged with @FlaggedApi: field android.companion.CompanionDeviceManager.MESSAGE_REQUEST_PING
-UnflaggedApi: android.companion.CompanionDeviceManager#enableSecureTransport(boolean):
-    New API must be flagged with @FlaggedApi: method android.companion.CompanionDeviceManager.enableSecureTransport(boolean)
 UnflaggedApi: android.content.AttributionSource#AttributionSource(int, int, String, String, android.os.IBinder, String[], android.content.AttributionSource):
     New API must be flagged with @FlaggedApi: constructor android.content.AttributionSource(int,int,String,String,android.os.IBinder,String[],android.content.AttributionSource)
 UnflaggedApi: android.content.AttributionSource#AttributionSource(int, int, String, String, android.os.IBinder, String[], int, android.content.AttributionSource):
@@ -2043,8 +2103,74 @@ UnflaggedApi: android.content.pm.UserInfo#isCommunalProfile():
     New API must be flagged with @FlaggedApi: method android.content.pm.UserInfo.isCommunalProfile()
 UnflaggedApi: android.content.pm.UserInfo#isPrivateProfile():
     New API must be flagged with @FlaggedApi: method android.content.pm.UserInfo.isPrivateProfile()
+UnflaggedApi: android.content.pm.UserInfo#supportsSwitchToByUser():
+    Changes from deprecated to not deprecated must be flagged with @FlaggedApi: method android.content.pm.UserInfo.supportsSwitchToByUser()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo:
+    New API must be flagged with @FlaggedApi: class android.content.res.CameraCompatibilityInfo
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#CREATOR:
+    New API must be flagged with @FlaggedApi: field android.content.res.CameraCompatibilityInfo.CREATOR
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#applyToConfigurationIfNeeded(android.content.res.Configuration):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.applyToConfigurationIfNeeded(android.content.res.Configuration)
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#describeContents():
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.describeContents()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#getDisplayRotationSandbox():
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.getDisplayRotationSandbox()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#getRotateAndCropRotation():
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.getRotateAndCropRotation()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#isCameraCompatModeActive(android.content.res.CameraCompatibilityInfo):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.isCameraCompatModeActive(android.content.res.CameraCompatibilityInfo)
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#shouldAllowTransformInverseDisplay():
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.shouldAllowTransformInverseDisplay()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#shouldLetterboxForCameraCompat():
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.shouldLetterboxForCameraCompat()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#shouldOverrideSensorOrientation():
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.shouldOverrideSensorOrientation()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo#writeToParcel(android.os.Parcel, int):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.writeToParcel(android.os.Parcel,int)
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder:
+    New API must be flagged with @FlaggedApi: class android.content.res.CameraCompatibilityInfo.Builder
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder#Builder():
+    New API must be flagged with @FlaggedApi: constructor android.content.res.CameraCompatibilityInfo.Builder()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder#build():
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.Builder.build()
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder#setDisplayRotationSandbox(int):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.Builder.setDisplayRotationSandbox(int)
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder#setRotateAndCropRotation(int):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.Builder.setRotateAndCropRotation(int)
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder#setShouldAllowTransformInverseDisplay(boolean):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.Builder.setShouldAllowTransformInverseDisplay(boolean)
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder#setShouldLetterboxForCameraCompat(boolean):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.Builder.setShouldLetterboxForCameraCompat(boolean)
+UnflaggedApi: android.content.res.CameraCompatibilityInfo.Builder#setShouldOverrideSensorOrientation(boolean):
+    New API must be flagged with @FlaggedApi: method android.content.res.CameraCompatibilityInfo.Builder.setShouldOverrideSensorOrientation(boolean)
 UnflaggedApi: android.credentials.CredentialProviderInfo#isPrimary():
     New API must be flagged with @FlaggedApi: method android.credentials.CredentialProviderInfo.isPrimary()
+UnflaggedApi: android.hardware.CameraCompatMode:
+    New API must be flagged with @FlaggedApi: class android.hardware.CameraCompatMode
+UnflaggedApi: android.hardware.CameraCompatMode#CREATOR:
+    New API must be flagged with @FlaggedApi: field android.hardware.CameraCompatMode.CREATOR
+UnflaggedApi: android.hardware.CameraCompatMode#CameraCompatMode():
+    New API must be flagged with @FlaggedApi: constructor android.hardware.CameraCompatMode()
+UnflaggedApi: android.hardware.CameraCompatMode#CameraCompatMode(int, boolean):
+    New API must be flagged with @FlaggedApi: constructor android.hardware.CameraCompatMode(int,boolean)
+UnflaggedApi: android.hardware.CameraCompatMode#ROTATION_0:
+    New API must be flagged with @FlaggedApi: field android.hardware.CameraCompatMode.ROTATION_0
+UnflaggedApi: android.hardware.CameraCompatMode#ROTATION_180:
+    New API must be flagged with @FlaggedApi: field android.hardware.CameraCompatMode.ROTATION_180
+UnflaggedApi: android.hardware.CameraCompatMode#ROTATION_270:
+    New API must be flagged with @FlaggedApi: field android.hardware.CameraCompatMode.ROTATION_270
+UnflaggedApi: android.hardware.CameraCompatMode#ROTATION_90:
+    New API must be flagged with @FlaggedApi: field android.hardware.CameraCompatMode.ROTATION_90
+UnflaggedApi: android.hardware.CameraCompatMode#describeContents():
+    New API must be flagged with @FlaggedApi: method android.hardware.CameraCompatMode.describeContents()
+UnflaggedApi: android.hardware.CameraCompatMode#getRotateAndCrop():
+    New API must be flagged with @FlaggedApi: method android.hardware.CameraCompatMode.getRotateAndCrop()
+UnflaggedApi: android.hardware.CameraCompatMode#shouldOverrideSensorOrientation():
+    New API must be flagged with @FlaggedApi: method android.hardware.CameraCompatMode.shouldOverrideSensorOrientation()
+UnflaggedApi: android.hardware.CameraCompatMode#writeToParcel(android.os.Parcel, int):
+    New API must be flagged with @FlaggedApi: method android.hardware.CameraCompatMode.writeToParcel(android.os.Parcel,int)
+UnflaggedApi: android.hardware.camera2.CameraManager#getRotationOverride(android.content.Context, android.content.pm.PackageManager, String):
+    New API must be flagged with @FlaggedApi: method android.hardware.camera2.CameraManager.getRotationOverride(android.content.Context,android.content.pm.PackageManager,String)
 UnflaggedApi: android.hardware.input.InputManager#addUniqueIdAssociationByPort(String, String):
     New API must be flagged with @FlaggedApi: method android.hardware.input.InputManager.addUniqueIdAssociationByPort(String,String)
 UnflaggedApi: android.hardware.input.InputManager#removeUniqueIdAssociationByPort(String):
@@ -2223,9 +2349,15 @@ UnflaggedApi: android.view.inputmethod.InputMethodManager#isStylusHandwritingAva
     New API must be flagged with @FlaggedApi: method android.view.inputmethod.InputMethodManager.isStylusHandwritingAvailableAsUser(android.os.UserHandle)
 UnflaggedApi: android.view.inputmethod.InsertModeGesture:
     New API must be flagged with @FlaggedApi: class android.view.inputmethod.InsertModeGesture
+UnflaggedApi: android.window.TaskOrganizer#getImeLayeringTarget(int):
+    New API must be flagged with @FlaggedApi: method android.window.TaskOrganizer.getImeLayeringTarget(int)
 UnflaggedApi: android.window.WindowInfosListenerForTest.WindowInfo#displayId:
     New API must be flagged with @FlaggedApi: field android.window.WindowInfosListenerForTest.WindowInfo.displayId
 UnflaggedApi: android.window.WindowInfosListenerForTest.WindowInfo#isVisible:
     New API must be flagged with @FlaggedApi: field android.window.WindowInfosListenerForTest.WindowInfo.isVisible
 UnflaggedApi: android.window.WindowInfosListenerForTest.WindowInfo#transform:
     New API must be flagged with @FlaggedApi: field android.window.WindowInfosListenerForTest.WindowInfo.transform
+
+
+UserHandle: android.telephony.SmsManager#getSmsOtpTrustedPackages(android.content.Context, android.os.UserHandle):
+    When a method overload is needed to target a specific UserHandle, callers should be directed to use Context.createPackageContextAsUser() and re-obtain the relevant Manager, and no new API should be added

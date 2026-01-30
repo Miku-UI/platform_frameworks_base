@@ -339,10 +339,10 @@ public final class CellIdentityLte extends CellIdentity {
     @Override
     public String toString() {
         return new StringBuilder(TAG)
-        .append(":{ mCi=").append(mCi)
-        .append(" mPci=").append(mPci)
-        .append(" mTac=").append(mTac)
-        .append(" mEarfcn=").append(mEarfcn)
+        .append(":{ mCi=").append(Rlog.pii(TAG, mCi))
+        .append(" mPci=").append(Rlog.pii(TAG, mPci))
+        .append(" mTac=").append(Rlog.pii(TAG, mTac))
+        .append(" mEarfcn=").append(Rlog.pii(TAG, mEarfcn))
         .append(" mBands=").append(Arrays.toString(mBands))
         .append(" mBandwidth=").append(mBandwidth)
         .append(" mMcc=").append(mMccStr)
@@ -350,7 +350,7 @@ public final class CellIdentityLte extends CellIdentity {
         .append(" mAlphaLong=").append(mAlphaLong)
         .append(" mAlphaShort=").append(mAlphaShort)
         .append(" mAdditionalPlmns=").append(mAdditionalPlmns)
-        .append(" mCsgInfo=").append(mCsgInfo)
+        .append(" mCsgInfo=").append(Rlog.pii(TAG, mCsgInfo))
         .append("}").toString();
     }
 

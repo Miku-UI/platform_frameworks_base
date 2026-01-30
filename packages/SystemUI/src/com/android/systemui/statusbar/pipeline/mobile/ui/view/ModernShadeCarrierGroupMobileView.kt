@@ -16,15 +16,17 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.ui.view
 
+import android.annotation.StyleRes
 import android.content.Context
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.widget.LinearLayout
-import com.android.systemui.kairos.BuildSpec
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosNetwork
+import com.android.systemui.kairos.buildSpec
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView.STATE_ICON
+import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.binder.MobileIconBinder
@@ -38,6 +40,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
+interface ModernShadeCarrierGroupMobileViewBinding {
+    fun setStyleAndTint(@StyleRes style: Int, fgColor: Int, bgColor: Int)
+}
+
 /**
  * ViewGroup containing a mobile carrier name and icon in the Shade Header. Can be multiple
  * instances as children under [ShadeCarrierGroup]
@@ -46,6 +52,16 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
     LinearLayout(context, attrs) {
 
     var subId: Int = -1
+
+    private lateinit var binding: ModernShadeCarrierGroupMobileViewBinding
+
+    /**
+     * Update the appearance of the mobile carrier group. The text itself can use the text
+     * appearance resId, but the mobile icon needs to know specifically about fg/bg colors.
+     */
+    fun setStyleAndTint(@StyleRes styleResId: Int, fgColor: Int, bgColor: Int) {
+        binding.setStyleAndTint(style = styleResId, fgColor = fgColor, bgColor = bgColor)
+    }
 
     override fun toString(): String {
         return "ModernShadeCarrierGroupMobileView(" +
@@ -68,17 +84,32 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
         ): ModernShadeCarrierGroupMobileView {
             return (LayoutInflater.from(context).inflate(R.layout.shade_carrier_new, null)
                     as ModernShadeCarrierGroupMobileView)
-                .also {
-                    it.subId = viewModel.subscriptionId
+                .apply {
+                    subId = viewModel.subscriptionId
 
-                    val iconView = it.requireViewById<ModernStatusBarMobileView>(R.id.mobile_combo)
+                    val iconView = requireViewById<ModernStatusBarMobileView>(R.id.mobile_combo)
+                    if (NewStatusBarIcons.isEnabled) {
+                        iconView.configureLayoutForNewStatusBarIcons()
+                    }
                     iconView.initView(slot) {
                         MobileIconBinder.bind(iconView, viewModel, STATE_ICON, logger)
                     }
-                    logger.logNewViewBinding(it, viewModel)
+                    logger.logNewViewBinding(this, viewModel)
 
-                    val textView = it.requireViewById<AutoMarqueeTextView>(R.id.mobile_carrier_text)
-                    ShadeCarrierBinder.bind(textView, viewModel)
+                    val textView = requireViewById<AutoMarqueeTextView>(R.id.mobile_carrier_text)
+                    val shadeCarrierBinding = ShadeCarrierBinder.bind(textView, viewModel)
+
+                    binding =
+                        object : ModernShadeCarrierGroupMobileViewBinding {
+                            override fun setStyleAndTint(
+                                @StyleRes style: Int,
+                                fgColor: Int,
+                                bgColor: Int,
+                            ) {
+                                iconView.setStaticDrawableColor(fgColor, bgColor)
+                                shadeCarrierBinding.setTextAppearance(style)
+                            }
+                        }
                 }
         }
 
@@ -88,11 +119,11 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
          */
         @ExperimentalKairosApi
         @JvmStatic
-        fun constructAndBind(
+        fun constructAndBindKairos(
             context: Context,
             logger: MobileViewLogger,
             slot: String,
-            viewModel: BuildSpec<ShadeCarrierGroupMobileIconViewModelKairos>,
+            viewModel: ShadeCarrierGroupMobileIconViewModelKairos,
             scope: CoroutineScope,
             subscriptionId: Int,
             location: StatusBarLocation,
@@ -101,7 +132,14 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
             val view =
                 (LayoutInflater.from(context).inflate(R.layout.shade_carrier_new, null)
                         as ModernShadeCarrierGroupMobileView)
-                    .apply { subId = subscriptionId }
+                    .apply {
+                        subId = subscriptionId
+
+                        val iconView = requireViewById<ModernStatusBarMobileView>(R.id.mobile_combo)
+                        if (NewStatusBarIcons.isEnabled) {
+                            iconView.configureLayoutForNewStatusBarIcons()
+                        }
+                    }
             return view to
                 scope.launch {
                     val iconView =
@@ -110,11 +148,12 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
                         val (binding, _) =
                             MobileIconBinderKairos.bind(
                                 view = iconView,
-                                viewModel = viewModel,
+                                viewModel = buildSpec { viewModel },
                                 initialVisibilityState = STATE_ICON,
                                 logger = logger,
                                 scope = this,
                                 kairosNetwork = kairosNetwork,
+                                subId = subscriptionId,
                             )
                         binding
                     }
@@ -122,7 +161,21 @@ class ModernShadeCarrierGroupMobileView(context: Context, attrs: AttributeSet?) 
 
                     val textView =
                         view.requireViewById<AutoMarqueeTextView>(R.id.mobile_carrier_text)
-                    launch { ShadeCarrierBinderKairos.bind(textView, viewModel, kairosNetwork) }
+                    val (shadeCarrierBinding, _) =
+                        ShadeCarrierBinderKairos.bind(
+                            subscriptionId,
+                            textView,
+                            buildSpec { viewModel },
+                            kairosNetwork,
+                            this,
+                        )
+                    view.binding =
+                        object : ModernShadeCarrierGroupMobileViewBinding {
+                            override fun setStyleAndTint(style: Int, fgColor: Int, bgColor: Int) {
+                                iconView.setStaticDrawableColor(fgColor, bgColor)
+                                shadeCarrierBinding.setTextAppearance(style)
+                            }
+                        }
                 }
         }
     }

@@ -70,7 +70,7 @@ class AnrController {
         try {
             timeoutRecord.mLatencyTracker.notifyAppUnresponsiveStarted();
             timeoutRecord.mLatencyTracker.preDumpIfLockTooSlowStarted();
-            preDumpIfLockTooSlow();
+            preDumpIfLockTooSlow(timeoutRecord);
             timeoutRecord.mLatencyTracker.preDumpIfLockTooSlowEnded();
             final ActivityRecord activity;
             timeoutRecord.mLatencyTracker.waitingOnGlobalLockStarted();
@@ -167,7 +167,7 @@ class AnrController {
     private boolean notifyWindowUnresponsive(@NonNull IBinder inputToken,
             TimeoutRecord timeoutRecord) {
         timeoutRecord.mLatencyTracker.preDumpIfLockTooSlowStarted();
-        preDumpIfLockTooSlow();
+        preDumpIfLockTooSlow(timeoutRecord);
         timeoutRecord.mLatencyTracker.preDumpIfLockTooSlowEnded();
         final int pid;
         final boolean aboveSystem;
@@ -182,12 +182,19 @@ class AnrController {
             }
             windowState = target.getWindowState();
             pid = target.getPid();
-            // Blame the activity if the input token belongs to the window. If the target is
-            // embedded, then we will blame the pid instead.
-            activity = (windowState.mInputChannelToken == inputToken)
-                    ? windowState.mActivityRecord : null;
+            if (windowState != null) {
+                // Blame the activity if the input token belongs to the window. If the target is
+                // embedded, then we will blame the pid instead.
+                activity = (windowState.mInputChannelToken == inputToken)
+                        ? windowState.mActivityRecord : null;
+                aboveSystem = isWindowAboveSystem(windowState);
+            } else {
+                // Embedded windows without a host window state are assumed to be above 
+                // system layers
+                activity = null;
+                aboveSystem = true;
+            }
             Slog.i(TAG_WM, "ANR in " + target + ". Reason:" + timeoutRecord.mReason);
-            aboveSystem = isWindowAboveSystem(windowState);
         }
         if (activity != null) {
             activity.inputDispatchingTimedOut(timeoutRecord, pid);
@@ -279,7 +286,7 @@ class AnrController {
      * <p>
      * Do not hold the {@link WindowManagerGlobalLock} while calling this method.
      */
-    private void preDumpIfLockTooSlow() {
+    private void preDumpIfLockTooSlow(TimeoutRecord timeoutRecord) {
         if (!Build.IS_DEBUGGABLE)  {
             return;
         }
@@ -341,11 +348,21 @@ class AnrController {
 
             String criticalEvents =
                     CriticalEventLog.getInstance().logLinesForSystemServerTraceFile();
-            final File tracesFile = StackTracesDumpHelper.dumpStackTraces(firstPids,
-                    null /* processCpuTracker */, null /* lastPids */,
-                    CompletableFuture.completedFuture(nativePids),
-                    null /* logExceptionCreatingFile */, "Pre-dump", criticalEvents,
-                    null /* extraHeaders */, Runnable::run, null/* AnrLatencyTracker */);
+            final File tracesFile =
+                    StackTracesDumpHelper.dumpStackTraces(
+                            firstPids,
+                            null /* processCpuTracker */,
+                            null /* lastPids */,
+                            CompletableFuture.completedFuture(nativePids),
+                            null /* logExceptionCreatingFile */,
+                            null /* firstPidEndOffset */,
+                            "Pre-dump",
+                            criticalEvents,
+                            null /* extraHeaders */,
+                            Runnable::run /* auxiliaryTaskExecutor */,
+                            null /* firstPidFilePromise */,
+                            null /* latencyTracker */,
+                            timeoutRecord);
             if (tracesFile != null) {
                 tracesFile.renameTo(
                         new File(tracesFile.getParent(), tracesFile.getName() + "_pre"));

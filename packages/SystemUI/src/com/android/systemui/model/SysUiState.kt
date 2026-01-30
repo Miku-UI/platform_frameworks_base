@@ -25,6 +25,7 @@ import com.android.systemui.model.SysUiState.SysUiStateCallback
 import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.shared.system.QuickStepContract
 import com.android.systemui.shared.system.QuickStepContract.SystemUiStateFlags
+import com.android.systemui.shared.system.QuickStepContract.getSystemUiStateString
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -157,10 +158,15 @@ constructor(
 
     /** Notify all those who are registered that the state has changed. */
     private fun notifyAndSetSystemUiStateChanged(newFlags: Long, oldFlags: Long) {
-        if (SysUiState.DEBUG) {
-            Log.d(TAG, "SysUiState changed for displayId=$displayId: old=$oldFlags new=$newFlags")
-        }
         if (newFlags != oldFlags) {
+            if (SysUiState.DEBUG) {
+                Log.d(
+                    TAG,
+                    "SysUiState changed for displayId=$displayId: " +
+                            "old=${getSystemUiStateString(oldFlags)} " +
+                            "new=${getSystemUiStateString(newFlags)}",
+                )
+            }
             _flags = newFlags
             stateDispatcher.dispatchSysUIStateChange(newFlags, displayId)
         }
@@ -208,7 +214,7 @@ fun flagWithOptionalOverrides(
         if (SysUiState.DEBUG) {
             Log.d(
                 TAG,
-                "setFlag for flag $flag and value $toSet overridden to " +
+                "setFlag for flag ${getSystemUiStateString(flag)} and value $toSet overridden to " +
                     "$overrideOrNull by scene container plugin",
             )
         }

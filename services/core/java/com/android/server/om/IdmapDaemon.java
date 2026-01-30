@@ -26,6 +26,7 @@ import android.os.FabricatedOverlayInfo;
 import android.os.FabricatedOverlayInternal;
 import android.os.IBinder;
 import android.os.IIdmap2;
+import android.os.IdmapParams;
 import android.os.OverlayConstraint;
 import android.os.RemoteException;
 import android.os.ServiceManager;
@@ -179,6 +180,17 @@ class IdmapDaemon {
 
             return idmap2.verifyIdmap(targetPath, overlayPath, TextUtils.emptyIfNull(overlayName),
                     policies, enforce, userId, constraints);
+        }
+    }
+
+    String[] verifyOrCreateIdmaps(IdmapParams[] idmapParams) throws Exception {
+        try (Connection c = connect()) {
+            final IIdmap2 idmap2 = c.getIdmap2();
+            if (idmap2 == null) {
+                Slog.w(TAG, "idmap2d service is not ready for verifyOrCreateIdmaps()");
+                return null;
+            }
+            return idmap2.verifyOrCreateIdmaps(idmapParams);
         }
     }
 

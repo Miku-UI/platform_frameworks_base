@@ -16,12 +16,16 @@
 
 package com.android.server.broadcastradio;
 
+import android.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.IndentingPrintWriter;
 import android.util.LocalLog;
 import android.util.Log;
 
 import com.android.server.utils.Slogf;
+
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
 
 /**
  * Event logger to log and dump events of broadcast radio service client for HIDL and AIDL
@@ -43,7 +47,8 @@ public final class RadioEventLogger {
      * @param logFormat String format of log message
      * @param args Arguments of log message
      */
-    public void logRadioEvent(String logFormat, Object... args) {
+    @FormatMethod
+    public void logRadioEvent(@FormatString String logFormat, @Nullable Object... args) {
         String log = TextUtils.formatSimple(logFormat, args);
         mEventLogger.log(log);
         if (mDebug) {

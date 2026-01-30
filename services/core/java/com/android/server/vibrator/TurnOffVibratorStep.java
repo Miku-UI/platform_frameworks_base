@@ -36,8 +36,8 @@ final class TurnOffVibratorStep extends AbstractVibratorStep {
     private final boolean mIsCleanUp;
 
     TurnOffVibratorStep(VibrationStepConductor conductor, long startTime,
-            VibratorController controller, boolean isCleanUp) {
-        super(conductor, startTime, controller, startTime);
+            HalVibrator vibrator, boolean isCleanUp) {
+        super(conductor, startTime, vibrator, startTime);
         mIsCleanUp = isCleanUp;
     }
 
@@ -50,7 +50,7 @@ final class TurnOffVibratorStep extends AbstractVibratorStep {
     @Override
     public List<Step> cancel() {
         return Arrays.asList(new TurnOffVibratorStep(conductor, SystemClock.uptimeMillis(),
-                controller, /* isCleanUp= */ true));
+                vibrator, /* isCleanUp= */ true));
     }
 
     @Override

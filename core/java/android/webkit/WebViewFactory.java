@@ -51,6 +51,12 @@ import java.lang.reflect.Method;
  */
 @SystemApi
 public final class WebViewFactory {
+
+    // visible for WebViewZygoteInit to look up the class by reflection and call preloadInZygote.
+    /** @hide */
+    private static final String CHROMIUM_WEBVIEW_FACTORY =
+            "com.android.webview.chromium.WebViewChromiumFactoryProviderForT";
+
     private static final String CHROMIUM_WEBVIEW_FACTORY_METHOD = "create";
 
     private static final String LOGTAG = "WebViewFactory";
@@ -269,8 +275,8 @@ public final class WebViewFactory {
      */
     public static Class<WebViewFactoryProvider> getWebViewProviderClass(ClassLoader clazzLoader)
             throws ClassNotFoundException {
-        return (Class<WebViewFactoryProvider>) Class.forName(
-                WebViewFactoryProvider.getWebViewFactoryClassName(), true, clazzLoader);
+        return (Class<WebViewFactoryProvider>) Class.forName(CHROMIUM_WEBVIEW_FACTORY,
+                true, clazzLoader);
     }
 
     /**
@@ -541,15 +547,8 @@ public final class WebViewFactory {
             Trace.traceBegin(Trace.TRACE_TAG_WEBVIEW, "WebViewFactory.getChromiumProviderClass()");
             try {
                 sTimestamps.mAddAssetsStart = SystemClock.uptimeMillis();
-                if (android.content.res.Flags.registerResourcePaths()) {
-                    Resources.registerResourcePaths(webViewContext.getPackageName(),
-                            webViewContext.getApplicationInfo());
-                } else {
-                    for (String newAssetPath : webViewContext.getApplicationInfo()
-                            .getAllApkPaths()) {
-                        initialApplication.getAssets().addAssetPathAsSharedLibrary(newAssetPath);
-                    }
-                }
+                Resources.registerResourcePaths(webViewContext.getPackageName(),
+                        webViewContext.getApplicationInfo());
                 sTimestamps.mAddAssetsEnd = sTimestamps.mGetClassLoaderStart =
                         SystemClock.uptimeMillis();
                 ClassLoader clazzLoader = webViewContext.getClassLoader();

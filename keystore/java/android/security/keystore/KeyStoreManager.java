@@ -21,7 +21,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemService;
 import android.content.Context;
-import android.hardware.security.keymint.TagType;
+import android.hardware.security.keymint.Tag;
 import android.security.KeyStore2;
 import android.security.KeyStoreException;
 import android.security.keystore2.AndroidKeyStoreProvider;
@@ -316,8 +316,7 @@ public final class KeyStoreManager {
      * clients should verify its SHA-256 hash matches the one in the attestation. Note that the
      * returned structure can vary between boots.
      */
-    // TODO(b/380020528): Replace with Tag.MODULE_HASH when KeyMint V4 is frozen.
-    public static final int MODULE_HASH = TagType.BYTES | 724;
+    public static final int MODULE_HASH = Tag.MODULE_HASH;
 
     /**
      * Returns tag-specific data required to interpret a tag's attested value.
@@ -330,7 +329,6 @@ public final class KeyStoreManager {
      * @return tag-specific info
      * @throws KeyStoreException if the requested info is not available
      */
-    @FlaggedApi(android.security.keystore2.Flags.FLAG_ATTEST_MODULES)
     public @NonNull byte[] getSupplementaryAttestationInfo(
             @SupplementaryAttestationInfoTagEnum int tag) throws KeyStoreException {
         return mKeyStore2.getSupplementaryAttestationInfo(tag);

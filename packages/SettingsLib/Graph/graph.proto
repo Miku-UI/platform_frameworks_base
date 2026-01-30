@@ -28,11 +28,17 @@ message PreferenceScreenProto {
   optional bool complete_hierarchy = 3;
   // Parameterized screens (not recursive, provided on the top level only)
   repeated ParameterizedPreferenceScreenProto parameterized_screens = 4;
+  // If the preference screen is parameterized.
+  optional bool parameterized = 5;
+  // Available parameters of the parameterized screen.
+  repeated BundleProto parameters = 6;
 }
 
 // Proto of parameterized preference screen
 message ParameterizedPreferenceScreenProto {
+  // Arguments to materialize the parameterized screen.
   optional BundleProto args = 1;
+  // Materialized screen.
   optional PreferenceScreenProto screen = 2;
 }
 
@@ -108,6 +114,8 @@ message PreferenceProto {
       // app or activity belongs to other app.
       IntentProto intent = 2;
     }
+    // Arguments to materialize the parameterized screen.
+    optional BundleProto args = 3;
   }
 }
 
@@ -139,6 +147,7 @@ message PreferenceValueProto {
     bool boolean_value = 1;
     int32 int_value = 2;
     float float_value = 3;
+    int64 long_value = 4;
   }
 }
 
@@ -148,6 +157,7 @@ message PreferenceValueDescriptorProto {
     bool boolean_type = 1;
     RangeValueProto range_value = 2;
     bool float_type = 3;
+    bool long_type = 4;
   }
 }
 
@@ -195,8 +205,11 @@ message IntentProto {
 
 // Proto of android.os.Bundle
 message BundleProto {
-  // Bundle data.
+  // Bundle data. Absent when `parcel_bytes` is provided.
   map<string, BundleValue> values = 1;
+  // The byte array that this `Bundle` object is marshalled by `Parcel`. It is flexible to support
+  // unknown value types (e.g. `Parcelable`) but the data size is way larger than `values`.
+  bytes parcel_bytes = 2;
 
   message BundleValue {
     // Bundle data value for the associated key name.

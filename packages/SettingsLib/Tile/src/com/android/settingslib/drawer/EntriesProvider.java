@@ -47,6 +47,7 @@ public abstract class EntriesProvider extends ContentProvider {
     public static final String METHOD_GET_DYNAMIC_SUMMARY = "getDynamicSummary";
     public static final String METHOD_IS_CHECKED = "isChecked";
     public static final String METHOD_ON_CHECKED_CHANGED = "onCheckedChanged";
+    public static final String METHOD_GET_ALERT = "getAlert";
 
     /**
      * @deprecated use {@link #METHOD_GET_ENTRY_DATA} instead.
@@ -58,6 +59,7 @@ public abstract class EntriesProvider extends ContentProvider {
     public static final String EXTRA_SWITCH_CHECKED_STATE = "checked_state";
     public static final String EXTRA_SWITCH_SET_CHECKED_ERROR = "set_checked_error";
     public static final String EXTRA_SWITCH_SET_CHECKED_ERROR_MESSAGE = "set_checked_error_message";
+    public static final String EXTRA_ALERT_VALUE = "alert_value";
 
     /**
      * @deprecated use {@link #EXTRA_ENTRY_DATA} instead.

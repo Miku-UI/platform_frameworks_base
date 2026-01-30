@@ -26,7 +26,6 @@ import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.data.repository.fakeFingerprintPropertyRepository
 import com.android.systemui.biometrics.domain.interactor.biometricStatusInteractor
-import com.android.systemui.biometrics.domain.interactor.displayStateInteractor
 import com.android.systemui.biometrics.domain.interactor.sideFpsSensorInteractor
 import com.android.systemui.biometrics.fakeFingerprintInteractiveToAuthProvider
 import com.android.systemui.biometrics.shared.model.AuthenticationReason
@@ -34,6 +33,7 @@ import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.biometrics.shared.model.SensorStrength
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryFingerprintAuthInteractor
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
@@ -84,7 +84,7 @@ class SideFpsProgressBarViewModelTest : SysuiTestCase() {
             1,
             SensorStrength.STRONG,
             FingerprintSensorType.POWER_BUTTON,
-            mutableMapOf(Pair("sensor", mock()))
+            mutableMapOf(Pair("sensor", mock())),
         )
         kosmos.fakeFingerprintInteractiveToAuthProvider.enabledForCurrentUser.value = true
         kosmos.fakeKeyguardTransitionRepository.sendTransitionStep(
@@ -92,7 +92,7 @@ class SideFpsProgressBarViewModelTest : SysuiTestCase() {
                 from = KeyguardState.LOCKSCREEN,
                 to = KeyguardState.AOD,
                 value = 0.0f,
-                transitionState = TransitionState.STARTED
+                transitionState = TransitionState.STARTED,
             )
         )
         kosmos.fakeKeyguardTransitionRepository.sendTransitionStep(
@@ -100,7 +100,7 @@ class SideFpsProgressBarViewModelTest : SysuiTestCase() {
                 from = KeyguardState.LOCKSCREEN,
                 to = KeyguardState.AOD,
                 value = 1.0f,
-                transitionState = TransitionState.FINISHED
+                transitionState = TransitionState.FINISHED,
             )
         )
         kosmos.fakeBiometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(true)
@@ -128,7 +128,7 @@ class SideFpsProgressBarViewModelTest : SysuiTestCase() {
                 1,
                 SensorStrength.STRONG,
                 FingerprintSensorType.POWER_BUTTON,
-                mutableMapOf(Pair("sensor", mock()))
+                mutableMapOf(Pair("sensor", mock())),
             )
             assertThat(enabled).isFalse()
 
@@ -149,7 +149,7 @@ class SideFpsProgressBarViewModelTest : SysuiTestCase() {
             kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 AcquiredFingerprintAuthenticationStatus(
                     AuthenticationReason.DeviceEntryAuthentication,
-                    BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_START
+                    BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_START,
                 )
             )
 
@@ -169,7 +169,7 @@ class SideFpsProgressBarViewModelTest : SysuiTestCase() {
             kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 AcquiredFingerprintAuthenticationStatus(
                     AuthenticationReason.DeviceEntryAuthentication,
-                    BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_START
+                    BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_START,
                 )
             )
 

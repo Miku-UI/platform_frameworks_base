@@ -1,17 +1,21 @@
 package com.android.systemui.qs.pipeline.data.repository
 
-import android.platform.test.annotations.EnabledOnRavenwood
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.FlagsParameterization
 import android.provider.Settings
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.qs.pipeline.data.model.RestoreData
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.pipeline.shared.TilesUpgradePath
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
+import com.android.systemui.user.domain.interactor.HeadlessSystemUserModeFake
 import com.android.systemui.util.settings.FakeSettings
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -23,17 +27,17 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
+@ExperimentalCoroutinesApi
 @SmallTest
-@EnabledOnRavenwood
-@RunWith(AndroidJUnit4::class)
-class UserTileSpecRepositoryTest : SysuiTestCase() {
+@RunWith(ParameterizedAndroidJunit4::class)
+class UserTileSpecRepositoryTest(flags: FlagsParameterization) : SysuiTestCase() {
     private val secureSettings = FakeSettings()
+    private val hsum = HeadlessSystemUserModeFake()
     private val defaultTilesRepository =
-        object : DefaultTilesRepository {
-            override val defaultTiles: List<TileSpec>
-                get() = DEFAULT_TILES.toTileSpecs()
-        }
+        FakeDefaultTilesRepository(DEFAULT_TILES.toTileSpecs(), DEFAULT_HSU_TILES.toTileSpecs())
 
     @Mock private lateinit var logger: QSPipelineLogger
 
@@ -41,6 +45,10 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
     private val testScope = TestScope(testDispatcher)
 
     private lateinit var underTest: UserTileSpecRepository
+
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
 
     @Before
     fun setup() {
@@ -51,6 +59,7 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
                 USER,
                 defaultTilesRepository,
                 secureSettings,
+                hsum,
                 logger,
                 testScope.backgroundScope,
                 testDispatcher,
@@ -58,10 +67,53 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_HSU_QS_CHANGES)
     fun emptySetting_usesDefaultValue() =
         testScope.runTest {
+            val isHeadlessSystemUser = false
             val tiles by collectLastValue(underTest.tiles())
-            assertThat(tiles).isEqualTo(getDefaultTileSpecs())
+            assertThat(tiles).isEqualTo(getDefaultTileSpecs(isHeadlessSystemUser))
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_HSU_QS_CHANGES)
+    fun emptySetting_hsuQsFlagEnabledAndIsHsum_usesHsuDefaultValue() =
+        testScope.runTest {
+            hsum.setIsHeadlessSystemUser(true)
+            underTest =
+                UserTileSpecRepository(
+                    USER,
+                    defaultTilesRepository,
+                    secureSettings,
+                    hsum,
+                    logger,
+                    testScope.backgroundScope,
+                    testDispatcher,
+                )
+            runCurrent()
+            val tiles by collectLastValue(underTest.tiles())
+
+            assertThat(tiles).isEqualTo(getDefaultTileSpecs(true))
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_HSU_QS_CHANGES)
+    fun emptySetting_hsuQsFlagEnabledAndIsNotHsum_usesDefaultValue() =
+        testScope.runTest {
+            hsum.setIsHeadlessSystemUser(false)
+            underTest =
+                UserTileSpecRepository(
+                    USER,
+                    defaultTilesRepository,
+                    secureSettings,
+                    hsum,
+                    logger,
+                    testScope.backgroundScope,
+                    testDispatcher,
+                )
+            runCurrent()
+            val tiles by collectLastValue(underTest.tiles())
+            assertThat(tiles).isEqualTo(getDefaultTileSpecs(false))
         }
 
     @Test
@@ -105,7 +157,7 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
 
             val tiles by collectLastValue(underTest.tiles())
 
-            assertThat(tiles).isEqualTo(getDefaultTileSpecs())
+            assertThat(tiles).isEqualTo(getDefaultTileSpecs(false))
         }
 
     /*
@@ -295,7 +347,7 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
             runCurrent()
 
             assertThat(loadTiles())
-                .isEqualTo(getDefaultTileSpecs().map { it.spec }.joinToString(","))
+                .isEqualTo(getDefaultTileSpecs(false).map { it.spec }.joinToString(","))
         }
 
     @Test
@@ -355,7 +407,7 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
             val tilesRead by collectLastValue(underTest.tilesUpgradePath.consumeAsFlow())
             val tiles by collectLastValue(underTest.tiles())
 
-            assertThat(tiles).isEqualTo(getDefaultTileSpecs())
+            assertThat(tiles).isEqualTo(getDefaultTileSpecs(false))
             assertThat(tilesRead).isEqualTo(TilesUpgradePath.DefaultSet)
         }
 
@@ -417,8 +469,8 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
                 .isEqualTo(TilesUpgradePath.RestoreFromBackup(expected.toTilesSet()))
         }
 
-    private fun getDefaultTileSpecs(): List<TileSpec> {
-        return defaultTilesRepository.defaultTiles
+    private fun getDefaultTileSpecs(isHeadlessSystemUser: Boolean): List<TileSpec> {
+        return defaultTilesRepository.getDefaultTiles(isHeadlessSystemUser)
     }
 
     private fun TestScope.storeTiles(specs: String) {
@@ -433,10 +485,17 @@ class UserTileSpecRepositoryTest : SysuiTestCase() {
     companion object {
         private const val USER = 10
         private const val DEFAULT_TILES = "a,b,c"
+        private const val DEFAULT_HSU_TILES = "a,c"
         private const val SETTING = Settings.Secure.QS_TILES
 
         private fun String.toTileSpecs() = TilesSettingConverter.toTilesList(this)
 
         private fun String.toTilesSet() = TilesSettingConverter.toTilesSet(this)
+
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return FlagsParameterization.allCombinationsOf(Flags.FLAG_HSU_QS_CHANGES)
+        }
     }
 }

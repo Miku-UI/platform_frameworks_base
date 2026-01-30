@@ -108,7 +108,8 @@ public final class MemInfoReader {
             kReclaimable = mInfos[Debug.MEMINFO_SLAB_RECLAIMABLE];
         }
         return mInfos[Debug.MEMINFO_BUFFERS] + kReclaimable
-                + mInfos[Debug.MEMINFO_CACHED] - mInfos[Debug.MEMINFO_MAPPED];
+                + mInfos[Debug.MEMINFO_CACHED] - mInfos[Debug.MEMINFO_MAPPED]
+                + mInfos[Debug.MEMINFO_SWAP_CACHED];
     }
 
     /**

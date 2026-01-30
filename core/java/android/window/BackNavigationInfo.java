@@ -74,6 +74,13 @@ public final class BackNavigationInfo implements Parcelable {
     public static final int TYPE_CALLBACK = 4;
 
     /**
+     * A {@link OnBackInvokedCallback} is not available due to a transition is happening.
+     * <p>
+     * @hide
+     */
+    public static final int TYPE_IN_TRANSITION = 5;
+
+    /**
      * Key to access the boolean value passed in {#mOnBackNavigationDone} result bundle
      * that represents if back navigation has been triggered.
      * @hide
@@ -81,18 +88,18 @@ public final class BackNavigationInfo implements Parcelable {
     public static final String KEY_NAVIGATION_FINISHED = "NavigationFinished";
 
     /**
-     * Key to access the boolean value passed in {#mOnBackNavigationDone} result bundle
-     * that represents if back gesture has been triggered.
-     * @hide
-     */
-    public static final String KEY_GESTURE_FINISHED = "GestureFinished";
-
-    /**
      * Touch gestured has transferred to embedded window, Shell should pilfer pointers so the
      * embedded won't receive motion events.
      * @hide
      */
     public static final String KEY_TOUCH_GESTURE_TRANSFERRED = "TouchGestureTransferred";
+
+    /**
+     * Key to access the displayId passed in result bundle that represents on which display
+     * the back gesture has been triggered.
+     * @hide
+     */
+    public static final String KEY_DISPLAY_ID = "DisplayId";
 
 
     /**
@@ -106,7 +113,8 @@ public final class BackNavigationInfo implements Parcelable {
             TYPE_RETURN_TO_HOME,
             TYPE_CROSS_ACTIVITY,
             TYPE_CROSS_TASK,
-            TYPE_CALLBACK
+            TYPE_CALLBACK,
+            TYPE_IN_TRANSITION
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface BackTargetType {
@@ -339,6 +347,8 @@ public final class BackNavigationInfo implements Parcelable {
                 return "TYPE_CROSS_TASK";
             case TYPE_CALLBACK:
                 return "TYPE_CALLBACK";
+            case TYPE_IN_TRANSITION:
+                return "TYPE_IN_TRANSITION";
         }
         return String.valueOf(type);
     }

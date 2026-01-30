@@ -66,7 +66,6 @@ class AudioRepositoryVolumeControllerEventsTest {
                 testScope.testScheduler,
                 testScope.backgroundScope,
                 logger,
-                true,
             )
     }
 

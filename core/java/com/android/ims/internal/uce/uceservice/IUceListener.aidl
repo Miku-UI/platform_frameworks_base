@@ -17,7 +17,7 @@
 package com.android.ims.internal.uce.uceservice;
 
 /** IUceListener
- * {@hide}  */
+ * @hide  */
 interface IUceListener
 {
     /**

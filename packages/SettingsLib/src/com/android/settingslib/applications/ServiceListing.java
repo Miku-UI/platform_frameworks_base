@@ -50,7 +50,6 @@ public class ServiceListing {
     private final String mNoun;
     private final boolean mAddDeviceLockedFlags;
     private final HashSet<ComponentName> mEnabledServices = new HashSet<>();
-    private final List<ServiceInfo> mServices = new ArrayList<>();
     private final List<Callback> mCallbacks = new ArrayList<>();
     private final Predicate mValidator;
 
@@ -126,9 +125,9 @@ public class ServiceListing {
         }
     }
 
-    public void reload() {
+    public List<ServiceInfo> load() {
         loadEnabledServices();
-        mServices.clear();
+        List<ServiceInfo> services = new ArrayList<>();
         final int user = ActivityManager.getCurrentUser();
 
         int flags = PackageManager.GET_SERVICES | PackageManager.GET_META_DATA;
@@ -155,7 +154,7 @@ public class ServiceListing {
                 if (mValidator != null && !mValidator.test(info)) {
                     continue;
                 }
-                mServices.add(info);
+                services.add(info);
             }
         }
 
@@ -165,12 +164,17 @@ public class ServiceListing {
                     new Intent().setComponent(cn), flags, user);
             for (ResolveInfo resolveInfo : enabledServices) {
                 ServiceInfo info = resolveInfo.serviceInfo;
-                mServices.add(info);
+                services.add(info);
             }
         }
 
+        return services;
+    }
+
+    public void reload() {
+        List<ServiceInfo> services = load();
         for (Callback callback : mCallbacks) {
-            callback.onServicesReloaded(mServices);
+            callback.onServicesReloaded(services);
         }
     }
 

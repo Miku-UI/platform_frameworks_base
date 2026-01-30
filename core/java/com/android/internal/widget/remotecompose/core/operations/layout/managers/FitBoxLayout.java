@@ -166,8 +166,6 @@ public class FitBoxLayout extends LayoutManager {
             float minHeight,
             float maxHeight,
             @NonNull MeasurePass measure) {
-
-        ComponentMeasure self = measure.get(this);
         boolean found = false;
         for (Component c : mChildrenComponents) {
             float cw = 0f;
@@ -341,7 +339,7 @@ public class FitBoxLayout extends LayoutManager {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         super.serialize(serializer);
         serializer.add("verticalPositioning", getPositioningString(mVerticalPositioning));
         serializer.add("horizontalPositioning", getPositioningString(mHorizontalPositioning));

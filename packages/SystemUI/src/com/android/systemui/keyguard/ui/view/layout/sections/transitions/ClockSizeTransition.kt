@@ -28,7 +28,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver.OnPreDrawListener
 import com.android.app.animation.Interpolators
-import com.android.systemui.customization.R as customR
+import com.android.systemui.customization.clocks.ClockLogger.Companion.getVisText
 import com.android.systemui.keyguard.ui.view.layout.blueprints.transitions.IntraBlueprintTransition
 import com.android.systemui.keyguard.ui.view.layout.blueprints.transitions.IntraBlueprintTransition.Type
 import com.android.systemui.keyguard.ui.view.layout.sections.transitions.ClockSizeTransition.SmartspaceMoveTransition.Companion.STATUS_AREA_MOVE_DOWN_MILLIS
@@ -36,10 +36,11 @@ import com.android.systemui.keyguard.ui.view.layout.sections.transitions.ClockSi
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.Logger
-import com.android.systemui.plugins.clocks.ClockLogger.Companion.getVisText
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.res.R
 import com.android.systemui.shared.R as sharedR
 import com.google.android.material.math.MathUtils
+import java.lang.ref.WeakReference
 import kotlin.math.abs
 
 internal fun View.getRect(): Rect = Rect(this.left, this.top, this.right, this.bottom)
@@ -231,10 +232,7 @@ class ClockSizeTransition(
                 // We enforce the animation parameters on the target view every frame using a
                 // predraw listener. This is suboptimal but prevents issues with layout passes
                 // overwriting the animation for individual frames.
-                val predrawCallback = OnPreDrawListener {
-                    assignAnimValues("predraw", anim.animatedFraction, log = false)
-                    return@OnPreDrawListener true
-                }
+                val predrawCallback = PredrawAnimationCallback(anim, ::assignAnimValues)
 
                 this@VisibilityBoundsTransition.addListener(
                     object : TransitionListenerAdapter() {
@@ -257,6 +255,10 @@ class ClockSizeTransition(
                         override fun onAnimationEnd(anim: Animator) {
                             assignAnimValues("end", 1f, to.visibility, log = true)
                             if (sendToBack) to.view.translationZ = 0f
+
+                            // This removal is effectively redundant with the one in onTransitionEnd
+                            // but prevents the predraw listener from leaking the entire view tree.
+                            to.view.viewTreeObserver.removeOnPreDrawListener(predrawCallback)
                         }
                     }
 
@@ -272,6 +274,24 @@ class ClockSizeTransition(
             private const val SMARTSPACE_BOUNDS = "ClockSizeTransition:SSBounds"
             private val TRANSITION_PROPERTIES =
                 arrayOf(PROP_VISIBILITY, PROP_ALPHA, PROP_BOUNDS, SMARTSPACE_BOUNDS)
+        }
+    }
+
+    private class PredrawAnimationCallback(
+        anim: ValueAnimator,
+        cb: (String, Float, Int?, Boolean) -> Unit,
+    ) : OnPreDrawListener {
+        // Holding only WeakReferences prevents leaking the entire transition and all related views
+        // in the event that a predraw listener survives the cleanup steps and is still attached to
+        // the ViewTreeObserver past the terminiation of the transition.
+        private val callback = WeakReference(cb)
+        private val animation = WeakReference(anim)
+
+        override fun onPreDraw(): Boolean {
+            val cb = callback.get() ?: return true
+            val fraction = animation.get()?.animatedFraction ?: 1f
+            cb("predraw", fraction, null, false)
+            return true
         }
     }
 
@@ -295,15 +315,19 @@ class ClockSizeTransition(
                 }
                     ?: run {
                         logger.e("No large clock set, falling back")
-                        addTarget(customR.id.lockscreen_clock_view_large)
+                        addTarget(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE)
                     }
                 if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
-                    addTarget(sharedR.id.date_smartspace_view_large)
+                    if (viewModel.shouldDateWeatherBeBelowLargeClock.value) {
+                        addTarget(sharedR.id.date_smartspace_view_large)
+                    } else {
+                        addTarget(sharedR.id.date_smartspace_view)
+                    }
                 }
             } else {
                 logger.i("Adding small clock")
-                addTarget(customR.id.lockscreen_clock_view)
-                if (!viewModel.dateWeatherBelowSmallClock()) {
+                addTarget(ClockViewIds.LOCKSCREEN_CLOCK_VIEW_SMALL)
+                if (!viewModel.shouldDateWeatherBeBelowSmallClock.value) {
                     addTarget(sharedR.id.date_smartspace_view)
                 }
             }
@@ -384,7 +408,10 @@ class ClockSizeTransition(
             duration =
                 if (isLargeClock) STATUS_AREA_MOVE_UP_MILLIS else STATUS_AREA_MOVE_DOWN_MILLIS
             interpolator = Interpolators.EMPHASIZED
-            if (viewModel.dateWeatherBelowSmallClock()) {
+            if (
+                viewModel.shouldDateWeatherBeBelowSmallClock.value ||
+                    !viewModel.shouldDateWeatherBeBelowLargeClock.value
+            ) {
                 addTarget(sharedR.id.date_smartspace_view)
             }
             addTarget(sharedR.id.bc_smartspace_view)
@@ -408,7 +435,7 @@ class ClockSizeTransition(
 
         override fun mutateTargets(from: Target, to: Target) {
             if (to.view.id == sharedR.id.date_smartspace_view) {
-                to.isVisible = !viewModel.hasCustomWeatherDataDisplay.value
+                to.isVisible = !viewModel.hasCustomWeatherDataDisplay.value || !isLargeClock
                 to.visibility = if (to.isVisible) View.VISIBLE else View.GONE
                 to.alpha = if (to.isVisible) 1f else 0f
             }

@@ -191,6 +191,63 @@ class BounceableTest {
             .assertPositionInRootIsEqualTo(0.dp, 85.dp)
     }
 
+    @Test
+    fun wrapContent() {
+        // Bounce the first and third bounceables.
+        val bounceables =
+            listOf(
+                bounceable(bounce = 5.dp),
+                bounceable(bounce = 0.dp),
+                bounceable(bounce = 10.dp),
+                bounceable(bounce = 0.dp),
+            )
+
+        rule.setContent {
+            Column(Modifier) {
+                repeat(bounceables.size) { i ->
+                    Box(
+                        // All bounceables are 50dp x 25dp when idle.
+                        Modifier.bounceable(
+                                bounceables,
+                                i,
+                                Orientation.Vertical,
+                                isWrappingContent = true,
+                            )
+                            .size(50.dp, 25.dp)
+                    )
+                }
+            }
+        }
+
+        // First one has a height of 25dp + 5dp, located in (0, 0).
+        rule
+            .onNodeWithTag(bounceableTag(0))
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(30.dp)
+            .assertPositionInRootIsEqualTo(0.dp, 0.dp)
+
+        // Second one has a height of 25dp - 5dp - 10dp, located in (0, 30).
+        rule
+            .onNodeWithTag(bounceableTag(1))
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(10.dp)
+            .assertPositionInRootIsEqualTo(0.dp, 30.dp)
+
+        // Third one has a height of 25 + 2 * 10dp, located in (0, 40).
+        rule
+            .onNodeWithTag(bounceableTag(2))
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(45.dp)
+            .assertPositionInRootIsEqualTo(0.dp, 40.dp)
+
+        // First one has a height of 25dp - 10dp, located in (0, 85).
+        rule
+            .onNodeWithTag(bounceableTag(3))
+            .assertWidthIsEqualTo(50.dp)
+            .assertHeightIsEqualTo(15.dp)
+            .assertPositionInRootIsEqualTo(0.dp, 85.dp)
+    }
+
     private fun bounceable(bounce: Dp): Bounceable {
         return object : Bounceable {
             override val bounce: Dp = bounce
@@ -201,10 +258,17 @@ class BounceableTest {
         bounceables: List<Bounceable>,
         i: Int,
         orientation: Orientation,
+        isWrappingContent: Boolean = false,
     ): Modifier {
         val previous = if (i > 0) bounceables[i - 1] else null
         val next = if (i < bounceables.lastIndex) bounceables[i + 1] else null
-        return this.bounceable(bounceables[i], previous, next, orientation)
+        return this.bounceable(
+                bounceables[i],
+                previous,
+                next,
+                orientation,
+                isWrappingContent = isWrappingContent,
+            )
             .testTag(bounceableTag(i))
     }
 

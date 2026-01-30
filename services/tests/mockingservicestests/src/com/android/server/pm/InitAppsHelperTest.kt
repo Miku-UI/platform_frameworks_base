@@ -69,13 +69,19 @@ class InitAppsHelperTest {
     }
 
     private fun createPackageManagerService(): PackageManagerService {
+        val sdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT
+        val sdkVersionFull = if (android.sdk.Flags.majorMinorVersioningScheme())
+            Build.parseFullVersion(sdkVersion.toString())
+        else
+            0
         return spy(PackageManagerService(rule.mocks().injector,
             false /*factoryTest*/,
             MockSystem.DEFAULT_VERSION_INFO.fingerprint,
             false /*isEngBuild*/,
             false /*isUserDebugBuild*/,
-            Build.VERSION_CODES.CUR_DEVELOPMENT,
-            Build.VERSION.INCREMENTAL))
+            sdkVersion,
+            Build.VERSION.INCREMENTAL,
+            sdkVersionFull))
     }
 
     @Test

@@ -23,7 +23,7 @@ import android.view.Surface;
 /**
  * Asynchronous callback channel for responses to scroll capture requests.
  *
- * {@hide}
+ * @hide
  */
 interface IScrollCaptureCallbacks {
     /**

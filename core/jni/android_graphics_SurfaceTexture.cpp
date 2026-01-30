@@ -51,7 +51,6 @@ const char* const kSurfaceTextureClassPathName = "android/graphics/SurfaceTextur
 struct fields_t {
     jfieldID  surfaceTexture;
     jfieldID  producer;
-    jfieldID  frameAvailableListener;
     jmethodID postEvent;
     jmethodID postOnSetFrameRateEvent;
 };
@@ -108,21 +107,6 @@ static void SurfaceTexture_setProducer(JNIEnv* env, jobject thiz,
     env->SetLongField(thiz, fields.producer, (jlong)producer.get());
 }
 
-static void SurfaceTexture_setFrameAvailableListener(JNIEnv* env,
-        jobject thiz, sp<SurfaceTexture::FrameAvailableListener> listener)
-{
-    SurfaceTexture::FrameAvailableListener* const p =
-        (SurfaceTexture::FrameAvailableListener*)
-            env->GetLongField(thiz, fields.frameAvailableListener);
-    if (listener.get()) {
-        listener->incStrong((void*)SurfaceTexture_setSurfaceTexture);
-    }
-    if (p) {
-        p->decStrong((void*)SurfaceTexture_setSurfaceTexture);
-    }
-    env->SetLongField(thiz, fields.frameAvailableListener, (jlong)listener.get());
-}
-
 sp<SurfaceTexture> SurfaceTexture_getSurfaceTexture(JNIEnv* env, jobject thiz) {
     return (SurfaceTexture*)env->GetLongField(thiz, fields.surfaceTexture);
 }
@@ -138,12 +122,12 @@ bool android_SurfaceTexture_isInstanceOf(JNIEnv* env, jobject thiz) {
 
 // ----------------------------------------------------------------------------
 
-class JNISurfaceTextureContextCommon {
+class JNISurfaceTextureContextListener : public SurfaceTexture::SurfaceTextureListener {
 public:
-    JNISurfaceTextureContextCommon(JNIEnv* env, jobject weakThiz, jclass clazz)
+    JNISurfaceTextureContextListener(JNIEnv* env, jobject weakThiz, jclass clazz)
           : mWeakThiz(env->NewGlobalRef(weakThiz)), mClazz((jclass)env->NewGlobalRef(clazz)) {}
 
-    virtual ~JNISurfaceTextureContextCommon() {
+    ~JNISurfaceTextureContextListener() {
         JNIEnv* env = getJNIEnv();
         if (env != NULL) {
             env->DeleteGlobalRef(mWeakThiz);
@@ -153,7 +137,7 @@ public:
         }
     }
 
-    void onFrameAvailable(const BufferItem& item) {
+    void onFrameAvailable(const BufferItem& item) override {
         JNIEnv* env = getJNIEnv();
         if (env != NULL) {
             env->CallStaticVoidMethod(mClazz, fields.postEvent, mWeakThiz);
@@ -162,7 +146,18 @@ public:
         }
     }
 
-protected:
+    void onSetFrameRate(float frameRate, int8_t compatibility,
+                        int8_t changeFrameRateStrategy) override {
+        JNIEnv* env = getJNIEnv();
+        if (env != NULL) {
+            env->CallStaticVoidMethod(mClazz, fields.postOnSetFrameRateEvent, mWeakThiz, frameRate,
+                                      compatibility, changeFrameRateStrategy);
+        } else {
+            ALOGW("onSetFrameRate event will not posted");
+        }
+    }
+
+private:
     static JNIEnv* getJNIEnv() {
         JNIEnv* env = AndroidRuntime::getJNIEnv();
         if (env == NULL) {
@@ -181,46 +176,11 @@ protected:
     jclass mClazz;
 };
 
-class JNISurfaceTextureContextFrameAvailableListener
-      : public JNISurfaceTextureContextCommon,
-        public SurfaceTexture::FrameAvailableListener {
-public:
-    JNISurfaceTextureContextFrameAvailableListener(JNIEnv* env, jobject weakThiz, jclass clazz)
-          : JNISurfaceTextureContextCommon(env, weakThiz, clazz) {}
-    void onFrameAvailable(const BufferItem& item) override {
-        JNISurfaceTextureContextCommon::onFrameAvailable(item);
-    }
-};
-
-class JNISurfaceTextureContextListener : public JNISurfaceTextureContextCommon,
-                                         public SurfaceTexture::SurfaceTextureListener {
-public:
-    JNISurfaceTextureContextListener(JNIEnv* env, jobject weakThiz, jclass clazz)
-          : JNISurfaceTextureContextCommon(env, weakThiz, clazz) {}
-
-    void onFrameAvailable(const BufferItem& item) override {
-        JNISurfaceTextureContextCommon::onFrameAvailable(item);
-    }
-
-    void onSetFrameRate(float frameRate, int8_t compatibility,
-                        int8_t changeFrameRateStrategy) override {
-        JNIEnv* env = getJNIEnv();
-        if (env != NULL) {
-            env->CallStaticVoidMethod(mClazz, fields.postOnSetFrameRateEvent, mWeakThiz, frameRate,
-                                      compatibility, changeFrameRateStrategy);
-        } else {
-            ALOGW("onSetFrameRate event will not posted");
-        }
-    }
-};
-
 // ----------------------------------------------------------------------------
 
 
 #define ANDROID_GRAPHICS_SURFACETEXTURE_JNI_ID "mSurfaceTexture"
 #define ANDROID_GRAPHICS_PRODUCER_JNI_ID "mProducer"
-#define ANDROID_GRAPHICS_FRAMEAVAILABLELISTENER_JNI_ID \
-                                         "mFrameAvailableListener"
 
 static void SurfaceTexture_classInit(JNIEnv* env, jclass clazz)
 {
@@ -235,12 +195,6 @@ static void SurfaceTexture_classInit(JNIEnv* env, jclass clazz)
     if (fields.producer == NULL) {
         ALOGE("can't find android/graphics/SurfaceTexture.%s",
                 ANDROID_GRAPHICS_PRODUCER_JNI_ID);
-    }
-    fields.frameAvailableListener = env->GetFieldID(clazz,
-            ANDROID_GRAPHICS_FRAMEAVAILABLELISTENER_JNI_ID, "J");
-    if (fields.frameAvailableListener == NULL) {
-        ALOGE("can't find android/graphics/SurfaceTexture.%s",
-                ANDROID_GRAPHICS_FRAMEAVAILABLELISTENER_JNI_ID);
     }
 
     fields.postEvent = env->GetStaticMethodID(clazz, "postEventFromNative",
@@ -259,7 +213,6 @@ static void SurfaceTexture_classInit(JNIEnv* env, jclass clazz)
 
 static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, jint texName,
                                 jboolean singleBufferMode, jobject weakThiz) {
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     sp<SurfaceTexture> surfaceTexture;
     if (isDetached) {
         surfaceTexture = new SurfaceTexture(GL_TEXTURE_EXTERNAL_OES, true, !singleBufferMode);
@@ -271,24 +224,6 @@ static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, 
     if (singleBufferMode) {
         surfaceTexture->setMaxBufferCount(1);
     }
-#else
-    sp<IGraphicBufferProducer> producer;
-    sp<IGraphicBufferConsumer> consumer;
-    BufferQueue::createBufferQueue(&producer, &consumer);
-
-    if (singleBufferMode) {
-        consumer->setMaxBufferCount(1);
-    }
-
-    sp<SurfaceTexture> surfaceTexture;
-    if (isDetached) {
-        surfaceTexture = new SurfaceTexture(consumer, GL_TEXTURE_EXTERNAL_OES,
-                true, !singleBufferMode);
-    } else {
-        surfaceTexture = new SurfaceTexture(consumer, texName,
-                GL_TEXTURE_EXTERNAL_OES, true, !singleBufferMode);
-    }
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 
     if (surfaceTexture == 0) {
         jniThrowException(env, OutOfResourcesException,
@@ -301,7 +236,6 @@ static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, 
             createProcessUniqueId()));
 
     // If the current context is protected, inform the producer.
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     surfaceTexture->setConsumerIsProtected(isProtectedContext());
 
     SurfaceTexture_setSurfaceTexture(env, thiz, surfaceTexture);
@@ -316,12 +250,6 @@ static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, 
         return;
     }
     SurfaceTexture_setProducer(env, thiz, igbp);
-#else
-    consumer->setConsumerIsProtected(isProtectedContext());
-
-    SurfaceTexture_setSurfaceTexture(env, thiz, surfaceTexture);
-    SurfaceTexture_setProducer(env, thiz, producer);
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     jclass clazz = env->GetObjectClass(thiz);
     if (clazz == NULL) {
         jniThrowRuntimeException(env,
@@ -329,27 +257,15 @@ static void SurfaceTexture_init(JNIEnv* env, jobject thiz, jboolean isDetached, 
         return;
     }
 
-    if (com::android::graphics::libgui::flags::bq_setframerate()) {
-        sp<JNISurfaceTextureContextListener> ctx(
-                new JNISurfaceTextureContextListener(env, weakThiz, clazz));
-        surfaceTexture->setSurfaceTextureListener(ctx);
-    } else {
-        sp<JNISurfaceTextureContextFrameAvailableListener> ctx(
-                new JNISurfaceTextureContextFrameAvailableListener(env, weakThiz, clazz));
-        surfaceTexture->setFrameAvailableListener(ctx);
-        SurfaceTexture_setFrameAvailableListener(env, thiz, ctx);
-    }
+    sp<JNISurfaceTextureContextListener> ctx(
+            new JNISurfaceTextureContextListener(env, weakThiz, clazz));
+    surfaceTexture->setSurfaceTextureListener(ctx);
 }
 
 static void SurfaceTexture_finalize(JNIEnv* env, jobject thiz)
 {
     sp<SurfaceTexture> surfaceTexture(SurfaceTexture_getSurfaceTexture(env, thiz));
-    if (com::android::graphics::libgui::flags::bq_setframerate()) {
-        surfaceTexture->setSurfaceTextureListener(0);
-    } else {
-        surfaceTexture->setFrameAvailableListener(0);
-        SurfaceTexture_setFrameAvailableListener(env, thiz, 0);
-    }
+    surfaceTexture->setSurfaceTextureListener(0);
     SurfaceTexture_setSurfaceTexture(env, thiz, 0);
     SurfaceTexture_setProducer(env, thiz, 0);
 }

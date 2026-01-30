@@ -74,6 +74,10 @@ abstract class BaseShadeControllerImpl(
             onClosingFinished()
         }
         if (launchIsFullScreen) {
+            // Make sure that visually the Shade is gone immediately, even though the rest of the
+            // state takes a little time to catch up.
+            notificationShadeWindowController.setPanelVisible(false)
+            notificationShadeWindowController.setForceHideAfterActivityLaunch(true)
             instantCollapseShade()
         }
     }

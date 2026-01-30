@@ -16,37 +16,27 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
-import android.os.Handler
+import android.platform.test.annotations.EnableFlags
+import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.keyguard.KeyguardSecurityModel
-import com.android.keyguard.KeyguardUpdateMonitor
+import com.android.keyguard.keyguardUpdateMonitor
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.biometrics.data.repository.FakeFingerprintPropertyRepository
-import com.android.systemui.bouncer.data.repository.FakeKeyguardBouncerRepository
-import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
-import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerCallbackInteractor
-import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
-import com.android.systemui.bouncer.ui.BouncerView
-import com.android.systemui.classifier.FalsingCollector
+import com.android.systemui.bouncer.data.repository.keyguardBouncerRepository
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
-import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBiometricsAllowedInteractor
-import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor
+import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
+import com.android.systemui.deviceentry.shared.model.DeviceUnlockSource
+import com.android.systemui.deviceentry.shared.model.DeviceUnlockStatus
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.DismissCallbackRegistry
-import com.android.systemui.keyguard.data.repository.FakeBiometricSettingsRepository
-import com.android.systemui.keyguard.data.repository.FakeDeviceEntryFingerprintAuthRepository
-import com.android.systemui.keyguard.data.repository.FakeTrustRepository
+import com.android.systemui.keyguard.data.repository.deviceEntryFingerprintAuthRepository
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.res.R
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.shared.model.Overlays
-import com.android.systemui.statusbar.policy.KeyguardStateController
+import com.android.systemui.securelockdevice.data.repository.fakeSecureLockDeviceRepository
 import com.android.systemui.testKosmos
-import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.util.mockito.whenever
-import com.android.systemui.util.time.FakeSystemClock
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -55,8 +45,6 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mock
-import org.mockito.Mockito.mock
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
 
@@ -65,62 +53,18 @@ import org.mockito.junit.MockitoRule
 class DeviceEntrySideFpsOverlayInteractorTest : SysuiTestCase() {
     @JvmField @Rule var mockitoRule: MockitoRule = MockitoJUnit.rule()
 
-    @Mock private lateinit var faceAuthInteractor: DeviceEntryFaceAuthInteractor
-    @Mock private lateinit var keyguardUpdateMonitor: KeyguardUpdateMonitor
-    @Mock private lateinit var mSelectedUserInteractor: SelectedUserInteractor
-
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
-    private val bouncerRepository = FakeKeyguardBouncerRepository()
-    private val biometricSettingsRepository = FakeBiometricSettingsRepository()
-    private val deviceEntryFingerprintAuthRepository = FakeDeviceEntryFingerprintAuthRepository()
 
-    private lateinit var primaryBouncerInteractor: PrimaryBouncerInteractor
-    private lateinit var alternateBouncerInteractor: AlternateBouncerInteractor
+    private val bouncerRepository = kosmos.keyguardBouncerRepository
+    private val deviceEntryFingerprintAuthRepository = kosmos.deviceEntryFingerprintAuthRepository
+    private val keyguardUpdateMonitor = kosmos.keyguardUpdateMonitor
 
     private lateinit var underTest: DeviceEntrySideFpsOverlayInteractor
 
     @Before
     fun setup() {
-        primaryBouncerInteractor =
-            PrimaryBouncerInteractor(
-                bouncerRepository,
-                mock(BouncerView::class.java),
-                mock(Handler::class.java),
-                mock(KeyguardStateController::class.java),
-                mock(KeyguardSecurityModel::class.java),
-                mock(PrimaryBouncerCallbackInteractor::class.java),
-                mock(FalsingCollector::class.java),
-                mock(DismissCallbackRegistry::class.java),
-                mContext,
-                keyguardUpdateMonitor,
-                FakeTrustRepository(),
-                testScope.backgroundScope,
-                mSelectedUserInteractor,
-                faceAuthInteractor,
-            )
-
-        alternateBouncerInteractor =
-            AlternateBouncerInteractor(
-                bouncerRepository,
-                FakeFingerprintPropertyRepository(),
-                FakeSystemClock(),
-                { mock(DeviceEntryBiometricsAllowedInteractor::class.java) },
-                { mock(KeyguardInteractor::class.java) },
-                { mock(KeyguardTransitionInteractor::class.java) },
-                { kosmos.sceneInteractor },
-                testScope.backgroundScope,
-            )
-
-        underTest =
-            DeviceEntrySideFpsOverlayInteractor(
-                mContext,
-                deviceEntryFingerprintAuthRepository,
-                kosmos.sceneInteractor,
-                primaryBouncerInteractor,
-                alternateBouncerInteractor,
-                keyguardUpdateMonitor,
-            )
+        underTest = kosmos.deviceEntrySideFpsOverlayInteractor
     }
 
     @Test
@@ -159,16 +103,6 @@ class DeviceEntrySideFpsOverlayInteractorTest : SysuiTestCase() {
     @EnableSceneContainer
     fun updatesShowIndicatorForDeviceEntry_onBouncerSceneActive() =
         testScope.runTest {
-            underTest =
-                DeviceEntrySideFpsOverlayInteractor(
-                    mContext,
-                    deviceEntryFingerprintAuthRepository,
-                    kosmos.sceneInteractor,
-                    primaryBouncerInteractor,
-                    alternateBouncerInteractor,
-                    keyguardUpdateMonitor,
-                )
-
             val showIndicatorForDeviceEntry by
                 collectLastValue(underTest.showIndicatorForDeviceEntry)
             runCurrent()
@@ -185,16 +119,6 @@ class DeviceEntrySideFpsOverlayInteractorTest : SysuiTestCase() {
     @EnableSceneContainer
     fun updatesShowIndicatorForDeviceEntry_onBouncerSceneInactive() =
         testScope.runTest {
-            underTest =
-                DeviceEntrySideFpsOverlayInteractor(
-                    mContext,
-                    deviceEntryFingerprintAuthRepository,
-                    kosmos.sceneInteractor,
-                    primaryBouncerInteractor,
-                    alternateBouncerInteractor,
-                    keyguardUpdateMonitor,
-                )
-
             val showIndicatorForDeviceEntry by
                 collectLastValue(underTest.showIndicatorForDeviceEntry)
             runCurrent()
@@ -204,6 +128,37 @@ class DeviceEntrySideFpsOverlayInteractorTest : SysuiTestCase() {
                 fpsDetectionRunning = true,
                 isUnlockingWithFpAllowed = true,
             )
+            assertThat(showIndicatorForDeviceEntry).isFalse()
+        }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    fun updatesShowIndicatorForDeviceEntry_onEnteringAndExitingSecureLockDeviceBiometricAuth() =
+        testScope.runTest {
+            val showIndicatorForDeviceEntry by
+                collectLastValue(underTest.showIndicatorForDeviceEntry)
+
+            // Secure lock device credential auth step
+            kosmos.fakeSecureLockDeviceRepository.onSecureLockDeviceEnabled()
+            whenever(keyguardUpdateMonitor.isFingerprintDetectionRunning).thenReturn(false)
+            whenever(keyguardUpdateMonitor.isUnlockingWithFingerprintAllowed).thenReturn(false)
+            runCurrent()
+            assertThat(showIndicatorForDeviceEntry).isFalse()
+
+            // Secure lock device biometric auth step
+            kosmos.fakeSecureLockDeviceRepository.onSuccessfulPrimaryAuth()
+            whenever(keyguardUpdateMonitor.isFingerprintDetectionRunning).thenReturn(true)
+            whenever(keyguardUpdateMonitor.isUnlockingWithFingerprintAllowed).thenReturn(true)
+            runCurrent()
+            assertThat(showIndicatorForDeviceEntry).isTrue()
+
+            // Mock biometric unlock / secure lock device disabled, should hide SFPS indicator
+            kosmos.fakeSecureLockDeviceRepository.onSecureLockDeviceDisabled()
+            kosmos.fakeDeviceEntryRepository.deviceUnlockStatus.value =
+                DeviceUnlockStatus(true, DeviceUnlockSource.Fingerprint)
+            whenever(keyguardUpdateMonitor.isFingerprintDetectionRunning).thenReturn(false)
+            whenever(keyguardUpdateMonitor.isUnlockingWithFingerprintAllowed).thenReturn(false)
+            runCurrent()
             assertThat(showIndicatorForDeviceEntry).isFalse()
         }
 
@@ -328,7 +283,7 @@ class DeviceEntrySideFpsOverlayInteractorTest : SysuiTestCase() {
             assertThat(showIndicatorForDeviceEntry).containsExactly(false, true)
         }
 
-    private fun updatePrimaryBouncer(
+    private fun TestScope.updatePrimaryBouncer(
         isShowing: Boolean,
         isAnimatingAway: Boolean,
         fpsDetectionRunning: Boolean,
@@ -339,14 +294,7 @@ class DeviceEntrySideFpsOverlayInteractorTest : SysuiTestCase() {
         val primaryStartDisappearAnimation = if (isAnimatingAway) Runnable {} else null
         bouncerRepository.setPrimaryStartDisappearAnimation(primaryStartDisappearAnimation)
 
-        whenever(keyguardUpdateMonitor.isFingerprintDetectionRunning)
-            .thenReturn(fpsDetectionRunning)
-        whenever(keyguardUpdateMonitor.isUnlockingWithFingerprintAllowed)
-            .thenReturn(isUnlockingWithFpAllowed)
-        mContext.orCreateTestableResources.addOverride(
-            R.bool.config_show_sidefps_hint_on_bouncer,
-            true,
-        )
+        updateBouncer(isShowing && !isAnimatingAway, fpsDetectionRunning, isUnlockingWithFpAllowed)
     }
 
     private fun TestScope.updateBouncer(
@@ -368,6 +316,7 @@ class DeviceEntrySideFpsOverlayInteractorTest : SysuiTestCase() {
             R.bool.config_show_sidefps_hint_on_bouncer,
             true,
         )
+
         runCurrent()
     }
 }

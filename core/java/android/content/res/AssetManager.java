@@ -17,6 +17,7 @@
 package android.content.res;
 
 import static android.app.ResourcesManager.ApkKey;
+import static android.content.res.Flags.resourcesMinorVersionSupport;
 import static android.content.res.Resources.ID_NULL;
 
 import android.annotation.AnyRes;
@@ -33,6 +34,7 @@ import android.content.pm.ActivityInfo;
 import android.content.res.Configuration.NativeConfig;
 import android.content.res.loader.ResourcesLoader;
 import android.os.Build;
+import android.os.Build.SdkIntFull;
 import android.os.ParcelFileDescriptor;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodReplace;
@@ -46,7 +48,7 @@ import android.util.TypedValue;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.content.om.OverlayConfig;
-import com.android.internal.ravenwood.RavenwoodEnvironment;
+import com.android.internal.ravenwood.RavenwoodHelperBridge;
 
 import java.io.FileDescriptor;
 import java.io.FileNotFoundException;
@@ -224,7 +226,7 @@ public final class AssetManager implements AutoCloseable {
     }
 
     private static String getFrameworkApkPath$ravenwood() {
-        return RavenwoodEnvironment.getInstance().getRavenwoodRuntimePath()
+        return RavenwoodHelperBridge.getInstance().getRavenwoodRuntimePath()
                 + FRAMEWORK_APK_PATH_RAVENWOOD;
     }
 
@@ -284,7 +286,7 @@ public final class AssetManager implements AutoCloseable {
 
             // TODO(Ravenwood): overlay support?
             final String[] systemIdmapPaths =
-                    RavenwoodEnvironment.getInstance().isRunningOnRavenwood() ? new String[0] :
+                    RavenwoodHelperBridge.getInstance().isRunningOnRavenwood() ? new String[0] :
                     OverlayConfig.getZygoteInstance().createImmutableFrameworkIdmapsInZygote();
             for (String idmapPath : systemIdmapPaths) {
                 apkAssets.add(ApkAssets.loadOverlayFromPath(idmapPath, ApkAssets.PROPERTY_SYSTEM));
@@ -502,8 +504,8 @@ public final class AssetManager implements AutoCloseable {
     /**
      * @hide
      */
-    public void addPresetApkKeys(@NonNull List<ApkKey> keys) {
-        addAssetPathInternal(keys, true);
+    public void addApkKeys(@NonNull List<ApkKey> keys, boolean presetAssets) {
+        addAssetPathInternal(keys, presetAssets);
     }
 
     private int addAssetPathInternal(List<ApkKey> apkKeys, boolean presetAssets) {
@@ -1190,7 +1192,20 @@ public final class AssetManager implements AutoCloseable {
      */
     public @NonNull XmlResourceParser openXmlResourceParser(int cookie, @NonNull String fileName)
             throws IOException {
-        try (XmlBlock block = openXmlBlockAsset(cookie, fileName, true)) {
+        return openXmlResourceParser(cookie, fileName, true);
+    }
+
+    /**
+     * Retrieve a parser for a compiled XML file.
+     *
+     * @param cookie Identifier of the package to be opened.
+     * @param fileName The name of the file to retrieve.
+     * @param hasFlags Whether the parser should check for flags on each element
+     * @hide
+     */
+    public @NonNull XmlResourceParser openXmlResourceParser(int cookie, @NonNull String fileName,
+            boolean hasFlags) throws IOException {
+        try (XmlBlock block = openXmlBlockAsset(cookie, fileName, hasFlags)) {
             XmlResourceParser parser = block.newParser(ID_NULL, new Validator());
             // If openXmlBlockAsset doesn't throw, it will always return an XmlBlock object with
             // a valid native pointer, which makes newParser always return non-null. But let's
@@ -1573,38 +1588,15 @@ public final class AssetManager implements AutoCloseable {
      * @hide
      */
     @UnsupportedAppUsage
-    public void setConfiguration(int mcc, int mnc, @Nullable String locale, int orientation,
-            int touchscreen, int density, int keyboard, int keyboardHidden, int navigation,
-            int screenWidth, int screenHeight, int smallestScreenWidthDp, int screenWidthDp,
-            int screenHeightDp, int screenLayout, int uiMode, int colorMode, int grammaticalGender,
-            int majorVersion) {
-        if (locale != null) {
-            setConfiguration(mcc, mnc, null, new String[]{locale}, orientation, touchscreen,
-                    density, keyboard, keyboardHidden, navigation, screenWidth, screenHeight,
-                    smallestScreenWidthDp, screenWidthDp, screenHeightDp, screenLayout, uiMode,
-                    colorMode, grammaticalGender, majorVersion);
-        } else {
-            setConfiguration(mcc, mnc, null, null, orientation, touchscreen, density,
-                    keyboard, keyboardHidden, navigation, screenWidth, screenHeight,
-                    smallestScreenWidthDp, screenWidthDp, screenHeightDp, screenLayout, uiMode,
-                    colorMode, grammaticalGender, majorVersion);
-        }
-    }
-
-    /**
-     * Change the configuration used when retrieving resources.  Not for use by
-     * applications.
-     * @hide
-     */
     public void setConfiguration(int mcc, int mnc, String defaultLocale, String[] locales,
             int orientation, int touchscreen, int density, int keyboard, int keyboardHidden,
             int navigation, int screenWidth, int screenHeight, int smallestScreenWidthDp,
             int screenWidthDp, int screenHeightDp, int screenLayout, int uiMode, int colorMode,
-            int grammaticalGender, int majorVersion) {
+            int grammaticalGender, @SdkIntFull int sdkVersionFull) {
         setConfigurationInternal(mcc, mnc, defaultLocale, locales, orientation,
                 touchscreen, density, keyboard, keyboardHidden, navigation, screenWidth,
                 screenHeight, smallestScreenWidthDp, screenWidthDp, screenHeightDp,
-                screenLayout, uiMode, colorMode, grammaticalGender, majorVersion, false);
+                screenLayout, uiMode, colorMode, grammaticalGender, sdkVersionFull, false);
     }
 
     /**
@@ -1616,13 +1608,16 @@ public final class AssetManager implements AutoCloseable {
             int orientation, int touchscreen, int density, int keyboard, int keyboardHidden,
             int navigation, int screenWidth, int screenHeight, int smallestScreenWidthDp,
             int screenWidthDp, int screenHeightDp, int screenLayout, int uiMode, int colorMode,
-            int grammaticalGender, int majorVersion, boolean forceRefresh) {
+            int grammaticalGender, @SdkIntFull int sdkVersionFull, boolean forceRefresh) {
         synchronized (this) {
             ensureValidLocked();
+            final int majorVersion = Build.getMajorSdkVersion(sdkVersionFull);
+            final int minorVersion = resourcesMinorVersionSupport()
+                    ? Build.getMinorSdkVersion(sdkVersionFull) : 0;
             nativeSetConfiguration(mObject, mcc, mnc, defaultLocale, locales, orientation,
                     touchscreen, density, keyboard, keyboardHidden, navigation, screenWidth,
                     screenHeight, smallestScreenWidthDp, screenWidthDp, screenHeightDp,
-                    screenLayout, uiMode, colorMode, grammaticalGender, majorVersion,
+                    screenLayout, uiMode, colorMode, grammaticalGender, majorVersion, minorVersion,
                     forceRefresh);
         }
     }
@@ -1736,7 +1731,7 @@ public final class AssetManager implements AutoCloseable {
             int touchscreen, int density, int keyboard, int keyboardHidden, int navigation,
             int screenWidth, int screenHeight, int smallestScreenWidthDp, int screenWidthDp,
             int screenHeightDp, int screenLayout, int uiMode, int colorMode, int grammaticalGender,
-            int majorVersion, boolean forceRefresh);
+            int majorVersion, int minorVersion, boolean forceRefresh);
     private static native void nativeSetOverlayConstraints(long ptr, int displayId, int deviceId);
     private static native @NonNull SparseArray<String> nativeGetAssignedPackageIdentifiers(
             long ptr, boolean includeOverlays, boolean includeLoaders);
@@ -1859,7 +1854,7 @@ public final class AssetManager implements AutoCloseable {
             @Nullable XmlBlock.Parser parser, @NonNull int[] inAttrs, long outValuesAddress,
             long outIndicesAddress) {
         Objects.requireNonNull(inAttrs, "inAttrs");
-        var runtime = RavenwoodEnvironment.getInstance();
+        var runtime = RavenwoodHelperBridge.getInstance();
         final int[] outValues = runtime.fromAddress(outValuesAddress);
         final int[] outIndices = runtime.fromAddress(outIndicesAddress);
         synchronized (this) {

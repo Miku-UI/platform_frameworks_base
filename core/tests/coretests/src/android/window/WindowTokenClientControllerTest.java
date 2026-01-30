@@ -33,14 +33,11 @@ import android.app.ActivityThread;
 import android.content.res.Configuration;
 import android.os.IBinder;
 import android.os.RemoteException;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.IWindowManager;
 
 import androidx.test.filters.SmallTest;
-
-import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -168,7 +165,6 @@ public class WindowTokenClientControllerTest {
         verify(mWindowManagerService).detachWindowContext(mWindowTokenClient);
     }
 
-    @EnableFlags(Flags.FLAG_TRACK_SYSTEM_UI_CONTEXT_BEFORE_WMS)
     @Test
     public void testAttachToDisplayContent_keepTrackWithoutWMS() {
         // WMS is not initialized

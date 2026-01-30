@@ -38,9 +38,14 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.internal.R
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -53,41 +58,47 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.spy
 import org.mockito.kotlin.stub
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 class AppListRepositoryTest {
-    @get:Rule
-    val mSetFlagsRule = SetFlagsRule()
+    @get:Rule val mSetFlagsRule = SetFlagsRule()
 
-    private val resources = mock<Resources> {
-        on { getStringArray(R.array.config_hideWhenDisabled_packageNames) } doReturn emptyArray()
-    }
-
-    private val packageManager = mock<PackageManager> {
-        on { getInstalledModules(any()) } doReturn emptyList()
-        on { getHomeActivities(any()) } doAnswer {
-            @Suppress("UNCHECKED_CAST")
-            val resolveInfos = it.arguments[0] as MutableList<ResolveInfo>
-            resolveInfos += resolveInfoOf(packageName = HOME_APP.packageName)
-            null
+    private val resources =
+        mock<Resources> {
+            on { getStringArray(R.array.config_hideWhenDisabled_packageNames) } doReturn
+                emptyArray()
         }
-        on { queryIntentActivitiesAsUser(any(), any<ResolveInfoFlags>(), any<Int>()) } doReturn
-            listOf(resolveInfoOf(packageName = IN_LAUNCHER_APP.packageName))
-    }
 
-    private val mockUserManager = mock<UserManager> {
-        on { getUserInfo(ADMIN_USER_ID) } doReturn UserInfo(0, "admin", UserInfo.FLAG_ADMIN)
-        on { getProfileIdsWithDisabled(ADMIN_USER_ID) } doReturn
-            intArrayOf(ADMIN_USER_ID, MANAGED_PROFILE_USER_ID)
-    }
+    private val packageManager =
+        mock<PackageManager> {
+            on { getInstalledModules(any()) } doReturn emptyList()
+            on { getHomeActivities(any()) } doAnswer
+                {
+                    @Suppress("UNCHECKED_CAST")
+                    val resolveInfos = it.arguments[0] as MutableList<ResolveInfo>
+                    resolveInfos += resolveInfoOf(packageName = HOME_APP.packageName)
+                    null
+                }
+            on { queryIntentActivitiesAsUser(any(), any<ResolveInfoFlags>(), any<Int>()) } doReturn
+                listOf(resolveInfoOf(packageName = IN_LAUNCHER_APP.packageName))
+        }
 
-    private val context: Context = spy(ApplicationProvider.getApplicationContext()) {
-        on { resources } doReturn resources
-        on { packageManager } doReturn packageManager
-        on { getSystemService(UserManager::class.java) } doReturn mockUserManager
-    }
+    private val mockUserManager =
+        mock<UserManager> {
+            on { getUserInfo(ADMIN_USER_ID) } doReturn UserInfo(0, "admin", UserInfo.FLAG_ADMIN)
+            on { getProfileIdsWithDisabled(ADMIN_USER_ID) } doReturn
+                intArrayOf(ADMIN_USER_ID, MANAGED_PROFILE_USER_ID)
+        }
+
+    private val context: Context =
+        spy(ApplicationProvider.getApplicationContext()) {
+            on { resources } doReturn resources
+            on { packageManager } doReturn packageManager
+            on { getSystemService(UserManager::class.java) } doReturn mockUserManager
+        }
 
     private val repository = AppListRepositoryImpl(context)
 
@@ -98,14 +109,21 @@ class AppListRepositoryTest {
         }
     }
 
+    @Before
+    fun setUp() {
+        AppListRepositoryImpl.useCaching = false
+    }
+
+    @After
+    fun tearDown() {
+        AppListRepositoryImpl.useCaching = false
+    }
+
     @Test
     fun loadApps_notShowInstantApps() = runTest {
         mockInstalledApplications(listOf(NORMAL_APP, INSTANT_APP), ADMIN_USER_ID)
 
-        val appList = repository.loadApps(
-            userId = ADMIN_USER_ID,
-            loadInstantApps = false,
-        )
+        val appList = repository.loadApps(userId = ADMIN_USER_ID, loadInstantApps = false)
 
         assertThat(appList).containsExactly(NORMAL_APP)
     }
@@ -114,10 +132,7 @@ class AppListRepositoryTest {
     fun loadApps_showInstantApps() = runTest {
         mockInstalledApplications(listOf(NORMAL_APP, INSTANT_APP), ADMIN_USER_ID)
 
-        val appList = repository.loadApps(
-            userId = ADMIN_USER_ID,
-            loadInstantApps = true,
-        )
+        val appList = repository.loadApps(userId = ADMIN_USER_ID, loadInstantApps = true)
 
         assertThat(appList).containsExactly(NORMAL_APP, INSTANT_APP)
     }
@@ -126,15 +141,15 @@ class AppListRepositoryTest {
     fun loadApps_notMatchAnyUserForAdmin_withRegularFlags() = runTest {
         mockInstalledApplications(listOf(NORMAL_APP), ADMIN_USER_ID)
 
-        val appList = repository.loadApps(
-            userId = ADMIN_USER_ID,
-            matchAnyUserForAdmin = false,
-        )
+        val appList = repository.loadApps(userId = ADMIN_USER_ID, matchAnyUserForAdmin = false)
 
         assertThat(appList).containsExactly(NORMAL_APP)
-        val flags = argumentCaptor<ApplicationInfoFlags> {
-            verify(packageManager).getInstalledApplicationsAsUser(capture(), eq(ADMIN_USER_ID))
-        }.firstValue
+        val flags =
+            argumentCaptor<ApplicationInfoFlags> {
+                    verify(packageManager)
+                        .getInstalledApplicationsAsUser(capture(), eq(ADMIN_USER_ID))
+                }
+                .firstValue
         assertThat(flags.value and PackageManager.MATCH_ANY_USER.toLong()).isEqualTo(0L)
     }
 
@@ -142,59 +157,59 @@ class AppListRepositoryTest {
     fun loadApps_matchAnyUserForAdmin_withMatchAnyUserFlag() = runTest {
         mockInstalledApplications(listOf(NORMAL_APP), ADMIN_USER_ID)
 
-        val appList = repository.loadApps(
-            userId = ADMIN_USER_ID,
-            matchAnyUserForAdmin = true,
-        )
+        val appList = repository.loadApps(userId = ADMIN_USER_ID, matchAnyUserForAdmin = true)
 
         assertThat(appList).containsExactly(NORMAL_APP)
-        val flags = argumentCaptor<ApplicationInfoFlags> {
-            verify(packageManager).getInstalledApplicationsAsUser(capture(), eq(ADMIN_USER_ID))
-        }.firstValue
+        val flags =
+            argumentCaptor<ApplicationInfoFlags> {
+                    verify(packageManager)
+                        .getInstalledApplicationsAsUser(capture(), eq(ADMIN_USER_ID))
+                }
+                .firstValue
         assertThat(flags.value and PackageManager.MATCH_ANY_USER.toLong()).isGreaterThan(0L)
     }
 
     @Test
     fun loadApps_matchAnyUserForAdminAndInstalledOnManagedProfileOnly_notDisplayed() = runTest {
         val managedProfileOnlyPackageName = "installed.on.managed.profile.only"
-        mockInstalledApplications(listOf(ApplicationInfo().apply {
-            packageName = managedProfileOnlyPackageName
-        }), ADMIN_USER_ID)
-        mockInstalledApplications(listOf(ApplicationInfo().apply {
-            packageName = managedProfileOnlyPackageName
-            flags = ApplicationInfo.FLAG_INSTALLED
-        }), MANAGED_PROFILE_USER_ID)
-
-        val appList = repository.loadApps(
-            userId = ADMIN_USER_ID,
-            matchAnyUserForAdmin = true,
+        mockInstalledApplications(
+            listOf(ApplicationInfo().apply { packageName = managedProfileOnlyPackageName }),
+            ADMIN_USER_ID,
         )
+        mockInstalledApplications(
+            listOf(
+                ApplicationInfo().apply {
+                    packageName = managedProfileOnlyPackageName
+                    flags = ApplicationInfo.FLAG_INSTALLED
+                }
+            ),
+            MANAGED_PROFILE_USER_ID,
+        )
+
+        val appList = repository.loadApps(userId = ADMIN_USER_ID, matchAnyUserForAdmin = true)
 
         assertThat(appList).isEmpty()
     }
 
     @Test
     fun loadApps_matchAnyUserForAdminAndInstalledOnSecondaryUserOnly_displayed() = runTest {
-        val secondaryUserOnlyApp = ApplicationInfo().apply {
-            packageName = "installed.on.secondary.user.only"
-        }
+        val secondaryUserOnlyApp =
+            ApplicationInfo().apply { packageName = "installed.on.secondary.user.only" }
         mockInstalledApplications(listOf(secondaryUserOnlyApp), ADMIN_USER_ID)
         mockInstalledApplications(emptyList(), MANAGED_PROFILE_USER_ID)
 
-        val appList = repository.loadApps(
-            userId = ADMIN_USER_ID,
-            matchAnyUserForAdmin = true,
-        )
+        val appList = repository.loadApps(userId = ADMIN_USER_ID, matchAnyUserForAdmin = true)
 
         assertThat(appList).containsExactly(secondaryUserOnlyApp)
     }
 
     @Test
     fun loadApps_isHideWhenDisabledPackageAndDisabled() = runTest {
-        val app = ApplicationInfo().apply {
-            packageName = "is.hide.when.disabled"
-            enabled = false
-        }
+        val app =
+            ApplicationInfo().apply {
+                packageName = "is.hide.when.disabled"
+                enabled = false
+            }
         whenever(resources.getStringArray(R.array.config_hideWhenDisabled_packageNames))
             .thenReturn(arrayOf(app.packageName))
         mockInstalledApplications(listOf(app), ADMIN_USER_ID)
@@ -206,11 +221,12 @@ class AppListRepositoryTest {
 
     @Test
     fun loadApps_isHideWhenDisabledPackageAndDisabledUntilUsed() = runTest {
-        val app = ApplicationInfo().apply {
-            packageName = "is.hide.when.disabled"
-            enabled = true
-            enabledSetting = PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED
-        }
+        val app =
+            ApplicationInfo().apply {
+                packageName = "is.hide.when.disabled"
+                enabled = true
+                enabledSetting = PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED
+            }
         whenever(resources.getStringArray(R.array.config_hideWhenDisabled_packageNames))
             .thenReturn(arrayOf(app.packageName))
         mockInstalledApplications(listOf(app), ADMIN_USER_ID)
@@ -222,10 +238,11 @@ class AppListRepositoryTest {
 
     @Test
     fun loadApps_isHideWhenDisabledPackageAndEnabled() = runTest {
-        val app = ApplicationInfo().apply {
-            packageName = "is.hide.when.disabled"
-            enabled = true
-        }
+        val app =
+            ApplicationInfo().apply {
+                packageName = "is.hide.when.disabled"
+                enabled = true
+            }
         whenever(resources.getStringArray(R.array.config_hideWhenDisabled_packageNames))
             .thenReturn(arrayOf(app.packageName))
         mockInstalledApplications(listOf(app), ADMIN_USER_ID)
@@ -237,11 +254,12 @@ class AppListRepositoryTest {
 
     @Test
     fun loadApps_disabledByUser() = runTest {
-        val app = ApplicationInfo().apply {
-            packageName = "disabled.by.user"
-            enabled = false
-            enabledSetting = PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
-        }
+        val app =
+            ApplicationInfo().apply {
+                packageName = "disabled.by.user"
+                enabled = false
+                enabledSetting = PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER
+            }
         mockInstalledApplications(listOf(app), ADMIN_USER_ID)
 
         val appList = repository.loadApps(userId = ADMIN_USER_ID)
@@ -251,10 +269,11 @@ class AppListRepositoryTest {
 
     @Test
     fun loadApps_disabledButNotByUser() = runTest {
-        val app = ApplicationInfo().apply {
-            packageName = "disabled"
-            enabled = false
-        }
+        val app =
+            ApplicationInfo().apply {
+                packageName = "disabled"
+                enabled = false
+            }
         mockInstalledApplications(listOf(app), ADMIN_USER_ID)
 
         val appList = repository.loadApps(userId = ADMIN_USER_ID)
@@ -271,25 +290,27 @@ class AppListRepositoryTest {
         val appList = repository.loadApps(userId = ADMIN_USER_ID)
 
         assertThat(appList).containsExactly(NORMAL_APP, ARCHIVED_APP)
-        val flags = argumentCaptor<ApplicationInfoFlags> {
-            verify(packageManager).getInstalledApplicationsAsUser(capture(), eq(ADMIN_USER_ID))
-        }.firstValue
-        assertThat(flags.value).isEqualTo(
-            (PackageManager.MATCH_DISABLED_COMPONENTS or
-                PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS).toLong() or
-                PackageManager.MATCH_ARCHIVED_PACKAGES
-        )
+        val flags =
+            argumentCaptor<ApplicationInfoFlags> {
+                    verify(packageManager)
+                        .getInstalledApplicationsAsUser(capture(), eq(ADMIN_USER_ID))
+                }
+                .firstValue
+        assertThat(flags.value)
+            .isEqualTo(
+                (PackageManager.MATCH_DISABLED_COMPONENTS or
+                        PackageManager.MATCH_DISABLED_UNTIL_USED_COMPONENTS)
+                    .toLong() or PackageManager.MATCH_ARCHIVED_PACKAGES
+            )
     }
 
     @EnableFlags(Flags.FLAG_REMOVE_HIDDEN_MODULE_USAGE)
     @Test
     fun loadApps_shouldIncludeAllSystemModuleApps() = runTest {
-        packageManager.stub {
-            on { getInstalledModules(any()) } doReturn listOf(HIDDEN_MODULE)
-        }
+        packageManager.stub { on { getInstalledModules(any()) } doReturn listOf(HIDDEN_MODULE) }
         mockInstalledApplications(
             listOf(NORMAL_APP, HIDDEN_APEX_APP, HIDDEN_MODULE_APP),
-            ADMIN_USER_ID
+            ADMIN_USER_ID,
         )
 
         val appList = repository.loadApps(userId = ADMIN_USER_ID)
@@ -301,12 +322,10 @@ class AppListRepositoryTest {
     @EnableFlags(Flags.FLAG_PROVIDE_INFO_OF_APK_IN_APEX)
     @Test
     fun loadApps_hasApkInApexInfo_shouldNotIncludeAllHiddenApps() = runTest {
-        packageManager.stub {
-            on { getInstalledModules(any()) } doReturn listOf(HIDDEN_MODULE)
-        }
+        packageManager.stub { on { getInstalledModules(any()) } doReturn listOf(HIDDEN_MODULE) }
         mockInstalledApplications(
             listOf(NORMAL_APP, HIDDEN_APEX_APP, HIDDEN_MODULE_APP),
-            ADMIN_USER_ID
+            ADMIN_USER_ID,
         )
 
         val appList = repository.loadApps(userId = ADMIN_USER_ID)
@@ -317,12 +336,10 @@ class AppListRepositoryTest {
     @DisableFlags(Flags.FLAG_PROVIDE_INFO_OF_APK_IN_APEX, Flags.FLAG_REMOVE_HIDDEN_MODULE_USAGE)
     @Test
     fun loadApps_noApkInApexInfo_shouldNotIncludeHiddenSystemModule() = runTest {
-        packageManager.stub {
-            on { getInstalledModules(any()) } doReturn listOf(HIDDEN_MODULE)
-        }
+        packageManager.stub { on { getInstalledModules(any()) } doReturn listOf(HIDDEN_MODULE) }
         mockInstalledApplications(
             listOf(NORMAL_APP, HIDDEN_APEX_APP, HIDDEN_MODULE_APP),
-            ADMIN_USER_ID
+            ADMIN_USER_ID,
         )
 
         val appList = repository.loadApps(userId = ADMIN_USER_ID)
@@ -387,21 +404,20 @@ class AppListRepositoryTest {
     @Test
     fun getSystemPackageNames_returnExpectedValues() = runTest {
         mockInstalledApplications(
-            apps = listOf(
-                NORMAL_APP,
-                INSTANT_APP,
-                SYSTEM_APP,
-                UPDATED_SYSTEM_APP,
-                HOME_APP,
-                IN_LAUNCHER_APP,
-            ),
+            apps =
+                listOf(
+                    NORMAL_APP,
+                    INSTANT_APP,
+                    SYSTEM_APP,
+                    UPDATED_SYSTEM_APP,
+                    HOME_APP,
+                    IN_LAUNCHER_APP,
+                ),
             userId = ADMIN_USER_ID,
         )
 
-        val systemPackageNames = AppListRepositoryUtil.getSystemPackageNames(
-            context = context,
-            userId = ADMIN_USER_ID,
-        )
+        val systemPackageNames =
+            AppListRepositoryUtil.getSystemPackageNames(context = context, userId = ADMIN_USER_ID)
 
         assertThat(systemPackageNames).containsExactly(SYSTEM_APP.packageName)
     }
@@ -409,14 +425,15 @@ class AppListRepositoryTest {
     @Test
     fun loadAndFilterApps_loadNonSystemApp_returnExpectedValues() = runTest {
         mockInstalledApplications(
-            apps = listOf(
-                NORMAL_APP,
-                INSTANT_APP,
-                SYSTEM_APP,
-                UPDATED_SYSTEM_APP,
-                HOME_APP,
-                IN_LAUNCHER_APP,
-            ),
+            apps =
+                listOf(
+                    NORMAL_APP,
+                    INSTANT_APP,
+                    SYSTEM_APP,
+                    UPDATED_SYSTEM_APP,
+                    HOME_APP,
+                    IN_LAUNCHER_APP,
+                ),
             userId = ADMIN_USER_ID,
         )
 
@@ -426,72 +443,132 @@ class AppListRepositoryTest {
             .containsExactly(NORMAL_APP, UPDATED_SYSTEM_APP, HOME_APP, IN_LAUNCHER_APP)
     }
 
+    @Test
+    fun loadApps_caching_calledOnlyOnce() = runTest {
+        mockInstalledApplications(listOf(NORMAL_APP), ADMIN_USER_ID)
+        AppListRepositoryImpl.useCaching = true
+
+        repository.loadApps(userId = ADMIN_USER_ID)
+        repository.loadApps(userId = ADMIN_USER_ID)
+
+        verify(packageManager)
+            .getInstalledApplicationsAsUser(any<ApplicationInfoFlags>(), eq(ADMIN_USER_ID))
+    }
+
+    @Test
+    fun loadApps_caching_isThreadSafe() = runTest {
+        mockInstalledApplications(listOf(NORMAL_APP), ADMIN_USER_ID)
+        AppListRepositoryImpl.useCaching = true
+
+        val apps = coroutineScope {
+            val deferred1 = async { repository.loadApps(userId = ADMIN_USER_ID) }
+            val deferred2 = async { repository.loadApps(userId = ADMIN_USER_ID) }
+            awaitAll(deferred1, deferred2)
+        }
+        assertThat(apps[0]).isSameInstanceAs(apps[1])
+
+        verify(packageManager)
+            .getInstalledApplicationsAsUser(any<ApplicationInfoFlags>(), eq(ADMIN_USER_ID))
+    }
+
+    @Test
+    fun useCaching_setToFalse_clearsCache() = runTest {
+        mockInstalledApplications(listOf(NORMAL_APP), ADMIN_USER_ID)
+        AppListRepositoryImpl.useCaching = true
+        repository.loadApps(userId = ADMIN_USER_ID)
+
+        AppListRepositoryImpl.useCaching = false
+        AppListRepositoryImpl.useCaching = true // re-enable to check if it re-fetches
+        repository.loadApps(userId = ADMIN_USER_ID)
+
+        verify(packageManager, times(2))
+            .getInstalledApplicationsAsUser(any<ApplicationInfoFlags>(), eq(ADMIN_USER_ID))
+    }
+
+    @Test
+    fun loadAndFilterApps_caching_calledOnlyOnce() = runTest {
+        mockInstalledApplications(apps = listOf(NORMAL_APP, SYSTEM_APP), userId = ADMIN_USER_ID)
+        AppListRepositoryImpl.useCaching = true
+
+        repository.loadAndFilterApps(userId = ADMIN_USER_ID, isSystemApp = false)
+        repository.loadAndFilterApps(userId = ADMIN_USER_ID, isSystemApp = false)
+
+        verify(packageManager)
+            .queryIntentActivitiesAsUser(any(), any<ResolveInfoFlags>(), eq(ADMIN_USER_ID))
+        verify(packageManager).getHomeActivities(any())
+    }
+
     private suspend fun getShowSystemPredicate(showSystem: Boolean) =
-        repository.showSystemPredicate(
-            userIdFlow = flowOf(ADMIN_USER_ID),
-            showSystemFlow = flowOf(showSystem),
-        ).first()
+        repository
+            .showSystemPredicate(
+                userIdFlow = flowOf(ADMIN_USER_ID),
+                showSystemFlow = flowOf(showSystem),
+            )
+            .first()
 
     private companion object {
         const val ADMIN_USER_ID = 0
         const val MANAGED_PROFILE_USER_ID = 11
 
-        val NORMAL_APP = ApplicationInfo().apply {
-            packageName = "normal"
-            enabled = true
-        }
+        val NORMAL_APP =
+            ApplicationInfo().apply {
+                packageName = "normal"
+                enabled = true
+            }
 
-        val INSTANT_APP = ApplicationInfo().apply {
-            packageName = "instant"
-            enabled = true
-            privateFlags = ApplicationInfo.PRIVATE_FLAG_INSTANT
-        }
+        val INSTANT_APP =
+            ApplicationInfo().apply {
+                packageName = "instant"
+                enabled = true
+                privateFlags = ApplicationInfo.PRIVATE_FLAG_INSTANT
+            }
 
-        val SYSTEM_APP = ApplicationInfo().apply {
-            packageName = "system.app"
-            flags = ApplicationInfo.FLAG_SYSTEM
-        }
+        val SYSTEM_APP =
+            ApplicationInfo().apply {
+                packageName = "system.app"
+                flags = ApplicationInfo.FLAG_SYSTEM
+            }
 
-        val UPDATED_SYSTEM_APP = ApplicationInfo().apply {
-            packageName = "updated.system.app"
-            flags = ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP
-        }
+        val UPDATED_SYSTEM_APP =
+            ApplicationInfo().apply {
+                packageName = "updated.system.app"
+                flags = ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP
+            }
 
-        val HOME_APP = ApplicationInfo().apply {
-            packageName = "home.app"
-            flags = ApplicationInfo.FLAG_SYSTEM
-        }
+        val HOME_APP =
+            ApplicationInfo().apply {
+                packageName = "home.app"
+                flags = ApplicationInfo.FLAG_SYSTEM
+            }
 
-        val IN_LAUNCHER_APP = ApplicationInfo().apply {
-            packageName = "app.in.launcher"
-            flags = ApplicationInfo.FLAG_SYSTEM
-        }
+        val IN_LAUNCHER_APP =
+            ApplicationInfo().apply {
+                packageName = "app.in.launcher"
+                flags = ApplicationInfo.FLAG_SYSTEM
+            }
 
-        val ARCHIVED_APP = ApplicationInfo().apply {
-            packageName = "archived.app"
-            flags = ApplicationInfo.FLAG_SYSTEM
-            isArchived = true
-        }
+        val ARCHIVED_APP =
+            ApplicationInfo().apply {
+                packageName = "archived.app"
+                flags = ApplicationInfo.FLAG_SYSTEM
+                isArchived = true
+            }
 
         // TODO(b/382016780): to be removed after flag cleanup.
-        val HIDDEN_APEX_APP = ApplicationInfo().apply {
-            packageName = "hidden.apex.package"
-        }
+        val HIDDEN_APEX_APP = ApplicationInfo().apply { packageName = "hidden.apex.package" }
 
-        val HIDDEN_MODULE_APP = ApplicationInfo().apply {
-            packageName = "hidden.module.package"
-        }
+        val HIDDEN_MODULE_APP = ApplicationInfo().apply { packageName = "hidden.module.package" }
 
-        val HIDDEN_MODULE = ModuleInfo().apply {
-            packageName = "hidden.module.package"
-            apkInApexPackageNames = listOf("hidden.apex.package")
-            isHidden = true
-        }
-
-        fun resolveInfoOf(packageName: String) = ResolveInfo().apply {
-            activityInfo = ActivityInfo().apply {
-                this.packageName = packageName
+        val HIDDEN_MODULE =
+            ModuleInfo().apply {
+                packageName = "hidden.module.package"
+                apkInApexPackageNames = listOf("hidden.apex.package")
+                isHidden = true
             }
-        }
+
+        fun resolveInfoOf(packageName: String) =
+            ResolveInfo().apply {
+                activityInfo = ActivityInfo().apply { this.packageName = packageName }
+            }
     }
 }

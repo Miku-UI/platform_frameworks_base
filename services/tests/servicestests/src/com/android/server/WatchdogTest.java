@@ -27,6 +27,7 @@ import android.os.SimpleClock;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.Watchdog.HandlerChecker;
+import com.android.server.Watchdog.Throttler;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -131,6 +132,31 @@ public class WatchdogTest {
         mChecker.run();
         assertEquals(Watchdog.COMPLETED, mChecker.getCompletionStateLocked());
         verify(monitor).monitor();
+    }
+
+    @Test
+    public void testThrottler() {
+        final int throttlerCoolOffMs = 100;
+        Throttler throttler = new Throttler(mClock, throttlerCoolOffMs);
+        // Initially not throttled
+        assertEquals(false, throttler.isThrottled());
+
+        throttler.markTrigger();
+        assertEquals(true, throttler.isThrottled());
+
+        mClock.advanceBy(throttlerCoolOffMs - 1);
+        assertEquals(true, throttler.isThrottled());
+
+        mClock.advanceBy(1);
+        assertEquals(false, throttler.isThrottled());
+    }
+
+    @Test
+    public void testThrottlerDisabled() {
+        Throttler throttler = new Throttler(mClock, 0);
+        assertEquals(false, throttler.isThrottled());
+        throttler.markTrigger();
+        assertEquals(false, throttler.isThrottled());
     }
 
     private static class TestClock extends SimpleClock {

@@ -16,6 +16,9 @@
 
 package com.android.systemui.notetask
 
+import androidx.annotation.VisibleForTesting
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
+
 /**
  * Marks declarations that are **internal** in note task API, which means that should not be used
  * outside of `com.android.systemui.notetask`.
@@ -25,10 +28,12 @@ package com.android.systemui.notetask
     AnnotationTarget.CLASS,
     AnnotationTarget.FUNCTION,
     AnnotationTarget.TYPEALIAS,
-    AnnotationTarget.PROPERTY
+    AnnotationTarget.PROPERTY,
 )
 @RequiresOptIn(
     level = RequiresOptIn.Level.ERROR,
     message = "This is an internal API, do not it outside `com.android.systemui.notetask`",
 )
-internal annotation class InternalNoteTaskApi
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+annotation class InternalNoteTaskApi

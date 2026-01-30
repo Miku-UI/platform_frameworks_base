@@ -28,6 +28,7 @@ import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.window.DesktopExperienceFlags;
 import android.window.DesktopModeFlags;
 
 import androidx.test.filters.SmallTest;
@@ -122,6 +123,18 @@ public class DesktopModeHelperTest {
         assertThat(DesktopModeHelper.canEnterDesktopMode(mMockContext)).isTrue();
     }
 
+    @DisableFlags({Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE,
+            Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION})
+    @Test
+    public void canEnterDesktopMode_DWFlagDisabled_configDevOptionOn_flagOverrideOff_returnsFalse()
+            throws Exception {
+        doReturn(true).when(mMockResources).getBoolean(
+                eq(R.bool.config_isDesktopModeDevOptionSupported));
+        setFlagOverride(DesktopModeFlags.ToggleOverride.OVERRIDE_OFF);
+
+        assertThat(DesktopModeHelper.canEnterDesktopMode(mMockContext)).isFalse();
+    }
+
     @DisableFlags(Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION)
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
     @Test
@@ -172,6 +185,19 @@ public class DesktopModeHelperTest {
         assertThat(DesktopModeHelper.canEnterDesktopMode(mMockContext)).isTrue();
     }
 
+    @DisableFlags(Flags.FLAG_ENABLE_DESKTOP_MODE_THROUGH_DEV_OPTION)
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODE)
+    @Test
+    public void canEnterDesktopMode_DWFlagEnabled_configDevOptionOn_flagOverrideOff_returnsFalse()
+            throws Exception {
+        doReturn(true).when(mMockResources).getBoolean(
+                eq(R.bool.config_isDesktopModeDevOptionSupported)
+        );
+        setFlagOverride(DesktopModeFlags.ToggleOverride.OVERRIDE_OFF);
+
+        assertThat(DesktopModeHelper.canEnterDesktopMode(mMockContext)).isFalse();
+    }
+
     @Test
     public void isDeviceEligibleForDesktopMode_configDEModeOnAndIntDispHostsDesktop_returnsTrue() {
         doReturn(true).when(mMockResources).getBoolean(eq(R.bool.config_isDesktopModeSupported));
@@ -183,12 +209,12 @@ public class DesktopModeHelperTest {
 
     @DisableFlags(Flags.FLAG_ENABLE_PROJECTED_DISPLAY_DESKTOP_MODE)
     @Test
-    public void isDeviceEligibleForDesktopMode_configDEModeOffAndIntDispHostsDesktop_returnsFalse() {
+    public void isDeviceEligibleForDesktopMode_configDEModeOffAndIntDispHostsDesktop_returnsTrue() {
         doReturn(true).when(mMockResources).getBoolean(eq(R.bool.config_isDesktopModeSupported));
         doReturn(false).when(mMockResources)
                 .getBoolean(eq(R.bool.config_canInternalDisplayHostDesktops));
 
-        assertThat(DesktopModeHelper.isDeviceEligibleForDesktopMode(mMockContext)).isFalse();
+        assertThat(DesktopModeHelper.isDeviceEligibleForDesktopMode(mMockContext)).isTrue();
     }
 
     @Test
@@ -237,16 +263,38 @@ public class DesktopModeHelperTest {
     }
 
     private void resetDesktopModeFlagsCache() throws Exception {
+        Field cachedRawToggleOverride = DesktopModeFlags.class.getDeclaredField(
+                "sCachedRawToggleOverride");
+        cachedRawToggleOverride.setAccessible(true);
+        cachedRawToggleOverride.set(/* obj= */ null,
+                /* value= */ DesktopModeFlags.ToggleOverride.OVERRIDE_UNSET);
+
         Field cachedToggleOverride = DesktopModeFlags.class.getDeclaredField(
                 "sCachedToggleOverride");
         cachedToggleOverride.setAccessible(true);
         cachedToggleOverride.set(/* obj= */ null, /* value= */ null);
+
+        Field cachedDWToggleOverride = DesktopExperienceFlags.class.getDeclaredField(
+                "sCachedToggleOverride");
+        cachedDWToggleOverride.setAccessible(true);
+        cachedDWToggleOverride.set(/* obj= */ null, /* value= */ false);
     }
 
     private void setFlagOverride(DesktopModeFlags.ToggleOverride override) throws Exception {
+        Field cachedRawToggleOverride = DesktopModeFlags.class.getDeclaredField(
+                "sCachedRawToggleOverride");
+        cachedRawToggleOverride.setAccessible(true);
+        cachedRawToggleOverride.set(/* obj= */ null, /* value= */ override);
+
         Field cachedToggleOverride = DesktopModeFlags.class.getDeclaredField(
                 "sCachedToggleOverride");
         cachedToggleOverride.setAccessible(true);
-        cachedToggleOverride.set(/* obj= */ null, /* value= */ override);
+        cachedToggleOverride.set(/* obj= */ null, /* value= */ null);
+
+        Field cachedDEToggleOverride = DesktopExperienceFlags.class.getDeclaredField(
+                "sCachedToggleOverride");
+        cachedDEToggleOverride.setAccessible(true);
+        cachedDEToggleOverride.set(/* obj= */ null,
+                /* value= */ override == DesktopModeFlags.ToggleOverride.OVERRIDE_ON);
     }
 }

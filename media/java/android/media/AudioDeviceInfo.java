@@ -836,5 +836,14 @@ public final class AudioDeviceInfo {
                 TYPE_ECHO_REFERENCE, AudioSystem.DEVICE_IN_ECHO_REFERENCE);
 
     }
-}
 
+    @Override
+    public String toString() {
+        return new String("AudioDeviceInfo:"
+                + " type: " + (isSink() ? AudioSystem.getOutputDeviceName(getInternalType())
+                : AudioSystem.getInputDeviceName(getInternalType()))
+                + " addr: " + getAddress()
+                + " id: " + getId());
+    }
+
+}

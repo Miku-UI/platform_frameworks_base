@@ -20,12 +20,15 @@ import static android.app.ActivityManager.INTENT_SENDER_ACTIVITY;
 import static android.app.ActivityManager.INTENT_SENDER_BROADCAST;
 import static android.app.ActivityManager.INTENT_SENDER_FOREGROUND_SERVICE;
 import static android.app.ActivityManager.INTENT_SENDER_SERVICE;
+import static android.app.ActivityManager.START_ABORTED;
 
 import android.Manifest.permission;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.SystemApi;
 import android.annotation.SystemApi.Client;
 import android.annotation.TestApi;
@@ -568,7 +571,8 @@ public final class PendingIntent implements Parcelable {
      */
     @UnsupportedAppUsage
     public static PendingIntent getActivityAsUser(Context context, int requestCode,
-            @NonNull Intent intent, int flags, Bundle options, UserHandle user) {
+            @NonNull Intent intent, int flags, Bundle options,
+            @CanBeCURRENT UserHandle user) {
         String packageName = context.getPackageName();
         String resolvedType = intent.resolveTypeIfNeeded(context.getContentResolver());
         checkPendingIntent(flags, intent, context, /* isActivityResultType */ false);
@@ -698,7 +702,7 @@ public final class PendingIntent implements Parcelable {
      * activity is started, not when the pending intent is created.
      */
     public static PendingIntent getActivitiesAsUser(Context context, int requestCode,
-            @NonNull Intent[] intents, int flags, Bundle options, UserHandle user) {
+            @NonNull Intent[] intents, int flags, Bundle options, @CanBeCURRENT UserHandle user) {
         String packageName = context.getPackageName();
         String[] resolvedTypes = new String[intents.length];
         for (int i=0; i<intents.length; i++) {
@@ -755,7 +759,7 @@ public final class PendingIntent implements Parcelable {
      */
     @UnsupportedAppUsage
     public static PendingIntent getBroadcastAsUser(Context context, int requestCode,
-            Intent intent, int flags, UserHandle userHandle) {
+            Intent intent, int flags, @CanBeALL @CanBeCURRENT UserHandle userHandle) {
         String packageName = context.getPackageName();
         String resolvedType = intent.resolveTypeIfNeeded(context.getContentResolver());
         checkPendingIntent(flags, intent, context, /* isActivityResultType */ false);
@@ -1113,12 +1117,16 @@ public final class PendingIntent implements Parcelable {
 
             final IApplicationThread app = ActivityThread.currentActivityThread()
                     .getApplicationThread();
-            return ActivityManager.getService().sendIntentSender(app,
+            int result = ActivityManager.getService().sendIntentSender(app,
                     mTarget, mWhitelistToken, code, intent, resolvedType,
                     onFinished != null
                             ? new FinishedDispatcher(this, onFinished, handler)
                             : null,
                     requiredPermission, options);
+            if (result == START_ABORTED && Build.isDebuggable()) {
+                Log.w(TAG, new StackTrace("Activity start aborted"));
+            }
+            return result;
         } catch (RemoteException e) {
             throw new CanceledException(e);
         }

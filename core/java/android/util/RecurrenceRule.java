@@ -49,7 +49,7 @@ public class RecurrenceRule implements Parcelable {
 
     private static final int VERSION_INIT = 0;
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public static Clock sClock = Clock.systemDefaultZone();
 

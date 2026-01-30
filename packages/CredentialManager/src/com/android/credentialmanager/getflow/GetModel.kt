@@ -16,8 +16,6 @@
 
 package com.android.credentialmanager.getflow
 
-import android.credentials.flags.Flags.selectorUiImprovementsEnabled
-import android.credentials.flags.Flags.credmanBiometricApiEnabled
 import android.graphics.drawable.Drawable
 import androidx.credentials.CredentialOption
 import com.android.credentialmanager.R
@@ -56,9 +54,6 @@ internal fun findBiometricFlowEntry(
     providerDisplayInfo: ProviderDisplayInfo,
     isAutoSelectFlow: Boolean
 ): CredentialEntryInfo? {
-    if (!credmanBiometricApiEnabled()) {
-        return null
-    }
     if (isAutoSelectFlow) {
         // For this to be true, it must be the case that there is a single entry and a single
         // account. If that is the case, and auto-select is enabled along side the one-tap flow, we
@@ -209,7 +204,7 @@ fun toProviderDisplayInfo(
 
         providerInfo.credentialEntryList.forEach {
             userNameToCredentialEntryMap.compute(
-                if (selectorUiImprovementsEnabled()) it.entryGroupId else it.userName
+                it.entryGroupId
             ) { _, v ->
                 if (v == null) {
                     mutableListOf(it)

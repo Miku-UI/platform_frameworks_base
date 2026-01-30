@@ -15,8 +15,7 @@
  */
 
 package android.service.ondeviceintelligence;
-
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
+import static android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4;
 
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
 
@@ -89,7 +88,6 @@ import java.util.function.LongConsumer;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public abstract class OnDeviceIntelligenceService extends Service {
     private static final String TAG = OnDeviceIntelligenceService.class.getSimpleName();
 
@@ -136,7 +134,8 @@ public abstract class OnDeviceIntelligenceService extends Service {
                     mHandler.executeOrSendMessage(
                             obtainMessage(
                                     OnDeviceIntelligenceService::onGetVersion,
-                                    OnDeviceIntelligenceService.this, l -> {
+                                    OnDeviceIntelligenceService.this,
+                                    l -> {
                                         Bundle b = new Bundle();
                                         b.putLong(
                                                 OnDeviceIntelligenceManager.API_VERSION_BUNDLE_KEY,
@@ -153,6 +152,20 @@ public abstract class OnDeviceIntelligenceService extends Service {
                             obtainMessage(
                                     OnDeviceIntelligenceService::onListFeatures,
                                     OnDeviceIntelligenceService.this, callerUid,
+                                    wrapListFeaturesCallback(listFeaturesCallback)));
+                }
+
+                @Override
+                public void listFeaturesWithFilter(int callerUid,
+                        PersistableBundle featureParamsFilter,
+                        IListFeaturesCallback listFeaturesCallback) {
+                    Objects.requireNonNull(featureParamsFilter);
+                    Objects.requireNonNull(listFeaturesCallback);
+                    mHandler.executeOrSendMessage(
+                            obtainMessage(
+                                    OnDeviceIntelligenceService::onListFeatures,
+                                    OnDeviceIntelligenceService.this, callerUid,
+                                    featureParamsFilter,
                                     wrapListFeaturesCallback(listFeaturesCallback)));
                 }
 
@@ -226,6 +239,19 @@ public abstract class OnDeviceIntelligenceService extends Service {
                                         remoteCallback.sendResult(bundle);
                                         tryClosePfds(parcelFileDescriptorMap.values());
                                     }));
+                }
+
+                @Override
+                public void getFeatureMetadata(
+                        Feature feature, RemoteCallback remoteCallback) {
+                    Objects.requireNonNull(feature);
+                    Objects.requireNonNull(remoteCallback);
+                    mHandler.executeOrSendMessage(
+                            obtainMessage(
+                                    OnDeviceIntelligenceService::onGetFeatureMetadata,
+                                    OnDeviceIntelligenceService.this,
+                                    feature,
+                                    remoteCallback::sendResult));
                 }
 
                 @Override
@@ -400,7 +426,6 @@ public abstract class OnDeviceIntelligenceService extends Service {
         };
     }
 
-
     private DownloadCallback wrapDownloadCallback(IDownloadCallback downloadCallback) {
         return new DownloadCallback() {
             @Override
@@ -478,6 +503,17 @@ public abstract class OnDeviceIntelligenceService extends Service {
         });
     }
 
+
+    /**
+     * Provide implementation for a scenario when caller wants to get feature-specific metadata.
+     *
+     * @param feature the feature for which metadata needs to be fetched.
+     * @param metadataConsumer callback to be populated with the corresponding metadata bundle.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    public void onGetFeatureMetadata(
+            @NonNull Feature feature, @NonNull Consumer<Bundle> metadataConsumer) {}
+
     /**
      * Provide implementation for a scenario when caller wants to get all feature related
      * file-descriptors that might be required for processing a request for the corresponding the
@@ -497,7 +533,7 @@ public abstract class OnDeviceIntelligenceService extends Service {
      * the download completes successfully, success callback should be populated.
      *
      * @param callerUid          UID of the caller that initiated this call chain.
-     * @param feature            the feature for which files need to be downlaoded.
+     * @param feature            the feature for which files need to be downloaded.
      *                           process.
      * @param cancellationSignal signal to attach a listener to, and receive cancellation signals
      *                           from thw client.
@@ -541,6 +577,23 @@ public abstract class OnDeviceIntelligenceService extends Service {
      */
     public abstract void onListFeatures(int callerUid, @NonNull OutcomeReceiver<List<Feature>,
             OnDeviceIntelligenceException> listFeaturesCallback);
+
+    /**
+     * List all features which are available in the remote implementation which match the given
+     * filter. The implementation might choose to provide only a certain list of features based on
+     * the caller.
+     *
+     * @param callerUid            UID of the caller that initiated this call chain.
+     * @param featureParamsFilter  params to filter the features.
+     * @param listFeaturesCallback callback to populate the features list.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    public void onListFeatures(int callerUid,
+            @NonNull PersistableBundle featureParamsFilter,
+            @NonNull OutcomeReceiver<List<Feature>,
+                    OnDeviceIntelligenceException> listFeaturesCallback) {
+    }
+
 
     /**
      * Provides a long value representing the version of the remote implementation processing

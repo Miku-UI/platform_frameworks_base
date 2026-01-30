@@ -133,7 +133,8 @@ public class Sensor {
                     public StopUserClient<ISession> getStopUserClient(int userId) {
                         return new FaceStopUserClient(mContext,
                                 () -> mLazySession.get().getSession(), mToken, userId,
-                                mSensorProperties.sensorId, BiometricLogger.ofUnknown(mContext),
+                                mSensorProperties.sensorId,
+                                BiometricLogger.ofUnknown(mContext, mHandler),
                                 mBiometricContext, () -> mCurrentSession = null);
                     }
 
@@ -189,8 +190,8 @@ public class Sensor {
                 };
 
         return new FaceStartUserClient(mContext, provider::getHalInstance, mToken, newUserId,
-                mSensorProperties.sensorId, BiometricLogger.ofUnknown(mContext), mBiometricContext,
-                resultController, userStartedCallback);
+                mSensorProperties.sensorId, BiometricLogger.ofUnknown(mContext, mHandler),
+                mBiometricContext, resultController, userStartedCallback);
     }
 
     private static FaceSensorPropertiesInternal getFaceSensorPropertiesInternal(SensorProps prop,

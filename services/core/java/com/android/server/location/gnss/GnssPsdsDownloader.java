@@ -34,7 +34,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * A class for downloading GNSS PSDS data.
  *
- * {@hide}
+ * @hide
  */
 class GnssPsdsDownloader {
 

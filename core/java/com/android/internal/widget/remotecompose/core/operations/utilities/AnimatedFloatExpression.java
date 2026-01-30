@@ -180,32 +180,61 @@ public class AnimatedFloatExpression {
     /** SMOOTH_STEP (1-smoothstep(edge0,edge1,x)); */
     public static final float SMOOTH_STEP = asNan(OFFSET + 50);
 
+    private static final int API_LEVEL6_MAX = OFFSET + 50;
+
+    /** LOG2 (log base 2) operator */
+    public static final float LOG2 = asNan(OFFSET + 51);
+
+    /** INV 1/x operator */
+    public static final float INV = asNan(OFFSET + 52);
+
+    /** FRACT (fractional part) operator */
+    public static final float FRACT = asNan(OFFSET + 53);
+
+    /** PINGPONG (go pp(x,y) = x%2*y < x ? x%2*y : y-x%2*y) operator */
+    public static final float PINGPONG = asNan(OFFSET + 54);
+
     /** LAST valid operator */
-    public static final int LAST_OP = OFFSET + 50;
+    public static final int LAST_OP = OFFSET + 54;
 
     /** VAR1 operator */
-    public static final float VAR1 = asNan(OFFSET + 51);
+    public static final float VAR1 = asNan(OFFSET + 70);
 
     /** VAR2 operator */
-    public static final float VAR2 = asNan(OFFSET + 52);
+    public static final float VAR2 = asNan(OFFSET + 71);
 
     /** VAR2 operator */
-    public static final float VAR3 = asNan(OFFSET + 53);
+    public static final float VAR3 = asNan(OFFSET + 72);
 
     // TODO SQUARE, DUP, HYPOT, SWAP
     //    private static final float FP_PI = (float) Math.PI;
     private static final float FP_TO_RAD = 57.29578f; // 180/PI
     private static final float FP_TO_DEG = 0.017453292f; // 180/PI
 
-    @NonNull float[] mStack = new float[0];
-    @NonNull float[] mLocalStack = new float[128];
-    @NonNull float[] mVar = new float[0];
+    @NonNull float [] mStack = new float[0];
+    @NonNull float [] mLocalStack = new float[128];
+    @NonNull float [] mVar = new float[0];
     @Nullable CollectionsAccess mCollectionsAccess;
     IntMap<MonotonicSpline> mSplineMap = new IntMap<>();
     private static Random sRandom;
 
+    /**
+     * Get the max op for a given API level
+     *
+     * @param level
+     * @return
+     */
+    public static int getMaxOpForLevel(int level) {
+        if (level == 7) {
+            return LAST_OP;
+        } else {
+            return API_LEVEL6_MAX;
+        }
+    }
+
     private float getSplineValue(int arrayId, float pos) {
         MonotonicSpline fit = mSplineMap.get(arrayId);
+        assert mCollectionsAccess != null;
         float[] f = mCollectionsAccess.getFloats(arrayId);
         if (fit != null) {
             if (fit.getArray() == f) { // the array has not changed.
@@ -253,7 +282,7 @@ public class AnimatedFloatExpression {
      * @param var
      * @return
      */
-    public float eval(@NonNull float[] exp, @NonNull float... var) {
+    public float eval(@NonNull float [] exp, @NonNull float ... var) {
         mStack = exp;
         mVar = var;
         int sp = -1;
@@ -278,14 +307,14 @@ public class AnimatedFloatExpression {
      * @return the value the expression evaluated to
      */
     public float eval(
-            @NonNull CollectionsAccess ca, @NonNull float[] exp, int len, @NonNull float... var) {
+            @NonNull CollectionsAccess ca, @NonNull float [] exp, int len, @NonNull float ... var) {
         System.arraycopy(exp, 0, mLocalStack, 0, len);
         mStack = mLocalStack;
         mVar = var;
         mCollectionsAccess = ca;
         int sp = -1;
 
-        for (int i = 0; i < mStack.length; i++) {
+        for (int i = 0; i < len; i++) {
             float v = mStack[i];
             if (Float.isNaN(v)) {
                 int id = fromNaN(v);
@@ -309,7 +338,7 @@ public class AnimatedFloatExpression {
      * @param len the length of the expression sections
      * @return the value the expression evaluated to
      */
-    public float eval(@NonNull CollectionsAccess ca, @NonNull float[] exp, int len) {
+    public float eval(@NonNull CollectionsAccess ca, @NonNull float [] exp, int len) {
         System.arraycopy(exp, 0, mLocalStack, 0, len);
         mStack = mLocalStack;
         mCollectionsAccess = ca;
@@ -331,10 +360,10 @@ public class AnimatedFloatExpression {
         return mStack[sp];
     }
 
-    private int dereference(@NonNull CollectionsAccess ca, int id, int sp) {
-        mStack[sp] = ca.getFloatValue(id, (int) (mStack[sp]));
-        return sp;
-    }
+    //    private int dereference(@NonNull CollectionsAccess ca, int id, int sp) {
+    //        mStack[sp] = ca.getFloatValue(id, (int) (mStack[sp]));
+    //        return sp;
+    //    }
 
     /**
      * Evaluate a float expression
@@ -344,12 +373,11 @@ public class AnimatedFloatExpression {
      * @param var
      * @return
      */
-    public float eval(@NonNull float[] exp, int len, @NonNull float... var) {
+    public float eval(@NonNull float [] exp, int len, @NonNull float ... var) {
         System.arraycopy(exp, 0, mLocalStack, 0, len);
         mStack = mLocalStack;
         mVar = var;
         int sp = -1;
-
         for (int i = 0; i < len; i++) {
             float v = mStack[i];
             if (Float.isNaN(v)) {
@@ -368,7 +396,7 @@ public class AnimatedFloatExpression {
      * @param var
      * @return
      */
-    public float evalDB(@NonNull float[] exp, @NonNull float... var) {
+    public float evalDB(@NonNull float [] exp, @NonNull float ... var) {
         mStack = exp;
         mVar = var;
         int sp = -1;
@@ -377,7 +405,6 @@ public class AnimatedFloatExpression {
             if (Float.isNaN(v)) {
                 sp = opEval(sp, fromNaN(v));
             } else {
-                System.out.print(" " + v);
                 mStack[++sp] = v;
             }
         }
@@ -439,7 +466,11 @@ public class AnimatedFloatExpression {
         sNames.put(k++, "swap");
         sNames.put(k++, "lerp");
         sNames.put(k++, "smooth_step");
-
+        sNames.put(k++, "log2");
+        sNames.put(k++, "inv");
+        sNames.put(k++, "fract");
+        sNames.put(k++, "ping_pong");
+        k = 70;
         sNames.put(k++, "a[0]");
         sNames.put(k++, "a[1]");
         sNames.put(k++, "a[2]");
@@ -465,7 +496,7 @@ public class AnimatedFloatExpression {
      * @return
      */
     @NonNull
-    public static String toString(@NonNull float[] exp, @Nullable String[] labels) {
+    public static String toString(@NonNull float [] exp, @Nullable String[] labels) {
         StringBuilder s = new StringBuilder();
         for (int i = 0; i < exp.length; i++) {
             float v = exp[i];
@@ -495,7 +526,7 @@ public class AnimatedFloatExpression {
         return s.toString();
     }
 
-    static String toString(@NonNull float[] exp, int sp) {
+    static String toString(@NonNull float [] exp, int sp) {
         //        String[] str = new String[exp.length];
         if (Float.isNaN(exp[sp])) {
             int id = fromNaN(exp[sp]) - OFFSET;
@@ -546,41 +577,15 @@ public class AnimatedFloatExpression {
 
     static final int[] NO_OF_OPS = {
         -1, // no op
-        2,
-        2,
-        2,
-        2,
-        2, // + - * / %
-        2,
-        2,
-        2, // min max, power
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1, // sqrt,abs,CopySign,exp,floor,log,ln
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-        2, // round,sin,cos,tan,asin,acos,atan,atan2
-        3,
-        3,
-        3,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0 // mad, ?:,
-        // a[0],a[1],a[2]
+        2, 2, 2, 2, 2, // + - * / %
+        2, 2, 2, // min max, power
+        1, 1, 1, 1, 1, 1, 1, 1, // sqrt,abs,CopySign,exp,floor,log,ln
+        1, 1, 1, 1, 1, 1, 1, 2, // round,sin,cos,tan,asin,acos,atan,atan2
+        3, 3, 3, 1, 1, 1, 1, 0, 0, 0, // mad, ?:, clamp, cbrt, deg, rad, ceil , a[0],a[1],a[2]
+        1, // log2
+        1, // inv
+        1, // fract
+        2, // ping_pong
     };
 
     /**
@@ -666,10 +671,14 @@ public class AnimatedFloatExpression {
     private static final int OP_SWAP = OFFSET + 48;
     private static final int OP_LERP = OFFSET + 49;
     private static final int OP_SMOOTH_STEP = OFFSET + 50;
+    private static final int OP_LOG2 = OFFSET + 51;
+    private static final int OP_INV = OFFSET + 52;
+    private static final int OP_FRACT = OFFSET + 53;
+    private static final int OP_PINGPONG = OFFSET + 54;
 
-    private static final int OP_FIRST_VAR = OFFSET + 51;
-    private static final int OP_SECOND_VAR = OFFSET + 52;
-    private static final int OP_THIRD_VAR = OFFSET + 53;
+    private static final int OP_FIRST_VAR = OFFSET + 70;
+    private static final int OP_SECOND_VAR = OFFSET + 71;
+    private static final int OP_THIRD_VAR = OFFSET + 72;
 
     int opEval(int sp, int id) {
         float[] array;
@@ -801,11 +810,13 @@ public class AnimatedFloatExpression {
 
             case OP_A_DEREF:
                 id = fromNaN(mStack[sp - 1]);
+                assert mCollectionsAccess != null;
                 mStack[sp - 1] = mCollectionsAccess.getFloatValue(id, (int) mStack[sp]);
                 return sp - 1;
 
             case OP_A_MAX:
                 id = fromNaN(mStack[sp]);
+                assert mCollectionsAccess != null;
                 array = mCollectionsAccess.getFloats(id);
                 float max = array[0];
                 for (int i = 1; i < array.length; i++) {
@@ -816,6 +827,7 @@ public class AnimatedFloatExpression {
 
             case OP_A_MIN:
                 id = fromNaN(mStack[sp]);
+                assert mCollectionsAccess != null;
                 array = mCollectionsAccess.getFloats(id);
                 if (array.length == 0) {
                     return sp;
@@ -829,6 +841,7 @@ public class AnimatedFloatExpression {
 
             case OP_A_SUM:
                 id = fromNaN(mStack[sp]);
+                assert mCollectionsAccess != null;
                 array = mCollectionsAccess.getFloats(id);
                 float sum = 0;
                 for (int i = 0; i < array.length; i++) {
@@ -839,6 +852,7 @@ public class AnimatedFloatExpression {
 
             case OP_A_AVG:
                 id = fromNaN(mStack[sp]);
+                assert mCollectionsAccess != null;
                 array = mCollectionsAccess.getFloats(id);
                 sum = 0;
                 for (int i = 0; i < array.length; i++) {
@@ -849,6 +863,7 @@ public class AnimatedFloatExpression {
 
             case OP_A_LEN:
                 id = fromNaN(mStack[sp]);
+                assert mCollectionsAccess != null;
                 mStack[sp] = mCollectionsAccess.getListLength(id);
                 return sp;
 
@@ -882,7 +897,7 @@ public class AnimatedFloatExpression {
                 mStack[sp] =
                         (1.0f
                                 - ((x * (x * x * 15731 + 789221) + 1376312589) & 0x7fffffff)
-                                        / 1073741824.0f);
+                                        / 1.0737418E+9f);
                 return sp;
 
             case OP_RAND_IN_RANGE:
@@ -895,7 +910,6 @@ public class AnimatedFloatExpression {
                 mStack[sp - 1] = mStack[sp - 1] * mStack[sp - 1] + mStack[sp] * mStack[sp];
                 return sp - 1;
             case OP_STEP:
-                System.out.println(mStack[sp] + " > " + mStack[sp - 1]);
                 mStack[sp - 1] = (mStack[sp - 1] > mStack[sp]) ? 1f : 0f;
                 return sp - 1;
             case OP_SQUARE:
@@ -922,32 +936,38 @@ public class AnimatedFloatExpression {
                 float val3 = mStack[sp - 2];
                 float max2 = mStack[sp - 1];
                 float min1 = mStack[sp];
-                System.out.println("val3 = " + val3 + " min1 = " + min1 + " max2 = " + max2);
                 if (val3 < min1) {
                     mStack[sp - 2] = 0f;
-                    System.out.println("below min ");
                 } else if (val3 > max2) {
                     mStack[sp - 2] = 1f;
-                    System.out.println("above max ");
-
                 } else {
                     float v = (val3 - min1) / (max2 - min1);
-                    System.out.println("v = " + v);
                     mStack[sp - 2] = v * v * (3 - 2 * v);
                 }
                 return sp - 2;
-
+            case OP_LOG2:
+                mStack[sp] = (float) Math.log(mStack[sp]) / (float) Math.log(2.0f);
+                return sp;
+            case OP_INV:
+                mStack[sp] = 1.0f / mStack[sp];
+                return sp;
+            case OP_FRACT:
+                mStack[sp] = mStack[sp] - (int) mStack[sp];
+                return sp;
+            case OP_PINGPONG:
+                float max_2 = mStack[sp] * 2;
+                float tmp = mStack[sp - 1] % max_2;
+                mStack[sp - 1] = (tmp < mStack[sp]) ? tmp : max_2 - tmp;
+                return sp - 1;
             case OP_FIRST_VAR:
-                mStack[sp] = mVar[0];
-                return sp;
-
+                mStack[sp + 1] = mVar[0];
+                return sp + 1;
             case OP_SECOND_VAR:
-                mStack[sp] = mVar[1];
-                return sp;
-
+                mStack[sp + 1] = mVar[1];
+                return sp + 1;
             case OP_THIRD_VAR:
-                mStack[sp] = mVar[2];
-                return sp;
+                mStack[sp + 1] = mVar[2];
+                return sp + 1;
         }
         return sp;
     }

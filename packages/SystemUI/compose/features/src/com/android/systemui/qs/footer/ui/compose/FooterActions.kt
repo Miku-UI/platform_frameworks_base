@@ -16,12 +16,19 @@
 
 package com.android.systemui.qs.footer.ui.compose
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.LocalIndication
@@ -29,31 +36,34 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.contentColorFor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
@@ -68,29 +78,35 @@ import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.drawable.toBitmap
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.repeatOnLifecycle
 import com.android.compose.animation.Expandable
 import com.android.compose.animation.scene.ContentScope
+import com.android.compose.lifecycle.LaunchedEffectWithLifecycle
 import com.android.compose.modifiers.animatedBackground
+import com.android.compose.theme.LocalAndroidColorScheme
 import com.android.compose.theme.colorAttr
 import com.android.systemui.Flags.notificationShadeBlur
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.common.ui.compose.Icon
+import com.android.systemui.common.ui.compose.load
 import com.android.systemui.compose.modifiers.sysuiResTag
-import com.android.systemui.qs.flags.QSComposeFragment
-import com.android.systemui.qs.flags.QsInCompose
+import com.android.systemui.qs.footer.ui.compose.FooterActionsDefaults.FOOTER_TEXT_FADE_DURATION_MILLIS
+import com.android.systemui.qs.footer.ui.compose.FooterActionsDefaults.FOOTER_TEXT_MINIMUM_SCALE_Y
+import com.android.systemui.qs.footer.ui.compose.FooterActionsDefaults.FooterButtonHeight
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsButtonViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsForegroundServicesButtonViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsSecurityButtonViewModel
 import com.android.systemui.qs.footer.ui.viewmodel.FooterActionsViewModel
-import com.android.systemui.qs.ui.composable.QuickSettings
+import com.android.systemui.qs.footer.ui.viewmodel.FooterTextButtonViewModel
+import com.android.systemui.qs.panels.ui.viewmodel.TextFeedbackViewModel
+import com.android.systemui.qs.shared.ui.QuickSettings
 import com.android.systemui.qs.ui.composable.QuickSettingsTheme
 import com.android.systemui.qs.ui.compose.borderOnFocus
 import com.android.systemui.res.R
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 @Composable
@@ -98,7 +114,6 @@ fun ContentScope.FooterActionsWithAnimatedVisibility(
     viewModel: FooterActionsViewModel,
     isCustomizing: Boolean,
     customizingAnimationDuration: Int,
-    lifecycleOwner: LifecycleOwner,
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
@@ -119,7 +134,7 @@ fun ContentScope.FooterActionsWithAnimatedVisibility(
             // This view has its own horizontal padding
             // TODO(b/321716470) This should use a lifecycle tied to the scene.
             Element(QuickSettings.Elements.FooterActions, Modifier) {
-                FooterActions(viewModel = viewModel, qsVisibilityLifecycleOwner = lifecycleOwner)
+                FooterActions(viewModel = viewModel)
             }
         }
     }
@@ -127,11 +142,7 @@ fun ContentScope.FooterActionsWithAnimatedVisibility(
 
 /** The Quick Settings footer actions row. */
 @Composable
-fun FooterActions(
-    viewModel: FooterActionsViewModel,
-    qsVisibilityLifecycleOwner: LifecycleOwner,
-    modifier: Modifier = Modifier,
-) {
+fun FooterActions(viewModel: FooterActionsViewModel, modifier: Modifier = Modifier) {
     val context = LocalContext.current
 
     // Collect alphas as soon as we are composed, even when not visible.
@@ -143,28 +154,33 @@ fun FooterActions(
         mutableStateOf<FooterActionsForegroundServicesButtonViewModel?>(null)
     }
     var userSwitcher by remember { mutableStateOf<FooterActionsButtonViewModel?>(null) }
-    var power by remember { mutableStateOf(viewModel.initialPower()) }
+    var settings by remember { mutableStateOf<FooterActionsButtonViewModel?>(null) }
 
-    LaunchedEffect(
-        context,
-        qsVisibilityLifecycleOwner,
-        viewModel,
-        viewModel.security,
-        viewModel.foregroundServices,
-        viewModel.userSwitcher,
-    ) {
+    var textFeedback by remember {
+        mutableStateOf<TextFeedbackViewModel>(TextFeedbackViewModel.NoFeedback)
+    }
+
+    LaunchedEffect(context, viewModel) {
         launch {
             // Listen for dialog requests as soon as we are composed, even when not visible.
             viewModel.observeDeviceMonitoringDialogRequests(context)
         }
+    }
 
-        // Listen for model changes only when QS are visible.
-        qsVisibilityLifecycleOwner.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            launch { viewModel.security.collect { security = it } }
-            launch { viewModel.foregroundServices.collect { foregroundServices = it } }
-            launch { viewModel.userSwitcher.collect { userSwitcher = it } }
-            launch { viewModel.power.collect { power = it } }
-        }
+    // Listen for model changes only when QS are visible.
+    LaunchedEffectWithLifecycle(
+        viewModel.security,
+        viewModel.foregroundServices,
+        viewModel.userSwitcher,
+        viewModel.textFeedback,
+        viewModel.settings,
+        minActiveState = Lifecycle.State.RESUMED,
+    ) {
+        launch { viewModel.security.collect { security = it } }
+        launch { viewModel.foregroundServices.collect { foregroundServices = it } }
+        launch { viewModel.userSwitcher.collect { userSwitcher = it } }
+        launch { viewModel.textFeedback.collect { textFeedback = it } }
+        launch { viewModel.settings.collect { settings = it } }
     }
 
     val backgroundColor =
@@ -215,110 +231,182 @@ fun FooterActions(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         CompositionLocalProvider(LocalContentColor provides contentColor) {
-            if (security == null && foregroundServices == null) {
-                Spacer(Modifier.weight(1f))
-            }
+            val useModifierBasedExpandable = true
 
-            val useModifierBasedExpandable = remember { QSComposeFragment.isEnabled }
-            SecurityButton({ security }, useModifierBasedExpandable, Modifier.weight(1f))
-            ForegroundServicesButton({ foregroundServices }, useModifierBasedExpandable)
+            // The viewModel to show, in order of priority:
+            // 1. Text feedback
+            // 2. Security
+            // 3. Foreground services
+            val textViewModel: FooterTextButtonViewModel? =
+                textFeedback as? TextFeedbackViewModel.LoadedTextFeedback
+                    ?: (security ?: foregroundServices)
+            AnimatedFooterTextButton(textViewModel, useModifierBasedExpandable, Modifier.weight(1f))
+
+            // Only add the foreground services number if text shouldn't be displayed
+            ForegroundServicesNumberButton(
+                { foregroundServices.takeIf { it?.displayText == false } },
+                useModifierBasedExpandable,
+            )
+
             IconButton(
                 { userSwitcher },
                 useModifierBasedExpandable,
                 Modifier.sysuiResTag("multi_user_switch"),
             )
             IconButton(
-                { viewModel.settings },
+                { settings },
                 useModifierBasedExpandable,
                 Modifier.sysuiResTag("settings_button_container"),
             )
-            IconButton({ power }, useModifierBasedExpandable, Modifier.sysuiResTag("pm_lite"))
+            IconButton(
+                { viewModel.power },
+                useModifierBasedExpandable,
+                Modifier.sysuiResTag("pm_lite"),
+            )
         }
     }
 }
 
-/** The security button. */
+/**
+ * Animated text button for [FooterTextButtonViewModel].
+ *
+ * This composable animates the entry/exit of the button, as well as cross fade the content when the
+ * displayed information changes.
+ */
 @Composable
-private fun SecurityButton(
-    model: () -> FooterActionsSecurityButtonViewModel?,
+private fun AnimatedFooterTextButton(
+    textViewModel: FooterTextButtonViewModel?,
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val model = model() ?: return
+    val transition = updateTransition(textViewModel)
+    val scaleY by transition.animateFloat { if (it == null) FOOTER_TEXT_MINIMUM_SCALE_Y else 1f }
+    val alpha by transition.animateFloat { if (it == null) 0f else 1f }
     val onClick: ((Expandable) -> Unit)? =
-        model.onClick?.let { onClick ->
+        textViewModel?.onClick?.let { onClick ->
             val context = LocalContext.current
             { expandable -> onClick(context, expandable) }
         }
 
-    TextButton(
-        model.icon,
-        model.text,
-        showNewDot = false,
-        onClick = onClick,
-        useModifierBasedExpandable,
-        modifier,
-    )
+    Box(
+        modifier
+            .height(FooterButtonHeight)
+            .animatedScaledHeight { scaleY }
+            .animatedWidth()
+            .graphicsLayer { this.alpha = alpha }
+    ) {
+        val colors = textButtonColors()
+        CircleExpandable(
+            color = colors.background,
+            contentColor = colors.content,
+            borderStroke = colors.border,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            onClick = onClick,
+            useModifierBasedImplementation = useModifierBasedExpandable,
+        ) {
+            transition.AnimatedContent(
+                transitionSpec = {
+                    // Using delayMillis to animate the fade in after the fade out completes at the
+                    // halfway point
+                    fadeIn(
+                        tween(
+                            durationMillis = FOOTER_TEXT_FADE_DURATION_MILLIS,
+                            delayMillis = FOOTER_TEXT_FADE_DURATION_MILLIS,
+                        )
+                    ) togetherWith
+                        fadeOut(tween(durationMillis = FOOTER_TEXT_FADE_DURATION_MILLIS)) using
+                        null // Using a SizeTransform causes a weird horizontal translation
+                }
+            ) {
+                when (it) {
+                    is TextFeedbackViewModel.LoadedTextFeedback -> {
+                        TextButtonContent(it.icon, it.text)
+                    }
+                    is FooterActionsSecurityButtonViewModel -> {
+                        TextButtonContent(it.icon, it.text, showChevron = onClick != null)
+                    }
+                    is FooterActionsForegroundServicesButtonViewModel -> {
+                        TextButtonContent(
+                            it.icon,
+                            it.text,
+                            showChevron = onClick != null,
+                            showNewDot = it.hasNewChanges,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
-/** The foreground services button. */
+/**
+ * The foreground services button in number format.
+ *
+ * The visibility of this button is animated.
+ */
 @Composable
-private fun RowScope.ForegroundServicesButton(
+private fun ForegroundServicesNumberButton(
     model: () -> FooterActionsForegroundServicesButtonViewModel?,
     useModifierBasedExpandable: Boolean,
 ) {
-    val model = model() ?: return
-    if (model.displayText) {
-        TextButton(
-            Icon.Resource(R.drawable.ic_info_outline, contentDescription = null),
-            model.text,
-            showNewDot = model.hasNewChanges,
-            onClick = model.onClick,
-            useModifierBasedExpandable,
-            Modifier.weight(1f),
-        )
-    } else {
+    val transition = updateTransition(model())
+    val alpha by transition.animateFloat { if (it == null) 0f else 1f }
+    (transition.currentState ?: transition.targetState)?.let {
+        val onClick: (Expandable) -> Unit =
+            it.onClick.let { onClick ->
+                val context = LocalContext.current
+                { expandable -> onClick(context, expandable) }
+            }
+
         NumberButton(
-            model.foregroundServicesCount,
-            contentDescription = model.text,
-            showNewDot = model.hasNewChanges,
-            onClick = model.onClick,
+            it.foregroundServicesCount,
+            contentDescription = it.text,
+            showNewDot = it.hasNewChanges,
+            onClick = onClick,
             useModifierBasedExpandable,
+            modifier = Modifier.graphicsLayer { this.alpha = alpha },
         )
     }
 }
 
 /** A button with an icon. */
 @Composable
-fun IconButton(
+private fun IconButton(
     model: () -> FooterActionsButtonViewModel?,
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val model = model() ?: return
-    IconButton(model, useModifierBasedExpandable, modifier)
+    val viewModel = model() ?: return
+    IconButton(viewModel, useModifierBasedExpandable, modifier)
 }
 
 /** A button with an icon. */
 @Composable
-fun IconButton(
+private fun IconButton(
     model: FooterActionsButtonViewModel,
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Expandable(
-        color = colorAttr(model.backgroundColor),
-        shape = CircleShape,
+    val colors = buttonColorsForModel(model)
+    CircleExpandable(
+        color = colors.background,
         onClick = model.onClick,
-        modifier =
-            modifier.borderOnFocus(
-                color = MaterialTheme.colorScheme.secondary,
-                CornerSize(percent = 50),
-            ),
+        modifier = modifier,
         useModifierBasedImplementation = useModifierBasedExpandable,
     ) {
-        val tint = model.iconTint?.let { Color(it) } ?: Color.Unspecified
-        Icon(model.icon, tint = tint, modifier = Modifier.size(20.dp))
+        FooterIcon(model.icon, Modifier.size(20.dp), colors.icon)
+    }
+}
+
+// TODO(b/394738023): Use com.android.systemui.common.ui.compose.Icon instead
+@Composable
+private fun FooterIcon(icon: Icon, modifier: Modifier = Modifier, tint: Color) {
+    val contentDescription = icon.contentDescription?.load()
+    when (icon) {
+        is Icon.Loaded -> {
+            Icon(icon.drawable.toBitmap().asImageBitmap(), contentDescription, modifier, tint)
+        }
+        is Icon.Resource -> Icon(painterResource(icon.resId), contentDescription, modifier, tint)
     }
 }
 
@@ -339,19 +427,15 @@ private fun NumberButton(
     // dot".
     val interactionSource = remember { MutableInteractionSource() }
 
-    Expandable(
-        color = colorAttr(R.attr.shadeInactive),
-        shape = CircleShape,
+    val colors = numberButtonColors()
+    CircleExpandable(
+        color = colors.background,
         onClick = onClick,
         interactionSource = interactionSource,
-        modifier =
-            modifier.borderOnFocus(
-                color = MaterialTheme.colorScheme.secondary,
-                CornerSize(percent = 50),
-            ),
+        modifier = modifier,
         useModifierBasedImplementation = useModifierBasedExpandable,
     ) {
-        Box(Modifier.size(40.dp)) {
+        Box(Modifier.size(FooterButtonHeight)) {
             Box(
                 Modifier.fillMaxSize()
                     .clip(CircleShape)
@@ -364,7 +448,7 @@ private fun NumberButton(
                             this.contentDescription = contentDescription
                         },
                     style = MaterialTheme.typography.bodyLarge,
-                    color = colorAttr(R.attr.onShadeInactiveVariant),
+                    color = colors.content,
                     // TODO(b/242040009): This should only use a standard text style instead and
                     // should not override the text size.
                     fontSize = 18.sp,
@@ -376,6 +460,34 @@ private fun NumberButton(
             }
         }
     }
+}
+
+@Composable
+private fun CircleExpandable(
+    color: Color,
+    modifier: Modifier = Modifier,
+    contentColor: Color = contentColorFor(color),
+    borderStroke: BorderStroke? = null,
+    onClick: ((Expandable) -> Unit)? = null,
+    interactionSource: MutableInteractionSource? = null,
+    useModifierBasedImplementation: Boolean,
+    content: @Composable (Expandable) -> Unit,
+) {
+    Expandable(
+        color = color,
+        contentColor = contentColor,
+        borderStroke = borderStroke,
+        shape = CircleShape,
+        onClick = onClick,
+        interactionSource = interactionSource,
+        modifier =
+            modifier.borderOnFocus(
+                color = MaterialTheme.colorScheme.secondary,
+                cornerSize = CornerSize(percent = 50),
+            ),
+        useModifierBasedImplementation = useModifierBasedImplementation,
+        content = content,
+    )
 }
 
 /** A dot that indicates new changes. */
@@ -390,7 +502,6 @@ private fun NewChangesDot(modifier: Modifier = Modifier) {
 }
 
 /** A larger button with an icon, some text and an optional dot (to indicate new changes). */
-@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun TextButton(
     icon: Icon,
@@ -400,15 +511,12 @@ private fun TextButton(
     useModifierBasedExpandable: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Expandable(
-        shape = CircleShape,
-        color = colorAttr(R.attr.underSurface),
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        borderStroke = BorderStroke(1.dp, colorAttr(R.attr.shadeInactive)),
-        modifier =
-            modifier
-                .padding(horizontal = 4.dp)
-                .borderOnFocus(color = MaterialTheme.colorScheme.secondary, CornerSize(50)),
+    val colors = textButtonColors()
+    CircleExpandable(
+        color = colors.background,
+        contentColor = colors.content,
+        borderStroke = colors.border,
+        modifier = modifier.padding(horizontal = 4.dp),
         onClick = onClick,
         useModifierBasedImplementation = useModifierBasedExpandable,
     ) {
@@ -416,23 +524,14 @@ private fun TextButton(
             Modifier.padding(horizontal = dimensionResource(R.dimen.qs_footer_padding)),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                icon,
-                Modifier.padding(end = 12.dp).size(20.dp),
-                colorAttr(R.attr.onShadeInactiveVariant),
-            )
+            Icon(icon, Modifier.padding(end = 12.dp).size(20.dp), colors.content)
 
             Text(
                 text,
                 Modifier.weight(1f),
-                style =
-                    if (QsInCompose.isEnabled) {
-                        MaterialTheme.typography.labelLarge
-                    } else {
-                        MaterialTheme.typography.bodyMedium
-                    },
-                letterSpacing = if (QsInCompose.isEnabled) 0.em else 0.01.em,
-                color = colorAttr(R.attr.onShadeInactiveVariant),
+                style = MaterialTheme.typography.labelLarge,
+                letterSpacing = 0.em,
+                color = colors.content,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -446,9 +545,186 @@ private fun TextButton(
                     painterResource(com.android.internal.R.drawable.ic_chevron_end),
                     contentDescription = null,
                     Modifier.padding(start = 8.dp).size(20.dp),
-                    colorAttr(R.attr.onShadeInactiveVariant),
+                    colors.content,
                 )
             }
         }
     }
+}
+
+/** Content to display in the footer text button. */
+@Composable
+private fun TextButtonContent(
+    icon: Icon,
+    text: String,
+    modifier: Modifier = Modifier,
+    showNewDot: Boolean = false,
+    showChevron: Boolean = false,
+) {
+    val contentColor = textButtonColors().content
+    Row(
+        modifier.padding(horizontal = dimensionResource(R.dimen.qs_footer_padding)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, Modifier.padding(end = 12.dp).size(20.dp), contentColor)
+
+        Text(
+            text,
+            Modifier.weight(1f),
+            style = MaterialTheme.typography.labelLarge,
+            letterSpacing = 0.em,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+
+        if (showNewDot) {
+            NewChangesDot(Modifier.padding(start = 8.dp))
+        }
+
+        if (showChevron) {
+            Icon(
+                painterResource(com.android.internal.R.drawable.ic_chevron_end),
+                contentDescription = null,
+                Modifier.padding(start = 8.dp).size(20.dp),
+                contentColor,
+            )
+        }
+    }
+}
+
+/** Animate the width of this composable based on the incoming width constraints. */
+@Composable
+private fun Modifier.animatedWidth(): Modifier {
+    var targetWidth by remember { mutableIntStateOf(0) }
+    var animatable by remember { mutableStateOf<Animatable<Int, AnimationVector1D>?>(null) }
+    val scope = rememberCoroutineScope()
+    return layout { measurable, constraints ->
+        targetWidth = constraints.maxWidth
+        val anim =
+            animatable ?: Animatable(targetWidth, Int.VectorConverter).also { animatable = it }
+        if (anim.targetValue != targetWidth) {
+            scope.launch { anim.animateTo(targetWidth) }
+        }
+        val newConstraints = constraints.copy(minWidth = anim.value, maxWidth = anim.value)
+        val placeable = measurable.measure(newConstraints)
+        layout(constraints.maxWidth, placeable.height) { placeable.placeRelative(0, 0) }
+    }
+}
+
+/** Animate the height of this composable based on [scale]. */
+@Composable
+private fun Modifier.animatedScaledHeight(scale: () -> Float): Modifier {
+    return layout { measurable, constraints ->
+        val newHeight = (constraints.maxHeight * scale()).roundToInt()
+        val newConstraints = constraints.copy(minHeight = newHeight, maxHeight = newHeight)
+        val placeable = measurable.measure(newConstraints)
+        // Layout using the max height to animate the expansion from the top
+        layout(constraints.maxWidth, constraints.maxHeight) { placeable.placeRelative(0, 0) }
+    }
+}
+
+@Composable
+@ReadOnlyComposable
+private fun textButtonColors(): TextButtonColors {
+    return if (notificationShadeBlur()) {
+        FooterActionsDefaults.blurTextButtonColors()
+    } else {
+        FooterActionsDefaults.textButtonColors()
+    }
+}
+
+@Composable
+@ReadOnlyComposable
+private fun numberButtonColors(): TextButtonColors {
+    return if (notificationShadeBlur()) {
+        FooterActionsDefaults.blurTextButtonColors()
+    } else {
+        FooterActionsDefaults.numberButtonColors()
+    }
+}
+
+@Composable
+@ReadOnlyComposable
+private fun buttonColorsForModel(footerAction: FooterActionsButtonViewModel): ButtonColors {
+    return if (notificationShadeBlur()) {
+        when (footerAction) {
+            is FooterActionsButtonViewModel.PowerActionViewModel ->
+                FooterActionsDefaults.activeButtonColors()
+            is FooterActionsButtonViewModel.SettingsActionViewModel ->
+                FooterActionsDefaults.inactiveButtonColors()
+            is FooterActionsButtonViewModel.UserSwitcherViewModel ->
+                FooterActionsDefaults.userSwitcherButtonColors()
+        }
+    } else {
+        ButtonColors(
+            icon = footerAction.iconTintFallback?.let { Color(it) } ?: Color.Unspecified,
+            background = colorAttr(footerAction.backgroundColorFallback),
+        )
+    }
+}
+
+private data class ButtonColors(val icon: Color, val background: Color)
+
+private data class TextButtonColors(
+    val content: Color,
+    val background: Color,
+    val border: BorderStroke?,
+)
+
+private object FooterActionsDefaults {
+    const val FOOTER_TEXT_MINIMUM_SCALE_Y = .2f
+    const val FOOTER_TEXT_FADE_DURATION_MILLIS = 83
+    val FooterButtonHeight = 40.dp
+
+    @Composable
+    @ReadOnlyComposable
+    fun activeButtonColors(): ButtonColors =
+        ButtonColors(
+            icon = MaterialTheme.colorScheme.onPrimary,
+            background = MaterialTheme.colorScheme.primary,
+        )
+
+    @Composable
+    @ReadOnlyComposable
+    fun inactiveButtonColors(): ButtonColors =
+        ButtonColors(
+            icon = MaterialTheme.colorScheme.onSurface,
+            background = LocalAndroidColorScheme.current.surfaceEffect1,
+        )
+
+    @Composable
+    @ReadOnlyComposable
+    fun userSwitcherButtonColors(): ButtonColors =
+        ButtonColors(
+            icon = Color.Unspecified,
+            background = LocalAndroidColorScheme.current.surfaceEffect1,
+        )
+
+    @Composable
+    @ReadOnlyComposable
+    fun blurTextButtonColors(): TextButtonColors =
+        TextButtonColors(
+            content = MaterialTheme.colorScheme.onSurface,
+            background = LocalAndroidColorScheme.current.surfaceEffect1,
+            border = null,
+        )
+
+    @Composable
+    @ReadOnlyComposable
+    fun textButtonColors(): TextButtonColors =
+        TextButtonColors(
+            content = colorAttr(R.attr.onShadeInactiveVariant),
+            background = colorAttr(R.attr.underSurface),
+            border = BorderStroke(1.dp, colorAttr(R.attr.shadeInactive)),
+        )
+
+    @Composable
+    @ReadOnlyComposable
+    fun numberButtonColors(): TextButtonColors =
+        TextButtonColors(
+            content = colorAttr(R.attr.onShadeInactiveVariant),
+            background = colorAttr(R.attr.shadeInactive),
+            border = null,
+        )
 }

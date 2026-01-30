@@ -16,7 +16,7 @@
 
 package android.media;
 
-import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_DEFAULT;
+import static android.companion.virtual.VirtualDeviceParams.DEVICE_POLICY_CUSTOM;
 import static android.companion.virtual.VirtualDeviceParams.POLICY_TYPE_AUDIO;
 import static android.content.Context.DEVICE_ID_DEFAULT;
 import static android.media.AudioManager.AUDIO_SESSION_ID_GENERATE;
@@ -1098,8 +1098,8 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
         }
 
         VirtualDeviceManager vdm = context.getSystemService(VirtualDeviceManager.class);
-        if (vdm == null || vdm.getDevicePolicy(deviceId, POLICY_TYPE_AUDIO)
-                == DEVICE_POLICY_DEFAULT) {
+        if (vdm == null || (vdm.getDevicePolicy(deviceId, POLICY_TYPE_AUDIO)
+                != DEVICE_POLICY_CUSTOM)) {
             return AUDIO_SESSION_ID_GENERATE;
         }
 
@@ -1768,7 +1768,9 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
      * The representation of the data in the buffer will depend on the format specified in
      * the AudioRecord constructor, and will be native endian.
      * @param audioBuffer the direct buffer to which the recorded audio data is written.
-     * Data is written to audioBuffer.position().
+     *    Data is written to the beginning of the byte buffer. Importantly, this
+     *    method ignores the {@link java.nio.Buffer#position()} and
+     *    {@link java.nio.Buffer#limit()} properties.
      * @param sizeInBytes the number of requested bytes. It is recommended but not enforced
      *    that the number of bytes requested be a multiple of the frame size (sample size in
      *    bytes multiplied by the channel count).
@@ -1796,7 +1798,9 @@ public class AudioRecord implements AudioRouting, MicrophoneDirection,
      * The representation of the data in the buffer will depend on the format specified in
      * the AudioRecord constructor, and will be native endian.
      * @param audioBuffer the direct buffer to which the recorded audio data is written.
-     * Data is written to audioBuffer.position().
+     *    Data is written to the beginning of the byte buffer. Importantly, this
+     *    method ignores the {@link java.nio.Buffer#position()} and
+     *    {@link java.nio.Buffer#limit()} properties.
      * @param sizeInBytes the number of requested bytes. It is recommended but not enforced
      *    that the number of bytes requested be a multiple of the frame size (sample size in
      *    bytes multiplied by the channel count).

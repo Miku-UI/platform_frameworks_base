@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Ulanmoqda…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> ulandi"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Juftlanmoqda…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Ulanmadi"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Ulanilmadi"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> ulandi (telefondan tashqari)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> ulandi (mediadan tashqari)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> ulandi (telefon yoki mediadan tashqari)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Quvvat: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (L), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (R)."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Quvvat: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> (chap)"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Quvvat: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> (oʻng)."</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Gʻilof batareyasi: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Qoldi: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Gʻilof batareyasi: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Oʻng: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Gʻilof batareyasi: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Chap: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Oʻng: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Chap: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Gʻilof: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, Oʻng: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Chapda: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Oʻngda: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Faol"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Faol (faqat oʻng)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Faol (chap va oʻng)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Atrof-muhit yangilanmadi"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Andoza yangilanmadi"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Tanlangan"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Faol (faqat media uchun) Quvvat: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Faol (faqat media uchun), quvvat: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> (L), <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> (R)"</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Mehmon qurilma. Quvvat: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Bu rejim yoqilganda qurilmaning MAC manzili tasodifiy MAC manzillar yaratish imkoniyati mavjud tarmoqqa har safar ulanganda almashishi mumkin."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Trafik hisoblanadigan tarmoq"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Trafik hisobi yuritilmaydigan tarmoq"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Jurnal buferi hajmi"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Jurnal bufer hajmi"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Jurnal xotirasi hajmini tanlang"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Jurnalning doimiy xotirasi tozalansinmi?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Qachon doimiy jurnal nazorat qilinmasa, uning ma’lumotlarini qurilmadan o‘chirib tashlanadi."</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> oldin"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> qoldi"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Eng kichik"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Kichikroq"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Kichkina"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Standart"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Katta"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Kattaroq"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Eng katta"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Kattaroq"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Juda yirik"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Juda katta"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Eng katta"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Moslashtirilgan (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menyu"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Demo rejimda zavod holatiga qaytarish uchun parolni kiriting"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 ta qurilma ulangan}other{# ta qurilma ulangan}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Ko‘proq vaqt."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Kamroq vaqt."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Kattalashtirish"</string>
     <string name="cancel" msgid="5665114069455378395">"Bekor qilish"</string>
     <string name="next" msgid="2699398661093607009">"Keyingisi"</string>
     <string name="back" msgid="5554327870352703710">"Orqaga"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Agar <xliff:g id="SWITCHAPP">%1$s</xliff:g> ilovasiga translatsiya qilsangiz yoki ovoz chiqishini oʻzgartirsangiz, joriy translatsiya toʻxtab qoladi"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> ilovasiga translatsiya"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Ovoz chiqishini oʻzgartirish"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Taxminiy qaytish animatsiyalari"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Taxminiy qaytish uchun tizim animatsiyalarini yoqish."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Bu sozlamalar taxminiy qaytish animatsiyalari uchun tizim animatsiyalarini faollashtiradi. Buning uchun har bir ilovaning manifest faylida enableOnBackInvokedCallback parametri “true” qiymatida boʻlishi lozim."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g>%%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Koʻrsatilmagan"</string>
     <string name="neuter" msgid="2075249330106127310">"Oʻrta"</string>

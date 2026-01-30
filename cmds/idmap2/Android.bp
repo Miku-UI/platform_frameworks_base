@@ -86,16 +86,20 @@ cc_library {
             static_libs: [
                 "libidmap2_policies",
                 "libidmap2_protos",
-                "libpng",
+                "android.content.res.flags-aconfig-cc",
             ],
             shared_libs: [
+                "libaconfig_storage_read_api_cc",
                 "libandroidfw",
                 "libbase",
                 "libcutils",
+                "liblog",
+                "libpng",
                 "libprotobuf-cpp-lite",
                 "libutils",
                 "libz",
                 "libziparchive",
+                "server_configurable_flags",
             ],
         },
         host: {
@@ -103,16 +107,20 @@ cc_library {
                 enabled: false,
             },
             static_libs: [
+                "android.content.res.flags-aconfig-cc-host",
+                "libaconfig_storage_read_api_cc",
                 "libandroidfw",
                 "libbase",
                 "libcutils",
                 "libidmap2_policies",
                 "libidmap2_protos",
+                "liblog",
                 "libpng",
                 "libprotobuf-cpp-lite",
                 "libutils",
                 "libz",
                 "libziparchive",
+                "server_configurable_flags",
             ],
         },
     },
@@ -193,6 +201,7 @@ cc_test {
     target: {
         android: {
             shared_libs: [
+                "libaconfig_storage_read_api_cc",
                 "libandroidfw",
                 "libbase",
                 "libidmap2",
@@ -202,13 +211,17 @@ cc_test {
                 "libz",
                 "libz",
                 "libziparchive",
+                "server_configurable_flags",
             ],
             static_libs: [
                 "libidmap2_policies",
+                "android.content.res.flags-aconfig-cc",
             ],
         },
         host: {
             static_libs: [
+                "android.content.res.flags-aconfig-cc-host",
+                "libaconfig_storage_read_api_cc",
                 "libandroidfw",
                 "libbase",
                 "libcutils",
@@ -218,6 +231,7 @@ cc_test {
                 "libprotobuf-cpp-lite",
                 "libutils",
                 "libziparchive",
+                "server_configurable_flags",
             ],
             shared_libs: [
                 "libz",
@@ -258,22 +272,28 @@ cc_binary {
     target: {
         android: {
             shared_libs: [
+                "libaconfig_storage_read_api_cc",
                 "libandroidfw",
                 "libbase",
                 "libcutils",
                 "libidmap2",
+                "liblog",
                 "libpng",
                 "libprotobuf-cpp-lite",
                 "libutils",
                 "libz",
                 "libziparchive",
+                "server_configurable_flags",
             ],
             static_libs: [
+                "android.content.res.flags-aconfig-cc",
                 "libidmap2_policies",
             ],
         },
         host: {
             static_libs: [
+                "android.content.res.flags-aconfig-cc-host",
+                "libaconfig_storage_read_api_cc",
                 "libandroidfw",
                 "libbase",
                 "libcutils",
@@ -284,6 +304,7 @@ cc_binary {
                 "libprotobuf-cpp-lite",
                 "libutils",
                 "libziparchive",
+                "server_configurable_flags",
             ],
             shared_libs: [
                 "libz",
@@ -304,16 +325,20 @@ cc_binary {
         "idmap2d/Main.cpp",
     ],
     shared_libs: [
+        "libaconfig_storage_read_api_cc",
         "libandroidfw",
         "libbase",
         "libbinder",
         "libcutils",
         "libidmap2",
+        "liblog",
         "libprotobuf-cpp-lite",
         "libutils",
         "libziparchive",
+        "server_configurable_flags",
     ],
     static_libs: [
+        "android.content.res.flags-aconfig-cc",
         "libidmap2_policies",
         "libidmap2_protos",
         "libidmap2daidl",
@@ -348,6 +373,7 @@ filegroup {
         "idmap2d/aidl/core/android/os/FabricatedOverlayInternal.aidl",
         "idmap2d/aidl/core/android/os/FabricatedOverlayInternalEntry.aidl",
         "idmap2d/aidl/core/android/os/FabricatedOverlayInfo.aidl",
+        "idmap2d/aidl/core/android/os/IdmapParams.aidl",
         "idmap2d/aidl/core/android/os/OverlayConstraint.aidl",
     ],
     path: "idmap2d/aidl/core/",

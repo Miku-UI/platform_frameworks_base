@@ -18,7 +18,7 @@ package android.telephony.ims.aidl;
 
 /**
  * See SmsImplBase for more information.
- * {@hide}
+ * @hide
  */
 oneway interface IImsSmsListener {
     void onSendSmsResult(int token, int messageRef, int status, int reason, int networkErrorCode);

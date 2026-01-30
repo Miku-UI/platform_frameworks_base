@@ -113,7 +113,10 @@ public final class PhantomProcessRecord {
     @GuardedBy("mLock")
     void killLocked(String reason, boolean noisy) {
         if (!mKilled) {
-            Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, "kill");
+            if (Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
+                Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
+                        "killPhantom/" + mProcessName + "/" + reason);
+            }
             if (noisy || mUid == mService.mCurOomAdjUid) {
                 mService.reportUidInfoMessageLocked(TAG,
                         "Killing " + toString() + ": " + reason, mUid);
@@ -130,7 +133,7 @@ public final class PhantomProcessRecord {
                             mService.mConstants.mProcessKillTimeoutMs);
                 }
                 Process.killProcessQuiet(mPid);
-                ProcessList.killProcessGroup(mUid, mPid);
+                ProcessList.killProcessGroup(mUid, mPid, reason);
             }
             mKilled = true;
             Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);

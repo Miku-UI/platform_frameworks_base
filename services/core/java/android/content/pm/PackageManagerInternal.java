@@ -21,6 +21,7 @@ import android.annotation.IntDef;
 import android.annotation.LongDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers;
 import android.annotation.SystemApi;
 import android.annotation.UserIdInt;
 import android.annotation.WorkerThread;
@@ -31,6 +32,7 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager.SignatureResult;
 import android.content.pm.SigningDetails.CertCapabilities;
 import android.content.pm.overlay.OverlayPaths;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerExecutor;
@@ -299,6 +301,18 @@ public abstract class PackageManagerInternal {
     public abstract String[] setPackagesSuspendedByAdmin(
             @UserIdInt int userId, @NonNull String[] packageNames, boolean suspended);
 
+
+
+    /**
+     * Unsuspends all packages that were previously suspended by a specific suspending package.
+     *
+     * @param suspendingPackage The package that originally requested suspension.
+     * @param suspendingUserId The user ID that requested suspension.
+     * @param affectedUserId The user ID for which to unsuspend the packages.
+     */
+    public abstract void unsuspendForSuspendingPackage(String suspendingPackage,
+            @UserIdInt int suspendingUserId, @SpecialUsers.CanBeALL @UserIdInt int affectedUserId);
+
     /**
      * Get the information describing the dialog to be shown to the user when they try to launch a
      * suspended application.
@@ -368,10 +382,14 @@ public abstract class PackageManagerInternal {
      *                         of the calling UID.
      * @param forSend          true if the invocation is intended for sending broadcasts. The value
      *                         of this parameter affects how packages are filtered.
+     * @param includedPackages An optional array of package names. If provided, the results
+     *                         will be limited to receivers from these packages only.
+     *                         If {@code null}, receivers from all packages can be included.
      */
     public abstract List<ResolveInfo> queryIntentReceivers(
             Intent intent, String resolvedType, @PackageManager.ResolveInfoFlagsBits long flags,
-            int filterCallingUid, int callingPid, int userId, boolean forSend);
+            int filterCallingUid, int callingPid, int userId, boolean forSend,
+            @Nullable String[] includedPackages);
 
     /**
      * Retrieve all services that can be performed for the given intent.
@@ -1442,4 +1460,11 @@ public abstract class PackageManagerInternal {
      * Returns true if the device is upgrading from an SDK version lower than the one specified.
      */
     public abstract boolean isUpgradingFromLowerThan(int sdkVersion);
+
+    /**
+     * Returns true if the device is upgrading from an SDK version lower than the one specified by
+     * checking a full SDK version (includes major version and minor version)
+     */
+    public abstract boolean isUpgradingFromLowerThanBySdkVersionFull(
+            @Build.SdkIntFull int sdkVersionFull);
 }

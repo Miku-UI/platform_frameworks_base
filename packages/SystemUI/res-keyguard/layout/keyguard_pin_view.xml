@@ -115,6 +115,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key2"
+            android:nextFocusForward="@+id/key2"
             androidprv:digit="1"
             androidprv:textView="@+id/pinEntry" />
 
@@ -123,6 +124,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key3"
+            android:nextFocusForward="@+id/key3"
             androidprv:digit="2"
             androidprv:textView="@+id/pinEntry" />
 
@@ -131,6 +133,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key4"
+            android:nextFocusForward="@+id/key4"
             androidprv:digit="3"
             androidprv:textView="@+id/pinEntry" />
 
@@ -139,6 +142,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key5"
+            android:nextFocusForward="@+id/key5"
             androidprv:digit="4"
             androidprv:textView="@+id/pinEntry" />
 
@@ -147,6 +151,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key6"
+            android:nextFocusForward="@+id/key6"
             androidprv:digit="5"
             androidprv:textView="@+id/pinEntry" />
 
@@ -155,6 +160,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key7"
+            android:nextFocusForward="@+id/key7"
             androidprv:digit="6"
             androidprv:textView="@+id/pinEntry" />
 
@@ -163,6 +169,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key8"
+            android:nextFocusForward="@+id/key8"
             androidprv:digit="7"
             androidprv:textView="@+id/pinEntry" />
 
@@ -172,6 +179,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key9"
+            android:nextFocusForward="@+id/key9"
             androidprv:digit="8"
             androidprv:textView="@+id/pinEntry" />
 
@@ -180,6 +188,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/delete_button"
+            android:nextFocusForward="@+id/delete_button"
             androidprv:digit="9"
             androidprv:textView="@+id/pinEntry" />
 
@@ -189,6 +198,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key0"
+            android:nextFocusForward="@+id/key0"
             android:contentDescription="@string/keyboardview_keycode_delete" />
 
         <com.android.keyguard.NumPadKey
@@ -196,6 +206,7 @@
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:accessibilityTraversalBefore="@id/key_enter"
+            android:nextFocusForward="@+id/key_enter"
             androidprv:digit="0"
             androidprv:textView="@+id/pinEntry" />
 

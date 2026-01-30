@@ -86,7 +86,9 @@ class NotificationTransitionAnimatorController(
 
     override fun createAnimatorState(): TransitionAnimator.State {
         // If the notification panel is collapsed, the clip may be larger than the height.
-        val height = max(0, notification.actualHeight - notification.clipBottomAmount)
+        val clipBottomAmount =
+            notification.clipBottomAmount.coerceAtLeast(notification.bottomOverlap)
+        val height = max(0, notification.actualHeight - clipBottomAmount)
         val location = notification.locationOnScreen
 
         val clipStartLocation = notificationListContainer.topClippingStartLocation

@@ -20,6 +20,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import android.app.LocaleConfig;
 import android.content.Context;
 import android.os.FileUtils;
 import android.os.LocaleList;
@@ -46,6 +47,8 @@ import java.util.Locale;
 @Presubmit
 @SmallTest
 @RunWith(AndroidJUnit4.class)
+@android.platform.test.annotations.DisabledOnRavenwood(bug = 406548877,
+        blockedBy = android.content.pm.ApplicationInfo.class)
 public class ResourcesLocaleTest {
 
     @Rule
@@ -73,7 +76,9 @@ public class ResourcesLocaleTest {
 
         final DisplayMetrics dm = new DisplayMetrics();
         dm.setToDefaults();
-        return new Resources(assets, dm, new Configuration());
+        Resources r = new Resources(assets, dm, new Configuration());
+        r.setLocaleConfig(new LocaleConfig(mContext.getApplicationInfo(), r));
+        return r;
     }
 
     private Resources createResourcesWithSelfApk() {
@@ -82,7 +87,9 @@ public class ResourcesLocaleTest {
 
         final DisplayMetrics dm = new DisplayMetrics();
         dm.setToDefaults();
-        return new Resources(assets, dm, new Configuration());
+        Resources r = new Resources(assets, dm, new Configuration());
+        r.setLocaleConfig(new LocaleConfig(mContext.getApplicationInfo(), r));
+        return r;
     }
 
     private static void ensureNoLanguage(Resources resources, String language) {
@@ -143,8 +150,39 @@ public class ResourcesLocaleTest {
         assertResGetString(Locale.forLanguageTag("id"), R.string.locale_test_res_1, "Testing ID");
     }
 
+    @Test
+    public void testMultiLocale() {
+        Locale[] locales = new Locale[]{Locale.forLanguageTag("es"), Locale.forLanguageTag("de") };
+        assertResGetString(locales, R.string.multilocale_test_res_1, "ES1");
+        assertResGetString(locales, R.string.multilocale_test_res_2, "ES2");
+        assertResGetString(locales, R.string.multilocale_test_res_3, "ES3");
+        assertResGetString(locales, R.string.multilocale_test_res_4, "DE4");
+
+        locales = new Locale[]{Locale.forLanguageTag("de"), Locale.forLanguageTag("es") };
+        assertResGetString(locales, R.string.multilocale_test_res_1, "ES1");
+        assertResGetString(locales, R.string.multilocale_test_res_2, "ES2");
+        assertResGetString(locales, R.string.multilocale_test_res_3, "DE3");
+        assertResGetString(locales, R.string.multilocale_test_res_4, "DE4");
+
+        locales = new Locale[]{Locale.forLanguageTag("fa"), Locale.forLanguageTag("de"),
+                Locale.forLanguageTag("es") };
+        assertResGetString(locales, R.string.multilocale_test_res_1, "ES1");
+        assertResGetString(locales, R.string.multilocale_test_res_2, "FA2");
+        assertResGetString(locales, R.string.multilocale_test_res_3, "DE3");
+        assertResGetString(locales, R.string.multilocale_test_res_4, "DE4");
+    }
+
     private void assertResGetString(Locale locale, int resId, String expectedString) {
         LocaleList locales = new LocaleList(locale);
+        final Configuration config = new Configuration();
+        config.setLocales(locales);
+        final Resources resources = createResourcesWithSelfApk();
+        resources.updateConfiguration(config, null);
+        assertEquals(expectedString, resources.getString(resId));
+    }
+
+    private void assertResGetString(Locale[] localeArray, int resId, String expectedString) {
+        LocaleList locales = new LocaleList(localeArray);
         final Configuration config = new Configuration();
         config.setLocales(locales);
         final Resources resources = createResourcesWithSelfApk();

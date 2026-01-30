@@ -20,7 +20,7 @@ import android.content.Intent;
 import android.telephony.TelephonyManager;
 
 /**
- * {@hide}
+ * @hide
  */
 public class IccCardConstants {
 

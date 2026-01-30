@@ -21,7 +21,7 @@ import android.telephony.ims.ImsExternalCallState;
 /**
  * A listener type for receiving notifications about DEP through IMS
  *
- * {@hide}
+ * @hide
  */
 oneway interface IImsExternalCallStateListener {
 

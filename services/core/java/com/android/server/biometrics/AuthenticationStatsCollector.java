@@ -149,10 +149,24 @@ public class AuthenticationStatsCollector {
             return;
         }
 
-        // Don't collect data for single-modality devices or user has both biometrics enrolled.
-        if (isSingleModalityDevice()
-                || (hasEnrolledFace(userId) && hasEnrolledFingerprint(userId))) {
+        // Don't collect data for single-modality devices
+        if (isSingleModalityDevice()) {
             return;
+        }
+        if (Flags.frrDialogImprovement()) {
+            // Don't collect data for users who have fingerprint enrolled when the current modality
+            // is not fingerprint. Because the customized FRR notification is for fingerprint only,
+            // and we don't want to send the default notification for face when the user has
+            // fingerprint enrolled.
+            if (mModality != BiometricsProtoEnums.MODALITY_FINGERPRINT
+                    && hasEnrolledFingerprint(userId)) {
+                return;
+            }
+        } else {
+            // Don't collect data for user has both biometrics enrolled
+            if (hasEnrolledFace(userId) && hasEnrolledFingerprint(userId)) {
+                return;
+            }
         }
 
         updateAuthenticationStatsMapIfNeeded(userId);

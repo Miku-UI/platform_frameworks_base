@@ -29,10 +29,17 @@ import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.data.repository.HideOverlay
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -47,7 +54,22 @@ class PrimaryBouncerToAodTransitionViewModelTest : SysuiTestCase() {
     val fingerprintPropertyRepository = kosmos.fingerprintPropertyRepository
     val biometricSettingsRepository = kosmos.biometricSettingsRepository
 
-    val underTest = kosmos.primaryBouncerToAodTransitionViewModel
+    lateinit var underTest: PrimaryBouncerToAodTransitionViewModel
+
+    @Before
+    fun setup() {
+        underTest = kosmos.primaryBouncerToAodTransitionViewModel
+
+        // Put STL in transition: Bouncer => Lockscreen transition (includes KeyguardState.AOD)
+        kosmos.setSceneTransition(
+            HideOverlay(
+                overlay = Overlays.Bouncer,
+                toScene = Scenes.Lockscreen,
+                currentOverlays = flowOf(setOf(Overlays.Bouncer)),
+                progress = flowOf(.5f),
+            )
+        )
+    }
 
     @Test
     fun deviceEntryBackgroundViewAlpha() =
@@ -157,7 +179,12 @@ class PrimaryBouncerToAodTransitionViewModelTest : SysuiTestCase() {
         state: TransitionState = TransitionState.RUNNING,
     ): TransitionStep {
         return TransitionStep(
-            from = KeyguardState.PRIMARY_BOUNCER,
+            from =
+                if (SceneContainerFlag.isEnabled) {
+                    KeyguardState.UNDEFINED
+                } else {
+                    KeyguardState.PRIMARY_BOUNCER
+                },
             to = KeyguardState.AOD,
             value = value,
             transitionState = state,

@@ -16,34 +16,23 @@
 
 package android.content.theming;
 
-import android.annotation.ColorInt;
 import android.annotation.FlaggedApi;
+import android.annotation.NonNull;
 import android.graphics.Color;
 
 import androidx.annotation.Nullable;
 
-import java.util.function.BiConsumer;
-import java.util.function.Function;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /** @hide */
 @FlaggedApi(android.server.Flags.FLAG_ENABLE_THEME_SERVICE)
-public class FieldColor extends ThemeSettingsField<Integer, String> {
+public final class FieldColor extends ThemeSettingsField<Color, String> {
     private static final Pattern COLOR_PATTERN = Pattern.compile("[0-9a-fA-F]{6,8}");
 
-    public FieldColor(
-            String key,
-            BiConsumer<ThemeSettingsUpdater, Integer> setter,
-            Function<ThemeSettings, Integer> getter,
-            ThemeSettings defaults
-    ) {
-        super(key, setter, getter, defaults);
-    }
-
     @Override
-    @ColorInt
     @Nullable
-    public Integer parse(String primitive) {
+    public Color parse(String primitive) {
         if (primitive == null) {
             return null;
         }
@@ -52,25 +41,26 @@ public class FieldColor extends ThemeSettingsField<Integer, String> {
         }
 
         try {
-            return Color.valueOf(Color.parseColor("#" + primitive)).toArgb();
+            return Color.valueOf(Color.parseColor("#" + primitive));
         } catch (IllegalArgumentException e) {
             return null;
         }
     }
 
     @Override
-    public String serialize(@ColorInt Integer value) {
-        return Integer.toHexString(value);
+    public String serialize(Color value) {
+        return Integer.toHexString(value.toArgb()).toUpperCase();
     }
 
     @Override
-    public boolean validate(Integer value) {
-        return !value.equals(Color.TRANSPARENT);
+    public boolean validate(@NonNull Color value) {
+        Objects.requireNonNull(value);
+        return value.toArgb() != Color.TRANSPARENT;
     }
 
     @Override
-    public Class<Integer> getFieldType() {
-        return Integer.class;
+    public Class<Color> getFieldType() {
+        return Color.class;
     }
 
     @Override

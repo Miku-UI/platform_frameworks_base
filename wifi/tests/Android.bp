@@ -35,8 +35,8 @@ android_test {
     },
 
     static_libs: [
-        "androidx.test.rules",
         "androidx.test.core",
+        "androidx.test.rules",
         "frameworks-base-testutils",
         "guava",
         "mockito-target-extended-minus-junit4",
@@ -44,8 +44,8 @@ android_test {
     ],
 
     libs: [
-        "android.test.runner.stubs",
         "android.test.base.stubs",
+        "android.test.runner.stubs",
     ],
 
     // Required by Extended Mockito
@@ -56,5 +56,9 @@ android_test {
 
     test_suites: [
         "general-tests",
+    ],
+
+    visibility: [
+        "//platform_testing:__subpackages__",
     ],
 }

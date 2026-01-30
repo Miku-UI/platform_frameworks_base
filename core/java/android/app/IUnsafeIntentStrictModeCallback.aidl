@@ -20,7 +20,7 @@ import android.content.Intent;
 
 /**
  * Callback to find out when a strict mode violation occurs.
- * {@hide}
+ * @hide
  */
 oneway interface IUnsafeIntentStrictModeCallback
 {

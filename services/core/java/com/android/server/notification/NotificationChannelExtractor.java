@@ -15,9 +15,6 @@
 */
 package com.android.server.notification;
 
-import static android.app.Flags.restrictAudioAttributesAlarm;
-import static android.app.Flags.restrictAudioAttributesCall;
-import static android.app.Flags.restrictAudioAttributesMedia;
 import static android.app.Notification.CATEGORY_ALARM;
 import static android.media.AudioAttributes.USAGE_NOTIFICATION;
 
@@ -76,40 +73,34 @@ public class NotificationChannelExtractor implements NotificationSignalExtractor
                 record.getSbn().getShortcutId(), true, false);
         record.updateNotificationChannel(updatedChannel);
 
-        if (restrictAudioAttributesCall() || restrictAudioAttributesAlarm()
-                || restrictAudioAttributesMedia()) {
-            AudioAttributes attributes = record.getChannel().getAudioAttributes();
-            if (attributes == null) {
-                if (DBG) Slog.d(TAG, "missing AudioAttributes");
-                return null;
-            }
+        AudioAttributes attributes = record.getChannel().getAudioAttributes();
+        if (attributes == null) {
+            if (DBG) Slog.d(TAG, "missing AudioAttributes");
+            return null;
+        }
 
-            boolean updateAttributes =  false;
-            if (restrictAudioAttributesCall()
-                    && !record.getNotification().isStyle(Notification.CallStyle.class)
-                    && attributes.getUsage() == AudioAttributes.USAGE_NOTIFICATION_RINGTONE) {
-                updateAttributes = true;
-            }
-            if (restrictAudioAttributesAlarm()
-                    && !CATEGORY_ALARM.equals(record.getNotification().category)
-                    && attributes.getUsage() == AudioAttributes.USAGE_ALARM) {
-                updateAttributes = true;
-            }
+        boolean updateAttributes =  false;
+        if (!record.getNotification().isStyle(Notification.CallStyle.class)
+                && attributes.getUsage() == AudioAttributes.USAGE_NOTIFICATION_RINGTONE) {
+            updateAttributes = true;
+        }
+        if (!CATEGORY_ALARM.equals(record.getNotification().category)
+               && attributes.getUsage() == AudioAttributes.USAGE_ALARM) {
+            updateAttributes = true;
+        }
 
-            if (restrictAudioAttributesMedia()
-                    && (attributes.getUsage() == AudioAttributes.USAGE_UNKNOWN
-                    || attributes.getUsage() == AudioAttributes.USAGE_MEDIA)) {
-                updateAttributes = true;
-            }
+        if (attributes.getUsage() == AudioAttributes.USAGE_UNKNOWN
+                || attributes.getUsage() == AudioAttributes.USAGE_MEDIA) {
+            updateAttributes = true;
+        }
 
-            if (updateAttributes) {
-                reportAudioAttributesChanged(record.getUid());
-                NotificationChannel clone = record.getChannel().copy();
-                clone.setSound(clone.getSound(), new AudioAttributes.Builder(attributes)
-                        .setUsage(USAGE_NOTIFICATION)
-                        .build());
-                record.updateNotificationChannel(clone);
-            }
+        if (updateAttributes) {
+            reportAudioAttributesChanged(record.getUid());
+            NotificationChannel clone = record.getChannel().copy();
+            clone.setSound(clone.getSound(), new AudioAttributes.Builder(attributes)
+                    .setUsage(USAGE_NOTIFICATION)
+                     .build());
+            record.updateNotificationChannel(clone);
         }
 
         return null;

@@ -44,9 +44,6 @@ public class FeatureFlagUtils {
     public static final String SETTINGS_DO_NOT_RESTORE_PRESERVED =
             "settings_do_not_restore_preserved";
     /** @hide */
-    public static final String SETTINGS_USE_NEW_BACKUP_ELIGIBILITY_RULES
-            = "settings_use_new_backup_eligibility_rules";
-    /** @hide */
     public static final String SETTINGS_ENABLE_SECURITY_HUB = "settings_enable_security_hub";
     /** @hide */
     public static final String SETTINGS_SUPPORT_LARGE_SCREEN = "settings_support_large_screen";
@@ -193,7 +190,6 @@ public class FeatureFlagUtils {
 
         DEFAULT_FLAGS.put("settings_tether_all_in_one", "false");
         DEFAULT_FLAGS.put("settings_contextual_home", "false");
-        DEFAULT_FLAGS.put(SETTINGS_USE_NEW_BACKUP_ELIGIBILITY_RULES, "true");
         DEFAULT_FLAGS.put(SETTINGS_ENABLE_SECURITY_HUB, "true");
         DEFAULT_FLAGS.put(SETTINGS_SUPPORT_LARGE_SCREEN, "true");
         DEFAULT_FLAGS.put("settings_search_always_expand", "true");

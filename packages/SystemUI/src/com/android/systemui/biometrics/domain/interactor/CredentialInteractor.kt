@@ -5,12 +5,16 @@ import android.app.admin.DevicePolicyResources
 import android.content.Context
 import android.hardware.biometrics.Flags
 import android.os.UserManager
+import android.security.Flags.secureLockDevice
+import android.util.Log
 import com.android.internal.widget.LockPatternUtils
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
 import com.android.internal.widget.LockscreenCredential
 import com.android.internal.widget.VerifyCredentialResponse
 import com.android.systemui.biometrics.domain.model.BiometricPromptRequest
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.util.time.SystemClock
 import javax.inject.Inject
 import kotlinx.coroutines.delay
@@ -89,7 +93,21 @@ constructor(
             }
 
         if (response.isMatched) {
-            lockPatternUtils.userPresent(effectiveUserId)
+            if (
+                secureLockDevice() &&
+                    SceneContainerFlag.isEnabled &&
+                    lockPatternUtils
+                        .getStrongAuthForUser(request.userInfo.userId)
+                        .and(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE) != 0
+            ) {
+                Log.i(
+                    TAG,
+                    "Device is in secure lock device mode; awaiting second factor biometric " +
+                        "authentication before unlocking.",
+                )
+            } else {
+                lockPatternUtils.userPresent(effectiveUserId)
+            }
 
             // The response passed into this method contains the Gatekeeper
             // Password. We still have to request Gatekeeper to create a
@@ -166,6 +184,10 @@ constructor(
         } else {
             null
         }
+
+    companion object {
+        private val TAG = "CredentialInteractorImpl"
+    }
 }
 
 private enum class UserType {

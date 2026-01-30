@@ -22,6 +22,8 @@ import androidx.compose.runtime.snapshots.StateFactoryMarker
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.app.tracing.coroutines.traceCoroutine
 import com.android.systemui.log.table.TableLogBuffer
+import kotlin.properties.ReadOnlyProperty
+import kotlin.reflect.KProperty
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -140,4 +142,61 @@ class Hydrator(
     }
 
     private data class NamedActivatable(val traceName: String?, val activatable: Activatable)
+
+    /**
+     * Returns a snapshot [State] that's kept up-to-date as long as its owner is active. Returns
+     * [StateDelegateProvider] which is used by the `by` keyword. It will automatically set the
+     * traceName to be the property name.
+     *
+     * Usage: `val myState by hydrator.hydratedStateOf(initialValue, source)`
+     *
+     * @param initialValue The first value to place on the [State]
+     * @param source The upstream [Flow] to collect from; values emitted to it will be automatically
+     *   set on the returned [State].
+     */
+    fun <T> hydratedStateOf(initialValue: T, source: Flow<T>): StateDelegateProvider<T> {
+        return StateDelegateProvider(initialValue, source)
+    }
+
+    /**
+     * Returns a snapshot [State] that's kept up-to-date as long as its owner is active. Returns
+     * [StateDelegateProvider] which is used by the `by` keyword. It will automatically set the
+     * traceName to be the property name.
+     *
+     * Usage: `val myState by hydrator.hydratedStateOf(source)`
+     *
+     * @param initialValue The first value to place on the [State]
+     * @param source The upstream [Flow] to collect from; values emitted to it will be automatically
+     *   set on the returned [State].
+     */
+    fun <T> hydratedStateOf(source: StateFlow<T>): StateDelegateProvider<T> {
+        return StateDelegateProvider(source.value, source)
+    }
+
+    inner class StateDelegateProvider<T>
+    internal constructor(
+        private val initialValue: T,
+        private val sourceFlow: Flow<T>,
+        private val explicitTraceName: String? = null,
+    ) {
+        operator fun provideDelegate(
+            thisRef: Any?,
+            property: KProperty<*>,
+        ): ReadOnlyProperty<Any?, T> {
+            val finalTraceName = explicitTraceName ?: property.name
+
+            val internalState: State<T> =
+                hydratedStateOf(
+                    traceName = finalTraceName,
+                    initialValue = initialValue,
+                    source = sourceFlow,
+                )
+
+            return object : ReadOnlyProperty<Any?, T> {
+                override fun getValue(thisRef: Any?, property: KProperty<*>): T {
+                    return internalState.value
+                }
+            }
+        }
+    }
 }

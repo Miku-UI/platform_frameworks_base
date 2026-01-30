@@ -32,5 +32,9 @@ public interface DecoratorComponent {
      * @param width horizontal dimension in pixels
      * @param height vertical dimension in pixels
      */
-    void layout(@NonNull RemoteContext context, Component component, float width, float height);
+    void layout(
+            @NonNull RemoteContext context,
+            @NonNull Component component,
+            float width,
+            float height);
 }

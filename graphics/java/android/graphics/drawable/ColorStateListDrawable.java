@@ -32,6 +32,7 @@ import android.util.MathUtils;
  * A Drawable that manages a {@link ColorDrawable} to make it stateful and backed by a
  * {@link ColorStateList}.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ColorStateListDrawable extends Drawable implements Drawable.Callback {
     private ColorDrawable mColorDrawable;
     private ColorStateListDrawableState mState;

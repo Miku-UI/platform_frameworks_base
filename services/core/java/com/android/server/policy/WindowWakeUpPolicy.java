@@ -29,15 +29,12 @@ import static com.android.server.power.feature.flags.Flags.perDisplayWakeByTouch
 
 import android.annotation.Nullable;
 import android.content.Context;
-import android.content.res.Resources;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeReason;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.util.Slog;
 import android.view.Display;
 import android.view.KeyEvent;
-import android.view.WindowManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.Clock;
@@ -47,19 +44,8 @@ import com.android.server.LocalServices;
 class WindowWakeUpPolicy {
     private static final String TAG = "WindowWakeUpPolicy";
 
-    private static final boolean DEBUG = false;
-
-    private final Context mContext;
     private final PowerManager mPowerManager;
-    private final WindowManager mWindowManager;
     private final Clock mClock;
-
-    private final boolean mAllowTheaterModeWakeFromKey;
-    private final boolean mAllowTheaterModeWakeFromPowerKey;
-    private final boolean mAllowTheaterModeWakeFromMotion;
-    private final boolean mAllowTheaterModeWakeFromCameraLens;
-    private final boolean mAllowTheaterModeWakeFromLidSwitch;
-    private final boolean mAllowTheaterModeWakeFromWakeGesture;
 
     // The policy will handle input-based wake ups if this delegate is null.
     @Nullable private WindowWakeUpPolicyInternal.InputWakeUpDelegate mInputWakeUpDelegate;
@@ -70,25 +56,9 @@ class WindowWakeUpPolicy {
 
     @VisibleForTesting
     WindowWakeUpPolicy(Context context, Clock clock) {
-        mContext = context;
         mPowerManager = context.getSystemService(PowerManager.class);
-        mWindowManager = context.getSystemService(WindowManager.class);
         mClock = clock;
 
-        final Resources res = context.getResources();
-        mAllowTheaterModeWakeFromKey = res.getBoolean(
-                com.android.internal.R.bool.config_allowTheaterModeWakeFromKey);
-        mAllowTheaterModeWakeFromPowerKey = mAllowTheaterModeWakeFromKey
-                || res.getBoolean(
-                    com.android.internal.R.bool.config_allowTheaterModeWakeFromPowerKey);
-        mAllowTheaterModeWakeFromMotion = res.getBoolean(
-                com.android.internal.R.bool.config_allowTheaterModeWakeFromMotion);
-        mAllowTheaterModeWakeFromCameraLens = res.getBoolean(
-                com.android.internal.R.bool.config_allowTheaterModeWakeFromCameraLens);
-        mAllowTheaterModeWakeFromLidSwitch = res.getBoolean(
-                com.android.internal.R.bool.config_allowTheaterModeWakeFromLidSwitch);
-        mAllowTheaterModeWakeFromWakeGesture = res.getBoolean(
-                com.android.internal.R.bool.config_allowTheaterModeWakeFromGesture);
         if (supportInputWakeupDelegate()) {
             LocalServices.addService(WindowWakeUpPolicyInternal.class, new LocalService());
         }
@@ -116,14 +86,6 @@ class WindowWakeUpPolicy {
      *      executed; {@code false} otherwise.
      */
     boolean wakeUpFromKey(int displayId, long eventTime, int keyCode, boolean isDown) {
-        final boolean wakeAllowedDuringTheaterMode =
-                keyCode == KEYCODE_POWER
-                        ? mAllowTheaterModeWakeFromPowerKey
-                        : mAllowTheaterModeWakeFromKey;
-        if (!canWakeUp(wakeAllowedDuringTheaterMode)) {
-            if (DEBUG) Slog.d(TAG, "Unable to wake up from " + KeyEvent.keyCodeToString(keyCode));
-            return false;
-        }
         if (mInputWakeUpDelegate != null
                 && mInputWakeUpDelegate.wakeUpFromKey(eventTime, keyCode, isDown)) {
             return true;
@@ -158,10 +120,6 @@ class WindowWakeUpPolicy {
     boolean wakeUpFromMotion(
             int displayId, long eventTime, int source, boolean isDown,
             boolean deviceGoingToSleep) {
-        if (!canWakeUp(mAllowTheaterModeWakeFromMotion)) {
-            if (DEBUG) Slog.d(TAG, "Unable to wake up from motion.");
-            return false;
-        }
         if (mInputWakeUpDelegate != null
                 && mInputWakeUpDelegate.wakeUpFromMotion(
                         eventTime, source, isDown, deviceGoingToSleep)) {
@@ -183,10 +141,6 @@ class WindowWakeUpPolicy {
      *      executed; {@code false} otherwise.
      */
     boolean wakeUpFromCameraCover(long eventTime) {
-        if (!canWakeUp(mAllowTheaterModeWakeFromCameraLens)) {
-            if (DEBUG) Slog.d(TAG, "Unable to wake up from camera cover.");
-            return false;
-        }
         wakeUp(eventTime, WAKE_REASON_CAMERA_LAUNCH, "CAMERA_COVER");
         return true;
     }
@@ -198,10 +152,6 @@ class WindowWakeUpPolicy {
      *      executed; {@code false} otherwise.
      */
     boolean wakeUpFromLid() {
-        if (!canWakeUp(mAllowTheaterModeWakeFromLidSwitch)) {
-            if (DEBUG) Slog.d(TAG, "Unable to wake up from lid.");
-            return false;
-        }
         wakeUp(mClock.uptimeMillis(), WAKE_REASON_LID, "LID");
         return true;
     }
@@ -213,10 +163,6 @@ class WindowWakeUpPolicy {
      *      executed; {@code false} otherwise.
      */
     boolean wakeUpFromPowerKeyCameraGesture() {
-        if (!canWakeUp(mAllowTheaterModeWakeFromPowerKey)) {
-            if (DEBUG) Slog.d(TAG, "Unable to wake up from power key camera gesture.");
-            return false;
-        }
         wakeUp(mClock.uptimeMillis(), WAKE_REASON_CAMERA_LAUNCH, "CAMERA_GESTURE_PREVENT_LOCK");
         return true;
     }
@@ -228,30 +174,19 @@ class WindowWakeUpPolicy {
      *      executed; {@code false} otherwise.
      */
     boolean wakeUpFromWakeGesture() {
-        if (!canWakeUp(mAllowTheaterModeWakeFromWakeGesture)) {
-            if (DEBUG) Slog.d(TAG, "Unable to wake up from gesture.");
-            return false;
-        }
         wakeUp(mClock.uptimeMillis(), WAKE_REASON_GESTURE, "GESTURE");
         return true;
     }
 
-    private boolean canWakeUp(boolean wakeInTheaterMode) {
-        if (supportInputWakeupDelegate() && isDefaultDisplayOn()) {
-            // If the default display is on, theater mode should not influence whether or not
-            // waking up is allowed. This is because the theater mode checks are there to block
-            // the display from being on in situations where the user may not want it to be
-            // on (so if the display is already on, no need to check for theater mode at all).
-            return true;
-        }
-        final boolean isTheaterModeEnabled =
-                Settings.Global.getInt(
-                        mContext.getContentResolver(), Settings.Global.THEATER_MODE_ON, 0) == 1;
-        return wakeInTheaterMode || !isTheaterModeEnabled;
-    }
-
-    private boolean isDefaultDisplayOn() {
-        return Display.isOnState(mWindowManager.getDefaultDisplay().getState());
+    /**
+     * Wakes up due to a Bluetooth HID profile connection.
+     *
+     * @return {@code true} if the policy allows the requested wake up and the request has been
+     *      executed; {@code false} otherwise.
+     */
+    boolean wakeUpFromBluetooth() {
+        wakeUp(mClock.uptimeMillis(), WAKE_REASON_WAKE_MOTION, "BLUETOOTH_DEVICE_CONNECTED");
+        return true;
     }
 
     /** Wakes up {@link PowerManager}. */
@@ -264,6 +199,14 @@ class WindowWakeUpPolicy {
         // If we're given an invalid display id to wake, fall back to waking default display
         final int displayIdToWake =
                 displayId == Display.INVALID_DISPLAY ? Display.DEFAULT_DISPLAY : displayId;
+        // When there is a request to wakeup a default display, we would want to wakeup the displays
+        // in the default and the adjacent groups
+        if (com.android.server.display.feature.flags.Flags.separateTimeouts()
+                && com.android.server.power.feature.flags.Flags.wakeAdjacentDisplaysOnWakeupCall()
+                && displayIdToWake == Display.DEFAULT_DISPLAY) {
+            wakeUp(wakeTime, reason, details);
+            return;
+        }
         mPowerManager.wakeUp(wakeTime, reason, "android.policy:" + details, displayIdToWake);
     }
 }

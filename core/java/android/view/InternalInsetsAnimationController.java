@@ -16,6 +16,8 @@
 
 package android.view;
 
+import android.annotation.Nullable;
+
 /**
  * An internal interface which provides methods that will be only used by the framework.
  * @hide
@@ -36,6 +38,6 @@ public interface InternalInsetsAnimationController extends WindowInsetsAnimation
      * @return {@code true} if the animation has been finished; {@code false} otherwise.
      * @hide
      */
-    boolean applyChangeInsets(InsetsState outState);
+    boolean applyChangeInsets(@Nullable InsetsState outState);
 }
 

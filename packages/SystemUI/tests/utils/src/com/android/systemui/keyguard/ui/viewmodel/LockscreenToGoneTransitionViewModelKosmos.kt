@@ -19,11 +19,13 @@ package com.android.systemui.keyguard.ui.viewmodel
 import com.android.systemui.keyguard.ui.keyguardTransitionAnimationFlow
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.statusbar.phone.keyguardBypassController
 import com.android.systemui.statusbar.sysuiStatusBarStateController
 
 val Kosmos.lockscreenToGoneTransitionViewModel by Fixture {
     LockscreenToGoneTransitionViewModel(
         animationFlow = keyguardTransitionAnimationFlow,
         statusBarStateController = sysuiStatusBarStateController,
+        keyguardBypassController = keyguardBypassController,
     )
 }

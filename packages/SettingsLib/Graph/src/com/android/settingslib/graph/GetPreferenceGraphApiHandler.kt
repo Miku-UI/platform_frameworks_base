@@ -20,6 +20,7 @@ import android.app.Application
 import android.os.Bundle
 import android.os.Parcelable
 import android.os.SystemClock
+import com.android.settingslib.graph.PreferenceGetterFlags.setEagerMode
 import com.android.settingslib.graph.proto.PreferenceGraphProto
 import com.android.settingslib.ipc.ApiHandler
 import com.android.settingslib.ipc.ApiPermissionChecker
@@ -27,6 +28,7 @@ import com.android.settingslib.ipc.MessageCodec
 import com.android.settingslib.metadata.PreferenceRemoteOpMetricsLogger
 import com.android.settingslib.metadata.PreferenceScreenCoordinate
 import com.android.settingslib.metadata.PreferenceScreenRegistry
+import com.android.settingslib.metadata.usePreferenceHierarchyScope
 import com.android.settingslib.preference.PreferenceScreenProvider
 import java.util.Locale
 
@@ -38,11 +40,9 @@ class GetPreferenceGraphApiHandler(
     private val preferenceScreenProviders: Set<Class<out PreferenceScreenProvider>> = emptySet(),
 ) : ApiHandler<GetPreferenceGraphRequest, PreferenceGraphProto> {
 
-    override val requestCodec: MessageCodec<GetPreferenceGraphRequest>
-        get() = GetPreferenceGraphRequestCodec
+    override val requestCodec = GetPreferenceGraphRequestCodec()
 
-    override val responseCodec: MessageCodec<PreferenceGraphProto>
-        get() = PreferenceGraphProtoCodec
+    override val responseCodec = PreferenceGraphProtoCodec()
 
     override fun hasPermission(
         application: Application,
@@ -56,21 +56,22 @@ class GetPreferenceGraphApiHandler(
         callingPid: Int,
         callingUid: Int,
         request: GetPreferenceGraphRequest,
-    ): PreferenceGraphProto {
+    ): PreferenceGraphProto = usePreferenceHierarchyScope {
         val elapsedRealtime = SystemClock.elapsedRealtime()
         var success = false
         try {
-            val builder = PreferenceGraphBuilder.of(application, callingPid, callingUid, request)
+            val builder =
+                PreferenceGraphBuilder.of(application, callingPid, callingUid, request, this)
             if (request.screens.isEmpty()) {
                 val factories = PreferenceScreenRegistry.preferenceScreenMetadataFactories
-                factories.forEachAsync { _, factory -> builder.addPreferenceScreen(factory) }
+                factories.forEachAsync { key, factory -> builder.addPreferenceScreen(key, factory) }
                 for (provider in preferenceScreenProviders) {
                     builder.addPreferenceScreenProvider(provider)
                 }
             }
             val result = builder.build()
             success = true
-            return result
+            result
         } finally {
             metricsLogger?.logGraphApi(
                 application,
@@ -88,6 +89,7 @@ class GetPreferenceGraphApiHandler(
  * @param screens screens of the preference graph
  * @param visitedScreens visited preference screens
  * @param locale locale of the preference graph
+ * @param flags flags to instruct return information
  */
 data class GetPreferenceGraphRequest
 @JvmOverloads
@@ -95,11 +97,11 @@ constructor(
     val screens: Set<PreferenceScreenCoordinate> = setOf(),
     val visitedScreens: Set<PreferenceScreenCoordinate> = setOf(),
     val locale: Locale? = null,
-    val flags: Int = PreferenceGetterFlags.ALL,
-    val includeValueDescriptor: Boolean = true,
+    // To achieve backward compatibility, use eager mode to materialize hierarchy immediately
+    val flags: Int = PreferenceGetterFlags.ALL.setEagerMode(),
 )
 
-object GetPreferenceGraphRequestCodec : MessageCodec<GetPreferenceGraphRequest> {
+class GetPreferenceGraphRequestCodec : MessageCodec<GetPreferenceGraphRequest> {
     override fun encode(data: GetPreferenceGraphRequest): Bundle =
         Bundle(4).apply {
             putParcelableArray(KEY_SCREENS, data.screens.toTypedArray())
@@ -126,18 +128,22 @@ object GetPreferenceGraphRequestCodec : MessageCodec<GetPreferenceGraphRequest> 
         )
     }
 
-    private const val KEY_SCREENS = "s"
-    private const val KEY_VISITED_SCREENS = "v"
-    private const val KEY_LOCALE = "l"
-    private const val KEY_FLAGS = "f"
+    companion object {
+        private const val KEY_SCREENS = "s"
+        private const val KEY_VISITED_SCREENS = "v"
+        private const val KEY_LOCALE = "l"
+        private const val KEY_FLAGS = "f"
+    }
 }
 
-object PreferenceGraphProtoCodec : MessageCodec<PreferenceGraphProto> {
+class PreferenceGraphProtoCodec : MessageCodec<PreferenceGraphProto> {
     override fun encode(data: PreferenceGraphProto): Bundle =
         Bundle(1).apply { putByteArray(KEY_GRAPH, data.toByteArray()) }
 
     override fun decode(data: Bundle): PreferenceGraphProto =
         PreferenceGraphProto.parseFrom(data.getByteArray(KEY_GRAPH)!!)
 
-    private const val KEY_GRAPH = "g"
+    companion object {
+        private const val KEY_GRAPH = "g"
+    }
 }

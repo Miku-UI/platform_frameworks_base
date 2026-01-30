@@ -29,7 +29,9 @@ import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.ParcelUuid;
 import android.os.UserHandle;
+import android.util.Slog;
 
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.ArrayUtils;
 import com.android.server.companion.association.AssociationStore;
 
@@ -61,6 +63,7 @@ public class BluetoothDeviceProcessor
     private final Callback mCallback;
 
     /** A set of ALL connected BT device (not only companion.) */
+    @GuardedBy("mAllConnectedDevices")
     @NonNull
     private final Map<MacAddress, BluetoothDevice> mAllConnectedDevices = new HashMap<>();
 
@@ -85,9 +88,14 @@ public class BluetoothDeviceProcessor
     public void onDeviceConnected(@NonNull BluetoothDevice device) {
         final MacAddress macAddress = MacAddress.fromString(device.getAddress());
 
-        if (mAllConnectedDevices.put(macAddress, device) != null) {
-            return;
+        synchronized (mAllConnectedDevices) {
+            if (mAllConnectedDevices.put(macAddress, device) != null) {
+                Slog.i(TAG, "Device " + device.getAddress()
+                        + " already marked as connected. Skipping duplicate event.");
+                return;
+            }
         }
+
 
         onDeviceConnectivityChanged(device, true);
     }
@@ -102,8 +110,12 @@ public class BluetoothDeviceProcessor
             int reason) {
         final MacAddress macAddress = MacAddress.fromString(device.getAddress());
 
-        if (mAllConnectedDevices.remove(macAddress) == null) {
-            return;
+        synchronized (mAllConnectedDevices) {
+            if (mAllConnectedDevices.remove(macAddress) == null) {
+                Slog.i(TAG, "Device " + device.getAddress()
+                        + " not found as connected. Skipping disconnect event");
+                return;
+            }
         }
 
         onDeviceConnectivityChanged(device, false);
@@ -140,9 +152,15 @@ public class BluetoothDeviceProcessor
 
     @Override
     public void onAssociationAdded(AssociationInfo association) {
-        if (mAllConnectedDevices.containsKey(association.getDeviceMacAddress())) {
-            mCallback.onBluetoothCompanionDeviceConnected(
-                    association.getId(), association.getUserId());
+        synchronized (mAllConnectedDevices) {
+            if (mAllConnectedDevices.containsKey(association.getDeviceMacAddress())) {
+                mCallback.onBluetoothCompanionDeviceConnected(
+                        association.getId(), association.getUserId());
+            } else {
+                Slog.i(TAG, "onAssociationAdded: Device " + association.getDeviceMacAddress()
+                        + " is not currently connected.");
+            }
         }
     }
+
 }

@@ -40,7 +40,7 @@ import java.util.function.Consumer;
  */
 @Presubmit
 @RunWith(WindowTestRunner.class)
-@EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+@EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
 public class AppCompatSafeRegionPolicyTests extends WindowTestsBase {
 
     @Test
@@ -68,16 +68,14 @@ public class AppCompatSafeRegionPolicyTests extends WindowTestsBase {
      */
     void runTestScenario(@NonNull Consumer<AppCompatSafeRegionPolicyRobotTest> consumer) {
         final AppCompatSafeRegionPolicyRobotTest robot =
-                new AppCompatSafeRegionPolicyRobotTest(mWm, mAtm, mSupervisor);
+                new AppCompatSafeRegionPolicyRobotTest(this);
         consumer.accept(robot);
     }
 
     private static class AppCompatSafeRegionPolicyRobotTest extends AppCompatRobotBase {
 
-        AppCompatSafeRegionPolicyRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        AppCompatSafeRegionPolicyRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         @Override

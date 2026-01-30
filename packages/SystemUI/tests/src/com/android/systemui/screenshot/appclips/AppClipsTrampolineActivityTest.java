@@ -65,6 +65,7 @@ import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.notetask.NoteTaskController;
 import com.android.systemui.res.R;
+import com.android.systemui.util.wakelock.WakeLockFake;
 
 import com.google.common.util.concurrent.MoreExecutors;
 
@@ -94,8 +95,8 @@ public final class AppClipsTrampolineActivityTest extends SysuiTestCase {
     private PackageManager mPackageManager;
     @Mock
     private UiEventLogger mUiEventLogger;
-    @Mock
-    private BroadcastSender mBroadcastSender;
+    private BroadcastSender mBroadcastSender = new BroadcastSender(mContext,
+            new WakeLockFake.Builder(mContext), MoreExecutors.directExecutor());
     @Background
     private Executor mBgExecutor;
     @Main

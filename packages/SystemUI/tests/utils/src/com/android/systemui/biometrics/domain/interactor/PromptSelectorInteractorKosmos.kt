@@ -17,17 +17,27 @@
 package com.android.systemui.biometrics.domain.interactor
 
 import com.android.internal.widget.lockPatternUtils
+import com.android.systemui.biometrics.BiometricPromptLogger
+import com.android.systemui.biometrics.biometricManager
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.biometrics.data.repository.promptRepository
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.log.SessionTracker
+import org.mockito.kotlin.mock
 
 val Kosmos.promptSelectorInteractor by Fixture {
     PromptSelectorInteractorImpl(
         fingerprintPropertyRepository = fingerprintPropertyRepository,
         displayStateInteractor = displayStateInteractor,
         promptRepository = promptRepository,
-        credentialInteractor = FakeCredentialInteractor(),
+        credentialInteractor = credentialInteractor,
         lockPatternUtils = lockPatternUtils,
+        biometricManager = biometricManager,
+        bgScope = testScope.backgroundScope,
+        sessionTracker = mock<SessionTracker>(),
+        biometricPromptLogger = mock<BiometricPromptLogger>(),
     )
 }

@@ -26,16 +26,25 @@ import static com.android.server.timezonedetector.NotifyingTimeZoneChangeListene
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_LOCATION;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_MANUAL;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_TELEPHONY;
+import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_HIGH;
+import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_LOW;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.spy;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.UiAutomation;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.BroadcastReceiver;
 import android.os.HandlerThread;
 import android.os.Process;
 import android.os.UserHandle;
@@ -58,6 +67,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
@@ -65,15 +75,12 @@ import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * White-box unit tests for {@link NotifyingTimeZoneChangeListener}.
- */
+/** White-box unit tests for {@link NotifyingTimeZoneChangeListener}. */
 @RunWith(JUnitParamsRunner.class)
 @EnableFlags(Flags.FLAG_DATETIME_NOTIFICATIONS)
 public class NotifyingTimeZoneChangeListenerTest {
 
-    @ClassRule
-    public static final SetFlagsRule.ClassRule mClassRule = new SetFlagsRule.ClassRule();
+    @ClassRule public static final SetFlagsRule.ClassRule mClassRule = new SetFlagsRule.ClassRule();
 
     @Rule(order = 0)
     public final SetFlagsRule mSetFlagsRule = mClassRule.createSetFlagsRule();
@@ -88,7 +95,6 @@ public class NotifyingTimeZoneChangeListenerTest {
     private static final String INTERACT_ACROSS_USERS_FULL_PERMISSION =
             "android.permission.INTERACT_ACROSS_USERS_FULL";
 
-    @Mock
     private Context mContext;
     private UiAutomation mUiAutomation;
 
@@ -98,6 +104,8 @@ public class NotifyingTimeZoneChangeListenerTest {
     private FakeServiceConfigAccessor mServiceConfigAccessor;
     private FakeEnvironment mFakeEnvironment;
     private int mUid;
+
+    @Mock private KeyguardManager mockKeyguardManager;
 
     private NotifyingTimeZoneChangeListener mTimeZoneChangeTracker;
 
@@ -112,34 +120,42 @@ public class NotifyingTimeZoneChangeListenerTest {
         mHandlerThread.start();
         mHandler = new TestHandler(mHandlerThread.getLooper());
 
-        ConfigurationInternal config = new ConfigurationInternal.Builder()
-                .setUserId(mUid)
-                .setTelephonyDetectionFeatureSupported(true)
-                .setGeoDetectionFeatureSupported(true)
-                .setTelephonyFallbackSupported(false)
-                .setGeoDetectionRunInBackgroundEnabled(false)
-                .setEnhancedMetricsCollectionEnabled(false)
-                .setUserConfigAllowed(true)
-                .setAutoDetectionEnabledSetting(false)
-                .setLocationEnabledSetting(true)
-                .setGeoDetectionEnabledSetting(false)
-                .setNotificationsSupported(true)
-                .setNotificationsTrackingSupported(true)
-                .setNotificationsEnabledSetting(false)
-                .setManualChangeTrackingSupported(false)
-                .build();
+        ConfigurationInternal config =
+                new ConfigurationInternal.Builder()
+                        .setUserId(mUid)
+                        .setTelephonyDetectionFeatureSupported(true)
+                        .setGeoDetectionFeatureSupported(true)
+                        .setTelephonyFallbackSupported(false)
+                        .setGeoDetectionRunInBackgroundEnabled(false)
+                        .setEnhancedMetricsCollectionEnabled(false)
+                        .setUserConfigAllowed(true)
+                        .setAutoDetectionEnabledSetting(false)
+                        .setLocationEnabledSetting(true)
+                        .setGeoDetectionEnabledSetting(false)
+                        .setNotificationsSupported(true)
+                        .setNotificationsTrackingSupported(true)
+                        .setNotificationsEnabledSetting(false)
+                        .setManualChangeTrackingSupported(false)
+                        .build();
 
         mServiceConfigAccessor = spy(new FakeServiceConfigAccessor());
         mServiceConfigAccessor.initializeCurrentUserConfiguration(config);
 
         mContext = InstrumentationRegistry.getInstrumentation().getContext();
+
         mUiAutomation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         mUiAutomation.adoptShellPermissionIdentity(INTERACT_ACROSS_USERS_FULL_PERMISSION);
 
         mNotificationManager = new FakeNotificationManager(mContext, InstantSource.system());
 
-        mTimeZoneChangeTracker = new NotifyingTimeZoneChangeListener(mHandler, mContext,
-                mServiceConfigAccessor, mNotificationManager, mFakeEnvironment);
+        mTimeZoneChangeTracker =
+                new NotifyingTimeZoneChangeListener(
+                        mHandler,
+                        mContext,
+                        mServiceConfigAccessor,
+                        mNotificationManager,
+                        mFakeEnvironment,
+                        mockKeyguardManager);
     }
 
     @After
@@ -152,25 +168,27 @@ public class NotifyingTimeZoneChangeListenerTest {
     public void process_autoDetectionOff_noManualTracking_shouldTrackWithoutNotifying() {
         enableTimeZoneNotifications();
 
-        TimeZoneChangeRecord expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                /* id= */ 1,
-                new TimeZoneChangeEvent(
-                        /* elapsedRealtimeMillis= */ 0,
-                        /* unixEpochTimeMillis= */ 1726597800000L,
-                        /* origin= */ ORIGIN_MANUAL,
-                        /* userId= */ mUid,
-                        /* oldZoneId= */ "Europe/Paris",
-                        /* newZoneId= */ "Europe/London",
-                        /* newConfidence= */ 1,
-                        /* cause= */ "NO_REASON"));
+        TimeZoneChangeRecord expectedTimeZoneChangeRecord =
+                new TimeZoneChangeRecord(
+                        /* id= */ 1,
+                        new TimeZoneChangeEvent(
+                                /* elapsedRealtimeMillis= */ 0,
+                                /* unixEpochTimeMillis= */ 1726597800000L,
+                                /* origin= */ ORIGIN_MANUAL,
+                                /* userId= */ mUid,
+                                /* oldZoneId= */ "Europe/Paris",
+                                /* newZoneId= */ "Europe/London",
+                                /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNTRACKED, SIGNAL_TYPE_NONE);
 
         assertNull(mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
 
         mTimeZoneChangeTracker.process(expectedTimeZoneChangeRecord.getEvent());
 
-        assertEquals(expectedTimeZoneChangeRecord,
-                mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
+        assertEquals(
+                expectedTimeZoneChangeRecord, mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
         assertEquals(0, mNotificationManager.getNotifications().size());
         mHandler.assertTotalMessagesEnqueued(0);
     }
@@ -179,25 +197,27 @@ public class NotifyingTimeZoneChangeListenerTest {
     public void process_autoDetectionOff_shouldTrackWithoutNotifying() {
         enableNotificationsWithManualChangeTracking();
 
-        TimeZoneChangeRecord expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                /* id= */ 1,
-                new TimeZoneChangeEvent(
-                        /* elapsedRealtimeMillis= */ 0,
-                        /* unixEpochTimeMillis= */ 1726597800000L,
-                        /* origin= */ ORIGIN_MANUAL,
-                        /* userId= */ mUid,
-                        /* oldZoneId= */ "Europe/Paris",
-                        /* newZoneId= */ "Europe/London",
-                        /* newConfidence= */ 1,
-                        /* cause= */ "NO_REASON"));
+        TimeZoneChangeRecord expectedTimeZoneChangeRecord =
+                new TimeZoneChangeRecord(
+                        /* id= */ 1,
+                        new TimeZoneChangeEvent(
+                                /* elapsedRealtimeMillis= */ 0,
+                                /* unixEpochTimeMillis= */ 1726597800000L,
+                                /* origin= */ ORIGIN_MANUAL,
+                                /* userId= */ mUid,
+                                /* oldZoneId= */ "Europe/Paris",
+                                /* newZoneId= */ "Europe/London",
+                                /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNTRACKED, SIGNAL_TYPE_NONE);
 
         assertNull(mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
 
         mTimeZoneChangeTracker.process(expectedTimeZoneChangeRecord.getEvent());
 
-        assertEquals(expectedTimeZoneChangeRecord,
-                mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
+        assertEquals(
+                expectedTimeZoneChangeRecord, mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
         assertEquals(0, mNotificationManager.getNotifications().size());
         mHandler.assertTotalMessagesEnqueued(1);
     }
@@ -217,17 +237,19 @@ public class NotifyingTimeZoneChangeListenerTest {
 
         enableNotificationsWithManualChangeTracking();
 
-        TimeZoneChangeRecord expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                /* id= */ 1,
-                new TimeZoneChangeEvent(
-                        /* elapsedRealtimeMillis= */ 0,
-                        /* unixEpochTimeMillis= */ 1726597800000L,
-                        /* origin= */ origin,
-                        /* userId= */ mUid,
-                        /* oldZoneId= */ "Europe/Paris",
-                        /* newZoneId= */ "Europe/London",
-                        /* newConfidence= */ 1,
-                        /* cause= */ "NO_REASON"));
+        TimeZoneChangeRecord expectedTimeZoneChangeRecord =
+                new TimeZoneChangeRecord(
+                        /* id= */ 1,
+                        new TimeZoneChangeEvent(
+                                /* elapsedRealtimeMillis= */ 0,
+                                /* unixEpochTimeMillis= */ 1726597800000L,
+                                /* origin= */ origin,
+                                /* userId= */ mUid,
+                                /* oldZoneId= */ "Europe/Paris",
+                                /* newZoneId= */ "Europe/London",
+                                /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
         assertNull(mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
@@ -241,17 +263,19 @@ public class NotifyingTimeZoneChangeListenerTest {
         assertEquals(1, mNotificationManager.getNotifications().size());
         mHandler.assertTotalMessagesEnqueued(1);
 
-        expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                /* id= */ 2,
-                new TimeZoneChangeEvent(
-                        /* elapsedRealtimeMillis= */ 1000L,
-                        /* unixEpochTimeMillis= */ 1726597800000L + 1000L,
-                        /* origin= */ origin,
-                        /* userId= */ mUid,
-                        /* oldZoneId= */ "Europe/London",
-                        /* newZoneId= */ "Europe/Paris",
-                        /* newConfidence= */ 1,
-                        /* cause= */ "NO_REASON"));
+        expectedTimeZoneChangeRecord =
+                new TimeZoneChangeRecord(
+                        /* id= */ 2,
+                        new TimeZoneChangeEvent(
+                                /* elapsedRealtimeMillis= */ 1000L,
+                                /* unixEpochTimeMillis= */ 1726597800000L + 1000L,
+                                /* origin= */ origin,
+                                /* userId= */ mUid,
+                                /* oldZoneId= */ "Europe/London",
+                                /* newZoneId= */ "Europe/Paris",
+                                /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
         // lastTrackedChangeEvent != null
@@ -268,18 +292,21 @@ public class NotifyingTimeZoneChangeListenerTest {
 
         // Test manual change within revert threshold
         {
-            expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                    /* id= */ 3,
-                    new TimeZoneChangeEvent(
-                            /* elapsedRealtimeMillis= */ 999L + AUTO_REVERT_THRESHOLD,
-                            /* unixEpochTimeMillis= */
-                            1726597800000L + 999L + AUTO_REVERT_THRESHOLD,
-                            /* origin= */ ORIGIN_MANUAL,
-                            /* userId= */ mUid,
-                            /* oldZoneId= */ "Europe/Paris",
-                            /* newZoneId= */ "Europe/London",
-                            /* newConfidence= */ 1,
-                            /* cause= */ "NO_REASON"));
+            expectedTimeZoneChangeRecord =
+                    new TimeZoneChangeRecord(
+                            /* id= */ 3,
+                            new TimeZoneChangeEvent(
+                                    /* elapsedRealtimeMillis= */ 999L + AUTO_REVERT_THRESHOLD,
+                                    /* unixEpochTimeMillis= */ 1726597800000L
+                                            + 999L
+                                            + AUTO_REVERT_THRESHOLD,
+                                    /* origin= */ ORIGIN_MANUAL,
+                                    /* userId= */ mUid,
+                                    /* oldZoneId= */ "Europe/Paris",
+                                    /* newZoneId= */ "Europe/London",
+                                    /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                    /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                    /* cause= */ "NO_REASON"));
             expectedTimeZoneChangeRecord.setStatus(STATUS_UNTRACKED, SIGNAL_TYPE_NONE);
 
             mTimeZoneChangeTracker.process(expectedTimeZoneChangeRecord.getEvent());
@@ -303,18 +330,21 @@ public class NotifyingTimeZoneChangeListenerTest {
             disableTimeZoneAutoDetection();
             // [END] Reset previous event
 
-            expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                    /* id= */ 5,
-                    new TimeZoneChangeEvent(
-                            /* elapsedRealtimeMillis= */ 1001L + AUTO_REVERT_THRESHOLD,
-                            /* unixEpochTimeMillis= */
-                            1726597800000L + 1001L + AUTO_REVERT_THRESHOLD,
-                            /* origin= */ ORIGIN_MANUAL,
-                            /* userId= */ mUid,
-                            /* oldZoneId= */ "Europe/Paris",
-                            /* newZoneId= */ "Europe/London",
-                            /* newConfidence= */ 1,
-                            /* cause= */ "NO_REASON"));
+            expectedTimeZoneChangeRecord =
+                    new TimeZoneChangeRecord(
+                            /* id= */ 5,
+                            new TimeZoneChangeEvent(
+                                    /* elapsedRealtimeMillis= */ 1001L + AUTO_REVERT_THRESHOLD,
+                                    /* unixEpochTimeMillis= */ 1726597800000L
+                                            + 1001L
+                                            + AUTO_REVERT_THRESHOLD,
+                                    /* origin= */ ORIGIN_MANUAL,
+                                    /* userId= */ mUid,
+                                    /* oldZoneId= */ "Europe/Paris",
+                                    /* newZoneId= */ "Europe/London",
+                                    /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                    /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                    /* cause= */ "NO_REASON"));
             expectedTimeZoneChangeRecord.setStatus(STATUS_UNTRACKED, SIGNAL_TYPE_NONE);
 
             mTimeZoneChangeTracker.process(expectedTimeZoneChangeRecord.getEvent());
@@ -344,17 +374,19 @@ public class NotifyingTimeZoneChangeListenerTest {
 
         enableNotificationsWithManualChangeTracking();
 
-        TimeZoneChangeRecord expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                /* id= */ 1,
-                new TimeZoneChangeEvent(
-                        /* elapsedRealtimeMillis= */ 0,
-                        /* unixEpochTimeMillis= */ 1726597800000L,
-                        /* origin= */ origin,
-                        /* userId= */ mUid,
-                        /* oldZoneId= */ "Europe/Paris",
-                        /* newZoneId= */ "Europe/London",
-                        /* newConfidence= */ 1,
-                        /* cause= */ "NO_REASON"));
+        TimeZoneChangeRecord expectedTimeZoneChangeRecord =
+                new TimeZoneChangeRecord(
+                        /* id= */ 1,
+                        new TimeZoneChangeEvent(
+                                /* elapsedRealtimeMillis= */ 0,
+                                /* unixEpochTimeMillis= */ 1726597800000L,
+                                /* origin= */ origin,
+                                /* userId= */ mUid,
+                                /* oldZoneId= */ "Europe/Paris",
+                                /* newZoneId= */ "Europe/London",
+                                /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
         assertNull(mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
@@ -368,17 +400,19 @@ public class NotifyingTimeZoneChangeListenerTest {
         assertEquals(1, mNotificationManager.getNotifications().size());
         mHandler.assertTotalMessagesEnqueued(1);
 
-        expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                /* id= */ 3,
-                new TimeZoneChangeEvent(
-                        /* elapsedRealtimeMillis= */ 1000L,
-                        /* unixEpochTimeMillis= */ 1726597800000L + 1000L,
-                        /* origin= */ origin,
-                        /* userId= */ mUid,
-                        /* oldZoneId= */ "Europe/Athens",
-                        /* newZoneId= */ "Europe/Paris",
-                        /* newConfidence= */ 1,
-                        /* cause= */ "NO_REASON"));
+        expectedTimeZoneChangeRecord =
+                new TimeZoneChangeRecord(
+                        /* id= */ 3,
+                        new TimeZoneChangeEvent(
+                                /* elapsedRealtimeMillis= */ 1000L,
+                                /* unixEpochTimeMillis= */ 1726597800000L + 1000L,
+                                /* origin= */ origin,
+                                /* userId= */ mUid,
+                                /* oldZoneId= */ "Europe/Athens",
+                                /* newZoneId= */ "Europe/Paris",
+                                /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
         // lastTrackedChangeEvent != null
@@ -407,17 +441,19 @@ public class NotifyingTimeZoneChangeListenerTest {
 
         enableNotificationsWithManualChangeTracking();
 
-        TimeZoneChangeRecord expectedTimeZoneChangeRecord = new TimeZoneChangeRecord(
-                /* id= */ 1,
-                new TimeZoneChangeEvent(
-                        /* elapsedRealtimeMillis= */ 0,
-                        /* unixEpochTimeMillis= */ 1726597800000L,
-                        /* origin= */ origin,
-                        /* userId= */ mUid,
-                        /* oldZoneId= */ "Europe/Paris",
-                        /* newZoneId= */ "Europe/Rome",
-                        /* newConfidence= */ 1,
-                        /* cause= */ "NO_REASON"));
+        TimeZoneChangeRecord expectedTimeZoneChangeRecord =
+                new TimeZoneChangeRecord(
+                        /* id= */ 1,
+                        new TimeZoneChangeEvent(
+                                /* elapsedRealtimeMillis= */ 0,
+                                /* unixEpochTimeMillis= */ 1726597800000L,
+                                /* origin= */ origin,
+                                /* userId= */ mUid,
+                                /* oldZoneId= */ "Europe/Paris",
+                                /* newZoneId= */ "Europe/Rome",
+                                /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                                /* cause= */ "NO_REASON"));
         expectedTimeZoneChangeRecord.setStatus(STATUS_UNKNOWN, SIGNAL_TYPE_UNKNOWN);
 
         assertNull(mTimeZoneChangeTracker.getLastTimeZoneChangeRecord());
@@ -433,14 +469,131 @@ public class NotifyingTimeZoneChangeListenerTest {
         mHandler.assertTotalMessagesEnqueued(1);
     }
 
+    @Test
+    @Parameters(method = "getDetectionOrigins")
+    public void process_oldConfidenceIsZero_noNotificationSent(
+            @TimeZoneDetectorStrategy.Origin int origin) {
+        if (origin == ORIGIN_LOCATION) {
+            enableLocationTimeZoneDetection();
+        } else if (origin == ORIGIN_TELEPHONY) {
+            enableTelephonyTimeZoneDetection();
+        } else {
+            throw new IllegalStateException(
+                    "The given origin has not been implemented for this test: " + origin);
+        }
+
+        enableNotificationsWithManualChangeTracking();
+
+        // Process a first event with zero confidence.
+        // We expect this to be tracked but not to generate a notification.
+        TimeZoneChangeEvent firstEvent =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 0,
+                        /* unixEpochTimeMillis= */ 1726597800000L,
+                        /* origin= */ origin,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ "Europe/Paris",
+                        /* newZoneId= */ "Europe/London",
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_LOW,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_LOW, // Zero confidence
+                        /* cause= */ "NO_REASON");
+
+        mTimeZoneChangeTracker.process(firstEvent);
+
+        // Verify the first event was tracked but did not trigger a notification.
+        TimeZoneChangeRecord firstRecord = mTimeZoneChangeTracker.getLastTimeZoneChangeRecord();
+        assertEquals(firstEvent, firstRecord.getEvent());
+        assertEquals(0, mNotificationManager.getNotifications().size());
+        mHandler.assertTotalMessagesEnqueued(1);
+
+        // Process a second event with non-zero confidence.
+        TimeZoneChangeEvent secondEvent =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 1000L,
+                        /* unixEpochTimeMillis= */ 1726597800000L + 1000L,
+                        /* origin= */ origin,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ "Europe/London",
+                        /* newZoneId= */ "America/New_York",
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_LOW,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* cause= */ "NO_REASON");
+
+        mTimeZoneChangeTracker.process(secondEvent);
+
+        // Verify the second event was tracked but did not trigger a notification.
+        TimeZoneChangeRecord secondRecord = mTimeZoneChangeTracker.getLastTimeZoneChangeRecord();
+        assertEquals(secondEvent, secondRecord.getEvent());
+        // No notification sent as the previous event had zero confidence.
+        assertEquals(0, mNotificationManager.getNotifications().size());
+        mHandler.assertTotalMessagesEnqueued(2);
+    }
+
+    @Test
+    @EnableFlags(android.timezone.flags.Flags.FLAG_ENABLE_AUTOMATIC_TIME_ZONE_REJECTION_LOGGING)
+    public void process_automaticDetection_deviceLocked_defersHeuristic() {
+        enableNotificationsWithManualChangeTracking();
+        Mockito.when(mockKeyguardManager.isDeviceLocked()).thenReturn(true);
+
+        TimeZoneChangeEvent event =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 0,
+                        /* unixEpochTimeMillis= */ 1726597800000L,
+                        /* origin= */ ORIGIN_TELEPHONY,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ "Europe/Paris",
+                        /* newZoneId= */ "Europe/London",
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* cause= */ "NO_REASON");
+
+        mTimeZoneChangeTracker.process(event);
+
+        // Verify that the heuristic callback is NOT posted immediately.
+        mHandler.assertTotalMessagesEnqueued(0);
+
+        // Simulate unlocking the device.
+        Intent userPresentIntent = new Intent(Intent.ACTION_USER_PRESENT);
+        mTimeZoneChangeTracker.mUserPresentReceiver.onReceive(mContext, userPresentIntent);
+
+        // Now, the handler message should be enqueued.
+        mHandler.assertTotalMessagesEnqueued(1);
+
+    }
+
+    @Test
+    @EnableFlags(android.timezone.flags.Flags.FLAG_ENABLE_AUTOMATIC_TIME_ZONE_REJECTION_LOGGING)
+    public void process_automaticDetection_deviceUnlocked_notDefersHeuristic() {
+        enableNotificationsWithManualChangeTracking();
+        Mockito.when(mockKeyguardManager.isDeviceLocked()).thenReturn(false);
+
+        TimeZoneChangeEvent event =
+                new TimeZoneChangeEvent(
+                        /* elapsedRealtimeMillis= */ 0,
+                        /* unixEpochTimeMillis= */ 1726597800000L,
+                        /* origin= */ ORIGIN_TELEPHONY,
+                        /* userId= */ mUid,
+                        /* oldZoneId= */ "Europe/Paris",
+                        /* newZoneId= */ "Europe/London",
+                        /* oldConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* newConfidence= */ TIME_ZONE_CONFIDENCE_HIGH,
+                        /* cause= */ "NO_REASON");
+
+        mTimeZoneChangeTracker.process(event);
+
+        // Verify that the heuristic callback is posted immediately.
+        mHandler.assertTotalMessagesEnqueued(1);
+    }
+
     private void enableLocationTimeZoneDetection() {
         ConfigurationInternal oldConfiguration =
                 mServiceConfigAccessor.getCurrentUserConfigurationInternal();
-        ConfigurationInternal newConfiguration = toBuilder(oldConfiguration)
-                .setAutoDetectionEnabledSetting(true)
-                .setGeoDetectionFeatureSupported(true)
-                .setGeoDetectionEnabledSetting(true)
-                .build();
+        ConfigurationInternal newConfiguration =
+                toBuilder(oldConfiguration)
+                        .setAutoDetectionEnabledSetting(true)
+                        .setGeoDetectionFeatureSupported(true)
+                        .setGeoDetectionEnabledSetting(true)
+                        .build();
 
         mServiceConfigAccessor.simulateCurrentUserConfigurationInternalChange(newConfiguration);
     }
@@ -448,12 +601,13 @@ public class NotifyingTimeZoneChangeListenerTest {
     private void enableTelephonyTimeZoneDetection() {
         ConfigurationInternal oldConfiguration =
                 mServiceConfigAccessor.getCurrentUserConfigurationInternal();
-        ConfigurationInternal newConfiguration = toBuilder(oldConfiguration)
-                .setAutoDetectionEnabledSetting(true)
-                .setGeoDetectionEnabledSetting(false)
-                .setTelephonyDetectionFeatureSupported(true)
-                .setTelephonyFallbackSupported(true)
-                .build();
+        ConfigurationInternal newConfiguration =
+                toBuilder(oldConfiguration)
+                        .setAutoDetectionEnabledSetting(true)
+                        .setGeoDetectionEnabledSetting(false)
+                        .setTelephonyDetectionFeatureSupported(true)
+                        .setTelephonyFallbackSupported(true)
+                        .build();
 
         mServiceConfigAccessor.simulateCurrentUserConfigurationInternalChange(newConfiguration);
     }
@@ -461,12 +615,13 @@ public class NotifyingTimeZoneChangeListenerTest {
     private void enableTimeZoneNotifications() {
         ConfigurationInternal oldConfiguration =
                 mServiceConfigAccessor.getCurrentUserConfigurationInternal();
-        ConfigurationInternal newConfiguration = toBuilder(oldConfiguration)
-                .setNotificationsSupported(true)
-                .setNotificationsTrackingSupported(true)
-                .setNotificationsEnabledSetting(true)
-                .setManualChangeTrackingSupported(false)
-                .build();
+        ConfigurationInternal newConfiguration =
+                toBuilder(oldConfiguration)
+                        .setNotificationsSupported(true)
+                        .setNotificationsTrackingSupported(true)
+                        .setNotificationsEnabledSetting(true)
+                        .setManualChangeTrackingSupported(false)
+                        .build();
 
         mServiceConfigAccessor.simulateCurrentUserConfigurationInternalChange(newConfiguration);
     }
@@ -474,12 +629,13 @@ public class NotifyingTimeZoneChangeListenerTest {
     private void enableNotificationsWithManualChangeTracking() {
         ConfigurationInternal oldConfiguration =
                 mServiceConfigAccessor.getCurrentUserConfigurationInternal();
-        ConfigurationInternal newConfiguration = toBuilder(oldConfiguration)
-                .setNotificationsSupported(true)
-                .setNotificationsTrackingSupported(true)
-                .setNotificationsEnabledSetting(true)
-                .setManualChangeTrackingSupported(true)
-                .build();
+        ConfigurationInternal newConfiguration =
+                toBuilder(oldConfiguration)
+                        .setNotificationsSupported(true)
+                        .setNotificationsTrackingSupported(true)
+                        .setNotificationsEnabledSetting(true)
+                        .setManualChangeTrackingSupported(true)
+                        .build();
 
         mServiceConfigAccessor.simulateCurrentUserConfigurationInternalChange(newConfiguration);
     }
@@ -487,10 +643,11 @@ public class NotifyingTimeZoneChangeListenerTest {
     private void disableTimeZoneAutoDetection() {
         ConfigurationInternal oldConfiguration =
                 mServiceConfigAccessor.getCurrentUserConfigurationInternal();
-        ConfigurationInternal newConfiguration = toBuilder(oldConfiguration)
-                .setAutoDetectionEnabledSetting(false)
-                .setGeoDetectionEnabledSetting(false)
-                .build();
+        ConfigurationInternal newConfiguration =
+                toBuilder(oldConfiguration)
+                        .setAutoDetectionEnabledSetting(false)
+                        .setGeoDetectionEnabledSetting(false)
+                        .build();
 
         mServiceConfigAccessor.simulateCurrentUserConfigurationInternalChange(newConfiguration);
     }
@@ -523,8 +680,8 @@ public class NotifyingTimeZoneChangeListenerTest {
         }
 
         @Override
-        public void notifyAsUser(@Nullable String tag, int id, Notification notification,
-                UserHandle user) {
+        public void notifyAsUser(
+                @Nullable String tag, int id, Notification notification, UserHandle user) {
             mNotifications.add(notification);
         }
 

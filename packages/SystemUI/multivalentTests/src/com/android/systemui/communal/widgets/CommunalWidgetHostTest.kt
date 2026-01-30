@@ -22,6 +22,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.pm.UserInfo
 import android.os.Bundle
+import android.os.DeadObjectException
 import android.os.UserHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -40,7 +41,6 @@ import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
 import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.mockito.withArgCaptor
 import com.google.common.truth.Truth.assertThat
 import java.util.Optional
@@ -53,6 +53,7 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -373,6 +374,34 @@ class CommunalWidgetHostTest : SysuiTestCase() {
 
             // Assert that provider info for widget 1 is removed
             assertThat(providerInfo).containsExactlyEntriesIn(mapOf(Pair(2, providerInfo2)))
+        }
+
+    @Test
+    fun refreshProviderInfo_handlesDeadObjectException() =
+        kosmos.runTest {
+            val providerInfoValues by collectLastValue(underTest.appWidgetProviders)
+
+            whenever(appWidgetHost.appWidgetIds).thenReturn(intArrayOf(1, 2))
+            whenever(appWidgetHost.setListener(eq(1), org.mockito.kotlin.any())).thenAnswer {
+                throw DeadObjectException()
+            }
+            whenever(appWidgetManager.getAppWidgetInfo(1)).thenReturn(providerInfo1)
+            whenever(appWidgetManager.getAppWidgetInfo(2)).thenReturn(providerInfo2)
+            underTest.refreshProviders()
+
+            with(providerInfoValues!!) {
+                assertThat(size).isEqualTo(1)
+                assertThat(containsKey(2)).isTrue()
+            }
+        }
+
+    @Test
+    fun onAllocateAppWidgetId_handlesDeadObjectException() =
+        kosmos.runTest {
+            whenever(appWidgetHost.setListener(eq(1), org.mockito.kotlin.any())).thenAnswer {
+                throw DeadObjectException()
+            }
+            underTest.onAllocateAppWidgetId(1)
         }
 
     private fun selectUser() {

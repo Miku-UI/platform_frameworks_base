@@ -20,6 +20,7 @@ plugins {
 
 android {
     namespace = "com.android.settingslib.color"
+    defaultConfig { minSdk = 23 }
 
     sourceSets {
         sourceSets.getByName("main") {

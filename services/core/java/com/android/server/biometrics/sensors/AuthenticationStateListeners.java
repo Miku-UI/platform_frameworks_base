@@ -29,7 +29,8 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Slog;
 
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Low-level callback interface between BiometricManager and AuthService. Allows core system
@@ -41,8 +42,8 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
     private static final String TAG = "AuthenticationStateListeners";
 
     @NonNull
-    private final CopyOnWriteArrayList<AuthenticationStateListener> mAuthenticationStateListeners =
-            new CopyOnWriteArrayList<>();
+    private final Map<IBinder, AuthenticationStateListener> mIBinderToListenerMap =
+            new ConcurrentHashMap<>();
 
     /**
      * Enables clients to register an AuthenticationStateListener for updates about the current
@@ -51,11 +52,15 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      */
     public void registerAuthenticationStateListener(
             @NonNull AuthenticationStateListener listener) {
-        mAuthenticationStateListeners.add(listener);
+        final IBinder binder = listener.asBinder();
+        if (binder == null) return;
+        mIBinderToListenerMap.put(binder, listener);
         try {
-            listener.asBinder().linkToDeath(this, 0 /* flags */);
+            binder.linkToDeath(this, 0 /* flags */);
         } catch (RemoteException e) {
             Slog.e(TAG, "Failed to link to death", e);
+            // Failed to link to death, it might be a dead process already.
+            binderDied(binder);
         }
     }
 
@@ -65,7 +70,12 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      */
     public void unregisterAuthenticationStateListener(
             @NonNull AuthenticationStateListener listener) {
-        mAuthenticationStateListeners.remove(listener);
+        final IBinder binder = listener.asBinder();
+        if (binder == null) return;
+        final AuthenticationStateListener target = mIBinderToListenerMap.remove(binder);
+        if (target != null) {
+            target.asBinder().unlinkToDeath(this, 0 /* flags */);
+        }
     }
 
     /**
@@ -73,7 +83,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      * @param authInfo information related to the biometric authentication acquired.
      */
     public void onAuthenticationAcquired(AuthenticationAcquiredInfo authInfo) {
-        for (AuthenticationStateListener listener: mAuthenticationStateListeners) {
+        for (AuthenticationStateListener listener : mIBinderToListenerMap.values()) {
             try {
                 listener.onAuthenticationAcquired(authInfo);
             } catch (RemoteException e) {
@@ -88,7 +98,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      * @param authInfo information related to the unrecoverable auth error encountered
      */
     public void onAuthenticationError(AuthenticationErrorInfo authInfo) {
-        for (AuthenticationStateListener listener : mAuthenticationStateListeners) {
+        for (AuthenticationStateListener listener : mIBinderToListenerMap.values()) {
             try {
                 listener.onAuthenticationError(authInfo);
             } catch (RemoteException e) {
@@ -103,7 +113,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      * @param authInfo information related to the failed authentication
      */
     public void onAuthenticationFailed(AuthenticationFailedInfo authInfo) {
-        for (AuthenticationStateListener listener : mAuthenticationStateListeners) {
+        for (AuthenticationStateListener listener : mIBinderToListenerMap.values()) {
             try {
                 listener.onAuthenticationFailed(authInfo);
             } catch (RemoteException e) {
@@ -118,7 +128,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      * @param authInfo information related to the recoverable auth error encountered
      */
     public void onAuthenticationHelp(AuthenticationHelpInfo authInfo) {
-        for (AuthenticationStateListener listener : mAuthenticationStateListeners) {
+        for (AuthenticationStateListener listener : mIBinderToListenerMap.values()) {
             try {
                 listener.onAuthenticationHelp(authInfo);
             } catch (RemoteException e) {
@@ -133,7 +143,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      * @param authInfo information related to the authentication starting
      */
     public void onAuthenticationStarted(AuthenticationStartedInfo authInfo) {
-        for (AuthenticationStateListener listener: mAuthenticationStateListeners) {
+        for (AuthenticationStateListener listener : mIBinderToListenerMap.values()) {
             try {
                 listener.onAuthenticationStarted(authInfo);
             } catch (RemoteException e) {
@@ -148,7 +158,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      * @param authInfo information related to the authentication stopping
      */
     public void onAuthenticationStopped(AuthenticationStoppedInfo authInfo) {
-        for (AuthenticationStateListener listener: mAuthenticationStateListeners) {
+        for (AuthenticationStateListener listener : mIBinderToListenerMap.values()) {
             try {
                 listener.onAuthenticationStopped(authInfo);
             } catch (RemoteException e) {
@@ -163,7 +173,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
      * @param authInfo information related to the successful authentication
      */
     public void onAuthenticationSucceeded(AuthenticationSucceededInfo authInfo) {
-        for (AuthenticationStateListener listener: mAuthenticationStateListeners) {
+        for (AuthenticationStateListener listener : mIBinderToListenerMap.values()) {
             try {
                 listener.onAuthenticationSucceeded(authInfo);
             } catch (RemoteException e) {
@@ -181,7 +191,7 @@ public class AuthenticationStateListeners implements IBinder.DeathRecipient {
     @Override
     public void binderDied(IBinder who) {
         Slog.w(TAG, "Callback binder died: " + who);
-        if (mAuthenticationStateListeners.removeIf(listener -> listener.asBinder().equals(who))) {
+        if (mIBinderToListenerMap.remove(who) != null) {
             Slog.w(TAG, "Removed dead listener for " + who);
         } else {
             Slog.w(TAG, "No dead listeners found");

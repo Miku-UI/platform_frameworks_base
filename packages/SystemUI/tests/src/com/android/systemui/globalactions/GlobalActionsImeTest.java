@@ -16,6 +16,7 @@
 
 package com.android.systemui.globalactions;
 
+import static android.provider.Settings.Global.POWER_BUTTON_LONG_PRESS;
 import static android.provider.Settings.Secure.SHOW_IME_WITH_HARD_KEYBOARD;
 import static android.view.WindowInsets.Type.ime;
 
@@ -65,25 +66,32 @@ public class GlobalActionsImeTest extends SysuiTestCase {
             TestActivity.class, false, false);
 
     private int mOriginalShowImeWithHardKeyboard;
+    private int mOriginalPowerButtonLongPress;
 
     @Before
     public void setUp() {
         final ContentResolver contentResolver = mContext.getContentResolver();
         mOriginalShowImeWithHardKeyboard = Settings.Secure.getInt(
                 contentResolver, SHOW_IME_WITH_HARD_KEYBOARD, 0);
-        // Forcibly shows IME even when hardware keyboard is connected.
+        mOriginalPowerButtonLongPress = Settings.Global.getInt(
+                contentResolver, POWER_BUTTON_LONG_PRESS, 0);
+        // Forcibly shows IME even when hardware keyboard is connected and show the power menu on
+        // long press for ease of testing.
         // To change USER_SYSTEM settings, we have to use settings shell command.
         executeShellCommand("settings put secure " + SHOW_IME_WITH_HARD_KEYBOARD + " 1");
+        executeShellCommand("settings put global " + POWER_BUTTON_LONG_PRESS + " 1");
     }
 
     @After
     public void tearDown() {
-        // To restore USER_SYSTEM settings, we have to use settings shell command.
-        executeShellCommand("settings put secure "
-                + SHOW_IME_WITH_HARD_KEYBOARD + " " + mOriginalShowImeWithHardKeyboard);
         // Hide power menu and return to home screen
         executeShellCommand("input keyevent --longpress POWER");
         executeShellCommand("input keyevent HOME");
+        // To restore USER_SYSTEM settings, we have to use settings shell command.
+        executeShellCommand("settings put secure "
+                + SHOW_IME_WITH_HARD_KEYBOARD + " " + mOriginalShowImeWithHardKeyboard);
+        executeShellCommand("settings put global "
+                + POWER_BUTTON_LONG_PRESS + " " + mOriginalPowerButtonLongPress);
     }
 
     /**

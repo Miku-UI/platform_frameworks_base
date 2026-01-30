@@ -29,7 +29,6 @@ import android.view.ContentRecordingSession
 import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.applicationCoroutineScope
@@ -82,19 +81,7 @@ class MediaProjectionManagerRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
-    fun mediaProjectionState_onStart_flagOff_emitsNotProjecting() =
-        testScope.runTest {
-            val state by collectLastValue(repo.mediaProjectionState)
-
-            fakeMediaProjectionManager.dispatchOnStart()
-
-            assertThat(state).isEqualTo(MediaProjectionState.NotProjecting)
-        }
-
-    @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
-    fun mediaProjectionState_onStart_flagOn_emitsProjectingNoScreen() =
+    fun mediaProjectionState_onStart_emitsProjectingNoScreen() =
         testScope.runTest {
             val state by collectLastValue(repo.mediaProjectionState)
 
@@ -104,7 +91,6 @@ class MediaProjectionManagerRepositoryTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
     fun mediaProjectionState_noScreen_hasHostPackage() =
         testScope.runTest {
             val state by collectLastValue(repo.mediaProjectionState)

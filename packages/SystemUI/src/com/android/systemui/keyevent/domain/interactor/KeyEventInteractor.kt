@@ -26,11 +26,6 @@ import javax.inject.Inject
  * For key events that SysUI wants to properly handle, see [SysUIKeyEventHandler].
  */
 @SysUISingleton
-class KeyEventInteractor
-@Inject
-constructor(
-    repository: KeyEventRepository,
-) {
+class KeyEventInteractor @Inject constructor(repository: KeyEventRepository) {
     val isPowerButtonDown = repository.isPowerButtonDown
-    val isPowerButtonLongPressed = repository.isPowerButtonLongPressed
 }

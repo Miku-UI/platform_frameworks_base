@@ -310,13 +310,17 @@ constructor(
     override val isStackable =
         if (NewStatusBarIcons.isEnabled && StatusBarRootModernization.isEnabled) {
             icons.flatMapLatest { icons ->
-                combine(icons.map { it.signalLevelIcon }) { signalLevelIcons ->
-                    // These are only stackable if:
-                    // - They are cellular
-                    // - There's exactly two
-                    // - They have the same number of levels
-                    signalLevelIcons.filterIsInstance<SignalIconModel.Cellular>().let {
-                        it.size == 2 && it[0].numberOfLevels == it[1].numberOfLevels
+                if (icons.isEmpty()) {
+                    flowOf(false)
+                } else {
+                    combine(icons.map { it.signalLevelIcon }) { signalLevelIcons ->
+                        // These are only stackable if:
+                        // - They are cellular
+                        // - There's exactly two
+                        // - They have the same number of levels
+                        signalLevelIcons.filterIsInstance<SignalIconModel.Cellular>().let {
+                            it.size == 2 && it[0].numberOfLevels == it[1].numberOfLevels
+                        }
                     }
                 }
             }
@@ -372,7 +376,7 @@ constructor(
             .stateIn(scope, SharingStarted.WhileSubscribed(), false)
 
     override val isSingleCarrier: StateFlow<Boolean> =
-        mobileConnectionsRepo.subscriptions
+        filteredSubscriptions
             .map { it.size == 1 }
             .logDiffsForTable(
                 tableLogger,

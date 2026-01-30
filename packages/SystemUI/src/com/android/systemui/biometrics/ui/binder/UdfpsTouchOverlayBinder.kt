@@ -20,43 +20,52 @@ import android.util.Log
 import androidx.core.view.isInvisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.biometrics.domain.interactor.UdfpsOverlayInteractor
 import com.android.systemui.biometrics.ui.view.UdfpsTouchOverlay
 import com.android.systemui.biometrics.ui.viewmodel.UdfpsTouchOverlayViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 object UdfpsTouchOverlayBinder {
 
     /**
-     * Updates visibility for the UdfpsTouchOverlay which controls whether the view will receive
-     * touches or not. For some devices, this is instead handled by UdfpsOverlayInteractor, so this
-     * viewBinder will send the information to the interactor.
+     * Updates visibility for the UdfpsTouchOverlay. This controls whether the view will receive
+     * touches or not. This is important for optical-UDFPS to receive the fingerprint-sensor touch
+     * events.
      */
     @JvmStatic
     fun bind(
         view: UdfpsTouchOverlay,
         viewModel: UdfpsTouchOverlayViewModel,
-        udfpsOverlayInteractor: UdfpsOverlayInteractor,
+        udfpsOverlayInteractor: UdfpsOverlayInteractor? = null,
     ) {
         view.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.CREATED) {
                 launch {
                         viewModel.shouldHandleTouches.collect { shouldHandleTouches ->
-                            Log.d(
-                                "UdfpsTouchOverlayBinder",
-                                "[$view]: update shouldHandleTouches=$shouldHandleTouches",
-                            )
+                            if (udfpsOverlayInteractor != null) {
+                                Log.d(
+                                    "UdfpsTouchOverlayBinder",
+                                    "[$view]: update shouldHandleTouches=$shouldHandleTouches",
+                                )
+                            } else {
+                                Log.d(
+                                    "UdfpsTouchOverlayBinder",
+                                    "[$view]: update isVisible=$shouldHandleTouches",
+                                )
+                            }
                             view.isInvisible = !shouldHandleTouches
-                            udfpsOverlayInteractor.setHandleTouches(shouldHandleTouches)
+                            udfpsOverlayInteractor?.setHandleTouches(shouldHandleTouches)
                         }
                     }
                     .invokeOnCompletion {
-                        Log.d(
-                            "UdfpsTouchOverlayBinder",
-                            "[$view-detached]: update shouldHandleTouches=false",
-                        )
-                        udfpsOverlayInteractor.setHandleTouches(false)
+                        if (udfpsOverlayInteractor != null) {
+                            Log.d(
+                                "UdfpsTouchOverlayBinder",
+                                "[$view-detached]: update shouldHandleTouches=false",
+                            )
+                            udfpsOverlayInteractor?.setHandleTouches(false)
+                        }
                     }
             }
         }

@@ -225,6 +225,9 @@ public:
     void markDrawStart(SkCanvas& canvas);
     void markDrawEnd(SkCanvas& canvas);
 
+    /** Accumulates all the background color areas of all children into the given target */
+    void gatherColorAreasForSubtree(ColorArea& target, bool isModeFull);
+
 private:
     void computeOrderingImpl(RenderNodeOp* opState,
                              std::vector<RenderNodeOp*>* compositedChildrenOfProjectionSurface,

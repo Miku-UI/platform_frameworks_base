@@ -31,20 +31,14 @@ import android.hardware.display.VirtualDisplay;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Log;
 import android.util.SparseArray;
 
 import androidx.annotation.GuardedBy;
 import androidx.annotation.NonNull;
 
-import com.android.server.am.Flags;
-
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -61,10 +55,6 @@ import java.util.concurrent.TimeUnit;
 @RunWith(Parameterized.class)
 public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
     private static final String TAG = "DisplayEventDeliveryTest";
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule =
-            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private static final String NAME = TAG;
     private static final int WIDTH = 720;
@@ -123,7 +113,7 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
          * @param event The corresponding display event
          */
         public void addDisplayEvent(int event) {
-            Log.d(TAG, "Received " + mDisplayId + " " + event);
+            Log.i(TAG, "Received " + mDisplayId + " " + event);
             mExpectations.offer(event);
         }
 
@@ -150,7 +140,7 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
                     event = mExpectations.poll(TEST_FAILURE_TIMEOUT_MSEC, TimeUnit.MILLISECONDS);
                     assertNotNull(event);
                     if (expect == event) {
-                        Log.d(TAG, "Found    " + mDisplayId + " " + event);
+                        Log.i(TAG, "Found    " + mDisplayId + " " + event);
                         return;
                     }
                 } catch (InterruptedException e) {
@@ -182,11 +172,11 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
                 case MESSAGE_LAUNCHED:
                     mPid = msg.arg1;
                     mUid = msg.arg2;
-                    Log.d(TAG, "Launched " + mPid + " " + mUid);
+                    Log.i(TAG, "Launched " + mPid + " " + mUid);
                     mLatchActivityLaunch.countDown();
                     break;
                 case MESSAGE_CALLBACK:
-                    Log.d(TAG, "Callback " + msg.arg1 + " " + msg.arg2);
+                    Log.i(TAG, "Callback " + msg.arg1 + " " + msg.arg2);
                     synchronized (mLock) {
                         // arg1: displayId
                         DisplayBundle bundle = mDisplayBundles.get(msg.arg1);
@@ -264,7 +254,7 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
      * displays is set by the {@link #data()} parameter.
      */
     private void testDisplayEventsInternal(boolean cached, boolean frozen) {
-        Log.d(TAG, "Start test testDisplayEvents " + mDisplayCount + " " + cached + " " + frozen);
+        Log.i(TAG, "Start test testDisplayEvents " + mDisplayCount + " " + cached + " " + frozen);
         // Launch DisplayEventActivity and start listening to display events
         int pid = launchTestActivity();
 
@@ -361,7 +351,6 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
      * Create virtual displays, change their configurations and release them.  The display app is
      * frozen and the test verifies that no events are delivered to the frozen app.
      */
-    @RequiresFlagsEnabled(Flags.FLAG_DEFER_DISPLAY_EVENTS_WHEN_FROZEN)
     @Test
     public void testDisplayEventsFrozen() {
         assumeTrue(isAppFreezerEnabled());
@@ -372,7 +361,6 @@ public class DisplayEventDeliveryTest extends EventDeliveryTestBase {
      * Create virtual displays, change their configurations and release them.  The display app is
      * cached and frozen and the test verifies that no events are delivered to the app.
      */
-    @RequiresFlagsEnabled(Flags.FLAG_DEFER_DISPLAY_EVENTS_WHEN_FROZEN)
     @Test
     public void testDisplayEventsCachedFrozen() {
         assumeTrue(isAppFreezerEnabled());

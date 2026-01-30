@@ -25,16 +25,18 @@ import com.android.hoststubgen.GeneralUserErrorException
 import com.android.hoststubgen.LogLevel
 import com.android.hoststubgen.executableName
 import com.android.hoststubgen.log
+import com.android.hoststubgen.logOptions
 import com.android.hoststubgen.runMainWithBoilerplate
 import com.android.platform.test.ravenwood.ravenhelper.policytoannot.PtaProcessor
 import com.android.platform.test.ravenwood.ravenhelper.sourcemap.MarkMethodHandler
+import com.android.platform.test.ravenwood.ravenhelper.stats.StatsHandler
 
 interface SubcommandHandler {
     fun handle(args: List<String>)
 }
 
 fun usage() {
-    System.out.println("""
+    println("""
         Usage:
           ravenhelper SUBCOMMAND options...
 
@@ -45,12 +47,14 @@ fun usage() {
           mm:         "mark methods" Used to add annotations (such as @DisabledOnRavenwood)
                       to methods.
 
+          stats:      "generate stats" Generate several stats files.
+
         """.trimIndent())
 }
 
 fun main(args: Array<String>) {
     executableName = "RavenHelper"
-    log.setConsoleLogLevel(LogLevel.Info)
+    logOptions.setConsoleLogLevel(LogLevel.Info)
 
     runMainWithBoilerplate {
         log.i("$executableName started")
@@ -65,6 +69,7 @@ fun main(args: Array<String>) {
         val handler: SubcommandHandler = when (subcommand) {
             "pta" -> PtaProcessor()
             "mm" -> MarkMethodHandler()
+            "stats" -> StatsHandler()
             else -> {
                 usage()
                 throw GeneralUserErrorException("Unknown subcommand '$subcommand'")

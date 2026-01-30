@@ -24,15 +24,19 @@ import android.content.res.TypedArray;
 import android.graphics.BLASTBufferQueue;
 import android.graphics.FrameInfo;
 import android.graphics.HardwareRenderer;
+import android.graphics.Outline;
+import android.graphics.Path;
 import android.graphics.Picture;
 import android.graphics.RecordingCanvas;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.RenderNode;
 import android.os.Trace;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Surface.OutOfResourcesException;
 import android.view.View.AttachInfo;
+import android.view.ViewRootImpl.CornerRadii;
 import android.view.animation.AnimationUtils;
 
 import com.android.internal.R;
@@ -256,6 +260,9 @@ public final class ThreadedRenderer extends HardwareRenderer {
 
     private boolean mEnabled;
     private boolean mRequested = true;
+
+    private CornerRadii mCornerRadii;
+    private Outline mOutline;
 
     /**
      * This child class exists to break ownership cycles. ViewRootImpl owns a ThreadedRenderer
@@ -534,7 +541,33 @@ public final class ThreadedRenderer extends HardwareRenderer {
 
         mRootNode.setLeftTopRightBottom(-mInsetLeft, -mInsetTop, mSurfaceWidth, mSurfaceHeight);
 
+        setCornerRadius(mCornerRadii);
         setLightCenter(attachInfo);
+    }
+
+    RectF getRoundedClipBounds() {
+        return new RectF(-mInsetLeft, -mInsetTop, mSurfaceWidth, mSurfaceHeight);
+    }
+
+    void setCornerRadius(CornerRadii radii) {
+        if (radii == null || radii.isEmpty()) {
+            mRootNode.setClipToOutline(false);
+            return;
+        }
+        mCornerRadii = radii;
+        if (mOutline == null) {
+            mOutline = new Outline();
+        }
+        Path path = new Path();
+        RectF rect = new RectF(-mInsetLeft, -mInsetTop, mSurfaceWidth, mSurfaceHeight);
+        float[] cwRadii = {mCornerRadii.topLeft, mCornerRadii.topLeft,
+                mCornerRadii.topRight, mCornerRadii.topRight,
+                mCornerRadii.bottomRight, mCornerRadii.bottomRight,
+                mCornerRadii.bottomLeft, mCornerRadii.bottomLeft};
+        path.addRoundRect(rect, cwRadii, Path.Direction.CW);
+        mOutline.setPath(path);
+        mRootNode.setOutline(mOutline);
+        mRootNode.setClipToOutline(true);
     }
 
     /**

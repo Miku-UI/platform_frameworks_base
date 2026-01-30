@@ -86,7 +86,7 @@ static void send_string(struct usb_device *device, int index, const char* string
 static int usb_device_added(const char *devname, void* client_data) {
     uint16_t vendorId, productId;
     int ret;
-    int enable_accessory = (int)client_data;
+    bool enable_accessory = client_data != NULL;
 
     struct usb_device *device = usb_device_open(devname);
     if (!device) {

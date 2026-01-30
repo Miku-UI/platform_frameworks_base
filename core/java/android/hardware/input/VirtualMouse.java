@@ -18,9 +18,11 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-import android.companion.virtual.IVirtualDevice;
+import android.app.compat.CompatChanges;
+import android.compat.annotation.ChangeId;
+import android.compat.annotation.EnabledSince;
 import android.graphics.PointF;
-import android.os.IBinder;
+import android.os.Build;
 import android.os.RemoteException;
 import android.util.Log;
 import android.view.MotionEvent;
@@ -37,9 +39,17 @@ import android.view.MotionEvent;
 @SystemApi
 public class VirtualMouse extends VirtualInputDevice {
 
+    /**
+     * If enabled, the {@link #getCursorPosition()} API now returns in logical display coordinates
+     * instead of in physical display coordinates, which is an old behavior.
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT)
+    static final long VIRTUAL_MOUSE_CURSOR_POTION_IN_LOGICAL_COORDINATES = 431622043;
+
     /** @hide */
-    public VirtualMouse(VirtualMouseConfig config, IVirtualDevice virtualDevice, IBinder token) {
-        super(config, virtualDevice, token);
+    public VirtualMouse(VirtualMouseConfig config, IVirtualInputDevice virtualInputDevice) {
+        super(config, virtualInputDevice);
     }
 
     /**
@@ -51,7 +61,7 @@ public class VirtualMouse extends VirtualInputDevice {
      */
     public void sendButtonEvent(@NonNull VirtualMouseButtonEvent event) {
         try {
-            if (!mVirtualDevice.sendButtonEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendMouseButtonEvent(event)) {
                 Log.w(TAG, "Failed to send button event to virtual mouse "
                         + mConfig.getInputDeviceName());
             }
@@ -70,7 +80,7 @@ public class VirtualMouse extends VirtualInputDevice {
      */
     public void sendScrollEvent(@NonNull VirtualMouseScrollEvent event) {
         try {
-            if (!mVirtualDevice.sendScrollEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendMouseScrollEvent(event)) {
                 Log.w(TAG, "Failed to send scroll event to virtual mouse "
                         + mConfig.getInputDeviceName());
             }
@@ -88,7 +98,7 @@ public class VirtualMouse extends VirtualInputDevice {
      */
     public void sendRelativeEvent(@NonNull VirtualMouseRelativeEvent event) {
         try {
-            if (!mVirtualDevice.sendRelativeEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendMouseRelativeEvent(event)) {
                 Log.w(TAG, "Failed to send relative event to virtual mouse "
                         + mConfig.getInputDeviceName());
             }
@@ -98,7 +108,10 @@ public class VirtualMouse extends VirtualInputDevice {
     }
 
     /**
-     * Gets the current cursor position.
+     * Gets the current cursor position in logical display coordinates in pixels.
+     *
+     * <p>Note that if {@code VIRTUAL_MOUSE_CURSOR_POTION_IN_LOGICAL_COORDINATES} is disabled,
+     * this returns a position in the physical display coordinates instead.
      *
      * @return the position, expressed as x and y coordinates
      * @throws IllegalStateException if the display this mouse is associated with is not currently
@@ -106,7 +119,16 @@ public class VirtualMouse extends VirtualInputDevice {
      */
     public @NonNull PointF getCursorPosition() {
         try {
-            return mVirtualDevice.getCursorPosition(mToken);
+            final PointF cursorPosition;
+            if (CompatChanges.isChangeEnabled(
+                    VIRTUAL_MOUSE_CURSOR_POTION_IN_LOGICAL_COORDINATES)) {
+                cursorPosition = mVirtualInputDevice.getCursorPositionInLogicalDisplay();
+            } else {
+                cursorPosition = mVirtualInputDevice.getCursorPositionInPhysicalDisplay();
+            }
+            // TODO(b/410677781): Returning PointF(NaN, NaN) on invalid displayId is different with
+            // what the javadoc states, consider updating this (or the javadoc).
+            return cursorPosition != null ? cursorPosition : new PointF(Float.NaN, Float.NaN);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

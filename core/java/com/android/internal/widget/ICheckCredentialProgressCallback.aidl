@@ -16,7 +16,7 @@
 
 package com.android.internal.widget;
 
-/** {@hide} */
+/** @hide */
 oneway interface ICheckCredentialProgressCallback {
     void onCredentialVerified();
 }

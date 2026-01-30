@@ -30,13 +30,11 @@ import com.android.systemui.keyguard.shared.model.DismissAction
 import com.android.systemui.keyguard.shared.model.KeyguardDone
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
-import com.android.systemui.util.kotlin.Utils.Companion.toQuad
 import com.android.systemui.util.kotlin.sample
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -71,16 +69,10 @@ constructor(
      */
     private val onTrustGrantedRequestDismissKeyguard: Flow<Unit> =
         trustRepository.trustAgentRequestingToDismissKeyguard
-            .sample(
-                combine(
-                    primaryBouncerInteractor.isShowing,
-                    alternateBouncerInteractor.isVisible,
-                    powerInteractor.isInteractive,
-                    ::Triple,
-                ),
-                ::toQuad,
-            )
-            .filter { (trustModel, primaryBouncerShowing, altBouncerShowing, interactive) ->
+            .filter { trustModel ->
+                val altBouncerShowing = alternateBouncerInteractor.isVisible.value
+                val primaryBouncerShowing = primaryBouncerInteractor.isShowing.value
+                val interactive = powerInteractor.isInteractive.value
                 val bouncerShowing = primaryBouncerShowing || altBouncerShowing
                 (interactive || trustModel.flags.temporaryAndRenewable()) &&
                     (bouncerShowing || trustModel.flags.dismissKeyguardRequested())

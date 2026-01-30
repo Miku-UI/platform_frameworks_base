@@ -59,7 +59,7 @@ public final class FakeLatencyTracker extends LatencyTracker {
         Log.i(TAG, "done disabling all actions");
         FakeLatencyTracker fakeLatencyTracker = new FakeLatencyTracker();
         Log.i(TAG, "done creating tracker object");
-        fakeLatencyTracker.startListeningForLatencyTrackerConfigChanges();
+        fakeLatencyTracker.startListeningForLatencyTrackerConfigChanges(Runnable::run);
         // always return the fake in the disabled state and let the client control the desired state
         fakeLatencyTracker.waitForGlobalEnabledState(false);
         fakeLatencyTracker.waitForAllPropertiesEnableState(false);

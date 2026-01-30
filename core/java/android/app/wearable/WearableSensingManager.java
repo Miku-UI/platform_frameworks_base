@@ -465,6 +465,9 @@ public class WearableSensingManager {
      * WearableSensingService. If the data stream was provided successfully {@link
      * WearableSensingManager#STATUS_SUCCESS} will be provided.
      *
+     * <p>If the WearableSensingService process dies, the system will send a status code of {@link
+     * WearableSensingManager#STATUS_SERVICE_UNAVAILABLE} to the {@code statusConsumer}.
+     *
      * <p>Starting from target SDK level 35, if the WearableSensingService implementation belongs to
      * the same APK as the caller, calling this method will allow WearableSensingService to read
      * from the caller's file directory via {@link Context#openFileInput(String)}. The read will be

@@ -1,12 +1,12 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 33
+    compileSdkVersion 36
 
     defaultConfig {
         applicationId "com.prefabulated.touchlatency"
         minSdkVersion 30
-        targetSdkVersion 33
+        targetSdkVersion 36
         versionCode 1
         versionName "1.0"
     }
@@ -21,4 +21,5 @@ android {
         implementation 'androidx.appcompat:appcompat:1.5.1'
         implementation 'com.google.android.material:material:1.6.0'
     }
+    namespace 'com.prefabulated.touchlatency'
 }

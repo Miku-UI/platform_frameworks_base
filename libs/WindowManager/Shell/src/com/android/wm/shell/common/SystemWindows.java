@@ -27,7 +27,6 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
-import android.util.MergedConfiguration;
 import android.util.Slog;
 import android.util.SparseArray;
 import android.view.Display;
@@ -45,11 +44,9 @@ import android.view.SurfaceControlViewHost;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
+import android.view.WindowRelayoutResult;
 import android.view.WindowlessWindowManager;
 import android.view.inputmethod.ImeTracker;
-import android.window.ActivityWindowInfo;
-import android.window.ClientWindowFrames;
-import android.window.InputTransferToken;
 
 import com.android.internal.os.IResultReceiver;
 
@@ -195,16 +192,16 @@ public class SystemWindows {
     }
 
     /**
-     * Gets a token associated with the view that can be used to grant the view focus.
+     * Requests input focus for the specified window.
      */
-    public InputTransferToken getFocusGrantToken(View view) {
+    public boolean requestInputFocus(View view, boolean focused) {
         SurfaceControlViewHost root = mViewRoots.get(view);
         if (root == null) {
             Slog.e(TAG, "Couldn't get focus grant token since view does not exist in "
                     + "SystemWindow:" + view);
-            return null;
+            return false;
         }
-        return root.getInputTransferToken();
+        return root.requestInputFocus(focused);
     }
 
     private class PerDisplay {
@@ -345,26 +342,24 @@ public class SystemWindows {
         ContainerWindow() {}
 
         @Override
-        public void resized(ClientWindowFrames frames, boolean reportDraw,
-                MergedConfiguration newMergedConfiguration, InsetsState insetsState,
-                boolean forceLayout, boolean alwaysConsumeSystemBars, int displayId, int syncSeqId,
-                boolean dragResizing, @Nullable ActivityWindowInfo activityWindowInfo) {}
+        public void resized(WindowRelayoutResult layout, boolean reportDraw, boolean forceLayout,
+                int displayId, boolean syncWithBuffers, boolean dragResizing) {}
 
         @Override
         public void insetsControlChanged(InsetsState insetsState,
                 InsetsSourceControl.Array activeControls) {}
 
         @Override
-        public void showInsets(int types, boolean fromIme, @Nullable ImeTracker.Token statsToken) {}
+        public void showInsets(int types, @Nullable ImeTracker.Token statsToken) {}
 
         @Override
-        public void hideInsets(int types, boolean fromIme, @Nullable ImeTracker.Token statsToken) {}
+        public void hideInsets(int types, @Nullable ImeTracker.Token statsToken) {}
 
         @Override
         public void moved(int newX, int newY) {}
 
         @Override
-        public void dispatchAppVisibility(boolean visible) {}
+        public void dispatchAppVisibility(boolean visible, int seqId) {}
 
         @Override
         public void dispatchGetNewSurface() {}
@@ -377,11 +372,11 @@ public class SystemWindows {
 
         @Override
         public void dispatchWallpaperOffsets(float x, float y, float xStep, float yStep,
-                float zoom, boolean sync) {}
+                float zoom) {}
 
         @Override
         public void dispatchWallpaperCommand(String action, int x, int y,
-                int z, Bundle extras, boolean sync) {}
+                int z, Bundle extras) {}
 
         /* Drag/drop */
         @Override

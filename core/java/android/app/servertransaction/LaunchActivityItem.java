@@ -130,6 +130,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
     private final int mProcState;
     private final boolean mIsForward;
     private final boolean mLaunchedFromBubble;
+    private final int mDisplayId;
 
     public LaunchActivityItem(@NonNull IBinder activityToken, @NonNull Intent intent,
             int ident, @NonNull ActivityInfo info, @NonNull Configuration curConfig,
@@ -143,7 +144,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
             @Nullable IActivityClientController activityClientController,
             @NonNull IBinder shareableActivityToken, boolean launchedFromBubble,
             @Nullable IBinder taskFragmentToken, @NonNull IBinder initialCallerInfoAccessToken,
-            @NonNull ActivityWindowInfo activityWindowInfo) {
+            @NonNull ActivityWindowInfo activityWindowInfo, int displayId) {
         this(activityToken, ident, new Configuration(curConfig), new Configuration(overrideConfig),
                 deviceId, referrer, voiceInteractor, procState,
                 state != null ? new Bundle(state) : null,
@@ -154,7 +155,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
                 profilerInfo != null ? new ProfilerInfo(profilerInfo) : null,
                 assistToken, activityClientController, shareableActivityToken, launchedFromBubble,
                 taskFragmentToken, initialCallerInfoAccessToken,
-                new ActivityWindowInfo(activityWindowInfo));
+                new ActivityWindowInfo(activityWindowInfo), displayId);
         mIntent = new Intent(intent);
         mInfo = new ActivityInfo(info);
     }
@@ -173,7 +174,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
             @Nullable IActivityClientController activityClientController,
             @NonNull IBinder shareableActivityToken, boolean launchedFromBubble,
             @Nullable IBinder taskFragmentToken, @NonNull IBinder initialCallerInfoAccessToken,
-            @NonNull ActivityWindowInfo activityWindowInfo) {
+            @NonNull ActivityWindowInfo activityWindowInfo, int displayId) {
         mActivityToken = activityToken;
         mIdent = ident;
         mCurConfig = curConfig;
@@ -196,14 +197,15 @@ public class LaunchActivityItem extends ClientTransactionItem {
         mTaskFragmentToken = taskFragmentToken;
         mInitialCallerInfoAccessToken = initialCallerInfoAccessToken;
         mActivityWindowInfo = activityWindowInfo;
+        mDisplayId = displayId;
     }
 
     @Override
     public void preExecute(@NonNull ClientTransactionHandler client) {
         client.countLaunchingActivities(1);
         client.updateProcessState(mProcState, false);
-        CompatibilityInfo.applyOverrideIfNeeded(mCurConfig);
-        CompatibilityInfo.applyOverrideIfNeeded(mOverrideConfig);
+        CompatibilityInfo.applyOverrideIfNeeded(mCurConfig, mDisplayId);
+        CompatibilityInfo.applyOverrideIfNeeded(mOverrideConfig, mDisplayId);
         client.updatePendingConfiguration(mCurConfig);
         if (mActivityClientController != null) {
             ActivityClient.setActivityClientController(mActivityClientController);
@@ -263,6 +265,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
         dest.writeStrongBinder(mTaskFragmentToken);
         dest.writeStrongBinder(mInitialCallerInfoAccessToken);
         dest.writeTypedObject(mActivityWindowInfo, flags);
+        dest.writeInt(mDisplayId);
 
         dest.writeTypedObject(mIntent, flags);
         dest.writeTypedObject(mInfo, flags);
@@ -293,7 +296,8 @@ public class LaunchActivityItem extends ClientTransactionItem {
                 in.readStrongBinder() /* taskFragmentToken */,
                 in.readStrongBinder() /* initialCallerInfoAccessToken */,
                 requireNonNull(in.readTypedObject(ActivityWindowInfo.CREATOR))
-                /* activityWindowInfo */
+                /* activityWindowInfo */,
+                in.readInt() /* displayId */
         );
         mIntent = in.readTypedObject(Intent.CREATOR);
         mInfo = in.readTypedObject(ActivityInfo.CREATOR);
@@ -338,7 +342,8 @@ public class LaunchActivityItem extends ClientTransactionItem {
                 && Objects.equals(mTaskFragmentToken, other.mTaskFragmentToken)
                 && Objects.equals(mInitialCallerInfoAccessToken,
                         other.mInitialCallerInfoAccessToken)
-                && Objects.equals(mActivityWindowInfo, other.mActivityWindowInfo);
+                && Objects.equals(mActivityWindowInfo, other.mActivityWindowInfo)
+                && mDisplayId == other.mDisplayId;
     }
 
     @Override
@@ -364,6 +369,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
         result = 31 * result + Objects.hashCode(mTaskFragmentToken);
         result = 31 * result + Objects.hashCode(mInitialCallerInfoAccessToken);
         result = 31 * result + Objects.hashCode(mActivityWindowInfo);
+        result = 31 * result + mDisplayId;
         return result;
     }
 
@@ -412,6 +418,7 @@ public class LaunchActivityItem extends ClientTransactionItem {
                 + ",assistToken=" + mAssistToken
                 + ",shareableActivityToken=" + mShareableActivityToken
                 + ",activityWindowInfo=" + mActivityWindowInfo
+                + ",displayId=" + mDisplayId
                 + "}";
     }
 }

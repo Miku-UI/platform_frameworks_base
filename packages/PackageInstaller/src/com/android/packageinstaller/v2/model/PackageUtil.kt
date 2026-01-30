@@ -47,29 +47,13 @@ import kotlinx.parcelize.Parceler
 import kotlinx.parcelize.Parcelize
 
 object PackageUtil {
-    private val LOG_TAG = InstallRepository::class.java.simpleName
+    private val LOG_TAG = PackageUtil::class.java.simpleName
     private const val DOWNLOADS_AUTHORITY = "downloads"
     private const val SPLIT_BASE_APK_SUFFIX = "base.apk"
     private const val SPLIT_APK_SUFFIX = ".apk"
     const val localLogv = false
 
-    const val ARGS_ABORT_REASON: String = "abort_reason"
-    const val ARGS_ACTION_REASON: String = "action_reason"
-    const val ARGS_ACTIVITY_RESULT_CODE: String = "activity_result_code"
-    const val ARGS_APP_DATA_SIZE: String = "app_data_size"
-    const val ARGS_APP_LABEL: String = "app_label"
-    const val ARGS_APP_SNIPPET: String = "app_snippet"
-    const val ARGS_ERROR_DIALOG_TYPE: String = "error_dialog_type"
-    const val ARGS_IS_ARCHIVE: String = "is_archive"
-    const val ARGS_IS_CLONE_USER: String = "clone_user"
-    const val ARGS_IS_UPDATING: String = "is_updating"
-    const val ARGS_LEGACY_CODE: String = "legacy_code"
     const val ARGS_MESSAGE: String = "message"
-    const val ARGS_RESULT_INTENT: String = "result_intent"
-    const val ARGS_SHOULD_RETURN_RESULT: String = "should_return_result"
-    const val ARGS_SOURCE_APP: String = "source_app"
-    const val ARGS_STATUS_CODE: String = "status_code"
-    const val ARGS_TITLE: String = "title"
 
     /**
      * Determines if the UID belongs to the system downloads provider and returns the
@@ -79,7 +63,8 @@ object PackageUtil {
      * @return [ApplicationInfo] of the provider if a downloads provider exists, it is a
      * system app, and its UID matches with the passed UID, null otherwise.
      */
-    private fun getSystemDownloadsProviderInfo(pm: PackageManager, uid: Int): ApplicationInfo? {
+    @JvmStatic
+    fun getSystemDownloadsProviderInfo(pm: PackageManager, uid: Int): ApplicationInfo? {
         // Check if there are currently enabled downloads provider on the system.
         val providerInfo = pm.resolveContentProvider(DOWNLOADS_AUTHORITY, 0)
             ?: return null
@@ -144,7 +129,7 @@ object PackageUtil {
     @JvmStatic
     fun isPermissionGranted(context: Context, permission: String, callingUid: Int): Boolean {
         return (context.checkPermission(permission, -1, callingUid)
-            == PackageManager.PERMISSION_GRANTED)
+                == PackageManager.PERMISSION_GRANTED)
     }
 
     /**
@@ -160,13 +145,22 @@ object PackageUtil {
 
     /**
      * @param context the [Context] object
+     * @param callingUid the UID of the caller who's permission is being checked
+     * @return `true` if the callingUid is granted the documents permission
+     */
+    @JvmStatic
+    fun isDocumentsManager(context: Context, callingUid: Int): Boolean {
+        return isPermissionGranted(context, Manifest.permission.MANAGE_DOCUMENTS, callingUid)
+    }
+
+    /**
+     * @param context the [Context] object
      * @param callingUid the UID of the caller of Pia
      * @param isTrustedSource indicates whether install request is coming from a privileged app
      * that has passed EXTRA_NOT_UNKNOWN_SOURCE as `true` in the installation intent, or an app that
      * has the [INSTALL_PACKAGES][Manifest.permission.INSTALL_PACKAGES] permission granted.
      *
-     * @return `true` if the package is either a system downloads provider, a document manager,
-     * a trusted source, or has declared the
+     * @return `true` if the package is a trusted source, or has declared the
      * [REQUEST_INSTALL_PACKAGES][Manifest.permission.REQUEST_INSTALL_PACKAGES] in its manifest.
      */
     @JvmStatic
@@ -175,12 +169,7 @@ object PackageUtil {
         callingUid: Int,
         isTrustedSource: Boolean,
     ): Boolean {
-        val isDocumentsManager =
-            isPermissionGranted(context, Manifest.permission.MANAGE_DOCUMENTS, callingUid)
-        val isSystemDownloadsProvider =
-            getSystemDownloadsProviderInfo(context.packageManager, callingUid) != null
-
-        if (!isTrustedSource && !isSystemDownloadsProvider && !isDocumentsManager) {
+        if (!isTrustedSource) {
             val targetSdkVersion = getMaxTargetSdkVersionForUid(context, callingUid)
             if (targetSdkVersion < 0) {
                 // Invalid calling uid supplied. Abort install.
@@ -193,7 +182,7 @@ object PackageUtil {
             ) {
                 Log.e(
                     LOG_TAG, "Requesting uid " + callingUid + " needs to declare permission "
-                        + Manifest.permission.REQUEST_INSTALL_PACKAGES
+                            + Manifest.permission.REQUEST_INSTALL_PACKAGES
                 )
                 return false
             }
@@ -207,7 +196,7 @@ object PackageUtil {
      * @param permission the permission name to check
      * @return `true` if the caller is requesting the said permission in its Manifest
      */
-    private fun isUidRequestingPermission(
+    fun isUidRequestingPermission(
         pm: PackageManager,
         uid: Int,
         permission: String,
@@ -318,6 +307,15 @@ object PackageUtil {
                 pkgInfo.packageName, context.packageManager.defaultActivityIcon, largeIconSize
             )
         }
+    }
+
+    /**
+     * Generates an [AppSnippet] containing specified appIcon and appLabel
+     */
+    @JvmStatic
+    fun getAppSnippet(context: Context, label: CharSequence?, icon: Drawable?): AppSnippet {
+        val largeIconSize = getLargeIconSize(context)
+        return AppSnippet(label, icon, largeIconSize)
     }
 
     private fun getLargeIconSize(context: Context): Int {
@@ -487,7 +485,42 @@ object PackageUtil {
         return if (userHandle == profileHandle) {
             true
         } else userManager.getProfileParent(profileHandle) != null
-            && userManager.getProfileParent(profileHandle) == userHandle
+                && userManager.getProfileParent(profileHandle) == userHandle
+    }
+
+    /**
+     * Utility method to get the application label from the package name
+     */
+    @JvmStatic
+    fun getApplicationLabel(context: Context, packageName: String): CharSequence? {
+        return try {
+            val appInfo = packageName.let {
+                context.packageManager.getApplicationInfo(
+                    it, PackageManager.ApplicationInfoFlags.of(0)
+                )
+            }
+            appInfo.let { context.packageManager.getApplicationLabel(it) }
+        } catch (e: PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
+    /**
+     * @return If the device supports the material design in the package installer
+     */
+    @JvmStatic
+    fun isMaterialDesignEnabled(context: Context): Boolean {
+        var result: Boolean
+        try {
+            result = android.content.pm.Flags.usePiaV2()
+                    && context.resources.getBoolean(
+                android.R.bool.config_enableMaterialDesignInPackageInstaller
+            )
+        } catch (_: Resources.NotFoundException) {
+            return false
+        }
+
+        return result
     }
 
     /**

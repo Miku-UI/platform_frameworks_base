@@ -42,11 +42,20 @@ interface DeviceEntryFaceAuthInteractor : CoreStartable {
     /** Whether bypass is enabled. If enabled, face unlock dismisses the lock screen. */
     val isBypassEnabled: Flow<Boolean>
 
+    /**
+     * Whether the privacy setting for camera sensors is enabled and interfering with face
+     * authentication usage.
+     */
+    val isCameraPrivacyInterfering: StateFlow<Boolean>
+
     /** Can face auth be run right now */
     fun canFaceAuthRun(): Boolean
 
     /** Whether face auth is currently running or not. */
-    fun isRunning(): Boolean
+    fun isAuthRunning(): Boolean
+
+    /** Whether face detect is currently running or not. */
+    fun isDetectRunning(): Boolean
 
     /** Whether face auth is enrolled and enabled for the current user */
     fun isFaceAuthEnabledAndEnrolled(): Boolean
@@ -79,6 +88,14 @@ interface DeviceEntryFaceAuthInteractor : CoreStartable {
     fun onWalletLaunched()
 
     fun onDeviceUnfolded()
+
+    fun onSecureLockDeviceBiometricAuthRequested()
+
+    fun onSecureLockDeviceBiometricAuthHidden()
+
+    fun onSecureLockDeviceConfirmButtonShowingChanged(isShowingConfirmButton: Boolean)
+
+    fun onSecureLockDeviceTryAgainButtonShowingChanged(isShowingTryAgainButton: Boolean)
 
     /** Whether face auth is considered class 3 */
     fun isFaceAuthStrong(): Boolean

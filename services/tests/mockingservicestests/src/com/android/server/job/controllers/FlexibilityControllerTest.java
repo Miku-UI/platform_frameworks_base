@@ -21,6 +21,8 @@ import static android.app.job.JobInfo.BIAS_TOP_APP;
 import static android.app.job.JobInfo.NETWORK_TYPE_ANY;
 import static android.app.job.JobInfo.NETWORK_TYPE_CELLULAR;
 import static android.app.job.JobInfo.NETWORK_TYPE_NONE;
+import static android.app.usage.UsageStatsManager.REASON_MAIN_USAGE;
+import static android.app.usage.UsageStatsManager.REASON_SUB_USAGE_MOVE_TO_FOREGROUND;
 import static android.net.NetworkCapabilities.TRANSPORT_WIFI;
 import static android.text.format.DateUtils.HOUR_IN_MILLIS;
 import static android.text.format.DateUtils.MINUTE_IN_MILLIS;
@@ -70,6 +72,7 @@ import android.annotation.Nullable;
 import android.app.AlarmManager;
 import android.app.AppGlobals;
 import android.app.job.JobInfo;
+import android.app.usage.UsageStatsManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -90,6 +93,7 @@ import android.util.SparseArray;
 import com.android.server.AppSchedulingModuleThread;
 import com.android.server.DeviceIdleInternal;
 import com.android.server.LocalServices;
+import com.android.server.job.JobSchedulerInternal;
 import com.android.server.job.JobSchedulerService;
 import com.android.server.job.JobStore;
 
@@ -193,6 +197,10 @@ public class FlexibilityControllerTest {
         doReturn(mJobStore).when(mJobSchedulerService).getJobStore();
         // Used in JobStatus.
         doReturn(mIPackageManager).when(AppGlobals::getPackageManager);
+        // Used in JobStatus.
+        doReturn(mock(JobSchedulerInternal.class))
+                .when(() -> LocalServices.getService(JobSchedulerInternal.class));
+
         // Freeze the clocks at a moment in time
         JobSchedulerService.sSystemClock =
                 Clock.fixed(Instant.ofEpochMilli(FROZEN_TIME), ZoneOffset.UTC);
@@ -280,7 +288,8 @@ public class FlexibilityControllerTest {
         JobStatus js = JobStatus.createFromJobInfo(
                 jobInfo, 1000, sourcePackage, SOURCE_USER_ID, "FCTest", testTag);
         js.enqueueTime = FROZEN_TIME;
-        js.setStandbyBucket(ACTIVE_INDEX);
+        js.setStandbyBucket(ACTIVE_INDEX,
+                REASON_MAIN_USAGE | REASON_SUB_USAGE_MOVE_TO_FOREGROUND);
         if (js.hasFlexibilityConstraint()) {
             js.setNumAppliedFlexibleConstraints(Integer.bitCount(
                     mFlexibilityController.getRelevantAppliedConstraintsLocked(js)));
@@ -1126,10 +1135,10 @@ public class FlexibilityControllerTest {
                 createJob(0).setPriority(JobInfo.PRIORITY_LOW));
         JobStatus jsMin = createJobStatus("testAllowlistedAppBypass",
                 createJob(0).setPriority(JobInfo.PRIORITY_MIN));
-        jsHigh.setStandbyBucket(EXEMPTED_INDEX);
-        jsDefault.setStandbyBucket(EXEMPTED_INDEX);
-        jsLow.setStandbyBucket(EXEMPTED_INDEX);
-        jsMin.setStandbyBucket(EXEMPTED_INDEX);
+        jsHigh.setStandbyBucket(EXEMPTED_INDEX, UsageStatsManager.REASON_MAIN_DEFAULT);
+        jsDefault.setStandbyBucket(EXEMPTED_INDEX, UsageStatsManager.REASON_MAIN_DEFAULT);
+        jsLow.setStandbyBucket(EXEMPTED_INDEX, UsageStatsManager.REASON_MAIN_DEFAULT);
+        jsMin.setStandbyBucket(EXEMPTED_INDEX, UsageStatsManager.REASON_MAIN_DEFAULT);
 
         setPowerWhitelistExceptIdle();
         synchronized (mFlexibilityController.mLock) {

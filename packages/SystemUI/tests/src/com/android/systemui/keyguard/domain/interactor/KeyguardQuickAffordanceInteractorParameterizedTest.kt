@@ -24,6 +24,7 @@ import androidx.test.filters.SmallTest
 import com.android.internal.widget.LockPatternUtils
 import com.android.keyguard.logging.KeyguardQuickAffordancesLogger
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.accessibility.domain.interactor.accessibilityInteractor
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
@@ -32,6 +33,7 @@ import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dock.DockManagerFake
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.FakeFeatureFlags
+import com.android.systemui.haptics.msdl.msdlPlayer
 import com.android.systemui.keyguard.data.quickaffordance.BuiltInKeyguardQuickAffordanceKeys
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceConfig
 import com.android.systemui.keyguard.data.quickaffordance.FakeKeyguardQuickAffordanceProviderClientFactory
@@ -41,10 +43,12 @@ import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanc
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceRemoteUserSelectionManager
 import com.android.systemui.keyguard.data.repository.FakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.KeyguardQuickAffordanceRepository
+import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.shared.quickaffordance.KeyguardQuickAffordancePosition
 import com.android.systemui.keyguard.shared.quickaffordance.KeyguardQuickAffordancesMetricsLogger
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.settings.FakeUserTracker
 import com.android.systemui.settings.UserFileManager
 import com.android.systemui.settings.UserTracker
@@ -251,7 +255,8 @@ class KeyguardQuickAffordanceInteractorParameterizedTest : SysuiTestCase() {
         homeControls =
             FakeKeyguardQuickAffordanceConfig(BuiltInKeyguardQuickAffordanceKeys.HOME_CONTROLS)
         dockManager = DockManagerFake()
-        biometricSettingsRepository = FakeBiometricSettingsRepository()
+        biometricSettingsRepository = kosmos.biometricSettingsRepository
+
         val quickAccessWallet =
             FakeKeyguardQuickAffordanceConfig(
                 BuiltInKeyguardQuickAffordanceKeys.QUICK_ACCESS_WALLET
@@ -311,13 +316,15 @@ class KeyguardQuickAffordanceInteractorParameterizedTest : SysuiTestCase() {
                 launchAnimator = launchAnimator,
                 logger = logger,
                 metricsLogger = metricsLogger,
+                secureLockDeviceInteractor = { kosmos.secureLockDeviceInteractor },
                 devicePolicyManager = devicePolicyManager,
                 dockManager = dockManager,
                 biometricSettingsRepository = biometricSettingsRepository,
                 backgroundDispatcher = testDispatcher,
                 appContext = mContext,
-                accessibilityManager = mock(),
+                accessibilityInteractor = kosmos.accessibilityInteractor,
                 sceneInteractor = { kosmos.sceneInteractor },
+                msdlPlayer = kosmos.msdlPlayer,
             )
     }
 

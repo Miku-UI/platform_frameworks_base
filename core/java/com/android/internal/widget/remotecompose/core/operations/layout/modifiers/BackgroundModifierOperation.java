@@ -102,7 +102,10 @@ public class BackgroundModifierOperation extends DecoratorModifierOperation {
 
     @Override
     public void layout(
-            @NonNull RemoteContext context, Component component, float width, float height) {
+            @NonNull RemoteContext context,
+            @NonNull Component component,
+            float width,
+            float height) {
         this.mWidth = width;
         this.mHeight = height;
     }
@@ -225,7 +228,7 @@ public class BackgroundModifierOperation extends DecoratorModifierOperation {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER)
                 .addType("BackgroundModifierOperation")

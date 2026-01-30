@@ -62,8 +62,8 @@ class SplitContainer {
             @NonNull SplitRule splitRule,
             @NonNull SplitAttributes splitAttributes, boolean isPrimaryContainerMutable) {
         mParcelableData = new ParcelableSplitContainerData(this, new Binder("SplitContainer"),
-                primaryContainer.getToken(), secondaryContainer.getToken(), splitRule.getTag(),
-                isPrimaryContainerMutable);
+                primaryContainer.getTaskFragmentToken(), secondaryContainer.getTaskFragmentToken(),
+                splitRule.getTag(), isPrimaryContainerMutable);
         mPrimaryContainer = primaryContainer;
         mSecondaryContainer = secondaryContainer;
         mSplitRule = splitRule;

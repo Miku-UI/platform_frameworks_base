@@ -22,26 +22,51 @@
 #include <Properties.h>
 #include <Rect.h>
 #include <RenderNode.h>
-#include <hwui/Bitmap.h>
-#include <pipeline/skia/SkiaRecordingCanvas.h>
-#include <private/hwui/DrawGlInfo.h>
-#include <renderstate/RenderState.h>
-#include <renderthread/RenderThread.h>
-
 #include <SkBitmap.h>
 #include <SkColor.h>
 #include <SkFont.h>
 #include <SkImageInfo.h>
 #include <SkRefCnt.h>
-
+#include <android-base/expected.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <gtest/gtest.h>
+#include <hwui/Bitmap.h>
+#include <pipeline/skia/PersistentGraphicsCache.h>
+#include <pipeline/skia/SkiaRecordingCanvas.h>
+#include <poll.h>
+#include <private/hwui/DrawGlInfo.h>
+#include <renderstate/RenderState.h>
+#include <renderthread/RenderThread.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/inotify.h>
+#include <unistd.h>
+
+#include <array>
+#include <fstream>
 #include <memory>
+#include <queue>
+#include <string>
+#include <string_view>
 #include <unordered_map>
+#include <utility>
 
 class SkCanvas;
 class SkMatrix;
 class SkPath;
 struct SkRect;
+
+#ifdef __linux__
+#include <com_android_graphics_hwui_flags.h>
+namespace hwui_flags = com::android::graphics::hwui::flags;
+#else   // __linux__
+namespace hwui_flags {
+constexpr bool separate_pipeline_cache() {
+    return false;
+}
+}  // namespace hwui_flags
+#endif  // __linux__
 
 namespace android {
 namespace uirenderer {
@@ -64,6 +89,10 @@ namespace uirenderer {
 
 #define INNER_PIPELINE_RENDERTHREAD_TEST(test_case_name, test_name)                                \
     TEST(test_case_name, test_name) {                                                              \
+        if (hwui_flags::separate_pipeline_cache()) {                                               \
+            android::uirenderer::skiapipeline::PersistentGraphicsCache::get().initPipelineCache(   \
+                    "pipeline_cache.bin");                                                         \
+        }                                                                                          \
         TestUtils::runOnRenderThread(test_case_name##_##test_name##_RenderThreadTest::doTheThing); \
     }
 
@@ -99,6 +128,151 @@ public:
 private:
     T* mPropertyPtr;
     T mOldValue;
+};
+
+/**
+ * Monitors a file for write events, allowing tests to detect whether a file has been written to or
+ * not within an expected timeframe.
+ */
+class FileEventMonitor {
+private:
+    static constexpr std::array kExpectedEvents{IN_MODIFY, IN_CLOSE_WRITE};
+
+    int mFd;
+
+public:
+    struct CreateResult {
+        enum Outcome {
+            Success,
+            InitFailed,
+            AddWatchFailed,
+        };
+        Outcome outcome;
+        int errnoValue;
+        std::unique_ptr<FileEventMonitor> monitor;
+    };
+
+    static CreateResult create(const std::string& path) {
+        auto fd = inotify_init();
+        if (fd == -1) {
+            return CreateResult{.outcome = CreateResult::InitFailed, .errnoValue = errno};
+        }
+
+        uint32_t eventMask = 0;
+        for (auto event : kExpectedEvents) {
+            eventMask |= event;
+        }
+        auto wd = inotify_add_watch(fd, path.c_str(), eventMask);
+        if (wd == -1) {
+            return CreateResult{.outcome = CreateResult::AddWatchFailed, .errnoValue = errno};
+        }
+
+        return CreateResult{
+                .outcome = CreateResult::Success,
+                .monitor = std::make_unique<FileEventMonitor>(fd),
+        };
+    }
+
+    FileEventMonitor(int fd) : mFd(fd) {}
+    ~FileEventMonitor() { close(mFd); }
+
+    FileEventMonitor(const FileEventMonitor&) = delete;
+    FileEventMonitor(FileEventMonitor&&) = delete;
+
+    FileEventMonitor& operator=(const FileEventMonitor&) = delete;
+    FileEventMonitor& operator=(FileEventMonitor&&) = delete;
+
+    enum class AwaitResult {
+        Success,
+        PollError,
+        TimedOut,
+        NotEnoughData,
+    };
+    // Note that the timeout is not a total runtime timeout but rather the timeout for each file
+    // system event, therefore the total time spent waiting may be a multiple of the timeout.
+    AwaitResult awaitWriteOrTimeout(int timeoutMs = 100) {
+        std::queue<uint32_t> expectedEvents;
+        for (auto event : kExpectedEvents) {
+            expectedEvents.push(event);
+        }
+
+        while (!expectedEvents.empty()) {
+            pollfd fd = {
+                    .fd = mFd,
+                    .events = POLLIN,
+                    .revents = 0,
+            };
+            auto result = poll(&fd, 1, timeoutMs);
+            if (result == -1) {
+                return AwaitResult::PollError;
+            }
+            if (result == 0) {
+                return AwaitResult::TimedOut;
+            }
+
+            inotify_event event;
+            auto bytes = read(mFd, &event, sizeof(event));
+            if (bytes != sizeof(event)) {
+                return AwaitResult::NotEnoughData;
+            }
+
+            if (event.mask & expectedEvents.front()) {
+                expectedEvents.pop();
+            }
+        }
+        return AwaitResult::Success;
+    }
+};
+
+#define ASSERT_SUCCESS(RESULT)                                           \
+    ASSERT_EQ(FileEventMonitor::CreateResult::Success, (RESULT).outcome) \
+            << "errno=" << (RESULT).errnoValue << " (" << strerror((RESULT).errnoValue) << ")";
+
+/**
+ * Allows tests to create a temporary file for use in the test, which is automatically removed once
+ * the test exits.
+ */
+class TestFile {
+private:
+    std::string mPath;
+
+    static std::string getTempPath(std::string filename) { return "/data/local/tmp/" + filename; }
+
+public:
+    static android::base::expected<TestFile, int> ensureExistsEmpty(std::string filename) {
+        auto path = getTempPath(std::move(filename));
+        auto fd = creat(path.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+        if (fd == -1) {
+            return android::base::unexpected(errno);
+        }
+        close(fd);
+        return android::base::expected<TestFile, int>(std::in_place, std::move(path));
+    }
+
+    static android::base::expected<TestFile, int> ensureDoesNotExist(std::string filename) {
+        auto path = getTempPath(std::move(filename));
+        auto result = remove(path.c_str());
+        if ((result == -1) && (errno != ENOENT)) {
+            return android::base::unexpected(errno);
+        }
+        return android::base::expected<TestFile, int>(std::in_place, std::move(path));
+    }
+
+    TestFile(std::string path) : mPath(std::move(path)) {}
+    ~TestFile() { remove(mPath.c_str()); }
+
+    TestFile(const TestFile&) = delete;
+    TestFile(TestFile&&) = delete;
+
+    TestFile& operator=(const TestFile&) = delete;
+    TestFile& operator=(TestFile&&) = delete;
+
+    const std::string& path() const { return mPath; }
+
+    void write(std::string_view contents) {
+        std::ofstream stream(mPath);
+        stream << contents;
+    }
 };
 
 class TestUtils {

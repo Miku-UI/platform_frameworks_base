@@ -17,10 +17,10 @@
 
 <resources>
     <!-- static palette green60 -->
-    <color name="settingslib_expressive_color_status_level_low">#1AA64A</color>
+    <color name="settingslib_expressive_color_status_level_low">@color/m3_ref_palette_green60</color>
     <!-- static palette yellow80 -->
-    <color name="settingslib_expressive_color_status_level_medium">#FCBD00</color>
+    <color name="settingslib_expressive_color_status_level_medium">@color/m3_ref_palette_yellow80</color>
     <!-- static palette red50 -->
-    <color name="settingslib_expressive_color_status_level_high">#DB372D</color>
+    <color name="settingslib_expressive_color_status_level_high">@color/m3_ref_palette_red50</color>
     <color name="settingslib_expressive_color_status_level_off">#D1C2CB</color>
 </resources>

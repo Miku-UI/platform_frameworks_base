@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"តម្រូវ​ឱ្យ​មាន​ការអនុញ្ញាត"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"បាន​ទប់ស្កាត់​ការ​ដំឡើង"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"កំពុងរៀបចំកម្មវិធី…"</string>
+    <string name="title_install" msgid="6806728682404990326">"ដំឡើង​កម្មវិធី​នេះឬ?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"កំពុងដំឡើង…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"បាន​ដំឡើង​កម្មវិធី"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"ដំឡើង​កម្មវិធីនេះឡើង​វិញឬ?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"កំពុងដំឡើង​ឡើង​វិញ…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"បានដំឡើង​កម្មវិធីឡើង​វិញ"</string>
+    <string name="title_update" msgid="1747328630716712391">"ដំឡើងកំណែកម្មវិធីនេះឬ?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"ដំឡើងកំណែកម្មវិធីនេះដោយប្រើ <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> ឬ?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"កំពុងដំឡើងកំណែ…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"កម្មវិធីត្រូវបានដំឡើងកំណែ"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"មិនអាចដំឡើងកម្មវិធីបានទេ"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"បាន​ទប់ស្កាត់​ការ​ដំឡើង"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"កម្មវិធីមិនត្រូវគ្នាទេ"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"កញ្ចប់មិនត្រឹមត្រូវ"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"ទំហំផ្ទុក​មិន​គ្រប់គ្រាន់"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"មិន​បាន​ដំឡើង​កម្មវិធីទេ"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"លុប​កម្មវិធី​នេះ?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"លុបការក្លូននៃកម្មវិធីនេះឬ?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"លុបកំណែថ្មីរបស់កម្មវិធីឬ?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"លុបកំណែថ្មីរបស់កម្មវិធីសម្រាប់អ្នកប្រើប្រាស់ទាំងអស់ឬ?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"លុបកម្មវិធីនេះសម្រាប់អ្នកប្រើប្រាស់ទាំងអស់ឬ?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"លុបកម្មវិធីនេះសម្រាប់អ្នកប្រើប្រាស់ \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" ឬ?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"រក​មិន​ឃើញ​កម្មវិធីទេ"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"មិនអាចលុបកម្មវិធីនេះបានទេ"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"មិនបានលុបកម្មវិធីទេ"</string>
+    <string name="title_archive" msgid="2876455228073419830">"ទុក​កម្មវិធីនេះក្នុង​បណ្ណសារឬ?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"ទុកកម្មវិធីនេះក្នុងបណ្ណសារសម្រាប់អ្នកប្រើប្រាស់ទាំងអស់ឬ?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"ទុកកម្មវិធីនេះក្នុងបណ្ណសារសម្រាប់អ្នកប្រើប្រាស់ \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" ឬ?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"ស្ដារកម្មវិធីនេះឬ?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"សកម្មភាព​ដែលតម្រូវឱ្យធ្វើ"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"ទំហំផ្ទុក​មិន​គ្រប់គ្រាន់"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"អ្នកគ្មាន​អ៊ីនធឺណិត​ទេ"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ត្រូវបានបិទ"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> មិនត្រូវ​បាន​ដំឡើងទេ"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"មានអ្វីមួយខុសប្រក្រតី"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"ជាទូទៅ កម្មវិធីនេះទទួលបានកំណែថ្មីពី &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;។ តាមរយៈការដំឡើងកំណែដោយប្រើប្រភពផ្សេង អ្នកអាចទទួលបានកំណែថ្មីៗនាពេលអនាគតពីប្រភពណាក៏បាននៅលើថេប្លេតរបស់អ្នក។ មុខងារ​កម្មវិធីអាចមានការផ្លាស់ប្ដូរ។"</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"ជាទូទៅ កម្មវិធីនេះទទួលបានកំណែថ្មីពី &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;។ តាមរយៈការដំឡើងកំណែដោយប្រើប្រភពផ្សេង អ្នកអាចទទួលបានកំណែថ្មីៗនាពេលអនាគតពីប្រភពណាក៏បាននៅលើទូរទស្សន៍របស់អ្នក។ មុខងារ​កម្មវិធីអាចមានការផ្លាស់ប្ដូរ។"</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"ជាទូទៅ កម្មវិធីនេះទទួលបានកំណែថ្មីពី &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;។ តាមរយៈការដំឡើងកំណែដោយប្រើប្រភពផ្សេង អ្នកអាចទទួលបានកំណែថ្មីៗនាពេលអនាគតពីប្រភពណាក៏បាននៅលើទូរសព្ទរបស់អ្នក។ មុខងារ​កម្មវិធីអាចមានការផ្លាស់ប្ដូរ។"</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"ដើម្បីសុវត្ថិភាពរបស់អ្នក បច្ចុប្បន្នថេប្លេតរបស់អ្នកមិនត្រូវបានអនុញ្ញាតឱ្យដំឡើងកម្មវិធីដែលមិនស្គាល់ពីប្រភពនេះទេ។ អ្នកអាច​ប្ដូរវាបាន​នៅក្នុងការ​កំណត់។"</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"ដើម្បីសុវត្ថិភាពរបស់អ្នក បច្ចុប្បន្នទូរទស្សន៍របស់អ្នកមិនត្រូវបានអនុញ្ញាតឱ្យដំឡើងកម្មវិធីដែលមិនស្គាល់ពីប្រភពនេះទេ។ អ្នកអាច​ប្ដូរវាបាន​នៅក្នុងការ​កំណត់។"</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"ដើម្បីសុវត្ថិភាពរបស់អ្នក បច្ចុប្បន្ននាឡិការបស់អ្នកមិនត្រូវបានអនុញ្ញាតឱ្យដំឡើងកម្មវិធីដែលមិនស្គាល់ពីប្រភពនេះទេ។ អ្នកអាច​ប្ដូរវាបាន​នៅក្នុងការ​កំណត់។"</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"ដើម្បីសុវត្ថិភាពរបស់អ្នក បច្ចុប្បន្នទូរសព្ទរបស់អ្នកមិនត្រូវបានអនុញ្ញាតឱ្យដំឡើងកម្មវិធីដែលមិនស្គាល់ពីប្រភពនេះទេ។ អ្នកអាច​ប្ដូរវាបាន​នៅក្នុងការ​កំណត់។"</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"ទូរសព្ទ និងទិន្នន័យផ្ទាល់ខ្លួនរបស់អ្នកងាយនឹងរងគ្រោះពីការវាយប្រហារពីកម្មវិធីដែលមិនស្គាល់។ ប្រសិនបើដំឡើងកម្មវិធីនេះ មានន័យថាអ្នកទទួលខុសត្រូវលើការខូចខាតទាំងឡាយចំពោះទូរសព្ទ ឬការបាត់បង់ទិន្នន័យរបស់អ្នក ដែលអាចបណ្ដាលមកពីការប្រើប្រាស់កម្មវិធីនេះ។"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"ថេប្លេត និងទិន្នន័យផ្ទាល់ខ្លួនរបស់អ្នកងាយនឹងរងគ្រោះពីការវាយប្រហារពីកម្មវិធីដែលមិនស្គាល់។ ប្រសិនបើដំឡើងកម្មវិធីនេះ មានន័យថាអ្នកទទួលខុសត្រូវលើការខូចខាតទាំងឡាយចំពោះថេប្លេត ឬការបាត់បង់ទិន្នន័យរបស់អ្នក ដែលអាចបណ្ដាលមកពីការប្រើប្រាស់កម្មវិធីនេះ។"</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"ទូរទស្សន៍ និងទិន្នន័យផ្ទាល់ខ្លួនរបស់អ្នកងាយនឹងរងគ្រោះពីការវាយប្រហារពីកម្មវិធីដែលមិនស្គាល់។ ប្រសិនបើដំឡើងកម្មវិធីនេះ មានន័យថាអ្នកទទួលខុសត្រូវលើការខូចខាតទាំងឡាយចំពោះទូរទស្សន៍ ឬការបាត់បង់ទិន្នន័យរបស់អ្នក ដែលអាចបណ្ដាលមកពីការប្រើប្រាស់កម្មវិធីនេះ។"</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"កម្មវិធីនេះត្រូវបានទប់ស្កាត់មិនឱ្យដំឡើង"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"កម្មវិធីនេះជាន់គ្នាជាមួយកម្មវិធីដែលមានស្រាប់ហើយនៅលើឧបករណ៍របស់អ្នក"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"កម្មវិធីនេះមិនត្រូវគ្នានឹងឧបករណ៍របស់អ្នកទេ"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"មានបញ្ហាជាមួយឯកសារដំឡើងរបស់កម្មវិធីនេះ"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"ដើម្បីដំឡើងកម្មវិធីនេះ សូមបង្កើន​ទំហំផ្ទុកទំនេរខ្លះ រួចព្យាយាមម្ដងទៀត"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"មានបញ្ហាជាមួយឯកសារកម្មវិធី"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ការដំឡើងកម្មវិធីត្រូវបានដាក់កំហិត"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"ការដំឡើងកម្មវិធីដែលមិនស្គាល់ត្រូវបានដាក់កំហិត"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"មានការក្លូននៃកម្មវិធីនេះ ហើយនឹងត្រូវបានលុបផងដែរ"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"កម្មវិធីនេះគឺជាកម្មវិធីក្លូននៃ <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"កម្មវិធីនេះនឹងត្រូវបានជំនួសដោយកំណែចេញពីរោងចក្រ។ ទិន្នន័យកម្មវិធីទាំងអស់នឹងត្រូវបានលុប។"</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"កម្មវិធីនេះនឹងត្រូវបានជំនួសដោយកំណែចេញពីរោងចក្រសម្រាប់អ្នកប្រើប្រាស់ទាំងអស់នៅលើឧបករណ៍។ ទិន្នន័យកម្មវិធីទាំងអស់នឹងត្រូវបានលុប។"</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"កម្មវិធីនេះនឹងត្រូវបានលុបចេញពីកម្រងព័ត៌មានការងាររបស់អ្នក"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"កម្មវិធីនេះនឹងត្រូវបានលុបចេញពីលំហឯកជនរបស់អ្នក"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"រកមិនឃើញកម្មវិធីនេះនៅក្នុងបញ្ជីកម្មវិធីដែលបានដំឡើងទេ ឬកម្មវិធីនេះត្រូវបានលុបរួចហើយ"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"មិនអនុញ្ញាតឱ្យអ្នកប្រើប្រាស់បច្ចុប្បន្ន​ធ្វើការលុបនេះទេ"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"មិនអាចលុបកម្មវិធីនេះបានទេ"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"រក្សាទិន្នន័យកម្មវិធី"</string>
+    <string name="message_archive" msgid="943853731737315850">"ទិន្នន័យកម្មវិធីរបស់អ្នកនឹងត្រូវបានរក្សាទុក"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"ទិន្នន័យកម្មវិធីទាំងអស់នឹងត្រូវបានរក្សាទុក"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ទិន្នន័យកម្មវិធីនឹងត្រូវបានរក្សាទុក"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"កម្មវិធីនេះនឹងត្រូវបានទុក​ក្នុង​បណ្ណសារពីកម្រងព័ត៌មានការងាររបស់អ្នក។ ទិន្នន័យកម្មវិធីរបស់អ្នកនឹងត្រូវបានរក្សាទុក។"</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"កម្មវិធីនេះនឹងត្រូវបានទុក​ក្នុង​បណ្ណសារពីលំហឯកជនរបស់អ្នក។ ទិន្នន័យកម្មវិធីរបស់អ្នកនឹងត្រូវបានរក្សាទុក។"</string>
+    <string name="message_restore" msgid="8402726798623569969">"កម្មវិធីនេះនឹងទាញយកចេញពី <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> នៅផ្ទៃខាងក្រោយ"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ត្រូវការព័ត៌មានបន្ថែម មុនពេលអ្នកអាចស្ដារកម្មវិធីនេះ"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"ដើម្បីស្ដារកម្មវិធីនេះ សូមបង្កើនទំហំផ្ទុក &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; រួចព្យាយាមម្ដងទៀត"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"ដើម្បីស្ដារកម្មវិធីនេះ សូមពិនិត្យមើលការតភ្ជាប់អ៊ីនធឺណិតរបស់អ្នក រួចព្យាយាមម្ដងទៀត"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"ដើម្បីស្ដារកម្មវិធីនេះ សូមបើក <xliff:g id="INSTALLERNAME">%1$s</xliff:g> នៅក្នុងការកំណត់"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"ដើម្បីស្ដារកម្មវិធីនេះ អ្នកនឹងត្រូវដំឡើង <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"មានបញ្ហាក្នុងការព្យាយាមស្ដារកម្មវិធីនេះ"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> គឺជាផ្នែកមួយនៃកម្មវិធីខាងក្រោម៖ <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;កម្មវិធីនេះត្រូវបានទប់ស្កាត់។ ដើម្បីជួយរក្សាសុវត្ថិភាពឧបករណ៍ និងទិន្នន័យរបស់អ្នក មានតែកម្មវិធីពីអ្នក​អភិវឌ្ឍន៍ដែលបានផ្ទៀងផ្ទាត់ប៉ុណ្ណោះ ទើបអាចដំឡើងបាន។&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;កម្មវិធីនេះមិនត្រូវបានដំឡើងកំណែទេ។ ដើម្បីជួយរក្សាសុវត្ថិភាពឧបករណ៍ និងទិន្នន័យរបស់អ្នក មានតែកំណែថ្មីៗពីអ្នក​អភិវឌ្ឍន៍ដែលបានផ្ទៀងផ្ទាត់ប៉ុណ្ណោះ ទើបអាចដំឡើងបាន។&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;កម្មវិធីនេះមិនត្រូវបានដំឡើងទេ។ កម្មវិធីពីអ្នកអភិវឌ្ឍន៍ដែលមិនបានផ្ទៀងផ្ទាត់អាចមិនមានសុវត្ថិភាព។&lt;/p&gt; &lt;p&gt;តម្រូវឱ្យមានការតភ្ជាប់អ៊ីនធឺណិត ដើម្បីផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍កម្មវិធី។ ពិនិត្យមើល​ការតភ្ជាប់​របស់អ្នក រួចព្យាយាម​ដំឡើងម្ដងទៀត។ &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;កម្មវិធីនេះមិនត្រូវបានដំឡើងកំណែទេ។ កំណែថ្មីៗពីអ្នកអភិវឌ្ឍន៍ដែលមិនបានផ្ទៀងផ្ទាត់អាចមិនមានសុវត្ថិភាព។&lt;/p&gt; &lt;p&gt;តម្រូវឱ្យមានការតភ្ជាប់អ៊ីនធឺណិត ដើម្បីផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍កម្មវិធី។ ពិនិត្យមើល​ការតភ្ជាប់​របស់អ្នក រួចព្យាយាម​ដំឡើងកំណែម្ដងទៀត។ &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;មានបញ្ហាក្នុងការផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍កម្មវិធីនេះ។ កម្មវិធីពីអ្នក​អភិវឌ្ឍន៍ដែលមិនបានផ្ទៀងផ្ទាត់អាចមិនមានសុវត្ថិភាព ដូច្នេះកម្មវិធីមិនត្រូវបានដំឡើងទេ។&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;មានបញ្ហាក្នុងការផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍កម្មវិធីនេះ។ កំណែថ្មីៗពីអ្នកអភិវឌ្ឍន៍ដែលមិនបានផ្ទៀងផ្ទាត់អាចមិនមានសុវត្ថិភាព ដូច្នេះកម្មវិធីមិនត្រូវបានដំឡើងកំណែទេ។&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;កម្មវិធីនេះត្រូវបានទប់ស្កាត់ ដោយសារមានបញ្ហាក្នុងការផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍។ ដើម្បីជួយរក្សាសុវត្ថិភាពឧបករណ៍ និងទិន្នន័យរបស់អ្នក មានតែកម្មវិធីពីអ្នក​អភិវឌ្ឍន៍ដែលបានផ្ទៀងផ្ទាត់ប៉ុណ្ណោះ ទើបអាចដំឡើងបាន។&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;កម្មវិធីនេះមិនត្រូវបានដំឡើងកំណែទេ ដោយសារមានបញ្ហាក្នុងការផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍។ ដើម្បីជួយរក្សាសុវត្ថិភាពឧបករណ៍ និងទិន្នន័យរបស់អ្នក មានតែកំណែថ្មីៗពីអ្នក​អភិវឌ្ឍន៍ដែលបានផ្ទៀងផ្ទាត់ប៉ុណ្ណោះ ទើបអាចដំឡើងបាន។&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ស្វែងយល់បន្ថែមអំពីការផ្ទៀងផ្ទាត់អ្នកអភិវឌ្ឍន៍&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"ប្រសិនបើអ្នកដំឡើងដោយមិនផ្ទៀងផ្ទាត់ សូមចងចាំថាកម្មវិធីពីអ្នកអភិវឌ្ឍន៍ដែលមិនបានផ្ទៀងផ្ទាត់អាចធ្វើឱ្យឧបករណ៍ និងទិន្នន័យរបស់អ្នកប្រឈមនឹងហានិភ័យ។"</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"ប្រសិនបើអ្នកដំឡើងកំណែដោយមិនផ្ទៀងផ្ទាត់ សូមចងចាំថាកំណែថ្មីៗពីអ្នកអភិវឌ្ឍន៍ដែលមិនបានផ្ទៀងផ្ទាត់អាចធ្វើឱ្យឧបករណ៍ និងទិន្នន័យរបស់អ្នកប្រឈមនឹងហានិភ័យ។"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"មិនបានផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍កម្មវិធីទេ"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"គ្មានអ៊ីនធឺណិត មិនអាចផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍កម្មវិធីបានទេ"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"មិនអាចផ្ទៀងផ្ទាត់អ្នក​អភិវឌ្ឍន៍កម្មវិធីបានទេ"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"ដំឡើងដោយមិនផ្ទៀងផ្ទាត់"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"ដំឡើងកំណែដោយមិនផ្ទៀងផ្ទាត់"</string>
+    <string name="button_install" msgid="7434013176505680162">"ដំឡើង"</string>
+    <string name="button_update" msgid="3046719350226327526">"ដំឡើងកំណែ"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"មិនអីទេ ដំឡើង​កំណែ​ចុះ"</string>
+    <string name="button_done" msgid="3408025390982260629">"រួចរាល់"</string>
+    <string name="button_open" msgid="6892684987374117955">"បើក"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"បោះបង់"</string>
+    <string name="button_continue" msgid="107501685249826244">"បន្ត"</string>
+    <string name="button_close" msgid="7187308556466275899">"បិទ"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"លុប"</string>
+    <string name="button_delete" msgid="1050833585936159792">"លុប"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"ដំឡើង​ឡើង​វិញ"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"គ្រប់គ្រង​កម្មវិធី"</string>
+    <string name="button_archive" msgid="2719647830439699121">"ទុក​ក្នុង​បណ្ណសារ"</string>
+    <string name="button_restore" msgid="4388317532933866637">"ស្ដារ"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"លុប​កំណែថ្មី"</string>
+    <string name="button_settings" msgid="3837571366246132287">"ការកំណត់"</string>
+    <string name="button_retry" msgid="6736082260813816198">"ព្យាយាមម្ដងទៀត"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"ក្លូន <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+</resources>

@@ -26,6 +26,7 @@ import android.content.res.TypedArray;
 import android.graphics.drawable.Drawable;
 import android.graphics.text.LineBreakConfig;
 import android.os.Build;
+import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -38,12 +39,19 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentActivity;
+import androidx.fragment.app.FragmentManager;
 
+import com.android.settingslib.collapsingtoolbar.widget.ScrollableToolbarItemLayout;
 import com.android.settingslib.widget.SettingsThemeHelper;
 
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.floatingtoolbar.FloatingToolbarLayout;
+
+import java.util.List;
 
 /**
  * A delegate that allows to use the collapsing toolbar layout in hosts that doesn't want/need to
@@ -83,6 +91,10 @@ public class CollapsingToolbarDelegate {
     @NonNull
     private Toolbar mToolbar;
     @Nullable
+    private MaterialButton mPrimaryButton;
+    @Nullable
+    private MaterialButton mSecondaryButton;
+    @Nullable
     private MaterialButton mActionButton;
     @NonNull
     private FrameLayout mContentFrameLayout;
@@ -92,6 +104,8 @@ public class CollapsingToolbarDelegate {
     private boolean mUseCollapsingToolbar;
 
     private boolean mIsExpressiveTheme;
+
+    private FloatingToolbarLayout mFloatingToolbarLayout;
 
     public CollapsingToolbarDelegate(@NonNull HostCallback hostCallback) {
         this(hostCallback, /* useCollapsingToolbar= */ true);
@@ -119,9 +133,15 @@ public class CollapsingToolbarDelegate {
         Context context = (activity != null) ? activity : inflater.getContext();
         mIsExpressiveTheme = SettingsThemeHelper.isExpressiveTheme(context);
         if (useCollapsingToolbar) {
-            layoutId = mIsExpressiveTheme
-                    ? R.layout.settingslib_expressive_collapsing_toolbar_base_layout
-                    : R.layout.collapsing_toolbar_base_layout;
+            if (mIsExpressiveTheme) {
+                if (activity instanceof AppCompatActivity) {
+                    layoutId = R.layout.settingslib_expressive_collapsing_toolbar_appcompat_layout;
+                } else {
+                    layoutId = R.layout.settingslib_expressive_collapsing_toolbar_base_layout;
+                }
+            } else {
+                layoutId = R.layout.collapsing_toolbar_base_layout;
+            }
         } else {
             layoutId = R.layout.non_collapsing_toolbar_base_layout;
         }
@@ -144,21 +164,9 @@ public class CollapsingToolbarDelegate {
             mAppBarLayout.setBackground(background);
         }
 
-        if (mCollapsingToolbarLayout != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            mCollapsingToolbarLayout.setLineSpacingMultiplier(TOOLBAR_LINE_SPACING_MULTIPLIER);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                mCollapsingToolbarLayout.setHyphenationFrequency(HYPHENATION_FREQUENCY_NORMAL_FAST);
-                mCollapsingToolbarLayout.setStaticLayoutBuilderConfigurer(builder ->
-                        builder.setLineBreakConfig(
-                                new LineBreakConfig.Builder()
-                                        .setLineBreakWordStyle(
-                                                LineBreakConfig.LINE_BREAK_WORD_STYLE_PHRASE)
-                                        .build()));
-            }
-        }
-        autoSetCollapsingToolbarLayoutScrolling();
+        initCollapsingToolbar(mCollapsingToolbarLayout, mAppBarLayout);
         mContentFrameLayout = view.findViewById(R.id.content_frame);
-        mActionButton = view.findViewById(R.id.action_button);
+
         if (activity instanceof AppCompatActivity) {
             Log.d(TAG, "onCreateView: from AppCompatActivity and sub-class.");
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -180,80 +188,60 @@ public class CollapsingToolbarDelegate {
                 actionBar.setDisplayShowTitleEnabled(true);
             }
         }
+
+        initToolbarPrimaryButton(view.findViewById(R.id.primary_button));
+        initToolbarSecondaryButton(view.findViewById(R.id.secondary_button));
+        initToolbarActionButton(view.findViewById(R.id.action_button));
+
+        initFloatingToolbar(context, view.findViewById(R.id.floating_toolbar));
         return view;
     }
 
-    private void initSupportActionBar(@NonNull LayoutInflater inflater) {
-        if (mCollapsingToolbarLayout == null) {
-            return;
-        }
-        mCollapsingToolbarLayout.removeAllViews();
-        inflater.inflate(R.layout.support_toolbar, mCollapsingToolbarLayout);
-        final androidx.appcompat.widget.Toolbar supportToolbar =
-                mCollapsingToolbarLayout.findViewById(R.id.support_action_bar);
-        final androidx.appcompat.app.ActionBar actionBar =
-                mHostCallback.setActionBar(supportToolbar);
-        if (actionBar != null) {
-            actionBar.setDisplayHomeAsUpEnabled(true);
-            actionBar.setHomeButtonEnabled(true);
-            if (mIsExpressiveTheme) {
-                actionBar.setHomeAsUpIndicator(R.drawable.settingslib_expressive_icon_back);
+    /**
+     * Initialize the collapsing toolbar layout.
+     * @param collapsingToolbarLayout
+     * @param appBarLayout
+     */
+    public void initCollapsingToolbar(CollapsingToolbarLayout collapsingToolbarLayout,
+            AppBarLayout appBarLayout) {
+        if (collapsingToolbarLayout != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            collapsingToolbarLayout.setLineSpacingMultiplier(TOOLBAR_LINE_SPACING_MULTIPLIER);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                collapsingToolbarLayout.setHyphenationFrequency(HYPHENATION_FREQUENCY_NORMAL_FAST);
+                collapsingToolbarLayout.setStaticLayoutBuilderConfigurer(builder ->
+                        builder.setLineBreakConfig(
+                                new LineBreakConfig.Builder()
+                                        .setLineBreakWordStyle(
+                                                LineBreakConfig.LINE_BREAK_WORD_STYLE_PHRASE)
+                                        .build()));
             }
-            actionBar.setDisplayShowTitleEnabled(true);
         }
+        autoSetCollapsingToolbarLayoutScrolling(appBarLayout);
     }
 
-    private void initRSupportActionBar(View view) {
-        view.findViewById(R.id.action_bar).setVisibility(View.GONE);
-        final androidx.appcompat.widget.Toolbar supportToolbar =
-                view.findViewById(R.id.support_action_bar);
-        supportToolbar.setVisibility(View.VISIBLE);
-        final androidx.appcompat.app.ActionBar actionBar =
-                mHostCallback.setActionBar(supportToolbar);
-        if (actionBar != null) {
-            actionBar.setDisplayHomeAsUpEnabled(true);
-            actionBar.setHomeButtonEnabled(true);
-            if (mIsExpressiveTheme) {
-                actionBar.setHomeAsUpIndicator(R.drawable.settingslib_expressive_icon_back);
-            }
-            actionBar.setDisplayShowTitleEnabled(true);
-        }
+    /** Initialize toolbar's primary button. */
+    public void initToolbarPrimaryButton(MaterialButton primaryButton) {
+        mPrimaryButton = primaryButton;
+    }
+
+    /** Initialize toolbar's secondary button. */
+    public void initToolbarSecondaryButton(MaterialButton secondaryButton) {
+        mSecondaryButton = secondaryButton;
+    }
+
+    /** Initialize toolbar's action button. */
+    public void initToolbarActionButton(MaterialButton actionButton) {
+        mActionButton = actionButton;
     }
 
     /**
-     * Show/Hide the action button on the Toolbar.
-     * @param enabled true to show the button, otherwise it's hidden.
+     * Initialize the floating toolbar.
+     * @param context
+     * @param floatingToolbarLayout
      */
-    public void setActionButtonEnabled(boolean enabled) {
-        if (mActionButton == null) {
-            return;
-        }
-        int visibility = enabled ? View.VISIBLE : View.GONE;
-        mActionButton.setVisibility(visibility);
-    }
-
-    /** Set the icon to the action button */
-    public void setActionButtonIcon(@NonNull Context context, @DrawableRes int drawableRes) {
-        if (mActionButton == null) {
-            return;
-        }
-        mActionButton.setIcon(context.getResources().getDrawable(drawableRes, context.getTheme()));
-    }
-
-    /** Set the text to the action button */
-    public void setActionButtonText(@Nullable CharSequence text) {
-        if (mActionButton == null) {
-            return;
-        }
-        mActionButton.setText(text);
-    }
-
-    /** Set the OnClick listener to the action button */
-    public void setActionButtonOnClickListener(@Nullable View.OnClickListener listener) {
-        if (mActionButton == null) {
-            return;
-        }
-        mActionButton.setOnClickListener(listener);
+    public void initFloatingToolbar(@NonNull Context context,
+            @NonNull FloatingToolbarLayout floatingToolbarLayout) {
+        mFloatingToolbarLayout = floatingToolbarLayout;
     }
 
     /** Return an instance of CoordinatorLayout. */
@@ -292,19 +280,289 @@ public class CollapsingToolbarDelegate {
         return mAppBarLayout;
     }
 
-    private void autoSetCollapsingToolbarLayoutScrolling() {
-        if (mAppBarLayout == null) {
+    /**
+     * Sets the visibility of the floating toolbar.
+     * @param visible
+     */
+    public void setFloatingToolbarVisibility(boolean visible) {
+        if (mFloatingToolbarLayout == null) {
+            return;
+        }
+        mFloatingToolbarLayout.setVisibility(visible ? View.VISIBLE : View.GONE);
+    }
+
+    /**
+     * Sets the toolbar items  for the floating toolbar.
+     * @param itemList
+     */
+    public void setToolbarItems(List<ScrollableToolbarItemLayout.ToolbarItem> itemList) {
+        if (mFloatingToolbarLayout == null) {
+            return;
+        }
+
+        ScrollableToolbarItemLayout layout = mFloatingToolbarLayout.findViewById(
+                R.id.floating_toolbar_items);
+        if (layout == null) {
+            return;
+        }
+
+        layout.onItemSelected(itemList);
+    }
+
+    private @Nullable ScrollableToolbarItemLayout getToolbarItemsLayout() {
+        if (mFloatingToolbarLayout == null) {
+            return null;
+        }
+        return mFloatingToolbarLayout.findViewById(R.id.floating_toolbar_items);
+    }
+
+    /**
+     * Sets the item selected listener for the floating toolbar.
+     */
+    public void setOnItemSelectedListener(
+            ScrollableToolbarItemLayout.OnItemSelectedListener listener) {
+        var layout = getToolbarItemsLayout();
+        if (layout != null) {
+            layout.setOnItemSelectedListener(listener);
+        }
+    }
+
+    /**
+     * Removes the item selected listener for the floating toolbar.
+     */
+    public void removeOnItemSelectedListener() {
+        var layout = getToolbarItemsLayout();
+        if (layout != null) {
+            layout.removeOnItemSelectedListener();
+        }
+    }
+
+    /**
+     * Sets the selected toolbar item by its zero-based index.
+     */
+    public void setSelectedItem(int position) {
+        var layout = getToolbarItemsLayout();
+        if (layout != null) {
+            layout.setSelectedItem(position);
+        }
+    }
+
+    private void initSupportActionBar(@NonNull LayoutInflater inflater) {
+        if (mCollapsingToolbarLayout == null) {
+            return;
+        }
+
+        if (!SettingsThemeHelper.isExpressiveTheme(inflater.getContext())) {
+            mCollapsingToolbarLayout.removeAllViews();
+            inflater.inflate(R.layout.support_toolbar, mCollapsingToolbarLayout);
+        }
+
+        final androidx.appcompat.widget.Toolbar supportToolbar =
+                mCollapsingToolbarLayout.findViewById(R.id.support_action_bar);
+        final androidx.appcompat.app.ActionBar actionBar =
+                mHostCallback.setActionBar(supportToolbar);
+        if (actionBar != null) {
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setHomeButtonEnabled(true);
+            if (mIsExpressiveTheme) {
+                actionBar.setHomeAsUpIndicator(R.drawable.settingslib_expressive_icon_back);
+            }
+            actionBar.setDisplayShowTitleEnabled(true);
+        }
+    }
+
+    private void initRSupportActionBar(View view) {
+        view.findViewById(R.id.action_bar).setVisibility(View.GONE);
+        final androidx.appcompat.widget.Toolbar supportToolbar =
+                view.findViewById(R.id.support_action_bar);
+        supportToolbar.setVisibility(View.VISIBLE);
+        final androidx.appcompat.app.ActionBar actionBar =
+                mHostCallback.setActionBar(supportToolbar);
+        if (actionBar != null) {
+            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setHomeButtonEnabled(true);
+            if (mIsExpressiveTheme) {
+                actionBar.setHomeAsUpIndicator(R.drawable.settingslib_expressive_icon_back);
+            }
+            actionBar.setDisplayShowTitleEnabled(true);
+        }
+    }
+
+    /**
+     * Show/Hide the primary button on the Toolbar.
+     * @param enabled true to show the button, otherwise it's hidden.
+     */
+    public void setPrimaryButtonEnabled(boolean enabled) {
+        if (mPrimaryButton == null) {
+            return;
+        }
+        int visibility = enabled ? View.VISIBLE : View.GONE;
+        mPrimaryButton.setVisibility(visibility);
+    }
+
+    /** Set the icon to the primary button */
+    public void setPrimaryButtonIcon(@NonNull Context context, @DrawableRes int drawableRes) {
+        if (mPrimaryButton == null) {
+            return;
+        }
+        mPrimaryButton.setIcon(
+                context.getResources().getDrawable(drawableRes, context.getTheme()));
+    }
+
+    /** Set the OnClick listener to the primary button */
+    public void setPrimaryButtonOnClickListener(@Nullable View.OnClickListener listener) {
+        if (mPrimaryButton == null) {
+            return;
+        }
+        mPrimaryButton.setOnClickListener(listener);
+    }
+
+    /** Set the content description to the primary button */
+    public void setPrimaryButtonContentDescription(@Nullable CharSequence contentDescription) {
+        if (mPrimaryButton == null) {
+            return;
+        }
+        mPrimaryButton.setContentDescription(contentDescription);
+    }
+
+    /**
+     * Show/Hide the secondary button on the Toolbar.
+     * @param enabled true to show the button, otherwise it's hidden.
+     */
+    public void setSecondaryButtonEnabled(boolean enabled) {
+        if (mSecondaryButton == null) {
+            return;
+        }
+        int visibility = enabled ? View.VISIBLE : View.GONE;
+        mSecondaryButton.setVisibility(visibility);
+    }
+
+    /** Set the icon to the secondary button */
+    public void setSecondaryButtonIcon(@NonNull Context context, @DrawableRes int drawableRes) {
+        if (mSecondaryButton == null) {
+            return;
+        }
+        mSecondaryButton.setIcon(
+                context.getResources().getDrawable(drawableRes, context.getTheme()));
+    }
+
+    /** Set the OnClick listener to the secondary button */
+    public void setSecondaryButtonOnClickListener(@Nullable View.OnClickListener listener) {
+        if (mSecondaryButton == null) {
+            return;
+        }
+        mSecondaryButton.setOnClickListener(listener);
+    }
+
+    /** Set the content description to the secondary button */
+    public void setSecondaryButtonContentDescription(@Nullable CharSequence contentDescription) {
+        if (mSecondaryButton == null) {
+            return;
+        }
+        mSecondaryButton.setContentDescription(contentDescription);
+    }
+
+    /**
+     * Show/Hide the action button on the Toolbar.
+     * @param enabled true to show the button, otherwise it's hidden.
+     */
+    public void setActionButtonEnabled(boolean enabled) {
+        if (mActionButton == null) {
+            return;
+        }
+        int visibility = enabled ? View.VISIBLE : View.GONE;
+        mActionButton.setVisibility(visibility);
+    }
+
+    /**
+     * Enable/Disable the action button on the Toolbar (being clickable or not).
+     * @param clickable true to enable the button, otherwise it's disabled.
+     */
+    public void setActionButtonClickable(boolean clickable) {
+        if (mActionButton == null) {
+            return;
+        }
+        mActionButton.setEnabled(clickable);
+    }
+
+    /** Set the icon to the action button */
+    public void setActionButtonIcon(@NonNull Context context, @DrawableRes int drawableRes) {
+        if (mActionButton == null) {
+            return;
+        }
+        mActionButton.setIcon(context.getResources().getDrawable(drawableRes, context.getTheme()));
+    }
+
+    /** Set the text to the action button */
+    public void setActionButtonText(@Nullable CharSequence text) {
+        if (mActionButton == null) {
+            return;
+        }
+        mActionButton.setText(text);
+    }
+
+    /** Set the OnClick listener to the action button */
+    public void setActionButtonOnClickListener(@Nullable View.OnClickListener listener) {
+        if (mActionButton == null) {
+            return;
+        }
+        mActionButton.setOnClickListener(listener);
+    }
+
+    /** Set the content description to the action button */
+    public void setActionButtonContentDescription(@Nullable CharSequence contentDescription) {
+        if (mActionButton == null) {
+            return;
+        }
+        mActionButton.setContentDescription(contentDescription);
+    }
+
+    /**
+     * Set the state of CollapsingToolbar to collapsed when multiple fragments share a single
+     * FragmentManager within an activity.
+     */
+    public void registerToolbarCollapseBehavior(@NonNull Activity activity) {
+        if (!(activity instanceof FragmentActivity)) {
+            return;
+        }
+        FragmentManager fragmentManager = ((FragmentActivity) activity).getSupportFragmentManager();
+        fragmentManager.registerFragmentLifecycleCallbacks(
+            new FragmentManager.FragmentLifecycleCallbacks() {
+                @Override
+                public void onFragmentViewCreated(@NonNull FragmentManager fm, @NonNull Fragment f,
+                        @NonNull View v, @Nullable Bundle savedInstanceState) {
+                    super.onFragmentViewCreated(fm, f, v, savedInstanceState);
+                    if (!SettingsThemeHelper.isExpressiveTheme(activity)) {
+                        return;
+                    }
+                    // Check if multiple fragments use the same activity
+                    if (fm.getBackStackEntryCount() > 0) {
+                        AppBarLayout appBarLayout = getAppBarLayout();
+                        if (appBarLayout != null) {
+                            appBarLayout.post(() -> appBarLayout.setExpanded(false, true));
+                        } else {
+                            Log.e(TAG, "AppBarLayout is null, can't collapse toolbar.");
+                        }
+                    }
+                }
+            }, false);
+    }
+
+    private void autoSetCollapsingToolbarLayoutScrolling(AppBarLayout appBarLayout) {
+        if (appBarLayout == null) {
             return;
         }
         final CoordinatorLayout.LayoutParams params =
-                (CoordinatorLayout.LayoutParams) mAppBarLayout.getLayoutParams();
+                (CoordinatorLayout.LayoutParams) appBarLayout.getLayoutParams();
         final AppBarLayout.Behavior behavior = new AppBarLayout.Behavior();
         behavior.setDragCallback(
                 new AppBarLayout.Behavior.DragCallback() {
                     @Override
                     public boolean canDrag(@NonNull AppBarLayout appBarLayout) {
                         // Header can be scrolling while device in landscape mode and SDK > 33
-                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.TIRAMISU) {
+                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.TIRAMISU
+                                || SettingsThemeHelper.isExpressiveTheme(
+                                appBarLayout.getContext())) {
                             return false;
                         } else {
                             return appBarLayout.getResources().getConfiguration().orientation

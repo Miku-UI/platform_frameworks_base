@@ -22,7 +22,7 @@ import android.os.Parcelable;
 
 /**
  * State (oom score) for processes known to activity manager.
- * {@hide}
+ * @hide
  */
 public final class ProcessMemoryState implements Parcelable {
     /**

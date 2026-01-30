@@ -33,6 +33,7 @@ import static androidx.constraintlayout.widget.ConstraintSet.TOP;
 import static androidx.constraintlayout.widget.ConstraintSet.WRAP_CONTENT;
 
 import static com.android.systemui.Flags.bouncerUiRevamp2;
+import static com.android.systemui.Flags.disableDoubleClickSwapOnBouncer;
 import static com.android.systemui.plugins.FalsingManager.LOW_PENALTY;
 
 import static java.lang.Integer.max;
@@ -98,8 +99,11 @@ import com.android.internal.widget.LockPatternUtils;
 import com.android.keyguard.KeyguardSecurityModel.SecurityMode;
 import com.android.settingslib.Utils;
 import com.android.settingslib.drawable.CircleFramedDrawable;
+import com.android.systemui.Flags;
 import com.android.systemui.FontStyles;
 import com.android.systemui.Gefingerpoken;
+import com.android.systemui.bouncer.domain.interactor.BouncerInteractor;
+import com.android.systemui.bouncer.ui.BouncerColors;
 import com.android.systemui.classifier.FalsingA11yDelegate;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.res.R;
@@ -178,6 +182,7 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
     private boolean mIsInteractable;
     protected ViewMediatorCallback mViewMediatorCallback;
     private Executor mBgExecutor;
+    private BouncerInteractor mBouncerInteractor;
     /*
      * Using MODE_UNINITIALIZED to mean the view mode is set to DefaultViewMode, but init() has not
      * yet been called on it. This will happen when the ViewController is initialized.
@@ -365,7 +370,8 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
     void initMode(@Mode int mode, GlobalSettings globalSettings, FalsingManager falsingManager,
             UserSwitcherController userSwitcherController,
             UserSwitcherViewMode.UserSwitcherCallback userSwitcherCallback,
-            FalsingA11yDelegate falsingA11yDelegate) {
+            FalsingA11yDelegate falsingA11yDelegate,
+            BouncerInteractor bouncerInteractor) {
         if (mCurrentMode == mode) return;
         Log.i(TAG, "Switching mode from " + modeToString(mCurrentMode) + " to "
                 + modeToString(mode));
@@ -386,6 +392,8 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
         mFalsingManager = falsingManager;
         mFalsingA11yDelegate = falsingA11yDelegate;
         mUserSwitcherController = userSwitcherController;
+        mBouncerInteractor = bouncerInteractor;
+
         setupViewMode();
     }
 
@@ -411,7 +419,7 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
         }
 
         mViewMode.init(this, mGlobalSettings, mSecurityViewFlipper, mFalsingManager,
-                mUserSwitcherController, mFalsingA11yDelegate);
+                mUserSwitcherController, mFalsingA11yDelegate, mBouncerInteractor);
     }
 
     @Mode int getMode() {
@@ -853,8 +861,13 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
         if (mTransparentModeEnabled) {
             setBackgroundColor(Color.TRANSPARENT);
         } else {
-            setBackgroundColor(
-                    getContext().getColor(com.android.internal.R.color.materialColorSurfaceDim));
+            if (Flags.bouncerUiRevamp2()) {
+                setBackgroundColor(BouncerColors.surfaceColor(mContext, false));
+            } else {
+                setBackgroundColor(
+                        getContext().getColor(
+                                com.android.internal.R.color.materialColorSurfaceDim));
+            }
         }
         invalidate();
     }
@@ -894,7 +907,8 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                 @NonNull KeyguardSecurityViewFlipper viewFlipper,
                 @NonNull FalsingManager falsingManager,
                 @NonNull UserSwitcherController userSwitcherController,
-                @NonNull FalsingA11yDelegate falsingA11yDelegate) {};
+                @NonNull FalsingA11yDelegate falsingA11yDelegate,
+                @NonNull BouncerInteractor bouncerInteractor) {};
 
         /** Reinitialize the location */
         default void updateSecurityViewLocation() {};
@@ -933,15 +947,21 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
         private ConstraintLayout mView;
         private GlobalSettings mGlobalSettings;
         private int mDefaultSideSetting;
+        private boolean mDisableDoubleClickSwap;
+        private BouncerInteractor mBouncerInteractor;
 
         public void init(ConstraintLayout v, KeyguardSecurityViewFlipper viewFlipper,
-                GlobalSettings globalSettings, boolean leftAlignedByDefault) {
+                GlobalSettings globalSettings, boolean leftAlignedByDefault,
+                BouncerInteractor bouncerInteractor) {
             mView = v;
             mViewFlipper = viewFlipper;
             mGlobalSettings = globalSettings;
             mDefaultSideSetting =
                     leftAlignedByDefault ? Settings.Global.ONE_HANDED_KEYGUARD_SIDE_LEFT
                             : Settings.Global.ONE_HANDED_KEYGUARD_SIDE_RIGHT;
+            mBouncerInteractor = bouncerInteractor;
+            mDisableDoubleClickSwap = disableDoubleClickSwapOnBouncer()
+                    && mBouncerInteractor.isImproveLargeScreenInteractionEnabled();
         }
 
         /**
@@ -950,6 +970,9 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
          */
         @Override
         public void handleDoubleTap(MotionEvent event) {
+            if (mDisableDoubleClickSwap) {
+                return;
+            }
             boolean currentlyLeftAligned = isLeftAligned();
             // Did the tap hit the "other" side of the bouncer?
             if (isTouchOnTheOtherSideOfSecurity(event, currentlyLeftAligned)) {
@@ -1003,7 +1026,8 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                 @NonNull KeyguardSecurityViewFlipper viewFlipper,
                 @NonNull FalsingManager falsingManager,
                 @NonNull UserSwitcherController userSwitcherController,
-                @NonNull FalsingA11yDelegate falsingA11yDelegate) {
+                @NonNull FalsingA11yDelegate falsingA11yDelegate,
+                @NonNull BouncerInteractor bouncerInteractor) {
             mView = v;
             mViewFlipper = viewFlipper;
 
@@ -1062,8 +1086,10 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                 @NonNull KeyguardSecurityViewFlipper viewFlipper,
                 @NonNull FalsingManager falsingManager,
                 @NonNull UserSwitcherController userSwitcherController,
-                @NonNull FalsingA11yDelegate falsingA11yDelegate) {
-            init(v, viewFlipper, globalSettings, /* leftAlignedByDefault= */false);
+                @NonNull FalsingA11yDelegate falsingA11yDelegate,
+                @NonNull BouncerInteractor bouncerInteractor) {
+            init(v, viewFlipper, globalSettings, /* leftAlignedByDefault= */false,
+                    bouncerInteractor);
             mView = v;
             mViewFlipper = viewFlipper;
             mFalsingManager = falsingManager;
@@ -1407,8 +1433,10 @@ public class KeyguardSecurityContainer extends ConstraintLayout {
                 @NonNull KeyguardSecurityViewFlipper viewFlipper,
                 @NonNull FalsingManager falsingManager,
                 @NonNull UserSwitcherController userSwitcherController,
-                @NonNull FalsingA11yDelegate falsingA11yDelegate) {
-            init(v, viewFlipper, globalSettings, /* leftAlignedByDefault= */true);
+                @NonNull FalsingA11yDelegate falsingA11yDelegate,
+                @NonNull BouncerInteractor bouncerInteractor) {
+            init(v, viewFlipper, globalSettings, /* leftAlignedByDefault= */true,
+                    bouncerInteractor);
             mView = v;
             mViewFlipper = viewFlipper;
 

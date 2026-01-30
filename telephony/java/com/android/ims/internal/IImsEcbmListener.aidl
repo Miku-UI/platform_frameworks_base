@@ -33,7 +33,7 @@ package com.android.ims.internal;
  * A listener type for receiving notifications about the changes to
  * Emergency Callback Mode through IMS.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IImsEcbmListener {
     /**

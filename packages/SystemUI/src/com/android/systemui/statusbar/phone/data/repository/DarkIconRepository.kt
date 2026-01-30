@@ -16,8 +16,9 @@
 package com.android.systemui.statusbar.phone.data.repository
 
 import android.util.Log
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.statusbar.data.repository.SysuiDarkIconDispatcherStore
+import com.android.systemui.display.dagger.ReferenceSysUIDisplaySubcomponent
 import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher.DarkChange
 import dagger.Binds
 import dagger.Module
@@ -33,11 +34,13 @@ interface DarkIconRepository {
 @SysUISingleton
 class DarkIconRepositoryImpl
 @Inject
-constructor(private val darkIconDispatcherStore: SysuiDarkIconDispatcherStore) :
-    DarkIconRepository {
+constructor(
+    private val displaySubComponentRepository:
+        PerDisplayRepository<ReferenceSysUIDisplaySubcomponent>
+) : DarkIconRepository {
     override fun darkState(displayId: Int): StateFlow<DarkChange> {
-        val perDisplayDakIconDispatcher = darkIconDispatcherStore.forDisplay(displayId)
-        if (perDisplayDakIconDispatcher == null) {
+        val displaySubComponent = displaySubComponentRepository[displayId]
+        if (displaySubComponent == null) {
             Log.e(
                 TAG,
                 "DarkIconDispatcher for display $displayId is null. Returning flow of " +
@@ -45,7 +48,8 @@ constructor(private val darkIconDispatcherStore: SysuiDarkIconDispatcherStore) :
             )
             return MutableStateFlow(DarkChange.EMPTY)
         }
-        return perDisplayDakIconDispatcher.darkChangeFlow()
+        val perDisplayDarkIconDispatcher = displaySubComponent.sysuiDarkIconDispatcher
+        return perDisplayDarkIconDispatcher.darkChangeFlow()
     }
 
     private companion object {

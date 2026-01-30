@@ -28,6 +28,7 @@ import java.util.jar.JarInputStream
 import java.util.regex.Pattern
 import org.junit.Assert
 import org.junit.Test
+import perfetto.protos.PerfettoTrace
 
 class EndToEndTest {
 
@@ -47,7 +48,7 @@ class EndToEndTest {
                         }
                     }
                 """.trimIndent()),
-                logGroup = LogGroup("GROUP", true, false, "TAG_GROUP"),
+                logGroup = LogGroup("GROUP", true, false, "TAG_GROUP", 1),
                 commandOptions = CommandOptions(arrayOf("transform-protolog-calls",
                         "--protolog-class", "com.android.internal.protolog.ProtoLog",
                         "--loggroups-class", "com.android.internal.protolog.ProtoLogGroup",
@@ -58,11 +59,11 @@ class EndToEndTest {
         )
         val outSrcJar = assertLoadSrcJar(output, "out.srcjar")
         Truth.assertThat(outSrcJar["frameworks/base/org/example/Example.java"])
-                .containsMatch(Pattern.compile("\\{ String protoLogParam0 = " +
-                        "String\\.valueOf\\(argString\\); long protoLogParam1 = argInt; " +
-                        "com\\.android\\.internal\\.protolog.ProtoLogImpl_.*\\.d\\(" +
-                        "GROUP, -6872339441335321086L, 4, protoLogParam0, protoLogParam1" +
-                        "\\); \\}"))
+                .contains("String protoLogParam0 = String.valueOf(argString);"
+                        + "  long protoLogParam1 = argInt;"
+                        + "  com.android.internal.protolog.ProtoLogImpl_454675969.d("
+                        + "GROUP, -6872339441335321086L, 4, protoLogParam0, protoLogParam1);"
+                        + " }");
     }
 
     @Test
@@ -81,26 +82,27 @@ class EndToEndTest {
                         }
                     }
                 """.trimIndent()),
-                logGroup = LogGroup("GROUP", true, false, "TAG_GROUP"),
+                logGroup = LogGroup("GROUP", true, false, "TAG_GROUP", 1),
                 commandOptions = CommandOptions(arrayOf("generate-viewer-config",
                         "--protolog-class", "com.android.internal.protolog.ProtoLog",
                         "--loggroups-class", "com.android.internal.protolog.ProtoLogGroup",
                         "--loggroups-jar", "not_required.jar",
-                        "--viewer-config-type", "json",
-                        "--viewer-config", "out.json",
+                        "--viewer-config", "out.pb",
                         "frameworks/base/org/example/Example.java"))
         )
-        val viewerConfigJson = assertLoadText(output, "out.json")
-        Truth.assertThat(viewerConfigJson).contains("""
-            "messages": {
-                "-6872339441335321086": {
-                  "message": "Example: %s %d",
-                  "level": "DEBUG",
-                  "group": "GROUP",
-                  "at": "org\/example\/Example.java"
-                }
-              }
-        """.trimIndent())
+
+        val viewerConfigRaw = output["out.pb"] ?: fail("out.pb not in outputs (${output.keys})")
+        val viewerConfig = PerfettoTrace.ProtoLogViewerConfig.parseFrom(viewerConfigRaw)
+
+        Truth.assertThat(viewerConfig.groupsList).hasSize(1)
+        Truth.assertThat(viewerConfig.messagesList).hasSize(1)
+        Truth.assertThat(viewerConfig.groupsList[0].id).isEqualTo(1)
+        Truth.assertThat(viewerConfig.groupsList[0].name).isEqualTo("GROUP")
+        Truth.assertThat(viewerConfig.groupsList[0].tag).isEqualTo("TAG_GROUP")
+        Truth.assertThat(viewerConfig.messagesList[0].message).isEqualTo("Example: %s %d")
+        Truth.assertThat(viewerConfig.messagesList[0].level).isEqualTo(PerfettoTrace.ProtoLogLevel.PROTOLOG_LEVEL_DEBUG)
+        Truth.assertThat(viewerConfig.messagesList[0].groupId).isEqualTo(1)
+        Truth.assertThat(viewerConfig.messagesList[0].location).isEqualTo("org/example/Example.java:9")
     }
 
     @Test
@@ -121,7 +123,7 @@ class EndToEndTest {
                 """.trimIndent())
         val output = run(
             srcs = srcs,
-            logGroup = LogGroup("GROUP", true, false, "TAG_GROUP"),
+            logGroup = LogGroup("GROUP", true, false, "TAG_GROUP", 1),
             commandOptions = CommandOptions(arrayOf("transform-protolog-calls",
                 "--protolog-class", "com.android.internal.protolog.ProtoLog",
                 "--loggroups-class", "com.android.internal.protolog.ProtoLogGroup",
@@ -174,8 +176,6 @@ class EndToEndTest {
         srcs[PROTOLOG_IMPL_SRC_PATH] = """
             package com.android.internal.protolog;
 
-            import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.LEGACY_OUTPUT_FILE_PATH;
-            import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.LEGACY_VIEWER_CONFIG_PATH;
             import static com.android.internal.protolog.common.ProtoLogToolInjected.Value.VIEWER_CONFIG_PATH;
 
             import com.android.internal.protolog.common.ProtoLogToolInjected;
@@ -183,12 +183,6 @@ class EndToEndTest {
             public class ProtoLogImpl {
                 @ProtoLogToolInjected(VIEWER_CONFIG_PATH)
                 private static String sViewerConfigPath;
-
-                @ProtoLogToolInjected(LEGACY_VIEWER_CONFIG_PATH)
-                private static String sLegacyViewerConfigPath;
-
-                @ProtoLogToolInjected(LEGACY_OUTPUT_FILE_PATH)
-                private static String sLegacyOutputFilePath;
             }
         """.trimIndent()
 

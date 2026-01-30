@@ -20,15 +20,16 @@ import com.android.hoststubgen.asm.ClassNodes
 import com.android.hoststubgen.asm.splitWithLastPeriod
 import com.android.hoststubgen.asm.toHumanReadableClassName
 import com.android.hoststubgen.asm.toJvmClassName
+import com.android.hoststubgen.getInlineComment
 import com.android.hoststubgen.log
 import com.android.hoststubgen.normalizeTextLine
 import com.android.hoststubgen.utils.FileOrResource
 import com.android.hoststubgen.whitespaceRegex
+import org.objectweb.asm.tree.ClassNode
 import java.io.BufferedReader
 import java.io.PrintWriter
 import java.io.Reader
 import java.util.regex.Pattern
-import org.objectweb.asm.tree.ClassNode
 
 /**
  * Print a class node as a "keep" policy.
@@ -48,7 +49,13 @@ fun printAsTextPolicy(pw: PrintWriter, cn: ClassNode) {
     }
 }
 
-private const val FILTER_REASON = "file-override"
+private const val FILTER_REASON_BASE = "file-override"
+
+private fun reason(description: String, inlineComment: String = ""): String {
+    val baseReason = "$FILTER_REASON_BASE [$description]"
+
+    return if (inlineComment.isEmpty()) { baseReason } else {"$baseReason (#$inlineComment)" }
+}
 
 enum class SpecialClass {
     NotSpecial,
@@ -127,8 +134,7 @@ class TextFileFilterPolicyBuilder(
     private val parser = TextFileFilterPolicyParser()
 
     private val subclassFilter = SubclassFilter(classes, fallback)
-    private val packageFilter = PackageFilter(subclassFilter)
-    private val imf = InMemoryOutputFilter(classes, packageFilter)
+    private val imf = InMemoryOutputFilter(classes, subclassFilter)
     private var aidlPolicy: FilterPolicyWithReason? = null
     private var featureFlagsPolicy: FilterPolicyWithReason? = null
     private var syspropsPolicy: FilterPolicyWithReason? = null
@@ -142,11 +148,12 @@ class TextFileFilterPolicyBuilder(
     val annotationAllowedMembersFilter: OutputFilter
         get() = annotationAllowedInMemoryFilter
 
-    private val annotationAllowedPolicy = FilterPolicy.AnnotationAllowed.withReason(FILTER_REASON)
+    private val annotationAllowedPolicy = FilterPolicy.AnnotationAllowed.withReason(
+        "text-policy")
 
     init {
         // Create a filter that checks "partial allowlisting".
-        val filter = ConstantFilter(FilterPolicy.Remove, "default disallowed")
+        val filter = ConstantFilter(FilterPolicy.Remove.withReason("default disallowed"))
         annotationAllowedInMemoryFilter = InMemoryOutputFilter(classes, filter)
     }
 
@@ -175,9 +182,8 @@ class TextFileFilterPolicyBuilder(
             if (policy.policy == FilterPolicy.AnnotationAllowed) {
                 throw ParseException("${FilterPolicy.AnnotationAllowed.policyStringOrPrefix}" +
                         " on `package` isn't supported yet.")
-                return
             }
-            packageFilter.addPolicy(name, policy)
+            imf.setPolicyForPackage(name, policy)
         }
 
         override fun onRename(pattern: Pattern, prefix: String) {
@@ -203,8 +209,8 @@ class TextFileFilterPolicyBuilder(
             superClassName: String,
             policy: FilterPolicyWithReason,
             ) {
-            log.i("class extends $superClassName")
-            subclassFilter.addPolicy( superClassName, policy)
+            log.v("class extends $superClassName")
+            subclassFilter.addPolicy(superClassName, policy)
         }
 
         override fun onRedirectionClass(fromClassName: String, toClassName: String) {
@@ -219,7 +225,7 @@ class TextFileFilterPolicyBuilder(
             type: SpecialClass,
             policy: FilterPolicyWithReason,
         ) {
-            log.i("class special $type $policy")
+            log.v("class special $type $policy")
             when (type) {
                 SpecialClass.NotSpecial -> {} // Shouldn't happen
 
@@ -273,7 +279,8 @@ class TextFileFilterPolicyBuilder(
                 className,
                 targetName,
                 methodDesc,
-                FilterPolicy.Keep.withReason(FILTER_REASON)
+                FilterPolicy.Keep.withReason(
+                    "in-class-replace-target - ${policy.reason}")
             )
             // Set up the rename.
             imf.setRenameTo(className, targetName, methodDesc, methodName)
@@ -287,7 +294,8 @@ class TextFileFilterPolicyBuilder(
         ) {
             // Keep the source method, because the target method may call it.
             imf.setPolicyForMethod(className, methodName, methodDesc,
-                FilterPolicy.Keep.withReason(FILTER_REASON))
+                FilterPolicy.Keep.withReason(
+                    reason("out-class-replace-from", parser.currentInlineComment)))
             imf.setMethodCallReplaceSpec(replaceSpec)
         }
     }
@@ -317,6 +325,10 @@ class TextFileFilterPolicyParser {
     var currentLineText = ""
         private set
 
+    /** Inline comment in the current line */
+    var currentInlineComment = ""
+        private set
+
     /**
      * Parse a given "policy" file.
      */
@@ -338,6 +350,7 @@ class TextFileFilterPolicyParser {
                     if (line.isEmpty()) {
                         continue
                     }
+                    currentInlineComment = getInlineComment(currentLineText)
                     parseLine(line)
                 }
                 finishLastClass()
@@ -414,6 +427,12 @@ class TextFileFilterPolicyParser {
             "kc", FilterPolicy.KeepClass.policyStringOrPrefix -> FilterPolicy.KeepClass
             "i", FilterPolicy.Ignore.policyStringOrPrefix -> FilterPolicy.Ignore
             "rdr", FilterPolicy.Redirect.policyStringOrPrefix -> FilterPolicy.Redirect
+
+            // Exp/expc is handled differently from "keep/keepclass".
+            // If a class has "exp", it'll automatically be converted to "ExperimentalClass".
+            // So we don't use "experimentalclass" in the policy file.
+            // See parseClassPolicy().
+            "exp", FilterPolicy.Experimental.policyStringOrPrefix -> FilterPolicy.Experimental
             FilterPolicy.AnnotationAllowed.policyStringOrPrefix -> FilterPolicy.AnnotationAllowed
             else -> {
                 if (s.startsWith(FilterPolicy.Substitute.policyStringOrPrefix)) {
@@ -423,6 +442,18 @@ class TextFileFilterPolicyParser {
                 }
             }
         }
+    }
+
+    /**
+     * Basically same as [parsePolicy], but use it for package/classes. We remap tweak some
+     * of the policies.
+     */
+    private fun parseClassPolicy(s: String): FilterPolicy {
+        val p = parsePolicy(s)
+        if (p == FilterPolicy.Experimental) {
+            return FilterPolicy.ExperimentalClass
+        }
+        return p
     }
 
     private fun parsePackage(fields: Array<String>) {
@@ -443,11 +474,13 @@ class TextFileFilterPolicyParser {
         if (rawPolicy.startsWith("~")) {
             throw ParseException("Package can't have a class load hook")
         }
-        val policy = parsePolicy(rawPolicy)
+        val policy = parseClassPolicy(rawPolicy)
         if (!policy.isUsableWithClasses) {
-            throw ParseException("Package can't have policy '$policy'")
+            throw ParseException(
+                "Package can't have policy '$rawPolicy' (parsed as $policy)")
         }
-        processor.onPackage(name, policy.withReason(FILTER_REASON))
+        processor.onPackage(name, policy.withReason(
+            reason("package - '$rawPolicy'", currentInlineComment)))
     }
 
     private fun parseClass(fields: Array<String>) {
@@ -462,9 +495,9 @@ class TextFileFilterPolicyParser {
         // :aidl, etc?
         val classType = resolveSpecialClass(className)
 
-        val policyStr = if (fields.size > 2) { fields[2] } else { "" }
+        val rawPolicy = if (fields.size > 2) { fields[2] } else { "" }
 
-        if (policyStr.startsWith("!")) {
+        if (rawPolicy.startsWith("!")) {
             if (classType != SpecialClass.NotSpecial) {
                 // We could support it, but not needed at least for now.
                 throw ParseException(
@@ -472,12 +505,12 @@ class TextFileFilterPolicyParser {
                 )
             }
             // It's a redirection class.
-            val toClass = policyStr.substring(1)
+            val toClass = rawPolicy.substring(1)
 
             currentClassName = className
             processor.onClassStart(className)
             processor.onRedirectionClass(className, toClass)
-        } else if (policyStr.startsWith("~")) {
+        } else if (rawPolicy.startsWith("~")) {
             if (classType != SpecialClass.NotSpecial) {
                 // We could support it, but not needed at least for now.
                 throw ParseException(
@@ -485,7 +518,7 @@ class TextFileFilterPolicyParser {
                 )
             }
             // It's a class-load hook
-            val callback = policyStr.substring(1)
+            val callback = rawPolicy.substring(1)
 
             currentClassName = className
             processor.onClassStart(className)
@@ -494,7 +527,7 @@ class TextFileFilterPolicyParser {
             // Special case: if it's a class directive with no policy, then it encloses
             // members, but we don't apply any policy to the class itself.
             // This is only allowed in a not-special case.
-            if (policyStr == "") {
+            if (rawPolicy == "") {
                 if (classType == SpecialClass.NotSpecial && superClass == null) {
                     currentClassName = className
                     return
@@ -502,9 +535,10 @@ class TextFileFilterPolicyParser {
                 throw ParseException("Special class or subclass directive must have a policy")
             }
 
-            val policy = parsePolicy(policyStr)
+            val policy = parseClassPolicy(rawPolicy)
             if (!policy.isUsableWithClasses) {
-                throw ParseException("Class can't have policy '$policy'")
+                throw ParseException(
+                    "Class can't have policy '$rawPolicy' (parsed as $policy)")
             }
 
             when (classType) {
@@ -513,11 +547,14 @@ class TextFileFilterPolicyParser {
                     if (superClass == null) {
                         currentClassName = className
                         processor.onClassStart(className)
-                        processor.onSimpleClassPolicy(className, policy.withReason(FILTER_REASON))
+                        processor.onSimpleClassPolicy(className,
+                            policy.withReason(
+                                reason("class - '$rawPolicy'", currentInlineComment)))
                     } else {
                         processor.onSubClassPolicy(
                             superClass,
-                            policy.withReason("extends $superClass"),
+                            policy.withReason(
+                                reason("subclass of $superClass - '$rawPolicy'", currentInlineComment)),
                         )
                     }
                 }
@@ -528,7 +565,7 @@ class TextFileFilterPolicyParser {
                         )
                     }
                     val p = policy.withReason(
-                        "$FILTER_REASON (special-class AIDL)",
+                        reason("special-class: AIDL - '$rawPolicy'", currentInlineComment),
                         StatsLabel.SupportedButBoring,
                     )
                     processor.onSpecialClassPolicy(classType, p)
@@ -542,7 +579,7 @@ class TextFileFilterPolicyParser {
                         )
                     }
                     val p = policy.withReason(
-                        "$FILTER_REASON (special-class feature flags)",
+                        reason("special-class: flags - '$rawPolicy'", currentInlineComment),
                         StatsLabel.SupportedButBoring,
                     )
                     processor.onSpecialClassPolicy(classType, p)
@@ -556,7 +593,7 @@ class TextFileFilterPolicyParser {
                         )
                     }
                     val p = policy.withReason(
-                        "$FILTER_REASON (special-class sysprops)",
+                        reason("special-class: sysprops - '$rawPolicy'", currentInlineComment),
                         StatsLabel.SupportedButBoring,
                     )
                     processor.onSpecialClassPolicy(classType, p)
@@ -570,7 +607,7 @@ class TextFileFilterPolicyParser {
                         )
                     }
                     val p = policy.withReason(
-                        "$FILTER_REASON (special-class R file)",
+                        reason("special-class: R - '$rawPolicy'", currentInlineComment),
                         StatsLabel.SupportedButBoring,
                     )
                     processor.onSpecialClassPolicy(classType, p)
@@ -585,13 +622,16 @@ class TextFileFilterPolicyParser {
             throw ParseException("Field ('f') expects 2 fields.")
         }
         val name = fields[1]
-        val policy = parsePolicy(fields[2])
+        val rawPolicy = fields[2]
+        val policy = parsePolicy(rawPolicy)
         if (!policy.isUsableWithFields) {
             throw ParseException("Field can't have policy '$policy'")
         }
 
         // TODO: Duplicate check, etc
-        processor.onField(currentClassName!!, name, policy.withReason(FILTER_REASON))
+        processor.onField(currentClassName!!, name,
+            policy.withReason(
+                reason("field - '$rawPolicy'", currentInlineComment)))
     }
 
     private fun parseMethod(fields: Array<String>) {
@@ -600,16 +640,16 @@ class TextFileFilterPolicyParser {
         }
         val methodName = fields[1]
         val signature: String
-        val policyStr: String
+        val rawPolicy: String
         if (fields.size <= 3) {
             signature = "*"
-            policyStr = fields[2]
+            rawPolicy = fields[2]
         } else {
             signature = fields[2]
-            policyStr = fields[3]
+            rawPolicy = fields[3]
         }
 
-        val policy = parsePolicy(policyStr)
+        val policy = parsePolicy(rawPolicy)
 
         if (!policy.isUsableWithMethods) {
             throw ParseException("Method can't have policy '$policy'")
@@ -617,11 +657,12 @@ class TextFileFilterPolicyParser {
 
         val className = currentClassName!!
 
-        val policyWithReason = policy.withReason(FILTER_REASON)
+        val policyWithReason = policy.withReason(
+            reason("method - '$rawPolicy'", currentInlineComment))
         if (policy != FilterPolicy.Substitute) {
             processor.onSimpleMethodPolicy(className, methodName, signature, policyWithReason)
         } else {
-            val targetName = policyStr.substring(1)
+            val targetName = rawPolicy.substring(1)
 
             if (targetName == methodName) {
                 throw ParseException(

@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"Перетащите влево, чтобы быстро переключиться между приложениями"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"Чтобы открыть уведомления, проведите вниз от правого верхнего угла экрана"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"Чтобы открыть быстрые настройки, проведите вниз от левого верхнего угла экрана"</string>
 </resources>

@@ -18,41 +18,37 @@ package com.android.settingslib.spa.gallery.editor
 
 import android.os.Bundle
 import androidx.compose.runtime.Composable
-import com.android.settingslib.spa.framework.common.SettingsEntry
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
+import com.android.settingslib.spa.widget.scaffold.RegularScaffold
+import com.android.settingslib.spa.widget.ui.Category
 
 private const val TITLE = "Category: Editor"
 
 object EditorMainPageProvider : SettingsPageProvider {
     override val name = "EditorMain"
-    private val owner = createSettingsPage()
 
-    override fun buildEntry(arguments: Bundle?): List<SettingsEntry> {
-        return listOf(
-            SettingsOutlinedTextFieldPageProvider.buildInjectEntry().setLink(fromPage = owner)
-                .build(),
-            SettingsDropdownBoxPageProvider.buildInjectEntry().setLink(fromPage = owner)
-                .build(),
-            SettingsDropdownCheckBoxProvider.buildInjectEntry().setLink(fromPage = owner)
-                .build(),
-            SettingsTextFieldPasswordPageProvider.buildInjectEntry().setLink(fromPage = owner)
-                .build(),
+    @Composable
+    fun Entry() {
+        Preference(
+            object : PreferenceModel {
+                override val title = TITLE
+                override val onClick = navigator(name)
+            }
         )
     }
 
     @Composable
-    fun Entry() {
-        Preference(object : PreferenceModel {
-            override val title = TITLE
-            override val onClick = navigator(name)
-        })
-    }
-
-    override fun getTitle(arguments: Bundle?): String {
-        return TITLE
+    override fun Page(arguments: Bundle?) {
+        RegularScaffold(TITLE) {
+            Category {
+                SettingsOutlinedTextFieldPageProvider.Entry()
+                SettingsDropdownBoxPageProvider.Entry()
+                SettingsDropdownCheckBoxProvider.Entry()
+                SettingsTextFieldPasswordPageProvider.Entry()
+            }
+        }
     }
 }

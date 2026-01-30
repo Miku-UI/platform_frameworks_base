@@ -35,6 +35,7 @@ public class RequestFocus extends Activity {
 
         // bottom right button starts with the focus.
         final Button bottomRightButton = findViewById(R.id.bottomRightButton);
+        bottomRightButton.setFocusableInTouchMode(true);
         bottomRightButton.requestFocus();
         bottomRightButton.setText("I should have focus");
     }

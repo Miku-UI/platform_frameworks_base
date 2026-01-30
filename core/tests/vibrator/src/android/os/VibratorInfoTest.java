@@ -26,14 +26,23 @@ import static org.junit.Assert.assertTrue;
 
 import android.hardware.vibrator.Braking;
 import android.hardware.vibrator.IVibrator;
+import android.os.vibrator.Flags;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Range;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class VibratorInfoTest {
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
     private static final float TEST_TOLERANCE = 1e-5f;
 
     private static final int TEST_VIBRATOR_ID = 1;
@@ -195,7 +204,8 @@ public class VibratorInfoTest {
     }
 
     @Test
-    public void testFrequencyProfile_invalidValuesCreatesEmptyProfile() {
+    @RequiresFlagsDisabled(Flags.FLAG_DECOUPLE_FREQUENCY_PROFILE_FROM_RESONANCE)
+    public void testFrequencyProfile_flagDisabled_invalidValuesCreatesEmptyProfile() {
         // Invalid resonant frequency.
         assertThat(new VibratorInfo.FrequencyProfile(Float.NaN,
                 TEST_FREQUENCIES, TEST_OUTPUT_ACCELERATIONS).isEmpty()).isTrue();
@@ -208,6 +218,29 @@ public class VibratorInfoTest {
         assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/150f,
                 /*frequenciesHz=*/ new float[]{30f, 40f, 50f, 100f},
                 /*outputAccelerationsGs=*/ new float[]{0.8f, 1.0f, 2.0f}).isEmpty()).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_DECOUPLE_FREQUENCY_PROFILE_FROM_RESONANCE)
+    public void testFrequencyProfile_invalidValuesCreatesEmptyProfile() {
+        // Negative resonant frequency.
+        assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/-1f,
+                TEST_FREQUENCIES, TEST_OUTPUT_ACCELERATIONS).isEmpty()).isTrue();
+        // No frequency-acceleration data
+        assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/150f,
+                /*frequenciesHz=*/ null, /*outputAccelerationsGs=*/ null).isEmpty()).isTrue();
+        // Mismatching frequency and output acceleration lists
+        assertThat(new VibratorInfo.FrequencyProfile(/*resonantFrequencyHz=*/150f,
+                /*frequenciesHz=*/ new float[]{30f, 40f, 50f, 100f},
+                /*outputAccelerationsGs=*/ new float[]{0.8f, 1.0f, 2.0f}).isEmpty()).isTrue();
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_DECOUPLE_FREQUENCY_PROFILE_FROM_RESONANCE)
+    public void testFrequencyProfile_creationWithoutResonantFrequency_isValid() {
+        // Frequency profile is not dependent on resonant frequency.
+        assertThat(new VibratorInfo.FrequencyProfile(Float.NaN,
+                TEST_FREQUENCIES, TEST_OUTPUT_ACCELERATIONS).isEmpty()).isFalse();
     }
 
     @Test

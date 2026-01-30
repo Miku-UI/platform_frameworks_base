@@ -20,7 +20,7 @@ import android.content.pm.ParceledListSlice;
 import android.os.IRemoteCallback;
 
 /**
- * {@hide}
+ * @hide
  */
 interface IBackgroundInstallControlService {
     ParceledListSlice getBackgroundInstalledPackages(long flags, int userId);

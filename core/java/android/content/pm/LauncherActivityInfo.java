@@ -85,16 +85,15 @@ public class LauncherActivityInfo {
     }
 
     /**
-     * Retrieves the label for the activity.
+     * Retrieves the label for the activity. If the activity's label is invisible
+     * for the user, use the application's label instead. If the application's label
+     * is still invisible for the user, use the package name instead.
      *
-     * @return The label for the activity.
+     * @return The label for the activity. If the activity's label is invisible for the user,
+     *         return the application's label instead. If the application's label
+     *         is still invisible for the user, return the package name instead.
      */
     public CharSequence getLabel() {
-        if (!Flags.lightweightInvisibleLabelDetection()) {
-            // TODO: Go through LauncherAppsService
-            return getActivityInfo().loadLabel(mPm);
-        }
-
         CharSequence label = getActivityInfo().loadLabel(mPm).toString().trim();
         // If the activity label is visible to the user, return the original activity label
         if (isVisible(label)) {

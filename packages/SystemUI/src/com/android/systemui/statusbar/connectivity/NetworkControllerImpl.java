@@ -724,7 +724,7 @@ public class NetworkControllerImpl extends BroadcastReceiver
         cb.setIsAirplaneMode(
                 new IconState(
                         mAirplaneMode,
-                        TelephonyIcons.FLIGHT_MODE_ICON,
+                        R.drawable.stat_sys_airplane_mode,
                         mContext.getString(R.string.accessibility_airplane_mode)));
         cb.setNoSims(mHasNoSubs, mSimDetected);
         cb.setConnectivityStatus(mNoDefaultNetwork, !mInetCondition, mNoNetworksAvailable);
@@ -1094,7 +1094,7 @@ public class NetworkControllerImpl extends BroadcastReceiver
         mCallbackHandler.setIsAirplaneMode(
                 new IconState(
                         mAirplaneMode,
-                        TelephonyIcons.FLIGHT_MODE_ICON,
+                        R.drawable.stat_sys_airplane_mode,
                         mContext.getString(R.string.accessibility_airplane_mode)));
         mCallbackHandler.setNoSims(mHasNoSubs, mSimDetected);
     }
@@ -1270,7 +1270,7 @@ public class NetworkControllerImpl extends BroadcastReceiver
             mCallbackHandler.setIsAirplaneMode(
                     new IconState(
                             show,
-                            TelephonyIcons.FLIGHT_MODE_ICON,
+                            R.drawable.stat_sys_airplane_mode,
                             mContext.getString(R.string.accessibility_airplane_mode)));
         }
         String fully = args.getString("fully");

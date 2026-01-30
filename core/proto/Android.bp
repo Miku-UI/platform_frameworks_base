@@ -1,0 +1,24 @@
+package {
+    // See: http://go/android-license-faq
+    // A large-scale-change added 'default_applicable_licenses' to import
+    // all of the 'license_kinds' from "frameworks_base_license"
+    // to get the below license kinds:
+    //   SPDX-license-identifier-Apache-2.0
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+python_library_host {
+    name: "core-python-protos",
+    proto: {
+        include_dirs: [
+            "external/protobuf/src",
+            "frameworks/proto_logging/stats",
+        ],
+        canonical_path_from_root: true,
+    },
+    srcs: ["android/**/*.proto"],
+    libs: [
+        "framework-python-protos",
+        "frameworks_proto_logging_protos_python",
+    ],
+}

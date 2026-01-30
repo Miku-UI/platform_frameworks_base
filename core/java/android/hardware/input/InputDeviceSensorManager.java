@@ -280,11 +280,9 @@ public class InputDeviceSensorManager {
                 mSensorEvents.clear();
                 return;
             }
-            for (Sensor s : mSensors) {
-                if (sensorEquals(s, sensor)) {
-                    mSensors.remove(sensor);
-                    mSensorEvents.remove(sensor.getType());
-                }
+            boolean removed = mSensors.removeIf(s -> sensorEquals(s, sensor));
+            if (removed) {
+                mSensorEvents.remove(sensor.getType());
             }
         }
 

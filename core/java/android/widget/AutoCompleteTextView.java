@@ -1280,7 +1280,7 @@ public class AutoCompleteTextView extends EditText implements Filter.FilterListe
     /**
      * The valid input method modes for the {@link AutoCompleteTextView}:
      *
-     * {@hide}
+     * @hide
      */
     @IntDef({ListPopupWindow.INPUT_METHOD_FROM_FOCUSABLE,
             ListPopupWindow.INPUT_METHOD_NEEDED,

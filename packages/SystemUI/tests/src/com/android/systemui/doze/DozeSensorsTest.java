@@ -41,6 +41,7 @@ import android.app.ActivityManager;
 import android.content.res.Resources;
 import android.database.ContentObserver;
 import android.hardware.Sensor;
+import android.hardware.TriggerEvent;
 import android.hardware.display.AmbientDisplayConfiguration;
 import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunWithLooper;
@@ -510,6 +511,53 @@ public class DozeSensorsTest extends SysuiTestCase {
         }
     }
 
+    @Test
+    public void testUdfpsLongPress_doesNotImmediatelyReRegister() {
+        // GIVEN: UDFPS long press sensor is configured and listening
+        Sensor mockUdfpsSensor = mock(Sensor.class);
+        int posture = DevicePostureController.DEVICE_POSTURE_UNKNOWN;
+        TriggerSensor udfpsLongPressSensor = mDozeSensors.createUdfpsLongPressSensor(
+                mockUdfpsSensor,
+                /* configured */ true,
+                /* immediatelyReRegister */ false // Simulate the config DozeSensors
+        );
+        udfpsLongPressSensor.setPosture(posture);
+        mDozeSensors.addSensor(udfpsLongPressSensor);
+
+        when(mSensorManager.requestTriggerSensor(eq(udfpsLongPressSensor), eq(mockUdfpsSensor)))
+                .thenReturn(true);
+
+        udfpsLongPressSensor.setListening(true);
+        mTestableLooper.processAllMessages();
+
+        verify(mSensorManager, times(1)).requestTriggerSensor(eq(udfpsLongPressSensor),
+                eq(mockUdfpsSensor));
+        assertTrue(udfpsLongPressSensor.mRegistered);
+
+        TriggerEvent mockEvent = mock(TriggerEvent.class);
+        float[] dummyValues = new float[]{-1f, -1f};
+
+        try {
+            Field valuesField = TriggerEvent.class.getField("values");
+            valuesField.setAccessible(true);
+            valuesField.set(mockEvent, dummyValues);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new RuntimeException("Failed to set final field 'values' via reflection", e);
+        }
+
+        mockEvent.sensor = mockUdfpsSensor;
+        udfpsLongPressSensor.onTrigger(mockEvent);
+        mTestableLooper.processAllMessages();
+
+        // Using -1f, -1f based on the dummy values provided above.
+        verify(mCallback).onSensorPulse(eq(REASON_SENSOR_UDFPS_LONG_PRESS), eq(-1f), eq(-1f),
+                eq(mockEvent.values));
+        assertFalse(udfpsLongPressSensor.mRegistered);
+
+        verify(mSensorManager, times(1)).requestTriggerSensor(eq(udfpsLongPressSensor),
+                eq(mockUdfpsSensor));
+    }
+
     private class TestableDozeSensors extends DozeSensors {
         TestableDozeSensors() {
             super(mResources, mSensorManager, mDozeParameters,
@@ -597,6 +645,35 @@ public class DozeSensorsTest extends SysuiTestCase {
                     /* immediatelyReRegister */ true,
                     posture,
                     /* requiresUi */ false
+            );
+        }
+
+        /**
+         * Creates a TriggerSensor specifically for UDFPS long press testing.
+         */
+        public TriggerSensor createUdfpsLongPressSensor(
+                Sensor sensor,
+                boolean configured,
+                boolean immediatelyReRegister) {
+
+            // Assume prox/AOD requirements are false for simplicity unless explicitly tested
+            // Or: mDozeParameters.longPressUsesProx();
+            boolean requiresProx = false;
+            // Or: !mAmbientDisplayConfiguration.screenOffUdfpsEnabled(anyInt());
+            boolean requiresAod = false;
+
+            return new TriggerSensor(new Sensor[]{sensor},
+                    /* setting name */ "doze_pulse_on_auth", // KEY_DOZE_PULSE_ON_AUTH
+                    /* settingDefault */ true,
+                    /* configured */ configured,
+                    /* pulseReason*/ REASON_SENSOR_UDFPS_LONG_PRESS,
+                    /* reportsTouchCoordinate*/ true,
+                    /* requiresTouchscreen */ true,
+                    /* ignoresSetting */ false,
+                    /* requiresProx */ requiresProx,
+                    /* immediatelyReRegister */ immediatelyReRegister,
+                    /* posture */ DevicePostureController.DEVICE_POSTURE_UNKNOWN, // Default posture
+                    /* requiresAod */ requiresAod
             );
         }
 

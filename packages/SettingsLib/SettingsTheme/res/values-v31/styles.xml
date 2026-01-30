@@ -49,4 +49,8 @@
            parent="android:style/Widget.Material.ProgressBar.Horizontal">
         <item name="android:progressDrawable">@drawable/settingslib_progress_horizontal</item>
     </style>
+
+    <style name="AlertDialog.Button.SettingsLib" parent="@style/Widget.AppCompat.Button.ButtonBar.AlertDialog">
+        <item name="android:textColor">@color/settingslib_dialog_accent</item>
+    </style>
 </resources>

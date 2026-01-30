@@ -58,13 +58,7 @@ import org.mockito.kotlin.mock
 class LocationBasedMobileIconViewModelKairosTest : SysuiTestCase() {
 
     private val Kosmos.commonImpl: MobileIconViewModelKairosCommon by ActivatedKairosFixture {
-        MobileIconViewModelKairos(
-            SUB_1_ID,
-            interactor,
-            airplaneModeInteractor,
-            constants,
-            featureFlagsClassic,
-        )
+        MobileIconViewModelKairos(SUB_1_ID, interactor, airplaneModeInteractor, constants)
     }
 
     private val Kosmos.homeIcon: HomeMobileIconViewModelKairos by

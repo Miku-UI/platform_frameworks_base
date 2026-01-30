@@ -368,20 +368,7 @@ public class DisplayWhiteBalanceTintControllerTest {
     }
 
     @Test
-    public void testDisplayWhiteBalance_TransitionTimes() {
-        when(mDisplayManagerFlagsMock.isAdaptiveTone2Enabled()).thenReturn(false);
-        setUpTransitionTimes();
-        setUpTintController();
-
-        assertEquals(30L,
-                mDisplayWhiteBalanceTintController.getTransitionDurationMilliseconds(true));
-        assertEquals(30L,
-                mDisplayWhiteBalanceTintController.getTransitionDurationMilliseconds(false));
-    }
-
-    @Test
     public void testDisplayWhiteBalance_TransitionTimesDirectional() {
-        when(mDisplayManagerFlagsMock.isAdaptiveTone2Enabled()).thenReturn(true);
         setUpTransitionTimes();
         setUpTintController();
 
@@ -390,7 +377,6 @@ public class DisplayWhiteBalanceTintControllerTest {
         assertEquals(5000L,
                 mDisplayWhiteBalanceTintController.getTransitionDurationMilliseconds(false));
     }
-
 
     private void setUpTransitionTimes() {
         doReturn(mResources.getStringArray(R.array.config_displayWhiteBalanceDisplayPrimaries))

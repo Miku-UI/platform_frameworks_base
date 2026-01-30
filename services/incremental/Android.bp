@@ -24,7 +24,6 @@ package {
 cc_defaults {
     name: "service.incremental-proto-defaults",
 
-    cpp_std: "c++2a",
     proto: {
         type: "lite",
     },

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Kërkohet leja"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Instalimi u bllokua"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Aplikacioni po përgatitet…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Të instalohet ky aplikacion?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Po instalohet…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Aplikacioni u instalua"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Të riinstalohet ky aplikacion?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Po riinstalohet…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Aplikacioni u riinstalua"</string>
+    <string name="title_update" msgid="1747328630716712391">"Të përditësohet ky aplikacion?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Të përditësohet ky aplikacion duke përdorur <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Po përditësohet…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Aplikacioni u përditësua"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Aplikacioni nuk mund të instalohet"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Instalimi u bllokua"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Aplikacioni nuk është i përputhshëm"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Paketë e pavlefshme"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Nuk ka hapësirë ruajtëse të mjaftueshme"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Aplikacioni nuk u instalua"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Të çinstalohet ky aplikacion?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Të fshihet ky klon i aplikacionit?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Të çinstalohen përditësimet e aplikacionit?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Të çinstalohen përditësimet e aplikacionit për të gjithë përdoruesit?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Të çinstalohet ky aplikacion për të gjithë përdoruesit?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Të çinstalohet ky aplikacion për përdoruesin \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Aplikacioni nuk u gjet"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Ky aplikacion nuk mund të çinstalohet"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Aplikacioni nuk u çinstalua"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Të arkivohet ky aplikacion?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Të arkivohet ky aplikacion për të gjithë përdoruesit?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Të arkivohet ky aplikacion për përdoruesin \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Të restaurohet ky aplikacion?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Kërkohet veprim"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Nuk ka hapësirë ruajtëse të mjaftueshme"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Je offline"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"\"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" u çaktivizua"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"\"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" nuk u instalua"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Ndodhi një gabim"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Ky aplikacion zakonisht merr përditësime nga &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Duke përditësuar nga një burim tjetër, mund të marrësh përditësime të ardhshme nga çdo burim në tabletin tënd. Funksionaliteti i aplikacionit mund të ndryshojë."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Ky aplikacion zakonisht merr përditësime nga &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Duke përditësuar nga një burim tjetër, mund të marrësh përditësime të ardhshme nga çdo burim në televizorin tënd. Funksionaliteti i aplikacionit mund të ndryshojë."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Ky aplikacion zakonisht merr përditësime nga &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Duke përditësuar nga një burim tjetër, mund të marrësh përditësime të ardhshme nga çdo burim në telefonin tënd. Funksionaliteti i aplikacionit mund të ndryshojë."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Për sigurinë tënde, tableti yt nuk lejohet aktualisht të instalojë aplikacione të panjohura nga ky burim. Këtë mund ta ndryshosh te \"Cilësimet\"."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Për sigurinë tënde, televizori yt nuk lejohet aktualisht të instalojë aplikacione të panjohura nga ky burim. Këtë mund ta ndryshosh te \"Cilësimet\"."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Për sigurinë tënde, ora jote nuk lejohet aktualisht të instalojë aplikacione të panjohura nga ky burim. Këtë mund ta ndryshosh te \"Cilësimet\"."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Për sigurinë tënde, telefoni yt nuk lejohet aktualisht të instalojë aplikacione të panjohura nga ky burim. Këtë mund ta ndryshosh te \"Cilësimet\"."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Telefoni dhe të dhënat e tua personale janë më të cenueshme nga sulmet nga aplikacione të panjohura. Duke instaluar këtë aplikacion, ti pranon se je përgjegjës për çdo dëm ndaj telefonit tënd ose çdo humbje të të dhënave që mund të rezultojë nga përdorimi i tij."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Tableti dhe të dhënat e tua personale janë më të cenueshme nga sulmet nga aplikacione të panjohura. Duke instaluar këtë aplikacion, ti pranon se je përgjegjës për çdo dëm ndaj tabletit tënd ose çdo humbje të të dhënave që mund të rezultojë nga përdorimi i tij."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Televizori dhe të dhënat e tua personale janë më të cenueshme nga sulmet nga aplikacione të panjohura. Duke instaluar këtë aplikacion, ti pranon se je përgjegjës për çdo dëm ndaj televizorit tënd ose çdo humbje të të dhënave që mund të rezultojë nga përdorimi i tij."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Instalimi i këtij aplikacioni është bllokuar"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Ky aplikacion është në konflikt me një aplikacion që është tashmë në pajisjen tënde"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Ky aplikacion nuk është i përputhshëm me pajisjen tënde"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Ka një problem me skedarin e instalimit të këtij aplikacioni"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Për ta instaluar këtë aplikacion, liro pak hapësirë dhe provo përsëri"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Ka një problem me skedarin e aplikacionit"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Instalimi i aplikacioneve është kufizuar"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Instalimi i aplikacioneve të panjohura është kufizuar"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Një klon i këtij aplikacioni ekziston gjithashtu dhe do të fshihet"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Ky aplikacion është një klon i <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Ky aplikacion do të zëvendësohet me versionin e fabrikës. Të gjitha të dhënat e aplikacionit do të hiqen."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Ky aplikacion do të zëvendësohet me versionin e fabrikës për të gjithë përdoruesit në pajisje. Të gjitha të dhënat e aplikacionit do të hiqen."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Ky aplikacion do të çinstalohet nga profili yt i punës"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Ky aplikacion do të çinstalohet nga hapësira jote private"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Ky aplikacion nuk u gjet në listën e aplikacioneve të instaluara ose është çinstaluar tashmë"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Përdoruesi aktual nuk lejohet të kryejë këtë çinstalim"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Ky aplikacion nuk mund të çinstalohej"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Mbaji të dhënat e aplikacionit"</string>
+    <string name="message_archive" msgid="943853731737315850">"Të dhënat e aplikacionit do të ruhen"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Të gjitha të dhënat e aplikacionit do të ruhen"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Të dhënat e aplikacionit do të ruhen"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Ky aplikacion do të arkivohet nga profili yt i punës. Të dhënat e aplikacionit do të ruhen."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Ky aplikacion do të arkivohet nga hapësira jote private. Të dhënat e aplikacionit do të ruhen."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Ky aplikacion do të shkarkohet nga \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" në sfond"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"\"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" ka nevojë për më shumë informacione para se të mund të restaurohet ky aplikacion"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Për të restauruar këtë aplikacion, liro &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; dhe provo përsëri"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Për ta restauruar këtë aplikacion, kontrollo lidhjen e internetit dhe provo përsëri"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Për ta restauruar këtë aplikacion, aktivizo \"<xliff:g id="INSTALLERNAME">%1$s</xliff:g>\" te \"Cilësimet\""</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Për ta restauruar këtë aplikacion, do të të duhet të instalosh \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\""</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Pati një problem gjatë përpjekjes për të restauruar këtë aplikacion"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"\"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g>\" është pjesë e aplikacionit të mëposhtëm: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Ky aplikacion është bllokuar. Për të mbajtur pajisjen dhe të dhënat e tua të sigurta, mund të instalohen vetëm aplikacionet nga zhvilluesit e verifikuar.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Ky aplikacion nuk u përditësua. Për të mbajtur pajisjen dhe të dhënat e tua të sigurta, mund të instalohen vetëm përditësimet nga zhvilluesit e verifikuar.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Ky aplikacion nuk u instalua. Aplikacionet nga zhvilluesit e paverifikuar mund të jenë të pasigurta.&lt;/p&gt; &lt;p&gt;Kërkohet një lidhje interneti për të verifikuar zhvilluesin e aplikacionit. Kontrollo lidhjen dhe më pas provo ta instalosh përsëri. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Ky aplikacion nuk u përditësua. Përditësimet nga zhvilluesit e paverifikuar mund të jenë të pasigurta.&lt;/p&gt; &lt;p&gt;Kërkohet një lidhje interneti për të verifikuar zhvilluesin e aplikacionit. Kontrollo lidhjen dhe më pas provo ta përditësosh përsëri. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Pati një problem gjatë verifikimit të zhvilluesit të këtij aplikacioni. Aplikacionet nga zhvilluesit e paverifikuar mund të jenë të pasigurta, prandaj aplikacioni nuk u instalua.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Pati një problem gjatë verifikimit të zhvilluesit të këtij aplikacioni. Përditësimet nga zhvilluesit e paverifikuar mund të jenë të pasigurta.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Ky aplikacion është bllokuar sepse pati një problem gjatë verifikimit të zhvilluesit. Për të mbajtur pajisjen dhe të dhënat e tua të sigurta, mund të instalohen vetëm aplikacionet nga zhvilluesit e verifikuar.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Ky aplikacion nuk u përditësua sepse pati një problem gjatë verifikimit të zhvilluesit. Për të mbajtur pajisjen dhe të dhënat e tua të sigurta, mund të instalohen vetëm përditësimet nga zhvilluesit e verifikuar.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Mëso më shumë rreth verifikimit të zhvilluesve&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Nëse e instalon pa e verifikuar, ki parasysh se aplikacionet nga zhvilluesit e paverifikuar mund të vendosin pajisjen dhe të dhënat e tua në rrezik."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Nëse e përditëson pa e verifikuar, ki parasysh se përditësimet nga zhvilluesit e paverifikuar mund të vendosin pajisjen dhe të dhënat e tua në rrezik."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Zhvilluesi i aplikacionit nuk është verifikuar"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Nuk ka internet. Zhvilluesi i aplikacionit nuk mund të verifikohet"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Zhvilluesi i aplikacionit nuk mund të verifikohet"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Instalo pa verifikim"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Përditëso pa verifikim"</string>
+    <string name="button_install" msgid="7434013176505680162">"Instalo"</string>
+    <string name="button_update" msgid="3046719350226327526">"Përditëso"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Përditëso gjithsesi"</string>
+    <string name="button_done" msgid="3408025390982260629">"U krye"</string>
+    <string name="button_open" msgid="6892684987374117955">"Hap"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Anulo"</string>
+    <string name="button_continue" msgid="107501685249826244">"Vazhdo"</string>
+    <string name="button_close" msgid="7187308556466275899">"Mbyll"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Çinstalo"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Fshi"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Riinstalo"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Menaxho aplikacionet"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Arkivo"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Restauro"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Çinstalo përditësimet"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Cilësimet"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Provo përsëri"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Klon i \"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>\""</string>
+</resources>

@@ -22,9 +22,12 @@ import static android.view.contentcapture.ContentCaptureHelper.sVerbose;
 import static android.view.contentcapture.ContentCaptureHelper.toList;
 import static android.view.contentcapture.ContentCaptureManager.NO_SESSION_ID;
 
+import static android.view.contentcapture.flags.Flags.reduceBinderTransactionEnabled;
+
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
 
 import android.annotation.CallSuper;
+import android.annotation.MainThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -44,6 +47,7 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.util.Log;
 import android.util.Slog;
+import android.util.SparseArray;
 import android.util.SparseIntArray;
 import android.view.contentcapture.ContentCaptureCondition;
 import android.view.contentcapture.ContentCaptureContext;
@@ -55,6 +59,7 @@ import android.view.contentcapture.DataRemovalRequest;
 import android.view.contentcapture.DataShareRequest;
 import android.view.contentcapture.IContentCaptureDirectManager;
 
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.IResultReceiver;
 import com.android.internal.util.FrameworkStatsLog;
 
@@ -143,6 +148,23 @@ public abstract class ContentCaptureService extends Service {
      */
     public static final String ASSIST_CONTENT_ACTIVITY_START_KEY = "activity_start_assist_content";
 
+    /**
+     * The threshold for the number of metrics to be flushed before flushing the pending metrics.
+     *
+     * <p>For example, if the threshold is 10,000, then the metrics will be flushed when there are
+     * 10,000 or more pending view appeared or disappeared metrics.
+     */
+    private static final int METRICS_FLUSH_THRESHOLD = 10_000;
+
+    /**
+     * Holds metrics that are waiting to be flushed.
+     *
+     * <p>Key is the session id.
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    public final SparseArray<PendingMetrics> mPendingMetrics = new SparseArray<>();
 
     private final LocalDataShareAdapterResourceManager mDataShareAdapterResourceManager =
             new LocalDataShareAdapterResourceManager();
@@ -508,6 +530,12 @@ public abstract class ContentCaptureService extends Service {
 
     private void handleOnDisconnected() {
         onDisconnected();
+        if (reduceBinderTransactionEnabled()) {
+            if (mPendingMetrics.size() != 0) {
+                Log.i(TAG, "Flushing " + mPendingMetrics.size() + " pending metrics on disconnect");
+                flushAllPendingMetrics();
+            }
+        }
         mContentCaptureServiceCallback = null;
         mContentProtectionAllowlistCallback = null;
     }
@@ -536,7 +564,19 @@ public abstract class ContentCaptureService extends Service {
         setClientState(clientReceiver, stateFlags, mContentCaptureClientInterface.asBinder());
     }
 
+    @MainThread
     private void handleSendEvents(int uid,
+            @NonNull ParceledListSlice<ContentCaptureEvent> parceledEvents, int reason,
+            @Nullable ContentCaptureOptions options) {
+        if (reduceBinderTransactionEnabled()) {
+            handleSendEventsWithBatching(uid, parceledEvents, reason, options);
+        } else {
+            handleSendEventsNoBatching(uid, parceledEvents, reason, options);
+        }
+    }
+
+    @MainThread
+    private void handleSendEventsNoBatching(int uid,
             @NonNull ParceledListSlice<ContentCaptureEvent> parceledEvents, int reason,
             @Nullable ContentCaptureOptions options) {
         final List<ContentCaptureEvent> events = parceledEvents.getList();
@@ -601,6 +641,92 @@ public abstract class ContentCaptureService extends Service {
         writeFlushMetrics(lastSessionId, activityComponent, metrics, options, reason);
     }
 
+    @MainThread
+    private void handleSendEventsWithBatching(int uid,
+            @NonNull ParceledListSlice<ContentCaptureEvent> parceledEvents, int reason,
+            @Nullable ContentCaptureOptions options) {
+        final List<ContentCaptureEvent> events = parceledEvents.getList();
+        if (events.isEmpty()) {
+            Log.w(TAG, "handleSendEventsWithBatching() received empty list of events");
+            return;
+        }
+
+        int lastSessionId = NO_SESSION_ID;
+        ContentCaptureSessionId sessionId = null;
+
+        for (int i = 0; i < events.size(); i++) {
+            final ContentCaptureEvent event = events.get(i);
+            if (!handleIsRightCallerFor(event, uid)) continue;
+
+            final int sessionIdInt = event.getSessionId();
+            if (sessionIdInt != lastSessionId) {
+                sessionId = new ContentCaptureSessionId(sessionIdInt);
+                lastSessionId = sessionIdInt;
+            }
+
+            final int eventType = event.getType();
+            PendingMetrics pendingMetrics = mPendingMetrics.get(sessionIdInt);
+            if (pendingMetrics == null) {
+                pendingMetrics = new PendingMetrics();
+                mPendingMetrics.put(sessionIdInt, pendingMetrics);
+            }
+            final ContentCaptureContext clientContext = event.getContentCaptureContext();
+            pendingMetrics.update(
+                    clientContext != null ? clientContext.getActivityComponent() : null,
+                    options,
+                    reason);
+
+            boolean shouldFlushMetrics = false;
+            switch (eventType) {
+                case ContentCaptureEvent.TYPE_SESSION_STARTED:
+                    clientContext.setParentSessionId(event.getParentSessionId());
+                    mSessionUids.put(sessionIdInt, uid);
+                    onCreateContentCaptureSession(clientContext, sessionId);
+                    pendingMetrics.metrics.sessionStarted++;
+                    break;
+                case ContentCaptureEvent.TYPE_SESSION_FINISHED:
+                    mSessionUids.delete(sessionIdInt);
+                    onDestroyContentCaptureSession(sessionId);
+                    pendingMetrics.metrics.sessionFinished++;
+                    // Flush immediately when session is finished, regardless of threshold.
+                    shouldFlushMetrics = true;
+                    break;
+                case ContentCaptureEvent.TYPE_SESSION_PAUSED:
+                    onContentCaptureEvent(sessionId, event);
+                    // Flush immediately when session is paused, regardless of threshold.
+                    shouldFlushMetrics = true;
+                    break;
+                case ContentCaptureEvent.TYPE_VIEW_APPEARED:
+                    onContentCaptureEvent(sessionId, event);
+                    pendingMetrics.metrics.viewAppearedCount++;
+                    shouldFlushMetrics = isOverThreshold(pendingMetrics.metrics);
+                    break;
+                case ContentCaptureEvent.TYPE_VIEW_DISAPPEARED:
+                    onContentCaptureEvent(sessionId, event);
+                    pendingMetrics.metrics.viewDisappearedCount++;
+                    shouldFlushMetrics = isOverThreshold(pendingMetrics.metrics);
+                    break;
+                case ContentCaptureEvent.TYPE_VIEW_TEXT_CHANGED:
+                    onContentCaptureEvent(sessionId, event);
+                    pendingMetrics.metrics.viewTextChangedCount++;
+                    shouldFlushMetrics = isOverThreshold(pendingMetrics.metrics);
+                    break;
+                default:
+                    onContentCaptureEvent(sessionId, event);
+            }
+
+            if (shouldFlushMetrics) {
+                flushMetricsForSession(sessionIdInt);
+            }
+        }
+    }
+
+    private static boolean isOverThreshold(@NonNull FlushMetrics metrics) {
+        return metrics.viewAppearedCount >= METRICS_FLUSH_THRESHOLD
+                || metrics.viewDisappearedCount >= METRICS_FLUSH_THRESHOLD
+                || metrics.viewTextChangedCount >= METRICS_FLUSH_THRESHOLD;
+    }
+
     private void handleOnLoginDetected(
             int uid, @NonNull ParceledListSlice<ContentCaptureEvent> parceledEvents) {
         if (uid != Process.SYSTEM_UID) {
@@ -638,6 +764,9 @@ public abstract class ContentCaptureService extends Service {
 
     private void handleFinishSession(int sessionId) {
         mSessionUids.delete(sessionId);
+        if (reduceBinderTransactionEnabled()) {
+            flushMetricsForSession(sessionId);
+        }
         onDestroyContentCaptureSession(new ContentCaptureSessionId(sessionId));
     }
 
@@ -744,6 +873,47 @@ public abstract class ContentCaptureService extends Service {
         }
     }
 
+    @MainThread
+    private void flushAllPendingMetrics() {
+        if (mPendingMetrics.size() == 0) {
+            if (sDebug) {
+                Log.d(TAG, "flushAllPendingMetrics() - nothing to flush");
+            }
+            return;
+        }
+
+        if (sDebug) {
+            Log.d(TAG, "Flushing metrics for " + mPendingMetrics.size() + " sessions");
+        }
+
+        for (int i = 0; i < mPendingMetrics.size(); i++) {
+            final int sessionId = mPendingMetrics.keyAt(i);
+            final PendingMetrics pendingMetrics = mPendingMetrics.valueAt(i);
+            writeFlushMetrics(sessionId, pendingMetrics.activityComponent, pendingMetrics.metrics,
+                    pendingMetrics.options, pendingMetrics.flushReason);
+        }
+
+        mPendingMetrics.clear();
+    }
+
+    @MainThread
+    private void flushMetricsForSession(int sessionId) {
+        int index = mPendingMetrics.indexOfKey(sessionId);
+        if (index < 0) {
+            return;
+        }
+        final PendingMetrics pendingMetrics = mPendingMetrics.get(sessionId);
+        mPendingMetrics.removeAt(index);
+        if (pendingMetrics == null) {
+            return;
+        }
+        if (sDebug) {
+            Log.d(TAG, "Flushing metrics for session " + sessionId);
+        }
+        writeFlushMetrics(sessionId, pendingMetrics.activityComponent, pendingMetrics.metrics,
+                pendingMetrics.options, pendingMetrics.flushReason);
+    }
+
     /**
      * Logs the metrics for content capture events flushing.
      */
@@ -760,6 +930,35 @@ public abstract class ContentCaptureService extends Service {
                     sessionId, app, flushMetrics, options, flushReason);
         } catch (RemoteException e) {
             Log.e(TAG, "failed to write flush metrics: " + e);
+        }
+    }
+
+    /**
+     * Container for metrics that are batched before being flushed.
+     *
+     * @hide
+     */
+    @VisibleForTesting
+    public static class PendingMetrics {
+        private final FlushMetrics metrics = new FlushMetrics();
+        @Nullable private ComponentName activityComponent;
+        @Nullable private ContentCaptureOptions options;
+        private int flushReason;
+
+        private void update(
+                @Nullable ComponentName activityComponent,
+                @Nullable ContentCaptureOptions options,
+                int flushReason) {
+            if (this.activityComponent == null && activityComponent != null) {
+                this.activityComponent = activityComponent;
+            }
+            this.options = options;
+            this.flushReason = flushReason;
+        }
+
+        @VisibleForTesting
+        public FlushMetrics getMetrics() {
+            return metrics;
         }
     }
 

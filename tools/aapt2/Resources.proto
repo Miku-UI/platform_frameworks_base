@@ -243,6 +243,9 @@ message Entry {
 
   // The set of values defined for this entry which are behind disabled flags
   repeated ConfigValue flag_disabled_config_value = 8;
+
+  // The set of values defined for this entry which are behind read/write flags
+  repeated ConfigValue readwrite_flag_config_value = 9;
 }
 
 // A Configuration/Value pair.

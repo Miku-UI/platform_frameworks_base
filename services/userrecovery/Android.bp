@@ -1,0 +1,21 @@
+package {
+    // See: http://go/android-license-faq
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+filegroup {
+    name: "services.userrecovery-sources",
+    srcs: ["java/**/*.java"],
+    path: "java",
+    visibility: ["//frameworks/base/services"],
+}
+
+java_library_static {
+    name: "services.userrecovery",
+    defaults: ["platform_service_defaults"],
+    srcs: [
+        ":services.userrecovery-sources",
+        "java/**/*.logtags",
+    ],
+    libs: ["services.core"],
+}

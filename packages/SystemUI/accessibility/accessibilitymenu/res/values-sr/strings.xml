@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Иди на претходни екран"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Иди на следећи екран"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Мени Приступачност пружа велики мени на екрану за контролу уређаја. Можете да закључате уређај, контролишете јачину звука и осветљеност, правите снимке екрана и друго."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Контролишите уређај помоћу великог менија"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Контролишите јачину звука, осветљеност и друго помоћу великог менија"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Подешавања менија Приступачност"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Велика дугмад"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Повећајте величину дугмади у менију за приступачност"</string>

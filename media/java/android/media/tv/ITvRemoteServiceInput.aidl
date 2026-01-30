@@ -17,7 +17,7 @@
 package android.media.tv;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ITvRemoteServiceInput {
     // InputBridge related

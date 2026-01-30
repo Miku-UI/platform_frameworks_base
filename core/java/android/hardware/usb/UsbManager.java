@@ -17,6 +17,7 @@
 
 package android.hardware.usb;
 
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
 import static android.hardware.usb.UsbPortStatus.DATA_STATUS_DISABLED_FORCE;
 
 import android.Manifest;
@@ -28,6 +29,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresFeature;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SuppressLint;
@@ -46,6 +48,8 @@ import android.hardware.usb.gadget.UsbSpeed;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
+import android.system.ErrnoException;
+import android.system.Os;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.RemoteException;
@@ -58,6 +62,7 @@ import com.android.internal.annotations.GuardedBy;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InterruptedIOException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -83,6 +88,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <a href="{@docRoot}guide/topics/connectivity/usb/index.html">USB developer guide</a>.</p>
  * </div>
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @SystemService(Context.USB_SERVICE)
 public class UsbManager {
     private static final String TAG = "UsbManager";
@@ -943,46 +950,30 @@ public class UsbManager {
 
         private final ParcelFileDescriptor mPfd;
         private final UsbAccessory mAccessory;
+        private final boolean mIsAccessoryFfsEnabled;
+
+        AccessoryAutoCloseInputStream(
+                UsbAccessory accessory, ParcelFileDescriptor pfd, boolean isAccessoryFfsEnabled) {
+            super(pfd.getFileDescriptor());
+            this.mAccessory = accessory;
+            this.mPfd = pfd;
+            this.mIsAccessoryFfsEnabled = isAccessoryFfsEnabled;
+        }
 
         AccessoryAutoCloseInputStream(UsbAccessory accessory, ParcelFileDescriptor pfd) {
             super(pfd.getFileDescriptor());
             this.mAccessory = accessory;
             this.mPfd = pfd;
+            this.mIsAccessoryFfsEnabled = false;
         }
 
         @Override
         public void close() throws IOException {
             /* TODO(b/377850642) : Ensure the stream is closed even if client does not
-                explicitly close the stream to avoid corrupt FDs*/
+            explicitly close the stream to avoid corrupt FDs*/
             super.close();
-            closeHandleForAccessory(mAccessory, true);
-        }
-
-
-        @Override
-        public int read() throws IOException {
-            final int result = super.read();
-            checkError(result);
-            return result;
-        }
-
-        @Override
-        public int read(byte[] b) throws IOException {
-            final int result = super.read(b);
-            checkError(result);
-            return result;
-        }
-
-        @Override
-        public int read(byte[] b, int off, int len) throws IOException {
-            final int result = super.read(b, off, len);
-            checkError(result);
-            return result;
-        }
-
-        private void checkError(int result) throws IOException {
-            if (result == -1 && mPfd.canDetectErrors()) {
-                mPfd.checkError();
+            if (!mIsAccessoryFfsEnabled) {
+                closeHandleForAccessory(mAccessory, true);
             }
         }
     }
@@ -994,18 +985,65 @@ public class UsbManager {
      */
     private class AccessoryAutoCloseOutputStream extends FileOutputStream {
         private final UsbAccessory mAccessory;
+        private final int mMaxPacketSize;
+        private final ParcelFileDescriptor mPfd;
+        private final boolean mIsAccessoryFfsEnabled;
+
+        AccessoryAutoCloseOutputStream(
+                UsbAccessory accessory,
+                ParcelFileDescriptor pfd,
+                int maxPacketSize,
+                boolean isAccessoryFfsEnabled) {
+            super(pfd.getFileDescriptor());
+            mMaxPacketSize = maxPacketSize;
+            mAccessory = accessory;
+            mPfd = pfd;
+            mIsAccessoryFfsEnabled = isAccessoryFfsEnabled;
+        }
 
         AccessoryAutoCloseOutputStream(UsbAccessory accessory, ParcelFileDescriptor pfd) {
             super(pfd.getFileDescriptor());
+            mMaxPacketSize = -1;
             mAccessory = accessory;
+            mPfd = pfd;
+            mIsAccessoryFfsEnabled = false;
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+            super.write(b, off, len);
+
+            if (!mIsAccessoryFfsEnabled) {
+                return;
+            }
+            // Check if a ZLP is needed for this specific write operation
+            if (len > 0 && (len % mMaxPacketSize == 0)) {
+                sendZlp();
+            }
         }
 
         @Override
         public void close() throws IOException {
             /* TODO(b/377850642) : Ensure the stream is closed even if client does not
-                explicitly close the stream to avoid corrupt FDs*/
+            explicitly close the stream to avoid corrupt FDs*/
             super.close();
-            closeHandleForAccessory(mAccessory, false);
+            if (!mIsAccessoryFfsEnabled) {
+                closeHandleForAccessory(mAccessory, false);
+            }
+        }
+
+        /** Sends a Zero-Length Packet. This is done by writing a 0-byte array. */
+        private void sendZlp() {
+            byte[] emptyBuffer = new byte[0]; // Or any buffer, as count will be 0
+            // This should make a write(2) syscall with count = 0
+            try {
+                // TODO: febinthattil - Try this with native code
+                Os.write(mPfd.getFileDescriptor(), emptyBuffer, 0, 0);
+            } catch (ErrnoException e) {
+                Log.e(TAG, "ZLP failed to send.", e);
+            } catch (InterruptedIOException e) {
+                Log.e(TAG, "ZLP failed to send.", e);
+            }
         }
     }
 
@@ -1175,8 +1213,15 @@ public class UsbManager {
     @RequiresFeature(PackageManager.FEATURE_USB_ACCESSORY)
     public @NonNull InputStream openAccessoryInputStream(@NonNull UsbAccessory accessory) {
         try {
-            return new AccessoryAutoCloseInputStream(accessory,
-                    openHandleForAccessory(accessory, true).getPfd());
+            boolean isAccessoryFfsEnabled = mService.isAccessoryFfsEnabled();
+            if (isAccessoryFfsEnabled) {
+                return new AccessoryAutoCloseInputStream(
+                        accessory,
+                        mService.openAccessoryForInputStream(accessory),
+                        isAccessoryFfsEnabled);
+            }
+            return new AccessoryAutoCloseInputStream(
+                    accessory, openHandleForAccessory(accessory, true).getPfd());
 
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -1195,6 +1240,14 @@ public class UsbManager {
     @RequiresFeature(PackageManager.FEATURE_USB_ACCESSORY)
     public @NonNull OutputStream openAccessoryOutputStream(@NonNull UsbAccessory accessory) {
         try {
+            boolean isAccessoryFfsEnabled = mService.isAccessoryFfsEnabled();
+            if (isAccessoryFfsEnabled) {
+                return new AccessoryAutoCloseOutputStream(
+                        accessory,
+                        mService.openAccessoryForOutputStream(accessory),
+                        mService.getMaxPacketSize(accessory),
+                        isAccessoryFfsEnabled);
+            }
             return new AccessoryAutoCloseOutputStream(accessory,
                     openHandleForAccessory(accessory, false).getPfd());
         } catch (RemoteException e) {

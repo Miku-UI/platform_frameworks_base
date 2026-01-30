@@ -116,6 +116,7 @@ bool FileDescriptorAllowlist::IsAllowed(const std::string& path) const {
     // See AssetManager.cpp for more details on overlay-subdir.
     static const char* kOverlayDir = "/system/vendor/overlay/";
     static const char* kVendorOverlayDir = "/vendor/overlay";
+    static const char* kVendorOdmOverlayDir = "/vendor/odm/overlay";
     static const char* kVendorOverlaySubdir = "/system/vendor/overlay-subdir/";
     static const char* kSystemProductOverlayDir = "/system/product/overlay/";
     static const char* kProductOverlayDir = "/product/overlay";
@@ -129,6 +130,7 @@ bool FileDescriptorAllowlist::IsAllowed(const std::string& path) const {
 
     if ((android::base::StartsWith(path, kOverlayDir) ||
          android::base::StartsWith(path, kVendorOverlaySubdir) ||
+         android::base::StartsWith(path, kVendorOdmOverlayDir) ||
          android::base::StartsWith(path, kVendorOverlayDir) ||
          android::base::StartsWith(path, kSystemProductOverlayDir) ||
          android::base::StartsWith(path, kProductOverlayDir) ||

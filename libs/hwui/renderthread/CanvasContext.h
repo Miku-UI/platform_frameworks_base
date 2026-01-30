@@ -30,6 +30,7 @@
 #include <utility>
 #include <vector>
 
+#include "ColorArea.h"
 #include "ColorMode.h"
 #include "DamageAccumulator.h"
 #include "FrameInfo.h"
@@ -207,6 +208,8 @@ public:
 
     SkISize getNextFrameSize() const;
 
+    const ColorArea& getColorArea() const { return mColorArea; }
+
     // Returns the matrix to use to nudge non-AA'd points/lines towards the fragment center
     const SkM44& getPixelSnapMatrix() const;
 
@@ -233,9 +236,11 @@ public:
 
     static CanvasContext* getActiveContext();
 
-    void sendLoadResetHint();
+    void sendCpuLoadResetHint();
 
-    void sendLoadIncreaseHint();
+    void sendCpuLoadIncreaseHint();
+
+    void sendGpuLoadIncreaseHint();
 
     void setSyncDelayDuration(nsecs_t duration);
 
@@ -334,6 +339,7 @@ private:
 
     bool mHaveNewSurface = false;
     DamageAccumulator mDamageAccumulator;
+    ColorArea mColorArea;
     LayerUpdateQueue mLayerUpdateQueue;
     std::unique_ptr<AnimationContext> mAnimationContext;
 
@@ -382,6 +388,15 @@ private:
         int64_t startTime;
     };
     std::optional<SkippedFrameInfo> mSkippedFrameInfo;
+
+    /**
+     * Does a pre-pass on all the nodes and populates mColorArea with color information. Used by
+     * force invert to determine if the app is light theme.
+     *
+     * @param target the target node to run in MODE_FULL. For this node, the staging displaylist is
+     *    used. All other nodes are treated in MODE_RT, using their main displaylists.
+     */
+    void determineColors(const RenderNode* target);
 };
 
 } /* namespace renderthread */

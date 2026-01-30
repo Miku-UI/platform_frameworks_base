@@ -22,7 +22,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.screenrecord.RecordingController
+import com.android.systemui.screenrecord.ScreenRecordUxController
 import com.android.systemui.screenrecord.data.model.ScreenRecordModel
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -41,12 +41,12 @@ import org.mockito.kotlin.whenever
 class ScreenRecordRepositoryTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
-    private val recordingController = mock<RecordingController>()
+    private val screenRecordUxController = mock<ScreenRecordUxController>()
 
     private val underTest =
         ScreenRecordRepositoryImpl(
             bgCoroutineContext = testScope.testScheduler,
-            recordingController = recordingController,
+            screenRecordUxController = screenRecordUxController,
         )
 
     private val isRecording = ScreenRecordModel.Recording
@@ -56,15 +56,15 @@ class ScreenRecordRepositoryTest : SysuiTestCase() {
     @Test
     fun dataMatchesController() =
         testScope.runTest {
-            whenever(recordingController.isRecording).thenReturn(false)
-            whenever(recordingController.isStarting).thenReturn(false)
+            whenever(screenRecordUxController.isRecording).thenReturn(false)
+            whenever(screenRecordUxController.isStarting).thenReturn(false)
 
-            val callbackCaptor = argumentCaptor<RecordingController.RecordingStateChangeCallback>()
+            val callbackCaptor = argumentCaptor<ScreenRecordUxController.StateChangeCallback>()
 
             val lastModel by collectLastValue(underTest.screenRecordState)
             runCurrent()
 
-            verify(recordingController).addCallback(callbackCaptor.capture())
+            verify(screenRecordUxController).addCallback(callbackCaptor.capture())
             val callback = callbackCaptor.firstValue
 
             assertThat(lastModel).isEqualTo(isDoingNothing)
@@ -90,8 +90,8 @@ class ScreenRecordRepositoryTest : SysuiTestCase() {
     @Test
     fun data_whenRecording_matchesController() =
         testScope.runTest {
-            whenever(recordingController.isRecording).thenReturn(true)
-            whenever(recordingController.isStarting).thenReturn(false)
+            whenever(screenRecordUxController.isRecording).thenReturn(true)
+            whenever(screenRecordUxController.isStarting).thenReturn(false)
 
             val lastModel by collectLastValue(underTest.screenRecordState)
             runCurrent()
@@ -102,8 +102,8 @@ class ScreenRecordRepositoryTest : SysuiTestCase() {
     @Test
     fun data_whenStarting_matchesController() =
         testScope.runTest {
-            whenever(recordingController.isRecording).thenReturn(false)
-            whenever(recordingController.isStarting).thenReturn(true)
+            whenever(screenRecordUxController.isRecording).thenReturn(false)
+            whenever(screenRecordUxController.isStarting).thenReturn(true)
 
             val lastModel by collectLastValue(underTest.screenRecordState)
             runCurrent()
@@ -114,8 +114,8 @@ class ScreenRecordRepositoryTest : SysuiTestCase() {
     @Test
     fun data_whenRecordingAndStarting_matchesControllerRecording() =
         testScope.runTest {
-            whenever(recordingController.isRecording).thenReturn(true)
-            whenever(recordingController.isStarting).thenReturn(true)
+            whenever(screenRecordUxController.isRecording).thenReturn(true)
+            whenever(screenRecordUxController.isStarting).thenReturn(true)
 
             val lastModel by collectLastValue(underTest.screenRecordState)
             runCurrent()
@@ -128,6 +128,6 @@ class ScreenRecordRepositoryTest : SysuiTestCase() {
         testScope.runTest {
             underTest.stopRecording(StopReason.STOP_PRIVACY_CHIP)
 
-            verify(recordingController).stopRecording(eq(StopReason.STOP_PRIVACY_CHIP))
+            verify(screenRecordUxController).stopRecording(eq(StopReason.STOP_PRIVACY_CHIP))
         }
 }

@@ -1,0 +1,79 @@
+//
+// Copyright (C) 2025 The Android Open-Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+    default_visibility: ["//system/zygote:__subpackages__"],
+}
+
+rust_bindgen {
+    name: "libdlext_bindgen",
+    crate_name: "dlext_bindgen",
+    wrapper_src: "src/bindings/dlext.h",
+    source_stem: "dlext_bindings",
+    shared_libs: [
+        "libdl_android",
+    ],
+}
+
+rust_bindgen {
+    name: "liblooper_bindgen",
+    crate_name: "looper_bindgen",
+    wrapper_src: "src/bindings/looper.h",
+    source_stem: "looper_bindings",
+    header_libs: [
+        "native_headers",
+    ],
+    shared_libs: [
+        "libandroid",
+    ],
+}
+
+rust_bindgen {
+    name: "libnative_service_bindgen",
+    crate_name: "native_service_bindgen",
+    wrapper_src: "src/bindings/native_service.h",
+    source_stem: "native_service_bindings",
+    header_libs: [
+        "libandroid_headers_private",
+    ],
+    shared_libs: [
+        "libandroid",
+        "libbinder_ndk",
+    ],
+}
+
+rust_library {
+    name: "libnative_activity_thread",
+    crate_name: "native_activity_thread",
+    edition: "2021",
+    srcs: [
+        "src/lib.rs",
+    ],
+    rustlibs: [
+        "activitymanager_structured_aidl-rust",
+        "libanyhow",
+        "libatrace_rust",
+        "libbinder_rs",
+        "libdlext_bindgen",
+        "liblogger",
+        "liblibc",
+        "liblog_rust",
+        "liblooper_bindgen",
+        "libnative_service_bindgen",
+        "native_application_thread_aidl-rust",
+        "libactivity_manager_procstate_aidl-rust",
+    ],
+}

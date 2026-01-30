@@ -29,9 +29,6 @@ import kotlin.reflect.KClass
  * [QSTileState.build] for better state creation experience and preset default values for certain
  * fields.
  *
- * @param iconRes For when we want to have Loaded icon, but still keep a reference to the resource
- *   id. A use case would be for tests that have to compare animated drawables.
- *
  * // TODO(b/http://b/299909989): Clean up legacy mappings after the transition
  */
 data class QSTileState(

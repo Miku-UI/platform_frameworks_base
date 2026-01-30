@@ -20,6 +20,27 @@
 <merge
     xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <TextView
+        android:id="@+id/alt_title"
+        android:textAppearance="@style/TextAppearance.DeviceDefault.Notification.Title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:textAlignment="viewStart"
+        android:visibility="gone"
+        />
+   <TextView
+        android:id="@+id/app_name_text_divider"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextAppearance.DeviceDefault.Notification.Info"
+        android:layout_marginStart="@dimen/notification_header_separating_margin"
+        android:layout_marginEnd="@dimen/notification_header_separating_margin"
+        android:text="@string/notification_header_divider_symbol"
+        android:visibility="gone"
+        />
+
     <com.android.internal.widget.ObservableTextView
         android:id="@+id/app_name_text"
         android:layout_width="wrap_content"
@@ -164,7 +185,7 @@
         android:layout_marginStart="@dimen/notification_2025_badge_margin"
         android:baseline="@dimen/notification_2025_badge_baseline"
         android:scaleType="fitCenter"
-        android:src="@drawable/ic_dialog_alert_material"
+        android:src="@drawable/ic_android_security_privacy_alert_fill_material"
         android:visibility="gone"
         android:contentDescription="@string/notification_phishing_alert_content_description"
         />

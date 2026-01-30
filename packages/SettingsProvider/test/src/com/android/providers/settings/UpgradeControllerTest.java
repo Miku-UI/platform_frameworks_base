@@ -48,6 +48,7 @@ import org.mockito.MockitoAnnotations;
 
 public class UpgradeControllerTest {
     private static final int USER_ID = UserHandle.USER_SYSTEM;
+    private static final int DEVICE_ID = Context.DEVICE_ID_DEFAULT;
     private static final float HIGHEST_REFRESH_RATE = 130f;
 
     private final Context mContext =
@@ -68,7 +69,7 @@ public class UpgradeControllerTest {
     private final SettingsProvider.SettingsRegistry mSettingsRegistry =
             mSettingsProvider.new SettingsRegistry(Looper.getMainLooper());
     private final SettingsProvider.SettingsRegistry.UpgradeController mUpgradeController =
-            mSettingsRegistry.new UpgradeController(mInjector, USER_ID);
+            mSettingsRegistry.new UpgradeController(mInjector, USER_ID, DEVICE_ID);
 
     @Mock
     private UserManager mUserManager;
@@ -113,9 +114,9 @@ public class UpgradeControllerTest {
         when(mSystemSettings.getSettingLocked(MIN_REFRESH_RATE))
                 .thenReturn(mMinRefreshRateSetting);
 
-        mSettingsRegistry.injectSettings(mSystemSettings, SETTINGS_TYPE_SYSTEM, USER_ID);
-        mSettingsRegistry.injectSettings(mSecureSettings, SETTINGS_TYPE_SECURE, USER_ID);
-        mSettingsRegistry.injectSettings(mGlobalSettings, SETTINGS_TYPE_GLOBAL, USER_ID);
+        mSettingsRegistry.injectSettings(mSystemSettings, SETTINGS_TYPE_SYSTEM, USER_ID, DEVICE_ID);
+        mSettingsRegistry.injectSettings(mSecureSettings, SETTINGS_TYPE_SECURE, USER_ID, DEVICE_ID);
+        mSettingsRegistry.injectSettings(mGlobalSettings, SETTINGS_TYPE_GLOBAL, USER_ID, DEVICE_ID);
 
         // Lowest version so that all upgrades are run
         when(mSecureSettings.getVersionLocked()).thenReturn(118);

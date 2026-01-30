@@ -22,7 +22,6 @@ import android.annotation.Nullable;
 import android.annotation.SuppressLint;
 import android.annotation.TestApi;
 import android.app.ActivityThread;
-import android.app.Instrumentation;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodRedirect;
@@ -97,32 +96,12 @@ public final class MessageQueue {
     private native static boolean nativeIsPolling(long ptr);
     @RavenwoodRedirect
     private native static void nativeSetFileDescriptorEvents(long ptr, int fd, int events);
+    @RavenwoodRedirect
+    private native static void nativeSetSkipEpollWaitForZeroTimeout(long ptr);
 
     MessageQueue(boolean quitAllowed) {
         mQuitAllowed = quitAllowed;
         mPtr = nativeInit();
-    }
-
-    @android.ravenwood.annotation.RavenwoodReplace
-    private static void throwIfNotTest() {
-        final ActivityThread activityThread = ActivityThread.currentActivityThread();
-        if (activityThread == null) {
-            // Only tests can reach here.
-            return;
-        }
-        final Instrumentation instrumentation = activityThread.getInstrumentation();
-        if (instrumentation == null) {
-            // Only tests can reach here.
-            return;
-        }
-        if (instrumentation.isInstrumenting()) {
-            return;
-        }
-        throw new IllegalStateException("Test-only API called not from a test!");
-    }
-
-    private static void throwIfNotTest$ravenwood() {
-        return;
     }
 
     @Override
@@ -143,8 +122,13 @@ public final class MessageQueue {
         }
     }
 
+    static boolean getUseConcurrent() {
+        return false;
+    }
+
     /**
-     * Returns true if the looper has no pending messages which are due to be processed.
+     * Returns true if the looper has no pending messages which are due to be processed
+     * and is not blocked on sync barrier.
      *
      * <p>This method is safe to call from any thread.
      *
@@ -485,6 +469,66 @@ public final class MessageQueue {
         }
     }
 
+    /**
+     * Returns the last message in the queue in execution order.
+     *
+     * Caller must ensure that this doesn't race 'next' from the Looper thread.
+     * @hide
+     */
+    public @Nullable Message peekLastMessageForTest() {
+        ActivityThread.throwIfNotInstrumenting();
+        synchronized (this) {
+            Message lastMsg = null;
+
+            Message current = mMessages;
+            while (current != null) {
+                if (current.target != null && (lastMsg == null || lastMsg.when <= current.when)) {
+                    lastMsg = current;
+                }
+                current = current.next;
+            }
+
+            return lastMsg;
+        }
+    }
+
+    /**
+     * Resets this queue's state and allows it to continue being used.
+     *
+     * @hide
+     */
+    public void resetForTest() {
+        ActivityThread.throwIfNotInstrumenting();
+        synchronized (this) {
+            // This queue is already quitting, so we can't reset its state and continue using it.
+            if (mQuitting) {
+                return;
+            }
+            mIdleHandlers.clear();
+            removeAllFdRecords();
+            removeAllMessagesLocked();
+            // We reset the sync barrier tokens to reflect the queue's state reset. This helps
+            // ensure that the queue's behavior is deterministic in both individual tests and in a
+            // test suite.
+            resetSyncBarrierTokens();
+            nativeWake(mPtr);
+        }
+    }
+
+    private void removeAllFdRecords() {
+        if (mFileDescriptorRecords != null) {
+            while (mFileDescriptorRecords.size() > 0) {
+                removeOnFileDescriptorEventListener(mFileDescriptorRecords.valueAt(0).mDescriptor);
+            }
+        }
+    }
+
+    private void resetSyncBarrierTokens() {
+        // Legacy MQ doesn't use an atomic integer for barrier tokens.
+        // mNextBarrierTokenAtomic.set(1);
+        mNextBarrierToken = 0;
+    }
+
     void quit(boolean safe) {
         if (!mQuitAllowed) {
             throw new IllegalStateException("Main thread not allowed to quit.");
@@ -546,7 +590,7 @@ public final class MessageQueue {
             msg.when = when;
             msg.arg1 = token;
 
-            if (Flags.messageQueueTailTracking() && mLast != null && mLast.when <= when) {
+            if (mLast != null && mLast.when <= when) {
                 /* Message goes to tail of list */
                 mLast.next = msg;
                 mLast = msg;
@@ -665,36 +709,13 @@ public final class MessageQueue {
                 // the message is the earliest asynchronous message in the queue.
                 needWake = mBlocked && p.target == null && msg.isAsynchronous();
 
-                // For readability, we split this portion of the function into two blocks based on
-                // whether tail tracking is enabled. This has a minor implication for the case
-                // where tail tracking is disabled. See the comment below.
-                if (Flags.messageQueueTailTracking()) {
-                    if (when >= mLast.when) {
-                        needWake = needWake && mAsyncMessageCount == 0;
-                        msg.next = null;
-                        mLast.next = msg;
-                        mLast = msg;
-                    } else {
-                        // Inserted within the middle of the queue.
-                        Message prev;
-                        for (;;) {
-                            prev = p;
-                            p = p.next;
-                            if (p == null || when < p.when) {
-                                break;
-                            }
-                            if (needWake && p.isAsynchronous()) {
-                                needWake = false;
-                            }
-                        }
-                        if (p == null) {
-                            /* Inserting at tail of queue */
-                            mLast = msg;
-                        }
-                        msg.next = p; // invariant: p == prev.next
-                        prev.next = msg;
-                    }
+                if (when >= mLast.when) {
+                    needWake = needWake && mAsyncMessageCount == 0;
+                    msg.next = null;
+                    mLast.next = msg;
+                    mLast = msg;
                 } else {
+                    // Inserted within the middle of the queue.
                     Message prev;
                     for (;;) {
                         prev = p;
@@ -706,24 +727,12 @@ public final class MessageQueue {
                             needWake = false;
                         }
                     }
+                    if (p == null) {
+                        /* Inserting at tail of queue */
+                        mLast = msg;
+                    }
                     msg.next = p; // invariant: p == prev.next
                     prev.next = msg;
-
-                    /*
-                     * If this block is executing then we have a build without tail tracking -
-                     * specifically: Flags.messageQueueTailTracking() == false. This is determined
-                     * at build time so the flag won't change on us during runtime.
-                     *
-                     * Since we don't want to pepper the code with extra checks, we only check
-                     * for tail tracking when we might use mLast. Otherwise, we continue to update
-                     * mLast as the tail of the list.
-                     *
-                     * In this case however we are not maintaining mLast correctly. Since we never
-                     * use it, this is fine. However, we run the risk of leaking a reference.
-                     * So set mLast to null in this case to avoid any Message leaks. The other
-                     * sites will never use the value so we are safe against null pointer derefs.
-                     */
-                    mLast = null;
                 }
             }
 
@@ -793,7 +802,7 @@ public final class MessageQueue {
      */
     @SuppressLint("VisiblySynchronized") // Legacy MessageQueue synchronizes on this
     Long peekWhenForTest() {
-        throwIfNotTest();
+        ActivityThread.throwIfNotInstrumenting();
         Message ret = legacyPeekOrPoll(true);
         return ret != null ? ret.when : null;
     }
@@ -807,7 +816,7 @@ public final class MessageQueue {
     @SuppressLint("VisiblySynchronized") // Legacy MessageQueue synchronizes on this
     @Nullable
     Message pollForTest() {
-        throwIfNotTest();
+        ActivityThread.throwIfNotInstrumenting();
         return legacyPeekOrPoll(false);
     }
 
@@ -819,7 +828,7 @@ public final class MessageQueue {
      * and may not be resumed until after returning from this method.
      */
     boolean isBlockedOnSyncBarrier() {
-        throwIfNotTest();
+        ActivityThread.throwIfNotInstrumenting();
         synchronized (this) {
             Message msg = mMessages;
             return msg != null && msg.target == null;

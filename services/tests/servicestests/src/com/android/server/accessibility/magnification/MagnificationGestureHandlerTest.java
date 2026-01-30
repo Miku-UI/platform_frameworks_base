@@ -22,6 +22,7 @@ import static android.view.MotionEvent.ACTION_HOVER_MOVE;
 import static android.view.MotionEvent.ACTION_UP;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.testng.AssertJUnit.assertTrue;
 
@@ -154,6 +155,34 @@ public class MagnificationGestureHandlerTest {
             verify(mCallback).onTouchInteractionEnd(eq(DISPLAY_0), eq(mMgh.getMode()));
         } finally {
             cancelEvent.recycle();
+        }
+    }
+
+    @Test
+    public void onMotionEvent_withHoverMoveEventFromMouse_shouldInvokeOnMouseMoveCallback() {
+        final MotionEvent mouseEvent = MotionEvent.obtain(0, 0, ACTION_HOVER_MOVE, 0, 0, 0);
+        mouseEvent.setSource(InputDevice.SOURCE_MOUSE);
+
+        mMgh.onMotionEvent(mouseEvent, mouseEvent, /* policyFlags= */ 0);
+
+        try {
+            verify(mCallback).onMouseMove(eq(DISPLAY_0), eq(mMgh.getMode()));
+        } finally {
+            mouseEvent.recycle();
+        }
+    }
+
+    @Test
+    public void onMotionEvent_withMouseDownEventFromMouse_shouldNotInvokeOnMouseMove() {
+        final MotionEvent mouseEvent = MotionEvent.obtain(0, 0, ACTION_DOWN, 0, 0, 0);
+        mouseEvent.setSource(InputDevice.SOURCE_MOUSE);
+
+        mMgh.onMotionEvent(mouseEvent, mouseEvent, /* policyFlags= */ 0);
+
+        try {
+            verify(mCallback, never()).onMouseMove(eq(DISPLAY_0), eq(mMgh.getMode()));
+        } finally {
+            mouseEvent.recycle();
         }
     }
 

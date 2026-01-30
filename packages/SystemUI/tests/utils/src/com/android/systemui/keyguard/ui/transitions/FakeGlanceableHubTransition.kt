@@ -20,4 +20,5 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class FakeGlanceableHubTransition : GlanceableHubTransition {
     override val windowBlurRadius: MutableStateFlow<Float> = MutableStateFlow(0.0f)
+    override val zoomOut: MutableStateFlow<Float> = MutableStateFlow(1f)
 }

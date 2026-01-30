@@ -19,7 +19,7 @@ package com.android.systemui.qs.composefragment.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.android.compose.animation.scene.ContentScope
-import com.android.systemui.qs.shared.ui.ElementKeys
+import com.android.systemui.qs.shared.ui.QuickSettings.Elements
 
 /**
  * This composable is used at the start of the tiles in QQS and QS to anchor the expansion and be
@@ -28,5 +28,5 @@ import com.android.systemui.qs.shared.ui.ElementKeys
 @Composable
 fun ContentScope.GridAnchor(modifier: Modifier = Modifier) {
     // The size of this anchor does not matter, as the tiles don't change size on expansion.
-    Element(ElementKeys.GridAnchor, modifier) {}
+    Element(Elements.GridAnchor, modifier) {}
 }

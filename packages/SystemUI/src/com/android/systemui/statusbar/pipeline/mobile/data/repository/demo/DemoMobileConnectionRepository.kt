@@ -25,7 +25,7 @@ import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionS
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.model.ResolvedNetworkType
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository
-import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository.Companion.DEFAULT_NUM_LEVELS
+import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository.Companion.createNumberOfLevelsFlow
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.model.FakeNetworkEventModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.prod.FullMobileConnectionRepository.Companion.COL_CARRIER_ID
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.prod.FullMobileConnectionRepository.Companion.COL_CARRIER_NETWORK_CHANGE
@@ -45,7 +45,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -198,18 +197,17 @@ class DemoMobileConnectionRepository(
             .logDiffsForTable(tableLogBuffer, initialValue = _resolvedNetworkType.value)
             .stateIn(scope, SharingStarted.WhileSubscribed(), _resolvedNetworkType.value)
 
+    private val _defaultNumberOfLevels =
+        MutableStateFlow(MobileConnectionRepository.DEFAULT_NUM_LEVELS)
+
     override val numberOfLevels =
-        _inflateSignalStrength
-            .map { shouldInflate ->
-                if (shouldInflate) {
-                    DEFAULT_NUM_LEVELS + 1
-                } else {
-                    DEFAULT_NUM_LEVELS
-                }
-            }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), DEFAULT_NUM_LEVELS)
+        createNumberOfLevelsFlow(scope, _inflateSignalStrength, _defaultNumberOfLevels)
 
     override val dataEnabled = MutableStateFlow(true)
+
+    override fun setDataEnabled(enabled: Boolean) {
+        // Unused.
+    }
 
     override val cdmaRoaming = MutableStateFlow(false)
 
@@ -274,6 +272,8 @@ class DemoMobileConnectionRepository(
         cdmaRoaming.value = false
         _primaryLevel.value = event.level
         _cdmaLevel.value = event.level
+        _defaultNumberOfLevels.value = event.numberOfLevels
+        _inflateSignalStrength.value = event.inflateSignalStrength
         _dataActivityDirection.value = event.activity.toMobileDataActivityModel()
 
         // These fields are always the same for carrier-merged networks

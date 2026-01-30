@@ -19,6 +19,8 @@ package com.android.systemui.common.ui.compose.gestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
@@ -40,52 +42,73 @@ import kotlinx.coroutines.coroutineScope
  * @param onTap the single tap callback
  */
 suspend fun PointerInputScope.detectEagerTapGestures(
+    interactionSource: MutableInteractionSource,
     doubleTapEnabled: () -> Boolean,
     onDoubleTap: (Offset) -> Unit,
     onTap: () -> Unit,
 ) = coroutineScope {
     awaitEachGesture {
-        val down = awaitFirstDown()
-        down.consume()
+        var firstPress: PressInteraction.Press? = null
+        var secondPress: PressInteraction.Press? = null
 
-        // Capture whether double tap is enabled on first down as this state can change following
-        // the first tap
-        val isDoubleTapEnabled = doubleTapEnabled()
+        try {
+            val down = awaitFirstDown()
+            down.consume()
 
-        // wait for first tap up or long press
-        val upOrCancel = waitForUpOrCancellation()
+            firstPress = PressInteraction.Press(down.position)
+            interactionSource.tryEmit(firstPress)
 
-        if (upOrCancel != null) {
-            // tap was successful.
-            upOrCancel.consume()
-            onTap.invoke()
+            // Capture whether double tap is enabled on first down as this state can change
+            // following
+            // the first tap
+            val isDoubleTapEnabled = doubleTapEnabled()
 
-            if (isDoubleTapEnabled) {
-                // check for second tap
-                val secondDown =
-                    withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
-                        val minUptime =
-                            upOrCancel.uptimeMillis + viewConfiguration.doubleTapMinTimeMillis
-                        var change: PointerInputChange
-                        // The second tap doesn't count if it happens before DoubleTapMinTime of the
-                        // first tap
-                        do {
-                            change = awaitFirstDown()
-                        } while (change.uptimeMillis < minUptime)
-                        change
-                    }
+            // wait for first tap up or long press
+            val upOrCancel = waitForUpOrCancellation()
 
-                if (secondDown != null) {
-                    // Second tap down detected
+            if (upOrCancel != null) {
+                // tap was successful.
+                upOrCancel.consume()
+                onTap.invoke()
 
-                    // Might have a long second press as the second tap
-                    val secondUp = waitForUpOrCancellation()
-                    if (secondUp != null) {
-                        secondUp.consume()
-                        onDoubleTap(secondUp.position)
+                interactionSource.tryEmit(PressInteraction.Release(firstPress))
+                firstPress = null
+
+                if (isDoubleTapEnabled) {
+                    // check for second tap
+                    val secondDown =
+                        withTimeoutOrNull(viewConfiguration.doubleTapTimeoutMillis) {
+                            val minUptime =
+                                upOrCancel.uptimeMillis + viewConfiguration.doubleTapMinTimeMillis
+                            var change: PointerInputChange
+                            // The second tap doesn't count if it happens before DoubleTapMinTime of
+                            // the first tap
+                            do {
+                                change = awaitFirstDown()
+                            } while (change.uptimeMillis < minUptime)
+                            change
+                        }
+
+                    if (secondDown != null) {
+                        // Second tap down detected
+                        secondPress = PressInteraction.Press(secondDown.position)
+                        interactionSource.tryEmit(secondPress)
+
+                        // Might have a long second press as the second tap
+                        val secondUp = waitForUpOrCancellation()
+                        if (secondUp != null) {
+                            secondUp.consume()
+                            onDoubleTap(secondUp.position)
+                            interactionSource.tryEmit(PressInteraction.Release(secondPress))
+                            secondPress = null
+                        }
                     }
                 }
             }
+        } finally {
+            // Cancelling pending interactions when the scope is cancelled
+            firstPress?.let { interactionSource.tryEmit(PressInteraction.Cancel(it)) }
+            secondPress?.let { interactionSource.tryEmit(PressInteraction.Cancel(it)) }
         }
     }
 }

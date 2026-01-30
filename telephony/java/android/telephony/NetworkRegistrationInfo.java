@@ -951,7 +951,7 @@ public final class NetworkRegistrationInfo implements Parcelable {
      */
     public NetworkRegistrationInfo sanitizeLocationInfo() {
         NetworkRegistrationInfo result = copy();
-        result.mCellIdentity = null;
+        if (mCellIdentity != null) result.mCellIdentity = mCellIdentity.sanitizeLocationInfo();
         return result;
     }
 

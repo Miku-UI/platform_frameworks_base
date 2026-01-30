@@ -23,7 +23,7 @@ import android.window.IBackAnimationFinishedCallback;
  * Interface that is used to callback from window manager to the process that runs a back gesture
  * animation to start or cancel it.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IBackAnimationRunner {
 

@@ -40,10 +40,13 @@ using ApkAssetsPtr = sp<ApkAssets>;
 class ApkAssets : public RefBase {
  public:
   // Creates an ApkAssets from a path on device.
-  static ApkAssetsPtr Load(const std::string& path, package_property_t flags = 0U);
+  static ApkAssetsPtr Load(const std::string& path,
+                           GetFlagValuesFunc get_flag_values_func = nullptr,
+                           package_property_t flags = 0U);
 
   // Creates an ApkAssets from an open file descriptor.
   static ApkAssetsPtr LoadFromFd(base::unique_fd fd, const std::string& debug_name,
+                                 GetFlagValuesFunc get_flag_values_func = nullptr,
                                  package_property_t flags = 0U, off64_t offset = 0,
                                  off64_t len = AssetsProvider::kUnknownLength);
 
@@ -59,16 +62,20 @@ class ApkAssets : public RefBase {
   //
 
   template <class T>
-  static ApkAssetsPtr Load(std::unique_ptr<T>&& assets, package_property_t flags = 0U)
+  static ApkAssetsPtr Load(std::unique_ptr<T>&& assets,
+                           GetFlagValuesFunc get_flag_values_func = nullptr,
+                           package_property_t flags = 0U)
       requires(std::is_same_v<T, AssetsProvider>) {
-    return LoadImpl(std::move(assets), flags);
+    return LoadImpl(std::move(assets), get_flag_values_func, flags);
   }
 
   template <class T>
-  static ApkAssetsPtr Load(std::unique_ptr<T>&& assets, package_property_t flags = 0U)
+  static ApkAssetsPtr Load(std::unique_ptr<T>&& assets,
+                           GetFlagValuesFunc get_flag_values_func = nullptr,
+                           package_property_t flags = 0U)
       requires(!std::is_same_v<T, AssetsProvider> && std::is_base_of_v<AssetsProvider, T>) {
     std::unique_ptr<AssetsProvider> base_assets(std::move(assets));
-    auto res = LoadImpl(std::move(base_assets), flags);
+    auto res = LoadImpl(std::move(base_assets), get_flag_values_func, flags);
     if (!res) {
       assets.reset(static_cast<T*>(base_assets.release()));
     }
@@ -78,6 +85,7 @@ class ApkAssets : public RefBase {
   // Creates an ApkAssets from the given asset file representing a resources.arsc.
   static ApkAssetsPtr LoadTable(std::unique_ptr<Asset>&& resources_asset,
                                 std::unique_ptr<AssetsProvider>&& assets,
+                                GetFlagValuesFunc get_flag_values_func = nullptr,
                                 package_property_t flags = 0U);
 
   // Creates an ApkAssets from an IDMAP, which contains the original APK path, and the overlay
@@ -131,15 +139,18 @@ class ApkAssets : public RefBase {
   static ApkAssetsPtr LoadImpl(std::unique_ptr<AssetsProvider>&& assets,
                                package_property_t property_flags,
                                std::unique_ptr<Asset>&& idmap_asset,
-                               std::unique_ptr<LoadedIdmap>&& loaded_idmap);
+                               std::unique_ptr<LoadedIdmap>&& loaded_idmap,
+                               GetFlagValuesFunc get_flag_values_func);
 
   static ApkAssetsPtr LoadImpl(std::unique_ptr<Asset>&& resources_asset,
                                std::unique_ptr<AssetsProvider>&& assets,
                                package_property_t property_flags,
                                std::unique_ptr<Asset>&& idmap_asset,
-                               std::unique_ptr<LoadedIdmap>&& loaded_idmap);
+                               std::unique_ptr<LoadedIdmap>&& loaded_idmap,
+                               GetFlagValuesFunc get_flag_values_func);
 
   static ApkAssetsPtr LoadImpl(std::unique_ptr<AssetsProvider>&& assets,
+                               GetFlagValuesFunc get_flag_values_func,
                                package_property_t flags = 0U);
 
   // Allows us to make it possible to call make_shared from inside the class but still keeps the

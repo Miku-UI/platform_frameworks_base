@@ -287,6 +287,10 @@ class FullMobileConnectionRepository(
             )
             .stateIn(scope, SharingStarted.WhileSubscribed(), activeRepo.value.dataEnabled.value)
 
+    override fun setDataEnabled(enabled: Boolean) {
+        activeRepo.value.setDataEnabled(enabled)
+    }
+
     override val inflateSignalStrength =
         activeRepo
             .flatMapLatest { it.inflateSignalStrength }

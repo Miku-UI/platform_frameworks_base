@@ -16,7 +16,8 @@
 
 package com.android.systemui.common.domain.interactor
 
-import com.android.systemui.common.data.repository.batteryRepository
+import com.android.systemui.common.data.repository.batteryRepositoryDeprecated
 import com.android.systemui.kosmos.Kosmos
 
-var Kosmos.batteryInteractor by Kosmos.Fixture { BatteryInteractor(batteryRepository) }
+var Kosmos.batteryInteractorDeprecated by
+    Kosmos.Fixture { BatteryInteractorDeprecated(batteryRepositoryDeprecated) }

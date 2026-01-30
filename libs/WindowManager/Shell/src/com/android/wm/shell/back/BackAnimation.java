@@ -42,7 +42,8 @@ public interface BackAnimation {
             float touchX,
             float touchY,
             int keyAction,
-            @BackEvent.SwipeEdge int swipeEdge);
+            @BackEvent.SwipeEdge int swipeEdge,
+            int displayId);
 
     /**
      * Called when the back swipe threshold is crossed.

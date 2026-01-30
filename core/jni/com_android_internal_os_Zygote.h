@@ -17,9 +17,6 @@
 #ifndef _COM_ANDROID_INTERNAL_OS_ZYGOTE_H
 #define _COM_ANDROID_INTERNAL_OS_ZYGOTE_H
 
-#define LOG_TAG "Zygote"
-#define ATRACE_TAG ATRACE_TAG_DALVIK
-
 /*
  * All functions that lead to ForkCommon must be marked with the
  * no_stack_protector attributed.  Because ForkCommon changes the stack
@@ -42,6 +39,8 @@ pid_t ForkCommon(JNIEnv* env,bool is_system_server,
                  const std::vector<int>& fds_to_close,
                  const std::vector<int>& fds_to_ignore,
                  bool is_priority_fork,
+                 bool is_top_app = false,
+                 bool use_fifo_ui = false,
                  bool purge = true);
 
 /**
@@ -58,6 +57,8 @@ int forkApp(JNIEnv* env,
             const std::vector<int>& session_socket_fds,
             bool args_known,
             bool is_priority_fork,
+            bool is_top_app,
+            bool use_fifo_ui,
             bool purge);
 
 [[noreturn]]
@@ -65,6 +66,9 @@ void ZygoteFailure(JNIEnv* env,
                    const char* process_name,
                    jstring managed_process_name,
                    const std::string& msg);
+
+jlong CalculateCapabilities(JNIEnv* env, jint uid, jint gid, jintArray gids, bool is_child_zygote);
+jlong CalculateBoundingCapabilities(JNIEnv* env, jint uid, jint gid, jintArray gids);
 
 }  // namespace zygote
 }  // namespace android

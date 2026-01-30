@@ -24,6 +24,13 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:contentDescription="@string/clipboard_overlay_window_name">
+    <View
+        android:id="@+id/clipboard_announcement_live_region"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:accessibilityLiveRegion="polite"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"/>
     <!-- Min edge spacing guideline off of which the preview and actions can be anchored (without
          this we'd need to express margins as the sum of two different dimens). -->
     <androidx.constraintlayout.widget.Guideline
@@ -207,27 +214,4 @@
         android:orientation="vertical"
         app:barrierDirection="end"
         app:constraint_referenced_ids="clipboard_preview,minimized_preview"/>
-    <FrameLayout
-        android:id="@+id/dismiss_button"
-        android:layout_width="@dimen/overlay_dismiss_button_tappable_size"
-        android:layout_height="@dimen/overlay_dismiss_button_tappable_size"
-        android:elevation="10dp"
-        android:visibility="gone"
-        android:alpha="0"
-        app:layout_constraintStart_toEndOf="@id/clipboard_content_end"
-        app:layout_constraintEnd_toEndOf="@id/clipboard_content_end"
-        app:layout_constraintTop_toTopOf="@id/clipboard_content_top"
-        app:layout_constraintBottom_toTopOf="@id/clipboard_content_top"
-        android:contentDescription="@string/clipboard_dismiss_description">
-        <ImageView
-            android:id="@+id/dismiss_image"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_margin="@dimen/overlay_dismiss_button_margin"
-            android:background="@drawable/circular_background"
-            android:backgroundTint="@androidprv:color/materialColorPrimaryFixedDim"
-            android:tint="@androidprv:color/materialColorOnPrimaryFixed"
-            android:padding="4dp"
-            android:src="@drawable/ic_close"/>
-    </FrameLayout>
 </com.android.systemui.clipboardoverlay.ClipboardOverlayView>

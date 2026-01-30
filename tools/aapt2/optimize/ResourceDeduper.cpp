@@ -60,6 +60,21 @@ class DominatedKeyValueRemover : public DominatorTree::BottomUpVisitor {
       return;
     }
 
+    // It is not safe to remove a value when both screenWidthDp and screenHeightDp are defined on
+    // the node unless they are the same width and height. This is because there could
+    // be a third value C not in this hierarchy and there are values that should match the current
+    // node but if we remove the value they will instead match C. This is because domination is
+    // determined first by width and then height but runtime matching is both at the same time
+    // (b/414775283). For example, say we had A with config w600dp-h800dp and value foo, B with
+    // config w800dp-h1000dp and value foo, and C with config w500dp-h1200dp and value bar. A would
+    // dominate B but C would neither dominate nor me dominated by either A or B. If we removed
+    // the B value there would be some screen sizes like w800dp-h1200dp that should have gotten foo
+    // but now get bar.
+    if (node_value->config.screenWidthDp && node_value->config.screenHeightDp &&
+        node_value->config.screenSizeDp != parent_value->config.screenSizeDp) {
+      return;
+    }
+
     // Compare compatible configs for this entry and ensure the values are
     // equivalent.
     const ConfigDescription& node_configuration = node_value->config;

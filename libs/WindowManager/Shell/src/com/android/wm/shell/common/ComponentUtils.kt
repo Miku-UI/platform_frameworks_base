@@ -36,11 +36,10 @@ object ComponentUtils {
     /** Retrieves the package name from a [taskId].  */
     @JvmStatic
     fun getPackageName(taskId: Int, taskOrganizer: ShellTaskOrganizer): String? {
-        val taskInfo = taskOrganizer.getRunningTaskInfo(taskId) ?: return null
-        return getPackageName(taskInfo)
+        return getPackageName(taskOrganizer.getRunningTaskInfo(taskId))
     }
 
     /** Retrieves the package name from a [TaskInfo]. */
     @JvmStatic
-    fun getPackageName(taskInfo: TaskInfo): String? = getPackageName(taskInfo.baseIntent)
+    fun getPackageName(taskInfo: TaskInfo?): String? = getPackageName(taskInfo?.baseIntent)
 }

@@ -92,7 +92,7 @@ interface IStatusBarService
             int uid, int initialPid, String message, int userId);
     void onClearAllNotifications(int userId);
     void onNotificationClear(String pkg, int userId, String key,
-            int dismissalSurface, int dismissalSentiment, in NotificationVisibility nv);
+            int dismissalSurface, int dismissalSentiment, in NotificationVisibility nv, boolean fromBundle);
     void onNotificationVisibilityChanged( in NotificationVisibility[] newlyVisibleKeys,
             in NotificationVisibility[] noLongerVisibleKeys);
     void onNotificationExpansionChanged(in String key, in boolean userAction, in boolean expanded, in int notificationLocation);

@@ -53,6 +53,9 @@ namespace android {
  */
 static const int BUSY_TIMEOUT_MS = 2500;
 
+// A useful constant class when arrays of strings are returned.
+static jclass g_stringClass = nullptr;
+
 static struct {
     jmethodID apply;
 } gUnaryOperator;
@@ -671,9 +674,8 @@ static int createAshmemRegionWithData(JNIEnv* env, const void* data, size_t leng
         ALOGE("ashmem_create_region failed: %s", strerror(error));
     } else {
         if (length > 0) {
-            std::unique_ptr<base::MappedFile> mappedFile =
-                    base::MappedFile::FromFd(fd, 0, length, PROT_READ | PROT_WRITE);
-            if (mappedFile == nullptr) {
+            auto mappedFile = base::MappedFile::Create(fd, 0, length, PROT_READ | PROT_WRITE);
+            if (!mappedFile) {
                 error = errno;
                 ALOGE("mmap failed: %s", strerror(error));
             } else {
@@ -961,69 +963,78 @@ static jlong nativeTotalChanges(JNIEnv* env, jclass, jlong connectionPtr) {
     return sqlite3_total_changes64(connection->db);
 }
 
-static const JNINativeMethod sMethods[] =
-{
-    /* name, signature, funcPtr */
-    { "nativeOpen", "(Ljava/lang/String;ILjava/lang/String;ZZII)J",
-            (void*)nativeOpen },
-    { "nativeClose", "(JZ)V",
-      (void*) static_cast<void(*)(JNIEnv*,jclass,jlong,jboolean)>(nativeClose) },
-    { "nativeRegisterCustomScalarFunction", "(JLjava/lang/String;Ljava/util/function/UnaryOperator;)V",
-            (void*)nativeRegisterCustomScalarFunction },
-    { "nativeRegisterCustomAggregateFunction", "(JLjava/lang/String;Ljava/util/function/BinaryOperator;)V",
-            (void*)nativeRegisterCustomAggregateFunction },
-    { "nativeRegisterLocalizedCollators", "(JLjava/lang/String;)V",
-            (void*)nativeRegisterLocalizedCollators },
-    { "nativePrepareStatement", "(JLjava/lang/String;)J",
-            (void*)nativePrepareStatement },
-    { "nativeFinalizeStatement", "(JJ)V",
-            (void*)nativeFinalizeStatement },
-    { "nativeGetParameterCount", "(JJ)I",
-            (void*)nativeGetParameterCount },
-    { "nativeIsReadOnly", "(JJ)Z",
-            (void*)nativeIsReadOnly },
-    { "nativeUpdatesTempOnly", "(JJ)Z",
-            (void*)nativeUpdatesTempOnly },
-    { "nativeGetColumnCount", "(JJ)I",
-            (void*)nativeGetColumnCount },
-    { "nativeGetColumnName", "(JJI)Ljava/lang/String;",
-            (void*)nativeGetColumnName },
-    { "nativeBindNull", "(JJI)V",
-            (void*)nativeBindNull },
-    { "nativeBindLong", "(JJIJ)V",
-            (void*)nativeBindLong },
-    { "nativeBindDouble", "(JJID)V",
-            (void*)nativeBindDouble },
-    { "nativeBindString", "(JJILjava/lang/String;)V",
-            (void*)nativeBindString },
-    { "nativeBindBlob", "(JJI[B)V",
-            (void*)nativeBindBlob },
-    { "nativeResetStatementAndClearBindings", "(JJ)V",
-            (void*)nativeResetStatementAndClearBindings },
-    { "nativeExecute", "(JJZ)V",
-            (void*)nativeExecute },
-    { "nativeExecuteForLong", "(JJ)J",
-            (void*)nativeExecuteForLong },
-    { "nativeExecuteForString", "(JJ)Ljava/lang/String;",
-            (void*)nativeExecuteForString },
-    { "nativeExecuteForBlobFileDescriptor", "(JJ)I",
-            (void*)nativeExecuteForBlobFileDescriptor },
-    { "nativeExecuteForChangedRowCount", "(JJ)I",
-            (void*)nativeExecuteForChangedRowCount },
-    { "nativeExecuteForLastInsertedRowId", "(JJ)J",
-            (void*)nativeExecuteForLastInsertedRowId },
-    { "nativeExecuteForCursorWindow", "(JJJIIZ)J",
-            (void*)nativeExecuteForCursorWindow },
-    { "nativeGetDbLookaside", "(J)I",
-            (void*)nativeGetDbLookaside },
-    { "nativeCancel", "(J)V",
-            (void*)nativeCancel },
-    { "nativeResetCancel", "(JZ)V",
-            (void*)nativeResetCancel },
+static jobjectArray nativeGetDbConfig(JNIEnv* env, jclass, jlong connectionPtr) {
+    SQLiteConnection* connection = reinterpret_cast<SQLiteConnection*>(connectionPtr);
 
-    { "nativeLastInsertRowId", "(J)I", (void*) nativeLastInsertRowId },
-    { "nativeChanges", "(J)J", (void*) nativeChanges },
-    { "nativeTotalChanges", "(J)J", (void*) nativeTotalChanges },
+    const char* query = "select * from pragma_journal_mode(), pragma_synchronous();";
+    sqlite3_stmt* statement;
+    int rc = sqlite3_prepare_v2(connection->db, query, -1, &statement, nullptr);
+    if (rc != SQLITE_OK) {
+        throw_sqlite3_exception(env, connection->db);
+        return nullptr;
+    }
+    // Hold the results of the query until after the statement has been finalized.
+    std::string journal;
+    std::string sync;
+    rc = sqlite3_step(statement);
+    if (rc == SQLITE_ROW) {
+        journal = android::base::StringPrintf("%s", sqlite3_column_text(statement, 0));
+        sync = android::base::StringPrintf("%d", sqlite3_column_int(statement, 1));
+    }
+    sqlite3_finalize(statement);
+    if (rc != SQLITE_ROW) {
+        throw_sqlite3_exception(env, connection->db);
+        return nullptr;
+    }
+    jobjectArray result = env->NewObjectArray(2, g_stringClass, nullptr);
+    env->SetObjectArrayElement(result, 0, env->NewStringUTF(journal.c_str()));
+    env->SetObjectArrayElement(result, 1, env->NewStringUTF(sync.c_str()));
+    return result;
+}
+
+static const JNINativeMethod sMethods[] = {
+        /* name, signature, funcPtr */
+        {"nativeOpen", "(Ljava/lang/String;ILjava/lang/String;ZZII)J", (void*)nativeOpen},
+        {"nativeClose", "(JZ)V",
+         (void*)static_cast<void (*)(JNIEnv*, jclass, jlong, jboolean)>(nativeClose)},
+        {"nativeRegisterCustomScalarFunction",
+         "(JLjava/lang/String;Ljava/util/function/UnaryOperator;)V",
+         (void*)nativeRegisterCustomScalarFunction},
+        {"nativeRegisterCustomAggregateFunction",
+         "(JLjava/lang/String;Ljava/util/function/BinaryOperator;)V",
+         (void*)nativeRegisterCustomAggregateFunction},
+        {"nativeRegisterLocalizedCollators", "(JLjava/lang/String;)V",
+         (void*)nativeRegisterLocalizedCollators},
+        {"nativePrepareStatement", "(JLjava/lang/String;)J", (void*)nativePrepareStatement},
+        {"nativeFinalizeStatement", "(JJ)V", (void*)nativeFinalizeStatement},
+        {"nativeGetParameterCount", "(JJ)I", (void*)nativeGetParameterCount},
+        {"nativeIsReadOnly", "(JJ)Z", (void*)nativeIsReadOnly},
+        {"nativeUpdatesTempOnly", "(JJ)Z", (void*)nativeUpdatesTempOnly},
+        {"nativeGetColumnCount", "(JJ)I", (void*)nativeGetColumnCount},
+        {"nativeGetColumnName", "(JJI)Ljava/lang/String;", (void*)nativeGetColumnName},
+        {"nativeBindNull", "(JJI)V", (void*)nativeBindNull},
+        {"nativeBindLong", "(JJIJ)V", (void*)nativeBindLong},
+        {"nativeBindDouble", "(JJID)V", (void*)nativeBindDouble},
+        {"nativeBindString", "(JJILjava/lang/String;)V", (void*)nativeBindString},
+        {"nativeBindBlob", "(JJI[B)V", (void*)nativeBindBlob},
+        {"nativeResetStatementAndClearBindings", "(JJ)V",
+         (void*)nativeResetStatementAndClearBindings},
+        {"nativeExecute", "(JJZ)V", (void*)nativeExecute},
+        {"nativeExecuteForLong", "(JJ)J", (void*)nativeExecuteForLong},
+        {"nativeExecuteForString", "(JJ)Ljava/lang/String;", (void*)nativeExecuteForString},
+        {"nativeExecuteForBlobFileDescriptor", "(JJ)I", (void*)nativeExecuteForBlobFileDescriptor},
+        {"nativeExecuteForChangedRowCount", "(JJ)I", (void*)nativeExecuteForChangedRowCount},
+        {"nativeExecuteForLastInsertedRowId", "(JJ)J", (void*)nativeExecuteForLastInsertedRowId},
+        {"nativeExecuteForCursorWindow", "(JJJIIZ)J", (void*)nativeExecuteForCursorWindow},
+        {"nativeGetDbLookaside", "(J)I", (void*)nativeGetDbLookaside},
+        {"nativeCancel", "(J)V", (void*)nativeCancel},
+        {"nativeResetCancel", "(JZ)V", (void*)nativeResetCancel},
+
+        {"nativeLastInsertRowId", "(J)I", (void*)nativeLastInsertRowId},
+        {"nativeChanges", "(J)J", (void*)nativeChanges},
+        {"nativeTotalChanges", "(J)J", (void*)nativeTotalChanges},
+
+        {"nativeGetDbConfig", "(J)[Ljava/lang/String;", (void*)nativeGetDbConfig},
 };
 
 int register_android_database_SQLiteConnection(JNIEnv *env)
@@ -1036,8 +1047,13 @@ int register_android_database_SQLiteConnection(JNIEnv *env)
     gBinaryOperator.apply = GetMethodIDOrDie(env, binaryClazz,
             "apply", "(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;");
 
-    return RegisterMethodsOrDie(env, "android/database/sqlite/SQLiteConnection", sMethods,
-                                NELEM(sMethods));
+    RegisterMethodsOrDie(env, "android/database/sqlite/SQLiteConnection", sMethods,
+                         NELEM(sMethods));
+
+    jclass stringClass = FindClassOrDie(env, "java/lang/String");
+    g_stringClass = MakeGlobalRefOrDie(env, stringClass);
+
+    return 0;
 }
 
 } // namespace android

@@ -30,7 +30,7 @@ import android.os.ExternalVibrationScale;
  *
  * 1) Decide whether the current vibration should play based on the current system policy.
  * 2) Stop any currently on-going vibrations.
- * {@hide}
+ * @hide
  */
 interface IExternalVibratorService {
     /**

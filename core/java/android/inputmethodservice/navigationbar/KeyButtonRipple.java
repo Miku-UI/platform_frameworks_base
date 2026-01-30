@@ -20,6 +20,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
 import android.annotation.DimenRes;
+import android.companion.virtualdevice.flags.Flags;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.CanvasProperty;
@@ -73,6 +74,7 @@ final class KeyButtonRipple extends Drawable {
     private final Interpolator mInterpolator = new LogInterpolator();
     private boolean mSupportHardware;
     private final View mTargetView;
+    private final int mTapTimeoutMillis;
     private final Handler mHandler = new Handler();
 
     private final HashSet<Animator> mRunningAnimations = new HashSet<>();
@@ -94,6 +96,9 @@ final class KeyButtonRipple extends Drawable {
         mMaxWidthResource = maxWidthResource;
         mMaxWidth = ctx.getResources().getDimensionPixelSize(maxWidthResource);
         mTargetView = targetView;
+        mTapTimeoutMillis = Flags.viewconfigurationApis()
+                ? ViewConfiguration.get(mTargetView.getContext()).getTapTimeoutMillis()
+                : ViewConfiguration.getTapTimeout();
     }
 
     public void updateResources() {
@@ -308,7 +313,7 @@ final class KeyButtonRipple extends Drawable {
             if (mDelayTouchFeedback) {
                 if (mRunningAnimations.isEmpty()) {
                     mHandler.removeCallbacksAndMessages(null);
-                    mHandler.postDelayed(this::enterSoftware, ViewConfiguration.getTapTimeout());
+                    mHandler.postDelayed(this::enterSoftware, mTapTimeoutMillis);
                 } else if (mVisible) {
                     enterSoftware();
                 }
@@ -353,7 +358,7 @@ final class KeyButtonRipple extends Drawable {
             if (mDelayTouchFeedback) {
                 if (mRunningAnimations.isEmpty()) {
                     mHandler.removeCallbacksAndMessages(null);
-                    mHandler.postDelayed(this::enterHardware, ViewConfiguration.getTapTimeout());
+                    mHandler.postDelayed(this::enterHardware, mTapTimeoutMillis);
                 } else if (mVisible) {
                     enterHardware();
                 }

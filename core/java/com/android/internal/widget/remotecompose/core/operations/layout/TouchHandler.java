@@ -15,6 +15,8 @@
  */
 package com.android.internal.widget.remotecompose.core.operations.layout;
 
+import android.annotation.NonNull;
+
 import com.android.internal.widget.remotecompose.core.CoreDocument;
 import com.android.internal.widget.remotecompose.core.RemoteContext;
 
@@ -31,7 +33,11 @@ public interface TouchHandler {
      * @param y the y position of the click in document coordinates
      */
     void onTouchDown(
-            RemoteContext context, CoreDocument document, Component component, float x, float y);
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            @NonNull Component component,
+            float x,
+            float y);
 
     /**
      * callback for a touch up event
@@ -45,9 +51,9 @@ public interface TouchHandler {
      * @param dy
      */
     void onTouchUp(
-            RemoteContext context,
-            CoreDocument document,
-            Component component,
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            @NonNull Component component,
             float x,
             float y,
             float dx,
@@ -63,7 +69,11 @@ public interface TouchHandler {
      * @param y the y position of the click in document coordinates
      */
     void onTouchDrag(
-            RemoteContext context, CoreDocument document, Component component, float x, float y);
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            @NonNull Component component,
+            float x,
+            float y);
 
     /**
      * callback for a touch cancel event
@@ -75,5 +85,9 @@ public interface TouchHandler {
      * @param y the y position of the click in document coordinates
      */
     void onTouchCancel(
-            RemoteContext context, CoreDocument document, Component component, float x, float y);
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            @NonNull Component component,
+            float x,
+            float y);
 }

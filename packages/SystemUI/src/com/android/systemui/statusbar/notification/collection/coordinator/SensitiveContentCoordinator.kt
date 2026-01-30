@@ -31,10 +31,12 @@ import com.android.systemui.statusbar.NotificationLockscreenUserManager
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.REDACTION_TYPE_NONE
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.notification.DynamicPrivacyController
+import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
-import com.android.systemui.statusbar.notification.collection.PipelineEntry
+import com.android.systemui.statusbar.notification.collection.ListEntry
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
+import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.coordinator.dagger.CoordinatorScope
 import com.android.systemui.statusbar.notification.collection.listbuilder.OnBeforeRenderListListener
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Invalidator
@@ -220,15 +222,22 @@ constructor(
     }
 }
 
-private fun extractAllRepresentativeEntries(entries: List<PipelineEntry>): Sequence<NotificationEntry> =
-    entries.asSequence().flatMap(::extractAllRepresentativeEntries)
+private fun extractAllRepresentativeEntries(
+    entries: List<PipelineEntry>
+): Sequence<NotificationEntry> = entries.asSequence().flatMap(::extractAllRepresentativeEntries)
 
 private fun extractAllRepresentativeEntries(
-    pipelineEntry: PipelineEntry,
-): Sequence<NotificationEntry> =
-    sequence {
-        pipelineEntry.representativeEntry?.let { yield(it) }
-        if (pipelineEntry is GroupEntry) {
+    pipelineEntry: PipelineEntry
+): Sequence<NotificationEntry> = sequence {
+    when (pipelineEntry) {
+        is BundleEntry -> {
             yieldAll(extractAllRepresentativeEntries(pipelineEntry.children))
         }
+        is ListEntry -> {
+            pipelineEntry.representativeEntry?.let { yield(it) }
+            if (pipelineEntry is GroupEntry) {
+                yieldAll(extractAllRepresentativeEntries(pipelineEntry.children))
+            }
+        }
     }
+}

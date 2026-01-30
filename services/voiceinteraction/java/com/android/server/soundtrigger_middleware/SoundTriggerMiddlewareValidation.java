@@ -101,7 +101,7 @@ import java.util.Set;
  * exceptions will use the INTERNAL_ERROR code. They may also cause the module to become invalid
  * asynchronously, and the client would be notified via the moduleDied() callback.
  *
- * {@hide}
+ * @hide
  */
 public class SoundTriggerMiddlewareValidation implements ISoundTriggerMiddlewareInternal, Dumpable {
     private static final String TAG = "SoundTriggerMiddlewareValidation";

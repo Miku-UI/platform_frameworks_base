@@ -44,17 +44,31 @@ public class LocalServiceKeeperRule implements TestRule {
         if (!mRuleApplied) {
             throw new IllegalStateException("Can't override service without applying rule");
         }
-        if (mOverriddenServices.containsKey(type) || mAddedServices.contains(type)) {
-            throw new IllegalArgumentException("Type already overridden: " + type);
+
+        final boolean alreadyOverridden =
+                mOverriddenServices.containsKey(type) || mAddedServices.contains(type);
+
+        if (!alreadyOverridden) {
+            final T currentService = LocalServices.getService(type);
+
+            if (currentService != null) {
+                mOverriddenServices.put(type, currentService);
+            }
         }
 
-        T currentService = LocalServices.getService(type);
-        if (currentService != null) {
-            mOverriddenServices.put(type, currentService);
-            LocalServices.removeServiceForTest(type);
-        } else {
+
+        // Remove service from LocalServices if present.
+        LocalServices.removeServiceForTest(type);
+
+        // Remove from tracked AddedServices if present.
+        mAddedServices.remove(type);
+
+        // If there is no stored value to restore, then this service is being set for the first
+        // time.
+        if (!mOverriddenServices.containsKey(type)) {
             mAddedServices.add(type);
         }
+
         LocalServices.addService(type, service);
     }
 

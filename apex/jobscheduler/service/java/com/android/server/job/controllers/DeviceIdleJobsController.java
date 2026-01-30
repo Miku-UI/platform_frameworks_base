@@ -19,7 +19,6 @@ package com.android.server.job.controllers;
 import static com.android.server.job.JobSchedulerService.sElapsedRealtimeClock;
 
 import android.annotation.NonNull;
-import android.app.job.JobInfo;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -41,6 +40,7 @@ import com.android.internal.util.ArrayUtils;
 import com.android.server.AppSchedulingModuleThread;
 import com.android.server.DeviceIdleInternal;
 import com.android.server.LocalServices;
+import com.android.server.deviceidle.Flags;
 import com.android.server.job.JobSchedulerService;
 import com.android.server.job.StateControllerProto;
 import com.android.server.job.StateControllerProto.DeviceIdleJobsController.TrackedJob;
@@ -104,7 +104,7 @@ public final class DeviceIdleJobsController extends StateController {
                         }
                     }
                     break;
-                case PowerManager.ACTION_POWER_SAVE_TEMP_WHITELIST_CHANGED:
+                case "android.os.action.POWER_SAVE_TEMP_WHITELIST_CHANGED":
                     synchronized (mLock) {
                         mPowerSaveTempWhitelistAppIds =
                                 mLocalDeviceIdleController.getPowerSaveTempWhitelistAppIds();
@@ -152,9 +152,10 @@ public final class DeviceIdleJobsController extends StateController {
         filter.addAction(PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED);
         filter.addAction(PowerManager.ACTION_LIGHT_DEVICE_IDLE_MODE_CHANGED);
         filter.addAction(PowerManager.ACTION_POWER_SAVE_WHITELIST_CHANGED);
-        filter.addAction(PowerManager.ACTION_POWER_SAVE_TEMP_WHITELIST_CHANGED);
-        mContext.registerReceiverAsUser(
-                mBroadcastReceiver, UserHandle.ALL, filter, null, null);
+        if (!Flags.stopPowerSaveTempWhitelistBroadcast()) {
+            filter.addAction("android.os.action.POWER_SAVE_TEMP_WHITELIST_CHANGED");
+        }
+        mContext.registerReceiverAsUser(mBroadcastReceiver, UserHandle.ALL, filter, null, mHandler);
     }
 
     void updateIdleMode(boolean enabled) {
@@ -220,30 +221,18 @@ public final class DeviceIdleJobsController extends StateController {
     }
 
     private boolean updateTaskStateLocked(JobStatus task, final long nowElapsed) {
-        final boolean allowInIdle =
-                (!android.app.job.Flags.ignoreImportantWhileForeground()
-                        && ((task.getFlags() & JobInfo.FLAG_IMPORTANT_WHILE_FOREGROUND) != 0))
-                && (mForegroundUids.get(task.getSourceUid()) || isTempWhitelistedLocked(task));
         final boolean whitelisted = isWhitelistedLocked(task);
-        final boolean enableTask = !mDeviceIdleMode || whitelisted || allowInIdle;
+        final boolean enableTask = !mDeviceIdleMode || whitelisted;
         return task.setDeviceNotDozingConstraintSatisfied(nowElapsed, enableTask, whitelisted);
     }
 
     @Override
     public void maybeStartTrackingJobLocked(JobStatus jobStatus, JobStatus lastJob) {
-        if (!android.app.job.Flags.ignoreImportantWhileForeground()
-                && (jobStatus.getFlags() & JobInfo.FLAG_IMPORTANT_WHILE_FOREGROUND) != 0) {
-            mAllowInIdleJobs.add(jobStatus);
-        }
         updateTaskStateLocked(jobStatus, sElapsedRealtimeClock.millis());
     }
 
     @Override
     public void maybeStopTrackingJobLocked(JobStatus jobStatus, JobStatus incomingJob) {
-        if (!android.app.job.Flags.ignoreImportantWhileForeground()
-                && (jobStatus.getFlags() & JobInfo.FLAG_IMPORTANT_WHILE_FOREGROUND) != 0) {
-            mAllowInIdleJobs.remove(jobStatus);
-        }
     }
 
     @Override

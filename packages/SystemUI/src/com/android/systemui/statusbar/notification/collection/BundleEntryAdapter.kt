@@ -27,10 +27,14 @@ import com.android.systemui.statusbar.notification.collection.provider.HighPrior
 import com.android.systemui.statusbar.notification.icon.IconPack
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier.Companion.TYPE_NON_PERSON
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
+import com.android.systemui.statusbar.notification.row.NotifBindPipeline
+import com.android.systemui.statusbar.notification.row.OnUserInteractionCallback
+import com.android.systemui.statusbar.notification.row.RowContentBindStage
 import kotlinx.coroutines.flow.StateFlow
 
 class BundleEntryAdapter(
     private val highPriorityProvider: HighPriorityProvider,
+    private val onUserInteractionCallback: OnUserInteractionCallback,
     val entry: BundleEntry,
 ) : EntryAdapter {
 
@@ -64,8 +68,7 @@ class BundleEntryAdapter(
     }
 
     override fun isClearable(): Boolean {
-        // TODO(b/394483200): check whether all of the children are clearable, when implemented
-        return true
+        return entry.isClearable
     }
 
     override fun getTargetSdk(): Int {
@@ -92,9 +95,8 @@ class BundleEntryAdapter(
         return 0
     }
 
-    override fun getIcons(): IconPack? {
-        // TODO(b/396446620): implement bundle icons
-        return null
+    override fun getIcons(): IconPack {
+        return entry.icons
     }
 
     override fun isColorized(): Boolean {
@@ -120,7 +122,7 @@ class BundleEntryAdapter(
         Log.wtf(TAG, "onImportanceChanged() called")
     }
 
-    override fun markForUserTriggeredMovement() {
+    override fun markForUserTriggeredMovement(marked: Boolean) {
         Log.wtf(TAG, "markForUserTriggeredMovement() called")
     }
 
@@ -187,14 +189,81 @@ class BundleEntryAdapter(
         Log.wtf(TAG, "onNotificationActionClicked() called")
     }
 
-    override fun getDismissState(): NotificationEntry.DismissState {
-        // TODO(b/394483200): setDismissState is only called in NotifCollection so it does not
-        // work on bundles yet
-        return NotificationEntry.DismissState.NOT_DISMISSED
+    override fun isParentDismissed(): Boolean {
+        return false
     }
 
     override fun onEntryClicked(row: ExpandableNotificationRow) {
         // TODO(b/396446620): should anything happen when you click on a bundle?
+    }
+
+    override fun getRemoteInputEntryAdapter(): RemoteInputEntryAdapter? {
+        return null
+    }
+
+    override fun addOnSensitivityChangedListener(
+        listener: PipelineEntry.OnSensitivityChangedListener
+    ) {
+        entry.addOnSensitivityChangedListener(listener)
+    }
+
+    override fun removeOnSensitivityChangedListener(
+        listener: PipelineEntry.OnSensitivityChangedListener
+    ) {
+        entry.removeOnSensitivityChangedListener(listener)
+    }
+
+    override fun setSeenInShade(seen: Boolean) {
+        entry.isSeenInShade = seen
+    }
+
+    override fun isSeenInShade(): Boolean {
+        return entry.isSeenInShade
+    }
+
+    override fun onEntryAnimatingAwayEnded() {
+        Log.wtf(TAG, "onEntryAnimatingAwayEnded() called")
+    }
+
+    override fun registerFutureDismissal(): Runnable {
+        return onUserInteractionCallback.registerFutureDismissal(entry)
+    }
+
+    override fun markForReinflation(stage: RowContentBindStage) {
+        Log.wtf(TAG, "markForReinflation() called")
+    }
+
+    override fun isViewBacked(): Boolean {
+        return false
+    }
+
+    override fun requestRebind(
+        stage: RowContentBindStage,
+        callback: NotifBindPipeline.BindCallback,
+    ) {
+        Log.wtf(TAG, "requestRebind() called")
+    }
+
+    override fun isBundled(): Boolean {
+        return false
+    }
+
+    override fun isBundle(): Boolean {
+        return true
+    }
+
+    override fun onBundleDisabledForEntry() {
+        // do nothing. it should not be possible for a bundle to be contained within a bundle
+        Log.wtf(TAG, "onBundleDisabledForEntry() called")
+    }
+
+    override fun onBundleDisabledForApp() {
+        // do nothing. it should not be possible for a bundle to be contained within a bundle
+        Log.wtf(TAG, "onBundleDisabledForApp() called")
+    }
+
+    override fun getBundleType(): Int {
+        return entry.bundleRepository.bundleType
     }
 }
 

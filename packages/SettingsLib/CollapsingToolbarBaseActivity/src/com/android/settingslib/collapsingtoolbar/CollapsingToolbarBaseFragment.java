@@ -30,6 +30,8 @@ import androidx.annotation.Nullable;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.fragment.app.Fragment;
 
+import com.android.settingslib.widget.SettingsThemeHelper;
+
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
 
@@ -43,6 +45,12 @@ public abstract class CollapsingToolbarBaseFragment extends Fragment {
         @Override
         public ActionBar setActionBar(Toolbar toolbar) {
             requireActivity().setActionBar(toolbar);
+            // In CollapsingToolbarDelegate we won't be setting the up indicator style if the action
+            // bar being returned is null. Return the action bar object if the expressive theme is
+            // enabled in order to set the up indication style correctly.
+            if (SettingsThemeHelper.isExpressiveTheme(requireContext())) {
+                return requireActivity().getActionBar();
+            }
             return null;
         }
 

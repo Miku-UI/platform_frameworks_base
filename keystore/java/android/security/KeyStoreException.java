@@ -690,5 +690,10 @@ public class KeyStoreException extends Exception {
                         ERROR_ATTESTATION_KEYS_UNAVAILABLE));
         sErrorCodeToFailureInfo.put(ResponseCode.OUT_OF_KEYS_PERMANENT_ERROR,
                 new PublicErrorInformation(IS_SYSTEM_ERROR, ERROR_ATTESTATION_KEYS_UNAVAILABLE));
+        sErrorCodeToFailureInfo.put(ResponseCode.GET_ATTESTATION_APPLICATION_ID_FAILED,
+                new PublicErrorInformation(
+                        IS_SYSTEM_ERROR | IS_TRANSIENT_ERROR, ERROR_INTERNAL_SYSTEM_ERROR));
+        sErrorCodeToFailureInfo.put(ResponseCode.INFO_NOT_AVAILABLE,
+                new PublicErrorInformation(IS_SYSTEM_ERROR, ERROR_INTERNAL_SYSTEM_ERROR));
     }
 }

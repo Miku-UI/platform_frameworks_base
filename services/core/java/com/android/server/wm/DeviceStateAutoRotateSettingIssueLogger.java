@@ -16,13 +16,20 @@
 
 package com.android.server.wm;
 
+import static android.provider.Settings.Secure.DEVICE_STATE_ROTATION_LOCK;
 import static android.util.MathUtils.abs;
 
 import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
+import android.database.ContentObserver;
+import android.hardware.devicestate.DeviceState;
+import android.os.Handler;
+import android.os.HandlerExecutor;
+import android.os.UserHandle;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.FrameworkStatsLog;
+import com.android.settingslib.devicestate.SecureSettings;
 
 import java.util.function.LongSupplier;
 
@@ -55,18 +62,33 @@ public class DeviceStateAutoRotateSettingIssueLogger {
     private long mLastDeviceStateAutoRotateSettingChangeTime = TIME_NOT_SET;
 
     public DeviceStateAutoRotateSettingIssueLogger(
-            @NonNull LongSupplier elapsedTimeMillisSupplier) {
+            @NonNull LongSupplier elapsedTimeMillisSupplier, SecureSettings secureSettings,
+            DeviceStateController deviceStateController, Handler handler) {
         mElapsedTimeMillisSupplier = elapsedTimeMillisSupplier;
+
+        secureSettings.registerContentObserver(
+                DEVICE_STATE_ROTATION_LOCK, /* notifyForDescendants= */ false,
+                new ContentObserver(handler) {
+                    @Override
+                    public void onChange(boolean selfChange) {
+                        onDeviceStateAutoRotateSettingChange();
+                    }
+                }, UserHandle.USER_CURRENT);
+
+        deviceStateController.registerDeviceStateCallback(
+                (DeviceStateController.DeviceStateEnum deviceStateEnum,
+                        DeviceState deviceState) -> {
+                    onDeviceStateChange();
+                },
+                new HandlerExecutor(handler));
     }
 
-    /** Notify logger that device state has changed. */
-    public void onDeviceStateChange() {
+    private void onDeviceStateChange() {
         mLastDeviceStateChangeTime = mElapsedTimeMillisSupplier.getAsLong();
         onStateChange();
     }
 
-    /** Notify logger that device state based auto rotate setting has changed. */
-    public void onDeviceStateAutoRotateSettingChange() {
+    private void onDeviceStateAutoRotateSettingChange() {
         mLastDeviceStateAutoRotateSettingChangeTime = mElapsedTimeMillisSupplier.getAsLong();
         onStateChange();
     }

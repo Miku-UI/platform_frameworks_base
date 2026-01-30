@@ -140,8 +140,9 @@ constructor(
     ) {
         if (restartDreamOnUnocclude() && dreamFromOccluded) {
             startTransitionTo(KeyguardState.DREAMING)
+        } else if (SceneContainerFlag.isEnabled) {
+            return
         } else if (isIdleOnCommunal || showCommunalFromOccluded) {
-            if (SceneContainerFlag.isEnabled) return
             communalSceneInteractor.changeScene(
                 newScene = CommunalScenes.Communal,
                 loggingReason = "occluded to hub",
@@ -171,8 +172,9 @@ constructor(
         if (SceneContainerFlag.isEnabled) return
         scope.launch {
             keyguardInteractor.isKeyguardOccluded
-                .sample(keyguardInteractor.isKeyguardShowing, ::Pair)
-                .filterRelevantKeyguardStateAnd { (occluded, showing) -> !occluded && !showing }
+                .filterRelevantKeyguardStateAnd { occluded ->
+                    !occluded && !keyguardInteractor.isKeyguardShowing.value
+                }
                 .collect {
                     // Occlusion signals come from the framework, and should interrupt any
                     // existing transition

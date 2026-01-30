@@ -218,14 +218,31 @@ public abstract class CellIdentity implements Parcelable {
 
     /**
      * @return a CellLocation object for this CellIdentity
+     *
      * @hide
      */
     @SystemApi
     public abstract @NonNull CellLocation asCellLocation();
 
     /**
-     * Create and a return a new instance of CellIdentity with location-identifying information
-     * removed.
+     * Create and a return a new instance of CellIdentity with precise location-identifying
+     * information removed.
+     *
+     * Coarse-level location information that will be retained:
+     * <p><ul>
+     * <li> Country code (MCC)
+     * <li> Network Identifier / Network Code (MNC)
+     * <li> Band Information
+     * <li> Network Alpha Tag (long, short)
+     * </ul><p>
+     *
+     * Fine-level information that will be redacted:
+     * <p><ul>
+     * <li> Unique cell ID (Cell-ID, CGI, ECGI)
+     * <li> Tracking area information (RAI, LAI, TAI)
+     * <li> Channel information (ARFCN, UARFCN, EARFCN, NRARFCN)
+     * <li> Physical cell ID (BSIC, PCI)
+     * </ul><p>
      *
      * @hide
      */

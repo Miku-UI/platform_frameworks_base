@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import com.android.settingslib.spa.framework.common.EntryMacro
 import com.android.settingslib.spa.framework.common.EntrySearchData
 import com.android.settingslib.spa.framework.compose.navigator
-import com.android.settingslib.spa.framework.util.EntryHighlight
 import com.android.settingslib.spa.framework.util.wrapOnClickWithLog
 import com.android.settingslib.spa.widget.ui.createSettingsIcon
 
@@ -72,7 +71,7 @@ interface PreferenceModel {
     /**
      * The summary of this [Preference].
      */
-    val summary: () -> String
+    val summary: () -> CharSequence
         get() = { "" }
 
     /**
@@ -121,16 +120,14 @@ fun Preference(
     val modifier = if (onClickWithLog != null) {
         Modifier.clickable(enabled = enabled, onClick = onClickWithLog)
     } else Modifier
-    EntryHighlight {
-        BasePreference(
-            title = model.title,
-            titleContentDescription = model.titleContentDescription,
-            summary = model.summary,
-            summaryContentDescription = model.summaryContentDescription,
-            singleLineSummary = singleLineSummary,
-            modifier = modifier,
-            icon = model.icon,
-            enabled = model.enabled,
-        )
-    }
+    BasePreference(
+        title = model.title,
+        titleContentDescription = model.titleContentDescription,
+        summary = model.summary,
+        summaryContentDescription = model.summaryContentDescription,
+        singleLineSummary = singleLineSummary,
+        modifier = modifier,
+        icon = model.icon,
+        enabled = model.enabled,
+    )
 }

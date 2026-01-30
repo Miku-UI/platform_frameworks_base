@@ -16,21 +16,27 @@
 
 package com.android.systemui.biometrics.ui.viewmodel
 
+import android.platform.test.annotations.EnableFlags
+import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fakeFeatureFlagsClassic
+import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
+import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.ui.viewmodel.fakeDeviceEntryIconViewModelTransition
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.securelockdevice.data.repository.fakeSecureLockDeviceRepository
 import com.android.systemui.statusbar.phone.SystemUIDialogManager
-import com.android.systemui.statusbar.phone.systemUIDialogManager
+import com.android.systemui.statusbar.phone.mockSystemUIDialogManager
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,14 +49,10 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 class DeviceEntryUdfpsTouchOverlayViewModelTest : SysuiTestCase() {
     private val kosmos =
-        testKosmos().apply {
+        testKosmos().useUnconfinedTestDispatcher().apply {
             fakeFeatureFlagsClassic.apply { set(Flags.FULL_SCREEN_USER_SWITCHER, true) }
         }
-    private val systemUIDialogManager = kosmos.systemUIDialogManager
-    private val bouncerRepository = kosmos.fakeKeyguardBouncerRepository
-    private val testScope = kosmos.testScope
-    private val deviceEntryIconViewModelTransition = kosmos.fakeDeviceEntryIconViewModelTransition
-    private val underTest = kosmos.deviceEntryUdfpsTouchOverlayViewModel
+    private val Kosmos.underTest by Kosmos.Fixture { deviceEntryUdfpsTouchOverlayViewModel }
 
     @Captor
     private lateinit var sysuiDialogListenerCaptor: ArgumentCaptor<SystemUIDialogManager.Listener>
@@ -62,13 +64,12 @@ class DeviceEntryUdfpsTouchOverlayViewModelTest : SysuiTestCase() {
 
     @Test
     fun dialogShowing_shouldHandleTouchesFalse() =
-        testScope.runTest {
+        kosmos.runTest {
             val shouldHandleTouches by collectLastValue(underTest.shouldHandleTouches)
 
-            deviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(1f)
-            runCurrent()
+            fakeDeviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(1f)
 
-            verify(systemUIDialogManager).registerListener(sysuiDialogListenerCaptor.capture())
+            verify(mockSystemUIDialogManager).registerListener(sysuiDialogListenerCaptor.capture())
             sysuiDialogListenerCaptor.value.shouldHideAffordances(true)
 
             assertThat(shouldHandleTouches).isFalse()
@@ -76,13 +77,12 @@ class DeviceEntryUdfpsTouchOverlayViewModelTest : SysuiTestCase() {
 
     @Test
     fun transitionAlphaIsSmall_shouldHandleTouchesFalse() =
-        testScope.runTest {
+        kosmos.runTest {
             val shouldHandleTouches by collectLastValue(underTest.shouldHandleTouches)
 
-            deviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(.3f)
-            runCurrent()
+            fakeDeviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(.3f)
 
-            verify(systemUIDialogManager).registerListener(sysuiDialogListenerCaptor.capture())
+            verify(mockSystemUIDialogManager).registerListener(sysuiDialogListenerCaptor.capture())
             sysuiDialogListenerCaptor.value.shouldHideAffordances(false)
 
             assertThat(shouldHandleTouches).isFalse()
@@ -90,13 +90,12 @@ class DeviceEntryUdfpsTouchOverlayViewModelTest : SysuiTestCase() {
 
     @Test
     fun alphaFullyShowing_noDialog_shouldHandleTouchesTrue() =
-        testScope.runTest {
+        kosmos.runTest {
             val shouldHandleTouches by collectLastValue(underTest.shouldHandleTouches)
 
-            deviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(1f)
-            runCurrent()
+            fakeDeviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(1f)
 
-            verify(systemUIDialogManager).registerListener(sysuiDialogListenerCaptor.capture())
+            verify(mockSystemUIDialogManager).registerListener(sysuiDialogListenerCaptor.capture())
             sysuiDialogListenerCaptor.value.shouldHideAffordances(false)
 
             assertThat(shouldHandleTouches).isTrue()
@@ -104,13 +103,39 @@ class DeviceEntryUdfpsTouchOverlayViewModelTest : SysuiTestCase() {
 
     @Test
     fun deviceEntryViewAlphaZero_alternateBouncerVisible_shouldHandleTouchesTrue() =
-        testScope.runTest {
+        kosmos.runTest {
             val shouldHandleTouches by collectLastValue(underTest.shouldHandleTouches)
 
-            deviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(0f)
-            runCurrent()
+            fakeDeviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(0f)
 
-            bouncerRepository.setAlternateVisible(true)
+            fakeKeyguardBouncerRepository.setAlternateVisible(true)
+            assertThat(shouldHandleTouches).isTrue()
+        }
+
+    @Test
+    fun transitioningToDozing_shouldHandleTouchesTrue() =
+        kosmos.runTest {
+            val shouldHandleTouches by collectLastValue(underTest.shouldHandleTouches)
+
+            fakeKeyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.DOZING,
+                testScope = testScope,
+            )
+            assertThat(shouldHandleTouches).isTrue()
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun shouldHandleTouchesTrue_duringSecureLockDeviceBiometricAuth() =
+        kosmos.runTest {
+            val shouldHandleTouches by collectLastValue(underTest.shouldHandleTouches)
+
+            fakeDeviceEntryIconViewModelTransition.setDeviceEntryParentViewAlpha(0f)
+
+            fakeSecureLockDeviceRepository.onSecureLockDeviceEnabled()
+            fakeSecureLockDeviceRepository.onSuccessfulPrimaryAuth()
+
             assertThat(shouldHandleTouches).isTrue()
         }
 }

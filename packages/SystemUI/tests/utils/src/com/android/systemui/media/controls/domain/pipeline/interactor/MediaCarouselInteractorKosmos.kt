@@ -16,9 +16,10 @@
 
 package com.android.systemui.media.controls.domain.pipeline.interactor
 
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
+import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
-import com.android.systemui.media.controls.data.repository.mediaFilterRepository
 import com.android.systemui.media.controls.domain.pipeline.mediaDataCombineLatest
 import com.android.systemui.media.controls.domain.pipeline.mediaDataFilter
 import com.android.systemui.media.controls.domain.pipeline.mediaDataProcessor
@@ -26,6 +27,7 @@ import com.android.systemui.media.controls.domain.pipeline.mediaDeviceManager
 import com.android.systemui.media.controls.domain.pipeline.mediaResumeListener
 import com.android.systemui.media.controls.domain.pipeline.mediaSessionBasedFilter
 import com.android.systemui.media.controls.domain.pipeline.mediaTimeoutListener
+import com.android.systemui.media.remedia.data.repository.mediaPipelineRepository
 
 val Kosmos.mediaCarouselInteractor by
     Kosmos.Fixture {
@@ -38,6 +40,8 @@ val Kosmos.mediaCarouselInteractor by
             mediaDeviceManager = mediaDeviceManager,
             mediaDataCombineLatest = mediaDataCombineLatest,
             mediaDataFilter = mediaDataFilter,
-            mediaFilterRepository = mediaFilterRepository,
+            mediaPipelineRepository = mediaPipelineRepository,
+            keyguardTransitionInteractor = keyguardTransitionInteractor,
+            deviceEntryInteractor = deviceEntryInteractor,
         )
     }

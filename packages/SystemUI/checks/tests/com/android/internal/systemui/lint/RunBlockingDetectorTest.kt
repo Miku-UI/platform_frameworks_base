@@ -17,6 +17,7 @@
 
 package com.android.internal.systemui.lint
 
+import com.android.tools.lint.checks.infrastructure.TestMode
 import com.android.tools.lint.detector.api.Detector
 import com.android.tools.lint.detector.api.Issue
 import org.junit.Test
@@ -28,7 +29,7 @@ class RunBlockingDetectorTest : SystemUILintDetectorTest() {
     override fun getIssues(): List<Issue> = listOf(RunBlockingDetector.ISSUE)
 
     @Test
-    fun testViolation() {
+    fun testViolationRunBlocking() {
         lint()
             .files(
                 kotlin(
@@ -52,10 +53,54 @@ class RunBlockingDetectorTest : SystemUILintDetectorTest() {
             .run()
             .expect(
                 """
-src/com/example/MyClass.kt:4: Warning: Importing kotlinx.coroutines.runBlocking is not allowed. [RunBlockingUsage]
+src/com/example/MyClass.kt:4: Error: Importing kotlinx.coroutines.runBlocking is not allowed. [RunBlockingUsage]
                     import kotlinx.coroutines.runBlocking
                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-0 errors, 1 warnings
+1 errors, 0 warnings
+"""
+                    .trimIndent()
+            )
+    }
+
+    @Test
+    fun testViolationRunBlockingTraced() {
+        lint()
+            .files(
+                kotlin(
+                    """
+                    package com.example
+
+                    import com.android.app.tracing.coroutines.runBlockingTraced
+                    import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
+
+                    class MyClass {
+                        fun myMethod() {
+                            runBlockingTraced {
+                                // Some code here
+                            }
+
+                            runBlocking {
+                                // Some code here
+                            }
+                        }
+                    }
+                    """
+                ),
+                RUN_BLOCKING_TRACED_DEFINITION,
+            )
+            .issues(RunBlockingDetector.ISSUE)
+            // TODO: b/443947014 - Remove skipTestModes() once the bug is fixed.
+            .skipTestModes(TestMode.IMPORT_ALIAS)
+            .run()
+            .expect(
+                """
+src/com/example/MyClass.kt:4: Error: Importing com.android.app.tracing.coroutines.runBlockingTraced is not allowed. [RunBlockingUsage]
+                    import com.android.app.tracing.coroutines.runBlockingTraced
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+src/com/example/MyClass.kt:5: Error: Importing com.android.app.tracing.coroutines.runBlockingTraced is not allowed. [RunBlockingUsage]
+                    import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
+                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2 errors, 0 warnings
 """
                     .trimIndent()
             )
@@ -96,6 +141,16 @@ src/com/example/MyClass.kt:4: Warning: Importing kotlinx.coroutines.runBlocking 
                     package kotlinx.coroutines
 
                     fun runBlocking(block: suspend () -> Unit) {
+                        // Implementation details don't matter for this test.
+                    }
+                    """
+            )
+        val RUN_BLOCKING_TRACED_DEFINITION =
+            kotlin(
+                """
+                    package com.android.app.tracing.coroutines
+
+                    fun runBlockingTraced(block: suspend () -> Unit) {
                         // Implementation details don't matter for this test.
                     }
                     """

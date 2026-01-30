@@ -141,7 +141,9 @@ public class BookStyleDeviceStatePolicy extends DeviceStatePolicy implements
                         /* availabilityPredicate= */ provider -> !mIsDualDisplayBlockingEnabled
                                 || provider.hasNoConnectedExternalDisplay()),
                 createConfig(getRearDisplayOuterDefaultState(),
-                        /* activeStatePredicate= */ NOT_ALLOWED)
+                        /* activeStatePredicate= */ NOT_ALLOWED,
+                        /* availabilityPredicate= */ provider -> !mIsDualDisplayBlockingEnabled
+                                || provider.hasNoConnectedExternalDisplay())
         };
     }
 

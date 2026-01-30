@@ -23,9 +23,9 @@ import static android.os.ParcelFileDescriptor.MODE_READ_WRITE;
 import static android.os.ParcelFileDescriptor.MODE_TRUNCATE;
 import static android.os.ParcelFileDescriptor.MODE_WRITE_ONLY;
 import static android.system.OsConstants.EINVAL;
+import static android.system.OsConstants.EIO;
 import static android.system.OsConstants.ENOSYS;
 import static android.system.OsConstants.F_OK;
-import static android.system.OsConstants.EIO;
 import static android.system.OsConstants.O_ACCMODE;
 import static android.system.OsConstants.O_APPEND;
 import static android.system.OsConstants.O_CREAT;
@@ -52,6 +52,9 @@ import android.content.pm.PackageManager;
 import android.content.pm.ProviderInfo;
 import android.provider.DocumentsContract.Document;
 import android.provider.MediaStore;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.StructStat;
@@ -96,24 +99,25 @@ import java.util.zip.CheckedInputStream;
 /**
  * Utility methods useful for working with files.
  */
-@android.ravenwood.annotation.RavenwoodKeepWholeClass
+@RavenwoodKeepWholeClass
+@RavenwoodRedirectionClass("FileUtils_ravenwood")
 public final class FileUtils {
     private static final String TAG = "FileUtils";
 
-    /** {@hide} */ public static final int S_IRWXU = 00700;
-    /** {@hide} */ public static final int S_IRUSR = 00400;
-    /** {@hide} */ public static final int S_IWUSR = 00200;
-    /** {@hide} */ public static final int S_IXUSR = 00100;
+    /** @hide */ public static final int S_IRWXU = 00700;
+    /** @hide */ public static final int S_IRUSR = 00400;
+    /** @hide */ public static final int S_IWUSR = 00200;
+    /** @hide */ public static final int S_IXUSR = 00100;
 
-    /** {@hide} */ public static final int S_IRWXG = 00070;
-    /** {@hide} */ public static final int S_IRGRP = 00040;
-    /** {@hide} */ public static final int S_IWGRP = 00020;
-    /** {@hide} */ public static final int S_IXGRP = 00010;
+    /** @hide */ public static final int S_IRWXG = 00070;
+    /** @hide */ public static final int S_IRGRP = 00040;
+    /** @hide */ public static final int S_IWGRP = 00020;
+    /** @hide */ public static final int S_IXGRP = 00010;
 
-    /** {@hide} */ public static final int S_IRWXO = 00007;
-    /** {@hide} */ public static final int S_IROTH = 00004;
-    /** {@hide} */ public static final int S_IWOTH = 00002;
-    /** {@hide} */ public static final int S_IXOTH = 00001;
+    /** @hide */ public static final int S_IRWXO = 00007;
+    /** @hide */ public static final int S_IROTH = 00004;
+    /** @hide */ public static final int S_IWOTH = 00002;
+    /** @hide */ public static final int S_IXOTH = 00001;
 
     @UnsupportedAppUsage
     private FileUtils() {
@@ -165,7 +169,6 @@ public final class FileUtils {
      * @hide
      */
     @UnsupportedAppUsage
-    @android.ravenwood.annotation.RavenwoodThrow(reason = "Requires kernel support")
     public static int setPermissions(File path, int mode, int uid, int gid) {
         return setPermissions(path.getAbsolutePath(), mode, uid, gid);
     }
@@ -180,12 +183,12 @@ public final class FileUtils {
      * @hide
      */
     @UnsupportedAppUsage
-    @android.ravenwood.annotation.RavenwoodThrow(reason = "Requires kernel support")
+    @RavenwoodRedirect(comment = "uid and gid are ignored")
     public static int setPermissions(String path, int mode, int uid, int gid) {
         try {
             Os.chmod(path, mode);
         } catch (ErrnoException e) {
-            Slog.w(TAG, "Failed to chmod(" + path + "): " + e);
+            Slog.w(TAG, "Failed to chmod(" + path + ")", e);
             return e.errno;
         }
 
@@ -193,7 +196,7 @@ public final class FileUtils {
             try {
                 Os.chown(path, uid, gid);
             } catch (ErrnoException e) {
-                Slog.w(TAG, "Failed to chown(" + path + "): " + e);
+                Slog.w(TAG, "Failed to chown(" + path + ")", e);
                 return e.errno;
             }
         }
@@ -216,7 +219,7 @@ public final class FileUtils {
         try {
             Os.fchmod(fd, mode);
         } catch (ErrnoException e) {
-            Slog.w(TAG, "Failed to fchmod(): " + e);
+            Slog.w(TAG, "Failed to fchmod()", e);
             return e.errno;
         }
 
@@ -224,7 +227,7 @@ public final class FileUtils {
             try {
                 Os.fchown(fd, uid, gid);
             } catch (ErrnoException e) {
-                Slog.w(TAG, "Failed to fchown(): " + e);
+                Slog.w(TAG, "Failed to fchown()", e);
                 return e.errno;
             }
         }
@@ -544,72 +547,72 @@ public final class FileUtils {
         long t;
 
         FileDescriptor[] pipes = Os.pipe();
+        try {
+            while (countToRead > 0 || countInPipe > 0) {
+                if (countToRead > 0) {
+                    t = Os.splice(in, null, pipes[1], null, Math.min(countToRead, COPY_CHECKPOINT_BYTES),
+                                SPLICE_F_MOVE | SPLICE_F_MORE);
+                    if (t < 0) {
+                        // splice error
+                        Slog.e(TAG, "splice error, fdIn --> pipe, copy size:" + count +
+                            ", copied:" + progress +
+                            ", read:" + (count - countToRead) +
+                            ", in pipe:" + countInPipe);
+                        break;
+                    } else if (t == 0) {
+                        // end of input, input count larger than real size
+                        Slog.w(TAG, "Reached the end of the input file. The size to be copied exceeds the actual size, copy size:" + count +
+                            ", copied:" + progress +
+                            ", read:" + (count - countToRead) +
+                            ", in pipe:" + countInPipe);
+                        countToRead = 0;
+                    } else {
+                        countInPipe += t;
+                        countToRead -= t;
+                    }
+                }
 
-        while (countToRead > 0 || countInPipe > 0) {
-            if (countToRead > 0) {
-                t = Os.splice(in, null, pipes[1], null, Math.min(countToRead, COPY_CHECKPOINT_BYTES),
-                              SPLICE_F_MOVE | SPLICE_F_MORE);
-                if (t < 0) {
-                    // splice error
-                    Slog.e(TAG, "splice error, fdIn --> pipe, copy size:" + count +
-                           ", copied:" + progress +
-                           ", read:" + (count - countToRead) +
-                           ", in pipe:" + countInPipe);
-                    break;
-                } else if (t == 0) {
-                    // end of input, input count larger than real size
-                    Slog.w(TAG, "Reached the end of the input file. The size to be copied exceeds the actual size, copy size:" + count +
-                           ", copied:" + progress +
-                           ", read:" + (count - countToRead) +
-                           ", in pipe:" + countInPipe);
-                    countToRead = 0;
-                } else {
-                    countInPipe += t;
-                    countToRead -= t;
+                if (countInPipe > 0) {
+                    t = Os.splice(pipes[0], null, out, null, Math.min(countInPipe, COPY_CHECKPOINT_BYTES),
+                                SPLICE_F_MOVE | SPLICE_F_MORE);
+                    // The data is already in the pipeline, so the return value will not be zero.
+                    // If it is 0, it means an error has occurred. So here use t<=0.
+                    if (t <= 0) {
+                        Slog.e(TAG, "splice error, pipe --> fdOut, copy size:" + count +
+                            ", copied:" + progress +
+                            ", read:" + (count - countToRead) +
+                            ", in pipe: " + countInPipe);
+                        throw new ErrnoException("splice, pipe --> fdOut", EIO);
+                    } else {
+                        progress += t;
+                        checkpoint += t;
+                        countInPipe -= t;
+                    }
+                }
+
+                if (checkpoint >= COPY_CHECKPOINT_BYTES) {
+                    if (signal != null) {
+                        signal.throwIfCanceled();
+                    }
+                    if (executor != null && listener != null) {
+                        final long progressSnapshot = progress;
+                        executor.execute(() -> {
+                            listener.onProgress(progressSnapshot);
+                        });
+                    }
+                    checkpoint = 0;
                 }
             }
-
-            if (countInPipe > 0) {
-                t = Os.splice(pipes[0], null, out, null, Math.min(countInPipe, COPY_CHECKPOINT_BYTES),
-                              SPLICE_F_MOVE | SPLICE_F_MORE);
-                // The data is already in the pipeline, so the return value will not be zero.
-                // If it is 0, it means an error has occurred. So here use t<=0.
-                if (t <= 0) {
-                    Slog.e(TAG, "splice error, pipe --> fdOut, copy size:" + count +
-                           ", copied:" + progress +
-                           ", read:" + (count - countToRead) +
-                           ", in pipe: " + countInPipe);
-                    Os.close(pipes[0]);
-                    Os.close(pipes[1]);
-                    throw new ErrnoException("splice, pipe --> fdOut", EIO);
-                } else {
-                    progress += t;
-                    checkpoint += t;
-                    countInPipe -= t;
-                }
+            if (executor != null && listener != null) {
+                final long progressSnapshot = progress;
+                executor.execute(() -> {
+                    listener.onProgress(progressSnapshot);
+                });
             }
-
-            if (checkpoint >= COPY_CHECKPOINT_BYTES) {
-                if (signal != null) {
-                    signal.throwIfCanceled();
-                }
-                if (executor != null && listener != null) {
-                    final long progressSnapshot = progress;
-                    executor.execute(() -> {
-                        listener.onProgress(progressSnapshot);
-                    });
-                }
-                checkpoint = 0;
-            }
+        } finally {
+            Os.close(pipes[0]);
+            Os.close(pipes[1]);
         }
-        if (executor != null && listener != null) {
-            final long progressSnapshot = progress;
-            executor.execute(() -> {
-                listener.onProgress(progressSnapshot);
-            });
-        }
-        Os.close(pipes[0]);
-        Os.close(pipes[1]);
         return progress;
     }
 
@@ -654,7 +657,7 @@ public final class FileUtils {
         return progress;
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     @VisibleForTesting
     public static long copyInternalUserspace(FileDescriptor in, FileDescriptor out,
@@ -663,7 +666,7 @@ public final class FileUtils {
         return copyInternalUserspace(in, out, count, signal, Runnable::run, listener);
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public static long copyInternalUserspace(FileDescriptor in, FileDescriptor out, long count,
             CancellationSignal signal, Executor executor, ProgressListener listener)
@@ -677,7 +680,7 @@ public final class FileUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public static long copyInternalUserspace(InputStream in, OutputStream out,
             CancellationSignal signal, Executor executor, ProgressListener listener)
@@ -791,7 +794,7 @@ public final class FileUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static void stringToFile(File file, String string) throws IOException {
         stringToFile(file.getAbsolutePath(), string);
@@ -981,7 +984,7 @@ public final class FileUtils {
         return false;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static boolean contains(Collection<File> dirs, File file) {
         for (File dir : dirs) {
             if (contains(dir, file)) {
@@ -1027,7 +1030,7 @@ public final class FileUtils {
         return filePath.startsWith(dirPath);
     }
 
-    /** {@hide} */
+    /** @hide */
     public static boolean deleteContentsAndDir(File dir) {
         if (deleteContents(dir)) {
             return dir.delete();
@@ -1036,7 +1039,7 @@ public final class FileUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static boolean deleteContents(File dir) {
         File[] files = dir.listFiles();
@@ -1152,7 +1155,7 @@ public final class FileUtils {
         return res.toString();
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public static String trimFilename(String str, int maxBytes) {
         final StringBuilder res = new StringBuilder(str);
@@ -1160,7 +1163,7 @@ public final class FileUtils {
         return res.toString();
     }
 
-    /** {@hide} */
+    /** @hide */
     private static void trimFilename(StringBuilder res, int maxBytes) {
         byte[] raw = res.toString().getBytes(StandardCharsets.UTF_8);
         if (raw.length > maxBytes) {
@@ -1173,14 +1176,14 @@ public final class FileUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static String rewriteAfterRename(File beforeDir, File afterDir, String path) {
         if (path == null) return null;
         final File result = rewriteAfterRename(beforeDir, afterDir, new File(path));
         return (result != null) ? result.getAbsolutePath() : null;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static String[] rewriteAfterRename(File beforeDir, File afterDir, String[] paths) {
         if (paths == null) return null;
         final String[] result = new String[paths.length];
@@ -1207,7 +1210,7 @@ public final class FileUtils {
         return null;
     }
 
-    /** {@hide} */
+    /** @hide */
     private static File buildUniqueFileWithExtension(File parent, String name, String ext)
             throws FileNotFoundException {
         File file = buildFile(parent, name, ext);
@@ -1242,7 +1245,7 @@ public final class FileUtils {
         return buildUniqueFileWithExtension(parent, parts[0], parts[1]);
     }
 
-    /** {@hide} */
+    /** @hide */
     public static File buildNonUniqueFile(File parent, String mimeType, String displayName) {
         final String[] parts = splitFileName(mimeType, displayName);
         return buildFile(parent, parts[0], parts[1]);
@@ -1331,7 +1334,7 @@ public final class FileUtils {
         return new String[] { name, ext };
     }
 
-    /** {@hide} */
+    /** @hide */
     private static File buildFile(File parent, String name, String ext) {
         if (TextUtils.isEmpty(ext)) {
             return new File(parent, name);
@@ -1340,25 +1343,25 @@ public final class FileUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @NonNull String[] listOrEmpty(@Nullable File dir) {
         return (dir != null) ? ArrayUtils.defeatNullable(dir.list())
                 : EmptyArray.STRING;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @NonNull File[] listFilesOrEmpty(@Nullable File dir) {
         return (dir != null) ? ArrayUtils.defeatNullable(dir.listFiles())
                 : ArrayUtils.EMPTY_FILE;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @NonNull File[] listFilesOrEmpty(@Nullable File dir, FilenameFilter filter) {
         return (dir != null) ? ArrayUtils.defeatNullable(dir.listFiles(filter))
                 : ArrayUtils.EMPTY_FILE;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @Nullable File newFileOrNull(@Nullable String path) {
         return (path != null) ? new File(path) : null;
     }
@@ -1533,8 +1536,24 @@ public final class FileUtils {
         IoUtils.closeQuietly(fd);
     }
 
-    /** {@hide} */
+    /** @hide */
     public static int translateModeStringToPosix(String mode) {
+        if (Flags.enforceStrictFileModeCheck()) {
+            // Note: since the list of supported modes have been documented already in
+            // ParcelFileDescriptor#parseMode(), this change is not protected by a compat change.
+            // Also, we're explicitly checking the permutations of the supported modes here to avoid
+            // throwing an exception for malformed mode strings (see b/414387646 for context).
+            return switch (mode) {
+                case "r" -> O_RDONLY;
+                case "w" -> O_WRONLY | O_CREAT;
+                case "wt", "tw" -> O_WRONLY | O_CREAT | O_TRUNC;
+                case "wa", "aw" -> O_WRONLY | O_CREAT | O_APPEND;
+                case "rw", "wr" -> O_RDWR | O_CREAT;
+                case "rwt", "rtw", "wrt", "wtr", "trw", "twr" -> O_RDWR | O_CREAT | O_TRUNC;
+                default -> throw new IllegalArgumentException("Bad mode: " + mode);
+            };
+        }
+
         // Quick check for invalid chars
         for (int i = 0; i < mode.length(); i++) {
             switch (mode.charAt(i)) {
@@ -1567,7 +1586,7 @@ public final class FileUtils {
         return res;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static String translateModePosixToString(int mode) {
         String res = "";
         if ((mode & O_ACCMODE) == O_RDWR) {
@@ -1588,7 +1607,7 @@ public final class FileUtils {
         return res;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static int translateModePosixToPfd(int mode) {
         int res = 0;
         if ((mode & O_ACCMODE) == O_RDWR) {
@@ -1612,7 +1631,7 @@ public final class FileUtils {
         return res;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static int translateModePfdToPosix(int mode) {
         int res = 0;
         if ((mode & MODE_READ_WRITE) == MODE_READ_WRITE) {
@@ -1636,7 +1655,7 @@ public final class FileUtils {
         return res;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static int translateModeAccessToPosix(int mode) {
         if (mode == F_OK) {
             // There's not an exact mapping, so we attempt a read-only open to
@@ -1653,7 +1672,7 @@ public final class FileUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     @android.ravenwood.annotation.RavenwoodThrow(reason = "Requires kernel support")
     public static ParcelFileDescriptor convertToModernFd(FileDescriptor fd) {
@@ -1691,7 +1710,7 @@ public final class FileUtils {
         return sMediaProviderAppId;
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public static class MemoryPipe extends Thread implements AutoCloseable {
         private final FileDescriptor[] pipe;

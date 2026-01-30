@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"આ ટૅબ્લેટ પર ચલાવવામાં આવી રહ્યું છે"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"આ ફોનનો પાવર બંધ હોય ત્યારે પણ Find My Device વડે તમે તેનું લોકેશન જાણી શકો છો"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"આ ટૅબ્લેટનો પાવર બંધ હોય ત્યારે પણ Find My Device વડે તમે તેનું લોકેશન જાણી શકો છો"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"આ ફોનનો પાવર બંધ હોય તો પણ Find Hub વડે તમે તેનું લોકેશન જાણી શકો છો"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"આ ટૅબ્લેટનો પાવર બંધ હોય તો પણ Find Hub વડે તમે તેનું લોકેશન જાણી શકો છો"</string>
 </resources>

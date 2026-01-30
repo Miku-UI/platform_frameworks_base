@@ -19,8 +19,11 @@ package com.android.wm.shell.unfold;
 import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.WindowManager.KEYGUARD_VISIBILITY_TRANSIT_FLAGS;
 import static android.view.WindowManager.TRANSIT_CHANGE;
+import static android.view.WindowManager.TRANSIT_CLOSE;
+import static android.view.WindowManager.TRANSIT_TO_BACK;
 
 import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_TRANSITIONS;
+import static com.android.wm.shell.transition.Transitions.TRANSIT_BUBBLE_CONVERT_FLOATING_TO_BAR;
 
 import android.animation.ValueAnimator;
 import android.app.ActivityManager;
@@ -124,8 +127,7 @@ public class UnfoldTransitionHandler implements TransitionHandler, UnfoldListene
         mAnimators.add(fullscreenUnfoldAnimator);
         // TODO(b/238217847): Temporarily add this check here until we can remove the dynamic
         //                    override for this controller from the base module
-        if (unfoldProgressProvider != ShellUnfoldProgressProvider.NO_PROVIDER
-                && Transitions.ENABLE_SHELL_TRANSITIONS) {
+        if (unfoldProgressProvider != ShellUnfoldProgressProvider.NO_PROVIDER) {
             shellInit.addInitCallback(this::onInit, this);
         }
     }
@@ -234,15 +236,34 @@ public class UnfoldTransitionHandler implements TransitionHandler, UnfoldListene
             @NonNull SurfaceControl.Transaction finishT,
             @NonNull IBinder mergeTarget,
             @NonNull TransitionFinishCallback finishCallback) {
-        if (info.getType() != TRANSIT_CHANGE) {
-            return;
-        }
         if ((info.getFlags() & KEYGUARD_VISIBILITY_TRANSIT_FLAGS) != 0) {
             return;
         }
         // TODO (b/286928742) unfold transition handler should be part of mixed handler to
         //  handle merges better.
+        final boolean merged = switch (info.getType()) {
+            case TRANSIT_CHANGE, TRANSIT_BUBBLE_CONVERT_FLOATING_TO_BAR ->
+                    tryMergeBubbleTaskTransition(info, startT, finishT);
+            case TRANSIT_CLOSE -> tryMergeTaskFragmentClose(info, startT);
+            default -> false;
+        };
 
+        if (!merged) return;
+
+        // Apply changes happening during the unfold animation immediately
+        startT.apply();
+        finishCallback.onTransitionFinished(null);
+
+        if (getDefaultDisplayChange(info) == DefaultDisplayChange.DEFAULT_DISPLAY_FOLD) {
+            // Force-finish current unfold animation as we are processing folding now which doesn't
+            // have any animations on the Shell side
+            finishTransitionIfNeeded();
+        }
+    }
+
+    private boolean tryMergeBubbleTaskTransition(@NonNull TransitionInfo info,
+            @NonNull SurfaceControl.Transaction startT,
+            @NonNull SurfaceControl.Transaction finishT) {
         for (int i = 0; i < info.getChanges().size(); ++i) {
             final TransitionInfo.Change change = info.getChanges().get(i);
             final ActivityManager.RunningTaskInfo taskInfo = change.getTaskInfo();
@@ -255,24 +276,37 @@ public class UnfoldTransitionHandler implements TransitionHandler, UnfoldListene
                     boolean merged =
                             mBubbleTaskUnfoldTransitionMerger
                                     .get()
-                                    .mergeTaskWithUnfold(taskInfo, change, startT, finishT);
+                                    .mergeTaskWithUnfold(taskInfo, info, change, startT, finishT);
                     if (!merged) {
-                        return;
+                        return false;
                     }
                 } else {
-                    return;
+                    return false;
                 }
             }
         }
-        // Apply changes happening during the unfold animation immediately
-        startT.apply();
-        finishCallback.onTransitionFinished(null);
+        return true;
+    }
 
-        if (getDefaultDisplayChange(info) == DefaultDisplayChange.DEFAULT_DISPLAY_FOLD) {
-            // Force-finish current unfold animation as we are processing folding now which doesn't
-            // have any animations on the Shell side
-            finishTransitionIfNeeded();
+    /**
+     * Tries to merge TRANSIT_CLOSE for task fragments
+     * @return true if we should continue with merging, false otherwise
+     */
+    private boolean tryMergeTaskFragmentClose(@NonNull TransitionInfo info,
+            @NonNull SurfaceControl.Transaction startT) {
+        boolean shouldMerge = false;
+        for (int i = 0; i < info.getChanges().size(); ++i) {
+            final TransitionInfo.Change change = info.getChanges().get(i);
+            final boolean isHideChange = change.getMode() == TRANSIT_TO_BACK
+                    || change.getMode() == TRANSIT_CLOSE;
+
+            if (change.getTaskFragmentToken() != null && isHideChange) {
+                shouldMerge = true;
+                startT.hide(change.getLeash());
+            }
         }
+
+        return shouldMerge;
     }
 
     /** Whether `request` contains an unfold action. */

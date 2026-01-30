@@ -31,18 +31,21 @@ object BooleanFlowOperators {
      * val result = allOf(flow1, flow2)
      * ```
      */
+    @JvmStatic
+    @SafeVarargs
     fun allOf(vararg flows: Flow<Boolean>): Flow<Boolean> = flows.asIterable().all()
 
     /**
      * Logical AND operator for boolean flows. Will collect all flows and [combine] them to
      * determine the result.
      */
-    fun Array<Flow<Boolean>>.all(): Flow<Boolean> = allOf(*this)
+    @JvmStatic fun Array<Flow<Boolean>>.all(): Flow<Boolean> = allOf(*this)
 
     /**
      * Logical AND operator for boolean flows. Will collect all flows and [combine] them to
      * determine the result.
      */
+    @JvmStatic
     fun Iterable<Flow<Boolean>>.all(): Flow<Boolean> =
         combine(this) { values -> values.all { it } }.distinctUntilChanged()
 
@@ -54,24 +57,27 @@ object BooleanFlowOperators {
      * val negatedFlow = not(flow)
      * ```
      */
-    fun not(flow: Flow<Boolean>) = flow.map { !it }
+    @JvmStatic fun not(flow: Flow<Boolean>) = flow.map { !it }
 
     /**
      * Logical OR operator for a boolean flow. Will collect all flows and [combine] them to
      * determine the result.
      */
+    @JvmStatic
+    @SafeVarargs
     fun anyOf(vararg flows: Flow<Boolean>): Flow<Boolean> = flows.asIterable().any()
 
     /**
      * Logical OR operator for a boolean flow. Will collect all flows and [combine] them to
      * determine the result.
      */
-    fun Array<Flow<Boolean>>.any(): Flow<Boolean> = anyOf(*this)
+    @JvmStatic fun Array<Flow<Boolean>>.any(): Flow<Boolean> = anyOf(*this)
 
     /**
      * Logical OR operator for a boolean flow. Will collect all flows and [combine] them to
      * determine the result.
      */
+    @JvmStatic
     fun Iterable<Flow<Boolean>>.any(): Flow<Boolean> =
         combine(this) { values -> values.any { it } }.distinctUntilChanged()
 
@@ -79,17 +85,19 @@ object BooleanFlowOperators {
      * Returns a Flow that produces `true` when all input flows are producing `false`, otherwise
      * produces `false`.
      */
+    @JvmStatic
+    @SafeVarargs
     fun noneOf(vararg flows: Flow<Boolean>): Flow<Boolean> = not(anyOf(*flows))
 
     /**
      * Returns a Flow that produces `true` when all input flows are producing `false`, otherwise
      * produces `false`.
      */
-    fun Array<Flow<Boolean>>.none(): Flow<Boolean> = noneOf(*this)
+    @JvmStatic fun Array<Flow<Boolean>>.none(): Flow<Boolean> = noneOf(*this)
 
     /**
      * Returns a Flow that produces `true` when all input flows are producing `false`, otherwise
      * produces `false`.
      */
-    fun Iterable<Flow<Boolean>>.none(): Flow<Boolean> = not(any())
+    @JvmStatic fun Iterable<Flow<Boolean>>.none(): Flow<Boolean> = not(any())
 }

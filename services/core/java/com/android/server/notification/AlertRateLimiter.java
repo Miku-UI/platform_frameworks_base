@@ -18,7 +18,7 @@ package com.android.server.notification;
 
 
 /**
- * {@hide}
+ * @hide
  */
 public class AlertRateLimiter {
     static final long ALLOWED_ALERT_INTERVAL = 1000;

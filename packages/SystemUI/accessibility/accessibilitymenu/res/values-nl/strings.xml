@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Ga naar vorig scherm"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Ga naar volgend scherm"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Het toegankelijkheidsmenu is een groot menu op het scherm waarmee je je apparaat kunt bedienen. Je kunt onder meer je apparaat vergrendelen, het volume en de helderheid aanpassen en screenshots maken."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Bedien het apparaat via een groot menu"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Bedien onder andere het volume en de helderheid met een groot menu"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Instellingen toegankelijkheidsmenu"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Grote knoppen"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Maak knoppen in toegankelijkheidsmenu groter"</string>

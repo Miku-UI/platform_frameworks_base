@@ -92,6 +92,30 @@ public class TaskConstants {
     public  static final int TASK_CHILD_LAYER_FLOATING_MENU = 7 * TASK_CHILD_LAYER_REGION_SIZE;
 
     /**
+     * The layer to use for Letterbox surfaces in Shell. Letterbox surfaces need to stay below the
+     * activity layer which is 0.
+     * @hide
+     */
+    public static final int TASK_CHILD_SHELL_LAYER_LETTERBOX_BACKGROUND =
+            -1 * TASK_CHILD_LAYER_REGION_SIZE;
+
+    /**
+     * The layer to use for Letterbox spy surfaces in Shell. Letterbox spy surfaces need to stay
+     * above the activity layer which is 0.
+     * @hide
+     */
+    public static final int TASK_CHILD_SHELL_LAYER_LETTERBOX_SPY =
+            TASK_CHILD_LAYER_REGION_SIZE / 10;
+
+    /**
+     * The layer to use for the rounded corners used in the Letterbox surfaces implementation
+     * in Shell.
+     * @hide
+     */
+    public static final int TASK_CHILD_SHELL_LAYER_LETTERBOX_ROUNDED_CORNERS =
+            TASK_CHILD_LAYER_REGION_SIZE / 5;
+
+    /**
      * Z-orders of task child layers other than activities, task fragments and layers interleaved
      * with them, e.g. IME windows. [-10000, 10000) is reserved for these layers.
      * @hide
@@ -104,7 +128,9 @@ public class TaskConstants {
             TASK_CHILD_LAYER_WINDOW_DECORATIONS,
             TASK_CHILD_LAYER_RECENTS_ANIMATION_PIP_OVERLAY,
             TASK_CHILD_LAYER_TASK_OVERLAY,
-            TASK_CHILD_LAYER_RESIZE_VEIL
+            TASK_CHILD_LAYER_RESIZE_VEIL,
+            TASK_CHILD_SHELL_LAYER_LETTERBOX_BACKGROUND,
+            TASK_CHILD_SHELL_LAYER_LETTERBOX_SPY
     })
     public @interface TaskChildLayer {}
 }

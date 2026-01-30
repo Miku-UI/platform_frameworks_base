@@ -34,7 +34,8 @@
             android:excludeFromRecents="true"
             android:launchMode="singleInstancePerTask"
             android:showForAllUsers="true"
-            android:theme="@style/DesktopWallpaperTheme" />
+            android:theme="@style/DesktopWallpaperTheme"
+            android:taskAffinity="com.android.wm.shell.desktop_wallpaper"/>
 
         <activity
             android:name=".bubbles.shortcut.CreateBubbleShortcutActivity"

@@ -19,10 +19,20 @@ package {
     default_applicable_licenses: ["frameworks_base_packages_SystemUI_license"],
 }
 
-android_test {
-    name: "SystemUITests",
-    use_resource_processor: true,
+filegroup {
+    name: "systemui_tests_base_manifest",
+    srcs: ["AndroidManifest-base.xml"],
+}
 
+filegroup {
+    name: "systemui_tests_additional_manifest",
+    srcs: ["AndroidManifest.xml"],
+}
+
+java_defaults {
+    name: "SystemUITests_defaults",
+    use_resource_processor: true,
+    defaults: ["systemui-non-platform-apis-defaults"],
     dxflags: ["--multi-dex"],
     platform_apis: true,
     test_suites: ["device-tests"],
@@ -47,8 +57,13 @@ android_test {
     // UI it doesn't own. This is necessary to allow screenshots to be taken
     certificate: "platform",
 
-    additional_manifests: ["AndroidManifest.xml"],
-    manifest: "AndroidManifest-base.xml",
+    additional_manifests: [":systemui_tests_additional_manifest"],
+    manifest: ":systemui_tests_base_manifest",
+}
+
+android_test {
+    name: "SystemUITests",
+    defaults: ["SystemUITests_defaults"],
 }
 
 test_module_config {
@@ -58,6 +73,16 @@ test_module_config {
     include_filters: ["com.android.systemui.accessibility"],
     exclude_annotations: [
         "android.platform.test.annotations.Postsubmit",
+        "android.platform.test.annotations.FlakyTest",
+    ],
+}
+
+test_module_config {
+    name: "SystemUITests_presubmit",
+    base: "SystemUITests",
+    test_suites: ["device-tests"],
+    exclude_annotations: [
+        "android.platform.test.annotations.Ignore",
         "android.platform.test.annotations.FlakyTest",
     ],
 }

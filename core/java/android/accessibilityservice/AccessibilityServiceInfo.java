@@ -413,7 +413,7 @@ public class AccessibilityServiceInfo implements Parcelable {
      */
     public static final int FLAG_INPUT_METHOD_EDITOR = 1 << 15;
 
-    /** {@hide} */
+    /** @hide */
     public static final int FLAG_FORCE_DIRECT_BOOT_AWARE = 1 << 16;
 
     /**
@@ -1322,7 +1322,7 @@ public class AccessibilityServiceInfo implements Parcelable {
         return mInteractiveUiTimeout;
     }
 
-    /** {@hide} */
+    /** @hide */
     public boolean isDirectBootAware() {
         return ((flags & FLAG_FORCE_DIRECT_BOOT_AWARE) != 0)
                 || mResolveInfo.serviceInfo.directBootAware;

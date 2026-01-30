@@ -242,17 +242,25 @@ static void android_os_MessageQueue_nativeSetFileDescriptorEvents(JNIEnv* env, j
     nativeMessageQueue->setFileDescriptorEvents(fd, events);
 }
 
+static void android_os_MessageQueue_nativeSetSkipEpollWaitForZeroTimeout(JNIEnv* env, jclass clazz,
+                                                                         jlong ptr) {
+    NativeMessageQueue* nativeMessageQueue = reinterpret_cast<NativeMessageQueue*>(ptr);
+    nativeMessageQueue->getLooper()->setSkipEpollWaitForZeroTimeout();
+}
+
 // ----------------------------------------------------------------------------
 
 static const JNINativeMethod gMessageQueueMethods[] = {
-    /* name, signature, funcPtr */
-    { "nativeInit", "()J", (void*)android_os_MessageQueue_nativeInit },
-    { "nativeDestroy", "(J)V", (void*)android_os_MessageQueue_nativeDestroy },
-    { "nativePollOnce", "(JI)V", (void*)android_os_MessageQueue_nativePollOnce },
-    { "nativeWake", "(J)V", (void*)android_os_MessageQueue_nativeWake },
-    { "nativeIsPolling", "(J)Z", (void*)android_os_MessageQueue_nativeIsPolling },
-    { "nativeSetFileDescriptorEvents", "(JII)V",
-            (void*)android_os_MessageQueue_nativeSetFileDescriptorEvents },
+        /* name, signature, funcPtr */
+        {"nativeInit", "()J", (void*)android_os_MessageQueue_nativeInit},
+        {"nativeDestroy", "(J)V", (void*)android_os_MessageQueue_nativeDestroy},
+        {"nativePollOnce", "(JI)V", (void*)android_os_MessageQueue_nativePollOnce},
+        {"nativeWake", "(J)V", (void*)android_os_MessageQueue_nativeWake},
+        {"nativeIsPolling", "(J)Z", (void*)android_os_MessageQueue_nativeIsPolling},
+        {"nativeSetFileDescriptorEvents", "(JII)V",
+         (void*)android_os_MessageQueue_nativeSetFileDescriptorEvents},
+        {"nativeSetSkipEpollWaitForZeroTimeout", "(J)V",
+         (void*)android_os_MessageQueue_nativeSetSkipEpollWaitForZeroTimeout},
 };
 
 int register_android_os_MessageQueue(JNIEnv* env) {

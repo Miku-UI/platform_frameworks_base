@@ -41,7 +41,7 @@ class SceneContainerPluginTest : SysuiTestCase() {
     private val shadeDisplayRepository = kosmos.fakeShadeDisplaysRepository
     private val sceneDataSource = kosmos.fakeSceneDataSource
 
-    private val underTest = kosmos.sceneContainerPlugin
+    private val underTest: SceneContainerPlugin = kosmos.sceneContainerPluginImpl
 
     @Test
     @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
@@ -64,7 +64,7 @@ class SceneContainerPluginTest : SysuiTestCase() {
     fun flagValueOverride_sameDisplayId_returnsTrue() {
         sceneDataSource.changeScene(Scenes.Shade)
 
-        shadeDisplayRepository.setDisplayId(1)
+        shadeDisplayRepository.setPendingDisplayId(1)
 
         assertThat(
                 underTest.flagValueOverride(
@@ -80,7 +80,7 @@ class SceneContainerPluginTest : SysuiTestCase() {
     fun flagValueOverride_differentDisplayId_shadeGoesAroundFlagOff_returnsTrue() {
         sceneDataSource.changeScene(Scenes.Shade)
 
-        shadeDisplayRepository.setDisplayId(1)
+        shadeDisplayRepository.setPendingDisplayId(1)
 
         assertThat(
                 underTest.flagValueOverride(

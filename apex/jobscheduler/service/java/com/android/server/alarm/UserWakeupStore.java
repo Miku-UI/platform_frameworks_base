@@ -80,6 +80,9 @@ public class UserWakeupStore {
      */
     @VisibleForTesting
     static final long BUFFER_TIME_MS = TimeUnit.SECONDS.toMillis(30);
+
+    /** When a user is being woken due to a pending alarm, for how long should it be woken up. */
+    public static final int USER_RUN_FOR_TIME_SECS = (int) TimeUnit.MINUTES.toSeconds(10);
     /**
      * Maximum time deviation limit to introduce a 5-second time window for user starts.
      */

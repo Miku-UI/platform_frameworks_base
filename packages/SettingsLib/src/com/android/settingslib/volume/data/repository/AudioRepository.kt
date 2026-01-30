@@ -83,8 +83,6 @@ interface AudioRepository {
     /** Events from [AudioManager.setVolumeController] */
     val volumeControllerEvents: Flow<VolumeControllerEvent>
 
-    fun init()
-
     /** State of the [AudioStream]. */
     fun getAudioStream(audioStream: AudioStream): Flow<AudioStreamModel>
 
@@ -116,7 +114,6 @@ class AudioRepositoryImpl(
     private val backgroundCoroutineContext: CoroutineContext,
     private val coroutineScope: CoroutineScope,
     private val logger: AudioLogger,
-    shouldUseVolumeController: Boolean,
 ) : AudioRepository {
 
     private val volumeController = ProducingVolumeController()
@@ -133,12 +130,7 @@ class AudioRepositoryImpl(
             AudioStream(AudioManager.STREAM_ASSISTANT) to Settings.System.VOLUME_ASSISTANT,
         )
 
-    override val volumeControllerEvents: Flow<VolumeControllerEvent> =
-        if (shouldUseVolumeController) {
-            volumeController.events
-        } else {
-            emptyFlow()
-        }
+    override val volumeControllerEvents: Flow<VolumeControllerEvent> = volumeController.events
 
     override val mode: StateFlow<Int> =
         callbackFlow {
@@ -183,7 +175,7 @@ class AudioRepositoryImpl(
                     audioManager.communicationDevice,
                 )
 
-    override fun init() {
+    init {
         try {
             audioManager.volumeController = volumeController
         } catch (error: SecurityException) {

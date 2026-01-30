@@ -87,6 +87,9 @@ static_assert(sizeof(SystemFeaturesCache) ==
 // Atomics should be safe to use across processes if they are lock free.
 static_assert(std::atomic<int64_t>::is_always_lock_free == true,
               "atomic<int64_t> is not always lock free");
+// Atomics should be safe to use across processes if they are lock free.
+static_assert(std::atomic<float>::is_always_lock_free == true,
+              "atomic<float> is not always lock free");
 
 // This is the data structure that is shared between processes.
 //
@@ -100,6 +103,7 @@ class alignas(8) SharedMemory { // Ensure that `sizeof(SharedMemory)` is the sam
                                 // 64-bit systems.
 private:
     volatile std::atomic<int64_t> latestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis;
+    volatile std::atomic<float> currentAnimatorScale;
 
     // LINT.IfChange(invalid_network_time)
     static constexpr int64_t INVALID_NETWORK_TIME = -1;
@@ -108,7 +112,8 @@ private:
 public:
     // Default constructor sets initial values
     SharedMemory()
-          : latestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis(INVALID_NETWORK_TIME) {}
+          : latestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis(INVALID_NETWORK_TIME),
+            currentAnimatorScale(1.f) {}
 
     int64_t getLatestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis() const {
         return latestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis;
@@ -116,6 +121,14 @@ public:
 
     void setLatestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis(int64_t offset) {
         latestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis = offset;
+    }
+
+    void setCurrentAnimatorScale(float scale) {
+        currentAnimatorScale = scale;
+    }
+
+    float getCurrentAnimatorScale() const {
+        return currentAnimatorScale;
     }
 
     // The fixed size cache storage for SDK-defined system features.
@@ -130,9 +143,19 @@ public:
 // and 64-bit systems.
 // TODO(b/396674280): Add an additional fixed size check for SystemCacheNonce after resolving
 // ABI discrepancies.
-static_assert(sizeof(SharedMemory) == 8 + sizeof(SystemFeaturesCache) + sizeof(SystemCacheNonce),
+static_assert(sizeof(SharedMemory) ==
+                      // latestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis
+                      8 +
+                      // currentAnimatorScale
+                      8 +
+                      sizeof(SystemFeaturesCache) +
+                      sizeof(SystemCacheNonce),
               "Unexpected SharedMemory size");
-static_assert(offsetof(SharedMemory, systemFeaturesCache) == sizeof(int64_t),
+static_assert(offsetof(SharedMemory, systemFeaturesCache) ==
+                      // latestNetworkTimeUnixEpochMillisAtZeroElapsedRealtimeMillis
+                      8 +
+                      // currentAnimatorScale
+                      8,
               "Unexpected SystemFeaturesCache offset in SharedMemory");
 static_assert(offsetof(SharedMemory, systemPic) ==
                       offsetof(SharedMemory, systemFeaturesCache) + sizeof(SystemFeaturesCache),
@@ -216,6 +239,16 @@ static jintArray nativeReadSystemFeaturesCache(JNIEnv* env, jclass*, jlong ptr) 
     return sharedMemory->systemFeaturesCache.readSystemFeatures(env);
 }
 
+static void nativeSetCurrentAnimatorScale(JNIEnv* env, jclass*, jlong ptr, jfloat scale) {
+    SharedMemory* sharedMemory = reinterpret_cast<SharedMemory*>(ptr);
+    sharedMemory->setCurrentAnimatorScale(scale);
+}
+
+static jfloat nativeGetCurrentAnimatorScale(JNIEnv* env, jclass*, jlong ptr) {
+    SharedMemory* sharedMemory = reinterpret_cast<SharedMemory*>(ptr);
+    return sharedMemory->getCurrentAnimatorScale();
+}
+
 static const JNINativeMethod gMethods[] = {
         {"nativeCreate", "()I", (void*)nativeCreate},
         {"nativeMap", "(IZ)J", (void*)nativeMap},
@@ -229,6 +262,8 @@ static const JNINativeMethod gMethods[] = {
         {"nativeGetSystemNonceBlock", "(J)J", (void*)nativeGetSystemNonceBlock},
         {"nativeWriteSystemFeaturesCache", "(J[I)V", (void*)nativeWriteSystemFeaturesCache},
         {"nativeReadSystemFeaturesCache", "(J)[I", (void*)nativeReadSystemFeaturesCache},
+        {"nativeSetCurrentAnimatorScale", "(JF)V", (void*)nativeSetCurrentAnimatorScale},
+        {"nativeGetCurrentAnimatorScale", "(J)F", (void*)nativeGetCurrentAnimatorScale},
 };
 
 static const char kApplicationSharedMemoryClassName[] =

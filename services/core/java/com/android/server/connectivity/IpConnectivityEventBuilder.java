@@ -51,7 +51,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-/** {@hide} */
+/** @hide */
 final public class IpConnectivityEventBuilder {
     private IpConnectivityEventBuilder() {
     }

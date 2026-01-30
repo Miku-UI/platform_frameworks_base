@@ -26,7 +26,10 @@ import android.companion.virtual.VirtualDeviceParams.DevicePolicy;
 import android.companion.virtual.camera.VirtualCameraConfig;
 import android.companion.virtualcamera.IVirtualCameraService;
 import android.companion.virtualcamera.VirtualCameraConfiguration;
+import android.companion.virtualdevice.flags.Flags;
 import android.content.AttributionSource;
+import android.content.Context;
+import android.hardware.camera2.CameraMetadata;
 import android.os.Binder;
 import android.os.IBinder;
 import android.os.RemoteException;
@@ -182,28 +185,41 @@ public final class VirtualCameraController implements IBinder.DeathRecipient {
 
     /** Dumps information about this {@link VirtualCameraController} for debugging purposes. */
     public void dump(PrintWriter fout, String indent) {
-        fout.println(indent + "VirtualCameraController:");
-        indent += indent;
         synchronized (mCameras) {
-            fout.println(indent + "Registered cameras: " + mCameras.size());
+            fout.println(indent + "VirtualCameraController: " + mCameras.size()
+                    + " registered cameras");
             for (CameraDescriptor descriptor : mCameras.values()) {
-                fout.println(indent + " token: " +  descriptor.mConfig);
+                fout.println(indent + indent + descriptor.mConfig);
             }
         }
     }
 
     private void checkConfigByPolicy(VirtualCameraConfig config) {
+        // Don't allow any cameras on the default policy if the flag is disabled.
+        if (!Flags.externalCameraDefaultPolicy() && mCameraPolicy == DEVICE_POLICY_DEFAULT) {
+            throw new IllegalArgumentException(
+                    "Cannot create virtual camera with DEVICE_POLICY_DEFAULT for "
+                        + "POLICY_TYPE_CAMERA.");
+        }
+
+        // Multiple external cameras are allowed on any policy
+        if (Flags.externalVirtualCameras()
+                && CameraMetadata.LENS_FACING_EXTERNAL == config.getLensFacing()) {
+            return;
+        }
+
         if (mCameraPolicy == DEVICE_POLICY_DEFAULT) {
             throw new IllegalArgumentException(
                     "Cannot create virtual camera with DEVICE_POLICY_DEFAULT for "
-                            + "POLICY_TYPE_CAMERA");
-        } else if (isLensFacingAlreadyPresent(config.getLensFacing())) {
+                            + "POLICY_TYPE_CAMERA and lens facing " + config.getLensFacing());
+        }
+
+        if (isLensFacingAlreadyPresent(config.getLensFacing())) {
             throw new IllegalArgumentException(
                     "Only a single virtual camera can be created with lens facing "
                             + config.getLensFacing());
         }
     }
-
     private boolean isLensFacingAlreadyPresent(int lensFacing) {
         synchronized (mCameras) {
             for (CameraDescriptor cameraDescriptor : mCameras.values()) {
@@ -250,8 +266,14 @@ public final class VirtualCameraController implements IBinder.DeathRecipient {
     private boolean registerCameraWithService(VirtualCameraConfig config) throws RemoteException {
         VirtualCameraConfiguration serviceConfiguration = getServiceCameraConfiguration(config);
         synchronized (mServiceLock) {
+            int ownerDeviceId = mDeviceId;
+
+            if (Flags.externalCameraDefaultPolicy() && mCameraPolicy == DEVICE_POLICY_DEFAULT) {
+                ownerDeviceId = Context.DEVICE_ID_DEFAULT;
+            }
+
             return mVirtualCameraService.registerCamera(config.getCallback().asBinder(),
-                    serviceConfiguration, mDeviceId);
+                    serviceConfiguration, ownerDeviceId);
         }
     }
 

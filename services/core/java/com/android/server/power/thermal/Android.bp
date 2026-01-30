@@ -1,0 +1,13 @@
+aconfig_declarations {
+    name: "thermal_flags",
+    package: "com.android.server.power.thermal",
+    container: "system",
+    srcs: [
+        "flags.aconfig",
+    ],
+}
+
+java_aconfig_library {
+    name: "thermal_flags_lib",
+    aconfig_declarations: "thermal_flags",
+}

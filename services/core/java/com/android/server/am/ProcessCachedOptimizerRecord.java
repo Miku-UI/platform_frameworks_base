@@ -37,7 +37,7 @@ import java.util.concurrent.Executor;
 /**
  * The state info of app when it's cached, used by the optimizer.
  */
-final class ProcessCachedOptimizerRecord {
+public final class ProcessCachedOptimizerRecord {
 
     static final int SHOULD_NOT_FREEZE_REASON_NONE = 1;
     static final int SHOULD_NOT_FREEZE_REASON_UID_ALLOWLISTED = 1 << 1;
@@ -144,12 +144,6 @@ final class ProcessCachedOptimizerRecord {
      */
     @GuardedBy("mProcLock")
     private int mShouldNotFreezeAdjSeq;
-
-    /**
-     * Exempt from freezer (now for system apps with INSTALL_PACKAGES permission)
-     */
-    @GuardedBy("mProcLock")
-    private boolean mFreezeExempt;
 
     /**
      * This process has been scheduled for freezing
@@ -338,11 +332,7 @@ final class ProcessCachedOptimizerRecord {
     boolean setShouldNotFreeze(boolean shouldNotFreeze, boolean dryRun,
             @ShouldNotFreezeReason int reason, int adjSeq) {
         if (dryRun) {
-            if (Flags.unfreezeBindPolicyFix()) {
-                return mShouldNotFreeze != shouldNotFreeze;
-            } else {
-                return mFrozen && !shouldNotFreeze;
-            }
+            return mShouldNotFreeze != shouldNotFreeze;
         }
         if (Flags.traceUpdateAppFreezeStateLsp()) {
             if (shouldNotFreeze) {
@@ -381,11 +371,6 @@ final class ProcessCachedOptimizerRecord {
     }
 
     @GuardedBy("mProcLock")
-    boolean isFreezeExempt() {
-        return mFreezeExempt;
-    }
-
-    @GuardedBy("mProcLock")
     void setPendingFreeze(boolean freeze) {
         mPendingFreeze = freeze;
     }
@@ -393,11 +378,6 @@ final class ProcessCachedOptimizerRecord {
     @GuardedBy("mProcLock")
     boolean isPendingFreeze() {
         return mPendingFreeze;
-    }
-
-    @GuardedBy("mProcLock")
-    void setFreezeExempt(boolean exempt) {
-        mFreezeExempt = exempt;
     }
 
     void addFrozenProcessListener(Executor executor, FrozenProcessListener listener) {
@@ -434,8 +414,8 @@ final class ProcessCachedOptimizerRecord {
         pw.print(prefix);
         pw.print("hasPendingCompaction=");
         pw.print(mPendingCompact);
-        pw.print(prefix); pw.print("isFreezeExempt="); pw.print(mFreezeExempt);
-        pw.print(" isPendingFreeze="); pw.print(mPendingFreeze);
+        pw.print(prefix);
+        pw.print("isPendingFreeze="); pw.print(mPendingFreeze);
         pw.print(" " + IS_FROZEN + "="); pw.println(mFrozen);
         pw.print(prefix); pw.print("earliestFreezableTimeMs=");
         TimeUtils.formatDuration(mEarliestFreezableTimeMillis, nowUptime, pw);

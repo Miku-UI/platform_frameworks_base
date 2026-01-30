@@ -24,7 +24,7 @@ import android.view.SurfaceControl;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.IAccessibilityInteractionConnectionCallback;
 import android.view.accessibility.IWindowSurfaceInfoCallback;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 /**
  * Interface for interaction between the AccessibilityManagerService
@@ -65,7 +65,7 @@ oneway interface IAccessibilityInteractionConnection {
     void notifyOutsideTouch();
 
     void takeScreenshotOfWindow(int interactionId,
-        in ScreenCapture.ScreenCaptureListener listener,
+        in ScreenCaptureInternal.ScreenCaptureListener listener,
         IAccessibilityInteractionConnectionCallback callback);
 
     void getWindowSurfaceInfo(IWindowSurfaceInfoCallback callback);

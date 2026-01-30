@@ -43,7 +43,7 @@ class FakeVolumeDialogController(private val audioManager: AudioManager) : Volum
     var state = VolumeDialogController.State()
         private set
 
-    override fun setActiveStream(stream: Int) {
+    override fun setActiveStream(stream: Int, sync: Boolean) {
         updateState {
             // ensure streamState existence for the active stream`
             states.getOrElse(stream) {
@@ -55,7 +55,7 @@ class FakeVolumeDialogController(private val audioManager: AudioManager) : Volum
         }
     }
 
-    override fun setStreamVolume(stream: Int, userLevel: Int) {
+    override fun setStreamVolume(stream: Int, userLevel: Int, sync: Boolean) {
         updateState {
             val streamState =
                 states.getOrElse(stream) {

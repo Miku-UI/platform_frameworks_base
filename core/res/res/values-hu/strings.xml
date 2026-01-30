@@ -71,9 +71,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"A hívóazonosító alapértelmezett értéke korlátozott. Következő hívás: nem korlátozott"</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"A hívóazonosító alapértelmezett értéke nem korlátozott. Következő hívás: korlátozott"</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"A hívóazonosító alapértelmezett értéke nem korlátozott. Következő hívás: nem korlátozott"</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az APK-igazítási ellenőrzés sikertelen volt. Ez az app az oldalméret-kompatibilis mód használatával fog futni. A legjobb kompatibilitás érdekében fordítsa újra az alkalmazást 16 kB-os támogatással. További információ: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az ELF-igazítási ellenőrzés sikertelen. Ez az app az oldalméret-kompatibilis mód használatával fog futni. A legjobb kompatibilitás érdekében fordítsa újra az alkalmazást 16 kB-os támogatással. További információ: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az APK- és ELF-igazítási ellenőrzések sikertelenek voltak. Ez az app az oldalméret-kompatibilis mód használatával fog futni. A legjobb kompatibilitás érdekében fordítsa újra az alkalmazást 16 kB-os támogatással. További információ: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az APK-igazítási ellenőrzés sikertelen volt. Ez az app az oldalméret-kompatibilis mód használatával fog futni. A legjobb kompatibilitás érdekében fordítsa újra az alkalmazást 16 kB-os támogatással. További információ: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; A következő könyvtárak nincsenek 16 kB-ra igazítva: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az ELF-igazítási ellenőrzés sikertelen. Ez az app az oldalméret-kompatibilis mód használatával fog futni. A legjobb kompatibilitás érdekében fordítsa újra az alkalmazást 16 kB-os támogatással. További információ: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; A következő könyvtárak nincsenek 16 kB-ra igazítva: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az APK- és ELF-igazítási ellenőrzések sikertelenek voltak. Ez az app az oldalméret-kompatibilis mód használatával fog futni. A legjobb kompatibilitás érdekében fordítsa újra az alkalmazást 16 kB-os támogatással. További információ: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; A következő könyvtárak nincsenek 16 kB-ra igazítva: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"Ez a figyelmeztetés azért látható, mert ez egy hibaelhárításra alkalmas alkalmazás, amely jelenleg tesztelés alatt áll. Ha nem Ön a fejlesztő, jelentse ezt a fejlesztőnek, és kérjen egy olyan alkalmazást, amely nem alkalmas hibaelhárításra. &lt;br&gt;&lt;br&gt; Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az APK-igazítási ellenőrzés sikertelen volt. Kövesse a következő oldalon található lépéseket: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; A következő könyvtárak nincsenek 16 kB-ra igazítva: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Ez a figyelmeztetés azért látható, mert ez egy hibaelhárításra alkalmas alkalmazás, amely jelenleg tesztelés alatt áll. Ha nem Ön a fejlesztő, jelentse ezt a fejlesztőnek, és kérjen egy olyan alkalmazást, amely nem alkalmas hibaelhárításra. &lt;br&gt;&lt;br&gt; Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az ELF-igazítási ellenőrzés sikertelen. Kövesse a következő oldalon található lépéseket: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; A következő könyvtárak nincsenek 16 kB-ra igazítva: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"Ez a figyelmeztetés azért látható, mert ez egy hibaelhárításra alkalmas alkalmazás, amely jelenleg tesztelés alatt áll. Ha nem Ön a fejlesztő, jelentse ezt a fejlesztőnek, és kérjen egy olyan alkalmazást, amely nem alkalmas hibaelhárításra. &lt;br&gt;&lt;br&gt; Ez az alkalmazás nem kompatibilis a 16 kB-os mérettel. Az APK- és ELF-igazítási ellenőrzések sikertelenek voltak. Kövesse a következő oldalon található lépéseket: &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; A következő könyvtárak nincsenek 16 kB-ra kiigazítva: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"Ne jelenjen meg többé"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Android-alkalmazás kompatibilitása"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s : A LOAD szegmens nincs igazítva&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : A tömörítetlen könyvtár nincs igazítva&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s : A LOAD szegmens és a tömörítetlen könyvtár nincs igazítva&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : Ismeretlen hiba&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"A szolgáltatás nincs biztosítva."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"Nem tudja módosítani a hívó fél azonosítója beállítást."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"Adatforgalom átváltva a következőre: <xliff:g id="CARRIERDISPLAY">%s</xliff:g>"</string>
@@ -160,8 +169,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"Mobilhálózati biztonság"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"Titkosítás, értesítés titkosítás nélküli hálózatok esetén"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"Hozzáférés az eszközazonosítóhoz"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"A következő időpontban egy közeli hálózat észlelte az Ön eszközének egyedi azonosítóját (IMSI vagy IMEI), miközben az eszköz az Ön <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>-SIM-jét használta: <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g>."</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"A következő időpontban egy közeli hálózat rögzítette az Ön eszközének egyedi azonosítóját (IMSI vagy IMEI), miközben az eszköz az Ön <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g>-SIM-jét használta: <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g>.\n\nEz azt jelenti, hogy az Ön tartózkodási helye, tevékenysége és személyazonossága naplózásra került. Ez bevett gyakorlat, de problémát jelenthet az adatvédelem miatt aggódó személyek számára."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> időpontban egy közeli hálózat rögzítette az Ön eszközének egyedi azonosítóját (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>), miközben az eszköz az Ön <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-jét használta."</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> időpontban egy közeli hálózat rögzítette az Ön eszközének egyedi azonosítóját, miközben az eszköz az Ön <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-jét használta."</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> időpontban egy közeli hálózat rögzítette az Ön eszközének egyedi azonosítóját (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>), miközben az eszköz az Ön <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-jét használta.\n\nEz azt jelenti, hogy az Ön tartózkodási helye, tevékenysége és személyazonossága naplózásra került. Ez bevett gyakorlat, de problémát jelenthet az adatvédelem miatt aggódó személyek számára."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> időpontban egy közeli hálózat rögzítette az Ön eszközének egyedi azonosítóját, miközben az eszköz az Ön <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g>-SIM-jét használta.\n\nEz azt jelenti, hogy az Ön tartózkodási helye, tevékenysége és személyazonossága naplózásra került. Ez bevett gyakorlat, de problémát jelenthet az adatvédelem miatt aggódó személyek számára."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"A következő titkosított hálózathoz csatlakozik: <xliff:g id="NETWORK_NAME">%1$s</xliff:g>"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"A(z) <xliff:g id="NETWORK_NAME">%1$s</xliff:g> SIM-kapcsolata mostantól biztonságosabb"</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"Nem titkosított hálózathoz csatlakozik"</string>
@@ -289,6 +300,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"Segítség"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"Hangsegéd"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"Zárolás"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"Zárolás"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"999+"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"Válasz"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"Új értesítés"</string>
@@ -324,8 +336,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"Váltás munkaprofilra"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"Váltás személyes <xliff:g id="APP_NAME">%1$s</xliff:g>-profilra"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Váltás munkahelyi <xliff:g id="APP_NAME">%1$s</xliff:g>-profilra"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"Névjegyek"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"hozzáférés a névjegyekhez"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"Névjegyek és fiókok"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"hozzáférhet a névjegyeihez, és megtekintheti azon fiókok listáját, amelyek névjegyeket menthetnek erre az eszközre"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Helyadatok"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"hozzáférés az eszköz földrajzi helyéhez"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Naptár"</string>
@@ -354,10 +366,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"az érzékelők által mért, életjelekkel kapcsolatos adatok elérése"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"Értesítések"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"értesítések megjelenítése"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"XR-nyomonkövetési adatok"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"hozzáférés az Önre és a környezetére vonatkozó XR-adatokhoz"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"bizalmas XR-nyomonkövetési adatok"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"hozzáférés bizalmas nyomon követési adatokhoz, például a szemmozgáshoz"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"Szemkövetési adatok"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"szemmozgás pontos nyomon követése"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"Mozgási és környezetadatok"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"szem, arc és test nyomon követése, valamint a környezet felmérése"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"Pontos mozgási és környezetadatok"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"terület pontos felmérése és fej nyomon követése"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"Ablaktartalom lekérdezése"</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"A használt ablak tartalmának vizsgálata."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"Felfedezés érintéssel bekapcsolása"</string>
@@ -382,6 +396,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"Lehetővé teszi az alkalmazás számára, hogy váltson az állapotsor részletes és listanézete között."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"Értesítések megjelenítése teljes képernyős tevékenységként zárolt eszközön"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"Lehetővé teszi az alkalmazás számára, hogy értesítéseket jelenítsen meg teljes képernyős tevékenységként zárolt eszközön."</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"Friss hírek megjelenítése"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"Lehetővé teszi az alkalmazás számára, hogy a folyamatban lévő, sürgős értesítéseket mindig megjeleníthesse az állapotsoron és a lezárási képernyőn."</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"Parancsikonok telepítése"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"Lehetővé teszi egy alkalmazás számára, hogy felhasználói beavatkozás nélkül adjon hozzá parancsikonokat a kezdőképernyőhöz."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"parancsikonok eltávolítása"</string>
@@ -623,6 +639,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"Az alkalmazás meghatározhatja a közeli, ultraszélessávú eszközök közötti relatív pozíciót"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"műveletek végrehajtása a közeli Wi‑Fi-eszközökkel"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Engedélyezi az alkalmazás számára, hogy közzétegye és meghatározza a közeli Wi-Fi-eszközök viszonylagos helyzetét, és csatlakozzon hozzájuk."</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"hozzáférés a helyi hálózati eszközökhöz"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"Az alkalmazás hozzáférhet a helyi hálózati eszközökhöz"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"közeli eszközök közötti relatív pozíció meghatározása"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Az alkalmazás meghatározhatja a közeli eszközök közötti relatív pozíciót"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Preferált NFC fizetési szolgáltatási információk"</string>
@@ -653,27 +671,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"Engedélyezi az alkalmazásnak a fényképgyűjtemény módosítását."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"helyek olvasása a médiagyűjteményből"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"Engedélyezi az alkalmazásnak a helyek médiagyűjteményből való olvasását."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"a szemmozgás hozzávetőleges nyomon követése"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"Lehetővé teszi az alkalmazás számára a szemmozgás hozzávetőleges nyomon követését."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"annak nyomon követése, hogy Ön hová néz"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen a szemmozgással kapcsolatos pontos adatokhoz."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"arc nyomon követése"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen az arckövetési adatokhoz."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"kézmozgás nyomon követése"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen a kézmozgáskövetési adatokhoz."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"fej nyomon követése"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen a fejkövetési adatokhoz."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"a közvetlen környezet megértése"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen az Ön közvetlen környezetére vonatkozó nyomon követési adatokhoz."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"a közvetlen környezetének nagyon pontos megértése"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen az Ön közvetlen környezetére vonatkozó nagyon pontos nyomon követési adatokhoz."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"hozzáférés az XR-adatokhoz, amikor nincs az előtérben"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen az XR-adatokhoz, amikor nincs az előtérben."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"szemmozgás nyomon követése"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"Lehetővé teszi az alkalmazás számára a tekintet hozzávetőleges irányának nyomon követését."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"szemmozgás pontos nyomon követése"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"Lehetővé teszi az alkalmazás számára a tekintet irányának nyomon követését."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"mimika nyomon követése"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"Lehetővé teszi az alkalmazás számára az arcmimika és az arckifejezések nyomon követését."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"kézmozdulatok követése"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"Lehetővé teszi az alkalmazás számára a kézmozdulatok nyomon követését."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"fejmozdulatok követése"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"Lehetővé teszi az alkalmazás számára a fejmozgás nyomon követését."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"környező terület felmérése"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"Lehetővé teszi az alkalmazás számára a környezet felmérését."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"környező terület pontos felmérése"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"Lehetővé teszi az alkalmazás számára a környezet pontos felmérését."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"hozzáférés az XR-nyomonkövetéshez a háttérben"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"Lehetővé teszi az alkalmazás számára, hogy hozzáférjen az XR-adatokhoz a háttérben."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"billentyűk rögzítése"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"Lehetővé teszi az alkalmazás számára, hogy rögzítse a billentyűket, mielőtt a rendszer feldolgozhatja a rendszer billentyűparancsait és műveleteit."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"Biometriai feloldás használata"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"A folytatás biometriai feloldással vagy képernyőzárral lehetséges"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"Igazolja, hogy Ön az"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"A folytatás biometriai feloldással lehetséges"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"A folytatás biometriai feloldással vagy a képernyőzár feloldásával lehetséges"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"A folytatáshoz igazolja személyazonosságát telefonján"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"A folytatáshoz igazolja személyazonosságát táblagépén"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"Biometrikus hardver nem áll rendelkezésre"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"Hitelesítés megszakítva"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"Nem ismerhető fel"</string>
@@ -761,7 +783,7 @@
     <skip />
     <string name="face_acquired_recalibrate_alt" msgid="5702674220280332115">"Nem lehet létrehozni az arcmodellt. Próbálja újra."</string>
     <string name="face_acquired_dark_glasses_detected_alt" msgid="4052123776406041972">"Sötét szemüveget észlelt a rendszer. Arcának teljesen láthatónak kell lennie."</string>
-    <string name="face_acquired_mouth_covering_detected_alt" msgid="1122294982850589766">"Valami eltakarja az arcát. Arcának teljesen láthatónak kell lennie."</string>
+    <string name="face_acquired_mouth_covering_detected_alt" msgid="1122294982850589766">"Valami eltakarja az arcát. Az arcának teljesen láthatónak kell lennie."</string>
   <string-array name="face_acquired_vendor">
   </string-array>
     <string name="face_error_hw_not_available" msgid="5085202213036026288">"Sikertelen arcellenőrzés. A hardver nem érhető el."</string>
@@ -897,6 +919,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"Az összes eszközkamera használatának megakadályozása."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"Egyes képernyőzár-funkciók használatának kikapcsolása"</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"Egyes képernyőzár-funkciók használatának megakadályozása."</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"Nyomja hosszan az Esc billentyűt az alkalmazás bezárásához"</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"Otthoni"</item>
     <item msgid="7740243458912727194">"Mobil"</item>
@@ -1107,6 +1130,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"SIM-kártya PIN-kódjának feloldása."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"SIM-kártya PUK-kódjának feloldása."</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"Feloldás jelszóval"</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"Biometrikus feloldás az eszköz biztonságos zárolásához."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"Mintaterület"</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"Csúsztatási terület"</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1182,22 +1206,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"<xliff:g id="COUNT">%d</xliff:g> ó múlva"</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"<xliff:g id="COUNT">%d</xliff:g> n múlva"</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"<xliff:g id="COUNT">%d</xliff:g> é múlva"</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"<xliff:g id="COUNT">%d</xliff:g> perce"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"<xliff:g id="COUNT">%d</xliff:g> órája"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"<xliff:g id="COUNT">%d</xliff:g> napja"</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"<xliff:g id="COUNT">%d</xliff:g> éve"</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> perc"</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g> óra"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g> n"</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> év"</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"<xliff:g id="COUNT">%d</xliff:g> perc múlva"</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"<xliff:g id="COUNT">%d</xliff:g> ó múlva"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"<xliff:g id="COUNT">%d</xliff:g> n múlva"</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"<xliff:g id="COUNT">%d</xliff:g> év múlva"</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"<xliff:g id="COUNT">%d</xliff:g> perce"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"<xliff:g id="COUNT">%d</xliff:g> órája"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"<xliff:g id="COUNT">%d</xliff:g> napja"</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"<xliff:g id="COUNT">%d</xliff:g> éve"</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{# perce}other{# perce}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{# órája}other{# órája}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{# napja}other{# napja}}"</string>
@@ -1478,8 +1488,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"ELUTASÍTÁS"</string>
     <string name="select_input_method" msgid="3971267998568587025">"Beviteli mód kiválasztása"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"Nyelvi beállítások"</string>
-    <string name="show_ime" msgid="6406112007347443383">"Maradjon a képernyőn, amíg a billentyűzet aktív"</string>
-    <string name="hardware" msgid="3611039921284836033">"Képernyő-billentyűzet"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"A(z) <xliff:g id="DEVICE_NAME">%s</xliff:g> beállítása"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"Fizikai billentyűzetek beállítása"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"Koppintson a nyelv és a billentyűzetkiosztás kiválasztásához"</string>
@@ -1709,6 +1717,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"Külső eszköz"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"Fejhallgató"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"Tévés hangkimenet"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"Analóg"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"Digitális"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"AUX"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"Rendszer"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"Bluetooth hang"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"Vezeték nélküli kijelző"</string>
@@ -1804,7 +1818,8 @@
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Egykezes mód"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Extrasötét"</string>
     <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Hallásjavító eszközök"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"Automatikus kattintás"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"Automatikus kattintás (tartózkodási idő)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Egérgombok"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Leválasztva"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"Csatlakozva"</string>
     <string name="hearing_device_status_active" msgid="4770378695482566032">"Aktív"</string>
@@ -1829,6 +1844,8 @@
     <string name="user_logging_out_message" msgid="7216437629179710359">"<xliff:g id="NAME">%1$s</xliff:g> kijelentkeztetése folyamatban van…"</string>
     <string name="owner_name" msgid="8713560351570795743">"Tulajdonos"</string>
     <string name="guest_name" msgid="8502103277839834324">"Vendég"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"Rendszerfelhasználó"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Felhasználó"</string>
     <string name="error_message_title" msgid="4082495589294631966">"Hiba"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"Ezt a módosítást nem engedélyezi a rendszergazda"</string>
     <string name="app_not_found" msgid="3429506115332341800">"Nincs megfelelő alkalmazás a művelet elvégzésére."</string>
@@ -1969,8 +1986,8 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"A rendszergazda által frissítve.\nLépjen a beállításokhoz a megadott engedélyek megtekintéséhez."</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"A rendszergazda által törölve"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"OK"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"Az Akkumulátorkímélő mód bekapcsolja a Sötét témát, és korlátozza vagy kikapcsolja a háttérbeli tevékenységeket, valamint bizonyos vizuális effekteket, funkciókat és hálózati kapcsolatokat."</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"Az Akkumulátorkímélő mód bekapcsolja a Sötét témát, és korlátozza vagy kikapcsolja a háttérbeli tevékenységeket, valamint bizonyos vizuális effekteket, funkciókat és hálózati kapcsolatokat."</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"Az Akkumulátorkímélő mód bekapcsolja a Sötét témát, és korlátozza vagy kikapcsolja a háttérbeli tevékenységeket, valamint bizonyos vizuális effekteket, funkciókat és hálózati kapcsolatokat."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"Az Akkumulátorkímélő mód bekapcsolja a Sötét témát, és korlátozza vagy kikapcsolja a háttérbeli tevékenységeket, valamint bizonyos vizuális effekteket, funkciókat és hálózati kapcsolatokat."</string>
     <string name="data_saver_description" msgid="4995164271550590517">"Az adatforgalom csökkentése érdekében az Adatforgalom-csökkentő megakadályozza, hogy egyes alkalmazások adatokat küldjenek vagy fogadjanak a háttérben. Az Ön által jelenleg használt alkalmazások hozzáférhetnek az adatokhoz, de csak ritkábban. Ez például azt jelentheti, hogy a képek csak rákoppintás után jelennek meg."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"Bekapcsolja az Adatforgalom-csökkentőt?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"Bekapcsolás"</string>
@@ -2032,6 +2049,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"Teljes méret"</string>
     <string name="close_button_text" msgid="10603510034455258">"Bezárás"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g>: <xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Fogadás"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Videó"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Elutasítás"</string>
@@ -2043,7 +2063,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"Promóciók"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"Közösségi"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"Hírek"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"Javaslatok"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"Javasolt"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"Ön állította be ezen értesítések fontossági szintjét."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"Ez az üzenet a résztvevők miatt fontos."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"Egyéni alkalmazásértesítés"</string>
@@ -2266,19 +2286,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"D-pad – balra"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"D-pad – jobbra"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"D-pad – középre"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"Automatikus kattintás típusának beállításai panel"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"Kattintás bal egérgombbal"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"Kattintás jobb egérgombbal"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"Duplakattintás"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"Automatikus kattintás beállításainak menüje"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"Kattintás bal egérgombbal"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"Kattintás jobb egérgombbal"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"Dupla kattintás"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"Húzás"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"Görgetés"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"Lenyomva tartás"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"Szüneteltetés"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"Pozíció"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"Görgetés felfelé"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"Görgetés lefelé"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"Görgetés balra"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"Görgetés jobbra"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"Kilépés a görgetési módból"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"Folytatás"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"Menü helyének módosítása"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"Görgetés felfelé"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"Görgetés lefelé"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"Görgetés balra"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"Görgetés jobbra"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"Kilépés a görgetési módból"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"Görgetési panel"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"A következő csomag a KORLÁTOZOTT csoportba került: <xliff:g id="PACKAGE_NAME">%1$s</xliff:g>"</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2498,7 +2520,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Apptartalom elrejtve a megosztástól a biztonság érdekében"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"Automatikusan csatlakozva a műholdhoz"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"Küldhet és fogadhat üzeneteket mobil- és Wi-Fi-hálózat nélkül is"</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"Küldhet és fogadhat üzeneteket, valamint korlátozott mennyiségű adatot használhat műholdon keresztül"</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"Küldhet és fogadhat üzeneteket, valamint használhat bizonyos alkalmazásokat műholdon keresztül"</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"Műholdas üzenetváltást szeretne használni?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"Küldhet és fogadhat üzeneteket mobil- és Wi-Fi-hálózat nélkül is"</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"A Messages megnyitása"</string>
@@ -2553,12 +2575,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"Naptár"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"Számológép"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Térkép"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"Fájlok"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"Alkalmazások"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"Az ujjlenyomata már nem ismerhető fel. Állítsa be újra a Feloldás ujjlenyomattal funkciót."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"USB-eszköz zárolt állapotban csatlakoztatva"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"Az USB-eszköz csatlakoztatása az Android rendszer zárolt állapotában történt. Az eszköz használatához először oldja fel az Android zárolását, majd helyezze be újra az USB-eszközt."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"Biztonság és adatvédelem"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"Oldja fel a képernyőt, és csatlakoztassa újra az USB-t"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"A képernyő feloldása az USB-csatlakozáshoz"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"A Speciális védelem megköveteli a képernyőzár feloldását az USB-kapcsolat kezdeményezéséhez"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"A Speciális védelem megköveteli a képernyőzár feloldását az USB-kapcsolat kezdeményezéséhez"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"A Speciális védelem megköveteli a képernyőzár feloldását a gyorsabb töltéshez"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"A gyorsabb töltéshez vagy az USB-kapcsolat kezdeményezéséhez a Speciális védelem megköveteli a képernyőzár feloldását"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"Némítás"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"Értesítések némítva"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"Az eszköz újraindításáig nem kap USB-vel kapcsolatos értesítéseket a Speciális védelemtől"</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"Gyanús USB-tevékenység"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"Az USB-adatjel le lett tiltva."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"Az USB-adatjel le lett tiltva"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"Problémája adódott a Feloldás ujjlenyomattal funkcióval?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Koppintson a feloldási élmény javítását segítő tippek megtekintéséhez"</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Nincs villogás"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"A tévé kikapcsolásához nyomja meg hosszan a bekapcsológombot"</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Rendszererőforrás-figyelmeztetések"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Erőforrás túlhasználata"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"Az „<xliff:g id="APP_NAME">%1$s</xliff:g>” alkalmazás túl sok erőforrást használ."</string>
 </resources>

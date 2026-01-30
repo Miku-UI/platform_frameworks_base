@@ -62,6 +62,7 @@ import android.view.Display;
 import android.view.DisplayAdjustments;
 import android.view.DisplayInfo;
 import android.view.Surface;
+import android.window.DesktopExperienceFlags;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.display.feature.flags.Flags;
@@ -82,6 +83,8 @@ import java.util.function.Consumer;
  *
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodPartiallyAllowlisted
+@android.ravenwood.annotation.RavenwoodKeepPartialClass
 public final class DisplayManagerGlobal {
     private static final String TAG = "DisplayManager";
 
@@ -93,16 +96,6 @@ public final class DisplayManagerGlobal {
     // To enable these logs, run:
     // 'adb shell setprop persist.log.tag.DisplayManager DEBUG && adb reboot'
     private static final boolean DEBUG = DisplayManager.DEBUG || sExtraDisplayListenerLogging;
-
-    // True if display info and display ids should be cached.
-    //
-    // FIXME: The cache is currently disabled because it's unclear whether we have the
-    // necessary guarantees that the caches will always be flushed before clients
-    // attempt to observe their new state.  For example, depending on the order
-    // in which the binder transactions take place, we might have a problem where
-    // an application could start processing a configuration change due to a display
-    // orientation change before the display info cache has actually been invalidated.
-    private static final boolean USE_CACHE = false;
 
     @IntDef(prefix = {"EVENT_DISPLAY_"}, flag = true, value = {
             EVENT_DISPLAY_ADDED,
@@ -181,7 +174,6 @@ public final class DisplayManagerGlobal {
     private final SparseArray<DisplayInfo> mDisplayInfoCache = new SparseArray<>();
     private final ColorSpace mWideColorSpace;
     private final OverlayProperties mOverlayProperties;
-    private int[] mDisplayIdCache;
 
     private int mWifiDisplayScanNestCount;
 
@@ -231,7 +223,7 @@ public final class DisplayManagerGlobal {
      * before the display manager has been fully initialized.
      */
     @UnsupportedAppUsage
-    // @RavenwoodIgnore(value = "null")
+    @android.ravenwood.annotation.RavenwoodIgnore
     public static DisplayManagerGlobal getInstance() {
         synchronized (DisplayManagerGlobal.class) {
             if (sInstance == null) {
@@ -304,16 +296,7 @@ public final class DisplayManagerGlobal {
     public int[] getDisplayIds(boolean includeDisabled) {
         try {
             synchronized (mLock) {
-                if (USE_CACHE) {
-                    if (mDisplayIdCache != null) {
-                        return mDisplayIdCache;
-                    }
-                }
-
                 int[] displayIds = mDm.getDisplayIds(includeDisabled);
-                if (USE_CACHE) {
-                    mDisplayIdCache = displayIds;
-                }
                 registerCallbackIfNeededLocked();
                 return displayIds;
             }
@@ -460,8 +443,8 @@ public final class DisplayManagerGlobal {
                 mDisplayListeners.get(index).setEventsMask(internalEventFlagsMask);
             }
             updateCallbackIfNeededLocked();
-            maybeLogAllDisplayListeners();
         }
+        maybeLogAllDisplayListeners();
     }
 
 
@@ -508,8 +491,10 @@ public final class DisplayManagerGlobal {
         }
 
         Slog.i(TAG, "Currently Registered Display Listeners:");
-        for (int i = 0; i < mDisplayListeners.size(); i++) {
-            Slog.i(TAG, i + ": " + mDisplayListeners.get(i));
+        int i = 0;
+        for (DisplayListenerDelegate d : mDisplayListeners) {
+            Slog.i(TAG, i + ": " + d);
+            i++;
         }
     }
 
@@ -568,7 +553,7 @@ public final class DisplayManagerGlobal {
                     || mShouldImplicitlyRegisterRrChanges) {
                 displayListenerDelegate.implicitlyRegisterForRRChanges();
             }
-            mask |= displayListenerDelegate.mInternalEventFlagsMask;
+            mask |= displayListenerDelegate.internalEventFlagsMask;
         }
 
         if (mDispatchNativeCallbacks) {
@@ -618,14 +603,6 @@ public final class DisplayManagerGlobal {
     private void handleDisplayEvent(int displayId, @DisplayEvent int event, boolean forceUpdate) {
         final DisplayInfo info;
         synchronized (mLock) {
-            if (USE_CACHE) {
-                mDisplayInfoCache.remove(displayId);
-
-                if (event == EVENT_DISPLAY_ADDED || event == EVENT_DISPLAY_REMOVED) {
-                    mDisplayIdCache = null;
-                }
-            }
-
             info = getDisplayInfoLocked(displayId);
             if ((event == EVENT_DISPLAY_BASIC_CHANGED
                     || event == EVENT_DISPLAY_REFRESH_RATE_CHANGED) && mDispatchNativeCallbacks) {
@@ -1132,6 +1109,19 @@ public final class DisplayManagerGlobal {
     }
 
     /**
+     * @see DisplayManager#setBrightness(int, float, int)
+     */
+    @RequiresPermission(Manifest.permission.WRITE_SETTINGS)
+    public void setBrightness(int displayId, float value,
+            @DisplayManager.BrightnessUnit int unit) {
+        try {
+            mDm.setBrightnessByUnit(displayId, value, unit);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Report whether/how the display supports DISPLAY_DECORATION.
      *
      * @param displayId The display whose support is being queried.
@@ -1156,6 +1146,17 @@ public final class DisplayManagerGlobal {
     public float getBrightness(int displayId) {
         try {
             return mDm.getBrightness(displayId);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @see DisplayManager#getBrightness(int, int)
+     */
+    public float getBrightness(int displayId, @DisplayManager.BrightnessUnit int unit) {
+        try {
+            return mDm.getBrightnessByUnit(displayId, unit);
         } catch (RemoteException ex) {
             throw ex.rethrowFromSystemServer();
         }
@@ -1214,11 +1215,36 @@ public final class DisplayManagerGlobal {
 
     /**
      * Sets the default display mode, according to the refresh rate and the resolution chosen by the
-     * user.
+     * user. Persists selected mode.
+     * @hide
      */
+    @RequiresPermission("android.permission.MODIFY_USER_PREFERRED_DISPLAY_MODE")
     public void setUserPreferredDisplayMode(int displayId, Display.Mode mode) {
+        setUserPreferredDisplayMode(displayId, mode, true);
+    }
+
+    /**
+     * Sets the default display mode, according to the refresh rate and the resolution chosen by the
+     * user. Allows to set display mode without persisting.
+     * @hide
+     */
+    @RequiresPermission("android.permission.MODIFY_USER_PREFERRED_DISPLAY_MODE")
+    public void setUserPreferredDisplayMode(int displayId, Display.Mode mode, boolean storeMode) {
         try {
-            mDm.setUserPreferredDisplayMode(displayId, mode);
+            mDm.setUserPreferredDisplayMode(displayId, mode, storeMode);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Resets the default display mode from persistence
+     * @hide
+     */
+    @RequiresPermission("android.permission.MODIFY_USER_PREFERRED_DISPLAY_MODE")
+    public void resetUserPreferredDisplayMode(int displayId) {
+        try {
+            mDm.resetUserPreferredDisplayMode(displayId);
         } catch (RemoteException ex) {
             throw ex.rethrowFromSystemServer();
         }
@@ -1400,9 +1426,31 @@ public final class DisplayManagerGlobal {
     }
 
     /**
-     * @see DisplayManager#getDisplayTopology
+     * @see DisplayManager#setExternalDisplayConnectionPreference(String, int)
      */
     @RequiresPermission(MANAGE_DISPLAYS)
+    public void setExternalDisplayConnectionPreference(String uniqueId, int connectionPreference) {
+        try {
+            mDm.setConnectionPreference(uniqueId, connectionPreference);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @see DisplayManager#getExternalDisplayConnectionPreference(String)
+     */
+    public int getExternalDisplayConnectionPreference(String uniqueId) {
+        try {
+            return mDm.getConnectionPreference(uniqueId);
+        } catch (RemoteException ex) {
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * @see DisplayManager#getDisplayTopology
+     */
     @Nullable
     public DisplayTopology getDisplayTopology() {
         try {
@@ -1430,10 +1478,9 @@ public final class DisplayManagerGlobal {
     /**
      * @see DisplayManager#registerTopologyListener
      */
-    @RequiresPermission(MANAGE_DISPLAYS)
     public void registerTopologyListener(@NonNull @CallbackExecutor Executor executor,
             @NonNull Consumer<DisplayTopology> listener, String packageName) {
-        if (!Flags.displayTopology()) {
+        if (!DesktopExperienceFlags.DISPLAY_TOPOLOGY.isTrue()) {
             return;
         }
         if (listener == null) {
@@ -1450,16 +1497,15 @@ public final class DisplayManagerGlobal {
                 registerCallbackIfNeededLocked();
                 updateCallbackIfNeededLocked();
             }
-            maybeLogAllTopologyListeners();
         }
+        maybeLogAllTopologyListeners();
     }
 
     /**
      * @see DisplayManager#unregisterTopologyListener
      */
-    @RequiresPermission(MANAGE_DISPLAYS)
     public void unregisterTopologyListener(@NonNull Consumer<DisplayTopology> listener) {
-        if (!Flags.displayTopology()) {
+        if (!DesktopExperienceFlags.DISPLAY_TOPOLOGY.isTrue()) {
             return;
         }
         if (listener == null) {
@@ -1501,15 +1547,16 @@ public final class DisplayManagerGlobal {
 
     @VisibleForTesting
     public static final class DisplayListenerDelegate {
-        public final DisplayListener mListener;
-        public volatile long mInternalEventFlagsMask;
+        @VisibleForTesting public volatile long internalEventFlagsMask;
+
+        private final DisplayListener mListener;
 
         // Indicates if the client explicitly supplied the display events to be subscribed to.
         private final boolean mIsEventFilterExplicit;
 
         private final DisplayInfo mDisplayInfo = new DisplayInfo();
         private final Executor mExecutor;
-        private AtomicLong mGenerationId = new AtomicLong(1);
+        private final AtomicLong mGenerationId = new AtomicLong(1);
         private final String mPackageName;
 
         DisplayListenerDelegate(DisplayListener listener, @NonNull Executor executor,
@@ -1517,7 +1564,7 @@ public final class DisplayManagerGlobal {
                 boolean isEventFilterExplicit) {
             mExecutor = executor;
             mListener = listener;
-            mInternalEventFlagsMask = internalEventFlag;
+            internalEventFlagsMask = internalEventFlag;
             mPackageName = packageName;
             mIsEventFilterExplicit = isEventFilterExplicit;
         }
@@ -1527,10 +1574,10 @@ public final class DisplayManagerGlobal {
             if (extraLogging()) {
                 Slog.i(TAG, "Sending Display Event: " + eventToString(event));
             }
-            long generationId = mGenerationId.get();
+            long generationId = this.mGenerationId.get();
             mExecutor.execute(() -> {
                 // If the generation id's don't match we were canceled
-                if (generationId == mGenerationId.get()) {
+                if (generationId == this.mGenerationId.get()) {
                     handleDisplayEventInner(displayId, event, info, forceUpdate);
                 }
             });
@@ -1546,16 +1593,16 @@ public final class DisplayManagerGlobal {
         }
 
         void setEventsMask(@InternalEventFlag long newInternalEventFlagsMask) {
-            mInternalEventFlagsMask = newInternalEventFlagsMask;
+            this.internalEventFlagsMask = newInternalEventFlagsMask;
         }
 
         private void implicitlyRegisterForRRChanges() {
             // For backward compatibility, if the user didn't supply the explicit events while
             // subscribing, register them to refresh rate change events if they subscribed to
             // display changed events
-            if ((mInternalEventFlagsMask & INTERNAL_EVENT_FLAG_DISPLAY_BASIC_CHANGED) != 0
+            if ((internalEventFlagsMask & INTERNAL_EVENT_FLAG_DISPLAY_BASIC_CHANGED) != 0
                     && !mIsEventFilterExplicit) {
-                setEventsMask(mInternalEventFlagsMask
+                setEventsMask(internalEventFlagsMask
                         | INTERNAL_EVENT_FLAG_DISPLAY_REFRESH_RATE);
             }
         }
@@ -1565,7 +1612,7 @@ public final class DisplayManagerGlobal {
             if (extraLogging()) {
                 Slog.i(TAG, "DLD(" + eventToString(event)
                         + ", display=" + displayId
-                        + ", mEventsMask=" + Long.toBinaryString(mInternalEventFlagsMask)
+                        + ", mEventsMask=" + Long.toBinaryString(internalEventFlagsMask)
                         + ", mPackageName=" + mPackageName
                         + ", displayInfo=" + info
                         + ", listener=" + mListener.getClass() + ")");
@@ -1579,12 +1626,12 @@ public final class DisplayManagerGlobal {
             }
             switch (event) {
                 case EVENT_DISPLAY_ADDED:
-                    if ((mInternalEventFlagsMask & INTERNAL_EVENT_FLAG_DISPLAY_ADDED) != 0) {
+                    if ((internalEventFlagsMask & INTERNAL_EVENT_FLAG_DISPLAY_ADDED) != 0) {
                         mListener.onDisplayAdded(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_BASIC_CHANGED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_BASIC_CHANGED) != 0) {
                         if (info != null && (forceUpdate || !info.equals(mDisplayInfo))) {
                             if (extraLogging()) {
@@ -1597,49 +1644,49 @@ public final class DisplayManagerGlobal {
                     }
                     break;
                 case EVENT_DISPLAY_BRIGHTNESS_CHANGED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_BRIGHTNESS_CHANGED) != 0) {
                         mListener.onDisplayChanged(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_REMOVED:
-                    if ((mInternalEventFlagsMask & INTERNAL_EVENT_FLAG_DISPLAY_REMOVED)
+                    if ((internalEventFlagsMask & INTERNAL_EVENT_FLAG_DISPLAY_REMOVED)
                             != 0) {
                         mListener.onDisplayRemoved(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_HDR_SDR_RATIO_CHANGED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_HDR_SDR_RATIO_CHANGED) != 0) {
                         mListener.onDisplayChanged(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_CONNECTED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_CONNECTION_CHANGED) != 0) {
                         mListener.onDisplayConnected(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_DISCONNECTED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_CONNECTION_CHANGED) != 0) {
                         mListener.onDisplayDisconnected(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_REFRESH_RATE_CHANGED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_REFRESH_RATE) != 0) {
                         mListener.onDisplayChanged(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_STATE_CHANGED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_STATE) != 0) {
                         mListener.onDisplayChanged(displayId);
                     }
                     break;
                 case EVENT_DISPLAY_COMMITTED_STATE_CHANGED:
-                    if ((mInternalEventFlagsMask
+                    if ((internalEventFlagsMask
                             & INTERNAL_EVENT_FLAG_DISPLAY_COMMITTED_STATE_CHANGED) != 0) {
                         mListener.onDisplayChanged(displayId);
                     }
@@ -1652,7 +1699,7 @@ public final class DisplayManagerGlobal {
 
         @Override
         public String toString() {
-            return "flag: {" + mInternalEventFlagsMask + "}, for " + mListener.getClass();
+            return "flag: {" + internalEventFlagsMask + "}, for " + mListener.getClass();
         }
     }
 
@@ -1846,10 +1893,6 @@ public final class DisplayManagerGlobal {
 
     private long mapPrivateEventFlags(@DisplayManager.PrivateEventType long privateEventFlags) {
         long baseEventMask = 0;
-        if ((privateEventFlags & DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS) != 0) {
-            baseEventMask |= INTERNAL_EVENT_FLAG_DISPLAY_BRIGHTNESS_CHANGED;
-        }
-
         if ((privateEventFlags & DisplayManager.PRIVATE_EVENT_TYPE_HDR_SDR_RATIO_CHANGED) != 0) {
             baseEventMask |= INTERNAL_EVENT_FLAG_DISPLAY_HDR_SDR_RATIO_CHANGED;
         }
@@ -1890,6 +1933,10 @@ public final class DisplayManagerGlobal {
             if ((eventFlags & DisplayManager.EVENT_TYPE_DISPLAY_STATE) != 0) {
                 baseEventMask |= INTERNAL_EVENT_FLAG_DISPLAY_STATE;
             }
+        }
+
+        if ((eventFlags & DisplayManager.EVENT_TYPE_DISPLAY_BRIGHTNESS) != 0) {
+            baseEventMask |= INTERNAL_EVENT_FLAG_DISPLAY_BRIGHTNESS_CHANGED;
         }
 
         return baseEventMask;

@@ -172,6 +172,18 @@
     <!-- Message shown when we are on bouncer after Device admin requested lockdown.  [CHAR LIMIT=70] -->
     <string name="kg_prompt_after_dpm_lock">For added security, device was locked by work policy</string>
 
+    <!-- Title shown for pin/pattern/password when we are on bouncer and secure lock device is enabled.  [CHAR LIMIT=70] -->
+    <string name="kg_prompt_title_after_secure_lock_device">2-step verification</string>
+
+    <!-- Title shown for the fingerprint auth step when secure lock device is enabled.  [CHAR LIMIT=70] -->
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint">Use Fingerprint Unlock</string>
+
+    <!-- Title shown for the face auth step when secure lock device is enabled.  [CHAR LIMIT=70] -->
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face">Use Face Unlock</string>
+
+    <!-- Title shown for co-ex auth step when secure lock device is enabled.  [CHAR LIMIT=70] -->
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex">Use Fingerprint or Face Unlock</string>
+
     <!-- Message shown for pin/pattern/password when we are on bouncer after user triggered lockdown.  [CHAR LIMIT=70] -->
     <string name="kg_prompt_after_user_lockdown_pin">PIN is required after lockdown</string>
 

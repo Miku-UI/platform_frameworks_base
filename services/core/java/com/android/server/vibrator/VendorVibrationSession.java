@@ -394,9 +394,11 @@ final class VendorVibrationSession extends IVibrationSession.Stub
         mEndedByVendor = isVendorRequest;
         mCallback.notifyFinishing();
         if (mConductor != null) {
+            boolean isFinished = status == Status.FINISHED;
             // Vibration is being dispatched when session end was requested, cancel it.
-            mConductor.notifyCancelled(new Vibration.EndInfo(status),
-                    /* immediate= */ status != Status.FINISHED);
+            mConductor.notifyCancelled(
+                    new Vibration.EndInfo(isFinished ? Status.CANCELLED_BY_USER : status),
+                    /* immediate= */ !isFinished);
         }
     }
 
@@ -510,7 +512,7 @@ final class VendorVibrationSession extends IVibrationSession.Stub
             return switch (status) {
                 case FINISHED
                         -> android.os.vibrator.VendorVibrationSession.STATUS_SUCCESS;
-                case IGNORED_UNSUPPORTED
+                case IGNORED_UNSUPPORTED, IGNORED_INVALID_REQUEST
                         -> STATUS_UNSUPPORTED;
                 case CANCELLED_BINDER_DIED, CANCELLED_BY_APP_OPS, CANCELLED_BY_USER,
                      CANCELLED_SUPERSEDED, CANCELLED_BY_FOREGROUND_USER, CANCELLED_BY_SCREEN_OFF,
@@ -522,8 +524,8 @@ final class VendorVibrationSession extends IVibrationSession.Stub
                      IGNORED_MISSING_PERMISSION, IGNORED_ON_WIRELESS_CHARGER
                         -> android.os.vibrator.VendorVibrationSession.STATUS_IGNORED;
                 case UNKNOWN, IGNORED_ERROR_APP_OPS, IGNORED_ERROR_CANCELLING,
-                     IGNORED_ERROR_SCHEDULING, IGNORED_ERROR_TOKEN, FORWARDED_TO_INPUT_DEVICES,
-                     FINISHED_UNEXPECTED, RUNNING
+                     IGNORED_ERROR_SCHEDULING, IGNORED_ERROR_TOKEN, IGNORED_ERROR_DISPATCHING,
+                     FORWARDED_TO_INPUT_DEVICES, FINISHED_UNEXPECTED, RUNNING
                         -> android.os.vibrator.VendorVibrationSession.STATUS_UNKNOWN_ERROR;
             };
         }

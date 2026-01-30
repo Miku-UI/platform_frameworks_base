@@ -30,9 +30,8 @@ final class RampOffVibratorStep extends AbstractVibratorStep {
     private final float mAmplitudeDelta;
 
     RampOffVibratorStep(VibrationStepConductor conductor, long startTime, float amplitudeTarget,
-            float amplitudeDelta, VibratorController controller,
-            long pendingVibratorOffDeadline) {
-        super(conductor, startTime, controller, pendingVibratorOffDeadline);
+            float amplitudeDelta, HalVibrator vibrator, long pendingVibratorOffDeadline) {
+        super(conductor, startTime, vibrator, pendingVibratorOffDeadline);
         mAmplitudeTarget = amplitudeTarget;
         mAmplitudeDelta = amplitudeDelta;
     }
@@ -46,7 +45,7 @@ final class RampOffVibratorStep extends AbstractVibratorStep {
     @Override
     public List<Step> cancel() {
         return Arrays.asList(new TurnOffVibratorStep(conductor, SystemClock.uptimeMillis(),
-                controller, /* isCleanUp= */ true));
+                vibrator, /* isCleanUp= */ true));
     }
 
     @NonNull
@@ -74,12 +73,12 @@ final class RampOffVibratorStep extends AbstractVibratorStep {
                 // deadline that has been adjusted for the scenario when this was triggered by a
                 // cancelled vibration.
                 return Arrays.asList(new TurnOffVibratorStep(conductor, mPendingVibratorOffDeadline,
-                        controller, /* isCleanUp= */ true));
+                        vibrator, /* isCleanUp= */ true));
             }
             return Arrays.asList(new RampOffVibratorStep(
                     conductor,
                     startTime + conductor.vibrationSettings.getRampStepDuration(),
-                    newAmplitudeTarget, mAmplitudeDelta, controller,
+                    newAmplitudeTarget, mAmplitudeDelta, vibrator,
                     mPendingVibratorOffDeadline));
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_VIBRATOR);

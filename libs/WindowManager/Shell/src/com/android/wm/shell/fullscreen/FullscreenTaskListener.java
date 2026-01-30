@@ -17,7 +17,6 @@
 package com.android.wm.shell.fullscreen;
 
 import static com.android.wm.shell.ShellTaskOrganizer.TASK_LISTENER_TYPE_FULLSCREEN;
-import static com.android.wm.shell.ShellTaskOrganizer.taskListenerTypeToString;
 
 import android.app.ActivityManager;
 import android.app.ActivityManager.RunningTaskInfo;
@@ -35,7 +34,6 @@ import com.android.wm.shell.desktopmode.desktopwallpaperactivity.DesktopWallpape
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.recents.RecentTasksController;
 import com.android.wm.shell.sysui.ShellInit;
-import com.android.wm.shell.transition.Transitions;
 import com.android.wm.shell.windowdecor.WindowDecorViewModel;
 
 import java.io.PrintWriter;
@@ -105,33 +103,6 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
         state.mLeash = leash;
         state.mTaskInfo = taskInfo;
         mTasks.put(taskInfo.taskId, state);
-
-        if (Transitions.ENABLE_SHELL_TRANSITIONS) return;
-        updateRecentsForVisibleFullscreenTask(taskInfo);
-        boolean createdWindowDecor = false;
-        if (mWindowDecorViewModelOptional.isPresent()) {
-            SurfaceControl.Transaction t = new SurfaceControl.Transaction();
-            createdWindowDecor = mWindowDecorViewModelOptional.get()
-                    .onTaskOpening(taskInfo, leash, t, t);
-            t.apply();
-        }
-        if (!createdWindowDecor) {
-            mSyncQueue.runInSync(t -> {
-                if (!leash.isValid()) {
-                    // Task vanished before sync completion
-                    return;
-                }
-                // Reset several properties back to fullscreen (PiP, for example, leaves all these
-                // properties in a bad state).
-                t.setWindowCrop(leash, null);
-                t.setPosition(leash, positionInParent.x, positionInParent.y);
-                t.setAlpha(leash, 1f);
-                t.setMatrix(leash, 1, 0, 0, 1);
-                if (taskInfo.isVisible) {
-                    t.show(leash);
-                }
-            });
-        }
     }
 
     @Override
@@ -144,25 +115,6 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
             mWindowDecorViewModelOptional.get().onTaskInfoChanged(taskInfo);
         }
         state.mTaskInfo = taskInfo;
-        if (Transitions.ENABLE_SHELL_TRANSITIONS) return;
-        updateRecentsForVisibleFullscreenTask(taskInfo);
-
-        final Point positionInParent = state.mTaskInfo.positionInParent;
-        boolean positionInParentChanged = !oldPositionInParent.equals(positionInParent);
-        boolean becameVisible = !oldVisible && state.mTaskInfo.isVisible;
-
-        if (becameVisible || positionInParentChanged) {
-            mSyncQueue.runInSync(t -> {
-                if (!state.mLeash.isValid()) {
-                    // Task vanished before sync completion
-                    return;
-                }
-                if (becameVisible) {
-                    t.show(state.mLeash);
-                }
-                t.setPosition(state.mLeash, positionInParent.x, positionInParent.y);
-            });
-        }
     }
 
     @Override
@@ -177,10 +129,6 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
                         provider.removeToken(taskInfo.getToken());
                     }
                 });
-        if (Transitions.ENABLE_SHELL_TRANSITIONS) return;
-        if (mWindowDecorViewModelOptional.isPresent()) {
-            mWindowDecorViewModelOptional.get().destroyWindowDecoration(taskInfo);
-        }
     }
 
     private void updateRecentsForVisibleFullscreenTask(RunningTaskInfo taskInfo) {
@@ -194,20 +142,29 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
 
     @Override
     public void attachChildSurfaceToTask(int taskId, SurfaceControl.Builder b) {
-        b.setParent(findTaskSurface(taskId));
+        final SurfaceControl taskSurface = findTaskSurface(taskId);
+        if (taskSurface != null) {
+            b.setParent(taskSurface);
+        }
     }
 
     @Override
     public void reparentChildSurfaceToTask(int taskId, SurfaceControl sc,
             SurfaceControl.Transaction t) {
-        t.reparent(sc, findTaskSurface(taskId));
+        final SurfaceControl taskSurface = findTaskSurface(taskId);
+        if (taskSurface != null) {
+            t.reparent(sc, taskSurface);
+        }
     }
 
     private SurfaceControl findTaskSurface(int taskId) {
-        if (!mTasks.contains(taskId)) {
-            throw new IllegalArgumentException("There is no surface for taskId=" + taskId);
+        final State state = mTasks.get(taskId);
+        if (state != null) {
+            return state.mLeash;
         }
-        return mTasks.get(taskId).mLeash;
+        ProtoLog.w(ShellProtoLogGroup.WM_SHELL_TASK_ORG, "Surface not found: #%d",
+                taskId);
+        return null;
     }
 
     @Override
@@ -219,6 +176,6 @@ public class FullscreenTaskListener implements ShellTaskOrganizer.TaskListener {
 
     @Override
     public String toString() {
-        return TAG + ":" + taskListenerTypeToString(TASK_LISTENER_TYPE_FULLSCREEN);
+        return TAG;
     }
 }

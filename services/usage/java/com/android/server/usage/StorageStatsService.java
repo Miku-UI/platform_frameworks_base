@@ -1021,10 +1021,6 @@ public class StorageStatsService extends IStorageStatsManager.Stub {
         stats.apkSize += getFileBytesInDir(srcDir, ".apk");
         stats.dmSize += getFileBytesInDir(srcDir, ".dm");
         stats.libSize += getDirBytes(new File(sourceDirName + "/lib/"));
-
-        if (!Flags.getAppArtManagedBytes()) {
-            computeAppArtStats(stats, packageName);
-        }
     }
 
     private void computeAppArtStats(PackageStats stats, String packageName) {

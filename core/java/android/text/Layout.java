@@ -28,6 +28,7 @@ import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.annotation.TestApi;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.graphics.BlendMode;
 import android.graphics.Canvas;
@@ -61,6 +62,7 @@ import java.text.BreakIterator;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.BiConsumer;
 
 /**
  * A base class that manages text layout in visual elements on
@@ -264,6 +266,7 @@ public abstract class Layout {
             TextDirectionHeuristic textDir) {
         return getDesiredWidthWithLimit(source, start, end, paint, textDir, Float.MAX_VALUE, false);
     }
+
     /**
      * Return how wide a layout must be in order to display the
      * specified text slice with one line per paragraph.
@@ -275,7 +278,9 @@ public abstract class Layout {
             TextPaint paint, TextDirectionHeuristic textDir, float upperLimit,
             boolean useBoundsForWidth) {
         float need = 0;
-
+        RectF bounds = useBoundsForWidth ? new RectF() : null;
+        float left = 0;
+        float right = 0;
         int next;
         for (int i = start; i <= end; i = next) {
             next = TextUtils.indexOf(source, '\n', i, end);
@@ -284,7 +289,12 @@ public abstract class Layout {
                 next = end;
 
             // note, omits trailing paragraph char
-            float w = measurePara(paint, source, i, next, textDir, useBoundsForWidth);
+            float w = measurePara(paint, source, i, next, textDir, bounds);
+            if (com.android.text.flags.Flags.fixShiftDrawingAmount() && useBoundsForWidth) {
+                left = Math.min(bounds.left, left);
+                right = Math.max(bounds.right, right);
+                w = Math.max(right - left, w);
+            }
             if (w > upperLimit) {
                 return upperLimit;
             }
@@ -500,13 +510,15 @@ public abstract class Layout {
             @Nullable Paint selectionPaint,
             int cursorOffsetVertical) {
         float leftShift = 0;
-        if (mUseBoundsForWidth && mShiftDrawingOffsetForStartOverhang) {
+        if (!com.android.text.flags.Flags.fixShiftDrawingAmount()
+                && mUseBoundsForWidth && mShiftDrawingOffsetForStartOverhang) {
             RectF drawingRect = computeDrawingBoundingBox();
             if (drawingRect.left < 0) {
                 leftShift = -drawingRect.left;
                 canvas.translate(leftShift, 0);
             }
         }
+
         final long lineRange = getLineRangeForDraw(canvas);
         int firstLine = TextUtils.unpackRangeStartFromLong(lineRange);
         int lastLine = TextUtils.unpackRangeEndFromLong(lineRange);
@@ -529,7 +541,7 @@ public abstract class Layout {
                     cursorOffsetVertical, firstLine, lastLine);
         }
 
-        if (leftShift != 0) {
+        if (!com.android.text.flags.Flags.fixShiftDrawingAmount() && leftShift != 0) {
             // Manually translate back to the original position because of b/324498002, using
             // save/restore disappears the toggle switch drawables.
             canvas.translate(-leftShift, 0);
@@ -772,6 +784,16 @@ public abstract class Layout {
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void drawText(Canvas canvas, int firstLine, int lastLine) {
+        drawText(canvas, firstLine, lastLine, null);
+    }
+
+    /**
+     * @hide
+     */
+    @FlaggedApi(com.android.text.flags.Flags.FLAG_FIX_SHIFT_DRAWING_AMOUNT_TEST_API)
+    @TestApi
+    public void drawText(@NonNull Canvas canvas, int firstLine, int lastLine,
+            @Nullable BiConsumer<Integer, Integer> drawOffsetCallback) {
         int previousLineBottom = getLineTop(firstLine);
         int previousLineEnd = getLineStart(firstLine);
         ParagraphStyle[] spans = NO_PARA_SPANS;
@@ -785,6 +807,15 @@ public abstract class Layout {
         boolean tabStopsIsInitialized = false;
 
         TextLine tl = TextLine.obtain();
+
+        int leftOverhang = 0;
+        int rightOverhang = 0;
+        if (com.android.text.flags.Flags.fixShiftDrawingAmount()
+                && mUseBoundsForWidth && mShiftDrawingOffsetForStartOverhang) {
+            RectF drawingRect = computeDrawingBoundingBox();
+            leftOverhang = (int) Math.ceil(Math.max(-drawingRect.left, 0));
+            rightOverhang = (int) Math.ceil(Math.max(drawingRect.right - mWidth, 0));
+        }
 
         // Draw the lines, one at a time.
         // The baseline is the top of the following line minus the current line's descent.
@@ -897,25 +928,25 @@ public abstract class Layout {
             if (align == Alignment.ALIGN_NORMAL) {
                 if (dir == DIR_LEFT_TO_RIGHT) {
                     indentWidth = getIndentAdjust(lineNum, Alignment.ALIGN_LEFT);
-                    x = left + indentWidth;
+                    x = left + indentWidth + leftOverhang;
                 } else {
                     indentWidth = -getIndentAdjust(lineNum, Alignment.ALIGN_RIGHT);
-                    x = right - indentWidth;
+                    x = right - indentWidth - rightOverhang;
                 }
             } else {
                 int max = (int)getLineExtent(lineNum, tabStops, false);
                 if (align == Alignment.ALIGN_OPPOSITE) {
                     if (dir == DIR_LEFT_TO_RIGHT) {
                         indentWidth = -getIndentAdjust(lineNum, Alignment.ALIGN_RIGHT);
-                        x = right - max - indentWidth;
+                        x = right - max - indentWidth - rightOverhang;
                     } else {
                         indentWidth = getIndentAdjust(lineNum, Alignment.ALIGN_LEFT);
-                        x = left - max + indentWidth;
+                        x = left - max + indentWidth + leftOverhang;
                     }
                 } else { // Alignment.ALIGN_CENTER
                     indentWidth = getIndentAdjust(lineNum, Alignment.ALIGN_CENTER);
                     max = max & ~1;
-                    x = ((right + left - max) >> 1) + indentWidth;
+                    x = ((right + left - max) >> 1) + indentWidth + leftOverhang;
                 }
             }
 
@@ -923,6 +954,9 @@ public abstract class Layout {
             if (directions == DIRS_ALL_LEFT_TO_RIGHT && !mSpannedText && !hasTab && !justify) {
                 // XXX: assumes there's nothing additional to be done
                 canvas.drawText(buf, start, end, x, lbaseline, paint);
+                if (drawOffsetCallback != null) {
+                    drawOffsetCallback.accept(x, lbaseline);
+                }
             } else {
                 tl.set(paint, buf, start, end, dir, directions, hasTab, tabStops,
                         getEllipsisStart(lineNum),
@@ -932,6 +966,9 @@ public abstract class Layout {
                     tl.justify(mJustificationMode, right - left - indentWidth);
                 }
                 tl.draw(canvas, x, ltop, lbaseline, lbottom);
+                if (drawOffsetCallback != null) {
+                    drawOffsetCallback.accept(x, ltop);
+                }
             }
         }
 
@@ -1066,6 +1103,7 @@ public abstract class Layout {
                 lastLine,
                 new CharacterBoundsListener() {
                     int mLastLineNum = -1;
+                    int mNumCharactersToSkip = 0;
                     final RectF mLineBackground = new RectF();
 
                     @ColorInt int mLastColor = originalTextColor;
@@ -1073,15 +1111,13 @@ public abstract class Layout {
                     @Override
                     public void onCharacterBounds(int index, int lineNum, float left, float top,
                             float right, float bottom) {
-
                         // Skip processing if the character is a space or a tap to avoid
                         // rendering an abrupt, empty rectangle.
-                        if (TextLine.isLineEndSpace(mText.charAt(index))) {
+                        if (TextLine.isLineEndSpace(mText.charAt(index))
+                                || mNumCharactersToSkip > 0) {
+                            mNumCharactersToSkip--;
                             return;
                         }
-
-                        var newBackground = determineContrastingBackgroundColor(index);
-                        var hasBgColorChanged = newBackground != bgPaint.getColor();
 
                         // To avoid highlighting emoji sequences, we use Extended_Pictgraphs as a
                         // heuristic. Highlighting is skipped based on code points, not glyph type
@@ -1094,8 +1130,12 @@ public abstract class Layout {
                         var isEmoji = Character.isEmojiComponent(codePoint)
                                 || Character.isExtendedPictographic(codePoint);
                         if (isEmoji && !isStandardNumber(index)) {
+                            mNumCharactersToSkip = Character.charCount(codePoint) - 1;
                             return;
                         }
+
+                        var newBackground = determineContrastingBackgroundColor(index);
+                        var hasBgColorChanged = newBackground != bgPaint.getColor();
 
                         if (lineNum != mLastLineNum || hasBgColorChanged) {
                             // Draw what we have so far, then reset the rect and update its color
@@ -1308,6 +1348,7 @@ public abstract class Layout {
         TextLine tl = TextLine.obtain();
         RectF rectF = new RectF();
         for (int line = 0; line < getLineCount(); ++line) {
+            rectF.setEmpty();
             final int start = getLineStart(line);
             final int end = getLineVisibleEnd(line);
 
@@ -3271,9 +3312,12 @@ public abstract class Layout {
     }
 
     private static float measurePara(TextPaint paint, CharSequence text, int start, int end,
-            TextDirectionHeuristic textDir, boolean useBoundsForWidth) {
+            TextDirectionHeuristic textDir, RectF bounds) {
         MeasuredParagraph mt = null;
         TextLine tl = TextLine.obtain();
+        if (bounds != null) {
+            bounds.setEmpty();
+        }
         try {
             mt = MeasuredParagraph.buildForBidi(text, start, end, textDir, mt);
             final char[] chars = mt.getChars();
@@ -3311,7 +3355,13 @@ public abstract class Layout {
             tl.set(paint, text, start, end, dir, directions, hasTabs, tabStops,
                     0 /* ellipsisStart */, 0 /* ellipsisEnd */,
                     false /* use fallback line spacing. unused */);
-            return margin + Math.abs(tl.metrics(null, null, useBoundsForWidth, null));
+            float w = tl.metrics(null, bounds, bounds != null, null);
+            if (bounds != null) {
+                if (w < 0) { // RTL
+                    bounds.offset(-w, 0f);
+                }
+            }
+            return margin + Math.abs(w);
         } finally {
             TextLine.recycle(tl);
             if (mt != null) {

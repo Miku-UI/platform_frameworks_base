@@ -92,19 +92,15 @@ public class BstatsCpuTimesValidationTest {
     private static final int BATTERY_STATE_TIMEOUT_MS = 2000;
     private static final int BATTERY_STATE_CHECK_INTERVAL_MS = 200;
 
-    private static final int START_ACTIVITY_TIMEOUT_MS = 2000;
-    private static final int START_FG_SERVICE_TIMEOUT_MS = 2000;
-    private static final int START_SERVICE_TIMEOUT_MS = 2000;
-    private static final int START_ISOLATED_SERVICE_TIMEOUT_MS = 2000;
-
-    private static final int SETTING_UPDATE_TIMEOUT_MS = 2000;
-    private static final int SETTING_UPDATE_CHECK_INTERVAL_MS = 200;
-
+    private static final int START_ACTIVITY_TIMEOUT_MS = 5000;
+    private static final int START_FG_SERVICE_TIMEOUT_MS = 5000;
+    private static final int START_SERVICE_TIMEOUT_MS = 5000;
+    private static final int START_ISOLATED_SERVICE_TIMEOUT_MS = 5000;
     private static final int GENERAL_TIMEOUT_MS = 4000;
     private static final int GENERAL_INTERVAL_MS = 200;
     private static final int SCREEN_STATE_CHANGE_TIMEOUT_MS = 10000;
 
-    private static final int WORK_DURATION_MS = 2000;
+    private static final int WORK_DURATION_MS = 5000;
 
     private static boolean sBatteryStatsConstsUpdated;
     private static String sOriginalBatteryStatsConsts;
@@ -209,9 +205,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOn();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         doSomeWork();
         forceStop();
 
@@ -237,9 +230,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOff();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         doSomeWork();
         forceStop();
 
@@ -271,9 +261,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOn();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         doSomeWorkInIsolatedProcess();
         forceStop();
 
@@ -299,9 +286,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOn();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         assertNull("Initial top state snapshot should be null",
                 getAllCpuFreqTimes(sTestPkgUid, PROCESS_STATE_TOP));
 
@@ -332,9 +316,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOn();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         assertNull("Initial top state snapshot should be null",
                 getAllCpuFreqTimes(sTestPkgUid, PROCESS_STATE_TOP));
 
@@ -373,9 +354,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOff();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         assertNull("Initial top state snapshot should be null",
                 getAllCpuFreqTimes(sTestPkgUid, PROCESS_STATE_TOP_SLEEPING));
 
@@ -406,9 +384,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOff();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         assertNull("Initial top state snapshot should be null",
                 getAllCpuFreqTimes(sTestPkgUid, PROCESS_STATE_FOREGROUND_SERVICE));
 
@@ -439,9 +414,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOn();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         assertNull("Initial top state snapshot should be null",
                 getAllCpuFreqTimes(sTestPkgUid, PROCESS_STATE_FOREGROUND));
 
@@ -472,9 +444,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOff();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         assertNull("Initial top state snapshot should be null",
                 getAllCpuFreqTimes(sTestPkgUid, PROCESS_STATE_BACKGROUND));
 
@@ -505,9 +474,6 @@ public class BstatsCpuTimesValidationTest {
         batteryOnScreenOn();
         forceStop();
         resetBatteryStats();
-        final long[] initialSnapshot = getAllCpuFreqTimes(sTestPkgUid);
-        assertNull("Initial snapshot should be null, initial=" + Arrays.toString(initialSnapshot),
-                initialSnapshot);
         assertNull("Initial top state snapshot should be null",
                 getAllCpuFreqTimes(sTestPkgUid, PROCESS_STATE_CACHED));
 
@@ -802,7 +768,16 @@ public class BstatsCpuTimesValidationTest {
     }
 
     private void resetBatteryStats() throws Exception {
-        executeCmd("dumpsys batterystats --reset");
+        assertDelayedCondition("", () -> {
+            executeCmd("dumpsys batterystats --reset");
+            // Wait for all residual CPU cycles to taper off
+            long[] cpuFreqTimes = getAllCpuFreqTimes(sTestPkgUid);
+            if (cpuFreqTimes == null) {
+                return null;
+            }
+            return "Unexpected CPU cycles for UID = " + sTestPkgUid + ": "
+                    + Arrays.toString(cpuFreqTimes);
+        });
     }
 
     private void batteryOnScreenOn() throws Exception {

@@ -26,6 +26,7 @@
 namespace android {
 int register_android_server_BatteryStatsService(JNIEnv* env);
 int register_android_server_InputManager(JNIEnv* env);
+int register_android_server_input_VirtualInputDeviceController(JNIEnv* env);
 int register_android_server_LightsService(JNIEnv* env);
 int register_android_server_PowerManagerService(JNIEnv* env);
 int register_android_server_PowerStatsService(JNIEnv* env);
@@ -41,9 +42,7 @@ int register_android_server_UsbHostManager(JNIEnv* env);
 int register_android_server_vibrator_VibratorController(JavaVM* vm, JNIEnv* env);
 int register_android_server_vibrator_VibratorManagerService(JavaVM* vm, JNIEnv* env);
 int register_android_server_location_GnssLocationProvider(JNIEnv* env);
-int register_android_server_connectivity_Vpn(JNIEnv* env);
 int register_android_server_devicepolicy_CryptoTestHelper(JNIEnv*);
-int register_android_server_tv_TvUinputBridge(JNIEnv* env);
 int register_android_server_tv_TvInputHal(JNIEnv* env);
 int register_android_server_pdb_PersistentDataBlockService(JNIEnv* env);
 int register_android_server_Watchdog(JNIEnv* env);
@@ -65,7 +64,6 @@ int register_android_server_FaceService(JNIEnv* env);
 int register_android_server_GpuService(JNIEnv* env);
 int register_android_server_stats_pull_StatsPullAtomService(JNIEnv* env);
 int register_android_server_sensor_SensorService(JavaVM* vm, JNIEnv* env);
-int register_android_server_companion_virtual_InputController(JNIEnv* env);
 int register_android_server_companion_virtual_VirtualDeviceImpl(JNIEnv* env);
 int register_com_android_server_wm_TaskFpsCallbackController(JNIEnv* env);
 int register_com_android_server_display_DisplayControl(JNIEnv* env);
@@ -73,6 +71,7 @@ int register_com_android_server_SystemClockTime(JNIEnv* env);
 int register_android_server_display_smallAreaDetectionController(JNIEnv* env);
 int register_com_android_server_accessibility_BrailleDisplayConnection(JNIEnv* env);
 int register_android_server_am_PhantomProcessList(JNIEnv* env);
+int register_android_server_utils_LongMethodTracer(JNIEnv* env);
 
 // Note: Consider adding new JNI entrypoints for optional services to
 // LazyJniRegistrar instead, and relying on lazy registration.
@@ -98,6 +97,7 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
     register_android_server_power_stats_CpuPowerStatsCollector(env);
     register_android_server_HintManagerService(env);
     register_android_server_InputManager(env);
+    register_android_server_input_VirtualInputDeviceController(env);
     register_android_server_LightsService(env);
     register_android_server_UsbDeviceManager(vm, env);
     register_android_server_UsbAlsaDevice(env);
@@ -108,10 +108,8 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
     register_android_server_vibrator_VibratorManagerService(vm, env);
     register_android_server_SystemServer(env);
     register_android_server_location_GnssLocationProvider(env);
-    register_android_server_connectivity_Vpn(env);
     register_android_server_devicepolicy_CryptoTestHelper(env);
     register_android_server_BatteryStatsService(env);
-    register_android_server_tv_TvUinputBridge(env);
     register_android_server_tv_TvInputHal(env);
     register_android_server_pdb_PersistentDataBlockService(env);
     register_android_server_HardwarePropertiesManagerService(env);
@@ -133,7 +131,6 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
     register_android_server_GpuService(env);
     register_android_server_stats_pull_StatsPullAtomService(env);
     register_android_server_sensor_SensorService(vm, env);
-    register_android_server_companion_virtual_InputController(env);
     register_android_server_companion_virtual_VirtualDeviceImpl(env);
     register_com_android_server_wm_TaskFpsCallbackController(env);
     register_com_android_server_display_DisplayControl(env);
@@ -141,5 +138,6 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
     register_android_server_display_smallAreaDetectionController(env);
     register_com_android_server_accessibility_BrailleDisplayConnection(env);
     register_android_server_am_PhantomProcessList(env);
+    register_android_server_utils_LongMethodTracer(env);
     return JNI_VERSION_1_4;
 }

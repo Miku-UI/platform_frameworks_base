@@ -26,7 +26,8 @@ import com.android.internal.widget.MessagingLayout
 import com.android.internal.widget.MessagingLinearLayout
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper
+import com.android.systemui.statusbar.notification.row.createRow
+import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
 import org.junit.Before
@@ -40,12 +41,11 @@ import org.mockito.Mockito.`when` as whenever
 class NotificationMessagingTemplateViewWrapperTest : SysuiTestCase() {
 
     private lateinit var mRow: ExpandableNotificationRow
-    private lateinit var helper: NotificationTestHelper
+    private val kosmos = testKosmos()
 
     @Before
     fun setUp() {
-        helper = NotificationTestHelper(mContext, mDependency)
-        mRow = helper.createRow()
+        mRow = kosmos.createRow()
     }
 
     @Test

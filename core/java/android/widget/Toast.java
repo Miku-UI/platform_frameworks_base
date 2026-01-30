@@ -207,11 +207,7 @@ public class Toast {
         INotificationManager service = getService();
         String pkg = mContext.getOpPackageName();
         TN tn = mTN;
-        if (Flags.toastNoWeakref()) {
-            tn.mNextView = mNextView;
-        } else {
-            tn.mNextViewWeakRef = new WeakReference<>(mNextView);
-        }
+        tn.mNextView = mNextView;
         final boolean isUiContext = mContext.isUiContext();
         final int displayId = mContext.getDisplayId();
 
@@ -236,11 +232,9 @@ public class Toast {
         } catch (RemoteException e) {
             // Empty
         } finally {
-            if (Flags.toastNoWeakref()) {
-                if (!wasEnqueued) {
-                    tn.mNextViewWeakRef = null;
-                    tn.mNextView = null;
-                }
+            if (!wasEnqueued) {
+                tn.mNextViewWeakRef = null;
+                tn.mNextView = null;
             }
         }
     }
@@ -694,22 +688,14 @@ public class Toast {
                             handleHide();
                             // Don't do this in handleHide() because it is also invoked by
                             // handleShow()
-                            if (Flags.toastNoWeakref()) {
-                                mNextView = null;
-                            } else {
-                                mNextViewWeakRef = null;
-                            }
+                            mNextView = null;
                             break;
                         }
                         case CANCEL: {
                             handleHide();
                             // Don't do this in handleHide() because it is also invoked by
                             // handleShow()
-                            if (Flags.toastNoWeakref()) {
-                                mNextView = null;
-                            } else {
-                                mNextViewWeakRef = null;
-                            }
+                            mNextView = null;
                             try {
                                 getService().cancelToast(mPackageName, mToken);
                             } catch (RemoteException e) {
@@ -756,43 +742,23 @@ public class Toast {
         }
 
         public void handleShow(IBinder windowToken) {
-            if (Flags.toastNoWeakref()) {
-                if (localLOGV) {
-                    Log.v(TAG, "HANDLE SHOW: " + this + " mView=" + mView
-                            + " mNextView=" + mNextView);
-                }
-            } else {
-                if (localLOGV) {
-                    Log.v(TAG, "HANDLE SHOW: " + this + " mView=" + mView
-                            + " mNextView=" + mNextViewWeakRef);
-                }
+            if (localLOGV) {
+                Log.v(TAG, "HANDLE SHOW: " + this + " mView=" + mView
+                        + " mNextView=" + mNextView);
             }
             // If a cancel/hide is pending - no need to show - at this point
             // the window token is already invalid and no need to do any work.
             if (mHandler.hasMessages(CANCEL) || mHandler.hasMessages(HIDE)) {
                 return;
             }
-            if (Flags.toastNoWeakref()) {
-                if (mNextView != null && mView != mNextView) {
-                    // remove the old view if necessary
-                    handleHide();
-                    mView = mNextView;
-                    if (mView != null) {
-                        mPresenter.show(mView, mToken, windowToken, mDuration, mGravity, mX, mY,
-                                mHorizontalMargin, mVerticalMargin,
-                                new CallbackBinder(getCallbacks(), mHandler));
-                    }
-                }
-            } else {
-                if (mNextViewWeakRef != null && mView != mNextViewWeakRef.get()) {
-                    // remove the old view if necessary
-                    handleHide();
-                    mView = mNextViewWeakRef.get();
-                    if (mView != null) {
-                        mPresenter.show(mView, mToken, windowToken, mDuration, mGravity, mX, mY,
-                                mHorizontalMargin, mVerticalMargin,
-                                new CallbackBinder(getCallbacks(), mHandler));
-                    }
+            if (mNextView != null && mView != mNextView) {
+                // remove the old view if necessary
+                handleHide();
+                mView = mNextView;
+                if (mView != null) {
+                     mPresenter.show(mView, mToken, windowToken, mDuration, mGravity, mX, mY,
+                            mHorizontalMargin, mVerticalMargin,
+                            new CallbackBinder(getCallbacks(), mHandler));
                 }
             }
         }
@@ -818,11 +784,7 @@ public class Toast {
          */
         @VisibleForTesting
         public View getNextView() {
-            if (Flags.toastNoWeakref()) {
-                return mNextView;
-            } else {
-                return (mNextViewWeakRef != null) ? mNextViewWeakRef.get() : null;
-            }
+            return mNextView;
         }
     }
 

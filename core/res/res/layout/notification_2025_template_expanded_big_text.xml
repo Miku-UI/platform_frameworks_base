@@ -26,11 +26,13 @@
     <include layout="@layout/notification_2025_template_header" />
 
     <com.android.internal.widget.RemeasuringLinearLayout
+        android:id="@+id/notification_main_column_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
         android:clipToPadding="false"
         android:orientation="vertical"
+        android:importantForAccessibility="yes"
         >
 
         <!-- Note: the top margin is being set in code based on the estimated space needed for

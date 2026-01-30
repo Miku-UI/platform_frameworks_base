@@ -23,6 +23,7 @@ import android.content.Context;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.graphics.Region;
+import android.os.Handler;
 import android.view.InsetsState;
 import android.view.SurfaceControl;
 import android.view.View;
@@ -37,6 +38,8 @@ import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread;
+import com.android.wm.shell.shared.annotations.ShellMainThread;
+import com.android.wm.shell.transition.Transitions;
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHost;
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHostSupplier;
 
@@ -45,13 +48,14 @@ import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHostSuppl
  */
 public class CarWindowDecoration extends WindowDecoration<WindowDecorLinearLayout> {
     private WindowDecorLinearLayout mRootView;
-    private @ShellBackgroundThread final ShellExecutor mBgExecutor;
     private final View.OnClickListener mClickListener;
     private final RelayoutParams mRelayoutParams = new RelayoutParams();
     private final RelayoutResult<WindowDecorLinearLayout> mResult = new RelayoutResult<>();
 
     CarWindowDecoration(
             Context context,
+            @android.annotation.NonNull @ShellMainThread Handler handler,
+            @android.annotation.NonNull Transitions transitions,
             @android.annotation.NonNull Context userContext,
             DisplayController displayController,
             ShellTaskOrganizer taskOrganizer,
@@ -60,9 +64,8 @@ public class CarWindowDecoration extends WindowDecoration<WindowDecorLinearLayou
             @ShellBackgroundThread ShellExecutor bgExecutor,
             WindowDecorViewHostSupplier<WindowDecorViewHost> windowDecorViewHostSupplier,
             View.OnClickListener clickListener) {
-        super(context, userContext, displayController, taskOrganizer, taskInfo, taskSurface,
-                windowDecorViewHostSupplier);
-        mBgExecutor = bgExecutor;
+        super(context, handler, transitions, userContext, displayController, taskOrganizer,
+                taskInfo, taskSurface, windowDecorViewHostSupplier, bgExecutor);
         mClickListener = clickListener;
     }
 
@@ -88,7 +91,7 @@ public class CarWindowDecoration extends WindowDecoration<WindowDecorLinearLayou
 
         updateRelayoutParams(mRelayoutParams, taskInfo, isCaptionVisible);
 
-        relayout(mRelayoutParams, startT, finishT, wct, mRootView, mResult);
+        relayout(mRelayoutParams, startT, finishT, wct, mRootView, getLeash(), mResult);
         // After this line, mTaskInfo is up-to-date and should be used instead of taskInfo
         mBgExecutor.execute(() -> mTaskOrganizer.applyTransaction(wct));
 
@@ -117,12 +120,6 @@ public class CarWindowDecoration extends WindowDecoration<WindowDecorLinearLayou
     }
 
     @Override
-    @NonNull
-    Rect calculateValidDragArea() {
-        return new Rect();
-    }
-
-    @Override
     int getCaptionViewId() {
         return R.id.caption;
     }
@@ -135,7 +132,8 @@ public class CarWindowDecoration extends WindowDecoration<WindowDecorLinearLayou
         relayoutParams.mRunningTaskInfo = taskInfo;
         // todo(b/382071404): update to car specific UI
         relayoutParams.mLayoutResId = R.layout.caption_window_decor;
-        relayoutParams.mCaptionHeightId = R.dimen.freeform_decor_caption_height;
+        relayoutParams.mCaptionHeightCalculator = (ctx, display) ->
+                loadDimensionPixelSize(ctx.getResources(), R.dimen.freeform_decor_caption_height);
         relayoutParams.mIsCaptionVisible =
                 isCaptionVisible && mIsStatusBarVisible && !mIsKeyguardVisibleAndOccluded;
         relayoutParams.mCaptionTopPadding = getTopPadding(taskInfo, relayoutParams);
@@ -151,7 +149,7 @@ public class CarWindowDecoration extends WindowDecoration<WindowDecorLinearLayou
         if (insetsState == null) {
             return relayoutParams.mCaptionTopPadding;
         }
-        Insets systemDecor = insetsState.calculateInsets(taskBounds,
+        Insets systemDecor = insetsState.calculateInsets(taskBounds, taskBounds,
                 WindowInsets.Type.systemBars() & ~WindowInsets.Type.captionBar(),
                 false /* ignoreVisibility */);
         return systemDecor.top;

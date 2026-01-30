@@ -16,10 +16,8 @@
 
 package com.android.systemui.assist.domain.interactor
 
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
@@ -39,7 +37,6 @@ class AssistInteractorTest : SysuiTestCase() {
     private val underTest = kosmos.assistInteractor
 
     @Test
-    @EnableFlags(Flags.FLAG_ENABLE_CONTEXTUAL_TIPS, Flags.FLAG_ENABLE_CONTEXTUAL_TIP_FOR_POWER_OFF)
     fun onAssistantStarted() =
         testScope.runTest {
             val invocationType by collectLastValue(underTest.latestInvocationType)

@@ -23,6 +23,7 @@
 #include "MouseCursorController.h"
 
 #include <input/Input.h>
+#include <input/InputFlags.h>
 #include <log/log.h>
 
 #define INDENT "  "

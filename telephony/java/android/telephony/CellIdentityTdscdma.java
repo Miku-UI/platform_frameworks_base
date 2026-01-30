@@ -261,12 +261,12 @@ public final class CellIdentityTdscdma extends CellIdentity {
         .append(" mMnc=").append(mMncStr)
         .append(" mAlphaLong=").append(mAlphaLong)
         .append(" mAlphaShort=").append(mAlphaShort)
-        .append(" mLac=").append(mLac)
-        .append(" mCid=").append(mCid)
-        .append(" mCpid=").append(mCpid)
-        .append(" mUarfcn=").append(mUarfcn)
+        .append(" mLac=").append(Rlog.pii(TAG, mLac))
+        .append(" mCid=").append(Rlog.pii(TAG, mCid))
+        .append(" mCpid=").append(Rlog.pii(TAG, mCpid))
+        .append(" mUarfcn=").append(Rlog.pii(TAG, mUarfcn))
         .append(" mAdditionalPlmns=").append(mAdditionalPlmns)
-        .append(" mCsgInfo=").append(mCsgInfo)
+        .append(" mCsgInfo=").append(Rlog.pii(TAG, mCsgInfo))
         .append("}").toString();
     }
 

@@ -62,7 +62,8 @@ public class DataMapIds extends Operation {
         return "?";
     }
 
-    public DataMapIds(int id, @NonNull String[] names, @NonNull byte[] types, @NonNull int[] ids) {
+    public DataMapIds(
+            int id, @NonNull String[] names, @NonNull byte [] types, @NonNull int [] ids) {
         mId = id;
         mDataMap = new DataMap(names, types, ids);
     }
@@ -102,8 +103,8 @@ public class DataMapIds extends Operation {
             @NonNull WireBuffer buffer,
             int id,
             @NonNull String[] names,
-            @Nullable byte[] type, // todo: can we make this not nullable?
-            @NonNull int[] ids) {
+            @Nullable byte [] type, // todo: can we make this not nullable?
+            @NonNull int [] ids) {
         buffer.start(OP_CODE);
         buffer.writeInt(id);
         buffer.writeInt(names.length);

@@ -32,11 +32,12 @@ android_app {
 
     static_libs: [
         "bmgr",
+        "bmgr-outputparser",
         "bu",
+        "service-permission.stubs.system_server",
         "services.backup",
         "services.core",
         "services.net",
-        "service-permission.stubs.system_server",
     ],
 
     libs: ["android.net.ipsec.ike.stubs.system"],
@@ -48,24 +49,23 @@ android_app {
 android_robolectric_test {
     name: "BackupFrameworksServicesRoboTests",
     srcs: [
-        "src/**/*.java",
         ":FrameworksServicesRoboShadows",
+        "src/**/*.java",
     ],
 
     java_resource_dirs: ["config"],
 
     // Include the testing libraries
     libs: [
-        "mockito-robolectric-prebuilt",
         "Settings-robo-testutils",
         "SettingsLib-robo-testutils",
+        "mockito-robolectric-prebuilt",
         "platform-test-annotations",
         "testng",
         "truth",
     ],
 
     instrumentation_for: "BackupFrameworksServicesLib",
-
 
     strict_mode: false,
 

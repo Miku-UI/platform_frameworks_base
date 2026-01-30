@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.notification.row;
 
+import static android.app.Flags.notificationsRedesignFonts;
 import static android.app.Notification.COLOR_INVALID;
 
 import android.annotation.Nullable;
@@ -115,7 +116,7 @@ public class HybridNotificationView extends AlphaOptimizedLinearLayout
 
     private void resolveThemeTextColors() {
         mPrimaryTextColor = mContext.getColor(com.android.internal.R.color.materialColorOnSurface);
-        mSecondaryTextColor = mContext.getColor(
+        mSecondaryTextColor = notificationsRedesignFonts() ? mPrimaryTextColor : mContext.getColor(
                 com.android.internal.R.color.materialColorOnSurfaceVariant);
     }
 

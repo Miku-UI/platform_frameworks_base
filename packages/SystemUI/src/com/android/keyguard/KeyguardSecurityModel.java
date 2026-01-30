@@ -15,6 +15,8 @@
  */
 package com.android.keyguard;
 
+import static android.security.Flags.secureLockDevice;
+
 import static com.android.systemui.DejankUtils.whitelistIpcs;
 
 import android.app.admin.DevicePolicyManager;
@@ -25,12 +27,16 @@ import android.telephony.TelephonyManager;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Main;
+import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor;
+import com.android.systemui.util.kotlin.JavaAdapter;
+
+import dagger.Lazy;
 
 import javax.inject.Inject;
+import javax.inject.Provider;
 
 @SysUISingleton
 public class KeyguardSecurityModel {
-
     /**
      * The different types of security available.
      * @see KeyguardSecurityContainerController#showSecurityScreen
@@ -42,24 +48,63 @@ public class KeyguardSecurityModel {
         Password, // Unlock by entering an alphanumeric password
         PIN, // Strictly numeric password
         SimPin, // Unlock by entering a sim pin.
-        SimPuk // Unlock by entering a sim puk
+        SimPuk, // Unlock by entering a sim puk
+        // TODO(b/427071498): remove upon SceneContainerFlag removal
+        SecureLockDeviceBiometricAuth // Unlock by authenticating biometric for secure lock device
     }
 
     private final boolean mIsPukScreenAvailable;
+    private boolean mRequiresBiometricForSecureLockDevice;
+    private boolean mAuthenticatedInSecureLockDevice;
 
     private final LockPatternUtils mLockPatternUtils;
     private final KeyguardUpdateMonitor mKeyguardUpdateMonitor;
+    private final Provider<JavaAdapter> mJavaAdapter;
+    private final Lazy<SecureLockDeviceInteractor> mSecureLockDeviceInteractor;
 
     @Inject
-    KeyguardSecurityModel(@Main Resources resources, LockPatternUtils lockPatternUtils,
-            KeyguardUpdateMonitor keyguardUpdateMonitor) {
+    KeyguardSecurityModel(
+            @Main Resources resources,
+            LockPatternUtils lockPatternUtils,
+            KeyguardUpdateMonitor keyguardUpdateMonitor,
+            Provider<JavaAdapter> javaAdapter,
+            Lazy<SecureLockDeviceInteractor> secureLockDeviceInteractor
+    ) {
         mIsPukScreenAvailable = resources.getBoolean(
                 com.android.internal.R.bool.config_enable_puk_unlock_screen);
         mLockPatternUtils = lockPatternUtils;
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
+        mJavaAdapter = javaAdapter;
+        mSecureLockDeviceInteractor = secureLockDeviceInteractor;
+
+        if (secureLockDevice()) {
+            mJavaAdapter.get().alwaysCollectFlow(
+                    mSecureLockDeviceInteractor
+                            .get()
+                            .getRequiresStrongBiometricAuthForSecureLockDevice(),
+                    this::onRequiresStrongBiometricAuthForSecureLockDevice
+            );
+            mJavaAdapter.get().alwaysCollectFlow(
+                    mSecureLockDeviceInteractor.get().isAuthenticatedButPendingDismissal(),
+                    this::onSecureLockDeviceAuthenticationComplete
+            );
+        }
+    }
+
+    private void onRequiresStrongBiometricAuthForSecureLockDevice(boolean requiresBiometricAuth) {
+        mRequiresBiometricForSecureLockDevice = requiresBiometricAuth;
+    }
+
+    private void onSecureLockDeviceAuthenticationComplete(boolean authenticatedInSecureLockDevice) {
+        mAuthenticatedInSecureLockDevice = authenticatedInSecureLockDevice;
     }
 
     public SecurityMode getSecurityMode(int userId) {
+        if (secureLockDevice()
+                && (mRequiresBiometricForSecureLockDevice || mAuthenticatedInSecureLockDevice)) {
+            return SecurityMode.SecureLockDeviceBiometricAuth;
+        }
+
         if (mIsPukScreenAvailable && SubscriptionManager.isValidSubscriptionId(
                 mKeyguardUpdateMonitor.getNextSubIdForState(
                         TelephonyManager.SIM_STATE_PUK_REQUIRED))) {

@@ -81,33 +81,11 @@ flag {
 }
 
 flag {
-    name: "add_schandle_to_vri_surface"
-    namespace: "window_surfaces"
-    description: "Add surface control handle to VRI Surface"
-    bug: "320706287"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "disable_draw_wake_lock"
     namespace: "wear_frameworks"
     description: "Disable Draw Wakelock starting U."
     bug: "331698645"
     is_fixed_read_only: true
-}
-
-flag {
-  name: "calculate_bounds_in_parent_from_bounds_in_screen"
-  namespace: "accessibility"
-  description: "Calculate bounds in parent of each node in ViewStructure from its bounds set relative to screen and its parent's"
-  bug: "366131857"
-  is_fixed_read_only: true
-  metadata {
-      purpose: PURPOSE_BUGFIX
-  }
 }
 
 flag {
@@ -153,17 +131,27 @@ flag {
 }
 
 flag {
-    name: "date_time_view_relative_time_display_configs"
-    namespace: "systemui"
-    description: "Enables DateTimeView to use additional display configurations for relative time"
-    bug: "364653005"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "root_view_changed_listener"
     namespace: "windowing_sdk"
     description: "Implement listener pattern for WindowInspector#getGlobalWindowViews."
     bug: "394397033"
+    is_fixed_read_only: false
+}
+
+flag {
+    name: "notify_gpu_load_up"
+    namespace: "systemui"
+    description: "Add an API to notify GPU load up."
+    bug: "413723751"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "buffer_stuffing_multi_recovery"
+    namespace: "window_surfaces"
+    description: "Recover from buffer stuffing multiple times within the same animation"
+    bug: "44156655"
     is_fixed_read_only: false
 }

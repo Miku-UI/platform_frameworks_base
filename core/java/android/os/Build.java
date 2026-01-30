@@ -31,7 +31,6 @@ import android.app.Application;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
-import android.sdk.Flags;
 import android.sysprop.BackportedFixesProperties;
 import android.sysprop.DeviceProperties;
 import android.sysprop.SocProperties;
@@ -304,7 +303,7 @@ public class Build {
     public static final String[] SUPPORTED_64_BIT_ABIS =
             getStringList("ro.product.cpu.abilist64", ",");
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public static boolean is64BitAbi(String abi) {
         return VMRuntime.is64BitAbi(abi);
@@ -430,7 +429,6 @@ public class Build {
          * Possible values are defined in {@link
          * android.os.Build.VERSION_CODES_FULL}.
          */
-        @FlaggedApi(Flags.FLAG_MAJOR_MINOR_VERSIONING_SCHEME)
         public static final int SDK_INT_FULL = parseFullVersion(SystemProperties.get(
                     "ro.build.version.sdk_full", ""));
 
@@ -532,6 +530,15 @@ public class Build {
          */
         @TestApi
         public static final int RESOURCES_SDK_INT = SDK_INT + ACTIVE_CODENAMES.length;
+
+        /**
+         * The SDK version to use when accessing resources, with minor version encoded.
+         * Use the current SDK version code.  For every active development codename
+         * we are operating under, we bump the assumed resource platform major version by 1.
+         * @hide
+         */
+        public static final int RESOURCES_SDK_INT_FULL = SDK_INT_FULL
+                + (ACTIVE_CODENAMES.length * VERSION_CODES_FULL.SDK_INT_MULTIPLIER);
 
         /**
          * The current lowest supported value of app target SDK. Applications targeting
@@ -1270,49 +1277,10 @@ public class Build {
         /**
          * Baklava.
          */
-        @FlaggedApi(Flags.FLAG_MAJOR_MINOR_VERSIONING_SCHEME)
         public static final int BAKLAVA = 36;
     }
 
     /** @hide */
-    @IntDef(value = {
-        VERSION_CODES_FULL.BASE,
-        VERSION_CODES_FULL.BASE_1_1,
-        VERSION_CODES_FULL.CUPCAKE,
-        VERSION_CODES_FULL.DONUT,
-        VERSION_CODES_FULL.ECLAIR,
-        VERSION_CODES_FULL.ECLAIR_0_1,
-        VERSION_CODES_FULL.ECLAIR_MR1,
-        VERSION_CODES_FULL.FROYO,
-        VERSION_CODES_FULL.GINGERBREAD,
-        VERSION_CODES_FULL.GINGERBREAD_MR1,
-        VERSION_CODES_FULL.HONEYCOMB,
-        VERSION_CODES_FULL.HONEYCOMB_MR1,
-        VERSION_CODES_FULL.HONEYCOMB_MR2,
-        VERSION_CODES_FULL.ICE_CREAM_SANDWICH,
-        VERSION_CODES_FULL.ICE_CREAM_SANDWICH_MR1,
-        VERSION_CODES_FULL.JELLY_BEAN,
-        VERSION_CODES_FULL.JELLY_BEAN_MR1,
-        VERSION_CODES_FULL.JELLY_BEAN_MR2,
-        VERSION_CODES_FULL.KITKAT,
-        VERSION_CODES_FULL.KITKAT_WATCH,
-        VERSION_CODES_FULL.LOLLIPOP,
-        VERSION_CODES_FULL.LOLLIPOP_MR1,
-        VERSION_CODES_FULL.M,
-        VERSION_CODES_FULL.N,
-        VERSION_CODES_FULL.N_MR1,
-        VERSION_CODES_FULL.O,
-        VERSION_CODES_FULL.O_MR1,
-        VERSION_CODES_FULL.P,
-        VERSION_CODES_FULL.Q,
-        VERSION_CODES_FULL.R,
-        VERSION_CODES_FULL.S,
-        VERSION_CODES_FULL.S_V2,
-        VERSION_CODES_FULL.TIRAMISU,
-        VERSION_CODES_FULL.UPSIDE_DOWN_CAKE,
-        VERSION_CODES_FULL.VANILLA_ICE_CREAM,
-        VERSION_CODES_FULL.BAKLAVA,
-    })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SdkIntFull {}
 
@@ -1325,7 +1293,6 @@ public class Build {
      *
      * @see android.os.Build.VERSION#SDK_INT_FULL
      */
-    @FlaggedApi(Flags.FLAG_MAJOR_MINOR_VERSIONING_SCHEME)
     @SuppressLint("AcronymName")
     public static class VERSION_CODES_FULL {
         private VERSION_CODES_FULL() {}
@@ -1340,184 +1307,190 @@ public class Build {
         public static final int BASE = VERSION_CODES.BASE * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 2.0.
+         * Android 1.1.
          */
         public static final int BASE_1_1 = VERSION_CODES.BASE_1_1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 3.0.
+         * Android 1.5.
          */
         public static final int CUPCAKE = VERSION_CODES.CUPCAKE * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 4.0.
+         * Android 1.6.
          */
         public static final int DONUT = VERSION_CODES.DONUT * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 5.0.
+         * Android 2.0.
          */
         public static final int ECLAIR = VERSION_CODES.ECLAIR * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 6.0.
+         * Android 2.0.1.
          */
         public static final int ECLAIR_0_1 = VERSION_CODES.ECLAIR_0_1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 7.0.
+         * Android 2.1.x.
          */
         public static final int ECLAIR_MR1 = VERSION_CODES.ECLAIR_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 8.0.
+         * Android 2.2.x.
          */
         public static final int FROYO = VERSION_CODES.FROYO * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 9.0.
+         * Android 2.3.0-2.
          */
         public static final int GINGERBREAD = VERSION_CODES.GINGERBREAD * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 10.0.
+         * Android 2.3.3-4.
          */
         public static final int GINGERBREAD_MR1 =
                 VERSION_CODES.GINGERBREAD_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 11.0.
+         * Android 3.0.x.
          */
         public static final int HONEYCOMB = VERSION_CODES.HONEYCOMB * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 12.0.
+         * Android 3.1.x.
          */
         public static final int HONEYCOMB_MR1 = VERSION_CODES.HONEYCOMB_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 13.0.
+         * Android 3.2.
          */
         public static final int HONEYCOMB_MR2 = VERSION_CODES.HONEYCOMB_MR2 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 14.0.
+         * Android 4.0.0-2.
          */
         public static final int ICE_CREAM_SANDWICH =
                 VERSION_CODES.ICE_CREAM_SANDWICH * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 15.0.
+         * Android 4.0.3-4.
          */
         public static final int ICE_CREAM_SANDWICH_MR1 =
                 VERSION_CODES.ICE_CREAM_SANDWICH_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 16.0.
+         * Android 4.1.0-1.
          */
         public static final int JELLY_BEAN = VERSION_CODES.JELLY_BEAN * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 17.0.
+         * Android 4.2.0-2.
          */
         public static final int JELLY_BEAN_MR1 = VERSION_CODES.JELLY_BEAN_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 18.0.
+         * Android 4.3.
          */
         public static final int JELLY_BEAN_MR2 = VERSION_CODES.JELLY_BEAN_MR2 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 19.0.
+         * Android 4.4.
          */
         public static final int KITKAT = VERSION_CODES.KITKAT * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 20.0.
+         * Android 4.4W.
          */
         public static final int KITKAT_WATCH = VERSION_CODES.KITKAT_WATCH * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 21.0.
+         * Android 5.0.
          */
         public static final int LOLLIPOP = VERSION_CODES.LOLLIPOP * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 22.0.
+         * Android 5.1.
          */
         public static final int LOLLIPOP_MR1 = VERSION_CODES.LOLLIPOP_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 23.0.
+         * Android 6.0.
          */
         public static final int M = VERSION_CODES.M * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 24.0.
+         * Android 7.0.
          */
         public static final int N = VERSION_CODES.N * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 25.0.
+         * Android 7.1.0-1.
          */
         public static final int N_MR1 = VERSION_CODES.N_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 26.0.
+         * Android 8.0.
          */
         public static final int O = VERSION_CODES.O * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 27.0.
+         * Android 8.1.
          */
         public static final int O_MR1 = VERSION_CODES.O_MR1 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 28.0.
+         * Android 9.
          */
         public static final int P = VERSION_CODES.P * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 29.0.
+         * Android 10.
          */
         public static final int Q = VERSION_CODES.Q * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 30.0.
+         * Android 11.
          */
         public static final int R = VERSION_CODES.R * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 31.0.
+         * Android 12.
          */
         public static final int S = VERSION_CODES.S * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 32.0.
+         * Android 12v2.
          */
         public static final int S_V2 = VERSION_CODES.S_V2 * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 33.0.
+         * Android 13.
          */
         public static final int TIRAMISU = VERSION_CODES.TIRAMISU * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 34.0.
+         * Android 14.
          */
         public static final int UPSIDE_DOWN_CAKE =
                 VERSION_CODES.UPSIDE_DOWN_CAKE * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 35.0.
+         * Android 15.
          */
         public static final int VANILLA_ICE_CREAM =
                 VERSION_CODES.VANILLA_ICE_CREAM * SDK_INT_MULTIPLIER;
 
         /**
-         * Android 36.0.
+         * Android 16.
          */
         public static final int BAKLAVA = VERSION_CODES.BAKLAVA * SDK_INT_MULTIPLIER;
+
+        /**
+         * Android 16, minor release 1.
+         */
+        @SuppressLint("UnflaggedApi")
+        public static final int BAKLAVA_1 = VERSION_CODES.BAKLAVA * SDK_INT_MULTIPLIER + 1;
     }
 
     /**
@@ -1526,7 +1499,6 @@ public class Build {
      *
      * @return The major version encoded in a VERSION_CODES_FULL value
      */
-    @FlaggedApi(Flags.FLAG_MAJOR_MINOR_VERSIONING_SCHEME)
     public static int getMajorSdkVersion(@SdkIntFull int sdkIntFull) {
         return sdkIntFull / VERSION_CODES_FULL.SDK_INT_MULTIPLIER;
     }
@@ -1537,7 +1509,6 @@ public class Build {
      *
      * @return The minor version encoded in a VERSION_CODES_FULL value
      */
-    @FlaggedApi(Flags.FLAG_MAJOR_MINOR_VERSIONING_SCHEME)
     public static int getMinorSdkVersion(@SdkIntFull int sdkIntFull) {
         return sdkIntFull % VERSION_CODES_FULL.SDK_INT_MULTIPLIER;
     }
@@ -1745,14 +1716,6 @@ public class Build {
         SystemProperties.getInt("ro.hw_timeout_multiplier", 1);
 
     /**
-     * True if Treble is enabled and required for this device.
-     *
-     * @hide
-     */
-    public static final boolean IS_TREBLE_ENABLED =
-        SystemProperties.getBoolean("ro.treble.enabled", false);
-
-    /**
      * Verifies the current flash of the device is consistent with what
      * was expected at build time.
      *
@@ -1769,64 +1732,11 @@ public class Build {
         // Don't care on eng builds.  Incremental build may trigger false negative.
         if (IS_ENG) return true;
 
-        if (IS_TREBLE_ENABLED) {
-            int result = VintfObject.verifyBuildAtBoot();
-
-            if (result != 0) {
-                Slog.e(TAG, "Vendor interface is incompatible, error="
-                        + String.valueOf(result));
-            }
-
-            return result == 0;
+        int result = VintfObject.verifyBuildAtBoot();
+        if (result != 0) {
+            Slog.e(TAG, "Vendor interface is incompatible, error=" + result);
+           return false;
         }
-
-        final String system = SystemProperties.get("ro.system.build.fingerprint");
-        final String vendor = SystemProperties.get("ro.vendor.build.fingerprint");
-        final String bootimage = SystemProperties.get("ro.bootimage.build.fingerprint");
-        final String requiredBootloader = SystemProperties.get("ro.build.expect.bootloader");
-        final String currentBootloader = SystemProperties.get("ro.bootloader");
-        final String requiredRadio = SystemProperties.get("ro.build.expect.baseband");
-        final String currentRadio = joinListOrElse(
-                TelephonyProperties.baseband_version(), "");
-
-        if (TextUtils.isEmpty(system)) {
-            Slog.e(TAG, "Required ro.system.build.fingerprint is empty!");
-            return false;
-        }
-
-        if (!TextUtils.isEmpty(vendor)) {
-            if (!Objects.equals(system, vendor)) {
-                Slog.e(TAG, "Mismatched fingerprints; system reported " + system
-                        + " but vendor reported " + vendor);
-                return false;
-            }
-        }
-
-        /* TODO: Figure out issue with checks failing
-        if (!TextUtils.isEmpty(bootimage)) {
-            if (!Objects.equals(system, bootimage)) {
-                Slog.e(TAG, "Mismatched fingerprints; system reported " + system
-                        + " but bootimage reported " + bootimage);
-                return false;
-            }
-        }
-
-        if (!TextUtils.isEmpty(requiredBootloader)) {
-            if (!Objects.equals(currentBootloader, requiredBootloader)) {
-                Slog.e(TAG, "Mismatched bootloader version: build requires " + requiredBootloader
-                        + " but runtime reports " + currentBootloader);
-                return false;
-            }
-        }
-
-        if (!TextUtils.isEmpty(requiredRadio)) {
-            if (!Objects.equals(currentRadio, requiredRadio)) {
-                Slog.e(TAG, "Mismatched radio version: build requires " + requiredRadio
-                        + " but runtime reports " + currentRadio);
-                return false;
-            }
-        }
-        */
 
         return true;
     }
@@ -1955,11 +1865,11 @@ public class Build {
         return IS_DEBUGGABLE;
     }
 
-    /** {@hide} */
+    /** @hide */
     public static final boolean IS_ENG = "eng".equals(TYPE);
-    /** {@hide} */
+    /** @hide */
     public static final boolean IS_USERDEBUG = "userdebug".equals(TYPE);
-    /** {@hide} */
+    /** @hide */
     public static final boolean IS_USER = "user".equals(TYPE);
 
     /**

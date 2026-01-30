@@ -40,7 +40,7 @@
     </FrameLayout>
     <TextView
         android:id="@+id/edit_user_info_message"
-        android:gravity="center"
+        android:gravity="start"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="6dp"

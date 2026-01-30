@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Aktualisieren"</string>
     <string name="done" msgid="6632441120016885253">"Fertig"</string>
     <string name="cancel" msgid="1018267193425558088">"Abbrechen"</string>
+    <string name="more_details" msgid="3643407086654820243">"Weitere Details"</string>
+    <string name="dont_install" msgid="414055123295505225">"Nicht installieren"</string>
     <string name="installing" msgid="4921993079741206516">"Wird installiert…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> wird installiert…"</string>
     <string name="install_done" msgid="5987363587661783896">"App wurde installiert."</string>
@@ -43,7 +45,7 @@
     <string name="unknown_apps_admin_dlg_text" msgid="4456572224020176095">"Dein Administrator lässt keine Installationen von Apps aus unbekannten Quellen zu"</string>
     <string name="unknown_apps_user_restriction_dlg_text" msgid="151020786933988344">"Dieser Nutzer darf keine unbekannten Apps installieren"</string>
     <string name="install_apps_user_restriction_dlg_text" msgid="2154119597001074022">"Dieser Nutzer darf keine Apps installieren"</string>
-    <string name="ok" msgid="7871959885003339302">"Ok"</string>
+    <string name="ok" msgid="7871959885003339302">"OK"</string>
     <string name="archive" msgid="4447791830199354721">"Archivieren"</string>
     <string name="update_anyway" msgid="8792432341346261969">"Trotzdem aktualisieren"</string>
     <string name="manage_applications" msgid="5400164782453975580">"Apps verwalten"</string>

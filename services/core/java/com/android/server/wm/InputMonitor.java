@@ -68,6 +68,7 @@ import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.protolog.ProtoLog;
 import com.android.server.LocalServices;
 import com.android.server.inputmethod.InputMethodManagerInternal;
+import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
@@ -234,7 +235,7 @@ final class InputMonitor {
                 consumer.mWindowHandle.inputConfig |= InputConfig.DUPLICATE_TOUCH_TO_WALLPAPER;
                 break;
             case INPUT_CONSUMER_PIP:
-                // This is a valid consumer type, but we don't need any additional configurations.
+                consumer.mWindowHandle.inputConfig |= InputConfig.DISPLAY_TOPOLOGY_AWARE;
                 break;
             case INPUT_CONSUMER_RECENTS_ANIMATION:
                 consumer.mWindowHandle.inputConfig &= ~InputConfig.NOT_FOCUSABLE;
@@ -257,8 +258,6 @@ final class InputMonitor {
         inputWindowHandle.setTouchOcclusionMode(w.getTouchOcclusionMode());
         inputWindowHandle.setPaused(w.mActivityRecord != null && w.mActivityRecord.paused);
         inputWindowHandle.setWindowToken(w.mClient.asBinder());
-
-        inputWindowHandle.setName(w.getName());
 
         // Update layout params flags to force the window to be not touch modal. We do this to
         // restrict the window's touchable region to the task even if it requests touches outside
@@ -438,15 +437,20 @@ final class InputMonitor {
                                     SoftInputShowHideReason.HIDE_RECENTS_ANIMATION,
                                     mDisplayContent.getDisplayId());
                         }
-                        // Ensure removing the IME snapshot when the app no longer to show on the
-                        // task snapshot (also taking the new task snaphot to update the overview).
+                        // Ensure removing the IME screenshot when the app no longer to show on the
+                        // task snapshot (also taking the new task snapshot to update the overview).
                         final ActivityRecord app = mDisplayContent.getImeInputTarget() != null
                                 ? mDisplayContent.getImeInputTarget().getActivityRecord() : null;
                         if (app != null) {
-                            mDisplayContent.removeImeSurfaceImmediately();
+                            mDisplayContent.removeImeScreenshotImmediately();
                             if (app.getTask() != null) {
-                                mDisplayContent.mAtmService.takeTaskSnapshot(app.getTask().mTaskId,
-                                        true /* updateCache */);
+                                if (Flags.reduceTaskSnapshotMemoryUsage()) {
+                                    mDisplayContent.mWmService.mTaskSnapshotController
+                                            .recordSnapshot(app.getTask());
+                                } else {
+                                    mDisplayContent.mAtmService.takeTaskSnapshot(
+                                            app.getTask().mTaskId, true /* updateCache */);
+                                }
                             }
                         }
                     } else {

@@ -818,6 +818,8 @@ public class MediaQualityContract {
 
         /**
          * Enable/disable surround sound.
+         * Stereo Pulse-Code Modulation to apply a customizable filter. There is no difference on
+         * any use cases.
          *
          * <p>Type: BOOLEAN
          */
@@ -859,7 +861,19 @@ public class MediaQualityContract {
         public static final String PARAMETER_AUTO_VOLUME_CONTROL = "auto_volume_control";
 
         /**
-         * Downmix mode.
+         * Sets the downmix mode for multi-channel audio.
+         *
+         * <p>This parameter determines how multi-channel audio (e.g., 5.1) is converted
+         * to a two-channel stereo output. This is useful when the playback device, like
+         * headphones or TV speakers, has fewer channels than the source audio.
+         *
+         * <p>The supported string values are:
+         * <ul>
+         * <li>{@code "Stereo"}: A standard downmix (Lo/Ro) suitable for most stereo
+         * playback devices. <b>(Default)</b></li>
+         * <li>{@code "Surround"}: A downmix that is matrix-encoded with surround sound
+         * information (Lt/Rt).
+         * </ul>
          *
          * <p>Type: STRING
          */
@@ -878,7 +892,21 @@ public class MediaQualityContract {
         public static final String PARAMETER_DOLBY_AUDIO_PROCESSING = "dolby_audio_processing";
 
         /**
-         * Sound mode for dolby audio processing.
+         * Sets the sound mode for Dolby audio processing.
+         *
+         * <p>This parameter allows the selection of a preset audio profile to optimize the
+         * listening experience for different types of content. The supported values are:
+         * <ul>
+         * <li>{@code "Game"}
+         * <li>{@code "Movie"}
+         * <li>{@code "Music"}
+         * <li>{@code "News"}
+         * <li>{@code "Stadium"}
+         * <li>{@code "Standard"}
+         * <li>{@code "User"}
+         * </ul>
+         *
+         * <p>The default value is {@code "Standard"}.
          *
          * <p>Type: STRING
          */
@@ -898,12 +926,13 @@ public class MediaQualityContract {
                 "dolby_audio_processing_volume_leveler";
 
         /**
-         * Enable/disable Surround Virtualizer.
+         * Enable/disable the Surround Virtualizer.
          *
-         * <p>Surround Virtualizer creates a virtual surround sound experience from stereo
-         * content, making it seem like the sound is coming from multiple speakers, even if
-         * you only have your TV's built-in speakers. It expands the soundstage and adds
-         * depth to the audio.
+         * <p>The Surround Virtualizer creates a virtual surround sound experience when
+         * playing back Atmos, surround, and stereo content over two-channel endpoints
+         * like TV built-in speakers and headphones. It expands the soundstage and adds
+         * depth to the audio, creating an immersive effect without a multi-speaker setup.
+         * Note: When Dolby Atoms playback streams are active, this will always be true.
          *
          * <p>Type: BOOLEAN
          */
@@ -911,15 +940,23 @@ public class MediaQualityContract {
                 "dolby_audio_processing_surround_virtualizer";
 
         /**
-         * Enable/disable Dolby Atmos.
+         * Enables or disables Dolby Atmos processing.
          *
          * <p>Dolby Atmos creates a more immersive and realistic sound experience by adding
          * a height dimension to surround sound. It allows sound to be placed and moved
          * precisely around you, including overhead.
          *
-         * <p>Note: To experience Dolby Atmos, you need content that has been specifically
-         * mixed in Dolby Atmos and a compatible sound system with upward-firing speakers
-         * or a Dolby Atmos soundbar.
+         * <p>When set to {@code true}, Dolby Atmos processing is enabled. When set to
+         * {@code false}, it is disabled, and the audio will be processed using other
+         * standard settings. Disabling this parameter does not change the list of
+         * available audio formats presented to the audio framework.
+         *
+         * <p><b>Note:</b> This setting is only effective on devices that support Dolby
+         * Atmos; on unsupported systems, this option may be ignored or hidden. To
+         * experience Dolby Atmos, you need content specifically mixed for it. The
+         * immersive effect can be delivered through a dedicated Dolby Atmos sound
+         * system or through virtualization technologies for headphones and built-in
+         * speakers.
          *
          * <p>Type: BOOLEAN
          */
@@ -1025,7 +1062,21 @@ public class MediaQualityContract {
                 "digital_output_delay_millis";
 
         /**
-         * Digital output mode.
+         * Sets the digital audio output mode.
+         *
+         * <p>This parameter controls the audio format sent to a digital output like
+         * HDMI or S/PDIF. This allows the user to select a specific audio format or
+         * let the system decide automatically. The supported values are:
+         * <ul>
+         * <li>{@code "Auto"}: The system automatically selects the preferred format supported
+         * by the connected device. (Default)</li>
+         * <li>{@code "Bypass"}: The encoded audio stream is sent directly to the output
+         * without being decoded by this device.</li>
+         * <li>{@code "PCM"}: Audio is decoded to uncompressed Pulse-Code Modulation.</li>
+         * <li>{@code "Dolby Digital Plus"}</li>
+         * <li>{@code "Dolby Digital"}</li>
+         * <li>{@code "Dolby MAT"}</li>
+         * </ul>
          *
          * <p>Type: STRING
          */

@@ -44,7 +44,6 @@ constructor(
             c.getUnfoldTransitionWallpaperController().init()
             c.getUnfoldHapticsPlayer()
             c.getNaturalRotationUnfoldProgressProvider().init()
-            c.getUnfoldLatencyTracker().init()
         }
 
         foldStateLoggingProviderOptional.ifPresent { obj: FoldStateLoggingProvider -> obj.init() }

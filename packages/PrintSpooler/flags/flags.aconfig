@@ -2,19 +2,15 @@ package: "com.android.printspooler.flags"
 container: "system"
 
 flag {
-  name: "log_print_jobs"
+  name: "printing_telemetry"
   namespace: "printing"
-  description: "Log print job creation and state transitions."
-  bug: "385340868"
+  description: "Metrics tracking final print job status, printer discovery, printer capabilities, and major UI actions."
+  bug: "390478410"
 }
 
 flag {
-    name: "print_edge2edge"
+    name: "enable_print_debug_option"
     namespace: "printing"
-    description: "Enable edge to edge in print spooler"
-    bug: "378652618"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Enable extra debug logging by checking a runtime system property."
+    bug: "397418860"
 }

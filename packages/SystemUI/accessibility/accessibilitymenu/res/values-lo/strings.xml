@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"ໄປທີ່ໜ້າຈໍກ່ອນໜ້າ"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"ໄປທີ່ໜ້າຈໍຖັດໄປ"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"ເມນູການຊ່ວຍເຂົ້າເຖິງຈະສະໜອງເມນູຢູ່ໜ້າຈໍຂະໜາດໃຫຍ່ເພື່ອຄວບຄຸມອຸປະກອນຂອງທ່ານ. ທ່ານສາມາດລັອກອຸປະກອນຂອງທ່ານ, ຄວບຄຸມລະດັບສຽງ ແລະ ຄວາມສະຫວ່າງ, ຖ່າຍຮູບໜ້າຈໍ ແລະ ອື່ນໆໄດ້."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"ຄວບຄຸມອຸປະກອນຜ່ານເມນູໃຫຍ່"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"ຄວບຄຸມລະດັບສຽງ, ຄວາມສະຫວ່າງ ແລະ ອື່ນໆດ້ວຍເມນູຂະໜາດໃຫຍ່"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"ການຕັ້ງຄ່າເມນູການຊ່ວຍເຂົ້າເຖິງ"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ປຸ່ມໃຫຍ່"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"ເພີ່ມຂະໜາດຂອງປຸ່ມເມນູການຊ່ວຍເຂົ້າເຖິງ"</string>

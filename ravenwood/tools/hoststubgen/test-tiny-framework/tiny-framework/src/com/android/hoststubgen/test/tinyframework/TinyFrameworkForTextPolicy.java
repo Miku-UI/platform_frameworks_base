@@ -86,6 +86,10 @@ public class TinyFrameworkForTextPolicy {
         return value + 3;
     }
 
+    public int addFour(int value) {
+        return value + 4;
+    }
+
     public String unsupportedMethod() {
         return "This value shouldn't be seen on the host side.";
     }

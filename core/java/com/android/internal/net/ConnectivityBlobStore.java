@@ -69,6 +69,14 @@ public class ConnectivityBlobStore {
     }
 
     /**
+     * Get the calling uid. Method is intended to be overridden in the unit tests.
+     */
+    @VisibleForTesting
+    protected int getCallingUidMockable() {
+        return Binder.getCallingUid();
+    }
+
+    /**
      * Stores the blob under the name in the database. Existing blobs by the same name will be
      * replaced.
      *
@@ -78,7 +86,7 @@ public class ConnectivityBlobStore {
      * @hide
      */
     public boolean put(@NonNull String name, @NonNull byte[] blob) {
-        final int ownerUid = Binder.getCallingUid();
+        final int ownerUid = getCallingUidMockable();
         final ContentValues values = new ContentValues();
         values.put("owner", ownerUid);
         values.put("name", name);
@@ -101,7 +109,7 @@ public class ConnectivityBlobStore {
      * @hide
      */
     public byte[] get(@NonNull String name) {
-        final int ownerUid = Binder.getCallingUid();
+        final int ownerUid = getCallingUidMockable();
         try (Cursor cursor = mDb.query(TABLENAME,
                 new String[] {"blob"} /* columns */,
                 "owner=? AND name=?" /* selection */,
@@ -127,7 +135,7 @@ public class ConnectivityBlobStore {
      * @hide
      */
     public boolean remove(@NonNull String name) {
-        final int ownerUid = Binder.getCallingUid();
+        final int ownerUid = getCallingUidMockable();
         try {
             final int res = mDb.delete(TABLENAME,
                     "owner=? AND name=?" /* whereClause */,
@@ -135,6 +143,26 @@ public class ConnectivityBlobStore {
             return res > 0;
         } catch (SQLException e) {
             Log.e(TAG, "Error in removing " + name + ": " + e);
+            return false;
+        }
+    }
+
+    /**
+     * Remove all blobs that are stored in the database.
+     *
+     * @return True if the operation was successful, false otherwise.
+     * @hide
+     */
+    public boolean removeAll() {
+        final int ownerUid = getCallingUidMockable();
+        try {
+            final int numRowsRemoved = mDb.delete(TABLENAME, "owner=?" /* whereClause */,
+                    new String[] {Integer.toString(ownerUid)} /* whereArgs */);
+            Log.i(TAG, "Removed " + numRowsRemoved + " rows during the removeAll operation "
+                    + "for uid " + ownerUid);
+            return true;
+        } catch (SQLException e) {
+            Log.e(TAG, "Error while removing all blobs: " + e);
             return false;
         }
     }
@@ -150,7 +178,7 @@ public class ConnectivityBlobStore {
      * @hide
      */
     public String[] list(@NonNull String prefix) {
-        final int ownerUid = Binder.getCallingUid();
+        final int ownerUid = getCallingUidMockable();
         final List<String> names = new ArrayList<String>();
         try (Cursor cursor = mDb.query(TABLENAME,
                 new String[] {"name"} /* columns */,

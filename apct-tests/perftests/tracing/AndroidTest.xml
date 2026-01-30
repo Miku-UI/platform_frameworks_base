@@ -13,12 +13,14 @@
      See the License for the specific language governing permissions and
      limitations under the License.
 -->
-<configuration description="Runs ProtologPerfTests metric instrumentation.">
+<configuration description="Runs UiTracingPerfTests metric instrumentation.">
+    <option name="config-descriptor:metadata" key="test-type" value="performance" />
+
     <option name="test-suite-tag" value="apct" />
     <option name="test-suite-tag" value="apct-metric-instrumentation" />
     <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
         <option name="cleanup-apks" value="true" />
-        <option name="test-file-name" value="ProtologPerfTests.apk" />
+        <option name="test-file-name" value="UiTracingPerfTests.apk" />
     </target_preparer>
 
     <target_preparer class="com.android.tradefed.targetprep.DeviceSetup">
@@ -38,11 +40,11 @@
     <option name="isolated-storage" value="false" />
 
     <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
-        <option name="package" value="com.android.perftests.protolog" />
+        <option name="package" value="android.tracing.perftests" />
         <option name="hidden-api-checks" value="false"/>
 
         <!-- Listener related args for collecting the traces and waiting for the device to stabilize. -->
-        <option name="device-listeners" value="android.device.collectors.ProcLoadListener,android.device.collectors.PerfettoListener" />
+        <option name="device-listeners" value="android.device.collectors.ProcLoadListener,android.device.collectors.SimpleperfListener,android.device.collectors.PerfettoListener" />
 
         <!-- Guarantee that user defined RunListeners will be running before any of the default listeners defined in this runner. -->
         <option name="instrumentation-arg" key="newRunListenerMode" value="true" />
@@ -57,11 +59,54 @@
         <!-- PerfettoListener related arguments -->
         <option name="instrumentation-arg" key="perfetto_config_text_proto" value="true" />
         <option name="instrumentation-arg" key="perfetto_config_file" value="trace_config.textproto" />
+
+        <option name="instrumentation-arg" key="listener" value="android.device.collectors.CpuUsageListener,android.device.collectors.ProcLoadListener,android.device.collectors.PerfettoListener,android.device.collectors.CrashListener,android.device.collectors.ThermalListener,android.device.collectors.TotalPssMetricListener,android.device.collectors.LogcatCollector,android.device.collectors.HeapDumpListener"/>
+        <option name="instrumentation-arg" key="procload-collector:per_run" value="true"/>
+        <option name="instrumentation-arg" key="procload-collector:proc-loadavg-timeout" value="900000"/>
+        <option name="instrumentation-arg" key="procload-collector:proc-loadavg-interval" value="20000"/>
+        <option name="instrumentation-arg" key="procload-collector:proc-loadavg-threshold" value="2"/>
+        <option name="instrumentation-arg" key="cpuusage-collector:disable_per_pkg" value="true"/>
+        <option name="instrumentation-arg" key="cpuusage-collector:disable_per_freq" value="true"/>
+        <option name="instrumentation-arg" key="cpuusage-collector:log" value="true"/>
+        <option name="instrumentation-arg" key="trace-processor-name" value="trace_processor_shell"/>
+        <option name="instrumentation-arg" key="logcat-collector:collect-on-failure-only" value="true"/>
+        <option name="instrumentation-arg" key="perfetto_persist_pid_track" value="false"/>
+        <option name="instrumentation-arg" key="totalpss-collector:log" value="true"/>
+        <option name="instrumentation-arg" key="crash-collector:log" value="true"/>
+        <option name="instrumentation-arg" key="skip_test_failure_metrics" value="true"/>
+        <option name="instrumentation-arg" key="include-ui-xml" value="true"/>
+        <option name="instrumentation-arg" key="app-version-listener:per_run" value="true"/>
+        <option name="isolated-storage" value="false"/>
     </test>
 
-    <!-- <metrics_collector class="com.android.tradefed.device.metric.FilePullerLogCollector">
-        <option name="directory-keys" value="/data/local/tmp/ProtologPerfTests" /> -->
-        <!-- Needed for pulling the collected trace config on to the host -->
-        <!-- <option name="pull-pattern-keys" value="perfetto_file_path" />
-    </metrics_collector> -->
+    <metrics_collector class="com.android.tradefed.device.metric.PerfettoFilePullerCollector">
+        <option name="pull-pattern-keys" value="^perfetto_file_path(_\d+)?$" />
+        <option name="collect-on-run-ended-only" value="false"/>
+    </metrics_collector>
+
+    <metrics_collector class="com.android.tradefed.device.metric.PerfettoPullerMetricCollector">
+        <option name="trace-processor-binary" value="trace_processor_shell"/>
+        <option name="perfetto-v1-metrics" value="false"/>
+        <option name="perfetto-v2-metrics" value="true"/>
+        <option name="perfetto-v2-metrics-ids" value="avg_runtime_per_uitracing_slice" />
+        <option name="summary-spec-file-name" value="avg_runtime_per_uitracing_slice.textproto" />
+        <option name="trace-processor-timeout" value="120000"/>
+        <option name="pull-pattern-keys" value="perfetto_file_path"/>
+        <option name="clean-up" value="false"/>
+        <option name="collect-on-run-ended-only" value="false"/>
+    </metrics_collector>
+
+    <metric_post_processor class="com.android.tradefed.postprocessor.PerfettoGenericPostProcessor">
+        <option name="perfetto-proto-file-prefix" value="metric_v2_perfetto"/>
+    </metric_post_processor>
+
+    <metrics_collector class="com.android.tradefed.device.metric.FilePullerLogCollector">
+        <option name="pull-pattern-keys" value="managed_heapdump_file.*"/>
+        <option name="pull-pattern-keys" value="android.device.collectors.LogcatCollector.*"/>
+        <!-- Passing case already collected by PerfettoPullerMetricCollector -->
+        <option name="pull-pattern-keys" value="^perfetto_file_path_FAILED(_\d+)?$"/>
+        <option name="clean-up" value="false"/>
+        <option name="collect-on-run-ended-only" value="false"/>
+    </metrics_collector>
+
 </configuration>

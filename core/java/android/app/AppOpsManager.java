@@ -1706,9 +1706,54 @@ public class AppOpsManager {
     public static final int OP_SCENE_UNDERSTANDING_FINE =
             AppOpEnums.APP_OP_SCENE_UNDERSTANDING_FINE;
 
+    /**
+     * Post promoted notifications in the notification shade and status bar chips.
+     *
+     * @hide
+     */
+    public static final int OP_POST_PROMOTED_NOTIFICATIONS =
+            AppOpEnums.APP_OP_POST_PROMOTED_NOTIFICATIONS;
+
+    /** @hide */
+    public static final int OP_SYSTEM_APPLICATION_OVERLAY =
+            AppOpEnums.APP_OP_SYSTEM_APPLICATION_OVERLAY;
+
+    /**
+     * Access cell identity data.
+     *
+     * @hide
+     */
+    public static final int OP_READ_CELL_IDENTITY = AppOpEnums.APP_OP_READ_CELL_IDENTITY;
+
+    /**
+     * Access cell info data such as connection status or registered to a
+     * mobile network.
+     *
+     * @hide
+     */
+    public static final int OP_READ_CELL_INFO = AppOpEnums.APP_OP_READ_CELL_INFO;
+
+    /**
+     * Allow the app to create sessions for automated control of other applications.
+     *
+     * @hide
+     */
+    public static final int OP_COMPUTER_CONTROL = AppOpEnums.APP_OP_COMPUTER_CONTROL;
+
+    /**
+     * Allow the app to read SMS messages that contain One Time Passwords (OTPs). This app op does
+     * not remove the need for the READ_SMS app op to be granted.
+     *
+     * @hide
+     */
+    public static final int OP_READ_OTP_SMS = AppOpEnums.APP_OP_READ_OTP_SMS;
+
+    /** @hide Access local network devices. */
+    public static final int OP_ACCESS_LOCAL_NETWORK = AppOpEnums.APP_OP_ACCESS_LOCAL_NETWORK;
+
     /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
-    public static final int _NUM_OP = 163;
+    public static final int _NUM_OP = 170;
 
     /**
      * All app ops represented as strings.
@@ -1875,6 +1920,13 @@ public class AppOpsManager {
             OPSTR_HEAD_TRACKING,
             OPSTR_SCENE_UNDERSTANDING_COARSE,
             OPSTR_SCENE_UNDERSTANDING_FINE,
+            OPSTR_POST_PROMOTED_NOTIFICATIONS,
+            OPSTR_SYSTEM_APPLICATION_OVERLAY,
+            OPSTR_READ_CELL_IDENTITY,
+            OPSTR_READ_CELL_INFO,
+            OPSTR_COMPUTER_CONTROL,
+            OPSTR_READ_OTP_SMS,
+            OPSTR_ACCESS_LOCAL_NETWORK,
     })
     public @interface AppOpString {}
 
@@ -2489,6 +2541,8 @@ public class AppOpsManager {
      *
      * @hide
      */
+    @TestApi
+    @SuppressLint("UnflaggedApi") // Exposing via @TestApi without associated new feature
     public static final String OPSTR_SYSTEM_EXEMPT_FROM_ACTIVITY_BG_START_RESTRICTION =
             "android:system_exempt_from_activity_bg_start_restriction";
 
@@ -2614,17 +2668,14 @@ public class AppOpsManager {
 
     /** @hide Access to read heart rate sensor. */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_REPLACE_BODY_SENSOR_PERMISSION_ENABLED)
     public static final String OPSTR_READ_HEART_RATE = "android:read_heart_rate";
 
     /** @hide Access to read oxygen saturation. */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_REPLACE_BODY_SENSOR_PERMISSION_ENABLED)
     public static final String OPSTR_READ_OXYGEN_SATURATION = "android:read_oxygen_saturation";
 
     /** @hide Access to read skin temperature. */
     @SystemApi
-    @FlaggedApi(Flags.FLAG_REPLACE_BODY_SENSOR_PERMISSION_ENABLED)
     public static final String OPSTR_READ_SKIN_TEMPERATURE = "android:read_skin_temperature";
 
     /** @hide Access to ranging */
@@ -2670,6 +2721,29 @@ public class AppOpsManager {
     @FlaggedApi(android.xr.Flags.FLAG_XR_MANIFEST_ENTRIES)
     public static final String OPSTR_SCENE_UNDERSTANDING_FINE =
             "android:scene_understanding_fine";
+
+    /** @hide Permission to post promoted notifications. */
+    public static final String OPSTR_POST_PROMOTED_NOTIFICATIONS =
+            "android:post_promoted_notifications";
+
+    /** @hide Required to draw system application overlays. */
+    public static final String OPSTR_SYSTEM_APPLICATION_OVERLAY =
+            "android:system_application_overlay";
+
+    /** @hide Read telephony cell identity. */
+    public static final String OPSTR_READ_CELL_IDENTITY = "android:read_cell_identity";
+
+    /** @hide Read telephony cell information. */
+    public static final String OPSTR_READ_CELL_INFO = "android:read_cell_info";
+
+    /** @hide Control other applications. */
+    public static final String OPSTR_COMPUTER_CONTROL = "android:computer_control";
+
+    /** @hide Read OTP SMS messages */
+    public static final String OPSTR_READ_OTP_SMS = "android:read_otp_sms";
+
+    /** @hide */
+    public static final String OPSTR_ACCESS_LOCAL_NETWORK = "android:access_local_network";
 
     /** {@link #sAppOpsToNote} not initialized yet for this op */
     private static final byte SHOULD_COLLECT_NOTE_OP_NOT_INITIALIZED = 0;
@@ -2743,12 +2817,13 @@ public class AppOpsManager {
             OP_UWB_RANGING,
             OP_NEARBY_WIFI_DEVICES,
             Flags.rangingPermissionEnabled() ? OP_RANGING : OP_NONE,
+            Flags.accessLocalNetworkPermissionEnabled() ? OP_ACCESS_LOCAL_NETWORK : OP_NONE,
             // Notifications
             OP_POST_NOTIFICATION,
             // Health
-            Flags.replaceBodySensorPermissionEnabled() ? OP_READ_HEART_RATE : OP_NONE,
-            Flags.replaceBodySensorPermissionEnabled() ? OP_READ_SKIN_TEMPERATURE : OP_NONE,
-            Flags.replaceBodySensorPermissionEnabled() ? OP_READ_OXYGEN_SATURATION : OP_NONE,
+            OP_READ_HEART_RATE,
+            OP_READ_SKIN_TEMPERATURE,
+            OP_READ_OXYGEN_SATURATION,
             // Android XR
             android.xr.Flags.xrManifestEntries() ? OP_EYE_TRACKING_COARSE : OP_NONE,
             android.xr.Flags.xrManifestEntries() ? OP_EYE_TRACKING_FINE : OP_NONE,
@@ -2796,6 +2871,10 @@ public class AppOpsManager {
             OP_MEDIA_ROUTING_CONTROL,
             OP_READ_SYSTEM_GRAMMATICAL_GENDER,
             OP_WRITE_SYSTEM_PREFERENCES,
+            android.app.Flags.uiRichOngoing()
+                    ? OP_POST_PROMOTED_NOTIFICATIONS : OP_NONE,
+            com.android.media.projection.flags.Flags.recordingOverlay()
+                    ? OP_SYSTEM_APPLICATION_OVERLAY : OP_NONE,
     };
 
     @SuppressWarnings("FlaggedApi")
@@ -3267,22 +3346,17 @@ public class AppOpsManager {
                 OPSTR_RECEIVE_SENSITIVE_NOTIFICATIONS, "RECEIVE_SENSITIVE_NOTIFICATIONS")
                 .setDefaultMode(MODE_IGNORED).build(),
         new AppOpInfo.Builder(OP_READ_HEART_RATE, OPSTR_READ_HEART_RATE, "READ_HEART_RATE")
-            .setPermission(Flags.replaceBodySensorPermissionEnabled() ?
-                HealthPermissions.READ_HEART_RATE : null)
+            .setPermission(HealthPermissions.READ_HEART_RATE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_READ_SKIN_TEMPERATURE, OPSTR_READ_SKIN_TEMPERATURE,
-            "READ_SKIN_TEMPERATURE").setPermission(
-                Flags.replaceBodySensorPermissionEnabled()
-                    ? HealthPermissions.READ_SKIN_TEMPERATURE : null)
+            "READ_SKIN_TEMPERATURE").setPermission(HealthPermissions.READ_SKIN_TEMPERATURE)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_RANGING, OPSTR_RANGING, "RANGING")
             .setPermission(Flags.rangingPermissionEnabled()?
                 Manifest.permission.RANGING : null)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_READ_OXYGEN_SATURATION, OPSTR_READ_OXYGEN_SATURATION,
-            "READ_OXYGEN_SATURATION").setPermission(
-                Flags.replaceBodySensorPermissionEnabled()
-                    ? HealthPermissions.READ_OXYGEN_SATURATION : null)
+            "READ_OXYGEN_SATURATION").setPermission(HealthPermissions.READ_OXYGEN_SATURATION)
             .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
         new AppOpInfo.Builder(OP_WRITE_SYSTEM_PREFERENCES, OPSTR_WRITE_SYSTEM_PREFERENCES,
             "WRITE_SYSTEM_PREFERENCES").setPermission(
@@ -3327,6 +3401,38 @@ public class AppOpsManager {
                 .setPermission(android.xr.Flags.xrManifestEntries()
                     ? Manifest.permission.SCENE_UNDERSTANDING_FINE : null)
                 .build(),
+        new AppOpInfo.Builder(OP_POST_PROMOTED_NOTIFICATIONS, OPSTR_POST_PROMOTED_NOTIFICATIONS,
+                "POST_PROMOTED_NOTIFICATIONS")
+                .setPermission(android.app.Flags.uiRichOngoing()
+                        ? Manifest.permission.POST_PROMOTED_NOTIFICATIONS : null)
+                .build(),
+        new AppOpInfo.Builder(OP_SYSTEM_APPLICATION_OVERLAY, OPSTR_SYSTEM_APPLICATION_OVERLAY,
+                "SYSTEM_APPLICATION_OVERLAY")
+                .setPermission(com.android.media.projection.flags.Flags.recordingOverlay()
+                        ? Manifest.permission.SYSTEM_APPLICATION_OVERLAY : null)
+                .build(),
+        new AppOpInfo.Builder(OP_READ_CELL_IDENTITY, OPSTR_READ_CELL_IDENTITY,
+                "READ_CELL_IDENTITY")
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED)
+                .build(),
+        new AppOpInfo.Builder(OP_READ_CELL_INFO, OPSTR_READ_CELL_INFO,
+                "READ_CELL_INFO")
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED)
+                .build(),
+        // OP_COMPUTER_CONTROL is related to the ACCESS_COMPUTER_CONTROL permission but with
+        // slightly different semantics - the permission must be held in order to request a
+        // computer control session at all, while the op mode determines whether explicit user
+        // consent is required when requesting a computer control session.
+        new AppOpInfo.Builder(OP_COMPUTER_CONTROL, OPSTR_COMPUTER_CONTROL, "COMPUTER_CONTROL")
+                .setDefaultMode(AppOpsManager.MODE_IGNORED)
+                .build(),
+        new AppOpInfo.Builder(OP_READ_OTP_SMS, OPSTR_READ_OTP_SMS, "READ_OTP_SMS")
+                .build(),
+        new AppOpInfo.Builder(OP_ACCESS_LOCAL_NETWORK, OPSTR_ACCESS_LOCAL_NETWORK,
+                "ACCESS_LOCAL_NETWORK")
+                .setPermission(Flags.accessLocalNetworkPermissionEnabled()
+                        ? Manifest.permission.ACCESS_LOCAL_NETWORK : null)
+                .setDefaultMode(AppOpsManager.MODE_ALLOWED).build(),
     };
 
     // The number of longs needed to form a full bitmask of app ops
@@ -3394,6 +3500,10 @@ public class AppOpsManager {
             }
         }
         for (int op : APP_OP_PERMISSION_UID_OPS) {
+            if (op == OP_NONE) {
+                // Skip ops with a disabled feature flag.
+                continue;
+            }
             if (sAppOpInfos[op].permission != null) {
                 sPermToOp.put(sAppOpInfos[op].permission, op);
             }
@@ -3588,7 +3698,7 @@ public class AppOpsManager {
      * @hide
      */
     public static boolean opIsUidAppOpPermission(int op) {
-        return ArrayUtils.contains(APP_OP_PERMISSION_UID_OPS, op);
+        return op != OP_NONE && ArrayUtils.contains(APP_OP_PERMISSION_UID_OPS, op);
     }
 
     /**
@@ -5852,8 +5962,10 @@ public class AppOpsManager {
         public void increaseAccessCount(int opCode, int uid, @NonNull String packageName,
                 @Nullable String attributionTag, @UidState int uidState,  @OpFlags int flags,
                 long increment) {
-            getOrCreateHistoricalUidOps(uid).increaseAccessCount(opCode,
-                    packageName, attributionTag, uidState, flags, increment);
+            if (increment > 0) {
+                getOrCreateHistoricalUidOps(uid).increaseAccessCount(opCode,
+                        packageName, attributionTag, uidState, flags, increment);
+            }
         }
 
         /** @hide */
@@ -5861,8 +5973,10 @@ public class AppOpsManager {
         public void increaseRejectCount(int opCode, int uid, @NonNull String packageName,
                 @Nullable String attributionTag, @UidState int uidState, @OpFlags int flags,
                 long increment) {
-            getOrCreateHistoricalUidOps(uid).increaseRejectCount(opCode,
-                    packageName, attributionTag, uidState, flags, increment);
+            if (increment > 0) {
+                getOrCreateHistoricalUidOps(uid).increaseRejectCount(opCode,
+                        packageName, attributionTag, uidState, flags, increment);
+            }
         }
 
         /** @hide */
@@ -5870,8 +5984,10 @@ public class AppOpsManager {
         public void increaseAccessDuration(int opCode, int uid, @NonNull String packageName,
                 @Nullable String attributionTag, @UidState int uidState, @OpFlags int flags,
                 long increment) {
-            getOrCreateHistoricalUidOps(uid).increaseAccessDuration(opCode,
-                    packageName, attributionTag, uidState, flags, increment);
+            if (increment > 0) {
+                getOrCreateHistoricalUidOps(uid).increaseAccessDuration(opCode,
+                       packageName, attributionTag, uidState, flags, increment);
+            }
         }
 
         /** @hide */
@@ -7731,8 +7847,8 @@ public class AppOpsManager {
                     && Objects.equals(mAttributionTag, that.mAttributionTag)
                     && mVirtualDeviceId == that.mVirtualDeviceId
                     && Objects.equals(mMessage, that.mMessage)
-                    && Objects.equals(mShouldCollectAsyncNotedOp, that.mShouldCollectAsyncNotedOp)
-                    && Objects.equals(mShouldCollectMessage, that.mShouldCollectMessage);
+                    && mShouldCollectAsyncNotedOp == that.mShouldCollectAsyncNotedOp
+                    && mShouldCollectMessage == that.mShouldCollectMessage;
         }
 
         @Override
@@ -7852,6 +7968,17 @@ public class AppOpsManager {
          * @hide
          */
         default void onOpChanged(@NonNull String op, @NonNull String packageName,  int userId) {
+            // Backwards compat handling for the original {@link onOpChanged(String, String)}
+            // interface, which wasn't documented non-null. In 25Q2, we changed the
+            // service side implementation to pass empty strings to fix issues with
+            // dropped updates for native callers due to the AIDL interface being
+            // non-null. However, Java callers could still rely on the original,
+            // Java-specific nullity behavior, where a change with a null package name
+            // would be dispatched in the case of a global op state update (such as a
+            // restriction).
+            if ("".equals(packageName)) {
+                packageName = null;
+            }
             onOpChanged(op, packageName);
         }
 
@@ -7867,7 +7994,9 @@ public class AppOpsManager {
          * automatically.
          *
          * @param op The Op that changed.
-         * @param packageName Package of the app whose Op changed.
+         * @param packageName Package of the app whose Op changed. Can be empty in the case of a
+         * change which is not package specific (such as global restrictions) which may imply
+         * a change to the op or package being listened to.
          * @param userId User id of the app whose Op changed.
          * @param persistentDeviceId persistent device id whose Op changed.
          */
@@ -8172,6 +8301,10 @@ public class AppOpsManager {
     private static final String APP_OP_MODE_CACHING_NAME = "appOpModeCache";
     private static final int APP_OP_MODE_CACHING_SIZE = 2048;
 
+    private static final String CHECK_PACKAGE_CACHING_API = "checkPackage";
+    private static final String CHECK_PACKAGE_CACHING_NAME = "checkPackageCache";
+    private static final int CHECK_PACKAGE_CACHING_SIZE = 512;
+
     private static final IpcDataCache.QueryHandler<AppOpModeQuery, Integer> sGetAppOpModeQuery =
             new IpcDataCache.QueryHandler<>() {
                 @Override
@@ -8192,11 +8325,35 @@ public class AppOpsManager {
                 }
             };
 
+    private static final IpcDataCache.QueryHandler<CheckPackageQuery, Integer> sCheckPackageQuery =
+            new IpcDataCache.QueryHandler<>() {
+                @Override
+                public Integer apply(CheckPackageQuery query) {
+                    IAppOpsService service = getService();
+                    try {
+                        return service.checkPackage(query.uid, query.packageName);
+                    } catch (RemoteException e) {
+                        throw e.rethrowFromSystemServer();
+                    }
+                }
+
+                @Override
+                public boolean shouldBypassCache(@NonNull CheckPackageQuery query) {
+                    // If the flag to enable the new caching behavior is off, bypass the cache.
+                    return !Flags.checkPackageCachingEnabled();
+                }
+            };
+
+
     // A LRU cache on binder clients that caches AppOp mode by uid, packageName, virtualDeviceId
     // and attributionTag.
     private static final IpcDataCache<AppOpModeQuery, Integer> sAppOpModeCache =
             new IpcDataCache<>(APP_OP_MODE_CACHING_SIZE, IpcDataCache.MODULE_SYSTEM,
                     APP_OP_MODE_CACHING_API, APP_OP_MODE_CACHING_NAME, sGetAppOpModeQuery);
+
+    private static final IpcDataCache<CheckPackageQuery, Integer> sCheckPackageCache =
+            new IpcDataCache<>(CHECK_PACKAGE_CACHING_SIZE, IpcDataCache.MODULE_SYSTEM,
+                    CHECK_PACKAGE_CACHING_API, CHECK_PACKAGE_CACHING_NAME, sCheckPackageQuery);
 
     // Ops that we don't want to cache due to:
     // 1) Discrepancy of attributionTag support in checkOp and noteOp that determines if a package
@@ -8232,6 +8389,34 @@ public class AppOpsManager {
     public static void disableAppOpModeCache() {
         if (Flags.appopModeCachingEnabled()) {
             sAppOpModeCache.disableLocal();
+        }
+    }
+
+    /**
+     * @hide
+     */
+    public static void invalidateCheckPackageCache() {
+        if (Flags.checkPackageCachingEnabled()) {
+            IpcDataCache.invalidateCache(IpcDataCache.MODULE_SYSTEM, CHECK_PACKAGE_CACHING_API);
+        }
+    }
+
+    /**
+     * Bypass CheckPackageCache in the local process
+     *
+     * @hide
+     */
+    public static void disableCheckPackageCache() {
+        if (Flags.checkPackageCachingEnabled()) {
+            sCheckPackageCache.disableLocal();
+        }
+    }
+
+    private record CheckPackageQuery(int uid, @NonNull String packageName) {
+        @Override
+        public String toString() {
+            return TextUtils.formatSimple("CheckPackageQuery(uid=%d, packageName=%s)", uid,
+                    packageName);
         }
     }
 
@@ -8367,13 +8552,13 @@ public class AppOpsManager {
         } else {
             opCodes = null;
         }
-        final List<AppOpsManager.PackageOps> result;
         try {
-            result = mService.getPackagesForOpsForDevice(opCodes, persistentDeviceId);
+            ParceledListSlice<PackageOps> packageOps = mService.getPackagesForOpsForDevice(opCodes,
+                    persistentDeviceId);
+            return packageOps == null ? Collections.emptyList() : packageOps.getList();
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
-        return (result != null) ? result : Collections.emptyList();
     }
 
     /**
@@ -8392,8 +8577,9 @@ public class AppOpsManager {
     @UnsupportedAppUsage
     public List<AppOpsManager.PackageOps> getPackagesForOps(int[] ops) {
         try {
-            return mService.getPackagesForOpsForDevice(ops,
+            ParceledListSlice<PackageOps> packageOps = mService.getPackagesForOpsForDevice(ops,
                     VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT);
+            return packageOps == null ? null : packageOps.getList();
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -8666,23 +8852,47 @@ public class AppOpsManager {
      * Restrictions are temporary additional constraints imposed on top of the persisted rules
      * defined by {@link #setMode}.
      *
+     * Audio restrictions are keyed by code/usage pairs (i.e. OP_PLAY_AUDIO, USAGE_MEDIA), and have
+     * a value of a MODE and a set of exempted packages, and apply globally.
+     *
      * @param code The operation to restrict.
-     * @param usage The {@link android.media.AudioAttributes} usage value.
-     * @param mode The restriction mode (MODE_IGNORED,MODE_ERRORED) or MODE_ALLOWED to unrestrict.
+     * @param usages A set of {@link android.media.AudioAttributes} usage values to apply
+     * restrictions to, overriding any restriction currently in place for that usage.
+     * @param mode The restriction mode (MODE_IGNORED,MODE_ERRORED) or MODE_ALLOWED to unrestrict
+     * (see key above).
      * @param exceptionPackages Optional list of packages to exclude from the restriction.
      * @hide
      */
     @RequiresPermission(android.Manifest.permission.MANAGE_APP_OPS_MODES)
-    @UnsupportedAppUsage
-    public void setRestriction(int code, @AttributeUsage int usage, @Mode int mode,
+    public void setAudioRestriction(int code, @AttributeUsage int[] usages, @Mode int mode,
             String[] exceptionPackages) {
         try {
-            final int uid = Binder.getCallingUid();
-            mService.setAudioRestriction(code, usage, uid, mode, exceptionPackages);
+            mService.setAudioRestriction(code, usages, mode, exceptionPackages);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
     }
+
+    /**
+     * See #setRestriction(int, int[], int, String[]).
+     *
+     * Included for compatibility
+     *
+     * @param code The operation to restrict.
+     * @param usage The {@link android.media.AudioAttributes} usage value.
+     * @param mode The restriction mode (MODE_IGNORED,MODE_ERRORED) or MODE_ALLOWED to unrestrict.
+     * @param exceptionPackages Optional list of packages to exclude from the restriction.
+     * @deprecated Use {@link #setAudioRestriction(int, int[], int, String[])} instead.
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.MANAGE_APP_OPS_MODES)
+    @Deprecated
+    @UnsupportedAppUsage
+    public void setRestriction(int code, @AttributeUsage int usage, @Mode int mode,
+            String[] exceptionPackages) {
+        setAudioRestriction(code, new int[] {usage}, mode, exceptionPackages);
+    }
+
 
     /** @hide */
     @RequiresPermission(android.Manifest.permission.MANAGE_APP_OPS_MODES)
@@ -8863,7 +9073,7 @@ public class AppOpsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public void startWatchingActive(@NonNull int[] ops,
             @NonNull OnOpActiveChangedListener callback) {
@@ -9225,7 +9435,7 @@ public class AppOpsManager {
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     @TestApi
@@ -10012,7 +10222,15 @@ public class AppOpsManager {
     @Deprecated
     public void checkPackage(int uid, @NonNull String packageName) {
         try {
-            if (mService.checkPackage(uid, packageName) != MODE_ALLOWED) {
+            int mode;
+            if (Flags.checkPackageCachingEnabled()) {
+                mode = sCheckPackageCache.query(
+                        new CheckPackageQuery(uid, packageName));
+            } else {
+                mode = mService.checkPackage(uid, packageName);
+            }
+
+            if (mode != MODE_ALLOWED) {
                 throw new SecurityException(
                         "Package " + packageName + " does not belong to " + uid);
             }
@@ -10606,6 +10824,27 @@ public class AppOpsManager {
     public void resetPackageOpsNoHistory(@NonNull String packageName) {
         try {
             mService.resetPackageOpsNoHistory(packageName);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Gets a list of packages that have a particular app op set to a particular mode, if that mode
+     * is not the default mode for the op.
+     *
+     * @param op The op to check state for.
+     * @param mode The mode the op must have for a package to be included. This mode must not be
+     *             the default mode of the op, or the method will throw an IllegalArgumenException.
+     * @return A list of all packages whose app op mode matches the given mode for the given app op.
+     *
+     * @throws IllegalArgumentException if the specified mode is the default mode for the op
+     * @hide
+     */
+    @RequiresPermission(Manifest.permission.QUERY_ALL_PACKAGES)
+    public @NonNull List<String> getPackagesWithNonDefaultUidMode(int op, int mode) {
+        try {
+            return mService.getPackagesWithNonDefaultUidMode(op, mode, mContext.getUserId());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

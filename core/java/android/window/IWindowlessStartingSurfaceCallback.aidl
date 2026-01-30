@@ -22,7 +22,7 @@ import android.view.SurfaceControl;
  * Interface to be invoked when a windowless starting surface added.
  *
  * @param addedSurface The starting surface.
- * {@hide}
+ * @hide
  */
 interface IWindowlessStartingSurfaceCallback {
     void onSurfaceAdded(in SurfaceControl addedSurface);

@@ -92,6 +92,8 @@ class InputSettingsObserver extends ContentObserver {
                         (reason) -> updateTouchpadSystemGesturesEnabled()),
                 Map.entry(Settings.System.getUriFor(Settings.System.TOUCHPAD_ACCELERATION_ENABLED),
                         (reason) -> updateTouchpadAccelerationEnabled()),
+                Map.entry(Settings.System.getUriFor(Settings.System.TOUCHPAD_ENABLED),
+                        (reason) -> updateTouchpadsEnabled()),
                 Map.entry(Settings.System.getUriFor(Settings.System.SHOW_TOUCHES),
                         (reason) -> updateShowTouches()),
                 Map.entry(Settings.System.getUriFor(Settings.System.POINTER_LOCATION),
@@ -246,6 +248,10 @@ class InputSettingsObserver extends ContentObserver {
     private void updateTouchpadAccelerationEnabled() {
         mNative.setTouchpadAccelerationEnabled(
                 InputSettings.isTouchpadAccelerationEnabled(mContext));
+    }
+
+    private void updateTouchpadsEnabled() {
+        mNative.setTouchpadsEnabled(InputSettings.useTouchpads(mContext));
     }
 
     private void updateShowTouches() {

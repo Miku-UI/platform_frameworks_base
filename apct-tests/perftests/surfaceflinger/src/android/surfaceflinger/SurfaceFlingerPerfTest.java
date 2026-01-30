@@ -51,6 +51,7 @@ import org.junit.runner.RunWith;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 @LargeTest
@@ -79,7 +80,10 @@ public class SurfaceFlingerPerfTest {
     private static String sImmersiveModeConfirmationValue;
     /** Start simpleperf sampling. */
     public void startSimpleperf(String subcommand, String arguments) {
-        if (!mSimpleperfHelper.startCollecting(subcommand, arguments)) {
+        List<String> commandArgsList = new ArrayList<>();
+        commandArgsList.add(subcommand);
+        commandArgsList.add(arguments);
+        if (!mSimpleperfHelper.startCollecting(commandArgsList)) {
             Log.e(TAG, "Simpleperf did not start successfully.");
         }
     }
@@ -166,11 +170,7 @@ public class SurfaceFlingerPerfTest {
 
     @After
     public void teardown() {
-        try {
-            mSimpleperfHelper.stopSimpleperf();
-        } catch (IOException e) {
-            Log.e(TAG, "Failed to stop simpleperf", e);
-        }
+        mSimpleperfHelper.stopCollecting("/sdcard/test_results/perf.data");
         mSurfaceControls.forEach(SurfaceControl::release);
         mBufferTrackers.forEach(BufferFlinger::freeBuffers);
     }

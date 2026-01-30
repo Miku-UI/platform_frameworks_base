@@ -16,6 +16,8 @@
 
 package com.android.systemui.dreams.dagger;
 
+import static android.os.Flags.lowLightDreamBehavior;
+
 import android.annotation.Nullable;
 import android.app.DreamManager;
 import android.app.Service;
@@ -26,7 +28,6 @@ import android.content.res.Resources;
 
 import com.android.dream.lowlight.dagger.LowLightDreamComponent;
 import com.android.settingslib.dream.DreamBackend;
-import com.android.systemui.Flags;
 import com.android.systemui.ambient.touch.scrim.dagger.ScrimModule;
 import com.android.systemui.complication.dagger.RegisteredComplicationsModule;
 import com.android.systemui.dagger.SysUISingleton;
@@ -39,6 +40,8 @@ import com.android.systemui.dreams.homecontrols.HomeControlsDreamService;
 import com.android.systemui.dreams.homecontrols.dagger.HomeControlsDataSourceModule;
 import com.android.systemui.dreams.homecontrols.dagger.HomeControlsRemoteServiceComponent;
 import com.android.systemui.dreams.homecontrols.system.HomeControlsRemoteService;
+import com.android.systemui.dreams.suppression.dagger.DreamSuppressionStartableModule;
+import com.android.systemui.lowlightclock.LowLightClockDreamService;
 import com.android.systemui.qs.QsEventLogger;
 import com.android.systemui.qs.pipeline.shared.TileSpec;
 import com.android.systemui.qs.shared.model.TileCategory;
@@ -47,8 +50,6 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTilePolicy;
 import com.android.systemui.qs.tiles.base.shared.model.QSTileUIConfig;
 import com.android.systemui.res.R;
 import com.android.systemui.touch.TouchInsetManager;
-
-import com.google.android.systemui.lowlightclock.LowLightClockDreamService;
 
 import dagger.Binds;
 import dagger.BindsOptionalOf;
@@ -71,6 +72,8 @@ import javax.inject.Named;
         RegisteredComplicationsModule.class,
         ScrimModule.class,
         HomeControlsDataSourceModule.class,
+        DreamSettingsRepositoryModule.class,
+        DreamSuppressionStartableModule.class,
 },
         subcomponents = {
                 DreamComplicationComponent.class,
@@ -248,6 +251,12 @@ public interface DreamModule {
         return new ComponentName(context, LowLightClockDreamService.class);
     }
 
+    /** Inject into LowLightClockDreamService. */
+    @Binds
+    @IntoMap
+    @ClassKey(LowLightClockDreamService.class)
+    Service bindLowLightClockDreamService(LowLightClockDreamService service);
+
     /**
      * Provides the component name of the low light dream, or null if not configured.
      */
@@ -256,7 +265,7 @@ public interface DreamModule {
     @Named(LOW_LIGHT_DREAM_SERVICE)
     static ComponentName providesLowLightDreamService(Context context,
             @Named(LOW_LIGHT_CLOCK_DREAM) ComponentName clockDream) {
-        if (Flags.lowLightClockDream()) {
+        if (lowLightDreamBehavior()) {
             return clockDream;
         }
 

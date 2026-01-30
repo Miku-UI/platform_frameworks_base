@@ -17,8 +17,8 @@
 package com.android.server.wm.flicker.launch.common
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
 import com.android.server.wm.flicker.navBarLayerPositionAtEnd
@@ -28,7 +28,7 @@ import org.junit.Ignore
 import org.junit.Test
 
 /** Base class for app launch tests from lock screen */
-abstract class OpenAppFromLockscreenTransition(flicker: LegacyFlickerTest) :
+abstract class OpenAppFromLockscreenTransition(flicker: FlickerTest) :
     OpenAppTransition(flicker) {
 
     /** Defines the transition used to run the test */

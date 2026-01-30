@@ -28,7 +28,11 @@ enum NotificationControlsEvent implements UiEventLogger.UiEventEnum {
     NOTIFICATION_CONTROLS_SAVE_IMPORTANCE(595),
 
     @UiEvent(doc = "The user closed the notification inline controls.")
-    NOTIFICATION_CONTROLS_CLOSE(596);
+    NOTIFICATION_CONTROLS_CLOSE(596),
+
+    @UiEvent(doc = "The user demoted a notification using inline controls.")
+    NOTIFICATION_DEMOTION_COMMIT(2234);
+
 
     private final int mId;
     NotificationControlsEvent(int id) {

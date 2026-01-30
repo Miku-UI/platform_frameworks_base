@@ -16,6 +16,7 @@
 
 package android.widget;
 
+import android.companion.virtualdevice.flags.Flags;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.hardware.SensorManager;
@@ -574,7 +575,7 @@ public class OverScroller {
         private int mOver;
 
         // Fling friction
-        private float mFlingFriction = ViewConfiguration.getScrollFriction();
+        private float mFlingFriction;
 
         // Current state of the animation.
         private int mState = SPLINE;
@@ -644,6 +645,9 @@ public class OverScroller {
                     * 39.37f // inch/meter
                     * ppi
                     * 0.84f; // look and feel tuning
+            mFlingFriction = Flags.viewconfigurationApis()
+                    ? ViewConfiguration.get(context).getScrollFrictionAmount()
+                    : ViewConfiguration.getScrollFriction();
         }
 
         void updateScroll(float q, float q2) {

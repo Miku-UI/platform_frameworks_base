@@ -25,13 +25,17 @@
 
 namespace android::uirenderer {
 
+// LINT.IfChange(UsageHint)
 enum class UsageHint {
+    // Note: Constant values should match RenderNode.java UsageHint.
     Unknown = 0,
     Background = 1,
     Foreground = 2,
     // Contains foreground (usually text), like a button or chip
-    Container = 3
+    Container = 3,
+    NavigationBarBackground = 4
 };
+// LINT.ThenChange(/graphics/java/android/graphics/RenderNode.java:UsageHint)
 
 enum class ColorTransform {
     None,
@@ -45,7 +49,10 @@ bool transformPaint(ColorTransform transform, SkPaint* paint);
 
 bool transformPaint(ColorTransform transform, SkPaint* paint, BitmapPalette palette);
 
-SkColor transformColor(ColorTransform transform, SkColor color);
-SkColor transformColorInverse(ColorTransform transform, SkColor color);
+SkColor4f transformColor(ColorTransform transform, SkColor4f color);
+SkColor4f transformColorInverse(ColorTransform transform, SkColor4f color);
+
+/** Returns a palette corrected in case it is tinted by the given paint's filter */
+BitmapPalette filterPalette(const SkPaint* paint, BitmapPalette palette);
 
 }  // namespace android::uirenderer

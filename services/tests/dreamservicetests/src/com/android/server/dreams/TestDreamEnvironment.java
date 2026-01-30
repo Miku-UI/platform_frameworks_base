@@ -17,6 +17,7 @@ package com.android.server.dreams;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.description;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.eq;
@@ -432,5 +433,23 @@ public class TestDreamEnvironment {
      */
     public IDreamOverlayClient getDreamOverlayClient() {
         return mDreamOverlayClient;
+    }
+
+    /**
+     * Calls {@link DreamService#setScreenBrightness(float)}
+     */
+    public void setDreamScreenBrightness(float brightness) {
+        mService.setScreenBrightness(brightness);
+    }
+
+    /**
+     * Returns the last {@link android.view.WindowManager.LayoutParams} set on the activity window.
+     */
+    public WindowManager.LayoutParams getLatestLayoutParams() {
+        final ArgumentCaptor<WindowManager.LayoutParams> lpCaptor =
+                ArgumentCaptor.forClass(WindowManager.LayoutParams.class);
+        verify(mActivityWindow, atLeastOnce()).setAttributes(lpCaptor.capture());
+
+        return lpCaptor.getValue();
     }
 }

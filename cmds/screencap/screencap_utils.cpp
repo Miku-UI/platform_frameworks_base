@@ -23,8 +23,7 @@ namespace android::screencap {
 base::Result<gui::ScreenCaptureResults> capture(const DisplayId displayId,
                                                 const gui::CaptureArgs& captureArgs) {
     sp<SyncScreenCaptureListener> captureListener = new SyncScreenCaptureListener();
-    auto captureDisplayStatus =
-            ScreenshotClient::captureDisplay(displayId, captureArgs, captureListener);
+    ScreenshotClient::captureDisplay(displayId, captureArgs, captureListener);
 
     gui::ScreenCaptureResults captureResults = captureListener->waitForResults();
     if (!captureResults.fenceResult.ok()) {

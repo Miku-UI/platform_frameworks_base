@@ -18,11 +18,12 @@ package com.android.server.wm.flicker.quickswitch
 
 import android.graphics.Rect
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
 import com.android.server.wm.flicker.BaseTest
@@ -47,10 +48,11 @@ import org.junit.runners.Parameterized
  *     Swipe right from the bottom of the screen to quick switch back to the first app [testApp1]
  * ```
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class QuickSwitchBetweenTwoAppsBackTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+class QuickSwitchBetweenTwoAppsBackTest(flicker: FlickerTest) : BaseTest(flicker) {
     private val testApp1 = SimpleAppHelper(instrumentation)
     private val testApp2 = NonResizeableAppHelper(instrumentation)
 
@@ -242,7 +244,7 @@ class QuickSwitchBetweenTwoAppsBackTest(flicker: LegacyFlickerTest) : BaseTest(f
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
             )
     }

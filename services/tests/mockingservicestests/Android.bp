@@ -48,6 +48,7 @@ android_test {
         "androidx.test.ext.truth",
         "flag-junit",
         "frameworks-base-testutils",
+        "guava-android-testlib", // for EqualsTester
         "hamcrest-library",
         "kotlin-test",
         "mockingservicestests-utils-mockito",
@@ -56,6 +57,7 @@ android_test {
         "platform-parametric-runner-lib",
         "platform-test-annotations",
         "PlatformProperties",
+        "service-art.stubs.system_server",
         "service-blobstore",
         "service-jobscheduler",
         "service-permission.impl",
@@ -67,6 +69,7 @@ android_test {
         "services.net",
         "services.usage",
         "services.wallpapereffectsgeneration",
+        "servicestests-assert-utils",
         "servicestests-core-utils",
         "servicestests-utils-mockito-extended",
         "testables",
@@ -74,9 +77,9 @@ android_test {
         // TODO: remove once Android migrates to JUnit 4.12, which provides assertThrows
         "testng",
         "compatibility-device-util-axt",
-        "flag-junit",
         "am_flags_lib",
         "device_policy_aconfig_flags_lib",
+        "android.content.pm.flags-aconfig-java",
     ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
         "true": ["service-crashrecovery-pre-jarjar"],
         default: [],
@@ -394,8 +397,25 @@ test_module_config {
 }
 
 test_module_config {
+    name: "FrameworksMockingServicesTests_server_bitmapoffloadservicetest",
+    base: "FrameworksMockingServicesTests",
+    test_suites: [
+        "automotive-tests",
+        "device-tests",
+    ],
+    include_filters: ["com.android.server.bitmapoffload"],
+}
+
+test_module_config {
     name: "FrameworksMockingServicesTests_service_batteryServiceTest",
     base: "FrameworksMockingServicesTests",
     test_suites: ["device-tests"],
     include_filters: ["com.android.server.BatteryServiceTest"],
+}
+
+test_module_config {
+    name: "FrameworksMockingServicesTests_advanced_protection_mode",
+    base: "FrameworksMockingServicesTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.security.advancedprotection.features.UsbDataAdvancedProtectionHookTest"],
 }

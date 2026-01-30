@@ -1,6 +1,17 @@
 package: "com.android.server.stats"
 container: "system"
 
+# This flag exists as the statsd counterpart to com.android.net.flags.netstats_transport_type,
+# which is only available in the Connectivity module. This flag should not be enabled without first
+# enabling the com.android.net.flags.netstats_transport_type flag.
+flag {
+    name: "netstats_use_transport_type"
+    namespace: "statsd"
+    description: "Use NetworkTemplate#setTransportType API instead of matchers"
+    bug: "420531377"
+    is_fixed_read_only: true
+}
+
 # Note: To ensure compatibility across all release configurations, initiate the ramp-up process
 # only after the 'com.android.net.flags.netstats_add_entries' flag has been fully deployed.
 # This flag provides the necessary API from the Connectivity module.
@@ -24,25 +35,16 @@ flag {
 }
 
 flag {
-    name: "apply_network_stats_poll_rate_limit"
+    name: "use_network_stats_query_summary"
     namespace: "statsd"
-    description: "Apply a rate limit for polling network stats when pulling relevant atoms"
-    bug: "352495181"
+    description: "Use NetworkStats querySummary API for AggregatedMobileDataStatsPuller"
+    bug: "398327159"
     is_fixed_read_only: true
 }
 
 flag {
-    name: "accumulate_network_stats_since_boot"
-    namespace: "statsd"
-    description: "Accumulate results of NetworkStats queries to avoid hitting NetworkStats persistence limit"
-    bug: "352537247"
-    is_fixed_read_only: true
-}
-
-flag {
-    name: "add_pressure_stall_information_puller"
-    namespace: "statsd"
-    description: "Adds PressureStallInformation atom logging"
-    bug: "365731097"
-    is_fixed_read_only: true
+    name: "add_memcg_memory_information_puller"
+    namespace: "watch_software_performance"
+    description: "Adds memcgv2 atom logging"
+    bug: "434920925"
 }

@@ -28,6 +28,7 @@ import static org.junit.Assert.fail;
 
 import android.app.AppGlobals;
 import android.app.job.JobInfo;
+import android.app.usage.UsageStatsManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -185,7 +186,9 @@ public class BatteryControllerTest {
                 jobInfo, callingUid, packageName, SOURCE_USER_ID, "BCTest", testTag);
         js.serviceProcessName = "testProcess";
         // Make sure tests aren't passing just because the default bucket is likely ACTIVE.
-        js.setStandbyBucket(FREQUENT_INDEX);
+        // Note: We are using REASON_MAIN_PREDICTED here, but any valid reason should be fine, as
+        // these tests do not depend on the reason code.
+        js.setStandbyBucket(FREQUENT_INDEX, UsageStatsManager.REASON_MAIN_PREDICTED);
         return js;
     }
 

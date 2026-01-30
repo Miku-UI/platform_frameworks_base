@@ -21,10 +21,11 @@ import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.content.Context
 import android.os.Handler
 import android.os.IBinder
+import android.view.DragEvent
 import android.view.SurfaceControl
 import android.view.WindowManager
-import android.view.WindowManager.TRANSIT_CLOSE
 import android.view.WindowManager.TRANSIT_OPEN
+import android.window.DesktopExperienceFlags
 import android.window.DesktopModeFlags
 import android.window.TransitionInfo
 import android.window.TransitionInfo.Change
@@ -34,6 +35,11 @@ import androidx.annotation.VisibleForTesting
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.internal.protolog.ProtoLog
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer
+import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_DESKTOP_MODE_TASK_LIMIT_MINIMIZE
+import com.android.wm.shell.desktopmode.clientfullscreenrequest.ClientFullscreenRequestTransitionHandler
+import com.android.wm.shell.desktopmode.compatui.SystemModalsTransitionHandler
+import com.android.wm.shell.desktopmode.multidesks.DeskSwitchTransitionHandler
+import com.android.wm.shell.desktopmode.multidesks.DesksTransitionObserver
 import com.android.wm.shell.freeform.FreeformTaskTransitionHandler
 import com.android.wm.shell.freeform.FreeformTaskTransitionStarter
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
@@ -43,6 +49,7 @@ import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.transition.MixedTransitionHandler
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.transition.Transitions.TransitionFinishCallback
+import java.util.Optional
 
 /** The [Transitions.TransitionHandler] coordinates transition handlers in desktop windowing. */
 class DesktopMixedTransitionHandler(
@@ -52,11 +59,16 @@ class DesktopMixedTransitionHandler(
     private val freeformTaskTransitionHandler: FreeformTaskTransitionHandler,
     private val closeDesktopTaskTransitionHandler: CloseDesktopTaskTransitionHandler,
     private val desktopImmersiveController: DesktopImmersiveController,
+    private val clientFullscreenRequestTransitionHandler: ClientFullscreenRequestTransitionHandler,
     private val desktopMinimizationTransitionHandler: DesktopMinimizationTransitionHandler,
+    private val desktopModeDragAndDropTransitionHandler: DesktopModeDragAndDropTransitionHandler,
+    private val systemModalsTransitionHandler: Optional<SystemModalsTransitionHandler>,
     private val interactionJankMonitor: InteractionJankMonitor,
     @ShellMainThread private val handler: Handler,
     shellInit: ShellInit,
     private val rootTaskDisplayAreaOrganizer: RootTaskDisplayAreaOrganizer,
+    private val desksTransitionObserver: DesksTransitionObserver,
+    private val deskSwitchTransitionHandler: DeskSwitchTransitionHandler,
 ) : MixedTransitionHandler, FreeformTaskTransitionStarter {
 
     init {
@@ -97,6 +109,17 @@ class DesktopMixedTransitionHandler(
             }
     }
 
+    /** Starts a task limit minimize transition for [taskId]. */
+    fun startTaskLimitMinimizeTransition(wct: WindowContainerTransaction, taskId: Int): IBinder {
+        return transitions
+            .startTransition(TRANSIT_DESKTOP_MODE_TASK_LIMIT_MINIMIZE, wct, /* handler= */ this)
+            .also { transition ->
+                pendingMixedTransitions.add(
+                    PendingMixedTransition.Minimize(transition, taskId, isLastTask = false)
+                )
+            }
+    }
+
     /** Delegates starting PiP transition to [FreeformTaskTransitionHandler]. */
     override fun startPipTransition(wct: WindowContainerTransaction?): IBinder =
         freeformTaskTransitionHandler.startPipTransition(wct)
@@ -123,11 +146,14 @@ class DesktopMixedTransitionHandler(
         wct: WindowContainerTransaction,
         taskId: Int?,
         minimizingTaskId: Int? = null,
+        closingTopTransparentTaskId: Int? = null,
         exitingImmersiveTask: Int? = null,
+        dragEvent: DragEvent? = null,
     ): IBinder {
         if (
             !DesktopModeFlags.ENABLE_FULLY_IMMERSIVE_IN_DESKTOP.isTrue &&
-                !DesktopModeFlags.ENABLE_DESKTOP_APP_LAUNCH_TRANSITIONS_BUGFIX.isTrue
+                !DesktopModeFlags.ENABLE_DESKTOP_APP_LAUNCH_TRANSITIONS_BUGFIX.isTrue &&
+                !DesktopExperienceFlags.ENABLE_DESKTOP_TAB_TEARING_LAUNCH_ANIMATION.isTrue
         ) {
             return transitions.startTransition(transitionType, wct, /* handler= */ null)
         }
@@ -147,9 +173,22 @@ class DesktopMixedTransitionHandler(
                     transition = transition,
                     launchingTask = taskId,
                     minimizingTask = minimizingTaskId,
+                    closingTopTransparentTask = closingTopTransparentTaskId,
                     exitingImmersiveTask = exitingImmersiveTask,
+                    dragEvent = dragEvent,
                 )
             )
+        }
+    }
+
+    /** Starts a desk switch transition to be animated by this handler. */
+    fun startSwitchDeskTransition(
+        @WindowManager.TransitionType transitionType: Int,
+        wct: WindowContainerTransaction,
+    ): IBinder {
+        return transitions.startTransition(transitionType, wct, /* handler= */ this).also {
+            transition ->
+            pendingMixedTransitions.add(PendingMixedTransition.SwitchDesk(transition = transition))
         }
     }
 
@@ -157,6 +196,10 @@ class DesktopMixedTransitionHandler(
     fun addPendingMixedTransition(pendingMixedTransition: PendingMixedTransition) {
         pendingMixedTransitions.add(pendingMixedTransition)
     }
+
+    /** Checks if a pending mixed transition already exists for the given [transition]. */
+    fun hasTransition(transition: IBinder): Boolean =
+        pendingMixedTransitions.any { it.transition == transition }
 
     /** Returns null, as it only handles transitions started from Shell. */
     override fun handleRequest(
@@ -173,7 +216,13 @@ class DesktopMixedTransitionHandler(
     ): Boolean {
         val pending =
             pendingMixedTransitions.find { pending -> pending.transition == transition }
-                ?: return false.also { logV("No pending desktop transition") }
+                ?: return handleNonPendingTransition(
+                    transition,
+                    info,
+                    startTransaction,
+                    finishTransaction,
+                    finishCallback,
+                )
         pendingMixedTransitions.remove(pending)
         logV("Animating pending mixed transition: %s", pending)
         return when (pending) {
@@ -203,7 +252,55 @@ class DesktopMixedTransitionHandler(
                     finishTransaction,
                     finishCallback,
                 )
+            is PendingMixedTransition.SwitchDesk ->
+                animateSwitchDeskTransitionIfNeeded(
+                    transition,
+                    info,
+                    startTransaction,
+                    finishTransaction,
+                    finishCallback,
+                )
+            is PendingMixedTransition.ClientEnterFullscreenFromDesktop ->
+                animateClientEnterFullscreenFromDesktopTransition(
+                    pending,
+                    transition,
+                    info,
+                    startTransaction,
+                    finishTransaction,
+                    finishCallback,
+                )
+            is PendingMixedTransition.ClientExitFullscreenToDesktop ->
+                animateClientExitFullscreenToDesktopTransition(
+                    pending,
+                    transition,
+                    info,
+                    startTransaction,
+                    finishTransaction,
+                    finishCallback,
+                )
         }
+    }
+
+    private fun handleNonPendingTransition(
+        transition: IBinder,
+        info: TransitionInfo,
+        startTransaction: SurfaceControl.Transaction,
+        finishTransaction: SurfaceControl.Transaction,
+        finishCallback: TransitionFinishCallback,
+    ): Boolean {
+        // This might be a core based transition that might cause a desk switch.
+        return animateSwitchDeskTransitionIfNeeded(
+                transition,
+                info,
+                startTransaction,
+                finishTransaction,
+                finishCallback,
+            )
+            .also { animated ->
+                if (!animated) {
+                    logV("No pending desktop transition")
+                }
+            }
     }
 
     private fun animateCloseTransition(
@@ -218,6 +315,7 @@ class DesktopMixedTransitionHandler(
             logW("Should have closing desktop task")
             return false
         }
+        logV("Animating mixed close transition task#%s", closeChange.taskInfo?.taskId)
         if (isWallpaperActivityClosing(info)) {
             // If the wallpaper activity is closing then the desktop is closing, animate the closing
             // desktop by dispatching to other transition handlers.
@@ -252,6 +350,10 @@ class DesktopMixedTransitionHandler(
             pending.exitingImmersiveTask?.let { exitingTask -> findTaskChange(info, exitingTask) }
         val minimizeChange =
             pending.minimizingTask?.let { minimizingTask -> findTaskChange(info, minimizingTask) }
+        val closeTopTransparentFullscreenTaskChange =
+            pending.closingTopTransparentTask?.let { closingTopTransparentTask ->
+                findTaskChange(info, closingTopTransparentTask)
+            }
         val launchChange = findDesktopTaskLaunchChange(info, pending.launchingTask)
         if (launchChange == null) {
             check(immersiveExitChange == null)
@@ -259,6 +361,7 @@ class DesktopMixedTransitionHandler(
             return false
         }
 
+        var topTransparentAnimationCount = 0
         var subAnimationCount = -1
         var combinedWct: WindowContainerTransaction? = null
         val finishCb = TransitionFinishCallback { wct ->
@@ -269,9 +372,11 @@ class DesktopMixedTransitionHandler(
         }
 
         logV(
-            "Animating mixed launch transition task#%d, minimizingTask#%s immersiveExitTask#%s",
+            "Animating mixed launch transition task#%d, minimizingTask#%s " +
+                "closingTopTransparentTask#%s immersiveExitTask#%s",
             launchChange.taskInfo!!.taskId,
             minimizeChange?.taskInfo?.taskId,
+            closeTopTransparentFullscreenTaskChange?.taskInfo?.taskId,
             immersiveExitChange?.taskInfo?.taskId,
         )
         if (DesktopModeFlags.ENABLE_DESKTOP_APP_LAUNCH_TRANSITIONS_BUGFIX.isTrue) {
@@ -281,8 +386,37 @@ class DesktopMixedTransitionHandler(
                 applyMinimizeChangeReparenting(info, minimizeChange, startTransaction)
             }
         }
+        if (
+            DesktopExperienceFlags.ENABLE_DESKTOP_TAB_TEARING_LAUNCH_ANIMATION.isTrue &&
+                pending.dragEvent != null
+        ) {
+            return desktopModeDragAndDropTransitionHandler.startAnimation(
+                info,
+                pending.dragEvent,
+                startTransaction,
+                finishCallback,
+            )
+        }
+        if (closeTopTransparentFullscreenTaskChange != null) {
+            systemModalsTransitionHandler.ifPresent { handler ->
+                logV(
+                    "Animating system modal close: taskId=%d",
+                    closeTopTransparentFullscreenTaskChange.taskInfo?.taskId,
+                )
+                topTransparentAnimationCount = 1
+                // Animate the modal closure separately.
+                info.changes.remove(closeTopTransparentFullscreenTaskChange)
+                handler.animateSystemModal(
+                    closeTopTransparentFullscreenTaskChange.leash,
+                    startTransaction,
+                    finishTransaction,
+                    finishCb,
+                    /* toShow= */ false,
+                )
+            }
+        }
         if (immersiveExitChange != null) {
-            subAnimationCount = 2
+            subAnimationCount = 2 + topTransparentAnimationCount
             // Animate the immersive exit change separately.
             info.changes.remove(immersiveExitChange)
             desktopImmersiveController.animateResizeChange(
@@ -302,7 +436,7 @@ class DesktopMixedTransitionHandler(
         }
         // There's nothing to animate separately, so let the left over handler animate
         // the entire transition.
-        subAnimationCount = 1
+        subAnimationCount = 1 + topTransparentAnimationCount
         return dispatchToLeftoverHandler(
             transition,
             info,
@@ -310,6 +444,121 @@ class DesktopMixedTransitionHandler(
             finishTransaction,
             finishCb,
         )
+    }
+
+    private fun animateClientEnterFullscreenFromDesktopTransition(
+        pending: PendingMixedTransition.ClientEnterFullscreenFromDesktop,
+        transition: IBinder,
+        info: TransitionInfo,
+        startTransaction: SurfaceControl.Transaction,
+        finishTransaction: SurfaceControl.Transaction,
+        finishCallback: TransitionFinishCallback,
+    ): Boolean {
+        val fromDesktopChange = findTaskChange(info, pending.fromDesktopTask)
+        if (fromDesktopChange == null) {
+            logV("No from-desktop change, returning")
+            return false
+        }
+
+        var subAnimationCount = -1
+        var combinedWct: WindowContainerTransaction? = null
+        val finishCb = TransitionFinishCallback { wct ->
+            --subAnimationCount
+            combinedWct = combinedWct.merge(wct)
+            if (subAnimationCount > 0) return@TransitionFinishCallback
+            finishCallback.onTransitionFinished(combinedWct)
+        }
+
+        logV(
+            "Animating mixed client enter fullscreen transition task#%d",
+            fromDesktopChange.taskInfo!!.taskId,
+        )
+
+        subAnimationCount = 1
+        clientFullscreenRequestTransitionHandler.startEnterFullscreenFromDesktopAnimation(
+            taskId = pending.fromDesktopTask,
+            transition = transition,
+            info = info,
+            startTransaction = startTransaction,
+            finishTransaction = finishTransaction,
+            finishCallback = finishCb,
+        )
+        return true
+    }
+
+    private fun animateClientExitFullscreenToDesktopTransition(
+        pending: PendingMixedTransition.ClientExitFullscreenToDesktop,
+        transition: IBinder,
+        info: TransitionInfo,
+        startTransaction: SurfaceControl.Transaction,
+        finishTransaction: SurfaceControl.Transaction,
+        finishCallback: TransitionFinishCallback,
+    ): Boolean {
+        val minimizeChange =
+            pending.minimizingTask?.let { minimizingTask -> findTaskChange(info, minimizingTask) }
+        val closeTopTransparentFullscreenTaskChange =
+            pending.closingTopTransparentTask?.let { closingTopTransparentTask ->
+                findTaskChange(info, closingTopTransparentTask)
+            }
+        val toDesktopChange = findTaskChange(info, pending.toDesktopTask)
+        if (toDesktopChange == null) {
+            logV("No to-desktop change, returning")
+            return false
+        }
+
+        var topTransparentAnimationCount = 0
+        var subAnimationCount = -1
+        var combinedWct: WindowContainerTransaction? = null
+        val finishCb = TransitionFinishCallback { wct ->
+            --subAnimationCount
+            combinedWct = combinedWct.merge(wct)
+            if (subAnimationCount > 0) return@TransitionFinishCallback
+            finishCallback.onTransitionFinished(combinedWct)
+        }
+
+        logV(
+            "Animating mixed client exit fullscreen transition task#%d, minimizingTask#%s " +
+                "closingTopTransparentTask#%s",
+            toDesktopChange.taskInfo!!.taskId,
+            minimizeChange?.taskInfo?.taskId,
+            closeTopTransparentFullscreenTaskChange?.taskInfo?.taskId,
+        )
+        if (DesktopModeFlags.ENABLE_DESKTOP_APP_LAUNCH_TRANSITIONS_BUGFIX.isTrue) {
+            // Only apply minimize change reparenting here if we implement the new app launch
+            // transitions, otherwise this reparenting is handled in the default handler.
+            minimizeChange?.let {
+                applyMinimizeChangeReparenting(info, minimizeChange, startTransaction)
+            }
+        }
+        if (closeTopTransparentFullscreenTaskChange != null) {
+            systemModalsTransitionHandler.ifPresent { handler ->
+                logV(
+                    "Animating system modal close: taskId=%d",
+                    closeTopTransparentFullscreenTaskChange.taskInfo?.taskId,
+                )
+                topTransparentAnimationCount = 1
+                // Animate the modal closure separately.
+                info.changes.remove(closeTopTransparentFullscreenTaskChange)
+                handler.animateSystemModal(
+                    closeTopTransparentFullscreenTaskChange.leash,
+                    startTransaction,
+                    finishTransaction,
+                    finishCb,
+                    /* toShow= */ false,
+                )
+            }
+        }
+
+        subAnimationCount = 1 + topTransparentAnimationCount
+        clientFullscreenRequestTransitionHandler.startExitFullscreenToDesktopAnimation(
+            taskId = pending.toDesktopTask,
+            transition = transition,
+            info = info,
+            startTransaction = startTransaction,
+            finishTransaction = finishTransaction,
+            finishCallback = finishCb,
+        )
+        return true
     }
 
     private fun animateMinimizeTransition(
@@ -323,10 +572,13 @@ class DesktopMixedTransitionHandler(
         val shouldAnimate =
             if (info.type == Transitions.TRANSIT_MINIMIZE) {
                 DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_EXIT_BY_MINIMIZE_TRANSITION_BUGFIX.isTrue
+            } else if (info.type == TRANSIT_DESKTOP_MODE_TASK_LIMIT_MINIMIZE) {
+                DesktopExperienceFlags.ENABLE_DESKTOP_TASK_LIMIT_SEPARATE_TRANSITION.isTrue
             } else {
                 DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION.isTrue
             }
         if (!shouldAnimate) {
+            logV("Not animating pending minimize transition")
             return false
         }
 
@@ -335,6 +587,7 @@ class DesktopMixedTransitionHandler(
             logW("Should have minimizing desktop task")
             return false
         }
+        logV("Animating mixed minimize transition task#%s", minimizeChange.taskInfo?.taskId)
         if (pending.isLastTask) {
             // Dispatch close desktop task animation to the default transition handlers.
             return dispatchToLeftoverHandler(
@@ -348,6 +601,38 @@ class DesktopMixedTransitionHandler(
 
         // Animate minimizing desktop task transition with [DesktopMinimizationTransitionHandler].
         return desktopMinimizationTransitionHandler.startAnimation(
+            transition,
+            info,
+            startTransaction,
+            finishTransaction,
+            finishCallback,
+        )
+    }
+
+    private fun animateSwitchDeskTransitionIfNeeded(
+        transition: IBinder,
+        info: TransitionInfo,
+        startTransaction: SurfaceControl.Transaction,
+        finishTransaction: SurfaceControl.Transaction,
+        finishCallback: TransitionFinishCallback,
+    ): Boolean {
+        desksTransitionObserver.findDeskToDeskTransition(transition)?.let { deskToDesk ->
+            with(deskToDesk) {
+                logV(
+                    "Animating mixed desk switch transition from desk=%s to desk%s",
+                    fromDeskId,
+                    toDeskId,
+                )
+                deskSwitchTransitionHandler.addPendingTransition(
+                    transition,
+                    userId,
+                    displayId,
+                    fromDeskId,
+                    toDeskId,
+                )
+            }
+        } ?: return false
+        return deskSwitchTransitionHandler.startAnimation(
             transition,
             info,
             startTransaction,
@@ -499,7 +784,9 @@ class DesktopMixedTransitionHandler(
             override val transition: IBinder,
             val launchingTask: Int?,
             val minimizingTask: Int?,
+            val closingTopTransparentTask: Int?,
             val exitingImmersiveTask: Int?,
+            val dragEvent: DragEvent? = null,
         ) : PendingMixedTransition()
 
         /**
@@ -510,6 +797,22 @@ class DesktopMixedTransitionHandler(
             override val transition: IBinder,
             val minimizingTask: Int,
             val isLastTask: Boolean,
+        ) : PendingMixedTransition()
+
+        data class SwitchDesk(override val transition: IBinder) : PendingMixedTransition()
+
+        /** A client requested enter fullscreen from desktop. */
+        data class ClientEnterFullscreenFromDesktop(
+            override val transition: IBinder,
+            val fromDesktopTask: Int,
+        ) : PendingMixedTransition()
+
+        /** A client requested exit fullscreen to desktop. */
+        data class ClientExitFullscreenToDesktop(
+            override val transition: IBinder,
+            val toDesktopTask: Int,
+            val minimizingTask: Int?,
+            val closingTopTransparentTask: Int?,
         ) : PendingMixedTransition()
     }
 

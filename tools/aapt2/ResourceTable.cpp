@@ -228,12 +228,12 @@ std::vector<ResourceConfigValue*> ResourceEntry::FindAllValues(const ConfigDescr
   return results;
 }
 
-ResourceConfigValue* ResourceEntry::FindOrCreateFlagDisabledValue(
-    const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
-    android::StringPiece product) {
-  auto iter = std::lower_bound(flag_disabled_values.begin(), flag_disabled_values.end(),
-                               ConfigFlagKey{&config, product, flag}, lt_config_flag_key_ref());
-  if (iter != flag_disabled_values.end()) {
+ResourceConfigValue* FindOrPossiblyCreateFlaggedValue(
+    std::vector<std::unique_ptr<ResourceConfigValue>>& values, const FeatureFlagAttribute& flag,
+    const android::ConfigDescription& config, android::StringPiece product, bool create) {
+  auto iter = std::lower_bound(values.begin(), values.end(), ConfigFlagKey{&config, product, flag},
+                               lt_config_flag_key_ref());
+  if (iter != values.end()) {
     ResourceConfigValue* value = iter->get();
     const auto value_flag = value->value->GetFlag().value();
     if (value_flag.name == flag.name && value_flag.negated == flag.negated &&
@@ -241,10 +241,35 @@ ResourceConfigValue* ResourceEntry::FindOrCreateFlagDisabledValue(
       return value;
     }
   }
-  ResourceConfigValue* newValue =
-      flag_disabled_values.insert(iter, util::make_unique<ResourceConfigValue>(config, product))
-          ->get();
-  return newValue;
+  if (create) {
+    return values.insert(iter, util::make_unique<ResourceConfigValue>(config, product))->get();
+  } else {
+    return nullptr;
+  }
+}
+
+ResourceConfigValue* ResourceEntry::FindOrCreateFlagDisabledValue(
+    const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
+    android::StringPiece product) {
+  return FindOrPossiblyCreateFlaggedValue(flag_disabled_values, flag, config, product, true);
+}
+
+ResourceConfigValue* ResourceEntry::FindOrCreateReadWriteFlagValue(
+    const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
+    android::StringPiece product) {
+  return FindOrPossiblyCreateFlaggedValue(readwrite_flag_values, flag, config, product, true);
+}
+
+ResourceConfigValue* ResourceEntry::FindFlagDisabledValue(const FeatureFlagAttribute& flag,
+                                                          const android::ConfigDescription& config,
+                                                          android::StringPiece product) {
+  return FindOrPossiblyCreateFlaggedValue(flag_disabled_values, flag, config, product, false);
+}
+
+ResourceConfigValue* ResourceEntry::FindReadWriteFlagValue(const aapt::FeatureFlagAttribute& flag,
+                                                           const android::ConfigDescription& config,
+                                                           android::StringPiece product) {
+  return FindOrPossiblyCreateFlaggedValue(readwrite_flag_values, flag, config, product, false);
 }
 
 bool ResourceEntry::HasDefaultValue() const {
@@ -263,6 +288,8 @@ ResourceTable::CollisionResult ResourceTable::ResolveFlagCollision(FlagStatus ex
           return CollisionResult::kKeepOriginal;
         case FlagStatus::Enabled:
           return CollisionResult::kTakeNew;
+        case FlagStatus::RWFlag:
+          return CollisionResult::kKeepOriginal;
         default:
           return CollisionResult::kConflict;
       }
@@ -271,8 +298,10 @@ ResourceTable::CollisionResult ResourceTable::ResolveFlagCollision(FlagStatus ex
         case FlagStatus::NoFlag:
           return CollisionResult::kTakeNew;
         case FlagStatus::Disabled:
-          return CollisionResult::kKeepOriginal;
+          return CollisionResult::kConflict;
         case FlagStatus::Enabled:
+          return CollisionResult::kTakeNew;
+        case FlagStatus::RWFlag:
           return CollisionResult::kTakeNew;
         default:
           return CollisionResult::kConflict;
@@ -285,9 +314,25 @@ ResourceTable::CollisionResult ResourceTable::ResolveFlagCollision(FlagStatus ex
           return CollisionResult::kKeepOriginal;
         case FlagStatus::Enabled:
           return CollisionResult::kConflict;
+        case FlagStatus::RWFlag:
+          return CollisionResult::kKeepOriginal;
         default:
           return CollisionResult::kConflict;
       }
+    case FlagStatus::RWFlag:
+      switch (incoming) {
+        case FlagStatus::NoFlag:
+          return CollisionResult::kTakeNew;
+        case FlagStatus::Disabled:
+          return CollisionResult::kKeepOriginal;
+        case FlagStatus::Enabled:
+          return CollisionResult::kTakeNew;
+        case FlagStatus::RWFlag:
+          return CollisionResult::kKeepOriginal;
+        default:
+          return CollisionResult::kConflict;
+      }
+
     default:
       return CollisionResult::kConflict;
   }
@@ -416,7 +461,8 @@ void InsertEntryIntoTableView(
     const std::optional<OverlayableItem>& overlayable_item,
     const std::optional<StagedId>& staged_id,
     const std::vector<std::unique_ptr<ResourceConfigValue>>& values,
-    const std::vector<std::unique_ptr<ResourceConfigValue>>& flag_disabled_values) {
+    const std::vector<std::unique_ptr<ResourceConfigValue>>& flag_disabled_values,
+    const std::vector<std::unique_ptr<ResourceConfigValue>>& readwrite_flag_values) {
   SortedVectorInserter<ResourceTablePackageView, PackageViewComparer> package_inserter;
   SortedVectorInserter<ResourceTableTypeView, TypeViewComparer> type_inserter;
   SortedVectorInserter<ResourceTableEntryView, EntryViewComparer> entry_inserter;
@@ -445,6 +491,9 @@ void InsertEntryIntoTableView(
   }
   for (auto& value : flag_disabled_values) {
     new_entry.flag_disabled_values.emplace_back(value.get());
+  }
+  for (auto& value : readwrite_flag_values) {
+    new_entry.readwrite_flag_values.emplace_back(value.get());
   }
 
   entry_inserter.Insert(view_type->entries, std::move(new_entry));
@@ -479,6 +528,21 @@ const ResourceConfigValue* ResourceTableEntryView::FindFlagDisabledValue(
   return nullptr;
 }
 
+const ResourceConfigValue* ResourceTableEntryView::FindReadWriteFlagValue(
+    const FeatureFlagAttribute& flag, const ConfigDescription& config,
+    android::StringPiece product) const {
+  auto iter = std::lower_bound(readwrite_flag_values.begin(), readwrite_flag_values.end(),
+                               ConfigFlagKey{&config, product, flag}, lt_config_flag_key_ref());
+  if (iter != values.end()) {
+    const ResourceConfigValue* value = *iter;
+    if (value->value->GetFlag() == flag && value->config == config &&
+        StringPiece(value->product) == product) {
+      return value;
+    }
+  }
+  return nullptr;
+}
+
 ResourceTableView ResourceTable::GetPartitionedView(const ResourceTableViewOptions& options) const {
   ResourceTableView view;
   for (const auto& package : packages) {
@@ -486,13 +550,15 @@ ResourceTableView ResourceTable::GetPartitionedView(const ResourceTableViewOptio
       for (const auto& entry : type->entries) {
         InsertEntryIntoTableView(view, package.get(), type.get(), entry->name, entry->id,
                                  entry->visibility, entry->allow_new, entry->overlayable_item,
-                                 entry->staged_id, entry->values, entry->flag_disabled_values);
+                                 entry->staged_id, entry->values, entry->flag_disabled_values,
+                                 entry->readwrite_flag_values);
 
         if (options.create_alias_entries && entry->staged_id) {
           auto alias_id = entry->staged_id.value().id;
           InsertEntryIntoTableView(view, package.get(), type.get(), entry->name, alias_id,
                                    entry->visibility, entry->allow_new, entry->overlayable_item, {},
-                                   entry->values, entry->flag_disabled_values);
+                                   entry->values, entry->flag_disabled_values,
+                                   entry->readwrite_flag_values);
         }
       }
     }
@@ -650,7 +716,27 @@ bool ResourceTable::AddResource(NewResource&& res, android::IDiagnostics* diag) 
       disabled_config_value->value = res.value->Transform(cloner);
     } else {
       diag->Error(android::DiagMessage(source)
-                  << "duplicate value for resource '" << res.name << "' " << "with config '"
+                  << "duplicate flag disabled value for resource '" << res.name << "' with config '"
+                  << res.config << "' and flag '"
+                  << (res.value->GetFlag().value().negated ? "!" : "")
+                  << res.value->GetFlag().value().name << "'");
+      diag->Error(android::DiagMessage(source) << "resource previously defined here");
+      return false;
+    }
+  }
+
+  if (res.value != nullptr && res.value->GetFlagStatus() == FlagStatus::RWFlag) {
+    auto flagged_config_value = entry->FindOrCreateReadWriteFlagValue(res.value->GetFlag().value(),
+                                                                      res.config, res.product);
+
+    if (!flagged_config_value->value) {
+      // Resource does not exist, add it now.
+      // Must clone the value since it might be in the values vector as well
+      CloningValueTransformer cloner(&string_pool);
+      flagged_config_value->value = res.value->Transform(cloner);
+    } else {
+      diag->Error(android::DiagMessage(source)
+                  << "duplicate r/w flag value for resource '" << res.name << "' with config '"
                   << res.config << "' and flag '"
                   << (res.value->GetFlag().value().negated ? "!" : "")
                   << res.value->GetFlag().value().name << "'");

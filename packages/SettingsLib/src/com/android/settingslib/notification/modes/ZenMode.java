@@ -53,6 +53,7 @@ import androidx.annotation.Nullable;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -66,7 +67,8 @@ public class ZenMode implements Parcelable {
 
     private static final String TAG = "ZenMode";
 
-    static final String MANUAL_DND_MODE_ID = ZenModeConfig.MANUAL_RULE_ID;
+    public static final String MANUAL_DND_MODE_ID = ZenModeConfig.MANUAL_RULE_ID;
+
     static final String TEMP_NEW_MODE_ID = "temp_new_mode";
 
     private static final Comparator<Integer> PRIORITIZED_TYPE_COMPARATOR = new Comparator<>() {
@@ -130,6 +132,7 @@ public class ZenMode implements Parcelable {
     private final AutomaticZenRule mRule;
     private final Kind mKind;
     private final Status mStatus;
+    private final @Nullable Instant mLastManualActivation;
 
     /**
      * Initializes a {@link ZenMode}, mainly based on the information from the
@@ -143,7 +146,8 @@ public class ZenMode implements Parcelable {
             @NonNull ZenModeConfig.ZenRule zenRuleExtraData) {
         this(id, rule,
                 ZenModeConfig.isImplicitRuleId(id) ? Kind.IMPLICIT : Kind.NORMAL,
-                computeStatus(zenRuleExtraData));
+                computeStatus(zenRuleExtraData),
+                zenRuleExtraData.lastManualActivation);
     }
 
     private static Status computeStatus(@NonNull ZenModeConfig.ZenRule zenRuleExtraData) {
@@ -162,12 +166,14 @@ public class ZenMode implements Parcelable {
         }
     }
 
-    static ZenMode manualDndMode(AutomaticZenRule manualRule, boolean isActive) {
+    static ZenMode manualDndMode(AutomaticZenRule manualRule, boolean isActive,
+            @Nullable Instant lastManualActivation) {
         return new ZenMode(
                 MANUAL_DND_MODE_ID,
                 manualRule,
                 Kind.MANUAL_DND,
-                isActive ? Status.ENABLED_AND_ACTIVE : Status.ENABLED);
+                isActive ? Status.ENABLED_AND_ACTIVE : Status.ENABLED,
+                lastManualActivation);
     }
 
     /**
@@ -186,19 +192,22 @@ public class ZenMode implements Parcelable {
                 .setIconResId(iconResId)
                 .setManualInvocationAllowed(true)
                 .build();
-        return new ZenMode(TEMP_NEW_MODE_ID, rule, Kind.NORMAL, Status.ENABLED);
+        return new ZenMode(TEMP_NEW_MODE_ID, rule, Kind.NORMAL, Status.ENABLED, null);
     }
 
-    private ZenMode(String id, @NonNull AutomaticZenRule rule, Kind kind, Status status) {
+    private ZenMode(String id, @NonNull AutomaticZenRule rule, Kind kind, Status status,
+            @Nullable Instant lastManualActivation) {
         mId = id;
         mRule = rule;
         mKind = kind;
         mStatus = status;
+        mLastManualActivation = lastManualActivation;
     }
 
     /** Creates a deep copy of this object. */
     public ZenMode copy() {
-        return new ZenMode(mId, new AutomaticZenRule.Builder(mRule).build(), mKind, mStatus);
+        return new ZenMode(mId, new AutomaticZenRule.Builder(mRule).build(), mKind, mStatus,
+                mLastManualActivation);
     }
 
     @NonNull
@@ -228,6 +237,19 @@ public class ZenMode implements Parcelable {
     @NonNull
     public Status getStatus() {
         return mStatus;
+    }
+
+    /**
+     * Last time at which the mode was manually activated (whether as a user action in
+     * Settings or SystemUI, or from the owner package with {@code Condition.SOURCE_USER_ACTION}).
+     * If {@code null}, the rule has never been manually activated since its creation.
+     *
+     * <p>Note that this was previously untracked, so it will also be {@code null} for rules
+     * created before we started tracking and never activated since.
+     */
+    @Nullable
+    public Instant getLastManualActivation() {
+        return mLastManualActivation;
     }
 
     @NonNull
@@ -503,17 +525,19 @@ public class ZenMode implements Parcelable {
                 && mId.equals(other.mId)
                 && mRule.equals(other.mRule)
                 && mKind.equals(other.mKind)
-                && mStatus.equals(other.mStatus);
+                && mStatus.equals(other.mStatus)
+                && Objects.equals(mLastManualActivation, other.mLastManualActivation);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mId, mRule, mKind, mStatus);
+        return Objects.hash(mId, mRule, mKind, mStatus, mLastManualActivation);
     }
 
     @Override
     public String toString() {
-        return mId + " (" + mKind + ", " + mStatus + ") -> " + mRule;
+        return mId + " (" + mKind + ", " + mStatus + ") -> " + mRule
+                + " (lastManualActivation=" + mLastManualActivation + ")";
     }
 
     @Override
@@ -527,6 +551,12 @@ public class ZenMode implements Parcelable {
         dest.writeParcelable(mRule, 0);
         dest.writeString(mKind.name());
         dest.writeString(mStatus.name());
+        if (mLastManualActivation != null) {
+            dest.writeBoolean(true);
+            dest.writeLong(mLastManualActivation.toEpochMilli());
+        } else {
+            dest.writeBoolean(false);
+        }
     }
 
     public static final Creator<ZenMode> CREATOR = new Creator<ZenMode>() {
@@ -537,7 +567,8 @@ public class ZenMode implements Parcelable {
                     checkNotNull(in.readParcelable(AutomaticZenRule.class.getClassLoader(),
                             AutomaticZenRule.class)),
                     Kind.valueOf(in.readString()),
-                    Status.valueOf(in.readString()));
+                    Status.valueOf(in.readString()),
+                    in.readBoolean() ? Instant.ofEpochMilli(in.readLong()) : null);
         }
 
         @Override

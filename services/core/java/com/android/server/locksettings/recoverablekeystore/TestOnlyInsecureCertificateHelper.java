@@ -26,7 +26,7 @@ import android.security.keystore.recovery.TrustedRootCertificates;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.internal.widget.LockPatternUtils;
+import com.android.internal.widget.LockscreenCredential;
 
 import java.security.cert.X509Certificate;
 import java.util.Date;
@@ -101,26 +101,25 @@ public class TestOnlyInsecureCertificateHelper {
     }
 
     /**
-     * Checks whether a password is in "Insecure mode"
-     * @param credentialType the type of credential, e.g. pattern and password
-     * @param credential the pattern or password
+     * Checks whether a lockscreen credential is in "Insecure mode"
+     * @param credential the lockscreen credential
      * @return true, if the credential is in "Insecure mode"
      */
-    public boolean doesCredentialSupportInsecureMode(int credentialType, byte[] credential) {
+    public boolean doesCredentialSupportInsecureMode(LockscreenCredential credential) {
         if (credential == null) {
             return false;
         }
-        if (credentialType != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD
-                && credentialType != LockPatternUtils.CREDENTIAL_TYPE_PIN) {
+        if (!credential.isPassword() && !credential.isPin()) {
             return false;
         }
         byte[] insecurePasswordPrefixBytes =
                 TrustedRootCertificates.INSECURE_PASSWORD_PREFIX.getBytes();
-        if (credential.length < insecurePasswordPrefixBytes.length) {
+        if (credential.size() < insecurePasswordPrefixBytes.length) {
             return false;
         }
+        byte[] credentialBytes = credential.getCredential();
         for (int i = 0; i < insecurePasswordPrefixBytes.length; i++) {
-            if (credential[i] != insecurePasswordPrefixBytes[i]) {
+            if (credentialBytes[i] != insecurePasswordPrefixBytes[i]) {
                 return false;
             }
         }

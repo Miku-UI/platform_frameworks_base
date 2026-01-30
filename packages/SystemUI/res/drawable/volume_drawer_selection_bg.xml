@@ -13,12 +13,14 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
+<inset xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
-    android:paddingMode="stack" >
-    <size
-        android:height="@dimen/volume_dialog_ringer_drawer_button_size"
-        android:width="@dimen/volume_dialog_ringer_drawer_button_size" />
-    <solid android:color="@androidprv:color/materialColorPrimary" />
-    <corners android:radius="@dimen/volume_dialog_ringer_selected_button_background_radius" />
-</shape>
+    android:inset="4dp">
+    <shape>
+        <corners android:radius="@dimen/volume_dialog_ringer_selected_button_background_radius" />
+        <size
+            android:width="@dimen/volume_dialog_ringer_drawer_button_size"
+            android:height="@dimen/volume_dialog_ringer_drawer_button_size" />
+        <solid android:color="@androidprv:color/materialColorPrimary" />
+    </shape>
+</inset>

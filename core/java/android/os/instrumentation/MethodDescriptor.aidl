@@ -18,7 +18,7 @@ package android.os.instrumentation;
 
 /**
  * Represents a JVM method, where class fields that make up its signature.
- * {@hide}
+ * @hide
  */
 @JavaDerive(toString=true)
 parcelable MethodDescriptor {

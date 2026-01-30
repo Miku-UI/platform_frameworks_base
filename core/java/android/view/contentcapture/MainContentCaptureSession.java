@@ -15,6 +15,7 @@
  */
 package android.view.contentcapture;
 
+import static android.view.contentcapture.ContentCaptureCondition.CONDITION_ENABLE_EXPORTING_VIRTUAL_CHILDREN;
 import static android.view.contentcapture.ContentCaptureEvent.TYPE_CONTEXT_UPDATED;
 import static android.view.contentcapture.ContentCaptureEvent.TYPE_SESSION_FINISHED;
 import static android.view.contentcapture.ContentCaptureEvent.TYPE_SESSION_FLUSH;
@@ -55,6 +56,8 @@ import android.util.SparseArray;
 import android.util.TimeUtils;
 import android.view.View;
 import android.view.ViewStructure;
+import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.accessibility.AccessibilityNodeProvider;
 import android.view.autofill.AutofillId;
 import android.view.contentcapture.ViewNode.ViewStructureImpl;
 import android.view.contentcapture.flags.Flags;
@@ -248,6 +251,57 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
         mEventProcessQueue = new ConcurrentLinkedQueue<>();
     }
 
+    private void notifyVirtualChildrenAppeared(@NonNull ContentCaptureSession session,
+            @NonNull AutofillId hostAutofillId,
+            @NonNull AccessibilityNodeProvider provider) {
+        try {
+            notifyVirtualChildrenAppearedHelper(hostAutofillId, hostAutofillId,
+                    provider, session, AccessibilityNodeProvider.HOST_VIEW_ID);
+        } catch (Exception e) {
+            Log.w(TAG, "Error adding virtual children", e);
+        }
+    }
+
+    /**
+     * Populates the {@link ViewStructure} for each virtual child,
+     * and notifies the {@link ContentCaptureSession} by calling
+     * {@link ContentCaptureSession#notifyViewAppeared(ViewStructure)}
+     */
+    private void notifyVirtualChildrenAppearedHelper(@NonNull AutofillId hostAutofillId,
+            @NonNull AutofillId parentAutofillId,
+            @NonNull AccessibilityNodeProvider provider,
+            @NonNull ContentCaptureSession session,
+            int virtualId) {
+        AccessibilityNodeInfo currentNodeInfo = provider.createAccessibilityNodeInfo(virtualId);
+        if (currentNodeInfo == null) {
+            return;
+        }
+        AutofillId currentAutofillId = session.newAutofillId(hostAutofillId, virtualId);
+        ViewStructure currentViewStructure = session.newVirtualViewStructure(
+                parentAutofillId, virtualId);
+        currentViewStructure.setAutofillId(currentAutofillId);
+
+        currentViewStructure.setText(currentNodeInfo.getText());
+        currentViewStructure.setClassName(currentNodeInfo.getClassName() != null
+                ? currentNodeInfo.getClassName().toString() : "VirtualNode");
+        currentViewStructure.setContentDescription(
+                currentNodeInfo.getContentDescription());
+        currentViewStructure.setClickable(currentNodeInfo.isClickable());
+        session.notifyViewAppeared(currentViewStructure);
+
+        final int childCount = currentNodeInfo.getChildCount();
+        if (childCount == 0) {
+            return;
+        }
+
+        for (int i = 0; i < childCount; i++) {
+            long childNodeId = currentNodeInfo.getChildId(i);
+            int childVirtualId = AccessibilityNodeInfo
+                    .getVirtualDescendantId(childNodeId);
+            notifyVirtualChildrenAppearedHelper(hostAutofillId, currentAutofillId,
+                    provider, session, childVirtualId);
+        }
+    }
     @Override
     ContentCaptureSession getMainCaptureSession() {
         return this;
@@ -827,7 +881,14 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
         final boolean forceFlush = disableFlush ? !started : FORCE_FLUSH;
 
         final ContentCaptureEvent event = new ContentCaptureEvent(sessionId, type);
-        enqueueEvent(event, forceFlush);
+
+        if (Flags.reduceBinderTransactionEnabled()) {
+            // Don't force a flush for view tree events. A dedicated flush event will be sent
+            // after the entire view tree is processed, reducing binder transactions.
+            enqueueEvent(event);
+        } else {
+            enqueueEvent(event, forceFlush);
+        }
     }
 
     @Override
@@ -977,7 +1038,18 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
                     }
                     ViewStructure structure = session.newViewStructure(view);
                     view.onProvideContentCaptureStructure(structure, /* flags= */ 0);
-
+                    if (Flags.enableExportAssistVirtualNodeToCcapi()
+                            && view.getAccessibilityNodeProvider() != null
+                            && structure.getAutofillId() != null
+                            && mManager.isContentCaptureConditionEnabled(
+                                    CONDITION_ENABLE_EXPORTING_VIRTUAL_CHILDREN)) {
+                        runOnContentCaptureThread(() -> {
+                            Trace.beginSection("notifyVirtualChildrenAppeared");
+                            notifyVirtualChildrenAppeared(session, structure.getAutofillId(),
+                                    view.getAccessibilityNodeProvider());
+                            Trace.endSection();
+                        });
+                    }
                     structureSession.setSession(session);
                     structureSession.setStructure(structure);
                 }
@@ -1009,9 +1081,7 @@ public final class MainContentCaptureSession extends ContentCaptureSession {
                     }
                 }
                 internalNotifyViewTreeEvent(sessionId, /* started= */ false);
-                if (Flags.flushAfterEachFrame()) {
-                    internalNotifySessionFlushEvent(sessionId);
-                }
+                internalNotifySessionFlushEvent(sessionId);
             }
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_VIEW);

@@ -52,8 +52,6 @@ import com.android.systemui.statusbar.VibratorHelper
 import com.android.systemui.statusbar.phone.ScreenOffAnimationController
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import com.android.systemui.temporarydisplay.chipbar.ChipbarCoordinator
-import com.android.systemui.wallpapers.domain.interactor.WallpaperFocalAreaInteractor
-import com.android.systemui.wallpapers.ui.viewmodel.WallpaperFocalAreaViewModel
 import com.android.systemui.wallpapers.ui.viewmodel.WallpaperViewModel
 import com.google.android.msdl.domain.MSDLPlayer
 import java.util.Optional
@@ -84,7 +82,6 @@ constructor(
     private val keyguardClockViewModel: KeyguardClockViewModel,
     private val smartspaceViewModel: KeyguardSmartspaceViewModel,
     private val clockInteractor: KeyguardClockInteractor,
-    private val wallpaperFocalAreaInteractor: WallpaperFocalAreaInteractor,
     private val keyguardViewMediator: KeyguardViewMediator,
     private val deviceEntryUnlockTrackerViewBinder: Optional<DeviceEntryUnlockTrackerViewBinder>,
     private val statusBarKeyguardViewManager: StatusBarKeyguardViewManager,
@@ -94,7 +91,6 @@ constructor(
     @Main private val mainDispatcher: CoroutineDispatcher,
     private val msdlPlayer: MSDLPlayer,
     @KeyguardBlueprintLog private val blueprintLog: LogBuffer,
-    private val wallpaperFocalAreaViewModel: WallpaperFocalAreaViewModel,
 ) : CoreStartable {
 
     private var rootViewHandle: DisposableHandle? = null
@@ -156,7 +152,6 @@ constructor(
                 mainDispatcher,
                 msdlPlayer,
                 blueprintLog,
-                wallpaperFocalAreaViewModel,
             )
     }
 

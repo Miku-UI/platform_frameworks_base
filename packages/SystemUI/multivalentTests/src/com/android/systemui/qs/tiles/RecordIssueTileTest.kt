@@ -37,7 +37,7 @@ import com.android.systemui.recordissue.IssueRecordingState
 import com.android.systemui.recordissue.RecordIssueDialogDelegate
 import com.android.systemui.recordissue.TraceurConnection
 import com.android.systemui.res.R
-import com.android.systemui.screenrecord.RecordingController
+import com.android.systemui.screenrecord.ScreenRecordUxController
 import com.android.systemui.settings.UserContextProvider
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil
 import com.android.systemui.statusbar.phone.SystemUIDialog
@@ -69,7 +69,7 @@ class RecordIssueTileTest : SysuiTestCase() {
     @Mock private lateinit var qsEventLogger: QsEventLogger
     @Mock private lateinit var metricsLogger: MetricsLogger
     @Mock private lateinit var statusBarStateController: StatusBarStateController
-    @Mock private lateinit var recordingController: RecordingController
+    @Mock private lateinit var screenRecordUxController: ScreenRecordUxController
     @Mock private lateinit var activityStarter: ActivityStarter
     @Mock private lateinit var qsLogger: QSLogger
     @Mock private lateinit var keyguardDismissUtil: KeyguardDismissUtil
@@ -120,7 +120,7 @@ class RecordIssueTileTest : SysuiTestCase() {
                 Executors.newSingleThreadExecutor(),
                 issueRecordingState,
                 delegateFactory,
-                recordingController,
+                screenRecordUxController,
             )
     }
 

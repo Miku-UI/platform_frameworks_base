@@ -54,7 +54,7 @@ import org.mockito.kotlin.whenever
 class KeyguardDisplayManagerTest : SysuiTestCase() {
     @Mock private val navigationBarController = mock(NavigationBarController::class.java)
     @Mock
-    private val presentationFactory = mock(ConnectedDisplayKeyguardPresentation.Factory::class.java)
+    private val presentationFactory = mock(ConnectedDisplayKeyguardPresentationFactory::class.java)
     @Mock
     private val connectedDisplayKeyguardPresentation =
         mock(ConnectedDisplayKeyguardPresentation::class.java)
@@ -90,6 +90,7 @@ class KeyguardDisplayManagerTest : SysuiTestCase() {
                 presentationFactory,
                 { shadePositionRepository },
                 testScope.backgroundScope,
+                /* isCentralizedWallpaperPresentationEnabled= */ false,
             )
         whenever(presentationFactory.create(any())).doReturn(connectedDisplayKeyguardPresentation)
 

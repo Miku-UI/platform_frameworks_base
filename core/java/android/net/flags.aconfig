@@ -12,6 +12,13 @@ flag {
 }
 
 flag {
+    name: "powered_off_finding_message_new_product_name"
+    namespace: "nearby"
+    description: "Controls whether the Powered Off Finding message uses the new product name"
+    bug: "417428201"
+}
+
+flag {
   name: "register_nsd_offload_engine"
   is_exported: true
   namespace: "android_core_networking"
@@ -44,4 +51,47 @@ flag {
   is_exported: false
   description: "Flags the TYPE_VPN_OEM_SERVICE and TYPE_VPN_OEM_LEGACY VpnManager API constants"
   bug: "389829981"
+}
+
+flag {
+  name: "avoid_bad_wifi_from_carrier_config"
+  namespace: "android_core_networking"
+  is_exported: true
+  description: "Flag for reading avoid bad Wi-Fi customization from carrier config"
+  bug: "410976315"
+}
+
+flag {
+  name: "connectivity_service_destroy_socket"
+  is_exported: true
+  namespace: "android_core_networking"
+  description: "Flag for moving the socket destroy logic in Netd to the Connectivity service"
+  bug: "314961091"
+}
+
+flag {
+    name: "collect_vpn_metrics"
+    namespace: "android_core_networking"
+    is_exported: false
+    description: "This flag controls VPN metrics collection."
+    bug: "306313287"
+}
+
+flag {
+  name: "create_app_specific_network_permission"
+  namespace: "android_core_networking"
+  is_exported: false
+  description: "Flag for adding CREATE_APP_SPECIFIC_NETWORK permission"
+  bug: "435313135"
+}
+
+flag {
+  name: "delete_vpn_profile_when_app_uninstalled"
+  namespace: "android_core_networking"
+  is_exported: false
+  description: "Flag for deleting VPN profile when the provisioning app is uninstalled"
+  bug: "440083803"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }

@@ -20,21 +20,36 @@ import static android.appwidget.flags.Flags.remoteAdapterConversion;
 
 import static com.android.internal.R.id.pending_intent_tag;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.anyInt;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import static java.time.temporal.ChronoUnit.MINUTES;
+
 import android.app.ActivityOptions;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetHostView;
+import android.appwidget.AppWidgetManager.ServiceCollectionCache;
+import android.appwidget.flags.Flags;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
@@ -42,14 +57,22 @@ import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Binder;
+import android.os.IBinder;
 import android.os.Looper;
 import android.os.Parcel;
+import android.os.RemoteException;
+import android.os.SystemClock;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.AttributeSet;
 import android.util.SizeF;
+import android.util.proto.ProtoInputStream;
+import android.util.proto.ProtoOutputStream;
 import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.RemoteViewsAdapterTest.ViewsFactory;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -64,11 +87,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.InstantSource;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.function.Consumer;
 
@@ -84,6 +112,9 @@ public class RemoteViewsTest {
 
     @Rule
     public final ExpectedException exception = ExpectedException.none();
+
+    @Rule
+    public SetFlagsRule setFlagsRule = new SetFlagsRule();
 
     private Context mContext;
     private String mPackage;
@@ -1083,6 +1114,136 @@ public class RemoteViewsTest {
 
         RemoteViews.RemoteResponse rr = RemoteViews.RemoteResponse.fromFillInIntent(null);
         assertNotNull(rr);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOTE_ADAPTER_CONVERSION)
+    public void collectAllIntents_collects_results_from_binder() throws Exception {
+        assumeTrue(remoteAdapterConversion());
+        Intent testIntent = new Intent("action_1")
+                .setComponent(new ComponentName(mPackage, "dummy"));
+        RemoteViews views = new RemoteViews(mPackage, R.layout.remote_views_list);
+        views.setRemoteAdapter(R.id.list, testIntent);
+
+        ServiceCollectionCache cache = mock(ServiceCollectionCache.class);
+        CompletableFuture<Void> result = views.collectAllIntents(10, true, cache);
+
+        ArgumentCaptor<Consumer<IBinder>> taskCaptor = ArgumentCaptor.forClass(Consumer.class);
+        verify(cache).connectAndConsume(eq(testIntent), taskCaptor.capture());
+
+        assertFalse(result.isDone());
+        ViewsFactory factory = spy(new ViewsFactory(0));
+        doReturn(factory).when(factory).queryLocalInterface(any());
+        taskCaptor.getValue().accept(factory);
+
+        verify(factory).getRemoteCollectionItems(anyInt(), eq(10), eq(true));
+        assertTrue(result.isDone());
+        assertFalse(result.isCompletedExceptionally());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REMOTE_ADAPTER_CONVERSION)
+    public void collectAllIntents_captures_errors_from_binder() throws Exception {
+        assumeTrue(remoteAdapterConversion());
+        Intent testIntent = new Intent("action_1")
+                .setComponent(new ComponentName(mPackage, "dummy"));
+        RemoteViews views = new RemoteViews(mPackage, R.layout.remote_views_list);
+        views.setRemoteAdapter(R.id.list, testIntent);
+
+        ServiceCollectionCache cache = mock(ServiceCollectionCache.class);
+        CompletableFuture<Void> result = views.collectAllIntents(10, true, cache);
+
+        ArgumentCaptor<Consumer<IBinder>> taskCaptor = ArgumentCaptor.forClass(Consumer.class);
+        verify(cache).connectAndConsume(eq(testIntent), taskCaptor.capture());
+
+        assertFalse(result.isDone());
+        ViewsFactory factory = spy(new ViewsFactory(0));
+        doReturn(factory).when(factory).queryLocalInterface(any());
+
+        doThrow(new RemoteException("test_error")).when(factory)
+                .getRemoteCollectionItems(anyInt(), anyInt(), anyBoolean());
+        taskCaptor.getValue().accept(factory);
+        assertTrue(result.isDone());
+        assertTrue(result.isCompletedExceptionally());
+    }
+
+    @Test
+    public void setChronometer_withElapsedRealtime() {
+        long elapsedRealtime = SystemClock.elapsedRealtime();
+        RemoteViews remoteViews = new RemoteViews(mPackage, R.layout.chronometer_layout);
+        remoteViews.setChronometer(R.id.chronometer, elapsedRealtime, null, false);
+
+        View inflated = remoteViews.apply(mContext, mContainer);
+        Chronometer chronometer = inflated.findViewById(R.id.chronometer);
+
+        assertThat(chronometer).isNotNull();
+        assertThat(chronometer.getBase()).isEqualTo(elapsedRealtime);
+    }
+
+    @Test
+    public void setChronometer_withSystemClockInstant() {
+        Instant instant = InstantSource.system().instant();
+        long elapsedRealtime = SystemClock.elapsedRealtime();
+        RemoteViews remoteViews = new RemoteViews(mPackage, R.layout.chronometer_layout);
+        remoteViews.setChronometer(R.id.chronometer, instant, null, false);
+
+        View inflated = remoteViews.apply(mContext, mContainer);
+        Chronometer chronometer = inflated.findViewById(R.id.chronometer);
+
+        assertThat(chronometer).isNotNull();
+        assertThat(chronometer.getBase()).isWithin(500).of(elapsedRealtime);
+    }
+
+    @Test
+    public void setPausedChronometer_showsDuration() {
+        long elapsedRealtime = SystemClock.elapsedRealtime();
+        Duration pausedDuration = Duration.ofMinutes(3);
+        RemoteViews remoteViews = new RemoteViews(mPackage, R.layout.chronometer_layout);
+        remoteViews.setChronometerPaused(R.id.chronometer, pausedDuration);
+
+        View inflated = remoteViews.apply(mContext, mContainer);
+        Chronometer chronometer = inflated.findViewById(R.id.chronometer);
+
+        assertThat(chronometer).isNotNull();
+        assertThat(chronometer.getText()).isEqualTo("03:00");
+        assertThat(chronometer.getBase()).isWithin(500)
+                .of(elapsedRealtime - pausedDuration.toMillis());
+    }
+
+    @Test
+    public void createPreviewFromProto_afterWritePreviewToProto_restoresActionWithInstant()
+            throws Exception {
+        RemoteViews original = new RemoteViews(mPackage, R.layout.chronometer_layout);
+        Instant instant = InstantSource.system().instant().minus(30, MINUTES);
+        original.setChronometer(R.id.chronometer, instant, null, false);
+
+        ProtoOutputStream outputStream = new ProtoOutputStream();
+        original.writePreviewToProto(mContext, outputStream);
+        ProtoInputStream inputStream = new ProtoInputStream(outputStream.getBytes());
+        RemoteViews restored = RemoteViews.createPreviewFromProto(mContext, inputStream);
+
+        // Verify by applying.
+        View inflated = restored.apply(mContext, mContainer);
+        Chronometer chronometer = inflated.findViewById(R.id.chronometer);
+        assertThat(chronometer.getText()).isEqualTo("30:00");
+    }
+
+    @Test
+    public void createPreviewFromProto_afterWritePreviewToProto_restoresActionWithDuration()
+            throws Exception {
+        RemoteViews original = new RemoteViews(mPackage, R.layout.chronometer_layout);
+        Duration pausedDuration = Duration.ofMinutes(5);
+        original.setChronometerPaused(R.id.chronometer, pausedDuration);
+
+        ProtoOutputStream outputStream = new ProtoOutputStream();
+        original.writePreviewToProto(mContext, outputStream);
+        ProtoInputStream inputStream = new ProtoInputStream(outputStream.getBytes());
+        RemoteViews restored = RemoteViews.createPreviewFromProto(mContext, inputStream);
+
+        // Verify by applying.
+        View inflated = restored.apply(mContext, mContainer);
+        Chronometer chronometer = inflated.findViewById(R.id.chronometer);
+        assertThat(chronometer.getText()).isEqualTo("05:00");
     }
 
     private static LayoutInflater.Factory2 createLayoutInflaterFactory(String viewTypeToReplace,

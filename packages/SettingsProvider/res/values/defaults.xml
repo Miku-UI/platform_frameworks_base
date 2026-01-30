@@ -344,4 +344,12 @@
 
     <!-- Caps minsum contrast from -1.0 (Material API) to 0.0 (Android Support)-->
     <bool name="config_increaseMinContrast">true</bool>
+
+    <!--
+        Default for Settings.System.TEXT_SHOW_PASSWORD.
+
+        Intentionally left empty. The goal is to set a default for desktop
+        devices without forcing it on other form factors.
+    -->
+    <bool name="def_text_show_password"></bool>
 </resources>

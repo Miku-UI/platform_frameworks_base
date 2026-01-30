@@ -20,7 +20,8 @@ import static android.view.WindowManager.DOCKED_INVALID;
 import static android.view.WindowManager.DOCKED_LEFT;
 import static android.view.WindowManager.DOCKED_RIGHT;
 
-import static com.android.wm.shell.common.split.ResizingEffectPolicy.DEFAULT_OFFSCREEN_DIM;
+import static com.android.wm.shell.shared.split.SplitScreenConstants.DEFAULT_OFFSCREEN_DIM;
+import static com.android.wm.shell.shared.split.SplitScreenConstants.SNAP_TO_2_50_50;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -57,6 +58,7 @@ public class FlexParallaxSpecTests {
     Point mAdvancingParallax = new Point(0, 0);
 
     @Mock DividerSnapAlgorithm mockSnapAlgorithm;
+    @Mock SplitState mockSplitState;
     @Mock SnapTarget mockStartEdge;
     @Mock SnapTarget mockFirstTarget;
     @Mock SnapTarget mockMiddleTarget;
@@ -72,6 +74,7 @@ public class FlexParallaxSpecTests {
         when(mockSnapAlgorithm.getLastSplitTarget()).thenReturn(mockLastTarget);
         when(mockSnapAlgorithm.getDismissEndTarget()).thenReturn(mockEndEdge);
         when(mockSnapAlgorithm.areOffscreenRatiosSupported()).thenReturn(true);
+        when(mockSplitState.get()).thenReturn(SNAP_TO_2_50_50);
 
         when(mockStartEdge.getPosition()).thenReturn(0);
         when(mockFirstTarget.getPosition()).thenReturn(250);
@@ -392,7 +395,7 @@ public class FlexParallaxSpecTests {
         mDimValue = mFlexSpec.getDimValue(to, mockSnapAlgorithm);
         mFlexSpec.getParallax(mRetreatingParallax, mAdvancingParallax, to, mockSnapAlgorithm,
                 mIsLeftRightSplit, mDisplayBounds, mRetreatingSurface, mRetreatingContent,
-                mAdvancingSurface, mAdvancingContent, mDimmingSide, mTopLeftShrink);
+                mAdvancingSurface, mAdvancingContent, mDimmingSide, mTopLeftShrink, mockSplitState);
     }
 
     private void resetParallax() {

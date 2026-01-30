@@ -17,7 +17,7 @@
 package android.telephony.satellite.stub;
 
 /**
- * {@hide}
+ * @hide
  */
 @Backing(type="int")
 enum SatelliteResult {

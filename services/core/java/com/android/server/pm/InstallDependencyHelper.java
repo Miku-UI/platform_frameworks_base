@@ -56,7 +56,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class InstallDependencyHelper {
     private static final String TAG = InstallDependencyHelper.class.getSimpleName();
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     // The maximum amount of time to wait before the system unbinds from the verifier.
     private static final long UNBIND_TIMEOUT_MILLIS = TimeUnit.HOURS.toMillis(6);
     private static final long REQUEST_TIMEOUT_MILLIS = TimeUnit.MINUTES.toMillis(1);

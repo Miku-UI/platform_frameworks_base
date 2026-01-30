@@ -28,6 +28,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.graphics.Point;
+import android.hardware.display.AmbientDisplayConfiguration;
 import android.os.PowerManager;
 import android.testing.TestableLooper.RunWithLooper;
 import android.view.View;
@@ -42,8 +43,11 @@ import com.android.systemui.biometrics.AuthController;
 import com.android.systemui.doze.DozeHost;
 import com.android.systemui.doze.DozeLog;
 import com.android.systemui.flags.DisableSceneContainer;
+import com.android.systemui.flags.EnableSceneContainer;
 import com.android.systemui.keyguard.WakefulnessLifecycle;
+import com.android.systemui.keyguard.domain.interactor.AodDimInteractor;
 import com.android.systemui.keyguard.domain.interactor.DozeInteractor;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.shade.NotificationShadeWindowViewController;
 import com.android.systemui.shade.domain.interactor.ShadeLockscreenInteractor;
 import com.android.systemui.statusbar.NotificationShadeWindowController;
@@ -51,9 +55,9 @@ import com.android.systemui.statusbar.PulseExpansionHandler;
 import com.android.systemui.statusbar.StatusBarState;
 import com.android.systemui.statusbar.StatusBarStateControllerImpl;
 import com.android.systemui.statusbar.notification.NotificationWakeUpCoordinator;
+import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.policy.BatteryController;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
-import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -96,17 +100,25 @@ public class DozeServiceHostTest extends SysuiTestCase {
     @Mock private AuthController mAuthController;
     @Mock private DozeHost.Callback mCallback;
     @Mock private DozeInteractor mDozeInteractor;
+    @Mock private AmbientDisplayConfiguration mAmbientDisplayConfiguration;
+    @Mock private AodDimInteractor mAodDimInteractor;
+
+    private KosmosJavaAdapter mKosmos;
 
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
+        mKosmos = new KosmosJavaAdapter(this);
         mDozeServiceHost = new DozeServiceHost(mDozeLog, mPowerManager, mWakefullnessLifecycle,
                 mStatusBarStateController, mDeviceProvisionedController,
-                mHeadsUpManager, mBatteryController, mScrimController,
+                mHeadsUpManager, mBatteryController, () -> mScrimController,
                 () -> mBiometricUnlockController, () -> mAssistManager, mDozeScrimController,
                 mKeyguardUpdateMonitor, mPulseExpansionHandler, mNotificationShadeWindowController,
                 mNotificationWakeUpCoordinator, mAuthController,
-                mShadeLockscreenInteractor, mDozeInteractor);
+                mShadeLockscreenInteractor, mDozeInteractor,
+                mKosmos.getDeviceEntryFingerprintAuthInteractor(),
+                mKosmos.getTestScope(), mContext, mAmbientDisplayConfiguration,
+                mAodDimInteractor);
 
         mDozeServiceHost.initialize(
                 mCentralSurfaces,
@@ -178,12 +190,16 @@ public class DozeServiceHostTest extends SysuiTestCase {
                         DozeLog.REASON_SENSOR_WAKE_UP_PRESENCE,
                         DozeLog.REASON_SENSOR_QUICK_PICKUP,
                         DozeLog.PULSE_REASON_FINGERPRINT_ACTIVATED,
-                        DozeLog.REASON_SENSOR_TAP));
+                        DozeLog.REASON_SENSOR_TAP,
+                        DozeLog.PULSE_REASON_MINMODE,
+                        DozeLog.REASON_SENSOR_UDFPS_LONG_PRESS, // auth interrupt occurs elsewhere
+                        DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI,
+                        DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI));
+        // These are full wakeups, not pulses:
         HashSet<Integer> reasonsThatDontPulse = new HashSet<>(
                 Arrays.asList(DozeLog.REASON_SENSOR_PICKUP,
                         DozeLog.REASON_SENSOR_DOUBLE_TAP,
-                        DozeLog.REASON_SENSOR_TAP,
-                        DozeLog.REASON_SENSOR_UDFPS_LONG_PRESS));
+                        DozeLog.REASON_SENSOR_TAP));
 
         doAnswer(invocation -> {
             DozeHost.PulseCallback callback = invocation.getArgument(0);
@@ -231,6 +247,7 @@ public class DozeServiceHostTest extends SysuiTestCase {
         mDozeServiceHost.onSlpiTap(100, -2);
         verify(mDozeInteractor, never()).setLastTapToWakePosition(any());
     }
+
     @Test
     public void dozeTimeTickSentToDozeInteractor() {
         // WHEN dozeTimeTick
@@ -238,5 +255,15 @@ public class DozeServiceHostTest extends SysuiTestCase {
 
         // THEN dozeInteractor's dozeTimeTick is updated
         verify(mDozeInteractor).dozeTimeTick();
+    }
+
+    @Test
+    @EnableSceneContainer
+    public void setAodDimmingScrim() {
+        // WHEN set aodDimmingScrim
+        mDozeServiceHost.setAodDimmingScrim(.54f);
+
+        // THEN interactor's dim amount is updated
+        verify(mAodDimInteractor).setDimAmount(eq(.54f));
     }
 }

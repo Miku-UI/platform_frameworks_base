@@ -59,7 +59,7 @@ class MobileConnectionKairosAdapterTelephonySmokeTests : MobileConnectionTelepho
                             flags,
                         )
                     }
-                    adapter = MobileConnectionRepositoryKairosAdapter(repo, systemUiCarrierConfig)
+                    adapter = MobileConnectionRepositoryKairosAdapter(repo)
                     Unit
                 }
             }

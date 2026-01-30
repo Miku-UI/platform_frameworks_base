@@ -25,17 +25,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * THIS ANNOTATION IS EXPERIMENTAL. REACH OUT TO g/ravenwood BEFORE USING IT, OR YOU HAVE ANY
- * QUESTIONS ABOUT IT.
- *
- * Mark a class, field or a method as "Stub", meaning tests can _not_ see the APIs, but they
- * can indirectly be used on the host side.
- * When applied to a class, it will _not_ affect the visibility of its members. They need to be
- * individually marked.
- *
- * <p>In order to expose a class and all its members, use {@link HostSideTestWholeClassStub}
- * instead.
- * @hide
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
  */
 @Target({TYPE, FIELD, METHOD, CONSTRUCTOR})
 @Retention(RetentionPolicy.CLASS)

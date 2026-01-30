@@ -108,7 +108,7 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
      *
      * @param attributes
      */
-    public void fillInAttributes(HashMap<Integer, Object> attributes) {
+    public void fillInAttributes(@NonNull HashMap<Integer, Object> attributes) {
         for (int i = 0; i < mValues.length; i++) {
             if (mValues[i].needsToWrite()) {
                 attributes.put(i, mValues[i].getObjectValue());
@@ -221,7 +221,7 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
     }
 
     @Override
-    public void serializeToString(int indent, StringSerializer serializer) {
+    public void serializeToString(int indent, @NonNull StringSerializer serializer) {
         serializer.append(
                 indent,
                 "GRAPHICS_LAYER = ["
@@ -279,7 +279,7 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
      * @param buffer a WireBuffer
      * @param values attributes of the layer
      */
-    public static void apply(WireBuffer buffer, HashMap<Integer, Object> values) {
+    public static void apply(@NonNull WireBuffer buffer, @NonNull HashMap<Integer, Object> values) {
         buffer.start(OP_CODE);
         int size = values.size();
         buffer.writeInt(size);
@@ -300,7 +300,7 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
      * @param type
      * @param value
      */
-    private static void writeIntAttribute(WireBuffer buffer, int type, int value) {
+    private static void writeIntAttribute(@NonNull WireBuffer buffer, int type, int value) {
         int tag = type | (DATA_TYPE_INT << 10);
         buffer.writeInt(tag);
         buffer.writeInt(value);
@@ -313,7 +313,7 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
      * @param type
      * @param value
      */
-    private static void writeFloatAttribute(WireBuffer buffer, int type, float value) {
+    private static void writeFloatAttribute(@NonNull WireBuffer buffer, int type, float value) {
         int tag = type | (DATA_TYPE_FLOAT << 10);
         buffer.writeInt(tag);
         buffer.writeFloat(value);
@@ -325,7 +325,7 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
      * @param buffer a WireBuffer
      * @param operations the list of operations read so far
      */
-    public static void read(WireBuffer buffer, List<Operation> operations) {
+    public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         int length = buffer.readInt();
         GraphicsLayerModifierOperation op = new GraphicsLayerModifierOperation();
         for (int i = 0; i < length; i++) {
@@ -339,7 +339,7 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
      *
      * @param buffer
      */
-    private void readAttributeValue(WireBuffer buffer) {
+    private void readAttributeValue(@NonNull WireBuffer buffer) {
         int tag = buffer.readInt();
         int dataType = tag >> 10;
         int index = (short) (tag & 0x3F);
@@ -361,16 +361,20 @@ public class GraphicsLayerModifierOperation extends DecoratorModifierOperation {
      *
      * @param doc to append the description to.
      */
-    public static void documentation(DocumentationBuilder doc) {
+    public static void documentation(@NonNull DocumentationBuilder doc) {
         doc.operation("Modifier Operations", OP_CODE, CLASS_NAME)
                 .description("define the GraphicsLayer Modifier");
     }
 
     @Override
-    public void layout(RemoteContext context, Component component, float width, float height) {}
+    public void layout(
+            @NonNull RemoteContext context,
+            @NonNull Component component,
+            float width,
+            float height) {}
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER)
                 .addType("GraphicsLayerModifierOperation")

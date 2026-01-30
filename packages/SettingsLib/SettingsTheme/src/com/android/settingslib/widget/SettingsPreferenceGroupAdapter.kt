@@ -17,9 +17,12 @@
 package com.android.settingslib.widget
 
 import android.annotation.SuppressLint
+import android.graphics.Rect
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.util.TypedValue
+import android.view.View
 import androidx.annotation.DrawableRes
 import androidx.preference.Preference
 import androidx.preference.PreferenceCategory
@@ -29,15 +32,23 @@ import androidx.preference.PreferenceViewHolder
 import com.android.settingslib.widget.theme.R
 
 /**
- * A custom adapter for displaying settings preferences in a list, handling rounded corners for
- * preference items within a group.
+ * This is an extension over [PreferenceGroupAdapter] that allows creating visual sections for
+ * preferences. It sets the following drawable states on item views when they are a
+ * [DrawableStateLayout]:
+ * - [android.R.attr.state_single] if the item is the only one in a section
+ * - [android.R.attr.state_first] if the item is the first one in a section
+ * - [android.R.attr.state_middle] if the item is neither the first one or the last one in a section
+ * - [android.R.attr.state_last] if the item is the last one in a section
+ *
+ * Note that [androidx.preference.PreferenceManager.PreferenceComparisonCallback] isn't supported
+ * (yet).
  */
 @SuppressLint("RestrictedApi")
 open class SettingsPreferenceGroupAdapter(preferenceGroup: PreferenceGroup) :
     PreferenceGroupAdapter(preferenceGroup) {
 
     private val mPreferenceGroup = preferenceGroup
-    private var mRoundCornerMappingList: ArrayList<Int> = ArrayList()
+    private var mItemPositionStates = intArrayOf()
 
     private var mNormalPaddingStart = 0
     private var mGroupPaddingStart = 0
@@ -67,7 +78,6 @@ open class SettingsPreferenceGroupAdapter(preferenceGroup: PreferenceGroup) :
         updatePreferencesList()
     }
 
-    @SuppressLint("RestrictedApi")
     override fun onPreferenceHierarchyChange(preference: Preference) {
         super.onPreferenceHierarchyChange(preference)
 
@@ -92,119 +102,144 @@ open class SettingsPreferenceGroupAdapter(preferenceGroup: PreferenceGroup) :
             return
         }
 
-        val oldList = ArrayList(mRoundCornerMappingList)
-        mRoundCornerMappingList = ArrayList()
-        mappingPreferenceGroup(mRoundCornerMappingList, mPreferenceGroup)
-        if (mRoundCornerMappingList != oldList) {
-            notifyDataSetChanged()
+        val oldItemPositionStates = mItemPositionStates
+        mItemPositionStates = buildItemPositionStates()
+        if (!(mItemPositionStates contentEquals oldItemPositionStates)) {
+            notifyOnlyChangedItems(oldItemPositionStates, mItemPositionStates)
         }
     }
 
-    @SuppressLint("RestrictedApi")
-    private fun mappingPreferenceGroup(cornerStyles: MutableList<Int>, group: PreferenceGroup) {
-        cornerStyles.clear()
-        cornerStyles.addAll(MutableList(itemCount) { 0 })
+    /** Notify any registered observers if the new list's items changed. */
+    private fun notifyOnlyChangedItems(oldList: IntArray, newList: IntArray) {
+        val minLength = minOf(oldList.size, newList.size)
 
-        // the first item in to group
-        var startIndex = -1
-        // the last item in the group
-        var endIndex = -1
-        var currentParent: PreferenceGroup? = group
-        for (i in 0 until itemCount) {
-            when (val pref = getItem(i)) {
-                // the preference has round corner background, so we don't need to handle it.
-                is GroupSectionDividerMixin -> {
-                    cornerStyles[i] = 0
-                    startIndex = -1
-                    endIndex = -1
-                }
-
-                // PreferenceCategory should not have round corner background.
-                is PreferenceCategory -> {
-                    cornerStyles[i] = 0
-                    startIndex = -1
-                    endIndex = -1
-                    currentParent = pref
-                }
-
-                // ExpandablePreference is PreferenceGroup but it should handle round corner
-                is Expandable -> {
-                    // When ExpandablePreference is expanded, we treat is as the first item.
-                    if (pref.isExpanded()) {
-                        currentParent = pref as? PreferenceGroup
-                        startIndex = i
-                        cornerStyles[i] = cornerStyles[i] or ROUND_CORNER_TOP or ROUND_CORNER_CENTER
-                        endIndex = -1
-                    }
-                }
-
-                else -> {
-                    val parent = pref?.parent
-
-                    // item in the group should have round corner background.
-                    cornerStyles[i] = cornerStyles[i] or ROUND_CORNER_CENTER
-                    if (parent === currentParent) {
-                        // find the first item in the group
-                        if (startIndex == -1) {
-                            startIndex = i
-                            cornerStyles[i] = cornerStyles[i] or ROUND_CORNER_TOP
-                        }
-
-                        // find the last item in the group, if we find the new last item, we should
-                        // remove the old last item round corner.
-                        if (endIndex == -1 || endIndex < i) {
-                            if (endIndex != -1) {
-                                cornerStyles[endIndex] =
-                                    cornerStyles[endIndex] and ROUND_CORNER_BOTTOM.inv()
-                            }
-                            endIndex = i
-                            cornerStyles[i] = cornerStyles[i] or ROUND_CORNER_BOTTOM
-                        }
-                    } else {
-                        // this item is new group, we should reset the index.
-                        currentParent = parent
-                        startIndex = i
-                        cornerStyles[i] = cornerStyles[i] or ROUND_CORNER_TOP
-                        endIndex = i
-                        cornerStyles[i] = cornerStyles[i] or ROUND_CORNER_BOTTOM
-                    }
-                }
+        for (position in 0 until minLength) {
+            if (oldList[position] != newList[position]) {
+                notifyItemChanged(position)
             }
+        }
+
+        // If the remaining items are from the new list, notify about all of them
+        val remainingItems = newList.size - minLength
+
+        if (remainingItems > 0) {
+            notifyItemRangeChanged(minLength, remainingItems)
+        }
+    }
+
+    private fun buildItemPositionStates(): IntArray {
+        val itemCount = itemCount
+        val itemPositionStates = IntArray(itemCount)
+
+        var prevItemIndex = -2
+        var previousParent: Preference? = null
+        var currentParent: Preference? = null
+        for (i in 0..<itemCount) {
+            val preference = getItem(i)!!
+            // If the preference is a group divider, skip this index (resulting in new group)
+            if (isGroupDivider(preference)) {
+                itemPositionStates[i] = 0
+                continue
+            }
+
+            // Start a new group if any of the following are true:
+            //     - We're at the first index
+            //     - We've skipped an index
+            //     - We've hit an expanded Expandable parent
+            //     - We've changed parent (except: if parent is null, or we hit an Expandable child)
+            previousParent = currentParent
+            currentParent = preference.parent
+            val isExpandedParent = preference is Expandable && preference.isExpanded()
+            val isExpandedChild = currentParent is Expandable && currentParent.isExpanded()
+            val changedParent = previousParent != currentParent && currentParent != null
+            if (prevItemIndex != i - 1 || isExpandedParent || (changedParent && !isExpandedChild)) {
+                closeGroup(itemPositionStates, prevItemIndex)
+                itemPositionStates[i] = android.R.attr.state_first
+                prevItemIndex = i
+            } else {
+                // Otherwise, continue current group
+                itemPositionStates[i] = android.R.attr.state_middle
+                prevItemIndex = i
+            }
+        }
+        // Close current group
+        closeGroup(itemPositionStates, prevItemIndex)
+        return itemPositionStates
+    }
+
+    private fun closeGroup(itemPositionStates: IntArray, i: Int) {
+        if (i >= 0) {
+            itemPositionStates[i] =
+                when (itemPositionStates[i]) {
+                    0 -> 0
+                    android.R.attr.state_first -> android.R.attr.state_single
+                    else -> android.R.attr.state_last
+                }
         }
     }
 
     /** handle roundCorner background */
     private fun updateBackground(holder: PreferenceViewHolder, position: Int) {
-        val context = holder.itemView.context
-        @DrawableRes
-        val backgroundRes =
-            when (SettingsThemeHelper.isExpressiveTheme(context)) {
-                true -> getRoundCornerDrawableRes(position, isSelected = false)
-                else -> mLegacyBackgroundRes
+        val v = holder.itemView
+        val drawableStateLayout = holder.itemView as? DrawableStateLayout
+        if (drawableStateLayout != null && mItemPositionStates[position] != 0) {
+            if (v.background == null) {
+                // Make sure the stateful drawable is set for expressive UI
+                v.setBackgroundResource(R.drawable.settingslib_round_background_stateful)
             }
 
-        val v = holder.itemView
-        // Update padding
-        if (SettingsThemeHelper.isExpressiveTheme(context)) {
-            val (paddingStart, paddingEnd) = getStartEndPadding(position, backgroundRes)
+            val background = v.background
+            if (background != null) {
+                val backgroundPadding = Rect()
+                background.getPadding(backgroundPadding)
+                // We can't remove the padding set in XML because the same layout was also
+                // used when expressive theme isn't enabled, or when expressive theme is enabled
+                // but this adapter isn't used. Hence, we have to do setPaddingRelative() here
+                // to apply the padding from the background.
+                v.setPadding(
+                    backgroundPadding.left,
+                    backgroundPadding.top,
+                    backgroundPadding.right,
+                    backgroundPadding.bottom,
+                )
+            }
+            val iconFrame =
+                holder.findViewById(androidx.preference.R.id.icon_frame)
+                    ?: holder.findViewById(android.R.id.icon_frame)
+            val hasIconSpace = iconFrame != null && iconFrame.visibility != View.GONE
+            drawableStateLayout.extraDrawableState =
+                stateSetOf(mItemPositionStates[position], hasIconSpace)
+        } else { // Handle the background of the preferences that are group divider
+            val backgroundRes = getRoundCornerDrawableRes(position, isSelected = false)
+            val (paddingStart, paddingEnd) = getStartEndPadding(position)
             v.setPaddingRelative(paddingStart, v.paddingTop, paddingEnd, v.paddingBottom)
             v.clipToOutline = backgroundRes != 0
+            v.setBackgroundResource(backgroundRes)
         }
-        // Update background
-        v.setBackgroundResource(backgroundRes)
     }
 
-    private fun getStartEndPadding(position: Int, backgroundRes: Int): Pair<Int, Int> {
+    private fun getStartEndPadding(position: Int): Pair<Int, Int> {
         val item = getItem(position)
+        if (position >= mItemPositionStates.size) {
+            Log.e(TAG, "IndexOutOfBounds: ${item?.title} in $position")
+            return 0 to 0
+        }
+        val positionState = mItemPositionStates[position]
         return when {
             // This item handles edge to edge itself
             item is NormalPaddingMixin && item is GroupSectionDividerMixin -> 0 to 0
+            // Item is placed directly on screen needs to have extra padding
+            item is OnScreenWidgetMixin -> {
+                val extraPadding = item.context.resources.getDimensionPixelSize(
+                    R.dimen.settingslib_expressive_space_extrasmall4)
+                mNormalPaddingStart + extraPadding to mNormalPaddingEnd + extraPadding
+            }
 
-            // According to mappingPreferenceGroup(), backgroundRes == 0 means this item is
-            // GroupSectionDividerMixin or PreferenceCategory, which is design to have normal
-            // padding.
-            // NormalPaddingMixin items are also designed to have normal padding.
-            backgroundRes == 0 || item is NormalPaddingMixin ->
+            // This item should have normal padding if either:
+            // - this item's positionState == 0 (which denotes that it is a section divider item
+            //   such as a GroupSectionDividerMixin or PreferenceCategory), or
+            // - this preference is a NormalPaddingMixin.
+            positionState == 0 || item is NormalPaddingMixin ->
                 mNormalPaddingStart to mNormalPaddingEnd
 
             // Other items are suppose to have group padding.
@@ -213,56 +248,80 @@ open class SettingsPreferenceGroupAdapter(preferenceGroup: PreferenceGroup) :
     }
 
     @DrawableRes
-    protected fun getRoundCornerDrawableRes(position: Int, isSelected: Boolean): Int {
-        return getRoundCornerDrawableRes(position, isSelected, false)
-    }
-
-    @DrawableRes
+    @JvmOverloads
     protected fun getRoundCornerDrawableRes(
         position: Int,
         isSelected: Boolean,
-        isHighlighted: Boolean,
+        isHighlighted: Boolean = false,
     ): Int {
-        val cornerType = mRoundCornerMappingList[position]
-
-        if ((cornerType and ROUND_CORNER_CENTER) == 0) {
+        if (position !in mItemPositionStates.indices) {
             return 0
         }
-
-        return when {
-            (cornerType and ROUND_CORNER_TOP) != 0 && (cornerType and ROUND_CORNER_BOTTOM) == 0 -> {
-                // the first
+        val positionState = mItemPositionStates[position]
+        return when (positionState) {
+            // preference is the first of the section
+            android.R.attr.state_first -> {
                 if (isSelected) R.drawable.settingslib_round_background_top_selected
                 else if (isHighlighted) R.drawable.settingslib_round_background_top_highlighted
                 else R.drawable.settingslib_round_background_top
             }
-
-            (cornerType and ROUND_CORNER_BOTTOM) != 0 && (cornerType and ROUND_CORNER_TOP) == 0 -> {
-                // the last
-                if (isSelected) R.drawable.settingslib_round_background_bottom_selected
-                else if (isHighlighted) R.drawable.settingslib_round_background_bottom_highlighted
-                else R.drawable.settingslib_round_background_bottom
-            }
-
-            (cornerType and ROUND_CORNER_TOP) != 0 && (cornerType and ROUND_CORNER_BOTTOM) != 0 -> {
-                // the only one preference
-                if (isSelected) R.drawable.settingslib_round_background_selected
-                else if (isHighlighted) R.drawable.settingslib_round_background_highlighted
-                else R.drawable.settingslib_round_background
-            }
-
-            else -> {
-                // in the center
+            // preference is in the center of the section
+            android.R.attr.state_middle -> {
                 if (isSelected) R.drawable.settingslib_round_background_center_selected
                 else if (isHighlighted) R.drawable.settingslib_round_background_center_highlighted
                 else R.drawable.settingslib_round_background_center
             }
+            // preference is the last of the section
+            android.R.attr.state_last -> {
+                if (isSelected) R.drawable.settingslib_round_background_bottom_selected
+                else if (isHighlighted) R.drawable.settingslib_round_background_bottom_highlighted
+                else R.drawable.settingslib_round_background_bottom
+            }
+            // preference is the only one in the section
+            android.R.attr.state_single -> {
+                if (isSelected) R.drawable.settingslib_round_background_selected
+                else if (isHighlighted) R.drawable.settingslib_round_background_highlighted
+                else R.drawable.settingslib_round_background
+            }
+            // preference is not part of a section
+            else -> 0
         }
     }
 
+    protected fun isGroupDivider(preference: Preference) =
+        preference is GroupSectionDividerMixin || preference is PreferenceCategory
+                || preference is SpacePreference
+
     companion object {
-        private const val ROUND_CORNER_CENTER: Int = 1
-        private const val ROUND_CORNER_TOP: Int = 1 shl 1
-        private const val ROUND_CORNER_BOTTOM: Int = 1 shl 2
+        private val TAG = "SettingsPrefGroupAdapter"
+        private val STATE_SET_NONE = intArrayOf()
+        private val STATE_SET_SINGLE = intArrayOf(android.R.attr.state_single)
+        private val STATE_SET_FIRST = intArrayOf(android.R.attr.state_first)
+        private val STATE_SET_MIDDLE = intArrayOf(android.R.attr.state_middle)
+        private val STATE_SET_LAST = intArrayOf(android.R.attr.state_last)
+        private val STATE_SET_SINGLE_HAS_ICON_SPACE =
+            intArrayOf(android.R.attr.state_single, R.attr.state_has_icon_space)
+        private val STATE_SET_FIRST_HAS_ICON_SPACE =
+            intArrayOf(android.R.attr.state_first, R.attr.state_has_icon_space)
+        private val STATE_SET_MIDDLE_HAS_ICON_SPACE =
+            intArrayOf(android.R.attr.state_middle, R.attr.state_has_icon_space)
+        private val STATE_SET_LAST_HAS_ICON_SPACE =
+            intArrayOf(android.R.attr.state_last, R.attr.state_has_icon_space)
+
+        private fun stateSetOf(
+            positionState: Int,
+            hasIconSpace: Boolean
+        ): IntArray =
+            when {
+                positionState == android.R.attr.state_single ->
+                    if (hasIconSpace) STATE_SET_SINGLE_HAS_ICON_SPACE else STATE_SET_SINGLE
+                positionState == android.R.attr.state_first ->
+                    if (hasIconSpace) STATE_SET_FIRST_HAS_ICON_SPACE else STATE_SET_FIRST
+                positionState == android.R.attr.state_middle ->
+                    if (hasIconSpace) STATE_SET_MIDDLE_HAS_ICON_SPACE else STATE_SET_MIDDLE
+                positionState == android.R.attr.state_last ->
+                    if (hasIconSpace) STATE_SET_LAST_HAS_ICON_SPACE else STATE_SET_LAST
+                else -> error(positionState)
+            }
     }
 }

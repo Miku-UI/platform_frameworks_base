@@ -20,6 +20,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
@@ -35,6 +36,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Debug;
+import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.MessageQueue;
@@ -48,9 +50,12 @@ import android.os.SystemProperties;
 import android.os.TestLooperManager;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.ravenwood.annotation.RavenwoodIgnore;
 import android.ravenwood.annotation.RavenwoodKeep;
 import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.ravenwood.annotation.RavenwoodReplace;
 import android.util.AndroidRuntimeException;
 import android.util.Log;
@@ -87,6 +92,7 @@ import com.android.internal.util.miku.PropsUtils;
  * &lt;instrumentation&gt; tag.
  */
 @RavenwoodKeepPartialClass
+@RavenwoodRedirectionClass("Instrumentation_ravenwood")
 public class Instrumentation {
 
     /**
@@ -133,6 +139,7 @@ public class Instrumentation {
 
     private final Object mSync = new Object();
     private ActivityThread mThread = null;
+    private Handler mMainHandler = null;
     private MessageQueue mMessageQueue = null;
     private Context mInstrContext;
     private Context mAppContext;
@@ -149,6 +156,10 @@ public class Instrumentation {
 
     @RavenwoodKeep
     public Instrumentation() {
+    }
+
+    @RavenwoodRedirect
+    private static void checkPendingExceptionOnRavenwood() {
     }
 
     /**
@@ -198,7 +209,7 @@ public class Instrumentation {
      * @param arguments Any additional arguments that were supplied when the 
      *                  instrumentation was started.
      */
-    @android.ravenwood.annotation.RavenwoodKeep
+    @RavenwoodKeep
     public void onCreate(Bundle arguments) {
     }
 
@@ -207,6 +218,7 @@ public class Instrumentation {
      * thread will call to {@link #onStart} where you can implement the
      * instrumentation.
      */
+    @RavenwoodIgnore(reason = "Ravenwood has its own test thread")
     public void start() {
         if (mRunner != null) {
             throw new RuntimeException("Instrumentation already started");
@@ -348,6 +360,7 @@ public class Instrumentation {
      * 
      * @return Returns the complete component name for this instrumentation.
      */
+    @RavenwoodKeep
     public ComponentName getComponentName() {
         return mComponent;
     }
@@ -446,9 +459,10 @@ public class Instrumentation {
      * @param recipient Called the next time the thread's message queue is
      *                  idle.
      */
+    @RavenwoodKeep
     public void waitForIdle(Runnable recipient) {
         mMessageQueue.addIdleHandler(new Idler(recipient));
-        mThread.getHandler().post(new EmptyRunnable());
+        mMainHandler.post(new EmptyRunnable());
     }
 
     /**
@@ -456,12 +470,14 @@ public class Instrumentation {
      * from the main application thread -- use {@link #start} to execute
      * instrumentation in its own thread.
      */
+    @RavenwoodKeep
     public void waitForIdleSync() {
         validateNotAppThread();
         Idler idler = new Idler(null);
         mMessageQueue.addIdleHandler(idler);
-        mThread.getHandler().post(new EmptyRunnable());
+        mMainHandler.post(new EmptyRunnable());
         idler.waitForIdle();
+        checkPendingExceptionOnRavenwood();
     }
 
     /**
@@ -471,19 +487,13 @@ public class Instrumentation {
      * 
      * @param runner The code to run on the main thread.
      */
-    @RavenwoodReplace(blockedBy = ActivityThread.class)
+    @RavenwoodKeep
     public void runOnMainSync(Runnable runner) {
         validateNotAppThread();
         SyncRunnable sr = new SyncRunnable(runner);
-        mThread.getHandler().post(sr);
+        mMainHandler.post(sr);
         sr.waitForComplete();
-    }
-
-    private void runOnMainSync$ravenwood(Runnable runner) {
-        validateNotAppThread();
-        SyncRunnable sr = new SyncRunnable(runner);
-        mInstrContext.getMainExecutor().execute(sr);
-        sr.waitForComplete();
+        checkPendingExceptionOnRavenwood();
     }
 
     boolean isSdkSandboxAllowedToStartActivities() {
@@ -1243,8 +1253,10 @@ public class Instrumentation {
      * @see #sendKeySync(KeyEvent)
      */
     public void sendKeyDownUpSync(int keyCode) {
-        sendKeySync(new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
-        sendKeySync(new KeyEvent(KeyEvent.ACTION_UP, keyCode));
+        long downtime = SystemClock.uptimeMillis();
+        sendKeySync(new KeyEvent(downtime, downtime, KeyEvent.ACTION_DOWN, keyCode, 0 /*repeat*/));
+        sendKeySync(new KeyEvent(downtime, SystemClock.uptimeMillis(), KeyEvent.ACTION_UP, keyCode,
+                0 /*repeat*/));
     }
 
     /**
@@ -1343,6 +1355,7 @@ public class Instrumentation {
      * 
      * @return The newly instantiated Application object.
      */
+    @RavenwoodKeep
     public Application newApplication(ClassLoader cl, String className, Context context)
             throws InstantiationException, IllegalAccessException, 
             ClassNotFoundException {
@@ -1364,6 +1377,7 @@ public class Instrumentation {
      * 
      * @return The newly instantiated Application object.
      */
+    @RavenwoodKeep
     static public Application newApplication(Class<?> clazz, Context context)
             throws InstantiationException, IllegalAccessException, 
             ClassNotFoundException {
@@ -1386,6 +1400,7 @@ public class Instrumentation {
      *
      * @param app The application being created.
      */
+    @RavenwoodKeep
     public void callApplicationOnCreate(Application app) {
         app.onCreate();
     }
@@ -1452,6 +1467,7 @@ public class Instrumentation {
         return getFactory(pkg).instantiateActivity(cl, className, intent);
     }
 
+    @RavenwoodReplace(reason = "Custom AppComponentFactory not supported")
     private AppComponentFactory getFactory(String pkg) {
         if (pkg == null) {
             Log.e(TAG, "No pkg specified, disabling AppComponentFactory");
@@ -1466,6 +1482,10 @@ public class Instrumentation {
         // This is in the case of starting up "android".
         if (apk == null) apk = mThread.getSystemContext().mPackageInfo;
         return apk.getAppFactory();
+    }
+
+    private AppComponentFactory getFactory$ravenwood(String pkg) {
+        return AppComponentFactory.DEFAULT;
     }
 
     /**
@@ -1954,7 +1974,7 @@ public class Instrumentation {
      * @see Activity#startActivity(Intent)
      * @see Activity#startActivityForResult(Intent, int)
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public ActivityResult execStartActivity(
@@ -2019,7 +2039,7 @@ public class Instrumentation {
      * {@link ActivityMonitor} objects only match against the first activity in
      * the array.
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public void execStartActivities(Context who, IBinder contextThread,
@@ -2038,7 +2058,7 @@ public class Instrumentation {
      *         {@link ActivityManager#START_SUCCESS} etc. indicating whether the launch was
      *         successful.
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public int execStartActivitiesAsUser(Context who, IBinder contextThread,
@@ -2130,7 +2150,7 @@ public class Instrumentation {
      * @see Activity#startActivity(Intent)
      * @see Activity#startActivityForResult(Intent, int)
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public ActivityResult execStartActivity(
@@ -2210,12 +2230,12 @@ public class Instrumentation {
      * @see Activity#startActivity(Intent)
      * @see Activity#startActivityForResult(Intent, int)
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public ActivityResult execStartActivity(
             Context who, IBinder contextThread, IBinder token, String resultWho,
-            Intent intent, int requestCode, Bundle options, UserHandle user) {
+            Intent intent, int requestCode, Bundle options, @CanBeCURRENT UserHandle user) {
         if (DEBUG_START_ACTIVITY) {
             Log.d(TAG, "startActivity: who=" + who + " user=" + user + " intent=" + intent
                     + " requestCode=" + requestCode + " resultWho=" + resultWho
@@ -2388,6 +2408,7 @@ public class Instrumentation {
             Context instrContext, Context appContext, ComponentName component, 
             IInstrumentationWatcher watcher, IUiAutomationConnection uiAutomationConnection) {
         mThread = thread;
+        mMainHandler = thread.getHandler();
         mMessageQueue = mThread.getLooper().myQueue();
         mInstrContext = instrContext;
         mAppContext = appContext;
@@ -2402,15 +2423,18 @@ public class Instrumentation {
      */
     final void basicInit(ActivityThread thread) {
         mThread = thread;
+        mMainHandler = thread.getHandler();
     }
 
     /**
-     * Only sets the Context up, keeps everything else null.
+     * Initialize the minimam fields needed for Ravenwood.
      *
      * @hide
      */
     @RavenwoodKeep
     public final void basicInit(Context instrContext, Context appContext, UiAutomation ui) {
+        mMainHandler = instrContext.getMainThreadHandler();
+        mMessageQueue = mMainHandler.getLooper().getQueue();
         mInstrContext = instrContext;
         mAppContext = appContext;
         mUiAutomation = ui;
@@ -2420,6 +2444,9 @@ public class Instrumentation {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public static void checkStartActivityResult(int res, Object intent) {
         if (!ActivityManager.isStartResultFatalError(res)) {
+            if (res == ActivityManager.START_ABORTED && Build.isDebuggable()) {
+                Log.w(TAG, new StackTrace("Activity start aborted"));
+            }
             return;
         }
 
@@ -2595,6 +2622,9 @@ public class Instrumentation {
         }
         public void run() {
             try {
+                // We have historically always done this in a way that does not propagate to
+                // Java-created child threads. It is unclear whether this is really necessary
+                // or useful, but it is less risky than a change.
                 Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY);
             } catch (RuntimeException e) {
                 Log.w(TAG, "Exception setting priority of instrumentation thread "
@@ -2607,6 +2637,7 @@ public class Instrumentation {
         }
     }
 
+    @RavenwoodKeepWholeClass
     private static final class EmptyRunnable implements Runnable {
         public void run() {
         }
@@ -2666,6 +2697,7 @@ public class Instrumentation {
         }
     }
 
+    @RavenwoodKeepWholeClass
     private static final class Idler implements MessageQueue.IdleHandler {
         private final Runnable mCallback;
         private boolean mIdle;

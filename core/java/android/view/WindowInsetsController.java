@@ -322,6 +322,7 @@ public interface WindowInsetsController {
     /**
      * @hide
      */
+    @NonNull
     InsetsState getState();
 
     /**

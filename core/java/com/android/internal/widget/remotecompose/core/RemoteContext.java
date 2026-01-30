@@ -28,10 +28,12 @@ import com.android.internal.widget.remotecompose.core.operations.utilities.Colle
 import com.android.internal.widget.remotecompose.core.operations.utilities.DataMap;
 import com.android.internal.widget.remotecompose.core.operations.utilities.IntMap;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
 
 /**
  * Specify an abstract context used to playback RemoteCompose documents
@@ -42,11 +44,11 @@ import java.time.ZoneOffset;
  */
 public abstract class RemoteContext {
     private static final int MAX_OP_COUNT = 20_000; // Maximum cmds per frame
-    protected @NonNull CoreDocument mDocument =
-            new CoreDocument(); // todo: is this a valid way to initialize? bbade@
+    private @NonNull Clock mClock;
+    protected @NonNull CoreDocument mDocument;
     public @NonNull RemoteComposeState mRemoteComposeState =
             new RemoteComposeState(); // todo, is this a valid use of RemoteComposeState -- bbade@
-    private long mDocLoadTime = System.currentTimeMillis();
+    private long mDocLoadTime;
     @Nullable protected PaintContext mPaintContext = null;
     protected float mDensity = Float.NaN;
 
@@ -68,6 +70,16 @@ public abstract class RemoteContext {
 
     private boolean mUseChoreographer = true;
 
+    public RemoteContext() {
+        this(new SystemClock());
+    }
+
+    public RemoteContext(@NonNull Clock clock) {
+        this.mClock = clock;
+        setDocLoadTime();
+        mDocument = new CoreDocument(clock); // todo: is this a valid way to initialize? bbade@
+    }
+
     /**
      * Returns true if the document has been encoded for at least the given version MAJOR.MINOR
      *
@@ -87,7 +99,7 @@ public abstract class RemoteContext {
     /**
      * Set the density of the document
      *
-     * @param density
+     * @param density density value
      */
     public void setDensity(float density) {
         if (!Float.isNaN(density) && density > 0) {
@@ -106,7 +118,7 @@ public abstract class RemoteContext {
 
     /** Set the time the document was loaded */
     public void setDocLoadTime() {
-        mDocLoadTime = System.currentTimeMillis();
+        mDocLoadTime = getClock().millis();
     }
 
     public boolean isAnimationEnabled() {
@@ -132,15 +144,15 @@ public abstract class RemoteContext {
      * @param instanceId the id to save this path under
      * @param floatPath the path as a float array
      */
-    public abstract void loadPathData(int instanceId, @NonNull float[] floatPath);
+    public abstract void loadPathData(int instanceId, int winding, @NonNull float [] floatPath);
 
     /**
      * Load a path under an id. Paths can be use in clip drawPath and drawTweenPath
      *
-     * @param instanceId
+     * @param instanceId the id
      * @return the a
      */
-    public abstract @Nullable float[] getPathData(int instanceId);
+    public abstract @Nullable float [] getPathData(int instanceId);
 
     /**
      * Associate a name with a give id.
@@ -225,7 +237,7 @@ public abstract class RemoteContext {
      * @param floatName the name of the float to override
      * @param value Override the default float
      */
-    public abstract void setNamedFloatOverride(String floatName, float value);
+    public abstract void setNamedFloatOverride(@NonNull String floatName, float value);
 
     /**
      * Allows to clear a named Float.
@@ -234,7 +246,7 @@ public abstract class RemoteContext {
      *
      * @param floatName the name of the float to override
      */
-    public abstract void clearNamedFloatOverride(String floatName);
+    public abstract void clearNamedFloatOverride(@NonNull String floatName);
 
     /**
      * Set the value of a named long. This modifies the content of a LongConstant
@@ -242,7 +254,7 @@ public abstract class RemoteContext {
      * @param name the name of the float to override
      * @param value Override the default float
      */
-    public abstract void setNamedLong(String name, long value);
+    public abstract void setNamedLong(@NonNull String name, long value);
 
     /**
      * Set the value of a named Object. This overrides the Object in the document
@@ -250,7 +262,7 @@ public abstract class RemoteContext {
      * @param dataName the name of the Object to override
      * @param value Override the default float
      */
-    public abstract void setNamedDataOverride(String dataName, Object value);
+    public abstract void setNamedDataOverride(@NonNull String dataName, @NonNull Object value);
 
     /**
      * Allows to clear a named Object.
@@ -259,7 +271,7 @@ public abstract class RemoteContext {
      *
      * @param dataName the name of the Object to override
      */
-    public abstract void clearNamedDataOverride(String dataName);
+    public abstract void clearNamedDataOverride(@NonNull String dataName);
 
     /**
      * Support Collections by registering this collection
@@ -298,33 +310,33 @@ public abstract class RemoteContext {
     /**
      * Run an action with a named parameter
      *
-     * @param textId the text id of the action
+     * @param id the text id of the action
      * @param value the value of the parameter
      */
-    public abstract void runNamedAction(int textId, Object value);
+    public abstract void runNamedAction(int id, @Nullable Object value);
 
     /**
      * Put an object under an id
      *
-     * @param mId the id of the object
-     * @param command the object
+     * @param id the id of the object
+     * @param value the object
      */
-    public abstract void putObject(int mId, @NonNull Object command);
+    public abstract void putObject(int id, @NonNull Object value);
 
     /**
      * Get an object given an id
      *
-     * @param mId the id of the object
+     * @param id the id of the object
      * @return the object
      */
-    public abstract @Nullable Object getObject(int mId);
+    public abstract @Nullable Object getObject(int id);
 
     /**
      * Add a touch listener to the context
      *
      * @param touchExpression the touch expression
      */
-    public void addTouchListener(TouchListener touchExpression) {}
+    public void addTouchListener(@NonNull TouchListener touchExpression) {}
 
     /**
      * Vibrate the device
@@ -345,17 +357,65 @@ public abstract class RemoteContext {
      *
      * @return true if we use the choreographer
      */
-    public boolean useChoreographer() {
+    public boolean getUseChoreographer() {
         return mUseChoreographer;
     }
 
     /**
      * Set to true to use the android choreographer
      *
-     * @param value
+     * @param value true to use the choreographer
      */
     public void setUseChoreographer(boolean value) {
         mUseChoreographer = value;
+    }
+
+    public @NonNull Clock getClock() {
+        return mClock;
+    }
+
+    public void setClock(@NonNull Clock clock) {
+        this.mClock = clock;
+    }
+
+    /**
+     * Load a font under an id
+     *
+     * @param fontId the id of the font
+     * @param fontData the font data
+     */
+    public void loadFont(int fontId, @NonNull byte [] fontData) {
+        Object info = getObject(fontId);
+        if (info != null) {
+            FontInfo fi = (FontInfo) info;
+            if (fi.mFontData == fontData) {
+                return;
+            }
+        }
+        putObject(fontId, new FontInfo(fontId, fontData));
+    }
+
+    /** The font information */
+    public static class FontInfo {
+        /** the id of the font */
+        public final int mFontId;
+
+        /** the byte array of the font data */
+        public final byte[] mFontData;
+
+        /** opaque cache of a font builder */
+        public @Nullable Object fontBuilder = null;
+
+        /**
+         * Create a font info object
+         *
+         * @param fontId the id of the font
+         * @param fontData the font data
+         */
+        FontInfo(int fontId, byte[] fontData) {
+            this.mFontId = fontId;
+            this.mFontData = fontData;
+        }
     }
 
     /**
@@ -398,7 +458,7 @@ public abstract class RemoteContext {
         return mDocument;
     }
 
-    public boolean isDebug() {
+    public boolean isBasicDebug() {
         return mDebug == 1;
     }
 
@@ -410,8 +470,14 @@ public abstract class RemoteContext {
         this.mDebug = debug;
     }
 
+    /**
+     * Set the document on the context
+     *
+     * @param document document used
+     */
     public void setDocument(@NonNull CoreDocument document) {
         this.mDocument = document;
+        mClock = document.getClock();
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -436,7 +502,7 @@ public abstract class RemoteContext {
             int width,
             int height,
             long capabilities,
-            IntMap<Object> properties) {
+            @Nullable IntMap<Object> properties) {
         mRemoteComposeState.setWindowWidth(width);
         mRemoteComposeState.setWindowHeight(height);
         mDocument.setVersion(majorVersion, minorVersion, patchVersion);
@@ -487,7 +553,12 @@ public abstract class RemoteContext {
      * @param bitmap the bytes that represent the image
      */
     public abstract void loadBitmap(
-            int imageId, short encoding, short type, int width, int height, @NonNull byte[] bitmap);
+            int imageId,
+            short encoding,
+            short type,
+            int width,
+            int height,
+            @NonNull byte [] bitmap);
 
     /**
      * Save a string under a given id
@@ -501,7 +572,7 @@ public abstract class RemoteContext {
      * Get a string given an id
      *
      * @param id the id of the string
-     * @return
+     * @return a string if found, null otherwise
      */
     public abstract @Nullable String getText(int id);
 
@@ -516,8 +587,8 @@ public abstract class RemoteContext {
     /**
      * Override an existing float value
      *
-     * @param id
-     * @param value
+     * @param id the value id
+     * @param value the new value
      */
     public abstract void overrideFloat(int id, float value);
 
@@ -532,16 +603,16 @@ public abstract class RemoteContext {
     /**
      * Override an existing int value
      *
-     * @param id
-     * @param value
+     * @param id the value id
+     * @param value the new value
      */
     public abstract void overrideInteger(int id, int value);
 
     /**
      * Override an existing text value
      *
-     * @param id
-     * @param valueId
+     * @param id the value id
+     * @param valueId the new value
      */
     public abstract void overrideText(int id, int valueId);
 
@@ -600,6 +671,16 @@ public abstract class RemoteContext {
      * @param variableSupport call back when value changes
      */
     public abstract void listensTo(int id, @NonNull VariableSupport variableSupport);
+
+    /**
+     * Get the listeners for a given id
+     *
+     * @param id
+     * @return
+     */
+    public @Nullable ArrayList<VariableSupport> getListeners(int id) {
+        return null;
+    }
 
     /**
      * Notify commands with variables have changed
@@ -667,6 +748,12 @@ public abstract class RemoteContext {
 
     public static final int ID_FONT_SIZE = 33;
 
+    /** DAY OF THE YEAR 1-366 */
+    public static final int ID_DAY_OF_YEAR = 34;
+
+    /** The YEAR e.g. 2026 */
+    public static final int ID_YEAR = 35;
+
     public static final float FLOAT_DENSITY = Utils.asNan(ID_DENSITY);
 
     /** CONTINUOUS_SEC is seconds from midnight looping every hour 0-3600 */
@@ -689,6 +776,12 @@ public abstract class RemoteContext {
 
     /** DAY OF THE MONTH 1-31 */
     public static final float FLOAT_DAY_OF_MONTH = Utils.asNan(ID_DAY_OF_MONTH);
+
+    /** DAY OF THE YEAR 1-366 */
+    public static final float FLOAT_DAY_OF_YEAR = Utils.asNan(ID_DAY_OF_YEAR);
+
+    /** The YEAR e.g. 2026 */
+    public static final float FLOAT_YEAR = Utils.asNan(ID_YEAR);
 
     public static final float FLOAT_WINDOW_WIDTH = Utils.asNan(ID_WINDOW_WIDTH);
     public static final float FLOAT_WINDOW_HEIGHT = Utils.asNan(ID_WINDOW_HEIGHT);
@@ -798,6 +891,7 @@ public abstract class RemoteContext {
         int currentSeconds = minute * 60 + seconds;
         float sec = currentSeconds + dateTime.getNano() * 1E-9f;
         int day_week = dateTime.getDayOfWeek().getValue();
+        int day_month = dateTime.getDayOfMonth();
 
         ZoneId zone = ZoneId.systemDefault();
         OffsetDateTime offsetDateTime = dateTime.atZone(zone).toOffsetDateTime();
@@ -814,10 +908,15 @@ public abstract class RemoteContext {
             case ID_TIME_IN_HR:
                 return hour;
             case ID_CALENDAR_MONTH:
-            case ID_DAY_OF_MONTH:
                 return month;
+            case ID_DAY_OF_MONTH:
+                return day_month;
             case ID_WEEK_DAY:
                 return day_week;
+            case ID_DAY_OF_YEAR:
+                return dateTime.getDayOfYear();
+            case ID_YEAR:
+                return dateTime.getYear();
         }
         return fl;
     }
@@ -826,7 +925,7 @@ public abstract class RemoteContext {
      * Add a click area to the doc
      *
      * @param id the id of the click area
-     * @param contentDescription the content description of the click area
+     * @param contentDescriptionId the content description of the click area
      * @param left the left bounds of the click area
      * @param top the top bounds of the click area
      * @param right the right bounds of the click area
@@ -835,7 +934,7 @@ public abstract class RemoteContext {
      */
     public abstract void addClickArea(
             int id,
-            int contentDescription,
+            int contentDescriptionId,
             float left,
             float top,
             float right,

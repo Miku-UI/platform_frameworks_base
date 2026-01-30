@@ -17,6 +17,7 @@
 
 package com.android.systemui.keyguard.domain.interactor
 
+import com.android.internal.widget.LockPatternUtils
 import com.android.systemui.bouncer.data.repository.FakeKeyguardBouncerRepository
 import com.android.systemui.common.ui.data.repository.FakeConfigurationRepository
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractorImpl
@@ -28,10 +29,8 @@ import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.shade.data.repository.FakeShadeRepository
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
-import com.android.systemui.wallpapers.data.repository.FakeWallpaperFocalAreaRepository
-import com.android.systemui.wallpapers.data.repository.WallpaperFocalAreaRepository
+import com.android.systemui.wallpapers.domain.interactor.WallpaperFocalAreaInteractor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
 import org.mockito.kotlin.any
@@ -50,8 +49,8 @@ object KeyguardInteractorFactory {
         bouncerRepository: FakeKeyguardBouncerRepository = FakeKeyguardBouncerRepository(),
         configurationRepository: FakeConfigurationRepository = FakeConfigurationRepository(),
         shadeRepository: FakeShadeRepository = FakeShadeRepository(),
-        wallpaperFocalAreaRepository: WallpaperFocalAreaRepository =
-            FakeWallpaperFocalAreaRepository(),
+        wallpaperFocalAreaInteractor: WallpaperFocalAreaInteractor = mock(),
+        lockPatternUtils: LockPatternUtils = mock(),
         sceneInteractor: SceneInteractor = mock(),
         fromGoneTransitionInteractor: FromGoneTransitionInteractor = mock(),
         fromLockscreenTransitionInteractor: FromLockscreenTransitionInteractor = mock(),
@@ -60,7 +59,7 @@ object KeyguardInteractorFactory {
         testScope: CoroutineScope = TestScope(),
     ): WithDependencies {
         // Mock these until they are replaced by kosmos
-        val currentKeyguardStateFlow = MutableSharedFlow<KeyguardState>()
+        val currentKeyguardStateFlow = MutableStateFlow(KeyguardState.OFF)
         val transitionStateFlow = MutableStateFlow(TransitionStep())
         val keyguardTransitionInteractor =
             mock<KeyguardTransitionInteractor>().also {
@@ -88,7 +87,8 @@ object KeyguardInteractorFactory {
                     fromAlternateBouncerTransitionInteractor
                 },
                 applicationScope = testScope,
-                wallpaperFocalAreaRepository = wallpaperFocalAreaRepository,
+                lockPatternUtils = lockPatternUtils,
+                wallpaperFocalAreaInteractor = wallpaperFocalAreaInteractor,
             ),
         )
     }

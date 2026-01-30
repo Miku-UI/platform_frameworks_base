@@ -24,13 +24,13 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource.Companion.UserInput
 import androidx.compose.ui.unit.Velocity
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.compose.test.runMonotonicClockTest
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.motion.compose.runMonotonicClockTest
 
 @RunWith(AndroidJUnit4::class)
 class PriorityNestedScrollConnectionTest {

@@ -62,7 +62,7 @@ public class TopResumedActivityChangeItem extends ActivityTransactionItem {
         // 2. Activity wasn't RESUMED yet, which means that it didn't receive the top state yet.
         // 3. Activity is PAUSED or in other lifecycle state after PAUSED. In this case top resumed
         // state loss was already called right before pausing.
-        ActivityClient.getInstance().activityTopResumedStateLost();
+        ActivityClient.getInstance().activityTopResumedStateLost(getActivityToken());
     }
 
     // Parcelable implementation

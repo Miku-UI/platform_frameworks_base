@@ -19,7 +19,6 @@ import android.annotation.CheckResult;
 import android.content.pm.ApplicationInfo;
 
 import com.android.internal.pm.parsing.pkg.AndroidPackageLegacyUtils;
-import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.server.pm.pkg.AndroidPackage;
 
 public class AppInfoUtils {
@@ -112,6 +111,7 @@ public class AppInfoUtils {
                 | flag(pkg.hasRequestForegroundServiceExemption(), ApplicationInfo.PRIVATE_FLAG_EXT_REQUEST_FOREGROUND_SERVICE_EXEMPTION)
                 | flag(pkg.isAttributionsUserVisible(), ApplicationInfo.PRIVATE_FLAG_EXT_ATTRIBUTIONS_ARE_USER_VISIBLE)
                 | flag(pkg.isOnBackInvokedCallbackEnabled(), ApplicationInfo.PRIVATE_FLAG_EXT_ENABLE_ON_BACK_INVOKED_CALLBACK)
+                | flag(pkg.shouldRunInPccSandbox(), ApplicationInfo.PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX)
                 | flag(isAllowlistedForHiddenApis, ApplicationInfo.PRIVATE_FLAG_EXT_ALLOWLISTED_FOR_HIDDEN_APIS);
         return pkgWithoutStateFlags;
         // @formatter:on

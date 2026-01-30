@@ -16,10 +16,12 @@
 
 package com.android.server.am;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AnrController;
 import android.app.Dialog;
 import android.content.Context;
+import android.view.Display;
 
 import com.android.internal.annotations.GuardedBy;
 
@@ -102,6 +104,22 @@ final class ErrorDialogController {
         clearAnrDialogs();
         clearViolationDialogs();
         clearWaitingDialog();
+    }
+
+    /**
+     * If there are any error dialogs on the display, close them and show a corresponding new one on
+     * the default display if one doesn't already exist there.
+     */
+    @GuardedBy("mProcLock")
+    void moveAllErrorDialogsToDefaultDisplay(int displayId) {
+        if (displayId == Display.DEFAULT_DISPLAY) {
+            return;
+        }
+
+        moveCrashDialogToDefaultDisplay(displayId);
+        moveAnrDialogToDefaultDisplay(displayId);
+        moveViolationDialogToDefaultDisplay(displayId);
+        moveWaitingDialogToDefaultDisplay(displayId);
     }
 
     @GuardedBy("mProcLock")
@@ -235,6 +253,152 @@ final class ErrorDialogController {
     void setAnrController(AnrController controller) {
         mAnrController = controller;
     }
+
+    @GuardedBy("mProcLock")
+    @Nullable
+    private <T extends BaseErrorDialog> T findDialogOnDisplay(@NonNull List<T> dialogs,
+            int displayId) {
+        for (int i = dialogs.size() - 1; i >= 0; i--) {
+            T dialog = dialogs.get(i);
+            if (dialog == null) {
+                continue;
+            }
+
+            if (dialog.getContext().getDisplayId() == displayId && dialog.isShowing()) {
+                return dialog;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * If a crash dialog is showing on the display, close it and show a new one on the default
+     * display if one doesn't already exist there.
+     *
+     * @param displayId The display id of the display where the crash dialog is showing and needs to
+     *                  be moved.
+     */
+    @GuardedBy("mProcLock")
+    private void  moveCrashDialogToDefaultDisplay(int displayId) {
+        if (!hasCrashDialogs()) {
+            return;
+        }
+
+        AppErrorDialog dialogToRemoved = findDialogOnDisplay(mCrashDialogs, displayId);
+        if (dialogToRemoved == null) {
+            return;
+        }
+        AppErrorDialog.Data data = dialogToRemoved.getData();
+        mCrashDialogs.remove(dialogToRemoved);
+        mService.mUiHandler.post(dialogToRemoved::remove);
+
+        boolean showingInDefaultDisplay =
+                (findDialogOnDisplay(mCrashDialogs, Display.DEFAULT_DISPLAY) != null);
+        if (showingInDefaultDisplay || data == null) {
+            return;
+        }
+
+        // If there is no crash dialog showing in the default display, show a new one.
+        // TODO(b/412589019): Use WindowContext instead.
+        Context c = mService.mWmInternal.getDisplayUiContext(Display.DEFAULT_DISPLAY);
+        AppErrorDialog newDialog = new AppErrorDialog(c, mService, data);
+        mCrashDialogs.add(newDialog);
+        mService.mUiHandler.post(newDialog::show);
+    }
+
+    /**
+     * If a ANR dialog is showing on the display, close it and show a new one on the default display
+     * if one doesn't already exist there.
+     *
+     * @param displayId The display id of the display where the ANR dialog is showing and needs to
+     *                  be moved.
+     */
+    @GuardedBy("mProcLock")
+    private void moveAnrDialogToDefaultDisplay(int displayId) {
+        if (!hasAnrDialogs()) {
+            return;
+        }
+
+        AppNotRespondingDialog dialogToRemoved = findDialogOnDisplay(mAnrDialogs, displayId);
+        if (dialogToRemoved == null) {
+            return;
+        }
+        AppNotRespondingDialog.Data data = dialogToRemoved.getData();
+        mAnrDialogs.remove(dialogToRemoved);
+        mService.mUiHandler.post(dialogToRemoved::dismiss);
+
+        boolean showingInDefaultDisplay =
+                (findDialogOnDisplay(mAnrDialogs, Display.DEFAULT_DISPLAY) != null);
+        if (showingInDefaultDisplay || data == null) {
+            return;
+        }
+
+        // If there is no ANR dialog showing in the default display, show a new one.
+        // TODO(b/412589019): Use WindowContext instead.
+        Context c = mService.mWmInternal.getDisplayUiContext(Display.DEFAULT_DISPLAY);
+        AppNotRespondingDialog newDialog = new AppNotRespondingDialog(mService, c, data);
+        mAnrDialogs.add(newDialog);
+        mService.mUiHandler.post(newDialog::show);
+    }
+
+    /**
+     * If a strict mode violation dialog is showing on the display, close it and show a new one on
+     * the default display if one doesn't already exist there.
+     *
+     * @param displayId The display id of the display where the violation dialog is showing and
+     *                  needs to be moved.
+     */
+    @GuardedBy("mProcLock")
+    private void moveViolationDialogToDefaultDisplay(int displayId) {
+        if (!hasViolationDialogs()) {
+            return;
+        }
+
+        StrictModeViolationDialog dialogToRemoved =
+                findDialogOnDisplay(mViolationDialogs, displayId);
+        if (dialogToRemoved == null) {
+            return;
+        }
+        AppErrorResult result = dialogToRemoved.getResult();
+        mViolationDialogs.remove(dialogToRemoved);
+        mService.mUiHandler.post(dialogToRemoved::dismiss);
+
+        boolean showingInDefaultDisplay =
+                (findDialogOnDisplay(mViolationDialogs, Display.DEFAULT_DISPLAY) != null);
+        if (showingInDefaultDisplay || result == null) {
+            return;
+        }
+
+        // If there is no violation dialog showing in the default display, show a new one.
+        // TODO(b/412589019): Use WindowContext instead.
+        Context c = mService.mWmInternal.getDisplayUiContext(Display.DEFAULT_DISPLAY);
+        StrictModeViolationDialog newDialog =
+                new StrictModeViolationDialog(c, mService, result, mApp);
+        mViolationDialogs.add(newDialog);
+        mService.mUiHandler.post(newDialog::show);
+    }
+
+    /**
+     * If a debug waiting dialog is showing on the display, close it and show a new one on the
+     * default display if one doesn't already exist there.
+     *
+     * @param displayId The display id of the display where the waiting dialog is showing and needs
+     *                  to be moved.
+     */
+    @GuardedBy("mProcLock")
+    private void moveWaitingDialogToDefaultDisplay(int displayId) {
+        if (mWaitDialog == null || mWaitDialog.getContext().getDisplayId() != displayId) {
+            return;
+        }
+
+        // The debug waiting dialog is showing on the display, remove this and show a new one on the
+        // default display.
+        mWaitDialog.dismiss();
+        Context c = mService.mWmInternal.getDisplayUiContext(Display.DEFAULT_DISPLAY);
+        mWaitDialog = new AppWaitingForDebuggerDialog(mService, c, mApp);
+        mService.mUiHandler.post(mWaitDialog::show);
+    }
+
 
     /**
      * Helper function to collect contexts from crashed app located displays.

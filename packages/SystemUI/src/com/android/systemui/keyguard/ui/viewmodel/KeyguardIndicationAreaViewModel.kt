@@ -28,6 +28,7 @@ import com.android.systemui.keyguard.shared.model.BurnInModel
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
 import javax.inject.Inject
@@ -36,6 +37,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 
@@ -67,12 +69,17 @@ constructor(
 
     /** An observable for whether the indication area should be padded. */
     val isIndicationAreaPadded: Flow<Boolean> =
-        combine(shortcutsCombinedViewModel.startButton, shortcutsCombinedViewModel.endButton) {
-                startButtonModel,
-                endButtonModel ->
-                startButtonModel.isVisible || endButtonModel.isVisible
-            }
-            .distinctUntilChanged()
+        if (SceneContainerFlag.isEnabled) {
+            // Flexiglass handles padding for shortcuts as part of the hierarchy
+            flowOf(false)
+        } else {
+            combine(shortcutsCombinedViewModel.startButton, shortcutsCombinedViewModel.endButton) {
+                    startButtonModel,
+                    endButtonModel ->
+                    startButtonModel.isVisible || endButtonModel.isVisible
+                }
+                .distinctUntilChanged()
+        }
 
     private val burnIn: Flow<BurnInModel> =
         combine(

@@ -33,8 +33,6 @@ same in both cases.
 Currently, only profiles (not full or system users) can be freely customized/defined.
 Full users (i.e. non-system, non-profile) users cannot be defined, and the only property of them
 that can be customized are the default-restrictions.
-System users cannot be customized here; their default-restrictions must be set using
-com.android.internal.R.array.config_defaultFirstUserRestrictions.
 
 The following example modifies two AOSP user types (the FULL user android.os.usertype.full.SECONDARY
 and the PROFILE user android.os.usertype.profile.MANAGED) and creates a new PROFILE user type

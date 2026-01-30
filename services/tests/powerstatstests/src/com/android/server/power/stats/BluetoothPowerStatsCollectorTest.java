@@ -148,7 +148,7 @@ public class BluetoothPowerStatsCollectorTest {
     public void triggering() throws Throwable {
         PowerStatsCollector collector = mBatteryStats.getPowerStatsCollector(
                 BatteryConsumer.POWER_COMPONENT_BLUETOOTH);
-        collector.addConsumer(mRecordedPowerStats::add);
+        collector.addConsumer((ps, elapsedRealtime, uptime) -> mRecordedPowerStats.add(ps));
 
         mBatteryStats.setPowerStatsCollectorEnabled(BatteryConsumer.POWER_COMPONENT_BLUETOOTH,
                 true);

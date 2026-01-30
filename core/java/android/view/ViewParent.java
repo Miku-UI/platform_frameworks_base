@@ -16,6 +16,9 @@
 
 package android.view;
 
+import static android.view.accessibility.Flags.FLAG_REQUEST_RECTANGLE_WITH_SOURCE;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Matrix;
@@ -322,8 +325,8 @@ public interface ViewParent {
      * positioned onto the screen.  {@link ViewGroup}s overriding this can trust
      * that:
      * <ul>
-     *   <li>child will be a direct child of this group</li>
-     *   <li>rectangle will be in the child's content coordinates</li>
+     *   <li>{@code child} will be a direct child of this group</li>
+     *   <li>{@code rectangle} will be in the child's content coordinates</li>
      * </ul>
      *
      * <p>{@link ViewGroup}s overriding this should uphold the contract:</p>
@@ -331,7 +334,7 @@ public interface ViewParent {
      *   <li>nothing will change if the rectangle is already visible</li>
      *   <li>the view port will be scrolled only just enough to make the
      *       rectangle visible</li>
-     * <ul>
+     * </ul>
      *
      * @param child The direct child making the request.
      * @param rectangle The rectangle in the child's coordinates the child
@@ -342,6 +345,36 @@ public interface ViewParent {
      */
     public boolean requestChildRectangleOnScreen(@NonNull View child, Rect rectangle,
             boolean immediate);
+
+    /**
+     * Called when a child of this group wants a particular rectangle to be
+     * positioned onto the screen.  {@link ViewGroup}s overriding this can trust
+     * that:
+     * <ul>
+     *   <li>{@code child} will be a direct child of this group</li>
+     *   <li>{@code rectangle} will be in the child's content coordinates</li>
+     * </ul>
+     *
+     * <p>{@link ViewGroup}s overriding this should uphold the contract:</p>
+     * <ul>
+     *   <li>nothing will change if the rectangle is already visible</li>
+     *   <li>the view port will be scrolled only just enough to make the
+     *       rectangle visible</li>
+     * </ul>
+     *
+     * @param child The direct child making the request.
+     * @param rectangle The rectangle in the child's coordinates the child
+     *        wishes to be on the screen.
+     * @param immediate True to forbid animated or delayed scrolling,
+     *        false otherwise
+     * @param source The parameter for the source of this request.
+     * @return Whether the group scrolled to handle the operation
+     */
+    @FlaggedApi(FLAG_REQUEST_RECTANGLE_WITH_SOURCE)
+    default boolean requestChildRectangleOnScreen(@NonNull View child, @NonNull Rect rectangle,
+            boolean immediate, @View.RectangleOnScreenRequestSource int source) {
+        return requestChildRectangleOnScreen(child, rectangle, immediate);
+    }
 
     /**
      * Called by a child to request from its parent to send an {@link AccessibilityEvent}.

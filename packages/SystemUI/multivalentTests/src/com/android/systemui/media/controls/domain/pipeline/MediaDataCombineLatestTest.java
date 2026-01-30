@@ -18,7 +18,6 @@ package com.android.systemui.media.controls.domain.pipeline;
 
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.eq;
@@ -35,6 +34,7 @@ import com.android.internal.logging.InstanceId;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.media.controls.shared.model.MediaData;
 import com.android.systemui.media.controls.shared.model.MediaDeviceData;
+import com.android.systemui.media.controls.shared.model.SuggestionData;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -69,28 +69,53 @@ public class MediaDataCombineLatestTest extends SysuiTestCase {
 
     private MediaData mMediaData;
     private MediaDeviceData mDeviceData;
+    @Mock private SuggestionData mSuggestionData;
 
     @Before
     public void setUp() {
         mManager = new MediaDataCombineLatest();
         mManager.addListener(mListener);
 
-        mMediaData = new MediaData(
-                USER_ID, true, APP, null, ARTIST, TITLE, null,
-                new ArrayList<>(), new ArrayList<>(), null, PACKAGE, null, null, null, true, null,
-                MediaData.PLAYBACK_LOCAL, false, KEY, false, false, false, 0L, 0L,
-                InstanceId.fakeInstanceId(-1), -1, false, null);
-        mDeviceData = new MediaDeviceData(true, null, DEVICE_NAME, null, false);
+        mMediaData =
+                new MediaData(
+                        USER_ID,
+                        true,
+                        APP,
+                        null,
+                        ARTIST,
+                        TITLE,
+                        null,
+                        new ArrayList<>(),
+                        new ArrayList<>(),
+                        null,
+                        PACKAGE,
+                        null,
+                        null,
+                        null,
+                        null,
+                        true,
+                        null,
+                        MediaData.PLAYBACK_LOCAL,
+                        false,
+                        KEY,
+                        false,
+                        false,
+                        false,
+                        0L,
+                        0L,
+                        InstanceId.fakeInstanceId(-1),
+                        -1,
+                        false,
+                        null);
+        mDeviceData = new MediaDeviceData(true, null, DEVICE_NAME, null);
     }
 
     @Test
     public void eventNotEmittedWithoutDevice() {
         // WHEN data source emits an event without device data
-        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */);
         // THEN an event isn't emitted
-        verify(mListener, never()).onMediaDataLoaded(eq(KEY), any(), any(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener, never()).onMediaDataLoaded(eq(KEY), any(), any(), anyBoolean());
     }
 
     @Test
@@ -98,8 +123,7 @@ public class MediaDataCombineLatestTest extends SysuiTestCase {
         // WHEN device source emits an event without media data
         mManager.onMediaDeviceChanged(KEY, null, mDeviceData);
         // THEN an event isn't emitted
-        verify(mListener, never()).onMediaDataLoaded(eq(KEY), any(), any(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener, never()).onMediaDataLoaded(eq(KEY), any(), any(), anyBoolean());
     }
 
     @Test
@@ -107,96 +131,184 @@ public class MediaDataCombineLatestTest extends SysuiTestCase {
         // GIVEN that a device event has already been received
         mManager.onMediaDeviceChanged(KEY, null, mDeviceData);
         // WHEN media event is received
-        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */);
         // THEN the listener receives a combined event
         ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
-        verify(mListener).onMediaDataLoaded(eq(KEY), any(), captor.capture(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener).onMediaDataLoaded(eq(KEY), any(), captor.capture(), anyBoolean());
         assertThat(captor.getValue().getDevice()).isNotNull();
     }
 
     @Test
-    public void emitEventAfterMediaFirst() {
+    public void emitEventAfterMediaFirstAndMediaDeviceChangedSecond() {
         // GIVEN that media event has already been received
-        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */);
         // WHEN device event is received
         mManager.onMediaDeviceChanged(KEY, null, mDeviceData);
         // THEN the listener receives a combined event
         ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
-        verify(mListener).onMediaDataLoaded(eq(KEY), any(), captor.capture(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener).onMediaDataLoaded(eq(KEY), any(), captor.capture(), anyBoolean());
         assertThat(captor.getValue().getDevice()).isNotNull();
+    }
+
+    @Test
+    public void emitEventAfterMediaFirstAndMediaDeviceChangedSecondAndSuggestionChangedThird() {
+        // GIVEN that media event has already been received
+        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */);
+        mManager.onMediaDeviceChanged(KEY, OLD_KEY, mDeviceData);
+        reset(mListener);
+        // WHEN suggestion event is received
+        mManager.onSuggestionDataChanged(KEY, null, mSuggestionData);
+        // THEN the listener receives a combined event
+        ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
+        verify(mListener)
+                .onMediaDataLoaded(eq(KEY), any(), captor.capture(), anyBoolean());
+        assertThat(captor.getValue().getSuggestionData()).isNotNull();
+    }
+
+    @Test
+    public void emitEventAfterDeviceAndSuggestionChangedTogether() {
+        // GIVEN that media event has already been received
+        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */);
+        mManager.onMediaDeviceChanged(KEY, OLD_KEY, mDeviceData);
+        mManager.onSuggestionDataChanged(KEY, OLD_KEY, mSuggestionData);
+        reset(mListener);
+        // WHEN suggestion event is received
+        mManager.onMediaDeviceAndSuggestionDataChanged(KEY, null, mDeviceData, mSuggestionData);
+        // THEN the listener receives a combined event
+        ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
+        verify(mListener)
+                .onMediaDataLoaded(eq(KEY), any(), captor.capture(), anyBoolean());
+        assertThat(captor.getValue().getDevice()).isNotNull();
+        assertThat(captor.getValue().getSuggestionData()).isNotNull();
     }
 
     @Test
     public void migrateKeyMediaFirst() {
         // GIVEN that media and device info has already been received
-        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
         mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
         reset(mListener);
         // WHEN a key migration event is received
-        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */);
         // THEN the listener receives a combined event
         ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
-        verify(mListener).onMediaDataLoaded(eq(KEY), eq(OLD_KEY), captor.capture(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener).onMediaDataLoaded(eq(KEY), eq(OLD_KEY), captor.capture(), anyBoolean());
         assertThat(captor.getValue().getDevice()).isNotNull();
     }
 
     @Test
     public void migrateKeyDeviceFirst() {
         // GIVEN that media and device info has already been received
-        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
         mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
         reset(mListener);
         // WHEN a key migration event is received
         mManager.onMediaDeviceChanged(KEY, OLD_KEY, mDeviceData);
         // THEN the listener receives a combined event
         ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
-        verify(mListener).onMediaDataLoaded(eq(KEY), eq(OLD_KEY), captor.capture(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener).onMediaDataLoaded(eq(KEY), eq(OLD_KEY), captor.capture(), anyBoolean());
         assertThat(captor.getValue().getDevice()).isNotNull();
+    }
+
+    @Test
+    public void migrateKeySuggestionFirst() {
+        // GIVEN that media and device info has already been received
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
+        mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
+        mManager.onSuggestionDataChanged(OLD_KEY, null, mSuggestionData);
+        reset(mListener);
+        // WHEN a key migration event is received
+        mManager.onSuggestionDataChanged(KEY, OLD_KEY, mSuggestionData);
+        // THEN the listener receives a combined event
+        ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
+        verify(mListener)
+                .onMediaDataLoaded(
+                        eq(KEY), eq(OLD_KEY), captor.capture(), anyBoolean());
+        assertThat(captor.getValue().getSuggestionData()).isNotNull();
+    }
+
+    @Test
+    public void migrateKeyDeviceAndSuggestionFirst() {
+        // GIVEN that media and device info has already been received
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
+        mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
+        mManager.onSuggestionDataChanged(OLD_KEY, null, mSuggestionData);
+        reset(mListener);
+        // WHEN a key migration event is received
+        mManager.onMediaDeviceAndSuggestionDataChanged(KEY, OLD_KEY, mDeviceData, mSuggestionData);
+        // THEN the listener receives a combined event
+        ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
+        verify(mListener)
+                .onMediaDataLoaded(
+                        eq(KEY), eq(OLD_KEY), captor.capture(), anyBoolean());
+        assertThat(captor.getValue().getDevice()).isNotNull();
+        assertThat(captor.getValue().getSuggestionData()).isNotNull();
     }
 
     @Test
     public void migrateKeyMediaAfter() {
         // GIVEN that media and device info has already been received
-        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
         mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
         mManager.onMediaDeviceChanged(KEY, OLD_KEY, mDeviceData);
         reset(mListener);
         // WHEN a second key migration event is received for media
-        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */);
         // THEN the key has already been migrated
         ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
-        verify(mListener).onMediaDataLoaded(eq(KEY), eq(KEY), captor.capture(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener).onMediaDataLoaded(eq(KEY), eq(KEY), captor.capture(), anyBoolean());
         assertThat(captor.getValue().getDevice()).isNotNull();
     }
 
     @Test
     public void migrateKeyDeviceAfter() {
         // GIVEN that media and device info has already been received
-        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
         mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
-        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */);
         reset(mListener);
         // WHEN a second key migration event is received for the device
         mManager.onMediaDeviceChanged(KEY, OLD_KEY, mDeviceData);
         // THEN the key has already be migrated
         ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
-        verify(mListener).onMediaDataLoaded(eq(KEY), eq(KEY), captor.capture(), anyBoolean(),
-                anyInt(), anyBoolean());
+        verify(mListener).onMediaDataLoaded(eq(KEY), eq(KEY), captor.capture(), anyBoolean());
         assertThat(captor.getValue().getDevice()).isNotNull();
+    }
+
+    @Test
+    public void migrateKeySuggestionAfter() {
+        // GIVEN that media and device info has already been received
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
+        mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
+        mManager.onSuggestionDataChanged(OLD_KEY, null, mSuggestionData);
+        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */);
+        reset(mListener);
+        // WHEN a second key migration event is received for the device
+        mManager.onSuggestionDataChanged(KEY, OLD_KEY, mSuggestionData);
+        // THEN the key has already be migrated
+        ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
+        verify(mListener)
+                .onMediaDataLoaded(eq(KEY), eq(KEY), captor.capture(), anyBoolean());
+        assertThat(captor.getValue().getSuggestionData()).isNotNull();
+    }
+
+
+    @Test
+    public void migrateKeyDeviceAndSuggestionAfter() {
+        // GIVEN that media and device info has already been received
+        mManager.onMediaDataLoaded(OLD_KEY, null, mMediaData, true /* immediately */);
+        mManager.onMediaDeviceChanged(OLD_KEY, null, mDeviceData);
+        mManager.onSuggestionDataChanged(OLD_KEY, null, mSuggestionData);
+        mManager.onMediaDataLoaded(KEY, OLD_KEY, mMediaData, true /* immediately */);
+        reset(mListener);
+        // WHEN a second key migration event is received for the device and suggestion
+        mManager.onMediaDeviceAndSuggestionDataChanged(KEY, OLD_KEY, mDeviceData, mSuggestionData);
+        // THEN the key has already be migrated
+        ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
+        verify(mListener)
+                .onMediaDataLoaded(eq(KEY), eq(KEY), captor.capture(), anyBoolean());
+        assertThat(captor.getValue().getDevice()).isNotNull();
+        assertThat(captor.getValue().getSuggestionData()).isNotNull();
     }
 
     @Test
@@ -209,8 +321,7 @@ public class MediaDataCombineLatestTest extends SysuiTestCase {
 
     @Test
     public void mediaDataRemovedAfterMediaEvent() {
-        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */);
         mManager.onMediaDataRemoved(KEY, false);
         verify(mListener).onMediaDataRemoved(eq(KEY), eq(false));
     }
@@ -225,15 +336,13 @@ public class MediaDataCombineLatestTest extends SysuiTestCase {
     @Test
     public void mediaDataKeyUpdated() {
         // GIVEN that device and media events have already been received
-        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded(KEY, null, mMediaData, true /* immediately */);
         mManager.onMediaDeviceChanged(KEY, null, mDeviceData);
         // WHEN the key is changed
-        mManager.onMediaDataLoaded("NEW_KEY", KEY, mMediaData, true /* immediately */,
-                0 /* receivedSmartspaceCardLatency */, false /* isSsReactivated */);
+        mManager.onMediaDataLoaded("NEW_KEY", KEY, mMediaData, true /* immediately */);
         // THEN the listener gets a load event with the correct keys
         ArgumentCaptor<MediaData> captor = ArgumentCaptor.forClass(MediaData.class);
         verify(mListener).onMediaDataLoaded(
-                eq("NEW_KEY"), any(), captor.capture(), anyBoolean(), anyInt(), anyBoolean());
+                eq("NEW_KEY"), any(), captor.capture(), anyBoolean());
     }
 }

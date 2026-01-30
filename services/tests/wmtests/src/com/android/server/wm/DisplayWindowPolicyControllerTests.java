@@ -37,6 +37,7 @@ import android.content.IntentSender;
 import android.content.pm.ActivityInfo;
 import android.os.Process;
 import android.util.ArraySet;
+import android.util.Pair;
 import android.view.Display;
 import android.window.DisplayWindowPolicyController;
 
@@ -61,6 +62,9 @@ public class DisplayWindowPolicyControllerTests extends WindowTestsBase {
     private static final int TEST_USER_0_ID = 0;
     private static final int TEST_USER_1_ID = 10;
 
+    private static final String PACKAGE_0 = "com.foo";
+    private static final String PACKAGE_1 = "com.bar";
+
     private TestDisplayWindowPolicyController mDwpc = new TestDisplayWindowPolicyController();
     private DisplayContent mSecondaryDisplay;
 
@@ -75,13 +79,16 @@ public class DisplayWindowPolicyControllerTests extends WindowTestsBase {
 
     @Test
     public void testOnRunningActivityChanged() {
-        final ActivityRecord activity1 = launchActivityOnDisplay(mSecondaryDisplay, TEST_USER_0_ID);
+        final ActivityRecord activity1 =
+                launchActivityOnDisplay(mSecondaryDisplay, TEST_USER_0_ID, PACKAGE_0);
         verifyTopActivityAndRunningUid(activity1,
                 true /* expectedUid0 */, false /* expectedUid1 */);
-        final ActivityRecord activity2 = launchActivityOnDisplay(mSecondaryDisplay, TEST_USER_1_ID);
+        final ActivityRecord activity2 =
+                launchActivityOnDisplay(mSecondaryDisplay, TEST_USER_1_ID, PACKAGE_1);
         verifyTopActivityAndRunningUid(activity2,
                 true /* expectedUid0 */, true /* expectedUid1 */);
-        final ActivityRecord activity3 = launchActivityOnDisplay(mSecondaryDisplay, TEST_USER_0_ID);
+        final ActivityRecord activity3 =
+                launchActivityOnDisplay(mSecondaryDisplay, TEST_USER_0_ID, PACKAGE_0);
         verifyTopActivityAndRunningUid(activity3,
                 true /* expectedUid0 */, true /* expectedUid1 */);
 
@@ -106,17 +113,21 @@ public class DisplayWindowPolicyControllerTests extends WindowTestsBase {
                 expectedTopActivity.info.getComponentName(), mDwpc.mTopActivity);
         assertEquals(expectedTopActivity == null ? Process.INVALID_UID :
                 expectedTopActivity.info.applicationInfo.uid, mDwpc.mTopActivityUid);
-        assertEquals(uidAmount, mDwpc.mRunningUids.size());
-        assertTrue(mDwpc.mRunningUids.contains(TEST_USER_0_ID) == expectedUid0);
-        assertTrue(mDwpc.mRunningUids.contains(TEST_USER_1_ID) == expectedUid1);
+        assertEquals(uidAmount, mDwpc.mRunningPackageUids.size());
+        assertTrue(mDwpc.mRunningPackageUids.contains(new Pair<>(TEST_USER_0_ID, PACKAGE_0))
+                == expectedUid0);
+        assertTrue(mDwpc.mRunningPackageUids.contains(new Pair<>(TEST_USER_1_ID, PACKAGE_1))
+                == expectedUid1);
     }
 
-    private ActivityRecord launchActivityOnDisplay(DisplayContent display, int uid) {
+    private ActivityRecord launchActivityOnDisplay(
+            DisplayContent display, int uid, String packageName) {
         final Task task = new TaskBuilder(mSupervisor)
                 .setDisplay(display)
                 .setUserId(uid)
                 .build();
         final ActivityRecord activity = new ActivityBuilder(mAtm)
+                .setComponent(new ComponentName(packageName, packageName + ".Activity"))
                 .setTask(task)
                 .setUid(uid)
                 .setOnTop(true)
@@ -234,7 +245,7 @@ public class DisplayWindowPolicyControllerTests extends WindowTestsBase {
 
         ComponentName mTopActivity = null;
         int mTopActivityUid = Process.INVALID_UID;
-        ArraySet<Integer> mRunningUids = new ArraySet<>();
+        ArraySet<Pair<Integer, String>> mRunningPackageUids = new ArraySet<>();
 
         @Override
         public boolean canActivityBeLaunched(@NonNull ActivityInfo activity, Intent intent,
@@ -265,10 +276,10 @@ public class DisplayWindowPolicyControllerTests extends WindowTestsBase {
         }
 
         @Override
-        public void onRunningAppsChanged(ArraySet<Integer> runningUids) {
-            super.onRunningAppsChanged(runningUids);
-            mRunningUids.clear();
-            mRunningUids.addAll(runningUids);
+        public void onRunningAppsChanged(ArraySet<Pair<Integer, String>> runningPackageUids) {
+            super.onRunningAppsChanged(runningPackageUids);
+            mRunningPackageUids.clear();
+            mRunningPackageUids.addAll(runningPackageUids);
         }
 
         @Override

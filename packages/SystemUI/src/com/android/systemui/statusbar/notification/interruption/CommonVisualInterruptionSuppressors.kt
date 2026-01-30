@@ -59,11 +59,14 @@ import com.android.systemui.statusbar.notification.interruption.VisualInterrupti
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionType.PEEK
 import com.android.systemui.statusbar.notification.interruption.VisualInterruptionType.PULSE
 import com.android.systemui.statusbar.policy.BatteryController
+import com.android.systemui.statusbar.policy.data.repository.DeviceProvisioningRepository
+import com.android.systemui.statusbar.policy.domain.interactor.DeviceProvisioningInteractor
 import com.android.systemui.util.NotificationChannels
 import com.android.systemui.util.settings.GlobalSettings
 import com.android.systemui.util.settings.SystemSettings
 import com.android.systemui.util.time.SystemClock
 import com.android.wm.shell.bubbles.Bubbles
+import java.time.Duration
 import java.util.Optional
 import kotlin.jvm.optionals.getOrElse
 
@@ -99,7 +102,7 @@ class PeekDisabledSuppressor(
                 }
             }
 
-        globalSettings.registerContentObserverSync(
+        globalSettings.registerContentObserverAsync(
             globalSettings.getUriFor(HEADS_UP_NOTIFICATIONS_ENABLED),
             /* notifyForDescendants = */ true,
             observer,
@@ -272,6 +275,8 @@ private const val FORCE_SHOW_AVALANCHE_EDU_ONCE = "persist.force_show_avalanche_
 
 private const val PREF_HAS_SEEN_AVALANCHE_EDU = "has_seen_avalanche_edu"
 
+private val AVALANCHE_EDU_DELAY_AFTER_SUW: Duration = Duration.ofDays(1)
+
 class AvalancheSuppressor(
     private val avalancheProvider: AvalancheProvider,
     private val systemClock: SystemClock,
@@ -281,6 +286,7 @@ class AvalancheSuppressor(
     private val context: Context,
     private val notificationManager: NotificationManager,
     private val systemSettings: SystemSettings,
+    private val deviceProvisioningInteractor: DeviceProvisioningInteractor,
 ) : VisualInterruptionFilter(types = setOf(PEEK, PULSE), reason = "avalanche") {
     val TAG = "AvalancheSuppressor"
 
@@ -301,11 +307,6 @@ class AvalancheSuppressor(
     // so let's directly check settings until we confirm that the flow is initialized and in sync
     // with the real settings value.
     private var isCooldownFlowInSync = false
-
-    private fun shouldShowEdu(): Boolean {
-        val forceShowOnce = SystemProperties.get(FORCE_SHOW_AVALANCHE_EDU_ONCE, "").equals("1")
-        return !hasSeenEdu || (forceShowOnce && !hasShownOnceForDebug)
-    }
 
     enum class State {
         ALLOW_CONVERSATION_AFTER_AVALANCHE,
@@ -372,6 +373,24 @@ class AvalancheSuppressor(
             showEdu()
         }
         return true
+    }
+
+    private fun shouldShowEdu(): Boolean {
+        val forceShowOnce = SystemProperties.get(FORCE_SHOW_AVALANCHE_EDU_ONCE, "").equals("1")
+        return (!hasSeenEdu && hasTimeElapsedSinceProvisioning()) ||
+            (forceShowOnce && !hasShownOnceForDebug)
+    }
+
+    private fun hasTimeElapsedSinceProvisioning(): Boolean {
+        val provisioned = deviceProvisioningInteractor.getProvisionedTimestamp()
+        return when (provisioned) {
+            is DeviceProvisioningRepository.ProvisionedTimestamp.Unknown -> true // :(
+            is DeviceProvisioningRepository.ProvisionedTimestamp.NotProvisioned -> false
+            is DeviceProvisioningRepository.ProvisionedTimestamp.AtInstant ->
+                systemClock
+                    .currentTime()
+                    .isAfter(provisioned.instant.plus(AVALANCHE_EDU_DELAY_AFTER_SUW))
+        }
     }
 
     /** Show avalanche education HUN from SystemUI. */

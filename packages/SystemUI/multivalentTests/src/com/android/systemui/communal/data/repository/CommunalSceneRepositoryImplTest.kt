@@ -21,18 +21,22 @@ import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.shared.model.CommunalScenes
+import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.backgroundScope
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.scene.shared.model.SceneDataSource
 import com.android.systemui.scene.shared.model.SceneDataSourceDelegator
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -46,6 +50,7 @@ class CommunalSceneRepositoryImplTest : SysuiTestCase() {
             CommunalSceneRepositoryImpl(
                 backgroundScope = backgroundScope,
                 sceneDataSource = delegator,
+                delegator = delegator,
             )
         }
 
@@ -82,5 +87,19 @@ class CommunalSceneRepositoryImplTest : SysuiTestCase() {
             val transitionState by collectLastValue(underTest.transitionState)
             assertThat(transitionState)
                 .isEqualTo(ObservableTransitionState.Idle(CommunalScenes.Default))
+        }
+
+    @Test
+    fun showHubFromPowerButton() =
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(false)
+
+            underTest.showHubFromPowerButton()
+
+            argumentCaptor<SceneDataSource>().apply {
+                verify(delegator).setDelegate(capture())
+
+                assertThat(firstValue.currentScene.value).isEqualTo(CommunalScenes.Communal)
+            }
         }
 }

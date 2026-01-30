@@ -184,6 +184,22 @@ static bool EmitResourceEntryDiff(DiffContext* context, LoadedApk* apk_a,
     }
   }
 
+  for (const ResourceConfigValue* config_value_a : entry_a.readwrite_flag_values) {
+    auto config_value_b = entry_b.FindReadWriteFlagValue(config_value_a->value->GetFlag().value(),
+                                                         config_value_a->config);
+    if (!config_value_b) {
+      std::stringstream str_stream;
+      str_stream << "missing read/write flag value " << pkg_a.name << ":" << type_a.named_type
+                 << "/" << entry_a.name << " config=" << config_value_a->config
+                 << " flag=" << config_value_a->value->GetFlag()->ToString();
+      EmitDiffLine(apk_b->GetSource(), str_stream.str());
+      diff = true;
+    } else {
+      diff |= EmitResourceConfigValueDiff(context, apk_a, pkg_a, type_a, entry_a, config_value_a,
+                                          apk_b, pkg_b, type_b, entry_b, config_value_b);
+    }
+  }
+
   // Check for any newly added config values.
   for (const ResourceConfigValue* config_value_b : entry_b.values) {
     auto config_value_a = entry_a.FindValue(config_value_b->config);
@@ -201,6 +217,18 @@ static bool EmitResourceEntryDiff(DiffContext* context, LoadedApk* apk_a,
     if (!config_value_a) {
       std::stringstream str_stream;
       str_stream << "new disabled config " << pkg_b.name << ":" << type_b.named_type << "/"
+                 << entry_b.name << " config=" << config_value_b->config
+                 << " flag=" << config_value_b->value->GetFlag()->ToString();
+      EmitDiffLine(apk_b->GetSource(), str_stream.str());
+      diff = true;
+    }
+  }
+  for (const ResourceConfigValue* config_value_b : entry_b.readwrite_flag_values) {
+    auto config_value_a = entry_a.FindReadWriteFlagValue(config_value_b->value->GetFlag().value(),
+                                                         config_value_b->config);
+    if (!config_value_a) {
+      std::stringstream str_stream;
+      str_stream << "new read/write flag config " << pkg_b.name << ":" << type_b.named_type << "/"
                  << entry_b.name << " config=" << config_value_b->config
                  << " flag=" << config_value_b->value->GetFlag()->ToString();
       EmitDiffLine(apk_b->GetSource(), str_stream.str());

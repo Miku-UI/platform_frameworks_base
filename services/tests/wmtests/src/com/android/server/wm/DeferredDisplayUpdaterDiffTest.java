@@ -24,6 +24,9 @@ import static com.android.server.wm.DeferredDisplayUpdater.DEFERRABLE_FIELDS;
 import static com.android.server.wm.DeferredDisplayUpdater.DIFF_NOT_WM_DEFERRABLE;
 import static com.android.server.wm.DeferredDisplayUpdater.DIFF_WM_DEFERRABLE;
 import static com.android.server.wm.DeferredDisplayUpdater.calculateDisplayInfoDiff;
+import static com.android.server.wm.utils.DisplayInfoOverrides.WM_OVERRIDE_FIELDS;
+import static com.android.server.wm.utils.DisplayInfoOverrides.WM_OVERRIDE_GROUPS;
+import static com.android.server.wm.utils.DisplayInfoOverrides.WM_OVERRIDE_GROUPS_ENUMSET;
 import static com.android.server.wm.utils.DisplayInfoOverrides.copyDisplayInfoFields;
 
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -46,6 +49,7 @@ import android.view.SurfaceControl.RefreshRateRange;
 
 import androidx.test.filters.SmallTest;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
@@ -53,6 +57,7 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.ParameterizedType;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 import java.util.function.Consumer;
 
@@ -111,6 +116,72 @@ public class DeferredDisplayUpdaterDiffTest {
                     + "changing DisplayInfo fields").that(
                     diff).isEqualTo(expectedDiff);
         });
+    }
+
+    /**
+     * Verify that {@link com.android.server.wm.utils.DisplayInfoOverrides#WM_OVERRIDE_FIELDS}
+     * and {@link com.android.server.wm.utils.DisplayInfoOverrides#WM_OVERRIDE_GROUPS}
+     * and {@link com.android.server.wm.utils.DisplayInfoOverrides#WM_OVERRIDE_GROUPS} are kept in
+     * sync. Works by applying the override and dynamically discovering which fields were
+     * changed. It then checks that the set of {@link DisplayInfo.DisplayInfoGroup}s for those
+     * fields matches the statically defined group constants.
+     */
+    @Test
+    public void testWmOverrideFieldsAndGroupsAreInSync() {
+        final DisplayInfo info1 = new DisplayInfo();
+        final DisplayInfo info2 = new DisplayInfo();
+        makeAllFieldsDifferent(info1, info2);
+
+        final DisplayInfo result = new DisplayInfo();
+        result.copyFrom(info1);
+        WM_OVERRIDE_FIELDS.setFields(result, info2);
+
+        final Set<DisplayInfo.DisplayInfoGroup> changedGroups = new HashSet<>();
+        forEachDisplayInfoField(field -> {
+            try {
+                final Object val1 = field.get(info1);
+                final Object val2 = field.get(info2);
+                final Object resVal = field.get(result);
+
+                // If the result's field value matches info2's value, and that's different
+                // from info1's original value, then this field was updated by WM_OVERRIDE_FIELDS.
+                if (Objects.equals(resVal, val2) && !Objects.equals(val1, val2)) {
+                    // This field was changed by the updater. To find which group(s) it belongs to,
+                    // create two DisplayInfo objects that differ only in this one field and check
+                    // for changes.
+                    final DisplayInfo temp1 = new DisplayInfo();
+                    final DisplayInfo temp2 = new DisplayInfo();
+                    setDifferentFieldValues(temp1, temp2, field);
+
+                    int groupsMask = temp1.getBasicChangedGroups(temp2);
+                    // If groupsMask is 0, the field is not part of any group, and we can ignore it
+
+                    for (DisplayInfo.DisplayInfoGroup group :
+                            DisplayInfo.DisplayInfoGroup.values()) {
+                        if ((groupsMask & group.getMask()) != 0) {
+                            changedGroups.add(group);
+                        }
+                    }
+                }
+            } catch (IllegalAccessException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        final String errorMessage = "If you've changed the fields in WM_OVERRIDE_FIELDS, "
+                + "you must update WM_OVERRIDE_GROUPS and WM_OVERRIDE_GROUPS_ENUMSET "
+                + "accordingly and visa versa.";
+
+        Assert.assertEquals("The set of changed groups does not match WM_OVERRIDE_GROUPS_ENUMSET. "
+                + errorMessage, WM_OVERRIDE_GROUPS_ENUMSET, changedGroups);
+
+        int changedGroupsMask = 0;
+        for (DisplayInfo.DisplayInfoGroup group : changedGroups) {
+            changedGroupsMask |= group.getMask();
+        }
+
+        Assert.assertEquals("The mask of changed groups does not match WM_OVERRIDE_GROUPS. "
+                + errorMessage, WM_OVERRIDE_GROUPS, changedGroupsMask);
     }
 
     /**

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Reikalingas leidimas"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Diegimas užblokuotas"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Programa ruošiama…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Įdiegti šią programą?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Įdiegiama…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Programa įdiegta"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Iš naujo įdiegti šią programą?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Diegiama iš naujo…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Programa įdiegta iš naujo"</string>
+    <string name="title_update" msgid="1747328630716712391">"Atnaujinti šią programą?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Atnaujinti šią programą naudojant „<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>“?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Atnaujinama…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Programa atnaujinta"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Nepavyko įdiegti programos"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Diegimas užblokuotas"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Programa nesuderinama"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Netinkamas paketas"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Trūksta saugyklos vietos"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Programa neįdiegta"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Pašalinti šią programą?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Ištrinti šią programos kopiją?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Pašalinti programos naujinius?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Pašalinti programos naujinius visiems naudotojams?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Pašalinti šią programą visiems naudotojams?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Pašalinti šią programą naudotojui „<xliff:g id="USER_NAME">%1$s</xliff:g>“?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Programa nerasta"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Nepavyko pašalinti šios programos"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Nepavyko pašalinti programos"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Archyvuoti šią programą?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Archyvuoti šią programą visiems naudotojams?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Archyvuoti šią programą naudotojui „<xliff:g id="USER_NAME">%1$s</xliff:g>“?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Atkurti šią programą?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Būtina imtis veiksmų"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Trūksta saugyklos vietos"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Esate neprisijungę"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"„<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>“ išjungta"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"Programa „<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>“ neįdiegta"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Kažkas nepavyko"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Ši programa paprastai naujinius gauna iš &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Atnaujinę iš kito šaltinio, būsimus naujinius galite gauti iš bet kurio šaltinio planšetiniame kompiuteryje. Gali būti pakeistos programos funkcijos."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Ši programa paprastai naujinius gauna iš &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Atnaujinę iš kito šaltinio, būsimus naujinius galite gauti iš bet kurio šaltinio televizoriuje. Gali būti pakeistos programos funkcijos."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Ši programa paprastai naujinius gauna iš &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Atnaujinę iš kito šaltinio, būsimus naujinius galite gauti iš bet kurio šaltinio telefone. Gali būti pakeistos programos funkcijos."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Saugos sumetimais šiuo metu planšetiniame kompiuteryje neleidžiama diegti nežinomų programų iš šio šaltinio. Tai galite pakeisti nustatymuose."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Saugos sumetimais šiuo metu televizoriuje neleidžiama diegti nežinomų programų iš šio šaltinio. Tai galite pakeisti nustatymuose."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Saugos sumetimais šiuo metu laikrodyje neleidžiama diegti nežinomų programų iš šio šaltinio. Tai galite pakeisti nustatymuose."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Saugos sumetimais šiuo metu telefone neleidžiama diegti nežinomų programų iš šio šaltinio. Tai galite pakeisti nustatymuose."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Telefonas ir asmens duomenys labiau pažeidžiami įdiegus nežinomų programų. Įdiegdami šią programą sutinkate, kad patys esate atsakingi už žalą telefonui arba prarastus duomenis dėl šios programos naudojimo."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Planšetinis kompiuteris ir asmens duomenys labiau pažeidžiami įdiegus nežinomų programų. Įdiegdami šią programą sutinkate, kad patys esate atsakingi už žalą planšetiniam kompiuteriui arba prarastus duomenis dėl šios programos naudojimo."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"TV ir asmens duomenys labiau pažeidžiami įdiegus nežinomų programų. Įdiegdami šią programą sutinkate, kad patys esate atsakingi už žalą TV arba prarastus duomenis dėl šios programos naudojimo."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Šios programos įdiegimas buvo užblokuotas"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Ši programa nesuderinama su jūsų įrenginyje jau esančia programa"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Ši programa nesuderinama su įrenginiu"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Kilo problema dėl šios programos diegimo failo"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Jei norite įdiegti šią programą, atlaisvinkite vietos ir bandykite dar kartą"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Kilo problema dėl programos failo"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Programų diegimas apribotas"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Nežinomų programų diegimas apribotas"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Taip pat yra šios programos kopija, kuri bus ištrinta"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Ši programa yra „<xliff:g id="APP_LABEL">%1$s</xliff:g>“ kopija"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Ši programa bus pakeista gamykline versija. Visi programos duomenys bus pašalinti."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Ši programa bus pakeista gamykline versija visiems įrenginio naudotojams. Visi programos duomenys bus pašalinti."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Ši programa bus pašalinta iš darbo profilio"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Ši programa bus pašalinta iš privačios erdvės"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Ši programa nerasta įdiegtų programų sąraše arba jau pašalinta"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Dabartiniam naudotojui neleidžiama atlikti šio pašalinimo veiksmo"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Nepavyko pašalinti šios programos"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Palikti programos duomenis"</string>
+    <string name="message_archive" msgid="943853731737315850">"Programos duomenys bus išsaugoti"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Visi programos duomenys bus išsaugoti"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Programos duomenys bus išsaugoti"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Ši programa bus suarchyvuota iš darbo profilio. Programos duomenys bus išsaugoti."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Ši programa bus suarchyvuota iš jūsų privačios erdvės. Programos duomenys bus išsaugoti."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Ši programa bus atsisiųsta iš „<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>“ fone"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"„<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>“ reikia daugiau informacijos, kad galėtumėte atkurti šią programą"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Jei norite atkurti šią programą, atlaisvinkite &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; ir bandykite dar kartą"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Jei norite atkurti šią programą, patikrinkite interneto ryšį ir bandykite dar kartą"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Kad atkurtumėte šią programą, įgalinkite „<xliff:g id="INSTALLERNAME">%1$s</xliff:g>“ nustatymuose"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Kad atkurtumėte šią programą, turėsite įdiegti „<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>“"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Bandant atkurti šią programą iškilo problema"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"„<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g>“ yra šios programos dalis: „<xliff:g id="APP_NAME">%2$s</xliff:g>“"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Ši programa buvo užblokuota. Kad įrenginys ir duomenys būtų saugūs, galima įdiegti tik patvirtintų kūrėjų programas.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Ši programa nebuvo atnaujinta. Kad įrenginys ir duomenys būtų saugūs, galima įdiegti tik patvirtintų kūrėjų naujinius.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Ši programa nebuvo įdiegta. Programos iš nepatvirtintų kūrėjų gali būti nesaugios.&lt;/p&gt; &lt;p&gt;Norint patvirtinti programos kūrėją, reikalingas interneto ryšys. Patikrinkite ryšį ir bandykite įdiegti dar kartą. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Ši programa nebuvo atnaujinta. Naujiniai iš nepatvirtintų kūrėjų gali būti nesaugūs.&lt;/p&gt; &lt;p&gt;Norint patvirtinti programos kūrėją, reikalingas interneto ryšys. Patikrinkite ryšį ir bandykite atnaujinti dar kartą. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Patvirtinant šios programos kūrėją kilo problema. Programos iš nepatvirtintų kūrėjų gali būti nesaugios, todėl programa nebuvo įdiegta.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Patvirtinant šios programos kūrėją kilo problema. Naujiniai iš nepatvirtintų kūrėjų gali būti nesaugūs, todėl programa nebuvo atnaujinta.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Ši programa buvo užblokuota, nes kilo problema patvirtinant kūrėją. Kad įrenginys ir duomenys būtų saugūs, galima įdiegti tik patvirtintų kūrėjų programas.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Ši programa nebuvo atnaujinta, nes kilo problema patvirtinant kūrėją. Kad įrenginys ir duomenys būtų saugūs, galima įdiegti tik patvirtintų kūrėjų naujinius.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Sužinokite daugiau apie kūrėjo patvirtinimą&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Jei įdiegiate nepatvirtinę, atminkite, kad programos iš nepatvirtintų kūrėjų gali kelti pavojų jūsų įrenginiui ir duomenims."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Jei atnaujinate nepatvirtinę, atminkite, kad naujiniai iš nepatvirtintų kūrėjų gali kelti pavojų jūsų įrenginiui ir duomenims."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Programos kūrėjas nepatvirtintas"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Nėra interneto ryšio, nepavyko patvirtinti programos kūrėjo"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Nepavyko patvirtinti programos kūrėjo"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Įdiegti nepatvirtinus"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Atnaujinti nepatvirtinant"</string>
+    <string name="button_install" msgid="7434013176505680162">"Įdiegti"</string>
+    <string name="button_update" msgid="3046719350226327526">"Atnaujinti"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Vis tiek atnaujinti"</string>
+    <string name="button_done" msgid="3408025390982260629">"Atlikta"</string>
+    <string name="button_open" msgid="6892684987374117955">"Atidaryti"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Atšaukti"</string>
+    <string name="button_continue" msgid="107501685249826244">"Tęsti"</string>
+    <string name="button_close" msgid="7187308556466275899">"Uždaryti"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Pašalinti"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Ištrinti"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Įdiegti iš naujo"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Tvarkyti programas"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Archyvuoti"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Atkurti"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Pašalinti naujinius"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Nustatymai"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Bandyti dar kartą"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"„<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>“ kopija"</string>
+</resources>

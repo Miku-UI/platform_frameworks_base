@@ -29,7 +29,6 @@ import android.util.AttributeSet;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 
 import com.android.internal.view.menu.MenuBuilder.ItemInvoker;
@@ -125,7 +124,7 @@ public final class IconMenuView extends ViewGroup implements ItemInvoker, MenuVi
      * The number of rows in the current layout. 
      */
     private int mLayoutNumRows;
-    
+
     /**
      * Instantiates the IconMenuView that is linked with the provided MenuBuilder.
      */
@@ -540,11 +539,10 @@ public final class IconMenuView extends ViewGroup implements ItemInvoker, MenuVi
     
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-
         if (event.getKeyCode() == KeyEvent.KEYCODE_MENU) {
             if (event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
                 removeCallbacks(this);
-                postDelayed(this, ViewConfiguration.getLongPressTimeout());
+                postDelayed(this, getLongPressTimeoutMillis());
             } else if (event.getAction() == KeyEvent.ACTION_UP) {
                 
                 if (mMenuBeingLongpressed) {

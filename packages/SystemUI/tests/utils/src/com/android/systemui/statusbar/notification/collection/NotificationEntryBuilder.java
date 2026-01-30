@@ -68,6 +68,11 @@ public class NotificationEntryBuilder {
         mRankingBuilder = new RankingBuilder();
     }
 
+    public NotificationEntryBuilder(Context context) {
+        mSbnBuilder = new SbnBuilder(context);
+        mRankingBuilder = new RankingBuilder();
+    }
+
     public NotificationEntryBuilder(NotificationEntry source) {
         mSbnBuilder = new SbnBuilder(source.getSbn());
         mRankingBuilder = new RankingBuilder(source.getRanking());

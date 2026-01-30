@@ -63,6 +63,7 @@ import java.io.IOException;
  * @attr ref android.R.styleable#ScaleDrawable_drawable
  * @attr ref android.R.styleable#ScaleDrawable_level
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ScaleDrawable extends DrawableWrapper {
     private static final int MAX_LEVEL = 10000;
 

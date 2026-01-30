@@ -6,7 +6,7 @@
 --delete-finals
 
 # Include standard annotations
-@jar:texts/ravenwood-standard-annotations.txt
+@jar:texts/ravenwood-common-options.txt
 
 # Apply common policies
 --policy-override-file

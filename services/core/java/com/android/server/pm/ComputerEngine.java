@@ -140,11 +140,10 @@ import com.android.internal.util.Preconditions;
 import com.android.modules.utils.TypedXmlSerializer;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.ondeviceintelligence.OnDeviceIntelligenceManagerLocal;
-import com.android.server.pm.dex.DexManager;
-import com.android.server.pm.dex.PackageDexUsage;
 import com.android.server.pm.parsing.PackageInfoUtils;
 import com.android.server.pm.parsing.pkg.AndroidPackageUtils;
 import com.android.server.pm.permission.PermissionManagerServiceInternal;
+import com.android.server.pm.permission.PermissionManagerServiceInternal.HotwordDetectionServiceProvider;
 import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.pkg.PackageState;
 import com.android.server.pm.pkg.PackageStateInternal;
@@ -153,6 +152,7 @@ import com.android.server.pm.pkg.PackageUserStateInternal;
 import com.android.server.pm.pkg.PackageUserStateUtils;
 import com.android.server.pm.pkg.SharedUserApi;
 import com.android.server.pm.resolution.ComponentResolverApi;
+import com.android.server.pm.verify.developer.DeveloperVerificationStatusInternal;
 import com.android.server.pm.verify.domain.DomainVerificationManagerInternal;
 import com.android.server.uri.UriGrantsManagerInternal;
 import com.android.server.utils.WatchedArrayMap;
@@ -171,7 +171,6 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -418,9 +417,6 @@ public class ComputerEngine implements Computer {
     private final InstantAppResolverConnection mInstantAppResolverConnection;
     private final DefaultAppProvider mDefaultAppProvider;
     private final DomainVerificationManagerInternal mDomainVerificationManager;
-    private final PackageDexOptimizer mPackageDexOptimizer;
-    private final DexManager mDexManager;
-    private final CompilerStats mCompilerStats;
     private final PackageManagerInternal.ExternalSourcesPolicy mExternalSourcesPolicy;
     private final CrossProfileIntentResolverEngine mCrossProfileIntentResolverEngine;
 
@@ -470,9 +466,6 @@ public class ComputerEngine implements Computer {
         mInstantAppResolverConnection = args.service.mInstantAppResolverConnection;
         mDefaultAppProvider = args.service.getDefaultAppProvider();
         mDomainVerificationManager = args.service.mDomainVerificationManager;
-        mPackageDexOptimizer = args.service.mPackageDexOptimizer;
-        mDexManager = args.service.getDexManager();
-        mCompilerStats = args.service.mCompilerStats;
         mExternalSourcesPolicy = args.service.mExternalSourcesPolicy;
         mCrossProfileIntentResolverEngine = new CrossProfileIntentResolverEngine(
                 mUserManager, mDomainVerificationManager, mDefaultAppProvider, mContext);
@@ -1538,6 +1531,14 @@ public class ComputerEngine implements Computer {
                             mApexManager.getActivePackageNameForApexModuleName(apexModuleName));
                 }
             }
+            if (Flags.verificationService()) {
+                final DeveloperVerificationStatusInternal developerVerificationStatusInternal =
+                        ps.getDeveloperVerificationStatusInternal();
+                if (developerVerificationStatusInternal != null) {
+                    packageInfo.setIsAppMetadataVerified(
+                            developerVerificationStatusInternal.isAppMetadataVerified());
+                }
+            }
             return packageInfo;
         } else if ((flags & (MATCH_UNINSTALLED_PACKAGES | MATCH_ARCHIVED_PACKAGES)) != 0
                 && PackageUserStateUtils.isAvailable(state, flags)) {
@@ -1884,8 +1885,8 @@ public class ComputerEngine implements Computer {
     private int getIsolatedOwner(int isolatedUid) {
         final int ownerUid = mIsolatedOwners.get(isolatedUid, -1);
         if (ownerUid == -1) {
-            throw new IllegalStateException(
-                    "No owner UID found for isolated UID " + isolatedUid);
+            Slog.wtf(TAG, "No owner UID found for isolated UID " + isolatedUid);
+            return isolatedUid;
         }
         return ownerUid;
     }
@@ -2773,17 +2774,6 @@ public class ComputerEngine implements Computer {
             enforceCrossUserPermission(Binder.getCallingUid(), userId, false, false,
                     !isRecentsAccessingChildProfiles(Binder.getCallingUid(), userId),
                     "MATCH_ANY_USER flag requires INTERACT_ACROSS_USERS permission");
-        } else if (!Flags.removeCrossUserPermissionHack()
-                && (flags & PackageManager.MATCH_UNINSTALLED_PACKAGES) != 0
-                && isCallerSystemUser
-                && mUserManager.hasProfile(UserHandle.USER_SYSTEM)) {
-            // If the caller wants all packages and has a profile associated with it,
-            // then match all users. This is to make sure that launchers that need to access
-            //work
-            // profile apps don't start breaking. TODO: Remove this hack when launchers stop
-            //using
-            // MATCH_UNINSTALLED_PACKAGES to query apps in other profiles. b/31000380
-            flags |= PackageManager.MATCH_ANY_USER;
         }
         return updateFlags(flags, userId);
     }
@@ -3129,44 +3119,8 @@ public class ComputerEngine implements Computer {
                 }
                 ipw.println("Dexopt state:");
                 ipw.increaseIndent();
-                DexOptHelper.dumpDexoptState(ipw, packageName);
+                DexOptHelper.dumpDexoptState(ipw, this, packageName);
                 ipw.decreaseIndent();
-                break;
-            }
-
-            case DumpState.DUMP_COMPILER_STATS:
-            {
-                final IndentingPrintWriter ipw = new IndentingPrintWriter(pw, "  ");
-                if (dumpState.onTitlePrinted()) {
-                    pw.println();
-                }
-                ipw.println("Compiler stats:");
-                ipw.increaseIndent();
-                Collection<? extends PackageStateInternal> pkgSettings;
-                if (setting != null) {
-                    pkgSettings = Collections.singletonList(setting);
-                } else {
-                    pkgSettings = mSettings.getPackages().values();
-                }
-
-                for (PackageStateInternal pkgSetting : pkgSettings) {
-                    final AndroidPackage pkg = pkgSetting.getPkg();
-                    if (pkg == null) {
-                        continue;
-                    }
-                    final String pkgName = pkg.getPackageName();
-                    ipw.println("[" + pkgName + "]");
-                    ipw.increaseIndent();
-
-                    final CompilerStats.PackageStats stats =
-                            mCompilerStats.getPackageStats(pkgName);
-                    if (stats == null) {
-                        ipw.println("(No recorded stats)");
-                    } else {
-                        stats.dump(ipw);
-                    }
-                    ipw.decreaseIndent();
-                }
                 break;
             }
 
@@ -3453,7 +3407,7 @@ public class ComputerEngine implements Computer {
                         } else {
                             final boolean isHomeActivity = ACTION_MAIN.equals(intent.getAction())
                                     && intent.hasCategory(CATEGORY_HOME);
-                            if (!Flags.improveHomeAppBehavior() || !isHomeActivity) {
+                            if (!isHomeActivity) {
                                 // Don't reset the preferred activity just for the home intent, we
                                 // should respect the default home app even though there any new
                                 // home activity is enabled.
@@ -4394,12 +4348,7 @@ public class ComputerEngine implements Computer {
         }
         final int callingUserId = UserHandle.getUserId(callingUid);
         if (isKnownIsolatedComputeApp(uid)) {
-            try {
-                uid = getIsolatedOwner(uid);
-            } catch (IllegalStateException e) {
-                // If the owner uid doesn't exist, just use the current uid
-                Slog.wtf(TAG, "Expected isolated uid " + uid + " to have an owner", e);
-            }
+            uid = getIsolatedOwner(uid);
         }
         final int appId = UserHandle.getAppId(uid);
         final Object obj = mSettings.getSettingBase(appId);
@@ -4437,12 +4386,7 @@ public class ComputerEngine implements Computer {
                 uid = getBaseSdkSandboxUid();
             }
             if (isKnownIsolatedComputeApp(uid)) {
-                try {
-                    uid = getIsolatedOwner(uid);
-                } catch (IllegalStateException e) {
-                    // If the owner uid doesn't exist, just use the current uid
-                    Slog.wtf(TAG, "Expected isolated uid " + uid + " to have an owner", e);
-                }
+                uid = getIsolatedOwner(uid);
             }
             final int appId = UserHandle.getAppId(uid);
             final Object obj = mSettings.getSettingBase(appId);
@@ -4992,26 +4936,6 @@ public class ComputerEngine implements Computer {
         }
 
         return new ParceledListSlice<>(finalList);
-    }
-
-    @NonNull
-    @Override
-    public List<PackageStateInternal> findSharedNonSystemLibraries(
-            @NonNull PackageStateInternal pkgSetting) {
-        List<SharedLibraryInfo> deps = SharedLibraryUtils.findSharedLibraries(pkgSetting);
-        if (!deps.isEmpty()) {
-            List<PackageStateInternal> retValue = new ArrayList<>();
-            for (SharedLibraryInfo info : deps) {
-                PackageStateInternal depPackageSetting =
-                        getPackageStateInternal(info.getPackageName());
-                if (depPackageSetting != null && depPackageSetting.getPkg() != null) {
-                    retValue.add(depPackageSetting);
-                }
-            }
-            return retValue;
-        } else {
-            return Collections.emptyList();
-        }
     }
 
     /**
@@ -5701,32 +5625,6 @@ public class ComputerEngine implements Computer {
         return res != null ? res : EmptyArray.STRING;
     }
 
-
-    @NonNull
-    @Override
-    public Set<String> getUnusedPackages(long downgradeTimeThresholdMillis) {
-        Set<String> unusedPackages = new ArraySet<>();
-        long currentTimeInMillis = System.currentTimeMillis();
-        final ArrayMap<String, ? extends PackageStateInternal> packageStates =
-                mSettings.getPackages();
-        for (int index = 0; index < packageStates.size(); index++) {
-            final PackageStateInternal packageState = packageStates.valueAt(index);
-            if (packageState.getPkg() == null) {
-                continue;
-            }
-            PackageDexUsage.PackageUseInfo packageUseInfo =
-                    mDexManager.getPackageUseInfoOrDefault(packageState.getPackageName());
-            if (PackageManagerServiceUtils.isUnusedSinceTimeInMillis(
-                    PackageStateUtils.getEarliestFirstInstallTime(packageState.getUserStates()),
-                    currentTimeInMillis, downgradeTimeThresholdMillis, packageUseInfo,
-                    packageState.getTransientState().getLatestPackageUseTimeInMills(),
-                    packageState.getTransientState().getLatestForegroundPackageUseTimeInMills())) {
-                unusedPackages.add(packageState.getPackageName());
-            }
-        }
-        return unusedPackages;
-    }
-
     @Nullable
     @Override
     public CharSequence getHarmfulAppWarning(@NonNull String packageName, @UserIdInt int userId) {
@@ -5883,10 +5781,11 @@ public class ComputerEngine implements Computer {
         if (!Process.isIsolatedUid(uid)) {
             return false;
         }
+        final HotwordDetectionServiceProvider hotwordDetectionServiceProvider =
+                mPermissionManager.getHotwordDetectionServiceProvider();
         final boolean isHotword =
-                mPermissionManager.getHotwordDetectionServiceProvider() != null
-                        && uid
-                        == mPermissionManager.getHotwordDetectionServiceProvider().getUid();
+                 hotwordDetectionServiceProvider != null
+                        && uid == hotwordDetectionServiceProvider.getUid();
         if (isHotword) {
             return true;
         }

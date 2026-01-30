@@ -22,7 +22,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 
 /** [ApiPermissionChecker] that checks if calling app has given app-op permission. */
-class AppOpApiPermissionChecker<T>(private val op: Int, private val permission: String) :
+class AppOpApiPermissionChecker<T>(private val op: String, private val permission: String) :
     ApiPermissionChecker<T> {
 
     @Suppress("DEPRECATION")
@@ -35,7 +35,7 @@ class AppOpApiPermissionChecker<T>(private val op: Int, private val permission: 
         val appOpsManager =
             application.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
         val pkg = application.packageManager.getNameForUid(callingUid) ?: return false
-        return when (appOpsManager.noteOp(op, callingUid, pkg)) {
+        return when (appOpsManager.noteOp(op, callingUid, pkg, null, null)) {
             AppOpsManager.MODE_ALLOWED -> true
             AppOpsManager.MODE_DEFAULT ->
                 application.checkPermission(permission, callingPid, callingUid) ==

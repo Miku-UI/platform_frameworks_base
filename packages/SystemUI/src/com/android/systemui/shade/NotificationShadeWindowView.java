@@ -55,7 +55,6 @@ import android.view.accessibility.AccessibilityEvent;
 import com.android.app.viewcapture.ViewCaptureFactory;
 import com.android.internal.view.FloatingActionMode;
 import com.android.internal.widget.floatingtoolbar.FloatingToolbar;
-import com.android.systemui.Flags;
 import com.android.systemui.scene.ui.view.WindowRootView;
 import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround;
 import com.android.systemui.statusbar.phone.ConfigurationForwarder;
@@ -171,8 +170,7 @@ public class NotificationShadeWindowView extends WindowRootView {
 
     @Override
     public boolean requestSendAccessibilityEvent(View child, AccessibilityEvent event) {
-        if (Flags.shadeLaunchAccessibility() && mAnimatingContentLaunch
-                && event.getEventType() == TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
+        if (mAnimatingContentLaunch && event.getEventType() == TYPE_VIEW_ACCESSIBILITY_FOCUSED) {
             // Block accessibility focus events during launch animations to avoid stray TalkBack
             // announcements.
             return false;

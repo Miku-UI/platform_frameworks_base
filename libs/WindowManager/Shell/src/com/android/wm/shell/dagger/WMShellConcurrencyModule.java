@@ -203,16 +203,27 @@ public abstract class WMShellConcurrencyModule {
     }
 
     /**
-     * Provides a Shell desktop thread Executor
+     * Provides a Shell desktop thread Handler for desktop mode related tasks.
      */
     @WMSingleton
     @Provides
     @ShellDesktopThread
-    public static ShellExecutor provideDesktopModeMiscExecutor() {
+    public static Handler provideDesktopModeMiscHandler() {
         HandlerThread shellDesktopThread = new HandlerThread("wmshell.desktop",
                 THREAD_PRIORITY_TOP_APP_BOOST);
         shellDesktopThread.start();
-        return new HandlerExecutor(shellDesktopThread.getThreadHandler());
+        return shellDesktopThread.getThreadHandler();
+    }
+
+    /**
+     * Provides a Shell desktop thread Executor for desktop mode related tasks.
+     */
+    @WMSingleton
+    @Provides
+    @ShellDesktopThread
+    public static ShellExecutor provideDesktopModeMiscExecutor(
+            @ShellDesktopThread Handler handler) {
+        return new HandlerExecutor(handler);
     }
 
     /**

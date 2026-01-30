@@ -16,12 +16,14 @@
 
 package android.view;
 
+import android.annotation.NonNull;
 import android.view.WindowInsets.Type.InsetsType;
 import android.view.WindowInsetsAnimation.Bounds;
 
 /**
  * Provide an interface to let InsetsAnimationControlImpl and InsetsResizeAnimationRunner call back
  * into its owner.
+ *
  * @hide
  */
 public interface InsetsAnimationControlCallbacks {
@@ -36,36 +38,38 @@ public interface InsetsAnimationControlCallbacks {
      * </ul>
      */
     <T extends InsetsAnimationControlRunner & InternalInsetsAnimationController>
-    void startAnimation(T runner, WindowInsetsAnimationControlListener listener, int types,
-            WindowInsetsAnimation animation, Bounds bounds);
+    void startAnimation(@NonNull T runner, @NonNull WindowInsetsAnimationControlListener listener,
+            @InsetsType int types, @NonNull WindowInsetsAnimation animation,
+            @NonNull Bounds bounds);
 
     /**
      * Schedule the apply by posting the animation callback.
      *
      * @param runner The runner that requested applying insets
      */
-    void scheduleApplyChangeInsets(InsetsAnimationControlRunner runner);
+    void scheduleApplyChangeInsets(@NonNull InsetsAnimationControlRunner runner);
 
     /**
      * Finish the final steps after the animation.
+     *
      * @param runner The runner used to run the animation.
-     * @param shown {@code true} if the insets are shown.
+     * @param shown  {@code true} if the insets are shown.
      */
-    void notifyFinished(InsetsAnimationControlRunner runner, boolean shown);
+    void notifyFinished(@NonNull InsetsAnimationControlRunner runner, boolean shown);
 
     /**
      * Post a message to release the Surface, guaranteed to happen after all
      * previous calls to applySurfaceParams.
      */
-    void releaseSurfaceControlFromRt(SurfaceControl sc);
+    void releaseSurfaceControlFromRt(@NonNull SurfaceControl sc);
 
     /**
      * Reports that the perceptibility of the given types has changed to the given value.
      *
-     * A type is perceptible if it is not (almost) entirely off-screen and not (almost) entirely
+     * <p>A type is perceptible if it is not (almost) entirely off-screen and not (almost) entirely
      * transparent.
      *
-     * @param types the (public) types whose perceptibility has changed
+     * @param types       the (public) types whose perceptibility has changed
      * @param perceptible true, if the types are now perceptible, false if they are not perceptible
      */
     void reportPerceptible(@InsetsType int types, boolean perceptible);

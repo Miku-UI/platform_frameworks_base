@@ -115,19 +115,6 @@ public class PackageStateUnserialized {
         return latestUse;
     }
 
-    public long getLatestForegroundPackageUseTimeInMills() {
-        int[] foregroundReasons = {
-                PackageManager.NOTIFY_PACKAGE_USE_ACTIVITY,
-                PackageManager.NOTIFY_PACKAGE_USE_FOREGROUND_SERVICE
-        };
-
-        long latestUse = 0L;
-        for (int reason : foregroundReasons) {
-            latestUse = Math.max(latestUse, getLastPackageUsageTimeInMills()[reason]);
-        }
-        return latestUse;
-    }
-
     public void updateFrom(PackageStateUnserialized other) {
         this.hiddenUntilInstalled = other.hiddenUntilInstalled;
 
@@ -146,19 +133,6 @@ public class PackageStateUnserialized {
         this.seInfo = other.seInfo;
         this.mApexModuleName = other.mApexModuleName;
         mPackageSetting.onChanged();
-    }
-
-    public @NonNull List<SharedLibraryInfo> getNonNativeUsesLibraryInfos() {
-        var list = new ArrayList<SharedLibraryInfo>();
-        usesLibraryInfos = getUsesLibraryInfos();
-        for (int index = 0; index < usesLibraryInfos.size(); index++) {
-            var library = usesLibraryInfos.get(index);
-            if (!library.isNative()) {
-                list.add(library.getInfo());
-            }
-
-        }
-        return list;
     }
 
     public PackageStateUnserialized setHiddenUntilInstalled(boolean value) {

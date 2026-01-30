@@ -61,34 +61,6 @@ public:
     // Create a new Entry from an already opened file. Takes ownership of the
     // file descriptor.
     Status addFile(const String16& tag, int fd, int flags);
-
-    class Entry : public Parcelable {
-    public:
-        Entry();
-        virtual ~Entry();
-
-        virtual status_t writeToParcel(Parcel* out) const;
-        virtual status_t readFromParcel(const Parcel* in);
-
-        const vector<uint8_t>& getData() const;
-        const unique_fd& getFd() const;
-        int32_t getFlags() const;
-        int64_t getTimestamp() const;
-
-    private:
-        Entry(const String16& tag, int32_t flags);
-        Entry(const String16& tag, int32_t flags, int fd);
-
-        String16 mTag;
-        int64_t mTimeMillis;
-        int32_t mFlags;
-
-        vector<uint8_t> mData;
-        unique_fd mFd;
-
-        friend class DropBoxManager;
-    };
-
 private:
     enum {
         HAS_BYTE_ARRAY = 8

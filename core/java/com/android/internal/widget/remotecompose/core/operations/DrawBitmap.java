@@ -184,11 +184,12 @@ public class DrawBitmap extends PaintOperation implements VariableSupport {
 
     @Override
     public void paint(@NonNull PaintContext context) {
-        context.drawBitmap(mId, mOutputLeft, mOutputTop, mOutputRight, mOutputBottom);
+        context.drawBitmap(
+                getId(mId, context), mOutputLeft, mOutputTop, mOutputRight, mOutputBottom);
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("imageId", mId)

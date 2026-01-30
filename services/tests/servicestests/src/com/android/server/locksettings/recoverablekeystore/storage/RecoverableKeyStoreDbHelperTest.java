@@ -130,7 +130,7 @@ public class RecoverableKeyStoreDbHelperTest {
     @Test
     public void onUpgrade_beforeV2() throws Exception {
         mDatabaseHelper.onUpgrade(mDatabase, /*oldVersion=*/ 1,
-                RecoverableKeyStoreDbHelper.DATABASE_VERSION_7);
+                RecoverableKeyStoreDbHelper.DATABASE_VERSION_8);
         checkAllColumns_latest();
     }
 
@@ -138,7 +138,7 @@ public class RecoverableKeyStoreDbHelperTest {
     public void onUpgrade_fromV2() throws Exception {
         createV2Tables();
         mDatabaseHelper.onUpgrade(mDatabase, /*oldVersion=*/ 2,
-                RecoverableKeyStoreDbHelper.DATABASE_VERSION_7);
+                RecoverableKeyStoreDbHelper.DATABASE_VERSION_8);
         checkAllColumns_latest();
     }
 
@@ -156,20 +156,22 @@ public class RecoverableKeyStoreDbHelperTest {
         checkAllColumns_v4();
 
         mDatabaseHelper.onUpgrade(mDatabase, /*oldVersion=*/ 4, /*newVersion=*/ 7);
+
+        mDatabaseHelper.onUpgrade(mDatabase, /*oldVersion=*/ 7, /*newVersion=*/ 8);
         checkAllColumns_latest();
     }
 
     @Test
     public void onUpgradeToV7_ignoresDuplicateColumnError() throws Exception {
         mDatabaseHelper.onCreate(mDatabase);
-        mDatabaseHelper.onUpgrade(mDatabase, 6, 7);
+        mDatabaseHelper.onUpgrade(mDatabase, 6, 8);
         checkAllColumns_latest();
     }
 
     @Test
     public void onUpgradeToV7_recreatesDatabaseAfterFailure() throws Exception {
         mDatabaseHelper.onCreate(mDatabase);
-        mDatabaseHelper.onUpgrade(mDatabase, 1, 7);
+        mDatabaseHelper.onUpgrade(mDatabase, 1, 8);
         checkAllColumns_latest();
     }
 
@@ -263,6 +265,14 @@ public class RecoverableKeyStoreDbHelperTest {
         values = new ContentValues();
         values.put(UserMetadataEntry.COLUMN_NAME_USER_ID, TEST_USER_ID);
         values.put(UserMetadataEntry.COLUMN_NAME_BAD_REMOTE_GUESS_COUNTER, 2);
+        assertThat(
+                mDatabase.replace(UserMetadataEntry.TABLE_NAME, /*nullColumnHack=*/ null, values))
+                .isGreaterThan(-1L);
+
+        // LSKF salt was added when upgrading from v7 to v8
+        values = new ContentValues();
+        values.put(UserMetadataEntry.COLUMN_NAME_USER_ID, TEST_USER_ID);
+        values.put(UserMetadataEntry.COLUMN_NAME_LSKF_SALT, new byte[16]);
         assertThat(
                 mDatabase.replace(UserMetadataEntry.TABLE_NAME, /*nullColumnHack=*/ null, values))
                 .isGreaterThan(-1L);

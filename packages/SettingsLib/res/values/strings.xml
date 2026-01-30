@@ -179,6 +179,10 @@
     <string name="bluetooth_connected">Connected<xliff:g id="active_device">%1$s</xliff:g></string>
     <!--Bluetooth settings screen, summary text under individual Bluetooth devices when pairing -->
     <string name="bluetooth_pairing">Pairing\u2026</string>
+    <!-- Bluetooth settings. Message when the device having a pairing failure. [CHAR LIMIT=40] -->
+    <string name="bluetooth_pairing_failure">Can\'t pair</string>
+    <!-- Bluetooth settings. Message when the device having a connection failure. [CHAR LIMIT=40] -->
+    <string name="bluetooth_connection_failure">Can\'t connect</string>
 
     <!-- Bluetooth settings.  Message when connected to a device, except for phone audio. [CHAR LIMIT=40] -->
     <string name="bluetooth_connected_no_headset">Connected (no phone)<xliff:g id="active_device">%1$s</xliff:g></string>
@@ -214,6 +218,17 @@
     <string name="bluetooth_battery_level_untethered_left">Left: <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g> battery</string>
     <!-- Connected devices settings. Message when Bluetooth is connected but not in use, showing remote device battery level for the right part of the untethered headset. [CHAR LIMIT=NONE] -->
     <string name="bluetooth_battery_level_untethered_right">Right: <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g> battery</string>
+    <!-- Connected devices settings. Message when bluetooth device is disconnected, showing battery level for the left part of the BATT device. [CHAR LIMIT=NONE] -->
+    <string name="bluetooth_battery_level_untethered_case">Case: <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g> battery</string>
+    <!-- Connected devices settings. Message when bluetooth device is discoonected, showing remote device status and battery level for the left part and case of the BATT device. [CHAR LIMIT=NONE] -->
+    <string name="bluetooth_battery_level_untethered_left_case">Left: <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g>, Case: <xliff:g id="battery_level_as_percentage" example="25%">%2$s</xliff:g> battery</string>
+    <!-- Connected devices settings. Message when bluetooth device is discoonected, showing remote device status and battery level for the right part and case of the BATT device. [CHAR LIMIT=NONE] -->
+    <string name="bluetooth_battery_level_untethered_right_case">Right: <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g>, Case: <xliff:g id="battery_level_as_percentage" example="25%">%2$s</xliff:g> battery</string>
+    <!-- Connected devices settings. Message when bluetooth device is discoonected, showing remote device status and battery level for the left and right parts of the BATT device. [CHAR LIMIT=NONE] -->
+    <string name="bluetooth_battery_level_untethered_left_right">Left: <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g>, Right: <xliff:g id="battery_level_as_percentage" example="25%">%2$s</xliff:g> battery</string>
+    <!-- Connected devices settings. Message when bluetooth device is discoonected, showing remote device status and battery level for the left, case, and right parts of the BATT device. [CHAR LIMIT=NONE] -->
+    <string name="bluetooth_battery_level_untethered_left_case_right">L: <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g>, C: <xliff:g id="battery_level_as_percentage" example="25%">%2$s</xliff:g>, R: <xliff:g id="battery_level_as_percentage" example="25%">%3$s</xliff:g> battery</string>
+
     <!-- Connected devices settings. Message when Bluetooth is connected, showing remote device battery level for the left part of the untethered headset. [CHAR LIMIT=NONE] -->
     <string name="tv_bluetooth_battery_level_untethered_left">Left <xliff:g id="battery_level_as_percentage" example="25%">%1$s</xliff:g></string>
     <!-- Connected devices settings. Message when Bluetooth is connected, showing remote device battery level for the right part of the untethered headset. [CHAR LIMIT=NONE] -->
@@ -229,8 +244,13 @@
     <string name="bluetooth_hearing_aid_right_active">Active (right only)</string>
     <!-- Connected device settings. Message when the left-side and right-side hearing aids device are active. [CHAR LIMIT=NONE] -->
     <string name="bluetooth_hearing_aid_left_and_right_active">Active (left and right)</string>
-    <!-- Connected device settings.: Message when changing remote ambient state failed. [CHAR LIMIT=NONE] -->
+    <!-- Connected device settings. Message when changing remote ambient state failed. [CHAR LIMIT=NONE] -->
     <string name="bluetooth_hearing_device_ambient_error">Couldn\u2019t update surroundings</string>
+    <!-- Connected device settings. Message when selecting hearing device preset failed. [CHAR LIMIT=NONE] -->
+    <string name="bluetooth_hearing_aids_presets_error">Couldn\u2019t update preset</string>
+    <!-- Content description for the icon in the spinner dropdown that indicates the item is selected [CHAR LIMIT=NONE] -->
+    <string name="hearing_device_spinner_item_selected">Selected</string>
+
 
     <!-- Connected devices settings. Message when Bluetooth is connected and active for media only, showing remote device status and battery level. [CHAR LIMIT=NONE] -->
     <string name="bluetooth_active_media_only_battery_level">Active (media only). <xliff:g id="battery_level_as_percentage">%1$s</xliff:g> battery.</string>
@@ -785,7 +805,7 @@
     <!-- Label indicating network has been manually marked as unmetered -->
     <string name="wifi_unmetered_label">Unmetered</string>
     <!-- UI debug setting: limit size of Android logger buffers -->
-    <string name="select_logd_size_title">Logger buffer sizes</string>
+    <string name="select_logd_size_title">Logger buffer size</string>
     <!-- UI debug setting: limit size of Android logger buffers [CHAR LIMIT=59] -->
     <string name="select_logd_size_dialog_title">Select Logger sizes per log buffer</string>
     <!-- UI debug setting: store logs persistently -->
@@ -1308,6 +1328,10 @@
     <!-- HTTP proxy settings. The hint text field for the hostname. -->
     <string name="proxy_hostname_hint" translatable="false">proxy.example.com</string>
 
+    <!-- Description for the screen zoom level that makes interface elements smallest. [CHAR LIMIT=24] -->
+    <string name="screen_zoom_summary_smallest">Smallest</string>
+    <!-- Description for the screen zoom level that makes interface elements smaller. [CHAR LIMIT=24] -->
+    <string name="screen_zoom_summary_smaller">Smaller</string>
     <!-- Description for the screen zoom level that makes interface elements small. [CHAR LIMIT=24] -->
     <string name="screen_zoom_summary_small">Small</string>
     <!-- Description for the device's default screen zoom level. [CHAR LIMIT=24] -->
@@ -1315,9 +1339,13 @@
     <!-- Description for the screen zoom level that makes interface elements large. [CHAR LIMIT=24] -->
     <string name="screen_zoom_summary_large">Large</string>
     <!-- Description for the screen zoom level that makes interface elements larger. [CHAR LIMIT=24] -->
-    <string name="screen_zoom_summary_very_large">Larger</string>
-    <!-- Description for the screen zoom level that makes interface elements largest. [CHAR LIMIT=24] -->
-    <string name="screen_zoom_summary_extremely_large">Largest</string>
+    <string name="screen_zoom_summary_larger">Larger</string>
+    <!-- Description for the screen zoom level that makes interface elements very large. [CHAR LIMIT=24] -->
+    <string name="screen_zoom_summary_very_large">Very Large</string>
+    <!-- Description for the screen zoom level that makes interface elements extra large. [CHAR LIMIT=24] -->
+    <string name="screen_zoom_summary_extra_large">Extra Large</string>
+    <!-- Description for the screen zoom level that makes interface elements max. [CHAR LIMIT=24] -->
+    <string name="screen_zoom_summary_largest">Largest</string>
     <!-- Description for a custom screen zoom level. This shows the requested display
          density in raw pixels per inch rather than using a relative description. [CHAR LIMIT=24] -->
     <string name="screen_zoom_summary_custom">Custom (<xliff:g id="densityDpi" example="160">%d</xliff:g>)</string>
@@ -1381,6 +1409,9 @@
     <string name="accessibility_manual_zen_more_time">More time.</string>
     <!-- Content description of zen mode time condition minus button (not shown on the screen). [CHAR LIMIT=NONE] -->
     <string name="accessibility_manual_zen_less_time">Less time.</string>
+
+    <!-- Title for the accessibility preference screen to enable screen magnification. [CHAR LIMIT=35] -->
+    <string name="accessibility_screen_magnification_title">Magnification</string>
 
     <!-- Button label for generic cancel action [CHAR LIMIT=20] -->
     <string name="cancel">Cancel</string>
@@ -1827,13 +1858,6 @@
     <string name="bt_le_audio_broadcast_dialog_switch_app">Broadcast <xliff:g id="switchApp" example="App Name 2">%1$s</xliff:g></string>
     <!-- [CHAR LIMIT=NONE] Le audio broadcast dialog, different output. -->
     <string name="bt_le_audio_broadcast_dialog_different_output">Change output</string>
-
-    <!-- Developer setting: enable animations when a back gesture is executed [CHAR LIMIT=50] -->
-    <string name="back_navigation_animation">Predictive back animations</string>
-    <!-- Developer setting: enable animations when a back gesture is executed [CHAR LIMIT=150] -->
-    <string name="back_navigation_animation_summary">Enable system animations for predictive back.</string>
-    <!-- Developer setting: enable animations when a back gesture is executed, full explanation[CHAR LIMIT=NONE] -->
-    <string name="back_navigation_animation_dialog">This setting enables system animations for predictive gesture animation. It requires setting per-app "enableOnBackInvokedCallback" to true in the manifest file.</string>
 
     <!-- Formatting states for the scale of font size, in percent. Double "%" is required to represent the symbol "%". [CHAR LIMIT=20] -->
     <string name="font_scale_percentage"> <xliff:g id="percentage">%1$d</xliff:g> %%</string>

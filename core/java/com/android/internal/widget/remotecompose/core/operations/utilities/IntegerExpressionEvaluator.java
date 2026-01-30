@@ -59,9 +59,9 @@ public class IntegerExpressionEvaluator {
     public static final int I_VAR1 = OFFSET + 24;
     public static final int I_VAR2 = OFFSET + 25;
 
-    @NonNull int[] mStack = new int[0];
-    @NonNull int[] mLocalStack = new int[128];
-    @NonNull int[] mVar = new int[0];
+    @NonNull int [] mStack = new int[0];
+    @NonNull int [] mLocalStack = new int[128];
+    @NonNull int [] mVar = new int[0];
 
     interface Op {
         int eval(int sp);
@@ -75,7 +75,7 @@ public class IntegerExpressionEvaluator {
      * @param var variables if the expression is a function
      * @return return the results of evaluating the expression
      */
-    public int eval(int mask, @NonNull int[] exp, @NonNull int... var) {
+    public int eval(int mask, @NonNull int [] exp, @NonNull int ... var) {
         mStack = exp;
         mVar = var;
         int sp = -1;
@@ -99,7 +99,7 @@ public class IntegerExpressionEvaluator {
      * @param var variables if the expression is a function
      * @return return the results of evaluating the expression
      */
-    public int eval(int mask, @NonNull int[] exp, int len, @NonNull int... var) {
+    public int eval(int mask, @NonNull int [] exp, int len, @NonNull int ... var) {
         System.arraycopy(exp, 0, mLocalStack, 0, len);
         mStack = mLocalStack;
         mVar = var;
@@ -123,7 +123,7 @@ public class IntegerExpressionEvaluator {
      * @param var variables if the expression is a function
      * @return return the results of evaluating the expression
      */
-    public int evalDB(int opMask, @NonNull int[] exp, @NonNull int... var) {
+    public int evalDB(int opMask, @NonNull int [] exp, @NonNull int ... var) {
         mStack = exp;
         mVar = var;
         int sp = -1;
@@ -327,7 +327,7 @@ public class IntegerExpressionEvaluator {
      * @return
      */
     @NonNull
-    public static String toString(int opMask, @NonNull int[] exp, @NonNull String[] labels) {
+    public static String toString(int opMask, @NonNull int [] exp, @NonNull String[] labels) {
         StringBuilder s = new StringBuilder();
         for (int i = 0; i < exp.length; i++) {
             int v = exp[i];
@@ -359,7 +359,7 @@ public class IntegerExpressionEvaluator {
      * @return string representation of the expression
      */
     @NonNull
-    public static String toString(int opMask, @NonNull int[] exp) {
+    public static String toString(int opMask, @NonNull int [] exp) {
         StringBuilder s = new StringBuilder();
         s.append(Integer.toBinaryString(opMask));
         s.append(" : ");
@@ -391,7 +391,7 @@ public class IntegerExpressionEvaluator {
      * @return infix string
      */
     @NonNull
-    public static String toStringInfix(int opMask, @NonNull int[] exp) {
+    public static String toStringInfix(int opMask, @NonNull int [] exp) {
         return toString(opMask, exp, exp.length - 1);
     }
 

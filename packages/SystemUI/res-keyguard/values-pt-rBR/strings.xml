@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Dsblq. c/ senha ou digital"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Desbloq. c/ padrão/digital"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Bloqueado por segurança pela política de trabalho"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Verificação em duas etapas"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Usar o desbloqueio por impressão digital"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Usar o desbloqueio facial"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Usar o desbloqueio facial ou por impressão digital"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"O PIN é obrigatório após o Bloqueio total"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"A senha é obrigatória após o Bloqueio total"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"O padrão é obrigatório após o Bloqueio total"</string>
@@ -117,7 +121,7 @@
     <string name="kg_prompt_reason_device_admin" msgid="6961159596224055685">"Dispositivo bloqueado pelo administrador"</string>
     <string name="kg_prompt_reason_user_request" msgid="6015774877733717904">"O dispositivo foi bloqueado manualmente"</string>
     <string name="kg_face_not_recognized" msgid="7903950626744419160">"Não reconhecido"</string>
-    <string name="kg_face_sensor_privacy_enabled" msgid="939511161763558512">"Para usar o Desbloqueio facial, ative o acesso à câmera nas Configurações"</string>
+    <string name="kg_face_sensor_privacy_enabled" msgid="939511161763558512">"Para desbloqueio facial, ative o acesso à câmera"</string>
     <string name="kg_password_default_pin_message" msgid="1434544655827987873">"{count,plural, =1{Informe o PIN do chip. Você tem # tentativa restante antes de precisar entrar em contato com a operadora para desbloquear seu dispositivo.}one{Informe o PIN do chip. Você tem # tentativa restante.}many{Informe o PIN do chip. Você tem # de tentativas restantes.}other{Informe o PIN do chip. Você tem # tentativas restantes.}}"</string>
     <string name="kg_password_default_puk_message" msgid="1025139786449741950">"{count,plural, =1{O chip está desativado. Informe o código PUK para continuar. Você tem # tentativa restante antes que o chip fique permanentemente inutilizável. Consulte sua operadora para saber mais.}one{O chip está desativado. Informe o código PUK para continuar. Você tem # tentativa restante antes que o chip fique permanentemente inutilizável. Consulte sua operadora para saber mais.}many{O chip está desativado. Informe o código PUK para continuar. Você tem # de tentativas restantes antes que o chip fique permanentemente inutilizável. Consulte sua operadora para saber mais.}other{O chip está desativado. Informe o código PUK para continuar. Você tem # tentativas restantes antes que o chip fique permanentemente inutilizável. Consulte sua operadora para saber mais.}}"</string>
     <string name="clock_title_default" msgid="6342735240617459864">"Padrão"</string>

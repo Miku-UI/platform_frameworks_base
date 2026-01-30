@@ -24,7 +24,6 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.power.domain.interactor.powerInteractor
-import com.android.systemui.statusbar.domain.interactor.keyguardOcclusionInteractor
 
 val Kosmos.fromAodTransitionInteractor by
     Kosmos.Fixture {

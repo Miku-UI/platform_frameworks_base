@@ -29,6 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:gravity="center_vertical"
+        android:paddingVertical="@dimen/settingslib_illustration_vertical_padding"
         android:paddingHorizontal="@dimen/settingslib_illustration_padding"
         android:orientation="vertical">
 

@@ -17,6 +17,9 @@ package com.android.server.pm;
 
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.set;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.pm.ActivityInfo;
@@ -202,6 +205,31 @@ public class ShortcutManagerTest5 extends BaseShortcutManagerTest {
                 new ComponentName(mMyPackage, "a.ShortcutDisabled"), mMyUserId));
         assertFalse(mShortcutService.injectIsActivityEnabledAndExported(
                 new ComponentName(mMyPackage, "a.ShortcutUnexported"), mMyUserId));
+    }
 
+    public void testIsEnabled() {
+        ActivityInfo ai = mShortcutService.getActivityInfoWithMetadata(
+            new ComponentName(mMyPackage, "a.Shortcut1"), mMyUserId);
+
+        // Should return true for an existing and enabled activity.
+        assertTrue(mShortcutService.isEnabled(ai, mMyUserId));
+
+        // Should return false for an existing and disabled activity.
+        ai = mShortcutService.getActivityInfoWithMetadata(
+            new ComponentName(mMyPackage, "a.ShortcutDisabled"), mMyUserId);
+        assertFalse(mShortcutService.isEnabled(ai, mMyUserId));
+
+        // Should return false (not throw) for a nonexistent or null activity.
+        ai = mock(ActivityInfo.class);
+        when(ai.getComponentName()).thenReturn(
+                ComponentName.unflattenFromString("com.android.settings/.xxx"));
+        assertFalse(mShortcutService.isEnabled(ai, mMyUserId));
+
+        ai = mock(ActivityInfo.class);
+        when(ai.getComponentName()).thenReturn(
+                ComponentName.unflattenFromString("no.such.package/.xxx"));
+        assertFalse(mShortcutService.isEnabled(ai, mMyUserId));
+
+        assertFalse(mShortcutService.isEnabled(null, mMyUserId));
     }
 }

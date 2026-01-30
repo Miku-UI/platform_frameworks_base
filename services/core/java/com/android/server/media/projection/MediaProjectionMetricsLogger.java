@@ -20,6 +20,7 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
+import static android.view.ContentRecordingSession.RECORD_CONTENT_BELOW_OVERLAY;
 import static android.view.ContentRecordingSession.RECORD_CONTENT_DISPLAY;
 import static android.view.ContentRecordingSession.RECORD_CONTENT_TASK;
 
@@ -49,6 +50,7 @@ import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGE
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_CHANGE_TYPE__TARGET_CHANGE_WINDOWING_MODE;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_APP_TASK;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_DISPLAY;
+import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_OVERLAY;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_UNKNOWN;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_WINDOWING_MODE__WINDOWING_MODE_FREEFORM;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_WINDOWING_MODE__WINDOWING_MODE_FULLSCREEN;
@@ -288,6 +290,8 @@ public class MediaProjectionMetricsLogger {
         return switch (recordContentType) {
             case RECORD_CONTENT_DISPLAY ->
                     MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_DISPLAY;
+            case RECORD_CONTENT_BELOW_OVERLAY ->
+                    MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_OVERLAY;
             case RECORD_CONTENT_TASK ->
                     MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_APP_TASK;
             default -> MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_UNKNOWN;

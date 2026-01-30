@@ -151,6 +151,9 @@
     <!-- Copied from SysUI's @dimen/key_button_ripple_max_width for the embedded nav bar in the
          IME. -->
     <dimen name="input_method_nav_key_button_ripple_max_width">95dp</dimen>
+    <!-- Height of the IME navigation bar; this matches the height of the system navigation bar
+         in three button navigation mode. -->
+    <dimen name="input_method_navigation_bar_height">@dimen/navigation_bar_frame_height</dimen>
 
     <!-- Width of the window of the divider bar used to resize docked stacks. -->
     <dimen name="docked_stack_divider_thickness">48dp</dimen>
@@ -255,6 +258,17 @@
      This represents 16dp for the left margin + 40dp for the icon + 16dp for the right margin -->
     <dimen name="notification_2025_content_margin_start">72dp</dimen>
 
+    <!-- The margin on the start of the content view (accommodates the icon), 2025 redesign version
+     This represents 16dp for the left margin + 40dp for the icon + 16dp for the right margin, minus
+      5dp for padding the inner view needs to avoid truncating italic text -->
+    <dimen name="notification_2025_content_margin_start_summarization">67dp</dimen>
+
+    <!-- The margin value to use for text message views that are displaying a summarization -->
+    <dimen name="notification_text_message_start_padding_summarization">5dp</dimen>
+
+    <!-- The margin value to use for text message views that are not displaying a summarization -->
+    <dimen name="notification_text_message_start_padding">0dp</dimen>
+
     <!-- The margin on the start of the media actions, selected to ensure that action icons which
      are visually 12x12 in a 24x24 drawable will align correctly with the text.  This means that
      stock media action icons will align, but icons may be visually up to 20x20 and remain in-spec,
@@ -268,8 +282,9 @@
      72dp (content margin) - 12dp (action padding) - 4dp (button inset) -->
     <dimen name="notification_2025_actions_margin_start">56dp</dimen>
 
-    <!-- Notification action button text size -->
-    <dimen name="notification_2025_action_text_size">16sp</dimen>
+    <!-- The margin at the end of the top line in collapsed notifications to accommodate the expader.
+     28dp (notification_2025_expand_button_pill_width) + 2 * 16dp (notification_2025_margin) -->
+    <dimen name="notification_2025_content_margin_end">60dp</dimen>
 
     <!-- The margin on the end of most content views (ignores the expander) -->
     <dimen name="notification_content_margin_end">16dp</dimen>
@@ -338,9 +353,9 @@
 
     <!-- The spacing between the content and the header text above it, scaling with text size.
          This value is chosen so that, taking into account the text spacing for both the text in the
-         top line and the text in the content, the distance between them is ~2dp with the default
+         top line and the text in the content, the distance between them is 4dp with the default
          screen configuration (and will grow accordingly for larger font sizes) -->
-    <dimen name="notification_2025_content_margin_top">8sp</dimen>
+    <dimen name="notification_2025_content_margin_top">10sp</dimen>
 
     <!-- height of the content margin that is applied at the end of the notification content -->
     <dimen name="notification_content_margin">20dp</dimen>
@@ -410,11 +425,13 @@
     <!-- The absolute size of the notification expand icon. -->
     <dimen name="notification_header_expand_icon_size">56dp</dimen>
 
-    <!-- Margin to allow space for the expand button when showing the right icon in expanded -->
-    <!-- notifications. This is equal to notification_2025_expand_button_pill_width -->
-    <!-- + notification_2025_margin (end padding for expand button) -->
-    <!-- + notification_2025_expand_button_right_icon_spacing (space between pill and icon) -->
-    <dimen name="notification_2025_right_icon_expanded_margin_end">52dp</dimen>
+    <!-- Margin to allow space for the expand button when showing the right icon. -->
+    <!-- The notification_2025_extra_space_for_expander should be used in addition to this -->
+    <!-- to ensure the spacing adjusts with the font size accordingly -->
+    <dimen name="notification_2025_right_icon_margin_end">42dp</dimen>
+
+    <!-- sp-based additional spacing for the expand button, to scale with the font size -->
+    <dimen name="notification_2025_extra_space_for_expander">10sp</dimen>
 
     <!-- The large icon has a smaller vertical margin than most other notification content, to -->
     <!-- allow it to grow up to 48dp. -->
@@ -424,10 +441,10 @@
     <dimen name="notification_expand_button_pill_height">24dp</dimen>
 
     <!-- the height of the expand button pill (2025 redesign version) -->
-    <dimen name="notification_2025_expand_button_pill_height">20dp</dimen>
+    <dimen name="notification_2025_expand_button_pill_height">18dp</dimen>
 
     <!-- the width of the expand button pill (2025 redesign version) -->
-    <dimen name="notification_2025_expand_button_pill_width">28dp</dimen>
+    <dimen name="notification_2025_expand_button_pill_width">26dp</dimen>
 
     <!-- the size of the expand arrow (2025 redesign version) -->
     <dimen name="notification_2025_expand_button_icon_size">16sp</dimen>
@@ -436,13 +453,13 @@
     <dimen name="notification_expand_button_icon_padding">2dp</dimen>
 
     <!-- the padding of the expand icon in the notification header -->
-    <dimen name="notification_2025_expand_button_vertical_icon_padding">2dp</dimen>
+    <dimen name="notification_2025_expand_button_vertical_icon_padding">1dp</dimen>
 
     <!-- the padding of the expand icon in the notification header -->
-    <dimen name="notification_2025_expand_button_horizontal_icon_padding">6dp</dimen>
+    <dimen name="notification_2025_expand_button_horizontal_icon_padding">5dp</dimen>
 
     <!-- smaller padding for the end of the expand icon, for use when showing the number -->
-    <dimen name="notification_2025_expand_button_reduced_end_padding">4dp</dimen>
+    <dimen name="notification_2025_expand_button_reduced_end_padding">3dp</dimen>
 
     <!-- the space needed between the expander pill and the large icon when visible -->
     <dimen name="notification_2025_expand_button_right_icon_spacing">8dp</dimen>
@@ -646,6 +663,9 @@
     <!-- The margin on top of the text of the notification -->
     <dimen name="notification_text_margin_top">6dp</dimen>
 
+    <!-- The margin on top of the text of the notification to accommodate the large icon -->
+    <dimen name="notification_2025_text_margin_top">8dp</dimen>
+
     <!-- Height of a single line text view in a notification -->
     <dimen name="notification_text_height">20sp</dimen>
 
@@ -677,6 +697,18 @@
 
     <!-- Size of the alerted icon for notifications -->
     <dimen name="notification_alerted_size">@dimen/notification_badge_size</dimen>
+
+    <!-- Spacing for collapsed metric items -->
+    <dimen name="notification_collapsed_metric_margin">16dp</dimen>
+
+    <!-- Spacing for collapsed metric items -->
+    <dimen name="notification_expanded_metric_margin">4dp</dimen>
+
+    <!-- Spacing between metric label and value for collapsed MetricStyle-->
+    <dimen name="notification_collapsed_metric_label_margin">2dp</dimen>
+
+    <!-- Spacing between metric value and unit for expanded MetricStyle-->
+    <dimen name="notification_expanded_metric_unit_margin">2dp</dimen>
 
     <!-- Keyguard dimensions -->
     <!-- TEMP -->
@@ -762,7 +794,7 @@
     <dimen name="accessibility_window_magnifier_min_size">122dp</dimen>
 
     <!-- The accessibility autoclick panel button spacing -->
-    <dimen name="accessibility_autoclick_type_panel_button_spacing">12dp</dimen>
+    <dimen name="accessibility_autoclick_type_panel_button_spacing">8dp</dimen>
 
     <!-- The accessibility autoclick panel button width and height -->
     <dimen name="accessibility_autoclick_type_panel_button_size">36dp</dimen>
@@ -775,6 +807,12 @@
 
     <!-- The accessibility autoclick scroll panel button width and height -->
     <dimen name="accessibility_autoclick_scroll_panel_button_size">36dp</dimen>
+
+    <!-- The elevation for autoclick type panel when it is resting. -->
+    <dimen name="accessibility_autoclick_panel_resting_elevation">6dp</dimen>
+
+    <!-- The elevation for autoclick type panel when it is hovered. -->
+    <dimen name="accessibility_autoclick_panel_hover_elevation">8dp</dimen>
 
     <!-- Margin around the various security views -->
     <dimen name="keyguard_muliuser_selector_margin">8dp</dimen>
@@ -1261,6 +1299,11 @@
     <!-- The maximum width for a context menu icon -->
     <dimen name="list_menu_item_icon_max_width">24dp</dimen>
 
-    <!-- Default height of desktop view header for freeform tasks on launch. -->
+    <!-- Default height of desktop view's header for desktop tasks on launch. -->
     <dimen name="desktop_view_default_header_height">40dp</dimen>
+    <!-- Default height of desktop view's large header for desktop tasks on launch. -->
+    <dimen name="desktop_view_default_large_header_height">48dp</dimen>
+
+    <!-- Default height of taskbar for Launcher.   -->
+    <dimen name="taskbar_stashed_size">24dp</dimen>
 </resources>

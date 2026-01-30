@@ -44,6 +44,8 @@ import static org.mockito.Mockito.verify;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
 import android.os.SystemClock;
 import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
@@ -58,6 +60,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.dump.DumpManager;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.log.LogAssertKt;
 import com.android.systemui.statusbar.NotificationInteractionTracker;
 import com.android.systemui.statusbar.RankingBuilder;
@@ -70,6 +73,7 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.OnBefo
 import com.android.systemui.statusbar.notification.collection.listbuilder.OnBeforeTransformGroupsListener;
 import com.android.systemui.statusbar.notification.collection.listbuilder.ShadeListBuilderLogger;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Invalidator;
+import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifBundler;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifComparator;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifFilter;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifPromoter;
@@ -77,7 +81,6 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.plugga
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifStabilityManager;
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Pluggable;
 import com.android.systemui.statusbar.notification.collection.notifcollection.CollectionReadyForBuildListener;
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.util.time.FakeSystemClock;
 
@@ -108,6 +111,7 @@ import java.util.stream.Collectors;
 @TestableLooper.RunWithLooper
 public class ShadeListBuilderTest extends SysuiTestCase {
 
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
     private ShadeListBuilder mListBuilder;
     private final FakeSystemClock mSystemClock = new FakeSystemClock();
     private final NotifPipelineFlags mNotifPipelineFlags = mock(NotifPipelineFlags.class);
@@ -277,6 +281,25 @@ public class ShadeListBuilderTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testSingleNotifPromotedOutOfGroupInBundle() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a bundle with a group with one child
+        addGroupChild(0, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupSummary(1, PACKAGE_1, GROUP_1, BUNDLE_1);
+
+        dispatchBuild();
+
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_1,
+                        notif(0) // Child is promoted out of group inside bundle
+                )
+        );
+    }
+
+    @Test
     public void testDuplicateGroupSummariesAreDiscarded() {
         // GIVEN a simple pipeline
 
@@ -292,6 +315,38 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         dispatchBuild();
 
         // THEN only most recent summary is used
+        verifyBuiltList(
+                notif(0),
+                group(
+                        summary(4),
+                        child(1),
+                        child(2),
+                        child(7)
+                ),
+                notif(5)
+        );
+
+        // THEN the extra summaries have their parents set to null
+        assertNull(mEntrySet.get(3).getParent());
+        assertNull(mEntrySet.get(6).getParent());
+    }
+
+    @Test
+    public void testDuplicateGroupSummaries_prioritizeAutogroupSummary() {
+        // GIVEN a simple pipeline
+
+        // WHEN a group with multiple summaries is added & one of them is FLAG_AUTOGROUP_SUMMARY
+        addNotif(0, PACKAGE_3);
+        addGroupChild(1, PACKAGE_1, GROUP_1);
+        addGroupChild(2, PACKAGE_1, GROUP_1);
+        addGroupSummary(3, PACKAGE_1, GROUP_1).setPostTime(22);
+        addAutoGroupSummary(4, PACKAGE_1, GROUP_1).setPostTime(13);
+        addNotif(5, PACKAGE_2);
+        addGroupSummary(6, PACKAGE_1, GROUP_1).setPostTime(11);
+        addGroupChild(7, PACKAGE_1, GROUP_1);
+        dispatchBuild();
+
+        // THEN only the autogroup summary is used
         verifyBuiltList(
                 notif(0),
                 group(
@@ -554,7 +609,7 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         mListBuilder.addFinalizeFilter(filter1);
 
         // WHEN the pipeline is kicked off on a list of notifs
-        addGroupChildWithTag(0, PACKAGE_2, GROUP_1, filterTag);
+        addGroupChildWithTag(0, PACKAGE_2, GROUP_1, filterTag, "test_channel");
         addGroupChild(1, PACKAGE_2, GROUP_1);
         addGroupSummary(2, PACKAGE_2, GROUP_1);
         dispatchBuild();
@@ -606,7 +661,7 @@ public class ShadeListBuilderTest extends SysuiTestCase {
                 .setId(nextId(PACKAGE_1))
                 .setRank(nextRank())
                 .build();
-        entry.setRow(new NotificationTestHelper(mContext, mDependency).createRow());
+        entry.setRow(mKosmos.createRow());
         entry.getRow().setInitializationTime(SystemClock.elapsedRealtime() - 1000);
         assertTrue(entry.getRow().hasFinishedInitialization());
 
@@ -893,6 +948,240 @@ public class ShadeListBuilderTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_singleNotif() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN single notif that will be bundled
+        addNotif(0, PACKAGE_1, BUNDLE_1);
+        dispatchBuild();
+
+        // VERIFY single notif shows in bundle
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_1,
+                        notif(0)
+                )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_combineTwoNotifs_intoOneGroup() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN single notif that will be bundled
+        addGroupChild(0, PACKAGE_1, GROUP_1, BUNDLE_1);
+        dispatchBuild();
+
+        // VERIFY single notif shows in bundle
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_1,
+                        notif(0) // Child is promoted out of group inside bundle
+                )
+        );
+
+        // Add summary and child in same group
+        addGroupSummary(1, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupChild(2, PACKAGE_1, GROUP_1, BUNDLE_1);
+        dispatchBuild();
+
+        // Verify new additions are grouped inside bundle
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_1,
+                        group(
+                                summary(1),
+                                child(0),
+                                child(2)
+                        )
+                )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_multipleBundles() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        addNotif(0, PACKAGE_1, BUNDLE_1);
+        addNotif(1, PACKAGE_1, BUNDLE_2);
+        addGroupChild(2, PACKAGE_2, GROUP_1, BUNDLE_2);
+        addGroupChild(3, PACKAGE_2, GROUP_1, BUNDLE_2);
+        addGroupSummary(4, PACKAGE_2, GROUP_1, BUNDLE_2);
+        dispatchBuild();
+
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_2,
+                        notif(1),
+                        group(
+                                summary(4),
+                                child(2),
+                                child(3)
+                        )
+                ),
+                bundle(
+                        BUNDLE_1,
+                        notif(0)
+                )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_notifNotPromoted() {
+        final int promotableId = 123;
+
+        IdPromoter idPromoter = spy(new IdPromoter(promotableId));
+        mListBuilder.addPromoter(idPromoter);
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        addNotif(0, PACKAGE_1, BUNDLE_1)
+                .setId(promotableId);
+        dispatchBuild();
+
+        verifyBuiltList(
+                bundle(BUNDLE_1, notif(0))
+        );
+
+        NotificationEntry promotableEntry = mEntrySet.get(0);
+        verify(idPromoter, never()).shouldPromoteToTopLevel(eq(promotableEntry));
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_groupNotifNotPromoted() {
+        final int promotableId = 123;
+
+        IdPromoter idPromoter = spy(new IdPromoter(promotableId));
+        mListBuilder.addPromoter(idPromoter);
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // Add promotable child in a group that will be bundled
+        addGroupSummary(0, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupChild(1, PACKAGE_1, GROUP_1, BUNDLE_1).setId(promotableId);
+        addGroupChild(2, PACKAGE_1, GROUP_1, BUNDLE_1);
+
+        dispatchBuild();
+
+        // Verify that group child was not promoted out of bundle
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_1,
+                        group(
+                                summary(0),
+                                child(1),
+                                child(2)
+                        )
+                )
+        );
+
+        NotificationEntry promotableChild = mEntrySet.get(1);
+        verify(idPromoter, never()).shouldPromoteToTopLevel(eq(promotableChild));
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_bundleChildrenAreSorted() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+        // GIVEN a simple pipeline
+        // WHEN we three notifs in a bundle
+        addNotif(0, PACKAGE_1, BUNDLE_1).setRank(3);
+        addNotif(1, PACKAGE_1, BUNDLE_1).setRank(2);
+        addNotif(2, PACKAGE_1, BUNDLE_1).setRank(1);
+
+        dispatchBuild();
+
+        // THEN bundle children are sorted by rank
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_1,
+                        notif(2),
+                        notif(1),
+                        notif(0)
+                )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_groupChildrenAreSorted() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a simple pipeline
+        // WHEN we a group with three children
+        addGroupChild(0, PACKAGE_1, GROUP_1, BUNDLE_1).setRank(3);
+        addGroupChild(1, PACKAGE_1, GROUP_1, BUNDLE_1).setRank(2);
+        addGroupChild(2, PACKAGE_1, GROUP_1, BUNDLE_1).setRank(1);
+        addGroupSummary(3, PACKAGE_1, GROUP_1, BUNDLE_1);
+
+        dispatchBuild();
+
+        // THEN bundle group children are sorted by rank
+        verifyBuiltList(
+                bundle(
+                        BUNDLE_1,
+                        group(
+                                summary(3),
+                                child(2),
+                                child(1),
+                                child(0)
+                        )
+                )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_childrenAssignedSection() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a Section for Package1
+        final NotifSectioner pkg2Section = spy(new PackageSectioner(PACKAGE_1));
+        mListBuilder.setSectioners(singletonList(pkg2Section));
+
+        // WHEN we build a list with a notif and group that will be bundled
+        addNotif(0, PACKAGE_1, BUNDLE_1);
+        addGroupChild(1, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupChild(2, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupSummary(3, PACKAGE_1, GROUP_1, BUNDLE_1);
+        dispatchBuild();
+
+        // THEN the notif and group are bundled
+        verifyBuiltList(
+            bundle(
+                BUNDLE_1,
+                notif(0),
+                group(
+                    summary(3),
+                    child(1),
+                    child(2)
+                )
+            )
+        );
+
+        assertEquals(1, mBuiltList.size());
+        PipelineEntry pipelineEntry = mBuiltList.get(0);
+        assertThat(pipelineEntry instanceof BundleEntry).isTrue();
+
+        // VERIFY all pipeline entries are assigned sections
+        BundleEntry bundleEntry = (BundleEntry) pipelineEntry;
+        assertNotNull(bundleEntry.getSection());
+
+        for (ListEntry listEntry: bundleEntry.getChildren()) {
+            assertNotNull(listEntry.getSection());
+
+            if (listEntry instanceof GroupEntry groupEntry) {
+                for (NotificationEntry child: groupEntry.getChildren()) {
+                    assertNotNull(child.getSection());
+                }
+            }
+        }
+    }
+
+    @Test
     public void testThatNotifComparatorsAreCalled() {
         // GIVEN a set of comparators that care about specific packages
         mListBuilder.setComparators(asList(
@@ -1130,6 +1419,116 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         verify(filter1).shouldFilterOut(mEntrySet.get(1), 10047);
         verify(filter2).shouldFilterOut(mEntrySet.get(1), 10047);
         verify(filter3).shouldFilterOut(mEntrySet.get(1), 10047);
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_filterOutNotif() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a notif filter for PACKAGE_1
+        NotifFilter filter1 = spy(new PackageFilter(PACKAGE_1));
+        mListBuilder.addPreGroupFilter(filter1);
+
+        // GIVEN two notifs, where PACKAGE_1 be filtered out
+        addNotif(0, PACKAGE_1, BUNDLE_1);
+        addNotif(1, PACKAGE_2, BUNDLE_1);
+        dispatchBuild();
+
+        // VERIFY that the PACKAGE_1 notif was filtered out
+        verifyBuiltList(
+            bundle(
+                    BUNDLE_1,
+                    notif(1)
+            )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_filterOutGroupChild() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a notif filter for PACKAGE_1
+        NotifFilter filter1 = spy(new PackageFilter(PACKAGE_1));
+        mListBuilder.addPreGroupFilter(filter1);
+
+        // GIVEN a group where the PACKAGE_1 child will be filtered out
+        addGroupChild(0, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupChild(1, PACKAGE_2, GROUP_1, BUNDLE_1);
+        addGroupChild(2, PACKAGE_2, GROUP_1, BUNDLE_1);
+        addGroupSummary(3, PACKAGE_2, GROUP_1, BUNDLE_1);
+        dispatchBuild();
+
+        // VERIFY that the PACKAGE_1 child was filtered out
+        verifyBuiltList(
+            bundle(
+                BUNDLE_1,
+                group(
+                    summary(3),
+                    child(1),
+                    child(2)
+                )
+            )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_pruneIncompleteGroup() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a group where its child will be promoted out due to group size
+        addGroupSummary(0, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupChild(1, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addNotif(2, PACKAGE_2, BUNDLE_1);
+        dispatchBuild();
+
+        // VERIFY that the group was pruned
+        verifyBuiltList(
+            bundle(
+                BUNDLE_1,
+                notif(1),
+                notif(2)
+            )
+        );
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_pruneIncompleteGroup_postFinalizeFilter() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a group w/ summary and two children
+        addGroupSummary(0, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupChild(1, PACKAGE_1, GROUP_1, BUNDLE_1);
+        addGroupChild(2, PACKAGE_1, GROUP_1, BUNDLE_1);
+
+        // GIVEN children are filtered out
+        mFinalizeFilter.mIndicesToFilter.addAll(List.of(1, 2));
+
+        // WHEN we run the pipeline
+        dispatchBuild();
+
+        // THEN the entire group is pruned
+        verifyBuiltList();
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testBundle_pruneEmptyBundle() {
+        mListBuilder.setBundler(TestBundler.INSTANCE);
+
+        // GIVEN a notif filter for PACKAGE_1
+        NotifFilter filter1 = spy(new PackageFilter(PACKAGE_1));
+        mListBuilder.addPreGroupFilter(filter1);
+
+        // GIVEN a PACKAGE_1 notif that will be bundled, then filtered out
+        addNotif(0, PACKAGE_1, BUNDLE_1);
+        dispatchBuild();
+
+        // VERIFY that notif was filtered out and bundle was pruned
+        verifyBuiltList();
     }
 
     @Test
@@ -2320,6 +2719,22 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         assertFalse(ShadeListBuilder.isSorted(Arrays.asList(1, 2, 3, 4, 1), intCmp));
     }
 
+    private NotificationEntryBuilder addNotif(int index, String packageId, String channelId) {
+        final NotificationEntryBuilder builder = new NotificationEntryBuilder()
+                .setPkg(packageId)
+                .setId(nextId(packageId))
+                .setRank(nextRank())
+                .setChannel(new NotificationChannel(channelId, "channelName", 3));
+
+        builder.modifyNotification(mContext)
+                .setContentTitle("Top level singleton")
+                .setChannelId("test_channel");
+
+        assertEquals(mEntrySet.size() + mPendingSet.size(), index);
+        mPendingSet.add(builder);
+        return builder;
+    }
+
     /**
      * Adds a notif to the collection that will be passed to the list builder when
      * {@link #dispatchBuild()}s is called.
@@ -2332,24 +2747,16 @@ public class ShadeListBuilderTest extends SysuiTestCase {
      *         build() on the builder; that will be done on the next dispatchBuild().
      */
     private NotificationEntryBuilder addNotif(int index, String packageId) {
-        final NotificationEntryBuilder builder = new NotificationEntryBuilder()
-                .setPkg(packageId)
-                .setId(nextId(packageId))
-                .setRank(nextRank());
-
-        builder.modifyNotification(mContext)
-                .setContentTitle("Top level singleton")
-                .setChannelId("test_channel");
-
-        assertEquals(mEntrySet.size() + mPendingSet.size(), index);
-        mPendingSet.add(builder);
-        return builder;
+        return addNotif(index, packageId, "test_channel");
     }
 
-    /** Same behavior as {@link #addNotif(int, String)}. */
-    private NotificationEntryBuilder addGroupSummary(int index, String packageId, String groupId) {
+    private NotificationEntryBuilder addGroupSummary(int index, String packageId, String groupId,
+            String channelId) {
+        NotificationChannel channel = new NotificationChannel(channelId, "channelName", 3);
+
         final NotificationEntryBuilder builder = new NotificationEntryBuilder()
                 .setPkg(packageId)
+                .setChannel(channel)
                 .setId(nextId(packageId))
                 .setRank(nextRank());
 
@@ -2364,16 +2771,35 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         return builder;
     }
 
+    /** Same behavior as {@link #addNotif(int, String)}. */
+    private NotificationEntryBuilder addGroupSummary(int index, String packageId, String groupId) {
+        return addGroupSummary(index, packageId, groupId, "test_channel");
+    }
+
+    private NotificationEntryBuilder addAutoGroupSummary(int index, String packageId,
+            String groupId) {
+        final NotificationEntryBuilder builder = addGroupSummary(index, packageId, groupId);
+        mPendingSet.remove(builder);
+
+        builder.modifyNotification(mContext)
+                .setFlag(Notification.FLAG_AUTOGROUP_SUMMARY, true);
+
+        assertEquals(mEntrySet.size() + mPendingSet.size(), index);
+        mPendingSet.add(builder);
+        return builder;
+    }
+
     private NotificationEntryBuilder addGroupChildWithTag(int index, String packageId,
-            String groupId, String tag) {
+            String groupId, String tag, String channelId) {
+
         final NotificationEntryBuilder builder = new NotificationEntryBuilder()
                 .setTag(tag)
                 .setPkg(packageId)
                 .setId(nextId(packageId))
-                .setRank(nextRank());
+                .setRank(nextRank())
+                .setChannel(new NotificationChannel(channelId, "channelName", 3));
 
         builder.modifyNotification(mContext)
-                .setChannelId("test_channel")
                 .setContentTitle("Group child")
                 .setGroup(groupId);
 
@@ -2384,7 +2810,12 @@ public class ShadeListBuilderTest extends SysuiTestCase {
 
     /** Same behavior as {@link #addNotif(int, String)}. */
     private NotificationEntryBuilder addGroupChild(int index, String packageId, String groupId) {
-        return addGroupChildWithTag(index, packageId, groupId, null);
+        return addGroupChildWithTag(index, packageId, groupId, null, "test_channel");
+    }
+
+    private NotificationEntryBuilder addGroupChild(int index, String packageId, String groupId,
+            String channelId) {
+        return addGroupChildWithTag(index, packageId, groupId, null, channelId);
     }
 
     private void assertOrder(String visible, String active, String expected,
@@ -2419,7 +2850,10 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         dispatchBuild();
         StringBuilder resultSb = new StringBuilder();
         for (int i = 0; i < expected.length(); i++) {
-            resultSb.append(mBuiltList.get(i).getRepresentativeEntry().getSbn().getPackageName());
+            final PipelineEntry pipelineEntry = mBuiltList.get(i);
+            final ListEntry listEntry = pipelineEntry.asListEntry();
+            final NotificationEntry representativeEntry = listEntry.getRepresentativeEntry();
+            resultSb.append(representativeEntry.getSbn().getPackageName());
         }
 
         assertEquals("visible [" + visible + "] active [" + active + "]",
@@ -2469,6 +2903,52 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         }
     }
 
+    private void verifyNotifEntry(ExpectedNotif expectedEntry, PipelineEntry actualPipelineEntry,
+            int i) {
+        assertEquals(
+                "Entry " + i + " isn't a NotifEntry",
+                NotificationEntry.class,
+                actualPipelineEntry.getClass());
+        assertEquals(
+                "Entry " + i + " doesn't match expected value.",
+                ((ExpectedNotif) expectedEntry).entry, actualPipelineEntry);
+    }
+
+    private void verifyGroupEntry(ExpectedGroup expectedGroup, PipelineEntry actualPipelineEntry,
+            int i) {
+        assertEquals(
+                "Entry " + i + " isn't a GroupEntry",
+                GroupEntry.class,
+                actualPipelineEntry.getClass());
+
+        GroupEntry actualGroupEntry = (GroupEntry) actualPipelineEntry;
+
+        assertEquals(
+                "Summary notif for entry " + i
+                        + " doesn't match expected value",
+                expectedGroup.summary,
+                actualGroupEntry.getSummary());
+
+        assertEquals(
+                "Summary notif for entry " + i
+                        + " doesn't have proper parent",
+                actualGroupEntry,
+                actualGroupEntry.getSummary().getParent());
+
+        assertEquals("Children for entry " + i,
+                expectedGroup.children,
+                actualGroupEntry.getChildren());
+
+        for (int j = 0; j < actualGroupEntry.getChildren().size(); j++) {
+            NotificationEntry child = actualGroupEntry.getChildren().get(j);
+            assertEquals(
+                    "Child " + j + " for entry " + i
+                            + " doesn't have proper parent",
+                    actualGroupEntry,
+                    child.getParent());
+        }
+    }
+
     private void verifyBuiltList(ExpectedEntry ...expectedEntries) {
         try {
             assertEquals(
@@ -2477,51 +2957,40 @@ public class ShadeListBuilderTest extends SysuiTestCase {
                     mBuiltList.size());
 
             for (int i = 0; i < expectedEntries.length; i++) {
-                PipelineEntry outEntry = mBuiltList.get(i);
+                PipelineEntry actualPipelineEntry = mBuiltList.get(i);
                 ExpectedEntry expectedEntry = expectedEntries[i];
 
-                if (expectedEntry instanceof ExpectedNotif) {
-                    assertEquals(
-                            "Entry " + i + " isn't a NotifEntry",
-                            NotificationEntry.class,
-                            outEntry.getClass());
-                    assertEquals(
-                            "Entry " + i + " doesn't match expected value.",
-                            ((ExpectedNotif) expectedEntry).entry, outEntry);
+                if (expectedEntry instanceof ExpectedNotif expectedNotif) {
+                    verifyNotifEntry(expectedNotif, actualPipelineEntry, i);
+
+                } else if (expectedEntry instanceof ExpectedGroup cmpGroup) {
+                    verifyGroupEntry(cmpGroup, actualPipelineEntry, i);
+
                 } else {
-                    ExpectedGroup cmpGroup = (ExpectedGroup) expectedEntry;
-
+                    ExpectedBundle expectedBundle = (ExpectedBundle) expectedEntry;
                     assertEquals(
-                            "Entry " + i + " isn't a GroupEntry",
-                            GroupEntry.class,
-                            outEntry.getClass());
+                            "Entry " + i + " isn't a BundleEntry",
+                            BundleEntry.class,
+                            actualPipelineEntry.getClass());
+                    BundleEntry actualBundle = (BundleEntry) actualPipelineEntry;
 
-                    GroupEntry outGroup = (GroupEntry) outEntry;
+                    int expectedBundleSize = expectedBundle.children.size();
+                    int actualBundleSize = actualBundle.getChildren().size();
+                    assertEquals("Expected bundle size: " + expectedBundleSize
+                            + " Actual children count: " + actualBundleSize,
+                            expectedBundleSize, actualBundleSize);
 
-                    assertEquals(
-                            "Summary notif for entry " + i
-                                    + " doesn't match expected value",
-                            cmpGroup.summary,
-                            outGroup.getSummary());
-                    assertEquals(
-                            "Summary notif for entry " + i
-                                        + " doesn't have proper parent",
-                            outGroup,
-                            outGroup.getSummary().getParent());
-
-                    assertEquals("Children for entry " + i,
-                            cmpGroup.children,
-                            outGroup.getChildren());
-
-                    for (int j = 0; j < outGroup.getChildren().size(); j++) {
-                        NotificationEntry child = outGroup.getChildren().get(j);
-                        assertEquals(
-                                "Child " + j + " for entry " + i
-                                        + " doesn't have proper parent",
-                                outGroup,
-                                child.getParent());
+                    for (int j = 0; j < actualBundle.getChildren().size(); j++) {
+                        ListEntry actualChild = actualBundle.getChildren().get(j);
+                        ExpectedEntry expectedChild = expectedBundle.children.get(j);
+                        if (expectedChild instanceof ExpectedNotif) {
+                            verifyNotifEntry((ExpectedNotif) expectedChild, actualChild, j);
+                        } else {
+                            verifyGroupEntry((ExpectedGroup) expectedChild, actualChild, j);
+                        }
                     }
                 }
+
             }
         } catch (AssertionError err) {
             throw new AssertionError(
@@ -2541,6 +3010,13 @@ public class ShadeListBuilderTest extends SysuiTestCase {
                         .map(child -> child.entry)
                         .collect(Collectors.toList()));
     }
+
+    private ExpectedBundle bundle(String bundleId, ExpectedEntry...children) {
+        return new ExpectedBundle(
+                bundleId,
+                Arrays.stream(children).collect(Collectors.toList()));
+    }
+
 
     private ExpectedSummary summary(int index) {
         return new ExpectedSummary(mEntrySet.get(index));
@@ -2569,6 +3045,15 @@ public class ShadeListBuilderTest extends SysuiTestCase {
                 NotificationEntry summary,
                 List<NotificationEntry> children) {
             this.summary = summary;
+            this.children = children;
+        }
+    }
+
+    private static class ExpectedBundle extends ExpectedEntry {
+        public final String bundleId;
+        public final List<ExpectedEntry> children;
+        private ExpectedBundle(String bundleId, List<ExpectedEntry> children) {
+            this.bundleId = bundleId;
             this.children = children;
         }
     }
@@ -2654,9 +3139,9 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         @Override
         public int compare(@NonNull PipelineEntry o1, @NonNull PipelineEntry o2) {
             boolean contains1 = mPreferredPackages.contains(
-                    o1.getRepresentativeEntry().getSbn().getPackageName());
+                    o1.asListEntry().getRepresentativeEntry().getSbn().getPackageName());
             boolean contains2 = mPreferredPackages.contains(
-                    o2.getRepresentativeEntry().getSbn().getPackageName());
+                    o2.asListEntry().getRepresentativeEntry().getSbn().getPackageName());
 
             return Boolean.compare(contains2, contains1);
         }
@@ -2691,7 +3176,11 @@ public class ShadeListBuilderTest extends SysuiTestCase {
 
         @Override
         public boolean isInSection(PipelineEntry entry) {
-            return mPackages.contains(entry.getRepresentativeEntry().getSbn().getPackageName());
+            if (entry instanceof BundleEntry) {
+                return true;
+            }
+            return mPackages.contains(
+                    entry.asListEntry().getRepresentativeEntry().getSbn().getPackageName());
         }
     }
 
@@ -2784,7 +3273,12 @@ public class ShadeListBuilderTest extends SysuiTestCase {
         }
 
         @Override
-        public boolean isGroupChangeAllowed(@NonNull NotificationEntry entry) {
+        public boolean isParentChangeAllowed(@NonNull NotificationEntry entry) {
+            return mAllowGroupChanges;
+        }
+
+        @Override
+        public boolean isParentChangeAllowed(@NonNull GroupEntry entry) {
             return mAllowGroupChanges;
         }
 
@@ -2822,4 +3316,68 @@ public class ShadeListBuilderTest extends SysuiTestCase {
 
     private static final String GROUP_1 = "group_1";
     private static final String GROUP_2 = "group_2";
+    private static final String BUNDLE_1 = "bundle_1";
+    private static final String BUNDLE_2 = "bundle_2";
+}
+
+class TestBundler extends NotifBundler {
+
+    public static final TestBundler INSTANCE = new TestBundler();
+
+    List<BundleSpec> mBundleSpecs = List.of(
+            new BundleSpec("bundle_1", 0, 0, 0, 0, 0),
+            new BundleSpec("bundle_2", 0, 0, 0, 0, 0)
+    );
+
+    List<String> mBundleIds = this.mBundleSpecs.stream()
+            .map(BundleSpec::getKey)
+            .collect(Collectors.toList());
+
+    private TestBundler() {
+        super("TestBundler");
+    }
+
+    @Override
+    public List<BundleSpec> getBundleSpecs() {
+        return mBundleSpecs;
+    }
+
+    @Nullable
+    public String getBundleIdOrNull(ListEntry entry) {
+        if (entry instanceof GroupEntry) {
+            GroupEntry groupEntry = (GroupEntry) entry;
+            if (groupEntry.getChildren() == null || groupEntry.getChildren().isEmpty()) {
+                return null;
+            }
+            NotificationEntry summary = groupEntry.getSummary();
+            if (summary == null) {
+                return null;
+            }
+            return getBundleIdForNotifEntry(summary);
+        }
+        if (entry instanceof NotificationEntry) {
+            return getBundleIdForNotifEntry((NotificationEntry) entry);
+        } else {
+            return null;
+        }
+    }
+
+    @Nullable
+    private String getBundleIdForNotifEntry(NotificationEntry notifEntry) {
+        if (notifEntry == null) {
+            return null;
+        }
+        NotificationEntry representativeEntry = notifEntry.getRepresentativeEntry();
+        if (representativeEntry == null) {
+            return null;
+        }
+        if (representativeEntry.getChannel() == null) {
+            return null;
+        }
+        String id = representativeEntry.getChannel().getId();
+        if (id != null && this.mBundleIds != null && this.mBundleIds.contains(id)) {
+            return id;
+        }
+        return null;
+    }
 }

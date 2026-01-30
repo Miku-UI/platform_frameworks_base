@@ -67,6 +67,7 @@ public class PossibleDisplayInfoMapperTests extends WindowTestsBase {
 
         mDefaultDisplayInfo = new DisplayInfo(baseDisplayInfo);
         initializeDisplayInfo(mDefaultDisplayInfo, DEFAULT_DISPLAY, new Rect(0, 0, 500, 800));
+        mDefaultDisplayInfo.flags &= ~FLAG_PRESENTATION;
         mSecondDisplayInfo = new DisplayInfo(baseDisplayInfo);
         // Use the same display id for any display in the same group, due to the assumption that
         // any display in the same grouped can be swapped out for each other (while maintaining the

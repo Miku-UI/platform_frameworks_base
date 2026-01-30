@@ -70,15 +70,19 @@ bool WARN_UNUSED ReadString(std::istream& stream, std::string* out) {
     return false;
   }
   if (size == 0) {
-    *out = "";
+    out->clear();
     return true;
   }
-  std::string buf(size, '\0');
-  if (!stream.read(buf.data(), size)) {
-    return false;
-  }
   uint32_t padding_size = CalculatePadding(size);
-  if (padding_size != 0 && !stream.seekg(padding_size, std::ios_base::cur)) {
+  std::string buf;
+  // Read both the string and the padding in one operation.
+  buf.resize_and_overwrite(size + padding_size, [&](char* out, size_t total) -> size_t {
+    if (!stream.read(out, total)) {
+      return 0;
+    }
+    return size;
+  });
+  if (buf.size() != size) {
     return false;
   }
   *out = std::move(buf);

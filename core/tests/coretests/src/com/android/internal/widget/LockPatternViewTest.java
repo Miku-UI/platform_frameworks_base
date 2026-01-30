@@ -16,34 +16,26 @@
 
 package com.android.internal.widget;
 
-import static android.view.ViewGroup.LayoutParams.MATCH_PARENT;
-
-import android.content.Context;
-
-import androidx.test.annotation.UiThreadTest;
-
-import android.util.AttributeSet;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Toolbar;
-
-
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.atLeastOnce;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
+
+import android.content.Context;
+import android.view.InputDevice;
+import android.view.MotionEvent;
+import android.view.View;
 
 import androidx.test.InstrumentationRegistry;
+import androidx.test.annotation.UiThreadTest;
 import androidx.test.filters.SmallTest;
 import androidx.test.rule.UiThreadTestRule;
+
+import com.google.android.collect.Lists;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,15 +43,13 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.android.internal.R;
-
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 @RunWith(Parameterized.class)
@@ -137,7 +127,7 @@ public class LockPatternViewTest {
         mLockPatternView.setOnPatternListener(mPatternListener);
         mLockPatternView.onTouchEvent(
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, mDot1x, mDot1y, 1));
-        verify(mPatternListener).onPatternStart();
+        verify(mPatternListener).onPatternStart(any());
     }
 
     @UiThreadTest
@@ -148,7 +138,7 @@ public class LockPatternViewTest {
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, mDot1x, mDot1y, 1));
         mLockPatternView.onTouchEvent(
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, mDot1x, mDot1y, 1));
-        verify(mPatternListener).onPatternDetected(any());
+        verify(mPatternListener).onPatternDetected(any(), any());
     }
 
     @UiThreadTest
@@ -159,7 +149,7 @@ public class LockPatternViewTest {
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 1f, 1f, 1));
         mLockPatternView.onTouchEvent(
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_MOVE, mDot1x, mDot1y, 1));
-        verify(mPatternListener).onPatternStart();
+        verify(mPatternListener).onPatternStart(any());
     }
 
     @UiThreadTest
@@ -170,7 +160,7 @@ public class LockPatternViewTest {
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 1f, 1f, 1));
         mLockPatternView.onTouchEvent(
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_MOVE, 2f, 2f, 1));
-        verify(mPatternListener, never()).onPatternStart();
+        verify(mPatternListener, never()).onPatternStart(any());
     }
 
     @UiThreadTest
@@ -183,7 +173,7 @@ public class LockPatternViewTest {
         mLockPatternView.onTouchEvent(
                 MotionEvent.obtain(0, 3, MotionEvent.ACTION_UP, mDot2x, mDot2y, 1));
 
-        verify(mPatternListener).onPatternDetected(mCellsArgumentCaptor.capture());
+        verify(mPatternListener).onPatternDetected(mCellsArgumentCaptor.capture(), any());
         List<LockPatternView.Cell> patternCells = mCellsArgumentCaptor.getValue();
         assertThat(patternCells, hasSize(2));
         assertThat(patternCells,
@@ -200,7 +190,7 @@ public class LockPatternViewTest {
         mLockPatternView.onTouchEvent(
                 MotionEvent.obtain(0, 3, MotionEvent.ACTION_UP, mDot5x, mDot5y, 1));
 
-        verify(mPatternListener).onPatternDetected(mCellsArgumentCaptor.capture());
+        verify(mPatternListener).onPatternDetected(mCellsArgumentCaptor.capture(), any());
         List<LockPatternView.Cell> patternCells = mCellsArgumentCaptor.getValue();
         assertThat(patternCells, hasSize(2));
         assertThat(patternCells,
@@ -220,7 +210,7 @@ public class LockPatternViewTest {
                 MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, mViewSize - mDefaultError,
                         mViewSize - mDefaultError, 1));
 
-        verify(mPatternListener).onPatternDetected(mCellsArgumentCaptor.capture());
+        verify(mPatternListener).onPatternDetected(mCellsArgumentCaptor.capture(), any());
         List<LockPatternView.Cell> patternCells = mCellsArgumentCaptor.getValue();
         assertThat(patternCells, hasSize(7));
         assertThat(patternCells,
@@ -243,5 +233,83 @@ public class LockPatternViewTest {
                             /* y= */ yFrom * rest + yTo * progress,
                             1));
         }
+    }
+
+    @UiThreadTest
+    @Test
+    public void switchToClickModeAndClear() {
+        mLockPatternView.setClickInputSupported(true);
+        mLockPatternView.setOnPatternListener(mPatternListener);
+        assertThat(mLockPatternView.getInputMode(), is(LockPatternView.InputMode.Swipe));
+        mouseClick(mLockPatternView, mDot1x, mDot1y);
+        assertThat(mLockPatternView.getInputMode(), is(LockPatternView.InputMode.Click));
+        verify(mPatternListener).onPatternCleared();
+    }
+
+    @UiThreadTest
+    @Test
+    public void switchToSwipeModeAndClear() {
+        mLockPatternView.setClickInputSupported(true);
+        mouseClick(mLockPatternView, mDot1x, mDot1y);
+        mLockPatternView.setOnPatternListener(mPatternListener);
+        mLockPatternView.onTouchEvent(
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 1f, 1f, 1));
+        assertThat(mLockPatternView.getInputMode(), is(LockPatternView.InputMode.Swipe));
+        verify(mPatternListener).onPatternCleared();
+    }
+
+    @UiThreadTest
+    @Test
+    public void dontSwitchToSwipeModeForValidPattern() {
+        mLockPatternView.setClickInputSupported(true);
+        mouseClick(mLockPatternView, mDot1x, mDot1y);
+        mLockPatternView.setOnPatternListener(mPatternListener);
+        mLockPatternView.setPattern(LockPatternView.DisplayMode.Correct,
+                    Collections.unmodifiableList(Lists.newArrayList(
+                LockPatternView.Cell.of(0, 0),
+                LockPatternView.Cell.of(0, 1),
+                LockPatternView.Cell.of(1, 1),
+                LockPatternView.Cell.of(2, 1)
+        )));
+        mLockPatternView.onTouchEvent(
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 1f, 1f, 1));
+        assertThat(mLockPatternView.getInputMode(), is(LockPatternView.InputMode.Click));
+        verify(mPatternListener, never()).onPatternCleared();
+    }
+
+    @UiThreadTest
+    @Test
+    public void clickFromCornerToCornerIncludesCenterOfEdgeAndNotifies() {
+        mLockPatternView.setClickInputSupported(true);
+        mLockPatternView.setOnPatternListener(mPatternListener);
+        mouseClick(mLockPatternView, mDot1x, mDot1y);
+        mouseClick(mLockPatternView, mDot3x, mDot3y);
+        verify(mPatternListener, times(2)).onPatternDetected(mCellsArgumentCaptor.capture(), any());
+        List<LockPatternView.Cell> patternCells = mCellsArgumentCaptor.getValue();
+        assertThat(patternCells, hasSize(3));
+        verify(mPatternListener, times(3)).onPatternCellAdded(any(), any());
+    }
+
+    @UiThreadTest
+    @Test
+    public void swipeOverInvalidClickPattern() {
+        mLockPatternView.setClickInputSupported(true);
+        mouseClick(mLockPatternView, mDot1x, mDot1y);
+        mouseClick(mLockPatternView, mDot3x, mDot3y);
+        mouseClick(mLockPatternView, mDot7x, mDot7y);
+        mouseClick(mLockPatternView, mDot9x, mDot9y);
+        mLockPatternView.setDisplayMode(LockPatternView.DisplayMode.Wrong);
+        mLockPatternView.onTouchEvent(
+                MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 1f, 1f, 1));
+        assertThat(mLockPatternView.getInputMode(), is(LockPatternView.InputMode.Swipe));
+    }
+
+    private void mouseClick(View view, float x, float y) {
+        MotionEvent event = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, x, y, 1);
+        event.setSource(InputDevice.SOURCE_MOUSE);
+        view.onTouchEvent(event);
+        event = MotionEvent.obtain(0, 0, MotionEvent.ACTION_UP, x, y, 1);
+        event.setSource(InputDevice.SOURCE_MOUSE);
+        view.onTouchEvent(event);
     }
 }

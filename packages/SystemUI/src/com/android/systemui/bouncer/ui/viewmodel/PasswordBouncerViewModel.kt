@@ -16,12 +16,13 @@
 
 package com.android.systemui.bouncer.ui.viewmodel
 
-import android.view.KeyEvent
 import androidx.annotation.VisibleForTesting
-import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.runtime.snapshotFlow
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.bouncer.domain.interactor.BouncerInteractor
-import com.android.systemui.bouncer.shared.flag.ComposeBouncerFlags
 import com.android.systemui.inputmethod.domain.interactor.InputMethodInteractor
 import com.android.systemui.res.R
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
@@ -40,7 +41,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /** Holds UI state and handles user input for the password bouncer UI. */
 class PasswordBouncerViewModel
@@ -58,10 +58,7 @@ constructor(
         traceName = "PasswordBouncerViewModel",
     ) {
 
-    private val _password = MutableStateFlow("")
-
-    /** The password entered so far. */
-    val password: StateFlow<String> = _password.asStateFlow()
+    val textFieldState = TextFieldState()
 
     override val authenticationMethod = AuthenticationMethodModel.Password
 
@@ -132,6 +129,14 @@ constructor(
                         }
                         .collect { _isImeSwitcherButtonVisible.value = it }
                 }
+                launch {
+                    snapshotFlow { textFieldState.text.toString() }
+                        .collect {
+                            if (it.isNotEmpty()) {
+                                onIntentionalUserInput()
+                            }
+                        }
+                }
                 awaitCancellation()
             }
         } finally {
@@ -146,35 +151,15 @@ constructor(
     }
 
     override fun clearInput() {
-        _password.value = ""
+        textFieldState.clearText()
     }
 
     override fun getInput(): List<Any> {
-        return _password.value.toCharArray().toList()
-    }
-
-    override fun onKeyEvent(type: KeyEventType, keyCode: Int): Boolean {
-        // Ignore SPACE as a confirm key to allow the space character within passwords.
-        val isKeyboardEnterKey =
-            KeyEvent.isConfirmKey(keyCode) &&
-                keyCode != KeyEvent.KEYCODE_SPACE &&
-                type == KeyEventType.KeyUp
-        // consume confirm key events while on the bouncer. This prevents it from propagating
-        // and avoids other parent elements from receiving it.
-        return isKeyboardEnterKey && ComposeBouncerFlags.isOnlyComposeBouncerEnabled()
+        return textFieldState.text.toList()
     }
 
     override fun onSuccessfulAuthentication() {
         wasSuccessfullyAuthenticated = true
-    }
-
-    /** Notifies that the user has changed the password input. */
-    fun onPasswordInputChanged(newPassword: String) {
-        if (newPassword.isNotEmpty()) {
-            onIntentionalUserInput()
-        }
-
-        _password.value = newPassword
     }
 
     /** Notifies that the user clicked the button to change the input method. */
@@ -184,7 +169,7 @@ constructor(
 
     /** Notifies that the user has pressed the key for attempting to authenticate the password. */
     fun onAuthenticateKeyPressed() {
-        if (_password.value.isNotEmpty()) {
+        if (textFieldState.text.isNotEmpty()) {
             tryAuthenticate()
         }
     }

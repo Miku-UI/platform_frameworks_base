@@ -50,6 +50,13 @@ constructor(
     val isOneHandedBouncerSupportedInConfig: Boolean
         get() = applicationContext.resources.getBoolean(R.bool.can_use_one_handed_bouncer)
 
+    /** Whether improved large screen interaction is enabled for this device */
+    val isImproveLargeScreenInteractionEnabledInConfig: Boolean
+        get() =
+            applicationContext.resources.getBoolean(
+                R.bool.config_improveLargeScreenInteractionOnLockscreen
+            )
+
     /**
      * Preferred side of the screen where the input area on the bouncer should be. This is
      * applicable for large screen devices (foldables and tablets).

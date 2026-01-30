@@ -59,7 +59,10 @@ class AppCompatSandboxingPolicy {
                 // parent.
                 appBounds = mActivityRecord.mResolveConfigHint.mParentAppBoundsOverride;
             }
-            resolvedConfig.windowConfiguration.setBounds(appBounds);
+            if (!resolvedConfig.windowConfiguration.getBounds().isEmpty()) {
+                // Only set if there is a resolved override config.
+                resolvedConfig.windowConfiguration.setBounds(appBounds);
+            }
         }
     }
 }

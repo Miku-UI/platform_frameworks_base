@@ -201,7 +201,7 @@ public class MockIContentProvider implements IContentProvider {
         throw new UnsupportedOperationException("unimplemented mock method");
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public int checkUriPermission(@NonNull AttributionSource attributionSource, Uri uri, int uid,
             int modeFlags) {

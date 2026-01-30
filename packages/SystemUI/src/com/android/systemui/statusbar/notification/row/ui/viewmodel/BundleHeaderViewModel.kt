@@ -17,71 +17,72 @@
 package com.android.systemui.statusbar.notification.row.ui.viewmodel
 
 import android.graphics.drawable.Drawable
-import android.view.View
-import androidx.compose.animation.core.tween
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.MotionScheme
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.unit.dp
 import com.android.compose.animation.scene.MutableSceneTransitionLayoutState
-import com.android.compose.animation.scene.SceneTransitionLayoutState
-import com.android.compose.animation.scene.transitions
+import com.android.systemui.lifecycle.HydratedActivatable
 import com.android.systemui.notifications.ui.composable.row.BundleHeader
+import com.android.systemui.statusbar.notification.row.dagger.BundleRowScope
+import com.android.systemui.statusbar.notification.row.domain.interactor.BundleInteractor
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.CoroutineScope
 
-interface BundleHeaderViewModel {
-    val titleText: String
+class BundleHeaderViewModel @AssistedInject constructor(private val interactor: BundleInteractor) :
+    HydratedActivatable() {
+
+    val titleText: Int
+        get() = interactor.titleText
+
     val numberOfChildren: Int?
-    val bundleIcon: Drawable?
-    val previewIcons: List<Drawable>
+        get() = interactor.numberOfChildren
 
-    val state: SceneTransitionLayoutState
+    val bundleIcon: Int
+        get() = interactor.bundleIcon
 
-    val hasUnreadMessages: Boolean
-    val backgroundDrawable: Drawable?
-
-    fun onHeaderClicked(scope: CoroutineScope)
-}
-
-class BundleHeaderViewModelImpl : BundleHeaderViewModel {
-    override var titleText by mutableStateOf("")
-    override var numberOfChildren by mutableStateOf<Int?>(1)
-    override var hasUnreadMessages by mutableStateOf(true)
-    override var bundleIcon by mutableStateOf<Drawable?>(null)
-    override var previewIcons by mutableStateOf(listOf<Drawable>())
-    override var backgroundDrawable by mutableStateOf<Drawable?>(null)
-
-    var onExpandClickListener: View.OnClickListener? = null
-
-    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-    override var state: MutableSceneTransitionLayoutState =
-        MutableSceneTransitionLayoutState(
-            BundleHeader.Scenes.Collapsed,
-            MotionScheme.standard(),
-            transitions {
-                from(BundleHeader.Scenes.Collapsed, to = BundleHeader.Scenes.Expanded) {
-                    spec = tween(500)
-                    translate(BundleHeader.Elements.PreviewIcon3, x = 32.dp)
-                    translate(BundleHeader.Elements.PreviewIcon2, x = 16.dp)
-                    fade(BundleHeader.Elements.PreviewIcon1)
-                    fade(BundleHeader.Elements.PreviewIcon2)
-                    fade(BundleHeader.Elements.PreviewIcon3)
-                }
-            },
+    val previewIcons: List<Drawable> by
+        interactor.previewIcons.hydratedStateOf(
+            traceName = "previewIcons",
+            initialValue = emptyList(),
         )
 
-    override fun onHeaderClicked(scope: CoroutineScope) {
+    var state: MutableSceneTransitionLayoutState? by interactor::state
+
+    var composeScope: CoroutineScope? by interactor::composeScope
+
+    var backgroundDrawable by mutableStateOf<Drawable?>(null)
+
+    val numberOfChildrenContentDescription: String
+        get() = interactor.numberOfChildrenContentDescription
+
+    val headerContentDescription: String
+        get() = interactor.headerContentDescription
+
+    fun onHeaderClicked() {
         val targetScene =
-            when (state.currentScene) {
+            when (state?.currentScene) {
                 BundleHeader.Scenes.Collapsed -> BundleHeader.Scenes.Expanded
                 BundleHeader.Scenes.Expanded -> BundleHeader.Scenes.Collapsed
-                else -> error("Unknown Scene")
+                null -> {
+                    Log.e(TAG, "Unexpected scene: ${state?.currentScene}")
+                    return
+                }
+                else -> error("Unknown Scene.")
             }
-        state.setTargetScene(targetScene, scope)
+        interactor.setTargetScene(targetScene)
+    }
 
-        onExpandClickListener?.onClick(null)
-        hasUnreadMessages = false
+    fun setExpansionState(isExpanded: Boolean) = interactor.setExpansionState(isExpanded)
+
+    @AssistedFactory
+    @BundleRowScope
+    interface Factory {
+        fun create(): BundleHeaderViewModel
+    }
+
+    companion object {
+        const val TAG = "BundleHeaderViewModel"
     }
 }

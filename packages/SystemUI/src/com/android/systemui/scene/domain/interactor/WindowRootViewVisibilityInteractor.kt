@@ -32,7 +32,6 @@ import com.android.systemui.statusbar.NotificationPresenter
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.notification.init.NotificationsController
-import com.android.systemui.statusbar.notification.shared.NotificationsLiveDataStoreRefactor
 import javax.inject.Inject
 import javax.inject.Provider
 import kotlinx.coroutines.CoroutineScope
@@ -170,10 +169,6 @@ constructor(
     }
 
     private fun getActiveNotificationsCount(): Int {
-        return if (NotificationsLiveDataStoreRefactor.isEnabled) {
-            activeNotificationsInteractor.allNotificationsCountValue
-        } else {
-            notificationsController?.getActiveNotificationsCount() ?: 0
-        }
+        return activeNotificationsInteractor.allNotificationsCountValue
     }
 }

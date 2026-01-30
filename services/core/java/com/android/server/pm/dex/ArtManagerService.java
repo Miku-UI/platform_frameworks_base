@@ -16,6 +16,8 @@
 
 package com.android.server.pm.dex;
 
+import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.AppOpsManager;
@@ -37,23 +39,17 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.SystemProperties;
-import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
 
 import com.android.internal.os.BackgroundThread;
 import com.android.internal.os.RoSystemProperties;
-import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.Preconditions;
 import com.android.server.LocalServices;
 import com.android.server.art.ArtManagerLocal;
 import com.android.server.pm.DexOptHelper;
-import com.android.server.pm.Installer;
 import com.android.server.pm.PackageManagerLocal;
-import com.android.server.pm.PackageManagerService;
-import com.android.server.pm.PackageManagerServiceCompilerMapping;
 import com.android.server.pm.PackageManagerServiceUtils;
-import com.android.server.pm.pkg.AndroidPackage;
 
 import dalvik.system.DexFile;
 import dalvik.system.VMRuntime;
@@ -61,48 +57,31 @@ import dalvik.system.VMRuntime;
 import libcore.io.IoUtils;
 
 import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Objects;
 
 /**
- * A system service that provides access to runtime and compiler artifacts.
+ * A system service that provides access to ART profiles.
  *
- * This service is not accessed by users directly, instead one uses an instance of
- * {@link ArtManager}, which can be accessed via {@link PackageManager} as follows:
- * <p/>
- * {@code context().getPackageManager().getArtManager();}
- * <p class="note">
- * Note: Accessing runtime artifacts may require extra permissions. For example querying the
- * runtime profiles of apps requires {@link android.Manifest.permission#READ_RUNTIME_PROFILES}
- * which is a system-level permission that will not be granted to normal apps.
+ * <p>This service is not accessed by users directly. Instead, one uses an instance of {@link
+ * ArtManager}, which can be accessed via {@link PackageManager} as follows:
+ *
+ * <p>{@code context().getPackageManager().getArtManager();}
+ *
+ * <p class="note">Note: Accessing ART profiles of apps requires {@link
+ * android.Manifest.permission#READ_RUNTIME_PROFILES} which is a system-level permission that will
+ * not be granted to normal apps.
  */
 public class ArtManagerService extends android.content.pm.dex.IArtManager.Stub {
     private static final String TAG = "ArtManagerService";
     private static final boolean DEBUG = Log.isLoggable(TAG, Log.DEBUG);
 
-    // Package name used to create the profile directory layout when
-    // taking a snapshot of the boot image profile.
-    private static final String BOOT_IMAGE_ANDROID_PACKAGE = "android";
-    // Profile name used for the boot image profile.
-    private static final String BOOT_IMAGE_PROFILE_NAME = "android.prof";
-
     private final Context mContext;
     private IPackageManager mPackageManager;
-    private final Installer mInstaller;
 
     private final Handler mHandler;
 
-    static {
-        verifyTronLoggingConstants();
-    }
-
-    public ArtManagerService(Context context, Installer installer,
-            Object ignored) {
+    public ArtManagerService(Context context) {
         mContext = context;
-        mInstaller = installer;
         mHandler = new Handler(BackgroundThread.getHandler().getLooper());
 
         LocalServices.addService(ArtManagerInternal.class, new ArtManagerInternalImpl());
@@ -302,12 +281,11 @@ public class ArtManagerService extends android.content.pm.dex.IArtManager.Stub {
                                 .withFilteredSnapshot()) {
             fd = DexOptHelper.getArtManagerLocal().snapshotBootImageProfile(snapshot);
         } catch (IllegalStateException | ArtManagerLocal.SnapshotProfileException e) {
-            postError(callback, BOOT_IMAGE_ANDROID_PACKAGE,
-                    ArtManager.SNAPSHOT_FAILED_INTERNAL_ERROR);
+            postError(callback, PLATFORM_PACKAGE_NAME, ArtManager.SNAPSHOT_FAILED_INTERNAL_ERROR);
             return;
         }
 
-        postSuccess(BOOT_IMAGE_ANDROID_PACKAGE, fd, callback);
+        postSuccess(PLATFORM_PACKAGE_NAME, fd, callback);
     }
 
     /**
@@ -376,20 +354,6 @@ public class ArtManagerService extends android.content.pm.dex.IArtManager.Stub {
     private static final int TRON_COMPILATION_FILTER_FAKE_RUN_FROM_APK = 12;
     private static final int TRON_COMPILATION_FILTER_FAKE_RUN_FROM_APK_FALLBACK = 13;
     private static final int TRON_COMPILATION_FILTER_FAKE_RUN_FROM_VDEX_FALLBACK = 14;
-    // Filter with IORap
-    private static final int TRON_COMPILATION_FILTER_ASSUMED_VERIFIED_IORAP = 15;
-    private static final int TRON_COMPILATION_FILTER_EXTRACT_IORAP = 16;
-    private static final int TRON_COMPILATION_FILTER_VERIFY_IORAP = 17;
-    private static final int TRON_COMPILATION_FILTER_QUICKEN_IORAP = 18;
-    private static final int TRON_COMPILATION_FILTER_SPACE_PROFILE_IORAP = 19;
-    private static final int TRON_COMPILATION_FILTER_SPACE_IORAP = 20;
-    private static final int TRON_COMPILATION_FILTER_SPEED_PROFILE_IORAP = 21;
-    private static final int TRON_COMPILATION_FILTER_SPEED_IORAP = 22;
-    private static final int TRON_COMPILATION_FILTER_EVERYTHING_PROFILE_IORAP = 23;
-    private static final int TRON_COMPILATION_FILTER_EVERYTHING_IORAP = 24;
-    private static final int TRON_COMPILATION_FILTER_FAKE_RUN_FROM_APK_IORAP = 25;
-    private static final int TRON_COMPILATION_FILTER_FAKE_RUN_FROM_APK_FALLBACK_IORAP = 26;
-    private static final int TRON_COMPILATION_FILTER_FAKE_RUN_FROM_VDEX_FALLBACK_IORAP = 27;
 
     // Constants used for logging compilation reason to TRON.
     // DO NOT CHANGE existing values.
@@ -503,48 +467,19 @@ public class ArtManagerService extends android.content.pm.dex.IArtManager.Stub {
                 return TRON_COMPILATION_FILTER_FAKE_RUN_FROM_APK_FALLBACK;
             case "run-from-vdex-fallback" :
                 return TRON_COMPILATION_FILTER_FAKE_RUN_FROM_VDEX_FALLBACK;
-            case "assume-verified-iorap" : return TRON_COMPILATION_FILTER_ASSUMED_VERIFIED_IORAP;
-            case "extract-iorap" : return TRON_COMPILATION_FILTER_EXTRACT_IORAP;
-            case "verify-iorap" : return TRON_COMPILATION_FILTER_VERIFY_IORAP;
-            case "quicken-iorap" : return TRON_COMPILATION_FILTER_QUICKEN_IORAP;
-            case "space-profile-iorap" : return TRON_COMPILATION_FILTER_SPACE_PROFILE_IORAP;
-            case "space-iorap" : return TRON_COMPILATION_FILTER_SPACE_IORAP;
-            case "speed-profile-iorap" : return TRON_COMPILATION_FILTER_SPEED_PROFILE_IORAP;
-            case "speed-iorap" : return TRON_COMPILATION_FILTER_SPEED_IORAP;
-            case "everything-profile-iorap" :
-                return TRON_COMPILATION_FILTER_EVERYTHING_PROFILE_IORAP;
-            case "everything-iorap" : return TRON_COMPILATION_FILTER_EVERYTHING_IORAP;
-            case "run-from-apk-iorap" : return TRON_COMPILATION_FILTER_FAKE_RUN_FROM_APK_IORAP;
-            case "run-from-apk-fallback-iorap" :
-                return TRON_COMPILATION_FILTER_FAKE_RUN_FROM_APK_FALLBACK_IORAP;
-            case "run-from-vdex-fallback-iorap" :
-                return TRON_COMPILATION_FILTER_FAKE_RUN_FROM_VDEX_FALLBACK_IORAP;
             default: return TRON_COMPILATION_FILTER_UNKNOWN;
         }
     }
 
-    private static void verifyTronLoggingConstants() {
-        for (int i = 0; i < PackageManagerServiceCompilerMapping.REASON_STRINGS.length; i++) {
-            String reason = PackageManagerServiceCompilerMapping.REASON_STRINGS[i];
-            int value = getCompilationReasonTronValue(reason);
-            if (value == TRON_COMPILATION_REASON_ERROR
-                    || value == TRON_COMPILATION_REASON_UNKNOWN) {
-                throw new IllegalArgumentException("Compilation reason not configured for TRON "
-                        + "logging: " + reason);
-            }
-        }
-    }
-
     private class ArtManagerInternalImpl extends ArtManagerInternal {
-        private static final String IORAP_DIR = "/data/misc/iorapd";
         private static final String TAG = "ArtManagerInternalImpl";
 
         @Override
         public PackageOptimizationInfo getPackageOptimizationInfo(
                 ApplicationInfo info, String abi, String activityName) {
-            if (info.packageName.equals(PackageManagerService.PLATFORM_PACKAGE_NAME)) {
-                // PackageManagerService.PLATFORM_PACKAGE_NAME in this context means that the
-                // activity is defined in bootclasspath. Currently, we don't have an API to get the
+            if (info.packageName.equals(PLATFORM_PACKAGE_NAME)) {
+                // PLATFORM_PACKAGE_NAME in this context means that the activity is defined in
+                // bootclasspath. Currently, we don't have an API to get the
                 // correct optimization info.
                 return PackageOptimizationInfo.createWithNoInfo();
             }
@@ -568,50 +503,11 @@ public class ArtManagerService extends android.content.pm.dex.IArtManager.Stub {
                 compilationReason = "error";
             }
 
-            if (checkIorapCompiledTrace(info.packageName, activityName, info.longVersionCode)) {
-                compilationFilter = compilationFilter + "-iorap";
-            }
-
             int compilationFilterTronValue = getCompilationFilterTronValue(compilationFilter);
             int compilationReasonTronValue = getCompilationReasonTronValue(compilationReason);
 
             return new PackageOptimizationInfo(
                     compilationFilterTronValue, compilationReasonTronValue);
-        }
-
-        /*
-         * Checks the existence of IORap compiled trace for an app.
-         *
-         * @return true if the compiled trace exists and the size is greater than 1kb.
-         */
-        private boolean checkIorapCompiledTrace(
-                String packageName, String activityName, long version) {
-            // For example: /data/misc/iorapd/com.google.android.GoogleCamera/
-            // 60092239/com.android.camera.CameraLauncher/compiled_traces/compiled_trace.pb
-            // TODO(b/258223472): Clean up iorap code.
-            Path tracePath = Paths.get(IORAP_DIR,
-                                       packageName,
-                                       Long.toString(version),
-                                       activityName,
-                                       "compiled_traces",
-                                       "compiled_trace.pb");
-            try {
-                boolean exists =  Files.exists(tracePath);
-                if (DEBUG) {
-                    Log.d(TAG, tracePath.toString() + (exists? " exists" : " doesn't exist"));
-                }
-                if (exists) {
-                    long bytes = Files.size(tracePath);
-                    if (DEBUG) {
-                        Log.d(TAG, tracePath.toString() + " size is " + Long.toString(bytes));
-                    }
-                    return bytes > 0L;
-                }
-                return exists;
-            } catch (IOException e) {
-                Log.d(TAG, e.getMessage());
-                return false;
-            }
         }
     }
 }

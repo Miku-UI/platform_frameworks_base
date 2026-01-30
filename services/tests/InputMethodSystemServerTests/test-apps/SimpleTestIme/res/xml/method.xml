@@ -15,7 +15,9 @@
   ~ limitations under the License.
   -->
 
-<input-method xmlns:android="http://schemas.android.com/apk/res/android">
+<input-method xmlns:android="http://schemas.android.com/apk/res/android"
+    android:settingsActivity="com.android.apps.inputmethod.simpleime.SettingsActivity"
+    android:languageSettingsActivity="com.android.apps.inputmethod.simpleime.LanguageSettingsActivity">
     <subtype
         android:label="SimpleIme"
         android:imeSubtypeLocale="en_US"

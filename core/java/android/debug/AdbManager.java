@@ -146,7 +146,7 @@ public class AdbManager {
     private final IAdbManager mService;
 
     /**
-     * {@hide}
+     * @hide
      */
     public AdbManager(Context context, IAdbManager service) {
         mContext = context;

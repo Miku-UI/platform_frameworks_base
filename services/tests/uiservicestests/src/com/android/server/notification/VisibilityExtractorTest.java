@@ -197,6 +197,25 @@ public class VisibilityExtractorTest extends UiServiceTestCase {
     }
 
     @Test
+    public void testGlobalAllDpmAllChannelAllOriginalChannelNone() {
+        VisibilityExtractor extractor = new VisibilityExtractor();
+        extractor.setConfig(mConfig);
+        extractor.initialize(mContext, null);
+
+        when(mConfig.canShowNotificationsOnLockscreen(mUser)).thenReturn(true);
+        when(mConfig.canShowPrivateNotificationsOnLockScreen(mUser)).thenReturn(true);
+
+        when(mDpm.getKeyguardDisabledFeatures(null, mUser)).thenReturn(0);
+
+        NotificationRecord r = getNotificationRecord(VISIBILITY_NO_OVERRIDE);
+        r.setOriginalChannelVisibility(VISIBILITY_SECRET);
+
+        extractor.process(r);
+
+        assertEquals(VISIBILITY_SECRET, r.getPackageVisibilityOverride());
+    }
+
+    @Test
     public void testGlobalAllDpmAllChannelSome() {
         VisibilityExtractor extractor = new VisibilityExtractor();
         extractor.setConfig(mConfig);

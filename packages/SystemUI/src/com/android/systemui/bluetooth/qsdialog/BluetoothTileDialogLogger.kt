@@ -113,6 +113,9 @@ constructor(@BluetoothTileDialogLog private val logBuffer: LogBuffer) {
             { "BatteryChanged. address=$str1 key=$int1 value=$str2" },
         )
 
+    fun logAttributesChanged(address: String) =
+        logBuffer.log(TAG, DEBUG, { str1 = address }, { "AttributesChanged. address=$str1" })
+
     fun logDeviceFetch(status: JobStatus, trigger: DeviceFetchTrigger, duration: Long) =
         logBuffer.log(
             TAG,

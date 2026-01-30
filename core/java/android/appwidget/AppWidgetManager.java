@@ -29,6 +29,7 @@ import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.annotation.UiThread;
 import android.annotation.UserIdInt;
+import android.annotation.WorkerThread;
 import android.app.IServiceConnection;
 import android.app.PendingIntent;
 import android.app.usage.UsageStatsManager;
@@ -43,23 +44,18 @@ import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.ShortcutInfo;
-import android.graphics.Rect;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.HandlerExecutor;
-import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
-import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.ArrayMap;
 import android.util.DisplayMetrics;
 import android.util.Log;
-import android.util.Pair;
 import android.widget.RemoteViews;
 
 import com.android.internal.appwidget.IAppWidgetService;
@@ -67,13 +63,14 @@ import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.FunctionalUtils;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
 /**
@@ -502,15 +499,15 @@ public class AppWidgetManager {
      *
      * A single widget interaction event describes what user interactions happened during a single
      * impression of the widget.
+     * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENGAGEMENT_METRICS)
-    public static final String EVENT_TYPE_WIDGET_INTERACTION = "widget_interaction";
+    static final String EVENT_TYPE_WIDGET_INTERACTION = "widget_interaction";
 
     /**
      * This is the value of {@link UsageStatsManager.EXTRA_EVENT_CATEGORY} in the event bundle for
      * widget user interaction events.
+     * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENGAGEMENT_METRICS)
     public static final String EVENT_CATEGORY_APPWIDGET = "android.appwidget";
 
     /**
@@ -519,12 +516,12 @@ public class AppWidgetManager {
      * 10 distinct IDs per event.
      *
      * Widget providers may set a different ID for event logging by setting the usage event tag on
-     * the view with {@link RemoteViews#setUsageEventTag}.
+     * the view with {@link RemoteViews#setAppWidgetEventTag}.
      *
-     * @see android.widget.RemoteViews#setUsageEventTag
+     * @see android.widget.RemoteViews#setAppWidgetEventTag
+     * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENGAGEMENT_METRICS)
-    public static final String EXTRA_EVENT_CLICKED_VIEWS =
+    static final String EXTRA_EVENT_CLICKED_VIEWS =
             "android.appwidget.extra.EVENT_CLICKED_VIEWS";
 
     /**
@@ -533,31 +530,46 @@ public class AppWidgetManager {
      * 10 distinct IDs per event.
      *
      * Widget providers may set a different ID for event logging by setting the usage event tag on
-     * the view with {@link RemoteViews#setUsageEventTag}.
+     * the view with {@link RemoteViews#setAppWidgetEventTag}.
      *
-     * @see android.widget.RemoteViews#setUsageEventTag
+     * @see android.widget.RemoteViews#setAppWidgetEventTag
+     * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENGAGEMENT_METRICS)
-    public static final String EXTRA_EVENT_SCROLLED_VIEWS =
+    static final String EXTRA_EVENT_SCROLLED_VIEWS =
             "android.appwidget.extra.EVENT_SCROLLED_VIEWS";
 
     /**
      * This bundle extra contains a long that represents the duration of time in milliseconds
      * during which the widget was visible.
+     * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENGAGEMENT_METRICS)
-    public static final String EXTRA_EVENT_DURATION_MS =
+    static final String EXTRA_EVENT_DURATION_MS =
             "android.appwidget.extra.EVENT_DURATION_MS";
 
     /**
      * This bundle extra contains an integer array with 4 elements that describe the left, top,
-     * right, and bottom coordinates of the widget at the end of the interaction event.
+     * right, and bottom coordinates (in that order) of the widget at the end of the interaction
+     * event.
      *
      * This Rect indicates the current position and size of the widget.
+     * @hide
      */
-    @FlaggedApi(Flags.FLAG_ENGAGEMENT_METRICS)
-    public static final String EXTRA_EVENT_POSITION_RECT =
+    static final String EXTRA_EVENT_POSITION_RECT =
             "android.appwidget.extra.EVENT_POSITION_RECT";
+
+    /**
+     * This bundle extra contains a long that describes the start (in epoch milliseconds) of the
+     * time range that this event represents.
+     * @hide
+     */
+    static final String EXTRA_EVENT_START = "android.appwidget.extra.EVENT_START";
+
+    /**
+     * This bundle extra contains a long that describes the end (in epoch milliseconds) of the time
+     * range that this event represents.
+     * @hide
+     */
+    static final String EXTRA_EVENT_END = "android.appwidget.extra.EVENT_END";
 
     private static final String TAG = "AppWidgetManager";
 
@@ -586,6 +598,13 @@ public class AppWidgetManager {
     public static final String EXTRA_APPWIDGET_PREVIEW = "appWidgetPreview";
 
     /**
+     * The maximum waiting time for remote adapter conversion in milliseconds
+     *
+     * @hide
+     */
+    private static final long MAX_ADAPTER_CONVERSION_WAITING_TIME_MS = 20_000;
+
+    /**
      * Field for the manifest meta-data tag.
      *
      * @see AppWidgetProviderInfo
@@ -602,7 +621,8 @@ public class AppWidgetManager {
 
     private boolean mHasPostedLegacyLists = false;
 
-    private @NonNull ServiceCollectionCache mServiceCollectionCache;
+    @NonNull
+    private final ServiceCollectionCache mServiceCollectionCache;
 
     /**
      * Get the AppWidgetManager instance to use for the supplied {@link android.content.Context
@@ -655,25 +675,40 @@ public class AppWidgetManager {
 
     private void tryAdapterConversion(
             FunctionalUtils.RemoteExceptionIgnoringConsumer<RemoteViews> action,
-            RemoteViews original, String failureMsg) {
-        if (remoteAdapterConversion()
-                && (mHasPostedLegacyLists = mHasPostedLegacyLists
-                        || (original != null && original.hasLegacyLists()))) {
+            RemoteViews original, int[] appWidgetIds, String failureMsg) {
+        if (remoteAdapterConversion()) {
+            mHasPostedLegacyLists = mHasPostedLegacyLists
+                    || (original != null && original.hasLegacyLists());
+        }
+        if (remoteAdapterConversion() && mHasPostedLegacyLists && original != null) {
             final RemoteViews viewsCopy = new RemoteViews(original);
             Runnable updateWidgetWithTask = () -> {
                 try {
-                    viewsCopy.collectAllIntents(mMaxBitmapMemory, mServiceCollectionCache).get();
-                    action.acceptOrThrow(viewsCopy);
+                    if (shouldSkipListConversion(viewsCopy, appWidgetIds)) {
+                        Log.d(TAG, "Skipping legacy list conversion, pending config activity");
+                        viewsCopy.replaceAllIntentsWithEmptyList();
+                    } else {
+                        viewsCopy.collectAllIntents(mMaxBitmapMemory, false /* invalidateData */,
+                                        mServiceCollectionCache)
+                                .thenRun(() -> {
+                                    try {
+                                        action.acceptOrThrow(viewsCopy);
+                                    } catch (RemoteException e) {
+                                        e.rethrowFromSystemServer();
+                                    }
+                                }).exceptionally(e -> {
+                                    Log.e(TAG, failureMsg, e);
+                                    return null;
+                                });
+                    }
                 } catch (Exception e) {
                     Log.e(TAG, failureMsg, e);
                 }
             };
-
             if (Looper.getMainLooper() == Looper.myLooper()) {
                 createUpdateExecutorIfNull().execute(updateWidgetWithTask);
                 return;
             }
-
             updateWidgetWithTask.run();
         } else {
             try {
@@ -682,6 +717,13 @@ public class AppWidgetManager {
                 throw re.rethrowFromSystemServer();
             }
         }
+    }
+
+    private boolean shouldSkipListConversion(RemoteViews views, int[] appWidgetIds)
+            throws RemoteException {
+        return appWidgetIds.length == 1
+                && views.hasLegacyLists()
+                && mService.isFirstConfigActivityPending(mPackageName, appWidgetIds[0]);
     }
 
     /**
@@ -709,7 +751,7 @@ public class AppWidgetManager {
         }
 
         tryAdapterConversion(view -> mService.updateAppWidgetIds(mPackageName, appWidgetIds,
-                view), views, "Error updating app widget views in background");
+                view), views, appWidgetIds, "Error updating app widget views in background");
     }
 
     /**
@@ -815,7 +857,7 @@ public class AppWidgetManager {
         }
 
         tryAdapterConversion(view -> mService.partiallyUpdateAppWidgetIds(mPackageName,
-                appWidgetIds, view), views,
+                appWidgetIds, view), views, appWidgetIds,
                 "Error partially updating app widget views in background");
     }
 
@@ -869,7 +911,7 @@ public class AppWidgetManager {
         }
 
         tryAdapterConversion(view -> mService.updateAppWidgetProvider(provider, view), views,
-                "Error updating app widget view using provider in background");
+                new int[0], "Error updating app widget view using provider in background");
     }
 
     /**
@@ -926,10 +968,10 @@ public class AppWidgetManager {
         }
 
         if (remoteAdapterConversion()) {
+            mHasPostedLegacyLists = true;
             if (Looper.myLooper() == Looper.getMainLooper()) {
-                mHasPostedLegacyLists = true;
-                createUpdateExecutorIfNull().execute(() -> notifyCollectionWidgetChange(
-                        appWidgetIds, viewId));
+                createUpdateExecutorIfNull().execute(
+                        () -> notifyCollectionWidgetChange(appWidgetIds, viewId));
             } else {
                 notifyCollectionWidgetChange(appWidgetIds, viewId);
             }
@@ -942,23 +984,36 @@ public class AppWidgetManager {
         }
     }
 
+    @WorkerThread
     private void notifyCollectionWidgetChange(int[] appWidgetIds, int viewId) {
         try {
-            List<CompletableFuture<Void>> updateFutures = new ArrayList<>();
-            for (int i = 0; i < appWidgetIds.length; i++) {
-                final int widgetId = appWidgetIds[i];
-                updateFutures.add(CompletableFuture.runAsync(() -> {
-                    try {
-                        RemoteViews views = mService.getAppWidgetViews(mPackageName, widgetId);
-                        if (views.replaceRemoteCollections(viewId)) {
-                            updateAppWidget(widgetId, views);
-                        }
-                    } catch (Exception e) {
-                        Log.e(TAG, "Error notifying changes in RemoteViews", e);
+            for (final int widgetId : appWidgetIds) {
+                try {
+                    if (mService.isFirstConfigActivityPending(mPackageName, widgetId)) {
+                        Log.d(TAG, "Skipping collection notify, pending config activity");
+                        continue;
                     }
-                }));
+                    RemoteViews views = mService.getAppWidgetViews(mPackageName, widgetId);
+                    if (views == null || !views.replaceRemoteCollections(viewId)) {
+                        continue;
+                    }
+                    views.collectAllIntents(
+                            mMaxBitmapMemory, true /* invalidateData */, mServiceCollectionCache)
+                            .thenRun(() -> {
+                                try {
+                                    mService.updateAppWidgetIds(
+                                            mPackageName, new int[]{widgetId}, views);
+                                } catch (RemoteException e) {
+                                    e.rethrowFromSystemServer();
+                                }
+                            }).exceptionally(e -> {
+                                Log.e(TAG, "Error notifying changes in RemoteViews", e);
+                                return null;
+                            });
+                } catch (Exception e) {
+                    Log.e(TAG, "Error notifying changes in RemoteViews", e);
+                }
             }
-            CompletableFuture.allOf(updateFutures.toArray(CompletableFuture[]::new)).join();
         } catch (Exception e) {
             Log.e(TAG, "Error notifying changes for all widgets", e);
         }
@@ -1593,54 +1648,53 @@ public class AppWidgetManager {
         }
     }
 
+    /** @hide */
+    public void setConfigActivityComplete(int widgetId) {
+        try {
+            mService.setConfigActivityComplete(widgetId);
+        } catch (RemoteException e) {
+            Log.d(TAG, "Error notifying config activity completed");
+        }
+    }
+
     /**
-     * Create a {@link PersistableBundle} that represents a single widget interaction event.
+     * Query for app widget interaction events in the given time range. Events are only kept by the
+     * system for a few days. This method only returns events for widgets provided by the calling
+     * package and does not require any additional permissions.
      *
-     * @param appWidgetId App Widget ID of the widget.
-     * @param durationMs Duration of the impression in milliseconds
-     * @param position Current position of the widget.
-     * @param clickedIds IDs of views clicked during this event.
-     * @param scrolledIds IDs of views scrolled during this event.
-     *
-     * @hide
+     * @param beginTime The inclusive beginning of the range of events to include in the results.
+     *                  Defined in terms of "Unix time", see
+     *                  {@link java.lang.System#currentTimeMillis}.
+     * @param endTime The exclusive end of the range of events to include in the results. Defined
+     *                in terms of "Unix time", see {@link java.lang.System#currentTimeMillis}.
+     * @return An array of {@link AppWidgetEvent} objects.
      */
     @FlaggedApi(Flags.FLAG_ENGAGEMENT_METRICS)
     @NonNull
-    public static PersistableBundle createWidgetInteractionEvent(int appWidgetId, long durationMs,
-            @Nullable Rect position, @Nullable int[] clickedIds, @Nullable int[] scrolledIds) {
-        PersistableBundle extras = new PersistableBundle();
-        extras.putString(UsageStatsManager.EXTRA_EVENT_ACTION, EVENT_TYPE_WIDGET_INTERACTION);
-        extras.putString(UsageStatsManager.EXTRA_EVENT_CATEGORY, EVENT_CATEGORY_APPWIDGET);
-        extras.putInt(EXTRA_APPWIDGET_ID, appWidgetId);
-        extras.putLong(EXTRA_EVENT_DURATION_MS, durationMs);
-        if (position != null) {
-            extras.putIntArray(EXTRA_EVENT_POSITION_RECT,
-                    new int[]{position.left, position.top, position.right, position.bottom});
+    public List<AppWidgetEvent> queryAppWidgetEvents(long beginTime, long endTime) {
+        try {
+            ParceledListSlice<AppWidgetEvent> events = mService.queryAppWidgetEvents(mPackageName,
+                    beginTime, endTime);
+            return events != null ? events.getList() : Collections.emptyList();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
         }
-        if (clickedIds != null && clickedIds.length > 0) {
-            extras.putIntArray(EXTRA_EVENT_CLICKED_VIEWS, clickedIds);
-        }
-        if (scrolledIds != null && scrolledIds.length > 0) {
-            extras.putIntArray(EXTRA_EVENT_SCROLLED_VIEWS, scrolledIds);
-        }
-        return extras;
     }
-
 
     @UiThread
     private static @NonNull Executor createUpdateExecutorIfNull() {
         if (sUpdateExecutor == null) {
-            sUpdateExecutor = new HandlerExecutor(createAndStartNewHandler(
-                    "widget_manager_update_helper_thread", Process.THREAD_PRIORITY_FOREGROUND));
+            sUpdateExecutor = createExecutorService(
+                    "widget_manager_update_helper_thread", Process.THREAD_PRIORITY_FOREGROUND);
         }
-
         return sUpdateExecutor;
     }
 
-    private static @NonNull Handler createAndStartNewHandler(@NonNull String name, int priority) {
-        HandlerThread thread = new HandlerThread(name, priority);
-        thread.start();
-        return thread.getThreadHandler();
+    private static ExecutorService createExecutorService(@NonNull String name, int priority) {
+        return Executors.newSingleThreadExecutor(r -> new Thread(() -> {
+            Process.setThreadPriority(Process.myTid(), priority);
+            r.run();
+        }, name));
     }
 
     /**
@@ -1665,27 +1719,31 @@ public class AppWidgetManager {
          * Connect to the service indicated by the {@code Intent}, and consume the binder on the
          * specified executor
          */
-        public void connectAndConsume(Intent intent, Consumer<IBinder> task, Executor executor) {
-            mHandler.post(() -> connectAndConsumeInner(intent, task, executor));
+        public void connectAndConsume(Intent intent, Consumer<IBinder> task) {
+            mHandler.post(() -> connectAndConsumeInner(intent, task));
         }
 
-        private void connectAndConsumeInner(Intent intent, Consumer<IBinder> task,
-                Executor executor) {
+        private void connectAndConsumeInner(Intent intent, Consumer<IBinder> task) {
             ConnectionTask activeConnection = mActiveConnections.computeIfAbsent(
                     new FilterComparison(intent), ConnectionTask::new);
-            activeConnection.add(task, executor);
+            activeConnection.add(task);
         }
 
         private class ConnectionTask implements ServiceConnection {
 
             private final Runnable mDestroyAfterTimeout = this::onDestroyTimeout;
-            private final ArrayDeque<Pair<Consumer<IBinder>, Executor>> mTaskQueue =
-                    new ArrayDeque<>();
+            private final Runnable mConnectionTimeout = this::onConnectionTimeout;
+            private final ArrayDeque<Consumer<IBinder>> mTaskQueue = new ArrayDeque<>();
 
+            private final String mExecutorName;
             private boolean mOnDestroyTimeout = false;
             private IBinder mIBinder;
 
+            private ExecutorService mBinderCallExecutor;
+            private Object mCurrentTaskToken;
+
             ConnectionTask(@NonNull FilterComparison filter) {
+                mExecutorName = "appwidget-connectiontask-" + filter.hashCode();
                 try {
                     mContext.bindService(filter.getIntent(),
                             Context.BindServiceFlags.of(Context.BIND_AUTO_CREATE),
@@ -1694,12 +1752,12 @@ public class AppWidgetManager {
                 } catch (Exception e) {
                     Log.e(TAG, "Error connecting to service in connection cache", e);
                 }
+                mHandler.postDelayed(mConnectionTimeout, MAX_ADAPTER_CONVERSION_WAITING_TIME_MS);
             }
 
             @Override
             public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-                mIBinder = iBinder;
-                mHandler.post(this::handleNext);
+                onBinderReceived(iBinder);
             }
 
             @Override
@@ -1708,30 +1766,76 @@ public class AppWidgetManager {
                 onServiceConnected(name, new Binder());
             }
 
+            private void onConnectionTimeout() {
+                onBinderReceived(new Binder());
+            }
+
+            private void onBinderReceived(IBinder iBinder) {
+                if (mIBinder != null) {
+                    return;
+                }
+                mIBinder = iBinder;
+                mHandler.removeCallbacks(mConnectionTimeout);
+                mHandler.post(this::handleNext);
+            }
+
             @Override
             public void onServiceDisconnected(ComponentName componentName) { }
 
-            void add(Consumer<IBinder> task, Executor executor) {
-                mTaskQueue.add(Pair.create(task, executor));
+            void add(Consumer<IBinder> task) {
+                mTaskQueue.add(task);
                 if (mOnDestroyTimeout) {
                     // If we are waiting for timeout, cancel it and execute the next task
                     handleNext();
                 }
             }
 
+            private void onTaskComplete(Object taskToken) {
+                if (mCurrentTaskToken == taskToken) {
+                    mCurrentTaskToken = null;
+                    handleNext();
+                }
+            }
+
             private void handleNext() {
                 mHandler.removeCallbacks(mDestroyAfterTimeout);
-                Pair<Consumer<IBinder>, Executor> next = mTaskQueue.pollFirst();
+                Consumer<IBinder> next = mTaskQueue.pollFirst();
                 if (next != null) {
+                    mCurrentTaskToken = next;
                     mOnDestroyTimeout = false;
-                    next.second.execute(() -> {
-                        next.first.accept(mIBinder);
-                        mHandler.post(this::handleNext);
+                    if (mBinderCallExecutor == null) {
+                        mBinderCallExecutor = createExecutorService(
+                                mExecutorName, Process.THREAD_PRIORITY_FOREGROUND);
+                    }
+                    Future task = mBinderCallExecutor.submit(() -> {
+                        next.accept(mIBinder);
+                        mHandler.post(() -> onTaskComplete(next));
                     });
+
+                    mHandler.postDelayed(
+                            () -> onTaskTimeout(task, next),
+                            MAX_ADAPTER_CONVERSION_WAITING_TIME_MS);
+
                 } else {
                     // Finished all tasks, start a timeout to unbind this service
                     mOnDestroyTimeout = true;
                     mHandler.postDelayed(mDestroyAfterTimeout, mTimeOut);
+                }
+            }
+
+            /**
+             * If a task times out, we try to interrupt it, but also switch to a new executor,
+             * in case the previous executor gets blocked for ever
+             */
+            private void onTaskTimeout(Future task, Object taskToken) {
+                if (!task.isDone()) {
+                    ExecutorService oldExecutor = mBinderCallExecutor;
+                    mBinderCallExecutor = null;
+                    task.cancel(true);
+                    if (oldExecutor != null) {
+                        oldExecutor.shutdown();
+                    }
+                    onTaskComplete(taskToken);
                 }
             }
 
@@ -1747,6 +1851,9 @@ public class AppWidgetManager {
                     mContext.unbindService(this);
                 } catch (Exception e) {
                     Log.e(TAG, "Error unbinding the cached connection", e);
+                }
+                if (mBinderCallExecutor != null) {
+                    mBinderCallExecutor.shutdown();
                 }
                 mActiveConnections.values().remove(this);
             }

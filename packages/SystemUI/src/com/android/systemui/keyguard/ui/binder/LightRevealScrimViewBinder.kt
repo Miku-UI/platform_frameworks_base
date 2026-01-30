@@ -45,23 +45,21 @@ object LightRevealScrimViewBinder {
                     launch("$TAG#viewModel.maxAlpha") {
                         var animator: ValueAnimator? = null
                         viewModel.maxAlpha.collect { (alpha, animate) ->
-                            if (alpha != revealScrim.alpha) {
-                                animator?.cancel()
-                                if (!animate) {
-                                    revealScrim.alpha = alpha
-                                } else {
-                                    animator =
-                                        ValueAnimator.ofFloat(revealScrim.alpha, alpha).apply {
-                                            startDelay = 333
-                                            duration = 733
-                                            interpolator = ALPHA_IN
-                                            addUpdateListener { animation ->
-                                                revealScrim.alpha =
-                                                    animation.getAnimatedValue() as Float
-                                            }
-                                            start()
+                            animator?.cancel()
+                            if (!animate) {
+                                revealScrim.alpha = alpha
+                            } else {
+                                animator =
+                                    ValueAnimator.ofFloat(revealScrim.alpha, alpha).apply {
+                                        startDelay = 333
+                                        duration = 733
+                                        interpolator = ALPHA_IN
+                                        addUpdateListener { animation ->
+                                            revealScrim.alpha =
+                                                animation.getAnimatedValue() as Float
                                         }
-                                }
+                                        start()
+                                    }
                             }
                         }
                     }

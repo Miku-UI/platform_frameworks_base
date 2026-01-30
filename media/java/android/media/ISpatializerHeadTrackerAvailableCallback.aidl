@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for the AudioService to signal whether audio device used by Spatializer has head tracker.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ISpatializerHeadTrackerAvailableCallback {
 

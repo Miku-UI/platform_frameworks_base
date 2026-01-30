@@ -24,21 +24,36 @@ import android.content.pm.PackageManager;
 import android.os.LocaleList;
 import android.os.RemoteException;
 import android.os.ShellCommand;
+import android.os.SystemProperties;
 import android.os.UserHandle;
 
+import com.android.internal.app.LocalePicker;
+
 import java.io.PrintWriter;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Shell commands for {@link LocaleManagerService}
  */
 public class LocaleManagerShellCommand extends ShellCommand {
+
     private final ILocaleManager mBinderService;
     private final Context mContext;
+    private Set<Locale> mSupportedLocalesSet;
+    private static final int ERROR_NO_LOCALE_SPECIFIED = -1;
+    private static final int ERROR_INVALID_LOCALE_TAG = -2;
+    private static final int ERROR_FETCHING_SYSTEM_LOCALE = -3;
+    private static final int ERROR_NO_SUPPORTED_LOCALES_FOUND = -4;
+    private static final int SUCCESS = 0;
 
     LocaleManagerShellCommand(ILocaleManager localeManager, Context context) {
         mBinderService = localeManager;
         mContext = context;
+        mSupportedLocalesSet = new HashSet<>();
     }
+
     @Override
     public int onCommand(String cmd) {
         if (cmd == null) {
@@ -55,6 +70,12 @@ public class LocaleManagerShellCommand extends ShellCommand {
                 return runGetAppOverrideLocaleConfig();
             case "get-app-localeconfig-ignore-override":
                 return runGetAppLocaleConfigIgnoreOverride();
+            case "set-device-locale":
+                return runSetDeviceLocale();
+            case "get-device-locale":
+                return runGetDeviceLocale();
+            case "list-device-locales":
+                return runListDeviceLocales();
             default: {
                 return handleDefaultCommands(cmd);
             }
@@ -66,37 +87,48 @@ public class LocaleManagerShellCommand extends ShellCommand {
         PrintWriter pw = getOutPrintWriter();
         pw.println("Locale manager (locale) shell commands:");
         pw.println("  help");
-        pw.println("      Print this help text.");
+        pw.println("    Print this help text.");
         pw.println("  set-app-locales <PACKAGE_NAME> [--user <USER_ID>] [--locales <LOCALE_INFO>]"
                 + "[--delegate <FROM_DELEGATE>]");
-        pw.println("      Set the locales for the specified app.");
-        pw.println("      --user <USER_ID>: apply for the given user, "
+        pw.println("    Set the locales for the specified app.");
+        pw.println("    --user <USER_ID>: apply for the given user, "
                 + "the current user is used when unspecified.");
-        pw.println("      --locales <LOCALE_INFO>: The language tags of locale to be included "
+        pw.println("    --locales <LOCALE_INFO>: The language tags of locale to be included "
                 + "as a single String separated by commas.");
-        pw.println("                 eg. en,en-US,hi ");
-        pw.println("                 Empty locale list is used when unspecified.");
-        pw.println("      --delegate <FROM_DELEGATE>: The locales are set from a delegate, "
+        pw.println("            eg. en,en-US,hi ");
+        pw.println("            Empty locale list is used when unspecified.");
+        pw.println("    --delegate <FROM_DELEGATE>: The locales are set from a delegate, "
                 + "the value could be true or false. false is the default when unspecified.");
         pw.println("  get-app-locales <PACKAGE_NAME> [--user <USER_ID>]");
-        pw.println("      Get the locales for the specified app.");
-        pw.println("      --user <USER_ID>: get for the given user, "
+        pw.println("    Get the locales for the specified app.");
+        pw.println("    --user <USER_ID>: get for the given user, "
                 + "the current user is used when unspecified.");
         pw.println(
                 "  set-app-localeconfig <PACKAGE_NAME> [--user <USER_ID>] [--locales "
                         + "<LOCALE_INFO>]");
-        pw.println("      Set the override LocaleConfig for the specified app.");
-        pw.println("      --user <USER_ID>: apply for the given user, "
+        pw.println("    Set the override LocaleConfig for the specified app.");
+        pw.println("    --user <USER_ID>: apply for the given user, "
                 + "the current user is used when unspecified.");
-        pw.println("      --locales <LOCALE_INFO>: The language tags of locale to be included "
+        pw.println("    --locales <LOCALE_INFO>: The language tags of locale to be included "
                 + "as a single String separated by commas.");
-        pw.println("                 eg. en,en-US,hi ");
-        pw.println("                 Empty locale list is used when typing a 'empty' word");
-        pw.println("                 NULL is used when unspecified.");
+        pw.println("            eg. en,en-US,hi ");
+        pw.println("            Empty locale list is used when typing a 'empty' word");
+        pw.println("            NULL is used when unspecified.");
         pw.println("  get-app-localeconfig <PACKAGE_NAME> [--user <USER_ID>]");
-        pw.println("      Get the locales within the override LocaleConfig for the specified app.");
-        pw.println("      --user <USER_ID>: get for the given user, "
+        pw.println("    Get the locales within the override LocaleConfig for the specified app.");
+        pw.println("    --user <USER_ID>: get for the given user, "
                 + "the current user is used when unspecified.");
+        pw.println("  set-device-locale");
+        pw.println("    Set the locale of the device.");
+        pw.println("    <LOCALE_NAME>: The BCP 47 language tag of the locale to set (e.g., "
+                + "en-US, es, fr-CA).");
+        pw.println("  get-device-locale");
+        pw.println("    Get the locale of the device.");
+        pw.println("    Outputs the current primary device locale as a BCP 47 language tag.");
+        pw.println("  list-device-locales");
+        pw.println("    List the locales of the device.");
+        pw.println("    Outputs a list of all BCP 47 language tags for locales supported by the "
+                + "device.");
     }
 
     private int runSetAppLocales() {
@@ -288,8 +320,8 @@ public class LocaleManagerShellCommand extends ShellCommand {
             LocaleConfig resLocaleConfig = null;
             try {
                 resLocaleConfig = LocaleConfig.fromContextIgnoringOverride(
-                    mContext.createPackageContextAsUser(packageName, /* flags= */ 0,
-                        UserHandle.of(userId)));
+                        mContext.createPackageContextAsUser(packageName, /* flags= */ 0,
+                                UserHandle.of(userId)));
             } catch (PackageManager.NameNotFoundException e) {
                 err.println("Unknown package name " + packageName + " for user " + userId);
                 return -1;
@@ -314,6 +346,97 @@ public class LocaleManagerShellCommand extends ShellCommand {
             return -1;
         }
         return 0;
+    }
+
+    private int runSetDeviceLocale() {
+        final PrintWriter err = getErrPrintWriter();
+        String inputLocaleTag = getNextArg();
+
+        if (inputLocaleTag == null || inputLocaleTag.isEmpty()) {
+            err.println("Error: no locale specified");
+            return ERROR_NO_LOCALE_SPECIFIED;
+        }
+
+        final Locale requestedLocale = Locale.forLanguageTag(inputLocaleTag);
+        if (requestedLocale == null
+                || requestedLocale.getLanguage() == null
+                || requestedLocale.getLanguage().isEmpty()
+                || requestedLocale.getLanguage().equals("und")) {
+            err.println("Error: Invalid locale tag: " + inputLocaleTag);
+            return ERROR_INVALID_LOCALE_TAG;
+        }
+
+        loadSupportedLocales();
+
+        if (mSupportedLocalesSet.isEmpty()) {
+            err.println("Error: No supported locales found.");
+            return ERROR_NO_SUPPORTED_LOCALES_FOUND;
+        }
+
+        if (mSupportedLocalesSet.contains(requestedLocale)) {
+            LocalePicker.updateLocale(requestedLocale);
+            return SUCCESS;
+        } else {
+            err.println("Error: Invalid locale tag: " + inputLocaleTag);
+            return ERROR_INVALID_LOCALE_TAG;
+        }
+    }
+
+    private int runGetDeviceLocale() {
+        final PrintWriter err = getErrPrintWriter();
+        LocaleList systemLocales = LocalePicker.getLocales();
+        Locale currentLocale = null;
+
+        if (systemLocales != null && !systemLocales.isEmpty()) {
+            currentLocale = systemLocales.get(0);
+        }
+
+        if (currentLocale == null
+                || currentLocale.getLanguage().isEmpty()
+                || currentLocale.getLanguage().equals("und")) {
+            String roProductLocale = SystemProperties.get("ro.product.locale");
+            if (roProductLocale == null || roProductLocale.isEmpty()) {
+                err.println("Error fetching the system locale: No system locales found.");
+                return ERROR_FETCHING_SYSTEM_LOCALE;
+            }
+            currentLocale = Locale.forLanguageTag(roProductLocale.replace('_', '-'));
+        }
+        if (currentLocale == null
+                || currentLocale.getLanguage().isEmpty()
+                || currentLocale.getLanguage().equals("und")) {
+            err.println("Error: Could not determine a valid device locale.");
+            return ERROR_FETCHING_SYSTEM_LOCALE;
+        }
+
+        getOutPrintWriter().println(currentLocale.toLanguageTag());
+        return SUCCESS;
+    }
+
+    private int runListDeviceLocales() {
+        final PrintWriter err = getErrPrintWriter();
+
+        loadSupportedLocales();
+
+        if (mSupportedLocalesSet.isEmpty()) {
+            err.println("Error: No supported locales found.");
+            return ERROR_NO_SUPPORTED_LOCALES_FOUND;
+        }
+
+        for (Locale locale : mSupportedLocalesSet) {
+            getOutPrintWriter().println(locale.toLanguageTag());
+        }
+        return SUCCESS;
+    }
+
+    private void loadSupportedLocales() {
+        if (mSupportedLocalesSet.isEmpty()) {
+            String[] supportedLocales = LocalePicker.getSupportedLocales(mContext);
+            if (supportedLocales != null) {
+                for (String localeTag : supportedLocales) {
+                    mSupportedLocalesSet.add(Locale.forLanguageTag(localeTag));
+                }
+            }
+        }
     }
 
     private LocaleList parseOverrideLocales() {

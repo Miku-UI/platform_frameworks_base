@@ -19,6 +19,7 @@ package com.android.systemui.bluetooth.qsdialog
 import android.os.Bundle
 import android.view.LayoutInflater
 import com.android.internal.logging.UiEventLogger
+import com.android.systemui.bluetooth.ui.viewModel.BluetoothDetailsContentViewModel
 import com.android.systemui.qs.flags.QsDetailedView
 import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
@@ -34,7 +35,6 @@ class BluetoothTileDialogDelegate
 constructor(
     @Assisted private val initialUiProperties: BluetoothDetailsContentViewModel.UiProperties,
     @Assisted private val cachedContentHeight: Int,
-    @Assisted private val bluetoothTileDialogCallback: BluetoothTileDialogCallback,
     @Assisted private val dismissListener: Runnable,
     private val uiEventLogger: UiEventLogger,
     private val systemuiDialogFactory: SystemUIDialog.Factory,
@@ -50,7 +50,6 @@ constructor(
         fun create(
             initialUiProperties: BluetoothDetailsContentViewModel.UiProperties,
             cachedContentHeight: Int,
-            dialogCallback: BluetoothTileDialogCallback,
             dismissListener: Runnable,
         ): BluetoothTileDialogDelegate
     }
@@ -79,13 +78,11 @@ constructor(
             bluetoothDetailsContentManagerFactory.create(
                 initialUiProperties,
                 cachedContentHeight,
-                bluetoothTileDialogCallback,
                 /* isInDialog= */ true,
                 /* doneButtonCallback= */ fun() {
                     dialog.dismiss()
                 },
             )
-        contentManager.bind(dialog.requireViewById(R.id.root))
     }
 
     override fun onStart(dialog: SystemUIDialog) {

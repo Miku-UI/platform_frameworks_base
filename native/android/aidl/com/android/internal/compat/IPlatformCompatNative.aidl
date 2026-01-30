@@ -22,7 +22,7 @@ package com.android.internal.compat;
  * <p> Should be used for gating and logging from non-app processes running cpp code.
  * For app processes please use android.compat.Compatibility API.
  *
- * {@hide}
+ * @hide
  */
 interface IPlatformCompatNative
 {

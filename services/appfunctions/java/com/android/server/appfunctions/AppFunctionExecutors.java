@@ -19,6 +19,7 @@ package com.android.server.appfunctions;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +42,11 @@ public final class AppFunctionExecutors {
     public static final ExecutorService LOGGING_THREAD_EXECUTOR =
             Executors.newSingleThreadExecutor(
                     new NamedThreadFactory("AppFunctionsLoggingExecutors"));
+
+    /** Executor for scheduled tasks. */
+    public static final ScheduledExecutorService SCHEDULED_EXECUTOR_SERVICE =
+            Executors.newSingleThreadScheduledExecutor(
+                    new NamedThreadFactory("AppFunctionScheduledExecutors"));
 
     static {
         THREAD_POOL_EXECUTOR.allowCoreThreadTimeOut(true);

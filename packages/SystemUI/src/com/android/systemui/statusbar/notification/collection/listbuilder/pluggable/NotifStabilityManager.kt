@@ -16,15 +16,15 @@
 package com.android.systemui.statusbar.notification.collection.listbuilder.pluggable
 
 import com.android.systemui.statusbar.notification.collection.GroupEntry
-import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
+import com.android.systemui.statusbar.notification.collection.PipelineEntry
 
 /**
- * Pluggable for participating in notif stabilization. In particular, suppressing group and
- * section changes.
+ * Pluggable for participating in notif stabilization. In particular, suppressing group and section
+ * changes.
  *
- * The stability manager should be invalidated when previously suppressed a group or
- * section change is now allowed.
+ * The stability manager should be invalidated when previously suppressed a group or section change
+ * is now allowed.
  */
 abstract class NotifStabilityManager protected constructor(name: String) :
     Pluggable<NotifStabilityManager>(name) {
@@ -45,42 +45,48 @@ abstract class NotifStabilityManager protected constructor(name: String) :
     abstract fun onBeginRun()
 
     /**
-     * Returns whether this notification can currently change groups/parents.
-     * Per iteration of the notification pipeline, locally stores this information until the next
-     * run of the pipeline. When this method returns false, it's expected that a group change for
-     * this entry is being suppressed.
+     * Returns whether this notification can currently change groups/parents. Per iteration of the
+     * notification pipeline, locally stores this information until the next run of the pipeline.
+     * When this method returns false, it's expected that a group change for this entry is being
+     * suppressed.
      */
-    abstract fun isGroupChangeAllowed(entry: NotificationEntry): Boolean
+    abstract fun isParentChangeAllowed(entry: NotificationEntry): Boolean
 
     /**
-     * Returns whether this notification group can be pruned for not having enough children.
-     * Per iteration of the notification pipeline, locally stores this information until the next
-     * run of the pipeline. When this method returns false, it's expected that a group prune for
-     * this entry is being suppressed.
+     * Returns whether this group can currently change parents. Per iteration of the notification
+     * pipeline, locally stores this information until the next run of the pipeline. When this
+     * method returns false, it's expected that a parent change for this group is being suppressed.
+     */
+    abstract fun isParentChangeAllowed(entry: GroupEntry): Boolean
+
+    /**
+     * Returns whether this notification group can be pruned for not having enough children. Per
+     * iteration of the notification pipeline, locally stores this information until the next run of
+     * the pipeline. When this method returns false, it's expected that a group prune for this entry
+     * is being suppressed.
      */
     abstract fun isGroupPruneAllowed(entry: GroupEntry): Boolean
 
     /**
-     * Returns whether this notification entry can currently change sections.
-     * Per iteration of the notification pipeline, locally stores this information until the next
-     * run of the pipeline. When this method returns false, it's expected that a section change is
-     * being suppressed.
+     * Returns whether this notification entry can currently change sections. Per iteration of the
+     * notification pipeline, locally stores this information until the next run of the pipeline.
+     * When this method returns false, it's expected that a section change is being suppressed.
      */
     abstract fun isSectionChangeAllowed(entry: NotificationEntry): Boolean
 
     /**
-     * Returns whether this list entry is allowed to be reordered within its section.
-     * Unlike [isGroupChangeAllowed] or [isSectionChangeAllowed], this method is called on every
-     * entry, so an implementation may not assume that returning false means an order change is
-     * being suppressed. However, if an order change is suppressed, that will be reported to ths
+     * Returns whether this list entry is allowed to be reordered within its section. Unlike
+     * [isParentChangeAllowed] or [isSectionChangeAllowed], this method is called on every entry, so
+     * an implementation may not assume that returning false means an order change is being
+     * suppressed. However, if an order change is suppressed, that will be reported to ths
      * implementation by calling [onEntryReorderSuppressed] after ordering is complete.
      */
     abstract fun isEntryReorderingAllowed(entry: PipelineEntry): Boolean
 
     /**
-     * Called by the pipeline to determine if every call to the other stability methods would
-     * return true, regardless of parameters.  This allows the pipeline to skip any pieces of
-     * work related to stability.
+     * Called by the pipeline to determine if every call to the other stability methods would return
+     * true, regardless of parameters. This allows the pipeline to skip any pieces of work related
+     * to stability.
      *
      * @return true if all other methods will return true for any parameters.
      */
@@ -96,11 +102,20 @@ abstract class NotifStabilityManager protected constructor(name: String) :
 /** The default, no-op instance of the stability manager which always allows all changes */
 object DefaultNotifStabilityManager : NotifStabilityManager("DefaultNotifStabilityManager") {
     override fun isPipelineRunAllowed(): Boolean = true
+
     override fun onBeginRun() {}
-    override fun isGroupChangeAllowed(entry: NotificationEntry): Boolean = true
+
+    override fun isParentChangeAllowed(entry: NotificationEntry): Boolean = true
+
+    override fun isParentChangeAllowed(entry: GroupEntry): Boolean = true
+
     override fun isGroupPruneAllowed(entry: GroupEntry): Boolean = true
+
     override fun isSectionChangeAllowed(entry: NotificationEntry): Boolean = true
+
     override fun isEntryReorderingAllowed(entry: PipelineEntry): Boolean = true
+
     override fun isEveryChangeAllowed(): Boolean = true
+
     override fun onEntryReorderSuppressed() {}
 }

@@ -616,7 +616,7 @@ final class UpdatableFontDir {
         FontConfig.FontFamily family = new FontConfig.FontFamily(resolvedFonts,
                 LocaleList.getEmptyLocaleList(), FontConfig.FontFamily.VARIANT_DEFAULT);
         return new FontConfig.NamedFamilyList(Collections.singletonList(family),
-                fontFamily.getName());
+                fontFamily.getName(), null /* TODO: USF should support fallback */);
     }
 
     Map<String, File> getPostScriptMap() {

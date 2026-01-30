@@ -4,3 +4,6 @@ cinek@google.com
 dupin@google.com
 pomini@google.com
 santie@google.com
+
+per-file *Presentation* = file:/packages/SystemUI/src/com/android/systemui/display/dagger/OWNERS
+per-file *PerDisplay* = file:/packages/SystemUI/src/com/android/systemui/display/dagger/OWNERS

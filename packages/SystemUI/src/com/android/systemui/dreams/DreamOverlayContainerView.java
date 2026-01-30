@@ -21,6 +21,8 @@ import android.util.AttributeSet;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
+import com.android.systemui.compose.ComposeInitializer;
+
 /**
  * {@link DreamOverlayContainerView} contains a dream overlay and its status bar.
  */
@@ -40,5 +42,17 @@ public class DreamOverlayContainerView extends ConstraintLayout {
     public DreamOverlayContainerView(
             Context context, AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        ComposeInitializer.INSTANCE.onAttachedToWindow(this);
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        ComposeInitializer.INSTANCE.onDetachedFromWindow(this);
     }
 }

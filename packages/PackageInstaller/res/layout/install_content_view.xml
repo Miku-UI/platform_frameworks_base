@@ -32,7 +32,7 @@
       android:visibility="invisible">
 
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
         android:text="@string/message_staging" />
@@ -55,7 +55,7 @@
       android:visibility="invisible">
 
     <TextView
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
         android:text="@string/installing" />
@@ -72,7 +72,7 @@
 
   <TextView
       android:id="@+id/install_confirm_question"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_confirm_question"
@@ -81,7 +81,7 @@
 
   <TextView
       android:id="@+id/install_confirm_question_update"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_confirm_question_update"
@@ -90,7 +90,7 @@
 
   <TextView
       android:id="@+id/install_success"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_done"
@@ -98,7 +98,7 @@
 
   <TextView
       android:id="@+id/install_failed"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_failed"
@@ -106,7 +106,7 @@
 
   <TextView
       android:id="@+id/install_failed_blocked"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_failed_blocked"
@@ -114,7 +114,7 @@
 
   <TextView
       android:id="@+id/install_failed_conflict"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_failed_conflict"
@@ -122,7 +122,7 @@
 
   <TextView
       android:id="@+id/install_failed_incompatible"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_failed_incompatible"
@@ -130,7 +130,7 @@
 
   <TextView
       android:id="@+id/install_failed_invalid_apk"
-      android:layout_width="wrap_content"
+      android:layout_width="match_parent"
       android:layout_height="wrap_content"
       style="@android:style/TextAppearance.DeviceDefault.SearchResult.Subtitle"
       android:text="@string/install_failed_invalid_apk"

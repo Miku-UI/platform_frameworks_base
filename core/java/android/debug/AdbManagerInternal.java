@@ -59,14 +59,4 @@ public abstract class AdbManagerInternal {
      * reloaded.
      */
     public abstract void notifyKeyFilesUpdated();
-
-    /**
-     * Starts adbd for a transport.
-     */
-    public abstract void startAdbdForTransport(byte transportType);
-
-    /**
-     * Stops adbd for a transport.
-     */
-    public abstract void stopAdbdForTransport(byte transportType);
 }

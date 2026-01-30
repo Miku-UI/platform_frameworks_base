@@ -42,6 +42,7 @@ import com.android.server.hdmi.HdmiControlService.SendMessageCallback;
 import java.io.UnsupportedEncodingException;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 
 /**
  * Represent a logical device of type Playback residing in Android system.
@@ -171,7 +172,11 @@ public class HdmiCecLocalDevicePlayback extends HdmiCecLocalDeviceSource {
                         }
 
                         if (mService.isHdmiControlEnhancedBehaviorFlagEnabled()) {
-                            if (!hasAction(PowerStatusMonitorActionFromPlayback.class)) {
+                            if (mService.getHdmiCecConfig().getStringValue(
+                                    HdmiControlManager.CEC_SETTING_NAME_POWER_STATE_CHANGE_ON_ACTIVE_SOURCE_LOST)
+                                    .equals(HdmiControlManager
+                                            .POWER_STATE_CHANGE_ON_ACTIVE_SOURCE_LOST_STANDBY_NOW)
+                                    && !hasAction(PowerStatusMonitorActionFromPlayback.class)) {
                                 addAndStartAction(
                                         new PowerStatusMonitorActionFromPlayback(
                                                 HdmiCecLocalDevicePlayback.this));

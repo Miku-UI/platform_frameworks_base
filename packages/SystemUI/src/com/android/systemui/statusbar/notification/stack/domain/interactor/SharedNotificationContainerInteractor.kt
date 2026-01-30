@@ -26,6 +26,7 @@ import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.LargeScreenHeaderHelper
 import com.android.systemui.shade.ShadeDisplayAware
+import com.android.systemui.statusbar.notification.shared.NotificationMinimalism
 import com.android.systemui.statusbar.policy.SplitShadeStateController
 import dagger.Lazy
 import javax.inject.Inject
@@ -50,14 +51,36 @@ constructor(
     keyguardInteractor: KeyguardInteractor,
     deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     largeScreenHeaderHelperLazy: Lazy<LargeScreenHeaderHelper>,
+    private val logger: SharedNotificationContainerInteractorLogger?,
 ) {
 
     private val _topPosition = MutableStateFlow(0f)
     val topPosition = _topPosition.asStateFlow()
 
-    private val _notificationStackChanged = MutableStateFlow(0L)
+    /**
+     * A flow that will be updated when the Notification Stack changes and requires updating, this
+     * flow will always be debounced before using, for instant updating, use
+     * [notificationStackChangedInstant] instead.
+     */
+    private val notificationStackChangedDebounced = MutableStateFlow(0L)
+
+    /**
+     * Same as [notificationStackChanged], but instead of debouncing, it will emit a value
+     * immediately.
+     */
+    private val notificationStackChangedInstant = MutableStateFlow(0L)
+
     /** An internal modification was made to notifications */
-    val notificationStackChanged = _notificationStackChanged.debounce(20L)
+    val notificationStackChanged =
+        if (NotificationMinimalism.isEnabled) {
+            notificationStackChangedDebounced.debounce(20L).combine(
+                notificationStackChangedInstant
+            ) { i, j ->
+                i + j
+            }
+        } else {
+            notificationStackChangedDebounced.debounce(20L)
+        }
 
     /* Warning: Even though the value it emits only contains the split shade status, this flow must
      * emit a value whenever the configuration *or* the split shade status changes. Adding a
@@ -115,7 +138,19 @@ constructor(
 
     /** An internal modification was made to notifications */
     fun notificationStackChanged() {
-        _notificationStackChanged.value = _notificationStackChanged.value + 1
+        // TODO(b/424163539): child height updated logs are spammy, which hides other logs
+        // logger?.notificationStackChanged()
+        notificationStackChangedDebounced.value = notificationStackChangedDebounced.value + 1
+    }
+
+    /**
+     * A change in notification stack requires instant update on heights. This method should only be
+     * used when immediate update is required, otherwise, use [notificationStackChanged], which will
+     * trigger updates eventually.
+     */
+    fun notificationsInStackChangedInstant() {
+        if (!NotificationMinimalism.isEnabled) return
+        notificationStackChangedInstant.value += 1
     }
 
     @Deprecated("Use SharedNotificationContainerViewModel.ConfigurationBasedDimensions instead")

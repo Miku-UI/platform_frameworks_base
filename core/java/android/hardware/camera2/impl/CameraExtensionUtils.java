@@ -56,10 +56,7 @@ public final class CameraExtensionUtils {
     static {
         SUPPORTED_CAPTURE_OUTPUT_FORMATS.addAll(Arrays.asList(
                 CameraExtensionCharacteristics.PROCESSING_INPUT_FORMAT, ImageFormat.JPEG,
-                ImageFormat.YCBCR_P010, ImageFormat.JPEG_R ));
-        if (Flags.depthJpegExtensions()) {
-            SUPPORTED_CAPTURE_OUTPUT_FORMATS.add(ImageFormat.DEPTH_JPEG);
-        }
+                ImageFormat.YCBCR_P010, ImageFormat.JPEG_R, ImageFormat.DEPTH_JPEG));
     }
 
     public static class SurfaceInfo {
@@ -109,12 +106,10 @@ public final class CameraExtensionUtils {
             surfaceInfo.mFormat = ImageFormat.JPEG_R;
             return surfaceInfo;
         }
-        if (Flags.depthJpegExtensions()) {
-            if ((nativeFormat == StreamConfigurationMap.HAL_PIXEL_FORMAT_BLOB)
-                    && (dataspace == StreamConfigurationMap.HAL_DATASPACE_DYNAMIC_DEPTH)) {
-                surfaceInfo.mFormat = ImageFormat.DEPTH_JPEG;
-                return surfaceInfo;
-            }
+        if ((nativeFormat == StreamConfigurationMap.HAL_PIXEL_FORMAT_BLOB)
+                && (dataspace == StreamConfigurationMap.HAL_DATASPACE_DYNAMIC_DEPTH)) {
+            surfaceInfo.mFormat = ImageFormat.DEPTH_JPEG;
+            return surfaceInfo;
         }
 
         return surfaceInfo;

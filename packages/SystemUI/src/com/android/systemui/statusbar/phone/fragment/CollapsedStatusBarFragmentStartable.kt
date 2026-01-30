@@ -16,17 +16,18 @@
 
 package com.android.systemui.statusbar.phone.fragment
 
+import android.view.Display
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.ReferenceSysUIDisplaySubcomponent
 import com.android.systemui.fragments.FragmentService
 import com.android.systemui.qs.QSFragmentStartable
-import com.android.systemui.statusbar.phone.fragment.dagger.HomeStatusBarComponent
 import dagger.Binds
 import dagger.Module
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
 import javax.inject.Inject
-import javax.inject.Provider
 
 /**
  * Provides [FragmentService] with a way to automatically inflate [CollapsedStatusBarFragment],
@@ -37,17 +38,18 @@ class CollapsedStatusBarFragmentStartable
 @Inject
 constructor(
     private val fragmentService: FragmentService,
-    private val collapsedstatusBarFragmentProvider: Provider<CollapsedStatusBarFragment>,
+    private val displaySubComponentRepository:
+        PerDisplayRepository<ReferenceSysUIDisplaySubcomponent>,
 ) : CoreStartable {
     override fun start() {
         fragmentService.addFragmentInstantiationProvider(
             CollapsedStatusBarFragment::class.java,
-            collapsedstatusBarFragmentProvider,
+            displaySubComponentRepository[Display.DEFAULT_DISPLAY]!!.statusBarFragmentProvider,
         )
     }
 }
 
-@Module(subcomponents = [HomeStatusBarComponent::class])
+@Module
 interface CollapsedStatusBarFragmentStartableModule {
     @Binds
     @IntoMap

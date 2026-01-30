@@ -19,9 +19,6 @@ package com.android.server.theming;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.theming.FieldColorIndex;
-import android.content.theming.ThemeSettings;
-import android.content.theming.ThemeSettingsUpdater;
-import android.content.theming.ThemeStyle;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -30,15 +27,11 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FieldColorIndexTests {
-    static final ThemeSettings DEFAULTS = new ThemeSettings(1, 0xFF123456, 0xFF654321,
-            "home_wallpaper", ThemeStyle.VIBRANT, true);
-
     private FieldColorIndex mFieldColorIndex;
 
     @Before
     public void setup() {
-        mFieldColorIndex = new FieldColorIndex("colorIndex", ThemeSettingsUpdater::colorIndex,
-                ThemeSettings::colorIndex, DEFAULTS);
+        mFieldColorIndex = new FieldColorIndex();
     }
 
     @Test
@@ -54,10 +47,29 @@ public class FieldColorIndexTests {
     }
 
     @Test
-    public void parse_invalidColorIndex_returnsNull() {
+    public void parse_zeroColorIndex_returnsCorrectInteger() {
+        Integer parsedValue = mFieldColorIndex.parse("0");
+        assertThat(parsedValue).isEqualTo(0);
+    }
+
+    @Test
+    public void parse_invalidColorIndex_nonNumeric_returnsNull() {
         Integer parsedValue = mFieldColorIndex.parse("invalid");
         assertThat(parsedValue).isNull();
     }
+
+    @Test
+    public void parse_invalidColorIndex_emptyString_returnsNull() {
+        Integer parsedValue = mFieldColorIndex.parse("");
+        assertThat(parsedValue).isNull();
+    }
+
+    @Test
+    public void parse_nullString_returnsNull() {
+        Integer parsedValue = mFieldColorIndex.parse(null);
+        assertThat(parsedValue).isNull();
+    }
+
 
     @Test
     public void serialize_validColorIndex_returnsCorrectString() {
@@ -72,17 +84,28 @@ public class FieldColorIndexTests {
     }
 
     @Test
-    public void validate_validColorIndex_returnsTrue() {
+    public void serialize_zeroColorIndex_returnsCorrectString() {
+        String serializedValue = mFieldColorIndex.serialize(0);
+        assertThat(serializedValue).isEqualTo("0");
+    }
+
+    @Test
+    public void validate_validPositiveColorIndex_returnsTrue() {
         assertThat(mFieldColorIndex.validate(5)).isTrue();
     }
 
     @Test
-    public void validate_negativeColorIndex_returnsTrue() {
+    public void validate_validNegativeOneColorIndex_returnsTrue() {
         assertThat(mFieldColorIndex.validate(-1)).isTrue();
     }
 
     @Test
-    public void validate_invalidColorIndex_returnsFalse() {
+    public void validate_validZeroColorIndex_returnsTrue() {
+        assertThat(mFieldColorIndex.validate(0)).isTrue();
+    }
+
+    @Test
+    public void validate_invalidColorIndex_lessThanNegativeOne_returnsFalse() {
         assertThat(mFieldColorIndex.validate(-2)).isFalse();
     }
 
@@ -94,10 +117,5 @@ public class FieldColorIndexTests {
     @Test
     public void getJsonType_returnsStringClass() {
         assertThat(mFieldColorIndex.getJsonType()).isEqualTo(String.class);
-    }
-
-    @Test
-    public void get_returnsDefaultValue() {
-        assertThat(mFieldColorIndex.getDefaultValue()).isEqualTo(DEFAULTS.colorIndex());
     }
 }

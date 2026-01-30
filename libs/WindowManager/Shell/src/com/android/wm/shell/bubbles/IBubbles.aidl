@@ -23,6 +23,7 @@ import android.graphics.Rect;
 import android.os.UserHandle;
 import com.android.wm.shell.bubbles.IBubblesListener;
 import com.android.wm.shell.shared.bubbles.BubbleBarLocation;
+import com.android.wm.shell.shared.bubbles.logging.EntryPoint;
 
 /**
  * Interface that is exposed to remote callers (launcher) to manipulate the bubbles feature when
@@ -34,7 +35,7 @@ interface IBubbles {
 
     oneway void unregisterBubbleListener(in IBubblesListener listener) = 2;
 
-    oneway void showBubble(in String key, in int topOnScreen) = 3;
+    oneway void showBubble(in String key, in int bubbleBarTopToScreenBottom) = 3;
 
     oneway void dragBubbleToDismiss(in String key, in long timestamp) = 4;
 
@@ -48,17 +49,20 @@ interface IBubbles {
 
     oneway void setBubbleBarLocation(in BubbleBarLocation location, in int source) = 9;
 
-    oneway void updateBubbleBarTopOnScreen(in int topOnScreen) = 10;
+    oneway void updateBubbleBarTopToScreenBottom(in int bubbleBarTopToScreenBottom) = 10;
 
-    oneway void stopBubbleDrag(in BubbleBarLocation location, in int topOnScreen) = 11;
+    oneway void stopBubbleDrag(in BubbleBarLocation location,
+            in int bubbleBarTopToScreenBottom) = 11;
 
-    oneway void showShortcutBubble(in ShortcutInfo info, in @nullable BubbleBarLocation location) = 12;
+    oneway void showShortcutBubble(in ShortcutInfo info,
+            in EntryPoint entryPoint, in @nullable BubbleBarLocation location) = 12;
 
-    oneway void showAppBubble(in Intent intent, in UserHandle user, in @nullable BubbleBarLocation location) = 13;
+    oneway void showAppBubble(in Intent intent, in UserHandle user,
+            in EntryPoint entryPoint, in @nullable BubbleBarLocation location) = 13;
 
     oneway void showExpandedView() = 14;
 
-    oneway void showDropTarget(in boolean show, in @nullable BubbleBarLocation location) = 15;
+    oneway void moveDraggedBubbleToFullscreen(in String key, in Point dropLocation) = 15;
 
-    oneway void moveDraggedBubbleToFullscreen(in String key, in Point dropLocation) = 16;
+    oneway void setHasBubbleBar(in boolean hasBubbleBar) = 16;
 }

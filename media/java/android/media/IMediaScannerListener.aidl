@@ -19,7 +19,7 @@ package android.media;
 import android.net.Uri;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IMediaScannerListener
 {

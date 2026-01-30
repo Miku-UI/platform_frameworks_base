@@ -27,8 +27,8 @@ import com.android.systemui.plugins.ActivityStarter.OnDismissAction
 import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.plugins.qs.QS
 import com.android.systemui.plugins.statusbar.StatusBarStateController
-import com.android.systemui.qs.ui.adapter.QSSceneAdapter
 import com.android.systemui.res.R
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.data.repository.ShadeRepository
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
@@ -83,7 +83,6 @@ constructor(
     private val splitShadeStateController: SplitShadeStateController,
     private val shadeLockscreenInteractorLazy: Lazy<ShadeLockscreenInteractor>,
     naturalScrollingSettingObserver: NaturalScrollingSettingObserver,
-    private val lazyQSSceneAdapter: Lazy<QSSceneAdapter>,
 ) : Dumpable {
     private var pulseHeight: Float = 0f
 
@@ -95,10 +94,10 @@ constructor(
     private lateinit var nsslController: NotificationStackScrollLayoutController
     lateinit var centralSurfaces: CentralSurfaces
 
-    // When in scene container mode, this will be null. In that case, we use the adapter if needed
+    // When in scene container mode, this will be null. In that case, we don't care about the answer
     var qS: QS? = null
     private val isQsFullyCollapsed: Boolean
-        get() = qS?.isFullyCollapsed ?: lazyQSSceneAdapter.get().isQsFullyCollapsed
+        get() = qS?.isFullyCollapsed ?: true
 
     /** A handler that handles the next keyguard dismiss animation. */
     private var animationHandlerOnKeyguardDismiss: ((Long) -> Unit)? = null
@@ -412,7 +411,11 @@ constructor(
         set(value) {
             if (field != value || forceApplyAmount) {
                 field = value
-                if (!nsslController.isInLockedDownShade() || field == 0f || forceApplyAmount) {
+                if (SceneContainerFlag.isEnabled) {
+                    // TODO(b/359957196) do we need to do anything here?
+                } else if (
+                    !nsslController.isInLockedDownShade() || field == 0f || forceApplyAmount
+                ) {
                     fractionToShade =
                         MathUtils.saturate(dragDownAmount / notificationShelfTransitionDistance)
                     shadeRepository.setLockscreenShadeExpansion(fractionToShade)
@@ -567,7 +570,7 @@ constructor(
             // and children backgrounds / divider animations will look correct.
             expandView.isGroupExpansionChanging = true
             if (NotificationBundleUi.isEnabled) {
-                userId = expandView.entryAdapter?.sbn?.userId!!
+                expandView.entryAdapter.sbn?.userId?.let { userId = it }
             } else {
                 userId = expandView.entryLegacy.sbn.userId
             }
@@ -608,6 +611,7 @@ constructor(
                 isWakingToShadeLocked = true
             }
             statusBarStateController.setState(StatusBarState.SHADE_LOCKED)
+            qS?.setListening(true)
             // This call needs to be after updating the shade state since otherwise
             // the scrimstate resets too early
             if (animationHandler != null) {

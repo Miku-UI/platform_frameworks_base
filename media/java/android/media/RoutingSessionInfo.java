@@ -22,6 +22,7 @@ import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.os.Binder;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -85,6 +86,36 @@ public final class RoutingSessionInfo implements Parcelable {
     @Retention(RetentionPolicy.SOURCE)
     public @interface TransferReason {}
 
+    /**
+     * Indicates release is unsupported on the session.
+     *
+     * @hide
+     */
+    public static final int RELEASE_UNSUPPORTED = 0;
+
+    /**
+     * Indicates the release type of the session is to stop casting.
+     *
+     * @hide
+     */
+    public static final int RELEASE_TYPE_CASTING = 1;
+
+    /**
+     * Indicates the release type of the session is to stop audio sharing.
+     *
+     * @hide
+     */
+    public static final int RELEASE_TYPE_SHARING = 2;
+
+    /**
+     * Indicates the release type of the session.
+     *
+     * @hide
+     */
+    @IntDef({RELEASE_UNSUPPORTED, RELEASE_TYPE_CASTING, RELEASE_TYPE_SHARING})
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface ReleaseType {}
+
     @NonNull final String mOriginalId;
     @Nullable
     final CharSequence mName;
@@ -116,6 +147,8 @@ public final class RoutingSessionInfo implements Parcelable {
     @Nullable final UserHandle mTransferInitiatorUserHandle;
     @Nullable final String mTransferInitiatorPackageName;
 
+    @ReleaseType private final int mReleaseType;
+
     RoutingSessionInfo(@NonNull Builder builder) {
         Objects.requireNonNull(builder, "builder must not be null.");
 
@@ -144,6 +177,7 @@ public final class RoutingSessionInfo implements Parcelable {
         mTransferReason = builder.mTransferReason;
         mTransferInitiatorUserHandle = builder.mTransferInitiatorUserHandle;
         mTransferInitiatorPackageName = builder.mTransferInitiatorPackageName;
+        mReleaseType = builder.mReleaseType;
     }
 
     RoutingSessionInfo(@NonNull Parcel src) {
@@ -171,6 +205,7 @@ public final class RoutingSessionInfo implements Parcelable {
         mTransferReason = src.readInt();
         mTransferInitiatorUserHandle = UserHandle.readFromParcel(src);
         mTransferInitiatorPackageName = src.readString();
+        mReleaseType = src.readInt();
     }
 
     @Nullable
@@ -419,6 +454,16 @@ public final class RoutingSessionInfo implements Parcelable {
         return mTransferInitiatorPackageName;
     }
 
+    /**
+     * Returns the release type of the session.
+     *
+     * @hide
+     */
+    @ReleaseType
+    public int getReleaseType() {
+        return mReleaseType;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -443,12 +488,13 @@ public final class RoutingSessionInfo implements Parcelable {
         dest.writeInt(mTransferReason);
         UserHandle.writeToParcel(mTransferInitiatorUserHandle, dest);
         dest.writeString(mTransferInitiatorPackageName);
+        dest.writeInt(mReleaseType);
     }
 
     /**
      * Dumps current state of the instance. Use with {@code dumpsys}.
      *
-     * See {@link android.os.Binder#dump(FileDescriptor, PrintWriter, String[])}.
+     * <p>See {@link Binder#dump(FileDescriptor, PrintWriter, String[])}.
      *
      * @hide
      */
@@ -472,6 +518,7 @@ public final class RoutingSessionInfo implements Parcelable {
         pw.println(indent + "mTransferReason=" + mTransferReason);
         pw.println(indent + "mtransferInitiatorUserHandle=" + mTransferInitiatorUserHandle);
         pw.println(indent + "mtransferInitiatorPackageName=" + mTransferInitiatorPackageName);
+        pw.println(indent + "mReleaseType=" + getHumanReadableReleaseType(mReleaseType));
     }
 
     @Override
@@ -503,7 +550,8 @@ public final class RoutingSessionInfo implements Parcelable {
                 && (mTransferReason == other.mTransferReason)
                 && Objects.equals(mTransferInitiatorUserHandle, other.mTransferInitiatorUserHandle)
                 && Objects.equals(
-                        mTransferInitiatorPackageName, other.mTransferInitiatorPackageName);
+                        mTransferInitiatorPackageName, other.mTransferInitiatorPackageName)
+                && mReleaseType == other.mReleaseType;
     }
 
     @Override
@@ -523,7 +571,8 @@ public final class RoutingSessionInfo implements Parcelable {
                 mVolume,
                 mTransferReason,
                 mTransferInitiatorUserHandle,
-                mTransferInitiatorPackageName);
+                mTransferInitiatorPackageName,
+                mReleaseType);
     }
 
     @Override
@@ -556,8 +605,20 @@ public final class RoutingSessionInfo implements Parcelable {
                 .append(getTransferInitiatorUserHandle())
                 .append(", transferInitiatorPackageName=")
                 .append(getTransferInitiatorPackageName())
+                .append(", releaseType=")
+                .append(getHumanReadableReleaseType(getReleaseType()))
                 .append(" }")
                 .toString();
+    }
+
+    @NonNull
+    private static String getHumanReadableReleaseType(@ReleaseType int releaseType) {
+        return switch (releaseType) {
+            case RELEASE_TYPE_SHARING -> "RELEASE_TYPE_SHARING";
+            case RELEASE_TYPE_CASTING -> "RELEASE_TYPE_CASTING";
+            case RELEASE_UNSUPPORTED -> "RELEASE_UNSUPPORTED";
+            default -> "";
+        };
     }
 
     /**
@@ -615,6 +676,7 @@ public final class RoutingSessionInfo implements Parcelable {
         @TransferReason private int mTransferReason = TRANSFER_REASON_FALLBACK;
         @Nullable private UserHandle mTransferInitiatorUserHandle;
         @Nullable private String mTransferInitiatorPackageName;
+        @ReleaseType private int mReleaseType = RELEASE_TYPE_CASTING;
 
         /**
          * Constructor for builder to create {@link RoutingSessionInfo}.
@@ -688,6 +750,7 @@ public final class RoutingSessionInfo implements Parcelable {
             mTransferReason = sessionInfo.mTransferReason;
             mTransferInitiatorUserHandle = sessionInfo.mTransferInitiatorUserHandle;
             mTransferInitiatorPackageName = sessionInfo.mTransferInitiatorPackageName;
+            mReleaseType = sessionInfo.mReleaseType;
         }
 
         /**
@@ -868,31 +931,25 @@ public final class RoutingSessionInfo implements Parcelable {
         }
 
         /**
-         * Sets the session's volume handling.
-         * {@link MediaRoute2Info#PLAYBACK_VOLUME_FIXED} or
+         * Sets the session's volume handling. {@link MediaRoute2Info#PLAYBACK_VOLUME_FIXED} or
          * {@link MediaRoute2Info#PLAYBACK_VOLUME_VARIABLE}.
          */
         @NonNull
-        public RoutingSessionInfo.Builder setVolumeHandling(
-                @MediaRoute2Info.PlaybackVolume int volumeHandling) {
+        public Builder setVolumeHandling(@MediaRoute2Info.PlaybackVolume int volumeHandling) {
             mVolumeHandling = volumeHandling;
             return this;
         }
 
-        /**
-         * Sets the session's maximum volume, or 0 if unknown.
-         */
+        /** Sets the session's maximum volume, or 0 if unknown. */
         @NonNull
-        public RoutingSessionInfo.Builder setVolumeMax(int volumeMax) {
+        public Builder setVolumeMax(int volumeMax) {
             mVolumeMax = volumeMax;
             return this;
         }
 
-        /**
-         * Sets the session's current volume, or 0 if unknown.
-         */
+        /** Sets the session's current volume, or 0 if unknown. */
         @NonNull
-        public RoutingSessionInfo.Builder setVolume(int volume) {
+        public Builder setVolume(int volume) {
             mVolume = volume;
             return this;
         }
@@ -926,6 +983,19 @@ public final class RoutingSessionInfo implements Parcelable {
         @FlaggedApi(FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES)
         public Builder setTransferReason(@TransferReason int transferReason) {
             mTransferReason = transferReason;
+            return this;
+        }
+
+        /**
+         * Gets the release type of the current session.
+         *
+         * <p>By default the release type is set to {@link RoutingSessionInfo#RELEASE_TYPE_CASTING}.
+         *
+         * @hide
+         */
+        @NonNull
+        public Builder setReleaseType(@ReleaseType int releaseType) {
+            mReleaseType = releaseType;
             return this;
         }
 

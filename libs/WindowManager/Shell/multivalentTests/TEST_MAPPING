@@ -1,0 +1,15 @@
+{
+  "wm": [
+    {
+      "name": "WMShellUnitTests"
+    },
+    {
+      "name": "WMShellMultivalentTestsOnDevice"
+    }
+  ],
+  "wm-robolectric": [
+    {
+      "name": "WMShellRobolectricTests"
+    }
+  ]
+}

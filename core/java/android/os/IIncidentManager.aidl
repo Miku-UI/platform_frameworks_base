@@ -23,7 +23,7 @@ import android.os.IncidentReportArgs;
 
 /**
   * Binder interface to report system health incidents.
-  * {@hide}
+  * @hide
   */
 interface IIncidentManager {
 

@@ -36,12 +36,11 @@ import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.statusbar.NotificationListener;
 import com.android.systemui.statusbar.notification.NotificationActivityStarter;
 import com.android.systemui.statusbar.notification.NotificationLaunchAnimatorControllerProvider;
+import com.android.systemui.statusbar.notification.NotificationOnboardingAffordanceManagerModule;
 import com.android.systemui.statusbar.notification.VisibilityLocationProvider;
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactory;
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactoryImpl;
 import com.android.systemui.statusbar.notification.collection.NotifInflaterImpl;
-import com.android.systemui.statusbar.notification.collection.NotifLiveDataStore;
-import com.android.systemui.statusbar.notification.collection.NotifLiveDataStoreImpl;
 import com.android.systemui.statusbar.notification.collection.NotifPipeline;
 import com.android.systemui.statusbar.notification.collection.NotifPipelineChoreographerModule;
 import com.android.systemui.statusbar.notification.collection.coordinator.ShadeEventCoordinator;
@@ -82,10 +81,13 @@ import com.android.systemui.statusbar.notification.logging.NotificationPanelLogg
 import com.android.systemui.statusbar.notification.logging.dagger.NotificationsLogModule;
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationContentExtractor;
 import com.android.systemui.statusbar.notification.promoted.PromotedNotificationContentExtractorImpl;
+import com.android.systemui.statusbar.notification.promoted.ShowPromotedNotificationsOnAOD;
+import com.android.systemui.statusbar.notification.promoted.ShowPromotedNotificationsOnAODImpl;
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModel;
 import com.android.systemui.statusbar.notification.row.NotificationEntryProcessorFactory;
 import com.android.systemui.statusbar.notification.row.NotificationEntryProcessorFactoryLooperImpl;
 import com.android.systemui.statusbar.notification.row.NotificationGutsManager;
+import com.android.systemui.statusbar.notification.row.NotificationRebindingTrackerModule;
 import com.android.systemui.statusbar.notification.row.OnUserInteractionCallback;
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.ActivatableNotificationViewModelModule;
 import com.android.systemui.statusbar.notification.stack.MagneticNotificationRowManager;
@@ -93,6 +95,9 @@ import com.android.systemui.statusbar.notification.stack.MagneticNotificationRow
 import com.android.systemui.statusbar.notification.stack.NotificationListContainer;
 import com.android.systemui.statusbar.notification.stack.NotificationSectionsManager;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController;
+import com.android.systemui.statusbar.notification.stack.NotificationTargetsHelper;
+import com.android.systemui.statusbar.notification.stack.NotificationTargetsHelperImpl;
+import com.android.systemui.statusbar.notification.stack.OnboardingAffordanceCommands;
 import com.android.systemui.statusbar.notification.stack.StackScrollAlgorithm;
 import com.android.systemui.statusbar.phone.KeyguardBypassController;
 import com.android.systemui.statusbar.phone.StatusBarNotificationActivityStarter;
@@ -113,17 +118,22 @@ import javax.inject.Provider;
 /**
  * Dagger Module for classes found within the com.android.systemui.statusbar.notification package.
  */
-@Module(includes = {
-        KeyguardNotificationVisibilityProviderModule.class,
-        NotificationDataLayerModule.class,
-        NotificationDomainLayerModule.class,
-        NotifPipelineChoreographerModule.class,
-        NotificationSectionHeadersModule.class,
-        ActivatableNotificationViewModelModule.class,
-        NotificationMemoryModule.class,
-        NotificationStatsLoggerModule.class,
-        NotificationsLogModule.class,
-})
+@Module(
+        includes = {
+                ActivatableNotificationViewModelModule.class,
+                KeyguardNotificationVisibilityProviderModule.class,
+                NotifPipelineChoreographerModule.class,
+                NotificationDataLayerModule.class,
+                NotificationDomainLayerModule.class,
+                NotificationMemoryModule.class,
+                NotificationOnboardingAffordanceManagerModule.class,
+                NotificationRebindingTrackerModule.class,
+                NotificationSectionHeadersModule.class,
+                NotificationStatsLoggerModule.class,
+                NotificationsLogModule.class,
+                OnboardingAffordanceCommands.Module.class,
+        }
+)
 public interface NotificationsModule {
     @Binds
     StackScrollAlgorithm.SectionProvider bindSectionProvider(NotificationSectionsManager impl);
@@ -261,10 +271,6 @@ public interface NotificationsModule {
 
     /** */
     @Binds
-    NotifLiveDataStore bindNotifLiveDataStore(NotifLiveDataStoreImpl notifLiveDataStoreImpl);
-
-    /** */
-    @Binds
     NotificationListenerService bindNotificationListener(NotificationListener notificationListener);
 
     /** */
@@ -324,10 +330,18 @@ public interface NotificationsModule {
         if (PromotedNotificationContentModel.featureFlagEnabled()) {
             return implProvider.get();
         } else {
-            return (entry, recoveredBuilder, redactionType, imageModelProvider) -> null;
+            return (entry, recoveredBuilder, redactionType, imageModelProvider,
+                    packageContext, sysUIContext) -> null;
         }
     }
 
+    /**
+     *  Provides the default implementation of {@link ShowPromotedNotificationsOnAOD}
+     */
+    @Binds
+    @SysUISingleton
+    ShowPromotedNotificationsOnAOD provideShowPromotedNotificationsOnAOD(
+            ShowPromotedNotificationsOnAODImpl impl);
     /**
      * Provide an implementation of {@link MagneticNotificationRowManager} based on its flag.
      */
@@ -346,5 +360,10 @@ public interface NotificationsModule {
     /** Provides an instance of {@link EntryAdapterFactory} */
     @Binds
     EntryAdapterFactory provideEntryAdapterFactory(EntryAdapterFactoryImpl impl);
+
+    /** Provides the instance of {@link NotificationTargetsHelper} */
+    @Binds
+    @SysUISingleton
+    NotificationTargetsHelper provideNotificationTargetsHelper(NotificationTargetsHelperImpl impl);
 
 }

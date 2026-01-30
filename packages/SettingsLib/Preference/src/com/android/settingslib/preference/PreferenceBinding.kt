@@ -35,6 +35,7 @@ import com.android.settingslib.metadata.getPreferenceIcon
 import com.android.settingslib.metadata.getPreferenceScreenTitle
 import com.android.settingslib.metadata.getPreferenceSummary
 import com.android.settingslib.metadata.getPreferenceTitle
+import kotlinx.coroutines.CoroutineScope
 
 /** Binding of preference widget and preference metadata. */
 interface PreferenceBinding {
@@ -69,15 +70,17 @@ interface PreferenceBinding {
     @CallSuper
     fun bind(preference: Preference, metadata: PreferenceMetadata) {
         metadata.apply {
-            preference.key = key
+            preference.key = bindingKey
             val context = preference.context
-            val preferenceIcon = metadata.getPreferenceIcon(context)
-            if (preferenceIcon != 0) {
-                preference.setIcon(preferenceIcon)
-            } else {
-                preference.icon = null
-            }
             val isPreferenceScreen = preference is PreferenceScreen
+            if (!isPreferenceScreen) {
+                val preferenceIcon = metadata.getPreferenceIcon(context)
+                if (preferenceIcon != 0) {
+                    preference.setIcon(preferenceIcon)
+                } else {
+                    preference.icon = null
+                }
+            }
             val screenMetadata = this as? PreferenceScreenMetadata
             // extras
             preference.peekExtras()?.clear()
@@ -86,7 +89,7 @@ interface PreferenceBinding {
                 val extras = preference.extras
                 // Pass the preference key to fragment, so that the fragment could find associated
                 // preference screen registered in PreferenceScreenRegistry
-                extras.putString(EXTRA_BINDING_SCREEN_KEY, preference.key)
+                extras.putString(EXTRA_BINDING_SCREEN_KEY, key)
                 screenMetadata.arguments?.let { extras.putBundle(EXTRA_BINDING_SCREEN_ARGS, it) }
             }
             preference.title =
@@ -97,9 +100,15 @@ interface PreferenceBinding {
             if (!isPreferenceScreen) {
                 preference.summary = getPreferenceSummary(context)
             }
-            preference.isEnabled = isEnabled(context)
             preference.isVisible =
                 (this as? PreferenceAvailabilityProvider)?.isAvailable(context) != false
+            // PreferenceScreen.isVisible=false has no effect on UI, while isEnable=false will
+            // apply recursively. As a workaround, disable all children when screen is unavailable.
+            preference.isEnabled =
+                when {
+                    isPreferenceScreen && !preference.isVisible -> false
+                    else -> isEnabled(context)
+                }
             preference.isPersistent = isPersistent(context)
             // PreferenceScreenBindingHelper will notify dependency change, so we do not need to set
             // dependency here. This simplifies dependency management and avoid the
@@ -135,14 +144,18 @@ interface PreferenceBindingPlaceholder
 /** Abstract preference screen to provide preference hierarchy and binding factory. */
 interface PreferenceScreenCreator : PreferenceScreenMetadata, PreferenceScreenProvider {
 
-    /** Returns if the flag (e.g. for rollout) is enabled on current screen. */
-    fun isFlagEnabled(context: Context): Boolean = true
-
     val preferenceBindingFactory: PreferenceBindingFactory
         get() = PreferenceBindingFactory.defaultFactory
 
-    override fun createPreferenceScreen(factory: PreferenceScreenFactory) =
+    override fun createPreferenceScreen(
+        factory: PreferenceScreenFactory,
+        coroutineScope: CoroutineScope,
+    ) =
         factory.getOrCreatePreferenceScreen().apply {
-            inflatePreferenceHierarchy(preferenceBindingFactory, getPreferenceHierarchy(context))
+            inflatePreferenceHierarchy(
+                preferenceBindingFactory,
+                getPreferenceHierarchy(context, coroutineScope),
+                mutableMapOf(),
+            )
         }
 }

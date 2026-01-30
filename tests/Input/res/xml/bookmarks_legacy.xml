@@ -35,6 +35,9 @@
     <bookmark
         category="android.intent.category.APP_CALCULATOR"
         shortcut="u" />
+    <bookmark
+        category="android.intent.category.APP_FILES"
+        shortcut="f" />
 
     <bookmark
         role="android.app.role.BROWSER"

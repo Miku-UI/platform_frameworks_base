@@ -48,7 +48,7 @@ public class ValueIntegerChangeActionOperation extends Operation implements Acti
     @NonNull
     @Override
     public String toString() {
-        return "ValueChangeActionOperation(" + mTargetValueId + ")";
+        return "ValueIntegerChangeActionOperation(" + mTargetValueId + ", " + mValue + ")";
     }
 
     /**
@@ -128,7 +128,7 @@ public class ValueIntegerChangeActionOperation extends Operation implements Acti
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER, SerializeTags.ACTION)
                 .addType("ValueIntegerChangeActionOperation")

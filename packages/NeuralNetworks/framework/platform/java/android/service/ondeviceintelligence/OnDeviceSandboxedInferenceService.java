@@ -17,13 +17,14 @@
 package android.service.ondeviceintelligence;
 
 import static android.app.ondeviceintelligence.OnDeviceIntelligenceManager.AUGMENT_REQUEST_CONTENT_BUNDLE_KEY;
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
+import static android.app.ondeviceintelligence.flags.Flags.FLAG_ON_DEVICE_INTELLIGENCE_25Q4;
 
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
 
 import android.annotation.CallSuper;
 import android.annotation.CallbackExecutor;
 import android.annotation.FlaggedApi;
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SdkConstant;
@@ -31,10 +32,12 @@ import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.app.Service;
 import android.app.ondeviceintelligence.Feature;
+import android.app.ondeviceintelligence.InferenceInfo;
 import android.app.ondeviceintelligence.IProcessingSignal;
 import android.app.ondeviceintelligence.IResponseCallback;
 import android.app.ondeviceintelligence.IStreamingResponseCallback;
 import android.app.ondeviceintelligence.ITokenInfoCallback;
+import android.app.ondeviceintelligence.ILifecycleListener;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceException;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager;
 import android.app.ondeviceintelligence.OnDeviceIntelligenceManager.InferenceParams;
@@ -53,6 +56,7 @@ import android.os.IBinder;
 import android.os.ICancellationSignal;
 import android.os.IRemoteCallback;
 import android.os.Looper;
+import android.os.Message;
 import android.os.OutcomeReceiver;
 import android.os.ParcelFileDescriptor;
 import android.os.PersistableBundle;
@@ -65,6 +69,8 @@ import com.android.internal.infra.AndroidFuture;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -96,7 +102,6 @@ import java.util.function.Consumer;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public abstract class OnDeviceSandboxedInferenceService extends Service {
     private static final String TAG = OnDeviceSandboxedInferenceService.class.getSimpleName();
 
@@ -141,9 +146,62 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
         "android.service.ondeviceintelligence.MODEL_UNLOADED";
 
     /**
+     * Key for the {@code processingState} bundle in
+     * {@link #onUpdateProcessingState(Bundle, OutcomeReceiver)}, where the value is a
+     * {@link PersistableBundle} containing the device config flags matching the
+     * configured device-config namespace under
+     * {@link com.android.internal.R.string#config_defaultOnDeviceIntelligenceDeviceConfigNamespace}.
+     *
      * @hide
      */
-    public static final String DEVICE_CONFIG_UPDATE_BUNDLE_KEY = "device_config_update";
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    @SystemApi
+    public static final String KEY_DEVICE_CONFIG_UPDATE =
+            "android.service.ondeviceintelligence.KEY_DEVICE_CONFIG_UPDATE";
+
+    /**
+     * @deprecated Use {@link #KEY_DEVICE_CONFIG_UPDATE} instead.
+     * @hide
+     */
+    @Deprecated
+    public static final String DEPRECATED_KEY_DEVICE_CONFIG_UPDATE = "device_config_update";
+
+    /**
+     * Listener for inference service lifecycle events.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    public interface LifecycleListener {
+        /** A model for a feature was loaded. */
+        int LIFECYCLE_EVENT_MODEL_LOADED = 1;
+        /** A model for a feature was unloaded. */
+        int LIFECYCLE_EVENT_MODEL_UNLOADED = 2;
+        /** The service is attempting to load a model for a feature. */
+        int LIFECYCLE_EVENT_ATTEMPTING_MODEL_LOADING = 3;
+
+
+        /** @hide */
+        @IntDef(prefix = {"LIFECYCLE_EVENT_"}, value = {
+                LIFECYCLE_EVENT_MODEL_LOADED,
+                LIFECYCLE_EVENT_MODEL_UNLOADED,
+                LIFECYCLE_EVENT_ATTEMPTING_MODEL_LOADING
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        @interface LifecycleEvent {
+        }
+
+        /**
+         * Called when a lifecycle event occurs.
+         *
+         * @param eventType The lifecycle event type
+         *                  e.g., {@link #LIFECYCLE_EVENT_MODEL_LOADED}.
+         * @param feature The feature associated with the event.
+         */
+        void onLifecycleEvent(@LifecycleEvent int eventType,
+                @NonNull Feature feature);
+    }
 
     private IRemoteStorageService mRemoteStorageService;
     private Handler mHandler;
@@ -266,6 +324,18 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
                                     OnDeviceSandboxedInferenceService.this, processingState,
                                     wrapOutcomeReceiver(callback)));
                 }
+
+                @Override
+                public void registerInferenceServiceLifecycleListener(
+                        ILifecycleListener listener) {
+                    Objects.requireNonNull(listener);
+                    Message msg = obtainMessage(
+                        OnDeviceSandboxedInferenceService
+                                    ::onRegisterInferenceServiceLifecycleListener,
+                        OnDeviceSandboxedInferenceService.this,
+                        wrapLifecycleListener(listener));
+                    mHandler.executeOrSendMessage(msg);
+                }
             };
         }
         Slog.w(TAG, "Incorrect service interface, returning null.");
@@ -354,7 +424,11 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
      * configuration, files or state.
      *
      * @param processingState contains updated state and params that are to be applied to the
-     *                        processing environmment,
+     *                        processing environment. The expected keys are constants defined in
+     *                        this class, for e.g. {@link #KEY_DEVICE_CONFIG_UPDATE}.
+     *                        There can be other custom keys sent via {@link
+     *                        OnDeviceIntelligenceService} but these would be
+     *                        specific to configured remote package implementation.
      * @param callback        callback to populate the update status and if there are params
      *                        associated with the status.
      */
@@ -362,6 +436,15 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
             @NonNull OutcomeReceiver<PersistableBundle,
                     OnDeviceIntelligenceException> callback);
 
+    /**
+     * Invoked when a caller wants to register a listener for inference service lifecycle events.
+     *
+     * @param listener The listener to be notified of model events.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    public void onRegisterInferenceServiceLifecycleListener(
+            @NonNull LifecycleListener listener) {
+    }
 
     /**
      * Overrides {@link Context#openFileInput} to read files with the given file names under the
@@ -431,6 +514,25 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
         }
     }
 
+    /**
+     * Provides access to feature-specific metadata via the {@link OnDeviceIntelligenceService}.
+     *
+     * @param feature Feature for which the associated metadata should be fetched.
+     * @param executor Executor to run the consumer callback on.
+     * @param resultConsumer Consumer to receive the corresponding metadata bundle.
+     */
+    @FlaggedApi(FLAG_ON_DEVICE_INTELLIGENCE_25Q4)
+    public final void fetchFeatureMetadata(
+            @NonNull Feature feature,
+            @NonNull @CallbackExecutor Executor executor,
+            @NonNull Consumer<Bundle> resultConsumer) {
+        try {
+            mRemoteStorageService.getFeatureMetadata(
+                    feature, wrapAsBundleRemoteCallback(resultConsumer, executor));
+        } catch (RemoteException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     /**
      * Returns the {@link Executor} to use for incoming IPC from request sender into your service
@@ -467,6 +569,18 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
         });
     }
 
+    private RemoteCallback wrapAsBundleRemoteCallback(
+        @NonNull Consumer<Bundle> resultConsumer,
+        @NonNull Executor executor) {
+        return new RemoteCallback(result -> {
+            if (result == null) {
+                executor.execute(() -> resultConsumer.accept(Bundle.EMPTY));
+            } else {
+                executor.execute(() -> resultConsumer.accept(result));
+            }
+        });
+    }
+
     private ProcessingCallback wrapResponseCallback(
             IResponseCallback callback) {
         return new ProcessingCallback() {
@@ -498,6 +612,31 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
 
                 } catch (RemoteException e) {
                     Slog.e(TAG, "Error sending augment request: " + e);
+                }
+            }
+
+            @Override
+            public void onInferenceInfo(@NonNull InferenceInfo info) {
+                try {
+                    callback.onInferenceInfo(info);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending inference info: " + e);
+                }
+            }
+        };
+    }
+
+    private LifecycleListener wrapLifecycleListener(
+            ILifecycleListener listener) {
+        return new LifecycleListener() {
+            @Override
+            public void onLifecycleEvent(
+                    @LifecycleListener.LifecycleEvent int event,
+                    @NonNull Feature feature) {
+                try {
+                    listener.onLifecycleEvent(event, feature);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending onLifecycleEvent: ", e);
                 }
             }
         };
@@ -543,6 +682,15 @@ public abstract class OnDeviceSandboxedInferenceService extends Service {
 
                 } catch (RemoteException e) {
                     Slog.e(TAG, "Error sending augment request: " + e);
+                }
+            }
+
+            @Override
+            public void onInferenceInfo(@NonNull InferenceInfo info) {
+                try {
+                    callback.onInferenceInfo(info);
+                } catch (RemoteException e) {
+                    Slog.e(TAG, "Error sending inference info: " + e);
                 }
             }
         };

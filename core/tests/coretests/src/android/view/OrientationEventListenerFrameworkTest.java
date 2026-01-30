@@ -26,8 +26,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import android.annotation.NonNull;
-import android.app.WindowConfiguration;
 import android.content.Context;
+import android.content.res.CameraCompatibilityInfo;
 import android.content.res.CompatibilityInfo;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
@@ -75,7 +75,7 @@ public class OrientationEventListenerFrameworkTest {
     @After
     public void tearDown() {
         // Reset the override rotation for tests that use the default value.
-        CompatibilityInfo.setOverrideDisplayRotation(WindowConfiguration.ROTATION_UNDEFINED);
+        CompatibilityInfo.resetCameraCompatibilityInfo();
     }
 
     @Test
@@ -115,7 +115,8 @@ public class OrientationEventListenerFrameworkTest {
         listener.enable();
 
         // This should change the reported sensor rotation.
-        CompatibilityInfo.setOverrideDisplayRotation(Surface.ROTATION_180);
+        CompatibilityInfo.setCameraCompatibilityInfo(new CameraCompatibilityInfo.Builder()
+                .setDisplayRotationSandbox(Surface.ROTATION_180).build());
 
         sendSensorEventWithOrientation270(mockSensor);
 
@@ -133,7 +134,8 @@ public class OrientationEventListenerFrameworkTest {
 
         // Display rotation is counted in the opposite direction from the sensor orientation, thus
         // this call should change the reported sensor rotation to 90, as 360 - 270 = 90.
-        CompatibilityInfo.setOverrideDisplayRotation(Surface.ROTATION_270);
+        CompatibilityInfo.setCameraCompatibilityInfo(new CameraCompatibilityInfo.Builder()
+                .setDisplayRotationSandbox(Surface.ROTATION_270).build());
 
         sendSensorEventWithOrientation270(mockSensor);
 
@@ -149,7 +151,8 @@ public class OrientationEventListenerFrameworkTest {
 
         listener.enable();
 
-        CompatibilityInfo.setOverrideDisplayRotation(Surface.ROTATION_180);
+        CompatibilityInfo.setCameraCompatibilityInfo(new CameraCompatibilityInfo.Builder()
+                .setDisplayRotationSandbox(Surface.ROTATION_180).build());
 
         sendSensorEventWithOrientation270(mockSensor);
 

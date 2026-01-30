@@ -68,7 +68,11 @@
     <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"पिन किंवा फिंगरप्रिंट वापरून अनलॉक करा"</string>
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"पासवर्ड किंवा फिंगरप्रिंट वापरून अनलॉक करा"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"पॅटर्न किंवा फिंगरप्रिंट वापरून अनलॉक करा"</string>
-    <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"अतिरिक्त सुरक्षेसाठी, कामाशी संबंधित धोरणाद्वारे डिव्हाइस लॉक केला होता"</string>
+    <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"अतिरिक्त सुरक्षेसाठी, कामाशी संबंधित धोरणाद्वारे डिव्हाइस लॉक केले होते"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"२ टप्पी पडताळणी"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"फिंगरप्रिंट अनलॉक वापरा"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"फेस अनलॉक वापरा"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"फिंगरप्रिंट किंवा फेस अनलॉक वापरा"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"लॉकडाउननंतर पिन आवश्यक आहे"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"लॉकडाउननंतर पासवर्ड आवश्यक आहे"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"लॉकडाउननंतर पॅटर्न आवश्यक आहे"</string>

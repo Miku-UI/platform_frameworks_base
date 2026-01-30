@@ -27,31 +27,36 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.keyboard.shortcut.appsShortcutCategoryRepository
+import com.android.systemui.keyboard.shortcut.data.repository.FakeAppsShortcutCategoryRepository
 import com.android.systemui.keyboard.shortcut.data.source.FakeKeyboardShortcutGroupsSource
 import com.android.systemui.keyboard.shortcut.data.source.TestShortcuts
-import com.android.systemui.keyboard.shortcut.data.source.TestShortcuts.allCustomizableInputGesturesWithSimpleShortcutCombinations
 import com.android.systemui.keyboard.shortcut.data.source.TestShortcuts.customInputGestureTypeHome
 import com.android.systemui.keyboard.shortcut.data.source.TestShortcuts.groupWithGoHomeShortcutInfo
 import com.android.systemui.keyboard.shortcut.data.source.TestShortcuts.systemCategoryWithCustomHomeShortcut
 import com.android.systemui.keyboard.shortcut.data.source.TestShortcuts.systemCategoryWithMergedGoHomeShortcut
+import com.android.systemui.keyboard.shortcut.shared.model.Shortcut
 import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCategory
+import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCategoryType
 import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCategoryType.InputMethodEditor
 import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCategoryType.MultiTasking
 import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCategoryType.System
+import com.android.systemui.keyboard.shortcut.shared.model.ShortcutSubCategory
 import com.android.systemui.keyboard.shortcut.shortcutHelperAccessibilityShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperAppCategoriesShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperCategoriesInteractor
 import com.android.systemui.keyboard.shortcut.shortcutHelperCurrentAppShortcutsSource
+import com.android.systemui.keyboard.shortcut.shortcutHelperCustomizationModeInteractor
 import com.android.systemui.keyboard.shortcut.shortcutHelperMultiTaskingShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperSystemShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperTestHelper
-import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.res.R
 import com.android.systemui.settings.FakeUserTracker
 import com.android.systemui.settings.userTracker
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -69,8 +74,8 @@ class ShortcutHelperCategoriesInteractorTest : SysuiTestCase() {
     private val multitaskingShortcutsSource = FakeKeyboardShortcutGroupsSource()
 
     private val kosmos =
-        testKosmos().also {
-            it.testDispatcher = UnconfinedTestDispatcher()
+        testKosmos().useUnconfinedTestDispatcher().also {
+            it.appsShortcutCategoryRepository = FakeAppsShortcutCategoryRepository()
             it.shortcutHelperSystemShortcutsSource = systemShortcutsSource
             it.shortcutHelperMultiTaskingShortcutsSource = multitaskingShortcutsSource
             it.shortcutHelperAppCategoriesShortcutsSource = FakeKeyboardShortcutGroupsSource()
@@ -83,7 +88,9 @@ class ShortcutHelperCategoriesInteractorTest : SysuiTestCase() {
     private val testScope = kosmos.testScope
     private lateinit var interactor: ShortcutHelperCategoriesInteractor
     private val helper = kosmos.shortcutHelperTestHelper
-    private val inter by lazy { kosmos.shortcutHelperCategoriesInteractor }
+    private val customizationModeInteractor = kosmos.shortcutHelperCustomizationModeInteractor
+    private val fakeAppsShortcutCategoryRepo: FakeAppsShortcutCategoryRepository =
+        kosmos.appsShortcutCategoryRepository as FakeAppsShortcutCategoryRepository
 
     @Before
     fun setShortcuts() {
@@ -283,24 +290,7 @@ class ShortcutHelperCategoriesInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableFlags(Flags.FLAG_KEYBOARD_SHORTCUT_HELPER_SHORTCUT_CUSTOMIZER)
-    fun categories_excludesCustomShortcutsWhenFlagIsOff() {
-        testScope.runTest {
-            setCustomInputGestures(allCustomizableInputGesturesWithSimpleShortcutCombinations)
-            helper.showFromActivity()
-            val categories by collectLastValue(interactor.shortcutCategories)
-            assertThat(categories)
-                .containsExactly(
-                    TestShortcuts.systemCategory,
-                    TestShortcuts.multitaskingCategory,
-                    TestShortcuts.imeCategory,
-                )
-        }
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_KEYBOARD_SHORTCUT_HELPER_SHORTCUT_CUSTOMIZER)
-    fun categories_includesCustomShortcutsWhenFlagIsOn() {
+    fun categories_includesCustomShortcuts() {
         testScope.runTest {
             setCustomInputGestures(listOf(customInputGestureTypeHome))
             helper.showFromActivity()
@@ -315,7 +305,6 @@ class ShortcutHelperCategoriesInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_KEYBOARD_SHORTCUT_HELPER_SHORTCUT_CUSTOMIZER)
     fun categories_correctlyMergesDefaultAndCustomShortcutsOfSameType() {
         testScope.runTest {
             setCustomInputGestures(listOf(customInputGestureTypeHome))
@@ -383,8 +372,67 @@ class ShortcutHelperCategoriesInteractorTest : SysuiTestCase() {
             assertThat(shortcutKeyCount).containsExactly(1, 2, 3).inOrder()
         }
 
+    @Test
+    @DisableFlags(Flags.FLAG_EXTENDED_APPS_SHORTCUT_CATEGORY)
+    fun categories_extendedAppsCategoryFlagOff_allCustomizationModes_doesNotEmit3PAppsShortcut() =
+        testScope.runTest {
+            setExtendedAppsShortcutCategory()
+            val categories by collectLastValue(interactor.shortcutCategories)
+            helper.showFromActivity()
+
+            customizationModeInteractor.toggleCustomizationMode(isCustomizing = false)
+            assertThat(categories).doesNotContain(TestAppsShortcutCategory)
+
+            customizationModeInteractor.toggleCustomizationMode(isCustomizing = true)
+            assertThat(categories).doesNotContain(TestAppsShortcutCategory)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_EXTENDED_APPS_SHORTCUT_CATEGORY)
+    fun categories_extendedAppsCategoryFlagOn_customizationOn_emitsExtendedAppShortcutCategory() =
+        testScope.runTest {
+            setExtendedAppsShortcutCategory()
+            val categories by collectLastValue(interactor.shortcutCategories)
+            helper.showFromActivity()
+
+            customizationModeInteractor.toggleCustomizationMode(isCustomizing = true)
+            assertThat(categories).contains(TestAppsShortcutCategory)
+        }
+
+    @Test
+    @EnableFlags(Flags.FLAG_EXTENDED_APPS_SHORTCUT_CATEGORY)
+    fun categories_extendedAppsCategoryFlagOn_customizationOff_doesNotEmitExtendedAppShortcutCategory() =
+        testScope.runTest {
+            setExtendedAppsShortcutCategory()
+            val categories by collectLastValue(interactor.shortcutCategories)
+            helper.showFromActivity()
+
+            customizationModeInteractor.toggleCustomizationMode(isCustomizing = false)
+            assertThat(categories).doesNotContain(TestAppsShortcutCategory)
+        }
+
+    private fun setExtendedAppsShortcutCategory() {
+        fakeAppsShortcutCategoryRepo.setFakeAppsShortcutCategories(listOf(TestAppsShortcutCategory))
+    }
+
     private fun setCustomInputGestures(customInputGestures: List<InputGestureData>) {
         whenever(fakeInputManager.inputManager.getCustomInputGestures(/* filter= */ anyOrNull()))
             .thenReturn(customInputGestures)
     }
+
+    private val TestAppsShortcutCategory =
+        ShortcutCategory(
+            type = ShortcutCategoryType.AppCategories,
+            ShortcutSubCategory(
+                label = context.getString(R.string.keyboard_shortcut_group_applications),
+                shortcuts =
+                    listOf(
+                        Shortcut(
+                            label = "TestApp",
+                            commands = emptyList(),
+                            contentDescription = "TestApp, Press key",
+                        )
+                    ),
+            ),
+        )
 }

@@ -56,4 +56,9 @@ public abstract class AppWidgetManagerInternal {
      */
     public abstract void applyResourceOverlaysToWidgets(Set<String> packageNames, int userId,
             boolean updateFrameworkRes);
+
+    /**
+     * Trigger saving of any pending widget usage events to UsageStatsService and FrameworkStatsLog.
+     */
+    public abstract void saveWidgetEvents();
 }

@@ -38,27 +38,6 @@ object QsDetailedView {
             Flags.qsTileDetailedView() && // mainAconfigFlag
                 SceneContainerFlag.isEnabled
 
-    // NOTE: Changes should also be made in getSecondaryFlags
-
-    /** The main aconfig flag. */
-    inline fun getMainAconfigFlag() = FlagToken(FLAG_NAME, Flags.qsTileDetailedView())
-
-    /** The set of secondary flags which must be enabled for qs detailed view to work properly */
-    inline fun getSecondaryFlags(): Sequence<FlagToken> =
-        // NOTE: Changes should also be made in isEnabled
-        SceneContainerFlag.getAllRequirements()
-
-    /** The full set of requirements for QsDetailedView */
-    inline fun getAllRequirements(): Sequence<FlagToken> {
-        return sequenceOf(getMainAconfigFlag()) + getSecondaryFlags()
-    }
-
-    /** Return all dependencies of this flag in pairs where [Pair.first] depends on [Pair.second] */
-    inline fun getFlagDependencies(): Sequence<Pair<FlagToken, FlagToken>> {
-        val mainAconfigFlag = getMainAconfigFlag()
-        return getSecondaryFlags().map { mainAconfigFlag to it }
-    }
-
     /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the
      * unintended behaviors caused by accidentally running new logic, while also crashing on an eng
@@ -84,16 +63,4 @@ object QsDetailedView {
     @Deprecated("Avoid crashing.", ReplaceWith("if (this.isUnexpectedlyInLegacyMode()) return"))
     inline fun unsafeAssertInNewMode() =
         RefactorFlagUtils.unsafeAssertInNewMode(isEnabled, FLAG_NAME)
-
-    /** Returns a developer-readable string that describes the current requirement list. */
-    @JvmStatic
-    fun requirementDescription(): String {
-        return buildString {
-            getAllRequirements().forEach { requirement ->
-                append('\n')
-                append(if (requirement.isEnabled) "    [MET]" else "[NOT MET]")
-                append(" ${requirement.name}")
-            }
-        }
-    }
 }

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"അനുമതി ആവശ്യമാണ്"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ഇൻസ്റ്റാൾ ചെയ്യൽ ബ്ലോക്ക് ചെയ്തു"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"ആപ്പ് തയ്യാറാക്കുന്നു…"</string>
+    <string name="title_install" msgid="6806728682404990326">"ഈ ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്യണോ?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ഇൻസ്‌റ്റാൾ ചെയ്യുന്നു…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്തു"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"ഈ ആപ്പ് വീണ്ടും ഇൻസ്‌റ്റാൾ ചെയ്യണോ?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"വീണ്ടും ഇൻസ്‌റ്റാൾ ചെയ്യുന്നു…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"ആപ്പ് വീണ്ടും ഇൻസ്‌റ്റാൾ ചെയ്തു"</string>
+    <string name="title_update" msgid="1747328630716712391">"ഈ ആപ്പ് അപ്‌ഡേറ്റ് ചെയ്യണോ?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> ഉപയോഗിച്ച് ഈ ആപ്പ് അപ്‌ഡേറ്റ് ചെയ്യണോ?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"അപ്ഡേറ്റ് ചെയ്യുന്നു…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"ആപ്പ് അപ്ഡേറ്റ് ചെയ്തു"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യാനാകുന്നില്ല"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ഇൻസ്റ്റാൾ ചെയ്യൽ ബ്ലോക്ക് ചെയ്തു"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"ആപ്പ് അനുയോജ്യമല്ല"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"പാക്കേജ് അസാധുവാണ്"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"മതിയായ സ്റ്റോറേജ് ഇല്ല"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്‌തിട്ടില്ല"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"ഈ ആപ്പ് അൺഇൻസ്‌റ്റാൾ ചെയ്യണോ?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"ഈ ആപ്പ് ക്ലോൺ ഇല്ലാതാക്കണോ?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"ആപ്പ് അപ്‌ഡേറ്റുകൾ അൺഇൻസ്റ്റാൾ ചെയ്യണോ?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"എല്ലാ ഉപയോക്താക്കൾക്കും ആപ്പ് അപ്‌ഡേറ്റുകൾ അൺഇൻസ്റ്റാൾ ചെയ്യണോ?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"എല്ലാ ഉപയോക്താക്കൾക്കും ഈ ആപ്പ് അൺഇൻസ്‌റ്റാൾ ചെയ്യണോ?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"ഈ ആപ്പ് \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" എന്ന ഉപയോക്താവിനായി അൺഇൻസ്റ്റാൾ ചെയ്യണോ?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"ആപ്പ് കണ്ടെത്തിയില്ല"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"ഈ ആപ്പ് അൺഇൻസ്റ്റാൾ ചെയ്യാനാകില്ല"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"ആപ്പ് അൺഇൻസ്റ്റാൾ ചെയ്‌തിട്ടില്ല"</string>
+    <string name="title_archive" msgid="2876455228073419830">"ഈ ആപ്പ് ആർക്കൈവ് ചെയ്യണോ?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"എല്ലാ ഉപയോക്താക്കൾക്കും ഈ ആപ്പ് ആർക്കൈവ് ചെയ്യണോ?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"ഈ ആപ്പ് \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" എന്ന ഉപയോക്താവിനായി ആർക്കൈവ് ചെയ്യണോ?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"ഈ ആപ്പ് പുനഃസ്ഥാപിക്കണോ?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"നടപടി ആവശ്യമാണ്"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"മതിയായ സ്റ്റോറേജ് ഇല്ല"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"നിങ്ങൾ ഓഫ്‌ലൈനാണ്"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> പ്രവർത്തനരഹിതമാക്കി"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ഇൻസ്‌റ്റാൾ ചെയ്‌തിട്ടില്ല"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"എന്തോ പിശകുണ്ടായി"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"ഈ ആപ്പിന് സാധാരണയായി &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; എന്നതിൽ നിന്ന് അപ്‌ഡേറ്റുകൾ ലഭിക്കാറുണ്ട്. മറ്റൊരു ഉറവിടം ഉപയോഗിച്ച് അപ്‌ഡേറ്റ് ചെയ്യുന്നതിലൂടെ, നിങ്ങളുടെ ടാബ്‌ലെറ്റിലെ ഏത് ഉറവിടത്തിൽ നിന്നും ഭാവിയിൽ അപ്‌ഡേറ്റുകൾ ലഭിച്ചേക്കാം. ആപ്പ് ഫംഗ്ഷണാലിറ്റി മാറിയേക്കാം."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"ഈ ആപ്പിന് സാധാരണയായി &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; എന്നതിൽ നിന്ന് അപ്‌ഡേറ്റുകൾ ലഭിക്കാറുണ്ട്. മറ്റൊരു ഉറവിടം ഉപയോഗിച്ച് അപ്‌ഡേറ്റ് ചെയ്യുന്നതിലൂടെ, നിങ്ങളുടെ ടിവിയിലെ ഏത് ഉറവിടത്തിൽ നിന്നും ഭാവിയിൽ അപ്‌ഡേറ്റുകൾ ലഭിച്ചേക്കാം. ആപ്പ് ഫംഗ്ഷണാലിറ്റി മാറിയേക്കാം."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"ഈ ആപ്പിന് സാധാരണയായി &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; എന്നതിൽ നിന്ന് അപ്‌ഡേറ്റുകൾ ലഭിക്കാറുണ്ട്. മറ്റൊരു ഉറവിടം ഉപയോഗിച്ച് അപ്‌ഡേറ്റ് ചെയ്യുന്നതിലൂടെ, നിങ്ങളുടെ ഫോണിലെ ഏത് ഉറവിടത്തിൽ നിന്നും ഭാവിയിൽ അപ്‌ഡേറ്റുകൾ ലഭിച്ചേക്കാം. ആപ്പ് ഫംഗ്ഷണാലിറ്റി മാറിയേക്കാം."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"നിങ്ങളുടെ സുരക്ഷയ്‌ക്ക്, ഈ ഉറവിടത്തിൽ നിന്നുള്ള അജ്ഞാതമായ ആപ്പുകൾ ഇൻസ്‌റ്റാൾ ചെയ്യാൻ നിലവിൽ നിങ്ങളുടെ ടാബ്‌ലെറ്റിന് അനുമതിയില്ല. നിങ്ങൾക്ക് ഇത് ക്രമീകരണത്തിൽ മാറ്റാം."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"നിങ്ങളുടെ സുരക്ഷയ്‌ക്ക്, ഈ ഉറവിടത്തിൽ നിന്നുള്ള അജ്ഞാതമായ ആപ്പുകൾ ഇൻസ്‌റ്റാൾ ചെയ്യാൻ നിലവിൽ നിങ്ങളുടെ ടിവിക്ക് അനുമതിയില്ല. നിങ്ങൾക്ക് ഇത് ക്രമീകരണത്തിൽ മാറ്റാം."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"നിങ്ങളുടെ സുരക്ഷയ്‌ക്ക്, ഈ ഉറവിടത്തിൽ നിന്നുള്ള അജ്ഞാതമായ ആപ്പുകൾ ഇൻസ്‌റ്റാൾ ചെയ്യാൻ നിലവിൽ നിങ്ങളുടെ വാച്ചിന് അനുമതിയില്ല. നിങ്ങൾക്ക് ഇത് ക്രമീകരണത്തിൽ മാറ്റാം."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"നിങ്ങളുടെ സുരക്ഷയ്‌ക്ക്, ഈ ഉറവിടത്തിൽ നിന്നുള്ള അജ്ഞാതമായ ആപ്പുകൾ ഇൻസ്‌റ്റാൾ ചെയ്യാൻ നിലവിൽ നിങ്ങളുടെ ഫോണിന് അനുമതിയില്ല. നിങ്ങൾക്ക് ഇത് ക്രമീകരണത്തിൽ മാറ്റാം."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"അജ്ഞാതമായ ആപ്പുകളാൽ നിങ്ങളുടെ ഫോണും വ്യക്തിഗത ഡാറ്റയും ആക്രമിക്കപ്പെടാനുള്ള സാധ്യത വളരെ കൂടുതലാണ്. ഈ ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്യുന്നതിലൂടെ, ഇത് ഉപയോഗിക്കുന്നതുമൂലം നിങ്ങളുടെ ഫോണിന് സംഭവിച്ചേക്കാവുന്ന ഏത് നാശനഷ്‌ടത്തിന്റെയും അല്ലെങ്കിൽ ഡാറ്റാ നഷ്‌ടത്തിന്റെയും ഉത്തരവാദിത്തം നിങ്ങൾക്കാണെന്ന് നിങ്ങൾ അംഗീകരിക്കുന്നു."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"അജ്ഞാതമായ ആപ്പുകളാൽ നിങ്ങളുടെ ടാബ്‌ലെറ്റും വ്യക്തിഗത ഡാറ്റയും ആക്രമിക്കപ്പെടാനുള്ള സാധ്യത വളരെ കൂടുതലാണ്. ഈ ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്യുന്നതിലൂടെ, ഇത് ഉപയോഗിക്കുന്നതുമൂലം നിങ്ങളുടെ ടാബ്‌ലെറ്റിന് സംഭവിച്ചേക്കാവുന്ന ഏത് നാശനഷ്‌ടത്തിന്റെയും അല്ലെങ്കിൽ ഡാറ്റാ നഷ്‌ടത്തിന്റെയും ഉത്തരവാദിത്തം നിങ്ങൾക്കാണെന്ന് നിങ്ങൾ അംഗീകരിക്കുന്നു."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"അജ്ഞാതമായ ആപ്പുകളാൽ നിങ്ങളുടെ ടിവിയും വ്യക്തിഗത ഡാറ്റയും ആക്രമിക്കപ്പെടാനുള്ള സാധ്യത വളരെ കൂടുതലാണ്. ഈ ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്യുന്നതിലൂടെ, ഇത് ഉപയോഗിക്കുന്നതുമൂലം നിങ്ങളുടെ ടിവിക്ക് സംഭവിച്ചേക്കാവുന്ന ഏത് നാശനഷ്‌ടത്തിന്റെയും അല്ലെങ്കിൽ ഡാറ്റാ നഷ്‌ടത്തിന്റെയും ഉത്തരവാദിത്തം നിങ്ങൾക്കാണെന്ന് നിങ്ങൾ അംഗീകരിക്കുന്നു."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"ഈ ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്യുന്നത് ബ്ലോക്ക് ചെയ്‌തു"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"ഈ ആപ്പ് നിങ്ങളുടെ ഉപകരണത്തിൽ നിലവിലുള്ള ഒരു ആപ്പുമായി പൊരുത്തപ്പെടുന്നില്ല"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"ഈ ആപ്പ് നിങ്ങളുടെ ഉപകരണത്തിന് അനുയോജ്യമല്ല"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"ഈ ആപ്പിന്റെ ഇൻസ്റ്റലേഷൻ ഫയലിൽ ഒരു പ്രശ്‌നമുണ്ട്"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"ഈ ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്യാൻ, കുറച്ച് സ്പേസ് സൃഷ്ടിച്ച് വീണ്ടും ശ്രമിക്കുക"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"ആപ്പ് ഫയലിൽ ഒരു പ്രശ്‌നമുണ്ട്"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ആപ്പുകൾ ഇൻസ്റ്റാൾ ചെയ്യുന്നത് നിയന്ത്രിച്ചിരിക്കുന്നു"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"അജ്ഞാതമായ ആപ്പുകൾ ഇൻസ്റ്റാൾ ചെയ്യുന്നത് നിയന്ത്രിച്ചിരിക്കുന്നു"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"ഈ ആപ്പിന്റെ ഒരു ക്ലോണും നിലവിലുണ്ട്, അത് ഇല്ലാതാക്കും"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"ഈ ആപ്പ് <xliff:g id="APP_LABEL">%1$s</xliff:g> എന്നതിന്റെ ക്ലോൺ ആണ്"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"ഫാക്‌ടറി പതിപ്പ് ഉപയോഗിച്ച് ഈ ആപ്പ് റീപ്ലെയ്‌സ് ചെയ്യും. എല്ലാ ആപ്പ് ഡാറ്റയും നീക്കം ചെയ്യും."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"ഉപകരണത്തിലെ എല്ലാ ഉപയോക്താക്കൾക്കും ഫാക്‌ടറി പതിപ്പ് ഉപയോഗിച്ച് ഈ ആപ്പ് റീപ്ലെയ്‌സ് ചെയ്യും. എല്ലാ ആപ്പ് ഡാറ്റയും നീക്കം ചെയ്യും."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"ഈ ആപ്പ് നിങ്ങളുടെ ഔദ്യോഗിക പ്രൊഫൈലിൽ നിന്ന് അൺഇൻസ്റ്റാൾ ചെയ്യും"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"ഈ ആപ്പ് നിങ്ങളുടെ സ്വകാര്യ സ്പേസിൽ നിന്ന് അൺഇൻസ്റ്റാൾ ചെയ്യും"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"ഈ ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്ത ആപ്പുകളിൽ കണ്ടെത്താനായില്ല, അല്ലെങ്കിൽ ഇതിനകം അൺഇൻസ്റ്റാൾ ചെയ്തിട്ടുണ്ട്"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"നിലവിലെ ഉപയോക്താവിന് ഈ അൺഇൻസ്റ്റലേഷൻ നിർവ്വഹിക്കാൻ അനുവാദമില്ല"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"ഈ ആപ്പ് അൺഇൻസ്റ്റാൾ ചെയ്യാനായില്ല"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"ആപ്പ് ഡാറ്റ നിലനിർത്തുക"</string>
+    <string name="message_archive" msgid="943853731737315850">"നിങ്ങളുടെ ആപ്പ് ഡാറ്റ സംരക്ഷിക്കും"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"എല്ലാ ആപ്പ് ഡാറ്റയും സംരക്ഷിക്കും"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ആപ്പ് ഡാറ്റ സംരക്ഷിക്കും"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"നിങ്ങളുടെ ഔദ്യോഗിക പ്രൊഫൈലിൽ നിന്ന് ഈ ആപ്പ് ആർക്കൈവ് ചെയ്യും. നിങ്ങളുടെ ആപ്പ് ഡാറ്റ സംരക്ഷിക്കും."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"നിങ്ങളുടെ സ്വകാര്യ സ്പേസിൽ നിന്ന് ഈ ആപ്പ് ആർക്കൈവ് ചെയ്യും. നിങ്ങളുടെ ആപ്പ് ഡാറ്റ സംരക്ഷിക്കും."</string>
+    <string name="message_restore" msgid="8402726798623569969">"പശ്ചാത്തലത്തിൽ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> എന്നതിൽ നിന്ന് ഈ ആപ്പ് ഡൗൺലോഡ് ചെയ്യും"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"ഈ ആപ്പ് പുനഃസ്ഥാപിക്കുന്നതിന് മുമ്പ് <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> എന്നതിന് കൂടുതൽ വിവരങ്ങൾ ആവശ്യമാണ്"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"ഈ ആപ്പ് പുനഃസ്ഥാപിക്കുന്നതിന്, &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; സൃഷ്ടിച്ച് വീണ്ടും ശ്രമിക്കുക"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"ഈ ആപ്പ് പുനഃസ്ഥാപിക്കാൻ, നിങ്ങളുടെ ഇന്റർനെറ്റ് കണക്ഷൻ പരിശോധിച്ച ശേഷം വീണ്ടും ശ്രമിക്കുക"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"ഈ ആപ്പ് പുനഃസ്ഥാപിക്കുന്നതിന്, ക്രമീകരണത്തിൽ <xliff:g id="INSTALLERNAME">%1$s</xliff:g> പ്രവർത്തനക്ഷമമാക്കുക"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"ഈ ആപ്പ് പുനഃസ്ഥാപിക്കുന്നതിന്, നിങ്ങൾ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ഇൻസ്റ്റാൾ ചെയ്യേണ്ടതുണ്ട്"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"ഈ ആപ്പ് പുനഃസ്ഥാപിക്കുന്നതിൽ ഒരു പ്രശ്നമുണ്ടായി"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> ഇനിപ്പറയുന്ന ആപ്പിന്റെ ഭാഗമാണ്: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;ഈ ആപ്പ് ബ്ലോക്ക് ചെയ്തു. നിങ്ങളുടെ ഉപകരണവും ഡാറ്റയും സുരക്ഷിതമായി സൂക്ഷിക്കാൻ സഹായിക്കുന്നതിന്, പരിശോധിച്ചുറപ്പിച്ച ഡെവലപ്പർമാരിൽ നിന്നുള്ള ആപ്പുകൾ മാത്രമേ ഇൻസ്‌റ്റാൾ ചെയ്യാനാകൂ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;ഈ ആപ്പ് അപ്ഡേറ്റ് ചെയ്തിട്ടില്ല. നിങ്ങളുടെ ഉപകരണവും ഡാറ്റയും സുരക്ഷിതമായി സൂക്ഷിക്കാൻ സഹായിക്കുന്നതിന്, പരിശോധിച്ചുറപ്പിച്ച ഡെവലപ്പർമാരിൽ നിന്നുള്ള അപ്‌ഡേറ്റുകൾ മാത്രമേ ഇൻസ്‌റ്റാൾ ചെയ്യാനാകൂ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;ഈ ആപ്പ് ഇൻസ്റ്റാൾ ചെയ്തിട്ടില്ല. പരിശോധിച്ചുറപ്പിച്ചിട്ടില്ലാത്ത ഡെവലപ്പർമാരിൽ നിന്നുള്ള ആപ്പുകൾ സുരക്ഷിതമല്ലായിരിക്കാം.&lt;/p&gt; &lt;p&gt;ആപ്പ് ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കാൻ ഇന്റർനെറ്റ് കണക്ഷൻ ആവശ്യമാണ്. നിങ്ങളുടെ കണക്ഷൻ പരിശോധിച്ച്, വീണ്ടും ഇൻസ്‌റ്റാൾ ചെയ്യാൻ ശ്രമിക്കുക. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;ഈ ആപ്പ് അപ്ഡേറ്റ് ചെയ്തിട്ടില്ല. പരിശോധിച്ചുറപ്പിച്ചിട്ടില്ലാത്ത ഡെവലപ്പർമാരിൽ നിന്നുള്ള അപ്‌ഡേറ്റുകൾ സുരക്ഷിതമല്ലായിരിക്കാം.&lt;/p&gt; &lt;p&gt;ആപ്പ് ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കാൻ ഇന്റർനെറ്റ് കണക്ഷൻ ആവശ്യമാണ്. നിങ്ങളുടെ കണക്ഷൻ പരിശോധിച്ച് വീണ്ടും അപ്‌ഡേറ്റ് ചെയ്യാൻ ശ്രമിക്കുക. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;ഈ ആപ്പിന്റെ ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കുന്നതിൽ ഒരു പ്രശ്‌നമുണ്ടായി. പരിശോധിച്ചുറപ്പിച്ചിട്ടില്ലാത്ത ഡെവലപ്പർമാരിൽ നിന്നുള്ള ആപ്പുകൾ സുരക്ഷിതമല്ലായിരിക്കാം, അതിനാൽ ആപ്പ് ഇൻസ്‌റ്റാൾ ചെയ്‌തിട്ടില്ല.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;ഈ ആപ്പിന്റെ ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കുന്നതിൽ ഒരു പ്രശ്‌നമുണ്ടായി. പരിശോധിച്ചുറപ്പിച്ചിട്ടില്ലാത്ത ഡെവലപ്പർമാരിൽ നിന്നുള്ള അപ്‌ഡേറ്റുകൾ സുരക്ഷിതമല്ലായിരിക്കാം, അതിനാൽ ആപ്പ് അപ്‌ഡേറ്റ് ചെയ്‌തില്ല.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കുന്നതിൽ ഒരു പ്രശ്‌നമുണ്ടായതിനാൽ, ഈ ആപ്പ് ബ്ലോക്ക് ചെയ്‌തു. നിങ്ങളുടെ ഉപകരണവും ഡാറ്റയും സുരക്ഷിതമായി സൂക്ഷിക്കാൻ സഹായിക്കുന്നതിന്, പരിശോധിച്ചുറപ്പിച്ച ഡെവലപ്പർമാരിൽ നിന്നുള്ള ആപ്പുകൾ മാത്രമേ ഇൻസ്‌റ്റാൾ ചെയ്യാനാകൂ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കുന്നതിൽ ഒരു പ്രശ്നമുണ്ടായതിനാൽ ഈ ആപ്പ് അപ്‌ഡേറ്റ് ചെയ്‌തില്ല. നിങ്ങളുടെ ഉപകരണവും ഡാറ്റയും സുരക്ഷിതമായി സൂക്ഷിക്കാൻ സഹായിക്കുന്നതിന്, പരിശോധിച്ചുറപ്പിച്ച ഡെവലപ്പർമാരിൽ നിന്നുള്ള അപ്‌ഡേറ്റുകൾ മാത്രമേ ഇൻസ്‌റ്റാൾ ചെയ്യാനാകൂ.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിക്കലിനെ കുറിച്ച് കൂടുതലറിയുക&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"പരിശോധിച്ചുറപ്പിക്കാതെ ഇൻസ്റ്റാൾ ചെയ്യുകയാണെങ്കിൽ, പരിശോധിച്ചുറപ്പിക്കാത്ത ഡെവലപ്പർമാരിൽ നിന്നുള്ള ആപ്പുകൾ നിങ്ങളുടെ ഉപകരണത്തെയും ഡാറ്റയെയും അപകടത്തിലാക്കിയേക്കാമെന്ന കാര്യം ഓർമ്മിക്കുക."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"പരിശോധിച്ചുറപ്പിക്കാതെ അപ്‌ഡേറ്റ് ചെയ്യുകയാണെങ്കിൽ, പരിശോധിച്ചുറപ്പിക്കാത്ത ഡെവലപ്പർമാരിൽ നിന്നുള്ള അപ്‌ഡേറ്റുകൾ നിങ്ങളുടെ ഉപകരണത്തെയും ഡാറ്റയെയും അപകടത്തിലാക്കിയേക്കാമെന്ന കാര്യം ഓർമ്മിക്കുക."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"ആപ്പ് ഡെവലപ്പർ പരിശോധിച്ചുറപ്പിച്ചിട്ടില്ല"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"ഇന്റർനെറ്റ് ഇല്ല, ആപ്പ് ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കാനാകില്ല"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"ആപ്പ് ഡെവലപ്പറെ പരിശോധിച്ചുറപ്പിക്കാനാകുന്നില്ല"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"പരിശോധിച്ചുറപ്പിക്കാതെ ഇൻസ്റ്റാൾ ചെയ്യൂ"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"പരിശോധിച്ചുറപ്പിക്കാതെ അപ്‌ഡേറ്റ് ചെയ്യൂ"</string>
+    <string name="button_install" msgid="7434013176505680162">"ഇൻസ്റ്റാൾ ചെയ്യുക"</string>
+    <string name="button_update" msgid="3046719350226327526">"അപ്ഡേറ്റ് ചെയ്യുക"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"എന്തായാലും അപ്‌ഡേറ്റ് ചെയ്യുക"</string>
+    <string name="button_done" msgid="3408025390982260629">"പൂർത്തിയായി"</string>
+    <string name="button_open" msgid="6892684987374117955">"തുറക്കുക"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"റദ്ദാക്കുക"</string>
+    <string name="button_continue" msgid="107501685249826244">"തുടരുക"</string>
+    <string name="button_close" msgid="7187308556466275899">"അടയ്ക്കുക"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"അൺഇൻസ്‌റ്റാൾ ചെയ്യുക"</string>
+    <string name="button_delete" msgid="1050833585936159792">"ഇല്ലാതാക്കുക"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"വീണ്ടും ഇൻസ്‌റ്റാൾ ചെയ്യുക"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"ആപ്പുകൾ മാനേജ് ചെയ്യുക"</string>
+    <string name="button_archive" msgid="2719647830439699121">"ആർക്കൈവ് ചെയ്യുക"</string>
+    <string name="button_restore" msgid="4388317532933866637">"പുനഃസ്ഥാപിക്കുക"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"അപ്ഡേറ്റുകൾ അൺഇൻസ്റ്റാൾ ചെയ്യുക"</string>
+    <string name="button_settings" msgid="3837571366246132287">"ക്രമീകരണം"</string>
+    <string name="button_retry" msgid="6736082260813816198">"വീണ്ടും ശ്രമിക്കുക"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> ക്ലോൺ ചെയ്യുക"</string>
+</resources>

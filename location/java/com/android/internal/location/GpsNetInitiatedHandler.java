@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * A GPS Network-initiated Handler class used by LocationManager.
  *
- * {@hide}
+ * @hide
  */
 public class GpsNetInitiatedHandler {
 

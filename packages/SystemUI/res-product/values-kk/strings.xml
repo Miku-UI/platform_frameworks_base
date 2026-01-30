@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Осы планшетте ойнатылуда."</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Сіз бұл телефонды, ол тіпті өшірулі тұрса да, Find My Device арқылы таба аласыз."</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Сіз бұл планшетті, ол тіпті өшірулі тұрса да, Find My Device арқылы таба аласыз."</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Бұл телефон өшірулі тұрса да, оны Find Hub арқылы таба аласыз."</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Бұл планшет өшірулі тұрса да, оны Find Hub арқылы таба аласыз."</string>
 </resources>

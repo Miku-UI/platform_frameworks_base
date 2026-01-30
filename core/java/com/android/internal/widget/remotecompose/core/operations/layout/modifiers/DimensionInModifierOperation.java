@@ -104,6 +104,6 @@ public abstract class DimensionInModifierOperation extends Operation
 
     @Override
     public void serializeToString(int indent, @NonNull StringSerializer serializer) {
-        serializer.append(indent, "WIDTH_IN = [" + getMin() + ", " + getMax() + "]");
+        serializer.append(indent, "DIMENSION = [" + getMin() + ", " + getMax() + "]");
     }
 }

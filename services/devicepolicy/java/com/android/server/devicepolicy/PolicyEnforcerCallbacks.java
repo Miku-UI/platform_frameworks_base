@@ -68,9 +68,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 final class PolicyEnforcerCallbacks {
 
@@ -123,24 +120,21 @@ final class PolicyEnforcerCallbacks {
                     ? DevicePolicyManager.PERMISSION_GRANT_STATE_DEFAULT
                     : grantState;
 
-            // TODO(b/278710449): stop blocking in the main thread
-            BlockingCallback callback = new BlockingCallback();
             // TODO: remove canAdminGrantSensorPermissions once we expose a new method in
             //  permissionController that doesn't need it.
             AdminPermissionControlParams permissionParams = new AdminPermissionControlParams(
                     parsedKey.getPackageName(), parsedKey.getPermissionName(), value,
                     /* canAdminGrantSensorPermissions= */ true);
+
+            CompletableFuture<Boolean> enforcementFuture = new AndroidFuture<>();
+
             getPermissionControllerManager(context, UserHandle.of(userId))
                     // TODO: remove callingPackage param and stop passing context.getPackageName()
                     .setRuntimePermissionGrantStateByDeviceAdmin(context.getPackageName(),
-                            permissionParams, context.getMainExecutor(), callback::trigger);
-            try {
-                return AndroidFuture.completedFuture(
-                        callback.await(20_000, TimeUnit.MILLISECONDS));
-            } catch (Exception e) {
-                // TODO: add logging
-                return AndroidFuture.completedFuture(false);
-            }
+                            permissionParams, context.getMainExecutor(),
+                            enforcementFuture::complete);
+
+            return enforcementFuture;
         });
     }
 
@@ -231,21 +225,21 @@ final class PolicyEnforcerCallbacks {
         });
     }
 
-    private static class BlockingCallback {
-        private final CountDownLatch mLatch = new CountDownLatch(1);
-        private final AtomicReference<Boolean> mValue = new AtomicReference<>();
-
-        public void trigger(Boolean value) {
-            mValue.set(value);
-            mLatch.countDown();
+    public static CompletableFuture<Boolean> setCrossProfileWidgetProviderPolicy(
+            Set<String> policy, Context context, Integer userId, PolicyKey policyKey) {
+        if (!Flags.crossProfileWidgetProviderBulkApis()) {
+            Slogf.w(
+                    LOG_TAG,
+                    "Call setCrossProfileWidgetProviderPolicy while flag is off");
+            return AndroidFuture.completedFuture(true);
         }
-
-        public Boolean await(long timeout, TimeUnit unit) throws InterruptedException {
-            if (!mLatch.await(timeout, unit)) {
-                Slogf.e(LOG_TAG, "Callback was not received");
-            }
-            return mValue.get();
+        final var devicePolicyManagerInternal =
+                LocalServices.getService(DevicePolicyManagerInternal.class);
+        if (policy == null) {
+            policy = Collections.emptySet();
         }
+        devicePolicyManagerInternal.notifyCrossProfileProvidersChanged(userId, List.copyOf(policy));
+        return AndroidFuture.completedFuture(true);
     }
 
     // TODO: when a local policy exists for a user, this callback will be invoked for this user

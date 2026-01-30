@@ -20,7 +20,6 @@ import android.app.trust.TrustManager
 import com.android.keyguard.TrustGrantFlags
 import com.android.keyguard.logging.TrustRepositoryLogger
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
@@ -28,6 +27,7 @@ import com.android.systemui.keyguard.shared.model.ActiveUnlockModel
 import com.android.systemui.keyguard.shared.model.TrustManagedModel
 import com.android.systemui.keyguard.shared.model.TrustModel
 import com.android.systemui.user.data.repository.UserRepository
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -56,7 +56,7 @@ interface TrustRepository {
     val isCurrentUserTrusted: StateFlow<Boolean>
 
     /** Flow representing whether active unlock is running for the current user. */
-    val isCurrentUserActiveUnlockRunning: Flow<Boolean>
+    val isCurrentUserActiveUnlockEnabled: Flow<Boolean>
 
     /**
      * Reports whether a trust agent is currently enabled and managing the trust of the current user
@@ -93,13 +93,13 @@ constructor(
                             newlyUnlocked: Boolean,
                             userId: Int,
                             flags: Int,
-                            grantMsgs: List<String>?
+                            grantMsgs: List<String>?,
                         ) {
                             logger.onTrustChanged(enabled, newlyUnlocked, userId, flags, grantMsgs)
                             trySendWithFailureLogging(
                                 TrustModel(enabled, userId, TrustGrantFlags(flags)),
                                 TrustRepositoryLogger.TAG,
-                                "onTrustChanged"
+                                "onTrustChanged",
                             )
                         }
 
@@ -109,12 +109,12 @@ constructor(
 
                         override fun onIsActiveUnlockRunningChanged(
                             isRunning: Boolean,
-                            userId: Int
+                            userId: Int,
                         ) {
                             trySendWithFailureLogging(
                                 ActiveUnlockModel(isRunning, userId),
                                 TrustRepositoryLogger.TAG,
-                                "onActiveUnlockRunningChanged"
+                                "onActiveUnlockRunningChanged",
                             )
                         }
 
@@ -123,7 +123,7 @@ constructor(
                             trySendWithFailureLogging(
                                 TrustManagedModel(userId, isTrustManaged),
                                 TrustRepositoryLogger.TAG,
-                                "onTrustManagedChanged"
+                                "onTrustManagedChanged",
                             )
                         }
                     }
@@ -152,7 +152,7 @@ constructor(
             }
             .shareIn(applicationScope, started = SharingStarted.Eagerly, replay = 1)
 
-    override val isCurrentUserActiveUnlockRunning: Flow<Boolean> =
+    override val isCurrentUserActiveUnlockEnabled: Flow<Boolean> =
         combine(trust, userRepository.selectedUserInfo, ::Pair)
             .map { activeUnlockRunningForUser[it.second.id]?.isRunning ?: false }
             .distinctUntilChanged()
@@ -174,7 +174,7 @@ constructor(
                 .stateIn(
                     scope = applicationScope,
                     started = SharingStarted.WhileSubscribed(),
-                    initialValue = false
+                    initialValue = false,
                 )
 
     override val trustAgentRequestingToDismissKeyguard: Flow<TrustModel>

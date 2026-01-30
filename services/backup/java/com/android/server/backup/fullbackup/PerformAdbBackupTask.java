@@ -129,12 +129,13 @@ public class PerformAdbBackupTask extends FullBackupTask implements BackupRestor
     }
 
     private void addPackagesToSet(TreeMap<String, PackageInfo> set, List<String> pkgNames) {
+        int userId = mUserBackupManagerService.getUserId();
+        PackageManager pm = mUserBackupManagerService.getPackageManager();
         for (String pkgName : pkgNames) {
             if (!set.containsKey(pkgName)) {
                 try {
-                    PackageInfo info = mUserBackupManagerService.getPackageManager().getPackageInfo(
-                            pkgName,
-                            PackageManager.GET_SIGNING_CERTIFICATES);
+                    PackageInfo info = pm.getPackageInfoAsUser(
+                            pkgName, PackageManager.GET_SIGNING_CERTIFICATES, userId);
                     set.put(pkgName, info);
                 } catch (NameNotFoundException e) {
                     Slog.w(TAG, "Unknown package " + pkgName + ", skipping");

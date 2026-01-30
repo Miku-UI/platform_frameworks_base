@@ -23,7 +23,7 @@ import com.android.internal.policy.IDeviceLockedStateListener;
 /**
  * System private API to comunicate with trust service.
  *
- * {@hide}
+ * @hide
  */
 interface ITrustManager {
     void reportUnlockAttempt(boolean successful, int userId);

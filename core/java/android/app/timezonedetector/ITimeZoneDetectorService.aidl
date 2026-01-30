@@ -35,7 +35,7 @@ import android.app.timezonedetector.TelephonyTimeZoneSuggestion;
  * this Binder interface directly. See {@link android.app.timezonedetector.TimeZoneDetectorService}
  * for more complete documentation.
  *
- * {@hide}
+ * @hide
  */
 interface ITimeZoneDetectorService {
   TimeZoneCapabilitiesAndConfig getCapabilitiesAndConfig();

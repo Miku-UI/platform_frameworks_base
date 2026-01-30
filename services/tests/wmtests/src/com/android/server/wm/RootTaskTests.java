@@ -52,8 +52,6 @@ import static com.android.server.wm.TaskDisplayArea.getRootTaskAbove;
 import static com.android.server.wm.TaskFragment.TASK_FRAGMENT_VISIBILITY_INVISIBLE;
 import static com.android.server.wm.TaskFragment.TASK_FRAGMENT_VISIBILITY_VISIBLE;
 import static com.android.server.wm.TaskFragment.TASK_FRAGMENT_VISIBILITY_VISIBLE_BEHIND_TRANSLUCENT;
-import static com.android.server.wm.WindowContainer.AnimationFlags.CHILDREN;
-import static com.android.server.wm.WindowContainer.AnimationFlags.TRANSITION;
 import static com.android.server.wm.WindowContainer.POSITION_BOTTOM;
 import static com.android.server.wm.WindowContainer.POSITION_TOP;
 
@@ -67,7 +65,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
@@ -192,8 +189,7 @@ public class RootTaskTests extends WindowTestsBase {
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
 
         // Root task removal is deferred if one of its child is animating.
-        doReturn(rootTask).when(task).getAnimatingContainer(
-                eq(TRANSITION | CHILDREN), anyInt());
+        doReturn(true).when(task).inTransition();
 
         rootTask.removeIfPossible();
         // For the case of deferred removal the task controller will still be connected to its
@@ -829,102 +825,6 @@ public class RootTaskTests extends WindowTestsBase {
         homeRootTask.ensureActivitiesVisible(null /* starting */);
 
         assertTrue(firstActivity.shouldBeVisible());
-    }
-
-    @Test
-    public void testMoveHomeRootTaskBehindBottomMostVisible_NoMoveHomeBehindFullscreen() {
-        final Task homeRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME, true /* onTop */);
-        final Task fullscreenRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-
-        doReturn(false).when(homeRootTask).isTranslucent(any());
-        doReturn(false).when(fullscreenRootTask).isTranslucent(any());
-
-        // Ensure that we don't move the home root task if it is already behind the top fullscreen
-        // root task.
-        int homeRootTaskIndex = getTaskIndexOf(mDefaultTaskDisplayArea, homeRootTask);
-        assertEquals(fullscreenRootTask, getRootTaskAbove(homeRootTask));
-        mDefaultTaskDisplayArea.moveRootTaskBehindBottomMostVisibleRootTask(homeRootTask);
-        assertEquals(homeRootTaskIndex, getTaskIndexOf(mDefaultTaskDisplayArea, homeRootTask));
-    }
-
-    @Test
-    public void testMoveHomeRootTaskBehindBottomMostVisible_NoMoveHomeBehindTranslucent() {
-        final Task homeRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME, true /* onTop */);
-        final Task fullscreenRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-
-        doReturn(false).when(homeRootTask).isTranslucent(any());
-        doReturn(true).when(fullscreenRootTask).isTranslucent(any());
-
-        // Ensure that we don't move the home root task if it is already behind the top fullscreen
-        // root task.
-        int homeRootTaskIndex = getTaskIndexOf(mDefaultTaskDisplayArea, homeRootTask);
-        assertEquals(fullscreenRootTask, getRootTaskAbove(homeRootTask));
-        mDefaultTaskDisplayArea.moveRootTaskBehindBottomMostVisibleRootTask(homeRootTask);
-        assertEquals(homeRootTaskIndex, getTaskIndexOf(mDefaultTaskDisplayArea, homeRootTask));
-    }
-
-    @Test
-    public void testMoveHomeRootTaskBehindBottomMostVisible_NoMoveHomeOnTop() {
-        final Task fullscreenRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-        final Task homeRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME, true /* onTop */);
-
-        doReturn(false).when(homeRootTask).isTranslucent(any());
-        doReturn(false).when(fullscreenRootTask).isTranslucent(any());
-
-        // Ensure we don't move the home root task if it is already on top
-        int homeRootTaskIndex = getTaskIndexOf(mDefaultTaskDisplayArea, homeRootTask);
-        assertNull(getRootTaskAbove(homeRootTask));
-        mDefaultTaskDisplayArea.moveRootTaskBehindBottomMostVisibleRootTask(homeRootTask);
-        assertEquals(homeRootTaskIndex, getTaskIndexOf(mDefaultTaskDisplayArea, homeRootTask));
-    }
-
-    @Test
-    public void testMoveHomeRootTaskBehindBottomMostVisible_MoveHomeBehindFullscreen() {
-        final Task homeRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME, true /* onTop */);
-        final Task fullscreenRootTask1 = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-        final Task fullscreenRootTask2 = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-        final Task pinnedRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_PINNED, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-
-        doReturn(false).when(homeRootTask).isTranslucent(any());
-        doReturn(false).when(fullscreenRootTask1).isTranslucent(any());
-        doReturn(false).when(fullscreenRootTask2).isTranslucent(any());
-
-        // Ensure that we move the home root task behind the bottom most fullscreen root task,
-        // ignoring the pinned root task.
-        assertEquals(fullscreenRootTask1, getRootTaskAbove(homeRootTask));
-        mDefaultTaskDisplayArea.moveRootTaskBehindBottomMostVisibleRootTask(homeRootTask);
-        assertEquals(fullscreenRootTask2, getRootTaskAbove(homeRootTask));
-    }
-
-    @Test
-    public void
-            testMoveHomeRootTaskBehindBottomMostVisible_MoveHomeBehindFullscreenAndTranslucent() {
-        final Task homeRootTask = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_HOME, true /* onTop */);
-        final Task fullscreenRootTask1 = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-        final Task fullscreenRootTask2 = createTaskForShouldBeVisibleTest(mDefaultTaskDisplayArea,
-                WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, true /* onTop */);
-
-        doReturn(false).when(homeRootTask).isTranslucent(any());
-        doReturn(false).when(fullscreenRootTask1).isTranslucent(any());
-        doReturn(true).when(fullscreenRootTask2).isTranslucent(any());
-
-        // Ensure that we move the home root task behind the bottom most non-translucent fullscreen
-        // root task.
-        assertEquals(fullscreenRootTask1, getRootTaskAbove(homeRootTask));
-        mDefaultTaskDisplayArea.moveRootTaskBehindBottomMostVisibleRootTask(homeRootTask);
-        assertEquals(fullscreenRootTask1, getRootTaskAbove(homeRootTask));
     }
 
     @Test

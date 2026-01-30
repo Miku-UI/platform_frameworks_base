@@ -16,16 +16,24 @@
 
 package com.android.server.wm;
 
+import static android.provider.Settings.Secure.DEVICE_STATE_ROTATION_LOCK;
+
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 import static com.android.server.wm.DeviceStateAutoRotateSettingIssueLogger.DEVICE_STATE_AUTO_ROTATE_SETTING_ISSUE_THRESHOLD_MILLIS;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
+import android.database.ContentObserver;
+import android.os.Handler;
+import android.os.UserHandle;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.annotation.NonNull;
@@ -34,11 +42,17 @@ import androidx.test.filters.SmallTest;
 import com.android.dx.mockito.inline.extended.StaticMockitoSession;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.wm.utils.CurrentTimeMillisSupplierFake;
+import com.android.server.wm.utils.DeviceStateTestUtils;
+import com.android.settingslib.devicestate.SecureSettings;
 
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
+import org.mockito.stubbing.Answer;
 
 /**
  * Test class for {@link DeviceStateAutoRotateSettingIssueLogger}.
@@ -50,7 +64,24 @@ import org.mockito.MockitoAnnotations;
 public class DeviceStateAutoRotateSettingIssueLoggerTests {
     private static final int DELAY = 500;
 
-    private DeviceStateAutoRotateSettingIssueLogger mDeviceStateAutoRotateSettingIssueLogger;
+    private final Answer<Boolean> mRunRunnableAnswer = invocation -> {
+        Runnable runnable = (Runnable) invocation.getArguments()[0];
+        runnable.run();
+        return null;
+    };
+
+    @Mock
+    private SecureSettings mMockSecureSettings;
+    @Mock
+    private Handler mMockHandler;
+    @Mock
+    private DeviceStateController mMockDeviceStateController;
+
+    @Captor
+    private ArgumentCaptor<ContentObserver> mContentObserverCaptor;
+    @Captor
+    private ArgumentCaptor<DeviceStateController.DeviceStateListener> mDeviceStateListenerCaptor;
+
     private StaticMockitoSession mStaticMockitoSession;
     @NonNull
     private CurrentTimeMillisSupplierFake mTestTimeSupplier;
@@ -60,9 +91,18 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
         MockitoAnnotations.initMocks(this);
         mStaticMockitoSession = mockitoSession().mockStatic(
                 FrameworkStatsLog.class).startMocking();
+        when(mMockHandler.post(any(Runnable.class))).thenAnswer(mRunRunnableAnswer);
         mTestTimeSupplier = new CurrentTimeMillisSupplierFake();
-        mDeviceStateAutoRotateSettingIssueLogger =
-                new DeviceStateAutoRotateSettingIssueLogger(mTestTimeSupplier);
+
+
+        new DeviceStateAutoRotateSettingIssueLogger(mTestTimeSupplier, mMockSecureSettings,
+                mMockDeviceStateController, mMockHandler);
+
+        verify(mMockSecureSettings, atLeastOnce()).registerContentObserver(
+                eq(DEVICE_STATE_ROTATION_LOCK), /* notifyForDescendants= */ eq(false),
+                mContentObserverCaptor.capture(), eq(UserHandle.USER_CURRENT));
+        verify(mMockDeviceStateController).registerDeviceStateCallback(
+                mDeviceStateListenerCaptor.capture(), any());
     }
 
     @After
@@ -72,9 +112,9 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_deviceStateChangedFirst_isDeviceStateFirstTrue() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
+        notifyDeviceStateChanged();
         mTestTimeSupplier.delay(DELAY);
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -85,9 +125,9 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_autoRotateSettingChangedFirst_isDeviceStateFirstFalse() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
         mTestTimeSupplier.delay(DELAY);
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
+        notifyDeviceStateChanged();
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -98,7 +138,7 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_deviceStateDidNotChange_doNotReport() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -109,7 +149,7 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_autoRotateSettingDidNotChange_doNotReport() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
+        notifyDeviceStateChanged();
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -120,9 +160,9 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_issueOccurred_correctDurationReported() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
+        notifyDeviceStateChanged();
         mTestTimeSupplier.delay(DELAY);
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -133,10 +173,10 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_durationLongerThanThreshold_doNotReport() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
+        notifyDeviceStateChanged();
         mTestTimeSupplier.delay(
                 DEVICE_STATE_AUTO_ROTATE_SETTING_ISSUE_THRESHOLD_MILLIS + DELAY);
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -147,9 +187,9 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_issueOccurredSettingChangedTwice_reportOnlyOnce() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
+        notifyDeviceStateChanged();
+        mContentObserverCaptor.getValue().onChange(false);
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -160,9 +200,9 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_issueOccurredDeviceStateChangedTwice_reportOnlyOnce() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
+        notifyDeviceStateChanged();
+        mContentObserverCaptor.getValue().onChange(false);
+        notifyDeviceStateChanged();
 
         verify(() ->
                 FrameworkStatsLog.write(
@@ -173,17 +213,22 @@ public class DeviceStateAutoRotateSettingIssueLoggerTests {
 
     @Test
     public void onStateChange_issueOccurredAfterDelay_reportOnce() {
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
         mTestTimeSupplier.delay(
                 DEVICE_STATE_AUTO_ROTATE_SETTING_ISSUE_THRESHOLD_MILLIS + DELAY);
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateChange();
+        notifyDeviceStateChanged();
         mTestTimeSupplier.delay(DELAY);
-        mDeviceStateAutoRotateSettingIssueLogger.onDeviceStateAutoRotateSettingChange();
+        mContentObserverCaptor.getValue().onChange(false);
 
         verify(() ->
                 FrameworkStatsLog.write(
                         eq(FrameworkStatsLog.DEVICE_STATE_AUTO_ROTATE_SETTING_ISSUE_REPORTED),
                         eq(DELAY),
                         anyBoolean()), times(1));
+    }
+
+    private void notifyDeviceStateChanged() {
+        mDeviceStateListenerCaptor.getValue().onDeviceStateChanged(
+                DeviceStateController.DeviceStateEnum.UNKNOWN, DeviceStateTestUtils.UNKNOWN);
     }
 }

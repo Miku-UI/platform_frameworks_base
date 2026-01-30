@@ -17,8 +17,8 @@
 package com.android.systemui.qs.panels.ui.compose
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
+import com.android.compose.lifecycle.LaunchedEffectWithLifecycle
 import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
 
 /**
@@ -27,7 +27,7 @@ import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
  */
 @Composable
 fun TileListener(tiles: List<TileViewModel>, listeningEnabled: () -> Boolean) {
-    LaunchedEffect(tiles) {
+    LaunchedEffectWithLifecycle(tiles) {
         val token = Any()
         try {
             snapshotFlow { listeningEnabled() }

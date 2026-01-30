@@ -37,6 +37,12 @@ public class PackageManager {
     public static final String FEATURE_WIFI = "wifi";
 
     @SdkConstant(SdkConstantType.FEATURE)
+    public static final String FEATURE_BLUETOOTH = "bluetooth";
+
+    @SdkConstant(SdkConstantType.FEATURE)
+    public static final String FEATURE_EMBEDDED = "android.hardware.type.embedded";
+
+    @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_NOT_IN_RO_FEATURE_API = "not_in_ro_feature_api";
 
     @SdkConstant(SdkConstantType.INTENT_CATEGORY)

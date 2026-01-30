@@ -58,4 +58,10 @@ public interface AuthDialogCallback {
      * Notifies that the fingerprint sensor should be started now.
      */
     void onStartFingerprintNow(long requestId);
+
+    /** Notifies that the authentication should be paused */
+    void onPauseAuthentication(long requestId);
+
+    /** Notifies that the authentication should be resumed */
+    void onResumeAuthentication(long requestId);
 }

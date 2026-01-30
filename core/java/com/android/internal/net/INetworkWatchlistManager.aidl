@@ -18,7 +18,7 @@ package com.android.internal.net;
 
 import android.os.SharedMemory;
 
-/** {@hide} */
+/** @hide */
 interface INetworkWatchlistManager {
     boolean startWatchlistLogging();
     boolean stopWatchlistLogging();

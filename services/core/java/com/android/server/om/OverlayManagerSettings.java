@@ -535,6 +535,12 @@ final class OverlayManagerSettings {
             }
         }
 
+        // NOTE: when upgrading the overlays.xml version, ignoring the old state used to be fine,
+        // as all important overlays used to be immutable. Now (starting with version 3), there are
+        // mutable overlays that capture the system configuration (e.g. 3-button navigation mode),
+        // and ignoring the old version is wrong.
+        // So for any new version of the serialized format one is supposed to write the code that
+        // converts it, instead of throwing an exception and ignoring the whole file.
         private static void upgrade(int oldVersion) throws XmlPullParserException {
             switch (oldVersion) {
                 case 0:

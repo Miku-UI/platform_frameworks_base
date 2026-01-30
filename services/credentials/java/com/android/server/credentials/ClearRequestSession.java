@@ -24,6 +24,7 @@ import android.credentials.ClearCredentialStateRequest;
 import android.credentials.CredentialManager;
 import android.credentials.CredentialProviderInfo;
 import android.credentials.IClearCredentialStateCallback;
+import android.credentials.flags.Flags;
 import android.credentials.selection.ProviderData;
 import android.credentials.selection.RequestInfo;
 import android.os.CancellationSignal;
@@ -140,6 +141,11 @@ public final class ClearRequestSession extends RequestSession<ClearCredentialSta
             if (session.isProviderResponseSet()) {
                 // If even one provider responded successfully, send back the response
                 // TODO: Aggregate other exceptions
+                if (Flags.metricBugfixesContinued()) {
+                    ComponentName componentName = session.getComponentName();
+                    mRequestSessionMetric.updateMetricsOnResponseReceived(mProviders, componentName,
+                            isPrimaryProviderViaProviderInfo(componentName));
+                }
                 respondToClientWithResponseAndFinish(null);
                 return;
             }

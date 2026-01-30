@@ -20,18 +20,22 @@ import com.android.systemui.kairos.internal.DemuxImpl
 import com.android.systemui.kairos.internal.constInit
 import com.android.systemui.kairos.internal.demuxMap
 import com.android.systemui.kairos.util.Either
+import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.These
 import com.android.systemui.kairos.util.maybeFirst
 import com.android.systemui.kairos.util.maybeSecond
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairos.util.orError
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 
 /**
- * Returns a [GroupedEvents] that can be used to efficiently split a single [Events] into multiple
+ * Returns a [KeyedEvents] that can be used to efficiently split a single [Events] into multiple
  * downstream [Events].
  *
  * The input [Events] emits [Map] instances that specify which downstream [Events] the associated
  * value will be emitted from. These downstream [Events] can be obtained via
- * [GroupedEvents.eventsForKey].
+ * [KeyedEvents.eventsForKey].
  *
  * An example:
  * ```
@@ -48,18 +52,23 @@ import com.android.systemui.kairos.util.orError
  *
  * The optional [numKeys] argument is an optimization used to initialize the internal [HashMap].
  *
- * Note that the returned [GroupedEvents] should be cached and re-used to gain the performance
+ * Note that the returned [KeyedEvents] should be cached and re-used to gain the performance
  * benefit.
  *
  * @sample com.android.systemui.kairos.KairosSamples.groupByKey
  * @see selector
  */
 @ExperimentalKairosApi
-fun <K, A> Events<Map<K, A>>.groupByKey(numKeys: Int? = null): GroupedEvents<K, A> =
-    GroupedEvents(demuxMap({ init.connect(this) }, numKeys))
+fun <K, A> Events<Map<K, A>>.groupByKey(numKeys: Int? = null): KeyedEvents<K, A> =
+    groupByKey(nameTag("Events.groupByKey").toNameData("Events.groupByKey"), numKeys)
+
+internal fun <K, A> Events<Map<K, A>>.groupByKey(
+    nameData: NameData,
+    numKeys: Int? = null,
+): KeyedEvents<K, A> = KeyedEvents(demuxMap(nameData, { init.connect(this) }, numKeys))
 
 /**
- * Returns a [GroupedEvents] that can be used to efficiently split a single [Events] into multiple
+ * Returns a [KeyedEvents] that can be used to efficiently split a single [Events] into multiple
  * downstream [Events]. The downstream [Events] are associated with a [key][K], which is derived
  * from each emission of the original [Events] via [extractKey].
  *
@@ -77,7 +86,15 @@ fun <K, A> Events<Map<K, A>>.groupByKey(numKeys: Int? = null): GroupedEvents<K, 
 fun <K, A> Events<A>.groupBy(
     numKeys: Int? = null,
     extractKey: TransactionScope.(A) -> K,
-): GroupedEvents<K, A> = map { mapOf(extractKey(it) to it) }.groupByKey(numKeys)
+): KeyedEvents<K, A> =
+    groupBy(nameTag("Events.groupBy").toNameData("Events.groupBy"), numKeys, extractKey)
+
+internal fun <K, A> Events<A>.groupBy(
+    nameData: NameData,
+    numKeys: Int? = null,
+    extractKey: TransactionScope.(A) -> K,
+): KeyedEvents<K, A> =
+    map(nameData + "extractKey") { mapOf(extractKey(it) to it) }.groupByKey(nameData, numKeys)
 
 /**
  * A mapping from keys of type [K] to [Events] emitting values of type [A].
@@ -85,13 +102,20 @@ fun <K, A> Events<A>.groupBy(
  * @see groupByKey
  */
 @ExperimentalKairosApi
-class GroupedEvents<in K, out A> internal constructor(internal val impl: DemuxImpl<K, A>) {
+class KeyedEvents<in K, out A> internal constructor(internal val impl: DemuxImpl<K, A>) {
     /**
      * Returns an [Events] that emits values of type [A] that correspond to the given [key].
      *
      * @see groupByKey
      */
-    fun eventsForKey(key: K): Events<A> = EventsInit(constInit(name = null, impl.eventsForKey(key)))
+    fun eventsForKey(key: K): Events<A> =
+        eventsForKey(
+            key,
+            nameTag("KeyedEvents.eventsForKey").toNameData("KeyedEvents.eventsForKey"),
+        )
+
+    internal fun eventsForKey(key: K, nameData: NameData): Events<A> =
+        EventsInit(constInit(nameData, impl.eventsForKey(key)))
 
     /**
      * Returns an [Events] that emits values of type [A] that correspond to the given [key].
@@ -120,9 +144,15 @@ class GroupedEvents<in K, out A> internal constructor(internal val impl: DemuxIm
 @ExperimentalKairosApi
 fun <A> Events<A>.partition(
     predicate: TransactionScope.(A) -> Boolean
+): Pair<Events<A>, Events<A>> =
+    partition(nameTag("Events.partition").toNameData("Events.partition"), predicate)
+
+internal fun <A> Events<A>.partition(
+    nameData: NameData,
+    predicate: TransactionScope.(A) -> Boolean,
 ): Pair<Events<A>, Events<A>> {
-    val grouped: GroupedEvents<Boolean, A> = groupBy(numKeys = 2, extractKey = predicate)
-    return Pair(grouped.eventsForKey(true), grouped.eventsForKey(false))
+    val grouped: KeyedEvents<Boolean, A> = groupBy(nameData, numKeys = 2, extractKey = predicate)
+    return Pair(grouped.eventsForKey(true, nameData), grouped.eventsForKey(false, nameData))
 }
 
 /**
@@ -141,11 +171,16 @@ fun <A> Events<A>.partition(
  * @see partitionThese
  */
 @ExperimentalKairosApi
-fun <A, B> Events<Either<A, B>>.partitionEither(): Pair<Events<A>, Events<B>> {
-    val (left, right) = partition { it is Either.First }
+fun <A, B> Events<Either<A, B>>.partitionEither(): Pair<Events<A>, Events<B>> =
+    partitionEither(nameTag("Events.partitionEither").toNameData("Events.partitionEither"))
+
+internal fun <A, B> Events<Either<A, B>>.partitionEither(
+    nameData: NameData
+): Pair<Events<A>, Events<B>> {
+    val (left, right) = partition(nameData) { it is Either.First }
     return Pair(
-        left.mapCheap { (it as Either.First).value },
-        right.mapCheap { (it as Either.Second).value },
+        left.mapCheap(nameData + "getFirst") { (it as Either.First).value },
+        right.mapCheap(nameData + "getSecond") { (it as Either.Second).value },
     )
 }
 
@@ -157,21 +192,26 @@ fun <A, B> Events<Either<A, B>>.partitionEither(): Pair<Events<A>, Events<B>> {
  * @sample com.android.systemui.kairos.KairosSamples.partitionThese
  */
 @ExperimentalKairosApi
-fun <A, B> Events<These<A, B>>.partitionThese(): Pair<Events<A>, Events<B>> {
+fun <A, B> Events<These<A, B>>.partitionThese(): Pair<Events<A>, Events<B>> =
+    partitionThese(nameTag("Events.partitionThese").toNameData("Events.partitionThese"))
+
+internal fun <A, B> Events<These<A, B>>.partitionThese(
+    nameData: NameData
+): Pair<Events<A>, Events<B>> {
     val grouped =
-        mapCheap {
+        mapCheap(nameData + "projectBools") {
                 when (it) {
                     is These.Both -> mapOf(true to it, false to it)
                     is These.Second -> mapOf(false to it)
                     is These.First -> mapOf(true to it)
                 }
             }
-            .groupByKey(numKeys = 2)
+            .groupByKey(nameData, numKeys = 2)
     return Pair(
-        grouped.eventsForKey(true).mapCheap {
+        grouped.eventsForKey(true, nameData).mapCheap(nameData + "getFirst") {
             it.maybeFirst().orError { "unexpected missing value" }
         },
-        grouped.eventsForKey(false).mapCheap {
+        grouped.eventsForKey(false, nameData).mapCheap(nameData + "getSecond") {
             it.maybeSecond().orError { "unexpected missing value" }
         },
     )

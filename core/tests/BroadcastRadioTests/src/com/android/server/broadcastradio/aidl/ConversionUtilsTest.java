@@ -157,6 +157,12 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     private static final ProgramSelector.Identifier TEST_HD_STATION_EXT_ID =
             new ProgramSelector.Identifier(ProgramSelector.IDENTIFIER_TYPE_HD_STATION_ID_EXT,
                     TEST_HD_STATION_ID_EXT_VALUE);
+    private static final ProgramSelector.Identifier TEST_HD_STATION_LOCATION_ID =
+            new ProgramSelector.Identifier(ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION,
+                    TEST_HD_LOCATION_VALUE);
+    private static final ProgramSelector TEST_HD_STATION_LOCATION_SELECTOR = new ProgramSelector(
+            ProgramSelector.PROGRAM_TYPE_FM_HD, TEST_HD_STATION_EXT_ID,
+            new ProgramSelector.Identifier[]{TEST_HD_STATION_LOCATION_ID}, /* vendorIds= */ null);
 
     private static final ProgramIdentifier TEST_HAL_HD_STATION_EXT_ID =
             AidlTestUtils.makeHalIdentifier(IdentifierType.HD_STATION_ID_EXT,
@@ -467,12 +473,9 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     }
 
     @Test
-    public void identifierToHalProgramIdentifier_withFlagEnabled() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-        ProgramSelector.Identifier hdLocationId = createHdStationLocationIdWithFlagEnabled();
-
+    public void identifierToHalProgramIdentifier_withHdLocationId() {
         ProgramIdentifier halHdLocationId =
-                ConversionUtils.identifierToHalProgramIdentifier(hdLocationId);
+                ConversionUtils.identifierToHalProgramIdentifier(TEST_HD_STATION_LOCATION_ID);
 
         expect.withMessage("Converted HD location identifier for HAL").that(halHdLocationId)
                 .isEqualTo(TEST_HAL_HD_STATION_LOCATION_ID);
@@ -487,27 +490,12 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     }
 
     @Test
-    public void identifierFromHalProgramIdentifier_withFlagEnabled() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-        ProgramSelector.Identifier hdLocationIdExpected =
-                createHdStationLocationIdWithFlagEnabled();
-
+    public void identifierFromHalProgramIdentifier_withHdLocationId() {
         ProgramSelector.Identifier hdLocationId =
                 ConversionUtils.identifierFromHalProgramIdentifier(TEST_HAL_HD_STATION_LOCATION_ID);
 
         expect.withMessage("Converted HD location identifier").that(hdLocationId)
-                .isEqualTo(hdLocationIdExpected);
-    }
-
-    @Test
-    public void identifierFromHalProgramIdentifier_withFlagDisabled_returnsNull() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-
-        ProgramSelector.Identifier hdLocationId =
-                ConversionUtils.identifierFromHalProgramIdentifier(TEST_HAL_HD_STATION_LOCATION_ID);
-
-        expect.withMessage("Null HD location identifier with feature flag disabled")
-                .that(hdLocationId).isNull();
+                .isEqualTo(TEST_HD_STATION_LOCATION_ID);
     }
 
     @Test
@@ -705,12 +693,10 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
 
     @Test
     public void programSelectorMeetsSdkVersionRequirement_withLowerVersionSecondaryId() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-        ProgramSelector hdSelector = createHdSelectorWithFlagEnabled();
-
         expect.withMessage("Selector %s with secondary id requiring higher-version SDK version",
-                hdSelector).that(ConversionUtils.programSelectorMeetsSdkVersionRequirement(
-                        hdSelector, U_APP_UID)).isFalse();
+                TEST_HD_STATION_LOCATION_SELECTOR).that(
+                        ConversionUtils.programSelectorMeetsSdkVersionRequirement(
+                                TEST_HD_STATION_LOCATION_SELECTOR, U_APP_UID)).isFalse();
     }
 
     @Test
@@ -721,13 +707,11 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     }
 
     @Test
-    public void programSelectorMeetsSdkVersionRequirement_withRequiredVersionAndFlagEnabled() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-        ProgramSelector hdSelector = createHdSelectorWithFlagEnabled();
-
-        expect.withMessage("Selector %s with required SDK version and feature flag enabled",
-                hdSelector).that(ConversionUtils.programSelectorMeetsSdkVersionRequirement(
-                        hdSelector, V_APP_UID)).isTrue();
+    public void programSelectorMeetsSdkVersionRequirement_withRequiredVersion() {
+        expect.withMessage("Selector %s with required SDK version",
+                TEST_HD_STATION_LOCATION_SELECTOR)
+                .that(ConversionUtils.programSelectorMeetsSdkVersionRequirement(
+                        TEST_HD_STATION_LOCATION_SELECTOR, V_APP_UID)).isTrue();
     }
 
     @Test
@@ -843,23 +827,12 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
     }
 
     @Test
-    public void configFlagMeetsSdkVersionRequirement_withRequiredSdkVersionAndFlagEnabled() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
+    public void configFlagMeetsSdkVersionRequirement_withRequiredSdkVersion() {
         int halForceAmAnalogFlag = ConfigFlag.FORCE_ANALOG_FM;
 
-        expect.withMessage("Force Analog FM flag with required SDK version and feature flag"
-                        + " enabled").that(ConversionUtils.configFlagMeetsSdkVersionRequirement(
-                                halForceAmAnalogFlag, V_APP_UID)).isTrue();
-    }
-
-    @Test
-    public void configFlagMeetsSdkVersionRequirement_withRequiredSdkVersionAndFlagDisabled() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-        int halForceAmAnalogFlag = ConfigFlag.FORCE_ANALOG_FM;
-
-        expect.withMessage("Force Analog FM with required SDK version and with feature flag"
-                        + " disabled").that(ConversionUtils.configFlagMeetsSdkVersionRequirement(
-                                halForceAmAnalogFlag, V_APP_UID)).isFalse();
+        expect.withMessage("Force Analog FM flag with required SDK version")
+                .that(ConversionUtils.configFlagMeetsSdkVersionRequirement(
+                        halForceAmAnalogFlag, V_APP_UID)).isTrue();
     }
 
     @Test
@@ -893,25 +866,25 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
                         Metadata.rdsRt(rdsRtValue), Metadata.songAlbum(songAlbumValue),
                         Metadata.programName(programNameValue)});
 
-        expect.withMessage("Song title with flag enabled")
+        expect.withMessage("Song title")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_TITLE))
                 .isEqualTo(TEST_SONG_TITLE);
-        expect.withMessage("Album art with flag enabled")
+        expect.withMessage("Album art")
                 .that(convertedMetadata.getInt(RadioMetadata.METADATA_KEY_ART))
                 .isEqualTo(TEST_ALBUM_ART);
-        expect.withMessage("RDS PTY with flag enabled")
+        expect.withMessage("RDS PTY")
                 .that(convertedMetadata.getInt(RadioMetadata.METADATA_KEY_RDS_PTY))
                 .isEqualTo(rdsPtyValue);
-        expect.withMessage("RBDS PTY with flag enabled")
+        expect.withMessage("RBDS PTY")
                 .that(convertedMetadata.getInt(RadioMetadata.METADATA_KEY_RBDS_PTY))
                 .isEqualTo(rbdsPtyValue);
-        expect.withMessage("RDS RT with flag enabled")
+        expect.withMessage("RDS RT")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_RDS_RT))
                 .isEqualTo(rdsRtValue);
-        expect.withMessage("Album with flag enabled")
+        expect.withMessage("Album")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_ALBUM))
                 .isEqualTo(songAlbumValue);
-        expect.withMessage("Program name with flag enabled")
+        expect.withMessage("Program name")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_PROGRAM_NAME))
                 .isEqualTo(programNameValue);
     }
@@ -932,33 +905,32 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
                         Metadata.dabComponentName(dabComponentNameValue),
                         Metadata.dabComponentNameShort(dabComponentNameShortValue)});
 
-        expect.withMessage("DAB Ensemble name with flag enabled")
+        expect.withMessage("DAB Ensemble name")
                 .that(convertedMetadata.getString(
                         RadioMetadata.METADATA_KEY_DAB_ENSEMBLE_NAME))
                 .isEqualTo(dabEnsembleNameValue);
-        expect.withMessage("DAB Ensemble short name with flag enabled")
+        expect.withMessage("DAB Ensemble short name")
                 .that(convertedMetadata.getString(
                         RadioMetadata.METADATA_KEY_DAB_ENSEMBLE_NAME_SHORT))
                 .isEqualTo(dabEnsembleNameShortValue);
-        expect.withMessage("DAB service service name with flag enabled")
+        expect.withMessage("DAB service service name")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_DAB_SERVICE_NAME))
                 .isEqualTo(dabServiceNameValue);
-        expect.withMessage("DAB service service short name with flag enabled")
+        expect.withMessage("DAB service service short name")
                 .that(convertedMetadata.getString(
                         RadioMetadata.METADATA_KEY_DAB_SERVICE_NAME_SHORT))
                 .isEqualTo(dabServiceNameShortValue);
-        expect.withMessage("DAB component name with flag enabled")
+        expect.withMessage("DAB component name")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_DAB_COMPONENT_NAME))
                 .isEqualTo(dabComponentNameValue);
-        expect.withMessage("DAB component short name with flag enabled")
+        expect.withMessage("DAB component short name")
                 .that(convertedMetadata.getString(
                         RadioMetadata.METADATA_KEY_DAB_COMPONENT_NAME_SHORT))
                 .isEqualTo(dabComponentNameShortValue);
     }
 
     @Test
-    public void radioMetadataFromHalMetadata_withHdMetadataAndFlagEnabled() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
+    public void radioMetadataFromHalMetadata_withHdMetadata() {
         String genreValue = "genreTest";
         String commentShortDescriptionValue = "commentShortDescriptionTest";
         String commentActualTextValue = "commentActualTextTest";
@@ -975,48 +947,31 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
                         Metadata.hdStationNameShort(hdStationNameShortValue),
                         Metadata.hdStationNameLong(hdStationNameLongValue)});
 
-        expect.withMessage("Genre with flag enabled")
+        expect.withMessage("Genre")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_GENRE))
                 .isEqualTo(genreValue);
-        expect.withMessage("Short description of comment with flag enabled")
+        expect.withMessage("Short description of comment")
                 .that(convertedMetadata.getString(
                         RadioMetadata.METADATA_KEY_COMMENT_SHORT_DESCRIPTION))
                 .isEqualTo(commentShortDescriptionValue);
-        expect.withMessage("Actual text of comment with flag enabled")
+        expect.withMessage("Actual text of comment")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_COMMENT_ACTUAL_TEXT))
                 .isEqualTo(commentActualTextValue);
-        expect.withMessage("Commercial with flag enabled")
+        expect.withMessage("Commercial")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_COMMERCIAL))
                 .isEqualTo(commercialValue);
-        expect.withMessage("UFIDs with flag enabled")
+        expect.withMessage("UFIDs")
                 .that(convertedMetadata.getStringArray(RadioMetadata.METADATA_KEY_UFIDS)).asList()
                 .containsExactlyElementsIn(ufidsValue);
-        expect.withMessage("HD station short name with flag enabled")
+        expect.withMessage("HD station short name")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_HD_STATION_NAME_SHORT))
                 .isEqualTo(hdStationNameShortValue);
-        expect.withMessage("HD station long name with flag enabled")
+        expect.withMessage("HD station long name")
                 .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_HD_STATION_NAME_LONG))
                 .isEqualTo(hdStationNameLongValue);
-        expect.withMessage("HD sub-channels with flag enabled")
+        expect.withMessage("HD sub-channels")
                 .that(convertedMetadata.getInt(RadioMetadata
                         .METADATA_KEY_HD_SUBCHANNELS_AVAILABLE)).isEqualTo(TEST_HD_SUBCHANNELS);
-    }
-
-    @Test
-    public void radioMetadataFromHalMetadata_withFlagDisabled() {
-        mSetFlagsRule.disableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-
-        RadioMetadata convertedMetadata = ConversionUtils.radioMetadataFromHalMetadata(
-                new Metadata[]{TEST_HAL_SONG_TITLE, TEST_HAL_HD_SUBCHANNELS, TEST_HAL_ALBUM_ART});
-
-        expect.withMessage("Metadata with flag disabled").that(convertedMetadata.size())
-                .isEqualTo(2);
-        expect.withMessage("Song title with flag disabled")
-                .that(convertedMetadata.getString(RadioMetadata.METADATA_KEY_TITLE))
-                .isEqualTo(TEST_SONG_TITLE);
-        expect.withMessage("Album art with flag disabled")
-                .that(convertedMetadata.getInt(RadioMetadata.METADATA_KEY_ART))
-                .isEqualTo(TEST_ALBUM_ART);
     }
 
     @Test
@@ -1183,17 +1138,6 @@ public final class ConversionUtilsTest extends ExtendedRadioMockitoTestCase {
                 AidlTestUtils.makeVendorKeyValue(VENDOR_INFO_KEY_1, VENDOR_INFO_VALUE_1),
                 AidlTestUtils.makeVendorKeyValue(VENDOR_INFO_KEY_2, VENDOR_INFO_VALUE_2)};
         return halProperties;
-    }
-
-    private static ProgramSelector.Identifier createHdStationLocationIdWithFlagEnabled() {
-        return new ProgramSelector.Identifier(ProgramSelector.IDENTIFIER_TYPE_HD_STATION_LOCATION,
-                TEST_HD_LOCATION_VALUE);
-    }
-
-    private static ProgramSelector createHdSelectorWithFlagEnabled() {
-        return new ProgramSelector(ProgramSelector.PROGRAM_TYPE_FM_HD, TEST_HD_STATION_EXT_ID,
-                new ProgramSelector.Identifier[]{createHdStationLocationIdWithFlagEnabled()},
-                /* vendorIds= */ null);
     }
 
     private static Alert createHalAlert(int status, int messageType, AlertInfo[] alertInfos) {

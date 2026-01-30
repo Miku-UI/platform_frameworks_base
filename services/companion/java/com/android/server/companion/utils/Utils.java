@@ -21,6 +21,8 @@ import android.bluetooth.BluetoothDevice;
 import android.os.Parcel;
 import android.os.ResultReceiver;
 
+import java.security.SecureRandom;
+
 /**
  * A miscellaneous util class for CDM
  *
@@ -65,6 +67,16 @@ public final class Utils {
         }
 
         return sb.append(']').toString();
+    }
+
+    /**
+     * @return a random 128 bit key.
+     */
+    public static byte[] generateRandom128BitKey() {
+        SecureRandom secureRandom = new SecureRandom();
+        byte[] id = new byte[16];
+        secureRandom.nextBytes(id);
+        return id;
     }
 
     private Utils() {}

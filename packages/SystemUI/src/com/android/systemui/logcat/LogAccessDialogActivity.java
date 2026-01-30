@@ -171,7 +171,7 @@ public class LogAccessDialogActivity extends Activity implements
         public void handleMessage(android.os.Message msg) {
             switch (msg.what) {
                 case MSG_DISMISS_DIALOG:
-                    if (mAlert != null) {
+                    if (mAlert != null && mAlert.isShowing()) {
                         mAlert.dismiss();
                         declineLogAccess();
                     }

@@ -27,7 +27,6 @@ import android.util.ArrayMap;
 import android.util.AtomicFile;
 import android.util.Slog;
 import android.util.Xml;
-import android.view.inputmethod.Flags;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodSubtype;
 
@@ -180,11 +179,9 @@ final class AdditionalSubtypeUtils {
                     out.attributeInt(null, ATTR_ICON, subtype.getIconResId());
                     out.attributeInt(null, ATTR_LABEL, subtype.getNameResId());
                     out.attribute(null, ATTR_NAME_OVERRIDE, subtype.getNameOverride().toString());
-                    if (Flags.imeSwitcherRevampApi()) {
-                        out.attributeInt(null, ATTR_LAYOUT_LABEL, subtype.getLayoutLabelResource());
-                        out.attribute(null, ATTR_LAYOUT_LABEL_NON_LOCALIZED,
-                                subtype.getLayoutLabelNonLocalized().toString());
-                    }
+                    out.attributeInt(null, ATTR_LAYOUT_LABEL, subtype.getLayoutLabelResource());
+                    out.attribute(null, ATTR_LAYOUT_LABEL_NON_LOCALIZED,
+                            subtype.getLayoutLabelNonLocalized().toString());
                     ULocale pkLanguageTag = subtype.getPhysicalKeyboardHintLanguageTag();
                     if (pkLanguageTag != null) {
                         out.attribute(null, ATTR_NAME_PK_LANGUAGE_TAG,
@@ -276,16 +273,9 @@ final class AdditionalSubtypeUtils {
                     final int label = parser.getAttributeInt(null, ATTR_LABEL);
                     final String untranslatableName = parser.getAttributeValue(null,
                             ATTR_NAME_OVERRIDE);
-                    final int layoutLabelResource;
-                    final String layoutLabelNonLocalized;
-                    if (Flags.imeSwitcherRevampApi()) {
-                        layoutLabelResource = parser.getAttributeInt(null, ATTR_LAYOUT_LABEL);
-                        layoutLabelNonLocalized = parser.getAttributeValue(null,
-                                ATTR_LAYOUT_LABEL_NON_LOCALIZED);
-                    } else {
-                        layoutLabelResource = 0;
-                        layoutLabelNonLocalized = null;
-                    }
+                    final int layoutLabelResource = parser.getAttributeInt(null, ATTR_LAYOUT_LABEL);
+                    final String layoutLabelNonLocalized = parser.getAttributeValue(null,
+                            ATTR_LAYOUT_LABEL_NON_LOCALIZED);
                     final String pkLanguageTag = parser.getAttributeValue(null,
                             ATTR_NAME_PK_LANGUAGE_TAG);
                     final String pkLayoutType = parser.getAttributeValue(null,

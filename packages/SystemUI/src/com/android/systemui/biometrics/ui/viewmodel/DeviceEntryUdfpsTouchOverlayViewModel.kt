@@ -16,11 +16,14 @@
 
 package com.android.systemui.biometrics.ui.viewmodel
 
+import android.security.Flags.secureLockDevice
 import com.android.keyguard.logging.DeviceEntryIconLogger
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.keyguard.ui.viewmodel.DeviceEntryIconViewModel
+import com.android.systemui.securelockdevice.domain.interactor.SecureLockDeviceInteractor
 import com.android.systemui.statusbar.phone.SystemUIDialogManager
 import com.android.systemui.statusbar.phone.hideAffordancesRequest
+import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -30,13 +33,14 @@ import kotlinx.coroutines.flow.map
 /**
  * View model for the UdfpsTouchOverlay for when UDFPS is being requested for device entry. Handles
  * touches as long as the device entry view is visible (the lockscreen or the alternate bouncer
- * view).
+ * view), or during secure lock device biometric authentication on the primary bouncer.
  */
 class DeviceEntryUdfpsTouchOverlayViewModel
 @Inject
 constructor(
     deviceEntryIconViewModel: DeviceEntryIconViewModel,
     alternateBouncerInteractor: AlternateBouncerInteractor,
+    secureLockDeviceInteractor: Lazy<SecureLockDeviceInteractor>,
     systemUIDialogManager: SystemUIDialogManager,
     logger: DeviceEntryIconLogger,
 ) : UdfpsTouchOverlayViewModel {
@@ -44,20 +48,33 @@ constructor(
         deviceEntryIconViewModel.deviceEntryViewAlpha
             .map { it > ALLOW_TOUCH_ALPHA_THRESHOLD }
             .distinctUntilChanged()
+
     override val shouldHandleTouches: Flow<Boolean> =
         combine(
                 deviceEntryViewAlphaIsMostlyVisible,
                 alternateBouncerInteractor.isVisible,
                 systemUIDialogManager.hideAffordancesRequest,
-            ) { canTouchDeviceEntryViewAlpha, alternateBouncerVisible, hideAffordancesRequest ->
+                deviceEntryIconViewModel.transitioningToDozing,
+                secureLockDeviceInteractor.get().shouldListenForBiometricAuth,
+            ) {
+                canTouchDeviceEntryViewAlpha,
+                alternateBouncerVisible,
+                hideAffordancesRequest,
+                toDozing,
+                shouldListenForBiometricAuthDuringSecureLockDevice ->
+                val handleTouchesForSecureLockDeviceBiometricAuth =
+                    (secureLockDevice() && shouldListenForBiometricAuthDuringSecureLockDevice)
                 val shouldHandleTouches =
                     (canTouchDeviceEntryViewAlpha && !hideAffordancesRequest) ||
-                        alternateBouncerVisible
+                        alternateBouncerVisible ||
+                        toDozing ||
+                        handleTouchesForSecureLockDeviceBiometricAuth
                 logger.logDeviceEntryUdfpsTouchOverlayShouldHandleTouches(
                     shouldHandleTouches,
                     canTouchDeviceEntryViewAlpha,
+                    handleTouchesForSecureLockDeviceBiometricAuth,
                     alternateBouncerVisible,
-                    hideAffordancesRequest
+                    hideAffordancesRequest,
                 )
                 shouldHandleTouches
             }

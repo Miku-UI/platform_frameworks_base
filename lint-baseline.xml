@@ -3952,28 +3952,6 @@
 
     <issue
         id="FlaggedApi"
-        message="Field `BIOMETRIC_NO_AUTHENTICATION` is a flagged API and should be inside an `if (Flags.lastAuthenticationTime())` check (or annotate the surrounding method `getLastAuthTime` with `@FlaggedApi(Flags.FLAG_LAST_AUTHENTICATION_TIME) to transfer requirement to caller`)"
-        errorLine1="            return BiometricConstants.BIOMETRIC_NO_AUTHENTICATION;"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/keystore/java/android/security/KeyStoreAuthorization.java"
-            line="139"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `BIOMETRIC_NO_AUTHENTICATION` is a flagged API and should be inside an `if (Flags.lastAuthenticationTime())` check (or annotate the surrounding method `getLastAuthTime` with `@FlaggedApi(Flags.FLAG_LAST_AUTHENTICATION_TIME) to transfer requirement to caller`)"
-        errorLine1="            return BiometricConstants.BIOMETRIC_NO_AUTHENTICATION;"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/keystore/java/android/security/KeyStoreAuthorization.java"
-            line="145"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
         message="Field `PERSISTENT_DATA_BLOCK_SERVICE` is a flagged API and should be inside an `if (Flags.frpEnforcement())` check (or annotate the surrounding method `createConfirmFactoryResetCredentialIntent` with `@FlaggedApi(Flags.FLAG_FRP_ENFORCEMENT) to transfer requirement to caller`)"
         errorLine1="                    ServiceManager.getService(Context.PERSISTENT_DATA_BLOCK_SERVICE));"
         errorLine2="                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
@@ -7770,17 +7748,6 @@
     <issue
         id="FlaggedApi"
         message="@FlaggedApi should specify an actual flag constant; raw strings are discouraged (and more importantly, **not enforced**)"
-        errorLine1="    @android.annotation.FlaggedApi(&quot;android.security.asm_restrictions_enabled&quot;)"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="out/soong/.intermediates/frameworks/base/core/res/framework-res/android_common/gen/android/R.srcjar!/android/R.java"
-            line="759"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="@FlaggedApi should specify an actual flag constant; raw strings are discouraged (and more importantly, **not enforced**)"
         errorLine1="    @android.annotation.FlaggedApi(&quot;android.nfc.nfc_read_polling_loop&quot;)"
         errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
@@ -8193,28 +8160,6 @@
         <location
             file="out/soong/.intermediates/frameworks/base/core/res/framework-res/android_common/gen/android/R.srcjar!/android/R.java"
             line="25110"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="@FlaggedApi should specify an actual flag constant; raw strings are discouraged (and more importantly, **not enforced**)"
-        errorLine1="    @android.annotation.FlaggedApi(&quot;android.security.asm_restrictions_enabled&quot;)"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="out/soong/.intermediates/frameworks/base/core/res/framework-res/android_common/gen/android/R.srcjar!/android/R.java"
-            line="25837"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="@FlaggedApi should specify an actual flag constant; raw strings are discouraged (and more importantly, **not enforced**)"
-        errorLine1="    @android.annotation.FlaggedApi(&quot;android.security.asm_restrictions_enabled&quot;)"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="out/soong/.intermediates/frameworks/base/core/res/framework-res/android_common/gen/android/R.srcjar!/android/R.java"
-            line="27173"
             column="36"/>
     </issue>
 
@@ -9326,50 +9271,6 @@
         <location
             file="frameworks/base/core/java/android/app/SystemServiceRegistry.java"
             line="1568"
-            column="32"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Class `OnDeviceIntelligenceManager` is a flagged API and should be inside an `if (Flags.enableOnDeviceIntelligence())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE) to transfer requirement to caller`)"
-        errorLine1="        registerService(Context.ON_DEVICE_INTELLIGENCE_SERVICE, OnDeviceIntelligenceManager.class,"
-        errorLine2="                                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/core/java/android/app/SystemServiceRegistry.java"
-            line="1638"
-            column="65"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `ON_DEVICE_INTELLIGENCE_SERVICE` is a flagged API and should be inside an `if (Flags.enableOnDeviceIntelligence())` check (or annotate the surrounding method `?` with `@FlaggedApi(Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE) to transfer requirement to caller`)"
-        errorLine1="        registerService(Context.ON_DEVICE_INTELLIGENCE_SERVICE, OnDeviceIntelligenceManager.class,"
-        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/core/java/android/app/SystemServiceRegistry.java"
-            line="1638"
-            column="33"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Field `ON_DEVICE_INTELLIGENCE_SERVICE` is a flagged API and should be inside an `if (Flags.enableOnDeviceIntelligence())` check (or annotate the surrounding method `createService` with `@FlaggedApi(Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE) to transfer requirement to caller`)"
-        errorLine1="                                Context.ON_DEVICE_INTELLIGENCE_SERVICE);"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/core/java/android/app/SystemServiceRegistry.java"
-            line="1644"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="FlaggedApi"
-        message="Method `OnDeviceIntelligenceManager()` is a flagged API and should be inside an `if (Flags.enableOnDeviceIntelligence())` check (or annotate the surrounding method `createService` with `@FlaggedApi(Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE) to transfer requirement to caller`)"
-        errorLine1="                        return new OnDeviceIntelligenceManager(ctx.getOuterContext(), manager);"
-        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="frameworks/base/core/java/android/app/SystemServiceRegistry.java"
-            line="1647"
             column="32"/>
     </issue>
 
@@ -11276,4 +11177,818 @@
             column="9"/>
     </issue>
 
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="        Parcelable superState = source.readParcelable(loader);"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/AbsSavedState.java"
+            line="67"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="            Parcelable superState = in.readParcelable(loader);"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/AbsSavedState.java"
+            line="93"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="        record.mParcelableData = parcel.readParcelable(null);"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/accessibility/AccessibilityEvent.java"
+            line="1725"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="        Parcelable span = arguments.getParcelable(ACTION_ARGUMENT_ACCESSIBLE_CLICKABLE_SPAN);"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/AccessibilityInteractionController.java"
+            line="1305"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="                final Parcelable[] parcelables = bundle.getParcelableArray(KEY_ACCOUNTS);"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/accounts/AccountManager.java"
+            line="975"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="            Parcelable p = savedInstanceState.getParcelable(FRAGMENTS_TAG);"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/app/Activity.java"
+            line="1907"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="                Parcelable parcelable = sharedElementBundle.getParcelable(KEY_SNAPSHOT);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/app/ActivityTransitionCoordinator.java"
+            line="694"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="        mComponentName = in.readParcelable(ComponentName.class.getClassLoader());"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/pm/AppLaunchInfo.java"
+            line="49"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="        mLaunchIntent = in.readParcelable(Intent.class.getClassLoader());"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/pm/AppLaunchInfo.java"
+            line="50"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="            jail = bundle.getSparseParcelableArray(KEY_JAILED_ARRAY);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/appwidget/AppWidgetHostView.java"
+            line="288"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArrayList()` API usage"
+        errorLine1="                widgetManager.getAppWidgetOptions(mAppWidgetId).&lt;SizeF>getParcelableArrayList("
+        errorLine2="                ^">
+        <location
+            file="frameworks/base/core/java/android/appwidget/AppWidgetHostView.java"
+            line="439"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableExtra()` API usage"
+        errorLine1="            if (data.getParcelableExtra(EXTRA_AUTHENTICATION_RESULT) != null) {"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/autofill/AutofillManager.java"
+            line="2668"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableExtra()` API usage"
+        errorLine1="                result = data.getParcelableExtra(EXTRA_AUTHENTICATION_RESULT);"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/autofill/AutofillManager.java"
+            line="2669"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableExtra()` API usage"
+        errorLine1="            } else if (data.getParcelableExtra("
+        errorLine2="                       ^">
+        <location
+            file="frameworks/base/core/java/android/view/autofill/AutofillManager.java"
+            line="2670"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableExtra()` API usage"
+        errorLine1="                result = data.getParcelableExtra("
+        errorLine2="                         ^">
+        <location
+            file="frameworks/base/core/java/android/view/autofill/AutofillManager.java"
+            line="2673"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readSerializable()` API usage"
+        errorLine1="            final Pattern[] regexs = (Pattern[]) parcel.readSerializable();"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/service/autofill/CharSequenceTransformation.java"
+            line="217"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayExtra()` API usage"
+        errorLine1="        mAccounts = getIntent().getParcelableArrayExtra(AccountManager.KEY_ACCOUNTS);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/accounts/ChooseAccountActivity.java"
+            line="63"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="                    savedInstanceState.getParcelableArray(KEY_INSTANCE_STATE_EXISTING_ACCOUNTS);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/accounts/ChooseTypeAndAccountActivity.java"
+            line="168"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="                savedInstanceState.getParcelableArray(KEY_INSTANCE_STATE_ACCOUNTS_LIST);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/accounts/ChooseTypeAndAccountActivity.java"
+            line="177"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayListExtra()` API usage"
+        errorLine1="              intent.getParcelableArrayListExtra(EXTRA_ALLOWABLE_ACCOUNTS_ARRAYLIST);"
+        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/accounts/ChooseTypeAndAccountActivity.java"
+            line="578"
+            column="15"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableExtra()` API usage"
+        errorLine1="        Parcelable targetParcelable = intent.getParcelableExtra(Intent.EXTRA_INTENT);"
+        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/app/ChooserActivity.java"
+            line="559"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayExtra()` API usage"
+        errorLine1="                = intent.getParcelableArrayExtra(Intent.EXTRA_ALTERNATE_INTENTS);"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/app/ChooserActivity.java"
+            line="580"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayExtra()` API usage"
+        errorLine1="        Parcelable[] pa = intent.getParcelableArrayExtra(Intent.EXTRA_INITIAL_INTENTS);"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/app/ChooserActivity.java"
+            line="624"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayExtra()` API usage"
+        errorLine1="        pa = intent.getParcelableArrayExtra(Intent.EXTRA_EXCLUDE_COMPONENTS);"
+        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/app/ChooserActivity.java"
+            line="652"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayExtra()` API usage"
+        errorLine1="        pa = intent.getParcelableArrayExtra(Intent.EXTRA_CHOOSER_TARGETS);"
+        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/app/ChooserActivity.java"
+            line="680"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="                    Parcelable intentParcelable = resultData.getParcelable(Intent.EXTRA_INTENT);"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/app/ChooserActivity.java"
+            line="4025"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="        final Parcelable[] messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES);"
+        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/CompactMessagingLayout.java"
+            line="130"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="                extras.getParcelableArray(Notification.EXTRA_HISTORIC_MESSAGES);"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/CompactMessagingLayout.java"
+            line="134"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="        data = in.readParcelable(null);"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/net/ConnectivityMetricsEvent.java"
+            line="50"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="        Parcelable[] messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES);"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/ConversationLayout.java"
+            line="472"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="        Parcelable[] histMessages = extras.getParcelableArray(Notification.EXTRA_HISTORIC_MESSAGES);"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/ConversationLayout.java"
+            line="475"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="            Parcelable p = savedInstanceState.getParcelable(Activity.FRAGMENTS_TAG);"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/app/Fragment.java"
+            line="1523"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="                            f.mSavedViewState = f.mSavedFragmentState.getSparseParcelableArray("
+        errorLine2="                                                ^">
+        <location
+            file="frameworks/base/core/java/android/app/FragmentManager.java"
+            line="1210"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="                    f.mSavedViewState = fs.mSavedFragmentState.getSparseParcelableArray("
+        errorLine2="                                        ^">
+        <location
+            file="frameworks/base/core/java/android/app/FragmentManager.java"
+            line="2851"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelableList()` API usage"
+        errorLine1="        in.readParcelableList(audioStreams, HotwordAudioStream.class.getClassLoader());"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/service/voice/HotwordDetectedResult.java"
+            line="917"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="        SparseArray&lt;Parcelable> viewStates = inState.getSparseParcelableArray(VIEWS_TAG);"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/view/menu/IconMenuPresenter.java"
+            line="146"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readSerializable()` API usage"
+        errorLine1="            final Pattern[] regexs = (Pattern[]) parcel.readSerializable();"
+        errorLine2="                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/service/autofill/ImageTransformation.java"
+            line="252"
+            column="50"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="            return mCallExtras.getParcelable(name);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/telephony/java/android/telephony/ims/ImsCallProfile.java"
+            line="739"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelableList()` API usage"
+        errorLine1="        in.readParcelableList(inlinePresentationSpecs, InlinePresentationSpec.class.getClassLoader());"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/inputmethod/InlineSuggestionsRequest.java"
+            line="441"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readSparseArray()` API usage"
+        errorLine1="        splitDependencies = source.readSparseArray(null);"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/pm/InstrumentationInfo.java"
+            line="200"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="        return mExtras == null ? null : mExtras.&lt;T>getParcelable(name);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/Intent.java"
+            line="9706"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="        return mExtras == null ? null : mExtras.getParcelableArray(name);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/Intent.java"
+            line="9739"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArrayList()` API usage"
+        errorLine1="        return mExtras == null ? null : mExtras.&lt;T>getParcelableArrayList(name);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/Intent.java"
+            line="9775"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSerializable()` API usage"
+        errorLine1="        return mExtras == null ? null : mExtras.getSerializable(name);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/Intent.java"
+            line="9811"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayExtra()` API usage"
+        errorLine1="                final Parcelable[] intents = getParcelableArrayExtra(EXTRA_INITIAL_INTENTS);"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/content/Intent.java"
+            line="13451"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelableList()` API usage"
+        errorLine1="        in.readParcelableList(systemWideThresholds, IoOveruseAlertThreshold.class.getClassLoader());"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/media/java/android/media/tv/watchdogmanager/IoOveruseConfiguration.java"
+            line="183"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="        SparseArray&lt;Parcelable> viewStates = inState.getSparseParcelableArray(VIEWS_TAG);"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/view/menu/ListMenuPresenter.java"
+            line="192"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="                Parcelable item = resultData.getParcelable(MediaBrowserService.KEY_MEDIA_ITEM);"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/media/java/android/media/browse/MediaBrowser.java"
+            line="419"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="                    return mEditorMetadata.getParcelable(String.valueOf(key));"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/media/java/android/media/MediaMetadataEditor.java"
+            line="398"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="        SparseArray&lt;Parcelable> presenterStates = state.getSparseParcelableArray(PRESENTER_KEY);"
+        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/view/menu/MenuBuilder.java"
+            line="325"
+            column="51"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="        SparseArray&lt;Parcelable> viewStates = states.getSparseParcelableArray("
+        errorLine2="                                             ^">
+        <location
+            file="frameworks/base/core/java/com/android/internal/view/menu/MenuBuilder.java"
+            line="385"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="        Parcelable[] messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES);"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/MessagingLayout.java"
+            line="247"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="        Parcelable[] histMessages = extras.getParcelableArray(Notification.EXTRA_HISTORIC_MESSAGES);"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/MessagingLayout.java"
+            line="250"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readSparseArray()` API usage"
+        errorLine1="        this.splitDependencies = in.readSparseArray(boot);"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/pm/parsing/pkg/PackageImpl.java"
+            line="3484"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="        T parcelable = mParcel.readParcelable(clazz.getClassLoader());"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/os/ParcelableHolder.java"
+            line="165"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="                Object object = data.readParcelable(null);"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/media/java/android/media/session/ParcelableListBinder.java"
+            line="89"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArrayList()` API usage"
+        errorLine1="        mPerfMeasurement.getParcelableArrayList(METRIC_KEY_ITERATIONS).add(iteration);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/os/PerformanceCollector.java"
+            line="401"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="                = savedInstanceState.getSparseParcelableArray(VIEWS_TAG);"
+        errorLine2="                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/policy/PhoneWindow.java"
+            line="2332"
+            column="19"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="        SparseArray&lt;Parcelable> panelStates = savedInstanceState.getSparseParcelableArray(PANELS_TAG);"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/policy/PhoneWindow.java"
+            line="2351"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getSparseParcelableArray()` API usage"
+        errorLine1="                    savedInstanceState.getSparseParcelableArray(ACTION_BAR_TAG);"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/policy/PhoneWindow.java"
+            line="2358"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="            Parcelable state = container.getParcelable(mKey);"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/preference/Preference.java"
+            line="2063"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getParcelableArrayExtra()` API usage"
+        errorLine1="        Parcelable[] ndefMessages = nfcIntent.getParcelableArrayExtra(EXTRA_NDEF_MESSAGES);"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/app/admin/ProvisioningIntentHelper.java"
+            line="218"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="            mLayoutState = in.readParcelable(LayoutManager.class.getClassLoader());"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/RecyclerView.java"
+            line="11222"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelableList()` API usage"
+        errorLine1="        in.readParcelableList(signalingDataInfoList, SignalingDataInfo.class.getClassLoader());"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/media/java/android/media/tv/SignalingDataResponse.java"
+            line="115"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="        return mBundle == null ? null : mBundle.getParcelable(EXTRA);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/util/SyncResultReceiver.java"
+            line="96"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArrayList()` API usage"
+        errorLine1="        return mBundle == null ? null : mBundle.getParcelableArrayList(EXTRA);"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/util/SyncResultReceiver.java"
+            line="105"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Intent.getSerializableExtra()` API usage"
+        errorLine1="                    messages = (Object[]) intent.getSerializableExtra(&quot;pdus&quot;);"
+        errorLine2="                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/provider/Telephony.java"
+            line="1441"
+            column="43"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="                Parcelable receivedResult = data.getParcelable(MODEM_ACTIVITY_RESULT_KEY);"
+        errorLine2="                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/telephony/java/android/telephony/TelephonyManager.java"
+            line="13178"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelableArray()` API usage"
+        errorLine1="                            final Parcelable[] parcelables = b.getParcelableArray(SCAN_RESULT_KEY);"
+        errorLine2="                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/telephony/java/android/telephony/TelephonyScanManager.java"
+            line="169"
+            column="62"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Bundle.getParcelable()` API usage"
+        errorLine1="        return bundle.getParcelable(KEY_RESULT);"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/service/textclassifier/TextClassifierService.java"
+            line="421"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readSparseArray()` API usage"
+        errorLine1="        SparseArray&lt;TranslationResponseValue> translationResponseValues = (SparseArray) in.readSparseArray(TranslationResponseValue.class.getClassLoader());"
+        errorLine2="                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/translation/TranslationResponse.java"
+            line="291"
+            column="89"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readSparseArray()` API usage"
+        errorLine1="        SparseArray&lt;ViewTranslationResponse> viewTranslationResponses = (SparseArray) in.readSparseArray(ViewTranslationResponse.class.getClassLoader());"
+        errorLine2="                                                                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/view/translation/TranslationResponse.java"
+            line="292"
+            column="87"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelableArray()` API usage"
+        errorLine1="            Parcelable[] endpoints = in.readParcelableArray(UsbEndpoint.class.getClassLoader());"
+        errorLine2="                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/android/hardware/usb/UsbInterface.java"
+            line="174"
+            column="38"/>
+    </issue>
+
+    <issue
+        id="UnsafeParcelApi"
+        message="Unsafe `Parcel.readParcelable()` API usage"
+        errorLine1="            adapterState = in.readParcelable(loader);"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="frameworks/base/core/java/com/android/internal/widget/ViewPager.java"
+            line="1253"
+            column="28"/>
+    </issue>
 </issues>
+

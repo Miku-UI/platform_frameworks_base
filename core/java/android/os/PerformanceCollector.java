@@ -56,7 +56,7 @@ import java.util.ArrayList;
  * Structure of results output is up to implementor of
  * {@link PerformanceResultsWriter }.
  *
- * {@hide} Pending approval for public API.
+ * @hide Pending approval for public API.
  */
 public class PerformanceCollector {
 
@@ -398,7 +398,7 @@ public class PerformanceCollector {
         iteration.putString(METRIC_KEY_LABEL, label);
         iteration.putLong(METRIC_KEY_EXECUTION_TIME, mExecTime);
         iteration.putLong(METRIC_KEY_CPU_TIME, mCpuTime);
-        mPerfMeasurement.getParcelableArrayList(METRIC_KEY_ITERATIONS).add(iteration);
+        mPerfMeasurement.getParcelableArrayList(METRIC_KEY_ITERATIONS, Bundle.class).add(iteration);
 
         mExecTime = SystemClock.uptimeMillis();
         mCpuTime = Process.getElapsedCpuTime();

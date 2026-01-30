@@ -19,5 +19,10 @@ package com.android.systemui.shade.domain.interactor
 import android.content.Context
 
 /** Fake context repository that always returns the same context. */
-class FakeShadeDialogContextInteractor(override val context: Context) :
-    ShadeDialogContextInteractor
+class FakeShadeDialogContextInteractor(override var context: Context) :
+    ShadeDialogContextInteractor {
+
+    fun setContextOverride(context: Context) {
+        this.context = context
+    }
+}

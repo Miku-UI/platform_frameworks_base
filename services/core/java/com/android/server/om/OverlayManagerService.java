@@ -37,6 +37,8 @@ import static com.android.server.om.OverlayManagerServiceImpl.OperationFailedExc
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers.CanBeCURRENT;
+import android.annotation.SpecialUsers.CannotBeSpecialUser;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
@@ -312,7 +314,7 @@ public final class OverlayManagerService extends SystemService {
             onStartUser(UserHandle.USER_SYSTEM);
 
             publishBinderService(Context.OVERLAY_SERVICE, mService);
-            publishLocalService(OverlayManagerService.class, this);
+            publishLocalService(OverlayManagerInternal.class, mInternal);
         } finally {
             traceEnd(TRACE_TAG_RRO);
         }
@@ -416,7 +418,8 @@ public final class OverlayManagerService extends SystemService {
      * @param userId the user to interact with
      * @param message message for any SecurityException
      */
-    static int handleIncomingUser(final int userId, @NonNull final String message) {
+    static @CannotBeSpecialUser @UserIdInt int handleIncomingUser(
+            final @CanBeCURRENT @UserIdInt int userId, @NonNull final String message) {
         return ActivityManager.handleIncomingUser(Binder.getCallingPid(),
                 Binder.getCallingUid(), userId, false, true, message, null);
     }
@@ -613,7 +616,8 @@ public final class OverlayManagerService extends SystemService {
 
     private final IBinder mService = new IOverlayManager.Stub() {
         @Override
-        public Map<String, List<OverlayInfo>> getAllOverlays(final int userIdArg) {
+        public Map<String, List<OverlayInfo>> getAllOverlays(
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             try {
                 traceBegin(TRACE_TAG_RRO, "OMS#getAllOverlays " + userIdArg);
                 final int realUserId = handleIncomingUser(userIdArg, "getAllOverlays");
@@ -628,7 +632,7 @@ public final class OverlayManagerService extends SystemService {
 
         @Override
         public List<OverlayInfo> getOverlayInfosForTarget(@Nullable final String targetPackageName,
-                final int userIdArg) {
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             if (targetPackageName == null) {
                 return Collections.emptyList();
             }
@@ -647,13 +651,13 @@ public final class OverlayManagerService extends SystemService {
 
         @Override
         public OverlayInfo getOverlayInfo(@Nullable final String packageName,
-                final int userIdArg) {
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             return getOverlayInfoByIdentifier(new OverlayIdentifier(packageName), userIdArg);
         }
 
         @Override
         public OverlayInfo getOverlayInfoByIdentifier(@Nullable final OverlayIdentifier overlay,
-                final int userIdArg) {
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             if (overlay == null || overlay.getPackageName() == null) {
                 return null;
             }
@@ -672,19 +676,21 @@ public final class OverlayManagerService extends SystemService {
 
         @Override
         public boolean setEnabled(@Nullable final String packageName, final boolean enable,
-                int userIdArg) {
+                @CanBeCURRENT @UserIdInt int userIdArg) {
             return setEnabled(packageName, enable, userIdArg,
                     Collections.emptyList() /* constraints */);
         }
 
         @Override
-        public boolean enableWithConstraints(@Nullable final String packageName, int userIdArg,
+        public boolean enableWithConstraints(@Nullable final String packageName,
+                @CanBeCURRENT @UserIdInt int userIdArg,
                 @NonNull final List<OverlayConstraint> constraints) {
             return setEnabled(packageName, true /* enable */, userIdArg, constraints);
         }
 
         private boolean setEnabled(@Nullable final String packageName, final boolean enable,
-                int userIdArg, @NonNull final List<OverlayConstraint> constraints) {
+                @CanBeCURRENT @UserIdInt int userIdArg,
+                @NonNull final List<OverlayConstraint> constraints) {
             if (packageName == null) {
                 return false;
             }
@@ -717,7 +723,7 @@ public final class OverlayManagerService extends SystemService {
 
         @Override
         public boolean setEnabledExclusive(@Nullable final String packageName, final boolean enable,
-                int userIdArg) {
+                @CanBeCURRENT @UserIdInt int userIdArg) {
             if (packageName == null || !enable) {
                 return false;
             }
@@ -752,7 +758,7 @@ public final class OverlayManagerService extends SystemService {
 
         @Override
         public boolean setEnabledExclusiveInCategory(@Nullable String packageName,
-                final int userIdArg) {
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             if (packageName == null) {
                 return false;
             }
@@ -787,7 +793,8 @@ public final class OverlayManagerService extends SystemService {
 
         @Override
         public boolean setPriority(@Nullable final String packageName,
-                @Nullable final String parentPackageName, final int userIdArg) {
+                @Nullable final String parentPackageName,
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             if (packageName == null || parentPackageName == null) {
                 return false;
             }
@@ -821,7 +828,8 @@ public final class OverlayManagerService extends SystemService {
         }
 
         @Override
-        public boolean setHighestPriority(@Nullable final String packageName, final int userIdArg) {
+        public boolean setHighestPriority(@Nullable final String packageName,
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             if (packageName == null) {
                 return false;
             }
@@ -853,7 +861,8 @@ public final class OverlayManagerService extends SystemService {
         }
 
         @Override
-        public boolean setLowestPriority(@Nullable final String packageName, final int userIdArg) {
+        public boolean setLowestPriority(@Nullable final String packageName,
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             if (packageName == null) {
                 return false;
             }
@@ -905,7 +914,8 @@ public final class OverlayManagerService extends SystemService {
         }
 
         @Override
-        public void invalidateCachesForOverlay(@Nullable String packageName, final int userIdArg) {
+        public void invalidateCachesForOverlay(@Nullable String packageName,
+                final @CanBeCURRENT @UserIdInt int userIdArg) {
             if (packageName == null) {
                 return;
             }
@@ -983,7 +993,8 @@ public final class OverlayManagerService extends SystemService {
                 // Enforce that the calling process can only register and unregister fabricated
                 // overlays using its package name.
                 final String pkgName = request.overlay.getPackageName();
-                if (callingUid != Process.ROOT_UID && !ArrayUtils.contains(
+                if (callingUid != Process.ROOT_UID && callingUid != Process.SYSTEM_UID
+                        && !ArrayUtils.contains(
                         mPackageManager.getPackagesForUid(callingUid), pkgName)) {
                     throw new IllegalArgumentException("UID " + callingUid + " does not own "
                             + "packageName " + pkgName);
@@ -1041,8 +1052,13 @@ public final class OverlayManagerService extends SystemService {
             Set<UserPackage> affectedPackagesToUpdate = null;
             for (Iterator<Request> it = transaction.getRequests(); it.hasNext(); ) {
                 Request request = it.next();
+                final var affectedPackagesFromRequest = executeRequestLocked(request);
                 affectedPackagesToUpdate = CollectionUtils.addAll(affectedPackagesToUpdate,
-                        executeRequestLocked(request));
+                        affectedPackagesFromRequest);
+                if (DEBUG) {
+                    Slog.d(TAG, "Executed request=" + request
+                            + " affected packages from request=" + affectedPackagesFromRequest);
+                }
             }
 
             // past the point of no return: the entire transaction has been
@@ -1182,6 +1198,52 @@ public final class OverlayManagerService extends SystemService {
             return mImpl.getOverlayConfig().isDefaultPartitionOrder();
         }
 
+    };
+
+    private final OverlayManagerInternal mInternal = new OverlayManagerInternal() {
+        public IOverlayManager getService() {
+            return IOverlayManager.Stub.asInterface(mService);
+        }
+
+        @Override
+        public List<OverlayInfo> getOverlayInfosForTarget(@NonNull final String targetPackageName,
+                @NonNull UserHandle user) {
+            try {
+                return getService().getOverlayInfosForTarget(targetPackageName,
+                        user.getIdentifier());
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public OverlayInfo getOverlayInfo(@NonNull final String packageName,
+                @NonNull final UserHandle userHandle) {
+            try {
+                return getService().getOverlayInfo(packageName, userHandle.getIdentifier());
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public OverlayInfo getOverlayInfo(@NonNull OverlayIdentifier overlay,
+                @NonNull UserHandle userHandle) {
+            try {
+                return getService().getOverlayInfoByIdentifier(overlay, userHandle.getIdentifier());
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public void commit(@NonNull OverlayManagerTransaction transaction) {
+            try {
+                getService().commit(transaction);
+            } catch (RemoteException e) {
+                throw new RuntimeException(e);
+            }
+        }
     };
 
     private static final class PackageManagerHelperImpl implements PackageManagerHelper {

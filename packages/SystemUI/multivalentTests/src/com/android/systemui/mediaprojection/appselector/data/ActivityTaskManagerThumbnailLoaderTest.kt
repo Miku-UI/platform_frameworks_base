@@ -89,7 +89,7 @@ class ActivityTaskManagerThumbnailLoaderTest : SysuiTestCase() {
                 /* height= */ 100,
                 HardwareBuffer.RGBA_8888,
                 /* layers= */ 1,
-                /* usage= */ HardwareBuffer.USAGE_CPU_READ_OFTEN
+                /* usage= */ HardwareBuffer.USAGE_CPU_READ_OFTEN,
             ),
             ColorSpace.get(ColorSpace.Named.SRGB),
             Configuration.ORIENTATION_PORTRAIT,
@@ -103,6 +103,7 @@ class ActivityTaskManagerThumbnailLoaderTest : SysuiTestCase() {
             /* appearance= */ 0,
             /* isTranslucent= */ false,
             /* hasImeSurface= */ false,
-            /* uiMode */ 0
+            /* uiMode */ 0,
+            /* densityDpi */ 300,
         )
 }

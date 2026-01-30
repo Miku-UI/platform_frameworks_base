@@ -160,9 +160,7 @@ void Typeface::setRobotoTypefaceForTest() {
     LOG_ALWAYS_FATAL_IF(fstat(fd, &st) == -1, "Failed to stat file %s", kRobotoFont);
     void* data = mmap(nullptr, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
     std::unique_ptr<SkStreamAsset> fontData(new SkMemoryStream(data, st.st_size));
-    sk_sp<SkFontMgr> fm = android::FreeTypeFontMgr();
-    LOG_ALWAYS_FATAL_IF(fm == nullptr, "Could not load FreeType SkFontMgr");
-    sk_sp<SkTypeface> typeface = fm->makeFromStream(std::move(fontData));
+    sk_sp<SkTypeface> typeface = android::makeSkTypeface(std::move(fontData), SkFontArguments());
     LOG_ALWAYS_FATAL_IF(typeface == nullptr, "Failed to make typeface from %s", kRobotoFont);
 
     std::shared_ptr<minikin::MinikinFont> font = std::make_shared<MinikinFontSkia>(

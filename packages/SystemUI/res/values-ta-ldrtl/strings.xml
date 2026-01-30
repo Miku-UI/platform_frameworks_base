@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"ஆப்ஸை வேகமாக மாற்ற, இடப்புறம் இழுக்கவும்"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"அறிவிப்புகளைத் திறக்க மேல் வலதுபுறத்தில் இருந்து ஸ்வைப் செய்யலாம்"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"விரைவு அமைப்புகளைத் திறக்க மேல் இடதுபுறத்தில் இருந்து ஸ்வைப் செய்யுங்கள்"</string>
 </resources>

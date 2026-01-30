@@ -35,6 +35,10 @@ sealed class ShadeMode : Diffable<ShadeMode> {
      *
      * Note: This isn't the only mode where the shade is wide.
      */
+    @Deprecated(
+        """Deprecated in scene container. Only `Single` and `Dual` are possible when scene container
+        is enabled."""
+    )
     data object Split : ShadeMode()
 
     /**

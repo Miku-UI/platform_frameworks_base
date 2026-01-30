@@ -17,6 +17,8 @@
 package android.os;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
@@ -27,6 +29,8 @@ import org.junit.runner.RunWith;
 import java.io.File;
 
 @RunWith(AndroidJUnit4.class)
+@android.platform.test.annotations.DisabledOnRavenwood(blockedBy = StrictMode.class,
+        reason = "Strict mode is not yet cleanly supported")
 public class StrictModeTest {
     private File mFile;
 
@@ -59,5 +63,16 @@ public class StrictModeTest {
     public void testThreadMask() throws Exception {
         StrictMode.setThreadPolicyMask(0);
         assertEquals(0, StrictMode.getThreadPolicyMask());
+    }
+
+    @Test
+    public void testCredentialProtectedWhileLockedMask() {
+        // First set it disabled
+        assertFalse(StrictMode.getAndDisableCredentialProtectedWhileLocked());
+        // Then set it enabled
+        StrictMode.enableCredentialProtectedWhileLocked();
+        // Then disable it and expect it to be disabled
+        assertTrue(StrictMode.getAndDisableCredentialProtectedWhileLocked());
+        assertFalse(StrictMode.getAndDisableCredentialProtectedWhileLocked());
     }
 }

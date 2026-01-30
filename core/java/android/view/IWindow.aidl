@@ -2,23 +2,22 @@
 **
 ** Copyright 2007, The Android Open Source Project
 **
-** Licensed under the Apache License, Version 2.0 (the "License"); 
-** you may not use this file except in compliance with the License. 
-** You may obtain a copy of the License at 
+** Licensed under the Apache License, Version 2.0 (the "License");
+** you may not use this file except in compliance with the License.
+** You may obtain a copy of the License at
 **
-**     http://www.apache.org/licenses/LICENSE-2.0 
+**     http://www.apache.org/licenses/LICENSE-2.0
 **
-** Unless required by applicable law or agreed to in writing, software 
-** distributed under the License is distributed on an "AS IS" BASIS, 
-** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
-** See the License for the specific language governing permissions and 
+** Unless required by applicable law or agreed to in writing, software
+** distributed under the License is distributed on an "AS IS" BASIS,
+** WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+** See the License for the specific language governing permissions and
 ** limitations under the License.
 */
 
 package android.view;
 
 import android.graphics.Point;
-import android.graphics.Rect;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.util.MergedConfiguration;
@@ -30,8 +29,7 @@ import android.view.IScrollCaptureResponseListener;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.inputmethod.ImeTracker;
-import android.window.ActivityWindowInfo;
-import android.window.ClientWindowFrames;
+import android.view.WindowRelayoutResult;
 
 import com.android.internal.os.IResultReceiver;
 
@@ -39,7 +37,7 @@ import com.android.internal.os.IResultReceiver;
  * API back to a client window that the Window Manager uses to inform it of
  * interesting things happening.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IWindow {
     /**
@@ -59,11 +57,8 @@ oneway interface IWindow {
      * Please dispatch through WindowStateResizeItem instead of directly calling this method from
      * the system server.
      */
-    void resized(in ClientWindowFrames frames, boolean reportDraw,
-            in MergedConfiguration newMergedConfiguration, in InsetsState insetsState,
-            boolean forceLayout, boolean alwaysConsumeSystemBars, int displayId,
-            int syncSeqId, boolean dragResizing,
-            in @nullable ActivityWindowInfo activityWindowInfo);
+    void resized(in WindowRelayoutResult layout, boolean reportDraw, boolean forceLayout,
+            int displayId, boolean syncWithBuffers, boolean dragResizing);
 
     /**
      * Called when this window retrieved control over a specified set of insets sources.
@@ -75,22 +70,20 @@ oneway interface IWindow {
      * Called when a set of insets source window should be shown by policy.
      *
      * @param types internal insets types (WindowInsets.Type.InsetsType) to show
-     * @param fromIme true if this request originated from IME (InputMethodService).
      * @param statsToken the token tracking the current IME request or {@code null} otherwise.
      */
-    void showInsets(int types, boolean fromIme, in @nullable ImeTracker.Token statsToken);
+    void showInsets(int types, in @nullable ImeTracker.Token statsToken);
 
     /**
      * Called when a set of insets source window should be hidden by policy.
      *
      * @param types internal insets types (WindowInsets.Type.InsetsType) to hide
-     * @param fromIme true if this request originated from IME (InputMethodService).
      * @param statsToken the token tracking the current IME request or {@code null} otherwise.
      */
-    void hideInsets(int types, boolean fromIme, in @nullable ImeTracker.Token statsToken);
+    void hideInsets(int types, in @nullable ImeTracker.Token statsToken);
 
     void moved(int newX, int newY);
-    void dispatchAppVisibility(boolean visible);
+    void dispatchAppVisibility(boolean visible, int seqId);
     void dispatchGetNewSurface();
 
     void closeSystemDialogs(String reason);
@@ -98,10 +91,12 @@ oneway interface IWindow {
     /**
      * Called for wallpaper windows when their offsets or zoom level change.
      */
-    void dispatchWallpaperOffsets(float x, float y, float xStep, float yStep, float zoom, boolean sync);
+    void dispatchWallpaperOffsets(float x, float y, float xStep, float yStep, float zoom);
 
-    void dispatchWallpaperCommand(String action, int x, int y,
-            int z, in Bundle extras, boolean sync);
+    /**
+     * Called for wallpaper windows when a visible app sends an arbitrary wallpaper command.
+     */
+    void dispatchWallpaperCommand(String action, int x, int y, int z, in Bundle extras);
 
     /**
      * Drag/drop events

@@ -56,3 +56,11 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
 }
+
+flag {
+    name: "wifi_keystore_remove_all_api"
+    is_exported: true
+    namespace: "wifi"
+    description: "Add an API to remove all certificates stored in WifiKeystore"
+    bug: "365543479"
+}

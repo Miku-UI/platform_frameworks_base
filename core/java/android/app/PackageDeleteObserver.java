@@ -21,7 +21,7 @@ import android.content.Intent;
 import android.content.pm.IPackageDeleteObserver2;
 import android.os.Build;
 
-/** {@hide} */
+/** @hide */
 public class PackageDeleteObserver {
 
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
@@ -40,7 +40,7 @@ public class PackageDeleteObserver {
         }
     };
 
-    /** {@hide} */
+    /** @hide */
     public IPackageDeleteObserver2 getBinder() {
         return mBinder;
     }

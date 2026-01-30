@@ -75,6 +75,11 @@ public class RestrictedSliderPreference extends SliderPreference implements
     public void onBindViewHolder(@NonNull PreferenceViewHolder holder) {
         super.onBindViewHolder(holder);
         mHelper.onBindViewHolder(holder);
+        if (mHelper.isDisabledByAdmin() || mHelper.isDisabledByEcm()) {
+            // SliderPreference is not clickable under normal conditions, but it will become
+            // clickable when the restriction is enabled.
+            holder.itemView.setClickable(true);
+        }
     }
 
     @SuppressLint("RestrictedApi")
@@ -88,7 +93,7 @@ public class RestrictedSliderPreference extends SliderPreference implements
     @Override
     public void setEnabled(boolean enabled) {
         if (enabled && mHelper.isDisabledByAdmin()) {
-            mHelper.setDisabledByAdmin(null);
+            mHelper.setDisabledByEnforcingAdmin(null);
             return;
         }
 

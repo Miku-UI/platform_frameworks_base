@@ -16,10 +16,17 @@
 
 package androidx.window.sidecar;
 
+
 import android.content.Context;
+import android.hardware.devicestate.DeviceStateManager;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.window.extensions.WindowExtensionsProvider;
+import androidx.window.extensions.layout.WindowLayoutComponent;
+
+import java.util.Objects;
 
 /**
  * Provider class that will instantiate the library implementation. It must be included in the
@@ -35,13 +42,28 @@ public class SidecarProvider {
      */
     @Nullable
     public static SidecarInterface getSidecarImpl(Context context) {
-        return isWindowExtensionsEnabled()
-                ? new SidecarImpl(context.getApplicationContext())
-                : null;
+        if (isWindowExtensionsEnabled()) {
+            return getSidecarInterface(context);
+        }
+        return null;
+    }
+
+    private static SidecarInterface getSidecarInterface(Context context) {
+        WindowLayoutComponent windowLayoutComponent = WindowExtensionsProvider
+                .getWindowExtensions()
+                .getWindowLayoutComponent();
+        DeviceStateManager deviceStateManager = getDeviceStateManager(context);
+        return new SidecarExtensionsImpl(windowLayoutComponent, deviceStateManager);
+    }
+
+    @NonNull
+    private static DeviceStateManager getDeviceStateManager(Context context) {
+        return Objects.requireNonNull(context.getSystemService(DeviceStateManager.class));
     }
 
     /**
      * The support library will use this method to check API version compatibility.
+     *
      * @return API version string in MAJOR.MINOR.PATCH-description format.
      */
     @Nullable

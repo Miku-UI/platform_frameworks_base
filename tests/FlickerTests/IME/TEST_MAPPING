@@ -1,0 +1,100 @@
+{
+  "wm": [
+    {
+      "name": "FlickerTestsIme-CatchAll",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-CloseImeOnDismissPopupDialogTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-CloseImeOnGoHomeTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-CloseImeShownOnAppStartOnGoHomeTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-CloseImeShownOnAppStartToAppOnPressBackTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-CloseImeToAppOnPressBackTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-CloseImeToHomeOnFinishActivityTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-OpenImeWindowToFixedPortraitAppTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeOnAppStartWhenLaunchingAppFromFixedOrientationTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeOnAppStartWhenLaunchingAppFromOverviewTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeOnAppStartWhenLaunchingAppFromQuickSwitchTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeOnAppStartWhenLaunchingAppTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeOnUnlockScreenTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeWhenFocusingOnInputFieldTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeWhileDismissingThemedPopupDialogTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsIme-ShowImeWhileEnteringOverviewTest",
+      "keywords": [
+        "device"
+      ]
+    }
+  ]
+}

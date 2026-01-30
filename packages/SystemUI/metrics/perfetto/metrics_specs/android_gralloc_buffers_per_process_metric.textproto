@@ -1,0 +1,76 @@
+# Copyright (C) 2025 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# There is a specific counter added to Perfetto trace of each process that tracks individual GrAlloc
+# allocations for each process. This metric monitors said counter.
+
+# We compute the duration of the current counter value by subtracting the current timestamp
+# from the timestamp of the next counter value.
+# The LEAD function is used to get the next timestamp. If there is no next timestamp, it uses the
+# end of the trace as the next timestamp.
+query: {
+  id: "gralloc_buffers_counter_span"
+  sql: {
+    sql: "SELECT
+        p.name as process_name,
+        pct.name AS counter_name,
+        value AS metric_val,
+          LEAD(ts, 1, (
+            SELECT IFNULL(
+              end_ts,
+              trace_end()
+            ) FROM process p WHERE p.upid = pct.upid)
+          ) OVER(PARTITION BY track_id ORDER BY ts) - ts AS dur
+        FROM counter c JOIN process_counter_track pct ON pct.id = c.track_id
+        JOIN process p ON pct.upid = p.upid
+        WHERE pct.name = 'mem.gralloc.buffers' AND pct.upid IS NOT NULL
+        "
+  column_names: "process_name"
+  column_names: "counter_name"
+  column_names: "metric_val"
+  column_names: "dur"
+    }
+}
+
+metric_template_spec: {
+  id_prefix: "android_gralloc_buffers_per_process_metric"
+  dimensions: "process_name"
+  dimensions: "counter_name"
+  value_columns: "min_val"
+  value_columns: "max_val"
+  value_columns: "avg_val"
+  query: {
+    inner_query_id: "gralloc_buffers_counter_span"
+    group_by: {
+      column_names: "process_name"
+      column_names: "counter_name"
+      aggregates: {
+        column_name: "metric_val"
+        op: MIN
+        result_column_name: "min_val"
+      }
+      aggregates: {
+        column_name: "metric_val"
+        op: MAX
+        result_column_name: "max_val"
+      }
+      aggregates: {
+        column_name: "metric_val"
+        op: DURATION_WEIGHTED_MEAN
+        result_column_name: "avg_val"
+      }
+    }
+  }
+}

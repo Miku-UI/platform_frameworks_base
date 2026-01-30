@@ -36,7 +36,7 @@
     <string name="keyguard_plugged_in_charging_limited" msgid="5369697538556777542">"<xliff:g id="PERCENTAGE">%s</xliff:g> • หยุดการชาร์จชั่วคราวเพื่อถนอมแบตเตอรี่"</string>
     <string name="keyguard_plugged_in_incompatible_charger" msgid="6384203333154532125">"<xliff:g id="PERCENTAGE">%s</xliff:g> • ตรวจสอบอุปกรณ์เสริมสำหรับการชาร์จ"</string>
     <string name="keyguard_network_locked_message" msgid="407096292844868608">"เครือข่ายถูกล็อก"</string>
-    <string name="keyguard_missing_sim_message_short" msgid="685029586173458728">"ไม่มี SIM"</string>
+    <string name="keyguard_missing_sim_message_short" msgid="685029586173458728">"ไม่มีซิม"</string>
     <string name="keyguard_permanent_disabled_sim_message_short" msgid="3955052454216046100">"SIM ใช้งานไม่ได้"</string>
     <string name="keyguard_sim_locked_message" msgid="7095293254587575270">"SIM ถูกล็อก"</string>
     <string name="keyguard_sim_puk_locked_message" msgid="2503428315518592542">"SIM ถูกล็อกด้วย PUK"</string>
@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"ปลดล็อกด้วยรหัสผ่านหรือลายนิ้วมือ"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"ปลดล็อกด้วยรูปแบบหรือลายนิ้วมือ"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"อุปกรณ์ถูกล็อกโดยนโยบายการทำงานเพื่อเพิ่มความปลอดภัย"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"การยืนยันแบบ 2 ขั้นตอน"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"ใช้การปลดล็อกด้วยลายนิ้วมือ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"ใช้การปลดล็อกด้วยใบหน้า"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"ใช้การปลดล็อกด้วยลายนิ้วมือหรือใบหน้า"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"ต้องป้อน PIN หลังจากการปิดล็อก"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"ต้องป้อนรหัสผ่านหลังจากการปิดล็อก"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"ต้องวาดรูปแบบหลังจากการปิดล็อก"</string>
@@ -80,9 +84,9 @@
     <string name="kg_face_locked_out" msgid="2751559491287575">"ปลดล็อกด้วยใบหน้าไม่ได้ ลองหลายครั้งเกินไป"</string>
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"ปลดล็อกด้วยลายนิ้วมือไม่ได้ ลองหลายครั้งเกินไป"</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"เอเจนต์ความน่าเชื่อถือไม่พร้อมใช้งาน"</string>
-    <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"ลองโดยใช้ PIN ที่ไม่ถูกต้องหลายครั้งเกินไป"</string>
-    <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"ลองโดยใช้รูปแบบที่ไม่ถูกต้องหลายครั้งเกินไป"</string>
-    <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"ลองโดยใช้รหัสผ่านที่ไม่ถูกต้องหลายครั้งเกินไป"</string>
+    <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"ป้อน PIN ผิดหลายครั้งเกินไป"</string>
+    <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"วาดรูปแบบผิดหลายครั้งเกินไป"</string>
+    <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"ป้อนรหัสผ่านผิดหลายครั้งเกินไป"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{ลองอีกครั้งใน # วินาที}other{ลองอีกครั้งใน # วินาที}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"ป้อน PIN ของซิม"</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"ป้อน PIN ของซิมสำหรับ \"<xliff:g id="CARRIER">%1$s</xliff:g>\""</string>

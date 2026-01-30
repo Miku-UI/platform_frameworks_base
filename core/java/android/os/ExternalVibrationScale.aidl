@@ -23,6 +23,7 @@ package android.os;
  * @hide
  */
 parcelable ExternalVibrationScale {
+    // TODO(b/345186129): remove this once we finish migrating to scale factor.
     @Backing(type="int")
     enum ScaleLevel {
         SCALE_MUTE = -100,

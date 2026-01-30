@@ -17,6 +17,7 @@
 package com.android.server.display;
 
 import static com.android.server.display.DisplayDeviceInfo.FLAG_TRUSTED;
+import static com.android.server.display.DisplayModeFactory.createMode;
 
 import android.annotation.Nullable;
 import android.content.Context;

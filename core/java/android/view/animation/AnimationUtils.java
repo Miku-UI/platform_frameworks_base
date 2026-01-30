@@ -30,6 +30,8 @@ import android.content.res.Resources.NotFoundException;
 import android.content.res.Resources.Theme;
 import android.content.res.XmlResourceParser;
 import android.os.SystemClock;
+import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
 import android.util.AttributeSet;
 import android.util.TimeUtils;
 import android.util.Xml;
@@ -44,6 +46,9 @@ import java.io.IOException;
  * Defines common utilities for working with animations.
  *
  */
+// This class would probably just work as-is on Ravenwood, but until we port the test, we just keep
+// the minimal surface for Choreographer.
+@RavenwoodKeepPartialClass(comment = "Keeping just enough for Choreographer to work")
 public class AnimationUtils {
 
     /**
@@ -99,6 +104,7 @@ public class AnimationUtils {
      */
     @TestApi
     @FlaggedApi(FLAG_EXPECTED_PRESENTATION_TIME_READ_ONLY)
+    @RavenwoodIgnore
     public static void lockAnimationClock(long vsyncMillis, long expectedPresentationTimeNanos) {
         AnimationState state = sAnimationState.get();
         state.animationClockLocked = true;
@@ -136,6 +142,7 @@ public class AnimationUtils {
      * @hide
      */
     @TestApi
+    @RavenwoodIgnore
     public static void lockAnimationClock(long vsyncMillis) {
         AnimationState state = sAnimationState.get();
         state.animationClockLocked = true;
@@ -149,6 +156,7 @@ public class AnimationUtils {
      * @hide
      */
     @TestApi
+    @RavenwoodIgnore
     public static void unlockAnimationClock() {
         sAnimationState.get().animationClockLocked = false;
     }

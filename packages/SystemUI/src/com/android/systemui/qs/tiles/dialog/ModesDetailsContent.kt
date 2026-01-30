@@ -16,11 +16,23 @@
 
 package com.android.systemui.qs.tiles.dialog
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.dimensionResource
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.ui.dialog.composable.ModeTileGrid
 
 @Composable
 fun ModesDetailsContent(viewModel: ModesDetailsViewModel) {
     // TODO(b/378513940): Finish implementing this function.
-    ModeTileGrid(viewModel = viewModel.viewModel)
+    ModeTileGrid(
+        viewModel = viewModel.viewModel,
+        modifier =
+            Modifier.padding(
+                horizontal = dimensionResource(R.dimen.tile_details_horizontal_padding),
+                vertical = dimensionResource(R.dimen.tile_details_vertical_padding),
+            ),
+        inDetailsView = true,
+    )
 }

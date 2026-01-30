@@ -32,8 +32,6 @@ import androidx.test.filters.SmallTest;
 import com.android.dream.lowlight.LowLightTransitionCoordinator;
 import com.android.systemui.SysuiTestCase;
 
-import com.google.android.systemui.lowlightclock.LowLightClockDreamService;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

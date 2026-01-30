@@ -174,6 +174,44 @@ public final class DeviceState {
     public static final int PROPERTY_FEATURE_DUAL_DISPLAY_INTERNAL_DEFAULT = 17;
 
     /**
+     * Property that indicates that a laptop device is currently in a fully closed configuration.
+     *
+     * This property, {@link #PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_OPEN} and
+     * {@link #PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE} are mutually exclusive.
+     */
+    @FlaggedApi(Flags.FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public static final int PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED = 101;
+
+    /**
+     * Property that indicates that a laptop device is currently in an open configuration with lid
+     * opening angle no more than 180 degrees.
+     *
+     * This property, {@link #PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED} and
+     * {@link #PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE} are mutually exclusive.
+     */
+    @FlaggedApi(Flags.FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public static final int PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN = 102;
+
+    /**
+     * Property that indicates that a laptop device is currently in an open configuration and the
+     * screen is flipped over the hinge with the lid angle over 180 degrees or the keyboard is
+     * detached.
+     *
+     * This property, {@link #PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED} and
+     * {@link #PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN} are mutually exclusive.
+     */
+    @FlaggedApi(Flags.FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public static final int PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE = 103;
+
+    /**
+     * Property that indicates that a laptop device is currently in a docked configuration with
+     * external monitors. This property can be used in combination with other properties to give a
+     * complete picture of the device configuration.
+     */
+    @FlaggedApi(Flags.FLAG_DESKTOP_DEVICE_STATE_PROPERTY_API)
+    public static final int PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_DOCKED = 104;
+
+    /**
      * Property that indicates that this state corresponds to the device state for rear display
      * mode, where both the inner and outer displays are on. In this state, the outer display
      * is the default display where the app is shown, and the inner display is used by the system to
@@ -206,6 +244,10 @@ public final class DeviceState {
             PROPERTY_EXTENDED_DEVICE_STATE_EXTERNAL_DISPLAY,
             PROPERTY_FEATURE_REAR_DISPLAY,
             PROPERTY_FEATURE_DUAL_DISPLAY_INTERNAL_DEFAULT,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_DOCKED,
             PROPERTY_FEATURE_REAR_DISPLAY_OUTER_DEFAULT
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -216,7 +258,11 @@ public final class DeviceState {
     @IntDef(prefix = {"PROPERTY_"}, flag = false, value = {
             PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_CLOSED,
             PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_HALF_OPEN,
-            PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_OPEN
+            PROPERTY_FOLDABLE_HARDWARE_CONFIGURATION_FOLD_IN_OPEN,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_CLOSED,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_LID_OPEN,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_SLATE,
+            PROPERTY_LAPTOP_HARDWARE_CONFIGURATION_DOCKED
     })
     @Retention(RetentionPolicy.SOURCE)
     @Target({ElementType.TYPE_PARAMETER, ElementType.TYPE_USE})

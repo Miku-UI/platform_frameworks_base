@@ -68,8 +68,6 @@ constructor(
         oldKey: String?,
         data: MediaData,
         immediately: Boolean,
-        receivedSmartspaceCardLatency: Int,
-        isSsReactivated: Boolean
     ) {
         updateMediaModel(data)
     }
@@ -79,10 +77,10 @@ constructor(
     }
 
     private fun updateMediaModel(data: MediaData? = null) {
-        if (mediaDataManager.hasAnyMediaOrRecommendation()) {
+        if (mediaDataManager.hasAnyMedia()) {
             _mediaModel.value =
                 CommunalMediaModel(
-                    hasAnyMediaOrRecommendation = true,
+                    hasAnyMedia = true,
                     createdTimestampMillis = data?.createdTimestampMillis ?: 0L,
                 )
         } else {

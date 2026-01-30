@@ -19,6 +19,7 @@ package android.provider;
 import static com.android.internal.util.Preconditions.checkCollectionElementsNotNull;
 import static com.android.internal.util.Preconditions.checkCollectionNotEmpty;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
@@ -96,7 +97,7 @@ public final class DocumentsContract {
      */
     public static final String PROVIDER_INTERFACE = "android.content.action.DOCUMENTS_PROVIDER";
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public static final String EXTRA_PACKAGE_NAME = Intent.EXTRA_PACKAGE_NAME;
 
@@ -105,12 +106,12 @@ public final class DocumentsContract {
      * If the value is true, the local/device storage root must be
      * visible in DocumentsUI.
      *
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final String EXTRA_SHOW_ADVANCED = "android.provider.extra.SHOW_ADVANCED";
 
-    /** {@hide} */
+    /** @hide */
     public static final String EXTRA_TARGET_URI = "android.content.extra.TARGET_URI";
 
     /**
@@ -193,6 +194,23 @@ public final class DocumentsContract {
     public static final String EXTRA_EXCLUDE_SELF = "android.provider.extra.EXCLUDE_SELF";
 
     /**
+     * Set this in a DocumentsUI intent to add users that should be excluded from the roots list.
+     * This is expected to be an {@link ArrayList} of {@link UserHandle}s.
+     *
+     * This will only be supported if there is at least one user to be shown in DocumentsUI picker.
+     *
+     * The caller must also hold either {@link android.Manifest.permission#INTERACT_ACROSS_USERS}
+     * or
+     * {@link android.Manifest.permission#INTERACT_ACROSS_USERS_FULL} for the set user(s) to be
+     * excluded.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.multiuser.Flags.FLAG_ENABLE_MOVING_CONTENT_INTO_PRIVATE_SPACE)
+    public static final String EXTRA_EXCLUDED_USERS = "android.provider.extra.EXCLUDED_USERS";
+
+    /**
      * An extra number of degrees that an image should be rotated during the
      * decode process to be presented correctly.
      *
@@ -223,14 +241,14 @@ public final class DocumentsContract {
 
     /**
      * The action to manage document in Downloads root in DocumentsUI.
-     *  {@hide}
+     * @hide
      */
     @SystemApi
     public static final String ACTION_MANAGE_DOCUMENT = "android.provider.action.MANAGE_DOCUMENT";
 
     /**
      * The action to launch the settings of this root.
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final String
@@ -238,7 +256,7 @@ public final class DocumentsContract {
 
     /**
      * External Storage Provider's authority string
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final String EXTERNAL_STORAGE_PROVIDER_AUTHORITY =
@@ -246,15 +264,15 @@ public final class DocumentsContract {
 
     /**
      * Download Manager's authority string
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final String DOWNLOADS_PROVIDER_AUTHORITY = Downloads.Impl.AUTHORITY;
 
-    /** {@hide} */
+    /** @hide */
     public static final String EXTERNAL_STORAGE_PRIMARY_EMULATED_ROOT_ID = "primary";
 
-    /** {@hide} */
+    /** @hide */
     public static final String PACKAGE_DOCUMENTS_UI = "com.android.documentsui";
 
     /**
@@ -581,6 +599,29 @@ public final class DocumentsContract {
          * @see #COLUMN_FLAGS
          */
         public static final int FLAG_DIR_BLOCKS_OPEN_DOCUMENT_TREE = 1 << 15;
+
+        /**
+         * Flag indicating that a document can be trashed.
+         *
+         * @see #COLUMN_FLAGS
+         * @see DocumentsContract#trashDocument(ContentResolver, Uri)
+         * @see DocumentsProvider#trashDocument(String)
+         */
+
+        @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+        public static final int FLAG_SUPPORTS_TRASH = 1 << 16;
+
+        /**
+         * Flag indicating that a document can be restored.
+         * Only trashed documents can be restored
+         *
+         * @see #COLUMN_FLAGS
+         * @see DocumentsContract#restoreDocumentFromTrash(ContentResolver, Uri, Uri)
+         * @see DocumentsProvider#restoreDocumentFromTrash(String, String)
+         */
+
+        @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+        public static final int FLAG_SUPPORTS_RESTORE = 1 << 17;
     }
 
     /**
@@ -784,7 +825,7 @@ public final class DocumentsContract {
          * users.
          *
          * @see #COLUMN_FLAGS
-         * {@hide}
+         * @hide
          */
         @SystemApi
         public static final int FLAG_ADVANCED = 1 << 16;
@@ -794,7 +835,7 @@ public final class DocumentsContract {
          *
          * @see #COLUMN_FLAGS
          * @see DocumentsContract#ACTION_DOCUMENT_ROOT_SETTINGS
-         * {@hide}
+         * @hide
          */
         @SystemApi
         public static final int FLAG_HAS_SETTINGS = 1 << 17;
@@ -803,7 +844,7 @@ public final class DocumentsContract {
          * Flag indicating that this root is on removable SD card storage.
          *
          * @see #COLUMN_FLAGS
-         * {@hide}
+         * @hide
          */
         @SystemApi
         public static final int FLAG_REMOVABLE_SD = 1 << 18;
@@ -812,7 +853,7 @@ public final class DocumentsContract {
          * Flag indicating that this root is on removable USB storage.
          *
          * @see #COLUMN_FLAGS
-         * {@hide}
+         * @hide
          */
         @SystemApi
         public static final int FLAG_REMOVABLE_USB = 1 << 19;
@@ -848,46 +889,54 @@ public final class DocumentsContract {
 
     /**
      * Optional result (I'm thinking boolean) answer to a question.
-     * {@hide}
+     * @hide
      */
     public static final String EXTRA_RESULT = "result";
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static final String METHOD_CREATE_DOCUMENT = "android:createDocument";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_RENAME_DOCUMENT = "android:renameDocument";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_DELETE_DOCUMENT = "android:deleteDocument";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_COPY_DOCUMENT = "android:copyDocument";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_MOVE_DOCUMENT = "android:moveDocument";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_IS_CHILD_DOCUMENT = "android:isChildDocument";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_REMOVE_DOCUMENT = "android:removeDocument";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_EJECT_ROOT = "android:ejectRoot";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_FIND_DOCUMENT_PATH = "android:findDocumentPath";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_CREATE_WEB_LINK_INTENT = "android:createWebLinkIntent";
-    /** {@hide} */
+    /** @hide */
     public static final String METHOD_GET_DOCUMENT_METADATA = "android:getDocumentMetadata";
+    /** @hide */
+    @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+    public static final String METHOD_TRASH_DOCUMENT = "android:trashDocument";
+    /** @hide */
+    @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+    public static final String METHOD_RESTORE_DOCUMENT_FROM_TRASH =
+            "android:restoreDocumentFromTrash";
 
-    /** {@hide} */
+    /** @hide */
     public static final String EXTRA_PARENT_URI = "parentUri";
-    /** {@hide} */
+    /** @hide */
     public static final String EXTRA_URI = "uri";
-    /** {@hide} */
+    /** @hide */
     public static final String EXTRA_URI_PERMISSIONS = "uriPermissions";
 
-    /** {@hide} */
+    /** @hide */
     public static final String EXTRA_OPTIONS = "options";
 
     private static final String PATH_ROOT = "root";
     private static final String PATH_RECENT = "recent";
+    private static final String PATH_TRASH = "trash";
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private static final String PATH_DOCUMENT = "document";
     private static final String PATH_CHILDREN = "children";
@@ -935,6 +984,20 @@ public final class DocumentsContract {
                 .appendPath(PATH_RECENT).build();
     }
 
+
+
+    /**
+     * Returns URI representing the query trash documents of a specific document provider.
+     *
+     * @see DocumentsProvider#queryTrashDocuments(String[])
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+    @NonNull
+    public static Uri buildTrashDocumentsUri(@NonNull String authority) {
+        return new Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT)
+                .authority(authority).appendPath(PATH_TRASH).build();
+    }
+
     /**
      * Build URI representing access to descendant documents of the given
      * {@link Document#COLUMN_DOCUMENT_ID}.
@@ -972,7 +1035,7 @@ public final class DocumentsContract {
                 buildDocumentUri(authority, documentId), user.getIdentifier());
     }
 
-    /** {@hide} */
+    /** @hide */
     public static Uri buildBaseDocumentUri(String authority) {
         return getBaseDocumentUriBuilder(authority).build();
     }
@@ -1012,7 +1075,7 @@ public final class DocumentsContract {
                 .appendPath(documentId).build();
     }
 
-    /** {@hide} */
+    /** @hide */
     public static Uri buildDocumentUriMaybeUsingTree(Uri baseUri, String documentId) {
         if (isTreeUri(baseUri)) {
             return buildDocumentUriUsingTree(baseUri, documentId);
@@ -1138,8 +1201,9 @@ public final class DocumentsContract {
      * {@link DocumentsContract#QUERY_ARG_EXCLUDE_MEDIA},
      * {@link DocumentsContract#QUERY_ARG_DISPLAY_NAME},
      * {@link DocumentsContract#QUERY_ARG_MIME_TYPES},
-     * {@link DocumentsContract#QUERY_ARG_FILE_SIZE_OVER} and
-     * {@link DocumentsContract#QUERY_ARG_LAST_MODIFIED_AFTER}.
+     * {@link DocumentsContract#QUERY_ARG_FILE_SIZE_OVER},
+     * {@link DocumentsContract#QUERY_ARG_LAST_MODIFIED_AFTER} and
+     * {@link ContentResolver#QUERY_ARG_LIMIT}.
      *
      * @param queryArgs the query arguments to be parsed.
      * @return the handled query arguments
@@ -1170,6 +1234,10 @@ public final class DocumentsContract {
 
         if (queryArgs.keySet().contains(QUERY_ARG_MIME_TYPES)) {
             args.add(QUERY_ARG_MIME_TYPES);
+        }
+
+        if (queryArgs.keySet().contains(ContentResolver.QUERY_ARG_LIMIT)) {
+            args.add(ContentResolver.QUERY_ARG_LIMIT);
         }
         return args.toArray(new String[0]);
     }
@@ -1214,7 +1282,7 @@ public final class DocumentsContract {
         return isRootUri(context, uri, 2 /* pathSize */);
     }
 
-    /** {@hide} */
+    /** @hide */
     public static boolean isContentUri(@Nullable Uri uri) {
         return uri != null && ContentResolver.SCHEME_CONTENT.equals(uri.getScheme());
     }
@@ -1238,7 +1306,10 @@ public final class DocumentsContract {
         return false;
     }
 
-    private static boolean isDocumentsProvider(Context context, String authority) {
+    private static boolean isDocumentsProvider(Context context, @Nullable String authority) {
+        if (authority == null) {
+            return false;
+        }
         final Intent intent = new Intent(PROVIDER_INTERFACE);
         final List<ResolveInfo> infos = context.getPackageManager()
                 .queryIntentContentProviders(intent, 0);
@@ -1300,7 +1371,7 @@ public final class DocumentsContract {
     /**
      * Extract the search query from a Bundle
      * {@link #QUERY_ARG_DISPLAY_NAME}.
-     * {@hide}
+     * @hide
      */
     public static String getSearchDocumentsQuery(@NonNull Bundle bundle) {
         Preconditions.checkNotNull(bundle, "bundle can not be null");
@@ -1311,7 +1382,7 @@ public final class DocumentsContract {
      * Build URI that append the query parameter {@link PARAM_MANAGE} to
      * enable the manage mode.
      * @see DocumentsProvider#queryChildDocumentsForManage(String parentDocId, String[], String)
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static @NonNull Uri setManageMode(@NonNull Uri uri) {
@@ -1322,7 +1393,7 @@ public final class DocumentsContract {
     /**
      * Extract the manage mode from a URI built by
      * {@link #setManageMode(Uri)}.
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static boolean isManageMode(@NonNull Uri uri) {
@@ -1554,6 +1625,67 @@ public final class DocumentsContract {
             Log.w(TAG, "Failed to remove document", e);
             rethrowIfNecessary(e);
             return false;
+        }
+    }
+
+    /**
+     * Trashes the given document.
+     *
+     * @param documentUri document with {@link Document#FLAG_SUPPORTS_TRASH}
+     * @return the trashed document, or {@code null} if failed.
+     * @throws FileNotFoundException         if the documentUri does not exist.
+     * @throws IllegalArgumentException      if the document does not support trashing.
+     * @throws UnsupportedOperationException if the document provider does not support trashing.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+    @Nullable
+    public static Uri trashDocument(@NonNull ContentResolver content, @NonNull Uri documentUri)
+            throws FileNotFoundException {
+        try {
+            final Bundle in = new Bundle();
+            in.putParcelable(DocumentsContract.EXTRA_URI, documentUri);
+
+            final Bundle out = content.call(documentUri.getAuthority(),
+                    METHOD_TRASH_DOCUMENT, null, in);
+            return out.getParcelable(DocumentsContract.EXTRA_URI,
+                    android.net.Uri.class);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to trash document", e);
+            rethrowIfNecessary(e);
+            return null;
+        }
+    }
+
+    /**
+     * Restores a document from the trash.
+     *
+     * @param sourceDocumentUri       trashed document to restore
+     * @param targetParentDocumentUri parent document to restore the document to
+     * @return the restored document, or {@code null} if failed.
+     * @throws FileNotFoundException         if the {@code sourceDocumentUri} does not exist or the
+     *                                       {@code targetParentDocumentUri} does not exist.
+     * @throws IllegalStateException         if the document cannot be restored (e.g., already
+     *                                       restored, or original parent is invalid).
+     * @throws UnsupportedOperationException if the document provider does not support restoring.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_DOCUMENTS_TRASH_API)
+    @Nullable
+    public static Uri restoreDocumentFromTrash(@NonNull ContentResolver content,
+            @NonNull Uri sourceDocumentUri, @Nullable Uri targetParentDocumentUri)
+            throws FileNotFoundException {
+        try {
+            final Bundle in = new Bundle();
+            in.putParcelable(DocumentsContract.EXTRA_URI, sourceDocumentUri);
+            in.putParcelable(DocumentsContract.EXTRA_TARGET_URI, targetParentDocumentUri);
+
+            final Bundle out = content.call(sourceDocumentUri.getAuthority(),
+                    METHOD_RESTORE_DOCUMENT_FROM_TRASH, null, in);
+            return out.getParcelable(DocumentsContract.EXTRA_URI,
+                    android.net.Uri.class);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to restore document", e);
+            rethrowIfNecessary(e);
+            return null;
         }
     }
 

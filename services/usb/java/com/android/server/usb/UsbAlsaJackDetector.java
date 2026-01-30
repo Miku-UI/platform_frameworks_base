@@ -16,6 +16,8 @@
 
 package com.android.server.usb;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * Detects and reports ALSA jack state and events.
  */
@@ -27,7 +29,7 @@ public final class UsbAlsaJackDetector implements Runnable {
     private native boolean nativeOutputJackConnected(int card);
     private native boolean nativeInputJackConnected(int card);
 
-    private boolean mStopJackDetect = false;
+    private AtomicBoolean mStopJackDetect = new AtomicBoolean(false);
     private UsbAlsaDevice mAlsaDevice;
 
     /* use startJackDetect to create a UsbAlsaJackDetector */
@@ -67,9 +69,7 @@ public final class UsbAlsaJackDetector implements Runnable {
      * locking issues), but will cause the thread to exit at the next safe opportunity.
      */
     public void pleaseStop() {
-        synchronized (this) {
-            mStopJackDetect = true;
-        }
+        mStopJackDetect.set(true);
     }
 
     /**
@@ -78,7 +78,7 @@ public final class UsbAlsaJackDetector implements Runnable {
      */
     public boolean jackDetectCallback() {
         synchronized (this) {
-            if (mStopJackDetect) {
+            if (mStopJackDetect.get()) {
                 return false;
             }
             mAlsaDevice.updateOutputWiredDeviceConnectionState(true);

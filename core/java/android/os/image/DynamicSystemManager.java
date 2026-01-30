@@ -49,7 +49,7 @@ public class DynamicSystemManager {
 
     private final IDynamicSystemService mService;
 
-    /** {@hide} */
+    /** @hide */
     public DynamicSystemManager(IDynamicSystemService service) {
         mService = service;
     }

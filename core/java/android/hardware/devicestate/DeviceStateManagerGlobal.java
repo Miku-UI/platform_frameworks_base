@@ -32,7 +32,6 @@ import android.util.ArrayMap;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.annotations.VisibleForTesting.Visibility;
-import com.android.window.flags.Flags;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -287,12 +286,8 @@ public final class DeviceStateManagerGlobal {
     private void registerCallbackLocked() {
         mCallback = new DeviceStateManagerCallback();
         try {
-            if (Flags.wlinfoOncreate()) {
-                synchronized (mLock) {
-                    mLastReceivedInfo = mDeviceStateManager.registerCallback(mCallback);
-                }
-            } else {
-                mDeviceStateManager.registerCallback(mCallback);
+            synchronized (mLock) {
+                mLastReceivedInfo = mDeviceStateManager.registerCallback(mCallback);
             }
         } catch (RemoteException ex) {
             mCallback = null;

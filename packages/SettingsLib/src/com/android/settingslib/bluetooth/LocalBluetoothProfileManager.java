@@ -47,6 +47,7 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.CollectionUtils;
+import com.android.settingslib.bluetooth.hearingdevices.metrics.HearingDeviceStatsLogUtils;
 import com.android.settingslib.flags.Flags;
 
 import java.util.ArrayList;
@@ -259,7 +260,7 @@ public class LocalBluetoothProfileManager {
             if (DEBUG) {
                 Log.d(TAG, "Adding local LE_AUDIO_BROADCAST profile");
             }
-            mLeAudioBroadcast = new LocalBluetoothLeBroadcast(mContext, mDeviceManager);
+            mLeAudioBroadcast = new LocalBluetoothLeBroadcast(mContext, mDeviceManager, this);
             // no event handler for the LE boradcast.
             mProfileNameMap.put(LocalBluetoothLeBroadcast.NAME, mLeAudioBroadcast);
         }
@@ -374,7 +375,7 @@ public class LocalBluetoothProfileManager {
                     }
                 }
 
-                HearingAidStatsLogUtils.logHearingAidInfo(cachedDevice);
+                HearingDeviceStatsLogUtils.logHearingAidInfo(cachedDevice);
             }
 
             if (isHapClientOrLeAudioProfile && newState == BluetoothProfile.STATE_CONNECTED) {
@@ -389,7 +390,7 @@ public class LocalBluetoothProfileManager {
                             .setLeAudioLocation(getLeAudioProfile().getAudioLocation(device))
                             .setHapDeviceType(getHapClientProfile().getHearingAidType(device));
                     cachedDevice.setHearingAidInfo(infoBuilder.build());
-                    HearingAidStatsLogUtils.logHearingAidInfo(cachedDevice);
+                    HearingDeviceStatsLogUtils.logHearingAidInfo(cachedDevice);
                 }
             }
 
@@ -708,15 +709,19 @@ public class LocalBluetoothProfileManager {
             removedProfiles.remove(mPanProfile);
         }
 
-        if ((mMapProfile != null) &&
-            (mMapProfile.getConnectionStatus(device) == BluetoothProfile.STATE_CONNECTED)) {
+        if ((mMapProfile != null
+                        && mMapProfile.getConnectionStatus(device)
+                                == BluetoothProfile.STATE_CONNECTED)
+                || removedProfiles.contains(mMapProfile)) {
             profiles.add(mMapProfile);
             removedProfiles.remove(mMapProfile);
             mMapProfile.setEnabled(device, true);
         }
 
-        if ((mPbapProfile != null) &&
-            (mPbapProfile.getConnectionStatus(device) == BluetoothProfile.STATE_CONNECTED)) {
+        if ((mPbapProfile != null
+                        && mPbapProfile.getConnectionStatus(device)
+                                == BluetoothProfile.STATE_CONNECTED)
+                || removedProfiles.contains(mPbapProfile)) {
             profiles.add(mPbapProfile);
             removedProfiles.remove(mPbapProfile);
             mPbapProfile.setEnabled(device, true);

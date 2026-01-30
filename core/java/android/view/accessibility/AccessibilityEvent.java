@@ -827,6 +827,22 @@ public final class AccessibilityEvent extends AccessibilityRecord implements Par
     @FlaggedApi(Flags.FLAG_SUPPLEMENTAL_DESCRIPTION)
     public static final int CONTENT_CHANGE_TYPE_SUPPLEMENTAL_DESCRIPTION = 1 << 15;
 
+    /**
+     * Change type for {@link #TYPE_WINDOW_CONTENT_CHANGED} event: The source node's collection
+     * item info changed its sort direction state for the data corresponding to this collection
+     * item, which is returned by
+     * {@link AccessibilityNodeInfo.CollectionItemInfo#getSortDirection()}. The view changing its
+     * collection item info's sort direction should set a
+     * {@link AccessibilityNodeInfo.CollectionItemInfo} created with
+     * {@link AccessibilityNodeInfo.CollectionItemInfo.Builder#setSortDirection(int)} and then send
+     * this event.
+     *
+     * @see AccessibilityNodeInfo.CollectionItemInfo#getSortDirection()
+     * @see AccessibilityNodeInfo.CollectionItemInfo.Builder#setSortDirection(int)
+     */
+    @FlaggedApi(Flags.FLAG_A11Y_SORT_DIRECTION_API)
+    public static final int CONTENT_CHANGE_TYPE_SORT_DIRECTION = 1 << 16;
+
     // Speech state change types.
 
     /** Change type for {@link #TYPE_SPEECH_STATE_CHANGE} event: another service is speaking. */

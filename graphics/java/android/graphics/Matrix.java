@@ -29,8 +29,6 @@ import java.io.PrintWriter;
  * The Matrix class holds a 3x3 matrix for transforming coordinates.
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
-@android.ravenwood.annotation.RavenwoodClassLoadHook(
-        android.ravenwood.annotation.RavenwoodClassLoadHook.LIBANDROID_LOADING_HOOK)
 public class Matrix {
 
     public static final int MSCALE_X = 0;   //!< use with getValues/setValues

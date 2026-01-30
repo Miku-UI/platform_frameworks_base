@@ -49,7 +49,7 @@ import java.util.Set;
  *
  * <p>This class is thread-safe.</p>
  *
- * {@hide}
+ * @hide
  */
 public class NotificationUsageStats {
     private static final String TAG = "NotificationUsageStats";

@@ -20,6 +20,7 @@
 #include <android-base/unique_fd.h>
 #include <android/os/BnIdmap2.h>
 #include <android/os/FabricatedOverlayInfo.h>
+#include <android/os/IdmapParams.h>
 #include <android/os/OverlayConstraint.h>
 #include <binder/BinderService.h>
 #include <idmap2/ResourceContainer.h>
@@ -58,6 +59,9 @@ class Idmap2Service : public BinderService<Idmap2Service>, public BnIdmap2 {
                              bool enforce_overlayable, int32_t user_id,
                              const std::vector<os::OverlayConstraint>& constraints,
                              std::optional<std::string>* _aidl_return) override;
+
+  binder::Status verifyOrCreateIdmaps(const std::vector<os::IdmapParams>& params,
+                                      std::vector<std::string>* _aidl_return) override;
 
   binder::Status createFabricatedOverlay(
       const os::FabricatedOverlayInternal& overlay,
@@ -99,6 +103,9 @@ class Idmap2Service : public BinderService<Idmap2Service>, public BnIdmap2 {
 
   template <typename T>
   using OwningPtr = std::variant<std::unique_ptr<T>, std::shared_ptr<T>>;
+
+  binder::Status verifyOrCreateIdmap(const os::IdmapParams& params,
+                                     std::optional<std::string>* _aidl_return);
 
   using TargetResourceContainerPtr = OwningPtr<idmap2::TargetResourceContainer>;
   idmap2::Result<TargetResourceContainerPtr> GetTargetContainer(const std::string& target_path);

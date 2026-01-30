@@ -22,6 +22,8 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.PorterDuff.Mode;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
+import android.os.Flags;
 import android.os.UserHandle;
 
 import com.android.internal.R;
@@ -93,10 +95,30 @@ public class UserIcons {
      * @param color the color used for the icon
      */
     public static Drawable getDefaultUserIconInColor(Resources resources, @ColorInt int color) {
-        Drawable icon = resources.getDrawable(R.drawable.ic_account_circle, null).mutate();
+        Drawable icon = getBaseDefaultUserIcon(resources);
+        if (icon instanceof LayerDrawable) {
+            // Return icon as is if it's already styled by the overlay.
+            return icon;
+        }
         icon.setColorFilter(color, Mode.SRC_IN);
         icon.setBounds(0, 0, icon.getIntrinsicWidth(), icon.getIntrinsicHeight());
         return icon;
+    }
+
+    /**
+     * Returns the base default user icon drawable.
+     *
+     * <p>The specific drawable returned depends on the state of the
+     * android.os.material_default_user_icon AConfig flag.
+     *
+     * @param resources resources object to fetch the user icon
+     */
+
+    public static Drawable getBaseDefaultUserIcon(Resources resources) {
+        if (Flags.materialDefaultUserIcon()) {
+            return resources.getDrawable(R.drawable.material_ic_account_circle, null).mutate();
+        }
+        return resources.getDrawable(R.drawable.ic_account_circle, null).mutate();
     }
 
     /**

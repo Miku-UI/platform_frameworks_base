@@ -209,7 +209,7 @@ public final class SQLiteDatabase extends SQLiteClosable {
      */
     public static final int CONFLICT_NONE = 0;
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public static final String[] CONFLICT_VALUES = new String[]
             {"", " OR ROLLBACK ", " OR ABORT ", " OR FAIL ", " OR IGNORE ", " OR REPLACE "};
@@ -731,7 +731,6 @@ public final class SQLiteDatabase extends SQLiteClosable {
      *   }
      * </pre>
      */
-    @FlaggedApi(Flags.FLAG_SQLITE_APIS_35)
     public void beginTransactionReadOnly() {
         beginTransactionWithListenerReadOnly(null);
     }
@@ -818,7 +817,6 @@ public final class SQLiteDatabase extends SQLiteClosable {
      * </pre>
      */
     @SuppressLint("ExecutorRegistration")
-    @FlaggedApi(Flags.FLAG_SQLITE_APIS_35)
     public void beginTransactionWithListenerReadOnly(
             @Nullable SQLiteTransactionListener transactionListener) {
         beginTransaction(transactionListener, SQLiteSession.TRANSACTION_MODE_DEFERRED);
@@ -2211,7 +2209,7 @@ public final class SQLiteDatabase extends SQLiteClosable {
         executeSql(sql, bindArgs);
     }
 
-    /** {@hide} */
+    /** @hide */
     public int executeSql(@NonNull String sql, @NonNull Object[] bindArgs)
             throws SQLException {
         acquireReference();
@@ -2257,7 +2255,6 @@ public final class SQLiteDatabase extends SQLiteClosable {
      * @throws IllegalStateException if a transaction is not in progress.
      * @throws SQLiteException if the SQL cannot be compiled.
      */
-    @FlaggedApi(Flags.FLAG_SQLITE_APIS_35)
     @NonNull
     public SQLiteRawStatement createRawStatement(@NonNull String sql) {
         Objects.requireNonNull(sql);
@@ -2277,7 +2274,6 @@ public final class SQLiteDatabase extends SQLiteClosable {
      * @return The ROWID of the last row to be inserted under this connection.
      * @throws IllegalStateException if there is no current transaction.
      */
-    @FlaggedApi(Flags.FLAG_SQLITE_APIS_35)
     public long getLastInsertRowId() {
         return getThreadSession().getLastInsertRowId();
     }
@@ -2291,7 +2287,6 @@ public final class SQLiteDatabase extends SQLiteClosable {
      * @return The number of rows changed by the most recent sql statement
      * @throws IllegalStateException if there is no current transaction.
      */
-    @FlaggedApi(Flags.FLAG_SQLITE_APIS_35)
     public long getLastChangedRowCount() {
         return getThreadSession().getLastChangedRowCount();
     }
@@ -2319,7 +2314,6 @@ public final class SQLiteDatabase extends SQLiteClosable {
      * @return The number of rows changed on the current connection.
      * @throws IllegalStateException if there is no current transaction.
      */
-    @FlaggedApi(Flags.FLAG_SQLITE_APIS_35)
     public long getTotalChangedRowCount() {
         return getThreadSession().getTotalChangedRowCount();
     }
@@ -2518,75 +2512,80 @@ public final class SQLiteDatabase extends SQLiteClosable {
     }
 
     /**
-     * This method enables parallel execution of queries from multiple threads on the
-     * same database.  It does this by opening multiple connections to the database
-     * and using a different database connection for each query.  The database
-     * journal mode is also changed to enable writes to proceed concurrently with reads.
-     * <p>
-     * When write-ahead logging is not enabled (the default), it is not possible for
-     * reads and writes to occur on the database at the same time.  Before modifying the
-     * database, the writer implicitly acquires an exclusive lock on the database which
-     * prevents readers from accessing the database until the write is completed.
-     * </p><p>
-     * In contrast, when write-ahead logging is enabled (by calling this method), write
-     * operations occur in a separate log file which allows reads to proceed concurrently.
-     * While a write is in progress, readers on other threads will perceive the state
-     * of the database as it was before the write began.  When the write completes, readers
-     * on other threads will then perceive the new state of the database.
-     * </p><p>
-     * It is a good idea to enable write-ahead logging whenever a database will be
-     * concurrently accessed and modified by multiple threads at the same time.
-     * However, write-ahead logging uses significantly more memory than ordinary
-     * journaling because there are multiple connections to the same database.
-     * So if a database will only be used by a single thread, or if optimizing
-     * concurrency is not very important, then write-ahead logging should be disabled.
-     * </p><p>
-     * After calling this method, execution of queries in parallel is enabled as long as
-     * the database remains open.  To disable execution of queries in parallel, either
-     * call {@link #disableWriteAheadLogging} or close the database and reopen it.
-     * </p><p>
-     * The maximum number of connections used to execute queries in parallel is
-     * dependent upon the device memory and possibly other properties.
-     * </p><p>
-     * If a query is part of a transaction, then it is executed on the same database handle the
-     * transaction was begun.
-     * </p><p>
-     * Writers should use {@link #beginTransactionNonExclusive()} or
-     * {@link #beginTransactionWithListenerNonExclusive(SQLiteTransactionListener)}
-     * to start a transaction.  Non-exclusive mode allows database file to be in readable
-     * by other threads executing queries.
-     * </p><p>
-     * If the database has any attached databases, then execution of queries in parallel is NOT
-     * possible.  Likewise, write-ahead logging is not supported for read-only databases
-     * or memory databases.  In such cases, {@link #enableWriteAheadLogging} returns false.
-     * </p><p>
-     * The best way to enable write-ahead logging is to pass the
-     * {@link #ENABLE_WRITE_AHEAD_LOGGING} flag to {@link #openDatabase}.  This is
-     * more efficient than calling {@link #enableWriteAheadLogging}.
-     * <code><pre>
+     * Write-ahead logging enables parallel execution of queries from multiple threads on the same
+     * database, and reduces the likelihood of stalling on filesystem syncs. Write-ahead logging is
+     * significantly faster in most scenarios.
+     *
+     * <h3>Benefits and Best Practices</h3>
+     *
+     * <p>Write-ahead logging is not enabled by default. However it is generally recommended for
+     * apps to enable write-ahead logging, unless the app uses SQLite features that are not
+     * compatible with write-ahead logging.
+     *
+     * <p>When write-ahead logging is enabled, write operations occur in a separate log file, which
+     * allows reads in other threads to proceed concurrently. While a write is in progress, readers
+     * on other threads will perceive the state of the database as it was before the write began.
+     * When the write completes, readers on other threads will then perceive the new state of the
+     * database.
+     *
+     * <p>Another benefit of write-ahead logging is that it reduces the number of {@code fsync}
+     * calls to the underlying file system. Calling {@code fsync} may block on system locks and has
+     * poor tail latency on devices with slow filesystems.
+     *
+     * <p>The most efficient way to enable write-ahead logging is to pass the {@link
+     * #ENABLE_WRITE_AHEAD_LOGGING} flag to {@link #openDatabase}. This is more efficient than
+     * calling {@link #enableWriteAheadLogging}. <code><pre>
      *     SQLiteDatabase db = SQLiteDatabase.openDatabase("db_filename", cursorFactory,
      *             SQLiteDatabase.CREATE_IF_NECESSARY | SQLiteDatabase.ENABLE_WRITE_AHEAD_LOGGING,
      *             myDatabaseErrorHandler);
      * </pre></code>
-     * </p><p>
-     * Another way to enable write-ahead logging is to call {@link #enableWriteAheadLogging}
-     * after opening the database.
-     * <code><pre>
-     *     SQLiteDatabase db = SQLiteDatabase.openDatabase("db_filename", cursorFactory,
-     *             SQLiteDatabase.CREATE_IF_NECESSARY, myDatabaseErrorHandler);
-     *     db.enableWriteAheadLogging();
-     * </pre></code>
-     * </p><p>
-     * See also <a href="http://sqlite.org/wal.html">SQLite Write-Ahead Logging</a> for
-     * more details about how write-ahead logging works.
-     * </p>
+     *
+     * <h3>Disabling Write-ahead Logging</h3>
+     *
+     * If the database has any attached databases, then execution of queries in parallel is NOT
+     * possible. Likewise, write-ahead logging is not supported for read-only databases or memory
+     * databases. In such cases, {@link #enableWriteAheadLogging()} returns false.
+     *
+     * <p>When write-ahead logging is not enabled (the default, or after calling {@link
+     * #disableWriteAheadLogging}), it is not possible for reads and writes to occur on the database
+     * at the same time. Before modifying the database, the writer implicitly acquires an exclusive
+     * lock on the database which prevents readers from accessing the database until the write is
+     * completed.
+     *
+     * <p>Write-ahead logging slightly increases the memory usage by SQLite. You can measure the
+     * impact on memory using tools like <a
+     * href="https://developer.android.com/tools/dumpsys#meminfo">meminfo</a>.
+     *
+     * <h3>Usage</h3>
+     *
+     * <p>After opening a database with the {@link #ENABLE_WRITE_AHEAD_LOGGING} flag or by calling
+     * this method, execution of queries in parallel is enabled as long as the database remains
+     * open. To disable execution of queries in parallel, either call {@link
+     * #disableWriteAheadLogging} or close the database and reopen it.
+     *
+     * <p>Parallel execution of queries is performed by opening multiple connections to the database
+     * and using a different database connection for each query. The database journal mode is also
+     * changed to enable writes to proceed concurrently with reads. The maximum number of
+     * connections used to execute queries in parallel is dependent upon the device memory and
+     * possibly other properties.
+     *
+     * <p>If a query is part of a transaction, then it is executed on the same database handle the
+     * transaction was begun.
+     *
+     * <p>Writers should use {@link #beginTransactionNonExclusive()} or {@link
+     * #beginTransactionWithListenerNonExclusive(SQLiteTransactionListener)} to start a transaction.
+     * Non-exclusive mode allows database file to be in readable by other threads executing queries.
+     *
+     * <p>If the database has any attached databases, then execution of queries in parallel is NOT
+     * possible. Likewise, write-ahead logging is not supported for read-only databases or memory
+     * databases. In such cases, {@link #enableWriteAheadLogging} returns false.
+     *
+     * <p>See also <a href="http://sqlite.org/wal.html">SQLite Write-Ahead Logging</a> for more
+     * details about how write-ahead logging works.
      *
      * @return True if write-ahead logging is enabled.
-     *
-     * @throws IllegalStateException if there are transactions in progress at the
-     * time this method is called.  WAL mode can only be changed when there are no
-     * transactions in progress.
-     *
+     * @throws IllegalStateException if there are transactions in progress at the time this method
+     *     is called. WAL mode can only be changed when there are no transactions in progress.
      * @see #ENABLE_WRITE_AHEAD_LOGGING
      * @see #disableWriteAheadLogging
      */
@@ -2724,22 +2723,6 @@ public final class SQLiteDatabase extends SQLiteClosable {
             }
         }
         return connectionPools;
-    }
-
-    /** @hide */
-    @NeverCompile
-    public int getTotalPreparedStatements() {
-        throwIfNotOpenLocked();
-
-        return mConnectionPoolLocked.mTotalPrepareStatements;
-    }
-
-    /** @hide */
-    @NeverCompile
-    public int getTotalStatementCacheMisses() {
-        throwIfNotOpenLocked();
-
-        return mConnectionPoolLocked.mTotalPrepareStatementCacheMiss;
     }
 
     /**
@@ -2904,8 +2887,11 @@ public final class SQLiteDatabase extends SQLiteClosable {
             try {
                 attachedDbs = getAttachedDbs();
                 if (attachedDbs == null) {
-                    throw new IllegalStateException("databaselist for: " + getPath() + " couldn't " +
-                            "be retrieved. probably because the database is closed");
+                    throw new IllegalStateException(
+                            "databaselist for: "
+                                    + getPath()
+                                    + " couldn't "
+                                    + "be retrieved. probably because the database is closed");
                 }
             } catch (SQLiteException e) {
                 // can't get attachedDb list. do integrity check on the main database

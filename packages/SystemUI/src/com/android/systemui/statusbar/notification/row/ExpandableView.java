@@ -19,8 +19,6 @@ package com.android.systemui.statusbar.notification.row;
 import static com.android.systemui.Flags.notificationColorUpdateLogger;
 import static com.android.systemui.Flags.physicalNotificationMovement;
 
-import static java.lang.Math.abs;
-
 import android.animation.AnimatorListenerAdapter;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -31,7 +29,6 @@ import android.util.FloatProperty;
 import android.util.IndentingPrintWriter;
 import android.util.Log;
 import android.view.View;
-import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.FrameLayout;
@@ -88,6 +85,8 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
     private int mActualHeight;
     protected int mClipTopAmount;
     protected int mClipBottomAmount;
+    protected int mTopOverlap = 0;
+    protected int mBottomOverlap = 0;
     protected int mMinimumHeightForClipping = 0;
     protected float mExtraWidthForClipping = 0;
     private ArrayList<View> mMatchParentViews = new ArrayList<View>();
@@ -113,25 +112,12 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
     protected SpringAnimation mMagneticAnimator = new SpringAnimation(
             this /* object */, DynamicAnimation.TRANSLATION_X);
 
-    private int mTouchSlop;
-
     protected MagneticRowListener mMagneticRowListener = new MagneticRowListener() {
 
         @Override
-        public void setMagneticTranslation(float translation, boolean trackEagerly) {
+        public void setMagneticTranslation(float translation) {
             if (!mMagneticAnimator.isRunning()) {
                 setTranslation(translation);
-                return;
-            }
-
-            if (trackEagerly) {
-                float delta = abs(getTranslation() - translation);
-                if (delta > mTouchSlop) {
-                    mMagneticAnimator.animateToFinalPosition(translation);
-                } else {
-                    mMagneticAnimator.cancel();
-                    setTranslation(translation);
-                }
             } else {
                 mMagneticAnimator.animateToFinalPosition(translation);
             }
@@ -159,6 +145,16 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
         @Override
         public boolean canRowBeDismissed() {
             return canExpandableViewBeDismissed();
+        }
+
+        @NonNull
+        @Override
+        public String getRowLoggingKey() {
+            if (ExpandableView.this instanceof ExpandableNotificationRow row) {
+                return row.getLoggingKey();
+            } else {
+                return "null";
+            }
         }
     };
 
@@ -192,14 +188,15 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
 
     @Override
     public int getClipHeight() {
-        int clipHeight = Math.max(mActualHeight - mClipTopAmount - mClipBottomAmount, 0);
+        int clipTopAmount = Math.max(mClipTopAmount, mTopOverlap);
+        int clipBottomAmount = Math.max(mClipBottomAmount, mBottomOverlap);
+        int clipHeight = Math.max(mActualHeight - clipTopAmount - clipBottomAmount, 0);
         return Math.max(clipHeight, mMinimumHeightForClipping);
     }
 
     private void initDimens() {
         mContentShift = getResources().getDimensionPixelSize(
                 R.dimen.shelf_transform_content_shift);
-        mTouchSlop = ViewConfiguration.get(getContext()).getScaledTouchSlop();
     }
 
     @Override
@@ -276,7 +273,7 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
 
     @Override
     public boolean pointInView(float localX, float localY, float slop) {
-        float top = Math.max(0, mClipTopAmount);
+        float top = Math.max(Math.max(0, mClipTopAmount), mTopOverlap);
         float bottom = mActualHeight;
         return localX >= -slop && localY >= top - slop && localX < ((mRight - mLeft) + slop) &&
                 localY < (bottom + slop);
@@ -434,6 +431,32 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
     }
 
     /**
+     * Sets the overlap on the top of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipTopAmount, however it is a separate way to clip which is usually
+     * then combined with the clipTopAmount to take the maximum.
+     */
+    public void setTopOverlap(int topOverlap) {
+        if (topOverlap != mTopOverlap) {
+            mTopOverlap = topOverlap;
+            updateClipping();
+        }
+    }
+
+    /**
+     * Sets the overlap on the bottom of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipBottomAmount, however it is a separate way to clip which is usually
+     * then combined with the clipBottomAmount to take the maximum.
+     */
+    public void setBottomOverlap(int bottomOverlap) {
+        if (bottomOverlap != mBottomOverlap) {
+            mBottomOverlap = bottomOverlap;
+            updateClipping();
+        }
+    }
+
+    /**
      * Set the amount the the notification is clipped on the bottom in addition to the regular
      * clipping. This is mainly used to clip something in a non-animated way without changing the
      * actual height of the notification and is purely visual.
@@ -449,8 +472,16 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
         return mClipTopAmount;
     }
 
+    public int getTopOverlap() {
+        return mTopOverlap;
+    }
+
     public int getClipBottomAmount() {
         return mClipBottomAmount;
+    }
+
+    public int getBottomOverlap() {
+        return mBottomOverlap;
     }
 
     public void setOnHeightChangedListener(OnHeightChangedListener listener) {
@@ -496,6 +527,10 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
             boolean isHeadsUpCycling, Runnable onStartedRunnable,
             Runnable onFinishedRunnable,
             AnimatorListenerAdapter animationListener, ClipSide clipSide);
+
+    public boolean isBackgroundOpaque() {
+        return false;
+    }
 
     public enum ClipSide {
         TOP,
@@ -550,7 +585,8 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
         outRect.left += getTranslationX();
         outRect.right += getTranslationX();
         outRect.bottom = (int) (outRect.top + getTranslationY() + getActualHeight());
-        outRect.top += getTranslationY() + getClipTopAmount();
+        int clipTopAmount = Math.max(getClipTopAmount(), mTopOverlap);
+        outRect.top += getTranslationY() + clipTopAmount;
     }
 
     @Override
@@ -561,7 +597,8 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
             outRect.top += getTop() + getTranslationY();
         }
         outRect.bottom = outRect.top + getActualHeight();
-        outRect.top += Math.max(0, getClipTopAmount());
+        int clipTopAmount = Math.max(getClipTopAmount(), mTopOverlap);
+        outRect.top += Math.max(0, clipTopAmount);
     }
 
     public boolean isSummaryWithChildren() {
@@ -574,9 +611,10 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
 
     protected void updateClipping() {
         if (mClipToActualHeight && shouldClipToActualHeight()) {
-            int top = getClipTopAmount();
-            int bottom = Math.max(Math.max(getActualHeight()
-                    - mClipBottomAmount, top), mMinimumHeightForClipping);
+            int top = Math.max(mClipTopAmount, mTopOverlap);
+            int clipBottomAmount = Math.max(mClipBottomAmount, mBottomOverlap);
+            int bottom = Math.max(Math.max(getActualHeight() - clipBottomAmount, top),
+                    mMinimumHeightForClipping);
             mClipRect.set(Integer.MIN_VALUE, top, Integer.MAX_VALUE, bottom);
             setClipBounds(mClipRect);
         } else {
@@ -984,7 +1022,9 @@ public abstract class ExpandableView extends FrameLayout implements Dumpable, Ro
         pw.print("Clipping: ");
         pw.print("mInRemovalAnimation", mInRemovalAnimation);
         pw.print("mClipTopAmount", mClipTopAmount);
+        pw.print("mTopOverlap", mTopOverlap);
         pw.print("mClipBottomAmount", mClipBottomAmount);
+        pw.print("mBottomOverlap", mBottomOverlap);
         pw.print("mClipToActualHeight", mClipToActualHeight);
         pw.print("mExtraWidthForClipping", mExtraWidthForClipping);
         pw.print("mMinimumHeightForClipping", mMinimumHeightForClipping);

@@ -1,5 +1,5 @@
 /**
  * Utility classes supporting the junit test framework.
- * {@hide}
+ * @hide
  */
 package junit.textui;

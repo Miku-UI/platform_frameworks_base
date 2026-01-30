@@ -108,10 +108,7 @@ private:
     static CommonPool& instance();
 
     CommonPool();
-    ~CommonPool() {
-        mIsStopping = true;
-        mCondition.notify_all();
-    }
+    ~CommonPool();
 
     void enqueue(Task&&);
     void doWaitForIdle();
@@ -124,7 +121,6 @@ private:
     std::condition_variable mCondition;
     int mWaitingThreads = 0;
     ArrayQueue<Task, QUEUE_SIZE> mWorkQueue;
-    std::atomic_bool mIsStopping = false;
 };
 
 }  // namespace uirenderer

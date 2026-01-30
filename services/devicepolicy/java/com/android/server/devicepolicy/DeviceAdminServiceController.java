@@ -133,15 +133,16 @@ public class DeviceAdminServiceController {
                     // would have died at this point due to a package update.  So we disconnect
                     // anyway and re-connect.
                     if (DEBUG) {
-                        Slogf.d("Disconnecting from existing service connection.", packageName,
-                                userId);
+                        Slogf.d(TAG, "Disconnecting from existing service connection "
+                                + "(pkg=%s, userId=%d)", packageName, userId);
                     }
                     disconnectServiceOnUserLocked(packageName, userId, actionForLog);
                 }
 
                 if (DEBUG) {
-                    Slogf.d("Admin package %s on u%d has service %s for %s", packageName, userId,
-                        service.getComponentName().flattenToShortString(), actionForLog);
+                    Slogf.d(TAG, "Admin package %s on u%d has service %s for %s", packageName,
+                            userId, service.getComponentName().flattenToShortString(),
+                            actionForLog);
                 }
 
                 final DevicePolicyServiceConnection conn =

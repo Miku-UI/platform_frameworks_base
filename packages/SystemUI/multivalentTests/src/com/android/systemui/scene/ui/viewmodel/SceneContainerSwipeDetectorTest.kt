@@ -112,6 +112,12 @@ class SceneContainerSwipeDetectorTest : SysuiTestCase() {
     }
 
     @Test
+    fun source_swipeVerticallyAboveBottomEdge_detectsLeftHalf() {
+        val detectedEdge = swipeVerticallyFrom(x = screenWidth / 3, y = screenHeight - edgeSize - 1)
+        assertThat(detectedEdge).isEqualTo(LeftHalf)
+    }
+
+    @Test
     fun source_swipeHorizontallyOnBottom_detectsLeftHalf() {
         val detectedEdge =
             swipeHorizontallyFrom(x = screenWidth / 3, y = screenHeight - (edgeSize - 1))
@@ -199,7 +205,7 @@ class SceneContainerSwipeDetectorTest : SysuiTestCase() {
         return swipeFrom(x, y, Orientation.Horizontal)
     }
 
-    private fun swipeFrom(x: Int, y: Int, orientation: Orientation): SceneContainerArea.Resolved? {
+    private fun swipeFrom(x: Int, y: Int, orientation: Orientation): SceneContainerArea.Resolved {
         return underTest.source(
             layoutSize = IntSize(width = screenWidth, height = screenHeight),
             position = IntOffset(x, y),

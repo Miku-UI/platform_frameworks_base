@@ -222,7 +222,6 @@ public class ClipboardListenerTest extends SysuiTestCase {
 
     @Test
     @DisableFlags(Flags.FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
-    @EnableFlags(Flags.FLAG_CLIPBOARD_NONINTERACTIVE_ON_LOCKSCREEN)
     public void test_deviceLockedForSecondaryUser_withoutMultiuser_showsOverlay() {
         when(mKeyguardManager.isDeviceLocked()).thenReturn(false);
         when(mKeyguardManagerSecondaryUser.isDeviceLocked()).thenReturn(true);
@@ -239,8 +238,7 @@ public class ClipboardListenerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_CLIPBOARD_OVERLAY_MULTIUSER,
-            Flags.FLAG_CLIPBOARD_NONINTERACTIVE_ON_LOCKSCREEN})
+    @EnableFlags(Flags.FLAG_CLIPBOARD_OVERLAY_MULTIUSER)
     public void test_deviceLockedForSecondaryUser_showsToast() {
         when(mKeyguardManager.isDeviceLocked()).thenReturn(false);
         when(mKeyguardManagerSecondaryUser.isDeviceLocked()).thenReturn(true);
@@ -311,7 +309,6 @@ public class ClipboardListenerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_CLIPBOARD_NONINTERACTIVE_ON_LOCKSCREEN)
     public void test_deviceLocked_showsToast() {
         when(mKeyguardManager.isDeviceLocked()).thenReturn(true);
 
@@ -322,20 +319,6 @@ public class ClipboardListenerTest extends SysuiTestCase {
                 ClipboardOverlayEvent.CLIPBOARD_TOAST_SHOWN, 0, mSampleSource);
         verify(mClipboardToast, times(1)).showCopiedToast();
         verifyNoMoreInteractions(mOverlayControllerProvider);
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_CLIPBOARD_NONINTERACTIVE_ON_LOCKSCREEN)
-    public void test_deviceLocked_legacyBehavior_showsInteractiveUI() {
-        when(mKeyguardManager.isDeviceLocked()).thenReturn(true);
-
-        mClipboardListener.start();
-        mClipboardListener.onPrimaryClipChanged();
-
-        verify(mUiEventLogger, times(1)).log(
-                ClipboardOverlayEvent.CLIPBOARD_OVERLAY_ENTERED, 0, mSampleSource);
-        verify(mOverlayController).setClipData(mSampleClipData, mSampleSource);
-        verifyNoMoreInteractions(mClipboardToast);
     }
 
     @Test

@@ -92,8 +92,19 @@ final class InkWindow extends PhoneWindow {
         }
         getDecorView().setVisibility(keepInvisible ? View.INVISIBLE : View.VISIBLE);
         if (!mIsViewAdded) {
-            mWindowManager.addView(getDecorView(), getAttributes());
-            mIsViewAdded = true;
+            try {
+                mWindowManager.addView(getDecorView(), getAttributes());
+                mIsViewAdded = true;
+            } catch (WindowManager.BadTokenException | WindowManager.InvalidDisplayException e) {
+                // Similar to SoftInputWindow#show(), just ignore this exception. Since show() can
+                // be requested from other components such as the system and there could be multiple
+                // event queues before the request finally arrives here, the system may have already
+                // invalidated the window token attached to our window. In such a scenario,
+                // receiving BadTokenException here is an expected behavior. We just ignore it.
+                Slog.i(InputMethodService.TAG,
+                        "Probably the IME/InkWindow token is already invalidated."
+                        + " InkWindow#show() does nothing.");
+            }
         }
     }
 

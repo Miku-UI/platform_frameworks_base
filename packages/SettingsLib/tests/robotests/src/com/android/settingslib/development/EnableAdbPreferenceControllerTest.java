@@ -24,7 +24,9 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
+import static org.robolectric.Shadows.shadowOf;
 
+import android.app.Application;
 import android.app.admin.DevicePolicyManager;
 import android.content.ComponentName;
 import android.content.Context;
@@ -35,6 +37,7 @@ import android.provider.Settings;
 
 import androidx.preference.Preference;
 import androidx.preference.PreferenceScreen;
+import androidx.test.core.app.ApplicationProvider;
 
 import com.android.settingslib.RestrictedSwitchPreference;
 
@@ -68,7 +71,8 @@ public class EnableAdbPreferenceControllerTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        ShadowApplication shadowContext = ShadowApplication.getInstance();
+        ShadowApplication shadowContext =
+                shadowOf((Application) ApplicationProvider.getApplicationContext());
         shadowContext.setSystemService(Context.USER_SERVICE, mUserManager);
         mContext = spy(RuntimeEnvironment.application);
         when(mContext.getPackageManager()).thenReturn(mPackageManager);

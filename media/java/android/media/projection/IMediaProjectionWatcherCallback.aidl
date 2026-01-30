@@ -20,7 +20,7 @@ import android.media.projection.MediaProjectionInfo;
 import android.view.ContentRecordingSession;
 import android.media.projection.MediaProjectionEvent;
 
-/** {@hide} */
+/** @hide */
 oneway interface IMediaProjectionWatcherCallback {
     void onStart(in MediaProjectionInfo info);
     void onStop(in MediaProjectionInfo info);

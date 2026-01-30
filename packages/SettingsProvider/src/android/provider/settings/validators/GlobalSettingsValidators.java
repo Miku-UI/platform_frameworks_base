@@ -181,6 +181,7 @@ public class GlobalSettingsValidators {
         VALIDATORS.put(Global.POWER_BUTTON_DOUBLE_PRESS, new InclusiveIntegerRangeValidator(0, 3));
         VALIDATORS.put(Global.POWER_BUTTON_TRIPLE_PRESS, new InclusiveIntegerRangeValidator(0, 3));
         VALIDATORS.put(Global.POWER_BUTTON_LONG_PRESS, new InclusiveIntegerRangeValidator(0, 5));
+        VALIDATORS.put(Global.POWER_BUTTON_LONG_PRESS_RESTORED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(
                 Global.POWER_BUTTON_VERY_LONG_PRESS, new InclusiveIntegerRangeValidator(0, 1));
         VALIDATORS.put(Global.KEY_CHORD_POWER_VOLUME_UP, new InclusiveIntegerRangeValidator(0, 2));
@@ -252,6 +253,8 @@ public class GlobalSettingsValidators {
                             String.valueOf(Global.Wearable.AUTO_TIME_ZONE_OFF),
                             String.valueOf(Global.Wearable.INVALID_AUTO_TIME_ZONE_STATE)
                         }));
+        VALIDATORS.put(Global.Wearable.CLOCKWORK_LOCATION_TIME_ZONE_DETECTION_ENABLED,
+                BOOLEAN_VALIDATOR);
         VALIDATORS.put(Global.Wearable.CLOCKWORK_24HR_TIME, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Global.Wearable.AUTO_WIFI, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Global.Wearable.WIFI_POWER_SAVE, ANY_INTEGER_VALIDATOR);
@@ -453,7 +456,7 @@ public class GlobalSettingsValidators {
         VALIDATORS.put(Global.Wearable.WRIST_DETECTION_AUTO_LOCKING_ENABLED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(
                 Global.Wearable.CONSISTENT_NOTIFICATION_BLOCKING_ENABLED, ANY_INTEGER_VALIDATOR);
-        VALIDATORS.put(Global.Wearable.AUTO_BEDTIME_MODE, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(Global.Wearable.AUTO_BEDTIME_MODE, NON_NEGATIVE_INTEGER_VALIDATOR);
         VALIDATORS.put(Global.FORCE_ENABLE_PSS_PROFILING, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Global.ADD_USERS_WHEN_LOCKED, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Global.REMOVE_GUEST_ON_EXIT, BOOLEAN_VALIDATOR);
@@ -476,5 +479,11 @@ public class GlobalSettingsValidators {
                         }));
         VALIDATORS.put(Global.Wearable.GESTURE_PRIMARY_ACTION_USER_PREFERENCE, BOOLEAN_VALIDATOR);
         VALIDATORS.put(Global.Wearable.GESTURE_DISMISS_ACTION_USER_PREFERENCE, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(Global.Wearable.GESTURE_HINT_PERIOD_DAYS, ANY_INTEGER_VALIDATOR);
+        VALIDATORS.put(Global.GLOBAL_ACTIONS_TIMEOUT_MILLIS, NON_NEGATIVE_INTEGER_VALIDATOR);
+        VALIDATORS.put(Global.WATCH_RANGING_SUPPORTED_BY_PRIMARY_DEVICE,
+                new InclusiveIntegerRangeValidator(0, 1));
+        VALIDATORS.put(Global.MINMODE_ACTIVE, BOOLEAN_VALIDATOR);
+        VALIDATORS.put(Global.WATCH_RANGING_AVAILABLE, BOOLEAN_VALIDATOR);
     }
 }

@@ -45,7 +45,7 @@
             android:id="@+id/expand_button_number"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.DeviceDefault.Notification.Info"
+            android:textAppearance="@style/TextAppearance.DeviceDefault.Notification.Label"
             android:gravity="center_vertical"
             android:visibility="gone"
             />

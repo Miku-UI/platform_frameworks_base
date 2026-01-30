@@ -87,13 +87,7 @@ class RowAlertTimeCoordinatorTest : SysuiTestCase() {
                 }
             }
         val expectedTimesSet =
-            mapOf(
-                entry1 to 10L,
-                entry2 to 20L,
-                summary to 8L,
-                child1 to 0L,
-                child2 to 8L,
-            )
+            mapOf(entry1 to 10L, entry2 to 20L, summary to 8L, child1 to 0L, child2 to 8L)
         assertThat(actualTimesSet).containsExactlyEntriesIn(expectedTimesSet)
     }
 }

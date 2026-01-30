@@ -16,6 +16,8 @@
 package com.android.server.notification;
 
 import static android.Manifest.permission.RECEIVE_SENSITIVE_NOTIFICATIONS;
+import static android.content.Context.BIND_ALLOW_FREEZE;
+import static android.content.Context.BIND_SIMULATE_ALLOW_FREEZE;
 import static android.content.pm.PackageManager.MATCH_ANY_USER;
 import static android.permission.PermissionManager.PERMISSION_GRANTED;
 import static android.service.notification.Flags.FLAG_REDACT_SENSITIVE_NOTIFICATIONS_FROM_UNTRUSTED_LISTENERS;
@@ -23,7 +25,18 @@ import static android.service.notification.NotificationListenerService.FLAG_FILT
 import static android.service.notification.NotificationListenerService.FLAG_FILTER_TYPE_CONVERSATIONS;
 import static android.service.notification.NotificationListenerService.FLAG_FILTER_TYPE_ONGOING;
 import static android.service.notification.NotificationListenerService.FLAG_FILTER_TYPE_SILENT;
+import static android.service.notification.NotificationListenerService.NOTIFICATION_CHANNEL_OR_GROUP_ADDED;
 
+import static com.android.server.notification.Flags.FLAG_ALLOW_FREEZING_IDLE_NLS;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_INTERRUPTION_FILTER_CHANGED;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_LISTENER_CONNECTED;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_LISTENER_HINTS_CHANGED;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_NOTIFICATION_CHANNEL_GROUP_MODIFICATION;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_NOTIFICATION_CHANNEL_MODIFICATION;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_NOTIFICATION_POSTED;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_NOTIFICATION_RANKING_UPDATE;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_NOTIFICATION_REMOVED;
+import static com.android.server.notification.NotificationManagerService.NotificationListeners.BINDER_TAG_ON_STATUS_BAR_ICONS_BEHAVIOR_CHANGED;
 import static com.android.server.notification.NotificationManagerService.NotificationListeners.TAG_REQUESTED_LISTENERS;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -34,6 +47,7 @@ import static junit.framework.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.intThat;
@@ -51,6 +65,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.annotation.SuppressLint;
+import android.app.IBinderSession;
 import android.app.INotificationManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -64,11 +79,14 @@ import android.content.pm.PackageManager;
 import android.content.pm.ServiceInfo;
 import android.content.pm.VersionedPackage;
 import android.content.res.Resources;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.service.notification.Flags;
 import android.service.notification.INotificationListener;
 import android.service.notification.IStatusBarNotificationHolder;
 import android.service.notification.NotificationListenerFilter;
@@ -108,6 +126,9 @@ import java.util.concurrent.CountDownLatch;
 
 @SuppressLint("GuardedBy")
 public class NotificationListenersTest extends UiServiceTestCase {
+    private static final int TEST_UID = 548931;
+    private static final int TEST_USER_ID = UserHandle.getUserId(TEST_UID);
+    private static final int TARGET_SDK_VERSION = Build.VERSION.SDK_INT;
 
     @Rule
     public SetFlagsRule mSetFlagsRule = new SetFlagsRule();
@@ -421,6 +442,149 @@ public class NotificationListenersTest extends UiServiceTestCase {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testBindFlagsIncludesSimulateAllowFreeze() {
+        assertThat(mListeners.getBindFlags() & BIND_SIMULATE_ALLOW_FREEZE).isEqualTo(
+                BIND_SIMULATE_ALLOW_FREEZE);
+    }
+
+    @Test
+    @EnableFlags(FLAG_ALLOW_FREEZING_IDLE_NLS)
+    public void testBindFlagsIncludesAllowFreeze() {
+        assertThat(mListeners.getBindFlags() & BIND_ALLOW_FREEZE).isEqualTo(BIND_ALLOW_FREEZE);
+    }
+
+    private ManagedServices.ManagedServiceInfo getNewManagedServiceInfo(
+            IBinderSession iBinderSession) {
+        return mListeners.new ManagedServiceInfo(mock(INotificationListener.class), mCn1,
+                TEST_USER_ID, false, null, TARGET_SDK_VERSION, TEST_UID, iBinderSession);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testOnServiceAddedCallsBinderTransactionStarting() throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+        mListeners.onServiceAdded(info);
+        verify(iBinderSession).binderTransactionStarting(BINDER_TAG_ON_LISTENER_CONNECTED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testNotifyPostedCallsBinderTransactionStarting() throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+        final StatusBarNotification sbn = mock(StatusBarNotification.class);
+        final NotificationRankingUpdate nru = mock(NotificationRankingUpdate.class);
+        mListeners.notifyPosted(info, sbn, nru);
+        verify(iBinderSession).binderTransactionStarting(BINDER_TAG_ON_NOTIFICATION_POSTED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testOnStatusBarIconsBehaviorChangedCallsBinderTransactionStarting()
+            throws RemoteException {
+        final IBinderSession iBinderSession1 = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info1 = getNewManagedServiceInfo(iBinderSession1);
+
+        final IBinderSession iBinderSession2 = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info2 = getNewManagedServiceInfo(iBinderSession2);
+
+        doReturn(ImmutableList.of(info1, info2)).when(mListeners).getServices();
+
+        mNm.setHandler(mock(NotificationManagerService.WorkerHandler.class));
+        when(mNm.mHandler.post(any(Runnable.class))).thenAnswer(inv -> {
+            final Runnable r = inv.getArgument(0);
+            r.run();
+            return true;
+        });
+        mListeners.onStatusBarIconsBehaviorChanged(false);
+
+        verify(iBinderSession1).binderTransactionStarting(
+                BINDER_TAG_ON_STATUS_BAR_ICONS_BEHAVIOR_CHANGED);
+        verify(iBinderSession2).binderTransactionStarting(
+                BINDER_TAG_ON_STATUS_BAR_ICONS_BEHAVIOR_CHANGED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testNotifyRemovedCallsBinderTransactionStarting() throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+        final StatusBarNotification sbn = mock(StatusBarNotification.class);
+        final NotificationRankingUpdate nru = mock(NotificationRankingUpdate.class);
+        final NotificationStats stats = mock(NotificationStats.class);
+        final int testReason = 0;
+        mListeners.notifyRemoved(info, sbn, nru, stats, testReason);
+        verify(iBinderSession).binderTransactionStarting(BINDER_TAG_ON_NOTIFICATION_REMOVED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testNotifyRankingUpdateCallsBinderTransactionStarting() throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+        final NotificationRankingUpdate nru = mock(NotificationRankingUpdate.class);
+        mListeners.notifyRankingUpdate(info, nru);
+        verify(iBinderSession).binderTransactionStarting(BINDER_TAG_ON_NOTIFICATION_RANKING_UPDATE);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testNotifyListenerHintsChangedCallsBinderTransactionStarting()
+            throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+        final int hints = 43; // Unused value.
+        mListeners.notifyListenerHintsChanged(info, hints);
+        verify(iBinderSession).binderTransactionStarting(BINDER_TAG_ON_LISTENER_HINTS_CHANGED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testNotifyInterruptionFilterChangedCallsBinderTransactionStarting()
+            throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+        final int filter = 43; // Unused value.
+        mListeners.notifyInterruptionFilterChanged(info, filter);
+        verify(iBinderSession).binderTransactionStarting(BINDER_TAG_ON_INTERRUPTION_FILTER_CHANGED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testNotifyNotificationChannelChangedCallsBinderTransactionStarting()
+            throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final int testUid = 330023;
+        final String testPkg = "test-package";
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+
+        final NotificationChannel channel = mock(NotificationChannel.class);
+        mListeners.notifyNotificationChannelChanged(info, testPkg,
+                UserHandle.getUserHandleForUid(testUid), channel,
+                NOTIFICATION_CHANNEL_OR_GROUP_ADDED);
+        verify(iBinderSession).binderTransactionStarting(
+                BINDER_TAG_ON_NOTIFICATION_CHANNEL_MODIFICATION);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REPORT_NLS_START_AND_END)
+    public void testNotifyNotificationChannelGroupChangedCallsBinderTransactionStarting()
+            throws RemoteException {
+        final IBinderSession iBinderSession = mock(IBinderSession.class);
+        final int testUid = 330023;
+        final String testPkg = "test-package";
+        final ManagedServices.ManagedServiceInfo info = getNewManagedServiceInfo(iBinderSession);
+        final NotificationChannelGroup channelGroup = mock(NotificationChannelGroup.class);
+        mListeners.notifyNotificationChannelGroupChanged(info, testPkg,
+                UserHandle.getUserHandleForUid(testUid), channelGroup,
+                NOTIFICATION_CHANNEL_OR_GROUP_ADDED);
+        verify(iBinderSession).binderTransactionStarting(
+                BINDER_TAG_ON_NOTIFICATION_CHANNEL_GROUP_MODIFICATION);
+    }
+
+    @Test
     public void testOnPackageChanged() {
         NotificationListenerFilter nlf = new NotificationListenerFilter(7, new ArraySet<>());
         VersionedPackage a1 = new VersionedPackage("pkg1", 243);
@@ -678,7 +842,8 @@ public class NotificationListenersTest extends UiServiceTestCase {
         Thread.sleep(500);
 
         verify(((INotificationListener) i1.getService()), times(1))
-                .onNotificationChannelGroupModification(anyString(), any(), any(), anyInt());
+                .onNotificationChannelGroupModification(anyString(), any(), any(), anyInt(),
+                        anyLong());
     }
 
     @Test
@@ -885,9 +1050,7 @@ public class NotificationListenersTest extends UiServiceTestCase {
                 otherInfo2);
         when(mListeners.getServices()).thenReturn(services);
 
-        FieldSetter.setField(mNm,
-                NotificationManagerService.class.getDeclaredField("mHandler"),
-                mock(NotificationManagerService.WorkerHandler.class));
+        mNm.setHandler(mock(NotificationManagerService.WorkerHandler.class));
         doReturn(true).when(mNm).isVisibleToListener(any(), anyInt(), any());
         doReturn(mock(NotificationRankingUpdate.class)).when(mNm)
                 .makeRankingUpdateLocked(sysuiInfo);
@@ -903,7 +1066,7 @@ public class NotificationListenersTest extends UiServiceTestCase {
         // Post notification change to the service listeners.
         mListeners.notifyPostedLocked(toPost, old);
 
-        // Verify that the post occcurs with the updated notification value.
+        // Verify that the post occurs with the updated notification value.
         ArgumentCaptor<Runnable> runnableCaptor = ArgumentCaptor.forClass(Runnable.class);
         verify(mNm.mHandler, times(1)).post(runnableCaptor.capture());
         runnableCaptor.getValue().run();
@@ -911,20 +1074,22 @@ public class NotificationListenersTest extends UiServiceTestCase {
         if (android.app.Flags.noSbnholder()) {
             ArgumentCaptor<StatusBarNotification> sbnCaptor =
                     ArgumentCaptor.forClass(StatusBarNotification.class);
-            verify(sysuiListener, times(1)).onNotificationPostedFull(sbnCaptor.capture(), any());
+            verify(sysuiListener, times(1)).onNotificationPostedFull(sbnCaptor.capture(), any(),
+                    anyLong());
             sbnResult = sbnCaptor.getValue();
         } else {
             ArgumentCaptor<IStatusBarNotificationHolder> sbnCaptor =
                     ArgumentCaptor.forClass(IStatusBarNotificationHolder.class);
-            verify(sysuiListener, times(1)).onNotificationPosted(sbnCaptor.capture(), any());
+            verify(sysuiListener, times(1)).onNotificationPosted(sbnCaptor.capture(), any(),
+                    anyLong());
             sbnResult = sbnCaptor.getValue().get();
         }
         assertThat(sbnResult.getNotification()
                 .extras.getCharSequence(Notification.EXTRA_TITLE).toString())
                 .isEqualTo("new title");
 
-        verify(otherListener1, never()).onNotificationPosted(any(), any());
-        verify(otherListener2, never()).onNotificationPosted(any(), any());
+        verify(otherListener1, never()).onNotificationPosted(any(), any(), anyLong());
+        verify(otherListener2, never()).onNotificationPosted(any(), any(), anyLong());
     }
 
     @Test
@@ -978,9 +1143,7 @@ public class NotificationListenersTest extends UiServiceTestCase {
                 otherInfo2);
         when(mListeners.getServices()).thenReturn(services);
 
-        FieldSetter.setField(mNm,
-                NotificationManagerService.class.getDeclaredField("mHandler"),
-                mock(NotificationManagerService.WorkerHandler.class));
+        mNm.setHandler(mock(NotificationManagerService.WorkerHandler.class));
         doReturn(true).when(mNm).isVisibleToListener(any(), anyInt(), any());
         doReturn(mock(NotificationRankingUpdate.class)).when(mNm)
                 .makeRankingUpdateLocked(sysuiInfo);
@@ -1010,12 +1173,14 @@ public class NotificationListenersTest extends UiServiceTestCase {
         if (android.app.Flags.noSbnholder()) {
             ArgumentCaptor<StatusBarNotification> sbnCaptor =
                     ArgumentCaptor.forClass(StatusBarNotification.class);
-            verify(sysuiListener, times(1)).onNotificationPostedFull(sbnCaptor.capture(), any());
+            verify(sysuiListener, times(1)).onNotificationPostedFull(sbnCaptor.capture(), any(),
+                    anyLong());
             sbnResult = sbnCaptor.getValue();
         } else {
             ArgumentCaptor<IStatusBarNotificationHolder> sbnCaptor =
                     ArgumentCaptor.forClass(IStatusBarNotificationHolder.class);
-            verify(sysuiListener, times(1)).onNotificationPosted(sbnCaptor.capture(), any());
+            verify(sysuiListener, times(1)).onNotificationPosted(sbnCaptor.capture(), any(),
+                    anyLong());
             sbnResult = sbnCaptor.getValue().get();
         }
         assertThat(sbnResult.getNotification()
@@ -1023,11 +1188,11 @@ public class NotificationListenersTest extends UiServiceTestCase {
                 .isEqualTo("new title");
 
         if (android.app.Flags.noSbnholder()) {
-            verify(otherListener1, times(1)).onNotificationPostedFull(any(), any());
-            verify(otherListener2, times(1)).onNotificationPostedFull(any(), any());
+            verify(otherListener1, times(1)).onNotificationPostedFull(any(), any(), anyLong());
+            verify(otherListener2, times(1)).onNotificationPostedFull(any(), any(), anyLong());
         } else {
-            verify(otherListener1, times(1)).onNotificationPosted(any(), any());
-            verify(otherListener2, times(1)).onNotificationPosted(any(), any());
+            verify(otherListener1, times(1)).onNotificationPosted(any(), any(), anyLong());
+            verify(otherListener2, times(1)).onNotificationPosted(any(), any(), anyLong());
         }
     }
 
@@ -1078,9 +1243,7 @@ public class NotificationListenersTest extends UiServiceTestCase {
                 otherInfo2);
         when(mListeners.getServices()).thenReturn(services);
 
-        FieldSetter.setField(mNm,
-                NotificationManagerService.class.getDeclaredField("mHandler"),
-                mock(NotificationManagerService.WorkerHandler.class));
+        mNm.setHandler(mock(NotificationManagerService.WorkerHandler.class));
         doReturn(true).when(mNm).isVisibleToListener(any(), anyInt(), any());
         doReturn(mock(NotificationRankingUpdate.class)).when(mNm)
                 .makeRankingUpdateLocked(sysuiInfo);
@@ -1108,12 +1271,14 @@ public class NotificationListenersTest extends UiServiceTestCase {
         if (android.app.Flags.noSbnholder()) {
             ArgumentCaptor<StatusBarNotification> sbnCaptor =
                     ArgumentCaptor.forClass(StatusBarNotification.class);
-            verify(sysuiListener, times(1)).onNotificationPostedFull(sbnCaptor.capture(), any());
+            verify(sysuiListener, times(1)).onNotificationPostedFull(sbnCaptor.capture(), any(),
+                    anyLong());
             sbnResult = sbnCaptor.getValue();
         } else {
             ArgumentCaptor<IStatusBarNotificationHolder> sbnCaptor =
                     ArgumentCaptor.forClass(IStatusBarNotificationHolder.class);
-            verify(sysuiListener, times(1)).onNotificationPosted(sbnCaptor.capture(), any());
+            verify(sysuiListener, times(1)).onNotificationPosted(sbnCaptor.capture(), any(),
+                    anyLong());
             sbnResult = sbnCaptor.getValue().get();
         }
         assertThat(sbnResult.getNotification()
@@ -1121,11 +1286,11 @@ public class NotificationListenersTest extends UiServiceTestCase {
                 .isEqualTo("new title");
 
         if (android.app.Flags.noSbnholder()) {
-            verify(otherListener1, times(1)).onNotificationPostedFull(any(), any());
-            verify(otherListener2, times(1)).onNotificationPostedFull(any(), any());
+            verify(otherListener1, times(1)).onNotificationPostedFull(any(), any(), anyLong());
+            verify(otherListener2, times(1)).onNotificationPostedFull(any(), any(), anyLong());
         } else {
-            verify(otherListener1, times(1)).onNotificationPosted(any(), any());
-            verify(otherListener2, times(1)).onNotificationPosted(any(), any());
+            verify(otherListener1, times(1)).onNotificationPosted(any(), any(), anyLong());
+            verify(otherListener2, times(1)).onNotificationPosted(any(), any(), anyLong());
         }
     }
 
@@ -1177,7 +1342,8 @@ public class NotificationListenersTest extends UiServiceTestCase {
 
             }
             return null;
-        }).when(l1).onNotificationChannelGroupModification(anyString(), any(), any(), anyInt());
+        }).when(l1).onNotificationChannelGroupModification(anyString(), any(), any(), anyInt(),
+                anyLong());
         return i1;
     }
 

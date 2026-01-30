@@ -34,18 +34,18 @@ flag {
 }
 
 flag {
-    name: "nfc_observe_mode"
-    is_exported: true
-    namespace: "nfc"
-    description: "Enable NFC Observe Mode"
-    bug: "294217286"
-}
-
-flag {
     name: "nfc_read_polling_loop"
     is_exported: true
     namespace: "nfc"
     description: "Enable NFC Polling Loop Notifications"
+    bug: "294217286"
+}
+
+flag {
+    name: "nfc_observe_mode"
+    is_exported: true
+    namespace: "nfc"
+    description: "Enable NFC Observe Mode"
     bug: "294217286"
 }
 
@@ -196,6 +196,14 @@ flag {
     namespace: "nfc"
     description: "Expose constructor for ApduServiceInfo"
     bug: "380892385"
+}
+
+flag {
+    name: "screen_state_attribute_toggle"
+    is_exported: true
+    namespace: "nfc"
+    description: "API to toggle requireDeviceUnlock and requireDeviceScreenOn attributes for HCE service."
+    bug: "417742419"
 }
 
 # Unless you are adding a flag for a file under nfc-non-updatable, you should

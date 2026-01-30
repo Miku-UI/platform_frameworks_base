@@ -32,6 +32,7 @@ import android.os.Parcelable;
  */
 @SystemApi
 public final class SmsCbLocation implements Parcelable {
+    private static final String TAG = "SmsCbLocation";
 
     /** The PLMN. Note that this field may be an empty string. */
     @NonNull
@@ -133,7 +134,7 @@ public final class SmsCbLocation implements Parcelable {
 
     @Override
     public String toString() {
-        return '[' + mPlmn + ',' + mLac + ',' + mCid + ']';
+        return '[' + mPlmn + ',' + Rlog.pii(TAG, mLac) + ',' + Rlog.pii(TAG, mCid) + ']';
     }
 
     /**

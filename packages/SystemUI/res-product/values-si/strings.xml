@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"මෙම ටැබ්ලටයේ වාදනය වේ"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"බලය ක්‍රියාවිරහිත වූ විට පවා ඔබට මගේ උපාංගය සෙවීම මගින් මෙම දුරකථනය සොයාගත හැක"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"බලය ක්‍රියාවිරහිත වූ විට පවා ඔබට මගේ උපාංගය සෙවීම මගින් මෙම ටැබ්ලටය සොයාගත හැක"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"බලය ක්‍රියාවිරහිතව තිබියදී පවා සෙවීම් මධ්‍යස්ථානය භාවිතයෙන් ඔබට මෙම දුරකථනය සොයා ගත හැක"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"බලය ක්‍රියාවිරහිතව තිබියදී පවා සෙවීම් මධ්‍යස්ථානය භාවිතයෙන් ඔබට මෙම ටැබ්ලටය සොයා ගත හැක"</string>
 </resources>

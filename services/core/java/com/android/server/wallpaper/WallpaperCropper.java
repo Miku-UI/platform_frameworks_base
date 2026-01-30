@@ -16,11 +16,12 @@
 
 package com.android.server.wallpaper;
 
+import static android.app.Flags.fixWallpaperCropsOnRestore;
 import static android.app.WallpaperManager.ORIENTATION_LANDSCAPE;
+import static android.app.WallpaperManager.ORIENTATION_PORTRAIT;
 import static android.app.WallpaperManager.ORIENTATION_UNKNOWN;
 import static android.app.WallpaperManager.getOrientation;
 import static android.app.WallpaperManager.getRotatedOrientation;
-import static android.app.Flags.accurateWallpaperDownsampling;
 import static android.view.Display.DEFAULT_DISPLAY;
 
 import static com.android.server.wallpaper.WallpaperUtils.RECORD_FILE;
@@ -42,6 +43,7 @@ import android.util.Slog;
 import android.util.SparseArray;
 import android.view.DisplayInfo;
 import android.view.View;
+import android.window.DesktopExperienceFlags;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.utils.TimingsTraceAndSlog;
@@ -51,8 +53,6 @@ import libcore.io.IoUtils;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 
 /**
@@ -71,6 +71,13 @@ public class WallpaperCropper {
      * A value of 1 means "the additional width for parallax is at most 100% of the screen width"
      */
     @VisibleForTesting static final float MAX_PARALLAX = 1f;
+
+    /**
+     * For connected displays, if the width or height of the image is smaller than the width or
+     * height of the screen by a factor larger than this amount, the quality is considered too low
+     * and a fallback wallpaper should be used instead.
+     */
+    @VisibleForTesting static final float CONNECTED_DISPLAY_MAX_DISPLAY_TO_IMAGE_RATIO = 1.5f;
 
     /**
      * We define three ways to adjust a crop. These modes are used depending on the situation:
@@ -116,6 +123,20 @@ public class WallpaperCropper {
      */
     public static Rect getCrop(Point displaySize, WallpaperDefaultDisplayInfo defaultDisplayInfo,
             Point bitmapSize, SparseArray<Rect> suggestedCrops, boolean rtl) {
+
+        // Case 0: if we're looking for the crop of an external display, use external display logic
+        if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WALLPAPER.isTrue()) {
+            boolean isExternalDisplay = true;
+            for (int i = 0; i < defaultDisplayInfo.defaultDisplaySizes.size(); i++) {
+                if (defaultDisplayInfo.defaultDisplaySizes.valueAt(i).equals(displaySize)) {
+                    isExternalDisplay = false;
+                }
+            }
+            if (isExternalDisplay) {
+                return getCropForExternalDisplay(
+                        displaySize, defaultDisplayInfo, bitmapSize, suggestedCrops, rtl);
+            }
+        }
 
         int orientation = getOrientation(displaySize);
 
@@ -209,13 +230,19 @@ public class WallpaperCropper {
             return res;
         }
 
-
         // Case 5: if the device is a foldable, if we're looking for an unfolded orientation and
         // have the suggested crop of the relative folded orientation, reuse it by adding content.
         int foldedOrientation = defaultDisplayInfo.getFoldedOrientation(orientation);
         suggestedCrop = suggestedCrops.get(foldedOrientation);
+        // Exception: don't reuse the suggested crop for landscape if a portrait suggested crop
+        // exists. In that case we'd rather go to case 6 and use the portrait suggested crop. This
+        // is in order to have a consistent wallpaper position on both SQUARE_PORTRAIT and
+        // SQUARE_LANDSCAPE orientations.
+        boolean skip = fixWallpaperCropsOnRestore()
+                && foldedOrientation == ORIENTATION_LANDSCAPE
+                && suggestedCrops.contains(ORIENTATION_PORTRAIT);
         suggestedDisplaySize = defaultDisplayInfo.defaultDisplaySizes.get(foldedOrientation);
-        if (suggestedCrop != null) {
+        if (suggestedCrop != null && !skip) {
             // only keep the visible part (without parallax)
             Rect adjustedCrop = noParallax(suggestedCrop, suggestedDisplaySize, bitmapSize, rtl);
             return getAdjustedCrop(adjustedCrop, bitmapSize, displaySize, false, rtl, ADD);
@@ -370,38 +397,36 @@ public class WallpaperCropper {
     }
 
     /**
-     * The crops stored in {@link WallpaperData#mCropHints} are relative to the original image.
-     * This computes the crops relative to the sub-image that will actually be rendered on a window.
+     * @see #getRelativeCropHints(WallpaperData, boolean)
      */
-    SparseArray<Rect> getRelativeCropHints(WallpaperData wallpaper) {
+    static SparseArray<Rect> getRelativeCropHints(WallpaperData wallpaper) {
+        return getRelativeCropHints(wallpaper, false);
+    }
+
+    /**
+     * The crops stored in {@link WallpaperData#mCropHints} are relative to the original image
+     * {@link WallpaperData#getWallpaperFile()}. Compute crops hints relative to the cropped image.
+     *
+     * @param ignoreSampleSize If true, do not divide crops by {@link WallpaperData#mSampleSize}.
+     *                        The resulting crops will be relative to the global crop defined by
+     *                        {@link WallpaperData#cropHint}.
+     *                         If false, the resulting crops will be relative to the cropped image
+     *                         {@link WallpaperData#getCropFile()}.
+     */
+    static SparseArray<Rect> getRelativeCropHints(WallpaperData wallpaper,
+            boolean ignoreSampleSize) {
         SparseArray<Rect> result = new SparseArray<>();
         for (int i = 0; i < wallpaper.mCropHints.size(); i++) {
             Rect adjustedRect = new Rect(wallpaper.mCropHints.valueAt(i));
             adjustedRect.offset(-wallpaper.cropHint.left, -wallpaper.cropHint.top);
-            if (accurateWallpaperDownsampling()) {
+            if (!ignoreSampleSize) {
                 adjustedRect.left = (int) (0.5f + adjustedRect.left / wallpaper.mSampleSize);
                 adjustedRect.top = (int) (0.5f + adjustedRect.top / wallpaper.mSampleSize);
                 adjustedRect.right = (int) Math.floor(adjustedRect.right / wallpaper.mSampleSize);
                 adjustedRect.bottom = (int) Math.floor(adjustedRect.bottom / wallpaper.mSampleSize);
-            } else {
-                adjustedRect.scale(1f / wallpaper.mSampleSize);
             }
-            result.put(wallpaper.mCropHints.keyAt(i), adjustedRect);
-        }
-        return result;
-    }
 
-    /**
-     * Inverse operation of {@link #getRelativeCropHints}
-     */
-    static List<Rect> getOriginalCropHints(
-            WallpaperData wallpaper, List<Rect> relativeCropHints) {
-        List<Rect> result = new ArrayList<>();
-        for (Rect crop : relativeCropHints) {
-            Rect originalRect = new Rect(crop);
-            originalRect.scale(wallpaper.mSampleSize);
-            originalRect.offset(wallpaper.cropHint.left, wallpaper.cropHint.top);
-            result.add(originalRect);
+            result.put(wallpaper.mCropHints.keyAt(i), adjustedRect);
         }
         return result;
     }
@@ -476,6 +501,9 @@ public class WallpaperCropper {
         final WallpaperDisplayHelper.DisplayData wpData =
                 mWallpaperDisplayHelper.getDisplayDataOrCreate(DEFAULT_DISPLAY);
         final DisplayInfo displayInfo = mWallpaperDisplayHelper.getDisplayInfo(DEFAULT_DISPLAY);
+        if (displayInfo == null) {
+            Slog.w(TAG, "Null display info for the default display");
+        }
 
         // Analyse the source; needed in multiple cases
         BitmapFactory.Options options = new BitmapFactory.Options();
@@ -609,13 +637,8 @@ public class WallpaperCropper {
                             .getDefaultDisplaySizes().get(orientation);
                     if (displayForThisOrientation == null) continue;
                     float sampleSizeForThisOrientation = Math.max(1f, Math.min(
-                            crop.width() / displayForThisOrientation.x,
-                            crop.height() / displayForThisOrientation.y));
-                    if (accurateWallpaperDownsampling()) {
-                        sampleSizeForThisOrientation = Math.max(1f, Math.min(
-                                (float) crop.width() / displayForThisOrientation.x,
-                                (float) crop.height() / displayForThisOrientation.y));
-                    }
+                            (float) crop.width() / displayForThisOrientation.x,
+                            (float) crop.height() / displayForThisOrientation.y));
                     sampleSize = Math.min(sampleSize, sampleSizeForThisOrientation);
                 }
                 // If the total crop has more width or height than either the max texture size
@@ -822,6 +845,106 @@ public class WallpaperCropper {
         }
     }
 
+    private static Rect getCropForExternalDisplay(
+            Point displaySize,
+            WallpaperDefaultDisplayInfo defaultDisplayInfo,
+            Point bitmapSize,
+            SparseArray<Rect> suggestedCrops,
+            boolean rtl) {
+
+        // If no custom crops are provided, center-align the image, with parallax if possible
+        if (suggestedCrops == null || suggestedCrops.size() == 0) {
+            Rect crop = new Rect(0, 0, bitmapSize.x, bitmapSize.y);
+            return getAdjustedCrop(crop, bitmapSize, displaySize, true, rtl, ADD);
+        }
+
+        // Otherwise, find the custom crop closest to the external display aspect ratio
+        Point closestDisplaySize = null;
+        Rect closestCrop = null;
+        float minDistance = Float.MAX_VALUE;
+        float displayAspectRatio = (float) displaySize.x / displaySize.y;
+        for (int i = 0; i < suggestedCrops.size(); i++) {
+            int orientation = suggestedCrops.keyAt(i);
+            Point suggestedDisplaySize = defaultDisplayInfo.defaultDisplaySizes.get(orientation);
+            if (suggestedDisplaySize != null) {
+                float aspectRatio = (float) suggestedDisplaySize.x / suggestedDisplaySize.y;
+                float distance = Math.abs((float) Math.log(aspectRatio / displayAspectRatio));
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    closestCrop = suggestedCrops.valueAt(i);
+                    closestDisplaySize = suggestedDisplaySize;
+                }
+            }
+        }
+
+        if (closestCrop == null) {
+            Slog.w(TAG, "Did not find valid crop to use for external display of size " + displaySize
+                    + " and suggestedCrops " + suggestedCrops + ", fallback to center-align.");
+            return getCropForExternalDisplay(
+                    displaySize,
+                    defaultDisplayInfo,
+                    bitmapSize,
+                    new SparseArray<>(),
+                    rtl
+            );
+        }
+
+        // Compute the visible part of that crop (without parallax)
+        Rect noParallax = noParallax(closestCrop, closestDisplaySize, bitmapSize, rtl);
+
+        // Adjust it to match the external display's aspect ratio
+        Rect crop = getAdjustedCrop(noParallax, bitmapSize, displaySize, false, rtl, ADD);
+
+        // If the resolution is not good enough, enlarge the crop until we reach the border of the
+        // image or until we reach the required resolution
+        float displayCropRatio = (float) displaySize.y / crop.height();
+        if (displayCropRatio > CONNECTED_DISPLAY_MAX_DISPLAY_TO_IMAGE_RATIO) {
+            float targetScale = displayCropRatio / CONNECTED_DISPLAY_MAX_DISPLAY_TO_IMAGE_RATIO;
+            int targetWidth = Math.round(crop.width() * targetScale);
+            int targetHeight = Math.round(crop.height() * targetScale);
+            int actualWidth = Math.min(targetWidth, bitmapSize.x);
+            int actualHeight = Math.min(targetHeight, bitmapSize.y);
+            float scale = Math.min(
+                    (float) actualWidth / crop.width(),
+                    (float) actualHeight / crop.height());
+            int widthToAdd = Math.round(crop.width() * (scale - 1f));
+            int heightToAdd = Math.round(crop.height() * (scale - 1f));
+            int widthToAddLeft = widthToAdd / 2;
+            int widthToAddRight = widthToAdd - widthToAddLeft;
+            int heightToAddTop = heightToAdd / 2;
+            int heightToAddBottom = heightToAdd - heightToAddTop;
+
+            if (crop.left < widthToAddLeft) {
+                widthToAddRight += (widthToAddLeft - crop.left);
+                widthToAddLeft = crop.left;
+            } else if (bitmapSize.x - crop.right < widthToAddRight) {
+                widthToAddLeft += (widthToAddRight - (bitmapSize.x - crop.right));
+                widthToAddRight = bitmapSize.x - crop.right;
+            }
+            if (crop.top < heightToAddTop) {
+                heightToAddBottom += (heightToAddTop - crop.top);
+                heightToAddTop = crop.top;
+            } else if (bitmapSize.y - crop.bottom < heightToAddBottom) {
+                heightToAddTop += (heightToAddBottom - (bitmapSize.y - crop.bottom));
+                heightToAddBottom = bitmapSize.y - crop.bottom;
+            }
+            crop.left -= widthToAddLeft;
+            crop.right += widthToAddRight;
+            crop.top -= heightToAddTop;
+            crop.bottom += heightToAddBottom;
+        }
+
+        // Add some more parallax if we can
+        if (rtl) {
+            crop.left = 0;
+        } else {
+            crop.right = bitmapSize.x;
+        }
+
+        // Finally, use getAdjustedCrop just to make sure we don't exceed MAX_PARALLAX
+        return getAdjustedCrop(crop, bitmapSize, displaySize, true, rtl, ADD);
+    }
+
     /**
      * Returns true if a wallpaper is compatible with a given display with ID, {@code displayId}.
      *
@@ -844,6 +967,10 @@ public class WallpaperCropper {
         }
 
         DisplayInfo displayInfo = mWallpaperDisplayHelper.getDisplayInfo(displayId);
+        if (displayInfo == null) {
+            Slog.w(TAG, "Null display. Wallpaper unsupported for display " + displayId);
+            return false;
+        }
         Point displaySize = new Point(displayInfo.logicalWidth, displayInfo.logicalHeight);
         int displayOrientation = WallpaperManager.getOrientation(displaySize);
 
@@ -863,7 +990,7 @@ public class WallpaperCropper {
 
         double maxDisplayToImageRatio = Math.max((double) displaySize.x / croppedImageBound.width(),
                 (double) displaySize.y / croppedImageBound.height());
-        if (maxDisplayToImageRatio > 1.5) {
+        if (maxDisplayToImageRatio > CONNECTED_DISPLAY_MAX_DISPLAY_TO_IMAGE_RATIO) {
             return false;
         }
 

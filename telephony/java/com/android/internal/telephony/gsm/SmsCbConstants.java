@@ -23,7 +23,7 @@ package com.android.internal.telephony.gsm;
  * {@link android.telephony.SmsCbMessage}, {@link android.telephony.SmsCbEtwsInfo}, and
  * {@link android.telephony.SmsCbCmasInfo} classes.
  *
- * {@hide}
+ * @hide
  */
 public class SmsCbConstants {
 

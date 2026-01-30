@@ -50,7 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** {@hide} */
+/** @hide */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class XmlUtils {
     private static final String STRING_ARRAY_SEPARATOR = ":";
@@ -149,8 +149,7 @@ public class XmlUtils {
             try {
                 return HexDump.hexStringToByteArray(getAttributeValue(index));
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -160,8 +159,7 @@ public class XmlUtils {
             try {
                 return Base64.decode(getAttributeValue(index), Base64.NO_WRAP);
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -171,8 +169,7 @@ public class XmlUtils {
             try {
                 return Integer.parseInt(getAttributeValue(index));
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -182,8 +179,7 @@ public class XmlUtils {
             try {
                 return Integer.parseInt(getAttributeValue(index), 16);
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -193,8 +189,7 @@ public class XmlUtils {
             try {
                 return Long.parseLong(getAttributeValue(index));
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -204,8 +199,7 @@ public class XmlUtils {
             try {
                 return Long.parseLong(getAttributeValue(index), 16);
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -215,8 +209,7 @@ public class XmlUtils {
             try {
                 return Float.parseFloat(getAttributeValue(index));
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -226,8 +219,7 @@ public class XmlUtils {
             try {
                 return Double.parseDouble(getAttributeValue(index));
             } catch (Exception e) {
-                throw new XmlPullParserException(
-                        "Invalid attribute " + getAttributeName(index) + ": " + e);
+                throw invalidAttributeException(index, e);
             }
         }
 
@@ -243,6 +235,11 @@ public class XmlUtils {
                 throw new XmlPullParserException(
                         "Invalid attribute " + getAttributeName(index) + ": " + value);
             }
+        }
+
+        private XmlPullParserException invalidAttributeException(int index, Exception e) {
+            return new XmlPullParserException(
+                    "Invalid attribute " + getAttributeName(index), this, e);
         }
     }
 
@@ -555,7 +552,7 @@ public class XmlUtils {
 
         out.endTag(null, "list");
     }
-    
+
     public static final void writeSetXml(Set val, String name, TypedXmlSerializer out)
             throws XmlPullParserException, java.io.IOException {
         if (val == null) {
@@ -563,16 +560,16 @@ public class XmlUtils {
             out.endTag(null, "null");
             return;
         }
-        
+
         out.startTag(null, "set");
         if (name != null) {
             out.attribute(null, "name", name);
         }
-        
+
         for (Object v : val) {
             writeValueXml(v, null, out);
         }
-        
+
         out.endTag(null, "set");
     }
 
@@ -990,19 +987,19 @@ public class XmlUtils {
         parser.setInput(in, StandardCharsets.UTF_8.name());
         return (ArrayList)readValueXml(parser, new String[1]);
     }
-    
-    
+
+
     /**
      * Read a HashSet from an InputStream containing XML. The stream can
      * previously have been written by writeSetXml().
-     * 
+     *
      * @param in The InputStream from which to read.
-     * 
+     *
      * @return HashSet The resulting set.
-     * 
+     *
      * @throws XmlPullParserException
      * @throws java.io.IOException
-     * 
+     *
      * @see #readValueXml
      * @see #readThisSetXml
      * @see #writeSetXml
@@ -1184,17 +1181,17 @@ public class XmlUtils {
      * Read a HashSet object from an XmlPullParser. The XML data could previously
      * have been generated by writeSetXml(). The XmlPullParser must be positioned
      * <em>after</em> the tag that begins the set.
-     * 
+     *
      * @param parser The XmlPullParser from which to read the set data.
      * @param endTag Name of the tag that will end the set, usually "set".
      * @param name An array of one string, used to return the name attribute
      *             of the set's tag.
      *
      * @return HashSet The newly generated set.
-     * 
+     *
      * @throws XmlPullParserException
      * @throws java.io.IOException
-     * 
+     *
      * @see #readSetXml
      * @hide
      */
@@ -1202,7 +1199,7 @@ public class XmlUtils {
             String[] name, ReadMapCallback callback, boolean arrayMap)
             throws XmlPullParserException, java.io.IOException {
         HashSet set = new HashSet();
-        
+
         int eventType = parser.getEventType();
         do {
             if (eventType == parser.START_TAG) {
@@ -1218,7 +1215,7 @@ public class XmlUtils {
             }
             eventType = parser.next();
         } while (eventType != parser.END_DOCUMENT);
-        
+
         throw new XmlPullParserException(
                 "Document ended before " + endTag + " end tag");
     }

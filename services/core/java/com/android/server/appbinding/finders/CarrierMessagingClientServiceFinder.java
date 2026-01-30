@@ -35,6 +35,9 @@ import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.CollectionUtils;
 import com.android.server.appbinding.AppBindingConstants;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 /**
@@ -54,7 +57,7 @@ public class CarrierMessagingClientServiceFinder
     }
 
     @Override
-    protected boolean isEnabled(AppBindingConstants constants) {
+    protected boolean isEnabled(AppBindingConstants constants, int userId) {
         return constants.SMS_SERVICE_ENABLED
                 && mContext.getResources().getBoolean(R.bool.config_useSmsAppService);
     }
@@ -85,6 +88,7 @@ public class CarrierMessagingClientServiceFinder
     }
 
     @Override
+    @Deprecated
     public String getTargetPackage(int userId) {
         final String ret = CollectionUtils.firstOrNull(mRoleManager.getRoleHoldersAsUser(
                 RoleManager.ROLE_SMS, UserHandle.of(userId)));
@@ -94,6 +98,21 @@ public class CarrierMessagingClientServiceFinder
         }
 
         return ret;
+    }
+
+    @Override
+    public Set<String> getTargetPackages(int userId) {
+        String targetPackage = CollectionUtils.firstOrNull(mRoleManager.getRoleHoldersAsUser(
+                RoleManager.ROLE_SMS, UserHandle.of(userId)));
+
+        if (DEBUG) {
+            Slog.d(TAG, "getTargetPackages()=" + targetPackage);
+        }
+
+        if (targetPackage == null) {
+            return Collections.emptySet();
+        }
+        return new HashSet<>(Collections.singletonList(targetPackage));
     }
 
     @Override

@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Đang kết nối…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Đã kết nối <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Đang ghép nối…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Không ghép nối được"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Không kết nối được"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Đã kết nối (không có điện thoại) <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Đã kết nối (không có phương tiện) <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Đã kết nối (không có điện thoại hoặc phương tiện) <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Bên trái: Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> pin. Bên phải: Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> pin."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Bên trái: Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> pin"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Bên phải: Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> pin"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Hộp đựng: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> pin"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Phần bên trái: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Hộp đựng: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> pin"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Phải: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Hộp đựng: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> pin"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Trái: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Phải: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> pin"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Trái: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Hộp đựng: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, Phải: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> pin"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Bên trái <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Bên phải <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Đang hoạt động"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Đang hoạt động (chỉ tai phải)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Đang hoạt động (trái và phải)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Không cập nhật được âm lượng xung quanh"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Không cập nhật được giá trị đặt trước"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Đã chọn"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Đang hoạt động (chỉ phát nội dung đa phương tiện). Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> pin."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Đang hoạt động (chỉ phát nội dung đa phương tiện). Bên trái: Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> pin. Bên phải: Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> pin."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Thiết bị khách. Còn <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> pin."</string>
@@ -288,7 +297,7 @@
     <string name="adb_wireless_qrcode_pairing_description" msgid="6014121407143607851">"Ghép nối thiết bị qua Wi-Fi bằng cách quét mã QR"</string>
     <string name="adb_wireless_no_network_msg" msgid="2365795244718494658">"Hãy kết nối mạng Wi-Fi"</string>
     <string name="keywords_adb_wireless" msgid="6507505581882171240">"adb, gỡ lỗi, nhà phát triển"</string>
-    <string name="bugreport_in_power" msgid="8664089072534638709">"Phím tắt báo cáo lỗi"</string>
+    <string name="bugreport_in_power" msgid="8664089072534638709">"Lối tắt báo cáo lỗi"</string>
     <string name="bugreport_in_power_summary" msgid="1885529649381831775">"Hiện một nút trong trình đơn nguồn để báo cáo lỗi"</string>
     <string name="keep_screen_on" msgid="1187161672348797558">"Không khóa màn hình"</string>
     <string name="keep_screen_on_summary" msgid="1510731514101925829">"Màn hình sẽ không bao giờ chuyển sang chế độ ngủ khi sạc"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Khi bật chế độ này, địa chỉ MAC của thiết bị này có thể thay đổi mỗi lần thiết bị kết nối với mạng đã bật chế độ tạo địa chỉ MAC ngẫu nhiên."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Đo lượng dữ liệu"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Không đo lượng dữ liệu"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Kích thước bộ đệm của trình ghi nhật ký"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Dung lượng bộ nhớ đệm của trình ghi nhật ký"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Chọn kích thước Trình ghi nhật ký trên mỗi bộ đệm nhật ký"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Xóa bộ nhớ ổn định trong trình ghi nhật ký?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Khi chúng tôi không còn theo dõi bằng trình ghi nhật ký ổn định nữa, chúng tôi sẽ được yêu cầu xóa dữ liệu trong trình ghi nhật ký nằm trên thiết bị của bạn."</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> trước"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Còn <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Nhỏ nhất"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Nhỏ hơn"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Nhỏ"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Mặc định"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Lớn"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Lớn hơn"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Lớn nhất"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Lớn hơn"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Rất lớn"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Rất lớn"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Lớn nhất"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Tùy chỉnh (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menu"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Nhập mật khẩu để tiến hành khôi phục cài đặt gốc ở chế độ trình diễn"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{Đã kết nối 1 thiết bị}other{Đã kết nối # thiết bị}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Nhiều thời gian hơn."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Ít thời gian hơn."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Phóng to"</string>
     <string name="cancel" msgid="5665114069455378395">"Hủy"</string>
     <string name="next" msgid="2699398661093607009">"Tiếp theo"</string>
     <string name="back" msgid="5554327870352703710">"Quay lại"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Nếu bạn phát <xliff:g id="SWITCHAPP">%1$s</xliff:g> hoặc thay đổi đầu ra, phiên truyền phát hiện tại sẽ dừng"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Phát <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Thay đổi đầu ra"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Ảnh xem trước thao tác quay lại"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Bật ảnh của hệ thống để xem trước thao tác quay lại"</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Cài đặt này cho phép sử dụng ảnh động hệ thống cho ảnh động cử chỉ dự đoán. Nó yêu cầu cài đặt cho mỗi ứng dụng chuyển enableOnBackInvokedCallback thành lệnh true trong tệp kê khai."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Chưa xác định"</string>
     <string name="neuter" msgid="2075249330106127310">"Vô tính"</string>

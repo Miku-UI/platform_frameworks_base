@@ -39,11 +39,12 @@ public class NotificationUiAdjustment {
     public final List<Notification.Action> smartActions;
     public final List<CharSequence> smartReplies;
     public final boolean isConversation;
+    public final boolean isBundled;
 
     @VisibleForTesting
     NotificationUiAdjustment(
             String key, List<Notification.Action> smartActions, List<CharSequence> smartReplies,
-            boolean isConversation) {
+            boolean isConversation, boolean isBundled) {
         this.key = key;
         this.smartActions = smartActions == null
                 ? Collections.emptyList()
@@ -52,13 +53,15 @@ public class NotificationUiAdjustment {
                 ? Collections.emptyList()
                 : smartReplies;
         this.isConversation = isConversation;
+        this.isBundled = isBundled;
     }
 
     public static NotificationUiAdjustment extractFromNotificationEntry(
             NotificationEntry entry) {
         return new NotificationUiAdjustment(
                 entry.getKey(), entry.getSmartActions(), entry.getSmartReplies(),
-                entry.getRanking().isConversation());
+                entry.getRanking().isConversation(),
+                entry.isBundled());
     }
 
     public static boolean needReinflate(
@@ -74,6 +77,9 @@ public class NotificationUiAdjustment {
             return true;
         }
         if (!newAdjustment.smartReplies.equals(oldAdjustment.smartReplies)) {
+            return true;
+        }
+        if (oldAdjustment.isBundled != newAdjustment.isBundled) {
             return true;
         }
         return false;

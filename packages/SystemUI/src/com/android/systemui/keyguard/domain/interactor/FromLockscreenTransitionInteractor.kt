@@ -41,7 +41,6 @@ import com.android.systemui.power.shared.model.WakeSleepReason.FOLD
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.data.repository.ShadeRepository
-import com.android.systemui.util.kotlin.sample
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -133,19 +132,18 @@ constructor(
 
         val invalidFromStates = setOf(KeyguardState.AOD, KeyguardState.DOZING)
         scope.launch("$TAG#listenForLockscreenToDreaming") {
-            keyguardInteractor.isAbleToDream
-                .filterRelevantKeyguardState()
-                .sample(transitionInteractor.isFinishedIn(KeyguardState.LOCKSCREEN), ::Pair)
-                .collect { (isAbleToDream, isOnLockscreen) ->
-                    val transitionInfo =
-                        internalTransitionInteractor.currentTransitionInfoInternal()
-                    val isTransitionInterruptible =
-                        transitionInfo.to == KeyguardState.LOCKSCREEN &&
-                            !invalidFromStates.contains(transitionInfo.from)
-                    if (isAbleToDream && (isOnLockscreen || isTransitionInterruptible)) {
-                        startTransitionTo(KeyguardState.DREAMING)
-                    }
+            keyguardInteractor.isAbleToDream.filterRelevantKeyguardState().collect { isAbleToDream
+                ->
+                val isOnLockscreen =
+                    transitionInteractor.finishedKeyguardState.value == KeyguardState.LOCKSCREEN
+                val transitionInfo = internalTransitionInteractor.currentTransitionInfoInternal()
+                val isTransitionInterruptible =
+                    transitionInfo.to == KeyguardState.LOCKSCREEN &&
+                        !invalidFromStates.contains(transitionInfo.from)
+                if (isAbleToDream && (isOnLockscreen || isTransitionInterruptible)) {
+                    startTransitionTo(KeyguardState.DREAMING)
                 }
+            }
         }
     }
 
@@ -266,7 +264,7 @@ constructor(
         // Ensure that transitionId is nulled out if external signals cause a PRIMARY_BOUNCER
         // transition to be canceled.
         scope.launch {
-            transitionInteractor.transitions
+            transitionInteractor.transitionState
                 .filter {
                     it.transitionState == TransitionState.CANCELED &&
                         it.to == KeyguardState.PRIMARY_BOUNCER
@@ -313,6 +311,7 @@ constructor(
     }
 
     private fun listenForLockscreenToOccludedOrDreaming() {
+        if (SceneContainerFlag.isEnabled) return
         if (KeyguardWmStateRefactor.isEnabled) {
             scope.launch("$TAG#listenForLockscreenToOccludedOrDreaming") {
                 keyguardOcclusionInteractor.showWhenLockedActivityInfo
@@ -332,6 +331,26 @@ constructor(
                 keyguardInteractor.isKeyguardOccluded
                     .filterRelevantKeyguardStateAnd { isOccluded -> isOccluded }
                     .collect { startTransitionTo(KeyguardState.OCCLUDED) }
+            }
+            // Safety check added for incoming phone calls while on AOD/DOZING. If a transition has
+            // begun to LOCKSCREEN but keyguard is occluded then make sure we change the transition
+            // to go to OCCLUDED. This intentionally uses the [startedKeyguardTransitionStep] to
+            // ensure that the transition has really begun
+            scope.launch("$TAG#listenForLockscreenToOccludedOrDreamingFailSafe") {
+                transitionInteractor.startedKeyguardTransitionStep
+                    .filter {
+                        it.from != KeyguardState.OCCLUDED &&
+                            it.from != KeyguardState.DREAMING &&
+                            it.to == KeyguardState.LOCKSCREEN
+                    }
+                    .collect {
+                        if (keyguardInteractor.isKeyguardOccluded.value) {
+                            startTransitionTo(
+                                KeyguardState.OCCLUDED,
+                                ownerReason = "occluded failsafe",
+                            )
+                        }
+                    }
             }
         }
     }

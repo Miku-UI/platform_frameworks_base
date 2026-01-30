@@ -52,6 +52,7 @@ import java.io.IOException;
  * @attr ref android.R.styleable#RotateDrawable_pivotY
  * @attr ref android.R.styleable#RotateDrawable_drawable
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class RotateDrawable extends DrawableWrapper {
     private static final int MAX_LEVEL = 10000;
 

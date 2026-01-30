@@ -20,11 +20,13 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.util.Log
-import android.view.accessibility.AccessibilityManager
+import com.android.systemui.dagger.SysUISingleton
+import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
-class ScreenshotViewModel(private val accessibilityManager: AccessibilityManager) {
+@SysUISingleton
+class ScreenshotViewModel @Inject constructor() {
     private val _preview = MutableStateFlow<Bitmap?>(null)
     val preview: StateFlow<Bitmap?> = _preview
     private val _scrollingScrim = MutableStateFlow<Bitmap?>(null)
@@ -42,8 +44,6 @@ class ScreenshotViewModel(private val accessibilityManager: AccessibilityManager
     val isAnimating: StateFlow<Boolean> = _isAnimating
     private val _scrollableRect = MutableStateFlow<Rect?>(null)
     val scrollableRect: StateFlow<Rect?> = _scrollableRect
-    val showDismissButton: Boolean
-        get() = accessibilityManager.isEnabled
 
     fun setScreenshotBitmap(bitmap: Bitmap?) {
         _preview.value = bitmap
@@ -64,7 +64,7 @@ class ScreenshotViewModel(private val accessibilityManager: AccessibilityManager
     fun addAction(
         actionAppearance: ActionButtonAppearance,
         showDuringEntrance: Boolean,
-        onClicked: (() -> Unit)
+        onClicked: (() -> Unit),
     ): Int {
         val actionList = _actions.value.toMutableList()
         val action =
@@ -84,7 +84,7 @@ class ScreenshotViewModel(private val accessibilityManager: AccessibilityManager
                     actionId,
                     visible,
                     actionList[index].showDuringEntrance,
-                    actionList[index].onClicked
+                    actionList[index].onClicked,
                 )
             _actions.value = actionList
         } else {
@@ -102,7 +102,7 @@ class ScreenshotViewModel(private val accessibilityManager: AccessibilityManager
                     actionId,
                     actionList[index].visible,
                     actionList[index].showDuringEntrance,
-                    actionList[index].onClicked
+                    actionList[index].onClicked,
                 )
             _actions.value = actionList
         } else {
@@ -149,10 +149,7 @@ class ScreenshotViewModel(private val accessibilityManager: AccessibilityManager
     }
 }
 
-data class PreviewAction(
-    val contentDescription: CharSequence,
-    val onClick: () -> Unit,
-)
+data class PreviewAction(val contentDescription: CharSequence, val onClick: () -> Unit)
 
 enum class AnimationState {
     NOT_STARTED,

@@ -24,16 +24,19 @@ import com.android.compose.animation.scene.ObservableTransitionState.Idle
 import com.android.systemui.Flags.FLAG_COMMUNAL_HUB
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.data.repository.communalSceneRepository
+import com.android.systemui.communal.data.repository.fakeCommunalSceneRepository
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.coroutines.collectValues
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.Flags
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
+import com.android.systemui.keyguard.data.repository.keyguardRepository
 import com.android.systemui.keyguard.data.repository.keyguardTransitionRepository
 import com.android.systemui.keyguard.data.repository.realKeyguardTransitionRepository
+import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.KeyguardState.ALTERNATE_BOUNCER
+import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.GLANCEABLE_HUB
 import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
@@ -46,16 +49,22 @@ import com.android.systemui.keyguard.shared.model.TransitionState.FINISHED
 import com.android.systemui.keyguard.shared.model.TransitionState.RUNNING
 import com.android.systemui.keyguard.shared.model.TransitionState.STARTED
 import com.android.systemui.keyguard.shared.model.TransitionStep
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.collectValues
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
+import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
+import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -66,14 +75,14 @@ import org.junit.runner.RunWith
 @EnableFlags(FLAG_COMMUNAL_HUB)
 @DisableSceneContainer
 class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
-
     private val kosmos =
-        testKosmos().apply { keyguardTransitionRepository = realKeyguardTransitionRepository }
+        testKosmos().useUnconfinedTestDispatcher().apply {
+            keyguardTransitionRepository = realKeyguardTransitionRepository
+        }
     private val testScope = kosmos.testScope
 
     private val underTest by lazy { kosmos.communalSceneTransitionInteractor }
     private val keyguardTransitionRepository by lazy { kosmos.realKeyguardTransitionRepository }
-    private val keyguardRepository by lazy { kosmos.fakeKeyguardRepository }
 
     private val ownerName = CommunalSceneTransitionInteractor::class.java.simpleName
     private val progress = MutableSharedFlow<Float>()
@@ -106,6 +115,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
         kosmos.fakeFeatureFlagsClassic.set(Flags.COMMUNAL_SERVICE_ENABLED, true)
         underTest.start()
         kosmos.communalSceneRepository.setTransitionState(sceneTransitions)
+
         testScope.launch {
             keyguardTransitionRepository.emitInitialStepsFromOff(LOCKSCREEN, testSetup = true)
         }
@@ -114,7 +124,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
     /** Transition from blank to glanceable hub. This is the default case. */
     @Test
     fun transition_from_blank_end_in_hub() =
-        testScope.runTest {
+        kosmos.runTest {
             sceneTransitions.value = blankToHub
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -170,7 +180,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
     /** Transition from hub to lockscreen. */
     @Test
     fun transition_from_hub_end_in_lockscreen() =
-        testScope.runTest {
+        kosmos.runTest {
             sceneTransitions.value = hubToBlank
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -214,12 +224,11 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
     /** Transition from hub to dream. */
     @Test
     fun transition_from_hub_end_in_dream() =
-        testScope.runTest {
+        kosmos.runTest {
             // Device is dreaming and occluded.
-            kosmos.fakeKeyguardRepository.setKeyguardOccluded(true)
-            kosmos.fakeKeyguardRepository.setDreaming(true)
-            kosmos.fakeKeyguardRepository.setDreamingWithOverlay(true)
-            runCurrent()
+            fakeKeyguardRepository.setKeyguardOccluded(true)
+            fakeKeyguardRepository.setDreaming(true)
+            fakeKeyguardRepository.setDreamingWithOverlay(true)
 
             sceneTransitions.value = hubToBlank
 
@@ -266,7 +275,6 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
     fun transition_from_hub_end_in_occluded() =
         testScope.runTest {
             kosmos.fakeKeyguardRepository.setKeyguardOccluded(true)
-            runCurrent()
 
             sceneTransitions.value = hubToBlank
 
@@ -311,9 +319,8 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
     /** Transition from hub to gone. */
     @Test
     fun transition_from_hub_end_in_gone() =
-        testScope.runTest {
-            kosmos.fakeKeyguardRepository.setKeyguardGoingAway(true)
-            runCurrent()
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardGoingAway(true)
 
             sceneTransitions.value = hubToBlank
 
@@ -355,10 +362,342 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
                 )
         }
 
+    @Test
+    fun transitionFromHub_ifAsleep_endInAod() =
+        kosmos.runTest {
+            keyguardRepository.setAodAvailable(true)
+            powerInteractor.setAsleepForTest()
+
+            sceneTransitions.value = hubToBlank
+
+            val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
+
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        transitionState = STARTED,
+                        value = 0f,
+                        ownerName = ownerName,
+                    )
+                )
+
+            progress.emit(0.4f)
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        transitionState = RUNNING,
+                        value = 0.4f,
+                        ownerName = ownerName,
+                    )
+                )
+
+            sceneTransitions.value = Idle(CommunalScenes.Blank)
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        transitionState = FINISHED,
+                        value = 1f,
+                        ownerName = ownerName,
+                    )
+                )
+        }
+
+    @Test
+    fun transitionFromAodToHub_interruptedByAsleepThenAwake_endInHub() =
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(true)
+            sceneTransitions.value = Idle(CommunalScenes.Blank)
+            powerInteractor.setAsleepForTest()
+            keyguardRepository.setAodAvailable(true)
+
+            transitionTo(LOCKSCREEN, AOD, testScope.testScheduler)
+
+            // 1. Click power button, awake
+            powerInteractor.setAwakeForTest()
+            // target scene is Communal
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Communal
+            sceneTransitions.value = blankToHub
+
+            val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
+            val allSteps by collectValues(keyguardTransitionRepository.transitions)
+
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        transitionState = STARTED,
+                        value = 0f,
+                        ownerName = ownerName,
+                    )
+                )
+
+            progress.emit(0.4f)
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        transitionState = RUNNING,
+                        value = 0.4f,
+                        ownerName = ownerName,
+                    )
+                )
+            var numToDrop = allSteps.size
+
+            // 2. Click power button, asleep
+            powerInteractor.setAsleepForTest()
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Blank
+
+            sceneTransitions.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Blank,
+                    toScene = CommunalScenes.Communal,
+                    currentScene = fakeCommunalSceneRepository.currentScene,
+                    progress = progress,
+                    isInitiatedByUserInput = true,
+                    isUserInputOngoing = flowOf(false),
+                )
+
+            assertThat(allSteps.drop(numToDrop))
+                .containsExactly(
+                    // cancel AOD->hub, reverse back ->AOD
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        value = 0.4f,
+                        transitionState = CANCELED,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        value = 0.6f,
+                        transitionState = STARTED,
+                        ownerName = ownerName,
+                    ),
+                )
+            // update progress to 0.8 as reversed ST progress is 0.2
+            progress.emit(0.2f)
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        transitionState = RUNNING,
+                        value = 0.8f,
+                        ownerName = ownerName,
+                    )
+                )
+            numToDrop = allSteps.size
+
+            // 3. Click power button again to wake
+            powerInteractor.setAwakeForTest()
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Communal
+
+            sceneTransitions.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Blank,
+                    toScene = CommunalScenes.Communal,
+                    currentScene = fakeCommunalSceneRepository.currentScene,
+                    progress = progress,
+                    isInitiatedByUserInput = true,
+                    isUserInputOngoing = flowOf(false),
+                )
+            progress.emit(0.4f)
+
+            sceneTransitions.value = Idle(CommunalScenes.Communal)
+
+            assertThat(allSteps.drop(numToDrop))
+                .containsExactly(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        value = 0.8f,
+                        transitionState = CANCELED,
+                        ownerName = ownerName,
+                    ),
+                    // awake -> Hub
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        value = 0f,
+                        transitionState = STARTED,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        value = 0.4f,
+                        transitionState = RUNNING,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        value = 1f,
+                        transitionState = FINISHED,
+                        ownerName = ownerName,
+                    ),
+                )
+                .inOrder()
+        }
+
+    @Test
+    fun transitionFromHubToAod_interruptedByAwakeThenAsleep_endInAod() =
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(true)
+            sceneTransitions.value = Idle(CommunalScenes.Communal)
+            keyguardRepository.setAodAvailable(true)
+
+            // 1. Click power button -> Blank (AOD)
+            powerInteractor.setAsleepForTest()
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Blank
+
+            sceneTransitions.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Communal,
+                    toScene = CommunalScenes.Blank,
+                    currentScene = fakeCommunalSceneRepository.currentScene,
+                    progress = progress,
+                    isInitiatedByUserInput = true,
+                    isUserInputOngoing = flowOf(false),
+                )
+
+            val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
+            val allSteps by collectValues(keyguardTransitionRepository.transitions)
+
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        transitionState = STARTED,
+                        value = 0f,
+                        ownerName = ownerName,
+                    )
+                )
+
+            progress.emit(0.4f)
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        transitionState = RUNNING,
+                        value = 0.4f,
+                        ownerName = ownerName,
+                    )
+                )
+
+            var numToDrop = allSteps.size
+            // 2. Click power button to wake
+            powerInteractor.setAwakeForTest()
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Communal
+
+            // Starts a reversed transition Communal->Blank (currentScene=Communal)
+            sceneTransitions.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Communal,
+                    toScene = CommunalScenes.Blank,
+                    currentScene = fakeCommunalSceneRepository.currentScene,
+                    progress = progress,
+                    isInitiatedByUserInput = true,
+                    isUserInputOngoing = flowOf(false),
+                )
+
+            assertThat(allSteps.drop(numToDrop))
+                .containsExactly(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        value = 0.4f,
+                        transitionState = CANCELED,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        value = 0.6f,
+                        transitionState = STARTED,
+                        ownerName = ownerName,
+                    ),
+                )
+
+            // update progress to 0.8 as reversed ST progress is 0.2
+            progress.emit(0.2f)
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        transitionState = RUNNING,
+                        value = 0.8f,
+                        ownerName = ownerName,
+                    )
+                )
+            numToDrop = allSteps.size
+
+            // 3. Click power button starts Communal->Blank (Hub->AOD)
+            powerInteractor.setAsleepForTest()
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Blank
+
+            sceneTransitions.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Communal,
+                    toScene = CommunalScenes.Blank,
+                    currentScene = fakeCommunalSceneRepository.currentScene,
+                    progress = progress,
+                    isInitiatedByUserInput = true,
+                    isUserInputOngoing = flowOf(false),
+                )
+            progress.emit(0.7f)
+            sceneTransitions.value = Idle(CommunalScenes.Blank)
+
+            assertThat(allSteps.drop(numToDrop))
+                .containsExactly(
+                    TransitionStep(
+                        from = AOD,
+                        to = GLANCEABLE_HUB,
+                        transitionState = FINISHED,
+                        value = 1f,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        value = 0f,
+                        transitionState = STARTED,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        value = 0.7f,
+                        transitionState = RUNNING,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = AOD,
+                        value = 1f,
+                        transitionState = FINISHED,
+                        ownerName = ownerName,
+                    ),
+                )
+                .inOrder()
+        }
+
     /** Transition from blank to hub, then settle back in blank. */
     @Test
     fun transition_from_blank_end_in_blank() =
-        testScope.runTest {
+        kosmos.runTest {
             sceneTransitions.value = blankToHub
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -422,9 +761,8 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
 
     @Test
     fun transition_to_occluded_with_changed_scene_respected_just_once() =
-        testScope.runTest {
+        kosmos.runTest {
             underTest.onSceneAboutToChange(CommunalScenes.Blank, OCCLUDED)
-            runCurrent()
             sceneTransitions.value = hubToBlank
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -467,7 +805,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
 
     @Test
     fun transition_from_blank_interrupted() =
-        testScope.runTest {
+        kosmos.runTest {
             sceneTransitions.value = blankToHub
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -539,7 +877,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
      */
     @Test
     fun transition_to_hub_duplicate_does_not_change_ktf() =
-        testScope.runTest {
+        kosmos.runTest {
             sceneTransitions.value =
                 ObservableTransitionState.Transition(
                     fromScene = CommunalScenes.Blank,
@@ -606,6 +944,93 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
         }
 
     /**
+     * Blank -> Hub (currentScene = Hub) transition is interrupted by Blank -> Hub (currentScene =
+     * Blank). KTF state should be updated in this case.
+     */
+    @Test
+    fun transitionToHub_interruptedByReverseTransitionToBlank_changesKtf() =
+        kosmos.runTest {
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Communal
+            sceneTransitions.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Blank,
+                    toScene = CommunalScenes.Communal,
+                    currentScene = fakeCommunalSceneRepository.currentScene,
+                    progress = progress,
+                    isInitiatedByUserInput = false,
+                    isUserInputOngoing = flowOf(false),
+                )
+
+            val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
+            val allSteps by collectValues(keyguardTransitionRepository.transitions)
+
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = LOCKSCREEN,
+                        to = GLANCEABLE_HUB,
+                        transitionState = STARTED,
+                        value = 0f,
+                        ownerName = ownerName,
+                    )
+                )
+            progress.emit(0.4f)
+
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = LOCKSCREEN,
+                        to = GLANCEABLE_HUB,
+                        transitionState = RUNNING,
+                        value = 0.4f,
+                        ownerName = ownerName,
+                    )
+                )
+            val numToDrop = allSteps.size
+
+            // Starts a reversed transition Blank->Hub (currentScene=Blank)
+            fakeCommunalSceneRepository.currentScene.value = CommunalScenes.Blank
+            sceneTransitions.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Blank,
+                    toScene = CommunalScenes.Communal,
+                    currentScene = fakeCommunalSceneRepository.currentScene,
+                    progress = progress,
+                    isInitiatedByUserInput = false,
+                    isUserInputOngoing = flowOf(false),
+                )
+
+            assertThat(allSteps.drop(numToDrop))
+                .containsExactly(
+                    TransitionStep(
+                        from = LOCKSCREEN,
+                        to = GLANCEABLE_HUB,
+                        transitionState = CANCELED,
+                        value = 0.4f,
+                        ownerName = ownerName,
+                    ),
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = LOCKSCREEN,
+                        transitionState = STARTED,
+                        value = 0.6f,
+                        ownerName = ownerName,
+                    ),
+                )
+            sceneTransitions.value = Idle(CommunalScenes.Blank)
+            assertThat(currentStep)
+                .isEqualTo(
+                    TransitionStep(
+                        from = GLANCEABLE_HUB,
+                        to = LOCKSCREEN,
+                        transitionState = FINISHED,
+                        value = 1f,
+                        ownerName = ownerName,
+                    )
+                )
+        }
+
+    /**
      * STL: Hub -> Blank, then interrupt in KTF LS -> OCCLUDED, then STL still finishes in Blank.
      * After a KTF transition is started (GLANCEABLE_HUB -> LOCKSCREEN) KTF immediately considers
      * the active scene to be LOCKSCREEN. This means that all listeners for LOCKSCREEN are active
@@ -618,7 +1043,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
      */
     @Test
     fun transition_to_blank_interrupted_by_ktf_transition_then_finish_in_blank() =
-        testScope.runTest {
+        kosmos.runTest {
             sceneTransitions.value = hubToBlank
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -705,7 +1130,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
      */
     @Test
     fun transition_to_blank_interrupted_by_ktf_transition_then_finish_in_hub() =
-        testScope.runTest {
+        kosmos.runTest {
             sceneTransitions.value = hubToBlank
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -787,8 +1212,8 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
     /** Verifies that we correctly transition to GONE after keyguard goes away */
     @Test
     fun transition_to_blank_after_unlock_should_go_to_gone() =
-        testScope.runTest {
-            keyguardRepository.setKeyguardShowing(true)
+        kosmos.runTest {
+            fakeKeyguardRepository.setKeyguardShowing(true)
             sceneTransitions.value = Idle(CommunalScenes.Communal)
 
             val currentStep by collectLastValue(keyguardTransitionRepository.transitions)
@@ -805,15 +1230,13 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
                 )
 
             // Keyguard starts exiting after a while, then fully exits after some time.
-            advanceTimeBy(1.seconds)
-            keyguardRepository.setKeyguardGoingAway(true)
-            advanceTimeBy(2.seconds)
-            keyguardRepository.setKeyguardGoingAway(false)
-            keyguardRepository.setKeyguardShowing(false)
-            runCurrent()
+            fakeKeyguardRepository.setKeyguardGoingAway(true)
 
             // We snap to the blank scene as a result of keyguard going away.
             sceneTransitions.value = Idle(CommunalScenes.Blank)
+
+            fakeKeyguardRepository.setKeyguardGoingAway(false)
+            fakeKeyguardRepository.setKeyguardShowing(false)
 
             assertThat(currentStep)
                 .isEqualTo(
@@ -835,7 +1258,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
      */
     @Test
     fun transition_to_blank_after_ktf_started_another_transition() =
-        testScope.runTest {
+        kosmos.runTest {
             // Another transition has already started to the alternate bouncer.
             keyguardTransitionRepository.startTransition(
                 TransitionInfo(
@@ -853,9 +1276,7 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
             val numToDrop = allSteps.size
 
             sceneTransitions.value = hubToBlank
-            runCurrent()
             progress.emit(0.4f)
-            runCurrent()
             // We land on blank.
             sceneTransitions.value = Idle(CommunalScenes.Blank)
 
@@ -908,4 +1329,27 @@ class CommunalSceneTransitionInteractorTest : SysuiTestCase() {
                 )
                 .inOrder()
         }
+
+    private suspend fun Kosmos.transitionTo(
+        fromState: KeyguardState,
+        toState: KeyguardState,
+        testScheduler: TestCoroutineScheduler,
+    ) {
+        val uuid =
+            realKeyguardTransitionRepository.startTransition(
+                TransitionInfo(
+                    ownerName = this.javaClass.simpleName,
+                    from = fromState,
+                    to = toState,
+                    animator = null,
+                    modeOnCanceled = TransitionModeOnCanceled.RESET,
+                )
+            )
+        testScheduler.runCurrent()
+        checkNotNull(uuid).let {
+            realKeyguardTransitionRepository.updateTransition(it, 0.5f, RUNNING)
+            realKeyguardTransitionRepository.updateTransition(it, 1f, FINISHED)
+        }
+        testScheduler.runCurrent()
+    }
 }

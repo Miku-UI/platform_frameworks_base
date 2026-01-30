@@ -18,7 +18,7 @@ package android.app;
 
 /**
  * Interface to control the ANR dialog within the activity manager
- * {@hide}
+ * @hide
  */
 public interface AnrController {
     /**

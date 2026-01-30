@@ -151,7 +151,7 @@ public final class AppOpsPolicy implements AppOpsManagerInternal.CheckOpsDelegat
                         int size = mPerUidLocationTags.size();
                         for (int i = 0; i < size; i++) {
                             if (UserHandle.getAppId(mPerUidLocationTags.keyAt(i)) == appId) {
-                                appIdTags.add(mPerUidLocationTags.valueAt(i));
+                                appIdTags.addAll(mPerUidLocationTags.valueAt(i));
                             }
                         }
 

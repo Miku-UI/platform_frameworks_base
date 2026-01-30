@@ -30,7 +30,7 @@ import java.util.Objects;
  * CacheQuotaHint represents a triplet of a uid, the volume UUID it is stored upon, and
  * its usage stats. When processed, it obtains a cache quota as defined by the system which
  * allows apps to understand how much cache to use.
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class CacheQuotaHint implements Parcelable {

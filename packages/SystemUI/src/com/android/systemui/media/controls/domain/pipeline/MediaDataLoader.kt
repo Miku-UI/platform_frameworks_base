@@ -45,7 +45,6 @@ import android.util.Log
 import androidx.media.utils.MediaConstants
 import com.android.app.tracing.coroutines.asyncTraced as async
 import com.android.app.tracing.coroutines.traceCoroutine
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
@@ -409,13 +408,7 @@ constructor(
             val deviceDrawable =
                 Icon.createWithResource(sbn.packageName, deviceIcon)
                     .loadDrawable(sbn.getPackageContext(context))
-            return MediaDeviceData(
-                enabled,
-                deviceDrawable,
-                deviceName,
-                deviceIntent,
-                showBroadcastButton = false,
-            )
+            return MediaDeviceData(enabled, deviceDrawable, deviceName, deviceIntent)
         }
         return null
     }
@@ -508,21 +501,12 @@ constructor(
         sbn.notification.extras.containsKey(Notification.EXTRA_MEDIA_REMOTE_DEVICE)
 
     private fun getResumeMediaAction(action: Runnable): MediaAction {
-        val iconId =
-            if (Flags.mediaControlsUiUpdate()) {
-                R.drawable.ic_media_play_button
-            } else {
-                R.drawable.ic_media_play
-            }
+        val iconId = R.drawable.ic_media_play_button
         return MediaAction(
             Icon.createWithResource(context, iconId).setTint(themeText).loadDrawable(context),
             action,
             context.getString(R.string.controls_media_button_play),
-            if (Flags.mediaControlsUiUpdate()) {
-                context.getDrawable(R.drawable.ic_media_play_button_container)
-            } else {
-                context.getDrawable(R.drawable.ic_media_play_container)
-            },
+            context.getDrawable(R.drawable.ic_media_play_button_container),
         )
     }
 

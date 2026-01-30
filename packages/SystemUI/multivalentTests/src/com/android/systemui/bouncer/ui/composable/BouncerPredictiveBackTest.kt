@@ -53,7 +53,6 @@ import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.rememberViewModel
 import com.android.systemui.motion.createSysUiComposeMotionTestRule
-import com.android.systemui.qs.ui.viewmodel.fakeQsSceneAdapter
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.domain.startable.sceneContainerStartable
 import com.android.systemui.scene.sceneContainerViewModelFactory
@@ -180,7 +179,6 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
                                 transitionsBuilder = kosmos.sceneTransitionsBuilder,
                                 overlayByKey = mapOf(Overlays.Bouncer to bouncerScene),
                                 dataSourceDelegator = kosmos.sceneDataSourceDelegator,
-                                qsSceneAdapter = { kosmos.fakeQsSceneAdapter },
                                 sceneJankMonitorFactory = kosmos.sceneJankMonitorFactory,
                             )
                         }
@@ -255,6 +253,7 @@ class BouncerPredictiveBackTest : SysuiTestCase() {
     private class FakeLockscreen : ExclusiveActivatable(), Scene {
         override val key: SceneKey = Scenes.Lockscreen
         override val userActions: Flow<Map<UserAction, UserActionResult>> = flowOf()
+        override val alwaysCompose: Boolean = false
 
         @Composable
         override fun ContentScope.Content(modifier: Modifier) {

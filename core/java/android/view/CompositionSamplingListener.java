@@ -24,7 +24,7 @@ import java.util.concurrent.Executor;
 
 /**
  * Listener for sampling the result of the screen composition.
- * {@hide}
+ * @hide
  */
 public abstract class CompositionSamplingListener {
 

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"අවසරය අවශ්‍යයි"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ස්ථාපනය කිරීම අවහිර කරන ලදි"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"යෙදුම සූදානම් කරමින්…"</string>
+    <string name="title_install" msgid="6806728682404990326">"මෙම යෙදුම ස්ථාපනය කරන්න ද?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ස්ථාපනය කරමින්…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"යෙදුම ස්ථාපනය කරන ලදි"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"මෙම යෙදුම නැවත ස්ථාපනය කරන්න ද?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"නැවත ස්ථාපනය කරමින්…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"යෙදුම නැවත ස්ථාපනය කරන ලදි"</string>
+    <string name="title_update" msgid="1747328630716712391">"මෙම යෙදුම යාවත්කාලීන කරන්න ද?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> භාවිතයෙන් මෙම යෙදුම යාවත්කාලීන කරන්න ද?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"යාවත්කාලීන කරමින්…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"යෙදුම යාවත්කාලීන කර ඇත"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"යෙදුම ස්ථාපනය කළ නොහැක"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ස්ථාපනය කිරීම අවහිර කරන ලදි"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"යෙදුම අනුකූල නොවේ"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"වලංගු නොවන පැකේජයකි"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"ප්‍රමාණවත් ආචයනයක් නොමැත"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"යෙදුම ස්ථාපනය කර නැත"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"මෙම යෙදුම අස්ථාපනය කරන්න ද?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"මෙම යෙදුම් ක්ලෝනය මකන්න ද?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"යෙදුම් යාවත්කාලීන අස්ථාපනය කරන්න ද?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"සියලු පරිශීලකයින් සඳහා යෙදුම් යාවත්කාලීන අස්ථාපනය කරන්න ද?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"සියලු ම පරිශීලකයින් සඳහා මෙම යෙදුම අස්ථාපනය කරන්න ද?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"\"<xliff:g id="USER_NAME">%1$s</xliff:g>\" පරිශීලකයා සඳහා මෙම යෙදුම අස්ථාපනය කරන්න ද?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"යෙදුම හමුවී නැත"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"මෙම යෙදුම අස්ථාපනය කළ නොහැක"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"යෙදුම අස්ථාපනය කර නැත"</string>
+    <string name="title_archive" msgid="2876455228073419830">"මෙම යෙදුම ලේඛනාරක්ෂණය කරන්න ද?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"සියලු පරිශීලකයින් සඳහා මෙම යෙදුම ලේඛනාරක්ෂණය කරන්න ද?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"\"<xliff:g id="USER_NAME">%1$s</xliff:g>\" පරිශීලකයා සඳහා මෙම යෙදුම ලේඛනාරක්ෂණය කරන්න ද?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"මෙම යෙදුම ප්‍රතිසාධනය කරන්න ද?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"ක්‍රියාමාර්ගය අවශ්‍යයි"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"ප්‍රමාණවත් ආචයනයක් නොමැත"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"ඔබ නොබැඳි වේ"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> අබල කර ඇත"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ස්ථාපනය කර නැත"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"යමක් වැරදී ඇත"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"මෙම යෙදුම සාමාන්‍යයෙන් &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; වෙතින් යාවත්කාලීන ලබා ගනී. වෙනස් මූලාශ්‍රයක් භාවිතයෙන් යාවත්කාලීන කිරීමෙන්, ඔබට ඔබේ ටැබ්ලටයෙහි ඕනෑම මූලාශ්‍රයකින් අනාගත යාවත්කාලීන ලැබීමට ඉඩ ඇත. යෙදුම් ක්‍රියාකාරිත්වය වෙනස් වීමට ඉඩ ඇත."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"මෙම යෙදුම සාමාන්‍යයෙන් &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; වෙතින් යාවත්කාලීන ලබා ගනී. වෙනස් මූලාශ්‍රයක් භාවිතයෙන් යාවත්කාලීන කිරීමෙන්, ඔබට ඔබේ TV මත ඕනෑම මූලාශ්‍රයකින් අනාගත යාවත්කාලීන ලැබීමට ඉඩ ඇත. යෙදුම් ක්‍රියාකාරිත්වය වෙනස් වීමට ඉඩ ඇත."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"මෙම යෙදුම සාමාන්‍යයෙන් &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; වෙතින් යාවත්කාලීන ලබා ගනී. වෙනස් මූලාශ්‍රයක් භාවිතයෙන් යාවත්කාලීන කිරීමෙන්, ඔබට ඔබේ දුරකථනයෙහි ඕනෑම මූලාශ්‍රයකින් අනාගත යාවත්කාලීන ලැබීමට ඉඩ ඇත. යෙදුම් ක්‍රියාකාරිත්වය වෙනස් වීමට ඉඩ ඇත."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"ඔබේ ආරක්ෂාව සඳහා, ඔබේ ටැබ්ලටයට දැනට මෙම මූලාශ්‍රයෙන් නොදන්නා යෙදුම් ස්ථාපනය කිරීමට ඉඩ නොදෙයි. ඔබට සැකසීම් තුළ මෙය වෙනස් කළ හැක."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"ඔබේ ආරක්ෂාව සඳහා, ඔබේ රූපවාහිනියට දැනට මෙම මූලාශ්‍රයෙන් නොදන්නා යෙදුම් ස්ථාපනය කිරීමට ඉඩ නොදෙයි. ඔබට සැකසීම් තුළ මෙය වෙනස් කළ හැක."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"ඔබේ ආරක්ෂාව සඳහා, ඔබේ ඔරලෝසුවට දැනට මෙම මූලාශ්‍රයෙන් නොදන්නා යෙදුම් ස්ථාපනය කිරීමට ඉඩ නොදෙයි. ඔබට සැකසීම් තුළ මෙය වෙනස් කළ හැක."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"ඔබේ ආරක්ෂාව සඳහා, ඔබේ දුරකථනයට දැනට මෙම මූලාශ්‍රයෙන් නොදන්නා යෙදුම් ස්ථාපනය කිරීමට ඉඩ නොදෙයි. ඔබට සැකසීම් තුළ මෙය වෙනස් කළ හැක."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"ඔබේ දුරකථනය සහ පුද්ගලික දත්තවලට නොදන්නා යෙදුම් මඟින් තර්ජන එල්ල කිරීමේ හැකියාව වැඩි ය. මෙම යෙදුම් ස්ථාපනය කිරීමෙන් සහ භාවිත කිරීමෙන් ඔබ ඔබේ දුරකථනය සඳහා සිදු වන යම් හානි හෝ එය භාවිත කිරීමේ ප්‍රතිඵලයක් ලෙස සිදු වන දත්ත හානි සඳහා ඔබ වගකිව යුතු බවට එකඟ වේ."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"ඔබේ ටැබ්ලටය සහ පුද්ගලික දත්තවලට නොදන්නා යෙදුම් මඟින් තර්ජන එල්ල කිරීමේ හැකියාව වැඩි ය. මෙම යෙදුම් ස්ථාපනය කිරීමෙන් සහ භාවිත කිරීමෙන් ඔබ ඔබේ ටැබ්ලටය සඳහා සිදු වන යම් හානි හෝ එය භාවිත කිරීමේ ප්‍රතිඵලයක් ලෙස සිදු වන දත්ත හානි සඳහා ඔබ වගකිව යුතු බවට එකඟ වේ."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"ඔබේ රූපවාහිනිය සහ පුද්ගලික දත්තවලට නොදන්නා යෙදුම් මඟින් තර්ජන එල්ල කිරීමේ හැකියාව වැඩි ය. මෙම යෙදුම් ස්ථාපනය කිරීමෙන් සහ භාවිත කිරීමෙන් ඔබ ඔබේ රූපවාහිනිය සඳහා සිදු වන යම් හානි හෝ එය භාවිත කිරීමේ ප්‍රතිඵලයක් ලෙස සිදු වන දත්ත හානි සඳහා ඔබ වගකිව යුතු බවට එකඟ වේ."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"මෙම යෙදුම ස්ථාපනය කිරීමෙන් අවහිර කර ඇත"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"මෙම යෙදුම ඔබේ උපාංගයෙහි දැනටමත් ඇති යෙදුමක් සමග ගැටේ"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"මෙම අයිතමය ඔබේ උපාංගය සමග අනුකූල නොවේ"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"මෙම යෙදුමේ ස්ථාපන ගොනුවේ ගැටලුවක් තිබේ"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"මෙම යෙදුම ස්ථාපනය කිරීමට, ඉඩ නිදහස් කර නැවත උත්සාහ කරන්න"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"යෙදුම් ගොනුවේ ගැටලුවක් තිබේ"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"යෙදුම් ස්ථාපනය සීමා කර ඇත"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"නොදන්නා යෙදුම් ස්ථාපනය සීමා කර ඇත"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"මෙම යෙදුමේ ක්ලෝනයක් ද පවතින අතර එය මකා දැමෙනු ඇත"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"මෙම යෙදුම <xliff:g id="APP_LABEL">%1$s</xliff:g> හි ක්ලෝනයකි"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"මෙම යෙදුම කර්මාන්තශාලා අනුවාදය සමග ප්‍රතිස්ථාපනය වේ. සියලු යෙදුම් දත්ත ඉවත් කරනු ලැබේ."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"උපාංගයේ සියලු ම පරිශීලකයින් සඳහා මෙම යෙදුම කර්මාන්තශාලා අනුවාදය සමඟ ප්‍රතිස්ථාපනය කරනු ලැබේ. සියලු යෙදුම් දත්ත ඉවත් කරනු ලැබේ."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"මෙම යෙදුම ඔබේ කාර්යාල පැතිකඩෙන් අස්ථාපනය කරනු ලැබේ"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"මෙම යෙදුම ඔබේ රහසිගත ඉඩෙන් අස්ථාපනය කරනු ලැබේ"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"මෙම යෙදුම ස්ථාපිත යෙදුම් ලැයිස්තුවේ හමු නොවීය, නැතහොත් දැනටමත් අස්ථාපනය කර ඇත"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"වත්මන් පරිශීලකයාට මෙම අස්ථාපනය සිදු කිරීමට ඉඩ නොදේ"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"මෙම යෙදුම අස්ථාපනය කළ නොහැකි විය"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"යෙදුම් දත්ත තබා ගන්න"</string>
+    <string name="message_archive" msgid="943853731737315850">"ඔබේ යෙදුම් දත්ත සුරකිනු ඇත"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"සියලු යෙදුම් දත්ත සුරකිනු ඇත"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"යෙදුම් දත්ත සුරකිනු ඇත"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"මෙම යෙදුම ඔබේ කාර්යාල පැතිකඩෙන් ලේඛනාරක්ෂණය කරනු ඇත. ඔබේ යෙදුම් දත්ත සුරකිනු ඇත."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"මෙම යෙදුම ඔබේ රහසිගත ඉඩෙන් ලේඛනාරක්ෂණය කරනු ලැබේ. ඔබේ යෙදුම් දත්ත සුරකිනු ඇත."</string>
+    <string name="message_restore" msgid="8402726798623569969">"මෙම යෙදුම පසුබිමේ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> වෙතින් බාගනු ඇත"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> හට මෙම යෙදුම ප්‍රතිසාධනය කිරීමට පෙර තවත් තොරතුරු අවශ්‍යයි"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"මෙම යෙදුම ප්‍රතිසාධනය කිරීමට, &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; නිදහස් කර නැවත උත්සාහ කරන්න"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"මෙම යෙදුම ප්‍රතිසාධනය කිරීම සඳහා, ඔබේ අන්තර්ජාල සම්බන්ධතාවය පරීක්ෂා කර නැවත උත්සාහ කරන්න"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"මෙම යෙදුම ප්‍රතිසාධනය කිරීම සඳහා, සැකසීම් තුළ <xliff:g id="INSTALLERNAME">%1$s</xliff:g> සබල කරන්න"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"මෙම යෙදුම ප්‍රතිසාධනය කිරීම සඳහා, ඔබට <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ස්ථාපනය කිරීමට අවශ්‍ය වනු ඇත"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"මෙම යෙදුම ප්‍රතිසාධනය කිරීමට උත්සාහ කිරීමේ ගැටලුවක් ඇති විය"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> පහත යෙදුමේ කොටසකි: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;මෙම යෙදුම අවහිර කර ඇත. ඔබේ උපාංගය සහ දත්ත ආරක්ෂිතව තබා ගැනීමට උදවු කිරීම සඳහා, සත්‍යාපිත සංවර්ධකයින්ගේ යෙදුම් පමණක් ස්ථාපනය කළ හැක.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැනගන්න&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;මෙම යෙදුම යාවත්කාලීන කර නොමැත. ඔබේ උපාංගය සහ දත්ත ආරක්ෂිතව තබා ගැනීමට උදවු කිරීම සඳහා, සත්‍යාපිත සංවර්ධකයින්ගේ යාවත්කාලීන පමණක් ස්ථාපනය කළ හැක.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැනගන්න&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;මෙම යෙදුම ස්ථාපනය කර නොමැත. සත්‍යාපනය නොකළ සංවර්ධකයින්ගේ යෙදුම් අනාරක්ෂිත විය හැක.&lt;/p&gt; &lt;p&gt;යෙදුම් සංවර්ධක සත්‍යාපනය කිරීමට අන්තර්ජාල සම්බන්ධතාවයක් අවශ්‍ය වේ. ඔබේ සම්බන්ධතාවය පරීක්ෂා කර, පසුව නැවත ස්ථාපනයට උත්සාහ කරන්න. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැන ගන්න&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;මෙම යෙදුම යාවත්කාලීන කර නොමැත. සත්‍යාපනය නොකළ සංවර්ධකයින්ගෙන් ලැබෙන යාවත්කාලීන කිරීම් අනාරක්ෂිත විය හැක.&lt;/p&gt; &lt;p&gt;යෙදුම් සංවර්ධකයා සත්‍යාපනය කිරීමට අන්තර්ජාල සම්බන්ධතාවයක් අවශ්‍ය වේ. ඔබේ සම්බන්ධතාවය පරීක්ෂා කර, පසුව නැවත යාවත්කාලීන කිරීමට උත්සාහ කරන්න. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැන ගන්න&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;මෙම යෙදුමේ සංවර්ධකයා සත්‍යාපනය කිරීමේ දී ගැටලුවක් ඇති විය. සත්‍යාපනය නොකළ සංවර්ධකයින්ගේ යෙදුම් අනාරක්ෂිත විය හැකි බැවින්, යෙදුම ස්ථාපනය කර නොමැත.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැන ගන්න&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;මෙම යෙදුමේ සංවර්ධකයා සත්‍යාපනය කිරීමේ දී ගැටලුවක් ඇති විය. සත්‍යාපනය නොකළ සංවර්ධකයින්ගෙන් ලැබෙන යාවත්කාලීන කිරීම් අනාරක්ෂිත විය හැකි බැවින්, යෙදුම යාවත්කාලීන කර නොමැත.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැන ගන්න&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;සංවර්ධකයා සත්‍යාපනය කිරීමේ ගැටලුවක් ඇති වූ නිසා මෙම යෙදුම අවහිර කරන ලදි. ඔබේ උපාංගය සහ දත්ත ආරක්ෂිතව තබා ගැනීමට උදවු කිරීම සඳහා, සත්‍යාපිත සංවර්ධකයින්ගේ යෙදුම් පමණක් ස්ථාපනය කළ හැක.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැනගන්න&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;සංවර්ධකයා සත්‍යාපනය කිරීමේ ගැටලුවක් ඇති වූ නිසා මෙම යෙදුම යාවත්කාලීන කර නොමැත. ඔබේ උපාංගය සහ දත්ත ආරක්ෂිතව තබා ගැනීමට උදවු කිරීම සඳහා, සත්‍යාපිත සංවර්ධකයින්ගේ යාවත්කාලීන පමණක් ස්ථාපනය කළ හැක.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;සංවර්ධක සත්‍යාපනය පිළිබඳ තව දැනගන්න&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"ඔබ සත්‍යාපනය නොකර ස්ථාපනය කරන්නේ නම්, සත්‍යාපනය නොකළ සංවර්ධකයින්ගේ යෙදුම් ඔබේ උපාංගය සහ දත්ත අවදානමට ලක් කළ හැකි බව මතක තබා ගන්න."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"ඔබ සත්‍යාපනය නොකර යාවත්කාලීන කරන්නේ නම්, සත්‍යාපනය නොකළ සංවර්ධකයින්ගෙන් ලැබෙන යාවත්කාලීන කිරීම් ඔබේ උපාංගය සහ දත්ත අවදානමට ලක් කළ හැකි බව මතක තබා ගන්න."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"යෙදුම් සංවර්ධක සත්‍යාපනය කර නැත"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"අන්තර්ජාලය නැත, යෙදුම් සංවර්ධකයා සත්‍යාපනය කළ නොහැක"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"යෙදුම් සංවර්ධකයා සත්‍යාපනය කළ නොහැක"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"සත්‍යාපනය නොකර ස්ථාපනය කරන්න"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"සත්‍යාපනය නොකර යාවත්කාලීන කරන්න"</string>
+    <string name="button_install" msgid="7434013176505680162">"ස්ථාපනය කරන්න"</string>
+    <string name="button_update" msgid="3046719350226327526">"යාවත්කාලීන කරන්න"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"කෙසේ වෙතත් යාවත්කාලීන කරන්න"</string>
+    <string name="button_done" msgid="3408025390982260629">"නිමයි"</string>
+    <string name="button_open" msgid="6892684987374117955">"විවෘත කරන්න"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"අවලංගු කරන්න"</string>
+    <string name="button_continue" msgid="107501685249826244">"ඉදිරියට යන්න"</string>
+    <string name="button_close" msgid="7187308556466275899">"වසන්න"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"අස්ථාපනය කරන්න"</string>
+    <string name="button_delete" msgid="1050833585936159792">"මකන්න"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"යළි ස්ථාපනය කරන්න"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"යෙදුම් කළමනාකරණය කරන්න"</string>
+    <string name="button_archive" msgid="2719647830439699121">"ලේඛනාරක්ෂණය"</string>
+    <string name="button_restore" msgid="4388317532933866637">"ප්‍රතිසාධනය කරන්න"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"යාවත්කාලීන අස්ථාපනය කරන්න"</string>
+    <string name="button_settings" msgid="3837571366246132287">"සැකසීම්"</string>
+    <string name="button_retry" msgid="6736082260813816198">"නැවත උත්සාහ කරන්න"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> ක්ලෝනය"</string>
+</resources>

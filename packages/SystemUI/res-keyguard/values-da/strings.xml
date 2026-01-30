@@ -46,9 +46,9 @@
     <string name="keyguard_accessibility_sim_pin_area" msgid="6272116591533888062">"Område for pinkoden til SIM-kortet"</string>
     <string name="keyguard_accessibility_sim_puk_area" msgid="5537294043180237374">"Område for PUK-koden til SIM-kortet"</string>
     <string name="keyboardview_keycode_delete" msgid="8489719929424895174">"Slet"</string>
-    <string name="disable_carrier_button_text" msgid="7153361131709275746">"Deaktiver eSIM"</string>
-    <string name="error_disable_esim_title" msgid="3802652622784813119">"eSIM kan ikke deaktiveres"</string>
-    <string name="error_disable_esim_msg" msgid="2441188596467999327">"eSIM kan ikke deaktiveres på grund af en fejl."</string>
+    <string name="disable_carrier_button_text" msgid="7153361131709275746">"Deaktiver eSIM-kort"</string>
+    <string name="error_disable_esim_title" msgid="3802652622784813119">"eSIM-kort kan ikke deaktiveres"</string>
+    <string name="error_disable_esim_msg" msgid="2441188596467999327">"eSIM-kort kan ikke deaktiveres på grund af en fejl."</string>
     <string name="keyboardview_keycode_enter" msgid="6727192265631761174">"Enter"</string>
     <string name="kg_wrong_pattern" msgid="5907301342430102842">"Forkert mønster"</string>
     <string name="kg_wrong_pattern_try_again" msgid="3603524940234151881">"Forkert mønster. Prøv igen."</string>
@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Lås op med adgangskode eller fingeraftryk"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Lås op med mønster eller fingeraftryk"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Enhed låst af arbejdspolitik af hensyn til sikkerhed"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Totrinsverificering"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Brug fingeroplåsning"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Brug ansigtsoplåsning"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Brug fingeroplåsning eller ansigtsoplåsning"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Pinkode er påkrævet efter brug af låsning"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Adgangskode er påkrævet efter brug af låsning"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Mønster er påkrævet efter brug af låsning"</string>
@@ -86,7 +90,7 @@
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{Prøv igen om # sekund.}one{Prøv igen om # sekund.}other{Prøv igen om # sekunder.}}"</string>
     <string name="kg_sim_pin_instructions" msgid="1942424305184242951">"Angiv pinkoden til SIM-kortet."</string>
     <string name="kg_sim_pin_instructions_multi" msgid="3639863309953109649">"Angiv pinkoden til SIM-kortet fra \"<xliff:g id="CARRIER">%1$s</xliff:g>\"."</string>
-    <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> Deaktiver eSIM for at bruge enheden uden mobiltjeneste."</string>
+    <string name="kg_sim_lock_esim_instructions" msgid="5577169988158738030">"<xliff:g id="PREVIOUS_MSG">%1$s</xliff:g> Deaktiver eSIM-kort for at bruge enheden uden mobiltjeneste."</string>
     <string name="kg_puk_enter_puk_hint" msgid="3005288372875367017">"SIM-kortet er nu deaktiveret. Angiv PUK-koden for at fortsætte. Kontakt mobilselskabet for at få flere oplysninger."</string>
     <string name="kg_puk_enter_puk_hint_multi" msgid="4876780689904862943">"SIM-kortet fra \"<xliff:g id="CARRIER">%1$s</xliff:g>\" er nu deaktiveret. Angiv PUK-koden for at fortsætte. Kontakt mobilselskabet for at få flere oplysninger."</string>
     <string name="kg_puk_enter_pin_hint" msgid="6028432138916150399">"Angiv den ønskede pinkode"</string>

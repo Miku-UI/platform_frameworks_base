@@ -264,8 +264,7 @@ public final class PowerStatsLogger extends Handler {
                 final byte[] dataCached = new byte[(int) cachedFile.length()];
 
                 // Get the cached data from file.
-                try {
-                    final FileInputStream fis = new FileInputStream(cachedFile.getPath());
+                try (FileInputStream fis = new FileInputStream(cachedFile.getPath())) {
                     fis.read(dataCached);
                 } catch (IOException e) {
                     Slog.e(TAG, "Failed to read cached data from file", e);

@@ -16,10 +16,6 @@
 
 package com.android.systemui.qs.tiles;
 
-import static android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf;
-
-import static com.android.systemui.Flags.FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX;
-
 import static junit.framework.Assert.assertEquals;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -32,10 +28,13 @@ import static org.mockito.Mockito.when;
 import android.os.Handler;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.FlagsParameterization;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.provider.Settings;
 import android.service.quicksettings.Tile;
 import android.testing.TestableLooper;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
@@ -50,33 +49,28 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.QsEventLogger;
 import com.android.systemui.qs.ReduceBrightColorsController;
-import com.android.systemui.qs.flags.QsInCompose;
 import com.android.systemui.qs.logging.QSLogger;
 import com.android.systemui.qs.tileimpl.QSTileImpl;
 import com.android.systemui.res.R.drawable;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.util.settings.FakeSettings;
+import com.android.systemui.util.settings.SecureSettings;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.List;
-
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
-
-@RunWith(ParameterizedAndroidJunit4.class)
+@RunWith(AndroidJUnit4.class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @SmallTest
 public class ReduceBrightColorsTileTest extends SysuiTestCase {
 
-    @Parameters(name = "{0}")
-    public static List<FlagsParameterization> getParams() {
-        return allCombinationsOf(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX);
-    }
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     @Mock
     private QSHost mHost;
@@ -97,16 +91,13 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     @Mock
     private ExtraDimDialogManager mExtraDimDialogManager;
 
+    private SecureSettings mSecureSettings;
     private TestableLooper mTestableLooper;
     private ReduceBrightColorsTile mTile;
 
-    public ReduceBrightColorsTileTest(FlagsParameterization flags) {
-        super();
-        mSetFlagsRule.setFlagsParameterization(flags);
-    }
-
     @Before
     public void setUp() throws Exception {
+        mSecureSettings = new FakeSettings();
         MockitoAnnotations.initMocks(this);
 
         mTestableLooper = TestableLooper.get(this);
@@ -125,7 +116,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
                 mStatusBarStateController,
                 mActivityStarter,
                 mQSLogger,
-                mExtraDimDialogManager
+                mExtraDimDialogManager,
+                mSecureSettings
         );
 
         mTile.initialize();
@@ -140,7 +132,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
 
     @Test
     public void testNotActive() {
-        when(mReduceBrightColorsController.isReduceBrightColorsActivated()).thenReturn(false);
+        mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                /* value= */ 0, mTile.getCurrentTileUser());
         mTile.refreshState();
         mTestableLooper.processAllMessages();
 
@@ -151,7 +144,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
 
     @Test
     public void testActive() {
-        when(mReduceBrightColorsController.isReduceBrightColorsActivated()).thenReturn(true);
+        mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                /* value= */ 1, mTile.getCurrentTileUser());
         mTile.refreshState();
         mTestableLooper.processAllMessages();
 
@@ -163,7 +157,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     @Test
     @RequiresFlagsDisabled(Flags.FLAG_EVEN_DIMMER)
     public void testActive_clicked_featureIsActivated() {
-        when(mReduceBrightColorsController.isReduceBrightColorsActivated()).thenReturn(false);
+        mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                /* value= */ 1, mTile.getCurrentTileUser());
         mTile.refreshState();
         mTestableLooper.processAllMessages();
         // Validity check
@@ -178,7 +173,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     public void testDialogueShownOnClick() {
-        when(mReduceBrightColorsController.isReduceBrightColorsActivated()).thenReturn(true);
+        mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                /* value= */ 1, mTile.getCurrentTileUser());
         when(mReduceBrightColorsController.isInUpgradeMode(mContext.getResources()))
                 .thenReturn(true);
         mTile = new ReduceBrightColorsTile(
@@ -193,7 +189,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
                 mStatusBarStateController,
                 mActivityStarter,
                 mQSLogger,
-                mExtraDimDialogManager
+                mExtraDimDialogManager,
+                mSecureSettings
         );
 
         mTile.initialize();
@@ -214,7 +211,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_EVEN_DIMMER)
     public void testDialogueShownOnLongClick() {
-        when(mReduceBrightColorsController.isReduceBrightColorsActivated()).thenReturn(true);
+        mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                /* value= */ 1, mTile.getCurrentTileUser());
         when(mReduceBrightColorsController.isInUpgradeMode(mContext.getResources()))
                 .thenReturn(true);
         mTile = new ReduceBrightColorsTile(
@@ -229,7 +227,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
                 mStatusBarStateController,
                 mActivityStarter,
                 mQSLogger,
-                mExtraDimDialogManager
+                mExtraDimDialogManager,
+                mSecureSettings
         );
 
         mTile.initialize();
@@ -249,7 +248,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
 
     @Test
     public void testIcon_whenTileEnabled_isOnState() {
-        when(mReduceBrightColorsController.isReduceBrightColorsActivated()).thenReturn(true);
+        mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                /* value= */ 1, mTile.getCurrentTileUser());
         mTile.refreshState();
         QSTile.BooleanState state = new QSTile.BooleanState();
 
@@ -260,7 +260,8 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
 
     @Test
     public void testIcon_whenTileDisabled_isOffState() {
-        when(mReduceBrightColorsController.isReduceBrightColorsActivated()).thenReturn(false);
+        mSecureSettings.putIntForUser(Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                /* value= */ 0, mTile.getCurrentTileUser());
         mTile.refreshState();
         QSTile.BooleanState state = new QSTile.BooleanState();
 
@@ -270,11 +271,6 @@ public class ReduceBrightColorsTileTest extends SysuiTestCase {
     }
 
     private QSTile.Icon createExpectedIcon(int resId) {
-        if (QsInCompose.isEnabled()) {
-            return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
-        } else {
-            return QSTileImpl.ResourceIcon.get(resId);
-        }
+        return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
     }
-
 }

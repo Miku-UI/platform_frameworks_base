@@ -31,12 +31,15 @@ TEST(SdkConstantsTest, NonFrameworkAttributeIsSdk0) {
 TEST(SdkConstantsTest, GetDevelopmentSdkCodeNameVersionValid) {
   EXPECT_EQ(std::optional<ApiVersion>(10000), GetDevelopmentSdkCodeNameVersion("Q"));
   EXPECT_EQ(std::optional<ApiVersion>(10000), GetDevelopmentSdkCodeNameVersion("VanillaIceCream"));
+  EXPECT_EQ(std::optional<ApiVersion>(10000), GetDevelopmentSdkCodeNameVersion("CANARY"));
 }
 
 TEST(SdkConstantsTest, GetDevelopmentSdkCodeNameVersionPrivacySandbox) {
   EXPECT_EQ(std::optional<ApiVersion>(10000), GetDevelopmentSdkCodeNameVersion("QPrivacySandbox"));
   EXPECT_EQ(std::optional<ApiVersion>(10000),
             GetDevelopmentSdkCodeNameVersion("VanillaIceCreamPrivacySandbox"));
+  EXPECT_EQ(std::optional<ApiVersion>(10000),
+            GetDevelopmentSdkCodeNameVersion("CANARYPrivacySandbox"));
 }
 
 TEST(SdkConstantsTest, GetDevelopmentSdkCodeNameVersionInvalid) {

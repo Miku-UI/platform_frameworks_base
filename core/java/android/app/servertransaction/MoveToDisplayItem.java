@@ -58,7 +58,7 @@ public class MoveToDisplayItem extends ActivityTransactionItem {
 
     @Override
     public void preExecute(@NonNull ClientTransactionHandler client) {
-        CompatibilityInfo.applyOverrideIfNeeded(mConfiguration);
+        CompatibilityInfo.applyOverrideIfNeeded(mConfiguration, mTargetDisplayId);
         // Notify the client of an upcoming change in the token configuration. This ensures that
         // batches of config change items only process the newest configuration.
         client.updatePendingActivityConfiguration(getActivityToken(), mConfiguration);

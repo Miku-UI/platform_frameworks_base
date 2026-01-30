@@ -23,7 +23,6 @@ import static android.window.StartingWindowRemovalInfo.DEFER_MODE_ROTATION;
 
 import static com.android.internal.protolog.WmProtoLogGroups.WM_DEBUG_WINDOW_ORGANIZER;
 import static com.android.server.wm.ActivityTaskManagerService.enforceTaskPermission;
-import static com.android.server.wm.DisplayContent.IME_TARGET_LAYERING;
 import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_STARTING_REVEAL;
 import static com.android.server.wm.WindowOrganizerController.configurationsAreEqualForOrganizer;
 
@@ -47,17 +46,21 @@ import android.view.Display;
 import android.view.SurfaceControl;
 import android.window.ITaskOrganizer;
 import android.window.ITaskOrganizerController;
+import android.window.ITransitionPlayer;
 import android.window.IWindowlessStartingSurfaceCallback;
 import android.window.SplashScreenView;
 import android.window.StartingWindowInfo;
 import android.window.StartingWindowRemovalInfo;
 import android.window.TaskAppearedInfo;
 import android.window.TaskSnapshot;
+import android.window.TransitionInfo;
+import android.window.TransitionRequestInfo;
 import android.window.WindowContainerToken;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.ArrayUtils;
+import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.ArrayDeque;
@@ -69,6 +72,8 @@ import java.util.WeakHashMap;
 /**
  * Stores the TaskOrganizers associated with a given windowing mode and
  * their associated state.
+ *
+ * Current tests can be found in WindowOrganizerTests.
  */
 class TaskOrganizerController extends ITaskOrganizerController.Stub {
     private static final String TAG = "TaskOrganizerController";
@@ -116,11 +121,19 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         void onTaskAppeared(Task task) {
             ProtoLog.v(WM_DEBUG_WINDOW_ORGANIZER, "Task appeared taskId=%d", task.mTaskId);
             final RunningTaskInfo taskInfo = task.getTaskInfo();
+            final SurfaceControl leash = prepareLeash(task,
+                    "TaskOrganizerController.onTaskAppeared");
             try {
-                mTaskOrganizer.onTaskAppeared(taskInfo, prepareLeash(task,
-                        "TaskOrganizerController.onTaskAppeared"));
+                mTaskOrganizer.onTaskAppeared(taskInfo, leash);
             } catch (RemoteException e) {
                 Slog.e(TAG, "Exception sending onTaskAppeared callback", e);
+
+                // In the rare case that onTaskAppeared() fails to notify, then we should prevent
+                // subsequent lifecycle calls to shell to prevent it from getting an inconsistent
+                // set of calls
+                task.mTaskAppearedSent = false;
+            } finally {
+                leash.release();
             }
         }
 
@@ -390,7 +403,7 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
                 t.mTaskAppearedSent = false;
             }
             if (removeFromSystem) {
-                mService.removeTask(t);
+                mService.removeTask(t, "remove-by-organizer");
             }
             return taskAppearedSent;
         }
@@ -426,6 +439,7 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
                         t.getSyncTransaction().show(t.getSurfaceControl());
                     }
                 }
+                t.clearExcludeLayersFromTaskSnapshot();
             }
 
             // Pending events queue for this organizer need to be cleared because this organizer
@@ -475,6 +489,8 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
     // Set of organized tasks (by taskId) that dispatch back pressed to their organizers
     private final HashSet<Integer> mInterceptBackPressedOnRootTasks = new HashSet<>();
 
+    public final ITransitionPlayer mAsTransitionPlayer = new AsTransitionPlayer();
+
     TaskOrganizerController(ActivityTaskManagerService atm) {
         mService = atm;
         mGlobalLock = atm.mGlobalLock;
@@ -496,6 +512,8 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
     @Override
     public ParceledListSlice<TaskAppearedInfo> registerTaskOrganizer(ITaskOrganizer organizer) {
         enforceTaskPermission("registerTaskOrganizer()");
+        final int callerPid = Binder.getCallingPid();
+        final int callerUid = Binder.getCallingUid();
         final int uid = Binder.getCallingUid();
         final long origId = Binder.clearCallingIdentity();
         try {
@@ -521,6 +539,12 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
                         taskInfos.add(new TaskAppearedInfo(task.getTaskInfo(), taskLeash));
                     }
                 });
+                if (Flags.unifyShellBinders()) {
+                    final WindowProcessController wpc =
+                            mService.getProcessController(callerPid, callerUid);
+                    mService.getTransitionController().registerTransitionPlayer(
+                            mAsTransitionPlayer, wpc);
+                }
             };
             if (mService.getTransitionController().isShellTransitionsEnabled()) {
                 mService.getTransitionController().mRunningLock.runWhenIdle(1000, withGlobalLock);
@@ -542,6 +566,10 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         final long origId = Binder.clearCallingIdentity();
         try {
             final Runnable withGlobalLock = () -> {
+                if (Flags.unifyShellBinders()) {
+                    mService.getTransitionController().unregisterTransitionPlayer(
+                            mAsTransitionPlayer);
+                }
                 final TaskOrganizerState state = mTaskOrganizerStates.get(organizer.asBinder());
                 if (state == null) {
                     return;
@@ -617,6 +645,7 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
             return null;
         }
         t.setPosition(leash, window.mSurfacePosition.x, window.mSurfacePosition.y);
+        t.apply();
         return leash;
     }
 
@@ -636,6 +665,12 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         }
         info.taskSnapshot = taskSnapshot;
         info.appToken = activity.token;
+        final Transition collecting = activity.mTransitionController.getCollectingTransition();
+        if (collecting != null && !activity.mTransitionController.mIsWaitingForDisplayEnabled) {
+            info.transitionToken = collecting.getToken();
+        } else {
+            Slog.w(TAG, "The starting window is created without transition.");
+        }
         // make this happen prior than prepare surface
         try {
             lastOrganizer.addStartingWindow(info);
@@ -646,16 +681,11 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         return true;
     }
 
-    void removeStartingWindow(Task task, ITaskOrganizer taskOrganizer, boolean prepareAnimation,
-            boolean hasImeSurface) {
+    StartingWindowRemovalInfo getStartingWindowRemovalInfo(Task task,
+            boolean prepareAnimation, boolean hasImeSurface) {
         final Task rootTask = task.getRootTask();
         if (rootTask == null) {
-            return;
-        }
-        final ITaskOrganizer lastOrganizer = taskOrganizer != null ? taskOrganizer
-                : getTaskOrganizer();
-        if (lastOrganizer == null) {
-            return;
+            return null;
         }
         final StartingWindowRemovalInfo removalInfo = new StartingWindowRemovalInfo();
         removalInfo.taskId = task.mTaskId;
@@ -692,6 +722,18 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
                         mainWindow.mSurfacePosition.y);
             }
         }
+        return removalInfo;
+    }
+
+    void removeStartingWindow(Task task, ITaskOrganizer taskOrganizer, boolean prepareAnimation,
+            boolean hasImeSurface) {
+        final ITaskOrganizer lastOrganizer = taskOrganizer != null ? taskOrganizer
+                : getTaskOrganizer();
+        if (lastOrganizer == null) {
+            return;
+        }
+        final StartingWindowRemovalInfo removalInfo =
+                getStartingWindowRemovalInfo(task, prepareAnimation, hasImeSurface);
         try {
             lastOrganizer.removeStartingWindow(removalInfo);
         } catch (RemoteException e) {
@@ -725,6 +767,12 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         info.taskSnapshot = taskSnapshot;
         info.windowlessStartingSurfaceCallback = callback;
         info.rootSurface = root;
+        final Transition collecting = activity.mTransitionController.getCollectingTransition();
+        if (collecting != null) {
+            info.transitionToken = collecting.getToken();
+        } else {
+            Slog.w(TAG, "The windowless starting window is created without transition?");
+        }
         try {
             lastOrganizer.addStartingWindow(info);
         } catch (RemoteException e) {
@@ -836,7 +884,8 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
 
     @Override
     public void createRootTask(int displayId, int windowingMode, @Nullable IBinder launchCookie,
-            boolean removeWithTaskOrganizer) {
+            boolean removeWithTaskOrganizer, boolean reparentOnDisplayRemoval,
+            @Nullable String name) {
         enforceTaskPermission("createRootTask()");
         final long origId = Binder.clearCallingIdentity();
         try {
@@ -848,7 +897,8 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
                     return;
                 }
 
-                createRootTask(display, windowingMode, launchCookie, removeWithTaskOrganizer);
+                createRootTask(display, windowingMode, launchCookie, removeWithTaskOrganizer,
+                        reparentOnDisplayRemoval, name);
             }
         } finally {
             Binder.restoreCallingIdentity(origId);
@@ -858,17 +908,20 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
     @VisibleForTesting
     Task createRootTask(DisplayContent display, int windowingMode, @Nullable IBinder launchCookie) {
         return createRootTask(display, windowingMode, launchCookie,
-                false /* removeWithTaskOrganizer */);
+                false /* removeWithTaskOrganizer */, false /* reparentOnDisplayRemoval */,
+                "test");
     }
 
-    Task createRootTask(DisplayContent display, int windowingMode, @Nullable IBinder launchCookie,
-            boolean removeWithTaskOrganizer) {
+    private Task createRootTask(DisplayContent display, int windowingMode,
+            @Nullable IBinder launchCookie, boolean removeWithTaskOrganizer,
+            boolean reparentOnDisplayRemoval, @Nullable String name) {
         ProtoLog.v(WM_DEBUG_WINDOW_ORGANIZER, "Create root task displayId=%d winMode=%d",
                 display.mDisplayId, windowingMode);
         // We want to defer the task appear signal until the task is fully created and attached to
         // to the hierarchy so that the complete starting configuration is in the task info we send
         // over to the organizer.
         final Task task = new Task.Builder(mService)
+                .setName(name)
                 .setWindowingMode(windowingMode)
                 .setIntent(new Intent())
                 .setCreatedByOrganizer(true)
@@ -876,6 +929,7 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
                 .setLaunchCookie(launchCookie)
                 .setParent(display.getDefaultTaskDisplayArea())
                 .setRemoveWithTaskOrganizer(removeWithTaskOrganizer)
+                .setReparentOnDisplayRemoval(reparentOnDisplayRemoval)
                 .build();
         task.setDeferTaskAppear(false /* deferTaskAppear */);
         return task;
@@ -972,9 +1026,10 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         pendingEventsQueue.addPendingTaskEvent(pending);
     }
 
+    @Nullable
     @Override
-    public WindowContainerToken getImeTarget(int displayId) {
-        enforceTaskPermission("getImeTarget()");
+    public WindowContainerToken getImeLayeringTarget(int displayId) {
+        enforceTaskPermission("getImeLayeringTarget()");
         final long origId = Binder.clearCallingIdentity();
         try {
             synchronized (mGlobalLock) {
@@ -984,13 +1039,13 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
                     return null;
                 }
 
-                final InsetsControlTarget imeLayeringTarget = dc.getImeTarget(IME_TARGET_LAYERING);
-                if (imeLayeringTarget == null || imeLayeringTarget.getWindow() == null) {
+                final WindowState imeLayeringTarget = dc.getImeLayeringTarget();
+                if (imeLayeringTarget == null) {
                     return null;
                 }
 
                 // Avoid WindowState#getRootTask() so we don't attribute system windows to a task.
-                final Task task = imeLayeringTarget.getWindow().getTask();
+                final Task task = imeLayeringTarget.getTask();
                 if (task == null) {
                     return null;
                 }
@@ -1070,33 +1125,16 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         }
     }
 
-    @Override
-    public void setInterceptBackPressedOnTaskRoot(WindowContainerToken token,
-            boolean interceptBackPressed) {
-        enforceTaskPermission("setInterceptBackPressedOnTaskRoot()");
-        final long origId = Binder.clearCallingIdentity();
-        try {
-            synchronized (mGlobalLock) {
-                ProtoLog.v(WM_DEBUG_WINDOW_ORGANIZER, "Set intercept back pressed on root=%b",
-                        interceptBackPressed);
-                final WindowContainer wc = WindowContainer.fromBinder(token.asBinder());
-                if (wc == null) {
-                    Slog.w(TAG, "Could not resolve window from token");
-                    return;
-                }
-                final Task task = wc.asTask();
-                if (task == null) {
-                    Slog.w(TAG, "Could not resolve task from token");
-                    return;
-                }
-                if (interceptBackPressed) {
-                    mInterceptBackPressedOnRootTasks.add(task.mTaskId);
-                } else {
-                    mInterceptBackPressedOnRootTasks.remove(task.mTaskId);
-                }
-            }
-        } finally {
-            Binder.restoreCallingIdentity(origId);
+    /**
+     * Sets or unsets whether a back should be intercepted for a given {@param taskId}.
+     */
+    void setInterceptBackPressedOnTaskRoot(int taskId, boolean interceptBackPressed) {
+        ProtoLog.v(WM_DEBUG_WINDOW_ORGANIZER, "Set intercept back pressed: taskId=%d intercept=%b",
+                taskId, interceptBackPressed);
+        if (interceptBackPressed) {
+            mInterceptBackPressedOnRootTasks.add(taskId);
+        } else {
+            mInterceptBackPressedOnRootTasks.remove(taskId);
         }
     }
 
@@ -1128,10 +1166,74 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
         }
     }
 
-    public boolean handleInterceptBackPressedOnTaskRoot(Task task) {
-        if (!shouldInterceptBackPressedOnRootTask(task)) {
+    @Override
+    public void setExcludeLayersFromTaskSnapshot(WindowContainerToken token,
+            SurfaceControl[] layers) throws RemoteException {
+        enforceTaskPermission("setExcludeLayersFromTaskSnapshot()");
+        if (!Flags.excludingLayerFromTaskSnapshot()) {
+            return;
+        }
+        final long origId = Binder.clearCallingIdentity();
+        try {
+            synchronized (mGlobalLock) {
+                final WindowContainer wc = WindowContainer.fromBinder(token.asBinder());
+                if (wc == null) {
+                    Slog.w(TAG, "Could not resolve window from token");
+                    return;
+                }
+                final Task task = wc.asTask();
+                if (task == null) {
+                    Slog.w(TAG, "Could not resolve task from token");
+                    return;
+                }
+                task.setExcludeLayersFromTaskSnapshot(layers);
+            }
+        } finally {
+            Binder.restoreCallingIdentity(origId);
+        }
+    }
+
+    @Override
+    public void clearExcludeLayersFromTaskSnapshot(WindowContainerToken token) {
+        enforceTaskPermission("clearExcludeLayersFromTaskSnapshot()");
+        if (!Flags.excludingLayerFromTaskSnapshot()) {
+            return;
+        }
+        final long origId = Binder.clearCallingIdentity();
+        try {
+            synchronized (mGlobalLock) {
+                final WindowContainer wc = WindowContainer.fromBinder(token.asBinder());
+                if (wc == null) {
+                    Slog.w(TAG, "Could not resolve window from token");
+                    return;
+                }
+                final Task task = wc.asTask();
+                if (task == null) {
+                    Slog.w(TAG, "Could not resolve task from token");
+                    return;
+                }
+                task.clearExcludeLayersFromTaskSnapshot();
+            }
+        } finally {
+            Binder.restoreCallingIdentity(origId);
+        }
+    }
+
+    public boolean handleInterceptBackPressedOnTaskRoot(ActivityRecord r) {
+        // Intercept are set on the root task
+        if (!shouldInterceptBackPressedOnRootTask(r.getRootTask())) {
             return false;
         }
+
+        // Task for which back event is received will be send as part of onBackPressedOnTaskRoot
+        Task task = r.getTask();
+
+        if (task.mTaskOrganizer == null) {
+            Slog.w(TAG, "Cannot handle BackPressedOnTaskRoot because task organizer is "
+                    + "not present for taskId: " + task.mTaskId);
+            return false;
+        }
+
         final TaskOrganizerPendingEventsQueue pendingEventsQueue =
                 mTaskOrganizerStates.get(task.mTaskOrganizer.asBinder())
                         .mPendingEventsQueue;
@@ -1199,5 +1301,31 @@ class TaskOrganizerController extends ITaskOrganizerController.Stub {
     @VisibleForTesting
     TaskOrganizerPendingEventsQueue getTaskOrganizerPendingEvents(IBinder taskOrganizer) {
         return mTaskOrganizerStates.get(taskOrganizer).mPendingEventsQueue;
+    }
+
+    class AsTransitionPlayer implements ITransitionPlayer {
+        @Override
+        public void onTransitionReady(IBinder transitionToken, TransitionInfo info,
+                SurfaceControl.Transaction t, SurfaceControl.Transaction finishT)
+                throws RemoteException {
+            mTaskOrganizers.getLast().onTransitionReady(transitionToken, info, t, finishT);
+        }
+
+        @Override
+        public void requestStartTransition(IBinder transitionToken, TransitionRequestInfo request)
+                throws RemoteException {
+            mTaskOrganizers.getLast().requestStartTransition(transitionToken, request);
+        }
+
+        @Override
+        public void removeStartingWindow(StartingWindowRemovalInfo removalInfo)
+                throws RemoteException {
+            mTaskOrganizers.getLast().removeStartingWindow(removalInfo);
+        }
+
+        @Override
+        public IBinder asBinder() {
+            return mTaskOrganizers.getLast().asBinder();
+        }
     }
 }

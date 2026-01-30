@@ -269,10 +269,10 @@ public final class CellIdentityGsm extends CellIdentity {
     @Override
     public String toString() {
         return new StringBuilder(TAG)
-        .append(":{ mLac=").append(mLac)
-        .append(" mCid=").append(mCid)
-        .append(" mArfcn=").append(mArfcn)
-        .append(" mBsic=").append("0x").append(Integer.toHexString(mBsic))
+        .append(":{ mLac=").append(Rlog.pii(TAG, mLac))
+        .append(" mCid=").append(Rlog.pii(TAG, mCid))
+        .append(" mArfcn=").append(Rlog.pii(TAG, mArfcn))
+        .append(" mBsic=").append("0x").append(Rlog.pii(TAG, Integer.toHexString(mBsic)))
         .append(" mMcc=").append(mMccStr)
         .append(" mMnc=").append(mMncStr)
         .append(" mAlphaLong=").append(mAlphaLong)

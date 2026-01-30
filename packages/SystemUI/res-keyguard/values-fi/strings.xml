@@ -57,7 +57,7 @@
     <string name="kg_wrong_pin" msgid="4160978845968732624">"Väärä PIN-koodi"</string>
     <string name="kg_wrong_pin_try_again" msgid="3129729383303430190">"Väärä PIN. Yritä uud."</string>
     <string name="kg_wrong_input_try_fp_suggestion" msgid="3143861542242024833">"Voit avata lukituksen myös sormenjäljellä"</string>
-    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"Tunnistamaton sormenjälki"</string>
+    <string name="kg_fp_not_recognized" msgid="5183108260932029241">"Sormenjälkeä ei tunnistettu"</string>
     <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"Kasvoja ei tunnistettu"</string>
     <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"Yritä uudelleen tai lisää PIN-koodi"</string>
     <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"Yritä uudelleen tai lisää salasana"</string>
@@ -65,10 +65,14 @@
     <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"PIN-koodia kysytään usean yrityksen jälkeen"</string>
     <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"Salasanaa kysytään usean yrityksen jälkeen"</string>
     <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"Kuviota kysytään usean yrityksen jälkeen"</string>
-    <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"Avaa: PIN/sormenjälki"</string>
-    <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Avaa: salasana/sormenjälki"</string>
-    <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Avaa: kuvio/sormenjälki"</string>
+    <string name="kg_unlock_with_pin_or_fp" msgid="5635161174698729890">"Avaa PIN-koodilla tai sormenjäljellä"</string>
+    <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Avaa salasanalla tai sormenjäljellä"</string>
+    <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Avaa kuviolla tai sormenjäljellä"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Laite lukittiin työkäytännöllä sen suojaamiseksi"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Kaksivaiheinen vahvistus"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Käytä sormenjälkiavausta"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Käytä kasvojentunnistusavausta"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Käytä sormenjälki- tai kasvojentunnistusavausta"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"PIN-koodi tarvitaan lukitustilan jälkeen"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Salasana tarvitaan lukitustilan jälkeen"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Kuvio tarvitaan lukitustilan jälkeen"</string>

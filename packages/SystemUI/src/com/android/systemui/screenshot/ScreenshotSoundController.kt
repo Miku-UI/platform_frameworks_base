@@ -16,9 +16,11 @@
 
 package com.android.systemui.screenshot
 
+import android.media.MediaActionSound
 import android.media.MediaPlayer
 import android.util.Log
 import com.android.app.tracing.coroutines.asyncTraced as async
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import javax.inject.Inject
@@ -27,7 +29,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.TimeoutCancellationException
-import com.android.app.tracing.coroutines.launchTraced as launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -55,8 +56,9 @@ class ScreenshotSoundControllerImpl
 @Inject
 constructor(
     private val soundProvider: ScreenshotSoundProvider,
+    private val soundPolicy: ScreenshotSoundPolicy,
     @Application private val coroutineScope: CoroutineScope,
-    @Background private val bgDispatcher: CoroutineDispatcher
+    @Background private val bgDispatcher: CoroutineDispatcher,
 ) : ScreenshotSoundController {
 
     private val player: Deferred<MediaPlayer?> =
@@ -69,10 +71,19 @@ constructor(
             }
         }
 
+    private val forcedShutterSound: Deferred<MediaActionSound?> =
+        coroutineScope.async("loadForcedCameraSound", bgDispatcher) {
+            soundProvider.getForcedShutterSound()
+        }
+
     override suspend fun playScreenshotSound() {
         withContext(bgDispatcher) {
             try {
-                player.await()?.start()
+                if (soundPolicy.shouldForceShutterSound()) {
+                    forcedShutterSound.await()?.play(MediaActionSound.SHUTTER_CLICK)
+                } else {
+                    player.await()?.start()
+                }
             } catch (e: IllegalStateException) {
                 Log.w(TAG, "Screenshot sound failed to play", e)
                 releaseScreenshotSound()
@@ -86,6 +97,12 @@ constructor(
                 withTimeout(1.seconds) { player.await()?.release() }
             } catch (e: TimeoutCancellationException) {
                 player.cancel()
+                Log.w(TAG, "Error releasing screenshot sound", e)
+            }
+            try {
+                withTimeout(1.seconds) { forcedShutterSound.await()?.release() }
+            } catch (e: TimeoutCancellationException) {
+                forcedShutterSound.cancel()
                 Log.w(TAG, "Error releasing shutter sound", e)
             }
         }

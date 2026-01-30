@@ -23,9 +23,13 @@ import com.android.server.display.DisplayBrightnessState;
 
 /**
  * HDR boost override value.
- * @param sdrHdrRatio - HDR to SDR multiplier, if < 1 HDR boost is off.
- * @param maxHdrBrightness - Brightness max when boosted. Value in range from BRIGHTNESS_MIN to
- *                         BRIGHTNESS_MAX. If not used should be set to PowerManager.BRIGHTNESS_MAX
+ * The value will respect config from {@link com.android.server.display.config.HdrBrightnessData}
+ * and will be applied instead of the sdrHdr ratio from configuration.
+ *
+ * @param sdrHdrRatio          - HDR to SDR multiplier, if < 1 HDR boost is off.
+ * @param maxHdrBrightness     - Brightness max when boosted and override applied.
+ *                             Value in range from BRIGHTNESS_MIN to BRIGHTNESS_MAX.
+ *                             If not used should be set to PowerManager.BRIGHTNESS_MAX
  * @param customTransitionRate - Custom transition rate for transitioning to new HDR brightness.
  *                             If not used should be set to
  *                             DisplayBrightnessState.CUSTOM_ANIMATION_RATE_NOT_SET

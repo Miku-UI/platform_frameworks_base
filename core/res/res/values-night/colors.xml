@@ -48,6 +48,8 @@
     <color name="language_picker_item_selected_stroke">#185ABC</color>
 
     <!-- Color for various surfaces related to system-wide blur -->
+    <color name="shade_panel_fg">@color/shade_panel_fg_color</color>
+    <color name="shade_panel_bg">@color/shade_panel_bg_color</color>
     <color name="surface_effect_0">@color/surface_effect_0_color</color>
     <color name="surface_effect_1">@color/surface_effect_1_color</color>
     <color name="surface_effect_2">@color/surface_effect_2_color</color>
@@ -57,4 +59,8 @@
     <color name="side_fps_toast_background">#2E3132</color>
     <color name="side_fps_text_color">#EFF1F2</color>
     <color name="side_fps_button_color">#33B9DB</color>
+
+    <!-- Color for APM USB Data Protection Notification-->
+    <!-- Notification icon tint color-->
+    <color name="security_privacy_notification_tint_normal">#8AB4F8</color>
 </resources>

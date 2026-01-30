@@ -21,6 +21,7 @@ import android.content.BroadcastReceiver;
 import android.content.ContentProvider;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 /**
  * Interface used to control the instantiation of manifest elements.
@@ -32,6 +33,7 @@ import android.content.pm.ApplicationInfo;
  * @see #instantiateReceiver
  * @see #instantiateProvider
  */
+@RavenwoodKeepWholeClass
 public class AppComponentFactory {
 
     /**

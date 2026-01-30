@@ -28,6 +28,7 @@ import static com.android.systemui.util.leak.RotationUtils.ROTATION_SEASCAPE;
 import static com.android.systemui.util.leak.RotationUtils.ROTATION_UPSIDE_DOWN;
 
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.graphics.PixelFormat;
 import android.graphics.Rect;
@@ -35,6 +36,7 @@ import android.os.Binder;
 import android.os.RemoteException;
 import android.os.Trace;
 import android.util.Log;
+import android.view.Display;
 import android.view.DisplayCutout;
 import android.view.Gravity;
 import android.view.IWindowManager;
@@ -53,11 +55,14 @@ import com.android.systemui.animation.DelegateTransitionAnimatorController;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.fragments.FragmentHostManager;
 import com.android.systemui.fragments.FragmentService;
+import com.android.systemui.log.LogBuffer;
+import com.android.systemui.log.core.LogLevel;
 import com.android.systemui.res.R;
 import com.android.systemui.statusbar.core.StatusBarConnectedDisplays;
 import com.android.systemui.statusbar.core.StatusBarRootModernization;
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController;
 import com.android.systemui.statusbar.layout.StatusBarContentInsetsProvider;
+import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.window.StatusBarWindowModule.InternalWindowViewInflater;
 import com.android.systemui.unfold.UnfoldTransitionProgressProvider;
 import com.android.systemui.unfold.util.JankMonitorTransitionProgressListener;
@@ -82,6 +87,8 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
     private final IWindowManager mIWindowManager;
     private final StatusBarContentInsetsProvider mContentInsetsProvider;
     private final Executor mMainExecutor;
+    private final LogBuffer mLogBuffer;
+    private final int mDisplayId;
     private int mBarHeight = -1;
     private final State mCurrentState = new State();
     private boolean mIsAttached;
@@ -95,6 +102,14 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
     private final WindowManager.LayoutParams mLpChanged;
     private final Binder mInsetsSourceOwner = new Binder();
 
+    private final ConfigurationController.ConfigurationListener mConfigurationListener =
+            new ConfigurationController.ConfigurationListener() {
+                @Override
+                public void onConfigChanged(Configuration newConfig) {
+                    refreshStatusBarHeight();
+                }
+            };
+
     @AssistedInject
     public StatusBarWindowControllerImpl(
             @Assisted Context context,
@@ -105,13 +120,17 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
             @Assisted StatusBarContentInsetsProvider contentInsetsProvider,
             FragmentService fragmentService,
             Optional<UnfoldTransitionProgressProvider> unfoldTransitionProgressProvider,
-            @Main Executor mainExecutor) {
+            @Main Executor mainExecutor,
+            @StatusBarWindowLog LogBuffer logBuffer,
+            @Assisted int displayId) {
         mContext = context;
+        mDisplayId = displayId;
         mWindowManager = windowManager;
         mStatusBarConfigurationController = statusBarConfigurationController;
         mIWindowManager = iWindowManager;
         mContentInsetsProvider = contentInsetsProvider;
         mMainExecutor = mainExecutor;
+        mLogBuffer = logBuffer;
         mStatusBarWindowView = statusBarWindowViewInflater.inflate(context);
         mFragmentService = fragmentService;
         mLaunchAnimationContainer = mStatusBarWindowView.findViewById(
@@ -174,6 +193,10 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
                             + " doesn't exist anymore.",
                     e);
         }
+        if (StatusBarConnectedDisplays.isEnabled()) {
+            mStatusBarConfigurationController.addCallback(mConfigurationListener);
+            refreshStatusBarHeight();
+        }
         mLpChanged.copyFrom(mLp);
 
         mContentInsetsProvider.addCallback(this::calculateStatusBarLocationsForAllRotations);
@@ -195,7 +218,7 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
             // it here will fail too, since it wasn't added in the first place.
             Log.e(TAG, "Failed to remove View from WindowManager. View was not attached", e);
         }
-
+        mStatusBarConfigurationController.removeCallback(mConfigurationListener);
         if (StatusBarRootModernization.isEnabled()) {
             return;
         }
@@ -235,13 +258,15 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
                     @Override
                     public void onTransitionAnimationStart(boolean isExpandingFullyAbove) {
                         getDelegate().onTransitionAnimationStart(isExpandingFullyAbove);
-                        setLaunchAnimationRunning(true);
+                        setLaunchAnimationRunning(
+                                true, /* source= */ animationController.toString());
                     }
 
                     @Override
                     public void onTransitionAnimationEnd(boolean isExpandingFullyAbove) {
                         getDelegate().onTransitionAnimationEnd(isExpandingFullyAbove);
-                        setLaunchAnimationRunning(false);
+                        setLaunchAnimationRunning(
+                                false, /* source= */ animationController.toString());
                     }
                 });
     }
@@ -268,7 +293,9 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
         lp.token = new Binder();
         lp.gravity = Gravity.TOP;
         lp.setFitInsetsTypes(0 /* types */);
-        lp.setTitle("StatusBar");
+        String titleSuffix =
+                mDisplayId == Display.DEFAULT_DISPLAY ? "" : "(displayId=" + mDisplayId + ")";
+        lp.setTitle("StatusBar" + titleSuffix);
         lp.packageName = mContext.getPackageName();
         lp.layoutInDisplayCutoutMode = LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
         final InsetsFrameProvider gestureInsetsProvider =
@@ -310,13 +337,31 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
     }
 
     @Override
-    public void setForceStatusBarVisible(boolean forceStatusBarVisible) {
+    public void setForceStatusBarVisible(boolean forceStatusBarVisible, String source) {
+        mLogBuffer.log(
+                /* tag= */ source,
+                LogLevel.DEBUG,
+                msg -> {
+                    msg.setBool1(forceStatusBarVisible);
+                    return kotlin.Unit.INSTANCE;
+                },
+                msg -> "ForcedVisible set to " + msg.getBool1()
+        );
         mCurrentState.mForceStatusBarVisible = forceStatusBarVisible;
         apply(mCurrentState);
     }
 
     @Override
-    public void setOngoingProcessRequiresStatusBarVisible(boolean visible) {
+    public void setOngoingProcessRequiresStatusBarVisible(boolean visible, String source) {
+        mLogBuffer.log(
+                /* tag= */ source,
+                LogLevel.DEBUG,
+                msg -> {
+                    msg.setBool1(visible);
+                    return kotlin.Unit.INSTANCE;
+                },
+                msg -> "OngoingProcessRequiresVisible set to " + msg.getBool1()
+        );
         mCurrentState.mOngoingProcessRequiresStatusBarVisible = visible;
         apply(mCurrentState);
     }
@@ -326,11 +371,20 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
      * window matches its parent height so that the animation is not clipped by the normal status
      * bar height.
      */
-    private void setLaunchAnimationRunning(boolean isLaunchAnimationRunning) {
+    private void setLaunchAnimationRunning(boolean isLaunchAnimationRunning, String source) {
         if (isLaunchAnimationRunning == mCurrentState.mIsLaunchAnimationRunning) {
             return;
         }
 
+        mLogBuffer.log(
+                /* tag= */ source,
+                LogLevel.DEBUG,
+                msg -> {
+                    msg.setBool1(isLaunchAnimationRunning);
+                    return kotlin.Unit.INSTANCE;
+                },
+                msg -> "LaunchAnimRunning set to " + msg.getBool1()
+        );
         mCurrentState.mIsLaunchAnimationRunning = isLaunchAnimationRunning;
         apply(mCurrentState);
     }
@@ -388,9 +442,24 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
     }
 
     private void applyForceStatusBarVisibleFlag(State state) {
+        mLogBuffer.log(
+                /* tag= */ TAG,
+                LogLevel.DEBUG,
+                msg -> {
+                    msg.setInt1(mDisplayId);
+                    msg.setBool1(state.mForceStatusBarVisible);
+                    msg.setBool2(state.mIsLaunchAnimationRunning);
+                    msg.setBool3(state.mOngoingProcessRequiresStatusBarVisible);
+                    return kotlin.Unit.INSTANCE;
+                },
+                msg ->
+                        "Status bar window state(display=" + msg.getInt1() + "). "
+                                + " ForcedVisible=" + msg.getBool1()
+                                + " LaunchAnimRunning=" + msg.getBool2()
+                                + " OngoingProcessRequiresVisible=" + msg.getBool3()
+        );
         if (state.mForceStatusBarVisible
                 || state.mIsLaunchAnimationRunning
-                // Don't force-show the status bar if the user has already dismissed it.
                 || state.mOngoingProcessRequiresStatusBarVisible) {
             mLpChanged.forciblyShownTypes |= WindowInsets.Type.statusBars();
         } else {
@@ -407,7 +476,8 @@ public class StatusBarWindowControllerImpl implements StatusBarWindowController 
                 @NonNull Context context,
                 @NonNull WindowManager windowManager,
                 @NonNull StatusBarConfigurationController statusBarConfigurationController,
-                @NonNull StatusBarContentInsetsProvider contentInsetsProvider);
+                @NonNull StatusBarContentInsetsProvider contentInsetsProvider,
+                int displayId);
     }
 
 }

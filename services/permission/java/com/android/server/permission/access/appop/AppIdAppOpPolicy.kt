@@ -17,6 +17,7 @@
 package com.android.server.permission.access.appop
 
 import android.app.AppOpsManager
+import android.os.UserHandle
 import android.util.Slog
 import com.android.server.permission.access.GetStateScope
 import com.android.server.permission.access.MutableAccessState
@@ -59,6 +60,17 @@ class AppIdAppOpPolicy : BaseAppOpPolicy(AppIdAppOpPersistence()) {
     fun GetStateScope.getAppOpModes(appId: Int, userId: Int): IndexedMap<String, Int>? =
         state.userStates[userId]?.appIdAppOpModes?.get(appId)
 
+    fun GetStateScope.getUidsWithOpMode(op: String, mode: Int, userId: Int): List<Int> {
+        val userState = state.userStates[userId] ?: return emptyList()
+        val uids = mutableListOf<Int>()
+        userState.appIdAppOpModes.forEachIndexed { _, appId, modes ->
+            if (modes[op] == mode) {
+                uids.add(UserHandle.getUid(userId, appId))
+            }
+        }
+        return uids
+    }
+
     fun MutateStateScope.removeAppOpModes(appId: Int, userId: Int): Boolean {
         val userStateIndex = newState.userStates.indexOfKey(userId)
         if (userStateIndex < 0) {
@@ -83,7 +95,7 @@ class AppIdAppOpPolicy : BaseAppOpPolicy(AppIdAppOpPersistence()) {
         appId: Int,
         userId: Int,
         appOpName: String,
-        mode: Int
+        mode: Int,
     ): Boolean {
         if (userId !in newState.userStates) {
             Slog.e(LOG_TAG, "Unable to set app op mode for missing user $userId")
@@ -147,7 +159,7 @@ class AppIdAppOpPolicy : BaseAppOpPolicy(AppIdAppOpPersistence()) {
             userId: Int,
             appOpName: String,
             oldMode: Int,
-            newMode: Int
+            newMode: Int,
         )
 
         /**

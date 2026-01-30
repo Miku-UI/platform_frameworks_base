@@ -37,27 +37,28 @@ import android.view.WindowInsets.Type.statusBars
 import android.view.WindowManager
 import android.widget.TextView
 import com.android.internal.annotations.VisibleForTesting
-import com.android.systemui.res.R
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
 import javax.inject.Inject
 
 private const val TAG = "ChannelDialogController"
 
 /**
- * ChannelEditorDialogController is the controller for the dialog half-shelf
- * that allows users to quickly turn off channels. It is launched from the NotificationInfo
- * guts view and displays controls for toggling app notifications as well as up to 4 channels
- * from that app like so:
+ * ChannelEditorDialogController is the controller for the dialog half-shelf that allows users to
+ * quickly turn off channels. It is launched from the NotificationInfo guts view and displays
+ * controls for toggling app notifications as well as up to 4 channels from that app like so:
  *
- *   APP TOGGLE                                                 <on/off>
- *   - Channel from which we launched                           <on/off>
- *   -                                                          <on/off>
- *   - the next 3 channels sorted alphabetically for that app   <on/off>
- *   -                                                          <on/off>
+ * APP TOGGLE <on/off>
+ * - Channel from which we launched <on/off>
+ * - <on/off>
+ * - the next 3 channels sorted alphabetically for that app <on/off>
+ * - <on/off>
  */
 @SysUISingleton
-class ChannelEditorDialogController @Inject constructor(
+class ChannelEditorDialogController
+@Inject
+constructor(
     private val shadeDialogContextInteractor: ShadeDialogContextInteractor,
     private val noMan: INotificationManager,
     private val dialogBuilder: ChannelEditorDialog.Builder,
@@ -77,8 +78,7 @@ class ChannelEditorDialogController @Inject constructor(
     var onFinishListener: OnChannelEditorDialogFinishedListener? = null
 
     // Channels handed to us from NotificationInfo
-    @VisibleForTesting
-    internal val channelList = mutableListOf<NotificationChannel>()
+    @VisibleForTesting internal val channelList = mutableListOf<NotificationChannel>()
 
     // Map from NotificationChannel to importance
     private val edits = mutableMapOf<NotificationChannel, Int>()
@@ -87,21 +87,20 @@ class ChannelEditorDialogController @Inject constructor(
     private var appNotificationsCurrentlyEnabled: Boolean? = null
 
     // Keep a mapping of NotificationChannel.getGroup() to the actual group name for display
-    @VisibleForTesting
-    internal val groupNameLookup = hashMapOf<String, CharSequence>()
+    @VisibleForTesting internal val groupNameLookup = hashMapOf<String, CharSequence>()
     private val channelGroupList = mutableListOf<NotificationChannelGroup>()
 
     /**
-     * Give the controller all the information it needs to present the dialog
-     * for a given app. Does a bunch of querying of NoMan, but won't present anything yet
+     * Give the controller all the information it needs to present the dialog for a given app. Does
+     * a bunch of querying of NoMan, but won't present anything yet
      */
     fun prepareDialogForApp(
         appName: String,
         packageName: String,
         uid: Int,
         channel: NotificationChannel,
-        appIcon: Drawable,
-        onSettingsClickListener: NotificationInfo.OnSettingsClickListener?
+        appIcon: Drawable?,
+        onSettingsClickListener: NotificationInfo.OnSettingsClickListener?,
     ) {
         this.appName = appName
         this.packageName = packageName
@@ -135,23 +134,24 @@ class ChannelEditorDialogController @Inject constructor(
         channelList.clear()
         if (DEFAULT_CHANNEL_ID != channel!!.id) {
             channelList.add(0, channel!!)
-            channelList.addAll(getDisplayableChannels(channelGroupList.asSequence())
+            channelList.addAll(
+                getDisplayableChannels(channelGroupList.asSequence())
                     .filterNot { it.id == channel!!.id }
-                    .distinct())
+                    .distinct()
+            )
         }
     }
 
     private fun getDisplayableChannels(
         groupList: Sequence<NotificationChannelGroup>
     ): Sequence<NotificationChannel> {
-        val channels = groupList
-                .flatMap { group ->
-                    group.channels.asSequence()
-                            .sortedWith(compareBy {group.name?.toString() ?: group.id})
-                            .filterNot { channel ->
-                                channel.isImportanceLockedByCriticalDeviceFunction
-                            }
-                }
+        val channels =
+            groupList.flatMap { group ->
+                group.channels
+                    .asSequence()
+                    .sortedWith(compareBy { group.name?.toString() ?: group.id })
+                    .filterNot { channel -> channel.isImportanceLockedByCriticalDeviceFunction }
+            }
 
         // TODO: sort these by avgSentWeekly, but for now let's just do alphabetical (why not)
         return channels.sortedWith(compareBy { it.name?.toString() ?: it.id })
@@ -164,9 +164,7 @@ class ChannelEditorDialogController @Inject constructor(
         dialog.show()
     }
 
-    /**
-     * Close the dialog without saving. For external callers
-     */
+    /** Close the dialog without saving. For external callers */
     fun close() {
         done()
     }
@@ -218,8 +216,8 @@ class ChannelEditorDialogController @Inject constructor(
     @Suppress("unchecked_cast")
     private fun fetchNotificationChannelGroups(): List<NotificationChannelGroup> {
         return try {
-            noMan.getRecentBlockedNotificationChannelGroupsForPackage(packageName!!, appUid!!)
-                    .list as? List<NotificationChannelGroup> ?: listOf()
+            noMan.getRecentBlockedNotificationChannelGroupsForPackage(packageName!!, appUid!!).list
+                as? List<NotificationChannelGroup> ?: listOf()
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching channel groups", e)
             listOf()
@@ -311,34 +309,34 @@ class ChannelEditorDialogController @Inject constructor(
                 setType(WindowManager.LayoutParams.TYPE_STATUS_BAR_SUB_PANEL)
                 setWindowAnimations(com.android.internal.R.style.Animation_InputMethod)
 
-                attributes = attributes.apply {
-                    format = PixelFormat.TRANSLUCENT
-                    title = ChannelEditorDialogController::class.java.simpleName
-                    gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                    fitInsetsTypes = attributes.fitInsetsTypes and statusBars().inv()
-                    width = MATCH_PARENT
-                    height = WRAP_CONTENT
-                }
+                attributes =
+                    attributes.apply {
+                        format = PixelFormat.TRANSLUCENT
+                        title = ChannelEditorDialogController::class.java.simpleName
+                        gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                        fitInsetsTypes = attributes.fitInsetsTypes and statusBars().inv()
+                        width = MATCH_PARENT
+                        height = WRAP_CONTENT
+                    }
             }
         }
     }
 
-    private val wmFlags = (WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
-            or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
-            or WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED)
+    private val wmFlags =
+        (WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS or
+            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
+            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED)
 }
 
 class ChannelEditorDialog(context: Context, theme: Int) : Dialog(context, theme) {
     fun updateDoneButtonText(hasChanges: Boolean) {
-        findViewById<TextView>(R.id.done_button)?.setText(
-                if (hasChanges)
-                    R.string.inline_ok_button
-                else
-                    R.string.inline_done_button)
+        findViewById<TextView>(R.id.done_button)
+            ?.setText(if (hasChanges) R.string.inline_ok_button else R.string.inline_done_button)
     }
 
     class Builder @Inject constructor() {
         private lateinit var context: Context
+
         fun setContext(context: Context): Builder {
             this.context = context
             return this

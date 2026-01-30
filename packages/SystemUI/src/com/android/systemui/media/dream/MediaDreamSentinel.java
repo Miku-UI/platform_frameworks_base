@@ -29,7 +29,6 @@ import com.android.systemui.dreams.DreamOverlayStateController;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.media.controls.domain.pipeline.MediaDataManager;
 import com.android.systemui.media.controls.shared.model.MediaData;
-import com.android.systemui.media.controls.shared.model.SmartspaceMediaData;
 
 import javax.inject.Inject;
 
@@ -43,9 +42,6 @@ public class MediaDreamSentinel implements CoreStartable {
 
     private final MediaDataManager.Listener mListener = new MediaDataManager.Listener() {
         private boolean mAdded;
-        @Override
-        public void onSmartspaceMediaDataRemoved(@NonNull String key, boolean immediately) {
-        }
 
         @Override
         public void onMediaDataRemoved(@NonNull String key, boolean userInitiated) {
@@ -68,14 +64,8 @@ public class MediaDreamSentinel implements CoreStartable {
         }
 
         @Override
-        public void onSmartspaceMediaDataLoaded(@NonNull String key,
-                @NonNull SmartspaceMediaData data, boolean shouldPrioritize) {
-        }
-
-        @Override
         public void onMediaDataLoaded(@NonNull String key, @Nullable String oldKey,
-                @NonNull MediaData data, boolean immediately, int receivedSmartspaceCardLatency,
-                boolean isSsReactivated) {
+                @NonNull MediaData data, boolean immediately) {
             if (!mFeatureFlags.isEnabled(DREAM_MEDIA_COMPLICATION)) {
                 return;
             }

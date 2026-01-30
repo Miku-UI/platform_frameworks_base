@@ -122,7 +122,8 @@ public final class SoundProfile implements Parcelable {
         mInputId = in.readString();
         mPackageName = in.readString();
         mParams = in.readPersistableBundle();
-        mHandle = in.readParcelable(SoundProfileHandle.class.getClassLoader());
+        mHandle = in.readParcelable(SoundProfileHandle.class.getClassLoader(),
+                SoundProfileHandle.class);
     }
 
     @Override

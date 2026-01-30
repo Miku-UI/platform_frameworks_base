@@ -122,4 +122,8 @@ class VolumePanelLogger @Inject constructor(@VolumeLog private val logBuffer: Lo
             { "Volume update received: audio-sharing volume=$int1" },
         )
     }
+
+    fun receivedUnsupportedDeviceSetting(name: String?) {
+        logBuffer.log(TAG, LogLevel.DEBUG, { str1 = name }, { "Unsupported device setting: $str1" })
+    }
 }

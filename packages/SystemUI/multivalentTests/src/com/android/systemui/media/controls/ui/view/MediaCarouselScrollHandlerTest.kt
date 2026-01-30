@@ -17,13 +17,16 @@
 package com.android.systemui.media.controls.ui.view
 
 import android.content.res.Resources
+import android.platform.test.annotations.DisableFlags
 import android.testing.TestableLooper
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.media.controls.util.MediaUiEventLogger
 import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.qs.PageIndicator
@@ -34,6 +37,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.anyFloat
 import org.mockito.Mock
 import org.mockito.Mockito.anyInt
@@ -47,6 +51,8 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
+@DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
 class MediaCarouselScrollHandlerTest : SysuiTestCase() {
 
     private val carouselWidth = 1038
@@ -61,6 +67,7 @@ class MediaCarouselScrollHandlerTest : SysuiTestCase() {
     @Mock lateinit var seekBarUpdateListener: (visibleToUser: Boolean) -> Unit
     @Mock lateinit var closeGuts: (immediate: Boolean) -> Unit
     @Mock lateinit var falsingManager: FalsingManager
+    @Mock lateinit var onVisibleCardChanged: () -> Unit
     @Mock lateinit var logger: MediaUiEventLogger
     @Mock lateinit var contentContainer: ViewGroup
     @Mock lateinit var settingsButton: View
@@ -90,6 +97,7 @@ class MediaCarouselScrollHandlerTest : SysuiTestCase() {
                 seekBarUpdateListener,
                 closeGuts,
                 falsingManager,
+                onVisibleCardChanged,
                 logger,
             )
         mediaCarouselScrollHandler.playerWidthPlusPadding = carouselWidth
@@ -246,6 +254,32 @@ class MediaCarouselScrollHandlerTest : SysuiTestCase() {
 
         verify(mediaCarousel, never()).smoothScrollTo(anyInt(), anyInt())
         verify(mediaCarousel, never()).animationTargetX = anyFloat()
+    }
+
+    @Test
+    fun testCarouselScrollToNewIndex_exactScroll_onVisibleCardChanged() {
+        setupMediaContainer(visibleIndex = 0)
+        whenever(mediaCarousel.relativeScrollX).thenReturn(carouselWidth)
+        mediaCarouselScrollHandler.visibleToUser = true
+        val captor = ArgumentCaptor.forClass(View.OnScrollChangeListener::class.java)
+        verify(mediaCarousel).setOnScrollChangeListener(captor.capture())
+
+        captor.value.onScrollChange(null, 0, 0, 0, 0)
+
+        verify(onVisibleCardChanged).invoke()
+    }
+
+    @Test
+    fun testCarouselScrollToNewIndex_partialScroll_noCallbackInvoked() {
+        setupMediaContainer(visibleIndex = 0)
+        whenever(mediaCarousel.relativeScrollX).thenReturn(carouselWidth + 15)
+        mediaCarouselScrollHandler.visibleToUser = true
+        val captor = ArgumentCaptor.forClass(View.OnScrollChangeListener::class.java)
+        verify(mediaCarousel).setOnScrollChangeListener(captor.capture())
+
+        captor.value.onScrollChange(null, 0, 0, 0, 0)
+
+        verify(onVisibleCardChanged, never()).invoke()
     }
 
     private fun setupMediaContainer(visibleIndex: Int, showsSettingsButton: Boolean = true) {

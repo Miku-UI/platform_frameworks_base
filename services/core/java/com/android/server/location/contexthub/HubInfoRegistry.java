@@ -144,23 +144,22 @@ class HubInfoRegistry implements ContextHubHalEndpointCallback.IEndpointLifecycl
     /** Wakelock held while endpoint callbacks are being invoked */
     private final WakeLock mWakeLock;
 
+    /**
+     * Constructs and initializes this class.
+     *
+     * @throws InstantiationException on unexpected failure
+     */
     HubInfoRegistry(Context context, IContextHubWrapper contextHubWrapper)
             throws InstantiationException {
         mContextHubWrapper = contextHubWrapper;
-        try {
-            refreshCachedHubs();
-            refreshCachedEndpoints();
-        } catch (UnsupportedOperationException e) {
-            String error = "Failed to update hub and endpoint cache";
-            Log.e(TAG, error, e);
-            throw new InstantiationException(error);
-        }
+        refreshCachedHubs();
+        refreshCachedEndpoints();
 
         PowerManager powerManager = context.getSystemService(PowerManager.class);
         if (powerManager == null) {
             String error = "PowerManager was null";
             Log.e(TAG, error);
-            throw new InstantiationError(error);
+            throw new InstantiationException(error);
         }
         mWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
         mWakeLock.setWorkSource(new WorkSource(Process.myUid(), context.getPackageName()));
@@ -169,6 +168,7 @@ class HubInfoRegistry implements ContextHubHalEndpointCallback.IEndpointLifecycl
 
     /** Retrieve the list of hubs available. */
     List<HubInfo> getHubs() {
+        refreshCachedHubs();
         synchronized (mLock) {
             return mHubsInfo;
         }
@@ -179,7 +179,7 @@ class HubInfoRegistry implements ContextHubHalEndpointCallback.IEndpointLifecycl
         try {
             hubInfos = mContextHubWrapper.getHubs();
         } catch (RemoteException e) {
-            Log.e(TAG, "RemoteException while getting Hub info", e);
+            Log.e(TAG, "RemoteException while getting Hub info: " + e.getMessage());
             hubInfos = Collections.emptyList();
         }
 
@@ -193,7 +193,7 @@ class HubInfoRegistry implements ContextHubHalEndpointCallback.IEndpointLifecycl
         try {
             endpointInfos = mContextHubWrapper.getEndpoints();
         } catch (RemoteException e) {
-            Log.e(TAG, "RemoteException while getting Hub info", e);
+            Log.e(TAG, "RemoteException while getting Hub info:" + e.getMessage());
             endpointInfos = Collections.emptyList();
         }
 
@@ -266,6 +266,7 @@ class HubInfoRegistry implements ContextHubHalEndpointCallback.IEndpointLifecycl
 
     /** Return a list of {@link HubEndpointInfo} that represents endpoints with the matching id. */
     public List<HubEndpointInfo> findEndpoints(long endpointIdQuery) {
+        refreshCachedEndpoints();
         List<HubEndpointInfo> searchResult = new ArrayList<>();
         synchronized (mLock) {
             for (HubEndpointInfo.HubEndpointIdentifier endpointId : mHubEndpointInfos.keySet()) {
@@ -281,6 +282,7 @@ class HubInfoRegistry implements ContextHubHalEndpointCallback.IEndpointLifecycl
      * Return a list of {@link HubEndpointInfo} that represents endpoints with the matching service.
      */
     public List<HubEndpointInfo> findEndpointsWithService(String serviceDescriptor) {
+        refreshCachedEndpoints();
         List<HubEndpointInfo> searchResult = new ArrayList<>();
         synchronized (mLock) {
             for (HubEndpointInfo endpointInfo : mHubEndpointInfos.values()) {

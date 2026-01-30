@@ -31,7 +31,7 @@ import java.lang.annotation.RetentionPolicy;
  * Supported values for each element are defined in TIA-1149-0-1 (CMAS over CDMA) and
  * 3GPP TS 23.041 (for GSM/UMTS).
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class SmsCbCmasInfo implements Parcelable {

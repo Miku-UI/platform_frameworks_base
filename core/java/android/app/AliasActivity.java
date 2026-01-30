@@ -48,7 +48,7 @@ public class AliasActivity extends Activity {
      * This is the name under which you should store in your component the
      * meta-data information about the alias.  It is a reference to an XML
      * resource describing an intent that launches the real application.
-     * {@hide}
+     * @hide
      */
     public final String ALIAS_META_DATA = "android.app.alias";
 

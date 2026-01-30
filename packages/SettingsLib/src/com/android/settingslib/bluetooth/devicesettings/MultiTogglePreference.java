@@ -191,9 +191,9 @@ public class MultiTogglePreference extends DeviceSettingPreference implements Pa
         }
 
         /**
-         * Builds the {@link ToggleInfo} object.
+         * Builds the {@link MultiTogglePreference} object.
          *
-         * @return Returns the built {@link ToggleInfo} object.
+         * @return Returns the built {@link MultiTogglePreference} object.
          */
         @NonNull
         public MultiTogglePreference build() {

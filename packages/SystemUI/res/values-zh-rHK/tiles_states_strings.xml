@@ -39,7 +39,7 @@
   <string-array name="tile_states_wifi">
     <item msgid="8054147400538405410">"無法使用"</item>
     <item msgid="4293012229142257455">"已關閉"</item>
-    <item msgid="6221288736127914861">"已開啟"</item>
+    <item msgid="6221288736127914861">"開啟"</item>
   </string-array>
   <string-array name="tile_states_cell">
     <item msgid="1235899788959500719">"無法使用"</item>

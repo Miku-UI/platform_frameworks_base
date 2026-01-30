@@ -17,14 +17,22 @@
 
 package com.android.systemui.user.domain.model
 
+import android.content.Context
 import android.os.UserHandle
 import com.android.systemui.animation.Expandable
 import com.android.systemui.qs.user.UserSwitchDialogController
 
-/** Encapsulates a request to show a dialog. */
+/**
+ * Encapsulates a request to show a dialog.
+ *
+ * Requests might have a custom context as they need to be shown in a specific display (e.g. the
+ * display of the status bar chip that was touched). If no custom context is provided, the dialog
+ * will be shown as child of the shade window (and be visible only when the shade is visible)
+ */
 sealed class ShowDialogRequestModel(
     open val dialogShower: UserSwitchDialogController.DialogShower? = null,
     open val expandable: Expandable? = null,
+    open val context: Context? = null,
 ) {
     data class ShowAddUserDialog(
         val userHandle: UserHandle,
@@ -33,9 +41,7 @@ sealed class ShowDialogRequestModel(
         override val dialogShower: UserSwitchDialogController.DialogShower?,
     ) : ShowDialogRequestModel(dialogShower)
 
-    data class ShowUserCreationDialog(
-        val isGuest: Boolean,
-    ) : ShowDialogRequestModel()
+    data class ShowUserCreationDialog(val isGuest: Boolean) : ShowDialogRequestModel()
 
     data class ShowExitGuestDialog(
         val guestUserId: Int,
@@ -49,9 +55,11 @@ sealed class ShowDialogRequestModel(
     /** Show the user switcher dialog */
     data class ShowUserSwitcherDialog(
         override val expandable: Expandable?,
+        override val context: Context? = null,
     ) : ShowDialogRequestModel()
 
     data class ShowUserSwitcherFullscreenDialog(
         override val expandable: Expandable?,
+        override val context: Context? = null,
     ) : ShowDialogRequestModel()
 }

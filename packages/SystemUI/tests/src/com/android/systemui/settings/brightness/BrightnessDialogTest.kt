@@ -180,7 +180,7 @@ class BrightnessDialogTest(val flags: FlagsParameterization) : SysuiTestCase() {
 
         clock.advanceTime(BrightnessDialog.DIALOG_TIMEOUT_MILLIS.toLong() / 2)
         // Restart the timeout
-        activityRule.activity.onResume()
+        activityRule.runOnUiThread { activityRule.activity.onResume() }
 
         clock.advanceTime(BrightnessDialog.DIALOG_TIMEOUT_MILLIS.toLong() / 2)
         // The dialog should not have disappeared yet

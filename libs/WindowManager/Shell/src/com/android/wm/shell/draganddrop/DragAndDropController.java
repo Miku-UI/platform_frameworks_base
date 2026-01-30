@@ -62,26 +62,26 @@ import com.android.internal.protolog.ProtoLog;
 import com.android.launcher3.icons.IconProvider;
 import com.android.wm.shell.R;
 import com.android.wm.shell.ShellTaskOrganizer;
-import com.android.wm.shell.bubbles.bar.BubbleBarDragListener;
+import com.android.wm.shell.bubbles.bar.DragToBubbleController;
 import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.ExternalInterfaceBinder;
 import com.android.wm.shell.common.RemoteCallable;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.annotations.ExternalMainThread;
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
+import com.android.wm.shell.shared.desktopmode.DesktopState;
 import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.sysui.ShellCommandHandler;
 import com.android.wm.shell.sysui.ShellController;
 import com.android.wm.shell.sysui.ShellInit;
 import com.android.wm.shell.transition.Transitions;
 
+import dagger.Lazy;
+
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.function.Consumer;
 import java.util.function.Function;
-
-import dagger.Lazy;
 
 /**
  * Handles the global drag and drop handling for the Shell.
@@ -103,8 +103,9 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
     private final IconProvider mIconProvider;
     private final GlobalDragListener mGlobalDragListener;
     private final Transitions mTransitions;
+    private final DesktopState mDesktopState;
     private SplitScreenController mSplitScreen;
-    private Lazy<BubbleBarDragListener> mBubbleBarDragController;
+    private Lazy<DragToBubbleController> mDragToBubbleController;
     private ShellExecutor mMainExecutor;
     private ArrayList<DragAndDropListener> mListeners = new ArrayList<>();
 
@@ -135,6 +136,9 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
                 @NonNull Consumer<Boolean> onFinishCallback) {
             return false;
         }
+
+        /** Called when the configuration changed. */
+        default void onConfigurationChanged() {}
     }
 
     public DragAndDropController(Context context,
@@ -147,8 +151,9 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
             IconProvider iconProvider,
             GlobalDragListener globalDragListener,
             Transitions transitions,
-            Lazy<BubbleBarDragListener> bubbleBarDragController,
-            ShellExecutor mainExecutor) {
+            Lazy<DragToBubbleController> dragToBubbleControllerLazy,
+            ShellExecutor mainExecutor,
+            DesktopState desktopState) {
         mContext = context;
         mShellController = shellController;
         mShellCommandHandler = shellCommandHandler;
@@ -158,8 +163,9 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
         mIconProvider = iconProvider;
         mGlobalDragListener = globalDragListener;
         mTransitions = transitions;
-        mBubbleBarDragController = bubbleBarDragController;
+        mDragToBubbleController = dragToBubbleControllerLazy;
         mMainExecutor = mainExecutor;
+        mDesktopState = desktopState;
         shellInit.addInitCallback(this::onInit, this);
     }
 
@@ -178,6 +184,7 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
         mShellTaskOrganizer.addTaskVanishedListener(this);
         mShellCommandHandler.addDumpCallback(this::dump, this);
         mGlobalDragListener.setListener(this);
+        addListener(mDragToBubbleController.get());
     }
 
     private ExternalInterfaceBinder createExternalInterface() {
@@ -247,13 +254,19 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
         layoutParams.layoutInDisplayCutoutMode = LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
         layoutParams.setFitInsetsTypes(0);
         layoutParams.setTitle("ShellDropTarget");
-
         FrameLayout rootView = (FrameLayout) LayoutInflater.from(context).inflate(
                 R.layout.global_drop_target, null);
         rootView.setOnDragListener(this);
         rootView.setVisibility(View.INVISIBLE);
+        DragToBubbleController dragToBubbleController = null;
+        boolean isPrimaryDisplay = context.getDisplayId() == displayId;
+        // only add bubble bar drop targets on primary display
+        if (isPrimaryDisplay) {
+            dragToBubbleController = mDragToBubbleController.get();
+            rootView.addView(dragToBubbleController.getDropTargetContainer());
+        }
         DragLayoutProvider dragLayout = new DragLayout(context, mSplitScreen,
-                mBubbleBarDragController.get(), mIconProvider);
+                dragToBubbleController, mIconProvider);
         dragLayout.addDraggingView(rootView);
         try {
             wm.addView(rootView, layoutParams);
@@ -347,7 +360,7 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
             final ActivityManager.RunningTaskInfo taskInfo = dragSession.runningTaskInfo;
             // Desktop tasks will have their own drag handling.
             final boolean isDesktopDrag = taskInfo != null && taskInfo.isFreeform()
-                    && DesktopModeStatus.canEnterDesktopMode(mContext);
+                    && mDesktopState.canEnterDesktopMode();
             pd.isHandlingDrag = DragUtils.canHandleDrag(event) && !isDesktopDrag;
             ProtoLog.v(ShellProtoLogGroup.WM_SHELL_DRAG_AND_DROP,
                     "Clip description: handlingDrag=%b itemCount=%d mimeTypes=%s flags=%s",
@@ -509,6 +522,9 @@ public class DragAndDropController implements RemoteCallable<DragAndDropControll
         mMainExecutor.execute(() -> {
             for (int i = 0; i < mDisplayDropTargets.size(); i++) {
                 mDisplayDropTargets.get(i).dragLayout.onConfigChanged(newConfig);
+            }
+            for (DragAndDropListener listener : mListeners) {
+                listener.onConfigurationChanged();
             }
         });
     }

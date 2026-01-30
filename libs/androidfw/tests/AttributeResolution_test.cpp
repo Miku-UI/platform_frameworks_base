@@ -67,7 +67,8 @@ class AttributeResolutionXmlTest : public AttributeResolutionTest {
 
 TEST(AttributeResolutionLibraryTest, ApplyStyleWithDefaultStyleResId) {
   AssetManager2 assetmanager;
-  auto apk_assets = ApkAssets::Load(GetTestDataPath() + "/styles/styles.apk", PROPERTY_DYNAMIC);
+  auto apk_assets = ApkAssets::Load(GetTestDataPath() + "/styles/styles.apk",
+                                    nullptr, PROPERTY_DYNAMIC);
   ASSERT_NE(nullptr, apk_assets);
   assetmanager.SetApkAssets({apk_assets});
 

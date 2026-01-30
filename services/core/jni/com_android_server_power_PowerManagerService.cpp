@@ -31,7 +31,6 @@
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/Log.h>
 #include <binder/IServiceManager.h>
-#include <com_android_input_flags.h>
 #include <gui/SurfaceComposerClient.h>
 #include <hardware_legacy/power.h>
 #include <hidl/ServiceManagement.h>
@@ -66,10 +65,6 @@ static struct {
 
 static jobject gPowerManagerServiceObj;
 static power::PowerHalController gPowerHalController;
-static nsecs_t gLastEventTime[USER_ACTIVITY_EVENT_LAST + 1];
-
-// Throttling interval for user activity calls.
-static const nsecs_t MIN_TIME_BETWEEN_USERACTIVITIES = 100 * 1000000L; // 100ms
 
 // ----------------------------------------------------------------------------
 
@@ -108,13 +103,6 @@ void android_server_PowerManagerService_userActivity(nsecs_t eventTime, int32_t 
             nsecs_t now = systemTime(SYSTEM_TIME_MONOTONIC);
             if (eventTime > now) {
                 eventTime = now;
-            }
-
-            if (!com::android::input::flags::rate_limit_user_activity_poke_in_dispatcher()) {
-                if (gLastEventTime[eventType] + MIN_TIME_BETWEEN_USERACTIVITIES > eventTime) {
-                    return;
-                }
-                gLastEventTime[eventType] = eventTime;
             }
         }
         // Note that the below PowerManagerService method may call setPowerBoost.
@@ -286,12 +274,6 @@ int register_android_server_PowerManagerService(JNIEnv* env) {
     GET_METHOD_ID(gPowerManagerServiceClassInfo.userActivityFromNative, clazz,
             "userActivityFromNative", "(JIII)V");
 
-    if (!com::android::input::flags::rate_limit_user_activity_poke_in_dispatcher()) {
-        // Initialize
-        for (int i = 0; i <= USER_ACTIVITY_EVENT_LAST; i++) {
-            gLastEventTime[i] = LLONG_MIN;
-        }
-    }
     gPowerManagerServiceObj = NULL;
     return 0;
 }

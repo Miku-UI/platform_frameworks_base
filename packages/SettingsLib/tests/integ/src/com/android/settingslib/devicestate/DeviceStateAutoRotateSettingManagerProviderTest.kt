@@ -58,7 +58,7 @@ class DeviceStateAutoRotateSettingManagerProviderTest {
     private lateinit var mockMainHandler: Handler
 
     @Mock
-    private lateinit var mockPosturesHelper: PosturesHelper
+    private lateinit var mMockPostureDeviceStateConverter: PostureDeviceStateConverter
 
     @Before
     fun setup() {
@@ -70,7 +70,7 @@ class DeviceStateAutoRotateSettingManagerProviderTest {
     fun createInstance_refactorFlagEnabled_returnsRefactoredManager() {
         val manager =
             DeviceStateAutoRotateSettingManagerProvider.createInstance(
-                context, mockExecutor, mockSecureSettings, mockMainHandler, mockPosturesHelper
+                context, mockExecutor, mockSecureSettings, mockMainHandler, mMockPostureDeviceStateConverter
             )
 
         assertThat(manager).isInstanceOf(DeviceStateAutoRotateSettingManagerImpl::class.java)
@@ -81,7 +81,7 @@ class DeviceStateAutoRotateSettingManagerProviderTest {
     fun createInstance_refactorFlagDisabled_returnsLegacyManager() {
         val manager =
             DeviceStateAutoRotateSettingManagerProvider.createInstance(
-                context, mockExecutor, mockSecureSettings, mockMainHandler, mockPosturesHelper
+                context, mockExecutor, mockSecureSettings, mockMainHandler, mMockPostureDeviceStateConverter
             )
 
         assertThat(manager).isInstanceOf(DeviceStateRotationLockSettingsManager::class.java)

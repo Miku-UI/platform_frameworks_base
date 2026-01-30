@@ -136,7 +136,7 @@ public class ValueStringChangeActionOperation extends Operation implements Actio
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER, SerializeTags.ACTION)
                 .addType("ValueIntegerExpressionChangeActionOperation")

@@ -43,7 +43,7 @@ import com.github.javaparser.ast.type.ClassOrInterfaceType
 import com.github.javaparser.ast.type.PrimitiveType
 import com.github.javaparser.ast.type.Type
 import com.github.javaparser.printer.PrettyPrinter
-import com.github.javaparser.printer.PrettyPrinterConfiguration
+import com.github.javaparser.printer.configuration.PrettyPrinterConfiguration
 
 class SourceTransformer(
     protoLogImplClassName: String,

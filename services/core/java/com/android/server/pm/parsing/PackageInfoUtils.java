@@ -43,6 +43,7 @@ import android.content.pm.SharedLibraryInfo;
 import android.content.pm.Signature;
 import android.content.pm.SigningDetails;
 import android.content.pm.SigningInfo;
+import android.content.pm.ValidPurposeInfo;
 import android.content.pm.overlay.OverlayPaths;
 import android.os.Environment;
 import android.os.PatternMatcher;
@@ -67,9 +68,11 @@ import com.android.internal.pm.pkg.component.ParsedProcess;
 import com.android.internal.pm.pkg.component.ParsedProvider;
 import com.android.internal.pm.pkg.component.ParsedService;
 import com.android.internal.pm.pkg.component.ParsedUsesPermission;
+import com.android.internal.pm.pkg.component.ParsedValidPurpose;
 import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.pm.pkg.parsing.ParsingUtils;
 import com.android.internal.util.ArrayUtils;
+import com.android.internal.util.CollectionUtils;
 import com.android.server.SystemConfig;
 import com.android.server.pm.PackageArchiver;
 import com.android.server.pm.parsing.pkg.AndroidPackageUtils;
@@ -83,10 +86,10 @@ import com.android.server.pm.pkg.SELinuxUtil;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-
 
 /**
  * Methods that use a {@link PackageStateInternal} use it to override information provided from the
@@ -190,31 +193,33 @@ public class PackageInfoUtils {
                     info.permissions[i] = permissionInfo;
                 }
             }
-            final List<ParsedUsesPermission> usesPermissions = pkg.getUsesPermissions();
+            final Collection<ParsedUsesPermission> usesPermissions =
+                    pkg.getUsesPermissionMapping().values();
             size = usesPermissions.size();
             if (size > 0) {
                 info.requestedPermissions = new String[size];
                 info.requestedPermissionsFlags = new int[size];
-                for (int i = 0; i < size; i++) {
-                    final ParsedUsesPermission usesPermission = usesPermissions.get(i);
-                    info.requestedPermissions[i] = usesPermission.getName();
+                int index = 0;
+                for (ParsedUsesPermission usesPermission : usesPermissions) {
+                    info.requestedPermissions[index] = usesPermission.getName();
                     // The notion of required permissions is deprecated but for compatibility.
-                    info.requestedPermissionsFlags[i] |=
+                    info.requestedPermissionsFlags[index] |=
                             PackageInfo.REQUESTED_PERMISSION_REQUIRED;
                     if (grantedPermissions != null
                             && grantedPermissions.contains(usesPermission.getName())) {
-                        info.requestedPermissionsFlags[i] |=
+                        info.requestedPermissionsFlags[index] |=
                                 PackageInfo.REQUESTED_PERMISSION_GRANTED;
                     }
                     if ((usesPermission.getUsesPermissionFlags()
                             & ParsedUsesPermission.FLAG_NEVER_FOR_LOCATION) != 0) {
-                        info.requestedPermissionsFlags[i] |=
+                        info.requestedPermissionsFlags[index] |=
                                 PackageInfo.REQUESTED_PERMISSION_NEVER_FOR_LOCATION;
                     }
-                    if (pkg.getImplicitPermissions().contains(info.requestedPermissions[i])) {
-                        info.requestedPermissionsFlags[i] |=
+                    if (pkg.getImplicitPermissions().contains(info.requestedPermissions[index])) {
+                        info.requestedPermissionsFlags[index] |=
                                 PackageInfo.REQUESTED_PERMISSION_IMPLICIT;
                     }
+                    index++;
                 }
             }
         }
@@ -423,8 +428,7 @@ public class PackageInfoUtils {
         if (ai.isArchived) {
             ai.nonLocalizedLabel = state.getArchiveState().getActivityInfos().get(0).getTitle();
         }
-        if (!state.isInstalled() && !state.dataExists()
-                && android.content.pm.Flags.nullableDataDir()) {
+        if (!state.isInstalled() && !state.dataExists()) {
             // The data dir has been deleted
             ai.dataDir = null;
         }
@@ -781,6 +785,17 @@ public class PackageInfoUtils {
         pi.descriptionRes = p.getDescriptionRes();
         pi.flags = p.getFlags();
         pi.knownCerts = p.getKnownCerts();
+        pi.requiresPurpose = p.isPurposeRequired();
+        pi.requiresPurposeTargetSdkVersion = p.getRequiresPurposeTargetSdkVersion();
+        for (ParsedValidPurpose validPurpose : p.getValidPurposes()) {
+            if (validPurpose != null) {
+                pi.validPurposes =
+                        CollectionUtils.add(pi.validPurposes, validPurpose.getName(),
+                                new ValidPurposeInfo(
+                                        validPurpose.getName(),
+                                        validPurpose.getMaxTargetSdkVersion()));
+            }
+        }
 
         if ((flags & PackageManager.GET_META_DATA) == 0) {
             pi.metaData = null;
@@ -1041,6 +1056,7 @@ public class PackageInfoUtils {
                 | flag(pkg.hasRequestForegroundServiceExemption(), ApplicationInfo.PRIVATE_FLAG_EXT_REQUEST_FOREGROUND_SERVICE_EXEMPTION)
                 | flag(pkg.isAttributionsUserVisible(), ApplicationInfo.PRIVATE_FLAG_EXT_ATTRIBUTIONS_ARE_USER_VISIBLE)
                 | flag(pkg.isOnBackInvokedCallbackEnabled(), ApplicationInfo.PRIVATE_FLAG_EXT_ENABLE_ON_BACK_INVOKED_CALLBACK)
+                | flag(pkg.shouldRunInPccSandbox(), ApplicationInfo.PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX)
                 | flag(isAllowlistedForHiddenApis, ApplicationInfo.PRIVATE_FLAG_EXT_ALLOWLISTED_FOR_HIDDEN_APIS);
         return appInfoPrivateFlagsExt(pkgWithoutStateFlags, pkgSetting);
         // @formatter:on
@@ -1069,8 +1085,7 @@ public class PackageInfoUtils {
             return;
         }
 
-        if (!state.isInstalled() && !state.dataExists()
-                && android.content.pm.Flags.nullableDataDir()) {
+        if (!state.isInstalled() && !state.dataExists()) {
             // The data dir has been deleted
             output.dataDir = null;
             return;
@@ -1118,8 +1133,7 @@ public class PackageInfoUtils {
             return;
         }
 
-        if (!state.isInstalled() && !state.dataExists()
-                && android.content.pm.Flags.nullableDataDir()) {
+        if (!state.isInstalled() && !state.dataExists()) {
             // The data dir has been deleted
             output.dataDir = null;
             return;
@@ -1167,8 +1181,7 @@ public class PackageInfoUtils {
         }
 
         if (!ps.getUserStateOrDefault(userId).isInstalled()
-                && !ps.getUserStateOrDefault(userId).dataExists()
-                && android.content.pm.Flags.nullableDataDir()) {
+                && !ps.getUserStateOrDefault(userId).dataExists()) {
             // The app has been uninstalled for the user and the data dir has been deleted
             return null;
         }

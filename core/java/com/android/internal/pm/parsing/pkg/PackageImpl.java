@@ -155,14 +155,6 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @NonNull
     @DataClass.ParcelWith(Parcelling.BuiltIn.ForInternedStringList.class)
     protected List<String> adoptPermissions = emptyList();
-    /**
-     * @deprecated consider migrating to {@link #getUsesPermissions} which has
-     *             more parsed details, such as flags
-     */
-    @NonNull
-    @Deprecated
-    @DataClass.ParcelWith(Parcelling.BuiltIn.ForInternedStringSet.class)
-    protected Set<String> requestedPermissions = emptySet();
     @NonNull
     @DataClass.ParcelWith(Parcelling.BuiltIn.ForInternedStringList.class)
     protected List<String> protectedBroadcasts = emptyList();
@@ -281,7 +273,7 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Nullable
     private byte[] restrictUpdateHash;
     @NonNull
-    private List<ParsedUsesPermission> usesPermissions = emptyList();
+    private Map<String, ParsedUsesPermission> usesPermissionMapping = emptyMap();
     @NonNull
     @DataClass.ParcelWith(Parcelling.BuiltIn.ForInternedStringSet.class)
     private Set<String> implicitPermissions = emptySet();
@@ -545,7 +537,9 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
 
     @Override
     public PackageImpl addImplicitPermission(String permission) {
-        addUsesPermission(new ParsedUsesPermissionImpl(permission, 0 /*usesPermissionFlags*/));
+        addUsesPermission(
+                new ParsedUsesPermissionImpl(
+                        permission, /* usesPermissionFlags= */ 0, /* purposes= */ emptySet()));
         this.implicitPermissions = CollectionUtils.add(this.implicitPermissions,
                 TextUtils.safeIntern(permission));
         return this;
@@ -724,12 +718,10 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
 
     @Override
     public PackageImpl addUsesPermission(ParsedUsesPermission permission) {
-        this.usesPermissions = CollectionUtils.add(this.usesPermissions, permission);
-
-        // Continue populating legacy data structures to avoid performance
-        // issues until all that code can be migrated
-        this.requestedPermissions = CollectionUtils.add(this.requestedPermissions,
-                permission.getName());
+        // During manifest parsing, we ignore duplicate permission requests. Therefore, it's safe
+        // to directly add to the mapping.
+        this.usesPermissionMapping =
+                CollectionUtils.add(this.usesPermissionMapping, permission.getName(), permission);
 
         return this;
     }
@@ -1270,15 +1262,10 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         return reqFeatures;
     }
 
-    /**
-     * @deprecated consider migrating to {@link #getUsesPermissions} which has
-     *             more parsed details, such as flags
-     */
     @NonNull
     @Override
-    @Deprecated
     public Set<String> getRequestedPermissions() {
-        return requestedPermissions;
+        return usesPermissionMapping.keySet();
     }
 
     @Nullable
@@ -1487,13 +1474,15 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
 
     @NonNull
     @Override
-    public List<ParsedUsesPermission> getUsesPermissions() {
-        return usesPermissions;
+    public Map<String, ParsedUsesPermission> getUsesPermissionMapping() {
+        return usesPermissionMapping;
     }
 
     @NonNull
     @Override
-    public List<String> getUsesSdkLibraries() { return usesSdkLibraries; }
+    public List<String> getUsesSdkLibraries() {
+        return usesSdkLibraries;
+    }
 
     @NonNull
     @Override
@@ -1740,6 +1729,11 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Override
     public boolean isOnBackInvokedCallbackEnabled() {
         return getBoolean(Booleans.ENABLE_ON_BACK_INVOKED_CALLBACK);
+    }
+
+    @Override
+    public boolean shouldRunInPccSandbox() {
+        return getBoolean2(Booleans2.RUN_IN_PCC_SANDBOX);
     }
 
     @Override
@@ -2251,6 +2245,12 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
     @Override
     public ParsingPackage setOnBackInvokedCallbackEnabled(boolean value) {
         setBoolean(Booleans.ENABLE_ON_BACK_INVOKED_CALLBACK, value);
+        return this;
+    }
+
+    @Override
+    public ParsingPackage setRunInPccSandbox(boolean value) {
+        setBoolean2(Booleans2.RUN_IN_PCC_SANDBOX, value);
         return this;
     }
 
@@ -2837,7 +2837,6 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         usesOptionalNativeLibraries = Collections.unmodifiableList(usesOptionalNativeLibraries);
         originalPackages = Collections.unmodifiableList(originalPackages);
         adoptPermissions = Collections.unmodifiableList(adoptPermissions);
-        requestedPermissions = Collections.unmodifiableSet(requestedPermissions);
         protectedBroadcasts = Collections.unmodifiableList(protectedBroadcasts);
         apexSystemServices = Collections.unmodifiableList(apexSystemServices);
 
@@ -2856,7 +2855,7 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         configPreferences = Collections.unmodifiableList(configPreferences);
         reqFeatures = Collections.unmodifiableList(reqFeatures);
         featureGroups = Collections.unmodifiableList(featureGroups);
-        usesPermissions = Collections.unmodifiableList(usesPermissions);
+        usesPermissionMapping = Collections.unmodifiableMap(usesPermissionMapping);
         usesSdkLibraries = Collections.unmodifiableList(usesSdkLibraries);
         implicitPermissions = Collections.unmodifiableSet(implicitPermissions);
         upgradeKeySets = Collections.unmodifiableSet(upgradeKeySets);
@@ -3235,8 +3234,7 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         dest.writeByteArray(this.restrictUpdateHash);
         dest.writeStringList(this.originalPackages);
         sForInternedStringList.parcel(this.adoptPermissions, dest, flags);
-        sForInternedStringSet.parcel(this.requestedPermissions, dest, flags);
-        ParsingUtils.writeParcelableList(dest, this.usesPermissions);
+        writeUsesPermissionMapping(dest);
         sForInternedStringSet.parcel(this.implicitPermissions, dest, flags);
         sForStringSet.parcel(this.upgradeKeySets, dest, flags);
         ParsingPackageUtils.writeKeySetMapping(dest, this.keySetMapping);
@@ -3323,6 +3321,15 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         dest.writeIntArray(this.mAlternateLauncherIconResIds);
         dest.writeIntArray(this.mAlternateLauncherLabelResIds);
         dest.writeInt(this.mPageSizeAppCompatFlags);
+    }
+
+    private void writeUsesPermissionMapping(@NonNull Parcel dest) {
+        // No need to deal with null case because the mapping is already instantiated to be empty.
+        final Bundle bundle = new Bundle();
+        for (Map.Entry<String, ParsedUsesPermission> entry : usesPermissionMapping.entrySet()) {
+            bundle.putParcelable(entry.getKey(), (ParsedUsesPermissionImpl) entry.getValue());
+        }
+        dest.writeBundle(bundle);
     }
 
     private void writeFeatureFlagState(@NonNull Parcel dest) {
@@ -3423,9 +3430,7 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
         this.restrictUpdateHash = in.createByteArray();
         this.originalPackages = in.createStringArrayList();
         this.adoptPermissions = sForInternedStringList.unparcel(in);
-        this.requestedPermissions = sForInternedStringSet.unparcel(in);
-        this.usesPermissions = ParsingUtils.createTypedInterfaceList(in,
-                ParsedUsesPermissionImpl.CREATOR);
+        readUsesPermissionMapping(in);
         this.implicitPermissions = sForInternedStringSet.unparcel(in);
         this.upgradeKeySets = sForStringSet.unparcel(in);
         this.keySetMapping = ParsingPackageUtils.readKeySetMapping(in);
@@ -3524,6 +3529,17 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
 
         // Do not call makeImmutable here as cached parsing will need
         // to mutate this instance before it's finalized.
+    }
+
+    private void readUsesPermissionMapping(@NonNull Parcel in) {
+        final Bundle bundle = in.readBundle(ParsedUsesPermissionImpl.class.getClassLoader());
+        final Map<String, ParsedUsesPermission> mapping = new ArrayMap<>();
+        if (bundle != null) {
+            for (String key : bundle.keySet()) {
+                mapping.put(key, bundle.getParcelable(key, ParsedUsesPermissionImpl.class));
+            }
+        }
+        usesPermissionMapping = mapping;
     }
 
     private void readFeatureFlagState(@NonNull Parcel in) {
@@ -3931,11 +3947,13 @@ public class PackageImpl implements ParsedPackage, AndroidPackageInternal,
                 STUB,
                 APEX,
                 UPDATABLE_SYSTEM,
+                RUN_IN_PCC_SANDBOX,
         })
         public @interface Flags {}
 
         private static final long STUB = 1L;
         private static final long APEX = 1L << 1;
         private static final long UPDATABLE_SYSTEM = 1L << 2;
+        private static final long RUN_IN_PCC_SANDBOX = 1L << 3;
     }
 }

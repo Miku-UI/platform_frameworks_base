@@ -97,6 +97,11 @@ enum class KeyguardState {
      */
     UNDEFINED,
     /** An activity is displaying over the keyguard. */
+    @Deprecated(
+        "This state won't exist anymore when scene container gets enabled. If you are " +
+            "writing prod code today, make sure to either use flag aware APIs in " +
+            "[KeyguardTransitionInteractor] or flag appropriately with [SceneContainerFlag]."
+    )
     OCCLUDED;
 
     fun checkValidState() {
@@ -122,11 +127,11 @@ enum class KeyguardState {
             DREAMING,
             AOD,
             ALTERNATE_BOUNCER,
-            OCCLUDED,
             LOCKSCREEN -> this
             GLANCEABLE_HUB,
             PRIMARY_BOUNCER,
             GONE,
+            OCCLUDED,
             UNDEFINED -> UNDEFINED
         }
     }
@@ -138,11 +143,11 @@ enum class KeyguardState {
             DREAMING,
             AOD,
             ALTERNATE_BOUNCER,
-            OCCLUDED,
             LOCKSCREEN -> Scenes.Lockscreen
             GLANCEABLE_HUB -> Scenes.Communal
             PRIMARY_BOUNCER -> Overlays.Bouncer
             GONE -> Scenes.Gone
+            OCCLUDED -> Scenes.Occluded
             UNDEFINED -> null
         }
     }

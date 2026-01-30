@@ -19,6 +19,7 @@ package com.android.server.display.mode;
 import static android.hardware.display.DisplayManager.DISPLAY_CATEGORY_ALL_INCLUDING_DISABLED;
 import static android.hardware.display.DisplayManagerInternal.REFRESH_RATE_LIMIT_HIGH_BRIGHTNESS_MODE;
 import static android.os.PowerManager.BRIGHTNESS_INVALID_FLOAT;
+import static android.view.Display.Mode.FLAG_SIZE_OVERRIDE;
 import static android.view.Display.Mode.INVALID_MODE_ID;
 
 import static com.android.server.display.DisplayDeviceConfig.DEFAULT_LOW_REFRESH_RATE;
@@ -138,7 +139,6 @@ public class DisplayModeDirector {
     private final SkinThermalStatusObserver mSkinThermalStatusObserver;
     private final ModeChangeObserver mModeChangeObserver;
 
-    @Nullable
     private final SystemRequestObserver mSystemRequestObserver;
     private final DeviceConfigParameterProvider mConfigParameterProvider;
     private final DeviceConfigDisplaySettings mDeviceConfigDisplaySettings;
@@ -180,23 +180,6 @@ public class DisplayModeDirector {
     @DisplayManager.SwitchingType
     private int mModeSwitchingType = DisplayManager.SWITCHING_TYPE_WITHIN_GROUPS;
 
-    /**
-     * Whether resolution range voting feature is enabled.
-     */
-    private final boolean mIsDisplayResolutionRangeVotingEnabled;
-
-    /**
-     * Whether user preferred mode voting feature is enabled.
-     */
-    private final boolean mIsUserPreferredModeVoteEnabled;
-
-    /**
-     * Whether limit display mode feature is enabled.
-     */
-    private final boolean mIsExternalDisplayLimitModeEnabled;
-
-    private final boolean mIsDisplaysRefreshRatesSynchronizationEnabled;
-
     private final boolean mIsBackUpSmoothDisplayAndForcePeakRefreshRateEnabled;
 
     private final boolean mHasArrSupportFlagEnabled;
@@ -216,13 +199,6 @@ public class DisplayModeDirector {
             @NonNull Injector injector,
             @NonNull DisplayManagerFlags displayManagerFlags,
             @NonNull DisplayDeviceConfigProvider displayDeviceConfigProvider) {
-        mIsDisplayResolutionRangeVotingEnabled = displayManagerFlags
-                .isDisplayResolutionRangeVotingEnabled();
-        mIsUserPreferredModeVoteEnabled = displayManagerFlags.isUserPreferredModeVoteEnabled();
-        mIsExternalDisplayLimitModeEnabled = displayManagerFlags
-            .isExternalDisplayLimitModeEnabled();
-        mIsDisplaysRefreshRatesSynchronizationEnabled = displayManagerFlags
-            .isDisplaysRefreshRatesSynchronizationEnabled();
         mIsBackUpSmoothDisplayAndForcePeakRefreshRateEnabled = displayManagerFlags
                 .isBackUpSmoothDisplayAndForcePeakRefreshRateEnabled();
         mHasArrSupportFlagEnabled = displayManagerFlags.hasArrSupportFlag();
@@ -249,14 +225,10 @@ public class DisplayModeDirector {
         mDisplayObserver = new DisplayObserver(context, handler, mVotesStorage, injector);
         mSensorObserver = new ProximitySensorObserver(mVotesStorage, injector);
         mSkinThermalStatusObserver = new SkinThermalStatusObserver(injector, mVotesStorage);
-        mModeChangeObserver = new ModeChangeObserver(mVotesStorage, injector, handler.getLooper());
+        mModeChangeObserver = mInjector.getModeChangeObserver(mVotesStorage, handler.getLooper());
         mHbmObserver = new HbmObserver(injector, mVotesStorage, BackgroundThread.getHandler(),
                 mDeviceConfigDisplaySettings);
-        if (displayManagerFlags.isRestrictDisplayModesEnabled()) {
-            mSystemRequestObserver = new SystemRequestObserver(mVotesStorage);
-        } else {
-            mSystemRequestObserver = null;
-        }
+        mSystemRequestObserver = mInjector.getSystemRequestObserver(mVotesStorage);
         mAlwaysRespectAppRequest = false;
         mSupportsFrameRateOverride = injector.supportsFrameRateOverride();
     }
@@ -278,9 +250,8 @@ public class DisplayModeDirector {
         mSensorObserver.observe();
         mHbmObserver.observe();
         mSkinThermalStatusObserver.observe();
-        if (mDisplayManagerFlags.isDisplayConfigErrorHalEnabled()) {
-            mModeChangeObserver.observe();
-        }
+        mModeChangeObserver.observe();
+
         synchronized (mLock) {
             // We may have a listener already registered before the call to start, so go ahead and
             // notify them to pick up our newly initialized state.
@@ -334,8 +305,7 @@ public class DisplayModeDirector {
 
             List<Display.Mode> availableModes = new ArrayList<>();
             availableModes.add(defaultMode);
-            VoteSummary primarySummary = new VoteSummary(mIsDisplayResolutionRangeVotingEnabled,
-                    isVrrSupportedLocked(displayId),
+            VoteSummary primarySummary = new VoteSummary(isVrrSupportedLocked(displayId),
                     mLoggingEnabled, mSupportsFrameRateOverride);
             int lowestConsideredPriority = Vote.MIN_PRIORITY;
             int highestConsideredPriority = Vote.MAX_PRIORITY;
@@ -375,8 +345,7 @@ public class DisplayModeDirector {
                 lowestConsideredPriority++;
             }
 
-            VoteSummary appRequestSummary = new VoteSummary(mIsDisplayResolutionRangeVotingEnabled,
-                    isVrrSupportedLocked(displayId),
+            VoteSummary appRequestSummary = new VoteSummary(isVrrSupportedLocked(displayId),
                     mLoggingEnabled, mSupportsFrameRateOverride);
 
             appRequestSummary.applyVotes(votes,
@@ -465,6 +434,7 @@ public class DisplayModeDirector {
     }
 
     // TODO(b/372019752) Rename all the occurrences of the VRR with ARR.
+    @GuardedBy("mLock")
     private boolean isVrrSupportedLocked(int displayId) {
         if (mHasArrSupportFlagEnabled) {
             Boolean hasArrSupport = mHasArrSupport.get(displayId);
@@ -572,14 +542,12 @@ public class DisplayModeDirector {
      * Delegates requestDisplayModes call to SystemRequestObserver
      */
     public void requestDisplayModes(IBinder token, int displayId, int[] modeIds) {
-        if (mSystemRequestObserver != null) {
-            boolean vrrSupported;
-            synchronized (mLock) {
-                vrrSupported = isVrrSupportedLocked(displayId);
-            }
-            if (vrrSupported) {
-                mSystemRequestObserver.requestDisplayModes(token, displayId, modeIds);
-            }
+        boolean vrrSupported;
+        synchronized (mLock) {
+            vrrSupported = isVrrSupportedLocked(displayId);
+        }
+        if (vrrSupported) {
+            mSystemRequestObserver.requestDisplayModes(token, displayId, modeIds);
         }
     }
 
@@ -642,6 +610,7 @@ public class DisplayModeDirector {
         return maxRefreshRate;
     }
 
+    @GuardedBy("mLock")
     private void notifyDesiredDisplayModeSpecsChangedLocked() {
         if (mDesiredDisplayModeSpecsListener != null
                 && !mHandler.hasMessages(MSG_REFRESH_RATE_RANGE_CHANGED)) {
@@ -655,6 +624,7 @@ public class DisplayModeDirector {
         }
     }
 
+    @GuardedBy("mLock")
     boolean isExternalDisplayLocked(int displayId) {
         return mExternalDisplaysConnected.contains(displayId);
     }
@@ -990,7 +960,6 @@ public class DisplayModeDirector {
         private final Uri mMatchContentFrameRateSetting =
                 Settings.Secure.getUriFor(Settings.Secure.MATCH_CONTENT_FRAME_RATE);
 
-        private final boolean mVsyncLowPowerVoteEnabled;
         private final boolean mPeakRefreshRatePhysicalLimitEnabled;
 
         private final Context mContext;
@@ -1027,7 +996,6 @@ public class DisplayModeDirector {
             super(handler);
             mContext = context;
             mHandler = handler;
-            mVsyncLowPowerVoteEnabled = flags.isVsyncLowPowerVoteEnabled();
             mPeakRefreshRatePhysicalLimitEnabled = flags.isPeakRefreshRatePhysicalLimitEnabled();
             // We don't want to load from the DeviceConfig while constructing since this leads to
             // a spike in the latency of DisplayManagerService startup. This happens because
@@ -1139,6 +1107,7 @@ public class DisplayModeDirector {
             mDefaultPeakRefreshRate = defaultPeakRefreshRate;
         }
 
+        @GuardedBy("mLock")
         private void updateLowPowerModeSettingLocked() {
             mIsLowPower = Settings.Global.getInt(mContext.getContentResolver(),
                     Settings.Global.LOW_POWER_MODE, 0 /*default*/) != 0;
@@ -1153,10 +1122,8 @@ public class DisplayModeDirector {
             updateLowPowerModeAllowedModesLocked();
         }
 
+        @GuardedBy("mLock")
         private void updateLowPowerModeAllowedModesLocked() {
-            if (!mVsyncLowPowerVoteEnabled) {
-                return;
-            }
             if (mIsLowPower) {
                 for (int i = 0; i < mDisplayDeviceConfigByDisplay.size(); i++) {
                     DisplayDeviceConfig config = mDisplayDeviceConfigByDisplay.valueAt(i);
@@ -1286,6 +1253,7 @@ public class DisplayModeDirector {
             mVotesStorage.updateVote(displayId, Vote.PRIORITY_DEFAULT_RENDER_FRAME_RATE, null);
         }
 
+        @GuardedBy("mLock")
         private void updateModeSwitchingTypeSettingLocked() {
             final ContentResolver cr = mContext.getContentResolver();
             int switchingType = Settings.Secure.getIntForUser(cr,
@@ -1297,6 +1265,7 @@ public class DisplayModeDirector {
             }
         }
 
+        @GuardedBy("mLock")
         public void dumpLocked(PrintWriter pw) {
             pw.println("  SettingsObserver");
             pw.println("    mDefaultRefreshRate: " + mDefaultRefreshRate);
@@ -1341,6 +1310,7 @@ public class DisplayModeDirector {
             }
         }
 
+        @GuardedBy("mLock")
         private Display.Mode findModeLocked(int displayId, int modeId, float requestedRefreshRate) {
             Display.Mode mode = null;
             if (modeId != 0) {
@@ -1380,7 +1350,7 @@ public class DisplayModeDirector {
         private Vote getBaseModeVote(@Nullable Display.Mode mode, float requestedRefreshRate) {
             Vote vote = null;
             if (mode != null) {
-                if (mode.isSynthetic()) {
+                if ((mode.getFlags() & Display.Mode.FLAG_ARR_RENDER_RATE)  != 0) {
                     vote = Vote.forRequestedRefreshRate(mode.getRefreshRate());
                 } else {
                     vote = Vote.forBaseModeRefreshRate(mode.getRefreshRate());
@@ -1392,6 +1362,7 @@ public class DisplayModeDirector {
         }
 
         @Nullable
+        @GuardedBy("mLock")
         private Display.Mode findDefaultModeByRefreshRateLocked(int displayId, float refreshRate) {
             Display.Mode[] modes = mAppSupportedModesByDisplay.get(displayId);
             Display.Mode defaultMode = mDefaultModeByDisplay.get(displayId);
@@ -1404,6 +1375,7 @@ public class DisplayModeDirector {
             return null;
         }
 
+        @GuardedBy("mLock")
         private Display.Mode findAppModeByIdLocked(int displayId, int modeId) {
             Display.Mode[] modes = mAppSupportedModesByDisplay.get(displayId);
             if (modes == null) {
@@ -1417,6 +1389,7 @@ public class DisplayModeDirector {
             return null;
         }
 
+        @GuardedBy("mLock")
         private void dumpLocked(PrintWriter pw) {
             pw.println("  AppRequestObserver");
             pw.println("    mIgnorePreferredRefreshRate: " + mIgnorePreferredRefreshRate);
@@ -1436,6 +1409,7 @@ public class DisplayModeDirector {
         private int mExternalDisplayPeakHeight;
         private int mExternalDisplayPeakRefreshRate;
         private final boolean mRefreshRateSynchronizationEnabled;
+        private int mDefaultDisplayType = Display.TYPE_INTERNAL;
 
         DisplayObserver(Context context, Handler handler, VotesStorage votesStorage,
                 Injector injector) {
@@ -1455,49 +1429,63 @@ public class DisplayModeDirector {
         private boolean isExternalDisplayLimitModeEnabled() {
             return mExternalDisplayPeakWidth > 0
                 && mExternalDisplayPeakHeight > 0
-                && mExternalDisplayPeakRefreshRate > 0
-                && mIsExternalDisplayLimitModeEnabled
-                && mIsDisplayResolutionRangeVotingEnabled
-                && mIsUserPreferredModeVoteEnabled;
+                && mExternalDisplayPeakRefreshRate > 0;
         }
 
         private boolean isRefreshRateSynchronizationEnabled() {
-            return mRefreshRateSynchronizationEnabled
-                && mIsDisplaysRefreshRatesSynchronizationEnabled;
+            return mRefreshRateSynchronizationEnabled;
         }
 
         public void observe() {
             mInjector.registerDisplayListener(this, mHandler);
-
-            // Populate existing displays
-            SparseArray<Display.Mode[]> modes = new SparseArray<>();
-            SparseArray<Display.Mode[]> appModes = new SparseArray<>();
-            SparseArray<Display.Mode> defaultModes = new SparseArray<>();
-            Display[] displays = mInjector.getDisplays();
-            for (Display d : displays) {
-                final int displayId = d.getDisplayId();
-                DisplayInfo info = getDisplayInfo(displayId);
-                modes.put(displayId, info.supportedModes);
-                appModes.put(displayId, info.appsSupportedModes);
-                defaultModes.put(displayId, info.getDefaultMode());
-            }
-            DisplayDeviceConfig defaultDisplayConfig = mDisplayDeviceConfigProvider
-                    .getDisplayDeviceConfig(Display.DEFAULT_DISPLAY);
-            synchronized (mLock) {
-                final int size = modes.size();
-                for (int i = 0; i < size; i++) {
-                    mSupportedModesByDisplay.put(modes.keyAt(i), modes.valueAt(i));
-                    mAppSupportedModesByDisplay.put(appModes.keyAt(i), appModes.valueAt(i));
-                    mDefaultModeByDisplay.put(defaultModes.keyAt(i), defaultModes.valueAt(i));
+            if (mDisplayManagerFlags.isOnDisplayAddedInObserverEnabled()) {
+                final var enabledDisplays = mInjector.getEnabledDisplays();
+                // Populate existing displays
+                if (enabledDisplays != null && enabledDisplays.length > 0) {
+                    mHandler.post(() -> {
+                        for (Display d : enabledDisplays) {
+                            onDisplayAdded(d.getDisplayId());
+                        }
+                    });
                 }
-                mDisplayDeviceConfigByDisplay.put(Display.DEFAULT_DISPLAY, defaultDisplayConfig);
+            } else {
+                // Populate existing displays
+                SparseArray<Display.Mode[]> modes = new SparseArray<>();
+                SparseArray<Display.Mode[]> appModes = new SparseArray<>();
+                SparseArray<Display.Mode> defaultModes = new SparseArray<>();
+                Display[] displays = mInjector.getDisplays();
+                for (Display d : displays) {
+                    final int displayId = d.getDisplayId();
+                    DisplayInfo info = getDisplayInfo(displayId);
+                    modes.put(displayId, info.supportedModes);
+                    appModes.put(displayId, info.appsSupportedModes);
+                    defaultModes.put(displayId, info.getDefaultMode());
+                }
+                DisplayDeviceConfig defaultDisplayConfig = mDisplayDeviceConfigProvider
+                        .getDisplayDeviceConfig(Display.DEFAULT_DISPLAY);
+                synchronized (mLock) {
+                    final int size = modes.size();
+                    for (int i = 0; i < size; i++) {
+                        mSupportedModesByDisplay.put(modes.keyAt(i), modes.valueAt(i));
+                        mAppSupportedModesByDisplay.put(appModes.keyAt(i), appModes.valueAt(i));
+                        mDefaultModeByDisplay.put(defaultModes.keyAt(i), defaultModes.valueAt(i));
+                    }
+                    mDisplayDeviceConfigByDisplay.put(Display.DEFAULT_DISPLAY,
+                            defaultDisplayConfig);
+                }
             }
         }
 
         @Override
         public void onDisplayAdded(int displayId) {
-            updateDisplayDeviceConfig(displayId);
             DisplayInfo displayInfo = getDisplayInfo(displayId);
+            if (displayInfo == null) {
+                return;
+            }
+            if (displayId == Display.DEFAULT_DISPLAY) {
+                mDefaultDisplayType = displayInfo.type;
+            }
+            updateDisplayDeviceConfig(displayId);
             registerExternalDisplay(displayInfo);
             updateDisplayModes(displayId, displayInfo);
             updateHasArrSupport(displayId, displayInfo);
@@ -1524,8 +1512,19 @@ public class DisplayModeDirector {
 
         @Override
         public void onDisplayChanged(int displayId) {
-            updateDisplayDeviceConfig(displayId);
             DisplayInfo displayInfo = getDisplayInfo(displayId);
+            if (displayInfo == null) {
+                return;
+            }
+            if (displayId == Display.DEFAULT_DISPLAY && displayInfo.type != mDefaultDisplayType) {
+                // If the default display's type changes (e.g. from internal to external),
+                // treat it as a new display being added to ensure all configurations are
+                // re-initialized correctly for the new display type.
+                onDisplayRemoved(displayId);
+                onDisplayAdded(displayId);
+                return;
+            }
+            updateDisplayDeviceConfig(displayId);
             updateHasArrSupport(displayId, displayInfo);
             updateDisplayModes(displayId, displayInfo);
             updateLayoutLimitedFrameRate(displayId, displayInfo);
@@ -1579,15 +1578,12 @@ public class DisplayModeDirector {
         }
 
         private void removeUserSettingDisplayPreferredSize(int displayId) {
-            if (!mIsUserPreferredModeVoteEnabled) {
-                return;
-            }
             mVotesStorage.updateVote(displayId, Vote.PRIORITY_USER_SETTING_DISPLAY_PREFERRED_SIZE,
                     null);
         }
 
         private void updateUserSettingDisplayPreferredSize(@Nullable DisplayInfo info) {
-            if (info == null || !mIsUserPreferredModeVoteEnabled) {
+            if (info == null) {
                 return;
             }
 
@@ -1597,9 +1593,7 @@ public class DisplayModeDirector {
                 return;
             }
 
-            if (info.type == Display.TYPE_EXTERNAL
-                    && mDisplayManagerFlags.isUserRefreshRateForExternalDisplayEnabled()
-                    && !isRefreshRateSynchronizationEnabled()) {
+            if (info.type == Display.TYPE_EXTERNAL && !isRefreshRateSynchronizationEnabled()) {
                 mVotesStorage.updateVote(info.displayId,
                         Vote.PRIORITY_USER_SETTING_DISPLAY_PREFERRED_SIZE,
                         Vote.forSizeAndPhysicalRefreshRatesRange(
@@ -1624,7 +1618,11 @@ public class DisplayModeDirector {
             }
             for (var mode : info.supportedModes) {
                 if (mode.getModeId() == info.userPreferredModeId) {
-                    return mode;
+                    if ((mode.getFlags() & FLAG_SIZE_OVERRIDE) != 0) {
+                        return null;
+                    } else {
+                        return mode;
+                    }
                 }
             }
             return null;
@@ -1799,9 +1797,6 @@ public class DisplayModeDirector {
         private final Injector mInjector;
         private final Handler mHandler;
 
-
-        private final boolean mVsyncLowLightBlockingVoteEnabled;
-
         private final IThermalEventListener.Stub mThermalListener =
                 new IThermalEventListener.Stub() {
                     @Override
@@ -1811,7 +1806,7 @@ public class DisplayModeDirector {
                             if (mThermalStatus != currentStatus) {
                                 mThermalStatus = currentStatus;
                             }
-                            onBrightnessChangedLocked();
+                            updateFlickerRefreshRateVotes();
                         }
                     }
                 };
@@ -1849,14 +1844,12 @@ public class DisplayModeDirector {
                 /* attemptReadFromFeatureParams= */ false);
             mRefreshRateInHighZone = context.getResources().getInteger(
                     R.integer.config_fixedRefreshRateInHighZone);
-            mVsyncLowLightBlockingVoteEnabled = flags.isVsyncLowLightVoteEnabled();
             loadIdleScreenRefreshRateConfigs(/* displayDeviceConfig= */ null);
         }
 
         private void loadIdleScreenRefreshRateConfigs(DisplayDeviceConfig displayDeviceConfig) {
             synchronized (mLock) {
-                if (!mDisplayManagerFlags.isIdleScreenConfigInSubscribingLightSensorEnabled()
-                        || displayDeviceConfig == null || displayDeviceConfig
+                if (displayDeviceConfig == null || displayDeviceConfig
                         .getIdleScreenRefreshRateTimeoutLuxThresholdPoint().isEmpty()) {
                     // Setting this to null will let surface flinger know that the idle timer is not
                     // configured in the display configs
@@ -2095,8 +2088,8 @@ public class DisplayModeDirector {
 
         private void registerDisplayListener() {
             mInjector.registerDisplayListener(this, mHandler,
-                    DisplayManager.EVENT_TYPE_DISPLAY_CHANGED,
-                    DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS);
+                    DisplayManager.EVENT_TYPE_DISPLAY_CHANGED
+                            | DisplayManager.EVENT_TYPE_DISPLAY_BRIGHTNESS);
         }
 
         private void setLoggingEnabled(boolean loggingEnabled) {
@@ -2108,32 +2101,24 @@ public class DisplayModeDirector {
         }
 
         @VisibleForTesting
+        @GuardedBy("mLock")
         public void onRefreshRateSettingChangedLocked(float min, float max) {
             boolean changeable = (max - min > 1f && max > 60f);
             if (mRefreshRateChangeable != changeable) {
                 mRefreshRateChangeable = changeable;
                 updateSensorStatus();
-                if (!changeable) {
-                    removeFlickerRefreshRateVotes();
-                }
+                updateFlickerRefreshRateVotes();
             }
         }
 
         @VisibleForTesting
+        @GuardedBy("mLock")
         void onLowPowerModeEnabledLocked(boolean enabled) {
             if (mLowPowerModeEnabled != enabled) {
                 mLowPowerModeEnabled = enabled;
                 updateSensorStatus();
-                if (enabled) {
-                    removeFlickerRefreshRateVotes();
-                }
+                updateFlickerRefreshRateVotes();
             }
-        }
-
-        private void removeFlickerRefreshRateVotes() {
-            // Revoke previous vote from BrightnessObserver
-            mVotesStorage.updateGlobalVote(Vote.PRIORITY_FLICKER_REFRESH_RATE, null);
-            mVotesStorage.updateGlobalVote(Vote.PRIORITY_FLICKER_REFRESH_RATE_SWITCH, null);
         }
 
         private void onDeviceConfigLowBrightnessThresholdsChanged(float[] displayThresholds,
@@ -2228,6 +2213,7 @@ public class DisplayModeDirector {
             }
         }
 
+        @GuardedBy("mLock")
         void dumpLocked(PrintWriter pw) {
             pw.println("  BrightnessObserver");
             pw.println("    mAmbientLux: " + mAmbientLux);
@@ -2288,7 +2274,7 @@ public class DisplayModeDirector {
                 synchronized (mLock) {
                     if (!BrightnessSynchronizer.floatEquals(brightness, mBrightness)) {
                         mBrightness = brightness;
-                        onBrightnessChangedLocked();
+                        updateFlickerRefreshRateVotes();
                     }
                 }
             }
@@ -2299,8 +2285,7 @@ public class DisplayModeDirector {
             synchronized (mLock) {
                 config = mDefaultDisplayDeviceConfig;
             }
-            return mVsyncLowLightBlockingVoteEnabled
-                    && config != null
+            return config != null
                     && config.isVrrSupportEnabled()
                     && !config.getRefreshRateData().lowLightBlockingZoneSupportedModes.isEmpty();
         }
@@ -2331,7 +2316,7 @@ public class DisplayModeDirector {
 
                 if (lightSensor != null && lightSensor != mLightSensor) {
                     final Resources res = mContext.getResources();
-                    mAmbientFilter = AmbientFilterFactory.createBrightnessFilter(TAG, res);
+                    mAmbientFilter = mInjector.getAmbientFilter(res);
                     mLightSensor = lightSensor;
                 }
             } else {
@@ -2341,7 +2326,7 @@ public class DisplayModeDirector {
 
             updateSensorStatus();
             synchronized (mLock) {
-                onBrightnessChangedLocked();
+                updateFlickerRefreshRateVotes();
             }
         }
 
@@ -2448,8 +2433,11 @@ public class DisplayModeDirector {
         }
 
         @GuardedBy("mLock")
-        private void onBrightnessChangedLocked() {
+        private void updateFlickerRefreshRateVotes() {
             if (!mRefreshRateChangeable || mLowPowerModeEnabled) {
+                // Revoke previous vote from BrightnessObserver
+                mVotesStorage.updateGlobalVote(Vote.PRIORITY_FLICKER_REFRESH_RATE, null);
+                mVotesStorage.updateGlobalVote(Vote.PRIORITY_FLICKER_REFRESH_RATE_SWITCH, null);
                 return;
             }
             Vote refreshRateVote = null;
@@ -2582,8 +2570,7 @@ public class DisplayModeDirector {
         }
 
         private boolean isIdleScreenRefreshRateConfigDefined() {
-            return mDisplayManagerFlags.isIdleScreenConfigInSubscribingLightSensorEnabled()
-                    && mIdleScreenRefreshRateTimeoutLuxThresholdPoints != null
+            return mIdleScreenRefreshRateTimeoutLuxThresholdPoints != null
                     && !mIdleScreenRefreshRateTimeoutLuxThresholdPoints.isEmpty();
         }
 
@@ -2637,6 +2624,7 @@ public class DisplayModeDirector {
             private long mTimestamp;
             private boolean mLoggingEnabled;
 
+            @GuardedBy("mLock")
             public void dumpLocked(PrintWriter pw) {
                 pw.println("    mLastSensorData: " + mLastSensorData);
                 pw.println("    mTimestamp: " + formatTimestamp(mTimestamp));
@@ -2687,9 +2675,7 @@ public class DisplayModeDirector {
                     // is interrupted by a new sensor event.
                     mHandler.postDelayed(mInjectSensorEventRunnable, INJECT_EVENTS_INTERVAL_MS);
                 }
-                if (mDisplayManagerFlags.isIdleScreenRefreshRateTimeoutEnabled()) {
-                    updateIdleScreenRefreshRate(mAmbientLux);
-                }
+                updateIdleScreenRefreshRate(mAmbientLux);
             }
 
             @Override
@@ -2715,7 +2701,7 @@ public class DisplayModeDirector {
                 }
 
                 synchronized (mLock) {
-                    onBrightnessChangedLocked();
+                    updateFlickerRefreshRateVotes();
                 }
             }
 
@@ -2832,6 +2818,7 @@ public class DisplayModeDirector {
             mVotesStorage.updateVote(displayId, votePriority, vote);
         }
 
+        @GuardedBy("mLock")
         void dumpLocked(PrintWriter pw) {
             pw.println("  UdfpsObserver");
             pw.println("    mUdfpsRefreshRateEnabled: ");
@@ -2896,8 +2883,8 @@ public class DisplayModeDirector {
             }
             mDisplayManagerInternal = mInjector.getDisplayManagerInternal();
             mInjector.registerDisplayListener(this, mHandler,
-                    DisplayManager.EVENT_TYPE_DISPLAY_REMOVED,
-                    DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS);
+                    DisplayManager.EVENT_TYPE_DISPLAY_REMOVED
+                            | DisplayManager.EVENT_TYPE_DISPLAY_BRIGHTNESS);
         }
 
         /**
@@ -3011,6 +2998,7 @@ public class DisplayModeDirector {
             mVotesStorage.updateVote(displayId, Vote.PRIORITY_HIGH_BRIGHTNESS_MODE, vote);
         }
 
+        @GuardedBy("mLock")
         void dumpLocked(PrintWriter pw) {
             pw.println("   HbmObserver");
             pw.println("     mHbmMode: " + mHbmMode);
@@ -3133,6 +3121,8 @@ public class DisplayModeDirector {
 
         Display[] getDisplays();
 
+        Display[] getEnabledDisplays();
+
         boolean getDisplayInfo(int displayId, DisplayInfo displayInfo);
 
         BrightnessInfo getBrightnessInfo(int displayId);
@@ -3152,6 +3142,12 @@ public class DisplayModeDirector {
 
         @Nullable
         VotesStatsReporter getVotesStatsReporter();
+
+        AmbientFilter getAmbientFilter(Resources res);
+
+        SystemRequestObserver getSystemRequestObserver(VotesStorage votesStorage);
+
+        ModeChangeObserver getModeChangeObserver(VotesStorage votesStorage, Looper looper);
     }
 
     @VisibleForTesting
@@ -3209,6 +3205,11 @@ public class DisplayModeDirector {
         @Override
         public Display[] getDisplays() {
             return getDisplayManager().getDisplays(DISPLAY_CATEGORY_ALL_INCLUDING_DISABLED);
+        }
+
+        @Override
+        public Display[] getEnabledDisplays() {
+            return getDisplayManager().getDisplays();
         }
 
         @Override
@@ -3294,6 +3295,21 @@ public class DisplayModeDirector {
         public VotesStatsReporter getVotesStatsReporter() {
             // if frame rate override supported, renderRates will be ignored in mode selection
             return new VotesStatsReporter(supportsFrameRateOverride());
+        }
+
+        @Override
+        public AmbientFilter getAmbientFilter(Resources res) {
+            return AmbientFilterFactory.createBrightnessFilter(TAG, res);
+        }
+
+        @Override
+        public SystemRequestObserver getSystemRequestObserver(VotesStorage votesStorage) {
+            return new SystemRequestObserver(votesStorage);
+        }
+
+        @Override
+        public ModeChangeObserver getModeChangeObserver(VotesStorage votesStorage, Looper looper) {
+            return new ModeChangeObserver(votesStorage, this, looper);
         }
 
         private DisplayManager getDisplayManager() {

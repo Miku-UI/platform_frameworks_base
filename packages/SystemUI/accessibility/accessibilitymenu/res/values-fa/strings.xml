@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
-    <string name="accessibility_menu_service_name" msgid="730136711554740131">"منوی دسترس‌پذیری"</string>
-    <string name="accessibility_menu_intro" msgid="3164193281544042394">"«منوی دسترس‌پذیری» منوی بزرگی را روی صفحه برای کنترل دستگاه ارائه می‌دهد. می‌توانید دستگاه را قفل کنید، میزان صدا و روشنایی را کنترل کنید، نماگرفت ثبت کنید، و کارهای بیشتری انجام دهید."</string>
+    <string name="accessibility_menu_service_name" msgid="730136711554740131">"منو دسترس‌پذیری"</string>
+    <string name="accessibility_menu_intro" msgid="3164193281544042394">"«منو دسترس‌پذیری» منو بزرگی را روی صفحه برای کنترل دستگاه ارائه می‌دهد. می‌توانید دستگاه را قفل کنید، میزان صدا و روشنایی را کنترل کنید، نماگرفت ثبت کنید، و کارهای بیشتری انجام دهید."</string>
     <string name="assistant_label" msgid="6796392082252272356">"دستیار"</string>
     <string name="assistant_utterance" msgid="65509599221141377">"دستیار"</string>
     <string name="a11y_settings_label" msgid="3977714687248445050">"تنظیمات دسترس‌پذیری"</string>
@@ -20,11 +20,11 @@
     <string name="brightness_down_label" msgid="7115662941913272072">"کاهش روشنایی"</string>
     <string name="previous_button_content_description" msgid="840869171117765966">"رفتن به صفحه قبل"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"رفتن به صفحه بعد"</string>
-    <string name="accessibility_menu_description" msgid="4458354794093858297">"«منوی دسترس‌پذیری» منوی بزرگی را روی صفحه برای کنترل دستگاه ارائه می‌دهد. می‌توانید دستگاه را قفل کنید، میزان صدا و روشنایی را کنترل کنید، از صفحه نمایش عکس بگیرید، و کارهای بیشتری انجام دهید."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"کنترل دستگاه ازطریق منوی بزرگ"</string>
-    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"تنظیمات منوی دسترس‌پذیری"</string>
+    <string name="accessibility_menu_description" msgid="4458354794093858297">"«منو دسترس‌پذیری» منو بزرگی را روی صفحه برای کنترل دستگاه ارائه می‌دهد. می‌توانید دستگاه را قفل کنید، میزان صدا و روشنایی را کنترل کنید، از صفحه نمایش عکس بگیرید، و کارهای بیشتری انجام دهید."</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"کنترل میزان صدا، روشنایی، و موارد دیگر با یک منو بزرگ"</string>
+    <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"تنظیمات منو دسترس‌پذیری"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"دکمه‌های بزرگ"</string>
-    <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"افزایش اندازه «دکمه‌های منوی دسترس‌پذیری»"</string>
+    <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"افزایش اندازه «دکمه‌های منو دسترس‌پذیری»"</string>
     <string name="pref_help_title" msgid="6871558837025010641">"راهنما"</string>
     <string name="brightness_percentage_label" msgid="7391554573977867369">"‏روشنایی ‎%%<xliff:g id="PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="music_volume_percentage_label" msgid="398635599662604706">"‏بلندی صدای موسیقی ‎%%<xliff:g id="PERCENTAGE">%1$s</xliff:g>"</string>

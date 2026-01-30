@@ -16,11 +16,10 @@
 
 package com.android.settingslib.spa.screenshot.widget.preference
 
-import androidx.compose.foundation.layout.Column
-import com.android.settingslib.spa.framework.compose.stateOf
 import com.android.settingslib.spa.screenshot.util.settingsScreenshotTestRule
 import com.android.settingslib.spa.widget.preference.SwitchPreferenceModel
 import com.android.settingslib.spa.widget.preference.TwoTargetSwitchPreference
+import com.android.settingslib.spa.widget.ui.Category
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,7 +28,6 @@ import platform.test.runner.parameterized.Parameters
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.PhoneAndTabletMinimal
 
-/** A screenshot test for ExampleFeature. */
 @RunWith(ParameterizedAndroidJunit4::class)
 class TwoTargetSwitchPreferenceScreenshotTest(emulationSpec: DeviceEmulationSpec) {
     companion object {
@@ -47,7 +45,7 @@ class TwoTargetSwitchPreferenceScreenshotTest(emulationSpec: DeviceEmulationSpec
     @Test
     fun test() {
         screenshotRule.screenshotTest("twoTargetSwitchPreference") {
-            Column {
+            Category {
                 TwoTargetSwitchPreference(object : SwitchPreferenceModel {
                     override val title = "TwoTargetSwitchPreference"
                     override val checked = { false }

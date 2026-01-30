@@ -640,6 +640,63 @@ TEST_F(PerformanceHintTest, TestSupportObject) {
     EXPECT_EQ(expectedSupportInt, actualSupportInt);
 }
 
+TEST_F(PerformanceHintTest, TestReportActualOverflow) {
+    mClientData.preferredRateNanos = 10000000L;
+    APerformanceHintManager* manager = createManager();
+
+    auto&& config = configFromCreator({
+            .tids = mTids,
+            .targetDuration = 20,
+    });
+
+    auto&& session = createSession(manager);
+    hal::WorkDuration duration{.timeStampNanos = 3,
+                               .durationNanos = 10,
+                               .workPeriodStartTimestampNanos = 1,
+                               .cpuDurationNanos = 5,
+                               .gpuDurationNanos = 5};
+
+    EXPECT_CALL(*mMockSession, reportActualWorkDuration2(_)).Times(2);
+
+    // Report a duration under the target, to signal the start of good behavior per the rate limiter
+    APerformanceHint_reportActualWorkDuration2(session.get(),
+                                               reinterpret_cast<AWorkDuration*>(&duration));
+
+    // Sleep for longer than preferredUpdateRateNanos.
+    usleep(12000);
+
+    // Report a duration under the target, to signal continued good behavior per the rate limiter
+    APerformanceHint_reportActualWorkDuration2(session.get(),
+                                               reinterpret_cast<AWorkDuration*>(&duration));
+
+    EXPECT_CALL(*mMockSession, reportActualWorkDuration2(SizeIs(Eq(30)))).Times(1);
+
+    APerformanceHint_setReportBatchSizeCapForTesting(-1);
+    for (int i = 0; i < 29; ++i) {
+        APerformanceHint_reportActualWorkDuration2(session.get(),
+                                                   reinterpret_cast<AWorkDuration*>(&duration));
+    }
+
+    // Sleep for longer than preferredUpdateRateNanos.
+    usleep(12000);
+    APerformanceHint_reportActualWorkDuration2(session.get(),
+                                               reinterpret_cast<AWorkDuration*>(&duration));
+
+    // Enforce that report spam gets capped
+    EXPECT_CALL(*mMockSession, reportActualWorkDuration2(SizeIs(Eq(10)))).Times(1);
+
+    APerformanceHint_setReportBatchSizeCapForTesting(10);
+    for (int i = 0; i < 29; ++i) {
+        APerformanceHint_reportActualWorkDuration2(session.get(),
+                                                   reinterpret_cast<AWorkDuration*>(&duration));
+    }
+
+    // Sleep for longer than preferredUpdateRateNanos.
+    usleep(12000);
+    APerformanceHint_reportActualWorkDuration2(session.get(),
+                                               reinterpret_cast<AWorkDuration*>(&duration));
+}
+
 TEST_F(PerformanceHintTest, TestCreatingAutoSession) {
     // Disable GPU capability for testing
     mClientData.supportInfo.sessionModes &= ~(1 << (int)hal::SessionMode::AUTO_GPU);

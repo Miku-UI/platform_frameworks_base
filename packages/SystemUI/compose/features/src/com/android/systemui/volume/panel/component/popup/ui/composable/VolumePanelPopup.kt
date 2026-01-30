@@ -18,9 +18,11 @@ package com.android.systemui.volume.panel.component.popup.ui.composable
 
 import android.view.Gravity
 import androidx.annotation.GravityInt
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,6 +31,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
@@ -67,12 +71,42 @@ constructor(
         title: @Composable (SystemUIDialog) -> Unit,
         content: @Composable (SystemUIDialog) -> Unit,
     ) {
+        show(
+            expandable = expandable,
+            gravity = gravity,
+            body = {
+                Box(
+                    modifier =
+                        Modifier.padding(horizontal = 80.dp).fillMaxWidth().wrapContentHeight(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    title(it)
+                }
+
+                Box(
+                    modifier =
+                        Modifier.padding(horizontal = 16.dp).fillMaxWidth().wrapContentHeight(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    content(it)
+                }
+            },
+        )
+    }
+
+    /**
+     * Shows a popup with the [expandable] animation.
+     *
+     * @param body is the popup body
+     */
+    fun show(
+        expandable: Expandable?,
+        @GravityInt gravity: Int,
+        body: @Composable ColumnScope.(SystemUIDialog) -> Unit,
+    ) {
         val dialog =
-            dialogFactory.create(
-                theme = R.style.Theme_VolumePanel_Popup,
-                dialogGravity = gravity,
-            ) {
-                PopupComposable(it, title, content)
+            dialogFactory.create(theme = R.style.Theme_VolumePanel_Popup, dialogGravity = gravity) {
+                PopupComposable(it, body)
             }
         val controller = expandable?.dialogTransitionController()
         if (controller == null) {
@@ -85,8 +119,7 @@ constructor(
     @Composable
     private fun PopupComposable(
         dialog: SystemUIDialog,
-        title: @Composable (SystemUIDialog) -> Unit,
-        content: @Composable (SystemUIDialog) -> Unit,
+        content: @Composable ColumnScope.(SystemUIDialog) -> Unit,
     ) {
         val paneTitle = stringResource(R.string.accessibility_volume_settings)
         Box(Modifier.fillMaxWidth().semantics(properties = { this.paneTitle = paneTitle })) {
@@ -94,21 +127,7 @@ constructor(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Box(
-                    modifier =
-                        Modifier.padding(horizontal = 80.dp).fillMaxWidth().wrapContentHeight(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    title(dialog)
-                }
-
-                Box(
-                    modifier =
-                        Modifier.padding(horizontal = 16.dp).fillMaxWidth().wrapContentHeight(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    content(dialog)
-                }
+                content(dialog)
             }
 
             IconButton(
@@ -116,8 +135,8 @@ constructor(
                 onClick = { dialog.dismiss() },
                 colors =
                     IconButtonDefaults.iconButtonColors(
-                        contentColor = MaterialTheme.colorScheme.outline
-                    )
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
             ) {
                 Icon(
                     painterResource(R.drawable.ic_close),
@@ -144,5 +163,19 @@ constructor(
                 else -> Gravity.CENTER_HORIZONTAL
             }
         }
+    }
+}
+
+object VolumePanelPopupDefaults {
+
+    @Composable
+    fun Title(title: String, modifier: Modifier = Modifier) {
+        Text(
+            modifier = modifier.basicMarquee(),
+            text = title,
+            style = MaterialTheme.typography.titleMedium,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
     }
 }

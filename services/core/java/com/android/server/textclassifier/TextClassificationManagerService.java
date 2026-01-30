@@ -650,8 +650,8 @@ public final class TextClassificationManagerService extends ITextClassifierServi
                     callingUid == packageUid
                             // Trust the system process:
                             || callingUid == android.os.Process.SYSTEM_UID,
-                    "Invalid package name. callingPackage=" + callingPackage
-                            + ", callingUid=" + callingUid);
+                    "Invalid package name. callingPackage=%s, callingUid=%d", callingPackage,
+                    callingUid);
         }
     }
 

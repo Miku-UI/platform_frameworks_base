@@ -395,6 +395,8 @@ constructor(internal val targetView: View, private val roundable: Roundable, max
         append("top: { value: $topRoundness, requests: $topRoundnessMap}")
         append(", ")
         append("bottom: { value: $bottomRoundness, requests: $bottomRoundnessMap}")
+        append(", ")
+        append("maxRadius: $maxRadius")
         append("}")
     }
 

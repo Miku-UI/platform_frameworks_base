@@ -16,12 +16,15 @@
 
 package com.android.systemui.util.kotlin
 
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.statusbar.policy.BatteryController
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.onStart
 
+@Deprecated(
+    "Use com.android.systemui.statusbar.pipeline.battery.data.repository.BatteryRepository.isPluggedIn instead"
+)
 fun BatteryController.isDevicePluggedIn(): Flow<Boolean> {
     return conflatedCallbackFlow {
             val batteryCallback =
@@ -29,7 +32,7 @@ fun BatteryController.isDevicePluggedIn(): Flow<Boolean> {
                     override fun onBatteryLevelChanged(
                         level: Int,
                         pluggedIn: Boolean,
-                        charging: Boolean
+                        charging: Boolean,
                     ) {
                         trySend(pluggedIn)
                     }
@@ -38,50 +41,4 @@ fun BatteryController.isDevicePluggedIn(): Flow<Boolean> {
             awaitClose { removeCallback(batteryCallback) }
         }
         .onStart { emit(isPluggedIn) }
-}
-
-fun BatteryController.isBatteryPowerSaveEnabled(): Flow<Boolean> {
-    return conflatedCallbackFlow {
-            val batteryCallback =
-                object : BatteryController.BatteryStateChangeCallback {
-                    override fun onPowerSaveChanged(isPowerSave: Boolean) {
-                        trySend(isPowerSave)
-                    }
-                }
-            addCallback(batteryCallback)
-            awaitClose { removeCallback(batteryCallback) }
-        }
-        .onStart { emit(isPowerSave) }
-}
-
-fun BatteryController.getBatteryLevel(): Flow<Int> {
-    return conflatedCallbackFlow {
-            val batteryCallback =
-                object : BatteryController.BatteryStateChangeCallback {
-                    override fun onBatteryLevelChanged(
-                        level: Int,
-                        pluggedIn: Boolean,
-                        charging: Boolean
-                    ) {
-                        trySend(level)
-                    }
-                }
-            addCallback(batteryCallback)
-            awaitClose { removeCallback(batteryCallback) }
-        }
-        .onStart { emit(0) }
-}
-
-fun BatteryController.isExtremePowerSaverEnabled(): Flow<Boolean> {
-    return conflatedCallbackFlow {
-            val batteryCallback =
-                object : BatteryController.BatteryStateChangeCallback {
-                    override fun onExtremeBatterySaverChanged(isExtreme: Boolean) {
-                        trySend(isExtreme)
-                    }
-                }
-            addCallback(batteryCallback)
-            awaitClose { removeCallback(batteryCallback) }
-        }
-        .onStart { emit(isExtremeSaverOn) }
 }

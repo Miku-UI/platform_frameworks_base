@@ -153,6 +153,7 @@ public class BundleUtil {
      * description.
      *
      * @throws BadParcelableException when the bundle does not meet the read-only requirements.
+     * TODO: b/429180295 - Change to custom exception so callers are forced to handle it.
      */
     public static void sanitizeStateParams(
             @StateParams Bundle bundle) {

@@ -70,6 +70,7 @@ import java.util.Arrays;
  * be ignored.
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class GradientColor extends ComplexColor {
     private static final String TAG = "GradientColor";
 

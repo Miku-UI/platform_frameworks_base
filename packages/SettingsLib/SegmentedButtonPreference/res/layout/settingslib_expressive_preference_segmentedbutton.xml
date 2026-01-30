@@ -20,38 +20,46 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
+    android:paddingTop="@dimen/settingslib_expressive_space_extrasmall4"
     android:paddingStart="?android:attr/listPreferredItemPaddingStart"
-    android:paddingEnd="?android:attr/listPreferredItemPaddingEnd">
+    android:paddingEnd="?android:attr/listPreferredItemPaddingEnd"
+    android:importantForAccessibility="no">
 
     <com.google.android.material.button.MaterialButtonToggleGroup
+        android:theme="@style/Theme.Material3.DynamicColors.DayNight"
         android:id="@+id/button_group"
         style="@style/Widget.Material3Expressive.MaterialButtonGroup.Connected"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:visibility="gone"
         app:singleSelection="true"
         app:selectionRequired="true"
         app:checkedButton="@id/button_1">
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_1"
             android:layout_weight="1"
+            android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
             style="@style/SettingsLibButtonStyle.Expressive.Tonal.Large"/>
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_2"
             android:layout_weight="1"
+            android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
             style="@style/SettingsLibButtonStyle.Expressive.Tonal.Large"/>
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_3"
             android:layout_weight="1"
+            android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
             style="@style/SettingsLibButtonStyle.Expressive.Tonal.Large"/>
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_4"
             android:layout_weight="1"
+            android:visibility="gone"
             app:iconPadding="0dp"
             app:iconGravity="textStart"
             style="@style/SettingsLibButtonStyle.Expressive.Tonal.Large"/>
@@ -72,7 +80,8 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
-            android:textColor="@color/settingslib_materialColorOnSurface" />
+            android:textColor="@color/settingslib_materialColorOnSurface"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/button_2_text"
@@ -81,7 +90,8 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
-            android:textColor="@color/settingslib_materialColorOnSurface" />
+            android:textColor="@color/settingslib_materialColorOnSurface"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/button_3_text"
@@ -90,7 +100,8 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
-            android:textColor="@color/settingslib_materialColorOnSurface" />
+            android:textColor="@color/settingslib_materialColorOnSurface"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/button_4_text"
@@ -99,6 +110,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:textAppearance="@style/TextAppearance.SettingsLib.TitleSmall.Emphasized"
-            android:textColor="@color/settingslib_materialColorOnSurface" />
+            android:textColor="@color/settingslib_materialColorOnSurface"
+            android:visibility="gone" />
     </LinearLayout>
 </LinearLayout>

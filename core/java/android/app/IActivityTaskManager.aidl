@@ -21,6 +21,7 @@ import android.app.ActivityTaskManager;
 import android.app.ApplicationErrorReport;
 import android.app.ContentProviderHolder;
 import android.app.GrantedUriPermission;
+import android.app.HandoffActivityData;
 import android.app.IApplicationThread;
 import android.app.IActivityClientController;
 import android.app.IActivityController;
@@ -72,6 +73,7 @@ import android.view.IRemoteAnimationRunner;
 import android.view.RemoteAnimationDefinition;
 import android.view.RemoteAnimationAdapter;
 import android.window.IWindowOrganizerController;
+import android.window.ITaskSnapshotManager;
 import android.window.BackAnimationAdapter;
 import android.window.BackNavigationInfo;
 import android.window.SplashScreenView;
@@ -84,7 +86,7 @@ import java.util.List;
  * System private API for talking with the activity task manager that handles how activities are
  * managed on screen.
  *
- * {@hide}
+ * @hide
  */
 // TODO(b/174040395): Make this interface private to ActivityTaskManager.java and have external
 // caller go through that call instead. This would help us better separate and control the API
@@ -137,6 +139,7 @@ interface IActivityTaskManager {
 
     boolean isActivityStartAllowedOnDisplay(int displayId, in Intent intent, in String resolvedType,
             int userId);
+    boolean isTaskMoveAllowedOnDisplay(int displayId);
 
     void unhandledBack();
 
@@ -228,6 +231,7 @@ interface IActivityTaskManager {
             boolean focused, boolean newSessionId);
     boolean requestAutofillData(in IAssistDataReceiver receiver, in Bundle receiverExtras,
             in IBinder activityToken, int flags);
+    // @deprecated Use ActivityTaskManagerInternal#isAssistDataAllowed instead.
     boolean isAssistDataAllowed();
     boolean requestAssistDataForTask(in IAssistDataReceiver receiver, int taskId,
             in String callingPackageName, String callingAttributionTag, boolean fetchStructure);
@@ -246,6 +250,10 @@ interface IActivityTaskManager {
 
     /** Returns an interface enabling the management of window organizers. */
     IWindowOrganizerController getWindowOrganizerController();
+
+    /** Returns an interface enabling the access of task snapshots. */
+    @EnforcePermission(allOf={"MANAGE_ACTIVITY_TASKS", "READ_FRAME_BUFFER"})
+    ITaskSnapshotManager getTaskSnapshotManager();
 
     boolean supportsLocalVoiceInteraction();
 
@@ -369,9 +377,11 @@ interface IActivityTaskManager {
             in RemoteCallback navigationObserver, in BackAnimationAdapter adaptor);
 
     /**
-     * Registers a callback to be invoked when the system server requests a back gesture.
+     * This setups the leashed for sysui to animate the current back gesture.
+     * Only valid after startBackNavigation.
+     * @return Returns whether system can prepare back animation.
      */
-    void registerBackGestureDelegate(in RemoteCallback monitor);
+    boolean startPredictiveBackAnimation();
 
     /**
      * registers a callback to be invoked when a background activity launch is aborted.
@@ -408,4 +418,26 @@ interface IActivityTaskManager {
      * @hide
      */
     void unregisterScreenCaptureObserver(IBinder activityToken, IScreenCaptureObserver observer);
+
+    /**
+    * Move the task to the top/ bottom of the activity stack of specific display
+    *
+    * @param taskId Id of the task that has to be moved
+    * @param displayId Id of the display to which it has to be moved
+    * @param onTop defines the task has to be moved on top or bottom of the stack
+    * @hide
+    */
+    void moveRootTaskToDisplayOnTopOrBottom(int taskId, int displayId, boolean onTop);
+
+    /**
+     * Reports HandoffActivityData for a given set of activities back to
+     * ActivityTaskManager.
+     *
+     * @param requestToken A request token used by ActivityTaskManager to
+     * identify the request.
+     * @param data A list of HandoffActivityData objects containing the data for the requested
+     * activities in the same order as the request.
+     * @hide
+     */
+    void reportHandoffActivityData(in IBinder requestToken, in List<HandoffActivityData> data);
 }

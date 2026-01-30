@@ -22,3 +22,6 @@ per-file OverlayProperties* = file:/graphics/java/android/graphics/OWNERS
 
 # Lut related files
 per-file *Lut* = file:/graphics/java/android/graphics/OWNERS
+
+# Serial
+per-file *Serial* = file:/core/java/android/hardware/serial/OWNERS

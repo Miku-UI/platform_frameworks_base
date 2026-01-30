@@ -259,70 +259,60 @@ public final class PreciseDisconnectCause {
      * Mobile station (MS) is locked until next power cycle.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_LOCKED_UNTIL_POWER_CYCLE                    = 1000;
     /**
      * Drop call.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_DROP                                        = 1001;
     /**
      * INTERCEPT order received, Mobile station (MS) state idle entered.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_INTERCEPT                                   = 1002;
     /**
      * Mobile station (MS) has been redirected, call is cancelled.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_REORDER                                     = 1003;
     /**
      * Service option rejection.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_SO_REJECT                                   = 1004;
     /**
      * Requested service is rejected, retry delay is set.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_RETRY_ORDER                                 = 1005;
     /**
      * Unable to obtain access to the CDMA system.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_ACCESS_FAILURE                              = 1006;
     /**
      * Not a preempted call.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_PREEMPTED                                   = 1007;
     /**
      * Not an emergency call.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_NOT_EMERGENCY                               = 1008;
     /**
      * Access Blocked by CDMA network.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CDMA_ACCESS_BLOCKED                              = 1009;
 

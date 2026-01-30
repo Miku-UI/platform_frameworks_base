@@ -18,6 +18,7 @@ package android.view.inputmethod;
 
 import static android.view.InsetsController.ANIMATION_TYPE_HIDE;
 import static android.view.InsetsController.ANIMATION_TYPE_SHOW;
+import static android.view.ViewProtoLogGroups.IME_TRACKER;
 
 import static com.android.internal.inputmethod.InputMethodDebug.softInputDisplayReasonToString;
 import static com.android.internal.jank.Cuj.CUJ_IME_INSETS_HIDE_ANIMATION;
@@ -29,23 +30,23 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
-import android.os.Binder;
-import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.Process;
+import android.os.SystemClock;
 import android.os.SystemProperties;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.InsetsController.AnimationType;
 import android.view.SurfaceControl;
 import android.view.View;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.internal.annotations.VisibleForTesting.Visibility;
 import com.android.internal.inputmethod.InputMethodDebug;
 import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.jank.InteractionJankMonitor;
 import com.android.internal.jank.InteractionJankMonitor.Configuration;
+import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.LatencyTracker;
 
 import java.lang.annotation.Retention;
@@ -55,6 +56,7 @@ import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 /** @hide */
@@ -70,12 +72,15 @@ public interface ImeTracker {
 
     /** The type of the IME request. */
     @IntDef(prefix = { "TYPE_" }, value = {
+            TYPE_NOT_SET,
             TYPE_SHOW,
             TYPE_HIDE,
             TYPE_USER,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface Type {}
+
+    int TYPE_NOT_SET = ImeProtoEnums.TYPE_NOT_SET;
 
     /**
      * IME show request type.
@@ -109,28 +114,29 @@ public interface ImeTracker {
     @Retention(RetentionPolicy.SOURCE)
     @interface Status {}
 
-    /** IME request running. */
+    /** The IME request is running. */
     int STATUS_RUN = ImeProtoEnums.STATUS_RUN;
 
-    /** IME request cancelled. */
+    /** The IME request is cancelled. */
     int STATUS_CANCEL = ImeProtoEnums.STATUS_CANCEL;
 
-    /** IME request failed. */
+    /** The IME request failed. */
     int STATUS_FAIL = ImeProtoEnums.STATUS_FAIL;
 
-    /** IME request succeeded. */
+    /** The IME request succeeded. */
     int STATUS_SUCCESS = ImeProtoEnums.STATUS_SUCCESS;
 
-    /** IME request timed out. */
+    /** The IME request timed out. */
     int STATUS_TIMEOUT = ImeProtoEnums.STATUS_TIMEOUT;
 
     /**
-     * The origin of the IME request
+     * The origin of the IME request.
      *
      * <p> The name follows the format {@code ORIGIN_x_...} where {@code x} denotes
      * where the origin is (i.e. {@code ORIGIN_SERVER} occurs in the server).
      */
     @IntDef(prefix = { "ORIGIN_" }, value = {
+            ORIGIN_NOT_SET,
             ORIGIN_CLIENT,
             ORIGIN_SERVER,
             ORIGIN_IME,
@@ -138,6 +144,8 @@ public interface ImeTracker {
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface Origin {}
+
+    int ORIGIN_NOT_SET = ImeProtoEnums.ORIGIN_NOT_SET;
 
     /** The IME request originated in the client. */
     int ORIGIN_CLIENT = ImeProtoEnums.ORIGIN_CLIENT;
@@ -173,10 +181,7 @@ public interface ImeTracker {
             PHASE_IME_SHOW_SOFT_INPUT,
             PHASE_IME_HIDE_SOFT_INPUT,
             PHASE_IME_ON_SHOW_SOFT_INPUT_TRUE,
-            PHASE_SERVER_APPLY_IME_VISIBILITY,
-            PHASE_WM_SHOW_IME_RUNNER,
             PHASE_WM_SHOW_IME_READY,
-            PHASE_WM_HAS_IME_INSETS_CONTROL_TARGET,
             PHASE_WM_WINDOW_INSETS_CONTROL_TARGET_SHOW_INSETS,
             PHASE_WM_WINDOW_INSETS_CONTROL_TARGET_HIDE_INSETS,
             PHASE_WM_REMOTE_INSETS_CONTROL_TARGET_SHOW_INSETS,
@@ -190,14 +195,9 @@ public interface ImeTracker {
             PHASE_CLIENT_HANDLE_HIDE_INSETS,
             PHASE_CLIENT_APPLY_ANIMATION,
             PHASE_CLIENT_CONTROL_ANIMATION,
-            PHASE_CLIENT_COLLECT_SOURCE_CONTROLS,
-            PHASE_CLIENT_INSETS_CONSUMER_REQUEST_SHOW,
-            PHASE_CLIENT_REQUEST_IME_SHOW,
-            PHASE_CLIENT_INSETS_CONSUMER_NOTIFY_HIDDEN,
             PHASE_CLIENT_ANIMATION_RUNNING,
             PHASE_CLIENT_ANIMATION_CANCEL,
             PHASE_CLIENT_ANIMATION_FINISHED_SHOW,
-            PHASE_CLIENT_ANIMATION_FINISHED_HIDE,
             PHASE_WM_ABORT_SHOW_IME_POST_LAYOUT,
             PHASE_IME_SHOW_WINDOW,
             PHASE_IME_HIDE_WINDOW,
@@ -234,6 +234,8 @@ public interface ImeTracker {
             PHASE_CLIENT_ON_CONTROLS_CHANGED,
             PHASE_SERVER_IME_INVOKER,
             PHASE_SERVER_CLIENT_INVOKER,
+            PHASE_SERVER_ALREADY_VISIBLE,
+            PHASE_CLIENT_INSETS_CONTROLLER_DISPATCH,
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface Phase {}
@@ -285,18 +287,8 @@ public interface ImeTracker {
     /** The server decided the IME should be shown. */
     int PHASE_IME_ON_SHOW_SOFT_INPUT_TRUE = ImeProtoEnums.PHASE_IME_ON_SHOW_SOFT_INPUT_TRUE;
 
-    /** Applied the IME visibility. */
-    int PHASE_SERVER_APPLY_IME_VISIBILITY = ImeProtoEnums.PHASE_SERVER_APPLY_IME_VISIBILITY;
-
-    /** Started the show IME runner. */
-    int PHASE_WM_SHOW_IME_RUNNER = ImeProtoEnums.PHASE_WM_SHOW_IME_RUNNER;
-
     /** Ready to show IME. */
     int PHASE_WM_SHOW_IME_READY = ImeProtoEnums.PHASE_WM_SHOW_IME_READY;
-
-    /** The Window Manager has a connection to the IME insets control target. */
-    int PHASE_WM_HAS_IME_INSETS_CONTROL_TARGET =
-            ImeProtoEnums.PHASE_WM_HAS_IME_INSETS_CONTROL_TARGET;
 
     /** Reached the window insets control target's show insets method. */
     int PHASE_WM_WINDOW_INSETS_CONTROL_TARGET_SHOW_INSETS =
@@ -341,20 +333,6 @@ public interface ImeTracker {
     /** Started the IME window insets show animation. */
     int PHASE_CLIENT_CONTROL_ANIMATION = ImeProtoEnums.PHASE_CLIENT_CONTROL_ANIMATION;
 
-    /** Collecting insets source controls. */
-    int PHASE_CLIENT_COLLECT_SOURCE_CONTROLS = ImeProtoEnums.PHASE_CLIENT_COLLECT_SOURCE_CONTROLS;
-
-    /** Reached the insets source consumer's show request method. */
-    int PHASE_CLIENT_INSETS_CONSUMER_REQUEST_SHOW =
-            ImeProtoEnums.PHASE_CLIENT_INSETS_CONSUMER_REQUEST_SHOW;
-
-    /** Reached input method manager's request IME show method. */
-    int PHASE_CLIENT_REQUEST_IME_SHOW = ImeProtoEnums.PHASE_CLIENT_REQUEST_IME_SHOW;
-
-    /** Reached the insets source consumer's notify hidden method. */
-    int PHASE_CLIENT_INSETS_CONSUMER_NOTIFY_HIDDEN =
-            ImeProtoEnums.PHASE_CLIENT_INSETS_CONSUMER_NOTIFY_HIDDEN;
-
     /** Queued the IME window insets show animation. */
     int PHASE_CLIENT_ANIMATION_RUNNING = ImeProtoEnums.PHASE_CLIENT_ANIMATION_RUNNING;
 
@@ -363,9 +341,6 @@ public interface ImeTracker {
 
     /** Finished the IME window insets show animation. */
     int PHASE_CLIENT_ANIMATION_FINISHED_SHOW = ImeProtoEnums.PHASE_CLIENT_ANIMATION_FINISHED_SHOW;
-
-    /** Finished the IME window insets hide animation. */
-    int PHASE_CLIENT_ANIMATION_FINISHED_HIDE = ImeProtoEnums.PHASE_CLIENT_ANIMATION_FINISHED_HIDE;
 
     /** Aborted the request to show the IME post layout. */
     int PHASE_WM_ABORT_SHOW_IME_POST_LAYOUT =
@@ -479,6 +454,11 @@ public interface ImeTracker {
     int PHASE_SERVER_IME_INVOKER = ImeProtoEnums.PHASE_SERVER_IME_INVOKER;
     /** Reached the IME client invoker on the server. */
     int PHASE_SERVER_CLIENT_INVOKER = ImeProtoEnums.PHASE_SERVER_CLIENT_INVOKER;
+    /** The server will dispatch the show request to the IME, but this is already visible. */
+    int PHASE_SERVER_ALREADY_VISIBLE = ImeProtoEnums.PHASE_SERVER_ALREADY_VISIBLE;
+    /** The show/hide request will be dispatched to the InsetsController of the ViewRootImpl. */
+    int PHASE_CLIENT_INSETS_CONTROLLER_DISPATCH =
+            ImeProtoEnums.PHASE_CLIENT_INSETS_CONTROLLER_DISPATCH;
 
     /**
      * Called when an IME request is started.
@@ -515,46 +495,46 @@ public interface ImeTracker {
     /**
      * Called when an IME request progresses to a further phase.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
-     * @param phase the new phase the IME request reached.
+     * @param token the token tracking the request or {@code null} otherwise.
+     * @param phase the new phase the request reached.
      */
     void onProgress(@Nullable Token token, @Phase int phase);
 
     /**
      * Called when an IME request fails.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
-     * @param phase the phase the IME request failed at.
+     * @param token the token tracking the request or {@code null} otherwise.
+     * @param phase the phase the request failed at.
      */
     void onFailed(@Nullable Token token, @Phase int phase);
 
     /**
      * Called when an IME request reached a flow that is not yet implemented.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
-     * @param phase the phase the IME request was currently at.
+     * @param token the token tracking the request or {@code null} otherwise.
+     * @param phase the phase the request was currently at.
      */
     void onTodo(@Nullable Token token, @Phase int phase);
 
     /**
      * Called when an IME request is cancelled.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
-     * @param phase the phase the IME request was cancelled at.
+     * @param token the token tracking the request or {@code null} otherwise.
+     * @param phase the phase the request was cancelled at.
      */
     void onCancelled(@Nullable Token token, @Phase int phase);
 
     /**
      * Called when the show IME request is successful.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
+     * @param token the token tracking the request or {@code null} otherwise.
      */
     void onShown(@Nullable Token token);
 
     /**
      * Called when the hide IME request is successful.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
+     * @param token the token tracking the request or {@code null} otherwise.
      */
     void onHidden(@Nullable Token token);
 
@@ -562,14 +542,14 @@ public interface ImeTracker {
      * Called when the user-controlled IME request was dispatched to the requesting app. The
      * user animation can take an undetermined amount of time, so it shouldn't be tracked.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
+     * @param token the token tracking the request or {@code null} otherwise.
      */
     void onDispatched(@Nullable Token token);
 
     /**
      * Called when the animation of the user-controlled IME request finished.
      *
-     * @param token the token tracking the current IME request or {@code null} otherwise.
+     * @param token the token tracking the request or {@code null} otherwise.
      * @param shown whether the end state of the animation was shown or hidden.
      */
     void onUserFinished(@Nullable Token token, boolean shown);
@@ -635,6 +615,10 @@ public interface ImeTracker {
             reloadSystemProperties();
             // Update when system properties change.
             SystemProperties.addChangeCallback(this::reloadSystemProperties);
+
+            if (android.tracing.Flags.imetrackerProtolog()) {
+                ProtoLog.registerLogGroupInProcess(IME_TRACKER);
+            }
         }
 
         /** Whether {@link #onProgress} calls should be logged. */
@@ -647,25 +631,27 @@ public interface ImeTracker {
         @Override
         public Token onStart(@NonNull String component, int uid, @Type int type, @Origin int origin,
                 @SoftInputShowHideReason int reason, boolean fromUser) {
-            final var tag = Token.createTag(component);
-            final var token = IInputMethodManagerGlobalInvoker.onStart(tag, uid, type,
-                    origin, reason, fromUser);
+            final var token = Token.createToken(component);
+            final long startWallTimeMs = System.currentTimeMillis();
+            final long startTimestampMs = SystemClock.elapsedRealtime();
+            IInputMethodManagerGlobalInvoker.onStart(token, uid, type,
+                    origin, reason, fromUser, startWallTimeMs, startTimestampMs);
 
-            Log.i(TAG, token.mTag + ": " + getOnStartPrefix(type)
-                    + " at " + Debug.originToString(origin)
-                    + " reason " + InputMethodDebug.softInputDisplayReasonToString(reason)
-                    + " fromUser " + fromUser,
-                    mLogStackTrace ? new Throwable() : null);
+            log("%s: %s at %s reason %s fromUser %s%s", token.mTag,
+                    getOnStartPrefix(type), Debug.originToString(origin),
+                    InputMethodDebug.softInputDisplayReasonToString(reason), fromUser,
+                    mLogStackTrace ? " Stack trace=" + Log.getStackTraceString(new Throwable()) : ""
+            );
             return token;
         }
 
         @Override
         public void onProgress(@Nullable Token token, @Phase int phase) {
             if (token == null) return;
-            IInputMethodManagerGlobalInvoker.onProgress(token.mBinder, phase);
+            IInputMethodManagerGlobalInvoker.onProgress(token, phase);
 
             if (mLogProgress) {
-                Log.i(TAG, token.mTag + ": onProgress at " + Debug.phaseToString(phase));
+                log("%s: onProgress at %s", token.mTag, Debug.phaseToString(phase));
             }
         }
 
@@ -674,13 +660,13 @@ public interface ImeTracker {
             if (token == null) return;
             IInputMethodManagerGlobalInvoker.onFailed(token, phase);
 
-            Log.i(TAG, token.mTag + ": onFailed at " + Debug.phaseToString(phase));
+            log("%s: onFailed at %s", token.mTag, Debug.phaseToString(phase));
         }
 
         @Override
         public void onTodo(@Nullable Token token, @Phase int phase) {
             if (token == null) return;
-            Log.i(TAG, token.mTag + ": onTodo at " + Debug.phaseToString(phase));
+            log("%s: onTodo at %s", token.mTag, Debug.phaseToString(phase));
         }
 
         @Override
@@ -688,7 +674,7 @@ public interface ImeTracker {
             if (token == null) return;
             IInputMethodManagerGlobalInvoker.onCancelled(token, phase);
 
-            Log.i(TAG, token.mTag + ": onCancelled at " + Debug.phaseToString(phase));
+            log("%s: onCancelled at %s", token.mTag, Debug.phaseToString(phase));
         }
 
         @Override
@@ -696,7 +682,7 @@ public interface ImeTracker {
             if (token == null) return;
             IInputMethodManagerGlobalInvoker.onShown(token);
 
-            Log.i(TAG, token.mTag + ": onShown");
+            log("%s: onShown", token.mTag);
         }
 
         @Override
@@ -704,7 +690,7 @@ public interface ImeTracker {
             if (token == null) return;
             IInputMethodManagerGlobalInvoker.onHidden(token);
 
-            Log.i(TAG, token.mTag + ": onHidden");
+            log("%s: onHidden", token.mTag);
         }
 
         @Override
@@ -712,7 +698,7 @@ public interface ImeTracker {
             if (token == null) return;
             IInputMethodManagerGlobalInvoker.onDispatched(token);
 
-            Log.i(TAG, token.mTag + ": onDispatched");
+            log("%s: onDispatched", token.mTag);
         }
 
         @Override
@@ -720,7 +706,7 @@ public interface ImeTracker {
             if (token == null) return;
             // This is already sent to ImeTrackerService to mark it finished during onDispatched.
 
-            Log.i(TAG, token.mTag + ": onUserFinished " + (shown ? "shown" : "hidden"));
+            log("%s: onUserFinished %s", token.mTag, shown ? "shown" : "hidden");
         }
 
         /**
@@ -756,32 +742,29 @@ public interface ImeTracker {
     /** A token that tracks the progress of an IME request. */
     final class Token implements Parcelable {
 
-        /** Empty binder, lazily initialized, used for empty token instantiation. */
-        @Nullable
-        private static IBinder sEmptyBinder;
+        private static final AtomicInteger sCounter = new AtomicInteger();
 
-        /** The binder used to identify this token. */
-        @NonNull
-        private final IBinder mBinder;
+        /** The id used to identify this token. */
+        private final long mId;
 
         /** Logging tag, of the shape "component:random_hexadecimal". */
         @NonNull
         private final String mTag;
 
-        public Token(@NonNull IBinder binder, @NonNull String tag) {
-            mBinder = binder;
+        @VisibleForTesting
+        public Token(long id, @NonNull String tag) {
+            mId = id;
             mTag = tag;
         }
 
         private Token(@NonNull Parcel in) {
-            mBinder = in.readStrongBinder();
+            mId = in.readLong();
             mTag = in.readString8();
         }
 
-        /** Returns the binder used to identify this token. */
-        @NonNull
-        public IBinder getBinder() {
-            return mBinder;
+        /** Returns the id used to identify this token. */
+        public long getId() {
+            return mId;
         }
 
         /** Returns the logging tag of this token. */
@@ -790,37 +773,37 @@ public interface ImeTracker {
             return mTag;
         }
 
+        @NonNull
+        private static Token createToken(@NonNull String component) {
+            // Unique 64 bit ID, composed of process ID and process local counter. When a process
+            // dies, its ID is generally re-used only after the other possible values are exhausted.
+            // Thus the collision chance is very low, (virtually) towards zero.
+            final long id = ((long) Process.myPid()) << 32 | sCounter.getAndIncrement();
+            return new Token(id, createTag(component));
+        }
+
         /**
          * Creates a logging tag.
          *
-         * @param component the name of the component that created the IME request.
+         * @param component the name of the component that created the request.
          */
         @NonNull
         private static String createTag(@NonNull String component) {
             return component + ":" + Integer.toHexString(ThreadLocalRandom.current().nextInt());
         }
 
-        /** Returns a new token with an empty binder. */
+        /** Returns a new token with an empty id. */
         @NonNull
-        @VisibleForTesting(visibility = Visibility.PACKAGE)
+        @VisibleForTesting
         public static Token empty() {
             final var tag = createTag(Process.myProcessName());
             return empty(tag);
         }
 
-        /** Returns a new token with an empty binder and the given logging tag. */
+        /** Returns a new token with an empty id and the given logging tag. */
         @NonNull
         static Token empty(@NonNull String tag) {
-            return new Token(getEmptyBinder(), tag);
-        }
-
-        /** Returns the empty binder instance for empty token creation, lazily initializing it. */
-        @NonNull
-        private static IBinder getEmptyBinder() {
-            if (sEmptyBinder == null) {
-                sEmptyBinder = new Binder();
-            }
-            return sEmptyBinder;
+            return new Token(0 /* id */, tag);
         }
 
         @Override
@@ -836,7 +819,7 @@ public interface ImeTracker {
 
         @Override
         public void writeToParcel(@NonNull Parcel dest, int flags) {
-            dest.writeStrongBinder(mBinder);
+            dest.writeLong(mId);
             dest.writeString8(mTag);
         }
 
@@ -941,6 +924,16 @@ public interface ImeTracker {
          * @return a context associated with current application
          */
         Context getAppContext();
+    }
+
+    private static void log(@NonNull String messageString, @NonNull Object... args) {
+        if (android.tracing.Flags.imetrackerProtolog()) {
+            ProtoLog.i(IME_TRACKER, messageString, args);
+        } else {
+            // Log only to logcat
+            final var message = TextUtils.formatSimple(messageString, args);
+            Log.i(TAG, message);
+        }
     }
 
     /**

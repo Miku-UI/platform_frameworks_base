@@ -29,6 +29,7 @@ import java.util.List;
  * <p>This only plays after all active vibrators steps have finished, and adds a {@link
  * StartSequentialEffectStep} to the queue if the sequential effect isn't finished yet.
  */
+// TODO(b/421857859): remove this class once flag remove_sequential_combination is removed
 final class FinishSequentialEffectStep extends Step {
     public final StartSequentialEffectStep startedStep;
 

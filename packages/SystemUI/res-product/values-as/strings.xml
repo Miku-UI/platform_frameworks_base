@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"এই টেবলেটটোত প্লে’ কৰি থকা হৈছে"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"পাৱাৰ অফ কৰা থাকিলেও Find My Deviceৰ জৰিয়তে আপুনি এই ফ’নটোৰ অৱস্থান নিৰ্ধাৰণ কৰিব পাৰে"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"পাৱাৰ অফ কৰা থাকিলেও Find My Deviceৰ জৰিয়তে আপুনি এই টেবলেটটোৰ অৱস্থান নিৰ্ধাৰণ কৰিব পাৰে"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"পাৱাৰ অফ কৰা থাকিলেও Find Hubৰ জৰিয়তে আপুনি এই ফ’নটোৰ অৱস্থান নিৰ্ধাৰণ কৰিব পাৰে"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"পাৱাৰ অফ কৰা থাকিলেও Find Hubৰ জৰিয়তে আপুনি এই টেবলেটটোৰ অৱস্থান নিৰ্ধাৰণ কৰিব পাৰে"</string>
 </resources>

@@ -71,7 +71,6 @@ class BrightnessObserverTest {
     @Test
     fun testLowLightBlockingZoneVotes(@TestParameter testCase: LowLightTestCase) {
         setUpLowBrightnessZone()
-        whenever(mockFlags.isVsyncLowLightVoteEnabled).thenReturn(testCase.vsyncLowLightVoteEnabled)
         val displayModeDirector = DisplayModeDirector(
                 spyContext, testHandler, mockInjector, mockFlags, mockDisplayDeviceConfigProvider)
         whenever(mockDeviceConfig.isVrrSupportEnabled).thenReturn(testCase.vrrSupported)
@@ -112,22 +111,27 @@ class BrightnessObserverTest {
     }
 
     enum class LowLightTestCase(
-            val vrrSupported: Boolean,
-            val vsyncLowLightVoteEnabled: Boolean,
-            val refreshRateData: RefreshRateData,
-            val refreshRateInLowZone: Int,
-            internal val expectedRefreshRateVote: Vote,
-            internal val expectedSwitchVote: Vote?,
+        val vrrSupported: Boolean,
+        val refreshRateData: RefreshRateData,
+        val refreshRateInLowZone: Int,
+        internal val expectedRefreshRateVote: Vote,
+        internal val expectedSwitchVote: Vote?,
     ) {
-        ALL_ENABLED(true, true, LOW_LIGHT_REFRESH_RATE_DATA, 60,
-            EXPECTED_SUPPORTED_MODES_VOTE, null),
-        ALL_ENABLED_NO_RR_IN_LOW_ZONE(true, true, LOW_LIGHT_REFRESH_RATE_DATA, 0,
-            EXPECTED_SUPPORTED_MODES_VOTE, null),
-        VRR_NOT_SUPPORTED(false, true, LOW_LIGHT_REFRESH_RATE_DATA, 60,
-            Vote.forPhysicalRefreshRates(60f, 60f), DisableRefreshRateSwitchingVote(true)),
-        VSYNC_VOTE_DISABLED(true, false, LOW_LIGHT_REFRESH_RATE_DATA, 50,
-            Vote.forPhysicalRefreshRates(50f, 50f), DisableRefreshRateSwitchingVote(true)),
-        NO_LOW_LIGHT_CONFIG(true, true, createRefreshRateData(), 40,
-            Vote.forPhysicalRefreshRates(40f, 40f), DisableRefreshRateSwitchingVote(true)),
+        ALL_ENABLED(
+            true, LOW_LIGHT_REFRESH_RATE_DATA, 60,
+            EXPECTED_SUPPORTED_MODES_VOTE, null
+        ),
+        ALL_ENABLED_NO_RR_IN_LOW_ZONE(
+            true, LOW_LIGHT_REFRESH_RATE_DATA, 0,
+            EXPECTED_SUPPORTED_MODES_VOTE, null
+        ),
+        VRR_NOT_SUPPORTED(
+            false, LOW_LIGHT_REFRESH_RATE_DATA, 60,
+            Vote.forPhysicalRefreshRates(60f, 60f), DisableRefreshRateSwitchingVote(true)
+        ),
+        NO_LOW_LIGHT_CONFIG(
+            true, createRefreshRateData(), 40,
+            Vote.forPhysicalRefreshRates(40f, 40f), DisableRefreshRateSwitchingVote(true)
+        ),
     }
 }

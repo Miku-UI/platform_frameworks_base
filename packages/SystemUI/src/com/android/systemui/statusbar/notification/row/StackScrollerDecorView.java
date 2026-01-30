@@ -96,7 +96,7 @@ public abstract class StackScrollerDecorView extends ExpandableView {
                 if (visible) {
                     setVisibility(VISIBLE);
                     setWillBeGone(false);
-                    notifyHeightChanged(false /* needsAnimation */);
+                    notifyHeightChanged(true /* needsAnimation */);
                 } else {
                     setWillBeGone(true);
                 }

@@ -73,9 +73,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"Ve výchozím nastavení je funkce ID volajícího omezena. Příští hovor: Neomezeno"</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"Ve výchozím nastavení není funkce ID volajícího omezena. Příští hovor: Omezeno"</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"Ve výchozím nastavení není funkce ID volajícího omezena. Příští hovor: Neomezeno"</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"Tato aplikace není kompatibilní s 16KB stránkováním. Kontrola zarovnání v souboru APK selhala. Tato aplikace poběží v režimu kompatibility s velikostí stránky. Pro optimální kompatibilitu ji překompilujte s podporou 16KB stránkování. Další informace najdete na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"Tato aplikace není kompatibilní s 16KB stránkováním. Kontrola zarovnání v souboru ELF selhala. Tato aplikace poběží v režimu kompatibility s velikostí stránky. Pro optimální kompatibilitu ji překompilujte s podporou 16KB stránkování. Další informace najdete na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"Tato aplikace není kompatibilní s 16KB stránkováním. Kontroly zarovnání v souborech APK a ELF selhaly. Tato aplikace poběží v režimu kompatibility s velikostí stránky. Pro optimální kompatibilitu ji překompilujte s podporou 16KB stránkování. Další informace najdete na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;"</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"Tato aplikace není kompatibilní s 16KB režimem. Kontrola souladu souboru APK selhala. Tato aplikace poběží v režimu kompatibilní velikosti stránek. Pro optimální kompatibilitu ji překompilujte s podporou 16KB režimu. Další informace najdete na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Následující knihovny nejsou zarovnány s 16KB stránkováním: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"Tato aplikace není kompatibilní s 16KB režimem. Kontrola zarovnání souboru ELF selhala. Tato aplikace poběží v režimu kompatibilní velikosti stránek. Pro optimální kompatibilitu ji překompilujte s podporou 16KB režimu. Další informace najdete na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Následující knihovny nejsou zarovnány s 16KB stránkováním: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"Tato aplikace není kompatibilní s 16KB režimem. Kontroly zarovnání souborů APK a ELF selhaly. Tato aplikace poběží v režimu kompatibilní velikosti stránek. Pro optimální kompatibilitu ji překompilujte s podporou 16KB režimu. Další informace najdete na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Následující knihovny nejsou zarovnány s 16KB stránkováním: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"Toto varování se zobrazuje, protože se jedná o laditelnou aplikaci, která je momentálně testována. Pokud nejste vývojář, nahlaste to vývojáři a požádejte o neladitelnou aplikaci. &lt;br&gt;&lt;br&gt; Tato aplikace není kompatibilní s 16KB režimem. Kontrola souladu souboru APK selhala. Postupujte podle pokynů na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Následující knihovny nejsou zarovnány s 16KB stránkováním: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"Toto varování se zobrazuje, protože se jedná o laditelnou aplikaci, která je momentálně testována. Pokud nejste vývojář, nahlaste to vývojáři a požádejte o neladitelnou aplikaci. &lt;br&gt;&lt;br&gt; Tato aplikace není kompatibilní s 16KB režimem. Kontrola zarovnání souboru ELF selhala. Postupujte podle pokynů na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; Následující knihovny nejsou zarovnány s 16KB stránkováním: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"Toto varování se zobrazuje, protože se jedná o laditelnou aplikaci, která je momentálně testována. Pokud nejste vývojář, nahlaste to vývojáři a požádejte o neladitelný software. &lt;br&gt;&lt;br&gt; Tato aplikace není kompatibilní s 16KB režimem. Kontroly zarovnání souborů APK a ELF selhaly. Postupujte podle pokynů na stránce &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt;. &lt;br&gt;&lt;br&gt; Následující knihovny nejsou zarovnány s 16KB stránkováním: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"Tuto zprávu příště nezobrazovat"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Kompatibilita aplikací pro Android"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s : Segment LOAD není zarovnán&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : Nezkomprimovaná knihovna není zarovnána&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s : Segment LOAD a nekomprimovaná knihovna nejsou zarovnány&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : Neznámá chyba&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"Služba není zřízena."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"Nastavení ID volajícího nesmíte měnit."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"Datové připojení bylo přepnuto na operátora <xliff:g id="CARRIERDISPLAY">%s</xliff:g>"</string>
@@ -162,8 +171,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"Zabezpečení mobilních sítí"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"Šifrování, oznámení o nezašifrovaných sítích"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"Přístup k ID zařízení"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"V <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> zaznamenala síť v okolí při použití SIM karty <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g> jedinečný identifikátor vašeho zařízení (IMSI nebo IMEI)"</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"V <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> zaznamenala síť v okolí při použití SIM karty <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g> jedinečný identifikátor vašeho zařízení (IMSI nebo IMEI).\n\nTo znamená, že byla zaprotokolována vaše poloha, aktivita nebo identita. Jedná se o obvyklý postup, ale pro uživatele, kterým záleží na ochraně soukromí, to může být problém."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"V <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> zaznamenala síť v okolí při použití SIM karty <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> jedinečný identifikátor vašeho zařízení (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>)"</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"V <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> zaznamenala síť v okolí při použití SIM karty <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> jedinečný identifikátor vašeho zařízení"</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"V <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> zaznamenala síť v okolí při použití SIM karty <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> jedinečný identifikátor vašeho zařízení (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>).\n\nTo znamená, že byla zaprotokolována vaše poloha, aktivita nebo identita. Jedná se o obvyklý postup, ale pro uživatele, kterým záleží na ochraně soukromí, to může být problém."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"V <xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> zaznamenala síť v okolí při použití SIM karty <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> jedinečný identifikátor vašeho zařízení.\n\nTo znamená, že byla zaprotokolována vaše poloha, aktivita nebo identita. Jedná se o obvyklý postup, ale pro uživatele, kterým záleží na ochraně soukromí, to může být problém."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"Připojení k zašifrované síti <xliff:g id="NETWORK_NAME">%1$s</xliff:g>"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"Připojení k SIM kartě <xliff:g id="NETWORK_NAME">%1$s</xliff:g> je teď bezpečnější"</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"Připojení k nezašifrované síti"</string>
@@ -291,6 +302,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"Asistence"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"Hlas. asistence"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"Zamknout"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"Zamknout"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"999+"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"Odpovědět"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"Nové oznámení"</string>
@@ -313,7 +325,7 @@
     <string name="notification_channel_heavy_weight_app" msgid="17455756500828043">"Aplikace je spuštěna"</string>
     <string name="notification_channel_foreground_service" msgid="7102189948158885178">"Aplikace spotřebovávají baterii"</string>
     <string name="notification_channel_accessibility_magnification" msgid="1707913872219798098">"Zvětšení"</string>
-    <string name="notification_channel_accessibility_hearing_device" msgid="7816963856388758952">"Naslouchátko"</string>
+    <string name="notification_channel_accessibility_hearing_device" msgid="7816963856388758952">"Sluchová pomůcka"</string>
     <string name="notification_channel_accessibility_security_policy" msgid="1727787021725251912">"Využití přístupnosti"</string>
     <string name="notification_channel_display" msgid="6905032605735615090">"Displej"</string>
     <string name="foreground_service_app_in_background" msgid="1439289699671273555">"Aplikace <xliff:g id="APP_NAME">%1$s</xliff:g> využívá baterii"</string>
@@ -326,8 +338,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"Přepnout na pracovní profil"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"Přepnout na osobní verzi aplikace <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"Přepnout na pracovní verzi aplikace <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"Kontakty"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"přístup ke kontaktům"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"Kontakty a účty"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"přístup ke kontaktům a zobrazení seznamu účtů, které mohou na tomto zařízení ukládat kontakty"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"Poloha"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"přístup k poloze tohoto zařízení"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"Kalendář"</string>
@@ -356,10 +368,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"přístup k datům ze senzorů vašich životních funkcí"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"Oznámení"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"zobrazovat oznámení"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"data pro rozšířenou realitu"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"přístup k datům o vás a okolním prostředí pro rozšířenou realitu"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"citlivá data pro rozšířenou realitu"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"přístup k citlivým datům o sledování, jako je například směr pohledu"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"Data sledování pohybu očí"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"přesné sledování pohybů oka"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"Data o pohybu a oblasti"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"sledování očí, obličeje, těla a analyzování oblasti"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"Přesná data o pohybu a oblasti"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"přesné skenování oblasti a sledování hlavy"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"Načítat obsah oken"</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"Může prozkoumávat obsah oken, se kterými pracujete."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"Zapnout funkci Prozkoumání dotykem"</string>
@@ -384,6 +398,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"Umožňuje aplikaci rozbalit či sbalit stavový řádek."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"zobrazovat oznámení na celé obrazovce zamčeného zařízení"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"Umožňuje aplikaci zobrazovat oznámení na celé obrazovce zamčeného zařízení"</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"Zobrazovat aktuality živě"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"Umožňuje aplikaci zobrazovat průběžná, časově omezená oznámení na stavovém řádku a na obrazovce uzamčení."</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"Instalace zástupců"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"Umožňuje aplikaci přidat zástupce na plochu bez zásahu uživatele."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"odinstalace zástupců"</string>
@@ -625,6 +641,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"Aplikace bude moci zjišťovat vzájemnou pozici mezi ultra-širokopásmovými zařízeními v okolí"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"interakce se zařízeními Wi-Fi v okolí"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"Umožňuje aplikaci inzerovat, připojovat se a odhadovat relativní polohu zařízení Wi-Fi v okolí"</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"přístup k zařízením v místní síti"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"Umožňuje aplikaci získat přístup k zařízením v místní síti"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"zjišťování vzájemné pozice mezi zařízeními v okolí"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"Aplikace bude moci zjišťovat vzájemnou pozici mezi zařízeními v okolí"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"Informace o preferované platební službě NFC"</string>
@@ -655,27 +673,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"Umožňuje aplikaci upravit vaši sbírku fotek."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"čtení míst ze sbírky médií"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"Umožňuje aplikaci číst místa z vaší sbírky médií."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"sledování přibližného směru pohledu"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"Umožňuje aplikaci sledovat, kam se přibližně díváte."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"sledování, kam se díváte"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"Umožňuje aplikaci přistupovat k přesným údajům o tom, kam se díváte."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"sledování obličeje"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"Umožňuje aplikaci přistupovat k datům o sledování obličeje."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"sledování rukou"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"Umožňuje aplikaci přistupovat k datům o sledování rukou."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"sledování hlavy"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"Umožňuje aplikaci přistupovat k datům o sledování hlavy."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"porozumění bezprostřednímu okolí"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"Umožňuje aplikaci přistupovat k datům o prostředí kolem vás."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"detailní porozumění bezprostřednímu okolí"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"Umožňuje aplikaci přistupovat k velmi detailním datům o prostředí kolem vás."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"přístup k datům pro rozšířenou realitu na pozadí"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"Umožňuje aplikaci přistupovat k datům pro rozšířenou reality, když není v popředí."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"sledování pohybů oka"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"Umožňuje aplikaci sledovat, kam se přibližně díváte."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"přesné sledování pohybů oka"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"Umožňuje aplikaci sledovat, kam se díváte."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"sledování pohybů obličeje"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"Umožňuje aplikaci sledovat pohyby a výraz vašeho obličeje."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"sledování pohybů ruky"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"Umožňuje aplikaci sledovat pohyby vaší ruky."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"sledování pohybů hlavy"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"Umožňuje aplikaci sledovat pohyby vaší hlavy."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"analýza okolní oblasti"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"Umožňuje aplikaci analyzovat vaše okolí."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"přesná analýza okolní oblasti"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"Umožňuje aplikaci přesně analyzovat vaše okolí."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"přístup ke sledování XR na pozadí"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"Umožňuje aplikaci přístup k datům rozšířené reality na pozadí."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"zachytávat klávesy"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"Umožňuje aplikaci zachytit události kláves dříve, než systém dostane možnost zpracovat systémové zkratky a akce."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"Použít biometrii"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"Použít biometrii nebo zámek obrazovky"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"Potvrďte, že jste to vy"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"Pokračujte biometrickým ověřením"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"Pokračujte ověřením pomocí biometrických údajů nebo zámku obrazovky"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"Pokud chcete pokračovat, ověřte se na telefonu"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"Pokud chcete pokračovat, ověřte se na telefonu"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"Biometrický hardware není k dispozici"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"Ověření bylo zrušeno"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"Nerozpoznáno"</string>
@@ -740,8 +762,8 @@
     <string name="face_acquired_insufficient" msgid="6889245852748492218">"Model se nepodařilo vytvořit. Zkuste to znovu."</string>
     <string name="face_acquired_too_bright" msgid="8070756048978079164">"Je příliš světlo. Zmírněte osvětlení."</string>
     <string name="face_acquired_too_dark" msgid="8539853432479385326">"Nedostatečné osvětlení"</string>
-    <string name="face_acquired_too_close" msgid="4453646176196302462">"Umístěte telefon dál"</string>
-    <string name="face_acquired_too_far" msgid="2922278214231064859">"Umístěte telefon blíž"</string>
+    <string name="face_acquired_too_close" msgid="4453646176196302462">"Oddalte telefon"</string>
+    <string name="face_acquired_too_far" msgid="2922278214231064859">"Přibližte telefon"</string>
     <string name="face_acquired_too_high" msgid="8278815780046368576">"Posuňte telefon výš"</string>
     <string name="face_acquired_too_low" msgid="4075391872960840081">"Posuňte telefon níž"</string>
     <string name="face_acquired_too_right" msgid="6245286514593540859">"Posuňte telefon doleva"</string>
@@ -899,6 +921,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"Zakázat používání všech fotoaparátů zařízení."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"Zakázat některé funkce zámku obrazovky"</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"Zabrání se použití některých funkcí zámku obrazovky."</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"Tuto aplikaci zavřete dlouhým stisknutím klávesy Esc"</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"Domů"</item>
     <item msgid="7740243458912727194">"Mobil"</item>
@@ -1020,7 +1043,7 @@
     <string name="keyguard_password_entry_touch_hint" msgid="4032288032993261520"><font size="17">"Klepnutím zadáte heslo"</font></string>
     <string name="keyguard_password_enter_password_code" msgid="2751130557661643482">"Zadejte heslo pro odemknutí"</string>
     <string name="keyguard_password_enter_pin_password_code" msgid="7792964196473964340">"Zadejte kód PIN pro odemknutí"</string>
-    <string name="keyguard_password_wrong_pin_code" msgid="8583732939138432793">"Nesprávný kód PIN."</string>
+    <string name="keyguard_password_wrong_pin_code" msgid="8583732939138432793">"Nesprávný PIN."</string>
     <string name="keyguard_label_text" msgid="3841953694564168384">"Chcete-li telefon odemknout, stiskněte Menu a poté 0."</string>
     <string name="emergency_call_dialog_number_for_display" msgid="2978165477085612673">"Číslo tísňové linky"</string>
     <string name="lockscreen_carrier_default" msgid="6192313772955399160">"Žádný signál"</string>
@@ -1109,6 +1132,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"Odemknutí SIM karty kódem PIN."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"Odemknutí SIM karty kódem PUK."</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"Odemknutí heslem."</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"Biometrické odemknutí pro funkci bezpečného uzamknutí zařízení."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"Oblast pro zadání bezpečnostního gesta."</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"Oblast pro přejetí prstem."</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1184,22 +1208,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"za <xliff:g id="COUNT">%d</xliff:g> h"</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"za <xliff:g id="COUNT">%d</xliff:g> d"</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"za <xliff:g id="COUNT">%d</xliff:g> r"</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"před <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"před <xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"před <xliff:g id="COUNT">%d</xliff:g> d"</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"před <xliff:g id="COUNT">%d</xliff:g> r"</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> min"</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g> d"</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> r"</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"za <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"za <xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"za <xliff:g id="COUNT">%d</xliff:g> d"</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"za <xliff:g id="COUNT">%d</xliff:g> r"</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"před <xliff:g id="COUNT">%d</xliff:g> min"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"před <xliff:g id="COUNT">%d</xliff:g> h"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"před <xliff:g id="COUNT">%d</xliff:g> d"</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"před <xliff:g id="COUNT">%d</xliff:g> r"</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{před # minutou}few{před # minutami}many{před # minuty}other{před # minutami}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{před # hodinou}few{před # hodinami}many{před # hodiny}other{před # hodinami}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{Před # dnem}few{před # dny}many{před # dne}other{před # dny}}"</string>
@@ -1480,8 +1490,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"ODMÍTNOUT"</string>
     <string name="select_input_method" msgid="3971267998568587025">"Vybrat metodu zadávání"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"Nastavení jazyka"</string>
-    <string name="show_ime" msgid="6406112007347443383">"Ponechat na obrazovce, když je aktivní fyzická klávesnice"</string>
-    <string name="hardware" msgid="3611039921284836033">"Použít softwarovou klávesnici"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"Nakonfigurujte zařízení <xliff:g id="DEVICE_NAME">%s</xliff:g>"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"Nakonfigurujte fyzické klávesnice"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"Klepnutím vyberte jazyk a rozvržení"</string>
@@ -1711,6 +1719,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"Externí zařízení"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"Sluchátka"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"Zvuk televize"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"Analogové"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"Digitální"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"AUX"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"Systém"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"Bluetooth Audio"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"Bezdrátový displej"</string>
@@ -1733,8 +1747,8 @@
     <string name="kg_forgot_pattern_button_text" msgid="406145459223122537">"Zapomenuté gesto"</string>
     <string name="kg_wrong_pattern" msgid="1342812634464179931">"Nesprávné gesto"</string>
     <string name="kg_wrong_password" msgid="2384677900494439426">"Nesprávné heslo"</string>
-    <string name="kg_wrong_pin" msgid="3680925703673166482">"Nesprávný kód PIN"</string>
-    <string name="kg_pattern_instructions" msgid="8366024510502517748">"Nakreslete gesto"</string>
+    <string name="kg_wrong_pin" msgid="3680925703673166482">"Nesprávný PIN"</string>
+    <string name="kg_pattern_instructions" msgid="8366024510502517748">"Zadejte gesto"</string>
     <string name="kg_sim_pin_instructions" msgid="6479401489471690359">"Zadejte kód PIN SIM karty"</string>
     <string name="kg_pin_instructions" msgid="7355933174673539021">"Zadejte kód PIN"</string>
     <string name="kg_password_instructions" msgid="7179782578809398050">"Zadejte heslo"</string>
@@ -1742,7 +1756,7 @@
     <string name="kg_puk_enter_pin_hint" msgid="8190982314659429770">"Zadejte požadovaný kód PIN."</string>
     <string name="kg_enter_confirm_pin_hint" msgid="6372557107414074580">"Potvrďte požadovaný kód PIN."</string>
     <string name="kg_sim_unlock_progress_dialog_message" msgid="5743634657721110967">"Odblokování SIM karty…"</string>
-    <string name="kg_password_wrong_pin_code" msgid="9013856346870572451">"Nesprávný kód PIN."</string>
+    <string name="kg_password_wrong_pin_code" msgid="9013856346870572451">"Nesprávný PIN."</string>
     <string name="kg_invalid_sim_pin_hint" msgid="4821601451222564077">"Zadejte kód PIN o délce 4–8 číslic."</string>
     <string name="kg_invalid_sim_puk_hint" msgid="2539364558870734339">"Kód PUK by měl obsahovat 8 číslic."</string>
     <string name="kg_invalid_puk" msgid="4809502818518963344">"Znovu zadejte správný kód PUK. Opakovanými pokusy SIM kartu trvale deaktivujete."</string>
@@ -1805,8 +1819,9 @@
     <string name="color_correction_feature_name" msgid="7975133554160979214">"Korekce barev"</string>
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"Režim jedné ruky"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"Velmi tmavé zobrazení"</string>
-    <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Naslouchátka"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"Automatické kliknutí"</string>
+    <string name="hearing_aids_feature_name" msgid="1125892105105852542">"Sluchové pomůcky"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"Automatické klikání (doba setrvání)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"Ovládání myši klávesnicí"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"Odpojeno"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"Připojeno"</string>
     <string name="hearing_device_status_active" msgid="4770378695482566032">"Aktivní"</string>
@@ -1822,15 +1837,17 @@
     <string name="accessibility_gesture_3finger_instructional_text" msgid="1124458279366968154">"Funkce se otevře při příštím použití této zkratky. Přejeďte třemi prsty nahoru ze spodní části obrazovky a rychle je zvedněte."</string>
     <string name="accessibility_magnification_chooser_text" msgid="1502075582164931596">"Zvětšení"</string>
     <string name="hearing_device_switch_phone_mic_notification_title" msgid="6645178038359708836">"Přepnout na mikrofon telefonu?"</string>
-    <string name="hearing_device_switch_hearing_mic_notification_title" msgid="4612074852145289569">"Přepnout na mikrofon naslouchátka?"</string>
-    <string name="hearing_device_switch_phone_mic_notification_text" msgid="1332426273666077412">"Pro lepší zvuk, nebo pokud je baterie naslouchátka téměř vybitá. Mikrofon se přepne jen během hovoru."</string>
-    <string name="hearing_device_switch_hearing_mic_notification_text" msgid="8288368365767284208">"K handsfree telefonování můžete použít mikrofon naslouchátka. Mikrofon se přepne jen během hovoru."</string>
+    <string name="hearing_device_switch_hearing_mic_notification_title" msgid="4612074852145289569">"Přepnout na mikrofon sluchadla?"</string>
+    <string name="hearing_device_switch_phone_mic_notification_text" msgid="1332426273666077412">"Pro lepší zvuk, nebo pokud je baterie sluchadla téměř vybitá. Mikrofon se přepne jen během hovoru."</string>
+    <string name="hearing_device_switch_hearing_mic_notification_text" msgid="8288368365767284208">"K handsfree telefonování můžete použít mikrofon sluchadla. Mikrofon se přepne jen během hovoru."</string>
     <string name="hearing_device_notification_switch_button" msgid="3619524619430941300">"Přepnout"</string>
     <string name="hearing_device_notification_settings_button" msgid="6673651052880279178">"Nastavení"</string>
-    <string name="user_switching_message" msgid="1912993630661332336">"Přepínání na uživatele <xliff:g id="NAME">%1$s</xliff:g>…"</string>
+    <string name="user_switching_message" msgid="1912993630661332336">"Přepínání na: <xliff:g id="NAME">%1$s</xliff:g>…"</string>
     <string name="user_logging_out_message" msgid="7216437629179710359">"Odhlašování uživatele <xliff:g id="NAME">%1$s</xliff:g>…"</string>
     <string name="owner_name" msgid="8713560351570795743">"Vlastník"</string>
     <string name="guest_name" msgid="8502103277839834324">"Host"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"Systémový uživatel"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Uživatel"</string>
     <string name="error_message_title" msgid="4082495589294631966">"Chyba"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"Administrátor tuto změnu zakázal"</string>
     <string name="app_not_found" msgid="3429506115332341800">"Aplikace potřebná k provedení této akce nebyla nalezena"</string>
@@ -1971,8 +1988,8 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"Aktualizováno administrátorem.\nUdělená oprávnění si můžete prohlédnout v nastavení."</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"Smazáno administrátorem"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"OK"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"Spořič baterie zapíná tmavý motiv a omezuje či vypíná aktivitu na pozadí, některé vizuální efekty, některé funkce a připojení k některým sítím."</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"Spořič baterie zapíná tmavý motiv a omezuje či vypíná aktivitu na pozadí, některé vizuální efekty, některé funkce a připojení k některým sítím."</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"Spořič baterie zapíná tmavý motiv a omezuje či vypíná aktivitu na pozadí, některé vizuální efekty, některé funkce a připojení k některým sítím."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"Spořič baterie zapíná tmavý motiv a omezuje či vypíná aktivitu na pozadí, některé vizuální efekty, některé funkce a připojení k některým sítím."</string>
     <string name="data_saver_description" msgid="4995164271550590517">"S cílem snížit spotřebu dat brání spořič dat některým aplikacím odesílat nebo přijímat data na pozadí. Aplikace, kterou právě používáte, sice data využívat může, ale méně často. Může to například znamenat, že obrázky se zobrazí, až na ně klepnete."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"Chcete zapnout Spořič dat?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"Zapnout"</string>
@@ -2005,8 +2022,8 @@
     <string name="zen_mode_trigger_summary_range_symbol_combination" msgid="1804900738798069619">"<xliff:g id="START">%1$s</xliff:g>–<xliff:g id="END">%2$s</xliff:g>"</string>
     <string name="zen_mode_trigger_summary_range_words" msgid="7228261413029290750">"<xliff:g id="START">%1$s</xliff:g> – <xliff:g id="END">%2$s</xliff:g>"</string>
     <string name="zen_mode_trigger_summary_combined" msgid="6492381546327807669">"<xliff:g id="DAYS">%1$s</xliff:g>, <xliff:g id="TIMES">%2$s</xliff:g>"</string>
-    <string name="zen_mode_trigger_event_calendar_any" msgid="2086784607921121803">"V libovolném kalendáři"</string>
-    <string name="muted_by" msgid="91464083490094950">"<xliff:g id="THIRD_PARTY">%1$s</xliff:g> vypíná určité zvuky"</string>
+    <string name="zen_mode_trigger_event_calendar_any" msgid="2086784607921121803">"Libovolný kalendář"</string>
+    <string name="muted_by" msgid="91464083490094950">"Hodinky <xliff:g id="THIRD_PARTY">%1$s</xliff:g> některé zvuky vypínají."</string>
     <string name="system_error_wipe_data" msgid="5910572292172208493">"V zařízení došlo k internímu problému. Dokud neprovedete obnovení továrních dat, může být nestabilní."</string>
     <string name="system_error_manufacturer" msgid="703545241070116315">"V zařízení došlo k internímu problému. Další informace vám sdělí výrobce."</string>
     <string name="stk_cc_ussd_to_dial" msgid="3139884150741157610">"Požadavek USSD byl změněn na běžný hovor"</string>
@@ -2034,6 +2051,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"Maximalizovat"</string>
     <string name="close_button_text" msgid="10603510034455258">"Zavřít"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g>: <xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"Přijmout"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"Video"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"Odmítnout"</string>
@@ -2045,7 +2065,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"Promoakce"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"Sociální sítě"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"Zprávy"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"Doporučení"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"Navrhováno"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"Důležitost oznámení určujete vy."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"Tato zpráva je důležitá kvůli lidem zapojeným do konverzace."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"Vlastní oznámení aplikace"</string>
@@ -2268,19 +2288,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"Dpad doleva"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"Dpad doprava"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"Dpad střed"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"Panel nastavení typu automatického kliknutí"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"Kliknutí levým"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"Kliknutí pravým tlačítkem"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"Dvojité kliknutí"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"Nabídka možností automatického klikání"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"Kliknout levým tlačítkem"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"Kliknout pravým tlačítkem"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"Dvakrát kliknout"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"Přetažení"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"Posunutí"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"Klepnout a podržet"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"Pozastavit"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"Pozice"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"Posunout nahoru"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"Posunout dolů"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"Posunout doleva"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"Posunout doprava"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"Ukončit režim posouvání"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"Obnovit"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"Změnit pozici v nabídce"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"Posunout nahoru"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"Posunout dolů"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"Posunout vlevo"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"Posunout vpravo"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"Ukončit režim posouvání"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"Panel posouvání"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"Balíček <xliff:g id="PACKAGE_NAME">%1$s</xliff:g> byl vložen do sekce OMEZENO"</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2500,7 +2522,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"Obsah aplikace je z bezpečnostních důvodů při sdílení obrazovky skryt"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"Automaticky připojeno k satelitu"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"Zprávy můžete odesílat a přijímat bez mobilní sítě nebo sítě Wi-Fi"</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"Můžete dostávat a odesílat zprávy a používat omezená data přes satelit"</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"Přes satelit můžete posílat a přijímat zprávy a používat vybrané aplikace."</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"Použít satelitní zprávy?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"Odesílejte a přijímejte zprávy bez mobilní sítě nebo Wi-Fi"</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"Otevřít Zprávy"</string>
@@ -2555,12 +2577,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"Kalendář"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"Kalkulačka"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Mapy"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"Files"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"Aplikace"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"Vaše otisky prstů se nedaří rozpoznat. Nastavte odemknutí otiskem prstu znovu."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"Zařízení USB bylo připojeno, když bylo zařízení zamknuté"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"Zařízení USB bylo připojeno, když byl Android zamknutý. Pokud zařízení chcete používat, nejdříve Android odemkněte a pak zařízení USB připojte znovu."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"Zabezpečení a ochrana soukromí"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"Odemkněte obrazovku a připojte USB znovu"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"K připojení přes USB odemkněte obrazovku"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"K připojení přes USB vyžaduje pokročilá ochrana odemknutí obrazovky"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"K připojení přes USB vyžaduje pokročilá ochrana odemknutí obrazovky"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"K rychlejšímu nabíjení vyžaduje pokročilá ochrana odemknutí obrazovky"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"K rychlejšímu nabíjení nebo připojení přes USB vyžaduje pokročilá ochrana odemknutí obrazovky"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"Ztlumit"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"Oznámení ztlumena"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"Oznámení pokročilé ochrany týkající se USB budete dostávat až po restartu zařízení"</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"Podezřelá aktivita USB"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"Datový signál USB byl deaktivován."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"Datový signál USB byl deaktivován"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"Máte s odemknutím otiskem prstu potíže?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"Klepnutím zobrazíte tipy pro snazší odemykání"</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"Neblikat"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"Televizi vypnete dlouhým podržením vypínače"</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"Upozornění na systémové zdroje"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"Nadměrné využití zdrojů"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"Aplikace <xliff:g id="APP_NAME">%1$s</xliff:g> využívá příliš mnoho zdrojů."</string>
 </resources>

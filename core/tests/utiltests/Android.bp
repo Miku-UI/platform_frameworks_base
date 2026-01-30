@@ -30,12 +30,14 @@ android_test {
 
     static_libs: [
         "androidx.test.rules",
+        "flag-junit",
         "frameworks-base-testutils",
         "mockito-target-minus-junit4",
-        "androidx.test.ext.junit",
         "truth",
         "servicestests-utils",
+        "notification_flags_lib",
         "ravenwood-junit",
+        "testables",
     ],
 
     libs: [
@@ -61,7 +63,9 @@ android_ravenwood_test {
         "androidx.annotation_annotation",
         "androidx.test.rules",
         "frameworks-base-testutils",
+        "notification_flags_lib",
         "servicestests-utils-ravenwood",
+        "testables",
     ],
     srcs: [
         "src/android/util/IRemoteMemoryIntArray.aidl",

@@ -20,13 +20,9 @@ import android.content.Context
 import androidx.test.filters.SmallTest
 import com.android.server.display.feature.DisplayManagerFlags
 import com.android.server.display.plugin.PluginManager.PluginChangeListener
-
 import org.junit.Test
-
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
-import org.mockito.kotlin.whenever
 
 private val TEST_PLUGIN_TYPE = PluginType(Int::class.java, "test_type")
 private val DISPLAY_ID = "display_id"
@@ -50,16 +46,6 @@ class PluginManagerTest {
     }
 
     @Test
-    fun testBootCompleted_disabledPluginManager() {
-        val pluginManager = createPluginManager(false)
-
-        pluginManager.onBootCompleted()
-
-        verify(testInjector.mockPlugin1, never()).onBootCompleted()
-        verify(testInjector.mockPlugin2, never()).onBootCompleted()
-    }
-
-    @Test
     fun testSubscribe() {
         val pluginManager = createPluginManager()
 
@@ -77,8 +63,7 @@ class PluginManagerTest {
         verify(testInjector.mockStorage).removeListener(TEST_PLUGIN_TYPE, DISPLAY_ID, mockListener)
     }
 
-    private fun createPluginManager(enabled: Boolean = true): PluginManager {
-        whenever(mockFlags.isPluginManagerEnabled).thenReturn(enabled)
+    private fun createPluginManager(): PluginManager {
         return PluginManager(mockContext, mockFlags, testInjector)
     }
 

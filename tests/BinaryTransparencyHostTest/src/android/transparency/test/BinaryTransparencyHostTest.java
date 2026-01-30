@@ -189,9 +189,10 @@ public final class BinaryTransparencyHostTest extends BaseHostJUnit4Test {
     private void uninstallRebootlessApexThenReboot() throws DeviceNotAvailableException {
         // Reboot only if the APEX is not the pre-install one.
         CommandResult result = getDevice().executeShellV2Command(
-                "pm list packages -f --apex-only |grep com.android.apex.cts.shim");
+                "pm list packages -f --apex-only --show-versioncode "
+                + " | grep com.android.apex.cts.shim");
         assertTrue(result.getStatus() == CommandStatus.SUCCESS);
-        if (result.getStdout().contains("/data/apex/active/")) {
+        if (result.getStdout().contains("versionCode:2")) {
             uninstallPackage("com.android.apex.cts.shim");
             getDevice().reboot();
 

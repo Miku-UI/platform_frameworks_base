@@ -20,6 +20,8 @@ import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.Events
 import com.android.systemui.kairos.StateScope
 import com.android.systemui.kairos.TransactionScope
+import com.android.systemui.kairos.util.NameData
+import kotlin.coroutines.ContinuationInterceptor
 
 internal interface InitScope {
     val networkId: Any
@@ -28,10 +30,9 @@ internal interface InitScope {
 internal interface EvalScope : NetworkScope, DeferScope, TransactionScope
 
 internal interface InternalStateScope : EvalScope, StateScope {
-    val endSignal: Events<Any>
-    val endSignalOnce: Events<Any>
+    val deathSignal: Events<*>
 
-    fun childStateScope(newEnd: Events<Any>): InternalStateScope
+    fun <A> truncateToScope(events: Events<A>, nameData: NameData): Events<A>
 }
 
 internal interface InternalBuildScope : InternalStateScope, BuildScope
@@ -48,9 +49,9 @@ internal interface NetworkScope : InitScope {
 
     fun scheduleOutput(output: Output<*>)
 
-    fun scheduleMuxMover(muxMover: MuxDeferredNode<*, *, *>)
+    fun scheduleDispatchedOutput(interceptor: ContinuationInterceptor?, block: () -> Unit)
 
-    fun schedule(state: StateSource<*>)
+    fun scheduleMuxMover(muxMover: MuxDeferredNode<*, *, *>)
 
     fun scheduleDeactivation(node: PushNode<*>)
 

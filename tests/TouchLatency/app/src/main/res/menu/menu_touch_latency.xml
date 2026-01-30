@@ -26,6 +26,10 @@
         android:title="@string/frame_rate"
         app:showAsAction="collapseActionView" />
     <item
+        android:id="@+id/supported_refresh_rates"
+        android:title="@string/supported_refresh_rates"
+        app:showAsAction="collapseActionView" />
+    <item
         android:id="@+id/display_mode"
         android:title="@string/display_mode"
         android:visible="false"

@@ -260,8 +260,8 @@ class TogglePermissionAppListPageTest {
             restrictionsProviderFactory = { _, _ -> fakeRestrictionsProvider },
         )
 
-    private fun getSummary(listModel: TestTogglePermissionAppListModel): String {
-        lateinit var summary: () -> String
+    private fun getSummary(listModel: TestTogglePermissionAppListModel): CharSequence {
+        lateinit var summary: () -> CharSequence
         composeTestRule.setContent {
             summary = createInternalAppListModel(listModel).getSummary(record = TestAppRecord(APP))
         }

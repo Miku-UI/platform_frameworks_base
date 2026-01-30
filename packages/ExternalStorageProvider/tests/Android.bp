@@ -28,7 +28,9 @@ android_test {
 
     static_libs: [
         "androidx.test.rules",
+        "flag-junit",
         "mockito-target",
+        "platform-test-annotations",
         "truth",
     ],
 

@@ -30,7 +30,6 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -158,7 +157,8 @@ public class BackupManagerMonitorDumpsysUtils {
         if (eventBundle.containsKey(BackupManagerMonitor.EXTRA_LOG_AGENT_LOGGING_RESULTS)) {
             ArrayList<BackupRestoreEventLogger.DataTypeResult> agentLogs =
                     eventBundle.getParcelableArrayList(
-                            BackupManagerMonitor.EXTRA_LOG_AGENT_LOGGING_RESULTS);
+                            BackupManagerMonitor.EXTRA_LOG_AGENT_LOGGING_RESULTS,
+                            BackupRestoreEventLogger.DataTypeResult.class);
 
             return !agentLogs.isEmpty();
         }
@@ -178,7 +178,8 @@ public class BackupManagerMonitorDumpsysUtils {
             pw.println("\tAgent Logs:");
             ArrayList<BackupRestoreEventLogger.DataTypeResult> agentLogs =
                     eventBundle.getParcelableArrayList(
-                            BackupManagerMonitor.EXTRA_LOG_AGENT_LOGGING_RESULTS);
+                            BackupManagerMonitor.EXTRA_LOG_AGENT_LOGGING_RESULTS,
+                            BackupRestoreEventLogger.DataTypeResult.class);
             for (BackupRestoreEventLogger.DataTypeResult result : agentLogs) {
                 int totalItems = result.getFailCount() + result.getSuccessCount();
                 pw.println("\t\tData Type: " + result.getDataType());

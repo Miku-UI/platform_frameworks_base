@@ -28,6 +28,7 @@ import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 
 import android.content.AttributionSourceState;
+import android.content.res.CameraCompatibilityInfo;
 import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
 import android.hardware.ICameraService;
@@ -264,8 +265,8 @@ public class CameraDeviceBinderTest extends AndroidTestCase {
 
         mCameraUser = mUtils.getCameraService().connectDevice(mMockCb, mCameraId,
                 /*oomScoreOffset*/0, getContext().getApplicationInfo().targetSdkVersion,
-                ICameraService.ROTATION_OVERRIDE_NONE, clientAttribution, DEVICE_POLICY_DEFAULT,
-                /*sharedMode*/false);
+                new CameraCompatibilityInfo.Builder().build(), clientAttribution,
+                DEVICE_POLICY_DEFAULT, /*sharedMode*/false);
         assertNotNull(String.format("Camera %s was null", mCameraId), mCameraUser);
         mHandlerThread = new HandlerThread(TAG);
         mHandlerThread.start();
@@ -436,7 +437,7 @@ public class CameraDeviceBinderTest extends AndroidTestCase {
 
         CameraMetadataNative info = mUtils.getCameraService().getCameraCharacteristics(mCameraId,
                 getContext().getApplicationInfo().targetSdkVersion,
-                ICameraService.ROTATION_OVERRIDE_NONE,
+                new CameraCompatibilityInfo.Builder().build(),
                 clientAttribution, DEVICE_POLICY_DEFAULT);
 
         assertFalse(info.isEmpty());

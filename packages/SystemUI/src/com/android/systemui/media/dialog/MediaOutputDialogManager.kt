@@ -87,6 +87,7 @@ constructor(
         controller: DialogTransitionAnimator.Controller?,
         userHandle: UserHandle? = null,
         token: MediaSession.Token? = null,
+        onDialogEventListener: MediaOutputDialog.OnDialogEventListener? = null,
     ) {
         createAndShow(
             packageName,
@@ -95,11 +96,13 @@ constructor(
             includePlaybackAndAppMetadata = true,
             userHandle = userHandle,
             token = token,
+            onDialogEventListener = onDialogEventListener,
         )
     }
 
     open fun createAndShowForSystemRouting(
-        controller: DialogTransitionAnimator.Controller? = null
+        controller: DialogTransitionAnimator.Controller? = null,
+        onDialogEventListener: MediaOutputDialog.OnDialogEventListener? = null,
     ) {
         createAndShow(
             packageName = null,
@@ -107,6 +110,7 @@ constructor(
             dialogTransitionAnimatorController = controller,
             includePlaybackAndAppMetadata = false,
             userHandle = null,
+            onDialogEventListener = onDialogEventListener,
         )
     }
 
@@ -120,6 +124,7 @@ constructor(
         includePlaybackAndAppMetadata: Boolean = true,
         userHandle: UserHandle? = null,
         token: MediaSession.Token? = null,
+        onDialogEventListener: MediaOutputDialog.OnDialogEventListener? = null,
     ) {
         // Dismiss the previous dialog, if any.
         mediaOutputDialog?.dismiss()
@@ -137,6 +142,7 @@ constructor(
                 mainExecutor,
                 backgroundExecutor,
                 includePlaybackAndAppMetadata,
+                onDialogEventListener,
             )
 
         // Show the dialog.

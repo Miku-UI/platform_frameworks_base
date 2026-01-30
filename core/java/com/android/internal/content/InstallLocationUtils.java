@@ -47,6 +47,10 @@ import libcore.io.IoUtils;
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -445,14 +449,29 @@ public class InstallLocationUtils {
             String abiOverride) throws IOException {
         long sizeBytes = 0;
 
-        // Include raw APKs, and possibly unpacked resources
-        for (String codePath : pkg.getAllApkPaths()) {
-            final File codeFile = new File(codePath);
-            sizeBytes += codeFile.length();
-        }
+        if (android.content.pm.Flags.alternativeForDexoptCleanup()) {
+            Path path = pkg.getPath() != null ? Paths.get(pkg.getPath()) : null;
+            if (path == null || !Files.isDirectory(path)) { // monolithic
+                sizeBytes += new File(pkg.getBaseApkPath()).length();
+            } else { // cluster
+                try (DirectoryStream<Path> stream = Files.newDirectoryStream(path)) {
+                    for (Path child : stream) {
+                        if (!Files.isDirectory(child)) {
+                            sizeBytes += child.toFile().length();
+                        }
+                    }
+                }
+            }
+        } else {
+            // Include raw APKs, and possibly unpacked resources
+            for (String codePath : pkg.getAllApkPaths()) {
+                final File codeFile = new File(codePath);
+                sizeBytes += codeFile.length();
+            }
 
-        // Include raw dex metadata files
-        sizeBytes += DexMetadataHelper.getPackageDexMetadataSize(pkg);
+            // Include raw dex metadata files
+            sizeBytes += DexMetadataHelper.getPackageDexMetadataSize(pkg);
+        }
 
         if (pkg.isExtractNativeLibs()) {
             // Include all relevant native code

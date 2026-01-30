@@ -26,6 +26,10 @@
     <string name="done">Done</string>
     <!-- [CHAR LIMIT=15] -->
     <string name="cancel">Cancel</string>
+    <!-- [CHAR LIMIT=15] -->
+    <string name="more_details">More details</string>
+    <!-- [CHAR LIMIT=15] -->
+    <string name="dont_install">Don\'t install</string>
     <!-- [CHAR LIMIT=50] -->
     <string name="installing">Installing\u2026</string>
     <!-- [CHAR LIMIT=50] -->

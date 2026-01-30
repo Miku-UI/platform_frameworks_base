@@ -32,6 +32,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
 import android.inputmethodservice.InputMethodService;
+import android.os.Build;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -59,7 +60,7 @@ public class InputMethodBindingControllerTest extends InputMethodManagerServiceT
             "com.android.server.inputmethod.InputMethodBindingControllerTest"
                     + "$EmptyInputMethodService";
     private static final String TEST_IME_ID = PACKAGE_NAME + "/" + TEST_SERVICE_NAME;
-    private static final long TIMEOUT_IN_SECONDS = 3;
+    private static final long TIMEOUT_IN_SECONDS = 5L * Build.HW_TIMEOUT_MULTIPLIER;
 
     private InputMethodBindingController mBindingController;
     private Instrumentation mInstrumentation;

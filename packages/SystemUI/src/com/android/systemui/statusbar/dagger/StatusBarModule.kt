@@ -17,11 +17,14 @@
 package com.android.systemui.statusbar.dagger
 
 import android.content.Context
-import com.android.systemui.CameraProtectionLoader
+import android.view.Display
+import android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.CoreStartable
-import com.android.systemui.SysUICutoutProvider
-import com.android.systemui.SysUICutoutProviderImpl
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
+import com.android.systemui.display.data.repository.DisplayWindowPropertiesRepositoryImpl
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogBufferFactory
 import com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel.ShareToAppChipViewModel
@@ -34,7 +37,6 @@ import com.android.systemui.statusbar.layout.ui.viewmodel.StatusBarContentInsets
 import com.android.systemui.statusbar.phone.AutoHideController
 import com.android.systemui.statusbar.phone.AutoHideControllerImpl
 import com.android.systemui.statusbar.phone.LightBarController
-import com.android.systemui.statusbar.phone.LightBarControllerImpl
 import com.android.systemui.statusbar.phone.StatusBarSignalPolicy
 import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallController
 import com.android.systemui.statusbar.phone.ongoingcall.OngoingCallLog
@@ -48,6 +50,7 @@ import com.android.systemui.statusbar.window.SingleDisplayStatusBarWindowControl
 import com.android.systemui.statusbar.window.StatusBarWindowController
 import com.android.systemui.statusbar.window.StatusBarWindowControllerImpl
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
+import com.android.systemui.statusbar.window.StatusBarWindowLog
 import dagger.Binds
 import dagger.Lazy
 import dagger.Module
@@ -90,11 +93,6 @@ interface StatusBarModule {
     ): StatusBarWindowController.Factory
 
     @Binds @SysUISingleton fun autoHideController(impl: AutoHideControllerImpl): AutoHideController
-
-    @Binds
-    fun lightBarControllerFactory(
-        legacyFactory: LightBarControllerImpl.LegacyFactory
-    ): LightBarController.Factory
 
     companion object {
         @Provides
@@ -175,12 +173,9 @@ interface StatusBarModule {
 
         @Provides
         @SysUISingleton
-        fun sysUiCutoutProvider(
-            factory: SysUICutoutProviderImpl.Factory,
-            context: Context,
-            cameraProtectionLoader: CameraProtectionLoader,
-        ): SysUICutoutProvider {
-            return factory.create(context, cameraProtectionLoader)
+        @StatusBarWindowLog
+        fun provideWindowLogBuffer(factory: LogBufferFactory): LogBuffer {
+            return factory.create("StatusBarWindow", 120)
         }
 
         @Provides
@@ -189,9 +184,14 @@ interface StatusBarModule {
             factory: StatusBarContentInsetsProviderImpl.Factory,
             context: Context,
             configurationController: ConfigurationController,
-            sysUICutoutProvider: SysUICutoutProvider,
+            displaySubcomponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>,
         ): StatusBarContentInsetsProvider {
-            return factory.create(context, configurationController, sysUICutoutProvider)
+            val displaySubcomponent = displaySubcomponentRepo[Display.DEFAULT_DISPLAY]!!
+            return factory.create(
+                context,
+                configurationController,
+                displaySubcomponent.sysUICutoutProvider,
+            )
         }
 
         @Provides
@@ -200,6 +200,20 @@ interface StatusBarModule {
             insetsProvider: StatusBarContentInsetsProvider
         ): StatusBarContentInsetsViewModel {
             return StatusBarContentInsetsViewModel(insetsProvider)
+        }
+
+        @Provides
+        @StatusBarMain
+        fun provideDefaultStatusBarContext(
+            repoLazy: Lazy<DisplayWindowPropertiesRepositoryImpl>,
+            @Main appContext: Context,
+        ): Context {
+            return if (StatusBarConnectedDisplays.isEnabled) {
+                return repoLazy.get().get(Display.DEFAULT_DISPLAY, TYPE_STATUS_BAR)?.context
+                    ?: appContext
+            } else {
+                appContext
+            }
         }
     }
 }

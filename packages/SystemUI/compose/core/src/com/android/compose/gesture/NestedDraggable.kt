@@ -205,7 +205,7 @@ private data class NestedDraggableElement(
  * A root node on top of [NestedDraggableNode] so that no [PointerInputModifierNode] is installed
  * when this draggable is disabled.
  */
-private class NestedDraggableRootNode(
+internal class NestedDraggableRootNode(
     draggable: NestedDraggable,
     orientation: Orientation,
     overscrollEffect: OverscrollEffect?,

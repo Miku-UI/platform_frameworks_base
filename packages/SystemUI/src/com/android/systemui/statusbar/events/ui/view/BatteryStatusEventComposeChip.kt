@@ -22,20 +22,33 @@ import android.util.AttributeSet
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import com.android.compose.theme.PlatformTheme
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.core.NewStatusBarIcons
+import com.android.systemui.statusbar.core.RudimentaryBattery
 import com.android.systemui.statusbar.events.BackgroundAnimatableView
 import com.android.systemui.statusbar.pipeline.battery.domain.interactor.BatteryInteractor
-import com.android.systemui.statusbar.pipeline.battery.shared.ui.BatteryColors.LightThemeChargingColors
-import com.android.systemui.statusbar.pipeline.battery.shared.ui.BatteryFrame
+import com.android.systemui.statusbar.pipeline.battery.shared.ui.BatteryColors
 import com.android.systemui.statusbar.pipeline.battery.shared.ui.BatteryGlyph
-import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryCanvas
+import com.android.systemui.statusbar.pipeline.battery.ui.composable.BatteryLayout
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel
 import com.android.systemui.statusbar.pipeline.battery.ui.viewmodel.BatteryViewModel.Companion.glyphRepresentation
+import java.text.NumberFormat
 
 /**
  * [StatusEvent] chip for the battery plugged in status event. Shows the current battery level and
@@ -61,24 +74,13 @@ constructor(level: Int, context: Context, attrs: AttributeSet? = null) :
         composeInner = requireViewById(R.id.compose_view)
         composeInner.apply {
             setContent {
-                val isFull = BatteryInteractor.isBatteryFull(level)
-                BatteryCanvas(
-                    modifier =
-                        Modifier.width(BatteryViewModel.STATUS_BAR_BATTERY_WIDTH)
-                            .height(BatteryViewModel.STATUS_BAR_BATTERY_HEIGHT),
-                    path = BatteryFrame.pathSpec,
-                    // TODO(b/394659067): get a content description for this chip
-                    contentDescription = "",
-                    innerWidth = BatteryFrame.innerWidth,
-                    innerHeight = BatteryFrame.innerHeight,
-                    // This event only happens when plugged in, so we always show it as charging
-                    glyphs =
-                        if (isFull) listOf(BatteryGlyph.Bolt)
-                        else level.glyphRepresentation() + BatteryGlyph.Bolt,
-                    level = level,
-                    isFull = isFull,
-                    colorsProvider = { LightThemeChargingColors },
-                )
+                PlatformTheme {
+                    if (RudimentaryBattery.isEnabled) {
+                        BatteryAndPercentChip(level)
+                    } else {
+                        UnifiedBatteryChip(level)
+                    }
+                }
             }
         }
         updateResources()
@@ -95,6 +97,52 @@ constructor(level: Int, context: Context, attrs: AttributeSet? = null) :
 
     @SuppressLint("UseCompatLoadingForDrawables")
     private fun updateResources() {
-        roundedContainer.background = mContext.getDrawable(R.drawable.statusbar_chip_bg)
+        roundedContainer.background = mContext.getDrawable(R.drawable.statusbar_battery_chip_bg)
+    }
+}
+
+@Composable
+private fun UnifiedBatteryChip(level: Int) {
+    val isFull = BatteryInteractor.isBatteryFull(level)
+    val height =
+        with(LocalDensity.current) {
+            BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
+        }
+    BatteryLayout(
+        attribution = BatteryGlyph.Bolt, // Always charging
+        levelProvider = { level },
+        isFullProvider = { isFull },
+        glyphsProvider = { level.glyphRepresentation() },
+        colorsProvider = { BatteryColors.DarkTheme.Charging },
+        modifier = Modifier.height(height).wrapContentWidth(),
+        // TODO(b/394659067): get a content description for this chip
+        contentDescription = "",
+    )
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+private fun BatteryAndPercentChip(level: Int) {
+    val isFull = BatteryInteractor.isBatteryFull(level)
+    val height =
+        with(LocalDensity.current) {
+            BatteryViewModel.getStatusBarBatteryHeight(LocalContext.current).toDp()
+        }
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        BatteryLayout(
+            attribution = BatteryGlyph.Bolt, // Always charging
+            levelProvider = { level },
+            isFullProvider = { isFull },
+            glyphsProvider = { emptyList() },
+            colorsProvider = { BatteryColors.DarkTheme.Charging },
+            modifier = Modifier.height(height).wrapContentWidth(),
+            contentDescription = "",
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(
+            text = NumberFormat.getPercentInstance().format(level / 100f),
+            color = BatteryColors.DarkTheme.Default.fill,
+            style = MaterialTheme.typography.labelLargeEmphasized,
+        )
     }
 }

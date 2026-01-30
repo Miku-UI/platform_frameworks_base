@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Қосылып жатыр..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> жалғанды"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Жұптасып жатыр..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Жұптау мүмкін емес."</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Қосылу мүмкін емес."</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> жалғанды (телефонсыз)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> жалғанды (аудиосыз)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> жалғанды (телефонсыз не аудиосыз)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Сол жақ: батарея зарядының деңгейі – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>. Оң жақ: батарея зарядының деңгейі — <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Сол жақ: батарея зарядының деңгейі – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Оң жақ: батарея зарядының деңгейі – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Батарея деңгейі: қап: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Батарея деңгейі: сол жақ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, қап: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Батарея деңгейі: оң жақ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, қап: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Батарея деңгейі: сол жақ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, оң жақ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Батарея деңгейі: сол жақ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, қап: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, оң жақ: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Сол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Оң: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Қосулы"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Істеп тұр (тек оң жағы)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Істеп тұр (екі жағы да)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Айналаны жаңарту мүмкін болмады."</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Параметрлер жинағы жаңартылмады."</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Таңдалды"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Істеп тұр (тек мультимедиа). Батарея зарядының деңгейі – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Істеп тұр (тек мультимедиа). Сол жақ: батарея зарядының деңгейі — <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>. Оң жақ: батарея зарядының деңгейі — <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Қонақ құрылғы. Батарея зарядының деңгейі – <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -138,7 +147,7 @@
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"Файл жіберу"</string>
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Енгізу құрылғысы"</string>
     <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Интернетке қосылу"</string>
-    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Контакт пен қоңырау тарихына рұқсат беру"</string>
+    <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Контактілерге және қоңыраулар тарихына рұқсат беру"</string>
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Ақпарат қоңырау туралы хабарландыру, т.б. үшін қолданылады."</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Интернет байланысын ортақ қолдану"</string>
     <string name="bluetooth_profile_map" msgid="8907204701162107271">"Мәтіндік хабарлар"</string>
@@ -210,8 +219,8 @@
     <string name="tts_settings_title" msgid="7602210956640483039">"Мәтінді дыбыстау"</string>
     <string name="tts_default_rate_title" msgid="3964187817364304022">"Сөйлеу жылдамдығы"</string>
     <string name="tts_default_rate_summary" msgid="3781937042151716987">"Мәтіннің оқылу жылдамдығы"</string>
-    <string name="tts_default_pitch_title" msgid="6988592215554485479">"Дауыс жиілігі"</string>
-    <string name="tts_default_pitch_summary" msgid="9132719475281551884">"Синтезделген сөйлеу үніне әсер етеді"</string>
+    <string name="tts_default_pitch_title" msgid="6988592215554485479">"Тон"</string>
+    <string name="tts_default_pitch_summary" msgid="9132719475281551884">"Синтезделген дауыс тонына әсер етеді."</string>
     <string name="tts_default_lang_title" msgid="4698933575028098940">"Тіл"</string>
     <string name="tts_lang_use_system" msgid="6312945299804012406">"Жүйе тілін пайдалану"</string>
     <string name="tts_lang_not_selected" msgid="7927823081096056147">"Тіл таңдалған жоқ"</string>
@@ -317,10 +326,10 @@
     <string name="bluetooth_select_map_version_dialog_title" msgid="7085934373987428460">"Bluetooth MAP нұсқасын таңдау"</string>
     <string name="bluetooth_select_a2dp_codec_type" msgid="952001408455456494">"Bluetooth аудиокодегі"</string>
     <string name="bluetooth_select_a2dp_codec_type_dialog_title" msgid="7510542404227225545">"Bluetooth аудиокодегін іске қосу\nТаңдау"</string>
-    <string name="bluetooth_select_a2dp_codec_sample_rate" msgid="1638623076480928191">"Bluetooth арқылы дыбыс іріктеу жиілігі"</string>
+    <string name="bluetooth_select_a2dp_codec_sample_rate" msgid="1638623076480928191">"Bluetooth дыбыс дискретизациясының жиілігі"</string>
     <string name="bluetooth_select_a2dp_codec_sample_rate_dialog_title" msgid="5876305103137067798">"Bluetooth аудиокодегін іске қосу\nТаңдау: іріктеу жылдамдығы"</string>
     <string name="bluetooth_select_a2dp_codec_type_help_info" msgid="8647200416514412338">"Сұр түсті болса, бұл оған телефонда не гарнитурада қолдау көрсетілмейтінін білдіреді."</string>
-    <string name="bluetooth_select_a2dp_codec_bits_per_sample" msgid="6253965294594390806">"Бір іріктемедегі Bluetooth дыбысының биті"</string>
+    <string name="bluetooth_select_a2dp_codec_bits_per_sample" msgid="6253965294594390806">"Бір үлгідегі Bluetooth аудио биті"</string>
     <string name="bluetooth_select_a2dp_codec_bits_per_sample_dialog_title" msgid="4898693684282596143">"Bluetooth аудиокодегін іске қосу\nТаңдау: разрядтылық"</string>
     <string name="bluetooth_select_a2dp_codec_channel_mode" msgid="364277285688014427">"Bluetooth дыбыстық арна режимі"</string>
     <string name="bluetooth_select_a2dp_codec_channel_mode_dialog_title" msgid="2076949781460359589">"Bluetooth аудиокодегін іске қосу\nТаңдау: арна режимі"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Бұл режим қосулы болса, құрылғының MAC мекенжайы MAC рандомизациясы қосулы желіге жалғанған сайын өзгеруі мүмкін."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Трафик саналатын желі"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Трафик саналмайды"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Журнал буферінің өлшемдері"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Журналға тіркеуші буферінің өлшемі"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Әр журнал буфері үшін журналға тіркеуші өлшемдерін таңдау"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Тіркеуіштің тұрақты жадын тазарту керек пе?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Тұрақты тіркеуішпен бақылауды тоқтатқаннан кейін, құрылғыңыздағы ол сақтаған деректертің бәрін жоюымыз керек."</string>
@@ -380,7 +389,7 @@
     <string name="select_application" msgid="2543228890535466325">"Қолданба таңдау"</string>
     <string name="no_application" msgid="9038334538870247690">"Ешнәрсе"</string>
     <string name="wait_for_debugger" msgid="7461199843335409809">"Түзеткішті күту"</string>
-    <string name="wait_for_debugger_summary" msgid="6846330006113363286">"Орындау алдында түзелетін қолданба түзетушінің қосылуын күтеді."</string>
+    <string name="wait_for_debugger_summary" msgid="6846330006113363286">"Орындау алдында түзелетін қолданба түзеткіштің қосылуын күтеді."</string>
     <string name="debug_input_category" msgid="7349460906970849771">"Енгізу"</string>
     <string name="debug_drawing_category" msgid="5066171112313666619">"Сызу"</string>
     <string name="debug_hw_drawing_category" msgid="5830815169336975162">"Бейнелеуді аппаратпен жеделдету"</string>
@@ -435,7 +444,7 @@
     <string name="transition_animation_scale_title" msgid="1278477690695439337">"Ауысу анимациясының өлшемі"</string>
     <string name="animator_duration_scale_title" msgid="7082913931326085176">"Аниматор ұзақтығы"</string>
     <string name="overlay_display_devices_title" msgid="5411894622334469607">"Қосымша дисплей симуляциясы"</string>
-    <string name="shade_display_awareness_title" msgid="8000009404669495876">"Реңк дисплей позициясы"</string>
+    <string name="shade_display_awareness_title" msgid="8000009404669495876">"Хабарландыру тақтасының орналасуы"</string>
     <string name="debug_applications_category" msgid="5394089406638954196">"Қолданбалар"</string>
     <string name="immediately_destroy_activities" msgid="1826287490705167403">"Әрекеттерді сақтамау"</string>
     <string name="immediately_destroy_activities_summary" msgid="6289590341144557614">"Әр әрекетті пайдаланушы аяқтай салысымен жою"</string>
@@ -443,7 +452,7 @@
     <string name="show_all_anrs" msgid="9160563836616468726">"Фондық ANR-ларды көрсету"</string>
     <string name="show_all_anrs_summary" msgid="8562788834431971392">"Фондық қолданбалар үшін \"Қолданба жауап бермейді\" терезесін шығару"</string>
     <string name="show_notification_channel_warnings" msgid="3448282400127597331">"Хабарландыру арнасының ескертулерін көрсету"</string>
-    <string name="show_notification_channel_warnings_summary" msgid="68031143745094339">"Қолданба жарамсыз арна арқылы хабарландыру жариялағанда, экранға ескерту шығарады."</string>
+    <string name="show_notification_channel_warnings_summary" msgid="68031143745094339">"Қолданба жарамды арнасыз хабарландыру жариялағанда, экранға ескерту шығарады."</string>
     <string name="force_allow_on_external" msgid="9187902444231637880">"Сыртқы жадта сақтауға рұқсат ету"</string>
     <string name="force_allow_on_external_summary" msgid="8525425782530728238">"Манифест мәндеріне қарамастан, кез келген қолданбаны сыртқы жадқа жазуға рұқсат беру"</string>
     <string name="force_resizable_activities" msgid="7143612144399959606">"Әрекеттердің өлшемін өзгертуге рұқсат ету"</string>
@@ -520,7 +529,7 @@
     <string name="power_charging_future_paused" msgid="1809543660923642799">"<xliff:g id="LEVEL">%1$s</xliff:g> – Зарядталып жатыр"</string>
     <string name="power_fast_charging_duration_v2" msgid="3797735998640359490">"<xliff:g id="LEVEL">%1$s</xliff:g> - <xliff:g id="STATUS">%2$s</xliff:g> - Зарядталып болады: <xliff:g id="TIME">%3$s</xliff:g>"</string>
     <string name="power_charging_duration_v2" msgid="2938998284074003248">"<xliff:g id="LEVEL">%1$s</xliff:g> - Толық заряд алуға қалған уақыт: <xliff:g id="TIME">%2$s</xliff:g>"</string>
-    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Толықтай зарядталып болады: <xliff:g id="TIME">%1$s</xliff:g>"</string>
+    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"Сағат <xliff:g id="TIME">%1$s</xliff:g> шамасында толықтай зарядталып болады."</string>
     <string name="power_remaining_fast_charging_duration_only_v2" msgid="6270950195810579563">"Заряд толуына қалған уақыт: <xliff:g id="TIME">%1$s</xliff:g>"</string>
     <string name="battery_info_status_unknown" msgid="268625384868401114">"Белгісіз"</string>
     <string name="battery_info_status_charging" msgid="4279958015430387405">"Зарядталуда"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> бұрын"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> қалды"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Ең кішкентай"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Кішірек"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Кішкентай"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Әдепкі"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Үлкен"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Үлкенірек"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Ең үлкен"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Үлкенірек"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Өте үлкен"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Өте қатты үлкен"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Ең үлкен"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Басқа (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Mәзір"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Демо режимде зауыттық мәндерге қайтару үшін құпия сөзді енгізу"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 құрылғы жалғанған.}other{# құрылғы жалғанған.}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Көбірек уақыт."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Азырақ уақыт."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Ұлғайту"</string>
     <string name="cancel" msgid="5665114069455378395">"Бас тарту"</string>
     <string name="next" msgid="2699398661093607009">"Келесі"</string>
     <string name="back" msgid="5554327870352703710">"Артқа"</string>
@@ -666,7 +680,7 @@
     <string name="profile_info_settings_title" msgid="105699672534365099">"Профильдік ақпарат"</string>
     <string name="user_need_lock_message" msgid="4311424336209509301">"Шектелген профайл жасақтауға дейін қолданбалар мен жеке деректерді қорғау үшін экран бекітпесін тағайындау қажет."</string>
     <string name="user_set_lock_button" msgid="1427128184982594856">"Бекітпе тағайындау"</string>
-    <string name="user_switch_to_user" msgid="6975428297154968543">"Пайдаланушыны ауыстыру: <xliff:g id="USER_NAME">%s</xliff:g>"</string>
+    <string name="user_switch_to_user" msgid="6975428297154968543">"<xliff:g id="USER_NAME">%s</xliff:g> ретінде кіру"</string>
     <string name="creating_new_user_dialog_message" msgid="7232880257538970375">"Жаңа пайдаланушы профилі жасалып жатыр…"</string>
     <string name="creating_new_guest_dialog_message" msgid="1114905602181350690">"Жаңа қонақ профилі жасалып жатыр…"</string>
     <string name="add_user_failed" msgid="4809887794313944872">"Жаңа пайдаланушы жасалмады."</string>
@@ -754,13 +768,10 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> қолданбасын таратсаңыз немесе аудио шығысын өзгертсеңіз, қазіргі тарату сеансы тоқтайды."</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> қолданбасын тарату"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Аудио шығысын өзгерту"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"\"Артқа\" қимылына арналған тұспал анимациясы"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"\"Артқа\" қимылына арналған жүйелік тұспал анимацияларын іске қосу."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Бұл параметр қимылға арналған жүйелік тұспал анимацияларын іске қосады. Ол үшін әр қолданбаның манифест файлында enableOnBackInvokedCallback үшін \"True\" мәні қойылуы керек."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g>%%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Көрсетілмеген"</string>
     <string name="neuter" msgid="2075249330106127310">"Орта тек"</string>
-    <string name="feminine" msgid="1529155595310784757">"Аналық тек"</string>
-    <string name="masculine" msgid="4653978041013996303">"Аталық тек"</string>
+    <string name="feminine" msgid="1529155595310784757">"Әйел"</string>
+    <string name="masculine" msgid="4653978041013996303">"Ер"</string>
     <string name="system_update_settings_list_item_title" msgid="6618098383615432484">"Жүйенің жаңартылған нұсқалары"</string>
 </resources>

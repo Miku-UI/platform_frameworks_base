@@ -297,7 +297,7 @@
   <string-array name="shade_display_awareness_summaries">
     <item msgid="2964753205732912921">"Mostra l\'ombra només a la pantalla del dispositiu"</item>
     <item msgid="1955398604822147783">"Mostra l\'àrea en una sola pantalla externa"</item>
-    <item msgid="391477482416751568">"Mostra l\'àrea a la pantalla amb què s\'ha interaccionat per darrera vegada a la barra d\'estat"</item>
+    <item msgid="391477482416751568">"Mostra l\'àrea a la pantalla en què s\'ha interaccionat per últim cop amb la barra d\'estat"</item>
     <item msgid="1746820128097981528">"Mostra l\'àrea a la darrera pantalla en què s\'hagi posat el focus"</item>
   </string-array>
   <string-array name="shade_display_awareness_values">

@@ -136,7 +136,8 @@ class ProtoLogCallProcessorImpl(
                                 ), groupMap.getValue(groupName),
                                 context.lineNumber
                             )
-                        } else if (call.name.id == "init") {
+                        } else if (call.name.id == "init"
+                            || call.name.id == "registerLogGroupInProcess") {
                             // No processing
                         } else {
                             // Process non-log message calls

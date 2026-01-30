@@ -40,6 +40,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.server.wm.ActivityRecord.State.RESUMED;
 import static com.android.server.wm.ActivityTaskSupervisor.ON_TOP;
 import static com.android.server.wm.WindowContainer.POSITION_TOP;
+import static com.android.window.flags.Flags.FLAG_ENABLE_DISPLAY_DISCONNECT_INTERACTION;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -54,6 +55,7 @@ import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.verify;
 
 import android.app.ActivityOptions;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.test.filters.SmallTest;
@@ -170,7 +172,7 @@ public class TaskDisplayAreaTests extends WindowTestsBase {
     @Test
     public void getOrCreateLaunchRootUsesActivityOptionsWindowingMode() {
         final Task rootTask = createTask(
-                mDisplayContent, WINDOWING_MODE_MULTI_WINDOW, ACTIVITY_TYPE_STANDARD);
+                mDisplayContent, WINDOWING_MODE_FREEFORM, ACTIVITY_TYPE_STANDARD);
         rootTask.mCreatedByOrganizer = true;
         final TaskDisplayArea taskDisplayArea = rootTask.getDisplayArea();
         taskDisplayArea.setLaunchRootTask(
@@ -187,6 +189,7 @@ public class TaskDisplayAreaTests extends WindowTestsBase {
                 null /* launchParams */, 0 /* launchFlags */, ACTIVITY_TYPE_STANDARD,
                 true /* onTop */);
         assertSame(rootTask, actualRootTask.getRootTask());
+        assertEquals(WINDOWING_MODE_FREEFORM, candidateRootTask.getWindowingMode());
     }
 
     @Test
@@ -562,6 +565,37 @@ public class TaskDisplayAreaTests extends WindowTestsBase {
         final TaskDisplayArea defaultTaskDisplayArea =
                 rootWindowContainer.getDefaultTaskDisplayArea();
         assertFalse(defaultTaskDisplayArea.mChildren.contains(task));
+    }
+
+    @Test
+    @UseTestDisplay
+    @EnableFlags(FLAG_ENABLE_DISPLAY_DISCONNECT_INTERACTION)
+    public void testPrepareForRemoval_rootTaskReparentsOnDisplayRemoval() {
+        final Task task = createTask(mDisplayContent);
+        task.mReparentOnDisplayRemoval = true;
+        task.mCreatedByOrganizer = true;
+        final TaskDisplayArea displayArea = task.getDisplayArea();
+        displayArea.prepareForRemoval();
+        assertTrue(displayArea.shouldKeepNoTask());
+        assertTrue(displayArea.isRemoved());
+        assertFalse(displayArea.hasChild());
+
+        final RootWindowContainer rootWindowContainer = mWm.mAtmService.mRootWindowContainer;
+        final TaskDisplayArea defaultTaskDisplayArea =
+                rootWindowContainer.getDefaultTaskDisplayArea();
+        assertTrue(defaultTaskDisplayArea.mChildren.contains(task));
+    }
+
+    @Test
+    public void testPrepareForRemoval_childTaskDisplayAreaShouldKeepNoTask() {
+        final TaskDisplayArea parentTDA = mDefaultDisplay.getDefaultTaskDisplayArea();
+        final TaskDisplayArea childTDA = new TaskDisplayArea(mWm, "childTDA",
+                FEATURE_VENDOR_FIRST, false /* createdByOrganizer */, true /* canHostHomeTask */);
+        parentTDA.addChild(childTDA, POSITION_TOP);
+        parentTDA.prepareForRemoval();
+
+        assertTrue(parentTDA.shouldKeepNoTask());
+        assertTrue(childTDA.shouldKeepNoTask());
     }
 
     private void assertGetOrCreateRootTask(int windowingMode, int activityType, Task candidateTask,

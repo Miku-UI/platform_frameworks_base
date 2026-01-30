@@ -16,44 +16,32 @@
 
 package com.android.server.inputmethod;
 
-import static com.android.server.inputmethod.InputMethodMenuControllerNew.getMenuItems;
-import static com.android.server.inputmethod.InputMethodMenuControllerNew.getSelectedIndex;
-import static com.android.server.inputmethod.InputMethodSubtypeSwitchingControllerTest.addTestImeSubtypeListItems;
+import static com.android.server.inputmethod.InputMethodMenuController.getMenuItems;
+import static com.android.server.inputmethod.InputMethodMenuController.getSelectedIndex;
+import static com.android.server.inputmethod.InputMethodSubtypeSwitchingControllerTest.createTestItems;
 import static com.android.server.inputmethod.InputMethodUtils.NOT_A_SUBTYPE_INDEX;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
 
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
-import android.view.inputmethod.Flags;
-
-import com.android.server.inputmethod.InputMethodMenuControllerNew.DividerItem;
-import com.android.server.inputmethod.InputMethodMenuControllerNew.HeaderItem;
-import com.android.server.inputmethod.InputMethodMenuControllerNew.SubtypeItem;
+import com.android.server.inputmethod.InputMethodMenuController.DividerItem;
+import com.android.server.inputmethod.InputMethodMenuController.HeaderItem;
+import com.android.server.inputmethod.InputMethodMenuController.SubtypeItem;
 import com.android.server.inputmethod.InputMethodSubtypeSwitchingController.ImeSubtypeListItem;
 
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-@RequiresFlagsEnabled(Flags.FLAG_IME_SWITCHER_REVAMP)
 public class InputMethodMenuControllerTest {
-
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     /** Verifies that getMenuItems maintains the same order and information from the given items. */
     @Test
     public void testGetMenuItems() {
         final var items = new ArrayList<ImeSubtypeListItem>();
-        addTestImeSubtypeListItems(items, "LatinIme", "LatinIme",
-                List.of("en", "fr"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "SimpleIme", "SimpleIme",
-                null, true /* supportsSwitchingToNextInputMethod */);
+        createTestItems(items, "LatinIme", List.of("en", "fr"));
+        createTestItems(items, "SimpleIme", null);
 
         final var menuItems = getMenuItems(items);
 
@@ -88,8 +76,7 @@ public class InputMethodMenuControllerTest {
     @Test
     public void testGetMenuItemsNoHeaderOrDividerForSingleInputMethod() {
         final var items = new ArrayList<ImeSubtypeListItem>();
-        addTestImeSubtypeListItems(items, "LatinIme", "LatinIme",
-                List.of("en", "fr"), true /* supportsSwitchingToNextInputMethod */);
+        createTestItems(items, "LatinIme", List.of("en", "fr"));
 
         final var menuItems = getMenuItems(items);
 
@@ -105,14 +92,10 @@ public class InputMethodMenuControllerTest {
     @Test
     public void testGetMenuItemsHeaders() {
         final var items = new ArrayList<ImeSubtypeListItem>();
-        addTestImeSubtypeListItems(items, "DefaultIme", "DefaultIme",
-                null, true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "LatinIme", "LatinIme",
-                List.of("en", "fr"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "ItalianIme", "ItalianIme",
-                List.of("it"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "SimpleIme", "SimpleIme",
-                null, true /* supportsSwitchingToNextInputMethod */);
+        createTestItems(items, "DefaultIme", null);
+        createTestItems(items, "LatinIme", List.of("en", "fr"));
+        createTestItems(items, "ItalianIme", List.of("it"));
+        createTestItems(items, "SimpleIme", null);
 
         final var menuItems = getMenuItems(items);
 
@@ -142,12 +125,9 @@ public class InputMethodMenuControllerTest {
     @Test
     public void testGetMenuItemsDivider() {
         final var items = new ArrayList<ImeSubtypeListItem>();
-        addTestImeSubtypeListItems(items, "LatinIme", "LatinIme",
-                List.of("en", "fr"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "ItalianIme", "ItalianIme",
-                List.of("it"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "SimpleIme", "SimpleIme",
-                null, true /* supportsSwitchingToNextInputMethod */);
+        createTestItems(items, "LatinIme", List.of("en", "fr"));
+        createTestItems(items, "ItalianIme", List.of("it"));
+        createTestItems(items, "SimpleIme", null);
 
         final var menuItems = getMenuItems(items);
 
@@ -177,10 +157,8 @@ public class InputMethodMenuControllerTest {
     @Test
     public void testGetSelectedIndexWithSelectedSubtype() {
         final var items = new ArrayList<ImeSubtypeListItem>();
-        addTestImeSubtypeListItems(items, "LatinIme", "LatinIme",
-                List.of("en", "fr"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "SimpleIme", "SimpleIme",
-                List.of("it", "jp", "pt"),  true /* supportsSwitchingToNextInputMethod */);
+        createTestItems(items, "LatinIme", List.of("en", "fr"));
+        createTestItems(items, "SimpleIme", List.of("it", "jp", "pt"));
 
         final var simpleImeId = items.get(2).mImi.getId();
         final var menuItems = getMenuItems(items);
@@ -197,10 +175,8 @@ public class InputMethodMenuControllerTest {
     @Test
     public void testGetSelectedIndexWithoutSelectedSubtype() {
         final var items = new ArrayList<ImeSubtypeListItem>();
-        addTestImeSubtypeListItems(items, "LatinIme", "LatinIme",
-                List.of("en", "fr"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "SimpleIme", "SimpleIme",
-                List.of("it", "jp", "pt"),  true /* supportsSwitchingToNextInputMethod */);
+        createTestItems(items, "LatinIme", List.of("en", "fr"));
+        createTestItems(items, "SimpleIme", List.of("it", "jp", "pt"));
 
         final var simpleImeId = items.get(2).mImi.getId();
         final var menuItems = getMenuItems(items);
@@ -218,10 +194,8 @@ public class InputMethodMenuControllerTest {
     @Test
     public void getSelectedIndexNoSubtype() {
         final var items = new ArrayList<ImeSubtypeListItem>();
-        addTestImeSubtypeListItems(items, "LatinIme", "LatinIme",
-                List.of("en", "fr"), true /* supportsSwitchingToNextInputMethod */);
-        addTestImeSubtypeListItems(items, "SimpleIme", "SimpleIme",
-                null,  true /* supportsSwitchingToNextInputMethod */);
+        createTestItems(items, "LatinIme", List.of("en", "fr"));
+        createTestItems(items, "SimpleIme", null);
 
         final var simpleImeId = items.get(2).mImi.getId();
         final var menuItems = getMenuItems(items);

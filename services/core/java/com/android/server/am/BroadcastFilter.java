@@ -132,9 +132,6 @@ public final class BroadcastFilter extends IntentFilter {
     @VisibleForTesting
     static int calculateAdjustedPriority(int owningUid, int priority,
             ApplicationInfo applicationInfo, PlatformCompat platformCompat) {
-        if (!Flags.restrictPriorityValues()) {
-            return priority;
-        }
         final long token = Binder.clearCallingIdentity();
         try {
             if (!platformCompat.isChangeEnabledInternalNoLogging(

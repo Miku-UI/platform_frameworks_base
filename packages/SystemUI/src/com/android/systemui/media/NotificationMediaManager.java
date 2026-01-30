@@ -15,8 +15,6 @@
  */
 package com.android.systemui.media;
 
-import static com.android.systemui.Flags.mediaControlsUserInitiatedDeleteintent;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Notification;
@@ -39,7 +37,6 @@ import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.media.controls.domain.pipeline.MediaDataManager;
 import com.android.systemui.media.controls.shared.model.MediaData;
-import com.android.systemui.media.controls.shared.model.SmartspaceMediaData;
 import com.android.systemui.statusbar.NotificationPresenter;
 import com.android.systemui.statusbar.StatusBarIconView;
 import com.android.systemui.statusbar.dagger.CentralSurfacesModule;
@@ -184,18 +181,12 @@ public class NotificationMediaManager implements Dumpable {
         mMediaDataManager.addListener(new MediaDataManager.Listener() {
             @Override
             public void onMediaDataLoaded(@NonNull String key,
-                    @Nullable String oldKey, @NonNull MediaData data, boolean immediately,
-                    int receivedSmartspaceCardLatency, boolean isSsReactivated) {
-            }
-
-            @Override
-            public void onSmartspaceMediaDataLoaded(@NonNull String key,
-                    @NonNull SmartspaceMediaData data, boolean shouldPrioritize) {
+                    @Nullable String oldKey, @NonNull MediaData data, boolean immediately) {
             }
 
             @Override
             public void onMediaDataRemoved(@NonNull String key, boolean userInitiated) {
-                if (mediaControlsUserInitiatedDeleteintent() && !userInitiated) {
+                if (!userInitiated) {
                     // Dismissing the notification will send the app's deleteIntent, so ignore if
                     // this was an automatic removal
                     Log.d(TAG, "Not dismissing " + key + " because it was removed by the system");
@@ -210,9 +201,6 @@ public class NotificationMediaManager implements Dumpable {
                                     getDismissedByUserStats(entry));
                         });
             }
-
-            @Override
-            public void onSmartspaceMediaDataRemoved(@NonNull String key, boolean immediately) {}
         });
     }
 

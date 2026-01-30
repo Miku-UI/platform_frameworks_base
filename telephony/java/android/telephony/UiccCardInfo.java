@@ -231,6 +231,27 @@ public final class UiccCardInfo implements Parcelable {
         this.mIccIdAccessRestricted = iccIdAccessRestricted;
     }
 
+    /**
+     * Return a copy of the current UiccCardInfo but with sensitive info redacted.
+     *
+     * @hide
+     */
+    public UiccCardInfo createSensitiveInfoSanitizedCopy(boolean hasCarrierPrivileges) {
+        final List<UiccPortInfo> redactedPortInfos = new  ArrayList<>();
+        for (UiccPortInfo portInfo : mPortList) {
+            redactedPortInfos.add(portInfo.createSensitiveInfoSanitizedCopy());
+        }
+
+        return new UiccCardInfo(
+                mIsEuicc,
+                hasCarrierPrivileges ? mCardId : TelephonyManager.UNINITIALIZED_CARD_ID,
+                null,
+                mPhysicalSlotIndex,
+                mIsRemovable,
+                mIsMultipleEnabledProfilesSupported,
+                redactedPortInfos);
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (this == obj) {

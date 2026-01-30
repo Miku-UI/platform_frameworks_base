@@ -17,6 +17,7 @@
 package com.android.systemui.display.data.repository
 
 import android.annotation.MainThread
+import android.app.ActivityManager.RunningTaskInfo
 import android.view.Display.DEFAULT_DISPLAY
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -33,6 +34,7 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
@@ -40,6 +42,7 @@ import kotlinx.coroutines.flow.stateIn
 interface FocusedDisplayRepository {
     /** Provides the currently focused display. */
     val focusedDisplayId: StateFlow<Int>
+    val globallyFocusedTask: StateFlow<RunningTaskInfo?>
 }
 
 @SysUISingleton
@@ -52,12 +55,27 @@ constructor(
     transitions: ShellTransitions,
     @FocusedDisplayRepoLog logBuffer: LogBuffer,
 ) : FocusedDisplayRepository {
-    val focusedTask: Flow<Int> =
-        conflatedCallbackFlow<Int> {
+    val focusTransitionData: Flow<Pair<Int, RunningTaskInfo?>> =
+        conflatedCallbackFlow {
                 val listener =
                     object : FocusTransitionListener {
+                        private var taskInfo: RunningTaskInfo? = null
+                        private var displayId = DEFAULT_DISPLAY
+
                         override fun onFocusedDisplayChanged(displayId: Int) {
-                            trySend(displayId)
+                            this.displayId = displayId
+                            trySend(Pair(displayId, taskInfo))
+                        }
+
+                        override fun onFocusedTaskChanged(
+                            taskInfo: RunningTaskInfo,
+                            isFocusedOnDisplay: Boolean,
+                            isFocusedGlobally: Boolean,
+                        ) {
+                            if (isFocusedGlobally) {
+                                this.taskInfo = taskInfo
+                                trySend(Pair(displayId, taskInfo))
+                            }
                         }
                     }
                 transitions.setFocusTransitionListener(listener, backgroundExecutor)
@@ -68,10 +86,16 @@ constructor(
                     "FocusedDisplayRepository",
                     LogLevel.INFO,
                     { str1 = it.toString() },
-                    { "Newly focused display: $str1" },
+                    { "Newly focus transition data: $str1" },
                 )
             }
 
-    override val focusedDisplayId: StateFlow<Int>
-        get() = focusedTask.stateIn(backgroundScope, SharingStarted.Eagerly, DEFAULT_DISPLAY)
+    override val focusedDisplayId: StateFlow<Int> =
+        focusTransitionData
+            .map { it.first }
+            .stateIn(backgroundScope, SharingStarted.Eagerly, DEFAULT_DISPLAY)
+    override val globallyFocusedTask: StateFlow<RunningTaskInfo?> =
+        focusTransitionData
+            .map { it.second }
+            .stateIn(backgroundScope, SharingStarted.Eagerly, null)
 }

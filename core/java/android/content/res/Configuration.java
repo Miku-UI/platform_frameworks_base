@@ -16,32 +16,32 @@
 
 package android.content.res;
 
-import static android.content.ConfigurationProto.COLOR_MODE;
-import static android.content.ConfigurationProto.DENSITY_DPI;
-import static android.content.ConfigurationProto.FONT_SCALE;
-import static android.content.ConfigurationProto.FONT_WEIGHT_ADJUSTMENT;
-import static android.content.ConfigurationProto.GRAMMATICAL_GENDER;
-import static android.content.ConfigurationProto.HARD_KEYBOARD_HIDDEN;
-import static android.content.ConfigurationProto.KEYBOARD;
-import static android.content.ConfigurationProto.KEYBOARD_HIDDEN;
-import static android.content.ConfigurationProto.LOCALES;
-import static android.content.ConfigurationProto.LOCALE_LIST;
-import static android.content.ConfigurationProto.MCC;
-import static android.content.ConfigurationProto.MNC;
-import static android.content.ConfigurationProto.NAVIGATION;
-import static android.content.ConfigurationProto.NAVIGATION_HIDDEN;
-import static android.content.ConfigurationProto.ORIENTATION;
-import static android.content.ConfigurationProto.SCREEN_HEIGHT_DP;
-import static android.content.ConfigurationProto.SCREEN_LAYOUT;
-import static android.content.ConfigurationProto.SCREEN_WIDTH_DP;
-import static android.content.ConfigurationProto.SMALLEST_SCREEN_WIDTH_DP;
-import static android.content.ConfigurationProto.TOUCHSCREEN;
-import static android.content.ConfigurationProto.UI_MODE;
-import static android.content.ConfigurationProto.WINDOW_CONFIGURATION;
-import static android.content.ResourcesConfigurationProto.CONFIGURATION;
-import static android.content.ResourcesConfigurationProto.SCREEN_HEIGHT_PX;
-import static android.content.ResourcesConfigurationProto.SCREEN_WIDTH_PX;
-import static android.content.ResourcesConfigurationProto.SDK_VERSION;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.COLOR_MODE;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.DENSITY_DPI;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.FONT_SCALE;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.FONT_WEIGHT_ADJUSTMENT;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.GRAMMATICAL_GENDER;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.HARD_KEYBOARD_HIDDEN;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.KEYBOARD;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.KEYBOARD_HIDDEN;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.LOCALES;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.LOCALE_LIST;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.MCC;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.MNC;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.NAVIGATION;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.NAVIGATION_HIDDEN;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.ORIENTATION;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.SCREEN_HEIGHT_DP;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.SCREEN_LAYOUT;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.SCREEN_WIDTH_DP;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.SMALLEST_SCREEN_WIDTH_DP;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.TOUCHSCREEN;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.UI_MODE;
+import static android.internal.perfetto.protos.Configuration.ConfigurationProto.WINDOW_CONFIGURATION;
+import static android.internal.perfetto.protos.Configuration.ResourcesConfigurationProto.CONFIGURATION;
+import static android.internal.perfetto.protos.Configuration.ResourcesConfigurationProto.SCREEN_HEIGHT_PX;
+import static android.internal.perfetto.protos.Configuration.ResourcesConfigurationProto.SCREEN_WIDTH_PX;
+import static android.internal.perfetto.protos.Configuration.ResourcesConfigurationProto.SDK_VERSION;
 
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -50,10 +50,10 @@ import android.annotation.TestApi;
 import android.app.GrammaticalInflectionManager;
 import android.app.WindowConfiguration;
 import android.compat.annotation.UnsupportedAppUsage;
-import android.content.LocaleProto;
 import android.content.pm.ActivityInfo;
 import android.content.pm.ActivityInfo.Config;
 import android.graphics.Typeface;
+import android.internal.perfetto.protos.Locale.LocaleProto;
 import android.os.Build;
 import android.os.LocaleList;
 import android.os.Parcel;
@@ -620,7 +620,10 @@ public final class Configuration implements Parcelable, Comparable<Configuration
      * <a href="{@docRoot}guide/topics/resources/providing-resources.html#KeyboardAvailQualifier">keyshidden</a>
      * resource qualifier. */
     public static final int KEYBOARDHIDDEN_YES = 2;
-    /** Constant matching actual resource implementation. {@hide} */
+    /**
+     * Constant matching actual resource implementation.
+     * @hide
+     */
     public static final int KEYBOARDHIDDEN_SOFT = 3;
 
     /**
@@ -930,13 +933,13 @@ public final class Configuration implements Parcelable, Comparable<Configuration
 
     /**
      * Value for {@link #densityDpi} for resources that scale to any density (vector drawables).
-     * {@hide}
+     * @hide
      */
     public static final int DENSITY_DPI_ANY = 0xfffe;
 
     /**
      * Value for {@link #densityDpi} for resources that are not meant to be scaled.
-     * {@hide}
+     * @hide
      */
     public static final int DENSITY_DPI_NONE = 0xffff;
 
@@ -1195,6 +1198,16 @@ public final class Configuration implements Parcelable, Comparable<Configuration
             default: sb.append(" layoutLong=");
                     sb.append(screenLayout&SCREENLAYOUT_LONG_MASK); break;
         }
+        switch ((screenLayout & SCREENLAYOUT_ROUND_MASK)) {
+            case SCREENLAYOUT_ROUND_UNDEFINED: sb.append(" ?round"); break;
+            case SCREENLAYOUT_ROUND_NO:  /* not-round is not interesting to print */ break;
+            case SCREENLAYOUT_ROUND_YES: sb.append(" round"); break;
+            default: sb.append(" layoutRound=");
+                sb.append(screenLayout & SCREENLAYOUT_ROUND_MASK); break;
+        }
+        if ((screenLayout & SCREENLAYOUT_COMPAT_NEEDED) != 0) {
+            sb.append(" compactNeeded");
+        }
         switch ((colorMode &COLOR_MODE_HDR_MASK)) {
             case COLOR_MODE_HDR_UNDEFINED: sb.append(" ?ldr"); break; // most likely not HDR
             case COLOR_MODE_HDR_NO: /* ldr is not interesting to print */ break;
@@ -1292,7 +1305,8 @@ public final class Configuration implements Parcelable, Comparable<Configuration
 
     /**
      * Write to a protocol buffer output stream.
-     * Protocol buffer message definition at {@link android.content.ConfigurationProto}
+     * Protocol buffer message definition at
+     * {@link android.internal.perfetto.protos.Configuration.ConfigurationProto}
      * Has the option to ignore fields that don't need to be persisted to disk.
      *
      * @param protoOutputStream Stream to write the Configuration object to.
@@ -1337,7 +1351,8 @@ public final class Configuration implements Parcelable, Comparable<Configuration
 
     /**
      * Write to a protocol buffer output stream.
-     * Protocol buffer message definition at {@link android.content.ConfigurationProto}
+     * Protocol buffer message definition at
+     * {@link android.internal.perfetto.protos.Configuration.ConfigurationProto}
      *
      * @param protoOutputStream Stream to write the Configuration object to.
      * @param fieldId           Field Id of the Configuration as defined in the parent message
@@ -1349,7 +1364,8 @@ public final class Configuration implements Parcelable, Comparable<Configuration
 
     /**
      * Write to a protocol buffer output stream.
-     * Protocol buffer message definition at {@link android.content.ConfigurationProto}
+     * Protocol buffer message definition at
+     * {@link android.internal.perfetto.protos.Configuration.ConfigurationProto}
      *
      * @param protoOutputStream Stream to write the Configuration object to.
      * @param fieldId           Field Id of the Configuration as defined in the parent message
@@ -1362,7 +1378,8 @@ public final class Configuration implements Parcelable, Comparable<Configuration
 
     /**
      * Read from a protocol buffer output stream.
-     * Protocol buffer message definition at {@link android.content.ConfigurationProto}
+     * Protocol buffer message definition at
+     * {@link android.internal.perfetto.protos.Configuration.ConfigurationProto}
      *
      * @param protoInputStream Stream to read the Configuration object from.
      * @param fieldId          Field Id of the Configuration as defined in the parent message
@@ -1510,8 +1527,8 @@ public final class Configuration implements Parcelable, Comparable<Configuration
     }
 
     /**
-     * Write full {@link android.content.ResourcesConfigurationProto} to protocol buffer output
-     * stream.
+     * Write full {@link android.internal.perfetto.protos.Configuration.ResourcesConfigurationProto}
+     * to protocol buffer output stream.
      *
      * @param protoOutputStream Stream to write the Configuration object to.
      * @param fieldId           Field Id of the Configuration as defined in the parent message
@@ -1605,7 +1622,7 @@ public final class Configuration implements Parcelable, Comparable<Configuration
         fontScale = 0;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     @Deprecated public void makeDefault() {
         setToDefaults();
@@ -1905,7 +1922,7 @@ public final class Configuration implements Parcelable, Comparable<Configuration
      * @param delta {@link Configuration} to compare to.
      *
      * TODO(b/36812336): Remove once appBounds has been moved out of Configuration.
-     * {@hide}
+     * @hide
      */
     public int diffPublicOnly(Configuration delta) {
         return diff(delta, false /* compareUndefined */, true /* publicOnly */);
@@ -2968,7 +2985,7 @@ public final class Configuration implements Parcelable, Comparable<Configuration
      *
      * @param parser The Xml parser from which to read attributes.
      * @param configOut The Configuration to populate from the Xml attributes.
-     * {@hide}
+     * @hide
      */
     public static void readXmlAttrs(XmlPullParser parser, Configuration configOut)
             throws XmlPullParserException, IOException {

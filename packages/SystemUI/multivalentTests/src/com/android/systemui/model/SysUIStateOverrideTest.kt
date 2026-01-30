@@ -25,6 +25,7 @@ import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers
 import org.mockito.Mockito.never
@@ -52,6 +53,7 @@ class SysUIStateOverrideTest : SysuiTestCase() {
         reset(callbackOnOverride)
     }
 
+    @Ignore("b/402254933")
     @Test
     fun setFlag_setOnDefaultState_propagatedToOverride() {
         defaultState.setFlag(FLAG_1, true).commitUpdate()

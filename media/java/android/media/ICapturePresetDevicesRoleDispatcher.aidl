@@ -21,7 +21,7 @@ import android.media.AudioDeviceAttributes;
 /**
  * AIDL for AudioService to signal devices role for capture preset updates.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ICapturePresetDevicesRoleDispatcher {
 

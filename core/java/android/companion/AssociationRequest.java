@@ -79,6 +79,26 @@ public final class AssociationRequest implements Parcelable {
     public static final String DEVICE_PROFILE_WATCH = "android.app.role.COMPANION_DEVICE_WATCH";
 
     /**
+     * Device profile: fitness tracker.
+     *
+     * If specified, the current request may have a modified UI to highlight that the device being
+     * set up is a specific kind of device, and some extra permissions may be granted to the app
+     * as a result.
+     *
+     * Using it requires declaring uses-permission
+     * {@link android.Manifest.permission#REQUEST_COMPANION_PROFILE_WATCH} in the manifest.
+     *
+     * <a href="{@docRoot}about/versions/12/features#cdm-profiles">Learn more</a>
+     * about device profiles.
+     *
+     * @see AssociationRequest.Builder#setDeviceProfile
+     */
+    @FlaggedApi(Flags.FLAG_BAND_DEVICE_PROFILE)
+    @RequiresPermission(Manifest.permission.REQUEST_COMPANION_PROFILE_WATCH)
+    public static final String DEVICE_PROFILE_FITNESS_TRACKER =
+            "android.app.role.COMPANION_DEVICE_FITNESS_TRACKER";
+
+    /**
      * Device profile: glasses.
      *
      * If specified, the current request may have a modified UI to highlight that the device being
@@ -92,6 +112,20 @@ public final class AssociationRequest implements Parcelable {
      */
     @RequiresPermission(Manifest.permission.REQUEST_COMPANION_PROFILE_GLASSES)
     public static final String DEVICE_PROFILE_GLASSES = "android.app.role.COMPANION_DEVICE_GLASSES";
+
+    /**
+     * Device profile: A medical device, e.g. blood sugar level monitor, heart rate monitor, etc.
+     *
+     * If specified, the current request may have a modified UI to highlight that the device being
+     * set up is a medical device, and some extra permissions may be granted to the app
+     * as a result.
+     *
+     * Using it requires declaring uses-permission
+     * {@link android.Manifest.permission#REQUEST_COMPANION_PROFILE_MEDICAL} in the manifest.
+     */
+    @FlaggedApi(Flags.FLAG_ENABLE_MEDICAL_PROFILE)
+    @RequiresPermission(Manifest.permission.REQUEST_COMPANION_PROFILE_MEDICAL)
+    public static final String DEVICE_PROFILE_MEDICAL = "android.app.role.COMPANION_DEVICE_MEDICAL";
 
     /**
      * Device profile: a wearable device capable of sensing its surroundings.
@@ -282,6 +316,15 @@ public final class AssociationRequest implements Parcelable {
     private Icon mDeviceIcon;
 
     /**
+     * Requested permissions for profile.
+     * @hide
+     */
+    @Nullable
+    private List<Integer> mRequestedPerms = new ArrayList<>();
+
+    private static final int DISPLAY_NAME_LENGTH_LIMIT = 1024;
+
+    /**
      * Creates a new AssociationRequest.
      *
      * @param singleDevice
@@ -309,6 +352,7 @@ public final class AssociationRequest implements Parcelable {
             boolean forceConfirmation,
             boolean skipRoleGrant,
             @Nullable Icon deviceIcon) {
+        validateDisplayName(displayName);
         mSingleDevice = singleDevice;
         mDeviceFilters = requireNonNull(deviceFilters);
         mDeviceProfile = deviceProfile;
@@ -395,6 +439,12 @@ public final class AssociationRequest implements Parcelable {
     }
 
     /** @hide */
+    @Nullable
+    public List<Integer> getRequestedPerms() {
+        return mRequestedPerms;
+    }
+
+    /** @hide */
     public void setPackageName(@NonNull String packageName) {
         mPackageName = packageName;
     }
@@ -416,6 +466,7 @@ public final class AssociationRequest implements Parcelable {
 
     /** @hide */
     public void setDisplayName(CharSequence displayName) {
+        validateDisplayName(displayName);
         mDisplayName = displayName;
     }
 
@@ -423,9 +474,15 @@ public final class AssociationRequest implements Parcelable {
     public void setAssociatedDevice(AssociatedDevice associatedDevice) {
         mAssociatedDevice = associatedDevice;
     }
+
     /** @hide */
     public void setDeviceIcon(Icon deviceIcon) {
         mDeviceIcon = deviceIcon;
+    }
+
+    /** @hide */
+    public void setRequestedPerms(List<Integer> perms) {
+        mRequestedPerms = perms;
     }
 
     /** @hide */
@@ -501,6 +558,7 @@ public final class AssociationRequest implements Parcelable {
         public Builder setDisplayName(@NonNull CharSequence displayName) {
             checkNotUsed();
             mDisplayName = requireNonNull(displayName);
+            validateDisplayName(displayName);
             return this;
         }
 
@@ -664,6 +722,7 @@ public final class AssociationRequest implements Parcelable {
                 + ", deviceProfilePrivilegesDescription = " + mDeviceProfilePrivilegesDescription
                 + ", creationTime = " + mCreationTime
                 + ", skipPrompt = " + mSkipPrompt
+                + ", requestedPerms = " + mRequestedPerms
                 + " }";
     }
 
@@ -688,27 +747,6 @@ public final class AssociationRequest implements Parcelable {
                 && mSkipPrompt == that.mSkipPrompt
                 && (mDeviceIcon == null ? that.mDeviceIcon == null
                 : mDeviceIcon.sameAs(that.mDeviceIcon));
-    }
-
-    @Override
-    public int hashCode() {
-        int _hash = 1;
-        _hash = 31 * _hash + Boolean.hashCode(mSingleDevice);
-        _hash = 31 * _hash + Objects.hashCode(mDeviceFilters);
-        _hash = 31 * _hash + Objects.hashCode(mDeviceProfile);
-        _hash = 31 * _hash + Objects.hashCode(mDisplayName);
-        _hash = 31 * _hash + Objects.hashCode(mAssociatedDevice);
-        _hash = 31 * _hash + Boolean.hashCode(mSelfManaged);
-        _hash = 31 * _hash + Boolean.hashCode(mForceConfirmation);
-        _hash = 31 * _hash + Boolean.hashCode(mSkipRoleGrant);
-        _hash = 31 * _hash + Objects.hashCode(mPackageName);
-        _hash = 31 * _hash + mUserId;
-        _hash = 31 * _hash + Objects.hashCode(mDeviceProfilePrivilegesDescription);
-        _hash = 31 * _hash + Long.hashCode(mCreationTime);
-        _hash = 31 * _hash + Boolean.hashCode(mSkipPrompt);
-        _hash = 31 * _hash + Objects.hashCode(mDeviceIcon);
-
-        return _hash;
     }
 
     @Override
@@ -739,6 +777,12 @@ public final class AssociationRequest implements Parcelable {
         if (mDeviceIcon != null) {
             dest.writeInt(1);
             mDeviceIcon.writeToParcel(dest, flags);
+        } else {
+            dest.writeInt(0);
+        }
+        if (mRequestedPerms != null) {
+            dest.writeInt(1);
+            dest.writeList(mRequestedPerms);
         } else {
             dest.writeInt(0);
         }
@@ -790,8 +834,9 @@ public final class AssociationRequest implements Parcelable {
         this.mSkipPrompt = skipPrompt;
         if (in.readInt() == 1) {
             mDeviceIcon = Icon.CREATOR.createFromParcel(in);
-        } else {
-            mDeviceIcon = null;
+        }
+        if (in.readInt() == 1) {
+            in.readList(mRequestedPerms, Integer.class.getClassLoader(), Integer.class);
         }
     }
 
@@ -808,4 +853,11 @@ public final class AssociationRequest implements Parcelable {
             return new AssociationRequest(in);
         }
     };
+
+    private static void validateDisplayName(@Nullable CharSequence displayName) {
+        if (displayName != null && displayName.length() > DISPLAY_NAME_LENGTH_LIMIT) {
+            throw new IllegalArgumentException("Length of the display name must be at most "
+                    + DISPLAY_NAME_LENGTH_LIMIT + " characters");
+        }
+    }
 }

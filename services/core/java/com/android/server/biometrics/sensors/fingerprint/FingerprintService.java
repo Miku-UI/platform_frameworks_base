@@ -1014,7 +1014,8 @@ public class FingerprintService extends SystemService {
     };
 
     public FingerprintService(Context context) {
-        this(context, BiometricContext.getInstance(context),
+        this(context,
+                BiometricContext.getInstance(context),
                 () -> IBiometricService.Stub.asInterface(
                         ServiceManager.getService(Context.BIOMETRIC_SERVICE)),
                 () -> getDeclaredInstances(),

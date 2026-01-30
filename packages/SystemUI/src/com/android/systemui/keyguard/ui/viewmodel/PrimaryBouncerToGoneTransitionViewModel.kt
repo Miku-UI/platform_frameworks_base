@@ -19,7 +19,6 @@ package com.android.systemui.keyguard.ui.viewmodel
 import android.util.MathUtils
 import com.android.systemui.Flags
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
-import com.android.systemui.bouncer.shared.flag.ComposeBouncerFlags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.FromPrimaryBouncerTransitionInteractor.Companion.TO_GONE_DURATION
 import com.android.systemui.keyguard.domain.interactor.FromPrimaryBouncerTransitionInteractor.Companion.TO_GONE_SHORT_DURATION
@@ -31,6 +30,7 @@ import com.android.systemui.keyguard.shared.model.ScrimAlpha
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.BlurConfig
 import com.android.systemui.keyguard.ui.transitions.PrimaryBouncerTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.SysuiStatusBarStateController
 import dagger.Lazy
 import javax.inject.Inject
@@ -87,7 +87,7 @@ constructor(
 
     /** Bouncer container alpha */
     val bouncerAlpha: Flow<Float> =
-        if (ComposeBouncerFlags.isEnabled) {
+        if (SceneContainerFlag.isEnabled) {
             keyguardDismissActionInteractor
                 .get()
                 .willAnimateDismissActionOnLockscreen
@@ -131,7 +131,7 @@ constructor(
 
     /** Lockscreen alpha */
     val lockscreenAlpha: Flow<Float> =
-        if (ComposeBouncerFlags.isEnabled) {
+        if (SceneContainerFlag.isEnabled) {
             keyguardDismissActionInteractor
                 .get()
                 .willAnimateDismissActionOnLockscreen

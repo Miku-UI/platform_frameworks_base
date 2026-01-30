@@ -19,6 +19,7 @@ package com.android.server.appfunctions;
 import static com.android.server.appfunctions.AppFunctionExecutors.LOGGING_THREAD_EXECUTOR;
 
 import android.annotation.NonNull;
+import android.app.appfunctions.AppFunctionAttribution;
 import android.app.appfunctions.ExecuteAppFunctionAidlRequest;
 import android.app.appfunctions.ExecuteAppFunctionResponse;
 import android.content.Context;
@@ -36,6 +37,11 @@ public class AppFunctionsLoggerWrapper {
     private static final String TAG = AppFunctionsLoggerWrapper.class.getSimpleName();
 
     @VisibleForTesting static final int SUCCESS_RESPONSE_CODE = -1;
+
+    @VisibleForTesting static final int INTERACTION_TYPE_UNSPECIFIED = 0;
+    @VisibleForTesting static final int INTERACTION_TYPE_OTHER = 1;
+    @VisibleForTesting static final int INTERACTION_TYPE_USER_QUERY = 2;
+    @VisibleForTesting static final int INTERACTION_TYPE_USER_SCHEDULED = 3;
 
     private final PackageManager mPackageManager;
     private final Executor mLoggingExecutor;
@@ -105,7 +111,8 @@ public class AppFunctionsLoggerWrapper {
                                         .getRequestDataSize(),
                                 /* responseSizeBytes= */ responseSizeBytes,
                                 /* requestDurationMs= */ e2eRequestLatencyMillis,
-                                /* requestOverheadMs= */ requestOverheadMillis));
+                                /* requestOverheadMs= */ requestOverheadMillis,
+                                /* interactionType= */ getInteractionType(request)));
     }
 
     private int getPackageUid(String packageName) {
@@ -115,6 +122,30 @@ public class AppFunctionsLoggerWrapper {
             Slog.e(TAG, "Package uid not found for " + packageName);
         }
         return 0;
+    }
+
+    private int getInteractionType(@NonNull ExecuteAppFunctionAidlRequest aidlRequest) {
+        if (!accessCheckFlagsEnabled()) {
+            return INTERACTION_TYPE_UNSPECIFIED;
+        }
+
+        final AppFunctionAttribution attribution = aidlRequest.getClientRequest().getAttribution();
+        if (attribution == null) {
+            return INTERACTION_TYPE_UNSPECIFIED;
+        }
+        final int interactionType = attribution.getInteractionType();
+        return switch (interactionType) {
+            case AppFunctionAttribution.INTERACTION_TYPE_OTHER -> INTERACTION_TYPE_OTHER;
+            case AppFunctionAttribution.INTERACTION_TYPE_USER_QUERY -> INTERACTION_TYPE_USER_QUERY;
+            case AppFunctionAttribution.INTERACTION_TYPE_USER_SCHEDULED ->
+                    INTERACTION_TYPE_USER_SCHEDULED;
+            default -> INTERACTION_TYPE_UNSPECIFIED;
+        };
+    }
+
+    private boolean accessCheckFlagsEnabled() {
+        return android.permission.flags.Flags.appFunctionAccessApiEnabled()
+                && android.permission.flags.Flags.appFunctionAccessServiceEnabled();
     }
 
     /** Wraps a custom clock for easier testing. */

@@ -115,7 +115,7 @@ public final class TimedText
      * for Blinking Text or Highlight Text. endChar is the end offset
      * of the text (startChar + number of characters to be highlighted
      * or blinked). The member variables in this class are read-only.
-     * {@hide}
+     * @hide
      */
     public static final class CharPos {
         /**
@@ -142,7 +142,7 @@ public final class TimedText
     /**
      * Helper class to hold the justification for text display in the text box.
      * The member variables in this class are read-only.
-     * {@hide}
+     * @hide
      */
     public static final class Justification {
         /**
@@ -169,7 +169,7 @@ public final class TimedText
     /**
      * Helper class to hold the style information to display the text.
      * The member variables in this class are read-only.
-     * {@hide}
+     * @hide
      */
     public static final class Style {
         /**
@@ -242,7 +242,7 @@ public final class TimedText
     /**
      * Helper class to hold the font ID and name.
      * The member variables in this class are read-only.
-     * {@hide}
+     * @hide
      */
     public static final class Font {
         /**
@@ -269,7 +269,7 @@ public final class TimedText
     /**
      * Helper class to hold the karaoke information.
      * The member variables in this class are read-only.
-     * {@hide}
+     * @hide
      */
     public static final class Karaoke {
         /**
@@ -314,7 +314,7 @@ public final class TimedText
     /**
      * Helper class to hold the hyper text information.
      * The member variables in this class are read-only.
-     * {@hide}
+     * @hide
      */
     public static final class HyperText {
         /**
@@ -356,7 +356,7 @@ public final class TimedText
     /**
      * @param obj the byte array which contains the timed text.
      * @throws IllegalArgumentExcept if parseParcel() fails.
-     * {@hide}
+     * @hide
      */
     public TimedText(Parcel parcel) {
         if (!parseParcel(parcel)) {
@@ -368,7 +368,7 @@ public final class TimedText
     /**
      * @param text the characters in the timed text.
      * @param bounds the rectangle area or region for rendering the timed text.
-     * {@hide}
+     * @hide
      */
     public TimedText(String text, Rect bounds) {
         mTextChars = text;

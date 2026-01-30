@@ -26,7 +26,48 @@ import android.os.Trace;
  * @hide
  */
 public class BatchedInputEventReceiver extends InputEventReceiver {
-    private Choreographer mChoreographer;
+    /**
+     * Interface used to schedule requests to consume batched input avents around vsync boundaries.
+     */
+    public interface BatchedInputScheduler {
+        /** Posts a task to consume pending batched events. */
+        void postCallback(Runnable action);
+
+        /** Cancels previously posted task to consume pending batched events. */
+        void removeCallbacks(Runnable action);
+
+        /** Gets the time of the frame to which pending events should be batched. */
+        long getFrameTimeNanos();
+    };
+
+    /**
+     * Implementation of the `BatchedInputScheduler` interface that's backed by a Choreographer.
+     * To be used in production.
+     */
+    private static class ChoreographerBatchedInputScheduler implements BatchedInputScheduler {
+        private Choreographer mChoreographer;
+
+        ChoreographerBatchedInputScheduler(Choreographer choreographer) {
+            mChoreographer = choreographer;
+        }
+
+        @Override
+        public void postCallback(Runnable action) {
+            mChoreographer.postCallback(Choreographer.CALLBACK_INPUT, action, null);
+        }
+
+        @Override
+        public void removeCallbacks(Runnable action) {
+            mChoreographer.removeCallbacks(Choreographer.CALLBACK_INPUT, action, null);
+        }
+
+        @Override
+        public long getFrameTimeNanos() {
+            return mChoreographer.getFrameTimeNanos();
+        }
+    };
+
+    private BatchedInputScheduler mScheduler;
     private boolean mBatchingEnabled;
     private boolean mBatchedInputScheduled;
     private final String mTag;
@@ -41,8 +82,13 @@ public class BatchedInputEventReceiver extends InputEventReceiver {
     @UnsupportedAppUsage
     public BatchedInputEventReceiver(
             InputChannel inputChannel, Looper looper, Choreographer choreographer) {
+        this(inputChannel, looper, new ChoreographerBatchedInputScheduler(choreographer));
+    }
+
+    public BatchedInputEventReceiver(
+            InputChannel inputChannel, Looper looper, BatchedInputScheduler scheduler) {
         super(inputChannel, looper);
-        mChoreographer = choreographer;
+        mScheduler = scheduler;
         mBatchingEnabled = true;
         mTag = inputChannel.getName();
         traceBoolVariable("mBatchingEnabled", mBatchingEnabled);
@@ -77,7 +123,16 @@ public class BatchedInputEventReceiver extends InputEventReceiver {
 
         mBatchingEnabled = batchingEnabled;
         traceBoolVariable("mBatchingEnabled", mBatchingEnabled);
-        mHandler.removeCallbacks(mConsumeBatchedInputEvents);
+        if (mHandler.hasCallbacks(mConsumeBatchedInputEvents)) {
+            mHandler.removeCallbacks(mConsumeBatchedInputEvents);
+            // Existence of `mConsumeBatchedInputEvents` implies that there are pending batched
+            // input events from the last time batching was enabled that need to be consumed -
+            // consume them so the receiver keeps getting `onBatchedInputEventPending()`
+            // notifications.
+            if (batchingEnabled) {
+                scheduleBatchedInput();
+            }
+        }
         if (!batchingEnabled) {
             unscheduleBatchedInput();
             mHandler.post(mConsumeBatchedInputEvents);
@@ -103,7 +158,7 @@ public class BatchedInputEventReceiver extends InputEventReceiver {
         if (!mBatchedInputScheduled) {
             mBatchedInputScheduled = true;
             traceBoolVariable("mBatchedInputScheduled", mBatchedInputScheduled);
-            mChoreographer.postCallback(Choreographer.CALLBACK_INPUT, mBatchedInputRunnable, null);
+            mScheduler.postCallback(mBatchedInputRunnable);
         }
     }
 
@@ -111,8 +166,7 @@ public class BatchedInputEventReceiver extends InputEventReceiver {
         if (mBatchedInputScheduled) {
             mBatchedInputScheduled = false;
             traceBoolVariable("mBatchedInputScheduled", mBatchedInputScheduled);
-            mChoreographer.removeCallbacks(
-                    Choreographer.CALLBACK_INPUT, mBatchedInputRunnable, null);
+            mScheduler.removeCallbacks(mBatchedInputRunnable);
         }
     }
 
@@ -127,7 +181,7 @@ public class BatchedInputEventReceiver extends InputEventReceiver {
         public void run() {
             try {
                 Trace.traceBegin(Trace.TRACE_TAG_INPUT, mTag);
-                doConsumeBatchedInput(mChoreographer.getFrameTimeNanos());
+                doConsumeBatchedInput(mScheduler.getFrameTimeNanos());
             } finally {
                 Trace.traceEnd(Trace.TRACE_TAG_INPUT);
             }

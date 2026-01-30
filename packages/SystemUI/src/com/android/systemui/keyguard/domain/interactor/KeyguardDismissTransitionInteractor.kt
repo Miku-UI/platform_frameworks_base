@@ -18,7 +18,6 @@ package com.android.systemui.keyguard.domain.interactor
 
 import android.animation.ValueAnimator
 import android.util.Log
-import com.android.systemui.Flags.transitionRaceCondition
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.data.repository.KeyguardTransitionRepository
@@ -70,13 +69,7 @@ constructor(
         Log.d(TAG, "#startDismissKeyguardTransition(reason=$reason)")
 
         scope.launch {
-            val startedState =
-                if (transitionRaceCondition()) {
-                    repository.currentTransitionInfo.to
-                } else {
-                    repository.currentTransitionInfoInternal.value.to
-                }
-
+            val startedState = repository.currentTransitionInfo.to
             val animator: ValueAnimator? =
                 when (startedState) {
                     LOCKSCREEN -> fromLockscreenTransitionInteractor

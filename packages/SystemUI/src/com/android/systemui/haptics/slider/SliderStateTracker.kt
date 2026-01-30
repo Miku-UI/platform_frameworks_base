@@ -17,12 +17,12 @@
 package com.android.systemui.haptics.slider
 
 import androidx.annotation.VisibleForTesting
+import com.android.app.tracing.coroutines.launchTraced as launch
 import kotlin.math.abs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /**
  * Slider tracker attached to a slider.
@@ -80,7 +80,10 @@ class SliderStateTracker(
             // This will disambiguate between an imprecise touch that acquires the slider handle,
             // and a select and jump operation in the slider track.
             setState(SliderState.WAIT)
-        } else if (newEventType == SliderEventType.STARTED_TRACKING_PROGRAM) {
+        } else if (
+            newEventType == SliderEventType.STARTED_TRACKING_PROGRAM ||
+                newEventType == SliderEventType.PROGRESS_CHANGE_BY_PROGRAM
+        ) {
             val state =
                 if (bookendReached(currentProgress)) SliderState.ARROW_HANDLE_REACHED_BOOKEND
                 else SliderState.ARROW_HANDLE_MOVED_ONCE

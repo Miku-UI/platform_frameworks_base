@@ -16,13 +16,14 @@
 
 package com.android.server.wm;
 
-import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP;
+import static android.tracing.perfetto.DataSourceParams.PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP;
 
 import android.annotation.NonNull;
 import android.internal.perfetto.protos.ShellTransitionOuterClass.ShellTransition;
 import android.internal.perfetto.protos.TracePacketOuterClass.TracePacket;
 import android.os.SystemClock;
 import android.os.Trace;
+import android.tracing.TracingUtils;
 import android.tracing.perfetto.DataSourceParams;
 import android.tracing.perfetto.InitArguments;
 import android.tracing.perfetto.Producer;
@@ -44,7 +45,7 @@ class PerfettoTransitionTracer implements TransitionTracer {
         DataSourceParams params =
                 new DataSourceParams.Builder()
                         .setBufferExhaustedPolicy(
-                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_DROP)
+                                PERFETTO_DS_BUFFER_EXHAUSTED_POLICY_STALL_AND_DROP)
                         .build();
         mDataSource.register(params);
     }
@@ -66,7 +67,8 @@ class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logSentTransition");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logSent"));
         try {
             doLogSentTransition(transition, targets);
         } finally {
@@ -110,7 +112,8 @@ class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logFinishedTransition");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logFinished"));
         try {
             doLogFinishTransition(transition);
         } finally {
@@ -142,7 +145,8 @@ class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logAbortedTransition");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logAborted-coreSide"));
         try {
             doLogAbortedTransition(transition);
         } finally {
@@ -168,7 +172,8 @@ class PerfettoTransitionTracer implements TransitionTracer {
             return;
         }
 
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "logRemovingStartingWindow");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
+                TracingUtils.uiTracingSliceName("Transition::logRemovingStartingWindow"));
         try {
             doLogRemovingStartingWindow(startingData);
         } finally {

@@ -16,8 +16,6 @@
 
 package com.android.internal.os;
 
-import com.android.internal.power.EnergyConsumerStatsTest;
-
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -37,8 +35,6 @@ import org.junit.runners.Suite;
         MonotonicClockTest.class,
         PowerProfileTest.class,
         PowerStatsTest.class,
-
-        EnergyConsumerStatsTest.class
     })
 public class BatteryStatsTests {
 }

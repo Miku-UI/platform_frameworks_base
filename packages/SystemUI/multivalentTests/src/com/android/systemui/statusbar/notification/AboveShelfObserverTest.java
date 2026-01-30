@@ -27,8 +27,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper;
 
 import org.junit.Assert;
 import org.junit.Before;
@@ -42,22 +42,18 @@ public class AboveShelfObserverTest extends SysuiTestCase {
 
     private AboveShelfObserver mObserver;
     private FrameLayout mHostLayout;
-    private NotificationTestHelper mNotificationTestHelper;
     private AboveShelfObserver.HasViewAboveShelfChangedListener mListener;
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
 
     @Before
     public void setUp() throws Exception {
         allowTestableLooperAsMainThread();
-        mNotificationTestHelper = new NotificationTestHelper(
-                mContext,
-                mDependency,
-                TestableLooper.get(this));
         mHostLayout = new FrameLayout(getContext());
         mObserver = new AboveShelfObserver(mHostLayout);
-        ExpandableNotificationRow row = mNotificationTestHelper.createRow();
+        ExpandableNotificationRow row = mKosmos.createRow();
         row.setAboveShelfChangedListener(mObserver);
         mHostLayout.addView(row);
-        row = mNotificationTestHelper.createRow();
+        row = mKosmos.createRow();
         row.setAboveShelfChangedListener(mObserver);
         mHostLayout.addView(row);
         mListener = mock(AboveShelfObserver.HasViewAboveShelfChangedListener.class);
@@ -91,4 +87,3 @@ public class AboveShelfObserverTest extends SysuiTestCase {
                 mObserver.hasViewsAboveShelf());
     }
 }
-

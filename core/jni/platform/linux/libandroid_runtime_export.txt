@@ -38,12 +38,6 @@
     _ZN7android15InputDeviceInfo*;
     _ZN7android31android_view_InputDevice_create*;
     _ZN7android53android_view_Surface_createFromIGraphicBufferProducer*;
-
-    # symbols needed by Ravenwood to override system properties
-    __system_property_find;
-    __system_property_get;
-    __system_property_read_callback;
-    __system_property_set;
   local:
     *;
 };

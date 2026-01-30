@@ -16,12 +16,10 @@
 
 package com.android.systemui.shade.data.repository
 
-import android.content.Intent
 import android.safetycenter.SafetyCenterManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.testDispatcher
@@ -51,7 +49,6 @@ import org.mockito.MockitoAnnotations.initMocks
 class PrivacyChipRepositoryTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
-    private val broadcastDispatcher = kosmos.broadcastDispatcher
 
     @Mock private lateinit var privacyConfig: PrivacyConfig
     @Mock private lateinit var privacyItemController: PrivacyItemController
@@ -64,47 +61,6 @@ class PrivacyChipRepositoryTest : SysuiTestCase() {
         initMocks(this)
         setUpUnderTest()
     }
-
-    @Test
-    fun isSafetyCenterEnabled_startEnabled() =
-        testScope.runTest {
-            setUpUnderTest(true)
-
-            val actual by collectLastValue(underTest.isSafetyCenterEnabled)
-            runCurrent()
-
-            assertThat(actual).isTrue()
-        }
-
-    @Test
-    fun isSafetyCenterEnabled_startDisabled() =
-        testScope.runTest {
-            setUpUnderTest(false)
-
-            val actual by collectLastValue(underTest.isSafetyCenterEnabled)
-
-            assertThat(actual).isFalse()
-        }
-
-    @Test
-    fun isSafetyCenterEnabled_updates() =
-        testScope.runTest {
-            val actual by collectLastValue(underTest.isSafetyCenterEnabled)
-            runCurrent()
-
-            assertThat(actual).isFalse()
-
-            whenever(safetyCenterManager.isSafetyCenterEnabled).thenReturn(true)
-
-            broadcastDispatcher.sendIntentToMatchingReceiversOnly(
-                context,
-                Intent(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
-            )
-
-            runCurrent()
-
-            assertThat(actual).isTrue()
-        }
 
     @Test
     fun privacyItems_updates() =
@@ -174,7 +130,6 @@ class PrivacyChipRepositoryTest : SysuiTestCase() {
                 privacyConfig = privacyConfig,
                 privacyItemController = privacyItemController,
                 backgroundDispatcher = kosmos.testDispatcher,
-                broadcastDispatcher = broadcastDispatcher,
                 safetyCenterManager = safetyCenterManager,
             )
     }

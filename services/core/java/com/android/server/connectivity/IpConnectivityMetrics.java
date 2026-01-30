@@ -57,7 +57,7 @@ import java.util.function.ToIntFunction;
 /**
  * Event buffering service for core networking and connectivity metrics.
  *
- * {@hide}
+ * @hide
  */
 final public class IpConnectivityMetrics extends SystemService {
     private static final String TAG = IpConnectivityMetrics.class.getSimpleName();

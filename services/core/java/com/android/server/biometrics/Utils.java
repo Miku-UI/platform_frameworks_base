@@ -151,6 +151,33 @@ public class Utils {
     }
 
     /**
+     *
+     * @param authenticators composed of one or more values from {@link Authenticators}
+     * @return true if Identity Check requirements should be applied depending on the authenticators
+     */
+    static boolean shouldApplyIdentityCheck(@Authenticators.Types int authenticators) {
+        final boolean isIdentityCheckAllSurfacesEnabled =
+                Flags.identityCheckAllSurfaces() && Flags.bpFallbackOptions();
+        final boolean isMandatoryOrBiometricRequested =
+                isMandatoryBiometricsRequested(authenticators)
+                        || isBiometricRequested(authenticators);
+        final boolean isOnlyStrongBiometricRequested =
+                isOnlyStrongBiometricRequested(authenticators);
+
+        if (isIdentityCheckAllSurfacesEnabled) {
+            return isMandatoryOrBiometricRequested && !isOnlyStrongBiometricRequested;
+        }
+
+        return isMandatoryBiometricsRequested(authenticators);
+    }
+
+    private static boolean isOnlyStrongBiometricRequested(
+            @Authenticators.Types int authenticators) {
+        return getPublicBiometricStrength(authenticators) == Authenticators.BIOMETRIC_STRONG
+                && !isCredentialRequested(authenticators);
+    }
+
+    /**
      * @param promptInfo should be first processed by
      * {@link #combineAuthenticatorBundles(PromptInfo)}
      * @return true if device credential is allowed.
@@ -254,14 +281,10 @@ public class Utils {
         // Check if any of the non-biometric and non-credential bits are set. If so, this is
         // invalid.
         final int testBits;
-        if (Flags.mandatoryBiometrics()) {
-            testBits = ~(Authenticators.DEVICE_CREDENTIAL
-                    | Authenticators.BIOMETRIC_MIN_STRENGTH
-                    | Authenticators.IDENTITY_CHECK);
-        } else {
-            testBits = ~(Authenticators.DEVICE_CREDENTIAL
-                    | Authenticators.BIOMETRIC_MIN_STRENGTH);
-        }
+        testBits = ~(Authenticators.DEVICE_CREDENTIAL
+                | Authenticators.BIOMETRIC_MIN_STRENGTH
+                | Authenticators.IDENTITY_CHECK);
+
         if ((authenticators & testBits) != 0) {
             Slog.e(BiometricService.TAG, "Non-biometric, non-credential bits found."
                     + " Authenticators: " + authenticators);
@@ -322,9 +345,9 @@ public class Utils {
                 break;
             case BiometricConstants.BIOMETRIC_ERROR_LOCKOUT:
             case BiometricConstants.BIOMETRIC_ERROR_LOCKOUT_PERMANENT:
-                biometricManagerCode = Flags.mandatoryBiometrics()
-                        ? BiometricManager.BIOMETRIC_ERROR_LOCKOUT
-                        : BiometricManager.BIOMETRIC_SUCCESS;
+                biometricManagerCode = Flags.bpFallbackOptions()
+                        ? BiometricManager.BIOMETRIC_SUCCESS
+                        : BiometricManager.BIOMETRIC_ERROR_LOCKOUT;
                 break;
             case BiometricConstants.BIOMETRIC_ERROR_SENSOR_PRIVACY_ENABLED:
                 biometricManagerCode = BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE;
@@ -399,9 +422,7 @@ public class Utils {
             case MANDATORY_BIOMETRIC_UNAVAILABLE_ERROR:
                 return BiometricConstants.BIOMETRIC_ERROR_IDENTITY_CHECK_NOT_ACTIVE;
             case BIOMETRIC_NOT_ENABLED_FOR_APPS:
-                if (Flags.mandatoryBiometrics()) {
-                    return BiometricConstants.BIOMETRIC_ERROR_NOT_ENABLED_FOR_APPS;
-                }
+                return BiometricConstants.BIOMETRIC_ERROR_NOT_ENABLED_FOR_APPS;
             case BIOMETRIC_DISABLED_BY_DEVICE_POLICY:
             case BIOMETRIC_HARDWARE_NOT_DETECTED:
             default:
@@ -617,18 +638,29 @@ public class Utils {
     /**
      * Checks if a client package is running in the background.
      *
+     * @param activityTaskManager Task manager which provides the list of clients running.
      * @param clientPackage The name of the package to be checked.
      * @return Whether the client package is running in background
      */
-    public static boolean isBackground(String clientPackage) {
+    public static boolean isBackground(ActivityTaskManager activityTaskManager,
+            String clientPackage) {
         Slog.v(TAG, "Checking if the authenticating is in background,"
                 + " clientPackage:" + clientPackage);
         final List<ActivityManager.RunningTaskInfo> tasks =
-                ActivityTaskManager.getInstance().getTasks(Integer.MAX_VALUE);
+                activityTaskManager.getTasks(Integer.MAX_VALUE);
 
         if (tasks == null || tasks.isEmpty()) {
             Slog.d(TAG, "No running tasks reported");
             return true;
+        }
+
+        //Allow auth for top activity even if it is not visible
+        final ActivityManager.RunningTaskInfo topTaskInfo = tasks.getFirst();
+        if (topTaskInfo != null && topTaskInfo.topActivity != null) {
+            final String topPackage = topTaskInfo.topActivity.getPackageName();
+            if (topPackage.contentEquals(clientPackage)) {
+                return false;
+            }
         }
 
         for (ActivityManager.RunningTaskInfo taskInfo : tasks) {

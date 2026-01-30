@@ -1,0 +1,85 @@
+// This file is auto-generated. DO NOT MODIFY.
+// Args: com.android.systemfeatures.RwFeaturesFromXml \
+//            --readonly=false \
+//            --feature-xml-files=frameworks/base/tools/systemfeatures/tests/data/features-1.xml,frameworks/base/tools/systemfeatures/tests/data/features-2.xml
+package com.android.systemfeatures;
+
+import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.content.Context;
+import android.content.pm.FeatureInfo;
+import android.content.pm.PackageManager;
+import android.util.ArrayMap;
+
+/**
+ * @hide
+ */
+public final class RwFeaturesFromXml {
+    /**
+     * Check for FEATURE_BLUETOOTH.
+     *
+     * @hide
+     */
+    public static boolean hasFeatureBluetooth(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_BLUETOOTH);
+    }
+
+    /**
+     * Check for FEATURE_EMBEDDED.
+     *
+     * @hide
+     */
+    public static boolean hasFeatureEmbedded(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_EMBEDDED);
+    }
+
+    /**
+     * Check for FEATURE_PC.
+     *
+     * @hide
+     */
+    public static boolean hasFeaturePc(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_PC);
+    }
+
+    /**
+     * Check for FEATURE_WATCH.
+     *
+     * @hide
+     */
+    public static boolean hasFeatureWatch(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_WATCH);
+    }
+
+    /**
+     * Check for FEATURE_WIFI.
+     *
+     * @hide
+     */
+    public static boolean hasFeatureWifi(Context context) {
+        return hasFeatureFallback(context, PackageManager.FEATURE_WIFI);
+    }
+
+    private static boolean hasFeatureFallback(Context context, String featureName) {
+        return context.getPackageManager().hasSystemFeature(featureName);
+    }
+
+    /**
+     * @hide
+     */
+    @Nullable
+    public static Boolean maybeHasFeature(String featureName, int version) {
+        return null;
+    }
+
+    /**
+     * Gets features marked as available at compile-time, keyed by name.
+     *
+     * @hide
+     */
+    @NonNull
+    public static ArrayMap<String, FeatureInfo> getReadOnlySystemEnabledFeatures() {
+        ArrayMap<String, FeatureInfo> features = new ArrayMap<>(0);
+        return features;
+    }
+}

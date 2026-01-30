@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Անցնել նախորդ էկրան"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Անցնել հաջորդ էկրան"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Հատուկ գործառույթների մեծ ընտրացանկը նախատեսված է ձեր սարքը կառավարելու համար: Դուք կարող եք կողպել ձեր հեռախոսը, կարգավորել պայծառությունը և ձայնի ուժգնությունը, սքրինշոթներ անել և այլն։"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Կառավարել սարքը մեծ ընտրացանկի միջոցով"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Լայն ընտրացանկի միջոցով կարգավորեք ձայնը, պայծառությունը և ավելին"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Հատուկ գործառույթների ընտրացանկի կարգավորումներ"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Մեծ կոճակներ"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Մեծացնել «Հատուկ գործառույթների» ընտրացանկի կոճակները"</string>

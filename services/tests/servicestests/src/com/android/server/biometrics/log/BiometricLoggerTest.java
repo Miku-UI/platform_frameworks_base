@@ -30,13 +30,17 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.annotation.NonNull;
 import android.hardware.Sensor;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.hardware.biometrics.BiometricsProtoEnums;
 import android.hardware.input.InputSensorInfo;
+import android.os.Handler;
 import android.platform.test.annotations.Presubmit;
+import android.testing.AndroidTestingRunner;
 import android.testing.TestableContext;
+import android.testing.TestableLooper;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -47,6 +51,7 @@ import com.android.server.biometrics.sensors.BaseClientMonitor;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
@@ -57,6 +62,8 @@ import java.util.stream.Collectors;
 
 @Presubmit
 @SmallTest
+@RunWith(AndroidTestingRunner.class)
+@TestableLooper.RunWithLooper
 public class BiometricLoggerTest {
 
     private static final int DEFAULT_MODALITY = BiometricsProtoEnums.MODALITY_FINGERPRINT;
@@ -78,11 +85,15 @@ public class BiometricLoggerTest {
     @Mock
     private BaseClientMonitor mClient;
 
+    private TestableLooper mLooper;
+    private Handler mHandler;
     private OperationContextExt mOpContext;
     private BiometricLogger mLogger;
 
     @Before
     public void setUp() {
+        mLooper = TestableLooper.get(this);
+        mHandler = new Handler(mLooper.getLooper());
         mOpContext = new OperationContextExt(false);
         mContext.addMockSystemService(SensorManager.class, mSensorManager);
         when(mSensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)).thenReturn(
@@ -92,11 +103,12 @@ public class BiometricLoggerTest {
     }
 
     private BiometricLogger createLogger() {
-        return createLogger(DEFAULT_MODALITY, DEFAULT_ACTION, DEFAULT_CLIENT);
+        return createLogger(mHandler, DEFAULT_MODALITY, DEFAULT_ACTION, DEFAULT_CLIENT);
     }
 
-    private BiometricLogger createLogger(int statsModality, int statsAction, int statsClient) {
-        return new BiometricLogger(statsModality, statsAction, statsClient, mSink,
+    private BiometricLogger createLogger(@NonNull Handler handler,
+            int statsModality, int statsAction, int statsClient) {
+        return new BiometricLogger(handler, statsModality, statsAction, statsClient, mSink,
                 mAuthenticationStatsCollector, mSensorManager);
     }
 
@@ -208,14 +220,14 @@ public class BiometricLoggerTest {
 
     @Test
     public void testBadModalityActsDisabled() {
-        mLogger = createLogger(
+        mLogger = createLogger(mHandler,
                 BiometricsProtoEnums.MODALITY_UNKNOWN, DEFAULT_ACTION, DEFAULT_CLIENT);
         testDisabledMetrics(true /* isBadConfig */);
     }
 
     @Test
     public void testBadActionActsDisabled() {
-        mLogger = createLogger(
+        mLogger = createLogger(mHandler,
                 DEFAULT_MODALITY, BiometricsProtoEnums.ACTION_UNKNOWN, DEFAULT_CLIENT);
         testDisabledMetrics(true /* isBadConfig */);
     }
@@ -297,7 +309,7 @@ public class BiometricLoggerTest {
                 mLogger.getAmbientLightProbe(true /* startWithClient */);
 
         callback.onClientStarted(mClient);
-        verify(mSensorManager).registerListener(any(), any(), anyInt());
+        verify(mSensorManager).registerListener(any(), any(), anyInt(), any());
 
         callback.onClientFinished(mClient, true /* success */);
         verify(mSensorManager).unregisterListener(any(SensorEventListener.class));
@@ -311,7 +323,7 @@ public class BiometricLoggerTest {
                 mLogger.getAmbientLightProbe(true /* startWithClient */);
 
         callback.onClientStarted(mClient);
-        verify(mSensorManager, never()).registerListener(any(), any(), anyInt());
+        verify(mSensorManager, never()).registerListener(any(), any(), anyInt(), any());
 
         callback.onClientFinished(mClient, true /* success */);
         verify(mSensorManager, never()).unregisterListener(any(SensorEventListener.class));
@@ -324,7 +336,7 @@ public class BiometricLoggerTest {
                 mLogger.getAmbientLightProbe(true /* startWithClient */);
 
         callback.onClientStarted(mClient);
-        verify(mSensorManager).registerListener(any(), any(), anyInt());
+        verify(mSensorManager).registerListener(any(), any(), anyInt(), any());
 
         mLogger.disableMetrics();
         verify(mSensorManager).unregisterListener(any(SensorEventListener.class));
@@ -339,6 +351,7 @@ public class BiometricLoggerTest {
         callback.onClientStarted(mClient);
         callback.onClientFinished(mClient, true /* success */);
         verify(mSensorManager, never()).registerListener(any(), any(), anyInt());
+        verify(mSensorManager, never()).registerListener(any(), any(), anyInt(), any());
     }
 
     @Test
@@ -353,5 +366,6 @@ public class BiometricLoggerTest {
         reset(mSensorManager);
         callback.getProbe().enable();
         verify(mSensorManager, never()).registerListener(any(), any(), anyInt());
+        verify(mSensorManager, never()).registerListener(any(), any(), anyInt(), any());
     }
 }

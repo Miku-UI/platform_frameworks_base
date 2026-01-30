@@ -22,23 +22,55 @@ import com.android.systemui.haptics.slider.SliderHapticFeedbackFilter
 
 object VolumeHapticsConfigsProvider {
 
-    fun sliderHapticFeedbackConfig(
-        valueRange: ClosedFloatingPointRange<Float>,
-        filter: SliderHapticFeedbackFilter = SliderHapticFeedbackFilter(),
-    ): SliderHapticFeedbackConfig {
-        val sliderStepSize = 1f / (valueRange.endInclusive - valueRange.start)
-        return SliderHapticFeedbackConfig(
-            lowerBookendScale = 0.2f,
-            progressBasedDragMinScale = 0.2f,
-            progressBasedDragMaxScale = 0.5f,
-            deltaProgressForDragThreshold = 0f,
-            additionalVelocityMaxBump = 0.2f,
-            maxVelocityToScale = 0.1f, /* slider progress(from 0 to 1) per sec */
-            sliderStepSize = sliderStepSize,
-            filter = filter,
-        )
-    }
+    fun discreteConfigs(stepSize: Float, filter: SliderHapticFeedbackFilter): VolumeHapticsConfigs =
+        provideConfigs(stepSize, filter)
 
-    val seekableSliderTrackerConfig =
-        SeekableSliderTrackerConfig(lowerBookendThreshold = 0f, upperBookendThreshold = 1f)
+    fun continuousConfigs(filter: SliderHapticFeedbackFilter): VolumeHapticsConfigs =
+        provideConfigs(stepSize = 0f, filter)
+
+    private fun provideConfigs(
+        stepSize: Float,
+        filter: SliderHapticFeedbackFilter,
+    ): VolumeHapticsConfigs {
+        val hapticFeedbackConfig: SliderHapticFeedbackConfig
+        val trackerConfig: SeekableSliderTrackerConfig
+        if (stepSize == 0f) {
+            // Create a set of continuous configs
+            hapticFeedbackConfig =
+                SliderHapticFeedbackConfig(
+                    additionalVelocityMaxBump = 0.1f,
+                    deltaProgressForDragThreshold = 0.02f,
+                    numberOfLowTicks = 4,
+                    maxVelocityToScale = 0.5f, /* slider progress(from 0 to 1) per sec */
+                    filter = filter,
+                )
+            trackerConfig =
+                SeekableSliderTrackerConfig(
+                    lowerBookendThreshold = 0.01f,
+                    upperBookendThreshold = 0.99f,
+                )
+        } else {
+            // Create a set of discrete configs
+            hapticFeedbackConfig =
+                SliderHapticFeedbackConfig(
+                    lowerBookendScale = 0.2f,
+                    progressBasedDragMinScale = 0.2f,
+                    progressBasedDragMaxScale = 0.5f,
+                    deltaProgressForDragThreshold = 0f,
+                    additionalVelocityMaxBump = 0.2f,
+                    maxVelocityToScale = 0.1f, /* slider progress(from 0 to 1) per sec */
+                    sliderStepSize = stepSize,
+                    filter = filter,
+                )
+            trackerConfig =
+                SeekableSliderTrackerConfig(lowerBookendThreshold = 0f, upperBookendThreshold = 1f)
+        }
+        return VolumeHapticsConfigs(hapticFeedbackConfig, trackerConfig)
+    }
 }
+
+// A collection of configuration parameters for the haptics in the slider
+data class VolumeHapticsConfigs(
+    val hapticFeedbackConfig: SliderHapticFeedbackConfig,
+    val sliderTrackerConfig: SeekableSliderTrackerConfig,
+)

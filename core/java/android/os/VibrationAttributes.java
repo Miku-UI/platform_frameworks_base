@@ -16,6 +16,7 @@
 
 package android.os;
 
+import static android.os.vibrator.Flags.FLAG_HAPTIC_FEEDBACK_WITH_CUSTOM_USAGE;
 import static android.os.vibrator.Flags.FLAG_VIBRATION_ATTRIBUTE_IME_USAGE_API;
 
 import android.annotation.FlaggedApi;
@@ -59,6 +60,7 @@ public final class VibrationAttributes implements Parcelable {
             USAGE_RINGTONE,
             USAGE_TOUCH,
             USAGE_IME_FEEDBACK,
+            USAGE_GESTURE_INPUT,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface Usage {}
@@ -144,6 +146,21 @@ public final class VibrationAttributes implements Parcelable {
      */
     @FlaggedApi(FLAG_VIBRATION_ATTRIBUTE_IME_USAGE_API)
     public static final int USAGE_IME_FEEDBACK = 0x50 | USAGE_CLASS_FEEDBACK;
+    /**
+     * Usage value to use for vibrations performed as feedback for a user's gesture input.
+     *
+     * <p>A gesture input is broadly defined as a user input that falls outside the direct
+     * usage of a physical {@link InputDevice}. Note that the gesture input may involve interacting
+     * with an {@link InputDevice}, but the input itself is a user gesture that is not a direct
+     * application of the {@link InputDevice}.
+     *
+     * <p>The exact definition of a gesture input varies across form-factors and input modalities.
+     * For example, on Wearable devices, it could be a hand-based gesture provided by the user
+     * without touching any physical {@link InputDevice}. Another example is a pinch gesture on a
+     * touchscreen.
+     */
+    @FlaggedApi(FLAG_HAPTIC_FEEDBACK_WITH_CUSTOM_USAGE)
+    public static final int USAGE_GESTURE_INPUT = 0x60 | USAGE_CLASS_FEEDBACK;
 
     /**
      * Usage value to use for media vibrations, such as music, movie, soundtrack, animations, games,
@@ -396,6 +413,8 @@ public final class VibrationAttributes implements Parcelable {
                 return "HARDWARE_FEEDBACK";
             case USAGE_IME_FEEDBACK:
                 return "IME";
+            case USAGE_GESTURE_INPUT:
+                return "GESTURE_INPUT";
             default:
                 return "unknown usage " + usage;
         }

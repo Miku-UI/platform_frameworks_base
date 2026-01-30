@@ -16,29 +16,83 @@
 
 package com.android.server.display;
 
+import static android.view.DisplayInfo.DisplayInfoGroup.displayInfoGroupsToString;
+
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.hardware.display.DisplayManagerGlobal;
 import android.view.DisplayInfo;
 
+import androidx.annotation.IntRange;
+
+import java.io.PrintWriter;
+
 /**
- * Class for wrapping access of DisplayInfo objects by LogicalDisplay so that we can appropriately
- * invalidate caches when they change.
+ * A proxy class for {@link DisplayInfo} objects.
+ * This class wraps access to {@link DisplayInfo} objects by {@link LogicalDisplay} to allow
+ * invalidating caches when the display information changes.
  */
 public class DisplayInfoProxy {
     private DisplayInfo mInfo;
+
+    /**
+     * The bitmask of {@link DisplayInfo} groups that have changed in the last update.
+     * Related to {@link DisplayInfo#getBasicChangedGroups(DisplayInfo)}.
+     */
+    private int mDisplayInfoGroupsChanged = 0;
+
+    /** The source of the last {@link DisplayInfo} change. */
+    private DisplayInfo.DisplayInfoChangeSource mDisplayInfoChangeSource;
 
     public DisplayInfoProxy(@Nullable DisplayInfo info) {
         mInfo = info;
     }
 
     /**
-     * Set the current {@link DisplayInfo}.
+     * Sets the current {@link DisplayInfo} and invalidates system-wide caches. This method does
+     * not track changes or the source of changes, and should only be used if these are recorded
+     * elsewhere. To update the cache when something has triggered a change in
+     * the {@link DisplayInfo} object use {@link #set(int, DisplayInfo.DisplayInfoChangeSource)}
+     * or {@link #set(DisplayInfo, DisplayInfo, DisplayInfo.DisplayInfoChangeSource)}.
      *
-     * The also automatically invalidates the display info caches across the entire system.
-     * @param info the new {@link DisplayInfo}.
+     * @param newInfo The new {@link DisplayInfo} to apply. Must not be null.
      */
-    public void set(@Nullable DisplayInfo info) {
-        mInfo = info;
+    public void set(@NonNull DisplayInfo newInfo) {
+        mInfo = newInfo;
+        DisplayManagerGlobal.invalidateLocalDisplayInfoCaches();
+    }
+
+    /**
+     * Invalidates the current display information by computing the differences between an old and
+     * new state, and then setting the new state.
+     *
+     * @param oldInfo The previous {@link DisplayInfo} state. Must not be null.
+     * @param newInfo The new {@link DisplayInfo} state. Must not be null. If it is null,
+     *                use the other updateCache method with all groups marked as changed.
+     * @param source The source of the change.
+     */
+    public void set(@NonNull DisplayInfo oldInfo, @NonNull DisplayInfo newInfo,
+            DisplayInfo.DisplayInfoChangeSource source) {
+        mDisplayInfoGroupsChanged = oldInfo.getBasicChangedGroups(newInfo);
+        mDisplayInfoChangeSource = source;
+        set(newInfo);
+    }
+
+    /**
+     * Invalidates the current display information using a pre-computed set of changed groups.
+     *
+     * This is an optimization for targeted updates where re-computing the full
+     * {@link DisplayInfo} is unnecessary.
+     *
+     * @param changedGroups A positive integer bitmask representing the {@link DisplayInfo} groups
+     *                      that have changed.
+     * @param source The source of the change.
+     */
+    public void set(@IntRange(from = 1) int changedGroups,
+            DisplayInfo.DisplayInfoChangeSource source) {
+        mDisplayInfoGroupsChanged = changedGroups;
+        mDisplayInfoChangeSource = source;
+        mInfo = null;
         DisplayManagerGlobal.invalidateLocalDisplayInfoCaches();
     }
 
@@ -53,5 +107,22 @@ public class DisplayInfoProxy {
     @Nullable
     public DisplayInfo get() {
         return mInfo;
+    }
+
+    /** Gets the display info groups that have changed. */
+    public int getDisplayInfoGroupsChanged() {
+        return mDisplayInfoGroupsChanged;
+    }
+
+    /** Gets the source of the last update. */
+    public DisplayInfo.DisplayInfoChangeSource getDisplayInfoChangeSource() {
+        return mDisplayInfoChangeSource;
+    }
+
+    /** Dump the state of this object for debugging purposes. */
+    public void dumpLocked(PrintWriter pw) {
+        pw.println("mDisplayInfoGroupsChanged="
+                + displayInfoGroupsToString(mDisplayInfoGroupsChanged));
+        pw.println("mDisplayInfoChangeSource=" + mDisplayInfoChangeSource);
     }
 }

@@ -30,6 +30,7 @@ import java.util.Objects;
  * but more graphical control is available if you instead pass
  * the RectShape to a {@link android.graphics.drawable.ShapeDrawable}.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class RectShape extends Shape {
     private RectF mRect = new RectF();
 

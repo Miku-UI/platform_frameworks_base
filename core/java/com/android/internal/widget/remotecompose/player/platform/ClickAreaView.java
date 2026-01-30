@@ -15,6 +15,7 @@
  */
 package com.android.internal.widget.remotecompose.player.platform;
 
+
 import android.annotation.Nullable;
 import android.content.Context;
 import android.graphics.Canvas;

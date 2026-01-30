@@ -21,7 +21,7 @@ import com.android.ims.internal.IImsExternalCallStateListener;
 /**
  * Provides the ImsMultiEndpoint interface
  *
- * {@hide}
+ * @hide
  */
 interface IImsMultiEndpoint {
     /**

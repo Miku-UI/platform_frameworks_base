@@ -33,9 +33,9 @@ interface IPowerStatsService {
     /** @hide */
     const int RESULT_UNSUPPORTED_POWER_MONITOR = 1;
 
-    /** {@hide} */
+    /** @hide */
     oneway void getSupportedPowerMonitors(in ResultReceiver resultReceiver);
-    /** {@hide} */
+    /** @hide */
     oneway void getPowerMonitorReadings(in int[] powerMonitorIndices,
             in ResultReceiver resultReceiver);
 }

@@ -172,5 +172,111 @@ TEST(ResourceDeduperTest, MccMncValuesAreKept) {
   EXPECT_THAT(table, HasValue("android:string/keep", mnc_config));
 }
 
+TEST(ResourceDeduperTest, WidthDpHeightDpValuesAreKept) {
+  std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
+  const ConfigDescription default_config = {};
+  const ConfigDescription w600dp_config = test::ParseConfigOrDie("w600dp-h900dp");
+  const ConfigDescription w840dp_config = test::ParseConfigOrDie("w840dp-h900dp");
+  const ConfigDescription h480dp_config = test::ParseConfigOrDie("w840dp-h480dp");
+  const ConfigDescription h900dp_config = test::ParseConfigOrDie("w840dp-h900dp");
+
+  std::unique_ptr<ResourceTable> table =
+      test::ResourceTableBuilder()
+          .AddString("android:string/keep1", ResourceId{}, default_config, "keep")
+          .AddString("android:string/keep1", ResourceId{}, w600dp_config, "keep")
+          .AddString("android:string/keep1", ResourceId{}, w840dp_config, "keep")
+          .AddString("android:string/keep2", ResourceId{}, default_config, "keep")
+          .AddString("android:string/keep2", ResourceId{}, h480dp_config, "keep")
+          .AddString("android:string/keep2", ResourceId{}, h900dp_config, "keep")
+          .Build();
+
+  ASSERT_TRUE(ResourceDeduper().Consume(context.get(), table.get()));
+  EXPECT_THAT(table, HasValue("android:string/keep1", default_config));
+  EXPECT_THAT(table, HasValue("android:string/keep1", w600dp_config));
+  EXPECT_THAT(table, HasValue("android:string/keep1", w840dp_config));
+  EXPECT_THAT(table, HasValue("android:string/keep2", default_config));
+  EXPECT_THAT(table, HasValue("android:string/keep2", h480dp_config));
+  EXPECT_THAT(table, HasValue("android:string/keep2", h900dp_config));
+}
+
+TEST(ResourceDeduperTest, WidthDpHeightDpValuesSameAreDeduped) {
+  std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
+  const ConfigDescription default_config = {};
+  const ConfigDescription wh_config = test::ParseConfigOrDie("w600dp-h900dp");
+  const ConfigDescription wh_port_config = test::ParseConfigOrDie("w600dp-h900dp-port");
+
+  std::unique_ptr<ResourceTable> table =
+      test::ResourceTableBuilder()
+          .AddString("android:string/keep", ResourceId{}, default_config, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, wh_config, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, wh_port_config, "dedupe")
+          .Build();
+
+  ASSERT_TRUE(ResourceDeduper().Consume(context.get(), table.get()));
+  EXPECT_THAT(table, HasValue("android:string/keep", default_config));
+  EXPECT_THAT(table, HasValue("android:string/keep", wh_config));
+  EXPECT_THAT(table, Not(HasValue("android:string/keep", wh_port_config)));
+}
+
+TEST(ResourceDeduperTest, WidthDpXorHeightDpValuesAreDeduped) {
+  std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
+  const ConfigDescription default_config = {};
+  const ConfigDescription w1_config = test::ParseConfigOrDie("w600dp");
+  const ConfigDescription w2_config = test::ParseConfigOrDie("w800dp");
+  const ConfigDescription h1_config = test::ParseConfigOrDie("h600dp");
+  const ConfigDescription h2_config = test::ParseConfigOrDie("h800dp");
+
+  std::unique_ptr<ResourceTable> table =
+      test::ResourceTableBuilder()
+          .AddString("android:string/keep1", ResourceId{}, default_config, "keep")
+          .AddString("android:string/keep1", ResourceId{}, w1_config, "dedupe")
+          .AddString("android:string/keep1", ResourceId{}, w2_config, "dedupe")
+          .AddString("android:string/keep2", ResourceId{}, default_config, "keep")
+          .AddString("android:string/keep2", ResourceId{}, h1_config, "dedupe")
+          .AddString("android:string/keep2", ResourceId{}, h2_config, "dedupe")
+          .Build();
+
+  ASSERT_TRUE(ResourceDeduper().Consume(context.get(), table.get()));
+  EXPECT_THAT(table, HasValue("android:string/keep1", default_config));
+  EXPECT_THAT(table, HasValue("android:string/keep1", w1_config));
+  EXPECT_THAT(table, Not(HasValue("android:string/keep1", w2_config)));
+  EXPECT_THAT(table, HasValue("android:string/keep2", default_config));
+  EXPECT_THAT(table, HasValue("android:string/keep2", h1_config));
+  EXPECT_THAT(table, Not(HasValue("android:string/keep2", h2_config)));
+}
+
+TEST(ResourceDeduperTest, SizeDpComplex) {
+  std::unique_ptr<IAaptContext> context = test::ContextBuilder().Build();
+  const ConfigDescription default_config = {};
+  const ConfigDescription config1 = test::ParseConfigOrDie("w600dp");
+  const ConfigDescription config2 = test::ParseConfigOrDie("w800dp");
+  const ConfigDescription config3 = test::ParseConfigOrDie("w600dp-h600dp");
+  const ConfigDescription config4 = test::ParseConfigOrDie("w800dp-h600dp");
+  const ConfigDescription config5 = test::ParseConfigOrDie("w800dp-h800dp-port");
+  const ConfigDescription config6 = test::ParseConfigOrDie("w600dp-port");
+  const ConfigDescription config7 = test::ParseConfigOrDie("w800dp-port");
+
+  std::unique_ptr<ResourceTable> table =
+      test::ResourceTableBuilder()
+          .AddString("android:string/keep", ResourceId{}, default_config, "keep")
+          .AddString("android:string/keep", ResourceId{}, config1, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, config2, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, config3, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, config4, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, config5, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, config6, "dedupe")
+          .AddString("android:string/keep", ResourceId{}, config7, "dedupe")
+          .Build();
+
+  ASSERT_TRUE(ResourceDeduper().Consume(context.get(), table.get()));
+  EXPECT_THAT(table, HasValue("android:string/keep", default_config));
+  EXPECT_THAT(table, HasValue("android:string/keep", config1));
+  EXPECT_THAT(table, Not(HasValue("android:string/keep", config2)));
+  EXPECT_THAT(table, HasValue("android:string/keep", config3));
+  EXPECT_THAT(table, HasValue("android:string/keep", config4));
+  EXPECT_THAT(table, HasValue("android:string/keep", config5));
+  EXPECT_THAT(table, Not(HasValue("android:string/keep", config6)));
+  EXPECT_THAT(table, Not(HasValue("android:string/keep", config7)));
+}
 
 }  // namespace aapt

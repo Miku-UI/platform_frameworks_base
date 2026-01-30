@@ -202,7 +202,7 @@ AChoreographer* ASurfaceControl_getChoreographer(ASurfaceControl* aSurfaceContro
         return nullptr;
     }
     SurfaceControl_acquire(surfaceControl);
-    return reinterpret_cast<AChoreographer*>(surfaceControl->getChoreographer().get());
+    return reinterpret_cast<AChoreographer*>(surfaceControl->getChoreographer());
 }
 
 int64_t ASurfaceControlStats_getAcquireTime(ASurfaceControlStats* stats) {
@@ -350,7 +350,8 @@ void ASurfaceTransaction_setOnComplete(ASurfaceTransaction* aSurfaceTransaction,
         auto& aSurfaceControlStats = aSurfaceTransactionStats.aSurfaceControlStats;
 
         for (const auto& [surfaceControl, latchTime, acquireTimeOrFence, presentFence,
-                  previousReleaseFence, transformHint, frameEvents, ignore] : surfaceControlStats) {
+                          previousReleaseFence, transformHint, frameEvents, ignore, cornerRadii] :
+             surfaceControlStats) {
             ASurfaceControl* aSurfaceControl = reinterpret_cast<ASurfaceControl*>(surfaceControl.get());
             aSurfaceControlStats[aSurfaceControl].acquireTimeOrFence = acquireTimeOrFence;
             aSurfaceControlStats[aSurfaceControl].previousReleaseFence = previousReleaseFence;
@@ -832,8 +833,8 @@ void ASurfaceTransaction_setOnCommit(ASurfaceTransaction* aSurfaceTransaction, v
 
                 auto& aSurfaceControlStats = aSurfaceTransactionStats.aSurfaceControlStats;
                 for (const auto& [surfaceControl, latchTime, acquireTimeOrFence, presentFence,
-                              previousReleaseFence, transformHint, frameEvents, ignore] :
-                     surfaceControlStats) {
+                                  previousReleaseFence, transformHint, frameEvents, ignore,
+                                  cornerRadii] : surfaceControlStats) {
                     ASurfaceControl* aSurfaceControl =
                             reinterpret_cast<ASurfaceControl*>(surfaceControl.get());
                     aSurfaceControlStats[aSurfaceControl].acquireTimeOrFence = acquireTimeOrFence;

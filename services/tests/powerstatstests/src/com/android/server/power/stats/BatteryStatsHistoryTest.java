@@ -36,7 +36,6 @@ import android.os.Parcel;
 import android.os.PersistableBundle;
 import android.os.Process;
 import android.os.UserHandle;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.platform.test.ravenwood.RavenwoodRule;
 import android.telephony.NetworkRegistrationInfo;
@@ -80,8 +79,6 @@ import java.util.concurrent.TimeUnit;
  * Test BatteryStatsHistory.
  */
 @RunWith(AndroidJUnit4.class)
-@EnableFlags({com.android.server.power.optimization.Flags
-        .FLAG_EXTENDED_BATTERY_HISTORY_CONTINUOUS_COLLECTION_ENABLED})
 public class BatteryStatsHistoryTest {
     private static final String TAG = "BatteryStatsHistoryTest";
 

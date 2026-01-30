@@ -98,7 +98,7 @@ class DumpAPCCommand : public Command {
     SetDescription("Print the contents of the AAPT2 Container (APC) generated fom compilation.");
     AddOptionalSwitch("--no-values", "Suppresses output of values when displaying resource tables.",
                       &no_values_);
-    AddOptionalSwitch("-v", "Enables verbose logging.", &verbose_);
+    AddOptionalSwitch("-v", "Enables verbose logging (prints XML file contents).", &verbose_);
   }
 
   int Action(const std::vector<std::string>& args) override;

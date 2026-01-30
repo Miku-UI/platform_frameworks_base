@@ -16,16 +16,18 @@
 
 package com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel
 
+import android.content.Context
 import android.content.DialogInterface
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.view.View
+import android.view.ViewRootImpl
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.jank.Cuj
-import com.android.systemui.Flags.FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.DialogCuj
+import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
 import com.android.systemui.animation.mockDialogTransitionAnimator
 import com.android.systemui.common.shared.model.ContentDescription
@@ -64,6 +66,7 @@ import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.Mockito.times
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -79,18 +82,22 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
     private val mockScreenShareDialog = mock<SystemUIDialog>()
     private val mockGenericShareDialog = mock<SystemUIDialog>()
-    private val chipBackgroundView = mock<ChipBackgroundContainer>()
+    private val chipBackgroundView =
+        mock<ChipBackgroundContainer> { on { context } doReturn context }
     private val chipView =
-        mock<View>().apply {
-            whenever(
-                    this.requireViewById<ChipBackgroundContainer>(
-                        R.id.ongoing_activity_chip_background
-                    )
-                )
-                .thenReturn(chipBackgroundView)
+        mock<View> {
+            on {
+                requireViewById<ChipBackgroundContainer>(R.id.ongoing_activity_chip_background)
+            } doReturn chipBackgroundView
+            on { context } doReturn context
         }
+    private val viewRootImpl = mock<ViewRootImpl> { on { view } doReturn chipView }
+    private val dialogTransitionController =
+        mock<DialogTransitionAnimator.Controller> { on { viewRoot } doReturn viewRootImpl }
     private val mockExpandable: Expandable =
-        mock<Expandable>().apply { whenever(dialogTransitionController(any())).thenReturn(mock()) }
+        mock<Expandable> {
+            on { dialogTransitionController(any()) } doReturn dialogTransitionController
+        }
 
     private val underTest = kosmos.shareToAppChipViewModel
     private val mockDialog = mock<SystemUIDialog>()
@@ -100,9 +107,19 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         underTest.start()
         setUpPackageManagerForMediaProjection(kosmos)
 
-        whenever(kosmos.mockSystemUIDialogFactory.create(any<EndShareScreenToAppDialogDelegate>()))
+        whenever(
+                kosmos.mockSystemUIDialogFactory.create(
+                    any<EndShareScreenToAppDialogDelegate>(),
+                    any<Context>(),
+                )
+            )
             .thenReturn(mockScreenShareDialog)
-        whenever(kosmos.mockSystemUIDialogFactory.create(any<EndGenericShareToAppDialogDelegate>()))
+        whenever(
+                kosmos.mockSystemUIDialogFactory.create(
+                    any<EndGenericShareToAppDialogDelegate>(),
+                    any<Context>(),
+                )
+            )
             .thenReturn(mockGenericShareDialog)
     }
 
@@ -185,10 +202,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(
-        com.android.media.projection.flags.Flags.FLAG_SHOW_STOP_DIALOG_POST_CALL_END,
-        FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP,
-    )
+    @EnableFlags(com.android.media.projection.flags.Flags.FLAG_SHOW_STOP_DIALOG_POST_CALL_END)
     fun stopDialog_projectingAudio_flagEnabled_eventEmitted_showsGenericStopDialog() =
         kosmos.runTest {
             val latest by collectLastValue(underTest.stopDialogToShow)
@@ -334,7 +348,6 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
     fun chip_noScreenState_otherDevicesPackage_isHidden() =
         testScope.runTest {
             val latest by collectLastValue(underTest.chip)
@@ -375,7 +388,6 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
     fun chip_noScreenState_normalPackage_isShownAsIconOnly() =
         testScope.runTest {
             val latest by collectLastValue(underTest.chip)
@@ -383,7 +395,8 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.NoScreen(NORMAL_PACKAGE, hostDeviceName = null)
 
-            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active.IconOnly::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).content)
+                .isInstanceOf(OngoingActivityChipModel.Content.IconOnly::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).isImportantForPrivacy).isTrue()
             assertThat((latest as OngoingActivityChipModel.Active).instanceId).isNotNull()
 
@@ -391,7 +404,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                 (((latest as OngoingActivityChipModel.Active).icon)
                         as OngoingActivityChipModel.ChipIcon.SingleColorIcon)
                     .impl as Icon.Resource
-            assertThat(icon.res).isEqualTo(R.drawable.ic_present_to_all)
+            assertThat(icon.resId).isEqualTo(R.drawable.ic_present_to_all)
             // This content description is just generic "Sharing content", not "Sharing screen"
             assertThat((icon.contentDescription as ContentDescription.Resource).res)
                 .isEqualTo(R.string.share_to_app_chip_accessibility_label_generic)
@@ -409,7 +422,8 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                     createTask(taskId = 1),
                 )
 
-            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active.Timer::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).content)
+                .isInstanceOf(OngoingActivityChipModel.Content.Timer::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).isImportantForPrivacy).isTrue()
             assertThat((latest as OngoingActivityChipModel.Active).instanceId).isNotNull()
 
@@ -417,7 +431,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                 (((latest as OngoingActivityChipModel.Active).icon)
                         as OngoingActivityChipModel.ChipIcon.SingleColorIcon)
                     .impl as Icon.Resource
-            assertThat(icon.res).isEqualTo(R.drawable.ic_present_to_all)
+            assertThat(icon.resId).isEqualTo(R.drawable.ic_present_to_all)
             assertThat(icon.contentDescription).isNotNull()
         }
 
@@ -429,7 +443,8 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
             mediaProjectionRepo.mediaProjectionState.value =
                 MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
 
-            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active.Timer::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).content)
+                .isInstanceOf(OngoingActivityChipModel.Content.Timer::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).isImportantForPrivacy).isTrue()
             assertThat((latest as OngoingActivityChipModel.Active).instanceId).isNotNull()
 
@@ -437,7 +452,7 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                 (((latest as OngoingActivityChipModel.Active).icon)
                         as OngoingActivityChipModel.ChipIcon.SingleColorIcon)
                     .impl as Icon.Resource
-            assertThat(icon.res).isEqualTo(R.drawable.ic_present_to_all)
+            assertThat(icon.resId).isEqualTo(R.drawable.ic_present_to_all)
             assertThat(icon.contentDescription).isNotNull()
         }
 
@@ -494,7 +509,11 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                 MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
 
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(1234)
 
             mediaProjectionRepo.mediaProjectionState.value = MediaProjectionState.NotProjecting
@@ -509,12 +528,15 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
                 )
 
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(5678)
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
     @DisableChipsModernization
     fun chip_noScreen_clickListenerShowsGenericShareDialog() =
         testScope.runTest {
@@ -646,7 +668,6 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
     @EnableChipsModernization
     fun chip_noScreen_clickBehaviorShowsGenericShareDialog() =
         testScope.runTest {
@@ -697,5 +718,35 @@ class ShareToAppChipViewModelTest : SysuiTestCase() {
 
             verify(kosmos.mockDialogTransitionAnimator)
                 .show(eq(mockScreenShareDialog), any(), any())
+        }
+
+    @Test
+    fun chip_packageNameIsSet_entireScreen() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.chip)
+
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.EntireScreen(NORMAL_PACKAGE)
+
+            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).managingPackageName)
+                .isEqualTo(NORMAL_PACKAGE)
+        }
+
+    @Test
+    fun chip_packageNameIsSet_singleTask() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.chip)
+
+            mediaProjectionRepo.mediaProjectionState.value =
+                MediaProjectionState.Projecting.SingleTask(
+                    NORMAL_PACKAGE,
+                    hostDeviceName = null,
+                    createTask(taskId = 1),
+                )
+
+            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).managingPackageName)
+                .isEqualTo(NORMAL_PACKAGE)
         }
 }

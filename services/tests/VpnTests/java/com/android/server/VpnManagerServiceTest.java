@@ -16,6 +16,8 @@
 
 package com.android.server;
 
+import static android.net.platform.flags.Flags.FLAG_DELETE_VPN_PROFILE_WHEN_APP_UNINSTALLED;
+
 import static com.android.testutils.ContextUtils.mockService;
 import static com.android.testutils.MiscAsserts.assertThrows;
 
@@ -45,6 +47,8 @@ import android.os.INetworkManagementService;
 import android.os.Looper;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.security.Credentials;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -57,6 +61,7 @@ import com.android.server.net.LockdownVpnTracker;
 import com.android.testutils.HandlerUtils;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +74,9 @@ import java.util.List;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class VpnManagerServiceTest extends VpnTestBase {
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
     private static final String CONTEXT_ATTRIBUTION_TAG = "VPN_MANAGER";
 
     private static final int TIMEOUT_MS = 2_000;
@@ -427,5 +435,16 @@ public class VpnManagerServiceTest extends VpnTestBase {
         final String name = Credentials.VPN + TEST_VPN_PKG;
         mService.listFromVpnProfileStore(name);
         verify(mVpnProfileStore).list(name);
+    }
+
+    @Test
+    @EnableFlags(FLAG_DELETE_VPN_PROFILE_WHEN_APP_UNINSTALLED)
+    public void testRemoveVpnProfileOnPackageRemoved() {
+        mService.startVpnProfile(TEST_VPN_PKG);
+        doReturn(null).when(mVpn).getAlwaysOnPackage();
+        doReturn(PKGS[0]).when(mVpn).getPackage();
+
+        onPackageRemoved(PKGS[0], PKG_UIDS[0], false /* isReplacing */);
+        verify(mVpn).deleteVpnProfileDueToAppRemoval(PKGS[0], PKG_UIDS[0]);
     }
 }

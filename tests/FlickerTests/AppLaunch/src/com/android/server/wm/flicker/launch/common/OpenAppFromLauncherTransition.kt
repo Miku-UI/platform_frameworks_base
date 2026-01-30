@@ -17,13 +17,13 @@
 package com.android.server.wm.flicker.launch.common
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.legacy.LegacyFlickerTest
+import android.tools.flicker.FlickerTest
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.replacesLayer
 import org.junit.Test
 
 /** Base class for app launch tests */
-abstract class OpenAppFromLauncherTransition(flicker: LegacyFlickerTest) :
+abstract class OpenAppFromLauncherTransition(flicker: FlickerTest) :
     OpenAppTransition(flicker) {
 
     /** Checks that the focus changes from the [ComponentNameMatcher.LAUNCHER] to [testApp] */

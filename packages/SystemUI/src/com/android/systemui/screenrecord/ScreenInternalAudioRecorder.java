@@ -141,7 +141,7 @@ public class ScreenInternalAudioRecorder {
             int offsetShortsInternal = 0;
             int readShortsMic = 0;
             int offsetShortsMic = 0;
-            while (true) {
+            while (mStarted) {
                 if (mMic) {
                     readShortsInternal = mAudioRecord.read(bufferInternal, offsetShortsInternal,
                             bufferInternal.length - offsetShortsInternal);
@@ -311,7 +311,8 @@ public class ScreenInternalAudioRecorder {
     /**
      * end recording
      */
-    public void end() {
+    public synchronized void end() {
+        mStarted = false;
         mAudioRecord.stop();
         if (mMic) {
             mAudioRecordMic.stop();

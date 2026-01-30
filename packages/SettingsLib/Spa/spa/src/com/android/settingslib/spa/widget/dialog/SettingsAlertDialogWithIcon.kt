@@ -16,22 +16,20 @@
 
 package com.android.settingslib.spa.widget.dialog
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.window.DialogProperties
-import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
+import com.android.settingslib.spa.framework.theme.SettingsSize
 
 @Composable
 fun SettingsAlertDialogWithIcon(
@@ -39,34 +37,33 @@ fun SettingsAlertDialogWithIcon(
     confirmButton: AlertDialogButton?,
     dismissButton: AlertDialogButton?,
     title: String?,
-    icon: @Composable (() -> Unit)? = {
-        Icon(Icons.Default.WarningAmber, contentDescription = null)
-    },
+    icon: ImageVector = Icons.Default.WarningAmber,
     text: @Composable (() -> Unit)?,
 ) {
     AlertDialog(
         onDismissRequest = onDismissRequest,
-        icon = icon,
-        modifier = Modifier.width(getDialogWidth()),
-        confirmButton = {
-            confirmButton?.let { Button(onClick = { it.onClick() }) { Text(it.text) } }
+        icon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(SettingsSize.medium1),
+            )
         },
-        dismissButton =
-            dismissButton?.let { { OutlinedButton(onClick = { it.onClick() }) { Text(it.text) } } },
-        title =
-            title?.let {
-                {
-                    CenterRow {
-                        if (isSpaExpressiveEnabled)
-                            Text(it, style = MaterialTheme.typography.bodyLarge)
-                        else Text(it)
-                    }
-                }
-            },
-        text =
-            text?.let {
-                { CenterRow { Column(Modifier.verticalScroll(rememberScrollState())) { text() } } }
-            },
+        modifier = Modifier.width(getDialogWidth()),
+        confirmButton = { confirmButton?.let { Button(it) } },
+        dismissButton = dismissButton?.let { { OutlinedButton(it) } },
+        title = title?.let { { CenterRow { SettingsAlertDialogTitle(it) } } },
+        text = text?.let { { SettingsAlertDialogText(text) } },
         properties = DialogProperties(usePlatformDefaultWidth = false),
     )
+}
+
+@Composable
+private fun Button(button: AlertDialogButton) {
+    Button(onClick = { button.onClick() }) { Text(button.text) }
+}
+
+@Composable
+private fun OutlinedButton(button: AlertDialogButton) {
+    OutlinedButton(onClick = { button.onClick() }) { Text(button.text) }
 }

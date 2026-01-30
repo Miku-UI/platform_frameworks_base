@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.notification.row.ui.viewmodel
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dump.DumpManager
-import com.android.systemui.statusbar.notification.shared.NotificationViewFlipperPausing
 import com.android.systemui.statusbar.notification.stack.domain.interactor.NotificationStackInteractor
 import com.android.systemui.util.kotlin.FlowDumperImpl
 import javax.inject.Inject
@@ -31,9 +30,5 @@ constructor(
     dumpManager: DumpManager,
     stackInteractor: NotificationStackInteractor,
 ) : FlowDumperImpl(dumpManager) {
-    init {
-        /* check if */ NotificationViewFlipperPausing.isUnexpectedlyInLegacyMode()
-    }
-
     val isPaused = stackInteractor.isShowingOnLockscreen.dumpWhileCollecting("isPaused")
 }

@@ -36,26 +36,31 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"Apl ini hanya boleh dibuka dalam 1 tetingkap"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"Apl mungkin tidak berfungsi pada paparan kedua."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"Apl tidak menyokong pelancaran pada paparan kedua."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"Apl tidak menyokong gelembung"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"Pembahagi skrin pisah"</string>
     <string name="divider_title" msgid="1963391955593749442">"Pembahagi skrin pisah"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"Skrin penuh kiri"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"Kiri 70%"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"Kiri 50%"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"Kiri 30%"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"Skrin penuh kanan"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"Tukar apl bahagian atas dengan apl bahagian bawah"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"Tukar apl sebelah kiri dengan apl sebelah kanan"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"Skrin penuh atas"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"Atas 70%"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"Atas 50%"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"Atas 30%"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"Skrin penuh bawah"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"Jadikan apl di sebelah kiri dalam skrin penuh"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"10% kiri, 90% kanan"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"30% kiri, 70% kanan"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"50% kiri, 50% kanan"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"70% kiri, 30% kanan"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"90% kiri, 10% kanan"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"Jadikan apl di sebelah kanan dalam skrin penuh"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"Tukar apl pada bahagian atas dengan apl pada bahagian bawah, kekalkan pemisahan semasa"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"Tukar apl di sebelah kiri dengan apl di sebelah kanan, kekalkan pemisahan semasa"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"Jadikan apl pada bahagian atas dalam skrin penuh"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"10% atas, 90% bawah"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"30% atas, 70% bawah"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"50% atas, 50% bawah"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"70% atas, 30% bawah"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"90% atas, 10% bawah"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"Jadikan apl pada bahagian bawah dalam skrin penuh"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"Pisah kiri"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"Pisah kanan"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"Pisah atas"</string>
     <string name="accessibility_split_bottom" msgid="8694551025220868191">"Pisah bawah"</string>
     <string name="one_handed_tutorial_title" msgid="4583241688067426350">"Menggunakan mod sebelah tangan"</string>
-    <string name="one_handed_tutorial_description" msgid="3486582858591353067">"Untuk keluar, leret ke atas daripada bahagian bawah skrin atau ketik pada mana-mana di bahagian atas apl"</string>
+    <string name="one_handed_tutorial_description" msgid="3486582858591353067">"Untuk keluar, leret ke atas dari bawah skrin atau ketik pada mana-mana bahagian di atas apl"</string>
     <string name="accessibility_action_start_one_handed" msgid="5070337354072861426">"Mulakan mod sebelah tangan"</string>
     <string name="accessibility_action_stop_one_handed" msgid="1369940261782179442">"Keluar daripada mod sebelah tangan"</string>
     <string name="bubbles_settings_button_description" msgid="1301286017420516912">"Tetapan untuk gelembung <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"Urus Tetingkap"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"Tukar nisbah bidang"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"Optimumkan Paparan"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"Ikon Ralat"</string>
     <string name="close_text" msgid="4986518933445178928">"Tutup"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"Tutup Menu"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Tetingkap desktop)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"Maksimumkan Skrin"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"Ubah saiz"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"Apl tidak boleh dialihkan ke sini"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"Membuka tetingkap apl baharu"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"Menutup tetingkap apl"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"Meminimumkan tetingkap apl"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Terfokus)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (Tidak terfokus)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"Mengasyikkan"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"Pulihkan"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"Maksimumkan"</string>

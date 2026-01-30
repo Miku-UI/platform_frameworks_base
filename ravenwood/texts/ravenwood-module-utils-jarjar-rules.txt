@@ -1,0 +1,2 @@
+# Rename classes in module-utils to prevent class conflicts with the ones in the framework.
+rule com.android.modules.utils.ravenwood.** com.android.internal.ravenwood.@1

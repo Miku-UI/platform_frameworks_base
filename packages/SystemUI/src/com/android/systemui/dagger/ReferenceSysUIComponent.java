@@ -16,10 +16,14 @@
 
 package com.android.systemui.dagger;
 
+import com.android.systemui.controls.dagger.StartControlsStartableModule;
 import com.android.systemui.keyguard.CustomizationProvider;
+import com.android.systemui.settings.MultiUserUtilsModule;
 import com.android.systemui.statusbar.NotificationInsetsModule;
 import com.android.systemui.statusbar.QsFrameTranslateModule;
 import com.android.systemui.unfold.SysUIUnfoldModule;
+import com.android.systemui.util.StartBinderLoggerModule;
+import com.android.systemui.wallpapers.dagger.WallpaperModule;
 
 import dagger.Subcomponent;
 
@@ -30,12 +34,16 @@ import dagger.Subcomponent;
 @Subcomponent(modules = {
         DefaultComponentBinder.class,
         DependencyProvider.class,
+        MultiUserUtilsModule.class,
         NotificationInsetsModule.class,
         QsFrameTranslateModule.class,
+        ReferenceSystemUIModule.class,
+        StartControlsStartableModule.class,
+        StartBinderLoggerModule.class,
         SystemUIModule.class,
         SystemUICoreStartableModule.class,
         SysUIUnfoldModule.class,
-        ReferenceSystemUIModule.class})
+        WallpaperModule.class})
 public interface ReferenceSysUIComponent extends SysUIComponent {
 
     /**

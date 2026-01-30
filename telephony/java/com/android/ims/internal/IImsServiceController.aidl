@@ -22,7 +22,7 @@ import com.android.ims.internal.IImsRcsFeature;
 
 /**
  * See ImsService and MMTelFeature for more information.
- * {@hide}
+ * @hide
  */
 interface IImsServiceController {
     IImsMMTelFeature createEmergencyMMTelFeature(int slotId);

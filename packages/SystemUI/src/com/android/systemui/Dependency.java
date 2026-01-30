@@ -27,6 +27,7 @@ import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.assist.AssistManager;
 import com.android.systemui.broadcast.BroadcastDispatcher;
+import com.android.systemui.common.domain.interactor.SysUIStateDisplaysInteractor;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dump.DumpManager;
@@ -40,7 +41,6 @@ import com.android.systemui.plugins.DarkIconDispatcher;
 import com.android.systemui.plugins.PluginManager;
 import com.android.systemui.plugins.VolumeDialogController;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.NotificationListener;
@@ -151,6 +151,7 @@ public class Dependency {
     @Inject Lazy<DialogTransitionAnimator> mDialogTransitionAnimatorLazy;
     @Inject Lazy<UserTracker> mUserTrackerLazy;
     @Inject Lazy<StatusBarWindowControllerStore> mStatusBarWindowControllerStoreLazy;
+    @Inject Lazy<SysUIStateDisplaysInteractor> mSysUIStateDisplaysInteractor;
 
     @Inject
     public Dependency() {
@@ -195,6 +196,7 @@ public class Dependency {
         mProviders.put(SystemUIDialogManager.class, mSystemUIDialogManagerLazy::get);
         mProviders.put(DialogTransitionAnimator.class, mDialogTransitionAnimatorLazy::get);
         mProviders.put(UserTracker.class, mUserTrackerLazy::get);
+        mProviders.put(SysUIStateDisplaysInteractor.class, mSysUIStateDisplaysInteractor::get);
         mProviders.put(
                 StatusBarWindowControllerStore.class, mStatusBarWindowControllerStoreLazy::get);
 

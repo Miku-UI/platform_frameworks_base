@@ -33,5 +33,7 @@ interface SecureSettingsRepository {
 
     suspend fun getInt(name: String, defaultValue: Int = 0): Int
 
+    suspend fun setBoolean(name: String, value: Boolean)
+
     suspend fun getString(name: String): String?
 }

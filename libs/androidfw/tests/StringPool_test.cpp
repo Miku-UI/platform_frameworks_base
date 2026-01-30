@@ -16,6 +16,7 @@
 
 #include "androidfw/StringPool.h"
 
+#include <optional>
 #include <string>
 
 #include "androidfw/IDiagnostics.h"
@@ -109,6 +110,28 @@ TEST(StringPoolTest, PruneStringsWithNoReferences) {
 
   pool.Prune();
   EXPECT_THAT(pool.size(), Eq(1u));
+}
+
+TEST(StringPoolTest, PruneStyles) {
+  StringPool pool;
+
+  std::optional style =
+      pool.MakeRef(StyleString{{"android"}, {Span{{"a"}, 1, 2}, Span{{"b"}, 3, 5}}});
+  std::optional string = pool.MakeRef("a");
+
+  // There are 3 strings: one for the style and two for the span names.
+  EXPECT_THAT(pool.size(), Eq(3u));
+
+  pool.Prune();
+  EXPECT_THAT(pool.size(), Eq(3u));  // Still 3.
+
+  style.reset();
+  pool.Prune();
+  EXPECT_THAT(pool.size(), Eq(1u));  // Only the referenced string 'a' remains.
+
+  string.reset();
+  pool.Prune();
+  EXPECT_THAT(pool.size(), Eq(0u));  // And then there were none.
 }
 
 TEST(StringPoolTest, SortAndMaintainIndexesInStringReferences) {

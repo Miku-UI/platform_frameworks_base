@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"必須授予權限"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"安裝受到禁止"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"正在準備應用程式…"</string>
+    <string name="title_install" msgid="6806728682404990326">"要安裝這個應用程式嗎？"</string>
+    <string name="title_installing" msgid="3738380766257176010">"安裝中…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"已安裝應用程式"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"要重新安裝這個應用程式嗎？"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"正在重新安裝…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"已重新安裝應用程式"</string>
+    <string name="title_update" msgid="1747328630716712391">"要更新這個應用程式嗎？"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"要使用「<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>」更新這個應用程式嗎？"</string>
+    <string name="title_updating" msgid="5449073288264173554">"更新中…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"應用程式已更新"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"無法安裝應用程式"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"安裝受到禁止"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"應用程式不相容"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"套件無效"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"儲存空間不足"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"未安裝應用程式"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"要解除安裝這個應用程式嗎？"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"要刪除這個應用程式副本嗎？"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"要解除安裝應用程式更新嗎？"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"要為所有使用者解除安裝應用程式更新嗎？"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"要為所有使用者解除安裝這個應用程式嗎？"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"要為使用者「<xliff:g id="USER_NAME">%1$s</xliff:g>」解除安裝這個應用程式嗎？"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"找不到應用程式"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"無法解除安裝這個應用程式"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"未解除安裝應用程式"</string>
+    <string name="title_archive" msgid="2876455228073419830">"要封存這個應用程式嗎？"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"要為所有使用者封存這個應用程式嗎？"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"要為使用者「<xliff:g id="USER_NAME">%1$s</xliff:g>」封存這個應用程式嗎？"</string>
+    <string name="title_restore" msgid="8934911753892124574">"要還原這個應用程式嗎？"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"敬請採取行動"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"儲存空間不足"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"未連上網路"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"「<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>」已停用"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"未安裝「<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>」"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"發生錯誤"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"這個應用程式通常會接收來自「<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>」&lt;b&gt;&lt;/b&gt;的更新。如果透過其他來源更新，平板電腦未來的更新可能會來自任何來源。應用程式功能可能會有變動。"</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"這個應用程式通常會接收來自「<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>」&lt;b&gt;&lt;/b&gt;的更新。如果透過其他來源更新，電視未來的更新可能會來自任何來源。應用程式功能可能會有變動。"</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"這個應用程式通常會接收來自「<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>」&lt;b&gt;&lt;/b&gt;的更新。如果透過其他來源更新，手機未來的更新可能會來自任何來源。應用程式功能可能會有變動。"</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"為了安全起見，平板電腦目前禁止安裝這個來源提供的不明應用程式。如要變更，請前往「設定」。"</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"為了安全起見，電視目前禁止安裝這個來源提供的不明應用程式。如要變更，請前往「設定」。"</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"為了安全起見，手錶目前禁止安裝這個來源的不明應用程式。如要變更，請前往「設定」。"</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"為了確保安全，目前手機禁止安裝來自此來源的不明應用程式。如要變更，請前往「設定」。"</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"不明應用程式較有可能攻擊手機及個人資料。安裝此應用程式，即表示你同意為使用過程中可能導致的手機損壞或資料遺失承擔責任。"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"不明應用程式會使平板電腦和個人資料較易遭受攻擊。安裝此應用程式，即表示你同意為使用過程中可能導致的平板電腦損壞或資料遺失承擔責任。"</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"不明應用程式會使電視和個人資料較易遭受攻擊。安裝此應用程式，即表示你同意為使用過程中可能導致的電視損壞或資料遺失承擔責任。"</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"系統已禁止安裝這個應用程式"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"這個應用程式與裝置上的現有應用程式衝突"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"這個應用程式與你的裝置不相容"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"這個應用程式的安裝檔案有問題"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"如要安裝這個應用程式，請先釋出空間，然後再試一次"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"應用程式的檔案發生問題"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"已限制安裝應用程式"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"不明應用程式會受到安裝限制"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"這個應用程式的副本將一併刪除"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"這個應用程式是「<xliff:g id="APP_LABEL">%1$s</xliff:g>」的副本"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"這個應用程式將換成原廠版本，所有應用程式資料都會移除。"</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"這個應用程式將換成原廠版本 (適用於裝置上的每位使用者)，所有應用程式資料都會移除。"</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"這個應用程式將從工作資料夾解除安裝"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"這個應用程式將從私人空間解除安裝"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"在已安裝的應用程式清單中找不到這個應用程式，或應用程式已解除安裝"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"目前的使用者無法執行這項解除安裝作業"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"無法解除安裝這個應用程式"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"保留應用程式資料"</string>
+    <string name="message_archive" msgid="943853731737315850">"系統會儲存應用程式資料"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"系統會儲存所有應用程式資料"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"系統會儲存應用程式資料"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"這個應用程式將從工作資料夾封存，系統會儲存應用程式資料。"</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"這個應用程式將從私人空間封存，系統會儲存應用程式資料。"</string>
+    <string name="message_restore" msgid="8402726798623569969">"這個應用程式將從「<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>」背景下載"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"「<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>」需要更多資訊，才能還原這個應用程式"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"如要還原這個應用程式，請釋出 &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt;，然後再試一次"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"如要還原這個應用程式，請檢查網際網路連線，然後再試一次"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"如要還原這個應用程式，請前往「設定」啟用「<xliff:g id="INSTALLERNAME">%1$s</xliff:g>」"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"如要還原這個應用程式，請安裝「<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>」"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"嘗試還原這個應用程式時發生問題"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"「<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g>」是下列應用程式的活動：<xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;系統已封鎖這個應用程式。為確保裝置和資料安全，只能安裝已驗證開發人員的應用程式。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;這個應用程式未更新。為確保裝置和資料安全，只能安裝已驗證開發人員的更新項目。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;未安裝這個應用程式。如果開發人員未經驗證，應用程式可能不安全。&lt;/p&gt; &lt;p&gt;如要驗證應用程式開發人員，必須連上網際網路。請檢查連線，然後再次嘗試安裝。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;這個應用程式未更新。如果開發人員未經驗證，更新項目可能不安全。&lt;/p&gt; &lt;p&gt;如要驗證應用程式開發人員，必須連上網際網路。請檢查連線，然後再次嘗試更新。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;驗證應用程式的開發人員時發生問題。由於開發人員未經驗證，這個應用程式可能不安全，因此並未安裝到裝置上。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;驗證這個應用程式的開發人員時發生問題。如果開發人員未經驗證，更新項目可能不安全，因此應用程式未更新。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;驗證開發人員時發生問題，因此系統已封鎖這個應用程式。為確保裝置和資料安全，只能安裝已驗證開發人員的應用程式。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;驗證開發人員時發生問題，因此這個應用程式未更新。為確保裝置和資料安全，只能安裝已驗證開發人員的更新項目。&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;進一步瞭解開發人員驗證&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"請注意，如果未驗證開發人員就安裝，應用程式可能會讓裝置和資料暴露在風險中。"</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"請注意，如果未驗證開發人員就更新，更新項目可能會讓裝置和資料暴露在風險中。"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"應用程式開發人員未經驗證"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"未連上網際網路，因此無法驗證應用程式開發人員"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"無法驗證應用程式開發人員"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"不要驗證，直接安裝"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"不要驗證，直接更新"</string>
+    <string name="button_install" msgid="7434013176505680162">"安裝"</string>
+    <string name="button_update" msgid="3046719350226327526">"更新"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"仍要更新"</string>
+    <string name="button_done" msgid="3408025390982260629">"完成"</string>
+    <string name="button_open" msgid="6892684987374117955">"開啟"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"取消"</string>
+    <string name="button_continue" msgid="107501685249826244">"繼續"</string>
+    <string name="button_close" msgid="7187308556466275899">"關閉"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"解除安裝"</string>
+    <string name="button_delete" msgid="1050833585936159792">"刪除"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"重新安裝"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"管理應用程式"</string>
+    <string name="button_archive" msgid="2719647830439699121">"封存"</string>
+    <string name="button_restore" msgid="4388317532933866637">"還原"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"解除安裝更新"</string>
+    <string name="button_settings" msgid="3837571366246132287">"設定"</string>
+    <string name="button_retry" msgid="6736082260813816198">"再試一次"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"「<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>」副本"</string>
+</resources>

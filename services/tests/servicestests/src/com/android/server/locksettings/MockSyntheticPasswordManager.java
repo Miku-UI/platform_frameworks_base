@@ -15,8 +15,10 @@
  */
 package com.android.server.locksettings;
 
+import static org.junit.Assert.assertNull;
+
 import android.content.Context;
-import android.hardware.weaver.V1_0.IWeaver;
+import android.hardware.weaver.IWeaver;
 import android.os.RemoteException;
 import android.os.UserManager;
 import android.util.ArrayMap;
@@ -26,6 +28,7 @@ import junit.framework.AssertionFailedError;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
+import java.time.Duration;
 import java.util.Arrays;
 
 import javax.crypto.SecretKeyFactory;
@@ -34,7 +37,9 @@ import javax.crypto.spec.PBEKeySpec;
 public class MockSyntheticPasswordManager extends SyntheticPasswordManager {
 
     private FakeGateKeeperService mGateKeeper;
-    private IWeaver mWeaverService;
+    private MockWeaverService mWeaverService;
+    private IWeaver mWeaverAidl;
+    private android.hardware.weaver.V1_0.IWeaver mWeaverHidl;
 
     public MockSyntheticPasswordManager(Context context, LockSettingsStorage storage,
             FakeGateKeeperService gatekeeper, UserManager userManager,
@@ -112,17 +117,45 @@ public class MockSyntheticPasswordManager extends SyntheticPasswordManager {
         }
     }
 
-    @Override
-    public boolean isAutoPinConfirmationFeatureAvailable() {
-        return true;
-    }
-
-    @Override
-    protected IWeaver getWeaverHidlService() throws RemoteException {
-        return mWeaverService;
-    }
-
+    /** Enables MockWeaverService. */
     public void enableWeaver() {
+        enableWeaverAidl();
+    }
+
+    /** Enables MockWeaverService with the current (AIDL) interface. */
+    public void enableWeaverAidl() {
+        assertNull(mWeaverService);
         mWeaverService = new MockWeaverService();
+        mWeaverAidl = mWeaverService;
+    }
+
+    @Override
+    protected IWeaver getWeaverAidlService() {
+        return mWeaverAidl;
+    }
+
+    /** Enables MockWeaverService with the old (HIDL) interface. */
+    public void enableWeaverHidl() {
+        assertNull(mWeaverService);
+        mWeaverService = new MockWeaverService();
+        mWeaverHidl = mWeaverService.asHidl();
+    }
+
+    @Override
+    protected android.hardware.weaver.V1_0.IWeaver getWeaverHidlService() throws RemoteException {
+        return mWeaverHidl;
+    }
+
+    public boolean isWeaverEnabled() {
+        return mWeaverService != null;
+    }
+
+    public int getSumOfWeaverFailureCounters() {
+        return mWeaverService.getSumOfFailureCounters();
+    }
+
+    /** Injects a response to be returned by the next read from Weaver. */
+    public void injectWeaverReadResponse(int status, Duration timeout) {
+        mWeaverService.injectReadResponse(status, timeout);
     }
 }

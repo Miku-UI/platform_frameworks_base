@@ -20,6 +20,7 @@ import com.android.settingslib.graph.SignalDrawable
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.log.table.Diffable
 import com.android.systemui.log.table.TableRowLogger
+import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository.Companion.DEFAULT_NUM_LEVELS
 
 sealed interface SignalIconModel : Diffable<SignalIconModel> {
     val level: Int
@@ -81,10 +82,7 @@ sealed interface SignalIconModel : Diffable<SignalIconModel> {
      * For non-terrestrial networks, we can use a resource-backed icon instead of the
      * [SignalDrawable]-backed version above
      */
-    data class Satellite(
-        override val level: Int,
-        val icon: Icon.Resource,
-    ) : SignalIconModel {
+    data class Satellite(override val level: Int, val icon: Icon.Resource) : SignalIconModel {
         override fun logPartial(prevVal: SignalIconModel, row: TableRowLogger) {
             if (prevVal !is Satellite) {
                 logFull(row)
@@ -102,6 +100,13 @@ sealed interface SignalIconModel : Diffable<SignalIconModel> {
     }
 
     companion object {
+        val DEFAULT =
+            Cellular(
+                level = 0,
+                numberOfLevels = DEFAULT_NUM_LEVELS,
+                showExclamationMark = true,
+                carrierNetworkChange = false,
+            )
         private const val COL_LEVEL = "level"
         private const val COL_NUM_LEVELS = "numLevels"
         private const val COL_SHOW_EXCLAMATION = "showExclamation"

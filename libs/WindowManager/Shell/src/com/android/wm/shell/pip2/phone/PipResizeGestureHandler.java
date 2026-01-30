@@ -18,6 +18,7 @@ package com.android.wm.shell.pip2.phone;
 import static com.android.internal.policy.TaskResizingAlgorithm.CTRL_NONE;
 import static com.android.wm.shell.pip2.phone.PipTransition.ANIMATING_BOUNDS_CHANGE_DURATION;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.content.res.Resources;
@@ -48,6 +49,7 @@ import com.android.wm.shell.common.pip.PipDesktopState;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipPerfHintController;
 import com.android.wm.shell.common.pip.PipUiEventLogger;
+import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.pip2.animation.PipResizeAnimator;
 
 import java.io.PrintWriter;
@@ -58,14 +60,16 @@ import java.util.function.Function;
  * trigger dynamic resize.
  */
 public class PipResizeGestureHandler implements
-        PipTransitionState.PipTransitionStateChangedListener {
+        PipTransitionState.PipTransitionStateChangedListener,
+        PipDisplayLayoutState.DisplayIdListener {
 
     private static final String TAG = "PipResizeGestureHandler";
     private static final int PINCH_RESIZE_SNAP_DURATION = 250;
     private static final float PINCH_RESIZE_AUTO_MAX_RATIO = 0.9f;
     private static final String RESIZE_BOUNDS_CHANGE = "resize_bounds_change";
 
-    private final Context mContext;
+    private Context mContext;
+    private final InputManager mInputManager;
     private final PipBoundsAlgorithm mPipBoundsAlgorithm;
     private final PipBoundsState mPipBoundsState;
     private final PipTouchState mPipTouchState;
@@ -113,7 +117,10 @@ public class PipResizeGestureHandler implements
     private int mCtrlType;
     private int mOhmOffset;
 
+    private final @NonNull PipSurfaceTransactionHelper mSurfaceTransactionHelper;
+
     public PipResizeGestureHandler(Context context,
+            @NonNull PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
             PipBoundsAlgorithm pipBoundsAlgorithm,
             PipBoundsState pipBoundsState,
             PipTouchState pipTouchState,
@@ -127,6 +134,8 @@ public class PipResizeGestureHandler implements
             ShellExecutor mainExecutor,
             @Nullable PipPerfHintController pipPerfHintController) {
         mContext = context;
+        mInputManager = mContext.getSystemService(InputManager.class);
+        mSurfaceTransactionHelper = pipSurfaceTransactionHelper;
         mMainExecutor = mainExecutor;
         mPipPerfHintController = pipPerfHintController;
         mPipBoundsAlgorithm = pipBoundsAlgorithm;
@@ -139,6 +148,7 @@ public class PipResizeGestureHandler implements
 
         mPhonePipMenuController = menuActivityController;
         mPipDisplayLayoutState = pipDisplayLayoutState;
+        mPipDisplayLayoutState.addDisplayIdListener(this);
         mPipDesktopState = pipDesktopState;
         mPipUiEventLogger = pipUiEventLogger;
 
@@ -146,6 +156,7 @@ public class PipResizeGestureHandler implements
                 menuActivityController, pipBoundsAlgorithm, pipScheduler, movementBoundsSupplier);
         mPipPinchToResizeHandler = new PipPinchToResizeHandler(this, pipBoundsState,
                 menuActivityController, pipScheduler);
+
     }
 
     void init() {
@@ -160,8 +171,14 @@ public class PipResizeGestureHandler implements
     }
 
     private void reloadResources() {
-        mPipDragToResizeHandler.reloadResources();
+        mPipDragToResizeHandler.reloadResources(mContext);
         mTouchSlop = ViewConfiguration.get(mContext).getScaledTouchSlop();
+    }
+
+    @Override
+    public void onDisplayIdChanged(@NonNull Context context) {
+        mContext = context;
+        reloadResources();
     }
 
     private void disposeInputChannel() {
@@ -198,7 +215,7 @@ public class PipResizeGestureHandler implements
 
         if (mIsEnabled) {
             // Register input event receiver
-            mInputMonitor = mContext.getSystemService(InputManager.class).monitorGestureInput(
+            mInputMonitor = mInputManager.monitorGestureInput(
                     "pip-resize", mPipDisplayLayoutState.getDisplayId());
             try {
                 mMainExecutor.executeBlocking(() -> {
@@ -461,7 +478,7 @@ public class PipResizeGestureHandler implements
 
     @VisibleForTesting
     void pilferPointers() {
-        mInputMonitor.pilferPointers();
+        mInputManager.pilferPointers(mInputEventReceiver.getToken());
     }
 
     void setOhmOffset(int offset) {
@@ -521,7 +538,8 @@ public class PipResizeGestureHandler implements
                 final int duration = extra.getInt(ANIMATING_BOUNDS_CHANGE_DURATION,
                         PipTransition.BOUNDS_CHANGE_JUMPCUT_DURATION);
 
-                PipResizeAnimator animator = new PipResizeAnimator(mContext, pipLeash,
+                PipResizeAnimator animator = new PipResizeAnimator(mContext,
+                        mSurfaceTransactionHelper, pipLeash,
                         startTx, finishTx, destinationBounds, mStartBoundsAfterRelease,
                         destinationBounds, duration, mAngle);
                 animator.setAnimationEndCallback(() -> {
@@ -530,8 +548,8 @@ public class PipResizeGestureHandler implements
                     resetState();
                     cleanUpHighPerfSessionMaybe();
 
-                    // Signal that we are done with resize transition
-                    mPipScheduler.scheduleFinishResizePip(destinationBounds);
+                    // Signal that we are done with bounds change transition
+                    mPipScheduler.scheduleFinishPipBoundsChange(destinationBounds);
                 });
                 animator.start();
                 break;

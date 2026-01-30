@@ -16,6 +16,7 @@
 
 package com.android.server.wm;
 
+import static android.app.ActivityManager.START_DELIVERED_TO_TOP;
 import static android.app.ActivityManager.START_SUCCESS;
 import static android.app.ActivityManager.START_TASK_TO_FRONT;
 import static android.content.ComponentName.createRelative;
@@ -34,6 +35,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
@@ -123,7 +125,7 @@ public class ActivityMetricsLaunchObserverTests extends WindowTestsBase {
     private void verifyOnActivityLaunched(ActivityRecord activity) {
         final ArgumentCaptor<Long> idCaptor = ArgumentCaptor.forClass(Long.class);
         verifyAsync(mLaunchObserver).onActivityLaunched(idCaptor.capture(),
-                eq(activity.mActivityComponent), anyInt(), anyInt());
+                eq(activity.mActivityComponent), anyInt(), anyString(), anyInt());
         final long id = idCaptor.getValue();
         setExpectedStartedId(id, activity);
         mLastLaunchedIds.put(activity.mActivityComponent, id);
@@ -153,14 +155,19 @@ public class ActivityMetricsLaunchObserverTests extends WindowTestsBase {
     }
 
     private long onIntentStarted(Intent intent) {
+        clearInvocations(mLaunchObserver);
         notifyActivityLaunching(intent);
 
         long timestamp = -1;
         // If it is launching top activity from trampoline activity, the observer shouldn't receive
         // onActivityLaunched because the activities should belong to the same transition.
         if (!mLaunchTopByTrampoline) {
+            final ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
             final ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(Long.class);
-            verifyAsync(mLaunchObserver).onIntentStarted(eq(intent), captor.capture());
+            verifyAsync(mLaunchObserver).onIntentStarted(intentCaptor.capture(),
+                    captor.capture());
+            assertWithMessage("Same intent").that(
+                    intent.filterEquals(intentCaptor.getValue())).isTrue();
             timestamp = captor.getValue();
         }
         verifyNoMoreInteractions(mLaunchObserver);
@@ -548,6 +555,39 @@ public class ActivityMetricsLaunchObserverTests extends WindowTestsBase {
         notifyActivityLaunched(START_SUCCESS, activityOnNewTask);
 
         transitToDrawnAndVerifyOnLaunchFinished(activityOnNewTask);
+        assertWithMessage("Trampoline's cookie must be transferred").that(
+                mTrampolineActivity.mLaunchCookie).isNull();
+        assertWithMessage("The last launch task has the transferred cookie").that(
+                activityOnNewTask.mLaunchCookie).isEqualTo(launchCookie);
+        assertWithMessage("Trampoline's launch root task must be transferred").that(
+                mTrampolineActivity.mLaunchRootTask).isNull();
+        assertWithMessage("The last launch task has the transferred launch root task").that(
+                activityOnNewTask.mLaunchRootTask).isEqualTo(launchRootTask);
+    }
+
+    @Test
+    public void testConsecutiveLaunchVisibleTaskCancelled_hasDrawn() {
+        final ActivityRecord activityOnNewTask = new ActivityBuilder(mAtm)
+                .setCreateTask(true)
+                .build();
+        onActivityLaunched(activityOnNewTask);
+        activityOnNewTask.setVisibleRequested(true);
+        doReturn(true).when(activityOnNewTask).isReportedDrawn();
+        final IBinder launchCookie = mock(IBinder.class);
+        final WindowContainerToken launchRootTask = mock(WindowContainerToken.class);
+        mTrampolineActivity.setIsNoDisplay(true);
+        mTrampolineActivity.mLaunchCookie = launchCookie;
+        mTrampolineActivity.mLaunchRootTask = launchRootTask;
+        onActivityLaunched(mTrampolineActivity);
+        mActivityMetricsLogger.notifyActivityLaunching(activityOnNewTask.intent,
+                mTrampolineActivity /* caller */, mTrampolineActivity.getUid());
+        notifyActivityLaunched(START_DELIVERED_TO_TOP, activityOnNewTask);
+
+        verifyAsync(mLaunchObserver).onActivityLaunchCancelled(
+                eqLastStartedId(mTrampolineActivity));
+        verifyNoMoreInteractions(mLaunchObserver);
+
+        // Ensure that the trampoline's cookie still transferred.
         assertWithMessage("Trampoline's cookie must be transferred").that(
                 mTrampolineActivity.mLaunchCookie).isNull();
         assertWithMessage("The last launch task has the transferred cookie").that(

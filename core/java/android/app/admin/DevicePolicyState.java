@@ -51,10 +51,10 @@ public final class DevicePolicyState implements Parcelable {
             mPolicies.put(userHandle, new HashMap<>());
             int policiesSize = source.readInt();
             for (int j = 0; j < policiesSize; j++) {
-                PolicyKey policyKey =
-                        source.readParcelable(PolicyKey.class.getClassLoader());
-                PolicyState<?> policyState =
-                        source.readParcelable(PolicyState.class.getClassLoader());
+                PolicyKey policyKey = source.readParcelable(PolicyKey.class.getClassLoader(),
+                        PolicyKey.class);
+                PolicyState<?> policyState = source.readParcelable(
+                        PolicyState.class.getClassLoader(), PolicyState.class);
                 mPolicies.get(userHandle).put(policyKey, policyState);
             }
         }

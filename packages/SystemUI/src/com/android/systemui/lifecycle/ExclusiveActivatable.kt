@@ -17,6 +17,7 @@
 package com.android.systemui.lifecycle
 
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.awaitCancellation
 
 /**
  * A base [Activatable] that can only be activated by a single owner (hence "exclusive"). A previous
@@ -27,7 +28,7 @@ abstract class ExclusiveActivatable : Activatable {
 
     private val _isActive = AtomicBoolean(false)
 
-    protected var isActive: Boolean
+    var isActive: Boolean
         get() = _isActive.get()
         private set(value) {
             _isActive.set(value)
@@ -35,12 +36,14 @@ abstract class ExclusiveActivatable : Activatable {
 
     final override suspend fun activate(): Nothing {
         val allowed = _isActive.compareAndSet(false, true)
-        check(allowed) { "Cannot activate an already active ExclusiveActivatable!" }
+        check(allowed) { "Cannot activate an already active ExclusiveActivatable! $this" }
 
         try {
             onActivated()
+            awaitCancellation()
         } finally {
             isActive = false
+            onDeactivated()
         }
     }
 
@@ -48,25 +51,21 @@ abstract class ExclusiveActivatable : Activatable {
      * Notifies that the [Activatable] has been activated.
      *
      * Serves as an entrypoint to kick off coroutine work that the object requires in order to keep
-     * its state fresh and/or perform side-effects.
-     *
-     * The method suspends and doesn't return until all work required by the object is finished. In
-     * most cases, it's expected for the work to remain ongoing forever so this method will forever
-     * suspend its caller until the coroutine that called it is canceled.
-     *
-     * Implementations could follow this pattern:
+     * its state fresh and/or perform side-effects. Implementations could follow this pattern:
      * ```kotlin
-     * override suspend fun onActivated(): Nothing {
+     * override suspend fun onActivated() {
      *     coroutineScope {
      *         launch { ... }
      *         launch { ... }
      *         launch { ... }
-     *         awaitCancellation()
      *     }
      * }
      * ```
      *
      * @see activate
      */
-    protected abstract suspend fun onActivated(): Nothing
+    protected open suspend fun onActivated() {}
+
+    /** Notifies that the [Activatable] has been deactivated. */
+    protected open suspend fun onDeactivated() {}
 }

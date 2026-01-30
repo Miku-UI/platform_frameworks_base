@@ -18,8 +18,6 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-import android.companion.virtual.IVirtualDevice;
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -41,8 +39,8 @@ public class VirtualNavigationTouchpad extends VirtualInputDevice {
 
     /** @hide */
     public VirtualNavigationTouchpad(VirtualNavigationTouchpadConfig config,
-            IVirtualDevice virtualDevice, IBinder token) {
-        super(config, virtualDevice, token);
+            IVirtualInputDevice virtualInputDevice) {
+        super(config, virtualInputDevice);
     }
 
     /**
@@ -52,7 +50,7 @@ public class VirtualNavigationTouchpad extends VirtualInputDevice {
      */
     public void sendTouchEvent(@NonNull VirtualTouchEvent event) {
         try {
-            if (!mVirtualDevice.sendTouchEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendTouchEvent(event)) {
                 Log.w(TAG, "Failed to send touch event to virtual navigation touchpad "
                         + mConfig.getInputDeviceName());
             }

@@ -22,6 +22,7 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_NO_USER_ACTION;
+import static android.view.Display.DEFAULT_DISPLAY;
 
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_INDEX_0;
 import static com.android.wm.shell.shared.split.SplitScreenConstants.SPLIT_POSITION_BOTTOM_OR_RIGHT;
@@ -46,12 +47,14 @@ import static org.mockito.Mockito.when;
 
 import android.app.ActivityManager;
 import android.app.ActivityTaskManager;
+import android.app.IActivityTaskManager;
 import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.UserManager;
 import android.window.IWindowContainerToken;
 import android.window.WindowContainerToken;
 
@@ -60,6 +63,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.launcher3.icons.IconProvider;
+import com.android.wm.shell.RootDisplayAreaOrganizer;
 import com.android.wm.shell.RootTaskDisplayAreaOrganizer;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.ShellTestCase;
@@ -76,11 +80,14 @@ import com.android.wm.shell.desktopmode.DesktopTasksController;
 import com.android.wm.shell.draganddrop.DragAndDropController;
 import com.android.wm.shell.recents.RecentTasksController;
 import com.android.wm.shell.shared.TransactionPool;
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState;
 import com.android.wm.shell.sysui.ShellCommandHandler;
 import com.android.wm.shell.sysui.ShellController;
 import com.android.wm.shell.sysui.ShellInit;
 import com.android.wm.shell.transition.Transitions;
 import com.android.wm.shell.windowdecor.WindowDecorViewModel;
+
+import com.google.android.msdl.domain.MSDLPlayer;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -120,24 +127,33 @@ public class SplitScreenControllerTests extends ShellTestCase {
     @Mock DesktopTasksController mDesktopTasksController;
     @Mock MultiInstanceHelper mMultiInstanceHelper;
     @Mock SplitState mSplitState;
+    @Mock UserManager mUserManager;
+    @Mock RootDisplayAreaOrganizer mRootDisplayAreaOrganizer;
+    @Mock private IActivityTaskManager activityTaskManager;
+    @Mock MSDLPlayer mMSDLPlayer;
     @Captor ArgumentCaptor<Intent> mIntentCaptor;
 
     private ShellController mShellController;
     private SplitScreenController mSplitScreenController;
+    private FakeDesktopState mDesktopState;
 
     @Before
     public void setup() {
         assumeTrue(ActivityTaskManager.supportsSplitScreenMultiWindow(mContext));
         MockitoAnnotations.initMocks(this);
+        mDesktopState = new FakeDesktopState();
         mShellController = spy(new ShellController(mContext, mShellInit, mShellCommandHandler,
-                mDisplayInsetsController, mMainExecutor));
+                mDisplayInsetsController, mUserManager, mMainExecutor));
         mSplitScreenController = spy(new SplitScreenController(mContext, mShellInit,
                 mShellCommandHandler, mShellController, mTaskOrganizer, mSyncQueue,
                 mRootTDAOrganizer, mDisplayController, mDisplayImeController,
                 mDisplayInsetsController, mDragAndDropController, mTransitions, mTransactionPool,
                 mIconProvider, Optional.of(mRecentTasks), mLaunchAdjacentController,
                 Optional.of(mWindowDecorViewModel), Optional.of(mDesktopTasksController),
-                mStageCoordinator, mMultiInstanceHelper, mSplitState, mMainExecutor, mMainHandler));
+                Optional.empty(),
+                mStageCoordinator, mMultiInstanceHelper, mSplitState, mMainExecutor, mMainHandler,
+                mRootDisplayAreaOrganizer, mDesktopState, activityTaskManager, mMSDLPlayer,
+                Optional.empty()));
     }
 
     @Test
@@ -206,13 +222,14 @@ public class SplitScreenControllerTests extends ShellTestCase {
                 SPLIT_INDEX_0);
 
         verify(mStageCoordinator).startIntent(eq(pendingIntent), mIntentCaptor.capture(),
-                eq(SPLIT_POSITION_TOP_OR_LEFT), isNull(), isNull(), eq(SPLIT_INDEX_0));
+                eq(SPLIT_POSITION_TOP_OR_LEFT), isNull(), isNull(), isNull(), eq(SPLIT_INDEX_0),
+                eq(DEFAULT_DISPLAY));
         assertEquals(FLAG_ACTIVITY_NO_USER_ACTION,
                 mIntentCaptor.getValue().getFlags() & FLAG_ACTIVITY_NO_USER_ACTION);
     }
 
     @Test
-    public void startIntent_multiInstancesSupported_appendsMultipleTaskFag() {
+    public void startIntent_multiInstancesSupported_appendsMultipleTaskFlag() {
         doReturn(true).when(mMultiInstanceHelper).supportsMultiInstanceSplit(any(), anyInt());
         Intent startIntent = createStartIntent("startActivity");
         PendingIntent pendingIntent =
@@ -227,9 +244,31 @@ public class SplitScreenControllerTests extends ShellTestCase {
                 SPLIT_INDEX_0);
 
         verify(mStageCoordinator).startIntent(eq(pendingIntent), mIntentCaptor.capture(),
-                eq(SPLIT_POSITION_TOP_OR_LEFT), isNull(), isNull(), eq(SPLIT_INDEX_0));
+                eq(SPLIT_POSITION_TOP_OR_LEFT), isNull(), isNull(), isNull(), eq(SPLIT_INDEX_0),
+                eq(DEFAULT_DISPLAY));
         assertEquals(FLAG_ACTIVITY_MULTIPLE_TASK,
                 mIntentCaptor.getValue().getFlags() & FLAG_ACTIVITY_MULTIPLE_TASK);
+    }
+
+    @Test
+    public void startIntent_multiInstancesSupported_appendsDisplayId() {
+        doReturn(true).when(mMultiInstanceHelper).supportsMultiInstanceSplit(any(), anyInt());
+        Intent startIntent = createStartIntent("startActivity");
+        PendingIntent pendingIntent =
+                PendingIntent.getActivity(mContext, 0, startIntent, FLAG_IMMUTABLE);
+        // Put the same component to the top running task
+        ActivityManager.RunningTaskInfo topRunningTask =
+                createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD, startIntent);
+        doReturn(topRunningTask).when(mRecentTasks).getTopRunningTask(any());
+
+        final int secondDisplay = DEFAULT_DISPLAY + 1;
+        mSplitScreenController.startIntent(pendingIntent, mContext.getUserId(), null,
+                SPLIT_POSITION_TOP_OR_LEFT, null /* options */, null /* hideTaskToken */,
+                null /* wct */, false, SPLIT_INDEX_0, secondDisplay);
+
+        verify(mStageCoordinator).startIntent(eq(pendingIntent), mIntentCaptor.capture(),
+                eq(SPLIT_POSITION_TOP_OR_LEFT), isNull(), isNull(), isNull(), eq(SPLIT_INDEX_0),
+                eq(secondDisplay));
     }
 
     @Test
@@ -308,7 +347,7 @@ public class SplitScreenControllerTests extends ShellTestCase {
                 PendingIntent.getActivity(mContext, 0, startIntent, FLAG_IMMUTABLE);
         mSplitScreenController.startIntent(pendingIntent, mContext.getUserId(), null,
                 SPLIT_POSITION_TOP_OR_LEFT, null /* options */, null /* hideTaskToken */,
-                true /* forceLaunchNewTask */, SPLIT_INDEX_0);
+                null /* wct */, true /* forceLaunchNewTask */, SPLIT_INDEX_0, DEFAULT_DISPLAY);
         verify(mRecentTasks, never()).findTaskInBackground(any(), anyInt(), any());
     }
 
@@ -319,7 +358,7 @@ public class SplitScreenControllerTests extends ShellTestCase {
                 PendingIntent.getActivity(mContext, 0, startIntent, FLAG_IMMUTABLE);
         mSplitScreenController.startIntent(pendingIntent, mContext.getUserId(), null,
                 SPLIT_POSITION_TOP_OR_LEFT, null /* options */, null /* hideTaskToken */,
-                false /* forceLaunchNewTask */, SPLIT_INDEX_0);
+                null /* wct */, false /* forceLaunchNewTask */, SPLIT_INDEX_0, DEFAULT_DISPLAY);
         verify(mRecentTasks).findTaskInBackground(any(), anyInt(), any());
     }
 
@@ -347,6 +386,7 @@ public class SplitScreenControllerTests extends ShellTestCase {
         info.baseIntent = strIntent;
         info.baseActivity = strIntent.getComponent();
         info.token = new WindowContainerToken(mock(IWindowContainerToken.class));
+        info.userId = mContext.getUserId();
         ActivityInfo activityInfo = new ActivityInfo();
         activityInfo.packageName = info.baseActivity.getPackageName();
         activityInfo.name = info.baseActivity.getClassName();

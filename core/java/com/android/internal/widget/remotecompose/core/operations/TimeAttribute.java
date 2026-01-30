@@ -19,6 +19,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.SHORT;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
@@ -41,6 +42,7 @@ import java.util.List;
 public class TimeAttribute extends PaintOperation {
     private static final int OP_CODE = Operations.ATTRIBUTE_TIME;
     private static final String CLASS_NAME = "TimeAttribute";
+    private static final short MAX_ARG_LEN = 32;
     private final int[] mArgs;
     public int mId;
     public int mTimeId;
@@ -88,6 +90,9 @@ public class TimeAttribute extends PaintOperation {
     /** (value - doc_load_time) * 1E-3 */
     public static final short TIME_FROM_LOAD_SEC = 14;
 
+    /** day-of-year */
+    public static final short TIME_DAY_OF_YEAR = 15;
+
     /**
      * creates a new operation
      *
@@ -96,7 +101,7 @@ public class TimeAttribute extends PaintOperation {
      * @param type the type of calculation
      * @param args the optional args
      */
-    public TimeAttribute(int id, int longId, short type, int[] args) {
+    public TimeAttribute(int id, int longId, short type, @Nullable int [] args) {
         this.mId = id;
         this.mTimeId = longId;
         this.mType = type;
@@ -165,7 +170,7 @@ public class TimeAttribute extends PaintOperation {
      * @param args the optional args
      */
     public static void apply(
-            @NonNull WireBuffer buffer, int id, int textId, short type, int[] args) {
+            @NonNull WireBuffer buffer, int id, int textId, short type, @Nullable int [] args) {
         buffer.start(OP_CODE);
         buffer.writeInt(id);
         buffer.writeInt(textId);
@@ -191,6 +196,9 @@ public class TimeAttribute extends PaintOperation {
         int textId = buffer.readInt();
         short type = (short) buffer.readShort();
         short len = (short) buffer.readShort();
+        if (len > MAX_ARG_LEN) {
+            throw new RuntimeException("Too many args");
+        }
         int[] args = null;
         if (len != 0) {
             args = new int[len];
@@ -222,16 +230,19 @@ public class TimeAttribute extends PaintOperation {
         return indent + toString();
     }
 
-    @NonNull float[] mBounds = new float[4];
-
     @Override
     public void paint(@NonNull PaintContext context) {
         int val = mType & 255;
-        int flags = mType >> 8;
+        // int flags = mType >> 8;
         RemoteContext ctx = context.getContext();
         long load_time = ctx.getDocLoadTime();
         LongConstant longConstant = (LongConstant) ctx.getObject(mTimeId);
-        long value = longConstant.getValue();
+        long value = 0;
+        if (longConstant == null) {
+            value = context.getClock().millis();
+        } else {
+            value = longConstant.getValue();
+        }
         long delta = 0;
         LocalDateTime time = null;
 
@@ -239,7 +250,7 @@ public class TimeAttribute extends PaintOperation {
             case TIME_FROM_NOW_SEC:
             case TIME_FROM_NOW_MIN:
             case TIME_FROM_NOW_HR:
-                delta = (value - System.currentTimeMillis());
+                delta = (value - context.getClock().millis());
                 break;
             case TIME_FROM_ARG_SEC:
             case TIME_FROM_ARG_MIN:
@@ -253,6 +264,7 @@ public class TimeAttribute extends PaintOperation {
             case TIME_DAY_OF_MONTH:
             case TIME_MONTH_VALUE:
             case TIME_DAY_OF_WEEK:
+            case TIME_DAY_OF_YEAR:
             case TIME_YEAR:
                 time =
                         (LocalDateTime)
@@ -265,7 +277,7 @@ public class TimeAttribute extends PaintOperation {
         switch (val) {
             case TIME_FROM_NOW_SEC:
             case TIME_FROM_ARG_SEC:
-                ctx.loadFloat(mId, (delta) * 1E-3f);
+                ctx.loadFloat(mId, delta * 1E-3f);
                 ctx.needsRepaint();
                 break;
             case TIME_FROM_ARG_MIN:
@@ -289,6 +301,9 @@ public class TimeAttribute extends PaintOperation {
             case TIME_DAY_OF_MONTH:
                 ctx.loadFloat(mId, time.getDayOfMonth());
                 break;
+            case TIME_DAY_OF_YEAR:
+                ctx.loadFloat(mId, time.getDayOfYear());
+                break;
             case TIME_MONTH_VALUE:
                 ctx.loadFloat(mId, time.getMonthValue() - 1);
                 break;
@@ -306,7 +321,7 @@ public class TimeAttribute extends PaintOperation {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("id", mId)

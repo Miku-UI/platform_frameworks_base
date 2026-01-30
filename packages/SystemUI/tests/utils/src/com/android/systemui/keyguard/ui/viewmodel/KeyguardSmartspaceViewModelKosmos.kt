@@ -20,13 +20,13 @@ import com.android.systemui.keyguard.domain.interactor.keyguardSmartspaceInterac
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
-import com.android.systemui.util.mockito.mock
+import com.android.systemui.statusbar.lockscreen.lockscreenSmartspaceController
 
 val Kosmos.keyguardSmartspaceViewModel by
     Kosmos.Fixture {
         KeyguardSmartspaceViewModel(
             applicationScope = applicationCoroutineScope,
-            smartspaceController = mock(),
+            smartspaceController = lockscreenSmartspaceController,
             keyguardClockViewModel = keyguardClockViewModel,
             smartspaceInteractor = keyguardSmartspaceInteractor,
             shadeModeInteractor = shadeModeInteractor,

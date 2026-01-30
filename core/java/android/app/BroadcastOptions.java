@@ -40,6 +40,8 @@ import android.os.PowerExemptionManager.ReasonCode;
 import android.os.PowerExemptionManager.TempAllowListType;
 import android.os.Process;
 
+import com.android.internal.util.ArrayUtils;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Objects;
@@ -68,6 +70,8 @@ public class BroadcastOptions extends ComponentOptions {
     private @Nullable BundleMerger mDeliveryGroupExtrasMerger;
     private @Nullable IntentFilter mDeliveryGroupMatchingFilter;
     private @DeferralPolicy int mDeferralPolicy;
+    private @Nullable String[] mIncludedPackages;
+    private @Nullable String mDebugReason;
 
     /** @hide */
     @IntDef(flag = true, prefix = { "FLAG_" }, value = {
@@ -231,6 +235,17 @@ public class BroadcastOptions extends ComponentOptions {
             "android:broadcast.deferralPolicy";
 
     /**
+     * Corresponds to {@link #setIncludedPackages(String[])}
+     */
+    private static final String KEY_INCLUDED_PACKAGES =
+            "android:broadcast.includedPackageNames";
+
+    /**
+     * Corresponds to {@link #setDebugReason(String)}
+     */
+    private static final String KEY_DEBUG_REASON = "android:broadcast.debugReason";
+
+    /**
      * The list of delivery group policies which specify how multiple broadcasts belonging to
      * the same delivery group has to be handled.
      * @hide
@@ -263,7 +278,7 @@ public class BroadcastOptions extends ComponentOptions {
      */
     public static final int DELIVERY_GROUP_POLICY_MERGED = 2;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = { "DEFERRAL_POLICY_" }, value = {
             DEFERRAL_POLICY_DEFAULT,
             DEFERRAL_POLICY_NONE,
@@ -355,6 +370,8 @@ public class BroadcastOptions extends ComponentOptions {
         mDeliveryGroupMatchingFilter = opts.getParcelable(KEY_DELIVERY_GROUP_MATCHING_FILTER,
                 IntentFilter.class);
         mDeferralPolicy = opts.getInt(KEY_DEFERRAL_POLICY, DEFERRAL_POLICY_DEFAULT);
+        mIncludedPackages = opts.getStringArray(KEY_INCLUDED_PACKAGES);
+        mDebugReason = opts.getString(KEY_DEBUG_REASON);
     }
 
     /** @hide */
@@ -745,7 +762,7 @@ public class BroadcastOptions extends ComponentOptions {
                 == PowerExemptionManager.REASON_PUSH_MESSAGING_OVER_QUOTA;
     }
 
-    /** {@hide} */
+    /** @hide */
     public long getRequireCompatChangeId() {
         return mRequireCompatChangeId;
     }
@@ -1113,6 +1130,52 @@ public class BroadcastOptions extends ComponentOptions {
     }
 
     /**
+     * Set the list of packages to send the broadcast to.
+     *
+     * @hide
+     */
+    public BroadcastOptions setIncludedPackages(@Nullable String[] packageNames) {
+        mIncludedPackages = packageNames;
+        return this;
+    }
+
+    /**
+     * Get the list of packages to send the broadcast to, that was previously set using
+     * {@link #setIncludedPackages(String[])}.
+     *
+     * @hide
+     */
+    @Nullable
+    public String[] getIncludedPackages() {
+        return mIncludedPackages;
+    }
+
+    /**
+     * Set the reason for triggering the broadcast. This is meant to be used for
+     * debugging and logging purposes.
+     *
+     * <p> This will only take effect when used by core uids, as determined by
+     * {@link UserHandle#isCore(int)}.
+     *
+     * @hide
+     */
+    public BroadcastOptions setDebugReason(@Nullable String debugReason) {
+        mDebugReason = debugReason;
+        return this;
+    }
+
+    /**
+     * Get the reason for triggering the broadcast, that was previously set using
+     * {@link #setDebugReason(String)}.
+     *
+     * @hide
+     */
+    @Nullable
+    public String getDebugReason() {
+        return mDebugReason;
+    }
+
+    /**
      * Returns the created options as a Bundle, which can be passed to
      * {@link android.content.Context#sendBroadcast(android.content.Intent)
      * Context.sendBroadcast(Intent)} and related methods.
@@ -1178,6 +1241,12 @@ public class BroadcastOptions extends ComponentOptions {
         if (mDeferralPolicy != DEFERRAL_POLICY_DEFAULT) {
             b.putInt(KEY_DEFERRAL_POLICY, mDeferralPolicy);
         }
+        if (!ArrayUtils.isEmpty(mIncludedPackages)) {
+            b.putStringArray(KEY_INCLUDED_PACKAGES, mIncludedPackages);
+        }
+        if (mDebugReason != null) {
+            b.putString(KEY_DEBUG_REASON, mDebugReason);
+        }
         return b;
     }
 
@@ -1189,7 +1258,7 @@ public class BroadcastOptions extends ComponentOptions {
         return new BroadcastOptions(options);
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @Nullable BroadcastOptions fromBundleNullable(@Nullable Bundle options) {
         return (options != null) ? new BroadcastOptions(options) : null;
     }

@@ -16,16 +16,10 @@
 
 package com.android.settingslib.spa.widget.ui
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.height
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
@@ -68,49 +62,5 @@ class CategoryTest {
         composeTestRule.setContent { Category(title = "CategoryTitle") {} }
 
         composeTestRule.onNodeWithText("CategoryTitle").assertDoesNotExist()
-    }
-
-    @Test
-    fun lazyCategory_headerDisplayed() {
-        composeTestRule.setContent { TestLazyCategory() }
-
-        composeTestRule.onNodeWithText("Header").assertExists()
-    }
-
-    @Test
-    fun lazyCategory_footerDisplayed() {
-        composeTestRule.setContent { TestLazyCategory() }
-
-        composeTestRule.onNodeWithText("Footer").assertExists()
-    }
-
-    @Test
-    fun lazyCategory_title_displayed() {
-        composeTestRule.setContent { TestLazyCategory() }
-
-        composeTestRule.onNodeWithText("LazyCategory 0").assertExists()
-        composeTestRule.onNodeWithText("LazyCategory 1").assertDoesNotExist()
-    }
-}
-
-@Composable
-private fun TestLazyCategory() {
-    val list: List<PreferenceModel> =
-        listOf(
-            object : PreferenceModel {
-                override val title = "title"
-            },
-            object : PreferenceModel {
-                override val title = "title"
-            },
-        )
-    Column(Modifier.height(200.dp)) {
-        LazyCategory(
-            list = list,
-            entry = { index: Int -> @Composable { Preference(list[index]) } },
-            title = { index: Int -> if (index == 0) "LazyCategory $index" else null },
-            footer = @Composable { Footer("Footer") },
-            header = @Composable { Text("Header") },
-        )
     }
 }

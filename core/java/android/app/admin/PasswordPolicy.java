@@ -31,7 +31,7 @@ import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PATTE
 import static com.android.internal.widget.LockPatternUtils.CREDENTIAL_TYPE_PIN;
 
 /**
- * {@hide}
+ * @hide
  */
 public class PasswordPolicy {
     public static final int DEF_MINIMUM_LENGTH = 0;

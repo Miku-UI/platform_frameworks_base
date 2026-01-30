@@ -28,6 +28,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -37,7 +38,13 @@ class DozingToLockscreenTransitionViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
     val testScope = kosmos.testScope
     val repository = kosmos.fakeKeyguardTransitionRepository
-    val underTest = kosmos.dozingToLockscreenTransitionViewModel
+
+    private lateinit var underTest: DozingToLockscreenTransitionViewModel
+
+    @Before
+    fun setup() {
+        underTest = kosmos.dozingToLockscreenTransitionViewModel
+    }
 
     @Test
     fun lockscreenAlpha() =
@@ -89,14 +96,14 @@ class DozingToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     private fun step(
         value: Float,
-        state: TransitionState = TransitionState.RUNNING
+        state: TransitionState = TransitionState.RUNNING,
     ): TransitionStep {
         return TransitionStep(
             from = KeyguardState.DOZING,
             to = KeyguardState.LOCKSCREEN,
             value = value,
             transitionState = state,
-            ownerName = "DozingToLockscreenTransitionViewModelTest"
+            ownerName = "DozingToLockscreenTransitionViewModelTest",
         )
     }
 }

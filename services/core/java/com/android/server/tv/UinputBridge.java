@@ -18,6 +18,8 @@ package com.android.server.tv;
 
 import android.os.IBinder;
 
+import com.android.server.utils.LazyJniRegistrar;
+
 import dalvik.system.CloseGuard;
 
 import java.io.IOException;
@@ -29,6 +31,11 @@ public final class UinputBridge {
     private final CloseGuard mCloseGuard = CloseGuard.get();
     private long mPtr;
     private IBinder mToken;
+
+    static {
+        // Lazy registration allows build-time removal when TvRemoteService is disabled.
+        LazyJniRegistrar.registerTvUinputBridge();
+    }
 
     private static native long nativeOpen(String name, String uniqueId, int width, int height,
                                           int maxPointers);

@@ -17,6 +17,11 @@
 package com.android.settingslib.metadata
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 
 /** Returns the preference screen title. */
 fun PreferenceScreenMetadata.getPreferenceScreenTitle(context: Context): CharSequence? =
@@ -48,3 +53,28 @@ fun PreferenceMetadata.getPreferenceIcon(context: Context): Int =
         this is PreferenceIconProvider -> getIcon(context)
         else -> 0
     }
+
+/**
+ * Returns whether the preference is indexable.
+ *
+ * @return [PreferenceIndexableProvider.isIndexable] if implemented, otherwise
+ *   [PreferenceMetadata.indexable]
+ */
+fun PreferenceMetadata.isPreferenceIndexable(context: Context): Boolean =
+    if (this is PreferenceIndexableProvider) isIndexable(context) else indexable
+
+/**
+ * Performs preference hierarchy operation with a new [CoroutineScope].
+ *
+ * The coroutine scope will be cancelled automatically (when the block is finished) to cancel
+ * pending tasks (e.g. async hierarchy).
+ */
+suspend fun <T> usePreferenceHierarchyScope(block: suspend CoroutineScope.() -> T): T {
+    // the block is likely to be CPU intensive and SupervisorJob is used to isolate sub tasks
+    val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    return try {
+        scope.async { block() }.await()
+    } finally {
+        scope.cancel()
+    }
+}

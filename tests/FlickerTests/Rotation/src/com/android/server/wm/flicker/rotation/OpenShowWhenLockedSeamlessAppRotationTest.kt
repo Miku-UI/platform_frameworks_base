@@ -17,13 +17,14 @@
 package com.android.server.wm.flicker.rotation
 
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
 import android.tools.Rotation
-import android.tools.flicker.assertions.FlickerTest
+import android.tools.flicker.assertions.FlickerChecker
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.rules.ChangeDisplayOrientationRule
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.BaseTest
@@ -39,10 +40,11 @@ import org.junit.runners.Parameterized
 /**
  * Test opening an app over lockscreen with rotation change using seamless rotations.
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class OpenShowWhenLockedSeamlessAppRotationTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+class OpenShowWhenLockedSeamlessAppRotationTest(flicker: FlickerTest) : BaseTest(flicker) {
     val testApp = SeamlessRotationAppHelper(instrumentation)
 
     override val transition: FlickerBuilder.() -> Unit
@@ -114,9 +116,9 @@ class OpenShowWhenLockedSeamlessAppRotationTest(flicker: LegacyFlickerTest) : Ba
     companion object {
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams(): Collection<FlickerTest> {
+        fun getParams(): Collection<FlickerChecker> {
             // The rotation will be controlled by the setup of test.
-            return LegacyFlickerTestFactory.nonRotationTests(
+            return FlickerTestFactory.nonRotationTests(
                 supportedRotations = listOf(Rotation.ROTATION_0),
                 supportedNavigationModes = listOf(NavBar.MODE_GESTURAL)
             )

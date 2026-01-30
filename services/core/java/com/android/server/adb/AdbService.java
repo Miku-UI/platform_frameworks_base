@@ -66,25 +66,18 @@ import java.util.Map;
  * of devices allowed to connect to ADB.
  */
 public class AdbService extends IAdbManager.Stub {
-    /**
-     * Adb native daemon.
-     */
+    /** Adb native daemon. */
     static final String ADBD = "adbd";
 
-    /**
-     * Command to start native service.
-     */
+    /** Command to start native service. */
     static final String CTL_START = "ctl.start";
 
-    /**
-     * Command to start native service.
-     */
+    /** Command to start native service. */
     static final String CTL_STOP = "ctl.stop";
 
     private final RemoteCallbackList<IAdbCallback> mCallbacks = new RemoteCallbackList<>();
-    /**
-     * Manages the service lifecycle for {@code AdbService} in {@code SystemServer}.
-     */
+
+    /** Manages the service lifecycle for {@code AdbService} in {@code SystemServer}. */
     public static class Lifecycle extends SystemService {
         private AdbService mAdbService;
 
@@ -103,8 +96,8 @@ public class AdbService extends IAdbManager.Stub {
             if (phase == SystemService.PHASE_ACTIVITY_MANAGER_READY) {
                 mAdbService.systemReady();
             } else if (phase == SystemService.PHASE_BOOT_COMPLETED) {
-                FgThread.getHandler().sendMessage(obtainMessage(
-                        AdbService::bootCompleted, mAdbService));
+                FgThread.getHandler()
+                        .sendMessage(obtainMessage(AdbService::bootCompleted, mAdbService));
             }
         }
     }
@@ -122,13 +115,19 @@ public class AdbService extends IAdbManager.Stub {
 
         @Override
         public boolean isAdbEnabled(byte transportType) {
-            if (transportType == AdbTransportType.USB) {
-                return mIsAdbUsbEnabled;
-            } else if (transportType == AdbTransportType.WIFI) {
-                return mIsAdbWifiEnabled;
+            switch (transportType) {
+                case AdbTransportType.USB:
+                    return mIsAdbUsbEnabled;
+                case AdbTransportType.WIFI:
+                    return mIsAdbWifiEnabled;
+                case AdbTransportType.VSOCK:
+                    throw new IllegalArgumentException(
+                            "AdbTransportType.VSOCK is not yet supported here");
+                default:
+                    throw new IllegalArgumentException(
+                            "isAdbEnabled called with unimplemented transport type="
+                                    + transportType);
             }
-            throw new IllegalArgumentException(
-                    "isAdbEnabled called with unimplemented transport type=" + transportType);
         }
 
         @Override
@@ -145,18 +144,6 @@ public class AdbService extends IAdbManager.Stub {
         public void notifyKeyFilesUpdated() {
             mDebuggingManager.notifyKeyFilesUpdated();
         }
-
-        @Override
-        public void startAdbdForTransport(byte transportType) {
-            FgThread.getHandler().sendMessage(obtainMessage(
-                    AdbService::setAdbdEnabledForTransport, AdbService.this, true, transportType));
-        }
-
-        @Override
-        public void stopAdbdForTransport(byte transportType) {
-            FgThread.getHandler().sendMessage(obtainMessage(
-                    AdbService::setAdbdEnabledForTransport, AdbService.this, false, transportType));
-        }
     }
 
     private void registerContentObservers() {
@@ -164,11 +151,9 @@ public class AdbService extends IAdbManager.Stub {
             // register observer to listen for settings changes
             mObserver = new AdbSettingsObserver();
             mContentResolver.registerContentObserver(
-                    Settings.Global.getUriFor(Settings.Global.ADB_ENABLED),
-                    false, mObserver);
+                    Settings.Global.getUriFor(Settings.Global.ADB_ENABLED), false, mObserver);
             mContentResolver.registerContentObserver(
-                    Settings.Global.getUriFor(Settings.Global.ADB_WIFI_ENABLED),
-                    false, mObserver);
+                    Settings.Global.getUriFor(Settings.Global.ADB_WIFI_ENABLED), false, mObserver);
         } catch (Exception e) {
             Slog.e(TAG, "Error in registerContentObservers", e);
         }
@@ -195,17 +180,16 @@ public class AdbService extends IAdbManager.Stub {
         public void onChange(boolean selfChange, @NonNull Uri uri, @UserIdInt int userId) {
             Slog.d("AdbSettingsObserver", "onChange " + uri.toString());
             if (mAdbUsbUri.equals(uri)) {
-                boolean shouldEnable = (Settings.Global.getInt(mContentResolver,
-                        Settings.Global.ADB_ENABLED, 0) > 0);
-                FgThread.getHandler().sendMessage(obtainMessage(
-                        AdbService::setAdbEnabled, AdbService.this, shouldEnable,
-                            AdbTransportType.USB));
+                boolean shouldEnable =
+                        (Settings.Global.getInt(mContentResolver, Settings.Global.ADB_ENABLED, 0)
+                                > 0);
+                setAdbEnabled(shouldEnable, AdbTransportType.USB);
             } else if (mAdbWifiUri.equals(uri)) {
-                boolean shouldEnable = (Settings.Global.getInt(mContentResolver,
-                        Settings.Global.ADB_WIFI_ENABLED, 0) > 0);
-                FgThread.getHandler().sendMessage(obtainMessage(
-                        AdbService::setAdbEnabled, AdbService.this, shouldEnable,
-                            AdbTransportType.WIFI));
+                boolean shouldEnable =
+                        (Settings.Global.getInt(
+                                        mContentResolver, Settings.Global.ADB_WIFI_ENABLED, 0)
+                                > 0);
+                setAdbEnabled(shouldEnable, AdbTransportType.WIFI);
             }
         }
     }
@@ -213,11 +197,16 @@ public class AdbService extends IAdbManager.Stub {
     private static final String TAG = AdbService.class.getSimpleName();
 
     /**
-     * The persistent property which stores whether adb is enabled or not.
-     * May also contain vendor-specific default functions for testing purposes.
+     * The persistent property which stores whether adb is enabled or not. May also contain
+     * vendor-specific default functions for testing purposes.
      */
     private static final String USB_PERSISTENT_CONFIG_PROPERTY = "persist.sys.usb.config";
-    static final String WIFI_PERSISTENT_CONFIG_PROPERTY = "persist.adb.tls_server.enable";
+
+    /**
+     * The system property used by both framework and adbd to set if ADB Wifi should be enabled when
+     * either system starts up.
+     */
+    private static final String WIFI_PERSISTENT_CONFIG_PROPERTY = "persist.adb.tls_server.enable";
 
     private final Context mContext;
     private final ContentResolver mContentResolver;
@@ -249,21 +238,22 @@ public class AdbService extends IAdbManager.Stub {
          * Use the normal bootmode persistent prop to maintain state of adb across
          * all boot modes.
          */
-        mIsAdbUsbEnabled = containsFunction(
-                SystemProperties.get(USB_PERSISTENT_CONFIG_PROPERTY, ""),
-                UsbManager.USB_FUNCTION_ADB);
-        boolean shouldEnableAdbUsb = mIsAdbUsbEnabled
-                || SystemProperties.getBoolean(
-                        TestHarnessModeService.TEST_HARNESS_MODE_PROPERTY, false);
-        mIsAdbWifiEnabled = "1".equals(
-                SystemProperties.get(WIFI_PERSISTENT_CONFIG_PROPERTY, "0"));
+        mIsAdbUsbEnabled =
+                containsFunction(
+                        SystemProperties.get(USB_PERSISTENT_CONFIG_PROPERTY, ""),
+                        UsbManager.USB_FUNCTION_ADB);
+        boolean shouldEnableAdbUsb =
+                mIsAdbUsbEnabled
+                        || SystemProperties.getBoolean(
+                                TestHarnessModeService.TEST_HARNESS_MODE_PROPERTY, false);
+        mIsAdbWifiEnabled = "1".equals(SystemProperties.get(WIFI_PERSISTENT_CONFIG_PROPERTY, "0"));
 
         // make sure the ADB_ENABLED setting value matches the current state
         try {
-            Settings.Global.putInt(mContentResolver,
-                    Settings.Global.ADB_ENABLED, shouldEnableAdbUsb ? 1 : 0);
-            Settings.Global.putInt(mContentResolver,
-                    Settings.Global.ADB_WIFI_ENABLED, mIsAdbWifiEnabled ? 1 : 0);
+            Settings.Global.putInt(
+                    mContentResolver, Settings.Global.ADB_ENABLED, shouldEnableAdbUsb ? 1 : 0);
+            Settings.Global.putInt(
+                    mContentResolver, Settings.Global.ADB_WIFI_ENABLED, mIsAdbWifiEnabled ? 1 : 0);
         } catch (SecurityException e) {
             // If UserManager.DISALLOW_DEBUGGING_FEATURES is on, that this setting can't be changed.
             Slog.d(TAG, "ADB_ENABLED is restricted.");
@@ -306,21 +296,20 @@ public class AdbService extends IAdbManager.Stub {
     public boolean isAdbWifiSupported() {
         mContext.enforceCallingPermission(
                 android.Manifest.permission.MANAGE_DEBUGGING, "AdbService");
-        return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI) ||
-                mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_ETHERNET);
+        return mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WIFI)
+                || mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_ETHERNET);
     }
 
     /**
-     * @return true if the device supports secure ADB over Wi-Fi and device pairing by
-     * QR code.
+     * @return true if the device supports secure ADB over Wi-Fi and device pairing by QR code.
      * @hide
      */
     @Override
     public boolean isAdbWifiQrSupported() {
         mContext.enforceCallingPermission(
                 android.Manifest.permission.MANAGE_DEBUGGING, "AdbService");
-        return isAdbWifiSupported() && mContext.getPackageManager().hasSystemFeature(
-                PackageManager.FEATURE_CAMERA_ANY);
+        return isAdbWifiSupported()
+                && mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY);
     }
 
     @Override
@@ -406,25 +395,13 @@ public class AdbService extends IAdbManager.Stub {
         }
     }
 
-    private void setAdbdEnabledForTransport(boolean enable, byte transportType) {
-        if (transportType == AdbTransportType.USB) {
-            mIsAdbUsbEnabled = enable;
-        } else if (transportType == AdbTransportType.WIFI) {
-            mIsAdbWifiEnabled = enable;
-        }
-        if (enable) {
-            startAdbd();
-        } else {
-            stopAdbd();
-        }
-    }
-
     private WifiManager.MulticastLock mAdbMulticastLock = null;
 
     private void acquireMulticastLock() {
         if (mAdbMulticastLock == null) {
-            WifiManager wifiManager = (WifiManager)
-                    mContext.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            WifiManager wifiManager =
+                    (WifiManager)
+                            mContext.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             mAdbMulticastLock = wifiManager.createMulticastLock("AdbMulticastLock");
         }
 
@@ -442,25 +419,65 @@ public class AdbService extends IAdbManager.Stub {
     }
 
     private void setAdbEnabled(boolean enable, byte transportType) {
-        Slog.d(TAG, "setAdbEnabled(" + enable + "), mIsAdbUsbEnabled=" + mIsAdbUsbEnabled
-                 + ", mIsAdbWifiEnabled=" + mIsAdbWifiEnabled + ", transportType=" + transportType);
+        FgThread.getHandler()
+                .sendMessage(
+                        obtainMessage(
+                                AdbService::setAdbEnabledDoNotCallDirectly,
+                                this,
+                                enable,
+                                transportType));
+    }
 
-        if (transportType == AdbTransportType.USB && enable != mIsAdbUsbEnabled) {
-            mIsAdbUsbEnabled = enable;
-        } else if (transportType == AdbTransportType.WIFI && enable != mIsAdbWifiEnabled) {
-            mIsAdbWifiEnabled = enable;
-            if (mIsAdbWifiEnabled) {
-                // Start adb over WiFi.
-                SystemProperties.set(WIFI_PERSISTENT_CONFIG_PROPERTY, "1");
-                acquireMulticastLock();
-            } else {
-                // Stop adb over WiFi.
-                SystemProperties.set(WIFI_PERSISTENT_CONFIG_PROPERTY, "0");
-                releaseMulticastLock();
-            }
-        } else {
-            // No change
-            return;
+    static void enableADBdWifi() {
+        Slog.d(TAG, "Enabling ADBd Wifi property");
+        SystemProperties.set(WIFI_PERSISTENT_CONFIG_PROPERTY, "1");
+    }
+
+    static void disableADBdWifi() {
+        Slog.d(TAG, "Disabling ADBd Wifi property");
+        SystemProperties.set(WIFI_PERSISTENT_CONFIG_PROPERTY, "0");
+    }
+
+    private void setAdbEnabledDoNotCallDirectly(boolean enable, byte transportType) {
+        Slog.d(
+                TAG,
+                "setAdbEnabled("
+                        + enable
+                        + "), mIsAdbUsbEnabled="
+                        + mIsAdbUsbEnabled
+                        + ", mIsAdbWifiEnabled="
+                        + mIsAdbWifiEnabled
+                        + ", transportType="
+                        + transportType);
+
+        switch (transportType) {
+            case AdbTransportType.USB:
+                if (enable == mIsAdbUsbEnabled) {
+                    return;
+                }
+                mIsAdbUsbEnabled = enable;
+                break;
+            case AdbTransportType.WIFI:
+                if (enable == mIsAdbWifiEnabled) {
+                    return;
+                }
+                mIsAdbWifiEnabled = enable;
+                if (mIsAdbWifiEnabled) {
+                    // Start adb over WiFi.
+                    enableADBdWifi();
+                    acquireMulticastLock();
+                } else {
+                    // Stop adb over WiFi.
+                    disableADBdWifi();
+                    releaseMulticastLock();
+                }
+                break;
+            case AdbTransportType.VSOCK:
+                Slog.e(TAG, "AdbTransportType.VSOCK is not yet supported here");
+                return;
+            default:
+                Slog.e(TAG, "Unknown transport type=" + transportType);
+                return;
         }
 
         if (enable) {
@@ -480,23 +497,37 @@ public class AdbService extends IAdbManager.Stub {
         mDebuggingManager.setAdbEnabled(enable, transportType);
 
         Slog.d(TAG, "Broadcasting enable = " + enable + ", type = " + transportType);
-        mCallbacks.broadcast((callback) -> {
-            Slog.d(TAG, "Sending enable = " + enable + ", type = " + transportType + " to "
-                    + callback);
-            try {
-                callback.onDebuggingChanged(enable, transportType);
-            } catch (RemoteException ex) {
-                Slog.w(TAG, "Unable to send onDebuggingChanged:", ex);
-            }
-        });
+        mCallbacks.broadcast(
+                (callback) -> {
+                    Slog.d(
+                            TAG,
+                            "Sending enable = "
+                                    + enable
+                                    + ", type = "
+                                    + transportType
+                                    + " to "
+                                    + callback);
+                    try {
+                        callback.onDebuggingChanged(enable, transportType);
+                    } catch (RemoteException ex) {
+                        Slog.w(TAG, "Unable to send onDebuggingChanged:", ex);
+                    }
+                });
     }
 
     @Override
-    public int handleShellCommand(ParcelFileDescriptor in, ParcelFileDescriptor out,
-            ParcelFileDescriptor err, String[] args) {
-        return new AdbShellCommand(this).exec(
-                this, in.getFileDescriptor(), out.getFileDescriptor(), err.getFileDescriptor(),
-                args);
+    public int handleShellCommand(
+            ParcelFileDescriptor in,
+            ParcelFileDescriptor out,
+            ParcelFileDescriptor err,
+            String[] args) {
+        return new AdbShellCommand(this)
+                .exec(
+                        this,
+                        in.getFileDescriptor(),
+                        out.getFileDescriptor(),
+                        err.getFileDescriptor(),
+                        args);
     }
 
     @Override
@@ -524,8 +555,8 @@ public class AdbService extends IAdbManager.Stub {
                     dump = new DualDumpOutputStream(new IndentingPrintWriter(pw, "  "));
                 }
 
-                mDebuggingManager.dump(dump, "debugging_manager",
-                        AdbServiceDumpProto.DEBUGGING_MANAGER);
+                mDebuggingManager.dump(
+                        dump, "debugging_manager", AdbServiceDumpProto.DEBUGGING_MANAGER);
                 dump.flush();
             } else {
                 pw.println("Dump current ADB state");

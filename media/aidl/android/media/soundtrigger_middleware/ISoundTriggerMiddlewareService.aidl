@@ -28,7 +28,7 @@ import android.media.soundtrigger_middleware.SoundTriggerModuleDescriptor;
  * Allows the client to enumerate the available soundtrigger devices and their capabilities, then
  * attach to either one of them in order to use it.
  *
- * {@hide}
+ * @hide
  */
 interface ISoundTriggerMiddlewareService {
     /**

@@ -35,11 +35,43 @@ object WindowSizeUtils {
     /** Expanded screen height breakpoint. */
     val EXPANDED_HEIGHT = 900.dp
 
-    /** Whether the window size is compact, which reflects most mobile sizes in portrait. */
+    /** Returns the window size category based on the current window metrics. */
     @JvmStatic
-    fun isCompactWindowSize(context: Context): Boolean {
+    fun getWindowSizeCategory(context: Context): WindowSizeCategory {
         val metrics = WindowMetricsCalculator.getOrCreate().computeCurrentWindowMetrics(context)
-        val width = metrics.bounds.width()
-        return width / metrics.density < COMPACT_WIDTH.value
+        val width = metrics.bounds.width() / metrics.density
+        val height = metrics.bounds.height() / metrics.density
+
+        if (width < COMPACT_WIDTH.value) {
+            return WindowSizeCategory.MOBILE_PORTRAIT
+        }
+        if (height < COMPACT_HEIGHT.value) {
+            return WindowSizeCategory.MOBILE_LANDSCAPE
+        }
+        if (
+            height >= EXPANDED_HEIGHT.value ||
+                (width >= MEDIUM_WIDTH.value &&
+                    height in COMPACT_HEIGHT.value..EXPANDED_HEIGHT.value &&
+                    // aspect ratio to exclude unfolded screen size
+                    width / height >= 1.5f)
+        ) {
+            return WindowSizeCategory.TABLET
+        }
+        return WindowSizeCategory.UNFOLDED
+    }
+
+    /**
+     * Represent custom breakpoints for responsive hub mode UI, which reflects device type and its
+     * orientation.
+     */
+    enum class WindowSizeCategory {
+        /** Mobile in portrait */
+        MOBILE_PORTRAIT,
+        /** Mobile in landscape */
+        MOBILE_LANDSCAPE,
+        /** Unfolded inner displays */
+        UNFOLDED,
+        /** Tablet */
+        TABLET,
     }
 }

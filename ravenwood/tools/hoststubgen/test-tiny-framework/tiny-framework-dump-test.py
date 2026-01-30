@@ -22,23 +22,19 @@ import subprocess
 
 GOLDEN_DIRS = [
     'golden-output',
-    'golden-output.RELEASE_TARGET_JAVA_21',
 ]
 
+EXCLUDE_FILES = {
+    '01-hoststubgen-test-tiny-framework-orig-dump.txt',
+    '03-hoststubgen-test-tiny-framework-host-dump.txt',
+    '13-hoststubgen-test-tiny-framework-host-ext-dump.txt',
+}
 
 # Run diff.
 def run_diff(file1, file2):
     command = ['diff', '-u',
                '--ignore-blank-lines',
                '--ignore-space-change',
-
-               # Ignore the class file version.
-               '--ignore-matching-lines=^ *\\(major\\|minor\\) version:$',
-
-               # We shouldn't need `--ignore-matching-lines`, but somehow
-               # the golden files were generated without these lines for b/388562869,
-               # so let's just ignore them.
-               '--ignore-matching-lines=^\(Constant.pool:\|{\)$',
                file1, file2]
     print(' '.join(command))
     result = subprocess.run(command, stderr=sys.stdout)
@@ -79,7 +75,7 @@ class TestWithGoldenOutput(unittest.TestCase):
 
     def matches_golden(self, golden_dir):
         files = os.listdir(golden_dir)
-        files.sort()
+        files = set(files) - EXCLUDE_FILES
 
         print(f"Golden files for {golden_dir}: {files}")
         match_success = True

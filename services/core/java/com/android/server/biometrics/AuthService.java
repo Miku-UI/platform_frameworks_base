@@ -36,15 +36,19 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.hardware.biometrics.AuthenticationStateListener;
 import android.hardware.biometrics.BiometricAuthenticator;
+import android.hardware.biometrics.BiometricEnrollmentStatus;
+import android.hardware.biometrics.BiometricEnrollmentStatusInternal;
 import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.ComponentInfoInternal;
 import android.hardware.biometrics.IAuthService;
 import android.hardware.biometrics.IBiometricEnabledOnKeyguardCallback;
 import android.hardware.biometrics.IBiometricService;
 import android.hardware.biometrics.IBiometricServiceReceiver;
+import android.hardware.biometrics.IIdentityCheckStateListener;
 import android.hardware.biometrics.IInvalidationCallback;
 import android.hardware.biometrics.ITestSession;
 import android.hardware.biometrics.ITestSessionCallback;
+import android.hardware.biometrics.IdentityCheckStatus;
 import android.hardware.biometrics.PromptInfo;
 import android.hardware.biometrics.SensorLocationInternal;
 import android.hardware.biometrics.SensorPropertiesInternal;
@@ -78,6 +82,7 @@ import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * System service that provides an interface for authenticating with biometrics and
@@ -240,6 +245,21 @@ public class AuthService extends SystemService {
 
         @android.annotation.EnforcePermission(android.Manifest.permission.TEST_BIOMETRIC)
         @Override
+        public void setIdentityCheckTestStatus(@NonNull IdentityCheckStatus identityCheckStatus)
+                throws RemoteException {
+            super.setIdentityCheckTestStatus_enforcePermission();
+
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                mInjector.getBiometricService()
+                        .setIdentityCheckTestStatus(identityCheckStatus);
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        @android.annotation.EnforcePermission(android.Manifest.permission.TEST_BIOMETRIC)
+        @Override
         public List<SensorPropertiesInternal> getSensorProperties(String opPackageName)
                 throws RemoteException {
 
@@ -249,7 +269,8 @@ public class AuthService extends SystemService {
             try {
                 // Get the result from BiometricService, since it is the source of truth for all
                 // biometric sensors.
-                return mInjector.getBiometricService().getSensorProperties(opPackageName);
+                return mInjector.getBiometricService().getSensorProperties(opPackageName)
+                        .stream().filter(p -> p != null).collect(Collectors.toList());
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }
@@ -417,6 +438,72 @@ public class AuthService extends SystemService {
         }
 
         @Override
+        public List<BiometricEnrollmentStatusInternal> getEnrollmentStatusList(int userId,
+                String opPackageName) throws RemoteException {
+            checkBiometricAdvancedPermission();
+
+            // Only allow internal clients to call getEnrollmentStatusList with a different
+            // userId.
+            final int callingUserId = UserHandle.getCallingUserId();
+
+            if (userId != callingUserId) {
+                checkInternalPermission();
+            }
+
+            final long identity = Binder.clearCallingIdentity();
+            try {
+                final List<BiometricEnrollmentStatusInternal> enrollmentStatusList =
+                        new ArrayList<>();
+                final IFingerprintService fingerprintService = mInjector.getFingerprintService();
+                if (fingerprintService != null) {
+                    final List<FingerprintSensorPropertiesInternal> fpProps =
+                            fingerprintService.getSensorPropertiesInternal(opPackageName);
+                    if (!fpProps.isEmpty()) {
+                        int fpCount = fingerprintService.getEnrolledFingerprints(userId,
+                                opPackageName, getContext().getAttributionTag()).size();
+                        int strength = Utils.propertyStrengthToAuthenticatorStrength(
+                                fpProps.getFirst().sensorStrength);
+                        BiometricEnrollmentStatus status = new BiometricEnrollmentStatus(strength,
+                                fpCount);
+                        enrollmentStatusList.add(
+                                new BiometricEnrollmentStatusInternal(
+                                        BiometricManager.TYPE_FINGERPRINT, status));
+                    } else {
+                        Slog.e(TAG, "No fingerprint sensors");
+                    }
+                } else {
+                    Slog.e(TAG, "No fingerprint sensors");
+                }
+
+                final IFaceService faceService = mInjector.getFaceService();
+                if (faceService != null) {
+                    final List<FaceSensorPropertiesInternal> faceProps =
+                            faceService.getSensorPropertiesInternal(opPackageName);
+                    if (!faceProps.isEmpty()) {
+                        FaceSensorPropertiesInternal faceProp = faceProps.getFirst();
+                        int faceCount = faceService.getEnrolledFaces(faceProp.sensorId, userId,
+                                opPackageName).size();
+                        int strength = Utils.propertyStrengthToAuthenticatorStrength(
+                                faceProp.sensorStrength);
+                        BiometricEnrollmentStatus status = new BiometricEnrollmentStatus(strength,
+                                faceCount);
+                        enrollmentStatusList.add(
+                                new BiometricEnrollmentStatusInternal(
+                                        BiometricManager.TYPE_FACE, status));
+                    } else {
+                        Slog.e(TAG, "No face sensors");
+                    }
+                } else {
+                    Slog.e(TAG, "No face sensors");
+                }
+
+                return enrollmentStatusList;
+            } finally {
+                Binder.restoreCallingIdentity(identity);
+            }
+        }
+
+        @Override
         public void registerEnabledOnKeyguardCallback(
                 IBiometricEnabledOnKeyguardCallback callback) throws RemoteException {
             checkInternalPermission();
@@ -454,6 +541,20 @@ public class AuthService extends SystemService {
             if (faceService != null) {
                 faceService.unregisterAuthenticationStateListener(listener);
             }
+        }
+
+        @Override
+        public void registerIdentityCheckStateListener(IIdentityCheckStateListener listener)
+                throws RemoteException {
+            checkInternalPermission();
+            mBiometricService.registerIdentityCheckStateListener(listener);
+        }
+
+        @Override
+        public void unregisterIdentityCheckStateListener(IIdentityCheckStateListener listener)
+                throws RemoteException {
+            checkInternalPermission();
+            mBiometricService.unregisterIdentityCheckStateListener(listener);
         }
 
         @Override

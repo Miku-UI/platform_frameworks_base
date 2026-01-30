@@ -16,25 +16,26 @@
 
 package com.android.systemui.statusbar.chips.ui.viewmodel
 
-import android.content.res.Configuration
-import com.android.systemui.biometrics.domain.interactor.DisplayStateInteractor
-import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Background
+import android.graphics.RectF
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
+import com.android.systemui.display.domain.interactor.DisplayStateInteractor
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.statusbar.chips.StatusBarChipLogTags.pad
+import com.android.systemui.statusbar.chips.StatusBarChipToHunAnimation
 import com.android.systemui.statusbar.chips.StatusBarChipsLog
 import com.android.systemui.statusbar.chips.call.ui.viewmodel.CallChipViewModel
 import com.android.systemui.statusbar.chips.casttootherdevice.ui.viewmodel.CastToOtherDeviceChipViewModel
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.chips.notification.ui.viewmodel.NotifChipsViewModel
 import com.android.systemui.statusbar.chips.screenrecord.ui.viewmodel.ScreenRecordChipViewModel
 import com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel.ShareToAppChipViewModel
 import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModel
 import com.android.systemui.statusbar.chips.ui.model.MultipleOngoingActivityChipsModelLegacy
 import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
+import com.android.systemui.util.kotlin.filterValuesNotNull
 import com.android.systemui.util.kotlin.pairwise
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -46,7 +47,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 
 /**
@@ -55,40 +55,20 @@ import kotlinx.coroutines.flow.stateIn
  * There may be multiple ongoing activities at the same time, but we can only ever show one chip at
  * any one time (for now). This class decides which ongoing activity to show if there are multiple.
  */
-@SysUISingleton
+@PerDisplaySingleton
 class OngoingActivityChipsViewModel
 @Inject
 constructor(
-    @Background scope: CoroutineScope,
+    @DisplayAware scope: CoroutineScope,
     screenRecordChipViewModel: ScreenRecordChipViewModel,
     shareToAppChipViewModel: ShareToAppChipViewModel,
     castToOtherDeviceChipViewModel: CastToOtherDeviceChipViewModel,
     callChipViewModel: CallChipViewModel,
     notifChipsViewModel: NotifChipsViewModel,
-    displayStateInteractor: DisplayStateInteractor,
-    configurationInteractor: ConfigurationInteractor,
+    @DisplayAware displayStateInteractor: DisplayStateInteractor,
+    private val chipsRefiners: Set<@JvmSuppressWildcards OngoingActivityChipsRefiner>,
     @StatusBarChipsLog private val logger: LogBuffer,
 ) {
-    private val isLandscape: Flow<Boolean> =
-        configurationInteractor.configurationValues
-            .map { it.isLandscape }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), false)
-
-    private val isScreenReasonablyLarge: Flow<Boolean> =
-        combine(isLandscape, displayStateInteractor.isLargeScreen) { isLandscape, isLargeScreen ->
-                isLandscape || isLargeScreen
-            }
-            .distinctUntilChanged()
-            .onEach {
-                logger.log(
-                    TAG,
-                    LogLevel.DEBUG,
-                    { bool1 = it },
-                    { "isScreenReasonablyLarge: $bool1" },
-                )
-            }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), false)
-
     private enum class ChipType {
         ScreenRecord,
         ShareToApp,
@@ -152,7 +132,6 @@ constructor(
                     LogLevel.INFO,
                     {
                         str1 = call.logName
-                        // TODO(b/364653005): Log other information for notification chips.
                         str2 = notifs.map { it.logName }.toString()
                     },
                     { "... > Call=$str1 > Notifs=$str2" },
@@ -165,10 +144,10 @@ constructor(
                     notifs = notifs,
                 )
             }
-            // Some of the chips could have timers in them and we don't want the start time
-            // for those timers to get reset for any reason. So, as soon as any subscriber has
-            // requested the chip information, we maintain it forever by using
-            // [SharingStarted.Lazily]. See b/347726238.
+            // Some of the chips could have timers in them and we don't want the start time for
+            // those timers to get reset for any reason. So, as soon as any subscriber has requested
+            // the chip information, we maintain it forever by using [SharingStarted.Lazily].
+            // See b/347726238.
             .stateIn(scope, SharingStarted.Lazily, ChipBundle())
 
     private val internalChip: Flow<InternalChipModel> =
@@ -198,7 +177,7 @@ constructor(
     )
 
     private val internalChips: Flow<InternalMultipleOngoingActivityChipsModel> =
-        combine(incomingChipBundle, isScreenReasonablyLarge) { bundle, isScreenReasonablyLarge ->
+        combine(incomingChipBundle, displayStateInteractor.isWideScreen) { bundle, isWideScreen ->
             // First: Find the most important chip.
             val primaryChipResult = pickMostImportantChip(bundle)
             when (val primaryChip = primaryChipResult.mostImportantChip) {
@@ -213,8 +192,8 @@ constructor(
                         pickMostImportantChip(primaryChipResult.remainingChips).mostImportantChip
                     if (
                         secondaryChip is InternalChipModel.Active &&
-                            StatusBarNotifChips.isEnabled &&
-                            !isScreenReasonablyLarge
+                            PromotedNotificationUi.isEnabled &&
+                            !isWideScreen
                     ) {
                         // If we have two showing chips and we don't have a ton of room
                         // (!isScreenReasonablyLarge), then we want to make both of them as small as
@@ -246,78 +225,82 @@ constructor(
     }
 
     private fun OngoingActivityChipModel.Active.shouldSquish(): Boolean {
-        return when (this) {
+        if (this.icon == null) {
+            // If there's no icon, we can't squish the chip to be icon-only
+            return false
+        }
+        return when (this.content) {
             // Icon-only is already maximum squished
-            is OngoingActivityChipModel.Active.IconOnly,
+            is OngoingActivityChipModel.Content.IconOnly,
             // Countdown shows just a single digit, so already maximum squished
-            is OngoingActivityChipModel.Active.Countdown -> false
+            is OngoingActivityChipModel.Content.Countdown -> false
             // The other chips have icon+text, so we can squish them by hiding text
-            is OngoingActivityChipModel.Active.Timer,
-            is OngoingActivityChipModel.Active.ShortTimeDelta,
-            is OngoingActivityChipModel.Active.Text -> true
+            is OngoingActivityChipModel.Content.Timer,
+            is OngoingActivityChipModel.Content.ShortTimeDelta,
+            is OngoingActivityChipModel.Content.Text -> true
         }
     }
 
     private fun OngoingActivityChipModel.Active.toIconOnly(): OngoingActivityChipModel.Active {
-        // If this chip doesn't have an icon, then it only has text and we should continue showing
-        // its text. (This is theoretically impossible because
-        // [OngoingActivityChipModel.Active.Countdown] is the only chip without an icon and
-        // [shouldSquish] returns false for that model, but protect against it just in case.)
-        val currentIcon = icon ?: return this
-        // TODO(b/364653005): Make sure every field is copied over.
-        return OngoingActivityChipModel.Active.IconOnly(
-            key = key,
-            isImportantForPrivacy = isImportantForPrivacy,
-            icon = currentIcon,
-            colors = colors,
-            onClickListenerLegacy = onClickListenerLegacy,
-            clickBehavior = clickBehavior,
-            instanceId = instanceId,
-        )
+        if (icon == null) {
+            // If this chip doesn't have an icon, then it only has text and we should continue
+            // showing its text. (This is theoretically impossible because [shouldSquish] returns
+            // false for a model with a null icon, but protect against it just in case.)
+            return this
+        }
+        return this.copy(content = OngoingActivityChipModel.Content.IconOnly)
     }
 
     /**
      * A flow modeling the active and inactive chips as well as which should be shown in the status
      * bar after accounting for possibly multiple ongoing activities and animation requirements.
      */
-    val chips: StateFlow<MultipleOngoingActivityChipsModel> =
+    private val unrefinedChips =
         if (StatusBarChipsModernization.isEnabled) {
             combine(
-                    incomingChipBundle.map { bundle -> rankChips(bundle) },
-                    isScreenReasonablyLarge,
-                ) { rankedChips, isScreenReasonablyLarge ->
-                    if (
-                        StatusBarNotifChips.isEnabled &&
-                            !isScreenReasonablyLarge &&
-                            rankedChips.active.filter { !it.isHidden }.size >= 2
-                    ) {
-                        // If we have at least two showing chips and we don't have a ton of room
-                        // (!isScreenReasonablyLarge), then we want to make both of them as small as
-                        // possible so that we have the highest chance of showing both chips (as
-                        // opposed to showing the first chip with a lot of text and completely
-                        // hiding the other chips).
-                        val squishedActiveChips =
-                            rankedChips.active.map {
-                                if (!it.isHidden && it.shouldSquish()) {
-                                    it.toIconOnly()
-                                } else {
-                                    it
-                                }
+                incomingChipBundle.map { bundle -> rankChips(bundle) },
+                displayStateInteractor.isWideScreen,
+            ) { rankedChips, isWideScreen ->
+                if (
+                    PromotedNotificationUi.isEnabled &&
+                        !isWideScreen &&
+                        rankedChips.active.filter { !it.isHidden }.size >= 2
+                ) {
+                    // If we have at least two showing chips and we don't have a ton of room
+                    // (!isWideScreen), then we want to make both of them as small as possible
+                    // so that we have the highest chance of showing both chips (as opposed to
+                    // showing the first chip with a lot of text and completely hiding the other
+                    // chips).
+                    val squishedActiveChips =
+                        rankedChips.active.map {
+                            if (!it.isHidden && it.shouldSquish()) {
+                                it.toIconOnly()
+                            } else {
+                                it
                             }
+                        }
 
-                        MultipleOngoingActivityChipsModel(
-                            active = squishedActiveChips,
-                            overflow = rankedChips.overflow,
-                            inactive = rankedChips.inactive,
-                        )
-                    } else {
-                        rankedChips
-                    }
+                    MultipleOngoingActivityChipsModel(
+                        active = squishedActiveChips,
+                        overflow = rankedChips.overflow,
+                        inactive = rankedChips.inactive,
+                    )
+                } else {
+                    rankedChips
                 }
-                .stateIn(scope, SharingStarted.Lazily, MultipleOngoingActivityChipsModel())
+            }
         } else {
-            MutableStateFlow(MultipleOngoingActivityChipsModel()).asStateFlow()
+            MutableStateFlow(MultipleOngoingActivityChipsModel())
         }
+
+    val chips: StateFlow<MultipleOngoingActivityChipsModel> =
+        unrefinedChips
+            .map { unrefinedChips ->
+                chipsRefiners.fold(unrefinedChips) { currentOutput, refiner ->
+                    refiner.transform(currentOutput)
+                }
+            }
+            .stateIn(scope, SharingStarted.Lazily, MultipleOngoingActivityChipsModel())
 
     /**
      * A flow modeling the primary chip that should be shown in the status bar after accounting for
@@ -331,7 +314,7 @@ constructor(
     val chipsLegacy: StateFlow<MultipleOngoingActivityChipsModelLegacy> =
         if (StatusBarChipsModernization.isEnabled) {
             MutableStateFlow(MultipleOngoingActivityChipsModelLegacy()).asStateFlow()
-        } else if (!StatusBarNotifChips.isEnabled) {
+        } else if (!PromotedNotificationUi.isEnabled) {
             // Multiple chips are only allowed with notification chips. If the flag isn't on, use
             // just the primary chip.
             primaryChip
@@ -358,20 +341,55 @@ constructor(
             chips.map { it.active }
         } else {
             chipsLegacy.map {
-                val list = mutableListOf<OngoingActivityChipModel.Active>()
-                if (it.primary is OngoingActivityChipModel.Active) {
-                    list.add(it.primary)
-                }
-                if (it.secondary is OngoingActivityChipModel.Active) {
-                    list.add(it.secondary)
-                }
-                list
+                listOf(it.primary, it.secondary).filterIsInstance<OngoingActivityChipModel.Active>()
             }
         }
 
+    /** Stores the latest on-screen bounds for each of the chips. */
+    // Note: This will also store bounds for chips that have been removed. We may want to clear the
+    // value for removed chips.
+    private val chipBounds = MutableStateFlow<Map<String, RectF>>(emptyMap())
+
+    /** Invoked each time a chip's on-screen bounds have changed. */
+    fun onChipBoundsChanged(key: String, newBounds: RectF) {
+        if (!StatusBarChipToHunAnimation.isEnabled) {
+            return
+        }
+        val map = chipBounds.value.toMutableMap()
+        val currentValue = map[key]
+        if (currentValue != null) {
+            currentValue.set(newBounds)
+        } else {
+            map[key] = newBounds
+        }
+        chipBounds.value = map
+    }
+
     /** A flow modeling just the keys for the currently visible chips. */
-    val visibleChipKeys: Flow<List<String>> =
+    private val visibleChipKeys: Flow<List<String>> =
         activeChips.map { chips -> chips.filter { !it.isHidden }.map { it.key } }
+
+    /** Placeholder chip bounds to use if {@link StatusBarChipToHunAnimation} is disabled. */
+    private val placeholderChipBounds = RectF()
+
+    /** A flow modeling the keys and on-screen bounds for the currently visible chips. */
+    val visibleChipsWithBounds: Flow<Map<String, RectF>> =
+        if (StatusBarChipToHunAnimation.isEnabled) {
+            combine(visibleChipKeys, chipBounds) { keys, chipBounds ->
+                    // TODO(b/393369891): Should we provide the placeholder bounds as a backup and
+                    // make those bounds public so that [NotificationStackScrollLayout] can do a
+                    // good default animation for chips even if we couldn't fetch the bounds for
+                    // some reason?
+                    keys.associateWith { chipBounds[it] }.filterValuesNotNull()
+                }
+                .distinctUntilChanged()
+        } else {
+            // If the custom chip-to-HUN animation isn't enabled, just provide any non-null
+            // chip bounds so that [NotificationStackScrollLayout] knows there's a status bar chip.
+            visibleChipKeys
+                .map { keys -> keys.associateWith { placeholderChipBounds } }
+                .distinctUntilChanged()
+        }
 
     /**
      * Sort the given chip [bundle] in order of priority, and divide the chips between active,
@@ -386,13 +404,7 @@ constructor(
         val inactiveChips = mutableListOf<OngoingActivityChipModel.Inactive>()
 
         val sortedChips =
-            mutableListOf(
-                    bundle.screenRecord,
-                    bundle.shareToApp,
-                    bundle.castToOtherDevice,
-                    bundle.call,
-                )
-                .apply { bundle.notifs.forEach { add(it) } }
+            with(bundle) { listOf(screenRecord, shareToApp, castToOtherDevice, call) + notifs }
 
         var shownSlotsRemaining = MAX_VISIBLE_CHIPS
         for (chip in sortedChips) {
@@ -539,9 +551,6 @@ constructor(
             OngoingActivityChipModel.Inactive()
         }
     }
-
-    private val Configuration.isLandscape: Boolean
-        get() = orientation == Configuration.ORIENTATION_LANDSCAPE
 
     companion object {
         private val TAG = "ChipsViewModel".pad()

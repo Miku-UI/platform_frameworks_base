@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Predvajanje v tem tabličnem računalniku"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"S storitvijo Poišči mojo napravo lahko ta telefon poiščete, tudi če je izklopljen"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"S storitvijo Poišči mojo napravo lahko ta tablični računalnik poiščete, tudi če je izklopljen"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"S storitvijo Središče za iskanje lahko ta telefon poiščete, tudi če je izklopljen"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"S storitvijo Središče za iskanje lahko ta tablični računalnik poiščete, tudi če je izklopljen"</string>
 </resources>

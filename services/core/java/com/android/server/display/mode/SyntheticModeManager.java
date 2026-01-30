@@ -85,8 +85,9 @@ public class SyntheticModeManager {
             Size size = entry.getKey();
             int[] hdrTypes = entry.getValue();
             appSupportedModes.add(
-                    new Display.Mode(nextModeId, size.getWidth(), size.getHeight(), 60f, 60f, true,
-                            new float[0], hdrTypes));
+                    new Display.Mode(nextModeId, Display.Mode.INVALID_MODE_ID,
+                            Display.Mode.FLAG_ARR_RENDER_RATE, size.getWidth(), size.getHeight(),
+                            60f, 60f, new float[0], hdrTypes));
         }
         Display.Mode[] appSupportedModesArr = new Display.Mode[appSupportedModes.size()];
         return appSupportedModes.toArray(appSupportedModesArr);

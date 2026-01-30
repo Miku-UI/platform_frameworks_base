@@ -154,6 +154,7 @@ class MobileConnectionsRepositoryKairosTest : SysuiTestCase() {
                 WifiRepositoryImpl(
                     applicationContext,
                     userRepository,
+                    connectivityRepository,
                     applicationCoroutineScope,
                     mainExecutor,
                     testDispatcher,

@@ -119,17 +119,6 @@ public class ThermalStatusRestriction extends JobRestriction {
                         || (mService.isCurrentlyRunningLocked(job)
                                 && mService.isJobInOvertimeLocked(job));
             }
-            if (Flags.thermalRestrictionsToFgsJobs()) {
-                // Only let foreground jobs run if:
-                // 1. They haven't previously run
-                // 2. They're already running and aren't yet in overtime
-                if (bias >= JobInfo.BIAS_FOREGROUND_SERVICE
-                        && job.getJob().isImportantWhileForeground()) {
-                    return job.getNumPreviousAttempts() > 0
-                            || (mService.isCurrentlyRunningLocked(job)
-                                    && mService.isJobInOvertimeLocked(job));
-                }
-            }
             if (priority == JobInfo.PRIORITY_HIGH) {
                 return !mService.isCurrentlyRunningLocked(job)
                         || mService.isJobInOvertimeLocked(job);

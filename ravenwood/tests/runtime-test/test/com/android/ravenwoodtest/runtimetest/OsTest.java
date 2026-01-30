@@ -36,7 +36,7 @@ import android.system.StructTimespec;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import com.android.ravenwood.common.JvmWorkaround;
+import com.android.ravenwood.OpenJdkWorkaround;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -122,7 +122,7 @@ public class OsTest {
             var dupInt = Os.fcntlInt(fd, 0, 0);
 
             var dup = new FileDescriptor();
-            JvmWorkaround.getInstance().setFdInt(dup, dupInt);
+            OpenJdkWorkaround.setFdInt(dup, dupInt);
 
             checkAreDup(fd, dup);
         });

@@ -19,9 +19,9 @@ package com.android.systemui.navigationbar;
 import androidx.annotation.Nullable;
 
 import com.android.internal.statusbar.RegisterStatusBarResult;
-import com.android.systemui.shared.statusbar.phone.BarTransitions;
 import com.android.systemui.navigationbar.views.NavigationBar;
 import com.android.systemui.navigationbar.views.NavigationBarView;
+import com.android.systemui.shared.statusbar.phone.BarTransitions;
 
 /** A controller to handle navigation bars. */
 public interface NavigationBarController {
@@ -76,4 +76,7 @@ public interface NavigationBarController {
     /** @return {@link NavigationBar} for a specific display, or null if not available. */
     @Nullable
     NavigationBar getNavigationBar(int displayId);
+
+    /** Returns whether Navbar (or Taskbar) is allowed to be created on the given display. */
+    boolean canCreateNavBarOrTaskBar(int displayId);
 }

@@ -21,6 +21,8 @@ import android.graphics.FrameInfo;
 import android.os.Build;
 import android.os.Looper;
 import android.os.MessageQueue;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -42,6 +44,7 @@ import java.lang.ref.WeakReference;
  * @hide
  */
 @WeaklyReferencedCallback
+@RavenwoodKeepPartialClass
 public abstract class DisplayEventReceiver {
 
     /**
@@ -73,6 +76,13 @@ public abstract class DisplayEventReceiver {
      * Keep in sync with frameworks/native/libs/gui/aidl/android/gui/ISurfaceComposer.aidl
      */
     public static final int EVENT_REGISTRATION_FRAME_RATE_OVERRIDE_FLAG = 0x2;
+
+    /**
+     * Specifies to generate mode rejected events from Surface Flinger.
+     * <p>
+     * Keep in sync with frameworks/native/libs/gui/aidl/android/gui/ISurfaceComposer.aidl
+     */
+    public static final int EVENT_REGISTRATION_MODE_REJECTED_FLAG = 0x4;
 
     private static final String TAG = "DisplayEventReceiver";
 
@@ -153,6 +163,7 @@ public abstract class DisplayEventReceiver {
      *
      * @hide
      */
+    @RavenwoodKeepWholeClass
     public static final class VsyncEventData {
         // The max capacity of frame timeline choices.
         // Must be in sync with VsyncEventData::kFrameTimelinesCapacity in
@@ -281,16 +292,25 @@ public abstract class DisplayEventReceiver {
     }
 
     /**
-     * Called when a display mode changed event is received.
+     * Called when a display mode and frame rate overrides changed event is received.
      *
      * @param timestampNanos The timestamp of the event, in the {@link System#nanoTime()}
      * timebase.
      * @param physicalDisplayId Stable display ID that uniquely describes a (display, port) pair.
      * @param modeId The new mode ID
      * @param renderPeriod The render frame period, which is a multiple of the mode's vsync period
+     * @param appVsyncOffsetNanos The offset from the vsync of the display refresh rate.
+     * @param presentationDeadlineNanos The time in nanoseconds by which the frame should be ready
+     *                             from the target vsync, if target vsync is N then the frame
+     *                             should be ready by N - presentationDeadlineNanos.
+     * @param overrides The mappings from uid to frame rates
+     * @param supportedRefreshRates The list of refresh rates supported on the display
      */
-    public void onModeChanged(long timestampNanos, long physicalDisplayId, int modeId,
-            long renderPeriod) {
+    public void onModeAndFrameRateOverridesChanged(long timestampNanos,
+            long physicalDisplayId,  int modeId,  long renderPeriod,
+            long appVsyncOffsetNanos,
+            long presentationDeadlineNanos, FrameRateOverride[] overrides,
+            float[] supportedRefreshRates) {
     }
 
     /**
@@ -336,18 +356,6 @@ public abstract class DisplayEventReceiver {
     }
 
     /**
-     * Called when frame rate override event is received.
-     *
-     * @param timestampNanos The timestamp of the event, in the {@link System#nanoTime()}
-     * timebase.
-     * @param physicalDisplayId Stable display ID that uniquely describes a (display, port) pair.
-     * @param overrides The mappings from uid to frame rates
-     */
-    public void onFrameRateOverridesChanged(long timestampNanos, long physicalDisplayId,
-            FrameRateOverride[] overrides) {
-    }
-
-    /**
      * Schedules a single vertical sync pulse to be delivered when the next
      * display frame begins.
      */
@@ -388,22 +396,19 @@ public abstract class DisplayEventReceiver {
 
     // Called from native code.
     @SuppressWarnings("unused")
-    private void dispatchModeChanged(long timestampNanos, long physicalDisplayId, int modeId,
-            long renderPeriod) {
-        onModeChanged(timestampNanos, physicalDisplayId, modeId, renderPeriod);
+    private void dispatchModeChangedWithFrameRateOverrides(long timestampNanos,
+            long physicalDisplayId, int modeId, long renderPeriod, long appVsyncOffsetNanos,
+            long presentationDeadlineNanos, FrameRateOverride[] overrides,
+            float[] supportedRefreshRates) {
+        onModeAndFrameRateOverridesChanged(timestampNanos, physicalDisplayId, modeId,
+                renderPeriod, appVsyncOffsetNanos, presentationDeadlineNanos, overrides,
+                supportedRefreshRates);
     }
 
     // Called from native code.
     @SuppressWarnings("unused")
     private void dispatchModeRejected(long physicalDisplayId, int modeId) {
         onModeRejected(physicalDisplayId, modeId);
-    }
-
-    // Called from native code.
-    @SuppressWarnings("unused")
-    private void dispatchFrameRateOverrides(long timestampNanos, long physicalDisplayId,
-            FrameRateOverride[] overrides) {
-        onFrameRateOverridesChanged(timestampNanos, physicalDisplayId, overrides);
     }
 
     // Called from native code.

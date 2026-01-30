@@ -16,16 +16,9 @@
 
 package com.android.wm.shell.scenarios
 
-import android.tools.NavBar
 import android.tools.Rotation
-import android.tools.flicker.rules.ChangeDisplayOrientationRule
-import com.android.window.flags.Flags
-import com.android.wm.shell.Utils
 import org.junit.After
-import org.junit.Assume
-import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 @Ignore("Test Base Class")
@@ -34,20 +27,7 @@ constructor(
     val rotation: Rotation = Rotation.ROTATION_0,
     isResizeable: Boolean = true,
     isLandscapeApp: Boolean = true,
-) : DesktopScenarioCustomAppTestBase(isResizeable, isLandscapeApp) {
-
-    @Rule @JvmField val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, rotation)
-
-    @Before
-    fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopWindowingMode() && tapl.isTablet)
-        tapl.setEnableRotation(true)
-        tapl.setExpectedRotation(rotation.value)
-        ChangeDisplayOrientationRule.setRotation(rotation)
-        tapl.enableTransientTaskbar(false)
-        testApp.exit(wmHelper)
-    }
-
+) : DesktopScenarioCustomAppTestBase(isResizeable, isLandscapeApp, rotation) {
     @Test
     open fun enterDesktopWithDrag() {
         // By default this method uses drag to desktop

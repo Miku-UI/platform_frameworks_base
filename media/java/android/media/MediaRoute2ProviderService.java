@@ -17,6 +17,7 @@
 package android.media;
 
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
+import static com.android.media.flags.Flags.FLAG_ENABLE_ROUTE_VISIBILITY_CONTROL_API;
 
 import static java.util.Objects.requireNonNull;
 
@@ -55,6 +56,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Deque;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -587,7 +589,7 @@ public abstract class MediaRoute2ProviderService extends Service {
         if (audioManager == null) {
             return;
         }
-        audioRecord.stop();
+        audioRecord.release();
         audioManager.unregisterAudioPolicy(audioPolicy);
     }
 
@@ -756,6 +758,29 @@ public abstract class MediaRoute2ProviderService extends Service {
      * @param preference the new discovery preference
      */
     public void onDiscoveryPreferenceChanged(@NonNull RouteDiscoveryPreference preference) {}
+
+    /**
+     * Called when any individual app's {@link RouteDiscoveryPreference discovery preference} has
+     * changed, which typically means the composite preference has also changed.
+     *
+     * <p>This is similar to {@link #onDiscoveryPreferenceChanged(RouteDiscoveryPreference)} but
+     * provides more granular per-app preference information if the provider has permission to see
+     * it.
+     *
+     * @param compositePreference A composite object aggregating the route preferences for all apps
+     *                            with registered {@link MediaRouter2.RouteCallback callbacks}.
+     * @param perAppPreferences   A mapping of app package name to the
+     *                            {@link RouteDiscoveryPreference discovery preference} just for
+     *                            that app. This map will only be populated if the caller holds the
+     *                            {@link Manifest.permission#MEDIA_CONTENT_CONTROL
+     *                            MEDIA_CONTENT_CONTROL} permission.
+     */
+    @FlaggedApi(FLAG_ENABLE_ROUTE_VISIBILITY_CONTROL_API)
+    @RequiresPermission(value = Manifest.permission.MEDIA_CONTENT_CONTROL, conditional = true)
+    public void onDiscoveryPreferenceChanged(@NonNull RouteDiscoveryPreference compositePreference,
+            @NonNull Map<String, RouteDiscoveryPreference> perAppPreferences) {
+        onDiscoveryPreferenceChanged(compositePreference);
+    }
 
     /**
      * Updates routes of the provider and notifies the system media router service.
@@ -943,13 +968,15 @@ public abstract class MediaRoute2ProviderService extends Service {
         }
 
         @Override
-        public void updateDiscoveryPreference(RouteDiscoveryPreference discoveryPreference) {
+        public void updateDiscoveryPreference(RouteDiscoveryPreference discoveryPreference,
+                @NonNull Map<String, RouteDiscoveryPreference> perAppPreferences) {
             if (!checkCallerIsSystem()) {
                 return;
             }
             mHandler.sendMessage(obtainMessage(
                     MediaRoute2ProviderService::onDiscoveryPreferenceChanged,
-                    MediaRoute2ProviderService.this, discoveryPreference));
+                    MediaRoute2ProviderService.this, discoveryPreference,
+                    perAppPreferences));
         }
 
         @Override

@@ -30,6 +30,7 @@ class FakeWindowManager(private val context: Context) : WindowManager {
 
     override fun removeView(view: View) {
         addedViews.remove(view)
+            ?: throw IllegalArgumentException("$view not attached to window manager")
     }
 
     override fun updateViewLayout(view: View, params: ViewGroup.LayoutParams) {
@@ -49,7 +50,7 @@ class FakeWindowManager(private val context: Context) : WindowManager {
     }
 
     override fun removeViewImmediate(view: View) {
-        addedViews.remove(view)
+        removeView(view)
     }
 
     override fun requestAppKeyboardShortcuts(

@@ -201,7 +201,6 @@ public interface AttachedSurfaceControl {
      * registered input
      */
     @NonNull
-    @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
     default InputTransferToken getInputTransferToken() {
         throw new UnsupportedOperationException("The getInputTransferToken needs to be "
                 + "implemented before making this call.");

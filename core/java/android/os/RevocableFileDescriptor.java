@@ -41,7 +41,7 @@ import java.io.InterruptedIOException;
  */
 public class RevocableFileDescriptor {
     private static final String TAG = "RevocableFileDescriptor";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private FileDescriptor mInner;
     private ParcelFileDescriptor mOuter;
@@ -50,7 +50,7 @@ public class RevocableFileDescriptor {
 
     private ParcelFileDescriptor.OnCloseListener mOnCloseListener;
 
-    /** {@hide} */
+    /** @hide */
     public RevocableFileDescriptor() {
     }
 
@@ -78,12 +78,12 @@ public class RevocableFileDescriptor {
         init(context, fd, handler);
     }
 
-    /** {@hide} */
+    /** @hide */
     public void init(Context context, FileDescriptor fd) throws IOException {
         init(context, fd, null);
     }
 
-    /** {@hide} */
+    /** @hide */
     public void init(Context context, FileDescriptor fd, Handler handler) throws IOException {
         mInner = fd;
         StorageManager sm = context.getSystemService(StorageManager.class);

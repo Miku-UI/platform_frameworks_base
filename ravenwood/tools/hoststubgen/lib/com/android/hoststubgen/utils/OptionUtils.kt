@@ -19,6 +19,7 @@ import com.android.hoststubgen.ArgumentsException
 import com.android.hoststubgen.InputFileNotFoundException
 import com.android.hoststubgen.JarResourceNotFoundException
 import com.android.hoststubgen.log
+import com.android.hoststubgen.logOptions
 import com.android.hoststubgen.normalizeTextLine
 import java.io.File
 import java.io.FileReader
@@ -41,7 +42,7 @@ abstract class BaseOptions {
         while (true) {
             val arg = ai.nextArgOptional() ?: break
 
-            if (log.maybeHandleCommandLineArg(arg) { ai.nextArgRequired(arg) }) {
+            if (logOptions.maybeHandleCommandLineArg(arg) { ai.nextArgRequired(arg) }) {
                 continue
             }
             try {
@@ -226,6 +227,10 @@ class FileOrResource(val path: String) {
         } else {
             FileReader(path)
         }
+    }
+
+    override fun toString(): String {
+        return path
     }
 }
 

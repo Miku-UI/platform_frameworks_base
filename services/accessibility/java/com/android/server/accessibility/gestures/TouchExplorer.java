@@ -188,7 +188,7 @@ public class TouchExplorer extends BaseEventStreamTransformation
         mAms = service;
         mState = new TouchState(mDisplayId, mAms);
         mReceivedPointerTracker = mState.getReceivedPointerTracker();
-        mDispatcher = new EventDispatcher(context, mAms, super.getNext(), mState);
+        mDispatcher = new EventDispatcher(context, mDisplayId, mAms, super.getNext(), mState);
         mDetermineUserIntentTimeout = ViewConfiguration.getDoubleTapTimeout();
         mDoubleTapSlop = ViewConfiguration.get(context).getScaledDoubleTapSlop();
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
@@ -414,8 +414,9 @@ public class TouchExplorer extends BaseEventStreamTransformation
             mSendTouchExplorationEndDelayed.forceSendAndRemove();
         }
 
-        // Announce the end of a new touch interaction.
-        mDispatcher.sendAccessibilityEvent(TYPE_TOUCH_INTERACTION_END);
+        if (mReceivedPointerTracker.getReceivedPointerDownCount() == 0) {
+            mDispatcher.sendAccessibilityEvent(TYPE_TOUCH_INTERACTION_END);
+        }
         mSendTouchInteractionEndDelayed.cancel();
         // Try to use the standard accessibility API to click
         if (!mAms.performActionOnAccessibilityFocusedItem(
@@ -497,14 +498,13 @@ public class TouchExplorer extends BaseEventStreamTransformation
 
                 // We have just decided that the user is touch,
                 // exploring so start sending events.
-                mSendHoverEnterAndMoveDelayed.addEvent(event,
-                        Flags.eventDispatcherRawEvent() ? rawEvent : mState.getLastReceivedEvent());
+                mSendHoverEnterAndMoveDelayed.addEvent(event, rawEvent);
                 mSendHoverEnterAndMoveDelayed.forceSendAndRemove();
                 mSendHoverExitDelayed.cancel();
                 mDispatcher.sendMotionEvent(
                         event,
                         ACTION_HOVER_MOVE,
-                        Flags.eventDispatcherRawEvent() ? rawEvent : event,
+                        rawEvent,
                         pointerIdBits,
                         policyFlags);
                 return true;
@@ -654,11 +654,8 @@ public class TouchExplorer extends BaseEventStreamTransformation
                 handleActionUp(event, rawEvent, policyFlags);
                 break;
             case ACTION_POINTER_UP:
-                if (com.android.server.accessibility.Flags
-                        .pointerUpMotionEventInTouchExploration()) {
-                    if (mState.isServiceDetectingGestures()) {
-                        mAms.sendMotionEventToListeningServices(rawEvent);
-                    }
+                if (mState.isServiceDetectingGestures()) {
+                    mAms.sendMotionEventToListeningServices(rawEvent);
                 }
                 break;
             default:
@@ -1122,8 +1119,7 @@ public class TouchExplorer extends BaseEventStreamTransformation
             mDispatcher.sendMotionEvent(
                     event,
                     ACTION_HOVER_EXIT,
-                    Flags.eventDispatcherRawEvent() ? mState.getLastReceivedRawEvent() :
-                            mState.getLastReceivedEvent(),
+                    mState.getLastReceivedRawEvent(),
                     pointerIdBits,
                     policyFlags);
         }
@@ -1145,8 +1141,7 @@ public class TouchExplorer extends BaseEventStreamTransformation
             mDispatcher.sendMotionEvent(
                     event,
                     ACTION_HOVER_ENTER,
-                    Flags.eventDispatcherRawEvent() ? mState.getLastReceivedRawEvent() :
-                            mState.getLastReceivedEvent(),
+                    mState.getLastReceivedRawEvent(),
                     pointerIdBits,
                     policyFlags);
         }
@@ -1611,19 +1606,6 @@ public class TouchExplorer extends BaseEventStreamTransformation
                 dispatchGesture(gestureEvent);
             }
             if (!mEvents.isEmpty() && !mRawEvents.isEmpty()) {
-                if (Flags.resetInputDispatcherBeforeFirstTouchExploration()
-                        && !mState.hasResetInputDispatcherState()) {
-                    // Cancel any possible ongoing touch gesture from before touch exploration
-                    // started. This clears out the InputDispatcher event stream state so that it
-                    // is ready to accept new injected HOVER events.
-                    mDispatcher.sendMotionEvent(
-                            mEvents.get(0),
-                            ACTION_CANCEL,
-                            mRawEvents.get(0),
-                            mPointerIdBits,
-                            mPolicyFlags);
-                    setHasResetInputDispatcherState(true);
-                }
                 // Deliver a down event.
                 mDispatcher.sendMotionEvent(
                         mEvents.get(0),
@@ -1783,10 +1765,5 @@ public class TouchExplorer extends BaseEventStreamTransformation
                 + ", mDoubleTapSlop: " + mDoubleTapSlop
                 + ", mDraggingPointerId: " + mDraggingPointerId
                 + " }";
-    }
-
-    @VisibleForTesting
-    void setHasResetInputDispatcherState(boolean value) {
-        mState.setHasResetInputDispatcherState(value);
     }
 }

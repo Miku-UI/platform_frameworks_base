@@ -197,11 +197,9 @@ public final class CarrierRestrictionRules implements Parcelable {
         mCarrierRestrictionDefault = in.readInt();
         mMultiSimPolicy = in.readInt();
         mCarrierRestrictionStatus = in.readInt();
-        if (Flags.carrierRestrictionRulesEnhancement()) {
-            in.readTypedList(mAllowedCarrierInfo, CarrierInfo.CREATOR);
-            in.readTypedList(mExcludedCarrierInfo, CarrierInfo.CREATOR);
-            mUseCarrierLockInfo = in.readBoolean();
-        }
+        in.readTypedList(mAllowedCarrierInfo, CarrierInfo.CREATOR);
+        in.readTypedList(mExcludedCarrierInfo, CarrierInfo.CREATOR);
+        mUseCarrierLockInfo = in.readBoolean();
     }
 
     /**
@@ -220,7 +218,7 @@ public final class CarrierRestrictionRules implements Parcelable {
                 == TelephonyManager.CARRIER_RESTRICTION_STATUS_NOT_RESTRICTED) {
             return true;
         }
-        if (Flags.carrierRestrictionRulesEnhancement() && mUseCarrierLockInfo) {
+        if (mUseCarrierLockInfo) {
             return (mAllowedCarrierInfo.isEmpty() && mExcludedCarrierInfo.isEmpty()
                     && mCarrierRestrictionDefault == CARRIER_RESTRICTION_DEFAULT_ALLOWED);
         }
@@ -427,11 +425,9 @@ public final class CarrierRestrictionRules implements Parcelable {
         out.writeInt(mCarrierRestrictionDefault);
         out.writeInt(mMultiSimPolicy);
         out.writeInt(mCarrierRestrictionStatus);
-        if (Flags.carrierRestrictionRulesEnhancement()) {
-            out.writeTypedList(mAllowedCarrierInfo);
-            out.writeTypedList(mExcludedCarrierInfo);
-            out.writeBoolean(mUseCarrierLockInfo);
-        }
+        out.writeTypedList(mAllowedCarrierInfo);
+        out.writeTypedList(mExcludedCarrierInfo);
+        out.writeBoolean(mUseCarrierLockInfo);
     }
 
     /**
@@ -469,12 +465,8 @@ public final class CarrierRestrictionRules implements Parcelable {
     }
 
     private String getCarrierInfoList() {
-        if (Flags.carrierRestrictionRulesEnhancement()) {
-            return ",  allowedCarrierInfoList:" + mAllowedCarrierInfo
-                    + ", excludedCarrierInfoList:" + mExcludedCarrierInfo;
-        } else {
-            return "";
-        }
+        return ",  allowedCarrierInfoList:" + mAllowedCarrierInfo
+                + ", excludedCarrierInfoList:" + mExcludedCarrierInfo;
     }
 
     private String getCarrierRestrictionStatusToLog() {
@@ -506,13 +498,11 @@ public final class CarrierRestrictionRules implements Parcelable {
             mRules.mAllowedCarriers.clear();
             mRules.mExcludedCarriers.clear();
             mRules.mCarrierRestrictionDefault = CARRIER_RESTRICTION_DEFAULT_ALLOWED;
-            if (Flags.carrierRestrictionRulesEnhancement()) {
-                mRules.mCarrierRestrictionStatus =
-                        TelephonyManager.CARRIER_RESTRICTION_STATUS_NOT_RESTRICTED;
-                mRules.mAllowedCarrierInfo.clear();
-                mRules.mExcludedCarrierInfo.clear();
-                mRules.mUseCarrierLockInfo = false;
-            }
+            mRules.mCarrierRestrictionStatus =
+                    TelephonyManager.CARRIER_RESTRICTION_STATUS_NOT_RESTRICTED;
+            mRules.mAllowedCarrierInfo.clear();
+            mRules.mExcludedCarrierInfo.clear();
+            mRules.mUseCarrierLockInfo = false;
             return this;
         }
 

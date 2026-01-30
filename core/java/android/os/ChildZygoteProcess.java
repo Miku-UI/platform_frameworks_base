@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Represents a connection to a child-zygote process. A child-zygote is spawend from another
  * zygote process using {@link startChildZygote()}.
  *
- * {@hide}
+ * @hide
  */
 public class ChildZygoteProcess extends ZygoteProcess {
     /**

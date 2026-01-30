@@ -319,6 +319,12 @@ object TestShortcuts {
             )
             .apply { packageName = standardPackageName1 }
 
+    private val standardAppSubCategory1 =
+        ShortcutSubCategory(
+            standardAppGroup1.label!!.toString(),
+            listOf(standardShortcut1, standardShortcut2, standardShortcut3),
+        )
+
     private val standardSystemAppSubcategoryWithCustomHomeShortcut =
         ShortcutSubCategory("System controls", listOf(customGoHomeShortcut))
 
@@ -396,6 +402,11 @@ object TestShortcuts {
         )
 
     val currentAppGroups = listOf(standardAppGroup1)
+    val currentAppCategory =
+        ShortcutCategory(
+            type = ShortcutCategoryType.CurrentApp(standardAppGroup1.packageName.toString()),
+            subCategories = listOf(standardAppSubCategory1),
+        )
     val currentAppPackageName = standardPackageName1
 
     val systemGroups = listOf(standardGroup3, standardGroup2, standardGroup1)
@@ -538,7 +549,9 @@ object TestShortcuts {
             simpleShortcutCategory(System, "System apps", "Open settings"),
             simpleShortcutCategory(System, "System controls", "Lock screen"),
             simpleShortcutCategory(System, "System controls", "View notifications"),
+            simpleShortcutCategory(System, "System controls", "View quick settings"),
             simpleShortcutCategory(System, "System controls", "Take screenshot"),
+            simpleShortcutCategory(System, "System controls", "Take partial screenshot"),
             simpleShortcutCategory(System, "System controls", "Go back"),
             simpleShortcutCategory(MultiTasking, "Split screen", "Use full screen"),
             simpleShortcutCategory(
@@ -570,7 +583,13 @@ object TestShortcuts {
                 keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL
             ),
             simpleInputGestureData(
+                keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_QUICK_SETTINGS_PANEL
+            ),
+            simpleInputGestureData(
                 keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT
+            ),
+            simpleInputGestureData(
+                keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT
             ),
             simpleInputGestureData(keyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_BACK),
             simpleInputGestureData(

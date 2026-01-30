@@ -2,55 +2,9 @@ package: "android.tracing"
 container: "system"
 
 flag {
-    name: "perfetto_transition_tracing"
-    namespace: "windowing_tools"
-    description: "Move transition tracing to Perfetto"
-    bug: "309630341"
-}
-
-flag {
-    name: "perfetto_protolog_tracing"
-    namespace: "windowing_tools"
-    description: "Migrate protolog to Perfetto"
-    bug: "276432490"
-    is_fixed_read_only: true
-}
-
-flag {
-    name: "perfetto_ime_tracing"
-    namespace: "windowing_tools"
-    description: "Migrate IME tracing to Perfetto"
-    bug: "276433199"
-}
-
-flag {
-    name: "perfetto_ime"
-    namespace: "windowing_tools"
-    description: "Migrate IME tracing to Perfetto"
-    is_fixed_read_only: true
-    bug: "276433199"
-}
-
-flag {
-    name: "perfetto_view_capture_tracing"
-    namespace: "windowing_tools"
-    description: "Migrate ViewCapture tracing to Perfetto"
-    is_fixed_read_only: true
-    bug: "323166383"
-}
-
-flag {
     name: "perfetto_wm_tracing"
     namespace: "windowing_tools"
     description: "Migrate WindowManager tracing to Perfetto"
-    is_fixed_read_only: true
-    bug: "323165543"
-}
-
-flag {
-    name: "perfetto_wm_dump"
-    namespace: "windowing_tools"
-    description: "Migrate WindowManager dump to Perfetto"
     is_fixed_read_only: true
     bug: "323165543"
 }
@@ -64,17 +18,32 @@ flag {
 }
 
 flag {
-    name: "client_side_proto_logging"
+    name: "imetracker_protolog"
     namespace: "windowing_tools"
-    description: "Add support for client side protologging"
+    description: "Execute protologging in IMETracker"
     is_fixed_read_only: true
-    bug: "352538294"
+    bug: "410517697"
 }
 
 flag {
-    name: "system_server_large_perfetto_shmem_buffer"
+    name: "sysui_large_perfetto_shmem_buffer"
     namespace: "windowing_tools"
-    description: "Large perfetto shmem buffer"
+    description: "Large perfetto shmem buffer in sysui"
     is_fixed_read_only: true
-    bug: "382369925"
+    bug: "420587648"
+}
+
+flag {
+    name: "native_proto_logging"
+    namespace: "windowing_tools"
+    description: "Add support for native protologging"
+    is_fixed_read_only: true
+    bug: "419809577"
+}
+
+flag {
+    name: "protolog_auto_clear_incremental_state"
+    namespace: "windowing_tools"
+    description: "Clear incremental state when protolog is enabled"
+    bug: "441704171"
 }

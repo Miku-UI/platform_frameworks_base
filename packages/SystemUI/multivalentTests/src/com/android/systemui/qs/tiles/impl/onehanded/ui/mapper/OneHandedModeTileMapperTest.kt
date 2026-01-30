@@ -22,7 +22,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.qs.tileimpl.SubtitleArrayMapping
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
 import com.android.systemui.qs.tiles.base.ui.model.QSTileStateSubject
 import com.android.systemui.qs.tiles.impl.onehanded.domain.model.OneHandedModeTileModel
@@ -38,8 +37,6 @@ import org.junit.runner.RunWith
 class OneHandedModeTileMapperTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val config = kosmos.qsOneHandedModeTileConfig
-    private val subtitleArrayId = SubtitleArrayMapping.getSubtitleId(config.tileSpec.spec)
-    private val subtitleArray by lazy { context.resources.getStringArray(subtitleArrayId) }
 
     private lateinit var mapper: OneHandedModeTileMapper
 
@@ -65,8 +62,7 @@ class OneHandedModeTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(config, inputModel)
 
-        val expectedState =
-            createOneHandedModeTileState(QSTileState.ActivationState.INACTIVE, subtitleArray[1])
+        val expectedState = createOneHandedModeTileState(QSTileState.ActivationState.INACTIVE)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
@@ -76,14 +72,12 @@ class OneHandedModeTileMapperTest : SysuiTestCase() {
 
         val outputState = mapper.map(config, inputModel)
 
-        val expectedState =
-            createOneHandedModeTileState(QSTileState.ActivationState.ACTIVE, subtitleArray[2])
+        val expectedState = createOneHandedModeTileState(QSTileState.ActivationState.ACTIVE)
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
     }
 
     private fun createOneHandedModeTileState(
-        activationState: QSTileState.ActivationState,
-        secondaryLabel: String,
+        activationState: QSTileState.ActivationState
     ): QSTileState {
         val label = context.getString(R.string.quick_settings_onehanded_label)
         return QSTileState(
@@ -94,10 +88,10 @@ class OneHandedModeTileMapperTest : SysuiTestCase() {
             ),
             label,
             activationState,
-            secondaryLabel,
+            secondaryLabel = null,
             setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
             label,
-            null,
+            stateDescription = null,
             QSTileState.SideViewIcon.None,
             QSTileState.EnabledState.ENABLED,
             Switch::class.qualifiedName,

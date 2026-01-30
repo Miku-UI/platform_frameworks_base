@@ -18,7 +18,9 @@ package android.hardware.camera2.extension;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SystemApi;
+import android.graphics.ImageFormat;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
@@ -28,6 +30,7 @@ import android.hardware.camera2.impl.CameraMetadataNative;
 import android.hardware.camera2.impl.CaptureCallback;
 import android.util.Log;
 import android.util.Pair;
+import android.util.Range;
 import android.util.Size;
 
 import com.android.internal.camera.flags.Flags;
@@ -36,6 +39,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executor;
 
 /**
  * Advanced contract for implementing Extensions. ImageCapture/Preview
@@ -241,6 +245,64 @@ public abstract class AdvancedExtender {
             @NonNull String cameraId);
 
     /**
+     * Returns the estimated capture latency range in milliseconds for the
+     * target capture resolution during the calls to
+     * {@link SessionProcessor#startMultiFrameCapture(Executor, SessionProcessor.CaptureCallback)}.
+     * This includes the time spent processing the multi-frame capture request along with any
+     * additional time for encoding of the processed buffer if necessary.
+     *
+     * @param captureOutputSize size of the capture output surface. If it is not in the supported
+     *                          output sizes, maximum capture output size is used for the estimation
+     * @param format            device-specific extension output format
+     * @return the range of estimated minimal and maximal capture latency in milliseconds
+     * or null if no capture latency info can be provided
+     */
+    @FlaggedApi(Flags.FLAG_EFV_CAPTURE_LATENCY)
+    public @Nullable Range<Long> getEstimatedCaptureLatencyRangeMillis(
+            @NonNull Size captureOutputSize, @ImageFormat.Format int format) {
+        throw new UnsupportedOperationException("Subclasses must override this method");
+    }
+
+    /**
+     * Retrieve support for capture progress callbacks via
+     *  {@link SessionProcessor.CaptureCallback#onCaptureProcessProgressed(int)}.
+     *
+     * @return {@code true} in case progress callbacks are supported, {@code false} otherwise
+     */
+    @FlaggedApi(Flags.FLAG_EFV_CAPTURE_LATENCY)
+    public boolean isCaptureProcessProgressAvailable() {
+        throw new UnsupportedOperationException("Subclasses must override this method");
+    }
+
+    /**
+     * Indicates whether the extension supports the postview for still capture feature.
+     *
+     * @return true if the feature is supported, otherwise false
+     */
+    @FlaggedApi(Flags.FLAG_EFV_CAPTURE_LATENCY)
+    public boolean isPostviewAvailable() {
+        throw new UnsupportedOperationException("Subclasses must override this method");
+    }
+
+    /**
+     * Returns supported output format/size map for postview image. OEM is required to
+     * support both JPEG and YUV_420_888 format output.
+     *
+     * <p>The returned sizes must be smaller than or equal to the provided capture
+     *   size and have the same aspect ratio as the given capture size. If no supported
+     *   resolution exists for the provided capture size then an empty map is returned.
+     *   An example of how the map is parsed can be found in {@link #initializeParcelable(Map)}.</p>
+     * @param captureSize The still capture resolution
+     * @see ImageFormat
+     */
+    @FlaggedApi(Flags.FLAG_EFV_CAPTURE_LATENCY)
+    @NonNull
+    public Map<@ImageFormat.Format Integer, List<Size>> getSupportedPostviewOutputResolutions(
+            @NonNull Size captureSize) {
+        throw new UnsupportedOperationException("Subclasses must override this method");
+    }
+
+    /**
      * Returns a list of {@link CameraCharacteristics} key/value pairs for apps to use when
      * querying the Extensions specific {@link CameraCharacteristics}.
      *
@@ -280,8 +342,13 @@ public abstract class AdvancedExtender {
         @Override
         public List<SizeList> getSupportedPostviewResolutions(
                 android.hardware.camera2.extension.Size captureSize) {
-            // Feature is currently unsupported
-            return null;
+            if (Flags.efvCaptureLatency()) {
+                Size sz = new Size(captureSize.width, captureSize.height);
+                return initializeParcelable(
+                        AdvancedExtender.this.getSupportedPostviewOutputResolutions(sz));
+            } else {
+                return null;
+            }
         }
 
         @Override
@@ -299,13 +366,25 @@ public abstract class AdvancedExtender {
         @Override
         public LatencyRange getEstimatedCaptureLatencyRange(String cameraId,
                 android.hardware.camera2.extension.Size outputSize, int format) {
-            // Feature is currently unsupported
-            return null;
+            if (Flags.efvCaptureLatency()) {
+                Range<Long> range = AdvancedExtender.this.getEstimatedCaptureLatencyRangeMillis(
+                        new Size(outputSize.width, outputSize.height), format);
+                if (range == null) {
+                    return null;
+                }
+
+                LatencyRange ret = new LatencyRange();
+                ret.max = range.getUpper();
+                ret.min = range.getLower();
+                return ret;
+            } else {
+                return null;
+            }
         }
 
         @Override
         public ISessionProcessorImpl getSessionProcessor() {
-            SessionProcessor processor =AdvancedExtender.this.getSessionProcessor();
+            SessionProcessor processor = AdvancedExtender.this.getSessionProcessor();
             processor.setCameraUsageTracker(mCameraUsageTracker);
             return processor.getSessionProcessorBinder();
         }
@@ -356,14 +435,20 @@ public abstract class AdvancedExtender {
 
         @Override
         public boolean isCaptureProcessProgressAvailable() {
-            // Feature is currently unsupported
-            return false;
+            if (Flags.efvCaptureLatency()) {
+                return AdvancedExtender.this.isCaptureProcessProgressAvailable();
+            } else {
+                return false;
+            }
         }
 
         @Override
         public boolean isPostviewAvailable() {
-            // Feature is currently unsupported
-            return false;
+            if (Flags.efvCaptureLatency()) {
+                return AdvancedExtender.this.isPostviewAvailable();
+            } else {
+                return false;
+            }
         }
 
         @Override

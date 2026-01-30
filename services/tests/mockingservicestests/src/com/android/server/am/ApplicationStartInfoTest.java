@@ -114,13 +114,13 @@ public class ApplicationStartInfoTest {
         mHandler = new Handler(mHandlerThread.getLooper());
         mProcessList = spy(new ProcessList());
         mAppStartInfoTracker = spy(new AppStartInfoTracker());
-        mAppStartInfoTracker.mEnabled = true;
         setFieldValue(ProcessList.class, mProcessList, "mAppStartInfoTracker",
                 mAppStartInfoTracker);
         mInjector = new TestInjector(mContext);
         mAms = new ActivityManagerService(mInjector, mServiceThreadRule.getThread());
         mAms.mActivityTaskManager = new ActivityTaskManagerService(mContext);
-        mAms.mActivityTaskManager.initialize(null, null, mContext.getMainLooper());
+        mAms.mActivityTaskManager.initialize(null, null, mAms.mProcessStateController,
+                mContext.getMainLooper());
         mAms.mAtmInternal = spy(mAms.mActivityTaskManager.getAtmInternal());
         mAms.mPackageManagerInt = mPackageManagerInt;
         mAppStartInfoTracker.mService = mAms;
@@ -686,7 +686,6 @@ public class ApplicationStartInfoTest {
      * retention length.
      */
     @Test
-    @EnableFlags(android.app.Flags.FLAG_APP_START_INFO_CLEANUP_OLD_RECORDS)
     public void testOldRecordsCleanup() throws Exception {
         // Use a different start timestamp for each record so we can identify which was removed.
         // This timestamp is not used for ordering and has no impact on removal.
@@ -853,8 +852,7 @@ public class ApplicationStartInfoTest {
         }
 
         @Override
-        public AppOpsService getAppOpsService(File recentAccessesFile, File storageFile,
-                Handler handler) {
+        public AppOpsService getAppOpsService(Handler handler) {
             return mAppOpsService;
         }
 

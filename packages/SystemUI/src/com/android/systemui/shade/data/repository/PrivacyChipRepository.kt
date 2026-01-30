@@ -16,10 +16,7 @@
 
 package com.android.systemui.shade.data.repository
 
-import android.content.IntentFilter
-import android.os.UserHandle
 import android.safetycenter.SafetyCenterManager
-import com.android.systemui.broadcast.BroadcastDispatcher
 import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
@@ -33,14 +30,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.withContext
 
 interface PrivacyChipRepository {
-    /** Whether or not the Safety Center is enabled. */
-    val isSafetyCenterEnabled: StateFlow<Boolean>
-
     /** The list of PrivacyItems to be displayed by the privacy chip. */
     val privacyItems: StateFlow<List<PrivacyItem>>
 
@@ -49,6 +42,9 @@ interface PrivacyChipRepository {
 
     /** Whether or not location indicators are enabled in the device privacy config. */
     val isLocationIndicationEnabled: StateFlow<Boolean>
+
+    /** Whether or not the Safety Center is enabled. */
+    suspend fun isSafetyCenterEnabled() : Boolean
 }
 
 @SysUISingleton
@@ -59,27 +55,8 @@ constructor(
     private val privacyConfig: PrivacyConfig,
     private val privacyItemController: PrivacyItemController,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
-    broadcastDispatcher: BroadcastDispatcher,
     private val safetyCenterManager: SafetyCenterManager,
 ) : PrivacyChipRepository {
-    override val isSafetyCenterEnabled: StateFlow<Boolean> =
-        broadcastDispatcher
-            .broadcastFlow(
-                filter =
-                    IntentFilter().apply {
-                        addAction(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED)
-                    },
-                user = UserHandle.SYSTEM,
-                map = { _, _ -> safetyCenterManager.isSafetyCenterEnabled }
-            )
-            .onStart { emit(safetyCenterManager.isSafetyCenterEnabled) }
-            .flowOn(backgroundDispatcher)
-            .stateIn(
-                scope = applicationScope,
-                started = SharingStarted.WhileSubscribed(),
-                initialValue = false,
-            )
-
     override val privacyItems: StateFlow<List<PrivacyItem>> =
         conflatedCallbackFlow {
                 val callback =
@@ -130,4 +107,10 @@ constructor(
                 started = SharingStarted.Eagerly,
                 initialValue = privacyItemController.locationAvailable,
             )
+
+    override suspend fun isSafetyCenterEnabled() : Boolean {
+        return withContext(backgroundDispatcher) {
+            safetyCenterManager.isSafetyCenterEnabled
+        }
+    }
 }

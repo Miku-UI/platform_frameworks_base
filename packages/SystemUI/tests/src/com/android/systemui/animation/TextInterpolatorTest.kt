@@ -167,7 +167,8 @@ class TextInterpolatorTest : SysuiTestCase() {
         assertThat(expected.sameAs(actual)).isTrue()
     }
 
-    @Test
+    // @Test
+    // TODO(b/419618174): Use Screenshot Tests to compare bitmaps
     fun testBidi_LTR() {
         val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.LTR)
 
@@ -188,7 +189,8 @@ class TextInterpolatorTest : SysuiTestCase() {
         assertThat(expected.sameAs(actual)).isTrue()
     }
 
-    @Test
+    // @Test
+    // TODO(b/419618174): Use Screenshot Tests to compare bitmaps
     fun testBidi_RTL() {
         val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.RTL)
 
@@ -209,7 +211,8 @@ class TextInterpolatorTest : SysuiTestCase() {
         assertThat(expected.sameAs(actual)).isTrue()
     }
 
-    @Test
+    // @Test
+    // TODO(b/419618174): Use Screenshot Tests to compare bitmaps
     fun testGlyphCallback_Empty() {
         val layout = makeLayout(BIDI_TEXT, PAINT, TextDirectionHeuristics.RTL)
 

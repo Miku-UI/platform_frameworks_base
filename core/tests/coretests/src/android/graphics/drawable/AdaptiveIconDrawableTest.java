@@ -16,6 +16,10 @@
 
 package android.graphics.drawable;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
+
+import android.content.Context;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
@@ -27,20 +31,24 @@ import android.graphics.Path.Direction;
 import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Region;
-import android.test.AndroidTestCase;
 import android.util.Log;
 import android.util.PathParser;
 
+import androidx.test.core.app.ApplicationProvider;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 
+import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Arrays;
 
 @LargeTest
-public class AdaptiveIconDrawableTest extends AndroidTestCase {
+@RunWith(AndroidJUnit4.class)
+public class AdaptiveIconDrawableTest {
 
     public static final String TAG = AdaptiveIconDrawableTest.class.getSimpleName();
     public static void L(String s, Object... parts) {
@@ -50,6 +58,16 @@ public class AdaptiveIconDrawableTest extends AndroidTestCase {
     private Drawable mForegroundDrawable;
     private AdaptiveIconDrawable mIconDrawable;
     private File mDir;
+    private Context mContext;
+
+    private Context getContext() {
+        return mContext;
+    }
+
+    @Before
+    public void setup() {
+        mContext = ApplicationProvider.getApplicationContext();
+    }
 
     /**
      * When setBound isn't called before draw method is called.
@@ -60,7 +78,7 @@ public class AdaptiveIconDrawableTest extends AndroidTestCase {
         mBackgroundDrawable = new ColorDrawable(Color.BLUE);
         mForegroundDrawable = new ColorDrawable(Color.RED);
         mIconDrawable = new AdaptiveIconDrawable(mBackgroundDrawable, mForegroundDrawable);
-        mDir = getContext().getExternalFilesDir(null);
+        mDir = getContext().getCacheDir();
         L("writing temp bitmaps to %s...", mDir);
 
         final Bitmap bm_test = Bitmap.createBitmap(150, 150, Bitmap.Config.ARGB_8888);
@@ -90,7 +108,7 @@ public class AdaptiveIconDrawableTest extends AndroidTestCase {
         int height = bottom - top;
 
         mIconDrawable = (AdaptiveIconDrawable) getContext().getResources().getDrawable(android.R.drawable.sym_def_app_icon);
-        mDir = getContext().getExternalFilesDir(null);
+        mDir = getContext().getCacheDir();
         L("writing temp bitmaps to %s...", mDir);
         final Bitmap bm_org = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
         final Canvas can_org = new Canvas(bm_org);

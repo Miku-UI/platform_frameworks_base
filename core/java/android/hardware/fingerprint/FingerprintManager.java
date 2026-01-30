@@ -23,6 +23,7 @@ import static android.Manifest.permission.TEST_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
 import static android.Manifest.permission.USE_FINGERPRINT;
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
 import static android.hardware.biometrics.BiometricConstants.BIOMETRIC_LOCKOUT_NONE;
 import static android.hardware.biometrics.Flags.FLAG_ADD_KEY_AGREEMENT_CRYPTO_OBJECT;
 import static android.hardware.fingerprint.FingerprintCallback.REMOVE_ALL;
@@ -39,6 +40,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresFeature;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.app.ActivityManager;
@@ -91,6 +93,8 @@ import javax.crypto.Mac;
  * vary by vendor/device.
  */
 @SuppressWarnings("deprecation")
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @Deprecated
 @SystemService(Context.FINGERPRINT_SERVICE)
 @RequiresFeature(PackageManager.FEATURE_FINGERPRINT)
@@ -700,7 +704,7 @@ public class FingerprintManager implements BiometricAuthenticator, BiometricFing
 
     /**
      * Set whether the HAL should ignore display touches.
-     * Only applies to sensors where the HAL is reponsible for handling touches.
+     * Only applies to sensors where the HAL is responsible for handling touches.
      * @hide
      */
     @RequiresPermission(USE_BIOMETRIC_INTERNAL)

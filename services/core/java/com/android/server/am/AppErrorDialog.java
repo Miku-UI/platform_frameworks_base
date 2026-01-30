@@ -36,6 +36,7 @@ final class AppErrorDialog extends BaseErrorDialog implements View.OnClickListen
 
     private final ActivityManagerService mService;
     private final ActivityManagerGlobalLock mProcLock;
+    private final Data mData;
     private final AppErrorResult mResult;
     private final ProcessRecord mProc;
     private final boolean mIsRestartable;
@@ -62,6 +63,7 @@ final class AppErrorDialog extends BaseErrorDialog implements View.OnClickListen
 
         mService = service;
         mProcLock = service.mProcLock;
+        mData = data;
         mProc = data.proc;
         mResult = data.result;
         mIsRestartable = (data.taskId != INVALID_TASK_ID || data.isRestartableForService)
@@ -149,6 +151,15 @@ final class AppErrorDialog extends BaseErrorDialog implements View.OnClickListen
             setResult(FORCE_QUIT);
         }
         super.dismiss();
+    }
+
+    void remove() {
+        // Only dismiss the dialog to remove the window from the display, do not set result.
+        super.dismiss();
+    }
+
+    Data getData() {
+        return mData;
     }
 
     private void setResult(int result) {

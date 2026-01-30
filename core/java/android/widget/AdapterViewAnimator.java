@@ -18,6 +18,7 @@ package android.widget;
 
 import android.animation.AnimatorInflater;
 import android.animation.ObjectAnimator;
+import android.companion.virtualdevice.flags.Flags;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.TypedArray;
@@ -45,7 +46,6 @@ import java.util.HashMap;
  */
 public abstract class AdapterViewAnimator extends AdapterView<Adapter>
         implements RemoteViewsAdapter.RemoteAdapterConnectionCallback, Advanceable {
-    private static final String TAG = "RemoteViewAnimator";
 
     /**
      * The index of the current child, which appears anywhere from the beginning
@@ -160,6 +160,8 @@ public abstract class AdapterViewAnimator extends AdapterView<Adapter>
 
     private Runnable mPendingCheckForTap;
 
+    private final int mTapTimeoutMillis;
+
     private static final int DEFAULT_ANIMATION_DURATION = 200;
 
     public AdapterViewAnimator(Context context) {
@@ -204,6 +206,9 @@ public abstract class AdapterViewAnimator extends AdapterView<Adapter>
 
         mLoopViews = a.getBoolean(
                 com.android.internal.R.styleable.AdapterViewAnimator_loopViews, false);
+        mTapTimeoutMillis = Flags.viewconfigurationApis()
+                ? ViewConfiguration.get(context).getTapTimeoutMillis()
+                : ViewConfiguration.getTapTimeout();
 
         a.recycle();
 
@@ -634,7 +639,7 @@ public abstract class AdapterViewAnimator extends AdapterView<Adapter>
                             mPendingCheckForTap = new CheckForTap();
                         }
                         mTouchMode = TOUCH_MODE_DOWN_IN_CURRENT_VIEW;
-                        postDelayed(mPendingCheckForTap, ViewConfiguration.getTapTimeout());
+                        postDelayed(mPendingCheckForTap, mTapTimeoutMillis);
                     }
                 }
                 break;

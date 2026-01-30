@@ -16,29 +16,58 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
-import com.android.systemui.keyguard.domain.interactor.KeyguardClockInteractor
+import com.android.systemui.keyguard.domain.interactor.KeyguardPreviewInteractor
 import com.android.systemui.keyguard.shared.model.ClockSizeSetting
-import com.android.systemui.plugins.clocks.ClockController
-import javax.inject.Inject
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
+
+@AssistedFactory
+interface KeyguardPreviewClockViewModelFactory {
+    fun create(interactor: KeyguardPreviewInteractor): KeyguardPreviewClockViewModel
+}
 
 /** View model for the small clock view, large clock view. */
 class KeyguardPreviewClockViewModel
-@Inject
+@AssistedInject
 constructor(
-    interactor: KeyguardClockInteractor,
+    @Assisted private val interactor: KeyguardPreviewInteractor,
+    private val keyguardClockViewModel: KeyguardClockViewModel,
 ) {
+    // The flag indicates if the clock should be hidden for the preview the whole time. In this case
+    // the clock view will not even be created.
+    val shouldHideClock: Boolean
+        get() = interactor.shouldHideClock
 
-    var shouldHighlightSelectedAffordance: Boolean = false
-    val isLargeClockVisible: Flow<Boolean> =
-        interactor.selectedClockSize.map { it == ClockSizeSetting.DYNAMIC }
+    private val _showClock: MutableStateFlow<Boolean> = MutableStateFlow(!shouldHideClock)
+    val showClock: Flow<Boolean> = _showClock.asStateFlow()
 
-    val isSmallClockVisible: Flow<Boolean> =
-        interactor.selectedClockSize.map { it == ClockSizeSetting.SMALL }
+    fun setShowClock(show: Boolean) {
+        _showClock.value = show
+    }
 
-    val previewClock: Flow<ClockController> = interactor.previewClock
+    val shouldHighlightSelectedAffordance: Boolean
+        get() = interactor.shouldHighlightSelectedAffordance
 
-    val selectedClockSize: StateFlow<ClockSizeSetting?> = interactor.selectedClockSize
+    val previewClockSize = interactor.previewClockSize
+
+    val isLargeClockVisible: Flow<Boolean>
+        get() = previewClockSize.map { it == ClockSizeSetting.DYNAMIC }
+
+    val isSmallClockVisible: Flow<Boolean>
+        get() = previewClockSize.map { it == ClockSizeSetting.SMALL }
+
+    val previewClock: Flow<ClockController>
+        get() = interactor.previewClock
+
+    fun shouldSmallDateWeatherBeBelowSmallClock() =
+        keyguardClockViewModel.shouldDateWeatherBeBelowSmallClock.value
+
+    fun shouldSmallDateWeatherBeBelowLargeClock() =
+        keyguardClockViewModel.shouldDateWeatherBeBelowLargeClock.value
 }

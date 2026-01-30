@@ -18,7 +18,9 @@ package android.view.inputmethod;
 
 import android.Manifest;
 import android.annotation.AnyThread;
+import android.annotation.CurrentTimeMillisLong;
 import android.annotation.DurationMillisLong;
+import android.annotation.ElapsedRealtimeLong;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresNoPermission;
@@ -31,7 +33,6 @@ import android.os.ResultReceiver;
 import android.os.ServiceManager;
 import android.util.ExceptionUtils;
 import android.view.WindowManager;
-import android.window.ImeOnBackInvokedDispatcher;
 
 import com.android.internal.infra.AndroidFuture;
 import com.android.internal.inputmethod.DirectBootAwareness;
@@ -40,8 +41,8 @@ import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
 import com.android.internal.inputmethod.IImeTracker;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
-import com.android.internal.inputmethod.InputBindResult;
 import com.android.internal.inputmethod.InputMethodInfoSafeList;
 import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.inputmethod.StartInputFlags;
@@ -113,31 +114,6 @@ final class IInputMethodManagerGlobalInvoker {
     }
 
     /**
-     * Invokes {@link IInputMethodManager#startProtoDump(byte[], int, String)}.
-     *
-     * @param protoDump client or service side information to be stored by the server
-     * @param source where the information is coming from, refer to
-     *               {@link com.android.internal.inputmethod.ImeTracing#IME_TRACING_FROM_CLIENT} and
-     *               {@link com.android.internal.inputmethod.ImeTracing#IME_TRACING_FROM_IMS}
-     * @param where where the information is coming from.
-     * @param exceptionHandler an optional {@link RemoteException} handler.
-     */
-    @AnyThread
-    @RequiresNoPermission
-    static void startProtoDump(byte[] protoDump, int source, String where,
-            @Nullable Consumer<RemoteException> exceptionHandler) {
-        final IInputMethodManager service = getService();
-        if (service == null) {
-            return;
-        }
-        try {
-            service.startProtoDump(protoDump, source, where);
-        } catch (RemoteException e) {
-            handleRemoteExceptionOrRethrow(e, exceptionHandler);
-        }
-    }
-
-    /**
      * Invokes {@link IInputMethodManager#startImeTrace()}.
      *
      * @param exceptionHandler an optional {@link RemoteException} handler.
@@ -191,29 +167,6 @@ final class IInputMethodManagerGlobalInvoker {
             return service.isImeTraceEnabled();
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
-        }
-    }
-
-    /**
-     * Invokes {@link IInputMethodManager#removeImeSurface()}
-     *
-     * @param displayId display ID from which this request originates
-     * @param exceptionHandler an optional {@link RemoteException} handler
-     */
-    @AnyThread
-    @RequiresPermission(allOf = {
-            Manifest.permission.INTERNAL_SYSTEM_WINDOW,
-            Manifest.permission.INTERACT_ACROSS_USERS_FULL})
-    static void removeImeSurface(int displayId,
-            @Nullable Consumer<RemoteException> exceptionHandler) {
-        final IInputMethodManager service = getService();
-        if (service == null) {
-            return;
-        }
-        try {
-            service.removeImeSurface(displayId);
-        } catch (RemoteException e) {
-            handleRemoteExceptionOrRethrow(e, exceptionHandler);
         }
     }
 
@@ -319,40 +272,6 @@ final class IInputMethodManagerGlobalInvoker {
         }
     }
 
-    @AnyThread
-    static boolean showSoftInput(@NonNull IInputMethodClient client, @Nullable IBinder windowToken,
-            @NonNull ImeTracker.Token statsToken, @InputMethodManager.ShowFlags int flags,
-            int lastClickToolType, @Nullable ResultReceiver resultReceiver,
-            @SoftInputShowHideReason int reason, boolean async) {
-        final IInputMethodManager service = getService();
-        if (service == null) {
-            return false;
-        }
-        try {
-            return service.showSoftInput(client, windowToken, statsToken, flags, lastClickToolType,
-                    resultReceiver, reason, async);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    @AnyThread
-    static boolean hideSoftInput(@NonNull IInputMethodClient client, @Nullable IBinder windowToken,
-            @NonNull ImeTracker.Token statsToken, @InputMethodManager.HideFlags int flags,
-            @Nullable ResultReceiver resultReceiver, @SoftInputShowHideReason int reason,
-            boolean async) {
-        final IInputMethodManager service = getService();
-        if (service == null) {
-            return false;
-        }
-        try {
-            return service.hideSoftInput(client, windowToken, statsToken, flags, resultReceiver,
-                    reason, async);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
     // TODO(b/293640003): Remove method once Flags.useZeroJankProxy() is enabled.
     @AnyThread
     @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
@@ -368,58 +287,31 @@ final class IInputMethodManagerGlobalInvoker {
         }
     }
 
-    @AnyThread
-    @NonNull
-    @RequiresPermission(value = Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)
-    static InputBindResult startInputOrWindowGainedFocus(@StartInputReason int startInputReason,
-            @NonNull IInputMethodClient client, @Nullable IBinder windowToken,
-            @StartInputFlags int startInputFlags,
-            @WindowManager.LayoutParams.SoftInputModeFlags int softInputMode,
-            @WindowManager.LayoutParams.Flags int windowFlags, @Nullable EditorInfo editorInfo,
-            @Nullable IRemoteInputConnection remoteInputConnection,
-            @Nullable IRemoteAccessibilityInputConnection remoteAccessibilityInputConnection,
-            int unverifiedTargetSdkVersion, @UserIdInt int userId,
-            @NonNull ImeOnBackInvokedDispatcher imeDispatcher, boolean imeRequestedVisible) {
-        final IInputMethodManager service = getService();
-        if (service == null) {
-            return InputBindResult.NULL;
-        }
-        try {
-            return service.startInputOrWindowGainedFocus(startInputReason, client, windowToken,
-                    startInputFlags, softInputMode, windowFlags, editorInfo, remoteInputConnection,
-                    remoteAccessibilityInputConnection, unverifiedTargetSdkVersion, userId,
-                    imeDispatcher, imeRequestedVisible);
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
     /**
      * Returns a sequence number for startInput.
      */
     @AnyThread
-    @NonNull
     @RequiresPermission(value = Manifest.permission.INTERACT_ACROSS_USERS_FULL, conditional = true)
-    static int startInputOrWindowGainedFocusAsync(@StartInputReason int startInputReason,
+    static int startInputOrWindowGainedFocus(@StartInputReason int startInputReason,
             @NonNull IInputMethodClient client, @Nullable IBinder windowToken,
             @StartInputFlags int startInputFlags,
             @WindowManager.LayoutParams.SoftInputModeFlags int softInputMode,
             @WindowManager.LayoutParams.Flags int windowFlags, @Nullable EditorInfo editorInfo,
             @Nullable IRemoteInputConnection remoteInputConnection,
             @Nullable IRemoteAccessibilityInputConnection remoteAccessibilityInputConnection,
+            @Nullable IRemoteComputerControlInputConnection remoteComputerControlInputConnection,
             int unverifiedTargetSdkVersion, @UserIdInt int userId,
-            @NonNull ImeOnBackInvokedDispatcher imeDispatcher, boolean imeRequestedVisible,
-            boolean useAsyncShowHideMethod) {
+            @NonNull ResultReceiver imeBackCallbackReceiver, boolean imeRequestedVisible) {
         final IInputMethodManager service = getService();
         if (service == null) {
             return -1;
         }
         try {
-            service.startInputOrWindowGainedFocusAsync(startInputReason, client, windowToken,
+            service.startInputOrWindowGainedFocus(startInputReason, client, windowToken,
                     startInputFlags, softInputMode, windowFlags, editorInfo, remoteInputConnection,
-                    remoteAccessibilityInputConnection, unverifiedTargetSdkVersion, userId,
-                    imeDispatcher, imeRequestedVisible, advanceAngGetStartInputSequenceNumber(),
-                    useAsyncShowHideMethod);
+                    remoteAccessibilityInputConnection, remoteComputerControlInputConnection,
+                    unverifiedTargetSdkVersion, userId, imeBackCallbackReceiver,
+                    imeRequestedVisible, advanceAngGetStartInputSequenceNumber());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -564,26 +456,26 @@ final class IInputMethodManagerGlobalInvoker {
     }
 
     @AnyThread
-    static void reportPerceptibleAsync(@NonNull IBinder windowToken, boolean perceptible) {
+    static void reportPerceptible(@NonNull IBinder windowToken, boolean perceptible) {
         final IInputMethodManager service = getService();
         if (service == null) {
             return;
         }
         try {
-            service.reportPerceptibleAsync(windowToken, perceptible);
+            service.reportPerceptible(windowToken, perceptible);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
     }
 
     @AnyThread
-    static void removeImeSurfaceFromWindowAsync(@NonNull IBinder windowToken) {
+    static void removeImeSurfaceFromWindow(@NonNull IBinder windowToken) {
         final IInputMethodManager service = getService();
         if (service == null) {
             return;
         }
         try {
-            service.removeImeSurfaceFromWindowAsync(windowToken);
+            service.removeImeSurfaceFromWindow(windowToken);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -726,18 +618,34 @@ final class IInputMethodManagerGlobalInvoker {
         }
     }
 
-    /** @see com.android.server.inputmethod.ImeTrackerService#onStart */
     @AnyThread
-    @NonNull
-    static ImeTracker.Token onStart(@NonNull String tag, int uid, @ImeTracker.Type int type,
-            @ImeTracker.Origin int origin, @SoftInputShowHideReason int reason, boolean fromUser) {
-        final var service = getImeTrackerService();
+    @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
+    static void setAllowedImesByPolicyForTest(
+            IInputMethodClient client, @Nullable List<String> allowedPackages) {
+        final IInputMethodManager service = getService();
         if (service == null) {
-            // Create token with "empty" binder if the service was not found.
-            return ImeTracker.Token.empty(tag);
+            return;
         }
         try {
-            return service.onStart(tag, uid, type, origin, reason, fromUser);
+            service.setAllowedImesByPolicyForTest(client, allowedPackages);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /** @see com.android.server.inputmethod.ImeTrackerService#onStart */
+    @AnyThread
+    static void onStart(@NonNull ImeTracker.Token statsToken, int uid, @ImeTracker.Type int type,
+            @ImeTracker.Origin int origin, @SoftInputShowHideReason int reason, boolean fromUser,
+            @CurrentTimeMillisLong long startWallTimeMs,
+            @ElapsedRealtimeLong long startTimestampMs) {
+        final var service = getImeTrackerService();
+        if (service == null) {
+            return;
+        }
+        try {
+            service.onStart(statsToken, uid, type, origin, reason, fromUser, startWallTimeMs,
+                    startTimestampMs);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -745,13 +653,13 @@ final class IInputMethodManagerGlobalInvoker {
 
     /** @see com.android.server.inputmethod.ImeTrackerService#onProgress */
     @AnyThread
-    static void onProgress(@NonNull IBinder binder, @ImeTracker.Phase int phase) {
+    static void onProgress(@NonNull ImeTracker.Token statsToken, @ImeTracker.Phase int phase) {
         final IImeTracker service = getImeTrackerService();
         if (service == null) {
             return;
         }
         try {
-            service.onProgress(binder, phase);
+            service.onProgress(statsToken, phase);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -826,32 +734,36 @@ final class IInputMethodManagerGlobalInvoker {
         }
     }
 
-    /** @see com.android.server.inputmethod.ImeTrackerService#hasPendingImeVisibilityRequests */
+    /** @see com.android.server.inputmethod.ImeTrackerService#waitUntilNoPendingRequests */
     @AnyThread
     @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
-    static boolean hasPendingImeVisibilityRequests() {
-        final var service = getImeTrackerService();
-        if (service == null) {
-            return true;
-        }
-        try {
-            return service.hasPendingImeVisibilityRequests();
-        } catch (RemoteException e) {
-            throw e.rethrowFromSystemServer();
-        }
-    }
-
-    @AnyThread
-    @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
-    static void finishTrackingPendingImeVisibilityRequests() {
+    static void waitUntilNoPendingRequests(long timeoutMs) {
         final var service = getImeTrackerService();
         if (service == null) {
             return;
         }
         try {
-            final var completionSignal = new AndroidFuture<Void>();
-            service.finishTrackingPendingImeVisibilityRequests(completionSignal);
-            completionSignal.get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            final var future = new AndroidFuture<Void>();
+            service.waitUntilNoPendingRequests(future, timeoutMs);
+            future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        } catch (Exception e) {
+            throw ExceptionUtils.propagate(e);
+        }
+    }
+
+    @AnyThread
+    @RequiresPermission(Manifest.permission.TEST_INPUT_METHOD)
+    static void finishTrackingPendingRequests() {
+        final var service = getImeTrackerService();
+        if (service == null) {
+            return;
+        }
+        try {
+            final var future = new AndroidFuture<Void>();
+            service.finishTrackingPendingRequests(future);
+            future.get(TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (Exception e) {

@@ -22,6 +22,7 @@ import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
 import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
 import android.app.WindowConfiguration.WindowingMode
 import android.os.Handler
+import android.platform.test.annotations.DisableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableLooper.RunWithLooper
 import android.view.SurfaceControl
@@ -29,6 +30,7 @@ import android.view.WindowManager
 import android.view.WindowManager.TRANSIT_CLOSE
 import android.window.TransitionInfo
 import androidx.test.filters.SmallTest
+import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.TestRunningTaskInfoBuilder
 import com.android.wm.shell.common.DisplayController
@@ -91,6 +93,7 @@ class DesktopMinimizationTransitionHandlerTest : ShellTestCase() {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_MULTIPLE_DESKTOPS_BACKEND)
     fun startAnimation_toBackTransitionFullscreenTask_returnsFalse() {
         val animates =
             handler.startAnimation(

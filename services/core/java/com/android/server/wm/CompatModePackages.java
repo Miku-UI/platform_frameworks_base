@@ -476,9 +476,12 @@ public final class CompatModePackages {
                 ? compatScale.mScaleFactor
                 : getCompatScale(ai.packageName, ai.uid, /* checkProvider= */ false);
         final float densityScale = compatScale != null ? compatScale.mDensityScaleFactor : appScale;
+        final int[] overrideDensityDisplayIds = compatScale != null
+                ? compatScale.mOverrideDensityDisplayIds : null;
         final Configuration config = mService.getGlobalConfiguration();
         final CompatibilityInfo info = new CompatibilityInfo(ai, config.screenLayout,
-                config.smallestScreenWidthDp, forceCompat, appScale, densityScale);
+                config.smallestScreenWidthDp, forceCompat, appScale, densityScale,
+                overrideDensityDisplayIds);
         // Ignore invalid info which may be a placeholder of isolated process.
         if (ai.flags != 0 && ai.sourceDir != null) {
             if (!info.supportsScreen() && !"android".equals(ai.packageName)) {

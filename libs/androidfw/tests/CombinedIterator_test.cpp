@@ -18,7 +18,7 @@
 
 #include <algorithm>
 #include <string>
-#include <strstream>
+#include <sstream>
 #include <utility>
 #include <vector>
 

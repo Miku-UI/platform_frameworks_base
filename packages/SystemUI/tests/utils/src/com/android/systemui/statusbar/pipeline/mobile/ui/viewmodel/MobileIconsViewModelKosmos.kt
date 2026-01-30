@@ -18,8 +18,10 @@ package com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.mobileIconsInteractor
+import com.android.systemui.statusbar.pipeline.shared.connectivityConstants
 import com.android.systemui.util.mockito.mock
 
 val Kosmos.mobileIconsViewModel: MobileIconsViewModel by
@@ -29,7 +31,8 @@ val Kosmos.mobileIconsViewModel: MobileIconsViewModel by
             verboseLogger = mock(),
             interactor = mobileIconsInteractor,
             airplaneModeInteractor = airplaneModeInteractor,
-            constants = mock(),
+            constants = connectivityConstants,
+            tableLogger = logcatTableLogBuffer(this, "summaryLogger"),
             scope = applicationCoroutineScope,
         )
     }

@@ -28,5 +28,17 @@
         <item name="switchPreferenceCompatStyle">@style/SettingsLibPreference.SwitchPreferenceCompat.Expressive</item>
         <item name="preferenceCategoryTitleTextAppearance">@style/TextAppearance.CategoryTitle.SettingsLib</item>
         <item name="preferenceCategoryTitleTextColor">@color/settingslib_materialColorPrimary</item>
+
+        <!-- Expressive Design: overridable styles/themes for Preferences -->
+        <item name="expressivePreferenceTheme">@style/ExpressivePreferenceTheme</item>
+        <item name="expressivePreferenceIconFrameStyle">@style/ExpressivePreferenceIconFrameStyle</item>
+        <item name="expressivePreferenceIconStyle">@style/ExpressivePreferenceIconStyle</item>
+        <item name="expressivePreferenceTextFrameStyle">@style/ExpressivePreferenceTextFrameStyle</item>
+        <item name="expressivePreferenceTextFrameTitleStyle">@style/ExpressivePreferenceTextFrameTitleStyle</item>
+        <item name="expressivePreferenceTextFrameSummaryStyle">@style/ExpressivePreferenceTextFrameSummaryStyle</item>
+        <item name="expressiveTwoTargetDividerStyle">@style/ExpressiveTwoTargetDividerStyle</item>
+        <item name="expressiveTwoTargetDividerImageViewStyle">@style/ExpressiveTwoTargetDividerImageViewStyle</item>
+        <item name="expressiveTwoTargetDividerViewStyle">@style/ExpressiveTwoTargetDividerViewStyle</item>
+        <item name="expressivePreferenceCategoryTheme">@style/ExpressivePreferenceCategoryTheme</item>
     </style>
 </resources>

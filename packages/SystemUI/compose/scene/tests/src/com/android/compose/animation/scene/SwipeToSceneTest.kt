@@ -1144,4 +1144,31 @@ class SwipeToSceneTest {
         assertThat(state.transitionState).hasCurrentScene(SceneA)
         assertThat(state.transitionState).hasCurrentOverlays(OverlayB)
     }
+
+    @Test
+    fun invalidSwipeAction() {
+        val state =
+            rule.runOnUiThread { MutableSceneTransitionLayoutStateForTests(initialScene = SceneA) }
+
+        rule.setContent {
+            SceneTransitionLayout(state) {
+                scene(
+                    SceneA,
+                    userActions = mapOf(Swipe.Up to UserActionResult.HideOverlay(OverlayA)),
+                ) {
+                    Box(Modifier.fillMaxSize())
+                }
+                overlay(OverlayA) { Box(Modifier.size(100.dp)) }
+            }
+        }
+
+        // OverlayA is not shown.
+        // Swipe up on SceneA. This should not trigger the HideOverlay action given that OverlayA is
+        // already hidden.
+        rule.onRoot().performTouchInput { swipeUp() }
+
+        // The state should remain unchanged.
+        assertThat(state.transitionState).isIdle()
+        assertThat(state.transitionState).hasCurrentScene(SceneA)
+    }
 }

@@ -481,7 +481,9 @@ internal class Swipes(val upOrLeft: Swipe.Resolved, val downOrRight: Swipe.Resol
                         actionSwipe.fromSource != swipe.fromSource) ||
                     // The action requires a specific pointerType.
                     (actionSwipe.pointerType != null &&
-                        actionSwipe.pointerType != swipe.pointerType)
+                        actionSwipe.pointerType != swipe.pointerType) ||
+                    // The action is not valid in the current state.
+                    !isActionValid(actionResult)
             ) {
                 // This action is not eligible.
                 return@forEach
@@ -505,6 +507,19 @@ internal class Swipes(val upOrLeft: Swipe.Resolved, val downOrRight: Swipe.Resol
             }
         }
         return bestMatch
+    }
+
+    /** Whether [result] is a valid user action in the current state. */
+    private fun Content.isActionValid(result: UserActionResult): Boolean {
+        val state = layoutImpl.state
+        return when (result) {
+            is UserActionResult.HideOverlay -> result.overlay in state.currentOverlays
+            is UserActionResult.ReplaceByOverlay -> {
+                val fromOverlay = key as? OverlayKey ?: return false
+                fromOverlay in state.currentOverlays && result.overlay !in state.currentOverlays
+            }
+            else -> true
+        }
     }
 
     /**

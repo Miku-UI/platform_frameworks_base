@@ -17,27 +17,36 @@
 package com.android.wm.shell.compatui.letterbox.events
 
 import android.window.WindowContainerToken
-import com.android.wm.shell.common.WindowContainerTransactionSupplier
+import com.android.wm.shell.common.suppliers.WindowContainerTransactionSupplier
+import com.android.wm.shell.compatui.letterbox.animations.LetterboxAnimationHandler
 import com.android.wm.shell.dagger.WMSingleton
 import com.android.wm.shell.transition.Transitions
 import javax.inject.Inject
 
-/**
- * A Factory for [ReachabilityGestureListener].
- */
+/** A Factory for [ReachabilityGestureListener]. */
 @WMSingleton
-class ReachabilityGestureListenerFactory @Inject constructor(
+class ReachabilityGestureListenerFactory
+@Inject
+constructor(
     private val transitions: Transitions,
-    private val animationHandler: Transitions.TransitionHandler,
-    private val wctSupplier: WindowContainerTransactionSupplier
+    private val animationHandler: LetterboxAnimationHandler,
+    private val wctSupplier: WindowContainerTransactionSupplier,
+    private val letterboxState: LetterboxState,
 ) {
     /**
      * @return a [ReachabilityGestureListener] implementation to listen to double tap events and
-     * creating the related [WindowContainerTransaction] to handle the transition.
+     *   creating the related [WindowContainerTransaction] to handle the transition.
      */
     fun createReachabilityGestureListener(
         taskId: Int,
-        token: WindowContainerToken?
+        token: WindowContainerToken?,
     ): ReachabilityGestureListener =
-        ReachabilityGestureListener(taskId, token, transitions, animationHandler, wctSupplier)
+        ReachabilityGestureListener(
+            taskId,
+            token,
+            transitions,
+            animationHandler,
+            wctSupplier,
+            letterboxState,
+        )
 }

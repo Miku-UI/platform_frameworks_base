@@ -29,7 +29,6 @@ import android.content.Context;
 import android.content.pm.PackageManagerInternal;
 import android.graphics.Region;
 import android.hardware.input.InputManager;
-import android.hardware.input.InputManagerGlobal;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -74,6 +73,7 @@ final class HandwritingModeController {
     private final Context mContext;
     // This must be the looper for the UiThread.
     private final Looper mLooper;
+    private final InputManager mInputManager;
     private final InputManagerInternal mInputManagerInternal;
     private final WindowManagerInternal mWindowManagerInternal;
     private final PackageManagerInternal mPackageManagerInternal;
@@ -103,6 +103,7 @@ final class HandwritingModeController {
         mContext = context;
         mLooper = uiThreadLooper;
         mCurrentDisplayId = Display.INVALID_DISPLAY;
+        mInputManager = context.getSystemService(InputManager.class);
         mInputManagerInternal = LocalServices.getService(InputManagerInternal.class);
         mWindowManagerInternal = LocalServices.getService(WindowManagerInternal.class);
         mPackageManagerInternal = LocalServices.getService(PackageManagerInternal.class);
@@ -319,8 +320,7 @@ final class HandwritingModeController {
         }
         if (DEBUG) Slog.d(TAG, "Starting handwriting session in display: " + mCurrentDisplayId);
 
-        InputManagerGlobal.getInstance()
-                .pilferPointers(mHandwritingSurface.getInputChannel().getToken());
+        mInputManager.pilferPointers(mHandwritingSurface.getInputChannel().getToken());
 
         // Stop processing more events.
         mHandwritingEventReceiver.dispose();
@@ -335,7 +335,7 @@ final class HandwritingModeController {
         mHandwritingSurface.startIntercepting(imePid, imeUid);
 
         // Unset the pointer icon for the stylus in case the app had set it.
-        Objects.requireNonNull(mContext.getSystemService(InputManager.class)).setPointerIcon(
+        mInputManager.setPointerIcon(
                 PointerIcon.getSystemIcon(mContext, PointerIcon.TYPE_NOT_SPECIFIED),
                 downEvent.getDisplayId(), downEvent.getDeviceId(), downEvent.getPointerId(0),
                 mHandwritingSurface.getInputChannel().getToken());

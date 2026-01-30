@@ -42,12 +42,12 @@ import android.widget.Space;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.systemui.Dependency;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.navigationbar.NavigationModeController;
 import com.android.systemui.navigationbar.views.buttons.ButtonDispatcher;
 import com.android.systemui.navigationbar.views.buttons.KeyButtonView;
 import com.android.systemui.navigationbar.views.buttons.ReverseLinearLayout;
 import com.android.systemui.navigationbar.views.buttons.ReverseLinearLayout.ReverseRelativeLayout;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.system.QuickStepContract;
 import com.android.systemui.tuner.TunerService;

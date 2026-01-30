@@ -20,23 +20,23 @@ import android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD
 import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
 import android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW
 import android.app.WindowConfiguration.WINDOWING_MODE_PINNED
-import android.content.ClipDescription
 import android.content.ClipDescription.EXTRA_HIDE_DRAG_SOURCE_TASK_ID
+import android.content.ClipDescription.MIMETYPE_APPLICATION_ACTIVITY
+import android.content.ClipDescription.MIMETYPE_APPLICATION_SHORTCUT
 import android.os.PersistableBundle
-import android.os.RemoteException
 import android.testing.AndroidTestingRunner
+import android.view.View.DRAG_FLAG_START_INTENT_SENDER_ON_UNHANDLED_DRAG
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.DisplayLayout
 import com.android.wm.shell.draganddrop.DragTestUtils.createTaskInfo
 import com.google.common.truth.Truth.assertThat
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mock
-import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.any
-import org.mockito.kotlin.whenever
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.stub
 
 /**
  * Tests for DragSession.
@@ -46,22 +46,15 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidTestingRunner::class)
 class DragSessionTest : ShellTestCase() {
-    @Mock
-    private lateinit var activityTaskManager: ActivityTaskManager
 
-    @Mock
-    private lateinit var displayLayout: DisplayLayout
-
-    @Before
-    @Throws(RemoteException::class)
-    fun setUp() {
-        MockitoAnnotations.initMocks(this)
-    }
+    private val activityTaskManager = mock<ActivityTaskManager>()
+    private val displayLayout = mock<DisplayLayout>()
 
     @Test
     fun testNullClipData() {
         // Start a new drag session with null data
         val session = DragSession(activityTaskManager, displayLayout, null, 0)
+
         assertThat(session.hideDragSourceTaskId).isEqualTo(-1)
     }
 
@@ -71,10 +64,12 @@ class DragSessionTest : ShellTestCase() {
         val runningTasks = listOf(
             createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
         )
-        whenever(activityTaskManager.getTasks(any(), any())).thenReturn(runningTasks)
+        activityTaskManager.stub {
+            on { getTasks(any(), any()) } doReturn runningTasks
+        }
 
-        // Simulate dragging an app
-        val data = DragTestUtils.createAppClipData(ClipDescription.MIMETYPE_APPLICATION_SHORTCUT)
+        // Set up for dragging an app
+        val data = DragTestUtils.createAppClipData(MIMETYPE_APPLICATION_SHORTCUT)
 
         // Start a new drag session
         val session = DragSession(activityTaskManager, displayLayout, data, 0)
@@ -93,10 +88,12 @@ class DragSessionTest : ShellTestCase() {
             createTaskInfo(WINDOWING_MODE_PINNED, ACTIVITY_TYPE_STANDARD),
             createTaskInfo(WINDOWING_MODE_MULTI_WINDOW, ACTIVITY_TYPE_STANDARD, alwaysOnTop=true),
         )
-        whenever(activityTaskManager.getTasks(any(), any())).thenReturn(runningTasks)
+        activityTaskManager.stub {
+            on { getTasks(any(), any()) } doReturn runningTasks
+        }
 
-        // Simulate dragging an app
-        val data = DragTestUtils.createAppClipData(ClipDescription.MIMETYPE_APPLICATION_SHORTCUT)
+        // Set up for dragging an app
+        val data = DragTestUtils.createAppClipData(MIMETYPE_APPLICATION_SHORTCUT)
 
         // Start a new drag session
         val session = DragSession(activityTaskManager, displayLayout, data, 0)
@@ -115,10 +112,12 @@ class DragSessionTest : ShellTestCase() {
             createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
             createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
         )
-        whenever(activityTaskManager.getTasks(any(), any())).thenReturn(runningTasks)
+        activityTaskManager.stub {
+            on { getTasks(any(), any()) } doReturn runningTasks
+        }
 
-        // Simulate dragging an app with hide-drag-source set for the second (top most) app
-        val data = DragTestUtils.createAppClipData(ClipDescription.MIMETYPE_APPLICATION_SHORTCUT)
+        // Set up for dragging an app
+        val data = DragTestUtils.createAppClipData(MIMETYPE_APPLICATION_SHORTCUT)
         data.description.extras =
             PersistableBundle().apply {
                 putInt(
@@ -132,5 +131,106 @@ class DragSessionTest : ShellTestCase() {
         session.updateRunningTask()
 
         assertThat(session.hideDragSourceTaskId).isEqualTo(runningTasks.last().taskId)
+    }
+
+    @Test
+    fun testAppData() {
+        // Set up running tasks
+        val runningTasks = listOf(
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+        )
+        activityTaskManager.stub {
+            on { getTasks(any(), any()) } doReturn runningTasks
+        }
+
+        // Set up for dragging with app data
+        val data = DragTestUtils.createAppClipData(MIMETYPE_APPLICATION_ACTIVITY)
+
+        // Start a new drag session
+        val session = DragSession(activityTaskManager, displayLayout, data, 0)
+        session.initialize(true /* skipUpdateRunningTask */)
+
+        assertThat(session.appData).isNotNull()
+        assertThat(session.launchableIntent).isNull()
+    }
+
+    @Test
+    fun testLaunchableIntent() {
+        // Set up running tasks
+        val runningTasks = listOf(
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+        )
+        activityTaskManager.stub {
+            on { getTasks(any(), any()) } doReturn runningTasks
+        }
+        val pendingIntent = DragTestUtils.createLaunchableIntent(mContext)
+
+        // Set up for dragging with a launchable intent
+        val data = DragTestUtils.createIntentClipData(pendingIntent)
+
+        // Start a new drag session
+        val session = DragSession(activityTaskManager, displayLayout, data,
+            DRAG_FLAG_START_INTENT_SENDER_ON_UNHANDLED_DRAG)
+        session.initialize(true /* skipUpdateRunningTask */)
+
+        assertThat(session.appData).isNull()
+        assertThat(session.launchableIntent).isNotNull()
+    }
+
+    @Test
+    fun testBothValidAppDataAndLaunchableIntent_launchableIntentIsNull() {
+        // Set up running tasks
+        val runningTasks = listOf(
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+        )
+        activityTaskManager.stub {
+            on { getTasks(any(), any()) } doReturn runningTasks
+        }
+        val pendingIntent = DragTestUtils.createLaunchableIntent(mContext)
+
+        // Set up for dragging data with both and app-data intent and a laucnhable intent
+        val launchData = DragTestUtils.createIntentClipData(pendingIntent)
+        val data = DragTestUtils.createAppClipData(MIMETYPE_APPLICATION_ACTIVITY)
+        data.addItem(launchData.getItemAt(0))
+
+        // Start a new drag session
+        val session = DragSession(activityTaskManager, displayLayout, data,
+            DRAG_FLAG_START_INTENT_SENDER_ON_UNHANDLED_DRAG)
+        session.initialize(true /* skipUpdateRunningTask */)
+
+        // Since the app data is valid, we prioritize using that
+        assertThat(session.appData).isNotNull()
+        assertThat(session.launchableIntent).isNull()
+    }
+
+    @Test
+    fun testInvalidAppDataWithValidLaunchableIntent_appDataIsNull() {
+        // Set up running tasks
+        val runningTasks = listOf(
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+            createTaskInfo(WINDOWING_MODE_FULLSCREEN, ACTIVITY_TYPE_STANDARD),
+        )
+        activityTaskManager.stub {
+            on { getTasks(any(), any()) } doReturn runningTasks
+        }
+        val pendingIntent = DragTestUtils.createLaunchableIntent(mContext)
+
+        // Set up for dragging data with an unknown mime type, this should not be treated as a valid
+        // app drag
+        val launchData = DragTestUtils.createIntentClipData(pendingIntent)
+        val data = DragTestUtils.createAppClipData("unknown_mime_type")
+        data.addItem(launchData.getItemAt(0))
+
+        // Start a new drag session
+        val session = DragSession(activityTaskManager, displayLayout, data,
+            DRAG_FLAG_START_INTENT_SENDER_ON_UNHANDLED_DRAG)
+        session.initialize(true /* skipUpdateRunningTask */)
+
+        // Since the app data is invalid, we use the launchable intent
+        assertThat(session.appData).isNull()
+        assertThat(session.launchableIntent).isNotNull()
     }
 }

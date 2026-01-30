@@ -124,6 +124,27 @@ public class KeyStoreAuthorization {
     }
 
     /**
+     * Informs Keystore 2.0 that the credential encrypted storage for a particular user has been
+     * locked.
+     *
+     * @param userId - the user's Android user ID
+     * @return 0 if successful or a {@code ResponseCode}
+     * @hide
+     */
+    public int onUserStorageLocked(int userId) {
+        try {
+            getService().onUserStorageLocked(userId);
+            return 0;
+        } catch (ServiceSpecificException e) {
+            Log.e(TAG, "onUserStorageLocked failed", e);
+            return e.errorCode;
+        } catch (Exception e) {
+            Log.e(TAG, "Can not connect to keystore", e);
+            return SYSTEM_ERROR;
+        }
+    }
+
+    /**
      * Gets the last authentication time of the given user and authenticators.
      *
      * @param userId user id

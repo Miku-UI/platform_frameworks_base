@@ -2,14 +2,6 @@ package: "android.database.sqlite"
 container: "system"
 
 flag {
-     name: "oneway_finalizer_close_fixed"
-     namespace: "system_performance"
-     is_fixed_read_only: true
-     description: "Make BuildCursorNative.close oneway if in the finalizer"
-     bug: "368221351"
-}
-
-flag {
      name: "sqlite_apis_35"
      is_exported: true
      namespace: "system_performance"
@@ -32,4 +24,11 @@ flag {
      namespace: "system_performance"
      description: "Do not checkpoint WAL if closing in the finalizer"
      bug: "397982577"
+}
+
+flag {
+     name: "report_active_db_configuration"
+     namespace: "system_performance"
+     description: "Report the active DB journal and sync modes"
+     bug: "444244330"
 }

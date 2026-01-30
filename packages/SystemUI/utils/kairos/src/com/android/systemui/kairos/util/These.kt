@@ -55,9 +55,9 @@ inline fun <A> These<A, A>.merge(f: (A, A) -> A): A =
 /** Returns the [These.First] [value][These.First.value] present in this [These] as a [Maybe]. */
 fun <A> These<A, *>.maybeFirst(): Maybe<A> =
     when (this) {
-        is These.Both -> Maybe.present(first)
-        is These.Second -> Maybe.absent
-        is These.First -> Maybe.present(value)
+        is These.Both -> maybeOf(first)
+        is These.Second -> maybeOf()
+        is These.First -> maybeOf(value)
     }
 
 /**
@@ -74,9 +74,9 @@ fun <A : Any> These<A, *>.firstOrNull(): A? =
 /** Returns the [These.Second] [value][These.Second.value] present in this [These] as a [Maybe]. */
 fun <A> These<*, A>.maybeSecond(): Maybe<A> =
     when (this) {
-        is These.Both -> Maybe.present(second)
-        is These.Second -> Maybe.present(value)
-        is These.First -> Maybe.absent
+        is These.Both -> maybeOf(second)
+        is These.Second -> maybeOf(value)
+        is These.First -> maybeOf()
     }
 
 /**
@@ -93,15 +93,15 @@ fun <A : Any> These<*, A>.secondOrNull(): A? =
 /** Returns [These.Both] values present in this [These] as a [Maybe]. */
 fun <A, B> These<A, B>.maybeBoth(): Maybe<Pair<A, B>> =
     when (this) {
-        is These.Both -> Maybe.present(first to second)
-        else -> Maybe.absent
+        is These.Both -> maybeOf(first to second)
+        else -> maybeOf()
     }
 
 /** Returns a [These] containing [first] and/or [second] if they are present. */
 fun <A, B> these(first: Maybe<A>, second: Maybe<B>): Maybe<These<A, B>> =
     when (first) {
         is Present ->
-            Maybe.present(
+            maybeOf(
                 when (second) {
                     is Present -> These.both(first.value, second.value)
                     else -> These.first(first.value)
@@ -110,8 +110,8 @@ fun <A, B> these(first: Maybe<A>, second: Maybe<B>): Maybe<These<A, B>> =
 
         else ->
             when (second) {
-                is Present -> Maybe.present(These.second(second.value))
-                else -> Maybe.absent
+                is Present -> maybeOf(These.second(second.value))
+                else -> maybeOf()
             }
     }
 

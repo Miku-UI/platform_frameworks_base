@@ -26,7 +26,7 @@ import com.android.internal.util.MessageUtils;
 
 /**
  * Event class used to record error events when parsing DHCP response packets.
- * {@hide}
+ * @hide
  * @deprecated The event may not be sent in Android S and above. The events
  * are logged by a single caller in the system using signature permissions
  * and that caller is migrating to statsd.

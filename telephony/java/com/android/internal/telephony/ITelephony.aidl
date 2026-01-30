@@ -102,7 +102,7 @@ import android.telephony.UiccSlotMapping;
  * TelephonyManager class.  A few places are still using this directly.
  * Please clean them up if possible and use TelephonyManager instead.
  *
- * {@hide}
+ * @hide
  */
 interface ITelephony {
 
@@ -396,92 +396,6 @@ interface ITelephony {
     int getDataStateForSubId(int subId);
 
     /**
-     * Returns the current active phone type as integer.
-     * Returns TelephonyManager.PHONE_TYPE_CDMA if RILConstants.CDMA_PHONE
-     * and TelephonyManager.PHONE_TYPE_GSM if RILConstants.GSM_PHONE
-     */
-    @UnsupportedAppUsage
-    int getActivePhoneType();
-
-    /**
-     * Returns the current active phone type as integer for particular slot.
-     * Returns TelephonyManager.PHONE_TYPE_CDMA if RILConstants.CDMA_PHONE
-     * and TelephonyManager.PHONE_TYPE_GSM if RILConstants.GSM_PHONE
-     * @param slotIndex - slot to query.
-     */
-    int getActivePhoneTypeForSlot(int slotIndex);
-
-    /**
-     * Returns the CDMA ERI icon index to display
-     * @param callingPackage package making the call.
-     * @param callingFeatureId The feature in the package.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    int getCdmaEriIconIndex(String callingPackage, String callingFeatureId);
-
-    /**
-     * Returns the CDMA ERI icon index to display on particular subId.
-     * @param subId user preferred subId.
-     * @param callingPackage package making the call.
-     * @param callingFeatureId The feature in the package.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    int getCdmaEriIconIndexForSubscriber(int subId, String callingPackage,
-            String callingFeatureId);
-
-    /**
-     * Returns the CDMA ERI icon mode,
-     * 0 - ON
-     * 1 - FLASHING
-     * @param callingPackage package making the call.
-     * @param callingFeatureId The feature in the package.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    int getCdmaEriIconMode(String callingPackage, String callingFeatureId);
-
-    /**
-     * Returns the CDMA ERI icon mode on particular subId,
-     * 0 - ON
-     * 1 - FLASHING
-     * @param subId user preferred subId.
-     * @param callingPackage package making the call.
-     * @param callingFeatureId The feature in the package.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    int getCdmaEriIconModeForSubscriber(int subId, String callingPackage,
-            String callingFeatureId);
-
-    /**
-     * Returns the CDMA ERI text,
-     * @param callingPackage package making the call.
-     * @param callingFeatureId The feature in the package.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    String getCdmaEriText(String callingPackage, String callingFeatureId);
-
-    /**
-     * Returns the CDMA ERI text for particular subId,
-     * @param subId user preferred subId.
-     * @param callingPackage package making the call.
-     * @param callingFeatureId The feature in the package.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    String getCdmaEriTextForSubscriber(int subId, String callingPackage, String callingFeatureId);
-
-    /**
-     * Returns true if OTA service provisioning needs to run.
-     * Only relevant on some technologies, others will always
-     * return false.
-     */
-    boolean needsOtaServiceProvisioning();
-
-    /**
      * Sets the voicemail number for a particular subscriber.
      */
     boolean setVoiceMailNumber(int subId, String alphaTag, String number);
@@ -600,30 +514,6 @@ interface ITelephony {
      * Return true if an ICC card is present
      */
     boolean hasIccCardUsingSlotIndex(int slotIndex);
-
-    /**
-     * Return if the current radio is LTE on CDMA. This
-     * is a tri-state return value as for a period of time
-     * the mode may be unknown.
-     *
-     * @param callingPackage the name of the calling package
-     * @param callingFeatureId The feature in the package.
-     * @return {@link Phone#LTE_ON_CDMA_UNKNOWN}, {@link Phone#LTE_ON_CDMA_FALSE}
-     * or {@link PHone#LTE_ON_CDMA_TRUE}
-     */
-    int getLteOnCdmaMode(String callingPackage, String callingFeatureId);
-
-    /**
-     * Return if the current radio is LTE on CDMA. This
-     * is a tri-state return value as for a period of time
-     * the mode may be unknown.
-     *
-     * @param callingPackage the name of the calling package
-     * @param callingFeatureId The feature in the package.
-     * @return {@link Phone#LTE_ON_CDMA_UNKNOWN}, {@link Phone#LTE_ON_CDMA_FALSE}
-     * or {@link PHone#LTE_ON_CDMA_TRUE}
-     */
-    int getLteOnCdmaModeForSubscriber(int subId, String callingPackage, String callingFeatureId);
 
     /**
      * Returns all observed cell information of the device.
@@ -783,40 +673,6 @@ interface ITelephony {
      *         string.
      */
     String sendEnvelopeWithStatus(int subId, String content);
-
-    /**
-     * Read one of the NV items defined in {@link RadioNVItems} / {@code ril_nv_items.h}.
-     * Used for device configuration by some CDMA operators.
-     *
-     * @param itemID the ID of the item to read.
-     * @return the NV item as a String, or null on any failure.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    String nvReadItem(int itemID);
-
-    /**
-     * Write one of the NV items defined in {@link RadioNVItems} / {@code ril_nv_items.h}.
-     * Used for device configuration by some CDMA operators.
-     *
-     * @param itemID the ID of the item to read.
-     * @param itemValue the value to write, as a String.
-     * @return true on success; false on any failure.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    boolean nvWriteItem(int itemID, String itemValue);
-
-    /**
-     * Update the CDMA Preferred Roaming List (PRL) in the radio NV storage.
-     * Used for device configuration by some CDMA operators.
-     *
-     * @param preferredRoamingList byte array containing the new PRL.
-     * @return true on success; false on any failure.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    boolean nvWriteCdmaPrl(in byte[] preferredRoamingList);
 
     /**
      * Rollback modem configurations to factory default except some config which are in whitelist.
@@ -996,9 +852,11 @@ interface ITelephony {
      * @param subId the id of the subscription.
      * @param reason the reason the allowed network type change is taking place
      * @param allowedNetworkTypes the allowed network types.
+     * @param callingPackage the package that changed set the allowed network types.
      * @return true on success; false on any failure.
      */
-    boolean setAllowedNetworkTypesForReason(int subId, int reason, long allowedNetworkTypes);
+    boolean setAllowedNetworkTypesForReason(int subId, int reason, long allowedNetworkTypes,
+            String callingPackage);
 
     /**
      * Get the user enabled state of Mobile Data.
@@ -1056,22 +914,6 @@ interface ITelephony {
      * Set IMS registration state
      */
     void setImsRegistrationState(boolean registered);
-
-    /**
-     * Return MDN string for CDMA phone.
-     * @param subId user preferred subId.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    String getCdmaMdn(int subId);
-
-    /**
-     * Return MIN string for CDMA phone.
-     * @param subId user preferred subId.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    String getCdmaMin(int subId);
 
     /**
      * Request that the next incoming call from a number matching {@code range} be intercepted.
@@ -1365,24 +1207,6 @@ interface ITelephony {
     String getTypeAllocationCodeForSlot(int slotIndex);
 
     /**
-     * Returns the MEID for the given slot.
-     *
-     * @param slotIndex - device slot.
-     * @param callingPackage The package making the call.
-     * @param callingFeatureId The feature in the package
-     * <p>Requires Permission:
-     *   {@link android.Manifest.permission#READ_PHONE_STATE READ_PHONE_STATE}
-     */
-    String getMeidForSlot(int slotIndex, String callingPackage, String callingFeatureId);
-
-    /**
-     * Returns the Manufacturer Code from the MEID for the given slot.
-     *
-     * @param slotIndex - Which slot to retrieve the Manufacturer Code from.
-     */
-    String getManufacturerCodeForSlot(int slotIndex);
-
-    /**
      * Returns the device software version.
      *
      * @param slotIndex - device slot.
@@ -1505,28 +1329,6 @@ interface ITelephony {
      * @return Application ID for specificied app type or null if no uicc or error.
      */
     String getAidForAppType(int subId, int appType);
-
-    /**
-    * Return the Electronic Serial Number.
-    *
-    * Requires that the calling app has READ_PRIVILEGED_PHONE_STATE permission
-    *
-    * @param subId the subscription ID that this request applies to.
-    * @return ESN or null if error.
-    * @hide
-    */
-    String getEsn(int subId);
-
-    /**
-     * Return the Preferred Roaming List Version
-     *
-     * Requires that the calling app has READ_PRIVILEGED_PHONE_STATE permission
-     * @param subId the subscription ID that this request applies to.
-     * @return PRLVersion or null if error.
-     * @hide
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    String getCdmaPrlVersion(int subId);
 
     /**
      * Get snapshot of Telephony histograms
@@ -1805,6 +1607,8 @@ interface ITelephony {
      *
      * @return {@code true} if the switch succeeds, {@code false} if the switch fails.
      */
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission("
+                      + "android.Manifest.permission.MODIFY_PHONE_STATE)")
     boolean setSimSlotMapping(in List<UiccSlotMapping> slotMapping);
 
     /**
@@ -1822,50 +1626,6 @@ interface ITelephony {
      * @param isEnabled {@code true} to enable mobile data roaming, otherwise disable it.
      */
     void setDataRoamingEnabled(int subId, boolean isEnabled);
-
-    /**
-     * Gets the roaming mode for the CDMA phone with the subscription id {@code subId}.
-     *
-     * @param the subscription id.
-     * @return the roaming mode for CDMA phone.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    int getCdmaRoamingMode(int subId);
-
-    /**
-     * Sets the roaming mode on the CDMA phone with the subscription {@code subId} to the given
-     * roaming mode {@code mode}.
-     *
-     * @param subId the subscription id.
-     * @param mode the roaming mode should be set.
-     * @return {@code true} if successed.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    boolean setCdmaRoamingMode(int subId, int mode);
-
-    /**
-     * Gets the subscription mode for the CDMA phone with the subscription id {@code subId}.
-     *
-     * @param the subscription id.
-     * @return the subscription mode for CDMA phone.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    int getCdmaSubscriptionMode(int subId);
-
-    /**
-     * Sets the subscription mode for CDMA phone with the subscription {@code subId} to the given
-     * subscription mode {@code mode}.
-     *
-     * @param subId the subscription id.
-     * @param mode the subscription mode should be set.
-     * @return {@code true} if successed.
-     *
-     * @deprecated Legacy CDMA is unsupported.
-     */
-    boolean setCdmaSubscriptionMode(int subId, int mode);
 
     /**
      * A test API to override carrier information including mccmnc, imsi, iccid, gid1, gid2,
@@ -3097,6 +2857,16 @@ interface ITelephony {
     void setDeviceAlignedWithSatellite(boolean isAligned);
 
     /**
+     * This API can be used by only CTS to update CTS mode testing.
+     *
+     * @param ctsMode Whether to enable CTS mode for testing.
+     *
+     * @return {@code true} if the CTS mode is set successfully,
+     * {@code false} otherwise.
+     */
+    boolean setCtsMode(boolean ctsMode);
+
+    /**
      * This API can be used by only CTS to update satellite vendor service package name.
      *
      * @param servicePackageName The package name of the satellite vendor service.
@@ -3185,9 +2955,11 @@ interface ITelephony {
      *                     To disable the override, use -1 for handoverType.
      * @param delaySeconds The event EVENT_DISPLAY_EMERGENCY_MESSAGE will be sent to Dialer
      *                     delaySeconds after the emergency call starts.
+     * @param simSlotIndex The SIM slot index to use for loading T911 conversation thread.
      * @return {@code true} if the handover type is set successfully, {@code false} otherwise.
      */
-    boolean setEmergencyCallToSatelliteHandoverType(int handoverType, int delaySeconds);
+    boolean setEmergencyCallToSatelliteHandoverType(
+            int handoverType, int delaySeconds, int simSlotIndex);
 
     /**
      * This API should be used by only CTS tests to forcefully set the country codes.
@@ -3216,12 +2988,14 @@ interface ITelephony {
      * This API can be used by only CTS to override the satellite access allowed state for
      * a list of subscription IDs.
      *
+     * @param reset {@code true} mean the overridden configs should not be used, {@code false}
+     *              otherwise.
      * @param subIdListStr The string representation of the list of subscription IDs,
      *                     which are numbers separated by comma.
      * @return {@code true} if the satellite access allowed state is set successfully,
      * {@code false} otherwise.
      */
-    boolean setSatelliteAccessAllowedForSubscriptions(in String subIdListStr);
+    boolean setSatelliteAccessAllowedForSubscriptions(in boolean reset, in String subIdListStr);
 
     /**
      * This API can be used by only CTS to override satellite TN scanning support.
@@ -3522,6 +3296,34 @@ interface ITelephony {
      * @return {@code true} if the setting is successful, {@code false} otherwise.
      */
     boolean setIsSatelliteCommunicationAllowedForCurrentLocationCache(in String state);
+
+    /**
+     * This API can be used by only CTS to override the satellite entitlement status response.
+     *
+     * @param overriddenEntilementStatusResponse the overridden entitlement status response.
+     * @param throwException whether to throw exception when receiving a request for entitlement
+     *                       status.
+     * @return {@code true} if the setting is successful, {@code false} otherwise.
+     */
+    boolean overrideSatelliteEntilementStatusResponseForCtsTest(
+            in String overriddenEntilementStatusResponse, in boolean throwException);
+    /**
+     * This API can be used by only CTS to override the entitlement query conditions.
+     *
+     * @param ignoreInternetConnection whether to ignore the internet connection check.
+     * @param ignoreRefreshCondition whether to ignore the refresh condition.
+     * @return {@code true} if the setting is successful, {@code false} otherwise.
+     */
+    boolean overrideSatelliteEntilementQueryConditions(
+            boolean ignoreInternetConnection, boolean ignoreRefreshCondition);
+
+    /**
+     * This API can be used by only CTS to control the max allowed data mode.
+     *
+     * @param maxAllowedDataMode The max allowed data mode.
+     * @return {@code true} if the value is set successfully, {@code false} otherwise.
+     */
+    boolean setMaxAllowedSatelliteDataModeForCtsTest(int maxAllowedDataMode);
 
     /**
      * Request to get the session stats of the satellite service.

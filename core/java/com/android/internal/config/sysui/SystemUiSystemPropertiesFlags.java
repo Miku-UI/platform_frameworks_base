@@ -84,10 +84,6 @@ public class SystemUiSystemPropertiesFlags {
         /** Value used by polite notif. feature */
         public static final Flag NOTIF_AVALANCHE_TIMEOUT = devFlag(
                 "persist.debug.sysui.notification.notif_avalanche_timeout", 120_000);
-
-        /** b/303716154: For debugging only: use short bitmap duration. */
-        public static final Flag DEBUG_SHORT_BITMAP_DURATION = devFlag(
-                "persist.sysui.notification.debug_short_bitmap_duration");
     }
 
     //// == End of flags.  Everything below this line is the implementation. == ////

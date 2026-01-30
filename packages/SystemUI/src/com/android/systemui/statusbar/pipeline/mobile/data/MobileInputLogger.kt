@@ -83,12 +83,15 @@ class MobileInputLogger @Inject constructor(@MobileInputLog private val buffer: 
         )
     }
 
-    fun logNtnSignalStrengthChanged(signalStrength: NtnSignalStrength) {
+    fun logNtnSignalStrengthChanged(signalStrength: NtnSignalStrength, subId: Int) {
         buffer.log(
             TAG,
             LogLevel.INFO,
-            { int1 = signalStrength.level },
-            { "onCarrierRoamingNtnSignalStrengthChanged: level=$int1" },
+            {
+                int1 = signalStrength.level
+                int2 = subId
+            },
+            { "onCarrierRoamingNtnSignalStrengthChanged: subId=$int2 level=$int1" },
         )
     }
 
@@ -129,12 +132,15 @@ class MobileInputLogger @Inject constructor(@MobileInputLog private val buffer: 
         )
     }
 
-    fun logOnCarrierRoamingNtnModeChanged(active: Boolean) {
+    fun logOnCarrierRoamingNtnModeChanged(active: Boolean, subId: Int) {
         buffer.log(
             TAG,
             LogLevel.INFO,
-            { bool1 = active },
-            { "onCarrierRoamingNtnModeChanged: $bool1" },
+            {
+                int1 = subId
+                bool1 = active
+            },
+            { "onCarrierRoamingNtnModeChanged: subId=$int1 active=$bool1" },
         )
     }
 

@@ -40,7 +40,6 @@ import com.android.internal.os.ProcessCpuTracker;
 
 import libcore.io.IoUtils;
 
-import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -428,8 +427,8 @@ public final class PhantomProcessList {
                                 // parent is gone, this process should have been killed too
                                 return -1;
                             }
-                            if (ra.mState.getCurAdj() != rb.mState.getCurAdj()) {
-                                return ra.mState.getCurAdj() - rb.mState.getCurAdj();
+                            if (ra.getCurAdj() != rb.getCurAdj()) {
+                                return ra.getCurAdj() - rb.getCurAdj();
                             }
                             if (a.mKnownSince != b.mKnownSince) {
                                 // In case of identical oom adj, younger one first
@@ -489,7 +488,7 @@ public final class PhantomProcessList {
                     if (r == proc) {
                         r.killLocked(msg, true);
                     } else {
-                        r.killLocked("Caused by siling process: " + msg, false);
+                        r.killLocked("Caused by sibling process: " + msg, false);
                     }
                 }
             }

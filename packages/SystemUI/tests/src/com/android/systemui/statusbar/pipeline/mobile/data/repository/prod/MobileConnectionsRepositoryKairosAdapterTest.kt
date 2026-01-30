@@ -26,6 +26,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
+import org.junit.Ignore
 import org.mockito.Mockito
 import org.mockito.kotlin.mock
 
@@ -34,6 +35,7 @@ import org.mockito.kotlin.mock
 // This is required because our [SubscriptionManager.OnSubscriptionsChangedListener] uses a looper
 // to run the callback and this makes the looper place nicely with TestScope etc.
 @TestableLooper.RunWithLooper
+@Ignore("b/406252376")
 class MobileConnectionsRepositoryKairosAdapterTest :
     MobileConnectionsRepositoryTest<MobileConnectionsRepositoryKairosAdapter>() {
 
@@ -95,6 +97,7 @@ class MobileConnectionsRepositoryKairosAdapterTest :
                         mergedRepoFactory =
                             CarrierMergedConnectionRepositoryKairos.Factory(
                                 telephonyManager,
+                                carrierConfigRepo,
                                 wifiRepository,
                             ),
                     )

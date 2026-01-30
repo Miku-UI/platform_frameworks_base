@@ -31,7 +31,7 @@ import java.util.List;
 /**
  * Mediator between apps being translated and translation service implementation.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ITranslationManager {
     void onTranslationCapabilitiesRequest(int sourceFormat, int destFormat,

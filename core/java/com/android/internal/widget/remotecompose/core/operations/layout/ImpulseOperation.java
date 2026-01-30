@@ -65,7 +65,7 @@ public class ImpulseOperation extends PaintOperation implements VariableSupport,
     }
 
     @Override
-    public void registerListening(RemoteContext context) {
+    public void registerListening(@NonNull RemoteContext context) {
         if (mProcess == null) {
             System.out.println(".....");
             Operation last = mList.get(mList.size() - 1);
@@ -92,7 +92,7 @@ public class ImpulseOperation extends PaintOperation implements VariableSupport,
     }
 
     @Override
-    public void updateVariables(RemoteContext context) {
+    public void updateVariables(@NonNull RemoteContext context) {
 
         mOutDuration =
                 Float.isNaN(mDuration) ? context.getFloat(Utils.idFromNan(mDuration)) : mDuration;
@@ -105,6 +105,7 @@ public class ImpulseOperation extends PaintOperation implements VariableSupport,
     }
 
     @NonNull
+    @Override
     public ArrayList<Operation> getList() {
         return mList;
     }
@@ -119,6 +120,7 @@ public class ImpulseOperation extends PaintOperation implements VariableSupport,
     public String toString() {
         StringBuilder builder = new StringBuilder("ImpulseOperation\n");
         for (Operation operation : mList) {
+            builder.append(operation);
             builder.append("  startAt: ");
             builder.append(mStartAt);
             builder.append(" duration: ");
@@ -226,12 +228,12 @@ public class ImpulseOperation extends PaintOperation implements VariableSupport,
      *
      * @param impulseProcess process to be executed every time
      */
-    public void setProcess(ImpulseProcess impulseProcess) {
+    public void setProcess(@NonNull ImpulseProcess impulseProcess) {
         mProcess = impulseProcess;
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("duration", mDuration, mOutDuration)

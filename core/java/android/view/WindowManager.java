@@ -38,47 +38,37 @@ import static android.view.View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
 import static android.view.View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
 import static android.view.View.SYSTEM_UI_FLAG_LOW_PROFILE;
 import static android.view.View.SYSTEM_UI_FLAG_VISIBLE;
-import static android.view.WindowInsets.Side.BOTTOM;
-import static android.view.WindowInsets.Side.LEFT;
-import static android.view.WindowInsets.Side.RIGHT;
-import static android.view.WindowInsets.Side.TOP;
-import static android.view.WindowInsets.Type.CAPTION_BAR;
-import static android.view.WindowInsets.Type.IME;
-import static android.view.WindowInsets.Type.MANDATORY_SYSTEM_GESTURES;
-import static android.view.WindowInsets.Type.NAVIGATION_BARS;
-import static android.view.WindowInsets.Type.STATUS_BARS;
-import static android.view.WindowInsets.Type.SYSTEM_GESTURES;
-import static android.view.WindowInsets.Type.TAPPABLE_ELEMENT;
-import static android.view.WindowInsets.Type.WINDOW_DECOR;
-import static android.view.WindowLayoutParamsProto.ALPHA;
-import static android.view.WindowLayoutParamsProto.APPEARANCE;
-import static android.view.WindowLayoutParamsProto.BEHAVIOR;
-import static android.view.WindowLayoutParamsProto.BUTTON_BRIGHTNESS;
-import static android.view.WindowLayoutParamsProto.COLOR_MODE;
-import static android.view.WindowLayoutParamsProto.FIT_IGNORE_VISIBILITY;
-import static android.view.WindowLayoutParamsProto.FIT_INSETS_SIDES;
-import static android.view.WindowLayoutParamsProto.FIT_INSETS_TYPES;
-import static android.view.WindowLayoutParamsProto.FLAGS;
-import static android.view.WindowLayoutParamsProto.FORMAT;
-import static android.view.WindowLayoutParamsProto.GRAVITY;
-import static android.view.WindowLayoutParamsProto.HAS_SYSTEM_UI_LISTENERS;
-import static android.view.WindowLayoutParamsProto.HEIGHT;
-import static android.view.WindowLayoutParamsProto.HORIZONTAL_MARGIN;
-import static android.view.WindowLayoutParamsProto.INPUT_FEATURE_FLAGS;
-import static android.view.WindowLayoutParamsProto.PREFERRED_REFRESH_RATE;
-import static android.view.WindowLayoutParamsProto.PRIVATE_FLAGS;
-import static android.view.WindowLayoutParamsProto.ROTATION_ANIMATION;
-import static android.view.WindowLayoutParamsProto.SCREEN_BRIGHTNESS;
-import static android.view.WindowLayoutParamsProto.SOFT_INPUT_MODE;
-import static android.view.WindowLayoutParamsProto.SUBTREE_SYSTEM_UI_VISIBILITY_FLAGS;
-import static android.view.WindowLayoutParamsProto.SYSTEM_UI_VISIBILITY_FLAGS;
-import static android.view.WindowLayoutParamsProto.TYPE;
-import static android.view.WindowLayoutParamsProto.USER_ACTIVITY_TIMEOUT;
-import static android.view.WindowLayoutParamsProto.VERTICAL_MARGIN;
-import static android.view.WindowLayoutParamsProto.WIDTH;
-import static android.view.WindowLayoutParamsProto.WINDOW_ANIMATIONS;
-import static android.view.WindowLayoutParamsProto.X;
-import static android.view.WindowLayoutParamsProto.Y;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.ALPHA;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.APPEARANCE;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.BEHAVIOR;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.BUTTON_BRIGHTNESS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.COLOR_MODE;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FIT_IGNORE_VISIBILITY;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FIT_INSETS_SIDES;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FIT_INSETS_TYPES;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.FORMAT;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.GRAVITY;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.HAS_SYSTEM_UI_LISTENERS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.HEIGHT;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.HORIZONTAL_MARGIN;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.INPUT_FEATURE_FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.PREFERRED_REFRESH_RATE;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.PRIVATE_FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.ROTATION_ANIMATION;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.SCREEN_BRIGHTNESS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.SOFT_INPUT_MODE;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.SUBTREE_SYSTEM_UI_VISIBILITY_FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.SYSTEM_UI_VISIBILITY_FLAGS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.TYPE;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.USER_ACTIVITY_TIMEOUT;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.VERTICAL_MARGIN;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.WIDTH;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.WINDOW_ANIMATIONS;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.X;
+import static android.internal.perfetto.protos.Windowlayoutparams.WindowLayoutParamsProto.Y;
+
+import static com.android.server.display.feature.flags.Flags.FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT;
 
 import android.Manifest.permission;
 import android.annotation.CallbackExecutor;
@@ -232,13 +222,6 @@ public interface WindowManager extends ViewManager {
     int TRANSIT_OLD_TASK_OPEN = 8;
 
     /**
-     * A window in the top-most activity is being closed to reveal the previous activity in a
-     * different task.
-     * @hide
-     */
-    int TRANSIT_OLD_TASK_CLOSE = 9;
-
-    /**
      * A window in an existing task is being displayed on top of an existing one in another
      * activity's task.
      * @hide
@@ -264,33 +247,6 @@ public interface WindowManager extends ViewManager {
      * @hide
      */
     int TRANSIT_OLD_WALLPAPER_OPEN = 13;
-
-    /**
-     * A window in a new activity is being opened on top of an existing one, and both are on top
-     * of the wallpaper.
-     * @hide
-     */
-    int TRANSIT_OLD_WALLPAPER_INTRA_OPEN = 14;
-
-    /**
-     * The window in the top-most activity is being closed to reveal the previous activity, and
-     * both are on top of the wallpaper.
-     * @hide
-     */
-    int TRANSIT_OLD_WALLPAPER_INTRA_CLOSE = 15;
-
-    /**
-     * A window in a new task is being opened behind an existing one in another activity's task.
-     * The new window will show briefly and then be gone.
-     * @hide
-     */
-    int TRANSIT_OLD_TASK_OPEN_BEHIND = 16;
-
-    /**
-     * An activity is being relaunched (e.g. due to configuration change).
-     * @hide
-     */
-    int TRANSIT_OLD_ACTIVITY_RELAUNCH = 18;
 
     /**
      * Keyguard is going away.
@@ -323,30 +279,6 @@ public interface WindowManager extends ViewManager {
     int TRANSIT_OLD_KEYGUARD_UNOCCLUDE = 23;
 
     /**
-     * A translucent activity is being opened.
-     * @hide
-     */
-    int TRANSIT_OLD_TRANSLUCENT_ACTIVITY_OPEN = 24;
-
-    /**
-     * A translucent activity is being closed.
-     * @hide
-     */
-    int TRANSIT_OLD_TRANSLUCENT_ACTIVITY_CLOSE = 25;
-
-    /**
-     * A crashing activity is being closed.
-     * @hide
-     */
-    int TRANSIT_OLD_CRASHING_ACTIVITY_CLOSE = 26;
-
-    /**
-     * A task is changing windowing modes
-     * @hide
-     */
-    int TRANSIT_OLD_TASK_CHANGE_WINDOWING_MODE = 27;
-
-    /**
      * A window in a new task fragment is being opened.
      * @hide
      */
@@ -366,18 +298,6 @@ public interface WindowManager extends ViewManager {
     int TRANSIT_OLD_TASK_FRAGMENT_CHANGE = 30;
 
     /**
-     * A dream activity is being opened.
-     * @hide
-     */
-    int TRANSIT_OLD_DREAM_ACTIVITY_OPEN = 31;
-
-    /**
-     * A dream activity is being closed.
-     * @hide
-     */
-    int TRANSIT_OLD_DREAM_ACTIVITY_CLOSE = 32;
-
-    /**
      * @hide
      */
     @IntDef(prefix = { "TRANSIT_OLD_" }, value = {
@@ -386,28 +306,17 @@ public interface WindowManager extends ViewManager {
             TRANSIT_OLD_ACTIVITY_OPEN,
             TRANSIT_OLD_ACTIVITY_CLOSE,
             TRANSIT_OLD_TASK_OPEN,
-            TRANSIT_OLD_TASK_CLOSE,
             TRANSIT_OLD_TASK_TO_FRONT,
             TRANSIT_OLD_TASK_TO_BACK,
             TRANSIT_OLD_WALLPAPER_CLOSE,
             TRANSIT_OLD_WALLPAPER_OPEN,
-            TRANSIT_OLD_WALLPAPER_INTRA_OPEN,
-            TRANSIT_OLD_WALLPAPER_INTRA_CLOSE,
-            TRANSIT_OLD_TASK_OPEN_BEHIND,
-            TRANSIT_OLD_ACTIVITY_RELAUNCH,
             TRANSIT_OLD_KEYGUARD_GOING_AWAY,
             TRANSIT_OLD_KEYGUARD_GOING_AWAY_ON_WALLPAPER,
             TRANSIT_OLD_KEYGUARD_OCCLUDE,
             TRANSIT_OLD_KEYGUARD_UNOCCLUDE,
-            TRANSIT_OLD_TRANSLUCENT_ACTIVITY_OPEN,
-            TRANSIT_OLD_TRANSLUCENT_ACTIVITY_CLOSE,
-            TRANSIT_OLD_CRASHING_ACTIVITY_CLOSE,
-            TRANSIT_OLD_TASK_CHANGE_WINDOWING_MODE,
             TRANSIT_OLD_TASK_FRAGMENT_OPEN,
             TRANSIT_OLD_TASK_FRAGMENT_CLOSE,
             TRANSIT_OLD_TASK_FRAGMENT_CHANGE,
-            TRANSIT_OLD_DREAM_ACTIVITY_OPEN,
-            TRANSIT_OLD_DREAM_ACTIVITY_CLOSE
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface TransitionOldType {}
@@ -489,6 +398,11 @@ public interface WindowManager extends ViewManager {
      * @hide
      */
     int TRANSIT_CLOSE_PREPARE_BACK_NAVIGATION = 14;
+    /**
+     * Lock task mode is starting.
+     * @hide
+     */
+    int TRANSIT_START_LOCK_TASK_MODE = 15;
 
     /**
      * The first slot for custom transition types. Callers (like Shell) can make use of custom
@@ -520,6 +434,7 @@ public interface WindowManager extends ViewManager {
             TRANSIT_SLEEP,
             TRANSIT_PREPARE_BACK_NAVIGATION,
             TRANSIT_CLOSE_PREPARE_BACK_NAVIGATION,
+            TRANSIT_START_LOCK_TASK_MODE,
             TRANSIT_FIRST_CUSTOM
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -634,6 +549,14 @@ public interface WindowManager extends ViewManager {
     int TRANSIT_FLAG_AVOID_MOVE_TO_FRONT = (1 << 16); // 0x10000
 
     /**
+     * Transition flag: Indicates that the transition involves a display level change
+     * (i.e, disconnect).
+     * @hide
+     */
+    int TRANSIT_FLAG_DISPLAY_LEVEL_TRANSITION = (1 << 17); // 0x20000
+
+
+    /**
      * @hide
      */
     @IntDef(flag = true, prefix = { "TRANSIT_FLAG_" }, value = {
@@ -654,6 +577,7 @@ public interface WindowManager extends ViewManager {
             TRANSIT_FLAG_PHYSICAL_DISPLAY_SWITCH,
             TRANSIT_FLAG_AOD_APPEARING,
             TRANSIT_FLAG_AVOID_MOVE_TO_FRONT,
+            TRANSIT_FLAG_DISPLAY_LEVEL_TRANSITION
     })
     @Retention(RetentionPolicy.SOURCE)
     @interface TransitionFlags {}
@@ -923,7 +847,8 @@ public interface WindowManager extends ViewManager {
             ScreenshotSource.SCREENSHOT_OVERVIEW,
             ScreenshotSource.SCREENSHOT_ACCESSIBILITY_ACTIONS,
             ScreenshotSource.SCREENSHOT_OTHER,
-            ScreenshotSource.SCREENSHOT_VENDOR_GESTURE})
+            ScreenshotSource.SCREENSHOT_VENDOR_GESTURE,
+            ScreenshotSource.SCREENSHOT_SCREEN_CAPTURE_UI})
     @interface ScreenshotSource {
         int SCREENSHOT_GLOBAL_ACTIONS = 0;
         int SCREENSHOT_KEY_CHORD = 1;
@@ -932,6 +857,7 @@ public interface WindowManager extends ViewManager {
         int SCREENSHOT_ACCESSIBILITY_ACTIONS = 4;
         int SCREENSHOT_OTHER = 5;
         int SCREENSHOT_VENDOR_GESTURE = 6;
+        int SCREENSHOT_SCREEN_CAPTURE_UI = 7;
     }
 
     /**
@@ -1241,9 +1167,7 @@ public interface WindowManager extends ViewManager {
      * &lt;/application&gt;
      * </pre>
      *
-     * @hide
      */
-    //TODO(b/394590412): Make this property public.
     String PROPERTY_CAMERA_COMPAT_ALLOW_SIMULATE_REQUESTED_ORIENTATION =
             "android.window.PROPERTY_CAMERA_COMPAT_ALLOW_SIMULATE_REQUESTED_ORIENTATION";
 
@@ -1493,7 +1417,7 @@ public interface WindowManager extends ViewManager {
      * <pre>
      * &lt;application&gt;
      *   &lt;property
-     *     android:name="android.window.PROPERTY_COMPAT_ALLOW_USER_ASPECT_RATIO_FULLSCREEN_OVERRIDE"
+     *     android:name="android.window.PROPERTY_COMPAT_ALLOW_RESTRICTED_RESIZABILITY"
      *     android:value="false"/&gt;
      * &lt;/application&gt;
      * </pre>or
@@ -1544,7 +1468,7 @@ public interface WindowManager extends ViewManager {
      * </pre>
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+    @FlaggedApi(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     String PROPERTY_COMPAT_ALLOW_SAFE_REGION_LETTERBOXING =
             "android.window.PROPERTY_COMPAT_ALLOW_SAFE_REGION_LETTERBOXING";
 
@@ -1738,7 +1662,6 @@ public interface WindowManager extends ViewManager {
      * &lt;/activity&gt;
      * </pre>
      */
-    @FlaggedApi(Flags.FLAG_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI)
     public static final String PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI =
             "android.window.PROPERTY_SUPPORTS_MULTI_INSTANCE_SYSTEM_UI";
 
@@ -1843,32 +1766,29 @@ public interface WindowManager extends ViewManager {
     }
 
     /**
-     * Sets that the display should show system decors.
-     * <p>
-     * System decors include status bar, navigation bar, launcher.
-     * </p>
-     *
-     * @param displayId The id of the display.
-     * @param shouldShow Indicates that the display should show system decors.
-     * @see #shouldShowSystemDecors(int)
-     * @hide
-     */
-    @TestApi
-    default void setShouldShowSystemDecors(int displayId, boolean shouldShow) {
-    }
-
-    /**
      * Checks if the display supports showing system decors.
      * <p>
      * System decors include status bar, navigation bar, launcher.
      * </p>
      *
      * @param displayId The id of the display.
-     * @see #setShouldShowSystemDecors(int, boolean)
      * @hide
      */
     @TestApi
     default boolean shouldShowSystemDecors(int displayId) {
+        return false;
+    }
+
+    /**
+     * Indicates that the display is eligible for the desktop mode from WindowManager's perspective.
+     *
+     * @param displayId The id of the display.
+     * @return {@code true} if the display is eligible for the desktop mode from WindowManager's
+     * perspective.
+     * @hide
+     */
+    @FlaggedApi(FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT)
+    default boolean isEligibleForDesktopMode(int displayId) {
         return false;
     }
 
@@ -2725,7 +2645,9 @@ public interface WindowManager extends ViewManager {
                 TYPE_APPLICATION_OVERLAY,
                 TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY,
                 TYPE_NOTIFICATION_SHADE,
-                TYPE_STATUS_BAR_ADDITIONAL
+                TYPE_STATUS_BAR_ADDITIONAL,
+                // TODO(b/398759994): Rename to TYPE_INVALID
+                INVALID_WINDOW_TYPE,
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface WindowType {}
@@ -2748,6 +2670,15 @@ public interface WindowManager extends ViewManager {
                     return true;
             }
             return false;
+        }
+
+        /**
+         * Returns {@code true} if the given {@code type} is a sub-window type.
+         *
+         * @hide
+         */
+        public static boolean isSubWindowType(@WindowType int type) {
+            return (type >= FIRST_SUB_WINDOW && type <= LAST_SUB_WINDOW);
         }
 
         /** @deprecated this is ignored, this value is set automatically when needed. */
@@ -3225,7 +3156,7 @@ public interface WindowManager extends ViewManager {
          * Touches can slide out of the window but they cannot necessarily slide
          * back in (unless the other window with touch focus permits it).
          *
-         * {@hide}
+         * @hide
          */
         @UnsupportedAppUsage
         @TestApi
@@ -3425,7 +3356,7 @@ public interface WindowManager extends ViewManager {
          * types that normally only appear on the owning user's screen. Refer to each window type
          * to determine its default behavior.
          *
-         * {@hide} */
+         * @hide */
         @SystemApi
         @RequiresPermission(permission.INTERNAL_SYSTEM_WINDOW)
         public static final int SYSTEM_FLAG_SHOW_FOR_ALL_USERS = 1 << 4;
@@ -3442,20 +3373,20 @@ public interface WindowManager extends ViewManager {
          * Never animate position changes of the window.
          *
          * @see android.R.styleable#Window_windowNoMoveAnimation
-         * {@hide}
+         * @hide
          */
         @UnsupportedAppUsage
         public static final int PRIVATE_FLAG_NO_MOVE_ANIMATION = 1 << 6;
 
         /** Window flag: the client side view can intercept back progress, so system does not
          * need to pilfer pointers.
-         * {@hide} */
+         * @hide */
         public static final int PRIVATE_FLAG_APP_PROGRESS_GENERATION_ALLOWED = 1 << 7;
 
         /** Window flag: a special option intended for system dialogs.  When
          * this flag is set, the window will demand focus unconditionally when
          * it is created.
-         * {@hide} */
+         * @hide */
         public static final int PRIVATE_FLAG_SYSTEM_ERROR = 1 << 8;
 
         /**
@@ -3463,14 +3394,14 @@ public interface WindowManager extends ViewManager {
          * necessary. If a window size can be known by the LayoutParams, we can use the size to
          * relayout window, and we don't have to measure the view hierarchy before laying out the
          * views. This reduces the chances to perform measure.
-         * {@hide}
+         * @hide
          */
         public static final int PRIVATE_FLAG_OPTIMIZE_MEASURE = 1 << 9;
 
         /**
          * Flag that prevents the wallpaper behind the current window from receiving touch events.
          *
-         * {@hide}
+         * @hide
          */
         public static final int PRIVATE_FLAG_DISABLE_WALLPAPER_TOUCH_EVENTS = 1 << 10;
 
@@ -3486,7 +3417,7 @@ public interface WindowManager extends ViewManager {
          * is given, and the window is covering the display cutout. The extended frame will not be
          * larger than the parent frame.
          *
-         * {@hide}
+         * @hide
          */
         public static final int PRIVATE_FLAG_LAYOUT_SIZE_EXTENDED_BY_CUTOUT = 1 << 12;
 
@@ -3569,9 +3500,8 @@ public interface WindowManager extends ViewManager {
         public static final int PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION = 1 << 21;
 
         /**
-         * Flag to prevent the window from being magnified by the accessibility magnifier.
+         * Flag to prevent the window from being magnified by the accessibility magnification.
          *
-         * TODO(b/190623172): This is a temporary solution and need to find out another way instead.
          * @hide
          */
         public static final int PRIVATE_FLAG_NOT_MAGNIFIABLE = 1 << 22;
@@ -3605,6 +3535,15 @@ public interface WindowManager extends ViewManager {
          * @hide
          */
         public static final int PRIVATE_FLAG_OPT_OUT_EDGE_TO_EDGE = 1 << 26;
+
+        /**
+         * Flag to indicate that this window is part of input method for being magnified by the
+         * accessibility magnification
+         *
+         * TODO(b/190623172): This is a temporary solution and need to find out another way instead.
+         * @hide
+         */
+        public static final int PRIVATE_FLAG_INPUT_METHOD_WINDOW = 1 << 27;
 
         /**
          * Flag to indicate that the window is controlling how it fits window insets on its own.
@@ -3676,6 +3615,7 @@ public interface WindowManager extends ViewManager {
                 SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS,
                 PRIVATE_FLAG_IS_ROUNDED_CORNERS_OVERLAY,
                 PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION,
+                PRIVATE_FLAG_INPUT_METHOD_WINDOW,
                 PRIVATE_FLAG_NOT_MAGNIFIABLE,
                 PRIVATE_FLAG_COLOR_SPACE_AGNOSTIC,
                 PRIVATE_FLAG_CONSUME_IME_INSETS,
@@ -3771,6 +3711,10 @@ public interface WindowManager extends ViewManager {
                         mask = PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION,
                         equals = PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION,
                         name = "EXCLUDE_FROM_SCREEN_MAGNIFICATION"),
+                @ViewDebug.FlagToString(
+                        mask = PRIVATE_FLAG_INPUT_METHOD_WINDOW,
+                        equals = PRIVATE_FLAG_INPUT_METHOD_WINDOW,
+                        name = "INPUT_METHOD_WINDOW"),
                 @ViewDebug.FlagToString(
                         mask = PRIVATE_FLAG_NOT_MAGNIFIABLE,
                         equals = PRIVATE_FLAG_NOT_MAGNIFIABLE,
@@ -4546,6 +4490,28 @@ public interface WindowManager extends ViewManager {
         public static final int INPUT_FEATURE_SENSITIVE_FOR_PRIVACY = 1 << 3;
 
         /**
+         * Input feature used to indicate that this window is display topology aware.
+         * <p>
+         * Using this flag will allow window to receive gestures that can cross display boundaries.
+         * Such windows can receive input event stream containing events with varying displayIds
+         * in the corresponding coordinate space when the cursor crosses display boundary.
+         * <p>
+         *
+         * @hide
+         */
+        @RequiresPermission(permission.MANAGE_DISPLAYS)
+        public static final int
+                INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE = 1 << 4;
+
+        /**
+         * Input feature flag used to indicate that this window wants to capture keys before
+         * system processes system shortcuts and actions.
+         *
+         * @hide
+         */
+        public static final int INPUT_FEATURE_CAPTURE_KEYBOARD = 1 << 5;
+
+        /**
          * An internal annotation for flags that can be specified to {@link #inputFeatures}.
          *
          * NOTE: These are not the same as {@link android.os.InputConfig} flags.
@@ -4557,7 +4523,9 @@ public interface WindowManager extends ViewManager {
                 INPUT_FEATURE_NO_INPUT_CHANNEL,
                 INPUT_FEATURE_DISABLE_USER_ACTIVITY,
                 INPUT_FEATURE_SPY,
-                INPUT_FEATURE_SENSITIVE_FOR_PRIVACY
+                INPUT_FEATURE_SENSITIVE_FOR_PRIVACY,
+                INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE,
+                INPUT_FEATURE_CAPTURE_KEYBOARD
         })
         public @interface InputFeatureFlags {
         }
@@ -4574,6 +4542,47 @@ public interface WindowManager extends ViewManager {
         @InputFeatureFlags
         @UnsupportedAppUsage
         public int inputFeatures;
+
+        /**
+         * Allows the currently focused window to capture keys before system processes system
+         * shortcuts and actions.
+         *
+         * <p>
+         * This will allow the application to receive keys before the system processes system
+         * shortcuts and actions. But certain system keys (Power keys, etc.) and shortcuts can be
+         * reserved and can never be blocked by the current focused window even with "keyboard
+         * capture" on.
+         * </p>
+         *
+         * <p>
+         * Window which set this attribute to {@code true}, but doesn't have the required
+         * permission will not be allowed to capture system shortcuts and actions. No exception
+         * will be thrown due to missing permission, we will just fallback to the default
+         * behavior of processing system shortcuts and actions.
+         * </p>
+         *
+         * @param enabled whether the window should capture system shortcuts and actions.
+         */
+        @FlaggedApi(com.android.hardware.input.Flags.FLAG_REQUEST_KEY_CAPTURE_API)
+        @RequiresPermission(permission.CAPTURE_KEYBOARD)
+        public void setKeyboardCaptureEnabled(boolean enabled) {
+            if (enabled) {
+                inputFeatures |= INPUT_FEATURE_CAPTURE_KEYBOARD;
+            } else {
+                inputFeatures &= ~INPUT_FEATURE_CAPTURE_KEYBOARD;
+            }
+        }
+
+        /**
+         * Returns whether "keyboard capture" is on.
+         *
+         * @return whether currently focused window is capturing keys before system processes
+         * shortcuts and actions.
+         */
+        @FlaggedApi(com.android.hardware.input.Flags.FLAG_REQUEST_KEY_CAPTURE_API)
+        public boolean hasKeyboardCapture() {
+            return (inputFeatures & INPUT_FEATURE_CAPTURE_KEYBOARD) != 0;
+        }
 
         /**
          * Sets the number of milliseconds before the user activity timeout occurs
@@ -4692,62 +4701,8 @@ public interface WindowManager extends ViewManager {
          */
         public final InsetsFlags insetsFlags = new InsetsFlags();
 
-        @ViewDebug.ExportedProperty(flagMapping = {
-                @ViewDebug.FlagToString(
-                        mask = STATUS_BARS,
-                        equals = STATUS_BARS,
-                        name = "STATUS_BARS"),
-                @ViewDebug.FlagToString(
-                        mask = NAVIGATION_BARS,
-                        equals = NAVIGATION_BARS,
-                        name = "NAVIGATION_BARS"),
-                @ViewDebug.FlagToString(
-                        mask = CAPTION_BAR,
-                        equals = CAPTION_BAR,
-                        name = "CAPTION_BAR"),
-                @ViewDebug.FlagToString(
-                        mask = IME,
-                        equals = IME,
-                        name = "IME"),
-                @ViewDebug.FlagToString(
-                        mask = SYSTEM_GESTURES,
-                        equals = SYSTEM_GESTURES,
-                        name = "SYSTEM_GESTURES"),
-                @ViewDebug.FlagToString(
-                        mask = MANDATORY_SYSTEM_GESTURES,
-                        equals = MANDATORY_SYSTEM_GESTURES,
-                        name = "MANDATORY_SYSTEM_GESTURES"),
-                @ViewDebug.FlagToString(
-                        mask = TAPPABLE_ELEMENT,
-                        equals = TAPPABLE_ELEMENT,
-                        name = "TAPPABLE_ELEMENT"),
-                @ViewDebug.FlagToString(
-                        mask = WINDOW_DECOR,
-                        equals = WINDOW_DECOR,
-                        name = "WINDOW_DECOR")
-        })
         private @InsetsType int mFitInsetsTypes = Type.systemBars();
-
-        @ViewDebug.ExportedProperty(flagMapping = {
-                @ViewDebug.FlagToString(
-                        mask = LEFT,
-                        equals = LEFT,
-                        name = "LEFT"),
-                @ViewDebug.FlagToString(
-                        mask = TOP,
-                        equals = TOP,
-                        name = "TOP"),
-                @ViewDebug.FlagToString(
-                        mask = RIGHT,
-                        equals = RIGHT,
-                        name = "RIGHT"),
-                @ViewDebug.FlagToString(
-                        mask = BOTTOM,
-                        equals = BOTTOM,
-                        name = "BOTTOM")
-        })
         private @InsetsSide int mFitInsetsSides = Side.all();
-
         private boolean mFitInsetsIgnoringVisibility = false;
 
         /**
@@ -5127,7 +5082,6 @@ public interface WindowManager extends ViewManager {
          * @param desiredHeadroom Desired amount of HDR headroom. Must be in the range of 1.0 (SDR)
          *                        to 10,000.0, or 0.0 to reset to default.
          */
-        @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_LIMITED_HDR)
         public void setDesiredHdrHeadroom(
                 @FloatRange(from = 0.0f, to = 10000.0f) float desiredHeadroom) {
             if (!Float.isFinite(desiredHeadroom)) {
@@ -5146,7 +5100,6 @@ public interface WindowManager extends ViewManager {
          * Get the desired amount of HDR headroom as set by {@link #setDesiredHdrHeadroom(float)}
          * @return The amount of HDR headroom set, or 0 for automatic/default behavior.
          */
-        @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_LIMITED_HDR)
         public float getDesiredHdrHeadroom() {
             return mDesiredHdrHeadroom;
         }
@@ -5454,44 +5407,44 @@ public interface WindowManager extends ViewManager {
         public static final int SCREEN_ORIENTATION_CHANGED = 1<<10;
         public static final int SCREEN_BRIGHTNESS_CHANGED = 1<<11;
         public static final int ROTATION_ANIMATION_CHANGED = 1<<12;
-        /** {@hide} */
+        /** @hide */
         public static final int BUTTON_BRIGHTNESS_CHANGED = 1<<13;
-        /** {@hide} */
+        /** @hide */
         public static final int SYSTEM_UI_VISIBILITY_CHANGED = 1<<14;
-        /** {@hide} */
+        /** @hide */
         public static final int SYSTEM_UI_LISTENER_CHANGED = 1<<15;
-        /** {@hide} */
+        /** @hide */
         public static final int INPUT_FEATURES_CHANGED = 1<<16;
-        /** {@hide} */
+        /** @hide */
         public static final int PRIVATE_FLAGS_CHANGED = 1<<17;
-        /** {@hide} */
+        /** @hide */
         public static final int USER_ACTIVITY_TIMEOUT_CHANGED = 1<<18;
-        /** {@hide} */
+        /** @hide */
         public static final int TRANSLUCENT_FLAGS_CHANGED = 1<<19;
-        /** {@hide} */
+        /** @hide */
         public static final int SURFACE_INSETS_CHANGED = 1<<20;
-        /** {@hide} */
+        /** @hide */
         public static final int PREFERRED_REFRESH_RATE_CHANGED = 1 << 21;
-        /** {@hide} */
+        /** @hide */
         public static final int DISPLAY_FLAGS_CHANGED = 1 << 22;
-        /** {@hide} */
+        /** @hide */
         public static final int PREFERRED_DISPLAY_MODE_ID = 1 << 23;
-        /** {@hide} */
+        /** @hide */
         public static final int ACCESSIBILITY_ANCHOR_CHANGED = 1 << 24;
-        /** {@hide} */
+        /** @hide */
         @TestApi
         public static final int ACCESSIBILITY_TITLE_CHANGED = 1 << 25;
-        /** {@hide} */
+        /** @hide */
         public static final int COLOR_MODE_CHANGED = 1 << 26;
-        /** {@hide} */
+        /** @hide */
         public static final int INSET_FLAGS_CHANGED = 1 << 27;
-        /** {@hide} */
+        /** @hide */
         public static final int MINIMAL_POST_PROCESSING_PREFERENCE_CHANGED = 1 << 28;
-        /** {@hide} */
+        /** @hide */
         public static final int BLUR_BEHIND_RADIUS_CHANGED = 1 << 29;
-        /** {@hide} */
+        /** @hide */
         public static final int PREFERRED_MIN_DISPLAY_REFRESH_RATE = 1 << 30;
-        /** {@hide} */
+        /** @hide */
         public static final int PREFERRED_MAX_DISPLAY_REFRESH_RATE = 1 << 31;
 
         // internal buffer to backup/restore parameters under compatibility mode.
@@ -5983,13 +5936,13 @@ public interface WindowManager extends ViewManager {
             }
             if (mFitInsetsTypes != 0) {
                 sb.append(System.lineSeparator());
-                sb.append(prefix).append("  fitTypes=").append(ViewDebug.flagsToString(
-                        LayoutParams.class, "mFitInsetsTypes", mFitInsetsTypes));
+                sb.append(prefix).append("  fitTypes=").append(
+                        WindowInsets.Type.toString(mFitInsetsTypes));
             }
             if (mFitInsetsSides != Side.all()) {
                 sb.append(System.lineSeparator());
-                sb.append(prefix).append("  fitSides=").append(ViewDebug.flagsToString(
-                        LayoutParams.class, "mFitInsetsSides", mFitInsetsSides));
+                sb.append(prefix).append("  fitSides=").append(
+                        WindowInsets.Side.toString(mFitInsetsSides));
             }
             if (mFitInsetsIgnoringVisibility) {
                 sb.append(System.lineSeparator());
@@ -6247,6 +6200,14 @@ public interface WindowManager extends ViewManager {
                 inputFeatures &= ~INPUT_FEATURE_SPY;
                 features.add("INPUT_FEATURE_SPY");
             }
+            if ((inputFeatures & INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE) != 0) {
+                inputFeatures &= ~INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE;
+                features.add("INPUT_FEATURE_DISPLAY_TOPOLOGY_AWARE");
+            }
+            if ((inputFeatures & INPUT_FEATURE_CAPTURE_KEYBOARD) != 0) {
+                inputFeatures &= ~INPUT_FEATURE_CAPTURE_KEYBOARD;
+                features.add("INPUT_FEATURE_CAPTURE_KEYBOARD");
+            }
             if (inputFeatures != 0) {
                 features.add(Integer.toHexString(inputFeatures));
             }
@@ -6488,7 +6449,6 @@ public interface WindowManager extends ViewManager {
      *                   when entered or exited trusted presentation per the thresholds.
      * @see TrustedPresentationThresholds
      */
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     default void registerTrustedPresentationListener(@NonNull IBinder window,
             @NonNull TrustedPresentationThresholds thresholds,  @NonNull Executor executor,
             @NonNull Consumer<Boolean> listener) {
@@ -6501,7 +6461,6 @@ public interface WindowManager extends ViewManager {
      *
      * @see WindowManager#registerTrustedPresentationListener(IBinder, TrustedPresentationThresholds, Executor, Consumer)
      */
-    @FlaggedApi(Flags.FLAG_TRUSTED_PRESENTATION_LISTENER_FOR_WINDOW)
     default void unregisterTrustedPresentationListener(@NonNull Consumer<Boolean> listener) {
         throw new UnsupportedOperationException();
     }
@@ -6528,7 +6487,6 @@ public interface WindowManager extends ViewManager {
      * @return Returns the {@link InputTransferToken} that can be used to transfer touch gesture
      * to or from other windows.
      */
-    @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
     @NonNull
     default InputTransferToken registerBatchedSurfaceControlInputReceiver(
             @NonNull InputTransferToken hostInputTransferToken,
@@ -6558,7 +6516,6 @@ public interface WindowManager extends ViewManager {
      * @return Returns the {@link InputTransferToken} that can be used to transfer touch gesture
      * to or from other windows.
      */
-    @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
     @NonNull
     default InputTransferToken registerUnbatchedSurfaceControlInputReceiver(
             @NonNull InputTransferToken hostInputTransferToken,
@@ -6580,7 +6537,6 @@ public interface WindowManager extends ViewManager {
      *
      * @param surfaceControl The SurfaceControl to remove and unregister the input channel for.
      */
-    @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
     default void unregisterSurfaceControlInputReceiver(@NonNull SurfaceControl surfaceControl) {
         throw new UnsupportedOperationException(
                 "unregisterSurfaceControlInputReceiver is not implemented");
@@ -6599,7 +6555,6 @@ public interface WindowManager extends ViewManager {
      *
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
     @TestApi
     @Nullable
     default IBinder getSurfaceControlInputClientToken(@NonNull SurfaceControl surfaceControl) {
@@ -6678,7 +6633,6 @@ public interface WindowManager extends ViewManager {
      * @see android.view.SurfaceControlViewHost.SurfacePackage#getInputTransferToken()
      * @see AttachedSurfaceControl#getInputTransferToken()
      */
-    @FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
     default boolean transferTouchGesture(@NonNull InputTransferToken transferFromToken,
             @NonNull InputTransferToken transferToToken) {
         throw new UnsupportedOperationException("transferTouchGesture is not implemented");
@@ -6750,6 +6704,32 @@ public interface WindowManager extends ViewManager {
     @FlaggedApi(com.android.window.flags.Flags.FLAG_SCREEN_RECORDING_CALLBACKS)
     default void removeScreenRecordingCallback(
             @NonNull Consumer<@ScreenRecordingState Integer> callback) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Sets the parent window to this {@code WindowManager}.
+     * This is necessary to attach sub-windows.
+     *
+     * @param parentWindow the parent window to be attached.
+     *
+     * @see android.window.WindowContext#attachWindow(View)
+     *
+     * @hide
+     */
+    default void setParentWindow(@NonNull Window parentWindow) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Creates a new instance of {@link WindowManager} with {@code parentWindow} attached.
+     *
+     * @param parentWindow the parent window to be attached.
+     * @return a new instance of {@link WindowManager} with {@code parentWindow} attached
+     *
+     * @hide
+     */
+    default WindowManager createLocalWindowManager(@NonNull Window parentWindow) {
         throw new UnsupportedOperationException();
     }
 }

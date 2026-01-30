@@ -44,12 +44,21 @@ class NotificationSettingsRepository(
             .map { it == 1 }
             .distinctUntilChanged()
 
+    val shouldExpandBundles: StateFlow<Boolean> =
+        secureSettingsRepository
+            .intSetting(name = Settings.Secure.NOTIFICATION_BUNDLES_ALWAYS_EXPAND)
+            .map { it == 1 }
+            .flowOn(backgroundDispatcher)
+            .stateIn(
+                scope = backgroundScope,
+                started = SharingStarted.Eagerly,
+                initialValue = false,
+            )
+
     /** The current state of the notification setting. */
     suspend fun isShowNotificationsOnLockScreenEnabled(): StateFlow<Boolean> =
         secureSettingsRepository
-            .intSetting(
-                name = Settings.Secure.LOCK_SCREEN_SHOW_NOTIFICATIONS,
-            )
+            .intSetting(name = Settings.Secure.LOCK_SCREEN_SHOW_NOTIFICATIONS)
             .map { it == 1 }
             .flowOn(backgroundDispatcher)
             .stateIn(scope = backgroundScope)
@@ -68,11 +77,7 @@ class NotificationSettingsRepository(
             .intSetting(name = Settings.System.NOTIFICATION_COOLDOWN_ENABLED)
             .map { it == 1 }
             .flowOn(backgroundDispatcher)
-            .stateIn(
-                scope = backgroundScope,
-                started = SharingStarted.Eagerly,
-                initialValue = true,
-            )
+            .stateIn(scope = backgroundScope, started = SharingStarted.Eagerly, initialValue = true)
 
     /** The default duration for DND mode when enabled. See [Settings.Secure.ZEN_DURATION]. */
     val zenDuration: StateFlow<Int> =

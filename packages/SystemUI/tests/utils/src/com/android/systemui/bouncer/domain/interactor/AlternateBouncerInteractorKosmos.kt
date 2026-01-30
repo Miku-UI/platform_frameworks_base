@@ -19,33 +19,28 @@ package com.android.systemui.bouncer.domain.interactor
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.bouncer.data.repository.keyguardBouncerRepository
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryBiometricsAllowedInteractor
-import com.android.systemui.keyguard.data.repository.deviceEntryFaceAuthRepository
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.scene.domain.interactor.sceneInteractor
-import com.android.systemui.util.time.systemClock
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 
 val Kosmos.alternateBouncerInteractor: AlternateBouncerInteractor by
     Kosmos.Fixture {
         AlternateBouncerInteractor(
             bouncerRepository = keyguardBouncerRepository,
             fingerprintPropertyRepository = fingerprintPropertyRepository,
-            systemClock = systemClock,
             deviceEntryBiometricsAllowedInteractor = { deviceEntryBiometricsAllowedInteractor },
             keyguardInteractor = { keyguardInteractor },
             keyguardTransitionInteractor = { keyguardTransitionInteractor },
             scope = testScope.backgroundScope,
             sceneInteractor = { sceneInteractor },
+            displayStateInteractor = { displayStateInteractor },
+            secureLockDeviceInteractor = { secureLockDeviceInteractor },
         )
     }
-
-fun Kosmos.givenCanShowAlternateBouncer() {
-    this.givenAlternateBouncerSupported()
-    this.keyguardBouncerRepository.setPrimaryShow(false)
-    this.deviceEntryFaceAuthRepository.setLockedOut(false)
-}
 
 fun Kosmos.givenAlternateBouncerSupported() {
     this.fingerprintPropertyRepository.supportsUdfps()

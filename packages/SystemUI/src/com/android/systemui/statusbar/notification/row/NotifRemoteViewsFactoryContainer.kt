@@ -16,11 +16,9 @@
 
 package com.android.systemui.statusbar.notification.row
 
-import android.widget.flags.Flags.notifLinearlayoutOptimized
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.flags.Flags
 import com.android.systemui.statusbar.notification.row.icon.NotificationRowIconViewInflaterFactory
-import com.android.systemui.statusbar.notification.shared.NotificationViewFlipperPausing
 import javax.inject.Inject
 import javax.inject.Provider
 
@@ -43,12 +41,8 @@ constructor(
         if (featureFlags.isEnabled(Flags.BIGPICTURE_NOTIFICATION_LAZY_LOADING)) {
             add(bigPictureLayoutInflaterFactory)
         }
-        if (notifLinearlayoutOptimized()) {
-            add(optimizedLinearLayoutFactory)
-        }
-        if (NotificationViewFlipperPausing.isEnabled) {
-            add(notificationViewFlipperFactory.get())
-        }
+        add(optimizedLinearLayoutFactory)
+        add(notificationViewFlipperFactory.get())
         if (android.app.Flags.notificationsRedesignAppIcons()) {
             add(notificationRowIconViewInflaterFactory)
         }

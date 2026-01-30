@@ -64,17 +64,25 @@ constructor(
     private val devicePolicyManager: DevicePolicyManager,
     private val lockscreenUserManager: NotificationLockscreenUserManager,
 ) {
+
+    private val TAG = "CameraGestureHelper"
+
     /** Whether the camera application can be launched for the camera launch gesture. */
     fun canCameraGestureBeLaunched(statusBarState: Int): Boolean {
         if (!isCameraAllowedByAdmin()) {
             return false
         }
 
+        if (statusBarKeyguardViewManager.needsFullscreenBouncer()) {
+            Log.i(TAG, "Cannot launch camera when SIM bouncer is needed")
+            return false
+        }
+
         val resolveInfo: ResolveInfo? =
             packageManager.resolveActivityAsUser(
-                getStartCameraIntent(selectedUserInteractor.getSelectedUserId()),
+                getStartCameraIntent(),
                 PackageManager.MATCH_DEFAULT_ONLY,
-                selectedUserInteractor.getSelectedUserId()
+                selectedUserInteractor.getSelectedUserId(),
             )
         val resolvedPackage = resolveInfo?.activityInfo?.packageName
         return (resolvedPackage != null &&
@@ -88,12 +96,12 @@ constructor(
      * @param source The source of the camera launch, to be passed to the camera app via [Intent]
      */
     fun launchCamera(source: Int) {
-        val intent: Intent = getStartCameraIntent(selectedUserInteractor.getSelectedUserId())
+        val intent: Intent = getStartCameraIntent()
         intent.putExtra(CameraIntents.EXTRA_LAUNCH_SOURCE, source)
         val wouldLaunchResolverActivity =
             activityIntentHelper.wouldLaunchResolverActivity(
                 intent,
-                selectedUserInteractor.getSelectedUserId()
+                selectedUserInteractor.getSelectedUserId(),
             )
         if (CameraIntents.isSecureCameraIntent(intent) && !wouldLaunchResolverActivity) {
             uiExecutor.execute {
@@ -142,10 +150,12 @@ constructor(
      * Returns an [Intent] that can be used to start the camera app such that it occludes the
      * lock-screen, if needed.
      */
-    private fun getStartCameraIntent(userId: Int): Intent {
+    public fun getStartCameraIntent(): Intent {
+        val userId = selectedUserInteractor.getSelectedUserId()
         val isLockScreenDismissible = keyguardStateController.canDismissLockScreen()
+        val isShowing = keyguardStateController.isShowing()
         val isSecure = keyguardStateController.isMethodSecure
-        return if (isSecure && !isLockScreenDismissible) {
+        return if (isShowing && isSecure && !isLockScreenDismissible) {
             cameraIntents.getSecureCameraIntent(userId)
         } else {
             cameraIntents.getInsecureCameraIntent(userId)
@@ -159,7 +169,7 @@ constructor(
             // Check if the admin has disabled the camera specifically for the keyguard
             return (devicePolicyManager.getKeyguardDisabledFeatures(
                 null,
-                lockscreenUserManager.getCurrentUserId()
+                lockscreenUserManager.getCurrentUserId(),
             ) and DevicePolicyManager.KEYGUARD_DISABLE_SECURE_CAMERA) == 0
         }
         return true

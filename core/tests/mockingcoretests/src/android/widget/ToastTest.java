@@ -94,7 +94,6 @@ public class ToastTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_TOAST_NO_WEAKREF)
     public void enqueueFail_nullifiesNextView() throws RemoteException {
         Looper.prepare();
 
@@ -115,29 +114,5 @@ public class ToastTest {
         t.show();
         tn = t.getTn();
         assertThat(tn.getNextView()).isNull();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_TOAST_NO_WEAKREF)
-    public void enqueueFail_doesNotNullifyNextView() throws RemoteException {
-        Looper.prepare();
-
-        // allow 1st toast and fail on the 2nd
-        when(sMockNMS.enqueueToast(anyString(), any(), any(), anyInt(), anyBoolean(),
-              anyInt())).thenReturn(true, false);
-
-        // first toast is enqueued
-        Toast t = Toast.makeText(mContext, "Toast1", Toast.LENGTH_SHORT);
-        t.setView(mock(View.class));
-        t.show();
-        Toast.TN tn = t.getTn();
-        assertThat(tn.getNextView()).isNotNull();
-
-        // second toast is not enqueued
-        t = Toast.makeText(mContext, "Toast2", Toast.LENGTH_SHORT);
-        t.setView(mock(View.class));
-        t.show();
-        tn = t.getTn();
-        assertThat(tn.getNextView()).isNotNull();
     }
 }

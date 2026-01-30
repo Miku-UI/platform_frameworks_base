@@ -9,24 +9,17 @@ per-file ApexManager.java = dariofreni@google.com, ioffe@google.com, olilan@goog
 per-file StagingManager.java = dariofreni@google.com, ioffe@google.com, olilan@google.com
 
 # dex
-per-file AbstractStatsBase.java = file:dex/OWNERS
-per-file CompilerStats.java = file:dex/OWNERS
-per-file DexOptHelper.java = file:dex/OWNERS
-per-file DynamicCodeLoggingService.java = file:dex/OWNERS
-per-file Installer.java = file:dex/OWNERS
-per-file InstructionSets.java = file:dex/OWNERS
-per-file OtaDexoptService.java = file:dex/OWNERS
-per-file OtaDexoptShellCommand.java = file:dex/OWNERS
-per-file PackageDexOptimizer.java = file:dex/OWNERS
-per-file PackageManagerServiceCompilerMapping.java = file:dex/OWNERS
-per-file PackageUsage.java = file:dex/OWNERS
+per-file DexOptHelper.java = file:platform/art:/OWNERS
+per-file DynamicCodeLoggingService.java = file:platform/art:/OWNERS
 
 # multi user / cross profile
 per-file CrossProfile* = file:MULTIUSER_AND_ENTERPRISE_OWNERS
 per-file RestrictionsSet.java = file:MULTIUSER_AND_ENTERPRISE_OWNERS
 per-file UserRestriction* = file:MULTIUSER_AND_ENTERPRISE_OWNERS
-per-file User* = file:/MULTIUSER_OWNERS
-per-file BackgroundUser* = file:/MULTIUSER_OWNERS
+per-file *User* = file:/MULTIUSER_OWNERS
+per-file *user* = file:/MULTIUSER_OWNERS
+per-file *HSU*.java = file:/MULTIUSER_OWNERS
+per-file *Hsu*.java = file:/MULTIUSER_OWNERS
 
 # security
 per-file KeySetHandle.java = cbrubaker@google.com, nnk@google.com

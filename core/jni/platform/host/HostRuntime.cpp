@@ -120,7 +120,6 @@ static const std::unordered_map<std::string, RegJNIRec> gRegJNIMap = {
         {"android.content.res.AssetManager", REG_JNI(register_android_content_AssetManager)},
         {"android.content.res.StringBlock", REG_JNI(register_android_content_StringBlock)},
         {"android.content.res.XmlBlock", REG_JNI(register_android_content_XmlBlock)},
-#ifdef __linux__
         {"android.database.CursorWindow", REG_JNI(register_android_database_CursorWindow)},
         {"android.database.sqlite.SQLiteConnection",
          REG_JNI(register_android_database_SQLiteConnection)},
@@ -128,7 +127,6 @@ static const std::unordered_map<std::string, RegJNIRec> gRegJNIMap = {
         {"android.database.sqlite.SQLiteDebug", REG_JNI(register_android_database_SQLiteDebug)},
         {"android.database.sqlite.SQLiteRawStatement",
          REG_JNI(register_android_database_SQLiteRawStatement)},
-#endif
         {"android.media.ImageReader", REG_JNI(register_android_media_ImageReader)},
         {"android.media.PublicFormatUtils", REG_JNI(register_android_media_PublicFormatUtils)},
 #ifdef __linux__
@@ -159,8 +157,14 @@ static const std::unordered_map<std::string, RegJNIRec> gRegJNIMap = {
 static int register_jni_procs(const std::unordered_map<std::string, RegJNIRec>& jniRegMap,
                               const vector<string>& classesToRegister, JNIEnv* env) {
     for (const string& className : classesToRegister) {
-        if (jniRegMap.at(className).mProc(env) < 0) {
-            return -1;
+        auto it = jniRegMap.find(className);
+        if (it == jniRegMap.end()) {
+            fprintf(stderr, "Missing registration function for %s\n", className.c_str());
+            return JNI_ERR;
+        }
+        if (it->second.mProc(env) < 0) {
+            fprintf(stderr, "Failed to register class %s\n", className.c_str());
+            return JNI_ERR;
         }
     }
 

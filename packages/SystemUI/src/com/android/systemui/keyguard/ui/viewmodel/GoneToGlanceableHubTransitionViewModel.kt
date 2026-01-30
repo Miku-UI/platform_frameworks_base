@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.FromGoneTransitionInteractor.Companion.TO_GLANCEABLE_HUB_DURATION
 import com.android.systemui.keyguard.shared.model.Edge
@@ -26,6 +27,7 @@ import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 @SysUISingleton
 class GoneToGlanceableHubTransitionViewModel
@@ -37,8 +39,6 @@ constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTra
             .setup(duration = TO_GLANCEABLE_HUB_DURATION, edge = Edge.INVALID)
             .setupWithoutSceneContainer(edge = Edge.create(GONE, GLANCEABLE_HUB))
 
-    val keyguardAlpha = transitionAnimation.immediatelyTransitionTo(0f)
-
     override val deviceEntryParentViewAlpha: Flow<Float> =
         transitionAnimation.sharedFlow(
             duration = 167.milliseconds,
@@ -46,4 +46,12 @@ constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTra
             onCancel = { 1f },
             onFinish = { 1f },
         )
+
+    val statusBarAlpha: Flow<Float> =
+        if (!Flags.glanceableHubV2()) {
+            // Only hide the keyguard status bar if hub v2 is not enabled
+            transitionAnimation.immediatelyTransitionTo(0f)
+        } else {
+            emptyFlow()
+        }
 }

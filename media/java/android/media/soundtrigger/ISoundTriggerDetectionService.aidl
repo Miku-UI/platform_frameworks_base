@@ -24,7 +24,7 @@ import android.os.ParcelUuid;
 /**
  * AIDL for the SoundTriggerDetectionService to run detection operations when triggered.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ISoundTriggerDetectionService {
     void setClient(in ParcelUuid uuid, in Bundle params, in ISoundTriggerDetectionServiceClient client);

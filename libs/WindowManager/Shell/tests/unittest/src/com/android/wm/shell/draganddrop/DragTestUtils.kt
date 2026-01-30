@@ -17,15 +17,17 @@ package com.android.wm.shell.draganddrop
 
 import android.app.ActivityManager
 import android.app.PendingIntent
+import android.app.PendingIntent.FLAG_IMMUTABLE
 import android.content.ClipData
 import android.content.ClipDescription
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.pm.ApplicationInfo
 import android.os.Process
-import java.util.Random
 import org.mockito.Mockito
+import java.util.Random
 
 /**
  * Convenience methods for drag tests.
@@ -77,6 +79,17 @@ object DragTestUtils {
         val data = ClipData(clipDescription, item)
         setClipDataResizeable(data, true)
         return data
+    }
+
+    /**
+     * Creates a new launchable intent.
+     */
+    @JvmStatic
+    fun createLaunchableIntent(context: Context) : PendingIntent {
+        val fakeActivityIntent = Intent()
+        fakeActivityIntent.component = ComponentName("com.android.wm.shell.draganddrop",
+            "FakeActivity")
+        return PendingIntent.getActivity(context, 0, fakeActivityIntent, FLAG_IMMUTABLE)
     }
 
     /**

@@ -19,6 +19,7 @@ package com.android.server.wm.flicker.service.notification.scenarios
 import android.app.Instrumentation
 import android.tools.NavBar
 import android.tools.Rotation
+import android.tools.flicker.rules.RemoveAllTasksButHomeRule
 import android.tools.helpers.wakeUpAndGoToHomeScreen
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
@@ -58,8 +59,7 @@ abstract class OpenAppFromLockscreenNotificationCold(
         // it is open - can't just kill it because that would remove the notification.
         tapl.setExpectedRotationCheckEnabled(false)
         tapl.goHome()
-        tapl.workspace.switchToOverview()
-        tapl.overview.dismissAllTasks()
+        RemoveAllTasksButHomeRule.removeAllTasksButHome()
 
         device.sleep()
         wmHelper.StateSyncBuilder().withoutTopVisibleAppWindows().waitForAndVerify()

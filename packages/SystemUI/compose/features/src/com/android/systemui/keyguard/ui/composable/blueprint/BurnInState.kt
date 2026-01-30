@@ -28,7 +28,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.systemui.keyguard.ui.viewmodel.BurnInParameters
 import com.android.systemui.keyguard.ui.viewmodel.KeyguardClockViewModel
-import com.android.systemui.plugins.clocks.ClockController
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
 import kotlin.math.min
 import kotlin.math.roundToInt
 

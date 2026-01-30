@@ -36,26 +36,31 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"Cette appli ne peut être ouverte que dans 1 fenêtre"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"Il est possible que l\'application ne fonctionne pas sur un écran secondaire."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"L\'application ne peut pas être lancée sur des écrans secondaires."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"L\'appli n\'est pas compatible avec les bulles"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"Séparateur d\'écran partagé"</string>
     <string name="divider_title" msgid="1963391955593749442">"Séparateur d\'écran partagé"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"Écran de gauche en plein écran"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"Écran de gauche à 70 %"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"Écran de gauche à 50 %"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"Écran de gauche à 30 %"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"Écran de droite en plein écran"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"Inverser les applis du haut et du bas"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"Inverser les applis de gauche et de droite"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"Écran du haut en plein écran"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"Écran du haut à 70 %"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"Écran du haut à 50 %"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"Écran du haut à 30 %"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"Écran du bas en plein écran"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"Afficher l\'appli de gauche en plein écran"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"Gauche 10 % | Droite 90 %"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"Gauche 30 % | Droite 70 %"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"Gauche 50 % | Droite 50 %"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"Gauche 70 % | Droite 30 %"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"Gauche 90 % | Droite 10 %"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"Afficher l\'appli de droite en plein écran"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"Inverser les applis du haut et du bas, conserver la répartition actuelle"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"Inverser les applis de gauche et de droite, conserver la répartition actuelle"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"Afficher l\'appli du haut en plein écran"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"Haut 10 % | Bas 90 %"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"Haut 30 % | Bas 70 %"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"Haut 50 % | Bas 50 %"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"Haut 70 % | Bas 30 %"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"Haut 90 % | Bas 10 %"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"Afficher l\'appli du bas en plein écran"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"Affichée à gauche"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"Affichée à droite"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"Affichée en haut"</string>
     <string name="accessibility_split_bottom" msgid="8694551025220868191">"Affichée en haut"</string>
     <string name="one_handed_tutorial_title" msgid="4583241688067426350">"Utilisation du mode une main"</string>
-    <string name="one_handed_tutorial_description" msgid="3486582858591353067">"Pour quitter, balayez l\'écran de bas en haut ou appuyez n\'importe où au-dessus de l\'application"</string>
+    <string name="one_handed_tutorial_description" msgid="3486582858591353067">"Pour quitter, balayez vers le haut depuis le bas de l\'écran ou appuyez n\'importe où au-dessus de l\'application"</string>
     <string name="accessibility_action_start_one_handed" msgid="5070337354072861426">"Démarrer le mode une main"</string>
     <string name="accessibility_action_stop_one_handed" msgid="1369940261782179442">"Quitter le mode une main"</string>
     <string name="bubbles_settings_button_description" msgid="1301286017420516912">"Paramètres des bulles de <xliff:g id="APP_NAME">%1$s</xliff:g>"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"Gérer les fenêtres"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"Modifier le format"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"Optimiser l\'affichage"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"Icône Erreur"</string>
     <string name="close_text" msgid="4986518933445178928">"Fermer"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"Fermer le menu"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (fenêtrage de bureau)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"Mettre en plein écran"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"Redimensionner"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"Impossible de déplacer l\'appli ici"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"Ouverture d\'une nouvelle fenêtre de l\'application"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"Fermeture de la fenêtre de l\'application"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"Réduction de la fenêtre de l\'application"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (sélectionné)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (non sélectionné)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"Immersif"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"Restaurer"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"Agrandir"</string>
@@ -158,7 +169,7 @@
     <string name="app_header_talkback_action_minimize_button_text" msgid="7491054416186901764">"Réduire la fenêtre de l\'application"</string>
     <string name="app_header_talkback_action_close_button_text" msgid="5159612596378268926">"Fermer la fenêtre de l\'application"</string>
     <string name="open_by_default_settings_text" msgid="2526548548598185500">"Ouvrir les paramètres par défaut"</string>
-    <string name="open_by_default_dialog_subheader_text" msgid="1729599730664063881">"Choisir comment ouvrir les liens Web pour cette appli"</string>
+    <string name="open_by_default_dialog_subheader_text" msgid="1729599730664063881">"Choisissez comment ouvrir les liens Web pour cette appli"</string>
     <string name="open_by_default_dialog_in_app_text" msgid="6978022419634199806">"Dans l\'application"</string>
     <string name="open_by_default_dialog_in_browser_text" msgid="8042769465958497081">"Dans votre navigateur"</string>
     <string name="open_by_default_dialog_dismiss_button_text" msgid="3487238795534582291">"OK"</string>

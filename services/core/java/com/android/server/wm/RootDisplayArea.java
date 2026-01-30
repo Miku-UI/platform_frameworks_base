@@ -102,17 +102,18 @@ class RootDisplayArea extends DisplayArea.Dimmable {
             }
         }
 
-        // Some device UX may not have the need to update the IME bounds and position for IME target
-        // in a child DisplayArea, so instead of throwing exception, we just allow the IME container
-        // to remain in its previous root.
+        // Some device UX may not have the need to update the IME bounds and position for IME
+        // layering target in a child DisplayArea, so instead of throwing exception, we just allow
+        // the IME container to remain in its previous root.
         if (!isDescendantOf(previousRoot)) {
             // When this RootDisplayArea is a descendant of the current RootDisplayArea, it will be
             // at the APPLICATION_LAYER, and the IME container will always be on top and have bounds
             // equal or larger than the input target.
             // If it is not a descendant, the DisplayAreaPolicy owner should make sure the IME is
             // working correctly. Print a warning in case they are not.
-            Slog.w(TAG_WM, "The IME target is not in the same root as the IME container, but there "
-                    + "is no DisplayArea of FEATURE_IME_PLACEHOLDER in the target RootDisplayArea");
+            Slog.w(TAG_WM, "The IME layering target is not in the same root as the IME container,"
+                    + " but there is no DisplayArea of FEATURE_IME_PLACEHOLDER in the"
+                    + " target RootDisplayArea");
         }
         return false;
     }

@@ -116,7 +116,6 @@ message VibrationProto {
     reserved 6; // prev int32 status
 
     // Also used by VibrationReported from frameworks/proto_logging/stats/atoms.proto.
-    // Next Tag: 29
     enum Status {
         UNKNOWN = 0;
         RUNNING = 1;
@@ -148,6 +147,8 @@ message VibrationProto {
         IGNORED_MISSING_PERMISSION = 28;
         CANCELLED_BY_APP_OPS = 29;
         CANCELLED_BY_FOREGROUND_USER = 30;
+        IGNORED_INVALID_REQUEST = 31;
+        IGNORED_ERROR_DISPATCHING = 32;
         reserved 17; // prev IGNORED_UNKNOWN_VIBRATION
     }
 }

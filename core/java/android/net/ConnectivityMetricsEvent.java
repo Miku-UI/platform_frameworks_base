@@ -24,7 +24,7 @@ import java.util.BitSet;
 /**
  * Represents a core networking event defined in package android.net.metrics.
  * Logged by IpConnectivityLog and managed by ConnectivityMetrics service.
- * {@hide}
+ * @hide
  * */
 public final class ConnectivityMetricsEvent implements Parcelable {
 

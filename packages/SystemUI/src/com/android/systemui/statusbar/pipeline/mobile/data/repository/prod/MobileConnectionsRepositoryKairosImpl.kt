@@ -36,7 +36,6 @@ import com.android.keyguard.KeyguardUpdateMonitorCallback
 import com.android.settingslib.SignalIcon.MobileIconGroup
 import com.android.settingslib.mobile.MobileMappings.Config
 import com.android.systemui.Dumpable
-import com.android.systemui.Flags
 import com.android.systemui.KairosActivatable
 import com.android.systemui.KairosBuilder
 import com.android.systemui.activated
@@ -70,6 +69,7 @@ import com.android.systemui.kairos.stateOf
 import com.android.systemui.kairos.switchEvents
 import com.android.systemui.kairos.transitions
 import com.android.systemui.kairos.util.WithPrev
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.TableLogBufferFactory
@@ -77,6 +77,7 @@ import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.pipeline.airplane.data.repository.AirplaneModeRepository
 import com.android.systemui.statusbar.pipeline.dagger.MobileSummaryLog
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.MobileInputLogger
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
@@ -139,9 +140,13 @@ constructor(
 
     private val carrierMergedSubId: State<Int?> = buildState {
         combine(
-                wifiRepository.wifiNetwork.toState(),
-                connectivityRepository.defaultConnections.toState(),
-                airplaneModeRepository.isAirplaneMode.toState(),
+                wifiRepository.wifiNetwork.toState(
+                    nameTag("MobileConnectionsRepositoryKairos.wifiNetwork")
+                ),
+                defaultConnections,
+                airplaneModeRepository.isAirplaneMode.toState(
+                    nameTag("MobileConnectionsRepositoryKairos.isAirplaneMode")
+                ),
             ) { wifiNetwork, defaultConnections, isAirplaneMode ->
                 // The carrier merged connection should only be used if it's also the default
                 // connection or mobile connections aren't available because of airplane mode.
@@ -157,7 +162,13 @@ constructor(
                 }
             }
             .also {
-                logDiffsForTable(it, tableLogger, LOGGING_PREFIX, columnName = "carrierMergedSubId")
+                logDiffsForTable(
+                    name = nameTag("MobileConnectionsRepositoryKairosImpl.carrierMergedSubId"),
+                    it,
+                    tableLogger,
+                    LOGGING_PREFIX,
+                    columnName = "carrierMergedSubId",
+                )
             }
     }
 
@@ -174,7 +185,9 @@ constructor(
                 awaitClose { subscriptionManager.removeOnSubscriptionsChangedListener(callback) }
             }
             .flowOn(bgDispatcher)
-            .toEvents()
+            .toEvents(
+                nameTag("MobileConnectionsRepositoryKairosImpl.mobileSubscriptionsChangeEvent")
+            )
     }
 
     /** Turn ACTION_SERVICE_STATE (for subId = -1) into an event */
@@ -192,16 +205,36 @@ constructor(
                     Unit
                 }
             }
-            .toEvents()
+            .toEvents(nameTag("MobileConnectionsRepositoryKairosImpl.serviceStateChangedEvent"))
     }
 
     /** Eager flow to determine the device-based emergency calls only state */
     override val isDeviceEmergencyCallCapable: State<Boolean> = buildState {
-        rebuildOn(serviceStateChangedEvent) { asyncEvent { doAnyModemsSupportEmergencyCalls() } }
+        rebuildOn(
+                serviceStateChangedEvent,
+                nameTag(
+                    "MobileConnectionsRepositoryKairosImpl.isDeviceEmergencyCallCapable::rebuildOn"
+                ),
+            ) {
+                asyncEvent(
+                    nameTag(
+                        "MobileConnectionsRepositoryKairosImpl.doAnyModemsSupportEmergencyCalls"
+                    )
+                ) {
+                    doAnyModemsSupportEmergencyCalls()
+                }
+            }
             .switchEvents()
-            .holdState(false)
+            .holdState(
+                false,
+                nameTag("MobileConnectionsRepositoryKairosImpl.isDeviceEmergencyCallCapable"),
+            )
             .also {
                 logDiffsForTable(
+                    name =
+                        nameTag(
+                            "MobileConnectionsRepositoryKairosImpl.isDeviceEmergencyCallCapable::logDiffs"
+                        ),
                     it,
                     tableLogger,
                     LOGGING_PREFIX,
@@ -236,13 +269,26 @@ constructor(
      * [SubscriptionModel].
      */
     override val subscriptions: State<List<SubscriptionModel>> = buildState {
-        rebuildOn(mergeLeft(mobileSubscriptionsChangeEvent, carrierMergedSubId.changes)) {
-                asyncEvent { fetchSubscriptionModels() }
+        rebuildOn(
+                mergeLeft(mobileSubscriptionsChangeEvent, carrierMergedSubId.changes),
+                nameTag("MobileConnectionsRepositoryKairosImpl.subscriptions::rebuildOn"),
+            ) {
+                asyncEvent(
+                    nameTag("MobileConnectionsRepositoryKairosImpl.fetchSubscriptionModels")
+                ) {
+                    fetchSubscriptionModels()
+                }
             }
             .switchEvents()
-            .holdState(emptyList())
+            .holdState(emptyList(), nameTag("MobileConnectionsRepositoryKairosImpl.subscriptions"))
             .also {
-                logDiffsForTable(it, tableLogger, LOGGING_PREFIX, columnName = "subscriptions")
+                logDiffsForTable(
+                    name = nameTag("MobileConnectionsRepositoryKairosImpl.subscriptions::logDiffs"),
+                    it,
+                    tableLogger,
+                    LOGGING_PREFIX,
+                    columnName = "subscriptions",
+                )
             }
     }
 
@@ -252,10 +298,17 @@ constructor(
     override val mobileConnectionsBySubId: Incremental<Int, MobileConnectionRepositoryKairos> =
         buildIncremental {
             subscriptionsById
+                .map { it.mapValues {} } // only base diffs off of keys
                 .asIncremental()
                 .mapValues { (subId, sub) -> mobileRepoFactory.get().create(subId) }
-                .applyLatestSpecForKey()
-                .apply { observe { dumpCache = DumpCache(it) } }
+                .applyLatestSpecForKey(
+                    name = nameTag("MobileConnectionsRepositoryKairosImpl.mobileConnectionsBySubId")
+                )
+                .apply {
+                    observe(name = nameTag("MobileConnectionsRepositoryKairosImpl.dumpCache")) {
+                        dumpCache = DumpCache(it)
+                    }
+                }
         }
 
     private val telephonyManagerState: State<Pair<Int?, Set<Int>>> = buildState {
@@ -297,7 +350,10 @@ constructor(
                 awaitClose { telephonyManager.unregisterTelephonyCallback(callback) }
             }
             .flowOn(bgDispatcher)
-            .scanToState(null to emptySet())
+            .scanToState(
+                null to emptySet(),
+                nameTag("MobileConnectionsRepositoryKairosImpl.telephonyManagerState"),
+            )
     }
 
     override val activeMobileDataSubscriptionId: State<Int?> =
@@ -305,7 +361,16 @@ constructor(
             .map { it.first }
             .also {
                 onActivated {
-                    logDiffsForTable(it, tableLogger, LOGGING_PREFIX, columnName = "activeSubId")
+                    logDiffsForTable(
+                        name =
+                            nameTag(
+                                "MobileConnectionsRepositoryKairosImpl.activeMobileDataSubscriptionId"
+                            ),
+                        it,
+                        tableLogger,
+                        LOGGING_PREFIX,
+                        columnName = "activeSubId",
+                    )
                 }
             }
 
@@ -328,34 +393,69 @@ constructor(
                     }
                 )
             }
-            .toState(initialValue = null)
-            .also { logDiffsForTable(it, tableLogger, LOGGING_PREFIX, columnName = "defaultSubId") }
+            .toState(
+                initialValue = null,
+                nameTag("MobileConnectionsRepositoryKairosImpl.defaultDataSubId"),
+            )
+            .also {
+                logDiffsForTable(
+                    name =
+                        nameTag("MobileConnectionsRepositoryKairosImpl.defaultDataSubId::logDiffs"),
+                    it,
+                    tableLogger,
+                    LOGGING_PREFIX,
+                    columnName = "defaultSubId",
+                )
+            }
     }
 
     private val carrierConfigChangedEvent: Events<Unit> =
         buildEvents {
                 broadcastDispatcher
                     .broadcastFlow(IntentFilter(CarrierConfigManager.ACTION_CARRIER_CONFIG_CHANGED))
-                    .toEvents()
+                    .toEvents(
+                        nameTag("MobileConnectionsRepositoryKairosImpl.carrierConfigChangedEvent")
+                    )
             }
             .onEach { logger.logActionCarrierConfigChanged() }
 
     override val defaultDataSubRatConfig: State<Config> = buildState {
-        rebuildOn(mergeLeft(defaultDataSubId.changes, carrierConfigChangedEvent)) {
-            Config.readConfig(context).also { effect { logger.logDefaultDataSubRatConfig(it) } }
+        rebuildOn(
+            rebuildSignal = mergeLeft(defaultDataSubId.changes, carrierConfigChangedEvent),
+            nameTag("MobileConnectionsRepositoryKairosImpl.defaultDataSubRatConfig::rebuildOn"),
+        ) {
+            Config.readConfig(context).also {
+                effect(
+                    name = nameTag("MobileConnectionsRepositoryKairosImpl.defaultDataSubRatConfig")
+                ) {
+                    logger.logDefaultDataSubRatConfig(it)
+                }
+            }
         }
     }
 
     override val defaultMobileIconMapping: State<Map<String, MobileIconGroup>> = buildState {
         defaultDataSubRatConfig
             .map { mobileMappingsProxy.mapIconSets(it) }
-            .apply { observe { logger.logDefaultMobileIconMapping(it) } }
+            .apply {
+                observe(
+                    name = nameTag("MobileConnectionsRepositoryKairosImpl.defaultMobileIconMapping")
+                ) {
+                    logger.logDefaultMobileIconMapping(it)
+                }
+            }
     }
 
     override val defaultMobileIconGroup: State<MobileIconGroup> = buildState {
         defaultDataSubRatConfig
             .map { mobileMappingsProxy.getDefaultIcons(it) }
-            .apply { observe { logger.logDefaultMobileIconGroup(it) } }
+            .apply {
+                observe(
+                    name = nameTag("MobileConnectionsRepositoryKairosImpl.defaultMobileIconGroup")
+                ) {
+                    logger.logDefaultMobileIconGroup(it)
+                }
+            }
     }
 
     override val isAnySimSecure: State<Boolean> = buildState {
@@ -371,14 +471,23 @@ constructor(
                 awaitClose { keyguardUpdateMonitor.removeCallback(callback) }
             }
             .flowOn(mainDispatcher)
-            .toState(false)
+            .toState(false, nameTag("MobileConnectionsRepositoryKairosImpl.isAnySimSecure"))
             .also {
-                logDiffsForTable(it, tableLogger, LOGGING_PREFIX, columnName = "isAnySimSecure")
+                logDiffsForTable(
+                    name =
+                        nameTag("MobileConnectionsRepositoryKairosImpl.isAnySimSecure::logDiffs"),
+                    it,
+                    tableLogger,
+                    LOGGING_PREFIX,
+                    columnName = "isAnySimSecure",
+                )
             }
     }
 
     private val defaultConnections: State<DefaultConnectionModel> = buildState {
-        connectivityRepository.defaultConnections.toState()
+        connectivityRepository.defaultConnections.toState(
+            nameTag("MobileConnectionsRepositoryKairos.defaultConnections")
+        )
     }
 
     override val mobileIsDefault: State<Boolean> =
@@ -387,6 +496,7 @@ constructor(
             .also {
                 onActivated {
                     logDiffsForTable(
+                        name = nameTag("MobileConnectionsRepositoryKairosImpl.mobileIsDefault"),
                         it,
                         tableLogger,
                         columnPrefix = LOGGING_PREFIX,
@@ -401,6 +511,10 @@ constructor(
             .also {
                 onActivated {
                     logDiffsForTable(
+                        name =
+                            nameTag(
+                                "MobileConnectionsRepositoryKairosImpl.hasCarrierMergedConnection"
+                            ),
                         it,
                         tableLogger,
                         columnPrefix = LOGGING_PREFIX,
@@ -415,6 +529,10 @@ constructor(
             .also {
                 onActivated {
                     logDiffsForTable(
+                        name =
+                            nameTag(
+                                "MobileConnectionsRepositoryKairosImpl.defaultConnectionIsValidated"
+                            ),
                         it,
                         tableLogger,
                         columnPrefix = LOGGING_PREFIX,
@@ -437,7 +555,9 @@ constructor(
             .mapNotNull { (prevVal, newVal) ->
                 prevVal?.let { newVal?.let { WithPrev(prevVal, newVal) } }
             }
-            .mapAsyncLatest { (prevVal, newVal) ->
+            .mapAsyncLatest(
+                nameTag("MobileConnectionsRepositoryKairosImpl.activeSubChangedInGroupEvent")
+            ) { (prevVal, newVal) ->
                 if (isActiveSubChangeInGroup(prevVal, newVal)) Unit else null
             }
             .filterNotNull()
@@ -514,7 +634,7 @@ constructor(
         fun kairosActivatable(
             impl: Provider<MobileConnectionsRepositoryKairosImpl>
         ): Set<@JvmSuppressWildcards KairosActivatable> =
-            if (Flags.statusBarMobileIconKairos()) setOf(impl.get()) else emptySet()
+            if (StatusBarMobileIconKairos.isEnabled) setOf(impl.get()) else emptySet()
     }
 
     companion object {

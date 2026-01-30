@@ -23,14 +23,12 @@ android_test {
     test_suites: ["device-tests"],
 
     srcs: [
-        ":SpaLib_srcs",
         "src/**/*.kt",
     ],
     use_resource_processor: true,
     static_libs: [
         "SpaLib",
         "SpaLibTestUtils",
-        "aconfig_settingstheme_exported_flags_java_lib",
         "androidx.compose.runtime_runtime",
         "androidx.test.ext.junit",
         "androidx.test.runner",
@@ -39,6 +37,7 @@ android_test {
         "mockito-target-minus-junit4",
         "platform-test-annotations",
     ],
+    associates: ["SpaLib"],
     kotlincflags: ["-Xjvm-default=all"],
     sdk_version: "current",
     min_sdk_version: "31",

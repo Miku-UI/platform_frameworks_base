@@ -239,7 +239,6 @@
     <item type="id" name="split_shade_guideline" />
     <item type="id" name="start_button" />
     <item type="id" name="status_view_media_container" />
-    <item type="id" name="weather_clock_date_and_icons_barrier_bottom" />
     <item type="id" name="weather_clock_bc_smartspace_bottom" />
 
     <!-- Privacy dialog -->
@@ -280,6 +279,12 @@
     <item type="id" name="alternate_bouncer_udfps_icon_view" />
     <item type="id" name="alternate_bouncer_udfps_accessibility_overlay" />
 
+    <!--Id for the biometric prompt UDFPS accessibility overlay. -->
+    <item type="id" name="biometric_prompt_udfps_accessibility_overlay" />
+
+    <!--Id for the secure lock device biometric auth composable. -->
+    <item type="id" name="secure_lock_device_biometric_auth_content" />
+
     <!-- Id for the udfps accessibility overlay -->
     <item type="id" name="udfps_accessibility_overlay" />
     <item type="id" name="udfps_accessibility_overlay_top_guideline" />
@@ -294,7 +299,13 @@
     <item type="id" name="brightness_dialog_slider" />
 
     <item type="id" name="aod_promoted_notification_view_updater_tag" />
+    <item type="id" name="aod_promoted_notification_inflation_identity" />
 
     <!-- id for the composable battery meter (see UnifiedBattery.kt) -->
     <item type="id" name="battery_meter_composable_view" />
+
+    <!-- Used for animation guard tag to throttle number of reported logs. -->
+    <item type="id" name="screen_off_animation_guard_set" />
+    <item type="id" name="screen_off_animation_guard_reported_wtf" />
+    <item type="id" name="screen_off_animation_guard_screen_off_updates" />
 </resources>

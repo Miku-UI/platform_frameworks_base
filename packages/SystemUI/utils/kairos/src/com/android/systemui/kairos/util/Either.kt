@@ -37,10 +37,10 @@ sealed interface Either<out A, out B> {
 
     companion object {
         /** Constructs an [Either] containing the first possibility. */
-        fun <A> first(value: A): Either<A, Nothing> = First(value)
+        @JvmStatic fun <A> first(value: A): Either<A, Nothing> = First(value)
 
         /** Constructs a [Either] containing the second possibility. */
-        fun <B> second(value: B): Either<Nothing, B> = Second(value)
+        @JvmStatic fun <B> second(value: B): Either<Nothing, B> = Second(value)
     }
 }
 
@@ -67,8 +67,8 @@ inline fun <A, B, C> Either<A, B>.mapSecond(transform: (B) -> C): Either<A, C> =
 /** Returns a [Maybe] containing the [First] value held by this [Either], if present. */
 inline fun <A> Either<A, *>.firstMaybe(): Maybe<A> =
     when (this) {
-        is First -> Maybe.present(value)
-        else -> Maybe.absent
+        is First -> maybeOf(value)
+        else -> maybeOf()
     }
 
 /** Returns the [First] value held by this [Either], or `null` if this is a [Second] value. */
@@ -81,8 +81,8 @@ inline fun <A> Either<A, *>.firstOrNull(): A? =
 /** Returns a [Maybe] containing the [Second] value held by this [Either], if present. */
 inline fun <B> Either<*, B>.secondMaybe(): Maybe<B> =
     when (this) {
-        is Second -> Maybe.present(value)
-        else -> Maybe.absent
+        is Second -> maybeOf(value)
+        else -> maybeOf()
     }
 
 /** Returns the [Second] value held by this [Either], or `null` if this is a [First] value. */
@@ -133,3 +133,31 @@ fun <K, A, B> Map<K, Either<A, B>>.partitionEithers(): Pair<Map<K, A>, Map<K, B>
     }
     return firsts to seconds
 }
+
+/** Returns whichever value is contained within this [Either]. */
+val <A> Either<A, A>.eitherValue: A
+    get() =
+        when (this) {
+            is First -> value
+            is Second -> value
+        }
+
+/**
+ * Returns either the [first value][First.value], or the result of applying [block] to the
+ * [second value][Second.value].
+ */
+fun <A, B> Either<A, B>.mergeSecond(block: (B) -> A): A =
+    when (this) {
+        is First -> value
+        is Second -> block(value)
+    }
+
+/**
+ * Returns either the [second value][Second.value], or the result of applying [block] to the
+ * [first value][First.value].
+ */
+fun <A, B> Either<A, B>.mergeFirst(block: (A) -> B): B =
+    when (this) {
+        is First -> block(value)
+        is Second -> value
+    }

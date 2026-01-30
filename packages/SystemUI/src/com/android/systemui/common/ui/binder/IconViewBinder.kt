@@ -20,14 +20,11 @@ import android.widget.ImageView
 import com.android.systemui.common.shared.model.Icon
 
 object IconViewBinder {
-    fun bind(
-        icon: Icon,
-        view: ImageView,
-    ) {
+    fun bind(icon: Icon, view: ImageView) {
         ContentDescriptionViewBinder.bind(icon.contentDescription, view)
         when (icon) {
             is Icon.Loaded -> view.setImageDrawable(icon.drawable)
-            is Icon.Resource -> view.setImageResource(icon.res)
+            is Icon.Resource -> view.setImageResource(icon.resId)
         }
     }
 }

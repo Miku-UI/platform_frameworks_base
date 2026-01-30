@@ -40,7 +40,9 @@ class FakeLightRevealScrimRepository : LightRevealScrimRepository {
     override val isAnimating: Boolean
         get() = false
 
-    override val maxAlpha: MutableStateFlow<Float> = MutableStateFlow(1f)
+    override val wallpaperSupportsAmbientMode = MutableStateFlow(false)
+
+    override val useDarkWallpaperScrim = MutableStateFlow(false)
 
     override fun startRevealAmountAnimator(reveal: Boolean, duration: Long) {
         if (reveal) {

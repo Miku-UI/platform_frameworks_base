@@ -309,6 +309,7 @@ public class TrustAgentWrapper {
                     mTrusted = false;
                     mTrustable = false;
                     mTrustManagerService.updateTrust(mUserId, 0 /* flags */);
+                    mTrustManagerService.mArchive.logUserLocked(mUserId, mName);
                     mTrustManagerService.lockUser(mUserId);
                     break;
                 }
@@ -615,6 +616,11 @@ public class TrustAgentWrapper {
         }
     }
 
+    /**
+     * Updates the trust agent's configuration based on the current device policy.
+     *
+     * @return true if the device policy features changed.
+     */
     boolean updateDevicePolicyFeatures() {
         boolean trustDisabled = false;
         if (DEBUG) Slog.d(TAG, "updateDevicePolicyFeatures(" + mName + ")");
@@ -658,8 +664,9 @@ public class TrustAgentWrapper {
         if (mTrustDisabledByDpm != trustDisabled) {
             mTrustDisabledByDpm = trustDisabled;
             mTrustManagerService.updateTrust(mUserId, 0);
+            return true;
         }
-        return trustDisabled;
+        return false;
     }
 
     public boolean isTrusted() {

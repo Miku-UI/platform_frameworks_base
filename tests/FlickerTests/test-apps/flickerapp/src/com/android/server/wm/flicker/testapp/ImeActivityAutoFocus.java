@@ -16,12 +16,28 @@
 
 package com.android.server.wm.flicker.testapp;
 
+import android.graphics.Insets;
+import android.view.WindowInsets;
+import android.widget.TextView;
+
 public class ImeActivityAutoFocus extends ImeActivity {
+
     @Override
     protected void onStart() {
         super.onStart();
 
         final var editTextField = findViewById(R.id.plain_text_input);
         editTextField.requestFocus();
+
+        final TextView imeBottomInset = findViewById(R.id.ime_bottom_inset);
+        getWindow().getDecorView().setOnApplyWindowInsetsListener((v, insets) -> {
+            if (v == getWindow().getDecorView()) {
+                final var imeInsets = v.getRootWindowInsets().getInsets(WindowInsets.Type.ime());
+                if (!imeInsets.equals(Insets.NONE)) {
+                    imeBottomInset.setText(imeInsets.bottom + "");
+                }
+            }
+            return insets;
+        });
     }
 }

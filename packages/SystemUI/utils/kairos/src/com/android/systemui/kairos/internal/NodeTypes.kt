@@ -16,6 +16,8 @@
 
 package com.android.systemui.kairos.internal
 
+import androidx.collection.ScatterSet
+
 /*
 Dmux
 Muxes + Branch
@@ -29,7 +31,7 @@ internal sealed interface SchedulableNode {
     fun moveIndirectUpstreamToDirect(
         scheduler: Scheduler,
         oldIndirectDepth: Int,
-        oldIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
         newDirectDepth: Int,
     )
 
@@ -37,21 +39,21 @@ internal sealed interface SchedulableNode {
         scheduler: Scheduler,
         oldDepth: Int,
         newDepth: Int,
-        removals: Set<MuxDeferredNode<*, *, *>>,
-        additions: Set<MuxDeferredNode<*, *, *>>,
+        removals: ScatterSet<MuxDeferredNode<*, *, *>>,
+        additions: ScatterSet<MuxDeferredNode<*, *, *>>,
     )
 
     fun moveDirectUpstreamToIndirect(
         scheduler: Scheduler,
         oldDirectDepth: Int,
         newIndirectDepth: Int,
-        newIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
     )
 
     fun removeIndirectUpstream(
         scheduler: Scheduler,
         depth: Int,
-        indirectSet: Set<MuxDeferredNode<*, *, *>>,
+        indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
     )
 
     fun removeDirectUpstream(scheduler: Scheduler, depth: Int)

@@ -23,7 +23,7 @@ package android.media.soundtrigger_middleware;
  * back to the client to indicate the event was registered.
  * This essentially functions like a <code> Future<void> </code> without
  * an error channel.
- * {@hide}
+ * @hide
  */
 oneway interface IAcknowledgeEvent {
     /**

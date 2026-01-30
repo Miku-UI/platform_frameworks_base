@@ -29,7 +29,10 @@ cc_fuzz {
     ],
     host_supported: true,
     corpus: ["corpus/*"],
-    static_libs: ["libgmock"],
+    static_libs: [
+        "android.content.res.flags-aconfig-cc-host-ro",
+        "libgmock",
+    ],
     target: {
         android: {
             shared_libs: [

@@ -22,7 +22,7 @@ import android.os.IBinder;
 
 /**
  * Interface for managing an app's permission to access a particular URI.
- * {@hide}
+ * @hide
  */
 interface IUriGrantsManager {
     void takePersistableUriPermission(in Uri uri, int modeFlags, String toPackage, int userId);

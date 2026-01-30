@@ -49,4 +49,8 @@ class SnapshotStartingData extends StartingData {
     boolean hasImeSurface() {
         return mSnapshot.hasImeSurface();
     }
+
+    boolean isValid() {
+        return !mSnapshot.getHardwareBuffer().isClosed();
+    }
 }

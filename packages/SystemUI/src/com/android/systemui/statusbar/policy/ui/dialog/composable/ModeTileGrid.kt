@@ -35,11 +35,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.android.systemui.Flags
 import com.android.systemui.common.ui.compose.PagerDots
+import com.android.systemui.compose.modifiers.sysUiResTagContainer
+import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.statusbar.policy.ui.dialog.viewmodel.ModesDialogViewModel
 
 @Composable
-fun ModeTileGrid(viewModel: ModesDialogViewModel) {
+fun ModeTileGrid(
+    viewModel: ModesDialogViewModel,
+    modifier: Modifier = Modifier,
+    inDetailsView: Boolean = false,
+) {
     val tiles by viewModel.tiles.collectAsStateWithLifecycle(initialValue = emptyList())
+
+    val verticalSpacing = if (inDetailsView) 2.dp else 8.dp
 
     if (Flags.modesUiDialogPaging()) {
         val tilesPerPage = 3
@@ -49,7 +57,7 @@ fun ModeTileGrid(viewModel: ModesDialogViewModel) {
         Column {
             HorizontalPager(
                 state = pagerState,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = modifier.fillMaxWidth(),
                 pageSpacing = 16.dp,
                 verticalAlignment = Alignment.Top,
                 // Pre-emptively layout and compose the next page, to make sure the height stays
@@ -58,12 +66,17 @@ fun ModeTileGrid(viewModel: ModesDialogViewModel) {
             ) { page ->
                 Column(
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp, alignment = Alignment.Top),
+                    verticalArrangement =
+                        Arrangement.spacedBy(verticalSpacing, alignment = Alignment.Top),
                 ) {
                     val startIndex = page * tilesPerPage
                     val endIndex = minOf((page + 1) * tilesPerPage, tiles.size)
                     for (index in startIndex until endIndex) {
-                        ModeTile(viewModel = tiles[index], modifier = Modifier.fillMaxWidth())
+                        ModeTile(
+                            viewModel = tiles[index],
+                            modifier = Modifier.fillMaxWidth(),
+                            type = getModeTileType(inDetailsView, index, tiles.size),
+                        )
                     }
                 }
             }
@@ -78,13 +91,35 @@ fun ModeTileGrid(viewModel: ModesDialogViewModel) {
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(1),
-            modifier = Modifier.fillMaxWidth().heightIn(max = 280.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier =
+                modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 280.dp)
+                    .sysUiResTagContainer()
+                    .sysuiResTag("scroll_view"),
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(tiles.size, key = { index -> tiles[index].id }) { index ->
-                ModeTile(viewModel = tiles[index])
+                ModeTile(
+                    viewModel = tiles[index],
+                    type = getModeTileType(inDetailsView, index, tiles.size),
+                )
             }
         }
+    }
+}
+
+fun getModeTileType(inDetailsView: Boolean, index: Int, tilesSize: Int): ModeTileType {
+    return if (inDetailsView) {
+        if (tilesSize == 1) return ModeTileType.ONLY_TILE
+
+        when (index) {
+            0 -> ModeTileType.START_TILE
+            tilesSize - 1 -> ModeTileType.END_TILE
+            else -> ModeTileType.MIDDLE_TILE
+        }
+    } else {
+        ModeTileType.DEFAULT
     }
 }

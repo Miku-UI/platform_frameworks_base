@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.core
 
 import com.android.systemui.statusbar.data.repository.StatusBarModePerDisplayRepository
+import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshInteractor
 import com.android.systemui.statusbar.phone.AutoHideController
 import com.android.systemui.statusbar.window.StatusBarWindowController
 import com.android.systemui.statusbar.window.data.repository.StatusBarWindowStatePerDisplayRepository
@@ -37,6 +38,7 @@ class FakeStatusBarOrchestratorFactory : StatusBarOrchestrator.Factory {
         statusBarModeRepository: StatusBarModePerDisplayRepository,
         statusBarInitializer: StatusBarInitializer,
         statusBarWindowController: StatusBarWindowController,
+        statusBarIconRefreshInteractor: StatusBarIconRefreshInteractor,
         autoHideController: AutoHideController,
     ): StatusBarOrchestrator =
         mock<StatusBarOrchestrator>().also { createdOrchestrators[displayId] = it }

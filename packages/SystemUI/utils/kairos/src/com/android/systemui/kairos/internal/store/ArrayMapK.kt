@@ -16,13 +16,9 @@
 
 package com.android.systemui.kairos.internal.store
 
-import java.util.concurrent.atomic.AtomicReferenceArray
-
 /** A [Map] backed by a flat array. */
-internal class ArrayMapK<V>(
-    val unwrapped: List<MutableMap.MutableEntry<Int, V>>,
-    val originalCapacity: Int,
-) : MapK<ArrayMapK.W, Int, V>, AbstractMap<Int, V>() {
+internal class ArrayMapK<V>(val unwrapped: List<MutableMap.MutableEntry<Int, V>>) :
+    MapK<ArrayMapK.W, Int, V>, AbstractMap<Int, V>() {
     object W
 
     override val entries: Set<Map.Entry<Int, V>> =
@@ -39,46 +35,48 @@ internal inline fun <V> MapK<ArrayMapK.W, Int, V>.asArrayHolder(): ArrayMapK<V> 
     this as ArrayMapK<V>
 
 internal class MutableArrayMapK<V>
-private constructor(private val storage: AtomicReferenceArray<MutableMap.MutableEntry<Int, V>?>) :
+private constructor(private val storage: Array<MutableMap.MutableEntry<Int, V>?>) :
     MutableMapK<ArrayMapK.W, Int, V>, AbstractMutableMap<Int, V>() {
 
-    constructor(length: Int) : this(AtomicReferenceArray<MutableMap.MutableEntry<Int, V>?>(length))
+    constructor(length: Int) : this(arrayOfNulls(length))
 
     override fun readOnlyCopy(): ArrayMapK<V> {
-        val size1 = storage.length()
+        val size1 = storage.size
         return ArrayMapK(
             buildList {
                 for (i in 0 until size1) {
-                    storage.get(i)?.let { entry -> add(StoreEntry(entry.key, entry.value)) }
+                    storage[i]?.let { entry -> add(StoreEntry(entry.key, entry.value)) }
                 }
-            },
-            size1,
+            }
         )
     }
 
     override fun asReadOnly(): MapK<ArrayMapK.W, Int, V> = readOnlyCopy()
 
     private fun getNumEntries(): Int {
-        val capacity = storage.length()
+        val capacity = storage.size
         var total = 0
         for (i in 0 until capacity) {
-            storage.get(i)?.let { total++ }
+            storage[i]?.let { total++ }
         }
         return total
     }
 
     override fun put(key: Int, value: V): V? =
-        storage.get(key)?.value.also { storage.set(key, StoreEntry(key, value)) }
+        storage[key]?.value.also { storage[key] = StoreEntry(key, value) }
 
     override val entries: MutableSet<MutableMap.MutableEntry<Int, V>> =
         object : AbstractMutableSet<MutableMap.MutableEntry<Int, V>>() {
             override val size: Int
                 get() = getNumEntries()
 
-            override fun add(element: MutableMap.MutableEntry<Int, V>): Boolean =
-                (storage.get(element.key) is MutableMap.MutableEntry<*, *>).also {
-                    storage.set(element.key, element)
+            override fun add(element: MutableMap.MutableEntry<Int, V>): Boolean {
+                if (storage[element.key] != element) {
+                    storage[element.key] = element
+                    return true
                 }
+                return false
+            }
 
             override fun iterator(): MutableIterator<MutableMap.MutableEntry<Int, V>> =
                 object : MutableIterator<MutableMap.MutableEntry<Int, V>> {
@@ -87,11 +85,11 @@ private constructor(private val storage: AtomicReferenceArray<MutableMap.Mutable
                     var nextIndex = -1
 
                     override fun hasNext(): Boolean {
-                        val capacity = storage.length()
+                        val capacity = storage.size
                         if (nextIndex >= capacity) return false
                         if (nextIndex != cursor) return true
                         while (++nextIndex < capacity) {
-                            if (storage.get(nextIndex) != null) {
+                            if (storage[nextIndex] != null) {
                                 return true
                             }
                         }
@@ -101,29 +99,31 @@ private constructor(private val storage: AtomicReferenceArray<MutableMap.Mutable
                     override fun next(): MutableMap.MutableEntry<Int, V> {
                         if (!hasNext()) throw NoSuchElementException()
                         cursor = nextIndex
-                        return storage.get(cursor)!!
+                        return storage[cursor]!!
                     }
 
                     override fun remove() {
                         check(
                             cursor >= 0 &&
-                                cursor < storage.length() &&
+                                cursor < storage.size &&
                                 storage.getAndSet(cursor, null) != null
                         )
                     }
+
+                    private fun <T> Array<T>.getAndSet(index: Int, newVal: T): T =
+                        get(index).also { set(index, newVal) }
                 }
         }
 
     class Factory : MutableMapK.Factory<ArrayMapK.W, Int> {
         override fun <V> create(capacity: Int?) =
-            MutableArrayMapK<V>(checkNotNull(capacity) { "Cannot use ArrayMapK with null capacity." })
+            MutableArrayMapK<V>(
+                checkNotNull(capacity) { "Cannot use ArrayMapK with null capacity." }
+            )
 
         override fun <V> create(input: MapK<ArrayMapK.W, Int, V>): MutableArrayMapK<V> {
             val holder = input.asArrayHolder()
-            return MutableArrayMapK(
-                AtomicReferenceArray<MutableMap.MutableEntry<Int, V>?>(holder.originalCapacity)
-                    .apply { holder.unwrapped.forEach { set(it.key, it) } }
-            )
+            return MutableArrayMapK(holder.unwrapped.toTypedArray())
         }
     }
 }

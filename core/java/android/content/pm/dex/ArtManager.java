@@ -186,7 +186,7 @@ public class ArtManager {
      *
      * @hide
      */
-    public static String getProfileName(String splitName) {
+    private static String getProfileName(String splitName) {
         return splitName == null ? "primary.prof" : splitName + ".split.prof";
     }
 
@@ -208,18 +208,5 @@ public class ArtManager {
     public static String getReferenceProfilePath(String packageName, int userId, String splitName) {
         File profileDir = Environment.getDataRefProfilesDePackageDirectory(packageName);
         return new File(profileDir, getProfileName(splitName)).getAbsolutePath();
-    }
-
-    /**
-     * Return the snapshot profile file for the given package and profile name.
-     *
-     * KEEP in sync with installd dexopt.cpp.
-     * TODO(calin): inject the snapshot profile name from PM to avoid the dependency.
-     *
-     * @hide
-     */
-    public static File getProfileSnapshotFileForName(String packageName, String profileName) {
-        File profileDir = Environment.getDataRefProfilesDePackageDirectory(packageName);
-        return new File(profileDir, profileName  + ".snapshot");
     }
 }

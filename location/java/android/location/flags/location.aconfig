@@ -78,54 +78,6 @@ flag {
 }
 
 flag {
-    name: "release_supl_connection_on_timeout"
-    namespace: "location"
-    description: "Flag for releasing SUPL connection on timeout"
-    bug: "315024652"
-}
-
-flag {
-    name: "location_validation"
-    namespace: "location"
-    description: "Flag for location validation"
-    bug: "314328533"
-}
-
-flag {
-    name: "replace_future_elapsed_realtime_jni"
-    namespace: "location"
-    description: "Flag for replacing future elapsedRealtime in JNI"
-    bug: "314328533"
-}
-
-flag {
-    name: "use_legacy_ntp_time"
-    namespace: "location"
-    description: "Flag for switching to legacy NtpNetworkTimeHelper"
-    bug: "368034558"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "subscriptions_changed_listener_thread"
-    namespace: "location"
-    description: "Flag for running onSubscriptionsChangedListener on FgThread"
-    bug: "332451908"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "gnss_configuration_from_resource"
-    namespace: "location"
-    description: "Flag for GNSS configuration from resource"
-    bug: "317734846"
-}
-
-flag {
     name: "enable_ni_supl_message_injection_by_carrier_config_bugfix"
     namespace: "location"
     description: "Flag for enabling NI SUPL message injection by carrier config"
@@ -135,17 +87,6 @@ flag {
         purpose: PURPOSE_BUGFIX
     }
     is_exported: true
-}
-
-flag {
-    name: "enable_ni_supl_message_injection_by_carrier_config"
-    namespace: "location"
-    description: "Flag for enabling NI SUPL message injection by carrier config"
-    bug: "242105192"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -189,26 +130,6 @@ flag {
 }
 
 flag {
-    name: "limit_fused_gps"
-    namespace: "location"
-    description: "Limits when GPS can be used for fused location requests"
-    bug: "401885179"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "fix_is_in_emergency_anr"
-    namespace: "location"
-    description: "Avoid calling IPC with a lock to avoid deadlock"
-    bug: "355384257"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "gnss_assistance_interface_jni"
     namespace: "location"
     description: "Flag for GNSS assistance interface JNI"
@@ -224,8 +145,47 @@ flag {
 }
 
 flag {
-    name: "missing_attribution_tags_in_overlay"
+    name: "location_indicators_enabled"
     namespace: "location"
-    description: "Adds missing attribution tags in the Fused and Gnss overlay"
-    bug: "403337028"
+    description: "Enables modified location privacy item behavior"
+    bug: "419834493"
+}
+
+flag {
+    name: "change_get_adas_allowlist_from_hidden_to_system"
+    namespace: "location"
+    description: "Changes the getAdasAllowlist API from hidden to system"
+    bug: "362287534"
+    is_exported: true
+}
+
+flag {
+    name: "fix_glonass_almanac_frequency_channel_range"
+    namespace: "location"
+    description: "Fix GLONASS almanac frequency channel range"
+    bug: "428050932"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "support_toa_in_gnss_satellite_almanac"
+    namespace: "location"
+    description: "Support TOA in GnssSatelliteAlmanac"
+    bug: "409934786"
+}
+
+flag {
+    name: "disable_hardware_ar"
+    namespace: "location"
+    description: "Disables the legacy hardware AR code path which has been deprecated for a long time"
+    bug: "441145460"
+}
+
+flag {
+    name: "support_ionex_assistance"
+    namespace: "location"
+    description: "Support IONEX assistance"
+    bug: "434875844"
 }

@@ -19,7 +19,7 @@ package android.os.instrumentation;
 /**
  * Addresses a process that would run on the device.
  * Helps disambiguate targeted processes in cases of pid re-use.
- * {@hide}
+ * @hide
  */
 @JavaDerive(toString=true)
 parcelable TargetProcess {

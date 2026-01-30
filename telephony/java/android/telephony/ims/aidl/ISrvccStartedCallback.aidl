@@ -21,7 +21,7 @@ import android.telephony.ims.SrvccCall;
 import java.util.List;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ISrvccStartedCallback {
     void onSrvccCallNotified(in List<SrvccCall> profiles);

@@ -24,10 +24,16 @@ import android.content.pm.ApplicationInfo;
 import android.content.pm.IPackageManagerNative;
 import android.content.pm.IStagedApexObserver;
 import android.content.pm.PackageInfo;
+import android.content.pm.PackageInfoNative;
+import android.content.pm.PackageManager;
+import android.content.pm.Signature;
+import android.content.pm.SignatureNative;
+import android.content.pm.SigningInfoNative;
 import android.content.pm.StagedApexInfo;
 import android.os.Binder;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.system.virtualmachine.BuildFlags;
 import android.text.TextUtils;
 import android.util.Slog;
 
@@ -68,8 +74,66 @@ final class PackageManagerNative extends IPackageManagerNative.Stub {
     }
 
     @Override
+    public PackageInfoNative getPackageInfoWithSigningInfo(String packageName, int userId) {
+        PackageInfo pInfo = mPm.snapshotComputer().getPackageInfo(packageName,
+                PackageManager.GET_SIGNING_CERTIFICATES, userId);
+        if (pInfo == null)  {
+            return null;
+        }
+
+        PackageInfoNative result = new PackageInfoNative();
+        result.packageName = packageName;
+
+        if (BuildFlags.SUPPORT_AVF_ADVANCE_MULTITENANCY && pInfo.applicationInfo != null) {
+            result.sourceDir = pInfo.applicationInfo.sourceDir;
+        }
+        if (pInfo.signingInfo == null) {
+            return result;
+        }
+        result.signingInfo = new SigningInfoNative();
+
+        Signature[] signatures = pInfo.signingInfo.hasMultipleSigners()
+                ? pInfo.signingInfo.getApkContentsSigners()
+                : pInfo.signingInfo.getSigningCertificateHistory();
+        if (signatures == null) {
+            return result;
+        }
+
+        SignatureNative[] apkContentSigners = new SignatureNative[signatures.length];
+        for (int i = 0; i < signatures.length; i++) {
+            SignatureNative sig = new SignatureNative();
+            sig.signature = signatures[i].toByteArray();
+            apkContentSigners[i] = sig;
+        }
+        result.signingInfo.apkContentSigners = apkContentSigners;
+
+        return result;
+    }
+
+    @Override
+    public PackageInfoNative[] getPackageInfoWithSigningInfoForUid(int uid) throws RemoteException {
+        String[] packageNames = mPm.snapshotComputer().getPackagesForUid(uid);
+        if (packageNames == null) {
+            return null;
+        }
+
+        int userId = UserHandle.getUserId(uid);
+        PackageInfoNative[] result = new PackageInfoNative[packageNames.length];
+        for (int i = 0; i < packageNames.length; i++) {
+            result[i] = getPackageInfoWithSigningInfo(packageNames[i], userId);
+        }
+        return result;
+    }
+
+    @Override
     public int getPackageUid(String packageName, long flags, int userId) throws RemoteException {
         return mPm.snapshotComputer().getPackageUid(packageName, flags, userId);
+    }
+
+    @Override
+    public int checkPermission(String permName, String packageName, int userId)
+            throws RemoteException {
+        return mPm.checkPermission(permName, packageName, userId);
     }
 
     // NB: this differentiates between preloads and sideloads

@@ -72,7 +72,7 @@ public class SelectorWithWidgetPreferenceTest {
     @Test
     public void shouldHaveRadioPreferenceLayout() {
         assertThat(mPreference.getLayoutResource()).isEqualTo(
-                R.layout.preference_selector_with_widget);
+                R.layout.settingslib_preference_selector_with_widget);
     }
 
     @Test
@@ -152,6 +152,29 @@ public class SelectorWithWidgetPreferenceTest {
 
         TextView title = (TextView) preferenceViewHolder.findViewById(android.R.id.title);
         assertThat(title.getMaxLines()).isEqualTo(titleMaxLines);
+    }
+
+    @Test
+    public void setTitleMaxLines_updatesTitleViewMaxLines() {
+        final int newMaxLines = 5;
+        View view = LayoutInflater.from(mContext)
+                .inflate(mPreference.getLayoutResource(), null /* root */);
+        PreferenceViewHolder preferenceViewHolder =
+                PreferenceViewHolder.createInstanceForTests(view);
+        TextView title = (TextView) preferenceViewHolder.findViewById(android.R.id.title);
+
+        // Bind to set the initial state and verify it's the default.
+        mPreference.onBindViewHolder(preferenceViewHolder);
+        assertThat(title.getMaxLines()).isEqualTo(SelectorWithWidgetPreference.DEFAULT_MAX_LINES);
+
+        // Set a new max lines value programmatically.
+        mPreference.setTitleMaxLines(newMaxLines);
+
+        // Re-bind the view holder to apply the change.
+        mPreference.onBindViewHolder(preferenceViewHolder);
+
+        // Assert that the TextView's max lines property is updated.
+        assertThat(title.getMaxLines()).isEqualTo(newMaxLines);
     }
 
     @Test

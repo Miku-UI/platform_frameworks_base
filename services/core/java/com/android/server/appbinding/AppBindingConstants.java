@@ -46,6 +46,12 @@ public class AppBindingConstants {
     private static final String SMS_APP_BIND_FLAGS_KEY =
             "sms_app_bind_flags";
 
+    private static final String SUPERVISION_APP_SERVICE_ENABLED_KEY =
+            "supervision_app_service_enabled";
+
+    private static final String SUPERVISION_APP_SERVICE_BIND_FLAGS_KEY =
+            "supervision_app_service_bind_flags";
+
     public final String sourceSettings;
 
     /**
@@ -78,6 +84,12 @@ public class AppBindingConstants {
      * Extra binding flags for SMS service.
      */
     public final int SMS_APP_BIND_FLAGS;
+
+    /** Whether to actually bind to the supervision app service. (Feature flag) */
+    public final boolean SUPERVISION_APP_SERVICE_ENABLED;
+
+    /** Extra binding flags for supervision app service. */
+    public final int SUPERVISION_APP_SERVICE_BIND_FLAGS;
 
     private AppBindingConstants(String settings) {
         sourceSettings = settings;
@@ -113,6 +125,14 @@ public class AppBindingConstants {
                     Context.BIND_NOT_VISIBLE | Context.BIND_FOREGROUND_SERVICE);
         }
 
+        boolean supervisionAppServiceEnabled =
+                parser.getBoolean(SUPERVISION_APP_SERVICE_ENABLED_KEY, true);
+
+        int supervisionAppServiceBindFlags =
+                parser.getInt(
+                        SUPERVISION_APP_SERVICE_BIND_FLAGS_KEY,
+                        Context.BIND_NOT_VISIBLE | Context.BIND_FOREGROUND_SERVICE);
+
         long serviceStableConnectionThresholdSec = parser.getLong(
                 SERVICE_STABLE_CONNECTION_THRESHOLD_SEC_KEY, TimeUnit.MINUTES.toSeconds(2));
 
@@ -133,6 +153,8 @@ public class AppBindingConstants {
         SERVICE_STABLE_CONNECTION_THRESHOLD_SEC = serviceStableConnectionThresholdSec;
         SMS_SERVICE_ENABLED = smsServiceEnabled;
         SMS_APP_BIND_FLAGS = smsAppBindFlags;
+        SUPERVISION_APP_SERVICE_ENABLED = supervisionAppServiceEnabled;
+        SUPERVISION_APP_SERVICE_BIND_FLAGS = supervisionAppServiceBindFlags;
     }
 
     /**
@@ -173,5 +195,13 @@ public class AppBindingConstants {
         pw.print(prefix);
         pw.print("  SMS_APP_BIND_FLAGS: 0x");
         pw.println(Integer.toHexString(SMS_APP_BIND_FLAGS));
+
+        pw.print(prefix);
+        pw.print("  SUPERVISION_APP_SERVICE_ENABLED: ");
+        pw.println(SUPERVISION_APP_SERVICE_ENABLED);
+
+        pw.print(prefix);
+        pw.print("  SUPERVISION_APP_SERVICE_BIND_FLAGS: 0x");
+        pw.println(Integer.toHexString(SUPERVISION_APP_SERVICE_BIND_FLAGS));
     }
 }

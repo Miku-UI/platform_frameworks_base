@@ -17,6 +17,7 @@ package com.android.systemui.complication;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -24,6 +25,9 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.graphics.Rect;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.service.dreams.Flags;
 import android.view.View;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
@@ -44,7 +48,9 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -60,12 +66,15 @@ public class ComplicationLayoutEngineTest extends SysuiTestCase {
 
     Margins mMargins = new Margins(0, 0, 0, 0);
 
+    int mSpacing = 0;
     ComplicationLayoutEngine createComplicationLayoutEngine() {
         return createComplicationLayoutEngine(0);
     }
 
     ComplicationLayoutEngine createComplicationLayoutEngine(int spacing) {
-        return new ComplicationLayoutEngine(mLayout, spacing, () -> mMargins, mTouchSession, 0, 0);
+        mSpacing = spacing;
+        return new ComplicationLayoutEngine(
+                mLayout, () -> mSpacing, () -> mMargins, mTouchSession, 0, 0);
     }
 
     @Before
@@ -180,6 +189,7 @@ public class ComplicationLayoutEngineTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_DREAMS_V2)
     public void testComplicationMarginsOnScreenSizeChange() {
         final Random rand = new Random();
         final int spacing = rand.nextInt();
@@ -217,7 +227,12 @@ public class ComplicationLayoutEngineTest extends SysuiTestCase {
         final int newTopMargin = rand.nextInt();
         final int newEndMargin = rand.nextInt();
         mMargins = new Margins(0, newTopMargin, newEndMargin, 0);
-        engine.updateLayoutEngine(new Rect(0, 0, 800, 1000));
+
+        final Map<ComplicationId, ComplicationLayoutParams> complicationLayoutParams =
+                new HashMap<>();
+        complicationLayoutParams.put(firstViewInfo.id, firstViewInfo.lp);
+        complicationLayoutParams.put(secondViewInfo.id, secondViewInfo.lp);
+        engine.updateLayoutEngine(new Rect(0, 0, 800, 1000), complicationLayoutParams);
 
         // Ensure complication view have new margins
         verifyChange(firstViewInfo, false, lp -> {
@@ -227,6 +242,280 @@ public class ComplicationLayoutEngineTest extends SysuiTestCase {
         verifyChange(secondViewInfo, false, lp -> {
             assertThat(lp.topMargin).isEqualTo(spacing);
             assertThat(lp.getMarginEnd()).isEqualTo(newEndMargin);
+        });
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_DREAMS_V2)
+    public void updateLayoutEngine_willNotUpdateViews_whenFlagDisabled() {
+        final ComplicationLayoutEngine engine = createComplicationLayoutEngine();
+        final ViewInfo viewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_TOP
+                                | ComplicationLayoutParams.POSITION_END,
+                        ComplicationLayoutParams.DIRECTION_DOWN,
+                        0),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+
+        addComplication(engine, viewInfo);
+        viewInfo.clearInvocations();
+
+        final Map<ComplicationId, ComplicationLayoutParams> complicationLayoutParams =
+                new HashMap<>();
+        complicationLayoutParams.put(viewInfo.id, viewInfo.lp);
+        engine.updateLayoutEngine(new Rect(0, 0, 800, 1000), complicationLayoutParams);
+        // Views won't be updated.
+        verify(viewInfo.view, never()).setLayoutParams(any());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DREAMS_V2)
+    public void updateLayoutEngine_willUpdateViews_whenFlagEnabled() {
+        final ComplicationLayoutEngine engine = createComplicationLayoutEngine();
+        final ViewInfo viewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_TOP
+                                | ComplicationLayoutParams.POSITION_END,
+                        ComplicationLayoutParams.DIRECTION_DOWN,
+                        0),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+
+        addComplication(engine, viewInfo);
+        viewInfo.clearInvocations();
+
+        final Map<ComplicationId, ComplicationLayoutParams> complicationLayoutParams =
+                new HashMap<>();
+        complicationLayoutParams.put(viewInfo.id, viewInfo.lp);
+        engine.updateLayoutEngine(new Rect(0, 0, 800, 1000), complicationLayoutParams);
+        // Views will be updated.
+        verify(viewInfo.view).setLayoutParams(any());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DREAMS_V2)
+    public void updateLayoutEngine_whenSpacingBetweenComplicationsChanges() {
+        final Random rand = new Random();
+        final int spacing = rand.nextInt();
+        final ComplicationLayoutEngine engine = createComplicationLayoutEngine(spacing);
+        final ViewInfo firstViewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_TOP
+                                | ComplicationLayoutParams.POSITION_END,
+                        ComplicationLayoutParams.DIRECTION_DOWN,
+                        0),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+
+        addComplication(engine, firstViewInfo);
+
+        final ViewInfo secondViewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_TOP
+                                | ComplicationLayoutParams.POSITION_END,
+                        ComplicationLayoutParams.DIRECTION_DOWN,
+                        0),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+
+        addComplication(engine, secondViewInfo);
+
+        firstViewInfo.clearInvocations();
+        secondViewInfo.clearInvocations();
+
+        // Triggers an update to the layout engine with new spacing between complications.
+        final int newSpacing = rand.nextInt();
+        mSpacing = newSpacing;
+        final Map<ComplicationId, ComplicationLayoutParams> complicationLayoutParams =
+                new HashMap<>();
+        complicationLayoutParams.put(firstViewInfo.id, firstViewInfo.lp);
+        complicationLayoutParams.put(secondViewInfo.id, secondViewInfo.lp);
+        engine.updateLayoutEngine(new Rect(0, 0, 800, 1000), complicationLayoutParams);
+
+        // Ensure complication views have new spacing.
+        verifyChange(firstViewInfo, false, lp -> {
+            assertThat(lp.topMargin).isEqualTo(mMargins.top);
+            assertThat(lp.getMarginEnd()).isEqualTo(mMargins.end);
+        });
+        verifyChange(secondViewInfo, false, lp -> {
+            assertThat(lp.topMargin).isEqualTo(newSpacing);
+            assertThat(lp.getMarginEnd()).isEqualTo(mMargins.end);
+        });
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DREAMS_V2)
+    public void updateLayoutEngine_repositionComplications_withNewDirection() {
+        final Random rand = new Random();
+        final int spacing = rand.nextInt();
+        mMargins = new Margins(rand.nextInt(), rand.nextInt(), rand.nextInt(), rand.nextInt());
+        final ComplicationLayoutEngine engine = createComplicationLayoutEngine(spacing);
+        final ViewInfo firstViewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_BOTTOM
+                                | ComplicationLayoutParams.POSITION_START,
+                        ComplicationLayoutParams.DIRECTION_END,
+                        1),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+        addComplication(engine, firstViewInfo);
+
+        verifyChange(firstViewInfo, false, lp -> {
+            assertThat(lp.bottomToBottom == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.startToStart == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(mMargins.bottom);
+            assertThat(lp.getMarginStart()).isEqualTo(mMargins.start);
+        });
+
+        final ViewInfo secondViewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_BOTTOM
+                                | ComplicationLayoutParams.POSITION_START,
+                        ComplicationLayoutParams.DIRECTION_END,
+                        0),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+        addComplication(engine, secondViewInfo);
+
+        // Second complication is to the right of the first complication.
+        verifyChange(secondViewInfo, false, lp -> {
+            assertThat(lp.bottomToBottom == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.startToEnd == firstViewInfo.view.getId()).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(mMargins.bottom);
+            assertThat(lp.getMarginStart()).isEqualTo(spacing);
+        });
+        firstViewInfo.clearInvocations();
+        secondViewInfo.clearInvocations();
+
+        // Triggers an update with new direction in layout params for each complication.
+        final Map<ComplicationId, ComplicationLayoutParams> newParams = new HashMap<>();
+        newParams.put(firstViewInfo.id, new ComplicationLayoutParams(
+                100,
+                100,
+                ComplicationLayoutParams.POSITION_BOTTOM
+                        | ComplicationLayoutParams.POSITION_START,
+                ComplicationLayoutParams.DIRECTION_UP,
+                1)
+        );
+        newParams.put(secondViewInfo.id, new ComplicationLayoutParams(
+                100,
+                100,
+                ComplicationLayoutParams.POSITION_BOTTOM
+                        | ComplicationLayoutParams.POSITION_START,
+                ComplicationLayoutParams.DIRECTION_UP,
+                0)
+        );
+        engine.updateLayoutEngine(new Rect(0, 0, 800, 1000), newParams);
+
+        // Second complication is on top of the first complication.
+        verifyChange(firstViewInfo, false, lp -> {
+            assertThat(lp.bottomToBottom == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.startToStart == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(mMargins.bottom);
+            assertThat(lp.getMarginStart()).isEqualTo(mMargins.start);
+        });
+        verifyChange(secondViewInfo, false, lp -> {
+            assertThat(lp.bottomToTop == firstViewInfo.view.getId()).isTrue();
+            assertThat(lp.startToStart == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(spacing);
+            assertThat(lp.getMarginStart()).isEqualTo(mMargins.start);
+        });
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_DREAMS_V2)
+    public void updateLayoutEngine_repositionComplications_withNewWeight() {
+        final Random rand = new Random();
+        final int spacing = rand.nextInt();
+        mMargins = new Margins(rand.nextInt(), rand.nextInt(), rand.nextInt(), rand.nextInt());
+        final ComplicationLayoutEngine engine = createComplicationLayoutEngine(spacing);
+        final ViewInfo firstViewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_BOTTOM
+                                | ComplicationLayoutParams.POSITION_START,
+                        ComplicationLayoutParams.DIRECTION_END,
+                        1),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+        addComplication(engine, firstViewInfo);
+
+        verifyChange(firstViewInfo, false, lp -> {
+            assertThat(lp.bottomToBottom == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.startToStart == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(mMargins.bottom);
+            assertThat(lp.getMarginStart()).isEqualTo(mMargins.start);
+        });
+
+        final ViewInfo secondViewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_BOTTOM
+                                | ComplicationLayoutParams.POSITION_START,
+                        ComplicationLayoutParams.DIRECTION_END,
+                        0),
+                Complication.CATEGORY_SYSTEM,
+                mLayout);
+        addComplication(engine, secondViewInfo);
+
+        // Second complication is after the first complication.
+        verifyChange(secondViewInfo, false, lp -> {
+            assertThat(lp.bottomToBottom == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.startToEnd == firstViewInfo.view.getId()).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(mMargins.bottom);
+            assertThat(lp.getMarginStart()).isEqualTo(spacing);
+        });
+        firstViewInfo.clearInvocations();
+        secondViewInfo.clearInvocations();
+
+        // Triggers an update with new weight in layout params for complications.
+        final Map<ComplicationId, ComplicationLayoutParams> newParams = new HashMap<>();
+        newParams.put(firstViewInfo.id, new ComplicationLayoutParams(
+                100,
+                100,
+                ComplicationLayoutParams.POSITION_BOTTOM
+                        | ComplicationLayoutParams.POSITION_START,
+                ComplicationLayoutParams.DIRECTION_END,
+                1)
+        );
+        // Second view has larger weight than the first view.
+        newParams.put(secondViewInfo.id, new ComplicationLayoutParams(
+                100,
+                100,
+                ComplicationLayoutParams.POSITION_BOTTOM
+                        | ComplicationLayoutParams.POSITION_START,
+                ComplicationLayoutParams.DIRECTION_END,
+                2)
+        );
+        engine.updateLayoutEngine(new Rect(0, 0, 800, 1000), newParams);
+
+        // Second complication is in front of the first complication.
+        verifyChange(secondViewInfo, false, lp -> {
+            assertThat(lp.bottomToBottom == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.startToStart == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(mMargins.bottom);
+            assertThat(lp.getMarginStart()).isEqualTo(mMargins.start);
+        });
+        verifyChange(firstViewInfo, false, lp -> {
+            assertThat(lp.bottomToBottom == ConstraintLayout.LayoutParams.PARENT_ID).isTrue();
+            assertThat(lp.startToEnd == secondViewInfo.view.getId()).isTrue();
+            assertThat(lp.bottomMargin).isEqualTo(mMargins.bottom);
+            assertThat(lp.getMarginStart()).isEqualTo(spacing);
         });
     }
 
@@ -750,6 +1039,31 @@ public class ComplicationLayoutEngineTest extends SysuiTestCase {
         Mockito.clearInvocations(mLayout, firstViewInfo.view);
         assertThat(engine.removeComplication(firstViewInfo.id)).isFalse();
         verify(firstViewInfo.view, never()).getParent();
+        verify(mLayout, never()).removeView(firstViewInfo.view);
+    }
+
+    /**
+     * Ensures removal after detach doesn't cause the view to be removed from its parent
+     */
+    @Test
+    public void testNoViewGroupRemovalPostDestroy() {
+        final ComplicationLayoutEngine engine = createComplicationLayoutEngine();
+        final ViewInfo firstViewInfo = new ViewInfo(
+                new ComplicationLayoutParams(
+                        100,
+                        100,
+                        ComplicationLayoutParams.POSITION_TOP
+                                | ComplicationLayoutParams.POSITION_END,
+                        ComplicationLayoutParams.DIRECTION_DOWN,
+                        0),
+                Complication.CATEGORY_STANDARD,
+                mLayout);
+
+        engine.addComplication(firstViewInfo.id, firstViewInfo.view, firstViewInfo.lp,
+                firstViewInfo.category);
+        Mockito.clearInvocations(mLayout, firstViewInfo.view);
+        engine.onDestroyed();
+        engine.removeComplication(firstViewInfo.id);
         verify(mLayout, never()).removeView(firstViewInfo.view);
     }
 

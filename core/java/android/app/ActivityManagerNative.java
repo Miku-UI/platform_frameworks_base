@@ -20,7 +20,7 @@ import android.content.Intent;
 import android.os.IBinder;
 
 /**
- * {@hide}
+ * @hide
  * @deprecated will be removed soon. See individual methods for alternatives.
  */
 @Deprecated

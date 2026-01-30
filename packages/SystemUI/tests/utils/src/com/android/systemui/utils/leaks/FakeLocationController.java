@@ -27,6 +27,7 @@ public class FakeLocationController extends BaseLeakChecker<LocationChangeCallba
 
     private final List<LocationChangeCallback> mCallbacks = new ArrayList<>();
     private boolean mLocationEnabled = false;
+    private boolean mLocationActive = false;
 
     public FakeLocationController(LeakCheck test) {
         super(test, "location");
@@ -34,7 +35,14 @@ public class FakeLocationController extends BaseLeakChecker<LocationChangeCallba
 
     @Override
     public boolean isLocationActive() {
-        return false;
+        return mLocationActive;
+    }
+
+    public void setLocationActive(boolean active) {
+        mLocationActive = active;
+        for (LocationChangeCallback callback : new ArrayList<>(mCallbacks)) {
+            callback.onLocationActiveChanged(mLocationActive);
+        }
     }
 
     @Override

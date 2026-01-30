@@ -25,13 +25,12 @@ import static org.junit.Assert.assertThrows;
 
 import android.content.Context;
 import android.content.res.XmlResourceParser;
-import android.platform.test.annotations.DisabledOnRavenwood;
+import android.platform.test.ravenwood.RavenwoodRule;
 import android.util.Log;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
-import com.android.ravenwood.common.RavenwoodCommonUtils;
 import com.android.ravenwood.restest_apk.R;
 
 import org.junit.Test;
@@ -49,6 +48,14 @@ public class RavenwoodResApkTest {
     private static final Context sContext =
             InstrumentationRegistry.getInstrumentation().getContext();
 
+    // Make sure all the relevant flags are enabled.
+    @Test
+    public void testCheckAconfigFlags() {
+        assertTrue("layoutReadwriteFlags", android.content.res.Flags.layoutReadwriteFlags());
+        assertTrue("useNewAconfigStorage", android.content.res.Flags.useNewAconfigStorage());
+        assertTrue("newStoragePublicApi", android.provider.flags.Flags.newStoragePublicApi());
+    }
+
     /**
      * Ensure the file "ravenwood-res.apk" exists.
      */
@@ -64,7 +71,7 @@ public class RavenwoodResApkTest {
         var file = "ravenwood-data/framework-res.apk";
 
         assertTrue(new File(
-                RavenwoodCommonUtils.getRavenwoodRuntimePath() + "/" + file).exists());
+                RavenwoodRule.getRavenwoodRuntimePath() + "/" + file).exists());
     }
 
     @Test
@@ -130,8 +137,6 @@ public class RavenwoodResApkTest {
     }
 
     @Test
-    @DisabledOnRavenwood(bug = 396458006,
-            reason = "RW flags in XML are all handled as enabled for now")
     public void testElementWithRwFlagDisabled() throws Exception {
         assertThat(getTextsFromEnabledChildren()).doesNotContain("rw-disabled");
     }

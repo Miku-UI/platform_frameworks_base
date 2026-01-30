@@ -22,6 +22,7 @@ import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentat
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -68,9 +69,13 @@ public class ProcessRecordTests {
         // We need to run with dexmaker share class loader to make use of ActivityTaskManagerService
         // from wm package.
         runWithDexmakerShareClassLoader(() -> {
+            final ProcessStateController psc = mock(ProcessStateController.class);
+            doReturn(mock(ProcessStateController.ActivityStateAsyncUpdater.class)).when(
+                    psc).createActivityStateAsyncUpdater(any());
+
             sService = mock(ActivityManagerService.class);
             sService.mActivityTaskManager = new ActivityTaskManagerService(sContext);
-            sService.mActivityTaskManager.initialize(null, null, sContext.getMainLooper());
+            sService.mActivityTaskManager.initialize(null, null, psc, sContext.getMainLooper());
             sService.mAtmInternal = sService.mActivityTaskManager.getAtmInternal();
             final AppProfiler profiler = mock(AppProfiler.class);
             setFieldValue(AppProfiler.class, profiler, "mProfilerLock", new Object());

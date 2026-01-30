@@ -38,7 +38,7 @@ import android.view.ViewGroup;
  */
 public class WearGestureInterceptionDetector {
     private static final boolean DEBUG = false;
-    private static final String TAG = "WearGestureInterceptionDetector";
+    private static final String TAG = "WearGestureInterceptor";
 
     private final DecorView mInstalledDecorView;
     private final float mTouchSlop;
@@ -54,6 +54,9 @@ public class WearGestureInterceptionDetector {
         mTouchSlop = ViewConfiguration.get(context).getScaledTouchSlop();
         mInstalledDecorView = installedDecorView;
         mSwipingStartThreshold = mTouchSlop * 2;
+        if (DEBUG) {
+            Log.i(TAG, "mTouchSlop=" + mTouchSlop);
+        }
     }
 
     /** Check if this gesture interception detector should be enabled. */
@@ -91,9 +94,15 @@ public class WearGestureInterceptionDetector {
         }
         float deltaX = ev.getRawX() - mDownX;
         float deltaY = ev.getRawY() - mDownY;
+        if (DEBUG) {
+            Log.i(TAG, "updateSwiping: deltaX=" + deltaX + ",Y=" + deltaY);
+        }
         // Check if we have left the touch slop area.
         if ((deltaX * deltaX) + (deltaY * deltaY) > (mTouchSlop * mTouchSlop)) {
             mSwiping = deltaX > mSwipingStartThreshold && Math.abs(deltaY) < Math.abs(deltaX);
+            if (DEBUG) {
+                Log.i(TAG, "updateSwiping: mSwiping=" + mSwiping);
+            }
         }
     }
 
@@ -109,12 +118,18 @@ public class WearGestureInterceptionDetector {
         final float x = ev.getX(pointerIndex);
         final float y = ev.getY(pointerIndex);
         if (canScroll(mInstalledDecorView, false, checkLeft, x, y)) {
+            if (DEBUG) {
+                Log.i(TAG, "updateDiscardIntercept: canScroll, discardIntercept=true");
+            }
             mDiscardIntercept = true;
         }
     }
 
     /** Resets internal members when canceling. */
     private void resetMembers() {
+        if (DEBUG) {
+            Log.i(TAG, "resetMembers");
+        }
         mDownX = 0;
         mDownY = 0;
         mSwiping = false;
@@ -159,6 +174,7 @@ public class WearGestureInterceptionDetector {
                 updateDiscardIntercept(ev, pointerIndex);
                 break;
             case MotionEvent.ACTION_CANCEL:
+                break;
             case MotionEvent.ACTION_UP:
                 resetMembers();
                 break;

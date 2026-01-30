@@ -44,33 +44,6 @@ flag {
 }
 
 flag {
-    name: "enable_apache_http_legacy_preload"
-    namespace: "system_performance"
-    description: "Enables zygote preload of non-BCP org.apache.http.legacy.jar library."
-    # Fixed read-only is required as the flag is read during zygote init.
-    is_fixed_read_only: true
-    bug: "241474956"
-}
-
-flag {
-    name: "enable_media_and_location_preload"
-    namespace: "system_performance"
-    description: "Enables zygote preload of non-BCP media and location libraries."
-    bug: "241474956"
-}
-
-flag {
-    name: "use_transaction_codes_for_unknown_methods"
-    namespace: "stability"
-    description: "Use transaction codes when the method names is unknown"
-    bug: "350041302"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "debug_store_enabled"
     namespace: "stability"
     description: "If the debug store is enabled."
@@ -79,9 +52,19 @@ flag {
 }
 
 flag {
-    name: "application_shared_memory_enabled"
-    namespace: "system_performance"
-    description: "Whether ApplicationSharedMemory is enabled."
-    bug: "365575551"
+    name: "pre_watchdog_throttle_thread_dump"
+    namespace: "stability"
+    description: "Throttles how often a pre-watchdog results in a thread dump"
+    bug: "417424880"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "zygote_early_fifo_boost"
+    namespace: "watch_software_performance"
+    description: "Enables zygote boosting to fifo priority for top-app launches when fifo_ui is enabled"
+    bug: "397918406"
     is_fixed_read_only: true
 }

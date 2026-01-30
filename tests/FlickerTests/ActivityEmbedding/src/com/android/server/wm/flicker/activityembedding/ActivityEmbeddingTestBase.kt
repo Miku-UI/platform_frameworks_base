@@ -17,14 +17,14 @@
 package com.android.server.wm.flicker.activityembedding
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.legacy.LegacyFlickerTest
+import android.tools.flicker.FlickerTest
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.BaseTest
 import com.android.server.wm.flicker.helpers.ActivityEmbeddingAppHelper
 import org.junit.Before
 import org.junit.Test
 
-abstract class ActivityEmbeddingTestBase(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+abstract class ActivityEmbeddingTestBase(flicker: FlickerTest) : BaseTest(flicker) {
     val testApp = ActivityEmbeddingAppHelper(instrumentation)
 
     @Before

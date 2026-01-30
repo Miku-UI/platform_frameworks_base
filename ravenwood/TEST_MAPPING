@@ -1,31 +1,84 @@
 {
   "presubmit": [
+    // Non-ravenwood host side tests.
     { "name": "tiny-framework-dump-test" },
     { "name": "hoststubgentest" },
     { "name": "ravenhelpertest" },
     { "name": "hoststubgen-test-tiny-test" },
     { "name": "hoststubgen-invoke-test" },
+
+    // This test fails with mysterious errors on the server side. Commenting out for now.
+    // TODO(b/438195035) Un-comment it
+    // { "name": "ravenwood-scripts-sh-golden-test" },
+
+    // Device side tests for the bivalent tests.
     { "name": "RavenwoodMockitoTest_device" },
     { "name": "RavenwoodBivalentTest_device" },
     { "name": "RavenwoodBivalentTest_device_ravenizer" },
-
-    { "name": "RavenwoodBivalentInstTest_nonself_inst" },
+    { "name": "RavenwoodBivalentInstTest_nonself_inst_device" },
     { "name": "RavenwoodBivalentInstTest_self_inst_device" },
+    { "name": "RavenwoodUiTest_device" },
 
-    // The sysui tests should match vendor/unbundled_google/packages/SystemUIGoogle/TEST_MAPPING
+    // The follwoing sysui tests should match these in this file:
+    //     vendor/unbundled_google/packages/SystemUIGoogle/TEST_MAPPING
+    // The reason why we have the SysUI device tests here is that, previously, when
+    // these tests  still used RavenwoodRule (which used to be required for
+    // @DisabledOnRavenwood to work), a change to Ravenwood accidentally broke
+    // their device side tests.
+    // Now, they no longer have a RavenwoodRule, but they still use
+    // RavenwoodRule.isOnRavenwood and the ravenwood stub is still linked against Ravenwood
+    // jars, so for now, we'll keep them here.
+    // When we think things get stable enough and presubmit time becomes too much because of them,
+    // we can consider deleting them.
     {
-      "name": "SystemUIGoogleTests"
+      "name": "SystemUIGoogleTests",
+      "options": [
+        {
+          "exclude-annotation": "org.junit.Ignore"
+        },
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        }
+      ]
     }
   ],
   "presubmit-large": [
     {
-      "name": "SystemUITests"
+      "name": "SystemUITests",
+      "options": [
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation": "org.junit.Ignore"
+        }
+      ]
     }
   ],
   "ravenwood-presubmit": [
+// TODO(b/440069724) these tests didn't get to run on presubmit somehow
+//    {
+//      "name": "CarSystemUIRavenTests",
+//      "keywords": ["automotive_code_coverage"],
+//      "host": true
+//    },
+//   {
+//     "name": "CarLibHostUnitTest",
+//     "keywords": ["automotive_code_coverage"],
+//     "host": true
+//   },
+
     // AUTO-GENERATED-START
     // DO NOT MODIFY MANUALLY
     // Use scripts/update-test-mapping.sh to update it.
+    {
+      "name": "AconfigPackageTestsRavenwood",
+      "host": true
+    },
+    {
+      "name": "AconfigPublicApiCtsTestsRavenwood",
+      "host": true
+    },
     {
       "name": "AdServicesSharedLibrariesUnitTestsRavenwood",
       "host": true
@@ -35,17 +88,7 @@
       "host": true
     },
     {
-      "name": "CarLibHostUnitTest",
-      "keywords": ["automotive_code_coverage"],
-      "host": true
-    },
-    {
       "name": "CarServiceHostUnitTest",
-      "keywords": ["automotive_code_coverage"],
-      "host": true
-    },
-    {
-      "name": "CarSystemUIRavenTests",
       "keywords": ["automotive_code_coverage"],
       "host": true
     },
@@ -55,6 +98,10 @@
     },
     {
       "name": "CtsAppTestCasesRavenwood",
+      "host": true
+    },
+    {
+      "name": "CtsBroadcastTestCasesRavenwood",
       "host": true
     },
     {
@@ -94,6 +141,10 @@
       "host": true
     },
     {
+      "name": "CtsSurfaceControlTestsRavenwood",
+      "host": true
+    },
+    {
       "name": "CtsTextTestCasesRavenwood",
       "host": true
     },
@@ -115,6 +166,10 @@
     },
     {
       "name": "FrameworksServicesTestsRavenwood_Compat",
+      "host": true
+    },
+    {
+      "name": "FrameworksServicesTestsRavenwood_ProcessStateController",
       "host": true
     },
     {
@@ -150,11 +205,11 @@
       "host": true
     },
     {
-      "name": "RavenwoodCoreTest-light",
+      "name": "RavenwoodMinimumTest",
       "host": true
     },
     {
-      "name": "RavenwoodMinimumTest",
+      "name": "RavenwoodMinimumTest-with-module-current",
       "host": true
     },
     {
@@ -171,6 +226,10 @@
     },
     {
       "name": "RavenwoodServicesTest",
+      "host": true
+    },
+    {
+      "name": "RavenwoodUiTest_noexp",
       "host": true
     },
     {

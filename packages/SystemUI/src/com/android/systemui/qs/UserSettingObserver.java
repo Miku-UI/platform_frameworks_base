@@ -77,20 +77,11 @@ public abstract class UserSettingObserver extends ContentObserver implements Lis
         mListening = listening;
         if (listening) {
             mObservedValue = getValueFromProvider();
-            if (Flags.qsRegisterSettingObserverOnBgThread()) {
-                mSettingsProxy.registerContentObserverForUserAsync(
-                        mSettingsProxy.getUriFor(mSettingName), this, mUserId, () ->
-                                mObservedValue = getValueFromProvider());
-            } else {
-                mSettingsProxy.registerContentObserverForUserSync(
-                        mSettingsProxy.getUriFor(mSettingName), false, this, mUserId);
-            }
+            mSettingsProxy.registerContentObserverForUserAsync(
+                mSettingsProxy.getUriFor(mSettingName), this, mUserId, () ->
+                    mObservedValue = getValueFromProvider());
         } else {
-            if (Flags.qsRegisterSettingObserverOnBgThread()) {
-                mSettingsProxy.unregisterContentObserverAsync(this);
-            } else {
-                mSettingsProxy.unregisterContentObserverSync(this);
-            }
+            mSettingsProxy.unregisterContentObserverAsync(this);
             mObservedValue = mDefaultValue;
         }
     }

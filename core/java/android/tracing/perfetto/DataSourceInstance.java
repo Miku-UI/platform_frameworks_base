@@ -58,6 +58,14 @@ public abstract class DataSourceInstance implements AutoCloseable {
      */
     protected void onStop(StopCallbackArguments args) {}
 
+    /**
+     * Stop the data source instance (whose stop operation was previously postponed
+     * with DataSourceParams#postponeStop).
+     */
+    public void stopDone() {
+        mDataSource.stopDoneDataSourceInstance(mInstanceIndex);
+    }
+
     @Override
     public final void close() {
         this.release();

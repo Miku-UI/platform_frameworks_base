@@ -62,9 +62,9 @@ static struct {
 jfloat gUndefinedTemperature;
 
 static void getThermalHalLocked();
-static std::mutex gThermalHalMutex;
-static sp<hardware::thermal::V1_0::IThermal> gThermalHidlHal = nullptr;
-static std::shared_ptr<IThermal> gThermalAidlHal = nullptr;
+[[clang::no_destroy]] static std::mutex gThermalHalMutex;
+[[clang::no_destroy]] static sp<hardware::thermal::V1_0::IThermal> gThermalHidlHal = nullptr;
+[[clang::no_destroy]] static std::shared_ptr<IThermal> gThermalAidlHal = nullptr;
 
 struct ThermalHidlHalDeathRecipient : virtual public hidl_death_recipient {
     // hidl_death_recipient interface
@@ -83,8 +83,9 @@ static void onThermalAidlBinderDied(void *cookie) {
     getThermalHalLocked();
 }
 
-sp<ThermalHidlHalDeathRecipient> gThermalHidlHalDeathRecipient = nullptr;
-ndk::ScopedAIBinder_DeathRecipient gThermalAidlDeathRecipient;
+[[clang::no_destroy]] static sp<ThermalHidlHalDeathRecipient> gThermalHidlHalDeathRecipient =
+        nullptr;
+[[clang::no_destroy]] static ndk::ScopedAIBinder_DeathRecipient gThermalAidlDeathRecipient;
 
 // ----------------------------------------------------------------------------
 

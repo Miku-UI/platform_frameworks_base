@@ -1044,7 +1044,7 @@ public class SmsMessage extends SmsMessageBase {
         /**
          * Returns an object representing the user data headers
          *
-         * {@hide}
+         * @hide
          */
         SmsHeader getUserDataHeader() {
             return mUserDataHeader;

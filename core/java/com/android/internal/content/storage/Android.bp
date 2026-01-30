@@ -1,0 +1,8 @@
+aconfig_declarations {
+    name: "com.android.internal.content.storage.flags-aconfig",
+    package: "com.android.internal.content.storage.flags",
+    container: "system",
+    srcs: [
+        "flags.aconfig",
+    ],
+}

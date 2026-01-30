@@ -20,8 +20,12 @@ import android.text.PrecomputedText
 import android.text.Spannable
 import android.util.Log
 import android.widget.TextView
+import androidx.annotation.VisibleForTesting
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 
-internal interface TextPrecomputer {
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+interface TextPrecomputer {
     /**
      * Creates PrecomputedText from given text and returns a runnable which sets precomputed text to
      * the textview on main thread.
@@ -32,7 +36,7 @@ internal interface TextPrecomputer {
     fun precompute(
         textView: TextView,
         text: CharSequence?,
-        logException: Boolean = true
+        logException: Boolean = true,
     ): Runnable {
         val precomputedText: Spannable? =
             text?.let { PrecomputedText.create(it, textView.textMetricsParams) }
@@ -45,7 +49,7 @@ internal interface TextPrecomputer {
                     Log.wtf(
                         /* tag = */ TAG,
                         /* msg = */ "PrecomputedText setText failed for TextView:$textView",
-                        /* tr = */ exception
+                        /* tr = */ exception,
                     )
                 }
                 textView.text = text

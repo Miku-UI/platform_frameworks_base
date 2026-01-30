@@ -101,7 +101,7 @@ class Utils {
             @NonNull Context context, @StringRes int resId, CharSequence... formatArgs) {
         final String[] escapedArgs = new String[formatArgs.length];
         for (int i = 0; i < escapedArgs.length; i++) {
-            escapedArgs[i] = Html.escapeHtml(formatArgs[i]);
+            escapedArgs[i] = formatArgs[i] == null ? null : Html.escapeHtml(formatArgs[i]);
         }
         final String plain = context.getString(resId, (Object[]) escapedArgs);
         return Html.fromHtml(plain, 0);

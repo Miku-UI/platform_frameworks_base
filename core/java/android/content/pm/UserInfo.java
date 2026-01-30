@@ -369,6 +369,14 @@ public class UserInfo implements Parcelable {
     @UnsupportedAppUsage
     @Deprecated
     public boolean isPrimary() {
+        UserManager.logStaticDeprecation();
+        return isPrimaryUnlogged();
+    }
+
+    /**
+     * @hide
+     */
+    public boolean isPrimaryUnlogged() {
         return (flags & FLAG_PRIMARY) == FLAG_PRIMARY;
     }
 
@@ -443,6 +451,7 @@ public class UserInfo implements Parcelable {
         return UserManager.isUserTypeDemo(userType) || (flags & FLAG_DEMO) != 0;
     }
 
+    /** Returns whether the user is a "non-profile human user", as defined by {@link #FLAG_FULL}. */
     public boolean isFull() {
         return (flags & FLAG_FULL) == FLAG_FULL;
     }
@@ -451,6 +460,20 @@ public class UserInfo implements Parcelable {
      * @see #FLAG_MAIN
      */
     public boolean isMain() {
+        UserManager.logStaticDeprecation();
+        return isMainUnlogged();
+    }
+
+    /**
+     * Same as {@link #isMain()}, but doesn't log the call (when logging multi-user violations is
+     * enabled).
+     *
+     * <p>Should be called by methods that don't need to log (for example, because they're internal
+     * to user infra) or already logged (to avoid duplicate entries).
+     *
+     * @hide
+     */
+    public boolean isMainUnlogged() {
         return (flags & FLAG_MAIN) == FLAG_MAIN;
     }
 
@@ -468,31 +491,43 @@ public class UserInfo implements Parcelable {
             // Don't support switching to pre-created users until they become "real" users.
             return false;
         }
-        return isFull() || canSwitchToHeadlessSystemUser();
+        return supportsSwitchTo(userType, flags);
     }
 
     /**
-     * @return true if user is of type {@link UserManager#USER_TYPE_SYSTEM_HEADLESS} and
-     * {@link com.android.internal.R.bool.config_canSwitchToHeadlessSystemUser} is true.
+     * Returns whether the given user type, with the given base set of flags, can be switched to.
+     * @hide
+     */
+    public static boolean supportsSwitchTo(String userType, @UserInfoFlag int flags) {
+        return ((flags & UserInfo.FLAG_FULL) != 0) || isSwitchableHeadlessSystemUser(userType);
+    }
+
+    /**
+     * Returns whether the userType is of type {@link UserManager#USER_TYPE_SYSTEM_HEADLESS} and
+     * {@link com.android.internal.R.bool#config_canSwitchToHeadlessSystemUser} is true.
      */
     @android.ravenwood.annotation.RavenwoodThrow
-    private boolean canSwitchToHeadlessSystemUser() {
+    private static boolean isSwitchableHeadlessSystemUser(String userType) {
         return UserManager.USER_TYPE_SYSTEM_HEADLESS.equals(userType) && Resources.getSystem()
                 .getBoolean(com.android.internal.R.bool.config_canSwitchToHeadlessSystemUser);
     }
 
     /**
-     * @return true if this user can be switched to by end user through UI.
-     * @deprecated Use {@link UserInfo#supportsSwitchTo} instead.
+     * @return true if this user can be switched to by an end user through the UI.
+     * This method checks if supportsSwitchTo() is true AND the user is a full user.
+     * It specifically excludes the headless system user, as switching to that user
+     * is typically a framework-level operation and not available to regular users
+     * via the UI.
      */
-    @Deprecated
     @android.ravenwood.annotation.RavenwoodThrow
     public boolean supportsSwitchToByUser() {
-        return supportsSwitchTo();
+        return supportsSwitchTo() && isFull();
     }
 
-    // TODO(b/142482943): Make this logic more specific and customizable. (canHaveProfile(userType))
-    /* @hide */
+    /**
+     * Returns whether the user can have profiles, in general (on the basis of its UserInfo data).
+     * See {@link #canHaveProfile(String)} for more fine-grained determination.
+     */
     public boolean canHaveProfile() {
         if (!isFull() || isProfile() || isGuest() || isRestricted() || isDemo()) {
             return false;
@@ -500,8 +535,26 @@ public class UserInfo implements Parcelable {
         // NOTE: profiles used to be restricted just to the system user (and later to the main
         // user), but from the framework point of view there is no need for such restriction, hence
         // it's lifted
-        // TODO(b/374832167): check value of config_supportProfilesOnNonMainUser
-        return isMain() || android.multiuser.Flags.profilesForAll();
+        return isMainUnlogged()
+                || (android.multiuser.Flags.profilesForAll()
+                        && Resources.getSystem().getBoolean(
+                                com.android.internal.R.bool.config_supportProfilesOnNonMainUser));
+    }
+
+    /**
+     * Returns if the user can have a profile of the given type (on the basis of its UserInfo data).
+     * @hide
+     */
+    public boolean canHaveProfile(String userType) {
+        if (!canHaveProfile()) {
+            return false;
+        }
+        if (UserManager.isUserTypePrivateProfile(userType)) {
+            // Even if we eventually allow other users to have profiles too, only MainUsers are
+            // eligible to have a Private Space, for some reason.
+            return isMainUnlogged();
+        }
+        return true;
     }
 
     // TODO(b/142482943): Get rid of this (after removing it from all tests) if feasible.

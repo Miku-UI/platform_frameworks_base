@@ -17,14 +17,27 @@
 package com.android.systemui.deviceentry.domain.interactor
 
 import com.android.systemui.biometrics.data.repository.facePropertyRepository
+import com.android.systemui.biometrics.data.repository.fakeFacePropertyRepository
+import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
+import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 
 val Kosmos.deviceEntryBiometricsAllowedInteractor by
     Kosmos.Fixture {
         DeviceEntryBiometricsAllowedInteractor(
+            applicationScope = applicationCoroutineScope,
             deviceEntryFingerprintAuthInteractor = deviceEntryFingerprintAuthInteractor,
             deviceEntryFaceAuthInteractor = deviceEntryFaceAuthInteractor,
             biometricSettingsInteractor = deviceEntryBiometricSettingsInteractor,
             facePropertyRepository = facePropertyRepository,
+            secureLockDeviceInteractor = { secureLockDeviceInteractor },
         )
     }
+
+fun Kosmos.allowFingerprint() {
+    fakeDeviceEntryFingerprintAuthRepository.setLockedOut(false)
+    fakeFacePropertyRepository.setSensorInfo(null)
+    fakeBiometricSettingsRepository.setIsFingerprintAuthCurrentlyAllowed(true)
+}

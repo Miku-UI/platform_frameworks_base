@@ -153,6 +153,13 @@ flag {
 }
 
 flag {
+    name: "hearing_devices_separated_preset_control"
+    namespace: "accessibility"
+    description: "Enable the separated preset control in device details and hearing devices dialog."
+    bug: "417628947"
+}
+
+flag {
     name: "settings_preference_write_consent_enabled"
     namespace: "android_settings"
     description: "Enable the user consent prompt before writing sensitive preferences via service"
@@ -188,16 +195,6 @@ flag {
     namespace: "cross_device_experiences"
     description: "Do not auto pick audio sharing fallback device in UI"
     bug: "383469911"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "enable_temporary_bond_devices_ui"
-    namespace: "cross_device_experiences"
-    description: "UI changes for temporary bond devices in audio sharing."
-    bug: "362859132"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -241,4 +238,51 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
+}
+
+flag {
+    name: "audio_stream_play_pause_by_modify_source"
+    namespace: "cross_device_experiences"
+    description: "Play pause the audio stream by modify source"
+    bug: "384976631"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "refactor_battery_level_display"
+    namespace: "cross_device_experiences"
+    description: "Refactor the sources of battery level display "
+    bug: "397847825"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "fix_battery_level_in_connection_summary"
+    namespace: "cross_device_experiences"
+    description: "Fix battery level in connection summary"
+    bug: "396543491"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "audio_stream_scan_with_filter"
+    namespace: "cross_device_experiences"
+    description: "Add ability to start scanning with filter"
+    bug: "395978182"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_bluetooth_diagnosis"
+    namespace: "cross_device_experiences"
+    description: "Enable Bluetooth problem detection and diagnosis"
+    bug: "411309851"
 }

@@ -19,10 +19,12 @@ package com.android.systemui.communal.data.repository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.applicationCoroutineScope
+import org.mockito.kotlin.spy
 
 var Kosmos.fakeCommunalSceneRepository by Fixture {
     FakeCommunalSceneRepository(applicationScope = applicationCoroutineScope)
 }
+var Kosmos.fakeCommunalSceneRepositorySpy by Fixture { spy(fakeCommunalSceneRepository) }
 
-val Kosmos.communalSceneRepository by
+var Kosmos.communalSceneRepository by
     Fixture<CommunalSceneRepository> { fakeCommunalSceneRepository }

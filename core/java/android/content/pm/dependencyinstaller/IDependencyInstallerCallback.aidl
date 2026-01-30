@@ -22,7 +22,7 @@ import java.util.List;
 * Callbacks for Dependency Installer. The app side invokes on this interface to indicate
 * completion of the async dependency install request given by the system server.
 *
-* {@hide}
+* @hide
 */
 interface IDependencyInstallerCallback {
     /**

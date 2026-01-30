@@ -20,6 +20,7 @@ package com.android.platform.test.ravenwood.ravenizer
 import com.android.hoststubgen.LogLevel
 import com.android.hoststubgen.executableName
 import com.android.hoststubgen.log
+import com.android.hoststubgen.logOptions
 import com.android.hoststubgen.runMainWithBoilerplate
 import com.android.hoststubgen.utils.JAR_RESOURCE_PREFIX
 import java.nio.file.Paths
@@ -47,7 +48,7 @@ private const val RAVENIZER_STANDARD_OPTIONS = "texts/ravenizer-standard-options
  */
 fun main(args: Array<String>) {
     executableName = "Ravenizer"
-    log.setConsoleLogLevel(LogLevel.Info)
+    logOptions.setConsoleLogLevel(LogLevel.Info)
 
     runMainWithBoilerplate {
         val newArgs = args.toMutableList()

@@ -707,7 +707,7 @@ public class PackageManagerStub extends PackageManager {
     }
 
     @Override
-    public void setUpdateAvailable(String packageName, boolean updateAvaialble) {
+    public void setUpdateAvailable(String packageName, boolean updateAvailable) {
 
     }
 

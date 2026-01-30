@@ -19,7 +19,6 @@ package com.android.internal.os;
 import android.annotation.Nullable;
 import android.os.BadParcelableException;
 import android.os.Parcel;
-import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -27,7 +26,6 @@ import java.util.HashMap;
 /**
  * Native implementation substitutions for the LongArrayMultiStateCounter class.
  */
-@RavenwoodKeepWholeClass
 class LongArrayMultiStateCounter_ravenwood {
 
     /**

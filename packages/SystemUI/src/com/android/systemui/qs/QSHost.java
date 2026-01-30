@@ -22,6 +22,7 @@ import android.provider.Settings;
 import androidx.annotation.NonNull;
 
 import com.android.systemui.plugins.qs.QSTile;
+import com.android.systemui.qs.flags.QsInCompose;
 import com.android.systemui.res.R;
 
 import java.util.ArrayList;
@@ -41,7 +42,10 @@ public interface QSHost {
     static List<String> getDefaultSpecs(Resources res) {
         final ArrayList<String> tiles = new ArrayList();
 
-        final String defaultTileList = res.getString(R.string.quick_settings_tiles_default);
+        int resource = QsInCompose.isEnabled() ? R.string.quick_settings_tiles_new_default
+                : R.string.quick_settings_tiles_default;
+
+        final String defaultTileList = res.getString(resource);
 
         tiles.addAll(Arrays.asList(defaultTileList.split(",")));
         return tiles;

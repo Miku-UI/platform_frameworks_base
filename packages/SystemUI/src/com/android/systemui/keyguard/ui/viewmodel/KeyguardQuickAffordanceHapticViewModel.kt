@@ -16,81 +16,68 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
-import com.android.systemui.keyguard.domain.interactor.KeyguardQuickAffordanceInteractor
-import dagger.assisted.Assisted
+//noinspection CleanArchitectureDependencyViolation
+import com.android.systemui.Flags
+import com.android.systemui.keyguard.ui.binder.KeyguardBottomAreaVibrations
+import com.android.systemui.statusbar.VibratorHelper
+import com.google.android.msdl.data.model.MSDLToken
+import com.google.android.msdl.domain.MSDLPlayer
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
 
 class KeyguardQuickAffordanceHapticViewModel
 @AssistedInject
-constructor(
-    @Assisted quickAffordanceViewModel: Flow<KeyguardQuickAffordanceViewModel>,
-    private val quickAffordanceInteractor: KeyguardQuickAffordanceInteractor,
-) {
+constructor(private val msdlPlayer: MSDLPlayer, private val vibratorHelper: VibratorHelper) {
+    var longPressed = false
+        private set
 
-    private val activatedHistory = MutableStateFlow(ActivatedHistory(false))
-
-    private val launchingHapticState: Flow<HapticState> =
-        combine(
-                quickAffordanceViewModel.map { it.configKey },
-                quickAffordanceInteractor.launchingFromTriggeredResult,
-            ) { key, launchingResult ->
-                val validKey = key != null && key == launchingResult?.configKey
-                if (validKey && launchingResult?.launched == true) {
-                    HapticState.LAUNCH
-                } else {
-                    HapticState.NO_HAPTICS
-                }
-            }
-            .distinctUntilChanged()
-
-    private val toggleHapticState: Flow<HapticState> =
-        activatedHistory
-            .map { history ->
-                when {
-                    history.previousValue == false && history.currentValue -> HapticState.TOGGLE_ON
-                    history.previousValue == true && !history.currentValue -> HapticState.TOGGLE_OFF
-                    else -> HapticState.NO_HAPTICS
-                }
-            }
-            .distinctUntilChanged()
-
-    val quickAffordanceHapticState =
-        merge(launchingHapticState, toggleHapticState).distinctUntilChanged()
-
-    fun resetLaunchingFromTriggeredResult() =
-        quickAffordanceInteractor.setLaunchingFromTriggeredResult(null)
+    private var activated = false
 
     fun updateActivatedHistory(isActivated: Boolean) {
-        activatedHistory.value =
-            ActivatedHistory(
-                currentValue = isActivated,
-                previousValue = activatedHistory.value.currentValue,
-            )
+        val toggleOn = !activated && isActivated
+        val toggleOff = activated && !isActivated
+        activated = isActivated
+
+        if (Flags.msdlFeedback()) {
+            playMSDLToggleHaptics(toggleOn, toggleOff)
+        }
     }
 
-    enum class HapticState {
-        TOGGLE_ON,
-        TOGGLE_OFF,
-        LAUNCH,
-        NO_HAPTICS,
+    fun onQuickAffordanceLongPress(isActivated: Boolean) {
+        longPressed = true
+        if (!Flags.msdlFeedback()) {
+            // Without MSDL, we need to play haptics on long-press instead of when the activated
+            // history updates.
+            val vibration =
+                if (isActivated) {
+                    KeyguardBottomAreaVibrations.Activated
+                } else {
+                    KeyguardBottomAreaVibrations.Deactivated
+                }
+            vibratorHelper.vibrate(vibration)
+        }
     }
 
-    private data class ActivatedHistory(
-        val currentValue: Boolean,
-        val previousValue: Boolean? = null,
-    )
+    fun onQuickAffordanceClick() {
+        if (Flags.msdlFeedback()) {
+            msdlPlayer.playToken(MSDLToken.FAILURE)
+        } else {
+            vibratorHelper.vibrate(KeyguardBottomAreaVibrations.Shake)
+        }
+    }
+
+    private fun playMSDLToggleHaptics(toggleOn: Boolean, toggleOff: Boolean) {
+        if (!longPressed) return
+        if (toggleOn) {
+            msdlPlayer.playToken(MSDLToken.SWITCH_ON)
+        } else if (toggleOff) {
+            msdlPlayer.playToken(MSDLToken.SWITCH_OFF)
+        }
+        longPressed = false
+    }
 
     @AssistedFactory
     interface Factory {
-        fun create(
-            quickAffordanceViewModel: Flow<KeyguardQuickAffordanceViewModel>
-        ): KeyguardQuickAffordanceHapticViewModel
+        fun create(): KeyguardQuickAffordanceHapticViewModel
     }
 }

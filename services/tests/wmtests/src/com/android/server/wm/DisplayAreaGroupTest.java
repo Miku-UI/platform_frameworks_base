@@ -58,8 +58,8 @@ public class DisplayAreaGroupTest extends WindowTestsBase {
         final TaskDisplayArea defaultTda = mDisplayContent.getDefaultTaskDisplayArea();
         final WindowContainer parentDA = defaultTda.getParent();
         parentDA.addChild(mDisplayAreaGroup, parentDA.mChildren.indexOf(defaultTda) + 1);
-        mTaskDisplayArea = new TaskDisplayArea(
-                mDisplayContent, mWm, "TDA1", FEATURE_VENDOR_FIRST + 1);
+        mTaskDisplayArea = new TaskDisplayArea(mWm, "TDA1", FEATURE_VENDOR_FIRST + 1,
+                false /* createdByOrganizer */, true /* canHostHomeTask */);
         mDisplayAreaGroup.addChild(mTaskDisplayArea, POSITION_TOP);
         mDisplayContent.onLastFocusedTaskDisplayAreaChanged(mTaskDisplayArea);
     }

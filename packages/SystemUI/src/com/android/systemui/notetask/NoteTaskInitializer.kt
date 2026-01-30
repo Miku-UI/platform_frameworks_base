@@ -23,11 +23,7 @@ import android.hardware.input.InputManager
 import android.hardware.input.KeyGestureEvent
 import android.os.IBinder
 import android.os.UserHandle
-import android.view.KeyEvent
-import android.view.KeyEvent.KEYCODE_N
 import android.view.KeyEvent.KEYCODE_STYLUS_BUTTON_TAIL
-import android.view.ViewConfiguration
-import com.android.hardware.input.Flags.useKeyGestureEventHandler
 import com.android.keyguard.KeyguardUpdateMonitor
 import com.android.keyguard.KeyguardUpdateMonitorCallback
 import com.android.systemui.dagger.qualifiers.Background
@@ -35,7 +31,6 @@ import com.android.systemui.log.DebugLogger.debugLog
 import com.android.systemui.notetask.NoteTaskEntryPoint.KEYBOARD_SHORTCUT
 import com.android.systemui.notetask.NoteTaskEntryPoint.TAIL_BUTTON
 import com.android.systemui.settings.UserTracker
-import com.android.systemui.statusbar.CommandQueue
 import com.android.wm.shell.bubbles.Bubbles
 import java.util.Optional
 import java.util.concurrent.Executor
@@ -47,7 +42,6 @@ class NoteTaskInitializer
 constructor(
     private val controller: NoteTaskController,
     private val roleManager: RoleManager,
-    private val commandQueue: CommandQueue,
     private val optionalBubbles: Optional<Bubbles>,
     private val userTracker: UserTracker,
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
@@ -63,7 +57,6 @@ constructor(
         // Guard against feature not being enabled or mandatory dependencies aren't available.
         if (!isEnabled || optionalBubbles.isEmpty) return
 
-        initializeHandleSystemKey()
         initializeKeyGestureEventHandler()
         initializeOnRoleHoldersChanged()
         initializeOnUserUnlocked()
@@ -71,26 +64,14 @@ constructor(
     }
 
     /**
-     * Initializes a callback for [CommandQueue] which will redirect [KeyEvent] from a Stylus to
-     * [NoteTaskController], ensure custom actions can be triggered (i.e., keyboard shortcut).
-     */
-    private fun initializeHandleSystemKey() {
-        if (!useKeyGestureEventHandler()) {
-            commandQueue.addCallback(callbacks)
-        }
-    }
-
-    /**
      * Initializes a [InputManager.KeyGestureEventHandler] which will handle shortcuts for opening
      * the notes role via [NoteTaskController].
      */
     private fun initializeKeyGestureEventHandler() {
-        if (useKeyGestureEventHandler()) {
-            inputManager.registerKeyGestureEventHandler(
-                listOf(KeyGestureEvent.KEY_GESTURE_TYPE_OPEN_NOTES),
-                callbacks,
-            )
-        }
+        inputManager.registerKeyGestureEventHandler(
+            listOf(KeyGestureEvent.KEY_GESTURE_TYPE_OPEN_NOTES),
+            callbacks,
+        )
     }
 
     /**
@@ -129,19 +110,9 @@ constructor(
     private val callbacks =
         object :
             KeyguardUpdateMonitorCallback(),
-            CommandQueue.Callbacks,
             UserTracker.Callback,
             OnRoleHoldersChangedListener,
             InputManager.KeyGestureEventHandler {
-
-            override fun handleSystemKey(key: KeyEvent) {
-                if (useKeyGestureEventHandler()) {
-                    throw IllegalStateException(
-                        "handleSystemKey must not be used when KeyGestureEventHandler is used"
-                    )
-                }
-                key.toNoteTaskEntryPointOrNull()?.let(controller::showNoteTask)
-            }
 
             override fun onRoleHoldersChanged(roleName: String, user: UserHandle) {
                 controller.onRoleHoldersChanged(roleName, user)
@@ -164,44 +135,6 @@ constructor(
             }
         }
 
-    /**
-     * Tracks a [KeyEvent], and determines if it should trigger an action to show the note task.
-     * Returns a [NoteTaskEntryPoint] if an action should be taken, and null otherwise.
-     */
-    private fun KeyEvent.toNoteTaskEntryPointOrNull(): NoteTaskEntryPoint? {
-        val entryPoint =
-            when {
-                keyCode == KEYCODE_STYLUS_BUTTON_TAIL && isTailButtonNotesGesture() -> TAIL_BUTTON
-                keyCode == KEYCODE_N && isMetaPressed && isCtrlPressed -> KEYBOARD_SHORTCUT
-                else -> null
-            }
-        debugLog { "toNoteTaskEntryPointOrNull: entryPoint=$entryPoint" }
-        return entryPoint
-    }
-
-    private var lastStylusButtonTailUpEventTime: Long = -MULTI_PRESS_TIMEOUT
-
-    /**
-     * Perform gesture detection for the stylus tail button to make sure we only show the note task
-     * when there is a single press. Long presses and multi-presses are ignored for now.
-     */
-    private fun KeyEvent.isTailButtonNotesGesture(): Boolean {
-        if (keyCode != KEYCODE_STYLUS_BUTTON_TAIL || action != KeyEvent.ACTION_UP) {
-            return false
-        }
-
-        val isMultiPress = (downTime - lastStylusButtonTailUpEventTime) < MULTI_PRESS_TIMEOUT
-        val isLongPress = (eventTime - downTime) >= LONG_PRESS_TIMEOUT
-        lastStylusButtonTailUpEventTime = eventTime
-
-        // For now, trigger action immediately on UP of a single press, without waiting for
-        // the multi-press timeout to expire.
-        debugLog {
-            "isTailButtonNotesGesture: isMultiPress=$isMultiPress, isLongPress=$isLongPress"
-        }
-        return !isMultiPress && !isLongPress
-    }
-
     private fun handleKeyGestureEvent(event: KeyGestureEvent) {
         if (event.keyGestureType != KeyGestureEvent.KEY_GESTURE_TYPE_OPEN_NOTES) {
             return
@@ -215,10 +148,5 @@ constructor(
         } else {
             backgroundExecutor.execute { controller.showNoteTask(KEYBOARD_SHORTCUT) }
         }
-    }
-
-    companion object {
-        val MULTI_PRESS_TIMEOUT = ViewConfiguration.getMultiPressTimeout().toLong()
-        val LONG_PRESS_TIMEOUT = ViewConfiguration.getLongPressTimeout().toLong()
     }
 }

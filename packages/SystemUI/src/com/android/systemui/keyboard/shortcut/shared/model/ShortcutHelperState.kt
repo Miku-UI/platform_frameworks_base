@@ -16,8 +16,11 @@
 
 package com.android.systemui.keyboard.shortcut.shared.model
 
+import android.view.Display.DEFAULT_DISPLAY
+
 sealed interface ShortcutHelperState {
     data object Inactive : ShortcutHelperState
 
-    data class Active(val deviceId: Int) : ShortcutHelperState
+    data class Active(val deviceId: Int, val displayId: Int = DEFAULT_DISPLAY) :
+        ShortcutHelperState
 }

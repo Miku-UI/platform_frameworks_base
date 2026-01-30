@@ -18,6 +18,7 @@
 
 #include "androidfw/BigBuffer.h"
 #include "androidfw/ResourceTypes.h"
+#include "link/FlaggedXmlVersioner.h"
 #include "link/Linkers.h"
 #include "test/Test.h"
 #include "util/Util.h"
@@ -537,6 +538,86 @@ TEST_F(XmlFlattenerTest, FlattenCompiledValueExcludesRawValueWithKeepRawOptionTr
   EXPECT_THAT(tree.getAttributeStringValue(0, &len), StrEq(u"true"));
 
   EXPECT_THAT(tree.getAttributeDataType(0), Eq(android::Res_value::TYPE_INT_BOOLEAN));
+}
+
+TEST_F(XmlFlattenerTest, ProcessFlags) {
+  std::unique_ptr<xml::XmlResource> doc = test::BuildXmlDom(
+      R"(<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">
+          <TextView android:featureFlag="test.package.flag1"/>
+          <TextView android:featureFlag="!test.package.flag2"/>
+          <TextView android:featureFlag="test.package.flag3"/>
+          <LinearLayout>
+            <TextView/>
+            <TextView android:featureFlag="test.package.flag4"/>
+          </LinearLayout>
+      </LinearLayout>)");
+  doc->file.uses_readwrite_feature_flags = true;
+  doc->file.config.sdkVersion = SDK_BAKLAVA;
+
+  FlaggedXmlVersioner flagged_xml_versioner;
+  auto flag_split_resources = flagged_xml_versioner.Process(context_.get(), doc.get());
+  ASSERT_THAT(flag_split_resources.size(), Eq(1));
+
+  size_t len;
+  android::ResXMLTree tree;
+
+  XmlFlattenerOptions options;
+  ASSERT_TRUE(Flatten(flag_split_resources[0].get(), &tree, options));
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_NAMESPACE));
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_TAG));
+  EXPECT_THAT(tree.getElementName(&len), StrEq(u"LinearLayout"));
+  auto flag = tree.getFlagInfo();
+  ASSERT_FALSE(flag.has_value());
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_TAG));
+  EXPECT_THAT(tree.getElementName(&len), StrEq(u"TextView"));
+  flag = tree.getFlagInfo();
+  ASSERT_TRUE(flag.has_value());
+  EXPECT_THAT(tree.getStrings().stringAt(flag->flagNameIndex)->data(),
+              StrEq(u"test.package.flag1"));
+  EXPECT_FALSE(flag->flagNegated);
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::END_TAG));
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_TAG));
+  EXPECT_THAT(tree.getElementName(&len), StrEq(u"TextView"));
+  flag = tree.getFlagInfo();
+  ASSERT_TRUE(flag.has_value());
+  EXPECT_THAT(tree.getStrings().stringAt(flag->flagNameIndex)->data(),
+              StrEq(u"test.package.flag2"));
+  EXPECT_TRUE(flag->flagNegated);
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::END_TAG));
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_TAG));
+  EXPECT_THAT(tree.getElementName(&len), StrEq(u"TextView"));
+  flag = tree.getFlagInfo();
+  ASSERT_TRUE(flag.has_value());
+  EXPECT_THAT(tree.getStrings().stringAt(flag->flagNameIndex)->data(),
+              StrEq(u"test.package.flag3"));
+  EXPECT_FALSE(flag->flagNegated);
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::END_TAG));
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_TAG));
+  EXPECT_THAT(tree.getElementName(&len), StrEq(u"LinearLayout"));
+  flag = tree.getFlagInfo();
+  ASSERT_FALSE(flag.has_value());
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_TAG));
+  flag = tree.getFlagInfo();
+  ASSERT_FALSE(flag.has_value());
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::END_TAG));
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::START_TAG));
+  flag = tree.getFlagInfo();
+  ASSERT_TRUE(flag.has_value());
+  EXPECT_THAT(tree.getStrings().stringAt(flag->flagNameIndex)->data(),
+              StrEq(u"test.package.flag4"));
+  EXPECT_FALSE(flag->flagNegated);
+  EXPECT_THAT(tree.getElementName(&len), StrEq(u"TextView"));
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::END_TAG));
+
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::END_TAG));
+  ASSERT_THAT(tree.next(), Eq(android::ResXMLTree::END_TAG));
 }
 
 }  // namespace aapt

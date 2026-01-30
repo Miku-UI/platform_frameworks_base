@@ -36,6 +36,7 @@ import android.provider.DeviceConfig;
 import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.FrameworkStatsLog;
 
 import java.io.PrintWriter;
@@ -205,12 +206,13 @@ public class FaceDownDetector implements SensorEventListener {
         final boolean shouldBeActive = mInteractive && mIsEnabled && !sawRecentInteraction;
         if (mActive != shouldBeActive) {
             if (shouldBeActive) {
-                mSensorManager.registerListener(
-                        this,
-                        mAccelerometer,
-                        SensorManager.SENSOR_DELAY_NORMAL,
-                        mSensorMaxLatencyMicros
-                );
+                BackgroundThread.getHandler().post(() -> {
+                    mSensorManager.registerListener(
+                            this,
+                            mAccelerometer,
+                            SensorManager.SENSOR_DELAY_NORMAL,
+                            mSensorMaxLatencyMicros);
+                });
                 if (mPreviousResultType == SCREEN_OFF_RESULT) {
                     logScreenOff();
                 }
@@ -219,7 +221,9 @@ public class FaceDownDetector implements SensorEventListener {
                     mPreviousResultType = SCREEN_OFF_RESULT;
                     mPreviousResultTime = currentTime;
                 }
-                mSensorManager.unregisterListener(this);
+                BackgroundThread.getHandler().post(() -> {
+                    mSensorManager.unregisterListener(this);
+                });
                 mFaceDown = false;
                 mOnFlip.accept(false);
             }

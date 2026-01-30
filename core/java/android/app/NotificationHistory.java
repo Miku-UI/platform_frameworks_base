@@ -256,6 +256,10 @@ public final class NotificationHistory implements Parcelable {
             mParcel.setDataPosition(0);
             mParcel.appendFrom(data, data.dataPosition(), listByteLength);
             mParcel.setDataSize(mParcel.dataPosition());
+            if (positionInParcel > mParcel.dataSize()) {
+                throw new IllegalStateException(
+                    "Obtained an invalid position value(" + positionInParcel + " from Parcel.");
+            }
             mParcel.setDataPosition(positionInParcel);
         }
     }
@@ -311,7 +315,9 @@ public final class NotificationHistory implements Parcelable {
         for (int i = 0; i < mNotificationsToWrite.size(); i++) {
             final HistoricalNotification notification = mNotificationsToWrite.get(i);
             mStringsToWrite.add(notification.getPackage());
-            mStringsToWrite.add(notification.getChannelName());
+            if (!TextUtils.isEmpty(notification.getChannelName())) {
+                mStringsToWrite.add(notification.getChannelName());
+            }
             mStringsToWrite.add(notification.getChannelId());
             if (!TextUtils.isEmpty(notification.getConversationId())) {
                 mStringsToWrite.add(notification.getConversationId());

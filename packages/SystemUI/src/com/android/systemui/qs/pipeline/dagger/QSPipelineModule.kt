@@ -17,6 +17,7 @@
 package com.android.systemui.qs.pipeline.dagger
 
 import com.android.systemui.CoreStartable
+import com.android.systemui.Flags.resetTilesRemovesCustomTiles
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogBufferFactory
@@ -34,15 +35,20 @@ import com.android.systemui.qs.pipeline.data.repository.TileSpecSettingsReposito
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractor
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractorImpl
 import com.android.systemui.qs.pipeline.domain.startable.QSPipelineCoreStartable
+import com.android.systemui.qs.pipeline.domain.upgrade.CustomTileAddedUpgrade
+import com.android.systemui.qs.pipeline.domain.upgrade.RemoveAlreadyRemovedTiles
 import com.android.systemui.qs.pipeline.shared.logging.QSPipelineLogger
 import com.android.systemui.qs.tiles.base.domain.interactor.DisabledByPolicyInteractor
 import com.android.systemui.qs.tiles.base.domain.interactor.DisabledByPolicyInteractorImpl
 import dagger.Binds
+import dagger.Lazy
 import dagger.Module
 import dagger.Provides
 import dagger.multibindings.ClassKey
 import dagger.multibindings.IntoMap
+import dagger.multibindings.IntoSet
 import dagger.multibindings.Multibinds
+import java.util.Optional
 
 @Module(includes = [QSAutoAddModule::class, RestoreProcessorsModule::class])
 abstract class QSPipelineModule {
@@ -101,10 +107,25 @@ abstract class QSPipelineModule {
         }
 
         @Provides
+        @IntoSet
+        fun bindTileDbUpgradeToV2(
+            impl: Lazy<RemoveAlreadyRemovedTiles>
+        ): Optional<CustomTileAddedUpgrade> {
+            return if (resetTilesRemovesCustomTiles()) Optional.of(impl.get()) else Optional.empty()
+        }
+
+        @Provides
         @SysUISingleton
         @QSRestoreLog
         fun providesQSRestoreLogBuffer(factory: LogBufferFactory): LogBuffer {
             return factory.create(QSPipelineLogger.RESTORE_TAG, maxSize = 50, systrace = false)
+        }
+
+        @Provides
+        @SysUISingleton
+        @QSUpgraderLog
+        fun provideQSUpgraderLogBuffer(factory: LogBufferFactory): LogBuffer {
+            return factory.create(QSPipelineLogger.UPGRADER_TAG, maxSize = 50, systrace = false)
         }
     }
 }

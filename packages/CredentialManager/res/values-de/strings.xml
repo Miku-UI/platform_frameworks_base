@@ -30,7 +30,7 @@
     <string name="passkey_creation_intro_body_device" msgid="1203796455762131631">"Sie werden in einem Passwortmanager gespeichert, damit du dich auf anderen Geräten anmelden kannst"</string>
     <string name="more_about_passkeys_title" msgid="7797903098728837795">"Weitere Informationen zu Passkeys"</string>
     <string name="passwordless_technology_title" msgid="2497513482056606668">"Passwortlose Technologie"</string>
-    <string name="passwordless_technology_detail" msgid="6853928846532955882">"Passkeys ermöglichen die Anmeldung, ohne dass Passwörter erforderlich sind. Du verwendest einfach die Fingerabdruck- oder Gesichtserkennung, eine PIN oder ein Muster, um deine Identität zu bestätigen und einen Passkey zu erstellen."</string>
+    <string name="passwordless_technology_detail" msgid="6853928846532955882">"Passkeys ermöglichen die Anmeldung, ohne dass Passwörter erforderlich sind. Du verwendest einfach die Fingerabdruck- oder Gesichtswiedererkennung, eine PIN oder ein Muster, um deine Identität zu bestätigen und einen Passkey zu erstellen."</string>
     <string name="public_key_cryptography_title" msgid="6751970819265298039">"Asymmetrisches Kryptosystem"</string>
     <string name="public_key_cryptography_detail" msgid="6937631710280562213">"Passkeys beruhen auf FIDO Alliance- (zu der unter anderem auch Google, Apple und Microsoft gehören) und W3C-Standards. Anstelle von Nutzername und Passwort wird ein kryptografisches Paar aus privatem und öffentlichem Schlüssel für eine App oder Website erstellt. Der private Schlüssel wird sicher auf deinem Gerät oder im Passwortmanager gespeichert und bestätigt deine Identität. Der öffentliche Schlüssel wird mit dem App- oder Websiteserver geteilt. Stimmen beide überein, kannst du dich sofort registrieren und anmelden."</string>
     <string name="improved_account_security_title" msgid="1069841917893513424">"Verbesserte Kontosicherheit"</string>
@@ -73,7 +73,7 @@
     <string name="get_dialog_title_use_sign_in_for" msgid="4233553937542583226">"Dein Konto für <xliff:g id="APP_NAME">%1$s</xliff:g> verwenden"</string>
     <string name="get_dialog_description_single_tap" msgid="2797059565126030879">"Du kannst die Displaysperre verwenden, um dich in <xliff:g id="APP_NAME">%1$s</xliff:g> als <xliff:g id="USERNAME">%2$s</xliff:g> anzumelden"</string>
     <string name="get_dialog_title_unlock_options_for" msgid="7096423827682163270">"Anmeldeoptionen für <xliff:g id="APP_NAME">%1$s</xliff:g> freischalten"</string>
-    <string name="get_dialog_title_choose_passkey_for" msgid="9175997688078538490">"Einen gespeicherten Passkey für <xliff:g id="APP_NAME">%1$s</xliff:g> auswählen"</string>
+    <string name="get_dialog_title_choose_passkey_for" msgid="9175997688078538490">"Wähle einen gespeicherten Passkey für <xliff:g id="APP_NAME">%1$s</xliff:g> aus"</string>
     <string name="get_dialog_title_choose_password_for" msgid="1724435823820819221">"Gespeichertes Passwort für <xliff:g id="APP_NAME">%1$s</xliff:g> auswählen"</string>
     <string name="get_dialog_title_choose_saved_sign_in_for" msgid="2420298653461652728">"Gespeicherte Anmeldedaten für <xliff:g id="APP_NAME">%1$s</xliff:g> auswählen"</string>
     <string name="get_dialog_title_choose_sign_in_for" msgid="645728947702442421">"Konto für <xliff:g id="APP_NAME">%1$s</xliff:g> auswählen"</string>

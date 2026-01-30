@@ -40,14 +40,13 @@ import static android.os.UserManager.USER_TYPE_PROFILE_SUPERVISING;
 import static android.os.UserManager.USER_TYPE_PROFILE_TEST;
 import static android.os.UserManager.USER_TYPE_SYSTEM_HEADLESS;
 
-import static com.android.server.pm.UserTypeDetails.UNLIMITED_NUMBER_OF_USERS;
-
 import android.content.pm.UserInfo;
 import android.content.pm.UserProperties;
 import android.content.res.Resources;
 import android.content.res.XmlResourceParser;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemProperties;
 import android.os.UserManager;
 import android.util.ArrayMap;
 import android.util.Slog;
@@ -68,6 +67,7 @@ import java.util.function.Consumer;
  *
  * This class is responsible both for defining the AOSP use types, as well as reading in customized
  * user types from {@link com.android.internal.R.xml#config_user_types}.
+ * Recall that config_user_types values, if defined, will overwrite the AOSP defaults set here.
  *
  * Tests are located in {@link UserManagerServiceUserTypeTest}.
  * @hide
@@ -129,6 +129,7 @@ public final class UserTypeFactory {
         return new UserTypeDetails.Builder()
                 .setName(USER_TYPE_PROFILE_CLONE)
                 .setBaseType(FLAG_PROFILE)
+                .setMaxAllowed(getDefaultMaxAllowedSwitchableUsers())
                 .setMaxAllowedPerParent(1)
                 .setProfileParentRequired(true)
                 .setLabels(R.string.profile_label_clone)
@@ -179,7 +180,10 @@ public final class UserTypeFactory {
                 .setName(USER_TYPE_PROFILE_MANAGED)
                 .setBaseType(FLAG_PROFILE)
                 .setDefaultUserInfoPropertyFlags(FLAG_MANAGED_PROFILE)
-                .setMaxAllowedPerParent(1)
+                // Only allow one per device in real life since we cannot currently handle
+                // conflicting policies, but debug builds can experiment with more.
+                .setMaxAllowed(getMaxManagedProfiles())
+                .setMaxAllowedPerParent(getMaxManagedProfiles())
                 .setProfileParentRequired(true)
                 .setLabels(
                         R.string.profile_label_work,
@@ -229,6 +233,7 @@ public final class UserTypeFactory {
         return new UserTypeDetails.Builder()
                 .setName(USER_TYPE_PROFILE_TEST)
                 .setBaseType(FLAG_PROFILE)
+                .setMaxAllowed(4)
                 .setMaxAllowedPerParent(2)
                 .setProfileParentRequired(true)
                 .setLabels(
@@ -302,6 +307,7 @@ public final class UserTypeFactory {
                 .setName(USER_TYPE_PROFILE_PRIVATE)
                 .setBaseType(FLAG_PROFILE)
                 .setProfileParentRequired(true)
+                .setMaxAllowed(1)
                 .setMaxAllowedPerParent(1)
                 .setEnabled(UserManager.isPrivateProfileEnabled() ? 1 : 0)
                 .setLabels(R.string.profile_label_private)
@@ -375,7 +381,7 @@ public final class UserTypeFactory {
         return new UserTypeDetails.Builder()
                 .setName(USER_TYPE_FULL_SECONDARY)
                 .setBaseType(FLAG_FULL)
-                .setMaxAllowed(UNLIMITED_NUMBER_OF_USERS)
+                .setMaxAllowed(getDefaultMaxAllowedSwitchableUsers())
                 .setDefaultRestrictions(getDefaultSecondaryUserRestrictions());
     }
 
@@ -391,6 +397,7 @@ public final class UserTypeFactory {
                 .setName(USER_TYPE_FULL_GUEST)
                 .setBaseType(FLAG_FULL)
                 .setDefaultUserInfoPropertyFlags(flags)
+                .setEnabled(getMaxSwitchableUsers() > 1 ? 1 : 0)
                 .setMaxAllowed(1)
                 .setDefaultRestrictions(getDefaultGuestUserRestrictions());
     }
@@ -403,7 +410,9 @@ public final class UserTypeFactory {
                 .setName(USER_TYPE_FULL_DEMO)
                 .setBaseType(FLAG_FULL)
                 .setDefaultUserInfoPropertyFlags(FLAG_DEMO)
-                .setMaxAllowed(UNLIMITED_NUMBER_OF_USERS)
+                .setMaxAllowed(android.multiuser.Flags.decoupleMaxUsersFromProfiles()
+                                || android.multiuser.Flags.consistentMaxUsers() ? 3
+                                : UserTypeDetails.getLegacyUnlimitedNumberOfUsersValue())
                 .setDefaultRestrictions(null);
     }
 
@@ -412,11 +421,13 @@ public final class UserTypeFactory {
      * configuration.
      */
     private static UserTypeDetails.Builder getDefaultTypeFullRestricted() {
+        // NB: Even if enabled here, note that whether Restricted Profiles are actually available
+        // via UI is dictated by com.android.settings.R.bool.config_offer_restricted_profiles.
         return new UserTypeDetails.Builder()
                 .setName(USER_TYPE_FULL_RESTRICTED)
                 .setBaseType(FLAG_FULL)
                 .setDefaultUserInfoPropertyFlags(FLAG_RESTRICTED)
-                .setMaxAllowed(UNLIMITED_NUMBER_OF_USERS)
+                .setMaxAllowed(getDefaultMaxAllowedSwitchableUsers())
                 .setProfileParentRequired(false) // they have a "parent", but not a profile parent
                 // NB: UserManagerService.createRestrictedProfile() applies hardcoded restrictions.
                 .setDefaultRestrictions(null);
@@ -430,7 +441,8 @@ public final class UserTypeFactory {
                 .setName(USER_TYPE_FULL_SYSTEM)
                 .setBaseType(FLAG_SYSTEM | FLAG_FULL)
                 .setDefaultUserInfoPropertyFlags(FLAG_PRIMARY | FLAG_ADMIN | FLAG_MAIN)
-                .setMaxAllowed(1);
+                .setMaxAllowed(1)
+                .setDefaultRestrictions(getDefaultSystemUserRestrictions());
     }
 
     /**
@@ -441,8 +453,34 @@ public final class UserTypeFactory {
         return new UserTypeDetails.Builder()
                 .setName(USER_TYPE_SYSTEM_HEADLESS)
                 .setBaseType(FLAG_SYSTEM)
-                .setDefaultUserInfoPropertyFlags(FLAG_PRIMARY | FLAG_ADMIN)
-                .setMaxAllowed(1);
+                .setDefaultUserInfoPropertyFlags(FLAG_PRIMARY
+                        | (android.multiuser.Flags.hsuNotAdmin() ? 0 : FLAG_ADMIN))
+                .setMaxAllowed(1)
+                .setDefaultRestrictions(getDefaultHeadlessSystemUserRestrictions());
+    }
+
+    /** Gets the deprecated config_defaultFirstUserRestrictions as system default restrictions. */
+    private static Bundle getDefaultSystemUserRestrictions() {
+        // For historical reasons, we will default to config_defaultFirstUserRestrictions. But
+        // really that config is deprecated; OEMs should just use config_user_types instead.
+        final Bundle restrictions = new Bundle();
+        try {
+            final String[] defaultFirstUserRestrictions = Resources.getSystem().getStringArray(
+                    com.android.internal.R.array.config_defaultFirstUserRestrictions);
+            for (String userRestriction : defaultFirstUserRestrictions) {
+                if (UserRestrictionsUtils.isValidRestriction(userRestriction)) {
+                    restrictions.putBoolean(userRestriction, true);
+                }
+            }
+        } catch (Resources.NotFoundException e) {
+            Slog.e(LOG_TAG, "Couldn't find resource: config_defaultFirstUserRestrictions", e);
+        }
+        return restrictions;
+    }
+
+    private static Bundle getDefaultHeadlessSystemUserRestrictions() {
+        final Bundle restrictions = getDefaultSystemUserRestrictions();
+        return restrictions;
     }
 
     private static Bundle getDefaultSecondaryUserRestrictions() {
@@ -455,7 +493,11 @@ public final class UserTypeFactory {
     private static Bundle getDefaultGuestUserRestrictions() {
         // Guest inherits the secondary user's restrictions, plus has some extra ones.
         final Bundle restrictions = getDefaultSecondaryUserRestrictions();
-        restrictions.putBoolean(UserManager.DISALLOW_CONFIG_WIFI, true);
+        if (android.multiuser.Flags.userRestrictionConfigWifiSharedPrivate()) {
+            restrictions.putBoolean(UserManager.DISALLOW_CONFIG_WIFI_SHARED, true);
+        } else {
+            restrictions.putBoolean(UserManager.DISALLOW_CONFIG_WIFI, true);
+        }
         restrictions.putBoolean(UserManager.DISALLOW_INSTALL_UNKNOWN_SOURCES, true);
         restrictions.putBoolean(UserManager.DISALLOW_CONFIG_CREDENTIALS, true);
         return restrictions;
@@ -511,6 +553,47 @@ public final class UserTypeFactory {
         // mark them as setup.
         settings.putString(android.provider.Settings.Secure.USER_SETUP_COMPLETE, "1");
         return settings;
+    }
+
+    /**
+     * Returns the default max number of secondary users allowed on the device at once. The same
+     * value is used for some other switchable user types too. Can override this by changing the
+     * number here or in {@link com.android.internal.R.xml#config_user_types}.
+     */
+    // NB: Although this should naturally be a static final int, doing so causes tricky mock test
+    //  failures (since a static constant may first be evaluated during a test that modifies one of
+    //  the underlying values, and will then be wrong for subsequent tests). So we make it a method.
+    //  Once the flags are cleaned up, we can inline it as getMaxSwitchableUsers() - 1 if desired.
+    private static int getDefaultMaxAllowedSwitchableUsers() {
+        // For convenience, the default is tied to getMaxSwitchableUsers().
+        // Switchable users will be capped by the switchable limit anyway (in fact,
+        // they'll generally be capped at it minus 1), so this ensures that the
+        // switchable limit will serve as the limiting factor unless otherwise dictated.
+        return android.multiuser.Flags.decoupleMaxUsersFromProfiles() ? getMaxSwitchableUsers() - 1
+                : (android.multiuser.Flags.consistentMaxUsers() ?
+                        3 : UserTypeDetails.getLegacyUnlimitedNumberOfUsersValue());
+    }
+
+    /**
+     * Max number of switchable users on the device. As a convenience for OEMs who didn't update
+     * their config_user_types yet, we use this to dictate default values for various full users.
+     */
+    private static int getMaxSwitchableUsers() {
+        if (android.multiuser.Flags.decoupleMaxUsersFromProfiles()) {
+            return UserManager.getMaxSwitchableUsers();
+        }
+        // If flag is false, we employ the previous default value of allowing 3 secondary users.
+        return 4;
+    }
+
+    /** Returns the number of managed profiles allowed, virtually always 1. */
+    private static int getMaxManagedProfiles() {
+        final int normalValue = 1;
+        if (!Build.IS_DEBUGGABLE) {
+            return normalValue;
+        } else {
+            return SystemProperties.getInt("persist.sys.max_profiles", normalValue);
+        }
     }
 
     /**

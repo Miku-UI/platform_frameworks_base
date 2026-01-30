@@ -18,8 +18,6 @@ package android.hardware.input;
 
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-import android.companion.virtual.IVirtualDevice;
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -34,10 +32,10 @@ import android.util.Log;
  */
 @SystemApi
 public class VirtualStylus extends VirtualInputDevice {
+
     /** @hide */
-    public VirtualStylus(VirtualStylusConfig config, IVirtualDevice virtualDevice,
-            IBinder token) {
-        super(config, virtualDevice, token);
+    public VirtualStylus(VirtualStylusConfig config, IVirtualInputDevice virtualInputDevice) {
+        super(config, virtualInputDevice);
     }
 
     /**
@@ -47,7 +45,7 @@ public class VirtualStylus extends VirtualInputDevice {
      */
     public void sendMotionEvent(@NonNull VirtualStylusMotionEvent event) {
         try {
-            if (!mVirtualDevice.sendStylusMotionEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendStylusMotionEvent(event)) {
                 Log.w(TAG, "Failed to send motion event from virtual stylus "
                         + mConfig.getInputDeviceName());
             }
@@ -63,7 +61,7 @@ public class VirtualStylus extends VirtualInputDevice {
      */
     public void sendButtonEvent(@NonNull VirtualStylusButtonEvent event) {
         try {
-            if (!mVirtualDevice.sendStylusButtonEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendStylusButtonEvent(event)) {
                 Log.w(TAG, "Failed to send button event from virtual stylus "
                         + mConfig.getInputDeviceName());
             }

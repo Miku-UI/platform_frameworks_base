@@ -29,6 +29,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.settingslib.spa.testutils.waitUntilExists
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.delay
 import org.junit.Rule
 import org.junit.Test
@@ -84,6 +85,20 @@ class NavControllerWrapperTest {
         composeTestRule.waitUntilExists(hasText(ROUTE_A))
     }
 
+    @Test
+    fun highlightItemKey_isClearedAfterGet() {
+        composeTestRule.setContent {
+            TestNavHost {
+                val navController = LocalNavController.current as NavControllerWrapperImpl
+                LaunchedEffect(Unit) {
+                    navController.highlightItemKey = HIGHLIGHT_ITEM_KEY
+                    assertThat(navController.isHighLightItem(HIGHLIGHT_ITEM_KEY)).isTrue()
+                    assertThat(navController.highlightItemKey).isNull()
+                }
+            }
+        }
+    }
+
     private companion object {
         @Composable
         fun TestNavHost(content: @Composable () -> Unit) {
@@ -101,5 +116,7 @@ class NavControllerWrapperTest {
         const val ROUTE_A = "RouteA"
         const val ROUTE_B = "RouteB"
         const val ROUTE_C = "RouteC"
+
+        const val HIGHLIGHT_ITEM_KEY = "highlight_item_key"
     }
 }

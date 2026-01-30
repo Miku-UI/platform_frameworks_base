@@ -7,7 +7,6 @@ import android.graphics.Point
 import android.graphics.Rect
 import android.os.PowerManager
 import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper.RunWithLooper
 import android.view.RemoteAnimationTarget
 import android.view.SurfaceControl
@@ -20,8 +19,7 @@ import androidx.test.filters.SmallTest
 import com.android.keyguard.KeyguardViewController
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.defaultDeviceState
-import com.android.systemui.deviceStateManager
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.shared.system.smartspace.ILauncherUnlockAnimationController
 import com.android.systemui.statusbar.NotificationShadeWindowController
@@ -54,6 +52,7 @@ import org.mockito.kotlin.whenever
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
 @SmallTest
+@DisableSceneContainer // Class is unused in flexi.
 class KeyguardUnlockAnimationControllerTest : SysuiTestCase() {
     private lateinit var keyguardUnlockAnimationController: KeyguardUnlockAnimationController
 
@@ -69,7 +68,6 @@ class KeyguardUnlockAnimationControllerTest : SysuiTestCase() {
     @Mock private lateinit var powerManager: PowerManager
     @Mock private lateinit var wallpaperManager: WallpaperManager
     private val kosmos = testKosmos()
-    private val deviceStateManager = kosmos.deviceStateManager
 
     @Mock
     private lateinit var launcherUnlockAnimationController: ILauncherUnlockAnimationController.Stub
@@ -179,7 +177,6 @@ class KeyguardUnlockAnimationControllerTest : SysuiTestCase() {
                     notificationShadeWindowController,
                     powerManager,
                     wallpaperManager,
-                    deviceStateManager,
                 ) {
                 override fun shouldPerformSmartspaceTransition(): Boolean =
                     shouldPerformSmartspaceTransition
@@ -191,8 +188,6 @@ class KeyguardUnlockAnimationControllerTest : SysuiTestCase() {
 
         whenever(keyguardViewController.viewRootImpl).thenReturn(mock(ViewRootImpl::class.java))
         whenever(powerManager.isInteractive).thenReturn(true)
-        whenever(deviceStateManager.supportedDeviceStates)
-            .thenReturn(listOf(kosmos.defaultDeviceState))
 
         // All of these fields are final, so we can't mock them, but are needed so that the surface
         // appear amount setter doesn't short circuit.
@@ -417,7 +412,6 @@ class KeyguardUnlockAnimationControllerTest : SysuiTestCase() {
      * and home screen.
      */
     @Test
-    @EnableFlags(Flags.FLAG_FASTER_UNLOCK_TRANSITION)
     fun manualUnlock_multipleWallpapers() {
         var lastFadeInAlpha = -1f
         var lastFadeOutAlpha = -1f

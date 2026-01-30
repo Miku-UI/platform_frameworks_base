@@ -27,6 +27,8 @@ import android.os.UserHandle;
 import android.util.Slog;
 
 import com.android.internal.os.BinderInternal;
+import com.android.systemui.application.SystemUIApplication;
+import com.android.systemui.application.impl.SystemUIApplicationImpl;
 import com.android.systemui.broadcast.BroadcastDispatcher;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpHandler;
@@ -43,6 +45,7 @@ import java.io.PrintWriter;
 import javax.inject.Inject;
 
 public class SystemUIService extends Service {
+    private static final String TAG = "SystemUIService";
 
     private final Handler mMainHandler;
     private final DumpHandler mDumpHandler;
@@ -105,7 +108,7 @@ public class SystemUIService extends Service {
                     new BinderInternal.BinderProxyCountEventListener() {
                         @Override
                         public void onLimitReached(int uid) {
-                            Slog.w(SystemUIApplication.TAG,
+                            Slog.w(TAG,
                                     "uid " + uid + " sent too many Binder proxies to uid "
                                     + Process.myUid());
                         }

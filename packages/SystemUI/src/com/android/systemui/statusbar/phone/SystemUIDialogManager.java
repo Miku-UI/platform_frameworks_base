@@ -16,16 +16,22 @@
 
 package com.android.systemui.statusbar.phone;
 
+import android.app.Dialog;
+
 import androidx.annotation.NonNull;
 
 import com.android.keyguard.KeyguardViewController;
 import com.android.systemui.Dumpable;
+import com.android.systemui.common.domain.interactor.SysUIStateDisplaysInteractor;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dump.DumpManager;
+import com.android.systemui.model.StateChange;
+import com.android.systemui.shared.system.QuickStepContract;
 
 import java.io.PrintWriter;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
@@ -33,22 +39,27 @@ import javax.inject.Inject;
  * Register dialogs to this manager if extraneous affordances (like the UDFPS sensor area)
  * should be hidden from the screen when the dialog shows.
  *
- * Currently, only used if UDFPS is supported on the device; however, can be extended in the future
- * for other use cases.
+ * <p>Currently, only used if UDFPS is supported on the device; however, can be extended in the
+ * future for other use cases.
  */
 @SysUISingleton
 public class SystemUIDialogManager implements Dumpable {
-    private final KeyguardViewController mKeyguardViewController;
+    private static final StateChange SYSUI_STATE_DIALOG_SHOWING_FLAG = new StateChange().setFlag(
+            QuickStepContract.SYSUI_STATE_DIALOG_SHOWING, /* state= */ true);
 
-    private final Set<SystemUIDialog> mDialogsShowing = new HashSet<>();
+    private final KeyguardViewController mKeyguardViewController;
+    private final SysUIStateDisplaysInteractor mSysUIStateDisplaysInteractor;
+
+    private final Set<Dialog> mDialogsShowing = new HashSet<>();
     private final Set<Listener> mListeners = new HashSet<>();
 
     @Inject
-    public SystemUIDialogManager(
-            DumpManager dumpManager,
-            KeyguardViewController keyguardViewController) {
+    public SystemUIDialogManager(DumpManager dumpManager,
+            KeyguardViewController keyguardViewController,
+            SysUIStateDisplaysInteractor sysUIStateDisplaysInteractor) {
         dumpManager.registerDumpable(this);
         mKeyguardViewController = keyguardViewController;
+        mSysUIStateDisplaysInteractor = sysUIStateDisplaysInteractor;
     }
 
     /**
@@ -56,6 +67,20 @@ public class SystemUIDialogManager implements Dumpable {
      */
     public boolean shouldHideAffordance() {
         return !mDialogsShowing.isEmpty();
+    }
+
+    /** Dismisses all dialogs on a specific display. */
+    public void dismissDialogsForDisplayId(int displayId) {
+        mDialogsShowing
+                .stream()
+                .filter(dialog -> dialog.getContext().getDisplayId() == displayId)
+                .forEach(dialog -> {
+                    if (dialog instanceof SystemUIDialog systemUIDialog) {
+                        systemUIDialog.dismissWithoutAnimation();
+                    } else {
+                        dialog.dismiss();
+                    }
+                });
     }
 
     /**
@@ -72,7 +97,7 @@ public class SystemUIDialogManager implements Dumpable {
         mListeners.remove(listener);
     }
 
-    void setShowing(SystemUIDialog dialog, boolean showing) {
+    void setShowing(Dialog dialog, boolean showing) {
         final boolean wasHidingAffordances = shouldHideAffordance();
         if (showing) {
             mDialogsShowing.add(dialog);
@@ -83,6 +108,16 @@ public class SystemUIDialogManager implements Dumpable {
         if (wasHidingAffordances != shouldHideAffordance()) {
             updateDialogListeners();
         }
+
+        setDialogShowingFlagToDisplays();
+    }
+
+    void setDialogShowingFlagToDisplays() {
+        Set<Integer> displaysWithDialog = mDialogsShowing.stream()
+                .map(d -> d.getContext().getDisplayId())
+                .collect(Collectors.toSet());
+        mSysUIStateDisplaysInteractor.setFlagsExclusivelyToDisplays(displaysWithDialog,
+                SYSUI_STATE_DIALOG_SHOWING_FLAG);
     }
 
     private void updateDialogListeners() {
@@ -102,7 +137,7 @@ public class SystemUIDialogManager implements Dumpable {
             pw.println("\t" + listener);
         }
         pw.println("dialogs tracked:");
-        for (SystemUIDialog dialog : mDialogsShowing) {
+        for (Dialog dialog : mDialogsShowing) {
             pw.println("\t" + dialog);
         }
     }

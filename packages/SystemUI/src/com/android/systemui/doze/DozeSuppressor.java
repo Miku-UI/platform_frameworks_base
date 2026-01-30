@@ -16,8 +16,6 @@
 
 package com.android.systemui.doze;
 
-import static android.content.res.Configuration.UI_MODE_TYPE_CAR;
-
 import android.hardware.display.AmbientDisplayConfiguration;
 import android.os.PowerManager;
 import android.text.TextUtils;
@@ -35,9 +33,6 @@ import javax.inject.Inject;
 /**
  * Handles suppressing doze on:
  * 1. INITIALIZED, don't allow dozing at all when:
- *      - in CAR_MODE, in this scenario the device is asleep and won't listen for any triggers
- *      to wake up. In this state, no UI shows. Unlike other conditions, this suppression is only
- *      temporary and stops when the device exits CAR_MODE
  *      - device is NOT provisioned
  *      - there's a pending authentication
  * 2. PowerSaveMode active
@@ -59,8 +54,6 @@ public class DozeSuppressor implements DozeMachine.Part {
     private final Lazy<BiometricUnlockController> mBiometricUnlockControllerLazy;
     private final UserTracker mUserTracker;
 
-    private boolean mIsCarModeEnabled = false;
-
     @Inject
     public DozeSuppressor(
             DozeHost dozeHost,
@@ -76,25 +69,6 @@ public class DozeSuppressor implements DozeMachine.Part {
     }
 
     @Override
-    public void onUiModeTypeChanged(int newUiModeType) {
-        boolean isCarModeEnabled = newUiModeType == UI_MODE_TYPE_CAR;
-        if (mIsCarModeEnabled == isCarModeEnabled) {
-            return;
-        }
-        mIsCarModeEnabled = isCarModeEnabled;
-        // Do not handle the event if doze machine is not initialized yet.
-        // It will be handled upon initialization.
-        if (mMachine.isUninitializedOrFinished()) {
-            return;
-        }
-        if (mIsCarModeEnabled) {
-            handleCarModeStarted();
-        } else {
-            handleCarModeExited();
-        }
-    }
-
-    @Override
     public void setDozeMachine(DozeMachine dozeMachine) {
         mMachine = dozeMachine;
     }
@@ -105,7 +79,6 @@ public class DozeSuppressor implements DozeMachine.Part {
             case INITIALIZED:
                 mDozeHost.addCallback(mHostCallback);
                 checkShouldImmediatelyEndDoze();
-                checkShouldImmediatelySuspendDoze();
                 break;
             case FINISH:
                 destroy();
@@ -117,12 +90,6 @@ public class DozeSuppressor implements DozeMachine.Part {
     @Override
     public void destroy() {
         mDozeHost.removeCallback(mHostCallback);
-    }
-
-    private void checkShouldImmediatelySuspendDoze() {
-        if (mIsCarModeEnabled) {
-            handleCarModeStarted();
-        }
     }
 
     private void checkShouldImmediatelyEndDoze() {
@@ -141,23 +108,11 @@ public class DozeSuppressor implements DozeMachine.Part {
 
     @Override
     public void dump(PrintWriter pw) {
-        pw.println(" isCarModeEnabled=" + mIsCarModeEnabled);
         pw.println(" hasPendingAuth="
                 + mBiometricUnlockControllerLazy.get().hasPendingAuthentication());
         pw.println(" isProvisioned=" + mDozeHost.isProvisioned());
         pw.println(" isAlwaysOnSuppressed=" + mDozeHost.isAlwaysOnSuppressed());
         pw.println(" aodPowerSaveActive=" + mDozeHost.isPowerSaveActive());
-    }
-
-    private void handleCarModeExited() {
-        mDozeLog.traceCarModeEnded();
-        mMachine.requestState(mConfig.alwaysOnEnabled(mUserTracker.getUserId())
-                ? DozeMachine.State.DOZE_AOD : DozeMachine.State.DOZE);
-    }
-
-    private void handleCarModeStarted() {
-        mDozeLog.traceCarModeStarted();
-        mMachine.requestState(DozeMachine.State.DOZE_SUSPEND_TRIGGERS);
     }
 
     private final DozeHost.Callback mHostCallback = new DozeHost.Callback() {

@@ -33,6 +33,7 @@ import com.android.systemui.keyguard.ui.view.layout.sections.SmartspaceSection
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
+import com.android.systemui.shade.shared.model.ShadeMode
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -61,10 +62,10 @@ constructor(
 
     /** Current BlueprintId */
     val blueprintId =
-        shadeModeInteractor.isShadeLayoutWide.map { isShadeLayoutWide ->
-            val useSplitShade = isShadeLayoutWide && !SceneContainerFlag.isEnabled
+        shadeModeInteractor.shadeMode.map { shadeMode ->
             when {
-                useSplitShade -> SplitShadeKeyguardBlueprint.ID
+                shadeMode is ShadeMode.Split && !SceneContainerFlag.isEnabled ->
+                    SplitShadeKeyguardBlueprint.ID
                 else -> DefaultKeyguardBlueprint.DEFAULT
             }
         }

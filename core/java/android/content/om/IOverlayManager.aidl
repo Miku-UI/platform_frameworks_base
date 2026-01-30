@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * Api for getting information about overlay packages.
  *
- * {@hide}
+ * @hide
  */
 interface IOverlayManager {
     /**

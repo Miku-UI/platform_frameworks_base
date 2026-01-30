@@ -23,6 +23,7 @@ import android.os.Parcelable;
 import android.os.SharedMemory;
 import android.system.ErrnoException;
 import android.system.OsConstants;
+import android.util.Slog;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -39,6 +40,7 @@ import java.util.List;
  */
 @SuppressLint({"ParcelNotFinal", "ParcelCreator"})
 public class NotificationRankingUpdate implements Parcelable {
+    private static final String TAG = "NotificationRankingUpdate";
     private final NotificationListenerService.RankingMap mRankingMap;
 
     // The ranking map is stored in shared memory when parceled, for sending across the binder.
@@ -57,50 +59,43 @@ public class NotificationRankingUpdate implements Parcelable {
      * @hide
      */
     public NotificationRankingUpdate(Parcel in) {
-        if (Flags.rankingUpdateAshmem()) {
-            // Recover the ranking map from the SharedMemory and store it in mapParcel.
-            final Parcel mapParcel = Parcel.obtain();
-            ByteBuffer buffer = null;
-            try {
-                // The ranking map should be stored in shared memory when it is parceled, so we
-                // unwrap the SharedMemory object.
-                mRankingMapFd = in.readParcelable(getClass().getClassLoader(), SharedMemory.class);
-                Bundle smartActionsBundle = in.readBundle(getClass().getClassLoader());
+        // Recover the ranking map from the SharedMemory and store it in mapParcel.
+        final Parcel mapParcel = Parcel.obtain();
+        ByteBuffer buffer = null;
+        try {
+            // The ranking map should be stored in shared memory when it is parceled, so we
+            // unwrap the SharedMemory object.
+            mRankingMapFd = in.readParcelable(getClass().getClassLoader(), SharedMemory.class);
+            Bundle smartActionsBundle = in.readBundle(getClass().getClassLoader());
 
-                // In the case that the ranking map can't be read, readParcelable may return null.
-                // In this case, we set mRankingMap to null;
-                if (mRankingMapFd == null) {
-                    mRankingMap = null;
-                    return;
-                }
-                // We only need read-only access to the shared memory region.
-                buffer = mRankingMapFd.mapReadOnly();
-                byte[] payload = new byte[buffer.remaining()];
-                buffer.get(payload);
-                mapParcel.unmarshall(payload, 0, payload.length);
-                mapParcel.setDataPosition(0);
-
-                mRankingMap =
-                        mapParcel.readParcelable(
-                                getClass().getClassLoader(),
-                                NotificationListenerService.RankingMap.class);
-
-                addSmartActionsFromBundleToRankingMap(smartActionsBundle);
-
-            } catch (ErrnoException e) {
-                // TODO(b/284297289): remove throw when associated flag is moved to droidfood, to
-                // avoid crashes; change to Log.wtf.
-                throw new RuntimeException(e);
-            } finally {
-                mapParcel.recycle();
-                if (buffer != null && mRankingMapFd != null) {
-                    SharedMemory.unmap(buffer);
-                    mRankingMapFd.close();
-                }
+            // In the case that the ranking map can't be read, readParcelable may return null.
+            // In this case, we set mRankingMap to null;
+            if (mRankingMapFd == null) {
+                mRankingMap = null;
+                return;
             }
-        } else {
-            mRankingMap = in.readParcelable(getClass().getClassLoader(),
-                    android.service.notification.NotificationListenerService.RankingMap.class);
+            // We only need read-only access to the shared memory region.
+            buffer = mRankingMapFd.mapReadOnly();
+            byte[] payload = new byte[buffer.remaining()];
+            buffer.get(payload);
+            mapParcel.unmarshall(payload, 0, payload.length);
+            mapParcel.setDataPosition(0);
+
+            mRankingMap =
+                    mapParcel.readParcelable(
+                            getClass().getClassLoader(),
+                            NotificationListenerService.RankingMap.class);
+
+            addSmartActionsFromBundleToRankingMap(smartActionsBundle);
+
+        } catch (ErrnoException e) {
+            throw new RuntimeException(e);
+        } finally {
+            mapParcel.recycle();
+            if (buffer != null && mRankingMapFd != null) {
+                SharedMemory.unmap(buffer);
+                mRankingMapFd.close();
+            }
         }
     }
 
@@ -169,78 +164,76 @@ public class NotificationRankingUpdate implements Parcelable {
      */
     @Override
     public void writeToParcel(@NonNull Parcel out, int flags) {
-        if (Flags.rankingUpdateAshmem()) {
-            final Parcel mapParcel = Parcel.obtain();
-            ArrayList<NotificationListenerService.Ranking> marshalableRankings = new ArrayList<>();
-            Bundle smartActionsBundle = new Bundle();
+        final Parcel mapParcel = Parcel.obtain();
+        ArrayList<NotificationListenerService.Ranking> marshalableRankings = new ArrayList<>();
+        Bundle smartActionsBundle = new Bundle();
 
-            // We need to separate the SmartActions from the RankingUpdate objects.
-            // SmartActions can contain PendingIntents, which cannot be marshalled,
-            // so we extract them to send separately.
-            String[] rankingMapKeys = mRankingMap.getOrderedKeys();
-            for (int i = 0; i < rankingMapKeys.length; i++) {
-                String key = rankingMapKeys[i];
-                NotificationListenerService.Ranking ranking = mRankingMap.getRawRankingObject(key);
+        // We need to separate the SmartActions from the RankingUpdate objects.
+        // SmartActions can contain PendingIntents, which cannot be marshalled,
+        // so we extract them to send separately.
+        String[] rankingMapKeys = mRankingMap.getOrderedKeys();
+        for (int i = 0; i < rankingMapKeys.length; i++) {
+            String key = rankingMapKeys[i];
+            NotificationListenerService.Ranking ranking = mRankingMap.getRawRankingObject(key);
 
-                // Removes the SmartActions and stores them in a separate map.
-                // Note that getSmartActions returns a Collections.emptyList() if there are no
-                // smart actions, and we don't want to needlessly store an empty list object, so we
-                // check for null before storing.
-                List<Notification.Action> smartActions = ranking.getSmartActions();
-                if (!smartActions.isEmpty()) {
-                    smartActionsBundle.putParcelableList(key, smartActions);
-                }
-
-                // Create a copy of the ranking object that doesn't have the smart actions.
-                NotificationListenerService.Ranking rankingCopy =
-                        new NotificationListenerService.Ranking();
-                rankingCopy.populate(ranking);
-                rankingCopy.setSmartActions(null);
-                marshalableRankings.add(rankingCopy);
+            // Removes the SmartActions and stores them in a separate map.
+            // Note that getSmartActions returns a Collections.emptyList() if there are no
+            // smart actions, and we don't want to needlessly store an empty list object, so we
+            // check for null before storing.
+            List<Notification.Action> smartActions = ranking.getSmartActions();
+            if (smartActions != null && !smartActions.isEmpty()) {
+                smartActionsBundle.putParcelableList(key, smartActions);
             }
 
-            // Create a new marshalable RankingMap.
-            NotificationListenerService.RankingMap marshalableRankingMap =
-                    new NotificationListenerService.RankingMap(
-                            marshalableRankings.toArray(
-                                    new NotificationListenerService.Ranking[0]
-                            )
-                    );
-            ByteBuffer buffer = null;
+            // Create a copy of the ranking object that doesn't have the smart actions.
+            NotificationListenerService.Ranking rankingCopy =
+                    new NotificationListenerService.Ranking();
+            rankingCopy.populate(ranking);
+            rankingCopy.setSmartActions(null);
+            marshalableRankings.add(rankingCopy);
+        }
 
-            try {
-                // Parcels the ranking map and measures its size.
-                mapParcel.writeParcelable(marshalableRankingMap, flags);
-                int mapSize = mapParcel.dataSize();
+        // Create a new marshalable RankingMap.
+        NotificationListenerService.RankingMap marshalableRankingMap =
+                new NotificationListenerService.RankingMap(
+                        marshalableRankings.toArray(
+                                new NotificationListenerService.Ranking[0]
+                        )
+                );
+        ByteBuffer buffer = null;
 
-                // Creates a new SharedMemory object with enough space to hold the ranking map.
-                mRankingMapFd = SharedMemory.create(mSharedMemoryName, mapSize);
+        try {
+             // Parcels the ranking map and measures its size.
+            mapParcel.writeParcelable(marshalableRankingMap, flags);
+            int mapSize = mapParcel.dataSize();
 
-                // Gets a read/write buffer mapping the entire shared memory region.
-                buffer = mRankingMapFd.mapReadWrite();
-                // Puts the ranking map into the shared memory region buffer.
-                mapParcel.marshall(buffer);
-                // Protects the region from being written to, by setting it to be read-only.
-                mRankingMapFd.setProtect(OsConstants.PROT_READ);
-                // Puts the SharedMemory object in the parcel.
-                out.writeParcelable(mRankingMapFd, flags);
-                // Writes the Parceled smartActions separately.
+            // Creates a new SharedMemory object with enough space to hold the ranking map.
+            mRankingMapFd = SharedMemory.create(mSharedMemoryName, mapSize);
+
+            // Gets a read/write buffer mapping the entire shared memory region.
+            buffer = mRankingMapFd.mapReadWrite();
+            // Puts the ranking map into the shared memory region buffer.
+            mapParcel.marshall(buffer);
+            // Protects the region from being written to, by setting it to be read-only.
+            mRankingMapFd.setProtect(OsConstants.PROT_READ);
+            // Puts the SharedMemory object in the parcel.
+            out.writeParcelable(mRankingMapFd, flags);
+            // Writes the Parceled smartActions separately.
+            if (smartActionsBundle.size() > 0) {
                 out.writeBundle(smartActionsBundle);
-            } catch (ErrnoException e) {
-                // TODO(b/284297289): remove throw when associated flag is moved to droidfood, to
-                // avoid crashes; change to Log.wtf.
-                throw new RuntimeException(e);
-            } finally {
-                mapParcel.recycle();
-                // To prevent memory leaks, we can close the ranking map fd here.
-                // This is safe to do because a reference to this still exists.
-                if (buffer != null && mRankingMapFd != null) {
-                    SharedMemory.unmap(buffer);
-                    mRankingMapFd.close();
-                }
+            } else {
+                out.writeBundle(null);
             }
-        } else {
-            out.writeParcelable(mRankingMap, flags);
+        } catch (ErrnoException e) {
+            Slog.wtf(TAG, "Failed to write ranking map to shared memory", e);
+        } finally {
+            mapParcel.recycle();
+            // To prevent memory leaks, we can close the ranking map fd here.
+            // This is safe to do because a reference to this still exists.
+            if (buffer != null && mRankingMapFd != null) {
+                SharedMemory.unmap(buffer);
+                mRankingMapFd.close();
+            }
         }
     }
 

@@ -21,6 +21,7 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.graphics.Rect;
+import android.graphics.Region;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.DisplayCutout;
@@ -31,16 +32,16 @@ import android.view.WindowInsets;
 import android.view.accessibility.AccessibilityEvent;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.window.DesktopExperienceFlags;
 
 import androidx.annotation.NonNull;
 
 import com.android.internal.policy.SystemBarUtils;
-import com.android.systemui.Dependency;
-import com.android.systemui.Flags;
 import com.android.systemui.Gefingerpoken;
 import com.android.systemui.res.R;
 import com.android.systemui.shade.ShadeExpandsOnStatusBarLongPress;
 import com.android.systemui.shade.StatusBarLongPressGestureDetector;
+import com.android.systemui.statusbar.core.StatusBarConnectedDisplays;
 import com.android.systemui.statusbar.phone.userswitcher.StatusBarUserSwitcherContainer;
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore;
 import com.android.systemui.user.ui.binder.StatusBarUserChipViewBinder;
@@ -48,11 +49,13 @@ import com.android.systemui.user.ui.viewmodel.StatusBarUserChipViewModel;
 import com.android.systemui.util.leak.RotationUtils;
 
 import java.util.Objects;
+import java.util.function.BooleanSupplier;
 
 public class PhoneStatusBarView extends FrameLayout {
     private static final String TAG = "PhoneStatusBarView";
-    private final StatusBarWindowControllerStore mStatusBarWindowControllerStore;
 
+    private StatusBarWindowControllerStore mStatusBarWindowControllerStore;
+    private boolean mShouldUpdateStatusBarHeightWhenControllerSet = false;
     private int mRotationOrientation = -1;
     @Nullable
     private View mCutoutSpace;
@@ -64,12 +67,15 @@ public class PhoneStatusBarView extends FrameLayout {
     @Nullable
     private Gefingerpoken mTouchEventHandler;
     @Nullable
+    private BooleanSupplier mIsStatusBarInteractiveSupplier;
+    @Nullable
     private HasCornerCutoutFetcher mHasCornerCutoutFetcher;
     @Nullable
     private InsetsFetcher mInsetsFetcher;
     private int mDensity;
     private float mFontScale;
     private StatusBarLongPressGestureDetector mStatusBarLongPressGestureDetector;
+    private final Region mTouchableRegion = Region.obtain();
 
     /**
      * Draw this many pixels into the left/right side of the cutout to optimally use the space
@@ -78,7 +84,6 @@ public class PhoneStatusBarView extends FrameLayout {
 
     public PhoneStatusBarView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        mStatusBarWindowControllerStore = Dependency.get(StatusBarWindowControllerStore.class);
     }
 
     void setLongPressGestureDetector(
@@ -90,6 +95,10 @@ public class PhoneStatusBarView extends FrameLayout {
 
     void setTouchEventHandler(Gefingerpoken handler) {
         mTouchEventHandler = handler;
+    }
+
+    void setIsStatusBarInteractiveSupplier(BooleanSupplier isStatusBarInteractiveSupplier) {
+        mIsStatusBarInteractiveSupplier = isStatusBarInteractiveSupplier;
     }
 
     void setHasCornerCutoutFetcher(@NonNull HasCornerCutoutFetcher cornerCutoutFetcher) {
@@ -105,6 +114,12 @@ public class PhoneStatusBarView extends FrameLayout {
     void init(StatusBarUserChipViewModel viewModel) {
         StatusBarUserSwitcherContainer container = findViewById(R.id.user_switcher_container);
         StatusBarUserChipViewBinder.bind(container, viewModel);
+    }
+
+    /** Updates the status bar's touchable region. */
+    public void updateTouchableRegion(Region touchableRegion) {
+        mTouchableRegion.set(touchableRegion);
+        getViewRootImpl().setTouchableRegion(touchableRegion);
     }
 
     @Override
@@ -207,7 +222,42 @@ public class PhoneStatusBarView extends FrameLayout {
     }
 
     @Override
+    public boolean dispatchHoverEvent(MotionEvent event) {
+        if (mIsStatusBarInteractiveSupplier != null
+                && !mIsStatusBarInteractiveSupplier.getAsBoolean()) {
+            // Consume the event to prevent any calls to #onHoverEvent on status bar view or its
+            // components, essentially making the status bar and its children completely
+            // non-interactive.
+            return true;
+        }
+        return super.dispatchHoverEvent(event);
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (mIsStatusBarInteractiveSupplier != null
+                && !mIsStatusBarInteractiveSupplier.getAsBoolean()) {
+            // Consume the event to prevent any calls to #onTouchEvent on status bar view or its
+            // components, essentially making the status bar and its children completely
+            // non-interactive.
+            return true;
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    @Override
     public boolean onTouchEvent(MotionEvent event) {
+        // Touch events outside of the touchable regions are still received by this view. Touch
+        // events started within the view should not be handled to allow app handle views behind
+        // the status bar to handle the event. ACTION_MOVE and ACTION_UP events outside the
+        // touchable region should still be handled so that an open notification shade can be
+        // correctly updated and closed.
+        if (DesktopExperienceFlags.ENABLE_REMOVE_STATUS_BAR_INPUT_LAYER.isTrue()
+                && event.getAction() == MotionEvent.ACTION_DOWN
+                && !mTouchableRegion.contains((int) event.getRawX(), (int) event.getRawY())) {
+            return false;
+        }
+
         if (ShadeExpandsOnStatusBarLongPress.isEnabled()
                 && mStatusBarLongPressGestureDetector != null) {
             mStatusBarLongPressGestureDetector.handleTouch(event);
@@ -228,12 +278,7 @@ public class PhoneStatusBarView extends FrameLayout {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent event) {
-        if (Flags.statusBarSwipeOverChip()) {
-            return mTouchEventHandler.onInterceptTouchEvent(event);
-        } else {
-            mTouchEventHandler.onInterceptTouchEvent(event);
-            return super.onInterceptTouchEvent(event);
-        }
+        return mTouchEventHandler.onInterceptTouchEvent(event);
     }
 
     public void updateResources() {
@@ -241,6 +286,25 @@ public class PhoneStatusBarView extends FrameLayout {
                 R.dimen.display_cutout_margin_consumption);
 
         updateStatusBarHeight();
+    }
+
+    /**
+     * Sets the store responsible for managing the status bar window controller.
+     *
+     * <p>This setter is used to facilitate dependency injection for the
+     * {@link PhoneStatusBarViewController}, which receives the store via Dagger. This avoids
+     * using the legacy {@link com.android.systemui.Dependency} pattern directly in the constructor.
+     *
+     * @param statusBarWindowControllerStore The {@link StatusBarWindowControllerStore} instance
+     * to set
+     */
+    public void setStatusBarWindowControllerStore(
+            StatusBarWindowControllerStore statusBarWindowControllerStore) {
+        mStatusBarWindowControllerStore = statusBarWindowControllerStore;
+        if (mShouldUpdateStatusBarHeightWhenControllerSet) {
+            mShouldUpdateStatusBarHeightWhenControllerSet = false;
+            updateWindowHeight();
+        }
     }
 
     private void updateStatusBarHeight() {
@@ -328,7 +392,7 @@ public class PhoneStatusBarView extends FrameLayout {
             return;
         }
 
-        Insets insets  = mInsetsFetcher.fetchInsets();
+        Insets insets = mInsetsFetcher.fetchInsets();
         setPadding(
                 insets.left,
                 insets.top,
@@ -337,10 +401,16 @@ public class PhoneStatusBarView extends FrameLayout {
     }
 
     private void updateWindowHeight() {
-        if (Flags.statusBarStopUpdatingWindowHeight()) {
+        if (StatusBarConnectedDisplays.isEnabled()) {
+            // Handled directly from StatusBarWindowControllerImpl (for each display)
             return;
         }
-        mStatusBarWindowControllerStore.getDefaultDisplay().refreshStatusBarHeight();
+        if (mStatusBarWindowControllerStore != null) {
+            mStatusBarWindowControllerStore.getDefaultDisplay().refreshStatusBarHeight();
+        } else {
+            Log.e(TAG, "mStatusBarWindowControllerStore unexpectedly null");
+            mShouldUpdateStatusBarHeightWhenControllerSet = true;
+        }
     }
 
     interface HasCornerCutoutFetcher {

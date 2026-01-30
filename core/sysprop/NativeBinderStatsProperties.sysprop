@@ -1,0 +1,80 @@
+# This file is used to define system properties for native binder stats.
+# The properties are used to control the collection of binder stats.
+# The properties are set by the NativeBinderStats class.
+
+# The module that owns this property.
+module: "android.sysprop.NativeBinderStatsProperties"
+
+# Whether native binder stats are enabled.
+prop {
+    api_name: "enabled"
+    type: Boolean
+    prop_name: "persist.sys.native_binder_stats.enabled"
+    scope: Internal
+    access: ReadWrite
+}
+
+# The inverse probability that a given process will track binder stats. E.g. 100 means that
+# 1% of the processes will report stats. 0 is a special value that means no process will
+# report stats.
+prop {
+    api_name: "process_sharding"
+    type: Integer
+    prop_name: "persist.sys.native_binder_stats.process_sharding"
+    scope: Internal
+    access: ReadWrite
+}
+
+# The inverse probability that a given AIDL method will be selected for spam detection and
+# reporting (provided the containing process is selected for stats). 0 means no spam
+# tracking.
+prop {
+    api_name: "spam_sharding"
+    type: Integer
+    prop_name: "persist.sys.native_binder_stats.spam_sharding"
+    scope: Internal
+    access: ReadWrite
+}
+
+# The inverse probability that a given AIDL method will be selected for call stats
+# (provided the containing process is selected for stats). 0 means no call stats.
+prop {
+    api_name: "call_sharding"
+    type: Integer
+    prop_name: "persist.sys.native_binder_stats.call_sharding"
+    scope: Internal
+    access: ReadWrite
+}
+
+# The inverse probability that a given process will track binder stats. E.g. 100 means that
+# 1% of the processes will report stats. 0 is a special value that means no process will
+# report stats. This property is for system_server.
+prop {
+    api_name: "system_process_sharding"
+    type: Integer
+    prop_name: "persist.sys.native_binder_stats.system_process_sharding"
+    scope: Internal
+    access: ReadWrite
+}
+
+# The inverse probability that a given AIDL method will be selected for spam detection and
+# reporting (provided the containing process is selected for stats). 0 means no spam
+# tracking. This property is for system_server.
+prop {
+    api_name: "system_spam_sharding"
+    type: Integer
+    prop_name: "persist.sys.native_binder_stats.system_spam_sharding"
+    scope: Internal
+    access: ReadWrite
+}
+
+# The inverse probability that a given AIDL method will be selected for call stats
+# (provided the containing process is selected for stats). 0 means no call stats.
+# This property is for system_server.
+prop {
+    api_name: "system_call_sharding"
+    type: Integer
+    prop_name: "persist.sys.native_binder_stats.system_call_sharding"
+    scope: Internal
+    access: ReadWrite
+}

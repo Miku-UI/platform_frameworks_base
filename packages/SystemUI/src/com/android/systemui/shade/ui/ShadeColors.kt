@@ -16,55 +16,76 @@
 
 package com.android.systemui.shade.ui
 
-import android.content.res.Resources
-import android.graphics.Color
+import android.content.Context
 import com.android.internal.graphics.ColorUtils
 import com.android.systemui.res.R
 
 object ShadeColors {
+    /**
+     * Calculate notification shade panel color.
+     *
+     * @param context Context to resolve colors.
+     * @param blurSupported Whether blur is enabled (can be off due to battery saver)
+     * @param withScrim Whether to composite a scrim when blur is enabled (used by legacy shade).
+     * @return color for the shade panel.
+     */
     @JvmStatic
-    fun Resources.shadePanel(blurSupported: Boolean): Int {
+    fun shadePanel(context: Context, blurSupported: Boolean, withScrim: Boolean): Int {
         return if (blurSupported) {
-            shadePanelStandard()
+            if (withScrim) {
+                ColorUtils.compositeColors(
+                    shadePanelStandard(context),
+                    shadePanelScrimBehind(context),
+                )
+            } else {
+                shadePanelStandard(context)
+            }
         } else {
-            shadePanelFallback()
+            shadePanelFallback(context)
         }
     }
 
     @JvmStatic
-    fun Resources.notificationScrim(blurSupported: Boolean): Int {
+    fun notificationScrim(context: Context, blurSupported: Boolean): Int {
         return if (blurSupported) {
-            notificationScrimStandard()
+            notificationScrimStandard(context)
         } else {
-            notificationScrimFallback()
+            notificationScrimFallback(context)
         }
     }
 
     @JvmStatic
-    private fun Resources.shadePanelStandard(): Int {
-        val layerAbove = ColorUtils.setAlphaComponent(
-            getColor(R.color.shade_panel_base, null),
-            (0.4f * 255).toInt()
+    fun shadePanelScrimBehind(context: Context): Int {
+        return context.resources.getColor(
+            com.android.internal.R.color.shade_panel_scrim,
+            context.theme,
         )
-        val layerBelow = ColorUtils.setAlphaComponent(Color.WHITE, (0.1f * 255).toInt())
+    }
+
+    @JvmStatic
+    private fun shadePanelStandard(context: Context): Int {
+        val layerAbove =
+            context.resources.getColor(com.android.internal.R.color.shade_panel_fg, context.theme)
+        val layerBelow =
+            context.resources.getColor(com.android.internal.R.color.shade_panel_bg, context.theme)
         return ColorUtils.compositeColors(layerAbove, layerBelow)
     }
 
     @JvmStatic
-    private fun Resources.shadePanelFallback(): Int {
-        return getColor(R.color.shade_panel_fallback, null)
+    private fun shadePanelFallback(context: Context): Int {
+        return context.getColor(R.color.shade_panel_fallback)
     }
 
     @JvmStatic
-    private fun Resources.notificationScrimStandard(): Int {
+    private fun notificationScrimStandard(context: Context): Int {
         return ColorUtils.setAlphaComponent(
-            getColor(R.color.notification_scrim_base, null),
+            context.getColor(R.color.notification_scrim_base),
             (0.5f * 255).toInt(),
         )
     }
 
     @JvmStatic
-    private fun Resources.notificationScrimFallback(): Int {
-        return getColor(R.color.notification_scrim_fallback, null)
+    private fun notificationScrimFallback(context: Context): Int {
+        return context.getColor(R.color.notification_scrim_fallback)
     }
 }

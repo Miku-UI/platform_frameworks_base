@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"اجازت درکار ہے"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"انسٹال کرنے کو بلاک کردیا گیا"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"ایپ تیار ہو رہی ہے…"</string>
+    <string name="title_install" msgid="6806728682404990326">"یہ ایپ انسٹال کریں؟"</string>
+    <string name="title_installing" msgid="3738380766257176010">"انسٹال ہو رہی ہے…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"ایپ انسٹال ہو گئی"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"اس ایپ کو دوبارہ انسٹال کریں؟"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"دوبارہ انسٹال ہو رہی ہے…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"ایپ دوبارہ انسٹال ہو گئی"</string>
+    <string name="title_update" msgid="1747328630716712391">"اس ایپ کو اپ ڈیٹ کریں؟"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"‫<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> کا استعمال کر کے اس ایپ کو اپ ڈیٹ کریں؟"</string>
+    <string name="title_updating" msgid="5449073288264173554">"اپ ڈیٹ ہو رہی ہے…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"ایپ کو اپ ڈیٹ کر دیا گیا ہے"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"ایپ کو انسٹال نہیں کیا جا سکتا ہے"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"انسٹال کرنے کو بلاک کردیا گیا"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"ایپ موافق نہیں ہے"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"غلط پیکیج"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"کافی اسٹوریج نہیں ہے"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"ایپ انسٹال نہیں ہے"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"اس ایپ کو اَن انسٹال کریں؟"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"اس ایپ کے کلون کو حذف کریں؟"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"ایپ کی اپ ڈیٹس اَن انسٹال کریں؟"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"تمام صارفین کے لیے ایپ کی اپ ڈیٹس اَن انسٹال کریں؟"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"تمام صارفین کے لیے اس ایپ کو ان انسٹال کریں؟"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"اس ایپ کو صارف \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" کے لیے اَن انسٹال کریں؟"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"ایپ نہیں ملی"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"اس ایپ کو اَن انسٹال نہیں کیا جا سکتا"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"ایپ ان انسٹال نہیں ہوئی"</string>
+    <string name="title_archive" msgid="2876455228073419830">"اس ایپ کو آرکائیو کریں؟"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"اس ایپ کو تمام صارفین کے لیے آرکائیو کریں؟"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"اس ایپ کو صارف \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" کے لیے آرکائیو کریں؟"</string>
+    <string name="title_restore" msgid="8934911753892124574">"اس ایپ کو بحال کریں؟"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"کارروائی درکار ہے"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"کافی اسٹوریج نہیں ہے"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"آپ آف لائن ہیں"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"‫<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> غیر فعال ہے"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"‫<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> انسٹال نہیں ہے"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"کچھ غلط ہو گیا"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"‏یہ ایپ عام طور پر &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; سے اپ ڈیٹس موصول کرتی ہے۔ کسی مختلف ذریعے کا استعمال کرتے ہوئے اپ ڈیٹ کر کے، آپ اپنے ٹیبلیٹ پر کسی بھی وسیلے سے مستقبل کی اپ ڈیٹس حاصل کر سکتے ہیں۔ ایپ کی فعالیت تبدیل ہو سکتی ہے۔"</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"‏یہ ایپ عام طور پر &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; سے اپ ڈیٹس موصول کرتی ہے۔ کسی مختلف ذریعے کا استعمال کرتے ہوئے اپ ڈیٹ کر کے، آپ اپنے TV پر کسی بھی وسیلے سے مستقبل کی اپ ڈیٹس حاصل کر سکتے ہیں۔ ایپ کی فعالیت تبدیل ہو سکتی ہے۔"</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"‏یہ ایپ عام طور پر &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; سے اپ ڈیٹس موصول کرتی ہے۔ کسی مختلف ذریعے کا استعمال کرتے ہوئے اپ ڈیٹ کر کے، آپ اپنے فون پر کسی بھی ذریعے سے مستقبل کی اپ ڈیٹس حاصل کر سکتے ہیں۔ ایپ کی فعالیت تبدیل ہو سکتی ہے۔"</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"آپ کی سیکیورٹی کی خاطر فی الحال آپ کے ٹیبلیٹ کو اس ماخذ سے نامعلوم ایپس انسٹال کرنے کی اجازت نہیں ہے۔ آپ ترتیبات میں اسے تبدیل کر سکتے ہیں۔"</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"‏آپ کی سیکیورٹی کی خاطر فی الحال آپ کے TV کو اس ماخذ سے نامعلوم ایپس انسٹال کرنے کی اجازت نہیں ہے۔ آپ ترتیبات میں اسے تبدیل کر سکتے ہیں۔"</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"آپ کی سیکیورٹی کی خاطر، فی الحال آپ کی گھڑی کو اس ماخذ سے نامعلوم ایپس کو انسٹال کرنے کی اجازت نہیں ہے۔ آپ ترتیبات میں اسے تبدیل کر سکتے ہیں۔"</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"آپ کی سیکیورٹی کی خاطر فی الحال آپ کے فون کو اس ماخذ سے نامعلوم ایپس انسٹال کرنے کی اجازت نہیں ہے۔ آپ ترتیبات میں اسے تبدیل کر سکتے ہیں۔"</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"آپ کے فون اور ذاتی ڈیٹا کو نامعلوم ایپس کی جانب سے حملے کا زیادہ خطرہ ہے۔ اس ایپ کو انسٹال کر کے، آپ اس بات سے متفق ہیں کہ آپ اس سے اپنے فون کو ہونے والے کسی بھی نقصان یا ڈیٹا کے نقصان کے لئے خود ذمہ دار ہیں۔"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"آپ کے ٹیبلیٹ اور ذاتی ڈیٹا کو نامعلوم ایپس کی جانب سے حملے کا زیادہ خطرہ ہے۔ اس ایپ کو انسٹال کر کے، آپ اس بات سے متفق ہیں کہ آپ اس سے اپنے ٹیبلیٹ کو ہونے والے کسی بھی نقصان یا ڈیٹا کے نقصان کے لئے خود ذمہ دار ہیں۔"</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"‏آپ کے TV اور ذاتی ڈیٹا کو نامعلوم ایپس کی جانب سے حملے کا زیادہ خطرہ ہے۔ اس ایپ کو انسٹال کر کے، آپ اس بات سے متفق ہیں کہ آپ اس سے اپنے TV کو ہونے والے کسی بھی نقصان یا ڈیٹا کے نقصان کے لئے خود ذمہ دار ہیں۔"</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"اس ایپ کو انسٹال ہونے سے روک دیا گیا"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"یہ ایپ آپ کے آلے پر پہلے سے موجود ایپ سے متصادم ہے"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"یہ ایپ آپ کے آلہ کے ساتھ مطابقت پذیر نہیں ہے"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"اس ایپ کی انسٹالیشن فائل میں ایک مسئلہ ہے"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"اس ایپ کو انسٹال کرنے کے لیے، کچھ جگہ خالی کریں اور دوبارہ کوشش کریں"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"ایپ فائل میں ایک مسئلہ ہے"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ایپس کو انسٹال کرنے پر پابندی لگا دی گئی ہے"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"نامعلوم ایپس کو انسٹال کرنے پر پابندی لگا دی گئی ہے"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"اس ایپ کا کلون بھی موجود ہے اور اسے حذف کر دیا جائے گا"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"یہ ایپ <xliff:g id="APP_LABEL">%1$s</xliff:g> کا کلون ہے"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"یہ ایپ فیکٹری ورژن سے تبدیل کر دی جائے گی۔ تمام ایپ کا ڈیٹا حذف کر دیا جائے گا۔"</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"یہ ایپ آلے پر موجود تمام صارفین کے لیے فیکٹری ورژن سے تبدیل کر دی جائے گی۔ تمام ایپ کا ڈیٹا حذف کر دیا جائے گا۔"</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"یہ ایپ آپ کی دفتری پروفائل سے اَن انسٹال کر دی جائے گی"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"یہ ایپ آپ کے پرائیویٹ اسپیس سے اَن انسٹال کر دی جائے گی"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"یہ ایپ انسٹال کردہ ایپس کی فہرست میں نہیں ملی یا پہلے ہی اَن انسٹال کر دی گئی ہے"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"موجودہ صارف کو اس اَن انسٹالیشن کو انجام دینے کی اجازت نہیں ہے"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"اس ایپ کو اَن انسٹال نہیں کیا جا سکا"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"ایپ کا ڈیٹا رکھیں"</string>
+    <string name="message_archive" msgid="943853731737315850">"آپ کی ایپ کا ڈیٹا محفوظ ہو جائے گا"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"ایپ کا تمام ڈیٹا محفوظ ہو جائے گا"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ایپ کا ڈیٹا محفوظ ہو جائے گا"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"یہ ایپ آپ کی دفتری پروفائل سے آرکائیو کر دی جائے گی۔ آپ کی ایپ کا ڈیٹا محفوظ ہو جائے گا۔"</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"یہ ایپ آپ کے پرائیویٹ اسپیس سے آرکائیو کر دی جائے گی۔ آپ کی ایپ کا ڈیٹا محفوظ ہو جائے گا۔"</string>
+    <string name="message_restore" msgid="8402726798623569969">"یہ ایپ پس منظر میں <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> سے ڈاؤن لوڈ ہوگی"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"اس سے پہلے کہ آپ اس ایپ کو بحال کر سکیں <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> کو مزید معلومات کی ضرورت ہے"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"‏اس ایپ کو بحال کرنے کے لیے ‎&lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>‎&lt;b&gt;‎خالی کریں اور دوبارہ کوشش کریں"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"اس ایپ کو بحال کرنے کے لیے، اپنا انٹرنیٹ کنکشن چیک کریں اور دوبارہ کوشش کریں"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"اس ایپ کو بحال کرنے کے لیے، ترتیبات میں <xliff:g id="INSTALLERNAME">%1$s</xliff:g> کو فعال کریں"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"اس ایپ کو بحال کرنے کے لیے، آپ کو <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> انسٹال کرنا ہوگا"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"اس ایپ کو بحال کرنے کی کوشش میں ایک مسئلہ تھا"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"‫<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> درج ذیل ایپ کا حصہ ہے: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"‏&lt;p&gt;یہ ایپ بلاک کر دی گئی ہے۔ اپنے آلے اور ڈیٹا کو محفوظ رکھنے میں مدد کے لیے، صرف توثیق شدہ ڈویلپرز کی ایپس ہی انسٹال کی جا سکتی ہیں۔&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"‏&lt;p&gt;یہ ایپ اپ ڈیٹ نہیں ہوئی۔ اپنے آلے اور ڈیٹا کو محفوظ رکھنے میں مدد کے لیے، صرف توثیق شدہ ڈویلپرز کی اپ ڈیٹس ہی انسٹال کی جا سکتی ہیں۔&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"‏&lt;p&gt;یہ ایپ انسٹال نہیں کی گئی۔ غیر توثیق شدہ ڈویلپرز کی ایپس غیر محفوظ ہو سکتی ہیں۔&lt;/p&gt; &lt;p&gt;ایپ ڈویلپر کی توثیق کرنے کے لیے انٹرنیٹ کنکشن کی ضرورت ہے۔ اپنا کنکشن چیک کریں، پھر دوبارہ انسٹال کرنے کی کوشش کریں۔ &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"‏&lt;p&gt;یہ ایپ اپ ڈیٹ نہیں ہوئی۔ غیر توثیق شدہ ڈویلپرز کی اپ ڈیٹس غیر محفوظ ہو سکتی ہیں۔&lt;/p&gt; &lt;p&gt;ایپ ڈویلپر کی توثیق کرنے کے لیے انٹرنیٹ کنکشن کی ضرورت ہے۔ اپنا کنکشن چیک کریں، پھر دوبارہ اپ ڈیٹ کرنے کی کوشش کریں۔ &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"‏&lt;p&gt;اس ایپ کے ڈویلپر کی توثیق کرنے میں ایک مسئلہ پیش آ گیا۔ غیر توثیق شدہ ڈویلپرز کی ایپس غیر محفوظ ہو سکتی ہیں، اس لیے ایپ انسٹال نہیں کی گئی۔&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"‏&lt;p&gt;اس ایپ کے ڈویلپر کی توثیق کرنے میں ایک مسئلہ پیش آ گیا۔ غیر توثیق شدہ ڈویلپرز کی اپ ڈیٹس غیر محفوظ ہو سکتی ہیں، اس لیے ایپ اپ ڈیٹ نہیں کی گئی۔&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"‏&lt;p&gt;یہ ایپ بلاک کر دی گئی کیونکہ ڈویلپر کی توثیق کرنے میں ایک مسئلہ تھا۔ اپنے آلے اور ڈیٹا کو محفوظ رکھنے میں مدد کے لیے، صرف توثیق شدہ ڈویلپرز کی ایپس ہی انسٹال کی جا سکتی ہیں۔&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"‏&lt;p&gt;اس ایپ کو اپ ڈیٹ نہیں کیا گیا کیونکہ ڈویلپر کی توثیق کرنے میں ایک مسئلہ تھا۔ اپنے آلے اور ڈیٹا کو محفوظ رکھنے میں مدد کے لیے، صرف توثیق شدہ ڈویلپرز کی اپ ڈیٹس ہی انسٹال کی جا سکتی ہیں۔&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ڈویلپر کی توثیق کے بارے میں مزید جانیں&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"اگر آپ بغیر تصدیق کیے انسٹال کرتے ہیں تو یاد رکھیں کہ غیر تصدیق شدہ ڈویلپرز کی ایپس آپ کے آلے اور ڈیٹا کو خطرے میں ڈال سکتی ہیں۔"</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"اگر آپ تصدیق کیے بغیر اپ ڈیٹ کرتے ہیں تو ذہن میں رکھیں کہ غیر تصدیق شدہ ڈویلپرز کی اپ ڈیٹس آپ کے آلے اور ڈیٹا کو خطرے میں ڈال سکتی ہیں۔"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"غیر تصدیق شدہ ایپ ڈویلپر"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"انٹرنیٹ نہیں ہے، ایپ ڈویلپر کی تصدیق نہیں کی جا سکتی"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"ایپ ڈویلپر کی تصدیق نہیں کی جا سکتی"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"تصدیق کیے بغیر انسٹال کریں"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"تصدیق کیے بغیر اپ ڈیٹ کریں"</string>
+    <string name="button_install" msgid="7434013176505680162">"انسٹال کریں"</string>
+    <string name="button_update" msgid="3046719350226327526">"اپ ڈیٹ کریں"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"بہر حال اپ ڈیٹ کریں"</string>
+    <string name="button_done" msgid="3408025390982260629">"ہو گیا"</string>
+    <string name="button_open" msgid="6892684987374117955">"کھولیں"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"منسوخ کریں"</string>
+    <string name="button_continue" msgid="107501685249826244">"جاری رکھیں"</string>
+    <string name="button_close" msgid="7187308556466275899">"بند کریں"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"اَن انسٹال کریں"</string>
+    <string name="button_delete" msgid="1050833585936159792">"حذف کریں"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"دوبارہ انسٹال کریں"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"ایپس کا نظم کریں"</string>
+    <string name="button_archive" msgid="2719647830439699121">"آرکائیو کریں"</string>
+    <string name="button_restore" msgid="4388317532933866637">"بحال کریں"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"اپ ڈیٹس اَن انسٹال کریں"</string>
+    <string name="button_settings" msgid="3837571366246132287">"ترتیبات"</string>
+    <string name="button_retry" msgid="6736082260813816198">"دوبارہ کوشش کریں"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"‫<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> کلون"</string>
+</resources>

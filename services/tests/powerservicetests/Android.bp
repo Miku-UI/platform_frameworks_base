@@ -12,15 +12,17 @@ android_test {
     ],
 
     static_libs: [
-        "truth",
+        "TestParameterInjector",
         "flag-junit",
         "frameworks-base-testutils",
+        "perfetto_trace_java_protos",
         "platform-compat-test-rules",
         "platform-test-annotations",
         "services.core",
         "servicestests-utils",
         "testables",
-        "TestParameterInjector",
+        "truth",
+        "truth-liteproto-extension",
     ],
 
     libs: [
@@ -33,8 +35,8 @@ android_test {
 
     platform_apis: true,
     test_suites: [
-        "device-tests",
         "automotive-tests",
+        "device-tests",
     ],
 
     certificate: "platform",

@@ -5,7 +5,7 @@ package junit.runner;
 
 /**
  * The standard test suite loader. It can only load the same class once.
- * {@hide}
+ * @hide
  */
 public class StandardTestSuiteLoader implements TestSuiteLoader {
     /**

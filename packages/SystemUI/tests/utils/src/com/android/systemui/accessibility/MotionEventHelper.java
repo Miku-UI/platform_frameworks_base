@@ -18,6 +18,9 @@ package com.android.systemui.accessibility;
 
 import android.view.MotionEvent;
 
+import androidx.test.core.view.MotionEventBuilder;
+import androidx.test.core.view.PointerPropertiesBuilder;
+
 import com.android.internal.annotations.GuardedBy;
 
 import java.util.ArrayList;
@@ -39,6 +42,34 @@ public class MotionEventHelper {
     public MotionEvent obtainMotionEvent(long downTime, long eventTime, int action, float x,
             float y) {
         MotionEvent event = MotionEvent.obtain(downTime, eventTime, action, x, y, 0);
+        synchronized (this) {
+            mMotionEvents.add(event);
+        }
+        return event;
+    }
+
+    /**
+     * Creates a {@link MotionEvent} with a batch of pointers. Call this with one or more pointer
+     * coordinates, which will be added to the batch of the event.
+     */
+    public MotionEvent obtainBatchedMotionEvent(long downTime, int action, int source,
+            int toolType, MotionEvent.PointerCoords... coords) {
+        if (coords.length == 0) {
+            throw new IllegalArgumentException("coords cannot be empty");
+        }
+        MotionEvent event = MotionEventBuilder.newBuilder()
+                .setDownTime(downTime)
+                .setEventTime(downTime)
+                .setAction(action)
+                .setSource(source)
+                .setPointer(
+                        PointerPropertiesBuilder.newBuilder().setToolType(toolType).build(),
+                        coords[0])
+                .build();
+        for (int i = 1; i < coords.length; i++) {
+            event.addBatch(downTime, new MotionEvent.PointerCoords[]{coords[i]}, /* metaState= */
+                    0);
+        }
         synchronized (this) {
             mMotionEvents.add(event);
         }

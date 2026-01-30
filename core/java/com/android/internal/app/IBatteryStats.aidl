@@ -247,23 +247,23 @@ interface IBatteryStats {
     @EnforcePermission("UPDATE_DEVICE_STATS")
     void noteBleScanResults(in WorkSource ws, int numNewResults);
 
-    /** {@hide} */
+    /** @hide */
     @EnforcePermission(anyOf = {"UPDATE_DEVICE_STATS", "BATTERY_STATS"})
     CellularBatteryStats getCellularBatteryStats();
 
-    /** {@hide} */
+    /** @hide */
     @EnforcePermission(anyOf = {"UPDATE_DEVICE_STATS", "BATTERY_STATS"})
     WifiBatteryStats getWifiBatteryStats();
 
-    /** {@hide} */
+    /** @hide */
     @EnforcePermission("BATTERY_STATS")
     GpsBatteryStats getGpsBatteryStats();
 
-    /** {@hide} */
+    /** @hide */
     @EnforcePermission("BATTERY_STATS")
     WakeLockStats getWakeLockStats();
 
-    /** {@hide} */
+    /** @hide */
     @EnforcePermission("BATTERY_STATS")
     BluetoothBatteryStats getBluetoothBatteryStats();
 
@@ -282,7 +282,7 @@ interface IBatteryStats {
     @EnforcePermission("UPDATE_DEVICE_STATS")
     oneway void noteWifiControllerActivity(in WifiActivityEnergyInfo info);
 
-    /** {@hide} */
+    /** @hide */
     @EnforcePermission("POWER_SAVER")
     boolean setChargingStateUpdateDelayMillis(int delay);
 

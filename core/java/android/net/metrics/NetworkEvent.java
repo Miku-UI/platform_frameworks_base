@@ -30,7 +30,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
- * {@hide}
+ * @hide
  * @deprecated The event may not be sent in Android S and above. The events
  * are logged by a single caller in the system using signature permissions
  * and that caller is migrating to statsd.

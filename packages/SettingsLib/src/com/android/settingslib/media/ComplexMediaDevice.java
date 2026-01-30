@@ -36,8 +36,9 @@ public class ComplexMediaDevice extends MediaDevice {
     ComplexMediaDevice(
             @NonNull Context context,
             @NonNull MediaRoute2Info info,
-            @Nullable RouteListingPreference.Item item) {
-        super(context, info, item);
+            @Nullable DynamicRouteAttributes dynamicRouteAttributes,
+            @Nullable RouteListingPreference.Item rlpItem) {
+        super(context, info, dynamicRouteAttributes, rlpItem);
     }
 
     // MediaRoute2Info.getName was made public on API 34, but exists since API 30.
@@ -54,12 +55,18 @@ public class ComplexMediaDevice extends MediaDevice {
 
     @Override
     public Drawable getIcon() {
-        return mContext.getDrawable(R.drawable.ic_media_avr_device);
+        return getIcon(mContext);
     }
 
     @Override
     public Drawable getIconWithoutBackground() {
-        return mContext.getDrawable(R.drawable.ic_media_avr_device);
+        return getIcon(mContext);
+    }
+
+    /** Gets the drawable associated with the complex media device. */
+    @NonNull
+    public static Drawable getIcon(Context context) {
+        return context.getDrawable(R.drawable.ic_media_avr_device);
     }
 
     @Override

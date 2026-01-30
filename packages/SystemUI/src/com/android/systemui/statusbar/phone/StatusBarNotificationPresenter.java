@@ -206,7 +206,9 @@ class StatusBarNotificationPresenter implements NotificationPresenter, CommandQu
                 && !mQsController.getExpanded()
                 && mStatusBarStateController.getState() == StatusBarState.SHADE_LOCKED
                 && !isCollapsing()) {
-            mStatusBarStateController.setState(StatusBarState.KEYGUARD);
+            // wait for child animations before we close the shade to have a smooth transition
+            mNsslController.runAfterAnimationFinished(
+                    () -> mStatusBarStateController.setState(StatusBarState.KEYGUARD));
         }
     }
 

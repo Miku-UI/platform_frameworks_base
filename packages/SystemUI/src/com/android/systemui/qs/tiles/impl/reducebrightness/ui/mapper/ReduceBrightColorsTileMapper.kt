@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.reducebrightness.ui.mapper
 
 import android.content.res.Resources
-import android.service.quicksettings.Tile
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.qs.tiles.base.shared.model.QSTileConfig
 import com.android.systemui.qs.tiles.base.shared.model.QSTileState
@@ -41,15 +40,9 @@ constructor(
             if (data.isEnabled) {
                 activationState = QSTileState.ActivationState.ACTIVE
                 iconRes = R.drawable.qs_extra_dim_icon_on
-                secondaryLabel =
-                    resources
-                        .getStringArray(R.array.tile_states_reduce_brightness)[Tile.STATE_ACTIVE]
             } else {
                 activationState = QSTileState.ActivationState.INACTIVE
                 iconRes = R.drawable.qs_extra_dim_icon_off
-                secondaryLabel =
-                    resources
-                        .getStringArray(R.array.tile_states_reduce_brightness)[Tile.STATE_INACTIVE]
             }
             icon = Icon.Loaded(resources.getDrawable(iconRes, theme), null, iconRes)
             label =

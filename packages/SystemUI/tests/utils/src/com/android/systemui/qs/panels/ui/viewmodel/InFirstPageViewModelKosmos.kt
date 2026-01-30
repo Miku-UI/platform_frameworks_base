@@ -17,5 +17,6 @@
 package com.android.systemui.qs.panels.ui.viewmodel
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.qs.panels.domain.interactor.inFirstPageInteractor
 
-val Kosmos.inFirstPageViewModel by Kosmos.Fixture { InFirstPageViewModel() }
+val Kosmos.inFirstPageViewModel by Kosmos.Fixture { InFirstPageViewModel(inFirstPageInteractor) }

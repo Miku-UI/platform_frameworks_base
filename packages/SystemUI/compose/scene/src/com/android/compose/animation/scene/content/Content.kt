@@ -24,6 +24,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -43,6 +45,13 @@ import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.util.fastAny
+import androidx.compose.ui.util.fastMap
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.android.compose.animation.scene.Ancestor
 import com.android.compose.animation.scene.AnimatedState
 import com.android.compose.animation.scene.ContentKey
@@ -57,6 +66,7 @@ import com.android.compose.animation.scene.InternalContentScope
 import com.android.compose.animation.scene.MovableElement
 import com.android.compose.animation.scene.MovableElementContentScope
 import com.android.compose.animation.scene.MovableElementKey
+import com.android.compose.animation.scene.NestedSceneTransitionLayoutState
 import com.android.compose.animation.scene.SceneTransitionLayoutForTesting
 import com.android.compose.animation.scene.SceneTransitionLayoutImpl
 import com.android.compose.animation.scene.SceneTransitionLayoutScope
@@ -66,8 +76,12 @@ import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.compose.animation.scene.ValueKey
 import com.android.compose.animation.scene.animateSharedValueAsState
+import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.effect.GestureEffect
 import com.android.compose.animation.scene.element
+import com.android.compose.animation.scene.elementAlpha
+import com.android.compose.animation.scene.elementState
+import com.android.compose.animation.scene.getAllNestedTransitionStates
 import com.android.compose.animation.scene.modifiers.noResizeDuringTransitions
 import com.android.compose.gesture.NestedScrollControlState
 import com.android.compose.gesture.NestedScrollableBound
@@ -87,6 +101,7 @@ internal sealed class Content(
     zIndex: Float,
     globalZIndex: Long,
     effectFactory: OverscrollFactory,
+    val alwaysCompose: Boolean,
 ) {
     private val nestedScrollControlState = NestedScrollControlState()
     internal val scope = ContentScopeImpl(layoutImpl, content = this, nestedScrollControlState)
@@ -166,17 +181,42 @@ internal sealed class Content(
         // automatically used when calling rememberOverscrollEffect().
         val isElevationPossible =
             layoutImpl.state.isElevationPossible(content = key, element = null)
-        Box(
-            modifier.then(ContentElement(this, isElevationPossible, isInvisible)).thenIf(
-                layoutImpl.implicitTestTags
-            ) {
-                Modifier.testTag(key.testTag)
+
+        val content =
+            @Composable {
+                Box(
+                    modifier.then(ContentElement(this, isElevationPossible)).thenIf(
+                        layoutImpl.implicitTestTags
+                    ) {
+                        Modifier.testTag(key.testTag)
+                    }
+                ) {
+                    CompositionLocalProvider(LocalOverscrollFactory provides lastFactory) {
+                        scope.content()
+                    }
+                }
             }
-        ) {
-            CompositionLocalProvider(LocalOverscrollFactory provides lastFactory) {
-                scope.content()
-            }
+
+        if (alwaysCompose) {
+            AlwaysComposedContent(isInvisible, content)
+        } else {
+            content()
         }
+    }
+
+    @Composable
+    private fun AlwaysComposedContent(isInvisible: Boolean, content: @Composable () -> Unit) {
+        val maxState = if (isInvisible) Lifecycle.State.CREATED else Lifecycle.State.RESUMED
+        val parentLifecycle = LocalLifecycleOwner.current.lifecycle
+        val lifecycleOwner =
+            remember(parentLifecycle) { RestrictedLifecycleOwner(parentLifecycle, maxState) }
+        DisposableEffect(lifecycleOwner) { onDispose { lifecycleOwner.destroy() } }
+
+        if (maxState != lifecycleOwner.maxLifecycleState) {
+            SideEffect { lifecycleOwner.maxLifecycleState = maxState }
+        }
+
+        CompositionLocalProvider(LocalLifecycleOwner provides lifecycleOwner, content)
     }
 
     fun areNestedSwipesAllowed(): Boolean = nestedScrollControlState.isOuterScrollAllowed
@@ -193,20 +233,16 @@ internal sealed class Content(
 private data class ContentElement(
     private val content: Content,
     private val isElevationPossible: Boolean,
-    private val isInvisible: Boolean,
 ) : ModifierNodeElement<ContentNode>() {
-    override fun create(): ContentNode = ContentNode(content, isElevationPossible, isInvisible)
+    override fun create(): ContentNode = ContentNode(content, isElevationPossible)
 
     override fun update(node: ContentNode) {
-        node.update(content, isElevationPossible, isInvisible)
+        node.update(content, isElevationPossible)
     }
 }
 
-private class ContentNode(
-    private var content: Content,
-    private var isElevationPossible: Boolean,
-    private var isInvisible: Boolean,
-) : DelegatingNode(), ApproachLayoutModifierNode {
+private class ContentNode(private var content: Content, private var isElevationPossible: Boolean) :
+    DelegatingNode(), ApproachLayoutModifierNode {
     private var containerDelegate = containerDelegate(isElevationPossible)
 
     private fun containerDelegate(isElevationPossible: Boolean): ContainerNode? {
@@ -217,7 +253,7 @@ private class ContentNode(
         this.content.targetSize = Element.SizeUnspecified
     }
 
-    fun update(content: Content, isElevationPossible: Boolean, isInvisible: Boolean) {
+    fun update(content: Content, isElevationPossible: Boolean) {
         if (content != this.content) {
             this.content.targetSize = Element.SizeUnspecified
             this.content = content
@@ -229,8 +265,6 @@ private class ContentNode(
             containerDelegate?.let { undelegate(it) }
             containerDelegate = containerDelegate(isElevationPossible)
         }
-
-        this.isInvisible = isInvisible
     }
 
     override fun isMeasurementApproachInProgress(lookaheadSize: IntSize): Boolean = false
@@ -242,11 +276,7 @@ private class ContentNode(
         check(isLookingAhead)
         return measurable.measure(constraints).run {
             content.targetSize = IntSize(width, height)
-            layout(width, height) {
-                if (!isInvisible) {
-                    place(0, 0, zIndex = content.zIndex)
-                }
-            }
+            layout(width, height) { place(0, 0) }
         }
     }
 
@@ -254,13 +284,7 @@ private class ContentNode(
         measurable: Measurable,
         constraints: Constraints,
     ): MeasureResult {
-        return measurable.measure(constraints).run {
-            layout(width, height) {
-                if (!isInvisible) {
-                    place(0, 0, zIndex = content.zIndex)
-                }
-            }
-        }
+        return measurable.measure(constraints).run { layout(width, height) { place(0, 0) } }
     }
 }
 
@@ -277,7 +301,15 @@ internal class ContentScopeImpl(
     override val contentKey: ContentKey
         get() = content.key
 
-    override val layoutState: SceneTransitionLayoutState = layoutImpl.state
+    override val layoutState: SceneTransitionLayoutState =
+        if (layoutImpl.ancestors.isEmpty()) {
+            layoutImpl.state
+        } else {
+            NestedSceneTransitionLayoutState(
+                ancestors = layoutImpl.ancestors.fastMap { it.layoutImpl.state },
+                delegate = layoutImpl.state,
+            )
+        }
 
     override val lookaheadScope: LookaheadScope
         get() = layoutImpl.lookaheadScope
@@ -375,5 +407,63 @@ internal class ContentScopeImpl(
             lookaheadScope = layoutImpl.lookaheadScope,
             implicitTestTags = layoutImpl.implicitTestTags,
         )
+    }
+
+    override fun isAlwaysComposedContentVisible(): Boolean {
+        return isAlwaysComposedContentVisible(layoutImpl.state, contentKey) &&
+            layoutImpl.ancestors.all { ancestor ->
+                isAlwaysComposedContentVisible(ancestor.layoutImpl.state, ancestor.inContent)
+            }
+    }
+
+    private fun isAlwaysComposedContentVisible(
+        layoutState: SceneTransitionLayoutState,
+        content: ContentKey,
+    ): Boolean {
+        return layoutState.currentScene == content ||
+            layoutState.currentOverlays.contains(content) ||
+            layoutState.currentTransitions.fastAny {
+                it.fromContent == content || it.toContent == content
+            }
+    }
+
+    override fun ElementKey.currentAlpha(): Float? {
+        val element = layoutImpl.elements[this] ?: return null
+        val stateInContent = element.stateByContent[contentKey] ?: return null
+        val elementState =
+            elementState(layoutImpl, element, getAllNestedTransitionStates(layoutImpl))
+                ?: return null
+        val transition = elementState as? TransitionState.Transition
+        return elementAlpha(layoutImpl, element, transition, stateInContent)
+    }
+}
+
+/** A [LifecycleOwner] that follows its [parentLifecycle] but is capped at [maxLifecycleState]. */
+private class RestrictedLifecycleOwner(
+    val parentLifecycle: Lifecycle,
+    maxLifecycleState: Lifecycle.State,
+) : LifecycleOwner {
+    override val lifecycle = LifecycleRegistry(this)
+
+    var maxLifecycleState = maxLifecycleState
+        set(value) {
+            field = value
+            updateState()
+        }
+
+    private val observer = LifecycleEventObserver { _, _ -> updateState() }
+
+    init {
+        updateState()
+        parentLifecycle.addObserver(observer)
+    }
+
+    private fun updateState() {
+        lifecycle.currentState = minOf(this.maxLifecycleState, parentLifecycle.currentState)
+    }
+
+    fun destroy() {
+        parentLifecycle.removeObserver(observer)
+        lifecycle.currentState = Lifecycle.State.DESTROYED
     }
 }

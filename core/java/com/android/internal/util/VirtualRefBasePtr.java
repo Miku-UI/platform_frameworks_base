@@ -22,6 +22,7 @@ package com.android.internal.util;
  * It currently does no accounting of natively allocated memory, for the
  * benefit of either GC triggering or heap profiling.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class VirtualRefBasePtr {
     // TODO(b/231729094): Convert to NativeAllocationRegistry?
     private long mNativePtr;

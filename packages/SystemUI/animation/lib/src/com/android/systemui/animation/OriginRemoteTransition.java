@@ -18,12 +18,10 @@ package com.android.systemui.animation;
 
 import static android.view.WindowManager.TRANSIT_CHANGE;
 
-import android.animation.Animator;
-import android.animation.Animator.AnimatorListener;
-import android.animation.ValueAnimator;
 import android.annotation.Nullable;
 import android.content.Context;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.hardware.display.DisplayManager;
 import android.os.Handler;
 import android.os.IBinder;
@@ -51,36 +49,36 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * @hide
  */
-public class OriginRemoteTransition extends IRemoteTransition.Stub {
+public class OriginRemoteTransition extends IRemoteTransition.Stub implements
+        TransitionAnimationController.AnimationRunnerListener {
     private static final String TAG = "OriginRemoteTransition";
-    private static final long FINISH_ANIMATION_TIMEOUT_MS = 100;
+    private static final long FINISH_ANIMATION_TIMEOUT_MS = 200;
 
     private final Context mContext;
     private final boolean mIsEntry;
     private final UIComponent mOrigin;
     private final TransitionPlayer mPlayer;
-    private final long mDuration;
     private final Handler mHandler;
 
     @Nullable private SurfaceControl.Transaction mStartTransaction;
     @Nullable private IRemoteTransitionFinishedCallback mFinishCallback;
     @Nullable private UIComponent.Transaction mOriginTransaction;
-    @Nullable private ValueAnimator mAnimator;
+    @Nullable private TransitionAnimationController mAnimationController;
     @Nullable private SurfaceControl mOriginLeash;
-    private boolean mCancelled;
+    @Nullable private IBinder mLocalTransactionToken;
+    @Nullable private IBinder mShellTransactionToken;
+
 
     OriginRemoteTransition(
             Context context,
             boolean isEntry,
             UIComponent origin,
             TransitionPlayer player,
-            long duration,
             Handler handler) {
         mContext = context;
         mIsEntry = isEntry;
         mOrigin = origin;
         mPlayer = player;
-        mDuration = duration;
         mHandler = handler;
     }
 
@@ -106,7 +104,12 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
             SurfaceControl.Transaction t,
             IBinder mergeTarget,
             IRemoteTransitionFinishedCallback finishCallback) {
-        logD("mergeAnimation - " + info);
+        logD("mergeAnimation for: "
+                + transition
+                + " target: "
+                + mergeTarget
+                + " info: "
+                + info);
         cancel();
     }
 
@@ -134,44 +137,62 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
 
     private void startAnimationInternal(
             TransitionInfo info, @Nullable WindowAnimationState[] states) {
+
+        // setup shared transaction queue
+        shareTransactionQueue();
+
         if (!prepareUIs(info)) {
             logE("Unable to prepare UI!");
             finishAnimation(/* finished= */ false);
             return;
         }
+        // Initialized anim controller and configure for player
+        mAnimationController = new TransitionAnimationController(mHandler, this);
+
         // Notify player that we are starting.
-        mPlayer.onStart(info, states, mStartTransaction, mOrigin, mOriginTransaction);
+        mPlayer.onStart(mAnimationController,
+                info,
+                states,
+                mStartTransaction,
+                mOrigin,
+                mOriginTransaction);
 
         // Apply the initial transactions in case the player forgot to apply them.
         mOriginTransaction.commit();
         mStartTransaction.apply();
 
-        // Start the animator.
-        mAnimator = ValueAnimator.ofFloat(0.0f, 1.0f);
-        mAnimator.setDuration(mDuration);
-        mAnimator.addListener(
-                new AnimatorListener() {
-                    @Override
-                    public void onAnimationStart(Animator a) {}
+        // start animators which were configured in onStart
+        if (!mAnimationController.startAnimations()) {
+            finishAnimation(/* finished= */ false);
+        }
+    }
 
-                    @Override
-                    public void onAnimationEnd(Animator a) {
-                        finishAnimation(/* finished= */ !mCancelled);
-                    }
+    /**
+     * @param animatorId specific ID associated with a given animator, used to disambiguate.
+     * @param canceled   whether or not the animation was canceled (terminated) or ran to
+     *                   completion.
+     */
+    @Override
+    public void onAnimationFinished(String animatorId, boolean canceled) {
+        Log.d(TAG, "onAnimationFinished: " + animatorId + " canceled: " + canceled);
+        maybeFinishAnimation(canceled);
+    }
 
-                    @Override
-                    public void onAnimationCancel(Animator a) {
-                        mCancelled = true;
-                    }
+    private void maybeFinishAnimation(boolean canceled) {
+        if (!mAnimationController.checkAnimationsRunning()) {
+            finishAnimation(/* finished= */ !canceled);
+        }
+    }
 
-                    @Override
-                    public void onAnimationRepeat(Animator a) {}
-                });
-        mAnimator.addUpdateListener(
-                a -> {
-                    mPlayer.onProgress((float) a.getAnimatedValue());
-                });
-        mAnimator.start();
+    /**
+     * @param animatorId   specific ID associated with a given animator, used to disambiguate.
+     * @param progress     representative value of the current state of progress, start to finish.
+     * @param isFirstFrame whether or not the current update represents the drawing of the
+     *                     *first* frame of the animation.
+     */
+    @Override
+    public void onAnimationProgressUpdate(String animatorId, float progress, boolean isFirstFrame) {
+        mPlayer.onProgress(animatorId, progress);
     }
 
     private boolean prepareUIs(TransitionInfo info) {
@@ -304,7 +325,7 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
                     mHandler.removeCallbacks(timeoutRunnable);
                     finishInternalRunnable.run();
                 };
-        if (mAnimator == null) {
+        if (mAnimationController == null) {
             // The transition didn't start. Ensure we apply the start transaction and report
             // finish afterwards.
             mStartTransaction
@@ -314,7 +335,8 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
             mHandler.postDelayed(timeoutRunnable, FINISH_ANIMATION_TIMEOUT_MS);
             return;
         }
-        mAnimator = null;
+        mAnimationController = null;
+
         // Notify client that we have ended.
         mPlayer.onEnd(finished);
         // Detach the origin from the transition leash and report finish after it's done.
@@ -340,16 +362,61 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
         mStartTransaction = null;
         mOriginTransaction = null;
         mFinishCallback = null;
+        unshareTransactionQueue();
     }
 
     public void cancel() {
         logD("cancel()");
         mHandler.post(
                 () -> {
-                    if (mAnimator != null) {
-                        mAnimator.cancel();
+                    if (mAnimationController != null) {
+                        mAnimationController.cancelAnimations();
                     }
                 });
+    }
+
+    /**
+     * Provide server side (shell) token for use in applying transactions.
+     * @hide
+     */
+    public void setShellTransactionToken(IBinder shellApplyToken) {
+        mShellTransactionToken = shellApplyToken;
+    }
+
+    /**
+     * Use server side (shell) transaction-queue instead of local/independent one. This is necessary
+     * if client/server need to coordinate transactions (eg. for shell transitions).
+     */
+    private void shareTransactionQueue() {
+        if (mLocalTransactionToken == null) {
+            mLocalTransactionToken = SurfaceControl.Transaction.getDefaultApplyToken();
+        }
+        setupTransactionQueue();
+    }
+
+    /**
+     * Switch back to using local processes independent transaction queue.
+     */
+    private void unshareTransactionQueue() {
+        if (mLocalTransactionToken == null) {
+            return;
+        }
+        SurfaceControl.Transaction.setDefaultApplyToken(mLocalTransactionToken);
+        mLocalTransactionToken = null;
+        mShellTransactionToken = null;
+    }
+
+    private void setupTransactionQueue() {
+        if (mLocalTransactionToken == null) {
+            return;
+        }
+
+        if (mShellTransactionToken == null) {
+            Log.e(TAG, "Didn't receive apply token from server side (shell)");
+            return;
+        }
+
+        SurfaceControl.Transaction.setDefaultApplyToken(mShellTransactionToken);
     }
 
     private static void logD(String msg) {
@@ -386,12 +453,14 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
                 /* alpha= */ 1.0f,
                 /* visible= */ true,
                 /* bounds= */ maxBounds,
-                /* baseBounds= */ maxBounds);
+                /* baseBounds= */ maxBounds,
+                /* enableBackgroundDimming= */ isOpening);
     }
 
     private static void applyWindowAnimationStates(
             TransitionInfo info,
             @Nullable WindowAnimationState[] states,
+            UIComponent.Transaction transactions,
             UIComponent closingApp,
             UIComponent openingApp) {
         if (states == null) {
@@ -399,10 +468,10 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
             return;
         }
         // Calculate bounds.
-        Rect maxClosingBounds = new Rect();
-        Rect maxOpeningBounds = new Rect();
+        RectF maxClosingBounds = new RectF();
+        RectF maxOpeningBounds = new RectF();
         for (int i = 0; i < info.getChanges().size(); i++) {
-            Rect bound = getBounds(states[i]);
+            RectF bound = getBounds(states[i]);
             if (bound == null) {
                 continue;
             }
@@ -415,30 +484,22 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
             }
         }
 
-        // Intentionally use a new transaction instead of reusing the existing transaction since we
-        // want to apply window animation states first without committing any other pending changes
-        // in the existing transaction. The existing transaction is expected to be committed by the
-        // onStart() client callback together with client's custom transformation.
-        UIComponent.Transaction transaction = closingApp.newTransaction();
         if (!maxClosingBounds.isEmpty()) {
             logD("Applying closing window bounds: " + maxClosingBounds);
-            transaction.setBounds(closingApp, maxClosingBounds);
+            transactions.setBounds(closingApp, maxClosingBounds);
         }
         if (!maxOpeningBounds.isEmpty()) {
             logD("Applying opening window bounds: " + maxOpeningBounds);
-            transaction.setBounds(openingApp, maxOpeningBounds);
+            transactions.setBounds(openingApp, maxOpeningBounds);
         }
-        transaction.commit();
     }
 
     @Nullable
-    private static Rect getBounds(@Nullable WindowAnimationState state) {
+    private static RectF getBounds(@Nullable WindowAnimationState state) {
         if (state == null || state.bounds == null) {
             return null;
         }
-        Rect out = new Rect();
-        state.bounds.roundOut(out);
-        return out;
+        return state.bounds;
     }
 
     /** A {@link Runnable} that will only run once. */
@@ -474,6 +535,7 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
          * expected to apply the {@link WindowAnimationState} before continuing the transition.
          */
         default void onStart(
+                TransitionAnimationController animationController,
                 TransitionInfo transitionInfo,
                 @Nullable WindowAnimationState[] states,
                 SurfaceControl.Transaction sfTransaction,
@@ -491,24 +553,38 @@ public class OriginRemoteTransition extends IRemoteTransition.Stub {
             UIComponent openingApp = wrapSurfaces(transitionInfo, /* isOpening= */ true);
 
             // Restore the pending animation states coming from predictive back transition.
-            applyWindowAnimationStates(transitionInfo, states, closingApp, openingApp);
+            applyWindowAnimationStates(
+                    transitionInfo, states, transactions, closingApp, openingApp);
+
+            // ensure that we apply any transactions (e.g. bounds/cropping/corners etc) that might
+            // be required prior to starting the actual animation.
+            transactions.commit();
 
             // Start.
-            onStart(transactions, origin, closingApp, openingApp);
+            onStart(animationController, transactions, origin, closingApp, openingApp);
         }
 
         /**
          * Called when an origin transition starts. This method exposes the opening and closing
          * windows as wrapped {@link UIComponent} to provide simplified interface to clients.
+         *
+         * Animators associated with the transition/animation should be configured using the
+         * TransitionAnimationController provided. Note that animators (easing or spring) are added
+         * e controller via {@link TransitionAnimationController#addValueAnimation(String,
+         * BaseInterpolator, long, long)} and
+         * {@link TransitionAnimationController#addSpringAnimation(String, float, float)}
+         * respectively.
          */
         void onStart(
+                TransitionAnimationController animationController,
                 UIComponent.Transaction transaction,
                 UIComponent origin,
                 UIComponent closingApp,
                 UIComponent openingApp);
 
+
         /** Called to update the transition frame. */
-        void onProgress(float progress);
+        void onProgress(String animatorId, float progress);
 
         /** Called when the transition ended. */
         void onEnd(boolean finished);

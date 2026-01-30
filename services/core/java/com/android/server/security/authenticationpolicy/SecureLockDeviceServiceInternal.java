@@ -16,11 +16,14 @@
 
 package com.android.server.security.authenticationpolicy;
 
+import android.os.UserHandle;
 import android.security.authenticationpolicy.AuthenticationPolicyManager;
 import android.security.authenticationpolicy.AuthenticationPolicyManager.DisableSecureLockDeviceRequestStatus;
 import android.security.authenticationpolicy.AuthenticationPolicyManager.EnableSecureLockDeviceRequestStatus;
+import android.security.authenticationpolicy.AuthenticationPolicyManager.GetSecureLockDeviceAvailabilityRequestStatus;
 import android.security.authenticationpolicy.DisableSecureLockDeviceParams;
 import android.security.authenticationpolicy.EnableSecureLockDeviceParams;
+import android.security.authenticationpolicy.ISecureLockDeviceStatusListener;
 
 /**
  * Local system service interface for {@link SecureLockDeviceService}.
@@ -34,22 +37,82 @@ public abstract class SecureLockDeviceServiceInternal {
     private static final String TAG = "SecureLockDeviceServiceInternal";
 
     /**
+     * @see AuthenticationPolicyManager#getSecureLockDeviceAvailability()
+     * @param user {@link UserHandle} to check that secure lock device is available for
+     * @return {@link GetSecureLockDeviceAvailabilityRequestStatus} int indicating whether secure
+     * lock device is available for the calling user
+     *
+     * @hide
+     */
+    @GetSecureLockDeviceAvailabilityRequestStatus
+    public abstract int getSecureLockDeviceAvailability(UserHandle user);
+
+    /**
      * @see AuthenticationPolicyManager#enableSecureLockDevice(EnableSecureLockDeviceParams)
-     * @param params EnableSecureLockDeviceParams for caller to supply params related
+     * @param user {@link UserHandle} secure lock device is being disabled for
+     * @param params {@link EnableSecureLockDeviceParams} for caller to supply params related
      *               to the secure lock request
-     * @return @EnableSecureLockDeviceRequestStatus int indicating the result of the
+     * @return {@link EnableSecureLockDeviceRequestStatus} int indicating the result of the
      * secure lock request
      */
     @EnableSecureLockDeviceRequestStatus
-    public abstract int enableSecureLockDevice(EnableSecureLockDeviceParams params);
+    public abstract int enableSecureLockDevice(UserHandle user,
+            EnableSecureLockDeviceParams params);
 
     /**
      * @see AuthenticationPolicyManager#disableSecureLockDevice(DisableSecureLockDeviceParams)
-     * @param params @DisableSecureLockDeviceParams for caller to supply params related
+     * @param user {@link UserHandle} secure lock device is being disabled for
+     * @param params {@link DisableSecureLockDeviceParams} for caller to supply params related
      *               to the secure lock device request
-     * @return @DisableSecureLockDeviceRequestStatus int indicating the result of the
+     * @param authenticationComplete indicates if secure lock device is being disabled as a result
+     *                               of successful two-factor primary and biometric authentication
+     * @return {@link DisableSecureLockDeviceRequestStatus} int indicating the result of the
      * secure lock device request
      */
     @DisableSecureLockDeviceRequestStatus
-    public abstract int disableSecureLockDevice(DisableSecureLockDeviceParams params);
+    public abstract int disableSecureLockDevice(UserHandle user,
+            DisableSecureLockDeviceParams params, boolean authenticationComplete);
+
+    /**
+     * @see SecureLockDeviceService#onStrongBiometricAuthenticationSuccess
+     * @param user that performed the successful biometric authentication
+     * @hide
+     */
+    public abstract void onStrongBiometricAuthenticationSuccess(UserHandle user);
+
+    /**
+     * @see SecureLockDeviceService#hasUserCompletedTwoFactorAuthentication
+     * @param user to check for two-factor authentication completion
+     * @hide
+     */
+    public abstract boolean hasUserCompletedTwoFactorAuthentication(UserHandle user);
+
+    /**
+     * @see AuthenticationPolicyManager#isSecureLockDeviceEnabled()
+     * @return true if secure lock device is enabled, false otherwise
+     */
+    public abstract boolean isSecureLockDeviceEnabled();
+
+    /**
+     * @see AuthenticationPolicyManager#registerSecureLockDeviceStatusListener
+     * @param user user associated with the calling context to notify of updates to secure
+     *             lock device availability
+     * @param listener {@link ISecureLockDeviceStatusListener} to register for updates to secure
+     *                                                        lock device status
+     */
+    public abstract void registerSecureLockDeviceStatusListener(UserHandle user,
+            ISecureLockDeviceStatusListener listener);
+
+    /**
+     * @see AuthenticationPolicyManager#unregisterSecureLockDeviceStatusListener
+     * @param listener {@link ISecureLockDeviceStatusListener} to unregister from updates to secure
+     *                                                        lock device status
+     */
+    public abstract void unregisterSecureLockDeviceStatusListener(
+            ISecureLockDeviceStatusListener listener);
+
+    /**
+     * @see AuthenticationPolicyManager#setSecureLockDeviceTestStatus(boolean)
+     */
+    public abstract void setSecureLockDeviceTestStatus(boolean isTestMode);
 }

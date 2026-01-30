@@ -21,13 +21,14 @@ import android.hosttest.annotation.HostSideTestKeep;
 import android.hosttest.annotation.HostSideTestRemove;
 import android.hosttest.annotation.HostSideTestSubstitute;
 import android.hosttest.annotation.HostSideTestThrow;
+import android.hosttest.annotation.HostSideTestThrowButSupported;
 
 /**
  * Test without class-wide annotations.
  */
 @HostSideTestKeep
 @HostSideTestClassLoadHook(
-        "com.android.hoststubgen.test.tinyframework.TinyFrameworkClassLoadHook.onClassLoaded")
+        "com.android.hoststubgen.test.tinyframework.TinyFrameworkHooks.onClassLoaded")
 public final class TinyFrameworkAnnotations {
     @HostSideTestKeep
     public TinyFrameworkAnnotations() {
@@ -71,6 +72,11 @@ public final class TinyFrameworkAnnotations {
     @HostSideTestThrow
     public String unsupportedMethod() {
         return "This value shouldn't be seen on the host side.";
+    }
+
+    /** */
+    @HostSideTestThrowButSupported
+    public void throwButSupported() {
     }
 
     @HostSideTestIgnore

@@ -16,8 +16,8 @@
 
 package com.android.server.inputmethod;
 
-import static android.server.inputmethod.InputMethodManagerServiceProto.CUR_FOCUSED_WINDOW_NAME;
-import static android.server.inputmethod.InputMethodManagerServiceProto.CUR_FOCUSED_WINDOW_SOFT_INPUT_MODE;
+import static android.internal.perfetto.protos.Inputmethodmanagerservice.InputMethodManagerServiceProto.CUR_FOCUSED_WINDOW_NAME;
+import static android.internal.perfetto.protos.Inputmethodmanagerservice.InputMethodManagerServiceProto.CUR_FOCUSED_WINDOW_SOFT_INPUT_MODE;
 import static android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED;
 
 import android.annotation.NonNull;
@@ -43,9 +43,9 @@ final class ImeBindingState {
     final int mUserId;
 
     /**
-     * The last window token that we confirmed to be focused. This is always updated upon reports
-     * from the input method client. If the window state is already changed before the report is
-     * handled, this field just keeps the last value.
+     * The token of the last window that we confirmed to be focused. This is always updated upon
+     * reports from the input method client. If the window state is already changed before the
+     * report is handled, this field just keeps the last value.
      */
     @Nullable
     final IBinder mFocusedWindow;

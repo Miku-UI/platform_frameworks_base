@@ -32,6 +32,7 @@ import android.util.Pair;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.widget.LockPatternUtils;
+import com.android.internal.widget.LockscreenCredential;
 import com.android.server.locksettings.recoverablekeystore.storage.RecoverableKeyStoreDb;
 import com.android.server.locksettings.recoverablekeystore.storage.RecoverySnapshotStorage;
 
@@ -50,7 +51,6 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertPath;
 import java.security.cert.CertificateException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -84,8 +84,7 @@ public class KeySyncTask implements Runnable {
 
     private final RecoverableKeyStoreDb mRecoverableKeyStoreDb;
     private final int mUserId;
-    private final int mCredentialType;
-    private final byte[] mCredential;
+    private final LockscreenCredential mCredential;
     private final boolean mCredentialUpdated;
     private final PlatformKeyManager mPlatformKeyManager;
     private final RecoverySnapshotStorage mRecoverySnapshotStorage;
@@ -99,8 +98,7 @@ public class KeySyncTask implements Runnable {
             RecoverySnapshotStorage snapshotStorage,
             RecoverySnapshotListenersStorage recoverySnapshotListenersStorage,
             int userId,
-            int credentialType,
-            byte[] credential,
+            LockscreenCredential credential,
             boolean credentialUpdated
     ) throws NoSuchAlgorithmException, KeyStoreException, InsecureUserException {
         return new KeySyncTask(
@@ -108,7 +106,6 @@ public class KeySyncTask implements Runnable {
                 snapshotStorage,
                 recoverySnapshotListenersStorage,
                 userId,
-                credentialType,
                 credential,
                 credentialUpdated,
                 PlatformKeyManager.getInstance(context, recoverableKeyStoreDb),
@@ -121,8 +118,7 @@ public class KeySyncTask implements Runnable {
      *
      * @param recoverableKeyStoreDb Database where the keys are stored.
      * @param userId The uid of the user whose profile has been unlocked.
-     * @param credentialType The type of credential as defined in {@code LockPatternUtils}
-     * @param credential The credential, encoded as a byte array
+     * @param credential The lockscreen credential
      * @param credentialUpdated indicates credentials change.
      * @param platformKeyManager platform key manager
      * @param testOnlyInsecureCertificateHelper utility class used for end-to-end tests
@@ -133,8 +129,7 @@ public class KeySyncTask implements Runnable {
             RecoverySnapshotStorage snapshotStorage,
             RecoverySnapshotListenersStorage recoverySnapshotListenersStorage,
             int userId,
-            int credentialType,
-            byte[] credential,
+            LockscreenCredential credential,
             boolean credentialUpdated,
             PlatformKeyManager platformKeyManager,
             TestOnlyInsecureCertificateHelper testOnlyInsecureCertificateHelper,
@@ -142,8 +137,9 @@ public class KeySyncTask implements Runnable {
         mSnapshotListenersStorage = recoverySnapshotListenersStorage;
         mRecoverableKeyStoreDb = recoverableKeyStoreDb;
         mUserId = userId;
-        mCredentialType = credentialType;
-        mCredential = credential != null ? Arrays.copyOf(credential, credential.length) : null;
+        // This is an async task, so duplicate the credential in case the calling code later
+        // zeroizes it. KeySyncTask zeroizes the duplicate copy when it finishes.
+        mCredential = credential.duplicate();
         mCredentialUpdated = credentialUpdated;
         mPlatformKeyManager = platformKeyManager;
         mRecoverySnapshotStorage = snapshotStorage;
@@ -161,14 +157,13 @@ public class KeySyncTask implements Runnable {
         } catch (Exception e) {
             Log.e(TAG, "Unexpected exception thrown during KeySyncTask", e);
         } finally {
-            if (mCredential != null) {
-                LockPatternUtils.zeroize(mCredential); // no longer needed.
-            }
+            mCredential.zeroize(); // no longer needed
         }
     }
 
-    private void syncKeys() throws RemoteException {
-        if (mCredential != null && mCredential.length >= 80) {
+    @VisibleForTesting
+    void syncKeys() throws RemoteException {
+        if (mCredential.size() >= 80) {
             // The value is likely a randomly generated profile password
             // It doesn't match string typed by the user.
             Log.e(TAG, "Unexpected credential length for user " + mUserId);
@@ -177,7 +172,7 @@ public class KeySyncTask implements Runnable {
             mRecoverableKeyStoreDb.setBadRemoteGuessCounter(mUserId, 0);
         }
         int generation = mPlatformKeyManager.getGenerationId(mUserId);
-        if (mCredentialType == LockPatternUtils.CREDENTIAL_TYPE_NONE) {
+        if (mCredential.isNone()) {
             // Application keys for the user will not be available for sync.
             Log.w(TAG, "Credentials are not set for user " + mUserId);
             if (generation < PlatformKeyManager.MIN_GENERATION_ID_FOR_UNLOCKED_DEVICE_REQUIRED) {
@@ -187,7 +182,11 @@ public class KeySyncTask implements Runnable {
             return;
         }
         if (isCustomLockScreen()) {
-            Log.w(TAG, "Unsupported credential type " + mCredentialType + " for user " + mUserId);
+            // This code is unreachable in AOSP, since LockscreenCredential can be constructed only
+            // with a known credential type. Keep it here in case a customization adds a custom
+            // credential type.
+            final int type = mCredential.getType();
+            Log.w(TAG, "Unsupported credential type " + type + " for user " + mUserId);
             // Keys will be synced when user starts using non custom screen lock.
             if (generation < PlatformKeyManager.MIN_GENERATION_ID_FOR_UNLOCKED_DEVICE_REQUIRED) {
                 mRecoverableKeyStoreDb.invalidateKeysForUserIdOnCustomScreenLock(mUserId);
@@ -213,10 +212,10 @@ public class KeySyncTask implements Runnable {
     }
 
     private boolean isCustomLockScreen() {
-        return mCredentialType != LockPatternUtils.CREDENTIAL_TYPE_NONE
-            && mCredentialType != LockPatternUtils.CREDENTIAL_TYPE_PATTERN
-            && mCredentialType != LockPatternUtils.CREDENTIAL_TYPE_PIN
-            && mCredentialType != LockPatternUtils.CREDENTIAL_TYPE_PASSWORD;
+        return !mCredential.isNone()
+                && !mCredential.isPattern()
+                && !mCredential.isPin()
+                && !mCredential.isPassword();
     }
 
     private void syncKeysForAgent(int recoveryAgentUid) throws IOException, RemoteException {
@@ -263,8 +262,7 @@ public class KeySyncTask implements Runnable {
         if (mTestOnlyInsecureCertificateHelper.isTestOnlyCertificateAlias(rootCertAlias)) {
             Log.w(TAG, "Insecure root certificate is used by recovery agent "
                     + recoveryAgentUid);
-            if (mTestOnlyInsecureCertificateHelper.doesCredentialSupportInsecureMode(
-                    mCredentialType, mCredential)) {
+            if (mTestOnlyInsecureCertificateHelper.doesCredentialSupportInsecureMode(mCredential)) {
                 Log.w(TAG, "Whitelisted credential is used to generate snapshot by "
                         + "recovery agent "+ recoveryAgentUid);
             } else {
@@ -275,12 +273,12 @@ public class KeySyncTask implements Runnable {
         }
 
         boolean useScryptToHashCredential = shouldUseScryptToHashCredential();
-        byte[] salt = generateSalt();
+        byte[] salt = generateNewSaltIfNecessary();
         byte[] localLskfHash;
         if (useScryptToHashCredential) {
-            localLskfHash = hashCredentialsByScrypt(salt, mCredential);
+            localLskfHash = hashCredentialsByScrypt(salt, mCredential.getCredential());
         } else {
-            localLskfHash = hashCredentialsBySaltedSha256(salt, mCredential);
+            localLskfHash = hashCredentialsBySaltedSha256(salt, mCredential.getCredential());
         }
 
         Map<String, Pair<SecretKey, byte[]>> rawKeysWithMetadata;
@@ -368,7 +366,7 @@ public class KeySyncTask implements Runnable {
         }
         KeyChainProtectionParams keyChainProtectionParams = new KeyChainProtectionParams.Builder()
                 .setUserSecretType(TYPE_LOCKSCREEN)
-                .setLockScreenUiFormat(getUiFormat(mCredentialType))
+                .setLockScreenUiFormat(getUiFormat(mCredential.getType()))
                 .setKeyDerivationParams(keyDerivationParams)
                 .setSecret(new byte[0])
                 .build();
@@ -483,6 +481,27 @@ public class KeySyncTask implements Runnable {
     }
 
     /**
+     * Reads salt from the database if LSKF is the same as in the previous snapshot.
+     *
+     * @return The salt.
+     */
+    private byte[] generateNewSaltIfNecessary() {
+        if (mCredentialUpdated) {
+            byte[] newSalt = generateSalt();
+            mRecoverableKeyStoreDb.setLskfSalt(mUserId, newSalt);
+            return newSalt;
+        }
+        byte[] storedSalt = mRecoverableKeyStoreDb.getLskfSalt(mUserId);
+        if (storedSalt != null && storedSalt.length == SALT_LENGTH_BYTES) {
+            return storedSalt;
+        } else {
+            byte[] newSalt = generateSalt();
+            mRecoverableKeyStoreDb.setLskfSalt(mUserId, newSalt);
+            return newSalt;
+        }
+    }
+
+    /**
      * Generates a salt to include with the lock screen hash.
      *
      * @return The salt.
@@ -511,7 +530,7 @@ public class KeySyncTask implements Runnable {
 
         try {
             byte[] hash = MessageDigest.getInstance(LOCK_SCREEN_HASH_ALGORITHM).digest(bytes);
-            LockPatternUtils.zeroize(bytes);
+            ArrayUtils.zeroize(bytes);
             return hash;
         } catch (NoSuchAlgorithmException e) {
             // Impossible, SHA-256 must be supported on Android.
@@ -546,7 +565,6 @@ public class KeySyncTask implements Runnable {
     }
 
     private boolean shouldUseScryptToHashCredential() {
-        return mCredentialType == LockPatternUtils.CREDENTIAL_TYPE_PASSWORD
-                || mCredentialType == LockPatternUtils.CREDENTIAL_TYPE_PIN;
+        return mCredential.isPassword() || mCredential.isPin();
     }
 }

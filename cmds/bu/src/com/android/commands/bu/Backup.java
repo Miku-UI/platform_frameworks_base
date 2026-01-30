@@ -27,11 +27,47 @@ import android.util.Log;
 
 import com.android.internal.annotations.VisibleForTesting;
 
+import com.google.errorprone.annotations.FormatMethod;
+import com.google.errorprone.annotations.FormatString;
+
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Locale;
 
 public final class Backup {
     static final String TAG = "bu";
+    static final String USAGE = """
+        WARNING: bu is deprecated and may be removed in a future release
+
+        Usage: bu <command> [options]
+
+        Commands:
+          backup [-user USER_ID] [-apk|-noapk] [-obb|-noobb] [-shared|-noshared]
+                 [-all] [-system|-nosystem] [-widgets|-nowidgets]
+                 [-compress|-nocompress] [-keyvalue|-nokeyvalue] [PACKAGE...]
+            Write an archive of the device's data to stdout.
+            The package list is optional if -all or -shared is supplied.
+            Example: bu backup -all -apk > backup.ab
+
+          restore [-user USER_ID]
+            Restore device contents from stdin.
+            Example: bu restore < backup.ab
+
+        Global options:
+          -user USER_ID: user ID for which to perform the operation (default - system user)
+
+        Options for 'backup':
+          -apk/-noapk: do/don't back up .apk files (default -noapk)
+          -obb/-noobb: do/don't back up .obb files (default -noobb)
+          -shared|-noshared: do/don't back up shared storage (default -noshared)
+          -all: back up all installed applications
+          -system|-nosystem: include system apps in -all (default -system)
+          -widgets|-nowidgets: do/don't back up widget data (default: -nowidgets)
+          -compress|-nocompress: enable/disable compression of the backup data (default: -compress)
+          -keyvalue|-nokeyvalue: do/don't back up apps that are key/value based
+                                 (default: -nokeyvalue)
+
+        'restore' command does not take any package names or options other than -user.""";
 
     static String[] mArgs;
     int mNextArg;
@@ -46,38 +82,53 @@ public final class Backup {
         mBackupManager = IBackupManager.Stub.asInterface(ServiceManager.getService("backup"));
     }
 
+    @FormatMethod
+    private static void logAndPrintError(@FormatString String logFormat, Object... args) {
+        String message = String.format(Locale.ENGLISH, logFormat, args);
+        Log.e(TAG, message);
+        System.err.println("Error: " + message);
+    }
+
     public static void main(String[] args) {
         try {
             new Backup().run(args);
         } catch (Exception e) {
-            Log.e(TAG, "Error running backup/restore", e);
+            logAndPrintError("Error running backup/restore: %s", e);
         }
-        Log.d(TAG, "Finished.");
     }
 
     public void run(String[] args) {
         if (mBackupManager == null) {
-            Log.e(TAG, "Can't obtain Backup Manager binder");
+            logAndPrintError("Can't obtain Backup Manager binder");
             return;
         }
 
-        Log.d(TAG, "Beginning: " + args[0]);
         mArgs = args;
+        String firstArg = nextArg();
+
+        boolean isBackupCommand;
+        if ("backup".equals(firstArg)) {
+            isBackupCommand = true;
+        } else if ("restore".equals(firstArg)) {
+            isBackupCommand = false;
+        } else {
+            System.err.println(USAGE);
+            return;
+        }
 
         int userId = parseUserId();
         if (!isBackupActiveForUser(userId)) {
-            Log.e(TAG, "BackupManager is not available for user " + userId);
+            logAndPrintError("BackupManager is not active for user %d", userId);
             return;
         }
 
-        String arg = nextArg();
-        if (arg.equals("backup")) {
+        Log.i(TAG, "Beginning " + firstArg + " for user " + userId);
+        if (isBackupCommand) {
             doBackup(OsConstants.STDOUT_FILENO, userId);
-        } else if (arg.equals("restore")) {
-            doRestore(OsConstants.STDIN_FILENO, userId);
         } else {
-            showUsage();
+            doRestore(OsConstants.STDIN_FILENO, userId);
         }
+        Log.i(TAG, "Finished " + firstArg + " for user " + userId);
     }
 
     private void doBackup(int socketFd, @UserIdInt int userId) {
@@ -129,7 +180,8 @@ public final class Backup {
                     nextArg();
                     continue;
                 } else {
-                    Log.w(TAG, "Unknown backup flag " + arg);
+                    // Log error and continue.
+                    logAndPrintError("Unknown backup flag %s", arg);
                     continue;
                 }
             } else {
@@ -139,11 +191,11 @@ public final class Backup {
         }
 
         if (doEverything && packages.size() > 0) {
-            Log.w(TAG, "-all passed for backup along with specific package names");
+            logAndPrintError("-all passed for backup along with specific package names");
         }
 
         if (!doEverything && !saveShared && packages.size() == 0) {
-            Log.e(TAG, "no backup packages supplied and neither -shared nor -all given");
+            logAndPrintError("no backup packages supplied and neither -shared nor -all given");
             return;
         }
 
@@ -154,13 +206,13 @@ public final class Backup {
             mBackupManager.adbBackup(userId, fd, saveApks, saveObbs, saveShared, doWidgets, doEverything,
                     allIncludesSystem, doCompress, doKeyValue, packages.toArray(packArray));
         } catch (RemoteException e) {
-            Log.e(TAG, "Unable to invoke backup manager for backup");
+            logAndPrintError("Unable to invoke backup manager for backup (user %d)", userId);
         } finally {
             if (fd != null) {
                 try {
                     fd.close();
                 } catch (IOException e) {
-                    Log.e(TAG, "IO error closing output for backup: " + e.getMessage());
+                    logAndPrintError("IO error closing output for backup: %s", e);
                 }
             }
         }
@@ -173,7 +225,7 @@ public final class Backup {
             fd = ParcelFileDescriptor.adoptFd(socketFd);
             mBackupManager.adbRestore(userId, fd);
         } catch (RemoteException e) {
-            Log.e(TAG, "Unable to invoke backup manager for restore");
+            logAndPrintError("Unable to invoke backup manager for restore (user %d)", userId);
         } finally {
             if (fd != null) {
                 try {
@@ -197,26 +249,9 @@ public final class Backup {
         try {
             return mBackupManager.isBackupServiceActive(userId);
         } catch (RemoteException e) {
-            Log.e(TAG, "Could not access BackupManager: " + e.toString());
+            logAndPrintError("Could not access BackupManager: %s", e);
             return false;
         }
-    }
-
-    private static void showUsage() {
-        System.err.println(" backup [-user USER_ID] [-f FILE] [-apk|-noapk] [-obb|-noobb] [-shared|-noshared]");
-        System.err.println("        [-all] [-system|-nosystem] [-keyvalue|-nokeyvalue] [PACKAGE...]");
-        System.err.println("     write an archive of the device's data to FILE [default=backup.adb]");
-        System.err.println("     package list optional if -all/-shared are supplied");
-        System.err.println("     -user: user ID for which to perform the operation (default - system user)");
-        System.err.println("     -apk/-noapk: do/don't back up .apk files (default -noapk)");
-        System.err.println("     -obb/-noobb: do/don't back up .obb files (default -noobb)");
-        System.err.println("     -shared|-noshared: do/don't back up shared storage (default -noshared)");
-        System.err.println("     -all: back up all installed applications");
-        System.err.println("     -system|-nosystem: include system apps in -all (default -system)");
-        System.err.println("     -keyvalue|-nokeyvalue: include apps that perform key/value backups.");
-        System.err.println("         (default -nokeyvalue)");
-        System.err.println(" restore [-user USER_ID] FILE       restore device contents from FILE");
-        System.err.println("     -user: user ID for which to perform the operation (default - system user)");
     }
 
     private String nextArg() {

@@ -15,6 +15,8 @@
  */
 package com.android.keyguard;
 
+import static com.android.systemui.bouncer.shared.constants.KeyguardBouncerConstants.ColorId.NUM_PAD_BACKGROUND;
+
 import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ArgbEvaluator;
@@ -33,6 +35,7 @@ import androidx.annotation.StyleRes;
 import com.android.systemui.Flags;
 import com.android.systemui.bouncer.shared.constants.PinBouncerConstants.Animation;
 import com.android.systemui.bouncer.shared.constants.PinBouncerConstants.Color;
+import com.android.systemui.bouncer.ui.BouncerColors;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -122,11 +125,12 @@ class NumPadAnimator {
             ContextThemeWrapper ctw = new ContextThemeWrapper(context, mStyle);
             @SuppressLint("ResourceType") TypedArray a = ctw.obtainStyledAttributes(customAttrs);
 
-            mNormalBackgroundColor = a.getColor(0, context.getColor(Color.digitBg));
+            mNormalBackgroundColor = a.getColor(0, context.getColor(NUM_PAD_BACKGROUND));
 
             a.recycle();
         } else {
-            mNormalBackgroundColor = context.getColor(isNumPadKey ? Color.digitBg : Color.actionBg);
+            mNormalBackgroundColor = isNumPadKey ? BouncerColors.pinDigitBg(context)
+                            : BouncerColors.pinActionBg(context);
         }
 
         mPressedBackgroundColor = context.getColor(Color.bgPressed);

@@ -109,6 +109,7 @@ import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityMod
 import com.android.systemui.statusbar.pipeline.shared.data.model.toMobileDataActivityModel
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.verify
@@ -448,6 +449,19 @@ class MobileConnectionRepositoryKairosTest : SysuiTestCase() {
         val latest by underTest.dataEnabled.collectLastValue()
 
         assertThat(latest).isFalse()
+    }
+
+    @Test
+    fun setDataEnabled_callsTelephonyApi() = runTest {
+        underTest.setDataEnabled(true)
+
+        verify(telephonyManager)
+            .setDataEnabledForReason(TelephonyManager.DATA_ENABLED_REASON_USER, true)
+
+        underTest.setDataEnabled(false)
+
+        verify(telephonyManager)
+            .setDataEnabledForReason(TelephonyManager.DATA_ENABLED_REASON_USER, false)
     }
 
     @Test

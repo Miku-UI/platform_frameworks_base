@@ -1619,7 +1619,7 @@ public final class MediaDrm implements AutoCloseable {
      * allow a client application to provide additional message parameters to the server.
      * This may be {@code null} if no additional parameters are to be sent.
      * @throws NotProvisionedException if reprovisioning is needed, due to a
-     * problem with the certifcate
+     * problem with the certificate
      */
     @NonNull
     public KeyRequest getKeyRequest(
@@ -1796,7 +1796,7 @@ public final class MediaDrm implements AutoCloseable {
 
     /**
      * A provision request/response exchange occurs between the app and a provisioning
-     * server to retrieve a device certificate.  If provisionining is required, the
+     * server to retrieve a device certificate.  If provisioning is required, the
      * EVENT_PROVISION_REQUIRED event will be sent to the event handler.
      * getProvisionRequest is used to obtain the opaque provision request byte array that
      * should be delivered to the provisioning server. The provision request byte array
@@ -2842,7 +2842,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the average time in microseconds of calls to
-         * {@link #provideKeyResponse}. The valus is retrieved from the
+         * {@link #provideKeyResponse}. The value is retrieved from the
          * {@link PersistableBundle} returned from {@link #getMetrics}.
          * The time is a Long value ({@link android.os.BaseBundle#getLong}).
          */
@@ -2943,7 +2943,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of {@link KeyStatus#STATUS_EXPIRED} events
-         * that occured. The count is extracted from the
+         * that occurred. The count is extracted from the
          * {@link PersistableBundle} returned from a {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).
          */
@@ -2952,7 +2952,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of {@link KeyStatus#STATUS_INTERNAL_ERROR}
-         * events that occured. The count is extracted from the
+         * events that occurred. The count is extracted from the
          * {@link PersistableBundle} returned from a {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).
          */
@@ -2961,7 +2961,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of
-         * {@link KeyStatus#STATUS_OUTPUT_NOT_ALLOWED} events that occured.
+         * {@link KeyStatus#STATUS_OUTPUT_NOT_ALLOWED} events that occurred.
          * The count is extracted from the
          * {@link PersistableBundle} returned from a {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).
@@ -2971,7 +2971,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of {@link KeyStatus#STATUS_PENDING}
-         * events that occured. The count is extracted from the
+         * events that occurred. The count is extracted from the
          * {@link PersistableBundle} returned from a {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).
          */
@@ -2980,7 +2980,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of {@link KeyStatus#STATUS_USABLE}
-         * events that occured. The count is extracted from the
+         * events that occurred. The count is extracted from the
          * {@link PersistableBundle} returned from a {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).
          */
@@ -2989,7 +2989,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of {@link OnEventListener#onEvent}
-         * calls of type PROVISION_REQUIRED occured. The count is
+         * calls of type PROVISION_REQUIRED occurred. The count is
          * extracted from the {@link PersistableBundle} returned from a
          * {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).
@@ -2999,7 +2999,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of {@link OnEventListener#onEvent}
-         * calls of type KEY_NEEDED occured. The count is
+         * calls of type KEY_NEEDED occurred. The count is
          * extracted from the {@link PersistableBundle} returned from a
          * {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).
@@ -3009,7 +3009,7 @@ public final class MediaDrm implements AutoCloseable {
 
         /**
          * Key to extract the count of {@link OnEventListener#onEvent}
-         * calls of type KEY_EXPIRED occured. The count is
+         * calls of type KEY_EXPIRED occurred. The count is
          * extracted from the {@link PersistableBundle} returned from a
          * {@link #getMetrics} call.
          * The count is a Long value ({@link android.os.BaseBundle#getLong}).

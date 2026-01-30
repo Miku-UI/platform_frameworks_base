@@ -17,12 +17,25 @@
 package com.android.systemui.mediaprojection.permission
 
 import android.content.Context
+import android.hardware.display.DisplayManager
 import android.media.projection.MediaProjectionConfig
+import android.view.Display
 import com.android.media.projection.flags.Flags
 import com.android.systemui.res.R
 
 /** Various utility methods related to media projection permissions. */
 object MediaProjectionPermissionUtils {
+
+    private val RECORDABLE_DISPLAY_TYPES =
+        intArrayOf(
+            Display.TYPE_OVERLAY,
+            Display.TYPE_EXTERNAL,
+            Display.TYPE_INTERNAL,
+            Display.TYPE_WIFI,
+        )
+    private val filterDeviceTypeFlag: Boolean =
+        com.android.media.projection.flags.Flags.mediaProjectionConnectedDisplayNoVirtualDevice()
+
     fun getSingleAppDisabledText(
         context: Context,
         appName: String,
@@ -57,6 +70,19 @@ object MediaProjectionPermissionUtils {
             )
         } else {
             null
+        }
+    }
+
+    fun getConnectedDisplays(displayManager: DisplayManager?): List<Display> {
+        if (!com.android.media.projection.flags.Flags.mediaProjectionConnectedDisplay()) {
+            return emptyList()
+        }
+        if (displayManager == null) {
+            return emptyList()
+        }
+        return displayManager.displays.filter {
+            it.displayId != Display.DEFAULT_DISPLAY &&
+                (!filterDeviceTypeFlag || it.type in RECORDABLE_DISPLAY_TYPES)
         }
     }
 }

@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Прайграецца на гэтым планшэце"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Вы можаце знайсці свой тэлефон з дапамогай праграмы \"Знайсці прыладу\", нават калі ён выключаны"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Вы можаце знайсці свой планшэт з дапамогай праграмы \"Знайсці прыладу\", нават калі ён выключаны"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Вы можаце знайсці свой тэлефон з дапамогай праграмы \"Цэнтр пошуку\", нават калі ён выключаны"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Вы можаце знайсці свой планшэт з дапамогай праграмы \"Цэнтр пошуку\", нават калі ён выключаны"</string>
 </resources>

@@ -30,7 +30,7 @@ import java.util.List;
  * A MediaScanner helper class which enables us to do lazy insertion on the
  * given provider. This class manages buffers internally and flushes when they
  * are full. Note that you should call flushAll() after using this class.
- * {@hide}
+ * @hide
  */
 public class MediaInserter {
     private final HashMap<Uri, List<ContentValues>> mRowMap =

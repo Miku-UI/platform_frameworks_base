@@ -68,6 +68,8 @@ import android.telephony.TelephonyManager.EXTRA_SPN
 import android.telephony.TelephonyManager.EXTRA_SUBSCRIPTION_ID
 import android.telephony.TelephonyManager.NETWORK_TYPE_LTE
 import android.telephony.TelephonyManager.NETWORK_TYPE_UNKNOWN
+import android.telephony.satellite.NtnSignalStrength
+import android.telephony.satellite.NtnSignalStrength.NTN_SIGNAL_STRENGTH_GREAT
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.mobile.MobileMappings
@@ -566,6 +568,20 @@ abstract class MobileConnectionRepositoryTest : SysuiTestCase() {
             assertThat(latest).isFalse()
 
             job.cancel()
+        }
+
+    @Test
+    fun setDataEnabled_callsTelephonyApi() =
+        testScope.runTest {
+            underTest.setDataEnabled(true)
+
+            verify(telephonyManager)
+                .setDataEnabledForReason(TelephonyManager.DATA_ENABLED_REASON_USER, true)
+
+            underTest.setDataEnabled(false)
+
+            verify(telephonyManager)
+                .setDataEnabledForReason(TelephonyManager.DATA_ENABLED_REASON_USER, false)
         }
 
     @Test
@@ -1388,6 +1404,21 @@ abstract class MobileConnectionRepositoryTest : SysuiTestCase() {
             callback.onLost(mock())
 
             assertThat(latest).isFalse()
+        }
+
+    @Test
+    fun satelliteLevel_updatesWithCallback() =
+        testScope.runTest {
+            val latest by collectLastValue(underTest.satelliteLevel)
+            val callback =
+                withArgCaptor<TelephonyCallback> {
+                    verify(telephonyManager).registerTelephonyCallback(any(), capture())
+                }
+            callback as CarrierRoamingNtnListener
+            callback.onCarrierRoamingNtnSignalStrengthChanged(
+                NtnSignalStrength(NTN_SIGNAL_STRENGTH_GREAT)
+            )
+            assertThat(latest).isEqualTo(NTN_SIGNAL_STRENGTH_GREAT)
         }
 
     private inline fun <reified T> getTelephonyCallbackForType(): T {

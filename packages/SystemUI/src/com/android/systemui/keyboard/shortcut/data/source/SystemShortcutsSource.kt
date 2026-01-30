@@ -19,7 +19,6 @@ package com.android.systemui.keyboard.shortcut.data.source
 import android.content.res.Resources
 import android.hardware.input.InputManager
 import android.hardware.input.KeyGlyphMap
-import android.view.KeyEvent.KEYCODE_A
 import android.view.KeyEvent.KEYCODE_BACK
 import android.view.KeyEvent.KEYCODE_DPAD_LEFT
 import android.view.KeyEvent.KEYCODE_ESCAPE
@@ -28,9 +27,11 @@ import android.view.KeyEvent.KEYCODE_HOME
 import android.view.KeyEvent.KEYCODE_I
 import android.view.KeyEvent.KEYCODE_L
 import android.view.KeyEvent.KEYCODE_N
+import android.view.KeyEvent.KEYCODE_Q
 import android.view.KeyEvent.KEYCODE_RECENT_APPS
 import android.view.KeyEvent.KEYCODE_S
 import android.view.KeyEvent.KEYCODE_SLASH
+import android.view.KeyEvent.KEYCODE_SPACE
 import android.view.KeyEvent.KEYCODE_TAB
 import android.view.KeyEvent.META_ALT_ON
 import android.view.KeyEvent.META_CTRL_ON
@@ -38,6 +39,8 @@ import android.view.KeyEvent.META_META_ON
 import android.view.KeyEvent.META_SHIFT_ON
 import android.view.KeyboardShortcutGroup
 import android.view.KeyboardShortcutInfo
+import com.android.hardware.input.Flags.enablePartialScreenshotKeyboardShortcut
+import com.android.hardware.input.Flags.enableQuickSettingsPanelShortcut
 import com.android.systemui.Flags.shortcutHelperKeyGlyph
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.keyboard.shortcut.data.model.shortcutInfo
@@ -118,63 +121,106 @@ constructor(@Main private val resources: Resources, private val inputManager: In
         return shortcuts
     }
 
-    private fun systemControlsShortcuts() =
-        listOf(
-            // Access list of all apps and search (i.e. Search/Launcher):
-            //  - Meta
+    private fun systemControlsShortcuts() = buildList {
+        // Access list of all apps and search (i.e. Search/Launcher):
+        //  - Meta
+        add(
             shortcutInfo(resources.getString(R.string.group_system_access_all_apps_search)) {
                 command(META_META_ON)
-            },
-            // Access home screen:
-            //  - Meta + H
+            }
+        )
+        // Access home screen:
+        //  - Meta + H
+        add(
             shortcutInfo(resources.getString(R.string.group_system_access_home_screen)) {
                 command(META_META_ON, KEYCODE_H)
-            },
-            // Overview of open apps:
-            //  - Meta + Tab
+            }
+        )
+        // Overview of open apps:
+        //  - Meta + Tab
+        add(
             shortcutInfo(resources.getString(R.string.group_system_overview_open_apps)) {
                 command(META_META_ON, KEYCODE_TAB)
-            },
-            // Cycle through recent apps (forward):
-            //  - Alt + Tab
+            }
+        )
+        // Cycle through recent apps (forward):
+        //  - Alt + Tab
+        add(
             shortcutInfo(resources.getString(R.string.group_system_cycle_forward)) {
                 command(META_ALT_ON, KEYCODE_TAB)
-            },
-            // Cycle through recent apps (back):
-            //  - Shift + Alt + Tab
+            }
+        )
+        // Cycle through recent apps (back):
+        //  - Shift + Alt + Tab
+        add(
             shortcutInfo(resources.getString(R.string.group_system_cycle_back)) {
                 command(META_SHIFT_ON or META_ALT_ON, KEYCODE_TAB)
-            },
-            // Back: go back to previous state (back button)
-            //  - Meta + Escape OR
-            //  - Meta + Left arrow
+            }
+        )
+        // Back: go back to previous state (back button)
+        //  - Meta + Escape OR
+        //  - Meta + Left arrow
+        add(
             shortcutInfo(resources.getString(R.string.group_system_go_back)) {
                 command(META_META_ON, KEYCODE_ESCAPE)
-            },
+            }
+        )
+        add(
             shortcutInfo(resources.getString(R.string.group_system_go_back)) {
                 command(META_META_ON, KEYCODE_DPAD_LEFT)
-            },
-            // Take a full screenshot:
-            //  - Meta + S
+            }
+        )
+        // Take a full screenshot:
+        //  - Meta + S
+        add(
             shortcutInfo(resources.getString(R.string.group_system_full_screenshot)) {
                 command(META_META_ON, KEYCODE_S)
-            },
-            // Access list of system / apps shortcuts:
-            //  - Meta + /
+            }
+        )
+        // TODO(b/420714826) Determine if this shortcut should be displayed only for large screen
+        // devices.
+        // Take a partial screenshot:
+        //  - Meta + Ctrl + S
+        if (enablePartialScreenshotKeyboardShortcut()) {
+            add(
+                shortcutInfo(resources.getString(R.string.group_system_partial_screenshot)) {
+                    command(META_META_ON or META_CTRL_ON, KEYCODE_S)
+                }
+            )
+        }
+        // Access list of system / apps shortcuts:
+        //  - Meta + /
+        add(
             shortcutInfo(resources.getString(R.string.group_system_access_system_app_shortcuts)) {
                 command(META_META_ON, KEYCODE_SLASH)
-            },
-            // Access notification shade:
-            //  - Meta + N
+            }
+        )
+        // Access notification shade:
+        //  - Meta + N
+        add(
             shortcutInfo(resources.getString(R.string.group_system_access_notification_shade)) {
                 command(META_META_ON, KEYCODE_N)
-            },
-            // Lock screen:
-            //  - Meta + L
+            }
+        )
+        // Access quick settings panel:
+        //  - Meta + Q
+        if (enableQuickSettingsPanelShortcut()) {
+            add(
+                shortcutInfo(
+                    resources.getString(R.string.group_system_access_quick_settings_panel)
+                ) {
+                    command(META_META_ON, KEYCODE_Q)
+                }
+            )
+        }
+        // Lock screen:
+        //  - Meta + L
+        add(
             shortcutInfo(resources.getString(R.string.group_system_lock_screen)) {
                 command(META_META_ON, KEYCODE_L)
-            },
+            }
         )
+    }
 
     private fun systemAppsShortcuts() =
         listOf(
@@ -184,9 +230,9 @@ constructor(@Main private val resources: Resources, private val inputManager: In
                 command(META_META_ON, KEYCODE_I)
             },
             // Access Assistant:
-            //  - Meta + A
+            //  - Meta + Space
             shortcutInfo(resources.getString(R.string.group_system_access_google_assistant)) {
-                command(META_META_ON, KEYCODE_A)
+                command(META_META_ON, KEYCODE_SPACE)
             },
         )
 }

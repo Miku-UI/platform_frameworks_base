@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Atualizar"</string>
     <string name="done" msgid="6632441120016885253">"Concluído"</string>
     <string name="cancel" msgid="1018267193425558088">"Cancelar"</string>
+    <string name="more_details" msgid="3643407086654820243">"Mais detalhes"</string>
+    <string name="dont_install" msgid="414055123295505225">"Não instalar"</string>
     <string name="installing" msgid="4921993079741206516">"A instalar…"</string>
     <string name="installing_app" msgid="1165095864863849422">"A instalar <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>…"</string>
     <string name="install_done" msgid="5987363587661783896">"App instalada."</string>
@@ -115,7 +117,7 @@
     <string name="unarchive_error_offline_title" msgid="4021785324565678605">"Está offline"</string>
     <string name="unarchive_error_offline_body" msgid="2256042209364094099">"Para restaurar esta app, verifique a sua ligação à Internet e tente novamente"</string>
     <string name="unarchive_error_generic_title" msgid="7123457671482449992">"Algo correu mal"</string>
-    <string name="unarchive_error_generic_body" msgid="4486803312463813079">"Ocorreu um problema ao tentar repor esta app"</string>
+    <string name="unarchive_error_generic_body" msgid="4486803312463813079">"Ocorreu um problema ao tentar restaurar esta app"</string>
     <string name="unarchive_error_storage_title" msgid="5080723357273852630">"Sem armazenamento suficiente"</string>
     <string name="unarchive_error_storage_body" msgid="6879544407568780524">"Para repor esta app, pode libertar espaço neste dispositivo. Armazenamento necessário: <xliff:g id="BYTES">%1$s</xliff:g>"</string>
     <string name="unarchive_action_required_title" msgid="4971245740162604619">"Ação necessária"</string>

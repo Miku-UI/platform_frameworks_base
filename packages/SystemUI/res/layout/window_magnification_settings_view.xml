@@ -25,137 +25,210 @@
     android:focusable="true"
     android:accessibilityPaneTitle="@string/accessibility_magnification_settings_panel_description"
     android:contentDescription="@string/accessibility_magnification_settings_panel_description">
-    <LinearLayout
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-        <TextView
-            android:id="@+id/magnifier_size_title"
-            android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="@dimen/magnification_setting_view_item_horizontal_spacing"
-            android:text="@string/accessibility_magnifier_size"
-            android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
-            android:focusable="true"
-            android:layout_gravity="center_vertical" />
+            android:orientation="vertical">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                <TextView
+                    android:id="@+id/magnifier_size_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="@dimen/magnification_setting_view_item_horizontal_spacing"
+                    android:text="@string/accessibility_magnifier_size"
+                    android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
+                    android:focusable="true"
+                    android:layout_gravity="center_vertical" />
 
-        <Button
-            android:id="@+id/magnifier_edit_button"
-            android:background="@null"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/accessibility_magnifier_edit"
-            android:textAppearance="@style/TextAppearance.MagnificationSetting.EditButton"
-            android:focusable="true"
-            android:layout_gravity="center_vertical" />
-    </LinearLayout>
+                <Button
+                    android:id="@+id/magnifier_edit_button"
+                    android:background="@null"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/accessibility_magnifier_edit"
+                    android:textAppearance="@style/TextAppearance.MagnificationSetting.EditButton"
+                    android:focusable="true"
+                    android:layout_gravity="center_vertical" />
+            </LinearLayout>
 
-    <LinearLayout
-        android:background="@drawable/accessibility_magnification_setting_view_image_btn_layout_bg"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/magnification_setting_image_button_height"
-        android:minWidth="@dimen/magnification_setting_image_button_background_width"
-        android:orientation="horizontal">
-        <ImageButton
-            android:id="@+id/magnifier_small_button"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/magnification_setting_image_button_height"
-            android:layout_weight="1"
-            android:scaleType="center"
-            android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
-            android:src="@drawable/ic_magnification_menu_small"
-            android:tint="@color/accessibility_magnification_image_button_tint"
-            android:tintMode="src_atop"
-            android:contentDescription="@string/accessibility_magnification_small" />
+            <LinearLayout
+                android:background="@drawable/accessibility_magnification_setting_view_image_btn_layout_bg"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/magnification_setting_image_button_height"
+                android:minWidth="@dimen/magnification_setting_image_button_background_width"
+                android:orientation="horizontal">
+                <ImageButton
+                    android:id="@+id/magnifier_small_button"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/magnification_setting_image_button_height"
+                    android:layout_weight="1"
+                    android:scaleType="center"
+                    android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
+                    android:src="@drawable/ic_magnification_menu_small"
+                    android:tint="@color/accessibility_magnification_image_button_tint"
+                    android:tintMode="src_atop"
+                    android:contentDescription="@string/accessibility_magnification_small" />
 
-        <ImageButton
-            android:id="@+id/magnifier_medium_button"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/magnification_setting_image_button_height"
-            android:layout_weight="1"
-            android:scaleType="center"
-            android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
-            android:src="@drawable/ic_magnification_menu_medium"
-            android:tint="@color/accessibility_magnification_image_button_tint"
-            android:tintMode="src_atop"
-            android:contentDescription="@string/accessibility_magnification_medium" />
+                <ImageButton
+                    android:id="@+id/magnifier_medium_button"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/magnification_setting_image_button_height"
+                    android:layout_weight="1"
+                    android:scaleType="center"
+                    android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
+                    android:src="@drawable/ic_magnification_menu_medium"
+                    android:tint="@color/accessibility_magnification_image_button_tint"
+                    android:tintMode="src_atop"
+                    android:contentDescription="@string/accessibility_magnification_medium" />
 
-        <ImageButton
-            android:id="@+id/magnifier_large_button"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/magnification_setting_image_button_height"
-            android:layout_weight="1"
-            android:scaleType="center"
-            android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
-            android:src="@drawable/ic_magnification_menu_large"
-            android:tint="@color/accessibility_magnification_image_button_tint"
-            android:tintMode="src_atop"
-            android:contentDescription="@string/accessibility_magnification_large" />
+                <ImageButton
+                    android:id="@+id/magnifier_large_button"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/magnification_setting_image_button_height"
+                    android:layout_weight="1"
+                    android:scaleType="center"
+                    android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
+                    android:src="@drawable/ic_magnification_menu_large"
+                    android:tint="@color/accessibility_magnification_image_button_tint"
+                    android:tintMode="src_atop"
+                    android:contentDescription="@string/accessibility_magnification_large" />
 
-        <ImageButton
-            android:id="@+id/magnifier_full_button"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/magnification_setting_image_button_height"
-            android:layout_weight="1"
-            android:scaleType="center"
-            android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
-            android:src="@drawable/ic_open_in_full"
-            android:tint="@color/accessibility_magnification_image_button_tint"
-            android:tintMode="src_atop"
-            android:contentDescription="@string/accessibility_magnification_fullscreen" />
-    </LinearLayout>
+                <ImageButton
+                    android:id="@+id/magnifier_full_button"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/magnification_setting_image_button_height"
+                    android:layout_weight="1"
+                    android:scaleType="center"
+                    android:background="@drawable/accessibility_magnification_setting_view_image_btn_bg"
+                    android:src="@drawable/ic_open_in_full"
+                    android:tint="@color/accessibility_magnification_image_button_tint"
+                    android:tintMode="src_atop"
+                    android:contentDescription="@string/accessibility_magnification_fullscreen" />
+            </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/magnifier_horizontal_lock_view"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="@dimen/magnification_setting_view_margin"
-        android:focusable="true">
+            <LinearLayout
+                android:id="@+id/magnifier_horizontal_lock_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="@dimen/magnification_setting_view_margin"
+                android:focusable="true">
 
-        <TextView
-            android:id="@+id/magnifier_horizontal_lock_title"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="@dimen/magnification_setting_view_item_horizontal_spacing"
-            android:text="@string/accessibility_allow_diagonal_scrolling"
-            android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
-            android:labelFor="@id/magnifier_horizontal_lock_switch"
-            android:layout_gravity="center_vertical" />
+                <TextView
+                    android:id="@+id/magnifier_horizontal_lock_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="@dimen/magnification_setting_view_item_horizontal_spacing"
+                    android:text="@string/accessibility_allow_diagonal_scrolling"
+                    android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
+                    android:labelFor="@id/magnifier_horizontal_lock_switch"
+                    android:layout_gravity="center_vertical" />
 
-        <Switch
-            android:id="@+id/magnifier_horizontal_lock_switch"
-            android:switchMinWidth="@dimen/settingslib_switch_track_width"
-            android:layout_gravity="right|center_vertical"
-            android:layout_width="@dimen/settingslib_switch_track_width"
-            android:layout_height="wrap_content"
-            android:track="@drawable/settingslib_track_selector"
-            android:thumb="@drawable/settingslib_thumb_selector"
-            android:theme="@style/MainSwitch.Settingslib"
-            android:minHeight="48dp" />
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/magnifier_horizontal_lock_switch"
+                    android:layout_gravity="right|center_vertical"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:theme="@style/Theme.Material3.DynamicColors.DayNight"
+                    style="@style/SettingslibSwitchStyle.Expressive" />
 
-    </LinearLayout>
+            </LinearLayout>
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="@string/accessibility_magnification_zoom"
-        android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
-        android:layout_marginTop="@dimen/magnification_setting_view_margin"
-        android:focusable="true" />
+            <LinearLayout
+                android:id="@+id/magnifier_keyboard_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="@dimen/magnification_setting_view_margin"
+                android:focusable="true"
+                android:visibility="gone">
 
-    <com.android.systemui.common.ui.view.SeekBarWithIconButtonsView
-        android:id="@+id/magnifier_zoom_slider"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        app:progress="0"
-        app:iconStartContentDescription="@string/accessibility_control_zoom_out"
-        app:iconEndContentDescription="@string/accessibility_control_zoom_in"
-        app:tickMark="@android:color/transparent"
-        app:seekBarChangeMagnitude="10"
-    />
+                <TextView
+                    android:id="@+id/magnifier_keyboard_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="@dimen/magnification_setting_view_item_horizontal_spacing"
+                    android:text="@string/accessibility_magnify_keyboard"
+                    android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
+                    android:labelFor="@id/magnifier_keyboard_switch"
+                    android:layout_gravity="center_vertical" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/magnifier_keyboard_switch"
+                    android:layout_gravity="right|center_vertical"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:theme="@style/Theme.Material3.DynamicColors.DayNight"
+                    style="@style/SettingslibSwitchStyle.Expressive" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/magnifier_typing_view"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="@dimen/magnification_setting_view_margin"
+                android:focusable="true"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/magnifier_typing_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="@dimen/magnification_setting_view_item_horizontal_spacing"
+                    android:text="@string/accessibility_magnify_typing"
+                    android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
+                    android:labelFor="@id/magnifier_typing_switch"
+                    android:layout_gravity="center_vertical" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/magnifier_typing_switch"
+                    android:layout_gravity="right|center_vertical"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:theme="@style/Theme.Material3.DynamicColors.DayNight"
+                    style="@style/SettingslibSwitchStyle.Expressive" />
+
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/accessibility_magnification_zoom"
+                android:textAppearance="@style/TextAppearance.MagnificationSetting.Title"
+                android:layout_marginTop="@dimen/magnification_setting_view_margin"
+                android:focusable="true" />
+
+            <com.android.systemui.common.ui.view.SeekBarWithIconButtonsView
+                android:id="@+id/magnifier_zoom_slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:progress="0"
+                app:iconStartContentDescription="@string/accessibility_control_zoom_out"
+                app:iconEndContentDescription="@string/accessibility_control_zoom_in"
+                app:tickMark="@android:color/transparent"
+                app:seekBarChangeMagnitude="10"
+                />
+        </LinearLayout>
+    </ScrollView>
 
     <Button
         android:id="@+id/magnifier_done_button"

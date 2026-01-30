@@ -25,11 +25,16 @@ import android.content.res.AssetManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 import android.os.Build;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodReplace;
+
+import dalvik.system.VMRuntime;
 
 /**
  * A context wrapper that allows you to modify or replace the theme of the
  * wrapped context.
  */
+@RavenwoodKeepWholeClass
 public class ContextThemeWrapper extends ContextWrapper {
     @UnsupportedAppUsage
     private int mThemeResource;
@@ -170,11 +175,21 @@ public class ContextThemeWrapper extends ContextWrapper {
             return mTheme;
         }
 
-        mThemeResource = Resources.selectDefaultTheme(mThemeResource,
-                getApplicationInfo().targetSdkVersion);
+        mThemeResource = Resources.selectDefaultTheme(mThemeResource, getTargetSdk());
         initializeTheme();
 
         return mTheme;
+    }
+
+    @RavenwoodReplace
+    private int getTargetSdk() {
+        return getApplicationInfo().targetSdkVersion;
+    }
+
+    private int getTargetSdk$ravenwood() {
+        // On Ravenwood we don't support loading other package's context yet,
+        // so we use the current process's target SDK version instead.
+        return VMRuntime.getRuntime().getTargetSdkVersion();
     }
 
     @Override

@@ -46,8 +46,8 @@ java_defaults {
     ],
     static_libs: [
         "androidx.test.rules",
-        "platform-test-annotations",
         "androidx.test.uiautomator_uiautomator",
+        "platform-test-annotations",
         "sysui-helper",
     ],
 }
@@ -77,6 +77,13 @@ android_test_helper_app {
     name: "app_with_4kb_elf_no_override",
     defaults: ["app_with_4kb_elf_defaults"],
     manifest: "app_with_4kb_elf/app_with_4kb_no_override.xml",
+    use_embedded_native_libs: true,
+}
+
+android_test_helper_app {
+    name: "app_with_4kb_elf_no_override_debuggable",
+    defaults: ["app_with_4kb_elf_defaults"],
+    manifest: "app_with_4kb_elf/app_with_4kb_no_override_debuggable.xml",
     use_embedded_native_libs: true,
 }
 
@@ -120,17 +127,17 @@ java_test_host {
         "truth",
     ],
     libs: [
-        "tradefed",
         "compatibility-host-util",
         "compatibility-tradefed",
+        "tradefed",
     ],
     device_common_data: [
+        ":app_with_4kb_compressed_elf",
+        ":app_with_4kb_elf",
+        ":app_with_4kb_elf_no_override",
         ":embedded_native_libs_test_app",
         ":extract_native_libs_test_app",
-        ":app_with_4kb_elf",
         ":page_size_compat_disabled_app",
-        ":app_with_4kb_compressed_elf",
-        ":app_with_4kb_elf_no_override",
     ],
     test_suites: ["general-tests"],
     test_config: "AndroidTest.xml",

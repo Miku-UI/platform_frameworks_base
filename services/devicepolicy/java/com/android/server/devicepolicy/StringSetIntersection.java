@@ -17,8 +17,8 @@
 package com.android.server.devicepolicy;
 
 import android.annotation.NonNull;
-import android.app.admin.PolicyValue;
 import android.app.admin.PackageSetPolicyValue;
+import android.app.admin.PolicyValue;
 
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -28,7 +28,7 @@ import java.util.Set;
 final class StringSetIntersection extends ResolutionMechanism<Set<String>> {
 
     @Override
-    PolicyValue<Set<String>> resolve(
+    ResolvedPolicy<Set<String>> resolve(
             @NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<Set<String>>> adminPolicies) {
         Objects.requireNonNull(adminPolicies);
         Set<String> intersectionOfPolicies = null;
@@ -44,7 +44,10 @@ final class StringSetIntersection extends ResolutionMechanism<Set<String>> {
         }
         // Note that the resulting set below may be empty, but that's fine:
         // particular policy should decide what is the meaning of an empty set.
-        return new PackageSetPolicyValue(intersectionOfPolicies);
+        return new ResolvedPolicy<>(new PackageSetPolicyValue(intersectionOfPolicies),
+                // All admins who set a value will be included in the enforcing admins list as
+                // the intersection value will contain the items that is set by all admins.
+                adminPolicies.keySet());
     }
 
     @Override

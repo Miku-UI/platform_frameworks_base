@@ -273,6 +273,18 @@ public class ActionButtonsPreference extends Preference implements GroupSectionD
     }
 
     /**
+     * Sets the content description in button1.
+     */
+    public ActionButtonsPreference setButton1Description(@StringRes int textResId) {
+        final String newDescription = getContext().getString(textResId);
+        if (!TextUtils.equals(newDescription, mButton1Info.mContentDescription)) {
+            mButton1Info.mContentDescription = newDescription;
+            notifyChanged();
+        }
+        return this;
+    }
+
+    /**
      * Sets the drawable to be displayed above of text in button1.
      */
     public ActionButtonsPreference setButton1Icon(@DrawableRes int iconResId) {
@@ -332,6 +344,18 @@ public class ActionButtonsPreference extends Preference implements GroupSectionD
         final String newText = getContext().getString(textResId);
         if (!TextUtils.equals(newText, mButton2Info.mText)) {
             mButton2Info.mText = newText;
+            notifyChanged();
+        }
+        return this;
+    }
+
+    /**
+     * Sets the content description in button2.
+     */
+    public ActionButtonsPreference setButton2Description(@StringRes int textResId) {
+        final String newDescription = getContext().getString(textResId);
+        if (!TextUtils.equals(newDescription, mButton2Info.mContentDescription)) {
+            mButton2Info.mContentDescription = newDescription;
             notifyChanged();
         }
         return this;
@@ -403,6 +427,18 @@ public class ActionButtonsPreference extends Preference implements GroupSectionD
     }
 
     /**
+     * Sets the content description in button3.
+     */
+    public ActionButtonsPreference setButton3Description(@StringRes int textResId) {
+        final String newDescription = getContext().getString(textResId);
+        if (!TextUtils.equals(newDescription, mButton3Info.mContentDescription)) {
+            mButton3Info.mContentDescription = newDescription;
+            notifyChanged();
+        }
+        return this;
+    }
+
+    /**
      * Sets the drawable to be displayed above of text in button3.
      */
     public ActionButtonsPreference setButton3Icon(@DrawableRes int iconResId) {
@@ -462,6 +498,18 @@ public class ActionButtonsPreference extends Preference implements GroupSectionD
         final String newText = getContext().getString(textResId);
         if (!TextUtils.equals(newText, mButton4Info.mText)) {
             mButton4Info.mText = newText;
+            notifyChanged();
+        }
+        return this;
+    }
+
+    /**
+     * Sets the content description in button4.
+     */
+    public ActionButtonsPreference setButton4Description(@StringRes int textResId) {
+        final String newDescription = getContext().getString(textResId);
+        if (!TextUtils.equals(newDescription, mButton4Info.mContentDescription)) {
+            mButton4Info.mContentDescription = newDescription;
             notifyChanged();
         }
         return this;
@@ -536,6 +584,7 @@ public class ActionButtonsPreference extends Preference implements GroupSectionD
         private TextView mTextView;
         private LinearLayout mActionLayout;
         private CharSequence mText;
+        private CharSequence mContentDescription;
         private Drawable mIcon;
         private View.OnClickListener mListener;
         private boolean mIsEnabled = true;
@@ -550,14 +599,19 @@ public class ActionButtonsPreference extends Preference implements GroupSectionD
                 }
                 mButton.setEnabled(mIsEnabled);
                 mButton.setOnClickListener(mListener);
+                mTextView.setOnClickListener(mListener);
                 mActionLayout.setEnabled(mIsEnabled);
-                mActionLayout.setContentDescription(mText);
+                mActionLayout.setOnClickListener(mListener);
+                mActionLayout.setContentDescription(
+                        TextUtils.isEmpty(mContentDescription) ? mText : mContentDescription);
             } else {
                 mButton.setText(mText);
                 mButton.setCompoundDrawablesWithIntrinsicBounds(
                         null /* left */, mIcon /* top */, null /* right */, null /* bottom */);
                 mButton.setOnClickListener(mListener);
                 mButton.setEnabled(mIsEnabled);
+                mButton.setContentDescription(
+                        TextUtils.isEmpty(mContentDescription) ? mText : mContentDescription);
             }
 
             if (shouldBeVisible()) {

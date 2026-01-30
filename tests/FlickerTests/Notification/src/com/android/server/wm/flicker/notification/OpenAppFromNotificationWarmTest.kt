@@ -16,12 +16,13 @@
 
 package com.android.server.wm.flicker.notification
 
+import androidx.test.filters.RequiresDevice
 import android.platform.test.rule.DisableNotificationCooldownSettingRule
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.FlickerTestData
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTestData
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.helpers.wakeUpAndGoToHomeScreen
 import android.tools.traces.component.ComponentNameMatcher
 import android.view.WindowInsets
@@ -50,11 +51,12 @@ import org.junit.runners.Parameterized
  *
  * To run this test: `atest FlickerTestsNotification:OpenAppFromNotificationWarmTest`
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @FlakyTest(bugId = 384046002)
-open class OpenAppFromNotificationWarmTest(flicker: LegacyFlickerTest) :
+open class OpenAppFromNotificationWarmTest(flicker: FlickerTest) :
     OpenAppTransition(flicker) {
     override val testApp: NotificationAppHelper = NotificationAppHelper(instrumentation)
 
@@ -195,12 +197,12 @@ open class OpenAppFromNotificationWarmTest(flicker: LegacyFlickerTest) :
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.nonRotationTests()
+        fun getParams() = FlickerTestFactory.nonRotationTests()
 
         /** Ensures that posted notifications will alert and HUN even just after boot. */
         @ClassRule

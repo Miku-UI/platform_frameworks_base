@@ -279,16 +279,16 @@ public final class CellIdentityWcdma extends CellIdentity {
     @Override
     public String toString() {
         return new StringBuilder(TAG)
-        .append(":{ mLac=").append(mLac)
-        .append(" mCid=").append(mCid)
-        .append(" mPsc=").append(mPsc)
-        .append(" mUarfcn=").append(mUarfcn)
+        .append(":{ mLac=").append(Rlog.pii(TAG, mLac))
+        .append(" mCid=").append(Rlog.pii(TAG, mCid))
+        .append(" mPsc=").append(Rlog.pii(TAG, mPsc))
+        .append(" mUarfcn=").append(Rlog.pii(TAG, mUarfcn))
         .append(" mMcc=").append(mMccStr)
         .append(" mMnc=").append(mMncStr)
         .append(" mAlphaLong=").append(mAlphaLong)
         .append(" mAlphaShort=").append(mAlphaShort)
         .append(" mAdditionalPlmns=").append(mAdditionalPlmns)
-        .append(" mCsgInfo=").append(mCsgInfo)
+        .append(" mCsgInfo=").append(Rlog.pii(TAG, mCsgInfo))
         .append("}").toString();
     }
 

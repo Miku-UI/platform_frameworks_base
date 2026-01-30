@@ -49,3 +49,35 @@ class DisposableHandles : DisposableHandle {
         handles.clear()
     }
 }
+
+/**
+ * A builder that allows setting up and collecting multiple disposable operations into a single
+ * [DisposableHandle].
+ */
+class DisposableHandleBuilder {
+    private val disposableHandles = DisposableHandles()
+
+    /**
+     * Invokes [setValue] with [value] immediately, then registers a [DisposableHandle] that will
+     * invoke [setValue] again with `null` when disposed.
+     */
+    fun <T : Any> bind(value: T, setValue: (T?) -> Unit) {
+        setValue(value)
+        disposableHandles.add(DisposableHandle { setValue(null) })
+    }
+
+    /** Simply register a sub-[DisposableHandle] to be disposed with the built result. */
+    fun register(handle: DisposableHandle) {
+        disposableHandles.add(handle)
+    }
+
+    /** Get the underlying [DisposableHandle]. */
+    fun build(): DisposableHandle = disposableHandles
+}
+
+/** Build a [DisposableHandle] that disposes of multiple other operations */
+fun buildDisposableHandle(block: DisposableHandleBuilder.() -> Unit): DisposableHandle =
+    DisposableHandleBuilder().let {
+        it.block()
+        it.build()
+    }

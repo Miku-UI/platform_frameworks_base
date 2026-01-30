@@ -16,33 +16,9 @@
 
 package com.android.systemui.communal.posturing.data.model
 
-import androidx.annotation.FloatRange
+import com.android.systemui.communal.posturing.shared.model.ConfidenceLevel
 
 data class PositionState(
-    val stationary: StationaryState = StationaryState.Unknown,
-    val orientation: OrientationState = OrientationState.Unknown,
-) {
-    sealed interface StationaryState {
-        @get:FloatRange(from = 0.0, to = 1.0) val confidence: Float
-
-        data object Unknown : StationaryState {
-            override val confidence: Float = 0f
-        }
-
-        data class Stationary(override val confidence: Float) : StationaryState
-
-        data class NotStationary(override val confidence: Float) : StationaryState
-    }
-
-    sealed interface OrientationState {
-        @get:FloatRange(from = 0.0, to = 1.0) val confidence: Float
-
-        data object Unknown : OrientationState {
-            override val confidence: Float = 0f
-        }
-
-        data class Postured(override val confidence: Float) : OrientationState
-
-        data class NotPostured(override val confidence: Float) : OrientationState
-    }
-}
+    val stationary: ConfidenceLevel = ConfidenceLevel.Unknown,
+    val orientation: ConfidenceLevel = ConfidenceLevel.Unknown,
+)

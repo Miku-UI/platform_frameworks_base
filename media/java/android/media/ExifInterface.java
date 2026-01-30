@@ -2536,7 +2536,7 @@ public class ExifInterface {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static float convertRationalLatLonToFloat(String rationalString, String ref) {
         try {
             String [] parts = rationalString.split(",");

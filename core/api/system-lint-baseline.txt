@@ -451,6 +451,8 @@ DeprecationMismatch: android.renderscript.Type.CubemapFace#POSITVE_Z:
     Field Type.CubemapFace.POSITVE_Z: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match
 DeprecationMismatch: android.speech.tts.TextToSpeech#areDefaultsEnforced():
     Method android.speech.tts.TextToSpeech.areDefaultsEnforced(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match
+DeprecationMismatch: android.telecom.Call#AVAILABLE_PHONE_ACCOUNTS:
+    Field Call.AVAILABLE_PHONE_ACCOUNTS: @Deprecated annotation (present) and @deprecated doc tag (not present) do not match
 DeprecationMismatch: android.telecom.StatusHints#StatusHints(android.content.ComponentName, CharSequence, int, android.os.Bundle):
     Constructor android.telecom.StatusHints.StatusHints(android.content.ComponentName, CharSequence, int, android.os.Bundle): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match
 DeprecationMismatch: android.telecom.StatusHints#getIcon(android.content.Context):
@@ -499,8 +501,6 @@ DeprecationMismatch: android.webkit.WebViewDatabase#hasFormData():
     Method android.webkit.WebViewDatabase.hasFormData(): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match
 DeprecationMismatch: javax.microedition.khronos.egl.EGL10#eglCreatePixmapSurface(javax.microedition.khronos.egl.EGLDisplay, javax.microedition.khronos.egl.EGLConfig, Object, int[]):
     Method javax.microedition.khronos.egl.EGL10.eglCreatePixmapSurface(javax.microedition.khronos.egl.EGLDisplay, javax.microedition.khronos.egl.EGLConfig, Object, int[]): @Deprecated annotation (present) and @deprecated doc tag (not present) do not match
-
-
 
 
 FlaggedApiLiteral: android.Manifest.permission#ACCESS_LAST_KNOWN_CELL_ID:
@@ -1987,6 +1987,8 @@ UnflaggedApi: android.app.ActivityManager#getExternalHistoricalProcessStartReaso
     New API must be flagged with @FlaggedApi: method android.app.ActivityManager.getExternalHistoricalProcessStartReasons(String,int)
 UnflaggedApi: android.app.AppOpsManager#OPSTR_RECEIVE_SANDBOX_TRIGGER_AUDIO:
     New API must be flagged with @FlaggedApi: field android.app.AppOpsManager.OPSTR_RECEIVE_SANDBOX_TRIGGER_AUDIO
+UnflaggedApi: android.app.Notification#EXTRA_PREFER_SMALL_ICON:
+    New API must be flagged with @FlaggedApi: field android.app.Notification.EXTRA_PREFER_SMALL_ICON
 UnflaggedApi: android.companion.virtual.VirtualDeviceManager.VirtualDevice#getPersistentDeviceId():
     New API must be flagged with @FlaggedApi: method android.companion.virtual.VirtualDeviceManager.VirtualDevice.getPersistentDeviceId()
 UnflaggedApi: android.content.Context#THREAD_NETWORK_SERVICE:
@@ -2117,6 +2119,8 @@ UnflaggedApi: android.service.voice.HotwordTrainingData.Builder#setTrainingAudio
     New API must be flagged with @FlaggedApi: method android.service.voice.HotwordTrainingData.Builder.setTrainingAudioList(java.util.List<android.service.voice.HotwordTrainingAudio>)
 UnflaggedApi: android.service.voice.HotwordTrainingData.Builder#setTrainingAudios(java.util.List<android.service.voice.HotwordTrainingAudio>):
     New API must be flagged with @FlaggedApi: method android.service.voice.HotwordTrainingData.Builder.setTrainingAudios(java.util.List<android.service.voice.HotwordTrainingAudio>)
+UnflaggedApi: android.telecom.Call#enterBackgroundAudioProcessing(int):
+    New API must be flagged with @FlaggedApi: method android.telecom.Call.enterBackgroundAudioProcessing(int)
 UnflaggedApi: android.telecom.StreamingCall#EXTRA_CALL_ID:
     New API must be flagged with @FlaggedApi: field android.telecom.StreamingCall.EXTRA_CALL_ID
 UnflaggedApi: android.telephony.NetworkRegistrationInfo.Builder#setIsNonTerrestrialNetwork(boolean):
@@ -2389,3 +2393,7 @@ UnflaggedApi: android.telephony.satellite.SatelliteTransmissionUpdateCallback#on
     New API must be flagged with @FlaggedApi: method android.telephony.satellite.SatelliteTransmissionUpdateCallback.onSatellitePositionChanged(android.telephony.satellite.PointingInfo)
 UnflaggedApi: android.telephony.satellite.SatelliteTransmissionUpdateCallback#onSendDatagramStateChanged(int, int, int):
     New API must be flagged with @FlaggedApi: method android.telephony.satellite.SatelliteTransmissionUpdateCallback.onSendDatagramStateChanged(int,int,int)
+
+
+UserHandle: android.telecom.TelecomManager#isInSelfManagedCall(String, android.os.UserHandle):
+    When a method overload is needed to target a specific UserHandle, callers should be directed to use Context.createPackageContextAsUser() and re-obtain the relevant Manager, and no new API should be added

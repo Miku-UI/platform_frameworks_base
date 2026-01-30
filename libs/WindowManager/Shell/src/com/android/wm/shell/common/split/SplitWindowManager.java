@@ -18,7 +18,6 @@ package com.android.wm.shell.common.split;
 
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL;
-import static android.view.WindowManager.LayoutParams.FLAG_SLIPPERY;
 import static android.view.WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_NO_MOVE_ANIMATION;
 import static android.view.WindowManager.LayoutParams.PRIVATE_FLAG_TRUSTED_OVERLAY;
@@ -42,6 +41,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.wm.shell.R;
+import com.android.wm.shell.shared.desktopmode.DesktopState;
 
 /**
  * Holds view hierarchy of a root surface and helps to inflate {@link DividerView} for a split.
@@ -68,6 +68,8 @@ public final class SplitWindowManager extends WindowlessWindowManager {
         void onLeashReady(SurfaceControl leash);
         /** Inflates the given touch zone on the appropriate stage root. */
         void inflateOnStageRoot(OffscreenTouchZone touchZone);
+        /** Called when any visual animations w/ split layout are happening. */
+        void onSplitLayoutAnimating(boolean animating);
     }
 
     public SplitWindowManager(String windowName, Context context, Configuration config,
@@ -87,6 +89,19 @@ public final class SplitWindowManager extends WindowlessWindowManager {
     @Override
     public SurfaceControl getSurfaceControl(IWindow window) {
         return super.getSurfaceControl(window);
+    }
+
+    /**
+     * Update the display Context if the previous one's display and the new one are different.
+     *
+     * Since changing the display almost certainly means the {@link DividerView} is out of date,
+     * also call on release to teardown the {@link DividerView}.
+     */
+    public void updateDisplayContext(Context displayContext) {
+        if (displayContext.getDisplayId() != mContext.getDisplayId()) {
+            mContext = displayContext;
+            release(null /* Transaction */);
+        }
     }
 
     @Override
@@ -110,7 +125,8 @@ public final class SplitWindowManager extends WindowlessWindowManager {
     }
 
     /** Inflates {@link DividerView} on to the root surface. */
-    void init(SplitLayout splitLayout, InsetsState insetsState, boolean isRestoring) {
+    void init(SplitLayout splitLayout, InsetsState insetsState, boolean isRestoring,
+            DesktopState desktopState) {
         if (mDividerView != null || mViewHost != null) {
             throw new UnsupportedOperationException(
                     "Try to inflate divider view again without release first");
@@ -124,15 +140,14 @@ public final class SplitWindowManager extends WindowlessWindowManager {
         final Rect dividerBounds = splitLayout.getDividerBounds();
         WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                 dividerBounds.width(), dividerBounds.height(), TYPE_DOCK_DIVIDER,
-                FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCH_MODAL | FLAG_WATCH_OUTSIDE_TOUCH
-                        | FLAG_SLIPPERY,
+                FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCH_MODAL | FLAG_WATCH_OUTSIDE_TOUCH,
                 PixelFormat.TRANSLUCENT);
         lp.token = new Binder();
         lp.setTitle(mWindowName);
         lp.privateFlags |= PRIVATE_FLAG_NO_MOVE_ANIMATION | PRIVATE_FLAG_TRUSTED_OVERLAY;
         lp.accessibilityTitle = mContext.getResources().getString(R.string.accessibility_divider);
         mViewHost.setView(mDividerView, lp);
-        mDividerView.setup(splitLayout, this, mViewHost, insetsState);
+        mDividerView.setup(splitLayout, this, mViewHost, insetsState, desktopState);
         if (isRestoring) {
             mDividerView.setInteractive(mLastDividerInteractive, mLastDividerHandleHidden,
                     "restore_setup");

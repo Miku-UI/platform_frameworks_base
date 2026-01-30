@@ -24,6 +24,7 @@ import android.platform.test.flag.junit.FlagsParameterization
 import android.util.LayoutDirection
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState
+import com.android.systemui.Flags
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
@@ -57,6 +58,7 @@ import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
 @SmallTest
+@DisableSceneContainer
 @RunWith(ParameterizedAndroidJunit4::class)
 class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterization) :
     SysuiTestCase() {
@@ -81,7 +83,8 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
     }
 
     @Test
-    fun lockscreenFadeIn() =
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun lockscreenFadeIn_motionFlagDisabled() =
         kosmos.runTest {
             communalSceneInteractor.changeScene(CommunalScenes.Communal, "test")
 
@@ -111,7 +114,40 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
         }
 
     @Test
+    @EnableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun lockscreenFadeIn_motionFlagEnabled() =
+        kosmos.runTest {
+            communalSceneInteractor.changeScene(CommunalScenes.Communal, "test")
+
+            val values by collectValues(underTest.keyguardAlpha)
+            assertThat(values).isEmpty()
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                listOf(
+                    step(0f, TransitionState.STARTED),
+                    step(0.1f),
+                    step(0.2f),
+                    step(0.3f),
+                    // Should start running here...
+                    step(0.4f),
+                    step(0.5f),
+                    step(0.6f),
+                    step(0.7f),
+                    // ...up to here
+                    step(0.8f),
+                    step(0.9f),
+                    step(1f),
+                ),
+                testScope,
+            )
+
+            assertThat(values).hasSize(4)
+            values.forEach { assertThat(it).isIn(Range.closed(0f, 1f)) }
+        }
+
+    @Test
     @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
     fun lockscreenFadeIn_fromHubInLandscape() =
         kosmos.runTest {
             kosmos.setCommunalV2ConfigEnabled(true)
@@ -184,7 +220,7 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
         }
 
     @Test
-    @DisableFlags(FLAG_GLANCEABLE_HUB_V2)
+    @DisableFlags(FLAG_GLANCEABLE_HUB_V2, Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
     fun lockscreenFadeIn_v2FlagDisabledAndFromHubInLandscape() =
         kosmos.runTest {
             whenever(keyguardStateController.isKeyguardScreenRotationAllowed).thenReturn(false)
@@ -221,6 +257,7 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
     fun lockscreenTranslationX() =
         kosmos.runTest {
             val config: Configuration = mock()
@@ -253,6 +290,7 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
 
     @Test
     @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
     fun lockscreenTranslationX_fromHubInLandscape() =
         kosmos.runTest {
             kosmos.setCommunalV2ConfigEnabled(true)
@@ -290,6 +328,7 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
     fun lockscreenTranslationX_resetsAfterCancellation() =
         kosmos.runTest {
             val config: Configuration = mock()
@@ -323,6 +362,7 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
 
     @Test
     @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
     fun lockscreenTranslationX_resetsAfterCancellation_fromHubInLandscape() =
         kosmos.runTest {
             kosmos.setCommunalV2ConfigEnabled(true)
@@ -358,7 +398,6 @@ class GlanceableHubToLockscreenTransitionViewModelTest(flags: FlagsParameterizat
         }
 
     @Test
-    @DisableSceneContainer
     fun blurBecomesMinValueImmediately() =
         kosmos.runTest {
             val values by collectValues(underTest.windowBlurRadius)

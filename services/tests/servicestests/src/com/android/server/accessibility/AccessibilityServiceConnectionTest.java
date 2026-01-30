@@ -16,6 +16,8 @@
 
 package com.android.server.accessibility;
 
+import static android.content.IntentFilter.SYSTEM_HIGH_PRIORITY;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import static junit.framework.Assert.assertFalse;
@@ -26,6 +28,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
@@ -41,9 +44,11 @@ import android.accessibilityservice.GestureDescription;
 import android.accessibilityservice.IAccessibilityServiceClient;
 import android.accessibilityservice.IBrailleDisplayConnection;
 import android.accessibilityservice.IBrailleDisplayController;
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.ResolveInfo;
@@ -56,13 +61,18 @@ import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.test.FakePermissionEnforcer;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.platform.test.flag.junit.SetFlagsRule;
+import android.provider.Settings;
+import android.test.mock.MockContentResolver;
 import android.testing.DexmakerShareClassLoaderRule;
 import android.view.Display;
 import android.view.WindowManager;
 
+import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.server.accessibility.magnification.MagnificationProcessor;
 import com.android.server.accessibility.test.MessageCapturingHandler;
 import com.android.server.wm.ActivityTaskManagerInternal;
@@ -98,6 +108,9 @@ public class AccessibilityServiceConnectionTest {
     @Rule
     public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     AccessibilityServiceConnection mConnection;
 
     @Mock AccessibilityUserState mMockUserState;
@@ -132,6 +145,7 @@ public class AccessibilityServiceConnectionTest {
     FakePermissionEnforcer mFakePermissionEnforcer = new FakePermissionEnforcer();
 
     MessageCapturingHandler mHandler = new MessageCapturingHandler(null);
+    MockContentResolver mContentResolver;
 
     @Before
     public void setup() {
@@ -153,6 +167,10 @@ public class AccessibilityServiceConnectionTest {
                 .thenReturn(new DisplayManager(mMockContext));
         when(mMockContext.getSystemService(Context.PERMISSION_ENFORCER_SERVICE))
                 .thenReturn(mFakePermissionEnforcer);
+
+        mContentResolver = new MockContentResolver();
+        mContentResolver.addProvider(Settings.AUTHORITY, new FakeSettingsProvider());
+        when(mMockContext.getContentResolver()).thenReturn(mContentResolver);
 
         mConnection = new AccessibilityServiceConnection(mMockUserState, mMockContext,
                         COMPONENT_NAME, mServiceInfo, SERVICE_ID, mHandler, new Object(),
@@ -475,5 +493,153 @@ public class AccessibilityServiceConnectionTest {
 
         verify(mMockSecurityPolicy).canEnableDisableInputMethod(
                 eq(imeId), any(), eq(callingUserId));
+    }
+
+    @Test
+    @EnableFlags(
+            com.android.server.accessibility.Flags.FLAG_ENABLE_BRAILLE_SUW_IMMEDIATE_CONNECTIONS)
+    public void bindUnbindInSuw_registerUsbReceiver() {
+        // Set USER_SETUP_COMPLETE = 0 to simulate running in SUW.
+        Settings.Secure.putIntForUser(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0,
+                mMockUserState.mUserId);
+
+        mConnection.bindLocked();
+
+        // Register the receiver.
+        ArgumentCaptor<IntentFilter> intentFilterCaptor = ArgumentCaptor.forClass(
+                IntentFilter.class);
+        ArgumentCaptor<BroadcastReceiver> broadcastReceiverCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mMockContext).registerReceiver(broadcastReceiverCaptor.capture(),
+                intentFilterCaptor.capture());
+        IntentFilter intentFilter = intentFilterCaptor.getValue();
+        assertThat(intentFilter.getAction(0)).isEqualTo(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+        assertThat(intentFilter.getPriority()).isEqualTo(SYSTEM_HIGH_PRIORITY);
+
+        // Unregister the receiver.
+        mConnection.unbindLocked();
+        verify(mMockContext).unregisterReceiver(same(broadcastReceiverCaptor.getValue()));
+    }
+
+    @Test
+    @EnableFlags(
+            com.android.server.accessibility.Flags.FLAG_ENABLE_BRAILLE_SUW_IMMEDIATE_CONNECTIONS)
+    public void bindOutsideSuw_dontRegisterUsbReceiver() {
+        // Set USER_SETUP_COMPLETE = 1 to simulate running outside of SUW.
+        Settings.Secure.putIntForUser(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 1,
+                mMockUserState.mUserId);
+
+        mConnection.bindLocked();
+
+        verify(mMockContext, never()).registerReceiver(any(), any());
+    }
+
+    @Test
+    @EnableFlags(
+            com.android.server.accessibility.Flags.FLAG_ENABLE_BRAILLE_SUW_IMMEDIATE_CONNECTIONS)
+    public void sendUsbAttachedIntentInSuw_grantPermissionToUsbDevice() {
+        // Set USER_SETUP_COMPLETE = 0 to simulate running in SUW.
+        Settings.Secure.putIntForUser(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0,
+                mMockUserState.mUserId);
+
+        mConnection.bindLocked();
+
+        // Get the registered UsbDeviceReceiver.
+        ArgumentCaptor<BroadcastReceiver> usbDeviceReceiverCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mMockContext).registerReceiver(usbDeviceReceiverCaptor.capture(), any());
+
+        // Setup USB device attach intent.
+        Intent intent = new Intent(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+        UsbDevice usbDevice = Mockito.mock(UsbDevice.class);
+        intent.putExtra(UsbManager.EXTRA_DEVICE, usbDevice);
+
+        int expectedUid = 74859;
+        mMockResolveInfo.serviceInfo.applicationInfo.uid = expectedUid;
+
+        // Send intent and verify permission is granted to the USB device.
+        UsbManager usbManager = Mockito.mock(UsbManager.class);
+        when(mMockContext.getSystemService(Context.USB_SERVICE)).thenReturn(usbManager);
+        when(mMockContext.getSystemServiceName(UsbManager.class)).thenReturn(Context.USB_SERVICE);
+        usbDeviceReceiverCaptor.getValue().onReceive(mMockContext, intent);
+        verify(usbManager).grantPermission(usbDevice, expectedUid);
+    }
+
+    @Test
+    @EnableFlags(
+            com.android.server.accessibility.Flags.FLAG_ENABLE_BRAILLE_SUW_IMMEDIATE_CONNECTIONS)
+    public void sendUsbAttachedIntentOutsideSuw_doNotGrantPermissionToUsbDevice() {
+        // Set USER_SETUP_COMPLETE = 0 to simulate running in SUW.
+        Settings.Secure.putIntForUser(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0,
+                mMockUserState.mUserId);
+
+        mConnection.bindLocked();
+
+        // After registering the USB receiver in SUW, set USER_SETUP_COMPLETE = 1 to simulate
+        // plugging in the USB device outside of SUW.
+        Settings.Secure.putIntForUser(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 1,
+                mMockUserState.mUserId);
+
+        // Get the registered UsbDeviceReceiver.
+        ArgumentCaptor<BroadcastReceiver> usbDeviceReceiverCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mMockContext).registerReceiver(usbDeviceReceiverCaptor.capture(), any());
+
+        // Setup USB device attach intent.
+        Intent intent = new Intent(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+        UsbDevice usbDevice = Mockito.mock(UsbDevice.class);
+        intent.putExtra(UsbManager.EXTRA_DEVICE, usbDevice);
+
+        // Send intent and verify permission isn't granted to the USB device because it's outside
+        // the SUW.
+        UsbManager usbManager = Mockito.mock(UsbManager.class);
+        when(mMockContext.getSystemService(Context.USB_SERVICE)).thenReturn(usbManager);
+        when(mMockContext.getSystemServiceName(UsbManager.class)).thenReturn(Context.USB_SERVICE);
+        usbDeviceReceiverCaptor.getValue().onReceive(mMockContext, intent);
+        verify(usbManager, never()).grantPermission(any(), any());
+    }
+
+    @Test
+    @EnableFlags(
+            com.android.server.accessibility.Flags.FLAG_ENABLE_BRAILLE_SUW_IMMEDIATE_CONNECTIONS)
+    public void sendUsbAttachedIntentOutsideSuw_grantPermissionToSavedUsbDevice() {
+        // Set USER_SETUP_COMPLETE = 0 to simulate running in SUW.
+        Settings.Secure.putIntForUser(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 0,
+                mMockUserState.mUserId);
+
+        mConnection.bindLocked();
+
+        ArgumentCaptor<BroadcastReceiver> usbDeviceReceiverCaptor = ArgumentCaptor.forClass(
+                BroadcastReceiver.class);
+        verify(mMockContext).registerReceiver(usbDeviceReceiverCaptor.capture(), any());
+
+        // Create USB device with a serial number for identification.
+        UsbDevice usbDevice = Mockito.mock(UsbDevice.class);
+        when(usbDevice.getSerialNumber()).thenReturn("UsbSerialNo");
+
+        // Setup USB device attach intent.
+        Intent intent = new Intent(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+        intent.putExtra(UsbManager.EXTRA_DEVICE, usbDevice);
+
+        // Send intent to simulate the USB device was unplugged and plugged in again and verify
+        // permission is granted to the device because it was previously connected.
+        UsbManager usbManager = Mockito.mock(UsbManager.class);
+        when(mMockContext.getSystemService(Context.USB_SERVICE)).thenReturn(usbManager);
+        when(mMockContext.getSystemServiceName(UsbManager.class)).thenReturn(Context.USB_SERVICE);
+        usbDeviceReceiverCaptor.getValue().onReceive(mMockContext, intent);
+        verify(usbManager, times(1)).grantPermission(usbDevice, 0);
+
+        // After registering the USB device in the SUW, set USER_SETUP_COMPLETE = 1 to simulate
+        // plugging in the USB device again outside of SUW.
+        Settings.Secure.putIntForUser(mContentResolver, Settings.Secure.USER_SETUP_COMPLETE, 1,
+                mMockUserState.mUserId);
+
+        // Reset the USB manager mock for the next call.
+        Mockito.clearInvocations(usbManager);
+
+        // Send intent to simulate the USB device was unplugged and plugged in again and verify
+        // permission is granted to the device because it was previously connected.
+        usbDeviceReceiverCaptor.getValue().onReceive(mMockContext, intent);
+        verify(usbManager, times(1)).grantPermission(usbDevice, 0);
     }
 }

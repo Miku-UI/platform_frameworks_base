@@ -2,13 +2,6 @@ package: "com.android.server.alarm"
 container: "system"
 
 flag {
-    name: "start_user_before_scheduled_alarms"
-    namespace: "multiuser"
-    description: "Persist list of users with alarms scheduled and wakeup stopped users before alarms are due"
-    bug: "314907186"
-}
-
-flag {
     name: "acquire_wakelock_before_send"
     namespace: "backstage_power"
     description: "Acquire the userspace alarm wakelock before sending the alarm"

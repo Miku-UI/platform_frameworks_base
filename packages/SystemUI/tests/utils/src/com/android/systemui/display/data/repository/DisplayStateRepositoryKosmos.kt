@@ -16,8 +16,20 @@
 
 package com.android.systemui.display.data.repository
 
+import android.content.testableContext
 import com.android.systemui.biometrics.data.repository.FakeDisplayStateRepository
+import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.testScope
 
 val Kosmos.displayStateRepository by Fixture { FakeDisplayStateRepository() }
+val Kosmos.realDisplayStateRepository by Fixture {
+    DisplayStateRepositoryImpl(
+        testScope.backgroundScope,
+        context = testableContext,
+        fakeConfigurationRepository,
+        fakeDeviceStateRepository,
+        displayRepository,
+    )
+}

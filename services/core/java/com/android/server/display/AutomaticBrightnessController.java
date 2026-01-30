@@ -418,6 +418,10 @@ public class AutomaticBrightnessController {
         if (brightnessEvent != null) {
             brightnessEvent.setLux(
                     mAmbientLuxValid ? mAmbientLux : PowerManager.BRIGHTNESS_INVALID_FLOAT);
+            if (mAmbientLightRingBuffer.size() > 0) {
+                brightnessEvent.setLastReadLux(
+                        mAmbientLightRingBuffer.getLux(mAmbientLightRingBuffer.size() - 1));
+            }
             brightnessEvent.setPreThresholdLux(mPreThresholdLux);
             brightnessEvent.setPreThresholdBrightness(mPreThresholdBrightness);
             brightnessEvent.setRecommendedBrightness(mScreenAutoBrightness);
@@ -572,14 +576,13 @@ public class AutomaticBrightnessController {
 
     public boolean setBrightnessConfiguration(BrightnessConfiguration configuration,
             boolean shouldResetShortTermModel) {
-        if (mBrightnessMappingStrategyMap.get(AUTO_BRIGHTNESS_MODE_DEFAULT)
-                .setBrightnessConfiguration(configuration)) {
-            if (!isInIdleMode() && shouldResetShortTermModel) {
-                resetShortTermModel();
-            }
-            return true;
+        boolean changed = mBrightnessMappingStrategyMap.get(AUTO_BRIGHTNESS_MODE_DEFAULT)
+                                  .setBrightnessConfiguration(configuration);
+        if (!isInIdleMode() && shouldResetShortTermModel) {
+            resetShortTermModel();
+            changed = true;
         }
-        return false;
+        return changed;
     }
 
     /**
@@ -1006,44 +1009,50 @@ public class AutomaticBrightnessController {
             }
             return;
         }
-        if (!BrightnessSynchronizer.floatEquals(mScreenAutoBrightness,
-                newScreenAutoBrightness)) {
-            if (mLoggingEnabled) {
-                Slog.d(TAG, "updateAutoBrightness: "
-                        + "mScreenAutoBrightness=" + mScreenAutoBrightness + ", "
-                        + "newScreenAutoBrightness=" + newScreenAutoBrightness);
-            }
-            if (!withinThreshold) {
-                mPreThresholdBrightness = mScreenAutoBrightness;
-            }
-            mScreenAutoBrightness = newScreenAutoBrightness;
-            if (isInIdleMode()) {
-                mScreenBrighteningThreshold = clampScreenBrightness(
-                        mScreenBrightnessThresholdsIdle.getBrighteningThreshold(
-                                newScreenAutoBrightness));
-                mScreenDarkeningThreshold = clampScreenBrightness(
-                        mScreenBrightnessThresholdsIdle.getDarkeningThreshold(
-                                newScreenAutoBrightness));
-            } else {
-                mScreenBrighteningThreshold = clampScreenBrightness(
-                        mScreenBrightnessThresholds.getBrighteningThreshold(
-                                newScreenAutoBrightness));
-                mScreenDarkeningThreshold = clampScreenBrightness(
-                        mScreenBrightnessThresholds.getDarkeningThreshold(newScreenAutoBrightness));
-            }
 
-            if (sendUpdate) {
-                mCallbacks.updateBrightness();
-            }
+        if (mLoggingEnabled) {
+            Slog.d(TAG, "updateAutoBrightness: "
+                    + "mScreenAutoBrightness=" + mScreenAutoBrightness + ", "
+                    + "newScreenAutoBrightness=" + newScreenAutoBrightness);
+        }
+
+        if (!withinThreshold) {
+            mPreThresholdBrightness = mScreenAutoBrightness;
+        }
+        mScreenAutoBrightness = newScreenAutoBrightness;
+        if (isInIdleMode()) {
+            mScreenBrighteningThreshold = clampScreenBrightness(
+                    mScreenBrightnessThresholdsIdle.getBrighteningThreshold(
+                            newScreenAutoBrightness));
+            mScreenDarkeningThreshold = clampScreenBrightness(
+                    mScreenBrightnessThresholdsIdle.getDarkeningThreshold(
+                            newScreenAutoBrightness));
+        } else {
+            mScreenBrighteningThreshold = clampScreenBrightness(
+                    mScreenBrightnessThresholds.getBrighteningThreshold(
+                            newScreenAutoBrightness));
+            mScreenDarkeningThreshold = clampScreenBrightness(
+                    mScreenBrightnessThresholds.getDarkeningThreshold(newScreenAutoBrightness));
+        }
+
+        if (sendUpdate) {
+            mCallbacks.updateBrightness();
         }
     }
 
     // Clamps values with float range [0.0-1.0]
     private float clampScreenBrightness(float value) {
-        final float minBrightness = mBrightnessRangeController.getCurrentBrightnessMin();
-        final float maxBrightness = Math.min(mBrightnessRangeController.getCurrentBrightnessMax(),
+        return MathUtils.constrain(value, getMinBrightness(), getMaxBrightness());
+    }
+
+    private float getMinBrightness() {
+        return Math.max(mBrightnessRangeController.getCurrentBrightnessMin(),
+                mBrightnessClamperController.getMinBrightness());
+    }
+
+    private float getMaxBrightness() {
+        return Math.min(mBrightnessRangeController.getCurrentBrightnessMax(),
                 mBrightnessClamperController.getMaxBrightness());
-        return MathUtils.constrain(value, minBrightness, maxBrightness);
     }
 
     private void prepareBrightnessAdjustmentSample() {
@@ -1262,6 +1271,18 @@ public class AutomaticBrightnessController {
      */
     public float getBrightnessFromNits(float nits) {
         return mCurrentBrightnessMapper.getBrightnessFromNits(nits);
+    }
+
+    /**
+     * Convert a brightness nit value to a float scale value. It is assumed that the nit value
+     * provided might have adjustments, such as RBC, applied.
+     *
+     * @param nits The nit value
+     * @return The float scale value or {@link PowerManager.BRIGHTNESS_INVALID_FLOAT} if no
+     * conversion is possible.
+     */
+    public float getBrightnessFromAdjustedNits(float nits) {
+        return mCurrentBrightnessMapper.getBrightnessFromAdjustedNits(nits);
     }
 
     public void recalculateSplines(boolean applyAdjustment, float[] adjustment) {

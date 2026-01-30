@@ -59,6 +59,8 @@ enum : ApiVersion {
   SDK_S_V2 = 32,
   SDK_TIRAMISU = 33,
   SDK_U = 34,
+  SDK_V = 35,
+  SDK_BAKLAVA = 36,
 };
 
 /*
@@ -148,7 +150,7 @@ struct ConfigDescription : public ResTable_config {
 };
 
 inline ConfigDescription::ConfigDescription() {
-  memset(this, 0, sizeof(*this));
+  memset(static_cast<void*>(this), 0, sizeof(*this));
   size = sizeof(android::ResTable_config);
 }
 

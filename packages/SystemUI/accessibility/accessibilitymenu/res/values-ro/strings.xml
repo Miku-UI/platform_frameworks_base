@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Accesează ecranul precedent"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Accesează ecranul următor"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Meniul Accesibilitate este un meniu mare afișat pe ecran, cu ajutorul căruia îți controlezi dispozitivul. Poți să blochezi dispozitivul, să ajustezi volumul și luminozitatea, să faci capturi de ecran și multe altele."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Controlează dispozitivul cu ajutorul unui meniu mare"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Controlează volumul, luminozitatea și altele cu un meniu mare"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Setări pentru meniul Accesibilitate"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Butoane mari"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Mărește butoanele meniului de accesibilitate"</string>

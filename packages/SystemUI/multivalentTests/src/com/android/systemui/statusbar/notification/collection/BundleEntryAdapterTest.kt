@@ -25,6 +25,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier.Companion.TYPE_NON_PERSON
+import com.android.systemui.statusbar.notification.row.data.repository.TEST_BUNDLE_SPEC
 import com.android.systemui.statusbar.notification.row.entryAdapterFactory
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
@@ -49,7 +50,7 @@ class BundleEntryAdapterTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
-        entry = BundleEntry("key")
+        entry = BundleEntry(TEST_BUNDLE_SPEC)
         underTest = factory.create(entry) as BundleEntryAdapter
     }
 
@@ -80,7 +81,7 @@ class BundleEntryAdapterTest : SysuiTestCase() {
 
     @Test
     fun getKey_adapter() {
-        assertThat(underTest.key).isEqualTo("key")
+        assertThat(underTest.key).isEqualTo(TEST_BUNDLE_SPEC.key)
     }
 
     @Test
@@ -152,5 +153,10 @@ class BundleEntryAdapterTest : SysuiTestCase() {
     @Test
     fun getPeopleNotificationType() {
         assertThat(underTest.getPeopleNotificationType()).isEqualTo(TYPE_NON_PERSON)
+    }
+
+    @Test
+    fun getIcons() {
+        assertThat(underTest.icons).isEqualTo(underTest.entry.icons)
     }
 }

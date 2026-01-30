@@ -188,6 +188,13 @@ non_updatable_exportable_droidstubs {
     // and can result in incorrect behavior.
     previous_api: ":android.api.combined.test.latest",
     check_api: {
+        // Use the compatibility check properties to supply the previously released API to which
+        // flagged APIs can be reverted but disable the compatibility check as it is not required.
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.test.latest",
+            removed_api_file: ":android-removed.api.combined.test.latest",
+        },
         current: {
             api_file: ":non-updatable-test-current.txt",
             removed_api_file: ":non-updatable-test-removed.txt",
@@ -1044,6 +1051,16 @@ droidstubs {
     srcs: [":android_stubs_current_with_test_libs{.jar}"],
     api_levels_sdk_type: "public",
     visibility: ["//frameworks/base"],
+
+    // Use the compatibility check properties to supply the previously released API to which
+    // flagged APIs can be reverted but disable the compatibility check as it is not required.
+    check_api: {
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.public.latest",
+            removed_api_file: ":android-removed.api.combined.public.latest",
+        },
+    },
 }
 
 // Produces an `api-versions.xml` file that includes up-to-date information
@@ -1054,6 +1071,17 @@ droidstubs {
     defaults: ["api_versions_complete_defaults"],
     srcs: [":android_system_stubs_current_with_test_libs{.jar}"],
     api_levels_sdk_type: "system",
+
+    // Use the compatibility check properties to supply the previously released API to which
+    // flagged APIs can be reverted but disable the compatibility check as it is not required.
+    check_api: {
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.system.latest",
+            removed_api_file: ":android-removed.api.combined.system.latest",
+        },
+    },
+
     dists: [
         // Make the api-versions.xml file for the system API available in the
         // sdk build target.
@@ -1090,6 +1118,16 @@ droidstubs {
     defaults: ["api_versions_non_updatable_defaults"],
     srcs: [":android_module_stubs_current_with_test_libs{.jar}"],
     api_levels_sdk_type: "module-lib",
+
+    // Use the compatibility check properties to supply the previously released API to which
+    // flagged APIs can be reverted but disable the compatibility check as it is not required.
+    check_api: {
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.module-lib.latest",
+            removed_api_file: ":android-removed.api.combined.module-lib.latest",
+        },
+    },
 }
 
 // Create a single jar containing the whole module-lib API surface.
@@ -1116,6 +1154,16 @@ droidstubs {
     defaults: ["api_versions_complete_defaults"],
     srcs: [":android_module_stubs_complete_current_with_test_libs{.jar}"],
     api_levels_sdk_type: "module-lib",
+
+    // Use the compatibility check properties to supply the previously released API to which
+    // flagged APIs can be reverted but disable the compatibility check as it is not required.
+    check_api: {
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.module-lib.latest",
+            removed_api_file: ":android-removed.api.combined.module-lib.latest",
+        },
+    },
 }
 
 // Produces an `api-versions.xml` file that includes up-to-date information
@@ -1128,6 +1176,16 @@ droidstubs {
     defaults: ["api_versions_non_updatable_defaults"],
     srcs: [":android_system_server_stubs_current_with_test_libs{.jar}"],
     api_levels_sdk_type: "system-server",
+
+    // Use the compatibility check properties to supply the previously released API to which
+    // flagged APIs can be reverted but disable the compatibility check as it is not required.
+    check_api: {
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.system-server.latest",
+            removed_api_file: ":android-removed.api.combined.system-server.latest",
+        },
+    },
 }
 
 // Create a single jar containing the whole system-server API surface.
@@ -1158,11 +1216,25 @@ droidstubs {
     defaults: ["api_versions_complete_defaults"],
     srcs: [":android_system_server_stubs_complete_current_with_test_libs{.jar}"],
     api_levels_sdk_type: "system-server",
+
+    // Use the compatibility check properties to supply the previously released API to which
+    // flagged APIs can be reverted but disable the compatibility check as it is not required.
+    check_api: {
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.system-server.latest",
+            removed_api_file: ":android-removed.api.combined.system-server.latest",
+        },
+    },
 }
 
 /////////////////////////////////////////////////////////////////////
 // hwbinder.stubs provides APIs required for building HIDL Java
 // libraries.
+//
+// This is a subset of the Android System API that is extracted to provide
+// a build-time only library. It relies on "system-api-stubs-docs-non-updatable"
+// to perform API compatibility checking.
 /////////////////////////////////////////////////////////////////////
 
 droidstubs {
@@ -1177,6 +1249,16 @@ droidstubs {
         "metalava-manual",
     ],
     flags: priv_apps,
+
+    // Use the compatibility check properties to supply the previously released API to which
+    // flagged APIs can be reverted but disable the compatibility check as it is not required.
+    check_api: {
+        last_released: {
+            enabled: false,
+            api_file: ":android-non-updatable.api.combined.system.latest",
+            removed_api_file: ":android-non-updatable-removed.api.combined.system.latest",
+        },
+    },
 }
 
 java_library {

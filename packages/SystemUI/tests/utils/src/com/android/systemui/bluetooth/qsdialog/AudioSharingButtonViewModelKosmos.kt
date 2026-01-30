@@ -16,6 +16,7 @@
 
 package com.android.systemui.bluetooth.qsdialog
 
+import com.android.systemui.bluetooth.ui.viewModel.AudioSharingButtonViewModel
 import com.android.systemui.kosmos.Kosmos
 
 val Kosmos.audioSharingButtonViewModel: AudioSharingButtonViewModel by

@@ -21,6 +21,7 @@ import android.content.ComponentName;
 import android.os.UserHandle;
 import android.util.Slog;
 import android.util.SparseArray;
+import android.text.TextUtils;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.JournaledFile;
@@ -266,8 +267,8 @@ public class PolicyVersionUpgrader {
         if (allWritesSuccessful) {
             writeVersion(currentVersion);
         } else {
-            Slog.e(LOG_TAG, String.format("Error: Failed upgrading policies to version %d",
-                    currentVersion));
+            Slog.e(LOG_TAG, TextUtils.formatSimple(
+                    "Error: Failed upgrading policies to version %d", currentVersion));
         }
     }
 
@@ -338,7 +339,7 @@ public class PolicyVersionUpgrader {
 
         File file = versionFile.chooseForWrite();
         if (VERBOSE_LOG) {
-            Slog.v(LOG_TAG, String.format("Writing new version to: %s", file));
+            Slog.v(LOG_TAG, TextUtils.formatSimple("Writing new version to: %s", file));
         }
 
         try {

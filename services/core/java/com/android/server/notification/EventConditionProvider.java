@@ -117,22 +117,14 @@ public class EventConditionProvider extends SystemConditionProviderService {
         mContext.registerReceiver(new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (android.app.Flags.modesHsum()) {
-                    // Possibly the intent signals a profile added on a different user, but it
-                    // doesn't matter (except for a bit of wasted work here). We will reload
-                    // trackers for that user when we switch.
-                    reloadTrackers(mCurrentUser);
-                } else {
-                    reloadTrackers();
-                }
+                // Possibly the intent signals a profile added on a different user, but it
+                // doesn't matter (except for a bit of wasted work here). We will reload
+                // trackers for that user when we switch.
+                reloadTrackers(mCurrentUser);
             }
         }, filter);
 
-        if (android.app.Flags.modesHsum()) {
-            reloadTrackers(UserHandle.SYSTEM);
-        } else {
-            reloadTrackers();
-        }
+        reloadTrackers(UserHandle.SYSTEM);
     }
 
     @Override
@@ -205,28 +197,6 @@ public class EventConditionProvider extends SystemConditionProviderService {
                 continue;
             }
             mTrackers.put(profile.id, new CalendarTracker(mContext, profileContext));
-        }
-        evaluateSubscriptions();
-    }
-
-    @Deprecated // Remove when inlining MODES_HSUM
-    private void reloadTrackers() {
-        if (DEBUG) Slog.d(TAG, "reloadTrackers");
-        if (android.app.Flags.modesHsum()) {
-            Slog.wtf(TAG, "Shouldn't call reloadTrackers() without user in MODES_HSUM",
-                    new Exception());
-        }
-        for (int i = 0; i < mTrackers.size(); i++) {
-            mTrackers.valueAt(i).setCallback(null);
-        }
-        mTrackers.clear();
-        for (UserHandle user : UserManager.get(mContext).getUserProfiles()) {
-            final Context context = user.isSystem() ? mContext : getContextForUser(mContext, user);
-            if (context == null) {
-                Slog.w(TAG, "Unable to create context for user " + user.getIdentifier());
-                continue;
-            }
-            mTrackers.put(user.getIdentifier(), new CalendarTracker(mContext, context));
         }
         evaluateSubscriptions();
     }

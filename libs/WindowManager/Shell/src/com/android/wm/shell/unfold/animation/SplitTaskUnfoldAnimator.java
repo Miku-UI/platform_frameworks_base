@@ -321,7 +321,7 @@ public class SplitTaskUnfoldAnimator implements UnfoldTaskAnimator,
             if (taskbarExpanded) {
                 // Only insets the cropping window with taskbar when taskbar is expanded
                 mStartCropRect.inset(mExpandedTaskbarInsetsSource.calculateVisibleInsets(
-                        mStartCropRect));
+                        mStartCropRect, mStartCropRect));
             }
 
             // Offset to surface coordinates as layout bounds are in screen coordinates

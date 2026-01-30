@@ -39,7 +39,7 @@ import java.util.Objects;
  * represents the QOS of the dedicated bearer and notifies the same to applications via
  * {@link QosCallback}.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class EpsBearerQosSessionAttributes implements Parcelable, QosSessionAttributes {

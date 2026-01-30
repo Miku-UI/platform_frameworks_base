@@ -449,7 +449,7 @@ TEST(JavaClassGeneratorTest, CommentsForStyleableHiddenAttributesAreNotPresent) 
   EXPECT_THAT(output, Not(HasSubstr("@see #Container_one")));
   EXPECT_THAT(output, HasSubstr("attr name android:one"));
   EXPECT_THAT(output, HasSubstr("attr description"));
-  EXPECT_THAT(output, HasSubstr(attr.GetComment()));
+  EXPECT_THAT(output, HasSubstr("This is an attribute"));
   EXPECT_THAT(output, HasSubstr(styleable.GetComment()));
 }
 

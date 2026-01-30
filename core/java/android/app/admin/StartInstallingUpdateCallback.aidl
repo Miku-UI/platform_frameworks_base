@@ -20,7 +20,7 @@ package android.app.admin;
 /**
 * Callback used between {@link DevicePolicyManager} and {@link DevicePolicyManagerService} to
 * indicate that starting installing an update is finished.
-* {@hide}
+* @hide
 */
 oneway interface StartInstallingUpdateCallback {
     void onStartInstallingUpdateError(int errorCode, String errorMessage);

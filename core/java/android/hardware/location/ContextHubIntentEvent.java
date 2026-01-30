@@ -278,10 +278,6 @@ public class ContextHubIntentEvent {
 
     @Override
     public int hashCode() {
-        if (!Flags.fixApiCheck()) {
-            return super.hashCode();
-        }
-
         return Objects.hash(mEventType, mContextHubInfo, mNanoAppId,
                 mNanoAppMessage, mNanoAppAbortCode, mClientAuthorizationState);
     }

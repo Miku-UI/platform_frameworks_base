@@ -18,19 +18,24 @@ package com.android.wm.shell.appzoomout;
 
 import static android.app.WindowConfiguration.ROTATION_UNDEFINED;
 import static android.view.Display.DEFAULT_DISPLAY;
+
 import static com.android.systemui.Flags.spatialModelAppPushback;
+import static com.android.systemui.shared.Flags.enableLppAssistInvocationEffect;
 
 import android.app.ActivityManager;
 import android.app.WindowConfiguration;
 import android.content.Context;
 import android.content.res.Configuration;
+import android.os.Handler;
 import android.util.Slog;
 import android.window.DisplayAreaInfo;
+import android.window.DisplayAreaOrganizer;
 import android.window.WindowContainerTransaction;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
+import com.android.internal.jank.InteractionJankMonitor;
 import com.android.wm.shell.ShellTaskOrganizer;
 import com.android.wm.shell.common.DisplayChangeController;
 import com.android.wm.shell.common.DisplayController;
@@ -50,7 +55,8 @@ public class AppZoomOutController implements RemoteCallable<AppZoomOutController
     private final Context mContext;
     private final ShellTaskOrganizer mTaskOrganizer;
     private final DisplayController mDisplayController;
-    private final AppZoomOutDisplayAreaOrganizer mDisplayAreaOrganizer;
+    private final AppZoomOutDisplayAreaOrganizer mAppDisplayAreaOrganizer;
+    private final TopLevelZoomOutDisplayAreaOrganizer mTopLevelDisplayAreaOrganizer;
     private final ShellExecutor mMainExecutor;
     private final AppZoomOutImpl mImpl = new AppZoomOutImpl();
 
@@ -76,25 +82,31 @@ public class AppZoomOutController implements RemoteCallable<AppZoomOutController
 
     public static AppZoomOutController create(Context context, ShellInit shellInit,
             ShellTaskOrganizer shellTaskOrganizer, DisplayController displayController,
-            DisplayLayout displayLayout, @ShellMainThread ShellExecutor mainExecutor) {
-        AppZoomOutDisplayAreaOrganizer displayAreaOrganizer = new AppZoomOutDisplayAreaOrganizer(
+            DisplayLayout displayLayout, @ShellMainThread ShellExecutor mainExecutor,
+            InteractionJankMonitor interactionJankMonitor) {
+        AppZoomOutDisplayAreaOrganizer appDisplayAreaOrganizer = new AppZoomOutDisplayAreaOrganizer(
                 context, displayLayout, mainExecutor);
+        TopLevelZoomOutDisplayAreaOrganizer topLevelDisplayAreaOrganizer =
+                new TopLevelZoomOutDisplayAreaOrganizer(displayLayout, context, mainExecutor,
+                        interactionJankMonitor);
         return new AppZoomOutController(context, shellInit, shellTaskOrganizer, displayController,
-                displayAreaOrganizer, mainExecutor);
+                appDisplayAreaOrganizer, topLevelDisplayAreaOrganizer, mainExecutor);
     }
 
     @VisibleForTesting
     AppZoomOutController(Context context, ShellInit shellInit,
             ShellTaskOrganizer shellTaskOrganizer, DisplayController displayController,
-            AppZoomOutDisplayAreaOrganizer displayAreaOrganizer,
+            AppZoomOutDisplayAreaOrganizer appDisplayAreaOrganizer,
+            TopLevelZoomOutDisplayAreaOrganizer topLevelDisplayAreaOrganizer,
             @ShellMainThread ShellExecutor mainExecutor) {
         mContext = context;
         mTaskOrganizer = shellTaskOrganizer;
         mDisplayController = displayController;
-        mDisplayAreaOrganizer = displayAreaOrganizer;
+        mAppDisplayAreaOrganizer = appDisplayAreaOrganizer;
+        mTopLevelDisplayAreaOrganizer = topLevelDisplayAreaOrganizer;
         mMainExecutor = mainExecutor;
 
-        if (spatialModelAppPushback()) {
+        if (spatialModelAppPushback() || enableLppAssistInvocationEffect()) {
             shellInit.addInitCallback(this::onInit, this);
         }
     }
@@ -106,15 +118,31 @@ public class AppZoomOutController implements RemoteCallable<AppZoomOutController
         mDisplayController.addDisplayChangingController(this);
         updateDisplayLayout(mContext.getDisplayId());
 
-        mDisplayAreaOrganizer.registerOrganizer();
+        if (spatialModelAppPushback()) {
+            mAppDisplayAreaOrganizer.registerOrganizer();
+        }
+        if (enableLppAssistInvocationEffect()) {
+            mTopLevelDisplayAreaOrganizer.registerOrganizer();
+        }
     }
 
     public AppZoomOut asAppZoomOut() {
         return mImpl;
     }
 
-    public void setProgress(float progress) {
-        mDisplayAreaOrganizer.setProgress(progress);
+
+    /**
+     * Scales all content on the screen belonging to
+     * {@link DisplayAreaOrganizer#FEATURE_WINDOWED_MAGNIFICATION} and applies a cropping.
+     *
+     * @param progress progress to be applied to the top-level zoom effect.
+     * @param vsyncId The vsync id to align the frame to.
+     * @param sysuiMainHandler The main handler from SystemUI (required for CUJ tracking)
+     */
+    private void setTopLevelProgress(float progress, long vsyncId, Handler sysuiMainHandler) {
+        if (enableLppAssistInvocationEffect()) {
+            mTopLevelDisplayAreaOrganizer.setProgress(progress, vsyncId, sysuiMainHandler);
+        }
     }
 
     void updateDisplayLayout(int displayId) {
@@ -123,7 +151,10 @@ public class AppZoomOutController implements RemoteCallable<AppZoomOutController
             Slog.w(TAG, "Failed to get new DisplayLayout.");
             return;
         }
-        mDisplayAreaOrganizer.setDisplayLayout(newDisplayLayout);
+        mAppDisplayAreaOrganizer.setDisplayLayout(newDisplayLayout);
+        if (enableLppAssistInvocationEffect()) {
+            mTopLevelDisplayAreaOrganizer.setDisplayLayout(newDisplayLayout);
+        }
     }
 
     @Override
@@ -132,7 +163,7 @@ public class AppZoomOutController implements RemoteCallable<AppZoomOutController
             return;
         }
         if (taskInfo.getActivityType() == WindowConfiguration.ACTIVITY_TYPE_HOME) {
-            mDisplayAreaOrganizer.setIsHomeTaskFocused(taskInfo.isFocused);
+            mAppDisplayAreaOrganizer.setIsHomeTaskFocused(taskInfo.isFocused);
         }
     }
 
@@ -141,7 +172,10 @@ public class AppZoomOutController implements RemoteCallable<AppZoomOutController
             @Nullable DisplayAreaInfo newDisplayAreaInfo, WindowContainerTransaction wct) {
         // TODO: verify if there is synchronization issues.
         if (toRotation != ROTATION_UNDEFINED) {
-            mDisplayAreaOrganizer.onRotateDisplay(mContext, toRotation);
+            mAppDisplayAreaOrganizer.onRotateDisplay(mContext, toRotation);
+            if (enableLppAssistInvocationEffect()) {
+                mTopLevelDisplayAreaOrganizer.onRotateDisplay(mContext, toRotation);
+            }
         }
     }
 
@@ -157,9 +191,11 @@ public class AppZoomOutController implements RemoteCallable<AppZoomOutController
 
     @ExternalThread
     private class AppZoomOutImpl implements AppZoomOut {
+
         @Override
-        public void setProgress(float progress) {
-            mMainExecutor.execute(() -> AppZoomOutController.this.setProgress(progress));
+        public void setTopLevelProgress(float progress, long vsyncId, Handler sysuiMainHandler) {
+            mMainExecutor.execute(() -> AppZoomOutController.this.setTopLevelProgress(progress,
+                    vsyncId, sysuiMainHandler));
         }
     }
 }

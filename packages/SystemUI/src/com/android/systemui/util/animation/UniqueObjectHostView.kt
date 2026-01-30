@@ -21,21 +21,18 @@ import android.content.Context
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import com.android.systemui.Flags
 import com.android.systemui.res.R
 
 /**
  * A special view that is designed to host a single "unique object". The unique object is
  * dynamically added and removed from this view and may transition to other UniqueObjectHostViews
- * available in the system.
- * This is useful to share a singular instance of a view that can transition between completely
- * independent parts of the view hierarchy.
- * If the view currently hosts the unique object, it's measuring it normally,
- * but if it's not attached, it will obtain the size by requesting a measure, as if it were
- * always attached.
+ * available in the system. This is useful to share a singular instance of a view that can
+ * transition between completely independent parts of the view hierarchy. If the view currently
+ * hosts the unique object, it's measuring it normally, but if it's not attached, it will obtain the
+ * size by requesting a measure, as if it were always attached.
  */
-class UniqueObjectHostView(
-    context: Context
-) : FrameLayout(context) {
+class UniqueObjectHostView(context: Context) : FrameLayout(context) {
     lateinit var measurementManager: MeasurementManager
 
     @SuppressLint("DrawAllocation")
@@ -55,7 +52,16 @@ class UniqueObjectHostView(
 
         if (isCurrentHost()) {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-            getChildAt(0)?.requiresRemeasuring = false
+            getChildAt(0)?.let { mediaFrame ->
+                if (!Flags.mediaFrameDimensionsFix()) {
+                    // Media host dimensions are correct. Its child cannot show larger dimensions.
+                    // We also need to ensure that dimensions are not less than expected.
+                    if (cachedWidth > mediaFrame.width || cachedHeight > mediaFrame.height) {
+                        mediaFrame.layoutParams = LayoutParams(cachedWidth, cachedHeight)
+                    }
+                }
+                mediaFrame.requiresRemeasuring = false
+            }
         }
         // The goal here is that the view will always have a consistent measuring, regardless
         // if it's attached or not.
@@ -87,10 +93,12 @@ class UniqueObjectHostView(
         val top = paddingTop
         val paddingHorizontal = paddingStart + paddingEnd
         val paddingVertical = paddingTop + paddingBottom
-        child.layout(left,
-                top,
-                left + measuredWidth - paddingHorizontal,
-                top + measuredHeight - paddingVertical)
+        child.layout(
+            left,
+            top,
+            left + measuredWidth - paddingHorizontal,
+            top + measuredHeight - paddingVertical,
+        )
     }
 
     private fun isCurrentHost() = childCount != 0
@@ -100,9 +108,7 @@ class UniqueObjectHostView(
     }
 }
 
-/**
- * Does this view require remeasuring currently outside of the regular measure flow?
- */
+/** Does this view require remeasuring currently outside of the regular measure flow? */
 var View.requiresRemeasuring: Boolean
     get() {
         val required = getTag(R.id.requires_remeasuring)

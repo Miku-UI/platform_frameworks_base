@@ -91,8 +91,7 @@ class CredstoreIdentityCredential extends IdentityCredential {
             // The main reason for this convoluted approach and not just sending the decomposed
             // key-pair is that this would require directly using (device-side) BouncyCastle which
             // is tricky due to various API hiding efforts. So instead we have credstore generate
-            // this PKCS#12 blob. The blob is encrypted with no password (sadly, also, BoringSSL
-            // doesn't support not using encryption when building a PKCS#12 blob).
+            // this PKCS#12 blob. The blob is unencrypted.
             //
             byte[] pkcs12 = mBinder.createEphemeralKeyPair();
             String alias = "ephemeralKey";

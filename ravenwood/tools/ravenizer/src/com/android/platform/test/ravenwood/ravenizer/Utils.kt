@@ -22,6 +22,7 @@ import com.android.hoststubgen.asm.ClassNodes
 import com.android.hoststubgen.asm.findAnyAnnotation
 import com.android.hoststubgen.asm.startsWithAny
 import com.android.hoststubgen.asm.toHumanReadableClassName
+import com.android.hoststubgen.filters.isRClass
 import org.junit.rules.TestRule
 import org.junit.runner.RunWith
 import org.objectweb.asm.Type
@@ -86,7 +87,7 @@ fun String.isRavenwoodClass(): Boolean {
  * Classes that should never be modified.
  */
 fun String.shouldBypass(): Boolean {
-    if (this.isRavenwoodClass()) {
+    if (this.isRavenwoodClass() || this.isRClass()) {
         return true
     }
     return this.startsWithAny(
@@ -101,6 +102,11 @@ fun String.shouldBypass(): Boolean {
         // TODO -- anything else?
     )
 }
+
+/**
+ * Inverse of [shouldBypass].
+ */
+fun String.shouldProcess(): Boolean = !shouldBypass()
 
 /**
  * Files that should be removed when "--strip-mockito" is set.

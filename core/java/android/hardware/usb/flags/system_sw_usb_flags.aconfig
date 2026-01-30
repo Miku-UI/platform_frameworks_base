@@ -50,3 +50,24 @@ flag {
     description: "Enables signal API with staking for internal local service callers"
     bug: "369382558"
 }
+
+flag {
+    name: "enable_aoa_userspace_implementation"
+    namespace: "system_sw_usb"
+    description: "Enables AOA userspace implementation"
+    bug: "407985367"
+}
+
+flag {
+    name: "enable_uaoa_p8"
+    namespace: "system_sw_usb"
+    description: "Enables AOA userspace implementation only for pixel 8 series devices"
+    bug: "440091110"
+}
+
+flag {
+    name: "enable_uaoa_all_pixels_except_p8"
+    namespace: "system_sw_usb"
+    description: "Enables AOA userspace implementation all pixel devices except pixel 8 series"
+    bug: "440091110"
+}

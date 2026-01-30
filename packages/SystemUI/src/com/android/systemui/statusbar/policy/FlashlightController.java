@@ -14,9 +14,9 @@
 
 package com.android.systemui.statusbar.policy;
 
+import com.android.internal.annotations.WeaklyReferencedCallback;
 import com.android.systemui.Dumpable;
 import com.android.systemui.statusbar.policy.FlashlightController.FlashlightListener;
-import com.android.systemui.util.annotations.WeaklyReferencedCallback;
 
 public interface FlashlightController extends CallbackController<FlashlightListener>, Dumpable {
 

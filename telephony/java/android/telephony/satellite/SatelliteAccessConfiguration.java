@@ -51,6 +51,12 @@ public final class SatelliteAccessConfiguration implements Parcelable {
     private List<Integer> mTagIdList;
 
     /**
+     * The list of carrier IDs associated with the current location
+     */
+    @NonNull
+    private List<Integer> mCarrierIdList;
+
+    /**
      * Constructor for {@link SatelliteAccessConfiguration}.
      *
      * @param satelliteInfos The list of {@link SatelliteInfo} objects representing the satellites
@@ -60,8 +66,23 @@ public final class SatelliteAccessConfiguration implements Parcelable {
      */
     public SatelliteAccessConfiguration(@NonNull List<SatelliteInfo> satelliteInfos,
             @NonNull List<Integer> tagIdList) {
+        this(satelliteInfos, tagIdList, new ArrayList<>());
+    }
+
+    /**
+     * Constructor for {@link SatelliteAccessConfiguration}.
+     *
+     * @param satelliteInfos The list of {@link SatelliteInfo} objects representing the satellites
+     *                       accessible with this configuration.
+     * @param tagIdList      The list of tag IDs associated with this configuration.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public SatelliteAccessConfiguration(@NonNull List<SatelliteInfo> satelliteInfos,
+            @NonNull List<Integer> tagIdList, @NonNull List<Integer> carrierIdList) {
         mSatelliteInfoList = satelliteInfos;
         mTagIdList = tagIdList;
+        mCarrierIdList = carrierIdList;
     }
 
     /**
@@ -73,6 +94,8 @@ public final class SatelliteAccessConfiguration implements Parcelable {
         mSatelliteInfoList = in.createTypedArrayList(SatelliteInfo.CREATOR);
         mTagIdList = new ArrayList<>();
         in.readList(mTagIdList, Integer.class.getClassLoader(), Integer.class);
+        mCarrierIdList = new ArrayList<>();
+        in.readList(mCarrierIdList, Integer.class.getClassLoader(), Integer.class);
     }
 
     @NonNull
@@ -103,6 +126,7 @@ public final class SatelliteAccessConfiguration implements Parcelable {
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeTypedList(mSatelliteInfoList);
         dest.writeList(mTagIdList);
+        dest.writeList(mCarrierIdList);
     }
 
     /**
@@ -126,19 +150,33 @@ public final class SatelliteAccessConfiguration implements Parcelable {
         return mTagIdList;
     }
 
+    /**
+     * Returns a list of carrier IDs associated with this object.
+     *
+     * @return The list of carrier IDs.
+     * @hide
+     */
+    @NonNull
+    @FlaggedApi(Flags.FLAG_SATELLITE_26Q2_APIS)
+    public List<Integer> getCarrierIds() {
+        return mCarrierIdList;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (!(o instanceof SatelliteAccessConfiguration that)) return false;
 
         return mSatelliteInfoList.equals(that.mSatelliteInfoList)
-                && Objects.equals(mTagIdList, that.mTagIdList);
+                && Objects.equals(mTagIdList, that.mTagIdList)
+                && Objects.equals(mCarrierIdList, that.mCarrierIdList);
     }
 
     @Override
     public int hashCode() {
         int result = Objects.hash(mSatelliteInfoList);
-        result = 31 * result + Objects.hashCode(mTagIdList);
+        result = 31 * result + Objects.hashCode(mTagIdList)
+                + Objects.hashCode(mCarrierIdList);
         return result;
     }
 
@@ -149,6 +187,7 @@ public final class SatelliteAccessConfiguration implements Parcelable {
         sb.append("SatelliteAccessConfiguration{");
         sb.append("mSatelliteInfoList=").append(mSatelliteInfoList);
         sb.append(", mTagIds=").append(mTagIdList);
+        sb.append(", mCarrierIds=").append(mCarrierIdList);
         sb.append('}');
         return sb.toString();
     }

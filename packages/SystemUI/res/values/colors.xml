@@ -24,7 +24,10 @@
     <color name="qs_tile_divider">#29ffffff</color><!-- 16% white -->
     <color name="qs_detail_button_white">#B3FFFFFF</color><!-- 70% white -->
     <color name="status_bar_clock_color">#FFFFFFFF</color>
-    <color name="shade_header_text_color">#FFFFFFFF</color>
+    <!-- The main FG tint for shade header items -->
+    <color name="shade_header_text_color">#FF000000</color>
+    <!-- The main BG tint for shade header items -->
+    <color name="shade_header_text_color_bg">#FFFFFFFF</color>
     <color name="qs_tile_disabled_color">#9E9E9E</color> <!-- 38% black -->
     <color name="status_bar_icons_hover_color_light">#38FFFFFF</color> <!-- 22% white -->
     <color name="status_bar_icons_hover_color_dark">#38000000</color> <!-- 22% black -->
@@ -34,7 +37,6 @@
 
     <!-- Base colors for notification shade/scrim, the alpha component is adjusted programmatically
     to match the spec -->
-    <color name="shade_panel_base">@android:color/system_accent1_100</color>
     <color name="notification_scrim_base">@android:color/system_accent1_100</color>
 
     <!-- Fallback colors for notification shade/scrim -->
@@ -48,12 +50,11 @@
     <color name="global_actions_grid_background">#F1F3F4</color>
 
     <!-- Colors for Power Menu Lite -->
-    <color name="global_actions_lite_background">@*android:color/primary_device_default_light</color>
-    <color name="global_actions_lite_button_background">@*android:color/surface_light</color>
     <color name="global_actions_lite_button_background_focused">#808080</color>
-    <color name="global_actions_lite_text">@*android:color/foreground_device_default_light</color>
     <color name="global_actions_lite_emergency_background">#F85D4D</color>
+    <color name="global_actions_lite_emergency_background_new_color">#D8372D</color>
     <color name="global_actions_lite_emergency_icon">@color/GM2_grey_900</color>
+    <color name="global_actions_lite_emergency_icon_new_color">#FFFFFF</color>
 
     <color name="global_actions_shutdown_ui_text">@color/control_primary_text</color>
 
@@ -202,6 +203,7 @@
     <color name="media_seamless_border">?android:attr/colorAccent</color>
     <color name="media_paging_indicator">@color/material_dynamic_neutral_variant80</color>
     <color name="media_on_background">#FFFFFF</color>
+    <color name="media_outlined_button_background">#4D000000</color> <!-- 30% -->
 
     <!-- media output dialog-->
     <color name="media_dialog_background" android:lstar="98">@color/material_dynamic_neutral90</color>
@@ -248,6 +250,7 @@
     <color name="screenrecord_icon_color">#D93025</color><!-- red 600 -->
 
     <color name="privacy_chip_background">#3ddc84</color>
+    <color name="privacy_chip_location_only_background">#3dbaf4</color>
 
     <!-- Accessibility floating menu -->
     <color name="accessibility_floating_menu_background">#CCFFFFFF</color> <!-- 80% -->
@@ -267,8 +270,6 @@
     <color name="settingslib_track_off_color">@color/settingslib_track_off</color>
     <color name="connected_network_secondary_color">#41493D</color>
 
-    <color name="dream_overlay_camera_mic_off_dot_color">#FCBE03</color>
-
     <!-- Dream overlay text shadows -->
     <color name="dream_overlay_clock_key_text_shadow_color">#4D000000</color>
     <color name="dream_overlay_clock_ambient_text_shadow_color">#4D000000</color>
@@ -282,4 +283,9 @@
     <!-- Low light Dream -->
     <color name="low_light_clock_background_color">#000000</color>
     <color name="low_light_clock_text_color">#CCCCCC</color>
+
+    <!-- BG color for confirm and backspace button in non-auto confirm PIN bouncer.   -->
+    <color name="pin_bouncer_action_button_bg">@androidprv:color/surface_effect_0</color>
+    <!-- Bouncer background when blur is not enabled.   -->
+    <color name="bouncer_fallback_bg">@android:color/system_accent2_200</color>
 </resources>

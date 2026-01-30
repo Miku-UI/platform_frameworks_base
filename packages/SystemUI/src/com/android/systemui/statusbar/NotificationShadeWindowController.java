@@ -109,6 +109,9 @@ public interface NotificationShadeWindowController extends RemoteInputController
         return false;
     }
 
+    /** Sets whether to force the shade to be invisible after a launch animation. */
+    default void setForceHideAfterActivityLaunch(boolean forceHideAfterActivityLaunch) {}
+
     /** Sets the state of whether the scrim is visible or not. */
     default void setScrimsVisibility(int scrimsVisibility) {}
 
@@ -136,16 +139,10 @@ public interface NotificationShadeWindowController extends RemoteInputController
 
     /**
      * Sets the screen brightness level for when the device is dozing.
-     * @param value The brightness value between 1 and 255
-     */
-    default void setDozeScreenBrightness(int value) {}
-
-    /**
-     * Sets the screen brightness level for when the device is dozing.
      * @param value The brightness value between {@link PowerManager#BRIGHTNESS_MIN} and
      * {@link PowerManager#BRIGHTNESS_MAX}
      */
-    default void setDozeScreenBrightnessFloat(float value) {}
+    default void setDozeScreenBrightness(float value) {}
 
     /**
      * Sets whether the screen brightness is forced to the value we use for doze mode by the status
@@ -183,17 +180,17 @@ public interface NotificationShadeWindowController extends RemoteInputController
     default void setKeyguardGoingAway(boolean goingAway) {}
 
     /**
-     * SystemUI may need top-ui to avoid jank when performing animations.  After the
-     * animation is performed, the component should remove itself from the list of features that
-     * are forcing SystemUI to be top-ui.
-     */
-    default void setRequestTopUi(boolean requestTopUi, String componentTag) {}
-
-    /**
      * If {@link LightRevealScrim} obscures the UI.
      * @param opaque if the scrim is opaque
      */
     default void setLightRevealScrimOpaque(boolean opaque) {}
+
+    /**
+     * If we have received a display change (e.g. a display resize), that might affect the look
+     * of the notification shade window
+     * @param pendingDisplayChange if there is a pending display change
+     */
+    default void setPendingDisplayChange(boolean pendingDisplayChange) {}
 
     /**
      * Defer any application of window {@link WindowManager.LayoutParams} until {@code scope} is

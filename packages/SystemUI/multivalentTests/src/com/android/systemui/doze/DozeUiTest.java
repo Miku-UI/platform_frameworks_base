@@ -19,6 +19,7 @@ package com.android.systemui.doze;
 import static com.android.systemui.doze.DozeMachine.State.DOZE;
 import static com.android.systemui.doze.DozeMachine.State.DOZE_AOD;
 import static com.android.systemui.doze.DozeMachine.State.DOZE_AOD_PAUSED;
+import static com.android.systemui.doze.DozeMachine.State.DOZE_REQUEST_PULSE;
 import static com.android.systemui.doze.DozeMachine.State.INITIALIZED;
 import static com.android.systemui.doze.DozeMachine.State.UNINITIALIZED;
 
@@ -33,12 +34,14 @@ import static org.mockito.Mockito.when;
 import android.app.AlarmManager;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.systemui.DejankUtils;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.statusbar.phone.DozeParameters;
 import com.android.systemui.util.concurrency.FakeExecutor;
@@ -49,6 +52,8 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -72,6 +77,8 @@ public class DozeUiTest extends SysuiTestCase {
     private HandlerThread mHandlerThread;
     private DozeUi mDozeUi;
     private FakeExecutor mFakeExecutor;
+    @Captor
+    private ArgumentCaptor<DozeHost.PulseCallback> mPulseCallbackCaptor;
 
     @Before
     public void setUp() throws Exception {
@@ -122,5 +129,73 @@ public class DozeUiTest extends SysuiTestCase {
         when(mDozeParameters.getDisplayNeedsBlanking()).thenReturn(false);
         mDozeUi.transitionTo(UNINITIALIZED, DOZE);
         verify(mHost).setAnimateWakeup(eq(true));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NEW_DOZING_KEYGUARD_STATES)
+    public void onPulseStarted_quickPickupRequestsPulsingWithoutUI() {
+        mDozeUi.transitionTo(UNINITIALIZED, INITIALIZED);
+        mDozeUi.transitionTo(INITIALIZED, DOZE_AOD);
+
+        when(mMachine.getPulseReason()).thenReturn(DozeLog.REASON_SENSOR_QUICK_PICKUP);
+        mDozeUi.transitionTo(DOZE_AOD, DOZE_REQUEST_PULSE);
+
+        capturePulseCallback(DozeLog.REASON_SENSOR_QUICK_PICKUP);
+
+        mPulseCallbackCaptor.getValue().onPulseStarted();
+        verify(mMachine).requestState(DozeMachine.State.DOZE_PULSING_WITHOUT_UI);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NEW_DOZING_KEYGUARD_STATES)
+    public void onPulseStarted_udfpsLongpressRequestsPulsingWithoutUI() {
+        mDozeUi.transitionTo(UNINITIALIZED, INITIALIZED);
+        mDozeUi.transitionTo(INITIALIZED, DOZE_AOD);
+
+        when(mMachine.getPulseReason()).thenReturn(DozeLog.REASON_SENSOR_UDFPS_LONG_PRESS);
+        mDozeUi.transitionTo(DOZE_AOD, DOZE_REQUEST_PULSE);
+
+        capturePulseCallback(DozeLog.REASON_SENSOR_UDFPS_LONG_PRESS);
+
+        mPulseCallbackCaptor.getValue().onPulseStarted();
+        verify(mMachine).requestState(DozeMachine.State.DOZE_PULSING_WITHOUT_UI);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NEW_DOZING_KEYGUARD_STATES)
+    public void onPulseStarted_fingerprintPulseShowAuthUI() {
+        mDozeUi.transitionTo(UNINITIALIZED, INITIALIZED);
+        mDozeUi.transitionTo(INITIALIZED, DOZE_AOD);
+
+        when(mMachine.getPulseReason()).thenReturn(
+                DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI
+        );
+        mDozeUi.transitionTo(DOZE_AOD, DOZE_REQUEST_PULSE);
+
+        capturePulseCallback(DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_AUTH_UI);
+
+        mPulseCallbackCaptor.getValue().onPulseStarted();
+        verify(mMachine).requestState(DozeMachine.State.DOZE_PULSING_AUTH_UI);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NEW_DOZING_KEYGUARD_STATES)
+    public void onPulseStarted_fingerprintPulseShowFullUI() {
+        mDozeUi.transitionTo(UNINITIALIZED, INITIALIZED);
+        mDozeUi.transitionTo(INITIALIZED, DOZE_AOD);
+
+        when(mMachine.getPulseReason()).thenReturn(
+                DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI
+        );
+        mDozeUi.transitionTo(DOZE_AOD, DOZE_REQUEST_PULSE);
+
+        capturePulseCallback(DozeLog.PULSE_REASON_FINGERPRINT_PULSE_SHOW_FULL_UI);
+
+        mPulseCallbackCaptor.getValue().onPulseStarted();
+        verify(mMachine).requestState(DozeMachine.State.DOZE_PULSING);
+    }
+
+    private void capturePulseCallback(int pulseReason) {
+        verify(mHost).pulseWhileDozing(mPulseCallbackCaptor.capture(), eq(pulseReason));
     }
 }

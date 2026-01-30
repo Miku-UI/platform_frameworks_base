@@ -19,6 +19,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.INT;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 
 import com.android.internal.widget.remotecompose.core.Operation;
 import com.android.internal.widget.remotecompose.core.Operations;
@@ -38,10 +39,10 @@ public class DataListFloat extends Operation implements VariableSupport, ArrayAc
     private static final int OP_CODE = Operations.FLOAT_LIST;
     private static final String CLASS_NAME = "IdListData";
     public final int mId;
-    @NonNull private float[] mValues;
+    private @NonNull float [] mValues;
     private static final int MAX_FLOAT_ARRAY = 2000;
 
-    public DataListFloat(int id, @NonNull float[] values) {
+    public DataListFloat(int id, @NonNull float [] values) {
         mId = id;
         mValues = values;
     }
@@ -79,7 +80,7 @@ public class DataListFloat extends Operation implements VariableSupport, ArrayAc
      * @param id the id of the array
      * @param values the values of the array
      */
-    public static void apply(@NonNull WireBuffer buffer, int id, @NonNull float[] values) {
+    public static void apply(@NonNull WireBuffer buffer, int id, @NonNull float [] values) {
         buffer.start(OP_CODE);
         buffer.writeInt(id);
         buffer.writeInt(values.length);
@@ -137,9 +138,8 @@ public class DataListFloat extends Operation implements VariableSupport, ArrayAc
         return mValues[index];
     }
 
-    @NonNull
     @Override
-    public float[] getFloats() {
+    public @Nullable float [] getFloats() {
         return mValues;
     }
 
@@ -150,7 +150,7 @@ public class DataListFloat extends Operation implements VariableSupport, ArrayAc
 
     @SuppressWarnings("JdkImmutableCollections")
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("id", mId).add("values", List.of(mValues));
     }
 
@@ -159,7 +159,7 @@ public class DataListFloat extends Operation implements VariableSupport, ArrayAc
      *
      * @param lc
      */
-    public void update(DataListFloat lc) {
+    public void update(@NonNull DataListFloat lc) {
         mValues = lc.mValues;
     }
 }

@@ -21,6 +21,7 @@ import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.UserHandle;
 import android.os.UserManager;
 
@@ -34,6 +35,8 @@ import java.util.List;
 public class UserPackage {
     private final UserHandle mUser;
     private final PackageInfo mPackageInfo;
+
+    public static final int MINIMUM_SUPPORTED_SDK = Build.VERSION_CODES.TIRAMISU;
 
     public UserPackage(@NonNull UserHandle user, @Nullable PackageInfo packageInfo) {
         mUser = user;
@@ -78,6 +81,14 @@ public class UserPackage {
         return (((mPackageInfo.applicationInfo.flags & ApplicationInfo.FLAG_INSTALLED) != 0)
             && ((mPackageInfo.applicationInfo.privateFlags
                         & ApplicationInfo.PRIVATE_FLAG_HIDDEN) == 0));
+    }
+
+    /**
+     * Returns whether the package represented by {@param packageInfo} targets a sdk version
+     * supported by the current framework version.
+     */
+    public static boolean hasCorrectTargetSdkVersion(PackageInfo packageInfo) {
+        return packageInfo.applicationInfo.targetSdkVersion >= MINIMUM_SUPPORTED_SDK;
     }
 
     public UserHandle getUser() {

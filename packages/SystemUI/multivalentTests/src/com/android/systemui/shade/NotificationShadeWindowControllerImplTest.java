@@ -16,6 +16,8 @@
 
 package com.android.systemui.shade;
 
+import static android.service.dreams.Flags.FLAG_DREAMS_V2;
+import static com.android.window.flags.Flags.FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH;
 import static android.view.WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM;
 import static android.view.WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE;
 import static android.view.WindowManager.LayoutParams.FLAG_SECURE;
@@ -40,7 +42,8 @@ import android.app.IActivityManager;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.graphics.Rect;
-import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.FlagsParameterization;
@@ -51,7 +54,6 @@ import android.view.WindowManager;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.colorextraction.ColorExtractor;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.biometrics.AuthController;
 import com.android.systemui.colorextraction.SysuiColorExtractor;
@@ -145,6 +147,7 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
                 R.integer.config_keyguardRefreshRate,
                 (int) mPreferredRefreshRate
         );
+        overrideResource(com.android.internal.R.bool.config_alwaysAllowDreamRotation, true);
 
         when(mDozeParameters.getAlwaysOn()).thenReturn(true);
         when(mColorExtractor.getNeutralColors()).thenReturn(mGradientColors);
@@ -173,7 +176,8 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
                 mUserTracker,
                 mKosmos.getNotificationShadeWindowModel(),
                 mKosmos::getCommunalInteractor,
-                mKosmos.getShadeLayoutParams());
+                mKosmos.getShadeLayoutParams(),
+                mKosmos.getTopUiController());
         mNotificationShadeWindowController.setScrimsVisibilityListener((visibility) -> {});
         mNotificationShadeWindowController.fetchWindowRootView();
 
@@ -271,14 +275,29 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
         assertThat((mLayoutParameters.getValue().flags & FLAG_SHOW_WALLPAPER) != 0).isTrue();
     }
 
+    @EnableFlags(FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
     @Test
-    @RequiresFlagsDisabled(Flags.FLAG_DISABLE_BLURRED_SHADE_VISIBLE)
-    public void setBackgroundBlurRadius_expandedWithBlurs() {
-        mNotificationShadeWindowController.setBackgroundBlurRadius(10);
-        verify(mNotificationShadeWindowView).setVisibility(eq(View.VISIBLE));
+    public void attach_pendingDisplayChange_wallpaperVisible() {
+        mNotificationShadeWindowController.attach();
+        clearInvocations(mWindowManager);
 
-        mNotificationShadeWindowController.setBackgroundBlurRadius(0);
-        verify(mNotificationShadeWindowView).setVisibility(eq(View.INVISIBLE));
+        mNotificationShadeWindowController.setPendingDisplayChange(true);
+
+        verify(mWindowManager).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat((mLayoutParameters.getValue().flags & FLAG_SHOW_WALLPAPER) != 0).isTrue();
+    }
+
+    @EnableFlags(FLAG_ENSURE_WALLPAPER_DRAWN_ON_DISPLAY_SWITCH)
+    @Test
+    public void attach_pendingDisplayChangeFinished_wallpaperNotVisible() {
+        mNotificationShadeWindowController.attach();
+        mNotificationShadeWindowController.setPendingDisplayChange(true);
+        clearInvocations(mWindowManager);
+
+        mNotificationShadeWindowController.setPendingDisplayChange(false);
+
+        verify(mWindowManager).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat((mLayoutParameters.getValue().flags & FLAG_SHOW_WALLPAPER) != 0).isFalse();
     }
 
     @Test
@@ -398,16 +417,83 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
     }
 
     @Test
-    public void hubOrientationAware_layoutParamsUpdated() {
+    public void hubOrientationAware_orientationSensor() {
         mNotificationShadeWindowController.setKeyguardShowing(false);
         mNotificationShadeWindowController.setBouncerShowing(false);
+        mNotificationShadeWindowController.onIsOnOrGoingToDreamChanged(false);
         mNotificationShadeWindowController.setGlanceableHubOrientationAware(true);
         when(mKeyguardStateController.isKeyguardScreenRotationAllowed()).thenReturn(false);
         mNotificationShadeWindowController.onConfigChanged(new Configuration());
 
         verify(mWindowManager, atLeastOnce()).updateViewLayout(any(), mLayoutParameters.capture());
         assertThat(mLayoutParameters.getValue().screenOrientation)
-                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_USER);
+                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+    }
+
+    @Test
+    @EnableFlags(FLAG_DREAMS_V2)
+    public void isGoingToDream_orientationSensor_dreamsV2FlagEnabled() {
+        mNotificationShadeWindowController.setKeyguardShowing(true);
+        // transitioning to dream
+        mNotificationShadeWindowController.onIsOnOrGoingToDreamChanged(true);
+        // keyguard not yet occluded by dream
+        mNotificationShadeWindowController.setKeyguardOccluded(false);
+        mNotificationShadeWindowController.setGlanceableHubOrientationAware(false);
+        when(mKeyguardStateController.isKeyguardScreenRotationAllowed()).thenReturn(false);
+        mNotificationShadeWindowController.onConfigChanged(new Configuration());
+
+        verify(mWindowManager, atLeastOnce()).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat(mLayoutParameters.getValue().screenOrientation)
+                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+    }
+
+    @Test
+    @EnableFlags(FLAG_DREAMS_V2)
+    public void isKeyguardOccludedByDream_orientationSensor_dreamsV2FlagEnabled() {
+        mNotificationShadeWindowController.setKeyguardShowing(true);
+        mNotificationShadeWindowController.setGlanceableHubOrientationAware(false);
+        when(mKeyguardStateController.isKeyguardScreenRotationAllowed()).thenReturn(false);
+        mNotificationShadeWindowController.onIsOnOrGoingToDreamChanged(true);
+        // occluded by dream
+        mNotificationShadeWindowController.setKeyguardOccluded(true);
+        mNotificationShadeWindowController.onConfigChanged(new Configuration());
+
+        verify(mWindowManager, atLeastOnce()).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat(mLayoutParameters.getValue().screenOrientation)
+                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_SENSOR);
+    }
+
+    @Test
+    @DisableFlags(FLAG_DREAMS_V2)
+    public void isGoingToDream_orientationNoSensor_dreamsV2FlagDisabled() {
+        mNotificationShadeWindowController.setKeyguardShowing(true);
+        mNotificationShadeWindowController.setGlanceableHubOrientationAware(false);
+        when(mKeyguardStateController.isKeyguardScreenRotationAllowed()).thenReturn(false);
+        // transitioning to dream
+        mNotificationShadeWindowController.onIsOnOrGoingToDreamChanged(true);
+        // keyguard not yet occluded by dream
+        mNotificationShadeWindowController.setKeyguardOccluded(false);
+        mNotificationShadeWindowController.onConfigChanged(new Configuration());
+
+        verify(mWindowManager, atLeastOnce()).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat(mLayoutParameters.getValue().screenOrientation)
+                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_NOSENSOR);
+    }
+
+    @Test
+    @DisableFlags(FLAG_DREAMS_V2)
+    public void isKeyguardOccludedByDream_orientationUnspecified_dreamsV2FlagDisabled() {
+        mNotificationShadeWindowController.setKeyguardShowing(true);
+        mNotificationShadeWindowController.setGlanceableHubOrientationAware(false);
+        when(mKeyguardStateController.isKeyguardScreenRotationAllowed()).thenReturn(false);
+        mNotificationShadeWindowController.onIsOnOrGoingToDreamChanged(true);
+        // occluded by dream
+        mNotificationShadeWindowController.setKeyguardOccluded(true);
+        mNotificationShadeWindowController.onConfigChanged(new Configuration());
+
+        verify(mWindowManager, atLeastOnce()).updateViewLayout(any(), mLayoutParameters.capture());
+        assertThat(mLayoutParameters.getValue().screenOrientation)
+                .isEqualTo(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
     }
 
     @Test
@@ -484,6 +570,36 @@ public class NotificationShadeWindowControllerImplTest extends SysuiTestCase {
         final WindowManager.LayoutParams lp = lpList.get(lpList.size() - 1);
         assertThat(lp.preferredMaxDisplayRefreshRate).isEqualTo(0);
         assertThat(lp.preferredMinDisplayRefreshRate).isEqualTo(0);
+    }
+
+    @Test
+    public void afterActivityLaunch_rootViewInvisible() {
+        // GIVEN the panel is visible
+        mNotificationShadeWindowController.setPanelVisible(true);
+        verify(mNotificationShadeWindowView).setVisibility(eq(View.VISIBLE));
+
+        // WHEN the shade is force-hidden at the end of an activity launch
+        mNotificationShadeWindowController.setLaunchingActivity(true);
+        mNotificationShadeWindowController.setForceHideAfterActivityLaunch(true);
+
+        // THEN the panel is invisible
+        verify(mNotificationShadeWindowView).setVisibility(eq(View.INVISIBLE));
+    }
+
+    @Test
+    public void setKeyguardFadingAway_doesNothing_whenForceHidden() {
+        // GIVEN the panel is visible force-hidden at the end of an activity launch
+        mNotificationShadeWindowController.setLaunchingActivity(true);
+        mNotificationShadeWindowController.setForceHideAfterActivityLaunch(true);
+        verify(mNotificationShadeWindowView).setVisibility(eq(View.INVISIBLE));
+        reset(mNotificationShadeWindowView);
+
+        // WHEN keyguard is fading away, followed by the panel not being force-hidden anymore
+        mNotificationShadeWindowController.setKeyguardFadingAway(true);
+        mNotificationShadeWindowController.setLaunchingActivity(false);
+
+        // THEN the panel remains invisible
+        verify(mNotificationShadeWindowView, never()).setVisibility(eq(View.VISIBLE));
     }
 
     @Test

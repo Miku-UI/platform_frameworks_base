@@ -1,0 +1,57 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_android_kernel",
+}
+
+android_test_helper_app {
+    name: "page_size_warnings_app",
+    srcs: ["src/**/*.java"],
+    static_libs: [
+        "androidx.test.core",
+        "androidx.test.rules",
+        "androidx.test.runner",
+        "compatibility-device-util-axt",
+        "platform-test-annotations",
+    ],
+    manifest: "TestAppAndroidManifest.xml",
+    platform_apis: true,
+}
+
+java_test_host {
+    name: "PageSizeCompatWarningsTest",
+    // Include all test java files
+    srcs: ["host/**/*.java"],
+    static_libs: [
+        "junit",
+        "platform-test-annotations",
+        "truth",
+    ],
+    libs: [
+        "compatibility-host-util",
+        "compatibility-tradefed",
+        "tradefed",
+    ],
+    device_common_data: [
+        ":app_with_4kb_elf",
+        ":app_with_4kb_elf_no_override",
+        ":app_with_4kb_elf_no_override_debuggable",
+        ":page_size_compat_disabled_app",
+        ":page_size_warnings_app",
+    ],
+    test_suites: ["general-tests"],
+    test_config: "AndroidTest.xml",
+}

@@ -22,9 +22,13 @@ import static com.android.systemui.statusbar.StatusBarState.KEYGUARD;
 import static com.android.systemui.statusbar.notification.NotificationUtils.logKey;
 import static com.android.systemui.util.kotlin.JavaAdapterKt.collectFlow;
 
+import android.content.Context;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.UserHandle;
 import android.provider.Settings;
+import android.service.notification.StatusBarNotification;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -44,9 +48,12 @@ import com.android.systemui.plugins.statusbar.NotificationMenuRowPlugin;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.statusbar.SmartReplyController;
+import com.android.systemui.statusbar.notification.BundleInteractionLogger;
 import com.android.systemui.statusbar.notification.ColorUpdateLogger;
 import com.android.systemui.statusbar.notification.FeedbackIcon;
+import com.android.systemui.statusbar.notification.NotificationActivityStarter;
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactory;
+import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.PipelineEntry;
 import com.android.systemui.statusbar.notification.collection.provider.NotificationDismissibilityProvider;
 import com.android.systemui.statusbar.notification.collection.render.GroupExpansionManager;
@@ -55,13 +62,12 @@ import com.android.systemui.statusbar.notification.collection.render.NodeControl
 import com.android.systemui.statusbar.notification.collection.render.NotifViewController;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
-import com.android.systemui.statusbar.notification.row.dagger.AppName;
-import com.android.systemui.statusbar.notification.row.dagger.NotificationKey;
 import com.android.systemui.statusbar.notification.row.dagger.NotificationRowScope;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.notification.stack.NotificationChildrenContainerLogger;
 import com.android.systemui.statusbar.notification.stack.NotificationListContainer;
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationRowStatsLogger;
+import com.android.systemui.statusbar.phone.CentralSurfaces;
 import com.android.systemui.statusbar.phone.KeyguardBypassController;
 import com.android.systemui.statusbar.policy.SmartReplyConstants;
 import com.android.systemui.statusbar.policy.dagger.RemoteInputViewSubcomponent;
@@ -92,8 +98,6 @@ public class ExpandableNotificationRowController implements NotifViewController 
     private final ActivatableNotificationViewController mActivatableNotificationViewController;
     private final PluginManager mPluginManager;
     private final SystemClock mClock;
-    private final String mAppName;
-    private final String mNotificationKey;
     private final ColorUpdateLogger mColorUpdateLogger;
     private final KeyguardBypassController mKeyguardBypassController;
     private final GroupMembershipManager mGroupMembershipManager;
@@ -101,6 +105,7 @@ public class ExpandableNotificationRowController implements NotifViewController 
     private final RowContentBindStage mRowContentBindStage;
     private final NotificationRowStatsLogger mStatsLogger;
     private final NotificationRowLogger mLogBufferLogger;
+    private final BundleInteractionLogger mBundleInteractionLogger;
     private final HeadsUpManager mHeadsUpManager;
     private final ExpandableNotificationRow.OnExpandClickListener mOnExpandClickListener;
     private final StatusBarStateController mStatusBarStateController;
@@ -124,6 +129,8 @@ public class ExpandableNotificationRowController implements NotifViewController 
     private final NotificationSettingsController mSettingsController;
     private final EntryAdapterFactory mEntryAdapterFactory;
     private final WindowRootViewBlurInteractor mWindowRootViewBlurInteractor;
+    private final NotificationActivityStarter mNotificationActivityStarter;
+    private final Context mContext;
 
     @VisibleForTesting
     final NotificationSettingsController.Listener mSettingsListener =
@@ -252,7 +259,6 @@ public class ExpandableNotificationRowController implements NotifViewController 
                 }
             };
 
-
     @Inject
     public ExpandableNotificationRowController(
             ExpandableNotificationRow view,
@@ -267,8 +273,7 @@ public class ExpandableNotificationRowController implements NotifViewController 
             SmartReplyController smartReplyController,
             PluginManager pluginManager,
             SystemClock clock,
-            @AppName String appName,
-            @NotificationKey String notificationKey,
+            Context context,
             KeyguardBypassController keyguardBypassController,
             GroupMembershipManager groupMembershipManager,
             GroupExpansionManager groupExpansionManager,
@@ -291,15 +296,16 @@ public class ExpandableNotificationRowController implements NotifViewController 
             MSDLPlayer msdlPlayer,
             NotificationRebindingTracker notificationRebindingTracker,
             EntryAdapterFactory entryAdapterFactory,
-            WindowRootViewBlurInteractor windowRootViewBlurInteractor) {
+            WindowRootViewBlurInteractor windowRootViewBlurInteractor,
+            BundleInteractionLogger bundleInteractionLogger,
+            NotificationActivityStarter notificationActivityStarter) {
         mView = view;
+        mContext = context;
         mListContainer = listContainer;
         mRemoteInputViewSubcomponentFactory = rivSubcomponentFactory;
         mActivatableNotificationViewController = activatableNotificationViewController;
         mPluginManager = pluginManager;
         mClock = clock;
-        mAppName = appName;
-        mNotificationKey = notificationKey;
         mKeyguardBypassController = keyguardBypassController;
         mGroupMembershipManager = groupMembershipManager;
         mGroupExpansionManager = groupExpansionManager;
@@ -330,6 +336,38 @@ public class ExpandableNotificationRowController implements NotifViewController 
         mMSDLPlayer = msdlPlayer;
         mEntryAdapterFactory = entryAdapterFactory;
         mWindowRootViewBlurInteractor = windowRootViewBlurInteractor;
+        mBundleInteractionLogger = bundleInteractionLogger;
+        mNotificationActivityStarter = notificationActivityStarter;
+    }
+
+    String loadsGutsAppName(Context context, PipelineEntry pipelineEntry) {
+        if (pipelineEntry instanceof NotificationEntry notificationEntry) {
+            StatusBarNotification statusBarNotification = notificationEntry.getSbn();
+            if (statusBarNotification == null) {
+                return "";
+            }
+            // Get the app name.
+            // Note that Notification.Builder#bindHeaderAppName has similar logic
+            // but since this field is used in the guts, it must be accurate.
+            // Therefore we will only show the application label, or, failing that, the
+            // package name. No substitutions.
+            PackageManager pmUser = CentralSurfaces.getPackageManagerForUser(
+                    context, statusBarNotification.getUser().getIdentifier());
+            final String pkg = statusBarNotification.getPackageName();
+            try {
+                final ApplicationInfo info = pmUser.getApplicationInfo(pkg,
+                        PackageManager.MATCH_UNINSTALLED_PACKAGES
+                                | PackageManager.MATCH_DISABLED_COMPONENTS);
+                if (info != null) {
+                    return String.valueOf(pmUser.getApplicationLabel(info));
+                }
+            } catch (PackageManager.NameNotFoundException e) {
+                // Do nothing
+            }
+            return pkg;
+        }
+        // Bundles have no app name
+        return "";
     }
 
     /**
@@ -341,8 +379,8 @@ public class ExpandableNotificationRowController implements NotifViewController 
                 mEntryAdapterFactory.create(entry),
                 entry,
                 mRemoteInputViewSubcomponentFactory,
-                mAppName,
-                mNotificationKey,
+                loadsGutsAppName(mContext, entry),
+                entry.getKey(),
                 mLoggerCallback,
                 mKeyguardBypassController,
                 mGroupMembershipManager,
@@ -364,7 +402,9 @@ public class ExpandableNotificationRowController implements NotifViewController 
                 mSmartReplyController,
                 mStatusBarService,
                 mUiEventLogger,
-                mNotificationRebindingTracker
+                mNotificationRebindingTracker,
+                mBundleInteractionLogger,
+                mNotificationActivityStarter
         );
         mView.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         if (mAllowLongPress) {
@@ -377,7 +417,8 @@ public class ExpandableNotificationRowController implements NotifViewController 
                 if (com.android.systemui.Flags.msdlFeedback()) {
                     mMSDLPlayer.playToken(MSDLToken.LONG_PRESS, null);
                 }
-                if (mView.isSummaryWithChildren()) {
+
+                if (mView.isSummaryWithChildren() && !mView.isBundle()) {
                     mView.expandNotification();
                     return true;
                 }

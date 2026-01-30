@@ -18,13 +18,19 @@ package com.android.server.media;
 
 import static android.media.MediaRoute2Info.FEATURE_LIVE_AUDIO;
 import static android.media.MediaRoute2Info.FEATURE_LIVE_VIDEO;
+import static android.media.MediaRoute2Info.PLAYBACK_VOLUME_FIXED;
+import static android.media.MediaRoute2ProviderService.REQUEST_ID_NONE;
+import static android.media.RoutingSessionInfo.RELEASE_TYPE_CASTING;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
+import android.app.ActivityManager;
+import android.app.RunningAppProcessInfo;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.AudioManager;
 import android.media.MediaRoute2Info;
 import android.media.MediaRoute2ProviderInfo;
 import android.media.MediaRoute2ProviderService;
@@ -45,6 +51,7 @@ import com.android.server.media.MediaRoute2ProviderServiceProxy.SystemMediaSessi
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 
@@ -58,10 +65,35 @@ import java.util.stream.Stream;
 
     private static final String UNIQUE_SYSTEM_ID_PREFIX = "SYSTEM";
     private static final String UNIQUE_SYSTEM_ID_SEPARATOR = "-";
-    private static final boolean FORCE_GLOBAL_ROUTING_SESSION = true;
-    private static final String PACKAGE_NAME_FOR_GLOBAL_SESSION = "";
+
+    /**
+     * The portion of {@link RoutingSessionInfo#getVolumeMax()} that changes as a result of a volume
+     * key press.
+     */
+    private static final float VOLUME_KEY_PRESS_STEP = 0.05f;
+
+    /**
+     * The maximum duration during which a routing session volume change is considered the result of
+     * a volume key press.
+     */
+    private static final long SHOW_UI_FOR_VOLUME_CHANGE_TIMEOUT_MS = 3000;
+
+    /**
+     * The minimum {@link ActivityManager.RunningAppProcessInfo package importance} that an app must
+     * hold for its media to be re-routed.
+     *
+     * <p>If an app's importance falls below this threshold, any associated routing sessions are
+     * released.
+     *
+     * <p>Note that importance is inversely proportional to the numeric value: A smaller numeric
+     * value means more importance.
+     */
+    private static final int MINIMUM_IMPORTANCE_FOR_REROUTING =
+            ActivityManager.RunningAppProcessInfo.IMPORTANCE_SERVICE;
 
     private final PackageManager mPackageManager;
+    private final ActivityManager mActivityManager;
+    private final Runnable mClearShouldShowVolumeUiFlagRunnable = this::clearShouldShowVolumeUiFlag;
 
     @GuardedBy("mLock")
     private MediaRoute2ProviderInfo mLastSystemProviderInfo;
@@ -93,6 +125,14 @@ import java.util.stream.Stream;
     private final LongSparseArray<SystemMediaSessionCallbackImpl> mPendingSessionCreations =
             new LongSparseArray<>();
 
+    /**
+     * Holds the original id of a session that has recently received a volume adjustment request due
+     * to a volume key press.
+     */
+    @GuardedBy("mLock")
+    @Nullable
+    private String mRecentRecipientOfVolumeKeyPressOriginalId = null;
+
     private static final ComponentName COMPONENT_NAME =
             new ComponentName(
                     SystemMediaRoute2Provider2.class.getPackage().getName(),
@@ -106,11 +146,16 @@ import java.util.stream.Stream;
         return instance;
     }
 
+    @SuppressLint("MissingPermission") // We are running within the system_server.
     private SystemMediaRoute2Provider2(Context context, UserHandle user, Looper looper) {
         super(context, COMPONENT_NAME, user, looper);
         mPackageManager = context.getPackageManager();
+        mActivityManager = Objects.requireNonNull(context.getSystemService(ActivityManager.class));
+        mActivityManager.addOnUidImportanceListener(
+                this::onUidImportanceChanged, MINIMUM_IMPORTANCE_FOR_REROUTING);
     }
 
+    @SuppressLint("MissingPermission") // We are running within the system_server.
     @Override
     public void transferToRoute(
             long requestId,
@@ -120,9 +165,6 @@ import java.util.stream.Stream;
             String routeOriginalId,
             int transferReason) {
         synchronized (mLock) {
-            if (FORCE_GLOBAL_ROUTING_SESSION) {
-                clientPackageName = PACKAGE_NAME_FOR_GLOBAL_SESSION;
-            }
             var targetProviderProxyId = mOriginalRouteIdToProviderId.get(routeOriginalId);
             var targetProviderProxyRecord = mProxyRecords.get(targetProviderProxyId);
             // Holds the target route, if it's managed by a provider service. Holds null otherwise.
@@ -130,7 +172,7 @@ import java.util.stream.Stream;
                     targetProviderProxyRecord != null
                             ? targetProviderProxyRecord.getRouteByOriginalId(routeOriginalId)
                             : null;
-            var existingSessionRecord = getSessionRecordByPackageName(clientPackageName);
+            var existingSessionRecord = mPackageNameToSessionRecord.get(clientPackageName);
             if (existingSessionRecord != null) {
                 var existingSession = existingSessionRecord.mSourceSessionInfo;
                 if (targetProviderProxyId != null
@@ -165,19 +207,20 @@ import java.util.stream.Stream;
             }
 
             if (serviceTargetRoute != null) {
-                boolean isGlobalSession = TextUtils.isEmpty(clientPackageName);
-                int uid;
-                if (isGlobalSession) {
-                    uid = Process.INVALID_UID;
-                } else {
-                    uid = fetchUid(clientPackageName, clientUserHandle);
-                    if (uid == Process.INVALID_UID) {
-                        throw new IllegalArgumentException(
-                                "Cannot resolve transfer for "
-                                        + clientPackageName
-                                        + " and "
-                                        + clientUserHandle);
-                    }
+                int uid = fetchUid(clientPackageName, clientUserHandle);
+                int packageImportance =
+                        uid != Process.INVALID_UID
+                                ? mActivityManager.getUidImportance(uid)
+                                : RunningAppProcessInfo.IMPORTANCE_GONE;
+                if (packageImportance > MINIMUM_IMPORTANCE_FOR_REROUTING) {
+                    String message =
+                            TextUtils.formatSimple(
+                                    "Ignoring transfer request for '%s' uid=%d due to package"
+                                            + " importance=%d",
+                                    clientPackageName, uid, packageImportance);
+                    Log.w(TAG, message);
+                    notifyRequestFailed(requestId, MediaRoute2ProviderService.REASON_REJECTED);
+                    return;
                 }
                 var pendingCreationCallback =
                         new SystemMediaSessionCallbackImpl(
@@ -211,10 +254,11 @@ import java.util.stream.Stream;
             if (systemSession == null) {
                 return null;
             }
-            var overridingSession = getSessionRecordByPackageName(packageName);
+            var overridingSession = mPackageNameToSessionRecord.get(packageName);
             if (overridingSession != null) {
                 var builder =
                         new RoutingSessionInfo.Builder(overridingSession.mTranslatedSessionInfo)
+                                .setClientPackageName(packageName)
                                 .setProviderId(mUniqueId)
                                 .setSystemSession(true);
                 for (var systemRoute : mLastSystemProviderInfo.getRoutes()) {
@@ -256,7 +300,7 @@ import java.util.stream.Stream;
             return;
         }
         synchronized (mLock) {
-            var sessionRecord = getSessionRecordByOriginalId(sessionOriginalId);
+            var sessionRecord = mSessionOriginalIdToSessionRecord.get(sessionOriginalId);
             var proxyRecord = sessionRecord != null ? sessionRecord.getProxyRecord() : null;
             if (proxyRecord != null) {
                 proxyRecord.mProxy.setSessionVolume(
@@ -268,13 +312,13 @@ import java.util.stream.Stream;
     }
 
     @Override
-    public void selectRoute(long requestId, String sessionId, String routeId) {
-        if (SYSTEM_SESSION_ID.equals(sessionId)) {
-            super.selectRoute(requestId, sessionId, routeId);
+    public void selectRoute(long requestId, String sessionOriginalId, String routeId) {
+        if (SYSTEM_SESSION_ID.equals(sessionOriginalId)) {
+            super.selectRoute(requestId, sessionOriginalId, routeId);
             return;
         }
         synchronized (mLock) {
-            var sessionRecord = getSessionRecordByOriginalId(sessionId);
+            var sessionRecord = mSessionOriginalIdToSessionRecord.get(sessionOriginalId);
             var proxyRecord = sessionRecord != null ? sessionRecord.getProxyRecord() : null;
             if (proxyRecord != null) {
                 var targetSourceRouteId =
@@ -290,13 +334,13 @@ import java.util.stream.Stream;
     }
 
     @Override
-    public void deselectRoute(long requestId, String sessionId, String routeId) {
-        if (SYSTEM_SESSION_ID.equals(sessionId)) {
-            super.selectRoute(requestId, sessionId, routeId);
+    public void deselectRoute(long requestId, String sessionOriginalId, String routeId) {
+        if (SYSTEM_SESSION_ID.equals(sessionOriginalId)) {
+            super.selectRoute(requestId, sessionOriginalId, routeId);
             return;
         }
         synchronized (mLock) {
-            var sessionRecord = getSessionRecordByOriginalId(sessionId);
+            var sessionRecord = mSessionOriginalIdToSessionRecord.get(sessionOriginalId);
             var proxyRecord = sessionRecord != null ? sessionRecord.getProxyRecord() : null;
             if (proxyRecord != null) {
                 var targetSourceRouteId =
@@ -311,21 +355,29 @@ import java.util.stream.Stream;
         notifyRequestFailed(requestId, MediaRoute2ProviderService.REASON_ROUTE_NOT_AVAILABLE);
     }
 
-    @GuardedBy("mLock")
-    private SystemMediaSessionRecord getSessionRecordByOriginalId(String sessionOriginalId) {
-        if (FORCE_GLOBAL_ROUTING_SESSION) {
-            return getSessionRecordByPackageName(PACKAGE_NAME_FOR_GLOBAL_SESSION);
-        } else {
-            return mSessionOriginalIdToSessionRecord.get(sessionOriginalId);
+    @Override
+    public void releaseSession(long requestId, String sessionOriginalId) {
+        if (SYSTEM_SESSION_ID.equals(sessionOriginalId)) {
+            super.releaseSession(requestId, sessionOriginalId);
+            return;
         }
-    }
-
-    @GuardedBy("mLock")
-    private SystemMediaSessionRecord getSessionRecordByPackageName(String clientPackageName) {
-        if (FORCE_GLOBAL_ROUTING_SESSION) {
-            clientPackageName = PACKAGE_NAME_FOR_GLOBAL_SESSION;
+        synchronized (mLock) {
+            if (TextUtils.equals(sessionOriginalId, mRecentRecipientOfVolumeKeyPressOriginalId)) {
+                mHandler.removeCallbacks(mClearShouldShowVolumeUiFlagRunnable);
+                mRecentRecipientOfVolumeKeyPressOriginalId = null;
+            }
+            var sessionRecord = mSessionOriginalIdToSessionRecord.get(sessionOriginalId);
+            if (sessionRecord != null) {
+                sessionRecord.removeSelfFromSessionMaps();
+                var proxyRecord = sessionRecord.getProxyRecord();
+                if (proxyRecord != null) {
+                    proxyRecord.releaseSession(requestId, sessionRecord.getServiceSessionId());
+                }
+                updateSessionInfo();
+                return;
+            }
         }
-        return mPackageNameToSessionRecord.get(clientPackageName);
+        notifyRequestFailed(requestId, MediaRoute2ProviderService.REASON_REJECTED);
     }
 
     /**
@@ -365,7 +417,7 @@ import java.util.stream.Stream;
             updateProviderInfo();
         }
         updateSessionInfo();
-        notifyProviderState();
+        notifyProviderStateChanged();
         notifyGlobalSessionInfoUpdated();
     }
 
@@ -380,39 +432,52 @@ import java.util.stream.Stream;
     }
 
     /**
+     * Cleans up any ongoing service-managed routing sessions for apps that fall below the {@link
+     * #MINIMUM_IMPORTANCE_FOR_REROUTING importance threshold}.
+     */
+    private void onUidImportanceChanged(int uid, int importance) {
+        if (importance <= MINIMUM_IMPORTANCE_FOR_REROUTING) {
+            // We only care about packages that have dropped their importance below the threshold.
+            return;
+        }
+        releaseSessionsForUid(uid);
+    }
+
+    /** Releases any sessions associated with the given uid. */
+    private void releaseSessionsForUid(int uid) {
+        var packageNamesForUid = mPackageManager.getPackagesForUid(uid);
+        if (packageNamesForUid == null) {
+            return;
+        }
+        synchronized (mLock) {
+            for (String packageName : packageNamesForUid) {
+                var sessionRecord = mPackageNameToSessionRecord.get(packageName);
+                if (sessionRecord != null) {
+                    mHandler.post(
+                            () ->
+                                    releaseSession(
+                                            REQUEST_ID_NONE, sessionRecord.getServiceSessionId()));
+                }
+            }
+        }
+    }
+
+    /**
      * Updates the {@link #mSessionInfos} by expanding the {@link SystemMediaRoute2Provider} session
      * with information from the {@link MediaRoute2ProviderService provider services}.
      */
     private void updateSessionInfo() {
         synchronized (mLock) {
-            var globalSessionInfoRecord =
-                    getSessionRecordByPackageName(PACKAGE_NAME_FOR_GLOBAL_SESSION);
-            var globalSessionInfo =
-                    globalSessionInfoRecord != null
-                            ? globalSessionInfoRecord.mTranslatedSessionInfo
-                            : null;
-            if (globalSessionInfo == null) {
-                globalSessionInfo = mSystemSessionInfo;
-            }
-            if (globalSessionInfo == null) {
+            var systemSessionInfo = mSystemSessionInfo;
+            if (systemSessionInfo == null) {
                 // The system session info hasn't been initialized yet. Do nothing.
                 return;
             }
-            var builder = new RoutingSessionInfo.Builder(globalSessionInfo);
-            if (globalSessionInfo == mSystemSessionInfo) {
-                // The session is the system one. So we make all the service-provided routes
-                // available for transfer. The system transferable routes are already there.
-                mProxyRecords.values().stream()
-                        .flatMap(ProviderProxyRecord::getRoutesStream)
-                        .map(MediaRoute2Info::getOriginalId)
-                        .forEach(builder::addTransferableRoute);
-            } else {
-                // The session is service-provided. So we add the system-provided routes as
-                // transferable.
-                mLastSystemProviderInfo.getRoutes().stream()
-                        .map(MediaRoute2Info::getOriginalId)
-                        .forEach(builder::addTransferableRoute);
-            }
+            var builder = new RoutingSessionInfo.Builder(systemSessionInfo);
+            mProxyRecords.values().stream()
+                    .flatMap(ProviderProxyRecord::getRoutesStream)
+                    .map(MediaRoute2Info::getOriginalId)
+                    .forEach(builder::addTransferableRoute);
             mSessionInfos.clear();
             mSessionInfos.add(builder.build());
             for (var sessionRecords : mPackageNameToSessionRecord.values()) {
@@ -446,7 +511,7 @@ import java.util.stream.Stream;
 
     @Override
     /* package */ void notifyGlobalSessionInfoUpdated() {
-        if (mCallback == null) {
+        if (!haveCallback()) {
             return;
         }
 
@@ -460,7 +525,93 @@ import java.util.stream.Stream;
             sessionInfo = mSessionInfos.getFirst();
         }
 
-        mCallback.onSessionUpdated(this, sessionInfo, packageNamesWithRoutingSessionOverrides);
+        notifySessionUpdated(
+                this,
+                sessionInfo,
+                packageNamesWithRoutingSessionOverrides,
+                /* shouldShowVolumeUi= */ false);
+    }
+
+    @Override
+    public boolean maybeHandleVolumeKeyEventForSystemMediaSession(long requestId, int direction) {
+        synchronized (mLock) {
+            var sessionCount = mSessionOriginalIdToSessionRecord.size();
+            if (mSessionOriginalIdToSessionRecord.size() != 1) {
+                // There's either no system media sessions, or too many for us to decide for one.
+                if (sessionCount > 1) {
+                    Log.i(
+                            TAG,
+                            "Ignoring volume adjustment request due to multiple simultaneous"
+                                + " sessions.");
+                }
+                return false;
+            }
+            var volumeAdjustmentTargetSessionRecord =
+                    mSessionOriginalIdToSessionRecord.values().stream().findFirst().get();
+            var proxyRecord = volumeAdjustmentTargetSessionRecord.getProxyRecord();
+            if (proxyRecord == null) {
+                Log.w(TAG, "Ignoring volume adjustment because proxy record is not present");
+                return false;
+            }
+            Integer factor =
+                    switch (direction) {
+                        case AudioManager.ADJUST_RAISE -> 1;
+                        case AudioManager.ADJUST_LOWER -> -1;
+                        case AudioManager.ADJUST_SAME -> 0;
+                        default -> null;
+                    };
+            if (factor == null) {
+                Log.w(
+                        TAG,
+                        "Ignoring volume adjustment event due to unexpected direction: "
+                                + direction);
+                return false;
+            }
+            var currentSessionInfo = volumeAdjustmentTargetSessionRecord.mSourceSessionInfo;
+            if (currentSessionInfo.getVolumeHandling() == PLAYBACK_VOLUME_FIXED) {
+                Log.w(TAG, "Ignoring volume adjustment event due to fixed session volume");
+                return false;
+            }
+            int volumeStep = Math.round(VOLUME_KEY_PRESS_STEP * currentSessionInfo.getVolumeMax());
+            volumeStep = Math.max(1, volumeStep) * factor;
+            int oldVolume = currentSessionInfo.getVolume();
+            int newVolume = oldVolume + volumeStep;
+            newVolume = Math.clamp(newVolume, /* min= */ 0, currentSessionInfo.getVolumeMax());
+            if (oldVolume != newVolume) {
+                String logMessage =
+                        TextUtils.formatSimple(
+                                "Setting volume to %d/%d on system media session managed by '%s'",
+                                newVolume,
+                                currentSessionInfo.getVolumeMax(),
+                                currentSessionInfo.getOwnerPackageName());
+                Log.i(TAG, logMessage);
+                mHandler.removeCallbacks(mClearShouldShowVolumeUiFlagRunnable);
+                mHandler.postDelayed(
+                        mClearShouldShowVolumeUiFlagRunnable, SHOW_UI_FOR_VOLUME_CHANGE_TIMEOUT_MS);
+                mRecentRecipientOfVolumeKeyPressOriginalId =
+                        volumeAdjustmentTargetSessionRecord.mOriginalId;
+                proxyRecord.mProxy.setSessionVolume(
+                        requestId,
+                        volumeAdjustmentTargetSessionRecord.getServiceSessionId(),
+                        newVolume);
+            } else {
+                String logMessage =
+                        TextUtils.formatSimple(
+                                "Ignoring request to set volume to %d/%d on system media session"
+                                        + " managed by '%s'",
+                                newVolume,
+                                currentSessionInfo.getVolumeMax(),
+                                currentSessionInfo.getOwnerPackageName());
+                Log.i(TAG, logMessage);
+            }
+            return true;
+        }
+    }
+
+    private void clearShouldShowVolumeUiFlag() {
+        synchronized (mLock) {
+            mRecentRecipientOfVolumeKeyPressOriginalId = null;
+        }
     }
 
     private void onSessionOverrideUpdated(RoutingSessionInfo sessionInfo) {
@@ -472,13 +623,23 @@ import java.util.stream.Stream;
         // which there will be two overlapping routing policies asking for the exact same media
         // stream.
         var builder = new RoutingSessionInfo.Builder(sessionInfo);
-        mLastSystemProviderInfo.getRoutes().stream()
+        MediaRoute2ProviderInfo providerInfo;
+        boolean shouldShowVolumeUi;
+        synchronized (mLock) {
+            providerInfo = mLastSystemProviderInfo;
+            shouldShowVolumeUi =
+                    TextUtils.equals(
+                            sessionInfo.getOriginalId(),
+                            mRecentRecipientOfVolumeKeyPressOriginalId);
+        }
+        providerInfo.getRoutes().stream()
                 .map(MediaRoute2Info::getOriginalId)
                 .forEach(builder::addTransferableRoute);
-        mCallback.onSessionUpdated(
+        notifySessionUpdated(
                 /* provider= */ this,
                 builder.build(),
-                /* packageNamesWithRoutingSessionOverrides= */ Set.of());
+                /* packageNamesWithRoutingSessionOverrides= */ Set.of(),
+                shouldShowVolumeUi);
     }
 
     /**
@@ -542,8 +703,7 @@ import java.util.stream.Stream;
          * @param packageName The name of the package whose media to route.
          * @param originalRouteId The {@link MediaRoute2Info#getOriginalId() original route id} of
          *     the route that should be initially selected.
-         * @param callback A {@link MediaRoute2ProviderServiceProxy.SystemMediaSessionCallback} for
-         *     events.
+         * @param callback A {@link SystemMediaSessionCallback} for events.
          * @see MediaRoute2ProviderService#onCreateSystemRoutingSession
          */
         public void requestCreateSystemMediaSession(
@@ -714,6 +874,8 @@ import java.util.stream.Stream;
         }
 
         // @GuardedBy("SystemMediaRoute2Provider2.this.mLock")
+
+        /** Returns the session's original id, as published by the service. */
         public String getServiceSessionId() {
             return mSourceSessionInfo.getOriginalId();
         }
@@ -767,7 +929,8 @@ import java.util.stream.Stream;
                             .clearSelectedRoutes()
                             .clearSelectableRoutes()
                             .clearDeselectableRoutes()
-                            .clearTransferableRoutes();
+                            .clearTransferableRoutes()
+                            .setReleaseType(RELEASE_TYPE_CASTING);
             session.getSelectedRoutes().stream()
                     .map(it -> uniqueIdAsSystemRouteId(session.getProviderId(), it))
                     .forEach(builder::addSelectedRoute);

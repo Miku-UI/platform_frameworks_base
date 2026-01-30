@@ -38,7 +38,7 @@ public class DrawContentOperation extends Operation
         implements ModifierOperation, VariableSupport, DecoratorComponent {
     private static final int OP_CODE = Operations.MODIFIER_DRAW_CONTENT;
 
-    private LayoutComponent mParent;
+    private @Nullable LayoutComponent mParent = null;
 
     public DrawContentOperation() {}
 
@@ -114,12 +114,20 @@ public class DrawContentOperation extends Operation
         mParent = parent;
     }
 
-    @Override
-    public void layout(
-            @NonNull RemoteContext context, Component component, float width, float height) {}
+    @Nullable
+    public LayoutComponent getParent() {
+        return mParent;
+    }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void layout(
+            @NonNull RemoteContext context,
+            @NonNull Component component,
+            float width,
+            float height) {}
+
+    @Override
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addTags(SerializeTags.MODIFIER).addType("DrawContentOperation");
     }
 }

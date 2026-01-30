@@ -27,23 +27,18 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.offset
 import androidx.compose.ui.util.fastFirstOrNull
 import com.android.systemui.shade.ui.composable.SingleShadeMeasurePolicy.LayoutId
-import kotlin.math.max
 
 /**
  * Lays out elements from the [LayoutId] in the shade. This policy supports the case when the QS and
  * UMO share the same row and when they should be one below another.
  */
 class SingleShadeMeasurePolicy(
-    private val isMediaInRow: Boolean,
-    private val mediaOffset: MeasureScope.() -> Int,
     private val onNotificationsTopChanged: (Int) -> Unit,
-    private val mediaZIndex: () -> Float,
     private val cutoutInsetsProvider: () -> WindowInsets?,
 ) : MeasurePolicy {
 
     enum class LayoutId {
-        QuickSettings,
-        Media,
+        MediaAndQqs,
         Notifications,
         ShadeHeader,
     }
@@ -61,13 +56,9 @@ class SingleShadeMeasurePolicy(
             measurables
                 .fastFirstOrNull { it.layoutId == LayoutId.ShadeHeader }
                 ?.measure(constraintsWithCutout)
-        val mediaPlaceable =
+        val mediaAndQqsPlaceable =
             measurables
-                .fastFirstOrNull { it.layoutId == LayoutId.Media }
-                ?.measure(applyMediaConstraints(constraintsWithCutout, isMediaInRow))
-        val quickSettingsPlaceable =
-            measurables
-                .fastFirstOrNull { it.layoutId == LayoutId.QuickSettings }
+                .fastFirstOrNull { it.layoutId == LayoutId.MediaAndQqs }
                 ?.measure(constraintsWithCutout)
         val notificationsPlaceable =
             measurables
@@ -77,45 +68,23 @@ class SingleShadeMeasurePolicy(
         val notificationsTop =
             calculateNotificationsTop(
                 statusBarHeaderPlaceable = shadeHeaderPlaceable,
-                quickSettingsPlaceable = quickSettingsPlaceable,
-                mediaPlaceable = mediaPlaceable,
+                mediaAndQqsPlaceable = mediaAndQqsPlaceable,
                 insetsTop = insetsTop,
-                isMediaInRow = isMediaInRow,
             )
-        onNotificationsTopChanged(notificationsTop)
+        // Don't send position updates during the lookahead pass, as it can report a value  that is
+        // not yet reflected in the UI.
+        if (!isLookingAhead) {
+            onNotificationsTopChanged(notificationsTop)
+        }
 
         return layout(constraints.maxWidth, constraints.maxHeight) {
             shadeHeaderPlaceable?.placeRelative(x = insetsLeft, y = insetsTop)
             val statusBarHeaderHeight = shadeHeaderPlaceable?.height ?: 0
-            quickSettingsPlaceable?.placeRelative(
+
+            mediaAndQqsPlaceable?.placeRelative(
                 x = insetsLeft,
                 y = insetsTop + statusBarHeaderHeight,
             )
-
-            if (mediaPlaceable != null) {
-                val quickSettingsHeight = quickSettingsPlaceable?.height ?: 0
-
-                if (isMediaInRow) {
-                    // mediaPlaceable height ranges from 0 to qsHeight. We want it to be centered
-                    // vertically when it's smaller than the QS
-                    val mediaCenteringOffset = (quickSettingsHeight - mediaPlaceable.height) / 2
-                    mediaPlaceable.placeRelative(
-                        x = insetsLeft + constraintsWithCutout.maxWidth / 2,
-                        y =
-                            insetsTop +
-                                statusBarHeaderHeight +
-                                mediaCenteringOffset +
-                                mediaOffset(),
-                        zIndex = mediaZIndex(),
-                    )
-                } else {
-                    mediaPlaceable.placeRelative(
-                        x = insetsLeft,
-                        y = insetsTop + statusBarHeaderHeight + quickSettingsHeight,
-                        zIndex = mediaZIndex(),
-                    )
-                }
-            }
 
             // Notifications don't need to accommodate for horizontal insets
             notificationsPlaceable?.placeRelative(x = 0, y = notificationsTop)
@@ -124,33 +93,13 @@ class SingleShadeMeasurePolicy(
 
     private fun calculateNotificationsTop(
         statusBarHeaderPlaceable: Placeable?,
-        quickSettingsPlaceable: Placeable?,
-        mediaPlaceable: Placeable?,
+        mediaAndQqsPlaceable: Placeable?,
         insetsTop: Int,
-        isMediaInRow: Boolean,
     ): Int {
-        val mediaHeight = mediaPlaceable?.height ?: 0
         val statusBarHeaderHeight = statusBarHeaderPlaceable?.height ?: 0
-        val quickSettingsHeight = quickSettingsPlaceable?.height ?: 0
+        val mediaAndQqsHeight = mediaAndQqsPlaceable?.height ?: 0
 
-        return insetsTop +
-            statusBarHeaderHeight +
-            if (isMediaInRow) {
-                max(quickSettingsHeight, mediaHeight)
-            } else {
-                quickSettingsHeight + mediaHeight
-            }
-    }
-
-    private fun applyMediaConstraints(
-        constraints: Constraints,
-        isMediaInRow: Boolean,
-    ): Constraints {
-        return if (isMediaInRow) {
-            constraints.copy(maxWidth = constraints.maxWidth / 2)
-        } else {
-            constraints
-        }
+        return insetsTop + statusBarHeaderHeight + mediaAndQqsHeight
     }
 
     private fun MeasureScope.applyCutout(

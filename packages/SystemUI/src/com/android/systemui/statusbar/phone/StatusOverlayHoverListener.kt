@@ -28,14 +28,15 @@ import androidx.annotation.ColorInt
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationControllerStore
-import com.android.systemui.statusbar.data.repository.SysuiDarkIconDispatcherStore
 import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher.DarkChange
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener
@@ -50,7 +51,7 @@ class StatusOverlayHoverListenerFactory
 constructor(
     @Main private val resources: Resources,
     private val configurationController: ConfigurationController,
-    private val darkIconDispatcherStore: SysuiDarkIconDispatcherStore,
+    private val displaySubcomponentRepository: PerDisplayRepository<SystemUIDisplaySubcomponent>,
     private val statusBarConfigurationControllerStore: StatusBarConfigurationControllerStore,
 ) {
 
@@ -135,7 +136,7 @@ constructor(
         get() = statusBarConfigurationControllerStore.forDisplay(context.displayId)
 
     private val View.darkIconDispatcher: SysuiDarkIconDispatcher?
-        get() = darkIconDispatcherStore.forDisplay(context.displayId)
+        get() = displaySubcomponentRepository[context.displayId]?.sysuiDarkIconDispatcher
 
     private fun toHoverTheme(view: View, darkChange: DarkChange): HoverTheme {
         val calculatedTint = DarkIconDispatcher.getTint(darkChange.areas, view, darkChange.tint)

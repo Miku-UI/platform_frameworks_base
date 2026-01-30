@@ -19,6 +19,8 @@ package android.os;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.system.ErrnoException;
 
+import dalvik.annotation.optimization.FastNative;
+
 import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.InputStream;
@@ -41,8 +43,10 @@ public class MemoryFile {
     private static String TAG = "MemoryFile";
 
     // Returns 'true' if purged, 'false' otherwise
+    @FastNative
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     private static native boolean native_pin(FileDescriptor fd, boolean pin) throws IOException;
+    @FastNative
     @UnsupportedAppUsage
     private static native int native_get_size(FileDescriptor fd) throws IOException;
 

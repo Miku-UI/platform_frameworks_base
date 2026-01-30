@@ -24,7 +24,6 @@ import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.android.compose.PlatformButton
 import com.android.compose.PlatformTextButton
-import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dialog.ui.composable.AlertDialogContent
 import com.android.systemui.qs.panels.domain.interactor.EditTilesResetInteractor
 import com.android.systemui.res.R
@@ -34,15 +33,17 @@ import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.statusbar.phone.SystemUIDialogFactory
 import com.android.systemui.statusbar.phone.create
 import com.android.systemui.util.Assert
-import javax.inject.Inject
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 
-@SysUISingleton
 class QSResetDialogDelegate
-@Inject
+@AssistedInject
 constructor(
     private val sysuiDialogFactory: SystemUIDialogFactory,
     private val shadeDialogContextInteractor: ShadeDialogContextInteractor,
     private val resetInteractor: EditTilesResetInteractor,
+    @Assisted private val onReset: () -> Unit,
 ) : SystemUIDialog.Delegate {
     private var currentDialog: ComponentSystemUIDialog? = null
 
@@ -82,6 +83,7 @@ constructor(
                 PlatformButton(
                     onClick = {
                         dialog.dismiss()
+                        onReset()
                         resetInteractor.reset()
                     }
                 ) {
@@ -101,6 +103,11 @@ constructor(
             createDialog()
         }
         currentDialog?.show()
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(onReset: () -> Unit): QSResetDialogDelegate
     }
 
     companion object {

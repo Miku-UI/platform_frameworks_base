@@ -47,7 +47,7 @@ public class IntegerConstant extends Operation implements Serializable {
      *
      * @param ic the integer constant to copy
      */
-    public void update(IntegerConstant ic) {
+    public void update(@NonNull IntegerConstant ic) {
         mValue = ic.mValue;
     }
 
@@ -131,7 +131,7 @@ public class IntegerConstant extends Operation implements Serializable {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("id", mId).add("value", mValue);
     }
 }

@@ -33,4 +33,7 @@ interface ScreenshotProxy {
      * completion.
      */
     suspend fun dismissKeyguard()
+
+    /** Get the currently focused display ID from FocusedDisplayRepository. */
+    suspend fun getFocusedDisplay(): Int
 }

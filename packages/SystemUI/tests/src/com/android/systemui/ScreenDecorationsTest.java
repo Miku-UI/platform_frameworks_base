@@ -95,11 +95,14 @@ import com.android.systemui.decor.OverlayWindow;
 import com.android.systemui.decor.PrivacyDotCornerDecorProviderImpl;
 import com.android.systemui.decor.PrivacyDotDecorProviderFactory;
 import com.android.systemui.decor.RoundedCornerResDelegate;
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.log.ScreenDecorationsLogger;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.res.R;
 import com.android.systemui.settings.FakeDisplayTracker;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.shade.domain.interactor.ShadeInteractor;
 import com.android.systemui.statusbar.commandline.CommandRegistry;
 import com.android.systemui.statusbar.events.PrivacyDotViewController;
 import com.android.systemui.util.concurrency.FakeExecutor;
@@ -181,6 +184,11 @@ public class ScreenDecorationsTest extends SysuiTestCase {
             new CameraProtectionLoaderImpl(mContext);
     private Handler mMainHandler;
 
+    private final KosmosJavaAdapter mKosmosJavaAdapter = new KosmosJavaAdapter(this);
+    private final KeyguardInteractor mKeyguardInteractor =
+            mKosmosJavaAdapter.getKeyguardInteractor();
+    private final ShadeInteractor mShadeInteractor = mKosmosJavaAdapter.getShadeInteractor();
+
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
@@ -244,14 +252,16 @@ public class ScreenDecorationsTest extends SysuiTestCase {
                 mKeyguardUpdateMonitor,
                 mExecutor,
                 new ScreenDecorationsLogger(logcatLogBuffer("TestLogBuffer")),
-                mFakeFacePropertyRepository));
+                mFakeFacePropertyRepository,
+                mKeyguardInteractor,
+                mShadeInteractor));
 
         mScreenDecorations = spy(new ScreenDecorations(mContext, mSecureSettings,
                 mCommandRegistry, mUserTracker, mDisplayTracker, mDotViewController,
                 mPrivacyDotDecorProviderFactory, mFaceScanningProviderFactory,
                 new ScreenDecorationsLogger(logcatLogBuffer("TestLogBuffer")),
                 mFakeFacePropertyRepository, mJavaAdapter, mCameraProtectionLoader,
-                mWindowManager, mMainHandler, mExecutor) {
+                mWindowManager, mShadeInteractor, mKeyguardInteractor, mMainHandler, mExecutor) {
             @Override
             public void start() {
                 super.start();
@@ -1266,7 +1276,7 @@ public class ScreenDecorationsTest extends SysuiTestCase {
                 mPrivacyDotDecorProviderFactory, mFaceScanningProviderFactory,
                 new ScreenDecorationsLogger(logcatLogBuffer("TestLogBuffer")),
                 mFakeFacePropertyRepository, mJavaAdapter, mCameraProtectionLoader,
-                mWindowManager, mMainHandler, mExecutor);
+                mWindowManager, mShadeInteractor, mKeyguardInteractor, mMainHandler, mExecutor);
         screenDecorations.start();
         when(mContext.getDisplay()).thenReturn(mDisplay);
         when(mDisplay.getDisplayInfo(any())).thenAnswer(new Answer<Boolean>() {

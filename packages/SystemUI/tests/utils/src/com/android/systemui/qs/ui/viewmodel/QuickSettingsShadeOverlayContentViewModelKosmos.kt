@@ -16,16 +16,47 @@
 
 package com.android.systemui.qs.ui.viewmodel
 
+import android.content.applicationContext
+import com.android.systemui.desktop.domain.interactor.desktopInteractor
+import com.android.systemui.development.ui.viewmodel.buildNumberViewModelFactory
+import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.qs.panels.domain.interactor.qsPanelAppearanceInteractor
+import com.android.systemui.qs.panels.ui.viewmodel.toolbar.toolbarViewModelFactory
+import com.android.systemui.qs.tiles.dialog.audioDetailsViewModelFactory
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationStackAppearanceInteractor
+import com.android.systemui.volume.panel.component.volume.slider.ui.viewmodel.audioStreamSliderViewModelFactory
+import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
+import kotlinx.coroutines.CoroutineScope
 
-val Kosmos.quickSettingsShadeOverlayContentViewModel: QuickSettingsShadeOverlayContentViewModel by
+val Kosmos.quickSettingsShadeOverlayContentViewModelFactory:
+    QuickSettingsShadeOverlayContentViewModel.Factory by
     Kosmos.Fixture {
-        QuickSettingsShadeOverlayContentViewModel(
-            shadeInteractor = shadeInteractor,
-            sceneInteractor = sceneInteractor,
-            notificationStackAppearanceInteractor = notificationStackAppearanceInteractor,
-        )
+        object : QuickSettingsShadeOverlayContentViewModel.Factory {
+            override fun create(
+                volumeSliderCoroutineScope: CoroutineScope?
+            ): QuickSettingsShadeOverlayContentViewModel {
+                return QuickSettingsShadeOverlayContentViewModel(
+                    mainDispatcher = testDispatcher,
+                    shadeInteractor = shadeInteractor,
+                    shadeModeInteractor = shadeModeInteractor,
+                    sceneInteractor = sceneInteractor,
+                    desktopInteractor = desktopInteractor,
+                    notificationStackAppearanceInteractor = notificationStackAppearanceInteractor,
+                    shadeContext = applicationContext,
+                    audioDetailsViewModelFactory = audioDetailsViewModelFactory,
+                    audioStreamSliderViewModelFactory = audioStreamSliderViewModelFactory,
+                    buildNumberViewModelFactory = buildNumberViewModelFactory,
+                    volumeSliderCoroutineScope = volumeSliderCoroutineScope,
+                    toolbarViewModelFactory = toolbarViewModelFactory,
+                    blurConfig = blurConfig,
+                    windowRootViewBlurInteractor = windowRootViewBlurInteractor,
+                    qsPanelAppearanceInteractor = qsPanelAppearanceInteractor,
+                )
+            }
+        }
     }

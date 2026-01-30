@@ -19,6 +19,9 @@ android_test {
         "src/**/*.java",
         "src/**/*.kt",
     ],
+    kotlincflags: [
+        "-Werror",
+    ],
     asset_dirs: ["assets"],
     platform_apis: true,
     certificate: "platform",
@@ -37,10 +40,12 @@ android_test {
         "flag-junit",
         "frameworks-base-testutils",
         "hamcrest-library",
+        "inputtests_aidl-java",
         "junit-params",
         "kotlin-test",
         "mockito-kotlin-nodeps",
         "mockito-target-extended-minus-junit4",
+        "platform-compat-test-rules",
         "platform-test-annotations",
         "platform-screenshot-diff-core",
         "services.core.unboosted",
@@ -49,6 +54,9 @@ android_test {
         "testng",
         "truth",
         "ui-trace-collector",
+    ],
+    jni_libs: [
+        "libinputtests_jni",
     ],
     libs: [
         "android.test.mock.stubs.system",

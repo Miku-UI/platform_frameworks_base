@@ -16,11 +16,20 @@
 
 package com.android.server.display;
 
+import static android.hardware.display.DisplayManager.EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_ASK;
+import static android.hardware.display.DisplayManager.EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP;
+import static android.hardware.display.DisplayManager.EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_MIRROR;
+
+import static com.android.server.display.PersistentDataStoreTestUtils.createTestDisplayDevice;
+import static com.android.server.display.PersistentDataStoreTestUtils.stateBuilder;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import android.content.Context;
 import android.hardware.display.BrightnessConfiguration;
@@ -31,7 +40,6 @@ import android.util.Pair;
 import androidx.test.InstrumentationRegistry;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
-
 
 import org.junit.Before;
 import org.junit.Test;
@@ -45,7 +53,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -67,20 +74,151 @@ public class PersistentDataStoreTest {
     }
 
     @Test
-    public void testLoadBrightness() {
-        final String uniqueDisplayId = "test:123";
-        final DisplayDevice testDisplayDevice = new DisplayDevice(mDisplayAdapter,
-                /* displayToken= */ null, uniqueDisplayId, /* context= */ null) {
-            @Override
-            public boolean hasStableUniqueId() {
-                return true;
-            }
+    public void getConnectionPreference_withStoredValues_returnsExpectedValues() {
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:123");
+        final DisplayDevice testDisplayDevice2 =
+                createTestDisplayDevice(mDisplayAdapter, "test:456");
 
-            @Override
-            public DisplayDeviceInfo getDisplayDeviceInfoLocked() {
-                return null;
-            }
-        };
+        String xml = stateBuilder()
+                .display("test:123", display -> display
+                        .withConnectionPreference(EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP))
+                .display("test:456", display -> display
+                        .withConnectionPreference(EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_MIRROR))
+                .build();
+
+        InputStream is = new ByteArrayInputStream(xml.getBytes(UTF_8));
+        mInjector.setReadStream(is);
+        mDataStore.loadIfNeeded();
+
+        int connectionPreference = mDataStore.getConnectionPreference(testDisplayDevice);
+        int connectionPreference2 = mDataStore.getConnectionPreference(testDisplayDevice2);
+        assertEquals(EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP, connectionPreference);
+        assertEquals(EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_MIRROR, connectionPreference2);
+    }
+
+    @Test
+    public void getConnectionPreference_whenDisplayHasUnstableId_returnsDefault() {
+        final DisplayDevice unstableDisplayDevice = createTestDisplayDevice(
+                mDisplayAdapter, "not:found",  /* hasStableUniqueId= */ false);
+
+        mDataStore.loadIfNeeded();
+
+        int preference = mDataStore.getConnectionPreference(unstableDisplayDevice);
+        assertEquals("Should return default for unstable display IDs",
+                EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_ASK, preference);
+    }
+
+    @Test
+    public void getConnectionPreference_whenDisplayStateNotFound_returnsDefault() {
+        final DisplayDevice unknownDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:0");
+
+        String emptyContents = stateBuilder().build();
+        mInjector.setReadStream(new ByteArrayInputStream(emptyContents.getBytes()));
+        mDataStore.loadIfNeeded();
+
+        int preference = mDataStore.getConnectionPreference(unknownDisplayDevice);
+        assertEquals("Should return default for a display with no saved state",
+                EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_ASK, preference);
+    }
+
+    @Test
+    public void setConnectionPreference_newDisplay_setsPreferenceAndMarksDirty() {
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:555");
+        mDataStore.loadIfNeeded();
+
+        boolean result = mDataStore.setConnectionPreference(testDisplayDevice,
+                EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP);
+        assertTrue("setConnectionPreference should return true for a new value", result);
+
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        mInjector.setWriteStream(baos);
+        mDataStore.saveIfNeeded();
+        mTestLooper.dispatchAll();
+        assertTrue("A save should have been triggered because the data was dirty",
+                mInjector.wasWriteSuccessful());
+
+        TestInjector newInjector = new TestInjector();
+        PersistentDataStore newDataStore = new PersistentDataStore(newInjector,
+                new Handler(mTestLooper.getLooper()));
+        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+        newInjector.setReadStream(bais);
+        newDataStore.loadIfNeeded();
+
+        assertEquals("The new preference should be restored after a save/load cycle",
+                EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP,
+                newDataStore.getConnectionPreference(testDisplayDevice));
+    }
+
+    @Test
+    public void setConnectionPreference_updateExisting_setsPreferenceAndMarksDirty() {
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:321");
+        String xml = stateBuilder()
+                .display("test:321", display -> display
+                        .withConnectionPreference(EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_MIRROR))
+                .build();
+        mInjector.setReadStream(new ByteArrayInputStream(xml.getBytes(UTF_8)));
+        mDataStore.loadIfNeeded();
+        assertEquals(EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_MIRROR,
+                mDataStore.getConnectionPreference(testDisplayDevice));
+
+        boolean result = mDataStore.setConnectionPreference(testDisplayDevice,
+                EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP);
+        assertTrue("setConnectionPreference should return true when updating the value", result);
+        assertEquals("The preference should be updated from MIRROR(2) to DESKTOP(1)",
+                EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP,
+                mDataStore.getConnectionPreference(testDisplayDevice));
+
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        mInjector.setWriteStream(baos);
+        mDataStore.saveIfNeeded();
+        mTestLooper.dispatchAll();
+        assertTrue(mInjector.wasWriteSuccessful());
+
+        TestInjector newInjector = new TestInjector();
+        PersistentDataStore newDataStore = new PersistentDataStore(newInjector,
+                new Handler(mTestLooper.getLooper()));
+        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+        newInjector.setReadStream(bais);
+        newDataStore.loadIfNeeded();
+
+        assertEquals("The updated preference should be DESKTOP(1) after a save/load cycle",
+                EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP,
+                newDataStore.getConnectionPreference(testDisplayDevice));
+    }
+
+    @Test
+    public void setConnectionPreference_sameValue_returnsFalseAndNotDirty() {
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:123");
+        String xml = stateBuilder()
+                .display("test:123", display -> display
+                        .withConnectionPreference(EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP))
+                .build();
+        mInjector.setReadStream(new ByteArrayInputStream(xml.getBytes()));
+        mDataStore.loadIfNeeded();
+
+        boolean result = mDataStore.setConnectionPreference(
+                testDisplayDevice, EXTERNAL_DISPLAY_CONNECTION_PREFERENCE_DESKTOP);
+
+        assertFalse("setConnectionPreference should return false if the value is unchanged",
+                result);
+
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        mInjector.setWriteStream(baos);
+        mDataStore.saveIfNeeded();
+        mTestLooper.dispatchAll();
+        assertFalse("A save should NOT be triggered if the data was not dirty",
+                mInjector.wasWriteSuccessful());
+    }
+
+    @Test
+    public void testLoadBrightness() {
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:123");
 
         String contents = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                 + "<display-manager-state>\n"
@@ -92,7 +230,7 @@ public class PersistentDataStoreTest {
                 + "  </display-states>\n"
                 + "</display-manager-state>\n";
 
-        InputStream is = new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8));
+        InputStream is = new ByteArrayInputStream(contents.getBytes(UTF_8));
         mInjector.setReadStream(is);
         mDataStore.loadIfNeeded();
 
@@ -105,20 +243,8 @@ public class PersistentDataStoreTest {
 
     @Test
     public void testSetBrightness_brightnessTagWithNoUserId_updatesToBrightnessTagWithUserId() {
-        final String uniqueDisplayId = "test:123";
         final DisplayDevice testDisplayDevice =
-                new DisplayDevice(mDisplayAdapter, /* displayToken= */ null, uniqueDisplayId,
-                        /* context= */ null) {
-            @Override
-            public boolean hasStableUniqueId() {
-                return true;
-            }
-
-            @Override
-            public DisplayDeviceInfo getDisplayDeviceInfoLocked() {
-                return null;
-            }
-        };
+                createTestDisplayDevice(mDisplayAdapter, "test:123");
 
         String contents = "<?xml version='1.0' encoding='utf-8' standalone='yes' ?>\n"
                 + "<display-manager-state>\n"
@@ -130,7 +256,7 @@ public class PersistentDataStoreTest {
                 + "  </display-states>\n"
                 + "</display-manager-state>\n";
 
-        InputStream is = new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8));
+        InputStream is = new ByteArrayInputStream(contents.getBytes(UTF_8));
         mInjector.setReadStream(is);
         mDataStore.loadIfNeeded();
 
@@ -197,7 +323,7 @@ public class PersistentDataStoreTest {
                 + "    </brightness-configuration>\n"
                 + "  </brightness-configurations>\n"
                 + "</display-manager-state>\n";
-        InputStream is = new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8));
+        InputStream is = new ByteArrayInputStream(contents.getBytes(UTF_8));
         mInjector.setReadStream(is);
         mDataStore.loadIfNeeded();
         BrightnessConfiguration config = mDataStore.getBrightnessConfiguration(1 /*userSerial*/);
@@ -230,7 +356,7 @@ public class PersistentDataStoreTest {
                 + "    </brightness-configuration>\n"
                 + "  </brightness-configurations>\n"
                 + "</display-manager-state>\n";
-        InputStream is = new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8));
+        InputStream is = new ByteArrayInputStream(contents.getBytes(UTF_8));
         mInjector.setReadStream(is);
         mDataStore.loadIfNeeded();
         assertNull(mDataStore.getBrightnessConfiguration(0 /*userSerial*/));
@@ -249,7 +375,7 @@ public class PersistentDataStoreTest {
                 + "    </brightness-configuration>\n"
                 + "  </brightness-configurations>\n"
                 + "</display-manager-state>\n";
-        InputStream is = new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8));
+        InputStream is = new ByteArrayInputStream(contents.getBytes(UTF_8));
         mInjector.setReadStream(is);
         mDataStore.loadIfNeeded();
         assertNull(mDataStore.getBrightnessConfiguration(0 /*userSerial*/));
@@ -261,7 +387,7 @@ public class PersistentDataStoreTest {
                 + "<display-manager-state>\n"
                 + "  <brightness-configurations />\n"
                 + "</display-manager-state>\n";
-        InputStream is = new ByteArrayInputStream(contents.getBytes(StandardCharsets.UTF_8));
+        InputStream is = new ByteArrayInputStream(contents.getBytes(UTF_8));
         mInjector.setReadStream(is);
         mDataStore.loadIfNeeded();
         assertNull(mDataStore.getBrightnessConfiguration(0 /*userSerial*/));
@@ -281,18 +407,8 @@ public class PersistentDataStoreTest {
         assertNull(mDataStore.getBrightnessConfigurationForDisplayLocked(uniqueDisplayId,
                 userSerial));
 
-        DisplayDevice testDisplayDevice = new DisplayDevice(mDisplayAdapter,
-                /* displayToken= */ null, uniqueDisplayId, /* context= */ null) {
-            @Override
-            public boolean hasStableUniqueId() {
-                return true;
-            }
-
-            @Override
-            public DisplayDeviceInfo getDisplayDeviceInfoLocked() {
-                return null;
-            }
-        };
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, uniqueDisplayId);
 
         mDataStore.setBrightnessConfigurationForDisplayLocked(config, testDisplayDevice, userSerial,
                 packageName);
@@ -328,18 +444,8 @@ public class PersistentDataStoreTest {
         assertNull(mDataStore.getBrightnessConfigurationForDisplayLocked(uniqueDisplayId,
                 userSerial));
 
-        DisplayDevice testDisplayDevice = new DisplayDevice(mDisplayAdapter,
-                /* displayToken= */ null, uniqueDisplayId, /* context= */ null) {
-            @Override
-            public boolean hasStableUniqueId() {
-                return false;
-            }
-
-            @Override
-            public DisplayDeviceInfo getDisplayDeviceInfoLocked() {
-                return null;
-            }
-        };
+        final DisplayDevice testDisplayDevice = createTestDisplayDevice(
+                mDisplayAdapter, uniqueDisplayId, /* hasStableUniqueId= */ false);
 
         assertFalse(mDataStore.setBrightnessConfigurationForDisplayLocked(
                 config, testDisplayDevice, userSerial, packageName));
@@ -395,19 +501,8 @@ public class PersistentDataStoreTest {
 
     @Test
     public void testStoreAndRestoreResolution() {
-        final String uniqueDisplayId = "test:123";
-        DisplayDevice testDisplayDevice = new DisplayDevice(mDisplayAdapter,
-                /* displayToken= */ null, uniqueDisplayId, /* context= */ null) {
-            @Override
-            public boolean hasStableUniqueId() {
-                return true;
-            }
-
-            @Override
-            public DisplayDeviceInfo getDisplayDeviceInfoLocked() {
-                return null;
-            }
-        };
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:123");
         int width = 35;
         int height = 45;
         mDataStore.loadIfNeeded();
@@ -432,19 +527,8 @@ public class PersistentDataStoreTest {
 
     @Test
     public void testStoreAndRestoreRefreshRate() {
-        final String uniqueDisplayId = "test:123";
-        DisplayDevice testDisplayDevice = new DisplayDevice(mDisplayAdapter,
-                /* displayToken= */ null, uniqueDisplayId, /* context= */ null) {
-            @Override
-            public boolean hasStableUniqueId() {
-                return true;
-            }
-
-            @Override
-            public DisplayDeviceInfo getDisplayDeviceInfoLocked() {
-                return null;
-            }
-        };
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:123");
         float refreshRate = 85.3f;
         mDataStore.loadIfNeeded();
         mDataStore.setUserPreferredRefreshRate(testDisplayDevice, refreshRate);
@@ -465,19 +549,8 @@ public class PersistentDataStoreTest {
 
     @Test
     public void testBrightnessInitialisesWithInvalidFloat() {
-        final String uniqueDisplayId = "test:123";
-        DisplayDevice testDisplayDevice = new DisplayDevice(mDisplayAdapter,
-                /* displayToken= */ null, uniqueDisplayId, /* context= */ null) {
-            @Override
-            public boolean hasStableUniqueId() {
-                return true;
-            }
-
-            @Override
-            public DisplayDeviceInfo getDisplayDeviceInfoLocked() {
-                return null;
-            }
-        };
+        final DisplayDevice testDisplayDevice =
+                createTestDisplayDevice(mDisplayAdapter, "test:123");
 
         // Set any value which initialises Display state
         float refreshRate = 85.3f;

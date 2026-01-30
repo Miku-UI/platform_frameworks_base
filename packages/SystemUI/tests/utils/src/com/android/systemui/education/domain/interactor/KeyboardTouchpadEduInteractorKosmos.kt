@@ -17,6 +17,7 @@
 package com.android.systemui.education.domain.interactor
 
 import android.hardware.input.InputManager
+import com.android.systemui.LauncherProxyService
 import com.android.systemui.education.ContextualEducationMetricsLogger
 import com.android.systemui.education.data.repository.fakeEduClock
 import com.android.systemui.inputdevice.data.repository.UserInputDeviceRepository
@@ -25,7 +26,6 @@ import com.android.systemui.keyboard.data.repository.keyboardRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.recents.LauncherProxyService
 import com.android.systemui.touchpad.data.repository.touchpadRepository
 import com.android.systemui.user.data.repository.userRepository
 import org.mockito.kotlin.mock

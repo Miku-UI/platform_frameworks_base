@@ -16,6 +16,7 @@
 
 package android.app;
 
+parcelable ActivityManager.ConnectionInfo;
 parcelable ActivityManager.MemoryInfo;
 parcelable ActivityManager.PendingIntentInfo;
 parcelable ActivityManager.ProcessErrorStateInfo;

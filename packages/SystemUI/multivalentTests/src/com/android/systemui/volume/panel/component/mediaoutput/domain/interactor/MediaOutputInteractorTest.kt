@@ -26,9 +26,8 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.testKosmos
-import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
 import com.android.systemui.volume.data.repository.FakeLocalMediaRepository
 import com.android.systemui.volume.localMediaController
 import com.android.systemui.volume.localMediaRepositoryFactory
@@ -42,7 +41,6 @@ import com.android.systemui.volume.remoteMediaController
 import com.android.systemui.volume.remotePlaybackInfo
 import com.android.systemui.volume.remotePlaybackStateBuilder
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -53,7 +51,7 @@ import org.junit.runner.RunWith
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 class MediaOutputInteractorTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos()
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
     private lateinit var underTest: MediaOutputInteractor
 
@@ -64,7 +62,9 @@ class MediaOutputInteractorTest : SysuiTestCase() {
                 "local.test.pkg",
                 FakeLocalMediaRepository().apply {
                     updateCurrentConnectedDevice(
-                        mock { whenever(name).thenReturn("local_media_device") }
+                        TestMediaDevicesFactory.builtInMediaDevice(
+                            deviceName = "local_media_device"
+                        )
                     )
                 },
             )
@@ -72,7 +72,9 @@ class MediaOutputInteractorTest : SysuiTestCase() {
                 "remote.test.pkg",
                 FakeLocalMediaRepository().apply {
                     updateCurrentConnectedDevice(
-                        mock { whenever(name).thenReturn("remote_media_device") }
+                        TestMediaDevicesFactory.remoteMediaDevice(
+                            deviceName = "remote_media_device"
+                        )
                     )
                 },
             )
@@ -88,7 +90,6 @@ class MediaOutputInteractorTest : SysuiTestCase() {
 
                 val activeMediaDeviceSessions by
                     collectLastValue(underTest.activeMediaDeviceSessions)
-                runCurrent()
 
                 assertThat(activeMediaDeviceSessions!!.local).isNull()
                 assertThat(activeMediaDeviceSessions!!.remote).isNull()
@@ -105,7 +106,6 @@ class MediaOutputInteractorTest : SysuiTestCase() {
 
                 val activeMediaDeviceSessions by
                     collectLastValue(underTest.activeMediaDeviceSessions)
-                runCurrent()
 
                 with(activeMediaDeviceSessions!!.local!!) {
                     assertThat(packageName).isEqualTo("local.test.pkg")
@@ -148,7 +148,6 @@ class MediaOutputInteractorTest : SysuiTestCase() {
 
                 val activeMediaDeviceSessions by
                     collectLastValue(underTest.activeMediaDeviceSessions)
-                runCurrent()
 
                 assertThat(activeMediaDeviceSessions!!.local!!.canAdjustVolume).isFalse()
                 assertThat(activeMediaDeviceSessions!!.remote!!.canAdjustVolume).isFalse()
@@ -168,7 +167,6 @@ class MediaOutputInteractorTest : SysuiTestCase() {
                 val defaultActiveMediaSession by
                     collectLastValue(underTest.defaultActiveMediaSession)
                 val currentDevice by collectLastValue(underTest.currentConnectedDevice)
-                runCurrent()
 
                 with((defaultActiveMediaSession as Result.Data<MediaDeviceSession?>).data!!) {
                     assertThat(packageName).isEqualTo("local.test.pkg")
@@ -192,7 +190,6 @@ class MediaOutputInteractorTest : SysuiTestCase() {
                 val defaultActiveMediaSession by
                     collectLastValue(underTest.defaultActiveMediaSession)
                 val currentDevice by collectLastValue(underTest.currentConnectedDevice)
-                runCurrent()
 
                 with((defaultActiveMediaSession as Result.Data<MediaDeviceSession?>).data!!) {
                     assertThat(packageName).isEqualTo("remote.test.pkg")
@@ -216,7 +213,6 @@ class MediaOutputInteractorTest : SysuiTestCase() {
                 val defaultActiveMediaSession by
                     collectLastValue(underTest.defaultActiveMediaSession)
                 val currentDevice by collectLastValue(underTest.currentConnectedDevice)
-                runCurrent()
 
                 with((defaultActiveMediaSession as Result.Data<MediaDeviceSession?>).data!!) {
                     assertThat(packageName).isEqualTo("local.test.pkg")

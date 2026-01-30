@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"İzin gerekli"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Yükleme engellendi"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Uygulama hazırlanılıyor…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Bu uygulama yüklensin mi?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Yükleniyor…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Uygulama yüklendi"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Bu uygulama yeniden yüklensin mi?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Yeniden yükleniyor…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Uygulama yeniden yüklendi"</string>
+    <string name="title_update" msgid="1747328630716712391">"Bu uygulama güncellensin mi?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Bu uygulama, <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> kullanılarak güncellensin mi?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Güncelleniyor…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Uygulama güncellendi"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Uygulama yüklenemiyor"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Yükleme engellendi"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Uygulama uyumlu değil"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Geçersiz paket"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Yeterli depolama alanı yok"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Uygulama yüklenmedi"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Bu uygulamanın yüklemesi kaldırılsın mı?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Bu uygulama klonu silinsin mi?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Uygulama güncellemeleri kaldırılsın mı?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Uygulama güncellemeleri tüm kullanıcılar için kaldırılsın mı?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Bu uygulama, tüm kullanıcılar için kaldırılsın mı?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Bu uygulama, \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" kullanıcısı için kaldırılsın mı?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Uygulama bulunamadı"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Bu uygulama kaldırılamıyor"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Uygulamanın yüklemesi kaldırılmadı"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Bu uygulama arşivlensin mi?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Bu uygulama tüm kullanıcılar için arşivlensin mi?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Bu uygulama, \"<xliff:g id="USER_NAME">%1$s</xliff:g>\" kullanıcısı için arşivlensin mi?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Bu uygulama geri yüklensin mi?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"İşlem gerekli"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Yeterli depolama alanı yok"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"İnternete bağlı değilsiniz"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> devre dışı bırakıldı"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> yüklü değil"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Bir hata oluştu"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Bu uygulama genellikle &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; kaynağından güncelleme alır. Farklı bir kaynaktan güncellerseniz ileride tabletinizde herhangi bir kaynaktan güncelleme alabilirsiniz. Uygulama işlevselliği değişebilir."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Bu uygulama genellikle &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; kaynağından güncelleme alır. Farklı bir kaynaktan güncellerseniz ileride televizyonunuzda herhangi bir kaynaktan güncelleme alabilirsiniz. Uygulama işlevselliği değişebilir."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Bu uygulama genellikle &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; kaynağından güncelleme alır. Farklı bir kaynaktan güncellerseniz bundan sonra telefonunuzda farklı kaynaklardan güncelleme alabilirsiniz. Uygulama işlevselliği değişebilir."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Güvenlik nedeniyle şu anda tabletinizin bu kaynaktan bilinmeyen uygulamalar yüklemesine izin verilmemektedir. Bunu Ayarlar\'da değiştirebilirsiniz."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Güvenlik nedeniyle şu anda TV\'nizin bu kaynaktan bilinmeyen uygulamalar yüklemesine izin verilmemektedir. Bunu Ayarlar\'da değiştirebilirsiniz."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Güvenlik nedeniyle şu anda kol saatinizin bu kaynaktan bilinmeyen uygulamalar yüklemesine izin verilmemektedir. Bunu Ayarlar\'da değiştirebilirsiniz."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Güvenlik nedeniyle şu anda telefonunuzun bu kaynaktan bilinmeyen uygulamalar yüklemesine izin verilmemektedir. Bunu Ayarlar\'da değiştirebilirsiniz."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Telefonunuz ve kişisel verileriniz, bilinmeyen uygulamaların saldırılarına karşı daha savunmasızdır. Bu uygulamayı yükleyerek, uygulama kullanımından dolayı telefonunuzda oluşabilecek hasarın veya uğrayabileceğiniz veri kaybının sorumluluğunu kabul etmiş olursunuz."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Tabletiniz ve kişisel verileriniz, bilinmeyen uygulamaların saldırılarına karşı daha savunmasızdır. Bu uygulamayı yükleyerek, uygulama kullanımından dolayı tabletinizde oluşabilecek hasarın veya uğrayabileceğiniz veri kaybının sorumluluğunu kabul etmiş olursunuz."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"TV\'niz ve kişisel verileriniz, bilinmeyen uygulamaların saldırılarına karşı daha savunmasızdır. Bu uygulamayı yükleyerek, uygulama kullanımından dolayı TV\'nizde oluşabilecek hasarın veya uğrayabileceğiniz veri kaybının sorumluluğunu kabul etmiş olursunuz."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Bu uygulamanın yüklenmesi engellendi"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Bu uygulama, cihazınızda yüklü olan bir uygulamayla çakışıyor"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Bu uygulama cihazınızla uyumlu değil"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Bu uygulamanın yükleme dosyasıyla ilgili bir sorun var"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Bu uygulamayı yüklemek için biraz yer açıp tekrar deneyin"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Uygulama dosyasıyla ilgili bir sorun var"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Uygulama yükleme kısıtlandı"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Bilinmeyen uygulamaları yükleme kısıtlandı"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Bu uygulamanın bir kopyası da mevcut ve silinecek"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Bu uygulama, <xliff:g id="APP_LABEL">%1$s</xliff:g> uygulamasının klonu"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Bu uygulama, fabrika sürümüyle değiştirilecek. Tüm uygulama verileri kaldırılacak."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Bu uygulama, cihazdaki tüm kullanıcılar için fabrika sürümüyle değiştirilecek. Tüm uygulama verileri kaldırılacak."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Bu uygulama, iş profilinizden kaldırılacak"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Bu uygulama, özel alanınızdan kaldırılacak"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Bu uygulama, yüklü uygulamalar listesinde bulunamadı veya daha önce kaldırılmış"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Geçerli kullanıcının bu yüklemeyi kaldırma izni yok"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Bu uygulama kaldırılamadı"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Uygulama verilerini sakla"</string>
+    <string name="message_archive" msgid="943853731737315850">"Uygulama verileriniz kaydedilecek"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Tüm uygulama verileri kaydedilecek"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Uygulama verileri kaydedilecek"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Bu uygulama, iş profilinizden arşivlenecek. Uygulama verileriniz kaydedilecek."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Bu uygulama, özel alanınızdan arşivlenecek. Uygulama verileriniz kaydedilecek."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Bu uygulama, <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> üzerinden arka planda indirilecek"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"Bu uygulamayı geri yükleyebilmeniz için <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> programının daha fazla bilgiye ihtiyacı var"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Bu uygulamayı geri yüklemek için &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; yer açıp tekrar deneyin"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Bu uygulamayı geri yüklemek için internet bağlantınızı kontrol edip tekrar deneyin"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Bu uygulamayı geri yüklemek için Ayarlar\'da <xliff:g id="INSTALLERNAME">%1$s</xliff:g> uygulamasını etkinleştirin"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Bu uygulamayı geri yüklemek için <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> uygulamasını yüklemeniz gerekiyor"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Bu uygulamayı geri yüklemeye çalışırken bir sorun oluştu"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g>, şu uygulamanın bir parçasıdır: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Bu uygulama engellendi. Cihazınızın ve verilerinizin güvenliğini sağlamak için yalnızca doğrulanmış geliştiricilerin uygulamaları yüklenebilir.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Bu uygulama güncellenmedi. Cihazınızın ve verilerinizin güvenliğini sağlamak için yalnızca doğrulanmış geliştiricilerin güncellemeleri yüklenebilir.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Bu uygulama yüklenmedi. Doğrulanmamış geliştiricilerin uygulamaları güvenli olmayabilir.&lt;/p&gt; &lt;p&gt;Uygulama geliştiricinin doğrulanması için internet bağlantısı gerekir. Bağlantınızı kontrol edip tekrar yüklemeyi deneyin. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Bu uygulama güncellenmedi. Doğrulanmamış geliştiricilerin güncellemeleri güvenli olmayabilir.&lt;/p&gt; &lt;p&gt;Uygulama geliştiricinin doğrulanması için internet bağlantısı gerekir. Bağlantınızı kontrol edip tekrar güncellemeyi deneyin. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Bu uygulamanın geliştiricisi doğrulanırken bir sorun oluştu. Doğrulanmamış geliştiricilerin uygulamaları güvenli olmayabileceği için uygulama yüklenmedi.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Bu uygulamanın geliştiricisi doğrulanırken bir sorun oluştu. Doğrulanmamış geliştiricilerin güncellemeleri güvenli olmayabileceği için uygulama güncellenmedi.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Geliştirici doğrulanamadığı için bu uygulama engellendi. Cihazınızın ve verilerinizin güvenliğini sağlamak için yalnızca doğrulanmış geliştiricilerin uygulamaları yüklenebilir.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Geliştirici doğrulanamadığı için bu uygulama güncellenmedi. Cihazınızın ve verilerinizin güvenliğini sağlamak için yalnızca doğrulanmış geliştiricilerin güncellemeleri yüklenebilir.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Geliştirici doğrulaması hakkında daha fazla bilgi edinin&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Doğrulamadan yüklerseniz doğrulanmamış geliştiricilerin uygulamalarının cihazınızı ve verilerinizi riske atabileceğini unutmayın."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Doğrulamadan güncellerseniz doğrulanmamış geliştiricilerin güncellemelerinin cihazınızı ve verilerinizi riske atabileceğini unutmayın."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Uygulama geliştirici doğrulanmamış"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"İnternet bağlantısı olmadığı için uygulama geliştirici doğrulanamıyor"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Uygulama geliştirici doğrulanamıyor"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Doğrulamadan yükle"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Doğrulamadan güncelleyin"</string>
+    <string name="button_install" msgid="7434013176505680162">"Yükle"</string>
+    <string name="button_update" msgid="3046719350226327526">"Güncelle"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Yine de güncelle"</string>
+    <string name="button_done" msgid="3408025390982260629">"Bitti"</string>
+    <string name="button_open" msgid="6892684987374117955">"Aç"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"İptal"</string>
+    <string name="button_continue" msgid="107501685249826244">"Devam"</string>
+    <string name="button_close" msgid="7187308556466275899">"Kapat"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Kaldır"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Sil"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Yeniden yükle"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Uygulamaları yönet"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Arşivle"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Geri yükle"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Güncellemeleri kaldır"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Ayarlar"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Tekrar dene"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> Klonu"</string>
+</resources>

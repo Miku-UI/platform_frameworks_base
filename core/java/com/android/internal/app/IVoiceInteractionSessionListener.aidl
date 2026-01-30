@@ -40,4 +40,9 @@
      * Called when UI hints were received.
      */
     void onSetUiHints(in Bundle args);
+
+    /**
+     * Called when set invocation effect enabled were received.
+     */
+    void onSetInvocationEffectEnabled(boolean enabled);
  }

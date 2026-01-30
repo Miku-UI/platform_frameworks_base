@@ -22,7 +22,7 @@ import android.content.pm.SignedPackageParcel;
 
 /**
   * Binder interface to query SystemConfig in the system server.
-  * {@hide}
+  * @hide
   */
 interface ISystemConfig {
     /**

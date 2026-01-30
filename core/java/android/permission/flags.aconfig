@@ -11,6 +11,13 @@ flag {
 }
 
 flag {
+  name: "bluetooth_permission_use_module_protection_level"
+  namespace: "bluetooth"
+  description: "Flag for change to all the Bluetooth ROLE permissions to be provided by the module instead"
+  bug: "395709071"
+}
+
+flag {
     name: "voice_activation_permission_apis"
     is_exported: true
     namespace: "permissions"
@@ -105,13 +112,6 @@ flag {
     namespace: "permissions"
     description: "default retail demo role holder"
     bug: "274132354"
-}
-
-flag {
-    name: "server_side_attribution_registration"
-    namespace: "permissions"
-    description: "controls whether the binder representing an AttributionSource is created in the system server, or client process"
-    bug: "310953959"
 }
 
 flag {
@@ -213,14 +213,6 @@ flag {
 }
 
 flag {
-    name: "runtime_permission_appops_mapping_enabled"
-    is_fixed_read_only: true
-    namespace: "permissions"
-    description: "Use runtime permission state to determine appop state"
-    bug: "266164193"
-}
-
-flag {
     name: "device_id_in_op_proxy_info_enabled"
     is_fixed_read_only: true
     namespace: "permissions"
@@ -250,17 +242,6 @@ flag {
     namespace: "permissions"
     description: "Show access entry of location bypass permission in the Privacy Dashboard"
     bug: "325536053"
-}
-
-flag {
-    name: "dont_remove_existing_uid_states"
-    is_fixed_read_only: true
-    namespace: "permissions"
-    description: "Double check if the uid still exists before attempting to remove its appops state"
-    bug: "353474742"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -301,17 +282,6 @@ flag {
     namespace: "android_health_services"
     description: "Enables replacement of BODY_SENSORS/BODY_SENSORS_BACKGROUND permissions with granular health permissions READ_HEART_RATE, READ_SKIN_TEMPERATURE, READ_OXYGEN_SATURATION, and READ_HEALTH_DATA_IN_BACKGROUND"
     bug: "364638912"
-}
-
-flag {
-    name: "delay_uid_state_changes_from_capability_updates"
-    is_fixed_read_only: true
-    namespace: "permissions"
-    description: "If proc state is decreasing over the restriction threshold and capability is changed, delay if no new capabilities are added"
-    bug: "347891382"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -406,13 +376,6 @@ flag {
     name: "system_selection_toolbar_enabled"
     namespace: "permissions"
     description: "Enables the system selection toolbar feature."
-    bug: "363318732"
-}
-
-flag {
-    name: "use_system_selection_toolbar_in_sysui"
-    namespace: "permissions"
-    description: "Uses the SysUi process to host the SelectionToolbarRenderService."
     bug: "363318732"
 }
 
@@ -556,10 +519,130 @@ flag {
 }
 
 flag {
+    name: "app_function_access_api_enabled"
+    is_fixed_read_only: true
+    is_exported: true
+    namespace: "permissions"
+    description: "This flag gates the API for the App Function Access Control APIs"
+    bug: "413087113"
+}
+
+flag {
+    name: "app_function_access_service_enabled"
+    namespace: "permissions"
+    description: "This flag gates the behavior for the App Function Access Control APIs"
+    bug: "413087113"
+}
+
+flag {
     name: "enable_system_supervision_role_behavior"
     is_fixed_read_only: true
     is_exported: true
     namespace: "supervision"
     description: "This flag is used to enable the role behavior for the system supervision role"
     bug: "378102594"
+}
+
+flag {
+    name: "supervision_role_enabled"
+    is_fixed_read_only: true
+    is_exported: true
+    namespace: "supervision"
+    description: "This flag is used to enable the supervision role"
+    bug: "401490610"
+}
+
+flag {
+    name: "purpose_declaration_enabled"
+    is_fixed_read_only: true
+    namespace: "permissions"
+    description: "This flag is used to enable the enforcement of purpose guarded permissions"
+    bug: "418113890"
+}
+
+flag {
+    name: "app_function_access_ui_enabled"
+    is_exported: true
+    namespace: "permissions"
+    description: "This flag gates the UI for the App Function Access. This includes settings screens, request dialogs and related intents"
+    bug: "413087113"
+}
+
+flag {
+    name: "permission_one_time_session_logging_enabled"
+    namespace: "permissions"
+    description: "Collect stats about permission one time sessions."
+    bug: "417779908"
+}
+
+flag {
+    name: "app_ops_read_cell_information"
+    namespace: "privacy_infra_policy"
+    description: "This flag is used to read cell information from TelephonyManager"
+    bug: "391621017"
+}
+
+flag {
+    name: "limit_sensor_privacy_listeners"
+    is_fixed_read_only: true
+    namespace: "permissions"
+    description: "Limit the number of sensor privacy listeners allowed per uid"
+    bug: "400358935"
+}
+
+flag {
+    name: "open_safety_center_apis"
+    is_exported: true
+    namespace: "safety_center"
+    description: "This flag is used to flag opening up and extending Safety Center APIs"
+    bug: "425924062"
+    is_fixed_read_only: true
+}
+
+flag {
+    name: "deprecate_default_permission_pregrant_policy"
+    namespace: "permissions"
+    description: "Add support for deprecating unused Default Permission Pregrant Policy"
+    bug: "420985100"
+}
+
+flag {
+    name: "app_ops_cell_reporting"
+    namespace: "permissions"
+    description: "This flags app ops cell reporting tied to ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION"
+    bug: "420985100"
+}
+
+flag {
+    name: "check_package_caching_enabled"
+    is_fixed_read_only: true
+    namespace: "permissions"
+    description: "Enable checkPackage caching in AppOpsManager"
+    bug: "423030916"
+}
+
+flag {
+    name: "watch_face_role_enabled"
+    is_exported: true
+    namespace: "wear_watchfaces"
+    description: "This flag enables watchface roles support and API"
+    bug: "399850691"
+    is_fixed_read_only: true
+}
+
+flag {
+    name: "access_local_network_permission_enabled"
+    is_exported: true
+    is_fixed_read_only: true
+    namespace: "android_core_networking"
+    description: "This flag is used to enable the new ACCESS_LOCAL_NETWORK runtime permission. When enabled, this permission will be used for local network protection, replacing NEARBY_WIFI_DEVICES for this purpose."
+    bug: "388774939"
+}
+
+flag {
+    name: "content_restriction_role_enabled"
+    is_exported: true
+    namespace: "content_restriction"
+    description: "This flag is used to enable the content restriction role"
+    bug: "441559663"
 }

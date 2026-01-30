@@ -18,7 +18,6 @@ package com.android.systemui.navigationbar;
 
 import static android.app.StatusBarManager.WINDOW_NAVIGATION_BAR;
 import static android.app.StatusBarManager.WindowVisibleState;
-import static android.provider.Settings.Secure.ACCESSIBILITY_BUTTON_MODE_FLOATING_MENU;
 import static android.provider.Settings.Secure.ACCESSIBILITY_BUTTON_MODE_NAVIGATION_BAR;
 import static android.view.WindowInsetsController.APPEARANCE_LOW_PROFILE_BARS;
 import static android.view.WindowInsetsController.APPEARANCE_OPAQUE_NAVIGATION_BARS;
@@ -48,7 +47,6 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.provider.Settings;
@@ -67,6 +65,7 @@ import androidx.annotation.WorkerThread;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.systemui.Dumpable;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.accessibility.AccessibilityButtonModeObserver;
 import com.android.systemui.accessibility.AccessibilityButtonTargetsObserver;
 import com.android.systemui.accessibility.AccessibilityGestureTargetsObserver;
@@ -77,7 +76,6 @@ import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.navigationbar.gestural.EdgeBackGestureHandler;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shared.Flags;
@@ -215,7 +213,7 @@ public final class NavBarHelper implements
             @Main Executor mainExecutor,
             @Background Handler bgHandler) {
         // b/319489709: This component shouldn't be running for a non-primary user
-        if (!Process.myUserHandle().equals(UserHandle.SYSTEM)) {
+        if (!launcherProxyService.isSystemOrVisibleBgUser()) {
             Log.wtf(TAG, "Unexpected initialization for non-primary user", new Throwable());
         }
         mContext = context;
@@ -405,17 +403,12 @@ public final class NavBarHelper implements
     private int getNumOfA11yShortcutTargetsForNavSystem() {
         final int buttonMode = mAccessibilityButtonModeObserver.getCurrentAccessibilityButtonMode();
         final int shortcutType;
-        if (!android.provider.Flags.a11yStandaloneGestureEnabled()) {
-            shortcutType = buttonMode
-                    != ACCESSIBILITY_BUTTON_MODE_FLOATING_MENU ? SOFTWARE : DEFAULT;
-            // If accessibility button is floating menu mode, there are no clickable targets.
+
+        if (mNavBarMode == NAV_BAR_MODE_GESTURAL) {
+            shortcutType = GESTURE;
         } else {
-            if (mNavBarMode == NAV_BAR_MODE_GESTURAL) {
-                shortcutType = GESTURE;
-            } else {
-                shortcutType = buttonMode == ACCESSIBILITY_BUTTON_MODE_NAVIGATION_BAR
-                        ? SOFTWARE : DEFAULT;
-            }
+            shortcutType = buttonMode == ACCESSIBILITY_BUTTON_MODE_NAVIGATION_BAR
+                    ? SOFTWARE : DEFAULT;
         }
         return mAccessibilityManager.getAccessibilityShortcutTargets(shortcutType).size();
     }

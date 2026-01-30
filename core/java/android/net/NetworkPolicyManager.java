@@ -703,7 +703,7 @@ public class NetworkPolicyManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public static Iterator<Pair<ZonedDateTime, ZonedDateTime>> cycleIterator(NetworkPolicy policy) {
         final Iterator<Range<ZonedDateTime>> it = policy.cycleIterator();
@@ -1119,7 +1119,7 @@ public class NetworkPolicyManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static class Listener extends INetworkPolicyListener.Stub {
         @Override public void onUidRulesChanged(int uid, int uidRules) { }
         @Override public void onMeteredIfacesChanged(String[] meteredIfaces) { }

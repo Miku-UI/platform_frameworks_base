@@ -17,12 +17,11 @@
 package com.android.systemui.keyboard.shortcut.ui.composable
 
 import android.content.res.Configuration
-import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 import com.android.compose.windowsizeclass.LocalWindowSizeClass
 
 /**
@@ -31,8 +30,10 @@ import com.android.compose.windowsizeclass.LocalWindowSizeClass
  */
 @Composable
 fun hasCompactWindowSize() =
-    LocalWindowSizeClass.current.widthSizeClass == WindowWidthSizeClass.Compact ||
-        LocalWindowSizeClass.current.heightSizeClass == WindowHeightSizeClass.Compact
+    !LocalWindowSizeClass.current.isAtLeastBreakpoint(
+        WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+        WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND,
+    )
 
 @Composable
 fun getWidth(): Dp {
@@ -45,6 +46,12 @@ fun getWidth(): Dp {
             else -> ShortcutHelperBottomSheet.LargeScreenWidthPortrait
         }
 }
+
+@Composable
+fun hasExpandedWindowHeight() =
+    LocalWindowSizeClass.current.isHeightAtLeastBreakpoint(
+        WindowSizeClass.HEIGHT_DP_EXPANDED_LOWER_BOUND
+    )
 
 object ShortcutHelperBottomSheet {
     val DefaultWidth = 412.dp

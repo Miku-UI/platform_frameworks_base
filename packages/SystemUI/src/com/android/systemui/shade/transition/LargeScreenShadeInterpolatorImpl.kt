@@ -18,17 +18,21 @@ package com.android.systemui.shade.transition
 
 import android.content.Context
 import android.content.res.Configuration
+import androidx.annotation.VisibleForTesting
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.SplitShadeStateController
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 import javax.inject.Inject
 
 /** Interpolator responsible for the shade when on large screens. */
 @SysUISingleton
-internal class LargeScreenShadeInterpolatorImpl
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+class LargeScreenShadeInterpolatorImpl
 @Inject
-internal constructor(
+constructor(
     @ShadeDisplayAware configurationController: ConfigurationController,
     @ShadeDisplayAware private val context: Context,
     private val splitShadeInterpolator: SplitShadeInterpolator,

@@ -58,6 +58,7 @@ import static com.android.server.SystemService.PHASE_BOOT_COMPLETED;
 import static com.android.server.SystemService.PHASE_SYSTEM_SERVICES_READY;
 import static com.android.server.usage.AppIdleHistory.STANDBY_BUCKET_UNKNOWN;
 
+import android.Manifest;
 import android.annotation.CurrentTimeMillisLong;
 import android.annotation.DurationMillisLong;
 import android.annotation.NonNull;
@@ -100,6 +101,7 @@ import android.os.ServiceManager;
 import android.os.SystemClock;
 import android.os.Trace;
 import android.os.UserHandle;
+import android.permission.PermissionManager;
 import android.provider.DeviceConfig;
 import android.provider.Settings.Global;
 import android.telephony.TelephonyManager;
@@ -125,6 +127,7 @@ import com.android.internal.app.IAppOpsService;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.ConcurrentUtils;
+import com.android.internal.util.IntPair;
 import com.android.server.AlarmManagerInternal;
 import com.android.server.AppSchedulingModuleThread;
 import com.android.server.LocalServices;
@@ -339,11 +342,11 @@ public class AppStandbyController
      */
     long[] mAppStandbyElapsedThresholds = DEFAULT_ELAPSED_TIME_THRESHOLDS;
     /** Minimum time a strong usage event should keep the bucket elevated. */
-    long mStrongUsageTimeoutMillis = ConstantsObserver.DEFAULT_LEGACY_STRONG_USAGE_TIMEOUT;
+    long mStrongUsageTimeoutMillis = ConstantsObserver.DEFAULT_STRONG_USAGE_TIMEOUT;
     /** Minimum time a notification seen event should keep the bucket elevated. */
     long mNotificationSeenTimeoutMillis = ConstantsObserver.DEFAULT_NOTIFICATION_TIMEOUT;
     /** Minimum time a slice pinned event should keep the bucket elevated. */
-    long mSlicePinnedTimeoutMillis = ConstantsObserver.DEFAULT_LEGACY_SLICE_PINNED_TIMEOUT;
+    long mSlicePinnedTimeoutMillis = ConstantsObserver.DEFAULT_SLICE_PINNED_TIMEOUT;
     /** The standby bucket that an app will be promoted on a notification-seen event */
     int mNotificationSeenPromotedBucket =
             ConstantsObserver.DEFAULT_NOTIFICATION_SEEN_PROMOTED_BUCKET;
@@ -364,9 +367,9 @@ public class AppStandbyController
     /** Maximum time to wait for a prediction before using simple timeouts to downgrade buckets. */
     long mPredictionTimeoutMillis = DEFAULT_PREDICTION_TIMEOUT;
     /** Maximum time a sync adapter associated with a CP should keep the buckets elevated. */
-    long mSyncAdapterTimeoutMillis = ConstantsObserver.DEFAULT_LEGACY_SYNC_ADAPTER_TIMEOUT;
+    long mSyncAdapterTimeoutMillis = ConstantsObserver.DEFAULT_SYNC_ADAPTER_TIMEOUT;
     /** The bucket that an app will be promoted on a sync adapter associated with a CP */
-    int mSyncAdapaterPromotedBucket = STANDBY_BUCKET_ACTIVE;
+    int mSyncAdapterPromotedBucket = STANDBY_BUCKET_WORKING_SET;
     /**
      * Maximum time an exempted sync should keep the buckets elevated, when sync is scheduled in
      * non-doze
@@ -713,10 +716,6 @@ public class AppStandbyController
                 initializeDefaultsForSystemApps(UserHandle.USER_SYSTEM);
             }
 
-            if (!Flags.avoidIdleCheck() && mPendingOneTimeCheckIdleStates) {
-                postOneTimeCheckIdleStates();
-            }
-
             // Populate list of system packages and their app-ids.
             final List<ApplicationInfo> systemApps = mPackageManager.getInstalledApplications(
                     SYSTEM_PACKAGE_FLAGS);
@@ -757,7 +756,7 @@ public class AppStandbyController
                         userId);
                 synchronized (mAppIdleLock) {
                     reportNoninteractiveUsageCrossUserLocked(packageName, userId,
-                            mSyncAdapaterPromotedBucket, REASON_SUB_USAGE_SYNC_ADAPTER,
+                            mSyncAdapterPromotedBucket, REASON_SUB_USAGE_SYNC_ADAPTER,
                             elapsedRealtime, mSyncAdapterTimeoutMillis, linkedProfiles);
                 }
             }
@@ -1527,8 +1526,8 @@ public class AppStandbyController
             return STANDBY_BUCKET_ACTIVE;
         }
 
-        if (mPackageManager.checkPermission(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-                packageName) == PERMISSION_GRANTED) {
+        if (mSystemServicesReady
+                && mInjector.isBackgroundLocationPermissionGranted(packageName, userId)) {
             return STANDBY_BUCKET_FREQUENT;
         }
 
@@ -1639,6 +1638,19 @@ public class AppStandbyController
     }
 
     @Override
+    public long getAppStandbyBucketAndReason(String packageName, int userId,
+            long elapsedRealtime) {
+        if (!mAppIdleEnabled) {
+            return IntPair.of(STANDBY_BUCKET_EXEMPTED, REASON_MAIN_DEFAULT);
+        }
+
+        synchronized (mAppIdleLock) {
+            return mAppIdleHistory.getAppStandbyBucketAndReason(packageName, userId,
+                    elapsedRealtime);
+        }
+    }
+
+    @Override
     public int getAppStandbyBucketReason(String packageName, int userId, long elapsedRealtime) {
         synchronized (mAppIdleLock) {
             return mAppIdleHistory.getAppStandbyReason(packageName, userId, elapsedRealtime);
@@ -1707,16 +1719,12 @@ public class AppStandbyController
         }
         // Clear out the list of restored apps that need to have their standby buckets adjusted
         // if they still haven't been installed two days after initial restore.
-        final long delayMillis = Flags.persistRestoreToRareAppsList()
-                ? AppIdleHistory.RESTORE_TO_RARE_APPS_LIST_EXPIRY : 8 * ONE_HOUR;
-        mHandler.postDelayed(() -> mAppsToRestoreToRare.remove(userId), delayMillis);
+        mHandler.postDelayed(() -> mAppsToRestoreToRare.remove(userId),
+                AppIdleHistory.RESTORE_TO_RARE_APPS_LIST_EXPIRY);
 
         // Persist the file in case the device reboots within 2 days after the initial restore.
-        if (Flags.persistRestoreToRareAppsList()) {
-            synchronized (mAppIdleLock) {
-                mAppIdleHistory.writeRestoreToRareAppsList(
-                        userId, mAppsToRestoreToRare.get(userId));
-            }
+        synchronized (mAppIdleLock) {
+            mAppIdleHistory.writeRestoreToRareAppsList(userId, mAppsToRestoreToRare.get(userId));
         }
     }
 
@@ -2003,7 +2011,7 @@ public class AppStandbyController
                 mAdminProtectedPackages.put(userId, packageNames);
             }
         }
-        if (!Flags.avoidIdleCheck() || mInjector.getBootPhase() >= PHASE_BOOT_COMPLETED) {
+        if (mInjector.getBootPhase() >= PHASE_BOOT_COMPLETED) {
             postCheckIdleStates(userId);
         }
     }
@@ -2281,8 +2289,7 @@ public class AppStandbyController
                     clearAppIdleForPackage(pkgName, userId);
                 } else {
                     // Do a lazy read of the persisted list, if necessary.
-                    if (Flags.persistRestoreToRareAppsList()
-                            && mAppsToRestoreToRare.get(userId) == null) {
+                    if (mAppsToRestoreToRare.get(userId) == null) {
                         synchronized (mAppIdleLock) {
                             final ArraySet<String> restoredApps =
                                     mAppIdleHistory.readRestoreToRareAppsList(userId);
@@ -2418,19 +2425,9 @@ public class AppStandbyController
             if (pkgInfo == null) {
                 continue;
             }
-            final String pkg = pkgInfo.packageName;
-            final boolean isHeadLess = !systemLauncherActivities.contains(pkg);
 
-            if (updateHeadlessSystemAppCache(pkg, isHeadLess)) {
-                if (!Flags.avoidIdleCheck()) {
-                    // Checking idle state for the each individual headless system app
-                    // during the boot up is not necessary, a full idle check for all
-                    // usres will be scheduled after boot completed.
-                    mHandler.obtainMessage(MSG_CHECK_PACKAGE_IDLE_STATE,
-                                    UserHandle.USER_SYSTEM, -1, pkg)
-                            .sendToTarget();
-                }
-            }
+            updateHeadlessSystemAppCache(pkgInfo.packageName,
+                    !systemLauncherActivities.contains(pkgInfo.packageName));
         }
         final long end = SystemClock.uptimeMillis();
         Slog.d(TAG, "Loaded headless system app cache in " + (end - start) + " ms:"
@@ -2473,15 +2470,6 @@ public class AppStandbyController
 
     @Override
     public void dumpState(String[] args, PrintWriter pw) {
-        pw.println("Flags: ");
-        pw.println("    " + Flags.FLAG_AVOID_IDLE_CHECK
-                + ": " + Flags.avoidIdleCheck());
-        pw.println("    " + Flags.FLAG_ADJUST_DEFAULT_BUCKET_ELEVATION_PARAMS
-                + ": " + Flags.adjustDefaultBucketElevationParams());
-        pw.println("    " + Flags.FLAG_PERSIST_RESTORE_TO_RARE_APPS_LIST
-                + ": " + Flags.persistRestoreToRareAppsList());
-        pw.println();
-
         synchronized (mCarrierPrivilegedLock) {
             pw.println("Carrier privileged apps (have=" + mHaveCarrierPrivilegedApps
                     + "): " + mCarrierPrivilegedApps);
@@ -2515,8 +2503,8 @@ public class AppStandbyController
         pw.print("  mSyncAdapterTimeoutMillis=");
         TimeUtils.formatDuration(mSyncAdapterTimeoutMillis, pw);
         pw.println();
-        pw.print("  mSyncAdapaterPromotedBucket=");
-        pw.print(standbyBucketToString(mSyncAdapaterPromotedBucket));
+        pw.print("  mSyncAdapterPromotedBucket=");
+        pw.print(standbyBucketToString(mSyncAdapterPromotedBucket));
         pw.println();
         pw.print("  mSystemInteractionTimeoutMillis=");
         TimeUtils.formatDuration(mSystemInteractionTimeoutMillis, pw);
@@ -2652,6 +2640,7 @@ public class AppStandbyController
         private IBatteryStats mBatteryStats;
         private BatteryManager mBatteryManager;
         private PackageManagerInternal mPackageManagerInternal;
+        private PermissionManager mPermissionManager;
         private DisplayManager mDisplayManager;
         private PowerManager mPowerManager;
         private IDeviceIdleController mDeviceIdleController;
@@ -2691,6 +2680,7 @@ public class AppStandbyController
                 mBatteryStats = IBatteryStats.Stub.asInterface(
                         ServiceManager.getService(BatteryStats.SERVICE_NAME));
                 mPackageManagerInternal = LocalServices.getService(PackageManagerInternal.class);
+                mPermissionManager = mContext.getSystemService(PermissionManager.class);
                 mDisplayManager = (DisplayManager) mContext.getSystemService(
                         Context.DISPLAY_SERVICE);
                 mPowerManager = mContext.getSystemService(PowerManager.class);
@@ -2724,10 +2714,6 @@ public class AppStandbyController
          */
         long elapsedRealtime() {
             return SystemClock.elapsedRealtime();
-        }
-
-        long currentTimeMillis() {
-            return System.currentTimeMillis();
         }
 
         boolean isAppIdleEnabled() {
@@ -2768,6 +2754,14 @@ public class AppStandbyController
 
         boolean shouldGetExactAlarmBucketElevation(String packageName, int uid) {
             return mAlarmManagerInternal.shouldGetBucketElevation(packageName, uid);
+        }
+
+        boolean isBackgroundLocationPermissionGranted(@NonNull String packageName,
+                @UserIdInt int userId) {
+            final int result = mPermissionManager.checkPackageNamePermission(
+                    Manifest.permission.ACCESS_BACKGROUND_LOCATION,
+                    packageName, Context.DEVICE_ID_DEFAULT, userId);
+            return result == PERMISSION_GRANTED;
         }
 
         void updatePowerWhitelistCache() {
@@ -3096,17 +3090,13 @@ public class AppStandbyController
 
         public static final long DEFAULT_CHECK_IDLE_INTERVAL_MS =
                 COMPRESS_TIME ? ONE_MINUTE : 4 * ONE_HOUR;
-        public static final long DEFAULT_LEGACY_STRONG_USAGE_TIMEOUT =
-                COMPRESS_TIME ? ONE_MINUTE : 1 * ONE_HOUR;
 
-        public static final long DEFAULT_CURRENT_STRONG_USAGE_TIMEOUT =
+        public static final long DEFAULT_STRONG_USAGE_TIMEOUT =
                 COMPRESS_TIME ? ONE_MINUTE : 5 * ONE_MINUTE;
         public static final long DEFAULT_NOTIFICATION_TIMEOUT =
                 COMPRESS_TIME ? 12 * ONE_MINUTE : 12 * ONE_HOUR;
-        public static final long DEFAULT_LEGACY_SLICE_PINNED_TIMEOUT =
-                COMPRESS_TIME ? 12 * ONE_MINUTE : 12 * ONE_HOUR;
 
-        public static final long DEFAULT_CURRENT_SLICE_PINNED_TIMEOUT =
+        public static final long DEFAULT_SLICE_PINNED_TIMEOUT =
                 COMPRESS_TIME ? 12 * ONE_MINUTE : 2 * ONE_HOUR;
         public static final int DEFAULT_NOTIFICATION_SEEN_PROMOTED_BUCKET =
                 STANDBY_BUCKET_WORKING_SET;
@@ -3116,10 +3106,8 @@ public class AppStandbyController
                 COMPRESS_TIME ? 2 * ONE_MINUTE : 2 * ONE_HOUR;
         public static final long DEFAULT_SYSTEM_INTERACTION_TIMEOUT =
                 COMPRESS_TIME ? ONE_MINUTE : 10 * ONE_MINUTE;
-        public static final long DEFAULT_LEGACY_SYNC_ADAPTER_TIMEOUT =
-                COMPRESS_TIME ? ONE_MINUTE : 10 * ONE_MINUTE;
 
-        public static final long DEFAULT_CURRENT_SYNC_ADAPTER_TIMEOUT =
+        public static final long DEFAULT_SYNC_ADAPTER_TIMEOUT =
                 COMPRESS_TIME ? ONE_MINUTE : 2 * ONE_HOUR;
         public static final long DEFAULT_EXEMPTED_SYNC_SCHEDULED_NON_DOZE_TIMEOUT =
                 COMPRESS_TIME ? (ONE_MINUTE / 2) : 10 * ONE_MINUTE;
@@ -3164,8 +3152,6 @@ public class AppStandbyController
                     false, this);
             mInjector.registerDeviceConfigPropertiesChangedListener(this);
 
-            processDefaultConstants();
-
             // Load all the constants.
             // postOneTimeCheckIdleStates() doesn't need to be called on boot.
             processProperties(mInjector.getDeviceConfigProperties());
@@ -3182,17 +3168,6 @@ public class AppStandbyController
         public void onPropertiesChanged(DeviceConfig.Properties properties) {
             processProperties(properties);
             postOneTimeCheckIdleStates();
-        }
-
-        private void processDefaultConstants() {
-            if (!Flags.adjustDefaultBucketElevationParams()) {
-                return;
-            }
-
-            mSlicePinnedTimeoutMillis = DEFAULT_CURRENT_SLICE_PINNED_TIMEOUT;
-            mSyncAdapterTimeoutMillis = DEFAULT_CURRENT_SYNC_ADAPTER_TIMEOUT;
-            mSyncAdapaterPromotedBucket = STANDBY_BUCKET_WORKING_SET;
-            mStrongUsageTimeoutMillis = DEFAULT_CURRENT_STRONG_USAGE_TIMEOUT;
         }
 
         private void processProperties(DeviceConfig.Properties properties) {
@@ -3242,16 +3217,12 @@ public class AppStandbyController
                         case KEY_SLICE_PINNED_HOLD_DURATION:
                             mSlicePinnedTimeoutMillis = properties.getLong(
                                     KEY_SLICE_PINNED_HOLD_DURATION,
-                                    Flags.adjustDefaultBucketElevationParams()
-                                            ? DEFAULT_CURRENT_SLICE_PINNED_TIMEOUT
-                                            : DEFAULT_LEGACY_SLICE_PINNED_TIMEOUT);
+                                    DEFAULT_SLICE_PINNED_TIMEOUT);
                             break;
                         case KEY_STRONG_USAGE_HOLD_DURATION:
                             mStrongUsageTimeoutMillis = properties.getLong(
                                     KEY_STRONG_USAGE_HOLD_DURATION,
-                                    Flags.adjustDefaultBucketElevationParams()
-                                            ? DEFAULT_CURRENT_STRONG_USAGE_TIMEOUT
-                                            : DEFAULT_LEGACY_STRONG_USAGE_TIMEOUT);
+                                    DEFAULT_STRONG_USAGE_TIMEOUT);
                             break;
                         case KEY_PREDICTION_TIMEOUT:
                             mPredictionTimeoutMillis = properties.getLong(
@@ -3269,9 +3240,7 @@ public class AppStandbyController
                         case KEY_SYNC_ADAPTER_HOLD_DURATION:
                             mSyncAdapterTimeoutMillis = properties.getLong(
                                     KEY_SYNC_ADAPTER_HOLD_DURATION,
-                                    Flags.adjustDefaultBucketElevationParams()
-                                            ? DEFAULT_CURRENT_SYNC_ADAPTER_TIMEOUT
-                                            : DEFAULT_LEGACY_SYNC_ADAPTER_TIMEOUT);
+                                    DEFAULT_SYNC_ADAPTER_TIMEOUT);
                             break;
                         case KEY_EXEMPTED_SYNC_SCHEDULED_DOZE_HOLD_DURATION:
                             mExemptedSyncScheduledDozeTimeoutMillis = properties.getLong(

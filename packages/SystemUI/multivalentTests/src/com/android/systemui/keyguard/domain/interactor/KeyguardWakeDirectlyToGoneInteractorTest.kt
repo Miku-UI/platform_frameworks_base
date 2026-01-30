@@ -32,6 +32,7 @@ import com.android.internal.widget.lockPatternUtils
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.BiometricUnlockMode
@@ -59,6 +60,7 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class KeyguardWakeDirectlyToGoneInteractorTest : SysuiTestCase() {
 
     private var lastRegisteredBroadcastReceiver: BroadcastReceiver? = null

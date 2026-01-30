@@ -17,11 +17,12 @@
 package com.android.settingslib.widget
 
 import android.content.Context
+import android.graphics.drawable.Drawable
 import android.util.AttributeSet
-import android.view.View.GONE
-import android.view.View.VISIBLE
+import android.view.View
 import android.widget.TextView
 import androidx.annotation.DrawableRes
+import androidx.core.view.isGone
 import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
 import com.android.settingslib.widget.preference.segmentedbutton.R
@@ -38,6 +39,15 @@ class SegmentedButtonPreference @JvmOverloads constructor(
     private var buttonLabels: MutableList<TextView> = mutableListOf()
     private var buttonCheckedListener: MaterialButtonToggleGroup.OnButtonCheckedListener? = null
 
+    // Data to be applied during onBindViewHolder
+    private val buttonSetupData =
+        mutableMapOf<Int, Pair<String, SegmentedButtonIcon>>() // (index, text, icon)
+    private val buttonVisibilityData = mutableMapOf<Int, Boolean>() // (index, visibility)
+    private val buttonEnableData = mutableMapOf<Int, Boolean>() // (index, enable)
+
+    // Default checked button
+    private var checkedIndex: Int = -1
+
     init {
         layoutResource = R.layout.settingslib_expressive_preference_segmentedbutton
     }
@@ -48,41 +58,123 @@ class SegmentedButtonPreference @JvmOverloads constructor(
         holder.isDividerAllowedAbove = false
 
         buttonGroup = holder.findViewById(R.id.button_group) as MaterialButtonToggleGroup?
-        buttonLabels.add(holder.findViewById(R.id.button_1_text) as TextView)
-        buttonLabels.add(holder.findViewById(R.id.button_2_text) as TextView)
-        buttonLabels.add(holder.findViewById(R.id.button_3_text) as TextView)
-        buttonLabels.add(holder.findViewById(R.id.button_4_text) as TextView)
+        buttonLabels.add(0, holder.findViewById(R.id.button_1_text) as TextView)
+        buttonLabels.add(1, holder.findViewById(R.id.button_2_text) as TextView)
+        buttonLabels.add(2, holder.findViewById(R.id.button_3_text) as TextView)
+        buttonLabels.add(3, holder.findViewById(R.id.button_4_text) as TextView)
+
+        // Apply stored data
+        applyButtonSetupData()
+        applyButtonVisibilityData()
+        applyButtonEnableData()
+        buttonGroup?.apply {
+            clearOnButtonCheckedListeners()
+            applyCheckIndex(checkedIndex)
+            buttonCheckedListener?.let { listener ->
+                addOnButtonCheckedListener(listener)
+            }
+        }
     }
 
-    fun setupButton(index: Int, text: String, @DrawableRes icon: Int) {
-        if (index in 0 until buttonLabels.size) {
-            (buttonGroup?.getChildAt(index) as? MaterialButton)?.setIconResource(icon)
-            buttonLabels[index].text = text
-        }
+    fun setUpButton(index: Int, text: String, @DrawableRes icon: Int) {
+        buttonSetupData.put(index, Pair(text, SegmentedButtonIcon.ResourceIcon(icon)))
+        notifyChanged()
+    }
+
+    fun setUpButton(index: Int, text: String, icon: Drawable) {
+        buttonSetupData.put(index, Pair(text, SegmentedButtonIcon.DrawableIcon(icon)))
+        notifyChanged()
     }
 
     fun setButtonVisibility(index: Int, visible: Boolean) {
-        if (index in 0 until buttonLabels.size) {
-            (buttonGroup?.getChildAt(index) as? MaterialButton)?.visibility =
-                if (visible) VISIBLE else GONE
-
-            buttonLabels[index].visibility = if (visible) VISIBLE else GONE
-        }
+        buttonVisibilityData.put(index, visible)
+        notifyChanged()
     }
 
     fun setButtonEnabled(index: Int, enabled: Boolean) {
-        if (index in 0 until buttonLabels.size) {
-            (buttonGroup?.getChildAt(index) as? MaterialButton)?.isEnabled = enabled
-        }
+        buttonEnableData.put(index, enabled)
+        notifyChanged()
+    }
+
+    fun setCheckedIndex(index: Int) {
+        checkedIndex = index
+        notifyChanged()
+    }
+
+    fun getCheckedIndex(): Int {
+        val checkedButtonId = buttonGroup?.checkedButtonId ?: return -1
+        return buttonGroup?.indexOfChild(buttonGroup?.findViewById(checkedButtonId)) ?: -1
     }
 
     fun setOnButtonClickListener(listener: MaterialButtonToggleGroup.OnButtonCheckedListener) {
         buttonCheckedListener = listener
-        buttonGroup?.addOnButtonCheckedListener (listener)
+        notifyChanged()
     }
 
     fun removeOnButtonClickListener() {
-        buttonCheckedListener?.let { buttonGroup?.removeOnButtonCheckedListener(it) }
         buttonCheckedListener = null
+        notifyChanged()
+    }
+
+    private fun applyButtonSetupData() {
+        // The button group is default gone to avoid NullPointerException
+        // if all children's visibility are GONE.
+        if(buttonSetupData.isNotEmpty()) {
+            buttonGroup?.isGone = false
+        }
+        for ((index, config) in buttonSetupData) {
+            applyButtonSetupData(index, config.first, config.second)
+        }
+    }
+
+    private fun applyButtonVisibilityData() {
+        for ((index, visible) in buttonVisibilityData) {
+            applyButtonVisibilityData(index, visible)
+        }
+    }
+
+    private fun applyButtonEnableData() {
+        for ((index, enable) in buttonEnableData) {
+            applyButtonEnableData(index, enable)
+        }
+    }
+
+    private fun applyButtonSetupData(index: Int, text: String, icon: SegmentedButtonIcon) {
+        when (icon) {
+            is SegmentedButtonIcon.ResourceIcon ->
+                (buttonGroup?.getChildAt(index) as? MaterialButton)?.setIconResource(icon.resId)
+
+            is SegmentedButtonIcon.DrawableIcon ->
+                (buttonGroup?.getChildAt(index) as? MaterialButton)?.icon = icon.drawable
+        }
+        buttonLabels[index].text = text
+    }
+
+    private fun applyButtonVisibilityData(index: Int, visible: Boolean) {
+        buttonGroup?.getChildAt(index)?.isGone = !visible
+        buttonLabels[index].isGone = !visible
+    }
+
+    private fun applyButtonEnableData(index: Int, enabled: Boolean) {
+        buttonGroup?.getChildAt(index)?.isEnabled = enabled
+    }
+
+    private fun applyCheckIndex(index: Int) {
+        val button = buttonGroup?.getChildAt(index) ?: run {
+            buttonGroup?.clearChecked()
+            return
+        }
+        if (button.id == View.NO_ID || button.isGone) {
+            buttonGroup?.clearChecked()
+            return
+        }
+
+        buttonGroup?.check(button.id)
+    }
+
+    private sealed interface SegmentedButtonIcon {
+        data class DrawableIcon(val drawable: Drawable) : SegmentedButtonIcon
+
+        data class ResourceIcon(@DrawableRes val resId: Int) : SegmentedButtonIcon
     }
 }

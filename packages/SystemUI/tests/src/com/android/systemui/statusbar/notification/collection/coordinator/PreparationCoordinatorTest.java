@@ -21,6 +21,8 @@ import static android.provider.Settings.Secure.SHOW_NOTIFICATION_SNOOZE;
 import static com.android.systemui.log.LogBufferHelperKt.logcatLogBuffer;
 import static com.android.systemui.statusbar.notification.collection.GroupEntry.ROOT_ENTRY;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -39,10 +41,12 @@ import static java.util.Objects.requireNonNull;
 
 import android.app.Flags;
 import android.database.ContentObserver;
+import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.RemoteException;
 import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
+import android.widget.RemoteViews;
 
 import androidx.annotation.NonNull;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -53,6 +57,7 @@ import com.android.systemui.SysuiTestCase;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.NotificationLockscreenUserManager;
 import com.android.systemui.statusbar.RankingBuilder;
+import com.android.systemui.statusbar.notification.CustomViewMemorySizeExceededException;
 import com.android.systemui.statusbar.notification.collection.GroupEntry;
 import com.android.systemui.statusbar.notification.collection.GroupEntryBuilder;
 import com.android.systemui.statusbar.notification.collection.ListEntry;
@@ -84,6 +89,7 @@ import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.Spy;
 
@@ -224,6 +230,67 @@ public class PreparationCoordinatorTest extends SysuiTestCase {
 
         // THEN we filter it from the notification list.
         assertTrue(mInflationErrorFilter.shouldFilterOut(mEntry, 0));
+    }
+
+    @Test
+    public void testMemorySizeExceeded_reinflatesStandardTemplate() {
+        NotificationEntryBuilder eb = getNotificationEntryBuilder()
+                .setParent(ROOT_ENTRY);
+        eb.modifyNotification(mContext)
+                .setLargeIcon(Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888))
+                .setCustomContentView(
+                        new RemoteViews(mContext.getPackageName(), android.R.layout.list_content))
+                .build();
+        NotificationEntry entry = eb.build();
+        // Preconditions check.
+        assertThat(entry.getSbn().getNotification().getLargeIcon()).isNotNull();
+        assertThat(entry.getSbn().getNotification().contentView).isNotNull();
+
+        mCollectionListener.onEntryInit(entry);
+        mErrorManager.setInflationError(entry,
+                new CustomViewMemorySizeExceededException("Exception"));
+        Mockito.reset(mNotifInflater);
+        // Trigger reinflation.
+        mBeforeFilterListener.onBeforeFinalizeFilter(List.of(entry));
+
+        // Verify that the notification was stripped.
+        assertThat(entry.getSbn().getNotification().getLargeIcon()).isNull();
+        assertThat(entry.getSbn().getNotification().contentView).isNull();
+        // We'll reinflate the notification so DO NOT call the NMS with error report.
+        verifyNoMoreInteractions(mService);
+        // Notification should be reinflated.
+        verify(mNotifInflater).inflateViews(eq(entry), any(), any());
+        // And NOT skipped by error filter.
+        assertThat(mInflationErrorFilter.shouldFilterOut(entry, 0)).isFalse();
+    }
+
+    // Prevent endless reinflations if the notification doesn't have custom views.
+    @Test
+    public void testMemorySizeExceeded_dontReinflateNotificationsWithoutCustomViews()
+            throws RemoteException {
+        NotificationEntryBuilder eb = getNotificationEntryBuilder()
+                .setParent(ROOT_ENTRY);
+        eb.modifyNotification(mContext)
+                .setLargeIcon(Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888))
+                .build();
+        NotificationEntry entry = eb.build();
+        // Preconditions check.
+        assertThat(entry.getSbn().getNotification().getLargeIcon()).isNotNull();
+
+        Exception exception = new CustomViewMemorySizeExceededException("Exception");
+        mCollectionListener.onEntryInit(entry);
+        mErrorManager.setInflationError(entry, exception);
+        Mockito.reset(mNotifInflater);
+        // Verify that NMS was signaled with error and no reinflation was attempted.
+        verify(mService).onNotificationError(
+                eq(mEntry.getSbn().getPackageName()),
+                eq(mEntry.getSbn().getTag()),
+                eq(mEntry.getSbn().getId()),
+                eq(mEntry.getSbn().getUid()),
+                eq(mEntry.getSbn().getInitialPid()),
+                eq(exception.getMessage()),
+                eq(mEntry.getSbn().getUser().getIdentifier()));
+        verifyNoMoreInteractions(mNotifInflater);
     }
 
     @Test

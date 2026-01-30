@@ -71,8 +71,8 @@ class ProtoLogCallProcessorImplTest {
                 }
             }
         """
-        groupMap["TEST"] = LogGroup("TEST", true, false, "WindowManager")
-        groupMap["ERROR"] = LogGroup("ERROR", true, true, "WindowManagerERROR")
+        groupMap["TEST"] = LogGroup("TEST", true, false, "WindowManager", 1)
+        groupMap["ERROR"] = LogGroup("ERROR", true, true, "WindowManagerERROR", 2)
         visitor.process(StaticJavaParser.parse(code), processor, "")
         assertEquals(2, calls.size)
         var c = calls[0]
@@ -99,7 +99,7 @@ class ProtoLogCallProcessorImplTest {
                 }
             }
         """
-        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager")
+        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager", 1)
         visitor.process(StaticJavaParser.parse(code), processor, "")
         checkCalls()
     }
@@ -118,7 +118,7 @@ class ProtoLogCallProcessorImplTest {
                 }
             }
         """
-        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager")
+        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager", 1)
         visitor.process(StaticJavaParser.parse(code), processor, "")
         checkCalls()
     }
@@ -136,7 +136,7 @@ class ProtoLogCallProcessorImplTest {
                 }
             }
         """
-        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager")
+        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager", 1)
         val errors = visitor.process(StaticJavaParser.parse(code), processor, "")
 
         Truth.assertThat(errors).hasSize(1)
@@ -156,7 +156,7 @@ class ProtoLogCallProcessorImplTest {
                 }
             }
         """
-        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager")
+        groupMap["TEST"] = LogGroup("TEST", true, true, "WindowManager", 1)
         visitor.process(StaticJavaParser.parse(code), processor, "")
         assertEquals(0, calls.size)
     }
@@ -241,7 +241,7 @@ class ProtoLogCallProcessorImplTest {
                 }
             }
         """
-        groupMap["TEST"] = LogGroup("TEST", false, true, "WindowManager")
+        groupMap["TEST"] = LogGroup("TEST", false, true, "WindowManager", 1)
         visitor.process(StaticJavaParser.parse(code), processor, "")
         checkCalls()
     }
@@ -257,7 +257,7 @@ class ProtoLogCallProcessorImplTest {
                 }
             }
         """
-        groupMap["TEST"] = LogGroup("TEST", false, true, "WindowManager")
+        groupMap["TEST"] = LogGroup("TEST", false, true, "WindowManager", 1)
 
         val processor = object : ProtoLogCallVisitor {
             override fun processCall(

@@ -64,7 +64,6 @@ public class SystemAudioInitiationActionFromAvrTest {
     private boolean mArcEnabled;
     private boolean mIsPlaybackDevice;
     private boolean mBroadcastActiveSource;
-    private boolean mStandbyMessageReceived;
 
     @Before
     public void SetUp() {
@@ -139,11 +138,6 @@ public class SystemAudioInitiationActionFromAvrTest {
                     @Override
                     int pathToPortId(int path) {
                         return -1;
-                    }
-
-                    @Override
-                    protected boolean isStandbyMessageReceived() {
-                        return mStandbyMessageReceived;
                     }
 
                     @Override
@@ -305,7 +299,7 @@ public class SystemAudioInitiationActionFromAvrTest {
     public void onActionStarted_deviceGoesToSleep_noActiveSourceAfterTimeout() {
         resetTestVariables();
 
-        mStandbyMessageReceived = true;
+        mPowerManager.setInteractive(false);
         mHdmiCecLocalDeviceAudioSystem.addAndStartAction(
                 new SystemAudioInitiationActionFromAvr(
                 mHdmiCecLocalDeviceAudioSystem));
@@ -326,6 +320,5 @@ public class SystemAudioInitiationActionFromAvrTest {
         mBroadcastActiveSource = false;
         mHdmiCecLocalDeviceAudioSystem.getActiveSource().physicalAddress =
                 Constants.INVALID_PHYSICAL_ADDRESS;
-        mStandbyMessageReceived = false;
     }
 }

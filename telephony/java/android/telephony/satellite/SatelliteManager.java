@@ -76,7 +76,6 @@ import java.util.stream.Collectors;
  * is not reliable.
  */
 @SystemService(Context.SATELLITE_SERVICE)
-@FlaggedApi(Flags.FLAG_SATELLITE_STATE_CHANGE_LISTENER)
 @RequiresFeature(PackageManager.FEATURE_TELEPHONY_SATELLITE)
 public final class SatelliteManager {
     private static final String TAG = "SatelliteManager";
@@ -722,7 +721,7 @@ public final class SatelliteManager {
      * <p>
      * To get internet access, applications need to be modified to use the satellite data
      * optimized network. This can be done by setting the {@link #PROPERTY_SATELLITE_DATA_OPTIMIZED}
-     * property to {@code true} in the manifest.
+     * meta-data to <package-name> of the application in the manifest.
      * </p>
      *
      * @hide
@@ -828,19 +827,19 @@ public final class SatelliteManager {
             "android.telephony.METADATA_SATELLITE_MANUAL_CONNECT_P2P_SUPPORT";
 
     /**
-     * A boolean value indicating whether application is optimized to utilize low bandwidth
-     * satellite data.
      * The applications that are optimized for low bandwidth satellite data should set this
-     * property to {@code true} in the manifest to indicate to platform about the same.
+     * property to package name of the application in the manifest to indicate to platform
+     * about the same.
      * {@code
      * <application>
      *   <meta-data
      *     android:name="android.telephony.PROPERTY_SATELLITE_DATA_OPTIMIZED"
-     *     android:value="true"/>
+     *     android:value=<package-name>/>
      * </application>
      * }
      * <p>
-     * When {@code true}, satellite data optimized network is available for applications.
+     * When this meta-data is set in application's manifest,
+     * satellite data optimized network is available for application to use.
      */
     @FlaggedApi(Flags.FLAG_SATELLITE_25Q4_APIS)
     public static final String PROPERTY_SATELLITE_DATA_OPTIMIZED =
@@ -859,7 +858,6 @@ public final class SatelliteManager {
      * @see SatelliteStateChangeListener
      * @see TelephonyManager#hasCarrierPrivileges()
      */
-    @FlaggedApi(Flags.FLAG_SATELLITE_STATE_CHANGE_LISTENER)
     @RequiresPermission(anyOf = {android.Manifest.permission.READ_BASIC_PHONE_STATE,
             android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
             android.Manifest.permission.READ_PHONE_STATE,
@@ -888,7 +886,6 @@ public final class SatelliteManager {
      * @see SatelliteStateChangeListener
      * @see TelephonyManager#hasCarrierPrivileges()
      */
-    @FlaggedApi(Flags.FLAG_SATELLITE_STATE_CHANGE_LISTENER)
     @RequiresPermission(anyOf = {android.Manifest.permission.READ_BASIC_PHONE_STATE,
             android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE,
             android.Manifest.permission.READ_PHONE_STATE,
@@ -1898,7 +1895,6 @@ public final class SatelliteManager {
                                                 provisioned)));
                             }
 
-                            @FlaggedApi(Flags.FLAG_CARRIER_ROAMING_NB_IOT_NTN)
                             @Override
                             public void onSatelliteSubscriptionProvisionStateChanged(
                                     @NonNull List<SatelliteSubscriberProvisionStatus>
@@ -3124,8 +3120,12 @@ public final class SatelliteManager {
             } else {
                 throw new IllegalStateException("Telephony service is null.");
             }
+        } catch (IllegalStateException ex) {
+            loge("registerForNtnSignalStrengthChanged() IllegalStateException: " + ex);
+            throw ex;
         } catch (RemoteException ex) {
             loge("registerForNtnSignalStrengthChanged() RemoteException: " + ex);
+            // Treat other remote exceptions as fatal system errors.
             ex.rethrowAsRuntimeException();
         }
     }

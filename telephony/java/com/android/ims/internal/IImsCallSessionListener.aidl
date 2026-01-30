@@ -28,7 +28,7 @@ import android.telephony.ims.ImsSuppServiceNotification;
  * A listener type for receiving notification on IMS call session events.
  * When an event is generated for an {@link IImsCallSession}, the application is notified
  * by having one of the methods called on the {@link IImsCallSessionListener}.
- * {@hide}
+ * @hide
  */
 oneway interface IImsCallSessionListener {
     /**

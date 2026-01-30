@@ -241,41 +241,6 @@ public class InflatedSmartRepliesTest extends SysuiTestCase {
     }
 
     @Test
-    public void chooseSmartRepliesAndActions_sysGeneratedPhishingSmartAction() {
-        // Pass a null-array as app-generated smart replies, so that we use NAS-generated smart
-        // actions.
-        setupAppGeneratedReplies(null /* smartReplies */);
-
-        mNotification.actions = new Notification.Action[]{
-                createAction("Details"),
-                createActionBuilder("Reply").addRemoteInput(
-                        new RemoteInput.Builder("key").build()).build()
-        };
-
-        modifyRanking(mEntry)
-                .setSmartActions(
-                        createAction("Sys Smart Action 1"),
-                        createActionBuilder("Sys Smart Action 2")
-                                .setContextual(true)
-                                .setSemanticAction(Notification.Action
-                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
-                                .build())
-                .build();
-
-        InflatedSmartReplyState smartReplyState =
-                mSmartReplyStateInflater.chooseSmartRepliesAndActions(mEntry);
-
-        assertThat(smartReplyState.getSmartReplies()).isNull();
-        assertThat(smartReplyState.getSmartActions().actions)
-                .containsExactlyElementsIn(mEntry.getSmartActions()).inOrder();
-        assertThat(smartReplyState.getSmartActions().fromAssistant).isTrue();
-        assertThat(smartReplyState.getSuppressedActions()).isNotNull();
-        assertThat(smartReplyState.getSuppressedActions().getSuppressedActionIndices())
-                .containsExactly(1);
-        assertThat(smartReplyState.getHasPhishingAction()).isTrue();
-    }
-
-    @Test
     public void chooseSmartRepliesAndActions_appGenPreferredOverSysGen() {
         CharSequence[] appGenSmartReplies = new String[] {"Reply1", "Reply2"};
         // Pass a null-array as app-generated smart replies, so that we use NAS-generated smart
@@ -303,6 +268,125 @@ public class InflatedSmartRepliesTest extends SysuiTestCase {
     }
 
     @Test
+    public void chooseSmartRepliesAndActions_phishingActionsRemovesSysGenSmartRepliesAndActions() {
+        // Pass a null-array as app-generated smart replies, so that we use NAS-generated smart
+        // actions.
+        setupAppGeneratedReplies(null /* smartReplies */);
+
+        mNotification.actions = new Notification.Action[]{
+                createAction("Details"),
+                createActionBuilder("Reply").addRemoteInput(
+                        new RemoteInput.Builder("key").build()).build()
+        };
+
+        modifyRanking(mEntry)
+                .setSmartReplies(createReplies("Sys Smart Reply 1", "Sys Smart Reply 2"))
+                .setSmartActions(
+                        createAction("Sys Smart Action 1"),
+                        createActionBuilder("Sys Smart Action 2")
+                                .setContextual(true)
+                                .setSemanticAction(Notification.Action
+                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
+                                .build())
+                .build();
+
+        InflatedSmartReplyState smartReplyState =
+                mSmartReplyStateInflater.chooseSmartRepliesAndActions(mEntry);
+
+        assertThat(smartReplyState.getSmartReplies()).isNull();
+        assertThat(smartReplyState.getSmartActions().actions)
+                .containsExactly(mEntry.getSmartActions().get(1));
+        assertThat(smartReplyState.getSmartActions().fromAssistant).isTrue();
+        assertThat(smartReplyState.getSuppressedActions()).isNotNull();
+        assertThat(smartReplyState.getSuppressedActions().getSuppressedActionIndices())
+                .containsExactly(1);
+        assertThat(smartReplyState.getHasPhishingAction()).isTrue();
+    }
+
+    @Test
+    public void chooseSmartRepliesAndActions_phishingActionsRemovesAppGenSmartRepliesAndActions() {
+        CharSequence[] smartReplies = new String[] {"Reply1", "Reply2"};
+        List<Notification.Action> smartActions =
+                createActions("Test Action 1", "Test Action 2");
+        setupAppGeneratedSuggestions(smartReplies, smartActions);
+
+        mNotification.actions = new Notification.Action[]{
+                createAction("Details"),
+                createActionBuilder("Reply").addRemoteInput(
+                        new RemoteInput.Builder("key").build()).build()
+        };
+
+        modifyRanking(mEntry)
+                .setSmartActions(
+                        createActionBuilder("Sys Smart Action 1")
+                                .setContextual(true)
+                                .setSemanticAction(Notification.Action
+                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
+                                .build(),
+                        createActionBuilder("Sys Smart Action 2")
+                                .setContextual(true)
+                                .setSemanticAction(Notification.Action
+                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
+                                .build())
+                .build();
+
+        InflatedSmartReplyState smartReplyState =
+                mSmartReplyStateInflater.chooseSmartRepliesAndActions(mEntry);
+
+        assertThat(smartReplyState.getSmartReplies()).isNull();
+        assertThat(smartReplyState.getSmartActions().actions)
+                .containsExactlyElementsIn(mEntry.getSmartActions()).inOrder();
+        assertThat(smartReplyState.getSmartActions().fromAssistant).isTrue();
+        assertThat(smartReplyState.getSuppressedActions()).isNotNull();
+        assertThat(smartReplyState.getSuppressedActions().getSuppressedActionIndices())
+                .containsExactly(1);
+        assertThat(smartReplyState.getHasPhishingAction()).isTrue();
+    }
+
+    @Test
+    public void chooseSmartRepliesAndActions_phishingActionsRemovesAllSmartRepliesAndActions() {
+        CharSequence[] smartReplies = new String[] {"Reply1", "Reply2"};
+        List<Notification.Action> smartActions =
+                createActions("Test Action 1", "Test Action 2");
+        setupAppGeneratedSuggestions(smartReplies, smartActions);
+
+        mNotification.actions = new Notification.Action[]{
+                createAction("Details"),
+                createActionBuilder("Reply").addRemoteInput(
+                        new RemoteInput.Builder("key").build()).build()
+        };
+
+        modifyRanking(mEntry)
+                .setSmartReplies(createReplies("Sys Smart Reply 1", "Sys Smart Reply 2"))
+                .setSmartActions(
+                        createAction("Sys Smart Action 1"),
+                        createActionBuilder("Sys Smart Action 2")
+                                .setContextual(true)
+                                .setSemanticAction(Notification.Action
+                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
+                                .build(),
+                        createAction("Sys Smart Action 3"),
+                        createActionBuilder("Sys Smart Action 4")
+                                .setContextual(true)
+                                .setSemanticAction(Notification.Action
+                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
+                                .build())
+                .build();
+
+        InflatedSmartReplyState smartReplyState =
+                mSmartReplyStateInflater.chooseSmartRepliesAndActions(mEntry);
+
+        assertThat(smartReplyState.getSmartReplies()).isNull();
+        assertThat(smartReplyState.getSmartActions().actions)
+                .containsExactly(mEntry.getSmartActions().get(1), mEntry.getSmartActions().get(3));
+        assertThat(smartReplyState.getSmartActions().fromAssistant).isTrue();
+        assertThat(smartReplyState.getSuppressedActions()).isNotNull();
+        assertThat(smartReplyState.getSuppressedActions().getSuppressedActionIndices())
+                .containsExactly(1);
+        assertThat(smartReplyState.getHasPhishingAction()).isTrue();
+    }
+
+    @Test
     public void chooseSmartRepliesAndActions_disallowSysGenSmartActions() {
         // Pass a null-array as app-generated smart replies, so that we use NAS-generated smart
         // actions.
@@ -321,6 +405,41 @@ public class InflatedSmartRepliesTest extends SysuiTestCase {
         assertThat(smartReplyState.getSmartReplies()).isNull();
         assertThat(smartReplyState.getSuppressedActions()).isNull();
         assertThat(smartReplyState.getHasPhishingAction()).isFalse();
+    }
+
+    @Test
+    public void chooseSmartRepliesAndActions_disallowSysGenSmartActions_exceptPhishingActions() {
+        // Pass a null-array as app-generated smart replies, so that we use NAS-generated smart
+        // actions.
+        setupAppGeneratedReplies(null /* smartReplies */, false /* allowSystemGeneratedReplies */);
+        when(mNotification.getAllowSystemGeneratedContextualActions()).thenReturn(false);
+
+        modifyRanking(mEntry)
+                .setSmartReplies(createReplies("Sys Smart Reply 1", "Sys Smart Reply 2"))
+                .setSmartActions(
+                        createAction("Sys Smart Action 1"),
+                        createActionBuilder("Sys Smart Action 2")
+                                .setContextual(true)
+                                .setSemanticAction(Notification.Action
+                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
+                                .build(),
+                        createAction("Sys Smart Action 3"),
+                        createActionBuilder("Sys Smart Action 4")
+                                .setContextual(true)
+                                .setSemanticAction(Notification.Action
+                                        .SEMANTIC_ACTION_CONVERSATION_IS_PHISHING)
+                                .build())
+                .build();
+
+        InflatedSmartReplyState smartReplyState =
+                mSmartReplyStateInflater.chooseSmartRepliesAndActions(mEntry);
+
+        assertThat(smartReplyState.getSmartReplies()).isNull();
+        assertThat(smartReplyState.getSmartActions().actions)
+                .containsExactly(mEntry.getSmartActions().get(1), mEntry.getSmartActions().get(3));
+        assertThat(smartReplyState.getSmartActions().fromAssistant).isTrue();
+        assertThat(smartReplyState.getSuppressedActions()).isNull();
+        assertThat(smartReplyState.getHasPhishingAction()).isTrue();
     }
 
     @Test

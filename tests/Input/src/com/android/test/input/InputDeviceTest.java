@@ -95,7 +95,6 @@ public class InputDeviceTest {
                 .setKeyCharacterMap(keyCharacterMap)
                 .setHasVibrator(true)
                 .setHasMicrophone(true)
-                .setHasButtonUnderPad(true)
                 .setHasSensor(true)
                 .setHasBattery(true)
                 .setKeyboardLanguageTag("en-US")

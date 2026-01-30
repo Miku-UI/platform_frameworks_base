@@ -31,7 +31,6 @@ import static org.junit.Assume.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyFloat;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
@@ -126,7 +125,6 @@ public class HandwritingInitiatorTest {
                 HW_BOUNDS_OFFSETS_BOTTOM_PX);
         mHandwritingInitiator.updateHandwritingAreasForView(mTestView1);
         mHandwritingInitiator.updateHandwritingAreasForView(mTestView2);
-        doReturn(true).when(mHandwritingInitiator).tryAcceptStylusHandwritingDelegation(any());
         mInitiateWithoutConnection = initiationWithoutInputConnection();
     }
 

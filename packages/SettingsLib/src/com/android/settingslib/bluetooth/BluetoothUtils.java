@@ -1,15 +1,21 @@
 package com.android.settingslib.bluetooth;
 
 import static com.android.settingslib.bluetooth.LocalBluetoothLeBroadcast.UNKNOWN_VALUE_PLACEHOLDER;
+import static com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.UNKNOWN_CHANNEL;
 import static com.android.settingslib.flags.Flags.audioSharingHysteresisModeFix;
 import static com.android.settingslib.widget.AdaptiveOutlineDrawable.ICON_TYPE_ADVANCED;
+
+import static java.util.stream.Collectors.toSet;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothClass;
 import android.bluetooth.BluetoothCsipSetCoordinator;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothLeBroadcastChannel;
+import android.bluetooth.BluetoothLeBroadcastMetadata;
 import android.bluetooth.BluetoothLeBroadcastReceiveState;
+import android.bluetooth.BluetoothLeBroadcastSubgroup;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothStatusCodes;
 import android.content.ComponentName;
@@ -28,6 +34,7 @@ import android.media.AudioDeviceAttributes;
 import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.SystemClock;
 import android.provider.DeviceConfig;
 import android.provider.MediaStore;
 import android.provider.Settings;
@@ -38,6 +45,7 @@ import android.util.Pair;
 import android.view.InputDevice;
 
 import androidx.annotation.DrawableRes;
+import androidx.annotation.IntRange;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
@@ -53,6 +61,7 @@ import com.google.common.collect.ImmutableSet;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -60,7 +69,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class BluetoothUtils {
     private static final String TAG = "BluetoothUtils";
@@ -74,9 +82,10 @@ public class BluetoothUtils {
             "bluetooth_le_audio_sharing_ui_preview_enabled";
     private static final int METADATA_FAST_PAIR_CUSTOMIZED_FIELDS = 25;
     private static final String KEY_HEARABLE_CONTROL_SLICE = "HEARABLE_CONTROL_SLICE_WITH_WIDTH";
+    private static final String KEY_BATTERY_ALL_THE_TIME = "BATT";
     private static final Set<Integer> SA_PROFILES =
             ImmutableSet.of(
-                    BluetoothProfile.A2DP, BluetoothProfile.LE_AUDIO, BluetoothProfile.HEARING_AID);
+                    BluetoothProfile.A2DP, BluetoothProfile.LE_AUDIO);
     private static final List<Integer> BLUETOOTH_DEVICE_CLASS_HEADSET =
             List.of(
                     BluetoothClass.Device.AUDIO_VIDEO_HEADPHONES,
@@ -84,6 +93,10 @@ public class BluetoothUtils {
 
     private static final String TEMP_BOND_TYPE = "TEMP_BOND_TYPE";
     private static final String TEMP_BOND_DEVICE_METADATA_VALUE = "le_audio_sharing";
+    private static final String BLUETOOTH_DIAGNOSIS_KEY = "cs_bt_diagnostics_enabled";
+
+    private static final int CAN_NOT_PAIR_TIME_OUT_MILLS = 60000;
+    private static final int CAN_NOT_CONNECT_TIME_OUT_MILLS = 60000;
 
     private static ErrorListener sErrorListener;
 
@@ -170,7 +183,7 @@ public class BluetoothUtils {
             }
         }
 
-        if (cachedDevice.isHearingAidDevice()) {
+        if (cachedDevice.isHearingDevice()) {
             return new Pair<>(
                     getBluetoothDrawable(
                             context, com.android.internal.R.drawable.ic_bt_hearing_aid),
@@ -186,7 +199,8 @@ public class BluetoothUtils {
                 // profiles
                 if (profile instanceof HearingAidProfile || profile instanceof HapClientProfile) {
                     return new Pair<>(
-                            getBluetoothDrawable(context, profileResId),
+                            getBluetoothDrawable(context,
+                                    com.android.internal.R.drawable.ic_bt_hearing_aid),
                             context.getString(R.string.bluetooth_talkback_hearing_aids));
                 }
                 if (resId == 0) {
@@ -302,6 +316,8 @@ public class BluetoothUtils {
                 } catch (SecurityException e) {
                     Log.e(TAG, "Failed to get permission for: " + iconUri, e);
                 }
+            } else {
+                return new Pair<>(context.getDrawable(R.drawable.ic_earbuds_advanced), pair.second);
             }
         }
 
@@ -555,6 +571,18 @@ public class BluetoothUtils {
     }
 
     /**
+     * Check if battery all the time is supported for the given Bluetooth device.
+     *
+     * @param bluetoothDevice the BluetoothDevice to check
+     * @return true if battery all the time is supported, false otherwise
+     */
+    public static boolean isBatteryAllTheTimeSupported(@Nullable BluetoothDevice bluetoothDevice) {
+        String value = getFastPairCustomizedField(bluetoothDevice, KEY_BATTERY_ALL_THE_TIME);
+        Log.d(TAG, "Is BATT supported: " + value);
+        return Boolean.parseBoolean(value);
+    }
+
+    /**
      * Check if the Bluetooth device is an AvailableMediaBluetoothDevice, which means: 1) currently
      * connected 2) is Hearing Aid or LE Audio OR 3) connected profile matches currentAudioProfile
      *
@@ -652,13 +680,13 @@ public class BluetoothUtils {
                         .map(deviceManager::findDevice)
                         .filter(Objects::nonNull)
                         .map(BluetoothUtils::getGroupId)
-                        .collect(Collectors.toSet());
+                        .collect(toSet());
         Set<Integer> activeGroupIds =
                 leAudioProfile.getActiveDevices().stream()
                         .map(deviceManager::findDevice)
                         .filter(Objects::nonNull)
                         .map(BluetoothUtils::getGroupId)
-                        .collect(Collectors.toSet());
+                        .collect(toSet());
         int groupId = getGroupId(cachedDevice);
         return activeGroupIds.size() == 1
                 && !activeGroupIds.contains(groupId)
@@ -703,18 +731,18 @@ public class BluetoothUtils {
             // However, app layer need to gate the feature based on whether the device has audio
             // sharing capability regardless of the BT state.
             // So here we check the BluetoothProperties when BT off.
-            //
-            // TODO: Also check SystemProperties "persist.bluetooth.leaudio_dynamic_switcher.mode"
-            // and return true if it is in broadcast mode.
-            // Now SystemUI don't have access to read the value.
+            String mode = BluetoothProperties.le_audio_dynamic_switcher_mode().orElse("none");
+            Set<String> disabledModes = ImmutableSet.of("disabled", "unicast");
             int sourceSupportedCode = adapter.isLeAudioBroadcastSourceSupported();
             int assistantSupportedCode = adapter.isLeAudioBroadcastAssistantSupported();
             return (sourceSupportedCode == BluetoothStatusCodes.FEATURE_SUPPORTED
                     || (sourceSupportedCode == BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED
-                    && BluetoothProperties.isProfileBapBroadcastSourceEnabled().orElse(false)))
+                    && BluetoothProperties.isProfileBapBroadcastSourceEnabled().orElse(false)
+                    && !disabledModes.contains(mode)))
                     && (assistantSupportedCode == BluetoothStatusCodes.FEATURE_SUPPORTED
                     || (assistantSupportedCode == BluetoothStatusCodes.ERROR_BLUETOOTH_NOT_ENABLED
-                    && BluetoothProperties.isProfileBapBroadcastAssistEnabled().orElse(false)));
+                    && BluetoothProperties.isProfileBapBroadcastAssistEnabled().orElse(false)
+                    && !disabledModes.contains(mode)));
         } catch (IllegalStateException e) {
             Log.d(TAG, "Fail to check isAudioSharingSupported, e = ", e);
             return false;
@@ -800,17 +828,7 @@ public class BluetoothUtils {
             Log.d(TAG, "Skip check hasConnectedBroadcastSourceForBtDevice due to arg is null");
             return false;
         }
-        if (isAudioSharingHysteresisModeFixAvailable(localBtManager.getContext())) {
-            return hasActiveLocalBroadcastSourceForBtDevice(device, localBtManager);
-        }
-        LocalBluetoothLeBroadcastAssistant assistant =
-                localBtManager.getProfileManager().getLeAudioBroadcastAssistantProfile();
-        if (device == null || assistant == null) {
-            Log.d(TAG, "Skip check hasConnectedBroadcastSourceForBtDevice due to arg is null");
-            return false;
-        }
-        List<BluetoothLeBroadcastReceiveState> sourceList = assistant.getAllSources(device);
-        return !sourceList.isEmpty() && sourceList.stream().anyMatch(BluetoothUtils::isConnected);
+        return hasActiveLocalBroadcastSourceForBtDevice(device, localBtManager);
     }
 
     /**
@@ -1146,7 +1164,7 @@ public class BluetoothUtils {
 
     /**
      * Gets {@link AudioDeviceAttributes} of bluetooth device for spatial audio. Returns null if
-     * it's not an audio device(no A2DP, LE Audio and Hearing Aid profile).
+     * it's not an audio device(no A2DP and LE Audio).
      */
     @Nullable
     public static AudioDeviceAttributes getAudioDeviceAttributesForSpatialAudio(
@@ -1180,13 +1198,6 @@ public class BluetoothUtils {
                                             cachedDevice.getAddress());
                         }
 
-                        break;
-                    case BluetoothProfile.HEARING_AID:
-                        saDevice =
-                                new AudioDeviceAttributes(
-                                        AudioDeviceAttributes.ROLE_OUTPUT,
-                                        AudioDeviceInfo.TYPE_HEARING_AID,
-                                        cachedDevice.getAddress());
                         break;
                     default:
                         Log.i(
@@ -1222,10 +1233,6 @@ public class BluetoothUtils {
      */
     public static void setTemporaryBondMetadata(@Nullable BluetoothDevice device) {
         if (device == null) return;
-        if (!Flags.enableTemporaryBondDevicesUi()) {
-            Log.d(TAG, "Skip setTemporaryBondMetadata, flag is disabled");
-            return;
-        }
         String fastPairCustomizedMeta = getStringMetaData(device,
                 METADATA_FAST_PAIR_CUSTOMIZED_FIELDS);
         String fullContentWithTag = generateExpressionWithTag(TEMP_BOND_TYPE,
@@ -1304,5 +1311,130 @@ public class BluetoothUtils {
             Log.w(TAG, "error happens when getKeyMissingCount.");
             return null;
         }
+    }
+
+    /**
+     * Gets the index of the first selected channel for the first subgroup for a given broadcast
+     * source Id on a Bluetooth sink device.
+     */
+    @NonNull
+    public static Set<Integer> getSelectedChannelIndex(
+            @NonNull LocalBluetoothProfileManager profileManager,
+            @NonNull BluetoothDevice sink, @IntRange(from = 0x00, to = 0xFF) int sourceId) {
+        LocalBluetoothLeBroadcastAssistant assistant =
+                profileManager.getLeAudioBroadcastAssistantProfile();
+        if (assistant == null) {
+            Log.w(TAG, "getSelectedChannelIndex(): assistant is null");
+            return UNKNOWN_CHANNEL;
+        }
+        BluetoothLeBroadcastMetadata metadata = assistant.getSourceMetadata(sink, sourceId);
+        if (metadata == null) {
+            Log.w(TAG, "getSelectedChannelIndex(): metadata is null");
+            return UNKNOWN_CHANNEL;
+        }
+        List<BluetoothLeBroadcastSubgroup> subgroups = metadata.getSubgroups();
+        if (subgroups == null || subgroups.isEmpty()) {
+            Log.d(TAG, "getSelectedChannelIndex(): subgroup is null or empty");
+            return UNKNOWN_CHANNEL;
+        }
+        return subgroups.getFirst().getChannels().stream().filter(
+                BluetoothLeBroadcastChannel::isSelected).map(
+                BluetoothLeBroadcastChannel::getChannelIndex).collect(toSet());
+    }
+
+    /**
+     * Sets the selected state of a specific channel index for a given broadcast source Id on a
+     * Bluetooth sink device by modifying the broadcast metadata. This method assumes the channel
+     * belongs to the first subgroup in the metadata.
+     */
+    public static void modifySelectedChannelIndex(
+            @NonNull LocalBluetoothProfileManager profileManager,
+            @NonNull BluetoothDevice sink, @IntRange(from = 0x00, to = 0xFF) int sourceId,
+            @NonNull Set<Integer> channelIndex, boolean shouldSelect) {
+        LocalBluetoothLeBroadcastAssistant assistant =
+                profileManager.getLeAudioBroadcastAssistantProfile();
+        if (assistant == null) {
+            Log.w(TAG, "modifySelectedChannelIndex(): assistant is null");
+            return;
+        }
+        BluetoothLeBroadcastMetadata original = assistant.getSourceMetadata(sink, sourceId);
+        if (original == null) {
+            Log.w(TAG, "modifySelectedChannelIndex(): metadata is null");
+            return;
+        }
+        List<BluetoothLeBroadcastSubgroup> subgroups = new ArrayList<>(original.getSubgroups());
+        if (subgroups == null || subgroups.isEmpty()) {
+            Log.d(TAG, "modifySelectedChannelIndex(): subgroup is null or empty");
+            return;
+        }
+        BluetoothLeBroadcastSubgroup firstSubgroup = subgroups.getFirst();
+        List<BluetoothLeBroadcastChannel> channels = firstSubgroup.getChannels();
+        if (!channels.stream().map(BluetoothLeBroadcastChannel::getChannelIndex).collect(
+                toSet()).containsAll(channelIndex)) {
+            Log.d(TAG, "modifySelectedChannelIndex(): no channel found for given index");
+            return;
+        }
+        List<BluetoothLeBroadcastChannel> updatedChannels = channels.stream()
+                .map(c ->
+                        channelIndex.contains(c.getChannelIndex()) && c.isSelected() != shouldSelect
+                        ? new BluetoothLeBroadcastChannel.Builder(c).setSelected(
+                        shouldSelect).build() : c).toList();
+        if (updatedChannels.equals(channels)) {
+            Log.d(TAG, "modifySelectedChannelIndex(): no change needed");
+            return;
+        }
+        BluetoothLeBroadcastSubgroup.Builder updatedSubgroupBuilder =
+                new BluetoothLeBroadcastSubgroup.Builder(firstSubgroup);
+        updatedSubgroupBuilder.clearChannel();
+        updatedChannels.forEach(updatedSubgroupBuilder::addChannel);
+        subgroups.set(0, updatedSubgroupBuilder.build());
+        var updatedBuilder = new BluetoothLeBroadcastMetadata.Builder(original).clearSubgroup();
+        subgroups.forEach(updatedBuilder::addSubgroup);
+        BluetoothLeBroadcastMetadata updated = updatedBuilder.build();
+        Log.d(TAG, "modifySelectedChannelIndex(): existedMetadata = " + original
+                + " updatedMetadata = " + updated);
+        assistant.modifySource(sink, sourceId, updated);
+    }
+
+    /**
+     * Checks if the Bluetooth LE Audio Broadcast Assistant profile is available and at least one
+     * device is currently connected to it.
+     *
+     * @param bluetoothManager The {@link LocalBluetoothManager} instance to query.
+     * @return {@code true} if at least one device is connected to the LE Audio Broadcast Assistant
+     *     profile, {@code false} otherwise.
+     */
+    public static boolean hasConnectedBroadcastAssistantDevice(
+            @NonNull LocalBluetoothManager bluetoothManager) {
+        LocalBluetoothLeBroadcastAssistant assistantProfile =
+                bluetoothManager.getProfileManager().getLeAudioBroadcastAssistantProfile();
+
+        // assistantProfile can be null if the profile is not supported or available.
+        if (assistantProfile == null) {
+            return false;
+        }
+
+        return !assistantProfile.getAllConnectedDevices().isEmpty();
+    }
+
+    /** Checks if Bluetooth Diagnosis is available by reading from Settings Secure. */
+    public static boolean isBluetoothDiagnosisAvailable(@NonNull Context context) {
+        return Flags.enableBluetoothDiagnosis()
+                && Settings.Secure.getInt(context.getContentResolver(), BLUETOOTH_DIAGNOSIS_KEY, -1)
+                        > 0;
+    }
+
+    /** Checks if the device should show as pairing failure. */
+    public static boolean showPairingFailure(@NonNull CachedBluetoothDevice device) {
+        return device.getBondFailureTimeMillis() > 0
+                && SystemClock.elapsedRealtime() - device.getBondFailureTimeMillis()
+                        <= CAN_NOT_PAIR_TIME_OUT_MILLS;
+    }
+
+    /** Checks if the device should show as connection failure. */
+    public static boolean showConnectionFailure(@NonNull CachedBluetoothDevice device) {
+        return device.getConnectionFailureTimeMillis() > 0
+                && SystemClock.elapsedRealtime() - device.getConnectionFailureTimeMillis()
+                        <= CAN_NOT_CONNECT_TIME_OUT_MILLS;
     }
 }

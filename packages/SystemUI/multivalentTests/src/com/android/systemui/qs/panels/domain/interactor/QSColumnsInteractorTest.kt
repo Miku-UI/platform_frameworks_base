@@ -21,10 +21,11 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.configurationRepository
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testCase
-import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.qs.panels.data.repository.QSColumnsRepository
 import com.android.systemui.qs.panels.data.repository.qsColumnsRepository
 import com.android.systemui.res.R
@@ -33,7 +34,6 @@ import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -41,8 +41,9 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class QSColumnsInteractorTest : SysuiTestCase() {
+
     private val kosmos =
-        testKosmos().apply {
+        testKosmos().useUnconfinedTestDispatcher().apply {
             testCase.context.orCreateTestableResources.addOverride(
                 R.integer.quick_settings_infinite_grid_num_columns,
                 1,
@@ -61,43 +62,37 @@ class QSColumnsInteractorTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
-        underTest = with(kosmos) { qsColumnsInteractor }
+        underTest = kosmos.qsColumnsInteractor
     }
 
     @Test
     fun withSingleShade_returnsCorrectValue() =
-        with(kosmos) {
-            testScope.runTest {
-                val latest by collectLastValue(underTest.columns)
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.columns)
 
-                kosmos.enableSingleShade()
+            enableSingleShade()
 
-                assertThat(latest).isEqualTo(1)
-            }
+            assertThat(latest).isEqualTo(1)
         }
 
     @Test
     @EnableSceneContainer
     fun withDualShade_returnsCorrectValue() =
-        with(kosmos) {
-            testScope.runTest {
-                val latest by collectLastValue(underTest.columns)
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.columns)
 
-                kosmos.enableDualShade()
+            enableDualShade()
 
-                assertThat(latest).isEqualTo(2)
-            }
+            assertThat(latest).isEqualTo(2)
         }
 
     @Test
     fun withSplitShade_returnsCorrectValue() =
-        with(kosmos) {
-            testScope.runTest {
-                val latest by collectLastValue(underTest.columns)
+        kosmos.runTest {
+            val latest by collectLastValue(underTest.columns)
 
-                kosmos.enableSplitShade()
+            enableSplitShade()
 
-                assertThat(latest).isEqualTo(3)
-            }
+            assertThat(latest).isEqualTo(3)
         }
 }

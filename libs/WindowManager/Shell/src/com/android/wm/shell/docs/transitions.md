@@ -73,13 +73,12 @@ When starting a transient-launch transition, there are several possible outcomes
    launch transition).
 
 #### Finishing the transient-launch transition
-
 When restoring the transient order in the 3rd flow above, it is recommended to do it in a new 
 transition and <span style="color:orange">**not**</span> via the WindowContainerTransaction in 
 `TransitionFinishCallback#onTransitionFinished()` provided when starting the transition.
 
 Changes to the window hierarchy via the finish transaction are not applied in sync with other 
-transitions that are collecting and aplying, and are also not observable in Shell in any way.  
+transitions that are collecting and applying, and are also not observable in Shell in any way.
 Starting a new transition instead ensures both.  (The finish transaction can still be used if there
 are non-transition affecting properties (ie. container properties) that need to be updated as a part
 of finishing the transient-launch transition).
@@ -115,4 +114,18 @@ This means that when using transient-launch transitions with a bookend transitio
 <span style="color:orange">requires</span> you to handle any incoming transitions if the bookend is 
 ever queued (or already posted) after it.  You can do so by preempting the bookend transition
 (finishing the transient-launch transition), or handling the merge of the new transition (so it 
-doesn't queue). 
+doesn't queue).
+
+#### Finish-transactions with bookend transitions
+Another thing to keep in mind when using bookend transitions is the ordering of the finish \
+transactions.  In particular, if cleanup of tasks is necessary, then you need to ensure that the
+cleanup happens on the bookend's finish transaction and not the finish transaction provided when
+starting the animation, otherwise properties on the tasks in the transition could be overwritten by
+the default finish transaction created by Core (see `Transition#buildFinishTransaction()`).
+
+ie.
+1) Start START (Core builds finishT1 to reset state)
+2) Start BOOKEND (Core builds finishT2 to reset state)
+3) Merge BOOKEND into START
+4) <<< Finish transaction properties should be updated here and not before 2)
+5) Finish BOOKEND (Shell transitions applies finishT1 then finishT2 in order)

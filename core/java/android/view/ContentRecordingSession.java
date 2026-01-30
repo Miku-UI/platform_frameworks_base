@@ -24,6 +24,7 @@ import android.annotation.Nullable;
 import android.os.IBinder;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.Process;
 
 import com.android.internal.util.DataClass;
 
@@ -51,6 +52,11 @@ public final class ContentRecordingSession implements Parcelable {
      * A single Task is being recorded. Recording may also be paused.
      */
     public static final int RECORD_CONTENT_TASK = 1;
+    /**
+     * Content is recorded if it is below an overlay window belonging to the owner of the
+     * MediaProjection session.
+     */
+    public static final int RECORD_CONTENT_BELOW_OVERLAY = 2;
 
     /** Full screen sharing (app is not selected). */
     public static final int TARGET_UID_FULL_SCREEN = -1;
@@ -66,6 +72,12 @@ public final class ContentRecordingSession implements Parcelable {
      * {@link #TASK_ID_UNKNOWN} if the session is not for a single app capture.
      */
     private int mTaskId = TASK_ID_UNKNOWN;
+
+    /**
+     * UID of the owner of the recording session. Only set if
+     * {@link #RECORD_CONTENT_BELOW_OVERLAY} is used.
+     */
+    private int mRecordingOwnerUid;
 
     /**
      * Unique logical identifier of the {@link android.hardware.display.VirtualDisplay} that has
@@ -136,6 +148,16 @@ public final class ContentRecordingSession implements Parcelable {
                 .setTaskId(taskId);
     }
 
+
+    /** Returns an instance initialized for "below overlay" recording. */
+    public static ContentRecordingSession createOverlaySession(int displayToMirror,
+            int recordingOwnerUid) {
+        return new ContentRecordingSession()
+                .setDisplayToRecord(displayToMirror)
+                .setContentToRecord(RECORD_CONTENT_BELOW_OVERLAY)
+                .setRecordingOwnerUid(recordingOwnerUid);
+    }
+
     /**
      * Returns {@code true} if this is a valid session.
      *
@@ -146,12 +168,20 @@ public final class ContentRecordingSession implements Parcelable {
         if (session == null) {
             return false;
         }
+        if (session.getVirtualDisplayId() == INVALID_DISPLAY) {
+            return false;
+        }
+
         final boolean isValidTaskSession = session.getContentToRecord() == RECORD_CONTENT_TASK
                 && session.getTokenToRecord() != null;
-        final boolean isValidDisplaySession = session.getContentToRecord() == RECORD_CONTENT_DISPLAY
-                && session.getDisplayToRecord() > INVALID_DISPLAY;
-        return session.getVirtualDisplayId() > INVALID_DISPLAY
-                && (isValidTaskSession || isValidDisplaySession);
+        final boolean isValidDisplaySession =
+                session.getContentToRecord() == RECORD_CONTENT_DISPLAY
+                        && session.getDisplayToRecord() > INVALID_DISPLAY;
+        final boolean isValidOverlaySession =
+                session.getContentToRecord() == RECORD_CONTENT_BELOW_OVERLAY
+                        && session.getDisplayToRecord() > INVALID_DISPLAY
+                        && session.getRecordingOwnerUid() > Process.INVALID_UID;
+        return isValidTaskSession || isValidDisplaySession || isValidOverlaySession;
     }
 
     /**
@@ -182,7 +212,8 @@ public final class ContentRecordingSession implements Parcelable {
 
     @IntDef(prefix = "RECORD_CONTENT_", value = {
         RECORD_CONTENT_DISPLAY,
-        RECORD_CONTENT_TASK
+        RECORD_CONTENT_TASK,
+        RECORD_CONTENT_BELOW_OVERLAY
     })
     @Retention(RetentionPolicy.SOURCE)
     @DataClass.Generated.Member
@@ -195,6 +226,8 @@ public final class ContentRecordingSession implements Parcelable {
                     return "RECORD_CONTENT_DISPLAY";
             case RECORD_CONTENT_TASK:
                     return "RECORD_CONTENT_TASK";
+            case RECORD_CONTENT_BELOW_OVERLAY:
+                    return "RECORD_CONTENT_BELOW_OVERLAY";
             default: return Integer.toHexString(value);
         }
     }
@@ -221,6 +254,7 @@ public final class ContentRecordingSession implements Parcelable {
     @DataClass.Generated.Member
     /* package-private */ ContentRecordingSession(
             int taskId,
+            int recordingOwnerUid,
             int virtualDisplayId,
             @RecordContent int contentToRecord,
             int displayToRecord,
@@ -228,15 +262,18 @@ public final class ContentRecordingSession implements Parcelable {
             boolean waitingForConsent,
             int targetUid) {
         this.mTaskId = taskId;
+        this.mRecordingOwnerUid = recordingOwnerUid;
         this.mVirtualDisplayId = virtualDisplayId;
         this.mContentToRecord = contentToRecord;
 
         if (!(mContentToRecord == RECORD_CONTENT_DISPLAY)
-                && !(mContentToRecord == RECORD_CONTENT_TASK)) {
+                && !(mContentToRecord == RECORD_CONTENT_TASK)
+                && !(mContentToRecord == RECORD_CONTENT_BELOW_OVERLAY)) {
             throw new java.lang.IllegalArgumentException(
                     "contentToRecord was " + mContentToRecord + " but must be one of: "
                             + "RECORD_CONTENT_DISPLAY(" + RECORD_CONTENT_DISPLAY + "), "
-                            + "RECORD_CONTENT_TASK(" + RECORD_CONTENT_TASK + ")");
+                            + "RECORD_CONTENT_TASK(" + RECORD_CONTENT_TASK + "), "
+                            + "RECORD_CONTENT_BELOW_OVERLAY(" + RECORD_CONTENT_BELOW_OVERLAY + ")");
         }
 
         this.mDisplayToRecord = displayToRecord;
@@ -254,6 +291,15 @@ public final class ContentRecordingSession implements Parcelable {
     @DataClass.Generated.Member
     public int getTaskId() {
         return mTaskId;
+    }
+
+    /**
+     * UID of the owner of the recording session. Only set if
+     * {@link #RECORD_CONTENT_BELOW_OVERLAY} is used.
+     */
+    @DataClass.Generated.Member
+    public int getRecordingOwnerUid() {
+        return mRecordingOwnerUid;
     }
 
     /**
@@ -325,6 +371,16 @@ public final class ContentRecordingSession implements Parcelable {
     }
 
     /**
+     * UID of the owner of the recording session. Only set if
+     * {@link #RECORD_CONTENT_BELOW_OVERLAY} is used.
+     */
+    @DataClass.Generated.Member
+    public @NonNull ContentRecordingSession setRecordingOwnerUid( int value) {
+        mRecordingOwnerUid = value;
+        return this;
+    }
+
+    /**
      * Unique logical identifier of the {@link android.hardware.display.VirtualDisplay} that has
      * recorded content rendered to its surface.
      */
@@ -342,11 +398,13 @@ public final class ContentRecordingSession implements Parcelable {
         mContentToRecord = value;
 
         if (!(mContentToRecord == RECORD_CONTENT_DISPLAY)
-                && !(mContentToRecord == RECORD_CONTENT_TASK)) {
+                && !(mContentToRecord == RECORD_CONTENT_TASK)
+                && !(mContentToRecord == RECORD_CONTENT_BELOW_OVERLAY)) {
             throw new java.lang.IllegalArgumentException(
                     "contentToRecord was " + mContentToRecord + " but must be one of: "
                             + "RECORD_CONTENT_DISPLAY(" + RECORD_CONTENT_DISPLAY + "), "
-                            + "RECORD_CONTENT_TASK(" + RECORD_CONTENT_TASK + ")");
+                            + "RECORD_CONTENT_TASK(" + RECORD_CONTENT_TASK + "), "
+                            + "RECORD_CONTENT_BELOW_OVERLAY(" + RECORD_CONTENT_BELOW_OVERLAY + ")");
         }
 
         return this;
@@ -405,6 +463,7 @@ public final class ContentRecordingSession implements Parcelable {
 
         return "ContentRecordingSession { " +
                 "taskId = " + mTaskId + ", " +
+                "recordingOwnerUid = " + mRecordingOwnerUid + ", " +
                 "virtualDisplayId = " + mVirtualDisplayId + ", " +
                 "contentToRecord = " + recordContentToString(mContentToRecord) + ", " +
                 "displayToRecord = " + mDisplayToRecord + ", " +
@@ -428,6 +487,7 @@ public final class ContentRecordingSession implements Parcelable {
         //noinspection PointlessBooleanExpression
         return true
                 && mTaskId == that.mTaskId
+                && mRecordingOwnerUid == that.mRecordingOwnerUid
                 && mVirtualDisplayId == that.mVirtualDisplayId
                 && mContentToRecord == that.mContentToRecord
                 && mDisplayToRecord == that.mDisplayToRecord
@@ -444,6 +504,7 @@ public final class ContentRecordingSession implements Parcelable {
 
         int _hash = 1;
         _hash = 31 * _hash + mTaskId;
+        _hash = 31 * _hash + mRecordingOwnerUid;
         _hash = 31 * _hash + mVirtualDisplayId;
         _hash = 31 * _hash + mContentToRecord;
         _hash = 31 * _hash + mDisplayToRecord;
@@ -459,11 +520,12 @@ public final class ContentRecordingSession implements Parcelable {
         // You can override field parcelling by defining methods like:
         // void parcelFieldName(Parcel dest, int flags) { ... }
 
-        byte flg = 0;
-        if (mWaitingForConsent) flg |= 0x20;
-        if (mTokenToRecord != null) flg |= 0x10;
-        dest.writeByte(flg);
+        int flg = 0;
+        if (mWaitingForConsent) flg |= 0x40;
+        if (mTokenToRecord != null) flg |= 0x20;
+        dest.writeInt(flg);
         dest.writeInt(mTaskId);
+        dest.writeInt(mRecordingOwnerUid);
         dest.writeInt(mVirtualDisplayId);
         dest.writeInt(mContentToRecord);
         dest.writeInt(mDisplayToRecord);
@@ -482,25 +544,29 @@ public final class ContentRecordingSession implements Parcelable {
         // You can override field unparcelling by defining methods like:
         // static FieldType unparcelFieldName(Parcel in) { ... }
 
-        byte flg = in.readByte();
-        boolean waitingForConsent = (flg & 0x20) != 0;
+        int flg = in.readInt();
+        boolean waitingForConsent = (flg & 0x40) != 0;
         int taskId = in.readInt();
+        int recordingOwnerUid = in.readInt();
         int virtualDisplayId = in.readInt();
         int contentToRecord = in.readInt();
         int displayToRecord = in.readInt();
-        IBinder tokenToRecord = (flg & 0x10) == 0 ? null : (IBinder) in.readStrongBinder();
+        IBinder tokenToRecord = (flg & 0x20) == 0 ? null : (IBinder) in.readStrongBinder();
         int targetUid = in.readInt();
 
         this.mTaskId = taskId;
+        this.mRecordingOwnerUid = recordingOwnerUid;
         this.mVirtualDisplayId = virtualDisplayId;
         this.mContentToRecord = contentToRecord;
 
         if (!(mContentToRecord == RECORD_CONTENT_DISPLAY)
-                && !(mContentToRecord == RECORD_CONTENT_TASK)) {
+                && !(mContentToRecord == RECORD_CONTENT_TASK)
+                && !(mContentToRecord == RECORD_CONTENT_BELOW_OVERLAY)) {
             throw new java.lang.IllegalArgumentException(
                     "contentToRecord was " + mContentToRecord + " but must be one of: "
                             + "RECORD_CONTENT_DISPLAY(" + RECORD_CONTENT_DISPLAY + "), "
-                            + "RECORD_CONTENT_TASK(" + RECORD_CONTENT_TASK + ")");
+                            + "RECORD_CONTENT_TASK(" + RECORD_CONTENT_TASK + "), "
+                            + "RECORD_CONTENT_BELOW_OVERLAY(" + RECORD_CONTENT_BELOW_OVERLAY + ")");
         }
 
         this.mDisplayToRecord = displayToRecord;
@@ -533,6 +599,7 @@ public final class ContentRecordingSession implements Parcelable {
     public static final class Builder {
 
         private int mTaskId;
+        private int mRecordingOwnerUid;
         private int mVirtualDisplayId;
         private @RecordContent int mContentToRecord;
         private int mDisplayToRecord;
@@ -542,7 +609,16 @@ public final class ContentRecordingSession implements Parcelable {
 
         private long mBuilderFieldsSet = 0L;
 
-        public Builder() {
+        /**
+         * Creates a new Builder.
+         *
+         * @param recordingOwnerUid
+         *   UID of the owner of the recording session. Only set if
+         *   {@link #RECORD_CONTENT_BELOW_OVERLAY} is used.
+         */
+        public Builder(
+                int recordingOwnerUid) {
+            mRecordingOwnerUid = recordingOwnerUid;
         }
 
         /**
@@ -558,13 +634,25 @@ public final class ContentRecordingSession implements Parcelable {
         }
 
         /**
+         * UID of the owner of the recording session. Only set if
+         * {@link #RECORD_CONTENT_BELOW_OVERLAY} is used.
+         */
+        @DataClass.Generated.Member
+        public @NonNull Builder setRecordingOwnerUid(int value) {
+            checkNotUsed();
+            mBuilderFieldsSet |= 0x2;
+            mRecordingOwnerUid = value;
+            return this;
+        }
+
+        /**
          * Unique logical identifier of the {@link android.hardware.display.VirtualDisplay} that has
          * recorded content rendered to its surface.
          */
         @DataClass.Generated.Member
         public @NonNull Builder setVirtualDisplayId(int value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x2;
+            mBuilderFieldsSet |= 0x4;
             mVirtualDisplayId = value;
             return this;
         }
@@ -575,7 +663,7 @@ public final class ContentRecordingSession implements Parcelable {
         @DataClass.Generated.Member
         public @NonNull Builder setContentToRecord(@RecordContent int value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x4;
+            mBuilderFieldsSet |= 0x8;
             mContentToRecord = value;
             return this;
         }
@@ -589,7 +677,7 @@ public final class ContentRecordingSession implements Parcelable {
         @DataClass.Generated.Member
         public @NonNull Builder setDisplayToRecord(int value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x8;
+            mBuilderFieldsSet |= 0x10;
             mDisplayToRecord = value;
             return this;
         }
@@ -603,7 +691,7 @@ public final class ContentRecordingSession implements Parcelable {
         @DataClass.Generated.Member
         public @NonNull Builder setTokenToRecord(@NonNull IBinder value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x10;
+            mBuilderFieldsSet |= 0x20;
             mTokenToRecord = value;
             return this;
         }
@@ -617,7 +705,7 @@ public final class ContentRecordingSession implements Parcelable {
         @DataClass.Generated.Member
         public @NonNull Builder setWaitingForConsent(boolean value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x20;
+            mBuilderFieldsSet |= 0x40;
             mWaitingForConsent = value;
             return this;
         }
@@ -628,7 +716,7 @@ public final class ContentRecordingSession implements Parcelable {
         @DataClass.Generated.Member
         public @NonNull Builder setTargetUid(int value) {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x40;
+            mBuilderFieldsSet |= 0x80;
             mTargetUid = value;
             return this;
         }
@@ -636,31 +724,32 @@ public final class ContentRecordingSession implements Parcelable {
         /** Builds the instance. This builder should not be touched after calling this! */
         public @NonNull ContentRecordingSession build() {
             checkNotUsed();
-            mBuilderFieldsSet |= 0x80; // Mark builder used
+            mBuilderFieldsSet |= 0x100; // Mark builder used
 
             if ((mBuilderFieldsSet & 0x1) == 0) {
                 mTaskId = TASK_ID_UNKNOWN;
             }
-            if ((mBuilderFieldsSet & 0x2) == 0) {
+            if ((mBuilderFieldsSet & 0x4) == 0) {
                 mVirtualDisplayId = INVALID_DISPLAY;
             }
-            if ((mBuilderFieldsSet & 0x4) == 0) {
+            if ((mBuilderFieldsSet & 0x8) == 0) {
                 mContentToRecord = RECORD_CONTENT_DISPLAY;
             }
-            if ((mBuilderFieldsSet & 0x8) == 0) {
+            if ((mBuilderFieldsSet & 0x10) == 0) {
                 mDisplayToRecord = INVALID_DISPLAY;
             }
-            if ((mBuilderFieldsSet & 0x10) == 0) {
+            if ((mBuilderFieldsSet & 0x20) == 0) {
                 mTokenToRecord = null;
             }
-            if ((mBuilderFieldsSet & 0x20) == 0) {
+            if ((mBuilderFieldsSet & 0x40) == 0) {
                 mWaitingForConsent = false;
             }
-            if ((mBuilderFieldsSet & 0x40) == 0) {
+            if ((mBuilderFieldsSet & 0x80) == 0) {
                 mTargetUid = TARGET_UID_UNKNOWN;
             }
             ContentRecordingSession o = new ContentRecordingSession(
                     mTaskId,
+                    mRecordingOwnerUid,
                     mVirtualDisplayId,
                     mContentToRecord,
                     mDisplayToRecord,
@@ -671,7 +760,7 @@ public final class ContentRecordingSession implements Parcelable {
         }
 
         private void checkNotUsed() {
-            if ((mBuilderFieldsSet & 0x80) != 0) {
+            if ((mBuilderFieldsSet & 0x100) != 0) {
                 throw new IllegalStateException(
                         "This Builder should not be reused. Use a new Builder instance instead");
             }
@@ -679,10 +768,10 @@ public final class ContentRecordingSession implements Parcelable {
     }
 
     @DataClass.Generated(
-            time = 1716481148184L,
+            time = 1744196578914L,
             codegenVersion = "1.0.23",
             sourceFile = "frameworks/base/core/java/android/view/ContentRecordingSession.java",
-            inputSignatures = "public static final  int RECORD_CONTENT_DISPLAY\npublic static final  int RECORD_CONTENT_TASK\npublic static final  int TARGET_UID_FULL_SCREEN\npublic static final  int TARGET_UID_UNKNOWN\npublic static final  int TASK_ID_UNKNOWN\nprivate  int mTaskId\nprivate  int mVirtualDisplayId\nprivate @android.view.ContentRecordingSession.RecordContent int mContentToRecord\nprivate  int mDisplayToRecord\nprivate @android.annotation.Nullable android.os.IBinder mTokenToRecord\nprivate  boolean mWaitingForConsent\nprivate  int mTargetUid\npublic static  android.view.ContentRecordingSession createDisplaySession(int)\npublic static  android.view.ContentRecordingSession createTaskSession(android.os.IBinder)\npublic static  android.view.ContentRecordingSession createTaskSession(android.os.IBinder,int)\npublic static  boolean isValid(android.view.ContentRecordingSession)\npublic static  boolean isProjectionOnSameDisplay(android.view.ContentRecordingSession,android.view.ContentRecordingSession)\nclass ContentRecordingSession extends java.lang.Object implements [android.os.Parcelable]\n@com.android.internal.util.DataClass(genConstructor=false, genToString=true, genSetters=true, genEqualsHashCode=true)")
+            inputSignatures = "public static final  int RECORD_CONTENT_DISPLAY\npublic static final  int RECORD_CONTENT_TASK\npublic static final  int RECORD_CONTENT_BELOW_OVERLAY\npublic static final  int TARGET_UID_FULL_SCREEN\npublic static final  int TARGET_UID_UNKNOWN\npublic static final  int TASK_ID_UNKNOWN\nprivate  int mTaskId\nprivate  int mRecordingOwnerUid\nprivate  int mVirtualDisplayId\nprivate @android.view.ContentRecordingSession.RecordContent int mContentToRecord\nprivate  int mDisplayToRecord\nprivate @android.annotation.Nullable android.os.IBinder mTokenToRecord\nprivate  boolean mWaitingForConsent\nprivate  int mTargetUid\npublic static  android.view.ContentRecordingSession createDisplaySession(int)\npublic static  android.view.ContentRecordingSession createTaskSession(android.os.IBinder)\npublic static  android.view.ContentRecordingSession createTaskSession(android.os.IBinder,int)\npublic static  android.view.ContentRecordingSession createOverlaySession(int,int)\npublic static  boolean isValid(android.view.ContentRecordingSession)\npublic static  boolean isProjectionOnSameDisplay(android.view.ContentRecordingSession,android.view.ContentRecordingSession)\nclass ContentRecordingSession extends java.lang.Object implements [android.os.Parcelable]\n@com.android.internal.util.DataClass(genConstructor=false, genToString=true, genSetters=true, genEqualsHashCode=true)")
     @Deprecated
     private void __metadata() {}
 

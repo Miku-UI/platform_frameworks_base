@@ -52,6 +52,7 @@ public class BiometricTestSession implements AutoCloseable {
     }
 
     private final int mSensorId;
+    private final BiometricManager mBiometricManager;
     private final List<ITestSession> mTestSessionsForAllSensors = new ArrayList<>();
     private ITestSession mTestSession;
 
@@ -99,6 +100,7 @@ public class BiometricTestSession implements AutoCloseable {
     public BiometricTestSession(@NonNull Context context, List<SensorProperties> sensors,
             int sensorId, @NonNull TestSessionProvider testSessionProvider) throws RemoteException {
         mSensorId = sensorId;
+        mBiometricManager = context.getSystemService(BiometricManager.class);
         // When any of the sensors should create the test session, all the other sensors should
         // set test hal enabled too.
         for (SensorProperties sensor : sensors) {
@@ -286,6 +288,11 @@ public class BiometricTestSession implements AutoCloseable {
                     + mUsersCleaningUp.size());
         }
 
+        //Reset Identity Check values when the session is closed.
+        mBiometricManager.setIdentityCheckTestStatus(new IdentityCheckStatus.Builder()
+                .setIdentityCheckActive(false)
+                .setIdentityCheckValueForTestAvailable(false)
+                .build());
         // Disable the test HAL after the sensor becomes idle.
         setTestHalEnabled(false);
     }

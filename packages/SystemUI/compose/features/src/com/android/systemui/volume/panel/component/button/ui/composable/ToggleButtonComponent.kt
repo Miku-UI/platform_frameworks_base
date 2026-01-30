@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
@@ -59,7 +60,6 @@ class ToggleButtonComponent(
     override fun VolumePanelComposeScope.Content(modifier: Modifier) {
         val viewModelByState by viewModelFlow.collectAsStateWithLifecycle()
         val viewModel = viewModelByState ?: return
-        val label = viewModel.label.toString()
 
         Column(
             modifier = modifier,
@@ -97,13 +97,17 @@ class ToggleButtonComponent(
                     modifier =
                         Modifier.fillMaxSize().padding(8.dp).semantics {
                             role = Role.Switch
-                            toggleableState =
-                                if (viewModel.isActive) {
-                                    ToggleableState.On
-                                } else {
-                                    ToggleableState.Off
-                                }
-                            contentDescription = label
+                            if (viewModel.stateDescription == null) {
+                                toggleableState =
+                                    if (viewModel.isActive) {
+                                        ToggleableState.On
+                                    } else {
+                                        ToggleableState.Off
+                                    }
+                            } else {
+                                stateDescription = viewModel.stateDescription
+                            }
+                            contentDescription = viewModel.label
                         },
                     onClick = { onCheckedChange(!viewModel.isActive) },
                     shape = RoundedCornerShape(20.dp),
@@ -116,7 +120,7 @@ class ToggleButtonComponent(
 
             Text(
                 modifier = Modifier.clearAndSetSemantics {}.basicMarquee(),
-                text = label,
+                text = viewModel.label,
                 style = MaterialTheme.typography.labelMedium,
                 maxLines = 2,
             )

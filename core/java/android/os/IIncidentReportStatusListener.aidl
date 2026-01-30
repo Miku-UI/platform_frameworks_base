@@ -19,7 +19,7 @@ package android.os;
 /**
   * Listener for incident report status
   *
-  * {@hide}
+  * @hide
   */
 oneway interface IIncidentReportStatusListener {
     const int STATUS_STARTING = 1;

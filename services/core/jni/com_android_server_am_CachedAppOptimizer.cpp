@@ -33,6 +33,7 @@
 #include <meminfo/procmeminfo.h>
 #include <meminfo/sysmeminfo.h>
 #include <nativehelper/JNIHelp.h>
+#include <processgroup/processgroup.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -46,6 +47,7 @@
 #include <utils/Trace.h>
 
 #include <algorithm>
+#include <optional>
 
 using android::base::StringPrintf;
 using android::base::WriteStringToFile;
@@ -265,13 +267,6 @@ int madviseVmasFromBatch(unique_fd& pidfd, VmaBatch& batch, int madviseType,
     return 0;
 }
 
-// Legacy method for compacting processes, any new code should
-// use compactProcess instead.
-static inline void compactProcessProcfs(int pid, const std::string& compactionType) {
-    std::string reclaim_path = StringPrintf("/proc/%d/reclaim", pid);
-    WriteStringToFile(compactionType, reclaim_path);
-}
-
 // Compacts a set of VMAs for pid using an madviseType accepted by process_madvise syscall
 // Returns the total bytes that where madvised.
 //
@@ -419,36 +414,47 @@ static int64_t compactProcess(int pid, VmaToAdviseFunc vmaToAdviseFunc) {
     return pageoutBytes + coldBytes;
 }
 
-// Compact process using process_madvise syscall or fallback to procfs in
-// case syscall does not exist.
-static void compactProcessOrFallback(int pid, int compactionFlags) {
+// Compact process using process_madvise syscall
+static void compactProcess(int pid, int compactionFlags) {
     if ((compactionFlags & (COMPACT_ACTION_ANON_FLAG | COMPACT_ACTION_FILE_FLAG)) == 0) return;
 
     bool compactAnon = compactionFlags & COMPACT_ACTION_ANON_FLAG;
     bool compactFile = compactionFlags & COMPACT_ACTION_FILE_FLAG;
 
-    // Set when the system does not support process_madvise syscall to avoid
-    // gathering VMAs in subsequent calls prior to falling back to procfs
-    static bool shouldForceProcFs = false;
-    std::string compactionType;
     VmaToAdviseFunc vmaToAdviseFunc;
 
     if (compactAnon) {
         if (compactFile) {
-            compactionType = "all";
             vmaToAdviseFunc = getAnyPageAdvice;
         } else {
-            compactionType = "anon";
             vmaToAdviseFunc = getAnonPageAdvice;
         }
     } else {
-        compactionType = "file";
         vmaToAdviseFunc = getFilePageAdvice;
     }
 
-    if (shouldForceProcFs || compactProcess(pid, vmaToAdviseFunc) == -ENOSYS) {
-        shouldForceProcFs = true;
-        compactProcessProcfs(pid, compactionType);
+    compactProcess(pid, vmaToAdviseFunc);
+}
+
+static std::string profileFromCompactionFlags(int compactionFlags) {
+    const bool compactAnon = compactionFlags & COMPACT_ACTION_ANON_FLAG;
+    const bool compactFile = compactionFlags & COMPACT_ACTION_FILE_FLAG;
+
+    if (!compactAnon && !compactFile) return {};
+    std::string profile;
+    if (compactAnon && compactFile)
+        profile = "CompactFull";
+    else if (compactAnon)
+        profile = "CompactAnon";
+    else if (compactFile)
+        profile = "CompactFile";
+
+    return profile;
+}
+
+static void compactMemcg(int uid, int pid, int compactionFlags) {
+    if (std::string profile = profileFromCompactionFlags(compactionFlags); !profile.empty()) {
+        SetProcessProfiles(uid, pid, {profile});
     }
 }
 
@@ -488,7 +494,7 @@ static void com_android_server_am_CachedAppOptimizer_compactSystem(JNIEnv *, job
 
         int pid = atoi(current->d_name);
 
-        compactProcessOrFallback(pid, COMPACT_ACTION_ANON_FLAG | COMPACT_ACTION_FILE_FLAG);
+        compactMemcg(status_info.st_uid, pid, COMPACT_ACTION_ANON_FLAG | COMPACT_ACTION_FILE_FLAG);
     }
     inSystemCompaction = false;
 }
@@ -524,9 +530,38 @@ static jlong com_android_server_am_CachedAppOptimizer_getMemoryFreedCompaction()
     return sysmeminfo.mem_compacted_kb("/sys/block/zram0/");
 }
 
-static void com_android_server_am_CachedAppOptimizer_compactProcess(JNIEnv*, jobject, jint pid,
-                                                                    jint compactionFlags) {
-    compactProcessOrFallback(pid, compactionFlags);
+static void com_android_server_am_CachedAppOptimizer_compactProcessWithMemcg(JNIEnv*, jobject,
+                                                                             jint uid, jint pid,
+                                                                             jint compactionFlags) {
+    compactMemcg(uid, pid, compactionFlags);
+}
+
+static void com_android_server_am_CachedAppOptimizer_compactNativeProcess(JNIEnv*, jobject,
+                                                                          jint pid,
+                                                                          jint compactionFlags) {
+    compactProcess(pid, compactionFlags);
+}
+
+static jboolean com_android_server_am_CachedAppOptimizer_compactionFlagsValidForMemcg(
+        JNIEnv* env, jobject, jint compactionFlags) {
+    static std::array<std::optional<bool>, 3> valid;
+
+    if (compactionFlags >= valid.size() || compactionFlags < 0) {
+        jniThrowException(env, "java/lang/IllegalArgumentException", "Invalid compaction flags");
+        return false;
+    }
+
+    if (!valid[compactionFlags]) {
+        std::string profile = profileFromCompactionFlags(compactionFlags);
+        if (profile.empty()) {
+            valid[compactionFlags] = true; // NONE is a no-op
+        } else {
+            // Only call this once per flag combo, per boot, since it's not exactly cheap
+            valid[compactionFlags] = isProfileValidForProcess(profile, getuid(), getpid());
+        }
+    }
+
+    return *valid[compactionFlags];
 }
 
 static const JNINativeMethod sMethods[] = {
@@ -541,7 +576,14 @@ static const JNINativeMethod sMethods[] = {
         {"getMemoryFreedCompaction", "()J",
          (void*)com_android_server_am_CachedAppOptimizer_getMemoryFreedCompaction},
         {"compactSystem", "()V", (void*)com_android_server_am_CachedAppOptimizer_compactSystem},
-        {"compactProcess", "(II)V", (void*)com_android_server_am_CachedAppOptimizer_compactProcess},
+        {"compactProcess", "(II)V",
+         (void*)com_android_server_am_CachedAppOptimizer_compactNativeProcess},
+        {"performNativeMemcgCompaction", "(III)V",
+         (void*)com_android_server_am_CachedAppOptimizer_compactProcessWithMemcg},
+        {"compactNativeProcess", "(II)V",
+         (void*)com_android_server_am_CachedAppOptimizer_compactNativeProcess},
+        {"compactionFlagsValidForMemcg", "(I)Z",
+         (void*)com_android_server_am_CachedAppOptimizer_compactionFlagsValidForMemcg},
 };
 
 int register_android_server_am_CachedAppOptimizer(JNIEnv* env)

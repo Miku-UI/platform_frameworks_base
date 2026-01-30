@@ -40,6 +40,8 @@ import android.os.UserManager;
 import android.permission.PermissionManager;
 import android.util.Log;
 
+import com.android.internal.annotations.VisibleForTesting;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.text.SimpleDateFormat;
@@ -56,12 +58,13 @@ import java.util.List;
 class PendingReports {
     static final String TAG = IncidentCompanionService.TAG;
 
-    private final Handler mHandler = new Handler();
-    private final RequestQueue mRequestQueue = new RequestQueue(mHandler);
+    private final RequestQueue mRequestQueue;
     private final Context mContext;
     private final PackageManager mPackageManager;
     private final AppOpsManager mAppOpsManager;
     private final PermissionManager mPermissionManager;
+    private final UserManager mUserManager;
+    private final Injector mInjector;
 
     //
     // All fields below must be protected by mLock
@@ -126,14 +129,56 @@ class PendingReports {
         }
     }
 
+    static class Injector {
+        private final Context mContext;
+        private final Handler mHandler;
+
+        Injector(Context context, Handler handler) {
+            mContext = context;
+            mHandler = handler;
+        }
+
+        public Context getContext() {
+            return mContext;
+        }
+
+        public Handler getHandler() {
+            return mHandler;
+        }
+
+        UserManager getUserManager() {
+            return UserManager.get(mContext);
+        }
+
+        AppOpsManager getAppOpsManager() {
+            return mContext.getSystemService(AppOpsManager.class);
+        }
+
+        /**
+         * Check whether the current user is an admin user, and return the user id if they are.
+         * Returns UserHandle.USER_NULL if not valid.
+         */
+        int getCurrentUserIfAdmin() {
+            return IncidentCompanionService.getCurrentUserIfAdmin();
+        }
+    }
+
     /**
      * Construct new PendingReports with the context.
      */
     PendingReports(Context context) {
-        mContext = context;
-        mPackageManager = context.getPackageManager();
-        mAppOpsManager = context.getSystemService(AppOpsManager.class);
-        mPermissionManager = context.getSystemService(PermissionManager.class);
+        this(new Injector(context, new Handler()));
+    }
+
+    @VisibleForTesting(visibility = VisibleForTesting.Visibility.PRIVATE)
+    PendingReports(Injector injector) {
+        mContext = injector.getContext();
+        mInjector = injector;
+        mRequestQueue = new RequestQueue(injector.getHandler());
+        mPackageManager = mContext.getPackageManager();
+        mPermissionManager = mContext.getSystemService(PermissionManager.class);
+        mAppOpsManager = injector.getAppOpsManager();
+        mUserManager = injector.getUserManager();
     }
 
     /**
@@ -282,28 +327,6 @@ class PendingReports {
             return;
         }
 
-        // Find the current user of the device and check if they are an admin.
-        final int currentAdminUser = getCurrentUserIfAdmin();
-        final int callingUser = UserHandle.getUserId(callingUid);
-
-        // Deny the report if the current admin user is null
-        // or the calling user is not from the same profile group of current user.
-        if (currentAdminUser == UserHandle.USER_NULL
-                || !isSameProfileGroupUser(callingUser, currentAdminUser)) {
-            Log.w(TAG, "Calling user " + callingUser + " doesn't belong to the same profile "
-                    + "group of the current admin user " + currentAdminUser);
-            denyReportBeforeAddingRec(listener, callingPackage);
-            return;
-        }
-
-        // Find the approver app (hint: it's PermissionController).
-        final ComponentName receiver = getApproverComponent(currentAdminUser);
-        if (receiver == null) {
-            // We couldn't find an approver... so deny the request here and now, before we
-            // do anything else.
-            denyReportBeforeAddingRec(listener, callingPackage);
-            return;
-        }
         AttributionSource attributionSource =
                     new AttributionSource.Builder(callingUid)
                             .setPackageName(callingPackage)
@@ -350,6 +373,30 @@ class PendingReports {
             }
         }
 
+        // Find the current user of the device and check if they are an admin.
+        final int currentAdminUser = mInjector.getCurrentUserIfAdmin();
+        final int callingUser = UserHandle.getUserId(callingUid);
+
+        // Deny the report if the current admin user is null
+        // or the calling user is not from the same profile group of current user.
+        if (currentAdminUser == UserHandle.USER_NULL
+                || !isSameProfileGroupUser(callingUser, currentAdminUser)) {
+            Log.w(TAG, "Calling user " + callingUser + " doesn't belong to the same profile "
+                    + "group of the current admin user " + currentAdminUser);
+            denyReportBeforeAddingRec(listener, callingPackage);
+            return;
+        }
+
+        // Find the approver app (hint: it's PermissionController).
+        final ComponentName receiver = getApproverComponent(currentAdminUser);
+        if (receiver == null) {
+            // We couldn't find an approver... so deny the request here and now, before we
+            // do anything else.
+            Log.w(TAG, "We couldn't find an approver for currentAdminUser " + currentAdminUser);
+            denyReportBeforeAddingRec(listener, callingPackage);
+            return;
+        }
+
         // Save the record for when the PermissionController comes back to authorize it.
         PendingReportRec rec = null;
         synchronized (mLock) {
@@ -376,10 +423,13 @@ class PendingReports {
      * Cancel a pending report request (because of an explicit call to cancel)
      */
     private void cancelReportImpl(IIncidentAuthListener listener) {
-        final int currentAdminUser = getCurrentUserIfAdmin();
+        final int currentAdminUser = mInjector.getCurrentUserIfAdmin();
         final ComponentName receiver = getApproverComponent(currentAdminUser);
         if (currentAdminUser != UserHandle.USER_NULL && receiver != null) {
             cancelReportImpl(listener, receiver, currentAdminUser);
+        } else {
+            Log.w(TAG, "Didn't find exactly approver component for currentAdminUser "
+                    + currentAdminUser);
         }
     }
 
@@ -404,7 +454,7 @@ class PendingReports {
      * cleanup cases to keep the apps' list in sync with ours.
      */
     private void sendBroadcast() {
-        final int currentAdminUser = getCurrentUserIfAdmin();
+        final int currentAdminUser = mInjector.getCurrentUserIfAdmin();
         if (currentAdminUser == UserHandle.USER_NULL) {
             return;
         }
@@ -482,14 +532,6 @@ class PendingReports {
     }
 
     /**
-     * Check whether the current user is an admin user, and return the user id if they are.
-     * Returns UserHandle.USER_NULL if not valid.
-     */
-    private int getCurrentUserIfAdmin() {
-        return IncidentCompanionService.getCurrentUserIfAdmin();
-    }
-
-    /**
      * Return the ComponentName of the BroadcastReceiver that will approve reports.
      * The system must have zero or one of these installed.  We only look on the
      * system partition.  When the broadcast happens, the component will also need
@@ -530,8 +572,7 @@ class PendingReports {
      */
     private boolean isSameProfileGroupUser(@UserIdInt int currentAdminUser,
             @UserIdInt int callingUser) {
-        return UserManager.get(mContext)
-                .isSameProfileGroup(currentAdminUser, callingUser);
+        return mUserManager.isSameProfileGroup(currentAdminUser, callingUser);
     }
 }
 

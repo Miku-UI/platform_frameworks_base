@@ -39,10 +39,11 @@ import com.android.settingslib.spa.widget.preference.PreferenceModel
 @Composable
 fun RegularScaffold(
     title: String,
+    isFirstLayerPageWhenEmbedded: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable () -> Unit,
 ) {
-    SettingsScaffold(title, actions) { paddingValues ->
+    SettingsScaffold(title, isFirstLayerPageWhenEmbedded, actions) { paddingValues ->
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Spacer(Modifier.height(paddingValues.calculateTopPadding()))
             content()

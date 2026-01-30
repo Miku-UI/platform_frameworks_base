@@ -58,7 +58,7 @@
     <string name="kg_wrong_pin_try_again" msgid="3129729383303430190">"Verkeerde PIN. Probeer weer."</string>
     <string name="kg_wrong_input_try_fp_suggestion" msgid="3143861542242024833">"Of ontsluit met vingerafdruk"</string>
     <string name="kg_fp_not_recognized" msgid="5183108260932029241">"Vingerafdruk nie herken nie"</string>
-    <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"Gesig nie erken nie"</string>
+    <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"Gesig nie herken nie"</string>
     <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"Probeer weer of voer PIN in"</string>
     <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"Probeer weer of voer wagwoord in"</string>
     <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"Probeer weer of voer patroon in"</string>
@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Ontsluit met wagwoord of vingerafdruk"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Ontsluit met patroon of vingerafdruk"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Toestel deur werkbeleid gesluit vir meer sekuriteit"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"2-stap-verifikasie"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Gebruik Vingerafdrukslot"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Gebruik Gesigslot"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Gebruik Vingerafdruk- of Gesigslot"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"PIN word vereis ná vassluit"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Wagwoord word vereis ná vassluit"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Patroon word vereis ná vassluit"</string>

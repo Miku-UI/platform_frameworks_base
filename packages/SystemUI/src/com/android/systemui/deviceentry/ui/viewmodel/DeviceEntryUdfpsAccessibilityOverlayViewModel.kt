@@ -16,11 +16,17 @@
 
 package com.android.systemui.deviceentry.ui.viewmodel
 
+import android.content.Context
+import android.view.MotionEvent
 import com.android.systemui.accessibility.domain.interactor.AccessibilityInteractor
+import com.android.systemui.biometrics.UdfpsUtils
 import com.android.systemui.biometrics.domain.interactor.UdfpsOverlayInteractor
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
 import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.keyguard.ui.viewmodel.DeviceEntryForegroundViewModel
 import com.android.systemui.keyguard.ui.viewmodel.DeviceEntryIconViewModel
+import com.android.systemui.res.R
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -29,15 +35,25 @@ import kotlinx.coroutines.flow.combine
 class DeviceEntryUdfpsAccessibilityOverlayViewModel
 @Inject
 constructor(
+    @Application private val applicationContext: Context,
+    deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     udfpsOverlayInteractor: UdfpsOverlayInteractor,
+    udfpsUtils: UdfpsUtils,
     accessibilityInteractor: AccessibilityInteractor,
     private val deviceEntryIconViewModel: DeviceEntryIconViewModel,
     private val deviceEntryFgIconViewModel: DeviceEntryForegroundViewModel,
 ) :
     UdfpsAccessibilityOverlayViewModel(
+        applicationContext,
         udfpsOverlayInteractor,
+        deviceEntryUdfpsInteractor,
+        udfpsUtils,
         accessibilityInteractor,
     ) {
+
+    val customizeLockscreenString =
+        applicationContext.resources.getString(R.string.accessibility_desc_customize_lock_screen)
+
     /** Overlay is only visible if the UDFPS icon is visible on the keyguard. */
     override fun isVisibleWhenTouchExplorationEnabled(): Flow<Boolean> =
         combine(
@@ -48,4 +64,20 @@ constructor(
                 !iconViewModel.useAodVariant &&
                 alpha == 1f
         }
+
+    /** Give directional feedback to help the user authenticate with UDFPS. */
+    override fun getUdfpsDirectionalFeedbackOnHoverEnterOrMove(
+        event: MotionEvent,
+        includeLockscreenContentDescription: Boolean,
+    ): CharSequence? {
+        val udfpsGuidance = super.getUdfpsDirectionalFeedbackOnHoverEnterOrMove(event)
+        val contentDescription: CharSequence? =
+            if (udfpsGuidance != null && includeLockscreenContentDescription) {
+                customizeLockscreenString + "\n" + udfpsGuidance
+            } else {
+                udfpsGuidance
+            }
+
+        return contentDescription
+    }
 }

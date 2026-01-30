@@ -75,9 +75,12 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
 
     @Override
     public void onHeadsUpPinnedModeChanged(boolean inPinnedMode) {
+        String logString = "HeadsUpChangeListener#onHeadsUpPinnedModeChanged";
         if (inPinnedMode) {
             mNotificationShadeWindowController.setHeadsUpShowing(true);
-            mStatusBarWindowControllerStore.getDefaultDisplay().setForceStatusBarVisible(true);
+            mStatusBarWindowControllerStore
+                    .getDefaultDisplay()
+                    .setForceStatusBarVisible(true, /* source= */ logString);
             if (mPanelExpansionInteractor.isFullyCollapsed()) {
                 mShadeViewController.updateTouchableRegion();
             }
@@ -94,7 +97,8 @@ public class StatusBarHeadsUpChangeListener implements OnHeadsUpChangedListener,
                 if (bypassKeyguard) {
                     mStatusBarWindowControllerStore
                             .getDefaultDisplay()
-                            .setForceStatusBarVisible(false);
+                            .setForceStatusBarVisible(
+                                    false, /* source= */ logString);
                 }
             } else {
                 // we need to keep the panel open artificially, let's wait until the

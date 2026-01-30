@@ -24,6 +24,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.shared.model.KeyguardState.OCCLUDED
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shared.Flags.ambientAod
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -35,10 +36,12 @@ class AodToOccludedTransitionViewModel
 @Inject
 constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTransition {
     private val transitionAnimation =
-        animationFlow.setup(
-            duration = FromAodTransitionInteractor.TO_OCCLUDED_DURATION,
-            edge = Edge.create(from = AOD, to = OCCLUDED),
-        )
+        animationFlow
+            .setup(
+                duration = FromAodTransitionInteractor.TO_OCCLUDED_DURATION,
+                edge = Edge.create(from = AOD, to = Scenes.Occluded),
+            )
+            .setupWithoutSceneContainer(edge = Edge.create(from = AOD, to = OCCLUDED))
 
     /**
      * Fade out the lockscreen during a transition to OCCLUDED.

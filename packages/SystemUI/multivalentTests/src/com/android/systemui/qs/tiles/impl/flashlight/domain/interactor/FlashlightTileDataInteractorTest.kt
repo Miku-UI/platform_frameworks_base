@@ -16,40 +16,47 @@
 
 package com.android.systemui.qs.tiles.impl.flashlight.domain.interactor
 
+import android.content.packageManager
+import android.content.pm.PackageManager
 import android.os.UserHandle
-import android.platform.test.annotations.EnabledOnRavenwood
-import android.testing.LeakCheck
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flashlight.data.repository.startFlashlightRepository
+import com.android.systemui.flashlight.domain.interactor.flashlightInteractor
+import com.android.systemui.flashlight.shared.model.FlashlightModel
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.collectValues
+import com.android.systemui.kosmos.runCurrent
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
-import com.android.systemui.qs.tiles.impl.flashlight.domain.model.FlashlightTileModel
-import com.android.systemui.utils.leaks.FakeFlashlightController
+import com.android.systemui.statusbar.policy.fakeFlashlightController
+import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class FlashlightTileDataInteractorTest : SysuiTestCase() {
-    private lateinit var controller: FakeFlashlightController
-    private lateinit var underTest: FlashlightTileDataInteractor
+    private val kosmos = testKosmos()
+    private val controller = kosmos.fakeFlashlightController
+    private val underTest = kosmos.flashlightTileDataInteractor
 
-    @Before
-    fun setup() {
-        controller = FakeFlashlightController(LeakCheck())
-        underTest = FlashlightTileDataInteractor(controller)
-    }
-
+    @DisableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
     @Test
-    fun availabilityOnMatchesController() = runTest {
+    fun withFlagOff_availabilityOnMatchesController() = runTest {
         controller.hasFlashlight = true
 
         runCurrent()
@@ -58,8 +65,33 @@ class FlashlightTileDataInteractorTest : SysuiTestCase() {
         assertThat(availability).isTrue()
     }
 
+    @EnableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
     @Test
-    fun availabilityOffMatchesController() = runTest {
+    fun withFlagOn_availabilityOnMatchesInteractor() =
+        kosmos.runTest {
+            startFlashlightRepository(true)
+
+            runCurrent()
+            val availability by collectLastValue(underTest.availability(TEST_USER))
+
+            assertThat(availability).isTrue()
+        }
+
+    @EnableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
+    @Test
+    fun withFlagOn_availabilityOnMatchesInteractorDeviceSupportsFlashlight() =
+        kosmos.runTest {
+            startFlashlightRepository(true)
+
+            runCurrent()
+            val availability by collectLastValue(underTest.availability(TEST_USER))
+
+            assertThat(availability).isEqualTo(flashlightInteractor.deviceSupportsFlashlight)
+        }
+
+    @DisableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
+    @Test
+    fun withFlagOff_availabilityOffMatchesController() = runTest {
         controller.hasFlashlight = false
 
         runCurrent()
@@ -68,9 +100,51 @@ class FlashlightTileDataInteractorTest : SysuiTestCase() {
         assertThat(availability).isFalse()
     }
 
+    @EnableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
     @Test
-    fun isEnabledDataMatchesControllerWhenAvailable() = runTest {
-        val flowValues: List<FlashlightTileModel> by
+    fun withFlagOn_availabilityOffMatchesInteractor() =
+        kosmos.runTest {
+            startFlashlightRepository(false)
+
+            runCurrent()
+            verify(packageManager, times(1))
+                .hasSystemFeature(eq(PackageManager.FEATURE_CAMERA_FLASH))
+
+            val flowValues: List<FlashlightModel> by
+                collectValues(
+                    underTest.tileData(TEST_USER, flowOf(DataUpdateTrigger.InitialRequest))
+                )
+
+            flowValues.forEach {
+                Log.d(
+                    "FLASHLIGHT_DATA",
+                    "withFlagOn_availabilityOffMatchesInteractorDeviceSupportsFlashlight: $it",
+                )
+            }
+
+            val availability by collectLastValue(underTest.availability(TEST_USER))
+            runCurrent()
+
+            assertThat(availability).isNotNull()
+            assertThat(availability).isFalse()
+        }
+
+    @EnableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
+    @Test
+    fun withFlagOn_availabilityOffMatchesInteractorDeviceSupportsFlashlight() =
+        kosmos.runTest {
+            startFlashlightRepository(false)
+
+            runCurrent()
+            val availability by collectLastValue(underTest.availability(TEST_USER))
+
+            assertThat(availability).isEqualTo(flashlightInteractor.deviceSupportsFlashlight)
+        }
+
+    @DisableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
+    @Test
+    fun withFlagOff_isEnabledDataMatchesControllerWhenAvailable() = runTest {
+        val flowValues: List<FlashlightModel> by
             collectValues(underTest.tileData(TEST_USER, flowOf(DataUpdateTrigger.InitialRequest)))
 
         runCurrent()
@@ -80,37 +154,67 @@ class FlashlightTileDataInteractorTest : SysuiTestCase() {
         runCurrent()
 
         assertThat(flowValues.size).isEqualTo(4) // 2 from setup(), 2 from this test
-        assertThat(
-                flowValues.filterIsInstance<FlashlightTileModel.FlashlightAvailable>().map {
-                    it.isEnabled
-                }
-            )
+        assertThat(flowValues.filterIsInstance<FlashlightModel.Available>().map { it.enabled })
             .containsExactly(false, false, true, false)
             .inOrder()
     }
 
-    /**
-     * Simulates the scenario of changes in flashlight tile availability when camera is initially
-     * closed, then opened, and closed again.
-     */
+    @EnableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
     @Test
-    fun availabilityDataMatchesControllerAvailability() = runTest {
-        val flowValues: List<FlashlightTileModel> by
-            collectValues(underTest.tileData(TEST_USER, flowOf(DataUpdateTrigger.InitialRequest)))
+    fun withFlagOn_isEnabledDataMatchesInteractorWhenAvailable() =
+        kosmos.runTest {
+            val flowValues: List<FlashlightModel> by
+                collectValues(
+                    underTest.tileData(TEST_USER, flowOf(DataUpdateTrigger.InitialRequest))
+                )
 
-        runCurrent()
-        controller.onFlashlightAvailabilityChanged(false)
-        runCurrent()
-        controller.onFlashlightAvailabilityChanged(true)
-        runCurrent()
+            startFlashlightRepository(true)
 
-        assertThat(flowValues.size).isEqualTo(4) // 2 from setup + 2 from this test
-        assertThat(flowValues.map { it is FlashlightTileModel.FlashlightAvailable })
-            .containsExactly(true, true, false, true)
-            .inOrder()
-    }
+            runCurrent()
+            flashlightInteractor.setEnabled(true)
+            runCurrent()
+            flashlightInteractor.setEnabled(false)
+            runCurrent()
+
+            assertThat(flowValues.size).isEqualTo(4) // 2 from setup(), 2 from this test
+            assertThat(flowValues.filterIsInstance<FlashlightModel.Available>().map { it.enabled })
+                .containsExactly(false, true, false)
+                .inOrder()
+        }
+
+    @EnableFlags(com.android.systemui.Flags.FLAG_FLASHLIGHT_STRENGTH)
+    @Test
+    fun withFlagOn_dataMatchesInteractorLevel() =
+        kosmos.runTest {
+            val flowValues: List<FlashlightModel> by
+                collectValues(
+                    underTest.tileData(TEST_USER, flowOf(DataUpdateTrigger.InitialRequest))
+                )
+            startFlashlightRepository(true)
+
+            runCurrent()
+            flashlightInteractor.setLevel(1)
+            runCurrent()
+            flashlightInteractor.setLevel(2)
+            runCurrent()
+
+            flowValues.forEach {
+                Log.d("FlashlightDataInteractorTest", "dataMatchesInteractorLevel: $it")
+            }
+
+            assertThat(flowValues.size).isEqualTo(4) // loading, 0, 1, 2
+            assertThat(flowValues.map { it is FlashlightModel.Available.Level })
+                .containsExactly(false, true, true, true)
+                .inOrder()
+            assertThat(
+                    flowValues.filterIsInstance<FlashlightModel.Available.Level>().map { it.level }
+                )
+                .containsExactly(DEFAULT_LEVEL, 1, 2)
+                .inOrder()
+        }
 
     private companion object {
         val TEST_USER = UserHandle.of(1)!!
+        const val DEFAULT_LEVEL = 21
     }
 }

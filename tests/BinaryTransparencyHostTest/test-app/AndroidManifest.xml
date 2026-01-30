@@ -17,6 +17,8 @@
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="android.transparency.test.app">
+    <uses-permission android:name="android.permission.INTERACT_ACROSS_USERS"/>
+
     <application>
         <uses-library android:name="android.test.runner" />
     </application>

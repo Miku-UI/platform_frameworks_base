@@ -18,9 +18,11 @@ package com.android.systemui.statusbar.notification.data.repository
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.statusbar.notification.data.model.NotifStats
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore.Key
+import com.android.systemui.statusbar.notification.shared.ActiveBundleModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationEntryModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationGroupModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
+import com.android.systemui.statusbar.notification.shared.ActivePipelineEntryModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -51,14 +53,16 @@ class ActiveNotificationListRepository @Inject constructor() {
 
 /** Represents the notification list, comprised of groups and individual notifications. */
 data class ActiveNotificationsStore(
+    /** Notification bundles, stored by key. */
+    val bundles: Map<String, ActiveBundleModel> = emptyMap(),
     /** Notification groups, stored by key. */
     val groups: Map<String, ActiveNotificationGroupModel> = emptyMap(),
     /** All individual notifications, including top-level and group children, stored by key. */
     val individuals: Map<String, ActiveNotificationModel> = emptyMap(),
     /**
      * Ordered top-level list of entries in the notification list (either groups or individual),
-     * represented as [Key]s. The associated [ActiveNotificationEntryModel] can be retrieved by
-     * invoking [get].
+     * represented as [Key]s. The associated [ActivePipelineEntryModel] can be retrieved by invoking
+     * [get].
      */
     val renderList: List<Key> = emptyList(),
 
@@ -68,30 +72,42 @@ data class ActiveNotificationsStore(
      */
     val rankingsMap: Map<String, Int> = emptyMap(),
 ) {
-    operator fun get(key: Key): ActiveNotificationEntryModel? {
+    operator fun get(key: Key): ActivePipelineEntryModel? {
         return when (key) {
+            is Key.Bundle -> bundles[key.key]
             is Key.Group -> groups[key.key]
             is Key.Individual -> individuals[key.key]
         }
     }
 
-    /** Unique key identifying an [ActiveNotificationEntryModel] in the store. */
+    /** Unique key identifying an [ActivePipelineEntryModel] in the store. */
     sealed class Key {
         data class Individual(val key: String) : Key()
 
         data class Group(val key: String) : Key()
+
+        data class Bundle(val key: String) : Key()
     }
 
     /** Mutable builder for an [ActiveNotificationsStore]. */
     class Builder {
+        private val bundles = mutableMapOf<String, ActiveBundleModel>()
         private val groups = mutableMapOf<String, ActiveNotificationGroupModel>()
         private val individuals = mutableMapOf<String, ActiveNotificationModel>()
         private val renderList = mutableListOf<Key>()
         private var rankingsMap: Map<String, Int> = emptyMap()
 
-        fun build() = ActiveNotificationsStore(groups, individuals, renderList, rankingsMap)
+        fun build() =
+            ActiveNotificationsStore(bundles, groups, individuals, renderList, rankingsMap)
 
-        fun addEntry(entry: ActiveNotificationEntryModel) {
+        fun addNotifEntry(entry: ActivePipelineEntryModel) {
+            when (entry) {
+                is ActiveBundleModel -> addBundle(entry)
+                is ActiveNotificationEntryModel -> addNotifEntry(entry)
+            }
+        }
+
+        fun addNotifEntry(entry: ActiveNotificationEntryModel) {
             when (entry) {
                 is ActiveNotificationModel -> addIndividualNotif(entry)
                 is ActiveNotificationGroupModel -> addNotifGroup(entry)
@@ -100,14 +116,39 @@ data class ActiveNotificationsStore(
 
         fun addIndividualNotif(notif: ActiveNotificationModel) {
             renderList.add(Key.Individual(notif.key))
-            individuals[notif.key] = notif
+            trackIndividualNotif(notif)
         }
 
         fun addNotifGroup(group: ActiveNotificationGroupModel) {
             renderList.add(Key.Group(group.key))
+            trackNotifGroup(group)
+        }
+
+        fun addBundle(bundle: ActiveBundleModel) {
+            renderList.add(Key.Bundle(bundle.key))
+            trackBundle(bundle)
+        }
+
+        private fun trackNotifEntry(entry: ActiveNotificationEntryModel) {
+            when (entry) {
+                is ActiveNotificationGroupModel -> trackNotifGroup(entry)
+                is ActiveNotificationModel -> trackIndividualNotif(entry)
+            }
+        }
+
+        private fun trackIndividualNotif(notif: ActiveNotificationModel) {
+            individuals[notif.key] = notif
+        }
+
+        private fun trackNotifGroup(group: ActiveNotificationGroupModel) {
             groups[group.key] = group
             individuals[group.summary.key] = group.summary
-            group.children.forEach { individuals[it.key] = it }
+            group.children.forEach { trackIndividualNotif(it) }
+        }
+
+        private fun trackBundle(bundle: ActiveBundleModel) {
+            bundles[bundle.key] = bundle
+            bundle.children.forEach { child -> trackNotifEntry(child) }
         }
 
         fun setRankingsMap(map: Map<String, Int>) {

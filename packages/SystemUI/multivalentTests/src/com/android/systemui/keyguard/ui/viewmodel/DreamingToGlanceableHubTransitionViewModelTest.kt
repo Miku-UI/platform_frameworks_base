@@ -22,7 +22,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.coroutines.collectValues
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -42,6 +41,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 @SmallTest
+@DisableSceneContainer
 @RunWith(AndroidJUnit4::class)
 class DreamingToGlanceableHubTransitionViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
@@ -97,7 +97,6 @@ class DreamingToGlanceableHubTransitionViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableSceneContainer
     fun blurBecomesMaxValueImmediately() =
         kosmos.runTest {
             val values by collectValues(underTest.windowBlurRadius)

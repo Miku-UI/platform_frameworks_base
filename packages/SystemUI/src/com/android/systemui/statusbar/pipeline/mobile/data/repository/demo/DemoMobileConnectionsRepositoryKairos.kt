@@ -28,8 +28,8 @@ import com.android.systemui.activated
 import com.android.systemui.kairos.BuildScope
 import com.android.systemui.kairos.Events
 import com.android.systemui.kairos.ExperimentalKairosApi
-import com.android.systemui.kairos.GroupedEvents
 import com.android.systemui.kairos.Incremental
+import com.android.systemui.kairos.KeyedEvents
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.TransactionScope
 import com.android.systemui.kairos.asIncremental
@@ -46,6 +46,7 @@ import com.android.systemui.kairos.mapNotNull
 import com.android.systemui.kairos.mapValues
 import com.android.systemui.kairos.mergeLeft
 import com.android.systemui.kairos.stateOf
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBufferFactory
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
@@ -54,7 +55,7 @@ import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.model
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.model.FakeNetworkEventModel.Mobile
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.model.FakeNetworkEventModel.MobileDisabled
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.prod.FullMobileConnectionRepository.Factory.Companion.MOBILE_CONNECTION_BUFFER_SIZE
-import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoModeWifiDataSource
+import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.DemoModeWifiDataSourceKairos
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.demo.model.FakeWifiEventModel
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -65,7 +66,7 @@ class DemoMobileConnectionsRepositoryKairos
 @AssistedInject
 constructor(
     mobileDataSource: DemoModeMobileConnectionDataSourceKairos,
-    private val wifiDataSource: DemoModeWifiDataSource,
+    private val wifiDataSource: DemoModeWifiDataSourceKairos,
     context: Context,
     private val logFactory: TableLogBufferFactory,
 ) : MobileConnectionsRepositoryKairos, KairosBuilder by kairosBuilder() {
@@ -75,22 +76,21 @@ constructor(
         fun create(): DemoMobileConnectionsRepositoryKairos
     }
 
-    private val wifiEvents: Events<FakeWifiEventModel?> = buildEvents {
-        wifiDataSource.wifiEvents.toEvents()
-    }
+    private val wifiEvents: Events<FakeWifiEventModel?>
+        get() = wifiDataSource.wifiEvents
 
     private val mobileEventsWithSubId: Events<Pair<Int, FakeNetworkEventModel>> =
         mobileDataSource.mobileEvents.mapNotNull { event ->
             event?.let { (event.subId ?: lastSeenSubId.sample())?.let { it to event } }
         }
 
-    private val mobileEventsBySubId: GroupedEvents<Int, FakeNetworkEventModel> =
+    private val mobileEventsBySubId: KeyedEvents<Int, FakeNetworkEventModel> =
         mobileEventsWithSubId.map { mapOf(it) }.groupByKey()
 
     private val carrierMergedEvents: Events<FakeWifiEventModel.CarrierMerged> =
         wifiEvents.filterIsInstance<FakeWifiEventModel.CarrierMerged>()
 
-    private val wifiEventsBySubId: GroupedEvents<Int, FakeWifiEventModel.CarrierMerged> =
+    private val wifiEventsBySubId: KeyedEvents<Int, FakeWifiEventModel.CarrierMerged> =
         carrierMergedEvents.groupBy { it.subscriptionId }
 
     private val lastSeenSubId: State<Int?> = buildState {
@@ -98,7 +98,7 @@ constructor(
                 mobileEventsWithSubId.mapCheap { it.first },
                 carrierMergedEvents.mapCheap { it.subscriptionId },
             )
-            .holdState(null)
+            .holdState(null, nameTag("DemoMobileConnectionsRepositoryKairos.lastSeenSubId"))
     }
 
     private val activeCarrierMergedSubscription: State<Int?> = buildState {
@@ -110,7 +110,10 @@ constructor(
                     }
                     .map { null },
             )
-            .holdState(null)
+            .holdState(
+                null,
+                nameTag("DemoMobileConnectionsRepositoryKairos.activeCarrierMergedSubscription"),
+            )
     }
 
     private val activeMobileSubscriptions: State<Set<Int>> = buildState {
@@ -125,7 +128,12 @@ constructor(
                         }
                 }
             }
-            .foldState(emptySet()) { f, s -> f(s) }
+            .foldState(
+                emptySet(),
+                nameTag("DemoMobileConnectionsRepositoryKairos.activeMobileSubscriptions"),
+            ) { f, s ->
+                f(s)
+            }
     }
 
     private val subscriptionIds: State<Set<Int>> =
@@ -169,7 +177,9 @@ constructor(
             subscriptionsById
                 .asIncremental()
                 .mapValues { (id, _) -> buildSpec { newRepo(id) } }
-                .applyLatestSpecForKey()
+                .applyLatestSpecForKey(
+                    name = nameTag("DemoMobileConnectionsRepositoryKairos.reposBySubId")
+                )
         }
 
     // TODO(b/261029387): add a command for this value

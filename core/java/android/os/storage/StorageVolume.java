@@ -129,12 +129,12 @@ public final class StorageVolume implements Parcelable {
     private static final String ACTION_OPEN_EXTERNAL_DIRECTORY =
             "android.os.storage.action.OPEN_EXTERNAL_DIRECTORY";
 
-    /** {@hide} */
+    /** @hide */
     public static final int STORAGE_ID_INVALID = 0x00000000;
-    /** {@hide} */
+    /** @hide */
     public static final int STORAGE_ID_PRIMARY = 0x00010001;
 
-    /** {@hide} */
+    /** @hide */
     public StorageVolume(String id, File path, File internalPath, String description,
             boolean primary, boolean removable, boolean emulated, boolean externallyManaged,
             boolean allowMassStorage, long maxFileSize, UserHandle owner, UUID uuid, String fsUuid,
@@ -208,7 +208,7 @@ public final class StorageVolume implements Parcelable {
         return mInternalPath.toString();
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.Q, publicAlternatives = "{@link StorageVolume#getDirectory()}")
     public File getPathFile() {
         return mPath;
@@ -352,12 +352,12 @@ public final class StorageVolume implements Parcelable {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static @Nullable String normalizeUuid(@Nullable String fsUuid) {
         return fsUuid != null ? fsUuid.toLowerCase(Locale.US) : null;
     }
 
-    /** {@hide} */
+    /** @hide */
     public @Nullable String getNormalizedUuid() {
         return normalizeUuid(mFsUuid);
     }
@@ -379,7 +379,7 @@ public final class StorageVolume implements Parcelable {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public String getUserLabel() {
         return mDescription;
@@ -497,7 +497,7 @@ public final class StorageVolume implements Parcelable {
         return buffer.toString();
     }
 
-    /** {@hide} */
+    /** @hide */
     // TODO: find out where toString() is called internally and replace these calls by dump().
     public String dump() {
         final CharArrayWriter writer = new CharArrayWriter();
@@ -505,7 +505,7 @@ public final class StorageVolume implements Parcelable {
         return writer.toString();
     }
 
-    /** {@hide} */
+    /** @hide */
     public void dump(IndentingPrintWriter pw) {
         pw.println("StorageVolume:");
         pw.increaseIndent();

@@ -17,12 +17,9 @@
 package com.android.systemui.statusbar.notification.row.ui.viewbinder
 
 import android.widget.ViewFlipper
-import androidx.lifecycle.lifecycleScope
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.NotificationViewFlipperViewModel
 import kotlinx.coroutines.DisposableHandle
-import kotlinx.coroutines.coroutineScope
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /** Binds a [NotificationViewFlipper] to its [view model][NotificationViewFlipperViewModel]. */
 object NotificationViewFlipperBinder {
@@ -34,21 +31,8 @@ object NotificationViewFlipperBinder {
             // If the ViewFlipper is not set to AutoStart, the pause binding is meaningless
             return DisposableHandle {}
         }
-        return viewFlipper.repeatWhenAttached {
-            lifecycleScope.launch { bind(viewFlipper, viewModel) }
-        }
-    }
-
-    suspend fun bind(
-        viewFlipper: ViewFlipper,
-        viewModel: NotificationViewFlipperViewModel,
-    ) = coroutineScope { launch { viewModel.isPaused.collect { viewFlipper.setPaused(it) } } }
-
-    private fun ViewFlipper.setPaused(paused: Boolean) {
-        if (paused) {
-            stopFlipping()
-        } else if (isAutoStart) {
-            startFlipping()
+        return viewFlipper.repeatWhenAttached(assertOnMainThread = false) {
+            viewModel.isPaused.collect { viewFlipper.setInhibited(it) }
         }
     }
 }

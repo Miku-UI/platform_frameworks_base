@@ -31,6 +31,7 @@ import android.view.SurfaceControl;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.window.TaskOrganizer;
+import android.window.WindowContainerTransaction;
 import android.window.WindowContainerTransactionCallback;
 
 import java.util.concurrent.CountDownLatch;
@@ -67,11 +68,15 @@ public class TaskOrganizerMultiWindowTest extends Activity {
             final String clsName = ti.baseActivity.getClassName();
             if (clsName.contentEquals(TestActivity1.class.getName())) {
                 mTaskView1.reparentTask(ti.token, leash);
-                mOrganizer.setInterceptBackPressedOnTaskRoot(ti.token, true);
+                final WindowContainerTransaction wct = new WindowContainerTransaction();
+                wct.setInterceptBackPressedOnTaskRoot(ti.token, true);
+                applyTransaction(wct);
                 mTasksReadyLatch.countDown();
             } else if (clsName.contentEquals(TestActivity2.class.getName())) {
                 mTaskView2.reparentTask(ti.token, leash);
-                mOrganizer.setInterceptBackPressedOnTaskRoot(ti.token, true);
+                final WindowContainerTransaction wct = new WindowContainerTransaction();
+                wct.setInterceptBackPressedOnTaskRoot(ti.token, true);
+                applyTransaction(wct);
                 mTasksReadyLatch.countDown();
             }
         }

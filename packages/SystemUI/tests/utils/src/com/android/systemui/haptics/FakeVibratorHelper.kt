@@ -36,6 +36,9 @@ class FakeVibratorHelper : VibratorHelper(EmptyVibrator(), FakeExecutor(FakeSyst
     val totalVibrations: Int
         get() = vibrationEffectHistory.size
 
+    var timesCancelled = 0
+        private set
+
     override fun vibrate(effect: VibrationEffect) {
         vibrationEffectHistory.add(effect)
     }
@@ -54,6 +57,10 @@ class FakeVibratorHelper : VibratorHelper(EmptyVibrator(), FakeExecutor(FakeSyst
 
     override fun getPrimitiveDurations(vararg primitiveIds: Int): IntArray =
         primitiveIds.map { primitiveDurations[it] ?: 0 }.toIntArray()
+
+    override fun cancel() {
+        timesCancelled++
+    }
 
     fun hasVibratedWithEffects(vararg effects: VibrationEffect): Boolean =
         vibrationEffectHistory.containsAll(effects.toList())

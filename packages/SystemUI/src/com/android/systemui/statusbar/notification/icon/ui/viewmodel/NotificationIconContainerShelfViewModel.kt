@@ -29,10 +29,7 @@ import kotlinx.coroutines.flow.map
 /** View-model for the overflow row of notification icons displayed in the notification shade. */
 class NotificationIconContainerShelfViewModel
 @Inject
-constructor(
-    @Background bgContext: CoroutineContext,
-    interactor: NotificationIconsInteractor,
-) {
+constructor(@Background bgContext: CoroutineContext, interactor: NotificationIconsInteractor) {
     /** [NotificationIconsViewData] indicating which icons to display in the view. */
     val icons: Flow<NotificationIconsViewData> =
         interactor
@@ -40,12 +37,12 @@ constructor(
             .map { entries ->
                 var firstAmbient = 0
                 val visibleKeys = buildList {
-                    for (entry in entries) {
-                        entry.toIconInfo(entry.shelfIcon)?.let { info ->
+                    for (iconModel in entries) {
+                        iconModel.toIconInfo(iconModel.shelfIcon)?.let { info ->
                             add(info)
                             // NOTE: we assume that all ambient notifications will be at the end of
                             // the list
-                            if (!entry.isAmbient) {
+                            if (!iconModel.isAmbient) {
                                 firstAmbient++
                             }
                         }

@@ -40,10 +40,13 @@ class NoopDeviceEntryFaceAuthInteractor @Inject constructor() : DeviceEntryFaceA
     override val isLockedOut: StateFlow<Boolean> = MutableStateFlow(false)
     override val isAuthenticated: StateFlow<Boolean> = MutableStateFlow(false)
     override val isBypassEnabled: Flow<Boolean> = flowOf(false)
+    override val isCameraPrivacyInterfering: StateFlow<Boolean> = MutableStateFlow(false)
 
     override fun canFaceAuthRun(): Boolean = false
 
-    override fun isRunning(): Boolean = false
+    override fun isAuthRunning(): Boolean = false
+
+    override fun isDetectRunning(): Boolean = false
 
     override fun isFaceAuthEnabledAndEnrolled(): Boolean = false
 
@@ -66,6 +69,14 @@ class NoopDeviceEntryFaceAuthInteractor @Inject constructor() : DeviceEntryFaceA
     override fun onNotificationPanelClicked() {}
 
     override fun onSwipeUpOnBouncer() {}
+
+    override fun onSecureLockDeviceBiometricAuthRequested() {}
+
+    override fun onSecureLockDeviceBiometricAuthHidden() {}
+
+    override fun onSecureLockDeviceConfirmButtonShowingChanged(isShowingConfirmButton: Boolean) {}
+
+    override fun onSecureLockDeviceTryAgainButtonShowingChanged(isShowingTryAgainButton: Boolean) {}
 
     override fun onPrimaryBouncerUserInput() {}
 

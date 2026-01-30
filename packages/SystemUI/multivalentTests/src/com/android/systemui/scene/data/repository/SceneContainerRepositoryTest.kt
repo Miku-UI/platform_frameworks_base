@@ -32,6 +32,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -59,7 +60,7 @@ class SceneContainerRepositoryTest : SysuiTestCase() {
             underTest.changeScene(Scenes.Shade)
             assertThat(currentScene).isEqualTo(Scenes.Shade)
 
-            underTest.snapToScene(Scenes.QuickSettings)
+            underTest.instantlyTransitionTo(Scenes.QuickSettings)
             assertThat(currentScene).isEqualTo(Scenes.QuickSettings)
         }
 
@@ -75,18 +76,22 @@ class SceneContainerRepositoryTest : SysuiTestCase() {
             // TODO(b/356596436): When we have a first overlay, add it here and assert contains.
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun changeScene_noSuchSceneInContainer_throws() {
         kosmos.sceneKeys = listOf(Scenes.QuickSettings, Scenes.Lockscreen)
-        val underTest = kosmos.sceneContainerRepository
-        underTest.changeScene(Scenes.Shade)
+        assertThrows(IllegalStateException::class.java) {
+            val underTest = kosmos.sceneContainerRepository
+            underTest.changeScene(Scenes.Shade)
+        }
     }
 
-    @Test(expected = IllegalStateException::class)
-    fun snapToScene_noSuchSceneInContainer_throws() {
+    @Test
+    fun instantlyTransitionTo_noSuchSceneInContainer_throws() {
         kosmos.sceneKeys = listOf(Scenes.QuickSettings, Scenes.Lockscreen)
-        val underTest = kosmos.sceneContainerRepository
-        underTest.snapToScene(Scenes.Shade)
+        assertThrows(IllegalStateException::class.java) {
+            val underTest = kosmos.sceneContainerRepository
+            underTest.instantlyTransitionTo(Scenes.Shade)
+        }
     }
 
     @Test

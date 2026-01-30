@@ -19,9 +19,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.util.time.FakeSystemClock
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
+import org.junit.Assert
+import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -227,13 +226,15 @@ class MockExecutorHandlerTest : SysuiTestCase() {
      * Verifies that `Handler.removeMessages`, which doesn't make sense with executor backing,
      * causes an error in the test (rather than failing silently like most mocks).
      */
-    @Test(expected = RuntimeException::class)
+    @Test
     fun testRemoveMessages_fails() {
         val clock = FakeSystemClock()
         val fakeExecutor = FakeExecutor(clock)
         val handler = mockExecutorHandler(fakeExecutor)
 
-        handler.removeMessages(1)
+        assertThrows(RuntimeException::class.java) {
+            handler.removeMessages(1)
+        }
     }
 
     private class RunnableImpl : Runnable {

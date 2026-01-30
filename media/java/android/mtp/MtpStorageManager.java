@@ -45,7 +45,7 @@ import java.util.function.Supplier;
  * MtpStorageManager provides functionality for listing, tracking, and notifying MtpServer of
  * filesystem changes. As directories are listed, this class will cache the results,
  * and send events when objects are added/removed from cached directories.
- * {@hide}
+ * @hide
  */
 public class MtpStorageManager {
     private static final String TAG = MtpStorageManager.class.getSimpleName();

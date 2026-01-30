@@ -21,6 +21,8 @@ import android.view.Display
 interface InteractiveScreenshotHandler : ScreenshotHandler {
     fun isPendingSharedTransition(): Boolean
 
+    fun getDisplay(): Display
+
     fun requestDismissal(event: ScreenshotEvent)
 
     fun removeWindow()

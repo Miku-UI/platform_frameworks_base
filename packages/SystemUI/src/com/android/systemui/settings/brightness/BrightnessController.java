@@ -160,24 +160,14 @@ public class BrightnessController implements ToggleSlider.Listener, MirroredBrig
         public void startObserving() {
             if (!mObserving) {
                 mObserving = true;
-                if (Flags.registerContentObserversAsync()) {
-                    mSecureSettings.registerContentObserverForUserAsync(
-                            BRIGHTNESS_MODE_URI,
-                            false, this, UserHandle.USER_ALL);
-                } else {
-                    mSecureSettings.registerContentObserverForUserSync(
-                            BRIGHTNESS_MODE_URI,
-                            false, this, UserHandle.USER_ALL);
-                }
+                mSecureSettings.registerContentObserverForUserAsync(
+                        BRIGHTNESS_MODE_URI,
+                        false, this, UserHandle.USER_ALL);
             }
         }
 
         public void stopObserving() {
-            if (Flags.registerContentObserversAsync()) {
-                mSecureSettings.unregisterContentObserverAsync(this);
-            } else {
-                mSecureSettings.unregisterContentObserverSync(this);
-            }
+            mSecureSettings.unregisterContentObserverAsync(this);
             mObserving = false;
         }
 
@@ -405,16 +395,13 @@ public class BrightnessController implements ToggleSlider.Listener, MirroredBrig
         boolean starting = !mTrackingTouch && tracking;
         mTrackingTouch = tracking;
         if (starting) {
-            if (Flags.showToastWhenAppControlBrightness()) {
-                // Showing the warning toast if the current running app window has
-                // controlled the brightness value.
-                if (mIsBrightnessOverriddenByWindow) {
-                    mControl.showToast(R.string.quick_settings_brightness_unable_adjust_msg);
-                }
+            // Showing the warning toast if the current running app window has
+            // controlled the brightness value.
+            if (mIsBrightnessOverriddenByWindow) {
+                mControl.showToast(R.string.quick_settings_brightness_unable_adjust_msg);
             }
         }
-        if (mExternalChange
-                || (Flags.showToastWhenAppControlBrightness() && mIsBrightnessOverriddenByWindow)) {
+        if (mExternalChange || mIsBrightnessOverriddenByWindow) {
             return;
         }
 
@@ -469,7 +456,7 @@ public class BrightnessController implements ToggleSlider.Listener, MirroredBrig
                         RestrictedLockUtilsInternal.checkIfRestrictionEnforced(mContext,
                                 UserManager.DISALLOW_CONFIG_BRIGHTNESS,
                                 userId);
-                if (Flags.enforceBrightnessBaseUserRestriction() && enforcedAdmin == null
+                if (enforcedAdmin == null
                         && RestrictedLockUtilsInternal.hasBaseUserRestriction(mContext,
                         UserManager.DISALLOW_CONFIG_BRIGHTNESS,
                         userId)) {

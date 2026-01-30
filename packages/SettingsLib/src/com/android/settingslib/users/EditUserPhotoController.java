@@ -131,20 +131,11 @@ public class EditUserPhotoController {
     private void showAvatarPicker(boolean isUserNew) {
         Intent intent = new Intent(AVATAR_PICKER_ACTION);
         intent.addCategory(Intent.CATEGORY_DEFAULT);
-        if (Flags.avatarSync()) {
-            intent.putExtra(EXTRA_IS_USER_NEW, isUserNew);
-            // Fix vulnerability b/341688848 by explicitly set the class name of avatar picker.
-            if (Flags.fixAvatarCrossUserLeak()) {
-                final String packageName =
-                        mActivity.getString(R.string.config_avatar_picker_package);
-                final String className = mActivity.getString(R.string.config_avatar_picker_class);
-                intent.setClassName(packageName, className);
-            }
-        } else {
-            // SettingsLib is used by multiple apps therefore we need to know out of all apps
-            // using settingsLib which one is the one we return value to.
-            intent.setPackage(mImageView.getContext().getApplicationContext().getPackageName());
-        }
+        intent.putExtra(EXTRA_IS_USER_NEW, isUserNew);
+        final String packageName =
+                mActivity.getString(R.string.config_avatar_picker_package);
+        final String className = mActivity.getString(R.string.config_avatar_picker_class);
+        intent.setClassName(packageName, className);
         intent.putExtra(EXTRA_FILE_AUTHORITY, mFileAuthority);
         mActivityStarter.startActivityForResult(intent, REQUEST_CODE_PICK_AVATAR);
     }

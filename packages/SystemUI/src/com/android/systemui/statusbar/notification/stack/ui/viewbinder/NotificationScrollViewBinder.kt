@@ -17,8 +17,10 @@
 package com.android.systemui.statusbar.notification.stack.ui.viewbinder
 
 import android.util.Log
+import com.android.app.tracing.coroutines.flow.collectLatestTraced
 import com.android.app.tracing.coroutines.flow.collectTraced
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.Flags
 import com.android.systemui.common.ui.ConfigurationState
 import com.android.systemui.common.ui.view.onLayoutChanged
 import com.android.systemui.dagger.SysUISingleton
@@ -32,6 +34,7 @@ import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationScrollView
 import com.android.systemui.statusbar.notification.stack.ui.viewmodel.NotificationScrollViewModel
 import com.android.systemui.util.kotlin.FlowDumperImpl
+import com.android.systemui.util.kotlin.buildDisposableHandle
 import com.android.systemui.util.kotlin.launchAndDispose
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -90,13 +93,21 @@ constructor(
 
             launch { viewModel.maxAlpha.collectTraced { view.setMaxAlpha(it) } }
             launch { viewModel.shadeScrollState.collect { view.setScrollState(it) } }
-            launch {
-                viewModel.expandFraction.collectTraced {
-                    view.setExpandFraction(it.coerceIn(0f, 1f))
-                }
-            }
+            launch { viewModel.expandFraction.collectTraced { view.setExpandFraction(it) } }
             launch { viewModel.qsExpandFraction.collectTraced { view.setQsExpandFraction(it) } }
-            launch { viewModel.blurRadius(maxBlurRadius).collect(view::setBlurRadius) }
+            if (Flags.notificationShadeBlur()) {
+                launch { viewModel.blurRadius(maxBlurRadius).collect(view::setBlurRadius) }
+                launch { viewModel.interactive.collectTraced(view::setInteractive) }
+            }
+
+            launch {
+                viewModel
+                    .getLockscreenDisplayConfig(view::calculateMaxNotifications)
+                    .collectLatestTraced { (isOnLockscreen, maxNotifications) ->
+                        view.setOnLockscreen(isOnLockscreen)
+                        view.setMaxDisplayedNotifications(maxNotifications)
+                    }
+            }
             launch {
                 viewModel.isShowingStackOnLockscreen.collectTraced {
                     view.setShowingStackOnLockscreen(it)
@@ -124,27 +135,25 @@ constructor(
             }
 
             launchAndDispose {
-                view.setSyntheticScrollConsumer(viewModel.syntheticScrollConsumer)
-                view.setCurrentGestureOverscrollConsumer(viewModel.currentGestureOverscrollConsumer)
-                view.setCurrentGestureInGutsConsumer(viewModel.currentGestureInGutsConsumer)
-                view.setRemoteInputRowBottomBoundConsumer(
-                    viewModel.remoteInputRowBottomBoundConsumer
-                )
-                view.setAccessibilityScrollEventConsumer(viewModel.accessibilityScrollEventConsumer)
-                viewModel.setQsScrimShapeConsumer { shape ->
-                    view.setNegativeClippingShape(
-                        shape?.let {
-                            it.copy(bounds = it.bounds.minus(leftOffset = view.asView().left))
+                buildDisposableHandle {
+                    bind(viewModel.syntheticScrollConsumer) { view.setSyntheticScrollConsumer(it) }
+                    bind(viewModel.currentGestureExpandingNotifConsumer) {
+                        view.setCurrentGestureExpandingNotificationConsumer(it)
+                    }
+                    bind(viewModel.currentGestureInGutsConsumer) {
+                        view.setCurrentGestureInGutsConsumer(it)
+                    }
+                    bind(viewModel.remoteInputRowBottomBoundConsumer) {
+                        view.setRemoteInputRowBottomBoundConsumer(it)
+                    }
+                    bind(viewModel.accessibilityScrollEventConsumer) {
+                        view.setAccessibilityScrollEventConsumer(it)
+                    }
+                    register(
+                        viewModel.getQsScrimShape(view.observableLeft).observe { shape ->
+                            view.setNegativeClippingShape(shape)
                         }
                     )
-                }
-                DisposableHandle {
-                    view.setSyntheticScrollConsumer(null)
-                    view.setCurrentGestureOverscrollConsumer(null)
-                    view.setCurrentGestureInGutsConsumer(null)
-                    view.setRemoteInputRowBottomBoundConsumer(null)
-                    view.setAccessibilityScrollEventConsumer(null)
-                    viewModel.setQsScrimShapeConsumer(null)
                 }
             }
         }

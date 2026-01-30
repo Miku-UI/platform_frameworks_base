@@ -31,10 +31,11 @@ import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInterac
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
+import com.android.systemui.scene.domain.interactor.SceneInteractor
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.shared.customization.data.SensorLocation
-import com.android.systemui.util.kotlin.sample
 import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +72,7 @@ constructor(
     private val deviceEntrySourceInteractor: DeviceEntrySourceInteractor,
     private val accessibilityInteractor: AccessibilityInteractor,
     @Application private val scope: CoroutineScope,
+    private val sceneInteractor: Lazy<SceneInteractor>,
 ) {
     val isUdfpsSupported: StateFlow<Boolean> = deviceEntryUdfpsInteractor.isUdfpsSupported
     val udfpsLocation: StateFlow<SensorLocation?> =
@@ -141,11 +143,23 @@ constructor(
             KeyguardState.DREAMING,
             KeyguardState.GLANCEABLE_HUB,
             KeyguardState.GONE,
-            KeyguardState.OCCLUDED,
-            KeyguardState.UNDEFINED -> 0f
+            KeyguardState.OCCLUDED -> 0f
             KeyguardState.AOD,
             KeyguardState.ALTERNATE_BOUNCER,
             KeyguardState.LOCKSCREEN -> 1f
+            KeyguardState.UNDEFINED -> calculateAlphaForKeyguardStateUndefined()
+        }
+    }
+
+    private fun calculateAlphaForKeyguardStateUndefined(): Float {
+        return if (SceneContainerFlag.isEnabled) {
+            when (sceneInteractor.get().currentScene.value) {
+                Scenes.Shade,
+                Scenes.QuickSettings -> 1f
+                else -> 0f
+            }
+        } else {
+            1f
         }
     }
 
@@ -155,16 +169,11 @@ constructor(
             .flatMapLatest { udfpsEnrolled ->
                 if (udfpsEnrolled) {
                     combine(
-                        transitionInteractor.startedKeyguardTransitionStep.sample(
-                            shadeInteractor.isAnyFullyExpanded,
-                            ::Pair,
-                        ),
+                        transitionInteractor.startedKeyguardTransitionStep,
                         animatedBurnInOffsets,
                         nonAnimatedBurnInOffsets,
-                    ) {
-                        (startedTransitionStep, shadeExpanded),
-                        animatedBurnInOffsets,
-                        nonAnimatedBurnInOffsets ->
+                    ) { startedTransitionStep, animatedBurnInOffsets, nonAnimatedBurnInOffsets ->
+                        val shadeExpanded = shadeInteractor.isAnyFullyExpanded.value
                         if (startedTransitionStep.to == KeyguardState.AOD) {
                             when (startedTransitionStep.from) {
                                 KeyguardState.ALTERNATE_BOUNCER -> animatedBurnInOffsets
@@ -197,7 +206,7 @@ constructor(
         if (SceneContainerFlag.isEnabled) {
                 deviceEntryInteractor.isUnlocked
             } else {
-                keyguardInteractor.isKeyguardDismissible
+                keyguardInteractor.hasTrust
             }
             .flatMapLatest { isUnlocked ->
                 if (!isUnlocked) {
@@ -254,6 +263,11 @@ constructor(
 
     val isLongPressEnabled: Flow<Boolean> = isInteractive
 
+    val transitioningToDozing: Flow<Boolean> =
+        transitionInteractor.startedKeyguardTransitionStep.map { keyguardStep ->
+            keyguardStep.to == KeyguardState.DOZING
+        }
+
     val deviceDidNotEnterFromDeviceEntryIcon =
         deviceEntrySourceInteractor.attemptEnterDeviceFromDeviceEntryIcon
             .map { keyguardInteractor.isKeyguardDismissible.value }
@@ -263,7 +277,7 @@ constructor(
 
     suspend fun onUserInteraction() {
         if (SceneContainerFlag.isEnabled) {
-            deviceEntryInteractor.attemptDeviceEntry()
+            deviceEntryInteractor.attemptDeviceEntry("Device entry icon")
         } else {
             keyguardViewController
                 .get()

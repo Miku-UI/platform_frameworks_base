@@ -127,6 +127,16 @@ class XmlFlattenerVisitor : public xml::ConstVisitor {
       AddString(node->name, kLowPriority, &flat_elem->name, true /* treat_empty_string_as_null */);
 
       flat_elem->attributeStart = android::util::HostToDevice16(sizeof(*flat_elem));
+      if (node->flag) {
+        auto* flag_ext = start_writer.NextBlock<ResXMLTreeFlagExt>();
+        flag_ext->descriptor = ResXMLTreeExtDescriptor::FLAG_INFO;
+        flag_ext->flag_negated = node->flag->negated;
+        AddString(node->flag->name, kLowPriority, &flag_ext->flag_name);
+
+        flat_elem->attributeStart =
+            android::util::HostToDevice16(sizeof(*flat_elem) + sizeof(*flag_ext));
+      }
+
       flat_elem->attributeSize = android::util::HostToDevice16(sizeof(ResXMLTree_attribute));
 
       WriteAttributes(node, flat_elem, &start_writer);

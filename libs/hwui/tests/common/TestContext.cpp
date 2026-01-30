@@ -19,6 +19,8 @@
 #include <com_android_graphics_libgui_flags.h>
 #include <cutils/trace.h>
 
+#include "gui/BufferItemConsumer.h"
+
 namespace android {
 namespace uirenderer {
 namespace test {
@@ -102,24 +104,11 @@ void TestContext::createWindowSurface() {
 }
 
 void TestContext::createOffscreenSurface() {
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
-    mConsumer = new BufferItemConsumer(GRALLOC_USAGE_HW_COMPOSER, 4);
+    std::tie(mConsumer, mSurface) = BufferItemConsumer::create(GRALLOC_USAGE_HW_COMPOSER, 4);
     const ui::Size& resolution = getActiveDisplayResolution();
     mConsumer->setDefaultBufferSize(resolution.getWidth(), resolution.getHeight());
-    mSurface = mConsumer->getSurface();
     mSurface->setMaxDequeuedBufferCount(3);
     mSurface->setAsyncMode(true);
-#else
-    sp<IGraphicBufferProducer> producer;
-    sp<IGraphicBufferConsumer> consumer;
-    BufferQueue::createBufferQueue(&producer, &consumer);
-    producer->setMaxDequeuedBufferCount(3);
-    producer->setAsyncMode(true);
-    mConsumer = new BufferItemConsumer(consumer, GRALLOC_USAGE_HW_COMPOSER, 4);
-    const ui::Size& resolution = getActiveDisplayResolution();
-    mConsumer->setDefaultBufferSize(resolution.getWidth(), resolution.getHeight());
-    mSurface = new Surface(producer);
-#endif  // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 }
 
 void TestContext::waitForVsync() {

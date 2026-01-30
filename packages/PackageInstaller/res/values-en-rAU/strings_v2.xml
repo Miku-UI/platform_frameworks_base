@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Permission required"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Install blocked"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Preparing app…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Install this app?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Installing…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"App installed"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Reinstall this app?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Reinstalling…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"App reinstalled"</string>
+    <string name="title_update" msgid="1747328630716712391">"Update this app?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Update this app using <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Updating…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"App updated"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Can\'t install app"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Install blocked"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"App not compatible"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Invalid package"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Not enough storage"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"App not installed"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Uninstall this app?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Delete this app clone?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Uninstall app updates?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Uninstall app updates for all users?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Uninstall this app for all users?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Uninstall this app for user \'<xliff:g id="USER_NAME">%1$s</xliff:g>\'?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"App not found"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Can\'t uninstall this app"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"App not uninstalled"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Archive this app?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Archive this app for all users?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Archive this app for user \'<xliff:g id="USER_NAME">%1$s</xliff:g>\'?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Restore this app?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Action required"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Not enough storage"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"You\'re offline"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> is disabled"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> is not installed"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Something went wrong"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"This app normally receives updates from &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. By updating using a different source, you may receive future updates from any source on your tablet. App functionality may change."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"This app normally receives updates from &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. By updating using a different source, you may receive future updates from any source on your TV. App functionality may change."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"This app normally receives updates from &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. By updating using a different source, you may receive future updates from any source on your phone. App functionality may change."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"For your security, your tablet currently isn\'t allowed to install unknown apps from this source. You can change this in Settings."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"For your security, your TV currently isn\'t allowed to install unknown apps from this source. You can change this in Settings."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"For your security, your watch currently isn\'t allowed to install unknown apps from this source. You can change this in Settings."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"For your security, your phone currently isn\'t allowed to install unknown apps from this source. You can change this in Settings."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Your phone and personal data are more vulnerable to attack by unknown apps. By installing this app, you agree that you are responsible for any damage to your phone or loss of data that may result from its use."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Your tablet and personal data are more vulnerable to attack by unknown apps. By installing this app, you agree that you are responsible for any damage to your tablet or loss of data that may result from its use."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Your TV and personal data are more vulnerable to attack by unknown apps. By installing this app, you agree that you are responsible for any damage to your TV or loss of data that may result from its use."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"This app was blocked from being installed"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"This app conflicts with an app already on your device"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"This app is not compatible with your device"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"There\'s a problem with this app\'s installation file"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"To install this app, free up some space and try again"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"There\'s a problem with the app file"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Installing apps has been restricted"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Installing unknown apps has been restricted"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"A clone of this app also exists and will be deleted"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"This app is a clone of <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"This app will be replaced with the factory version. All app data will be removed."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"This app will be replaced with the factory version for all users on the device. All app data will be removed."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"This app will be uninstalled from your work profile"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"This app will be uninstalled from your private space"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"This app wasn\'t found in the list of installed apps, or has already been uninstalled"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"The current user is not allowed to perform this uninstallation"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"This app could not be uninstalled"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Keep app data"</string>
+    <string name="message_archive" msgid="943853731737315850">"Your app data will be saved"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"All app data will be saved"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"App data will be saved"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"This app will be archived from your work profile. Your app data will be saved."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"This app will be archived from your private space. Your app data will be saved."</string>
+    <string name="message_restore" msgid="8402726798623569969">"This app will download from <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> in the background"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> needs more information before you can restore this app"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"To restore this app, free up &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; and try again"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"To restore this app, please check your Internet connection and try again"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"To restore this app, enable <xliff:g id="INSTALLERNAME">%1$s</xliff:g> in Settings"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"To restore this app, you\'ll need to install <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"There was a problem trying to restore this app"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> is part of the following app: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;This app was blocked. To help keep your device and data safe, only apps from verified developers can be installed.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;This app was not updated. To help keep your device and data safe, only updates from verified developers can be installed.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;This app was not installed. Apps from unverified developers may be unsafe.&lt;/p&gt; &lt;p&gt;An Internet connection is required to verify the app developer. Check your connection, then try installing again. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;This app was not updated. Updates from unverified developers may be unsafe.&lt;/p&gt; &lt;p&gt;An Internet connection is required to verify the app developer. Check your connection, then try updating again. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;There was a problem verifying this app\'s developer. Apps from unverified developers may be unsafe, so the app was not installed.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;There was a problem verifying this app\'s developer. Updates from unverified developers may be unsafe, so the app was not updated.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;This app was blocked because there was a problem verifying the developer. To help keep your device and data safe, only apps from verified developers can be installed.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;This app was not updated because there was a problem verifying the developer. To help keep your device and data safe, only updates from verified developers can be installed.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Learn more about developer verification&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"If you install without verifying, bear in mind that apps from unverified developers may put your device and data at risk."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"If you update without verifying, bear in mind that updates from unverified developers may put your device and data at risk."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"App developer unverified"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"No Internet, can\'t verify app developer"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Can\'t verify app developer"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Install without verifying"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Update without verifying"</string>
+    <string name="button_install" msgid="7434013176505680162">"Install"</string>
+    <string name="button_update" msgid="3046719350226327526">"Update"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Update anyway"</string>
+    <string name="button_done" msgid="3408025390982260629">"Done"</string>
+    <string name="button_open" msgid="6892684987374117955">"Open"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Cancel"</string>
+    <string name="button_continue" msgid="107501685249826244">"Continue"</string>
+    <string name="button_close" msgid="7187308556466275899">"Close"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Uninstall"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Delete"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Reinstall"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Manage apps"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Archive"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Restore"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Uninstall updates"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Settings"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Try again"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> clone"</string>
+</resources>

@@ -21,7 +21,7 @@ import android.media.soundtrigger_middleware.PhraseRecognitionEventSys;
 /**
  * Main interface for a client to get notifications of events coming from this module.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ISoundTriggerCallback {
     /**

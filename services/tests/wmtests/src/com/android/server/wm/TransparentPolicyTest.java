@@ -27,7 +27,6 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 
 import static org.mockito.Mockito.clearInvocations;
 
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
 import androidx.annotation.NonNull;
@@ -230,7 +229,6 @@ public class TransparentPolicyTest extends WindowTestsBase {
         });
     }
 
-    @EnableFlags(com.android.window.flags.Flags.FLAG_RESPECT_NON_TOP_VISIBLE_FIXED_ORIENTATION)
     @Test
     public void testNotRunStrategyToTranslucentActivitiesIfRespectOrientation() {
         runTestScenario(robot -> robot.transparentActivity(ta -> ta.applyOnActivity((a) -> {
@@ -365,8 +363,8 @@ public class TransparentPolicyTest extends WindowTestsBase {
 
     private void runTestScenario(Consumer<TransparentPolicyRobotTest> consumer,
                                  boolean policyEnabled, int displayWidth, int displayHeight) {
-        final TransparentPolicyRobotTest robot =
-                new TransparentPolicyRobotTest(mWm, mAtm, mSupervisor, displayWidth, displayHeight);
+        final TransparentPolicyRobotTest robot = new TransparentPolicyRobotTest(this, displayWidth,
+                displayHeight);
         robot.conf().enableTranslucentPolicy(policyEnabled);
         consumer.accept(robot);
     }
@@ -394,11 +392,9 @@ public class TransparentPolicyTest extends WindowTestsBase {
         @NonNull
         private final AppCompatTransparentActivityRobot mTransparentActivityRobot;
 
-        private TransparentPolicyRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor,
+        private TransparentPolicyRobotTest(@NonNull WindowTestsBase windowTestBase,
                 int displayWidth, int displayHeight) {
-            super(wm, atm, supervisor, displayWidth, displayHeight);
+            super(windowTestBase, displayWidth, displayHeight);
             mTransparentActivityRobot = new AppCompatTransparentActivityRobot(activity());
             // We always create at least an opaque activity in a Task
             activity().createNewTaskWithBaseActivity();

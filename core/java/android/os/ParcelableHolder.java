@@ -162,12 +162,7 @@ public final class ParcelableHolder implements Parcelable {
 
         mParcel.setDataPosition(0);
 
-        T parcelable = mParcel.readParcelable(clazz.getClassLoader());
-        if (parcelable != null && !clazz.isInstance(parcelable)) {
-            throw new BadParcelableException(
-                    "The ParcelableHolder has " + parcelable.getClass().getName()
-                    + ", but the requested type is " + clazz.getName());
-        }
+        T parcelable = mParcel.readParcelable(clazz.getClassLoader(), clazz);
         mParcelable = parcelable;
 
         mParcel.recycle();

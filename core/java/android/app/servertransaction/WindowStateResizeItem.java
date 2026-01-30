@@ -16,8 +16,6 @@
 
 package android.app.servertransaction;
 
-import static java.util.Objects.requireNonNull;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ClientTransactionHandler;
@@ -28,6 +26,7 @@ import android.util.Log;
 import android.util.MergedConfiguration;
 import android.view.IWindow;
 import android.view.InsetsState;
+import android.view.WindowRelayoutResult;
 import android.window.ActivityWindowInfo;
 import android.window.ClientWindowFrames;
 
@@ -43,56 +42,44 @@ public class WindowStateResizeItem extends WindowStateTransactionItem {
     private static final String TAG = "WindowStateResizeItem";
 
     @NonNull
-    private final ClientWindowFrames mFrames;
-
-    @NonNull
-    private final MergedConfiguration mConfiguration;
-
-    @NonNull
-    private final InsetsState mInsetsState;
-
-    /** {@code null} if this is not an Activity window. */
-    @Nullable
-    private final ActivityWindowInfo mActivityWindowInfo;
+    private final WindowRelayoutResult mLayout = new WindowRelayoutResult(new ClientWindowFrames(),
+            new MergedConfiguration(), new InsetsState(), null /* insetControls */);
 
     private final boolean mReportDraw;
     private final boolean mForceLayout;
-    private final boolean mAlwaysConsumeSystemBars;
     private final int mDisplayId;
-    private final int mSyncSeqId;
+    private final boolean mSyncWithBuffers;
     private final boolean mDragResizing;
 
-    public WindowStateResizeItem(@NonNull IWindow window,
-            @NonNull ClientWindowFrames frames, boolean reportDraw,
-            @NonNull MergedConfiguration configuration, @NonNull InsetsState insetsState,
-            boolean forceLayout, boolean alwaysConsumeSystemBars, int displayId, int syncSeqId,
-            boolean dragResizing, @Nullable ActivityWindowInfo activityWindowInfo) {
+    public WindowStateResizeItem(@NonNull IWindow window, @NonNull ClientWindowFrames frames,
+            boolean reportDraw, @NonNull MergedConfiguration configuration,
+            @NonNull InsetsState insetsState, boolean forceLayout, int displayId, int syncSeqId,
+            boolean syncWithBuffers, boolean dragResizing,
+            @Nullable ActivityWindowInfo activityWindowInfo) {
         super(window);
-        mFrames = new ClientWindowFrames(frames);
-        mConfiguration = new MergedConfiguration(configuration);
-        mInsetsState = new InsetsState(insetsState, true /* copySources */);
+        mLayout.frames.setTo(frames);
+        mLayout.mergedConfiguration.setTo(configuration);
+        mLayout.insetsState.set(insetsState, true /* copySources */);
         if (activityWindowInfo != null) {
-            mActivityWindowInfo = new ActivityWindowInfo(activityWindowInfo);
+            mLayout.activityWindowInfo = new ActivityWindowInfo(activityWindowInfo);
         } else {
-            mActivityWindowInfo = null;
+            mLayout.activityWindowInfo = null;
         }
         mReportDraw = reportDraw;
         mForceLayout = forceLayout;
-        mAlwaysConsumeSystemBars = alwaysConsumeSystemBars;
         mDisplayId = displayId;
-        mSyncSeqId = syncSeqId;
+        mLayout.syncSeqId = syncSeqId;
+        mSyncWithBuffers = syncWithBuffers;
         mDragResizing = dragResizing;
     }
 
     @Override
     public void execute(@NonNull ClientTransactionHandler client, @NonNull IWindow window,
             @NonNull PendingTransactionActions pendingActions) {
-        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER,
-                mReportDraw ? "windowResizedReport" : "windowResized");
+        Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "windowResized");
         try {
-            window.resized(mFrames, mReportDraw, mConfiguration, mInsetsState, mForceLayout,
-                    mAlwaysConsumeSystemBars, mDisplayId, mSyncSeqId, mDragResizing,
-                    mActivityWindowInfo);
+            window.resized(mLayout, mReportDraw, mForceLayout, mDisplayId, mSyncWithBuffers,
+                    mDragResizing);
         } catch (RemoteException e) {
             // Should be a local call.
             // An exception could happen if the process is restarted. It is safe to ignore since
@@ -102,37 +89,33 @@ public class WindowStateResizeItem extends WindowStateTransactionItem {
         Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
     }
 
+    public boolean getSyncWithBuffersForTest() {
+        return mSyncWithBuffers;
+    }
+
     // Parcelable implementation
 
     /** Writes to Parcel. */
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         super.writeToParcel(dest, flags);
-        dest.writeTypedObject(mFrames, flags);
+        mLayout.writeToParcel(dest, flags);
         dest.writeBoolean(mReportDraw);
-        dest.writeTypedObject(mConfiguration, flags);
-        dest.writeTypedObject(mInsetsState, flags);
         dest.writeBoolean(mForceLayout);
-        dest.writeBoolean(mAlwaysConsumeSystemBars);
         dest.writeInt(mDisplayId);
-        dest.writeInt(mSyncSeqId);
+        dest.writeBoolean(mSyncWithBuffers);
         dest.writeBoolean(mDragResizing);
-        dest.writeTypedObject(mActivityWindowInfo, flags);
     }
 
     /** Reads from Parcel. */
     private WindowStateResizeItem(@NonNull Parcel in) {
         super(in);
-        mFrames = requireNonNull(in.readTypedObject(ClientWindowFrames.CREATOR));
+        mLayout.readFromParcel(in);
         mReportDraw = in.readBoolean();
-        mConfiguration = requireNonNull(in.readTypedObject(MergedConfiguration.CREATOR));
-        mInsetsState = requireNonNull(in.readTypedObject(InsetsState.CREATOR));
         mForceLayout = in.readBoolean();
-        mAlwaysConsumeSystemBars = in.readBoolean();
         mDisplayId = in.readInt();
-        mSyncSeqId = in.readInt();
+        mSyncWithBuffers = in.readBoolean();
         mDragResizing = in.readBoolean();
-        mActivityWindowInfo = in.readTypedObject(ActivityWindowInfo.CREATOR);
     }
 
     public static final @NonNull Creator<WindowStateResizeItem> CREATOR = new Creator<>() {
@@ -154,32 +137,32 @@ public class WindowStateResizeItem extends WindowStateTransactionItem {
             return false;
         }
         final WindowStateResizeItem other = (WindowStateResizeItem) o;
-        return Objects.equals(mFrames, other.mFrames)
+        return Objects.equals(mLayout.frames, other.mLayout.frames)
+                && Objects.equals(mLayout.mergedConfiguration, other.mLayout.mergedConfiguration)
+                && Objects.equals(mLayout.insetsState, other.mLayout.insetsState)
                 && mReportDraw == other.mReportDraw
-                && Objects.equals(mConfiguration, other.mConfiguration)
-                && Objects.equals(mInsetsState, other.mInsetsState)
                 && mForceLayout == other.mForceLayout
-                && mAlwaysConsumeSystemBars == other.mAlwaysConsumeSystemBars
                 && mDisplayId == other.mDisplayId
-                && mSyncSeqId == other.mSyncSeqId
+                && mLayout.syncSeqId == other.mLayout.syncSeqId
+                && mSyncWithBuffers == other.mSyncWithBuffers
                 && mDragResizing == other.mDragResizing
-                && Objects.equals(mActivityWindowInfo, other.mActivityWindowInfo);
+                && Objects.equals(mLayout.activityWindowInfo, other.mLayout.activityWindowInfo);
     }
 
     @Override
     public int hashCode() {
         int result = 17;
         result = 31 * result + super.hashCode();
-        result = 31 * result + Objects.hashCode(mFrames);
+        result = 31 * result + Objects.hashCode(mLayout.frames);
+        result = 31 * result + Objects.hashCode(mLayout.mergedConfiguration);
+        result = 31 * result + Objects.hashCode(mLayout.insetsState);
         result = 31 * result + (mReportDraw ? 1 : 0);
-        result = 31 * result + Objects.hashCode(mConfiguration);
-        result = 31 * result + Objects.hashCode(mInsetsState);
         result = 31 * result + (mForceLayout ? 1 : 0);
-        result = 31 * result + (mAlwaysConsumeSystemBars ? 1 : 0);
         result = 31 * result + mDisplayId;
-        result = 31 * result + mSyncSeqId;
+        result = 31 * result + mLayout.syncSeqId;
+        result = 31 * result + (mSyncWithBuffers ? 1 : 0);
         result = 31 * result + (mDragResizing ? 1 : 0);
-        result = 31 * result + Objects.hashCode(mActivityWindowInfo);
+        result = 31 * result + Objects.hashCode(mLayout.activityWindowInfo);
         return result;
     }
 
@@ -187,8 +170,9 @@ public class WindowStateResizeItem extends WindowStateTransactionItem {
     public String toString() {
         return "WindowStateResizeItem{" + super.toString()
                 + ", reportDrawn=" + mReportDraw
-                + ", configuration=" + mConfiguration
-                + ", activityWindowInfo=" + mActivityWindowInfo
+                + ", syncSeqId=" + mLayout.syncSeqId + (mSyncWithBuffers ? "+buf" : "")
+                + ", configuration=" + mLayout.mergedConfiguration
+                + ", activityWindowInfo=" + mLayout.activityWindowInfo
                 + "}";
     }
 }

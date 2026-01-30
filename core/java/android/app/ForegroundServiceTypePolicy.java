@@ -72,6 +72,7 @@ import android.os.UserHandle;
 import android.permission.PermissionCheckerManager;
 import android.permission.PermissionManager;
 import android.provider.DeviceConfig;
+import android.telecom.TelecomManager;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -350,8 +351,13 @@ public abstract class ForegroundServiceTypePolicy {
                 new RegularPermission(Manifest.permission.FOREGROUND_SERVICE_PHONE_CALL)
             }, true),
             new ForegroundServiceTypePermissions(new ForegroundServiceTypePermission[] {
+                // For VoIP applications using the Telecom APIs.
                 new RegularPermission(Manifest.permission.MANAGE_OWN_CALLS),
-                new RolePermission(RoleManager.ROLE_DIALER)
+                // For the user's chosen dialer app.
+                new RolePermission(RoleManager.ROLE_DIALER),
+                // For the OEM's preloaded Dialer (used for emergency calls even when the user has
+                // chosen a different dialer app as their default).
+                new SystemDialerPermission()
             }, false),
             FGS_TYPE_PERM_ENFORCEMENT_FLAG_PHONE_CALL /* permissionEnforcementFlag */,
             true /* permissionEnforcementFlagDefaultValue */,
@@ -508,13 +514,9 @@ public abstract class ForegroundServiceTypePolicy {
         permissions.add(new RegularPermission(Manifest.permission.ACTIVITY_RECOGNITION));
         permissions.add(new RegularPermission(Manifest.permission.HIGH_SAMPLING_RATE_SENSORS));
 
-        if (android.permission.flags.Flags.replaceBodySensorPermissionEnabled()) {
-            permissions.add(new RegularPermission(HealthPermissions.READ_HEART_RATE));
-            permissions.add(new RegularPermission(HealthPermissions.READ_SKIN_TEMPERATURE));
-            permissions.add(new RegularPermission(HealthPermissions.READ_OXYGEN_SATURATION));
-        } else {
-            permissions.add(new RegularPermission(Manifest.permission.BODY_SENSORS));
-        }
+        permissions.add(new RegularPermission(HealthPermissions.READ_HEART_RATE));
+        permissions.add(new RegularPermission(HealthPermissions.READ_SKIN_TEMPERATURE));
+        permissions.add(new RegularPermission(HealthPermissions.READ_OXYGEN_SATURATION));
 
         return permissions.toArray(new ForegroundServiceTypePermission[permissions.size()]);
     }
@@ -1300,6 +1302,42 @@ public abstract class ForegroundServiceTypePolicy {
             final List<String> holders = rm.getRoleHoldersAsUser(mRole,
                     UserHandle.getUserHandleForUid(callerUid));
             return holders != null && holders.contains(packageName)
+                    ? PERMISSION_GRANTED : PERMISSION_DENIED;
+        }
+    }
+
+    /**
+     * Represents the pre-loaded system dialer which is preloaded on a device.  Used in the
+     * {@link #FGS_TYPE_POLICY_PHONE_CALL} to also allow the system dialer to be allowed to use a
+     * phone call FGS.
+     * <p>
+     * When the user places an emergency call, Telecom will always bind to the pre-loaded system
+     * dialer instead of the one filling the {@link RoleManager#ROLE_DIALER} role.  If the user has
+     * chosen a different app to fill that role, the system dialer will not be able to start its
+     * phone call FGS.
+     */
+    static class SystemDialerPermission extends ForegroundServiceTypePermission {
+        SystemDialerPermission() {
+            super("System Dialer");
+        }
+
+        @Override
+        @PackageManager.PermissionResult
+        public int checkPermission(@NonNull Context context, int callerUid, int callerPid,
+                @NonNull String packageName, boolean allowWhileInUse) {
+            if (!android.app.Flags.systemDialerPhoneCallFgsGrant()) {
+                return PERMISSION_DENIED;
+            }
+
+            final RoleManager roleManager = context.getSystemService(RoleManager.class);
+            if (!roleManager.isRoleAvailable(RoleManager.ROLE_DIALER)) {
+                // If the Dialer role does not exist on the device, then there will not be a system
+                // dialer which can use the phone call FGS type.
+                return PERMISSION_DENIED;
+            }
+            final TelecomManager tm = context.getSystemService(TelecomManager.class);
+            final String systemDialerPackage = tm.getSystemDialerPackage();
+            return systemDialerPackage != null && systemDialerPackage.equals(packageName)
                     ? PERMISSION_GRANTED : PERMISSION_DENIED;
         }
     }

@@ -23,7 +23,7 @@
 
         <activity
             android:name="androidx.activity.ComponentActivity"
-            android:theme="@android:style/Theme.DeviceDefault.DayNight"
+            android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
             android:exported="true"
             tools:replace="android:theme" />
     </application>

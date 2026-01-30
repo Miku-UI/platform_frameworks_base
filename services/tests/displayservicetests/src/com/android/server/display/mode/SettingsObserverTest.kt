@@ -104,7 +104,6 @@ class SettingsObserverTest {
 
     @Test
     fun testLowPowerMode(@TestParameter testCase: LowPowerTestCase) {
-        whenever(mockFlags.isVsyncLowPowerVoteEnabled).thenReturn(testCase.vsyncLowPowerVoteEnabled)
         whenever(spyContext.contentResolver)
                 .thenReturn(settingsProviderRule.mockContentResolver(null))
         val lowPowerModeSetting = if (testCase.lowPowerModeEnabled) 1 else 0
@@ -131,22 +130,17 @@ class SettingsObserverTest {
 
     enum class LowPowerTestCase(
         val refreshRateData: RefreshRateData,
-        val vsyncLowPowerVoteEnabled: Boolean,
         val lowPowerModeEnabled: Boolean,
         internal val globalVote: Vote?,
         internal val displayVote: Vote?
     ) {
-        ALL_ENABLED(LOW_POWER_REFRESH_RATE_DATA, true, true,
+        ALL_ENABLED(LOW_POWER_REFRESH_RATE_DATA, true,
             LOW_POWER_GLOBAL_VOTE, EXPECTED_SUPPORTED_MODES_VOTE),
-        LOW_POWER_OFF(LOW_POWER_REFRESH_RATE_DATA, true, false,
+        LOW_POWER_OFF(LOW_POWER_REFRESH_RATE_DATA, false,
             null, null),
-        EMPTY_REFRESH_LOW_POWER_ON(LOW_POWER_EMPTY_REFRESH_RATE_DATA, true, true,
+        EMPTY_REFRESH_LOW_POWER_ON(LOW_POWER_EMPTY_REFRESH_RATE_DATA, true,
             LOW_POWER_GLOBAL_VOTE, null),
-        EMPTY_REFRESH__LOW_POWER_OFF(LOW_POWER_EMPTY_REFRESH_RATE_DATA, true, false,
-            null, null),
-        VSYNC_VOTE_DISABLED_SUPPORTED_LOW_POWER_ON(LOW_POWER_REFRESH_RATE_DATA, false, true,
-            LOW_POWER_GLOBAL_VOTE, null),
-        VSYNC_VOTE_DISABLED_LOW_POWER_OFF(LOW_POWER_REFRESH_RATE_DATA, false, false,
+        EMPTY_REFRESH__LOW_POWER_OFF(LOW_POWER_EMPTY_REFRESH_RATE_DATA, false,
             null, null),
     }
 

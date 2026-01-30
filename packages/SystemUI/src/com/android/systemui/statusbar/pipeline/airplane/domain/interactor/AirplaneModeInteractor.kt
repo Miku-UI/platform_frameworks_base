@@ -26,12 +26,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 
-/**
- * The business logic layer for airplane mode.
- *
- * IMPORTANT: This is currently *not* used to render any airplane mode information anywhere. See
- * [AirplaneModeRepository] for more details.
- */
+/** The business logic layer for airplane mode. */
 @SysUISingleton
 class AirplaneModeInteractor
 @Inject

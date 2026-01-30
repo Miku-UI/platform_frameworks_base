@@ -49,6 +49,7 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.BitUtils;
+import com.android.internal.util.IntPair;
 import com.android.modules.expresslog.Histogram;
 import com.android.modules.utils.TypedXmlPullParser;
 import com.android.modules.utils.TypedXmlSerializer;
@@ -1515,11 +1516,12 @@ public final class JobStore {
             }
 
             // And now we're done
-            final int appBucket = JobSchedulerService.standbyBucketForPackage(sourcePackageName,
-                    sourceUserId, nowElapsed);
+            final long appBucketAndReason = JobSchedulerService.standbyBucketAndReasonForPackage(
+                    sourcePackageName, sourceUserId, nowElapsed);
             JobStatus js = new JobStatus(
                     builtJob, uid, intern(sourcePackageName), sourceUserId,
-                    appBucket, namespace, sourceTag,
+                    IntPair.first(appBucketAndReason), IntPair.second(appBucketAndReason),
+                    namespace, sourceTag,
                     elapsedRuntimes.first, elapsedRuntimes.second,
                     lastSuccessfulRunTime, lastFailedRunTime, cumulativeExecutionTime,
                     (rtcIsGood) ? null : rtcRuntimes, internalFlags, /* dynamicConstraints */ 0);

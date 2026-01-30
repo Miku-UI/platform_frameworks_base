@@ -24,9 +24,11 @@ import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.platform.test.annotations.DisableFlags
 import android.view.View
+import android.view.ViewRootImpl
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.ContentDescription.Companion.loadContentDescription
 import com.android.systemui.common.shared.model.Icon
@@ -44,12 +46,12 @@ import com.android.systemui.screenrecord.data.repository.screenRecordRepository
 import com.android.systemui.statusbar.chips.call.ui.viewmodel.CallChipViewModel
 import com.android.systemui.statusbar.chips.mediaprojection.domain.interactor.MediaProjectionChipInteractorTest.Companion.NORMAL_PACKAGE
 import com.android.systemui.statusbar.chips.mediaprojection.domain.interactor.MediaProjectionChipInteractorTest.Companion.setUpPackageManagerForMediaProjection
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.chips.screenrecord.ui.viewmodel.ScreenRecordChipViewModel
 import com.android.systemui.statusbar.chips.sharetoapp.ui.viewmodel.ShareToAppChipViewModel
 import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
 import com.android.systemui.statusbar.chips.ui.view.ChipBackgroundContainer
 import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.statusbar.phone.mockSystemUIDialogFactory
 import com.android.systemui.statusbar.phone.ongoingcall.StatusBarChipsModernization
@@ -66,15 +68,16 @@ import org.junit.runner.RunWith
 import org.mockito.Mockito
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 
-/** Tests for [OngoingActivityChipsViewModel] when the [StatusBarNotifChips] flag is disabled. */
+/** Tests for [OngoingActivityChipsViewModel] when the [PromotedNotificationUi] flag is disabled. */
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@DisableFlags(StatusBarNotifChips.FLAG_NAME)
+@DisableFlags(PromotedNotificationUi.FLAG_NAME)
 class OngoingActivityChipsViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val systemClock = kosmos.fakeSystemClock
@@ -83,18 +86,22 @@ class OngoingActivityChipsViewModelTest : SysuiTestCase() {
     private val mediaProjectionState = kosmos.fakeMediaProjectionRepository.mediaProjectionState
 
     private val mockSystemUIDialog = mock<SystemUIDialog>()
-    private val chipBackgroundView = mock<ChipBackgroundContainer>()
+    private val chipBackgroundView =
+        mock<ChipBackgroundContainer> { on { context } doReturn context }
     private val chipView =
-        mock<View>().apply {
-            whenever(
-                    this.requireViewById<ChipBackgroundContainer>(
-                        R.id.ongoing_activity_chip_background
-                    )
-                )
-                .thenReturn(chipBackgroundView)
+        mock<View> {
+            on {
+                requireViewById<ChipBackgroundContainer>(R.id.ongoing_activity_chip_background)
+            } doReturn chipBackgroundView
+            on { context } doReturn context
         }
+    private val viewRootImpl = mock<ViewRootImpl> { on { view } doReturn chipView }
+    private val dialogTransitionController =
+        mock<DialogTransitionAnimator.Controller> { on { viewRoot } doReturn viewRootImpl }
     private val mockExpandable: Expandable =
-        mock<Expandable>().apply { whenever(dialogTransitionController(any())).thenReturn(mock()) }
+        mock<Expandable> {
+            on { dialogTransitionController(any()) } doReturn dialogTransitionController
+        }
 
     private val Kosmos.underTest by Kosmos.Fixture { ongoingActivityChipsViewModel }
 
@@ -258,7 +265,11 @@ class OngoingActivityChipsViewModelTest : SysuiTestCase() {
             systemClock.setElapsedRealtime(1234)
             screenRecordState.value = ScreenRecordModel.Recording
 
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(1234)
 
             // Stop subscribing to the chip flow
@@ -271,7 +282,11 @@ class OngoingActivityChipsViewModelTest : SysuiTestCase() {
             val job2 = underTest.primaryChip.onEach { latest = it }.launchIn(kosmos.testScope)
 
             // THEN the old start time is still used
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(1234)
 
             job2.cancel()
@@ -359,7 +374,7 @@ class OngoingActivityChipsViewModelTest : SysuiTestCase() {
                     return@doAnswer dialog
                 }
                 .whenever(kosmos.mockSystemUIDialogFactory)
-                .create(any<SystemUIDialog.Delegate>())
+                .create(any<SystemUIDialog.Delegate>(), any<Context>())
             whenever(kosmos.packageManager.getApplicationInfo(eq(NORMAL_PACKAGE), any<Int>()))
                 .thenThrow(PackageManager.NameNotFoundException())
 
@@ -384,7 +399,7 @@ class OngoingActivityChipsViewModelTest : SysuiTestCase() {
             val icon =
                 ((latest.icon) as OngoingActivityChipModel.ChipIcon.SingleColorIcon).impl
                     as Icon.Resource
-            assertThat(icon.res).isEqualTo(R.drawable.ic_screenrecord)
+            assertThat(icon.resId).isEqualTo(R.drawable.ic_screenrecord)
         }
 
         fun assertIsShareToAppChip(latest: OngoingActivityChipModel?) {
@@ -394,7 +409,7 @@ class OngoingActivityChipsViewModelTest : SysuiTestCase() {
             val icon =
                 ((latest.icon) as OngoingActivityChipModel.ChipIcon.SingleColorIcon).impl
                     as Icon.Resource
-            assertThat(icon.res).isEqualTo(R.drawable.ic_present_to_all)
+            assertThat(icon.resId).isEqualTo(R.drawable.ic_present_to_all)
         }
 
         fun assertIsCallChip(

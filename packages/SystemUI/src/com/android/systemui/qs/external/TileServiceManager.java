@@ -15,8 +15,6 @@
  */
 package com.android.systemui.qs.external;
 
-import static com.android.systemui.Flags.qsCustomTileClickGuaranteedBugFix;
-
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -172,11 +170,7 @@ public class TileServiceManager {
     public void setLastUpdate(long lastUpdate) {
         mLastUpdate = lastUpdate;
         if (mBound && isActiveTile()) {
-            if (qsCustomTileClickGuaranteedBugFix()) {
-                if (mListeningFromRequest.compareAndSet(true, false)) {
-                    stopListeningAndUnbind();
-                }
-            } else {
+            if (mListeningFromRequest.compareAndSet(true, false)) {
                 stopListeningAndUnbind();
             }
         }

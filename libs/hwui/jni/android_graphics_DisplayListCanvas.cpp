@@ -151,8 +151,8 @@ static void android_view_DisplayListCanvas_drawRippleProps(
 
     const uirenderer::skiapipeline::RippleDrawableParams params =
             uirenderer::skiapipeline::RippleDrawableParams{
-                    xProp,          yProp,     radiusProp, progressProp, turbulencePhaseProp,
-                    (SkColor)color, paintProp, *builder};
+                    xProp, yProp, radiusProp, progressProp, turbulencePhaseProp,
+                    SkColor4f::FromColor((SkColor)color), paintProp, *builder};
     canvas->drawRipple(params);
 }
 

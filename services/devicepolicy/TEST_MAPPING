@@ -25,6 +25,9 @@
           "include-filter": "com.android.cts.devicepolicy.ManagedProfileTest#testParentProfileApiDisabled"
         }
       ]
+    },
+    {
+      "name": "FrameworksServicesTests_devicepolicy"
     }
   ],
   "postsubmit": [

@@ -17,12 +17,14 @@
 package com.android.systemui.util.kotlin
 
 import android.os.Handler
+import com.android.systemui.Flags
 import com.android.systemui.coroutines.newTracingContext
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.NotifInflation
 import com.android.systemui.dagger.qualifiers.UiBackground
+import com.android.systemui.util.kotlin.dispatchers.newIntrinsicLockFixedThreadPoolContext
 import com.android.systemui.util.settings.SettingsSingleThreadBackground
 import dagger.Module
 import dagger.Provides
@@ -72,10 +74,17 @@ class SysUICoroutinesModule {
             // would share those threads with other dependencies using Dispatchers.IO.
             // Using a dedicated thread pool we have guarantees only SystemUI is able to schedule
             // code on those.
-            newFixedThreadPoolContext(
-                nThreads = Runtime.getRuntime().availableProcessors(),
-                name = "SystemUIBg",
-            )
+            if (Flags.sysuiIntrinsicLockDispatcher()) {
+                newIntrinsicLockFixedThreadPoolContext(
+                    nThreads = Runtime.getRuntime().availableProcessors(),
+                    name ="SystemUIBg",
+                )
+            } else {
+                newFixedThreadPoolContext(
+                    nThreads = Runtime.getRuntime().availableProcessors(),
+                    name = "SystemUIBg",
+                )
+            }
         } else {
             Dispatchers.IO
         }
@@ -130,13 +139,8 @@ class SysUICoroutinesModule {
     @NotifInflation
     @SysUISingleton
     fun notifInflationCoroutineDispatcher(
-        @NotifInflation notifInflationExecutor: Executor,
-        @Background bgCoroutineDispatcher: CoroutineDispatcher,
+        @NotifInflation notifInflationExecutor: Executor
     ): CoroutineDispatcher {
-        if (com.android.systemui.Flags.useNotifInflationThreadForFooter()) {
-            return notifInflationExecutor.asCoroutineDispatcher()
-        } else {
-            return bgCoroutineDispatcher
-        }
+        return notifInflationExecutor.asCoroutineDispatcher()
     }
 }

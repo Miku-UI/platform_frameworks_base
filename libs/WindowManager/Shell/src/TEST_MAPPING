@@ -1,0 +1,40 @@
+{
+  "imports": [
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/tests/unittest"
+    },
+    {
+      "path": "frameworks/base/libs/WindowManager/Shell/multivalentTests"
+    },
+    {
+      // Includes all CTS configs other than: Display, IME
+      // CTS Keyguard is moved to keyguard subfolder
+      // CTS BackNavigation is moved to back subfolder
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/activity"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/am"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/animations"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/input"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/insets"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/multidisplay"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/other"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/taskfragment"
+    },
+    {
+      "path": "cts/tests/framework/base/windowmanager/src/android/server/wm/window"
+    }
+  ]
+}

@@ -24,17 +24,16 @@ import static android.view.WindowManager.DISPLAY_IME_POLICY_LOCAL;
 
 import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentation;
 
-import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
 
 import android.annotation.Nullable;
+import android.app.backup.BackupManager;
 import android.platform.test.annotations.Presubmit;
 import android.util.Xml;
 import android.view.Display;
@@ -54,14 +53,9 @@ import org.junit.runner.RunWith;
 import org.xmlpull.v1.XmlPullParser;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -77,15 +71,21 @@ import java.util.function.Consumer;
 public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
     private static final int DISPLAY_PORT = 0xFF;
     private static final long DISPLAY_MODEL = 0xEEEEEEEEL;
+    private static final int MAX_NUMBER_OF_DISPLAY_SETTINGS = 100;
 
     private static final File TEST_FOLDER = getInstrumentation().getTargetContext().getCacheDir();
 
     private TestStorage mDefaultVendorSettingsStorage;
     private TestStorage mSecondaryVendorSettingsStorage;
     private TestStorage mOverrideSettingsStorage;
+    private DisplayWindowSettingsProvider mProvider;
 
     private DisplayContent mPrimaryDisplay;
+    private DisplayInfo mPrimaryDisplayInfo;
+    private String mPrimaryDisplayIdentifier;
+
     private DisplayContent mSecondaryDisplay;
+    private String mSecondaryDisplayIdentifier;
 
     @Before
     public void setUp() throws Exception {
@@ -94,9 +94,14 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
         mDefaultVendorSettingsStorage = new TestStorage();
         mSecondaryVendorSettingsStorage = new TestStorage();
         mOverrideSettingsStorage = new TestStorage();
+        mProvider = readDisplayWindowSettingsFromStorage();
 
         mPrimaryDisplay = mWm.getDefaultDisplayContentLocked();
+        mPrimaryDisplayInfo = mPrimaryDisplay.getDisplayInfo();
+        mPrimaryDisplayIdentifier = mPrimaryDisplayInfo.uniqueId;
+
         mSecondaryDisplay = mDisplayContent;
+        mSecondaryDisplayIdentifier = mSecondaryDisplay.getDisplayInfo().uniqueId;
         assertNotEquals(Display.DEFAULT_DISPLAY, mSecondaryDisplay.getDisplayId());
     }
 
@@ -107,20 +112,18 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
 
     @Test
     public void testReadingDisplaySettingsFromStorage() {
-        final String displayIdentifier = mSecondaryDisplay.getDisplayInfo().uniqueId;
-        prepareOverrideDisplaySettings(displayIdentifier);
+        prepareOverrideDisplaySettings(mSecondaryDisplayIdentifier);
 
-        SettingsEntry expectedSettings = new SettingsEntry();
+        final SettingsEntry expectedSettings = new SettingsEntry();
         expectedSettings.mWindowingMode = WINDOWING_MODE_PINNED;
         readAndAssertExpectedSettings(mSecondaryDisplay, expectedSettings);
     }
 
     @Test
     public void testReadingDisplaySettingsFromStorage_LegacyDisplayId() {
-        final String displayIdentifier = mPrimaryDisplay.getDisplayInfo().name;
-        prepareOverrideDisplaySettings(displayIdentifier);
+        prepareOverrideDisplaySettings(mPrimaryDisplayIdentifier);
 
-        SettingsEntry expectedSettings = new SettingsEntry();
+        final SettingsEntry expectedSettings = new SettingsEntry();
         expectedSettings.mWindowingMode = WINDOWING_MODE_PINNED;
         readAndAssertExpectedSettings(mPrimaryDisplay, expectedSettings);
     }
@@ -129,13 +132,10 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
     public void testReadingDisplaySettingsFromStorage_LegacyDisplayId_UpdateAfterAccess()
             throws Exception {
         // Store display settings with legacy display identifier.
-        final DisplayInfo mPrimaryDisplayInfo = mPrimaryDisplay.getDisplayInfo();
-        final String displayIdentifier = mPrimaryDisplayInfo.name;
-        prepareOverrideDisplaySettings(displayIdentifier);
+        prepareOverrideDisplaySettings(mPrimaryDisplayIdentifier);
 
         // Update settings with new value, should trigger write to injector.
-        DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
+        final DisplayWindowSettingsProvider provider = readDisplayWindowSettingsFromStorage();
         updateOverrideSettings(provider, mPrimaryDisplayInfo,
                 overrideSettings -> overrideSettings.mForcedDensity = 200);
         assertTrue(mOverrideSettingsStorage.wasWriteSuccessful());
@@ -144,76 +144,66 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
         final String newDisplayIdentifier = getStoredDisplayAttributeValue(
                 mOverrideSettingsStorage, "name");
         assertEquals("Display identifier must be updated to use uniqueId",
-                mPrimaryDisplayInfo.uniqueId, newDisplayIdentifier);
+                mPrimaryDisplayIdentifier, newDisplayIdentifier);
     }
 
     @Test
     public void testReadingDisplaySettingsFromStorage_UsePortAsId() {
-        final DisplayAddress.Physical displayAddress =
-                DisplayAddress.fromPortAndModel(DISPLAY_PORT, DISPLAY_MODEL);
-        mPrimaryDisplay.getDisplayInfo().address = displayAddress;
+        mPrimaryDisplayInfo.address = DisplayAddress.fromPortAndModel(DISPLAY_PORT, DISPLAY_MODEL);
 
         final String displayIdentifier = "port:" + DISPLAY_PORT;
         prepareOverrideDisplaySettings(displayIdentifier, true /* usePortAsId */);
 
-        SettingsEntry expectedSettings = new SettingsEntry();
+        final SettingsEntry expectedSettings = new SettingsEntry();
         expectedSettings.mWindowingMode = WINDOWING_MODE_PINNED;
         readAndAssertExpectedSettings(mPrimaryDisplay, expectedSettings);
     }
 
     @Test
     public void testReadingDisplaySettingsFromStorage_UsePortAsId_IncorrectAddress() {
-        final String displayIdentifier = mPrimaryDisplay.getDisplayInfo().uniqueId;
-        prepareOverrideDisplaySettings(displayIdentifier, true /* usePortAsId */);
+        prepareOverrideDisplaySettings(mPrimaryDisplayIdentifier, true /* usePortAsId */);
 
-        mPrimaryDisplay.getDisplayInfo().address = DisplayAddress.fromPhysicalDisplayId(123456);
+        mPrimaryDisplayInfo.address = DisplayAddress.fromPhysicalDisplayId(123456);
 
         // Verify that the entry is not matched and default settings are returned instead.
-        SettingsEntry expectedSettings = new SettingsEntry();
+        final SettingsEntry expectedSettings = new SettingsEntry();
         readAndAssertExpectedSettings(mPrimaryDisplay, expectedSettings);
     }
 
     @Test
     public void testReadingDisplaySettingsFromStorage_secondaryVendorDisplaySettingsLocation() {
-        final String displayIdentifier = mSecondaryDisplay.getDisplayInfo().uniqueId;
-        prepareSecondaryDisplaySettings(displayIdentifier);
-
-        final DisplayWindowSettingsProvider provider =
-                new DisplayWindowSettingsProvider(mDefaultVendorSettingsStorage,
-                        mOverrideSettingsStorage);
+        prepareSecondaryDisplaySettings(mSecondaryDisplayIdentifier);
+        final DisplayWindowSettingsProvider provider = readDisplayWindowSettingsFromStorage();
 
         // Expected settings should be empty because the default is to read from the primary vendor
         // settings location.
-        SettingsEntry expectedSettings = new SettingsEntry();
-        assertEquals(expectedSettings, provider.getSettings(mSecondaryDisplay.getDisplayInfo()));
+        final SettingsEntry expectedSettings = new SettingsEntry();
+        assertExpectedSettings(provider, mSecondaryDisplay, expectedSettings);
 
         // Now switch to secondary vendor settings and assert proper settings.
         provider.setBaseSettingsStorage(mSecondaryVendorSettingsStorage);
         expectedSettings.mWindowingMode = WINDOWING_MODE_FULLSCREEN;
-        assertEquals(expectedSettings, provider.getSettings(mSecondaryDisplay.getDisplayInfo()));
+        assertExpectedSettings(provider, mSecondaryDisplay, expectedSettings);
 
         // Switch back to primary and assert settings are empty again.
         provider.setBaseSettingsStorage(mDefaultVendorSettingsStorage);
         expectedSettings.mWindowingMode = WINDOWING_MODE_UNDEFINED;
-        assertEquals(expectedSettings, provider.getSettings(mSecondaryDisplay.getDisplayInfo()));
+        assertExpectedSettings(provider, mSecondaryDisplay, expectedSettings);
     }
 
     @Test
     public void testReadingDisplaySettingsFromStorage_overrideSettingsTakePrecedenceOverVendor() {
-        final String displayIdentifier = mSecondaryDisplay.getDisplayInfo().uniqueId;
-        prepareOverrideDisplaySettings(displayIdentifier);
-        prepareSecondaryDisplaySettings(displayIdentifier);
+        prepareOverrideDisplaySettings(mSecondaryDisplayIdentifier);
+        prepareSecondaryDisplaySettings(mSecondaryDisplayIdentifier);
 
-        final DisplayWindowSettingsProvider provider =
-                new DisplayWindowSettingsProvider(mDefaultVendorSettingsStorage,
-                        mOverrideSettingsStorage);
+        final DisplayWindowSettingsProvider provider = readDisplayWindowSettingsFromStorage();
         provider.setBaseSettingsStorage(mSecondaryVendorSettingsStorage);
 
         // The windowing mode should be set to WINDOWING_MODE_PINNED because the override settings
         // take precedence over the vendor provided settings.
-        SettingsEntry expectedSettings = new SettingsEntry();
+        final SettingsEntry expectedSettings = new SettingsEntry();
         expectedSettings.mWindowingMode = WINDOWING_MODE_PINNED;
-        assertEquals(expectedSettings, provider.getSettings(mSecondaryDisplay.getDisplayInfo()));
+        assertExpectedSettings(provider, mSecondaryDisplay, expectedSettings);
     }
 
     @Test
@@ -221,9 +211,7 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
         final DisplayInfo secondaryDisplayInfo = mSecondaryDisplay.getDisplayInfo();
 
         // Write some settings to storage.
-        DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
-        updateOverrideSettings(provider, secondaryDisplayInfo, overrideSettings -> {
+        updateOverrideSettings(mProvider, secondaryDisplayInfo, overrideSettings -> {
             overrideSettings.mShouldShowSystemDecors = true;
             overrideSettings.mImePolicy = DISPLAY_IME_POLICY_LOCAL;
             overrideSettings.mDontMoveToTop = true;
@@ -231,7 +219,7 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
         assertTrue(mOverrideSettingsStorage.wasWriteSuccessful());
 
         // Verify that settings were stored correctly.
-        assertEquals("Attribute value must be stored", secondaryDisplayInfo.uniqueId,
+        assertEquals("Attribute value must be stored", mSecondaryDisplayIdentifier,
                 getStoredDisplayAttributeValue(mOverrideSettingsStorage, "name"));
         assertEquals("Attribute value must be stored", "true",
                 getStoredDisplayAttributeValue(mOverrideSettingsStorage, "shouldShowSystemDecors"));
@@ -243,25 +231,24 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
 
     @Test
     public void testWritingDisplaySettingsToStorage_secondaryUserDisplaySettingsLocation() {
-        final DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
-        final DisplayInfo displayInfo = mPrimaryDisplay.getDisplayInfo();
         final TestStorage secondaryUserOverrideSettingsStorage = new TestStorage();
         final SettingsEntry expectedSettings = new SettingsEntry();
         expectedSettings.mForcedDensity = 356;
 
         // Write some settings to storage from default user.
-        updateOverrideSettings(provider, displayInfo, settings -> settings.mForcedDensity = 356);
+        updateOverrideSettings(mProvider, mPrimaryDisplayInfo,
+                settings -> settings.mForcedDensity = 356);
         assertThat(mOverrideSettingsStorage.wasWriteSuccessful()).isTrue();
 
         // Now switch to secondary user override settings and write some settings.
-        provider.setOverrideSettingsStorage(secondaryUserOverrideSettingsStorage);
-        updateOverrideSettings(provider, displayInfo, settings -> settings.mForcedDensity = 420);
+        mProvider.setOverrideSettingsStorage(secondaryUserOverrideSettingsStorage);
+        updateOverrideSettings(mProvider, mPrimaryDisplayInfo,
+                settings -> settings.mForcedDensity = 420);
         assertThat(secondaryUserOverrideSettingsStorage.wasWriteSuccessful()).isTrue();
 
         // Switch back to primary and assert default user settings remain unchanged.
-        provider.setOverrideSettingsStorage(mOverrideSettingsStorage);
-        assertThat(provider.getOverrideSettings(displayInfo)).isEqualTo(expectedSettings);
+        mProvider.setOverrideSettingsStorage(mOverrideSettingsStorage);
+        assertExpectedSettings(mProvider, mPrimaryDisplay, expectedSettings);
     }
 
     @Test
@@ -270,9 +257,7 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
         secondaryDisplayInfo.type = TYPE_VIRTUAL;
 
         // No write to storage on virtual display change.
-        final DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
-        updateOverrideSettings(provider, secondaryDisplayInfo, virtualSettings -> {
+        updateOverrideSettings(mProvider, secondaryDisplayInfo, virtualSettings -> {
             virtualSettings.mShouldShowSystemDecors = true;
             virtualSettings.mImePolicy = DISPLAY_IME_POLICY_LOCAL;
             virtualSettings.mDontMoveToTop = true;
@@ -286,13 +271,10 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
 
         // Store config to use port as identifier.
         final DisplayInfo secondaryDisplayInfo = mSecondaryDisplay.getDisplayInfo();
-        final DisplayAddress.Physical displayAddress =
-                DisplayAddress.fromPortAndModel(DISPLAY_PORT, DISPLAY_MODEL);
-        secondaryDisplayInfo.address = displayAddress;
+        secondaryDisplayInfo.address = DisplayAddress.fromPortAndModel(DISPLAY_PORT, DISPLAY_MODEL);
 
         // Write some settings to storage.
-        DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
+        final DisplayWindowSettingsProvider provider = readDisplayWindowSettingsFromStorage();
         updateOverrideSettings(provider, secondaryDisplayInfo, overrideSettings -> {
             overrideSettings.mShouldShowSystemDecors = true;
             overrideSettings.mImePolicy = DISPLAY_IME_POLICY_LOCAL;
@@ -310,100 +292,105 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
 
     @Test
     public void testCleanUpEmptyDisplaySettingsOnDisplayRemoved() {
-        final DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
-        final int initialSize = provider.getOverrideSettingsSize();
+        final int initialSize = 0;
         final DisplayInfo secondaryDisplayInfo = mSecondaryDisplay.getDisplayInfo();
 
-        updateOverrideSettings(provider, secondaryDisplayInfo, overrideSettings -> {
+        updateOverrideSettings(mProvider, secondaryDisplayInfo, overrideSettings -> {
             // Size + 1 when query for a new display.
-            assertEquals(initialSize + 1, provider.getOverrideSettingsSize());
+            assertEquals(initialSize + 1, mProvider.getOverrideSettingsSize());
 
             // When a display is removed, its override Settings is not removed if there is any
             // override.
             overrideSettings.mShouldShowSystemDecors = true;
         });
-        provider.onDisplayRemoved(secondaryDisplayInfo);
+        mProvider.onDisplayRemoved(secondaryDisplayInfo);
 
-        assertEquals(initialSize + 1, provider.getOverrideSettingsSize());
+        assertEquals(initialSize + 1, mProvider.getOverrideSettingsSize());
 
         // When a display is removed, its override Settings is removed if there is no override.
-        provider.updateOverrideSettings(secondaryDisplayInfo, new SettingsEntry());
-        provider.onDisplayRemoved(secondaryDisplayInfo);
+        mProvider.updateOverrideSettings(secondaryDisplayInfo, new SettingsEntry());
+        mProvider.onDisplayRemoved(secondaryDisplayInfo);
 
-        assertEquals(initialSize, provider.getOverrideSettingsSize());
+        assertEquals(initialSize, mProvider.getOverrideSettingsSize());
     }
 
     @Test
     public void testCleanUpVirtualDisplaySettingsOnDisplayRemoved() {
-        final DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
-        final int initialSize = provider.getOverrideSettingsSize();
+        final int initialSize = 0;
         final DisplayInfo secondaryDisplayInfo = mSecondaryDisplay.getDisplayInfo();
         secondaryDisplayInfo.type = TYPE_VIRTUAL;
 
-        updateOverrideSettings(provider, secondaryDisplayInfo, overrideSettings -> {
+        updateOverrideSettings(mProvider, secondaryDisplayInfo, overrideSettings -> {
             // Size + 1 when query for a new display.
-            assertEquals(initialSize + 1, provider.getOverrideSettingsSize());
+            assertEquals(initialSize + 1, mProvider.getOverrideSettingsSize());
 
             // When a virtual display is removed, its override Settings is removed
             // even if it has override.
             overrideSettings.mShouldShowSystemDecors = true;
         });
-        provider.onDisplayRemoved(secondaryDisplayInfo);
+        mProvider.onDisplayRemoved(secondaryDisplayInfo);
 
-        assertEquals(initialSize, provider.getOverrideSettingsSize());
+        assertEquals(initialSize, mProvider.getOverrideSettingsSize());
     }
 
     @Test
-    public void testRemovesStaleDisplaySettings_defaultDisplay_removesStaleDisplaySettings() {
-        // Write density setting for second display then remove it.
-        final DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
-        final DisplayInfo secDisplayInfo = mSecondaryDisplay.getDisplayInfo();
-        updateOverrideSettings(provider, secDisplayInfo, setting -> setting.mForcedDensity = 356);
-        mRootWindowContainer.removeChild(mSecondaryDisplay);
+    public void testUpdateOverrideSettings_whenExceedingCapacity_forgetsOldestDisplaySettings() {
+        for (int i = 0; i < MAX_NUMBER_OF_DISPLAY_SETTINGS; i++) {
+            final DisplayInfo info = createDisplayInfo("test_id_" + i, "test_display_" + i);
+            addDisplayWithDensity(info, 100 + i);
+        }
 
-        // Write density setting for inner and outer default display.
-        final DisplayInfo innerDisplayInfo = mPrimaryDisplay.getDisplayInfo();
-        final DisplayInfo outerDisplayInfo = new DisplayInfo(secDisplayInfo);
-        outerDisplayInfo.displayId = mPrimaryDisplay.mDisplayId;
-        outerDisplayInfo.uniqueId = "TEST_OUTER_DISPLAY_" + System.currentTimeMillis();
-        updateOverrideSettings(provider, innerDisplayInfo, setting -> setting.mForcedDensity = 490);
-        updateOverrideSettings(provider, outerDisplayInfo, setting -> setting.mForcedDensity = 420);
-        final List<DisplayInfo> possibleDisplayInfos = List.of(innerDisplayInfo, outerDisplayInfo);
-        doReturn(possibleDisplayInfos)
-                .when(mWm).getPossibleDisplayInfoLocked(eq(innerDisplayInfo.displayId));
+        final DisplayInfo exceedMaxDisplay = createDisplayInfo("id_exceed", "display_exceed");
+        addDisplayWithDensity(exceedMaxDisplay, 100 + MAX_NUMBER_OF_DISPLAY_SETTINGS);
 
-        provider.removeStaleDisplaySettingsLocked(mWm, mRootWindowContainer);
-
-        assertThat(mOverrideSettingsStorage.wasWriteSuccessful()).isTrue();
-        assertThat(provider.getOverrideSettingsSize()).isEqualTo(2);
-        assertThat(provider.getOverrideSettings(innerDisplayInfo).mForcedDensity).isEqualTo(490);
-        assertThat(provider.getOverrideSettings(outerDisplayInfo).mForcedDensity).isEqualTo(420);
+        assertEquals("Stored settings count should be capped at max capacity",
+                MAX_NUMBER_OF_DISPLAY_SETTINGS, mProvider.getOverrideSettingsSize());
+        final DisplayInfo evictedDisplay = createDisplayInfo("test_id_0", "test_display_0");
+        assertEquals("Forgotten entry should have default density",
+                0, mProvider.getSettings(evictedDisplay).mForcedDensity);
     }
 
     @Test
-    public void testRemovesStaleDisplaySettings_displayNotInLayout_keepsDisplaySettings() {
-        // Write density setting for primary display.
-        final DisplayWindowSettingsProvider provider = new DisplayWindowSettingsProvider(
-                mDefaultVendorSettingsStorage, mOverrideSettingsStorage);
-        final DisplayInfo primDisplayInfo = mPrimaryDisplay.getDisplayInfo();
-        updateOverrideSettings(provider, primDisplayInfo, setting -> setting.mForcedDensity = 420);
+    public void testUpdateOverrideSettings_onAccessingOldEntry_preventsPurge() {
+        for (int i = 0; i < MAX_NUMBER_OF_DISPLAY_SETTINGS; i++) {
+            final DisplayInfo info = createDisplayInfo("test_id_" + i, "test_display_" + i);
+            addDisplayWithDensity(info, 100 + i);
+        }
+        final DisplayInfo oldestDisplay = createDisplayInfo("test_id_0", "test_display_0");
+        final DisplayInfo nextOldestDisplay = createDisplayInfo("test_id_1", "test_display_1");
 
-        // Add a virtual display and write density setting for it.
-        final DisplayInfo virtDisplayInfo = new DisplayInfo(primDisplayInfo);
-        virtDisplayInfo.uniqueId = "TEST_VIRTUAL_DISPLAY_" + System.currentTimeMillis();
-        createNewDisplay(virtDisplayInfo);
-        waitUntilHandlersIdle();  // Wait until unfrozen after a display is added.
-        updateOverrideSettings(provider, virtDisplayInfo, setting -> setting.mForcedDensity = 490);
+        mProvider.getSettings(oldestDisplay);
+        final DisplayInfo exceedMaxDisplay = createDisplayInfo("id_exceed", "display_exceed");
+        addDisplayWithDensity(exceedMaxDisplay, 100 + MAX_NUMBER_OF_DISPLAY_SETTINGS);
 
-        provider.removeStaleDisplaySettingsLocked(mWm, mRootWindowContainer);
+        assertEquals("Recently accessed entry should not be purged",
+                100, mProvider.getSettings(oldestDisplay).mForcedDensity);
+        assertEquals("The oldest un-accessed entry should be purged",
+                0, mProvider.getSettings(nextOldestDisplay).mForcedDensity);
+    }
 
-        assertThat(mOverrideSettingsStorage.wasWriteSuccessful()).isTrue();
-        assertThat(provider.getOverrideSettingsSize()).isEqualTo(2);
-        assertThat(provider.getOverrideSettings(primDisplayInfo).mForcedDensity).isEqualTo(420);
-        assertThat(provider.getOverrideSettings(virtDisplayInfo).mForcedDensity).isEqualTo(490);
+    @Test
+    public void testUpdateOverrideSettings_withNullDisplayName_addsDisplaySettingsSucceeds() {
+        final DisplayInfo displayInfoWithNullName = createDisplayInfo("test_id", null /* name */);
+
+        addDisplayWithDensity(displayInfoWithNullName, 123);
+
+        assertEquals("Settings should be created even with a null display name.", 123,
+                mProvider.getSettings(displayInfoWithNullName).mForcedDensity);
+    }
+
+    /** Helper method to create a DisplayInfo object with specific identifiers. */
+    private static DisplayInfo createDisplayInfo(String uniqueId, String name) {
+        final DisplayInfo displayInfo = new DisplayInfo();
+        displayInfo.uniqueId = uniqueId;
+        displayInfo.name = name;
+        return displayInfo;
+    }
+
+    /** Helper method to add a display with a specific density setting. */
+    private void addDisplayWithDensity(DisplayInfo displayInfo, int density) {
+        updateOverrideSettings(mProvider, displayInfo,
+                settings -> settings.mForcedDensity = density);
     }
 
     /**
@@ -465,10 +452,19 @@ public class DisplayWindowSettingsProviderTests extends WindowTestsBase {
 
     private void readAndAssertExpectedSettings(DisplayContent displayContent,
             SettingsEntry expectedSettings) {
-        final DisplayWindowSettingsProvider provider =
-                new DisplayWindowSettingsProvider(mDefaultVendorSettingsStorage,
-                        mOverrideSettingsStorage);
+        final DisplayWindowSettingsProvider provider = readDisplayWindowSettingsFromStorage();
+        assertExpectedSettings(provider, displayContent, expectedSettings);
+    }
+
+    private static void assertExpectedSettings(DisplayWindowSettingsProvider provider,
+            DisplayContent displayContent, SettingsEntry expectedSettings) {
         assertEquals(expectedSettings, provider.getSettings(displayContent.getDisplayInfo()));
+    }
+
+    private DisplayWindowSettingsProvider readDisplayWindowSettingsFromStorage() {
+        return new DisplayWindowSettingsProvider(
+                mDefaultVendorSettingsStorage, mOverrideSettingsStorage, mock(
+                BackupManager.class));
     }
 
     @Nullable

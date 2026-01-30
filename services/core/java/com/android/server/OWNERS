@@ -19,6 +19,7 @@ per-file *AppOp* = file:/core/java/android/permission/OWNERS
 per-file *Battery* = file:/BATTERY_STATS_OWNERS
 per-file *BinaryTransparency* = file:/core/java/android/transparency/OWNERS
 per-file *Binder* = file:/core/java/com/android/internal/os/BINDER_OWNERS
+per-file *ContextHub* = file:/services/core/java/com/android/server/location/contexthub/OWNERS
 per-file ExplicitHealthCheckController.java = file:/services/core/java/com/android/server/crashrecovery/OWNERS
 per-file *Gnss* = file:/services/core/java/com/android/server/location/OWNERS
 per-file **IpSec* = file:/services/core/java/com/android/server/net/OWNERS
@@ -51,4 +52,4 @@ per-file SystemConfig.java = file:/PACKAGE_MANAGER_OWNERS
 per-file Cert*.java = tweek@google.com, brambonne@google.com, prb@google.com, miguelaranda@google.com
 
 # TradeInMode
-per-file TradeInModeService.java = dvander@google.com, paullawrence@google.com
+per-file TradeInModeService.java = file:/TRADE_IN_MODE_OWNERS

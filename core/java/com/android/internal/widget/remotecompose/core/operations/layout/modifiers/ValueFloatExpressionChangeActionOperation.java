@@ -69,7 +69,7 @@ public class ValueFloatExpressionChangeActionOperation extends Operation
     }
 
     @Override
-    public void apply(RemoteContext context) {}
+    public void apply(@NonNull RemoteContext context) {}
 
     @NonNull
     @Override
@@ -78,13 +78,13 @@ public class ValueFloatExpressionChangeActionOperation extends Operation
     }
 
     @Override
-    public void write(WireBuffer buffer) {}
+    public void write(@NonNull WireBuffer buffer) {}
 
     @Override
     public void runAction(
             @NonNull RemoteContext context,
             @NonNull CoreDocument document,
-            Component component,
+            @NonNull Component component,
             float x,
             float y) {
         document.evaluateFloatExpression(mValueExpressionId, mTargetValueId, context);
@@ -130,7 +130,7 @@ public class ValueFloatExpressionChangeActionOperation extends Operation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER, SerializeTags.ACTION)
                 .addType("ValueFloatExpressionChangeActionOperation")

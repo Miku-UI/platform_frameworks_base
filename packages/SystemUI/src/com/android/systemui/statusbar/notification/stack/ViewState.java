@@ -44,6 +44,9 @@ import com.android.systemui.statusbar.notification.PropertyData;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpUtil;
 import com.android.systemui.statusbar.notification.row.ExpandableView;
 
+import kotlin.Unit;
+import kotlin.jvm.functions.Function1;
+
 import java.io.PrintWriter;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -801,7 +804,46 @@ public class ViewState implements Dumpable {
                 child.removeCallbacks(delayRunnable);
                 SpringAnimation animator = propertyData.getAnimator();
                 if (animator != null) {
+                    boolean wasRunning = animator.isRunning();
                     animator.cancel();
+                    if (!wasRunning) {
+                        // The animation was never started, so the cancel above doesn't do much.
+                        // We need to notify the endListeners manually that the animation has ended
+                        // since they need to reset some state.
+                        Function1<Boolean, Unit> listener =
+                                propertyData.getEndedBeforeStartingCleanupHandler();
+                        if (listener != null) {
+                            listener.invoke(true /* cancelled */);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    protected void skipAnimationToEnd(View child, int animatorTag) {
+        Object storedTag = getChildTag(child, animatorTag);
+        if (storedTag != null) {
+            if (storedTag instanceof Animator animator) {
+                animator.end();
+            } else if (storedTag instanceof PropertyData propertyData) {
+                // Physics based animation!
+                Runnable delayRunnable = propertyData.getDelayRunnable();
+                child.removeCallbacks(delayRunnable);
+                SpringAnimation animator = propertyData.getAnimator();
+                if (animator != null) {
+                    boolean wasRunning = animator.isRunning();
+                    animator.skipToEnd();
+                    if (!wasRunning) {
+                        // The animation was ever started, so the skipToEnd above doesn't do much.
+                        // We need to notify the endListeners manually that the animation has ended
+                        // since they need to reset some state.
+                        Function1<Boolean, Unit> listener =
+                                propertyData.getEndedBeforeStartingCleanupHandler();
+                        if (listener != null) {
+                            listener.invoke(false /* cancelled */);
+                        }
+                    }
                 }
             }
         }
@@ -848,11 +890,26 @@ public class ViewState implements Dumpable {
         return isAnimating(child, TAG_ANIMATOR_TRANSLATION_Y);
     }
 
+    /**
+     * Abort the animations. Unlike {@link #finishAnimations(View)} this causes the animators
+     * to stop in their tracks.
+     */
     public void cancelAnimations(View view) {
         abortAnimation(view, TAG_ANIMATOR_TRANSLATION_X);
         abortAnimation(view, TAG_ANIMATOR_TRANSLATION_Y);
         abortAnimation(view, TAG_ANIMATOR_TRANSLATION_Z);
         abortAnimation(view, TAG_ANIMATOR_ALPHA);
+    }
+
+    /**
+     * Finish the animations. This causes any currently running animators to jump to the end
+     * value of the property being animated, and to trigger any animation end listeners.
+     */
+    public void finishAnimations(View view) {
+        skipAnimationToEnd(view, TAG_ANIMATOR_TRANSLATION_X);
+        skipAnimationToEnd(view, TAG_ANIMATOR_TRANSLATION_Y);
+        skipAnimationToEnd(view, TAG_ANIMATOR_TRANSLATION_Z);
+        skipAnimationToEnd(view, TAG_ANIMATOR_ALPHA);
     }
 
     @Override

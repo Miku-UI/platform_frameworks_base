@@ -22,6 +22,11 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowAnimationStyle">@null</item>
+        <item name="textAppearanceInstallerAppLabel">@style/TextAppearance.PackageInstaller.AppLabel</item>
+        <item name="textAppearanceInstallerCustomMessage">@style/TextAppearance.PackageInstaller.CustomMessage</item>
+        <item name="textAppearanceInstallerKeepDataHeading">@style/TextAppearance.PackageInstaller.KeepData.Heading</item>
+        <item name="textAppearanceInstallerKeepDataSubHeading">@style/TextAppearance.PackageInstaller.KeepData.SubHeading</item>
+        <item name="textAppearanceInstallerTitle">@style/TextAppearance.PackageInstaller.Title</item>
     </style>
 
 </resources>

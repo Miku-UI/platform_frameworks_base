@@ -120,7 +120,7 @@ public final class WindowMetricsController {
             if (overrideInvScale != 1f) {
                 insetsState.scale(overrideInvScale);
             }
-            return insetsState.calculateInsets(bounds, null /* ignoringVisibilityState */,
+            return insetsState.calculateInsets(bounds, bounds, null /* ignoringVisibilityState */,
                     isScreenRound, SOFT_INPUT_ADJUST_NOTHING, 0 /* flags */, SYSTEM_UI_FLAG_VISIBLE,
                     WindowManager.LayoutParams.INVALID_WINDOW_TYPE, activityType,
                     null /* idSideMap */);

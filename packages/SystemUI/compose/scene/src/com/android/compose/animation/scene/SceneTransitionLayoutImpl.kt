@@ -41,8 +41,11 @@ import androidx.compose.ui.layout.ApproachMeasureScope
 import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.MeasureResult
+import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.node.LayoutAwareModifierNode
+import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntSize
@@ -57,6 +60,7 @@ import com.android.compose.animation.scene.content.Content
 import com.android.compose.animation.scene.content.Overlay
 import com.android.compose.animation.scene.content.Scene
 import com.android.compose.animation.scene.content.state.TransitionState
+import com.android.compose.modifiers.thenIf
 import com.android.compose.ui.util.lerp
 import kotlinx.coroutines.CoroutineScope
 
@@ -177,10 +181,14 @@ internal class SceneTransitionLayoutImpl(
         null
     internal val sharedValues: MutableMap<ValueKey, MutableMap<ElementKey?, SharedValue<*, *>>>
         get() =
-            _sharedValues
-                ?: mutableMapOf<ValueKey, MutableMap<ElementKey?, SharedValue<*, *>>>().also {
-                    _sharedValues = it
-                }
+            if (ancestors.isNotEmpty()) {
+                ancestors[0].layoutImpl.sharedValues
+            } else {
+                _sharedValues
+                    ?: mutableMapOf<ValueKey, MutableMap<ElementKey?, SharedValue<*, *>>>().also {
+                        _sharedValues = it
+                    }
+            }
 
     // TODO(b/317958526): Lazily allocate scene gesture handlers the first time they are needed.
     internal val horizontalDraggableHandler: DraggableHandler
@@ -209,6 +217,7 @@ internal class SceneTransitionLayoutImpl(
 
     // TODO(b/399825091): Remove this.
     private var scenesToAlwaysCompose: MutableList<Scene>? = null
+    private var overlaysToAlwaysCompose: MutableList<Overlay>? = null
 
     init {
         updateContents(builder, layoutDirection, defaultEffectFactory)
@@ -368,7 +377,8 @@ internal class SceneTransitionLayoutImpl(
                     alignment: Alignment,
                     isModal: Boolean,
                     effectFactory: OverscrollFactory?,
-                    content: @Composable (InternalContentScope.() -> Unit),
+                    alwaysCompose: Boolean,
+                    content: @Composable InternalContentScope.() -> Unit,
                 ) {
                     overlaysDefined = true
                     overlaysToRemove.remove(key)
@@ -379,6 +389,10 @@ internal class SceneTransitionLayoutImpl(
                         Content.calculateGlobalZIndex(parentZIndex, ++zIndex, ancestors.size)
                     val factory = effectFactory ?: defaultEffectFactory
                     if (overlay != null) {
+                        check(alwaysCompose == overlay.alwaysCompose) {
+                            "overlay.alwaysCompose can not change"
+                        }
+
                         // Update an existing overlay.
                         overlay.content = content
                         overlay.zIndex = zIndex.toFloat()
@@ -389,7 +403,7 @@ internal class SceneTransitionLayoutImpl(
                         overlay.maybeUpdateEffects(factory)
                     } else {
                         // New overlay.
-                        overlays[key] =
+                        val overlay =
                             Overlay(
                                 key,
                                 this@SceneTransitionLayoutImpl,
@@ -400,7 +414,17 @@ internal class SceneTransitionLayoutImpl(
                                 alignment,
                                 isModal,
                                 factory,
+                                alwaysCompose,
                             )
+                        overlays[key] = overlay
+
+                        if (alwaysCompose) {
+                            (overlaysToAlwaysCompose
+                                    ?: mutableListOf<Overlay>().also {
+                                        overlaysToAlwaysCompose = it
+                                    })
+                                .add(overlay)
+                        }
                     }
                 }
             }
@@ -465,6 +489,7 @@ internal class SceneTransitionLayoutImpl(
                 .then(
                     LayoutElement(layoutImpl = this, transitionState = this.state.transitionState)
                 )
+                .thenIf(implicitTestTags) { Modifier.testTag(SceneTransitionLayoutRootContentTag) }
         ) {
             LookaheadScope {
                 if (_lookaheadScope == null) {
@@ -490,7 +515,12 @@ internal class SceneTransitionLayoutImpl(
     @Composable
     private fun Scenes() {
         scenesToCompose().fastForEach { (scene, isInvisible) ->
-            key(scene.key) { scene.Content(isInvisible = isInvisible) }
+            key(scene.key) {
+                scene.Content(
+                    isInvisible = isInvisible,
+                    modifier = Modifier.then(ContentElement(scene.zIndex, isInvisible)),
+                )
+            }
         }
     }
 
@@ -532,6 +562,8 @@ internal class SceneTransitionLayoutImpl(
 
     private data class SceneToCompose(val scene: Scene, val isInvisible: Boolean)
 
+    private data class OverlayToCompose(val overlay: Overlay, val isInvisible: Boolean)
+
     @Composable
     private fun BoxScope.Overlays() {
         val overlaysOrderedByZIndex = overlaysToComposeOrderedByZIndex()
@@ -539,13 +571,13 @@ internal class SceneTransitionLayoutImpl(
             return
         }
 
-        overlaysOrderedByZIndex.fastForEach { overlay ->
+        overlaysOrderedByZIndex.fastForEach { (overlay, isInvisible) ->
             val key = overlay.key
             key(key) {
                 // We put the overlays inside a Box that is matching the layout size so that they
                 // are measured after all scenes and that their max size is the size of the layout
                 // without the overlays.
-                Box(Modifier.matchParentSize().zIndex(overlay.zIndex)) {
+                Box(Modifier.then(ContentElement(overlay.zIndex, isInvisible)).matchParentSize()) {
                     if (overlay.isModal) {
                         // Add a fullscreen clickable to prevent swipes from reaching the scenes and
                         // other overlays behind this overlay. Clicking will close the overlay.
@@ -561,45 +593,48 @@ internal class SceneTransitionLayoutImpl(
                         )
                     }
 
-                    overlay.Content(Modifier.align(overlay.alignment))
+                    overlay.Content(Modifier.align(overlay.alignment), isInvisible = isInvisible)
                 }
             }
         }
     }
 
-    private fun overlaysToComposeOrderedByZIndex(): List<Overlay> {
+    private fun overlaysToComposeOrderedByZIndex(): List<OverlayToCompose> {
         if (_overlays == null) return emptyList()
 
         val transitions = state.currentTransitions
-        return if (transitions.isEmpty()) {
-                state.transitionState.currentOverlays.map { overlay(it) }
-            } else {
-                buildList {
-                    val visited = mutableSetOf<OverlayKey>()
-                    fun maybeAdd(key: OverlayKey) {
-                        if (visited.add(key)) {
-                            add(overlay(key))
-                        }
-                    }
-
-                    transitions.fastForEach { transition ->
-                        when (transition) {
-                            is TransitionState.Transition.ChangeScene -> {}
-                            is TransitionState.Transition.ShowOrHideOverlay ->
-                                maybeAdd(transition.overlay)
-
-                            is TransitionState.Transition.ReplaceOverlay -> {
-                                maybeAdd(transition.fromOverlay)
-                                maybeAdd(transition.toOverlay)
-                            }
-                        }
-                    }
-
-                    // Make sure that all current overlays are composed.
-                    transitions.last().currentOverlays.forEach { maybeAdd(it) }
+        val overlays = buildList {
+            val visited = mutableSetOf<OverlayKey>()
+            fun maybeAdd(overlay: OverlayKey, isInvisible: Boolean = false) {
+                if (visited.add(overlay)) {
+                    add(OverlayToCompose(overlay(overlay), isInvisible))
                 }
             }
-            .sortedBy { it.zIndex }
+
+            if (transitions.isEmpty()) {
+                state.transitionState.currentOverlays.forEach { maybeAdd(it) }
+            } else {
+                transitions.fastForEach { transition ->
+                    when (transition) {
+                        is TransitionState.Transition.ChangeScene -> {}
+                        is TransitionState.Transition.ShowOrHideOverlay ->
+                            maybeAdd(transition.overlay)
+
+                        is TransitionState.Transition.ReplaceOverlay -> {
+                            maybeAdd(transition.fromOverlay)
+                            maybeAdd(transition.toOverlay)
+                        }
+                    }
+                }
+
+                // Make sure that all current overlays are composed.
+                transitions.last().currentOverlays.forEach { maybeAdd(it) }
+            }
+
+            overlaysToAlwaysCompose?.fastForEach { maybeAdd(it.key, isInvisible = true) }
+        }
+
+        return overlays.sortedBy { it.overlay.zIndex }
     }
 
     internal fun hideOverlays(hide: HideCurrentOverlays) {
@@ -687,3 +722,31 @@ private class LayoutNode(
         return layout(width, height) { placeable.place(0, 0) }
     }
 }
+
+private data class ContentElement(val zIndex: Float, val isInvisible: Boolean) :
+    ModifierNodeElement<ContentNode>() {
+    override fun create(): ContentNode = ContentNode(zIndex, isInvisible)
+
+    override fun update(node: ContentNode) {
+        node.zIndex = zIndex
+        node.isInvisible = isInvisible
+    }
+}
+
+private class ContentNode(var zIndex: Float, var isInvisible: Boolean) :
+    Modifier.Node(), LayoutModifierNode {
+    override fun MeasureScope.measure(
+        measurable: Measurable,
+        constraints: Constraints,
+    ): MeasureResult {
+        return measurable.measure(constraints).run {
+            layout(width, height) {
+                if (!isInvisible) {
+                    place(0, 0, zIndex = zIndex)
+                }
+            }
+        }
+    }
+}
+
+internal const val SceneTransitionLayoutRootContentTag = "SceneTransitionLayoutRootContent"

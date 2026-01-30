@@ -119,7 +119,7 @@ public class UpdatableSystemFontTest {
             EMOJI_RENDERING_TEST_APP_ID + "/.EmojiRenderingTestActivity";
     // This should be the same as the one in EmojiRenderingTestActivity.
     private static final String TEST_NOTO_SERIF = "test-noto-serif";
-    private static final long ACTIVITY_TIMEOUT_MILLIS = SECONDS.toMillis(10);
+    private static final long ACTIVITY_TIMEOUT_MILLIS = SECONDS.toMillis(50);
 
     private static final String GET_AVAILABLE_FONTS_TEST_ACTIVITY =
             EMOJI_RENDERING_TEST_APP_ID + "/.GetAvailableFontsTestActivity";
@@ -452,7 +452,7 @@ public class UpdatableSystemFontTest {
 
     private static void startActivity(String appId, String activityId) throws Exception {
         expectCommandToSucceed("am force-stop " + appId);
-        expectCommandToSucceed("am start-activity -n " + activityId);
+        expectCommandToSucceed("am start-activity -W -n " + activityId);
     }
 
     private static String expectCommandToSucceed(String cmd) throws IOException {

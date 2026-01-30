@@ -36,20 +36,25 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"Апликацијава може да се отвори само во еден прозорец"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"Апликацијата може да не функционира на друг екран."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"Апликацијата не поддржува стартување на други екрани."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"Апликацијата не поддржува балонче"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"Разделник на поделен екран"</string>
     <string name="divider_title" msgid="1963391955593749442">"Разделник на поделен екран"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"Левиот на цел екран"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"Левиот 70%"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"Левиот 50%"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"Левиот 30%"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"Десниот на цел екран"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"Заменете ги местата на горната и долната апликација"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"Заменете ги местата на левата и десната апликација"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"Горниот на цел екран"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"Горниот 70%"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"Горниот 50%"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"Горниот 30%"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"Долниот на цел екран"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"Прикажи ја левата апликација на цел екран"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"10 % лево, 90 % десно"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"30 % лево, 70 % десно"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"50 % лево, 50 % десно"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"70 % лево, 30 % десно"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"90 % лево, 10 % десно"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"Прикажи ја десната апликација на цел екран"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"Замени ја горната апликација со долната, одржувај ја тековната поделба"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"Замени ја левата апликација со десната, одржувај ја тековната поделба"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"Прикажи ја горната апликација на цел екран"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"10 % горе, 90 % долу"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"30 % горе, 70 % долу"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"50 % горе, 50 % долу"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"70 % горе, 30 % долу"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"90 % горе, 10 % долу"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"Прикажи ја долната апликација на цел екран"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"Подели налево"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"Подели надесно"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"Подели нагоре"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"Управувајте со прозорците"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"Промени го соодносот"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"Оптимизирај го приказот"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"Икона за грешка"</string>
     <string name="close_text" msgid="4986518933445178928">"Затворете"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"Затворете го менито"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (режим со прозорци на работната површина)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"Максимизирај го екранот"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"Смени големина"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"Апликацијата не може да се премести овде"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"Отворање нов прозорец на апликацијата"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"Се затвора прозорецот на апликацијата"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"Минимизирање на прозорецот на апликацијата"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (фокусирано)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (не е фокусирано)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"Реалистично"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"Врати"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"Максимизирај"</string>

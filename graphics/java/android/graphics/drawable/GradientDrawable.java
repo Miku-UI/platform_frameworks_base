@@ -100,6 +100,7 @@ import java.lang.annotation.RetentionPolicy;
  * @attr ref android.R.styleable#GradientDrawablePadding_right
  * @attr ref android.R.styleable#GradientDrawablePadding_bottom
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class GradientDrawable extends Drawable {
 
     /**

@@ -21,9 +21,11 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.data.repository.DEFAULT_REVEAL_DURATION
+import com.android.systemui.keyguard.data.repository.MINMODE_REVEAL_DURATION
 import com.android.systemui.keyguard.data.repository.LightRevealScrimRepository
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.minmode.MinModeManager
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.power.shared.model.ScreenPowerState
 import com.android.systemui.power.shared.model.WakeSleepReason
@@ -32,6 +34,7 @@ import com.android.systemui.statusbar.LightRevealEffect
 import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
 import com.android.systemui.util.kotlin.sample
 import dagger.Lazy
+import java.util.Optional
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -40,6 +43,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
 
 @SysUISingleton
 class LightRevealScrimInteractor
@@ -51,7 +55,10 @@ constructor(
     private val scrimLogger: ScrimLogger,
     private val powerInteractor: Lazy<PowerInteractor>,
     @Background backgroundDispatcher: CoroutineDispatcher,
+    private val minModeManagerOptional: Optional<MinModeManager>,
 ) {
+    private val minModeManager = minModeManagerOptional.orElse(null)
+
     init {
         listenForStartedKeyguardTransitionStep()
     }
@@ -67,6 +74,8 @@ constructor(
                         // This is needed to play the fold to AOD animation which starts with
                         // fully black screen (see FoldAodAnimationController)
                         0L
+                    } else if (minModeManager?.isMinModeEnabled() == true) {
+                        MINMODE_REVEAL_DURATION
                     } else {
                         DEFAULT_REVEAL_DURATION
                     }
@@ -98,23 +107,33 @@ constructor(
 
     /** Limit the max alpha for the scrim to allow for some transparency */
     val maxAlpha: Flow<Float> =
-        anyOf(
-                transitionInteractor.isInTransition(
-                    edge = Edge.create(Scenes.Gone, KeyguardState.AOD),
-                    edgeWithoutSceneContainer = Edge.create(KeyguardState.GONE, KeyguardState.AOD),
-                ),
-                transitionInteractor.isInTransition(
-                    Edge.create(KeyguardState.OCCLUDED, KeyguardState.AOD)
-                ),
-            )
-            .flatMapLatest { isInTransition ->
-                // During transitions like GONE->AOD, surfaces like the launcher may be visible
-                // until WM is told to hide them, which occurs at the end of the animation. Use an
-                // opaque scrim until this transition is complete.
-                if (isInTransition) {
+        repository.wallpaperSupportsAmbientMode
+            .flatMapLatest { wallpaperSupportsAmbientMode ->
+                if (!wallpaperSupportsAmbientMode) {
                     flowOf(1f)
                 } else {
-                    repository.maxAlpha
+                    anyOf(
+                            transitionInteractor.isInTransition(
+                                edge = Edge.create(Scenes.Gone, KeyguardState.AOD),
+                                edgeWithoutSceneContainer =
+                                    Edge.create(KeyguardState.GONE, KeyguardState.AOD),
+                            ),
+                            transitionInteractor.isInTransition(
+                                Edge.create(KeyguardState.OCCLUDED, KeyguardState.AOD)
+                            ),
+                        )
+                        .flatMapLatest { isInTransition ->
+                            // During transitions like GONE->AOD, surfaces like the launcher may be
+                            // visible until WM is told to hide them, which occurs at the end of the
+                            // animation. Use an opaque scrim until this transition is complete.
+                            if (isInTransition) {
+                                flowOf(1f)
+                            } else {
+                                repository.useDarkWallpaperScrim.map { useDarkScrim ->
+                                    if (useDarkScrim) 0.64f else 0.4f
+                                }
+                            }
+                        }
                 }
             }
             .flowOn(backgroundDispatcher)
@@ -137,12 +156,7 @@ constructor(
 
     /** If the wallpaper supports ambient mode, allow partial transparency */
     fun setWallpaperSupportsAmbientMode(supportsAmbientMode: Boolean) {
-        repository.maxAlpha.value =
-            if (supportsAmbientMode) {
-                0.54f
-            } else {
-                1f
-            }
+        repository.wallpaperSupportsAmbientMode.value = supportsAmbientMode
     }
 
     /**

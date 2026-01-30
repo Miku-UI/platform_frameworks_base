@@ -33,7 +33,7 @@ import java.util.Objects;
  * <p>
  * Each instance of {@link MediaProjectionAppContent} contains an id that is used to identify the
  * content chosen by the user back to the advertising application, thus the meaning of the id is
- * only relevant to that application.
+ * only relevant to that application and must uniquely identify a content to be shared.
  */
 @FlaggedApi(com.android.media.projection.flags.Flags.FLAG_APP_CONTENT_SHARING)
 public final class MediaProjectionAppContent implements Parcelable {

@@ -21,7 +21,7 @@ import android.speech.IRecognitionService;
 /**
  * Callback for the service allowing speech recognition proxied by the system.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IRecognitionServiceManagerCallback {
     void onSuccess(in IRecognitionService service);

@@ -36,8 +36,8 @@ import java.util.Map;
  * (DT) and Light Theme (LT). This class assumes the json file is for Dark Theme.
  */
 public class LottieColorUtils {
-    private static final Map<String, Integer> DARK_TO_LIGHT_THEME_COLOR_MAP;
-    private static final Map<String, Integer> MATERIAL_COLOR_MAP;
+    public static final Map<String, Integer> DARK_TO_LIGHT_THEME_COLOR_MAP;
+    public static final Map<String, Integer> MATERIAL_COLOR_MAP;
 
     static {
         DARK_TO_LIGHT_THEME_COLOR_MAP = Map.ofEntries(
@@ -133,7 +133,12 @@ public class LottieColorUtils {
     private LottieColorUtils() {
     }
 
-    private static boolean isDarkMode(Context context) {
+    /**
+     * Checks if the current theme is dark mode.
+     * @param context the current context
+     * @return true if the current theme is dark mode, false otherwise
+     */
+    public static boolean isDarkMode(Context context) {
         return (context.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
                 == Configuration.UI_MODE_NIGHT_YES;
     }

@@ -18,6 +18,7 @@ package com.android.systemui.volume.dialog.ui.binder
 
 import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.volume.dialog.captions.ui.viewmodel.volumeDialogCaptionsButtonViewModelKosmos
 import com.android.systemui.volume.dialog.ringer.volumeDialogRingerViewBinder
 import com.android.systemui.volume.dialog.settings.ui.binder.volumeDialogSettingsButtonViewBinder
 import com.android.systemui.volume.dialog.sliders.ui.volumeDialogSlidersViewBinder
@@ -25,17 +26,25 @@ import com.android.systemui.volume.dialog.ui.utils.jankListenerFactory
 import com.android.systemui.volume.dialog.ui.viewmodel.volumeDialogViewModel
 import com.android.systemui.volume.dialog.utils.volumeTracer
 
+val Kosmos.systemUiVolumeDialogViewBinders by
+    Kosmos.Fixture {
+        listOf(
+            volumeDialogSlidersViewBinder,
+            volumeDialogRingerViewBinder,
+            volumeDialogSettingsButtonViewBinder,
+        )
+    }
+
+var Kosmos.volumeDialogViewBinders: List<ViewBinder> by
+    Kosmos.Fixture { systemUiVolumeDialogViewBinders }
 val Kosmos.volumeDialogViewBinder by
     Kosmos.Fixture {
         VolumeDialogViewBinder(
             applicationContext,
             volumeDialogViewModel,
+            volumeDialogCaptionsButtonViewModelKosmos,
             jankListenerFactory,
             volumeTracer,
-            listOf(
-                volumeDialogSlidersViewBinder,
-                volumeDialogRingerViewBinder,
-                volumeDialogSettingsButtonViewBinder,
-            ),
+            volumeDialogViewBinders,
         )
     }

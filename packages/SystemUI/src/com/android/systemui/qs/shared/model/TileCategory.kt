@@ -16,6 +16,12 @@
 
 package com.android.systemui.qs.shared.model
 
+import android.service.quicksettings.TileService.CATEGORY_ACCESSIBILITY
+import android.service.quicksettings.TileService.CATEGORY_CONNECTIVITY
+import android.service.quicksettings.TileService.CATEGORY_DISPLAY
+import android.service.quicksettings.TileService.CATEGORY_PRIVACY
+import android.service.quicksettings.TileService.CATEGORY_UTILITIES
+import android.service.quicksettings.TileService.Categories
 import com.android.systemui.common.shared.model.Text
 import com.android.systemui.res.R
 
@@ -41,6 +47,10 @@ enum class TileCategory(val label: Text, val iconId: Int) {
         Text.Resource(R.string.qs_edit_mode_category_accessibility),
         R.drawable.ic_qs_category_accessibility,
     ),
+    PROVIDED_BY_SYSTEM_APP(
+        Text.Resource(R.string.qs_edit_mode_category_providedBySystemApps),
+        R.drawable.ic_qs_category_system_apps,
+    ),
     PROVIDED_BY_APP(
         Text.Resource(R.string.qs_edit_mode_category_providedByApps),
         R.drawable.ic_qs_category_provided_by_apps,
@@ -54,6 +64,18 @@ enum class TileCategory(val label: Text, val iconId: Int) {
 interface CategoryAndName {
     val category: TileCategory
     val name: String
+}
+
+/** Returns the [TileCategory] for the [Categories] received. */
+fun tileCategoryFor(@Categories value: String): TileCategory? {
+    return when (value) {
+        CATEGORY_CONNECTIVITY -> TileCategory.CONNECTIVITY
+        CATEGORY_UTILITIES -> TileCategory.UTILITIES
+        CATEGORY_DISPLAY -> TileCategory.DISPLAY
+        CATEGORY_PRIVACY -> TileCategory.PRIVACY
+        CATEGORY_ACCESSIBILITY -> TileCategory.ACCESSIBILITY
+        else -> null
+    }
 }
 
 /**

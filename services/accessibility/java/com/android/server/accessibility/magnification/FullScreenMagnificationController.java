@@ -78,7 +78,7 @@ import java.util.function.Supplier;
  * holding the current state of magnification and animation, and it handles
  * communication between the accessibility manager and window manager.
  *
- * Magnification is limited to the range controlled by
+ * <p>Magnification is limited to the range controlled by
  * {@link MagnificationScaleProvider#constrainScale(float)}, and can only occur inside the
  * magnification region. If a value is out of bounds, it will be adjusted to guarantee these
  * constraints.
@@ -113,6 +113,8 @@ public class FullScreenMagnificationController implements
     private final Rect mTempRect = new Rect();
     // Whether the following typing focus feature for magnification is enabled.
     private boolean mMagnificationFollowTypingEnabled = true;
+    // Whether the following keyboard focus feature for magnification is enabled.
+    private boolean mMagnificationFollowKeyboardEnabled = false;
     // Whether the always on magnification feature is enabled.
     private boolean mAlwaysOnMagnificationEnabled = false;
     private final DisplayManagerInternal mDisplayManagerInternal;
@@ -121,7 +123,117 @@ public class FullScreenMagnificationController implements
     @NonNull private final Supplier<MagnificationThumbnail> mThumbnailSupplier;
     @NonNull private final Supplier<Boolean> mMagnificationConnectionStateSupplier;
 
-    private boolean mIsPointerMotionFilterInstalled = false;
+    /**
+     * Full screen magnification data for {@link FullScreenMagnificationPointerMotionEventFilter}.
+     */
+    public static class FullScreenMagnificationData {
+        // LINT.IfChange(data_declaration)
+        private boolean mActivated;
+        private float mScale;
+        @NonNull
+        private Rect mBounds;
+        private float mOffsetX;
+        private float mMinOffsetX;
+        private float mMaxOffsetX;
+        private float mOffsetY;
+        private float mMinOffsetY;
+        private float mMaxOffsetY;
+        // LINT.ThenChange(FullScreenMagnificationController.java:data_reset)
+
+        public FullScreenMagnificationData() {
+            mBounds = new Rect();
+        }
+
+        public boolean isActivated() {
+            return mActivated;
+        }
+
+        public void setActivated(boolean activated) {
+            mActivated = activated;
+        }
+
+        public float getScale() {
+            return mScale;
+        }
+
+        public void setScale(float scale) {
+            mScale = scale;
+        }
+
+        @NonNull
+        public Rect getBounds() {
+            return mBounds;
+        }
+
+        public void setBounds(@NonNull Rect bounds) {
+            mBounds = bounds;
+        }
+
+        public float getOffsetX() {
+            return mOffsetX;
+        }
+
+        public void setOffsetX(float offsetX) {
+            mOffsetX = offsetX;
+        }
+
+        public float getMinOffsetX() {
+            return mMinOffsetX;
+        }
+
+        public void setMinOffsetX(float minOffsetX) {
+            mMinOffsetX = minOffsetX;
+        }
+
+        public float getMaxOffsetX() {
+            return mMaxOffsetX;
+        }
+
+        public void setMaxOffsetX(float maxOffsetX) {
+            mMaxOffsetX = maxOffsetX;
+        }
+
+        public float getOffsetY() {
+            return mOffsetY;
+        }
+
+        public void setOffsetY(float offsetY) {
+            mOffsetY = offsetY;
+        }
+
+        public float getMinOffsetY() {
+            return mMinOffsetY;
+        }
+
+        public void setMinOffsetY(float minOffsetY) {
+            mMinOffsetY = minOffsetY;
+        }
+
+        public float getMaxOffsetY() {
+            return mMaxOffsetY;
+        }
+
+        public void setMaxOffsetY(float maxOffsetY) {
+            mMaxOffsetY = maxOffsetY;
+        }
+
+        /**
+         * Resets the data to default.
+         */
+        public void reset() {
+            // LINT.IfChange(data_reset)
+            mActivated = false;
+            mScale = 1.0f;
+            mBounds.setEmpty();
+            mOffsetX = 0.0f;
+            mMinOffsetX = 0.0f;
+            mMaxOffsetX = 0.0f;
+            mOffsetY = 0.0f;
+            mMinOffsetY = 0.0f;
+            mMaxOffsetY = 0.0f;
+            // LINT.ThenChange(FullScreenMagnificationController.java:data_declaration)
+        }
+    }
 
     /**
      * This class implements {@link WindowManagerInternal.MagnificationCallbacks} and holds
@@ -137,6 +249,7 @@ public class FullScreenMagnificationController implements
 
         private final Region mMagnificationRegion = Region.obtain();
         private final Rect mMagnificationBounds = new Rect();
+        private final Region mImeRegion = Region.obtain();
 
         private final Rect mTempRect = new Rect();
         private final Rect mTempRect1 = new Rect();
@@ -335,10 +448,18 @@ public class FullScreenMagnificationController implements
         }
 
         @Override
-        public void onMagnificationRegionChanged(Region magnificationRegion) {
+        public void onMagnificationRegionChanged(@NonNull Region magnificationRegion) {
             final Message m = PooledLambda.obtainMessage(
                     DisplayMagnification::updateMagnificationRegion, this,
                     Region.obtain(magnificationRegion));
+            mControllerCtx.getHandler().sendMessage(m);
+        }
+
+        @Override
+        public void onImeRegionChanged(Region imeRegion) {
+            final Message m = PooledLambda.obtainMessage(
+                    DisplayMagnification::updateImeRegion, this,
+                    Region.obtain(imeRegion));
             mControllerCtx.getHandler().sendMessage(m);
         }
 
@@ -399,9 +520,18 @@ public class FullScreenMagnificationController implements
                             mCurrentMagnificationSpec.offsetX, mCurrentMagnificationSpec.offsetY)) {
                         sendSpecToAnimation(mCurrentMagnificationSpec, null);
                     }
-                    onMagnificationChangedLocked(/* isScaleTransient= */ false);
+                    onMagnificationChangedLocked(/* isScaleTransient= */ true);
                 }
                 magnified.recycle();
+            }
+        }
+
+        void updateImeRegion(Region imeRegion) {
+            synchronized (mLock) {
+                if (!mRegistered) {
+                    return;
+                }
+                mImeRegion.set(imeRegion);
             }
         }
 
@@ -480,10 +610,12 @@ public class FullScreenMagnificationController implements
         /**
          * This is invoked whenever magnification change happens.
          *
-         * @param isScaleTransient represents that if the scale is being changed and the changed
-         *                         value may be short lived and be updated again soon.
-         *                         Calling the method usually notifies input manager to update the
-         *                         cursor scale, but setting this value {@code true} prevents it.
+         * @param isScaleTransient Set to {@code true} if the scale is changing transiently (e.g.
+         *                         during a pinch gesture), or if the scale is not changing but the
+         *                         magnified region is moving (e.g. during a pan gesture).
+         *                         When {@code true}, the input manager is not notified of the
+         *                         scale change. The input manager should only be notified of the
+         *                         final, stable scale by calling this method with {@code false}.
          */
         @GuardedBy("mLock")
         void onMagnificationChangedLocked(boolean isScaleTransient) {
@@ -518,6 +650,18 @@ public class FullScreenMagnificationController implements
         @GuardedBy("mLock")
         boolean magnificationRegionContains(float x, float y) {
             return mMagnificationRegion.contains((int) x, (int) y);
+        }
+
+        @GuardedBy("mLock")
+        boolean imeRegionContains(float x, float y) {
+            if (!Flags.enableMagnificationMagnifyNavBarAndIme()) {
+                return false;
+            }
+            // mImeRegion uses global unmagnified coordinates, so convert screen-relative
+            // coordinates (x,y) to global unmagnified coordinates first.
+            x = (x - mCurrentMagnificationSpec.offsetX) / mCurrentMagnificationSpec.scale;
+            y = (y - mCurrentMagnificationSpec.offsetY) / mCurrentMagnificationSpec.scale;
+            return mImeRegion.contains((int) x, (int) y);
         }
 
         @GuardedBy("mLock")
@@ -787,6 +931,10 @@ public class FullScreenMagnificationController implements
          *                of the viewport, or {@link Float#NaN} to leave unchanged
          * @param centerY the unscaled, screen-relative Y coordinate of the center
          *                of the viewport, or {@link Float#NaN} to leave unchanged
+         * @param isScaleTransient {@code true} if the scale is for a short time
+         *                         and potentially changed soon. {@code false}
+         *                         otherwise. For details, see
+         *                         {@link #onMagnificationChangedLocked}
          * @return {@code true} if the magnification spec changed or {@code false}
          *         otherwise
          */
@@ -843,7 +991,7 @@ public class FullScreenMagnificationController implements
             }
 
             if (updateCurrentSpecWithOffsetsLocked(offsetX, offsetY)) {
-                onMagnificationChangedLocked(/* isScaleTransient= */ false);
+                onMagnificationChangedLocked(/* isScaleTransient= */ true);
             }
             if (id != INVALID_SERVICE_ID) {
                 mIdOfLastServiceToMagnify = id;
@@ -1058,7 +1206,7 @@ public class FullScreenMagnificationController implements
      * Start tracking the magnification region for services that control magnification and the
      * magnification gesture handler.
      *
-     * This tracking imposes a cost on the system, so we avoid tracking this data unless it's
+     * <p>This tracking imposes a cost on the system, so we avoid tracking this data unless it's
      * required.
      *
      * @param displayId The logical display id.
@@ -1075,7 +1223,6 @@ public class FullScreenMagnificationController implements
             if (display.register()) {
                 mDisplays.put(displayId, display);
                 mScreenStateObserver.registerIfNecessary();
-                configurePointerMotionFilter(true);
             }
         }
     }
@@ -1108,9 +1255,9 @@ public class FullScreenMagnificationController implements
 
     @Override
     public void onRectangleOnScreenRequested(int displayId, int left, int top, int right,
-            int bottom) {
+            int bottom, int source) {
         synchronized (mLock) {
-            if (!mMagnificationFollowTypingEnabled) {
+            if (!shouldFollow(source)) {
                 return;
             }
             final DisplayMagnification display = mDisplays.get(displayId);
@@ -1129,12 +1276,31 @@ public class FullScreenMagnificationController implements
         }
     }
 
+    private boolean shouldFollow(int source) {
+        // Treat UNDEFINED as following typing to preserve behavior for backwards compatibility.
+        if (mMagnificationFollowTypingEnabled
+                && (source == View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_TEXT_CURSOR
+                || source == View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED)) {
+            return true;
+        }
+        return mMagnificationFollowKeyboardEnabled
+                && source == View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS;
+    }
+
     void setMagnificationFollowTypingEnabled(boolean enabled) {
         mMagnificationFollowTypingEnabled = enabled;
     }
 
     boolean isMagnificationFollowTypingEnabled() {
         return mMagnificationFollowTypingEnabled;
+    }
+
+    void setMagnificationFollowKeyboardEnabled(boolean enabled) {
+        mMagnificationFollowKeyboardEnabled = enabled;
+    }
+
+    boolean isMagnificationFollowKeyboardEnabled() {
+        return mMagnificationFollowKeyboardEnabled;
     }
 
     void setAlwaysOnMagnificationEnabled(boolean enabled) {
@@ -1231,6 +1397,52 @@ public class FullScreenMagnificationController implements
                 return false;
             }
             return display.magnificationRegionContains(x, y);
+        }
+    }
+
+    /**
+     * Returns whether the keyboard (IME) region contains the specified screen-relative coordinates.
+     *
+     * @param displayId The logical display id.
+     * @param x the screen-relative X coordinate to check
+     * @param y the screen-relative Y coordinate to check
+     * @return {@code true} if the coordinate is contained within the
+     *         keyboard region, otherwise {@code false}
+     */
+    public boolean imeRegionContains(int displayId, float x, float y) {
+        synchronized (mLock) {
+            final DisplayMagnification display = mDisplays.get(displayId);
+            if (display == null) {
+                return false;
+            }
+            return display.imeRegionContains(x, y);
+        }
+    }
+
+    /**
+     * Gets the full screen magnification data needed by
+     * {@link #FullScreenMagnificationPointerMotionEventFilter}.
+     *
+     * @param displayId The logical display id.
+     * @param outMagnificationData The magnification data to populate.
+     */
+    public void getFullScreenMagnificationData(int displayId,
+            @NonNull FullScreenMagnificationData outMagnificationData) {
+        synchronized (mLock) {
+            final DisplayMagnification display = mDisplays.get(displayId);
+            if (display == null) {
+                outMagnificationData.reset();
+            } else {
+                outMagnificationData.mActivated = display.isActivated();
+                outMagnificationData.mScale = display.getScale();
+                display.getMagnificationBounds(outMagnificationData.mBounds);
+                outMagnificationData.mOffsetX = display.getOffsetX();
+                outMagnificationData.mMinOffsetX = display.getMinOffsetXLocked();
+                outMagnificationData.mMaxOffsetX = display.getMaxOffsetXLocked();
+                outMagnificationData.mOffsetY = display.getOffsetY();
+                outMagnificationData.mMinOffsetY = display.getMinOffsetYLocked();
+                outMagnificationData.mMaxOffsetY = display.getMaxOffsetYLocked();
+            }
         }
     }
 
@@ -1493,8 +1705,10 @@ public class FullScreenMagnificationController implements
      * @param scale the target scale, must be >= 1
      * @param pivotX the screen-relative X coordinate around which to scale
      * @param pivotY the screen-relative Y coordinate around which to scale
-     * @param isScaleTransient {@code true} if the scale is for a short time and potentially changed
-     *                         soon. {@code false} otherwise.
+     * @param isScaleTransient {@code true} if the scale is for a short time
+     *                         and potentially changed soon. {@code false}
+     *                         otherwise. For details, see
+     *                         {@link DisplayMagnification#onMagnificationChangedLocked}
      * @param animate {@code true} to animate the transition, {@code false}
      *                to transition immediately
      * @param id the ID of the service requesting the change
@@ -1538,7 +1752,7 @@ public class FullScreenMagnificationController implements
                 return false;
             }
             return display.setScaleAndCenter(Float.NaN, centerX, centerY,
-                    /* isScaleTransient= */ false, animate ? STUB_ANIMATION_CALLBACK : null, id);
+                    /* isScaleTransient= */ true, animate ? STUB_ANIMATION_CALLBACK : null, id);
         }
     }
 
@@ -1576,8 +1790,10 @@ public class FullScreenMagnificationController implements
      *                         center and scale, or {@link Float#NaN} to leave unchanged
      * @param centerY          the screen-relative Y coordinate around which to
      *                         center and scale, or {@link Float#NaN} to leave unchanged
-     * @param isScaleTransient {@code true} if the scale is for a short time and potentially changed
-     *                         soon. {@code false} otherwise.
+     * @param isScaleTransient {@code true} if the scale is for a short time
+     *                         and potentially changed soon. {@code false}
+     *                         otherwise. For details, see
+     *                         {@link DisplayMagnification#onMagnificationChangedLocked}
      * @param animate          {@code true} to animate the transition, {@code false}
      *                         to transition immediately
      * @param id               the ID of the service requesting the change
@@ -1601,8 +1817,10 @@ public class FullScreenMagnificationController implements
      *                center and scale, or {@link Float#NaN} to leave unchanged
      * @param centerY the screen-relative Y coordinate around which to
      *                center and scale, or {@link Float#NaN} to leave unchanged
-     * @param isScaleTransient {@code true} if the scale is for a short time and potentially changed
-     *                         soon. {@code false} otherwise.
+     * @param isScaleTransient {@code true} if the scale is for a short time
+     *                         and potentially changed soon. {@code false}
+     *                         otherwise. For details, see
+     *                         {@link DisplayMagnification#onMagnificationChangedLocked}
      * @param animationCallback Called when the animation result is valid.
      *                           {@code null} to transition immediately
      * @param id the ID of the service requesting the change
@@ -1722,8 +1940,8 @@ public class FullScreenMagnificationController implements
 
     /**
      * Persists the default display magnification scale to the current user's settings
-     * <strong>if scale is >= {@link MagnificationConstants.PERSISTED_SCALE_MIN_VALUE}</strong>.
-     * We assume if the scale is < {@link MagnificationConstants.PERSISTED_SCALE_MIN_VALUE}, there
+     * <strong>if scale is >= {@link MagnificationConstants#PERSISTED_SCALE_MIN_VALUE}</strong>.
+     * We assume if the scale is < {@link MagnificationConstants#PERSISTED_SCALE_MIN_VALUE}, there
      * will be no obvious magnification effect.
      * Only the value of the default display is persisted in user's settings.
      */
@@ -1791,10 +2009,8 @@ public class FullScreenMagnificationController implements
      * @param scale     The new scale factor.
      */
     public void notifyScaleForInput(int displayId, float scale) {
-        if (Flags.magnificationEnlargePointerBugfix()) {
-            mControllerCtx.getInputManager()
-                    .setAccessibilityPointerIconScaleFactor(displayId, scale);
-        }
+        mControllerCtx.getInputManager()
+            .setAccessibilityPointerIconScaleFactor(displayId, scale);
     }
 
     /**
@@ -1918,7 +2134,6 @@ public class FullScreenMagnificationController implements
         }
         if (!hasRegister) {
             mScreenStateObserver.unregister();
-            configurePointerMotionFilter(false);
         }
     }
 
@@ -1932,22 +2147,6 @@ public class FullScreenMagnificationController implements
         synchronized (mLock) {
             mMagnificationInfoChangedCallbacks.remove(callback);
         }
-    }
-
-    private void configurePointerMotionFilter(boolean enabled) {
-        if (!Flags.enableMagnificationFollowsMouseWithPointerMotionFilter()) {
-            return;
-        }
-        if (enabled == mIsPointerMotionFilterInstalled) {
-            return;
-        }
-        if (!enabled) {
-            mControllerCtx.getInputManager().registerAccessibilityPointerMotionFilter(null);
-        } else {
-            mControllerCtx.getInputManager().registerAccessibilityPointerMotionFilter(
-                    new FullScreenMagnificationPointerMotionEventFilter(this));
-        }
-        mIsPointerMotionFilterInstalled = enabled;
     }
 
     private boolean traceEnabled() {

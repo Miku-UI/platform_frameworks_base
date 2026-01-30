@@ -24,6 +24,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.app.AppGlobals;
 import android.app.PendingIntent;
+import android.app.UiAutomation;
 import android.content.Context;
 import android.content.IntentSender;
 import android.content.pm.IPackageManager;
@@ -77,6 +78,8 @@ public class AppEnumerationInternalTests {
     @Before
     public void setup() {
         mIPackageManager = AppGlobals.getPackageManager();
+        getUiAutomation().adoptShellPermissionIdentity(
+                "android.permission.INTERACT_ACROSS_USERS_FULL");
     }
 
     @After
@@ -84,6 +87,11 @@ public class AppEnumerationInternalTests {
         uninstallPackage(TARGET_SYNC_PROVIDER);
         uninstallPackage(TARGET_HAS_APPOP_PERMISSION);
         uninstallPackage(TARGET_SHARED_USER);
+        getUiAutomation().dropShellPermissionIdentity();
+    }
+
+    private static UiAutomation getUiAutomation() {
+        return InstrumentationRegistry.getInstrumentation().getUiAutomation();
     }
 
     @Test

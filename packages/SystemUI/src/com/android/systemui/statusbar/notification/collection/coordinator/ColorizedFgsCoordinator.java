@@ -24,6 +24,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.systemui.dagger.qualifiers.Application;
+import com.android.systemui.statusbar.notification.collection.ListEntry;
 import com.android.systemui.statusbar.notification.collection.NotifPipeline;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.PipelineEntry;
@@ -97,7 +98,11 @@ public class ColorizedFgsCoordinator implements Coordinator {
             NotificationPriorityBucketKt.BUCKET_FOREGROUND_SERVICE) {
         @Override
         public boolean isInSection(PipelineEntry entry) {
-            NotificationEntry notifEntry = entry.getRepresentativeEntry();
+            final ListEntry listEntry = entry.asListEntry();
+            if (listEntry == null) {
+                return false;
+            }
+            NotificationEntry notifEntry = listEntry.getRepresentativeEntry();
             if (notifEntry == null) {
                 return false;
             }
@@ -117,13 +122,22 @@ public class ColorizedFgsCoordinator implements Coordinator {
             return isPromotedOngoing(entry) ? Integer.MAX_VALUE - 1 : Integer.MAX_VALUE;
         }
 
+        private int getSortKey(PipelineEntry pipelineEntry) {
+            final ListEntry listEntry = pipelineEntry.asListEntry();
+            if (listEntry == null) {
+                return Integer.MAX_VALUE;
+            } else {
+                return getSortKey(listEntry.getRepresentativeEntry());
+            }
+        }
+
         private final NotifComparator mOngoingComparator = new NotifComparator(
                 "OngoingComparator") {
             @Override
             public int compare(@NonNull PipelineEntry o1, @NonNull PipelineEntry o2) {
                 return Integer.compare(
-                        getSortKey(o1.getRepresentativeEntry()),
-                        getSortKey(o2.getRepresentativeEntry())
+                        getSortKey(o1),
+                        getSortKey(o2)
                 );
             }
         };

@@ -41,6 +41,8 @@ import android.os.Parcelable;
 @Deprecated
 public class NeighboringCellInfo implements Parcelable
 {
+    private static final String TAG = "NeighboringCellInfo";
+
     /**
      * Signal strength is not available
      */
@@ -307,11 +309,11 @@ public class NeighboringCellInfo implements Parcelable
 
         sb.append("[");
         if (mPsc != UNKNOWN_CID) {
-            sb.append(Integer.toHexString(mPsc))
+            sb.append(Rlog.pii(TAG, Integer.toHexString(mPsc)))
                     .append("@").append(((mRssi == UNKNOWN_RSSI)? "-" : mRssi));
         } else if(mLac != UNKNOWN_CID && mCid != UNKNOWN_CID) {
-            sb.append(Integer.toHexString(mLac))
-                    .append(Integer.toHexString(mCid))
+            sb.append(Rlog.pii(TAG, Integer.toHexString(mLac)))
+                    .append(Rlog.pii(TAG, mCid))
                     .append("@").append(((mRssi == UNKNOWN_RSSI)? "-" : mRssi));
         }
         sb.append("]");

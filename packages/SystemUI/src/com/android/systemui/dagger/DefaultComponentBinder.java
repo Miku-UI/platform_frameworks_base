@@ -19,10 +19,14 @@ package com.android.systemui.dagger;
 import dagger.Module;
 
 /**
- * Dagger Module that collects related sub-modules together.
+ * DEPRECATED: DO NOT ADD THINGS TO THIS FILE. b/427499553
  *
  * See {@link ContextComponentResolver}
+ *
+ * @deprecated b/427499553
  */
+
+@Deprecated()
 @Module(includes = {DefaultActivityBinder.class,
                     DefaultBroadcastReceiverBinder.class,
                     DefaultServiceBinder.class})

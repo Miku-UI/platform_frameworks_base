@@ -2,9 +2,12 @@
   "presubmit": [
     {
       "name": "TracingTests"
-    },
+    }
+  ],
+  "wm": [
     {
-      "name": "ProtologPerfTests"
+      "name": "TracingTests"
     }
   ]
+
 }

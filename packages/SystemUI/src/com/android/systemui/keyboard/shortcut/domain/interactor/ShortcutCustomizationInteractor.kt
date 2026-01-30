@@ -17,16 +17,27 @@
 package com.android.systemui.keyboard.shortcut.domain.interactor
 
 import com.android.systemui.keyboard.shared.model.ShortcutCustomizationRequestResult
+import com.android.systemui.keyboard.shared.model.ShortcutCustomizationRequestResult.SUCCESS
 import com.android.systemui.keyboard.shortcut.data.repository.CustomShortcutCategoriesRepository
+import com.android.systemui.keyboard.shortcut.data.repository.ShortcutHelperCustomizationModeRepository
 import com.android.systemui.keyboard.shortcut.data.repository.ShortcutHelperKeys
+import com.android.systemui.keyboard.shortcut.shared.model.AppShortcutCustomizationState
+import com.android.systemui.keyboard.shortcut.shared.model.AppShortcutInfo
 import com.android.systemui.keyboard.shortcut.shared.model.KeyCombination
+import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCategoryType.AppCategories
 import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCustomizationRequestInfo
+import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCustomizationRequestInfo.SingleShortcutCustomization
+import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCustomizationRequestInfo.SingleShortcutCustomization.Add
+import com.android.systemui.keyboard.shortcut.shared.model.ShortcutCustomizationRequestInfo.SingleShortcutCustomization.Delete
 import com.android.systemui.keyboard.shortcut.shared.model.ShortcutKey
 import javax.inject.Inject
 
 class ShortcutCustomizationInteractor
 @Inject
-constructor(private val customShortcutRepository: CustomShortcutCategoriesRepository) {
+constructor(
+    private val customShortcutRepository: CustomShortcutCategoriesRepository,
+    private val customizationModeRepository: ShortcutHelperCustomizationModeRepository,
+) {
     val pressedKeys = customShortcutRepository.pressedKeys
 
     fun updateUserSelectedKeyCombination(keyCombination: KeyCombination?) {
@@ -43,11 +54,15 @@ constructor(private val customShortcutRepository: CustomShortcutCategoriesReposi
 
     suspend fun confirmAndSetShortcutCurrentlyBeingCustomized():
         ShortcutCustomizationRequestResult {
-        return customShortcutRepository.confirmAndSetShortcutCurrentlyBeingCustomized()
+        return customShortcutRepository.confirmAndSetShortcutCurrentlyBeingCustomized().also {
+            if (it == SUCCESS) updateAppShortcutsModifiedInCurrentCustomizationSession()
+        }
     }
 
     suspend fun deleteShortcutCurrentlyBeingCustomized(): ShortcutCustomizationRequestResult {
-        return customShortcutRepository.deleteShortcutCurrentlyBeingCustomized()
+        return customShortcutRepository.deleteShortcutCurrentlyBeingCustomized().also {
+            if (it == SUCCESS) updateAppShortcutsModifiedInCurrentCustomizationSession()
+        }
     }
 
     suspend fun resetAllCustomShortcuts(): ShortcutCustomizationRequestResult {
@@ -56,4 +71,27 @@ constructor(private val customShortcutRepository: CustomShortcutCategoriesReposi
 
     suspend fun isSelectedKeyCombinationAvailable(): Boolean =
         customShortcutRepository.isSelectedKeyCombinationAvailable()
+
+    private fun updateAppShortcutsModifiedInCurrentCustomizationSession() {
+        val shortcutBeingCustomized =
+            customShortcutRepository.getShortcutBeingCustomized() as SingleShortcutCustomization
+
+        with (shortcutBeingCustomized) {
+            if (categoryType == AppCategories) {
+                customizationModeRepository.updateAppShortcutPreCustomizationState(
+                    appShortcutInfo =
+                        AppShortcutInfo(
+                            label,
+                            packageName,
+                            className,
+                        ),
+                    previousCustomizationState =
+                        when (this) {
+                            is Add -> AppShortcutCustomizationState.NOT_CUSTOMIZED
+                            is Delete -> AppShortcutCustomizationState.CUSTOMIZED
+                        },
+                )
+            }
+        }
+    }
 }

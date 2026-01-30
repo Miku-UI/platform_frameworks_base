@@ -27,6 +27,7 @@ import android.media.AudioManager;
 import android.media.MediaRecorder;
 import android.os.Handler;
 import android.os.HandlerExecutor;
+import android.text.TextUtils;
 import android.util.Slog;
 
 import androidx.annotation.NonNull;
@@ -62,9 +63,12 @@ public final class InputRouteManager {
 
     private final AudioManager mAudioManager;
 
+    private final InfoMediaManager mInfoMediaManager;
+
     @VisibleForTesting final List<MediaDevice> mInputMediaDevices = new CopyOnWriteArrayList<>();
 
-    private @AudioDeviceType int mSelectedInputDeviceType;
+    @NonNull
+    private AudioDeviceAttributes mSelectedDeviceAttributes;
 
     private final Collection<InputDeviceCallback> mCallbacks = new CopyOnWriteArrayList<>();
     private final Object mCallbackLock = new Object();
@@ -74,42 +78,83 @@ public final class InputRouteManager {
             new AudioDeviceCallback() {
                 @Override
                 public void onAudioDevicesAdded(@NonNull AudioDeviceInfo[] addedDevices) {
+                    Slog.v(TAG, "onAudioDevicesAdded");
                     applyDefaultSelectedTypeToAllPresets();
 
                     // Activate the last hot plugged valid input device, to match the output device
                     // behavior.
-                    @AudioDeviceType int deviceTypeToActivate = mSelectedInputDeviceType;
+                    AudioDeviceAttributes deviceAttributesToActivate = mSelectedDeviceAttributes;
                     for (AudioDeviceInfo info : addedDevices) {
+                        Slog.v(TAG,
+                                "onAudioDevicesAdded: enumerating"
+                                + ": type=" + info.getType()
+                                + ", name=" + info.getProductName()
+                                + ", isSource=" + info.isSource()
+                                + ", isSink=" + info.isSink());
+
+                        if (!info.isSource()) {
+                            continue;
+                        }
+
                         @AudioDeviceType int type = info.getType();
+                        String addr = info.getAddress();
                         // Since onAudioDevicesAdded is called not only when new device is hot
                         // plugged, but also when the switcher dialog is opened, make sure to check
                         // against existing device list and only activate if the device does not
                         // exist previously.
                         if (InputMediaDevice.isSupportedInputDevice(type)
-                                && findDeviceByType(type) == null) {
-                            deviceTypeToActivate = type;
+                                && findDeviceByTypeAndAddress(type, addr) == null) {
+                            Slog.v(TAG,
+                                    "onAudioDevicesAdded: updated type=" + type + ", addr=" + addr);
+                            deviceAttributesToActivate = createInputDeviceAttributes(type, addr);
                         }
                     }
 
                     // Only activate if we find a different valid input device. e.g. if none of the
                     // addedDevices is supported input device, we don't need to activate anything.
-                    if (mSelectedInputDeviceType != deviceTypeToActivate) {
-                        mSelectedInputDeviceType = deviceTypeToActivate;
-                        AudioDeviceAttributes deviceAttributes =
-                                createInputDeviceAttributes(mSelectedInputDeviceType);
-                        setPreferredDeviceForAllPresets(deviceAttributes);
+                    if (!mSelectedDeviceAttributes.equals(deviceAttributesToActivate)) {
+                        mSelectedDeviceAttributes = deviceAttributesToActivate;
+                        setPreferredDeviceForAllPresets(deviceAttributesToActivate);
                     }
                 }
 
                 @Override
                 public void onAudioDevicesRemoved(@NonNull AudioDeviceInfo[] removedDevices) {
-                    applyDefaultSelectedTypeToAllPresets();
+                    for (AudioDeviceInfo info : removedDevices) {
+                        Slog.v(TAG,
+                                "onAudioDevicesRemoved: enumerating"
+                                + ": type=" + info.getType()
+                                + ", name=" + info.getProductName()
+                                + ", isSource=" + info.isSource()
+                                + ", isSink=" + info.isSink());
+
+                        if (!info.isSource()) {
+                            continue;
+                        }
+
+                        @AudioDeviceType int type = info.getType();
+                        String addr = info.getAddress();
+                        // Only when the selected input got removed, apply default as fallback.
+                        if (InputMediaDevice.isSupportedInputDevice(type)
+                                && (mSelectedDeviceAttributes.getType() == type)
+                                && (mSelectedDeviceAttributes.getAddress().equals(addr))) {
+                            Slog.v(TAG,
+                                    "selected input is removed: updated type="
+                                    + type + ", addr=" + addr);
+                            applyDefaultSelectedTypeToAllPresets();
+                            break;
+                        }
+                    }
                 }
             };
 
-    public InputRouteManager(@NonNull Context context, @NonNull AudioManager audioManager) {
+    public InputRouteManager(
+            @NonNull Context context,
+            @NonNull AudioManager audioManager,
+            @NonNull InfoMediaManager infoMediaManager) {
         mContext = context;
         mAudioManager = audioManager;
+        mInfoMediaManager = infoMediaManager;
         Handler handler = new Handler(context.getMainLooper());
 
         mAudioManager.registerAudioDeviceCallback(mAudioDeviceCallback, handler);
@@ -145,42 +190,39 @@ public final class InputRouteManager {
         }
     }
 
-    // TODO(b/355684672): handle edge case where there are two devices with the same type. Only
-    // using a single type might not be enough to recognize the correct device.
     @Nullable
-    private MediaDevice findDeviceByType(@AudioDeviceType int type) {
+    private MediaDevice findDeviceByTypeAndAddress(@AudioDeviceType int type, String addr) {
         for (MediaDevice device : mInputMediaDevices) {
-            if (((InputMediaDevice) device).getAudioDeviceInfoType() == type) {
+            if (((InputMediaDevice) device).getAudioDeviceInfoType() == type
+                    && (TextUtils.isEmpty(addr)
+                            || ((InputMediaDevice) device).getAddress().equals(addr))) {
                 return device;
             }
         }
         return null;
     }
 
-    @Nullable
-    public MediaDevice getSelectedInputDevice() {
-        return findDeviceByType(mSelectedInputDeviceType);
-    }
-
     private void applyDefaultSelectedTypeToAllPresets() {
-        mSelectedInputDeviceType = retrieveDefaultSelectedDeviceType();
-        AudioDeviceAttributes deviceAttributes =
-                createInputDeviceAttributes(mSelectedInputDeviceType);
+        AudioDeviceAttributes deviceAttributes = retrieveDefaultSelectedInputDeviceAttrs();
+
+        mSelectedDeviceAttributes = deviceAttributes;
         setPreferredDeviceForAllPresets(deviceAttributes);
     }
 
-    private AudioDeviceAttributes createInputDeviceAttributes(@AudioDeviceType int type) {
-        // Address is not used.
-        return new AudioDeviceAttributes(AudioDeviceAttributes.ROLE_INPUT, type, /* address= */ "");
+    private AudioDeviceAttributes createInputDeviceAttributes(@AudioDeviceType int type,
+            String address) {
+        return new AudioDeviceAttributes(AudioDeviceAttributes.ROLE_INPUT, type, address);
     }
 
-    private @AudioDeviceType int retrieveDefaultSelectedDeviceType() {
+    private AudioDeviceAttributes retrieveDefaultSelectedInputDeviceAttrs() {
         List<AudioDeviceAttributes> attributesOfSelectedInputDevices =
                 mAudioManager.getDevicesForAttributes(INPUT_ATTRIBUTES);
-        int selectedInputDeviceAttributesType;
+        @AudioDeviceType int selectedType;
+        String selectedAddr;
         if (attributesOfSelectedInputDevices.isEmpty()) {
             Slog.e(TAG, "Unexpected empty list of input devices. Using built-in mic.");
-            selectedInputDeviceAttributesType = AudioDeviceInfo.TYPE_BUILTIN_MIC;
+            selectedType = AudioDeviceInfo.TYPE_BUILTIN_MIC;
+            selectedAddr = "";
         } else {
             if (attributesOfSelectedInputDevices.size() > 1) {
                 Slog.w(
@@ -188,9 +230,10 @@ public final class InputRouteManager {
                         "AudioManager.getDevicesForAttributes returned more than one element."
                                 + " Using the first one.");
             }
-            selectedInputDeviceAttributesType = attributesOfSelectedInputDevices.get(0).getType();
+            selectedType = attributesOfSelectedInputDevices.get(0).getType();
+            selectedAddr = attributesOfSelectedInputDevices.get(0).getAddress();
         }
-        return selectedInputDeviceAttributesType;
+        return createInputDeviceAttributes(selectedType, selectedAddr);
     }
 
     private void dispatchInputDeviceListUpdate() {
@@ -199,18 +242,21 @@ public final class InputRouteManager {
                 mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS);
         mInputMediaDevices.clear();
         for (AudioDeviceInfo info : audioDeviceInfos) {
+            boolean isSelected = isSelectedDevice(info.getType(), info.getAddress());
             MediaDevice mediaDevice =
                     InputMediaDevice.create(
                             mContext,
                             String.valueOf(info.getId()),
+                            info.getAddress(),
                             info.getType(),
                             getMaxInputGain(),
                             getCurrentInputGain(),
                             isInputGainFixed(),
+                            isSelected,
                             getProductNameFromAudioDeviceInfo(info));
             if (mediaDevice != null) {
-                if (info.getType() == mSelectedInputDeviceType) {
-                    mediaDevice.setState(STATE_SELECTED);
+                if (isSelected) {
+                    mInfoMediaManager.setDeviceState(mediaDevice, STATE_SELECTED);
                 }
                 mInputMediaDevices.add(mediaDevice);
             }
@@ -222,6 +268,14 @@ public final class InputRouteManager {
                 callback.onInputDeviceListUpdated(inputMediaDevices);
             }
         }
+    }
+
+    private boolean isSelectedDevice(@AudioDeviceType int type, @NonNull String address) {
+        // If the selected device's address is empty, there will be only one device of that type,
+        // therefore matching by type is sufficient.
+        return type == mSelectedDeviceAttributes.getType()
+                && (TextUtils.isEmpty(mSelectedDeviceAttributes.getAddress())
+                || address.equals(mSelectedDeviceAttributes.getAddress()));
     }
 
     /**
@@ -249,7 +303,8 @@ public final class InputRouteManager {
             return;
         }
 
-        if (inputMediaDevice.getAudioDeviceInfoType() == mSelectedInputDeviceType) {
+        if (isSelectedDevice(inputMediaDevice.getAudioDeviceInfoType(),
+                inputMediaDevice.getAddress())) {
             Slog.w(TAG, "This device is already selected: " + device.getName());
             return;
         }
@@ -260,13 +315,15 @@ public final class InputRouteManager {
             return;
         }
 
-        // Update mSelectedInputDeviceType directly based on user action.
-        mSelectedInputDeviceType = inputMediaDevice.getAudioDeviceInfoType();
+        // Update mSelectedInputDeviceType/Addr directly based on user action.
 
-        AudioDeviceAttributes deviceAttributes =
-                createInputDeviceAttributes(inputMediaDevice.getAudioDeviceInfoType());
+        mSelectedDeviceAttributes =
+                createInputDeviceAttributes(inputMediaDevice.getAudioDeviceInfoType(),
+                        inputMediaDevice.getAddress());
+        Slog.v(TAG, "User selected device: type=" + mSelectedDeviceAttributes.getType()
+                + ", addr=" + mSelectedDeviceAttributes.getAddress());
         try {
-            setPreferredDeviceForAllPresets(deviceAttributes);
+            setPreferredDeviceForAllPresets(mSelectedDeviceAttributes);
         } catch (IllegalArgumentException e) {
             Slog.e(
                     TAG,

@@ -28,11 +28,14 @@ import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Outline;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.drawable.Icon;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.view.View;
+import android.view.ViewOutlineProvider;
 
 import com.android.internal.R;
 import com.android.internal.graphics.ColorUtils;
@@ -301,5 +304,53 @@ public class PeopleHelper {
             boolean canHide = isOneToOne && TextUtils.equals(conversationTitle, messageSender);
             messagingGroup.setCanHideSenderIfFirst(canHide);
         }
+    }
+
+    /**
+     * Builds a {@link ViewOutlineProvider} that provides a circular path or a circular path with a
+     * smaller circle cut out of the shape. This is primarily for cutting out a shape for the icon
+     * badge ring.
+     *
+     * @param baseView   - View used to provide the larger outline's size.
+     * @param cutoutView - View used to determine the size of the cutout. This view must be a direct
+     *                   child of the base view,
+     *                   otherwise positional getters on the view (eg. {@link View#getBottom}) will
+     *                   not return the correct value.
+     * @return A {@link ViewOutlineProvider} that sets the correct outline based on state and size.
+     */
+    public static ViewOutlineProvider getBadgeCutoutOutlineProvider(View baseView,
+            View cutoutView) {
+        if (baseView == null || cutoutView == null) {
+            return ViewOutlineProvider.BACKGROUND;
+        }
+
+        return new ViewOutlineProvider() {
+            private View mBase = baseView;
+            private View mCutout = cutoutView;
+
+            @Override
+            public void getOutline(View view, Outline outline) {
+                outline.setPath(
+                        mCutout.getVisibility() == View.GONE ? getBasePath() : getCutoutPath());
+            }
+
+            private Path getBasePath() {
+                Path basePath = new Path();
+                basePath.addOval(mBase.getLeft(), mBase.getTop(), mBase.getRight(),
+                        mBase.getBottom(), Path.Direction.CW);
+                return basePath;
+            }
+
+            private Path getCutoutPath() {
+
+                Path clippedShape = new Path();
+                clippedShape.addOval(mCutout.getLeft(), mCutout.getTop(), mCutout.getRight(),
+                        mCutout.getBottom(), Path.Direction.CW);
+
+                Path cutoutPath = new Path(getBasePath());
+                cutoutPath.op(clippedShape, Path.Op.DIFFERENCE);
+                return cutoutPath;
+            }
+        };
     }
 }

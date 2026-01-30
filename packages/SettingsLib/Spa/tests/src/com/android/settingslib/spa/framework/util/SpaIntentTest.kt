@@ -24,7 +24,7 @@ import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
 import com.android.settingslib.spa.framework.common.SpaEnvironmentFactory
 import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.tests.testutils.SpaEnvironmentForTest
-import com.google.common.truth.Truth
+import com.google.common.truth.Truth.assertThat
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,24 +40,48 @@ class SpaIntentTest {
     }
 
     @Test
-    fun testCreateIntent() {
+    fun createIntent_nullPage_returnsNull() {
         val nullPage = NullPageProvider.createSettingsPage()
-        Truth.assertThat(nullPage.createIntent()).isNull()
-        Truth.assertThat(SettingsEntryBuilder.createInject(nullPage).build().createIntent())
-            .isNull()
+        assertThat(nullPage.createIntent()).isNull()
+        assertThat(SettingsEntryBuilder.createInject(nullPage).build().createIntent()).isNull()
+    }
 
+    @Test
+    fun createIntent_normalPage_returnsCorrectIntent() {
         val page = spaEnvironment.createPage("SppHome")
-        val pageIntent = page.createIntent()
-        Truth.assertThat(pageIntent).isNotNull()
-        Truth.assertThat(pageIntent!!.getDestination()).isEqualTo(page.buildRoute())
-        Truth.assertThat(pageIntent.getEntryId()).isNull()
-        Truth.assertThat(pageIntent.getSessionName()).isNull()
 
+        val pageIntent = page.createIntent()
+
+        assertThat(pageIntent).isNotNull()
+        assertThat(pageIntent!!.getDestination()).isEqualTo(page.buildRoute())
+        assertThat(pageIntent.highlightItemKey).isNull()
+        assertThat(pageIntent.getSessionName()).isNull()
+    }
+
+    @Test
+    fun createIntent_entry_returnsCorrectIntent() {
+        val page = spaEnvironment.createPage("SppHome")
         val entry = SettingsEntryBuilder.createInject(page).build()
+
         val entryIntent = entry.createIntent(SESSION_SEARCH)
-        Truth.assertThat(entryIntent).isNotNull()
-        Truth.assertThat(entryIntent!!.getDestination()).isEqualTo(page.buildRoute())
-        Truth.assertThat(entryIntent.getEntryId()).isEqualTo(entry.id)
-        Truth.assertThat(entryIntent.getSessionName()).isEqualTo(SESSION_SEARCH)
+
+        assertThat(entryIntent).isNotNull()
+        assertThat(entryIntent!!.getDestination()).isEqualTo(page.buildRoute())
+        assertThat(entryIntent.highlightItemKey).isNull()
+        assertThat(entryIntent.getSessionName()).isEqualTo(SESSION_SEARCH)
+    }
+
+    @Test
+    fun appendSpaParams_returnsCorrectIntent() {
+        val page = spaEnvironment.createPage("SppHome")
+
+        val pageIntent =
+            page.createIntent()!!.appendSpaParams(highlightItemKey = HIGHLIGHT_ITEM_KEY)
+
+        assertThat(pageIntent.highlightItemKey).isEqualTo(HIGHLIGHT_ITEM_KEY)
+    }
+
+    private companion object {
+        const val HIGHLIGHT_ITEM_KEY = "highlight_item_key"
     }
 }

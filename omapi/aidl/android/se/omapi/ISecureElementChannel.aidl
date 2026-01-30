@@ -53,7 +53,7 @@ interface ISecureElementChannel {
      * bytes in the following order:
      * [<first data byte>, ..., <last data byte>, <sw1>, <sw2>]
      */
-    byte[] getSelectResponse();
+    @nullable byte[] getSelectResponse();
 
     /**
      * Transmits the specified command APDU and returns the response APDU.

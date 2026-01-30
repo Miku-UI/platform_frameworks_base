@@ -33,12 +33,12 @@ public class StepCurve extends Easing {
      * @param offset the offset into the array
      * @param len the length of the array to use
      */
-    public StepCurve(@NonNull float[] params, int offset, int len) {
+    public StepCurve(@NonNull float [] params, int offset, int len) {
         mCurveFit = genSpline(params, offset, len);
     }
 
     @NonNull
-    private static MonotonicCurveFit genSpline(@NonNull float[] values, int off, int arrayLen) {
+    private static MonotonicCurveFit genSpline(@NonNull float [] values, int off, int arrayLen) {
         int length = arrayLen * 3 - 2;
         int len = arrayLen - 1;
         double gap = 1.0 / len;
@@ -57,9 +57,7 @@ public class StepCurve extends Easing {
             }
         }
 
-        MonotonicCurveFit ms = new MonotonicCurveFit(time, points);
-
-        return ms;
+        return new MonotonicCurveFit(time, points);
     }
 
     @Override

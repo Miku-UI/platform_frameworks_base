@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"اپ ڈیٹ کریں"</string>
     <string name="done" msgid="6632441120016885253">"ہو گیا"</string>
     <string name="cancel" msgid="1018267193425558088">"منسوخ کریں"</string>
+    <string name="more_details" msgid="3643407086654820243">"مزید تفصیلات"</string>
+    <string name="dont_install" msgid="414055123295505225">"انسٹال نہ کریں"</string>
     <string name="installing" msgid="4921993079741206516">"انسٹال ہو رہی ہے…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> کو انسٹال کیا جا رہا ہے…"</string>
     <string name="install_done" msgid="5987363587661783896">"ایپ انسٹال ہو گئی۔"</string>

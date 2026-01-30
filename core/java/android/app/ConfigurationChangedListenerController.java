@@ -18,6 +18,7 @@ package android.app;
 
 import android.annotation.NonNull;
 import android.os.IBinder;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import com.android.internal.annotations.GuardedBy;
 
@@ -30,6 +31,7 @@ import java.util.function.Consumer;
  * Manages listeners for unfiltered configuration changes.
  * @hide
  */
+@RavenwoodKeepWholeClass
 class ConfigurationChangedListenerController {
 
     private final Object mLock = new Object();

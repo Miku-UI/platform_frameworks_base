@@ -177,11 +177,14 @@ public class CompatConfigTest {
         final long disabledChangeId = 1234L;
         final long enabledLatestChangeId = 2345L;
         final long enabledOlderChangeId = 3456L;
+        final long enabledLatestNoLoggingChangeId = 4567L;
         CompatConfig compatConfig = CompatConfigBuilder.create(mBuildClassifier, mContext)
                 // Disabled changes should not be logged.
                 .addDisabledChangeWithId(disabledChangeId)
                 // A change targeting the latest sdk should be logged.
                 .addEnableSinceSdkChangeWithId(3, enabledLatestChangeId)
+                // A change targeting the latest sdk but marked as no logging should not be logged.
+                .addEnableSinceSdkChangeWithIdNoLogging(4, enabledLatestNoLoggingChangeId)
                 // A change targeting an old sdk should not be logged.
                 .addEnableSinceSdkChangeWithId(1, enabledOlderChangeId)
                 .build();

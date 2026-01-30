@@ -35,6 +35,7 @@ import com.android.compatibility.common.util.AdoptShellPermissionsRule;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.RandomAccessFile;
@@ -50,6 +51,10 @@ public class Helper {
     private static final String TAG = "FsVerityTest";
 
     private static final String FILENAME = "test.file";
+
+    static {
+        System.loadLibrary("fsveritytestapp_jni");
+    }
 
     @Rule
     public final AdoptShellPermissionsRule mAdoptShellPermissionsRule =
@@ -72,6 +77,7 @@ public class Helper {
         byte[] bytes = new byte[8192];
         Arrays.fill(bytes, (byte) '1');
         try (FileOutputStream os = context.openFileOutput(basename, Context.MODE_PRIVATE)) {
+            disableCompression(os.getFD());
             for (int i = 0; i < fileSize; i += bytes.length) {
                 if (i + bytes.length > fileSize) {
                     os.write(bytes, 0, fileSize % bytes.length);
@@ -85,6 +91,18 @@ public class Helper {
         FileIntegrityManager fim = context.getSystemService(FileIntegrityManager.class);
         fim.setupFsVerity(context.getFileStreamPath(basename));
     }
+
+    /**
+     * Explicitly disables compression on the given file. This is needed in case automatic
+     * compression is enabled filesystem-wide. The tests expect an uncompressed file.
+     *
+     * <p>This uses JNI because these flags are accessible only via ioctl().
+     *
+     * <p>Does nothing if the filesystem does not support compression.
+     *
+     * @throws RuntimeException if an unexpected error occurred
+     */
+    private static native void disableCompression(FileDescriptor fd);
 
     private static long getPageSize() {
         String arch = System.getProperty("os.arch");

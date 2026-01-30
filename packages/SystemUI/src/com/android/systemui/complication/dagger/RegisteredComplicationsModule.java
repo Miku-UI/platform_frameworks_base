@@ -16,9 +16,14 @@
 
 package com.android.systemui.complication.dagger;
 
+import static android.service.dreams.Flags.dreamsV2;
+
+import android.content.Context;
 import android.content.res.Resources;
 import android.view.ViewGroup;
 
+import com.android.systemui.communal.util.WindowSizeUtils;
+import com.android.systemui.communal.util.WindowSizeUtils.WindowSizeCategory;
 import com.android.systemui.complication.ComplicationLayoutParams;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.flags.FeatureFlags;
@@ -52,14 +57,18 @@ public interface RegisteredComplicationsModule {
     int DREAM_HOME_CONTROLS_CHIP_COMPLICATION_WEIGHT = 4;
     int DREAM_MEDIA_ENTRY_COMPLICATION_WEIGHT = 3;
     int DREAM_WEATHER_COMPLICATION_WEIGHT = 0;
+    int DREAM_WEATHER_COMPLICATION_COMPACT_WEIGHT = 5;
 
     /**
      * Provides layout parameters for the clock time complication.
      */
     @Provides
     @Named(DREAM_CLOCK_TIME_COMPLICATION_LAYOUT_PARAMS)
-    static ComplicationLayoutParams provideClockTimeLayoutParams(FeatureFlags featureFlags) {
-        if (featureFlags.isEnabled(Flags.HIDE_SMARTSPACE_ON_DREAM_OVERLAY)) {
+    static ComplicationLayoutParams provideClockTimeLayoutParams(FeatureFlags featureFlags,
+            Context context) {
+        if (featureFlags.isEnabled(Flags.HIDE_SMARTSPACE_ON_DREAM_OVERLAY)
+                && (!dreamsV2() || WindowSizeUtils.getWindowSizeCategory(context)
+                != WindowSizeCategory.MOBILE_PORTRAIT)) {
             return new ComplicationLayoutParams(0,
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                     ComplicationLayoutParams.POSITION_BOTTOM
@@ -72,8 +81,7 @@ public interface RegisteredComplicationsModule {
                 ComplicationLayoutParams.POSITION_BOTTOM
                         | ComplicationLayoutParams.POSITION_START,
                 ComplicationLayoutParams.DIRECTION_UP,
-                DREAM_CLOCK_TIME_COMPLICATION_WEIGHT,
-                0 /*margin*/);
+                DREAM_CLOCK_TIME_COMPLICATION_WEIGHT);
     }
 
     /**

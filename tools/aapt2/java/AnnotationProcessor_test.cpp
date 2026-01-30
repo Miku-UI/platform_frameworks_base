@@ -121,6 +121,38 @@ TEST(AnnotationProcessorTest, EmitsTestApiAnnotationAndRemovesFromComment) {
   EXPECT_THAT(annotations, HasSubstr("This is a test API"));
 }
 
+TEST(AnnotationProcessorTest, EmitsHideAnnotationAndRemovesFromComment) {
+  AnnotationProcessor processor;
+  processor.AppendComment("@hide This is an internal API");
+
+  std::string annotations;
+  StringOutputStream out(&annotations);
+  Printer printer(&out);
+  processor.Print(&printer);
+  out.Flush();
+
+  EXPECT_THAT(annotations, HasSubstr("@android.annotation.Hide"));
+  EXPECT_THAT(annotations, Not(HasSubstr("@hide")));
+  EXPECT_THAT(annotations, HasSubstr("This is an internal API"));
+}
+
+TEST(AnnotationProcessorTest, EmitsSystemApiAndHideAnnotationAndRemovesFromComment) {
+  AnnotationProcessor processor;
+  processor.AppendComment("@SystemApi @hide This is a system API");
+
+  std::string annotations;
+  StringOutputStream out(&annotations);
+  Printer printer(&out);
+  processor.Print(&printer);
+  out.Flush();
+
+  EXPECT_THAT(annotations, HasSubstr("@android.annotation.SystemApi"));
+  EXPECT_THAT(annotations, Not(HasSubstr("@SystemApi")));
+  EXPECT_THAT(annotations, HasSubstr("@android.annotation.Hide"));
+  EXPECT_THAT(annotations, Not(HasSubstr("@hide")));
+  EXPECT_THAT(annotations, HasSubstr("This is a system API"));
+}
+
 TEST(AnnotationProcessorTest, NotEmitSystemApiAnnotation) {
   AnnotationProcessor processor;
   processor.AppendComment("@SystemApi This is a system API");

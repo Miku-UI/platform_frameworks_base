@@ -23,6 +23,7 @@ import android.content.res.Configuration.ORIENTATION_LANDSCAPE
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
+import android.platform.test.annotations.DisableFlags
 import android.testing.TestableLooper
 import android.view.View
 import android.view.ViewGroup
@@ -37,9 +38,10 @@ import androidx.lifecycle.LiveData
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.widget.CachingIconView
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.DumpManager
-import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.media.controls.ui.view.GutsViewHolder
 import com.android.systemui.media.controls.ui.view.MediaHost
 import com.android.systemui.media.controls.ui.view.MediaViewHolder
@@ -52,11 +54,6 @@ import com.android.systemui.util.animation.MeasurementInput
 import com.android.systemui.util.animation.TransitionLayout
 import com.android.systemui.util.animation.TransitionViewState
 import com.android.systemui.util.animation.WidgetState
-import com.android.systemui.util.concurrency.FakeExecutor
-import com.android.systemui.util.mockito.withArgCaptor
-import com.android.systemui.util.settings.GlobalSettings
-import com.android.systemui.util.time.FakeSystemClock
-import com.google.common.truth.Truth.assertThat
 import junit.framework.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -73,14 +70,14 @@ import org.mockito.MockitoAnnotations
 @SmallTest
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
+@DisableFlags(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE)
 class MediaViewControllerTest : SysuiTestCase() {
     private val mediaHostStateHolder = MediaHost.MediaHostStateHolder()
     private val configurationController =
         com.android.systemui.statusbar.phone.ConfigurationControllerImpl(context)
     private var player = TransitionLayout(context, /* attrs */ null, /* defStyleAttr */ 0)
-    private val clock = FakeSystemClock()
     private lateinit var mediaHostStatesManager: MediaHostStatesManager
-    private lateinit var mainExecutor: FakeExecutor
     private lateinit var seekBar: SeekBar
     private lateinit var multiRippleView: MultiRippleView
     private lateinit var turbulenceNoiseView: TurbulenceNoiseView
@@ -112,7 +109,6 @@ class MediaViewControllerTest : SysuiTestCase() {
     @Mock private lateinit var controlWidgetState: WidgetState
     @Mock private lateinit var seekBarViewModel: SeekBarViewModel
     @Mock private lateinit var seekBarData: LiveData<SeekBarViewModel.Progress>
-    @Mock private lateinit var globalSettings: GlobalSettings
     @Mock private lateinit var viewHolder: MediaViewHolder
     @Mock private lateinit var view: TransitionLayout
     @Mock private lateinit var mockAnimator: AnimatorSet
@@ -127,7 +123,6 @@ class MediaViewControllerTest : SysuiTestCase() {
     fun setup() {
         MockitoAnnotations.initMocks(this)
         mediaHostStatesManager = MediaHostStatesManager(dumpManager)
-        mainExecutor = FakeExecutor(clock)
         mediaViewController =
             object :
                 MediaViewController(
@@ -136,8 +131,6 @@ class MediaViewControllerTest : SysuiTestCase() {
                     mediaHostStatesManager,
                     logger,
                     seekBarViewModel,
-                    mainExecutor,
-                    globalSettings,
                 ) {
                 override fun loadAnimator(
                     context: Context,
@@ -287,188 +280,6 @@ class MediaViewControllerTest : SysuiTestCase() {
         verify(detailWidgetState, never()).alpha = floatThat { it > 0 }
     }
 
-    @EnableSceneContainer
-    @Test
-    fun attachPlayer_seekBarDisabled_seekBarVisibilityIsSetToInvisible() {
-        mediaViewController.attachPlayer(viewHolder)
-        getEnabledChangeListener().onEnabledChanged(enabled = true)
-        getEnabledChangeListener().onEnabledChanged(enabled = false)
-
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.media_progress_bar))
-            .isEqualTo(ConstraintSet.INVISIBLE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun attachPlayer_seekBarEnabled_seekBarVisible() {
-        mediaViewController.attachPlayer(viewHolder)
-        getEnabledChangeListener().onEnabledChanged(enabled = true)
-
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.media_progress_bar))
-            .isEqualTo(ConstraintSet.VISIBLE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun attachPlayer_seekBarStatusUpdate_seekBarVisibilityChanges() {
-        mediaViewController.attachPlayer(viewHolder)
-        getEnabledChangeListener().onEnabledChanged(enabled = true)
-
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.media_progress_bar))
-            .isEqualTo(ConstraintSet.VISIBLE)
-
-        getEnabledChangeListener().onEnabledChanged(enabled = false)
-
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.media_progress_bar))
-            .isEqualTo(ConstraintSet.INVISIBLE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun attachPlayer_notScrubbing_scrubbingViewsGone() {
-        mediaViewController.attachPlayer(viewHolder)
-        mediaViewController.canShowScrubbingTime = true
-        getScrubbingChangeListener().onScrubbingChanged(true)
-        getScrubbingChangeListener().onScrubbingChanged(false)
-        mainExecutor.runAllReady()
-
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_elapsed_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_total_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun setIsScrubbing_noSemanticActions_scrubbingViewsGone() {
-        mediaViewController.attachPlayer(viewHolder)
-        mediaViewController.canShowScrubbingTime = false
-        getScrubbingChangeListener().onScrubbingChanged(true)
-        mainExecutor.runAllReady()
-
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_elapsed_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_total_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun setIsScrubbing_noPrevButton_scrubbingTimesNotShown() {
-        mediaViewController.attachPlayer(viewHolder)
-        mediaViewController.setUpNextButtonInfo(true)
-        mediaViewController.setUpPrevButtonInfo(false)
-        getScrubbingChangeListener().onScrubbingChanged(true)
-        mainExecutor.runAllReady()
-
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionNext))
-            .isEqualTo(ConstraintSet.VISIBLE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_elapsed_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_total_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun setIsScrubbing_noNextButton_scrubbingTimesNotShown() {
-        mediaViewController.attachPlayer(viewHolder)
-        mediaViewController.setUpNextButtonInfo(false)
-        mediaViewController.setUpPrevButtonInfo(true)
-        getScrubbingChangeListener().onScrubbingChanged(true)
-        mainExecutor.runAllReady()
-
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionPrev))
-            .isEqualTo(ConstraintSet.VISIBLE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_elapsed_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_total_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun setIsScrubbing_scrubbingViewsShownAndPrevNextHiddenOnlyInExpanded() {
-        mediaViewController.attachPlayer(viewHolder)
-        mediaViewController.setUpNextButtonInfo(true)
-        mediaViewController.setUpPrevButtonInfo(true)
-        mediaViewController.canShowScrubbingTime = true
-        getScrubbingChangeListener().onScrubbingChanged(true)
-        mainExecutor.runAllReady()
-
-        // Only in expanded, we should show the scrubbing times and hide prev+next
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionPrev))
-            .isEqualTo(ConstraintSet.GONE)
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionNext))
-            .isEqualTo(ConstraintSet.GONE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_elapsed_time)
-            )
-            .isEqualTo(ConstraintSet.VISIBLE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_total_time)
-            )
-            .isEqualTo(ConstraintSet.VISIBLE)
-    }
-
-    @EnableSceneContainer
-    @Test
-    fun setIsScrubbing_trueThenFalse_reservePrevAndNextButtons() {
-        mediaViewController.attachPlayer(viewHolder)
-        mediaViewController.setUpNextButtonInfo(true, ConstraintSet.INVISIBLE)
-        mediaViewController.setUpPrevButtonInfo(true, ConstraintSet.INVISIBLE)
-        mediaViewController.canShowScrubbingTime = true
-
-        getScrubbingChangeListener().onScrubbingChanged(true)
-        mainExecutor.runAllReady()
-
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionPrev))
-            .isEqualTo(ConstraintSet.INVISIBLE)
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionNext))
-            .isEqualTo(ConstraintSet.INVISIBLE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_elapsed_time)
-            )
-            .isEqualTo(ConstraintSet.VISIBLE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_total_time)
-            )
-            .isEqualTo(ConstraintSet.VISIBLE)
-
-        getScrubbingChangeListener().onScrubbingChanged(false)
-        mainExecutor.runAllReady()
-
-        // Only in expanded, we should hide the scrubbing times and show prev+next
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionPrev))
-            .isEqualTo(ConstraintSet.VISIBLE)
-        assertThat(mediaViewController.expandedLayout.getVisibility(R.id.actionNext))
-            .isEqualTo(ConstraintSet.VISIBLE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_elapsed_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-        assertThat(
-                mediaViewController.expandedLayout.getVisibility(R.id.media_scrubbing_total_time)
-            )
-            .isEqualTo(ConstraintSet.GONE)
-    }
-
     private fun initGutsViewHolderMocks() {
         settings = ImageButton(context)
         cancel = View(context)
@@ -533,14 +344,5 @@ class MediaViewControllerTest : SysuiTestCase() {
         whenever(viewHolder.multiRippleView).thenReturn(multiRippleView)
         whenever(viewHolder.turbulenceNoiseView).thenReturn(turbulenceNoiseView)
         whenever(viewHolder.loadingEffectView).thenReturn(loadingEffectView)
-    }
-
-    private fun getScrubbingChangeListener(): SeekBarViewModel.ScrubbingChangeListener =
-        withArgCaptor {
-            verify(seekBarViewModel).setScrubbingChangeListener(capture())
-        }
-
-    private fun getEnabledChangeListener(): SeekBarViewModel.EnabledChangeListener = withArgCaptor {
-        verify(seekBarViewModel).setEnabledChangeListener(capture())
     }
 }

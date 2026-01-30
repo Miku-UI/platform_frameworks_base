@@ -18,6 +18,7 @@ package com.android.systemui.keyboard.shortcut.ui
 
 import android.content.Context
 import android.content.Context.INPUT_SERVICE
+import android.content.applicationContext
 import android.hardware.input.fakeInputManager
 import androidx.test.annotation.UiThreadTest
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -83,10 +84,12 @@ class ShortcutHelperDialogStarterTest : SysuiTestCase() {
         with(kosmos) {
             ShortcutHelperDialogStarter(
                 coroutineScope,
+                applicationContext,
                 viewModel,
                 shortcutCustomizationDialogStarterFactory,
                 dialogFactory,
                 activityStarter,
+                testDispatcher,
             )
         }
 

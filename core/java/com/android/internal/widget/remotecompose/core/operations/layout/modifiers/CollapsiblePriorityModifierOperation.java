@@ -125,7 +125,7 @@ public class CollapsiblePriorityModifierOperation extends Operation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.MODIFIER)
                 .addType(name())

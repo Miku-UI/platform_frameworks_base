@@ -16,6 +16,7 @@
 
 package com.android.server.wm.flicker.service.notification.flicker
 
+import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.flicker.FlickerConfig
@@ -29,6 +30,7 @@ import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@RequiresDevice
 @RunWith(FlickerServiceJUnit4ClassRunner::class)
 @Ignore("b/294418322: no notification launch animation exists when keyguard is occluded")
 class OpenAppFromLockscreenNotificationWithOverlayAppGesturalNavLandscape :

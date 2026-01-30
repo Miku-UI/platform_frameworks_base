@@ -20,7 +20,7 @@ package android.view;
  * Interface to be invoked by the controlling process when a remote animation has finished.
  *
  * @see IRemoteAnimationRunner
- * {@hide}
+ * @hide
  */
 oneway interface IRemoteAnimationFinishedCallback {
     @UnsupportedAppUsage

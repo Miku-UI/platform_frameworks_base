@@ -64,7 +64,7 @@ import java.util.Objects;
  * mSystemServiceManager.startService(SoundTriggerMiddlewareService.Lifecycle.class);
  * </pre></code>
  *
- * {@hide}
+ * @hide
  */
 public class SoundTriggerMiddlewareService extends ISoundTriggerMiddlewareService.Stub {
     static private final String TAG = "SoundTriggerMiddlewareService";

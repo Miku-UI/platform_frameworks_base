@@ -244,6 +244,8 @@ class ZygoteConnection {
 
                 if (parsedArgs.mInvokeWith != null || parsedArgs.mStartChildZygote
                         || !multipleOK || peer.getUid() != Process.SYSTEM_UID) {
+                    Log.w(TAG, "Resorting to Java fork code; multipleOK = " + multipleOK
+                            + (parsedArgs.mInvokeWith != null ? "; invokeWith used" : ""));
                     // Continue using old code for now. TODO: Handle these cases in the other path.
                     pid = Zygote.forkAndSpecialize(parsedArgs.mUid, parsedArgs.mGid,
                             parsedArgs.mGids, parsedArgs.mRuntimeFlags, rlimits,
@@ -282,7 +284,8 @@ class ZygoteConnection {
                     ZygoteHooks.preFork();
                     Runnable result = Zygote.forkSimpleApps(argBuffer,
                             zygoteServer.getZygoteSocketFileDescriptor(),
-                            peer.getUid(), Zygote.minChildUid(peer), parsedArgs.mNiceName);
+                            peer.getUid(), Zygote.minChildUid(peer), parsedArgs.mNiceName,
+                            parsedArgs.mIsTopApp);
                     if (result == null) {
                         // parent; we finished some number of forks. Result is Boolean.
                         // We already did the equivalent of handleParentProc().

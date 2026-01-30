@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
 import com.android.systemui.keyguard.domain.interactor.FromLockscreenTransitionInteractor.Companion.TO_DOZING_DURATION
@@ -35,6 +36,7 @@ class LockscreenToDozingTransitionViewModel
 constructor(
     deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     animationFlow: KeyguardTransitionAnimationFlow,
+    dozingTransitionFlows: DozingTransitionFlows,
 ) : DeviceEntryIconTransition {
 
     private val transitionAnimation =
@@ -43,7 +45,14 @@ constructor(
             edge = Edge.create(from = LOCKSCREEN, to = DOZING),
         )
 
-    val lockscreenAlpha: Flow<Float> = transitionAnimation.immediatelyTransitionTo(1f)
+    val lockscreenAlpha: Flow<Float> =
+        if (Flags.newDozingKeyguardStates()) {
+            dozingTransitionFlows.lockscreenAlpha(from = LOCKSCREEN)
+        } else {
+            transitionAnimation.immediatelyTransitionTo(1f)
+        }
+
+    val nonAuthUIAlpha: Flow<Float> = dozingTransitionFlows.nonAuthUIAlpha(from = LOCKSCREEN)
 
     val shortcutsAlpha: Flow<Float> =
         transitionAnimation.sharedFlow(

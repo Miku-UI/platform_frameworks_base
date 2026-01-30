@@ -20,7 +20,7 @@ package android.os;
 import android.hardware.power.SessionTag;
 import android.hardware.power.SessionMode;
 
-/** {@hide} */
+/** @hide */
 parcelable SessionCreationConfig {
     /**
      * List of tids to be included in the hint session.

@@ -256,7 +256,7 @@ public class AppCompatOrientationOverridesTest extends WindowTestsBase {
     void runTestScenario(@NonNull Consumer<OrientationOverridesRobotTest> consumer) {
         spyOn(mWm.mAppCompatConfiguration);
         final OrientationOverridesRobotTest robot =
-                new OrientationOverridesRobotTest(mWm, mAtm, mSupervisor);
+                new OrientationOverridesRobotTest(this);
         consumer.accept(robot);
     }
 
@@ -265,10 +265,8 @@ public class AppCompatOrientationOverridesTest extends WindowTestsBase {
         @NonNull
         private final CurrentTimeMillisSupplierFake mTestCurrentTimeMillisSupplier;
 
-        OrientationOverridesRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        OrientationOverridesRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
             mTestCurrentTimeMillisSupplier = new CurrentTimeMillisSupplierFake();
         }
 

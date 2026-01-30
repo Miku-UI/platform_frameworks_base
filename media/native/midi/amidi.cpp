@@ -31,6 +31,8 @@
 #include "include/amidi/AMidi.h"
 #include "amidi_internal.h"
 
+#include <mutex>
+
 using namespace android::media::midi;
 
 using android::IBinder;

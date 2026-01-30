@@ -25,5 +25,6 @@ val Kosmos.goneToDozingTransitionViewModel by Fixture {
     GoneToDozingTransitionViewModel(
         deviceEntryUdfpsInteractor = deviceEntryUdfpsInteractor,
         animationFlow = keyguardTransitionAnimationFlow,
+        dozingTransitionFlows = dozingTransitionFlows,
     )
 }

@@ -246,7 +246,7 @@ public interface ServiceConnector<I extends IInterface> {
             implements ServiceConnector<I>, ServiceConnection, IBinder.DeathRecipient, Runnable {
 
         static final boolean DEBUG = false;
-        static final String LOG_TAG = "ServiceConnector.Impl";
+        final String LOG_TAG = this.getClass().getSimpleName();
 
         private static final long DEFAULT_DISCONNECT_TIMEOUT_MS = 15_000;
         private static final long DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
@@ -468,7 +468,7 @@ public interface ServiceConnector<I extends IInterface> {
             }
         }
 
-        private void cancelTimeout() {
+        protected void cancelTimeout() {
             if (DEBUG) {
                 logTrace();
             }
@@ -662,7 +662,7 @@ public interface ServiceConnector<I extends IInterface> {
             dispatchOnBinderDied();
         }
 
-        private void dispatchOnBinderDied() {
+        protected void dispatchOnBinderDied() {
             ServiceLifecycleCallbacks<I> serviceLifecycleCallbacks = mServiceLifecycleCallbacks;
             if (serviceLifecycleCallbacks != null) {
                 serviceLifecycleCallbacks.onBinderDied();

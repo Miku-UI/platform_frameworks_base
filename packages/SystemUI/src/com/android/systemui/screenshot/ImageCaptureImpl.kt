@@ -20,8 +20,9 @@ import android.app.IActivityTaskManager
 import android.graphics.Bitmap
 import android.graphics.Rect
 import android.view.IWindowManager
-import android.window.ScreenCapture
-import android.window.ScreenCapture.CaptureArgs
+import android.window.ScreenCaptureInternal
+import android.window.ScreenCaptureInternal.CaptureArgs
+import android.window.TaskSnapshotManager
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import javax.inject.Inject
@@ -31,26 +32,36 @@ import kotlinx.coroutines.withContext
 private const val TAG = "ImageCaptureImpl"
 
 @SysUISingleton
-open class ImageCaptureImpl @Inject constructor(
+open class ImageCaptureImpl
+@Inject
+constructor(
     private val windowManager: IWindowManager,
     private val atmService: IActivityTaskManager,
-    @Background private val bgContext: CoroutineDispatcher
+    @Background private val bgContext: CoroutineDispatcher,
 ) : ImageCapture {
 
     override fun captureDisplay(displayId: Int, crop: Rect?): Bitmap? {
-        val captureArgs = CaptureArgs.Builder()
-            .setSourceCrop(crop)
-            .build()
-        val syncScreenCapture = ScreenCapture.createSyncCaptureListener()
+        val captureArgs = CaptureArgs.Builder().setSourceCrop(crop).build()
+        val syncScreenCapture = ScreenCaptureInternal.createSyncCaptureListener()
         windowManager.captureDisplay(displayId, captureArgs, syncScreenCapture)
         val buffer = syncScreenCapture.getBuffer()
         return buffer?.asBitmap()
     }
 
     override suspend fun captureTask(taskId: Int): Bitmap? {
-        val snapshot = withContext(bgContext) {
-            atmService.takeTaskSnapshot(taskId, false /* updateCache */)
-        } ?: return null
-        return Bitmap.wrapHardwareBuffer(snapshot.hardwareBuffer, snapshot.colorSpace)
+        val snapshot =
+            withContext(bgContext) {
+                if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+                    TaskSnapshotManager.getInstance()
+                        .takeTaskSnapshot(taskId, false /* updateCache */)
+                } else {
+                    atmService.takeTaskSnapshot(taskId, false /* updateCache */)
+                }
+            } ?: return null
+        if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+            return snapshot.wrapToBitmap()
+        } else {
+            return Bitmap.wrapHardwareBuffer(snapshot.hardwareBuffer, snapshot.colorSpace)
+        }
     }
 }

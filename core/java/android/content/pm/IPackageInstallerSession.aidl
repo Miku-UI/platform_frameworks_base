@@ -25,7 +25,7 @@ import android.content.pm.verify.domain.DomainSet;
 import android.content.IntentSender;
 import android.os.ParcelFileDescriptor;
 
-/** {@hide} */
+/** @hide */
 interface IPackageInstallerSession {
     void setClientProgress(float progress);
     void addClientProgress(float progress);

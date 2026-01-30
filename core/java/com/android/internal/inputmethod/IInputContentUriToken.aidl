@@ -19,7 +19,7 @@ package com.android.internal.inputmethod;
 import android.os.IBinder;
 
 /**
- * {@hide}
+ * @hide
  */
 interface IInputContentUriToken {
     void take();

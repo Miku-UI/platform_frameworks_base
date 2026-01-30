@@ -54,6 +54,7 @@ public class PinShapeNonHintingView extends LinearLayout implements PinShapeInpu
     private int mColor = getContext().getColor(PIN_SHAPES);
     private int mPosition = 0;
     private boolean mIsAnimatingReset = false;
+    private int mDelayedAppend = 0;
     private final PinShapeAdapter mPinShapeAdapter;
     private ValueAnimator mValueAnimator = ValueAnimator.ofFloat(1f, 0f);
     private Rect mFirstChildVisibleRect = new Rect();
@@ -83,6 +84,9 @@ public class PinShapeNonHintingView extends LinearLayout implements PinShapeInpu
     @Override
     public void append() {
         if (mIsAnimatingReset) {
+            // If the user is quickly typing in their PIN while the reset animation is playing,
+            // make sure to visibly show the added symbols after reset is complete
+            mDelayedAppend++;
             return;
         }
         int size = getResources().getDimensionPixelSize(R.dimen.password_shape_size);
@@ -99,6 +103,14 @@ public class PinShapeNonHintingView extends LinearLayout implements PinShapeInpu
         TransitionManager.beginDelayedTransition(this, new PinShapeViewTransition());
         addView(pinDot);
         mPosition++;
+    }
+
+    private void appendAnyNewDigits() {
+        mIsAnimatingReset = false;
+        for (int i = 0; i < mDelayedAppend; i++) {
+            append();
+        }
+        mDelayedAppend = 0;
     }
 
     @Override
@@ -150,7 +162,7 @@ public class PinShapeNonHintingView extends LinearLayout implements PinShapeInpu
             // When we reach the last index, we want to send a signal that the animation is
             // complete.
             if (i == position - 1) {
-                postDelayed(() -> mIsAnimatingReset = false, delayMillis);
+                postDelayed(() -> appendAnyNewDigits(), delayMillis);
             }
         }
     }

@@ -20,10 +20,12 @@ import static android.app.appfunctions.flags.Flags.FLAG_ENABLE_APP_FUNCTION_MANA
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.appsearch.GenericDocument;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.permission.flags.Flags;
 
 import java.util.Objects;
 
@@ -44,13 +46,27 @@ public final class ExecuteAppFunctionRequest implements Parcelable {
             new Creator<>() {
                 @Override
                 public ExecuteAppFunctionRequest createFromParcel(Parcel parcel) {
-                    String targetPackageName = parcel.readString8();
-                    String functionIdentifier = parcel.readString8();
+                    String targetPackageName = Objects.requireNonNull(parcel.readString8());
+                    String functionIdentifier = Objects.requireNonNull(parcel.readString8());
                     GenericDocumentWrapper parameters =
-                            GenericDocumentWrapper.CREATOR.createFromParcel(parcel);
-                    Bundle extras = parcel.readBundle(Bundle.class.getClassLoader());
-                    return new ExecuteAppFunctionRequest(
-                            targetPackageName, functionIdentifier, extras, parameters);
+                            Objects.requireNonNull(
+                                    GenericDocumentWrapper.CREATOR.createFromParcel(parcel));
+                    Bundle extras =
+                            Objects.requireNonNull(
+                                    parcel.readBundle(Bundle.class.getClassLoader()));
+                    if (Flags.appFunctionAccessApiEnabled()) {
+                        final AppFunctionAttribution attribution = parcel.readTypedObject(
+                                AppFunctionAttribution.CREATOR);
+                        return new ExecuteAppFunctionRequest(
+                                targetPackageName,
+                                functionIdentifier,
+                                extras,
+                                parameters,
+                                attribution);
+                    } else {
+                        return new ExecuteAppFunctionRequest(
+                                targetPackageName, functionIdentifier, extras, parameters, null);
+                    }
                 }
 
                 @Override
@@ -81,15 +97,19 @@ public final class ExecuteAppFunctionRequest implements Parcelable {
      */
     @NonNull private final GenericDocumentWrapper mParameters;
 
+    @Nullable private final AppFunctionAttribution mAttribution;
+
     private ExecuteAppFunctionRequest(
             @NonNull String targetPackageName,
             @NonNull String functionIdentifier,
             @NonNull Bundle extras,
-            @NonNull GenericDocumentWrapper parameters) {
+            @NonNull GenericDocumentWrapper parameters,
+            @Nullable AppFunctionAttribution attribution) {
         mTargetPackageName = Objects.requireNonNull(targetPackageName);
         mFunctionIdentifier = Objects.requireNonNull(functionIdentifier);
         mExtras = Objects.requireNonNull(extras);
         mParameters = Objects.requireNonNull(parameters);
+        mAttribution = attribution;
     }
 
     /** Returns the package name of the app that hosts the function. */
@@ -137,13 +157,25 @@ public final class ExecuteAppFunctionRequest implements Parcelable {
     }
 
     /**
+     * Returns the {@link AppFunctionAttribution} represents attribution information for the {@link
+     * ExecuteAppFunctionRequest}.
+     */
+    @FlaggedApi(Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED)
+    @Nullable
+    public AppFunctionAttribution getAttribution() {
+        return mAttribution;
+    }
+
+    /**
      * Returns the size of the request in bytes.
      *
      * @hide
      */
     public int getRequestDataSize() {
-        return mTargetPackageName.getBytes().length + mFunctionIdentifier.getBytes().length
-                + mParameters.getDataSize() + mExtras.getSize();
+        return mTargetPackageName.getBytes().length
+                + mFunctionIdentifier.getBytes().length
+                + mParameters.getDataSize()
+                + mExtras.getSize();
     }
 
     @Override
@@ -152,6 +184,9 @@ public final class ExecuteAppFunctionRequest implements Parcelable {
         dest.writeString8(mFunctionIdentifier);
         mParameters.writeToParcel(dest, flags);
         dest.writeBundle(mExtras);
+        if (Flags.appFunctionAccessApiEnabled()) {
+            dest.writeTypedObject(mAttribution, flags);
+        }
     }
 
     @Override
@@ -167,6 +202,8 @@ public final class ExecuteAppFunctionRequest implements Parcelable {
 
         @NonNull
         private GenericDocument mParameters = new GenericDocument.Builder<>("", "", "").build();
+
+        @Nullable private AppFunctionAttribution mAttribution = null;
 
         /**
          * Creates a new instance of this builder class.
@@ -200,6 +237,25 @@ public final class ExecuteAppFunctionRequest implements Parcelable {
             return this;
         }
 
+        /**
+         * Sets the {@link AppFunctionAttribution}.
+         *
+         * <p>Provides the attribution information for an {@link ExecuteAppFunctionRequest}. This
+         * information can be used by the privacy setting to provide transparency to the user about
+         * why an app function was invoked.
+         *
+         * <p>This is currently optional,  but may become required for apps targeting a future
+         * release.
+         *
+         * @see AppFunctionAttribution
+         */
+        @FlaggedApi(Flags.FLAG_APP_FUNCTION_ACCESS_API_ENABLED)
+        @NonNull
+        public Builder setAttribution(@NonNull AppFunctionAttribution attribution) {
+            mAttribution = Objects.requireNonNull(attribution);
+            return this;
+        }
+
         /** Builds the {@link ExecuteAppFunctionRequest}. */
         @NonNull
         public ExecuteAppFunctionRequest build() {
@@ -207,7 +263,8 @@ public final class ExecuteAppFunctionRequest implements Parcelable {
                     mTargetPackageName,
                     mFunctionIdentifier,
                     mExtras,
-                    new GenericDocumentWrapper(mParameters));
+                    new GenericDocumentWrapper(mParameters),
+                    mAttribution);
         }
     }
 }

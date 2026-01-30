@@ -59,11 +59,6 @@ android_test {
 
     dxflags: ["--core-library"],
 
-    aaptflags: [
-        "-0 .dat",
-        "-0 .gld",
-        "-c fa",
-    ],
     static_libs: [
         "TestParameterInjector",
         "android-common",
@@ -99,6 +94,7 @@ android_test {
         "mockito-target-extended-minus-junit4",
         "mockito-target-minus-junit4",
         "mockwebserver",
+        "perfetto_trace_android_track_event_extension_java_protos",
         "perfetto_trace_java_protos",
         "platform-compat-test-rules",
         "platform-parametric-runner-lib",
@@ -119,6 +115,7 @@ android_test {
         "ext",
         "framework",
         "framework-res",
+        "libprotobuf-java-lite",
         "org.apache.http.legacy.stubs",
     ],
     jni_libs: [
@@ -155,33 +152,9 @@ android_test {
         ":HelloWorldUsingSdk1And2",
         ":HelloWorldUsingSdk1AndSdk1",
         ":HelloWorldUsingSdkMalformedNegativeVersion",
+        ":NoUpdateAppWidgetTestApp",
         ":com.android.cts.helpers.aosp",
     ],
-}
-
-// FrameworksCoreTestsRavenwood pulls in the R.java class from this one.
-// Note, "FrameworksCoreTests" and "FrameworksCoreTests-resonly" _might_ not have indentical
-// R.java (not sure if there's a guarantee), but that doesn't matter as long as
-// FrameworksCoreTestsRavenwood consistently uses the R definition in this module.
-android_app {
-    name: "FrameworksCoreTests-resonly",
-    defaults: ["FrameworksCoreTests-resources"],
-
-    // FrameworksCoreTestsRavenwood references the .aapt.srcjar
-    use_resource_processor: false,
-    libs: [
-        "android.test.runner.stubs",
-        "framework-res",
-        "org.apache.http.legacy.stubs",
-    ],
-    uses_libs: [
-        "android.test.runner",
-    ],
-    optional_uses_libs: [
-        "org.apache.http.legacy",
-    ],
-    sdk_version: "core_platform",
-    resource_zips: [":FrameworksCoreTests_apks_as_resources"],
 }
 
 // Rules to copy all the test apks to the intermediate raw resource directory
@@ -248,6 +221,8 @@ android_library {
 
 android_ravenwood_test {
     name: "FrameworksCoreTestsRavenwood",
+    defaults: ["FrameworksCoreTests-resources"],
+    build_resources: true,
     libs: [
         "android.test.base.stubs",
         "android.test.mock.stubs",
@@ -255,7 +230,9 @@ android_ravenwood_test {
         "android.view.flags-aconfig-java",
         "ext",
         "framework",
+        "frameworks-base-testutils",
         "framework-res",
+        "libprotobuf-java-lite",
         "org.apache.http.legacy.stubs",
     ],
     static_libs: [
@@ -268,11 +245,13 @@ android_ravenwood_test {
         "compatibility-device-util-axt-ravenwood",
         "core-test-rules", // for libcore.dalvik.system.CloseGuardSupport
         "flag-junit",
-        "flag-junit",
+        "perfetto_trace_android_track_event_extension_java_protos",
         "perfetto_trace_java_protos",
         "platform-compat-test-rules",
+        "platform-parametric-runner-lib",
         "platform-test-annotations",
         "testng",
+        "TestParameterInjector",
     ],
     srcs: [
         "src/android/app/ActivityManagerTest.java",
@@ -284,8 +263,8 @@ android_ravenwood_test {
         "src/android/content/res/*.java",
         "src/android/content/res/*.kt",
         "src/android/database/CursorWindowTest.java",
-        "src/android/graphics/*.java",
-        "src/android/graphics/*.kt",
+        "src/android/graphics/**/*.java",
+        "src/android/graphics/**/*.kt",
         "src/android/os/**/*.java",
         "src/android/telephony/PinResultTest.java",
         "src/android/text/**/*.java",
@@ -296,25 +275,18 @@ android_ravenwood_test {
         "src/android/view/DisplayTest.java",
         "src/com/android/internal/logging/**/*.java",
         "src/com/android/internal/os/**/*.java",
-        "src/com/android/internal/power/EnergyConsumerStatsTest.java",
         "src/com/android/internal/ravenwood/**/*.java",
         "src/com/android/internal/util/**/*.java",
 
         ":FrameworksCoreTestDoubles-sources",
         ":FrameworksCoreTests-aidl",
         ":FrameworksCoreTests-helpers",
-
-        // Pull in R.java from FrameworksCoreTests-resonly, not from FrameworksCoreTests,
-        // to avoid having a dependency to FrameworksCoreTests.
-        // This way, when updating source files and running this test, we don't need to
-        // rebuild the entire FrameworksCoreTests, which would be slow.
-        ":FrameworksCoreTests-resonly{.aapt.srcjar}",
     ],
     exclude_srcs: [
         "src/android/content/res/FontScaleConverterActivityTest.java",
         "src/android/graphics/GraphicsPerformanceTests.java",
+        "src/android/graphics/drawable/StateListDrawableTest.java",
     ],
-    resource_apk: "FrameworksCoreTests-resonly",
     aidl: {
         generate_get_transaction_name: true,
         local_include_dirs: ["aidl"],
@@ -324,6 +296,7 @@ android_ravenwood_test {
         "res/xml/power_profile_test_cpu_legacy.xml",
         "res/xml/power_profile_test_modem.xml",
     ],
+    resource_zips: [":FrameworksCoreTests_apks_as_resources"],
     sdk_version: "core_platform",
     auto_gen_config: true,
     team: "trendy_team_ravenwood",
@@ -880,4 +853,19 @@ test_module_config {
     team: "trendy_team_windowing_tools",
     test_suites: ["device-tests"],
     include_filters: ["android.tracing"],
+}
+
+test_module_config {
+    name: "FrameworksCoreTests_messagequeue",
+    base: "FrameworksCoreTests",
+    test_suites: [
+        "automotive-tests",
+        "device-platinum-tests",
+        "device-tests",
+    ],
+    include_filters: [
+        "android.os.MessageHeapTest",
+        "android.os.MessageStackTest",
+        "android.os.WaitStateTest",
+    ],
 }

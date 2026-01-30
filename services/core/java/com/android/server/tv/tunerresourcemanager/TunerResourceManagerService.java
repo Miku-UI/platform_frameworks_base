@@ -1283,33 +1283,19 @@ public class TunerResourceManagerService extends SystemService implements IBinde
         if (DEBUG) {
             Slog.d(TAG, "requestCasSession(request=" + request + ")");
         }
-        int[] reclaimOwnerId = new int[1];
-        if (!claimCasSession(request, casSessionHandle, reclaimOwnerId)) {
+        if (!claimCasSession(request, casSessionHandle)) {
             return false;
         }
         if (casSessionHandle[0] == TunerResourceManager.INVALID_RESOURCE_HANDLE) {
             return false;
         }
-        if (reclaimOwnerId[0] != INVALID_CLIENT_ID) {
-            if (!reclaimResource(reclaimOwnerId[0],
-                    TunerResourceManager.TUNER_RESOURCE_TYPE_CAS_SESSION)) {
-                return false;
-            }
-            synchronized (mLock) {
-                if (getCasResource(request.casSystemId).isFullyUsed()) {
-                    Slog.e(TAG, "Reclaimed cas still fully used");
-                    return false;
-                }
-                updateCasClientMappingOnNewGrant(request.casSystemId, request.clientId);
-            }
-        }
         return true;
     }
 
-    protected boolean claimCasSession(CasSessionRequest request, long[] casSessionHandle,
-            int[] reclaimOwnerId) throws RemoteException {
+    protected boolean claimCasSession(CasSessionRequest request, long[] casSessionHandle)
+            throws RemoteException {
         casSessionHandle[0] = TunerResourceManager.INVALID_RESOURCE_HANDLE;
-        reclaimOwnerId[0] = INVALID_CLIENT_ID;
+
         synchronized (mLock) {
             if (!checkClientExists(request.clientId)) {
                 throw new RemoteException("Request cas from unregistered client:"
@@ -1357,7 +1343,12 @@ public class TunerResourceManagerService extends SystemService implements IBinde
                                             && requestClient
                                                     .resourceOwnershipRetentionEnabled())))) {
                 casSessionHandle[0] = cas.getHandle();
-                reclaimOwnerId[0] = lowestPriorityOwnerId;
+                if (!reclaimResource(
+                        lowestPriorityOwnerId,
+                        TunerResourceManager.TUNER_RESOURCE_TYPE_CAS_SESSION)) {
+                    return false;
+                }
+                updateCasClientMappingOnNewGrant(request.casSystemId, request.clientId);
                 return true;
             }
         }

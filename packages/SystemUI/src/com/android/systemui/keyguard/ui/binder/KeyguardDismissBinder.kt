@@ -15,19 +15,19 @@
  */
 package com.android.systemui.keyguard.ui.binder
 
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.ViewMediatorCallback
 import com.android.keyguard.logging.KeyguardLogger
 import com.android.systemui.CoreStartable
-import com.android.systemui.bouncer.shared.flag.ComposeBouncerFlags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyguard.domain.interactor.KeyguardDismissInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardDone
 import com.android.systemui.log.core.LogLevel
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /** Handles keyguard dismissal requests. */
 @SysUISingleton
@@ -42,7 +42,7 @@ constructor(
 ) : CoreStartable {
 
     override fun start() {
-        if (!ComposeBouncerFlags.isEnabled) {
+        if (!SceneContainerFlag.isEnabled) {
             return
         }
 

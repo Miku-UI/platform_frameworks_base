@@ -23,15 +23,9 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.hardware.camera2.CameraManager;
 import android.os.Handler;
-import android.util.ArraySet;
-import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.protolog.ProtoLog;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Class that listens to camera open/closed signals, keeps track of the current apps using camera,
@@ -39,7 +33,6 @@ import java.util.Set;
  */
 class CameraStateMonitor {
     private static final String TAG = TAG_WITH_CLASS_NAME ? "CameraStateMonitor" : TAG_WM;
-
     // Delay for updating letterbox after Camera connection is closed. Needed to avoid flickering
     // when an app is flipping between front and rear cameras or when size compat mode is restarted.
     // TODO(b/330148095): Investigate flickering without using delays, remove them if possible.
@@ -53,6 +46,7 @@ class CameraStateMonitor {
     private static final int CAMERA_OPENED_LETTERBOX_UPDATE_DELAY_MS =
             CAMERA_CLOSED_LETTERBOX_UPDATE_DELAY_MS / 2;
 
+    /** Returns the information about apps using camera, for logging purposes. */
     @NonNull
     private final DisplayContent mDisplayContent;
     @NonNull
@@ -62,27 +56,16 @@ class CameraStateMonitor {
     @NonNull
     private final Handler mHandler;
 
-    // Bi-directional map between package names and active camera IDs since we need to 1) get a
-    // camera id by a package name when resizing the window; 2) get a package name by a camera id
-    // when camera connection is closed and we need to clean up our records.
-    private final CameraIdPackageNameBiMapping mCameraIdPackageBiMapping =
-            new CameraIdPackageNameBiMapping();
-    // TODO(b/380840084): Consider making this a set of CameraId/PackageName pairs. This is to
-    // keep track of camera-closed signals when apps are switching camera access, so that the policy
-    // can restore app configuration when an app closes camera (e.g. loses camera access due to
-    // another app).
-    private final Set<String> mScheduledToBeRemovedCameraIdSet = new ArraySet<>();
-
-    // TODO(b/336474959): should/can this go in the compat listeners?
-    private final Set<String> mScheduledCompatModeUpdateCameraIdSet = new ArraySet<>();
-
-    private final ArrayList<CameraCompatStateListener> mCameraStateListeners = new ArrayList<>();
+    @VisibleForTesting
+    final AppCompatCameraStateStrategyForTask mAppCompatCameraStateStrategy;
+    @VisibleForTesting
+    final AppCompatCameraStatePolicy mAppCompatCameraStatePolicy;
 
     /**
      * Value toggled on {@link #startListeningToCameraState()} to {@code true} and on {@link
-     * #dispose()} to {@code false}.
+     * #stopListeningToCameraState()} to {@code false}.
      */
-    private boolean mIsRunning;
+    private boolean mIsListeningToCameraState;
 
     private final CameraManager.AvailabilityCallback mAvailabilityCallback =
             new  CameraManager.AvailabilityCallback() {
@@ -100,84 +83,64 @@ class CameraStateMonitor {
                 }
             };
 
-    CameraStateMonitor(@NonNull DisplayContent displayContent, @NonNull Handler handler) {
+    CameraStateMonitor(@NonNull DisplayContent displayContent, @NonNull Handler handler,
+            @NonNull AppCompatCameraStatePolicy appCompatCameraStatePolicy) {
         // This constructor is called from DisplayContent constructor. Don't use any fields in
         // DisplayContent here since they aren't guaranteed to be set.
         mHandler = handler;
         mDisplayContent = displayContent;
+        mAppCompatCameraStatePolicy = appCompatCameraStatePolicy;
         mWmService = displayContent.mWmService;
         mCameraManager = mWmService.mContext.getSystemService(CameraManager.class);
+        mAppCompatCameraStateStrategy = new AppCompatCameraStateStrategyForTask(displayContent);
     }
 
+    /** Starts listening to camera opened/closed signals. */
     void startListeningToCameraState() {
         if (mCameraManager != null) {
             mCameraManager.registerAvailabilityCallback(
                     mWmService.mContext.getMainExecutor(), mAvailabilityCallback);
         }
-        mIsRunning = true;
+        mIsListeningToCameraState = true;
     }
 
-    /** Releases camera callback listener. */
-    void dispose() {
+    /** Stops listening to camera opened/closed signals. */
+    void stopListeningToCameraState() {
         if (mCameraManager != null) {
             mCameraManager.unregisterAvailabilityCallback(mAvailabilityCallback);
         }
-        mIsRunning = false;
+        mIsListeningToCameraState = false;
     }
 
+    /**
+     * Returns whether {@link CameraStateMonitor} is listening to camera opened/closed
+     * signals.
+     */
     @VisibleForTesting
-    boolean isRunning() {
-        return mIsRunning;
-    }
-
-    void addCameraStateListener(CameraCompatStateListener listener) {
-        mCameraStateListeners.add(listener);
-    }
-
-    void removeCameraStateListener(CameraCompatStateListener listener) {
-        mCameraStateListeners.remove(listener);
+    boolean isListeningToCameraState() {
+        return mIsListeningToCameraState;
     }
 
     private void notifyCameraOpenedWithDelay(@NonNull String cameraId,
             @NonNull String packageName) {
+        // Some apps can’t handle configuration changes coming at the same time with Camera setup so
+        // delaying orientation update to accommodate for that.
         // If an activity is restarting or camera is flipping, the camera connection can be
         // quickly closed and reopened.
-        mScheduledToBeRemovedCameraIdSet.remove(cameraId);
         ProtoLog.v(WM_DEBUG_STATES,
                 "Display id=%d is notified that Camera %s is open for package %s",
                 mDisplayContent.mDisplayId, cameraId, packageName);
-        // Some apps can’t handle configuration changes coming at the same time with Camera setup so
-        // delaying orientation update to accommodate for that.
-        mScheduledCompatModeUpdateCameraIdSet.add(cameraId);
-        mHandler.postDelayed(() -> notifyCameraOpenedInternal(cameraId, packageName),
-                CAMERA_OPENED_LETTERBOX_UPDATE_DELAY_MS);
+        final CameraAppInfo cameraAppInfo = mAppCompatCameraStateStrategy.trackOnCameraOpened(
+                cameraId, packageName);
+        mHandler.postDelayed(() -> {
+            synchronized (mWmService.mGlobalLock) {
+                notifyCameraOpenedInternal(cameraAppInfo);
+            }}, CAMERA_OPENED_LETTERBOX_UPDATE_DELAY_MS);
     }
 
-    private void notifyCameraOpenedInternal(@NonNull String cameraId, @NonNull String packageName) {
-        synchronized (mWmService.mGlobalLock) {
-            if (!mScheduledCompatModeUpdateCameraIdSet.remove(cameraId)) {
-                // Camera compat mode update has happened already or was cancelled
-                // because camera was closed.
-                return;
-            }
-            mCameraIdPackageBiMapping.put(packageName, cameraId);
-            // If there are multiple activities of the same package name and none of
-            // them are the top running activity, we do not apply treatment (rather than
-            // guessing and applying it to the wrong activity).
-            final ActivityRecord cameraActivity =
-                    findUniqueActivityWithPackageName(packageName);
-            if (cameraActivity == null || cameraActivity.getTask() == null) {
-                return;
-            }
-            notifyListenersCameraOpened(cameraActivity);
-        }
-    }
-
-    private void notifyListenersCameraOpened(@NonNull ActivityRecord cameraActivity) {
-        for (int i = 0; i < mCameraStateListeners.size(); i++) {
-            CameraCompatStateListener listener = mCameraStateListeners.get(i);
-            listener.onCameraOpened(cameraActivity);
-        }
+    private void notifyCameraOpenedInternal(@NonNull CameraAppInfo cameraAppInfo) {
+        mAppCompatCameraStateStrategy.notifyPolicyCameraOpenedIfNeeded(cameraAppInfo,
+                mAppCompatCameraStatePolicy);
     }
 
     /**
@@ -190,136 +153,45 @@ class CameraStateMonitor {
         ProtoLog.v(WM_DEBUG_STATES,
                 "Display id=%d is notified that Camera %s is closed.",
                 mDisplayContent.mDisplayId, cameraId);
-        mScheduledToBeRemovedCameraIdSet.add(cameraId);
-        // No need to update window size for this camera if it's already closed.
-        mScheduledCompatModeUpdateCameraIdSet.remove(cameraId);
         scheduleRemoveCameraId(cameraId);
     }
 
+    /** Returns whether a given activity holds any camera opened. */
     boolean isCameraRunningForActivity(@NonNull ActivityRecord activity) {
-        return getCameraIdForActivity(activity) != null;
+        return mAppCompatCameraStateStrategy.isCameraRunningForActivity(activity);
     }
 
+    /** Returns whether a given activity holds a specific camera opened. */
     // TODO(b/336474959): try to decouple `cameraId` from the listeners.
-    boolean isCameraWithIdRunningForActivity(@NonNull ActivityRecord activity, String cameraId) {
-        return cameraId.equals(getCameraIdForActivity(activity));
-    }
-
-    void rescheduleRemoveCameraActivity(@NonNull String cameraId) {
-        mScheduledToBeRemovedCameraIdSet.add(cameraId);
-        scheduleRemoveCameraId(cameraId);
-    }
-
-    @Nullable
-    private String getCameraIdForActivity(@NonNull ActivityRecord activity) {
-        return mCameraIdPackageBiMapping.getCameraId(activity.packageName);
+    boolean isCameraWithIdRunningForActivity(@NonNull ActivityRecord activity,
+            @NonNull String cameraId) {
+        return mAppCompatCameraStateStrategy.isCameraWithIdRunningForActivity(activity, cameraId);
     }
 
     // Delay is needed to avoid rotation flickering when an app is flipping between front and
     // rear cameras, when size compat mode is restarted or activity is being refreshed.
     private void scheduleRemoveCameraId(@NonNull String cameraId) {
-        mHandler.postDelayed(
-                () -> removeCameraId(cameraId),
-                CAMERA_CLOSED_LETTERBOX_UPDATE_DELAY_MS);
+        final CameraAppInfo cameraAppInfo =
+                mAppCompatCameraStateStrategy.trackOnCameraClosed(cameraId);
+        mHandler.postDelayed(() ->  {
+            synchronized (mWmService.mGlobalLock) {
+                removeCameraId(cameraAppInfo);
+            }}, CAMERA_CLOSED_LETTERBOX_UPDATE_DELAY_MS);
     }
 
-    private void removeCameraId(@NonNull String cameraId) {
-        synchronized (mWmService.mGlobalLock) {
-            if (!mScheduledToBeRemovedCameraIdSet.remove(cameraId)) {
-                // Already reconnected to this camera, no need to clean up.
-                return;
-            }
-            final boolean canClose = checkCanCloseForAllListeners(cameraId);
-            if (canClose) {
-                // Finish cleaning up.
-                mCameraIdPackageBiMapping.removeCameraId(cameraId);
-                notifyListenersCameraClosed();
-            } else {
-                // Not ready to process closure yet - the camera activity might be refreshing.
-                // Try again later.
-                rescheduleRemoveCameraActivity(cameraId);
-            }
+    private void removeCameraId(@NonNull CameraAppInfo cameraAppInfo) {
+        final boolean completed = mAppCompatCameraStateStrategy.notifyPolicyCameraClosedIfNeeded(
+                cameraAppInfo, mAppCompatCameraStatePolicy);
+        if (!completed) {
+            // Not ready to process closure yet - the camera activity might be refreshing.
+            // Try again later.
+            scheduleRemoveCameraId(cameraAppInfo.mCameraId);
         }
     }
 
-    /**
-     * @return {@code false} if any listener has reported that they cannot process camera close now.
-     */
-    private boolean checkCanCloseForAllListeners(@NonNull String cameraId) {
-        for (int i = 0; i < mCameraStateListeners.size(); i++) {
-            if (!mCameraStateListeners.get(i).canCameraBeClosed(cameraId)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private void notifyListenersCameraClosed() {
-        for (int i = 0; i < mCameraStateListeners.size(); i++) {
-            mCameraStateListeners.get(i).onCameraClosed();
-        }
-    }
-
-    // TODO(b/335165310): verify that this works in multi instance and permission dialogs.
-    /**
-     * Finds a visible activity with the given package name.
-     *
-     * <p>If there are multiple visible activities with a given package name, and none of them are
-     * the `topRunningActivity`, returns null.
-     */
-    @Nullable
-    private ActivityRecord findUniqueActivityWithPackageName(@NonNull String packageName) {
-        final ActivityRecord topActivity = mDisplayContent.topRunningActivity(
-                /* considerKeyguardState= */ true);
-        if (topActivity != null && topActivity.packageName.equals(packageName)) {
-            return topActivity;
-        }
-
-        final List<ActivityRecord> activitiesOfPackageWhichOpenedCamera = new ArrayList<>();
-        mDisplayContent.forAllActivities(activityRecord -> {
-            if (activityRecord.isVisibleRequested()
-                    && activityRecord.packageName.equals(packageName)) {
-                activitiesOfPackageWhichOpenedCamera.add(activityRecord);
-            }
-        });
-
-        if (activitiesOfPackageWhichOpenedCamera.isEmpty()) {
-            Slog.w(TAG, "Cannot find camera activity.");
-            return null;
-        }
-
-        if (activitiesOfPackageWhichOpenedCamera.size() == 1) {
-            return activitiesOfPackageWhichOpenedCamera.getFirst();
-        }
-
-        // Return null if we cannot determine which activity opened camera. This is preferred to
-        // applying treatment to the wrong activity.
-        Slog.w(TAG, "Cannot determine which activity opened camera.");
-        return null;
-    }
-
-    String getSummary() {
-        return " CameraIdPackageNameBiMapping="
-                + mCameraIdPackageBiMapping
-                .getSummaryForDisplayRotationHistoryRecord();
-    }
-
-    interface CameraCompatStateListener {
-        /**
-         * Notifies the compat listener that an activity has opened camera.
-         */
-        void onCameraOpened(@NonNull ActivityRecord cameraActivity);
-        /**
-         * Checks whether a listener is ready to do a cleanup when camera is closed.
-         *
-         * <p>The notifier might try again if false is returned.
-         */
-        // TODO(b/336474959): try to decouple `cameraId` from the listeners.
-        boolean canCameraBeClosed(@NonNull String cameraId);
-
-        /**
-         * Notifies the compat listener that camera is closed.
-         */
-        void onCameraClosed();
+    @NonNull
+    @Override
+    public String toString() {
+        return mAppCompatCameraStateStrategy.toString();
     }
 }

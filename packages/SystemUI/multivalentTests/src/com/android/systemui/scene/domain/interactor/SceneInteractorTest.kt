@@ -23,7 +23,6 @@ import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.ObservableTransitionState.Transition.ShowOrHideOverlay
 import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
@@ -31,9 +30,8 @@ import com.android.systemui.keyguard.domain.interactor.keyguardEnabledInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.collectLastValue
-import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
-import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.scene.data.repository.Idle
 import com.android.systemui.scene.data.repository.Transition
 import com.android.systemui.scene.data.repository.sceneContainerRepository
@@ -48,6 +46,7 @@ import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.fakeSceneDataSource
 import com.android.systemui.shade.domain.interactor.disableDualShade
 import com.android.systemui.shade.domain.interactor.enableDualShade
+import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.statusbar.disableflags.data.repository.fakeDisableFlagsRepository
 import com.android.systemui.statusbar.disableflags.shared.model.DisableFlagsModel
 import com.android.systemui.testKosmos
@@ -56,8 +55,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -71,9 +69,7 @@ import org.mockito.kotlin.verify
 @EnableSceneContainer
 class SceneInteractorTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
-    private val fakeSceneDataSource by lazy { kosmos.fakeSceneDataSource }
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val underTest by lazy { kosmos.sceneInteractor }
 
     @Before
@@ -93,7 +89,7 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun changeScene_toUnknownScene_doesNothing() =
-        testScope.runTest {
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
             val unknownScene = SceneKey("UNKNOWN")
             val previousScene = currentScene
@@ -104,7 +100,8 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun changeScene() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val currentScene by collectLastValue(underTest.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
 
@@ -113,30 +110,62 @@ class SceneInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    fun changeScene_sameScene_hidesOverlays() =
+        kosmos.runTest {
+            enableDualShade()
+            val currentScene by collectLastValue(underTest.currentScene)
+            val currentOverlays by collectLastValue(underTest.currentOverlays)
+            underTest.showOverlay(Overlays.NotificationsShade, "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).isNotEmpty()
+
+            underTest.changeScene(Scenes.Lockscreen, "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).isEmpty()
+        }
+
+    @Test
+    fun changeScene_sameScene_requestToKeepOverlays_keepsOverlays() =
+        kosmos.runTest {
+            enableDualShade()
+            val currentScene by collectLastValue(underTest.currentScene)
+            val currentOverlays by collectLastValue(underTest.currentOverlays)
+            underTest.showOverlay(Overlays.NotificationsShade, "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).containsExactly(Overlays.NotificationsShade)
+
+            underTest.changeScene(Scenes.Lockscreen, "reason", hideAllOverlays = false)
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).containsExactly(Overlays.NotificationsShade)
+        }
+
+    @Test
     fun changeScene_toGoneWhenUnl_doesNotThrow() =
-        testScope.runTest {
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
 
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
-            runCurrent()
 
             underTest.changeScene(Scenes.Gone, "reason")
             assertThat(currentScene).isEqualTo(Scenes.Gone)
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun changeScene_toGoneWhenStillLocked_throws() =
-        testScope.runTest { underTest.changeScene(Scenes.Gone, "reason") }
+        kosmos.runTest {
+            assertThrows(IllegalStateException::class.java) {
+                underTest.changeScene(Scenes.Gone, "reason")
+            } }
 
     @Test
     fun changeScene_toGoneWhenTransitionToLockedFromGone() =
-        testScope.runTest {
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
             val transitionTo by collectLastValue(underTest.transitioningTo)
-            kosmos.sceneContainerRepository.setTransitionState(
+            sceneContainerRepository.setTransitionState(
                 flowOf(
                     ObservableTransitionState.Transition(
                         fromScene = Scenes.Gone,
@@ -157,69 +186,119 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun changeScene_toHomeSceneFamily() =
-        testScope.runTest {
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
 
             underTest.changeScene(SceneFamilies.Home, "reason")
-            runCurrent()
 
             assertThat(currentScene).isEqualTo(kosmos.homeSceneFamilyResolver.resolvedScene.value)
         }
 
     @Test
-    fun snapToScene_toUnknownScene_doesNothing() =
-        testScope.runTest {
+    fun snapToScene_toUnknownScene_doesNotChangeScene() =
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
             val previousScene = currentScene
             val unknownScene = SceneKey("UNKNOWN")
             assertThat(previousScene).isNotEqualTo(unknownScene)
-            underTest.snapToScene(unknownScene, "reason")
+            underTest.snapToScene(unknownScene, loggingReason = "reason")
             assertThat(currentScene).isEqualTo(previousScene)
         }
 
     @Test
+    fun snapToScene_toUnknownScene_hidesOverlays() =
+        kosmos.runTest {
+            enableDualShade()
+            val currentScene by collectLastValue(underTest.currentScene)
+            val currentOverlays by collectLastValue(underTest.currentOverlays)
+            underTest.showOverlay(Overlays.NotificationsShade, "reason")
+            val previousScene = currentScene
+            val unknownScene = SceneKey("UNKNOWN")
+            assertThat(previousScene).isNotEqualTo(unknownScene)
+            assertThat(currentOverlays).isNotEmpty()
+
+            underTest.snapToScene(unknownScene, loggingReason = "reason")
+            assertThat(currentScene).isEqualTo(previousScene)
+            assertThat(currentOverlays).isEmpty()
+        }
+
+    @Test
     fun snapToScene() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val currentScene by collectLastValue(underTest.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
 
-            underTest.snapToScene(Scenes.Shade, "reason")
+            underTest.snapToScene(Scenes.Shade, loggingReason = "reason")
             assertThat(currentScene).isEqualTo(Scenes.Shade)
         }
 
     @Test
+    fun snapToScene_sameScene_hidesOverlays() =
+        kosmos.runTest {
+            enableDualShade()
+            val currentScene by collectLastValue(underTest.currentScene)
+            val currentOverlays by collectLastValue(underTest.currentOverlays)
+            underTest.showOverlay(Overlays.NotificationsShade, "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).isNotEmpty()
+
+            underTest.snapToScene(Scenes.Lockscreen, loggingReason = "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).isEmpty()
+        }
+
+    @Test
+    fun snapToScene_sameScene_requestToKeepOverlays_keepsOverlays() =
+        kosmos.runTest {
+            enableDualShade()
+            val currentScene by collectLastValue(underTest.currentScene)
+            val currentOverlays by collectLastValue(underTest.currentOverlays)
+            underTest.showOverlay(Overlays.NotificationsShade, "reason")
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).containsExactly(Overlays.NotificationsShade)
+
+            underTest.snapToScene(Scenes.Lockscreen, "reason", hideAllOverlays = false)
+            assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
+            assertThat(currentOverlays).containsExactly(Overlays.NotificationsShade)
+        }
+
+    @Test
     fun snapToScene_toGoneWhenUnl_doesNotThrow() =
-        testScope.runTest {
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
 
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
-            runCurrent()
 
-            underTest.snapToScene(Scenes.Gone, "reason")
+            underTest.snapToScene(Scenes.Gone, loggingReason = "reason")
             assertThat(currentScene).isEqualTo(Scenes.Gone)
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun snapToScene_toGoneWhenStillLocked_throws() =
-        testScope.runTest { underTest.snapToScene(Scenes.Gone, "reason") }
+        kosmos.runTest {
+            assertThrows(IllegalStateException::class.java) {
+                underTest.snapToScene(Scenes.Gone, loggingReason = "reason")
+            }
+        }
 
     @Test
     fun snapToScene_toHomeSceneFamily() =
-        testScope.runTest {
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
 
-            underTest.snapToScene(SceneFamilies.Home, "reason")
-            runCurrent()
+            underTest.snapToScene(SceneFamilies.Home, loggingReason = "reason")
 
-            assertThat(currentScene).isEqualTo(kosmos.homeSceneFamilyResolver.resolvedScene.value)
+            assertThat(currentScene).isEqualTo(homeSceneFamilyResolver.resolvedScene.value)
         }
 
     @Test
     fun sceneChanged_inDataSource() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val currentScene by collectLastValue(underTest.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
 
@@ -230,7 +309,8 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun transitionState() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val sceneContainerRepository = kosmos.sceneContainerRepository
             val transitionState =
                 MutableStateFlow<ObservableTransitionState>(
@@ -261,14 +341,13 @@ class SceneInteractorTest : SysuiTestCase() {
 
             sceneContainerRepository.setTransitionState(null)
             assertThat(reflectedTransitionState)
-                .isEqualTo(
-                    ObservableTransitionState.Idle(kosmos.sceneContainerConfig.initialSceneKey)
-                )
+                .isEqualTo(ObservableTransitionState.Idle(sceneContainerConfig.initialSceneKey))
         }
 
     @Test
     fun transitioningTo_sceneChange() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val transitionState =
                 MutableStateFlow<ObservableTransitionState>(
                     ObservableTransitionState.Idle(underTest.currentScene.value)
@@ -307,7 +386,6 @@ class SceneInteractorTest : SysuiTestCase() {
     fun transitioningTo_overlayChange() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
             val transitionState =
                 MutableStateFlow<ObservableTransitionState>(
                     ObservableTransitionState.Idle(underTest.currentScene.value)
@@ -352,11 +430,9 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun isTransitionUserInputOngoing_idle_false() =
-        testScope.runTest {
-            val transitionState =
-                MutableStateFlow<ObservableTransitionState>(
-                    ObservableTransitionState.Idle(Scenes.Shade)
-                )
+        kosmos.runTest {
+            enableSingleShade()
+            val transitionState = flowOf(ObservableTransitionState.Idle(Scenes.Shade))
             val isTransitionUserInputOngoing by
                 collectLastValue(underTest.isTransitionUserInputOngoing)
             underTest.setTransitionState(transitionState)
@@ -366,9 +442,10 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun isTransitionUserInputOngoing_transition_true() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val transitionState =
-                MutableStateFlow<ObservableTransitionState>(
+                flowOf(
                     ObservableTransitionState.Transition(
                         fromScene = Scenes.Shade,
                         toScene = Scenes.Lockscreen,
@@ -387,7 +464,8 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun isTransitionUserInputOngoing_updateMidTransition_false() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val transitionState =
                 MutableStateFlow<ObservableTransitionState>(
                     ObservableTransitionState.Transition(
@@ -420,7 +498,8 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun isTransitionUserInputOngoing_updateOnIdle_false() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             val transitionState =
                 MutableStateFlow<ObservableTransitionState>(
                     ObservableTransitionState.Transition(
@@ -445,7 +524,7 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun isVisible() =
-        testScope.runTest {
+        kosmos.runTest {
             val isVisible by collectLastValue(underTest.isVisible)
             assertThat(isVisible).isTrue()
 
@@ -458,7 +537,7 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun isVisible_duringRemoteUserInteraction_forcedVisible() =
-        testScope.runTest {
+        kosmos.runTest {
             underTest.setVisible(false, "reason")
             val isVisible by collectLastValue(underTest.isVisible)
             assertThat(isVisible).isFalse()
@@ -472,37 +551,37 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun resolveSceneFamily_home() =
-        testScope.runTest {
+        kosmos.runTest {
             assertThat(underTest.resolveSceneFamily(SceneFamilies.Home).first())
-                .isEqualTo(kosmos.homeSceneFamilyResolver.resolvedScene.value)
+                .isEqualTo(homeSceneFamilyResolver.resolvedScene.value)
         }
 
     @Test
     fun resolveSceneFamily_nonFamily() =
-        testScope.runTest {
+        kosmos.runTest {
             val resolved = underTest.resolveSceneFamily(Scenes.Gone).toList()
             assertThat(resolved).containsExactly(Scenes.Gone).inOrder()
         }
 
     @Test
     fun transitionValue_test_idle() =
-        testScope.runTest {
+        kosmos.runTest {
             val transitionValue by collectLastValue(underTest.transitionProgress(Scenes.Gone))
 
-            kosmos.setSceneTransition(Idle(Scenes.Gone))
+            setSceneTransition(Idle(Scenes.Gone))
             assertThat(transitionValue).isEqualTo(1f)
 
-            kosmos.setSceneTransition(Idle(Scenes.Lockscreen))
+            setSceneTransition(Idle(Scenes.Lockscreen))
             assertThat(transitionValue).isEqualTo(0f)
         }
 
     @Test
     fun transitionValue_test_transitions() =
-        testScope.runTest {
+        kosmos.runTest {
             val transitionValue by collectLastValue(underTest.transitionProgress(Scenes.Gone))
             val progress = MutableStateFlow(0f)
 
-            kosmos.setSceneTransition(
+            setSceneTransition(
                 Transition(from = Scenes.Lockscreen, to = Scenes.Gone, progress = progress)
             )
             assertThat(transitionValue).isEqualTo(0f)
@@ -510,13 +589,13 @@ class SceneInteractorTest : SysuiTestCase() {
             progress.value = 0.4f
             assertThat(transitionValue).isEqualTo(0.4f)
 
-            kosmos.setSceneTransition(
+            setSceneTransition(
                 Transition(from = Scenes.Gone, to = Scenes.Lockscreen, progress = progress)
             )
             progress.value = 0.7f
             assertThat(transitionValue).isEqualTo(0.3f)
 
-            kosmos.setSceneTransition(
+            setSceneTransition(
                 Transition(from = Scenes.Lockscreen, to = Scenes.Shade, progress = progress)
             )
             progress.value = 0.9f
@@ -525,10 +604,10 @@ class SceneInteractorTest : SysuiTestCase() {
 
     @Test
     fun changeScene_toGone_whenKeyguardDisabled_doesNotThrow() =
-        testScope.runTest {
+        kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
-            kosmos.keyguardEnabledInteractor.notifyKeyguardEnabled(false)
+            keyguardEnabledInteractor.notifyKeyguardEnabled(false)
 
             underTest.changeScene(Scenes.Gone, "")
 
@@ -539,7 +618,6 @@ class SceneInteractorTest : SysuiTestCase() {
     fun showOverlay_overlayDisabled_doesNothing() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
             val currentOverlays by collectLastValue(underTest.currentOverlays)
             val disabledOverlay = Overlays.QuickSettingsShade
             fakeDisableFlagsRepository.disableFlags.value =
@@ -556,7 +634,6 @@ class SceneInteractorTest : SysuiTestCase() {
     fun replaceOverlay_withDisabledOverlay_doesNothing() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
             val currentOverlays by collectLastValue(underTest.currentOverlays)
             val showingOverlay = Overlays.NotificationsShade
             underTest.showOverlay(showingOverlay, "reason")
@@ -574,6 +651,7 @@ class SceneInteractorTest : SysuiTestCase() {
     @Test
     fun changeScene_toDisabledScene_doesNothing() =
         kosmos.runTest {
+            enableSingleShade()
             val currentScene by collectLastValue(underTest.currentScene)
             val disabledScene = Scenes.Shade
             fakeDisableFlagsRepository.disableFlags.value =
@@ -632,59 +710,64 @@ class SceneInteractorTest : SysuiTestCase() {
             assertThat(isVisible).isFalse()
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun changeScene_toIncorrectShade_crashes() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
-            underTest.changeScene(Scenes.Shade, "reason")
+            assertThrows(IllegalStateException::class.java) {
+                underTest.changeScene(Scenes.Shade, "reason")
+            }
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun changeScene_toIncorrectQuickSettings_crashes() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
-            underTest.changeScene(Scenes.QuickSettings, "reason")
+            assertThrows(IllegalStateException::class.java) {
+                underTest.changeScene(Scenes.QuickSettings, "reason")
+            }
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun snapToScene_toIncorrectShade_crashes() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
-            underTest.snapToScene(Scenes.Shade, "reason")
+            assertThrows(IllegalStateException::class.java) {
+                underTest.snapToScene(Scenes.Shade, loggingReason = "reason")
+            }
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun snapToScene_toIncorrectQuickSettings_crashes() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
-            underTest.changeScene(Scenes.QuickSettings, "reason")
+            assertThrows(IllegalStateException::class.java) {
+                underTest.changeScene(Scenes.QuickSettings, "reason")
+            }
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun showOverlay_incorrectShadeOverlay_crashes() =
         kosmos.runTest {
             disableDualShade()
-            runCurrent()
-            underTest.showOverlay(Overlays.NotificationsShade, "reason")
+            assertThrows(IllegalStateException::class.java) {
+                underTest.showOverlay(Overlays.NotificationsShade, "reason")
+            }
         }
 
-    @Test(expected = IllegalStateException::class)
+    @Test
     fun showOverlay_incorrectQuickSettingsOverlay_crashes() =
         kosmos.runTest {
             disableDualShade()
-            runCurrent()
-            underTest.showOverlay(Overlays.QuickSettingsShade, "reason")
+            assertThrows(IllegalStateException::class.java) {
+                underTest.showOverlay(Overlays.QuickSettingsShade, "reason")
+            }
         }
 
     @Test
     fun instantlyShowOverlay() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
             val currentScene by collectLastValue(underTest.currentScene)
             val currentOverlays by collectLastValue(underTest.currentOverlays)
             val originalScene = currentScene
@@ -692,7 +775,6 @@ class SceneInteractorTest : SysuiTestCase() {
 
             val overlay = Overlays.NotificationsShade
             underTest.instantlyShowOverlay(overlay, "reason")
-            runCurrent()
 
             assertThat(currentScene).isEqualTo(originalScene)
             assertThat(currentOverlays).contains(overlay)
@@ -702,17 +784,14 @@ class SceneInteractorTest : SysuiTestCase() {
     fun instantlyHideOverlay() =
         kosmos.runTest {
             enableDualShade()
-            runCurrent()
             val currentScene by collectLastValue(underTest.currentScene)
             val currentOverlays by collectLastValue(underTest.currentOverlays)
             val overlay = Overlays.QuickSettingsShade
             underTest.showOverlay(overlay, "reason")
-            runCurrent()
             val originalScene = currentScene
             assertThat(currentOverlays).contains(overlay)
 
             underTest.instantlyHideOverlay(overlay, "reason")
-            runCurrent()
 
             assertThat(currentScene).isEqualTo(originalScene)
             assertThat(currentOverlays).isEmpty()
@@ -723,12 +802,10 @@ class SceneInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             val currentScene by collectLastValue(underTest.currentScene)
             // Unlock so transitioning to the Gone scene becomes possible.
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
-            runCurrent()
             underTest.changeScene(toScene = Scenes.Gone, loggingReason = "")
-            runCurrent()
             assertThat(currentScene).isEqualTo(Scenes.Gone)
 
             val processor = mock<SceneInteractor.OnSceneAboutToChangeListener>()
@@ -739,7 +816,6 @@ class SceneInteractorTest : SysuiTestCase() {
                 sceneState = KeyguardState.AOD,
                 loggingReason = "",
             )
-            runCurrent()
             assertThat(currentScene).isEqualTo(Scenes.Lockscreen)
 
             verify(processor).onSceneAboutToChange(Scenes.Lockscreen, KeyguardState.AOD)
@@ -804,11 +880,11 @@ class SceneInteractorTest : SysuiTestCase() {
         kosmos.runTest {
             val topmostContent by collectLastValue(underTest.topmostContent)
 
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
 
-            underTest.snapToScene(Scenes.Lockscreen, "reason")
+            underTest.snapToScene(Scenes.Lockscreen, loggingReason = "reason")
 
             assertThat(topmostContent).isEqualTo(Scenes.Lockscreen)
 
@@ -820,21 +896,20 @@ class SceneInteractorTest : SysuiTestCase() {
     @Test
     fun topmostContent_sceneChange_withOverlay() =
         kosmos.runTest {
-            kosmos.enableDualShade()
-            runCurrent()
+            enableDualShade()
 
             val topmostContent by collectLastValue(underTest.topmostContent)
 
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
 
-            underTest.snapToScene(Scenes.Lockscreen, "reason")
+            underTest.snapToScene(Scenes.Lockscreen, loggingReason = "reason")
             underTest.showOverlay(Overlays.NotificationsShade, "reason")
 
             assertThat(topmostContent).isEqualTo(Overlays.NotificationsShade)
 
-            underTest.changeScene(Scenes.Gone, "reason")
+            underTest.changeScene(Scenes.Gone, loggingReason = "reason", hideAllOverlays = false)
 
             assertThat(topmostContent).isEqualTo(Overlays.NotificationsShade)
         }
@@ -842,16 +917,15 @@ class SceneInteractorTest : SysuiTestCase() {
     @Test
     fun topmostContent_overlayChange_higherZOrder() =
         kosmos.runTest {
-            kosmos.enableDualShade()
-            runCurrent()
+            enableDualShade()
 
             val topmostContent by collectLastValue(underTest.topmostContent)
 
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
 
-            underTest.snapToScene(Scenes.Lockscreen, "reason")
+            underTest.snapToScene(Scenes.Lockscreen, loggingReason = "reason")
             underTest.showOverlay(Overlays.NotificationsShade, "reason")
 
             assertThat(topmostContent).isEqualTo(Overlays.NotificationsShade)
@@ -864,16 +938,15 @@ class SceneInteractorTest : SysuiTestCase() {
     @Test
     fun topmostContent_overlayChange_lowerZOrder() =
         kosmos.runTest {
-            kosmos.enableDualShade()
-            runCurrent()
+            enableDualShade()
 
             val topmostContent by collectLastValue(underTest.topmostContent)
 
-            kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+            fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
                 SuccessFingerprintAuthenticationStatus(0, true)
             )
 
-            underTest.snapToScene(Scenes.Lockscreen, "reason")
+            underTest.snapToScene(Scenes.Lockscreen, loggingReason = "reason")
             underTest.showOverlay(Overlays.QuickSettingsShade, "reason")
 
             assertThat(topmostContent).isEqualTo(Overlays.QuickSettingsShade)

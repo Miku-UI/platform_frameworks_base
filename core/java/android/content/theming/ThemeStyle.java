@@ -16,12 +16,19 @@
 
 package android.content.theming;
 
+import static java.lang.annotation.ElementType.FIELD;
+import static java.lang.annotation.ElementType.LOCAL_VARIABLE;
+import static java.lang.annotation.ElementType.METHOD;
+import static java.lang.annotation.ElementType.PARAMETER;
+import static java.lang.annotation.RetentionPolicy.SOURCE;
+
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
-import android.annotation.Nullable;
+import android.annotation.TestApi;
 
 import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * A class defining the different styles available for theming.
@@ -29,9 +36,11 @@ import java.lang.annotation.RetentionPolicy;
  *
  * @hide
  */
+@TestApi
+@FlaggedApi(android.server.Flags.FLAG_ENABLE_THEME_SERVICE)
 public final class ThemeStyle {
-
     private ThemeStyle() {
+        // Utility class
     }
 
     /**
@@ -49,7 +58,8 @@ public final class ThemeStyle {
             CLOCK,
             CLOCK_VIBRANT
     })
-    @Retention(RetentionPolicy.SOURCE)
+    @Retention(SOURCE)
+    @Target({PARAMETER, METHOD, LOCAL_VARIABLE, FIELD})
     public @interface Type {
     }
 
@@ -101,14 +111,10 @@ public final class ThemeStyle {
      * @param style The style value.
      * @return The string representation of the style.
      * @throws IllegalArgumentException if the style value is invalid.
+     * @throws NullPointerException if the style value is null.
      */
     @NonNull
-    public static String toString(@Nullable @Type Integer style) {
-        // Throw an exception if style is null
-        if (style == null) {
-            throw new IllegalArgumentException("Invalid style value: null");
-        }
-
+    public static String toString(@Type int style) {
         return switch (style) {
             case SPRITZ -> "SPRITZ";
             case TONAL_SPOT -> "TONAL_SPOT";
@@ -130,8 +136,10 @@ public final class ThemeStyle {
      * @param styleName The name of the style.
      * @return The style value.
      * @throws IllegalArgumentException if the style name is invalid.
+     * @throws NullPointerException if the style name is null.
      */
-    public static @Type int valueOf(@Nullable String styleName) {
+    @Type
+    public static  int valueOf(@NonNull String styleName) {
         return switch (styleName) {
             case "SPRITZ" -> SPRITZ;
             case "TONAL_SPOT" -> TONAL_SPOT;
@@ -148,7 +156,7 @@ public final class ThemeStyle {
     }
 
     /**
-     * Returns the name of the given style. This method is equivalent to {@link #toString(int)}.
+     * Returns the name of the given style. This method is equivalent to {@link #toString(Integer)}.
      *
      * @param style The style value.
      * @return The name of the style.
@@ -163,6 +171,7 @@ public final class ThemeStyle {
      *
      * @return An array of all style values.
      */
+    @NonNull
     public static int[] values() {
         return new int[]{
                 SPRITZ,

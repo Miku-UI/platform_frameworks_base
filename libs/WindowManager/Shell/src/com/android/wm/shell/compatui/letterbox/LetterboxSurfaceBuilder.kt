@@ -17,43 +17,33 @@
 package com.android.wm.shell.compatui.letterbox
 
 import android.view.SurfaceControl
+import android.window.TaskConstants
 import com.android.wm.shell.dagger.WMSingleton
 import javax.inject.Inject
 
-/**
- * Component responsible for the actual creation of the Letterbox surfaces.
- */
+/** Component responsible for the actual creation of the Letterbox surfaces. */
 @WMSingleton
-class LetterboxSurfaceBuilder @Inject constructor(
-    private val letterboxConfiguration: LetterboxConfiguration
-) {
-
-    companion object {
-        /*
-         * Letterbox surfaces need to stay below the activity layer which is 0.
-         */
-        // TODO(b/378673153): Consider adding this to [TaskConstants].
-        @JvmStatic
-        private val TASK_CHILD_LAYER_LETTERBOX_BACKGROUND = -1000
-    }
+class LetterboxSurfaceBuilder
+@Inject
+constructor(private val letterboxConfiguration: LetterboxConfiguration) {
 
     fun createSurface(
         tx: SurfaceControl.Transaction,
         parentLeash: SurfaceControl,
         surfaceName: String,
         callSite: String,
-        surfaceBuilder: SurfaceControl.Builder = SurfaceControl.Builder()
-    ) = surfaceBuilder
-        .setName(surfaceName)
-        .setHidden(true)
-        .setColorLayer()
-        .setParent(parentLeash)
-        .setCallsite(callSite)
-        .build().apply {
-            tx.setLayer(
-                this,
-                TASK_CHILD_LAYER_LETTERBOX_BACKGROUND
-            ).setColorSpaceAgnostic(this, true)
-                .setColor(this, letterboxConfiguration.getBackgroundColorRgbArray())
-        }
+        surfaceBuilder: SurfaceControl.Builder = SurfaceControl.Builder(),
+    ) =
+        surfaceBuilder
+            .setName(surfaceName)
+            .setHidden(true)
+            .setColorLayer()
+            .setParent(parentLeash)
+            .setCallsite(callSite)
+            .build()
+            .apply {
+                tx.setLayer(this, TaskConstants.TASK_CHILD_SHELL_LAYER_LETTERBOX_BACKGROUND)
+                    .setColorSpaceAgnostic(this, true)
+                    .setColor(this, letterboxConfiguration.getBackgroundColorRgbArray())
+            }
 }

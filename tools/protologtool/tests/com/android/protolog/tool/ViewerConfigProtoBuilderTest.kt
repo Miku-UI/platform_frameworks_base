@@ -34,9 +34,9 @@ class ViewerConfigProtoBuilderTest {
             TAG2
         )
 
-        private val GROUP1 = LogGroup("TEST_GROUP", true, true, TAG1)
-        private val GROUP2 = LogGroup("DEBUG_GROUP", true, true, TAG2)
-        private val GROUP3 = LogGroup("UNUSED_GROUP", true, true, TAG1)
+        private val GROUP1 = LogGroup("TEST_GROUP", true, true, TAG1, 1)
+        private val GROUP2 = LogGroup("DEBUG_GROUP", true, true, TAG2, 2)
+        private val GROUP3 = LogGroup("UNUSED_GROUP", true, true, TAG1, 3)
 
         private val GROUPS = listOf(
             GROUP1,

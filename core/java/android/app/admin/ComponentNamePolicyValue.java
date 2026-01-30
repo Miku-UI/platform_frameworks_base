@@ -34,7 +34,7 @@ public final class ComponentNamePolicyValue extends PolicyValue<ComponentName> {
     }
 
     private ComponentNamePolicyValue(Parcel source) {
-        this((ComponentName) source.readParcelable(ComponentName.class.getClassLoader()));
+        this(source.readParcelable(ComponentName.class.getClassLoader(), ComponentName.class));
     }
 
     @Override

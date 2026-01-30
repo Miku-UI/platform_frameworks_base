@@ -17,7 +17,11 @@
 
 package com.android.systemui.keyguard.data.repository
 
-import com.android.internal.widget.LockPatternUtils
+import android.security.Flags.secureLockDevice
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.AuthenticationFlags
 import dagger.Binds
@@ -26,6 +30,7 @@ import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 @SysUISingleton
@@ -52,6 +57,25 @@ class FakeBiometricSettingsRepository @Inject constructor() : BiometricSettingsR
 
     override val isCurrentUserInLockdown: Flow<Boolean>
         get() = _authFlags.map { it.isInUserLockdown }
+
+    override val requiresPrimaryAuthForSecureLockDevice: Flow<Boolean>
+        get() =
+            if (secureLockDevice()) {
+                _authFlags.map { it.isPrimaryAuthRequiredForSecureLockDevice }
+            } else {
+                flowOf(false)
+            }
+
+    override val requiresStrongBiometricAuthForSecureLockDevice: Flow<Boolean>
+        get() =
+            if (secureLockDevice()) {
+                _authFlags.map {
+                    !it.isPrimaryAuthRequiredForSecureLockDevice &&
+                        it.isStrongBiometricAuthRequiredForSecureLockDevice
+                }
+            } else {
+                flowOf(false)
+            }
 
     private val _authFlags = MutableStateFlow(AuthenticationFlags(0, 0))
     override val authenticationFlags: Flow<AuthenticationFlags>
@@ -88,17 +112,31 @@ class FakeBiometricSettingsRepository @Inject constructor() : BiometricSettingsR
             setAuthenticationFlags(
                 AuthenticationFlags(
                     _authFlags.value.userId,
-                    _authFlags.value.flag or
-                        LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN
+                    _authFlags.value.flag or STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN,
                 )
             )
         } else {
             setAuthenticationFlags(
+                AuthenticationFlags(_authFlags.value.userId, STRONG_AUTH_NOT_REQUIRED)
+            )
+        }
+    }
+
+    fun setIsSecureLockDeviceEnabled(
+        isSecureLockDeviceEnabled: Boolean,
+        userId: Int = _authFlags.value.userId,
+    ) {
+        if (isSecureLockDeviceEnabled) {
+            setAuthenticationFlags(
                 AuthenticationFlags(
-                    _authFlags.value.userId,
-                    LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED
+                    userId = userId,
+                    flag =
+                        PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE or
+                            STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
                 )
             )
+        } else {
+            setAuthenticationFlags(AuthenticationFlags(userId, STRONG_AUTH_NOT_REQUIRED))
         }
     }
 }

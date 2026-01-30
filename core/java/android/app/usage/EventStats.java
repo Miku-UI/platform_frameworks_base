@@ -26,37 +26,37 @@ import android.os.Parcelable;
 public final class EventStats implements Parcelable {
 
     /**
-     * {@hide}
+     * @hide
      */
     public int mEventType;
 
     /**
-     * {@hide}
+     * @hide
      */
     public long mBeginTimeStamp;
 
     /**
-     * {@hide}
+     * @hide
      */
     public long mEndTimeStamp;
 
     /**
-     * {@hide}
+     * @hide
      */
     public long mLastEventTime;
 
     /**
-     * {@hide}
+     * @hide
      */
     public long mTotalTime;
 
     /**
-     * {@hide}
+     * @hide
      */
     public int mCount;
 
     /**
-     * {@hide}
+     * @hide
      */
     public EventStats() {
     }

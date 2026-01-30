@@ -17,6 +17,7 @@
 package com.android.systemui.inputdevice.tutorial.domain.interactor
 
 import android.os.SystemProperties
+import com.android.app.tracing.coroutines.runBlockingTraced as runBlocking
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.inputdevice.tutorial.InputDeviceTutorialLogger
@@ -47,7 +48,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 /**
  * When the first time a keyboard or touchpad is connected, wait for [LAUNCH_DELAY], and as soon as

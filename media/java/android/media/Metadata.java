@@ -60,7 +60,7 @@ import java.util.TimeZone;
     //
 
     /**
-     * {@hide}
+     * @hide
      */
     public static final int ANY = 0;  // Never used for metadata returned, only for filtering.
                                       // Keep in sync with kAny in MediaPlayerService.cpp
@@ -89,117 +89,117 @@ import java.util.TimeZone;
 
     // TODO: Should we use numbers compatible with the metadata retriever?
     /**
-     * {@hide}
+     * @hide
      */
     public static final int TITLE                   = 5; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int COMMENT                 = 6; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int COPYRIGHT               = 7; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int ALBUM                   = 8; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int ARTIST                  = 9; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int AUTHOR                  = 10; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int COMPOSER                = 11; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int GENRE                   = 12; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int DATE                    = 13; // Date
     /**
-     * {@hide}
+     * @hide
      */
     public static final int DURATION                = 14; // Integer(millisec)
     /**
-     * {@hide}
+     * @hide
      */
     public static final int CD_TRACK_NUM            = 15; // Integer 1-based
     /**
-     * {@hide}
+     * @hide
      */
     public static final int CD_TRACK_MAX            = 16; // Integer
     /**
-     * {@hide}
+     * @hide
      */
     public static final int RATING                  = 17; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int ALBUM_ART               = 18; // byte[]
     /**
-     * {@hide}
+     * @hide
      */
     public static final int VIDEO_FRAME             = 19; // Bitmap
 
     /**
-     * {@hide}
+     * @hide
      */
     public static final int BIT_RATE                = 20; // Integer, Aggregate rate of
                                                           // all the streams in bps.
 
     /**
-     * {@hide}
+     * @hide
      */
     public static final int AUDIO_BIT_RATE          = 21; // Integer, bps
     /**
-     * {@hide}
+     * @hide
      */
     public static final int VIDEO_BIT_RATE          = 22; // Integer, bps
     /**
-     * {@hide}
+     * @hide
      */
     public static final int AUDIO_SAMPLE_RATE       = 23; // Integer, Hz
     /**
-     * {@hide}
+     * @hide
      */
     public static final int VIDEO_FRAME_RATE        = 24; // Integer, Hz
 
     // See RFC2046 and RFC4281.
     /**
-     * {@hide}
+     * @hide
      */
     public static final int MIME_TYPE               = 25; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int AUDIO_CODEC             = 26; // String
     /**
-     * {@hide}
+     * @hide
      */
     public static final int VIDEO_CODEC             = 27; // String
 
     /**
-     * {@hide}
+     * @hide
      */
     public static final int VIDEO_HEIGHT            = 28; // Integer
     /**
-     * {@hide}
+     * @hide
      */
     public static final int VIDEO_WIDTH             = 29; // Integer
     /**
-     * {@hide}
+     * @hide
      */
     public static final int NUM_TRACKS              = 30; // Integer
     /**
-     * {@hide}
+     * @hide
      */
     public static final int DRM_CRIPPLED            = 31; // Boolean
 
@@ -208,40 +208,40 @@ import java.util.TimeZone;
 
     // Shorthands to set the MediaPlayer's metadata filter.
     /**
-     * {@hide}
+     * @hide
      */
     public static final Set<Integer> MATCH_NONE = Collections.EMPTY_SET;
     /**
-     * {@hide}
+     * @hide
      */
     public static final Set<Integer> MATCH_ALL = Collections.singleton(ANY);
 
     /**
-     * {@hide}
+     * @hide
      */
     public static final int STRING_VAL     = 1;
     /**
-     * {@hide}
+     * @hide
      */
     public static final int INTEGER_VAL    = 2;
     /**
-     * {@hide}
+     * @hide
      */
     public static final int BOOLEAN_VAL    = 3;
     /**
-     * {@hide}
+     * @hide
      */
     public static final int LONG_VAL       = 4;
     /**
-     * {@hide}
+     * @hide
      */
     public static final int DOUBLE_VAL     = 5;
     /**
-     * {@hide}
+     * @hide
      */
     public static final int DATE_VAL       = 6;
     /**
-     * {@hide}
+     * @hide
      */
     public static final int BYTE_ARRAY_VAL = 7;
     // FIXME: misses a type for shared heap is missing (MemoryFile).
@@ -267,7 +267,7 @@ import java.util.TimeZone;
             new HashMap<Integer, Integer>();
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public Metadata() { }
@@ -386,7 +386,7 @@ import java.util.TimeZone;
      *               should not modify the parcel after this call (and
      *               not call recycle on it.)
      * @return false if an error occurred.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public boolean parse(Parcel parcel) {
@@ -446,7 +446,7 @@ import java.util.TimeZone;
     // method otherwise a RuntimeException will occur.
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public String getString(final int key) {
@@ -455,7 +455,7 @@ import java.util.TimeZone;
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public int getInt(final int key) {
@@ -473,18 +473,18 @@ import java.util.TimeZone;
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public long getLong(final int key) {
         checkType(key, LONG_VAL);    /**
-     * {@hide}
+     * @hide
      */
         return mParcel.readLong();
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public double getDouble(final int key) {
@@ -493,7 +493,7 @@ import java.util.TimeZone;
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public byte[] getByteArray(final int key) {
@@ -502,7 +502,7 @@ import java.util.TimeZone;
     }
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public Date getDate(final int key) {
@@ -524,19 +524,19 @@ import java.util.TimeZone;
     /**
      * @return the last available system metadata id. Ids are
      *         1-indexed.
-     * {@hide}
+     * @hide
      */
     public static int lastSytemId() { return LAST_SYSTEM; }
 
     /**
      * @return the first available cutom metadata id.
-     * {@hide}
+     * @hide
      */
     public static int firstCustomId() { return FIRST_CUSTOM; }
 
     /**
      * @return the last value of known type. Types are 1-indexed.
-     * {@hide}
+     * @hide
      */
     public static int lastType() { return LAST_TYPE; }
 

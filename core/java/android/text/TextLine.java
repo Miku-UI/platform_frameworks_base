@@ -1359,6 +1359,9 @@ public class TextLine {
             if (drawBounds != null && mTmpRectForPaintAPI == null) {
                 mTmpRectForPaintAPI = new RectF();
             }
+            if (drawBounds != null) {
+                mTmpRectForPaintAPI.setEmpty();
+            }
             totalWidth = getRunAdvance(wp, start, end, contextStart, contextEnd, runIsRtl, offset,
                     advances, advancesIndex, drawBounds == null ? null : mTmpRectForPaintAPI,
                     lineInfo);

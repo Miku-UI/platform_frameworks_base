@@ -28,16 +28,17 @@ import com.android.server.wm.flicker.helpers.MailAppHelper
 import com.android.server.wm.flicker.helpers.NonResizeableAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import com.android.window.flags.Flags
-import com.android.wm.shell.Utils
 import org.junit.After
 import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 @Ignore("Base Test Class")
-abstract class CloseAllAppsWithBackNavigation(val rotation: Rotation = Rotation.ROTATION_0) {
+abstract class CloseAllAppsWithBackNavigation(
+    val navigationMode: NavBar = NavBar.MODE_GESTURAL,
+    val rotation: Rotation = Rotation.ROTATION_0
+) : TestScenarioBase(rotation) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
@@ -46,25 +47,36 @@ abstract class CloseAllAppsWithBackNavigation(val rotation: Rotation = Rotation.
     private val mailApp = DesktopModeAppHelper(MailAppHelper(instrumentation))
     private val nonResizeableApp = DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
 
-    @Rule @JvmField val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, rotation)
+    val appsInZOrder: ArrayList<DesktopModeAppHelper> = ArrayList()
 
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopWindowingMode() && tapl.isTablet)
         Assume.assumeTrue(Flags.enableDesktopWindowingBackNavigation())
-        tapl.setEnableRotation(true)
-        tapl.setExpectedRotation(rotation.value)
+        Assume.assumeTrue(Flags.enableEmptyDeskOnMinimize())
+
+        // Set up apps
         testApp.enterDesktopMode(wmHelper, device)
+        appsInZOrder.add(testApp)
+
         mailApp.launchViaIntent(wmHelper)
+        appsInZOrder.add( mailApp)
+
         nonResizeableApp.launchViaIntent(wmHelper)
+        appsInZOrder.add(nonResizeableApp)
     }
 
     @Test
     open fun closeAllAppsInDesktop() {
-        nonResizeableApp.closeDesktopApp(wmHelper, device, usingBackNavigation = true)
-        mailApp.closeDesktopApp(wmHelper, device, usingBackNavigation = true)
-        testApp.closeDesktopApp(wmHelper, device, usingBackNavigation = true)
+        repeat(appsInZOrder.size) {
+            useBackNavigation()
+        }
     }
+
+    private fun useBackNavigation() {
+        tapl.pressBack()
+        wmHelper.StateSyncBuilder().withAppTransitionIdle().waitForAndVerify()
+    }
+
 
     @After
     fun teardown() {

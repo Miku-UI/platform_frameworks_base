@@ -26,7 +26,7 @@ import java.util.BitSet;
 
 /**
  * A class that aggregates connect() statistics.
- * {@hide}
+ * @hide
  */
 public class ConnectStats {
     private final static int EALREADY     = OsConstants.EALREADY;

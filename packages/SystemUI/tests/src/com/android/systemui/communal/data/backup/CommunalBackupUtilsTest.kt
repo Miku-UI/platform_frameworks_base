@@ -33,6 +33,7 @@ import java.io.FileNotFoundException
 import java.nio.charset.Charset
 import org.junit.After
 import org.junit.Before
+import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -135,11 +136,13 @@ class CommunalBackupUtilsTest : SysuiTestCase() {
         underTest.readBytesFromDisk()
     }
 
+    @Ignore("b/421992612")
     @Test
     fun clear_returnsFalseWhenFileDoesNotExist() {
         assertThat(underTest.clear()).isFalse()
     }
 
+    @Ignore("b/433468641")
     @Test
     fun fileExists() {
         assertThat(underTest.fileExists()).isFalse()

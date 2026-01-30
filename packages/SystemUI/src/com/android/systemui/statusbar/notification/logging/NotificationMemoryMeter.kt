@@ -15,12 +15,16 @@ import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
 import android.stats.sysui.NotificationEnums
+import androidx.annotation.VisibleForTesting
 import androidx.annotation.WorkerThread
 import com.android.systemui.statusbar.notification.NotificationUtils
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 
 /** Calculates estimated memory usage of [Notification] and [NotificationEntry] objects. */
-internal object NotificationMemoryMeter {
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+object NotificationMemoryMeter {
 
     private const val CAR_EXTENSIONS = "android.car.EXTENSIONS"
     private const val CAR_EXTENSIONS_LARGE_ICON = "large_icon"
@@ -32,7 +36,7 @@ internal object NotificationMemoryMeter {
     /** Returns a list of memory use entries for currently shown notifications. */
     @WorkerThread
     fun notificationMemoryUse(
-        notifications: Collection<NotificationEntry>,
+        notifications: Collection<NotificationEntry>
     ): List<NotificationMemoryUsage> {
         return notifications
             .asSequence()
@@ -48,7 +52,7 @@ internal object NotificationMemoryMeter {
                     NotificationUtils.logKey(entry.sbn.key),
                     entry.sbn.notification,
                     notificationObjectUsage,
-                    notificationViewUsage
+                    notificationViewUsage,
                 )
             }
             .toList()
@@ -65,7 +69,7 @@ internal object NotificationMemoryMeter {
             NotificationUtils.logKey(entry.sbn.key),
             entry.sbn.notification,
             notificationMemoryUse(entry.sbn.notification, seenBitmaps),
-            NotificationMemoryViewWalker.getViewUsage(entry.row)
+            NotificationMemoryViewWalker.getViewUsage(entry.row),
         )
     }
 
@@ -159,7 +163,7 @@ internal object NotificationMemoryMeter {
                     tvExtenderSize +
                     wearExtenderSize +
                     wearExtenderBackground,
-            hasCustomView = hasCustomView
+            hasCustomView = hasCustomView,
         )
     }
 

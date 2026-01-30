@@ -143,6 +143,7 @@ abstract class Vibration {
         @Nullable
         private final CombinedVibration mOriginalEffect;
         private final int mScaleLevel;
+        private final float mScaleFactor;
         private final float mAdaptiveScale;
 
         private final long mCreateUptime;
@@ -154,7 +155,8 @@ abstract class Vibration {
         DebugInfoImpl(VibrationSession.Status status,
                 @NonNull VibrationSession.CallerInfo callerInfo, int vibrationType,
                 VibrationStats stats, @Nullable CombinedVibration playedEffect,
-                @Nullable CombinedVibration originalEffect, int scaleLevel, float adaptiveScale) {
+                @Nullable CombinedVibration originalEffect, int scaleLevel, float scaleFactor,
+                float adaptiveScale) {
             Objects.requireNonNull(callerInfo);
             mCallerInfo = callerInfo;
             mStatsInfo = stats.toStatsInfo(callerInfo.uid, vibrationType,
@@ -162,6 +164,7 @@ abstract class Vibration {
             mPlayedEffect = playedEffect;
             mOriginalEffect = originalEffect;
             mScaleLevel = scaleLevel;
+            mScaleFactor = scaleFactor;
             mAdaptiveScale = adaptiveScale;
             mStatus = status;
 
@@ -204,6 +207,7 @@ abstract class Vibration {
                     + ", playedEffect: " + mPlayedEffect
                     + ", originalEffect: " + mOriginalEffect
                     + ", scaleLevel: " + VibrationScaler.scaleLevelToString(mScaleLevel)
+                    + ", scaleFactor: " + String.format(Locale.ROOT, "%.2f", mScaleFactor)
                     + ", adaptiveScale: " + String.format(Locale.ROOT, "%.2f", mAdaptiveScale)
                     + ", callerInfo: " + mCallerInfo;
         }
@@ -231,8 +235,8 @@ abstract class Vibration {
                     mStartTime == 0 ? "" : formatTime(mStartTime, /*includeDate=*/ false),
                     mEndTime == 0 ? "" : formatTime(mEndTime, /*includeDate=*/ false));
             String paramStr = String.format(Locale.ROOT,
-                    " | scale: %8s (adaptive=%.2f) | flags: %4s | usage: %s",
-                    VibrationScaler.scaleLevelToString(mScaleLevel), mAdaptiveScale,
+                    " | scale: %9s (%.2f) | adaptiveScale=%.2f | flags: %4s | usage: %s",
+                    VibrationScaler.scaleLevelToString(mScaleLevel), mScaleFactor, mAdaptiveScale,
                     Long.toBinaryString(mCallerInfo.attrs.getFlags()),
                     mCallerInfo.attrs.usageToString());
             // Optional, most vibrations should not be defined via AudioAttributes
@@ -265,6 +269,7 @@ abstract class Vibration {
             pw.println("playedEffect = " + mPlayedEffect);
             pw.println("originalEffect = " + mOriginalEffect);
             pw.println("scale = " + VibrationScaler.scaleLevelToString(mScaleLevel));
+            pw.println("scaleFactor = " + String.format(Locale.ROOT, "%.2f", mScaleFactor));
             pw.println("adaptiveScale = " + String.format(Locale.ROOT, "%.2f", mAdaptiveScale));
             pw.println("callerInfo = " + mCallerInfo);
             pw.decreaseIndent();
@@ -297,25 +302,11 @@ abstract class Vibration {
 
         private void dumpEffect(
                 ProtoOutputStream proto, long fieldId, CombinedVibration effect) {
-            dumpEffect(proto, fieldId,
-                    (CombinedVibration.Sequential) CombinedVibration.startSequential()
-                            .addNext(effect)
-                            .combine());
-        }
-
-        private void dumpEffect(
-                ProtoOutputStream proto, long fieldId, CombinedVibration.Sequential effect) {
             final long token = proto.start(fieldId);
-            for (int i = 0; i < effect.getEffects().size(); i++) {
-                CombinedVibration nestedEffect = effect.getEffects().get(i);
-                if (nestedEffect instanceof CombinedVibration.Mono) {
-                    dumpEffect(proto, CombinedVibrationEffectProto.EFFECTS,
-                            (CombinedVibration.Mono) nestedEffect);
-                } else if (nestedEffect instanceof CombinedVibration.Stereo) {
-                    dumpEffect(proto, CombinedVibrationEffectProto.EFFECTS,
-                            (CombinedVibration.Stereo) nestedEffect);
-                }
-                proto.write(CombinedVibrationEffectProto.DELAYS, effect.getDelays().get(i));
+            if (effect instanceof CombinedVibration.Mono mono) {
+                dumpEffect(proto, CombinedVibrationEffectProto.EFFECTS, mono);
+            } else if (effect instanceof CombinedVibration.Stereo stereo) {
+                dumpEffect(proto, CombinedVibrationEffectProto.EFFECTS, stereo);
             }
             proto.end(token);
         }

@@ -66,12 +66,14 @@ constructor(
             val foregroundTaskIds = listOfNotNull(foregroundTaskId1, foregroundTaskId2)
             groupedTasks.flatMap {
                 val task1 =
-                    RecentTask(
-                        it.taskInfo1,
-                        it.taskInfo1.taskId in foregroundTaskIds && it.taskInfo1.isVisible,
-                        userManager.getUserInfo(it.taskInfo1.userId).toUserType(),
-                        it.splitBounds,
-                    )
+                    if (it.taskInfo1 != null) {
+                        RecentTask(
+                            it.taskInfo1!!,
+                            it.taskInfo1!!.taskId in foregroundTaskIds && it.taskInfo1!!.isVisible,
+                            userManager.getUserInfo(it.taskInfo1!!.userId).toUserType(),
+                            it.splitBounds,
+                        )
+                    } else null
 
                 val task2 =
                     if (it.taskInfo2 != null) {

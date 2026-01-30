@@ -19,7 +19,7 @@ package android.telephony.satellite.stub;
 import android.telephony.satellite.stub.NTRadioTechnology;
 import android.telephony.satellite.AntennaPosition;
 /**
- * {@hide}
+ * @hide
  */
 parcelable SatelliteCapabilities {
     /**

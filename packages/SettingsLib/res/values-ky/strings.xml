@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Туташууда…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Туташып турат<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Туташууда…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Жупташтырылбай жатат"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Туташпай жатат"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Туташып турат (телефониясыз)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Туташып турат (медиасыз)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Туташып турат (телефониясыз же медиасыз)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Сол кулак – батареянын деңгээли: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Оң кулак – батареянын деңгээли: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Каптооч: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> батарея"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Сол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Каптооч: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарея"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Оң: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Каптооч: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарея"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Сол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Оң: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарея"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"С: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, К: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, О: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> батарея"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Сол: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Оң: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Жигердүү"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Иштеп жатат (оң тарап гана)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Иштеп жатат (сол жана оң)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Айланадагы абал жаңыртылган жок"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Алдын ала коюлган параметрлер жаңыртылган жок"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Тандалды"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Жигердүү (медиа үчүн гана). Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Жигердүү (медиа үчүн гана). Батарея: L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Конок түзмөк. Батарея: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Бул режим иштетилсе, түзмөктүн MAC дареги башаламан MAC даректерди түзгөн тармакка туташкан сайын өзгөрүп турушу мүмкүн."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Трафик ченелет"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Чектелбеген тармак"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Журнал буферинин өлчөмү"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Журнал буферинин өлчөмү"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Каттоо буфери үчүн Каттагычтын көлөмүн тандаңыз"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Таржымалдын туруктуу диски тазалансынбы?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Туруктуу таржымалга көз салууну токтотсок, анын түзмөктө сакталган дайындарын жок кылууга аргасыз болобуз."</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> мурун"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> калды"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Эң кичине"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Кичирээк"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Кичине"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Демейки"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Чоң"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Чоңураак"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Эң чоң"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Чоңураак"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Өтө чоң"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Абдан чоң"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Эң чоң"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Ыңгайлаштырылган (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Меню"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Демо режиминде баштапкы абалга кайтаруу үчүн сырсөздү киргизиңиз"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 түзмөк туташып турат}other{# түзмөк туташып турат}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Көбүрөөк убакыт."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Азыраак убакыт."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Чоңойтуу"</string>
     <string name="cancel" msgid="5665114069455378395">"Жок"</string>
     <string name="next" msgid="2699398661093607009">"Кийинки"</string>
     <string name="back" msgid="5554327870352703710">"Артка"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Эгер <xliff:g id="SWITCHAPP">%1$s</xliff:g> колдонмосунда кабарласаңыз же аудионун чыгуусун өзгөртсөңүз, учурдагы кабарлоо токтотулат"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> колдонмосунда кабарлоо"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Аудионун чыгуусун өзгөртүү"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Божомолдонгон анимациялар"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Божомолдоп билүү үчүн системанын анимацияларын иштетиңиз."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Бул параметр жаңсоо анимациясын божомолдоп билүү үчүн системанын анимацияларын иштетет. Ал үчүн манифест файлындагы enableOnBackInvokedCallback параметри ар бир колдонмо үчүн \"true\" деп коюлушу керек."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Көрсөтүлгөн эмес"</string>
     <string name="neuter" msgid="2075249330106127310">"Орто жак"</string>

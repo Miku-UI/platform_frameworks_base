@@ -21,10 +21,8 @@ import static android.view.InsetsSource.ID_IME;
 import static android.view.Surface.ROTATION_0;
 import static android.view.WindowInsets.Type.ime;
 
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -37,8 +35,6 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import android.graphics.Insets;
 import android.graphics.Point;
 import android.os.Looper;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.view.IWindowManager;
 import android.view.InsetsSource;
 import android.view.InsetsSourceControl;
@@ -83,19 +79,15 @@ public class DisplayImeControllerTest extends ShellTestCase {
         mExecutor = spy(Runnable::run);
         mDisplayImeController = new DisplayImeController(mWm, mShellInit, null, null,
                 new TransactionPool() {
-            @Override
-            public SurfaceControl.Transaction acquire() {
-                return mT;
-            }
+                    @Override
+                    public SurfaceControl.Transaction acquire() {
+                        return mT;
+                    }
 
-            @Override
-            public void release(SurfaceControl.Transaction t) {
-            }
-        }, mExecutor) {
-            @Override
-            void removeImeSurface(int displayId) {
-            }
-        };
+                    @Override
+                    public void release(SurfaceControl.Transaction t) {
+                    }
+                }, mExecutor);
         mPerDisplay = mDisplayImeController.new PerDisplay(DEFAULT_DISPLAY, ROTATION_0);
     }
 
@@ -120,34 +112,14 @@ public class DisplayImeControllerTest extends ShellTestCase {
 
     @Test
     public void showInsets_schedulesNoWorkOnExecutor() {
-        mPerDisplay.showInsets(ime(), true /* fromIme */, ImeTracker.Token.empty());
+        mPerDisplay.showInsets(ime(), ImeTracker.Token.empty());
         verifyNoMoreInteractions(mExecutor);
     }
 
     @Test
     public void hideInsets_schedulesNoWorkOnExecutor() {
-        mPerDisplay.hideInsets(ime(), true /* fromIme */, ImeTracker.Token.empty());
+        mPerDisplay.hideInsets(ime(), ImeTracker.Token.empty());
         verifyNoMoreInteractions(mExecutor);
-    }
-
-    // With the refactor, the control's isInitiallyVisible is used to apply to the IME, therefore
-    // this test is obsolete
-    @Test
-    @RequiresFlagsDisabled(android.view.inputmethod.Flags.FLAG_REFACTOR_INSETS_CONTROLLER)
-    public void reappliesVisibilityToChangedLeash() {
-        verifyNoMoreInteractions(mT);
-        mPerDisplay.mImeShowing = false;
-
-        mPerDisplay.insetsControlChanged(insetsStateWithIme(false), insetsSourceControl());
-
-        assertFalse(mPerDisplay.mImeShowing);
-        verify(mT).hide(any());
-
-        mPerDisplay.mImeShowing = true;
-        mPerDisplay.insetsControlChanged(insetsStateWithIme(true), insetsSourceControl());
-
-        assertTrue(mPerDisplay.mImeShowing);
-        verify(mT).show(any());
     }
 
     @Test
@@ -161,7 +133,6 @@ public class DisplayImeControllerTest extends ShellTestCase {
     }
 
     @Test
-    @RequiresFlagsEnabled(android.view.inputmethod.Flags.FLAG_REFACTOR_INSETS_CONTROLLER)
     public void setImeInputTargetRequestedVisibility_invokeOnImeRequested() {
         var mockPp = mock(DisplayImeController.ImePositionProcessor.class);
         mDisplayImeController.addPositionProcessor(mockPp);

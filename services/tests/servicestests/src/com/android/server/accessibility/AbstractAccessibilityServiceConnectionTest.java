@@ -45,6 +45,8 @@ import static android.view.accessibility.AccessibilityNodeInfo.ACTION_LONG_CLICK
 import static android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
 import static android.view.accessibility.AccessibilityNodeInfo.FOCUS_INPUT;
 import static android.view.accessibility.AccessibilityNodeInfo.ROOT_NODE_ID;
+import static android.window.ScreenCapture.ScreenCaptureParams.SECURE_CONTENT_POLICY_CAPTURE;
+import static android.window.ScreenCapture.ScreenCaptureParams.SECURE_CONTENT_POLICY_REDACT;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -89,7 +91,6 @@ import android.os.Process;
 import android.os.RemoteCallback;
 import android.os.RemoteException;
 import android.os.test.FakePermissionEnforcer;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Pair;
 import android.view.Display;
@@ -102,7 +103,7 @@ import android.view.accessibility.AccessibilityWindowInfo;
 import android.view.accessibility.IAccessibilityInteractionConnection;
 import android.view.accessibility.IAccessibilityInteractionConnectionCallback;
 import android.view.accessibility.IWindowSurfaceInfoCallback;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 import com.android.server.accessibility.AccessibilityWindowManager.RemoteAccessibilityConnection;
 import com.android.server.accessibility.magnification.MagnificationProcessor;
@@ -768,7 +769,7 @@ public class AbstractAccessibilityServiceConnectionTest {
         final DisplayManager displayManager = new DisplayManager(mMockContext);
         when(mMockContext.getSystemService(Context.DISPLAY_SERVICE)).thenReturn(displayManager);
 
-        mServiceConnection.takeScreenshot(Display.DEFAULT_DISPLAY + 1,
+        mServiceConnection.takeScreenshot(Display.INVALID_DISPLAY,
                 new RemoteCallback(mMockListener));
         mHandler.sendLastMessage();
 
@@ -784,31 +785,31 @@ public class AbstractAccessibilityServiceConnectionTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ALLOW_SECURE_SCREENSHOTS)
     public void takeScreenshot_standardService_cannotCaptureSecureLayers() {
         setPreinstalledA11yTool(false);
 
         takeScreenshotOfDisplay();
 
-        final ArgumentCaptor<ScreenCapture.CaptureArgs> displayArgsCaptor =
-                ArgumentCaptor.forClass(ScreenCapture.CaptureArgs.class);
+        final ArgumentCaptor<ScreenCaptureInternal.CaptureArgs> displayArgsCaptor =
+                ArgumentCaptor.forClass(ScreenCaptureInternal.CaptureArgs.class);
         verify(mMockWindowManagerInternal).captureDisplay(
                 eq(Display.DEFAULT_DISPLAY), displayArgsCaptor.capture(), any());
-        assertThat(displayArgsCaptor.getValue().mCaptureSecureLayers).isFalse();
+        assertThat(displayArgsCaptor.getValue().mSecureContentPolicy).isEqualTo(
+                SECURE_CONTENT_POLICY_REDACT);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ALLOW_SECURE_SCREENSHOTS)
     public void takeScreenshot_preinstalledA11yTool_canCaptureSecureLayers() {
         setPreinstalledA11yTool(true);
 
         takeScreenshotOfDisplay();
 
-        final ArgumentCaptor<ScreenCapture.CaptureArgs> displayArgsCaptor =
-                ArgumentCaptor.forClass(ScreenCapture.CaptureArgs.class);
+        final ArgumentCaptor<ScreenCaptureInternal.CaptureArgs> displayArgsCaptor =
+                ArgumentCaptor.forClass(ScreenCaptureInternal.CaptureArgs.class);
         verify(mMockWindowManagerInternal).captureDisplay(
                 anyInt(), displayArgsCaptor.capture(), any());
-        assertThat(displayArgsCaptor.getValue().mCaptureSecureLayers).isTrue();
+        assertThat(displayArgsCaptor.getValue().mSecureContentPolicy).isEqualTo(
+                SECURE_CONTENT_POLICY_CAPTURE);
     }
 
     private void takeScreenshotOfDisplay() {
@@ -823,7 +824,6 @@ public class AbstractAccessibilityServiceConnectionTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ALLOW_SECURE_SCREENSHOTS)
     public void takeScreenshotOfWindow_standardWindow_standardService_cannotCaptureSecureLayers()
             throws Exception {
         setPreinstalledA11yTool(false);
@@ -831,17 +831,17 @@ public class AbstractAccessibilityServiceConnectionTest {
         takeScreenshotOfWindow(/*windowFlags=*/0);
 
         // Screenshot was allowed
-        final ArgumentCaptor<ScreenCapture.LayerCaptureArgs> layerArgsCaptor =
-                ArgumentCaptor.forClass(ScreenCapture.LayerCaptureArgs.class);
+        final ArgumentCaptor<ScreenCaptureInternal.LayerCaptureArgs> layerArgsCaptor =
+                ArgumentCaptor.forClass(ScreenCaptureInternal.LayerCaptureArgs.class);
         verify(mMockSystemSupport).performScreenCapture(layerArgsCaptor.capture(), any());
         // ...without secure layers included
-        assertThat(layerArgsCaptor.getValue().mCaptureSecureLayers).isFalse();
+        assertThat(layerArgsCaptor.getValue().mSecureContentPolicy).isEqualTo(
+                SECURE_CONTENT_POLICY_REDACT);
         // No error sent to callback
         verifyNoMoreInteractions(mMockCallback);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ALLOW_SECURE_SCREENSHOTS)
     public void takeScreenshotOfWindow_standardWindow_preinstalledA11yTool_canCaptureSecureLayers()
             throws Exception {
         setPreinstalledA11yTool(true);
@@ -849,17 +849,17 @@ public class AbstractAccessibilityServiceConnectionTest {
         takeScreenshotOfWindow(/*windowFlags=*/0);
 
         // Screenshot was allowed
-        final ArgumentCaptor<ScreenCapture.LayerCaptureArgs> layerArgsCaptor =
-                ArgumentCaptor.forClass(ScreenCapture.LayerCaptureArgs.class);
+        final ArgumentCaptor<ScreenCaptureInternal.LayerCaptureArgs> layerArgsCaptor =
+                ArgumentCaptor.forClass(ScreenCaptureInternal.LayerCaptureArgs.class);
         verify(mMockSystemSupport).performScreenCapture(layerArgsCaptor.capture(), any());
         // ...with secure layers included
-        assertThat(layerArgsCaptor.getValue().mCaptureSecureLayers).isTrue();
+        assertThat(layerArgsCaptor.getValue().mSecureContentPolicy).isEqualTo(
+                SECURE_CONTENT_POLICY_CAPTURE);
         // No error sent to callback
         verifyNoMoreInteractions(mMockCallback);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ALLOW_SECURE_SCREENSHOTS)
     public void takeScreenshotOfWindow_secureWindow_standardService_sendsCallbackError()
             throws Exception {
         setPreinstalledA11yTool(false);
@@ -874,7 +874,6 @@ public class AbstractAccessibilityServiceConnectionTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_ALLOW_SECURE_SCREENSHOTS)
     public void takeScreenshotOfWindow_secureWindow_preinstalledA11yTool_canCaptureSecureLayers()
             throws Exception {
         setPreinstalledA11yTool(true);
@@ -882,11 +881,12 @@ public class AbstractAccessibilityServiceConnectionTest {
         takeScreenshotOfWindow(WindowManager.LayoutParams.FLAG_SECURE);
 
         // Screenshot was allowed
-        final ArgumentCaptor<ScreenCapture.LayerCaptureArgs> layerArgsCaptor =
-                ArgumentCaptor.forClass(ScreenCapture.LayerCaptureArgs.class);
+        final ArgumentCaptor<ScreenCaptureInternal.LayerCaptureArgs> layerArgsCaptor =
+                ArgumentCaptor.forClass(ScreenCaptureInternal.LayerCaptureArgs.class);
         verify(mMockSystemSupport).performScreenCapture(layerArgsCaptor.capture(), any());
         // ...with secure layers included
-        assertThat(layerArgsCaptor.getValue().mCaptureSecureLayers).isTrue();
+        assertThat(layerArgsCaptor.getValue().mSecureContentPolicy).isEqualTo(
+                SECURE_CONTENT_POLICY_CAPTURE);
         // No error sent to callback
         verifyNoMoreInteractions(mMockCallback);
     }

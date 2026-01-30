@@ -27,7 +27,14 @@ import com.android.systemui.kairos.internal.init
 import com.android.systemui.kairos.internal.mapValuesImpl
 import com.android.systemui.kairos.internal.util.hashString
 import com.android.systemui.kairos.util.MapPatch
+import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.NameTag
+import com.android.systemui.kairos.util.NameTaggingDisabled
+import com.android.systemui.kairos.util.forceInit
 import com.android.systemui.kairos.util.mapPatchFromFullDiff
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 import kotlin.reflect.KProperty
 
 /**
@@ -48,9 +55,8 @@ sealed class Incremental<K, out V> : State<Map<K, V>>() {
  */
 @ExperimentalKairosApi
 fun <K, V> incrementalOf(value: Map<K, V>): Incremental<K, V> {
-    val operatorName = "stateOf"
-    val name = "$operatorName($value)"
-    return IncrementalInit(constInit(name, constIncremental(name, operatorName, value)))
+    val nameTag = nameTag { "incrementalOf($value)" }.toNameData("incrementalOf")
+    return IncrementalInit(constInit(nameTag, constIncremental(nameTag, value)))
 }
 
 /**
@@ -109,7 +115,10 @@ fun <K, V> deferredIncremental(block: KairosScope.() -> Incremental<K, V>): Incr
  * @see MapPatch
  */
 val <K, V> Incremental<K, V>.updates: Events<MapPatch<K, V>>
-    get() = EventsInit(init("patches") { init.connect(this).patches })
+    get() = updates(nameTag("Incremental.updates").toNameData("Incremental.updates"))
+
+internal fun <K, V> Incremental<K, V>.updates(nameData: NameData) =
+    EventsInit(init(nameData) { init.connect(this).patches })
 
 internal class IncrementalInit<K, V>(override val init: Init<IncrementalImpl<K, V>>) :
     Incremental<K, V>()
@@ -120,15 +129,16 @@ internal class IncrementalInit<K, V>(override val init: Init<IncrementalImpl<K, 
  */
 fun <K, V, U> Incremental<K, V>.mapValues(
     transform: KairosScope.(Map.Entry<K, V>) -> U
-): Incremental<K, U> {
-    val operatorName = "mapValues"
-    val name = operatorName
-    return IncrementalInit(
-        init(name) {
-            mapValuesImpl({ init.connect(this) }, name, operatorName) { NoScope.transform(it) }
-        }
+): Incremental<K, U> =
+    mapValues(nameTag("Incremental.mapValues").toNameData("Incremental.mapValues"), transform)
+
+internal fun <K, V, U> Incremental<K, V>.mapValues(
+    nameData: NameData,
+    transform: KairosScope.(Map.Entry<K, V>) -> U,
+): Incremental<K, U> =
+    IncrementalInit(
+        init(nameData) { mapValuesImpl({ init.connect(this) }, nameData) { NoScope.transform(it) } }
     )
-}
 
 /**
  * A forward-reference to an [Incremental]. Useful for recursive definitions.
@@ -137,15 +147,22 @@ fun <K, V, U> Incremental<K, V>.mapValues(
  * [loopback] is unset before it is [observed][BuildScope.observe] or
  * [sampled][TransactionScope.sample]. Note that it is safe to invoke
  * [TransactionScope.sampleDeferred] before [loopback] is set, provided the [DeferredValue] is not
- * [queried][KairosScope.get].
+ * [queried][DeferredValue.value].
  */
 @ExperimentalKairosApi
-class IncrementalLoop<K, V>(private val name: String? = null) : Incremental<K, V>() {
+class IncrementalLoop<K, V>(name: String? = null) : Incremental<K, V>() {
+
+    internal val nameData: NameData =
+        name?.let { nameTag(name).toNameData("IncrementalLoop") } ?: NameTaggingDisabled
+
+    init {
+        nameData.forceInit()
+    }
 
     private val deferred = CompletableLazy<Incremental<K, V>>(name = name)
 
     override val init: Init<IncrementalImpl<K, V>> =
-        init(name) { deferred.value.init.connect(evalScope = this) }
+        init(nameData) { deferred.value.init.connect(evalScope = this) }
 
     /**
      * The [Incremental] this reference is referring to. Must be set before this [IncrementalLoop]
@@ -155,7 +172,7 @@ class IncrementalLoop<K, V>(private val name: String? = null) : Incremental<K, V
         set(value) {
             value?.let {
                 check(!deferred.isInitialized()) {
-                    "IncrementalLoop($name).loopback has already been set."
+                    "IncrementalLoop($nameData).loopback has already been set."
                 }
                 deferred.setValue(value)
                 field = value
@@ -168,37 +185,37 @@ class IncrementalLoop<K, V>(private val name: String? = null) : Incremental<K, V
         loopback = value
     }
 
-    override fun toString(): String = "${this::class.simpleName}($name)@$hashString"
+    override fun toString(): String = "${this::class.simpleName}@$hashString[$nameData]"
 }
 
 /**
  * Returns an [Incremental] whose [updates] are calculated by [diffing][mapPatchFromFullDiff] the
  * given [State]'s [transitions].
  */
-fun <K, V> State<Map<K, V>>.asIncremental(): Incremental<K, V> {
+fun <K, V> State<Map<K, V>>.asIncremental(name: NameTag? = null): Incremental<K, V> {
+    val nameData = name?.toNameData("State.asIncremental") ?: NameTaggingDisabled
+    return asIncremental(nameData)
+}
+
+internal fun <K, V> State<Map<K, V>>.asIncremental(nameData: NameData): Incremental<K, V> {
     if (this is Incremental<K, V>) return this
 
-    val hashState = map { if (it is HashMap) it else HashMap(it) }
+    val hashState = map(nameData + "hashState") { if (it is HashMap) it else HashMap(it) }
 
     val patches =
-        transitions.mapNotNull { (old, new) ->
+        transitions.mapNotNull(nameData + "patches") { (old, new) ->
             mapPatchFromFullDiff(old, new).takeIf { it.isNotEmpty() }
         }
 
     return IncrementalInit(
-        init("asIncremental") {
+        init(nameData) {
             val upstream = hashState.init.connect(this)
-            IncrementalImpl(
-                upstream.name,
-                upstream.operatorName,
-                upstream.changes,
-                patches.init.connect(this),
-                upstream.store,
-            )
+            IncrementalImpl(nameData, upstream.changes, patches.init.connect(this), upstream.store)
         }
     )
 }
 
 private inline fun <K, V> deferInline(
     crossinline block: InitScope.() -> Incremental<K, V>
-): Incremental<K, V> = IncrementalInit(init(name = null) { block().init.connect(evalScope = this) })
+): Incremental<K, V> =
+    IncrementalInit(init(NameTaggingDisabled) { block().init.connect(evalScope = this) })

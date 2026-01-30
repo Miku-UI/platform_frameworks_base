@@ -17,6 +17,7 @@ package com.android.systemui.statusbar.notification.icon.ui.viewmodel
 
 import android.graphics.drawable.Icon
 import androidx.collection.ArrayMap
+import com.android.systemui.statusbar.notification.icon.domain.interactor.ActiveNotificationIconModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
 import com.android.systemui.util.kotlin.mapValuesNotNullTo
 
@@ -71,7 +72,7 @@ data class NotificationIconsViewData(
          */
         fun computeDifference(
             new: NotificationIconsViewData,
-            prev: NotificationIconsViewData
+            prev: NotificationIconsViewData,
         ): Diff {
             val prevKeys = prev.visibleIcons.asSequence().map { it.notifKey }.toSet()
             val newKeys = new.visibleIcons.asSequence().map { it.notifKey }.toSet()
@@ -94,35 +95,22 @@ data class NotificationIconsViewData(
 }
 
 /** An Icon, and keys for unique identification. */
-data class NotificationIconInfo(
-    val sourceIcon: Icon,
-    val notifKey: String,
-    val groupKey: String,
-)
+data class NotificationIconInfo(val sourceIcon: Icon, val notifKey: String, val groupKey: String)
 
 /**
  * Construct an [NotificationIconInfo] out of an [ActiveNotificationModel], or return `null` if one
  * cannot be created due to missing information.
  */
-fun ActiveNotificationModel.toIconInfo(sourceIcon: Icon?): NotificationIconInfo? {
+fun ActiveNotificationIconModel.toIconInfo(sourceIcon: Icon?): NotificationIconInfo? {
     return sourceIcon?.let {
-        groupKey?.let { groupKey ->
-            NotificationIconInfo(
-                sourceIcon = sourceIcon,
-                notifKey = key,
-                groupKey = groupKey,
-            )
-        }
+        NotificationIconInfo(sourceIcon = sourceIcon, notifKey = notifKey, groupKey = groupKey)
     }
 }
 
 private val NotificationIconInfo.groupInfo: IconGroupInfo
     get() = IconGroupInfo(sourceIcon, groupKey)
 
-private data class IconGroupInfo(
-    val sourceIcon: Icon,
-    val groupKey: String,
-) {
+private data class IconGroupInfo(val sourceIcon: Icon, val groupKey: String) {
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

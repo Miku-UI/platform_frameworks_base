@@ -1,0 +1,6 @@
+-include ../../../proguard_kotlin.flags
+
+# Ensure we're keeping relevant parts of ConstraintSet and our resources
+-keepclassmembers class androidx.constraintlayout.widget.ConstraintSet { public *; }
+-keepclassmembers class androidx.constraintlayout.widget.ConstraintSet$* { public *; }
+-keepclassmembers class com.android.systemui.customization.clocks.R$* { public static <fields>; }

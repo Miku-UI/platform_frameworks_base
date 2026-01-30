@@ -16,13 +16,16 @@
 
 package com.android.systemui.statusbar.events
 
+import android.location.flags.Flags.locationIndicatorsEnabled
 import android.os.Process
 import android.provider.DeviceConfig
 import androidx.core.animation.Animator
 import androidx.core.animation.AnimatorListenerAdapter
 import androidx.core.animation.AnimatorSet
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.AnimatingIn
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.AnimatingOut
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState.AnimationQueued
@@ -43,7 +46,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
-import com.android.app.tracing.coroutines.launchTraced as launch
 import kotlinx.coroutines.withTimeout
 
 /**
@@ -142,6 +144,19 @@ constructor(
         }
 
         if (
+            locationIndicatorsEnabled() &&
+                event is PrivacyEvent &&
+                event.privacyItems.isNotEmpty() &&
+                hasPersistentDot
+        ) {
+            // Privacy events have different dot colors depending on the type of privacy event.
+            // If we are already showing a persistent dot, we need to notify the listener to update
+            // the UI if another privacy event comes in.
+            // This happens for example when quickly switching between an app that requests only
+            // location, and one that requests any other privacy item(s).
+            logger?.logNotifyEvent(event)
+            notifyTransitionToPersistentDot(event)
+        } else if (
             (event.priority > (scheduledEvent.value?.priority ?: -1)) &&
                 (event.priority > (currentlyDisplayedEvent?.priority ?: -1)) &&
                 !hasPersistentDot
@@ -280,7 +295,10 @@ constructor(
     private fun runChipAppearAnimation() {
         Assert.isMainThread()
         if (hasPersistentDot) {
-            statusBarWindowControllerStore.defaultDisplay.setForceStatusBarVisible(true)
+            statusBarWindowControllerStore.defaultDisplay.setForceStatusBarVisible(
+                true,
+                source = "SystemStatusAnimSchedule#runChipAppearAnimation",
+            )
         }
         _animationState.value = AnimatingIn
 
@@ -314,7 +332,10 @@ constructor(
                             scheduledEvent.value != null -> AnimationQueued
                             else -> Idle
                         }
-                    statusBarWindowControllerStore.defaultDisplay.setForceStatusBarVisible(false)
+                    statusBarWindowControllerStore.defaultDisplay.setForceStatusBarVisible(
+                        false,
+                        source = "SystemStatusAnimSchedule#runChipDisappearAnimation",
+                    )
                 }
             }
         )
@@ -359,7 +380,14 @@ constructor(
         logger?.logTransitionToPersistentDotCallbackInvoked()
         val anims: List<Animator> =
             listeners.mapNotNull {
-                it.onSystemStatusAnimationTransitionToPersistentDot(event?.contentDescription)
+                var privacyItems: List<PrivacyItem>? = null
+                if (locationIndicatorsEnabled() && event is PrivacyEvent) {
+                    privacyItems = event.privacyItems
+                }
+                it.onSystemStatusAnimationTransitionToPersistentDot(
+                    event?.contentDescription,
+                    privacyItems,
+                )
             }
         if (anims.isNotEmpty()) {
             val aSet = AnimatorSet()

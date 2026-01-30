@@ -1,0 +1,12 @@
+package: "android.hardware.flags"
+container: "system"
+
+flag {
+  name: "suspend_sensor_event_delivery_on_frozen_pid"
+  namespace: "sensors"
+  description: "Enables SensorService to check the frozen state of client PIDs and suspend sensor event delivery over sockets to processes that are frozen."
+  bug: "409841081"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

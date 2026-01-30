@@ -22,7 +22,6 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.credentials.Credential
-import android.credentials.flags.Flags
 import android.credentials.selection.AuthenticationEntry
 import android.credentials.selection.Entry
 import android.credentials.selection.GetCredentialProviderData
@@ -362,14 +361,7 @@ private fun getServiceLabelAndIcon(
         // Test data has only package name not component name.
         // For test data usage only.
         try {
-            val pkgInfo = if (Flags.instantAppsEnabled()) {
-                getPackageInfo(pm, providerFlattenedComponentName)
-            } else {
-                pm.getPackageInfo(
-                    providerFlattenedComponentName,
-                    PackageManager.PackageInfoFlags.of(0)
-                )
-            }
+            val pkgInfo = getPackageInfo(pm, providerFlattenedComponentName)
             val applicationInfo = checkNotNull(pkgInfo.applicationInfo)
             providerLabel =
                 applicationInfo.loadSafeLabel(
@@ -393,14 +385,7 @@ private fun getServiceLabelAndIcon(
             // Added for mdoc use case where the provider may not need to register a service and
             // instead only relies on the registration api.
             try {
-                val pkgInfo = if (Flags.instantAppsEnabled()) {
-                    getPackageInfo(pm, providerFlattenedComponentName)
-                } else {
-                    pm.getPackageInfo(
-                        component.packageName,
-                        PackageManager.PackageInfoFlags.of(0)
-                    )
-                }
+                val pkgInfo = getPackageInfo(pm, providerFlattenedComponentName)
                 val applicationInfo = checkNotNull(pkgInfo.applicationInfo)
                 providerLabel =
                     applicationInfo.loadSafeLabel(

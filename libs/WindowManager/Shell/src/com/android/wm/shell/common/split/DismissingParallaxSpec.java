@@ -34,7 +34,7 @@ public class DismissingParallaxSpec implements ParallaxSpec {
     public void getParallax(Point retreatingOut, Point advancingOut, int position,
             DividerSnapAlgorithm snapAlgorithm, boolean isLeftRightSplit, Rect displayBounds,
             Rect retreatingSurface, Rect retreatingContent, Rect advancingSurface,
-            Rect advancingContent, int dimmingSide, boolean topLeftShrink) {
+            Rect advancingContent, int dimmingSide, boolean topLeftShrink, SplitState splitState) {
         if (dimmingSide == DOCKED_INVALID) {
             return;
         }

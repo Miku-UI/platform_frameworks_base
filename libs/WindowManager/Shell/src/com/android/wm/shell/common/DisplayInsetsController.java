@@ -183,8 +183,7 @@ public class DisplayInsetsController implements DisplayController.OnDisplaysChan
             }
         }
 
-        private void showInsets(@InsetsType int types, boolean fromIme,
-                @Nullable ImeTracker.Token statsToken) {
+        private void showInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken) {
             CopyOnWriteArrayList<OnInsetsChangedListener> listeners = mListeners.get(mDisplayId);
             if (listeners == null) {
                 ImeTracker.forLogging().onFailed(
@@ -194,12 +193,11 @@ public class DisplayInsetsController implements DisplayController.OnDisplaysChan
             ImeTracker.forLogging().onProgress(
                     statsToken, ImeTracker.PHASE_WM_REMOTE_INSETS_CONTROLLER);
             for (OnInsetsChangedListener listener : listeners) {
-                listener.showInsets(types, fromIme, statsToken);
+                listener.showInsets(types, statsToken);
             }
         }
 
-        private void hideInsets(@InsetsType int types, boolean fromIme,
-                @Nullable ImeTracker.Token statsToken) {
+        private void hideInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken) {
             CopyOnWriteArrayList<OnInsetsChangedListener> listeners = mListeners.get(mDisplayId);
             if (listeners == null) {
                 ImeTracker.forLogging().onFailed(
@@ -209,7 +207,7 @@ public class DisplayInsetsController implements DisplayController.OnDisplaysChan
             ImeTracker.forLogging().onProgress(
                     statsToken, ImeTracker.PHASE_WM_REMOTE_INSETS_CONTROLLER);
             for (OnInsetsChangedListener listener : listeners) {
-                listener.hideInsets(types, fromIme, statsToken);
+                listener.hideInsets(types, statsToken);
             }
         }
 
@@ -262,18 +260,18 @@ public class DisplayInsetsController implements DisplayController.OnDisplaysChan
             }
 
             @Override
-            public void showInsets(@InsetsType int types, boolean fromIme,
-                    @Nullable ImeTracker.Token statsToken) throws RemoteException {
+            public void showInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken)
+                    throws RemoteException {
                 mMainExecutor.execute(() -> {
-                    PerDisplay.this.showInsets(types, fromIme, statsToken);
+                    PerDisplay.this.showInsets(types, statsToken);
                 });
             }
 
             @Override
-            public void hideInsets(@InsetsType int types, boolean fromIme,
-                    @Nullable ImeTracker.Token statsToken) throws RemoteException {
+            public void hideInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken)
+                    throws RemoteException {
                 mMainExecutor.execute(() -> {
-                    PerDisplay.this.hideInsets(types, fromIme, statsToken);
+                    PerDisplay.this.hideInsets(types, statsToken);
                 });
             }
 
@@ -328,21 +326,17 @@ public class DisplayInsetsController implements DisplayController.OnDisplaysChan
          * Called when a set of insets source window should be shown by policy.
          *
          * @param types {@link InsetsType} to show
-         * @param fromIme true if this request originated from IME (InputMethodService).
          * @param statsToken the token tracking the current IME request or {@code null} otherwise.
          */
-        default void showInsets(@InsetsType int types, boolean fromIme,
-                @Nullable ImeTracker.Token statsToken) {}
+        default void showInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken) {}
 
         /**
          * Called when a set of insets source window should be hidden by policy.
          *
          * @param types {@link InsetsType} to hide
-         * @param fromIme true if this request originated from IME (InputMethodService).
          * @param statsToken the token tracking the current IME request or {@code null} otherwise.
          */
-        default void hideInsets(@InsetsType int types, boolean fromIme,
-                @Nullable ImeTracker.Token statsToken) {}
+        default void hideInsets(@InsetsType int types, @Nullable ImeTracker.Token statsToken) {}
 
         /**
          * Called to set the requested visibility of the IME in DisplayImeController. Invoked by

@@ -24,6 +24,7 @@
 #include "LoadedApk.h"
 #include "Util.h"
 #include "android-base/stringprintf.h"
+#include "android-base/utf8.h"
 #include "androidfw/ConfigDescription.h"
 #include "androidfw/FileStream.h"
 #include "androidfw/StringPiece.h"
@@ -57,7 +58,7 @@ static const char* ResourceFileTypeToString(const ResourceFile::Type& type) {
 }
 
 static void DumpCompiledFile(const ResourceFile& file, const android::Source& source,
-                             off64_t offset, size_t len, Printer* printer) {
+                             off64_t offset, size_t len, bool print_values, Printer* printer) {
   printer->Print("Resource: ");
   printer->Println(file.name.to_string());
 
@@ -71,6 +72,29 @@ static void DumpCompiledFile(const ResourceFile& file, const android::Source& so
   printer->Println(ResourceFileTypeToString(file.type));
 
   printer->Println(StringPrintf("Data:     offset=%" PRIi64 " length=%zd", offset, len));
+
+  if (print_values) {
+    printer->Println("Contents:");
+
+    auto fd = TEMP_FAILURE_RETRY(
+        ::android::base::utf8::open(source.to_string().c_str(), O_RDONLY | O_CLOEXEC));
+    if (fd < 0) {
+      printer->Println(StringPrintf("< failed to open file : %d >", errno));
+      return;
+    }
+    google::protobuf::io::FileInputStream in(fd);
+    in.SetCloseOnDelete(true);
+    in.Skip(offset);
+    google::protobuf::io::CodedInputStream coded_stream(&in);
+    coded_stream.SetTotalBytesLimit(len);
+
+    pb::XmlNode pb_node;
+    if (!pb_node.ParseFromCodedStream(&coded_stream)) {
+      printer->Println("< failed to parse proto XML >");
+      return;
+    }
+    printer->Println(pb_node.Utf8DebugString());
+  }
 }
 
 namespace {
@@ -137,13 +161,14 @@ int DumpAPCCommand::Action(const std::vector<std::string>& args) {
   print_options.show_sources = true;
   print_options.show_values = !no_values_;
 
-  if (args.size() < 1) {
+  if (args.empty()) {
     diag_->Error(android::DiagMessage() << "No dump container specified");
     return 1;
   }
 
   bool error = false;
-  for (auto container : args) {
+  std::string str_error;
+  for (const auto& container : args) {
     android::FileInputStream input(container);
     if (input.HadError()) {
       context.GetDiagnostics()->Error(android::DiagMessage(container)
@@ -163,7 +188,6 @@ int DumpAPCCommand::Action(const std::vector<std::string>& args) {
 
     printer_->Println("AAPT2 Container (APC)");
     ContainerReaderEntry* entry;
-    std::string error;
     while ((entry = reader.Next()) != nullptr) {
       if (entry->Type() == ContainerEntryType::kResTable) {
         printer_->Println("kResTable");
@@ -177,10 +201,10 @@ int DumpAPCCommand::Action(const std::vector<std::string>& args) {
         }
 
         ResourceTable table;
-        error.clear();
-        if (!DeserializeTableFromPb(pb_table, nullptr /*files*/, &table, &error)) {
+        str_error.clear();
+        if (!DeserializeTableFromPb(pb_table, nullptr /*files*/, &table, &str_error)) {
           context.GetDiagnostics()->Error(android::DiagMessage(container)
-                                          << "failed to parse table: " << error);
+                                          << "failed to parse table: " << str_error);
           error = true;
           continue;
         }
@@ -202,15 +226,16 @@ int DumpAPCCommand::Action(const std::vector<std::string>& args) {
         }
 
         ResourceFile file;
-        if (!DeserializeCompiledFileFromPb(pb_compiled_file, &file, &error)) {
+        str_error.clear();
+        if (!DeserializeCompiledFileFromPb(pb_compiled_file, &file, &str_error)) {
           context.GetDiagnostics()->Warn(android::DiagMessage(container)
-                                         << "failed to parse compiled file: " << error);
+                                         << "failed to parse compiled file: " << str_error);
           error = true;
           continue;
         }
 
         printer_->Indent();
-        DumpCompiledFile(file, android::Source(container), offset, length, printer_);
+        DumpCompiledFile(file, android::Source(container), offset, length, verbose_, printer_);
         printer_->Undent();
       }
     }

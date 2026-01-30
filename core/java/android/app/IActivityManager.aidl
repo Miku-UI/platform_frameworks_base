@@ -21,6 +21,7 @@ import android.app.ActivityTaskManager;
 import android.app.ApplicationStartInfo;
 import android.app.ApplicationErrorReport;
 import android.app.ApplicationExitInfo;
+import android.app.BindUpdateInfo;
 import android.app.ContentProviderHolder;
 import android.app.GrantedUriPermission;
 import android.app.IApplicationStartInfoCompleteListener;
@@ -86,7 +87,7 @@ import java.util.List;
  * System private API for talking with the activity manager service.  This
  * provides calls from the application back to the activity manager.
  *
- * {@hide}
+ * @hide
  */
 interface IActivityManager {
     // WARNING: when these transactions are updated, check if they are any callers on the native
@@ -96,6 +97,8 @@ interface IActivityManager {
 
     // Since these transactions are also called from native code, these must be kept in sync with
     // the ones in frameworks/native/libs/binder/include_activitymanager/binder/ActivityManager.h
+    // TODO(b/419409018): Remove this warning message after migrating all native API users to the
+    // activity_structured service.
     // =============== Beginning of transactions used on native side as well ======================
     ParcelFileDescriptor openContentUri(in String uriString);
     void registerUidObserver(in IUidObserver observer, int which, int cutpoint,
@@ -154,6 +157,13 @@ interface IActivityManager {
 
     /** Logs API state change to associate with an FGS, used for FGS Type Metrics */
     oneway void logFgsApiStateChanged(int apiType, int state, int appUid, int appPid);
+
+    @UnsupportedAppUsage
+    void registerProcessObserver(in IProcessObserver observer);
+    @UnsupportedAppUsage
+    void unregisterProcessObserver(in IProcessObserver observer);
+    @UnsupportedAppUsage
+    List<ActivityManager.RunningAppProcessInfo> getRunningAppProcesses();
     // =============== End of transactions used on native side as well ============================
 
     // Special low-level communication with activity manager.
@@ -197,6 +207,7 @@ interface IActivityManager {
     oneway void finishReceiver(in IBinder who, int resultCode, in String resultData, in Bundle map,
             boolean abortBroadcast, int flags);
     void attachApplication(in IApplicationThread app, long startSeq);
+    void attachNativeApplication(in IBinder nativeThread, long startSeq);
     void finishAttachApplication(long startSeq, long timestampApplicationOnCreateNs);
     List<ActivityManager.RunningTaskInfo> getTasks(int maxNum);
     @UnsupportedAppUsage
@@ -211,6 +222,7 @@ interface IActivityManager {
             in List<ContentProviderHolder> providers);
     boolean refContentProvider(in IBinder connection, int stableDelta, int unstableDelta);
     PendingIntent getRunningServiceControlPanel(in ComponentName service);
+    List<ActivityManager.ConnectionInfo> getRunningServiceConnections(in ComponentName service);
     ComponentName startService(in IApplicationThread caller, in Intent service,
             in String resolvedType, boolean requireForeground, in String callingPackage,
             in String callingFeatureId, int userId);
@@ -226,9 +238,10 @@ interface IActivityManager {
             in String resolvedType, in IServiceConnection connection, long flags,
             in String instanceName, in String callingPackage, int userId);
     void updateServiceGroup(in IServiceConnection connection, int group, int importance);
+    void updateServiceBindings(in List<BindUpdateInfo> updates);
     @UnsupportedAppUsage
     boolean unbindService(in IServiceConnection connection);
-    void publishService(in IBinder token, in Intent intent, in IBinder service);
+    void publishService(in IBinder token, in IBinder bindToken, in IBinder service);
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)
     void setDebugApp(in String packageName, boolean waitForDebugger, boolean persistent);
     void setAgentApp(in String packageName, @nullable String agent);
@@ -294,8 +307,7 @@ interface IActivityManager {
     @UnsupportedAppUsage
     ParceledListSlice getRecentTasks(int maxNum, int flags, int userId);
     @UnsupportedAppUsage
-    oneway void serviceDoneExecuting(in IBinder token, int type, int startId, int res,
-            in Intent intent);
+    oneway void serviceDoneExecuting(in IBinder token, int type, int startId, int res);
     /** @deprecated  Use {@link #getIntentSenderWithFeature} instead */
     @UnsupportedAppUsage(maxTargetSdk=29, publicAlternatives="Use {@link PendingIntent#getIntentSender()} instead")
     IIntentSender getIntentSender(int type, in String packageName, in IBinder token,
@@ -321,7 +333,7 @@ interface IActivityManager {
     oneway void removeContentProvider(in IBinder connection, boolean stable);
     @UnsupportedAppUsage
     void setRequestedOrientation(in IBinder token, int requestedOrientation);
-    void unbindFinished(in IBinder token, in Intent service);
+    void unbindFinished(in IBinder token, in IBinder bindToken);
     @UnsupportedAppUsage
     void setProcessImportant(in IBinder token, int pid, boolean isForeground, String reason);
     void setServiceForeground(in ComponentName className, in IBinder token,
@@ -344,8 +356,6 @@ interface IActivityManager {
     @UnsupportedAppUsage
     List<ActivityManager.RunningServiceInfo> getServices(int maxNum, int flags);
     // Retrieve running application processes in the system
-    @UnsupportedAppUsage
-    List<ActivityManager.RunningAppProcessInfo> getRunningAppProcesses();
     IBinder peekService(in Intent service, in String resolvedType, in String callingPackage);
     // Turn on/off profiling in a particular process.
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)
@@ -397,6 +407,8 @@ interface IActivityManager {
     boolean dumpHeap(in String process, int userId, boolean managed, boolean mallocInfo,
             boolean runGc, in String dumpBitmaps, in String path, in ParcelFileDescriptor fd,
             in RemoteCallback finishCallback);
+    void dumpBitmapsProto(in ParcelFileDescriptor fd, in String[] processes,
+            int userId, boolean allPkgs, in String dumpFormat);
     @UnsupportedAppUsage
     boolean isUserRunning(int userid, int flags);
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)
@@ -405,13 +417,11 @@ interface IActivityManager {
     boolean switchUser(int userid);
     String getSwitchingFromUserMessage(int userId);
     String getSwitchingToUserMessage(int userId);
+    @EnforcePermission("INTERACT_ACROSS_USERS_FULL")
+    boolean logoutUser(int userId);
     @UnsupportedAppUsage
     void setStopUserOnSwitch(int value);
     boolean removeTask(int taskId);
-    @UnsupportedAppUsage
-    void registerProcessObserver(in IProcessObserver observer);
-    @UnsupportedAppUsage
-    void unregisterProcessObserver(in IProcessObserver observer);
     boolean isIntentSenderTargetedToPackage(in IIntentSender sender);
     @UnsupportedAppUsage
     void updatePersistentConfiguration(in Configuration values);
@@ -1044,4 +1054,10 @@ interface IActivityManager {
      */
     @EnforcePermission("INTERACT_ACROSS_USERS_FULL")
     IBinder refreshIntentCreatorToken(in Intent intent);
+
+    /**
+     * Reports ART optimization info.
+     */
+    oneway void reportOptimizationInfo(in IBinder app, in String compilerFilter,
+            in String compilationReason);
 }

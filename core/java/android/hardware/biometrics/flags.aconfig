@@ -10,6 +10,21 @@ flag {
 }
 
 flag {
+  name: "add_fallback"
+  namespace: "biometrics_framework"
+  description: "Feature flag for adding auth fallbacks to biometric prompt"
+  is_exported: true
+  bug: "391666818"
+}
+
+flag {
+  name: "bp_fallback_options"
+  namespace: "biometrics_framework"
+  description: "Adds fallback options UI to biometric prompt"
+  bug: "377774089"
+}
+
+flag {
   name: "get_op_id_crypto_object"
   is_exported: true
   namespace: "biometrics_framework"
@@ -23,13 +38,6 @@ flag {
   namespace: "biometrics_framework"
   description: "Feature flag for adding a custom content view API to BiometricPrompt.Builder."
   bug: "302735104"
-}
-
-flag {
-  name: "mandatory_biometrics"
-  namespace: "biometrics_framework"
-  description: "This flag controls whether LSKF fallback is removed from biometric prompt when the phone is outside trusted locations"
-  bug: "322081563"
 }
 
 flag {
@@ -60,6 +68,45 @@ flag {
   namespace: "biometrics_framework"
   description: "Feature flag for using effective user in biometric prompt"
   bug: "365094949"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "move_fm_api_to_bm"
+  is_exported: true
+  namespace: "biometrics_framework"
+  description: "Feature flag for moving some FingerprintManager APIs to BiometricManager to unblock FM removal."
+  bug: "323957939"
+}
+
+flag {
+  name: "identity_check_test_api"
+  namespace: "biometrics_framework"
+  description: "This flag is for test API changes related to Identity Check"
+  bug: "347123256"
+}
+
+flag {
+  name: "identity_check_all_surfaces"
+  namespace: "biometrics_framework"
+  description: "This flag applies Identity Check to all biometric prompt requests"
+  bug: "402534668"
+}
+
+flag {
+  name: "identity_check_watch"
+  namespace: "biometrics_framework"
+  description: "This flag is for the integration of Identity Check with Watch"
+  bug: "397954948"
+}
+
+flag {
+  name: "bp_initialize_compose_watch"
+  namespace: "wear_frameworks"
+  description: "Initialize lifecycle to enable compose to run outside activities"
+  bug: "414859063"
   metadata {
     purpose: PURPOSE_BUGFIX
   }

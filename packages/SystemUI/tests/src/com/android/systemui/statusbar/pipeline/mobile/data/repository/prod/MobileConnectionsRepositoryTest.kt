@@ -479,6 +479,7 @@ abstract class MobileConnectionsRepositoryTest<T : MobileConnectionsRepository> 
             WifiRepositoryImpl(
                 mContext,
                 userRepository,
+                connectivityRepository,
                 testScope.backgroundScope,
                 mainExecutor,
                 testDispatcher,
@@ -506,6 +507,7 @@ abstract class MobileConnectionsRepositoryTest<T : MobileConnectionsRepository> 
         carrierMergedFactory =
             CarrierMergedConnectionRepository.Factory(
                 telephonyManager,
+                carrierConfigRepository,
                 testScope.backgroundScope.coroutineContext,
                 testScope.backgroundScope,
                 wifiRepository,

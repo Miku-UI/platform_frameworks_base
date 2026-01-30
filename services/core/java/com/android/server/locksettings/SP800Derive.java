@@ -16,11 +16,14 @@
 
 package com.android.server.locksettings;
 
+import com.android.internal.util.ArrayUtils;
+
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Mac;
+import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
@@ -34,6 +37,8 @@ import javax.crypto.spec.SecretKeySpec;
  * L suffix: 32 bits
  */
 class SP800Derive {
+    private static final int OUTPUT_LENGTH = 32; // length of output in bytes
+
     private final byte[] mKeyBytes;
 
     SP800Derive(byte[] keyBytes) {
@@ -44,6 +49,9 @@ class SP800Derive {
         try {
             final Mac m = Mac.getInstance("HmacSHA256");
             m.init(new SecretKeySpec(mKeyBytes, m.getAlgorithm()));
+            if (m.getMacLength() != OUTPUT_LENGTH) {
+                throw new IllegalStateException("Wrong output length");
+            }
             return m;
         } catch (InvalidKeyException | NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
@@ -61,7 +69,7 @@ class SP800Derive {
         final Mac m = getMac();
         update32(m, 1); // Hardwired counter value
         m.update(fixedInput);
-        return m.doFinal();
+        return doFinal(m);
     }
 
     /**
@@ -76,7 +84,18 @@ class SP800Derive {
         m.update((byte) 0);
         m.update(context);
         update32(m, context.length * 8); // Disambiguate context
-        update32(m, 256); // Hardwired output length
-        return m.doFinal();
+        update32(m, OUTPUT_LENGTH * 8); // Hardwired output length
+        return doFinal(m);
+    }
+
+    // Same as m.doFinal(), but returns the output in a non-movable byte array.
+    private byte[] doFinal(Mac m) {
+        final byte[] mac = ArrayUtils.newNonMovableByteArray(OUTPUT_LENGTH);
+        try {
+            m.doFinal(mac, 0);
+            return mac;
+        } catch (ShortBufferException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

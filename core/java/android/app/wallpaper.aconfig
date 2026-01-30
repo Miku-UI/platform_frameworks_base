@@ -2,20 +2,6 @@ package: "android.app"
 container: "system"
 
 flag {
-  name: "remove_next_wallpaper_component"
-  namespace: "systemui"
-  description: "Remove deprecated field WallpaperData#nextWallpaperComponent. Only effective after rebooting."
-  bug: "365991991"
-}
-
-flag {
-  name: "fix_wallpaper_changed"
-  namespace: "systemui"
-  description: "Fixes timing of wallpaper changed notification and adds extra information. Only effective after rebooting."
-  bug: "369814294"
-}
-
-flag {
   name: "live_wallpaper_content_handling"
   namespace: "systemui"
   description: "Support for user-generated content in live wallpapers. Only effective after rebooting."
@@ -34,10 +20,10 @@ flag {
 }
 
 flag {
-  name: "accurate_wallpaper_downsampling"
+  name: "enable_wallpaper_transform_surface_control_command"
   namespace: "systemui"
-  description: "Accurate downsampling of wallpaper bitmap for high resolution images"
-  bug: "355665230"
+  description: "Enables sending SurfaceControl to onCommand that could be used to transform the wallpaper"
+  bug: "399077623"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -48,4 +34,34 @@ flag {
   namespace: "lse_desktop_experience"
   description: "Enable wallpaper support in connected displays"
   bug: "366461618"
+}
+
+flag {
+  name: "update_recents_from_system"
+  namespace: "systemui"
+  description: "Update recent wallpapers list more reliably. Only effective after rebooting."
+  bug: "395679036"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "fix_wallpaper_crops_on_restore"
+  namespace: "systemui"
+  description: "Preserve center for wallpaper crops on restore"
+  bug: "332937943"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "always_rebind_user_set_wallpaper"
+    namespace: "systemui"
+    description: "Always rebind wallpapers after a change via WallpaperManager API"
+    bug: "438411848"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
 }

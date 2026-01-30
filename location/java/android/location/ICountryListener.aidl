@@ -18,7 +18,7 @@ package android.location;
 
 import android.location.Country;
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ICountryListener
 {

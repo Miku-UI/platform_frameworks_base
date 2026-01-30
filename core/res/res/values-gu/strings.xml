@@ -71,9 +71,18 @@
     <string name="CLIRDefaultOnNextCallOff" msgid="5036749051007098105">"કૉલર ID ડિફૉલ્ટ તરીકે પ્રતિબંધિત છે. આગળનો કૉલ: પ્રતિબંધિત નથી"</string>
     <string name="CLIRDefaultOffNextCallOn" msgid="1022781126694885017">"કૉલર ID ડિફૉલ્ટ તરીકે પ્રતિબંધિત નથી. આગળનો કૉલ: પ્રતિબંધિત છે"</string>
     <string name="CLIRDefaultOffNextCallOff" msgid="2491576172356463443">"કૉલર ID ડિફૉલ્ટ તરીકે પ્રતિબંધિત નથી. આગળનો કૉલ: પ્રતિબંધિત નથી"</string>
-    <string name="page_size_compat_apk_warning" msgid="2982396798449041224">"આ ઍપ 16 KB સુસંગત નથી. APK સંરેખણની તપાસ નિષ્ફળ રહી. આ ઍપ પેજના કદ સાથે સુસંગત મોડનો ઉપયોગ કરીને ચાલશે. શ્રેષ્ઠ સુસંગતતા માટે, કૃપા કરીને 16 KB સપોર્ટવાળી ઍપ્લિકેશન ફરીથી સંકલિત કરો. વધુ માહિતી માટે, &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; જુઓ"</string>
-    <string name="page_size_compat_elf_warning" msgid="6753874059564812651">"આ ઍપ 16 KB સુસંગત નથી. ELF સંરેખણની તપાસ નિષ્ફળ રહી. આ ઍપ પેજના કદ સાથે સુસંગત મોડનો ઉપયોગ કરીને ચાલશે. શ્રેષ્ઠ સુસંગતતા માટે, કૃપા કરીને 16 KB સપોર્ટવાળી ઍપ્લિકેશન ફરીથી સંકલિત કરો. વધુ માહિતી માટે, &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; જુઓ"</string>
-    <string name="page_size_compat_apk_and_elf_warning" msgid="7628675779500605390">"આ ઍપ 16 KB સુસંગત નથી. APK અને ELF સંરેખણની તપાસ નિષ્ફળ રહી. આ ઍપ પેજના કદ સાથે સુસંગત મોડનો ઉપયોગ કરીને ચાલશે. શ્રેષ્ઠ સુસંગતતા માટે, કૃપા કરીને 16 KB સપોર્ટવાળી ઍપ્લિકેશન ફરીથી સંકલિત કરો. વધુ માહિતી માટે, &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; જુઓ"</string>
+    <string name="page_size_compat_apk_warning" msgid="2297836366674721648">"આ ઍપ 16 KB માટે સુસંગત નથી. APK સંરેખણને ચેક કરવાનું નિષ્ફળ રહ્યું. આ ઍપ પેજના કદ સાથે સુસંગત મોડનો ઉપયોગ કરીને ચાલશે. શ્રેષ્ઠ સુસંગતતા માટે, કૃપા કરીને 16 KB સપોર્ટવાળી ઍપ્લિકેશન ફરીથી સંકલિત કરો. વધુ માહિતી માટે, જુઓ &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; નીચેની લાઇબ્રેરી 16 KB સંરેખિત નથી: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning" msgid="8613720928493005883">"આ ઍપ 16 KB માટે સુસંગત નથી. ELF સંરેખણને ચેક કરવાનું નિષ્ફળ રહ્યું. આ ઍપ પેજના કદ સાથે સુસંગત મોડનો ઉપયોગ કરીને ચાલશે. શ્રેષ્ઠ સુસંગતતા માટે, કૃપા કરીને 16 KB સપોર્ટવાળી ઍપ્લિકેશન ફરીથી સંકલિત કરો. વધુ માહિતી માટે, જુઓ &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; નીચેની લાઇબ્રેરી 16 KB સંરેખિત નથી: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning" msgid="9034695801295605229">"આ ઍપ 16 KB માટે સુસંગત નથી. APK અને ELF સંરેખણને ચેક કરવું નિષ્ફળ રહ્યું. આ ઍપ પેજના કદ સાથે સુસંગત મોડનો ઉપયોગ કરીને ચાલશે. શ્રેષ્ઠ સુસંગતતા માટે, કૃપા કરીને 16 KB સપોર્ટવાળી ઍપ્લિકેશન ફરીથી સંકલિત કરો. વધુ માહિતી માટે, જુઓ &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; નીચેની લાઇબ્રેરી 16 KB સંરેખિત નથી: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_warning_4kb" msgid="5676451039424864495">"આ ચેતવણી એટલા માટે દેખાઈ રહી છે કારણ કે આ એક ડિબગ કરી શકાય તેવી ઍપ છે જેનું હાલમાં પરીક્ષણ ચાલી રહ્યું છે. જો તમે ડેવલપર ન હો, તો કૃપા કરીને ડેવલપરને આની જાણ કરો અને ડિબગ ન કરી શકાય તેવી ઍપ માટે કહો. &lt;br&gt;&lt;br&gt; આ ઍપ 16 KB માટે સુસંગત નથી. APK સંરેખણને ચેક કરવાનું નિષ્ફળ રહ્યું. કૃપા કરીને અહીં આપેલા પગલાં અનુસરો &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; નીચેની લાઇબ્રેરી 16 KB સંરેખિત નથી: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_elf_warning_4kb" msgid="5005239480522831311">"આ ચેતવણી એટલા માટે દેખાઈ રહી છે કારણ કે આ એક ડિબગ કરી શકાય તેવી ઍપ છે જેનું હાલમાં પરીક્ષણ ચાલી રહ્યું છે. જો તમે ડેવલપર ન હો, તો કૃપા કરીને ડેવલપરને આની જાણ કરો અને ડિબગ ન કરી શકાય તેવી ઍપ માટે કહો. &lt;br&gt;&lt;br&gt; આ ઍપ 16 KB માટે સુસંગત નથી. ELF સંરેખણને ચેક કરવાનું નિષ્ફળ રહ્યું. કૃપા કરીને અહીં આપેલા પગલાં અનુસરો &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; &lt;br&gt;&lt;br&gt; નીચેની લાઇબ્રેરી 16 KB સંરેખિત નથી: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_warning_4kb" msgid="997926487776340721">"આ ચેતવણી એટલા માટે દેખાઈ રહી છે કારણ કે આ એક ડિબગ કરી શકાય તેવી ઍપ છે જેનું હાલમાં પરીક્ષણ ચાલી રહ્યું છે. જો તમે ડેવલપર ન હો, તો કૃપા કરીને ડેવલપરને આની જાણ કરો અને ડિબગ ન કરી શકાય તેવી ઍપ માટે કહો. &lt;br&gt;&lt;br&gt; આ ઍપ 16 KB માટે સુસંગત નથી. APK અને ELF સંરેખણને ચેક કરવું નિષ્ફળ રહ્યું. કૃપા કરીને &lt;a href=\"https://developer.android.com/16kb-page-size\"&gt;https://developer.android.com/16kb-page-size&lt;/a&gt; પરના પગલાં અનુસરો. &lt;br&gt;&lt;br&gt; નીચેની લાઇબ્રેરી 16 KB સંરેખિત નથી: &lt;br&gt;&lt;br&gt;"</string>
+    <string name="page_size_compat_never_show" msgid="3391282612422783097">"ફરી બતાવશો નહીં"</string>
+    <string name="page_size_compat_title" msgid="6497719153872572204">"Android ઍપની સુસંગતતા"</string>
+    <string name="page_size_compat_elf_not_aligned" msgid="4404128993555194313">"&amp;#8226; %1$s : લોડ સેગ્મેન્ટ સંરેખિત નથી&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_not_aligned" msgid="1434875607880657092">"&amp;#8226; %1$s : અનકમ્પ્રેસ્ડ લાઇબ્રેરી સંરેખિત નથી&lt;br&gt;"</string>
+    <string name="page_size_compat_apk_and_elf_not_aligned" msgid="7140216083697701972">"&amp;#8226; %1$s : લોડ સેગ્મેન્ટ અને અનકમ્પ્રેસ્ડ લાઇબ્રેરી સંરેખિત નથી&lt;br&gt;"</string>
+    <string name="page_size_compat_unknown" msgid="5183026525148169891">"&amp;#8226; %1$s : અજાણી ભૂલ&lt;br&gt;"</string>
     <string name="serviceNotProvisioned" msgid="8289333510236766193">"સેવાની જોગવાઈ કરી નથી."</string>
     <string name="CLIRPermanent" msgid="166443681876381118">"તમે કૉલર ID સેટિંગ બદલી શકતાં નથી."</string>
     <string name="auto_data_switch_title" msgid="3286350716870518297">"ડેટા <xliff:g id="CARRIERDISPLAY">%s</xliff:g> પર સ્વિચ કર્યો"</string>
@@ -160,8 +169,10 @@
     <string name="scCellularNetworkSecurityTitle" msgid="7752521808690294384">"મોબાઇલ નેટવર્ક સુરક્ષા"</string>
     <string name="scCellularNetworkSecuritySummary" msgid="7042036754550545005">"એન્ક્રિપ્શન, એન્ક્રિપ્ટ નહીં થયેલા નેટવર્ક માટે નોટિફિકેશન"</string>
     <string name="scIdentifierDisclosureIssueTitle" msgid="2898888825129970328">"ડિવાઇસ ID ઍક્સેસ કર્યાનો સમય"</string>
-    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="3699930821270580416">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> પર, તમારા <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g> સિમ કાર્ડનો ઉપયોગ કરતી વખતે નજીકના કોઈ નેટવર્ક દ્વારા તમારા ડિવાઇસનું અજોડ ID (IMSI અથવા IMEI) રેકોર્ડ કરવામાં આવ્યું હતું"</string>
-    <string name="scIdentifierDisclosureIssueSummary" msgid="7283387338827749276">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> પર, તમારા <xliff:g id="DISCLOSURE_NETWORK">%2$s</xliff:g> સિમ કાર્ડનો ઉપયોગ કરતી વખતે નજીકના કોઈ નેટવર્ક દ્વારા તમારા ડિવાઇસનું અજોડ ID (IMSI અથવા IMEI) રેકોર્ડ કરવામાં આવ્યું હતું.\n\nઆનો અર્થ એ છે કે તમારું લોકેશન, ઍક્ટિવિટી અથવા ઓળખ લૉગ કરવામાં આવી છે. આ સામાન્ય પદ્ધતિ છે પરંતુ પ્રાઇવસી વિશે ચિંતિત લોકો માટે સમસ્યા હોઈ શકે છે."</string>
+    <string name="scIDIssueSummaryNotificationWithCellularID" msgid="8371590113242615316">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> વાગ્યે, તમારા <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> સિમ કાર્ડનો ઉપયોગ કરતી વખતે તમારા ડિવાઇસના અજોડ ID (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>)ને નજીકના નેટવર્ક દ્વારા રેકોર્ડ કરવામાં આવ્યું"</string>
+    <string name="scIdentifierDisclosureIssueSummaryNotification" msgid="7106922007150754222">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> વાગ્યે, તમારા <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> સિમ કાર્ડનો ઉપયોગ કરતી વખતે તમારા ડિવાઇસના અજોડ IDને નજીકના નેટવર્ક દ્વારા રેકોર્ડ કરવામાં આવ્યું"</string>
+    <string name="scIDIssueSummaryWithCellularID" msgid="1189965658392583067">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> વાગ્યે, તમારા <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> સિમ કાર્ડનો ઉપયોગ કરતી વખતે તમારા ડિવાઇસના અજોડ ID (<xliff:g id="CELLULAR_IDENTIFIER">%2$s</xliff:g>)ને નજીકના નેટવર્ક દ્વારા રેકોર્ડ કરવામાં આવ્યું.\n\nઆનો અર્થ એ છે કે તમારું લોકેશન, ઍક્ટિવિટી કે ઓળખ લૉગ કરવામાં આવી છે. આ સામાન્ય પદ્ધતિ છે પરંતુ પ્રાઇવસી વિશે ચિંતિત લોકો માટે સમસ્યા હોઈ શકે છે."</string>
+    <string name="scIdentifierDisclosureIssueSummary" msgid="4362014471570210380">"<xliff:g id="DISCLOSURE_TIME">%1$s</xliff:g> વાગ્યે તમારા <xliff:g id="DISCLOSURE_NETWORK">%3$s</xliff:g> સિમ કાર્ડનો ઉપયોગ કરતી વખતે તમારા ડિવાઇસના અજોડ IDને નજીકના નેટવર્ક દ્વારા રેકોર્ડ કરવામાં આવ્યું.\n\nઆનો અર્થ એ છે કે તમારું લોકેશન, ઍક્ટિવિટી કે ઓળખ લૉગ કરવામાં આવી છે. આ સામાન્ય પદ્ધતિ છે પરંતુ પ્રાઇવસી વિશે ચિંતિત લોકો માટે સમસ્યા હોઈ શકે છે."</string>
     <string name="scNullCipherIssueEncryptedTitle" msgid="234717016411824969">"એન્ક્રિપ્ટેડ નેટવર્ક <xliff:g id="NETWORK_NAME">%1$s</xliff:g> સાથે કનેક્ટેડ છે"</string>
     <string name="scNullCipherIssueEncryptedSummary" msgid="8577510708842150475">"<xliff:g id="NETWORK_NAME">%1$s</xliff:g> સિમ કાર્ડ કનેક્શન હવે વધુ સુરક્ષિત છે"</string>
     <string name="scNullCipherIssueNonEncryptedTitle" msgid="3978071464929453915">"એન્ક્રિપ્ટ નહીં થયેલા નેટવર્ક સાથે કનેકટેડ છે"</string>
@@ -237,7 +248,7 @@
     <string name="silent_mode" msgid="8796112363642579333">"સાઇલેન્ટ મોડ"</string>
     <string name="turn_on_radio" msgid="2961717788170634233">"વાયરલેસ ચાલુ કરો"</string>
     <string name="turn_off_radio" msgid="7222573978109933360">"વાયરલેસ બંધ કરો"</string>
-    <string name="screen_lock" msgid="2072642720826409809">"સ્ક્રીન લૉક કરો"</string>
+    <string name="screen_lock" msgid="2072642720826409809">"સ્ક્રીન લૉક"</string>
     <string name="power_off" msgid="4111692782492232778">"પાવર બંધ કરો"</string>
     <string name="silent_mode_silent" msgid="5079789070221150912">"રિંગર બંધ"</string>
     <string name="silent_mode_vibrate" msgid="8821830448369552678">"રિંગર વાઇબ્રેટ"</string>
@@ -262,7 +273,7 @@
     <string name="global_actions" product="tv" msgid="3871763739487450369">"Android TVના વિકલ્પો"</string>
     <string name="global_actions" product="default" msgid="6410072189971495460">"ફોન વિકલ્પો"</string>
     <string name="global_action_lock" msgid="6949357274257655383">"સ્ક્રીન લૉક"</string>
-    <string name="global_action_power_off" msgid="4404936470711393203">"પાવર બંધ"</string>
+    <string name="global_action_power_off" msgid="4404936470711393203">"પાવર બંધ કરો"</string>
     <string name="global_action_power_options" msgid="1185286119330160073">"પાવર"</string>
     <string name="global_action_restart" msgid="4678451019561687074">"ફરી શરૂ કરો"</string>
     <string name="global_action_emergency" msgid="1387617624177105088">"ઇમર્જન્સી"</string>
@@ -289,6 +300,7 @@
     <string name="global_action_assist" msgid="2517047220311505805">"સહાય"</string>
     <string name="global_action_voice_assist" msgid="6655788068555086695">"વૉઇસ સહાય"</string>
     <string name="global_action_lockdown" msgid="2475471405907902963">"લૉકડાઉન"</string>
+    <string name="global_action_unrestricted_lock" msgid="7933224393323064116">"લૉક"</string>
     <string name="status_bar_notification_info_overflow" msgid="3330152558746563475">"999+"</string>
     <string name="notification_compact_heads_up_reply" msgid="2425293958371284340">"જવાબ આપો"</string>
     <string name="notification_hidden_text" msgid="2835519769868187223">"નવું નોટિફિકેશન"</string>
@@ -324,8 +336,8 @@
     <string name="managed_profile_label" msgid="7316778766973512382">"કાર્યાલયની પ્રોફાઇલ પર સ્વિચ કરો"</string>
     <string name="user_owner_app_label" msgid="1553595155465750298">"વ્યક્તિગત <xliff:g id="APP_NAME">%1$s</xliff:g> પર સ્વિચ કરો"</string>
     <string name="managed_profile_app_label" msgid="367401088383965725">"ઑફિસની <xliff:g id="APP_NAME">%1$s</xliff:g> પર સ્વિચ કરો"</string>
-    <string name="permgrouplab_contacts" msgid="4254143639307316920">"સંપર્કો"</string>
-    <string name="permgroupdesc_contacts" msgid="9163927941244182567">"તમારા સંપર્કોને ઍક્સેસ કરવાની"</string>
+    <string name="permgrouplab_contacts" msgid="7443702399615347952">"સંપર્કો અને એકાઉન્ટ"</string>
+    <string name="permgroupdesc_contacts" msgid="2001771388402758264">"તમારા સંપર્કો ઍક્સેસ કરવા અને આ ડિવાઇસ પર સંપર્કો સાચવી શકતા હોય તેવા તમારા એકાઉન્ટની સૂચિ જોવી"</string>
     <string name="permgrouplab_location" msgid="1858277002233964394">"લોકેશન"</string>
     <string name="permgroupdesc_location" msgid="1995955142118450685">"આ ઉપકરણના સ્થાનને ઍક્સેસ કરવાની"</string>
     <string name="permgrouplab_calendar" msgid="6426860926123033230">"કૅલેન્ડર"</string>
@@ -340,7 +352,7 @@
     <string name="permgroupdesc_readMediaVisual" msgid="4080463241903508688">"તમારા ડિવાઇસ પર ફોટા અને વીડિયો ઍક્સેસ કરવા માટે"</string>
     <string name="permgrouplab_microphone" msgid="2480597427667420076">"માઇક્રોફોન"</string>
     <string name="permgroupdesc_microphone" msgid="1047786732792487722">"ઑડિઓ રેકોર્ડ કરવાની"</string>
-    <string name="permgrouplab_activityRecognition" msgid="3324466667921775766">"શારીરિક પ્રવૃત્તિ"</string>
+    <string name="permgrouplab_activityRecognition" msgid="3324466667921775766">"શારીરિક ઍક્ટિવિટી"</string>
     <string name="permgroupdesc_activityRecognition" msgid="4725624819457670704">"તમારી શારીરિક પ્રવૃત્તિને ઍક્સેસ કરવી"</string>
     <string name="permgrouplab_camera" msgid="9090413408963547706">"કૅમેરા"</string>
     <string name="permgroupdesc_camera" msgid="7585150538459320326">"ચિત્રો લેવાની અને વીડિઓ રેકોર્ડ કરવાની"</string>
@@ -354,10 +366,12 @@
     <string name="permgroupdesc_sensors" msgid="2610631290633747752">"તમારા મહત્વપૂર્ણ ચિહ્નો વિશે સેન્સર ડેટા ઍક્સેસ કરો"</string>
     <string name="permgrouplab_notifications" msgid="5472972361980668884">"નોટિફિકેશન"</string>
     <string name="permgroupdesc_notifications" msgid="4608679556801506580">"નોટિફિકેશન બતાવો"</string>
-    <string name="permgrouplab_xr_tracking" msgid="7418994009794287471">"XR ટ્રૅકિંગ ડેટા"</string>
-    <string name="permgroupdesc_xr_tracking" msgid="6777198859446500821">"તમારા અને તમારી આસપાસના વાતાવરણ વિશેનો XR ડેટા ઍક્સેસ કરો"</string>
-    <string name="permgrouplab_xr_tracking_sensitive" msgid="1194833982988144536">"સંવેદનશીલ XR ટ્રૅકિંગ ડેટા"</string>
-    <string name="permgroupdesc_xr_tracking_sensitive" msgid="9178027369004805829">"નજર જેવો સંવેદનશીલ ટ્રૅકિંગ ડેટા ઍક્સેસ કરો"</string>
+    <string name="permgrouplab_xr_eye_sensitive" msgid="1709596126334620353">"આંખના ટ્રૅકિંગનો ડેટા"</string>
+    <string name="permgroupdesc_xr_eye_sensitive" msgid="6050967250223079001">"આંખની હલનચલન સચોટ રીતે ટ્રૅક કરવી"</string>
+    <string name="permgrouplab_xr_tracking" msgid="766634536453394700">"હલનચન અને વિસ્તારનો ડેટા"</string>
+    <string name="permgroupdesc_xr_tracking" msgid="812429788288001595">"આંખો, ચહેરા, શરીરને ટ્રૅક કરવું અને વિસ્તારને સ્કૅન કરવો"</string>
+    <string name="permgrouplab_xr_tracking_sensitive" msgid="6574264227123545314">"સચોટ હલનચન અને વિસ્તારનો ડેટા"</string>
+    <string name="permgroupdesc_xr_tracking_sensitive" msgid="2480835734248509848">"માથાને સચોટ રીતે ટ્રૅક કરવું અને વિસ્તારને સ્કૅન કરવો"</string>
     <string name="capability_title_canRetrieveWindowContent" msgid="7554282892101587296">"વિંડો કન્ટેન્ટ પુનઃપ્રાપ્ત કરો"</string>
     <string name="capability_desc_canRetrieveWindowContent" msgid="6195610527625237661">"તમે જેની સાથે ક્રિયા-પ્રતિક્રિયા કરી રહ્યાં છો તે વિંડોનું કન્ટેન્ટ તપાસો."</string>
     <string name="capability_title_canRequestTouchExploration" msgid="327598364696316213">"સ્પર્શ કરીને શોધખોળ કરવું ચાલુ કરો"</string>
@@ -382,6 +396,8 @@
     <string name="permdesc_expandStatusBar" msgid="7180756900448498536">"ઍપ્લિકેશનને સ્ટેટસ બાર વિસ્તૃત કરવાની અને સંકુચિત કરવાની મંજૂરી આપે છે."</string>
     <string name="permlab_fullScreenIntent" msgid="4310888199502509104">"લૉક કરેલા ડિવાઇસ પર પૂર્ણ સ્ક્રીન પરની પ્રવૃતિઓની જેમ નોટિફિકેશન બતાવો"</string>
     <string name="permdesc_fullScreenIntent" msgid="1100721419406643997">"ઍપને લૉક કરેલા ડિવાઇસ પર પૂર્ણ સ્ક્રીન પરની પ્રવૃતિઓની જેમ નોટિફિકેશન બતાવવાની મંજૂરી આપે છે"</string>
+    <string name="permlab_postPromotedNotifications" msgid="4873499297871691102">"લાઇવ અપડેટ બતાવો"</string>
+    <string name="permdesc_postPromotedNotifications" msgid="4530634734172420651">"ઍપને સ્ટેટસ બાર અને લૉક સ્ક્રીન પર ચાલુ, સમય પ્રત્યે સંવેદનશીલ નોટિફિકેશન ડિસ્પ્લે કરવાની મંજૂરી આપે છે"</string>
     <string name="permlab_install_shortcut" msgid="7451554307502256221">"શૉર્ટકટ ઇન્સ્ટૉલ કરો"</string>
     <string name="permdesc_install_shortcut" msgid="4476328467240212503">"એપ્લિકેશનને વપરાશકર્તા હસ્તક્ષેપ વગર હોમસ્ક્રીન શોર્ટકટ્સ ઉમેરવાની મંજૂરી આપે છે."</string>
     <string name="permlab_uninstall_shortcut" msgid="295263654781900390">"શોર્ટકટ્સ અનઇન્સ્ટોલ કરો"</string>
@@ -623,6 +639,8 @@
     <string name="permdesc_uwb_ranging" msgid="2519723069604307055">"ઍપને નજીકના અલ્ટ્રા-વાઇડબૅન્ડ ડિવાઇસની વચ્ચેનું સંબંધિત અંતર નક્કી કરવાની મંજૂરી આપો"</string>
     <string name="permlab_nearby_wifi_devices" msgid="392774237063608500">"નજીકના વાઇ-ફાઇ ડિવાઇસ સાથે ક્રિયાપ્રતિક્રિયા કરો"</string>
     <string name="permdesc_nearby_wifi_devices" msgid="3054307728646332906">"ઍપને નજીકના વાઇ-ફાઇ ડિવાઇસની માહિતી બતાવવાની, તેની સાથે કનેક્ટ કરવાની અને તેની સંબંધિત સ્થિતિ નક્કી કરવાની મંજૂરી આપો"</string>
+    <string name="permlab_access_local_network" msgid="3420360767259066877">"સ્થાનિક નેટવર્કના ડિવાઇસ ઍક્સેસ કરો"</string>
+    <string name="permdesc_access_local_network" msgid="6364679803386822638">"ઍપને સ્થાનિક નેટવર્કના ડિવાઇસ ઍક્સેસ કરવાની મંજૂરી આપે છે"</string>
     <string name="permlab_ranging" msgid="2854543350668593390">"ડિવાઇસની વચ્ચેનું સાપેક્ષ અંતર નક્કી કરો"</string>
     <string name="permdesc_ranging" msgid="6703905535621521710">"ઍપને નજીકના ડિવાઇસની વચ્ચેનું સાપેક્ષ અંતર નક્કી કરવાની મંજૂરી આપો"</string>
     <string name="permlab_preferredPaymentInfo" msgid="5274423844767445054">"પસંદગીની NFC ચુકવણીની સેવા વિશે માહિતી"</string>
@@ -653,27 +671,31 @@
     <string name="permdesc_imagesWrite" msgid="5195054463269193317">"એપને તમારો ફોટો સંગ્રહ સંશોધિત કરવાની મંજૂરી આપે છે."</string>
     <string name="permlab_mediaLocation" msgid="7368098373378598066">"આપના મીડિયા સંગ્રહમાંથી સ્થાનો વાંચવા"</string>
     <string name="permdesc_mediaLocation" msgid="597912899423578138">"એપને તમારા મીડિયા સંગ્રહમાંથી સ્થાનો વાંચવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_eye_tracking_coarse" msgid="7989596289790269059">"તમારી અંદાજિત નજરને ટ્રૅક કરો"</string>
-    <string name="permdesc_eye_tracking_coarse" msgid="870510233930553355">"ઍપને તમારી અંદાજિત નજર ટ્રૅક કરવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_eye_tracking_fine" msgid="6914457357027049512">"તમે ક્યાં જુઓ છો, તે ટ્રૅક કરો"</string>
-    <string name="permdesc_eye_tracking_fine" msgid="5788889152304524730">"ઍપને નજરનો ચોક્કસ ડેટા ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_face_tracking" msgid="2272048395128283324">"તમારા ચહેરાને ટ્રૅક કરો"</string>
-    <string name="permdesc_face_tracking" msgid="2622783922311211866">"ઍપને ચહેરો ટ્રૅક કરવાની સુવિધાનો ડેટા ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_hand_tracking" msgid="6478233866595566940">"તમારા હાથને ટ્રૅક કરો"</string>
-    <string name="permdesc_hand_tracking" msgid="8639715900104966456">"ઍપને હાથ ટ્રૅક કરવાની સુવિધાનો ડેટા ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_head_tracking" msgid="1309731456372087270">"તમારા માથાને ટ્રૅક કરો"</string>
-    <string name="permdesc_head_tracking" msgid="231597390513699188">"ઍપને હૅડ ટ્રૅકિંગની સુવિધાનો ડેટા ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_scene_understanding_coarse" msgid="6518646430502858641">"તમારી સાવ નજીકના વાતાવરણને સમજો"</string>
-    <string name="permdesc_scene_understanding_coarse" msgid="4508880777646198656">"ઍપને સીધા તમારી આસપાસના વાતાવરણ વિશેનો ટ્રૅકિંગ ડેટા ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_scene_understanding_fine" msgid="409126403264393251">"તમારી સાવ નજીકના વાતાવરણને ખૂબ વિગતવાર સમજો"</string>
-    <string name="permdesc_scene_understanding_fine" msgid="6223368011593524179">"ઍપને સીધા તમારી આસપાસના વાતાવરણ વિશેનો ટ્રૅકિંગ ડેટા ખૂબ જ વિગતવાર ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
-    <string name="permlab_xr_tracking_in_background" msgid="7117098718465619023">"ફૉરગ્રાઉન્ડમાં ન હોય ત્યારે XR ડેટા ઍક્સેસ કરો"</string>
-    <string name="permdesc_xr_tracking_in_background" msgid="939504041387836853">"ફૉરગ્રાઉન્ડમાં ન હોય ત્યારે ઍપને XR ડેટા ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_eye_tracking_coarse" msgid="1266477998416112440">"આંખની હલનચલન ટ્રૅક કરવી"</string>
+    <string name="permdesc_eye_tracking_coarse" msgid="1652112796672085320">"ઍપને તમારી નજરની અંદાજિત દિશા ટ્રૅક કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_eye_tracking_fine" msgid="6208991021186455002">"આંખની હલનચલન સચોટ રીતે ટ્રૅક કરવી"</string>
+    <string name="permdesc_eye_tracking_fine" msgid="9215360948852654836">"ઍપને તમારી નજરની દિશા ટ્રૅક કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_face_tracking" msgid="6052126246676474909">"ચહેરાની હલનચલન ટ્રૅક કરવી"</string>
+    <string name="permdesc_face_tracking" msgid="185815778490412574">"ઍપને તમારા ચહેરાની હલનચલન અને હાવભાવોને ટ્રૅક કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_hand_tracking" msgid="21944950887649088">"હાથની હલનચલન ટ્રૅક કરવી"</string>
+    <string name="permdesc_hand_tracking" msgid="8083783248481460669">"ઍપને તમારા હાથની હલનચલન ટ્રૅક કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_head_tracking" msgid="4304699038992159853">"માથાની હલનચલન ટ્રૅક કરવી"</string>
+    <string name="permdesc_head_tracking" msgid="2232184518548944223">"ઍપને તમારા માથાની હલનચલન ટ્રૅક કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_scene_understanding_coarse" msgid="8765236119358852920">"તમારી આસપાસનો વિસ્તાર સ્કૅન કરવો"</string>
+    <string name="permdesc_scene_understanding_coarse" msgid="847344305502345475">"ઍપને તમારી આસપાસની વસ્તુઓ સ્કૅન કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_scene_understanding_fine" msgid="2899904960307462936">"તમારી આસપાસનો વિસ્તાર સચોટ રીતે સ્કૅન કરવો"</string>
+    <string name="permdesc_scene_understanding_fine" msgid="4848943859506977588">"ઍપને તમારી આસપાસની વસ્તુઓ સચોટ રીતે સ્કૅન કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_xr_tracking_in_background" msgid="1714941204255185460">"બૅકગ્રાઉન્ડમાં XR ટ્રૅકિંગ ઍક્સેસ કરવો"</string>
+    <string name="permdesc_xr_tracking_in_background" msgid="3151744132692357005">"ઍપને બૅકગ્રાઉન્ડમાં XR ડેટા ઍક્સેસ કરવાની મંજૂરી આપે છે."</string>
+    <string name="permlab_capture_keyboard" msgid="4076894823382693032">"કી કૅપ્ચર કરો"</string>
+    <string name="permdesc_capture_keyboard" msgid="4192269470684407219">"સિસ્ટમ શૉર્ટકટ અને ઍક્શન પર સિસ્ટમ પ્રક્રિયા કરી શકે તે પહેલાં ઍપને કી કૅપ્ચર કરવાની મંજૂરી આપે છે."</string>
     <string name="biometric_app_setting_name" msgid="3339209978734534457">"બાયોમેટ્રિક્સનો ઉપયોગ કરો"</string>
     <string name="biometric_or_screen_lock_app_setting_name" msgid="5348462421758257752">"બાયોમેટ્રિક્સ અથવા સ્ક્રીન લૉકનો ઉપયોગ કરો"</string>
     <string name="biometric_dialog_default_title" msgid="55026799173208210">"આ તમે જ છો તેની ચકાસણી કરો"</string>
     <string name="biometric_dialog_default_subtitle" msgid="8457232339298571992">"આગળ વધવા માટે બાયોમેટ્રિકનો ઉપયોગ કરો"</string>
     <string name="biometric_or_screen_lock_dialog_default_subtitle" msgid="159539678371552009">"ચાલુ રાખવા માટે તમારા બાયોમેટ્રિક ડેટા અથવા સ્ક્રીન લૉક સુવિધાનો ઉપયોગ કરો"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="default" msgid="256544327174107086">"આગળ વધવા માટે તમારા ફોન પર તમે જ હોવાની ચકાસણી કરો"</string>
+    <string name="biometric_dialog_secondary_display_toast" product="tablet" msgid="2855203015454795660">"આગળ વધવા માટે તમારા ટૅબ્લેટ પર તમે જ હોવાની ચકાસણી કરો"</string>
     <string name="biometric_error_hw_unavailable" msgid="2494077380540615216">"બાયોમેટ્રિક હાર્ડવેર ઉપલબ્ધ નથી"</string>
     <string name="biometric_error_user_canceled" msgid="6732303949695293730">"પ્રમાણીકરણ રદ કર્યું"</string>
     <string name="biometric_not_recognized" msgid="5106687642694635888">"ઓળખાયેલ નથી"</string>
@@ -880,7 +902,7 @@
     <string name="policydesc_wipeData" product="tablet" msgid="7245372676261947507">"ફેક્ટરી ડેટા ફરીથી સેટ કરોને કરીને ચેતવણી વિના ટેબ્લેટનો ડેટા કાઢી નાખો."</string>
     <string name="policydesc_wipeData" product="tv" msgid="513862488950801261">"ફેક્ટરી ડેટા રીસેટ કરીને ચેતવણી વિના તમારા Android TV ડિવાઇસનો ડેટા કાઢી નાખો."</string>
     <string name="policydesc_wipeData" product="automotive" msgid="660804547737323300">"ફેક્ટરી ડેટા રીસેટ કરીને કોઈ ચેતવણી વિના જ ઇન્ફોટેનમેન્ટ સિસ્ટમનો ડેટા કાઢી નાખો."</string>
-    <string name="policydesc_wipeData" product="default" msgid="8036084184768379022">"ફેક્ટરી ડેટા ફરીથી સેટ કરીને ચેતવણી વિના ફોનનો ડેટા કાઢી નાખો."</string>
+    <string name="policydesc_wipeData" product="default" msgid="8036084184768379022">"ફેક્ટરી ડેટા રીસેટ કરીને ચેતવણી વિના ફોનનો ડેટા કાઢી નાખો."</string>
     <string name="policylab_wipeData_secondaryUser" product="automotive" msgid="115034358520328373">"પ્રોફાઇલનો ડેટા કાઢી નાખો"</string>
     <string name="policylab_wipeData_secondaryUser" product="default" msgid="413813645323433166">"વપરાશકર્તા ડેટા કાઢી નાખો"</string>
     <string name="policydesc_wipeData_secondaryUser" product="tablet" msgid="2336676480090926470">"ચેતવણી વિના આ ટેબ્લેટ પરનો આ વપરાશકર્તાનો ડેટા કાઢી નાખો."</string>
@@ -897,6 +919,7 @@
     <string name="policydesc_disableCamera" msgid="3204405908799676104">"તમામ ઉપકરણ કૅમેરાનો ઉપયોગ અટકાવો."</string>
     <string name="policylab_disableKeyguardFeatures" msgid="5071855750149949741">"અમુક સ્ક્રીનલૉક સુવિધા બંધ કરો"</string>
     <string name="policydesc_disableKeyguardFeatures" msgid="6641673177041195957">"કેટલીક સ્ક્રીન લૉક સુવિધાઓના ઉપયોગને અટકાવો."</string>
+    <string name="exit_toast_on_long_press_escape" msgid="2983932499112557277">"આ ઍપ બંધ કરવા માટે Esc કી થોડીવાર દબાવી રાખો"</string>
   <string-array name="phoneTypes">
     <item msgid="8996339953292723951">"ઘર"</item>
     <item msgid="7740243458912727194">"મોબાઇલ"</item>
@@ -1107,6 +1130,7 @@
     <string name="keyguard_accessibility_sim_pin_unlock" msgid="4895939120871890557">"પિનથી સિમને અનલૉક કરો."</string>
     <string name="keyguard_accessibility_sim_puk_unlock" msgid="3459003464041899101">"Pukથી સિમને અનલૉક કરો."</string>
     <string name="keyguard_accessibility_password_unlock" msgid="6130186108581153265">"પાસવર્ડ અનલૉક કરો."</string>
+    <string name="keyguard_accessibility_secure_lock_device_biometric_unlock" msgid="1884638289137214044">"ડિવાઇસને સુરક્ષિત લૉક કરવા માટે, બાયોમેટ્રિક વડે અનલૉક કરવાની સુવિધા."</string>
     <string name="keyguard_accessibility_pattern_area" msgid="1419570880512350689">"પૅટર્ન ક્ષેત્ર."</string>
     <string name="keyguard_accessibility_slide_area" msgid="4331399051142520176">"સ્લાઇડ ક્ષેત્ર."</string>
     <string name="password_keyboard_label_symbol_key" msgid="2716255580853511949">"?123"</string>
@@ -1182,22 +1206,8 @@
     <string name="duration_hours_shortest_future" msgid="2979276794547981674">"<xliff:g id="COUNT">%d</xliff:g> કલાકમાં"</string>
     <string name="duration_days_shortest_future" msgid="3392722163935571543">"<xliff:g id="COUNT">%d</xliff:g> દિવસમાં"</string>
     <string name="duration_years_shortest_future" msgid="5537464088352970388">"<xliff:g id="COUNT">%d</xliff:g> વર્ષમાં"</string>
-    <string name="duration_minutes_shortest_past" msgid="1740022450020492407">"<xliff:g id="COUNT">%d</xliff:g> મિનિટ પહેલાં"</string>
-    <string name="duration_hours_shortest_past" msgid="2098397414186628489">"<xliff:g id="COUNT">%d</xliff:g> કલાક પહેલાં"</string>
-    <string name="duration_days_shortest_past" msgid="1832006037955897625">"<xliff:g id="COUNT">%d</xliff:g> દિવસ પહેલાં"</string>
-    <string name="duration_years_shortest_past" msgid="6168256514200469291">"<xliff:g id="COUNT">%d</xliff:g> વર્ષ પહેલાં"</string>
     <string name="duration_minutes_medium" msgid="5891933490342643944">"<xliff:g id="COUNT">%d</xliff:g> મિનિટ"</string>
     <string name="duration_hours_medium" msgid="1465359726485910115">"<xliff:g id="COUNT">%d</xliff:g> કલાક"</string>
-    <string name="duration_days_medium" msgid="5994225628248661388">"<xliff:g id="COUNT">%d</xliff:g> દિવસ"</string>
-    <string name="duration_years_medium" msgid="734023884353592526">"<xliff:g id="COUNT">%d</xliff:g> વર્ષ"</string>
-    <string name="duration_minutes_medium_future" msgid="2750894988731934402">"<xliff:g id="COUNT">%d</xliff:g> મિનિટમાં"</string>
-    <string name="duration_hours_medium_future" msgid="6050833881463849764">"<xliff:g id="COUNT">%d</xliff:g> કલાકમાં"</string>
-    <string name="duration_days_medium_future" msgid="1700821545602729963">"<xliff:g id="COUNT">%d</xliff:g> દિવસમાં"</string>
-    <string name="duration_years_medium_future" msgid="3281018940397120166">"<xliff:g id="COUNT">%d</xliff:g> વર્ષમાં"</string>
-    <string name="duration_minutes_medium_past" msgid="7400424340181947714">"<xliff:g id="COUNT">%d</xliff:g> મિનિટ પહેલાં"</string>
-    <string name="duration_hours_medium_past" msgid="6709441336035202617">"<xliff:g id="COUNT">%d</xliff:g> કલાક પહેલાં"</string>
-    <string name="duration_days_medium_past" msgid="5748156261134344532">"<xliff:g id="COUNT">%d</xliff:g> દિવસ પહેલાં"</string>
-    <string name="duration_years_medium_past" msgid="893797065424596243">"<xliff:g id="COUNT">%d</xliff:g> વર્ષ પહેલાં"</string>
     <string name="duration_minutes_relative" msgid="8620337701051015593">"{count,plural, =1{# મિનિટ પહેલાં}one{# મિનિટ પહેલાં}other{# મિનિટ પહેલાં}}"</string>
     <string name="duration_hours_relative" msgid="4836449961693180253">"{count,plural, =1{# કલાક પહેલાં}one{# કલાક પહેલાં}other{# કલાક પહેલાં}}"</string>
     <string name="duration_days_relative" msgid="621965767567258302">"{count,plural, =1{# દિવસ પહેલાં}one{# દિવસ પહેલાં}other{# દિવસ પહેલાં}}"</string>
@@ -1478,8 +1488,6 @@
     <string name="decline_remote_bugreport_action" msgid="4040894777519784346">"નકારો"</string>
     <string name="select_input_method" msgid="3971267998568587025">"ઇનપુટ પદ્ધતિ પસંદ કરો"</string>
     <string name="input_method_language_settings" msgid="8069089418056819437">"ભાષા સંબંધિત સેટિંગ"</string>
-    <string name="show_ime" msgid="6406112007347443383">"જ્યારે ભૌતિક કીબોર્ડ સક્રિય હોય ત્યારે તેને સ્ક્રીન પર રાખો"</string>
-    <string name="hardware" msgid="3611039921284836033">"ઑન-સ્ક્રીન કીબોર્ડનો ઉપયોગ કરો"</string>
     <string name="select_keyboard_layout_notification_title" msgid="5823199895322205589">"<xliff:g id="DEVICE_NAME">%s</xliff:g>ની ગોઠવણી કરો"</string>
     <string name="select_multiple_keyboards_layout_notification_title" msgid="6999491025126641938">"ભૌતિક કીબોર્ડની ગોઠવણી કરો"</string>
     <string name="select_keyboard_layout_notification_message" msgid="8835158247369158154">"ભાષા અને લેઆઉટ પસંદ કરવા માટે ટૅપ કરો"</string>
@@ -1593,7 +1601,7 @@
     <string name="vpn_lockdown_config" msgid="8331697329868252169">"નેટવર્ક અથવા VPN સેટિંગ બદલો"</string>
     <string name="upload_file" msgid="8651942222301634271">"ફાઇલ પસંદ કરો"</string>
     <string name="no_file_chosen" msgid="4146295695162318057">"કોઈ ફાઇલ પસંદ કરેલી નથી"</string>
-    <string name="reset" msgid="3865826612628171429">"ફરીથી સેટ કરો"</string>
+    <string name="reset" msgid="3865826612628171429">"રીસેટ કરો"</string>
     <string name="submit" msgid="862795280643405865">"સબમિટ કરો"</string>
     <string name="car_mode_disable_notification_title" msgid="8450693275833142896">"ડ્રાઇવિંગ ઍપ ચાલી રહી છે"</string>
     <string name="car_mode_disable_notification_message" msgid="8954550232288567515">"ડ્રાઇવિંગ ઍપથી બહાર નીકળવા માટે ટૅપ કરો."</string>
@@ -1709,6 +1717,12 @@
     <string name="default_audio_route_name_external_device" msgid="8124229858618975">"બહારનું ડિવાઇસ"</string>
     <string name="default_audio_route_name_headphones" msgid="6954070994792640762">"હેડફોન"</string>
     <string name="default_audio_route_name_usb" msgid="895668743163316932">"USB"</string>
+    <string name="default_audio_route_name_hdmi_tv" msgid="1629608564121895625">"ટીવીનો ઑડિયો"</string>
+    <string name="default_audio_route_name_arc" msgid="5117738492549798911">"ARC"</string>
+    <string name="default_audio_route_name_earc" msgid="5869527419074773683">"eARC"</string>
+    <string name="default_audio_route_name_analog" msgid="7781645558035374980">"એનાલોગ"</string>
+    <string name="default_audio_route_name_digital" msgid="6959855552809654826">"ડિજિટલ"</string>
+    <string name="default_audio_route_name_aux" msgid="7432808125413299672">"ઑગ્ઝિલરી"</string>
     <string name="default_audio_route_category_name" msgid="5241740395748134483">"સિસ્ટમ"</string>
     <string name="bluetooth_a2dp_audio_route_name" msgid="4214648773120426288">"બ્લૂટૂથ ઑડિયો"</string>
     <string name="wireless_display_route_description" msgid="8297563323032966831">"વાયરલેસ ડિસ્પ્લે"</string>
@@ -1804,10 +1818,11 @@
     <string name="one_handed_mode_feature_name" msgid="2334330034828094891">"એક-હાથે વાપરો મોડ"</string>
     <string name="reduce_bright_colors_feature_name" msgid="3222994553174604132">"એક્સ્ટ્રા ડિમ"</string>
     <string name="hearing_aids_feature_name" msgid="1125892105105852542">"સાંભળવામાં સહાય કરતા ડિવાઇસ"</string>
-    <string name="autoclick_feature_name" msgid="8149248738736949630">"ઑટોક્લિક"</string>
+    <string name="autoclick_feature_name" msgid="4056260617171267864">"ઑટોક્લિક (ક્લિક થવા માટે કર્સરનો સ્થિર થવાનો સમયગાળો)"</string>
+    <string name="mouse_keys_feature_name" msgid="3362643216513384542">"માઉસ કી"</string>
     <string name="hearing_device_status_disconnected" msgid="497547752953543832">"ડિસ્કનેક્ટેડ છે"</string>
     <string name="hearing_device_status_connected" msgid="2149385149669918764">"કનેક્ટેડ છે"</string>
-    <string name="hearing_device_status_active" msgid="4770378695482566032">"સક્રિય"</string>
+    <string name="hearing_device_status_active" msgid="4770378695482566032">"ઍક્ટિવ"</string>
     <string name="hearing_device_status_loading" msgid="5717083847663109747">"લોડ કરી રહ્યાં છીએ"</string>
     <string name="accessibility_shortcut_enabling_service" msgid="5473495203759847687">"વૉલ્યૂમ કી દબાવી રાખો. <xliff:g id="SERVICE_NAME">%1$s</xliff:g> ચાલુ કરી."</string>
     <string name="accessibility_shortcut_disabling_service" msgid="8675244165062700619">"વૉલ્યૂમ કી દબાવી રાખો. <xliff:g id="SERVICE_NAME">%1$s</xliff:g> બંધ કરી."</string>
@@ -1829,6 +1844,8 @@
     <string name="user_logging_out_message" msgid="7216437629179710359">"<xliff:g id="NAME">%1$s</xliff:g> લોગ આઉટ થઈ રહ્યાં છે…"</string>
     <string name="owner_name" msgid="8713560351570795743">"માલિક"</string>
     <string name="guest_name" msgid="8502103277839834324">"અતિથિ"</string>
+    <string name="headless_system_user_name" msgid="1849150903255530049">"સિસ્ટમ વપરાશકર્તા"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"વપરાશકર્તા"</string>
     <string name="error_message_title" msgid="4082495589294631966">"ભૂલ"</string>
     <string name="error_message_change_not_allowed" msgid="843159705042381454">"તમારા વ્યવસ્થાપકે આ ફેરફારની મંજૂરી આપી નથી"</string>
     <string name="app_not_found" msgid="3429506115332341800">"આ ક્રિયાને હેન્ડલ કરવા માટે કોઈ ઍપ્લિકેશન મળી નહીં"</string>
@@ -1969,9 +1986,9 @@
     <string name="package_updated_device_owner" msgid="7770195449213776218">"તમારા ઍડમિન દ્વારા અપડેટ કરવામાં આવ્યું છે.\nઆપેલી પરવાનગીઓ જોવા માટે સેટિંગ પર જાઓ"</string>
     <string name="package_deleted_device_owner" msgid="2292335928930293023">"તમારા વ્યવસ્થાપક દ્વારા કાઢી નાખવામાં આવેલ છે"</string>
     <string name="confirm_battery_saver" msgid="5247976246208245754">"ઓકે"</string>
-    <string name="battery_saver_description_with_learn_more" msgid="5444908404021316250">"બૅટરી સેવર ઘેરી થીમની સુવિધા ચાલુ કરે છે અને બૅકગ્રાઉન્ડ પ્રવૃત્તિ, અમુક વિઝ્યુઅલ ઇફેક્ટ, અમુક સુવિધાઓ અને કેટલાક નેટવર્ક કનેક્શન મર્યાદિત કે બંધ કરે છે."</string>
-    <string name="battery_saver_description" msgid="8518809702138617167">"બૅટરી સેવર ઘેરી થીમની સુવિધા ચાલુ કરે છે અને બૅકગ્રાઉન્ડ પ્રવૃત્તિ, અમુક વિઝ્યુઅલ ઇફેક્ટ, અમુક સુવિધાઓ અને કેટલાક નેટવર્ક કનેક્શન મર્યાદિત કે બંધ કરે છે."</string>
-    <string name="data_saver_description" msgid="4995164271550590517">"ડેટા વપરાશને ઘટાડવામાં સહાય માટે, ડેટા સેવર કેટલીક ઍપને બૅકગ્રાઉન્ડમાં ડેટા મોકલવા અથવા પ્રાપ્ત કરવાથી અટકાવે છે. તમે હાલમાં ઉપયોગ કરી રહ્યાં છો તે ઍપ ડેટાને ઍક્સેસ કરી શકે છે, પરંતુ તે આ ક્યારેક જ કરી શકે છે. આનો અર્થ એ હોઈ શકે છે, ઉદાહરણ તરીકે, છબીઓ ત્યાં સુધી પ્રદર્શિત થશે નહીં જ્યાં સુધી તમે તેમને ટૅપ નહીં કરો."</string>
+    <string name="battery_saver_description_with_learn_more" msgid="8969945879044849461">"બૅટરી સેવર ડાર્ક થીમની સુવિધા ચાલુ કરે છે અને બૅકગ્રાઉન્ડ ઍક્ટિવિટી, અમુક વિઝ્યુઅલ ઇફેક્ટ, અમુક સુવિધાઓ અને કેટલાક નેટવર્ક કનેક્શન મર્યાદિત કે બંધ કરે છે."</string>
+    <string name="battery_saver_description" msgid="2820475140307374570">"બૅટરી સેવર ડાર્ક થીમની સુવિધા ચાલુ કરે છે અને બૅકગ્રાઉન્ડ ઍક્ટિવિટી, અમુક વિઝ્યુઅલ ઇફેક્ટ, અમુક સુવિધાઓ અને કેટલાક નેટવર્ક કનેક્શન મર્યાદિત કે બંધ કરે છે."</string>
+    <string name="data_saver_description" msgid="4995164271550590517">"ડેટા વપરાશને ઘટાડવામાં મદદ માટે, ડેટા સેવર કેટલીક ઍપને બૅકગ્રાઉન્ડમાં ડેટા મોકલવા અથવા પ્રાપ્ત કરવાથી અટકાવે છે. તમે હાલમાં ઉપયોગ કરી રહ્યાં છો તે ઍપ ડેટાને ઍક્સેસ કરી શકે છે, પરંતુ તે આ ક્યારેક જ કરી શકે છે. આનો અર્થ એ હોઈ શકે છે, ઉદાહરણ તરીકે, છબીઓ ત્યાં સુધી ડિસ્પ્લે થશે નહીં જ્યાં સુધી તમે તેમને ટૅપ નહીં કરો."</string>
     <string name="data_saver_enable_title" msgid="7080620065745260137">"ડેટા સેવર ચાલુ કરીએ?"</string>
     <string name="data_saver_enable_button" msgid="4399405762586419726">"ચાલુ કરો"</string>
     <string name="zen_mode_duration_minutes_summary" msgid="4555514757230849789">"{count,plural, =1{એક મિનિટ માટે ({formattedTime} સુધી)}one{# મિનિટ માટે ({formattedTime} સુધી)}other{# મિનિટ માટે ({formattedTime} સુધી)}}"</string>
@@ -2032,6 +2049,9 @@
     <string name="maximize_button_text" msgid="4258922519914732645">"મહત્તમ કરો"</string>
     <string name="close_button_text" msgid="10603510034455258">"બંધ કરો"</string>
     <string name="notification_messaging_title_template" msgid="772857526770251989">"<xliff:g id="CONVERSATION_TITLE">%1$s</xliff:g>: <xliff:g id="SENDER_NAME">%2$s</xliff:g>"</string>
+    <string name="notification_metric_label_unit" msgid="309618413505128451">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>)"</string>
+    <string name="notification_metric_label_unit_separator" msgid="5631839566551764472">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g> (<xliff:g id="METRIC_UNIT">%2$s</xliff:g>):"</string>
+    <string name="notification_metric_label_separator" msgid="8416027475779515033">"<xliff:g id="METRIC_LABEL">%1$s</xliff:g>:"</string>
     <string name="call_notification_answer_action" msgid="5999246836247132937">"જવાબ"</string>
     <string name="call_notification_answer_video_action" msgid="2086030940195382249">"વીડિયો"</string>
     <string name="call_notification_decline_action" msgid="3700345945214000726">"નકારો"</string>
@@ -2043,7 +2063,7 @@
     <string name="promotional_notification_channel_label" msgid="7414844730492860233">"પ્રમોશન"</string>
     <string name="social_notification_channel_label" msgid="106520267132019945">"સામાજિક"</string>
     <string name="news_notification_channel_label" msgid="4299937455247883311">"ન્યૂઝ"</string>
-    <string name="recs_notification_channel_label" msgid="4945985121418684297">"સુઝાવો"</string>
+    <string name="recs_notification_channel_label" msgid="4731685669194175453">"સૂચવેલા"</string>
     <string name="importance_from_user" msgid="2782756722448800447">"તમે આ સૂચનાઓનું મહત્વ સેટ કર્યું છે."</string>
     <string name="importance_from_person" msgid="4235804979664465383">"શામેલ થયેલ લોકોને કારણે આ મહત્વપૂર્ણ છે."</string>
     <string name="notification_history_title_placeholder" msgid="7748630986182249599">"ઍપનું કસ્ટમ નોટિફિકેશન"</string>
@@ -2266,19 +2286,21 @@
     <string name="accessibility_system_action_dpad_left_label" msgid="6557647179116479152">"ડી-પૅડ ડાબે"</string>
     <string name="accessibility_system_action_dpad_right_label" msgid="9180196950365804081">"ડી-પૅડ જમણે"</string>
     <string name="accessibility_system_action_dpad_center_label" msgid="8149791419358224893">"ડી-પૅડ મધ્યમાં"</string>
-    <string name="accessibility_autoclick_type_settings_panel_title" msgid="7354373370578758696">"ઑટોક્લિક પ્રકારના સેટિંગની પૅનલ"</string>
-    <string name="accessibility_autoclick_left_click" msgid="2301793352260551080">"ડાબું ક્લિક કરો"</string>
-    <string name="accessibility_autoclick_right_click" msgid="4353495816526181293">"રાઇટ ક્લિક કરો"</string>
-    <string name="accessibility_autoclick_double_click" msgid="2103826849116176478">"બે વાર ક્લિક કરો"</string>
+    <string name="accessibility_autoclick_type_settings_panel_title" msgid="2153131135765368397">"ઑટોક્લિકના વિકલ્પોનું મેનૂ"</string>
+    <string name="accessibility_autoclick_left_click" msgid="8241237237588793835">"લેફ્ટ ક્લિક કરો"</string>
+    <string name="accessibility_autoclick_right_click" msgid="6208390123529830506">"રાઇટ ક્લિક કરો"</string>
+    <string name="accessibility_autoclick_double_click" msgid="2800154470129612873">"બે વાર ક્લિક કરો"</string>
     <string name="accessibility_autoclick_drag" msgid="1499559489796843224">"ખેંચો"</string>
     <string name="accessibility_autoclick_scroll" msgid="3499385943728726933">"સ્ક્રોલ કરો"</string>
+    <string name="accessibility_autoclick_long_press" msgid="6241367542788162585">"ટચ કરીને થોડીવાર દબાવી રાખો"</string>
     <string name="accessibility_autoclick_pause" msgid="3272200156172573568">"થોભાવો"</string>
-    <string name="accessibility_autoclick_position" msgid="2933660969907663545">"સ્થિતિ"</string>
-    <string name="accessibility_autoclick_scroll_up" msgid="2044948780797117443">"ઉપર સ્ક્રોલ કરો"</string>
-    <string name="accessibility_autoclick_scroll_down" msgid="3733401063292018116">"નીચે સ્ક્રોલ કરો"</string>
-    <string name="accessibility_autoclick_scroll_left" msgid="8564421367992824198">"ડાબે સ્ક્રોલ કરો"</string>
-    <string name="accessibility_autoclick_scroll_right" msgid="8932417330753984265">"જમણે સ્ક્રોલ કરો"</string>
-    <string name="accessibility_autoclick_scroll_exit" msgid="3788610039146769696">"સ્ક્રોલ મોડમાંથી બહાર નીકળો"</string>
+    <string name="accessibility_autoclick_resume" msgid="3213396544455349247">"ફરી શરૂ કરો"</string>
+    <string name="accessibility_autoclick_position" msgid="5952428999227490977">"મેનૂની સ્થિતિ બદલો"</string>
+    <string name="accessibility_autoclick_scroll_up" msgid="4018950185625702489">"ઉપર સ્ક્રોલ કરો"</string>
+    <string name="accessibility_autoclick_scroll_down" msgid="7055049493005995473">"નીચે સ્ક્રોલ કરો"</string>
+    <string name="accessibility_autoclick_scroll_left" msgid="7469540382570551732">"ડાબે સ્ક્રોલ કરો"</string>
+    <string name="accessibility_autoclick_scroll_right" msgid="8395851755038161912">"જમણે સ્ક્રોલ કરો"</string>
+    <string name="accessibility_autoclick_scroll_exit" msgid="8766731873098339511">"સ્ક્રોલ મોડમાંથી બહાર નીકળો"</string>
     <string name="accessibility_autoclick_scroll_panel_title" msgid="7120598166296447036">"સ્ક્રોલ પૅનલ"</string>
     <string name="as_app_forced_to_restricted_bucket" msgid="8233871289353898964">"<xliff:g id="PACKAGE_NAME">%1$s</xliff:g>ને પ્રતિબંધિત સમૂહમાં મૂકવામાં આવ્યું છે"</string>
     <string name="conversation_single_line_name_display" msgid="8958948312915255999">"<xliff:g id="SENDER_NAME">%1$s</xliff:g>:"</string>
@@ -2498,7 +2520,7 @@
     <string name="screen_not_shared_sensitive_content" msgid="7058419185079565001">"સુરક્ષા માટે સ્ક્રીન શેર કરતી વખતે ઍપનું કન્ટેન્ટ છુપાવેલું છે"</string>
     <string name="satellite_notification_title" msgid="4026338973463121526">"સેટેલાઇટ સાથે ઑટોમૅટિક રીતે કનેક્ટેડ"</string>
     <string name="satellite_notification_summary" msgid="5207364139430767162">"તમે મોબાઇલ અથવા વાઇ-ફાઇ નેટવર્ક વિના મેસેજ મોકલી અને પ્રાપ્ત કરી શકો છો"</string>
-    <string name="satellite_notification_summary_with_data" msgid="6486843676720429049">"તમે મેસેજ મોકલી અને પ્રાપ્ત કરી શકો છો અને સૅટલાઇટ દ્વારા મર્યાદિત ડેટાનો ઉપયોગ કરી શકો છો"</string>
+    <string name="satellite_notification_summary_with_data" msgid="8290202758586475712">"તમે સૅટલાઇટ પર મેસેજ મોકલી અને પ્રાપ્ત કરી શકો છો અને પસંદગીની ઍપનો ઉપયોગ કરી શકો છો"</string>
     <string name="satellite_notification_manual_title" msgid="1097504441849466279">"શું સૅટલાઇટ મેસેજિંગનો ઉપયોગ કરીએ?"</string>
     <string name="satellite_notification_manual_summary" msgid="901206289846283445">"મોબાઇલ કે વાઇ-ફાઇ નેટવર્ક વિના મેસેજ મોકલો અને મેળવો"</string>
     <string name="satellite_notification_open_message" msgid="4149234979688273729">"Messages ખોલો"</string>
@@ -2553,12 +2575,26 @@
     <string name="keyboard_shortcut_group_applications_calendar" msgid="3571770335653387606">"કૅલેન્ડર"</string>
     <string name="keyboard_shortcut_group_applications_calculator" msgid="6753209559716091507">"કેલ્ક્યુલેટર"</string>
     <string name="keyboard_shortcut_group_applications_maps" msgid="7950000659522589471">"Maps"</string>
+    <string name="keyboard_shortcut_group_applications_files" msgid="863938400765838051">"ફાઇલો"</string>
     <string name="keyboard_shortcut_group_applications" msgid="3010389163951364798">"ઍપ્લિકેશનો"</string>
     <string name="fingerprint_loe_notification_msg" msgid="3927447270148854546">"તમારી ફિંગરપ્રિન્ટને હવેથી ઓળખી શકાશે નહીં. ફિંગરપ્રિન્ટ અનલૉક સુવિધાનું ફરી સેટઅપ કરો."</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="468577168569874967">"લૉક કરેલું હોય ત્યારે USB ડિવાઇસ પ્લગ-ઇન હોય છે"</string>
-    <string name="usb_apm_usb_plugged_in_when_locked_notification_text" msgid="6695268246267993166">"Android લૉક હોય ત્યારે USB ડિવાઇસ પ્લગ-ઇન હોય છે. ડિવાઇસનો ઉપયોગ કરવા માટે, કૃપા કરીને પહેલા Android અનલૉક કરો અને પછી USB ડિવાઇસનો ઉપયોગ કરવા માટે તેને ફરી શામેલ કરો."</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_app_title" msgid="285421860627714333">"સુરક્ષા અને પ્રાઇવસી"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_title" msgid="3711633462195368964">"સ્ક્રીન અનલૉક કરીને USB ફરીથી કનેક્ટ કરો"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_title" msgid="2426356396215833585">"USB કનેક્ટ કરવા માટે સ્ક્રીન અનલૉક કરો"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_replug_notification_text" msgid="3936428118409384816">"USB કનેક્ટિવિટી શરૂ કરવા માટે અદ્યતન સુરક્ષાને તમારી સ્ક્રીન અનલૉક કરવાની જરૂર પડે છે"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_data_notification_text" msgid="8392199274984083972">"USB કનેક્ટિવિટી શરૂ કરવા માટે અદ્યતન સુરક્ષાને તમારી સ્ક્રીન અનલૉક કરવાની જરૂર પડે છે"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_notification_text" msgid="6563939109526112446">"ઝડપી ચાર્જિંગ માટે અદ્યતન સુરક્ષાને તમારી સ્ક્રીન અનલૉક કરવાની જરૂર પડે છે"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_charge_data_notification_text" msgid="411509882563364946">"ઝડપી ચાર્જિંગ અથવા USB કનેક્ટિવિટી શરૂ કરવા માટે, અદ્યતન સુરક્ષાને તમારી સ્ક્રીન અનલૉક કરવાની જરૂર પડે છે"</string>
+    <string name="usb_apm_usb_plugged_in_when_locked_notification_silence_action_text" msgid="5495539757631669634">"સાઇલન્ટ કરો"</string>
+    <string name="usb_apm_usb_notification_silenced_title" msgid="5114203793430169863">"નોટિફિકેશનને સાઇલન્ટ કરવામાં આવ્યા છે"</string>
+    <string name="usb_apm_usb_notification_silenced_text" msgid="8394777105856033342">"તમે તમારું ડિવાઇસ ફરી શરૂ કરો નહીં ત્યાં સુધી અદ્યતન સુરક્ષાના USB નોટિફિકેશન મેળવશો નહીં"</string>
     <string name="usb_apm_usb_suspicious_activity_notification_title" msgid="3461195995882871461">"શંકાસ્પદ USB ઍક્ટિવિટી"</string>
-    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="6537085605929303187">"USB ડેટા સિગ્નલ બંધ કરવામાં આવ્યું છે."</string>
+    <string name="usb_apm_usb_suspicious_activity_notification_text" msgid="5772698072220844779">"USB ડેટા સિગ્નલ બંધ કરવામાં આવ્યા છે"</string>
     <string name="fingerprint_frr_notification_title" msgid="3668331918920659093">"ફિંગરપ્રિન્ટ અનલૉક સુવિધાનો ઉપયોગ કરવામાં સમસ્યા આવી રહી છે?"</string>
     <string name="fingerprint_frr_notification_msg" msgid="2162966846624639252">"તમારા અનલૉકિંગના અનુભવને બહેતર બનાવવા માટેની ટિપનો રિવ્યૂ કરવા માટે ટૅપ કરો"</string>
+    <string name="no_blink_accessibility_text_cursor_blink_label" msgid="223072797385428874">"બ્લિંક ન કરો"</string>
+    <string name="long_press_power_to_turn_off_tv_toast" msgid="2231397748028498986">"ટીવી બંધ કરવા માટે પાવર બટનને થોડીવાર દબાવી રાખો"</string>
+    <string name="tv_watchdog_notification_channel_name" msgid="4936803270000103737">"સિસ્ટમ સંસાધન સંબંધિત અલર્ટ"</string>
+    <string name="tv_watchdog_notification_title" msgid="195239206215922517">"સંસાધનનો વધુ પડતો ઉપયોગ"</string>
+    <string name="tv_watchdog_notification_content" msgid="6444873431710133936">"ઍપ ‘<xliff:g id="APP_NAME">%1$s</xliff:g> ઘણા બધા સંસાધનોનો ઉપયોગ કરી રહી છે.\""</string>
 </resources>

@@ -18,4 +18,4 @@ package com.android.systemui.media.remedia.shared.model
 
 import androidx.compose.ui.graphics.Color
 
-data class MediaColorScheme(val primary: Color, val onPrimary: Color)
+data class MediaColorScheme(val primary: Color, val onPrimary: Color, val background: Color)

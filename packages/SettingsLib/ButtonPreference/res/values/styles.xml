@@ -59,4 +59,11 @@
         <item name="android:textColor">@color/settingslib_materialColorOnSurface</item>
         <item name="android:importantForAccessibility">no</item>
     </style>
+
+    <style name="SettingsLibButtonPreferenceStyle">
+        <item name="android:orientation">vertical</item>
+        <item name="android:paddingStart">?android:attr/listPreferredItemPaddingStart</item>
+        <item name="android:paddingEnd">?android:attr/listPreferredItemPaddingEnd</item>
+        <item name="android:filterTouchesWhenObscured">true</item>
+    </style>
 </resources>

@@ -23,7 +23,6 @@ import com.android.app.tracing.coroutines.flow.flowName
 import com.android.settingslib.notification.modes.ZenMode
 import com.android.settingslib.notification.modes.ZenModeDescriptions
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.modes.shared.ModesUi
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
 import com.android.systemui.qs.tiles.impl.modes.domain.model.ModesDndTileModel
@@ -76,5 +75,5 @@ constructor(
     }
 
     override fun availability(user: UserHandle): Flow<Boolean> =
-        flowOf(ModesUi.isEnabled && android.app.Flags.modesUiDndTile())
+        flowOf(android.app.Flags.modesUiDndTile())
 }

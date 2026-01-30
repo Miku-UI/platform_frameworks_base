@@ -27,6 +27,7 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.mobileConnectionsRepository
 import com.android.systemui.telephony.domain.interactor.telephonyInteractor
 import com.android.systemui.user.domain.interactor.selectedUserInteractor
@@ -42,6 +43,7 @@ val Kosmos.bouncerActionButtonInteractor by Fixture {
         telephonyInteractor = telephonyInteractor,
         authenticationInteractor = authenticationInteractor,
         selectedUserInteractor = selectedUserInteractor,
+        secureLockDeviceInteractor = secureLockDeviceInteractor,
         activityTaskManager = activityTaskManager,
         telecomManager = telecomManager,
         emergencyAffordanceManager = emergencyAffordanceManager,

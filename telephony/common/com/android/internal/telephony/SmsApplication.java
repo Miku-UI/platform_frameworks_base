@@ -61,7 +61,7 @@ import java.util.stream.Collectors;
 /**
  * Class for managing the primary application that we will deliver SMS/MMS messages to
  *
- * {@hide}
+ * @hide
  */
 public final class SmsApplication {
     static final String LOG_TAG = "SmsApplication";

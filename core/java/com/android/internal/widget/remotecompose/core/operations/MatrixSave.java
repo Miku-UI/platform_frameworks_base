@@ -99,7 +99,7 @@ public class MatrixSave extends PaintOperation implements Serializable {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME);
     }
 }

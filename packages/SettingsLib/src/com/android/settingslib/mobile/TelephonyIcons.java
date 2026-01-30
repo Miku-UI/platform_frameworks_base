@@ -27,9 +27,6 @@ import java.util.Map;
  * Telephony related icons and strings for SysUI and Settings.
  */
 public class TelephonyIcons {
-    //***** Data connection icons
-    public static final int FLIGHT_MODE_ICON = R.drawable.stat_sys_airplane_mode;
-
     public static final int ICON_LTE =
             flagged(R.drawable.ic_lte_mobiledata, R.drawable.ic_lte_mobiledata_updated);
     public static final int ICON_LTE_PLUS =

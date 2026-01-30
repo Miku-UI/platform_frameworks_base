@@ -50,11 +50,11 @@ class EndMediaProjectionDialogHelperTest : SysuiTestCase() {
     fun createDialog_usesDelegateAndFactory() {
         val dialog = mock<SystemUIDialog>()
         val delegate = SystemUIDialog.Delegate { dialog }
-        whenever(kosmos.mockSystemUIDialogFactory.create(eq(delegate))).thenReturn(dialog)
+        whenever(kosmos.mockSystemUIDialogFactory.create(eq(delegate), any())).thenReturn(dialog)
 
-        underTest.createDialog(delegate)
+        underTest.createDialog(context, delegate)
 
-        verify(kosmos.mockSystemUIDialogFactory).create(delegate)
+        verify(kosmos.mockSystemUIDialogFactory).create(delegate, context)
     }
 
     @Test

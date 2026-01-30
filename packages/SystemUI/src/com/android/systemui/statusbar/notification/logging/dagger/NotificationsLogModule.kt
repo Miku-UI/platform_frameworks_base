@@ -59,7 +59,7 @@ object NotificationsLogModule {
     fun provideNotifInflationLogBuffer(factory: LogBufferFactory): LogBuffer {
         return factory.create(
             "NotifInflationLog",
-            250,
+            500,
             systraceTrackName = notifPipelineTrack("NotifInflationLog"),
         )
     }

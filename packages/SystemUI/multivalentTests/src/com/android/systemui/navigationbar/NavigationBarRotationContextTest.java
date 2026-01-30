@@ -32,6 +32,7 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.SysuiTestableContext;
+import com.android.systemui.rotation.RotationPolicyWrapper;
 import com.android.systemui.shared.rotation.RotationButton;
 import com.android.systemui.shared.rotation.RotationButtonController;
 import com.android.systemui.statusbar.policy.RotationLockController;
@@ -40,7 +41,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.MockitoAnnotations;
 
 import java.util.function.Supplier;
 
@@ -60,12 +60,12 @@ public class NavigationBarRotationContextTest extends SysuiTestCase {
 
     @Before
     public void setup() {
-        MockitoAnnotations.initMocks(this);
         mDependency.injectMockDependency(RotationLockController.class);
 
         final View view = new View(mContext);
         mRotationButton = mock(RotationButton.class);
-        mRotationButtonController = new RotationButtonController(mContext,
+        mRotationButtonController = new RotationButtonController(mock(RotationPolicyWrapper.class),
+                mContext,
                 /* lightIconColor */ 0,
                 /* darkIconColor */ 0,
                 /* iconCcwStart0 */ 0,

@@ -27,6 +27,7 @@ import android.os.SystemClock;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.util.Log;
 import android.util.Slog;
 
 import com.android.server.biometrics.log.BiometricContext;
@@ -40,7 +41,7 @@ import java.util.function.Supplier;
  */
 public abstract class AcquisitionClient<T> extends HalClientMonitor<T> implements ErrorConsumer {
 
-    private static final String TAG = "Biometrics/AcquisitionClient";
+    private static final String TAG = "AcquisitionClient";
 
     private static final VibrationAttributes HARDWARE_FEEDBACK_VIBRATION_ATTRIBUTES =
             VibrationAttributes.createForUsage(VibrationAttributes.USAGE_HARDWARE_FEEDBACK);
@@ -167,8 +168,10 @@ public abstract class AcquisitionClient<T> extends HalClientMonitor<T> implement
             boolean shouldSend) {
         getLogger().logOnAcquired(getContext(), getOperationContext(),
                 acquiredInfo, vendorCode, getTargetUserId());
-        if (DEBUG) {
-            Slog.v(TAG, "Acquired: " + acquiredInfo + " " + vendorCode
+
+        if (Log.isLoggable(TAG, Log.VERBOSE)) {
+            Slog.v(TAG, "Acquired: " + acquiredInfo
+                    + ", vendorCode: " + vendorCode
                     + ", shouldSend: " + shouldSend);
         }
 

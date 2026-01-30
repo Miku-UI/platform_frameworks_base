@@ -46,3 +46,10 @@ flag {
     description: "Makes reboot and factory reset synchronous in RescueParty"
     bug: "328203835"
 }
+
+flag {
+    name: "extend_rollback_lifetime"
+    namespace: "modularization"
+    description: "Increase rollback lifetime on RollbackManagerService from 14 days to 60 days"
+    bug: "416259905"
+}

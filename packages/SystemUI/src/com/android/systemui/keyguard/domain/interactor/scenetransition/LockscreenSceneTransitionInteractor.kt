@@ -111,8 +111,17 @@ constructor(
         if (currentTransitionId == null) return
         if (prevTransition !is ObservableTransitionState.Transition) return
 
+        // If the previous transition's fromContent is still in currentOverlays, we canceled a
+        // transition away from that overlay.
+        val canceledOverlayTransition = idle.currentOverlays.contains(prevTransition.fromContent)
+
+        val idleOnToContentAfterCompletedTransition =
+            idle.currentScene == prevTransition.toContent && !canceledOverlayTransition
+
+        // Finish the current transition if we've completed a scene transition to a new scene or a
+        // new overlay.
         if (
-            idle.currentScene == prevTransition.toContent ||
+            idleOnToContentAfterCompletedTransition ||
                 idle.currentOverlays.contains(prevTransition.toContent)
         ) {
             finishCurrentTransition()

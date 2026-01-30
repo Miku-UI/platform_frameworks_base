@@ -98,7 +98,7 @@ interface IAccessibilityManager {
     void performAccessibilityShortcut(int displayId, int shortcutType, String targetName);
 
     @EnforcePermission("MANAGE_ACCESSIBILITY")
-    List<String> getAccessibilityShortcutTargets(int shortcutType);
+    List<String> getAccessibilityShortcutTargets(int shortcutType, int userId);
 
     // System process only
     @RequiresNoPermission
@@ -147,12 +147,12 @@ interface IAccessibilityManager {
     @RequiresNoPermission
     oneway void setAccessibilityWindowAttributes(int displayId, int windowId, int userId, in AccessibilityWindowAttributes attributes);
 
-    // Requires CREATE_VIRTUAL_DEVICE permission. Also requires either a11y permission or role.
-    @EnforcePermission("CREATE_VIRTUAL_DEVICE")
+    // Requires the caller to either hold the MANAGE_ACCESSIBILITY permission or own the provided
+    // displayId via VirtualDeviceManager.
     boolean registerProxyForDisplay(IAccessibilityServiceClient proxy, int displayId);
 
-    // Requires CREATE_VIRTUAL_DEVICE permission. Also requires either a11y permission or role.
-    @EnforcePermission("CREATE_VIRTUAL_DEVICE")
+    // Requires the caller to either hold the MANAGE_ACCESSIBILITY permission or own the provided
+    // displayId via VirtualDeviceManager.
     boolean unregisterProxyForDisplay(int displayId);
 
     // Used by UiAutomation for tests on the InputFilter
@@ -201,4 +201,13 @@ interface IAccessibilityManager {
 
     @RequiresNoPermission
     void unregisterUserInitializationCompleteCallback(IUserInitializationCompleteCallback callback);
+
+    @RequiresNoPermission
+    boolean enableTrustedAccessibilityService(in ComponentName trustedAccessibilityService, int userId);
+
+    @EnforcePermission("MANAGE_ACCESSIBILITY")
+    void setTrustedAccessibilityServiceForTesting(in ComponentName trustedAccessibilityService);
+
+    @EnforcePermission("MANAGE_ACCESSIBILITY")
+    oneway void enableMagnificationAndZoomIn(int displayId);
 }

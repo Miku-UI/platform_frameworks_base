@@ -19,7 +19,7 @@ package android.app.usage;
 import android.os.RemoteCallback;
 import android.app.usage.CacheQuotaHint;
 
-/** {@hide} */
+/** @hide */
 oneway interface ICacheQuotaService {
     void computeCacheQuotaHints(in RemoteCallback callback, in List<CacheQuotaHint> requests);
 }

@@ -394,15 +394,13 @@ public class DesktopAppCompatAspectRatioPolicyTests extends WindowTestsBase {
      */
     void runTestScenario(@NonNull Consumer<DesktopAppCompatAspectRatioPolicyRobotTest> consumer) {
         final DesktopAppCompatAspectRatioPolicyRobotTest robot =
-                new DesktopAppCompatAspectRatioPolicyRobotTest(mWm, mAtm, mSupervisor);
+                new DesktopAppCompatAspectRatioPolicyRobotTest(this);
         consumer.accept(robot);
     }
 
     private static class DesktopAppCompatAspectRatioPolicyRobotTest extends AppCompatRobotBase {
-        DesktopAppCompatAspectRatioPolicyRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        DesktopAppCompatAspectRatioPolicyRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         @Override

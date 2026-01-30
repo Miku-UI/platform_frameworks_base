@@ -18,6 +18,7 @@ package com.android.providers.settings;
 
 import android.app.ActivityManager;
 import android.content.AttributionSource;
+import android.content.Context;
 import android.content.IContentProvider;
 import android.content.pm.PackageManager;
 import android.os.Binder;
@@ -110,6 +111,7 @@ final public class SettingsService extends Binder {
         }
 
         int mUser = UserHandle.USER_NULL;
+        int mDeviceId = Context.DEVICE_ID_DEFAULT;
         CommandVerb mVerb = CommandVerb.UNSPECIFIED;
         String mTable = null;
         String mKey = null;
@@ -146,6 +148,16 @@ final public class SettingsService extends Binder {
                     if (mUser == UserHandle.USER_ALL) {
                         perr.println("Invalid user: all");
                         return -1;
+                    }
+                } else if ("--deviceId".equals(arg)) {
+                    if (mDeviceId != Context.DEVICE_ID_DEFAULT) {
+                        perr.println("Invalid device: --deviceId specified more than once");
+                        break;
+                    }
+                    try {
+                        mDeviceId = Integer.parseInt(getNextArgRequired());
+                    } catch (NumberFormatException e) {
+                        throw new IllegalArgumentException("Bad deviceId number: " + arg);
                     }
                 } else if (mVerb == CommandVerb.UNSPECIFIED) {
                     if ("get".equalsIgnoreCase(arg)) {
@@ -249,15 +261,15 @@ final public class SettingsService extends Binder {
             final PrintWriter pout = getOutPrintWriter();
             switch (mVerb) {
                 case GET:
-                    pout.println(getForUser(iprovider, mUser, mTable, mKey));
+                    pout.println(getForUser(iprovider, mUser, mDeviceId, mTable, mKey));
                     break;
                 case PUT:
-                    putForUser(iprovider, mUser, mTable, mKey, mValue, mTag, mMakeDefault,
-                            mOverrideableByRestore);
+                    putForUser(iprovider, mUser, mDeviceId, mTable, mKey, mValue, mTag,
+                            mMakeDefault, mOverrideableByRestore);
                     break;
                 case DELETE:
                     pout.println("Deleted "
-                            + deleteForUser(iprovider, mUser, mTable, mKey) + " rows");
+                            + deleteForUser(iprovider, mUser, mDeviceId, mTable, mKey) + " rows");
                     break;
                 case LIST:
                     for (String line : listForUser(iprovider, mUser, mTable)) {
@@ -265,7 +277,7 @@ final public class SettingsService extends Binder {
                     }
                     break;
                 case RESET:
-                    resetForUser(iprovider, mUser, mTable, mTag);
+                    resetForUser(iprovider, mUser, mDeviceId, mTable, mTag);
                     break;
                 default:
                     perr.println("Unspecified command");
@@ -335,7 +347,7 @@ final public class SettingsService extends Binder {
             return lines;
         }
 
-        String getForUser(IContentProvider provider, int userHandle,
+        String getForUser(IContentProvider provider, int userHandle, int deviceId,
                 final String table, final String key) {
             final String callGetCommand;
             if ("system".equals(table)) callGetCommand = Settings.CALL_METHOD_GET_SYSTEM;
@@ -351,7 +363,8 @@ final public class SettingsService extends Binder {
                 Bundle arg = new Bundle();
                 arg.putInt(Settings.CALL_METHOD_USER_KEY, userHandle);
                 final AttributionSource attributionSource = new AttributionSource(
-                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null);
+                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null,
+                        deviceId);
                 Bundle b = provider.call(attributionSource, Settings.AUTHORITY,
                         callGetCommand, key, arg);
                 if (b != null) {
@@ -363,7 +376,7 @@ final public class SettingsService extends Binder {
             return result;
         }
 
-        void putForUser(IContentProvider provider, int userHandle, final String table,
+        void putForUser(IContentProvider provider, int userHandle, int deviceId, final String table,
                 final String key, final String value, String tag, boolean makeDefault,
                 boolean overrideableByRestore) {
             Slog.v(LOG_TAG, "putForUser(userId=" + userHandle + ", table=" + table + ", key=" + key
@@ -398,7 +411,8 @@ final public class SettingsService extends Binder {
                     arg.putBoolean(Settings.CALL_METHOD_OVERRIDEABLE_BY_RESTORE_KEY, true);
                 }
                 final AttributionSource attributionSource = new AttributionSource(
-                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null);
+                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null,
+                        deviceId);
                 provider.call(attributionSource, Settings.AUTHORITY,
                         callPutCommand, key, arg);
             } catch (RemoteException e) {
@@ -406,7 +420,7 @@ final public class SettingsService extends Binder {
             }
         }
 
-        int deleteForUser(IContentProvider provider, int userHandle,
+        int deleteForUser(IContentProvider provider, int userHandle, int deviceId,
                 final String table, final String key) {
             final String callDeleteCommand;
             if ("system".equals(table)) {
@@ -424,7 +438,8 @@ final public class SettingsService extends Binder {
                 Bundle arg = new Bundle();
                 arg.putInt(Settings.CALL_METHOD_USER_KEY, userHandle);
                 final AttributionSource attributionSource = new AttributionSource(
-                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null);
+                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null,
+                        deviceId);
                 Bundle result = provider.call(attributionSource, Settings.AUTHORITY,
                         callDeleteCommand, key, arg);
                 return result.getInt(SettingsProvider.RESULT_ROWS_DELETED);
@@ -433,7 +448,7 @@ final public class SettingsService extends Binder {
             }
         }
 
-        void resetForUser(IContentProvider provider, int userHandle,
+        void resetForUser(IContentProvider provider, int userHandle, int deviceId,
                 String table, String tag) {
             final String callResetCommand;
             if ("secure".equals(table)) callResetCommand = Settings.CALL_METHOD_RESET_SECURE;
@@ -450,10 +465,10 @@ final public class SettingsService extends Binder {
                 if (tag != null) {
                     arg.putString(Settings.CALL_METHOD_TAG_KEY, tag);
                 }
-                String packageName = mPackageName != null ? mPackageName : resolveCallingPackage();
                 arg.putInt(Settings.CALL_METHOD_USER_KEY, userHandle);
                 final AttributionSource attributionSource = new AttributionSource(
-                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null);
+                        Binder.getCallingUid(), resolveCallingPackage(), /*attributionTag*/ null,
+                        deviceId);
                 provider.call(attributionSource, Settings.AUTHORITY, callResetCommand, null, arg);
             } catch (RemoteException e) {
                 throw new RuntimeException("Failed in IPC", e);
@@ -492,16 +507,20 @@ final public class SettingsService extends Binder {
                 pw.println("Settings provider (settings) commands:");
                 pw.println("  help");
                 pw.println("      Print this help text.");
-                pw.println("  get [--user <USER_ID> | current] NAMESPACE KEY");
+                pw.println("  get [--user <USER_ID> | current] [--deviceId <DEVICE_ID> | 0]"
+                        + " NAMESPACE KEY");
                 pw.println("      Retrieve the current value of KEY.");
-                pw.println("  put [--user <USER_ID> | current] NAMESPACE KEY VALUE [TAG] [default] [overrideableByRestore]");
+                pw.println("  put [--user <USER_ID> | current] [--deviceId <DEVICE_ID> | 0]"
+                        + " NAMESPACE KEY VALUE [TAG] [default] [overrideableByRestore]");
                 pw.println("      Change the contents of KEY to VALUE.");
                 pw.println("      TAG to associate with the setting (cannot be default or overrideableByRestore).");
                 pw.println("      {default} to set as the default, case-insensitive only for global/secure namespace");
                 pw.println("      {overrideableByRestore} to let the value be overridden by BackupManager on restore operations");
-                pw.println("  delete [--user <USER_ID> | current] NAMESPACE KEY");
+                pw.println("  delete [--user <USER_ID> | current] [--deviceId <DEVICE_ID> | 0]"
+                        + " NAMESPACE KEY");
                 pw.println("      Delete the entry for KEY.");
-                pw.println("  reset [--user <USER_ID> | current] NAMESPACE {PACKAGE_NAME | RESET_MODE}");
+                pw.println("  reset [--user <USER_ID> | current] [--deviceId <DEVICE_ID> | 0]"
+                        + " NAMESPACE {PACKAGE_NAME | RESET_MODE}");
                 pw.println("      Reset the global/secure table for a package with mode.");
                 pw.println("      RESET_MODE is one of {untrusted_defaults, untrusted_clear, trusted_defaults}, case-insensitive");
                 pw.println("  list [--user <USER_ID> | current] NAMESPACE");

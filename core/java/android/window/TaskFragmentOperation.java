@@ -62,7 +62,11 @@ public final class TaskFragmentOperation implements Parcelable {
     /** Clears the adjacent TaskFragments relationship. */
     public static final int OP_TYPE_CLEAR_ADJACENT_TASK_FRAGMENTS = 5;
 
-    /** Requests focus on the top running Activity in the given TaskFragment. */
+    /**
+     * Requests focus on the top running Activity in the given TaskFragment. Note that this
+     * executes after all the operations in the same {@link WindowContainerTransaction} are
+     * applied.
+     */
     public static final int OP_TYPE_REQUEST_FOCUS_ON_TASK_FRAGMENT = 6;
 
     /** Sets a given TaskFragment to have a companion TaskFragment. */

@@ -24,6 +24,7 @@ import com.android.compose.animation.scene.TransitionKey
 import com.android.compose.animation.scene.observableTransitionState
 import com.android.systemui.scene.shared.model.SceneDataSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -32,6 +33,7 @@ import kotlinx.coroutines.flow.stateIn
 /**
  * An implementation of [SceneDataSource] that's backed by a [MutableSceneTransitionLayoutState].
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 class SceneTransitionLayoutDataSource(
     private val state: MutableSceneTransitionLayoutState,
 
@@ -67,10 +69,6 @@ class SceneTransitionLayoutDataSource(
         )
     }
 
-    override fun snapToScene(toScene: SceneKey) {
-        state.snapTo(scene = toScene)
-    }
-
     override fun showOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) {
         state.showOverlay(
             overlay = overlay,
@@ -96,15 +94,14 @@ class SceneTransitionLayoutDataSource(
         )
     }
 
-    override fun instantlyShowOverlay(overlay: OverlayKey) {
-        state.snapTo(overlays = state.currentOverlays + overlay)
-    }
-
-    override fun instantlyHideOverlay(overlay: OverlayKey) {
-        state.snapTo(overlays = state.currentOverlays - overlay)
-    }
-
     override fun freezeAndAnimateToCurrentState() {
         state.currentTransition?.freezeAndAnimateToCurrentState()
+    }
+
+    override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) {
+        state.snapTo(
+            scene = scene ?: state.transitionState.currentScene,
+            overlays = overlays ?: state.transitionState.currentOverlays,
+        )
     }
 }

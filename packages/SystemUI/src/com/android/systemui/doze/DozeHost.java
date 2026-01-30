@@ -20,6 +20,8 @@ import android.annotation.NonNull;
 
 import androidx.annotation.MainThread;
 
+import com.android.systemui.keyguard.shared.model.FingerprintAuthenticationStatus;
+
 /**
  * Interface the doze service uses to communicate with the rest of system UI.
  */
@@ -64,22 +66,22 @@ public interface DozeHost {
     void onSlpiTap(float x, float y);
 
     /**
-     * Artificially dim down the the display by changing scrim opacities.
+     * Artificially dim down the display by changing scrim opacities.
      * @param scrimOpacity opacity from 0 to 1.
      */
     default void setAodDimmingScrim(float scrimOpacity) {}
 
     /**
-     * Sets the actual display brightness.
-     * @param value from 1 to 255.
+     * Artificially dim down the wallpaper by changing scrim opacities.
+     * @param scrimOpacity opacity from 0 to 1.
      */
-    void setDozeScreenBrightness(int value);
+    default void setAodWallpaperDimmingScrim(float scrimOpacity) {}
 
     /**
      * Sets the actual display brightness.
      * @param value from {@link PowerManager#BRIGHTNESS_MIN} to {@link PowerManager#BRIGHTNESS_MAX}.
      */
-    void setDozeScreenBrightnessFloat(float value);
+    void setDozeScreenBrightness(float value);
 
     /**
      * Fade out screen before switching off the display power mode.
@@ -132,6 +134,11 @@ public interface DozeHost {
          * Called when fingerprint acquisition has started and screen state might need updating.
          */
         default void onSideFingerprintAcquisitionStarted() {}
+
+        /**
+         * Called when fingerprint auth events want the screen on to show info.
+         */
+        default void onFingerprintPulseWhileScreenOff(FingerprintAuthenticationStatus state) {}
     }
 
     interface PulseCallback {

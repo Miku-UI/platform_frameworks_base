@@ -18,4 +18,5 @@ package com.android.systemui.common.data.repository
 
 import com.android.systemui.kosmos.Kosmos
 
-val Kosmos.batteryRepository: BatteryRepository by Kosmos.Fixture { FakeBatteryRepository() }
+val Kosmos.batteryRepositoryDeprecated: BatteryRepositoryDeprecated by
+    Kosmos.Fixture { FakeBatteryRepositoryDeprecated() }

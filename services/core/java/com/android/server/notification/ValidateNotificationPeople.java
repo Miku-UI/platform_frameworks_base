@@ -57,7 +57,7 @@ import java.util.concurrent.TimeUnit;
  * This {@link NotificationSignalExtractor} attempts to validate
  * people references. Also elevates the priority of real people.
  *
- * {@hide}
+ * @hide
  */
 public class ValidateNotificationPeople implements NotificationSignalExtractor {
     // Using a shorter log tag since setprop has a limit of 32chars on variable name.

@@ -55,7 +55,7 @@ class GroupedTaskInfoTest : ShellTestCase() {
     @Test
     fun testSingleTask_task1Set_task2Null() {
         val group = singleTaskGroupInfo()
-        assertThat(group.taskInfo1.taskId).isEqualTo(1)
+        assertThat(group.taskInfo1?.taskId).isEqualTo(1)
         assertThat(group.taskInfo2).isNull()
     }
 
@@ -74,7 +74,7 @@ class GroupedTaskInfoTest : ShellTestCase() {
     @Test
     fun testSplitTasks_task1Set_task2Set_boundsSet() {
         val group = splitTasksGroupInfo()
-        assertThat(group.taskInfo1.taskId).isEqualTo(1)
+        assertThat(group.taskInfo1?.taskId).isEqualTo(1)
         assertThat(group.taskInfo2?.taskId).isEqualTo(2)
         assertThat(group.splitBounds).isNotNull()
     }
@@ -169,7 +169,7 @@ class GroupedTaskInfoTest : ShellTestCase() {
         val taskInfoFromParcel: GroupedTaskInfo =
             GroupedTaskInfo.CREATOR.createFromParcel(parcel)
         assertThat(taskInfoFromParcel.isBaseType(TYPE_FULLSCREEN)).isTrue()
-        assertThat(taskInfoFromParcel.taskInfo1.taskId).isEqualTo(1)
+        assertThat(taskInfoFromParcel.taskInfo1?.taskId).isEqualTo(1)
         assertThat(taskInfoFromParcel.taskInfo2).isNull()
     }
 
@@ -183,11 +183,9 @@ class GroupedTaskInfoTest : ShellTestCase() {
         val taskInfoFromParcel: GroupedTaskInfo =
             GroupedTaskInfo.CREATOR.createFromParcel(parcel)
         assertThat(taskInfoFromParcel.isBaseType(TYPE_SPLIT)).isTrue()
-        assertThat(taskInfoFromParcel.taskInfo1.taskId).isEqualTo(1)
-        assertThat(taskInfoFromParcel.taskInfo2).isNotNull()
-        assertThat(taskInfoFromParcel.taskInfo2!!.taskId).isEqualTo(2)
-        assertThat(taskInfoFromParcel.splitBounds).isNotNull()
-        assertThat(taskInfoFromParcel.splitBounds!!.snapPosition).isEqualTo(SNAP_TO_2_50_50)
+        assertThat(taskInfoFromParcel.taskInfo1?.taskId).isEqualTo(1)
+        assertThat(taskInfoFromParcel.taskInfo2?.taskId).isEqualTo(2)
+        assertThat(taskInfoFromParcel.splitBounds?.snapPosition).isEqualTo(SNAP_TO_2_50_50)
     }
 
     @Test

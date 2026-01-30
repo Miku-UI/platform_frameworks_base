@@ -23,9 +23,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.editor.SettingsTextFieldPassword
@@ -38,36 +36,27 @@ private const val TITLE = "Sample SettingsTextFieldPassword"
 object SettingsTextFieldPasswordPageProvider : SettingsPageProvider {
     override val name = "SettingsTextFieldPassword"
 
-    override fun getTitle(arguments: Bundle?): String {
-        return TITLE
-    }
-
     @Composable
     override fun Page(arguments: Bundle?) {
         var value by remember { mutableStateOf("value") }
         RegularScaffold(title = TITLE) {
-            SettingsTextFieldPassword(
-                value = value,
-                label = "label",
-                onTextChange = { value = it })
+            SettingsTextFieldPassword(value = value, label = "label", onTextChange = { value = it })
         }
     }
 
-    fun buildInjectEntry(): SettingsEntryBuilder {
-        return SettingsEntryBuilder.createInject(owner = createSettingsPage())
-            .setUiLayoutFn {
-                Preference(object : PreferenceModel {
-                    override val title = TITLE
-                    override val onClick = navigator(name)
-                })
+    @Composable
+    fun Entry() {
+        Preference(
+            object : PreferenceModel {
+                override val title = TITLE
+                override val onClick = navigator(name)
             }
+        )
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun SettingsTextFieldPasswordPagePreview() {
-    SettingsTheme {
-        SettingsTextFieldPasswordPageProvider.Page(null)
-    }
+    SettingsTheme { SettingsTextFieldPasswordPageProvider.Page(null) }
 }

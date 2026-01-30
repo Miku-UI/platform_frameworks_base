@@ -169,4 +169,120 @@ public class SystemFeaturesGeneratorTest {
         assertThat(compiledFeatures.get(PackageManager.FEATURE_WATCH).version).isEqualTo(1);
         assertThat(compiledFeatures.get(PackageManager.FEATURE_WIFI).version).isEqualTo(0);
     }
+
+    @Test
+    public void testReadonlyDisabledWithDefinedFeaturesFromXml() {
+        // Always fall back to the PackageManager for defined, explicit features queries.
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)).thenReturn(true);
+        assertThat(RwFeaturesFromXml.hasFeatureBluetooth(mContext)).isTrue();
+
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_EMBEDDED)).thenReturn(true);
+        assertThat(RwFeaturesFromXml.hasFeatureEmbedded(mContext)).isTrue();
+
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_PC)).thenReturn(false);
+        assertThat(RwFeaturesFromXml.hasFeatureWatch(mContext)).isFalse();
+
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WATCH)).thenReturn(false);
+        assertThat(RwFeaturesFromXml.hasFeatureWatch(mContext)).isFalse();
+
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_WIFI)).thenReturn(true);
+        assertThat(RwFeaturesFromXml.hasFeatureWifi(mContext)).isTrue();
+
+        // For defined and undefined features, conditional queries should report null (unknown).
+        assertThat(RwFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_BLUETOOTH, 0)).isNull();
+        assertThat(RwFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_EMBEDDED, 0)).isNull();
+        assertThat(RwFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_PC, 0)).isNull();
+        assertThat(RwFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WATCH, 0)).isNull();
+        assertThat(RwFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WIFI, 0)).isNull();
+        assertThat(RwFeaturesFromXml.maybeHasFeature("com.arbitrary.feature", 0)).isNull();
+        assertThat(RwFeaturesFromXml.getReadOnlySystemEnabledFeatures()).isEmpty();
+    }
+
+    @Test
+    public void testReadonlyWithDefinedFeaturesFromXml() {
+        // Always use the build-time feature version for defined, explicit feature queries, never
+        // falling back to the runtime query.
+        assertThat(RoFeaturesFromXml.hasFeatureEmbedded(mContext)).isTrue();
+        assertThat(RoFeaturesFromXml.hasFeaturePc(mContext)).isFalse();
+        assertThat(RoFeaturesFromXml.hasFeatureWatch(mContext)).isFalse();
+        assertThat(RoFeaturesFromXml.hasFeatureWifi(mContext)).isTrue();
+        verify(mPackageManager, never()).hasSystemFeature(anyString(), anyInt());
+
+        // For defined feature types from XML, conditional queries should reflect either:
+        //  * Disabled if the feature was *ever* declared w/ <unavailable-feature />
+        //  * Enabled if the feature was otherwise declared w/ <feature />
+        //  * Unknown for features conditionally enabled on non-low-ram devices (notLowRam="true").
+        //  * Unknown for non platform-defined (custom) features.
+
+        // <feature version="1" />
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_EMBEDDED, -1)).isTrue();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_EMBEDDED, 0)).isTrue();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_EMBEDDED, 2)).isFalse();
+
+        // <feature />
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WIFI, -1)).isTrue();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WIFI, 0)).isTrue();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WIFI, 100)).isFalse();
+
+        // <unavailable-feature />
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_PC, -1)).isFalse();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_PC, 0)).isFalse();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_PC, 100)).isFalse();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WATCH, -1)).isFalse();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WATCH, 0)).isFalse();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WATCH, 100)).isFalse();
+
+        // <feature notLowRam="true" />
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_BLUETOOTH, -1))
+                .isNull();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_BLUETOOTH, 0)).isNull();
+        assertThat(RoFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_BLUETOOTH, 100))
+                .isNull();
+
+        // For custom/undefined feature types, conditional queries should report null (unknown).
+        assertThat(RoFeaturesFromXml.maybeHasFeature("com.arbitrary.feature", -1)).isNull();
+        assertThat(RoFeaturesFromXml.maybeHasFeature("com.arbitrary.feature", 0)).isNull();
+        assertThat(RoFeaturesFromXml.maybeHasFeature("com.arbitrary.feature", 100)).isNull();
+        assertThat(RoFeaturesFromXml.maybeHasFeature("", 0)).isNull();
+
+        Map<String, FeatureInfo> compiledFeatures =
+                RoFeaturesFromXml.getReadOnlySystemEnabledFeatures();
+        assertThat(compiledFeatures.keySet())
+                .containsExactly(PackageManager.FEATURE_EMBEDDED, PackageManager.FEATURE_WIFI);
+        assertThat(compiledFeatures.get(PackageManager.FEATURE_EMBEDDED).version).isEqualTo(1);
+        assertThat(compiledFeatures.get(PackageManager.FEATURE_WIFI).version).isEqualTo(0);
+    }
+
+    @Test
+    public void testReadonlyWithUnavailableFeaturesFromXml() {
+        // Always use the build-time feature version for explicit feature queries for unavailable
+        // features, never falling back to the runtime query.
+        assertThat(RoUnavailableFeaturesFromXml.hasFeaturePc(mContext)).isFalse();
+        assertThat(RoUnavailableFeaturesFromXml.hasFeatureWatch(mContext)).isFalse();
+        verify(mPackageManager, never()).hasSystemFeature(anyString(), anyInt());
+
+        // When parsing only unavailable feature types from XML, conditional queries should reflect:
+        //  * Disabled if the feature was *ever* declared w/ <unavailable-feature />
+        //  * Unknown otherwise.
+
+        // <unavailable-feature />
+        assertThat(RoUnavailableFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_PC, 0))
+                .isFalse();
+        assertThat(RoUnavailableFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WATCH, 0))
+                .isFalse();
+
+        // For other feature types, conditional queries should report null (unknown).
+        assertThat(
+                        RoUnavailableFeaturesFromXml.maybeHasFeature(
+                                PackageManager.FEATURE_BLUETOOTH, 0))
+                .isNull();
+        assertThat(RoUnavailableFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_EMBEDDED, 0))
+                .isNull();
+        assertThat(RoUnavailableFeaturesFromXml.maybeHasFeature(PackageManager.FEATURE_WIFI, 0))
+                .isNull();
+        assertThat(RoUnavailableFeaturesFromXml.maybeHasFeature("com.arbitrary.feature", 0))
+                .isNull();
+        assertThat(RoUnavailableFeaturesFromXml.maybeHasFeature("", 0)).isNull();
+        assertThat(RoUnavailableFeaturesFromXml.getReadOnlySystemEnabledFeatures()).isEmpty();
+    }
 }

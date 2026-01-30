@@ -183,7 +183,7 @@ public class MobileRadioPowerStatsCollectorTest {
     public void triggering() throws Throwable {
         PowerStatsCollector collector = mBatteryStats.getPowerStatsCollector(
                 BatteryConsumer.POWER_COMPONENT_MOBILE_RADIO);
-        collector.addConsumer(mRecordedPowerStats::add);
+        collector.addConsumer((stats, elapsedRealtime, uptime) -> mRecordedPowerStats.add(stats));
 
         mBatteryStats.setPowerStatsCollectorEnabled(BatteryConsumer.POWER_COMPONENT_MOBILE_RADIO,
                 true);

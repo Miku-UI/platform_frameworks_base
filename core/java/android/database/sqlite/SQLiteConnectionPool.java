@@ -109,10 +109,6 @@ public final class SQLiteConnectionPool implements Closeable {
             new ArrayList<SQLiteConnection>();
     private SQLiteConnection mAvailablePrimaryConnection;
 
-    // Prepare statement cache statistics
-    public int mTotalPrepareStatementCacheMiss = 0;
-    public int mTotalPrepareStatements = 0;
-
     @GuardedBy("mLock")
     private IdleConnectionHandler mIdleConnectionHandler;
 
@@ -528,9 +524,15 @@ public final class SQLiteConnectionPool implements Closeable {
             }
 
             // Global pool stats
-            DbStats poolStats = new DbStats(mConfiguration.path, 0, 0, 0,
-                    mTotalPrepareStatements - mTotalPrepareStatementCacheMiss,
-                    mTotalPrepareStatementCacheMiss, mTotalPrepareStatements, true);
+            DbStats poolStats = new DbStats(mConfiguration.path, 0, 0, 0, 0, 0, 0, true);
+
+            if (mAvailablePrimaryConnection != null) {
+                poolStats.addCacheStatsFrom(mAvailablePrimaryConnection);
+            }
+            for (SQLiteConnection connection : mAvailableNonPrimaryConnections) {
+                poolStats.addCacheStatsFrom(connection);
+            }
+
             dbStatsList.add(poolStats);
         }
     }
@@ -1246,11 +1248,21 @@ public final class SQLiteConnectionPool implements Closeable {
     /** @hide */
     @NeverCompile
     public double getStatementCacheMissRate() {
-        if (mTotalPrepareStatements == 0) {
-            // no statements executed thus no miss rate.
+        int cacheHits = 0;
+        int cacheMisses = 0;
+
+        if (mAvailablePrimaryConnection != null) {
+            cacheHits += mAvailablePrimaryConnection.getPreparedStatementCacheHitCount();
+            cacheMisses += mAvailablePrimaryConnection.getPreparedStatementCacheMissCount();
+        }
+        for (SQLiteConnection connection : mAvailableNonPrimaryConnections) {
+            cacheHits += connection.getPreparedStatementCacheHitCount();
+            cacheMisses += connection.getPreparedStatementCacheMissCount();
+        }
+        if (cacheMisses == 0) {
             return 0;
         }
-        return (double) mTotalPrepareStatementCacheMiss / (double) mTotalPrepareStatements;
+        return (double) cacheMisses / (double) (cacheHits + cacheMisses);
     }
 
     public long getTotalStatementsTime() {

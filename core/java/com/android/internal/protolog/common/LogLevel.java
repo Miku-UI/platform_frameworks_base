@@ -20,18 +20,20 @@ import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 @RavenwoodKeepWholeClass
 public enum LogLevel {
-    DEBUG("d", 1),
+    // Ordered by increasing severity. We rely on the natural order or ordinal value to determine
+    // from which level to log.
     VERBOSE("v", 2),
+    DEBUG("d", 1),
     INFO("i", 3),
     WARN("w", 4),
     ERROR("e", 5),
     WTF("wtf", 6);
 
     public final String shortCode;
-    public final int id;
+    public final int protoMessageId;
 
-    LogLevel(String shortCode, int id) {
+    LogLevel(String shortCode, int protoMessageId) {
         this.shortCode = shortCode;
-        this.id = id;
+        this.protoMessageId = protoMessageId;
     }
 }

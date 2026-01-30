@@ -24,7 +24,8 @@
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:theme="@style/Theme.DeviceDefault.Notification"
-    android:importantForAccessibility="no"
+    android:importantForAccessibility="yes"
+    android:accessibilityTraversalBefore="@+id/notification_main_column_container"
     >
 
     <ImageView

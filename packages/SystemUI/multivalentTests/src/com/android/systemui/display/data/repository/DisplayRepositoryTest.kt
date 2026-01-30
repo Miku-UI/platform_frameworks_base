@@ -17,27 +17,38 @@
 package com.android.systemui.display.data.repository
 
 import android.hardware.display.DisplayManager
-import android.os.Looper
+import android.os.fakeHandler
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
 import android.view.Display
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.Display.TYPE_EXTERNAL
 import android.view.Display.TYPE_INTERNAL
-import android.view.IWindowManager
+import android.view.IDisplayWindowListener
+import android.view.mockIWindowManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.app.displaylib.DisplayDecorationListener
 import com.android.app.displaylib.DisplayRepository.PendingDisplay
+import com.android.app.displaylib.DisplaysWithDecorationsRepositoryCompat
+import com.android.app.displaylib.ExternalDisplayConnectionType
+import com.android.server.display.feature.flags.Flags.FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.FlowValue
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.statusbar.CommandQueue
+import com.android.systemui.statusbar.mockCommandQueue
+import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.kotlinArgumentCaptor
 import com.android.systemui.util.mockito.mock
-import com.android.systemui.utils.os.FakeHandler
+import com.android.window.flags.Flags
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -47,6 +58,7 @@ import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.Mockito.never
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.whenever
 
@@ -54,17 +66,20 @@ import org.mockito.kotlin.whenever
 @TestableLooper.RunWithLooper
 @SmallTest
 class DisplayRepositoryTest : SysuiTestCase() {
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    private val displayManager = mock<DisplayManager>()
-    private val commandQueue = mock<CommandQueue>()
-    private val windowManager = mock<IWindowManager>()
+    private val displayManager = kosmos.mockDisplayManager
+    private val commandQueue = kosmos.mockCommandQueue
+    private val windowManager = kosmos.mockIWindowManager
 
     private val displayListener = kotlinArgumentCaptor<DisplayManager.DisplayListener>()
     private val commandQueueCallbacks = kotlinArgumentCaptor<CommandQueue.Callbacks>()
     private val connectedDisplayListener = kotlinArgumentCaptor<DisplayManager.DisplayListener>()
+    private lateinit var wmListener: IDisplayWindowListener
 
-    private val testHandler = FakeHandler(Looper.getMainLooper())
-    private val testScope = TestScope(UnconfinedTestDispatcher())
+    private val testHandler = kosmos.fakeHandler
+    private val testScope = kosmos.testScope
+    private val testDispacher = kosmos.testDispatcher
     private val defaultDisplay =
         display(type = TYPE_INTERNAL, id = DEFAULT_DISPLAY, state = Display.STATE_ON)
 
@@ -72,26 +87,15 @@ class DisplayRepositoryTest : SysuiTestCase() {
     // that the initial state (soon after construction) contains the expected ones set in every
     // test.
     private val displayRepository: DisplayRepositoryImpl by lazy {
-        // TODO b/401305290 - move this to kosmos
-        val displayRepositoryFromLib =
-            com.android.app.displaylib.DisplayRepositoryImpl(
-                displayManager,
-                testHandler,
-                testScope.backgroundScope,
-                UnconfinedTestDispatcher(),
-            )
-        val displaysWithDecorRepository =
-            DisplaysWithDecorationsRepositoryImpl(
-                commandQueue,
-                windowManager,
-                testScope.backgroundScope,
-                displayRepositoryFromLib,
-            )
-        DisplayRepositoryImpl(displayRepositoryFromLib, displaysWithDecorRepository).also {
+        kosmos.realDisplayRepository.also {
             verify(displayManager, never()).registerDisplayListener(any(), any())
             // It needs to be called, just once, for the initial value.
             verify(displayManager).getDisplays()
         }
+    }
+
+    private val displayRepositoryCompat: DisplaysWithDecorationsRepositoryCompat by lazy {
+        kosmos.displaysWithDecorationsRepositoryCompat
     }
 
     @Before
@@ -251,6 +255,51 @@ class DisplayRepositoryTest : SysuiTestCase() {
             pendingDisplay!!.enable()
 
             verify(displayManager).enableConnectedDisplay(eq(1))
+        }
+
+    @Test
+    fun onPendingDisplay_propagatesCorrectConnectionPreference() =
+        testScope.runTest {
+            val testDisplayId = 42
+            val testConnectionType = ExternalDisplayConnectionType.MIRROR
+            val pendingDisplay by lastPendingDisplay()
+
+            whenever(displayManager.getExternalDisplayConnectionPreference(any()))
+                .thenReturn(testConnectionType.preference)
+
+            sendOnDisplayConnected(testDisplayId)
+
+            assertThat(pendingDisplay).isNotNull()
+            assertThat(pendingDisplay!!.id).isEqualTo(testDisplayId)
+            assertThat(pendingDisplay!!.connectionType).isEqualTo(testConnectionType)
+        }
+
+    @Test
+    fun onPendingDisplay_displayIdNotCached_findsUsingDisplayManager() =
+        testScope.runTest {
+            val pendingDisplay by lastPendingDisplay()
+            val displayId = 123
+            val mockDisplay = display(id = displayId, type = TYPE_EXTERNAL)
+
+            whenever(displayManager.getDisplay(eq(displayId))).thenReturn(mockDisplay)
+            connectedDisplayListener.value.onDisplayConnected(displayId)
+
+            verify(displayManager, times(2)).getDisplay(displayId)
+            assertThat(pendingDisplay).isNotNull()
+            assertThat(pendingDisplay!!.id).isEqualTo(displayId)
+        }
+
+    @Test
+    fun onPendingDisplay_displayIdDoesNotExist_returnNull() =
+        testScope.runTest {
+            val pendingDisplay by lastPendingDisplay()
+            val testDisplayId = 99
+
+            whenever(displayManager.getDisplay(eq(testDisplayId))).thenReturn(null)
+            connectedDisplayListener.value.onDisplayConnected(testDisplayId)
+
+            verify(displayManager).getDisplay(testDisplayId)
+            assertThat(pendingDisplay).isNull()
         }
 
     @Test
@@ -437,7 +486,7 @@ class DisplayRepositoryTest : SysuiTestCase() {
             val pendingDisplay by lastPendingDisplay()
 
             sendOnDisplayConnected(1, TYPE_EXTERNAL)
-            sendOnDisplayConnected(2, Display.TYPE_INTERNAL)
+            sendOnDisplayConnected(2, TYPE_INTERNAL)
 
             assertThat(pendingDisplay!!.id).isEqualTo(1)
         }
@@ -530,6 +579,7 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_onStart_emitsDisplaysWithSystemDecorations() =
         testScope.runTest {
             setDisplays(0, 1, 2)
@@ -543,10 +593,13 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_systemDecorationAdded_emitsIncludingNewDisplayIds() =
         testScope.runTest {
             setDisplays(0)
             whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(2)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(3)).thenReturn(true)
             val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
 
             sendOnDisplayAddSystemDecorations(2)
@@ -556,10 +609,48 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displayIdsWithSystemDecorations_systemDecorationAdded_contentModeFlagOff_emitsOnlyDisplaysWithSystemDecorations() =
+        testScope.runTest {
+            setDisplays(0)
+            whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(2)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(3)).thenReturn(false)
+            val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
+
+            sendOnDisplayAddSystemDecorations(2)
+            sendOnDisplayAddSystemDecorations(3)
+
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(0, 2)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
+    @EnableFlags(FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT)
+    fun displayIdsWithSystemDecorations_systemDecorationAdded_contentModeFlagOn_emitsAllDisplays() =
+        testScope.runTest {
+            setDisplays(0)
+            whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(2)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(3)).thenReturn(false)
+            val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
+
+            sendOnDisplayAddSystemDecorations(2)
+            sendOnDisplayAddSystemDecorations(3)
+
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(0, 2, 3)
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_systemDecorationAdded_emitsToNewSubscribers() =
         testScope.runTest {
             setDisplays(0)
             whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(1)).thenReturn(true)
 
             val priorDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
             sendOnDisplayAddSystemDecorations(1)
@@ -571,8 +662,11 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_systemDecorationRemoved_doesNotEmitRemovedDisplayId() =
         testScope.runTest {
+            whenever(windowManager.shouldShowSystemDecors(1)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(2)).thenReturn(true)
             val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
 
             sendOnDisplayAddSystemDecorations(1)
@@ -583,8 +677,11 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_systemDecorationsRemoved_nonExistentDisplay_noEffect() =
         testScope.runTest {
+            whenever(windowManager.shouldShowSystemDecors(1)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(2)).thenReturn(true)
             val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
 
             sendOnDisplayAddSystemDecorations(1)
@@ -594,8 +691,11 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_displayRemoved_doesNotEmitRemovedDisplayId() =
         testScope.runTest {
+            whenever(windowManager.shouldShowSystemDecors(1)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(2)).thenReturn(true)
             val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
 
             sendOnDisplayAddSystemDecorations(1)
@@ -606,8 +706,10 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_displayRemoved_nonExistentDisplay_noEffect() =
         testScope.runTest {
+            whenever(windowManager.shouldShowSystemDecors(1)).thenReturn(true)
             val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
 
             sendOnDisplayAddSystemDecorations(1)
@@ -617,6 +719,7 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_onFlowCollection_commandQueueCallbackRegistered() =
         testScope.runTest {
             val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
@@ -627,6 +730,7 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableFlags(Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM)
     fun displayIdsWithSystemDecorations_afterFlowCollection_commandQueueCallbackUnregistered() {
         testScope.runTest {
             val lastDisplayIdsWithSystemDecorations by latestDisplayIdsWithSystemDecorationsValue()
@@ -637,6 +741,205 @@ class DisplayRepositoryTest : SysuiTestCase() {
         }
         verify(commandQueue, times(1)).removeCallback(any())
     }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displayIdsWithSystemDecorations_withWmCallback_systemDecorationAdded_emitsIncludingNewDisplayIds() =
+        testScope.runTest {
+            setDisplays(0)
+            whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            val lastDisplayIdsWithSystemDecorations by
+                collectLastValue(displayRepository.displayIdsWithSystemDecorations)
+            captureWmListener()
+
+            wmListener.onDisplayAddSystemDecorations(2)
+            wmListener.onDisplayAddSystemDecorations(3)
+
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(0, 2, 3)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displayIdsWithSystemDecorations_withWmCallback_systemDecorationAdded_emitsToNewSubscribers() =
+        testScope.runTest {
+            setDisplays(0)
+            whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+
+            val priorDisplayIdsWithSystemDecorations by
+                collectLastValue(displayRepository.displayIdsWithSystemDecorations)
+            captureWmListener()
+            wmListener.onDisplayAddSystemDecorations(1)
+            assertThat(priorDisplayIdsWithSystemDecorations).containsExactly(0, 1)
+
+            val lastDisplayIdsWithSystemDecorations by
+                collectLastValue(displayRepository.displayIdsWithSystemDecorations)
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(0, 1)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displayIdsWithSystemDecorations_withWmCallback_systemDecorationAdded_doesNotEmitRemovedDisplayId() =
+        testScope.runTest {
+            val lastDisplayIdsWithSystemDecorations by
+                collectLastValue(displayRepository.displayIdsWithSystemDecorations)
+            captureWmListener()
+
+            wmListener.onDisplayAddSystemDecorations(1)
+            wmListener.onDisplayAddSystemDecorations(2)
+            wmListener.onDisplayRemoveSystemDecorations(2)
+
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(1)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displayIdsWithSystemDecorations_withWmCallback_systemDecorationsRemoved_nonExistentDisplay_noEffect() =
+        testScope.runTest {
+            val lastDisplayIdsWithSystemDecorations by
+                collectLastValue(displayRepository.displayIdsWithSystemDecorations)
+            captureWmListener()
+
+            wmListener.onDisplayAddSystemDecorations(1)
+            wmListener.onDisplayRemoveSystemDecorations(2)
+
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(1)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displayIdsWithSystemDecorations_withWmCallback_displayRemoved_doesNotEmitRemovedDisplayId() =
+        testScope.runTest {
+            val lastDisplayIdsWithSystemDecorations by
+                collectLastValue(displayRepository.displayIdsWithSystemDecorations)
+            captureAddedRemovedListener()
+            captureWmListener()
+
+            wmListener.onDisplayAddSystemDecorations(1)
+            wmListener.onDisplayAddSystemDecorations(2)
+            sendOnDisplayRemoved(2)
+
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(1)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displayIdsWithSystemDecorations_withWmCallback_displayRemoved_nonExistentDisplay_noEffect() =
+        testScope.runTest {
+            val lastDisplayIdsWithSystemDecorations by
+                collectLastValue(displayRepository.displayIdsWithSystemDecorations)
+            captureAddedRemovedListener()
+            captureWmListener()
+
+            wmListener.onDisplayAddSystemDecorations(1)
+            sendOnDisplayRemoved(2)
+
+            assertThat(lastDisplayIdsWithSystemDecorations).containsExactly(1)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displaysWithSystemDecorationsCompat_registerListener_notifyAddSystemDecor() =
+        testScope.runTest {
+            val listener = mock<DisplayDecorationListener>()
+            displayRepositoryCompat.registerDisplayDecorationListener(listener, testDispacher)
+            captureWmListener()
+
+            wmListener.onDisplayAddSystemDecorations(1)
+
+            verify(listener).onDisplayAddSystemDecorations(1)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displaysWithSystemDecorationsCompat_registerListener_notifyInitialDisplaysWithSysDecor() =
+        testScope.runTest {
+            setDisplays(0)
+            whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            val listener = mock<DisplayDecorationListener>()
+
+            displayRepositoryCompat.registerDisplayDecorationListener(listener, testDispacher)
+            captureWmListener()
+
+            verify(listener).onDisplayAddSystemDecorations(0)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displaysWithSystemDecorationsCompat_registerListener_notifyRemoveSystemDecor() =
+        testScope.runTest {
+            setDisplays(0)
+            whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            val listener = mock<DisplayDecorationListener>()
+
+            displayRepositoryCompat.registerDisplayDecorationListener(listener, testDispacher)
+            captureWmListener()
+            wmListener.onDisplayRemoveSystemDecorations(0)
+
+            verify(listener).onDisplayAddSystemDecorations(0)
+            verify(listener).onDisplayRemoveSystemDecorations(0)
+        }
+
+    @Test
+    @EnableFlags(
+        Flags.FLAG_ENABLE_SYS_DECORS_CALLBACKS_VIA_WM,
+        FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT,
+    )
+    fun displaysWithSystemDecorationsCompat_registerListener_notifyAllDisplaysWithSysDecor() =
+        testScope.runTest {
+            setDisplays(0, 2)
+            whenever(windowManager.shouldShowSystemDecors(0)).thenReturn(true)
+            whenever(windowManager.shouldShowSystemDecors(2)).thenReturn(true)
+            val listener = mock<DisplayDecorationListener>()
+
+            displayRepositoryCompat.registerDisplayDecorationListener(listener, testDispacher)
+            captureWmListener()
+            wmListener.onDisplayAddSystemDecorations(3)
+
+            verify(listener).onDisplayAddSystemDecorations(0)
+            verify(listener).onDisplayAddSystemDecorations(2)
+            verify(listener).onDisplayAddSystemDecorations(3)
+        }
+
+    @Test
+    fun getDisplay_slowMappingToDisplay_returnsRegardless() =
+        testScope.runTest {
+            val displayIds by collectLastValue(displayRepository.displayIds)
+            val displays by latestDisplayFlowValue()
+
+            sendOnDisplayAdded(1, TYPE_EXTERNAL)
+
+            assertThat(displayIds).contains(1)
+            assertThat(displays!!.ids()).contains(1)
+            assertThat(displayRepository.getCachedDisplay(1)).isNotNull()
+            assertThat(displayRepository.getDisplay(1)).isNotNull()
+        }
 
     private fun Iterable<Display>.ids(): List<Int> = map { it.displayId }
 
@@ -764,5 +1067,11 @@ class DisplayRepositoryTest : SysuiTestCase() {
         // DEFAULT_DISPLAY always there
         val idsToSet = ids.toSet() + DEFAULT_DISPLAY
         setDisplays(idsToSet.map { display(type = TYPE_EXTERNAL, id = it) })
+    }
+
+    private fun captureWmListener() {
+        val captor = argumentCaptor<IDisplayWindowListener>()
+        verify(windowManager).registerDisplayWindowListener(captor.capture())
+        wmListener = captor.firstValue
     }
 }

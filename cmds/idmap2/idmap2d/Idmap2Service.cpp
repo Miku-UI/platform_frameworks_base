@@ -239,6 +239,45 @@ Status Idmap2Service::createIdmap(const std::string& target_path, const std::str
   return ok();
 }
 
+Status Idmap2Service::verifyOrCreateIdmap(const os::IdmapParams& params,
+                                          std::optional<std::string>* _aidl_return) {
+  bool verified = false;
+  verifyIdmap(params.targetPath, params.overlayPath, params.overlayName,
+              params.fulfilledPolicies, params.enforceOverlayable, params.userId,
+              params.constraints, &verified);
+  if (verified) {
+      *_aidl_return = "";
+      return ok();
+  }
+
+  return createIdmap(params.targetPath, params.overlayPath, params.overlayName,
+                     params.fulfilledPolicies, params.enforceOverlayable, params.userId,
+                     params.constraints, _aidl_return);
+}
+
+Status Idmap2Service::verifyOrCreateIdmaps(const std::vector<os::IdmapParams>& params,
+                                           std::vector<std::string>* _aidl_return) {
+  assert(_aidl_return);
+  SYSTRACE << "Idmap2Service::verifyOrCreateIdmaps";
+
+  std::vector<std::string> idmap_paths;
+  for (const auto& param : params) {
+      std::optional<std::string> idmap_path;
+      verifyOrCreateIdmap(param, &idmap_path);
+
+      /*
+       * There are three possible idmap_path values:
+       * - empty ("") -> existing idmap was verified
+       * - non-empty  -> idmap was created
+       * - nullptr    -> idmap could not be created
+       * We need to append a value for the third case so the caller has a result for each input.
+       */
+      idmap_paths.emplace_back(std::move(idmap_path).value_or("INVALID"));
+  }
+  *_aidl_return = idmap_paths;
+  return ok();
+}
+
 idmap2::Result<Idmap2Service::TargetResourceContainerPtr> Idmap2Service::GetTargetContainer(
     const std::string& target_path) {
   const bool is_framework = target_path == kFrameworkPath;

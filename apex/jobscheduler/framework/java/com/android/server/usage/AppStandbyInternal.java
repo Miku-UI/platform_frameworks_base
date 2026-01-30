@@ -7,6 +7,7 @@ import android.annotation.Nullable;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager.ProcessState;
 import android.app.usage.AppStandbyInfo;
+import android.app.usage.UsageStatsManager;
 import android.app.usage.UsageStatsManager.ForcedReasons;
 import android.app.usage.UsageStatsManager.StandbyBuckets;
 import android.content.Context;
@@ -134,6 +135,22 @@ public interface AppStandbyInternal {
     @StandbyBuckets
     int getAppStandbyBucket(String packageName, int userId,
             long elapsedRealtime, boolean shouldObfuscateInstantApps);
+
+    /**
+     * Returns the app that the app is currently in and bucketing reason code.
+     *
+     * <p>The returned long contains two pieces of information: the standby bucket in the higher 32
+     * bits and the bucketing reason in the lower 32 bits. If the app is unknown for the given
+     * user, the bucket will be {@link UsageStatsManager#STANDBY_BUCKET_NEVER} and the reason
+     * will be {@link UsageStatsManager#REASON_MAIN_DEFAULT}.
+     *
+     * @param packageName The package to query
+     * @param userId The user to which the package belongs.
+     * @param elapsedRealtime The current time, in the elapsedRealtime time base
+     * @return A long containing the standby bucket and the reason.
+     */
+    long getAppStandbyBucketAndReason(String packageName, int userId,
+            long elapsedRealtime);
 
     List<AppStandbyInfo> getAppStandbyBuckets(int userId);
 

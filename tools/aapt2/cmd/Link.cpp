@@ -57,7 +57,7 @@
 #include "java/ManifestClassGenerator.h"
 #include "java/ProguardRules.h"
 #include "link/FeatureFlagsFilter.h"
-#include "link/FlagDisabledResourceRemover.h"
+#include "link/FlagNotEnabledResourceRemover.h"
 #include "link/FlaggedXmlVersioner.h"
 #include "link/Linkers.h"
 #include "link/ManifestFixer.h"
@@ -1916,7 +1916,7 @@ class Linker {
       }
     }
 
-    if (!FlagDisabledResourceRemover{}.Consume(context_, table)) {
+    if (!FlagNotEnabledResourceRemover{}.Consume(context_, table)) {
       context_->GetDiagnostics()->Error(android::DiagMessage()
                                         << "failed removing resources behind disabled flags");
       return 1;

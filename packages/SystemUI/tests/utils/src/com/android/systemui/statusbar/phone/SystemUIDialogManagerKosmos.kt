@@ -16,7 +16,14 @@
 
 package com.android.systemui.statusbar.phone
 
+import com.android.systemui.dump.dumpManager
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.util.mockito.mock
+import com.android.systemui.model.sysuiStateInteractor
+import org.mockito.Mockito.mock
 
-var Kosmos.systemUIDialogManager by Kosmos.Fixture { mock<SystemUIDialogManager>() }
+var Kosmos.mockSystemUIDialogManager by Kosmos.Fixture { mock(SystemUIDialogManager::class.java) }
+
+var Kosmos.systemUIDialogManager by
+    Kosmos.Fixture {
+        SystemUIDialogManager(dumpManager, statusBarKeyguardViewManager, sysuiStateInteractor)
+    }

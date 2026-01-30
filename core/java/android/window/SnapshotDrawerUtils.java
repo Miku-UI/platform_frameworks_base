@@ -118,9 +118,14 @@ public class SnapshotDrawerUtils {
             mRootSurface = rootSurface;
             mSnapshot = snapshot;
             mTitle = title;
-            final HardwareBuffer hwBuffer = snapshot.getHardwareBuffer();
-            mSnapshotW = hwBuffer.getWidth();
-            mSnapshotH = hwBuffer.getHeight();
+            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+                mSnapshotH = snapshot.getHardwareBufferHeight();
+                mSnapshotW = snapshot.getHardwareBufferWidth();
+            } else {
+                final HardwareBuffer hwBuffer = snapshot.getHardwareBuffer();
+                mSnapshotW = hwBuffer.getWidth();
+                mSnapshotH = hwBuffer.getHeight();
+            }
             mContainerW = windowBounds.width();
             mContainerH = windowBounds.height();
         }
@@ -140,8 +145,12 @@ public class SnapshotDrawerUtils {
             }
 
             // In case window manager leaks us, make sure we don't retain the snapshot.
-            if (mSnapshot.getHardwareBuffer() != null) {
-                mSnapshot.getHardwareBuffer().close();
+            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+                mSnapshot.closeBuffer();
+            } else {
+                if (mSnapshot.getHardwareBuffer() != null) {
+                    mSnapshot.getHardwareBuffer().close();
+                }
             }
             if (releaseAfterDraw) {
                 mRootSurface.release();
@@ -149,22 +158,28 @@ public class SnapshotDrawerUtils {
         }
 
         private void drawSizeMatchSnapshot() {
-            mTransaction.setBuffer(mRootSurface, mSnapshot.getHardwareBuffer())
-                    .setColorSpace(mRootSurface, mSnapshot.getColorSpace())
-                    .apply();
+            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+                mSnapshot.setBufferToSurface(mTransaction, mRootSurface);
+            } else {
+                mTransaction.setBuffer(mRootSurface, mSnapshot.getHardwareBuffer());
+            }
+            mTransaction.setColorSpace(mRootSurface, mSnapshot.getColorSpace()).apply();
         }
 
         private void drawSizeMismatchSnapshot() {
-            final HardwareBuffer buffer = mSnapshot.getHardwareBuffer();
-
             // Keep a reference to it such that it doesn't get destroyed when finalized.
-            SurfaceControl childSurfaceControl = new SurfaceControl.Builder()
+            final SurfaceControl.Builder builder = new SurfaceControl.Builder()
                     .setName(mTitle + " - task-snapshot-surface")
                     .setBLASTLayer()
-                    .setFormat(buffer.getFormat())
                     .setParent(mRootSurface)
-                    .setCallsite("TaskSnapshotWindow.drawSizeMismatchSnapshot")
-                    .build();
+                    .setCallsite("TaskSnapshotWindow.drawSizeMismatchSnapshot");
+            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+                builder.setFormat(mSnapshot.getHardwareBufferFormat());
+            } else {
+                final HardwareBuffer buffer = mSnapshot.getHardwareBuffer();
+                builder.setFormat(buffer.getFormat());
+            }
+            SurfaceControl childSurfaceControl = builder.build();
 
             final Rect letterboxInsets = mSnapshot.getLetterboxInsets();
             float offsetX = letterboxInsets.left;
@@ -184,7 +199,11 @@ public class SnapshotDrawerUtils {
             final float scaleY = (float) mContainerH / mSnapshotH;
             mTransaction.setScale(childSurfaceControl, scaleX, scaleY);
             mTransaction.setColorSpace(childSurfaceControl, mSnapshot.getColorSpace());
-            mTransaction.setBuffer(childSurfaceControl, mSnapshot.getHardwareBuffer());
+            if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+                mSnapshot.setBufferToSurface(mTransaction, childSurfaceControl);
+            } else {
+                mTransaction.setBuffer(childSurfaceControl, mSnapshot.getHardwareBuffer());
+            }
             mTransaction.apply();
             childSurfaceControl.release();
         }

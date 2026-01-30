@@ -18,16 +18,12 @@ package com.android.systemui.camera
 
 import com.android.systemui.camera.data.repository.CameraAutoRotateRepository
 import com.android.systemui.camera.data.repository.CameraAutoRotateRepositoryImpl
-import com.android.systemui.camera.data.repository.CameraSensorPrivacyRepository
-import com.android.systemui.camera.data.repository.CameraSensorPrivacyRepositoryImpl
 import dagger.Binds
 import dagger.Module
 
 /** Module for repositories that provide data regarding camera rotation state. */
-@Module
+@Module(includes = [CameraSensorPrivacyModule::class])
 interface CameraRotationModule {
 
-    @Binds
-    fun bindsPrivacyRepoImpl(impl: CameraSensorPrivacyRepositoryImpl): CameraSensorPrivacyRepository
     @Binds fun bindsRotateRepoImpl(impl: CameraAutoRotateRepositoryImpl): CameraAutoRotateRepository
 }

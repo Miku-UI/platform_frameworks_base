@@ -38,6 +38,8 @@ oneway interface IOnDeviceIntelligenceService {
     void getVersion(in RemoteCallback remoteCallback);
     void getFeature(int callerUid, int featureId, in IFeatureCallback featureCallback);
     void listFeatures(int callerUid, in IListFeaturesCallback listFeaturesCallback);
+    void listFeaturesWithFilter(int callerUid, in PersistableBundle featureParamsFilter,
+            in IListFeaturesCallback listFeaturesCallback);
     void getFeatureDetails(int callerUid, in Feature feature, in IFeatureDetailsCallback featureDetailsCallback);
     void getReadOnlyFileDescriptor(in String fileName, in AndroidFuture<ParcelFileDescriptor> future);
     void getReadOnlyFeatureFileDescriptorMap(in Feature feature, in RemoteCallback remoteCallback);
@@ -48,4 +50,5 @@ oneway interface IOnDeviceIntelligenceService {
     void notifyInferenceServiceConnected();
     void notifyInferenceServiceDisconnected();
     void ready();
+    void getFeatureMetadata(in Feature feature, in RemoteCallback remoteCallback);
 }

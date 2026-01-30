@@ -32,7 +32,6 @@ import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.provider.SettingsStringUtil;
-import android.view.accessibility.Flags;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -318,7 +317,6 @@ public class SettingsHelperRestoreTest {
                 .isEqualTo(Build.VERSION.SDK_INT);
     }
 
-    @EnableFlags(Flags.FLAG_RESTORE_A11Y_SECURE_SETTINGS_ON_HSUM_DEVICE)
     @Test
     public void restoreAccessibilityShortcutTargets_broadcastSent()
             throws ExecutionException, InterruptedException {

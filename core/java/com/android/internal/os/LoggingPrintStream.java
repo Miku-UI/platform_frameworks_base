@@ -33,7 +33,7 @@ import com.android.internal.annotations.VisibleForTesting;
 /**
  * A print stream which logs output line by line.
  *
- * {@hide}
+ * @hide
  */
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 @android.ravenwood.annotation.RavenwoodKeepWholeClass

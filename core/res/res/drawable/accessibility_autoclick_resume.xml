@@ -16,14 +16,15 @@
 -->
 
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:viewportWidth="24"
-    android:viewportHeight="24"
     android:width="24dp"
-    android:height="24dp">
+    android:height="24dp"
+    android:viewportHeight="24"
+    android:viewportWidth="24">
     <group>
-        <clip-path android:pathData="M0 0H24V24H0V0Z" />
+        <clip-path
+            android:pathData="M0,0h24v24h-24z"/>
         <path
-            android:pathData="M8 19V5L19 12L8 19Z"
-            android:fillColor="@color/materialColorPrimary" />
+            android:pathData="M9.3,16.65V7.35L16.6,12L9.3,16.65Z"
+            android:fillColor="@color/materialColorOnSurface"/>
     </group>
 </vector>

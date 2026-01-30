@@ -125,6 +125,7 @@ TEST(LoadedArscTest, LoadAppAsSharedLibrary) {
 
   std::unique_ptr<const LoadedArsc> loaded_arsc = LoadedArsc::Load(contents.data(),
                                                                    contents.length(),
+                                                                   nullptr /* GetFlagValuesFunc */,
                                                                    nullptr /* loaded_idmap */,
                                                                    PROPERTY_DYNAMIC);
   ASSERT_THAT(loaded_arsc, NotNull());
@@ -323,7 +324,7 @@ TEST(LoadedArscTest, LoadCustomLoader) {
       asset->getLength());
 
   std::unique_ptr<const LoadedArsc> loaded_arsc =
-      LoadedArsc::Load(data.data(), data.length(), nullptr, PROPERTY_LOADER);
+      LoadedArsc::Load(data.data(), data.length(), nullptr, nullptr, PROPERTY_LOADER);
   ASSERT_THAT(loaded_arsc, NotNull());
 
   const LoadedPackage* package =

@@ -54,10 +54,6 @@ class FakeSceneDataSource(initialSceneKey: SceneKey, val testScope: TestScope) :
         }
     }
 
-    override fun snapToScene(toScene: SceneKey) {
-        changeScene(toScene)
-    }
-
     override fun showOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) {
         if (_isPaused) {
             pendingOverlays = (pendingOverlays ?: currentOverlays.value) + overlay
@@ -79,16 +75,22 @@ class FakeSceneDataSource(initialSceneKey: SceneKey, val testScope: TestScope) :
         showOverlay(to, transitionKey)
     }
 
-    override fun instantlyShowOverlay(overlay: OverlayKey) {
-        showOverlay(overlay)
-    }
-
-    override fun instantlyHideOverlay(overlay: OverlayKey) {
-        hideOverlay(overlay)
-    }
-
     override fun freezeAndAnimateToCurrentState() {
         freezeAndAnimateToCurrentStateCallCount++
+    }
+
+    override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) {
+        if (_isPaused) {
+            _pendingScene = scene
+            pendingOverlays = overlays
+        } else {
+            if (scene != null) {
+                _currentScene.value = scene
+            }
+            if (overlays != null) {
+                _currentOverlays.value = overlays
+            }
+        }
     }
 
     /**

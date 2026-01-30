@@ -18,10 +18,13 @@ package com.android.systemui.qs.panels.ui.viewmodel
 
 import android.content.res.Configuration
 import android.content.res.mainResources
+import android.platform.test.flag.junit.FlagsParameterization
+import android.platform.test.flag.junit.FlagsParameterization.progressionOf
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.Companion.LOCATION_QQS
@@ -29,7 +32,12 @@ import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.C
 import com.android.systemui.media.controls.ui.controller.MediaLocation
 import com.android.systemui.media.controls.ui.controller.mediaHostStatesManager
 import com.android.systemui.media.controls.ui.view.MediaHost
+import com.android.systemui.media.remedia.data.repository.setHasMedia
+import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
 import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragment
+import com.android.systemui.qs.ui.viewmodel.QuickSettingsContainerViewModel
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.enableSplitShade
@@ -40,6 +48,7 @@ import kotlin.test.Test
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Assume
 import org.junit.Before
 import org.junit.runner.RunWith
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
@@ -48,16 +57,33 @@ import platform.test.runner.parameterized.Parameters
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(ParameterizedAndroidJunit4::class)
 @SmallTest
-class MediaInRowInLandscapeViewModelTest(private val testData: TestData) : SysuiTestCase() {
+class MediaInRowInLandscapeViewModelTest(
+    private val testData: TestData,
+    flags: FlagsParameterization,
+) : SysuiTestCase() {
+
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
 
     private val kosmos = testKosmos().apply { usingMediaInComposeFragment = testData.usingMedia }
 
-    private val underTest by lazy {
-        kosmos.mediaInRowInLandscapeViewModelFactory.create(TESTED_MEDIA_LOCATION)
-    }
+    private val Kosmos.underTest by
+        Kosmos.Fixture {
+            mediaInRowInLandscapeViewModelFactory.create(
+                testData.mediaLocation,
+                toMediaBehavior(testData.mediaLocation),
+            )
+        }
 
     @Before
     fun setUp() {
+        // Skip this test if SceneContainerFlag is disabled and testData.shadeMode is Dual
+        Assume.assumeFalse(
+            "Skipping test: Dual shade requires SceneContainerFlag to be enabled.",
+            !SceneContainerFlag.isEnabled && testData.shadeMode == ShadeMode.Dual,
+        )
+
         when (testData.shadeMode) {
             ShadeMode.Single -> kosmos.enableSingleShade()
             ShadeMode.Split -> kosmos.enableSplitShade()
@@ -66,7 +92,6 @@ class MediaInRowInLandscapeViewModelTest(private val testData: TestData) : Sysui
     }
 
     @Test
-    @EnableSceneContainer
     fun shouldMediaShowInRow() =
         with(kosmos) {
             testScope.runTest {
@@ -79,15 +104,26 @@ class MediaInRowInLandscapeViewModelTest(private val testData: TestData) : Sysui
                     }
                 fakeConfigurationRepository.onConfigurationChange(config)
                 mainResources.configuration.updateFrom(config)
-                mediaHostStatesManager.updateHostState(
-                    testData.mediaLocation,
-                    MediaHost.MediaHostStateHolder().apply { visible = testData.mediaVisible },
-                )
-                runCurrent()
+                if (MediaControlsInComposeFlag.isEnabled) {
+                    setHasMedia(testData.mediaVisible)
+                } else {
+                    mediaHostStatesManager.updateHostState(
+                        testData.mediaLocation,
+                        MediaHost.MediaHostStateHolder().apply { visible = testData.mediaVisible },
+                    )
+                    runCurrent()
+                }
 
                 assertThat(underTest.shouldMediaShowInRow).isEqualTo(testData.mediaInRowExpected)
             }
         }
+
+    private fun toMediaBehavior(@MediaLocation location: Int): MediaUiBehavior {
+        return when (location) {
+            LOCATION_QS -> QuickSettingsContainerViewModel.mediaUiBehavior
+            else -> QuickQuickSettingsViewModel.mediaUiBehavior
+        }
+    }
 
     data class TestData(
         val usingMedia: Boolean,
@@ -103,16 +139,27 @@ class MediaInRowInLandscapeViewModelTest(private val testData: TestData) : Sysui
                     shadeMode == ShadeMode.Single &&
                     orientation == Configuration.ORIENTATION_LANDSCAPE &&
                     screenLayoutLong == Configuration.SCREENLAYOUT_LONG_YES &&
-                    mediaVisible &&
-                    mediaLocation == TESTED_MEDIA_LOCATION
+                    mediaVisible
     }
 
     companion object {
-        private const val TESTED_MEDIA_LOCATION = LOCATION_QS
 
         @JvmStatic
-        @Parameters(name = "{0}")
-        fun data(): Collection<TestData> {
+        @Parameters(name = "testData={0}, flags={1}")
+        fun data(): List<Array<Any>> {
+            val allFlagsParameterization =
+                progressionOf(Flags.FLAG_MEDIA_CONTROLS_IN_COMPOSE, Flags.FLAG_SCENE_CONTAINER)
+            val testDataList = generateTestDataList()
+            val allParameters = mutableListOf<Array<Any>>()
+            testDataList.map { testData ->
+                allFlagsParameterization.map { flagParam ->
+                    allParameters.add(arrayOf(testData, flagParam))
+                }
+            }
+            return allParameters
+        }
+
+        private fun generateTestDataList(): Collection<TestData> {
             val usingMediaValues = setOf(true, false)
             val shadeModeValues = setOf(ShadeMode.Single, ShadeMode.Split, ShadeMode.Dual)
             val orientationValues =

@@ -79,7 +79,7 @@ class PackageAppOpPersistence : BaseAppOpPersistence() {
 
     private fun BinaryXmlSerializer.serializePackage(
         packageName: String,
-        appOpModes: IndexedMap<String, Int>
+        appOpModes: IndexedMap<String, Int>,
     ) {
         tag(TAG_PACKAGE) {
             attributeInterned(ATTR_NAME, packageName)

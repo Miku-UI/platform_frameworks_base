@@ -33,17 +33,21 @@ public abstract class Singleton<T> {
     }
 
     @UnsupportedAppUsage
-    private T mInstance;
+    private volatile T mInstance;
 
     protected abstract T create();
 
     @UnsupportedAppUsage
     public final T get() {
-        synchronized (this) {
-            if (mInstance == null) {
-                mInstance = create();
+        T instance = mInstance;
+        if (instance == null) {
+            synchronized (this) {
+                if (mInstance == null) {
+                    mInstance = create();
+                }
+                instance = mInstance;
             }
-            return mInstance;
         }
+        return instance;
     }
 }

@@ -16,11 +16,15 @@
 
 package com.android.systemui.window.domain.interactor
 
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
+import com.android.systemui.bouncer.domain.interactor.bouncerIsShowing
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
@@ -30,16 +34,19 @@ import org.junit.runner.RunWith
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class WindowRootViewBlurInteractorTest : SysuiTestCase() {
-    val kosmos = testKosmos()
+
+    val kosmos = testKosmos().useUnconfinedTestDispatcher()
     val testScope = kosmos.testScope
 
     val underTest by lazy { kosmos.windowRootViewBlurInteractor }
 
     @Test
+    @EnableFlags(Flags.FLAG_BOUNCER_UI_REVAMP)
     fun shadeBlurIsNotAppliedWhenBouncerBlurIsActive() =
         testScope.runTest {
             kosmos.fakeKeyguardBouncerRepository.setPrimaryShow(true)
+            kosmos.bouncerIsShowing()
 
-            assertThat(underTest.requestBlurForShade(30, true)).isFalse()
+            assertThat(underTest.requestBlurForShade(30, 1.0f)).isFalse()
         }
 }

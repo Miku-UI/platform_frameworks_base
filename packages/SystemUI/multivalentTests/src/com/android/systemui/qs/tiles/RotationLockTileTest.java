@@ -17,9 +17,6 @@
 package com.android.systemui.qs.tiles;
 
 import static android.hardware.SensorPrivacyManager.Sensors.CAMERA;
-import static android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf;
-
-import static com.android.systemui.Flags.FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX;
 
 import static junit.framework.TestCase.assertEquals;
 
@@ -30,10 +27,10 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.hardware.SensorPrivacyManager;
 import android.os.Handler;
-import android.platform.test.flag.junit.FlagsParameterization;
 import android.testing.TestableLooper;
 import android.testing.TestableResources;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.logging.MetricsLogger;
@@ -44,16 +41,18 @@ import com.android.systemui.plugins.qs.QSTile;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.QsEventLogger;
-import com.android.systemui.qs.flags.QsInCompose;
 import com.android.systemui.qs.logging.QSLogger;
 import com.android.systemui.qs.tileimpl.QSTileImpl;
 import com.android.systemui.res.R;
+import com.android.systemui.rotation.RotationPolicyWrapper;
 import com.android.systemui.statusbar.policy.BatteryController;
 import com.android.systemui.statusbar.policy.DeviceStateRotationLockSettingController;
 import com.android.systemui.statusbar.policy.RotationLockController;
 import com.android.systemui.statusbar.policy.RotationLockControllerImpl;
+import com.android.systemui.util.concurrency.FakeExecutor;
 import com.android.systemui.util.settings.FakeSettings;
-import com.android.systemui.util.wrapper.RotationPolicyWrapper;
+import com.android.systemui.util.time.FakeSystemClock;
+import com.android.systemui.util.wrapper.CameraRotationSettingProvider;
 
 import org.junit.After;
 import org.junit.Before;
@@ -62,13 +61,9 @@ import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.List;
 import java.util.Optional;
 
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
-
-@RunWith(ParameterizedAndroidJunit4.class)
+@RunWith(AndroidJUnit4.class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @SmallTest
 public class RotationLockTileTest extends SysuiTestCase {
@@ -78,11 +73,6 @@ public class RotationLockTileTest extends SysuiTestCase {
             "0:0",
             "1:2"
     };
-
-    @Parameters(name = "{0}")
-    public static List<FlagsParameterization> getParams() {
-        return allCombinationsOf(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX);
-    }
 
     @Mock
     private PackageManager mPackageManager;
@@ -105,17 +95,15 @@ public class RotationLockTileTest extends SysuiTestCase {
     @Mock
     RotationPolicyWrapper mRotationPolicyWrapper;
     @Mock
+    CameraRotationSettingProvider mCameraRotationSettingProvider;
+    @Mock
     QsEventLogger mUiEventLogger;
 
     private RotationLockController mController;
     private TestableLooper mTestableLooper;
     private RotationLockTile mLockTile;
     private TestableResources mTestableResources;
-
-    public RotationLockTileTest(FlagsParameterization flags) {
-        super();
-        mSetFlagsRule.setFlagsParameterization(flags);
-    }
+    private FakeExecutor mFakeExecutor = new FakeExecutor(new FakeSystemClock());
 
     @Before
     public void setUp() throws Exception {
@@ -128,8 +116,14 @@ public class RotationLockTileTest extends SysuiTestCase {
         mTestableResources.addOverride(com.android.internal.R.bool.config_allowRotationResolver,
                 true);
 
-        mController = new RotationLockControllerImpl(mRotationPolicyWrapper,
-                mDeviceStateRotationLockSettingController, DEFAULT_SETTINGS);
+        mController = new RotationLockControllerImpl(
+                mRotationPolicyWrapper,
+                mCameraRotationSettingProvider,
+                mDeviceStateRotationLockSettingController,
+                DEFAULT_SETTINGS,
+                mFakeExecutor,
+                mFakeExecutor
+        );
 
         mLockTile = new RotationLockTile(
                 mHost,
@@ -295,18 +289,14 @@ public class RotationLockTileTest extends SysuiTestCase {
     }
 
     private void enableCameraBasedRotation() {
-        when(mRotationPolicyWrapper.isCameraRotationEnabled()).thenReturn(true);
+        when(mCameraRotationSettingProvider.isCameraRotationEnabled()).thenReturn(true);
     }
 
     private void disableCameraBasedRotation() {
-        when(mRotationPolicyWrapper.isCameraRotationEnabled()).thenReturn(false);
+        when(mCameraRotationSettingProvider.isCameraRotationEnabled()).thenReturn(false);
     }
 
     private QSTile.Icon createExpectedIcon(int resId) {
-        if (QsInCompose.isEnabled()) {
-            return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
-        } else {
-            return QSTileImpl.ResourceIcon.get(resId);
-        }
+        return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
     }
 }

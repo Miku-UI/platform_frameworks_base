@@ -1419,6 +1419,8 @@ public class Surface implements Parcelable {
         private HardwareRenderer mHardwareRenderer;
         private RecordingCanvas mCanvas;
         private final boolean mIsWideColorGamut;
+        private int mWidth;
+        private int mHeight;
 
         HwuiContext(boolean isWideColorGamut) {
             mRenderNode = RenderNode.create("HwuiCanvas", null);
@@ -1435,11 +1437,19 @@ public class Surface implements Parcelable {
                             : ActivityInfo.COLOR_MODE_DEFAULT);
             mHardwareRenderer.setLightSourceAlpha(0.0f, 0.0f);
             mHardwareRenderer.setLightSourceGeometry(0.0f, 0.0f, 0.0f, 0.0f);
+            Point p = Surface.this.getDefaultSize();
+            mWidth = p.x;
+            mHeight = p.y;
         }
 
         Canvas lockCanvas(int width, int height) {
             if (mCanvas != null) {
                 throw new IllegalStateException("Surface was already locked!");
+            }
+            if (mWidth != width || mHeight != height) {
+                mWidth = width;
+                mHeight = height;
+                mHardwareRenderer.setSurface(Surface.this, true);
             }
             mCanvas = mRenderNode.beginRecording(width, height);
             return mCanvas;

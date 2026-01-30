@@ -15,14 +15,12 @@
  */
 package com.android.ravenwoodtest.bivalenttest;
 
-import static junit.framework.Assert.assertEquals;
+import static org.junit.Assert.assertEquals;
 
 import android.platform.test.ravenwood.RavenwoodRule;
-import android.platform.test.ravenwood.RavenwoodUtils;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -33,11 +31,8 @@ public final class RavenwoodJniTest {
     }
 
     public static void initializeJni() {
-        RavenwoodUtils.loadJniLibrary("ravenwoodbivalenttest_jni");
+        RavenwoodRule.loadJniLibrary("ravenwoodbivalenttest_jni");
     }
-
-    @Rule
-    public final RavenwoodRule mRavenwood = new RavenwoodRule.Builder().build();
 
     private static native int add(int a, int b);
 

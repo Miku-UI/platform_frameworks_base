@@ -27,3 +27,16 @@ prop {
     scope: Internal
     access: Readonly
 }
+
+# Provide OEMs with the flexibility to override
+# the velocity mapping threshold as needed.
+# Please format the values in the following manner:
+# frameRate1@threshold1:frameRate2@threshold2
+# For example, 120@1000:80@700:60@500
+prop {
+    api_name: "vrr_velocity_threshold"
+    type: String
+    prop_name: "ro.view.vrr.velocity_threshold"
+    scope: Internal
+    access: Readonly
+}

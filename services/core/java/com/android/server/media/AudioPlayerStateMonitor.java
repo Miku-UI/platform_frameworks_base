@@ -29,6 +29,8 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.media.mediasession.flags.Flags;
+import com.android.server.SystemService;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -89,6 +91,10 @@ class AudioPlayerStateMonitor {
     }
 
     private final Object mLock = new Object();
+
+    @GuardedBy("mLock")
+    private final Set<Integer> mIgnoredAudioUsageTypes;
+
     @GuardedBy("mLock")
     private final Map<OnAudioPlayerActiveStateChangedListener, MessageHandler> mListenerMap =
             new ArrayMap<>();
@@ -106,16 +112,49 @@ class AudioPlayerStateMonitor {
     @SuppressWarnings("WeakerAccess") /* synthetic access */
     final List<Integer> mSortedAudioPlaybackClientUids = new ArrayList<>();
 
+    /**
+     * Static factory method.
+     *
+     * <p>If {@link Flags#removeAudioplayerstatemonitorStaticMemoization()} is true then this method
+     * creates a new instance (and registers a new listener on {@link AudioManager}) each time it's
+     * called, so should only be called once per {@link SystemService} lifecycle.
+     *
+     * @param context A context.
+     * @return The constructed instance.
+     */
     static AudioPlayerStateMonitor getInstance(Context context) {
+        if (Flags.removeAudioplayerstatemonitorStaticMemoization()) {
+            return getInstance(context, Set.of());
+        }
         synchronized (AudioPlayerStateMonitor.class) {
             if (sInstance == null) {
-                sInstance = new AudioPlayerStateMonitor(context);
+                sInstance = new AudioPlayerStateMonitor(context, Set.of());
             }
             return sInstance;
         }
     }
 
-    private AudioPlayerStateMonitor(Context context) {
+    /**
+     * Static factory method.
+     *
+     * <p>This method creates a new instance (and registers a new listener on {@link AudioManager})
+     * each time it's called, so should only be called once per {@link SystemService} lifecycle.
+     *
+     * @param context A context.
+     * @param ignoredAudioUsageTypes A set of {@code AudioAttributes.USAGE_} values that should be
+     *     ignored when calculating the results of 'recent/active audio' methods like {@link
+     *     #isPlaybackActive(int)}. This doesn't filter calls to {@link
+     *     OnAudioPlayerActiveStateChangedListener#onAudioPlayerActiveStateChanged(
+     *     AudioPlaybackConfiguration, boolean)}.
+     * @return The constructed instance.
+     */
+    static AudioPlayerStateMonitor getInstance(
+            Context context, Set<Integer> ignoredAudioUsageTypes) {
+        return new AudioPlayerStateMonitor(context, ignoredAudioUsageTypes);
+    }
+
+    private AudioPlayerStateMonitor(Context context, Set<Integer> ignoredAudioUsageTypes) {
+        mIgnoredAudioUsageTypes = Set.copyOf(ignoredAudioUsageTypes);
         AudioManager am = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         am.registerAudioPlaybackCallback(new AudioManagerPlaybackListener(), null);
     }
@@ -144,6 +183,9 @@ class AudioPlayerStateMonitor {
      * Returns the sorted list of UIDs that have had active audio playback. (i.e. playing an
      * audio/video) The UID whose audio is currently playing comes first, then the UID whose audio
      * playback becomes active at the last comes next.
+     *
+     * <p>Audio playbacks with usage types in the {@code Set<Integer> ignoredAudioUsageTypes}
+     * {@linkplain #getInstance(Context, Set) factory} parameter are ignored.
      */
     public List<Integer> getSortedAudioPlaybackClientUids() {
         List<Integer> sortedAudioPlaybackClientUids = new ArrayList();
@@ -160,6 +202,9 @@ class AudioPlayerStateMonitor {
      * a media session. Then, volume events should affect the local music stream rather than other
      * media sessions.
      *
+     * <p>Audio playbacks with usage types in the {@code Set<Integer> ignoredAudioUsageTypes}
+     * {@linkplain #getInstance(Context, Set) factory} parameter are ignored.
+     *
      * @return {@code true} if the given uid corresponds to the last process to audio or
      * {@code false} otherwise.
      */
@@ -172,6 +217,9 @@ class AudioPlayerStateMonitor {
 
     /**
      * Returns if the audio playback is active for the uid.
+     *
+     * <p>Audio playbacks with usage types in the {@code Set<Integer> ignoredAudioUsageTypes}
+     * {@linkplain #getInstance(Context, Set) factory} parameter are ignored.
      */
     public boolean isPlaybackActive(int uid) {
         synchronized (mLock) {
@@ -245,7 +293,9 @@ class AudioPlayerStateMonitor {
                 ArrayMap<Integer, AudioPlaybackConfiguration> activeAudioPlaybackConfigs =
                         new ArrayMap<>();
                 for (AudioPlaybackConfiguration config : configs) {
-                    if (config.isActive()) {
+                    if (config.isActive()
+                            && !mIgnoredAudioUsageTypes.contains(
+                                    config.getAudioAttributes().getUsage())) {
                         mActiveAudioUids.add(config.getClientUid());
                         activeAudioPlaybackConfigs.put(config.getPlayerInterfaceId(), config);
                     }

@@ -39,12 +39,6 @@ class CommunalTransitionAnimatorController(
 
     override fun onTransitionAnimationStart(isExpandingFullyAbove: Boolean) {
         delegate.onTransitionAnimationStart(isExpandingFullyAbove)
-        // TODO(b/330672236): move this to onTransitionAnimationEnd() without the delay.
-        communalSceneInteractor.snapToScene(
-            CommunalScenes.Blank,
-            "CommunalTransitionAnimatorController",
-            ActivityTransitionAnimator.TIMINGS.totalDuration
-        )
     }
 
     override fun onTransitionAnimationCancelled(newKeyguardOccludedState: Boolean?) {
@@ -55,5 +49,9 @@ class CommunalTransitionAnimatorController(
     override fun onTransitionAnimationEnd(isExpandingFullyAbove: Boolean) {
         communalSceneInteractor.setIsLaunchingWidget(false)
         delegate.onTransitionAnimationEnd(isExpandingFullyAbove)
+        communalSceneInteractor.snapToScene(
+            CommunalScenes.Blank,
+            "CommunalTransitionAnimatorController",
+        )
     }
 }

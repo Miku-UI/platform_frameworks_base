@@ -22,7 +22,7 @@ import android.telephony.ims.aidl.IImsRegistrationCallback;
 /**
  * See ImsRegistration for more information.
  *
- * {@hide}
+ * @hide
  */
 interface IImsRegistration {
    int getRegistrationTechnology();

@@ -55,6 +55,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -229,16 +230,16 @@ public class SplitPresenterTest {
         final TaskFragmentContainer container1 = createTfContainer(mController, mActivity);
 
         mPresenter.setCompanionTaskFragment(mTransaction, container0.getTaskFragmentToken(),
-                container1.getTaskFragmentToken());
+                container1.getTaskFragmentToken(), mActivity.getActivityToken());
         verify(mTransaction).setCompanionTaskFragment(container0.getTaskFragmentToken(),
-                container1.getTaskFragmentToken());
+                container1.getTaskFragmentToken(), mActivity.getActivityToken());
 
         // No request to set the same adjacent TaskFragments.
         clearInvocations(mTransaction);
         mPresenter.setCompanionTaskFragment(mTransaction, container0.getTaskFragmentToken(),
-                container1.getTaskFragmentToken());
+                container1.getTaskFragmentToken(), mActivity.getActivityToken());
 
-        verify(mTransaction, never()).setCompanionTaskFragment(any(), any());
+        verify(mTransaction, never()).setCompanionTaskFragment(any(), any(), any());
     }
 
     @Test
@@ -666,6 +667,7 @@ public class SplitPresenterTest {
 
     @Test
     public void testExpandSplitContainerIfNeeded() {
+        doNothing().when(mPresenter).expandTaskFragment(any(), any());
         Activity secondaryActivity = createMockActivity();
         SplitRule splitRule = createSplitRule(mActivity, secondaryActivity);
         TaskFragmentContainer primaryTf = createTfContainer(mController, mActivity);
@@ -681,11 +683,30 @@ public class SplitPresenterTest {
                 splitContainer, mActivity, secondaryActivity, null /* secondaryIntent */));
         verify(mPresenter, never()).expandTaskFragment(any(), any());
 
+        // Not fail when the split pair is already expanded, even if it's info is not yet received.
         splitContainer.updateCurrentSplitAttributes(SPLIT_ATTRIBUTES);
         doReturn(createActivityInfoWithMinDimensions()).when(secondaryActivity).getActivityInfo();
+        primaryTf.setLastRequestedBounds(null);
+        secondaryTf.setLastRequestedBounds(null);
+
+        assertEquals(RESULT_EXPANDED, mPresenter.expandSplitContainerIfNeeded(
+                mTransaction, splitContainer, mActivity, secondaryActivity,
+                null /* secondaryIntent */));
+        verify(mPresenter, never()).expandTaskFragment(any(), any());
+
+        // Failed when the split pair is not expanded, and it's info is not yet received.
+        splitContainer.updateCurrentSplitAttributes(SPLIT_ATTRIBUTES);
+        primaryTf.setLastRequestedBounds(new Rect(0, 0, 500, 1000));
+        secondaryTf.setLastRequestedBounds(new Rect(500, 0, 1000, 1000));
+        final WindowContainerTransaction.TaskFragmentAdjacentParams params =
+                new WindowContainerTransaction.TaskFragmentAdjacentParams();
+        secondaryTf.setLastAdjacentTaskFragment(primaryTf.getTaskFragmentToken(), params);
+        primaryTf.setLastAdjacentTaskFragment(secondaryTf.getTaskFragmentToken(), params);
+
         assertEquals(RESULT_EXPAND_FAILED_NO_TF_INFO, mPresenter.expandSplitContainerIfNeeded(
                 mTransaction, splitContainer, mActivity, secondaryActivity,
                 null /* secondaryIntent */));
+        verify(mPresenter, never()).expandTaskFragment(any(), any());
 
         splitContainer.updateCurrentSplitAttributes(SPLIT_ATTRIBUTES);
         primaryTf.setInfo(mTransaction, createMockTaskFragmentInfo(primaryTf, mActivity));

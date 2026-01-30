@@ -91,6 +91,34 @@ public final class NotificationProgressDrawable extends Drawable {
     }
 
     /**
+     * <p>Set the segment height for the drawable.</p>
+     * <p>Note: changing this property will affect all instances of a drawable loaded from a
+     * resource. It is recommended to invoke {@link #mutate()} before changing this property.</p>
+     *
+     * @param height The height of the segments
+     * @see #mutate()
+     */
+    public void setSegmentHeight(float height) {
+        mState.mSegmentHeight = height;
+
+        invalidateSelf();
+    }
+
+    /**
+     * <p>Set the faded segment height for the drawable.</p>
+     * <p>Note: changing this property will affect all instances of a drawable loaded from a
+     * resource. It is recommended to invoke {@link #mutate()} before changing this property.</p>
+     *
+     * @param height The height of the faded segments
+     * @see #mutate()
+     */
+    public void setFadedSegmentHeight(float height) {
+        mState.mFadedSegmentHeight = height;
+
+        invalidateSelf();
+    }
+
+    /**
      * Set the segments and points that constitute the drawable.
      */
     public void setParts(List<DrawablePart> parts) {

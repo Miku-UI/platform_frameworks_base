@@ -21,9 +21,12 @@ import com.android.app.displaylib.PerDisplayInstanceRepositoryImpl
 import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.display.data.repository.DisplayComponentRepository
 import com.android.systemui.display.data.repository.PerDisplayCoroutineScopeRepositoryModule
+import com.android.systemui.model.SceneContainerPlugin
+import com.android.systemui.model.SceneContainerPluginImpl
 import com.android.systemui.model.SysUIStateInstanceProvider
 import com.android.systemui.model.SysUiState
 import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 
@@ -31,19 +34,25 @@ import dagger.Provides
 @Module(
     includes = [PerDisplayCoroutineScopeRepositoryModule::class, DisplayComponentRepository::class]
 )
-class PerDisplayRepositoriesModule {
+interface PerDisplayRepositoriesModule {
 
+    @Binds
     @SysUISingleton
-    @Provides
-    fun provideSysUiStateRepository(
-        repositoryFactory: PerDisplayInstanceRepositoryImpl.Factory<SysUiState>,
-        instanceProvider: SysUIStateInstanceProvider,
-    ): PerDisplayRepository<SysUiState> {
-        val debugName = "SysUiStatePerDisplayRepo"
-        return if (ShadeWindowGoesAround.isEnabled) {
-            repositoryFactory.create(debugName, instanceProvider)
-        } else {
-            DefaultDisplayOnlyInstanceRepositoryImpl(debugName, instanceProvider)
+    fun bindSceneContainerPlugin(impl: SceneContainerPluginImpl): SceneContainerPlugin
+
+    companion object {
+        @SysUISingleton
+        @Provides
+        fun provideSysUiStateRepository(
+            repositoryFactory: PerDisplayInstanceRepositoryImpl.Factory<SysUiState>,
+            instanceProvider: SysUIStateInstanceProvider,
+        ): PerDisplayRepository<SysUiState> {
+            val debugName = "SysUiStatePerDisplayRepo"
+            return if (ShadeWindowGoesAround.isEnabled) {
+                repositoryFactory.create(debugName, instanceProvider)
+            } else {
+                DefaultDisplayOnlyInstanceRepositoryImpl(debugName, instanceProvider)
+            }
         }
     }
 }

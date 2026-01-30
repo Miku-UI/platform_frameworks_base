@@ -1,0 +1,162 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.android.systemui.volume.panel.component.mediaoutput.ui.composable
+
+import android.media.session.PlaybackState
+import android.platform.test.annotations.MotionTest
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.SemanticsNodeInteractionsProvider
+import androidx.compose.ui.test.hasTestTag
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.LargeTest
+import com.android.systemui.SysuiTestCase
+import com.android.systemui.compose.modifiers.resIdToTestTag
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.motion.createSysUiComposeMotionTestRule
+import com.android.systemui.testKosmos
+import com.android.systemui.volume.localMediaController
+import com.android.systemui.volume.localMediaRepository
+import com.android.systemui.volume.localPlaybackStateBuilder
+import com.android.systemui.volume.mediaControllerRepository
+import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.TestMediaDevicesFactory
+import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.fakeMediaControllerInteractor
+import com.android.systemui.volume.panel.component.mediaoutput.domain.interactor.mediaControllerInteractor
+import com.android.systemui.volume.panel.component.mediaoutput.domain.model.MediaControllerChangeModel
+import com.android.systemui.volume.panel.component.mediaoutput.mediaOutputComponent
+import com.android.systemui.volume.panel.ui.composable.VolumePanelComposeScope
+import com.android.systemui.volume.panel.ui.viewmodel.volumePanelViewModel
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.runCurrent
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import platform.test.motion.compose.ComposeFeatureCaptures.positionInRoot
+import platform.test.motion.compose.ComposeFeatureCaptures.size
+import platform.test.motion.compose.ComposeRecordingSpec
+import platform.test.motion.compose.MotionControl
+import platform.test.motion.compose.MotionControlScope
+import platform.test.motion.compose.feature
+import platform.test.motion.compose.motionTestValueOfNode
+import platform.test.motion.compose.recordMotion
+import platform.test.motion.compose.runTest
+import platform.test.motion.golden.TimeSeriesCaptureScope
+
+@OptIn(ExperimentalCoroutinesApi::class)
+@RunWith(AndroidJUnit4::class)
+@LargeTest
+@MotionTest
+class MediaOutputComponentMotionTest : SysuiTestCase() {
+    private val kosmos = testKosmos()
+    @get:Rule val motionTestRule = createSysUiComposeMotionTestRule(kosmos)
+
+    @Before
+    fun setUp() {
+        with(kosmos) {
+            mediaControllerInteractor = fakeMediaControllerInteractor
+            mediaControllerRepository.setActiveSessions(listOf(localMediaController))
+            localMediaRepository.updateCurrentConnectedDevice(
+                TestMediaDevicesFactory.builtInMediaDevice(deviceIcon = null)
+            )
+        }
+    }
+
+    @Test
+    fun testIconChange_pausedToPlaying() {
+        kosmos.localPlaybackStateBuilder.setState(PlaybackState.STATE_PAUSED, 0, 0f)
+        motionTestRule.runTest(timeout = 60.seconds) {
+            val motion =
+                recordMotion(
+                    content = { kosmos.MediaOutputComponent() },
+                    recordingSpec =
+                        ComposeRecordingSpec(
+                            motionControl =
+                                MotionControl(
+                                    recording = { recording(PlaybackState.STATE_PLAYING) }
+                                ),
+                            timeSeriesCapture = { capture() },
+                        ),
+                )
+            assertThat(motion)
+                .timeSeriesMatchesGolden("VolumePanel_MediaOutput_testIconChange_pausedToPlaying")
+        }
+    }
+
+    @Test
+    fun testIconChange_playingToPaused() {
+        kosmos.localPlaybackStateBuilder.setState(PlaybackState.STATE_PLAYING, 0, 0f)
+        motionTestRule.runTest(timeout = 60.seconds) {
+            val motion =
+                recordMotion(
+                    content = { kosmos.MediaOutputComponent() },
+                    recordingSpec =
+                        ComposeRecordingSpec(
+                            motionControl =
+                                MotionControl(
+                                    recording = { recording(PlaybackState.STATE_PAUSED) }
+                                ),
+                            timeSeriesCapture = { capture() },
+                        ),
+                )
+            assertThat(motion)
+                .timeSeriesMatchesGolden("VolumePanel_MediaOutput_testIconChange_playingToPaused")
+        }
+    }
+
+    private suspend fun MotionControlScope.recording(targetPlaybackState: Int) {
+        with(kosmos) {
+            localPlaybackStateBuilder.setState(targetPlaybackState, 0, 0f)
+            fakeMediaControllerInteractor.updateState(
+                MediaControllerChangeModel.PlaybackStateChanged(localPlaybackStateBuilder.build())
+            )
+            testScope.runCurrent()
+        }
+        awaitFrames()
+        awaitCondition {
+            motionTestValueOfNode(MediaOutputComponentMotionTestKeys.isIconTransitionIdle)
+        }
+    }
+
+    private fun TimeSeriesCaptureScope<SemanticsNodeInteractionsProvider>.capture() {
+        captureTag(MediaOutputComponentMotionTestKeys.PLAYING_ICON_TAG)
+        captureTag(MediaOutputComponentMotionTestKeys.PLAYING_ICON_BACKGROUND_TAG)
+        captureTag(MediaOutputComponentMotionTestKeys.IDLE_ICON_TAG)
+        captureTag(MediaOutputComponentMotionTestKeys.IDLE_ICON_BACKGROUND_TAG)
+    }
+
+    private fun TimeSeriesCaptureScope<SemanticsNodeInteractionsProvider>.captureTag(tag: String) {
+        feature(hasTestTag(resIdToTestTag(tag)), positionInRoot, "${tag}_position", true)
+        feature(hasTestTag(resIdToTestTag(tag)), size, "${tag}_size", true)
+    }
+
+    @Composable
+    fun Kosmos.MediaOutputComponent() {
+        val volumePanelState by volumePanelViewModel.volumePanelState.collectAsState()
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+            with(VolumePanelComposeScope(volumePanelState)) {
+                with(mediaOutputComponent) { Content(modifier = Modifier) }
+            }
+        }
+    }
+}

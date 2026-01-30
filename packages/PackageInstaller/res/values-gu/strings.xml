@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"અપડેટ કરો"</string>
     <string name="done" msgid="6632441120016885253">"થઈ ગયું"</string>
     <string name="cancel" msgid="1018267193425558088">"રદ કરો"</string>
+    <string name="more_details" msgid="3643407086654820243">"વધુ વિગતો"</string>
+    <string name="dont_install" msgid="414055123295505225">"ઇન્સ્ટૉલ કરશો નહીં"</string>
     <string name="installing" msgid="4921993079741206516">"ઇન્સ્ટૉલ કરી રહ્યાં છીએ…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>ને ઇન્સ્ટૉલ કરી રહ્યાં છીએ…"</string>
     <string name="install_done" msgid="5987363587661783896">"ઍપ્લિકેશન ઇન્સ્ટૉલ કરી."</string>

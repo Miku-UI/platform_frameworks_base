@@ -57,7 +57,9 @@ class RestoreFileRunnable implements Runnable {
         try {
             mAgent.doRestoreFile(mSocket, mInfo.size, mInfo.type,
                     mInfo.domain, mInfo.path, mInfo.mode, mInfo.mtime,
-                    mToken, mBackupManagerService.getBackupManagerBinder());
+                    mToken, mBackupManagerService.getBackupManagerBinder(),
+                    /* appVersionCode= */ 0, /* transportFlags= */ 0,
+                    /* contentVersion= */ "");
         } catch (RemoteException e) {
             // never happens; this is used strictly for local binder calls
         }

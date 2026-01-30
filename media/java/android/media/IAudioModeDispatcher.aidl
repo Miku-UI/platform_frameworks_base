@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for the AudioService to signal audio mode changes.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAudioModeDispatcher {
 

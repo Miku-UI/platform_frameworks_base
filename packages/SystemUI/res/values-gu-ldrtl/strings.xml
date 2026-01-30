@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"ઍપને ઝડપથી સ્વિચ કરવા માટે ડાબે ખેંચો"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"નોટિફિકેશન ખોલવા માટે સૌથી ઉપર જમણી બાજુએથી નીચે સ્વાઇપ કરો"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"ઝડપી સેટિંગ ખોલવા માટે સૌથી ઉપર ડાબી બાજુએથી નીચે સ્વાઇપ કરો"</string>
 </resources>

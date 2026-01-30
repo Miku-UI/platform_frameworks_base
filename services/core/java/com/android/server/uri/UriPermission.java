@@ -208,15 +208,21 @@ final class UriPermission {
                 persistedModeFlags &= ~Intent.FLAG_GRANT_READ_URI_PERMISSION;
             }
             globalModeFlags &= ~Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            ArraySet<UriPermissionOwner> readOwnersCopy = null;
             synchronized (this) {
                 if (mReadOwners != null && includingOwners) {
                     ownedModeFlags &= ~Intent.FLAG_GRANT_READ_URI_PERMISSION;
-                    for (UriPermissionOwner r : mReadOwners) {
-                        if (r != null) {
-                            r.removeReadPermission(this);
-                        }
-                    }
+                    // Keeping a copy to remove the permission outside of UriPermission lock to
+                    // prevent Deadlock
+                    readOwnersCopy = new ArraySet<>(mReadOwners);
                     mReadOwners = null;
+                }
+            }
+            if (readOwnersCopy != null) {
+                for (UriPermissionOwner r : readOwnersCopy) {
+                    if (r != null) {
+                        r.removeReadPermission(this);
+                    }
                 }
             }
         }
@@ -226,15 +232,21 @@ final class UriPermission {
                 persistedModeFlags &= ~Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
             }
             globalModeFlags &= ~Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
+            ArraySet<UriPermissionOwner> writeOwnersCopy = null;
             synchronized (this) {
                 if (mWriteOwners != null && includingOwners) {
                     ownedModeFlags &= ~Intent.FLAG_GRANT_WRITE_URI_PERMISSION;
-                    for (UriPermissionOwner r : mWriteOwners) {
-                        if (r != null) {
-                            r.removeWritePermission(this);
-                        }
-                    }
+                    // Keeping a copy to remove the permission outside of UriPermission lock to
+                    // prevent Deadlock
+                    writeOwnersCopy = new ArraySet<>(mWriteOwners);
                     mWriteOwners = null;
+                }
+            }
+            if (writeOwnersCopy != null) {
+                for (UriPermissionOwner r : writeOwnersCopy) {
+                    if (r != null) {
+                        r.removeWritePermission(this);
+                    }
                 }
             }
         }

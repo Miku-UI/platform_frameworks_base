@@ -312,7 +312,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             val entry = fakeNotification(1, false)
             whenever(
                     sensitiveNotificationProtectionController.shouldProtectNotification(
-                        entry.getRepresentativeEntry()
+                        entry.representativeEntry
                     )
                 )
                 .thenReturn(true)
@@ -387,7 +387,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             val entry = fakeNotification(1, true)
             whenever(
                     sensitiveNotificationProtectionController.shouldProtectNotification(
-                        entry.getRepresentativeEntry()
+                        entry.representativeEntry
                     )
                 )
                 .thenReturn(true)
@@ -462,7 +462,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             val entry = fakeNotification(1, false)
             whenever(
                     sensitiveNotificationProtectionController.shouldProtectNotification(
-                        entry.getRepresentativeEntry()
+                        entry.representativeEntry
                     )
                 )
                 .thenReturn(true)
@@ -539,7 +539,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             val entry = fakeNotification(1, false)
             whenever(
                     sensitiveNotificationProtectionController.shouldProtectNotification(
-                        entry.getRepresentativeEntry()
+                        entry.representativeEntry
                     )
                 )
                 .thenReturn(true)
@@ -614,7 +614,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             val entry = fakeNotification(1, true)
             whenever(
                     sensitiveNotificationProtectionController.shouldProtectNotification(
-                        entry.getRepresentativeEntry()
+                        entry.representativeEntry
                     )
                 )
                 .thenReturn(true)
@@ -690,7 +690,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             val entry = fakeNotification(1, true)
             whenever(
                     sensitiveNotificationProtectionController.shouldProtectNotification(
-                        entry.getRepresentativeEntry()
+                        entry.representativeEntry
                     )
                 )
                 .thenReturn(true)
@@ -769,7 +769,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
             val entry = fakeNotification(2, true)
             whenever(
                     sensitiveNotificationProtectionController.shouldProtectNotification(
-                        entry.getRepresentativeEntry()
+                        entry.representativeEntry
                     )
                 )
                 .thenReturn(true)
@@ -848,7 +848,7 @@ class SensitiveContentCoordinatorTest(flags: FlagsParameterization) : SysuiTestC
         whenever(lockscreenUserManager.getRedactionType(mockEntry)).thenReturn(redactionType)
         whenever(mockEntry.rowExists()).thenReturn(true)
         return object : ListEntry("key", 0) {
-            override fun getRepresentativeEntry(): NotificationEntry = mockEntry
+            override val representativeEntry: NotificationEntry = mockEntry
         }
     }
 

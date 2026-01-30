@@ -73,7 +73,7 @@ public class ApplicationThreadDeferredTest {
     @Test
     public void testDeferredUnpaused() throws Exception {
         IApplicationThread base = mock(IApplicationThread.class);
-        ApplicationThreadDeferred thread = new ApplicationThreadDeferred(base, true);
+        ApplicationThreadDeferred thread = new ApplicationThreadDeferred(base);
         callDeferredApis(thread);
         verifyDeferredApis(base, 1);
     }
@@ -83,7 +83,7 @@ public class ApplicationThreadDeferredTest {
     @Test
     public void testDeferredPaused() throws Exception {
         IApplicationThread base = mock(IApplicationThread.class);
-        ApplicationThreadDeferred thread = new ApplicationThreadDeferred(base, true);
+        ApplicationThreadDeferred thread = new ApplicationThreadDeferred(base);
         thread.onProcessPaused();
         callDeferredApis(thread);
         callDeferredApis(thread);

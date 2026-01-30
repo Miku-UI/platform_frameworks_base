@@ -12,8 +12,15 @@ flag {
     name: "asm_restrictions_enabled"
     is_exported: true
     namespace: "responsible_apis"
-    description: "Enables ASM restrictions for activity starts and finishes"
+    description: "Enables APIs for ASM"
     bug: "230590090"
+}
+
+flag {
+    name: "asm_restrictions_v2"
+    namespace: "responsible_apis"
+    description: "Enables ASM restrictions for activity starts and finishes"
+    bug: "416033243"
 }
 
 flag {
@@ -24,13 +31,10 @@ flag {
 }
 
 flag {
-  name: "asm_reintroduce_grace_period"
+  name: "asm_ignore_grace_period_exemption"
   namespace: "responsible_apis"
-  description: "Allow launches within the grace period for ASM apps"
+  description: "Ignore grace period exemption for ASM apps"
   bug: "367702727"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
 }
 
 flag {
@@ -135,12 +139,6 @@ flag {
 }
 
 flag {
-    name: "aapm_feature_memory_tagging_extension"
-    namespace: "responsible_apis"
-    description: "Android Advanced Protection Mode Feature: Memory Tagging Extension"
-    bug: "378931989"
-}
-flag {
     name: "aapm_feature_disable_cellular_2g"
     namespace: "responsible_apis"
     description: "Android Advanced Protection Mode Feature: Disable Cellular 2G"
@@ -152,4 +150,90 @@ flag {
     namespace: "preload_safety"
     description: "Android Advanced Protection Mode Feature: Usb Data Protection"
     bug: "389958463"
+}
+
+flag {
+    name: "aapm_feature_usb_data_protection_delay_disable_auto_only"
+    namespace: "preload_safety"
+    description: "Limiting the delay disable for USB upon unplug only to auto connections"
+    bug: "444044714"
+}
+
+flag {
+    name: "aapm_feature_usb_data_protection_disable_data_for_charger_upon_lock"
+    namespace: "preload_safety"
+    description: "Disable USB data upon lock if existing connection is power brick"
+    bug: "444044714"
+}
+
+flag {
+    name: "implicit_uri_grants_restricted_for_sendmultiple_imagecapture_actions"
+    namespace: "permissions"
+    description: "Flag for restricting implicit URI grants on SendMultiple and ImageCapture intents"
+    bug: "295238578"
+}
+
+flag {
+    name: "implicit_uri_grants_restricted_for_send_action"
+    namespace: "permissions"
+    description: "Flag for restricting implicit URI grants on Send action intents"
+    bug: "295238578"
+}
+
+flag {
+    name: "enable_intent_firewall_extra_key_value_filter"
+    namespace: "responsible_apis"
+    description: "Flag for enable ExtraKeyValueFilter in IntentFirewall"
+    bug: "428733109"
+}
+
+flag {
+    name: "enable_intent_firewall_component_class_filter"
+    namespace: "responsible_apis"
+    description: "Flag for enabling component-class-filter in IntentFirewall"
+    bug: "428733109"
+}
+
+flag {
+    name: "fail_on_parcel_size_mismatch"
+    namespace: "responsible_apis"
+    description: "Flag for failing instead of logging in case of parcel size mismatches"
+    bug: "416031865"
+}
+
+flag {
+    name: "wtf_bundle_defuse"
+    namespace: "responsible_apis"
+    description: "Flag for wtf logging when defuse is enabled."
+    bug: "254848919"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "deprecate_bundle_defuse"
+    namespace: "responsible_apis"
+    description: "Flag for failing instead of logging when defuse is enabled."
+    bug: "254848919"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+   name: "service_uprobestats"
+   namespace: "responsible_apis"
+   description: "Flag that enables the uprobestats system service"
+   bug: "408041227"
+}
+
+flag {
+    name: "check_application_thread_called_by_system"
+    namespace: "responsible_apis"
+    description: "Allow only the system to call methods on ApplicationThread."
+    bug: "317346668"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

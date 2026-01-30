@@ -19,10 +19,13 @@ package com.android.systemui.biometrics.data.repository
 import android.hardware.biometrics.PromptInfo
 import android.util.Log
 import com.android.systemui.biometrics.AuthController
+import com.android.systemui.biometrics.shared.model.BiometricModalities
+import com.android.systemui.biometrics.shared.model.FallbackOptionModel
+import com.android.systemui.biometrics.shared.model.IconType
 import com.android.systemui.biometrics.shared.model.PromptKind
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -47,6 +50,9 @@ interface PromptRepository {
     /** The app-specific details to show in the prompt. */
     val promptInfo: StateFlow<PromptInfo?>
 
+    /** The available modalities in the prompt */
+    val modalities: StateFlow<BiometricModalities>
+
     /** The user that the prompt is for. */
     val userId: StateFlow<Int?>
 
@@ -62,6 +68,9 @@ interface PromptRepository {
     /** The package name that the prompt is called from. */
     val opPackageName: StateFlow<String?>
 
+    /** The fallback options set by prompt caller. */
+    val fallbackOptions: Flow<List<FallbackOptionModel>>
+
     /**
      * If explicit confirmation is required.
      *
@@ -73,6 +82,7 @@ interface PromptRepository {
     fun setPrompt(
         promptInfo: PromptInfo,
         userId: Int,
+        modalities: BiometricModalities,
         requestId: Long,
         gatekeeperChallenge: Long?,
         kind: PromptKind,
@@ -108,6 +118,10 @@ constructor(
     private val _promptInfo: MutableStateFlow<PromptInfo?> = MutableStateFlow(null)
     override val promptInfo = _promptInfo.asStateFlow()
 
+    private val _modalities: MutableStateFlow<BiometricModalities> =
+        MutableStateFlow(BiometricModalities())
+    override val modalities = _modalities.asStateFlow()
+
     private val _challenge: MutableStateFlow<Long?> = MutableStateFlow(null)
     override val challenge: StateFlow<Long?> = _challenge.asStateFlow()
 
@@ -122,6 +136,16 @@ constructor(
 
     private val _opPackageName: MutableStateFlow<String?> = MutableStateFlow(null)
     override val opPackageName = _opPackageName.asStateFlow()
+
+    override val fallbackOptions: Flow<List<FallbackOptionModel>> =
+        promptInfo.map { info ->
+            info?.fallbackOptions?.map { fallbackOption ->
+                FallbackOptionModel(
+                    fallbackOption.text,
+                    IconType.entries.first { it.ordinal == fallbackOption.iconType },
+                )
+            } ?: emptyList()
+        }
 
     private val _faceSettings =
         _userId.map { id -> faceSettings.forUser(id) }.distinctUntilChanged()
@@ -140,6 +164,7 @@ constructor(
     override fun setPrompt(
         promptInfo: PromptInfo,
         userId: Int,
+        modalities: BiometricModalities,
         requestId: Long,
         gatekeeperChallenge: Long?,
         kind: PromptKind,
@@ -147,6 +172,7 @@ constructor(
     ) {
         _promptKind.value = kind
         _userId.value = userId
+        _modalities.value = modalities
         _requestId.value = requestId
         _challenge.value = gatekeeperChallenge
         _promptInfo.value = promptInfo
@@ -157,6 +183,7 @@ constructor(
         if (requestId == _requestId.value) {
             _promptInfo.value = null
             _userId.value = null
+            _modalities.value = BiometricModalities()
             _requestId.value = null
             _challenge.value = null
             _promptKind.value = PromptKind.None

@@ -17,6 +17,8 @@
 package com.android.internal.pm.pkg.component;
 
 import static android.provider.flags.Flags.newStoragePublicApi;
+import static android.provider.flags.Flags.publicInternalReadApi;
+
 import static com.android.internal.pm.pkg.parsing.ParsingUtils.ANDROID_RES_NAMESPACE;
 
 import android.aconfig.DeviceProtos;
@@ -55,6 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * own copy of the code here.
  * @hide
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class AconfigFlags {
     private static final boolean DEBUG = false;
     private static final String LOG_TAG = "AconfigFlags";
@@ -269,7 +272,11 @@ public class AconfigFlags {
             // Note: Unlike with the old storage, with AconfigPackage, we don't have a way to
             // know if the flag is not found or if it's found but the value is false.
             try {
-                value = aconfigPackage.getBooleanFlagValue(flagName, false);
+                if (publicInternalReadApi()) {
+                    value = aconfigPackage.getBooleanFlagValueInternal(flagName, false);
+                } else {
+                    value = aconfigPackage.getBooleanFlagValue(flagName, false);
+                }
             } catch (Exception e) {
                 Slog.e(LOG_TAG, "Failed to read Aconfig flag value for " + flagPackageAndName, e);
                 return null;
@@ -320,6 +327,18 @@ public class AconfigFlags {
             negated = true;
             featureFlag = featureFlag.substring(1).strip();
         }
+        return skip(pkg, featureFlag, negated);
+    }
+
+    /**
+     * Check if whatever is behind this flag should be skipped
+     *
+     * @param pkg The package being parsed
+     * @param featureFlag The name of the flag being checked
+     * @param negated Whether that flag is negated
+     * @return true if the resource is disabled because of its feature flag
+     */
+    public boolean skip(@Nullable ParsingPackage pkg, String featureFlag, boolean negated) {
         Boolean flagValue = getFlagValue(featureFlag);
         boolean isUndefined = false;
         if (flagValue == null) {

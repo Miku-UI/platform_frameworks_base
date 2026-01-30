@@ -16,6 +16,7 @@
 
 package com.android.internal.telephony;
 
+import android.os.ResultReceiver;
 import android.telephony.ImsiEncryptionInfo;
 import android.net.Uri;
 
@@ -294,4 +295,18 @@ interface IPhoneSubInfo {
      */
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE)")
     String getSimServiceTable(int subId, int appType);
+
+    /**
+     * Fetches the IMS Application Reference Identifier(IAIR) based on the subscription.
+     *
+     * @param subId subscriptionId
+     * @param appType the uicc app type
+     * @param callingPackage package name of the caller
+     * @param callback result receiver to get the iist of IARI strings. The result code is ignored.
+     * @throws IllegalArgumentException if the subscriptionId is not valid
+     * @throws SecurityException if the caller does not have the required permission
+     */
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE)")
+    oneway void getUiccIari(int subId, int appType, String callingPackage,
+        in ResultReceiver callback);
 }

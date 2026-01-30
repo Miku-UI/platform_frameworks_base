@@ -44,6 +44,7 @@ import com.android.systemui.classifier.FalsingCollector;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.res.R;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
 
 public class KeyguardSimPukViewController
         extends KeyguardPinBasedInputViewController<KeyguardSimPukView> {
@@ -97,11 +98,14 @@ public class KeyguardSimPukViewController
             KeyguardKeyboardInteractor keyguardKeyboardInteractor,
             BouncerHapticPlayer bouncerHapticPlayer,
             UserActivityNotifier userActivityNotifier,
-            InputManager inputManager) {
+            InputManager inputManager,
+            LockPatternCheckerWrapper lockPatternCheckerWrapper
+    ) {
         super(view, keyguardUpdateMonitor, securityMode, lockPatternUtils, keyguardSecurityCallback,
                 messageAreaControllerFactory, latencyTracker,
                 emergencyButtonController, falsingCollector, featureFlags, selectedUserInteractor,
-                keyguardKeyboardInteractor, bouncerHapticPlayer, userActivityNotifier, inputManager
+                keyguardKeyboardInteractor, bouncerHapticPlayer, userActivityNotifier, inputManager,
+                lockPatternCheckerWrapper
         );
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
         mTelephonyManager = telephonyManager;

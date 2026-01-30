@@ -89,7 +89,7 @@ class DisposableBroadcastReceiverAsUserTest {
                 }
             }
         }
-
+        composeTestRule.waitUntil { registeredBroadcastReceiver != null }
         registeredBroadcastReceiver!!.onReceive(context, Intent())
 
         composeTestRule.waitUntil { onReceiveIsCalled }

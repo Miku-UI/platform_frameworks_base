@@ -18,8 +18,6 @@ android_ravenwood_test {
     ],
 
     static_libs: [
-        "RavenwoodBivalentInstTest_self_inst_device_R",
-
         "androidx.annotation_annotation",
         "androidx.test.ext.junit",
         "androidx.test.rules",
@@ -29,9 +27,9 @@ android_ravenwood_test {
     ],
 
     package_name: "com.android.ravenwood.bivalentinsttest_self_inst",
-
-    resource_apk: "RavenwoodBivalentInstTest_self_inst_device",
+    manifest: "AndroidManifest-self-inst.xml",
     auto_gen_config: true,
+    build_resources: true,
 }
 
 android_ravenwood_test {
@@ -46,7 +44,6 @@ android_ravenwood_test {
 
     static_libs: [
         "RavenwoodBivalentInstTestTarget_R",
-        "RavenwoodBivalentInstTest_nonself_inst_device_R",
 
         "androidx.annotation_annotation",
         "androidx.test.ext.junit",
@@ -55,38 +52,22 @@ android_ravenwood_test {
         "junit",
         "truth",
     ],
-    resource_apk: "RavenwoodBivalentInstTestTarget",
 
-    package_name: "com.android.ravenwood.bivalentinst_target_app",
-    inst_package_name: "com.android.ravenwood.bivalentinsttest_nonself_inst",
+    package_name: "com.android.ravenwood.bivalentinsttest_nonself_inst",
+    manifest: "AndroidManifest-nonself-inst.xml",
 
-    inst_resource_apk: "RavenwoodBivalentInstTest_nonself_inst_device",
+    // TODO: switch to use instrumentation_for
+    target_package_name: "com.android.ravenwood.bivalentinst_target_app",
+    target_resource_apk: "RavenwoodBivalentInstTestTarget",
+
     auto_gen_config: true,
+    build_resources: true,
 }
 
-// We have 3 R.javas from the 3 packages (2 test apks below, and 1 target APK)
-// RavenwoodBivalentInstTest needs to use all of them, but we can't add all the
-// {.aapt.srcjar}'s together because that'd cause
-// "duplicate declaration of androidx.test.core.R$string."
-// So we build them as separate libraries, and include them as static_libs.
 java_library {
     name: "RavenwoodBivalentInstTestTarget_R",
     srcs: [
         ":RavenwoodBivalentInstTestTarget{.aapt.srcjar}",
-    ],
-}
-
-java_library {
-    name: "RavenwoodBivalentInstTest_self_inst_device_R",
-    srcs: [
-        ":RavenwoodBivalentInstTest_self_inst_device{.aapt.srcjar}",
-    ],
-}
-
-java_library {
-    name: "RavenwoodBivalentInstTest_nonself_inst_device_R",
-    srcs: [
-        ":RavenwoodBivalentInstTest_nonself_inst_device{.aapt.srcjar}",
     ],
 }
 
@@ -112,7 +93,6 @@ android_test {
     test_suites: [
         "device-tests",
     ],
-    use_resource_processor: false,
     manifest: "AndroidManifest-self-inst.xml",
     test_config: "AndroidTest-self-inst.xml",
     optimize: {
@@ -145,7 +125,6 @@ android_test {
     test_suites: [
         "device-tests",
     ],
-    use_resource_processor: false,
     manifest: "AndroidManifest-nonself-inst.xml",
     test_config: "AndroidTest-nonself-inst.xml",
     instrumentation_for: "RavenwoodBivalentInstTestTarget",

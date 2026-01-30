@@ -17,6 +17,7 @@
 package android.hardware.biometrics;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.os.Parcel;
 import android.os.Parcelable;
 
@@ -38,7 +39,11 @@ public class SensorPropertiesInternal implements Parcelable {
     public final boolean resetLockoutRequiresHardwareAuthToken;
     public final boolean resetLockoutRequiresChallenge;
 
-    public static SensorPropertiesInternal from(@NonNull SensorPropertiesInternal prop) {
+    @Nullable
+    public static SensorPropertiesInternal from(@Nullable SensorPropertiesInternal prop) {
+        if (prop == null) {
+            return null;
+        }
         return new SensorPropertiesInternal(prop.sensorId, prop.sensorStrength,
                 prop.maxEnrollmentsPerUser, prop.componentInfo,
                 prop.resetLockoutRequiresHardwareAuthToken, prop.resetLockoutRequiresChallenge);

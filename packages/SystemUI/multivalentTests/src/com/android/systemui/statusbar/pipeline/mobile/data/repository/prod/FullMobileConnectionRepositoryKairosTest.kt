@@ -522,6 +522,7 @@ class FullMobileConnectionRepositoryKairosTest : SysuiTestCase() {
                 subId = SUB_ID,
                 tableLogBuffer = mobileLogger,
                 telephonyManager = telephonyManager,
+                systemUiCarrierConfig = systemUiCarrierConfig,
                 wifiRepository = wifiRepository,
                 isInEcmMode = stateOf(false),
             )

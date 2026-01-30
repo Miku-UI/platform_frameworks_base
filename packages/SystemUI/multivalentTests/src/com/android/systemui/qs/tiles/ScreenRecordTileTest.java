@@ -18,8 +18,6 @@ package com.android.systemui.qs.tiles;
 
 import static android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf;
 
-import static com.android.systemui.Flags.FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX;
-
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.Assert.assertTrue;
@@ -28,6 +26,7 @@ import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,6 +34,7 @@ import static org.mockito.Mockito.when;
 import android.app.Dialog;
 import android.media.projection.StopReason;
 import android.os.Handler;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.FlagsParameterization;
 import android.service.quicksettings.Tile;
@@ -43,10 +43,13 @@ import android.testing.TestableLooper;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.logging.MetricsLogger;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.SysuiTestCaseExtKt;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.classifier.FalsingManagerFake;
 import com.android.systemui.flags.FeatureFlags;
+import com.android.systemui.kosmos.Kosmos;
 import com.android.systemui.mediaprojection.MediaProjectionMetricsLogger;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.qs.QSTile;
@@ -54,18 +57,17 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.QsEventLogger;
 import com.android.systemui.qs.flags.QsDetailedView;
-import com.android.systemui.qs.flags.QsInCompose;
 import com.android.systemui.qs.logging.QSLogger;
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor;
 import com.android.systemui.qs.tileimpl.QSTileImpl;
 import com.android.systemui.res.R;
-import com.android.systemui.screenrecord.RecordingController;
+import com.android.systemui.screencapture.domain.interactor.ScreenCaptureUiInteractorKosmosKt;
+import com.android.systemui.screenrecord.ScreenRecordUxController;
 import com.android.systemui.settings.UserContextProvider;
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -85,12 +87,13 @@ public class ScreenRecordTileTest extends SysuiTestCase {
 
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
-        return allCombinationsOf(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX,
-                QsDetailedView.FLAG_NAME);
+        return allCombinationsOf(QsDetailedView.FLAG_NAME);
     }
 
+    private final Kosmos mKosmos = SysuiTestCaseExtKt.testKosmos(this);
+
     @Mock
-    private RecordingController mController;
+    private ScreenRecordUxController mController;
     @Mock
     private QSHost mHost;
     @Mock
@@ -154,6 +157,7 @@ public class ScreenRecordTileTest extends SysuiTestCase {
                 mDialogTransitionAnimator,
                 mPanelInteractor,
                 mMediaProjectionMetricsLogger,
+                ScreenCaptureUiInteractorKosmosKt.getScreenCaptureUiInteractor(mKosmos),
                 mUserContextProvider
         );
 
@@ -216,6 +220,37 @@ public class ScreenRecordTileTest extends SysuiTestCase {
         mTile.handleClick(null /* view */);
 
         verify(mController, times(1)).cancelCountdown();
+    }
+
+    // Test that clicking the tile is NOP if opened from large screen.
+    @Test
+    @EnableFlags({Flags.FLAG_LARGE_SCREEN_SCREENCAPTURE, Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR})
+    public void testClickFromLargeScreen() {
+        when(mController.isStarting()).thenReturn(false);
+        when(mController.isRecording()).thenReturn(false);
+
+        mTile.refreshState();
+        mTestableLooper.processAllMessages();
+
+        mTile.handleClick(null /* view */);
+        mTestableLooper.processAllMessages();
+        verify(mController, never()).createScreenRecordDialog(null);
+    }
+
+    // Test that clicking the tile opens the recording dialog if flag is disabled.
+    @Test
+    @DisableFlags(Flags.FLAG_NEW_SCREEN_RECORD_TOOLBAR)
+    public void testClickNewToolbarFlagDisabled() {
+        when(mController.isStarting()).thenReturn(false);
+        when(mController.isRecording()).thenReturn(false);
+
+        mTile.refreshState();
+        mTestableLooper.processAllMessages();
+
+        mTile.handleClick(null /* view */);
+        mTestableLooper.processAllMessages();
+
+        verify(mController).createScreenRecordDialog(any());
     }
 
     // Test that the tile is active and labeled correctly when the controller is recording
@@ -340,46 +375,7 @@ public class ScreenRecordTileTest extends SysuiTestCase {
                 .notifyPermissionRequestDisplayed(mContext.getUserId());
     }
 
-    @Test
-    @EnableFlags(QsDetailedView.FLAG_NAME)
-    public void testNotStartingAndRecording_returnDetailsViewModel() {
-        when(mController.isStarting()).thenReturn(false);
-        when(mController.isRecording()).thenReturn(false);
-        when(mController.isScreenCaptureDisabled()).thenReturn(false);
-        mTile.getDetailsViewModel(Assert::assertNotNull);
-    }
-
-    @Test
-    @EnableFlags(QsDetailedView.FLAG_NAME)
-    public void testRecordingDisabled_notReturnDetailsViewModel() {
-        when(mController.isStarting()).thenReturn(false);
-        when(mController.isRecording()).thenReturn(false);
-        when(mController.isScreenCaptureDisabled()).thenReturn(true);
-        mTile.getDetailsViewModel(Assert::assertNull);
-    }
-
-    @Test
-    @EnableFlags(QsDetailedView.FLAG_NAME)
-    public void testStarting_notReturnDetailsViewModel() {
-        when(mController.isStarting()).thenReturn(true);
-        when(mController.isRecording()).thenReturn(false);
-        mTile.getDetailsViewModel(Assert::assertNull);
-    }
-
-    @Test
-    @EnableFlags(QsDetailedView.FLAG_NAME)
-    public void testRecording_notReturnDetailsViewModel() {
-        when(mController.isStarting()).thenReturn(false);
-        when(mController.isRecording()).thenReturn(true);
-        mTile.getDetailsViewModel(Assert::assertNull);
-    }
-
     private QSTile.Icon createExpectedIcon(int resId) {
-        if (QsInCompose.isEnabled()) {
-            return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
-        } else {
-            return QSTileImpl.ResourceIcon.get(resId);
-        }
+        return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
     }
-
 }

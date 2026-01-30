@@ -35,6 +35,7 @@ import com.android.systemui.keyguard.ui.view.layout.sections.SmartspaceSection
 import com.android.systemui.keyguard.ui.view.layout.sections.SplitShadeGuidelines
 import com.android.systemui.keyguard.ui.view.layout.sections.SplitShadeMediaSection
 import com.android.systemui.keyguard.ui.view.layout.sections.SplitShadeNotificationStackScrollLayoutSection
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.util.kotlin.getOrNull
 import java.util.Optional
 import javax.inject.Inject
@@ -68,7 +69,8 @@ constructor(
 ) : KeyguardBlueprint {
     override val id: String = ID
 
-    override val sections =
+    override val sections by lazy {
+        SceneContainerFlag.assertInLegacyMode()
         listOfNotNull(
             accessibilityActionsSection,
             defaultIndicationAreaSection,
@@ -86,6 +88,7 @@ constructor(
             mediaSection,
             defaultDeviceEntrySection, // Add LAST: Intentionally has z-order above other views.
         )
+    }
 
     companion object {
         const val ID = "split-shade"

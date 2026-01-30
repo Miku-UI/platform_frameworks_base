@@ -190,6 +190,9 @@ public final class TransitionFilter implements Parcelable {
 
         public int mWindowingMode = WINDOWING_MODE_UNDEFINED;
 
+        /** If true, this requirement only matches tasks moving between displays. */
+        public boolean mIsCrossDisplayMove = false;
+
         public Requirement() {
         }
 
@@ -208,6 +211,7 @@ public final class TransitionFilter implements Parcelable {
             mCustomAnimation = customAnimRaw == 0 ? null : Boolean.valueOf(customAnimRaw == 2);
             mTaskFragmentToken = in.readStrongBinder();
             mWindowingMode = in.readInt();
+            mIsCrossDisplayMove = in.readBoolean();
         }
 
         /** Go through changes and find if at-least one change matches this filter */
@@ -276,6 +280,12 @@ public final class TransitionFilter implements Parcelable {
                         continue;
                     }
                 }
+                if (mIsCrossDisplayMove) {
+                    if (change.getTaskInfo() == null
+                            || change.getStartDisplayId() == change.getEndDisplayId()) {
+                        continue;
+                    }
+                }
                 return true;
             }
             return false;
@@ -329,6 +339,7 @@ public final class TransitionFilter implements Parcelable {
             dest.writeInt(customAnimRaw);
             dest.writeStrongBinder(mTaskFragmentToken);
             dest.writeInt(mWindowingMode);
+            dest.writeBoolean(mIsCrossDisplayMove);
         }
 
         @NonNull
@@ -378,6 +389,7 @@ public final class TransitionFilter implements Parcelable {
             }
             out.append(" windowingMode="
                     + WindowConfiguration.windowingModeToString(mWindowingMode));
+            out.append(" isCrossDisplayMove=" + mIsCrossDisplayMove);
             out.append("}");
             return out.toString();
         }

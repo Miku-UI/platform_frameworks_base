@@ -17,7 +17,7 @@
 package com.android.systemui.keyguard.domain.interactor
 
 import android.app.admin.alarmManager
-import android.content.mockedContext
+import android.content.testableContext
 import com.android.internal.widget.lockPatternUtils
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.kosmos.Kosmos
@@ -31,7 +31,7 @@ val Kosmos.keyguardWakeDirectlyToGoneInteractor: KeyguardWakeDirectlyToGoneInter
     Kosmos.Fixture {
         KeyguardWakeDirectlyToGoneInteractor(
             applicationCoroutineScope,
-            mockedContext,
+            testableContext,
             fakeKeyguardRepository,
             systemClock,
             alarmManager,

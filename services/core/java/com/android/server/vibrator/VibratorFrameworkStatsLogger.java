@@ -273,6 +273,7 @@ public class VibratorFrameworkStatsLogger {
             }
             return hasVendorEffects;
         }
+        // TODO(b/421857859): remove this once flag remove_sequential_combination is removed
         if (vibration instanceof CombinedVibration.Sequential sequential) {
             boolean hasVendorEffects = false;
             for (int i = 0; i < sequential.getEffects().size(); i++) {

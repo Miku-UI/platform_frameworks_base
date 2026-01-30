@@ -1198,6 +1198,7 @@ public class SyncStorageEngine {
      * Called to indicate that a previously active sync is no longer active.
      */
     public void removeActiveSync(SyncInfo syncInfo, int userId) {
+        final EndPoint info = new EndPoint(syncInfo.account, syncInfo.authority, userId);
         synchronized (mAuthorities) {
             if (Log.isLoggable(TAG, Log.VERBOSE)) {
                 Slog.v(TAG, "removeActiveSync: account=" + syncInfo.account
@@ -1205,9 +1206,9 @@ public class SyncStorageEngine {
                         + " auth=" + syncInfo.authority);
             }
             getCurrentSyncs(userId).remove(syncInfo);
+            markPending(info, false);
         }
-
-        reportActiveChange(new EndPoint(syncInfo.account, syncInfo.authority, userId));
+        reportActiveChange(info);
     }
 
     /**

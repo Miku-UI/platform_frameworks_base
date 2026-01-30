@@ -131,6 +131,18 @@ class Painter {
     }
 
     /**
+     * Create a color filter that uses the specified color and Porter-Duff mode.
+     *
+     * @param colorId color as an id.
+     * @param mode The porter-duff mode that is applied
+     */
+    @NonNull
+    public Painter setPorterDuffColorIdFilter(int colorId, int mode) {
+        mPaint.setColorFilterId(colorId, mode);
+        return this;
+    }
+
+    /**
      * sets a shader that draws a linear gradient along a line.
      *
      * @param startX The x-coordinate for the start of the gradient line
@@ -174,8 +186,8 @@ class Painter {
             float centerX,
             float centerY,
             float radius,
-            @NonNull int[] colors,
-            @NonNull float[] positions,
+            @NonNull int [] colors,
+            @Nullable float [] positions,
             int tileMode) {
         mPaint.setRadialGradient(colors, 0, positions, centerX, centerY, radius, tileMode);
         return this;
@@ -195,7 +207,7 @@ class Painter {
      */
     @NonNull
     public Painter setSweepGradient(
-            float centerX, float centerY, @NonNull int[] colors, @Nullable float[] positions) {
+            float centerX, float centerY, @NonNull int [] colors, @Nullable float [] positions) {
         mPaint.setSweepGradient(colors, 0, positions, centerX, centerY);
         return this;
     }

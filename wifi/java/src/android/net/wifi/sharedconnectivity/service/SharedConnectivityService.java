@@ -62,7 +62,7 @@ import java.util.concurrent.CountDownLatch;
 @SystemApi
 public abstract class SharedConnectivityService extends Service {
     private static final String TAG = SharedConnectivityService.class.getSimpleName();
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private Handler mHandler;
     private final RemoteCallbackList<ISharedConnectivityCallback> mRemoteCallbackList =

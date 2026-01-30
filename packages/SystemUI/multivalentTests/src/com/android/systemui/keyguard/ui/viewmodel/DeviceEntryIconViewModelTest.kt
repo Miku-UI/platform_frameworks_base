@@ -71,10 +71,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun isLongPressEnabled_udfpsRunning() =
         testScope.runTest {
             val isLongPressEnabled by collectLastValue(underTest.isLongPressEnabled)
-            setUpState(
-                isUdfpsSupported = true,
-                isUdfpsRunning = true,
-            )
+            setUpState(isUdfpsSupported = true, isUdfpsRunning = true)
             assertThat(isLongPressEnabled).isFalse()
         }
 
@@ -82,10 +79,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun isLongPressEnabled_unlocked() =
         testScope.runTest {
             val isLongPressEnabled by collectLastValue(underTest.isLongPressEnabled)
-            setUpState(
-                isUdfpsSupported = true,
-                isLockscreenDismissible = true,
-            )
+            setUpState(isUdfpsSupported = true, hasTrust = true)
             assertThat(isLongPressEnabled).isTrue()
         }
 
@@ -122,10 +116,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun iconType_fingerprint() =
         testScope.runTest {
             val iconType by collectLastValue(underTest.iconType)
-            setUpState(
-                isUdfpsSupported = true,
-                isUdfpsRunning = true,
-            )
+            setUpState(isUdfpsSupported = true, isUdfpsRunning = true)
             assertThat(iconType).isEqualTo(DeviceEntryIconView.IconType.FINGERPRINT)
         }
 
@@ -143,7 +134,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun iconType_unlocked() =
         testScope.runTest {
             val iconType by collectLastValue(underTest.iconType)
-            setUpState(isLockscreenDismissible = true)
+            setUpState(hasTrust = true)
             assertThat(iconType).isEqualTo(DeviceEntryIconView.IconType.UNLOCK)
         }
 
@@ -152,11 +143,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun iconType_none() =
         testScope.runTest {
             val iconType by collectLastValue(underTest.iconType)
-            setUpState(
-                isUdfpsSupported = true,
-                isUdfpsRunning = true,
-                isLockscreenDismissible = true,
-            )
+            setUpState(isUdfpsSupported = true, isUdfpsRunning = true, hasTrust = true)
             assertThat(iconType).isEqualTo(DeviceEntryIconView.IconType.NONE)
         }
 
@@ -165,10 +152,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun iconType_fingerprint_withSceneContainer() =
         testScope.runTest {
             val iconType by collectLastValue(underTest.iconType)
-            setUpState(
-                isUdfpsSupported = true,
-                isUdfpsRunning = true,
-            )
+            setUpState(isUdfpsSupported = true, isUdfpsRunning = true)
             assertThat(iconType).isEqualTo(DeviceEntryIconView.IconType.FINGERPRINT)
         }
 
@@ -186,9 +170,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun iconType_unlocked_withSceneContainer() =
         testScope.runTest {
             val iconType by collectLastValue(underTest.iconType)
-            setUpState(
-                isLockscreenDismissible = true,
-            )
+            setUpState(hasTrust = true)
             assertThat(iconType).isEqualTo(DeviceEntryIconView.IconType.UNLOCK)
         }
 
@@ -197,11 +179,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     fun iconType_none_withSceneContainer() =
         testScope.runTest {
             val iconType by collectLastValue(underTest.iconType)
-            setUpState(
-                isUdfpsSupported = true,
-                isUdfpsRunning = true,
-                isLockscreenDismissible = true,
-            )
+            setUpState(isUdfpsSupported = true, isUdfpsRunning = true, hasTrust = true)
             assertThat(iconType).isEqualTo(DeviceEntryIconView.IconType.NONE)
         }
 
@@ -226,10 +204,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
                 .isEqualTo(DeviceEntryIconView.AccessibilityHintType.BOUNCER)
 
             // udfps running
-            setUpState(
-                isUdfpsSupported = true,
-                isUdfpsRunning = true,
-            )
+            setUpState(isUdfpsSupported = true, isUdfpsRunning = true)
 
             assertThat(accessibilityDelegateHint)
                 .isEqualTo(DeviceEntryIconView.AccessibilityHintType.BOUNCER)
@@ -248,10 +223,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
             kosmos.fakeAccessibilityRepository.isEnabled.value = true
 
             // interactive unlock icon
-            setUpState(
-                isUdfpsSupported = true,
-                isLockscreenDismissible = true,
-            )
+            setUpState(isUdfpsSupported = true, hasTrust = true)
 
             assertThat(accessibilityDelegateHint)
                 .isEqualTo(DeviceEntryIconView.AccessibilityHintType.ENTER)
@@ -264,7 +236,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
     private suspend fun TestScope.setUpState(
         isUdfpsSupported: Boolean = false,
         isUdfpsRunning: Boolean = false,
-        isLockscreenDismissible: Boolean = false,
+        hasTrust: Boolean = false,
     ) {
         if (isUdfpsSupported) {
             fingerprintPropertyRepository.supportsUdfps()
@@ -275,17 +247,17 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
         } else {
             fingerprintAuthRepository.setIsRunning(false)
         }
-        if (isLockscreenDismissible) {
-            setLockscreenDismissible()
+        if (hasTrust) {
+            setHasTrust()
         } else {
             if (!SceneContainerFlag.isEnabled) {
-                keyguardRepository.setKeyguardDismissible(false)
+                keyguardRepository.setHasTrust(false)
             }
         }
         runCurrent()
     }
 
-    private suspend fun TestScope.setLockscreenDismissible() {
+    private suspend fun TestScope.setHasTrust() {
         if (SceneContainerFlag.isEnabled) {
             // Need to set up a collection for the authentication to be propagated.
             val unused by collectLastValue(kosmos.deviceUnlockedInteractor.deviceUnlockStatus)
@@ -297,7 +269,7 @@ class DeviceEntryIconViewModelTest : SysuiTestCase() {
                 )
                 .isEqualTo(AuthenticationResult.SUCCEEDED)
         } else {
-            keyguardRepository.setKeyguardDismissible(true)
+            keyguardRepository.setHasTrust(true)
         }
         advanceTimeBy(UNLOCKED_DELAY_MS * 2) // wait for unlocked delay
     }

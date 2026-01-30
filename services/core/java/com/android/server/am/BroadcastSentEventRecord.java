@@ -92,26 +92,24 @@ final class BroadcastSentEventRecord {
     }
 
     public void logToStatsd() {
-        if (Flags.logBroadcastSentEvent()) {
-            int loggingResult = switch (mResult) {
-                case ActivityManager.BROADCAST_SUCCESS ->
-                        BROADCAST_SENT__RESULT__SUCCESS;
-                case ActivityManager.BROADCAST_STICKY_CANT_HAVE_PERMISSION ->
-                        BROADCAST_SENT__RESULT__FAILED_STICKY_CANT_HAVE_PERMISSION;
-                case ActivityManager.BROADCAST_FAILED_USER_STOPPED ->
-                        BROADCAST_SENT__RESULT__FAILED_USER_STOPPED;
-                default -> BROADCAST_SENT__RESULT__UNKNOWN;
-            };
-            int[] types = calculateTypesForLogging();
-            FrameworkStatsLog.write(BROADCAST_SENT, mIntent.getAction(), mIntent.getFlags(),
-                    mOriginalIntentFlags, mSenderUid, mRealSenderUid, mIntent.getPackage() != null,
-                    mIntent.getComponent() != null,
-                    mBroadcastRecord != null ? mBroadcastRecord.receivers.size() : 0,
-                    loggingResult,
-                    mBroadcastRecord != null ? mBroadcastRecord.getDeliveryGroupPolicy() : 0,
-                    ActivityManager.processStateAmToProto(mSenderProcState),
-                    ActivityManager.processStateAmToProto(mSenderUidState), types);
-        }
+        int loggingResult = switch (mResult) {
+            case ActivityManager.BROADCAST_SUCCESS ->
+                    BROADCAST_SENT__RESULT__SUCCESS;
+            case ActivityManager.BROADCAST_STICKY_CANT_HAVE_PERMISSION ->
+                    BROADCAST_SENT__RESULT__FAILED_STICKY_CANT_HAVE_PERMISSION;
+            case ActivityManager.BROADCAST_FAILED_USER_STOPPED ->
+                    BROADCAST_SENT__RESULT__FAILED_USER_STOPPED;
+            default -> BROADCAST_SENT__RESULT__UNKNOWN;
+        };
+        int[] types = calculateTypesForLogging();
+        FrameworkStatsLog.write(BROADCAST_SENT, mIntent.getAction(), mIntent.getFlags(),
+                mOriginalIntentFlags, mSenderUid, mRealSenderUid, mIntent.getPackage() != null,
+                mIntent.getComponent() != null,
+                mBroadcastRecord != null ? mBroadcastRecord.receivers.size() : 0,
+                loggingResult,
+                mBroadcastRecord != null ? mBroadcastRecord.getDeliveryGroupPolicy() : 0,
+                ActivityManager.processStateAmToProto(mSenderProcState),
+                ActivityManager.processStateAmToProto(mSenderUidState), types);
     }
 
     private int[] calculateTypesForLogging() {

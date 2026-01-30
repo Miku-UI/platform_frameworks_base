@@ -16,13 +16,16 @@
 
 package com.android.systemui.statusbar.chips.screenrecord.ui.viewmodel
 
+import android.content.Context
 import android.content.DialogInterface
 import android.view.View
+import android.view.ViewRootImpl
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.jank.Cuj
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.DialogCuj
+import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
 import com.android.systemui.animation.mockDialogTransitionAnimator
 import com.android.systemui.common.shared.model.Icon
@@ -56,6 +59,7 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -70,25 +74,34 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
     private val mediaProjectionRepo = kosmos.fakeMediaProjectionRepository
     private val systemClock = kosmos.fakeSystemClock
     private val mockSystemUIDialog = mock<SystemUIDialog>()
-    private val chipBackgroundView = mock<ChipBackgroundContainer>()
+    private val chipBackgroundView =
+        mock<ChipBackgroundContainer> { on { context } doReturn context }
     private val chipView =
-        mock<View>().apply {
-            whenever(
-                    this.requireViewById<ChipBackgroundContainer>(
-                        R.id.ongoing_activity_chip_background
-                    )
-                )
-                .thenReturn(chipBackgroundView)
+        mock<View> {
+            on {
+                requireViewById<ChipBackgroundContainer>(R.id.ongoing_activity_chip_background)
+            } doReturn chipBackgroundView
+            on { context } doReturn context
         }
+    private val viewRootImpl = mock<ViewRootImpl> { on { view } doReturn chipView }
+    private val dialogTransitionController =
+        mock<DialogTransitionAnimator.Controller> { on { viewRoot } doReturn viewRootImpl }
     private val mockExpandable: Expandable =
-        mock<Expandable>().apply { whenever(dialogTransitionController(any())).thenReturn(mock()) }
+        mock<Expandable> {
+            on { dialogTransitionController(any()) } doReturn dialogTransitionController
+        }
 
     private val underTest = kosmos.screenRecordChipViewModel
 
     @Before
     fun setUp() {
         setUpPackageManagerForMediaProjection(kosmos)
-        whenever(kosmos.mockSystemUIDialogFactory.create(any<EndScreenRecordingDialogDelegate>()))
+        whenever(
+                kosmos.mockSystemUIDialogFactory.create(
+                    any<EndScreenRecordingDialogDelegate>(),
+                    any<Context>(),
+                )
+            )
             .thenReturn(mockSystemUIDialog)
     }
 
@@ -109,7 +122,8 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
 
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Starting(400)
 
-            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active.Countdown::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).content)
+                .isInstanceOf(OngoingActivityChipModel.Content.Countdown::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).isImportantForPrivacy).isTrue()
             assertThat((latest as OngoingActivityChipModel.Active).instanceId).isNotNull()
             assertThat((latest as OngoingActivityChipModel.Active).icon).isNull()
@@ -124,7 +138,11 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
 
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Starting(2995)
 
-            assertThat((latest as OngoingActivityChipModel.Active.Countdown).secondsUntilStarted)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Countdown)
+                        .secondsUntilStarted
+                )
                 .isEqualTo(3)
         }
 
@@ -135,7 +153,11 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
 
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Starting(1995)
 
-            assertThat((latest as OngoingActivityChipModel.Active.Countdown).secondsUntilStarted)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Countdown)
+                        .secondsUntilStarted
+                )
                 .isEqualTo(2)
         }
 
@@ -146,7 +168,11 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
 
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Starting(995)
 
-            assertThat((latest as OngoingActivityChipModel.Active.Countdown).secondsUntilStarted)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Countdown)
+                        .secondsUntilStarted
+                )
                 .isEqualTo(1)
         }
 
@@ -157,14 +183,15 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
 
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Recording
 
-            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active.Timer::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).content)
+                .isInstanceOf(OngoingActivityChipModel.Content.Timer::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).isImportantForPrivacy).isTrue()
             assertThat((latest as OngoingActivityChipModel.Active).instanceId).isNotNull()
             val icon =
                 (((latest as OngoingActivityChipModel.Active).icon)
                         as OngoingActivityChipModel.ChipIcon.SingleColorIcon)
                     .impl as Icon.Resource
-            assertThat(icon.res).isEqualTo(R.drawable.ic_screenrecord)
+            assertThat(icon.resId).isEqualTo(R.drawable.ic_screenrecord)
             assertThat(icon.contentDescription).isNotNull()
         }
 
@@ -239,7 +266,11 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Recording
 
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(1234)
 
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.DoingNothing
@@ -249,7 +280,11 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Recording
 
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(5678)
         }
 
@@ -266,7 +301,11 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
 
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).isImportantForPrivacy).isTrue()
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(1234)
 
             // WHEN we receive the recording task info a few milliseconds later
@@ -281,7 +320,11 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
             // THEN the start time is still the old start time
             assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).isImportantForPrivacy).isTrue()
-            assertThat((latest as OngoingActivityChipModel.Active.Timer).startTimeMs)
+            assertThat(
+                    ((latest as OngoingActivityChipModel.Active).content
+                            as OngoingActivityChipModel.Content.Timer)
+                        .startTimeMs
+                )
                 .isEqualTo(1234)
         }
 
@@ -368,7 +411,8 @@ class ScreenRecordChipViewModelTest : SysuiTestCase() {
         testScope.runTest {
             val latest by collectLastValue(underTest.chip)
             screenRecordRepo.screenRecordState.value = ScreenRecordModel.Recording
-            assertThat(latest).isInstanceOf(OngoingActivityChipModel.Active.Timer::class.java)
+            assertThat((latest as OngoingActivityChipModel.Active).content)
+                .isInstanceOf(OngoingActivityChipModel.Content.Timer::class.java)
             assertThat((latest as OngoingActivityChipModel.Active).clickBehavior)
                 .isInstanceOf(OngoingActivityChipModel.ClickBehavior.ExpandAction::class.java)
         }

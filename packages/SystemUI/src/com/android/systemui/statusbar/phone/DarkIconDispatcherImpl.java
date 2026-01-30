@@ -26,11 +26,10 @@ import android.util.ArrayMap;
 import android.view.Display;
 import android.widget.ImageView;
 
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware;
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.LifecycleListener;
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton;
 import com.android.systemui.dump.DumpManager;
-
-import dagger.assisted.Assisted;
-import dagger.assisted.AssistedFactory;
-import dagger.assisted.AssistedInject;
 
 import kotlinx.coroutines.flow.FlowKt;
 import kotlinx.coroutines.flow.MutableStateFlow;
@@ -40,10 +39,13 @@ import kotlinx.coroutines.flow.StateFlowKt;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
+import javax.inject.Inject;
+
 /**
  */
+@PerDisplaySingleton
 public class DarkIconDispatcherImpl implements SysuiDarkIconDispatcher,
-        LightBarTransitionsController.DarkIntensityApplier {
+        LightBarTransitionsController.DarkIntensityApplier, LifecycleListener {
 
     private final LightBarTransitionsController mTransitionsController;
     private final ArrayList<Rect> mTintAreas = new ArrayList<>();
@@ -65,20 +67,10 @@ public class DarkIconDispatcherImpl implements SysuiDarkIconDispatcher,
 
     private final String mDumpableName;
 
-    /** */
-    @AssistedFactory
-    @FunctionalInterface
-    public interface Factory {
-        /** */
-        DarkIconDispatcherImpl create(int displayId, Context context);
-    }
-
-    /**
-     */
-    @AssistedInject
+    @Inject
     public DarkIconDispatcherImpl(
-            @Assisted int displayId,
-            @Assisted Context context,
+            @DisplayAware int displayId,
+            @DisplayAware Context context,
             LightBarTransitionsController.Factory lightBarTransitionsControllerFactory,
             DumpManager dumpManager) {
         mDumpManager = dumpManager;

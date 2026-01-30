@@ -22,13 +22,14 @@ import android.media.RouteDiscoveryPreference;
 import android.media.RouteListingPreference;
 import android.media.RoutingSessionInfo;
 import android.media.SuggestedDeviceInfo;
+import android.media.AppId;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IMediaRouter2Manager {
     void notifySessionCreated(int requestId, in RoutingSessionInfo session);
-    void notifySessionUpdated(in RoutingSessionInfo session);
+    void notifySessionUpdated(in RoutingSessionInfo session, in boolean shouldShowVolumeUi);
     void notifySessionReleased(in RoutingSessionInfo session);
     void notifyDiscoveryPreferenceChanged(String packageName,
             in RouteDiscoveryPreference discoveryPreference);
@@ -36,7 +37,9 @@ oneway interface IMediaRouter2Manager {
             in @nullable RouteListingPreference routeListingPreference);
     void notifyDeviceSuggestionsUpdated(String packageName, String suggestingPackageName,
             in @nullable List<SuggestedDeviceInfo> suggestedDeviceInfo);
+    void notifyDeviceSuggestionRequested();
     void notifyRoutesUpdated(in List<MediaRoute2Info> routes);
     void notifyRequestFailed(int requestId, int reason);
+    void notifySystemSessionOverridesChanged(in List<AppId> appsWithOverrides);
     void invalidateInstance();
 }

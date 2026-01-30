@@ -18,7 +18,7 @@ package android.speech.tts;
 /**
  * Interface for callbacks from TextToSpeechService
  *
- * {@hide}
+ * @hide
  */
 oneway interface ITextToSpeechCallback {
     /**

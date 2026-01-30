@@ -35,5 +35,21 @@ interface Scene : Activatable, ActionableContent {
     /** Uniquely-identifying key for this scene. The key must be unique within its container. */
     val key: SceneKey
 
+    /**
+     * Whether this scene should be invisibly composed even when it's not a current scene and even
+     * when it's not participating in any current transition.
+     *
+     * Please heavily weigh the pros and cons of doing this. On the one hand, composing content
+     * before it needs to be visible will "pre-warm" upstream coroutines and flows at close to
+     * System UI start time instead of doing all of it just in time (usually in the moment that the
+     * content transition begins which can introduce significant jank, especially if that transition
+     * is bound to a user-driven drag gesture). On the other hand, content that is always composed
+     * will continue to compose its [Content] function which means that all of its state
+     * observations and side effects will continue running before it ever shows and after it's no
+     * longer showing. Once b/433309418 is closed, there will be good ways to more granularly decide
+     * which pieces of work should run ahead of time and which should run just in time.
+     */
+    val alwaysCompose: Boolean
+
     @Composable fun ContentScope.Content(modifier: Modifier)
 }

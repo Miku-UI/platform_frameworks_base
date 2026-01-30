@@ -11,11 +11,25 @@
 # adb remount
 # adb reboot
 
-if [ -z "$1" ]; then
-    printf 'Usage:\n    skp-capture.sh PACKAGE_NAME OPTIONAL_FRAME_COUNT\n\n'
-    printf "Use \`adb shell 'pm list packages'\` to get a listing.\n\n"
-    exit 1
-fi
+package_name=''
+frames=''
+
+print_usage() {
+  printf 'Usage:\n    skp-capture.sh -p=OPTIONAL_PACKAGE_NAME -n=OPTIONAL_FRAME_COUNT\n\n'
+  printf "Use \`adb shell 'pm list packages'\` to get a listing.\n\n"
+  printf "-p: Package name - if not specified, will attempt to infer the currently opened app.\n\n"
+  printf "-n: Frame count - if not specified, defaults to 1.\n\n"
+}
+
+while getopts 'p:n:' flag; do
+  case "${flag}" in
+    p) package_name="${OPTARG}";;
+    n) frames="${OPTARG}" ;;
+    *) print_usage
+       exit 1 ;;
+  esac
+done
+
 if ! command -v adb > /dev/null 2>&1; then
     if [ -x "${ANDROID_SDK_ROOT}/platform-tools/adb" ]; then
         adb() {
@@ -26,16 +40,46 @@ if ! command -v adb > /dev/null 2>&1; then
         exit 2
     fi
 fi
+
+if [[ ! "$frames" =~ ^[0-9]+$ ]]; then
+  echo "Warning: Frame count must be a positive integer. Defaulting to 1."
+  frames='1'
+fi
+
+if [ -z "$package_name" ]; then
+    echo 'Inferring package...'
+    # Run adb shell command and capture output
+    adb_output=$(adb shell "dumpsys activity activities | grep topResumedActivity")
+
+    # Regex to extract the package name
+    package_regex='com\.[a-zA-Z0-9_]+(\.[a-zA-Z0-9_]+)+'
+
+    # Extract the package name using grep
+    inferred_name=$(echo "$adb_output" | grep -oE "$package_regex" | head -n 1)
+
+    # Check if a package name was found
+    if [[ -n "$inferred_name" ]]; then
+      package_name="$inferred_name"
+    else
+      echo "Could not infer top resumed package. Make sure the app is open."
+      echo "Possible package names (run \`adb shell 'pm list packages'\`) for full list."
+      adb shell "dumpsys window windows | grep -E 'topApp|mCurrentFocus|mFocusedApp|mInputMethodTarget|mSurface'"
+      exit 1
+    fi
+fi
+
+echo "Package: $package_name"
+echo "Frames: $frames"
+
 phase1_timeout_seconds=60
 phase2_timeout_seconds=300
-package="$1"
 extension="skp"
-if (( "$2" > 1 )); then # 2nd arg is number of frames
+if (( "$frames" > 1 )); then
     extension="mskp" # use different extension for multi frame files.
 fi
 filename="$(date '+%H%M%S').${extension}"
-remote_path="/data/data/${package}/cache/${filename}"
-local_path_prefix="$(date '+%Y-%m-%d_%H%M%S')_${package}"
+remote_path="/data/data/${package_name}/cache/${filename}"
+local_path_prefix="$(date '+%Y-%m-%d_%H%M%S')_${package_name}"
 local_path="${local_path_prefix}.${extension}"
 enable_capture_key='debug.hwui.capture_skp_enabled'
 enable_capture_value=$(adb shell "getprop '${enable_capture_key}'")
@@ -49,8 +93,8 @@ if [ -z "$enable_capture_value" ]; then
     adb shell "setprop '${enable_capture_key}' true"
     exit 1
 fi
-if [ ! -z "$2" ]; then
-    adb shell "setprop 'debug.hwui.capture_skp_frames' $2"
+if [ ! -z "${frames}" ]; then
+    adb shell "setprop 'debug.hwui.capture_skp_frames' ${frames}"
 fi
 filename_key='debug.hwui.skp_filename'
 adb shell "setprop '${filename_key}' '${remote_path}'"

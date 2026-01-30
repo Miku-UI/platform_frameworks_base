@@ -36,5 +36,6 @@ val Kosmos.audioOutputInteractor by
             bluetoothAdapter,
             deviceIconInteractor,
             mediaOutputInteractor,
+            audioSharingInteractor,
         )
     }

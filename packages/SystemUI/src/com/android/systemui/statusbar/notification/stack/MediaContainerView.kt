@@ -23,7 +23,6 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.util.AttributeSet
 import android.util.Log
-import com.android.systemui.Flags
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.row.ExpandableView
 
@@ -94,11 +93,7 @@ class MediaContainerView(context: Context, attrs: AttributeSet?) : ExpandableVie
     }
 
     override fun setVisibility(visibility: Int) {
-        if (Flags.bindKeyguardMediaVisibility()) {
-            if (isVisibilityValid(visibility)) {
-                super.setVisibility(visibility)
-            }
-        } else {
+        if (isVisibilityValid(visibility)) {
             super.setVisibility(visibility)
         }
 

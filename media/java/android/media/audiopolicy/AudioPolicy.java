@@ -59,7 +59,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -447,7 +446,6 @@ public class AudioPolicy {
      * @return {@link AudioManager#SUCCESS} if the update was successful,
      *  {@link AudioManager#ERROR} otherwise.
      */
-    @FlaggedApi(Flags.FLAG_AUDIO_POLICY_UPDATE_MIXING_RULES_API)
     @RequiresPermission(android.Manifest.permission.MODIFY_AUDIO_ROUTING)
     public int updateMixingRules(
             @NonNull List<Pair<AudioMix, AudioMixingRule>> mixingRuleUpdates) {
@@ -627,11 +625,7 @@ public class AudioPolicy {
      */
     @TestApi
     @NonNull
-    @FlaggedApi(Flags.FLAG_AUDIO_MIX_TEST_API)
     public List<AudioMix> getMixes() {
-        if (!Flags.audioMixTestApi()) {
-            return Collections.emptyList();
-        }
         synchronized (mLock) {
             return List.copyOf(mConfig.getMixes());
         }

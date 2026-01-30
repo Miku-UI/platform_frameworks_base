@@ -20,30 +20,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.util.Log
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
+import com.android.settingslib.spa.flow.broadcastReceiverFlow as spaBroadcastReceiverFlow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.flowOn
 
-private const val TAG = "BroadcastReceiverFlow"
-
-/**
- * A [BroadcastReceiver] flow for the given [intentFilter].
- */
-fun Context.broadcastReceiverFlow(intentFilter: IntentFilter): Flow<Intent> = callbackFlow {
-    val broadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            Log.d(TAG, "onReceive: $intent")
-            trySend(intent)
-        }
-    }
-    registerReceiver(broadcastReceiver, intentFilter, Context.RECEIVER_VISIBLE_TO_INSTANT_APPS)
-
-    awaitClose { unregisterReceiver(broadcastReceiver) }
-}.catch { e ->
-    Log.e(TAG, "Error while broadcastReceiverFlow", e)
-}.conflate().flowOn(Dispatchers.Default)
+/** A [BroadcastReceiver] flow for the given [intentFilter]. */
+@Deprecated("Please use the base version with the correct flags")
+fun Context.broadcastReceiverFlow(intentFilter: IntentFilter): Flow<Intent> =
+    spaBroadcastReceiverFlow(intentFilter, flags = Context.RECEIVER_VISIBLE_TO_INSTANT_APPS)

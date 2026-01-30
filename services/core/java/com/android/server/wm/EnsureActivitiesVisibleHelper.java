@@ -29,7 +29,6 @@ import java.util.ArrayList;
 class EnsureActivitiesVisibleHelper {
     private final TaskFragment mTaskFragment;
     private ActivityRecord mTopRunningActivity;
-    private ActivityRecord mStarting;
     private boolean mAboveTop;
     private boolean mContainerShouldBeVisible;
     private boolean mBehindFullyOccludedContainer;
@@ -47,12 +46,11 @@ class EnsureActivitiesVisibleHelper {
      *                      be sent to the clients.
      */
     void reset(ActivityRecord starting, boolean notifyClients) {
-        mStarting = starting;
         mTopRunningActivity = mTaskFragment.topRunningActivity();
         // If the top activity is not fullscreen, then we need to make sure any activities under it
         // are now visible.
         mAboveTop = mTopRunningActivity != null;
-        mContainerShouldBeVisible = mTaskFragment.shouldBeVisible(mStarting);
+        mContainerShouldBeVisible = mTaskFragment.shouldBeVisible(starting);
         mBehindFullyOccludedContainer = !mContainerShouldBeVisible;
         mNotifyClients = notifyClients;
     }
@@ -178,7 +176,7 @@ class EnsureActivitiesVisibleHelper {
             }
             // First: if this is not the current activity being started, make
             // sure it matches the current configuration.
-            if (r != mStarting && mNotifyClients) {
+            if (r != starting && mNotifyClients) {
                 if (!isTop) {
                     r.mDisplayContent.applyFixedRotationForNonTopVisibleActivityIfNeeded(r);
                 }
@@ -186,24 +184,19 @@ class EnsureActivitiesVisibleHelper {
             }
 
             if (!r.attachedToProcess()) {
-                makeVisibleAndRestartIfNeeded(mStarting, resumeTopActivity && isTop, r);
+                makeVisibleAndRestartIfNeeded(starting, resumeTopActivity && isTop, r);
             } else if (r.isVisibleRequested()) {
                 // If this activity is already visible, then there is nothing to do here.
                 if (DEBUG_VISIBILITY) {
                     Slog.v(TAG_VISIBILITY, "Skipping: already visible at " + r);
                 }
 
-                if (r.mClientVisibilityDeferred && mNotifyClients) {
-                    r.makeActiveIfNeeded(r.mClientVisibilityDeferred ? null : starting);
-                    r.mClientVisibilityDeferred = false;
-                }
-
-                r.handleAlreadyVisible();
                 if (mNotifyClients) {
-                    r.makeActiveIfNeeded(mStarting);
+                    r.makeActiveIfNeeded(starting);
                 }
+                r.handleAlreadyVisible();
             } else {
-                r.makeVisibleIfNeeded(mStarting, mNotifyClients);
+                r.makeVisibleIfNeeded(starting, mNotifyClients);
             }
         } else {
             if (DEBUG_VISIBILITY) {

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+
+    <!-- Title of the VirtualDeviceManager application. [CHAR LIMIT=50] -->
+    <string name="app_label">Virtual Device Manager</string>
+
+    <!-- START REQUEST COMPUTER CONTROL ACCESS DIALOG -->
+
+    <!-- Label for the title of request computer control access dialog [CHAR LIMIT=70] -->
+    <string name="request_computer_control_access_dialog_title">Allow &lt;strong&gt;<xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g>&lt;/strong&gt; to fully automate your apps?</string>
+
+    <!-- Label for the description of request computer control access dialog [CHAR LIMIT=NONE] -->
+    <string name="request_computer_control_access_dialog_description">This allows &lt;strong&gt;<xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g>&lt;/strong&gt; to control other apps and see all their on-screen content in order to complete tasks on your behalf.</string>
+
+    <!-- Label for the allow button for request computer control access dialog. [CHAR LIMIT=40] -->
+    <string name="request_computer_control_access_dialog_button_allow">Allow this time</string>
+
+    <!-- Label for the deny button for request computer control access dialog. [CHAR LIMIT=40] -->
+    <string name="request_computer_control_access_dialog_button_dont_allow">Don\u2019t allow</string>
+
+    <!-- Label for the always allow button for request computer control access dialog. [CHAR LIMIT=40] -->
+    <string name="request_computer_control_access_dialog_button_always_allow">Always allow</string>
+
+    <!-- END REQUEST COMPUTER CONTROL ACCESS DIALOG -->
+
+    <!-- START NOTIFY COMPUTER CONTROL BLOCKED ACTIVITY DIALOG -->
+
+    <!-- Label for the title of notify computer control blocked activity [CHAR LIMIT=NONE] -->
+    <string name="notify_computer_control_blocked_activity_title">This app is requesting to open another app, which is restricted during automation</string>
+
+    <!-- Label for the title of notify computer control blocked permission dialog [CHAR LIMIT=NONE] -->
+    <string name="notify_computer_control_blocked_permission_dialog_title">This app is requesting a permission, which is restricted during automation</string>
+
+    <!-- Label for the OK button for notify computer control blocked activity dialog. [CHAR LIMIT=40] -->
+    <string name="notify_computer_control_blocked_activity_button_ok">OK</string>
+
+    <!-- END NOTIFY COMPUTER CONTROL BLOCKED ACTIVITY DIALOG -->
+
+    <!-- START AUTOMATED APP LAUNCH WARNING ACTIVITY DIALOG -->
+
+    <!-- Label for the title of automated app launch warning dialog [CHAR LIMIT=70] -->
+    <string name="automated_app_launch_warning_dialog_title"><xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> is using <xliff:g id="target_app_name" example="Example Target App">%2$s</xliff:g></string>
+
+    <!-- Label for the description of automated app launch warning dialog [CHAR LIMIT=NONE] -->
+    <string name="automated_app_launch_warning_dialog_description">You can use <xliff:g id="target_app_name" example="Example Target App">%2$s</xliff:g> when <xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> is done, or you can stop <xliff:g id="agent_app_name" example="Example Agent App">%1$s</xliff:g> to open <xliff:g id="target_app_name" example="Example Target App">%2$s</xliff:g> now</string>
+
+    <!-- Label for the stop button for automated app launch warning dialog. [CHAR LIMIT=40] -->
+    <string name="automated_app_launch_warning_dialog_stop">Stop task</string>
+
+    <!-- Label for the wait button for automated app launch warning dialog. [CHAR LIMIT=40] -->
+    <string name="automated_app_launch_warning_dialog_wait">I\u2019ll wait</string>
+
+    <!-- END AUTOMATED APP LAUNCH WARNING ACTIVITY DIALOG -->
+
+</resources>

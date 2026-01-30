@@ -47,7 +47,7 @@ ANDROID_API AndroidBitmapInfo ABitmap_getInfoFromJava(JNIEnv* env, jobject bitma
  */
 ANDROID_API ABitmap* ABitmap_acquireBitmapFromJava(JNIEnv* env, jobject bitmapObj);
 
-ANDROID_API ABitmap* ABitmap_copy(ABitmap* srcBitmap, AndroidBitmapFormat dstFormat);
+ANDROID_API ABitmap* ABitmap_copy(ABitmap* srcBitmap, uint32_t dstFormat);
 
 ANDROID_API void ABitmap_acquireRef(ABitmap* bitmap);
 ANDROID_API void ABitmap_releaseRef(ABitmap* bitmap);
@@ -88,6 +88,13 @@ ANDROID_API AHardwareBuffer* ABitmap_getHardwareBuffer(ABitmap* bitmap);
 __END_DECLS
 
 #ifdef	__cplusplus
+// Internal extension to AndroidBitmapFormat.
+enum {
+    ANDROID_BITMAP_FORMAT_BGRA_8888 = 5,
+    ANDROID_BITMAP_FORMAT_BGRA_1010102 = 6,
+    ANDROID_BITMAP_FORMAT_BGRX_1010102 = 11,
+};
+
 namespace android {
 namespace graphics {
     class Bitmap {
@@ -118,9 +125,7 @@ namespace graphics {
             return *this;
         }
 
-        Bitmap copy(AndroidBitmapFormat dstFormat) const {
-            return Bitmap(ABitmap_copy(mBitmap, dstFormat));
-        }
+        Bitmap copy(uint32_t dstFormat) const { return Bitmap(ABitmap_copy(mBitmap, dstFormat)); }
 
         bool isValid() const { return mBitmap != nullptr; }
         bool isEmpty() const {

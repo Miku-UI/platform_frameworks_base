@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Hamba kusikrini sangaphambilini"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Iya kusikrini esilandelayo"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Imenyu yokufinyelela inikezela ngemenyu enkulu esesikrinini ukuze ulawule idivayisi yakho. Ungakhiya idivayisi yakho, ulawule ivolumu nokukhanya, uthathe izithombe-skrini, nokuningi."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Lawula idivayisi ngemenyu enkulu"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Lawula ivolumu, ukukhanya, nokuningi ngemenyu enkulu"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Amasethingi Emenyu Yokufinyeleleka"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Izinkinobho ezinkulu"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Khulisa usayizi wezinkinobho zemenyu yokufinyelela"</string>

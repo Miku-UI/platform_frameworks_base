@@ -44,7 +44,6 @@ import org.mockito.ArgumentMatchers.anyBoolean
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.Captor
 import org.mockito.Mock
-import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
@@ -118,7 +117,6 @@ class AudioRepositoryTest {
                 testScope.testScheduler,
                 testScope.backgroundScope,
                 logger,
-                true,
             )
     }
 
@@ -201,7 +199,6 @@ class AudioRepositoryTest {
                     listOf(
                         "onVolumeUpdateReceived audioStream=STREAM_SYSTEM",
                         "onSetVolumeRequested audioStream=STREAM_SYSTEM",
-                        "onVolumeUpdateReceived audioStream=STREAM_SYSTEM",
                         "onVolumeUpdateReceived audioStream=STREAM_SYSTEM",
                     )
                 )
@@ -289,27 +286,6 @@ class AudioRepositoryTest {
             runCurrent()
 
             assertThat(category).isEqualTo(AudioManager.AUDIO_DEVICE_CATEGORY_HEADPHONES)
-        }
-    }
-
-    @Test
-    fun useVolumeControllerDisabled_setVolumeController_notCalled() {
-        testScope.runTest {
-            underTest =
-                AudioRepositoryImpl(
-                    eventsReceiver,
-                    audioManager,
-                    contentResolver,
-                    testScope.testScheduler,
-                    testScope.backgroundScope,
-                    logger,
-                    false,
-                )
-
-            underTest.volumeControllerEvents.launchIn(backgroundScope)
-            runCurrent()
-
-            verify(audioManager, never()).volumeController = any()
         }
     }
 

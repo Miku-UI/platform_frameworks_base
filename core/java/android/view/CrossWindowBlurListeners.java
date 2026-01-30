@@ -49,7 +49,6 @@ public final class CrossWindowBlurListeners {
 
     private final BlurEnabledListenerInternal mListenerInternal = new BlurEnabledListenerInternal();
     private final ArrayMap<Consumer<Boolean>, Executor> mListeners = new ArrayMap();
-    private final Handler mMainHandler = new Handler(Looper.getMainLooper());
     private boolean mInternalListenerAttached = false;
     private boolean mCrossWindowBlurEnabled;
 

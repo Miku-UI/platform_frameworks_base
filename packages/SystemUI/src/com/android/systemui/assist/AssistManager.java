@@ -32,17 +32,20 @@ import com.android.internal.app.IVisualQueryRecognitionStatusListener;
 import com.android.internal.app.IVoiceInteractionSessionListener;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.assist.domain.interactor.AssistInteractor;
 import com.android.systemui.assist.ui.DefaultUiController;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.model.SysUiState;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.res.R;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.shared.Flags;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
+import com.android.systemui.topwindoweffects.data.repository.InvocationEffectEnabler;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.settings.SecureSettings;
 
@@ -51,6 +54,7 @@ import dagger.Lazy;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Inject;
 
@@ -108,7 +112,7 @@ public class AssistManager {
 
     private static final String INVOCATION_TIME_MS_KEY = "invocation_time_ms";
     private static final String INVOCATION_PHONE_STATE_KEY = "invocation_phone_state";
-    protected static final String ACTION_KEY = "action";
+    public static final String ACTION_KEY = "action";
     protected static final String SET_ASSIST_GESTURE_CONSTRAINED_ACTION =
             "set_assist_gesture_constrained";
     protected static final String CONSTRAINED_KEY = "should_constrain";
@@ -132,6 +136,8 @@ public class AssistManager {
             AssistUtils.INVOCATION_TYPE_NAV_HANDLE_LONG_PRESS;
     public static final int INVOCATION_TYPE_LAUNCHER_SYSTEM_SHORTCUT =
             AssistUtils.INVOCATION_TYPE_LAUNCHER_SYSTEM_SHORTCUT;
+    public static final int INVOCATION_TYPE_STATUS_BAR_ICON =
+            AssistUtils.INVOCATION_TYPE_STATUS_BAR_ICON;
 
     public static final int DISMISS_REASON_INVOCATION_CANCELLED = 1;
     public static final int DISMISS_REASON_TAP = 2;
@@ -154,6 +160,8 @@ public class AssistManager {
     private final SelectedUserInteractor mSelectedUserInteractor;
     private final ActivityManager mActivityManager;
     private final AssistInteractor mInteractor;
+    private final Handler mBgHandler;
+    private final Optional<InvocationEffectEnabler> mOptionalInvocationEffectEnabler;
 
     private final DeviceProvisionedController mDeviceProvisionedController;
 
@@ -193,13 +201,15 @@ public class AssistManager {
             DefaultUiController defaultUiController,
             AssistLogger assistLogger,
             @Main Handler uiHandler,
+            @Background Handler bgHandler,
             UserTracker userTracker,
             DisplayTracker displayTracker,
             SecureSettings secureSettings,
             SelectedUserInteractor selectedUserInteractor,
             ActivityManager activityManager,
             AssistInteractor interactor,
-            WindowManager windowManager) {
+            WindowManager windowManager,
+            Optional<InvocationEffectEnabler> optionalInvocationEffectEnabler) {
         mContext = context;
         mDeviceProvisionedController = controller;
         mCommandQueue = commandQueue;
@@ -214,6 +224,8 @@ public class AssistManager {
         mSelectedUserInteractor = selectedUserInteractor;
         mActivityManager = activityManager;
         mInteractor = interactor;
+        mBgHandler = bgHandler;
+        mOptionalInvocationEffectEnabler = optionalInvocationEffectEnabler;
 
         registerVoiceInteractionSessionListener();
         registerVisualQueryRecognitionStatusListener();
@@ -280,6 +292,15 @@ public class AssistManager {
                                             hints.getBoolean(CONSTRAINED_KEY, false))
                                     .commitUpdate(mDisplayTracker.getDefaultDisplayId());
                         }
+                    }
+
+                    @Override
+                    public void onSetInvocationEffectEnabled(boolean enabled) {
+                        if (VERBOSE) {
+                            Log.v(TAG, "Set invocation effect enabled received");
+                        }
+                        mOptionalInvocationEffectEnabler.ifPresent(
+                                effectEnabler -> effectEnabler.setEnabled(enabled));
                     }
                 });
     }
@@ -442,9 +463,16 @@ public class AssistManager {
     }
 
     private void startVoiceInteractor(Bundle args) {
-        mAssistUtils.showSessionForActiveService(args,
-                VoiceInteractionSession.SHOW_SOURCE_ASSIST_GESTURE, mContext.getAttributionTag(),
-                null, null);
+        if (Flags.enableLppAssistInvocationEffect()) {
+            // Use background thread to prevent the binder call from blocking the UI thread
+            mBgHandler.post(() -> mAssistUtils.showSessionForActiveService(args,
+                    VoiceInteractionSession.SHOW_SOURCE_ASSIST_GESTURE,
+                    mContext.getAttributionTag(), null, null));
+        } else {
+            mAssistUtils.showSessionForActiveService(args,
+                    VoiceInteractionSession.SHOW_SOURCE_ASSIST_GESTURE,
+                    mContext.getAttributionTag(), null, null);
+        }
     }
 
     private void registerVisualQueryRecognitionStatusListener() {

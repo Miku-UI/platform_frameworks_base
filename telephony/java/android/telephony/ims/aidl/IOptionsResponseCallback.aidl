@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Interface used by the framework to receive the response from the remote user
  * through {@link RcsCapabilityExchangeImplBase#sendOptionsCapabilityRequest}
- * {@hide}
+ * @hide
  */
 oneway interface IOptionsResponseCallback {
     void onCommandError(int code);

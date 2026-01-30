@@ -107,7 +107,7 @@ fun Session.SessionDisposableEffect(
     key: String? = null,
     effect: DisposableEffectScope.() -> DisposableEffectResult,
 ) {
-    rememberSession(inputs, key) {
+    rememberSession(inputs = inputs, key = key) {
         object : RememberObserver {
 
             var onDispose: DisposableEffectResult? = null
@@ -137,12 +137,15 @@ fun Session.SessionDisposableEffect(
  */
 @Composable
 fun Session.sessionCoroutineScope(
-    getContext: () -> CoroutineContext = { EmptyCoroutineContext }
+    key: String? = null,
+    getContext: () -> CoroutineContext = { EmptyCoroutineContext },
 ): CoroutineScope {
     val effectContext: CoroutineContext = rememberCompositionContext().effectCoroutineContext
-    val job = rememberSession { Job() }
-    SessionDisposableEffect { onDispose { job.cancel() } }
-    return rememberSession { CoroutineScope(effectContext + job + getContext()) }
+    val job = rememberSession(key = "Job(key=$key)") { Job() }
+    SessionDisposableEffect(key = "DisposeJob(key=$key)") { onDispose { job.cancel() } }
+    return rememberSession(key = "CoroutineScope(key=$key)") {
+        CoroutineScope(effectContext + job + getContext())
+    }
 }
 
 /**

@@ -66,7 +66,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
     @Test
     public void stemSingleKey_duringSetup_doNothing() {
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
         mPhoneWindowManager.overrideIsUserSetupComplete(false);
@@ -82,7 +82,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
     @Test
     public void stemSingleKey_AfterSetup_openAllApp() {
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.overrideStartActivity();
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
@@ -101,7 +101,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_SHORT_PRESS,
                 SHORT_PRESS_PRIMARY_LAUNCH_TARGET_ACTIVITY);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.overrideStartActivity();
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
@@ -121,7 +121,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_SHORT_PRESS,
                 SHORT_PRESS_PRIMARY_LAUNCH_TARGET_ACTIVITY);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.overrideStartActivity();
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
@@ -140,7 +140,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
     @Test
     public void stemSingleKey_appHasOverridePermission_consumedByApp_notOpenAllApp() {
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideStartActivity();
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
         mPhoneWindowManager.overrideIsUserSetupComplete(true);
@@ -156,7 +156,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
     @Test
     public void stemSingleKey_appHasOverridePermission_notConsumedByApp_openAllApp() {
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideStartActivity();
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
         mPhoneWindowManager.overrideIsUserSetupComplete(true);
@@ -172,7 +172,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_LONG_PRESS,
                 LONG_PRESS_PRIMARY_LAUNCH_VOICE_ASSISTANT);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.setupAssistForLaunch();
         mPhoneWindowManager.overrideIsUserSetupComplete(true);
@@ -186,7 +186,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_LONG_PRESS,
                 LONG_PRESS_PRIMARY_LAUNCH_VOICE_ASSISTANT);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.setupAssistForLaunch();
         mPhoneWindowManager.overrideSearchManager(null);
@@ -202,7 +202,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_LONG_PRESS,
                 LONG_PRESS_PRIMARY_LAUNCH_VOICE_ASSISTANT);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.setupAssistForLaunch();
         mPhoneWindowManager.overrideSearchManager(null);
@@ -222,7 +222,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
             throws RemoteException {
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
         overrideBehavior(STEM_PRIMARY_BUTTON_DOUBLE_PRESS, DOUBLE_PRESS_PRIMARY_SWITCH_RECENT_APP);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(true);
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
         mPhoneWindowManager.overrideIsUserSetupComplete(true);
@@ -243,7 +243,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
     public void stemDoubleKey_behaviorIsLaunchFitness_gestureEventFired() {
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_DOUBLE_PRESS, DOUBLE_PRESS_PRIMARY_LAUNCH_DEFAULT_FITNESS_APP);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
 
         sendKey(KEYCODE_STEM_PRIMARY);
         sendKey(KEYCODE_STEM_PRIMARY);
@@ -258,7 +258,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_TRIPLE_PRESS, TRIPLE_PRESS_PRIMARY_TOGGLE_ACCESSIBILITY);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(true);
         mPhoneWindowManager.overrideTalkbackShortcutGestureEnabled(true);
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
@@ -287,7 +287,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
         overrideBehavior(STEM_PRIMARY_BUTTON_DOUBLE_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
         overrideBehavior(
                 STEM_PRIMARY_BUTTON_TRIPLE_PRESS, TRIPLE_PRESS_PRIMARY_TOGGLE_ACCESSIBILITY);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(false);
         mPhoneWindowManager.overrideTalkbackShortcutGestureEnabled(true);
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
@@ -316,7 +316,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
     public void stemDoubleKey_earlyShortPress_firstPressConsumedByApp_switchToMostRecent()
             throws RemoteException {
         overrideBehavior(STEM_PRIMARY_BUTTON_DOUBLE_PRESS, SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         mPhoneWindowManager.overrideShouldEarlyShortPressOnStemPrimary(true);
         mPhoneWindowManager.setKeyguardServiceDelegateIsShowing(false);
         mPhoneWindowManager.overrideIsUserSetupComplete(true);
@@ -362,7 +362,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
                 SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
 
         // start the PhoneWindowManager, just like would happen with a reboot
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         // Set the stem behavior back to something normal after boot
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS,
                 SHORT_PRESS_PRIMARY_LAUNCH_ALL_APPS);
@@ -409,7 +409,7 @@ public class StemKeyGestureTests extends ShortcutKeyTestBase {
                 PhoneWindowManager.LONG_PRESS_PRIMARY_NOTHING);
 
         // start the PhoneWindowManager, just like would happen with a reboot
-        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true);
+        setUpPhoneWindowManager(/* supportSettingsUpdate= */ true, /* supportFeature */ "");
         // Set the stem behavior back to something normal after boot
         // (Despite this fact, a stem press shouldn't have any behavior because there's no rule.)
         overrideBehavior(STEM_PRIMARY_BUTTON_SHORT_PRESS,

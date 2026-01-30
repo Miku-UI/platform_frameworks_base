@@ -28,6 +28,7 @@ import android.view.KeyEvent.KEYCODE_HOME
 import android.view.KeyEvent.KEYCODE_RECENT_APPS
 import android.view.KeyEvent.KEYCODE_TAB
 import android.view.KeyEvent.META_ALT_ON
+import android.view.KeyEvent.META_META_ON
 import android.view.KeyEvent.META_SHIFT_ON
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest

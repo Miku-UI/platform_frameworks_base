@@ -65,7 +65,10 @@ public class OverlayConstraintsTests {
     private static final String RESOURCE_NAME = "string/module_2_name";
     private static final String RESOURCE_DEFAULT_VALUE = "module_2_name";
     private static final String RESOURCE_OVERLAID_VALUE = "hello";
-    private static final long TIMEOUT_MILLIS = 2000L;
+
+    // This timeout was previously 2 seconds but was increased to avoid flakiness on slower
+    // devices such as Cuttlefish.
+    private static final long TIMEOUT_MILLIS = 6000L;
 
     @Rule
     public final VirtualDeviceRule mVirtualDeviceRule = VirtualDeviceRule.createDefault();

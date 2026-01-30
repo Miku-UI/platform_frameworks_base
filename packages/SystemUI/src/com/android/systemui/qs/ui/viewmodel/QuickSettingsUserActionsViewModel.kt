@@ -22,7 +22,7 @@ import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.Swipe
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
-import com.android.systemui.qs.ui.adapter.QSSceneAdapter
+import com.android.systemui.qs.panels.ui.viewmodel.EditModeViewModel
 import com.android.systemui.scene.domain.interactor.SceneBackInteractor
 import com.android.systemui.scene.shared.model.SceneFamilies
 import com.android.systemui.scene.shared.model.Scenes
@@ -43,8 +43,10 @@ import kotlinx.coroutines.flow.map
  */
 class QuickSettingsUserActionsViewModel
 @AssistedInject
-constructor(private val qsSceneAdapter: QSSceneAdapter, sceneBackInteractor: SceneBackInteractor) :
-    UserActionsViewModel() {
+constructor(
+    private val editModeViewModel: EditModeViewModel,
+    sceneBackInteractor: SceneBackInteractor,
+) : UserActionsViewModel() {
 
     private val backScene: Flow<SceneKey> =
         sceneBackInteractor.backScene
@@ -52,23 +54,14 @@ constructor(private val qsSceneAdapter: QSSceneAdapter, sceneBackInteractor: Sce
             .map { it ?: Scenes.Shade }
 
     override suspend fun hydrateActions(setActions: (Map<UserAction, UserActionResult>) -> Unit) {
-        combine(qsSceneAdapter.isCustomizerShowing, backScene) { isCustomizing, backScene ->
-                buildMap<UserAction, UserActionResult> {
-                    if (isCustomizing) {
-                        // TODO(b/332749288) Empty map so there are no back handlers and back can
-                        // close
-                        // customizer
-
-                        // TODO(b/330200163) Add an Up from Bottom to be able to collapse the shade
-                        // while customizing
-                    } else {
+        combine(editModeViewModel.isEditing, backScene) { isCustomizing, backScene ->
+                buildMap {
+                    // Disable "back" and "swipe up to dismiss" gestures while customizing.
+                    if (!isCustomizing) {
                         put(Back, UserActionResult(backScene))
                         put(Swipe.Up, UserActionResult(backScene))
-                        put(
-                            Swipe.Up(fromSource = Edge.Bottom),
-                            UserActionResult(SceneFamilies.Home),
-                        )
                     }
+                    put(Swipe.Up(fromSource = Edge.Bottom), UserActionResult(SceneFamilies.Home))
                 }
             }
             .collect { actions -> setActions(actions) }

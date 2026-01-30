@@ -21,7 +21,7 @@ import android.os.instrumentation.ExecutableMethodFileOffsets;
 /**
  * System private API for providing dynamic instrumentation offset results.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IOffsetCallback {
     void onResult(in @nullable ExecutableMethodFileOffsets offsets);

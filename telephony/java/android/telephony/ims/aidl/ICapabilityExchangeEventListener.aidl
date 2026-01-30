@@ -26,7 +26,7 @@ import java.util.List;
  * events.
  *
  * See CapabilityExchangeEventListener for more information.
- * {@hide}
+ * @hide
  */
 oneway interface ICapabilityExchangeEventListener {
     void onRequestPublishCapabilities(int publishTriggerType);

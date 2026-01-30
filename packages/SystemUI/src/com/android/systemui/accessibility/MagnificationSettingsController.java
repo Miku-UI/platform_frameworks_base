@@ -163,6 +163,22 @@ public class MagnificationSettingsController implements ComponentCallbacks {
         void onSetDiagonalScrolling(int displayId, boolean enable);
 
         /**
+         * Called when set magnify typing.
+         *
+         * @param displayId The logical display id.
+         * @param enable Magnify typing enable value.
+         */
+        void onSetMagnifyTyping(int displayId, boolean enable);
+
+        /**
+         * Called when set magnify keyboard.
+         *
+         * @param displayId The logical display id.
+         * @param enable Magnify keyboard enable value.
+         */
+        void onSetMagnifyKeyboard(int displayId, boolean enable);
+
+        /**
          * Called when change magnification size on free mode.
          *
          * @param displayId The logical display id.
@@ -201,9 +217,19 @@ public class MagnificationSettingsController implements ComponentCallbacks {
     @VisibleForTesting
     final WindowMagnificationSettingsCallback mWindowMagnificationSettingsCallback =
             new WindowMagnificationSettingsCallback() {
-                @Override
+        @Override
         public void onSetDiagonalScrolling(boolean enable) {
             mSettingsControllerCallback.onSetDiagonalScrolling(mDisplayId, enable);
+        }
+
+        @Override
+        public void onSetMagnifyTyping(boolean enable) {
+            mSettingsControllerCallback.onSetMagnifyTyping(mDisplayId, enable);
+        }
+
+        @Override
+        public void onSetMagnifyKeyboard(boolean enable) {
+            mSettingsControllerCallback.onSetMagnifyKeyboard(mDisplayId, enable);
         }
 
         @Override

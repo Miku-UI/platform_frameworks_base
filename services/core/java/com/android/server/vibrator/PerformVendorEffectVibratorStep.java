@@ -35,11 +35,11 @@ final class PerformVendorEffectVibratorStep extends AbstractVibratorStep {
     public final VibrationEffect.VendorEffect effect;
 
     PerformVendorEffectVibratorStep(VibrationStepConductor conductor, long startTime,
-            VibratorController controller, VibrationEffect.VendorEffect effect,
+            HalVibrator vibrator, VibrationEffect.VendorEffect effect,
             long pendingVibratorOffDeadline) {
         // This step should wait for the last vibration to finish (with the timeout) and for the
         // intended step start time (to respect the effect delays).
-        super(conductor, Math.max(startTime, pendingVibratorOffDeadline), controller,
+        super(conductor, Math.max(startTime, pendingVibratorOffDeadline), vibrator,
                 pendingVibratorOffDeadline);
         this.effect = effect;
     }
@@ -50,12 +50,12 @@ final class PerformVendorEffectVibratorStep extends AbstractVibratorStep {
         Trace.traceBegin(Trace.TRACE_TAG_VIBRATOR, "PerformVendorEffectVibratorStep");
         try {
             int stepId = conductor.nextVibratorCallbackStepId(getVibratorId());
-            long vibratorOnResult = controller.on(effect, getVibration().id, stepId);
+            long vibratorOnResult = vibrator.on(getVibration().id, stepId, effect);
             vibratorOnResult = Math.min(vibratorOnResult, VENDOR_EFFECT_MAX_DURATION_MS);
             handleVibratorOnResult(vibratorOnResult);
             getVibration().stats.reportPerformVendorEffect(vibratorOnResult);
             return List.of(new CompleteEffectVibratorStep(conductor, startTime,
-                    /* cancelled= */ false, controller, mPendingVibratorOffDeadline));
+                    /* cancelled= */ false, vibrator, mPendingVibratorOffDeadline));
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_VIBRATOR);
         }

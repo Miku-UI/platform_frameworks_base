@@ -1547,6 +1547,11 @@ bool ResourceParser::ParseStyleItem(xml::XmlPullParser* parser, Style* style) {
     std::string error;
     auto flag_status = GetFlagStatus(flag, options_.feature_flag_values, &error);
     if (flag_status) {
+      if (flag_status == FlagStatus::RWFlag) {
+        diag_->Error(android::DiagMessage(source_.WithLine(parser->line_number()))
+                     << "Only read only flags may be used with styles: " + flag->name);
+        return false;
+      }
       value->SetFlagStatus(flag_status.value());
       value->SetFlag(std::move(flag));
     } else {
@@ -1686,6 +1691,11 @@ bool ResourceParser::ParseArrayImpl(xml::XmlPullParser* parser,
       std::string err;
       auto status = GetFlagStatus(flag, options_.feature_flag_values, &err);
       if (status) {
+        if (status == FlagStatus::RWFlag) {
+          diag_->Error(android::DiagMessage(source_.WithLine(parser->line_number()))
+                       << "Only read only flags may be used with arrays: " + flag->name);
+          return false;
+        }
         item->SetFlagStatus(status.value());
       } else {
         diag_->Error(android::DiagMessage(item_source) << err);

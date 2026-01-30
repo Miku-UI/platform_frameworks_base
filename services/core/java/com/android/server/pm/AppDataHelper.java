@@ -34,7 +34,6 @@ import android.os.Process;
 import android.os.Trace;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
-import android.os.storage.StorageManagerInternal;
 import android.os.storage.VolumeInfo;
 import android.security.AndroidKeyStoreMaintenance;
 import android.system.keystore2.Domain;
@@ -45,6 +44,7 @@ import android.util.TimingsTraceLog;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.util.Preconditions;
+import com.android.server.StorageManagerInternal;
 import com.android.server.SystemServerInitThreadPool;
 import com.android.server.pm.dex.ArtManagerService;
 import com.android.server.pm.parsing.pkg.AndroidPackageUtils;
@@ -607,7 +607,6 @@ public class AppDataHelper {
             } catch (Installer.InstallerException e) {
                 Slog.w(TAG, String.valueOf(e));
             }
-            mPm.getDexManager().notifyPackageDataDestroyed(packageName, userId);
             mPm.getDynamicCodeLogger().notifyPackageDataDestroyed(packageName, userId);
         }
     }

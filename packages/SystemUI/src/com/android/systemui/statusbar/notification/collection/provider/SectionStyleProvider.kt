@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.notification.collection.provider
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.statusbar.notification.collection.PipelineEntry
-import com.android.systemui.statusbar.notification.collection.SortBySectionTimeFlag
 import com.android.systemui.statusbar.notification.collection.listbuilder.NotifSection
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifSectioner
 import com.android.systemui.statusbar.notification.stack.BUCKET_PEOPLE
@@ -79,13 +78,9 @@ class SectionStyleProvider @Inject constructor(
     @JvmOverloads
     fun isSilent(entry: PipelineEntry, ifNotInSection: Boolean = true): Boolean {
         val section = entry.section ?: return ifNotInSection
-        if (SortBySectionTimeFlag.isEnabled) {
-            if (entry.section?.bucket == BUCKET_PEOPLE) {
-                return !highPriorityProvider.isHighPriorityConversation(entry)
-            }
-            return isSilentSection(section)
-        } else {
-            return isSilentSection(section)
+        if (entry.section?.bucket == BUCKET_PEOPLE) {
+            return !highPriorityProvider.isHighPriorityConversation(entry)
         }
+        return isSilentSection(section)
     }
 }

@@ -16,10 +16,17 @@
 
 package com.android.companiondevicemanager;
 
-import static android.companion.CompanionDeviceManager.RESULT_CANCELED;
 import static android.companion.CompanionDeviceManager.RESULT_INTERNAL_ERROR;
 import static android.companion.CompanionDeviceManager.RESULT_SECURITY_ERROR;
 import static android.companion.CompanionDeviceManager.RESULT_USER_REJECTED;
+import static android.companion.CompanionResources.EXTRA_APPLICATION_CALLBACK;
+import static android.companion.CompanionResources.EXTRA_ASSOCIATION;
+import static android.companion.CompanionResources.EXTRA_ASSOCIATION_REQUEST;
+import static android.companion.CompanionResources.EXTRA_FORCE_CANCEL_CONFIRMATION;
+import static android.companion.CompanionResources.EXTRA_MAC_ADDRESS;
+import static android.companion.CompanionResources.EXTRA_RESULT_RECEIVER;
+import static android.companion.CompanionResources.RESULT_CODE_ASSOCIATION_APPROVED;
+import static android.companion.CompanionResources.RESULT_CODE_ASSOCIATION_CREATED;
 import static android.view.WindowManager.LayoutParams.SYSTEM_FLAG_HIDE_NON_SYSTEM_OVERLAY_WINDOWS;
 
 import static com.android.companiondevicemanager.CompanionDeviceDiscoveryService.DiscoveryState;
@@ -27,7 +34,6 @@ import static com.android.companiondevicemanager.CompanionDeviceDiscoveryService
 import static com.android.companiondevicemanager.CompanionDeviceDiscoveryService.sDiscoveryStarted;
 import static com.android.companiondevicemanager.CompanionDeviceResources.PROFILE_ICONS;
 import static com.android.companiondevicemanager.CompanionDeviceResources.PROFILE_NAMES;
-import static com.android.companiondevicemanager.CompanionDeviceResources.PROFILE_PERMISSIONS;
 import static com.android.companiondevicemanager.CompanionDeviceResources.PROFILE_SUMMARIES;
 import static com.android.companiondevicemanager.CompanionDeviceResources.PROFILE_TITLES;
 import static com.android.companiondevicemanager.CompanionDeviceResources.SUPPORTED_PROFILES;
@@ -53,7 +59,6 @@ import android.companion.AssociationInfo;
 import android.companion.AssociationRequest;
 import android.companion.CompanionDeviceManager;
 import android.companion.DeviceFilter;
-import android.companion.Flags;
 import android.companion.IAssociationRequestCallback;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -87,7 +92,8 @@ import androidx.fragment.app.FragmentManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import java.util.ArrayList;
+import com.android.internal.util.CollectionUtils;
+
 import java.util.List;
 
 /**
@@ -98,26 +104,6 @@ import java.util.List;
 public class CompanionAssociationActivity extends FragmentActivity implements
         CompanionVendorHelperDialogFragment.CompanionVendorHelperDialogListener {
     private static final String TAG = "CDM_CompanionDeviceActivity";
-
-    // Keep the following constants in sync with
-    // frameworks/base/services/companion/java/
-    // com/android/server/companion/AssociationRequestsProcessor.java
-
-    // AssociationRequestsProcessor <-> UI
-    private static final String EXTRA_APPLICATION_CALLBACK = "application_callback";
-    private static final String EXTRA_ASSOCIATION_REQUEST = "association_request";
-    private static final String EXTRA_RESULT_RECEIVER = "result_receiver";
-    private static final String EXTRA_FORCE_CANCEL_CONFIRMATION = "cancel_confirmation";
-
-    private static final String FRAGMENT_DIALOG_TAG = "fragment_dialog";
-
-    // AssociationRequestsProcessor -> UI
-    private static final int RESULT_CODE_ASSOCIATION_CREATED = 0;
-    private static final String EXTRA_ASSOCIATION = "association";
-
-    // UI -> AssociationRequestsProcessor
-    private static final int RESULT_CODE_ASSOCIATION_APPROVED = 0;
-    private static final String EXTRA_MAC_ADDRESS = "mac_address";
 
     private AssociationRequest mRequest;
     private IAssociationRequestCallback mAppCallback;
@@ -134,6 +120,7 @@ public class CompanionAssociationActivity extends FragmentActivity implements
     private ImageView mProfileIcon;
     // Present for self managed association only;
     private ImageView mDeviceIcon;
+    private CharSequence mDeviceName;
 
     // Only present for selfManaged devices.
     private ImageView mVendorHeaderImage;
@@ -182,8 +169,6 @@ public class CompanionAssociationActivity extends FragmentActivity implements
     // A reference to the device selected by the user, to be sent back to the application via
     // onActivityResult() after the association is created.
     private @Nullable DeviceFilterPair<?> mSelectedDevice;
-
-    private final LinearLayoutManager mPermissionsLayoutManager = new LinearLayoutManager(this);
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -251,13 +236,8 @@ public class CompanionAssociationActivity extends FragmentActivity implements
         }
 
         try {
-            if (Flags.associationFailureCode()) {
-                appCallback.onFailure(
-                        RESULT_SECURITY_ERROR, "More than one AssociationRequests are processing.");
-            } else {
-                appCallback.onFailure(
-                        RESULT_INTERNAL_ERROR, "More than one AssociationRequests are processing.");
-            }
+            appCallback.onFailure(
+                    RESULT_SECURITY_ERROR, "More than one AssociationRequests are processing.");
         } catch (RemoteException ignore) {
         }
     }
@@ -309,6 +289,7 @@ public class CompanionAssociationActivity extends FragmentActivity implements
         mVendorHeaderButton = findViewById(R.id.vendor_header_button);
 
         mDeviceIcon = findViewById(R.id.device_icon);
+        mDeviceName = mRequest.getDisplayName();
 
         mTimeoutMessage = findViewById(R.id.timeout_message);
         mDeviceListRecyclerView = findViewById(R.id.device_list);
@@ -482,7 +463,6 @@ public class CompanionAssociationActivity extends FragmentActivity implements
     private void initUiForSelfManagedAssociation() {
         Slog.d(TAG, "initUiForSelfManagedAssociation()");
 
-        final CharSequence deviceName = mRequest.getDisplayName();
         final String deviceProfile = mRequest.getDeviceProfile();
         final String packageName = mRequest.getPackageName();
         final int userId = mRequest.getUserId();
@@ -510,7 +490,7 @@ public class CompanionAssociationActivity extends FragmentActivity implements
         }
 
         title = getHtmlFromResources(this, PROFILE_TITLES.get(deviceProfile), mAppLabel,
-                getString(R.string.device_type), deviceName);
+                getString(R.string.device_type), mDeviceName);
 
         if (deviceIcon != null) {
             mDeviceIcon.setImageIcon(deviceIcon);
@@ -520,13 +500,13 @@ public class CompanionAssociationActivity extends FragmentActivity implements
         if (PROFILE_SUMMARIES.containsKey(deviceProfile)) {
             final int summaryResourceId = PROFILE_SUMMARIES.get(deviceProfile);
             final Spanned summary = getHtmlFromResources(this, summaryResourceId,
-                    mAppLabel, getString(R.string.device_type), deviceName);
+                    mAppLabel, getString(R.string.device_type), mDeviceName);
             mSummary.setText(summary);
         } else {
             mSummary.setVisibility(View.GONE);
         }
 
-        setupPermissionList(deviceProfile);
+        setupPermissionList(mRequest.getRequestedPerms());
 
         mTitle.setText(title);
         mVendorHeaderName.setText(vendorName);
@@ -678,7 +658,7 @@ public class CompanionAssociationActivity extends FragmentActivity implements
             summary = getHtmlFromResources(
                     this, summaryResourceId, getString(R.string.device_type), mAppLabel,
                     remoteDeviceName);
-            setupPermissionList(deviceProfile);
+            setupPermissionList(mRequest.getRequestedPerms());
         }
 
         mTitle.setText(title);
@@ -738,7 +718,7 @@ public class CompanionAssociationActivity extends FragmentActivity implements
 
         mAssociationConfirmationDialog.setVisibility(View.INVISIBLE);
 
-        fragmentDialog.show(fragmentManager, /* Tag */ FRAGMENT_DIALOG_TAG);
+        fragmentDialog.show(fragmentManager, CompanionVendorHelperDialogFragment.TAG);
     }
 
     private boolean isDone() {
@@ -749,22 +729,15 @@ public class CompanionAssociationActivity extends FragmentActivity implements
     // initiate the layoutManager for the recyclerview, add listeners for monitoring the scrolling
     // and when mPermissionListRecyclerView is fully populated.
     // Lastly, disable the Allow and Don't allow buttons.
-    private void setupPermissionList(String deviceProfile) {
-        if (!PROFILE_PERMISSIONS.containsKey(deviceProfile)) {
-            // Nothing to do if there are no permission types.
+    private void setupPermissionList(List<Integer> perms) {
+        if (CollectionUtils.isEmpty(perms)) {
             return;
         }
-
-        final List<Integer> permissionTypes = new ArrayList<>(
-                PROFILE_PERMISSIONS.get(deviceProfile));
-        if (permissionTypes.isEmpty()) {
-            // Nothing to do if there are no permission types.
-            return;
-        }
-
-        mPermissionListAdapter.setPermissionType(permissionTypes);
+        mPermissionListAdapter.setPermissionType(perms);
+        mPermissionListAdapter.setAppLabel(mAppLabel);
+        mPermissionListAdapter.setDeviceName(mDeviceName);
         mPermissionListRecyclerView.setAdapter(mPermissionListAdapter);
-        mPermissionListRecyclerView.setLayoutManager(mPermissionsLayoutManager);
+        mPermissionListRecyclerView.setLayoutManager(new LinearLayoutManager(this));
 
         disableButtons();
 
@@ -807,7 +780,7 @@ public class CompanionAssociationActivity extends FragmentActivity implements
     // Enable the Allow button if the last element in the PermissionListRecyclerView is reached.
     private void enableAllowButtonIfNeeded(LinearLayoutManager layoutManager) {
         int lastVisibleItemPosition =
-                layoutManager.findLastCompletelyVisibleItemPosition();
+                layoutManager.findLastVisibleItemPosition();
         int numItems = mPermissionListRecyclerView.getAdapter().getItemCount();
 
         if (lastVisibleItemPosition >= numItems - 1) {

@@ -427,6 +427,12 @@ public interface ParsingPackage {
      */
     ParsingPackage setAlternateLauncherLabelResIds(int[] alternateLauncherLabelResIds);
 
+    /**
+     * Sets whether this application should run in the Private Compute Core sandbox.
+     * @see android.R.styleable#AndroidManifestApplication_runInPccSandbox
+     */
+    ParsingPackage setRunInPccSandbox(boolean runInPccSandbox);
+
     @CallSuper
     ParsedPackage hideAsParsed();
 
@@ -489,6 +495,9 @@ public interface ParsingPackage {
     @NonNull
     Set<String> getRequestedPermissions();
 
+    @NonNull
+    Map<String, ParsedUsesPermission> getUsesPermissionMapping();
+
     @Nullable
     Boolean getResizeableActivity();
 
@@ -522,9 +531,6 @@ public interface ParsingPackage {
 
     @NonNull
     List<String> getUsesNativeLibraries();
-
-    @NonNull
-    List<ParsedUsesPermission> getUsesPermissions();
 
     @NonNull
     List<String> getUsesSdkLibraries();

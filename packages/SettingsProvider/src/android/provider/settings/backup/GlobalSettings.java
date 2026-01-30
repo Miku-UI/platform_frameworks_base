@@ -95,6 +95,7 @@ public class GlobalSettings {
         Settings.Global.Wearable.SMART_REPLIES_ENABLED,
         Settings.Global.Wearable.CLOCKWORK_AUTO_TIME,
         Settings.Global.Wearable.CLOCKWORK_AUTO_TIME_ZONE,
+        Settings.Global.Wearable.CLOCKWORK_LOCATION_TIME_ZONE_DETECTION_ENABLED,
         Settings.Global.Wearable.CLOCKWORK_24HR_TIME,
         Settings.Global.Wearable.CONSISTENT_NOTIFICATION_BLOCKING_ENABLED,
         Settings.Global.Wearable.MUTE_WHEN_OFF_BODY_ENABLED,
@@ -120,6 +121,7 @@ public class GlobalSettings {
         Settings.Global.Wearable.AUTO_BEDTIME_MODE,
         Settings.Global.Wearable.GESTURE_PRIMARY_ACTION_USER_PREFERENCE,
         Settings.Global.Wearable.GESTURE_DISMISS_ACTION_USER_PREFERENCE,
+        Settings.Global.Wearable.GESTURE_HINT_PERIOD_DAYS,
         Settings.Global.FORCE_ENABLE_PSS_PROFILING,
         Settings.Global.Wearable.ACCESSIBILITY_VIBRATION_WATCH_ENABLED,
         Settings.Global.Wearable.ACCESSIBILITY_VIBRATION_WATCH_TYPE,
@@ -127,5 +129,9 @@ public class GlobalSettings {
         Settings.Global.ADD_USERS_WHEN_LOCKED,
         Settings.Global.REMOVE_GUEST_ON_EXIT,
         Settings.Global.USER_SWITCHER_ENABLED,
+        Settings.Global.GLOBAL_ACTIONS_TIMEOUT_MILLIS,
+        Settings.Global.WATCH_RANGING_SUPPORTED_BY_PRIMARY_DEVICE,
+        Settings.Global.MINMODE_ACTIVE,
+        Settings.Global.WATCH_RANGING_AVAILABLE,
     };
 }

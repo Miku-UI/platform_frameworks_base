@@ -34,29 +34,10 @@ import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.shared.system.QuickStepContract;
 
 import java.util.List;
-import java.util.function.Consumer;
 
 public class Utils {
 
     private static Boolean sUseQsMediaPlayer = null;
-
-    /**
-     * Allows lambda iteration over a list. It is done in reverse order so it is safe
-     * to add or remove items during the iteration.  Skips over null items.
-     *
-     * @deprecated According to b/286841705, this is *not* safe: If an item is removed from the
-     *   list, then list.get(i) could throw an IndexOutOfBoundsException. This method should not be
-     *   used; try using `synchronized` or making a copy of the list instead.
-     */
-    @Deprecated
-    public static <T> void safeForeach(List<T> list, Consumer<T> c) {
-        for (int i = list.size() - 1; i >= 0; i--) {
-            T item = list.get(i);
-            if (item != null) {
-                c.accept(item);
-            }
-        }
-    }
 
     /**
      * Returns {@code true} iff the package {@code packageName} is a headless remote display
@@ -136,14 +117,6 @@ public class Utils {
         int flag = Settings.Secure.getInt(context.getContentResolver(),
                 Settings.Secure.MEDIA_CONTROLS_RESUME, 1);
         return useQsMediaPlayer(context) && flag > 0;
-    }
-
-    /**
-     * Returns true if the device should use the collapsed layout for the media player when in
-     * landscape (or seascape) orientation
-     */
-    public static boolean useCollapsedMediaInLandscape(Resources resources) {
-        return resources.getBoolean(R.bool.config_quickSettingsMediaLandscapeCollapsed);
     }
 
     /**

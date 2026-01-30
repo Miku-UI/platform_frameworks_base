@@ -21,8 +21,10 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.statusbar.chips.call.domain.interactor.callChipInteractor
+import com.android.systemui.statusbar.chips.notification.domain.interactor.statusBarNotificationChipsInteractor
 import com.android.systemui.statusbar.chips.statusBarChipsLogger
 import com.android.systemui.statusbar.chips.uievents.statusBarChipsUiEventLogger
+import com.android.systemui.statusbar.notification.stack.domain.interactor.headsUpNotificationInteractor
 import com.android.systemui.util.time.fakeSystemClock
 
 val Kosmos.callChipViewModel: CallChipViewModel by
@@ -31,6 +33,8 @@ val Kosmos.callChipViewModel: CallChipViewModel by
             applicationContext,
             scope = applicationCoroutineScope,
             interactor = callChipInteractor,
+            notifChipsInteractor = statusBarNotificationChipsInteractor,
+            headsUpNotificationInteractor = headsUpNotificationInteractor,
             systemClock = fakeSystemClock,
             activityStarter = activityStarter,
             logBuffer = statusBarChipsLogger,

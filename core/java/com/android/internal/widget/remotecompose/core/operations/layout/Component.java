@@ -61,7 +61,8 @@ public class Component extends PaintOperation
     public int mVisibility = Visibility.VISIBLE;
     public int mScheduledVisibility = Visibility.VISIBLE;
     @NonNull public ArrayList<Operation> mList = new ArrayList<>();
-    public PaintOperation mPreTranslate; // todo, can we initialize this here and make it NonNull?
+    public @Nullable PaintOperation
+            mPreTranslate; // todo, can we initialize this here and make it NonNull?
     public boolean mNeedsMeasure = true;
     public boolean mNeedsRepaint = false;
     @Nullable public AnimateMeasure mAnimateMeasure;
@@ -100,6 +101,7 @@ public class Component extends PaintOperation
         return mZIndex;
     }
 
+    @Override
     @NonNull
     public ArrayList<Operation> getList() {
         return mList;
@@ -183,14 +185,24 @@ public class Component extends PaintOperation
                         context.loadFloat(v.getValueId(), mWidth);
                         if (DEBUG) {
                             System.out.println(
-                                    "Updating WIDTH for " + mComponentId + " to " + mWidth);
+                                    "Updating WIDTH("
+                                            + v.getValueId()
+                                            + ") for "
+                                            + mComponentId
+                                            + " to "
+                                            + mWidth);
                         }
                         break;
                     case ComponentValue.HEIGHT:
                         context.loadFloat(v.getValueId(), mHeight);
                         if (DEBUG) {
                             System.out.println(
-                                    "Updating HEIGHT for " + mComponentId + " to " + mHeight);
+                                    "Updating HEIGHT("
+                                            + v.getValueId()
+                                            + ") for "
+                                            + mComponentId
+                                            + " to "
+                                            + mHeight);
                         }
                         break;
                 }
@@ -347,7 +359,7 @@ public class Component extends PaintOperation
         }
     }
 
-    protected AnimationSpec getAnimationSpec() {
+    protected @NonNull AnimationSpec getAnimationSpec() {
         return mAnimationSpec;
     }
 
@@ -360,7 +372,7 @@ public class Component extends PaintOperation
      *
      * @param context
      */
-    public void registerVariables(RemoteContext context) {
+    public void registerVariables(@NonNull RemoteContext context) {
         // Nothing here
     }
 
@@ -374,13 +386,15 @@ public class Component extends PaintOperation
         public static final int OVERRIDE_INVISIBLE = 64;
         public static final int CLEAR_OVERRIDE = 128;
 
+        private Visibility() {}
+
         /**
          * Returns a string representation of the field
          *
          * @param value
          * @return
          */
-        public static String toString(int value) {
+        public static @NonNull String toString(int value) {
             switch (value) {
                 case GONE:
                     return "GONE";
@@ -612,8 +626,9 @@ public class Component extends PaintOperation
     /**
      * Animate the bounds of the component as needed
      *
-     * @param context
+     * @param context the context
      */
+    @Override
     public void animatingBounds(@NonNull RemoteContext context) {
         if (mAnimateMeasure != null) {
             mAnimateMeasure.apply(context);
@@ -629,7 +644,7 @@ public class Component extends PaintOperation
         }
     }
 
-    @NonNull public float[] locationInWindow = new float[2];
+    public @NonNull float [] locationInWindow = new float[2];
 
     /**
      * Hit detection -- returns true if the point (x, y) is inside the component
@@ -670,14 +685,14 @@ public class Component extends PaintOperation
     /**
      * Click handler
      *
-     * @param context
-     * @param document
+     * @param context the current context
+     * @param document the current document
      * @param x x location on screen or -1 if unconditional click
      * @param y y location on screen or -1 if unconditional click
      */
     public void onClick(
             @NonNull RemoteContext context, @NonNull CoreDocument document, float x, float y) {
-        boolean isUnconditional = x == -1 & y == -1;
+        boolean isUnconditional = x == -1 && y == -1;
         if (!isUnconditional && !contains(x, y)) {
             return;
         }
@@ -696,12 +711,13 @@ public class Component extends PaintOperation
     /**
      * Touch down handler
      *
-     * @param context
-     * @param document
+     * @param context the current context
+     * @param document the current document
      * @param x
      * @param y
      */
-    public void onTouchDown(RemoteContext context, CoreDocument document, float x, float y) {
+    public void onTouchDown(
+            @NonNull RemoteContext context, @NonNull CoreDocument document, float x, float y) {
         if (!contains(x, y)) {
             return;
         }
@@ -735,8 +751,8 @@ public class Component extends PaintOperation
      * @param force
      */
     public void onTouchUp(
-            RemoteContext context,
-            CoreDocument document,
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
             float x,
             float y,
             float dx,
@@ -772,7 +788,11 @@ public class Component extends PaintOperation
      * @param force
      */
     public void onTouchCancel(
-            RemoteContext context, CoreDocument document, float x, float y, boolean force) {
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            float x,
+            float y,
+            boolean force) {
         if (!force && !contains(x, y)) {
             return;
         }
@@ -803,7 +823,11 @@ public class Component extends PaintOperation
      * @param force
      */
     public void onTouchDrag(
-            RemoteContext context, CoreDocument document, float x, float y, boolean force) {
+            @NonNull RemoteContext context,
+            @NonNull CoreDocument document,
+            float x,
+            float y,
+            boolean force) {
         if (!force && !contains(x, y)) {
             return;
         }
@@ -832,7 +856,7 @@ public class Component extends PaintOperation
      * @param forSelf whether the location is for this container or a child, relevant for scrollable
      *     items.
      */
-    public void getLocationInWindow(@NonNull float[] value, boolean forSelf) {
+    public void getLocationInWindow(@NonNull float [] value, boolean forSelf) {
         value[0] += mX;
         value[1] += mY;
         if (mParent != null) {
@@ -846,7 +870,7 @@ public class Component extends PaintOperation
      * @param value a 2 dimension float array that will receive the horizontal and vertical position
      *     of the component.
      */
-    public void getLocationInWindow(@NonNull float[] value) {
+    public void getLocationInWindow(@NonNull float [] value) {
         getLocationInWindow(value, true);
     }
 
@@ -1221,7 +1245,7 @@ public class Component extends PaintOperation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addTags(SerializeTags.COMPONENT);
         serializer.addType(getSerializedName());
         serializer.add("id", mComponentId);
@@ -1240,7 +1264,7 @@ public class Component extends PaintOperation
      * @return
      * @param <T>
      */
-    public <T> @Nullable T selfOrModifier(Class<T> operationClass) {
+    public <T> @Nullable T selfOrModifier(@NonNull Class<T> operationClass) {
         if (operationClass.isInstance(this)) {
             return operationClass.cast(this);
         }

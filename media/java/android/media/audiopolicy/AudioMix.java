@@ -16,9 +16,12 @@
 
 package android.media.audiopolicy;
 
+import static android.media.audio.Flags.FLAG_DAP_INJECTION_STARVE_MANAGEMENT;
+import static android.media.audio.Flags.dapInjectionStarveManagement;
 import static android.media.AudioSystem.getDeviceName;
 import static android.media.AudioSystem.isRemoteSubmixDevice;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -74,6 +77,11 @@ public class AudioMix implements Parcelable {
     // audio routing for this device ID.
     private int mVirtualDeviceId;
 
+    // When this mix is used for injecting audio into recordings, indicates whether silence
+    // should be injected when the injection is failing to provide enough audio data in time
+    // False by default or when not applicable
+    private boolean mInjectSilenceOnStarve = false;
+
     /**
      * All parameters are guaranteed valid through the Builder.
      */
@@ -90,6 +98,23 @@ public class AudioMix implements Parcelable {
         mDeviceAddress = (deviceAddress == null) ? new String("") : deviceAddress;
         mToken = token;
         mVirtualDeviceId = virtualDeviceId;
+        mInjectSilenceOnStarve = false;
+    }
+
+    private AudioMix(@NonNull AudioMixingRule rule, @NonNull AudioFormat format,
+            int routeFlags, int callbackFlags,
+            int deviceType, @Nullable String deviceAddress, IBinder token,
+            int virtualDeviceId, boolean injectSilenceOnStarve) {
+        mRule = Objects.requireNonNull(rule);
+        mFormat = Objects.requireNonNull(format);
+        mRouteFlags = routeFlags;
+        mMixType = rule.getTargetMixType();
+        mCallbackFlags = callbackFlags;
+        mDeviceSystemType = deviceType;
+        mDeviceAddress = (deviceAddress == null) ? new String("") : deviceAddress;
+        mToken = token;
+        mVirtualDeviceId = virtualDeviceId;
+        mInjectSilenceOnStarve = injectSilenceOnStarve;
     }
 
     // CALLBACK_FLAG_* values: keep in sync with AudioMix::kCbFlag* values defined
@@ -272,6 +297,21 @@ public class AudioMix implements Parcelable {
         return null;
     }
 
+    /**
+     * Returns whether this mix was configured to inject silence audio into recordings
+     * when the injection is failing to provide enough audio data in time.
+     * @return {@code false} if the mix is not an injection mix, or the value
+     *         used for {@link Builder#setInjectSilenceOnStarvation(boolean)} if the mix is an
+     *         injection mix.
+     */
+    @FlaggedApi(FLAG_DAP_INJECTION_STARVE_MANAGEMENT)
+    public boolean isInjectingSilenceOnStarvation() {
+        if (!dapInjectionStarveManagement()) {
+            return false;
+        }
+        return mInjectSilenceOnStarve;
+    }
+
     /** @hide */
     public boolean isForCallRedirection() {
         return mRule.isForCallRedirection();
@@ -289,9 +329,7 @@ public class AudioMix implements Parcelable {
         if (o == null || getClass() != o.getClass()) return false;
 
         final AudioMix that = (AudioMix) o;
-        boolean tokenMatch = android.media.audiopolicy.Flags.audioMixOwnership()
-                ? Objects.equals(this.mToken, that.mToken)
-                : true;
+        boolean tokenMatch = Objects.equals(this.mToken, that.mToken);
         return Objects.equals(this.mRouteFlags, that.mRouteFlags)
             && Objects.equals(this.mRule, that.mRule)
             && Objects.equals(this.mMixType, that.mMixType)
@@ -302,10 +340,7 @@ public class AudioMix implements Parcelable {
     /** @hide */
     @Override
     public int hashCode() {
-        if (android.media.audiopolicy.Flags.audioMixOwnership()) {
-            return Objects.hash(mRouteFlags, mRule, mMixType, mFormat, mToken);
-        }
-        return Objects.hash(mRouteFlags, mRule, mMixType, mFormat);
+        return Objects.hash(mRouteFlags, mRule, mMixType, mFormat, mToken);
     }
 
     @Override
@@ -326,6 +361,9 @@ public class AudioMix implements Parcelable {
         mRule.writeToParcel(dest, flags);
         dest.writeStrongBinder(mToken);
         dest.writeInt(mVirtualDeviceId);
+        if (dapInjectionStarveManagement()) {
+            dest.writeBoolean(mInjectSilenceOnStarve);
+        }
     }
 
     public static final @NonNull Parcelable.Creator<AudioMix> CREATOR = new Parcelable.Creator<>() {
@@ -347,6 +385,9 @@ public class AudioMix implements Parcelable {
             mixBuilder.setMixingRule(AudioMixingRule.CREATOR.createFromParcel(p));
             mixBuilder.setToken(p.readStrongBinder());
             mixBuilder.setVirtualDeviceId(p.readInt());
+            if (dapInjectionStarveManagement()) {
+                mixBuilder.setInjectSilenceOnStarvation(p.readBoolean());
+            }
             return mixBuilder.build();
         }
 
@@ -383,6 +424,7 @@ public class AudioMix implements Parcelable {
         // an AudioSystem.DEVICE_* value, not AudioDeviceInfo.TYPE_*
         private int mDeviceSystemType = AudioSystem.DEVICE_NONE;
         private String mDeviceAddress = null;
+        private boolean mInjectSilenceOnStarve = false;
 
         /**
          * @hide
@@ -410,7 +452,7 @@ public class AudioMix implements Parcelable {
          * @return the same Builder instance.
          * @throws IllegalArgumentException
          */
-        Builder setMixingRule(@NonNull AudioMixingRule rule)
+        @NonNull Builder setMixingRule(@NonNull AudioMixingRule rule)
                 throws IllegalArgumentException {
             if (rule == null) {
                 throw new IllegalArgumentException("Illegal null AudioMixingRule argument");
@@ -423,7 +465,7 @@ public class AudioMix implements Parcelable {
          * @hide
          * Only used by AudioMix internally.
          */
-        Builder setToken(IBinder token) {
+        @NonNull Builder setToken(IBinder token) {
             mToken = token;
             return this;
         }
@@ -432,7 +474,7 @@ public class AudioMix implements Parcelable {
          * @hide
          * Only used by AudioMix internally.
          */
-        Builder setVirtualDeviceId(int virtualDeviceId) {
+        @NonNull Builder setVirtualDeviceId(int virtualDeviceId) {
             mVirtualDeviceId = virtualDeviceId;
             return this;
         }
@@ -440,11 +482,11 @@ public class AudioMix implements Parcelable {
         /**
          * @hide
          * Only used by AudioPolicyConfig, not a public API.
-         * @param callbackFlags which callbacks are called from native
+         * @param flags which callbacks are called from native
          * @return the same Builder instance.
          * @throws IllegalArgumentException
          */
-        Builder setCallbackFlags(int flags) throws IllegalArgumentException {
+        @NonNull Builder setCallbackFlags(int flags) throws IllegalArgumentException {
             if ((flags != 0) && ((flags & CALLBACK_FLAGS_ALL) == 0)) {
                 throw new IllegalArgumentException("Illegal callback flags 0x"
                         + Integer.toHexString(flags).toUpperCase());
@@ -461,7 +503,7 @@ public class AudioMix implements Parcelable {
          * @return the same Builder instance.
          */
         @VisibleForTesting
-        public Builder setDevice(int deviceType, String address) {
+        public @NonNull Builder setDevice(int deviceType, String address) {
             mDeviceSystemType = deviceType;
             mDeviceAddress = address;
             return this;
@@ -473,7 +515,7 @@ public class AudioMix implements Parcelable {
          * @return the same Builder instance.
          * @throws IllegalArgumentException
          */
-        public Builder setFormat(@NonNull AudioFormat format)
+        public @NonNull Builder setFormat(@NonNull AudioFormat format)
                 throws IllegalArgumentException {
             if (format == null) {
                 throw new IllegalArgumentException("Illegal null AudioFormat argument");
@@ -490,7 +532,7 @@ public class AudioMix implements Parcelable {
          * @return the same Builder instance.
          * @throws IllegalArgumentException
          */
-        public Builder setRouteFlags(@RouteFlags int routeFlags)
+        public @NonNull Builder setRouteFlags(@RouteFlags int routeFlags)
                 throws IllegalArgumentException {
             if (routeFlags == 0) {
                 throw new IllegalArgumentException("Illegal empty route flags");
@@ -516,7 +558,8 @@ public class AudioMix implements Parcelable {
          * @return the same Builder instance
          * @throws IllegalArgumentException
          */
-        public Builder setDevice(@NonNull AudioDeviceInfo device) throws IllegalArgumentException {
+        public @NonNull Builder setDevice(@NonNull AudioDeviceInfo device)
+                throws IllegalArgumentException {
             if (device == null) {
                 throw new IllegalArgumentException("Illegal null AudioDeviceInfo argument");
             }
@@ -529,9 +572,24 @@ public class AudioMix implements Parcelable {
         }
 
         /**
+         * When this mix is used for injecting audio into recordings, configure whether silence
+         * should be injected when the injection is failing to provide enough audio data in time
+         * @param injectSilence {@code true} to inject silence into recordings when the
+         *       {@link android.media.AudioTrack} used for the injection is starved of audio data.
+         * @return the same Builder instance
+         */
+        @FlaggedApi(FLAG_DAP_INJECTION_STARVE_MANAGEMENT)
+        public @NonNull Builder setInjectSilenceOnStarvation(boolean injectSilence) {
+            mInjectSilenceOnStarve = injectSilence;
+            return this;
+        }
+
+        /**
          * Combines all of the settings and return a new {@link AudioMix} object.
          * @return a new {@link AudioMix} object
-         * @throws IllegalArgumentException if no {@link AudioMixingRule} has been set.
+         * @throws IllegalArgumentException if no {@link AudioMixingRule} has been set
+         *     or if {@link #setInjectSilenceOnStarvation(boolean)} was set to {@code true} on
+         *     a mix not used for injection
          */
         public AudioMix build() throws IllegalArgumentException {
             if (mRule == null) {
@@ -593,6 +651,15 @@ public class AudioMix implements Parcelable {
                 }
             }
 
+            if (dapInjectionStarveManagement()
+                    && ((mRouteFlags & ROUTE_FLAG_LOOP_BACK) == ROUTE_FLAG_LOOP_BACK)
+                    && (mRule.getTargetMixType() != MIX_TYPE_RECORDERS)
+                    && (mInjectSilenceOnStarve)) {
+                throw new IllegalArgumentException(
+                        "AudioMix.Builder.setInjectSilenceOnStarvation(true) called "
+                        + "on a non-injection AudioMix");
+            }
+
             if (mRule.allowPrivilegedMediaPlaybackCapture()) {
                 String error = AudioMix.canBeUsedForPrivilegedMediaCapture(mFormat);
                 if (error != null) {
@@ -605,7 +672,7 @@ public class AudioMix implements Parcelable {
             }
 
             return new AudioMix(mRule, mFormat, mRouteFlags, mCallbackFlags, mDeviceSystemType,
-                    mDeviceAddress, mToken, mVirtualDeviceId);
+                    mDeviceAddress, mToken, mVirtualDeviceId, mInjectSilenceOnStarve);
         }
 
         private int getLoopbackDeviceSystemTypeForAudioMixingRule(AudioMixingRule rule) {

@@ -19,6 +19,7 @@ import android.content.res.Resources
 import android.graphics.Rect
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.dump.DumpManager
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.res.R
@@ -27,6 +28,7 @@ import com.android.systemui.statusbar.headsup.shared.StatusBarNoHunBehavior
 import com.android.systemui.statusbar.notification.domain.interactor.HeadsUpNotificationIconInteractor
 import com.android.systemui.statusbar.notification.icon.domain.interactor.StatusBarNotificationIconsInteractor
 import com.android.systemui.statusbar.phone.domain.interactor.DarkIconInteractor
+import com.android.systemui.util.kotlin.FlowDumperImpl
 import com.android.systemui.util.kotlin.pairwise
 import com.android.systemui.util.kotlin.sample
 import com.android.systemui.util.ui.AnimatableEvent
@@ -50,12 +52,13 @@ class NotificationIconContainerStatusBarViewModel
 constructor(
     @Background private val bgContext: CoroutineContext,
     private val darkIconInteractor: DarkIconInteractor,
+    dumpManager: DumpManager,
     iconsInteractor: StatusBarNotificationIconsInteractor,
     headsUpIconInteractor: HeadsUpNotificationIconInteractor,
     keyguardInteractor: KeyguardInteractor,
     @Main resources: Resources,
     shadeInteractor: ShadeInteractor,
-) {
+) : FlowDumperImpl(dumpManager) {
 
     private val maxIcons = resources.getInteger(R.integer.max_notif_static_icons)
 
@@ -92,6 +95,7 @@ constructor(
             .flowOn(bgContext)
             .conflate()
             .distinctUntilChanged()
+            .dumpWhileCollecting("icons")
 
     /** An Icon to show "isolated" in the IconContainer. */
     val isolatedIcon: Flow<AnimatedValue<NotificationIconInfo?>> =

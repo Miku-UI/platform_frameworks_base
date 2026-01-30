@@ -18,7 +18,6 @@ package android.service.notification;
 
 import android.annotation.IntDef;
 import android.annotation.Nullable;
-import android.app.Flags;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 
@@ -235,23 +234,7 @@ public class ZenModeDiff {
 
         // Field name constants
         public static final String FIELD_USER = "user";
-        public static final String FIELD_ALLOW_ALARMS = "allowAlarms";
-        public static final String FIELD_ALLOW_MEDIA = "allowMedia";
-        public static final String FIELD_ALLOW_SYSTEM = "allowSystem";
-        public static final String FIELD_ALLOW_CALLS = "allowCalls";
-        public static final String FIELD_ALLOW_REMINDERS = "allowReminders";
-        public static final String FIELD_ALLOW_EVENTS = "allowEvents";
-        public static final String FIELD_ALLOW_REPEAT_CALLERS = "allowRepeatCallers";
-        public static final String FIELD_ALLOW_MESSAGES = "allowMessages";
-        public static final String FIELD_ALLOW_CONVERSATIONS = "allowConversations";
-        public static final String FIELD_ALLOW_CALLS_FROM = "allowCallsFrom";
-        public static final String FIELD_ALLOW_MESSAGES_FROM = "allowMessagesFrom";
-        public static final String FIELD_ALLOW_CONVERSATIONS_FROM = "allowConversationsFrom";
-        public static final String FIELD_SUPPRESSED_VISUAL_EFFECTS = "suppressedVisualEffects";
         public static final String FIELD_HAS_PRIORITY_CHANNELS = "hasPriorityChannels";
-        public static final String FIELD_ALLOW_PRIORITY_CHANNELS = "allowPriorityChannels";
-        private static final Set<String> PEOPLE_TYPE_FIELDS =
-                Set.of(FIELD_ALLOW_CALLS_FROM, FIELD_ALLOW_MESSAGES_FROM);
 
         /**
          * Create a diff that contains diffs between the "from" and "to" ZenModeConfigs.
@@ -275,60 +258,9 @@ public class ZenModeDiff {
             if (from.user != to.user) {
                 addField(FIELD_USER, new FieldDiff<>(from.user, to.user));
             }
-            if (from.allowAlarms != to.allowAlarms) {
-                addField(FIELD_ALLOW_ALARMS, new FieldDiff<>(from.allowAlarms, to.allowAlarms));
-            }
-            if (from.allowMedia != to.allowMedia) {
-                addField(FIELD_ALLOW_MEDIA, new FieldDiff<>(from.allowMedia, to.allowMedia));
-            }
-            if (from.allowSystem != to.allowSystem) {
-                addField(FIELD_ALLOW_SYSTEM, new FieldDiff<>(from.allowSystem, to.allowSystem));
-            }
-            if (from.allowCalls != to.allowCalls) {
-                addField(FIELD_ALLOW_CALLS, new FieldDiff<>(from.allowCalls, to.allowCalls));
-            }
-            if (from.allowReminders != to.allowReminders) {
-                addField(FIELD_ALLOW_REMINDERS,
-                        new FieldDiff<>(from.allowReminders, to.allowReminders));
-            }
-            if (from.allowEvents != to.allowEvents) {
-                addField(FIELD_ALLOW_EVENTS, new FieldDiff<>(from.allowEvents, to.allowEvents));
-            }
-            if (from.allowRepeatCallers != to.allowRepeatCallers) {
-                addField(FIELD_ALLOW_REPEAT_CALLERS,
-                        new FieldDiff<>(from.allowRepeatCallers, to.allowRepeatCallers));
-            }
-            if (from.allowMessages != to.allowMessages) {
-                addField(FIELD_ALLOW_MESSAGES,
-                        new FieldDiff<>(from.allowMessages, to.allowMessages));
-            }
-            if (from.allowConversations != to.allowConversations) {
-                addField(FIELD_ALLOW_CONVERSATIONS,
-                        new FieldDiff<>(from.allowConversations, to.allowConversations));
-            }
-            if (from.allowCallsFrom != to.allowCallsFrom) {
-                addField(FIELD_ALLOW_CALLS_FROM,
-                        new FieldDiff<>(from.allowCallsFrom, to.allowCallsFrom));
-            }
-            if (from.allowMessagesFrom != to.allowMessagesFrom) {
-                addField(FIELD_ALLOW_MESSAGES_FROM,
-                        new FieldDiff<>(from.allowMessagesFrom, to.allowMessagesFrom));
-            }
-            if (from.allowConversationsFrom != to.allowConversationsFrom) {
-                addField(FIELD_ALLOW_CONVERSATIONS_FROM,
-                        new FieldDiff<>(from.allowConversationsFrom, to.allowConversationsFrom));
-            }
-            if (from.suppressedVisualEffects != to.suppressedVisualEffects) {
-                addField(FIELD_SUPPRESSED_VISUAL_EFFECTS,
-                        new FieldDiff<>(from.suppressedVisualEffects, to.suppressedVisualEffects));
-            }
             if (from.hasPriorityChannels != to.hasPriorityChannels) {
                 addField(FIELD_HAS_PRIORITY_CHANNELS,
                         new FieldDiff<>(from.hasPriorityChannels, to.hasPriorityChannels));
-            }
-            if (from.allowPriorityChannels != to.allowPriorityChannels) {
-                addField(FIELD_ALLOW_PRIORITY_CHANNELS,
-                        new FieldDiff<>(from.allowPriorityChannels, to.allowPriorityChannels));
             }
 
             // Compare automatic and manual rules
@@ -404,24 +336,9 @@ public class ZenModeDiff {
                     sb.append(",\n");
                 }
 
-                // Some special handling for people- and conversation-type fields for readability
-                if (PEOPLE_TYPE_FIELDS.contains(key)) {
-                    sb.append(key);
-                    sb.append(":");
-                    sb.append(ZenModeConfig.sourceToString((int) diff.from()));
-                    sb.append("->");
-                    sb.append(ZenModeConfig.sourceToString((int) diff.to()));
-                } else if (key.equals(FIELD_ALLOW_CONVERSATIONS_FROM)) {
-                    sb.append(key);
-                    sb.append(":");
-                    sb.append(ZenPolicy.conversationTypeToString((int) diff.from()));
-                    sb.append("->");
-                    sb.append(ZenPolicy.conversationTypeToString((int) diff.to()));
-                } else {
-                    sb.append(key);
-                    sb.append(":");
-                    sb.append(diff);
-                }
+                sb.append(key);
+                sb.append(":");
+                sb.append(diff);
             }
 
             // manual rule
@@ -475,8 +392,6 @@ public class ZenModeDiff {
     public static class RuleDiff extends BaseDiff {
         public static final String FIELD_ENABLED = "enabled";
         public static final String FIELD_CONDITION_OVERRIDE = "conditionOverride";
-        @Deprecated
-        public static final String FIELD_SNOOZING = "snoozing";
         public static final String FIELD_NAME = "name";
         public static final String FIELD_ZEN_MODE = "zenMode";
         public static final String FIELD_CONDITION_ID = "conditionId";
@@ -528,15 +443,9 @@ public class ZenModeDiff {
             if (from.enabled != to.enabled) {
                 addField(FIELD_ENABLED, new FieldDiff<>(from.enabled, to.enabled));
             }
-            if (Flags.modesUi()) {
-                if (from.conditionOverride != to.conditionOverride) {
-                    addField(FIELD_CONDITION_OVERRIDE,
-                            new FieldDiff<>(from.conditionOverride, to.conditionOverride));
-                }
-            } else {
-                if (from.snoozing != to.snoozing) {
-                    addField(FIELD_SNOOZING, new FieldDiff<>(from.snoozing, to.snoozing));
-                }
+            if (from.conditionOverride != to.conditionOverride) {
+                addField(FIELD_CONDITION_OVERRIDE,
+                        new FieldDiff<>(from.conditionOverride, to.conditionOverride));
             }
             if (!Objects.equals(from.name, to.name)) {
                 addField(FIELD_NAME, new FieldDiff<>(from.name, to.name));
@@ -597,12 +506,10 @@ public class ZenModeDiff {
             if (!Objects.equals(from.iconResName, to.iconResName)) {
                 addField(FIELD_ICON_RES, new FieldDiff<>(from.iconResName, to.iconResName));
             }
-            if (android.app.Flags.modesUi()) {
-                if (from.legacySuppressedEffects != to.legacySuppressedEffects) {
-                    addField(FIELD_LEGACY_SUPPRESSED_EFFECTS,
-                            new FieldDiff<>(from.legacySuppressedEffects,
-                                    to.legacySuppressedEffects));
-                }
+            if (from.legacySuppressedEffects != to.legacySuppressedEffects) {
+                addField(FIELD_LEGACY_SUPPRESSED_EFFECTS,
+                        new FieldDiff<>(from.legacySuppressedEffects,
+                                to.legacySuppressedEffects));
             }
         }
 
@@ -699,6 +606,7 @@ public class ZenModeDiff {
         public static final String FIELD_MINIMIZE_RADIO_USAGE = "mMinimizeRadioUsage";
         public static final String FIELD_MAXIMIZE_DOZE = "mMaximizeDoze";
         public static final String FIELD_NIGHT_LIGHT = "mNightLight";
+        public static final String FIELD_BRIGHTNESS_CAP = "mBrightnessCap";
         public static final String FIELD_EXTRA_EFFECTS = "mExtraEffects";
         // NOTE: new field strings must match the variable names in ZenDeviceEffects
 
@@ -770,6 +678,12 @@ public class ZenModeDiff {
                 addField(
                         FIELD_NIGHT_LIGHT,
                         new FieldDiff<>(from.shouldUseNightLight(), to.shouldUseNightLight()));
+            }
+            if (Flags.applyBrightnessClampingForModes()
+                    && !Objects.equals(from.getBrightnessCap(), to.getBrightnessCap())) {
+                addField(
+                        FIELD_BRIGHTNESS_CAP,
+                        new FieldDiff<>(from.getBrightnessCap(), to.getBrightnessCap()));
             }
             if (!Objects.equals(from.getExtraEffects(), to.getExtraEffects())) {
                 addField(FIELD_EXTRA_EFFECTS, new FieldDiff<>(from.getExtraEffects(),

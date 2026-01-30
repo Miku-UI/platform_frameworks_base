@@ -117,7 +117,7 @@ public class BatteryManager {
      * Extra for {@link android.content.Intent#ACTION_BATTERY_CHANGED}:
      * Int value set to nonzero if an unsupported charger is attached
      * to the device.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public static final String EXTRA_INVALID_CHARGER = "invalid_charger";
@@ -125,7 +125,7 @@ public class BatteryManager {
     /**
      * Extra for {@link android.content.Intent#ACTION_BATTERY_CHANGED}:
      * Int value set to the maximum charging current supported by the charger in micro amperes.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static final String EXTRA_MAX_CHARGING_CURRENT = "max_charging_current";
@@ -133,7 +133,7 @@ public class BatteryManager {
     /**
      * Extra for {@link android.content.Intent#ACTION_BATTERY_CHANGED}:
      * Int value set to the maximum charging voltage supported by the charger in micro volts.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static final String EXTRA_MAX_CHARGING_VOLTAGE = "max_charging_voltage";
@@ -142,7 +142,7 @@ public class BatteryManager {
      * Extra for {@link android.content.Intent#ACTION_BATTERY_CHANGED}:
      * integer containing the charge counter present in the battery.
      * It shows the available battery power in µAh
-     * {@hide}
+     * @hide
      */
      @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
      public static final String EXTRA_CHARGE_COUNTER = "charge_counter";
@@ -150,7 +150,7 @@ public class BatteryManager {
     /**
      * Extra for {@link android.content.Intent#ACTION_BATTERY_CHANGED}:
      * Current int sequence number of the update.
-     * {@hide}
+     * @hide
      */
     public static final String EXTRA_SEQUENCE = "seq";
 
@@ -529,7 +529,7 @@ public class BatteryManager {
                 ServiceManager.getService("batteryproperties"));
     }
 
-    /** {@hide} */
+    /** @hide */
     public BatteryManager(Context context,
             IBatteryStats batteryStats,
             IBatteryPropertiesRegistrar batteryPropertiesRegistrar) {

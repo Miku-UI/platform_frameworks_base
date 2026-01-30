@@ -41,7 +41,7 @@ import java.io.FileNotFoundException;
 import java.util.ArrayList;
 
 /**
- * {@hide}
+ * @hide
  */
 abstract public class ContentProviderNative extends Binder implements IContentProvider {
     public ContentProviderNative()

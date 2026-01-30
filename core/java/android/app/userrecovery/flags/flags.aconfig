@@ -1,0 +1,9 @@
+package: "android.app.userrecovery.flags"
+container: "system"
+
+flag {
+    name: "enable_user_recovery_manager"
+    namespace: "user_recovery_manager"
+    description: "Enables the user recovery manager service."
+    bug: "415960504"
+}

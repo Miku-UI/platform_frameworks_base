@@ -43,7 +43,6 @@ import android.hardware.broadcastradio.ProgramInfo;
 import android.hardware.broadcastradio.ProgramListChunk;
 import android.hardware.broadcastradio.Result;
 import android.hardware.broadcastradio.VendorKeyValue;
-import android.hardware.radio.Flags;
 import android.hardware.radio.ProgramList;
 import android.hardware.radio.ProgramSelector;
 import android.hardware.radio.RadioManager;
@@ -1255,25 +1254,12 @@ public final class TunerSessionTest extends ExtendedRadioMockitoTestCase {
     }
 
     @Test
-    public void onConfigFlagUpdated_withRequiredFlagEnabled_invokesCallbacks() throws Exception {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
+    public void onConfigFlagUpdated_invokesCallbacks() throws Exception {
         openAidlClients(/* numClients= */ 1);
 
         mHalTunerCallback.onConfigFlagUpdated(ConfigFlag.FORCE_ANALOG_FM, true);
 
         verify(mAidlTunerCallbackMocks[0], CALLBACK_TIMEOUT)
-                .onConfigFlagUpdated(RadioManager.CONFIG_FORCE_ANALOG_FM, true);
-    }
-
-    @Test
-    public void onConfigFlagUpdated_withRequiredFlagDisabled_doesNotInvokeCallbacks()
-            throws Exception {
-        mSetFlagsRule.disableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-        openAidlClients(/* numClients= */ 1);
-
-        mHalTunerCallback.onConfigFlagUpdated(ConfigFlag.FORCE_ANALOG_FM, true);
-
-        verify(mAidlTunerCallbackMocks[0], after(CALLBACK_TIMEOUT_MS).never())
                 .onConfigFlagUpdated(RadioManager.CONFIG_FORCE_ANALOG_FM, true);
     }
 

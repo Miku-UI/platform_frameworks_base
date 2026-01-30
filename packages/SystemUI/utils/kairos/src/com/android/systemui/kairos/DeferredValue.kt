@@ -16,8 +16,6 @@
 
 package com.android.systemui.kairos
 
-import com.android.systemui.kairos.internal.CompletableLazy
-
 /**
  * A value that may not be immediately (synchronously) available, but is guaranteed to be available
  * before this transaction is completed.
@@ -33,5 +31,4 @@ class DeferredValue<out A> internal constructor(internal val unwrapped: Lazy<A>)
 }
 
 /** Returns an already-available [DeferredValue] containing [value]. */
-@ExperimentalKairosApi
-fun <A> deferredOf(value: A): DeferredValue<A> = DeferredValue(CompletableLazy(value))
+@ExperimentalKairosApi fun <A> deferredOf(value: A): DeferredValue<A> = DeferredValue(lazyOf(value))

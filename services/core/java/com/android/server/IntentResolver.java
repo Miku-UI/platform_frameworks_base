@@ -49,7 +49,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * {@hide}
+ * @hide
  */
 public abstract class IntentResolver<F, R extends Object> {
     final private static String TAG = "IntentResolver";

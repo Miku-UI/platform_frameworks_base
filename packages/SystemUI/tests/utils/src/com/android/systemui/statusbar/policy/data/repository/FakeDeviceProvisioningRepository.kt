@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class FakeDeviceProvisioningRepository @Inject constructor() : DeviceProvisioningRepository {
     private val _isDeviceProvisioned = MutableStateFlow(true)
     override val isDeviceProvisioned: Flow<Boolean> = _isDeviceProvisioned
+    private var provisionedTimestamp: DeviceProvisioningRepository.ProvisionedTimestamp? = null
 
     fun setDeviceProvisioned(isProvisioned: Boolean) {
         _isDeviceProvisioned.value = isProvisioned
@@ -33,6 +34,22 @@ class FakeDeviceProvisioningRepository @Inject constructor() : DeviceProvisionin
 
     override fun isDeviceProvisioned(): Boolean {
         return _isDeviceProvisioned.value
+    }
+
+    fun setProvisionedTimestamp(timestamp: DeviceProvisioningRepository.ProvisionedTimestamp) {
+        provisionedTimestamp = timestamp
+    }
+
+    override fun getProvisionedTimestamp(): DeviceProvisioningRepository.ProvisionedTimestamp {
+        return if (provisionedTimestamp != null) {
+            provisionedTimestamp!!
+        } else {
+            if (isDeviceProvisioned()) {
+                DeviceProvisioningRepository.ProvisionedTimestamp.Unknown
+            } else {
+                DeviceProvisioningRepository.ProvisionedTimestamp.NotProvisioned
+            }
+        }
     }
 }
 

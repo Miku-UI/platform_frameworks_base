@@ -594,7 +594,7 @@ TEST(CanvasOp, simpleDrawRipple) {
             .radius = sp<CanvasPropertyPrimitive>(new CanvasPropertyPrimitive(50)),
             .progress = sp<CanvasPropertyPrimitive>(new CanvasPropertyPrimitive(0.5)),
             .turbulencePhase = sp<CanvasPropertyPrimitive>(new CanvasPropertyPrimitive(1)),
-            .color = 0xff00ff,
+            .color = SkColor4f{1.f, 0.f, 1.f, 0.f},
             .paint = sp<CanvasPropertyPaint>(new CanvasPropertyPaint(SkPaint{})),
             .effectBuilder = SkRuntimeShaderBuilder(effect)};
     buffer.push<Op::DrawRippleDrawable>({.params = params});

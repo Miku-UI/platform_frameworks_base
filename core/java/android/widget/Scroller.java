@@ -16,6 +16,7 @@
 
 package android.widget;
 
+import android.companion.virtualdevice.flags.Flags;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.hardware.SensorManager;
@@ -23,7 +24,6 @@ import android.os.Build;
 import android.view.ViewConfiguration;
 import android.view.animation.AnimationUtils;
 import android.view.animation.Interpolator;
-
 
 /**
  * <p>This class encapsulates scrolling. You can use scrollers ({@link Scroller}
@@ -91,7 +91,7 @@ public class Scroller  {
     private float mCurrVelocity;
     private int mDistance;
 
-    private float mFlingFriction = ViewConfiguration.getScrollFriction();
+    private float mFlingFriction;
 
     private static final int DEFAULT_DURATION = 250;
     private static final int SCROLL_MODE = 0;
@@ -181,7 +181,10 @@ public class Scroller  {
             mInterpolator = interpolator;
         }
         mPpi = context.getResources().getDisplayMetrics().density * 160.0f;
-        mDeceleration = computeDeceleration(ViewConfiguration.getScrollFriction());
+        mFlingFriction = Flags.viewconfigurationApis()
+                ? ViewConfiguration.get(context).getScrollFrictionAmount()
+                : ViewConfiguration.getScrollFriction();
+        mDeceleration = computeDeceleration(mFlingFriction);
         mFlywheel = flywheel;
 
         mPhysicalCoeff = computeDeceleration(0.84f); // look and feel tuning

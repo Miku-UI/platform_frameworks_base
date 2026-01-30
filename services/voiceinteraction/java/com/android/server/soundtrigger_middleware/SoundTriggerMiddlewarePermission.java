@@ -60,7 +60,7 @@ import java.util.Objects;
  * }
  * </pre></code>
  *
- * {@hide}
+ * @hide
  */
 public class SoundTriggerMiddlewarePermission implements ISoundTriggerMiddlewareInternal, Dumpable {
     private static final String TAG = "SoundTriggerMiddlewarePermission";

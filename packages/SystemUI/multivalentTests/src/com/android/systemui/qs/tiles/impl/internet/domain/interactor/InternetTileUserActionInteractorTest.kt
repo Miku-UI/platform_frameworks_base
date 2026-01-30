@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.tiles.impl.internet.domain.interactor
 
-import android.platform.test.annotations.EnabledOnRavenwood
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -41,7 +40,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class InternetTileUserActionInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()

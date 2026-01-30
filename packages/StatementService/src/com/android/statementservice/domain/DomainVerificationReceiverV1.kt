@@ -18,7 +18,6 @@ package com.android.statementservice.domain
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkManager
 import com.android.statementservice.domain.worker.CollectV1Worker
@@ -34,13 +33,21 @@ class DomainVerificationReceiverV1 : BaseDomainVerificationReceiver() {
     companion object {
         private const val ENABLE_V1 = true
         private const val PACKAGE_WORK_PREFIX_V1 = "package_request_v1-"
+        private const val ACTION_INTENT_FILTER_NEEDS_VERIFICATION =
+            "android.intent.action.INTENT_FILTER_NEEDS_VERIFICATION"
+        private const val EXTRA_INTENT_FILTER_VERIFICATION_ID =
+            "android.content.pm.extra.INTENT_FILTER_VERIFICATION_ID"
+        private const val EXTRA_INTENT_FILTER_VERIFICATION_HOSTS =
+            "android.content.pm.extra.INTENT_FILTER_VERIFICATION_HOSTS"
+        private const val EXTRA_INTENT_FILTER_VERIFICATION_PACKAGE_NAME =
+            "android.content.pm.extra.INTENT_FILTER_VERIFICATION_PACKAGE_NAME"
     }
 
     override val tag = DomainVerificationReceiverV1::class.java.simpleName
 
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
-            Intent.ACTION_INTENT_FILTER_NEEDS_VERIFICATION ->
+            ACTION_INTENT_FILTER_NEEDS_VERIFICATION ->
                 scheduleUnlockedV1(context, intent)
             else -> debugLog { "Received invalid broadcast: $intent" }
         }
@@ -52,12 +59,12 @@ class DomainVerificationReceiverV1 : BaseDomainVerificationReceiver() {
         }
 
         val verificationId =
-            intent.getIntExtra(PackageManager.EXTRA_INTENT_FILTER_VERIFICATION_ID, -1)
+            intent.getIntExtra(EXTRA_INTENT_FILTER_VERIFICATION_ID, -1)
         val hosts =
-            (intent.getStringExtra(PackageManager.EXTRA_INTENT_FILTER_VERIFICATION_HOSTS) ?: return)
+            (intent.getStringExtra(EXTRA_INTENT_FILTER_VERIFICATION_HOSTS) ?: return)
                 .split(" ")
         val packageName =
-            intent.getStringExtra(PackageManager.EXTRA_INTENT_FILTER_VERIFICATION_PACKAGE_NAME)
+            intent.getStringExtra(EXTRA_INTENT_FILTER_VERIFICATION_PACKAGE_NAME)
                 ?: return
 
         debugLog { "Attempting v1 verification for $packageName" }

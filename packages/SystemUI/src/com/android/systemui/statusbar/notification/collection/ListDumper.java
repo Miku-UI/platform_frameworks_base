@@ -35,6 +35,7 @@ public class ListDumper {
     /**
      * Creates a debug string for a list of grouped notifications that will be printed
      * in the order given in a tiered/tree structure.
+     *
      * @param includeRecordKeeping whether to print out the Pluggables that caused the notification
      *                             entry to be in its current state (ie: filter, lifeExtender)
      */
@@ -43,40 +44,43 @@ public class ListDumper {
             NotificationInteractionTracker interactionTracker,
             boolean includeRecordKeeping,
             String indent) {
+        return dumpTree(entries, interactionTracker, includeRecordKeeping, indent, "");
+    }
+
+    private static String dumpTree(
+            List<? extends PipelineEntry> entries,
+            NotificationInteractionTracker interactionTracker,
+            boolean includeRecordKeeping,
+            String indent,
+            String parentIndex) {
         StringBuilder sb = new StringBuilder();
         final String childEntryIndent = indent + INDENT;
         for (int topEntryIndex = 0; topEntryIndex < entries.size(); topEntryIndex++) {
             PipelineEntry entry = entries.get(topEntryIndex);
+            final String childIndexPrefix = parentIndex + topEntryIndex;
             dumpEntry(entry,
-                    Integer.toString(topEntryIndex),
+                    childIndexPrefix,
                     indent,
                     sb,
                     true,
                     includeRecordKeeping,
                     interactionTracker.hasUserInteractedWith(logKey(entry)));
-            if (entry instanceof GroupEntry) {
-                GroupEntry ge = (GroupEntry) entry;
+            if (entry instanceof GroupEntry ge) {
                 NotificationEntry summary = ge.getSummary();
                 if (summary != null) {
                     dumpEntry(summary,
-                            topEntryIndex + ":*",
+                            childIndexPrefix + ":*",
                             childEntryIndent,
                             sb,
                             true,
                             includeRecordKeeping,
                             interactionTracker.hasUserInteractedWith(logKey(summary)));
                 }
-                List<NotificationEntry> children = ge.getChildren();
-                for (int childIndex = 0;  childIndex < children.size(); childIndex++) {
-                    NotificationEntry child = children.get(childIndex);
-                    dumpEntry(child,
-                            topEntryIndex + "." + childIndex,
-                            childEntryIndent,
-                            sb,
-                            true,
-                            includeRecordKeeping,
-                            interactionTracker.hasUserInteractedWith(logKey(child)));
-                }
+                dumpTree(ge.getChildren(), interactionTracker, includeRecordKeeping,
+                        childEntryIndent, childIndexPrefix + ".");
+            } else if (entry instanceof BundleEntry be) {
+                dumpTree(be.getChildren(), interactionTracker, includeRecordKeeping,
+                        childEntryIndent, childIndexPrefix + ".");
             }
         }
         return sb.toString();
@@ -84,6 +88,7 @@ public class ListDumper {
 
     /**
      * Creates a debug string for a flat list of notifications
+     *
      * @param includeRecordKeeping whether to print out the Pluggables that caused the notification
      *                             entry to be in its current state (ie: filter, lifeExtender)
      */
@@ -119,12 +124,15 @@ public class ListDumper {
                 .append(index.length() == 1 ? " " : "")
                 .append(logKey(entry));
 
+        final ListEntry listEntry = entry.asListEntry();
+        final NotificationEntry notifEntry =
+                listEntry == null ? null : listEntry.getRepresentativeEntry();
+
         if (includeParent) {
             sb.append(" (parent=")
                     .append(logKey(entry.getParent()))
                     .append(")");
 
-            NotificationEntry notifEntry = entry.getRepresentativeEntry();
             if (notifEntry != null) {
                 sb.append(" rank=")
                         .append(notifEntry.getRanking().getRank());
@@ -136,8 +144,8 @@ public class ListDumper {
                     .append(entry.getSection().getLabel());
         }
 
-        if (includeRecordKeeping) {
-            NotificationEntry notifEntry = requireNonNull(entry.getRepresentativeEntry());
+        if (includeRecordKeeping && listEntry != null) {
+            requireNonNull(notifEntry);
             StringBuilder rksb = new StringBuilder();
 
             if (!notifEntry.mLifetimeExtenders.isEmpty()) {

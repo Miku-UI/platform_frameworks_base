@@ -1,15 +1,17 @@
 package com.android.systemui.biometrics.ui.binder
 
+import android.hardware.biometrics.Flags
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.widget.LockPatternUtils
 import com.android.internal.widget.LockPatternView
-import com.android.systemui.res.R
 import com.android.systemui.biometrics.ui.CredentialPatternView
 import com.android.systemui.biometrics.ui.CredentialView
 import com.android.systemui.biometrics.ui.viewmodel.CredentialViewModel
 import com.android.systemui.lifecycle.repeatWhenAttached
-import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.res.R
+import kotlinx.coroutines.flow.combine
 
 /** Sub-binder for the [CredentialPatternView]. */
 object CredentialPatternViewBinder {
@@ -24,6 +26,11 @@ object CredentialPatternViewBinder {
 
         view.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                if (com.android.systemui.Flags.msdlFeedback()) {
+                    lockPatternView.setExternalHapticsPlayer {
+                        viewModel.performPatternDotFeedback()
+                    }
+                }
                 // observe credential validation attempts and submit/cancel buttons
                 launch {
                     viewModel.header.collect { header ->
@@ -45,7 +52,22 @@ object CredentialPatternViewBinder {
                 launch { viewModel.stealthMode.collect { lockPatternView.isInStealthMode = it } }
 
                 // dismiss on a valid credential check
-                launch {
+                if (Flags.bpFallbackOptions()) {
+                    launch {
+                        combine(
+                                viewModel.validatedAttestation,
+                                viewModel.isCredentialAllowed,
+                                ::Pair,
+                            )
+                            .collect { (attestation, isAllowed) ->
+                                val matched = attestation != null
+                                lockPatternView.isEnabled = !matched
+                                if (matched) {
+                                    host.onCredentialMatched(attestation!!, isAllowed)
+                                }
+                            }
+                    }
+                } else {
                     viewModel.validatedAttestation.collect { attestation ->
                         val matched = attestation != null
                         lockPatternView.isEnabled = !matched
@@ -63,8 +85,11 @@ private class OnPatternDetectedListener(
     private val onDetected: (pattern: List<LockPatternView.Cell>) -> Unit
 ) : LockPatternView.OnPatternListener {
     override fun onPatternCellAdded(pattern: List<LockPatternView.Cell>) {}
+
     override fun onPatternCleared() {}
+
     override fun onPatternStart() {}
+
     override fun onPatternDetected(pattern: List<LockPatternView.Cell>) {
         onDetected(pattern)
     }

@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Eiti į ankstesnį ekraną"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Eiti į kitą ekraną"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Naudodami pritaikomumo meniu galite atidaryti didelį ekrane pateikiamą meniu, skirtą įrenginiui valdyti. Galite užrakinti įrenginį, valdyti garsumą ir šviesumą, užfiksuoti ekrano kopijas ir atlikti kitus veiksmus."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Valdykite įrenginį naudodami didelį meniu"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Valdykite garsumą, šviesumą ir kt. naudodami didelį meniu"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Pritaikymo neįgaliesiems meniu nustatymai"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Dideli mygtukai"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Padidinti pritaikymo neįgaliesiems meniu mygtukų dydį"</string>

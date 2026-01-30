@@ -16,6 +16,9 @@
 
 package com.android.systemui.qs.composefragment.ui
 
+import com.android.systemui.log.table.Diffable
+import com.android.systemui.log.table.TableRowLogger
+
 /** Params for [notificationScrimClip]. */
 data class NotificationScrimClipParams(
     val top: Int = 0,
@@ -23,4 +26,38 @@ data class NotificationScrimClipParams(
     val leftInset: Int = 0,
     val rightInset: Int = 0,
     val radius: Int = 0,
-)
+) : Diffable<NotificationScrimClipParams> {
+    override fun logDiffs(prevVal: NotificationScrimClipParams, row: TableRowLogger) {
+        if (top != prevVal.top) {
+            row.logChange(Columns.COL_TOP, top)
+        }
+        if (bottom != prevVal.bottom) {
+            row.logChange(Columns.COL_BOTTOM, bottom)
+        }
+        if (leftInset != prevVal.leftInset) {
+            row.logChange(Columns.COL_LEFT_INSET, leftInset)
+        }
+        if (rightInset != prevVal.rightInset) {
+            row.logChange(Columns.COL_RIGHT_INSET, rightInset)
+        }
+        if (radius != prevVal.radius) {
+            row.logChange(Columns.COL_RADIUS, radius)
+        }
+    }
+
+    override fun logFull(row: TableRowLogger) {
+        row.logChange(Columns.COL_TOP, top)
+        row.logChange(Columns.COL_BOTTOM, bottom)
+        row.logChange(Columns.COL_LEFT_INSET, leftInset)
+        row.logChange(Columns.COL_RIGHT_INSET, rightInset)
+        row.logChange(Columns.COL_RADIUS, radius)
+    }
+}
+
+private object Columns {
+    const val COL_TOP = "top"
+    const val COL_BOTTOM = "bottom"
+    const val COL_LEFT_INSET = "left_inset"
+    const val COL_RIGHT_INSET = "right_inset"
+    const val COL_RADIUS = "radius"
+}

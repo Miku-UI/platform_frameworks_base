@@ -41,6 +41,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 @SmallTest
+@DisableSceneContainer
 @RunWith(AndroidJUnit4::class)
 class GlanceableHubToDreamingTransitionViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
@@ -96,7 +97,6 @@ class GlanceableHubToDreamingTransitionViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableSceneContainer
     fun blurBecomesMinValueImmediately() =
         kosmos.runTest {
             val values by collectValues(underTest.windowBlurRadius)

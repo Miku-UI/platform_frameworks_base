@@ -19,8 +19,7 @@
     android:color="?android:colorControlHighlight">
     <item
         android:start="?android:attr/listPreferredItemPaddingStart"
-        android:end="?android:attr/listPreferredItemPaddingEnd"
-        android:top="2dp">
+        android:end="?android:attr/listPreferredItemPaddingEnd">
         <shape android:shape="rectangle">
             <solid
                 android:color="@color/settingslib_materialColorSurfaceContainer" />

@@ -24,9 +24,11 @@ import com.android.compose.animation.scene.Swipe
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.TransitionKeys.ToSplitShade
@@ -36,8 +38,6 @@ import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,52 +48,47 @@ import org.junit.runner.RunWith
 @EnableSceneContainer
 class GoneUserActionsViewModelTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private lateinit var underTest: GoneUserActionsViewModel
 
     @Before
     fun setUp() {
         underTest = GoneUserActionsViewModel(shadeModeInteractor = kosmos.shadeModeInteractor)
-        underTest.activateIn(testScope)
+        underTest.activateIn(kosmos.testScope)
     }
 
     @Test
     fun downTransitionKey_splitShadeEnabled_isGoneToSplitShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val userActions by collectLastValue(underTest.actions)
-            kosmos.enableSplitShade()
-            runCurrent()
+            enableSplitShade()
 
             assertThat(userActions?.get(Swipe.Down)?.transitionKey).isEqualTo(ToSplitShade)
         }
 
     @Test
     fun downTransitionKey_splitShadeDisabled_isNull() =
-        testScope.runTest {
+        kosmos.runTest {
             val userActions by collectLastValue(underTest.actions)
-            kosmos.enableSingleShade()
-            runCurrent()
+            enableSingleShade()
 
             assertThat(userActions?.get(Swipe.Down)?.transitionKey).isNull()
         }
 
     @Test
     fun downTransitionKey_dualShadeEnabled_isNull() =
-        testScope.runTest {
+        kosmos.runTest {
             val userActions by collectLastValue(underTest.actions)
-            kosmos.enableDualShade(wideLayout = true)
-            runCurrent()
+            enableDualShade(wideLayout = true)
 
             assertThat(userActions?.get(Swipe.Down)?.transitionKey).isNull()
         }
 
     @Test
     fun swipeDownWithTwoFingers_singleShade_goesToQuickSettings() =
-        testScope.runTest {
+        kosmos.runTest {
             val userActions by collectLastValue(underTest.actions)
-            kosmos.enableSingleShade()
-            runCurrent()
+            enableSingleShade()
 
             assertThat(userActions?.get(swipeDownFromTopWithTwoFingers()))
                 .isEqualTo(UserActionResult(Scenes.QuickSettings))
@@ -101,10 +96,9 @@ class GoneUserActionsViewModelTest : SysuiTestCase() {
 
     @Test
     fun swipeDownWithTwoFingers_splitShade_goesToShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val userActions by collectLastValue(underTest.actions)
-            kosmos.enableSplitShade()
-            runCurrent()
+            enableSplitShade()
 
             assertThat(userActions?.get(swipeDownFromTopWithTwoFingers()))
                 .isEqualTo(UserActionResult(Scenes.Shade, ToSplitShade))
@@ -112,10 +106,9 @@ class GoneUserActionsViewModelTest : SysuiTestCase() {
 
     @Test
     fun swipeDownWithTwoFingers_dualShadeEnabled_isNull() =
-        testScope.runTest {
+        kosmos.runTest {
             val userActions by collectLastValue(underTest.actions)
-            kosmos.enableDualShade()
-            runCurrent()
+            enableDualShade()
 
             assertThat(userActions?.get(swipeDownFromTopWithTwoFingers())).isNull()
         }

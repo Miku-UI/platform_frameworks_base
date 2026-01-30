@@ -84,6 +84,16 @@ import android.os.Looper;
  * with {@link AudioFocusRequest.Builder#setFocusGain(int)} after copying an existing instance with
  * {@link AudioFocusRequest.Builder#Builder(AudioFocusRequest)}.
  *
+ * <aside class="note"><b>Note:</b>
+ * If an app targets Android 15 (API level 35) or higher, it cannot request
+ * audio focus unless it's the top app or running a foreground service.
+ * This requirement is similar to the
+ * <a href="/media/media3/session/background-playback#service-declaration">requirements
+ * for audio playback</a>. If an app requests audio focus when it does not meet
+ * these requirements, the method returns
+ * {@link AudioManager#AUDIOFOCUS_REQUEST_FAILED}.
+ * </aside>
+ *
  * <h3>Qualifying your focus request</h3>
  * <h4>Use case requiring a focus request</h4>
  * <p>Any focus request is qualified by the {@link AudioAttributes}

@@ -17,7 +17,7 @@
 package com.android.settingslib.spa.gallery.ui
 
 import android.os.Bundle
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -93,12 +93,10 @@ object CategoryPageProvider : SettingsPageProvider {
                 entries[2].UiLayout()
                 entries[3].UiLayout()
             }
-            Column(Modifier.height(200.dp)) {
-                LazyCategory(
-                    list = entries,
-                    entry = { index: Int -> @Composable { entries[index].UiLayout() } },
-                    title = { index: Int -> if (index == 0 || index == 2) "LazyCategory" else null },
-                ) {}
+            Box(Modifier.height(400.dp)) {
+                LazyCategory(count = entries.size, key = { index -> index }) { index ->
+                    entries[index].UiLayout()
+                }
             }
         }
     }

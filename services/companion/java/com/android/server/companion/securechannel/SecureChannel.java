@@ -21,6 +21,7 @@ import static android.security.attestationverification.AttestationVerificationMa
 import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Build;
+import android.security.attestationverification.AttestationVerificationManager;
 import android.util.Slog;
 
 import com.google.security.cryptauth.lib.securegcm.ukey2.AlertException;
@@ -250,7 +251,7 @@ public class SecureChannel {
         }
     }
 
-    private void receiveSecureMessage() throws IOException, CryptoException {
+    private void receiveSecureMessage() throws IOException {
         // Check if channel is secured. Trigger error callback. Let user handle it.
         if (!isSecured()) {
             Slog.d(TAG, "Received a message without a secure connection. "
@@ -262,7 +263,7 @@ public class SecureChannel {
         try {
             byte[] receivedMessage = readMessage(MessageType.SECURE_MESSAGE);
             mCallback.onSecureMessageReceived(receivedMessage);
-        } catch (SecureChannelException e) {
+        } catch (SecureChannelException | CryptoException e) {
             Slog.w(TAG, "Ignoring received message.", e);
         }
     }
@@ -543,17 +544,20 @@ public class SecureChannel {
 
         // Exchange attestation verification result and finish
         byte[] verificationResult = ByteBuffer.allocate(4)
-                .putInt(mVerificationResult)
+                // Do not share the exact failure code with remote device
+                .putInt(mVerificationResult == 0 ? 0 : FLAG_FAILURE_UNKNOWN)
                 .array();
         sendMessage(MessageType.AVF_RESULT, verificationResult);
         byte[] remoteVerificationResult = readMessage(MessageType.AVF_RESULT);
 
         if (ByteBuffer.wrap(remoteVerificationResult).getInt() != 0) {
-            throw new SecureChannelException("Remote device failed to verify local attestation.");
+            throw new AttestationVerificationException(
+                    "Remote device failed to verify local attestation.", FLAG_FAILURE_UNKNOWN);
         }
 
         if (mVerificationResult != 0) {
-            throw new SecureChannelException("Failed to verify remote attestation.");
+            throw new AttestationVerificationException(
+                    "Failed to verify remote attestation.", mVerificationResult);
         }
 
         if (DEBUG) {

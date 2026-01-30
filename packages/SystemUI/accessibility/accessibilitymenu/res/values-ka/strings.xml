@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"წინა ეკრანზე გადასვლა"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"შემდეგ ეკრანზე გადასვლა"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"მარტივი წვდომის მენიუ გთავაზობთ ვრცელ, ეკრანულ მენიუს მოწყობილობის სამართავად. თქვენ შეგიძლიათ, ჩაკეტოთ მოწყობილობა, მართოთ ხმის სიმძლავრე და სიკაშკაშე, გადაიღოთ ეკრანის ანაბეჭდები და ა.შ."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"მართეთ მოწყობილობა დიდი მენიუს მეშვეობით"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"მართეთ ხმა, სიკაშკაშე და სხვა დიდი მენიუს მეშვეობით"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"მარტივი წვდომის მენიუს პარამეტრები"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"დიდი ღილაკები"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"მარტივი წვდომის მენიუს ღილაკების ზომის გაზრდა"</string>

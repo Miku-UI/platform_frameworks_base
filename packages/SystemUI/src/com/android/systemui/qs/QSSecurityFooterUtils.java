@@ -15,7 +15,6 @@
  */
 package com.android.systemui.qs;
 
-import static android.app.admin.DevicePolicyManager.DEVICE_OWNER_TYPE_FINANCED;
 import static android.app.admin.DevicePolicyResources.Strings.SystemUi.QS_DIALOG_MANAGEMENT;
 import static android.app.admin.DevicePolicyResources.Strings.SystemUi.QS_DIALOG_MANAGEMENT_CA_CERT;
 import static android.app.admin.DevicePolicyResources.Strings.SystemUi.QS_DIALOG_MANAGEMENT_NAMED_VPN;
@@ -57,7 +56,6 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.UserManager;
-import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.text.SpannableStringBuilder;
 import android.text.method.LinkMovementMethod;
@@ -88,8 +86,10 @@ import com.android.systemui.res.R;
 import com.android.systemui.security.data.model.SecurityModel;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.shade.ShadeDisplayAware;
+import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor;
 import com.android.systemui.statusbar.phone.SystemUIDialog;
 import com.android.systemui.statusbar.policy.SecurityController;
+import com.android.systemui.supervision.data.model.SupervisionModel;
 import com.android.systemui.supervision.shared.DeprecateDpmSupervisionApis;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -114,6 +114,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
     private final Handler mMainHandler;
     private final UserTracker mUserTracker;
     private final DialogTransitionAnimator mDialogTransitionAnimator;
+    private final ShadeDialogContextInteractor mShadeDialogContextInteractor;
 
     private final AtomicBoolean mShouldUseSettingsButton = new AtomicBoolean(false);
 
@@ -182,7 +183,8 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
             @ShadeDisplayAware Context context, DevicePolicyManager devicePolicyManager,
             UserTracker userTracker, @Main Handler mainHandler, ActivityStarter activityStarter,
             SecurityController securityController, @Background Looper bgLooper,
-            DialogTransitionAnimator dialogTransitionAnimator) {
+            DialogTransitionAnimator dialogTransitionAnimator,
+            ShadeDialogContextInteractor shadeDialogContextInteractor) {
         mContext = context;
         mDpm = devicePolicyManager;
         mUserTracker = userTracker;
@@ -191,6 +193,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
         mSecurityController = securityController;
         mBgHandler = new Handler(bgLooper);
         mDialogTransitionAnimator = dialogTransitionAnimator;
+        mShadeDialogContextInteractor = shadeDialogContextInteractor;
     }
 
     /** Show the device monitoring dialog. */
@@ -204,7 +207,8 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
      * security button should be shown.
      */
     @Nullable
-    public SecurityButtonConfig getButtonConfig(SecurityModel securityModel) {
+    public SecurityButtonConfig getButtonConfig(
+            SecurityModel securityModel, @Nullable SupervisionModel supervisionModel) {
         final boolean isDeviceManaged = securityModel.isDeviceManaged();
         final UserInfo currentUser = mUserTracker.getUserInfo();
         final boolean isDemoDevice = UserManager.isDeviceInDemoMode(mContext) && currentUser != null
@@ -220,7 +224,10 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
                 securityModel.getWorkProfileOrganizationName();
         final boolean isProfileOwnerOfOrganizationOwnedDevice =
                 securityModel.isProfileOwnerOfOrganizationOwnedDevice();
-        final boolean isParentalControlsEnabled = securityModel.isParentalControlsEnabled();
+        final boolean isParentalControlsEnabled =
+                supervisionModel == null
+                        ? securityModel.isParentalControlsEnabled()
+                        : supervisionModel.isSupervisionEnabled();
         final boolean isWorkProfileOn = securityModel.isWorkProfileOn();
         final boolean hasDisclosableWorkProfilePolicy = hasCACertsInWorkProfile
                 || vpnNameWorkProfile != null || (hasWorkProfile && isNetworkLoggingEnabled);
@@ -242,15 +249,33 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
         boolean isClickable = !(isProfileOwnerOfOrganizationOwnedDevice
                 && (!hasDisclosableWorkProfilePolicy || !isWorkProfileOn));
 
-        String text = getFooterText(isDeviceManaged, hasWorkProfile,
-                hasCACerts, hasCACertsInWorkProfile, isNetworkLoggingEnabled, vpnName,
-                vpnNameWorkProfile, organizationName, workProfileOrganizationName,
-                isProfileOwnerOfOrganizationOwnedDevice, isParentalControlsEnabled,
-                isWorkProfileOn).toString();
+        String text =
+                (supervisionModel != null
+                                && supervisionModel.isSupervisionEnabled()
+                                && supervisionModel.getFooterText() != null)
+                        ? supervisionModel.getFooterText().toString()
+                        : getFooterText(
+                                        isDeviceManaged,
+                                        hasWorkProfile,
+                                        hasCACerts,
+                                        hasCACertsInWorkProfile,
+                                        isNetworkLoggingEnabled,
+                                        vpnName,
+                                        vpnNameWorkProfile,
+                                        organizationName,
+                                        workProfileOrganizationName,
+                                        isProfileOwnerOfOrganizationOwnedDevice,
+                                        isParentalControlsEnabled,
+                                        isWorkProfileOn)
+                                .toString();
 
         Icon icon;
         ContentDescription contentDescription = null;
-        if (isParentalControlsEnabled && securityModel.getDeviceAdminIcon() != null) {
+        if (isParentalControlsEnabled
+                && supervisionModel != null
+                && supervisionModel.getIcon() != null) {
+            icon = new Icon.Loaded(supervisionModel.getIcon(), contentDescription);
+        } else if (isParentalControlsEnabled && securityModel.getDeviceAdminIcon() != null) {
             icon = new Icon.Loaded(securityModel.getDeviceAdminIcon(), contentDescription);
         } else if (vpnName != null || vpnNameWorkProfile != null) {
             if (securityModel.isVpnBranded()) {
@@ -259,7 +284,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
                 icon = new Icon.Resource(R.drawable.stat_sys_vpn_ic, contentDescription);
             }
         } else {
-            icon = new Icon.Resource(R.drawable.ic_info_outline, contentDescription);
+            icon = new Icon.Resource(R.drawable.ic_qs_footer_info, contentDescription);
         }
 
         return new SecurityButtonConfig(icon, text, isClickable);
@@ -347,7 +372,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
         if (organizationName == null) {
             return mDpm.getResources().getString(QS_MSG_MANAGEMENT, mManagementMessageSupplier);
         }
-        if (isFinancedDevice()) {
+        if (mSecurityController.isFinancedDevice()) {
             return mContext.getString(
                     R.string.quick_settings_financed_disclosure_named_management,
                     organizationName);
@@ -451,7 +476,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
             String settingsButtonText = getSettingsButton();
             final View dialogView = createDialogView(quickSettingsContext);
             mMainHandler.post(() -> {
-                mDialog = new SystemUIDialog(quickSettingsContext, 0);
+                mDialog = new SystemUIDialog(mShadeDialogContextInteractor.getContext(), 0);
                 mDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
                 mDialog.setButton(DialogInterface.BUTTON_POSITIVE, getPositiveButton(), this);
                 mDialog.setButton(DialogInterface.BUTTON_NEGATIVE, mShouldUseSettingsButton.get()
@@ -479,7 +504,8 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
     @VisibleForTesting
     View createDialogView(Context quickSettingsContext) {
         if (mSecurityController.isParentalControlsEnabled()) {
-            return createParentalControlsDialogView(quickSettingsContext);
+            return createParentalControlsDialogView(
+                    quickSettingsContext);
         }
         return createOrganizationDialogView(quickSettingsContext);
     }
@@ -583,8 +609,12 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
     }
 
     private View createParentalControlsDialogView(Context quickSettingsContext) {
-        View dialogView = LayoutInflater.from(quickSettingsContext)
-                .inflate(R.layout.quick_settings_footer_dialog_parental_controls, null, false);
+        View dialogView =
+                LayoutInflater.from(quickSettingsContext)
+                        .inflate(
+                                R.layout.quick_settings_footer_dialog_parental_controls,
+                                null,
+                                false);
 
         Drawable icon;
         CharSequence label;
@@ -606,6 +636,15 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
                 (TextView) dialogView.findViewById(R.id.parental_controls_title);
         parentalControlsTitle.setText(label);
 
+        if (mSecurityController.getSupervisionModel() != null) {
+            TextView parentalControlsDialogDescription =
+                    dialogView.findViewById(R.id.parental_controls_warning);
+            if (parentalControlsDialogDescription != null
+                    && mSecurityController.getSupervisionModel().getDisclaimerText() != null) {
+                parentalControlsDialogDescription.setText(
+                        mSecurityController.getSupervisionModel().getDisclaimerText());
+            }
+        }
         return dialogView;
     }
 
@@ -669,7 +708,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
             return null;
         }
         if (organizationName != null) {
-            if (isFinancedDevice()) {
+            if (mSecurityController.isFinancedDevice()) {
                 return mContext.getString(R.string.monitoring_financed_description_named_management,
                         organizationName, organizationName);
             } else {
@@ -773,7 +812,7 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
 
     @VisibleForTesting
     CharSequence getManagementTitle(CharSequence deviceOwnerOrganization) {
-        if (deviceOwnerOrganization != null && isFinancedDevice()) {
+        if (deviceOwnerOrganization != null && mSecurityController.isFinancedDevice()) {
             return mContext.getString(R.string.monitoring_title_financed_device,
                     deviceOwnerOrganization);
         } else {
@@ -801,20 +840,6 @@ public class QSSecurityFooterUtils implements DialogInterface.OnClickListener {
         @Override
         public int hashCode() {
             return 314159257; // prime
-        }
-    }
-
-    // TODO(b/259908270): remove and inline direct call to mSecurityController.isFinancedDevice()
-    private boolean isFinancedDevice() {
-        if (DeviceConfig.getBoolean(DeviceConfig.NAMESPACE_DEVICE_POLICY_MANAGER,
-                DevicePolicyManager.ADD_ISFINANCED_DEVICE_FLAG,
-                DevicePolicyManager.ADD_ISFINANCED_FEVICE_DEFAULT)) {
-            return mSecurityController.isFinancedDevice();
-        } else {
-            return mSecurityController.isDeviceManaged()
-                    && mSecurityController.getDeviceOwnerType(
-                    mSecurityController.getDeviceOwnerComponentOnAnyUser())
-                    == DEVICE_OWNER_TYPE_FINANCED;
         }
     }
 }

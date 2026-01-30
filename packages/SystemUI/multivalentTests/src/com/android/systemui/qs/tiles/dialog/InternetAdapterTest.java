@@ -1,5 +1,7 @@
 package com.android.systemui.qs.tiles.dialog;
 
+import static android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf;
+
 import static com.android.systemui.qs.tiles.dialog.InternetDetailsContentController.MAX_WIFI_ENTRY_COUNT;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -14,14 +16,19 @@ import static org.mockito.Mockito.when;
 
 import android.content.Context;
 import android.graphics.drawable.Drawable;
+import android.platform.test.flag.junit.FlagsParameterization;
+import android.testing.TestableLooper;
 import android.testing.TestableResources;
 import android.view.View;
 import android.widget.LinearLayout;
 
-import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.flags.SceneContainerFlagParameterizationKt;
+import com.android.systemui.qs.flags.QsDetailedView;
+import com.android.systemui.qs.flags.QsWifiConfig;
 import com.android.systemui.res.R;
 import com.android.wifitrackerlib.WifiEntry;
 
@@ -36,11 +43,15 @@ import org.mockito.Spy;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
 import java.util.Arrays;
 import java.util.List;
 
 @SmallTest
-@RunWith(AndroidJUnit4.class)
+@RunWith(ParameterizedAndroidJunit4.class)
+@TestableLooper.RunWithLooper(setAsMainLooper = true)
 public class InternetAdapterTest extends SysuiTestCase {
 
     private static final String WIFI_KEY = "Wi-Fi_Key";
@@ -75,6 +86,21 @@ public class InternetAdapterTest extends SysuiTestCase {
     private InternetAdapter mInternetAdapter;
     private InternetAdapter.InternetViewHolder mViewHolder;
 
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        List<FlagsParameterization> aconfigCombinations = allCombinationsOf(
+                Flags.FLAG_QS_WIFI_CONFIG,
+                Flags.FLAG_QS_TILE_DETAILED_VIEW
+        );
+
+        return SceneContainerFlagParameterizationKt.andSceneContainer(aconfigCombinations);
+    }
+
+    public InternetAdapterTest(FlagsParameterization flags) {
+        super();
+        mSetFlagsRule.setFlagsParameterization(flags);
+    }
+
     @Before
     public void setUp() {
         mTestableResources = mContext.getOrCreateTestableResources();
@@ -86,7 +112,13 @@ public class InternetAdapterTest extends SysuiTestCase {
         when(mWifiEntry.getTitle()).thenReturn(WIFI_TITLE);
         when(mWifiEntry.getSummary(false)).thenReturn(WIFI_SUMMARY);
 
-        mInternetAdapter = new InternetAdapter(mInternetDetailsContentController, mScope);
+        // Stub mutate() for mock Drawables
+        when(mWifiDrawable.mutate()).thenReturn(mWifiDrawable);
+        when(mGearIcon.mutate()).thenReturn(mGearIcon);
+        when(mLockIcon.mutate()).thenReturn(mLockIcon);
+
+        mInternetAdapter = new InternetAdapter(mInternetDetailsContentController, mScope,
+                QsDetailedView.isEnabled());
         mViewHolder = mInternetAdapter.onCreateViewHolder(new LinearLayout(mContext), 0);
         mInternetAdapter.setWifiEntries(Arrays.asList(mWifiEntry), 1 /* wifiEntriesCount */);
     }
@@ -278,5 +310,18 @@ public class InternetAdapterTest extends SysuiTestCase {
         mViewHolder.updateEndIcon(WifiEntry.CONNECTED_STATE_DISCONNECTED, WifiEntry.SECURITY_NONE);
 
         assertThat(mViewHolder.mWifiEndIcon.getVisibility()).isEqualTo(View.GONE);
+    }
+
+    @Test
+    public void setShowAllWifi_returnWifiEntriesCount() {
+        int wifiEntryCount = MAX_WIFI_ENTRY_COUNT * 2;
+        when(mWifiEntries.size()).thenReturn(wifiEntryCount);
+        mInternetAdapter.setShowAllWifi();
+        mInternetAdapter.setWifiEntries(mWifiEntries, wifiEntryCount);
+        if (QsWifiConfig.isEnabled()) {
+            assertThat(mInternetAdapter.getItemCount()).isEqualTo(wifiEntryCount);
+        } else {
+            assertThat(mInternetAdapter.getItemCount()).isEqualTo(MAX_WIFI_ENTRY_COUNT);
+        }
     }
 }

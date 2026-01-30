@@ -1,0 +1,6 @@
+# IntentFirewall Owners
+wnan@google.com
+haok@google.com
+
+# Include Activity Manager Owners
+include /ACTIVITY_MANAGER_OWNERS

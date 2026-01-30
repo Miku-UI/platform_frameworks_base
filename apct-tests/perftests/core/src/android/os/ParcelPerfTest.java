@@ -233,4 +233,95 @@ public class ParcelPerfTest {
         }
     }
 
+    private String[] createStringArray(int size, boolean inBmp) {
+        String[] array = new String[size];
+        for (int i = 0; i < size; i++) {
+            if (inBmp) {
+                array[i] = "a long string to be written";
+            } else {
+                // These are 4 bytes per char in UTF-16
+                array[i] = "𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯𝒯";
+            }
+        }
+        return array;
+    }
+
+    @Test
+    public void timeWriteString16Array_1() {
+        final BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final String[] val = createStringArray(1, true);
+        while (state.keepRunning()) {
+            Parcel p = Parcel.obtain();
+            p.writeString16Array(val);
+            p.recycle();
+        }
+    }
+
+    @Test
+    public void timeWriteString16Array_100() {
+        final BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final String[] val = createStringArray(100, true);
+        while (state.keepRunning()) {
+            Parcel p = Parcel.obtain();
+            p.writeString16Array(val);
+            p.recycle();
+        }
+    }
+
+    @Test
+    public void timeWriteString16Array_1000() {
+        final BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final String[] val = createStringArray(1000, true);
+        while (state.keepRunning()) {
+            Parcel p = Parcel.obtain();
+            p.writeString16Array(val);
+            p.recycle();
+        }
+    }
+
+    @Test
+    public void timeWriteString16Array_1_notBmp() {
+        final BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final String[] val = createStringArray(1, false);
+        while (state.keepRunning()) {
+            Parcel p = Parcel.obtain();
+            p.writeString16Array(val);
+            p.recycle();
+        }
+    }
+
+    @Test
+    public void timeWriteString16Array_100_notBmp() {
+        final BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final String[] val = createStringArray(100, false);
+        while (state.keepRunning()) {
+            Parcel p = Parcel.obtain();
+            p.writeString16Array(val);
+            p.recycle();
+        }
+    }
+
+    @Test
+    public void timeWriteString16Array_1000_notBmp() {
+        final BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final String[] val = createStringArray(1000, false);
+        while (state.keepRunning()) {
+            Parcel p = Parcel.obtain();
+            p.writeString16Array(val);
+            p.recycle();
+        }
+    }
+
+    @Test
+    public void timeWriteString16ArrayOverhead_1000() {
+        final BenchmarkState state = mPerfStatusReporter.getBenchmarkState();
+        final String[] val = createStringArray(1000, true);
+        while (state.keepRunning()) {
+            int size = 0;
+            for (int i = 0; i < val.length; i++) {
+                size += (val[i].length() * 2 + 2 + 3) & ~3 + 4;
+            }
+        }
+    }
+
 }

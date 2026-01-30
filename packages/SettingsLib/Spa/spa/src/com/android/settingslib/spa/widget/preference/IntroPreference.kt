@@ -14,17 +14,22 @@
  * limitations under the License.
  */
 
+@file:OptIn(ExperimentalMaterial3ExpressiveApi::class)
+
 package com.android.settingslib.spa.widget.preference
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AirplanemodeActive
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,14 +38,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.settingslib.spa.framework.theme.SettingsDimension
+import com.android.settingslib.spa.framework.theme.SettingsSpace
 
 @Composable
 fun IntroPreference(
     title: String,
-    descriptions: List<String>? = null,
+    descriptions: List<String> = emptyList(),
     imageVector: ImageVector? = null,
 ) {
     IntroPreference(title = title, descriptions = descriptions, icon = { IntroIcon(imageVector) })
@@ -49,7 +54,7 @@ fun IntroPreference(
 @Composable
 fun IntroAppPreference(
     title: String,
-    descriptions: List<String>? = null,
+    descriptions: List<String> = emptyList(),
     appIcon: @Composable (() -> Unit),
 ) {
     IntroPreference(title = title, descriptions = descriptions, icon = { IntroAppIcon(appIcon) })
@@ -58,19 +63,21 @@ fun IntroAppPreference(
 @Composable
 internal fun IntroPreference(
     title: String,
-    descriptions: List<String>?,
+    descriptions: List<String>,
     icon: @Composable (() -> Unit),
 ) {
     Column(
         modifier =
-            Modifier.fillMaxWidth()
+            Modifier
+                .fillMaxWidth()
                 .padding(
-                    horizontal = SettingsDimension.paddingExtraLarge,
-                    vertical = SettingsDimension.paddingLarge,
+                    horizontal = SettingsSpace.small4,
+                    vertical = SettingsSpace.small1,
                 ),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         icon()
+        Spacer(Modifier.height(SettingsSpace.small1))
         IntroTitle(title)
         IntroDescription(descriptions)
     }
@@ -108,29 +115,23 @@ private fun IntroAppIcon(appIcon: @Composable () -> Unit) {
 
 @Composable
 private fun IntroTitle(title: String) {
-    Box(modifier = Modifier.padding(top = SettingsDimension.paddingLarge)) {
-        Text(
-            text = title,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-        )
-    }
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLargeEmphasized,
+        color = MaterialTheme.colorScheme.onSurface,
+    )
 }
 
 @Composable
-private fun IntroDescription(descriptions: List<String>?) {
-    if (descriptions != null) {
-        for (description in descriptions) {
-            if (description.isEmpty()) continue
-            Text(
-                text = description,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = SettingsDimension.paddingExtraSmall),
-            )
-        }
+private fun IntroDescription(descriptions: List<String>) {
+    for (description in descriptions) {
+        if (description.isEmpty()) continue
+        Text(
+            text = description,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = SettingsSpace.extraSmall2),
+        )
     }
 }
 

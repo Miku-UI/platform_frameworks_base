@@ -24,51 +24,37 @@ import com.android.systemui.biometrics.data.repository.fakeFingerprintPropertyRe
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.biometrics.shared.model.SensorStrength
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
-import com.android.systemui.keyguard.data.repository.fakeKeyguardClockRepository
 import com.android.systemui.keyguard.data.repository.keyguardBlueprintRepository
 import com.android.systemui.keyguard.ui.view.layout.blueprints.DefaultKeyguardBlueprint
 import com.android.systemui.keyguard.ui.view.layout.blueprints.SplitShadeKeyguardBlueprint
-import com.android.systemui.kosmos.testScope
-import com.android.systemui.plugins.clocks.ClockConfig
-import com.android.systemui.plugins.clocks.ClockController
-import com.android.systemui.shade.data.repository.shadeRepository
+import com.android.systemui.kosmos.advanceUntilIdle
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runCurrent
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.shade.domain.interactor.enableSingleShade
+import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mock
 import org.mockito.Mockito.reset
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
-import org.mockito.MockitoAnnotations
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class KeyguardBlueprintInteractorTest : SysuiTestCase() {
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
-    private val underTest by lazy { kosmos.keyguardBlueprintInteractor }
-    private val keyguardBlueprintRepository by lazy { kosmos.keyguardBlueprintRepository }
-    private val clockRepository by lazy { kosmos.fakeKeyguardClockRepository }
-    private val configurationRepository by lazy { kosmos.fakeConfigurationRepository }
-    private val fingerprintPropertyRepository by lazy { kosmos.fakeFingerprintPropertyRepository }
 
-    @Mock private lateinit var clockController: ClockController
+    private val kosmos = testKosmos()
+    private val underTest by lazy { kosmos.keyguardBlueprintInteractor }
 
     @Before
     fun setup() {
-        MockitoAnnotations.initMocks(this)
-        whenever(clockController.config).thenReturn(ClockConfig("TEST", "Test", ""))
-        fingerprintPropertyRepository.setProperties(
+        kosmos.fakeFingerprintPropertyRepository.setProperties(
             sensorId = 1,
             strength = SensorStrength.STRONG,
             sensorType = FingerprintSensorType.POWER_BUTTON,
@@ -78,10 +64,9 @@ class KeyguardBlueprintInteractorTest : SysuiTestCase() {
 
     @Test
     fun testAppliesDefaultBlueprint() {
-        testScope.runTest {
+        kosmos.runTest {
             val blueprintId by collectLastValue(underTest.blueprintId)
-            kosmos.shadeRepository.setShadeLayoutWide(false)
-            configurationRepository.onConfigurationChange()
+            enableSingleShade()
 
             runCurrent()
             advanceUntilIdle()
@@ -92,10 +77,9 @@ class KeyguardBlueprintInteractorTest : SysuiTestCase() {
     @Test
     @DisableSceneContainer
     fun testAppliesSplitShadeBlueprint() {
-        testScope.runTest {
+        kosmos.runTest {
             val blueprintId by collectLastValue(underTest.blueprintId)
-            kosmos.shadeRepository.setShadeLayoutWide(true)
-            configurationRepository.onConfigurationChange()
+            enableSplitShade()
 
             runCurrent()
             advanceUntilIdle()
@@ -106,11 +90,9 @@ class KeyguardBlueprintInteractorTest : SysuiTestCase() {
     @Test
     @EnableSceneContainer
     fun testDoesNotApplySplitShadeBlueprint() {
-        testScope.runTest {
+        kosmos.runTest {
             val blueprintId by collectLastValue(underTest.blueprintId)
-            kosmos.shadeRepository.setShadeLayoutWide(true)
-            clockRepository.setCurrentClock(clockController)
-            configurationRepository.onConfigurationChange()
+            enableSplitShade()
 
             runCurrent()
             advanceUntilIdle()
@@ -121,11 +103,11 @@ class KeyguardBlueprintInteractorTest : SysuiTestCase() {
     @Test
     @DisableSceneContainer
     fun fingerprintPropertyInitialized_updatesBlueprint() {
-        testScope.runTest {
+        kosmos.runTest {
             underTest.start()
             reset(keyguardBlueprintRepository)
 
-            fingerprintPropertyRepository.supportsUdfps() // initialize properties
+            fakeFingerprintPropertyRepository.supportsUdfps() // initialize properties
 
             runCurrent()
             advanceUntilIdle()
@@ -135,11 +117,11 @@ class KeyguardBlueprintInteractorTest : SysuiTestCase() {
 
     @Test
     fun testRefreshFromConfigChange() {
-        testScope.runTest {
+        kosmos.runTest {
             underTest.start()
             reset(keyguardBlueprintRepository)
 
-            configurationRepository.onConfigurationChange()
+            fakeConfigurationRepository.onConfigurationChange()
 
             runCurrent()
             advanceUntilIdle()

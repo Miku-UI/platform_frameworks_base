@@ -27,7 +27,6 @@ import android.util.AndroidRuntimeException;
 import android.util.Slog;
 import android.webkit.UserPackage;
 import android.webkit.WebViewFactory;
-import android.webkit.WebViewFactoryProvider;
 import android.webkit.WebViewProviderInfo;
 import android.webkit.WebViewProviderResponse;
 
@@ -80,7 +79,7 @@ class WebViewUpdateServiceImpl2 {
     private static final long NS_PER_MS = 1000000;
 
     private static final int VALIDITY_OK = 0;
-    private static final int VALIDITY_OS_INCOMPATIBLE = 1;
+    private static final int VALIDITY_INCORRECT_SDK_VERSION = 1;
     private static final int VALIDITY_INCORRECT_VERSION_CODE = 2;
     private static final int VALIDITY_INCORRECT_SIGNATURE = 3;
     private static final int VALIDITY_NO_LIBRARY_FLAG = 4;
@@ -588,9 +587,9 @@ class WebViewUpdateServiceImpl2 {
     }
 
     private int validityResult(WebViewProviderInfo configInfo, PackageInfo packageInfo) {
-        // Ensure the provider is compatible with this framework release.
-        if (!mSystemInterface.isCompatibleImplementationPackage(packageInfo)) {
-            return VALIDITY_OS_INCOMPATIBLE;
+        // Ensure the provider targets this framework release (or a later one).
+        if (!UserPackage.hasCorrectTargetSdkVersion(packageInfo)) {
+            return VALIDITY_INCORRECT_SDK_VERSION;
         }
         if (!versionCodeGE(packageInfo.getLongVersionCode(), getMinimumVersionCode())
                 && !mSystemInterface.systemIsDebuggable()) {
@@ -713,8 +712,7 @@ class WebViewUpdateServiceImpl2 {
             }
             pw.println(
                     TextUtils.formatSimple(
-                            "  %s",
-                            WebViewFactoryProvider.describeCompatibleImplementationPackage()));
+                            "  Minimum targetSdkVersion: %d", UserPackage.MINIMUM_SUPPORTED_SDK));
             pw.println(
                     TextUtils.formatSimple(
                             "  Minimum WebView version code: %d", mMinimumVersionCode));
@@ -788,8 +786,8 @@ class WebViewUpdateServiceImpl2 {
 
     private static String getInvalidityReason(int invalidityReason) {
         switch (invalidityReason) {
-            case VALIDITY_OS_INCOMPATIBLE:
-                return "Not compatible with this OS version";
+            case VALIDITY_INCORRECT_SDK_VERSION:
+                return "SDK version too low";
             case VALIDITY_INCORRECT_VERSION_CODE:
                 return "Version code too low";
             case VALIDITY_INCORRECT_SIGNATURE:

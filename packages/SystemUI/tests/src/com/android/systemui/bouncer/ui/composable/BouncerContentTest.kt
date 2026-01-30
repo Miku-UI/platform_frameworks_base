@@ -28,6 +28,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
+import com.android.compose.animation.scene.TestContentScope
 import com.android.compose.theme.PlatformTheme
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
@@ -62,7 +63,7 @@ import platform.test.screenshot.Displays.FoldableInner
 @LargeTest
 @MotionTest
 class BouncerContentTest : SysuiTestCase() {
-    private val deviceSpec = DeviceEmulationSpec(FoldableInner)
+    private val deviceSpec = DeviceEmulationSpec(FoldableInner, isLandscape = true)
     private val kosmos = testKosmos()
 
     @get:Rule val motionTestRule = createSysUiComposeMotionTestRule(kosmos, deviceSpec)
@@ -95,15 +96,17 @@ class BouncerContentTest : SysuiTestCase() {
     @Composable
     private fun BouncerContentUnderTest() {
         PlatformTheme {
-            BouncerContent(
-                viewModel =
-                    rememberViewModel("test") {
-                        kosmos.bouncerOverlayContentViewModelFactory.create()
-                    },
-                layout = BouncerOverlayLayout.BESIDE_USER_SWITCHER,
-                modifier = Modifier.fillMaxSize().testTag("BouncerContent"),
-                dialogFactory = bouncerDialogFactory,
-            )
+            TestContentScope {
+                BouncerContent(
+                    viewModel =
+                        rememberViewModel("test") {
+                            kosmos.bouncerOverlayContentViewModelFactory.create()
+                        },
+                    layout = BouncerOverlayLayout.BESIDE_USER_SWITCHER,
+                    modifier = Modifier.fillMaxSize().testTag("BouncerContent"),
+                    dialogFactory = bouncerDialogFactory,
+                )
+            }
         }
     }
 

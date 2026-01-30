@@ -26,9 +26,11 @@ import com.android.internal.widget.LockPatternUtils
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.dagger.qualifiers.UiBackground
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardDismissTransitionInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardShowWhileAwakeInteractor
 import com.android.systemui.keyguard.ui.binder.KeyguardSurfaceBehindParamsApplier
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.window.flags.Flags
@@ -54,6 +56,7 @@ constructor(
     private val selectedUserInteractor: SelectedUserInteractor,
     private val lockPatternUtils: LockPatternUtils,
     private val keyguardShowWhileAwakeInteractor: KeyguardShowWhileAwakeInteractor,
+    private val deviceEntryInteractor: dagger.Lazy<DeviceEntryInteractor>,
 ) {
 
     /**
@@ -121,7 +124,7 @@ constructor(
     private var goingAwayRemoteAnimationFinishedCallback: IRemoteAnimationFinishedCallback? = null
 
     private val enableNewKeyguardShellTransitions: Boolean =
-        Flags.ensureKeyguardDoesTransitionStarting()
+        Flags.ensureKeyguardDoesTransitionStartingBugFix()
 
     /**
      * Set the visibility of the surface behind the keyguard, making the appropriate calls to Window
@@ -167,17 +170,17 @@ constructor(
                 "setLockscreenShown(true) because we're setting the surface invisible " +
                     "and lockscreen is already showing.",
             )
-            setLockscreenShown(true)
+            setLockscreenShown(true, "requested surface invisible w/ lockscreen showing")
         }
     }
 
     fun setAodVisible(aodVisible: Boolean) {
-        setWmLockscreenState(aodVisible = aodVisible)
+        setWmLockscreenState(aodVisible = aodVisible, reason = "setAodVisible($aodVisible)")
     }
 
     /** Sets the visibility of the lockscreen. */
-    fun setLockscreenShown(lockscreenShown: Boolean) {
-        setWmLockscreenState(lockscreenShowing = lockscreenShown)
+    fun setLockscreenShown(lockscreenShown: Boolean, reason: String = "") {
+        setWmLockscreenState(lockscreenShowing = lockscreenShown, reason = reason)
     }
 
     /**
@@ -204,26 +207,40 @@ constructor(
 
         // If we weren't expecting the keyguard to be going away, WM triggered this transition.
         if (!isKeyguardGoingAway) {
+            val alreadyGoneCallback = {
+                // Called if we're already GONE by the time the dismiss transition would
+                // have started. This can happen due to timing issues, where the remote
+                // animation took a long time to start, and something else caused us to
+                // unlock in the meantime. Since we're already GONE, simply end the remote
+                // animation immediately.
+                Log.d(
+                    TAG,
+                    "onKeyguardGoingAwayRemoteAnimationStart: " +
+                        "Dismiss transition was not started; we're already GONE. " +
+                        "Ending remote animation.",
+                )
+                finishedCallback.onAnimationFinished()
+                isKeyguardGoingAway = false
+            }
+
             // Since WM triggered this, we're likely not transitioning to GONE yet. See if we can
             // start that transition.
-            keyguardDismissTransitionInteractor.startDismissKeyguardTransition(
-                reason = "Going away remote animation started",
-                onAlreadyGone = {
-                    // Called if we're already GONE by the time the dismiss transition would have
-                    // started. This can happen due to timing issues, where the remote animation
-                    // took a long time to start, and something else caused us to unlock in the
-                    // meantime. Since we're already GONE, simply end the remote animation
-                    // immediately.
-                    Log.d(
-                        TAG,
-                        "onKeyguardGoingAwayRemoteAnimationStart: " +
-                            "Dismiss transition was not started; we're already GONE. " +
-                            "Ending remote animation.",
-                    )
-                    finishedCallback.onAnimationFinished()
-                    isKeyguardGoingAway = false
-                },
-            )
+            if (SceneContainerFlag.isEnabled) {
+                if (deviceEntryInteractor.get().isDeviceEntered.value) {
+                    alreadyGoneCallback.invoke()
+                } else {
+                    deviceEntryInteractor
+                        .get()
+                        .attemptDeviceEntry(
+                            loggingReason = "onKeyguardGoingAwayRemoteAnimationStart"
+                        )
+                }
+            } else {
+                keyguardDismissTransitionInteractor.startDismissKeyguardTransition(
+                    reason = "Going away remote animation started",
+                    onAlreadyGone = alreadyGoneCallback,
+                )
+            }
 
             isKeyguardGoingAway = true
         }
@@ -267,6 +284,7 @@ constructor(
     private fun setWmLockscreenState(
         lockscreenShowing: Boolean? = this.isLockscreenShowing,
         aodVisible: Boolean = this.isAodVisible,
+        reason: String,
     ) {
         if (lockscreenShowing == null) {
             Log.d(
@@ -305,7 +323,7 @@ constructor(
                 TAG,
                 "ATMS#setLockScreenShown(" +
                     "isLockscreenShowing=$lockscreenShowing, " +
-                    "aodVisible=$aodVisible).",
+                    "aodVisible=$aodVisible): $reason",
             )
             if (enableNewKeyguardShellTransitions) {
                 startKeyguardTransition(lockscreenShowing, aodVisible)

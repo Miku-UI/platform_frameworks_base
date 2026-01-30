@@ -37,7 +37,7 @@ import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.MediaQualityStatus;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IPhoneStateListener {
     void onServiceStateChanged(in ServiceState serviceState);

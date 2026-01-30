@@ -29,8 +29,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import android.graphics.PointF;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.view.MotionEvent;
 import android.view.WindowManager;
@@ -43,7 +41,6 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.accessibility.dialog.AccessibilityTarget;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.accessibility.MotionEventHelper;
 import com.android.systemui.accessibility.utils.TestUtils;
@@ -103,14 +100,8 @@ public class MenuListViewTouchHandlerTest extends SysuiTestCase {
                 mStubMenuView, stubMenuViewAppearance));
         mInteractView = spy(new DragToInteractView(mContext, windowManager));
         mDismissView = spy(new DismissView(mContext));
-
-        if (Flags.floatingMenuDragToEdit()) {
-            mDragToInteractAnimationController = spy(new DragToInteractAnimationController(
-                    mInteractView, mStubMenuView));
-        } else {
-            mDragToInteractAnimationController = spy(new DragToInteractAnimationController(
-                    mDismissView, mStubMenuView));
-        }
+        mDragToInteractAnimationController = spy(new DragToInteractAnimationController(
+                mInteractView, mStubMenuView));
 
         mTouchHandler = new MenuListViewTouchHandler(mMenuAnimationController,
                 mDragToInteractAnimationController);
@@ -155,26 +146,6 @@ public class MenuListViewTouchHandlerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
-    public void onActionMoveEvent_shouldShowDismissView() {
-        final int offset = 100;
-        final MotionEvent stubDownEvent =
-                mMotionEventHelper.obtainMotionEvent(/* downTime= */ 0, /* eventTime= */ 1,
-                        MotionEvent.ACTION_DOWN, mStubMenuView.getTranslationX(),
-                        mStubMenuView.getTranslationY());
-        final MotionEvent stubMoveEvent =
-                mMotionEventHelper.obtainMotionEvent(/* downTime= */ 0, /* eventTime= */ 3,
-                        MotionEvent.ACTION_MOVE, mStubMenuView.getTranslationX() + offset,
-                        mStubMenuView.getTranslationY() + offset);
-
-        mTouchHandler.onInterceptTouchEvent(mStubListView, stubDownEvent);
-        mTouchHandler.onInterceptTouchEvent(mStubListView, stubMoveEvent);
-
-        verify(mDismissView).show();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void onActionMoveEvent_shouldShowInteractView() {
         final int offset = 100;
         final MotionEvent stubDownEvent =

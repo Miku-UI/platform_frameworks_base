@@ -18,6 +18,7 @@ package com.android.wm.shell.shared.desktopmode
 
 import android.Manifest.permission.SYSTEM_ALERT_WINDOW
 import android.app.TaskInfo
+import android.app.WindowConfiguration.ACTIVITY_TYPE_DREAM
 import android.compat.testing.PlatformCompatChangeRule
 import android.content.ComponentName
 import android.content.pm.ActivityInfo
@@ -28,11 +29,14 @@ import android.os.Process
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
+import android.testing.TestableContext
 import androidx.test.filters.SmallTest
 import com.android.internal.R
+import com.android.internal.policy.DesktopModeCompatPolicy
 import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFreeformTask
+import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFullscreenTask
 import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModelTestsBase.Companion.HOME_LAUNCHER_PACKAGE_NAME
 import libcore.junit.util.compat.CoreCompatChangeRule.DisableCompatChanges
 import libcore.junit.util.compat.CoreCompatChangeRule.EnableCompatChanges
@@ -45,8 +49,10 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.spy
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -60,23 +66,32 @@ import org.mockito.kotlin.whenever
 @SmallTest
 class DesktopModeCompatPolicyTest : ShellTestCase() {
     @get:Rule val compatRule = PlatformCompatChangeRule()
+    private lateinit var mockContext: TestableContext
     private lateinit var desktopModeCompatPolicy: DesktopModeCompatPolicy
     private val packageManager: PackageManager = mock()
     private val homeActivities = ComponentName(HOME_LAUNCHER_PACKAGE_NAME, /* class */ "")
     private val baseActivityTest = ComponentName("com.test.dummypackage", "TestClass")
+    private val configExemptActivity = ComponentName("com.test.configExemptPackage", /* class */ "")
+    private val configExemptPackageList = arrayOf(configExemptActivity.packageName)
 
     @Before
     fun setUp() {
-        desktopModeCompatPolicy = DesktopModeCompatPolicy(mContext)
+        mockContext = spy(mContext)
+        val resources = spy(mockContext.resources)
+        doReturn(configExemptPackageList).`when`(resources)
+            .getStringArray(R.array.config_desktopExemptPackages)
+        doReturn(resources).`when`(mockContext).resources
+        desktopModeCompatPolicy = DesktopModeCompatPolicy(mockContext)
         whenever(packageManager.getHomeActivities(any())).thenReturn(homeActivities)
-        mContext.setMockPackageManager(packageManager)
+        mockContext.setMockPackageManager(packageManager)
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PERMISSION)
+    @DisableFlags(Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PERMISSION,
+        Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PLATFORM_SIGNATURE)
     fun testIsTopActivityExemptFromDesktopWindowing_onlyTransparentActivitiesInStack() {
         assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                     .apply {
                         isActivityStackTransparent = true
                         isTopActivityNoDisplay = false
@@ -86,11 +101,49 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PLATFORM_SIGNATURE)
+    @DisableFlags(Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PERMISSION)
+    fun testIsTopActivityExemptWithPlatformSignature_onlyTransparentActivitiesInStack() {
+        assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
+            createFreeformTask()
+                .apply {
+                    isActivityStackTransparent = true
+                    isTopActivityNoDisplay = false
+                    numActivities = 1
+                    topActivityInfo = ActivityInfo().apply {
+                        applicationInfo = ApplicationInfo().apply {
+                            privateFlags = ApplicationInfo.PRIVATE_FLAG_SIGNED_WITH_PLATFORM_KEY
+                        }
+                    }
+                    baseActivity = baseActivityTest
+                }))
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PLATFORM_SIGNATURE)
+    @DisableFlags(Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PERMISSION)
+    fun testIsTopActivityExemptWithoutPlatformSignature_onlyTransparentActivitiesInStack() {
+        assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
+            createFreeformTask()
+                .apply {
+                    isActivityStackTransparent = true
+                    isTopActivityNoDisplay = false
+                    numActivities = 1
+                    topActivityInfo = ActivityInfo().apply {
+                        applicationInfo = ApplicationInfo().apply {
+                            privateFlags = 0
+                        }
+                    }
+                    baseActivity = baseActivityTest
+                }))
+    }
+
+    @Test
     @EnableFlags(Flags.FLAG_ENABLE_MODALS_FULLSCREEN_WITH_PERMISSION)
     fun testIsTopActivityExemptWithPermission_onlyTransparentActivitiesInStack() {
         allowOverlayPermissionForAllUsers(arrayOf(SYSTEM_ALERT_WINDOW))
         assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = true
                     isTopActivityNoDisplay = false
@@ -104,7 +157,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     fun testIsTopActivityExemptWithNoPermission_onlyTransparentActivitiesInStack() {
         allowOverlayPermissionForAllUsers(arrayOf())
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = true
                     isTopActivityNoDisplay = false
@@ -118,7 +171,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     fun testIsTopActivityExemptCachedPermissionCheckIsUsed() {
         allowOverlayPermissionForAllUsers(arrayOf())
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = true
                     isTopActivityNoDisplay = false
@@ -127,7 +180,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
                     userId = 10
                 }))
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = true
                     isTopActivityNoDisplay = false
@@ -136,7 +189,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
                     userId = 10
                 }))
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = true
                     isTopActivityNoDisplay = false
@@ -159,7 +212,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     @Test
     fun testIsTopActivityExemptFromDesktopWindowing_noActivitiesInStack() {
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = true
                     isTopActivityNoDisplay = false
@@ -170,7 +223,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     @Test
     fun testIsTopActivityExemptFromDesktopWindowing_nonTransparentActivitiesInStack() {
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = false
                     isTopActivityNoDisplay = false
@@ -181,7 +234,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     @Test
     fun testIsTopActivityExemptFromDesktopWindowing_transparentActivityStack_notDisplayed() {
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     isActivityStackTransparent = true
                     isTopActivityNoDisplay = true
@@ -194,7 +247,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
         val systemUIPackageName = context.resources.getString(R.string.config_systemUi)
         val baseComponent = ComponentName(systemUIPackageName, /* class */ "")
         assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                     .apply {
                         baseActivity = baseComponent
                         isTopActivityNoDisplay = false
@@ -206,7 +259,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
         val systemUIPackageName = context.resources.getString(R.string.config_systemUi)
         val baseComponent = ComponentName(systemUIPackageName, /* class */ "")
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask(0)
                 .apply {
                     baseActivity = baseComponent
                     isTopActivityNoDisplay = true
@@ -216,7 +269,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     @Test
     fun testIsTopActivityExemptFromDesktopWindowing_defaultHomePackage() {
         assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     baseActivity = homeActivities
                     isTopActivityNoDisplay = false
@@ -226,7 +279,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     @Test
     fun testIsTopActivityExemptFromDesktopWindowing_defaultHomePackage_notDisplayed() {
         assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
                     baseActivity = homeActivities
                     isTopActivityNoDisplay = true
@@ -236,15 +289,119 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
     @Test
     fun testIsTopActivityExemptFromDesktopWindowing_defaultHomePackage_notYetAvailable() {
         val emptyHomeActivities: ComponentName = mock()
-        mContext.setMockPackageManager(packageManager)
+        mockContext.setMockPackageManager(packageManager)
 
         whenever(emptyHomeActivities.packageName).thenReturn(null)
         whenever(packageManager.getHomeActivities(any())).thenReturn(emptyHomeActivities)
 
         assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
-            createFreeformTask(/* displayId */ 0)
+            createFreeformTask()
                 .apply {
+                    baseActivity = baseActivityTest
                     isTopActivityNoDisplay = false
+                }))
+    }
+
+    @Test
+    fun testIsTopActivityExemptFromDesktopWindowing_packageInConfigExemptionList() {
+        assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
+            createFreeformTask()
+                .apply {
+                    baseActivity = configExemptActivity
+                    isTopActivityNoDisplay = false
+                }))
+    }
+
+    @Test
+    fun testIsTopActivityExemptFromDesktopWindowing_packageInConfigExemptionList_transparentTask() {
+        assertFalse(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
+            createFreeformTask()
+                .apply {
+                    baseActivity = configExemptActivity
+                    isTopActivityNoDisplay = false
+                    isActivityStackTransparent = true
+                }))
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DREAM_ACTIVITY_WINDOWING_EXCLUSION)
+    fun testIsTopActivityExemptFromDesktopWindowing_dreamActivity() {
+        assertTrue(desktopModeCompatPolicy.isTopActivityExemptFromDesktopWindowing(
+            createFreeformTask()
+                .apply {
+                    baseActivity = baseActivityTest
+                    topActivityType = ACTIVITY_TYPE_DREAM
+                }))
+    }
+
+    @Test
+    fun testShouldDisableDesktopEntryPoints_noDisplayActivity() {
+        assertTrue(desktopModeCompatPolicy.shouldDisableDesktopEntryPoints(
+            createFullscreenTask()
+                .apply {
+                    isTopActivityNoDisplay = true
+                }))
+    }
+
+    @Test
+    fun testShouldDisableDesktopEntryPoints_transparentTask() {
+        assertTrue(desktopModeCompatPolicy.shouldDisableDesktopEntryPoints(
+            createFullscreenTask()
+                .apply {
+                    isActivityStackTransparent = true
+                    numActivities = 1
+                }))
+    }
+
+    @Test
+    fun testShouldDisableDesktopEntryPoints_defaultHomePackage() {
+        assertTrue(desktopModeCompatPolicy.shouldDisableDesktopEntryPoints(
+            createFullscreenTask()
+                .apply {
+                    baseActivity = homeActivities
+                }))
+    }
+
+    @Test
+    fun testShouldDisableDesktopEntryPoints_defaultHomePackage_notYetAvailable() {
+        val emptyHomeActivities: ComponentName = mock()
+        mockContext.setMockPackageManager(packageManager)
+
+        whenever(emptyHomeActivities.packageName).thenReturn(null)
+        whenever(packageManager.getHomeActivities(any())).thenReturn(emptyHomeActivities)
+
+        assertTrue(desktopModeCompatPolicy.shouldDisableDesktopEntryPoints(
+            createFullscreenTask()))
+    }
+
+    @Test
+    fun testShouldDisableDesktopEntryPoints_systemUiTask() {
+        val systemUIPackageName = context.resources.getString(R.string.config_systemUi)
+        val baseComponent = ComponentName(systemUIPackageName, /* class */ "")
+        assertTrue(desktopModeCompatPolicy.shouldDisableDesktopEntryPoints(
+            createFreeformTask()
+                .apply {
+                    baseActivity = baseComponent
+                }))
+    }
+
+    @Test
+    fun testShouldDisableDesktopEntryPoints_packageInConfigExemptionList() {
+        assertTrue(desktopModeCompatPolicy.shouldDisableDesktopEntryPoints(
+            createFreeformTask()
+                .apply {
+                    baseActivity = configExemptActivity
+                }))
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DREAM_ACTIVITY_WINDOWING_EXCLUSION)
+    fun testShouldDisableDesktopEntryPoints_dreamActivity() {
+        assertTrue(desktopModeCompatPolicy.shouldDisableDesktopEntryPoints(
+            createFreeformTask()
+                .apply {
+                    baseActivity = baseActivityTest
+                    topActivityType = ACTIVITY_TYPE_DREAM
                 }))
     }
 
@@ -290,7 +447,7 @@ class DesktopModeCompatPolicyTest : ShellTestCase() {
         createFreeformTask().apply {
             val componentName =
                 ComponentName.createRelative(
-                    mContext,
+                    mockContext,
                     DesktopModeCompatPolicyTest::class.java.simpleName
                 )
             baseActivity = componentName

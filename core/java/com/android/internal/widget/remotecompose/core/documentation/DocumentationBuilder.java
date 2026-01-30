@@ -34,8 +34,7 @@ public interface DocumentationBuilder {
      * @param name the name of the operation
      * @return a DocumentedOperation
      */
-    @NonNull
-    DocumentedOperation operation(@NonNull String category, int id, @NonNull String name);
+    @NonNull DocumentedOperation operation(@NonNull String category, int id, @NonNull String name);
 
     /**
      * Add the operation to the documentation as a Work in Progress (WIP) operation
@@ -45,6 +44,6 @@ public interface DocumentationBuilder {
      * @param name the name of the operation
      * @return a DocumentedOperation
      */
-    @NonNull
-    DocumentedOperation wipOperation(@NonNull String category, int id, @NonNull String name);
+    @NonNull DocumentedOperation wipOperation(
+            @NonNull String category, int id, @NonNull String name);
 }

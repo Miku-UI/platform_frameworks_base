@@ -1,7 +1,6 @@
 package com.android.systemui.statusbar.phone
 
 import android.view.View
-import com.android.systemui.Flags
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.animation.TransitionAnimator
 import com.android.systemui.animation.TransitionAnimator.Companion.getProgress
@@ -42,16 +41,12 @@ class StatusBarTransitionAnimatorController(
     }
 
     override fun onTransitionAnimationStart(isExpandingFullyAbove: Boolean) {
-        if (Flags.shadeLaunchAccessibility()) {
-            // We set this before calling the delegate to make sure that accessibility is disabled
-            // for the whole duration of the transition, so that we don't have stray TalkBack events
-            // once the animating view becomes invisible.
-            shadeAnimationInteractor.setIsLaunchingActivity(true)
-            delegate.onTransitionAnimationStart(isExpandingFullyAbove)
-        } else {
-            delegate.onTransitionAnimationStart(isExpandingFullyAbove)
-            shadeAnimationInteractor.setIsLaunchingActivity(true)
-        }
+        // We set this before calling the delegate to make sure that accessibility is disabled
+        // for the whole duration of the transition, so that we don't have stray TalkBack events
+        // once the animating view becomes invisible.
+        shadeAnimationInteractor.setIsLaunchingActivity(true)
+        delegate.onTransitionAnimationStart(isExpandingFullyAbove)
+
         if (!isExpandingFullyAbove) {
             shadeController.collapseWithDuration(
                 ActivityTransitionAnimator.TIMINGS.totalDuration.toInt()

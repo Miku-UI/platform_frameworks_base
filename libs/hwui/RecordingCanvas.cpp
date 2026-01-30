@@ -16,7 +16,7 @@
 
 #include "RecordingCanvas.h"
 
-#include <SkMesh.h>
+#include <gui/TraceUtils.h>
 #include <hwui/Paint.h>
 #include <include/gpu/GpuTypes.h>
 #include <include/gpu/ganesh/GrDirectContext.h>
@@ -27,6 +27,7 @@
 #include <experimental/type_traits>
 #include <utility>
 
+#include "FeatureFlags.h"
 #include "Mesh.h"
 #include "SkAndroidFrameworkUtils.h"
 #include "SkBlendMode.h"
@@ -103,9 +104,18 @@ enum class Type : uint8_t {
 };
 #undef X
 
+static constexpr uint32_t BARCODE_QUIET_ZONE_PX = 5;
+
 struct Op {
     uint32_t type : 8;
     uint32_t skip : 24;
+
+    // Note: add this function to your Op if it can be rendered as a background within some bounds.
+    //  It is not a virtual function because we use templates to find it instead, for efficiency.
+    // Sets the given Rect to a conservative estimate of the bounds of the draw call. Returns true
+    // if outRect was modified, false if the bounds are unknown.
+    // Do not implement if the Op doesn't have bounds, or cannot reasonably be used as a background.
+    // std::optional<SkRect> getConservativeBounds() const { return false; }
 };
 static_assert(sizeof(Op) == 4, "");
 
@@ -137,6 +147,8 @@ struct SaveLayer final : Op {
     void draw(SkCanvas* c, const SkMatrix&) const {
         c->saveLayer({maybe_unset(bounds), &paint, backdrop.get(), flags});
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return bounds; }
 };
 struct SaveBehind final : Op {
     static const auto kType = Type::SaveBehind;
@@ -147,6 +159,8 @@ struct SaveBehind final : Op {
     void draw(SkCanvas* c, const SkMatrix&) const {
         SkAndroidFrameworkUtils::SaveBehind(c, &subset);
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return subset; }
 };
 
 struct Concat final : Op {
@@ -183,6 +197,8 @@ struct ClipPath final : Op {
     SkClipOp op;
     bool aa;
     void draw(SkCanvas* c, const SkMatrix&) const { c->clipPath(path, op, aa); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return path.getBounds(); }
 };
 struct ClipRect final : Op {
     static const auto kType = Type::ClipRect;
@@ -191,6 +207,8 @@ struct ClipRect final : Op {
     SkClipOp op;
     bool aa;
     void draw(SkCanvas* c, const SkMatrix&) const { c->clipRect(rect, op, aa); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return rect; }
 };
 struct ClipRRect final : Op {
     static const auto kType = Type::ClipRRect;
@@ -199,6 +217,8 @@ struct ClipRRect final : Op {
     SkClipOp op;
     bool aa;
     void draw(SkCanvas* c, const SkMatrix&) const { c->clipRRect(rrect, op, aa); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return rrect.getBounds(); }
 };
 struct ClipRegion final : Op {
     static const auto kType = Type::ClipRegion;
@@ -206,6 +226,12 @@ struct ClipRegion final : Op {
     SkRegion region;
     SkClipOp op;
     void draw(SkCanvas* c, const SkMatrix&) const { c->clipRegion(region, op); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const {
+        SkRect result;
+        result.set(region.getBounds());
+        return result;
+    }
 };
 struct ClipShader final : Op {
     static const auto kType = Type::ClipShader;
@@ -238,6 +264,8 @@ struct DrawPath final : Op {
     SkPath path;
     SkPaint paint;
     void draw(SkCanvas* c, const SkMatrix&) const { c->drawPath(path, paint); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return path.getBounds(); }
 };
 struct DrawRect final : Op {
     static const auto kType = Type::DrawRect;
@@ -245,6 +273,8 @@ struct DrawRect final : Op {
     SkRect rect;
     SkPaint paint;
     void draw(SkCanvas* c, const SkMatrix&) const { c->drawRect(rect, paint); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return rect; }
 };
 struct DrawRegion final : Op {
     static const auto kType = Type::DrawRegion;
@@ -252,6 +282,12 @@ struct DrawRegion final : Op {
     SkRegion region;
     SkPaint paint;
     void draw(SkCanvas* c, const SkMatrix&) const { c->drawRegion(region, paint); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const {
+        SkRect result;
+        result.set(region.getBounds());
+        return result;
+    }
 };
 struct DrawOval final : Op {
     static const auto kType = Type::DrawOval;
@@ -259,6 +295,8 @@ struct DrawOval final : Op {
     SkRect oval;
     SkPaint paint;
     void draw(SkCanvas* c, const SkMatrix&) const { c->drawOval(oval, paint); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return oval; }
 };
 struct DrawArc final : Op {
     static const auto kType = Type::DrawArc;
@@ -277,6 +315,8 @@ struct DrawArc final : Op {
     void draw(SkCanvas* c, const SkMatrix&) const {
         c->drawArc(oval, startAngle, sweepAngle, useCenter, paint);
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return oval; }
 };
 struct DrawRRect final : Op {
     static const auto kType = Type::DrawRRect;
@@ -284,6 +324,8 @@ struct DrawRRect final : Op {
     SkRRect rrect;
     SkPaint paint;
     void draw(SkCanvas* c, const SkMatrix&) const { c->drawRRect(rrect, paint); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return rrect.getBounds(); }
 };
 struct DrawDRRect final : Op {
     static const auto kType = Type::DrawDRRect;
@@ -292,6 +334,8 @@ struct DrawDRRect final : Op {
     SkRRect outer, inner;
     SkPaint paint;
     void draw(SkCanvas* c, const SkMatrix&) const { c->drawDRRect(outer, inner, paint); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return outer.getBounds(); }
 };
 struct DrawAnnotation final : Op {
     static const auto kType = Type::DrawAnnotation;
@@ -301,6 +345,8 @@ struct DrawAnnotation final : Op {
     void draw(SkCanvas* c, const SkMatrix&) const {
         c->drawAnnotation(rect, pod<char>(this), value.get());
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return rect; }
 };
 struct DrawDrawable final : Op {
     static const auto kType = Type::DrawDrawable;
@@ -337,7 +383,39 @@ struct DrawPicture final : Op {
     void draw(SkCanvas* c, const SkMatrix&) const {
         c->drawPicture(picture.get(), &matrix, has_paint ? &paint : nullptr);
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const {
+        return picture->cullRect();
+    }
 };
+
+static void traceBitmapScaling(const SkCanvas* c, const sk_sp<const SkImage>& image,
+                               const SkRect& src, const SkRect& dst) {
+    // How big the source content has to be for us to care
+    // The smaller the initial image, the more pronounced changes in destination size are to scale
+    // However, the relative impact to RAM & bandwidth are not that significant, so ignore these
+    static constexpr auto MinAreaToCare = 200 * 200;
+
+    // How far it has to be downscaled to trigger a warning
+    static constexpr auto WarnScaleFactor = .4f;
+
+    if (src.width() * src.height() <= MinAreaToCare) {
+        return;
+    }
+
+    const SkMatrix bitmapToLocal = SkMatrix::MakeRectToRect(src, dst, SkMatrix::kFill_ScaleToFit);
+    const SkMatrix localToDevice = c->getLocalToDeviceAs3x3();
+    const SkMatrix totalTransform = SkMatrix::Concat(bitmapToLocal, localToDevice);
+    const SkRect displayArea = totalTransform.mapRect(src);
+    const float xScale = displayArea.width() / src.width();
+    const float yScale = displayArea.height() / src.height();
+    // RAM & bandwidth are only concerned if the source content are oversized for the area it
+    // occupies, not undersized.
+    if (xScale < WarnScaleFactor || yScale < WarnScaleFactor) {
+        ATRACE_FORMAT_INSTANT("Image sized %dx%d being drawn to %.0fx%.0f", image->width(),
+                              image->height(), displayArea.width(), displayArea.height());
+    }
+}
 
 struct DrawImage final : Op {
     static const auto kType = Type::DrawImage;
@@ -363,6 +441,10 @@ struct DrawImage final : Op {
     SkGainmapInfo gainmapInfo;
 
     void draw(SkCanvas* c, const SkMatrix&) const {
+        if (ATRACE_ENABLED()) {
+            const SkRect src = SkRect::MakeWH(image->width(), image->height());
+            traceBitmapScaling(c, image, src, SkRect::MakeXYWH(x, y, src.width(), src.height()));
+        }
         if (gainmap) {
             SkRect src = SkRect::MakeWH(image->width(), image->height());
             SkRect dst = SkRect::MakeXYWH(x, y, src.width(), src.height());
@@ -373,6 +455,12 @@ struct DrawImage final : Op {
             tonemapPaint(image->imageInfo(), c->imageInfo(), -1, newPaint);
             c->drawImage(image.get(), x, y, sampling, &newPaint);
         }
+    }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const {
+        SkRect result;
+        result.setLTRB(x, y, x + image->width(), y + image->height());
+        return result;
     }
 };
 struct DrawImageRect final : Op {
@@ -402,15 +490,30 @@ struct DrawImageRect final : Op {
     SkGainmapInfo gainmapInfo;
 
     void draw(SkCanvas* c, const SkMatrix&) const {
+        if (ATRACE_ENABLED()) {
+            traceBitmapScaling(c, image, src, dst);
+        }
+        SkRect destination = dst;
+        if (CC_UNLIKELY(palette == BitmapPalette::Barcode && Properties::isForceInvertEnabled)) {
+            // Draw an extra quiet zone around the bitmap in order to guarantee that there
+            // is a white border between the likely-black background and the black portion of
+            // the barcode.
+            SkPaint whitePaint;
+            whitePaint.setColor(SkColors::kWhite);
+            c->drawRect(destination, whitePaint);
+            destination.inset(BARCODE_QUIET_ZONE_PX, BARCODE_QUIET_ZONE_PX);
+        }
         if (gainmap) {
-            DrawGainmapBitmap(c, image, src, dst, sampling, &paint, constraint, gainmap,
+            DrawGainmapBitmap(c, image, src, destination, sampling, &paint, constraint, gainmap,
                               gainmapInfo);
         } else {
             SkPaint newPaint = paint;
             tonemapPaint(image->imageInfo(), c->imageInfo(), -1, newPaint);
-            c->drawImageRect(image.get(), src, dst, sampling, &newPaint, constraint);
+            c->drawImageRect(image.get(), src, destination, sampling, &newPaint, constraint);
         }
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return dst; }
 };
 struct DrawImageLattice final : Op {
     static const auto kType = Type::DrawImageLattice;
@@ -448,6 +551,8 @@ struct DrawImageLattice final : Op {
         c->drawImageLattice(image.get(), {xdivs, ydivs, flags, xs, ys, &src, colors}, dst, filter,
                             &newPaint);
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return dst; }
 };
 
 struct DrawTextBlob final : Op {
@@ -487,6 +592,8 @@ struct DrawPatch final : Op {
         c->drawPatch(cubics, has_colors ? colors : nullptr, has_texs ? texs : nullptr, xfermode,
                      paint);
     }
+
+    // Note: drawPatch isn't actually used by Android, so we don't need getConservativeBounds()
 };
 struct DrawPoints final : Op {
     static const auto kType = Type::DrawPoints;
@@ -521,6 +628,8 @@ struct DrawVertices final : Op {
     void draw(SkCanvas* c, const SkMatrix&) const {
         c->drawVertices(vertices, mode, paint);
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return vertices->bounds(); }
 };
 struct DrawSkMesh final : Op {
     static const auto kType = Type::DrawSkMesh;
@@ -568,6 +677,8 @@ struct DrawSkMesh final : Op {
         c->drawMesh(cpuMesh, blender, paint);
 #endif
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return cpuMesh.bounds(); }
 };
 
 struct DrawMesh final : Op {
@@ -580,6 +691,8 @@ struct DrawMesh final : Op {
     SkPaint paint;
 
     void draw(SkCanvas* c, const SkMatrix&) const { c->drawMesh(mesh.getSkMesh(), blender, paint); }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return mesh.getBounds(); }
 };
 struct DrawAtlas final : Op {
     static const auto kType = Type::DrawAtlas;
@@ -609,6 +722,15 @@ struct DrawAtlas final : Op {
         c->drawAtlas(atlas.get(), xforms, texs, colors, count, mode, sampling, maybe_unset(cull),
                      &paint);
     }
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const {
+        auto bounds = maybe_unset(cull);
+        if (bounds) {
+            return *bounds;
+        }
+
+        return std::nullopt;
+    }
 };
 struct DrawShadowRec final : Op {
     static const auto kType = Type::DrawShadowRec;
@@ -636,6 +758,8 @@ struct DrawVectorDrawable final : Op {
     SkRect mBounds;
     Paint paint;
     BitmapPalette palette;
+
+    [[nodiscard]] std::optional<SkRect> getConservativeBounds() const { return mBounds; }
 };
 
 struct DrawRippleDrawable final : Op {
@@ -725,6 +849,91 @@ static constexpr inline bool is_power_of_two(int value) {
     return (value & (value - 1)) == 0;
 }
 
+template <class T>
+using has_paint_helper = decltype(std::declval<T>().paint);
+
+template <class T>
+constexpr bool has_paint = std::experimental::is_detected_v<has_paint_helper, T>;
+
+template <class T>
+using has_palette_helper = decltype(std::declval<T>().palette);
+
+template <class T>
+constexpr bool has_palette = std::experimental::is_detected_v<has_palette_helper, T>;
+
+inline bool DisplayListData::shouldCountColorAreas() const {
+    return view_accessibility_flags::force_invert_color() && Properties::isForceInvertEnabled;
+}
+
+typedef void (*color_area_fn)(const void*, ColorArea*);
+
+template <class T>
+using has_bounds_helper = decltype(std::declval<T>().getConservativeBounds());
+
+template <class T>
+constexpr bool has_bounds = std::experimental::is_detected_v<has_bounds_helper, T>;
+
+template <class T>
+constexpr color_area_fn colorAreaForOp() {
+    if constexpr (has_palette<T> && has_bounds<T>) {
+        return [](const void* opRaw, ColorArea* accumulator) {
+            const T* op = reinterpret_cast<const T*>(opRaw);
+            const SkPaint* paint = &op->paint;
+            if (!paint) return;
+
+            auto rect = op->getConservativeBounds();
+            if (!rect.has_value()) return;
+
+            accumulator->addArea(*rect, *paint, op->palette);
+        };
+    } else if constexpr (has_paint<T> && has_bounds<T>) {
+        return [](const void* opRaw, ColorArea* accumulator) {
+            const T* op = reinterpret_cast<const T*>(opRaw);
+            const SkPaint* paint = &op->paint;
+            if (!paint) return;
+
+            auto rect = op->getConservativeBounds();
+            if (!rect.has_value()) return;
+
+            accumulator->addArea(*rect, paint);
+        };
+    } else {
+        return nullptr;
+    }
+}
+
+template <>
+constexpr color_area_fn colorAreaForOp<DrawBehind>() {
+    return [](const void* opRaw, ColorArea* accumulator) {
+        const DrawBehind* op = reinterpret_cast<const DrawBehind*>(opRaw);
+        const SkPaint* paint = &op->paint;
+
+        // drawColor() fills the entire canvas area / RenderNode. We are ignoring clipping for now,
+        // since usually people only slightly exceed their bounds.
+        accumulator->addArea(accumulator->getParentWidth() * accumulator->getParentHeight(),
+                             *paint);
+    };
+}
+
+template <>
+constexpr color_area_fn colorAreaForOp<DrawPaint>() {
+    return [](const void* opRaw, ColorArea* accumulator) {
+        const DrawPaint* op = reinterpret_cast<const DrawPaint*>(opRaw);
+        const SkPaint* paint = &op->paint;
+
+        // drawColor() fills the entire canvas area / RenderNode. We are ignoring clipping for now,
+        // since usually people only slightly exceed their bounds.
+        accumulator->addArea(accumulator->getParentWidth() * accumulator->getParentHeight(),
+                             *paint);
+    };
+}
+
+#define X(T) colorAreaForOp<T>(),
+static const color_area_fn color_area_fns[] = {
+#include "DisplayListOps.in"
+};
+#undef X
+
 template <typename T>
 constexpr bool doesPaintHaveFill(T& paint) {
     using T1 = std::remove_cv_t<T>;
@@ -769,6 +978,12 @@ void* DisplayListData::push(size_t pod, Args&&... args) {
     if constexpr (!std::is_same_v<T, DrawTextBlob>) {
         if (hasPaintWithFill(args...)) {
             mHasFill = true;
+        }
+    }
+
+    if (CC_UNLIKELY(shouldCountColorAreas())) {
+        if (auto fn = color_area_fns[op->type]) {
+            fn(op, &mColorArea);
         }
     }
 
@@ -990,44 +1205,32 @@ void DisplayListData::reset() {
 
     // Leave fBytes and fReserved alone.
     fUsed = 0;
+
+    // TODO(b/372558459): reset here only?
+    mColorArea.reset();
 }
-
-template <class T>
-using has_paint_helper = decltype(std::declval<T>().paint);
-
-template <class T>
-constexpr bool has_paint = std::experimental::is_detected_v<has_paint_helper, T>;
-
-template <class T>
-using has_palette_helper = decltype(std::declval<T>().palette);
-
-template <class T>
-constexpr bool has_palette = std::experimental::is_detected_v<has_palette_helper, T>;
 
 template <class T>
 constexpr color_transform_fn colorTransformForOp() {
     if
         constexpr(has_paint<T> && has_palette<T>) {
-            // It's a bitmap
-            return [](const void* opRaw, ColorTransform transform) {
-                // TODO: We should be const. Or not. Or just use a different map
-                // Unclear, but this is the quick fix
-                const T* op = reinterpret_cast<const T*>(opRaw);
-                const SkPaint* paint = &op->paint;
-                transformPaint(transform, const_cast<SkPaint*>(paint), op->palette);
-            };
-        }
-    else if
-        constexpr(has_paint<T>) {
-            return [](const void* opRaw, ColorTransform transform) {
-                // TODO: We should be const. Or not. Or just use a different map
-                // Unclear, but this is the quick fix
-                const T* op = reinterpret_cast<const T*>(opRaw);
-                const SkPaint* paint = &op->paint;
-                transformPaint(transform, const_cast<SkPaint*>(paint));
-            };
-        }
-    else {
+        // It's a bitmap
+        return [](const void* opRaw, ColorTransform transform) {
+            // TODO: We should be const. Or not. Or just use a different map
+            // Unclear, but this is the quick fix
+            const T* op = reinterpret_cast<const T*>(opRaw);
+            const SkPaint* paint = &op->paint;
+            transformPaint(transform, const_cast<SkPaint*>(paint), op->palette);
+        };
+    } else if constexpr (has_paint<T>) {
+        return [](const void* opRaw, ColorTransform transform) {
+            // TODO: We should be const. Or not. Or just use a different map
+            // Unclear, but this is the quick fix
+            const T* op = reinterpret_cast<const T*>(opRaw);
+            const SkPaint* paint = &op->paint;
+            transformPaint(transform, const_cast<SkPaint*>(paint));
+        };
+    } else {
         return nullptr;
     }
 }
@@ -1036,6 +1239,13 @@ template<>
 constexpr color_transform_fn colorTransformForOp<DrawTextBlob>() {
     return [](const void *opRaw, ColorTransform transform) {
         const DrawTextBlob *op = reinterpret_cast<const DrawTextBlob*>(opRaw);
+        if (transform == ColorTransform::Invert) {
+            // Invert the colors no matter the usages of the ops to guarantee the contrast between
+            // ops when we perform a full force invert
+            transformPaint(transform, const_cast<SkPaint*>(&(op->paint)));
+            return;
+        }
+
         switch (op->drawTextBlobMode) {
         case DrawTextBlobMode::HctOutline:
             const_cast<SkPaint&>(op->paint).setColor(SK_ColorBLACK);
@@ -1055,7 +1265,7 @@ constexpr color_transform_fn colorTransformForOp<DrawRippleDrawable>() {
     return [](const void* opRaw, ColorTransform transform) {
         const DrawRippleDrawable* op = reinterpret_cast<const DrawRippleDrawable*>(opRaw);
         // Ripple drawable needs to contrast against the background, so we need the inverse color.
-        SkColor color = transformColorInverse(transform, op->mParams.color);
+        SkColor4f color = transformColorInverse(transform, op->mParams.color);
         const_cast<DrawRippleDrawable*>(op)->mParams.color = color;
     };
 }
@@ -1070,6 +1280,15 @@ void DisplayListData::applyColorTransform(ColorTransform transform) {
     this->map(color_transform_fns, transform);
 }
 
+void DisplayListData::findFillAreas(ColorArea& accumulator) {
+    accumulator.merge(mColorArea);
+}
+
+void DisplayListData::setBounds(const SkIRect& bounds) {
+    mColorArea.setParentWidth(bounds.width());
+    mColorArea.setParentHeight(bounds.height());
+}
+
 RecordingCanvas::RecordingCanvas() : INHERITED(1, 1), fDL(nullptr) {}
 
 void RecordingCanvas::reset(DisplayListData* dl, const SkIRect& bounds) {
@@ -1077,6 +1296,9 @@ void RecordingCanvas::reset(DisplayListData* dl, const SkIRect& bounds) {
     fDL = dl;
     mClipMayBeComplex = false;
     mSaveCount = mComplexSaveCount = 0;
+
+    // TODO(b/372558459) - Check if dl->reset() should be called here
+    dl->setBounds(bounds);
 }
 
 sk_sp<SkSurface> RecordingCanvas::onNewSurface(const SkImageInfo&, const SkSurfaceProps&) {

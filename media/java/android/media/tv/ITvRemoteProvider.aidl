@@ -19,7 +19,7 @@ package android.media.tv;
 import android.media.tv.ITvRemoteServiceInput;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ITvRemoteProvider {
     void setRemoteServiceInputSink(in ITvRemoteServiceInput tvServiceInput);

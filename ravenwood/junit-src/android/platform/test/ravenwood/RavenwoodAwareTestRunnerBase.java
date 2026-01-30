@@ -15,10 +15,12 @@
  */
 package android.platform.test.ravenwood;
 
-import static com.android.ravenwood.common.RavenwoodCommonUtils.RAVENWOOD_VERBOSE_LOGGING;
+import static com.android.ravenwood.common.RavenwoodInternalUtils.RAVENWOOD_VERBOSE_LOGGING;
 
 import android.platform.test.annotations.internal.InnerRunner;
 import android.util.Log;
+
+import com.android.ravenwood.common.RavenwoodInternalUtils;
 
 import org.junit.internal.builders.AllDefaultPossibilitiesBuilder;
 import org.junit.runner.Description;
@@ -31,13 +33,12 @@ import org.junit.runner.manipulation.Orderable;
 import org.junit.runner.manipulation.Orderer;
 import org.junit.runner.manipulation.Sortable;
 import org.junit.runner.manipulation.Sorter;
-import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.model.RunnerBuilder;
 import org.junit.runners.model.TestClass;
 
 abstract class RavenwoodAwareTestRunnerBase extends Runner implements Filterable, Orderable {
-    public static final String TAG = com.android.ravenwood.common.RavenwoodCommonUtils.TAG;
+    public static final String TAG = RavenwoodInternalUtils.TAG;
 
     boolean mRealRunnerTakesRunnerBuilder = false;
 

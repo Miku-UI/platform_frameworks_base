@@ -16,6 +16,10 @@
 
 package android.appwidget;
 
+import static android.appwidget.flags.Flags.FLAG_ENGAGEMENT_METRICS;
+import static android.appwidget.flags.Flags.engagementMetrics;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.Activity;
@@ -45,6 +49,8 @@ import com.android.internal.appwidget.IAppWidgetHost;
 import com.android.internal.appwidget.IAppWidgetService;
 
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -286,6 +292,7 @@ public class AppWidgetHost {
         catch (RemoteException e) {
             throw new RuntimeException("system server dead?", e);
         }
+        reportAllWidgetEvents();
     }
 
     /**
@@ -384,6 +391,7 @@ public class AppWidgetHost {
         } catch (RemoteException e) {
             throw new RuntimeException("System server dead?", e);
         }
+        reportAllWidgetEvents();
     }
 
     /**
@@ -554,6 +562,17 @@ public class AppWidgetHost {
          * @hide
          */
         void onViewDataChanged(int viewId);
+
+        /**
+         * This function returns the current set of widget event data being tracked by this widget.
+         *
+         * @hide
+         */
+        @FlaggedApi(FLAG_ENGAGEMENT_METRICS)
+        @Nullable
+        default AppWidgetEvent collectWidgetEvent() {
+            return null;
+        }
     }
 
     void dispatchOnAppWidgetRemoved(int appWidgetId) {
@@ -604,6 +623,7 @@ public class AppWidgetHost {
      * @hide
      */
     public void removeListener(int appWidgetId) {
+        reportEventForWidget(appWidgetId);
         synchronized (mListeners) {
             mListeners.remove(appWidgetId);
         }
@@ -636,8 +656,69 @@ public class AppWidgetHost {
      * Clear the list of Views that have been created by this AppWidgetHost.
      */
     protected void clearViews() {
+        reportAllWidgetEvents();
         synchronized (mListeners) {
             mListeners.clear();
+        }
+    }
+
+    /**
+     * Report any pending widget event data to the AppWidgetService.
+     *
+     * @hide
+     */
+    public void reportAllWidgetEvents() {
+        if (sService == null || !engagementMetrics()) {
+            return;
+        }
+
+        List<AppWidgetEvent> eventList = new ArrayList<>();
+        synchronized (mListeners) {
+            for (int i = 0; i < mListeners.size(); i++) {
+                AppWidgetEvent event = mListeners.valueAt(i).collectWidgetEvent();
+                if (event != null) {
+                    eventList.add(event);
+                }
+            }
+        }
+        if (eventList.isEmpty()) {
+            return;
+        }
+        AppWidgetEvent[] events = new AppWidgetEvent[eventList.size()];
+        for (int i = 0; i < events.length; i++) {
+            events[i] = eventList.get(i);
+        }
+
+        try {
+            sService.reportWidgetEvents(mContextOpPackageName, events);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Report a pending widget event to the AppWidgetService.
+     *
+     * @hide
+     */
+    public void reportEventForWidget(int appWidgetId) {
+        if (sService == null || !engagementMetrics()) {
+            return;
+        }
+        AppWidgetHostListener listener = getListener(appWidgetId);
+        if (listener == null) {
+            return;
+        }
+        AppWidgetEvent event = listener.collectWidgetEvent();
+        if (event == null) {
+            return;
+        }
+        AppWidgetEvent[] events = {event};
+
+        try {
+            sService.reportWidgetEvents(mContextOpPackageName, events);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
         }
     }
 }

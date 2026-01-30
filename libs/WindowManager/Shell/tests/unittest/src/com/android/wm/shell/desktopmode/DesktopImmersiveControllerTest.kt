@@ -44,10 +44,16 @@ import com.android.wm.shell.common.DisplayLayout
 import com.android.wm.shell.desktopmode.DesktopImmersiveController.Direction
 import com.android.wm.shell.desktopmode.DesktopImmersiveController.ExitReason.USER_INTERACTION
 import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFreeformTask
+import com.android.wm.shell.desktopmode.data.DesktopRepository
+import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.util.StubTransaction
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.test.TestScope
+import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -80,21 +86,28 @@ class DesktopImmersiveControllerTest : ShellTestCase() {
     @Mock private lateinit var mockShellTaskOrganizer: ShellTaskOrganizer
     @Mock private lateinit var mockDisplayLayout: DisplayLayout
     private val transactionSupplier = { StubTransaction() }
+    private lateinit var desktopState: FakeDesktopState
+    private lateinit var desktopConfig: FakeDesktopConfig
 
     private lateinit var controller: DesktopImmersiveController
     private lateinit var desktopRepository: DesktopRepository
+    private val testScope = TestScope()
 
     @Before
     fun setUp() {
+        desktopState = FakeDesktopState()
+        desktopConfig = FakeDesktopConfig()
         userRepositories =
             DesktopUserRepositories(
-                context,
                 ShellInit(TestShellExecutor()),
                 mock(),
                 mock(),
                 mock(),
+                testScope.backgroundScope,
+                testScope.backgroundScope,
                 mock(),
-                mock(),
+                desktopState,
+                desktopConfig,
             )
         whenever(mockDisplayController.getDisplayLayout(DEFAULT_DISPLAY))
             .thenReturn(mockDisplayLayout)
@@ -116,6 +129,11 @@ class DesktopImmersiveControllerTest : ShellTestCase() {
         desktopRepository = userRepositories.current
         desktopRepository.addDesk(DEFAULT_DISPLAY, DEFAULT_DESK_ID)
         desktopRepository.setActiveDesk(DEFAULT_DISPLAY, DEFAULT_DESK_ID)
+    }
+
+    @After
+    fun tearDown() {
+        testScope.cancel()
     }
 
     @Test

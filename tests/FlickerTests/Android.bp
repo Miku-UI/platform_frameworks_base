@@ -80,7 +80,7 @@ java_library {
     installable: false,
 }
 
-java_library {
+android_library {
     name: "FlickerTestsBase",
     defaults: ["FlickerTestsDefault"],
     srcs: ["src/**/*"],

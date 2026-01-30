@@ -78,17 +78,10 @@ public class ReduceBrightColorsControllerImpl implements
             public void onUserChanged(int newUser, Context userContext) {
                 synchronized (mListeners) {
                     if (mListeners.size() > 0) {
-                        if (com.android.systemui.Flags.registerContentObserversAsync()) {
-                            mSecureSettings.unregisterContentObserverAsync(mContentObserver);
-                            mSecureSettings.registerContentObserverForUserAsync(
-                                    Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
-                                    false, mContentObserver, newUser);
-                        } else {
-                            mSecureSettings.unregisterContentObserverSync(mContentObserver);
-                            mSecureSettings.registerContentObserverForUserSync(
-                                    Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
-                                    false, mContentObserver, newUser);
-                        }
+                        mSecureSettings.unregisterContentObserverAsync(mContentObserver);
+                        mSecureSettings.registerContentObserverForUserAsync(
+                                Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                                false, mContentObserver, newUser);
                     }
                 }
             }
@@ -102,15 +95,9 @@ public class ReduceBrightColorsControllerImpl implements
             if (!mListeners.contains(listener)) {
                 mListeners.add(listener);
                 if (mListeners.size() == 1) {
-                    if (com.android.systemui.Flags.registerContentObserversAsync()) {
-                        mSecureSettings.registerContentObserverForUserAsync(
-                                Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
-                                false, mContentObserver, mUserTracker.getUserId());
-                    } else {
-                        mSecureSettings.registerContentObserverForUserSync(
-                                Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
-                                false, mContentObserver, mUserTracker.getUserId());
-                    }
+                    mSecureSettings.registerContentObserverForUserAsync(
+                            Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED,
+                            false, mContentObserver, mUserTracker.getUserId());
                 }
             }
         }
@@ -120,11 +107,7 @@ public class ReduceBrightColorsControllerImpl implements
     public void removeCallback(@androidx.annotation.NonNull Listener listener) {
         synchronized (mListeners) {
             if (mListeners.remove(listener) && mListeners.size() == 0) {
-                if (com.android.systemui.Flags.registerContentObserversAsync()) {
-                    mSecureSettings.unregisterContentObserverAsync(mContentObserver);
-                } else {
-                    mSecureSettings.unregisterContentObserverSync(mContentObserver);
-                }
+                mSecureSettings.unregisterContentObserverAsync(mContentObserver);
             }
         }
     }

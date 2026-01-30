@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"මුරපදය හෝ ඇඟිලි සලකුණ සමග අගුළු හරින්න"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"රටාව හෝ ඇඟිලි සලකුණ සමග අගුළු හරින්න"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"අමතර ආරක්ෂාව සඳහා, වැඩ ප්‍රතිපත්තියෙන් උපාංගය අගුළු දමා ඇත"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"දෙපියවර සත්‍යාපනය"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"ඇඟිලි සලකුණු අගුළු හැරීම භාවිත කරන්න"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"මුහුණෙන් අගුළු හැරීම භාවිත කරන්න"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"ඇඟිලි සලකුණු හෝ මුහුණු අගුළු හැරීම භාවිතා කරන්න"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"අගුළු දැමීමෙන් පසු PIN අවශ්‍ය වේ"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"අගුළු දැමීමෙන් පසු මුරපදය අවශ්‍ය වේ"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"අගුළු දැමීමෙන් පසු රටාව අවශ්‍ය වේ"</string>

@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"एपहरू द्रुत गतिमा बदल्न बायाँतिर ड्र्याग गर्नुहोस्"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"नोटिफिकेसनहरू खोल्न सिरानको दायाँतिरबाट तलतिर स्वाइप गर्नुहोस्"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"द्रुत सेटिङ खोल्न सिरानको बायाँतिरबाट तलतिर स्वाइप गर्नुहोस्"</string>
 </resources>

@@ -74,6 +74,8 @@ sealed class SceneContainerArea(private val resolveArea: (LayoutDirection) -> Re
             }
         )
 
+    data object BottomEdge : SceneContainerArea(resolveArea = { Resolved.BottomEdge })
+
     override fun resolve(layoutDirection: LayoutDirection): Resolved {
         return resolveArea(layoutDirection)
     }

@@ -18,6 +18,7 @@ package com.android.settingslib.preference
 
 import android.content.Context
 import androidx.preference.PreferenceScreen
+import kotlinx.coroutines.CoroutineScope
 
 /**
  * Interface to provide [PreferenceScreen].
@@ -35,5 +36,8 @@ interface PreferenceScreenProvider {
      * Preference screen creation could happen in background service. The implementation MUST use
      * [PreferenceScreenFactory.context] to obtain context.
      */
-    fun createPreferenceScreen(factory: PreferenceScreenFactory): PreferenceScreen?
+    fun createPreferenceScreen(
+        factory: PreferenceScreenFactory,
+        coroutineScope: CoroutineScope,
+    ): PreferenceScreen?
 }

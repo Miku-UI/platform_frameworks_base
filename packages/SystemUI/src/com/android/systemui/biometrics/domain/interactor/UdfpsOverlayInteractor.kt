@@ -22,6 +22,7 @@ import android.util.Log
 import android.view.MotionEvent
 import com.android.systemui.biometrics.AuthController
 import com.android.systemui.biometrics.shared.model.UdfpsOverlayParams
+import com.android.systemui.biometrics.ui.viewmodel.DeviceEntryUdfpsTouchOverlayViewModel
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
 import com.android.systemui.common.coroutine.ConflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
@@ -31,6 +32,7 @@ import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import javax.inject.Inject
 import kotlin.math.max
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +42,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 /** Encapsulates business logic for interacting with the UDFPS overlay. */
 @SysUISingleton
@@ -50,7 +53,7 @@ constructor(
     private val authController: AuthController,
     private val selectedUserInteractor: SelectedUserInteractor,
     private val fingerprintManager: FingerprintManager?,
-    @Application scope: CoroutineScope,
+    @Application private val scope: CoroutineScope,
 ) {
     private fun calculateIconSize(): Int {
         val pixelPitch = context.resources.getFloat(R.dimen.pixel_pitch)
@@ -130,6 +133,31 @@ constructor(
                 max(0, (nativePadding * params.scaleFactor).toInt())
             }
             .distinctUntilChanged()
+
+    private var isUpdatingSetHandleTouchesForKeyguard: Job? = null
+
+    fun stopSetHandleTouchesForKeyguard() {
+        isUpdatingSetHandleTouchesForKeyguard?.cancel()
+        isUpdatingSetHandleTouchesForKeyguard = null
+    }
+
+    fun updateSetHandleTouchesForKeyguard(
+        deviceEntryUdfpsTouchOverlayViewModel: DeviceEntryUdfpsTouchOverlayViewModel
+    ) {
+        if (isUpdatingSetHandleTouchesForKeyguard == null) {
+            isUpdatingSetHandleTouchesForKeyguard =
+                scope.launch {
+                    deviceEntryUdfpsTouchOverlayViewModel.shouldHandleTouches.collect {
+                        Log.d("UdfpsOverlayInteractor", "update shouldHandleTouches=$it")
+                        setHandleTouches(it)
+                    }
+                }
+            isUpdatingSetHandleTouchesForKeyguard?.invokeOnCompletion {
+                Log.d("UdfpsOverlayInteractor", "invokeOnCompletion shouldHandleTouches=false")
+                setHandleTouches(false)
+            }
+        }
+    }
 
     companion object {
         private const val TAG = "UdfpsOverlayInteractor"

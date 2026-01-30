@@ -102,38 +102,16 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
-        mobileRepo =
-            FakeMobileConnectionRepository(
-                SUB_ID,
-                tableLogBuffer,
-            )
+        mobileRepo = FakeMobileConnectionRepository(SUB_ID, tableLogBuffer)
         carrierMergedRepo =
-            FakeMobileConnectionRepository(
-                    SUB_ID,
-                    tableLogBuffer,
-                )
-                .apply {
-                    // Mimicks the real carrier merged repository
-                    this.isAllowedDuringAirplaneMode.value = true
-                }
+            FakeMobileConnectionRepository(SUB_ID, tableLogBuffer).apply {
+                // Mimicks the real carrier merged repository
+                this.isAllowedDuringAirplaneMode.value = true
+            }
 
-        whenever(
-                mobileFactory.build(
-                    eq(SUB_ID),
-                    any(),
-                    any(),
-                    eq(DEFAULT_NAME_MODEL),
-                    eq(SEP),
-                )
-            )
+        whenever(mobileFactory.build(eq(SUB_ID), any(), any(), eq(DEFAULT_NAME_MODEL), eq(SEP)))
             .thenReturn(mobileRepo)
-        whenever(
-                carrierMergedFactory.build(
-                    eq(SUB_ID),
-                    any(),
-                )
-            )
-            .thenReturn(carrierMergedRepo)
+        whenever(carrierMergedFactory.build(eq(SUB_ID), any())).thenReturn(carrierMergedRepo)
     }
 
     @Test
@@ -150,13 +128,7 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
             assertThat(underTest.activeRepo.value).isEqualTo(carrierMergedRepo)
             assertThat(underTest.operatorAlphaShort.value).isEqualTo(carrierMergedOperatorName)
             verify(mobileFactory, never())
-                .build(
-                    SUB_ID,
-                    tableLogBuffer,
-                    subscriptionModel,
-                    DEFAULT_NAME_MODEL,
-                    SEP,
-                )
+                .build(SUB_ID, tableLogBuffer, subscriptionModel, DEFAULT_NAME_MODEL, SEP)
         }
 
     @Test
@@ -172,11 +144,7 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
 
             assertThat(underTest.activeRepo.value).isEqualTo(mobileRepo)
             assertThat(underTest.operatorAlphaShort.value).isEqualTo(nonCarrierMergedName)
-            verify(carrierMergedFactory, never())
-                .build(
-                    SUB_ID,
-                    tableLogBuffer,
-                )
+            verify(carrierMergedFactory, never()).build(SUB_ID, tableLogBuffer)
         }
 
     @Test
@@ -485,23 +453,13 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
             val job = underTest.primaryLevel.launchIn(this)
 
             // WHEN we set up carrier merged info
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.CarrierMerged.of(
-                    SUB_ID,
-                    level = 3,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.CarrierMerged.of(SUB_ID, level = 3))
 
             // THEN the carrier merged info is logged
             assertThat(dumpBuffer()).contains("$COL_PRIMARY_LEVEL${BUFFER_SEPARATOR}3")
 
             // WHEN we update the info
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.CarrierMerged.of(
-                    SUB_ID,
-                    level = 1,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.CarrierMerged.of(SUB_ID, level = 1))
 
             // THEN the updates are logged
             assertThat(dumpBuffer()).contains("$COL_PRIMARY_LEVEL${BUFFER_SEPARATOR}1")
@@ -535,24 +493,14 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
             assertThat(dumpBuffer()).contains("$COL_PRIMARY_LEVEL${BUFFER_SEPARATOR}1")
 
             // WHEN isCarrierMerged is set to true
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.CarrierMerged.of(
-                    SUB_ID,
-                    level = 3,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.CarrierMerged.of(SUB_ID, level = 3))
             underTest.setIsCarrierMerged(true)
 
             // THEN the carrier merged info is logged
             assertThat(dumpBuffer()).contains("$COL_PRIMARY_LEVEL${BUFFER_SEPARATOR}3")
 
             // WHEN the carrier merge network is updated
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.CarrierMerged.of(
-                    SUB_ID,
-                    level = 4,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.CarrierMerged.of(SUB_ID, level = 4))
 
             // THEN the new level is logged
             assertThat(dumpBuffer()).contains("$COL_PRIMARY_LEVEL${BUFFER_SEPARATOR}4")
@@ -599,20 +547,10 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
                 .onSignalStrengthsChanged(signalStrength)
 
             // THEN updates to the carrier merged level aren't logged
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.CarrierMerged.of(
-                    SUB_ID,
-                    level = 4,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.CarrierMerged.of(SUB_ID, level = 4))
             assertThat(dumpBuffer()).doesNotContain("$COL_PRIMARY_LEVEL${BUFFER_SEPARATOR}4")
 
-            wifiRepository.setWifiNetwork(
-                WifiNetworkModel.CarrierMerged.of(
-                    SUB_ID,
-                    level = 3,
-                )
-            )
+            wifiRepository.setWifiNetwork(WifiNetworkModel.CarrierMerged.of(SUB_ID, level = 3))
             assertThat(dumpBuffer()).doesNotContain("$COL_PRIMARY_LEVEL${BUFFER_SEPARATOR}3")
 
             // WHEN isCarrierMerged is set to true
@@ -648,7 +586,7 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
     }
 
     private fun createRealMobileRepo(
-        telephonyManager: TelephonyManager,
+        telephonyManager: TelephonyManager
     ): MobileConnectionRepositoryImpl {
         whenever(telephonyManager.subscriptionId).thenReturn(SUB_ID)
         val realRepo =
@@ -669,15 +607,7 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
                 flags,
                 testScope.backgroundScope,
             )
-        whenever(
-                mobileFactory.build(
-                    eq(SUB_ID),
-                    any(),
-                    any(),
-                    eq(DEFAULT_NAME_MODEL),
-                    eq(SEP),
-                )
-            )
+        whenever(mobileFactory.build(eq(SUB_ID), any(), any(), eq(DEFAULT_NAME_MODEL), eq(SEP)))
             .thenReturn(realRepo)
 
         return realRepo
@@ -694,17 +624,12 @@ class FullMobileConnectionRepositoryTest : SysuiTestCase() {
                 SUB_ID,
                 tableLogBuffer,
                 telephonyManager,
+                systemUiCarrierConfig,
                 testScope.backgroundScope.coroutineContext,
                 testScope.backgroundScope,
                 wifiRepository,
             )
-        whenever(
-                carrierMergedFactory.build(
-                    eq(SUB_ID),
-                    any(),
-                )
-            )
-            .thenReturn(realRepo)
+        whenever(carrierMergedFactory.build(eq(SUB_ID), any())).thenReturn(realRepo)
 
         return realRepo
     }

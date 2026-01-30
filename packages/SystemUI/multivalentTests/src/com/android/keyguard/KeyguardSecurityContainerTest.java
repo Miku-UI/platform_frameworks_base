@@ -57,6 +57,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.bouncer.domain.interactor.BouncerInteractor;
 import com.android.systemui.classifier.FalsingA11yDelegate;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.res.R;
@@ -99,6 +100,8 @@ public class KeyguardSecurityContainerTest extends SysuiTestCase {
     private UserSwitcherController mUserSwitcherController;
     @Mock
     private FalsingA11yDelegate mFalsingA11yDelegate;
+    @Mock
+    private BouncerInteractor mBouncerInteractor;
     @Captor
     private ArgumentCaptor<UserSwitchCallback> mUserSwitchCallbackCaptor =
             ArgumentCaptor.forClass(UserSwitchCallback.class);
@@ -528,7 +531,7 @@ public class KeyguardSecurityContainerTest extends SysuiTestCase {
     private void initMode(int mode) {
         mKeyguardSecurityContainer.initMode(mode, mGlobalSettings, mFalsingManager,
                 mUserSwitcherController, () -> {
-                }, mFalsingA11yDelegate);
+                }, mFalsingA11yDelegate, mBouncerInteractor);
     }
 
     private void ensureViewFlipperIsMocked() {

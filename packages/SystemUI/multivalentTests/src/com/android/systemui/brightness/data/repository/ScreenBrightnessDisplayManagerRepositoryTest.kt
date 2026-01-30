@@ -20,7 +20,7 @@ import android.hardware.display.BrightnessInfo
 import android.hardware.display.BrightnessInfo.BRIGHTNESS_MAX_REASON_NONE
 import android.hardware.display.BrightnessInfo.HIGH_BRIGHTNESS_MODE_OFF
 import android.hardware.display.DisplayManager
-import android.hardware.display.DisplayManager.PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS
+import android.hardware.display.DisplayManager.EVENT_TYPE_DISPLAY_BRIGHTNESS
 import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -117,8 +117,7 @@ class ScreenBrightnessDisplayManagerRepositoryTest : SysuiTestCase() {
                     .registerDisplayListener(
                         capture(listenerCaptor),
                         eq(null),
-                        eq(0),
-                        eq(PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS),
+                        eq(EVENT_TYPE_DISPLAY_BRIGHTNESS),
                     )
 
                 val newBrightness = BrightnessInfo(0.6f, 0.3f, 0.9f)
@@ -156,8 +155,7 @@ class ScreenBrightnessDisplayManagerRepositoryTest : SysuiTestCase() {
                     .registerDisplayListener(
                         capture(listenerCaptor),
                         eq(null),
-                        eq(0),
-                        eq(PRIVATE_EVENT_TYPE_DISPLAY_BRIGHTNESS),
+                        eq(EVENT_TYPE_DISPLAY_BRIGHTNESS),
                     )
 
                 changeBrightnessInfoAndNotify(

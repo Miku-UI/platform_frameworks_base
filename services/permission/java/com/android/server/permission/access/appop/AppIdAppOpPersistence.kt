@@ -83,7 +83,7 @@ class AppIdAppOpPersistence : BaseAppOpPersistence() {
 
     private fun BinaryXmlSerializer.serializeAppId(
         appId: Int,
-        appOpModes: IndexedMap<String, Int>
+        appOpModes: IndexedMap<String, Int>,
     ) {
         tag(TAG_APP_ID) {
             attributeInt(ATTR_ID, appId)

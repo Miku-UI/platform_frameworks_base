@@ -1,0 +1,82 @@
+//
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
+package {
+    default_team: "trendy_team_system_ui_performance",
+}
+
+filegroup {
+    name: "sysui_metrics_artifacts",
+    srcs: [
+        "android_bitmap_metric.textproto",
+        "android_sf_critical_work_main_thread.textproto",
+        "android_dmabuf_per_process_metric.textproto",
+        "android_sf_critical_work_region_sampling.textproto",
+        "android_gralloc_buffers_per_process_metric.textproto",
+    ],
+}
+
+prebuilt_etc {
+    name: "android_bitmap_metric.textproto",
+    src: "android_bitmap_metric.textproto",
+}
+
+prebuilt_etc {
+    name: "android_sf_critical_work_main_thread.textproto",
+    src: "android_sf_critical_work_main_thread.textproto",
+}
+
+prebuilt_etc {
+    name: "android_dmabuf_per_process_metric.textproto",
+    src: "android_dmabuf_per_process_metric.textproto",
+}
+
+prebuilt_etc {
+    name: "android_sf_critical_work_region_sampling.textproto",
+    src: "android_sf_critical_work_region_sampling.textproto",
+}
+
+prebuilt_etc {
+    name: "android_gralloc_buffers_per_process_metric.textproto",
+    src: "android_gralloc_buffers_per_process_metric.textproto",
+}
+
+python_library_host {
+    name: "metrics-tests-utils",
+    srcs: ["tests/utils/*.py"],
+    pkg_path: "metrics_specs",
+}
+
+python_test_host {
+    name: "SysUiMetricsV2Test",
+    main: "tests/metrics_v2_test.py",
+    srcs: ["tests/metrics_v2_test.py"],
+    libs: [
+        "perfetto-trace-processor-python",
+        "perfetto-trace-proto-python",
+        "metrics-tests-utils",
+    ],
+    data: [
+        ":trace_processor_shell_prebuilt",
+        "*.textproto",
+        "tests/data/*.txt",
+    ],
+    test_options: {
+        unit_test: true,
+    },
+    // The test needs to use the host python interpreter to be able import the perfetto modules.
+    embedded_launcher: false,
+}

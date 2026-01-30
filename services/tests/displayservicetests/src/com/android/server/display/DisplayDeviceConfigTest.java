@@ -45,6 +45,8 @@ import android.hardware.display.DisplayManagerInternal;
 import android.os.PowerManager;
 import android.os.Temperature;
 import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.Settings;
 import android.util.SparseArray;
 import android.util.Spline;
@@ -54,6 +56,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.R;
+import com.android.internal.display.BrightnessUtils;
 import com.android.server.display.config.HdrBrightnessData;
 import com.android.server.display.config.HighBrightnessModeData;
 import com.android.server.display.config.HysteresisLevels;
@@ -65,6 +68,7 @@ import com.android.server.display.feature.DisplayManagerFlags;
 import com.android.server.display.feature.flags.Flags;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -100,6 +104,10 @@ public final class DisplayDeviceConfigTest {
     private DisplayDeviceConfig mDisplayDeviceConfig;
     private static final float ZERO_DELTA = 0.0f;
     private static final float SMALL_DELTA = 0.0001f;
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
     @Mock
     private Context mContext;
 
@@ -115,7 +123,6 @@ public final class DisplayDeviceConfigTest {
         when(mContext.getResources()).thenReturn(mResources);
         when(mFlags.areAutoBrightnessModesEnabled()).thenReturn(true);
         when(mFlags.isSensorBasedBrightnessThrottlingEnabled()).thenReturn(true);
-        when(mFlags.isIdleScreenRefreshRateTimeoutEnabled()).thenReturn(true);
         mockDeviceConfigs();
     }
 
@@ -465,20 +472,83 @@ public final class DisplayDeviceConfigTest {
         assertTrue(mDisplayDeviceConfig.hasSdrToHdrRatioSpline());
         assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500 * 1.6f),
                 mDisplayDeviceConfig.getHdrBrightnessFromSdr(
-                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), Float.POSITIVE_INFINITY),
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        Float.POSITIVE_INFINITY, /* ratioScaleFactor= */ 1),
                 ZERO_DELTA);
         assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500),
                 mDisplayDeviceConfig.getHdrBrightnessFromSdr(
-                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), 1.0f),
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        1.0f, /* ratioScaleFactor= */ 1),
                 ZERO_DELTA);
         assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500 * 1.25f),
                 mDisplayDeviceConfig.getHdrBrightnessFromSdr(
-                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), 1.25f),
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        1.25f, /* ratioScaleFactor= */ 1),
                 SMALL_DELTA);
         assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(2 * 4),
                 mDisplayDeviceConfig.getHdrBrightnessFromSdr(
-                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), Float.POSITIVE_INFINITY),
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), /* maxDesiredHdrSdrRatio= */
+                        Float.POSITIVE_INFINITY, /* ratioScaleFactor= */ 1),
                 SMALL_DELTA);
+
+        // Ratio scale factor
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        Float.POSITIVE_INFINITY, /* ratioScaleFactor= */ 0),
+                ZERO_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500 * ((1.6f - 1) * 0.3f + 1)),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        Float.POSITIVE_INFINITY, /* ratioScaleFactor= */ 0.3f),
+                SMALL_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(2),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), /* maxDesiredHdrSdrRatio= */
+                        Float.POSITIVE_INFINITY, /* ratioScaleFactor= */ 0),
+                SMALL_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(2 * ((4 - 1) * 0.85f + 1)),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), /* maxDesiredHdrSdrRatio= */
+                        Float.POSITIVE_INFINITY, /* ratioScaleFactor= */ 0.85f),
+                SMALL_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(2 * ((4 - 1) * 0.5f + 1)),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), /* maxDesiredHdrSdrRatio= */
+                        Float.POSITIVE_INFINITY, /* ratioScaleFactor= */ 0.5f),
+                SMALL_DELTA);
+
+        // Max desired Hdr/SDR ratio applied after ratio scale factor
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        1.25f, /* ratioScaleFactor= */ 0),
+                ZERO_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500 * ((1.6f - 1) * 0.3f + 1)),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        1.3f, /* ratioScaleFactor= */ 0.3f),
+                SMALL_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(500 * 1.1f),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(500), /* maxDesiredHdrSdrRatio= */
+                        1.1f, /* ratioScaleFactor= */ 0.3f),
+                SMALL_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(2 * ((4 - 1) * 0.85f + 1)),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), /* maxDesiredHdrSdrRatio= */ 5,
+                        /* ratioScaleFactor= */ 0.85f),
+                SMALL_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(2 * 2),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), /* maxDesiredHdrSdrRatio= */ 2,
+                        /* ratioScaleFactor= */ 0.5f),
+                SMALL_DELTA);
+        assertEquals(NITS_TO_BRIGHTNESS_SPLINE.interpolate(2),
+                mDisplayDeviceConfig.getHdrBrightnessFromSdr(
+                        NITS_TO_BRIGHTNESS_SPLINE.interpolate(2), /* maxDesiredHdrSdrRatio= */ 1,
+                        /* ratioScaleFactor= */ 0.5f),
+                ZERO_DELTA);
     }
 
     @Test
@@ -1000,7 +1070,6 @@ public final class DisplayDeviceConfigTest {
 
     @Test
     public void testDozeBrightness_Ddc() throws IOException {
-        when(mFlags.isDozeBrightnessFloatEnabled()).thenReturn(true);
         setupDisplayDeviceConfigFromDisplayConfigFile();
 
         assertArrayEquals(new float[]{ -1, 0.1f, 0.2f, 0.3f, 0.4f },
@@ -1011,7 +1080,6 @@ public final class DisplayDeviceConfigTest {
     @Test
     public void testDefaultDozeBrightness_FallBackToConfigXmlFloat() throws IOException {
         setupDisplayDeviceConfigFromConfigResourceFile();
-        when(mFlags.isDozeBrightnessFloatEnabled()).thenReturn(true);
         when(mResources.getFloat(com.android.internal.R.dimen.config_screenBrightnessDozeFloat))
                 .thenReturn(0.31f);
         when(mResources.getInteger(com.android.internal.R.integer.config_screenBrightnessDoze))
@@ -1028,9 +1096,8 @@ public final class DisplayDeviceConfigTest {
     @Test
     public void testDefaultDozeBrightness_FallBackToConfigXmlInt() throws IOException {
         setupDisplayDeviceConfigFromConfigResourceFile();
-        when(mFlags.isDozeBrightnessFloatEnabled()).thenReturn(true);
         when(mResources.getFloat(com.android.internal.R.dimen.config_screenBrightnessDozeFloat))
-                .thenReturn(DisplayDeviceConfig.INVALID_BRIGHTNESS_IN_CONFIG);
+                .thenReturn(BrightnessUtils.INVALID_BRIGHTNESS_IN_CONFIG);
         when(mResources.getInteger(com.android.internal.R.integer.config_screenBrightnessDoze))
                 .thenReturn(90);
 

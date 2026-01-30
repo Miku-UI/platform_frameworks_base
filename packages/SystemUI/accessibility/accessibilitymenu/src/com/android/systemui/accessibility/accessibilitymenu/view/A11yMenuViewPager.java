@@ -172,7 +172,7 @@ public class A11yMenuViewPager {
                 a11yMenuLayout.getResources().getConfiguration());
         updateFooterState();
         registerOnGlobalLayoutListener();
-        goToPage(pageIndex);
+        goToPage(pageIndex, /*shouldAnimate=*/ false);
     }
 
     /** Initializes viewPager and its adapter. */
@@ -213,12 +213,12 @@ public class A11yMenuViewPager {
         mA11yMenuFooter.getNextPageBtn().setEnabled(currentPage < lastPage);
     }
 
-    private void goToPage(int pageIndex) {
+    private void goToPage(int pageIndex, boolean shouldAnimate) {
         if (mViewPager == null) {
             return;
         }
         if ((pageIndex >= 0) && (pageIndex < mViewPager.getAdapter().getItemCount())) {
-            mViewPager.setCurrentItem(pageIndex);
+            mViewPager.setCurrentItem(pageIndex, shouldAnimate);
         }
     }
 
@@ -329,7 +329,7 @@ public class A11yMenuViewPager {
                 public void onPreviousButtonClicked() {
                     // Moves to previous page.
                     int targetPage = mViewPager.getCurrentItem() - 1;
-                    goToPage(targetPage);
+                    goToPage(targetPage, /*shouldAnimate=*/ true);
                     updateFooterState();
                 }
 
@@ -337,7 +337,7 @@ public class A11yMenuViewPager {
                 public void onNextButtonClicked() {
                     // Moves to next page.
                     int targetPage = mViewPager.getCurrentItem() + 1;
-                    goToPage(targetPage);
+                    goToPage(targetPage, /*shouldAnimate=*/ true);
                     updateFooterState();
                 }
             };

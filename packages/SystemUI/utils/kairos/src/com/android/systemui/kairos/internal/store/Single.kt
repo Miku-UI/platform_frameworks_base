@@ -33,7 +33,7 @@ internal class Single<V>(val unwrapped: Any?) : MapK<Single.W, Unit, V>, Abstrac
 @Suppress("NOTHING_TO_INLINE")
 internal inline fun <V> MapK<Single.W, Unit, V>.asSingle(): Single<V> = this as Single<V>
 
-internal class SingletonMapK<V>(@Volatile private var value: Any?) :
+internal class SingletonMapK<V>(private var value: Any?) :
     MutableMapK<Single.W, Unit, V>, AbstractMutableMap<Unit, V>() {
 
     constructor() : this(NoValue)
@@ -49,10 +49,25 @@ internal class SingletonMapK<V>(@Volatile private var value: Any?) :
             this.value = StoreEntry(Unit, value)
         }
 
+    @Suppress("UNCHECKED_CAST")
+    override fun remove(key: Unit): V? {
+        if (value === NoValue) return null
+        val entry = (value as MutableMap.MutableEntry<Unit, V>)
+        value = NoValue
+        return entry.value
+    }
+
+    override fun isEmpty(): Boolean = value === NoValue
+
     override val entries: MutableSet<MutableMap.MutableEntry<Unit, V>> =
         object : AbstractMutableSet<MutableMap.MutableEntry<Unit, V>>() {
-            override fun add(element: MutableMap.MutableEntry<Unit, V>): Boolean =
-                (value !== NoValue).also { value = element }
+            override fun add(element: MutableMap.MutableEntry<Unit, V>): Boolean {
+                if (value != element) {
+                    value = element
+                    return true
+                }
+                return false
+            }
 
             override val size: Int
                 get() = if (value === NoValue) 0 else 1

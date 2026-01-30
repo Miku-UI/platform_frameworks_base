@@ -15,10 +15,17 @@
  */
 package com.android.settingslib.volume
 
+import android.Manifest
+import android.annotation.RequiresPermission
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AppId
+import android.media.AudioManager
 import android.media.MediaMetadata
+import android.media.MediaRouter2
+import android.media.RoutingSessionInfo
 import android.media.session.MediaController
 import android.media.session.MediaController.PlaybackInfo
 import android.media.session.MediaSession
@@ -30,6 +37,7 @@ import android.os.HandlerExecutor
 import android.os.Looper
 import android.os.Message
 import android.util.Log
+import com.android.media.flags.Flags
 import java.io.PrintWriter
 import java.util.Objects
 
@@ -46,10 +54,21 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
         mContext.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
     private val mRecords: MutableMap<MediaSession.Token, MediaControllerRecord> = HashMap()
     private val mCallbacks: Callbacks = callbacks
+    @RequiresPermission(Manifest.permission.MEDIA_CONTENT_CONTROL)
     private val mSessionsListener =
         MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
             onActiveSessionsUpdatedH(controllers!!)
         }
+    @RequiresPermission(Manifest.permission.MEDIA_CONTENT_CONTROL)
+    private val mediaRouter2: MediaRouter2? =
+        if (Flags.enableMirroringInMediaRouter2()) {
+            MediaRouter2.getInstance(mContext, mContext.getPackageName())
+        } else {
+            null
+        }
+
+    private val proxyRouters = mutableMapOf<AppId, ProxyMediaRouter2Record>()
+    private val systemSessionOverridesListener = this::onSystemSessionOverridesChanged
 
     private val mRemoteSessionCallback: MediaSessionManager.RemoteSessionCallback =
         object : MediaSessionManager.RemoteSessionCallback {
@@ -74,6 +93,16 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
         for ((i, r) in mRecords.values.withIndex()) {
             r.controller.dump(i + 1, writer)
         }
+        if (Flags.enableMirroringInMediaRouter2()) {
+            synchronized(proxyRouters) {
+                writer.println("  mProxyRouters.size: ${proxyRouters.size}")
+                for ((appId, record) in proxyRouters.entries) {
+                    writer.println(
+                        "    $appId -> ${record.mProxyMr2.systemController.routingSessionInfo}"
+                    )
+                }
+            }
+        }
     }
 
     /** init MediaSessions */
@@ -86,6 +115,14 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
         mInit = true
         postUpdateSessions()
         mMgr.registerRemoteSessionCallback(mHandlerExecutor, mRemoteSessionCallback)
+
+        mediaRouter2?.let {
+            mHandler.post { onSystemSessionOverridesChanged(it.systemSessionOverridesAppIds) }
+            it.registerSystemSessionOverridesListener(
+                mHandlerExecutor,
+                systemSessionOverridesListener,
+            )
+        }
     }
 
     /** Destroy MediaSessions */
@@ -93,6 +130,7 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
         if (D.BUG) {
             Log.d(TAG, "destroy")
         }
+        mediaRouter2?.unregisterSystemSessionOverridesListener(systemSessionOverridesListener)
         mInit = false
         mMgr.removeOnActiveSessionsChangedListener(mSessionsListener)
         mMgr.unregisterRemoteSessionCallback(mRemoteSessionCallback)
@@ -102,7 +140,24 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
     fun setVolume(sessionId: SessionId, volumeLevel: Int) {
         when (sessionId) {
             is SessionId.Media -> setMediaSessionVolume(sessionId.token, volumeLevel)
+            is SessionId.Routing ->
+                setRoutingSessionVolume(sessionId.appWithSystemSessionOverride, volumeLevel)
         }
+    }
+
+    private fun setRoutingSessionVolume(appWithSystemSessionOverride: AppId, volumeLevel: Int) {
+        val record = synchronized(proxyRouters) { proxyRouters[appWithSystemSessionOverride] }
+        if (record == null) {
+            Log.w(
+                TAG,
+                "setVolume: No routing session record found for $appWithSystemSessionOverride",
+            )
+            return
+        }
+        if (D.BUG) {
+            Log.d(TAG, "Setting level to $volumeLevel")
+        }
+        record.mProxyMr2.systemController.volume = volumeLevel
     }
 
     private fun setMediaSessionVolume(token: MediaSession.Token, volumeLevel: Int) {
@@ -115,6 +170,45 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
             Log.d(TAG, "Setting level to $volumeLevel")
         }
         record.controller.setVolumeTo(volumeLevel, 0)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun onSystemSessionOverridesChanged(appsWithSessionOverrides: Set<AppId>) {
+        val newRecords = mutableListOf<ProxyMediaRouter2Record>()
+        var removedApps: Set<AppId>
+        synchronized(proxyRouters) {
+            appsWithSessionOverrides
+                .filter { it !in proxyRouters }
+                .forEach { appWithOverride ->
+                    val proxyRouter =
+                        MediaRouter2.getInstance(
+                            mContext,
+                            appWithOverride.mPackageName,
+                            appWithOverride.mUserHandle,
+                        )
+                    val record = ProxyMediaRouter2Record(proxyRouter, appWithOverride)
+                    proxyRouters.put(appWithOverride, record)
+                    record.register()
+                    newRecords.add(record)
+                }
+
+            removedApps = proxyRouters.keys - appsWithSessionOverrides
+            removedApps.forEach { appToRemove ->
+                proxyRouters.remove(appToRemove)?.let {
+                    it.release()
+                    if (D.BUG) {
+                        Log.d(TAG, "Removing proxy record for ${it.mAppWithSystemSessionOverride}")
+                    }
+                }
+            }
+        }
+        newRecords.forEach {
+            updateRemoteH(
+                it.mAppWithSystemSessionOverride,
+                it.mProxyMr2.systemController.routingSessionInfo,
+            )
+        }
+        removedApps.forEach { mCallbacks.onRemoteRemoved(SessionId.from(it)) }
     }
 
     private fun onRemoteVolumeChangedH(sessionToken: MediaSession.Token, flags: Int) {
@@ -223,6 +317,47 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
         playbackInfo: PlaybackInfo,
     ) = mCallbacks.onRemoteUpdate(SessionId.from(token), name, VolumeInfo.from(playbackInfo))
 
+    private fun updateRemoteH(
+        appWithSystemSessionOverride: AppId,
+        routingSessionInfo: RoutingSessionInfo,
+    ) =
+        mCallbacks.onRemoteUpdate(
+            SessionId.from(appWithSystemSessionOverride),
+            routingSessionInfo.name.toString(),
+            VolumeInfo.from(routingSessionInfo),
+        )
+
+    private inner class ProxyMediaRouter2Record(
+        val mProxyMr2: MediaRouter2,
+        val mAppWithSystemSessionOverride: AppId,
+    ) : MediaRouter2.ControllerCallback() {
+        fun register() {
+            mProxyMr2.registerControllerCallback(mHandlerExecutor, this)
+        }
+
+        fun release() {
+            mProxyMr2.unregisterControllerCallback(this)
+        }
+
+        override fun onControllerUpdated(
+            controller: MediaRouter2.RoutingController,
+            shouldShowVolumeUi: Boolean,
+        ) {
+            updateRemoteH(
+                mAppWithSystemSessionOverride,
+                mProxyMr2.systemController.routingSessionInfo,
+            )
+            mCallbacks.onRemoteVolumeChanged(
+                SessionId.from(mAppWithSystemSessionOverride),
+                if (shouldShowVolumeUi) {
+                    AudioManager.FLAG_SHOW_UI
+                } else {
+                    0
+                },
+            )
+        }
+    }
+
     private inner class MediaControllerRecord(val controller: MediaController) :
         MediaController.Callback() {
         var sentRemote: Boolean = false
@@ -313,9 +448,13 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
 
         companion object {
             fun from(token: MediaSession.Token) = Media(token)
+
+            fun from(appWithSystemSessionOverride: AppId) = Routing(appWithSystemSessionOverride)
         }
 
         data class Media(val token: MediaSession.Token) : SessionId
+
+        data class Routing(val appWithSystemSessionOverride: AppId) : SessionId
     }
 
     /** Holds session volume information. */
@@ -325,6 +464,10 @@ class MediaSessions(context: Context, looper: Looper, callbacks: Callbacks) {
 
             fun from(playbackInfo: PlaybackInfo) =
                 VolumeInfo(playbackInfo.currentVolume, playbackInfo.maxVolume)
+
+            fun from(routingSessionInfo: RoutingSessionInfo): VolumeInfo {
+                return VolumeInfo(routingSessionInfo.volume, routingSessionInfo.volumeMax)
+            }
         }
     }
 

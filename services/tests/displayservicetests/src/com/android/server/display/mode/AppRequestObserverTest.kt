@@ -59,7 +59,8 @@ class AppRequestObserverTest {
             Display.Mode(1, 1000, 1000, 60f),
             Display.Mode(2, 1000, 1000, 90f),
             Display.Mode(3, 1000, 1000, 120f),
-            Display.Mode(99, 1000, 1000, 45f, 45f, true, floatArrayOf(), intArrayOf())
+            Display.Mode(99, Display.Mode.INVALID_MODE_ID, Display.Mode.FLAG_ARR_RENDER_RATE,
+                1000, 1000, 45f, 45f, floatArrayOf(), intArrayOf())
         )
 
         displayModeDirector.injectAppSupportedModesByDisplay(

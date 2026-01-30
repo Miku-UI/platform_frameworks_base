@@ -19,6 +19,7 @@ package com.android.internal.os;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.net.LocalSocket;
+import android.os.SystemProperties;
 
 import java.io.FileDescriptor;
 import java.lang.ref.Reference;  // For reachabilityFence.
@@ -164,10 +165,12 @@ class ZygoteCommandBuffer implements AutoCloseable {
      * at the beginning of a command that still needs to be processed.
      */
     boolean forkRepeatedly(FileDescriptor zygoteSocket, int expectedUid, int minUid,
-                       String firstNiceName) {
+                       String firstNiceName, boolean isTopApp) {
         try {
+            boolean useFifoUi = SystemProperties.getInt("sys.use_fifo_ui", 0) == 1;
             return nativeForkRepeatedly(mNativeBuffer, zygoteSocket.getInt$(),
-                    expectedUid, minUid, firstNiceName);
+                    expectedUid, minUid, firstNiceName, isTopApp,
+                    com.android.internal.os.Flags.zygoteEarlyFifoBoost() ? useFifoUi : false);
         } finally {
             Reference.reachabilityFence(mSocket);
             Reference.reachabilityFence(zygoteSocket);
@@ -182,6 +185,8 @@ class ZygoteCommandBuffer implements AutoCloseable {
                                                    int zygoteSocketRawFd,
                                                    int expectedUid,
                                                    int minUid,
-                                                   String firstNiceName);
+                                                   String firstNiceName,
+                                                   boolean isTopApp,
+                                                   boolean useFifoUi);
 
 }

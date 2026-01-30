@@ -26,12 +26,18 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.PointF
 import android.graphics.Rect
+import android.util.Log
 import android.util.MathUtils
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.ImageView
+import android.window.DesktopExperienceFlags
 import androidx.core.animation.doOnEnd
 import androidx.core.animation.doOnStart
+import com.android.internal.dynamicanimation.animation.DynamicAnimation
+import com.android.internal.dynamicanimation.animation.SpringAnimation
+import com.android.internal.dynamicanimation.animation.SpringForce
+import com.android.systemui.Flags
 import com.android.systemui.res.R
 import com.android.systemui.screenshot.scroll.ScrollCaptureController
 import com.android.systemui.screenshot.ui.viewmodel.ScreenshotViewModel
@@ -44,6 +50,7 @@ class ScreenshotAnimationController(
     private val viewModel: ScreenshotViewModel,
 ) {
     private var animator: Animator? = null
+    private var dismissalSpring: SpringAnimation? = null
     private val screenshotPreview = view.requireViewById<ImageView>(R.id.screenshot_preview)
     private val scrollingScrim = view.requireViewById<ImageView>((R.id.screenshot_scrolling_scrim))
     private val scrollTransitionPreview =
@@ -56,14 +63,12 @@ class ScreenshotAnimationController(
         listOf<View>(
             view.requireViewById(R.id.screenshot_preview_border),
             view.requireViewById(R.id.screenshot_badge),
-            view.requireViewById(R.id.screenshot_dismiss_button),
         )
     private val fadeUI =
         listOf<View>(
             view.requireViewById(R.id.screenshot_preview_border),
             view.requireViewById(R.id.actions_container_background),
             view.requireViewById(R.id.screenshot_badge),
-            view.requireViewById(R.id.screenshot_dismiss_button),
             view.requireViewById(R.id.screenshot_message_container),
         )
 
@@ -131,6 +136,7 @@ class ScreenshotAnimationController(
 
     fun fadeForSharedTransition() {
         animator?.cancel()
+        dismissalSpring?.cancel()
         val fadeAnimator = ValueAnimator.ofFloat(1f, 0f)
         fadeAnimator.addUpdateListener {
             for (view in fadeUI) {
@@ -213,6 +219,7 @@ class ScreenshotAnimationController(
     }
 
     fun restoreUI() {
+        dismissalSpring?.cancel()
         animator?.cancel()
         for (view in fadeUI) {
             view.alpha = 1f
@@ -226,6 +233,35 @@ class ScreenshotAnimationController(
         animator.addUpdateListener { view.translationX = it.animatedValue as Float }
         this.animator = animator
         return animator
+    }
+
+    fun startDismissal(requestedVelocity: Float?, onEnd: () -> Unit) {
+        dismissalSpring?.cancel()
+        animator?.cancel()
+        val velocity = getAdjustedVelocity(requestedVelocity)
+
+        val maxDistanceFadeout =
+            view.resources.getDimensionPixelOffset(R.dimen.dismissal_max_distance_fadeout).toFloat()
+        val startingTranslation = view.translationX
+
+        // Set the spring target to be a bit past the max translation distance
+        val target = startingTranslation + maxDistanceFadeout * sign(velocity) * 1.2f
+
+        dismissalSpring =
+            SpringAnimation(view, DynamicAnimation.TRANSLATION_X, target).apply {
+                setStartVelocity(velocity * 1000)
+                setStartValue(startingTranslation)
+
+                spring?.setStiffness(SpringForce.STIFFNESS_LOW)
+                spring?.setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
+            }
+
+        dismissalSpring?.addUpdateListener { _, value, _ ->
+            view.alpha =
+                MathUtils.lerp(1f, 0f, abs(value - startingTranslation) / maxDistanceFadeout)
+        }
+        dismissalSpring?.addEndListener { _, _, _, _ -> onEnd.invoke() }
+        dismissalSpring?.start()
     }
 
     fun getSwipeDismissAnimation(requestedVelocity: Float?): Animator {
@@ -246,6 +282,7 @@ class ScreenshotAnimationController(
             view.translationX = it.animatedValue as Float
             view.alpha = 1f - it.animatedFraction
         }
+
         animator.duration = ((abs(distance / velocity))).toLong()
         animator.doOnStart { viewModel.setIsAnimating(true) }
         animator.doOnEnd { viewModel.setIsAnimating(false) }
@@ -256,6 +293,7 @@ class ScreenshotAnimationController(
 
     fun cancel() {
         animator?.cancel()
+        dismissalSpring?.cancel()
     }
 
     private fun getActionsAnimator(): Animator {
@@ -275,6 +313,12 @@ class ScreenshotAnimationController(
     private fun getPreviewAnimator(bounds: Rect): Animator {
         val targetPosition = Rect()
         screenshotPreview.getHitRect(targetPosition)
+        if (targetPosition.width() == 0 || targetPosition.height() == 0) {
+            Log.wtf(TAG, "screenshot preview target rect was empty, skipping animation")
+            val nullAnimator = AnimatorSet()
+            nullAnimator.doOnStart { screenshotPreview.visibility = View.VISIBLE }
+            return nullAnimator
+        }
         val startXScale = bounds.width() / targetPosition.width().toFloat()
         val startYScale = bounds.height() / targetPosition.height().toFloat()
         val startPos = PointF(bounds.exactCenterX(), bounds.exactCenterY())
@@ -318,20 +362,39 @@ class ScreenshotAnimationController(
 
     private fun getAdjustedVelocity(requestedVelocity: Float?): Float {
         return if (requestedVelocity == null || abs(requestedVelocity) < .005f) {
-            val isLTR = view.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_LTR
-            // dismiss to the left in LTR locales, to the right in RTL
-            if (isLTR) -MINIMUM_VELOCITY else MINIMUM_VELOCITY
+            if (SCREENSHOT_DISMISSAL_SPRING.isTrue) {
+                if (viewClosestToLeftEdge()) -MINIMUM_VELOCITY else MINIMUM_VELOCITY
+            } else {
+                val isLTR =
+                    view.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_LTR
+                // dismiss to the left in LTR locales, to the right in RTL
+                if (isLTR) -MINIMUM_VELOCITY else MINIMUM_VELOCITY
+            }
         } else {
             sign(requestedVelocity) * max(MINIMUM_VELOCITY, abs(requestedVelocity))
         }
     }
 
+    private fun viewClosestToLeftEdge(): Boolean {
+        var rect = Rect()
+        view.getBoundsOnScreen(rect)
+        return rect.centerX() < view.resources.displayMetrics.widthPixels / 2f
+    }
+
     companion object {
-        private const val MINIMUM_VELOCITY = 1.5f // pixels per second
+        private const val TAG = "ScreenshotAnimationController"
+        private const val MINIMUM_VELOCITY = 1.5f // pixels per millisecond
         private const val FLASH_IN_DURATION_MS: Long = 133
         private const val FLASH_OUT_DURATION_MS: Long = 217
         private const val PREVIEW_X_ANIMATION_DURATION_MS: Long = 234
         private const val PREVIEW_Y_ANIMATION_DURATION_MS: Long = 500
         private const val ACTION_REVEAL_DELAY_MS: Long = 200
+
+        val SCREENSHOT_DISMISSAL_SPRING =
+            DesktopExperienceFlags.DesktopExperienceFlag(
+                Flags::screenshotDismissalSpring,
+                /* shouldOverrideByDevOption= */ true,
+                Flags.FLAG_SCREENSHOT_DISMISSAL_SPRING,
+            )
     }
 }

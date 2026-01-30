@@ -62,7 +62,7 @@ public class FloatAnimation extends Easing implements Serializable {
      *
      * @param description the float encoding of the animation
      */
-    public FloatAnimation(@NonNull float... description) {
+    public FloatAnimation(@NonNull float ... description) {
         mType = CUBIC_STANDARD;
         setAnimationDescription(description);
     }
@@ -79,7 +79,7 @@ public class FloatAnimation extends Easing implements Serializable {
     public FloatAnimation(
             int type,
             float duration,
-            @Nullable float[] description,
+            @Nullable float [] description,
             float initialValue,
             float wrap) {
         mType = CUBIC_STANDARD;
@@ -93,10 +93,11 @@ public class FloatAnimation extends Easing implements Serializable {
      * @param type
      * @param spec
      * @param initialValue
+     * @param wrap
      * @return
      */
-    public static @NonNull float[] packToFloatArray(
-            float duration, int type, @Nullable float[] spec, float initialValue, float wrap) {
+    public static @NonNull float [] packToFloatArray(
+            float duration, int type, @Nullable float [] spec, float initialValue, float wrap) {
         int count = 0;
 
         if (!Float.isNaN(initialValue)) {
@@ -156,17 +157,17 @@ public class FloatAnimation extends Easing implements Serializable {
      * @param description the float encoding of the animation
      * @return a string describing the animation
      */
-    public static String unpackAnimationToString(float[] description) {
-        float[] mSpec = description;
-        float mDuration = (mSpec.length == 0) ? 1 : mSpec[0];
+    public static @NonNull String unpackAnimationToString(@NonNull float [] description) {
+        float[] spec = description;
+        float mDuration = (spec.length == 0) ? 1 : spec[0];
         int len = 0;
         int type = 0;
         float wrapValue = Float.NaN;
         float initialValue = Float.NaN;
         int directionalSnap = 0;
         boolean propagate = false;
-        if (mSpec.length > 1) {
-            int num_type = Float.floatToRawIntBits(mSpec[1]);
+        if (spec.length > 1) {
+            int num_type = Float.floatToRawIntBits(spec[1]);
             type = num_type & 0xFF;
             boolean wrap = ((num_type >> 8) & 0x1) > 0;
             boolean init = ((num_type >> 8) & 0x2) > 0;
@@ -175,10 +176,10 @@ public class FloatAnimation extends Easing implements Serializable {
             len = (num_type >> 16) & 0xFFFF;
             int off = 2 + len;
             if (init) {
-                initialValue = mSpec[off++];
+                initialValue = spec[off++];
             }
             if (wrap) {
-                wrapValue = mSpec[off];
+                wrapValue = spec[off];
             }
         }
         float[] params = description;
@@ -249,7 +250,7 @@ public class FloatAnimation extends Easing implements Serializable {
      *
      * @param description the float encoding of the animation
      */
-    public void setAnimationDescription(@NonNull float[] description) {
+    public void setAnimationDescription(@NonNull float [] description) {
         mSpec = description;
         mDuration = (mSpec.length == 0) ? 1 : mSpec[0];
         int len = 0;
@@ -274,7 +275,7 @@ public class FloatAnimation extends Easing implements Serializable {
         create(mType, description, 2, len);
     }
 
-    private void create(int type, @Nullable float[] params, int offset, int len) {
+    private void create(int type, @Nullable float [] params, int offset, int len) {
         switch (type) {
             case CUBIC_STANDARD:
             case CUBIC_ACCELERATE:
@@ -433,7 +434,7 @@ public class FloatAnimation extends Easing implements Serializable {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType("FloatAnimation")
                 .add("initialValue", mInitialValue)

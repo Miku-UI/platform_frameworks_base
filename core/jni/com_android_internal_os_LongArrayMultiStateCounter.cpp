@@ -203,13 +203,17 @@ static jlong native_initFromParcel(JNIEnv *env, jclass, jobject jParcel) {
     int32_t stateCount;
     THROW_AND_RETURN_ON_READ_ERROR(AParcel_readInt32(parcel.get(), &stateCount));
 
-    if (stateCount < 0 || stateCount > 0xEFFF) {
+    if (stateCount <= 0 || stateCount > 0xEFFF) {
         throwReadException(env, STATUS_INVALID_OPERATION);
         return 0L;
     }
 
     int32_t arrayLength;
     THROW_AND_RETURN_ON_READ_ERROR(AParcel_readInt32(parcel.get(), &arrayLength));
+    if (arrayLength < 0 || arrayLength > 0xFFFFF) {
+        throwReadException(env, STATUS_INVALID_OPERATION);
+        return 0L;
+    }
 
     auto counter =
             std::make_unique<LongArrayMultiStateCounter>(stateCount, Uint64Array(arrayLength));

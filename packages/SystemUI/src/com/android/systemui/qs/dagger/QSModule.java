@@ -16,10 +16,12 @@
 
 package com.android.systemui.qs.dagger;
 
+import com.android.systemui.qs.panels.dagger.PanelsModule;
+
 import dagger.Module;
 
 /**
  * Module for QS dependencies for AOSP inclusion
  */
-@Module(includes = { QSModuleBase.class})
+@Module(includes = { PanelsModule.class, QSModuleBase.class })
 public interface QSModule { }

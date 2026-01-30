@@ -29,8 +29,8 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.DOZING
 import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
 import com.android.systemui.media.controls.domain.pipeline.interactor.MediaCarouselInteractor
-import com.android.systemui.plugins.clocks.ClockController
-import com.android.systemui.plugins.clocks.ClockId
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockId
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
@@ -79,17 +79,20 @@ constructor(
      */
     val selectedClockSize: StateFlow<ClockSizeSetting> = keyguardClockRepository.selectedClockSize
 
+    val forcedClockSize: Flow<ClockSize?> = keyguardClockRepository.forcedClockSize
+
     val currentClockId: Flow<ClockId> = keyguardClockRepository.currentClockId
 
-    val currentClock: StateFlow<ClockController?> = keyguardClockRepository.currentClock
+    val currentClockFontAxesWidth: Float?
+        get() = keyguardClockRepository.currentClockFontAxesWidth
 
-    val previewClock: Flow<ClockController> = keyguardClockRepository.previewClock
+    val currentClock: StateFlow<ClockController?> = keyguardClockRepository.currentClock
 
     val clockEventController: ClockEventController = keyguardClockRepository.clockEventController
 
     var clock: ClockController? by keyguardClockRepository.clockEventController::clock
 
-    private val isAodPromotedNotificationPresent: Flow<Boolean> =
+    val isAodPromotedNotificationPresent: Flow<Boolean> =
         if (PromotedNotificationUi.isEnabled) {
             aodPromotedNotificationInteractor.isPresent
         } else {
@@ -111,16 +114,16 @@ constructor(
     private val dynamicClockSize: Flow<ClockSize> =
         if (SceneContainerFlag.isEnabled) {
             combine(
-                shadeModeInteractor.isShadeLayoutWide,
+                keyguardClockRepository.forcedClockSize,
+                shadeModeInteractor.isFullWidthShade,
                 areAnyNotificationsPresent,
-                mediaCarouselInteractor.hasActiveMediaOrRecommendation,
+                mediaCarouselInteractor.hasActiveMedia,
                 keyguardInteractor.isDozing,
-                isOnAod,
-            ) { isShadeLayoutWide, hasNotifs, hasMedia, isDozing, isOnAod ->
+            ) { forcedClockSize, isFullWidthShade, hasNotifs, hasMedia, isDozing ->
                 when {
-                    keyguardClockRepository.shouldForceSmallClock && !isOnAod -> ClockSize.SMALL
-                    !isShadeLayoutWide && (hasNotifs || hasMedia) -> ClockSize.SMALL
-                    !isShadeLayoutWide -> ClockSize.LARGE
+                    forcedClockSize != null -> forcedClockSize
+                    isFullWidthShade && (hasNotifs || hasMedia) -> ClockSize.SMALL
+                    isFullWidthShade -> ClockSize.LARGE
                     hasMedia && !isDozing -> ClockSize.SMALL
                     else -> ClockSize.LARGE
                 }
@@ -147,21 +150,21 @@ constructor(
     val clockShouldBeCentered: Flow<Boolean> =
         if (SceneContainerFlag.isEnabled) {
             combine(
-                shadeModeInteractor.isShadeLayoutWide,
+                shadeModeInteractor.isFullWidthShade,
                 areAnyNotificationsPresent,
                 isAodPromotedNotificationPresent,
                 isOnAod,
                 headsUpNotificationInteractor.isHeadsUpOrAnimatingAway,
                 keyguardInteractor.isDozing,
             ) {
-                isShadeLayoutWide,
+                isFullWidthShade,
                 areAnyNotificationsPresent,
                 isAodPromotedNotificationPresent,
                 isOnAod,
                 isHeadsUp,
                 isDozing ->
                 when {
-                    !isShadeLayoutWide -> true
+                    isFullWidthShade -> true
                     !areAnyNotificationsPresent -> true
                     // Pulsing notification appears on the right. Move clock left to avoid overlap.
                     isHeadsUp && isDozing -> false
@@ -171,41 +174,29 @@ constructor(
             }
         } else {
             combine(
-                    shadeModeInteractor.isShadeLayoutWide,
+                    shadeModeInteractor.isFullWidthShade,
                     areAnyNotificationsPresent,
                     isAodPromotedNotificationPresent,
                     keyguardInteractor.dozeTransitionModel,
-                    keyguardTransitionInteractor.startedKeyguardTransitionStep.map { it.to == AOD },
-                    keyguardTransitionInteractor.startedKeyguardTransitionStep.map {
-                        it.to == LOCKSCREEN
-                    },
-                    keyguardTransitionInteractor.startedKeyguardTransitionStep.map {
-                        it.to == DOZING
-                    },
+                    keyguardTransitionInteractor.startedKeyguardTransitionStep.map { it.to },
                     keyguardInteractor.isPulsing,
-                    keyguardTransitionInteractor.startedKeyguardTransitionStep.map { it.to == GONE },
                 ) {
-                    isShadeLayoutWide,
+                    isFullWidthShade,
                     areAnyNotificationsPresent,
                     isAodPromotedNotificationPresent,
                     dozeTransitionModel,
-                    startedToAod,
-                    startedToLockScreen,
-                    startedToDoze,
-                    isPulsing,
-                    startedToGone ->
+                    toKeyguardState,
+                    isPulsing ->
                     when {
-                        !isShadeLayoutWide -> true
+                        isFullWidthShade -> true
                         // [areAnyNotificationsPresent] also reacts to notification stack in
-                        // homescreen
-                        // it may cause unnecessary `false` emission when there's notification in
-                        // homescreen
-                        // but none in lockscreen when going from GONE to AOD / DOZING
-                        // use null to skip emitting wrong value
-                        startedToGone || startedToDoze -> null
-                        startedToLockScreen -> !areAnyNotificationsPresent
-                        startedToAod -> !(isPulsing || isAodPromotedNotificationPresent)
-                        else -> true
+                        // homescreen it may cause unnecessary `false` emission when there's
+                        // notification in homescreen but none in lockscreen when going from
+                        // GONE to AOD / DOZING use null to skip emitting wrong value
+                        toKeyguardState == GONE || toKeyguardState == DOZING -> null
+                        toKeyguardState == LOCKSCREEN -> !areAnyNotificationsPresent
+                        toKeyguardState == AOD -> !(isPulsing || isAodPromotedNotificationPresent)
+                        else -> !areAnyNotificationsPresent
                     }
                 }
                 .filterNotNull()
@@ -230,10 +221,10 @@ constructor(
             return
         }
 
-        if (selectedClockSize.value == ClockSizeSetting.DYNAMIC) {
-            clockEventController.handleFidgetTap(x, y)
+        if (wallpaperFocalAreaInteractor.hasFocalArea.value) {
+            wallpaperFocalAreaInteractor.sendTapPosition(x, y)
         } else {
-            wallpaperFocalAreaInteractor.setTapPosition(x, y)
+            clockEventController.handleFidgetTap(x, y)
         }
     }
 

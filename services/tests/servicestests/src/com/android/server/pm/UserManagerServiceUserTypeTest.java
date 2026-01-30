@@ -25,8 +25,6 @@ import static android.content.pm.UserInfo.FLAG_PROFILE;
 import static android.content.pm.UserInfo.FLAG_RESTRICTED;
 import static android.content.pm.UserInfo.FLAG_SYSTEM;
 
-import static com.android.server.pm.UserTypeDetails.UNLIMITED_NUMBER_OF_USERS;
-
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -210,8 +208,9 @@ public class UserManagerServiceUserTypeTest {
                 .createUserTypeDetails();
 
         assertTrue(type.isEnabled());
-        assertEquals(UNLIMITED_NUMBER_OF_USERS, type.getMaxAllowed());
-        assertEquals(UNLIMITED_NUMBER_OF_USERS, type.getMaxAllowedPerParent());
+        assertEquals(android.multiuser.Flags.decoupleMaxUsersFromProfiles() ?
+                0 : UserTypeDetails.getLegacyUnlimitedNumberOfUsersValue(), type.getMaxAllowed());
+        assertEquals(0, type.getMaxAllowedPerParent());
         assertEquals(FLAG_FULL, type.getDefaultUserInfoFlags());
         assertEquals(Resources.ID_NULL, type.getIconBadge());
         assertEquals(Resources.ID_NULL, type.getBadgePlain());
@@ -478,7 +477,7 @@ public class UserManagerServiceUserTypeTest {
         UserTypeFactory.customizeBuilders(builders, parser);
 
         UserTypeDetails details = builders.get(userTypeFull).createUserTypeDetails();
-        assertEquals(UNLIMITED_NUMBER_OF_USERS, details.getMaxAllowedPerParent());
+        assertEquals(0, details.getMaxAllowedPerParent());
         assertFalse(details.isEnabled());
         assertEquals(17, details.getMaxAllowed());
         assertTrue(UserRestrictionsUtils.areEqual(

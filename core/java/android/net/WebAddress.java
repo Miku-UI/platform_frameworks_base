@@ -28,7 +28,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * {@hide}
+ * @hide
  *
  * Web Address Parser
  *
@@ -149,58 +149,58 @@ public class WebAddress {
         return mScheme + "://" + authInfo + mHost + port + mPath;
     }
 
-    /** {@hide} */
+    /** @hide */
     public void setScheme(String scheme) {
       mScheme = scheme;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public String getScheme() {
       return mScheme;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void setHost(String host) {
       mHost = host;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public String getHost() {
       return mHost;
     }
 
-    /** {@hide} */
+    /** @hide */
     public void setPort(int port) {
       mPort = port;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public int getPort() {
       return mPort;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public void setPath(String path) {
       mPath = path;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public String getPath() {
       return mPath;
     }
 
-    /** {@hide} */
+    /** @hide */
     public void setAuthInfo(String authInfo) {
       mAuthInfo = authInfo;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public String getAuthInfo() {
       return mAuthInfo;

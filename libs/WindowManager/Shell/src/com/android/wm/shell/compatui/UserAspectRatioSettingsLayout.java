@@ -32,14 +32,14 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.android.window.flags.Flags;
+import com.android.systemui.animation.view.LaunchableLinearLayout;
 import com.android.wm.shell.R;
 
 /**
  * Layout for the user aspect ratio button which opens the app list page in settings
  * and allows users to change apps aspect ratio.
  */
-public class UserAspectRatioSettingsLayout extends LinearLayout {
+public class UserAspectRatioSettingsLayout extends LaunchableLinearLayout {
 
     private static final Interpolator LINEAR_INTERPOLATOR = new LinearInterpolator();
 
@@ -173,9 +173,7 @@ public class UserAspectRatioSettingsLayout extends LinearLayout {
             @Override
             public void onAnimationEnd(Animator animation) {
                 view.setVisibility(View.GONE);
-                if (Flags.releaseUserAspectRatioWm()) {
-                    mWindowManager.release();
-                }
+                mWindowManager.release();
             }
         });
         fadeOut.start();

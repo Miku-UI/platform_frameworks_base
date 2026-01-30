@@ -25,10 +25,12 @@ import android.content.pm.PackageManager
 import android.content.pm.PackageManager.NameNotFoundException
 import android.net.Uri
 import android.text.TextUtils
+import com.android.systemui.Flags.clipboardOverlayMultiuser
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.res.R
+import com.android.systemui.settings.UserTracker
 import java.util.function.Consumer
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -42,6 +44,7 @@ class ActionIntentCreator
 constructor(
     private val context: Context,
     private val packageManager: PackageManager,
+    private val userTracker: UserTracker,
     @Application private val applicationScope: CoroutineScope,
     @Background private val backgroundDispatcher: CoroutineDispatcher,
 ) : IntentCreator {
@@ -76,12 +79,17 @@ constructor(
             }
         }
 
-        return Intent.createChooser(shareIntent, null)
-            .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        val chooserIntent =
+            Intent.createChooser(shareIntent, null)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK or Intent.FLAG_ACTIVITY_NEW_TASK)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        if (clipboardOverlayMultiuser()) {
+            chooserIntent.prepareToLeaveUser(userTracker.userId)
+        }
+        return chooserIntent
     }
 
-    suspend fun getImageEditIntent(uri: Uri?, context: Context): Intent {
+    suspend fun getImageEditIntent(uri: Uri?): Intent {
         return Intent(Intent.ACTION_EDIT).apply {
             // Use the preferred editor if it's available, otherwise fall back to the default editor
             component = preferredEditor() ?: defaultEditor()
@@ -89,6 +97,9 @@ constructor(
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
             putExtra(EXTRA_EDIT_SOURCE, EDIT_SOURCE_CLIPBOARD)
+            if (clipboardOverlayMultiuser()) {
+                prepareToLeaveUser(userTracker.userId)
+            }
         }
     }
 
@@ -97,7 +108,7 @@ constructor(
         context: Context,
         outputConsumer: Consumer<Intent>,
     ) {
-        applicationScope.launch { outputConsumer.accept(getImageEditIntent(uri, context)) }
+        applicationScope.launch { outputConsumer.accept(getImageEditIntent(uri)) }
     }
 
     override fun getRemoteCopyIntent(clipData: ClipData?, context: Context): Intent {
@@ -110,6 +121,9 @@ constructor(
             setClipData(clipData)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            if (clipboardOverlayMultiuser()) {
+                prepareToLeaveUser(userTracker.userId)
+            }
         }
     }
 

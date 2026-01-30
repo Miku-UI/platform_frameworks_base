@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Ажурирај"</string>
     <string name="done" msgid="6632441120016885253">"Готово"</string>
     <string name="cancel" msgid="1018267193425558088">"Откажи"</string>
+    <string name="more_details" msgid="3643407086654820243">"Повеќе детали"</string>
+    <string name="dont_install" msgid="414055123295505225">"Не инсталирај"</string>
     <string name="installing" msgid="4921993079741206516">"Се инсталира…"</string>
     <string name="installing_app" msgid="1165095864863849422">"Се инсталира <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>…"</string>
     <string name="install_done" msgid="5987363587661783896">"Апликацијата е инсталирана."</string>
@@ -46,7 +48,7 @@
     <string name="ok" msgid="7871959885003339302">"Во ред"</string>
     <string name="archive" msgid="4447791830199354721">"Архивирај"</string>
     <string name="update_anyway" msgid="8792432341346261969">"Сепак ажурирај"</string>
-    <string name="manage_applications" msgid="5400164782453975580">"Управување со апликациите"</string>
+    <string name="manage_applications" msgid="5400164782453975580">"Управ. со аплик."</string>
     <string name="out_of_space_dlg_title" msgid="4156690013884649502">"Нема простор"</string>
     <string name="out_of_space_dlg_text" msgid="8727714096031856231">"<xliff:g id="APP_NAME">%1$s</xliff:g> не може да се инсталира. Ослободете простор и обидете се повторно."</string>
     <string name="app_not_found_dlg_title" msgid="5107924008597470285">"Апликацијата не е најдена"</string>
@@ -78,7 +80,7 @@
     <string name="uninstalling" msgid="8709566347688966845">"Се деинсталира…"</string>
     <string name="uninstalling_app" msgid="8866082646836981397">"Се деинсталира <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>…"</string>
     <string name="uninstall_done" msgid="439354138387969269">"Деинсталирањето заврши."</string>
-    <string name="uninstall_done_app" msgid="4588850984473605768">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> се деинсталираше"</string>
+    <string name="uninstall_done_app" msgid="4588850984473605768">"Апликацијата <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> е деинсталирана"</string>
     <string name="uninstall_done_clone_app" msgid="5578308154544195413">"Клонот на <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> е избришан"</string>
     <string name="uninstall_failed" msgid="1847750968168364332">"Деинсталирањето е неуспешно."</string>
     <string name="uninstall_failed_app" msgid="5506028705017601412">"Деинсталирањето на <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> е неуспешно."</string>

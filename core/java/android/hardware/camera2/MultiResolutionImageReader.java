@@ -375,7 +375,6 @@ public class MultiResolutionImageReader implements AutoCloseable {
      *                                  part of this {@code MultiResolutionImageReader}.
      * @hide
      */
-    @FlaggedApi(Flags.FLAG_CAMERA_DEVICE_SETUP)
     public @NonNull Surface getSurface(@NonNull Size configuredSize,
             @NonNull String physicalCameraId) {
         checkNotNull(configuredSize, "configuredSize must not be null");

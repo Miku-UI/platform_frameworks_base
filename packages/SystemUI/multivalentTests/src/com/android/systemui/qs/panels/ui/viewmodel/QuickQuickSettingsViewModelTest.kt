@@ -28,6 +28,7 @@ import com.android.systemui.media.controls.ui.controller.MediaHierarchyManager.C
 import com.android.systemui.media.controls.ui.controller.MediaLocation
 import com.android.systemui.media.controls.ui.controller.mediaHostStatesManager
 import com.android.systemui.media.controls.ui.view.MediaHost
+import com.android.systemui.media.remedia.data.repository.setHasMedia
 import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragment
 import com.android.systemui.qs.panels.domain.interactor.qsPreferencesInteractor
 import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
@@ -200,6 +201,7 @@ class QuickQuickSettingsViewModelTest : SysuiTestCase() {
                 location,
                 MediaHost.MediaHostStateHolder().apply { this.visible = visible },
             )
+            setHasMedia(true)
         }
     }
 }

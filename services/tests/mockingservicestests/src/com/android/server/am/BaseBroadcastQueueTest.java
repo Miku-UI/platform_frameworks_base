@@ -76,7 +76,6 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.io.File;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -201,9 +200,10 @@ public abstract class BaseBroadcastQueueTest {
         final ActivityManagerService realAms = new ActivityManagerService(
                 new TestInjector(spyContext), mServiceThreadRule.getThread());
         realAms.mActivityTaskManager = new ActivityTaskManagerService(mContext);
-        realAms.mActivityTaskManager.initialize(null, null, mContext.getMainLooper());
+        realAms.mActivityTaskManager.initialize(null, null, realAms.mProcessStateController,
+                mContext.getMainLooper());
         realAms.mAtmInternal = spy(realAms.mActivityTaskManager.getAtmInternal());
-        realAms.mOomAdjuster.mCachedAppOptimizer = mock(CachedAppOptimizer.class);
+        realAms.setCachedAppOptimizer(mock(CachedAppOptimizer.class));
         realAms.mOomAdjuster = spy(realAms.mOomAdjuster);
         doNothing().when(() -> ProcessList.setOomAdj(anyInt(), anyInt(), anyInt()));
         realAms.mPackageManagerInt = mPackageManagerInt;
@@ -258,8 +258,7 @@ public abstract class BaseBroadcastQueueTest {
         }
 
         @Override
-        public AppOpsService getAppOpsService(File recentAccessesFile, File storageFile,
-                                              Handler handler) {
+        public AppOpsService getAppOpsService(Handler handler) {
             return mAppOpsService;
         }
 

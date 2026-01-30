@@ -16,10 +16,17 @@ package com.android.systemui.utils.leaks;
 
 import android.testing.LeakCheck;
 
+import androidx.annotation.NonNull;
+
 import com.android.systemui.statusbar.policy.HotspotController;
 import com.android.systemui.statusbar.policy.HotspotController.Callback;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class FakeHotspotController extends BaseLeakChecker<Callback> implements HotspotController {
+    private boolean mHotspotEnabled = false;
+    private final List<Callback> mCallbacks = new ArrayList<>();
 
     public FakeHotspotController(LeakCheck test) {
         super(test, "hotspot");
@@ -27,7 +34,7 @@ public class FakeHotspotController extends BaseLeakChecker<Callback> implements 
 
     @Override
     public boolean isHotspotEnabled() {
-        return false;
+        return mHotspotEnabled;
     }
 
     @Override
@@ -37,7 +44,10 @@ public class FakeHotspotController extends BaseLeakChecker<Callback> implements 
 
     @Override
     public void setHotspotEnabled(boolean enabled) {
-
+        if (mHotspotEnabled != enabled) {
+            mHotspotEnabled = enabled;
+            fireHotspotEnabledChanged(mHotspotEnabled);
+        }
     }
 
     @Override
@@ -49,4 +59,27 @@ public class FakeHotspotController extends BaseLeakChecker<Callback> implements 
     public int getNumConnectedDevices() {
         return 0;
     }
+
+    @Override
+    public void addCallback(@NonNull HotspotController.Callback listener) {
+        if (mCallbacks.contains(listener)) {
+            return;
+        }
+        mCallbacks.add(listener);
+
+        listener.onHotspotChanged(mHotspotEnabled, /* numDevices= */0);
+    }
+
+    @Override
+    public void removeCallback(@NonNull HotspotController.Callback listener) {
+        mCallbacks.remove(listener);
+    }
+
+    private void fireHotspotEnabledChanged(boolean enabled) {
+        // Iterate over a copy in case of concurrent modification or reentrancy.
+        for (HotspotController.Callback callback : new ArrayList<>(mCallbacks)) {
+            callback.onHotspotChanged(enabled, /* numDevices= */ 0);
+        }
+    }
+
 }

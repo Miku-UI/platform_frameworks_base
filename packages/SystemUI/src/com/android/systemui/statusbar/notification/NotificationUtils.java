@@ -17,8 +17,10 @@
 package com.android.systemui.statusbar.notification;
 
 import android.annotation.Nullable;
+import android.app.Notification;
 import android.content.Context;
 import android.graphics.Color;
+import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 
@@ -105,4 +107,15 @@ public class NotificationUtils {
         return key.replace("\n", "");
     }
 
+    /** Update a notifications application name. */
+    public static void overrideNotificationAppName(Context context, Notification.Builder n,
+            boolean system) {
+        final Bundle extras = new Bundle();
+        String appName = system
+                ? context.getString(com.android.internal.R.string.notification_app_name_system)
+                : context.getString(com.android.internal.R.string.notification_app_name_settings);
+        extras.putString(Notification.EXTRA_SUBSTITUTE_APP_NAME, appName);
+
+        n.addExtras(extras);
+    }
 }

@@ -20,6 +20,13 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.settings.displayTracker
 import com.android.systemui.statusbar.commandQueue
+import com.android.systemui.statusbar.window.StatusBarWindowStateController
+import org.mockito.kotlin.mock
+
+val Kosmos.mockStatusBarWindowStateController by
+    Kosmos.Fixture { mock<StatusBarWindowStateController>() }
+
+var Kosmos.statusBarWindowStateController by Kosmos.Fixture { mockStatusBarWindowStateController }
 
 val Kosmos.fakeStatusBarWindowStatePerDisplayRepository by
     Kosmos.Fixture { FakeStatusBarWindowStatePerDisplayRepository() }

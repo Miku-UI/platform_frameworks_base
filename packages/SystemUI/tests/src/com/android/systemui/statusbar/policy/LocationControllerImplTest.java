@@ -15,8 +15,6 @@
 package com.android.systemui.statusbar.policy;
 
 
-import static com.google.common.truth.Truth.assertThat;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
@@ -176,10 +174,6 @@ public class LocationControllerImplTest extends SysuiTestCase {
         mTestableLooper.processAllMessages();
 
         verify(callback, times(1)).onLocationActiveChanged(anyBoolean());
-        assertThat(mUiEventLogger.numLogs()).isEqualTo(1);
-        assertThat(mUiEventLogger.eventId(0)).isEqualTo(
-                LocationControllerImpl.LocationIndicatorEvent.LOCATION_INDICATOR_MONITOR_HIGH_POWER
-                        .getId());
     }
 
     @Test
@@ -323,19 +317,6 @@ public class LocationControllerImplTest extends SysuiTestCase {
         mTestableLooper.processAllMessages();
 
         verify(callback, times(1)).onLocationActiveChanged(true);
-        assertThat(mUiEventLogger.numLogs()).isEqualTo(3);
-        assertThat(mUiEventLogger.eventId(0)).isEqualTo(
-                LocationControllerImpl.LocationIndicatorEvent.LOCATION_INDICATOR_MONITOR_HIGH_POWER
-                        .getId());
-        // Even though the system access wasn't shown due to the device settings, ensure it was
-        // still logged.
-        assertThat(mUiEventLogger.eventId(1)).isEqualTo(
-                LocationControllerImpl.LocationIndicatorEvent.LOCATION_INDICATOR_SYSTEM_APP
-                        .getId());
-        assertThat(mUiEventLogger.eventId(2)).isEqualTo(
-                LocationControllerImpl.LocationIndicatorEvent.LOCATION_INDICATOR_NON_SYSTEM_APP
-                        .getId());
-        mUiEventLogger.getLogs().clear();
 
         when(mAppOpsController.getActiveAppOps()).thenReturn(ImmutableList.of());
         mLocationController.onActiveStateChanged(AppOpsManager.OP_FINE_LOCATION, 0,
@@ -343,7 +324,6 @@ public class LocationControllerImplTest extends SysuiTestCase {
         mTestableLooper.processAllMessages();
 
         verify(callback, times(1)).onLocationActiveChanged(false);
-        assertThat(mUiEventLogger.numLogs()).isEqualTo(0);
     }
 
     @Test

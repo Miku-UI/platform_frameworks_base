@@ -15,9 +15,11 @@
  */
 package android.net.wifi;
 
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
+import android.net.wifi.flags.Flags;
 import android.os.Binder;
 import android.os.Process;
 import android.os.ServiceSpecificException;
@@ -168,5 +170,54 @@ public final class WifiKeystore {
             Binder.restoreCallingIdentity(identity);
         }
         return new String[0];
+    }
+
+    /**
+     * Remove all blobs that are stored in Legacy Keystore.
+     *
+     * @return True if the operation was successful, false otherwise.
+     */
+    private static boolean removeAllFromLegacyKs() {
+        // Assume that the calling identity has already been cleared.
+        try {
+            ILegacyKeystore legacyKeystore = WifiBlobStore.getLegacyKeystore();
+            String[] legacyAliases = legacyKeystore.list("", Process.WIFI_UID);
+            for (String alias : legacyAliases) {
+                legacyKeystore.remove(alias, Process.WIFI_UID);
+            }
+            return true;
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to remove all blobs from Legacy Keystore: " + e);
+            return false;
+        }
+    }
+
+    /**
+     * Remove all blobs that are stored in the database.
+     *
+     * @return True if the operation was successful (i.e. all blobs were removed, or the database
+     *         was already empty). False if a critical error was encountered (ex. the database file
+     *         is corrupted).
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_WIFI_KEYSTORE_REMOVE_ALL_API)
+    public static boolean removeAll() {
+        Log.i(TAG, "Removing all blobs from " + sPrimaryDbName);
+        final long identity = Binder.clearCallingIdentity();
+        try {
+            // If supplicant can access WifiBlobStore, then all certificates will be in that
+            // database. Otherwise, all certificates will be in Legacy Keystore.
+            if (WifiBlobStore.supplicantCanAccessBlobstore()) {
+                return WifiBlobStore.getInstance().removeAll();
+            } else {
+                return removeAllFromLegacyKs();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to remove all blobs: " + e);
+            return false;
+        } finally {
+            Binder.restoreCallingIdentity(identity);
+        }
     }
 }

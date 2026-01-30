@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Wiedergabe läuft auf diesem Tablet"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Du kannst dieses Smartphone über „Mein Gerät finden“ orten, auch wenn es ausgeschaltet ist"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Du kannst dieses Tablet über „Mein Gerät finden“ orten, auch wenn es ausgeschaltet ist"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Du kannst dieses Smartphone über „Mein Gerät finden“ orten, auch wenn es ausgeschaltet ist"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Du kannst dieses Tablet über „Mein Gerät finden“ orten, auch wenn es ausgeschaltet ist"</string>
 </resources>

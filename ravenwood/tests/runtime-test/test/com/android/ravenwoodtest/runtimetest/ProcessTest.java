@@ -45,10 +45,9 @@ public class ProcessTest {
         assertEquals(THREAD_PRIORITY_DEFAULT, Process.getThreadPriority(Process.myTid()));
         Process.setThreadPriority(THREAD_PRIORITY_FOREGROUND);
         assertEquals(THREAD_PRIORITY_FOREGROUND, Process.getThreadPriority(Process.myTid()));
-        Process.setCanSelfBackground(false);
         Process.setThreadPriority(THREAD_PRIORITY_DEFAULT);
         assertEquals(THREAD_PRIORITY_DEFAULT, Process.getThreadPriority(Process.myTid()));
-        assertThrows(IllegalArgumentException.class,
-                () -> Process.setThreadPriority(THREAD_PRIORITY_BACKGROUND));
+        Process.setThreadPriority(THREAD_PRIORITY_BACKGROUND);
+        assertEquals(THREAD_PRIORITY_BACKGROUND, Process.getThreadPriority(Process.myTid()));
     }
 }

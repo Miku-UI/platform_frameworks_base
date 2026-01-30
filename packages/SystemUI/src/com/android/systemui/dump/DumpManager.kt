@@ -159,6 +159,14 @@ open class DumpManager @Inject constructor() {
         }
     }
 
+    /** Clears contents of all log buffers. */
+    @Synchronized
+    fun clearBuffers() {
+        for (buffer in buffers.values) {
+            buffer.buffer.clear()
+        }
+    }
+
     private fun canAssignToNameLocked(name: String, newDumpable: Any): Boolean {
         val existingDumpable =
             dumpables[name]?.dumpable ?: buffers[name]?.buffer ?: tableLogBuffers[name]?.table

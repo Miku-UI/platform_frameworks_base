@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Actualizar"</string>
     <string name="done" msgid="6632441120016885253">"Listo"</string>
     <string name="cancel" msgid="1018267193425558088">"Cancelar"</string>
+    <string name="more_details" msgid="3643407086654820243">"Más detalles"</string>
+    <string name="dont_install" msgid="414055123295505225">"No instalar"</string>
     <string name="installing" msgid="4921993079741206516">"Instalando…"</string>
     <string name="installing_app" msgid="1165095864863849422">"Instalando <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>…"</string>
     <string name="install_done" msgid="5987363587661783896">"Se instaló la app."</string>
@@ -46,7 +48,7 @@
     <string name="ok" msgid="7871959885003339302">"Aceptar"</string>
     <string name="archive" msgid="4447791830199354721">"Archivar"</string>
     <string name="update_anyway" msgid="8792432341346261969">"Actualizar de todas formas"</string>
-    <string name="manage_applications" msgid="5400164782453975580">"Gestionar apps"</string>
+    <string name="manage_applications" msgid="5400164782453975580">"Administrar apps"</string>
     <string name="out_of_space_dlg_title" msgid="4156690013884649502">"Sin espacio"</string>
     <string name="out_of_space_dlg_text" msgid="8727714096031856231">"No se pudo instalar <xliff:g id="APP_NAME">%1$s</xliff:g>. Libera espacio y vuelve a intentarlo."</string>
     <string name="app_not_found_dlg_title" msgid="5107924008597470285">"No se encontró la app"</string>

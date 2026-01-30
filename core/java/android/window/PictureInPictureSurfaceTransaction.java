@@ -21,6 +21,8 @@ import android.annotation.Nullable;
 import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.Rect;
+import android.gui.BorderSettings;
+import android.gui.BoxShadowSettings;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.view.SurfaceControl;
@@ -51,6 +53,9 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
 
     private final Rect mWindowCrop;
 
+    private final BoxShadowSettings mBoxShadowSettings;
+    private final BorderSettings mBorderSettings;
+
     private boolean mShouldDisableCanAffectSystemUiFlags;
 
     private PictureInPictureSurfaceTransaction(Parcel in) {
@@ -62,12 +67,23 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
         mCornerRadius = in.readFloat();
         mShadowRadius = in.readFloat();
         mWindowCrop = in.readTypedObject(Rect.CREATOR);
+        if (in.readBoolean()) {
+            mBoxShadowSettings = BoxShadowSettings.CREATOR.createFromParcel(in);
+        } else {
+            mBoxShadowSettings = null;
+        }
+        if (in.readBoolean()) {
+            mBorderSettings = BorderSettings.CREATOR.createFromParcel(in);
+        } else {
+            mBorderSettings = null;
+        }
         mShouldDisableCanAffectSystemUiFlags = in.readBoolean();
     }
 
     private PictureInPictureSurfaceTransaction(float alpha, @Nullable PointF position,
             @Nullable float[] float9, float rotation, float cornerRadius, float shadowRadius,
-            @Nullable Rect windowCrop) {
+            @Nullable Rect windowCrop, @Nullable BoxShadowSettings boxShadowSettings,
+            @Nullable BorderSettings borderSettings) {
         mAlpha = alpha;
         mPosition = position;
         if (float9 == null) {
@@ -81,12 +97,14 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
         mCornerRadius = cornerRadius;
         mShadowRadius = shadowRadius;
         mWindowCrop = (windowCrop == null) ? null : new Rect(windowCrop);
+        mBoxShadowSettings = boxShadowSettings;
+        mBorderSettings = borderSettings;
     }
 
     public PictureInPictureSurfaceTransaction(PictureInPictureSurfaceTransaction other) {
         this(other.mAlpha, other.mPosition,
                 other.mFloat9, other.mRotation, other.mCornerRadius, other.mShadowRadius,
-                other.mWindowCrop);
+                other.mWindowCrop, other.mBoxShadowSettings, other.mBorderSettings);
         mShouldDisableCanAffectSystemUiFlags = other.mShouldDisableCanAffectSystemUiFlags;
     }
 
@@ -105,6 +123,16 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
     /** @return {@code true} if this transaction contains setting shadow radius. */
     public boolean hasShadowRadiusSet() {
         return mShadowRadius > 0;
+    }
+
+    /** @return {@code true} if this transaction contains setting box shadow settings. */
+    public boolean hasBoxShadowSettingsSet() {
+        return mBoxShadowSettings != null;
+    }
+
+    /** @return {@code true} if this transaction contains setting border settings. */
+    public boolean hasBorderSettingsSet() {
+        return mBorderSettings != null;
     }
 
     /** Sets the internal {@link #mShouldDisableCanAffectSystemUiFlags}. */
@@ -129,6 +157,8 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
                 && Objects.equals(mCornerRadius, that.mCornerRadius)
                 && Objects.equals(mShadowRadius, that.mShadowRadius)
                 && Objects.equals(mWindowCrop, that.mWindowCrop)
+                && Objects.equals(mBoxShadowSettings, that.mBoxShadowSettings)
+                && Objects.equals(mBorderSettings, that.mBorderSettings)
                 && mShouldDisableCanAffectSystemUiFlags
                 == that.mShouldDisableCanAffectSystemUiFlags;
     }
@@ -137,6 +167,7 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
     public int hashCode() {
         return Objects.hash(mAlpha, mPosition, Arrays.hashCode(mFloat9),
                 mRotation, mCornerRadius, mShadowRadius, mWindowCrop,
+                mBoxShadowSettings, mBorderSettings,
                 mShouldDisableCanAffectSystemUiFlags);
     }
 
@@ -154,6 +185,14 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
         out.writeFloat(mCornerRadius);
         out.writeFloat(mShadowRadius);
         out.writeTypedObject(mWindowCrop, 0 /* flags */);
+        out.writeBoolean(mBoxShadowSettings != null);
+        if (mBoxShadowSettings != null) {
+            mBoxShadowSettings.writeToParcel(out, 0 /* flags */);
+        }
+        out.writeBoolean(mBorderSettings != null);
+        if (mBorderSettings != null) {
+            mBorderSettings.writeToParcel(out, 0 /* flags */);
+        }
         out.writeBoolean(mShouldDisableCanAffectSystemUiFlags);
     }
 
@@ -168,6 +207,8 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
                 + " cornerRadius=" + mCornerRadius
                 + " shadowRadius=" + mShadowRadius
                 + " crop=" + mWindowCrop
+                + " boxShadowSettings=" + mBoxShadowSettings
+                + " borderSettings=" + mBorderSettings
                 + " shouldDisableCanAffectSystemUiFlags" + mShouldDisableCanAffectSystemUiFlags
                 + ")";
     }
@@ -190,6 +231,12 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
         }
         if (surfaceTransaction.hasShadowRadiusSet()) {
             tx.setShadowRadius(surfaceControl, surfaceTransaction.mShadowRadius);
+        }
+        if (surfaceTransaction.hasBoxShadowSettingsSet()) {
+            tx.setBoxShadowSettings(surfaceControl, surfaceTransaction.mBoxShadowSettings);
+        }
+        if (surfaceTransaction.hasBorderSettingsSet()) {
+            tx.setBorderSettings(surfaceControl, surfaceTransaction.mBorderSettings);
         }
         if (surfaceTransaction.mAlpha != NOT_SET) {
             tx.setAlpha(surfaceControl, surfaceTransaction.mAlpha);
@@ -215,6 +262,8 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
         private float mCornerRadius = NOT_SET;
         private float mShadowRadius = NOT_SET;
         private Rect mWindowCrop;
+        private BoxShadowSettings mBoxShadowSettings;
+        private BorderSettings mBorderSettings;
 
         public Builder setAlpha(float alpha) {
             mAlpha = alpha;
@@ -247,9 +296,22 @@ public final class PictureInPictureSurfaceTransaction implements Parcelable {
             return this;
         }
 
+        /** Sets box shadow settings. */
+        public Builder setBoxShadowSettings(@Nullable BoxShadowSettings boxShadowSettings) {
+            mBoxShadowSettings = boxShadowSettings;
+            return this;
+        }
+
+        /** Sets border settings. */
+        public Builder setBorderSettings(@Nullable BorderSettings borderSettings) {
+            mBorderSettings = borderSettings;
+            return this;
+        }
+
         public PictureInPictureSurfaceTransaction build() {
             return new PictureInPictureSurfaceTransaction(mAlpha, mPosition,
-                    mFloat9, mRotation, mCornerRadius, mShadowRadius, mWindowCrop);
+                    mFloat9, mRotation, mCornerRadius, mShadowRadius, mWindowCrop,
+                    mBoxShadowSettings, mBorderSettings);
         }
     }
 }

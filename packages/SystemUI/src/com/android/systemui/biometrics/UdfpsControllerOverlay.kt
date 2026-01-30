@@ -18,7 +18,6 @@ package com.android.systemui.biometrics
 
 import android.annotation.SuppressLint
 import android.annotation.UiThread
-import android.content.Context
 import android.graphics.PixelFormat
 import android.graphics.Rect
 import android.hardware.biometrics.BiometricRequestConstants.REASON_AUTH_BP
@@ -26,46 +25,36 @@ import android.hardware.biometrics.BiometricRequestConstants.REASON_AUTH_KEYGUAR
 import android.hardware.biometrics.BiometricRequestConstants.REASON_ENROLL_ENROLLING
 import android.hardware.biometrics.BiometricRequestConstants.REASON_ENROLL_FIND_SENSOR
 import android.hardware.biometrics.BiometricRequestConstants.RequestReason
+import android.hardware.fingerprint.FingerprintSensorProperties.TYPE_UDFPS_ULTRASONIC
 import android.hardware.fingerprint.IUdfpsOverlayControllerCallback
 import android.os.Build
 import android.os.RemoteException
 import android.os.Trace
-import android.provider.Settings
 import android.util.Log
 import android.util.RotationUtils
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.View
+import android.view.View.OnAttachStateChangeListener
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityManager
 import android.view.accessibility.AccessibilityManager.TouchExplorationStateChangeListener
-import androidx.annotation.VisibleForTesting
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.KeyguardUpdateMonitor
-import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.biometrics.domain.interactor.UdfpsOverlayInteractor
 import com.android.systemui.biometrics.shared.model.UdfpsOverlayParams
 import com.android.systemui.biometrics.ui.binder.UdfpsTouchOverlayBinder
 import com.android.systemui.biometrics.ui.view.UdfpsTouchOverlay
 import com.android.systemui.biometrics.ui.viewmodel.DefaultUdfpsTouchOverlayViewModel
 import com.android.systemui.biometrics.ui.viewmodel.DeviceEntryUdfpsTouchOverlayViewModel
-import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
-import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
+import com.android.systemui.biometrics.ui.viewmodel.PromptUdfpsTouchOverlayViewModel
 import com.android.systemui.dagger.qualifiers.Application
-import com.android.systemui.dump.DumpManager
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
-import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.res.R
-import com.android.systemui.shade.domain.interactor.ShadeInteractor
-import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
-import com.android.systemui.statusbar.phone.SystemUIDialogManager
-import com.android.systemui.statusbar.phone.UnlockedScreenOffAnimationController
-import com.android.systemui.statusbar.policy.ConfigurationController
 import com.android.systemui.statusbar.policy.KeyguardStateController
-import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import dagger.Lazy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -75,42 +64,27 @@ import kotlinx.coroutines.flow.map
 
 private const val TAG = "UdfpsControllerOverlay"
 
-@VisibleForTesting const val SETTING_REMOVE_ENROLLMENT_UI = "udfps_overlay_remove_enrollment_ui"
-
 /**
  * Keeps track of the overlay state and UI resources associated with a single FingerprintService
  * request. This state can persist across configuration changes via the [show] and [hide] methods.
  */
 @UiThread
 class UdfpsControllerOverlay
-@JvmOverloads
 constructor(
-    private val context: Context,
     private val inflater: LayoutInflater,
     private val windowManager: WindowManager,
     private val accessibilityManager: AccessibilityManager,
-    private val statusBarStateController: StatusBarStateController,
-    private val statusBarKeyguardViewManager: StatusBarKeyguardViewManager,
     private val keyguardUpdateMonitor: KeyguardUpdateMonitor,
-    private val dialogManager: SystemUIDialogManager,
-    private val dumpManager: DumpManager,
-    private val configurationController: ConfigurationController,
     private val keyguardStateController: KeyguardStateController,
-    private val unlockedScreenOffAnimationController: UnlockedScreenOffAnimationController,
     private var udfpsDisplayModeProvider: UdfpsDisplayModeProvider,
     val requestId: Long,
     @RequestReason val requestReason: Int,
     private val controllerCallback: IUdfpsOverlayControllerCallback,
     private val onTouch: (View, MotionEvent) -> Boolean,
-    private val activityTransitionAnimator: ActivityTransitionAnimator,
-    private val primaryBouncerInteractor: PrimaryBouncerInteractor,
-    private val alternateBouncerInteractor: AlternateBouncerInteractor,
-    private val isDebuggable: Boolean = Build.IS_DEBUGGABLE,
-    private val transitionInteractor: KeyguardTransitionInteractor,
-    private val selectedUserInteractor: SelectedUserInteractor,
+    transitionInteractor: KeyguardTransitionInteractor,
     private val deviceEntryUdfpsTouchOverlayViewModel: Lazy<DeviceEntryUdfpsTouchOverlayViewModel>,
     private val defaultUdfpsTouchOverlayViewModel: Lazy<DefaultUdfpsTouchOverlayViewModel>,
-    private val shadeInteractor: ShadeInteractor,
+    private val promptUdfpsTouchOverlayViewModel: Lazy<PromptUdfpsTouchOverlayViewModel>,
     private val udfpsOverlayInteractor: UdfpsOverlayInteractor,
     private val powerInteractor: PowerInteractor,
     @Application private val scope: CoroutineScope,
@@ -138,6 +112,7 @@ constructor(
     private var sensorBounds: Rect = Rect()
 
     private var overlayTouchListener: TouchExplorationStateChangeListener? = null
+    private var overlayAttachStateListener: OnAttachStateChangeListener? = null
 
     private val coreLayoutParams =
         WindowManager.LayoutParams(
@@ -170,23 +145,32 @@ constructor(
 
     private var touchExplorationEnabled = false
 
-    private fun shouldRemoveEnrollmentUi(): Boolean {
-        if (isDebuggable) {
-            return Settings.Global.getInt(
-                context.contentResolver,
-                SETTING_REMOVE_ENROLLMENT_UI,
-                0, /* def */
-            ) != 0
-        }
-        return false
+    fun show(params: UdfpsOverlayParams): Boolean {
+        return show(params, null)
+    }
+
+    private fun setHandleTouchesDisregardingUdfpsOverlayViewLifecycle(): Boolean {
+        return requestReason == REASON_AUTH_KEYGUARD &&
+            com.android.systemui.Flags.newDozingKeyguardStates() &&
+            overlayParams.sensorType == TYPE_UDFPS_ULTRASONIC
     }
 
     /** Show the overlay or return false and do nothing if it is already showing. */
     @SuppressLint("ClickableViewAccessibility")
-    fun show(controller: UdfpsController, params: UdfpsOverlayParams): Boolean {
+    fun show(params: UdfpsOverlayParams, attachListener: OnAttachStateChangeListener?): Boolean {
         if (getTouchOverlay() == null) {
             overlayParams = params
+            overlayAttachStateListener = attachListener
             sensorBounds = Rect(params.sensorBounds)
+            val isSetHandleTouchesOutsideOfUdfpsViewLifecycle =
+                setHandleTouchesDisregardingUdfpsOverlayViewLifecycle()
+            if (isSetHandleTouchesOutsideOfUdfpsViewLifecycle) {
+                // doesn't use the overlayTouchView to handle the lifecycle of forwarding
+                // shouldHandleTouches to the HAL
+                udfpsOverlayInteractor.updateSetHandleTouchesForKeyguard(
+                    deviceEntryUdfpsTouchOverlayViewModel.get()
+                )
+            }
             try {
                 overlayTouchView =
                     (inflater.inflate(R.layout.udfps_touch_overlay, null, false)
@@ -198,12 +182,24 @@ constructor(
                                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
                             }
 
+                            overlayAttachStateListener?.let { addOnAttachStateChangeListener(it) }
                             addViewNowOrLater(this, null)
                             when (requestReason) {
                                 REASON_AUTH_KEYGUARD ->
                                     UdfpsTouchOverlayBinder.bind(
                                         view = this,
                                         viewModel = deviceEntryUdfpsTouchOverlayViewModel.get(),
+                                        udfpsOverlayInteractor =
+                                            if (isSetHandleTouchesOutsideOfUdfpsViewLifecycle) {
+                                                null
+                                            } else {
+                                                udfpsOverlayInteractor
+                                            },
+                                    )
+                                REASON_AUTH_BP ->
+                                    UdfpsTouchOverlayBinder.bind(
+                                        view = this,
+                                        viewModel = promptUdfpsTouchOverlayViewModel.get(),
                                         udfpsOverlayInteractor = udfpsOverlayInteractor,
                                     )
                                 else ->
@@ -247,6 +243,9 @@ constructor(
         addViewRunnable =
             kotlinx.coroutines.Runnable {
                 Trace.setCounter("UdfpsAddView", 1)
+                if (Build.IS_DEBUGGABLE) {
+                    Log.d(TAG, "adding view=$view")
+                }
                 windowManager.addView(view, coreLayoutParams.updateDimensions(animation))
             }
         if (powerInteractor.detailedWakefulness.value.isAwake()) {
@@ -284,15 +283,20 @@ constructor(
     /** Hide the overlay or return false and do nothing if it is already hidden. */
     fun hide(): Boolean {
         val wasShowing = isShowing
-
+        Log.d(TAG, "hideUdfpsControllerOverlay wasShowing=$wasShowing")
+        udfpsOverlayInteractor.stopSetHandleTouchesForKeyguard()
         udfpsDisplayModeProvider.disable(null)
         getTouchOverlay()?.apply {
             if (this.parent != null) {
+                if (Build.IS_DEBUGGABLE) {
+                    Log.d(TAG, "removing view=$this")
+                }
                 windowManager.removeView(this)
             }
             Trace.setCounter("UdfpsAddView", 0)
             setOnTouchListener(null)
             setOnHoverListener(null)
+            overlayAttachStateListener?.let { removeOnAttachStateChangeListener(it) }
             overlayTouchListener?.let {
                 accessibilityManager.removeTouchExplorationStateChangeListener(it)
             }
@@ -340,7 +344,7 @@ constructor(
 
         val rot = overlayParams.rotation
         if (rot == Surface.ROTATION_90 || rot == Surface.ROTATION_270) {
-            if (!shouldRotate(animation)) {
+            if (!shouldRotate()) {
                 Log.v(
                     TAG,
                     "Skip rotating UDFPS bounds " +
@@ -375,7 +379,7 @@ constructor(
         return this
     }
 
-    private fun shouldRotate(animation: UdfpsAnimationViewController<*>?): Boolean {
+    private fun shouldRotate(): Boolean {
         if (!keyguardStateController.isShowing) {
             // always rotate view if we're not on the keyguard
             return true

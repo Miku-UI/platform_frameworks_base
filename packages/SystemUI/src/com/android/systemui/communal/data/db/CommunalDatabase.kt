@@ -30,7 +30,7 @@ import com.android.systemui.communal.shared.model.SpanValue
 import com.android.systemui.communal.shared.model.toResponsive
 import com.android.systemui.res.R
 
-@Database(entities = [CommunalWidgetItem::class, CommunalItemRank::class], version = 5)
+@Database(entities = [CommunalWidgetItem::class, CommunalItemRank::class], version = 6)
 abstract class CommunalDatabase : RoomDatabase() {
     abstract fun communalWidgetDao(): CommunalWidgetDao
 
@@ -66,6 +66,7 @@ abstract class CommunalDatabase : RoomDatabase() {
                                 MIGRATION_2_3,
                                 MIGRATION_3_4,
                                 MIGRATION_4_5,
+                                MIGRATION_5_6,
                             )
                             builder.fallbackToDestructiveMigration(dropAllTables = true)
                             callback?.let { callback -> builder.addCallback(callback) }
@@ -153,6 +154,28 @@ abstract class CommunalDatabase : RoomDatabase() {
                             )
                         }
                     }
+                }
+            }
+
+        /** Eliminates duplicate entries with same widget id and enforces a uniqueness index */
+        @VisibleForTesting
+        val MIGRATION_5_6 =
+            object : Migration(5, 6) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    Log.i(TAG, "Migrating from version 5 to 6")
+                    db.query(
+                            "SELECT item_id, widget_id FROM communal_widget_table WHERE widget_id IN (SELECT widget_id FROM communal_widget_table GROUP BY widget_id HAVING COUNT(widget_id) > 1)"
+                        )
+                        .use { cursor ->
+                            while (cursor.moveToNext()) {
+                                val id = cursor.getInt(cursor.getColumnIndex("item_id"))
+                                db.execSQL("DELETE FROM communal_widget_table WHERE item_id = $id")
+                                db.execSQL("DELETE FROM communal_item_rank_table WHERE uid = $id")
+                            }
+                        }
+                    db.execSQL(
+                        "CREATE UNIQUE INDEX IF NOT EXISTS `widget_id_index` ON `communal_widget_table` (`widget_id`)"
+                    )
                 }
             }
     }

@@ -20,7 +20,7 @@ import android.hardware.power.GpuHeadroomParams;
 
 /**
  * Changes should be synced with match function of HintManagerService#GpuHeadroomCacheItem.
- * {@hide}
+ * @hide
  */
 @JavaDerive(equals = true, toString = true)
 parcelable GpuHeadroomParamsInternal {

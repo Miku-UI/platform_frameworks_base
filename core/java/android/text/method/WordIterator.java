@@ -35,7 +35,7 @@ import java.util.Locale;
  * for performance reasons.
  *
  * Also provides methods to determine word boundaries.
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class WordIterator implements Selection.PositionIterator {

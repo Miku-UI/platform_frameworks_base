@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibActivityEmbedding",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -22,17 +23,11 @@ android_library {
         "androidx.window_window",
     ],
     sdk_version: "system_current",
-    min_sdk_version: "21",
+    min_sdk_version: "23",
     // TODO(b/228508619) Remove the optional uses after fixing upstream
     optional_uses_libs: [
-        "org.apache.http.legacy",
         "androidx.window.extensions",
         "androidx.window.sidecar",
-    ],
-
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.permission",
-        "com.android.healthfitness",
+        "org.apache.http.legacy",
     ],
 }

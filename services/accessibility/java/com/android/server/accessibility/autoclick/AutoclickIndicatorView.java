@@ -21,7 +21,9 @@ import static android.view.accessibility.AccessibilityManager.AUTOCLICK_CURSOR_A
 
 import android.animation.ValueAnimator;
 import android.content.Context;
+import android.content.res.Configuration;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.PixelFormat;
 import android.graphics.RectF;
@@ -36,42 +38,72 @@ import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.R;
 
-// A visual indicator for the autoclick feature.
+/**
+ * A view that displays a circular visual indicator for the autoclick feature.
+ * The indicator animates a ring to provide visual feedback before an automatic click occurs.
+ */
 public class AutoclickIndicatorView extends View {
     private static final String TAG = AutoclickIndicatorView.class.getSimpleName();
 
-    // TODO(b/383901288): update delay time once determined by UX.
     static final int SHOW_INDICATOR_DELAY_TIME = 150;
 
     static final int MINIMAL_ANIMATION_DURATION = 50;
 
+    // The radius of the click point indicator.
+    private static final float POINT_RADIUS_DP = 4f;
+
+    private static final float POINT_STROKE_WIDTH_DP = 1f;
+
+    private final int mColor = R.color.materialColorPrimary;
+
+    // Radius of the indicator circle.
     private int mRadius = AUTOCLICK_CURSOR_AREA_SIZE_DEFAULT;
 
+    // Paint object used to draw the indicator.
     private final Paint mPaint;
+    private final Paint mPointPaint;
 
     private final ValueAnimator mAnimator;
 
     private final RectF mRingRect;
 
-    // x and y coordinates of the visual indicator.
-    private float mX;
-    private float mY;
+    private final float mPointSizePx;
+    private final float mPointStrokeWidthPx;
+
+    // x and y coordinates of the mouse.
+    private float mMouseX;
+    private float mMouseY;
+
+    // x and y coordinates of the visual indicator, set when drawing of the indicator begins.
+    private float mSnapshotX;
+    private float mSnapshotY;
 
     // Current sweep angle of the animated ring.
     private float mSweepAngle;
 
-    private int mAnimationDuration = AccessibilityManager.AUTOCLICK_DELAY_DEFAULT;
+    private int mAnimationDuration = AccessibilityManager.AUTOCLICK_DELAY_WITH_INDICATOR_DEFAULT;
 
     // Status of whether the visual indicator should display or not.
     private boolean showIndicator = false;
+
+    private boolean mIgnoreMinorCursorMovement = false;
 
     public AutoclickIndicatorView(Context context) {
         super(context);
 
         mPaint = new Paint();
-        mPaint.setColor(context.getColor(R.color.materialColorPrimary));
+        mPaint.setColor(context.getColor(mColor));
         mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setStrokeWidth(10);
+
+        // Convert dp to pixels based on screen density for the point indicator.
+        float density = getResources().getDisplayMetrics().density;
+        mPointSizePx = POINT_RADIUS_DP * density;
+        mPointStrokeWidthPx = POINT_STROKE_WIDTH_DP * density;
+
+        // Setup paint for drawing the point indicator.
+        mPointPaint = new Paint();
+        mPointPaint.setAntiAlias(true);
 
         mAnimator = ValueAnimator.ofFloat(0, 360);
         mAnimator.setDuration(mAnimationDuration);
@@ -97,7 +129,9 @@ public class AutoclickIndicatorView extends View {
                 WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
                         | WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
-        layoutParams.privateFlags |= WindowManager.LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS;
+        layoutParams.privateFlags |= WindowManager.LayoutParams.SYSTEM_FLAG_SHOW_FOR_ALL_USERS
+                | WindowManager.LayoutParams.PRIVATE_FLAG_EXCLUDE_FROM_SCREEN_MAGNIFICATION
+                | WindowManager.LayoutParams.PRIVATE_FLAG_NOT_MAGNIFIABLE;
         layoutParams.setFitInsetsTypes(WindowInsets.Type.statusBars());
         layoutParams.layoutInDisplayCutoutMode = LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
         layoutParams.format = PixelFormat.TRANSLUCENT;
@@ -111,12 +145,33 @@ public class AutoclickIndicatorView extends View {
         super.onDraw(canvas);
 
         if (showIndicator) {
+            // Draw the ring indicator.
             mRingRect.set(
-                    /* left= */ mX - mRadius,
-                    /* top= */ mY - mRadius,
-                    /* right= */ mX + mRadius,
-                    /* bottom= */ mY + mRadius);
+                    /* left= */ mSnapshotX - mRadius,
+                    /* top= */ mSnapshotY - mRadius,
+                    /* right= */ mSnapshotX + mRadius,
+                    /* bottom= */ mSnapshotY + mRadius);
             canvas.drawArc(mRingRect, /* startAngle= */ -90, mSweepAngle, false, mPaint);
+
+            // Draw a point indicator. When mIgnoreMinorCursorMovement is true, the point stays at
+            // the center of the ring. Otherwise, it follows the mouse movement.
+            final float pointX;
+            final float pointY;
+            if (mIgnoreMinorCursorMovement) {
+                pointX = mSnapshotX;
+                pointY = mSnapshotY;
+            } else {
+                pointX = mMouseX;
+                pointY = mMouseY;
+            }
+            mPointPaint.setStyle(Paint.Style.FILL);
+            mPointPaint.setColor(Color.BLACK);
+            canvas.drawCircle(pointX, pointY, mPointSizePx, mPointPaint);
+
+            mPointPaint.setStyle(Paint.Style.STROKE);
+            mPointPaint.setStrokeWidth(mPointStrokeWidthPx);
+            mPointPaint.setColor(Color.WHITE);
+            canvas.drawCircle(pointX, pointY, mPointSizePx, mPointPaint);
         }
     }
 
@@ -131,9 +186,28 @@ public class AutoclickIndicatorView extends View {
         setMeasuredDimension(screenWidth, screenHeight);
     }
 
+    @Override
+    public void onConfigurationChanged(Configuration newConfig) {
+        post(new Runnable() {
+            @Override
+            public void run() {
+                // Only color needs to be updated when system theme is changed.
+                mPaint.setColor(getContext().getColor(mColor));
+            }
+        });
+    }
+
     public void setCoordination(float x, float y) {
-        mX = x;
-        mY = y;
+        if (mMouseX == x && mMouseY == y) {
+            return;
+        }
+        mMouseX = x;
+        mMouseY = y;
+
+        // Redraw the click point indicator with the updated coordinates.
+        if (showIndicator) {
+            invalidate();
+        }
     }
 
     public void setRadius(int radius) {
@@ -145,7 +219,14 @@ public class AutoclickIndicatorView extends View {
         return mRadius;
     }
 
+    @VisibleForTesting
+    ValueAnimator getAnimatorForTesting() {
+        return mAnimator;
+    }
+
     public void redrawIndicator() {
+        mSnapshotX = mMouseX;
+        mSnapshotY = mMouseY;
         showIndicator = true;
         invalidate();
         mAnimator.start();
@@ -160,5 +241,9 @@ public class AutoclickIndicatorView extends View {
     public void setAnimationDuration(int duration) {
         mAnimationDuration = Math.max(duration, MINIMAL_ANIMATION_DURATION);
         mAnimator.setDuration(mAnimationDuration);
+    }
+
+    public void setIgnoreMinorCursorMovement(boolean ignoreMinorCursorMovement) {
+        mIgnoreMinorCursorMovement = ignoreMinorCursorMovement;
     }
 }

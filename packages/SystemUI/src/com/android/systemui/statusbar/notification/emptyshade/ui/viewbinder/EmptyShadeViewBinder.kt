@@ -17,19 +17,37 @@
 package com.android.systemui.statusbar.notification.emptyshade.ui.viewbinder
 
 import android.view.View
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.statusbar.notification.NotificationActivityStarter
+import com.android.systemui.statusbar.notification.emptyshade.ui.shared.flag.ShowIconInEmptyShade
+import com.android.systemui.statusbar.notification.emptyshade.ui.view.EmptyShadeIconView
 import com.android.systemui.statusbar.notification.emptyshade.ui.view.EmptyShadeView
 import com.android.systemui.statusbar.notification.emptyshade.ui.viewmodel.EmptyShadeViewModel
+import com.android.systemui.statusbar.notification.row.StackScrollerDecorView
 import kotlinx.coroutines.coroutineScope
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 object EmptyShadeViewBinder {
     suspend fun bind(
-        view: EmptyShadeView,
+        view: StackScrollerDecorView,
         viewModel: EmptyShadeViewModel,
         notificationActivityStarter: NotificationActivityStarter,
     ) = coroutineScope {
-        launch { viewModel.text.collect { view.setText(it) } }
+        if (ShowIconInEmptyShade.isEnabled) {
+            require(view is EmptyShadeIconView)
+
+            launch {
+                viewModel.message.collect {
+                    view.setText(it.message)
+                    view.setIcon(it.icon)
+                }
+            }
+        } else {
+            require(view is EmptyShadeView)
+
+            launch { viewModel.text.collect { view.setText(it) } }
+
+            launch { bindFooter(view, viewModel) }
+        }
 
         launch {
             viewModel.onClick.collect { settingsIntent ->
@@ -39,8 +57,6 @@ object EmptyShadeViewBinder {
                 view.setOnClickListener(onClickListener)
             }
         }
-
-        launch { bindFooter(view, viewModel) }
     }
 
     private suspend fun bindFooter(view: EmptyShadeView, viewModel: EmptyShadeViewModel) =

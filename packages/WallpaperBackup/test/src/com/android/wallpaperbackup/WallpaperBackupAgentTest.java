@@ -16,13 +16,14 @@
 
 package com.android.wallpaperbackup;
 
-import static android.app.Flags.FLAG_LIVE_WALLPAPER_CONTENT_HANDLING;
+import static android.app.Flags.fixWallpaperCropsOnRestore;
 import static android.app.WallpaperManager.FLAG_LOCK;
 import static android.app.WallpaperManager.FLAG_SYSTEM;
 import static android.os.ParcelFileDescriptor.MODE_READ_ONLY;
 
 import static com.android.wallpaperbackup.WallpaperBackupAgent.LOCK_WALLPAPER_STAGE;
 import static com.android.wallpaperbackup.WallpaperBackupAgent.SYSTEM_WALLPAPER_STAGE;
+import static com.android.wallpaperbackup.WallpaperBackupAgent.WALLPAPER_BACKUP_DEVICE_INFO_STAGE;
 import static com.android.wallpaperbackup.WallpaperBackupAgent.WALLPAPER_INFO_STAGE;
 import static com.android.wallpaperbackup.WallpaperEventLogger.ERROR_INELIGIBLE;
 import static com.android.wallpaperbackup.WallpaperEventLogger.ERROR_NO_METADATA;
@@ -37,19 +38,21 @@ import static com.android.wallpaperbackup.WallpaperEventLogger.WALLPAPER_LIVE_SY
 import static com.android.window.flags.Flags.multiCrop;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth.assertWithMessage;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.annotation.Nullable;
+import android.app.Flags;
 import android.app.WallpaperInfo;
 import android.app.WallpaperManager;
 import android.app.backup.BackupAnnotations;
@@ -63,10 +66,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.os.FileUtils;
 import android.os.ParcelFileDescriptor;
 import android.os.UserHandle;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.wallpaper.WallpaperService;
@@ -80,6 +85,7 @@ import androidx.test.runner.AndroidJUnit4;
 
 import com.android.internal.content.PackageMonitor;
 import com.android.modules.utils.TypedXmlSerializer;
+import com.android.wallpaperbackup.WallpaperBackupAgent.WallpaperDisplayInfo;
 import com.android.wallpaperbackup.utils.ContextWithServiceOverrides;
 
 import org.junit.After;
@@ -89,7 +95,8 @@ import org.junit.Test;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatcher;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -97,8 +104,10 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -114,6 +123,7 @@ public class WallpaperBackupAgentTest {
 
     @Mock
     private FullBackupDataOutput mOutput;
+
     @Mock
     private WallpaperManager mWallpaperManager;
     @Mock
@@ -121,18 +131,28 @@ public class WallpaperBackupAgentTest {
     @Mock
     private BackupManager mBackupManager;
 
+    private boolean mShouldMockDisplays = false;
+    private final List<WallpaperDisplayInfo> mMockWallpaperDisplayInfos = new ArrayList<>();
+    private boolean mShouldMockBitmapSize = false;
+    private Point mMockBitmapSize = null;
+
     private ContextWithServiceOverrides mContext;
     private IsolatedWallpaperBackupAgent mWallpaperBackupAgent;
     private ComponentName mWallpaperComponent;
     private WallpaperDescription mWallpaperDescription;
+    private Locale mOriginalLocale;
 
     private final TemporaryFolder mTemporaryFolder = new TemporaryFolder();
+
+    @Captor
+    private ArgumentCaptor<SparseArray<Rect>> mCropHintsCaptor;
 
     @Rule
     public RuleChain mRuleChain = RuleChain.outerRule(new SetFlagsRule()).around(mTemporaryFolder);
 
     @Before
     public void setUp() {
+
         MockitoAnnotations.initMocks(this);
         when(mWallpaperManager.isWallpaperBackupEligible(eq(FLAG_SYSTEM))).thenReturn(true);
         when(mWallpaperManager.isWallpaperBackupEligible(eq(FLAG_LOCK))).thenReturn(true);
@@ -148,11 +168,16 @@ public class WallpaperBackupAgentTest {
         mWallpaperComponent = new ComponentName(TEST_WALLPAPER_PACKAGE, "");
         mWallpaperDescription = new WallpaperDescription.Builder().setComponent(
                 mWallpaperComponent).setId("id").build();
+
+        mOriginalLocale = Locale.getDefault();
     }
 
     @After
     public void tearDown() {
         FileUtils.deleteContents(mContext.getFilesDir());
+        Locale.setDefault(mOriginalLocale);
+        mShouldMockDisplays = false;
+        mShouldMockBitmapSize = false;
     }
 
     @Test
@@ -414,7 +439,6 @@ public class WallpaperBackupAgentTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void testUpdateWallpaperDescription_immediate_systemAndLock()
             throws IOException {
         mWallpaperBackupAgent.mPackageExists = true;
@@ -434,7 +458,6 @@ public class WallpaperBackupAgentTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void testUpdateWallpaperDescription_immediate_systemOnly() throws IOException {
         mWallpaperBackupAgent.mPackageExists = true;
 
@@ -452,7 +475,6 @@ public class WallpaperBackupAgentTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void testUpdateWallpaperDescription_delayed_systemAndLock()
             throws IOException {
         mWallpaperBackupAgent.mIsDeviceInRestore = true;
@@ -474,7 +496,6 @@ public class WallpaperBackupAgentTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void testUpdateWallpaperDescription_delayed_systemOnly() throws IOException {
         mWallpaperBackupAgent.mIsDeviceInRestore = true;
 
@@ -899,7 +920,6 @@ public class WallpaperBackupAgentTest {
 
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void testUpdateWallpaperDescription_delayed_succeeds_logsSuccess() throws Exception {
         mWallpaperBackupAgent.mIsDeviceInRestore = true;
         when(mWallpaperManager.setWallpaperComponentWithDescription(any(),
@@ -947,7 +967,6 @@ public class WallpaperBackupAgentTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void testUpdateWallpaperDescription_delayed_fails_logsFailure() throws Exception {
         mWallpaperBackupAgent.mIsDeviceInRestore = true;
         BackupRestoreEventLogger logger = new BackupRestoreEventLogger(
@@ -998,45 +1017,483 @@ public class WallpaperBackupAgentTest {
 
     @Test
     public void testOnRestore_noCropHints() throws Exception {
-        testParseCropHints(Map.of());
+        testParseCropHints(new SparseArray<>(), new SparseArray<>());
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
     public void testOnRestore_singleCropHint() throws Exception {
-        Map<Integer, Rect> testMap = Map.of(
-                WallpaperManager.ORIENTATION_PORTRAIT, new Rect(1, 2, 3, 4));
-        testParseCropHints(testMap);
+        SparseArray<Rect> testCropHints = new SparseArray<>();
+        testCropHints.put(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(1, 2, 3, 4));
+        testParseCropHints(new SparseArray<>(), null);
     }
 
     @Test
-    public void testOnRestore_multipleCropHints() throws Exception {
-        Map<Integer, Rect> testMap = Map.of(
-                WallpaperManager.ORIENTATION_PORTRAIT, new Rect(1, 2, 3, 4),
-                WallpaperManager.ORIENTATION_SQUARE_PORTRAIT, new Rect(5, 6, 7, 8),
-                WallpaperManager.ORIENTATION_SQUARE_LANDSCAPE, new Rect(9, 10, 11, 12));
-        testParseCropHints(testMap);
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_sameDimensions() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(2000, 2000),
+                /* sourceDeviceDimensions */ new Point(1000, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1000, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(350, 80, 1850, 1950)),
+
+                // When both devices have the same dimensions, the crop hints should not change.
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(350, 80, 1850, 1950))
+        );
     }
 
-    private void testParseCropHints(Map<Integer, Rect> testMap) throws Exception {
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_widerTargetDevice_noParallax()
+            throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(2000, 2000),
+                /* sourceDeviceDimensions */ new Point(800, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1000, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(600, 0, 1400, 2000)),
+
+                // Here we should be adding 100px on both sides to match the new aspect ratio.
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(500, 0, 1500, 2000))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_widerTargetDevice_ltr() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(3000, 3000),
+                /* sourceDeviceDimensions */ new Point(800, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1000, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(600, 0, 1800, 2000)),
+
+                // The crop without parallax of the source device is (600, 0, 1400, 2000), and there
+                // is 400px (50% of the width) for parallax. The crop without parallax of the target
+                // device should be (500, 0, 1500, 2000), to preserve the same center and match the
+                // new aspect ratio. Then we need to add 500px (50% of the width) to the right
+                // (since LTR layout) leading to the expected crop (500, 0, 2000, 2000).
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(500, 0, 2000, 2000))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_widerTargetDevice_rtl() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(2000, 2000),
+                /* sourceDeviceDimensions */ new Point(800, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1000, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ true,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(600, 0, 1800, 2000)),
+
+                // Similar to the case singleCropHintPortrait_widerTargetDevice_ltr, but since the
+                // layout is RTL, we add 100px to the right and 200px to the left, not the opposite.
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(400, 0, 1900, 2000))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_narrowerTargetDevice_noParallax()
+            throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(1000, 1000),
+                /* sourceDeviceDimensions */ new Point(1200, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1000, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(200, 50, 680, 850)),
+
+                // Here we need to enlarge the crop vertically to match the new aspect ratio. We
+                // need to add 160px of height in total. Since there are only 50px remaining at the
+                // top, we add them, and 110px at the bottom.
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(200, 0, 680, 960))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_narrowerTargetDevice_ltr() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(1500, 1000),
+                /* sourceDeviceDimensions */ new Point(1000, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(800, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(100, 0, 850, 1000)),
+
+                // Here we have no room to enlarge the crop vertically, so we need to shrink it
+                // horizontally to match the new aspect ratio. Since the layout is LTR, the crop
+                // without parallax is (100, 0, 600, 1000), and the parallax amount is 50%. The new
+                // crop without parallax is (150, 0, 550, 1000) in order to keep the same center and
+                // match the new aspect ratio. Then we add 50% of the width for parallax to the
+                // right (since LTR), which leads us to the expected crop (150, 0, 750, 1000).
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(150, 0, 750, 1000))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_narrowerTargetDevice_rtl() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(1000, 1000),
+                /* sourceDeviceDimensions */ new Point(900, 1800),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(800, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ true,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(0, 0, 900, 900)),
+
+                // With RTL layout the initial crop without parallax is (450, 0, 900, 900), and the
+                // parallax amount is 100%. We first add the 100px of height we have available to
+                // try to match the new aspect ratio. Our crop becomes 450x1000 which is still too
+                // wide: we need to remove 50px of width. To keep the same center our new crop
+                // without parallax becomes (475, 0, 875, 100). After adding back the 100% (400px)
+                // of parallax to the left, we get the expected crop (75, 0, 875, 1000).
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(75, 0, 875, 1000))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_singleCropHintPortrait_doesNotAddTinyParallax() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(601, 1000),
+                /* sourceDeviceDimensions */ new Point(800, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1200, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(100, 0, 600, 1000)),
+
+                // On the original device, crop without parallax is (100, 0, 500, 1000) and there
+                // is 100px of width for parallax. To match the new device aspect ratio, add 100px
+                // of width to both sides of the crop without parallax, leading to a new crop
+                // without parallax of (0, 0, 600, 1000). Then, we would like to add back the
+                // parallax but have only 1px of width remaining. Since 1px is too small and we
+                // do not want to have tiny amounts of parallax on our wallpaper, we should not add
+                // any parallax at all, and the expected crop should remain (0, 0, 600, 1000).
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(0, 0, 600, 1000))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_smallDevice_landscapeCropHintNotRestored() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(1000, 1000),
+                /* sourceDeviceDimensions */ new Point(1800, 900),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(800, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ true,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_LANDSCAPE, new Rect(0, 0, 900, 900)),
+
+                // The landscape crop should be discarded if a device doesn't have a large screen.
+                /* expectedCropHints */
+                Map.of()
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_largeScreen_landscapeCropHintRestored() throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(2000, 2000),
+                /* sourceDeviceDimensions */ new Point(1000, 2000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(2000, 1000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ true,
+
+                /* sourceCropHints */
+                Map.of(WallpaperManager.ORIENTATION_LANDSCAPE, new Rect(0, 500, 2000, 1500)),
+
+                // The landscape crop should be kept if a device has a large screen.
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_LANDSCAPE, new Rect(0, 500, 2000, 1500))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_portraitAndLandscapeCrops_smallScreen_restoresPortraitOnly()
+            throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(2000, 2000),
+                /* sourceDeviceDimensions */ new Point(2000, 1000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1000, 2000),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(0, 0, 1500, 2000),
+                        WallpaperManager.ORIENTATION_LANDSCAPE, new Rect(500, 200, 1500, 700)),
+
+                // The landscape crop should be discarded since the target device doesn't have a
+                // large screen. The portrait crop should be unchanged since the source and target
+                // devices have the same dimensions.
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(0, 0, 1500, 2000))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_portraitAndLandscapeCrops_largeScreen_restoresBothCrops()
+            throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(600, 500),
+                /* sourceDeviceDimensions */ new Point(500, 1000),
+                /* sourceDeviceSecondaryDimensions */ null,
+                /* targetDeviceDimensions */ new Point(1000, 2500),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ true,
+
+                /* sourceCropHints */
+                Map.of(
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(0, 0, 360, 480),
+                        WallpaperManager.ORIENTATION_LANDSCAPE, new Rect(30, 190, 470, 410)),
+
+                // Since the target device has a large screen, no crops should be discarded, and
+                // each crop should be adjusted if needed.
+                /* expectedCropHints */
+                Map.of(
+                        // The source crop without parallax is 240x480, with a 50% parallax amount.
+                        // We first add the 20px of height we have to try to match the new aspect
+                        // ratio. Our crop becomes 240x500 which is still too wide: we need to
+                        // remove 40px of width. To keep the same center our new crop without
+                        // parallax becomes (20, 0, 220, 500). After adding back the 50% (100px) of
+                        // parallax to the left, we get the expected crop (20, 0, 320, 500).
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(20, 0, 320, 500),
+
+                        // The source crop is 440x220 and has no parallax. Similarly to the portrait
+                        // case just above (but in rotated), we first add all the width we can: 30px
+                        // on both sides, since 30px is the max we can add to the left. It's not
+                        // enough, so we remove height (10px on both sides) to match the new aspect
+                        // ratio, leading us to the crop (0, 200, 500, 400).
+                        WallpaperManager.ORIENTATION_LANDSCAPE, new Rect(0, 200, 500, 400))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_foldableToFoldable_portraitAndSquarePortraitCrops_noParallax()
+            throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(1000, 1000),
+                /* sourceDeviceDimensions */ new Point(500, 1000),
+                /* sourceDeviceSecondaryDimensions */ new Point(900, 1000),
+                /* targetDeviceDimensions */ new Point(1000, 2500),
+                /* targetDeviceSecondaryDimensions */ new Point(2000, 2500),
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(250, 0, 750, 1000),
+                        WallpaperManager.ORIENTATION_SQUARE_PORTRAIT, new Rect(0, 0, 400, 450)),
+
+                // Since the target device has both portrait and square orientations, both crops
+                // should be kept and adjusted.
+                /* expectedCropHints */
+                Map.of(
+                        // Since there is no room to add height to the crop, remove width on both
+                        // sides of the crop to match the new device aspect ratio.
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(300, 0, 700, 1000),
+
+                        // Add height to the crop (to the bottom since there is no room to the top)
+                        // to match the new device aspect ratio.
+                        WallpaperManager.ORIENTATION_SQUARE_PORTRAIT, new Rect(0, 0, 400, 500))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_foldableToHandheld_portraitAndSquarePortraitCrops_rtl()
+            throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(100, 100),
+                /* sourceDeviceDimensions */ new Point(500, 1000),
+                /* sourceDeviceSecondaryDimensions */ new Point(900, 1000),
+                /* targetDeviceDimensions */ new Point(1000, 2500),
+                /* targetDeviceSecondaryDimensions */ null,
+                /* isTargetDeviceRtl */ true,
+                /* isTargetDeviceLargeScreen */ false,
+
+                /* sourceCropHints */
+                Map.of(
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(20, 0, 95, 100),
+                        WallpaperManager.ORIENTATION_SQUARE_PORTRAIT, new Rect(10, 10, 90, 90)),
+
+                // Only keep the portrait orientation since the target device has no square screen.
+                // The source portrait crop without parallax is (45, 0, 95, 100) with a 50% parallax
+                // amount. The new crop without parallax should be 40x100 to match the target aspect
+                // ratio. There is no room to add height to the crop, so remove 5px on each side of
+                // the crop horizontally. The new crop without parallax becomes (50, 0, 90, 100).
+                // After adding back the 50% parallax, we get the expected crop (30, 0, 90, 100).
+                /* expectedCropHints */
+                Map.of(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(30, 0, 90, 100))
+        );
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_foldableToFoldable_portraitAndSquareLandscapeCrops_ltr()
+            throws Exception {
+        testRestoredCrops(
+                /* bitmapDimensions */ new Point(1000, 1000),
+                /* sourceDeviceDimensions */ new Point(500, 1000),
+                /* sourceDeviceSecondaryDimensions */ new Point(1100, 1000),
+                /* targetDeviceDimensions */ new Point(1000, 2500),
+                /* targetDeviceSecondaryDimensions */ new Point(2000, 2500),
+                /* isTargetDeviceRtl */ false,
+                /* isTargetDeviceLargeScreen */ true,
+
+                /* sourceCropHints */
+                Map.of(
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(200, 0, 950, 1000),
+                        WallpaperManager.ORIENTATION_SQUARE_LANDSCAPE, new Rect(
+                                100, 300, 980, 700)),
+
+                // No crop should be discarded since the target device has both portrait and square
+                // dimensions.
+                /* expectedCropHints */
+                Map.of(
+                        // The source portrait crop without parallax is (200, 0, 700, 1000) with a
+                        // 50% parallax amount. There is no room to add height to the crop, so
+                        // remove 50px on each side of the crop horizontally to match the new aspect
+                        // ratio. The new crop without parallax is (250, 0, 650, 1000). After adding
+                        // back the 50% parallax, we get the expected crop (250, 0, 850, 1000).
+                        WallpaperManager.ORIENTATION_PORTRAIT, new Rect(250, 0, 850, 1000),
+
+                        // The source square landscape crop without parallax is (100, 300, 540, 700)
+                        // with a 100% parallax amount. The target device has square landscape
+                        // dimensions of 2500x2000 which is wider than the source device. To match
+                        // the new aspect ratio, we add 30px to both sides of the crop, and get a
+                        // new crop without parallax of (70, 300, 570, 700). There is not enough
+                        // width to add back all the 100% of parallax, but there is enough to add a
+                        // decent amount of parallax (86%). Use all the remaining width to add these
+                        // 86% of parallax.
+                        WallpaperManager.ORIENTATION_SQUARE_LANDSCAPE, new Rect(70, 300, 1000, 700))
+        );
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_FIX_WALLPAPER_CROPS_ON_RESTORE)
+    public void testOnRestore_multipleCropHints() throws Exception {
+        SparseArray<Rect> testCropHints = new SparseArray<>();
+        testCropHints.put(WallpaperManager.ORIENTATION_PORTRAIT, new Rect(1, 2, 3, 4));
+        testCropHints.put(WallpaperManager.ORIENTATION_SQUARE_PORTRAIT, new Rect(5, 6, 7, 8));
+        testCropHints.put(WallpaperManager.ORIENTATION_SQUARE_LANDSCAPE, new Rect(9, 10, 11, 12));
+        testParseCropHints(testCropHints, null);
+    }
+
+    private void testRestoredCrops(
+            Point bitmapDimensions,
+            Point sourceDeviceDimensions,
+            @Nullable Point sourceDeviceSecondaryDimensions,
+            Point targetDeviceDimensions,
+            @Nullable Point targetDeviceSecondaryDimensions,
+            boolean isTargetDeviceRtl,
+            boolean isTargetDeviceLargeScreen,
+            Map<Integer, Rect> sourceCropHints,
+            Map<Integer, Rect> expectedCropHints
+    ) throws Exception {
+        setupFakeBitmapSize(bitmapDimensions);
+        setupMockDisplays(
+                targetDeviceDimensions,
+                targetDeviceSecondaryDimensions,
+                isTargetDeviceLargeScreen);
+        setupRtl(isTargetDeviceRtl);
+        mockWallpaperBackupDeviceInfoStage(sourceDeviceDimensions, sourceDeviceSecondaryDimensions);
+
+        SparseArray<Rect> source = new SparseArray<>();
+        sourceCropHints.forEach(source::put);
+
+        SparseArray<Rect> expected = new SparseArray<>();
+        expectedCropHints.forEach(expected::put);
+
+        testParseCropHints(source, expected);
+    }
+
+    private void testParseCropHints(
+            SparseArray<Rect> testCropHints,
+            SparseArray<Rect> expectedCropHints
+    ) throws Exception {
         assumeTrue(multiCrop());
-        mockRestoredStaticWallpaperFile(testMap);
+        mockRestoredStaticWallpaperFile(testCropHints);
         mockStagedWallpaperFile(SYSTEM_WALLPAPER_STAGE);
         mWallpaperBackupAgent.onCreate(USER_HANDLE, BackupAnnotations.BackupDestination.CLOUD,
                 BackupAnnotations.OperationType.RESTORE);
 
         mWallpaperBackupAgent.onRestoreFinished();
 
-        ArgumentMatcher<SparseArray<Rect>> matcher = array -> {
-            boolean result = testMap.entrySet().stream().allMatch(entry -> {
-                int key = entry.getKey();
-                return (array.contains(key) && array.get(key).equals(testMap.get(key)));
-            });
-            for (int i = 0; i < array.size(); i++) {
-                if (!testMap.containsKey(array.keyAt(i))) result = false;
-            }
-            return result;
-        };
-        verify(mWallpaperManager).setStreamWithCrops(any(), argThat(matcher), eq(true), anyInt());
+        verify(mWallpaperManager).setStreamWithCrops(
+                any(InputStream.class), mCropHintsCaptor.capture(), eq(true), anyInt());
+        SparseArray<Rect> capturedCropHints = mCropHintsCaptor.getValue();
+
+        if (!fixWallpaperCropsOnRestore()) {
+            assertThat(testCropHints.contentEquals(capturedCropHints)).isTrue();
+            return;
+        }
+
+        assertWithMessage("Received unexpected crop hints. "
+                + "Expected: " + expectedCropHints + ". Actual: " + capturedCropHints)
+                .that(capturedCropHints.contentEquals(expectedCropHints))
+                .isTrue();
     }
 
     private void mockCurrentWallpaperIds(int systemWallpaperId, int lockWallpaperId) {
@@ -1088,6 +1545,13 @@ public class WallpaperBackupAgentTest {
         wallpaperFile.createNewFile();
     }
 
+    private void mockWallpaperBackupDeviceInfoStage(Point dimensions, Point secondaryDimensions)
+            throws Exception {
+        File infoFile = new File(mContext.getFilesDir(), WALLPAPER_BACKUP_DEVICE_INFO_STAGE);
+        infoFile.createNewFile();
+        mWallpaperBackupAgent.writeDeviceInfoToFile(infoFile, dimensions, secondaryDimensions);
+    }
+
     private void mockRestoredLiveWallpaperFile() throws Exception {
         File wallpaperFile = new File(mContext.getFilesDir(), WALLPAPER_INFO_STAGE);
         wallpaperFile.createNewFile();
@@ -1104,22 +1568,22 @@ public class WallpaperBackupAgentTest {
         fstream.close();
     }
 
-    private void mockRestoredStaticWallpaperFile(Map<Integer, Rect> crops) throws Exception {
+    private void mockRestoredStaticWallpaperFile(SparseArray<Rect> crops) throws Exception {
         File wallpaperFile = new File(mContext.getFilesDir(), WALLPAPER_INFO_STAGE);
         wallpaperFile.createNewFile();
         FileOutputStream fstream = new FileOutputStream(wallpaperFile, false);
         TypedXmlSerializer out = Xml.resolveSerializer(fstream);
         out.startDocument(null, true);
         out.startTag(null, "wp");
-        for (Map.Entry<Integer, Rect> entry: crops.entrySet()) {
-            String orientation = switch (entry.getKey()) {
+        for (int i = 0; i < crops.size(); i++) {
+            String orientation = switch (crops.keyAt(i)) {
                 case WallpaperManager.ORIENTATION_PORTRAIT -> "Portrait";
                 case WallpaperManager.ORIENTATION_LANDSCAPE -> "Landscape";
                 case WallpaperManager.ORIENTATION_SQUARE_PORTRAIT -> "SquarePortrait";
                 case WallpaperManager.ORIENTATION_SQUARE_LANDSCAPE -> "SquareLandscape";
                 default -> throw new IllegalArgumentException("Invalid orientation");
             };
-            Rect rect = entry.getValue();
+            Rect rect = crops.valueAt(i);
             out.attributeInt(null, "cropLeft" + orientation, rect.left);
             out.attributeInt(null, "cropTop" + orientation, rect.top);
             out.attributeInt(null, "cropRight" + orientation, rect.right);
@@ -1130,6 +1594,29 @@ public class WallpaperBackupAgentTest {
         fstream.flush();
         FileUtils.sync(fstream);
         fstream.close();
+    }
+
+    private void setupMockDisplays(
+            Point displaySize,
+            Point secondaryDisplaySize,
+            boolean isLargeScreen
+    ) {
+        mMockWallpaperDisplayInfos.clear();
+        mMockWallpaperDisplayInfos.add(new WallpaperDisplayInfo(displaySize, isLargeScreen));
+        if (secondaryDisplaySize != null) {
+            mMockWallpaperDisplayInfos.add(
+                    new WallpaperDisplayInfo(secondaryDisplaySize, isLargeScreen));
+        }
+        mShouldMockDisplays = true;
+    }
+
+    private void setupRtl(boolean rtl) {
+        Locale.setDefault(rtl ? Locale.of("ar") : Locale.US);
+    }
+
+    private void setupFakeBitmapSize(Point fakeBitmapSize) {
+        mMockBitmapSize = fakeBitmapSize;
+        mShouldMockBitmapSize = true;
     }
 
     private WallpaperInfo getFakeWallpaperInfo() throws Exception {
@@ -1196,6 +1683,14 @@ public class WallpaperBackupAgentTest {
         @Override
         public Context getBaseContext() {
             return mMockContext;
+        }
+
+        @Override List<WallpaperDisplayInfo> getInternalDisplays() {
+            return mShouldMockDisplays ? mMockWallpaperDisplayInfos : super.getInternalDisplays();
+        }
+
+        @Override Point getBitmapSize(File stage) throws IOException {
+            return mShouldMockBitmapSize ? mMockBitmapSize : super.getBitmapSize(stage);
         }
     }
 }

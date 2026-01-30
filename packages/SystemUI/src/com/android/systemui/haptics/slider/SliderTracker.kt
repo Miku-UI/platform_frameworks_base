@@ -16,10 +16,10 @@
 
 package com.android.systemui.haptics.slider
 
+import com.android.app.tracing.coroutines.launchTraced as launch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /**
  * Tracker component for a slider.

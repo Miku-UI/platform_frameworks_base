@@ -24,7 +24,7 @@ import android.telephony.ims.aidl.ISipDelegate;
 
 /**
  * See {@link SipDelegateStateCallback} for docs regarding this callback.
- * {@hide}
+ * @hide
  */
 oneway interface ISipDelegateStateCallback {
     void onCreated(ISipDelegate c, in List<FeatureTagState> deniedFeatureTags);

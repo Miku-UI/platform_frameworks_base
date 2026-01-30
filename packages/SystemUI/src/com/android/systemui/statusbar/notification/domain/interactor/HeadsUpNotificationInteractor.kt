@@ -164,12 +164,13 @@ constructor(
      */
     val statusBarHeadsUpState: Flow<TopPinnedState> =
         combine(topPinnedState, canShowHeadsUp) { topPinnedState, canShowHeadsUp ->
-            if (canShowHeadsUp) {
-                topPinnedState
-            } else {
-                TopPinnedState.NothingPinned
+                if (canShowHeadsUp) {
+                    topPinnedState
+                } else {
+                    TopPinnedState.NothingPinned
+                }
             }
-        }
+            .distinctUntilChanged()
 
     /** Emits the pinned notification status as it relates to the status bar. */
     val statusBarHeadsUpStatus: Flow<PinnedStatus> =

@@ -17,6 +17,7 @@
 package com.android.settingslib.collapsingtoolbar;
 
 import android.app.ActionBar;
+import android.content.res.Resources;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -25,20 +26,26 @@ import android.view.ViewGroup;
 import android.widget.Toolbar;
 
 import androidx.annotation.DrawableRes;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.android.settingslib.collapsingtoolbar.widget.ScrollableToolbarItemLayout;
 import com.android.settingslib.widget.SettingsThemeHelper;
+import com.android.settingslib.widget.SetupWizardHelper;
 
 import com.google.android.material.appbar.AppBarLayout;
 import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.color.DynamicColors;
 
+import java.util.List;
+
 /**
  * A base Activity that has a collapsing toolbar layout is used for the activities intending to
  * enable the collapsing toolbar function.
  */
-public class CollapsingToolbarAppCompatActivity extends AppCompatActivity {
+public class CollapsingToolbarAppCompatActivity extends AppCompatActivity implements
+        FloatingToolbarHandler {
 
     private class DelegateCallback implements CollapsingToolbarDelegate.HostCallback {
         @Nullable
@@ -69,6 +76,9 @@ public class CollapsingToolbarAppCompatActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         EdgeToEdgeUtils.enable(this);
         super.onCreate(savedInstanceState);
+
+        getToolbarDelegate().registerToolbarCollapseBehavior(this);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             DynamicColors.applyToActivityIfAvailable(this);
         }
@@ -84,6 +94,10 @@ public class CollapsingToolbarAppCompatActivity extends AppCompatActivity {
 
         View view = getToolbarDelegate().onCreateView(getLayoutInflater(), null, this);
         super.setContentView(view);
+
+        if (SetupWizardHelper.isAnySetupWizard(getIntent())) {
+            findViewById(R.id.content_parent).setFitsSystemWindows(false);
+        }
     }
 
     @Override
@@ -134,11 +148,65 @@ public class CollapsingToolbarAppCompatActivity extends AppCompatActivity {
     }
 
     /**
+     * Show/Hide the primary button on the Toolbar.
+     * @param enabled true to show the button, otherwise it's hidden.
+     */
+    public void setPrimaryButtonEnabled(boolean enabled) {
+        getToolbarDelegate().setPrimaryButtonEnabled(enabled);
+    }
+
+    /** Set the icon to the primary button */
+    public void setPrimaryButtonIcon(@DrawableRes int drawableRes) {
+        getToolbarDelegate().setPrimaryButtonIcon(this, drawableRes);
+    }
+
+    /** Set the OnClick listener to the primary button. */
+    public void setPrimaryButtonOnClickListener(@Nullable View.OnClickListener listener) {
+        getToolbarDelegate().setPrimaryButtonOnClickListener(listener);
+    }
+
+    /** Set the content description to the primary button */
+    public void setPrimaryButtonContentDescription(@Nullable CharSequence contentDescription) {
+        getToolbarDelegate().setPrimaryButtonContentDescription(contentDescription);
+    }
+
+    /**
+     * Show/Hide the secondary button on the Toolbar.
+     * @param enabled true to show the button, otherwise it's hidden.
+     */
+    public void setSecondaryButtonEnabled(boolean enabled) {
+        getToolbarDelegate().setSecondaryButtonEnabled(enabled);
+    }
+
+    /** Set the icon to the secondary button */
+    public void setSecondaryButtonIcon(@DrawableRes int drawableRes) {
+        getToolbarDelegate().setSecondaryButtonIcon(this, drawableRes);
+    }
+
+    /** Set the OnClick listener to the secondary button */
+    public void setSecondaryButtonOnClickListener(@Nullable View.OnClickListener listener) {
+        getToolbarDelegate().setSecondaryButtonOnClickListener(listener);
+    }
+
+    /** Set the content description to the secondary button */
+    public void setSecondaryButtonContentDescription(@Nullable CharSequence contentDescription) {
+        getToolbarDelegate().setSecondaryButtonContentDescription(contentDescription);
+    }
+
+    /**
      * Show/Hide the action button on the Toolbar.
      * @param enabled true to show the button, otherwise it's hidden.
      */
     public void setActionButtonEnabled(boolean enabled) {
         getToolbarDelegate().setActionButtonEnabled(enabled);
+    }
+
+    /**
+     * Enable/Disable the action button on the Toolbar (being clickable or not).
+     * @param clickable true to enable the button, otherwise it's disabled.
+     */
+    public void setActionButtonClickable(boolean clickable) {
+        getToolbarDelegate().setActionButtonClickable(clickable);
     }
 
     /** Set the icon to the action button */
@@ -154,6 +222,32 @@ public class CollapsingToolbarAppCompatActivity extends AppCompatActivity {
     /** Set the OnClick listener to the action button */
     public void setActionButtonListener(@Nullable View.OnClickListener listener) {
         getToolbarDelegate().setActionButtonOnClickListener(listener);
+    }
+
+    /** Set the content description to the action button */
+    public void setActionButtonContentDescription(@Nullable CharSequence contentDescription) {
+        getToolbarDelegate().setActionButtonContentDescription(contentDescription);
+    }
+
+    @Override
+    public void setFloatingToolbarVisibility(boolean visible) {
+        getToolbarDelegate().setFloatingToolbarVisibility(visible);
+    }
+
+    @Override
+    public void setToolbarItems(@NonNull List<ScrollableToolbarItemLayout.ToolbarItem> items) {
+        getToolbarDelegate().setToolbarItems(items);
+    }
+
+    @Override
+    public void setOnItemSelectedListener(
+            @NonNull ScrollableToolbarItemLayout.OnItemSelectedListener listener) {
+        getToolbarDelegate().setOnItemSelectedListener(listener);
+    }
+
+    @Override
+    public void removeOnItemSelectedListener() {
+        getToolbarDelegate().removeOnItemSelectedListener();
     }
 
     @Override
@@ -203,5 +297,17 @@ public class CollapsingToolbarAppCompatActivity extends AppCompatActivity {
             mToolbardelegate = new CollapsingToolbarDelegate(new DelegateCallback(), true);
         }
         return mToolbardelegate;
+    }
+
+    /** Returns the current theme and checks if needing to apply expressive theme. */
+    @Override
+    public Resources.Theme getTheme() {
+        Resources.Theme theme = super.getTheme();
+        if (SettingsThemeHelper.isExpressiveTheme(this)) {
+            theme.applyStyle(
+                    com.android.settingslib.widget.theme.R.style.Theme_SubSettingsBase_Expressive,
+                    true);
+        }
+        return theme;
     }
 }

@@ -177,7 +177,8 @@
     <application
         android:theme="@style/Theme"
         android:supportsRtl="true"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="true"
+        android:localeConfig="@xml/locales_config">
         <uses-library android:name="android.test.runner" />
         <uses-library android:name="org.apache.http.legacy" android:required="false" />
         <meta-data
@@ -1417,6 +1418,16 @@
             </intent-filter>
             <meta-data android:name="android.accessibilityshortcut.target"
                        android:resource="@xml/accessibility_shortcut_test_activity"/>
+        </activity>
+
+        <activity android:name="com.android.internal.widget.ActionBarContextViewActivity"
+                  android:label="ActionBarContextViewActivity"
+                  android:exported="true"
+                  android:theme="@style/ActionBarContextViewTheme">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.FRAMEWORK_INSTRUMENTATION_TEST" />
+            </intent-filter>
         </activity>
 
         <!-- Activity-level metadata -->

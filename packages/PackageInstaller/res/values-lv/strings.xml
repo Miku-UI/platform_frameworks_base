@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Atjaunināt"</string>
     <string name="done" msgid="6632441120016885253">"Gatavs"</string>
     <string name="cancel" msgid="1018267193425558088">"Atcelt"</string>
+    <string name="more_details" msgid="3643407086654820243">"Plašāka informācija"</string>
+    <string name="dont_install" msgid="414055123295505225">"Neinstalēt"</string>
     <string name="installing" msgid="4921993079741206516">"Notiek instalēšana…"</string>
     <string name="installing_app" msgid="1165095864863849422">"Notiek pakotnes <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> instalēšana…"</string>
     <string name="install_done" msgid="5987363587661783896">"Lietotne ir instalēta."</string>

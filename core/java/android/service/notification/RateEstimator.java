@@ -20,7 +20,7 @@ package android.service.notification;
 /**
  * Exponentially weighted moving average estimator for event rate.
  *
- * {@hide}
+ * @hide
  */
 public class RateEstimator {
     private static final double RATE_ALPHA = 0.7;

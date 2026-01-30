@@ -44,6 +44,7 @@ import android.text.Spanned;
  * @see IconMarginSpan for working with a {@link android.graphics.Bitmap} instead of
  * a {@link Drawable}.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class DrawableMarginSpan implements LeadingMarginSpan, LineHeightSpan {
     private static final int STANDARD_PAD_WIDTH = 0;
 

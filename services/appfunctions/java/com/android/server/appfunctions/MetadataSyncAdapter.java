@@ -50,12 +50,14 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 
 /**
  * This class implements helper methods for synchronously interacting with AppSearch while
@@ -71,6 +73,9 @@ public class MetadataSyncAdapter {
     private final AppSearchManager mAppSearchManager;
     private final PackageManager mPackageManager;
     private final Object mLock = new Object();
+    private static final int DEFAULT_RESULT_COUNT_PER_PAGE =
+            new SearchSpec.Builder().build().getResultCountPerPage();
+    private static final int RETRY_RESULT_COUNT_PER_PAGE = 200;
 
     @GuardedBy("mLock")
     private Future<?> mCurrentSyncTask;
@@ -95,26 +100,30 @@ public class MetadataSyncAdapter {
      *     synchronization was successful.
      */
     public AndroidFuture<Boolean> submitSyncRequest() {
-        SearchContext staticMetadataSearchContext =
-                new SearchContext.Builder(
-                                AppFunctionStaticMetadataHelper.APP_FUNCTION_STATIC_METADATA_DB)
-                        .build();
-        SearchContext runtimeMetadataSearchContext =
-                new SearchContext.Builder(
-                                AppFunctionRuntimeMetadata.APP_FUNCTION_RUNTIME_METADATA_DB)
-                        .build();
         AndroidFuture<Boolean> settableSyncStatus = new AndroidFuture<>();
         Runnable runnable =
                 () -> {
+                    SearchContext staticMetadataSearchContext =
+                            new SearchContext.Builder(
+                                            AppFunctionStaticMetadataHelper
+                                                    .APP_FUNCTION_STATIC_METADATA_DB)
+                                    .build();
+                    SearchContext runtimeMetadataSearchContext =
+                            new SearchContext.Builder(
+                                            AppFunctionRuntimeMetadata
+                                                    .APP_FUNCTION_RUNTIME_METADATA_DB)
+                                    .build();
                     try (FutureAppSearchSession staticMetadataSearchSession =
                                     new FutureAppSearchSessionImpl(
                                             mAppSearchManager,
-                                            AppFunctionExecutors.THREAD_POOL_EXECUTOR,
+                                            // Fine to use Runnable::run as all the callback does is
+                                            // set the result in the future.
+                                            Runnable::run,
                                             staticMetadataSearchContext);
                             FutureAppSearchSession runtimeMetadataSearchSession =
                                     new FutureAppSearchSessionImpl(
                                             mAppSearchManager,
-                                            AppFunctionExecutors.THREAD_POOL_EXECUTOR,
+                                            Runnable::run,
                                             runtimeMetadataSearchContext)) {
 
                         trySyncAppFunctionMetadataBlocking(
@@ -129,8 +138,14 @@ public class MetadataSyncAdapter {
         synchronized (mLock) {
             if (mCurrentSyncTask != null && !mCurrentSyncTask.isDone()) {
                 var unused = mCurrentSyncTask.cancel(false);
+                mCurrentSyncTask = null;
             }
-            mCurrentSyncTask = mExecutor.submit(runnable);
+
+            try {
+                mCurrentSyncTask = mExecutor.submit(runnable);
+            } catch (RejectedExecutionException ex) {
+                Slog.w(TAG, "Failed to submit sync request due to executor shutdown.", ex);
+            }
         }
 
         return settableSyncStatus;
@@ -148,13 +163,13 @@ public class MetadataSyncAdapter {
             @NonNull FutureAppSearchSession runtimeMetadataSearchSession)
             throws ExecutionException, InterruptedException {
         ArrayMap<String, ArraySet<String>> staticPackageToFunctionMap =
-                getPackageToFunctionIdMap(
+                getPackageToFunctionIdMapWithRetry(
                         staticMetadataSearchSession,
                         AppFunctionStaticMetadataHelper.STATIC_SCHEMA_TYPE,
                         AppFunctionStaticMetadataHelper.PROPERTY_FUNCTION_ID,
                         AppFunctionStaticMetadataHelper.PROPERTY_PACKAGE_NAME);
         ArrayMap<String, ArraySet<String>> runtimePackageToFunctionMap =
-                getPackageToFunctionIdMap(
+                getPackageToFunctionIdMapWithRetry(
                         runtimeMetadataSearchSession,
                         RUNTIME_SCHEMA_TYPE,
                         AppFunctionRuntimeMetadata.PROPERTY_FUNCTION_ID,
@@ -399,6 +414,100 @@ public class MetadataSyncAdapter {
      * This method returns a map of package names to a set of function ids from the AppFunction
      * metadata.
      *
+     * <p>Retry Conditions:
+     *
+     * <ul>
+     *   <li>If an {@link AppSearchException} with {@code RESULT_ABORTED} (code 13) is thrown during
+     *       the first attempt, the query will be retried once.
+     *   <li>If the number of function ids returned equals {@code DEFAULT_RESULT_COUNT_PER_PAGE},
+     *       which may indicate an incomplete result due to known issue b/400670498, the query will
+     *       be retried with an increased page size ({@code RETRY_RESULT_COUNT_PER_PAGE}).
+     * </ul>
+     *
+     * @param searchSession The {@link FutureAppSearchSession} to search the AppFunction metadata.
+     * @param schemaType The schema type of the AppFunction metadata.
+     * @param propertyFunctionId The property name of the function id in the AppFunction metadata.
+     * @param propertyPackageName The property name of the package name in the AppFunction metadata.
+     * @return A map of package names to a set of function ids from the AppFunction metadata.
+     */
+    @NonNull
+    @VisibleForTesting
+    @WorkerThread
+    static ArrayMap<String, ArraySet<String>> getPackageToFunctionIdMapWithRetry(
+            @NonNull FutureAppSearchSession searchSession,
+            @NonNull String schemaType,
+            @NonNull String propertyFunctionId,
+            @NonNull String propertyPackageName)
+            throws ExecutionException, InterruptedException {
+        ArrayMap<String, ArraySet<String>> packageToFunctionIdMap;
+        try {
+            packageToFunctionIdMap =
+                    getPackageToFunctionIdMap(
+                            searchSession,
+                            schemaType,
+                            propertyFunctionId,
+                            propertyPackageName,
+                            DEFAULT_RESULT_COUNT_PER_PAGE);
+        } catch (ExecutionException e) {
+            // TODO: b/416177384 - Use AppSearchResult#RESULT_ABORTED instead of 13.
+            if (!(e.getCause() instanceof AppSearchException)
+                    || (((AppSearchException) e.getCause()).getResultCode() != 13)) {
+                throw e;
+            }
+
+            Slog.d(
+                    TAG,
+                    "Retrying to fetch app functions because AppSearch resulted in RESULT_ABORTED",
+                    e.getCause());
+
+            packageToFunctionIdMap =
+                    getPackageToFunctionIdMap(
+                            searchSession,
+                            schemaType,
+                            propertyFunctionId,
+                            propertyPackageName,
+                            DEFAULT_RESULT_COUNT_PER_PAGE);
+        }
+
+        // Since older mainline versions won't throw an exception we rely on checking if results
+        // returned are same as DEFAULT_RESULT_COUNT_PER_PAGE.
+        int functionIdCount = countTotalStringsInValueSets(packageToFunctionIdMap);
+        if (functionIdCount == DEFAULT_RESULT_COUNT_PER_PAGE) {
+            // We might run into b/400670498 where only the first page is returned while there
+            // are more. This could be a false positive if we happen to have
+            // DEFAULT_RESULT_COUNT_PER_PAGE AppFunctions. Retry with a higher page count.
+            Slog.d(
+                    TAG,
+                    "b/400587895: getPackageToFunctionIdMapWithRetry is retrying for schemaType = "
+                            + schemaType);
+            packageToFunctionIdMap =
+                    getPackageToFunctionIdMap(
+                            searchSession,
+                            schemaType,
+                            propertyFunctionId,
+                            propertyPackageName,
+                            RETRY_RESULT_COUNT_PER_PAGE);
+            int retryFunctionIdCount = countTotalStringsInValueSets(packageToFunctionIdMap);
+            if (retryFunctionIdCount != DEFAULT_RESULT_COUNT_PER_PAGE) {
+                // This is likely we did hit the bug. But if the diff is small, it could be
+                // just there were indeed changes in # of app functions during the two searches.
+                Slog.d(
+                        TAG,
+                        "b/400587895: First search yields "
+                                + functionIdCount
+                                + " results, but the second one with higher page size yields "
+                                + retryFunctionIdCount
+                                + " results. schemaType = "
+                                + schemaType);
+            }
+        }
+        return packageToFunctionIdMap;
+    }
+
+    /**
+     * This method returns a map of package names to a set of function ids from the AppFunction
+     * metadata.
+     *
      * @param searchSession The {@link FutureAppSearchSession} to search the AppFunction metadata.
      * @param schemaType The schema type of the AppFunction metadata.
      * @param propertyFunctionId The property name of the function id in the AppFunction metadata.
@@ -412,7 +521,8 @@ public class MetadataSyncAdapter {
             @NonNull FutureAppSearchSession searchSession,
             @NonNull String schemaType,
             @NonNull String propertyFunctionId,
-            @NonNull String propertyPackageName)
+            @NonNull String propertyPackageName,
+            int resultCountPerPage)
             throws ExecutionException, InterruptedException {
         Objects.requireNonNull(schemaType);
         Objects.requireNonNull(propertyFunctionId);
@@ -424,7 +534,10 @@ public class MetadataSyncAdapter {
                         .search(
                                 "",
                                 buildMetadataSearchSpec(
-                                        schemaType, propertyFunctionId, propertyPackageName))
+                                        schemaType,
+                                        propertyFunctionId,
+                                        propertyPackageName,
+                                        resultCountPerPage))
                         .get(); ) {
             List<SearchResult> searchResultsList = futureSearchResults.getNextPage().get();
             // TODO(b/357551503): This could be expensive if we have more functions
@@ -458,12 +571,14 @@ public class MetadataSyncAdapter {
     private static SearchSpec buildMetadataSearchSpec(
             @NonNull String schemaType,
             @NonNull String propertyFunctionId,
-            @NonNull String propertyPackageName) {
+            @NonNull String propertyPackageName,
+            int resultCountPerPage) {
         Objects.requireNonNull(schemaType);
         Objects.requireNonNull(propertyFunctionId);
         Objects.requireNonNull(propertyPackageName);
         return new SearchSpec.Builder()
                 .addFilterSchemas(schemaType)
+                .setResultCountPerPage(resultCountPerPage)
                 .addProjectionPaths(
                         schemaType,
                         List.of(
@@ -507,5 +622,13 @@ public class MetadataSyncAdapter {
         }
         md.update(signatures[0].toByteArray());
         return md.digest();
+    }
+
+    private static int countTotalStringsInValueSets(Map<String, ArraySet<String>> map) {
+        int totalCount = 0;
+        for (ArraySet<String> stringSet : map.values()) {
+            totalCount += stringSet.size();
+        }
+        return totalCount;
     }
 }

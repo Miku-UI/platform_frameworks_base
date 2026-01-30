@@ -22,6 +22,7 @@ import android.view.ViewGroup
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import android.window.OnBackInvokedDispatcher
+import com.android.systemui.Flags
 import com.android.systemui.animation.back.BackAnimationSpec
 import com.android.systemui.animation.back.BackTransformation
 import com.android.systemui.animation.back.applyTo
@@ -39,7 +40,7 @@ fun Dialog.registerAnimationOnBackInvoked(
     targetView: View,
     backAnimationSpec: BackAnimationSpec =
         BackAnimationSpec.floatingSystemSurfacesForSysUi(
-            displayMetricsProvider = { targetView.resources.displayMetrics },
+            displayMetricsProvider = { targetView.resources.displayMetrics }
         ),
 ) {
     targetView.registerOnBackInvokedCallbackOnViewAttached(
@@ -58,13 +59,15 @@ fun Dialog.registerAnimationOnBackInvoked(
  * Make the dialog window (and therefore its DecorView) fullscreen to make it possible to animate
  * outside its bounds. No-op if the dialog is already fullscreen.
  *
- * <p>Returns null if the dialog is already fullscreen. Otherwise, returns a pair containing a view
- * and a layout listener. The new view matches the original dialog DecorView in size, position, and
- * background. This new view will be a child of the modified, transparent, fullscreen DecorView. The
- * layout listener is listening to changes to the modified DecorView. It is the responsibility of
- * the caller to deregister the listener when the dialog is dismissed.
+ * <p>Returns null if the dialog is already fullscreen. Otherwise, returns a triple containing a
+ * dialogBackgroundView, a touchInterceptorView to stop its dismissal during animation and a layout
+ * listener. The new view matches the original dialog DecorView in size, position, and background.
+ * This new view will be a child of the modified, transparent, fullscreen DecorView. The layout
+ * listener is listening to changes to the modified DecorView. It is the responsibility of the
+ * caller to deregister the listener when the dialog is dismissed.
  */
-fun Dialog.maybeForceFullscreen(): Pair<LaunchableFrameLayout, View.OnLayoutChangeListener>? {
+fun Dialog.maybeForceFullscreen():
+    Triple<LaunchableFrameLayout, LaunchableFrameLayout, View.OnLayoutChangeListener>? {
     // Create the dialog so that its onCreate() method is called, which usually sets the dialog
     // content.
     create()
@@ -94,10 +97,11 @@ fun Dialog.maybeForceFullscreen(): Pair<LaunchableFrameLayout, View.OnLayoutChan
     decorView.addView(
         fullscreenTransparentBackground,
         0 /* index */,
-        FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT)
+        FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT),
     )
 
     val dialogContentWithBackground = LaunchableFrameLayout(context)
+    val touchInterceptorView = LaunchableFrameLayout(context)
     dialogContentWithBackground.background = decorView.background
 
     // Make the window background transparent. Note that setting the window (or DecorView)
@@ -109,19 +113,27 @@ fun Dialog.maybeForceFullscreen(): Pair<LaunchableFrameLayout, View.OnLayoutChan
     // Close the dialog when clicking outside of it.
     fullscreenTransparentBackground.setOnClickListener { dismiss() }
     dialogContentWithBackground.isClickable = true
+    touchInterceptorView.isClickable = true
 
     // Make sure the transparent and dialog backgrounds are not focusable by accessibility
     // features.
     fullscreenTransparentBackground.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     dialogContentWithBackground.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    touchInterceptorView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
 
+    if (Flags.qsTileTransitionInteractionRefinement()) {
+        fullscreenTransparentBackground.addView(
+            touchInterceptorView,
+            ViewGroup.MarginLayoutParams(window.attributes.width, window.attributes.width),
+        )
+    }
     fullscreenTransparentBackground.addView(
         dialogContentWithBackground,
         FrameLayout.LayoutParams(
             window.attributes.width,
             window.attributes.height,
-            window.attributes.gravity
-        )
+            window.attributes.gravity,
+        ),
     )
 
     // Move all original children of the DecorView to the new View we just added.
@@ -158,5 +170,5 @@ fun Dialog.maybeForceFullscreen(): Pair<LaunchableFrameLayout, View.OnLayoutChan
         }
     decorView.addOnLayoutChangeListener(decorViewLayoutListener)
 
-    return dialogContentWithBackground to decorViewLayoutListener
+    return Triple(dialogContentWithBackground, touchInterceptorView, decorViewLayoutListener)
 }

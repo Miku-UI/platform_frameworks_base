@@ -16,6 +16,7 @@
 
 package com.android.wm.shell.bubbles
 
+import android.animation.AnimatorTestRule
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ShortcutInfo
@@ -26,11 +27,14 @@ import android.os.UserHandle
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
+import android.view.View
+import android.view.ViewGroup
 import android.view.WindowManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import androidx.test.platform.app.InstrumentationRegistry
+import com.android.internal.logging.InstanceIdSequence
 import com.android.internal.logging.testing.UiEventLoggerFake
 import com.android.internal.protolog.ProtoLog
 import com.android.launcher3.icons.BubbleIconFactory
@@ -40,12 +44,15 @@ import com.android.wm.shell.bubbles.BubbleStackView.SurfaceSynchronizer
 import com.android.wm.shell.bubbles.Bubbles.BubbleExpandListener
 import com.android.wm.shell.bubbles.Bubbles.SysuiProxy
 import com.android.wm.shell.bubbles.animation.AnimatableScaleMatrix
+import com.android.wm.shell.bubbles.logging.BubbleSessionTracker
+import com.android.wm.shell.bubbles.logging.BubbleSessionTrackerImpl
 import com.android.wm.shell.common.FloatingContentCoordinator
 import com.android.wm.shell.common.TestShellExecutor
 import com.android.wm.shell.shared.animation.PhysicsAnimatorTestUtils
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors.directExecutor
 import org.junit.After
+import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -65,8 +72,10 @@ import java.util.function.Consumer
 class BubbleStackViewTest {
 
     @get:Rule val setFlagsRule = SetFlagsRule()
+    @get:Rule val animatorTestRule: AnimatorTestRule = AnimatorTestRule(this)
 
     private val context = ApplicationProvider.getApplicationContext<Context>()
+    private val uiEventLoggerFake = UiEventLoggerFake()
     private lateinit var positioner: BubblePositioner
     private lateinit var bubbleLogger: BubbleLogger
     private lateinit var iconFactory: BubbleIconFactory
@@ -78,7 +87,8 @@ class BubbleStackViewTest {
     private lateinit var bubbleData: BubbleData
     private lateinit var bubbleStackViewManager: FakeBubbleStackViewManager
     private lateinit var surfaceSynchronizer: FakeSurfaceSynchronizer
-    private var sysuiProxy = mock<SysuiProxy>()
+    private lateinit var sessionTracker: BubbleSessionTracker
+    private val sysuiProxy = mock<SysuiProxy>()
 
     @Before
     fun setUp() {
@@ -86,7 +96,7 @@ class BubbleStackViewTest {
         // Disable protolog tool when running the tests from studio
         ProtoLog.REQUIRE_PROTOLOGTOOL = false
         shellExecutor = TestShellExecutor()
-        windowManager = context.getSystemService(WindowManager::class.java)
+        windowManager = context.getSystemService(WindowManager::class.java)!!
         iconFactory =
             BubbleIconFactory(
                 context,
@@ -98,7 +108,9 @@ class BubbleStackViewTest {
                 )
             )
         positioner = BubblePositioner(context, windowManager)
-        bubbleLogger = BubbleLogger(UiEventLoggerFake())
+        bubbleLogger = BubbleLogger(uiEventLoggerFake)
+        val instanceIdSequence = InstanceIdSequence(/* instanceIdMax= */ 10)
+        sessionTracker = BubbleSessionTrackerImpl(instanceIdSequence, bubbleLogger)
         bubbleData =
             BubbleData(
                 context,
@@ -121,7 +133,8 @@ class BubbleStackViewTest {
                 surfaceSynchronizer,
                 FloatingContentCoordinator(),
                 { sysuiProxy },
-                shellExecutor
+                shellExecutor,
+                sessionTracker,
             )
 
         context
@@ -186,6 +199,7 @@ class BubbleStackViewTest {
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
         }
 
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
@@ -209,6 +223,7 @@ class BubbleStackViewTest {
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
         }
 
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
@@ -235,12 +250,14 @@ class BubbleStackViewTest {
         assertThat(bubbleStackViewManager.onImeHidden).isNull()
     }
 
+    @DisableFlags(Flags.FLAG_FIX_BUBBLES_EXPANDED_SYSUI_FLAG)
     @Test
     fun expandStack_waitsForIme() {
         val bubble = createAndInflateBubble()
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
         }
 
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
@@ -264,12 +281,43 @@ class BubbleStackViewTest {
         }
     }
 
+    @EnableFlags(Flags.FLAG_FIX_BUBBLES_EXPANDED_SYSUI_FLAG)
+    @Test
+    fun expandStack_sysUiProxyNotifiedImmediately() {
+        val bubble = createAndInflateBubble()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+        }
+
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+
+        positioner.setImeVisible(true, 100)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // simulate a request from the bubble data listener to expand the stack
+            bubbleStackView.isExpanded = true
+        }
+
+        val onImeHidden = bubbleStackViewManager.onImeHidden
+        assertThat(onImeHidden).isNotNull()
+        verify(sysuiProxy).onStackExpandChanged(true)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            onImeHidden!!.run()
+            shellExecutor.flushAll()
+        }
+    }
+
+    @DisableFlags(Flags.FLAG_FIX_BUBBLES_EXPANDED_SYSUI_FLAG)
     @Test
     fun collapseStack_waitsForIme() {
         val bubble = createAndInflateBubble()
 
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
             bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
         }
 
         InstrumentationRegistry.getInstrumentation().waitForIdleSync()
@@ -309,6 +357,120 @@ class BubbleStackViewTest {
             verify(sysuiProxy).onStackExpandChanged(false)
             shellExecutor.flushAll()
         }
+    }
+
+    @EnableFlags(Flags.FLAG_FIX_BUBBLES_EXPANDED_SYSUI_FLAG)
+    @Test
+    fun collapseStack_sysUiProxyNotifiedImmediately() {
+        val bubble = createAndInflateBubble()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+        }
+
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+
+        positioner.setImeVisible(true, 100)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // simulate a request from the bubble data listener to expand the stack
+            bubbleStackView.isExpanded = true
+        }
+
+        var onImeHidden = bubbleStackViewManager.onImeHidden
+        assertThat(onImeHidden).isNotNull()
+        verify(sysuiProxy).onStackExpandChanged(true)
+        positioner.setImeVisible(false, 0)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            onImeHidden!!.run()
+            shellExecutor.flushAll()
+        }
+
+        bubbleStackViewManager.onImeHidden = null
+        positioner.setImeVisible(true, 100)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // simulate a request from the bubble data listener to collapse the stack
+            bubbleStackView.isExpanded = false
+        }
+
+        onImeHidden = bubbleStackViewManager.onImeHidden
+        assertThat(onImeHidden).isNotNull()
+        verify(sysuiProxy).onStackExpandChanged(false)
+        positioner.setImeVisible(false, 0)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            onImeHidden!!.run()
+            shellExecutor.flushAll()
+        }
+    }
+
+    @Test
+    fun expandStack_clearsImeRunnable() {
+        val bubble = createAndInflateBubble()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+        }
+
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+
+        // Set up a pending runnable to be cleared
+        bubbleStackViewManager.onImeHidden = Runnable {
+            fail("IME runnable should not be called when IME is hidden")
+        }
+
+        positioner.setImeVisible(false, 0)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // simulate a request from the bubble data listener to expand the stack
+            bubbleStackView.isExpanded = true
+            verify(sysuiProxy).onStackExpandChanged(true)
+            shellExecutor.flushAll()
+        }
+
+        // Ime runnable is reset
+        assertThat(bubbleStackViewManager.onImeHidden).isNull()
+    }
+
+    @Test
+    fun collapseStack_clearsImeRunnable() {
+        val bubble = createAndInflateBubble()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+        }
+
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+
+        positioner.setImeVisible(false, 0)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // simulate a request from the bubble data listener to expand the stack
+            bubbleStackView.isExpanded = true
+            verify(sysuiProxy).onStackExpandChanged(true)
+            shellExecutor.flushAll()
+        }
+
+        // Set up a pending runnable to be cleared
+        bubbleStackViewManager.onImeHidden = Runnable {
+            fail("IME runnable should not be called when IME is hidden")
+        }
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // simulate a request from the bubble data listener to collapse the stack
+            bubbleStackView.isExpanded = false
+            verify(sysuiProxy).onStackExpandChanged(false)
+            shellExecutor.flushAll()
+        }
+
+        // Check that the runnable is cleared
+        assertThat(bubbleStackViewManager.onImeHidden).isNull()
     }
 
     @Test
@@ -536,7 +698,8 @@ class BubbleStackViewTest {
                         null,
                         FloatingContentCoordinator(),
                         { sysuiProxy },
-                        shellExecutor
+                        shellExecutor,
+                        sessionTracker,
                 )
 
         assertThat(bubbleData.overflowBubbles).isEmpty()
@@ -563,7 +726,8 @@ class BubbleStackViewTest {
                         null,
                         FloatingContentCoordinator(),
                         { sysuiProxy },
-                        shellExecutor
+                        shellExecutor,
+                        sessionTracker,
                 )
         val bubbleOverflow = bubbleData.overflow
         assertThat(bubbleStackView.getBubbleIndex(bubbleOverflow)).isGreaterThan(-1)
@@ -572,18 +736,20 @@ class BubbleStackViewTest {
     @DisableFlags(Flags.FLAG_ENABLE_OPTIONAL_BUBBLE_OVERFLOW)
     @Test
     fun testCreateStackView_noOverflowContents_hasOverflow() {
-        bubbleStackView =
-                BubbleStackView(
-                        context,
-                        bubbleStackViewManager,
-                        positioner,
-                        bubbleData,
-                        null,
-                        FloatingContentCoordinator(),
-                        { sysuiProxy },
-                        shellExecutor
-                )
-
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView =
+                    BubbleStackView(
+                            context,
+                            bubbleStackViewManager,
+                            positioner,
+                            bubbleData,
+                            null,
+                            FloatingContentCoordinator(),
+                            { sysuiProxy },
+                            shellExecutor,
+                            sessionTracker,
+                    )
+        }
         assertThat(bubbleData.overflowBubbles).isEmpty()
         val bubbleOverflow = bubbleData.overflow
         assertThat(bubbleStackView.getBubbleIndex(bubbleOverflow)).isGreaterThan(-1)
@@ -643,6 +809,443 @@ class BubbleStackViewTest {
         verify(bubbleStackView).stopMonitoringSwipeUpGesture()
     }
 
+    @Test
+    fun animateExpand_expandRunsRunnable() {
+        bubbleStackView = spy(bubbleStackView)
+        val bubble = createAndInflateChatBubble(key = "bubble")
+
+        assertThat(bubble.expandedView).isNotNull()
+
+        var afterTransitionRan = false
+        val semaphore = Semaphore(0)
+
+        // Expand animation runs on a delay so wait for it.
+        val runnable = Runnable {
+            afterTransitionRan = true
+            semaphore.release()
+         }
+
+        assertThat(bubbleStackView.isExpanded).isFalse()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+            bubbleStackView.animateExpand(null, runnable)
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+
+        assertThat(semaphore.tryAcquire(5, TimeUnit.SECONDS)).isTrue()
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(afterTransitionRan).isTrue()
+    }
+
+    @Test
+    fun animateExpand_switchRunsRunnable() {
+        bubbleStackView = spy(bubbleStackView)
+        val bubble = createAndInflateChatBubble(key = "bubble")
+        val bubble2 = createAndInflateChatBubble(key = "bubble2")
+
+        var afterTransitionRan = false
+        val semaphore = Semaphore(0)
+
+        // Expand animation runs on a delay so wait for it.
+        val runnable = Runnable {
+            afterTransitionRan = true
+            semaphore.release()
+        }
+        assertThat(bubbleStackView.isExpanded).isFalse()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.addBubble(bubble2)
+            bubbleStackView.setSelectedBubble(bubble)
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(bubbleStackView.expandedBubble!!.key).isEqualTo(bubble.key)
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.animateExpand(null, runnable)
+            bubbleStackView.setSelectedBubble(bubble2)
+            shellExecutor.flushAll()
+        }
+
+        assertThat(semaphore.tryAcquire(5, TimeUnit.SECONDS)).isTrue()
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(bubbleStackView.expandedBubble!!.key).isEqualTo(bubble2.key)
+        assertThat(afterTransitionRan).isTrue()
+    }
+
+    @Test
+    fun canExpandView_true_triggersContinueExpand() {
+        bubbleStackView = spy(bubbleStackView)
+        val bubble = createAndInflateChatBubble(key = "bubble")
+        val bubbleTransition = mock<BubbleTransitions.BubbleTransition>()
+        bubble.preparingTransition = bubbleTransition
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+        }
+
+        assertThat(bubbleStackView.isExpanded).isFalse()
+        assertThat(bubbleStackView.canExpandView(bubble)).isTrue()
+        verify(bubbleTransition).continueExpand()
+    }
+
+    @Test
+    fun canExpandView_false() {
+        bubbleStackView = spy(bubbleStackView)
+        val bubble = createAndInflateChatBubble(key = "bubble")
+        val bubbleTransition = mock<BubbleTransitions.BubbleTransition>()
+        bubble.preparingTransition = bubbleTransition
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(bubbleStackView.expandedBubble!!.key).isEqualTo(bubble.key)
+        assertThat(bubbleStackView.canExpandView(bubble)).isFalse()
+        verify(bubbleTransition, never()).continueExpand()
+    }
+
+    @Test
+    fun snapToExpanded() {
+        val bubble = createAndInflateChatBubble(key = "bubble")
+
+        assertThat(bubble.expandedView).isNotNull()
+        assertThat(bubbleStackView.isExpanded).isFalse()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+            bubbleStackView.snapToExpanded()
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+
+        assertThat(bubble.taskView.alpha).isEqualTo(1)
+        val expandedViewContainer = bubble.expandedView!!.parent as ViewGroup
+        assertThat(expandedViewContainer.visibility).isEqualTo(View.VISIBLE)
+    }
+
+    @Test
+    fun removeBubble_notExpanded() {
+        val bubble1 = createAndInflateChatBubble("key1")
+        val bubble2 = createAndInflateChatBubble("key2")
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble1)
+            bubbleStackView.addBubble(bubble2)
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(2)
+        assertThat(bubble1.expandedView).isNotNull()
+        assertThat(bubble1.iconView).isNotNull()
+        assertThat(bubble2.expandedView).isNotNull()
+        assertThat(bubble2.iconView).isNotNull()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // dismiss it in data so it's in the overflow
+            bubbleData.dismissBubbleWithKey(bubble1.key, Bubbles.DISMISS_USER_GESTURE)
+            // remove it from the stack
+            bubbleStackView.removeBubble(bubble1)
+            shellExecutor.flushAll()
+        }
+
+        // Check that proper changes to removed bubble happened
+        assertThat(bubble1.expandedView).isNull()
+        // still have bubbles + this was overflowed so should have icon view
+        assertThat(bubble1.iconView).isNotNull()
+
+        // And the bubble that is still in the stack is not affected
+        assertThat(bubble2.expandedView).isNotNull()
+        assertThat(bubble2.iconView).isNotNull()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+    }
+
+    @Test
+    fun removeBubble_notExpanded_notOverflowed() {
+        val bubble1 = createAndInflateChatBubble("key1")
+        val bubble2 = createAndInflateChatBubble("key2")
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble1)
+            bubbleStackView.addBubble(bubble2)
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(2)
+        assertThat(bubble1.expandedView).isNotNull()
+        assertThat(bubble1.iconView).isNotNull()
+        assertThat(bubble2.expandedView).isNotNull()
+        assertThat(bubble2.iconView).isNotNull()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // remove it from stack + data, don't overflow it
+            bubbleData.dismissBubbleWithKey(bubble1.key, Bubbles.DISMISS_NO_LONGER_BUBBLE)
+            // remove it from the stack
+            bubbleStackView.removeBubble(bubble1)
+            shellExecutor.flushAll()
+        }
+
+        // Check that proper changes to removed bubble happened
+        assertThat(bubble1.expandedView).isNull()
+        assertThat(bubble1.iconView).isNull() // not in overflow so no icon
+
+        // And the bubble that is still in the stack is not affected
+        assertThat(bubble2.expandedView).isNotNull()
+        assertThat(bubble2.iconView).isNotNull()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+    }
+
+    @Test
+    fun removeLastBubble_notExpanded() {
+        val bubble = createAndInflateBubble()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+        assertThat(bubble.expandedView).isNotNull()
+        assertThat(bubble.iconView).isNotNull()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // remove it from the stack + data
+            bubbleData.dismissBubbleWithKey(bubble.key, Bubbles.DISMISS_USER_GESTURE)
+            bubbleStackView.removeBubble(bubble)
+            shellExecutor.flushAll()
+        }
+
+        // Last bubble removed, so everything is null
+        assertThat(bubble.expandedView).isNull()
+        assertThat(bubble.iconView).isNull()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(0)
+    }
+
+    @Test
+    fun removeBubble_whileExpanded() {
+        val bubble1 = createAndInflateChatBubble("key1")
+        val bubble2 = createAndInflateChatBubble("key2")
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble1)
+            bubbleStackView.addBubble(bubble2)
+            bubbleStackView.setSelectedBubble(bubble2)
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(2)
+        assertThat(bubble1.expandedView).isNotNull()
+        assertThat(bubble1.iconView).isNotNull()
+        assertThat(bubble2.expandedView).isNotNull()
+        assertThat(bubble2.iconView).isNotNull()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // remove it from the stack + data
+            bubbleData.dismissBubbleWithKey(bubble2.key, Bubbles.DISMISS_USER_GESTURE)
+            bubbleStackView.removeBubble(bubble2)
+            // stack would also be told to select the next bubble
+            bubbleStackView.setSelectedBubble(bubble1)
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        // Check that proper changes to removed bubble happened
+        assertThat(bubble2.expandedView).isNull()
+        // still have bubbles + this was overflowed so should have icon view
+        assertThat(bubble2.iconView).isNotNull()
+
+        assertThat(bubble1.expandedView).isNotNull()
+        assertThat(bubble1.iconView).isNotNull()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+        assertThat(bubbleStackView.isExpanded).isTrue()
+    }
+
+    @Test
+    fun removeBubble_whileExpanded_notOverflowed() {
+        val bubble1 = createAndInflateChatBubble("key1")
+        val bubble2 = createAndInflateChatBubble("key2")
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble1)
+            bubbleStackView.addBubble(bubble2)
+            bubbleStackView.setSelectedBubble(bubble2)
+            bubbleStackView.setExpanded(true)
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(2)
+        assertThat(bubble1.expandedView).isNotNull()
+        assertThat(bubble1.iconView).isNotNull()
+        assertThat(bubble2.expandedView).isNotNull()
+        assertThat(bubble2.iconView).isNotNull()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // remove it from the stack + data; don't overflow it
+            bubbleData.dismissBubbleWithKey(bubble2.key, Bubbles.DISMISS_NO_LONGER_BUBBLE)
+            bubbleStackView.removeBubble(bubble2)
+            // stack would also be told to select the next bubble
+            bubbleStackView.setSelectedBubble(bubble1)
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        // Check that proper changes to removed bubble happened
+        assertThat(bubble2.expandedView).isNull()
+        assertThat(bubble2.iconView).isNull() // not in overflow so null
+
+        assertThat(bubble1.expandedView).isNotNull()
+        assertThat(bubble1.iconView).isNotNull()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+        assertThat(bubbleStackView.isExpanded).isTrue()
+    }
+
+    @Test
+    fun removeLastBubble_whileExpanded() {
+        val bubble = createAndInflateBubble()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+        assertThat(bubble.expandedView).isNotNull()
+        assertThat(bubble.iconView).isNotNull()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // remove it from the stack + data
+            bubbleData.dismissBubbleWithKey(bubble.key, Bubbles.DISMISS_USER_GESTURE)
+            bubbleStackView.removeBubble(bubble)
+            // stack would also be told to collapse when last bubble removed
+            bubbleStackView.setExpanded(false)
+            // Run the scrim animation
+            animatorTestRule.advanceTimeBy(300)
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        // Last bubble removed, so everything is null
+        assertThat(bubble.expandedView).isNull()
+        assertThat(bubble.iconView).isNull()
+
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(0)
+    }
+
+    @EnableFlags(Flags.FLAG_FIX_BUBBLES_ADD_SAME_BUBBLE_BEING_REMOVED)
+    @Test
+    fun removeLastBubble_whileExpanded_addBack() {
+        val bubble = createAndInflateBubble()
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        assertThat(bubbleStackView.isExpanded).isTrue()
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+        assertThat(bubble.expandedView).isNotNull()
+        assertThat(bubble.iconView).isNotNull()
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            // remove it from the data + stack
+            bubbleData.dismissBubbleWithKey(bubble.key, Bubbles.DISMISS_USER_GESTURE)
+            bubbleStackView.removeBubble(bubble)
+            // typically stack would also be told to collapse when last bubble removed
+            bubbleStackView.setExpanded(false)
+            // Start the scrim animation
+            animatorTestRule.advanceTimeBy(100)
+            // Add the same bubble back
+            bubbleData.notificationEntryUpdated(bubble, false, true)
+            bubbleStackView.addBubble(bubble)
+            bubbleStackView.setSelectedBubble(bubble)
+            // let the scrim animation finish
+            animatorTestRule.advanceTimeBy(300)
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        // Check that proper changes to removed bubble happened
+        assertThat(bubble.expandedView).isNotNull()
+        assertThat(bubble.expandedView!!.contentAlpha).isEqualTo(1)
+        assertThat(bubble.expandedView!!.alpha).isEqualTo(1)
+        assertThat(bubble.iconView).isNotNull()
+        assertThat(bubble.iconView!!.alpha).isEqualTo(1)
+        assertThat(bubble.iconView!!.scaleX).isEqualTo(1)
+        assertThat(bubble.iconView!!.scaleY).isEqualTo(1)
+        assertThat(bubbleStackView.bubbleCount).isEqualTo(1)
+    }
+
+    @Test
+    fun sessionEventsLogged() {
+        val bubble1 = createAndInflateChatBubble("key1")
+        val bubble2 = createAndInflateChatBubble("key2")
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.addBubble(bubble1)
+            bubbleStackView.addBubble(bubble2)
+            bubbleStackView.setSelectedBubble(bubble2)
+            bubbleStackView.isExpanded = true
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        val sessionStartEvent = uiEventLoggerFake.logs.single {
+            it.eventId == BubbleLogger.Event.BUBBLE_SESSION_STARTED.id
+        }
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.setSelectedBubble(bubble1)
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        val sessionSwitchedFromEvent = uiEventLoggerFake.logs.single {
+            it.eventId == BubbleLogger.Event.BUBBLE_SESSION_SWITCHED_FROM.id
+        }
+        val sessionSwitchedToEvent = uiEventLoggerFake.logs.single {
+            it.eventId == BubbleLogger.Event.BUBBLE_SESSION_SWITCHED_TO.id
+        }
+
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            bubbleStackView.isExpanded = false
+            shellExecutor.flushAll()
+        }
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync()
+
+        val sessionEndEvent = uiEventLoggerFake.logs.single {
+            it.eventId == BubbleLogger.Event.BUBBLE_SESSION_ENDED.id
+        }
+
+        val sessionInstanceIds =
+            setOf(
+                sessionStartEvent.instanceId,
+                sessionSwitchedFromEvent.instanceId,
+                sessionSwitchedToEvent.instanceId,
+                sessionEndEvent.instanceId
+            )
+        assertThat(sessionInstanceIds).hasSize(1)
+    }
+
     private fun createAndInflateChatBubble(key: String): Bubble {
         val icon = Icon.createWithResource(context.resources, R.drawable.bubble_ic_overflow_button)
         val shortcutInfo = ShortcutInfo.Builder(context, "fakeId").setIcon(icon).build()
@@ -688,6 +1291,7 @@ class BubbleStackViewTest {
             bubbleStackView,
             null,
             iconFactory,
+            FakeBubbleAppInfoProvider(),
             false
         )
 
@@ -706,6 +1310,10 @@ class BubbleStackViewTest {
 
         override fun hideCurrentInputMethod(onImeHidden: Runnable?) {
             this.onImeHidden = onImeHidden
+        }
+
+        override fun clearImeHiddenRunnable() {
+            this.onImeHidden = null
         }
     }
 

@@ -73,8 +73,6 @@ void logBitmapDecode(const SkImageInfo& info, bool hasGainmap) {
 #ifdef __ANDROID__
 
     if (!statssocket::lazy::IsAvailable()) {
-        std::once_flag once;
-        std::call_once(once, []() { ALOGD("libstatssocket not available, dropping stats"); });
         return;
     }
 
@@ -86,11 +84,9 @@ void logBitmapDecode(const SkImageInfo& info, bool hasGainmap) {
         tfnType = skcms_TransferFunction_getType(&tfn);
     }
 
-    auto status =
-            stats::stats_write(uirenderer::stats::IMAGE_DECODED, static_cast<int32_t>(getuid()),
-                               uirenderer::toStatsColorSpaceTransfer(tfnType), hasGainmap,
-                               uirenderer::toStatsBitmapFormat(info.colorType()));
-    ALOGW_IF(status != OK, "Image decoding logging dropped!");
+    stats::stats_write(uirenderer::stats::IMAGE_DECODED, static_cast<int32_t>(getuid()),
+                       uirenderer::toStatsColorSpaceTransfer(tfnType), hasGainmap,
+                       uirenderer::toStatsBitmapFormat(info.colorType()));
 #endif
 }
 

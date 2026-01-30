@@ -16,14 +16,11 @@
 
 package android.telephony.cdma;
 
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
-
-import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -38,9 +35,8 @@ import java.lang.annotation.RetentionPolicy;
  * to display.
  *
  * @deprecated Legacy CDMA is unsupported.
- * {@hide}
+ * @hide
  */
-@FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
 @Deprecated
 @SystemApi
 public final class CdmaSmsCbProgramData implements Parcelable {
@@ -49,7 +45,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Delete the specified service category from the list of enabled categories.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int OPERATION_DELETE_CATEGORY   = 0;
 
@@ -57,7 +52,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Add the specified service category to the list of enabled categories.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int OPERATION_ADD_CATEGORY      = 1;
 
@@ -65,7 +59,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Clear all service categories from the list of enabled categories.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int OPERATION_CLEAR_CATEGORIES  = 2;
 
@@ -84,7 +77,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Indicates a presidential-level alert
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CATEGORY_CMAS_PRESIDENTIAL_LEVEL_ALERT  = 0x1000;
 
@@ -92,7 +84,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Indicates an extreme threat to life and property
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CATEGORY_CMAS_EXTREME_THREAT            = 0x1001;
 
@@ -100,7 +91,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Indicates an severe threat to life and property
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CATEGORY_CMAS_SEVERE_THREAT             = 0x1002;
 
@@ -108,7 +98,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Indicates an AMBER child abduction emergency
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CATEGORY_CMAS_CHILD_ABDUCTION_EMERGENCY = 0x1003;
 
@@ -116,7 +105,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * Indicates a CMAS test message
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CATEGORY_CMAS_TEST_MESSAGE              = 0x1004;
 
@@ -125,7 +113,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * 9.3.3-1.
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public static final int CATEGORY_CMAS_LAST_RESERVED_VALUE       = 0x10ff;
 
@@ -230,7 +217,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * @param flags Additional flags about how the object should be written (ignored).
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     @Override
     public void writeToParcel(Parcel dest, int flags) {
@@ -248,7 +234,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * @return the service category operation
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public @Operation int getOperation() {
         return mOperation;
@@ -262,7 +247,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      * @return a 16-bit CDMA service category value
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     public @Category int getCategory() {
         return mCategory;
@@ -318,7 +302,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      *
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     @Override
     public int describeContents() {
@@ -330,7 +313,6 @@ public final class CdmaSmsCbProgramData implements Parcelable {
      *
      * @deprecated Legacy CDMA is unsupported.
      */
-    @FlaggedApi(Flags.FLAG_DEPRECATE_CDMA)
     @Deprecated
     @NonNull
     public static final Parcelable.Creator<CdmaSmsCbProgramData>

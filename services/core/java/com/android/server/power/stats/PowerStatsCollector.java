@@ -30,6 +30,7 @@ import android.util.Slog;
 import android.util.SparseLongArray;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.os.Clock;
 import com.android.internal.os.PowerStats;
 import com.android.server.power.stats.format.PowerStatsLayout;
@@ -44,7 +45,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 
 /**
@@ -62,14 +62,24 @@ public abstract class PowerStatsCollector {
 
     private final Handler mHandler;
     protected final PowerStatsUidResolver mUidResolver;
-    protected final Clock mClock;
+    private final Clock mClock;
     private final long mThrottlePeriodMs;
-    private final Runnable mCollectAndDeliverStats = this::collectAndDeliverStats;
     private boolean mEnabled;
     private long mLastScheduledUpdateMs = -1;
+    private final Object mCollectStatsToken = new Object();
+
+    /**
+     * Consumer interface that receives collected PowerStats.
+     */
+    public interface PowerStatsConsumer {
+        /**
+         * Callback API.
+         */
+        void notePowerStats(PowerStats powerStats, long elapsedRealtimeMs, long uptimeMs);
+    }
 
     @GuardedBy("this")
-    private volatile List<Consumer<PowerStats>> mConsumerList = Collections.emptyList();
+    private volatile List<PowerStatsConsumer> mConsumerList = Collections.emptyList();
 
     public PowerStatsCollector(Handler handler, long throttlePeriodMs,
             PowerStatsUidResolver uidResolver, Clock clock) {
@@ -97,13 +107,13 @@ public abstract class PowerStatsCollector {
      * Adds a consumer that will receive a callback every time a snapshot of stats is collected.
      * The method is thread safe.
      */
-    public void addConsumer(Consumer<PowerStats> consumer) {
+    public void addConsumer(PowerStatsConsumer consumer) {
         synchronized (this) {
             if (mConsumerList.contains(consumer)) {
                 return;
             }
 
-            List<Consumer<PowerStats>> newList = new ArrayList<>(mConsumerList);
+            List<PowerStatsConsumer> newList = new ArrayList<>(mConsumerList);
             newList.add(consumer);
             mConsumerList = Collections.unmodifiableList(newList);
         }
@@ -113,9 +123,9 @@ public abstract class PowerStatsCollector {
      * Removes a consumer.
      * The method is thread safe.
      */
-    public void removeConsumer(Consumer<PowerStats> consumer) {
+    public void removeConsumer(PowerStatsConsumer consumer) {
         synchronized (this) {
-            List<Consumer<PowerStats>> newList = new ArrayList<>(mConsumerList);
+            List<PowerStatsConsumer> newList = new ArrayList<>(mConsumerList);
             newList.remove(consumer);
             mConsumerList = Collections.unmodifiableList(newList);
         }
@@ -145,13 +155,17 @@ public abstract class PowerStatsCollector {
             return false;
         }
 
-        long uptimeMillis = mClock.uptimeMillis();
-        if (uptimeMillis - mLastScheduledUpdateMs < mThrottlePeriodMs
-                && mLastScheduledUpdateMs >= 0) {
-            return false;
+        synchronized (mClock) {
+            long uptimeMillis = mClock.uptimeMillis();
+            if (uptimeMillis - mLastScheduledUpdateMs < mThrottlePeriodMs
+                    && mLastScheduledUpdateMs >= 0) {
+                return false;
+            }
+            long elapsedRealtime = mClock.elapsedRealtime();
+            mLastScheduledUpdateMs = uptimeMillis;
+            mHandler.postDelayed(() -> collectAndDeliverStats(elapsedRealtime, uptimeMillis),
+                    mCollectStatsToken, 0);
         }
-        mLastScheduledUpdateMs = uptimeMillis;
-        mHandler.post(mCollectAndDeliverStats);
         return true;
     }
 
@@ -163,8 +177,14 @@ public abstract class PowerStatsCollector {
             return false;
         }
 
-        mHandler.removeCallbacks(mCollectAndDeliverStats);
-        mHandler.postAtFrontOfQueue(mCollectAndDeliverStats);
+        mHandler.removeCallbacksAndMessages(mCollectStatsToken);
+
+        synchronized (mClock) {
+            long elapsedRealtime = mClock.elapsedRealtime();
+            long uptimeMillis = mClock.uptimeMillis();
+            mHandler.postDelayed(() -> collectAndDeliverStats(elapsedRealtime, uptimeMillis),
+                    mCollectStatsToken, 0);
+        }
         return true;
     }
 
@@ -172,24 +192,38 @@ public abstract class PowerStatsCollector {
      * Performs a PowerStats collection pass and delivers the result to registered consumers.
      */
     @SuppressWarnings("GuardedBy")  // Field is volatile
-    public void collectAndDeliverStats() {
-        deliverStats(collectStats());
+    public void collectAndDeliverStats(long elapsedRealtimeMs, long uptimeMs) {
+        deliverStats(collectStats(elapsedRealtimeMs, uptimeMs), elapsedRealtimeMs, uptimeMs);
     }
 
+    /**
+     * Same as {@link #collectStats(long, long)} obtaining the current time from the system clock.
+     */
+    @VisibleForTesting
     @Nullable
-    protected PowerStats collectStats() {
+    public final PowerStats collectStats() {
+        return collectStats(mClock.elapsedRealtime(), mClock.uptimeMillis());
+    }
+
+    /**
+     * Takes a snapshot of the accumulated stats for the corresponding power component and returns
+     * it in the form of a {@link PowerStats} object. The PowerStats object is consumed immediately
+     * so it can be cached and reused.
+     */
+    @Nullable
+    protected PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
         return null;
     }
 
     @SuppressWarnings("GuardedBy")  // Field is volatile
-    protected void deliverStats(PowerStats stats) {
+    protected void deliverStats(PowerStats stats, long elapsedRealtimeMs, long uptimeMs) {
         if (stats == null) {
             return;
         }
 
-        List<Consumer<PowerStats>> consumerList = mConsumerList;
+        List<PowerStatsConsumer> consumerList = mConsumerList;
         for (int i = consumerList.size() - 1; i >= 0; i--) {
-            consumerList.get(i).accept(stats);
+            consumerList.get(i).notePowerStats(stats, elapsedRealtimeMs, uptimeMs);
         }
     }
 
@@ -210,7 +244,7 @@ public abstract class PowerStatsCollector {
         }
 
         ArrayList<PowerStats> collected = new ArrayList<>();
-        Consumer<PowerStats> consumer = collected::add;
+        PowerStatsConsumer consumer = (ps, elapsedRealtime, uptime) -> collected.add(ps);
         addConsumer(consumer);
 
         try {

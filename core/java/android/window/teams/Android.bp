@@ -1,0 +1,81 @@
+//
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+team {
+    name: "trendy_team_activity_task_management",
+
+    // go/trendy/manage/engineers/5488142376599552
+    trendy_team_id: "5488142376599552",
+}
+
+team {
+    name: "trendy_team_activity_embedding",
+
+    // go/trendy/manage/engineers/5677248083755008
+    trendy_team_id: "5677248083755008",
+}
+
+team {
+    name: "trendy_team_multi_display",
+
+    // go/trendy/manage/engineers/6406340324196352
+    trendy_team_id: "6406340324196352",
+}
+
+team {
+    name: "trendy_team_picture_in_picture",
+
+    // go/trendy/manage/engineers/4816592069558272
+    trendy_team_id: "4816592069558272",
+}
+
+team {
+    name: "trendy_team_drag_and_drop",
+
+    // go/trendy/manage/engineers/6499203070394368
+    trendy_team_id: "6499203070394368",
+}
+
+team {
+    name: "trendy_team_device_state",
+
+    // go/trendy/manage/engineers/4888053706752000
+    trendy_team_id: "4888053706752000",
+}
+
+team {
+    name: "trendy_team_wm_jetpack",
+
+    // go/trendy/manage/engineers/6097172899921920
+    trendy_team_id: "6097172899921920",
+}
+
+team {
+    name: "trendy_team_rear_display",
+
+    // go/trendy/manage/engineers/5836069087313920
+    trendy_team_id: "5836069087313920",
+}
+
+team {
+    name: "trendy_team_window_manager_other",
+
+    // go/trendy/manage/engineers/5667468510330880
+    trendy_team_id: "5667468510330880",
+}

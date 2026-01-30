@@ -16,12 +16,15 @@
 
 package android.database.sqlite;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.DatabaseUtils;
@@ -45,7 +48,6 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Vector;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Phaser;
@@ -426,6 +428,8 @@ public class SQLiteDatabaseTest {
 
         // Parsed dumpsys.  This contains only the bits that are being tested.
         static class Connection {
+            String mJournalMode;
+            String mSyncMode;
             ArrayList<String> mRecent = new ArrayList<>();
             ArrayList<String> mLong = new ArrayList<>();
         }
@@ -470,6 +474,14 @@ public class SQLiteDatabaseTest {
                     continue;
                 }
 
+                if (line.contains("activeConfiguration:")) {
+                    String[] fields = split(line);
+                    // The first field is "activeConfiguration:".  The remaining fields key/value
+                    // pairs.  The order is hard-coded here.
+                    connection.mJournalMode = valueOfKey(fields[1], "journalMode");
+                    connection.mSyncMode = valueOfKey(fields[2], "syncMode");
+                }
+
                 if (line.contains("Most recently executed operations")) {
                     i += readTable(connection.mRecent, i, mEntry);
                     continue;
@@ -504,8 +516,26 @@ public class SQLiteDatabaseTest {
         }
 
         /** Return true if the n'th raw line matches the pattern. */
-        boolean lookingAt(int n, Pattern p) {
+        private boolean lookingAt(int n, Pattern p) {
             return p.matcher(mRaw.get(n)).lookingAt();
+        }
+
+        /**
+         * Split a string on whitespace.  This is just a small convenience wrapper.
+         */
+        private static String[] split(String s) {
+            return s.trim().split("\\s+");
+        }
+
+        /**
+         * Given a key/value pair of the form "key=value" and a key, return the value. Return null
+         * if the supplied key is not equal to the key in the pair.
+         */
+        private static String valueOfKey(String keyValue, @NonNull String key) {
+            String[] f = keyValue.split("=");
+            if (f.length != 2) return null;
+            if (!key.equals(f[0])) return null;
+            return f[1];
         }
 
         /** Compile the regular expressions the first time. */
@@ -537,6 +567,29 @@ public class SQLiteDatabaseTest {
         assertEquals(wantPath, realPath);
 
         assertEquals(1, db.mConnection.size());
+    }
+
+    private static void verifyActive(Dumpsys report, String journalMode, String syncMode) {
+        Dumpsys.Connection c = report.mDatabase.get(0).mConnection.get(0);
+        assertThat(c.mJournalMode).isEqualTo(journalMode);
+        assertThat(c.mSyncMode).isEqualTo(syncMode);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_REPORT_ACTIVE_DB_CONFIGURATION)
+    public void testActiveConfig() throws Exception {
+        Dumpsys before = new Dumpsys();
+        verifyActive(before, "TRUNCATE", "FULL");
+
+        try (SQLiteStatement s = mDatabase.compileStatement("PRAGMA journal_mode = WAL")) {
+            s.simpleQueryForString();
+        }
+        mDatabase.execSQL("PRAGMA synchronous = OFF");
+
+        // Both of the preceding queries trigger the pragma updater twice, once to prepare the SQL
+        // statement and once to execute it.
+        Dumpsys after = new Dumpsys();
+        verifyActive(after, "WAL", "OFF");
     }
 
     // Create and open the database, allowing or disallowing double-quoted strings.

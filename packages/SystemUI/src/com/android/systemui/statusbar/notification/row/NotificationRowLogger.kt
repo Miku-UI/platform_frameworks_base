@@ -55,10 +55,7 @@ constructor(
         )
     }
 
-    fun logRemoveTransientFromContainer(
-        childEntry: String,
-        containerEntry: String,
-    ) {
+    fun logRemoveTransientFromContainer(childEntry: String, containerEntry: String) {
         notificationRenderBuffer.log(
             TAG,
             LogLevel.INFO,
@@ -91,11 +88,7 @@ constructor(
         )
     }
 
-    fun logAddTransientRow(
-        childEntry: String,
-        containerEntry: String,
-        index: Int,
-    ) {
+    fun logAddTransientRow(childEntry: String, containerEntry: String, index: Int) {
         notificationRenderBuffer.log(
             TAG,
             LogLevel.ERROR,
@@ -186,11 +179,7 @@ constructor(
         )
     }
 
-    fun logAppearAnimationFinished(
-        entry: String,
-        isAppear: Boolean,
-        cancelled: Boolean,
-    ) {
+    fun logAppearAnimationFinished(entry: String, isAppear: Boolean, cancelled: Boolean) {
         notificationRenderBuffer.log(
             TAG,
             LogLevel.DEBUG,
@@ -230,6 +219,40 @@ constructor(
                 str2 = state.name
             },
             { "Failed to set magnetic row translation for $str1 on state $str2." },
+        )
+    }
+
+    fun logMagneticRowManagerStateSet(
+        loggingKey: String,
+        from: MagneticNotificationRowManagerImpl.State,
+        to: MagneticNotificationRowManagerImpl.State,
+    ) {
+        buffer.log(
+            TAG,
+            LogLevel.DEBUG,
+            {
+                str1 = loggingKey
+                str2 = from.name
+                str3 = to.name
+            },
+            { "Magnetic state changed from $str2 to $str3 for notification: $str1" },
+        )
+    }
+
+    fun logMagneticRowManagerInvalidStateChange(
+        from: MagneticNotificationRowManagerImpl.State,
+        to: MagneticNotificationRowManagerImpl.State,
+    ) {
+        buffer.log(
+            TAG,
+            LogLevel.ERROR,
+            {
+                str1 = from.name
+                str2 = to.name
+            },
+            {
+                "Magnetic state changed from $str1 to $str2 on a null swiped listener, or the logging key of the listener is null"
+            },
         )
     }
 }

@@ -60,6 +60,8 @@ public class LightBarTransitionsControllerTest extends SysuiTestCase {
     @Mock
     private StatusBarStateController mStatusBarStateController;
     @Mock
+    private Handler mMainHandler;
+    @Mock
     private Handler mBgHandler;
 
     private LightBarTransitionsController mLightBarTransitionsController;
@@ -67,7 +69,7 @@ public class LightBarTransitionsControllerTest extends SysuiTestCase {
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
-        mLightBarTransitionsController = new LightBarTransitionsController(mContext,
+        mLightBarTransitionsController = new LightBarTransitionsController(mContext, mMainHandler,
                 mBgHandler, mApplier, new CommandQueue(mContext, new FakeDisplayTracker(mContext)),
                 mKeyguardStateController, mStatusBarStateController);
     }

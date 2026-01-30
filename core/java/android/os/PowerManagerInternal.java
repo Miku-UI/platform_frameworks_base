@@ -90,6 +90,28 @@ public abstract class PowerManagerInternal {
     }
 
     /**
+     * Converts wakelock flags into strings.
+     * @param flags wakelock flags to convert to string
+     * @return Readable string of wakelock value.
+     */
+    @SuppressWarnings("deprecation")
+    public static String getLockLevelString(int flags) {
+        return switch (flags & PowerManager.WAKE_LOCK_LEVEL_MASK) {
+            case PowerManager.FULL_WAKE_LOCK -> "FULL_WAKE_LOCK";
+            case PowerManager.SCREEN_BRIGHT_WAKE_LOCK -> "SCREEN_BRIGHT_WAKE_LOCK";
+            case PowerManager.SCREEN_DIM_WAKE_LOCK -> "SCREEN_DIM_WAKE_LOCK";
+            case PowerManager.PARTIAL_WAKE_LOCK -> "PARTIAL_WAKE_LOCK";
+            case PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK -> "PROXIMITY_SCREEN_OFF_WAKE_LOCK";
+            case PowerManager.DOZE_WAKE_LOCK -> "DOZE_WAKE_LOCK";
+            case PowerManager.DRAW_WAKE_LOCK -> "DRAW_WAKE_LOCK";
+            case PowerManager.SCREEN_TIMEOUT_OVERRIDE_WAKE_LOCK ->
+                    "SCREEN_TIMEOUT_OVERRIDE_WAKE_LOCK";
+            case PowerManager.PARTIAL_SLEEP_WAKE_LOCK -> "PARTIAL_SLEEP_WAKE_LOCK";
+            default -> "???";
+        };
+    }
+
+    /**
      * Returns true if the wakefulness state represents an interactive state
      * as defined by {@link android.os.PowerManager#isInteractive}.
      */
@@ -127,17 +149,14 @@ public abstract class PowerManagerInternal {
      * @param screenState The overridden screen state, or {@link Display#STATE_UNKNOWN}
      * to disable the override.
      * @param reason The reason for overriding the screen state.
-     * @param screenBrightnessFloat The overridden screen brightness between
+     * @param screenBrightness The overridden screen brightness between
      * {@link PowerManager#BRIGHTNESS_MIN} and {@link PowerManager#BRIGHTNESS_MAX}, or
-     * {@link PowerManager#BRIGHTNESS_INVALID_FLOAT} if screenBrightnessInt should be used instead.
-     * @param screenBrightnessInt The overridden screen brightness between 1 and 255, or
-     * {@link PowerManager#BRIGHTNESS_DEFAULT} to disable the override. Not used if
-     *                            screenBrightnessFloat is provided (is not NaN).
+     * {@link PowerManager#BRIGHTNESS_INVALID_FLOAT} to disable the override.
      * @param useNormalBrightnessForDoze Whether use normal brightness while device is dozing.
      */
     public abstract void setDozeOverrideFromDreamManager(
-            int screenState, @Display.StateReason int reason, float screenBrightnessFloat,
-            int screenBrightnessInt, boolean useNormalBrightnessForDoze);
+            int screenState, @Display.StateReason int reason, float screenBrightness,
+            boolean useNormalBrightnessForDoze);
 
     /**
      * Used by sidekick manager to tell the power manager if it shouldn't change the display state
@@ -207,6 +226,24 @@ public abstract class PowerManagerInternal {
     public abstract void uidActive(int uid);
 
     public abstract void uidIdle(int uid);
+
+    /**
+     * Checks if the wakefulness of the supplied group is interactive.
+     */
+    public abstract boolean isGroupInteractive(int groupId);
+
+    /** Returns if any of the default adjacent group is interactive. */
+    public abstract boolean isAnyDefaultAdjacentGroupInteractive();
+
+    /** Returns if the supplied group is adjacent to the default group. */
+    public abstract boolean isDefaultGroupAdjacent(int groupId);
+
+    /**
+     * Used to notify the power manager that wakelocks should be disabled.
+     *
+     * @param force {@code true} to activate force disable wakelocks, {@code false} to turn it off.
+     */
+    public abstract void setForceDisableWakelocks(boolean force);
 
     /**
      * Boost: It is sent when user interacting with the device, for example,

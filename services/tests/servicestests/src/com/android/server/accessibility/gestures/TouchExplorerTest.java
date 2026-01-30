@@ -37,7 +37,6 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -47,8 +46,6 @@ import android.content.Context;
 import android.graphics.PointF;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.testing.DexmakerShareClassLoaderRule;
 import android.view.InputDevice;
@@ -62,7 +59,6 @@ import androidx.test.runner.AndroidJUnit4;
 import com.android.server.accessibility.AccessibilityManagerService;
 import com.android.server.accessibility.AccessibilityTraceManager;
 import com.android.server.accessibility.EventStreamTransformation;
-import com.android.server.accessibility.Flags;
 import com.android.server.accessibility.utils.GestureLogParser;
 import com.android.server.testutils.OffsettableClock;
 
@@ -166,43 +162,32 @@ public class TouchExplorerTest {
         mHandler = new TestHandler();
         mTouchExplorer = new TouchExplorer(mContext, mMockAms, null, mHandler);
         mTouchExplorer.setNext(mCaptor);
-        // Start TouchExplorer in the state where it has already reset InputDispatcher so that
-        // all tests do not start with an irrelevant ACTION_CANCEL.
-        mTouchExplorer.setHasResetInputDispatcherState(true);
     }
 
     @Test
     public void testOneFingerMove_shouldInjectHoverEvents() {
-        triggerTouchExplorationWithOneFingerDownMoveUp();
+        goFromStateClearTo(STATE_TOUCH_EXPLORING_1FINGER);
+        // Wait for transiting to touch exploring state.
+        mHandler.fastForward(2 * USER_INTENT_TIMEOUT);
+        moveEachPointers(mLastEvent, p(10, 10));
+        send(mLastEvent);
+        goToStateClearFrom(STATE_TOUCH_EXPLORING_1FINGER);
         assertCapturedEvents(ACTION_HOVER_ENTER, ACTION_HOVER_MOVE, ACTION_HOVER_EXIT);
         assertState(STATE_TOUCH_EXPLORING);
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RESET_INPUT_DISPATCHER_BEFORE_FIRST_TOUCH_EXPLORATION)
-    public void testStartTouchExploration_shouldResetInputDispatcherStateWithActionCancel() {
-        // Start TouchExplorer in the state where it has *not yet* reset InputDispatcher.
-        mTouchExplorer.setHasResetInputDispatcherState(false);
-        // Trigger touch exploration twice, with a handler fast-forward in between so TouchExplorer
-        // treats these as two separate interactions.
-        triggerTouchExplorationWithOneFingerDownMoveUp();
+    public void testOneFingerMove_injectedEventsUseVirtualDeviceId() {
+        goFromStateClearTo(STATE_TOUCH_EXPLORING_1FINGER);
+        // Wait for transiting to touch exploring state.
         mHandler.fastForward(2 * USER_INTENT_TIMEOUT);
-        triggerTouchExplorationWithOneFingerDownMoveUp();
+        goToStateClearFrom(STATE_TOUCH_EXPLORING_1FINGER);
 
-        assertCapturedEvents(
-                ACTION_CANCEL, // Only one ACTION_CANCEL before the first touch exploration
-                ACTION_HOVER_ENTER, ACTION_HOVER_MOVE, ACTION_HOVER_EXIT,
-                ACTION_HOVER_ENTER, ACTION_HOVER_MOVE, ACTION_HOVER_EXIT);
-        assertState(STATE_TOUCH_EXPLORING);
-    }
-
-    private void triggerTouchExplorationWithOneFingerDownMoveUp() {
-        send(downEvent());
-        // Fast forward so that TouchExplorer's timeouts transition us to the touch exploring state.
-        mHandler.fastForward(2 * USER_INTENT_TIMEOUT);
-        moveEachPointers(mLastEvent, p(10, 10));
-        send(mLastEvent);
-        send(upEvent());
+        assertThat(getCapturedEvents()).hasSize(2);
+        assertThat(getCapturedEvents().get(0).getDeviceId()).isEqualTo(
+                EventDispatcher.VIRTUAL_TOUCHSCREEN_DEVICE_ID);
+        assertThat(getCapturedEvents().get(1).getDeviceId()).isEqualTo(
+                EventDispatcher.VIRTUAL_TOUCHSCREEN_DEVICE_ID);
     }
 
     /**
@@ -360,6 +345,7 @@ public class TouchExplorerTest {
     public void upEventWhenInTwoFingerMove_clearsState() {
         goFromStateClearTo(STATE_MOVING_2FINGERS);
 
+        send(pointerUpEvent());
         send(upEvent());
         assertState(STATE_CLEAR);
     }
@@ -478,7 +464,6 @@ public class TouchExplorerTest {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_EVENT_DISPATCHER_RAW_EVENT)
     public void testSendHoverExitIfNeeded_lastSentHoverEnter_sendsHoverExit_withCorrectRawEvent() {
         final MotionEvent rawEvent = downEvent();
         final MotionEvent modifiedEvent = hoverEnterEvent();
@@ -507,22 +492,6 @@ public class TouchExplorerTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_POINTER_UP_MOTION_EVENT_IN_TOUCH_EXPLORATION)
-    public void handleMotionEventStateTouchExploring_pointerUp_doesNotSendToManager() {
-        mTouchExplorer.getState().setServiceDetectsGestures(true);
-        mTouchExplorer.getState().clear();
-
-        mLastEvent = pointerDownEvent();
-        mTouchExplorer.getState().startTouchExploring();
-        MotionEvent event = fromTouchscreen(pointerUpEvent());
-
-        mTouchExplorer.onMotionEvent(event, event, /*policyFlags=*/0);
-
-        verify(mMockAms, never()).sendMotionEventToListeningServices(event);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_POINTER_UP_MOTION_EVENT_IN_TOUCH_EXPLORATION)
     public void handleMotionEventStateTouchExploring_pointerUp_sendsToManager() {
         mTouchExplorer.getState().setServiceDetectsGestures(true);
         mTouchExplorer.getState().clear();

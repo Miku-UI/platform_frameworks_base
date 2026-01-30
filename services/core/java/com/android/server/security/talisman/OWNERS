@@ -1,0 +1,4 @@
+# Bug component: 1111171
+# TODO(dlm): Move into Talisman sub-component.
+
+include /core/java/android/security/talisman/OWNERS

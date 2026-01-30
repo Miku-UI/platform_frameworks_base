@@ -19,7 +19,6 @@ package com.android.server.pm.pkg;
 import android.annotation.AppIdInt;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.annotation.Size;
 import android.annotation.SystemApi;
 import android.annotation.UserIdInt;
 import android.content.Context;
@@ -230,18 +229,6 @@ public interface PackageState {
      * @hide
      */
     long getLastModifiedTime();
-
-    /**
-     * An aggregation across the framework of the last time an app was used for a particular reason.
-     * Keys are indexes into the array represented by {@link PackageManager.NotifyReason}, values
-     * are in epoch milliseconds.
-     *
-     * @hide
-     */
-    @Immutable.Ignore
-    @Size(PackageManager.NOTIFY_PACKAGE_USE_REASONS_COUNT)
-    @NonNull
-    long[] getLastPackageUsageTime();
 
     /**
      * In epoch milliseconds. The timestamp of the last time the package on device went through
@@ -467,6 +454,12 @@ public interface PackageState {
      * @hide
      */
     boolean isVendor();
+
+    /**
+     * @see ApplicationInfo#PRIVATE_FLAG_ALLOW_AUDIO_PLAYBACK_CAPTURE
+     * @hide
+     */
+    boolean isAudioPlaybackCaptureAllowed();
 
     /**
      * The name of the APEX module containing this package, if it is an APEX or APK-in-APEX.

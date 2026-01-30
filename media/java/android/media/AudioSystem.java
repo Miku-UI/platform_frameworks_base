@@ -26,6 +26,7 @@ import android.bluetooth.BluetoothLeAudioCodecConfig;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.audio.Flags;
 import android.media.audio.common.AidlConversion;
 import android.media.audiofx.AudioEffect;
 import android.media.audiopolicy.AudioMix;
@@ -50,7 +51,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeSet;
 
 /* IF YOU CHANGE ANY OF THE CONSTANTS IN THIS FILE, DO NOT FORGET
  * TO UPDATE THE CORRESPONDING NATIVE GLUE AND AudioManager.java.
@@ -211,7 +211,9 @@ public class AudioSystem
     /** @hide */
     public static final int MODE_COMMUNICATION_REDIRECT  = 6;
     /** @hide */
-    public static final int NUM_MODES               = 7;
+    public static final int MODE_ASSISTANT_CONVERSATION  = 7;
+    /** @hide */
+    public static final int NUM_MODES               = 8;
 
     /** @hide */
     public static String modeToString(int mode) {
@@ -225,6 +227,7 @@ public class AudioSystem
             case MODE_CALL_SCREENING: return "MODE_CALL_SCREENING";
             case MODE_CALL_REDIRECT: return "MODE_CALL_REDIRECT";
             case MODE_COMMUNICATION_REDIRECT: return "MODE_COMMUNICATION_REDIRECT";
+            case MODE_ASSISTANT_CONVERSATION: return "MODE_ASSISTANT_CONVERSATION";
             default: return "unknown mode (" + mode + ")";
         }
     }
@@ -248,7 +251,8 @@ public class AudioSystem
     public static final int AUDIO_FORMAT_LC3            = 0x2B000000;
     /** @hide */
     public static final int AUDIO_FORMAT_OPUS           = 0x08000000;
-
+    /** @hide */
+    public static final int AUDIO_FORMAT_OPUS_HI_RES    = 0x08000001;
 
     /** @hide */
     @IntDef(flag = false, prefix = "AUDIO_FORMAT_", value = {
@@ -260,7 +264,8 @@ public class AudioSystem
             AUDIO_FORMAT_APTX_HD,
             AUDIO_FORMAT_LDAC,
             AUDIO_FORMAT_LC3,
-            AUDIO_FORMAT_OPUS
+            AUDIO_FORMAT_OPUS,
+            AUDIO_FORMAT_OPUS_HI_RES,
            }
     )
     @Retention(RetentionPolicy.SOURCE)
@@ -268,7 +273,10 @@ public class AudioSystem
 
     /** @hide */
     @IntDef(flag = false, prefix = "AUDIO_FORMAT_", value = {
-        AUDIO_FORMAT_LC3}
+        AUDIO_FORMAT_LC3,
+        AUDIO_FORMAT_OPUS,
+        AUDIO_FORMAT_OPUS_HI_RES,
+        }
     )
     @Retention(RetentionPolicy.SOURCE)
     public @interface AudioFormatNativeEnumForBtLeAudioCodec {}
@@ -282,6 +290,8 @@ public class AudioSystem
     @Retention(RetentionPolicy.SOURCE)
     public @interface BtOffloadDeviceType {}
 
+    //TODO b/396350294 : remove when BluetoothLeCodecConfig.SOURCE_CODEC_TYPE_OPUS_HI_RES is public
+    private static final int BLUETOOTH_LE_AUDIO_CODEC_CONFIG_SOURCE_CODEC_TYPE_OPUS_HI_RES = 2;
     /**
      * @hide
      * Convert audio format enum values to Bluetooth codec values
@@ -311,6 +321,9 @@ public class AudioSystem
             @AudioFormatNativeEnumForBtLeAudioCodec int audioFormat) {
         switch (audioFormat) {
             case AUDIO_FORMAT_LC3: return BluetoothLeAudioCodecConfig.SOURCE_CODEC_TYPE_LC3;
+            case AUDIO_FORMAT_OPUS: return BluetoothLeAudioCodecConfig.SOURCE_CODEC_TYPE_OPUS;
+            case AUDIO_FORMAT_OPUS_HI_RES:
+                return BLUETOOTH_LE_AUDIO_CODEC_CONFIG_SOURCE_CODEC_TYPE_OPUS_HI_RES;
             default:
                 Log.e(TAG, "Unknown audio format 0x" + Integer.toHexString(audioFormat)
                         + " for conversion to BT LE audio codec");
@@ -359,6 +372,10 @@ public class AudioSystem
         switch (btCodec) {
             case BluetoothLeAudioCodecConfig.SOURCE_CODEC_TYPE_LC3:
                 return AudioSystem.AUDIO_FORMAT_LC3;
+            case BluetoothLeAudioCodecConfig.SOURCE_CODEC_TYPE_OPUS:
+                return AudioSystem.AUDIO_FORMAT_OPUS;
+            case AudioSystem.BLUETOOTH_LE_AUDIO_CODEC_CONFIG_SOURCE_CODEC_TYPE_OPUS_HI_RES:
+                return AudioSystem.AUDIO_FORMAT_OPUS_HI_RES;
             default:
                 Log.e(TAG, "Unknown LE Audio BT codec 0x" + Integer.toHexString(btCodec)
                         + " for conversion to audio format");
@@ -393,6 +410,8 @@ public class AudioSystem
                 return "AUDIO_FORMAT_VORBIS";
             case /* AUDIO_FORMAT_OPUS            */ 0x08000000:
                 return "AUDIO_FORMAT_OPUS";
+            case /* AUDIO_FORMAT_OPUS_HI_RES     */ 0x08000001:
+                return "AUDIO_FORMAT_OPUS_HI_RES";
             case /* AUDIO_FORMAT_AC3             */ 0x09000000:
                 return "AUDIO_FORMAT_AC3";
             case /* AUDIO_FORMAT_E_AC3           */ 0x0A000000:
@@ -1136,6 +1155,8 @@ public class AudioSystem
     public static final Set<Integer> DEVICE_OUT_ALL_BLE_SET;
     /** @hide */
     public static final Set<Integer> DEVICE_OUT_PICK_FOR_VOLUME_SET;
+    /** @hide */
+    public static final Set<Integer> DEVICE_OUT_ALL_BLE_UNICAST_SET;
 
     static {
         DEVICE_OUT_ALL_SET = new HashSet<>();
@@ -1204,6 +1225,10 @@ public class AudioSystem
         DEVICE_OUT_ALL_BLE_SET.add(DEVICE_OUT_BLE_HEADSET);
         DEVICE_OUT_ALL_BLE_SET.add(DEVICE_OUT_BLE_SPEAKER);
         DEVICE_OUT_ALL_BLE_SET.add(DEVICE_OUT_BLE_BROADCAST);
+
+        DEVICE_OUT_ALL_BLE_UNICAST_SET = new HashSet<>();
+        DEVICE_OUT_ALL_BLE_UNICAST_SET.add(DEVICE_OUT_BLE_HEADSET);
+        DEVICE_OUT_ALL_BLE_UNICAST_SET.add(DEVICE_OUT_BLE_SPEAKER);
 
         DEVICE_OUT_PICK_FOR_VOLUME_SET = new HashSet<>();
         DEVICE_OUT_PICK_FOR_VOLUME_SET.add(DEVICE_OUT_WIRED_HEADSET);
@@ -1414,6 +1439,11 @@ public class AudioSystem
     public static boolean isBluetoothLeDevice(int deviceType) {
         return isBluetoothLeOutDevice(deviceType)
                 || isBluetoothLeInDevice(deviceType);
+    }
+
+    /** @hide */
+    public static boolean isBluetoothLeOutUnicastDevice(int deviceType) {
+        return DEVICE_OUT_ALL_BLE_UNICAST_SET.contains(deviceType);
     }
 
     /** @hide */
@@ -1815,11 +1845,13 @@ public class AudioSystem
         return 0;
     }
     /**
-     * @hide
      * Send the current audio mode to audio policy manager and audio HAL.
+     *
      * @param state the audio mode
      * @param uid the UID of the app owning the audio mode
      * @return command completion status.
+     *
+     * @hide
      */
     public static native int setPhoneState(int state, int uid);
     /** @hide */
@@ -1840,40 +1872,114 @@ public class AudioSystem
             int device);
     /** @hide */
     public static native int getStreamVolumeIndex(int stream, int device);
+
     /**
-     * @hide
      * set a volume for the given {@link AudioAttributes} and for all other stream that belong to
      * the same volume group.
+     *
      * @param attributes the {@link AudioAttributes} to be considered
      * @param index to be applied
      * @param device the volume device to be considered
      * @return command completion status.
+     *
+     * @hide
      */
     public static native int setVolumeIndexForAttributes(@NonNull AudioAttributes attributes,
                                                          int index, boolean muted, int device);
    /**
-    * @hide
     * get the volume index for the given {@link AudioAttributes}.
+    *
     * @param attributes the {@link AudioAttributes} to be considered
     * @param device the volume device to be considered
     * @return volume index for the given {@link AudioAttributes} and volume device.
+    *
+    * @hide
     */
     public static native int getVolumeIndexForAttributes(@NonNull AudioAttributes attributes,
                                                          int device);
     /**
-     * @hide
      * get the minimum volume index for the given {@link AudioAttributes}.
+     *
      * @param attributes the {@link AudioAttributes} to be considered
      * @return minimum volume index for the given {@link AudioAttributes}.
+     *
+     * @hide
      */
     public static native int getMinVolumeIndexForAttributes(@NonNull AudioAttributes attributes);
     /**
-     * @hide
      * get the maximum volume index for the given {@link AudioAttributes}.
+     *
      * @param attributes the {@link AudioAttributes} to be considered
      * @return maximum volume index for the given {@link AudioAttributes}.
+     *
+     * @hide
      */
     public static native int getMaxVolumeIndexForAttributes(@NonNull AudioAttributes attributes);
+
+    /**
+     * Set a volume for the given group id and device type.
+     *
+     * @param groupId the {@link AudioVolumeGroup} id to be considered
+     * @param index to be applied
+     * @param muted state of the group
+     * @param device the volume device to be considered
+     * @return command completion status.
+     *
+     * @hide
+     */
+    public static native int setVolumeIndexForGroup(int groupId, int index,
+            boolean muted, int device);
+
+    /**
+     * Get the volume index for the given group id and device.
+     *
+     * @param groupId the {@link AudioVolumeGroup} id to be considered
+     * @param device the volume device to be considered
+     * @return volume index for the given volume group and volume device.
+     *
+     * @hide
+     */
+    public static native int getVolumeIndexForGroup(int groupId, int device);
+
+    /**
+     * Get the minimum volume index for the given group id.
+     *
+     * @param groupId the {@link AudioVolumeGroup} id to be considered
+     * @return minimum volume index for the given volume group.
+     *
+     * @hide
+     */
+    public static native int getMinVolumeIndexForGroup(int groupId);
+
+    /**
+     * Set the minimum volume index for the given group id.
+     *
+     * @param groupId the {@link AudioVolumeGroup} id to be set
+     * @return minimum volume index for the given volume group.
+     *
+     * @hide
+     */
+    public static native int setMinVolumeIndexForGroup(int groupId, int index);
+
+    /**
+     * Get the maximum volume index for the given group id.
+     *
+     * @param groupId the {@link AudioVolumeGroup} id to be considered
+     * @return maximum volume index for the given volume group.
+     *
+     * @hide
+     */
+    public static native int getMaxVolumeIndexForGroup(int groupId);
+
+    /**
+     * Set the maximum volume index for the given group id.
+     *
+     * @param groupId the {@link AudioVolumeGroup} id to be set
+     * @return maximum volume index for the given volume group.
+     *
+     * @hide
+     */
+    public static native int setMaxVolumeIndexForGroup(int groupId, int index);
 
     /** @hide */
     public static native int setMasterVolume(float value);
@@ -1909,12 +2015,13 @@ public class AudioSystem
      * compatibility reasons.  Legacy apps will not understand these new device types
      * and it will raise false matches with old device types.
      */
-    public static int getDeviceMaskFromSet(@NonNull Set<Integer> deviceSet) {
+    public static int getDeviceMaskFromSet(@NonNull Set<AudioDeviceAttributes> deviceSet) {
         int deviceMask = DEVICE_NONE; // zero.
         int deviceInChecksum = DEVICE_BIT_IN;
-        for (Integer device : deviceSet) {
+        for (AudioDeviceAttributes deviceAttr : deviceSet) {
+            final int device = deviceAttr.getInternalType();
             if ((device & (device - 1) & ~DEVICE_BIT_IN) != 0) {
-                Log.v(TAG, "getDeviceMaskFromSet skipping multi-bit device value " + device);
+                Log.i(TAG, "getDeviceMaskFromSet skipping multi-bit device value " + device);
                 continue;
             }
             deviceMask |= device;
@@ -1930,15 +2037,15 @@ public class AudioSystem
 
     /** @hide */
     @NonNull
-    public static String deviceSetToString(@NonNull Set<Integer> devices) {
+    public static String deviceSetToString(@NonNull Set<AudioDeviceAttributes> devices) {
         int n = 0;
         StringBuilder sb = new StringBuilder();
-        for (Integer device : devices) {
+        for (AudioDeviceAttributes device : devices) {
             if (n++ > 0) {
                 sb.append(", ");
             }
-            sb.append(AudioSystem.getDeviceName(device));
-            sb.append("(" + Integer.toHexString(device) + ")");
+            sb.append(AudioSystem.getDeviceName(device.getInternalType()));
+            sb.append("(").append(Integer.toHexString(device.getInternalType())).append(")");
         }
         return sb.toString();
     }
@@ -2565,6 +2672,8 @@ public class AudioSystem
     public static final int PLATFORM_TELEVISION = 2;
     /** @hide The platform is automotive */
     public static final int PLATFORM_AUTOMOTIVE = 3;
+    /** @hide The platform is pc */
+    public static final int PLATFORM_PC = 4;
 
     /**
      * @hide
@@ -2572,6 +2681,8 @@ public class AudioSystem
      * <ul>
      * <li>{@link #PLATFORM_VOICE}</li>
      * <li>{@link #PLATFORM_TELEVISION}</li>
+     * <li>{@link #PLATFORM_AUTOMOTIVE}</li>
+     * <li>{@link #PLATFORM_PC}</li>
      * <li>{@link #PLATFORM_DEFAULT}</li>
      * </ul>
      */
@@ -2582,6 +2693,9 @@ public class AudioSystem
             return PLATFORM_VOICE;
         } else if (context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
             return PLATFORM_TELEVISION;
+        } else if (Flags.enablePlatformPcType()
+                       && context.getPackageManager().hasSystemFeature(PackageManager.FEATURE_PC)) {
+            return PLATFORM_PC;
         } else {
             return PLATFORM_DEFAULT;
         }
@@ -2603,24 +2717,25 @@ public class AudioSystem
      * represent multiple audio device types.
      */
     @NonNull
-    public static Set<Integer> generateAudioDeviceTypesSet(
+    public static Set<AudioDeviceAttributes> generateAudioDeviceTypesSet(
             @NonNull List<AudioDeviceAttributes> deviceList) {
-        Set<Integer> deviceTypes = new TreeSet<>();
-        for (AudioDeviceAttributes device : deviceList) {
-            deviceTypes.add(device.getInternalType());
-        }
-        return deviceTypes;
+        return Set.copyOf(deviceList);
     }
 
     /**
      * @hide
-     * Return the intersection of two audio device types collections.
+     * Return the intersection of two audio device attributes which match the device types.
      */
-    public static Set<Integer> intersectionAudioDeviceTypes(
-            @NonNull Set<Integer> a, @NonNull Set<Integer> b) {
-        Set<Integer> intersection = new TreeSet<>(a);
-        intersection.retainAll(b);
-        return intersection;
+    public static Set<AudioDeviceAttributes> intersectionAudioDeviceTypes(
+            @NonNull Set<Integer> a, @NonNull Set<AudioDeviceAttributes> b) {
+        Set<AudioDeviceAttributes> result = new HashSet<>();
+        b.forEach(ada -> {
+            if (a.contains(ada.getInternalType())) {
+                result.add(ada);
+            }
+        });
+
+        return result;
     }
 
     /**
@@ -2753,4 +2868,10 @@ public class AudioSystem
      */
     public static native int unregisterAudioVolumeGroupCallback(
             INativeAudioVolumeGroupCallback callback);
+
+    /**
+     * Enable or disable device connection simulation at the HAL level.
+     * @hide
+     */
+    public static native int setSimulateDeviceConnections(boolean enabled);
 }

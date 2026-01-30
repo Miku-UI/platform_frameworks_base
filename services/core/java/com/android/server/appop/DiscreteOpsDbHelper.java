@@ -29,6 +29,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 import android.database.sqlite.SQLiteRawStatement;
 import android.os.Environment;
 import android.os.SystemClock;
+import android.os.Trace;
 import android.permission.flags.Flags;
 import android.util.IntArray;
 import android.util.Slog;
@@ -83,51 +84,60 @@ class DiscreteOpsDbHelper extends SQLiteOpenHelper {
         }
         long startTime = 0;
         if (Flags.sqliteDiscreteOpEventLoggingEnabled()) {
-            startTime = SystemClock.elapsedRealtime();
+            startTime = SystemClock.uptimeMillis();
         }
 
-        SQLiteDatabase db = getWritableDatabase();
-        // TODO (b/383157289) what if database is busy and can't start a transaction? will read
-        //  more about it and can be done in a follow up cl.
-        db.beginTransaction();
-        try (SQLiteRawStatement statement = db.createRawStatement(
-                DiscreteOpsTable.INSERT_TABLE_SQL)) {
-            for (DiscreteOpsSqlRegistry.DiscreteOp event : opEvents) {
-                try {
-                    statement.bindInt(DiscreteOpsTable.UID_INDEX, event.getUid());
-                    bindTextOrNull(statement, DiscreteOpsTable.PACKAGE_NAME_INDEX,
-                            event.getPackageName());
-                    bindTextOrNull(statement, DiscreteOpsTable.DEVICE_ID_INDEX,
-                            event.getDeviceId());
-                    statement.bindInt(DiscreteOpsTable.OP_CODE_INDEX, event.getOpCode());
-                    bindTextOrNull(statement, DiscreteOpsTable.ATTRIBUTION_TAG_INDEX,
-                            event.getAttributionTag());
-                    statement.bindLong(DiscreteOpsTable.ACCESS_TIME_INDEX, event.getAccessTime());
-                    statement.bindLong(
-                            DiscreteOpsTable.ACCESS_DURATION_INDEX, event.getDuration());
-                    statement.bindInt(DiscreteOpsTable.UID_STATE_INDEX, event.getUidState());
-                    statement.bindInt(DiscreteOpsTable.OP_FLAGS_INDEX, event.getOpFlags());
-                    statement.bindInt(DiscreteOpsTable.ATTRIBUTION_FLAGS_INDEX,
-                            event.getAttributionFlags());
-                    statement.bindLong(DiscreteOpsTable.CHAIN_ID_INDEX, event.getChainId());
-                    statement.step();
-                } catch (Exception exception) {
-                    Slog.e(LOG_TAG, "Error inserting the discrete op: " + event, exception);
-                } finally {
-                    statement.reset();
+        Trace.traceBegin(Trace.TRACE_TAG_SYSTEM_SERVER, "DiscreteOpsWrite");
+        try {
+            SQLiteDatabase db = getWritableDatabase();
+            // TODO (b/383157289) what if database is busy and can't start a transaction? will read
+            //  more about it and can be done in a follow up cl.
+            db.beginTransaction();
+            try (SQLiteRawStatement statement = db.createRawStatement(
+                    DiscreteOpsTable.INSERT_TABLE_SQL)) {
+                for (DiscreteOpsSqlRegistry.DiscreteOp event : opEvents) {
+                    try {
+                        statement.bindInt(DiscreteOpsTable.UID_INDEX, event.getUid());
+                        bindTextOrNull(statement, DiscreteOpsTable.PACKAGE_NAME_INDEX,
+                                event.getPackageName());
+                        bindTextOrNull(statement, DiscreteOpsTable.DEVICE_ID_INDEX,
+                                event.getDeviceId());
+                        statement.bindInt(DiscreteOpsTable.OP_CODE_INDEX, event.getOpCode());
+                        bindTextOrNull(statement, DiscreteOpsTable.ATTRIBUTION_TAG_INDEX,
+                                event.getAttributionTag());
+                        statement.bindLong(DiscreteOpsTable.ACCESS_TIME_INDEX,
+                                event.getAccessTime());
+                        statement.bindLong(
+                                DiscreteOpsTable.ACCESS_DURATION_INDEX, event.getDuration());
+                        statement.bindInt(DiscreteOpsTable.UID_STATE_INDEX, event.getUidState());
+                        statement.bindInt(DiscreteOpsTable.OP_FLAGS_INDEX, event.getOpFlags());
+                        statement.bindInt(DiscreteOpsTable.ATTRIBUTION_FLAGS_INDEX,
+                                event.getAttributionFlags());
+                        statement.bindLong(DiscreteOpsTable.CHAIN_ID_INDEX, event.getChainId());
+                        statement.step();
+                    } catch (Exception exception) {
+                        Slog.e(LOG_TAG, "Error inserting the discrete op: " + event, exception);
+                    } finally {
+                        statement.reset();
+                    }
                 }
+                db.setTransactionSuccessful();
+            } finally {
+                try {
+                    db.endTransaction();
+                } catch (SQLiteException exception) {
+                    Slog.e(LOG_TAG,
+                            "Couldn't commit transaction when inserting discrete ops, database"
+                                    + " file size (bytes) : " + getDatabaseFile().length(),
+                            exception);
+                }
+
             }
-            db.setTransactionSuccessful();
         } finally {
-            try {
-                db.endTransaction();
-            } catch (SQLiteException exception) {
-                Slog.e(LOG_TAG, "Couldn't commit transaction when inserting discrete ops, database"
-                        + " file size (bytes) : " + getDatabaseFile().length(), exception);
-            }
+            Trace.traceEnd(Trace.TRACE_TAG_SYSTEM_SERVER);
         }
         if (Flags.sqliteDiscreteOpEventLoggingEnabled()) {
-            long timeTaken = SystemClock.elapsedRealtime() - startTime;
+            long timeTaken = SystemClock.uptimeMillis() - startTime;
             FrameworkStatsLog.write(FrameworkStatsLog.SQLITE_DISCRETE_OP_EVENT_REPORTED,
                     -1, timeTaken, getDatabaseFile().length());
         }
@@ -196,13 +206,18 @@ class DiscreteOpsDbHelper extends SQLiteOpenHelper {
             int uidFilter, @Nullable String packageNameFilter,
             @Nullable String attributionTagFilter, IntArray opCodesFilter, int opFlagsFilter,
             long beginTime, long endTime, int limit, String orderByColumn, boolean ascending) {
-        List<SQLCondition> conditions = prepareConditions(beginTime, endTime, requestFilters,
+
+        List<AppOpHistoryQueryHelper.SQLCondition> conditions =
+                AppOpHistoryQueryHelper.prepareConditions(
+                beginTime, endTime, requestFilters,
                 uidFilter, packageNameFilter,
                 attributionTagFilter, opCodesFilter, opFlagsFilter);
-        String sql = buildSql(conditions, orderByColumn, ascending, limit);
+        String sql = AppOpHistoryQueryHelper.buildSqlQuery(
+                DiscreteOpsTable.SELECT_TABLE_DATA, conditions, orderByColumn,
+                ascending, limit);
         long startTime = 0;
         if (Flags.sqliteDiscreteOpEventLoggingEnabled()) {
-            startTime = SystemClock.elapsedRealtime();
+            startTime = SystemClock.uptimeMillis();
         }
         SQLiteDatabase db = getReadableDatabase();
         List<DiscreteOpsSqlRegistry.DiscreteOp> results = new ArrayList<>();
@@ -210,37 +225,24 @@ class DiscreteOpsDbHelper extends SQLiteOpenHelper {
         try (SQLiteRawStatement statement = db.createRawStatement(sql)) {
             int size = conditions.size();
             for (int i = 0; i < size; i++) {
-                SQLCondition condition = conditions.get(i);
+                AppOpHistoryQueryHelper.SQLCondition condition = conditions.get(i);
                 if (DEBUG) {
-                    Slog.i(LOG_TAG, condition + ", binding value = " + condition.mFilterValue);
+                    Slog.i(LOG_TAG, condition + ", binding value = " + condition.getFilterValue());
                 }
-                switch (condition.mColumnFilter) {
+                switch (condition.getColumnFilter()) {
                     case PACKAGE_NAME, ATTR_TAG -> statement.bindText(i + 1,
-                            condition.mFilterValue.toString());
+                            condition.getFilterValue().toString());
                     case UID, OP_CODE_EQUAL, OP_FLAGS -> statement.bindInt(i + 1,
-                            Integer.parseInt(condition.mFilterValue.toString()));
+                            Integer.parseInt(condition.getFilterValue().toString()));
                     case BEGIN_TIME, END_TIME -> statement.bindLong(i + 1,
-                            Long.parseLong(condition.mFilterValue.toString()));
+                            Long.parseLong(condition.getFilterValue().toString()));
                     case OP_CODE_IN -> Slog.d(LOG_TAG, "No binding for In operator");
                     default -> Slog.w(LOG_TAG, "unknown sql condition " + condition);
                 }
             }
 
             while (statement.step()) {
-                int uid = statement.getColumnInt(0);
-                String packageName = statement.getColumnText(1);
-                String deviceId = statement.getColumnText(2);
-                int opCode = statement.getColumnInt(3);
-                String attributionTag = statement.getColumnText(4);
-                long accessTime = statement.getColumnLong(5);
-                long duration = statement.getColumnLong(6);
-                int uidState = statement.getColumnInt(7);
-                int opFlags = statement.getColumnInt(8);
-                int attributionFlags = statement.getColumnInt(9);
-                long chainId = statement.getColumnLong(10);
-                DiscreteOpsSqlRegistry.DiscreteOp event = new DiscreteOpsSqlRegistry.DiscreteOp(uid,
-                        packageName, attributionTag, deviceId, opCode,
-                        opFlags, attributionFlags, uidState, chainId, accessTime, duration);
+                DiscreteOpsSqlRegistry.DiscreteOp event = readFromStatement(statement);
                 results.add(event);
             }
             db.setTransactionSuccessful();
@@ -248,134 +250,29 @@ class DiscreteOpsDbHelper extends SQLiteOpenHelper {
             db.endTransaction();
         }
         if (Flags.sqliteDiscreteOpEventLoggingEnabled()) {
-            long timeTaken = SystemClock.elapsedRealtime() - startTime;
+            long timeTaken = SystemClock.uptimeMillis() - startTime;
             FrameworkStatsLog.write(FrameworkStatsLog.SQLITE_DISCRETE_OP_EVENT_REPORTED,
                     timeTaken, -1, getDatabaseFile().length());
         }
         return results;
     }
 
-    private String buildSql(List<SQLCondition> conditions, String orderByColumn, boolean ascending,
-            int limit) {
-        StringBuilder sql = new StringBuilder(DiscreteOpsTable.SELECT_TABLE_DATA);
-        if (!conditions.isEmpty()) {
-            sql.append(" WHERE ");
-            int size = conditions.size();
-            for (int i = 0; i < size; i++) {
-                sql.append(conditions.get(i).toString());
-                if (i < size - 1) {
-                    sql.append(" AND ");
-                }
-            }
-        }
+    private DiscreteOpsSqlRegistry.DiscreteOp readFromStatement(SQLiteRawStatement statement) {
+        int uid = statement.getColumnInt(0);
+        String packageName = statement.getColumnText(1);
+        String deviceId = statement.getColumnText(2);
+        int opCode = statement.getColumnInt(3);
+        String attributionTag = statement.getColumnText(4);
+        long accessTime = statement.getColumnLong(5);
+        long duration = statement.getColumnLong(6);
+        int uidState = statement.getColumnInt(7);
+        int opFlags = statement.getColumnInt(8);
+        int attributionFlags = statement.getColumnInt(9);
+        long chainId = statement.getColumnLong(10);
 
-        if (orderByColumn != null) {
-            sql.append(" ORDER BY ").append(orderByColumn);
-            sql.append(ascending ? " ASC " : " DESC ");
-        }
-        if (limit > 0) {
-            sql.append(" LIMIT ").append(limit);
-        }
-        if (DEBUG) {
-            Slog.i(LOG_TAG, "Sql query " + sql);
-        }
-        return sql.toString();
-    }
-
-    /**
-     * Creates where conditions for package, uid, attribution tag and app op codes,
-     * app op codes condition does not support argument binding.
-     */
-    private List<SQLCondition> prepareConditions(long beginTime, long endTime, int requestFilters,
-            int uid, @Nullable String packageName, @Nullable String attributionTag,
-            IntArray opCodes, int opFlags) {
-        final List<SQLCondition> conditions = new ArrayList<>();
-
-        if (beginTime != -1) {
-            conditions.add(new SQLCondition(ColumnFilter.BEGIN_TIME, beginTime));
-        }
-        if (endTime != -1) {
-            conditions.add(new SQLCondition(ColumnFilter.END_TIME, endTime));
-        }
-        if (opFlags != 0) {
-            conditions.add(new SQLCondition(ColumnFilter.OP_FLAGS, opFlags));
-        }
-
-        if (requestFilters != 0) {
-            if ((requestFilters & AppOpsManager.FILTER_BY_PACKAGE_NAME) != 0) {
-                conditions.add(new SQLCondition(ColumnFilter.PACKAGE_NAME, packageName));
-            }
-            if ((requestFilters & AppOpsManager.FILTER_BY_UID) != 0) {
-                conditions.add(new SQLCondition(ColumnFilter.UID, uid));
-
-            }
-            if ((requestFilters & AppOpsManager.FILTER_BY_ATTRIBUTION_TAG) != 0) {
-                conditions.add(new SQLCondition(ColumnFilter.ATTR_TAG, attributionTag));
-            }
-            // filter op codes
-            if (opCodes != null && opCodes.size() == 1) {
-                conditions.add(new SQLCondition(ColumnFilter.OP_CODE_EQUAL, opCodes.get(0)));
-            } else if (opCodes != null && opCodes.size() > 1) {
-                StringBuilder b = new StringBuilder();
-                int size = opCodes.size();
-                for (int i = 0; i < size; i++) {
-                    b.append(opCodes.get(i));
-                    if (i < size - 1) {
-                        b.append(", ");
-                    }
-                }
-                conditions.add(new SQLCondition(ColumnFilter.OP_CODE_IN, b.toString()));
-            }
-        }
-        return conditions;
-    }
-
-    /**
-     * This class prepares a where clause condition for discrete ops table column.
-     */
-    static final class SQLCondition {
-        private final ColumnFilter mColumnFilter;
-        private final Object mFilterValue;
-
-        SQLCondition(ColumnFilter columnFilter, Object filterValue) {
-            mColumnFilter = columnFilter;
-            mFilterValue = filterValue;
-        }
-
-        @Override
-        public String toString() {
-            if (mColumnFilter == ColumnFilter.OP_CODE_IN) {
-                return mColumnFilter + " ( " + mFilterValue + " )";
-            }
-            return mColumnFilter.toString();
-        }
-    }
-
-    /**
-     * This enum describes the where clause conditions for different columns in discrete ops
-     * table.
-     */
-    private enum ColumnFilter {
-        PACKAGE_NAME(DiscreteOpsTable.Columns.PACKAGE_NAME + " = ? "),
-        UID(DiscreteOpsTable.Columns.UID + " = ? "),
-        ATTR_TAG(DiscreteOpsTable.Columns.ATTRIBUTION_TAG + " = ? "),
-        END_TIME(DiscreteOpsTable.Columns.ACCESS_TIME + " < ? "),
-        OP_CODE_EQUAL(DiscreteOpsTable.Columns.OP_CODE + " = ? "),
-        BEGIN_TIME(DiscreteOpsTable.Columns.ACCESS_TIME + " + "
-                + DiscreteOpsTable.Columns.ACCESS_DURATION + " > ? "),
-        OP_FLAGS("(" + DiscreteOpsTable.Columns.OP_FLAGS + " & ? ) != 0"),
-        OP_CODE_IN(DiscreteOpsTable.Columns.OP_CODE + " IN ");
-
-        final String mCondition;
-
-        ColumnFilter(String condition) {
-            mCondition = condition;
-        }
-
-        @Override
-        public String toString() {
-            return mCondition;
-        }
+        return new DiscreteOpsSqlRegistry.DiscreteOp(uid,
+                packageName, attributionTag, deviceId, opCode,
+                opFlags, attributionFlags, uidState, chainId, accessTime, duration);
     }
 
     static final class DiscreteOpsDatabaseErrorHandler implements DatabaseErrorHandler {
@@ -396,20 +293,7 @@ class DiscreteOpsDbHelper extends SQLiteOpenHelper {
         db.beginTransactionReadOnly();
         try (SQLiteRawStatement statement = db.createRawStatement(sql)) {
             while (statement.step()) {
-                int uid = statement.getColumnInt(0);
-                String packageName = statement.getColumnText(1);
-                String deviceId = statement.getColumnText(2);
-                int opCode = statement.getColumnInt(3);
-                String attributionTag = statement.getColumnText(4);
-                long accessTime = statement.getColumnLong(5);
-                long duration = statement.getColumnLong(6);
-                int uidState = statement.getColumnInt(7);
-                int opFlags = statement.getColumnInt(8);
-                int attributionFlags = statement.getColumnInt(9);
-                long chainId = statement.getColumnLong(10);
-                DiscreteOpsSqlRegistry.DiscreteOp event = new DiscreteOpsSqlRegistry.DiscreteOp(uid,
-                        packageName, attributionTag, deviceId, opCode,
-                        opFlags, attributionFlags, uidState, chainId, accessTime, duration);
+                DiscreteOpsSqlRegistry.DiscreteOp event = readFromStatement(statement);
                 results.add(event);
             }
             db.setTransactionSuccessful();

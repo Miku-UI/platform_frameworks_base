@@ -16,16 +16,19 @@
 
 package com.android.server.vibrator;
 
+import static android.os.VibrationAttributes.USAGE_GESTURE_INPUT;
+import static android.os.VibrationAttributes.USAGE_TOUCH;
+import static android.os.VibrationAttributes.USAGE_UNKNOWN;
 import static android.os.VibrationEffect.Composition.PRIMITIVE_TICK;
 import static android.os.VibrationEffect.EFFECT_CLICK;
+import static android.os.VibrationEffect.EFFECT_HEAVY_CLICK;
 import static android.os.VibrationEffect.EFFECT_TICK;
-import static android.os.vibrator.Flags.FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED;
-import static android.os.vibrator.Flags.FLAG_HAPTIC_FEEDBACK_VIBRATION_OEM_CUSTOMIZATION_ENABLED;
-import static android.os.vibrator.Flags.FLAG_LOAD_HAPTIC_FEEDBACK_VIBRATION_CUSTOMIZATION_FROM_RESOURCES;
+import static android.os.vibrator.Flags.FLAG_HAPTIC_FEEDBACK_WITH_CUSTOM_USAGE;
 
 import static com.android.internal.R.xml.haptic_feedback_customization;
 import static com.android.internal.R.xml.haptic_feedback_customization_source_rotary_encoder;
 import static com.android.internal.R.xml.haptic_feedback_customization_source_touchscreen;
+import static com.android.internal.R.xml.haptic_feedback_customization_usage_gesture_input;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -77,9 +80,13 @@ public class HapticFeedbackCustomizationTest {
             "<vibration-effect><predefined-effect name=\"click\"/></vibration-effect>";
     private static final VibrationEffect PREDEFINED_VIBRATION_CLICK =
             VibrationEffect.createPredefined(EFFECT_CLICK);
+    private static final VibrationEffect PREDEFINED_VIBRATION_HEAVY_CLICK =
+            VibrationEffect.createPredefined(EFFECT_HEAVY_CLICK);
 
     private static final String PREDEFINED_VIBRATION_TICK_XML =
             "<vibration-effect><predefined-effect name=\"tick\"/></vibration-effect>";
+    private static final String PREDEFINED_VIBRATION_HEAVY_CLICK_XML =
+            "<vibration-effect><predefined-effect name=\"heavy_click\"/></vibration-effect>";
     private static final VibrationEffect PREDEFINED_VIBRATION_TICK =
             VibrationEffect.createPredefined(EFFECT_TICK);
 
@@ -98,31 +105,14 @@ public class HapticFeedbackCustomizationTest {
         DEVICE_CONFIG_FILE,
         DEVICE_RESOURCE,
         DEVICE_RESOURCE_INPUT_ROTARY,
-        DEVICE_RESOURCE_INPUT_TOUCHSCREEN
+        DEVICE_RESOURCE_INPUT_TOUCHSCREEN,
+        DEVICE_RESOURCE_USAGE_GESTURE_INPUT,
     }
 
     @Before
     public void setUp() {
         clearFileAndResourceSetup();
         when(mVibratorInfoMock.areVibrationFeaturesSupported(any())).thenReturn(true);
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_VIBRATION_OEM_CUSTOMIZATION_ENABLED);
-    }
-
-    @Test
-    public void testParseCustomizations_featureFlagDisabled_customizationNotLoaded(
-            @TestParameter CustomizationSource customizationSource) throws Exception {
-        mSetFlagsRule.disableFlags(FLAG_HAPTIC_FEEDBACK_VIBRATION_OEM_CUSTOMIZATION_ENABLED);
-        // Valid customization XML.
-        String xml = "<haptic-feedback-constants>"
-                + "<constant id=\"10\">"
-                + COMPOSITION_VIBRATION_XML
-                + "</constant>"
-                + "</haptic-feedback-constants>";
-        HapticFeedbackCustomization customization = createCustomizationForSource(xml,
-                customizationSource);
-
-        assertThat(getEffectForSource(/* effectId= */ 10, customizationSource, customization))
-                .isNull();
     }
 
     @Test
@@ -509,24 +499,41 @@ public class HapticFeedbackCustomizationTest {
                 + PREDEFINED_VIBRATION_TICK_XML
                 + "</constant>"
                 + "</haptic-feedback-constants>";
+        String xmlUsageGestureInputCustomization =  "<haptic-feedback-constants>"
+                + "<constant id=\"10\">"
+                + PREDEFINED_VIBRATION_HEAVY_CLICK_XML
+                + "</constant>"
+                + "</haptic-feedback-constants>";
         setupCustomizations(xmlBaseCustomization, CustomizationSource.DEVICE_RESOURCE);
         setupCustomizations(xmlRotaryInputCustomization,
                 CustomizationSource.DEVICE_RESOURCE_INPUT_ROTARY);
+        setupCustomizations(xmlUsageGestureInputCustomization,
+                CustomizationSource.DEVICE_RESOURCE_USAGE_GESTURE_INPUT);
         HapticFeedbackCustomization customization = createCustomizationForSource(
                 xmlTouchScreenInputCustomization,
                 CustomizationSource.DEVICE_RESOURCE_INPUT_TOUCHSCREEN);
 
         // Matching customizations.
-        assertThat(customization.getEffect(/* effectId= */ 10)).isEqualTo(COMPOSITION_VIBRATION);
-        assertThat(customization.getEffect(/* effectId= */ 14)).isEqualTo(WAVEFORM_VIBRATION);
-        assertThat(customization.getEffect(/* effectId= */ 10,
+        assertThat(customization.getEffect(/* effectId= */ 10, USAGE_UNKNOWN))
+                .isEqualTo(COMPOSITION_VIBRATION);
+        assertThat(customization.getEffect(/* effectId= */ 14, USAGE_UNKNOWN))
+                .isEqualTo(WAVEFORM_VIBRATION);
+        assertThat(customization.getEffect(/* effectId= */ 10, USAGE_TOUCH))
+                .isEqualTo(COMPOSITION_VIBRATION);
+        assertThat(customization.getEffect(/* effectId= */ 14, USAGE_TOUCH))
+                .isEqualTo(WAVEFORM_VIBRATION);
+        assertThat(customization.getEffect(/* effectId= */ 10, USAGE_GESTURE_INPUT))
+                .isEqualTo(PREDEFINED_VIBRATION_HEAVY_CLICK);
+        assertThat(customization.getEffect(/* effectId= */ 14, USAGE_GESTURE_INPUT))
+                .isEqualTo(WAVEFORM_VIBRATION);
+        assertThat(customization.getEffectForInputDevice(/* effectId= */ 10,
                 InputDevice.SOURCE_ROTARY_ENCODER)).isEqualTo(PREDEFINED_VIBRATION_CLICK);
-        assertThat(customization.getEffect(/* effectId= */ 10,
+        assertThat(customization.getEffectForInputDevice(/* effectId= */ 10,
                 InputDevice.SOURCE_TOUCHSCREEN)).isEqualTo(PREDEFINED_VIBRATION_TICK);
         // Missing from input source customization xml. Fallback to base.
-        assertThat(customization.getEffect(/* effectId= */ 14,
+        assertThat(customization.getEffectForInputDevice(/* effectId= */ 14,
                 InputDevice.SOURCE_ROTARY_ENCODER)).isEqualTo(WAVEFORM_VIBRATION);
-        assertThat(customization.getEffect(/* effectId= */ 14,
+        assertThat(customization.getEffectForInputDevice(/* effectId= */ 14,
                 InputDevice.SOURCE_TOUCHSCREEN)).isEqualTo(WAVEFORM_VIBRATION);
     }
 
@@ -556,8 +563,9 @@ public class HapticFeedbackCustomizationTest {
 
         // When config file and resource customizations are both available. Load the config file
         // Customization.
-        assertThat(customization.getEffect(/* effectId= */ 10)).isEqualTo(COMPOSITION_VIBRATION);
-        assertThat(customization.getEffect(/* effectId= */ 14)).isNull();
+        assertThat(customization.getEffect(/* effectId= */ 10, USAGE_UNKNOWN))
+                .isEqualTo(COMPOSITION_VIBRATION);
+        assertThat(customization.getEffect(/* effectId= */ 14, USAGE_UNKNOWN)).isNull();
     }
 
     private HapticFeedbackCustomization createCustomizationForSource(String xml,
@@ -575,12 +583,13 @@ public class HapticFeedbackCustomizationTest {
                     haptic_feedback_customization_source_rotary_encoder);
             case DEVICE_RESOURCE_INPUT_TOUCHSCREEN -> setupCustomizationResource(xml,
                     haptic_feedback_customization_source_touchscreen);
+            case DEVICE_RESOURCE_USAGE_GESTURE_INPUT -> setupCustomizationResource(xml,
+                    haptic_feedback_customization_usage_gesture_input);
         }
     }
 
     private void setupCustomizationResource(String xml, int xmlResId) throws Exception {
-        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_INPUT_SOURCE_CUSTOMIZATION_ENABLED);
-        mSetFlagsRule.enableFlags(FLAG_LOAD_HAPTIC_FEEDBACK_VIBRATION_CUSTOMIZATION_FROM_RESOURCES);
+        mSetFlagsRule.enableFlags(FLAG_HAPTIC_FEEDBACK_WITH_CUSTOM_USAGE);
         doReturn(FakeXmlResourceParser.fromXml(xml)).when(mResourcesMock).getXml(xmlResId);
     }
 
@@ -603,6 +612,8 @@ public class HapticFeedbackCustomizationTest {
                 .getXml(haptic_feedback_customization_source_rotary_encoder);
         doThrow(new Resources.NotFoundException()).when(mResourcesMock)
                 .getXml(haptic_feedback_customization_source_touchscreen);
+        doThrow(new Resources.NotFoundException()).when(mResourcesMock)
+                .getXml(haptic_feedback_customization_usage_gesture_input);
     }
 
     @Nullable
@@ -611,12 +622,15 @@ public class HapticFeedbackCustomizationTest {
             HapticFeedbackCustomization hapticFeedbackCustomization) {
         return switch (customizationSource) {
             case DEVICE_CONFIG_FILE, DEVICE_RESOURCE -> hapticFeedbackCustomization.getEffect(
-                    effectId);
-            case DEVICE_RESOURCE_INPUT_ROTARY -> hapticFeedbackCustomization.getEffect(effectId,
-                    InputDevice.SOURCE_ROTARY_ENCODER);
-            case DEVICE_RESOURCE_INPUT_TOUCHSCREEN -> hapticFeedbackCustomization.getEffect(
-                    effectId,
-                    InputDevice.SOURCE_TOUCHSCREEN);
+                    effectId, USAGE_UNKNOWN);
+            case DEVICE_RESOURCE_INPUT_ROTARY ->
+                    hapticFeedbackCustomization.getEffectForInputDevice(
+                            effectId, InputDevice.SOURCE_ROTARY_ENCODER);
+            case DEVICE_RESOURCE_INPUT_TOUCHSCREEN ->
+                    hapticFeedbackCustomization.getEffectForInputDevice(
+                            effectId, InputDevice.SOURCE_TOUCHSCREEN);
+            case DEVICE_RESOURCE_USAGE_GESTURE_INPUT ->
+                    hapticFeedbackCustomization.getEffect(effectId, USAGE_GESTURE_INPUT);
         };
     }
 

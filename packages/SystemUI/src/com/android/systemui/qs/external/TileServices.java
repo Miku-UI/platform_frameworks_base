@@ -15,8 +15,6 @@
  */
 package com.android.systemui.qs.external;
 
-import static com.android.systemui.Flags.qsCustomTileClickGuaranteedBugFix;
-
 import android.app.PendingIntent;
 import android.content.ComponentName;
 import android.content.Context;
@@ -26,7 +24,6 @@ import android.graphics.drawable.Icon;
 import android.os.Binder;
 import android.os.Handler;
 import android.os.IBinder;
-import android.os.RemoteException;
 import android.os.UserHandle;
 import android.service.quicksettings.IQSService;
 import android.service.quicksettings.Tile;
@@ -224,14 +221,7 @@ public class TileServices extends IQSService.Stub {
                 return;
             }
             service.setBindRequested(true);
-            if (qsCustomTileClickGuaranteedBugFix()) {
-                service.onStartListeningFromRequest();
-            } else {
-                try {
-                    service.getTileService().onStartListening();
-                } catch (RemoteException e) {
-                }
-            }
+            service.onStartListeningFromRequest();
         }
     }
 

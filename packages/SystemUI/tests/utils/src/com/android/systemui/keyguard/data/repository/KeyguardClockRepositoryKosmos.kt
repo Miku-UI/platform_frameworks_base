@@ -21,3 +21,5 @@ import com.android.systemui.kosmos.Kosmos
 val Kosmos.keyguardClockRepository: KeyguardClockRepository by
     Kosmos.Fixture { fakeKeyguardClockRepository }
 val Kosmos.fakeKeyguardClockRepository by Kosmos.Fixture { FakeKeyguardClockRepository() }
+val Kosmos.clockEventController by
+    Kosmos.Fixture { fakeKeyguardClockRepository.clockEventController }

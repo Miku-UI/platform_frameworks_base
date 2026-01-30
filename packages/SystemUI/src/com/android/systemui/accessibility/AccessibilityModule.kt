@@ -16,17 +16,23 @@
 
 package com.android.systemui.accessibility
 
+import com.android.systemui.CoreStartable
 import com.android.systemui.accessibility.data.repository.AccessibilityQsShortcutsRepository
 import com.android.systemui.accessibility.data.repository.AccessibilityQsShortcutsRepositoryImpl
+import com.android.systemui.accessibility.data.repository.AccessibilityShortcutsRepository
+import com.android.systemui.accessibility.data.repository.AccessibilityShortcutsRepositoryImpl
 import com.android.systemui.accessibility.data.repository.ColorCorrectionRepository
 import com.android.systemui.accessibility.data.repository.ColorCorrectionRepositoryImpl
 import com.android.systemui.accessibility.data.repository.ColorInversionRepository
 import com.android.systemui.accessibility.data.repository.ColorInversionRepositoryImpl
 import com.android.systemui.accessibility.data.repository.OneHandedModeRepository
 import com.android.systemui.accessibility.data.repository.OneHandedModeRepositoryImpl
+import com.android.systemui.accessibility.keygesture.ui.KeyGestureDialogStartable
 import com.android.systemui.accessibility.qs.QSAccessibilityModule
 import dagger.Binds
 import dagger.Module
+import dagger.multibindings.ClassKey
+import dagger.multibindings.IntoMap
 
 @Module(includes = [QSAccessibilityModule::class])
 interface AccessibilityModule {
@@ -43,6 +49,16 @@ interface AccessibilityModule {
         impl: AccessibilityQsShortcutsRepositoryImpl
     ): AccessibilityQsShortcutsRepository
 
+    @Binds fun magnification(impl: MagnificationImpl): Magnification
+
     @Binds
-    fun magnification(impl: MagnificationImpl): Magnification
+    fun accessibilityShortcutsRepository(
+        impl: AccessibilityShortcutsRepositoryImpl
+    ): AccessibilityShortcutsRepository
+
+    /** Inject into KeyGestureDialogStartable Startable. */
+    @Binds
+    @IntoMap
+    @ClassKey(KeyGestureDialogStartable::class)
+    fun bindKeyGestureDialogStartable(startable: KeyGestureDialogStartable): CoreStartable
 }

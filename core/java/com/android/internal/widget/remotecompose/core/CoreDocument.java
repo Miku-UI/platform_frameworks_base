@@ -48,10 +48,12 @@ import com.android.internal.widget.remotecompose.core.serialize.Serializable;
 import com.android.internal.widget.remotecompose.core.types.IntegerConstant;
 import com.android.internal.widget.remotecompose.core.types.LongConstant;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -65,27 +67,33 @@ public class CoreDocument implements Serializable {
 
     // Semantic version
     public static final int MAJOR_VERSION = 1;
-    public static final int MINOR_VERSION = 0;
+    public static final int MINOR_VERSION = 2;
     public static final int PATCH_VERSION = 0;
 
     // Internal version level
-    public static final int DOCUMENT_API_LEVEL = 6;
+    public static final int DOCUMENT_API_LEVEL = 8;
 
     // We also keep a more fine-grained BUILD number, exposed as
     // ID_API_LEVEL = DOCUMENT_API_LEVEL + BUILD
-    static final float BUILD = 0.0f;
+    static final float BUILD = 0.1f;
 
     private static final boolean UPDATE_VARIABLES_BEFORE_LAYOUT = false;
 
-    @NonNull ArrayList<Operation> mOperations = new ArrayList<>();
+    @NonNull
+    ArrayList<Operation> mOperations = new ArrayList<>();
 
-    @Nullable RootLayoutComponent mRootLayoutComponent = null;
+    @Nullable
+    RootLayoutComponent mRootLayoutComponent = null;
 
-    @NonNull RemoteComposeState mRemoteComposeState = new RemoteComposeState();
-    @VisibleForTesting @NonNull public TimeVariables mTimeVariables = new TimeVariables();
+    @NonNull
+    RemoteComposeState mRemoteComposeState = new RemoteComposeState();
+    @VisibleForTesting
+    @NonNull
+    public TimeVariables mTimeVariables = new TimeVariables();
 
     // Semantic version of the document
-    @NonNull Version mVersion = new Version(MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION);
+    @NonNull
+    Version mVersion = new Version(MAJOR_VERSION, MINOR_VERSION, PATCH_VERSION);
 
     @Nullable
     String mContentDescription; // text description of the document (used for accessibility)
@@ -100,22 +108,42 @@ public class CoreDocument implements Serializable {
 
     int mContentAlignment = RootContentBehavior.ALIGNMENT_CENTER;
 
-    @NonNull RemoteComposeBuffer mBuffer = new RemoteComposeBuffer(mRemoteComposeState);
+    @NonNull
+    RemoteComposeBuffer mBuffer = new RemoteComposeBuffer();
 
     private final HashMap<Long, IntegerExpression> mIntegerExpressions = new HashMap<>();
 
     private final HashMap<Integer, FloatExpression> mFloatExpressions = new HashMap<>();
 
-    private HashSet<Component> mAppliedTouchOperations = new HashSet<>();
+    private final @NonNull Clock mClock;
+
+    private final HashSet<Component> mAppliedTouchOperations = new HashSet<>();
 
     private int mLastId = 1; // last component id when inflating the file
 
-    private IntMap<Object> mDocProperties;
+    private @Nullable IntMap<Object> mDocProperties;
 
     boolean mFirstPaint = true;
     private boolean mIsUpdateDoc = false;
+    private int mHostExceptionID = 0;
+    private int mBitmapMemory = 0;
 
-    /** Returns a version number that is monotonically increasing. */
+    public CoreDocument() {
+        this(new SystemClock());
+    }
+
+    public CoreDocument(@NonNull Clock clock) {
+        this.mClock = clock;
+        mTimeVariables = new TimeVariables(clock);
+    }
+
+    public @NonNull Clock getClock() {
+        return mClock;
+    }
+
+    /**
+     * Returns a version number that is monotonically increasing.
+     */
     public static int getDocumentApiLevel() {
         return DOCUMENT_API_LEVEL;
     }
@@ -198,14 +226,21 @@ public class CoreDocument implements Serializable {
     /**
      * Sets the way the player handles the content
      *
-     * @param scroll set the horizontal behavior (NONE|SCROLL_HORIZONTAL|SCROLL_VERTICAL)
+     * @param scroll    set the horizontal behavior (NONE|SCROLL_HORIZONTAL|SCROLL_VERTICAL)
      * @param alignment set the alignment of the content (TOP|CENTER|BOTTOM|START|END)
-     * @param sizing set the type of sizing for the content (NONE|SIZING_LAYOUT|SIZING_SCALE)
-     * @param mode set the mode of sizing, either LAYOUT modes or SCALE modes the LAYOUT modes are:
-     *     - LAYOUT_MATCH_PARENT - LAYOUT_WRAP_CONTENT or adding an horizontal mode and a vertical
-     *     mode: - LAYOUT_HORIZONTAL_MATCH_PARENT - LAYOUT_HORIZONTAL_WRAP_CONTENT -
-     *     LAYOUT_HORIZONTAL_FIXED - LAYOUT_VERTICAL_MATCH_PARENT - LAYOUT_VERTICAL_WRAP_CONTENT -
-     *     LAYOUT_VERTICAL_FIXED The LAYOUT_*_FIXED modes will use the intrinsic document size
+     * @param sizing    set the type of sizing for the content (NONE|SIZING_LAYOUT|SIZING_SCALE)
+     * @param mode      set the mode of sizing,
+     *                  either LAYOUT modes
+     *                  or SCALE modes the LAYOUT modes are:
+     *                  - LAYOUT_MATCH_PARENT
+     *                  - LAYOUT_WRAP_CONTENT or adding an horizontal mode and a vertical
+     *                  mode: - LAYOUT_HORIZONTAL_MATCH_PARENT
+     *                  - LAYOUT_HORIZONTAL_WRAP_CONTENT
+     *                  - LAYOUT_HORIZONTAL_FIXED
+     *                  - LAYOUT_VERTICAL_MATCH_PARENT
+     *                  - LAYOUT_VERTICAL_WRAP_CONTENT
+     *                  - LAYOUT_VERTICAL_FIXED
+     *                  The LAYOUT_*_FIXED modes will use the intrinsic document size
      */
     public void setRootContentBehavior(int scroll, int alignment, int sizing, int mode) {
         this.mContentScroll = scroll;
@@ -218,11 +253,11 @@ public class CoreDocument implements Serializable {
      * Given dimensions w x h of where to paint the content, returns the corresponding scale factor
      * according to the contentSizing information
      *
-     * @param w horizontal dimension of the rendering area
-     * @param h vertical dimension of the rendering area
+     * @param w           horizontal dimension of the rendering area
+     * @param h           vertical dimension of the rendering area
      * @param scaleOutput will contain the computed scale factor
      */
-    public void computeScale(float w, float h, @NonNull float[] scaleOutput) {
+    public void computeScale(float w, float h, @NonNull float [] scaleOutput) {
         float contentScaleX = 1f;
         float contentScaleY = 1f;
         if (mContentSizing == RootContentBehavior.SIZING_SCALE) {
@@ -280,10 +315,10 @@ public class CoreDocument implements Serializable {
      * Given dimensions w x h of where to paint the content, returns the corresponding translation
      * according to the contentAlignment information
      *
-     * @param w horizontal dimension of the rendering area
-     * @param h vertical dimension of the rendering area
-     * @param contentScaleX the horizontal scale we are going to use for the content
-     * @param contentScaleY the vertical scale we are going to use for the content
+     * @param w               horizontal dimension of the rendering area
+     * @param h               vertical dimension of the rendering area
+     * @param contentScaleX   the horizontal scale we are going to use for the content
+     * @param contentScaleY   the vertical scale we are going to use for the content
      * @param translateOutput will contain the computed translation
      */
     private void computeTranslate(
@@ -291,7 +326,7 @@ public class CoreDocument implements Serializable {
             float h,
             float contentScaleX,
             float contentScaleY,
-            @NonNull float[] translateOutput) {
+            @NonNull float [] translateOutput) {
         int horizontalContentAlignment = mContentAlignment & 0xF0;
         int verticalContentAlignment = mContentAlignment & 0xF;
         float translateX = 0f;
@@ -333,7 +368,7 @@ public class CoreDocument implements Serializable {
     /**
      * Returns the list of click areas
      *
-     * @return list of click areas in document coordinates
+     * @return set of click areas in document coordinates
      */
     @NonNull
     public Set<ClickAreaRepresentation> getClickAreas() {
@@ -350,7 +385,9 @@ public class CoreDocument implements Serializable {
         return mRootLayoutComponent;
     }
 
-    /** Invalidate the document for layout measures. This will trigger a layout remeasure pass. */
+    /**
+     * Invalidate the document for layout measures. This will trigger a layout remeasure pass.
+     */
     public void invalidateMeasure() {
         if (mRootLayoutComponent != null) {
             mRootLayoutComponent.invalidateMeasure();
@@ -393,8 +430,8 @@ public class CoreDocument implements Serializable {
      * Execute an integer expression with the given id and put its value on the targetId
      *
      * @param expressionId the id of the integer expression
-     * @param targetId the id of the value to update with the expression
-     * @param context the current context
+     * @param targetId     the id of the value to update with the expression
+     * @param context      the current context
      */
     public void evaluateIntExpression(
             long expressionId, int targetId, @NonNull RemoteContext context) {
@@ -409,8 +446,8 @@ public class CoreDocument implements Serializable {
      * Execute an integer expression with the given id and put its value on the targetId
      *
      * @param expressionId the id of the integer expression
-     * @param targetId the id of the value to update with the expression
-     * @param context the current context
+     * @param targetId     the id of the value to update with the expression
+     * @param context      the current context
      */
     public void evaluateFloatExpression(
             int expressionId, int targetId, @NonNull RemoteContext context) {
@@ -422,7 +459,7 @@ public class CoreDocument implements Serializable {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType("CoreDocument")
                 .add("width", mWidth)
@@ -435,7 +472,7 @@ public class CoreDocument implements Serializable {
      *
      * @param properties the properties to set
      */
-    public void setProperties(IntMap<Object> properties) {
+    public void setProperties(@Nullable IntMap<Object> properties) {
         mDocProperties = properties;
     }
 
@@ -443,7 +480,7 @@ public class CoreDocument implements Serializable {
      * @param key the key
      * @return the value associated with the key
      */
-    public Object getProperty(short key) {
+    public @Nullable Object getProperty(short key) {
         if (mDocProperties == null) {
             return null;
         }
@@ -455,7 +492,7 @@ public class CoreDocument implements Serializable {
      *
      * @param delta the delta to apply
      */
-    public void applyUpdate(CoreDocument delta) {
+    public void applyUpdate(@NonNull CoreDocument delta) {
         HashMap<Integer, TextData> txtData = new HashMap<Integer, TextData>();
         HashMap<Integer, BitmapData> imgData = new HashMap<Integer, BitmapData>();
         HashMap<Integer, FloatConstant> fltData = new HashMap<Integer, FloatConstant>();
@@ -535,6 +572,33 @@ public class CoreDocument implements Serializable {
                 });
     }
 
+    /**
+     * Set the host Action id to call if an exception occurs
+     *
+     * @param exceptionID host action id
+     */
+    public void setHostExceptionID(int exceptionID) {
+        mHostExceptionID = exceptionID;
+    }
+
+    /**
+     * Get the host Action id to call if an exception occurs
+     *
+     * @return the host Action id to call if an exception occurs
+     */
+    public int getHostExceptionID() {
+        return mHostExceptionID;
+    }
+
+    /**
+     * Get the bitmap memory used by the document
+     *
+     * @return the bitmap memory used by the document
+     */
+    public int bitmapMemory() {
+        return mBitmapMemory;
+    }
+
     private interface Visitor {
         void visit(Operation op);
     }
@@ -558,9 +622,10 @@ public class CoreDocument implements Serializable {
         void haptic(int type);
     }
 
+    @Nullable
     HapticEngine mHapticEngine;
 
-    public void setHapticEngine(HapticEngine engine) {
+    public void setHapticEngine(@NonNull HapticEngine engine) {
         mHapticEngine = engine;
     }
 
@@ -582,30 +647,33 @@ public class CoreDocument implements Serializable {
      *
      * @param component the component applying the touch
      */
-    public void appliedTouchOperation(Component component) {
+    public void appliedTouchOperation(@NonNull Component component) {
         mAppliedTouchOperations.add(component);
     }
 
-    /** Callback interface for host actions */
+    /**
+     * Callback interface for host actions
+     */
     public interface ActionCallback {
         /**
          * Callback for actions
          *
-         * @param name the action name
+         * @param name  the action name
          * @param value the payload of the action
          */
-        void onAction(@NonNull String name, Object value);
+        void onAction(@NonNull String name, @Nullable Object value);
     }
 
-    @NonNull HashSet<ActionCallback> mActionListeners = new HashSet<ActionCallback>();
+    @NonNull
+    HashSet<ActionCallback> mActionListeners = new HashSet<ActionCallback>();
 
     /**
      * Warn action listeners for the given named action
      *
-     * @param name the action name
+     * @param name  the action name
      * @param value a parameter to the action
      */
-    public void runNamedAction(@NonNull String name, Object value) {
+    public void runNamedAction(@NonNull String name, @Nullable Object value) {
         // TODO: we might add an interface to group all valid parameter types
         for (ActionCallback callback : mActionListeners) {
             callback.onAction(name, value);
@@ -615,31 +683,38 @@ public class CoreDocument implements Serializable {
     /**
      * Add a callback for handling the named host actions
      *
-     * @param callback
+     * @param callback action callback
      */
     public void addActionCallback(@NonNull ActionCallback callback) {
         mActionListeners.add(callback);
     }
 
-    /** Clear existing callbacks for named host actions */
+    /**
+     * Clear existing callbacks for named host actions
+     */
     public void clearActionCallbacks() {
         mActionListeners.clear();
     }
 
-    /** Id Actions */
+    /**
+     * Id Actions
+     */
     public interface IdActionCallback {
         /**
          * Callback on Id Actions
          *
-         * @param id the actio id triggered
+         * @param id       the actio id triggered
          * @param metadata optional metadata
          */
         void onAction(int id, @Nullable String metadata);
     }
 
-    @NonNull HashSet<IdActionCallback> mIdActionListeners = new HashSet<>();
-    @NonNull HashSet<TouchListener> mTouchListeners = new HashSet<>();
-    @NonNull HashSet<ClickAreaRepresentation> mClickAreas = new HashSet<>();
+    @NonNull
+    HashSet<IdActionCallback> mIdActionListeners = new HashSet<>();
+    @NonNull
+    HashSet<TouchListener> mTouchListeners = new HashSet<>();
+    @NonNull
+    HashSet<ClickAreaRepresentation> mClickAreas = new HashSet<>();
 
     static class Version {
         public final int major;
@@ -681,12 +756,14 @@ public class CoreDocument implements Serializable {
 
     public static class ClickAreaRepresentation {
         int mId;
-        @Nullable final String mContentDescription;
+        @Nullable
+        final String mContentDescription;
         float mLeft;
         float mTop;
         float mRight;
         float mBottom;
-        @Nullable final String mMetadata;
+        @Nullable
+        final String mMetadata;
 
         @Override
         public boolean equals(Object o) {
@@ -771,7 +848,9 @@ public class CoreDocument implements Serializable {
         }
     }
 
-    /** Load operations from the given buffer */
+    /**
+     * Load operations from the given buffer
+     */
     public void initFromBuffer(@NonNull RemoteComposeBuffer buffer) {
         mOperations = new ArrayList<Operation>();
         buffer.inflateFromBuffer(mOperations);
@@ -790,7 +869,9 @@ public class CoreDocument implements Serializable {
                 mFloatExpressions.put(expression.mId, expression);
             }
         }
+        mBitmapMemory = 0;
         mOperations = inflateComponents(mOperations);
+
         mBuffer = buffer;
         for (Operation op : mOperations) {
             if (op instanceof RootLayoutComponent) {
@@ -819,6 +900,10 @@ public class CoreDocument implements Serializable {
 
         mLastId = -1;
         for (Operation o : operations) {
+            if (o instanceof BitmapData) {
+                BitmapData bitmap = (BitmapData) o;
+                mBitmapMemory += bitmap.getHeight() * bitmap.getWidth() * 4;
+            }
             if (o instanceof Container) {
                 Container container = (Container) o;
                 if (container instanceof Component) {
@@ -877,13 +962,14 @@ public class CoreDocument implements Serializable {
         return ops;
     }
 
-    @NonNull private HashMap<Integer, Component> mComponentMap = new HashMap<Integer, Component>();
+    @NonNull
+    private final HashMap<Integer, Component> mComponentMap = new HashMap<Integer, Component>();
 
     /**
      * Register all the operations recursively
      *
-     * @param context
-     * @param list
+     * @param context the context
+     * @param list    list of operations
      */
     private void registerVariables(
             @NonNull RemoteContext context, @NonNull ArrayList<Operation> list) {
@@ -920,8 +1006,8 @@ public class CoreDocument implements Serializable {
     /**
      * Apply the operations recursively, for the original initialization pass with mode == DATA
      *
-     * @param context
-     * @param list
+     * @param context the context
+     * @param list    list of operations
      */
     private void applyOperations(
             @NonNull RemoteContext context, @NonNull ArrayList<Operation> list) {
@@ -942,14 +1028,36 @@ public class CoreDocument implements Serializable {
     }
 
     /**
-     * Called when an initialization is needed, allowing the document to eg load resources / cache
+     * Called when an initialization is needed,
+     * allowing the document to eg load resources / cache
      * them.
+     *
+     * @param context the context
      */
     public void initializeContext(@NonNull RemoteContext context) {
+        initializeContext(context, null);
+    }
+
+    /**
+     * Called when an initialization is needed,
+     * allowing the document to eg load resources / cache
+     * them.
+     *
+     * @param context   the context
+     * @param bitmapMap bitmap map
+     */
+    public void initializeContext(@NonNull RemoteContext context,
+                                  @Nullable Map<Integer, Object> bitmapMap) {
         mRemoteComposeState.reset();
         mRemoteComposeState.setContext(context);
         mClickAreas.clear();
         mRemoteComposeState.setNextId(RemoteComposeState.START_ID);
+        if (bitmapMap != null) {
+            for (Integer i : bitmapMap.keySet()) {
+                mRemoteComposeState.cacheData(i, bitmapMap.get(i));
+            }
+        }
+
         context.mDocument = this;
         context.mRemoteComposeState = mRemoteComposeState;
         // mark context to be in DATA mode, which will skip the painting ops.
@@ -974,7 +1082,7 @@ public class CoreDocument implements Serializable {
      *
      * @param playerMajorVersion the max major version supported by the player
      * @param playerMinorVersion the max minor version supported by the player
-     * @param capabilities a bitmask of capabilities the player supports (unused for now)
+     * @param capabilities       a bitmask of capabilities the player supports (unused for now)
      */
     public boolean canBeDisplayed(
             int playerMajorVersion, int playerMinorVersion, long capabilities) {
@@ -993,7 +1101,7 @@ public class CoreDocument implements Serializable {
      *
      * @param majorVersion major version number, increased upon changes breaking the compatibility
      * @param minorVersion minor version number, increased when adding new features
-     * @param patch patch level, increased upon bugfixes
+     * @param patch        patch level, increased upon bugfixes
      */
     public void setVersion(int majorVersion, int minorVersion, int patch) {
         mVersion = new Version(majorVersion, minorVersion, patch);
@@ -1009,13 +1117,13 @@ public class CoreDocument implements Serializable {
      * click coordinates will be the one reported; the order of addition of those click areas is
      * therefore meaningful.
      *
-     * @param id the id of the area, which will be reported on click
+     * @param id                 the id of the area, which will be reported on click
      * @param contentDescription the content description (used for accessibility)
-     * @param left the left coordinate of the click area (in pixels)
-     * @param top the top coordinate of the click area (in pixels)
-     * @param right the right coordinate of the click area (in pixels)
-     * @param bottom the bottom coordinate of the click area (in pixels)
-     * @param metadata arbitrary metadata associated with the are, also reported on click
+     * @param left               the left coordinate of the click area (in pixels)
+     * @param top                the top coordinate of the click area (in pixels)
+     * @param right              the right coordinate of the click area (in pixels)
+     * @param bottom             the bottom coordinate of the click area (in pixels)
+     * @param metadata           arbitrary metadata associated with the are, also reported on click
      */
     public void addClickArea(
             int id,
@@ -1030,16 +1138,16 @@ public class CoreDocument implements Serializable {
                 new ClickAreaRepresentation(
                         id, contentDescription, left, top, right, bottom, metadata);
 
-        boolean old = mClickAreas.remove(car);
+        mClickAreas.remove(car);
         mClickAreas.add(car);
     }
 
     /**
      * Called by commands to listen to touch events
      *
-     * @param listener
+     * @param listener touch listener
      */
-    public void addTouchListener(TouchListener listener) {
+    public void addTouchListener(@NonNull TouchListener listener) {
         mTouchListeners.add(listener);
     }
 
@@ -1080,7 +1188,9 @@ public class CoreDocument implements Serializable {
     /**
      * Programmatically trigger the click response for the given id
      *
-     * @param id the click area id
+     * @param context  the context
+     * @param id       the click area id
+     * @param metadata the metadata of the click event
      */
     public void performClick(@NonNull RemoteContext context, int id, @NonNull String metadata) {
         for (ClickAreaRepresentation clickArea : mClickAreas) {
@@ -1090,9 +1200,7 @@ public class CoreDocument implements Serializable {
             }
         }
 
-        for (IdActionCallback listener : mIdActionListeners) {
-            listener.onAction(id, metadata);
-        }
+        notifyOfException(id, metadata);
 
         Component component = getComponent(id);
         if (component != null) {
@@ -1100,11 +1208,23 @@ public class CoreDocument implements Serializable {
         }
     }
 
-    /** Warn click listeners when a click area is activated */
-    private void warnClickListeners(@NonNull ClickAreaRepresentation clickArea) {
+    /**
+     * trigger host Actions on exception. Exception handler should be registered in header
+     *
+     * @param id       id of the exception
+     * @param metadata the exception string
+     */
+    public void notifyOfException(int id, @Nullable String metadata) {
         for (IdActionCallback listener : mIdActionListeners) {
-            listener.onAction(clickArea.mId, clickArea.mMetadata);
+            listener.onAction(id, metadata);
         }
+    }
+
+    /**
+     * Warn click listeners when a click area is activated
+     */
+    private void warnClickListeners(@NonNull ClickAreaRepresentation clickArea) {
+        notifyOfException(clickArea.mId, clickArea.mMetadata);
     }
 
     /**
@@ -1114,18 +1234,20 @@ public class CoreDocument implements Serializable {
      */
     public boolean hasTouchListener() {
         boolean hasComponentsTouchListeners =
-                mRootLayoutComponent != null && mRootLayoutComponent.hasTouchListeners();
+                mRootLayoutComponent != null && mRootLayoutComponent.getHasTouchListeners();
         return hasComponentsTouchListeners || !mTouchListeners.isEmpty();
     }
 
     // TODO support velocity estimate support, support regions
+
     /**
      * Support touch drag events on commands supporting touch
      *
-     * @param x position of touch
-     * @param y position of touch
+     * @param context the context
+     * @param x       position of touch
+     * @param y       position of touch
      */
-    public boolean touchDrag(RemoteContext context, float x, float y) {
+    public boolean touchDrag(@NonNull RemoteContext context, float x, float y) {
         context.loadFloat(RemoteContext.ID_TOUCH_POS_X, x);
         context.loadFloat(RemoteContext.ID_TOUCH_POS_Y, y);
         for (TouchListener clickArea : mTouchListeners) {
@@ -1139,19 +1261,17 @@ public class CoreDocument implements Serializable {
                 return true;
             }
         }
-        if (!mTouchListeners.isEmpty()) {
-            return true;
-        }
-        return false;
+        return !mTouchListeners.isEmpty();
     }
 
     /**
      * Support touch down events on commands supporting touch
      *
-     * @param x position of touch
-     * @param y position of touch
+     * @param context the context
+     * @param x       position of touch
+     * @param y       position of touch
      */
-    public void touchDown(RemoteContext context, float x, float y) {
+    public void touchDown(@NonNull RemoteContext context, float x, float y) {
         context.loadFloat(RemoteContext.ID_TOUCH_POS_X, x);
         context.loadFloat(RemoteContext.ID_TOUCH_POS_Y, y);
         for (TouchListener clickArea : mTouchListeners) {
@@ -1166,10 +1286,13 @@ public class CoreDocument implements Serializable {
     /**
      * Support touch up events on commands supporting touch
      *
-     * @param x position of touch
-     * @param y position of touch
+     * @param context the context
+     * @param x       position of touch
+     * @param y       position of touch
+     * @param dx      the x component of the drag vector
+     * @param dy      the y component of the drag vector
      */
-    public void touchUp(RemoteContext context, float x, float y, float dx, float dy) {
+    public void touchUp(@NonNull RemoteContext context, float x, float y, float dx, float dy) {
         context.loadFloat(RemoteContext.ID_TOUCH_POS_X, x);
         context.loadFloat(RemoteContext.ID_TOUCH_POS_Y, y);
         for (TouchListener clickArea : mTouchListeners) {
@@ -1187,10 +1310,13 @@ public class CoreDocument implements Serializable {
     /**
      * Support touch cancel events on commands supporting touch
      *
-     * @param x position of touch
-     * @param y position of touch
+     * @param context the context
+     * @param x       position of touch
+     * @param y       position of touch
+     * @param dx      the x component of the drag vector
+     * @param dy      the y component of the drag vector
      */
-    public void touchCancel(RemoteContext context, float x, float y, float dx, float dy) {
+    public void touchCancel(@NonNull RemoteContext context, float x, float y, float dx, float dy) {
         if (mRootLayoutComponent != null) {
             for (Component component : mAppliedTouchOperations) {
                 component.onTouchCancel(context, this, x, y, true);
@@ -1226,7 +1352,7 @@ public class CoreDocument implements Serializable {
      *
      * @return array of named variables or null
      */
-    public String[] getNamedVariables(int type) {
+    public @NonNull String [] getNamedVariables(int type) {
         ArrayList<String> ret = new ArrayList<>();
         getNamedVars(type, mOperations, ret);
         return ret.toArray(new String[0]);
@@ -1248,7 +1374,7 @@ public class CoreDocument implements Serializable {
 
     //////////////////////////////////////////////////////////////////////////
     // Painting
-    //////////////////////////////////////////////////////////////////////////
+    /// ///////////////////////////////////////////////////////////////////////
 
     private final float[] mScaleOutput = new float[2];
     private final float[] mTranslateOutput = new float[2];
@@ -1267,7 +1393,7 @@ public class CoreDocument implements Serializable {
     /**
      * Returns > 0 if it needs to repaint
      *
-     * @return
+     * @return 0 if needs to repaint
      */
     public int needsRepaint() {
         return mRepaintNext;
@@ -1277,8 +1403,8 @@ public class CoreDocument implements Serializable {
      * Traverse the list of operations to update the variables. TODO: this should walk the
      * dependency tree instead
      *
-     * @param context
-     * @param operations
+     * @param context    the context
+     * @param operations list of operations
      */
     private void updateVariables(
             @NonNull RemoteContext context, int theme, List<Operation> operations) {
@@ -1299,10 +1425,11 @@ public class CoreDocument implements Serializable {
      * Paint the document
      *
      * @param context the provided PaintContext
-     * @param theme the theme we want to use for this document.
+     * @param theme   the theme we want to use for this document.
      */
     public void paint(@NonNull RemoteContext context, int theme) {
         context.clearLastOpCount();
+        assert context.getPaintContext() != null;
         context.getPaintContext().clearNeedsRepaint();
         context.loadFloat(RemoteContext.ID_DENSITY, context.getDensity());
         context.mMode = RemoteContext.ContextMode.UNSET;
@@ -1331,8 +1458,8 @@ public class CoreDocument implements Serializable {
             float sw = mScaleOutput[0];
             float sh = mScaleOutput[1];
             computeTranslate(context.mWidth, context.mHeight, sw, sh, mTranslateOutput);
-            context.mPaintContext.translate(mTranslateOutput[0], mTranslateOutput[1]);
-            context.mPaintContext.scale(sw, sh);
+            context.getPaintContext().translate(mTranslateOutput[0], mTranslateOutput[1]);
+            context.getPaintContext().scale(sw, sh);
         } else {
             // If not, we set the document width and height to be the current context width and
             // height.
@@ -1407,32 +1534,118 @@ public class CoreDocument implements Serializable {
         int count = mOperations.size();
 
         for (Operation mOperation : mOperations) {
-            if (mOperation instanceof Component) {
-                count += getChildOps((Component) mOperation);
+            if (mOperation instanceof Container) {
+                count += getChildOps((Container) mOperation);
             }
         }
         return count;
     }
 
-    private int getChildOps(@NonNull Component base) {
-        int count = base.mList.size();
-        for (Operation mOperation : base.mList) {
-
-            if (mOperation instanceof Component) {
+    private int getChildOps(@NonNull Container base) {
+        int count = base.getList().size();
+        for (Operation operation : base.getList()) {
+            if (operation instanceof Container) {
                 int mult = 1;
-                if (mOperation instanceof LoopOperation) {
-                    mult = ((LoopOperation) mOperation).estimateIterations();
+                if (operation instanceof LoopOperation) {
+                    mult = ((LoopOperation) operation).estimateIterations();
                 }
-                count += mult * getChildOps((Component) mOperation);
+                count += mult * getChildOps((Container) operation);
             }
         }
         return count;
+    }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////
+    // Stats
+
+    /// ////////////////////////////////////////////////////////////////////////////////////////////
+    public static class DocInfo {
+        public int mNumberOfOps = 0;
+        public int mNumberOfImages = 0;
+        public int mSizeOfImages = 0;
+
+        /**
+         * Get the number of operations
+         *
+         * @return number of operations
+         */
+        public int getNumberOfOps() {
+            return mNumberOfOps;
+        }
+
+        /**
+         * Get the number of images
+         *
+         * @return number of images
+         */
+        public int getNumberOfImages() {
+            return mNumberOfImages;
+        }
+
+        /**
+         * Get the size of images
+         *
+         * @return size of images
+         */
+        public int getSizeOfImages() {
+            return mSizeOfImages;
+        }
+    }
+
+    /**
+     * Returns the list of bitmap data operations
+     *
+     * @return array of bitmap data operations
+     */
+    public @NonNull BitmapData[] getBitmapDataSet() {
+        ArrayList<BitmapData> ret = new ArrayList<>();
+        getBitmapDataSet(mOperations, ret);
+        return ret.toArray(new BitmapData[0]);
+    }
+
+    private void getBitmapDataSet(@NonNull ArrayList<Operation> operations,
+                                  @NonNull ArrayList<BitmapData> ret) {
+        for (Operation operation : operations) {
+            if (operation instanceof BitmapData) {
+                ret.add((BitmapData) operation);
+            }
+            if (operation instanceof Container) {
+                getBitmapDataSet(((Container) operation).getList(), ret);
+            }
+        }
+    }
+
+    /**
+     * Returns the size of the document
+     *
+     * @return size of the document
+     */
+    public @NonNull DocInfo getDocInfo() {
+        DocInfo docInfo = new DocInfo();
+        getDocInfo(mOperations, docInfo);
+        return docInfo;
+    }
+
+    private void getDocInfo(@NonNull ArrayList<Operation> operations, @NonNull DocInfo docInfo) {
+        int count = operations.size();
+        docInfo.mNumberOfOps += count;
+        for (Operation operation : operations) {
+            if (operation instanceof Container) {
+                getDocInfo(((Container) operation).getList(), docInfo);
+            }
+            if (operation instanceof BitmapData) {
+                docInfo.mNumberOfImages++;
+                BitmapData b = ((BitmapData) operation);
+                docInfo.mSizeOfImages += b.getWidth() * b.getHeight();
+            }
+
+        }
     }
 
     /**
      * Returns a list of useful statistics for the runtime document
      *
-     * @return
+     * @return array of strings representing some useful statistics
      */
     @NonNull
     public String[] getStats() {
@@ -1440,8 +1653,8 @@ public class CoreDocument implements Serializable {
         WireBuffer buffer = new WireBuffer();
         int count = mOperations.size();
         HashMap<String, int[]> map = new HashMap<>();
-        for (Operation mOperation : mOperations) {
-            Class<? extends Operation> c = mOperation.getClass();
+        for (Operation operation : mOperations) {
+            Class<? extends Operation> c = operation.getClass();
             int[] values;
             if (map.containsKey(c.getSimpleName())) {
                 values = map.get(c.getSimpleName());
@@ -1451,12 +1664,9 @@ public class CoreDocument implements Serializable {
             }
 
             values[0] += 1;
-            values[1] += sizeOfComponent(mOperation, buffer);
-            if (mOperation instanceof Container) {
-                Container com = (Container) mOperation;
-                count += addChildren(com, map, buffer);
-            } else if (mOperation instanceof LoopOperation) {
-                LoopOperation com = (LoopOperation) mOperation;
+            values[1] += sizeOfComponent(operation, buffer);
+            if (operation instanceof Container) {
+                Container com = (Container) operation;
                 count += addChildren(com, map, buffer);
             }
         }
@@ -1503,7 +1713,7 @@ public class CoreDocument implements Serializable {
      * Returns a string representation of the operations, traversing the list of operations &
      * containers
      *
-     * @return
+     * @return representation of operations
      */
     @NonNull
     public String toNestedString() {
@@ -1537,7 +1747,9 @@ public class CoreDocument implements Serializable {
         return mOperations;
     }
 
-    /** defines if a shader can be run */
+    /**
+     * defines if a shader can be run
+     */
     public interface ShaderControl {
         /**
          * validate if a shader can run in the document
@@ -1545,24 +1757,24 @@ public class CoreDocument implements Serializable {
          * @param shader the source of the shader
          * @return true if the shader is allowed to run
          */
-        boolean isShaderValid(String shader);
+        boolean isShaderValid(@NonNull String shader);
     }
 
     /**
-     * validate the shaders
+     * validate the shaders.
      *
      * @param context the remote context
-     * @param ctl the call back to allow evaluation of shaders
+     * @param ctl     the call back to allow evaluation of shaders
      */
-    public void checkShaders(RemoteContext context, ShaderControl ctl) {
+    public void checkShaders(@NonNull RemoteContext context, @NonNull ShaderControl ctl) {
         checkShaders(context, ctl, mOperations);
     }
 
     /**
      * Recursive private version that checks the shaders
      *
-     * @param context the remote context
-     * @param ctl the call back to allow evaluation of shaders
+     * @param context    the remote context
+     * @param ctl        the call back to allow evaluation of shaders
      * @param operations the operations to check
      */
     private void checkShaders(
@@ -1578,7 +1790,9 @@ public class CoreDocument implements Serializable {
                 ShaderData sd = (ShaderData) op;
                 int id = sd.getShaderTextId();
                 String str = context.getText(id);
-                sd.enable(ctl.isShaderValid(str));
+                if (str != null) {
+                    sd.enable(ctl.isShaderValid(str));
+                }
             }
         }
     }
@@ -1586,7 +1800,7 @@ public class CoreDocument implements Serializable {
     /**
      * Set if this is an update doc
      *
-     * @param isUpdateDoc
+     * @param isUpdateDoc true if the doc represents update operations rather than a normal doc
      */
     public void setUpdateDoc(boolean isUpdateDoc) {
         mIsUpdateDoc = isUpdateDoc;

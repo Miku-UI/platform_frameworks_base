@@ -16,6 +16,7 @@
 
 package com.android.overlaytest;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
@@ -30,6 +31,8 @@ import android.content.om.OverlayInfo;
 import android.content.om.OverlayManager;
 import android.content.om.OverlayManagerTransaction;
 import android.content.res.Resources;
+import android.graphics.Color;
+import android.os.FabricatedOverlayInternalEntry;
 import android.os.UserHandle;
 import android.text.TextUtils;
 import android.util.Log;
@@ -45,6 +48,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 import java.util.Collections;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
@@ -317,6 +321,41 @@ public class FabricatedOverlaysTest {
                 .build());
 
         waitForFloatResourceValue(overlaidValue);
+    }
+
+    @Test
+    public void testGetEntries() {
+        final FabricatedOverlay overlay = new FabricatedOverlay.Builder(
+                mContext.getPackageName(), "getEntriesTest", mContext.getPackageName())
+                .setResourceValue("integer/myInt", TypedValue.TYPE_INT_DEC, 123)
+                .setResourceValue("color/myColor1", TypedValue.TYPE_INT_COLOR_ARGB8, Color.RED)
+                .setResourceValue("color/myColor2", TypedValue.TYPE_INT_COLOR_RGB8, Color.GREEN)
+                .build();
+
+        // Test single type
+        List<FabricatedOverlayInternalEntry> colorEntries =
+                overlay.getEntries(TypedValue.TYPE_INT_COLOR_ARGB8);
+        assertNotNull(colorEntries);
+        assertEquals(1, colorEntries.size());
+        assertEquals("color/myColor1", colorEntries.get(0).resourceName);
+        assertEquals(TypedValue.TYPE_INT_COLOR_ARGB8, colorEntries.get(0).dataType);
+
+        // Test multiple types
+        List<FabricatedOverlayInternalEntry> allColorEntries = overlay.getEntries(
+                TypedValue.TYPE_INT_COLOR_ARGB8, TypedValue.TYPE_INT_COLOR_RGB8);
+        assertNotNull(allColorEntries);
+        assertEquals(2, allColorEntries.size());
+
+        // Test non-existent type
+        List<FabricatedOverlayInternalEntry> stringEntries =
+                overlay.getEntries(TypedValue.TYPE_STRING);
+        assertNotNull(stringEntries);
+        assertTrue(stringEntries.isEmpty());
+
+        // Test empty/null args
+        List<FabricatedOverlayInternalEntry> emptyEntries = overlay.getEntries();
+        assertNotNull(emptyEntries);
+        assertTrue(emptyEntries.isEmpty());
     }
 
     private void waitForIntResourceValue(final int expectedValue) throws TimeoutException {

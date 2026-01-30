@@ -32,6 +32,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.filterState
 import com.android.systemui.power.domain.interactor.PowerInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.util.kotlin.BooleanFlowOperators.allOf
 import com.android.systemui.util.kotlin.BooleanFlowOperators.not
@@ -77,7 +78,7 @@ constructor(
 
     @SuppressLint("MissingPermission")
     override fun start() {
-        if (!communalSettingsInteractor.isCommunalFlagEnabled()) {
+        if (!communalSettingsInteractor.isCommunalFlagEnabled() || SceneContainerFlag.isEnabled) {
             return
         }
 

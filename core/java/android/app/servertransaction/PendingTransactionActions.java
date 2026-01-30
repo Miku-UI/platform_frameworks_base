@@ -20,6 +20,7 @@ import static android.app.ActivityThread.DEBUG_MEMORY_TRIM;
 
 import android.app.ActivityClient;
 import android.app.ActivityThread.ActivityClientRecord;
+import android.app.HandoffActivityData;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PersistableBundle;
@@ -98,6 +99,7 @@ public class PendingTransactionActions {
         private ActivityClientRecord mActivity;
         private Bundle mState;
         private PersistableBundle mPersistentState;
+        private HandoffActivityData mHandoffActivityData;
         private CharSequence mDescription;
 
         public void setActivity(ActivityClientRecord activity) {
@@ -110,6 +112,10 @@ public class PendingTransactionActions {
 
         public void setPersistentState(PersistableBundle persistentState) {
             mPersistentState = persistentState;
+        }
+
+        public void setHandoffActivityData(HandoffActivityData handoffActivityData) {
+            mHandoffActivityData = handoffActivityData;
         }
 
         public void setDescription(CharSequence description) {
@@ -133,7 +139,11 @@ public class PendingTransactionActions {
                 if (DEBUG_MEMORY_TRIM) Slog.v(TAG, "Reporting activity stopped: " + mActivity);
                 // TODO(lifecycler): Use interface callback instead of AMS.
                 ActivityClient.getInstance().activityStopped(
-                        mActivity.token, mState, mPersistentState, mDescription);
+                    mActivity.token,
+                    mState,
+                    mPersistentState,
+                    mHandoffActivityData,
+                    mDescription);
             } catch (RuntimeException runtimeException) {
                 // Collect the statistics about bundle
                 final String bundleStats = collectBundleStates();

@@ -49,10 +49,12 @@ public final class VirtualRotaryEncoderConfig extends VirtualInputDeviceConfig
 
     private VirtualRotaryEncoderConfig(@NonNull VirtualRotaryEncoderConfig.Builder builder) {
         super(builder);
+        checkForAssociatedDisplay();
     }
 
     private VirtualRotaryEncoderConfig(@NonNull Parcel in) {
         super(in);
+        checkForAssociatedDisplay();
     }
 
     @Override

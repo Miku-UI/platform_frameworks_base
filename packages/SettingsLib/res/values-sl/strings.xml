@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Vzpostavljanje povezave ..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Povezano <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Seznanjanje ..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Seznanjanje ni mogoče"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Povezave ni mogoče vzpostaviti"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Povezano (brez telefona) <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Povezano (brez predstavnosti) <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Povezano (brez telefona/predstavnosti) <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,14 +105,21 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Baterija – L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Levo – baterija: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Desno – baterija: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Škatlica: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> energije baterije"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Leva: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, škatlica: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> energije baterije"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Desna: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, škatlica: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> energije baterije"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Leva: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, desna: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> energije baterije"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"Leva: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, škatlica: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, desna: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> energije baterije"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Leva: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Desna: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
-    <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Aktivna"</string>
+    <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Aktivno"</string>
     <string name="bluetooth_saved_device" msgid="4895871321722311428">"Shranjeno"</string>
     <string name="bluetooth_hearing_aid_left_active" msgid="8330226430756799572">"Aktivno (samo levo)"</string>
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Aktivno (samo desno)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Aktivno (levo in desno)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Okolice ni bilo mogoče posodobiti"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Prednastavljene vrednosti ni bilo mogoče posodobiti"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Izbrano"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Aktivno (samo predstavnost). Baterija: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Aktivno (samo predstavnost), baterija – L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Naprava gosta. Baterija: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Ko je ta način omogočen, se lahko naslov MAC te naprave spremeni vsakič, ko se naprava poveže v omrežje z omogočenim dodeljevanjem naključnega naslova MAC."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Omejen prenos podatkov"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Z neomejenim prenosom podatkov"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Velikosti medpomnilnikov zapisovalnika dnevnika"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Velikost medpomnilnika dnevniškega orodja"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Izberite velikost medpomnilnika dnevnika"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Želite izbrisati trajno shranjevanje dnevniškega orodja?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Ko prenehamo spremljanje s trajnim dnevniškim orodjem, moramo podatke tega orodja, shranjene v napravi, izbrisati."</string>
@@ -390,19 +399,19 @@
     <string name="strict_mode" msgid="889864762140862437">"Strog način je omogočen"</string>
     <string name="strict_mode_summary" msgid="1838248687233554654">"Osveži zaslon pri dolgih postopkih v glavni niti."</string>
     <string name="pointer_location" msgid="7516929526199520173">"Mesto kazalca"</string>
-    <string name="pointer_location_summary" msgid="957120116989798464">"Prekrivanje zaslona prikazuje trenutni dotik."</string>
+    <string name="pointer_location_summary" msgid="957120116989798464">"Prekrivanje zaslona prikazuje trenutni dotik"</string>
     <string name="show_touches" msgid="8437666942161289025">"Prikaži dotike"</string>
-    <string name="show_touches_summary" msgid="3692861665994502193">"Prikaži vizualne povratne informacije za dotike."</string>
+    <string name="show_touches_summary" msgid="3692861665994502193">"Prikaži vizualne povratne informacije za dotike"</string>
     <string name="show_key_presses" msgid="6360141722735900214">"Pokaži pritiske tipk"</string>
     <string name="show_key_presses_summary" msgid="725387457373015024">"Pokaži vizualne povratne informacije za pritiske fizičnih tipk"</string>
     <string name="touchpad_visualizer" msgid="3707916068870825115">"Pokaži vnos prek sledilne ploščice"</string>
     <string name="touchpad_visualizer_summary" msgid="4056080018119847449">"Prekrivanje zaslona, na katerem so prikazani podatki vnosa prek sledilne ploščice in prepoznane poteze"</string>
     <string name="show_screen_updates" msgid="2078782895825535494">"Pokaži posodob. površine"</string>
-    <string name="show_screen_updates_summary" msgid="2126932969682087406">"Ob posodobitvi osveži celotne površine oken."</string>
+    <string name="show_screen_updates_summary" msgid="2126932969682087406">"Ob posodobitvi osveži celotne površine oken"</string>
     <string name="show_hw_screen_updates" msgid="2021286231267747506">"Prikaži posodob. pogleda"</string>
-    <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"Osveži poglede v oknih pri risanju."</string>
+    <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"Osveži poglede v oknih pri risanju"</string>
     <string name="show_hw_layers_updates" msgid="5268370750002509767">"Pokaži posodobitve slojev strojne opreme"</string>
-    <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"Obarvaj sloje strojne opreme zeleno ob posodobitvi."</string>
+    <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"Obarvaj sloje strojne opreme zeleno ob posodobitvi"</string>
     <string name="debug_hw_overdraw" msgid="8944851091008756796">"Prekoračitev območja GPE"</string>
     <string name="disable_overlays" msgid="4206590799671557143">"Onem. strojni medp."</string>
     <string name="disable_overlays_summary" msgid="1954852414363338166">"Za sestavljanje slike vedno uporabi GPE."</string>
@@ -413,7 +422,7 @@
     <string name="debug_layout" msgid="1659216803043339741">"Prikaži meje postavitve"</string>
     <string name="debug_layout_summary" msgid="8825829038287321978">"Pokaži meje obrezovanja, obrobe ipd."</string>
     <string name="force_rtl_layout_all_locales" msgid="8690762598501599796">"Vsili od desne proti levi"</string>
-    <string name="force_rtl_layout_all_locales_summary" msgid="6663016859517239880">"Vsili smer postavitve na zaslonu od desne proti levi za vse jezike."</string>
+    <string name="force_rtl_layout_all_locales_summary" msgid="6663016859517239880">"Vsili smer postavitve na zaslonu od desne proti levi za vse jezike"</string>
     <string name="transparent_navigation_bar" msgid="1933192171384678484">"Prosojna vrstica za krmarjenje"</string>
     <string name="transparent_navigation_bar_summary" msgid="5454359021817330722">"Privzeta nastavitev prosojne barve ozadja vrstice za krmarjenje"</string>
     <string name="window_blurs" msgid="6831008984828425106">"Dovoli zameglitve na ravni okna"</string>
@@ -431,8 +440,8 @@
     <string name="verbose_vendor_logging_notification_action" msgid="1190831050259046071">"Omogoči za še en dan"</string>
     <string name="verbose_vendor_logging_preference_summary_will_disable" msgid="6175431593394522553">"Onemogočeno bo čez en dan"</string>
     <string name="verbose_vendor_logging_preference_summary_on" msgid="9017757242481762036">"Omogočeno brez časovne omejitve"</string>
-    <string name="window_animation_scale_title" msgid="5236381298376812508">"Merilo animacije okna"</string>
-    <string name="transition_animation_scale_title" msgid="1278477690695439337">"Merilo animacije prehoda"</string>
+    <string name="window_animation_scale_title" msgid="5236381298376812508">"Hitrost animacije okna"</string>
+    <string name="transition_animation_scale_title" msgid="1278477690695439337">"Hitrost animacije prehoda"</string>
     <string name="animator_duration_scale_title" msgid="7082913931326085176">"Merilo trajanja animacije"</string>
     <string name="overlay_display_devices_title" msgid="5411894622334469607">"Simuliraj sekundarne zaslone"</string>
     <string name="shade_display_awareness_title" msgid="8000009404669495876">"Položaj prikaza podokna"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"Pred <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Še <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Najmanjša"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Manjša"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Majhno"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Privzeto"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Veliko"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Večje"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Največje"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Večja"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Zelo velika"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Izredno velika"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Največja"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Po meri (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Meni"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Geslo za tovar. nast. v predstav. načinu"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 naprava je povezana}one{# naprava je povezana}two{# napravi sta povezani}few{# naprave so povezane}other{# naprav je povezanih}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Daljši čas."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Krajši čas."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Povečava"</string>
     <string name="cancel" msgid="5665114069455378395">"Prekliči"</string>
     <string name="next" msgid="2699398661093607009">"Naprej"</string>
     <string name="back" msgid="5554327870352703710">"Nazaj"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Če oddajate aplikacijo <xliff:g id="SWITCHAPP">%1$s</xliff:g> ali spremenite izhod, bo trenutno oddajanje ustavljeno."</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Oddajaj aplikacijo <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Sprememba izhoda"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Animacije poteze za nazaj s predvidevanjem"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Omogoči sistemske animacije za potezo za nazaj s predvidevanjem."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Ta nastavitev omogoča sistemske animacije za animacijo poteze s predvidevanjem. V datoteki manifesta mora biti parameter »enableOnBackInvokedCallback« za posamezno aplikacijo nastavljen na »true«."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Ni določeno"</string>
     <string name="neuter" msgid="2075249330106127310">"Srednji spol"</string>

@@ -14,14 +14,3 @@ class :sysprops keepclass
 
 # Keep all resource R classes
 class :r keepclass
-
-# Support APIs not available in standard JRE
-class java.io.FileDescriptor  # no-pta
-    method getInt$ @com.android.ravenwood.RavenwoodJdkPatch.getInt$
-    method setInt$ @com.android.ravenwood.RavenwoodJdkPatch.setInt$
-class java.util.LinkedHashMap  # no-pta
-    method eldest @com.android.ravenwood.RavenwoodJdkPatch.eldest
-
-# Always set flag UNICODE_CHARACTER_CLASS when compiling regex
-class java.util.regex.Pattern keep
-    method compile @com.android.ravenwood.RavenwoodJdkPatch.compilePattern

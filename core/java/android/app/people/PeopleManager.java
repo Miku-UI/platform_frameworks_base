@@ -16,15 +16,19 @@
 
 package android.app.people;
 
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
+
 import static java.util.Objects.requireNonNull;
 
 import android.annotation.NonNull;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.content.Context;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.ShortcutInfo;
+import android.os.Build;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.util.Pair;
@@ -43,6 +47,8 @@ import java.util.concurrent.Executor;
 /**
  * This class allows interaction with conversation and people data.
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @SystemService(Context.PEOPLE_SERVICE)
 public final class PeopleManager {
 

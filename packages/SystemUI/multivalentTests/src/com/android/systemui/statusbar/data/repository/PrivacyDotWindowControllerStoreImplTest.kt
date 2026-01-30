@@ -28,6 +28,8 @@ import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.testKosmos
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -48,9 +50,11 @@ class PrivacyDotWindowControllerStoreImplTest : SysuiTestCase() {
         kosmos.displayRepository.addDisplay(displayId = DISPLAY_2)
     }
 
-    @Test(expected = IllegalArgumentException::class)
+    @Test
     fun forDisplay_defaultDisplay_throws() {
-        underTest.forDisplay(displayId = Display.DEFAULT_DISPLAY)
+        assertThrows(IllegalArgumentException::class.java) {
+            underTest.forDisplay(displayId = Display.DEFAULT_DISPLAY)
+        }
     }
 
     @Test

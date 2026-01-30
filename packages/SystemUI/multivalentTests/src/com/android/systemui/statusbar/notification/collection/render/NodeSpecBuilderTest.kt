@@ -19,8 +19,10 @@ package com.android.systemui.statusbar.notification.collection.render
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.statusbar.notification.NotificationSectionsFeatureManager
+import com.android.systemui.statusbar.notification.OnboardingAffordanceManager
 import com.android.systemui.statusbar.notification.collection.GroupEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntryBuilder
 import com.android.systemui.statusbar.notification.collection.ListEntry
@@ -37,6 +39,7 @@ import com.android.systemui.statusbar.notification.stack.BUCKET_SILENT
 import com.android.systemui.statusbar.notification.stack.PriorityBucket
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,7 +54,13 @@ class NodeSpecBuilderTest : SysuiTestCase() {
     private val sectionsFeatureManager: NotificationSectionsFeatureManager = mock()
     private val sectionHeaderVisibilityProvider: SectionHeaderVisibilityProvider = mock()
     private val viewBarn: NotifViewBarn = mock()
+    private val bundleBarn: BundleBarn = mock()
     private val logger = NodeSpecBuilderLogger(mock(), logcatLogBuffer())
+
+    private val bundleOnboardingMgr =
+        OnboardingAffordanceManager("bundles", sectionHeaderVisibilityProvider)
+    private val summaryOnboardingMgr =
+        OnboardingAffordanceManager("summarization", sectionHeaderVisibilityProvider)
 
     private var rootController: NodeController = buildFakeController("rootController")
     private var headerController0: NodeController = buildFakeController("header0")
@@ -79,42 +88,48 @@ class NodeSpecBuilderTest : SysuiTestCase() {
         whenever(viewBarn.requireNodeController(any())).thenAnswer {
             fakeViewBarn.getViewByEntry(it.getArgument(0))
         }
-
-        specBuilder = NodeSpecBuilder(mediaContainerController, sectionsFeatureManager,
-                sectionHeaderVisibilityProvider, viewBarn, logger)
+        specBuilder =
+            NodeSpecBuilder(
+                mediaContainerController,
+                sectionsFeatureManager,
+                sectionHeaderVisibilityProvider,
+                viewBarn,
+                bundleBarn,
+                logger,
+                bundleOnboardingMgr,
+                summaryOnboardingMgr,
+            )
     }
 
     @Test
     fun testMultipleSectionsWithSameController() {
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(true)
         checkOutput(
-                listOf(
-                        notif(0, section0),
-                        notif(1, section2),
-                        notif(2, section3)
-                ),
-                tree(
-                        node(headerController0),
-                        notifNode(0),
-                        node(headerController2),
-                        notifNode(1),
-                        notifNode(2)
-                )
+            listOf(notif(0, section0), notif(1, section2), notif(2, section3)),
+            tree(
+                node(headerController0),
+                notifNode(0),
+                node(headerController2),
+                notifNode(1),
+                notifNode(2),
+            ),
         )
     }
 
-    @Test(expected = RuntimeException::class)
+    @Test
     fun testMultipleSectionsWithSameControllerNonConsecutive() {
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(true)
-        checkOutput(
+        assertThrows(RuntimeException::class.java) {
+            checkOutput(
                 listOf(
-                        notif(0, section0),
-                        notif(1, section1),
-                        notif(2, section3),
-                        notif(3, section1)
+                    notif(0, section0),
+                    notif(1, section1),
+                    notif(2, section3),
+                    notif(3, section1),
                 ),
-                tree()
-        )
+                tree(),
+            )
+        }
     }
 
     @Test
@@ -126,42 +141,38 @@ class NodeSpecBuilderTest : SysuiTestCase() {
                 notif(0, section0NoHeader),
                 notif(1, section0NoHeader),
                 notif(2, section0NoHeader),
-                notif(3, section0NoHeader)
+                notif(3, section0NoHeader),
             ),
 
             // THEN we output a similarly simple flag list of nodes
-            tree(
-                notifNode(0),
-                notifNode(1),
-                notifNode(2),
-                notifNode(3)
-            )
+            tree(notifNode(0), notifNode(1), notifNode(2), notifNode(3)),
         )
     }
 
     @Test
+    @DisableSceneContainer
     fun testSimpleMappingWithMedia() {
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(true)
         // WHEN media controls are enabled
         whenever(sectionsFeatureManager.isMediaControlsEnabled()).thenReturn(true)
 
         checkOutput(
-                // GIVEN a simple flat list of notifications all in the same headerless section
-                listOf(
-                        notif(0, section0NoHeader),
-                        notif(1, section0NoHeader),
-                        notif(2, section0NoHeader),
-                        notif(3, section0NoHeader)
-                ),
+            // GIVEN a simple flat list of notifications all in the same headerless section
+            listOf(
+                notif(0, section0NoHeader),
+                notif(1, section0NoHeader),
+                notif(2, section0NoHeader),
+                notif(3, section0NoHeader),
+            ),
 
-                // THEN we output a similarly simple flag list of nodes, with media at the top
-                tree(
-                        node(mediaContainerController),
-                        notifNode(0),
-                        notifNode(1),
-                        notifNode(2),
-                        notifNode(3)
-                )
+            // THEN we output a similarly simple flag list of nodes, with media at the top
+            tree(
+                node(mediaContainerController),
+                notifNode(0),
+                notifNode(1),
+                notifNode(2),
+                notifNode(3),
+            ),
         )
     }
 
@@ -170,24 +181,19 @@ class NodeSpecBuilderTest : SysuiTestCase() {
         // WHEN section headers are supposed to be visible
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(true)
         checkOutput(
-                // GIVEN a flat list of notifications, spread across three sections
-                listOf(
-                        notif(0, section0),
-                        notif(1, section0),
-                        notif(2, section1),
-                        notif(3, section2)
-                ),
+            // GIVEN a flat list of notifications, spread across three sections
+            listOf(notif(0, section0), notif(1, section0), notif(2, section1), notif(3, section2)),
 
-                // THEN each section has its header injected
-                tree(
-                        node(headerController0),
-                        notifNode(0),
-                        notifNode(1),
-                        node(headerController1),
-                        notifNode(2),
-                        node(headerController2),
-                        notifNode(3)
-                )
+            // THEN each section has its header injected
+            tree(
+                node(headerController0),
+                notifNode(0),
+                notifNode(1),
+                node(headerController1),
+                notifNode(2),
+                node(headerController2),
+                notifNode(3),
+            ),
         )
     }
 
@@ -196,21 +202,11 @@ class NodeSpecBuilderTest : SysuiTestCase() {
         // WHEN section headers are supposed to be hidden
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(false)
         checkOutput(
-                // GIVEN a flat list of notifications, spread across three sections
-                listOf(
-                        notif(0, section0),
-                        notif(1, section0),
-                        notif(2, section1),
-                        notif(3, section2)
-                ),
+            // GIVEN a flat list of notifications, spread across three sections
+            listOf(notif(0, section0), notif(1, section0), notif(2, section1), notif(3, section2)),
 
-                // THEN each section has its header injected
-                tree(
-                        notifNode(0),
-                        notifNode(1),
-                        notifNode(2),
-                        notifNode(3)
-                )
+            // THEN each section has its header injected
+            tree(notifNode(0), notifNode(1), notifNode(2), notifNode(3)),
         )
     }
 
@@ -218,40 +214,24 @@ class NodeSpecBuilderTest : SysuiTestCase() {
     fun testGroups() {
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(true)
         checkOutput(
-                // GIVEN a mixed list of top-level notifications and groups
-                listOf(
-                    notif(0, section0),
-                    group(1, section1,
-                            notif(2),
-                            notif(3),
-                            notif(4)
-                    ),
-                    notif(5, section2),
-                    group(6, section2,
-                            notif(7),
-                            notif(8),
-                            notif(9)
-                    )
-                ),
+            // GIVEN a mixed list of top-level notifications and groups
+            listOf(
+                notif(0, section0),
+                group(1, section1, notif(2), notif(3), notif(4)),
+                notif(5, section2),
+                group(6, section2, notif(7), notif(8), notif(9)),
+            ),
 
-                // THEN we properly construct all the nodes
-                tree(
-                        node(headerController0),
-                        notifNode(0),
-                        node(headerController1),
-                        notifNode(1,
-                                notifNode(2),
-                                notifNode(3),
-                                notifNode(4)
-                        ),
-                        node(headerController2),
-                        notifNode(5),
-                        notifNode(6,
-                                notifNode(7),
-                                notifNode(8),
-                                notifNode(9)
-                        )
-                )
+            // THEN we properly construct all the nodes
+            tree(
+                node(headerController0),
+                notifNode(0),
+                node(headerController1),
+                notifNode(1, notifNode(2), notifNode(3), notifNode(4)),
+                node(headerController2),
+                notifNode(5),
+                notifNode(6, notifNode(7), notifNode(8), notifNode(9)),
+            ),
         )
     }
 
@@ -259,46 +239,38 @@ class NodeSpecBuilderTest : SysuiTestCase() {
     fun testSecondSectionWithNoHeader() {
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(true)
         checkOutput(
-                // GIVEN a middle section with no associated header view
-                listOf(
-                        notif(0, section0),
-                        notif(1, section1NoHeader),
-                        group(2, section1NoHeader,
-                                notif(3),
-                                notif(4)
-                        ),
-                        notif(5, section2)
-                ),
+            // GIVEN a middle section with no associated header view
+            listOf(
+                notif(0, section0),
+                notif(1, section1NoHeader),
+                group(2, section1NoHeader, notif(3), notif(4)),
+                notif(5, section2),
+            ),
 
-                // THEN the header view is left out of the tree (but the notifs are still present)
-                tree(
-                        node(headerController0),
-                        notifNode(0),
-                        notifNode(1),
-                        notifNode(2,
-                                notifNode(3),
-                                notifNode(4)
-                        ),
-                        node(headerController2),
-                        notifNode(5)
-                )
+            // THEN the header view is left out of the tree (but the notifs are still present)
+            tree(
+                node(headerController0),
+                notifNode(0),
+                notifNode(1),
+                notifNode(2, notifNode(3), notifNode(4)),
+                node(headerController2),
+                notifNode(5),
+            ),
         )
     }
 
-    @Test(expected = RuntimeException::class)
+    @Test
     fun testRepeatedSectionsThrow() {
         whenever(sectionHeaderVisibilityProvider.sectionHeadersVisible).thenReturn(true)
-        checkOutput(
+        assertThrows(RuntimeException::class.java) {
+            checkOutput(
                 // GIVEN a malformed list where sections are not contiguous
-                listOf(
-                        notif(0, section0),
-                        notif(1, section1),
-                        notif(2, section0)
-                ),
+                listOf(notif(0, section0), notif(1, section1), notif(2, section0)),
 
                 // THEN an exception is thrown
-                tree()
-        )
+                tree(),
+            )
+        }
     }
 
     private fun checkOutput(list: List<ListEntry>, desiredTree: NodeSpecImpl) {
@@ -309,29 +281,32 @@ class NodeSpecBuilderTest : SysuiTestCase() {
         try {
             checkNode(desiredTree, actualTree)
         } catch (e: AssertionError) {
-            throw AssertionError("Trees don't match: ${e.message}\nActual tree:\n" +
-                    treeSpecToStr(actualTree))
+            throw AssertionError(
+                "Trees don't match: ${e.message}\nActual tree:\n" + treeSpecToStr(actualTree)
+            )
         }
     }
 
     private fun checkNode(desiredTree: NodeSpec, actualTree: NodeSpec) {
         if (actualTree.controller != desiredTree.controller) {
-            throw AssertionError("Node {${actualTree.controller.nodeLabel}} should " +
-                    "be ${desiredTree.controller.nodeLabel}")
+            throw AssertionError(
+                "Node {${actualTree.controller.nodeLabel}} should " +
+                    "be ${desiredTree.controller.nodeLabel}"
+            )
         }
         for (i in 0 until desiredTree.children.size) {
             if (i >= actualTree.children.size) {
-                throw AssertionError("Node {${actualTree.controller.nodeLabel}}" +
-                        " is missing child ${desiredTree.children[i].controller.nodeLabel}")
+                throw AssertionError(
+                    "Node {${actualTree.controller.nodeLabel}}" +
+                        " is missing child ${desiredTree.children[i].controller.nodeLabel}"
+                )
             }
             checkNode(desiredTree.children[i], actualTree.children[i])
         }
     }
 
     private fun notif(id: Int, section: NotifSection? = null): NotificationEntry {
-        val entry = NotificationEntryBuilder()
-                .setId(id)
-                .build()
+        val entry = NotificationEntryBuilder().setId(id).build()
         if (section != null) {
             getAttachState(entry).section = section
         }
@@ -342,14 +317,12 @@ class NodeSpecBuilderTest : SysuiTestCase() {
     private fun group(
         id: Int,
         section: NotifSection,
-        vararg children: NotificationEntry
+        vararg children: NotificationEntry,
     ): GroupEntry {
-        val group = GroupEntryBuilder()
+        val group =
+            GroupEntryBuilder()
                 .setKey("group_$id")
-                .setSummary(
-                        NotificationEntryBuilder()
-                                .setId(id)
-                                .build())
+                .setSummary(NotificationEntryBuilder().setId(id).build())
                 .setChildren(children.asList())
                 .build()
         getAttachState(group).section = section
@@ -406,16 +379,19 @@ private fun buildFakeController(name: String): NodeController {
 private fun buildSection(
     index: Int,
     @PriorityBucket bucket: Int,
-    nodeController: NodeController?
+    nodeController: NodeController?,
 ): NotifSection {
-    return NotifSection(object : NotifSectioner("Section $index (bucket=$bucket)", bucket) {
+    return NotifSection(
+        object : NotifSectioner("Section $index (bucket=$bucket)", bucket) {
 
-        override fun isInSection(entry: PipelineEntry?): Boolean {
-            throw NotImplementedError("This should never be called")
-        }
+            override fun isInSection(entry: PipelineEntry?): Boolean {
+                throw NotImplementedError("This should never be called")
+            }
 
-        override fun getHeaderNodeController(): NodeController? {
-            return nodeController
-        }
-    }, index)
+            override fun getHeaderNodeController(): NodeController? {
+                return nodeController
+            }
+        },
+        index,
+    )
 }

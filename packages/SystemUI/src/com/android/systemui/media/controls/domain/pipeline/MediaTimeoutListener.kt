@@ -26,6 +26,7 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.media.NotificationMediaManager.isPlayingState
+import com.android.systemui.media.controls.shared.areCustomActionListsEqual
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.controls.util.MediaControllerFactory
 import com.android.systemui.plugins.statusbar.StatusBarStateController
@@ -113,8 +114,6 @@ constructor(
         oldKey: String?,
         data: MediaData,
         immediately: Boolean,
-        receivedSmartspaceCardLatency: Int,
-        isSsReactivated: Boolean,
     ) {
         var reusedListener: PlaybackStateListener? = null
 

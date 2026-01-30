@@ -61,8 +61,6 @@ java_genrule {
         // Used for the ProtoLogIntegrationTest, where don't test decoding or writing to file
         // so the parameters below are irrelevant.
         "--viewer-config-file-path /some/unused/file/path.pb " +
-        "--legacy-viewer-config-file-path /some/unused/file/path.json.gz " +
-        "--legacy-output-file-path /some/unused/file/path.winscope " +
         // END of irrelevant params.
         "--output-srcjar $(out) " +
         "$(locations :wmtests-sources)",
@@ -84,7 +82,6 @@ android_test {
         "androidx.test.rules",
         "androidx.test.runner",
         "com.android.window.flags.window-aconfig-java",
-        "cts-input-lib",
         "flag-junit",
         "flickerlib",
         "frameworks-base-testutils",
@@ -170,4 +167,1390 @@ test_module_config {
     ],
     include_filters: ["com.android.server.wm.utils"],
     include_annotations: ["android.platform.test.annotations.Presubmit"],
+}
+
+test_module_config {
+    name: "WmTests_SurfaceControlViewHostTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceControlViewHostTests"],
+}
+
+// Auto generated section, don't update it manually
+
+test_module_config {
+    name: "WmTests-CatchAll",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    exclude_filters: [
+        "com.android.server.policy.DeferredKeyActionExecutorTests",
+        "com.android.server.policy.KeyGestureEventTests",
+        "com.android.server.policy.KeyGestureEventTvTests",
+        "com.android.server.policy.PhoneWindowManagerTests",
+        "com.android.server.policy.PowerKeyGestureTests",
+        "com.android.server.policy.SingleKeyGestureTests",
+        "com.android.server.policy.StemKeyGestureTests",
+        "com.android.server.policy.WindowWakeUpPolicyTests",
+        "com.android.server.wm.ActivityInterceptorCallbackRegistryTest",
+        "com.android.server.wm.ActivityInterceptorCallbackTest",
+        "com.android.server.wm.ActivityLeakTests",
+        "com.android.server.wm.ActivityMetricsLaunchObserverTests",
+        "com.android.server.wm.ActivityOptionsTest",
+        "com.android.server.wm.ActivityRecordInputSinkTests",
+        "com.android.server.wm.ActivityRecordTests",
+        "com.android.server.wm.ActivityRefresherTests",
+        "com.android.server.wm.ActivitySnapshotControllerTests",
+        "com.android.server.wm.ActivityStartControllerTests",
+        "com.android.server.wm.ActivityStartInterceptorTest",
+        "com.android.server.wm.ActivityStarterTests",
+        "com.android.server.wm.ActivityTaskManagerServiceTests",
+        "com.android.server.wm.ActivityTaskSupervisorTests",
+        "com.android.server.wm.AppCompatAspectRatioOverridesTest",
+        "com.android.server.wm.AppCompatCameraOverridesTest",
+        "com.android.server.wm.AppCompatCameraPolicyTest",
+        "com.android.server.wm.AppCompatCameraRotationStateTests",
+        "com.android.server.wm.AppCompatCameraStateSourceTests",
+        "com.android.server.wm.AppCompatCameraStateStrategyForTaskTests",
+        "com.android.server.wm.AppCompatConfigurationPersisterTest",
+        "com.android.server.wm.AppCompatConfigurationTest",
+        "com.android.server.wm.AppCompatDisplayCompatTests",
+        "com.android.server.wm.AppCompatFocusOverridesTest",
+        "com.android.server.wm.AppCompatLetterboxOverrideTest",
+        "com.android.server.wm.AppCompatLetterboxPolicyStateTest",
+        "com.android.server.wm.AppCompatLetterboxPolicyTest",
+        "com.android.server.wm.AppCompatLetterboxUtilsTest",
+        "com.android.server.wm.AppCompatOrientationOverridesTest",
+        "com.android.server.wm.AppCompatOrientationPolicyTest",
+        "com.android.server.wm.AppCompatReachabilityOverridesTest",
+        "com.android.server.wm.AppCompatReachabilityPolicyTest",
+        "com.android.server.wm.AppCompatResizeOverridesTest",
+        "com.android.server.wm.AppCompatSafeRegionPolicyTests",
+        "com.android.server.wm.AppCompatSizeCompatTests",
+        "com.android.server.wm.AppCompatUtilsTest",
+        "com.android.server.wm.AssistDataRequesterTest",
+        "com.android.server.wm.BackNavigationControllerTests",
+        "com.android.server.wm.BackgroundActivityStartControllerExemptionTests",
+        "com.android.server.wm.BackgroundActivityStartControllerLogTests",
+        "com.android.server.wm.BackgroundActivityStartControllerTests",
+        "com.android.server.wm.BackgroundLaunchProcessControllerTests",
+
+        "com.android.server.wm.CameraIdAppPairsSetTests",
+        "com.android.server.wm.CameraIdPackageNameBiMappingTests",
+        "com.android.server.wm.CameraStateMonitorTests",
+        "com.android.server.wm.ClientLifecycleManagerTests",
+        "com.android.server.wm.CompatModePackagesTests",
+        "com.android.server.wm.CompatScaleProviderTest",
+        "com.android.server.wm.ConfigurationContainerTests",
+        "com.android.server.wm.ContentRecorderTests",
+        "com.android.server.wm.ContentRecordingControllerTests",
+        "com.android.server.wm.DeferredDisplayUpdaterDiffTest",
+        "com.android.server.wm.DesktopAppCompatAspectRatioPolicyTests",
+        "com.android.server.wm.DesktopModeHelperTest",
+        "com.android.server.wm.DesktopModeLaunchParamsModifierTests",
+        "com.android.server.wm.DeviceStateAutoRotateSettingControllerTests",
+        "com.android.server.wm.DeviceStateAutoRotateSettingIssueLoggerTests",
+        "com.android.server.wm.DeviceStateControllerTests",
+        "com.android.server.wm.DimmerTests",
+        "com.android.server.wm.DisplayAreaGroupTest",
+        "com.android.server.wm.DisplayAreaOrganizerTest",
+        "com.android.server.wm.DisplayAreaPolicyBuilderTest",
+        "com.android.server.wm.DisplayAreaPolicyTests",
+        "com.android.server.wm.DisplayAreaProviderTest",
+        "com.android.server.wm.DisplayAreaTest",
+        "com.android.server.wm.DisplayContentDeferredUpdateTests",
+        "com.android.server.wm.DisplayContentTests",
+        "com.android.server.wm.DisplayPolicyInsetsTests",
+        "com.android.server.wm.DisplayPolicyLayoutTests",
+        "com.android.server.wm.DisplayPolicyTests",
+        "com.android.server.wm.DisplayRotationCoordinatorTests",
+        "com.android.server.wm.DisplayRotationImmersiveAppCompatPolicyTests",
+        "com.android.server.wm.DisplayRotationReversionControllerTests",
+        "com.android.server.wm.DisplayRotationTests",
+        "com.android.server.wm.DisplayWindowPolicyControllerTests",
+        "com.android.server.wm.DisplayWindowSettingsProviderTests",
+        "com.android.server.wm.DisplayWindowSettingsTests",
+        "com.android.server.wm.DragDropControllerTests",
+        "com.android.server.wm.DualDisplayAreaGroupPolicyTest",
+        "com.android.server.wm.EmulatorDisplayOverlayTests",
+        "com.android.server.wm.FrameRateSelectionPriorityTests",
+        "com.android.server.wm.HighRefreshRateDenylistTest",
+        "com.android.server.wm.ImeInsetsSourceProviderTest",
+        "com.android.server.wm.InputMethodDialogWindowContextTest",
+        "com.android.server.wm.InsetsPolicyTest",
+        "com.android.server.wm.InsetsSourceProviderTest",
+        "com.android.server.wm.InsetsStateControllerTest",
+        "com.android.server.wm.KeyguardDisableHandlerTest",
+        "com.android.server.wm.LaunchParamsControllerTests",
+        "com.android.server.wm.LaunchParamsPersisterTests",
+        "com.android.server.wm.LetterboxAttachInputTest",
+        "com.android.server.wm.LetterboxTest",
+        "com.android.server.wm.LockTaskControllerTest",
+        "com.android.server.wm.PendingRemoteAnimationRegistryTest",
+        "com.android.server.wm.PersisterQueueTests",
+        "com.android.server.wm.PossibleDisplayInfoMapperTests",
+        "com.android.server.wm.PresentationControllerTests",
+        "com.android.server.wm.ProtoLogIntegrationTest",
+        "com.android.server.wm.RecentTasksTest",
+        "com.android.server.wm.RecentsAnimationTest",
+        "com.android.server.wm.RefreshRatePolicyTest",
+        "com.android.server.wm.RootTaskTests",
+        "com.android.server.wm.RootWindowContainerTests",
+        "com.android.server.wm.RunningTasksTest",
+        "com.android.server.wm.SafeActivityOptionsTest",
+        "com.android.server.wm.ScreenshotTests",
+        "com.android.server.wm.SensitiveContentPackagesTest",
+        "com.android.server.wm.SizeCompatTests",
+        "com.android.server.wm.SplashScreenExceptionListTest",
+        "com.android.server.wm.SurfaceAnimationRunnerTest",
+        "com.android.server.wm.SurfaceAnimatorTest",
+        "com.android.server.wm.SurfaceControlTests",
+        "com.android.server.wm.SurfaceControlViewHostTests",
+        "com.android.server.wm.SurfaceSyncGroupTest",
+        "com.android.server.wm.SurfaceSyncGroupTests",
+        "com.android.server.wm.SurfaceViewSyncContinuousTest",
+        "com.android.server.wm.SyncEngineTests",
+        "com.android.server.wm.SynchedDeviceConfigTests",
+        "com.android.server.wm.SystemServicesTestRuleTest",
+        "com.android.server.wm.TaskDisplayAreaTests",
+        "com.android.server.wm.TaskFragmentOrganizerControllerTest",
+        "com.android.server.wm.TaskFragmentTest",
+        "com.android.server.wm.TaskLaunchParamsModifierTests",
+        "com.android.server.wm.TaskPersisterTest",
+        "com.android.server.wm.TaskSnapshotCacheTest",
+        "com.android.server.wm.TaskSnapshotControllerTest",
+        "com.android.server.wm.TaskSnapshotLowResDisabledTest",
+        "com.android.server.wm.TaskSnapshotPersisterLoaderTest",
+        "com.android.server.wm.TaskStackChangedListenerTest",
+        "com.android.server.wm.TaskTests",
+        "com.android.server.wm.TransitionControllerTest",
+        "com.android.server.wm.TransitionTests",
+        "com.android.server.wm.TransparentPolicyTest",
+        "com.android.server.wm.TrustedOverlayTests",
+        "com.android.server.wm.UnknownAppVisibilityControllerTest",
+        "com.android.server.wm.VisibleActivityProcessTrackerTests",
+        "com.android.server.wm.WallpaperControllerTests",
+        "com.android.server.wm.WindowAnimationSpecTest",
+        "com.android.server.wm.WindowConfigurationTests",
+        "com.android.server.wm.WindowContainerTests",
+        "com.android.server.wm.WindowContainerTransactionTests",
+        "com.android.server.wm.WindowContainerTraversalTests",
+        "com.android.server.wm.WindowContextListenerControllerTests",
+        "com.android.server.wm.WindowManagerConstantsTest",
+        "com.android.server.wm.WindowManagerServiceTests",
+        "com.android.server.wm.WindowManagerSettingsTests",
+        "com.android.server.wm.WindowOrganizerTests",
+        "com.android.server.wm.WindowProcessControllerMapTests",
+        "com.android.server.wm.WindowProcessControllerTests",
+        "com.android.server.wm.WindowStateTests",
+        "com.android.server.wm.WindowTokenTests",
+        "com.android.server.wm.WindowTracingLegacyTest",
+        "com.android.server.wm.WindowTracingPerfettoTest",
+        "com.android.server.wm.ZOrderingTests",
+        "com.android.server.wm.testing.AssertTest",
+        "com.android.server.wm.utils.CoordinateTransformsTest",
+        "com.android.server.wm.utils.InsetUtilsTest",
+        "com.android.server.wm.utils.OptPropFactoryTest",
+        "com.android.server.wm.utils.RotationAnimationUtilsTest",
+        "com.android.server.wm.utils.RotationCacheTest",
+        "com.android.server.wm.utils.StateMachineTest",
+        "com.android.server.wm.utils.WindowStyleCacheTest",
+        "com.android.server.wm.utils.WmDisplayCutoutTest",
+    ],
+}
+
+test_module_config {
+    name: "WmTests-policy-DeferredKeyActionExecutorTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.DeferredKeyActionExecutorTests"],
+}
+
+test_module_config {
+    name: "WmTests-policy-KeyGestureEventTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.KeyGestureEventTests"],
+}
+
+test_module_config {
+    name: "WmTests-policy-KeyGestureEventTvTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.KeyGestureEventTvTests"],
+}
+
+test_module_config {
+    name: "WmTests-policy-PhoneWindowManagerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.PhoneWindowManagerTests"],
+}
+
+test_module_config {
+    name: "WmTests-policy-PowerKeyGestureTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.PowerKeyGestureTests"],
+}
+
+test_module_config {
+    name: "WmTests-policy-SingleKeyGestureTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.SingleKeyGestureTests"],
+}
+
+test_module_config {
+    name: "WmTests-policy-StemKeyGestureTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.StemKeyGestureTests"],
+}
+
+test_module_config {
+    name: "WmTests-policy-WindowWakeUpPolicyTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.policy.WindowWakeUpPolicyTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityInterceptorCallbackRegistryTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityInterceptorCallbackRegistryTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityInterceptorCallbackTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityInterceptorCallbackTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityLeakTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityLeakTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityMetricsLaunchObserverTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityMetricsLaunchObserverTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityOptionsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityOptionsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityRecordInputSinkTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityRecordInputSinkTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityRecordTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityRecordTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityRefresherTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityRefresherTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivitySnapshotControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivitySnapshotControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityStartControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityStartControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityStartInterceptorTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityStartInterceptorTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityStarterTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityStarterTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityTaskManagerServiceTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityTaskManagerServiceTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ActivityTaskSupervisorTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ActivityTaskSupervisorTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatAspectRatioOverridesTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatAspectRatioOverridesTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatCameraOverridesTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatCameraOverridesTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatCameraPolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatCameraPolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatCameraRotationStateTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatCameraRotationStateTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatCameraStateSourceTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatCameraStateSourceTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatCameraStateStrategyForTaskTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatCameraStateStrategyForTaskTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatConfigurationPersisterTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatConfigurationPersisterTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatConfigurationTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatConfigurationTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatDisplayCompatTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatDisplayCompatTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatFocusOverridesTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatFocusOverridesTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatLetterboxOverrideTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatLetterboxOverrideTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatLetterboxPolicyStateTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatLetterboxPolicyStateTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatLetterboxPolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatLetterboxPolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatLetterboxUtilsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatLetterboxUtilsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatOrientationOverridesTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatOrientationOverridesTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatOrientationPolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatOrientationPolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatReachabilityOverridesTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatReachabilityOverridesTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatReachabilityPolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatReachabilityPolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatResizeOverridesTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatResizeOverridesTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatSafeRegionPolicyTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatSafeRegionPolicyTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatSizeCompatTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatSizeCompatTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AppCompatUtilsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AppCompatUtilsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-AssistDataRequesterTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.AssistDataRequesterTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-BackNavigationControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.BackNavigationControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-BackgroundActivityStartControllerExemptionTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.BackgroundActivityStartControllerExemptionTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-BackgroundActivityStartControllerLogTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.BackgroundActivityStartControllerLogTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-BackgroundActivityStartControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.BackgroundActivityStartControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-BackgroundLaunchProcessControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.BackgroundLaunchProcessControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-CameraIdAppPairsSetTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.CameraIdAppPairsSetTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-CameraIdPackageNameBiMappingTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.CameraIdPackageNameBiMappingTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-CameraStateMonitorTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.CameraStateMonitorTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ClientLifecycleManagerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ClientLifecycleManagerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-CompatModePackagesTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.CompatModePackagesTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-CompatScaleProviderTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.CompatScaleProviderTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ConfigurationContainerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ConfigurationContainerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ContentRecorderTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ContentRecorderTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ContentRecordingControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ContentRecordingControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DeferredDisplayUpdaterDiffTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DeferredDisplayUpdaterDiffTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DesktopAppCompatAspectRatioPolicyTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DesktopAppCompatAspectRatioPolicyTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DesktopModeHelperTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DesktopModeHelperTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DesktopModeLaunchParamsModifierTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DesktopModeLaunchParamsModifierTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DeviceStateAutoRotateSettingControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DeviceStateAutoRotateSettingControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DeviceStateAutoRotateSettingIssueLoggerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DeviceStateAutoRotateSettingIssueLoggerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DeviceStateControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DeviceStateControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DimmerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DimmerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayAreaGroupTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayAreaGroupTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayAreaOrganizerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayAreaOrganizerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayAreaPolicyBuilderTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayAreaPolicyBuilderTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayAreaPolicyTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayAreaPolicyTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayAreaProviderTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayAreaProviderTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayAreaTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayAreaTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayContentDeferredUpdateTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayContentDeferredUpdateTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayContentTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayContentTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayPolicyInsetsTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayPolicyInsetsTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayPolicyLayoutTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayPolicyLayoutTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayPolicyTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayPolicyTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayRotationCoordinatorTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayRotationCoordinatorTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayRotationImmersiveAppCompatPolicyTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayRotationImmersiveAppCompatPolicyTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayRotationReversionControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayRotationReversionControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayRotationTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayRotationTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayWindowPolicyControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayWindowPolicyControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayWindowSettingsProviderTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayWindowSettingsProviderTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DisplayWindowSettingsTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DisplayWindowSettingsTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DragDropControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DragDropControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-DualDisplayAreaGroupPolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.DualDisplayAreaGroupPolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-EmulatorDisplayOverlayTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.EmulatorDisplayOverlayTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-FrameRateSelectionPriorityTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.FrameRateSelectionPriorityTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-HighRefreshRateDenylistTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.HighRefreshRateDenylistTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ImeInsetsSourceProviderTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ImeInsetsSourceProviderTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-InputMethodDialogWindowContextTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.InputMethodDialogWindowContextTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-InsetsPolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.InsetsPolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-InsetsSourceProviderTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.InsetsSourceProviderTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-InsetsStateControllerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.InsetsStateControllerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-KeyguardDisableHandlerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.KeyguardDisableHandlerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-LaunchParamsControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.LaunchParamsControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-LaunchParamsPersisterTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.LaunchParamsPersisterTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-LetterboxAttachInputTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.LetterboxAttachInputTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-LetterboxTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.LetterboxTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-LockTaskControllerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.LockTaskControllerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-PendingRemoteAnimationRegistryTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.PendingRemoteAnimationRegistryTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-PersisterQueueTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.PersisterQueueTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-PossibleDisplayInfoMapperTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.PossibleDisplayInfoMapperTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-PresentationControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.PresentationControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ProtoLogIntegrationTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ProtoLogIntegrationTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-RecentTasksTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.RecentTasksTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-RecentsAnimationTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.RecentsAnimationTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-RefreshRatePolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.RefreshRatePolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-RootTaskTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.RootTaskTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-RootWindowContainerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.RootWindowContainerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-RunningTasksTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.RunningTasksTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SafeActivityOptionsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SafeActivityOptionsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ScreenshotTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ScreenshotTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SensitiveContentPackagesTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SensitiveContentPackagesTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SizeCompatTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SizeCompatTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SplashScreenExceptionListTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SplashScreenExceptionListTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SurfaceAnimationRunnerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceAnimationRunnerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SurfaceAnimatorTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceAnimatorTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SurfaceControlTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceControlTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SurfaceControlViewHostTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceControlViewHostTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SurfaceSyncGroupTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceSyncGroupTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SurfaceSyncGroupTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceSyncGroupTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SurfaceViewSyncContinuousTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SurfaceViewSyncContinuousTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SyncEngineTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SyncEngineTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SynchedDeviceConfigTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SynchedDeviceConfigTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-SystemServicesTestRuleTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.SystemServicesTestRuleTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskDisplayAreaTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskDisplayAreaTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskFragmentOrganizerControllerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskFragmentOrganizerControllerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskFragmentTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskFragmentTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskLaunchParamsModifierTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskLaunchParamsModifierTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskPersisterTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskPersisterTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskSnapshotCacheTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskSnapshotCacheTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskSnapshotControllerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskSnapshotControllerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskSnapshotLowResDisabledTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskSnapshotLowResDisabledTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskSnapshotPersisterLoaderTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskSnapshotPersisterLoaderTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskStackChangedListenerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskStackChangedListenerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TaskTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TaskTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TransitionControllerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TransitionControllerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TransitionTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TransitionTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TransparentPolicyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TransparentPolicyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-TrustedOverlayTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.TrustedOverlayTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-UnknownAppVisibilityControllerTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.UnknownAppVisibilityControllerTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-VisibleActivityProcessTrackerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.VisibleActivityProcessTrackerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WallpaperControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WallpaperControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowAnimationSpecTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowAnimationSpecTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowConfigurationTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowConfigurationTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowContainerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowContainerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowContainerTransactionTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowContainerTransactionTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowContainerTraversalTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowContainerTraversalTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowContextListenerControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowContextListenerControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowManagerConstantsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowManagerConstantsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowManagerServiceTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowManagerServiceTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowManagerSettingsTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowManagerSettingsTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowOrganizerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowOrganizerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowProcessControllerMapTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowProcessControllerMapTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowProcessControllerTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowProcessControllerTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowStateTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowStateTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowTokenTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowTokenTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowTracingLegacyTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowTracingLegacyTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-WindowTracingPerfettoTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.WindowTracingPerfettoTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-ZOrderingTests",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.ZOrderingTests"],
+}
+
+test_module_config {
+    name: "WmTests-wm-testing-AssertTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.testing.AssertTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-CoordinateTransformsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.CoordinateTransformsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-InsetUtilsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.InsetUtilsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-OptPropFactoryTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.OptPropFactoryTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-RotationAnimationUtilsTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.RotationAnimationUtilsTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-RotationCacheTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.RotationCacheTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-StateMachineTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.StateMachineTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-WindowStyleCacheTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.WindowStyleCacheTest"],
+}
+
+test_module_config {
+    name: "WmTests-wm-utils-WmDisplayCutoutTest",
+    base: "WmTests",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.utils.WmDisplayCutoutTest"],
 }

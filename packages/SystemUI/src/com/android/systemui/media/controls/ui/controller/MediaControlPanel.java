@@ -18,14 +18,8 @@ package com.android.systemui.media.controls.ui.controller;
 
 import static android.provider.Settings.ACTION_MEDIA_CONTROLS_SETTINGS;
 
-import static com.android.settingslib.flags.Flags.legacyLeAudioSharing;
 import static com.android.systemui.Flags.communalHub;
-import static com.android.systemui.Flags.mediaLockscreenLaunchAnimation;
 import static com.android.systemui.media.controls.domain.pipeline.MediaActionsKt.getNotificationActions;
-import static com.android.systemui.media.controls.ui.viewmodel.MediaControlViewModel.MEDIA_PLAYER_SCRIM_END_ALPHA;
-import static com.android.systemui.media.controls.ui.viewmodel.MediaControlViewModel.MEDIA_PLAYER_SCRIM_END_ALPHA_LEGACY;
-import static com.android.systemui.media.controls.ui.viewmodel.MediaControlViewModel.MEDIA_PLAYER_SCRIM_START_ALPHA;
-import static com.android.systemui.media.controls.ui.viewmodel.MediaControlViewModel.MEDIA_PLAYER_SCRIM_START_ALPHA_LEGACY;
 
 import android.animation.Animator;
 import android.animation.AnimatorInflater;
@@ -37,6 +31,7 @@ import android.app.WallpaperColors;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.theming.ThemeStyle;
 import android.graphics.Bitmap;
 import android.graphics.BlendMode;
 import android.graphics.Color;
@@ -58,7 +53,6 @@ import android.os.Process;
 import android.os.Trace;
 import android.os.UserHandle;
 import android.provider.Settings;
-import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
 import android.view.Gravity;
@@ -79,12 +73,12 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.jank.InteractionJankMonitor;
 import com.android.internal.logging.InstanceId;
 import com.android.internal.widget.CachingIconView;
+import com.android.settingslib.media.LocalMediaManager.MediaDeviceState;
 import com.android.settingslib.widget.AdaptiveIcon;
 import com.android.systemui.ActivityIntentHelper;
 import com.android.systemui.Flags;
 import com.android.systemui.animation.ActivityTransitionAnimator;
 import com.android.systemui.animation.GhostedViewTransitionAnimatorController;
-import com.android.systemui.bluetooth.BroadcastDialogController;
 import com.android.systemui.broadcast.BroadcastSender;
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor;
 import com.android.systemui.communal.widgets.CommunalTransitionAnimatorController;
@@ -95,6 +89,8 @@ import com.android.systemui.media.controls.shared.model.MediaAction;
 import com.android.systemui.media.controls.shared.model.MediaButton;
 import com.android.systemui.media.controls.shared.model.MediaData;
 import com.android.systemui.media.controls.shared.model.MediaDeviceData;
+import com.android.systemui.media.controls.shared.model.SuggestedMediaDeviceData;
+import com.android.systemui.media.controls.shared.model.SuggestionData;
 import com.android.systemui.media.controls.ui.animation.AnimationBindHandler;
 import com.android.systemui.media.controls.ui.animation.ColorSchemeTransition;
 import com.android.systemui.media.controls.ui.animation.MediaColorSchemesKt;
@@ -107,11 +103,11 @@ import com.android.systemui.media.controls.util.MediaDataUtils;
 import com.android.systemui.media.controls.util.MediaUiEventLogger;
 import com.android.systemui.media.dialog.MediaOutputDialogManager;
 import com.android.systemui.monet.ColorScheme;
-import com.android.systemui.monet.Style;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.plugins.FalsingManager;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
+import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.statusbar.NotificationLockscreenUserManager;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
 import com.android.systemui.surfaceeffects.PaintDrawCallback;
@@ -179,6 +175,8 @@ public class MediaControlPanel {
     // Time in millis for playing turbulence noise that is played after a touch ripple.
     @VisibleForTesting
     static final long TURBULENCE_NOISE_PLAY_DURATION = 7500L;
+    public static final float MEDIA_PLAYER_SCRIM_START_ALPHA = 0.65f;
+    public static final float MEDIA_PLAYER_SCRIM_END_ALPHA = 0.75f;
 
     private final SeekBarViewModel mSeekBarViewModel;
     private final CommunalSceneInteractor mCommunalSceneInteractor;
@@ -207,6 +205,7 @@ public class MediaControlPanel {
     private boolean mIsArtworkBound = false;
     private int mArtworkBoundId = 0;
     private int mArtworkNextBindRequestId = 0;
+    private boolean mPageArrowsVisible = false;
 
     private final KeyguardStateController mKeyguardStateController;
     private final ActivityIntentHelper mActivityIntentHelper;
@@ -227,10 +226,6 @@ public class MediaControlPanel {
     private final SeekBarViewModel.ContentDescriptionListener mContentDescriptionListener =
             this::setSeekbarContentDescription;
 
-    private final BroadcastDialogController mBroadcastDialogController;
-    private boolean mIsCurrentBroadcastedApp = false;
-    private boolean mShowBroadcastDialogButton = false;
-    private String mCurrentBroadcastApp;
     private MultiRippleController mMultiRippleController;
     private TurbulenceNoiseController mTurbulenceNoiseController;
     private LoadingEffect mLoadingEffect;
@@ -238,6 +233,8 @@ public class MediaControlPanel {
     private TurbulenceNoiseAnimationConfig mTurbulenceNoiseAnimationConfig;
     private boolean mWasPlaying = false;
     private boolean mButtonClicked = false;
+    @Nullable
+    private Runnable mOnSuggestionSpaceVisibleRunnable = null;
 
     private final PaintDrawCallback mNoiseDrawCallback =
             new PaintDrawCallback() {
@@ -272,7 +269,7 @@ public class MediaControlPanel {
      */
     @Inject
     public MediaControlPanel(
-            @Main Context context,
+            @ShadeDisplayAware Context context,
             @Background Executor backgroundExecutor,
             @Main DelayableExecutor mainExecutor,
             ActivityStarter activityStarter,
@@ -288,7 +285,6 @@ public class MediaControlPanel {
             ActivityIntentHelper activityIntentHelper,
             CommunalSceneInteractor communalSceneInteractor,
             NotificationLockscreenUserManager lockscreenUserManager,
-            BroadcastDialogController broadcastDialogController,
             GlobalSettings globalSettings
     ) {
         mContext = context;
@@ -306,7 +302,6 @@ public class MediaControlPanel {
         mKeyguardStateController = keyguardStateController;
         mActivityIntentHelper = activityIntentHelper;
         mLockscreenUserManager = lockscreenUserManager;
-        mBroadcastDialogController = broadcastDialogController;
         mCommunalSceneInteractor = communalSceneInteractor;
 
         mSeekBarViewModel.setLogSeek(() -> {
@@ -529,25 +524,14 @@ public class MediaControlPanel {
                         && mActivityIntentHelper.wouldPendingShowOverLockscreen(clickIntent,
                         mLockscreenUserManager.getCurrentUserId());
                 if (showOverLockscreen) {
-                    if (mediaLockscreenLaunchAnimation()) {
-                        mActivityStarter.startPendingIntentMaybeDismissingKeyguard(
-                                clickIntent,
-                                /* dismissShade = */ true,
-                                /* intentSentUiThreadCallback = */ null,
-                                buildLaunchAnimatorController(mMediaViewHolder.getPlayer()),
-                                /* fillIntent = */ null,
-                                /* extraOptions = */ null,
-                                /* customMessage */ null);
-                    } else {
-                        try {
-                            ActivityOptions opts = ActivityOptions.makeBasic();
-                            opts.setPendingIntentBackgroundActivityStartMode(
-                                    ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
-                            clickIntent.send(opts.toBundle());
-                        } catch (PendingIntent.CanceledException e) {
-                            Log.e(TAG, "Pending intent for " + key + " was cancelled");
-                        }
-                    }
+                    mActivityStarter.startPendingIntentMaybeDismissingKeyguard(
+                            clickIntent,
+                            /* dismissShade = */ true,
+                            /* intentSentUiThreadCallback = */ null,
+                            buildLaunchAnimatorController(mMediaViewHolder.getPlayer()),
+                            /* fillIntent = */ null,
+                            /* extraOptions = */ null,
+                            /* customMessage */ null);
                 } else {
                     mActivityStarter.postStartActivityDismissingKeyguard(clickIntent,
                             buildLaunchAnimatorController(mMediaViewHolder.getPlayer()));
@@ -564,16 +548,13 @@ public class MediaControlPanel {
             mBackgroundExecutor.execute(() -> mSeekBarViewModel.updateController(controller));
         }
 
-        // Show the broadcast dialog button only when the le audio is enabled.
-        mShowBroadcastDialogButton =
-                legacyLeAudioSharing()
-                        && data.getDevice() != null
-                        && data.getDevice().getShowBroadcastButton();
-        bindOutputSwitcherAndBroadcastButton(mShowBroadcastDialogButton, data);
+        bindOutputSwitcherChip(data);
         bindGutsMenuForPlayer(data);
         bindPlayerContentDescription(data);
         bindScrubbingTime(data);
         bindActionButtons(data);
+        bindDeviceSuggestion(data);
+        bindPageButtons();
 
         boolean isSongUpdated = bindSongMetadata(data);
         bindArtworkAndColors(data, key, isSongUpdated);
@@ -626,42 +607,133 @@ public class MediaControlPanel {
         Trace.endSection();
     }
 
-    private void bindOutputSwitcherAndBroadcastButton(boolean showBroadcastButton, MediaData data) {
+    /**
+     * Called when the panel becomes fully visible.
+     */
+    public void onPanelFullyVisible() {
+        if (!Flags.enableSuggestedDeviceUi()) {
+            return;
+        }
+        if (mMediaData.getResumption()) {
+            return;
+        }
+        @Nullable Runnable onSuggestionVisibleRunnable = mOnSuggestionSpaceVisibleRunnable;
+        if (onSuggestionVisibleRunnable != null) {
+            onSuggestionVisibleRunnable.run();
+        }
+    }
+
+    private void bindDeviceSuggestion(@NonNull MediaData data) {
+        if (!Flags.enableSuggestedDeviceUi()) {
+            return;
+        }
+        View deviceSuggestionButton = mMediaViewHolder.getDeviceSuggestionButton();
+        View deviceSuggestionContainer = mMediaViewHolder.getDeviceSuggestionContainer();
+        TextView deviceText = mMediaViewHolder.getSeamlessText();
+        @Nullable SuggestionData suggestionData = data.getSuggestionData();
+        if (suggestionData != null) {
+            mOnSuggestionSpaceVisibleRunnable = suggestionData.getOnSuggestionSpaceVisible();
+            @Nullable
+            SuggestedMediaDeviceData suggestionDeviceData =
+                    suggestionData.getSuggestedMediaDeviceData();
+            if (suggestionDeviceData != null
+                    && isValidSuggestion(suggestionDeviceData)
+                    && !data.getResumption()) {
+                // Don't show the OSw device text if we have a suggestion: just show the icon
+                deviceText.setVisibility(View.GONE);
+                setSuggestionClickListener(suggestionDeviceData);
+                setSuggestionText(suggestionDeviceData);
+                setSuggestionIcon(suggestionDeviceData);
+                deviceSuggestionButton.setVisibility(View.VISIBLE);
+                deviceSuggestionContainer.setImportantForAccessibility(
+                        View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+                return;
+            }
+        }
+        deviceSuggestionButton.setVisibility(View.GONE);
+        // Change the importantForAccessibility attribute instead of visibility since the latter
+        // is manipulated by the TransitionLayout and the Guts animation logic.
+        deviceSuggestionContainer.setImportantForAccessibility(
+                View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+        deviceText.setVisibility(View.VISIBLE);
+        return;
+    }
+
+    private boolean isValidSuggestion(SuggestedMediaDeviceData suggestionData) {
+        int connectionState = suggestionData.getConnectionState();
+        return connectionState == MediaDeviceState.STATE_DISCONNECTED
+                || connectionState == MediaDeviceState.STATE_CONNECTING
+                || connectionState == MediaDeviceState.STATE_GROUPING
+                || connectionState == MediaDeviceState.STATE_CONNECTING_FAILED;
+    }
+
+    private void setSuggestionText(SuggestedMediaDeviceData suggestionData) {
+        String suggestionText = null;
+        switch (suggestionData.getConnectionState()) {
+            case MediaDeviceState.STATE_DISCONNECTED:
+            case MediaDeviceState.STATE_CONNECTING:
+            case MediaDeviceState.STATE_GROUPING:
+                suggestionText =
+                        mContext.getString(
+                                R.string.media_suggestion_disconnected_text,
+                                suggestionData.getName());
+                break;
+            case MediaDeviceState.STATE_CONNECTING_FAILED:
+                suggestionText = mContext.getString(R.string.media_suggestion_failure_text);
+                break;
+            default:
+                Log.wtf(TAG, "Invalid media device state for suggestion: "
+                        + suggestionData.getConnectionState());
+        }
+        mMediaViewHolder.getDeviceSuggestionText().setText(suggestionText);
+    }
+
+    private void setSuggestionIcon(SuggestedMediaDeviceData suggestionData) {
+        int connectionState = suggestionData.getConnectionState();
+        if (connectionState == MediaDeviceState.STATE_CONNECTING
+                || connectionState == MediaDeviceState.STATE_GROUPING) {
+            mMediaViewHolder.getDeviceSuggestionIcon().setVisibility(View.GONE);
+            mMediaViewHolder.getDeviceSuggestionConnectingIcon().setVisibility(View.VISIBLE);
+            return;
+        }
+        mMediaViewHolder.getDeviceSuggestionConnectingIcon().setVisibility(View.GONE);
+        mMediaViewHolder.getDeviceSuggestionIcon().setImageDrawable(suggestionData.getIcon());
+        mMediaViewHolder.getDeviceSuggestionIcon().setVisibility(View.VISIBLE);
+    }
+
+    private void setSuggestionClickListener(SuggestedMediaDeviceData suggestionData) {
+        ViewGroup deviceSuggestionContainer = mMediaViewHolder.getDeviceSuggestionContainer();
+        int connectionState = suggestionData.getConnectionState();
+        if (connectionState == MediaDeviceState.STATE_DISCONNECTED
+                || connectionState == MediaDeviceState.STATE_CONNECTING_FAILED) {
+
+            deviceSuggestionContainer.setClickable(true);
+            deviceSuggestionContainer
+                    .setOnClickListener(
+                            v -> {
+                                suggestionData.getConnect().invoke();
+                            });
+        } else {
+            deviceSuggestionContainer.setOnClickListener(null);
+            deviceSuggestionContainer.setClickable(false);
+        }
+    }
+
+    private void bindOutputSwitcherChip(MediaData data) {
         ViewGroup seamlessView = mMediaViewHolder.getSeamless();
         seamlessView.setVisibility(View.VISIBLE);
         ImageView iconView = mMediaViewHolder.getSeamlessIcon();
         TextView deviceName = mMediaViewHolder.getSeamlessText();
         final MediaDeviceData device = data.getDevice();
 
-        final boolean isTapEnabled;
-        final boolean useDisabledAlpha;
-        final int iconResource;
-        CharSequence deviceString;
-        if (showBroadcastButton) {
-            // TODO(b/233698402): Use the package name instead of app label to avoid the
-            // unexpected result.
-            mIsCurrentBroadcastedApp = device != null
-                    && TextUtils.equals(device.getName(),
-                    mContext.getString(R.string.broadcasting_description_is_broadcasting));
-            useDisabledAlpha = !mIsCurrentBroadcastedApp;
-            // Always be enabled if the broadcast button is shown
-            isTapEnabled = true;
+        // Disable clicking on output switcher for invalid devices and resumption controls
+        final boolean isDisabled =
+                (device != null && !device.getEnabled()) || data.getResumption();
+        CharSequence deviceString = mContext.getString(R.string.media_seamless_other_device);
+        final int iconResource = R.drawable.ic_media_home_devices;
 
-            // Defaults for broadcasting state
-            deviceString = mContext.getString(R.string.bt_le_audio_broadcast_dialog_unknown_name);
-            iconResource = R.drawable.settings_input_antenna;
-        } else {
-            // Disable clicking on output switcher for invalid devices and resumption controls
-            useDisabledAlpha = (device != null && !device.getEnabled()) || data.getResumption();
-            isTapEnabled = !useDisabledAlpha;
-
-            // Defaults for non-broadcasting state
-            deviceString = mContext.getString(R.string.media_seamless_other_device);
-            iconResource = R.drawable.ic_media_home_devices;
-        }
-
-        mMediaViewHolder.getSeamlessButton().setAlpha(useDisabledAlpha ? DISABLED_ALPHA : 1.0f);
-        seamlessView.setEnabled(isTapEnabled);
+        mMediaViewHolder.getSeamlessButton().setAlpha(isDisabled ? DISABLED_ALPHA : 1.0f);
+        seamlessView.setEnabled(!isDisabled);
 
         if (device != null) {
             Drawable icon = device.getIcon();
@@ -687,58 +759,38 @@ public class MediaControlPanel {
                         return;
                     }
 
-                    if (showBroadcastButton) {
-                        // If the current media app is not broadcasted and users press the outputer
-                        // button, we should pop up the broadcast dialog to check do they want to
-                        // switch broadcast to the other media app, otherwise we still pop up the
-                        // media output dialog.
-                        if (!mIsCurrentBroadcastedApp) {
-                            mLogger.logOpenBroadcastDialog(mUid, mPackageName, mInstanceId);
-                            mCurrentBroadcastApp = device.getName().toString();
-                            mBroadcastDialogController.createBroadcastDialog(mCurrentBroadcastApp,
-                                    mPackageName, mMediaViewHolder.getSeamlessButton());
-                        } else {
-                            mLogger.logOpenOutputSwitcher(mUid, mPackageName, mInstanceId);
-                            mMediaOutputDialogManager.createAndShow(
-                                    mPackageName,
-                                    /* aboveStatusBar */ true,
-                                    mMediaViewHolder.getSeamlessButton(),
-                                    UserHandle.getUserHandleForUid(mUid),
-                                    mToken);
-                        }
-                    } else {
-                        mLogger.logOpenOutputSwitcher(mUid, mPackageName, mInstanceId);
-                        if (device.getIntent() != null) {
-                            PendingIntent deviceIntent = device.getIntent();
-                            boolean showOverLockscreen = mKeyguardStateController.isShowing()
-                                    && mActivityIntentHelper.wouldPendingShowOverLockscreen(
-                                    deviceIntent, mLockscreenUserManager.getCurrentUserId());
-                            if (deviceIntent.isActivity()) {
-                                if (!showOverLockscreen) {
-                                    mActivityStarter.postStartActivityDismissingKeyguard(
-                                            deviceIntent);
-                                } else {
-                                    try {
-                                        BroadcastOptions options = BroadcastOptions.makeBasic();
-                                        options.setInteractive(true);
-                                        options.setPendingIntentBackgroundActivityStartMode(
-                                            ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
-                                        deviceIntent.send(options.toBundle());
-                                    } catch (PendingIntent.CanceledException e) {
-                                        Log.e(TAG, "Device pending intent was canceled");
-                                    }
-                                }
+                    mLogger.logOpenOutputSwitcher(mUid, mPackageName, mInstanceId);
+                    if (device.getIntent() != null) {
+                        PendingIntent deviceIntent = device.getIntent();
+                        boolean showOverLockscreen =
+                                mKeyguardStateController.isShowing()
+                                        && mActivityIntentHelper.wouldPendingShowOverLockscreen(
+                                        deviceIntent,
+                                        mLockscreenUserManager.getCurrentUserId());
+                        if (deviceIntent.isActivity()) {
+                            if (!showOverLockscreen) {
+                                mActivityStarter.postStartActivityDismissingKeyguard(deviceIntent);
                             } else {
-                                Log.w(TAG, "Device pending intent is not an activity.");
+                                try {
+                                    BroadcastOptions options = BroadcastOptions.makeBasic();
+                                    options.setInteractive(true);
+                                    options.setPendingIntentBackgroundActivityStartMode(
+                                            ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED);
+                                    deviceIntent.send(options.toBundle());
+                                } catch (PendingIntent.CanceledException e) {
+                                    Log.e(TAG, "Device pending intent was canceled");
+                                }
                             }
                         } else {
-                            mMediaOutputDialogManager.createAndShow(
-                                    mPackageName,
-                                    /* aboveStatusBar */ true,
-                                    mMediaViewHolder.getSeamlessButton(),
-                                    UserHandle.getUserHandleForUid(mUid),
-                                    mToken);
+                            Log.w(TAG, "Device pending intent is not an activity.");
                         }
+                    } else {
+                        mMediaOutputDialogManager.createAndShow(
+                                mPackageName,
+                                /* aboveStatusBar */ true,
+                                mMediaViewHolder.getSeamlessButton(),
+                                UserHandle.getUserHandleForUid(mUid),
+                                mToken);
                     }
                 });
     }
@@ -795,8 +847,6 @@ public class MediaControlPanel {
                 });
     }
 
-    // We may want to look into unifying this with bindRecommendationContentDescription if/when we
-    // do a refactor of this class.
     private void bindPlayerContentDescription(MediaData data) {
         if (mMediaViewHolder == null) {
             return;
@@ -840,9 +890,10 @@ public class MediaControlPanel {
             boolean isArtworkBound;
             Icon artworkIcon = data.getArtwork();
             WallpaperColors wallpaperColors = getWallpaperColor(artworkIcon);
-            boolean darkTheme = !Flags.mediaControlsA11yColors();
+            boolean darkTheme = false;
             if (wallpaperColors != null) {
-                mutableColorScheme = new ColorScheme(wallpaperColors, darkTheme, Style.CONTENT);
+                mutableColorScheme = new ColorScheme(wallpaperColors, darkTheme,
+                        ThemeStyle.CONTENT);
                 artwork = addGradientToPlayerAlbum(artworkIcon, mutableColorScheme, finalWidth,
                         finalHeight);
                 isArtworkBound = true;
@@ -854,7 +905,7 @@ public class MediaControlPanel {
                     Drawable icon = mContext.getPackageManager()
                             .getApplicationIcon(data.getPackageName());
                     mutableColorScheme = new ColorScheme(WallpaperColors.fromDrawable(icon),
-                            darkTheme, Style.CONTENT);
+                            darkTheme, ThemeStyle.CONTENT);
                 } catch (PackageManager.NameNotFoundException e) {
                     Log.w(TAG, "Cannot find icon for package " + data.getPackageName(), e);
                 }
@@ -955,32 +1006,16 @@ public class MediaControlPanel {
         Drawable albumArt = getScaledBackground(artworkIcon, width, height);
         GradientDrawable gradient = (GradientDrawable) mContext.getDrawable(
                 R.drawable.qs_media_scrim).mutate();
-        if (Flags.mediaControlsA11yColors()) {
-            return setupGradientColorOnDrawable(albumArt, gradient, mutableColorScheme,
-                    MEDIA_PLAYER_SCRIM_START_ALPHA, MEDIA_PLAYER_SCRIM_END_ALPHA);
-        }
         return setupGradientColorOnDrawable(albumArt, gradient, mutableColorScheme,
-                MEDIA_PLAYER_SCRIM_START_ALPHA_LEGACY, MEDIA_PLAYER_SCRIM_END_ALPHA_LEGACY);
+                MEDIA_PLAYER_SCRIM_START_ALPHA, MEDIA_PLAYER_SCRIM_END_ALPHA);
     }
 
     private LayerDrawable setupGradientColorOnDrawable(Drawable albumArt, GradientDrawable gradient,
             ColorScheme mutableColorScheme, float startAlpha, float endAlpha) {
-        int startColor;
-        int endColor;
-        if (Flags.mediaControlsA11yColors()) {
-            startColor = MediaColorSchemesKt.backgroundFromScheme(mutableColorScheme);
-            endColor = startColor;
-        } else {
-            startColor = MediaColorSchemesKt.backgroundStartFromScheme(mutableColorScheme);
-            endColor = MediaColorSchemesKt.backgroundEndFromScheme(mutableColorScheme);
-        }
+        int color = MediaColorSchemesKt.backgroundFromScheme(mutableColorScheme);
         gradient.setColors(new int[]{
-                ColorUtilKt.getColorWithAlpha(
-                        startColor,
-                        startAlpha),
-                ColorUtilKt.getColorWithAlpha(
-                        endColor,
-                        endAlpha),
+                ColorUtilKt.getColorWithAlpha(color, startAlpha),
+                ColorUtilKt.getColorWithAlpha(color, endAlpha),
         });
         return new LayerDrawable(new Drawable[]{albumArt, gradient});
     }
@@ -1054,6 +1089,54 @@ public class MediaControlPanel {
         }
 
         updateSeekBarVisibility();
+    }
+
+    private void bindPageButtons() {
+        if (!Flags.mediaCarouselArrows()) return;
+
+        ImageButton pageLeft = mMediaViewHolder.getPageLeft();
+        pageLeft.setOnClickListener(v -> {
+            mMediaCarouselController.getMediaCarouselScrollHandler().scrollByStep(-1);
+            mMultiRippleController.play(createTouchRippleAnimation(pageLeft));
+        });
+
+        ImageButton pageRight = mMediaViewHolder.getPageRight();
+        pageRight.setOnClickListener(v -> {
+            mMediaCarouselController.getMediaCarouselScrollHandler().scrollByStep(1);
+            mMultiRippleController.play(createTouchRippleAnimation(pageRight));
+        });
+    }
+
+    void setPageArrowsVisible(boolean visible) {
+        if (!Flags.mediaCarouselArrows() || mPageArrowsVisible == visible) return;
+        mPageArrowsVisible = visible;
+
+        ConstraintSet expandedSet = mMediaViewController.getExpandedLayout();
+        setVisibleAndAlpha(expandedSet, R.id.page_left, visible);
+        setVisibleAndAlpha(expandedSet, R.id.page_right, visible);
+
+        ConstraintSet collapsedSet = mMediaViewController.getCollapsedLayout();
+        setVisibleAndAlpha(collapsedSet, R.id.page_left, visible);
+        setVisibleAndAlpha(collapsedSet, R.id.page_right, visible);
+
+        int guidelineDimen = visible
+                ? R.dimen.qs_media_session_collapsed_guideline_with_arrows
+                : R.dimen.qs_media_session_collapsed_guideline;
+        collapsedSet.setGuidelineEnd(
+                R.id.action_button_guideline,
+                mContext.getResources().getDimensionPixelSize(guidelineDimen));
+    }
+
+    void setPageLeftEnabled(boolean enabled) {
+        if (!Flags.mediaCarouselArrows()) return;
+        ImageButton pageLeft = mMediaViewHolder.getPageLeft();
+        pageLeft.setEnabled(enabled);
+    }
+
+    void setPageRightEnabled(boolean enabled) {
+        if (!Flags.mediaCarouselArrows()) return;
+        ImageButton pageRight = mMediaViewHolder.getPageRight();
+        pageRight.setEnabled(enabled);
     }
 
     private void updateSeekBarVisibility() {
@@ -1190,9 +1273,7 @@ public class MediaControlPanel {
         int width = targetView.getWidth();
         int height = targetView.getHeight();
         Random random = new Random();
-        float luminosity = (Flags.mediaControlsA11yColors())
-                ? 0.6f
-                : TurbulenceNoiseAnimationConfig.DEFAULT_LUMINOSITY_MULTIPLIER;
+        float luminosity = 0.6f;
 
         return new TurbulenceNoiseAnimationConfig(
                 /* gridCount= */ 2.14f,
@@ -1240,7 +1321,7 @@ public class MediaControlPanel {
         int notVisibleValue;
         if (!shouldBeHiddenDueToScrubbing
                 && ((buttonId == R.id.actionPrev && semanticActions.getReservePrev())
-                    || (buttonId == R.id.actionNext && semanticActions.getReserveNext()))) {
+                || (buttonId == R.id.actionNext && semanticActions.getReserveNext()))) {
             notVisibleValue = ConstraintSet.INVISIBLE;
             mMediaViewHolder.getAction(buttonId).setFocusable(visible);
             mMediaViewHolder.getAction(buttonId).setClickable(visible);
@@ -1280,7 +1361,7 @@ public class MediaControlPanel {
         return semanticActions != null && SEMANTIC_ACTIONS_HIDE_WHEN_SCRUBBING.stream().allMatch(
                 id -> (semanticActions.getActionById(id) != null
                         || ((id == R.id.actionPrev && semanticActions.getReservePrev())
-                            || (id == R.id.actionNext && semanticActions.getReserveNext())))
+                        || (id == R.id.actionNext && semanticActions.getReserveNext())))
         );
     }
 

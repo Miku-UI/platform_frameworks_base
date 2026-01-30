@@ -359,6 +359,17 @@ final class FakeHdmiCecConfig extends HdmiCecConfig {
         doReturn(true).when(resources).getBoolean(R.bool.config_cecQuerySadMaxDisabled_allowed);
         doReturn(false).when(resources).getBoolean(R.bool.config_cecQuerySadMaxDisabled_default);
 
+        doReturn(false).when(resources).getBoolean(
+                R.bool.config_cecTvBehaviorOnStandbyMessage_userConfigurable);
+        doReturn(true).when(resources).getBoolean(
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToSleep_allowed);
+        doReturn(true).when(resources).getBoolean(
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToSleep_default);
+        doReturn(true).when(resources).getBoolean(
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToDream_allowed);
+        doReturn(false).when(resources).getBoolean(
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToDream_default);
+
         doReturn(true).when(resources).getBoolean(
                 R.bool.config_earcEnabled_userConfigurable);
         doReturn(true).when(resources).getBoolean(

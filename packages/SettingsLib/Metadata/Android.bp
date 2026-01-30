@@ -2,17 +2,15 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-filegroup {
-    name: "SettingsLibMetadata-srcs",
-    srcs: ["src/**/*.kt"],
-}
-
 android_library {
     name: "SettingsLibMetadata",
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
-    srcs: [":SettingsLibMetadata-srcs"],
+    sdk_version: "system_current",
+    min_sdk_version: "23",
+    srcs: ["src/**/*.kt"],
     static_libs: [
         "SettingsLibDataStore",
         "androidx.annotation_annotation",

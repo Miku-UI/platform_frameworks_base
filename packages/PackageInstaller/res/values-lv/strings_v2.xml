@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Nepieciešama atļauja"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Instalēšana ir bloķēta"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Notiek lietotnes sagatavošana…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Vai instalēt šo lietotni?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Notiek instalēšana…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Lietotne ir instalēta"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Vai atkārtoti instalēt šo lietotni?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Notiek atkārtota instalēšana…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Lietotne ir atkārtoti instalēta"</string>
+    <string name="title_update" msgid="1747328630716712391">"Vai atjaunināt šo lietotni?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Vai atjaunināt šo lietotni, izmantojot <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Notiek atjaunināšana…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Lietotne ir atjaunināta"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Nevar instalēt lietotni"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Instalēšana ir bloķēta"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Lietotne nav saderīga"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Nederīga pakotne"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Krātuvē nepietiek vietas"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Lietotne nav instalēta"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Vai atinstalēt šo lietotni?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Vai dzēst šo lietotnes klonu?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Vai atinstalēt lietotnes atjauninājumus?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Vai atinstalēt lietotņu atjauninājumus visiem lietotājiem?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Vai atinstalēt šo lietotni visiem lietotājiem?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Vai atinstalēt šo lietotni lietotājam <xliff:g id="USER_NAME">%1$s</xliff:g>?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Lietotne nav atrasta"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Nevar atinstalēt šo lietotni"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Lietotne nav atinstalēta"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Vai arhivēt šo lietotni?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Vai arhivēt šo lietotni visiem lietotājiem?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Vai arhivēt šo lietotni lietotājam <xliff:g id="USER_NAME">%1$s</xliff:g>?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Vai atjaunot šo lietotni?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Nepieciešama darbība"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Krātuvē nepietiek vietas"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Jūs esat bezsaistē"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"Programma <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ir atspējota"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"Lietotne <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> nav instalēta"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Radās problēma"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Šī lietotne parasti saņem atjauninājumus no &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Veicot atjaunināšanu no cita avota, iespējams, turpmāk planšetdatorā saņemsiet atjauninājumus no jebkāda avota. Lietotnes funkcionalitāte var mainīties."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Šī lietotne parasti saņem atjauninājumus no &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Veicot atjaunināšanu no cita avota, iespējams, turpmāk televizorā saņemsiet atjauninājumus no jebkāda avota. Lietotnes funkcionalitāte var mainīties."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Šī lietotne parasti saņem atjauninājumus no &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Veicot atjaunināšanu no cita avota, iespējams, turpmāk tālrunī saņemsiet atjauninājumus no jebkāda avota. Lietotnes funkcionalitāte var mainīties."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Drošības apsvērumu dēļ jūsu planšetdatorā pašlaik nav atļauts instalēt nezināmas lietotnes no šī avota. Šo atļauju varat mainīt iestatījumos."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Drošības apsvērumu dēļ jūsu televizorā pašlaik nav atļauts instalēt nezināmas lietotnes no šī avota. Šo atļauju varat mainīt iestatījumos."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Drošības apsvērumu dēļ jūsu pulkstenī pašlaik nav atļauts instalēt nezināmas lietotnes no šī avota. Šo atļauju varat mainīt iestatījumos."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Drošības apsvērumu dēļ jūsu tālrunī pašlaik nav atļauts instalēt nezināmas lietotnes no šī avota. Šo atļauju varat mainīt iestatījumos."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Jūsu tālrunis un personīgie dati ir neaizsargātāki pret uzbrukumiem no nezināmām lietotnēm. Instalējot šo lietotni, jūs piekrītat, ka esat atbildīgs par tālruņa bojājumiem vai datu zudumu, kas var rasties lietotnes dēļ."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Jūsu planšetdators un personīgie dati ir neaizsargātāki pret uzbrukumiem no nezināmām lietotnēm. Instalējot šo lietotni, jūs piekrītat, ka esat atbildīgs par planšetdatora bojājumiem vai datu zudumu, kas var rasties lietotnes dēļ."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Jūsu televizors un personīgie dati ir neaizsargātāki pret uzbrukumiem no nezināmām lietotnēm. Instalējot šo lietotni, jūs piekrītat, ka esat atbildīgs par televizora bojājumiem vai datu zudumu, kas var rasties lietotnes dēļ."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Šīs lietotnes instalēšana tika bloķēta."</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Šī lietotne nav saderīga ar kādu citu lietotni, kas jau ir jūsu ierīcē."</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Šī lietotne nav saderīga ar jūsu ierīci."</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Radās problēma ar šīs lietotnes instalēšanas failu."</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Lai instalētu šo lietotni, atbrīvojiet vietu un mēģiniet vēlreiz."</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Radās problēma ar lietotnes failu."</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Lietotņu instalēšana ir ierobežota."</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Nezināmu lietotņu instalēšana ir ierobežota."</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Pastāv arī šīs lietotnes klons, kas tiks dzēsts."</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Šī lietotne ir lietotnes <xliff:g id="APP_LABEL">%1$s</xliff:g> klons."</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Šī lietotne tiks aizstāta ar rūpnīcas versiju. Visi lietotnes dati tiks noņemti."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Šī lietotne tiks aizstāta ar rūpnīcas versiju visiem ierīces lietotājiem. Visi lietotnes dati tiks noņemti."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Šī lietotne tiks atinstalēta no jūsu darba profila."</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Šī lietotne tiks atinstalēta no jūsu privātās telpas."</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Šī lietotne netika atrasta instalēto lietotņu sarakstā vai jau ir atinstalēta."</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Pašreizējam lietotājam nav atļauts veikt šādu atinstalēšanu."</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Šo lietotni nevarēja atinstalēt."</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Paturēt lietotnes datus"</string>
+    <string name="message_archive" msgid="943853731737315850">"Jūsu lietotnes dati tiks saglabāti."</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Visi lietotnes dati tiks saglabāti."</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Lietotnes dati tiks saglabāti."</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Šī lietotne tiks arhivēta no jūsu darba profila. Jūsu lietotnes dati tiks saglabāti."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Šī lietotne tiks arhivēta no jūsu privātās telpas. Jūsu lietotnes dati tiks saglabāti."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Šī lietotne tiks lejupielādēta fonā no: <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>."</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"Lai varētu atjaunot šo lietotni, programmai <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ir nepieciešama plašāka informācija."</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Lai atjaunotu šo lietotni, atbrīvojiet vietu &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; apmērā un mēģiniet vēlreiz."</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Lai atjaunotu šo lietotni, pārbaudiet interneta savienojumu un mēģiniet vēlreiz."</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Lai atjaunotu šo lietotni, iestatījumos iespējojiet <xliff:g id="INSTALLERNAME">%1$s</xliff:g>."</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Lai atjaunotu šo lietotni, jums ir jāinstalē <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>."</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Mēģinot atjaunot šo lietotni, radās problēma."</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> ir daļa no lietotnes <xliff:g id="APP_NAME">%2$s</xliff:g>."</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Šī lietotne tika bloķēta. Lai aizsargātu jūsu ierīci un datus, var instalēt tikai lietotnes no verificētiem izstrādātājiem.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Šī lietotne netika atjaunināta. Lai aizsargātu jūsu ierīci un datus, var instalēt tikai atjauninājumus no verificētiem izstrādātājiem.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Šī lietotne netika instalēta. Lietotnes no neverificētiem izstrādātājiem var būt nedrošas.&lt;/p&gt; &lt;p&gt;Lai verificētu lietotnes izstrādātāju, ir nepieciešams interneta savienojums. Pārbaudiet savienojumu un pēc tam mēģiniet vēlreiz instalēt lietotni. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Šī lietotne netika atjaunināta. Atjauninājumi no neverificētiem izstrādātājiem var būt nedroši.&lt;/p&gt; &lt;p&gt;Lai verificētu lietotnes izstrādātāju, ir nepieciešams interneta savienojums. Pārbaudiet savienojumu un pēc tam mēģiniet vēlreiz atjaunināt lietotni. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Verificējot šīs lietotnes izstrādātāju, radās problēma. Lietotnes no neverificētiem izstrādātājiem var būt nedrošas, tādēļ lietotne netika instalēta.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Verificējot šīs lietotnes izstrādātāju, radās problēma. Atjauninājumi no neverificētiem izstrādātājiem var būt nedroši, tādēļ lietotne netika atjaunināta.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Šī lietotne tika bloķēta, jo radās problēma ar izstrādātāja verifikāciju. Lai aizsargātu jūsu ierīci un datus, var instalēt tikai lietotnes no verificētiem izstrādātājiem.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Šī lietotne netika atjaunināta, jo radās problēma ar izstrādātāja verifikāciju. Lai aizsargātu jūsu ierīci un datus, var instalēt tikai atjauninājumus no verificētiem izstrādātājiem.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Uzziniet vairāk par izstrādātāju verifikāciju.&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Ja instalēsiet lietotni, neveicot verifikāciju, ņemiet vērā, ka lietotnes no neverificētiem izstrādātājiem var apdraudēt jūsu ierīci un datus."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Ja atjaunināsiet lietotni, neveicot verifikāciju, ņemiet vērā, ka atjauninājumi no neverificētiem izstrādātājiem var apdraudēt jūsu ierīci un datus."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Lietotnes izstrādātājs nav verificēts"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Nav interneta savienojuma — nevar verificēt lietotnes izstrādātāju"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Nevar verificēt lietotnes izstrādātāju"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Instalēt bez verifikācijas"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Atjaunināt bez verifikācijas"</string>
+    <string name="button_install" msgid="7434013176505680162">"Instalēt"</string>
+    <string name="button_update" msgid="3046719350226327526">"Atjaunināt"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Tik un tā atjaunināt"</string>
+    <string name="button_done" msgid="3408025390982260629">"Gatavs"</string>
+    <string name="button_open" msgid="6892684987374117955">"Atvērt"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Atcelt"</string>
+    <string name="button_continue" msgid="107501685249826244">"Turpināt"</string>
+    <string name="button_close" msgid="7187308556466275899">"Aizvērt"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Atinstalēt"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Dzēst"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Atkārtoti instalēt"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Pārvaldīt lietotnes"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Arhivēt"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Atjaunot"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Atinstalēt atjauninājumus"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Iestatījumi"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Mēģināt vēlreiz"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Lietotnes <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> klons"</string>
+</resources>

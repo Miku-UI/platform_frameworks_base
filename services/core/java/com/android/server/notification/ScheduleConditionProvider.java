@@ -262,13 +262,8 @@ public class ScheduleConditionProvider extends SystemConditionProviderService {
             filter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
             filter.addAction(ACTION_EVALUATE);
             filter.addAction(AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED);
-            if (android.app.Flags.modesHsum()) {
-                registerReceiverForAllUsers(mReceiver, filter, /* broadcastPermission= */ null,
-                        /* scheduler= */ null);
-            } else {
-                registerReceiver(mReceiver, filter,
-                        Context.RECEIVER_EXPORTED_UNAUDITED);
-            }
+            registerReceiverForAllUsers(mReceiver, filter, /* broadcastPermission= */ null,
+                    /* scheduler= */ null);
         } else {
             unregisterReceiver(mReceiver);
         }
@@ -346,12 +341,10 @@ public class ScheduleConditionProvider extends SystemConditionProviderService {
         @Override
         public void onReceive(Context context, Intent intent) {
             if (DEBUG) Slog.d(TAG, "onReceive " + intent.getAction());
-            if (android.app.Flags.modesHsum()) {
-                if (AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED.equals(intent.getAction())
-                        && getSendingUserId() != ActivityManager.getCurrentUser()) {
-                    // A different user changed their next alarm.
-                    return;
-                }
+            if (AlarmManager.ACTION_NEXT_ALARM_CLOCK_CHANGED.equals(intent.getAction())
+                    && getSendingUserId() != ActivityManager.getCurrentUser()) {
+                // A different user changed their next alarm.
+                return;
             }
 
             if (Intent.ACTION_TIMEZONE_CHANGED.equals(intent.getAction())) {

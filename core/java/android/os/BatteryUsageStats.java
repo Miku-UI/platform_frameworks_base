@@ -21,6 +21,7 @@ import android.annotation.NonNull;
 import android.database.Cursor;
 import android.database.CursorWindow;
 import android.util.Range;
+import android.util.Slog;
 import android.util.SparseArray;
 import android.util.proto.ProtoOutputStream;
 
@@ -62,6 +63,8 @@ import java.util.Map;
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class BatteryUsageStats implements Parcelable, Closeable {
+
+    private static final String TAG = "BatteryUsageStats";
 
     /**
      * Scope of battery stats included in a BatteryConsumer: the entire device, just
@@ -591,7 +594,8 @@ public final class BatteryUsageStats implements Parcelable, Closeable {
         pw.println("  Estimated power use (mAh):");
         pw.print(prefix);
         pw.print("    Capacity: ");
-        pw.print(BatteryStats.formatCharge(getBatteryCapacity()));
+        final double capacity = getBatteryCapacity();
+        pw.print(BatteryStats.formatCharge(capacity));
         pw.print(", Computed drain: ");
         pw.print(BatteryStats.formatCharge(getConsumedPower()));
         final Range<Double> dischargedPowerRange = getDischargedPowerRange();
@@ -615,6 +619,12 @@ public final class BatteryUsageStats implements Parcelable, Closeable {
             final double appsPowerMah = appsConsumer.getConsumedPower(powerComponent);
             if (devicePowerMah == 0 && appsPowerMah == 0) {
                 continue;
+            }
+
+            if (devicePowerMah >= capacity || appsPowerMah >= capacity) {
+                Slog.wtfStack(TAG, "[dump] Estimated battery usage for "
+                        + mBatteryConsumerDataLayout.getPowerComponentName(powerComponent)
+                        + " is greater than total battery size " + capacity);
             }
 
             printPowerComponent(pw, prefix,

@@ -33,12 +33,15 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.window.DesktopExperienceFlags
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.animation.doOnEnd
 import androidx.core.animation.doOnStart
 import com.android.internal.logging.UiEventLogger
+import com.android.systemui.Flags
+import com.android.systemui.Flags.screenshotAnnounceLiveRegion
 import com.android.systemui.log.DebugLogger.debugLog
 import com.android.systemui.res.R
 import com.android.systemui.screenshot.LogConfig.DEBUG_DISMISS
@@ -186,20 +189,29 @@ constructor(
             return
         }
         event?.let { logger.log(it, 0, packageName) }
-        val animator = animationController.getSwipeDismissAnimation(velocity)
-        animator.addListener(
-            object : AnimatorListenerAdapter() {
-                override fun onAnimationStart(animator: Animator) {
-                    isDismissing = true
-                }
 
-                override fun onAnimationEnd(animator: Animator) {
-                    isDismissing = false
-                    callbacks?.onDismiss()
-                }
+        if (SCREENSHOT_DISMISSAL_SPRING.isTrue()) {
+            animationController.startDismissal(velocity) {
+                isDismissing = false
+                callbacks?.onDismiss()
             }
-        )
-        animator.start()
+            isDismissing = true
+        } else {
+            val animator = animationController.getSwipeDismissAnimation(velocity)
+            animator.addListener(
+                object : AnimatorListenerAdapter() {
+                    override fun onAnimationStart(animator: Animator) {
+                        isDismissing = true
+                    }
+
+                    override fun onAnimationEnd(animator: Animator) {
+                        isDismissing = false
+                        callbacks?.onDismiss()
+                    }
+                }
+            )
+            animator.start()
+        }
     }
 
     fun prepareScrollingTransition(
@@ -208,6 +220,9 @@ constructor(
         screenshotTakenInPortrait: Boolean,
         onTransitionPrepared: Runnable,
     ) {
+        if (screenshotAnnounceLiveRegion()) {
+            setSavingAnnouncement("")
+        }
         viewModel.setScrollingScrimBitmap(newScreenshot)
         viewModel.setScrollableRect(scrollableAreaOnScreen(response))
         animationController.fadeForLongScreenshotTransition()
@@ -262,7 +277,13 @@ constructor(
         view.requestFocus()
     }
 
-    fun announceForAccessibility(string: String) = view.announceForAccessibility(string)
+    fun setSavingAnnouncement(string: String) {
+        view.setSavingAnnouncement(string)
+    }
+
+    fun announceForAccessibility(string: String) {
+        view.announceForAccessibility(string)
+    }
 
     fun prepareEntranceAnimation(runnable: Runnable) {
         view.viewTreeObserver.addOnPreDrawListener(
@@ -278,6 +299,9 @@ constructor(
     }
 
     fun fadeForSharedTransition() {
+        if (screenshotAnnounceLiveRegion()) {
+            setSavingAnnouncement("")
+        }
         animationController.fadeForSharedTransition()
     }
 
@@ -333,7 +357,11 @@ constructor(
                         if (
                             ev is MotionEvent &&
                                 ev.actionMasked == MotionEvent.ACTION_DOWN &&
-                                !getTouchRegion().contains(ev.rawX.toInt(), ev.rawY.toInt())
+                                !view
+                                    .getObservedRegion(
+                                        windowManager.currentWindowMetrics.windowInsets
+                                    )
+                                    .contains(ev.rawX.toInt(), ev.rawY.toInt())
                         ) {
                             callbacks?.onTouchOutside()
                         }
@@ -342,11 +370,16 @@ constructor(
     }
 
     private fun getTouchRegion(): Region {
-        return view.getTouchRegion(
-            windowManager.currentWindowMetrics.windowInsets.getInsets(
-                WindowInsets.Type.systemGestures()
+        return view.getTouchRegion(windowManager.currentWindowMetrics.windowInsets)
+    }
+
+    companion object {
+        val SCREENSHOT_DISMISSAL_SPRING =
+            DesktopExperienceFlags.DesktopExperienceFlag(
+                Flags::screenshotDismissalSpring,
+                /* shouldOverrideByDevOption= */ true,
+                Flags.FLAG_SCREENSHOT_DISMISSAL_SPRING,
             )
-        )
     }
 
     @AssistedFactory

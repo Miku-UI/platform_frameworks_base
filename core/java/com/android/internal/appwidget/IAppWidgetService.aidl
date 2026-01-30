@@ -21,15 +21,17 @@ import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.ParceledListSlice;
+import android.appwidget.AppWidgetEvent;
 import android.appwidget.AppWidgetProviderInfo;
 import com.android.internal.appwidget.IAppWidgetHost;
 import android.os.Bundle;
+import android.os.PersistableBundle;
 import android.os.IBinder;
 import android.widget.RemoteViews;
 import android.app.IApplicationThread;
 import android.app.IServiceConnection;
 
-/** {@hide} */
+/** @hide */
 interface IAppWidgetService {
 
     //
@@ -86,5 +88,12 @@ interface IAppWidgetService {
     @nullable RemoteViews getWidgetPreview(in String callingPackage,
             in ComponentName providerComponent, in int profileId, in int widgetCategory);
     void removeWidgetPreview(in ComponentName providerComponent, in int widgetCategories);
+    oneway void reportWidgetEvents(in String callingPackage, in AppWidgetEvent[] events);
+    ParceledListSlice queryAppWidgetEvents(in String callingPackage, in long beginTime,
+            in long endTime);
+
+    // For legacy list migration
+    boolean isFirstConfigActivityPending(in String callingPackage, in int appWidgetId);
+    oneway void setConfigActivityComplete(in int appWidgetId);
 }
 

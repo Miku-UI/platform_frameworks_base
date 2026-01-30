@@ -19,40 +19,45 @@ package com.android.systemui.qs.panels.data.repository
 import android.content.res.Resources
 import com.android.systemui.common.ui.data.repository.ConfigurationRepository
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.emitOnStart
 import javax.inject.Inject
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.stateIn
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SysUISingleton
 class LargeTileSpanRepository
 @Inject
 constructor(
-    @Application scope: CoroutineScope,
     @ShadeDisplayAware private val resources: Resources,
     @ShadeDisplayAware configurationRepository: ConfigurationRepository,
 ) {
-    val span: StateFlow<Int> =
+    val useExtraLargeTiles: Flow<Boolean> =
         configurationRepository.onConfigurationChange
             .emitOnStart()
-            .mapLatest {
-                if (resources.configuration.fontScale >= FONT_SCALE_THRESHOLD) {
-                    resources.getInteger(R.integer.quick_settings_infinite_grid_tile_max_width)
-                } else {
-                    2
-                }
-            }
+            .mapLatest { currentUseExtraLargeTiles }
             .distinctUntilChanged()
-            .stateIn(scope, SharingStarted.WhileSubscribed(), 2)
+
+    val tileMaxWidth: Flow<Int> =
+        configurationRepository.onConfigurationChange
+            .emitOnStart()
+            .mapLatest { currentTileMaxWidth }
+            .distinctUntilChanged()
+
+    val defaultTileMaxWidth: Int = DEFAULT_LARGE_TILE_WIDTH
+
+    val currentUseExtraLargeTiles: Boolean
+        get() = resources.configuration.fontScale >= FONT_SCALE_THRESHOLD
+
+    val currentTileMaxWidth: Int
+        get() = resources.getInteger(R.integer.quick_settings_infinite_grid_tile_max_width)
 
     private companion object {
-        const val FONT_SCALE_THRESHOLD = 2f
+        const val FONT_SCALE_THRESHOLD = 1.8f
+        const val DEFAULT_LARGE_TILE_WIDTH = 2
     }
 }

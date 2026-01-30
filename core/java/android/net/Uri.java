@@ -1985,7 +1985,7 @@ public abstract class Uri implements Parcelable, Comparable<Uri> {
      */
     public static String encodeIfNotEncoded(@Nullable String value, @Nullable String allow) {
         if (value == null) return null;
-        if (!Flags.encodeAppIntent() || isEncoded(value, allow)) return value;
+        if (isEncoded(value, allow)) return value;
         return encode(value, allow);
     }
 
@@ -2036,7 +2036,7 @@ public abstract class Uri implements Parcelable, Comparable<Uri> {
      */
     public static String decodeIfNeeded(@Nullable String value) {
         if (value == null) return null;
-        if (Flags.encodeAppIntent() && value.contains("%")) return decode(value);
+        if (value.contains("%")) return decode(value);
         return value;
     }
 

@@ -18,12 +18,14 @@ package com.android.server.companion.virtual;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.UserIdInt;
 import android.companion.virtual.IVirtualDevice;
 import android.companion.virtual.VirtualDevice;
 import android.companion.virtual.VirtualDeviceManager;
 import android.companion.virtual.VirtualDeviceParams;
 import android.companion.virtual.sensor.VirtualSensor;
 import android.content.Context;
+import android.content.Intent;
 import android.hardware.display.IVirtualDisplayCallback;
 import android.os.LocaleList;
 import android.util.ArraySet;
@@ -38,17 +40,18 @@ import java.util.function.Consumer;
  */
 public abstract class VirtualDeviceManagerInternal {
 
-    /** Interface to listen to the changes on the list of app UIDs running on any virtual device. */
+    /** Interface to listen to the changes on the list of app UIDs running on virtual devices. */
     public interface AppsOnVirtualDeviceListener {
-        /** Notifies that running apps on any virtual device has changed */
-        void onAppsOnAnyVirtualDeviceChanged(Set<Integer> allRunningUids);
+        /** Notifies that running apps on the virtual device with the given id has changed */
+        void onAppsRunningOnVirtualDeviceChanged(
+                int deviceId, @NonNull ArraySet<Integer> runningUids);
     }
 
-    /** Register a listener for changes of running app UIDs on any virtual device. */
+    /** Register a listener for changes of running app UIDs on virtual devices. */
     public abstract void registerAppsOnVirtualDeviceListener(
             @NonNull AppsOnVirtualDeviceListener listener);
 
-    /** Unregister a listener for changes of running app UIDs on any virtual device. */
+    /** Unregister a listener for changes of running app UIDs on virtual devices. */
     public abstract void unregisterAppsOnVirtualDeviceListener(
             @NonNull AppsOnVirtualDeviceListener listener);
 
@@ -61,21 +64,9 @@ public abstract class VirtualDeviceManagerInternal {
             @NonNull Consumer<String> persistentDeviceIdRemovedListener);
 
     /**
-     * Notifies that the set of apps running on virtual devices has changed.
-     * This method only notifies the listeners when the union of running UIDs on all virtual devices
-     * has changed.
-     */
-    public abstract void onAppsOnVirtualDeviceChanged();
-
-    /**
      * Notifies that an authentication prompt is about to be shown for an app with the given uid.
      */
     public abstract void onAuthenticationPrompt(int uid);
-
-    /**
-     * Notifies the given persistent device IDs have been removed.
-     */
-    public abstract void onPersistentDeviceIdsRemoved(Set<String> removedPersistentDeviceIds);
 
     /**
      * Gets the owner uid for a deviceId.
@@ -227,4 +218,26 @@ public abstract class VirtualDeviceManagerInternal {
      */
     @Nullable
     public abstract VirtualDevice getVirtualDevice(int deviceId);
+
+    /**
+     * Returns if the provided displayId is used for computer control session.
+     */
+    public abstract boolean isComputerControlDisplay(int displayId);
+
+    /**
+     * Returns the intent to replace the original intent launching an application that is being
+     * automated.
+     *
+     * <p>If the given package is not being automated for this user, or if no intent interception
+     * is needed, returns {@code null}.</p>
+     *
+     * @param packageName the app being launched
+     * @param userId the user associated with that app
+     * @param callingPackageName the package of the app that initiated the launch
+     * @param displayId the display id where the app is being launched
+     */
+    @Nullable
+    public abstract Intent createAutomatedAppLaunchWarningIntent(
+            @NonNull String packageName, @UserIdInt int userId, @Nullable String callingPackageName,
+            int displayId);
 }

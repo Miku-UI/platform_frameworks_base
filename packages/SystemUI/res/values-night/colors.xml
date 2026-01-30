@@ -21,6 +21,11 @@
     <!-- The dark background color behind the shade -->
     <color name="shade_scrim_background_dark">@androidprv:color/system_under_surface_dark</color>
 
+    <!-- The main FG tint for shade header items -->
+    <!-- Only applicable when com.android.systemui.shade_header_blur_font_color is enabled -->
+    <color name="shade_header_text_color" android:featureFlag="com.android.systemui.shade_header_blur_font_color">#FFFFFFFF</color>
+    <color name="shade_header_text_color_bg" android:featureFlag="com.android.systemui.shade_header_blur_font_color">#FF000000</color>
+
     <!-- The color of the legacy notifications with customs backgrounds (gingerbread and lollipop.)
     It's fine to override this color since at that point the shade was dark. -->
     <color name="notification_legacy_background_color">@color/GM2_grey_900</color>
@@ -66,6 +71,9 @@
 
     <!-- The color of the text in the Global Actions menu -->
     <color name="global_actions_alert_text">@color/GM2_red_300</color>
+
+    <color name="global_actions_lite_emergency_background_new_color">#F55E57</color>
+    <color name="global_actions_lite_emergency_icon_new_color">#3A0907</color>
 
     <!-- Floating overlay actions -->
     <color name="overlay_background_protection_start">#80000000</color> <!-- 50% black -->
@@ -115,6 +123,10 @@
     <color name="qs_user_switcher_avatar_background">#3C4043</color>
     <!-- Color of border for keyguard password input when focused -->
     <color name="bouncer_password_focus_color">@*android:color/system_secondary_dark</color>
+    <!-- BG color for confirm and backspace button in non-auto confirm PIN bouncer.   -->
+    <color name="pin_bouncer_action_button_bg">@androidprv:color/surface_effect_3</color>
+    <!-- Bouncer background when blur is not enabled.   -->
+    <color name="bouncer_fallback_bg">@android:color/system_accent1_800</color>
 
     <!-- Accessibility floating menu -->
     <color name="accessibility_floating_menu_background">#B3000000</color> <!-- 70% -->
@@ -125,7 +137,6 @@
 
     <!-- Dark theme base colors for notification shade/scrim, the alpha component is adjusted
      programmatically to match the spec -->
-    <color name="shade_panel_base">@android:color/system_accent1_800</color>
     <color name="notification_scrim_base">@android:color/system_accent1_800</color>
 
     <!-- Dark theme fallback colors for notification shade/scrim -->

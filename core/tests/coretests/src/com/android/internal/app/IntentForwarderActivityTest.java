@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -135,7 +136,6 @@ public class IntentForwarderActivityTest {
 
     @Before
     public void setup() {
-
         MockitoAnnotations.initMocks(this);
         mContext = InstrumentationRegistry.getTargetContext();
         sInjector = spy(new TestInjector());
@@ -283,17 +283,25 @@ public class IntentForwarderActivityTest {
         profiles.add(MANAGED_PROFILE_INFO);
         when(mUserManager.getProfiles(anyInt())).thenReturn(profiles);
 
-        // Create selector intent.
+        // Create intent with selector.
         Intent intent = Intent.makeMainSelectorActivity(
                 Intent.ACTION_VIEW, Intent.CATEGORY_BROWSABLE);
 
         IntentForwarderWrapperActivity activity = mActivityRule.launchActivity(intent);
 
         ArgumentCaptor<Intent> intentCaptor = ArgumentCaptor.forClass(Intent.class);
-        verify(mIPm).canForwardTo(
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+        verify(mIPm, times(2)).canForwardTo(
                 intentCaptor.capture(), nullable(String.class), anyInt(), anyInt());
-        assertEquals(Intent.ACTION_VIEW, intentCaptor.getValue().getAction());
-
+        List<Intent> capturedIntents = intentCaptor.getAllValues();
+        // Verify root intent is checked and sanitized
+        assertEquals(Intent.ACTION_MAIN, capturedIntents.get(0).getAction());
+        assertNull(capturedIntents.get(0));
+        assertNull(capturedIntents.get(0).getPackage());
+        // Verify selector is checked and sanitized
+        assertEquals(Intent.ACTION_VIEW, capturedIntents.get(1).getAction());
+        assertNull(capturedIntents.get(1));
+        assertNull(capturedIntents.get(1).getPackage());
         InstrumentationRegistry.getInstrumentation().waitForIdleSync();
         onView(withId(R.id.icon)).check(matches(isDisplayed()));
         onView(withId(R.id.open_cross_profile)).check(matches(isDisplayed()));
@@ -640,8 +648,6 @@ public class IntentForwarderActivityTest {
     @Test
     public void shouldForwardToParent_telephony_privateProfile() throws Exception {
         mSetFlagsRule.enableFlags(
-                android.os.Flags.FLAG_ALLOW_PRIVATE_PROFILE,
-                android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_FEATURES,
                 android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_INTENT_REDIRECTION);
 
         sComponentName = FORWARD_TO_PARENT_COMPONENT_NAME;
@@ -664,7 +670,6 @@ public class IntentForwarderActivityTest {
     @Test
     public void shouldForwardToParent_mms_privateProfile() throws Exception {
         mSetFlagsRule.enableFlags(
-                android.os.Flags.FLAG_ALLOW_PRIVATE_PROFILE,
                 android.multiuser.Flags.FLAG_ENABLE_PRIVATE_SPACE_INTENT_REDIRECTION);
 
         sComponentName = FORWARD_TO_PARENT_COMPONENT_NAME;
@@ -767,6 +772,12 @@ public class IntentForwarderActivityTest {
         @Override
         public PackageManager getPackageManager() {
             return mPm;
+        }
+
+        @Override
+        public CompletableFuture<ResolveInfo> resolveActivityAsUser(Intent intent,
+                String resolvedType, int flags, int userId) {
+            return resolveActivityAsUser(intent, flags, userId);
         }
 
         @Override

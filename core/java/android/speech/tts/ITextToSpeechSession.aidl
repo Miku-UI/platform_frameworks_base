@@ -22,7 +22,7 @@ package android.speech.tts;
  * @see ITextToSpeechManager
  * @see ITextToSpeechSessionCallback
  *
- * {@hide}
+ * @hide
  */
 oneway interface ITextToSpeechSession {
 

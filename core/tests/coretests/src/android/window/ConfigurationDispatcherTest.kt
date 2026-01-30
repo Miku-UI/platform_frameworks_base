@@ -23,7 +23,7 @@ import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import android.platform.test.annotations.Presubmit
 import android.view.Display.DEFAULT_DISPLAY
 import androidx.test.filters.SmallTest
-import com.google.common.truth.Truth.assertThat
+import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -52,7 +52,14 @@ class ConfigurationDispatcherTest(private val shouldReportPrivateChanges: Boolea
         // Verify public config field change
         receiver.windowToken.onConfigurationChangedInner(receiver, config, DEFAULT_DISPLAY, true)
 
-        assertThat(receiver.receivedConfig).isEqualTo(config)
+        assertWithMessage(
+            "expected: $config, but was ${receiver.receivedConfig}. "
+                    + "The diff is "
+                    + Configuration.configurationDiffToString(
+                receiver.receivedConfig.diff(config)
+            )
+        )
+            .that(receiver.receivedConfig).isEqualTo(config)
 
         // Clear the config value
         receiver.receivedConfig.unset()
@@ -62,13 +69,20 @@ class ConfigurationDispatcherTest(private val shouldReportPrivateChanges: Boolea
 
         receiver.windowToken.onConfigurationChangedInner(receiver, config, DEFAULT_DISPLAY, true)
 
-        assertThat(receiver.receivedConfig).isEqualTo(
-            if (shouldReportPrivateChanges) {
-                config
-            } else {
-                Configuration.EMPTY
-            }
+        val expectedConfig = if (shouldReportPrivateChanges) {
+            config
+        } else {
+            Configuration.EMPTY
+        }
+
+        assertWithMessage(
+            "expected: $expectedConfig, but was ${receiver.receivedConfig}. "
+                    + "The diff is "
+                    + Configuration.configurationDiffToString(
+                        receiver.receivedConfig.diff(expectedConfig)
+                    )
         )
+            .that(receiver.receivedConfig).isEqualTo(expectedConfig)
     }
 
     /**

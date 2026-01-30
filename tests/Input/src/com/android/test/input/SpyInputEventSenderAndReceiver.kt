@@ -16,6 +16,7 @@
 
 package com.android.test.input
 
+import android.os.IBinder
 import android.os.InputConstants.DEFAULT_DISPATCHING_TIMEOUT_MILLIS
 import android.os.Looper
 import android.view.InputChannel
@@ -24,8 +25,12 @@ import android.view.InputEventReceiver
 import android.view.InputEventSender
 import android.view.KeyEvent
 import android.view.MotionEvent
+import com.android.cts.input.BlockingQueueEventVerifier
 import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import org.hamcrest.Matcher
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 
 private fun <T> getEvent(queue: LinkedBlockingQueue<T>): T? {
@@ -37,21 +42,48 @@ private fun <T> assertNoEvents(queue: LinkedBlockingQueue<T>) {
     assertNull(queue.poll(100L, TimeUnit.MILLISECONDS))
 }
 
-class SpyInputEventReceiver(channel: InputChannel, looper: Looper) :
+open class SpyInputEventReceiver(channel: InputChannel, looper: Looper) :
     InputEventReceiver(channel, looper) {
-    private val mInputEvents = LinkedBlockingQueue<InputEvent>()
+    companion object {
+        @JvmStatic external fun createNativeService(): IBinder
+
+        init {
+            System.loadLibrary("inputtests_jni")
+        }
+    }
+
+    private val inputEvents = LinkedBlockingQueue<InputEvent>()
+    private val verifier = BlockingQueueEventVerifier(inputEvents)
+    private val service = IInputTests.Stub.asInterface(createNativeService())
 
     override fun onInputEvent(event: InputEvent) {
-        when (event) {
-            is KeyEvent -> mInputEvents.put(KeyEvent.obtain(event))
-            is MotionEvent -> mInputEvents.put(MotionEvent.obtain(event))
-            else -> throw Exception("Received $event is neither a key nor a motion")
-        }
+        addInputEvent(event)
         finishInputEvent(event, true /*handled*/)
     }
 
-    fun getInputEvent(): InputEvent? {
-        return getEvent(mInputEvents)
+    private fun addInputEvent(event: InputEvent) {
+        when (event) {
+            is KeyEvent -> inputEvents.put(KeyEvent.obtain(event))
+            is MotionEvent -> inputEvents.put(MotionEvent.obtain(event))
+            else -> throw Exception("Received $event is neither a key nor a motion")
+        }
+    }
+
+    fun assertNoEvents() {
+        assertNoEvents(inputEvents)
+    }
+
+    fun reportTimeline(inputEventId: Int, gpuCompletedTime: Long, presentTime: Long) {
+        service.reportTimeline(
+            nativeFrameMetricsObserver,
+            inputEventId,
+            gpuCompletedTime,
+            presentTime,
+        )
+    }
+
+    fun assertReceivedKey(matcher: Matcher<KeyEvent>) {
+        verifier.assertReceivedKey(matcher)
     }
 }
 
@@ -72,8 +104,11 @@ class SpyInputEventSender(channel: InputChannel, looper: Looper) :
         mTimelines.put(Timeline(inputEventId, gpuCompletedTime, presentTime))
     }
 
-    fun getFinishedSignal(): FinishedSignal? {
-        return getEvent(mFinishedSignals)
+    fun assertReceivedFinishedSignal(seq: Int, handled: Boolean) {
+        val finished = getEvent(mFinishedSignals)
+        assertNotNull("Did not receive 'finished' event", finished)
+        assertEquals("Unexpected sequence number", seq, finished!!.seq)
+        assertEquals("Unexpected 'handled' value", handled, finished!!.handled)
     }
 
     fun getTimeline(): Timeline? {

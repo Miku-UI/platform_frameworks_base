@@ -23,6 +23,7 @@ import static org.mockito.Mockito.when;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Parcel;
+import android.os.Parcelable;
 import android.platform.test.ravenwood.RavenwoodRule;
 
 import org.junit.Rule;
@@ -65,5 +66,68 @@ public class RavenwoodMockitoTest {
         when(object.readInt()).thenReturn(123);
 
         assertThat(object.readInt()).isEqualTo(123);
+    }
+
+    public static final class MyFinalClass {
+        public int getValue() {
+            return 1;
+        }
+    }
+
+    public static final class MyParcelable implements Parcelable {
+        private final int mValue;
+
+        public MyParcelable(int value) {
+            mValue = value;
+        }
+
+        private MyParcelable(Parcel src) {
+            mValue = src.readInt();
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            dest.writeInt(mValue);
+        }
+
+        public int getValue() {
+            return mValue;
+        }
+
+        public static final Parcelable.Creator<MyParcelable> CREATOR =
+                new Parcelable.Creator<>() {
+                    public MyParcelable createFromParcel(Parcel in) {
+                        return new MyParcelable(in);
+                    }
+
+                    public MyParcelable[] newArray(int size) {
+                        return new MyParcelable[size];
+                    }
+                };
+    }
+
+    @Test
+    public void testMockLocalFinalClass() {
+        var p1 = mock(MyFinalClass.class);
+
+        when(p1.getValue()).thenReturn(42);
+        assertThat(p1.getValue()).isEqualTo(42);
+    }
+
+    @Test
+    public void testMockLocalFinalParcelableClass() {
+        // First, test the non-mock version, just in case.
+        var p1 = new MyParcelable(1);
+        assertThat(p1.getValue()).isEqualTo(1);
+
+        var p2 = mock(MyParcelable.class);
+
+        when(p2.getValue()).thenReturn(42);
+        assertThat(p2.getValue()).isEqualTo(42);
     }
 }

@@ -27,6 +27,7 @@ import static androidx.test.platform.app.InstrumentationRegistry.getInstrumentat
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.mock;
+import static com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession;
 
 import static com.google.common.truth.Truth.assertThat;
 
@@ -38,6 +39,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.CALLS_REAL_METHODS;
+import static org.mockito.Mockito.withSettings;
 
 import android.app.AppOpsManager;
 import android.app.IActivityTaskManager;
@@ -52,11 +55,16 @@ import android.view.IWindowManager;
 
 import androidx.test.filters.MediumTest;
 
+import com.android.dx.mockito.inline.extended.StaticMockitoSession;
+import com.android.server.LocalServices;
 import com.android.server.am.AssistDataRequester;
 import com.android.server.am.AssistDataRequester.AssistDataRequesterCallbacks;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.MockSettings;
+import org.mockito.quality.Strictness;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -95,6 +103,8 @@ public class AssistDataRequesterTest {
     private IActivityTaskManager mAtm;
     private IWindowManager mWm;
     private AppOpsManager mAppOpsManager;
+    private StaticMockitoSession mMockitoSession;
+    private ActivityTaskManagerInternal mAtmInternal;
 
     /**
      * The requests to fetch assist data are done incrementally from the text thread, and we
@@ -142,11 +152,40 @@ public class AssistDataRequesterTest {
             });
             return true;
         }).when(mWm).requestAssistScreenshot(any());
+
+        final MockSettings spyStubOnly = withSettings().stubOnly().defaultAnswer(
+                CALLS_REAL_METHODS);
+        mMockitoSession = mockitoSession().mockStatic(LocalServices.class, spyStubOnly).strictness(
+                Strictness.LENIENT).startMocking();
+        mAtmInternal = mock(ActivityTaskManagerInternal.class);
+        doReturn(mAtmInternal).when(
+                () -> LocalServices.getService(eq(ActivityTaskManagerInternal.class)));
+        final WindowManagerInternal wmInternal = mock(WindowManagerInternal.class);
+        doReturn(wmInternal).when(
+                () -> LocalServices.getService(eq(WindowManagerInternal.class)));
+        doAnswer(invocation -> {
+            mHandler.post(() -> {
+                try {
+                    mGate.await(10, TimeUnit.SECONDS);
+                    mDataRequester.onHandleAssistScreenshot(Bitmap.createBitmap(1, 1, ARGB_8888));
+                } catch (InterruptedException e) {
+                    Log.e(TAG, "Failed to wait", e);
+                }
+            });
+            return true;
+        }).when(wmInternal).requestAssistScreenshot(any(), any());
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        mMockitoSession.finishMocking();
     }
 
     private void setupMocks(boolean currentActivityAssistAllowed, boolean assistStructureAllowed,
             boolean assistScreenshotAllowed) throws Exception {
         doReturn(currentActivityAssistAllowed).when(mAtm).isAssistDataAllowed();
+        doReturn(currentActivityAssistAllowed).when(mAtmInternal).isAssistDataForActivitiesAllowed(
+                any());
         doReturn(assistStructureAllowed ? MODE_ALLOWED : MODE_ERRORED).when(mAppOpsManager)
                 .noteOpNoThrow(eq(OP_ASSIST_STRUCTURE), anyInt(), anyString(), any(), any());
         doReturn(assistScreenshotAllowed ? MODE_ALLOWED : MODE_ERRORED).when(mAppOpsManager)

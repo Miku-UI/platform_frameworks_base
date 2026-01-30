@@ -200,7 +200,12 @@ class ContentRevealTest(private val isFloating: Boolean) {
         motionRule.runTest {
             val transitions = transitions {
                 from(SceneClosed, to = SceneOpen) {
-                    verticalContainerReveal(RevealElement, motionSpec, fakeHaptics)
+                    verticalContainerReveal(
+                        container = RevealElement,
+                        motionSpec = motionSpec,
+                        haptics = fakeHaptics,
+                        useMechanics = true,
+                    )
                 }
             }
 

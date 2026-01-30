@@ -16,20 +16,19 @@
 
 package com.android.server.wm;
 
-import static android.os.Build.IS_USER;
 
 import static com.android.server.wm.WindowManagerTraceProto.ELAPSED_REALTIME_NANOS;
 import static com.android.server.wm.WindowManagerTraceProto.WHERE;
 import static com.android.server.wm.WindowManagerTraceProto.WINDOW_MANAGER_SERVICE;
 
 import android.annotation.Nullable;
+import android.os.Build;
 import android.os.ShellCommand;
 import android.os.Trace;
 import android.util.Log;
 import android.util.proto.ProtoOutputStream;
 import android.view.Choreographer;
 
-import com.android.internal.protolog.LegacyProtoLogImpl;
 import com.android.internal.protolog.ProtoLog;
 
 import java.io.PrintWriter;
@@ -48,10 +47,9 @@ abstract class WindowTracing {
     private final Choreographer mChoreographer;
     private final WindowManagerGlobalLock mGlobalLock;
 
-    private final Choreographer.FrameCallback mFrameCallback = (frameTimeNanos) ->
-            log(WHERE_ON_FRAME);
+    private final Choreographer.FrameCallback mFrameCallback = (frameTimeNanos) -> onFrame();
 
-    private AtomicBoolean mScheduled = new AtomicBoolean(false);
+    private final AtomicBoolean mScheduled = new AtomicBoolean(false);
 
 
     static WindowTracing createDefaultAndStartLooper(WindowManagerService service,
@@ -70,23 +68,17 @@ abstract class WindowTracing {
     }
 
     void startTrace(@Nullable PrintWriter pw) {
-        if (IS_USER) {
-            logAndPrintln(pw, "Error: Tracing is not supported on user builds.");
+        if (!Build.isDebuggable()) {
+            logAndPrintln(pw, "Error: Tracing is not supported on non debuggable builds.");
             return;
-        }
-        if (!android.tracing.Flags.perfettoProtologTracing()) {
-            ((LegacyProtoLogImpl) ProtoLog.getSingleInstance()).startProtoLog(pw);
         }
         startTraceInternal(pw);
     }
 
     void stopTrace(@Nullable PrintWriter pw) {
-        if (IS_USER) {
-            logAndPrintln(pw, "Error: Tracing is not supported on user builds.");
+        if (!Build.isDebuggable()) {
+            logAndPrintln(pw, "Error: Tracing is not supported on non debuggable builds.");
             return;
-        }
-        if (!android.tracing.Flags.perfettoProtologTracing()) {
-            ((LegacyProtoLogImpl) ProtoLog.getSingleInstance()).stopProtoLog(pw, true);
         }
         stopTraceInternal(pw);
     }
@@ -100,14 +92,9 @@ abstract class WindowTracing {
      * @param pw Print writer
      */
     void saveForBugreport(@Nullable PrintWriter pw) {
-        if (IS_USER) {
-            logAndPrintln(pw, "Error: Tracing is not supported on user builds.");
+        if (!Build.isDebuggable()) {
+            logAndPrintln(pw, "Error: Tracing is not supported on non debuggable builds.");
             return;
-        }
-        if (!android.tracing.Flags.perfettoProtologTracing()
-                && ProtoLog.getSingleInstance().isProtoEnabled()) {
-            ((LegacyProtoLogImpl) ProtoLog.getSingleInstance()).stopProtoLog(pw, true);
-            ((LegacyProtoLogImpl) ProtoLog.getSingleInstance()).startProtoLog(pw);
         }
         saveForBugreportInternal(pw);
     }
@@ -150,6 +137,11 @@ abstract class WindowTracing {
         mChoreographer.postFrameCallback(mFrameCallback);
     }
 
+    private void onFrame() {
+        log(WHERE_ON_FRAME);
+        mScheduled.set(false);
+    }
+
     /**
      * Write the current frame to proto
      *
@@ -173,10 +165,6 @@ abstract class WindowTracing {
         } catch (Exception e) {
             Log.wtf(TAG, "Exception while tracing state", e);
         } finally {
-            boolean isOnFrameLogEvent = where == WHERE_ON_FRAME;
-            if (isOnFrameLogEvent) {
-                mScheduled.set(false);
-            }
             Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
         }
     }

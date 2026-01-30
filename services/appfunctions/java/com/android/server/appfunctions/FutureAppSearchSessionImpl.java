@@ -30,15 +30,12 @@ import android.app.appsearch.GetByDocumentIdRequest;
 import android.app.appsearch.GetSchemaResponse;
 import android.app.appsearch.PutDocumentsRequest;
 import android.app.appsearch.RemoveByDocumentIdRequest;
-import android.app.appsearch.SearchResult;
-import android.app.appsearch.SearchResults;
 import android.app.appsearch.SearchSpec;
 import android.app.appsearch.SetSchemaRequest;
 import android.app.appsearch.SetSchemaResponse;
 
 import com.android.internal.infra.AndroidFuture;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
@@ -132,7 +129,9 @@ public class FutureAppSearchSessionImpl implements FutureAppSearchSession {
                                     new AndroidFuture<>();
 
                             session.put(
-                                    putDocumentsRequest, mExecutor, batchResultFuture::complete);
+                                    putDocumentsRequest,
+                                    mExecutor,
+                                    new BatchResultCallbackAdapter<>(batchResultFuture));
                             return batchResultFuture;
                         });
     }

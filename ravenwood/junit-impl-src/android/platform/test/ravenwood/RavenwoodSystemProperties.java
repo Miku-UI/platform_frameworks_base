@@ -15,12 +15,13 @@
  */
 package android.platform.test.ravenwood;
 
-import static com.android.ravenwood.common.RavenwoodCommonUtils.RAVENWOOD_VERBOSE_LOGGING;
-import static com.android.ravenwood.common.RavenwoodCommonUtils.getRavenwoodRuntimePath;
+import static com.android.ravenwood.common.RavenwoodInternalUtils.RAVENWOOD_VERBOSE_LOGGING;
+import static com.android.ravenwood.common.RavenwoodInternalUtils.getRavenwoodRuntimePath;
 
 import android.util.Log;
 
 import com.android.ravenwood.RavenwoodRuntimeNative;
+import com.android.ravenwood.common.RavenwoodInternalUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -35,7 +36,7 @@ import java.util.Set;
  * A class to manage the core default system properties of the Ravenwood environment.
  */
 public class RavenwoodSystemProperties {
-    private static final String TAG = com.android.ravenwood.common.RavenwoodCommonUtils.TAG;
+    private static final String TAG = RavenwoodInternalUtils.TAG;
 
     /** We pull in properties from this file. */
     private static final String RAVENWOOD_BUILD_PROP = "ravenwood-data/ravenwood-build.prop";
@@ -88,7 +89,7 @@ public class RavenwoodSystemProperties {
         var ravenwoodProps = readProperties(path + RAVENWOOD_BUILD_PROP);
         var deviceProps = readProperties(path + DEVICE_BUILD_PROP);
 
-        Log.v(TAG, "Default system properties:");
+        Log.i(TAG, "Default system properties:");
         ravenwoodProps.forEach((key, origValue) -> {
             final String value;
 
@@ -102,11 +103,11 @@ public class RavenwoodSystemProperties {
                 var deviceKey = origValue.substring(3);
                 if ("r".equals(deviceKey)) {
                     sReadableKeys.add(key);
-                    Log.v(TAG, key + " (readable)");
+                    Log.i(TAG, key + " (readable)");
                     return;
                 } else if ("w".equals(deviceKey)) {
                     sWritableKeys.add(key);
-                    Log.v(TAG, key + " (writable)");
+                    Log.i(TAG, key + " (writable)");
                     return;
                 }
 
@@ -119,7 +120,7 @@ public class RavenwoodSystemProperties {
             } else {
                 value = origValue;
             }
-            Log.v(TAG, key + "=" + value);
+            Log.i(TAG, key + "=" + value);
             sDefaultValues.put(key, value);
         });
 

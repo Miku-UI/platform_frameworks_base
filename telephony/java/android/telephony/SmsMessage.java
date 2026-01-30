@@ -1095,7 +1095,7 @@ public class SmsMessage {
 
     /**
      * Decide if the carrier supports long SMS.
-     * {@hide}
+     * @hide
      */
     public static boolean hasEmsSupport() {
         if (!isNoEmsSupportConfigListExisted()) {
@@ -1132,7 +1132,7 @@ public class SmsMessage {
 
     /**
      * Check where to add " x/y" in each SMS segment, begin or end.
-     * {@hide}
+     * @hide
      */
     public static boolean shouldAppendPageNumberAsPrefix() {
         if (!isNoEmsSupportConfigListExisted()) {

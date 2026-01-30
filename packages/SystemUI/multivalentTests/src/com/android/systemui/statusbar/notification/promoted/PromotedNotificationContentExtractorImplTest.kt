@@ -37,7 +37,6 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.REDACTION_TYPE_NONE
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.REDACTION_TYPE_PUBLIC
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
 import com.android.systemui.statusbar.notification.promoted.AutomaticPromotionCoordinator.Companion.EXTRA_WAS_AUTOMATICALLY_PROMOTED
@@ -67,7 +66,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         Kosmos.Fixture { rowImageInflater.useForContentModel() }
 
     @Test
-    @DisableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @DisableFlags(PromotedNotificationUi.FLAG_NAME)
     fun shouldNotExtract_bothFlagsDisabled() =
         kosmos.runTest {
             val notif = createEntry()
@@ -76,7 +75,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun shouldExtract_bothFlagsEnabled() =
         kosmos.runTest {
             val entry = createEntry()
@@ -85,7 +84,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun shouldNotExtract_becauseNotPromoted() =
         kosmos.runTest {
             val entry = createEntry(promoted = false)
@@ -94,7 +93,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractsContent_commonFields() =
         kosmos.runTest {
             val entry = createEntry {
@@ -119,7 +118,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractsContent_commonFields_noRedaction() =
         kosmos.runTest {
             val entry = createEntry {
@@ -144,7 +143,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_wasPromotedAutomatically_false() =
         kosmos.runTest {
             val entry = createEntry { extras.putBoolean(EXTRA_WAS_AUTOMATICALLY_PROMOTED, false) }
@@ -155,7 +154,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_wasPromotedAutomatically_true() =
         kosmos.runTest {
             val entry = createEntry { extras.putBoolean(EXTRA_WAS_AUTOMATICALLY_PROMOTED, true) }
@@ -166,7 +165,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     @DisableFlags(android.app.Flags.FLAG_API_RICH_ONGOING)
     fun extractContent_apiFlagOff_shortCriticalTextNotExtracted() =
         kosmos.runTest {
@@ -178,11 +177,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(
-        PromotedNotificationUi.FLAG_NAME,
-        StatusBarNotifChips.FLAG_NAME,
-        android.app.Flags.FLAG_API_RICH_ONGOING,
-    )
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME, android.app.Flags.FLAG_API_RICH_ONGOING)
     fun extractContent_apiFlagOn_shortCriticalTextExtracted() =
         kosmos.runTest {
             val entry = createEntry { setShortCriticalText(TEST_SHORT_CRITICAL_TEXT) }
@@ -193,11 +188,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(
-        PromotedNotificationUi.FLAG_NAME,
-        StatusBarNotifChips.FLAG_NAME,
-        android.app.Flags.FLAG_API_RICH_ONGOING,
-    )
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME, android.app.Flags.FLAG_API_RICH_ONGOING)
     fun extractContent_noShortCriticalTextSet_textIsNull() =
         kosmos.runTest {
             val entry = createEntry { setShortCriticalText(null) }
@@ -208,7 +199,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_none() =
         kosmos.runTest {
             assertExtractedTime(
@@ -219,7 +210,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_basicTimeZero() =
         kosmos.runTest {
             assertExtractedTime(
@@ -231,7 +222,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_basicTimeNow() =
         kosmos.runTest {
             assertExtractedTime(
@@ -243,7 +234,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_basicTimePast() =
         kosmos.runTest {
             assertExtractedTime(
@@ -255,7 +246,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_basicTimeFuture() =
         kosmos.runTest {
             assertExtractedTime(
@@ -267,7 +258,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countUpZero() =
         kosmos.runTest {
             assertExtractedTime(
@@ -280,7 +271,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countUpNow() =
         kosmos.runTest {
             assertExtractedTime(
@@ -293,7 +284,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countUpPast() =
         kosmos.runTest {
             assertExtractedTime(
@@ -306,7 +297,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countUpFuture() =
         kosmos.runTest {
             assertExtractedTime(
@@ -319,7 +310,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countDownZero() =
         kosmos.runTest {
             assertExtractedTime(
@@ -332,7 +323,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countDownNow() =
         kosmos.runTest {
             assertExtractedTime(
@@ -345,7 +336,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countDownPast() =
         kosmos.runTest {
             assertExtractedTime(
@@ -358,7 +349,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_countDownFuture() =
         kosmos.runTest {
             assertExtractedTime(
@@ -371,7 +362,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractTime_prefersChronometerToWhen() =
         kosmos.runTest {
             assertExtractedTime(
@@ -452,7 +443,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
     // TODO: Add tests for the style of the publicVersion once we implement that
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromBaseStyle() =
         kosmos.runTest {
             val entry = createEntry { setStyle(null) }
@@ -464,7 +455,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromBigPictureStyle() =
         kosmos.runTest {
             val entry = createEntry { setStyle(BigPictureStyle()) }
@@ -476,7 +467,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromBigTextStyle() =
         kosmos.runTest {
             val entry = createEntry {
@@ -502,7 +493,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromBigTextStyle_fallbackToContentTitle() =
         kosmos.runTest {
             val entry = createEntry {
@@ -528,7 +519,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromBigTextStyle_fallbackToContentText() =
         kosmos.runTest {
             val entry = createEntry {
@@ -554,7 +545,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromCallStyle() =
         kosmos.runTest {
             val hangUpIntent =
@@ -579,11 +570,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(
-        PromotedNotificationUi.FLAG_NAME,
-        StatusBarNotifChips.FLAG_NAME,
-        android.app.Flags.FLAG_API_RICH_ONGOING,
-    )
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME, android.app.Flags.FLAG_API_RICH_ONGOING)
     fun extractContent_fromProgressStyle() =
         kosmos.runTest {
             val entry = createEntry {
@@ -604,7 +591,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromIneligibleStyle() =
         kosmos.runTest {
             val entry = createEntry {
@@ -619,7 +606,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromOldProgressDeterminate() =
         kosmos.runTest {
             val entry = createEntry {
@@ -636,7 +623,7 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(PromotedNotificationUi.FLAG_NAME, StatusBarNotifChips.FLAG_NAME)
+    @EnableFlags(PromotedNotificationUi.FLAG_NAME)
     fun extractContent_fromOldProgressIndeterminate() =
         kosmos.runTest {
             val entry = createEntry {
@@ -661,7 +648,14 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         redactionType: Int = REDACTION_TYPE_PUBLIC,
     ): PromotedNotificationContentModels? {
         val recoveredBuilder = Notification.Builder(context, entry.sbn.notification)
-        return underTest.extractContent(entry, recoveredBuilder, redactionType, imageModelProvider)
+        return underTest.extractContent(
+            entry,
+            recoveredBuilder,
+            redactionType,
+            imageModelProvider,
+            context,
+            context,
+        )
     }
 
     private fun Kosmos.createEntry(
@@ -681,7 +675,10 @@ class PromotedNotificationContentExtractorImplTest : SysuiTestCase() {
         if (notif.creationTime != 0L) {
             notif.creationTime = systemClock.currentTimeMillis()
         }
-        return NotificationEntryBuilder().setNotification(notif).build()
+        return NotificationEntryBuilder()
+            .setPkg("com.android.systemui") // use a real package name, since we're fetching icons
+            .setNotification(notif)
+            .build()
     }
 
     companion object {

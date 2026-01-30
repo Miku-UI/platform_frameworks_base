@@ -119,4 +119,31 @@ class SysUIStatePerDisplayInteractorTest : SysuiTestCase() {
         assertThat(state1.isFlagEnabled(1)).isFalse()
         assertThat(state2.isFlagEnabled(1)).isFalse()
     }
+
+    @Test
+    fun setsFlags_setsCorrectly() {
+        state0.setFlag(1, true).setFlag(2, true).commitUpdate()
+        state1.setFlag(1, true).setFlag(2, true).commitUpdate()
+        state2.setFlag(1, true).setFlag(2, true).commitUpdate()
+
+        val stateChange = StateChange().setFlag(1L, false)
+
+        underTest.setFlags(1, stateChange)
+
+        assertThat(state0.isFlagEnabled(1)).isTrue()
+        assertThat(state1.isFlagEnabled(1)).isFalse()
+        assertThat(state2.isFlagEnabled(1)).isTrue()
+
+        underTest.setFlags(2, stateChange)
+
+        assertThat(state0.isFlagEnabled(1)).isTrue()
+        assertThat(state1.isFlagEnabled(1)).isFalse()
+        assertThat(state2.isFlagEnabled(1)).isFalse()
+
+        underTest.setFlags(0, stateChange)
+
+        assertThat(state0.isFlagEnabled(1)).isFalse()
+        assertThat(state1.isFlagEnabled(1)).isFalse()
+        assertThat(state2.isFlagEnabled(1)).isFalse()
+    }
 }

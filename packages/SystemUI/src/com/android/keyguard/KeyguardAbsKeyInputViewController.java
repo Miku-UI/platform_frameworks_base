@@ -19,12 +19,12 @@ package com.android.keyguard;
 import static com.android.internal.util.LatencyTracker.ACTION_CHECK_CREDENTIAL;
 import static com.android.internal.util.LatencyTracker.ACTION_CHECK_CREDENTIAL_UNLOCKED;
 import static com.android.keyguard.KeyguardAbsKeyInputView.MINIMUM_PASSWORD_LENGTH_BEFORE_REPORT;
-import static com.android.systemui.Flags.notifyPasswordTextViewUserActivityInBackground;
 
 import android.content.res.ColorStateList;
 import android.os.AsyncTask;
 import android.os.CountDownTimer;
 import android.os.SystemClock;
+import android.util.Log;
 import android.util.PluralsMessageFormatter;
 import android.view.KeyEvent;
 
@@ -41,6 +41,7 @@ import com.android.systemui.classifier.FalsingCollector;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.res.R;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -53,11 +54,13 @@ public abstract class KeyguardAbsKeyInputViewController<T extends KeyguardAbsKey
     private final FalsingCollector mFalsingCollector;
     private final EmergencyButtonController mEmergencyButtonController;
     private final UserActivityNotifier mUserActivityNotifier;
+    private final LockPatternCheckerWrapper mLockPatternChecker;
     private CountDownTimer mCountdownTimer;
     private boolean mDismissing;
     protected AsyncTask<?, ?, ?> mPendingLockCheck;
     protected boolean mResumed;
     protected boolean mLockedOut;
+    private static final String TAG = "KeyguardAbsKeyInputViewController";
 
     private final KeyDownListener mKeyDownListener = (keyCode, keyEvent) -> {
         // Fingerprint sensor sends a KeyEvent.KEYCODE_UNKNOWN.
@@ -86,7 +89,9 @@ public abstract class KeyguardAbsKeyInputViewController<T extends KeyguardAbsKey
             EmergencyButtonController emergencyButtonController,
             FeatureFlags featureFlags, SelectedUserInteractor selectedUserInteractor,
             BouncerHapticPlayer bouncerHapticPlayer,
-            UserActivityNotifier userActivityNotifier) {
+            UserActivityNotifier userActivityNotifier,
+            LockPatternCheckerWrapper lockPatternCheckerWrapper
+    ) {
         super(view, securityMode, keyguardSecurityCallback, emergencyButtonController,
                 messageAreaControllerFactory, featureFlags, selectedUserInteractor,
                 bouncerHapticPlayer);
@@ -96,6 +101,7 @@ public abstract class KeyguardAbsKeyInputViewController<T extends KeyguardAbsKey
         mFalsingCollector = falsingCollector;
         mEmergencyButtonController = emergencyButtonController;
         mUserActivityNotifier = userActivityNotifier;
+        mLockPatternChecker = lockPatternCheckerWrapper;
     }
 
     abstract void resetState();
@@ -192,6 +198,11 @@ public abstract class KeyguardAbsKeyInputViewController<T extends KeyguardAbsKey
             if (dismissKeyguard) {
                 mDismissing = true;
                 mLatencyTracker.onActionStart(LatencyTracker.ACTION_LOCKSCREEN_UNLOCK);
+                Log.i(TAG,
+                        "StartUnlock. "
+                        + "User: " + userId
+                        + " TS: " + SystemClock.uptimeMillis()
+                );
                 getKeyguardSecurityCallback().dismiss(true, userId, getSecurityMode());
             }
         } else {
@@ -240,7 +251,7 @@ public abstract class KeyguardAbsKeyInputViewController<T extends KeyguardAbsKey
         mLatencyTracker.onActionStart(ACTION_CHECK_CREDENTIAL_UNLOCKED);
 
         mKeyguardUpdateMonitor.setCredentialAttempted();
-        mPendingLockCheck = LockPatternChecker.checkCredential(
+        mPendingLockCheck = mLockPatternChecker.checkCredential(
                 mLockPatternUtils,
                 password,
                 userId,
@@ -293,9 +304,7 @@ public abstract class KeyguardAbsKeyInputViewController<T extends KeyguardAbsKey
         getKeyguardSecurityCallback().userActivity();
         getKeyguardSecurityCallback().onUserInput();
         mMessageAreaController.setMessage("");
-        if (notifyPasswordTextViewUserActivityInBackground()) {
-            mUserActivityNotifier.notifyUserActivity();
-        }
+        mUserActivityNotifier.notifyUserActivity();
     }
 
     @Override

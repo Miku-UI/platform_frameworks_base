@@ -26,12 +26,13 @@ import android.view.IWindowSession
 import android.view.InputChannel
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
-import com.android.wm.shell.common.InputChannelSupplier
-import com.android.wm.shell.common.WindowSessionSupplier
+import com.android.wm.shell.common.suppliers.WindowSessionSupplier
+import com.android.wm.shell.compatui.letterbox.LetterboxControllerRobotTest.Companion.ANOTHER_TASK_ID
 import com.android.wm.shell.compatui.letterbox.LetterboxMatchers.asAnyMode
+import com.android.wm.shell.compatui.letterbox.events.ReachabilityGestureListener
+import com.android.wm.shell.compatui.letterbox.events.ReachabilityGestureListenerFactory
 import com.android.wm.shell.windowdecor.DesktopModeWindowDecorViewModelTestsBase.Companion.TAG
 import java.util.function.Consumer
-import java.util.function.Supplier
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
@@ -41,12 +42,12 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 /**
  * Tests for [LetterboxInputController].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:LetterboxInputControllerTest
+ * Build/Install/Run: atest WMShellUnitTests:LetterboxInputControllerTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -78,12 +79,10 @@ class LetterboxInputControllerTest : ShellTestCase() {
         runTestScenario { r ->
             r.sendCreateSurfaceRequest()
             r.sendCreateSurfaceRequest()
-            r.sendCreateSurfaceRequest(displayId = 2)
-            r.sendCreateSurfaceRequest(displayId = 2, taskId = 2)
-            r.sendCreateSurfaceRequest(displayId = 2)
-            r.sendCreateSurfaceRequest(displayId = 2, taskId = 2)
+            r.sendCreateSurfaceRequest(taskId = ANOTHER_TASK_ID)
+            r.sendCreateSurfaceRequest(taskId = ANOTHER_TASK_ID)
 
-            r.checkInputSurfaceBuilderInvoked(times = 3)
+            r.checkInputSurfaceBuilderInvoked(times = 2)
         }
     }
 
@@ -100,12 +99,13 @@ class LetterboxInputControllerTest : ShellTestCase() {
             r.checkTransactionRemovedInvoked()
         }
     }
+
     @Test
     fun `Only existing surfaces receive visibility update`() {
         runTestScenario { r ->
             r.sendCreateSurfaceRequest()
             r.sendUpdateSurfaceVisibilityRequest(visible = true)
-            r.sendUpdateSurfaceVisibilityRequest(visible = true, displayId = 20)
+            r.sendUpdateSurfaceVisibilityRequest(visible = true, taskId = ANOTHER_TASK_ID)
 
             r.checkVisibilityUpdated(expectedVisibility = true)
         }
@@ -116,7 +116,7 @@ class LetterboxInputControllerTest : ShellTestCase() {
         runTestScenario { r ->
             r.sendUpdateSurfaceBoundsRequest(
                 taskBounds = Rect(0, 0, 2000, 1000),
-                activityBounds = Rect(500, 0, 1500, 1000)
+                activityBounds = Rect(500, 0, 1500, 1000),
             )
 
             r.checkUpdateSessionRegion(times = 0, region = Region(0, 0, 2000, 1000))
@@ -127,16 +127,14 @@ class LetterboxInputControllerTest : ShellTestCase() {
             r.sendCreateSurfaceRequest()
             r.sendUpdateSurfaceBoundsRequest(
                 taskBounds = Rect(0, 0, 2000, 1000),
-                activityBounds = Rect(500, 0, 1500, 1000)
+                activityBounds = Rect(500, 0, 1500, 1000),
             )
             r.checkUpdateSessionRegion(region = Region(0, 0, 2000, 1000))
             r.checkSurfaceSizeUpdated(expectedWidth = 2000, expectedHeight = 1000)
         }
     }
 
-    /**
-     * Runs a test scenario providing a Robot.
-     */
+    /** Runs a test scenario providing a Robot. */
     fun runTestScenario(consumer: Consumer<InputLetterboxControllerRobotTest>) {
         consumer.accept(InputLetterboxControllerRobotTest(mContext).apply { initController() })
     }
@@ -146,24 +144,44 @@ class LetterboxInputControllerTest : ShellTestCase() {
 
         private val inputSurfaceBuilder: LetterboxInputSurfaceBuilder
         private val handler = Handler(Looper.getMainLooper())
-        private val listener: LetterboxGestureListener
-        private val listenerSupplier: Supplier<LetterboxGestureListener>
+        private val reachabilityListener: ReachabilityGestureListener
+        private val reachabilityListenerFactory: ReachabilityGestureListenerFactory
         private val windowSessionSupplier: WindowSessionSupplier
         private val windowSession: IWindowSession
-        private val inputChannelSupplier: InputChannelSupplier
 
         init {
             inputSurfaceBuilder = getLetterboxInputSurfaceBuilderMock()
-            listener = mock<LetterboxGestureListener>()
-            listenerSupplier = mock<Supplier<LetterboxGestureListener>>()
-            doReturn(LetterboxGestureDelegate).`when`(listenerSupplier).get()
+            reachabilityListener = mock<ReachabilityGestureListener>()
+            reachabilityListenerFactory = mock<ReachabilityGestureListenerFactory>()
+            doReturn(reachabilityListener)
+                .`when`(reachabilityListenerFactory)
+                .createReachabilityGestureListener(any(), anyOrNull())
             windowSessionSupplier = mock<WindowSessionSupplier>()
             windowSession = mock<IWindowSession>()
             doReturn(windowSession).`when`(windowSessionSupplier).get()
-            inputChannelSupplier = mock<InputChannelSupplier>()
-            val inputChannels = InputChannel.openInputChannelPair(TAG)
-            inputChannels.first().dispose()
-            doReturn(inputChannels[1]).`when`(inputChannelSupplier).get()
+            whenever(
+                    windowSession.grantInputChannel(
+                        any(),
+                        any(),
+                        any(),
+                        anyOrNull(),
+                        any(),
+                        any(),
+                        any(),
+                        any(),
+                        anyOrNull(),
+                        any(),
+                        any(),
+                    )
+                )
+                .thenAnswer {
+                    val inputChannels =
+                        InputChannel.openInputChannelPair(
+                            "TestChannel-InputLetterboxControllerRobotTest: $TAG"
+                        )
+                    inputChannels.first().dispose()
+                    inputChannels.last()
+                }
         }
 
         override fun buildController(): LetterboxController =
@@ -171,34 +189,36 @@ class LetterboxInputControllerTest : ShellTestCase() {
                 context,
                 handler,
                 inputSurfaceBuilder,
-                listenerSupplier,
+                reachabilityListenerFactory,
                 windowSessionSupplier,
-                inputChannelSupplier
             )
 
         fun checkInputSurfaceBuilderInvoked(
             times: Int = 1,
             name: String = "",
-            callSite: String = ""
+            callSite: String = "",
         ) {
-            verify(inputSurfaceBuilder, times(times)).createInputSurface(
-                eq(transaction),
-                eq(parentLeash),
-                name.asAnyMode(),
-                callSite.asAnyMode()
-            )
+            verify(inputSurfaceBuilder, times(times))
+                .createInputSurface(
+                    eq(transaction),
+                    eq(parentLeash),
+                    name.asAnyMode(),
+                    callSite.asAnyMode(),
+                )
         }
 
         fun checkUpdateSessionRegion(times: Int = 1, displayId: Int = DISPLAY_ID, region: Region) {
-            verify(windowSession, times(times)).updateInputChannel(
-                any(),
-                eq(displayId),
-                any(),
-                any(),
-                any(),
-                any(),
-                eq(region)
-            )
+            verify(windowSession, times(times))
+                .updateInputChannel(
+                    any(),
+                    anyOrNull(),
+                    eq(displayId),
+                    any(),
+                    any(),
+                    any(),
+                    any(),
+                    eq(region),
+                )
         }
     }
 }

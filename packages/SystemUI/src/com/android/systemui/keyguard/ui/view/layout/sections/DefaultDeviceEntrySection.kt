@@ -26,7 +26,7 @@ import androidx.annotation.VisibleForTesting
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import com.android.systemui.biometrics.AuthController
-import com.android.systemui.customization.R as customR
+import com.android.systemui.customization.clocks.R as clocksR
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.flags.FeatureFlags
@@ -114,7 +114,7 @@ constructor(
 
         val scaleFactor: Float = authController.scaleFactor
         val mBottomPaddingPx =
-            context.resources.getDimensionPixelSize(customR.dimen.lock_icon_margin_bottom)
+            context.resources.getDimensionPixelSize(clocksR.dimen.lock_icon_margin_bottom)
         val bounds = windowManager.currentWindowMetrics.bounds
         var widthPixels = bounds.right.toFloat()
         if (featureFlags.isEnabled(Flags.LOCKSCREEN_ENABLE_LANDSCAPE)) {

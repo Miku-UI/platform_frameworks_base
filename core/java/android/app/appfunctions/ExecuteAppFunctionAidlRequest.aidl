@@ -19,5 +19,5 @@ package android.app.appfunctions;
 
 import android.app.appfunctions.ExecuteAppFunctionAidlRequest;
 
-/** {@hide} */
+/** @hide */
 parcelable ExecuteAppFunctionAidlRequest;

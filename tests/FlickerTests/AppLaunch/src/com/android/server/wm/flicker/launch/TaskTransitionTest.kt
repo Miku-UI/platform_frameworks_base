@@ -22,10 +22,11 @@ import android.content.res.Resources
 import android.graphics.Rect
 import android.graphics.Region
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.subject.layers.LayersTraceSubject
 import android.tools.flicker.subject.layers.LayersTraceSubject.Companion.VISIBLE_FOR_MORE_THAN_ONE_ENTRY_IGNORE_LAYERS
 import android.tools.helpers.WindowUtils
@@ -36,7 +37,6 @@ import android.tools.traces.component.ComponentSplashScreenMatcher
 import android.tools.traces.component.IComponentMatcher
 import android.tools.traces.parsers.toFlickerComponent
 import androidx.test.filters.FlakyTest
-import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.BaseTest
 import com.android.server.wm.flicker.helpers.NewTasksAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
@@ -62,7 +62,7 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class TaskTransitionTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+class TaskTransitionTest(flicker: FlickerTest) : BaseTest(flicker) {
     private val launchNewTaskApp = NewTasksAppHelper(instrumentation)
     private val simpleApp = SimpleAppHelper(instrumentation)
     private val wallpaper by lazy { getWallpaperPackage(instrumentation) }
@@ -229,6 +229,6 @@ class TaskTransitionTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
 
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.nonRotationTests()
+        fun getParams() = FlickerTestFactory.nonRotationTests()
     }
 }

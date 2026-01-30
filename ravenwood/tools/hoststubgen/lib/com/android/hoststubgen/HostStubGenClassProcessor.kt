@@ -21,6 +21,8 @@ import com.android.hoststubgen.filters.AnnotationBasedFilter
 import com.android.hoststubgen.filters.ClassWidePolicyPropagatingFilter
 import com.android.hoststubgen.filters.ConstantFilter
 import com.android.hoststubgen.filters.DefaultHookInjectingFilter
+import com.android.hoststubgen.filters.FilterPolicy
+import com.android.hoststubgen.filters.FilterPolicyWithReason
 import com.android.hoststubgen.filters.FilterRemapper
 import com.android.hoststubgen.filters.ImplicitOutputFilter
 import com.android.hoststubgen.filters.KeepNativeFilter
@@ -29,16 +31,17 @@ import com.android.hoststubgen.filters.SanitizationFilter
 import com.android.hoststubgen.filters.TextFileFilterPolicyBuilder
 import com.android.hoststubgen.hosthelper.HostStubGenProcessedAsKeep
 import com.android.hoststubgen.utils.ClassPredicate
-import com.android.hoststubgen.visitors.BaseAdapter
+import com.android.hoststubgen.utils.ZipEntryData
 import com.android.hoststubgen.visitors.ImplGeneratingAdapter
+import com.android.hoststubgen.visitors.JdkPatchVisitor
 import com.android.hoststubgen.visitors.PackageRedirectRemapper
-import java.io.PrintWriter
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
 import org.objectweb.asm.commons.ClassRemapper
 import org.objectweb.asm.util.CheckClassAdapter
 import org.objectweb.asm.util.TraceClassVisitor
+import java.io.PrintWriter
 
 /**
  * This class implements bytecode transformation of HostStubGen.
@@ -47,111 +50,36 @@ class HostStubGenClassProcessor(
     private val options: HostStubGenClassProcessorOptions,
     val allClasses: ClassNodes,
     private val errors: HostStubGenErrors = HostStubGenErrors(),
-    private val stats: HostStubGenStats? = null,
 ) {
-    val filter = buildFilter()
+    val filter = buildFilter(options, allClasses, errors)
     val remapper = FilterRemapper(filter)
 
     private val packageRedirector = PackageRedirectRemapper(options.packageRedirects)
     private val processedAnnotation = setOf(HostStubGenProcessedAsKeep.CLASS_DESCRIPTOR)
 
-    /**
-     * Build the filter, which decides what classes/methods/fields should be put in stub or impl
-     * jars, and "how". (e.g. with substitution?)
-     */
-    private fun buildFilter(): OutputFilter {
-        // We build a "chain" of multiple filters here.
-        //
-        // The filters are build in from "inside", meaning the first filter created here is
-        // the last filter used, so it has the least precedence.
-        //
-        // So, for example, the "remove" annotation, which is handled by AnnotationBasedFilter,
-        // can override a class-wide annotation, which is handled by
-        // ClassWidePolicyPropagatingFilter, and any annotations can be overridden by the
-        // text-file based filter, which is handled by parseTextFilterPolicyFile.
-
-        // The first filter is for the default policy from the command line options.
-        var filter: OutputFilter = ConstantFilter(options.defaultPolicy.get, "default-by-options")
-
-        // Next, we build a filter that preserves all native methods by default
-        filter = KeepNativeFilter(allClasses, filter)
-
-        // Next, we need a filter that resolves "class-wide" policies.
-        // This is used when a member (methods, fields, nested classes) don't get any policies
-        // from upper filters. e.g. when a method has no annotations, then this filter will apply
-        // the class-wide policy, if any. (if not, we'll fall back to the above filter.)
-        filter = ClassWidePolicyPropagatingFilter(allClasses, filter)
-
-        // Inject default hooks from options.
-        filter = DefaultHookInjectingFilter(
-            allClasses,
-            options.defaultClassLoadHook.get,
-            options.defaultMethodCallHook.get,
-            filter
-        )
-
-        val annotationAllowedPredicate = options.annotationAllowedClassesFile.get.let { file ->
-            if (file == null) {
-                ClassPredicate.newConstantPredicate(true) // Allow all classes
-            } else {
-                ClassPredicate.loadFromFile(file, false)
-            }
-        }
-
-        // Next, Java annotation based filter.
-        val annotFilter = AnnotationBasedFilter(
-            errors,
-            allClasses,
-            options.keepAnnotations,
-            options.keepClassAnnotations,
-            options.throwAnnotations,
-            options.removeAnnotations,
-            options.ignoreAnnotations,
-            options.substituteAnnotations,
-            options.redirectAnnotations,
-            options.redirectionClassAnnotations,
-            options.classLoadHookAnnotations,
-            options.partiallyAllowedAnnotations,
-            options.keepStaticInitializerAnnotations,
-            annotationAllowedPredicate,
-            filter
-        )
-        filter = annotFilter
-
-        // Next, "text based" filter, which allows to override policies without touching
-        // the target code.
-        if (options.policyOverrideFiles.isNotEmpty()) {
-            val builder = TextFileFilterPolicyBuilder(allClasses, filter)
-            options.policyOverrideFiles.forEach(builder::parse)
-            filter = builder.createOutputFilter()
-            annotFilter.annotationAllowedMembers = builder.annotationAllowedMembersFilter
-        }
-
-        // Apply the implicit filter.
-        filter = ImplicitOutputFilter(errors, allClasses, filter)
-
-        // Add a final sanitization step.
-        filter = SanitizationFilter(errors, allClasses, filter)
-
-        return filter
-    }
-
     private fun buildVisitor(base: ClassVisitor, className: String): ClassVisitor {
         // Connect to the base visitor
         var outVisitor: ClassVisitor = base
 
+        // This should be the innermost visitor. This one checks the final bytecode.
         if (options.enableClassChecker.get) {
             outVisitor = CheckClassAdapter(outVisitor)
+        }
+
+        if (!options.disableJdkPatch.get) {
+            outVisitor = JdkPatchVisitor(outVisitor)
         }
 
         // Remapping should happen at the end.
         outVisitor = ClassRemapper(outVisitor, remapper)
 
-        val visitorOptions = BaseAdapter.Options(
+        val visitorOptions = ImplGeneratingAdapter.Options(
             errors = errors,
-            stats = stats,
             deleteClassFinals = options.deleteFinals.get,
             deleteMethodFinals = options.deleteFinals.get,
+            throwExceptionType = options.throwExceptionType.get,
+            annotationsToMakeVisible = options.allAnnotationSet,
+            experimentalMethodCallHook = options.experimentalMethodCallHook.get,
         )
 
         val verbosePrinter = PrintWriter(log.getWriter(LogLevel.Verbose))
@@ -206,5 +134,123 @@ class HostStubGenClassProcessor(
 
         cr.accept(outVisitor, ClassReader.EXPAND_FRAMES)
         return cw.toByteArray()
+    }
+
+    data class ClassZipEntryInfo(
+        val classInternalName: String,
+        val renamedEntryName: String,
+        val policy: FilterPolicyWithReason,
+    )
+
+    fun applyFilterOnClass(zipEntry: ZipEntryData): ClassZipEntryInfo? {
+        val classInternalName = zipEntry.name.removeSuffix(".class")
+        val classPolicy = filter.getPolicyForClass(classInternalName)
+        if (classPolicy.policy == FilterPolicy.Remove) {
+            log.d("Removing class: %s %s", classInternalName, classPolicy)
+            return null
+        }
+        // If we're applying a remapper, we need to rename the file too.
+        var newName = zipEntry.name
+        remapper.mapType(classInternalName)?.let { remappedName ->
+            if (remappedName != classInternalName) {
+                log.d("Renaming class file: %s -> %s", classInternalName, remappedName)
+                newName = "$remappedName.class"
+            }
+        }
+        return ClassZipEntryInfo(classInternalName, newName, classPolicy)
+    }
+
+    companion object {
+        /**
+         * Build the filter, which decides what classes/methods/fields should be put in stub or impl
+         * jars, and "how". (e.g. with substitution?)
+         */
+        fun buildFilter(
+            options: HostStubGenClassProcessorOptions,
+            allClasses: ClassNodes,
+            errors: HostStubGenErrors = HostStubGenErrors(),
+        ): OutputFilter {
+            // We build a "chain" of multiple filters here.
+            //
+            // The filters are build in from "inside", meaning the first filter created here is
+            // the last filter used, so it has the least precedence.
+            //
+            // So, for example, the "remove" annotation, which is handled by AnnotationBasedFilter,
+            // can override a class-wide annotation, which is handled by
+            // ClassWidePolicyPropagatingFilter, and any annotations can be overridden by the
+            // text-file based filter, which is handled by parseTextFilterPolicyFile.
+
+            var filter: OutputFilter
+
+            // The first filter is for the default policy from the command line options.
+            filter = ConstantFilter(
+                options.defaultPolicy.get.resolveDefaultForClass(),
+                options.defaultPolicy.get.resolveDefaultForFields(),
+                options.defaultPolicy.get.resolveDefaultForMethods(),
+            )
+
+            // Next, we build a filter that preserves all native methods by default
+            filter = KeepNativeFilter(allClasses, filter)
+
+            // Next, we need a filter that resolves "class-wide" policies.
+            // This is used when a member (methods, fields, nested classes) don't get any policies
+            // from upper filters. e.g. when a method has no annotations, then this filter will apply
+            // the class-wide policy, if any. (if not, we'll fall back to the above filter.)
+            filter = ClassWidePolicyPropagatingFilter(allClasses, filter)
+
+            // Inject default hooks from options.
+            filter = DefaultHookInjectingFilter(
+                allClasses,
+                options.defaultClassLoadHook.get,
+                options.defaultMethodCallHook.get,
+                filter
+            )
+
+            val annotationAllowedPredicate = options.annotationAllowedClassesFile.get.let { file ->
+                if (file == null) {
+                    ClassPredicate.newConstantPredicate(true) // Allow all classes
+                } else {
+                    ClassPredicate.loadFromFile(file, false)
+                }
+            }
+
+            // Next, Java annotation based filter.
+            val annotFilter = AnnotationBasedFilter(
+                errors,
+                allClasses,
+                options.keepAnnotations,
+                options.keepClassAnnotations,
+                options.throwAnnotations,
+                options.throwButSupportedAnnotations,
+                options.removeAnnotations,
+                options.ignoreAnnotations,
+                options.substituteAnnotations,
+                options.redirectAnnotations,
+                options.redirectionClassAnnotations,
+                options.classLoadHookAnnotations,
+                options.partiallyAllowedAnnotations,
+                options.keepStaticInitializerAnnotations,
+                annotationAllowedPredicate,
+                filter
+            )
+            filter = annotFilter
+
+            // Next, "text based" filter, which allows to override policies without touching
+            // the target code.
+            if (options.policyOverrideFiles.isNotEmpty()) {
+                val builder = TextFileFilterPolicyBuilder(allClasses, filter)
+                options.policyOverrideFiles.forEach(builder::parse)
+                filter = builder.createOutputFilter()
+                annotFilter.annotationAllowedMembers = builder.annotationAllowedMembersFilter
+            }
+
+            // Apply the implicit filter.
+            filter = ImplicitOutputFilter(errors, allClasses, filter)
+
+            // Add a final sanitization step.
+            filter = SanitizationFilter(errors, allClasses, filter)
+
+            return filter
+        }
     }
 }

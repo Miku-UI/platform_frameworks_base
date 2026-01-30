@@ -20,6 +20,7 @@ import android.annotation.MainThread;
 import android.annotation.Nullable;
 import android.annotation.WorkerThread;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.util.ArrayDeque;
 import java.util.concurrent.Callable;
@@ -196,6 +197,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   Kotlin concurrency utilities</a> instead.
  */
 @Deprecated
+@RavenwoodKeepWholeClass
 public abstract class AsyncTask<Params, Progress, Result> {
     private static final String LOG_TAG = "AsyncTask";
 

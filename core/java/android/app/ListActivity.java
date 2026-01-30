@@ -179,12 +179,12 @@ import android.widget.ListView;
 public class ListActivity extends Activity {
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     protected ListAdapter mAdapter;
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     protected ListView mList;
 

@@ -38,6 +38,7 @@ import com.android.systemui.plugins.DarkIconDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView
 import com.android.systemui.statusbar.StatusBarIconView.STATE_HIDDEN
+import com.android.systemui.statusbar.core.NewStatusBarIcons
 import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconModel
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.LocationBasedMobileViewModel
@@ -71,6 +72,7 @@ object MobileIconBinder {
         val mobileDrawable = SignalDrawable(view.context)
         val roamingView = view.requireViewById<ImageView>(R.id.mobile_roaming)
         val roamingSpace = view.requireViewById<Space>(R.id.mobile_roaming_space)
+        val endSideRoamingView = view.requireViewById<ImageView>(R.id.mobile_roaming_updated)
         val dotView = view.requireViewById<StatusBarIconView>(R.id.status_bar_dot)
 
         view.isVisible = viewModel.isVisible.value
@@ -147,15 +149,28 @@ object MobileIconBinder {
                                 Pair(shouldRequestLayout, newIcon)
                             }
                             .collect { (shouldRequestLayout, newIcon) ->
-                                viewModel.verboseLogger?.logBinderReceivedSignalIcon(
-                                    view,
-                                    viewModel.subscriptionId,
-                                    newIcon,
-                                )
                                 if (newIcon is SignalIconModel.Cellular) {
+                                    val packedSignalDrawableState = newIcon.toSignalDrawableState()
+                                    viewModel.verboseLogger?.logBinderReceivedSignalCellularIcon(
+                                        parentView = view,
+                                        subId = viewModel.subscriptionId,
+                                        icon = newIcon,
+                                        packedSignalDrawableState = packedSignalDrawableState,
+                                        shouldRequestLayout = shouldRequestLayout,
+                                    )
                                     iconView.setImageDrawable(mobileDrawable)
-                                    mobileDrawable.level = newIcon.toSignalDrawableState()
+                                    mobileDrawable.level = packedSignalDrawableState
+                                    viewModel.verboseLogger?.logBinderSignalIconResult(
+                                        parentView = view,
+                                        subId = viewModel.subscriptionId,
+                                        unpackedLevel = mobileDrawable.unpackLevel(),
+                                    )
                                 } else if (newIcon is SignalIconModel.Satellite) {
+                                    viewModel.verboseLogger?.logBinderReceivedSignalSatelliteIcon(
+                                        parentView = view,
+                                        subId = viewModel.subscriptionId,
+                                        icon = newIcon,
+                                    )
                                     IconViewBinder.bind(newIcon.icon, iconView)
                                 }
 
@@ -193,10 +208,10 @@ object MobileIconBinder {
                     // Set the network type background
                     launch {
                         viewModel.networkTypeBackground.collect { background ->
-                            networkTypeContainer.setBackgroundResource(background?.res ?: 0)
+                            networkTypeContainer.setBackgroundResource(background?.resId ?: 0)
 
                             // Tint will invert when this bit changes
-                            if (background?.res != null) {
+                            if (background?.resId != null) {
                                 networkTypeContainer.backgroundTintList =
                                     ColorStateList.valueOf(iconTint.value.tint)
                                 networkTypeView.imageTintList =
@@ -211,8 +226,12 @@ object MobileIconBinder {
                     // Set the roaming indicator
                     launch {
                         viewModel.roaming.distinctUntilChanged().collect { isRoaming ->
-                            roamingView.isVisible = isRoaming
-                            roamingSpace.isVisible = isRoaming
+                            if (NewStatusBarIcons.isEnabled) {
+                                endSideRoamingView.isVisible = isRoaming
+                            } else {
+                                roamingView.isVisible = isRoaming
+                                roamingSpace.isVisible = isRoaming
+                            }
                         }
                     }
 
@@ -263,6 +282,7 @@ object MobileIconBinder {
                             }
 
                             roamingView.imageTintList = tint
+                            endSideRoamingView.imageTintList = tint
                             activityIn.imageTintList = tint
                             activityOut.imageTintList = tint
                             dotView.setDecorColor(colors.tint)

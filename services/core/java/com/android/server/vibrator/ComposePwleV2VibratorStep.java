@@ -37,11 +37,11 @@ import java.util.List;
 final class ComposePwleV2VibratorStep extends AbstractComposedVibratorStep {
 
     ComposePwleV2VibratorStep(VibrationStepConductor conductor, long startTime,
-            VibratorController controller, VibrationEffect.Composed effect, int index,
+            HalVibrator vibrator, VibrationEffect.Composed effect, int index,
             long pendingVibratorOffDeadline) {
         // This step should wait for the last vibration to finish (with the timeout) and for the
         // intended step start time (to respect the effect delays).
-        super(conductor, Math.max(startTime, pendingVibratorOffDeadline), controller, effect,
+        super(conductor, Math.max(startTime, pendingVibratorOffDeadline), vibrator, effect,
                 index, pendingVibratorOffDeadline);
     }
 
@@ -49,36 +49,32 @@ final class ComposePwleV2VibratorStep extends AbstractComposedVibratorStep {
     @Override
     public List<Step> play() {
         if (!Flags.normalizedPwleEffects()) {
-            // Skip this step and play the next one right away.
-            return nextSteps(/* segmentsPlayed= */ 1);
+            return skipStep();
         }
 
         Trace.traceBegin(Trace.TRACE_TAG_VIBRATOR, "ComposePwleV2Step");
         try {
             // Load the next PwleSegments to create a single composePwleV2 call to the vibrator,
             // limited to the vibrator's maximum envelope effect size.
-            int limit = controller.getVibratorInfo().getMaxEnvelopeEffectSize();
+            int limit = vibrator.getInfo().getMaxEnvelopeEffectSize();
             List<PwlePoint> pwles = unrollPwleSegments(effect, segmentIndex, limit);
 
             if (pwles.isEmpty()) {
                 Slog.w(VibrationThread.TAG, "Ignoring wrong segment for a ComposeEnvelopeStep: "
                         + effect.getSegments().get(segmentIndex));
-                // Skip this step and play the next one right away.
-                return nextSteps(/* segmentsPlayed= */ 1);
+                return skipStep();
             }
 
             if (VibrationThread.DEBUG) {
                 Slog.d(VibrationThread.TAG, "Compose " + pwles + " PWLEs on vibrator "
-                        + controller.getVibratorInfo().getId());
+                        + vibrator.getInfo().getId());
             }
             PwlePoint[] pwlesArray = pwles.toArray(new PwlePoint[pwles.size()]);
             int stepId = conductor.nextVibratorCallbackStepId(getVibratorId());
-            long vibratorOnResult = controller.on(pwlesArray, getVibration().id, stepId);
+            long vibratorOnResult = vibrator.on(getVibration().id, stepId, pwlesArray);
             handleVibratorOnResult(vibratorOnResult);
             getVibration().stats.reportComposePwle(vibratorOnResult, pwlesArray);
-
-            // The next start and off times will be calculated from mVibratorOnResult.
-            return nextSteps(/* segmentsPlayed= */ pwles.size());
+            return vibratorOnNextSteps(/* segmentsPlayed= */ pwles.size());
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_VIBRATOR);
         }

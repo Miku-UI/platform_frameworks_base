@@ -29,14 +29,14 @@ import com.android.systemui.qs.tileimpl.QSTileImpl
 fun Icon.asQSTileIcon(): QSTile.Icon {
     return when (this) {
         is Icon.Loaded -> {
-            if (res == null) {
+            if (resId == null) {
                 QSTileImpl.DrawableIcon(drawable)
             } else {
-                QSTileImpl.DrawableIconWithRes(drawable, res)
+                QSTileImpl.DrawableIconWithRes(drawable, resId!!)
             }
         }
         is Icon.Resource -> {
-            QSTileImpl.ResourceIcon.get(res)
+            QSTileImpl.ResourceIcon.get(resId)
         }
     }
 }

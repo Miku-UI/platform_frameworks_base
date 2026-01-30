@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
-import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -46,7 +45,6 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(android.app.Flags.FLAG_MODES_UI)
 class ModesDndTileUserActionInteractorTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()

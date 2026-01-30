@@ -16,93 +16,189 @@
 
 package com.android.server.theming;
 
+import static android.content.theming.FieldColorSource.VALUE_PRESET;
+import static android.content.theming.ThemeSettings.OVERLAY_CATEGORY_ACCENT_COLOR;
+import static android.content.theming.ThemeSettings.OVERLAY_CATEGORY_SYSTEM_PALETTE;
+import static android.content.theming.ThemeSettings.OVERLAY_CATEGORY_THEME_STYLE;
+import static android.content.theming.ThemeSettings.OVERLAY_COLOR_BOTH;
+import static android.content.theming.ThemeSettings.OVERLAY_COLOR_INDEX;
+import static android.content.theming.ThemeSettings.OVERLAY_COLOR_SOURCE;
+import static android.content.theming.ThemeSettings.TIMESTAMP;
+
 import static com.google.common.truth.Truth.assertThat;
 
-import static org.junit.Assert.assertNull;
-
+import android.content.theming.FieldColorSource;
 import android.content.theming.ThemeSettings;
-import android.content.theming.ThemeSettingsUpdater;
+import android.content.theming.ThemeSettingsPreset;
+import android.content.theming.ThemeSettingsWallpaper;
 import android.content.theming.ThemeStyle;
+import android.graphics.Color;
 import android.os.Parcel;
 
 import androidx.test.runner.AndroidJUnit4;
 
+import org.json.JSONException;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.time.Instant;
+
 @RunWith(AndroidJUnit4.class)
 public class ThemeSettingsTests {
-    public static final ThemeSettings DEFAULTS = new ThemeSettings(
-            /* colorIndex= */ 1,
-            /* systemPalette= */ 0xFF123456,
-            /* accentColor= */ 0xFF654321,
-            /* colorSource= */ "home_wallpaper",
-            /* themeStyle= */ ThemeStyle.VIBRANT,
-            /* colorBoth= */ true);
+    private static final String WALLPAPER_JSON = """
+                    {
+                      "_applied_timestamp": 1747862004148,
+                      "android.theme.customization.color_index": "1",
+                      "android.theme.customization.color_source": "home_wallpaper",
+                      "android.theme.customization.theme_style": "VIBRANT",
+                      "android.theme.customization.color_both": "1"
+                    }
+            """;
 
-    /**
-     * Test that the updater correctly sets all fields when they are provided.
-     */
+    private static final String PRESET_JSON = """
+                    {
+                      "_applied_timestamp": 1749626671504,
+                      "android.theme.customization.color_index": "7",
+                      "android.theme.customization.color_source": "preset",
+                      "android.theme.customization.theme_style": "TONAL_SPOT",
+                      "android.theme.customization.system_palette": "1A73E8",
+                      "android.theme.customization.accent_color": "1A73E8"
+                    }
+            """;
+
     @Test
-    public void testUpdater_allFieldsSet() {
-        ThemeSettingsUpdater updater = ThemeSettings.updater()
-                .colorIndex(2)
-                .systemPalette(0xFFFF0000)
-                .accentColor(0xFF00FF00)
-                .colorSource("preset")
-                .themeStyle(ThemeStyle.MONOCHROMATIC)
-                .colorBoth(false);
+    public void testBuilder_allFieldsSet_wallpaper() {
+        Instant testStart = Instant.now();
 
-        ThemeSettings settings = updater.toThemeSettings(DEFAULTS);
+        ThemeSettingsWallpaper settings = ThemeSettings.builder(7,
+                ThemeStyle.TONAL_SPOT).buildFromWallpaper(false);
 
-        assertThat(settings.colorIndex()).isEqualTo(2);
-        assertThat(settings.systemPalette()).isEqualTo(0xFFFF0000);
-        assertThat(settings.accentColor()).isEqualTo(0xFF00FF00);
-        assertThat(settings.colorSource()).isEqualTo("preset");
-        assertThat(settings.themeStyle()).isEqualTo(ThemeStyle.MONOCHROMATIC);
-        assertThat(settings.colorBoth()).isEqualTo(false);
+        assertThat(settings.colorIndex()).isEqualTo(7);
+        assertThat(settings.themeStyle()).isEqualTo(ThemeStyle.TONAL_SPOT);
+        assertThat(settings.colorSource()).isEqualTo(FieldColorSource.VALUE_HOME_WALLPAPER);
+        assertThat(settings.colorBoth()).isFalse();
+        // Timestamp is set internally
+        assertThat(settings.timeStamp()).isAtLeast(testStart);
     }
 
-    /**
-     * Test that the updater uses null values when no fields are explicitly set.
-     */
     @Test
-    public void testUpdater_noFieldsSet() {
-        ThemeSettingsUpdater updater = ThemeSettings.updater();
+    public void testBuilder_allFieldsSet_preset() {
+        Color testColor = Color.valueOf(0xFF1A73E8);
+        Instant testStart = Instant.now();
 
-        assertNull(updater.getColorIndex());
-        assertNull(updater.getSystemPalette());
-        assertNull(updater.getAccentColor());
-        assertNull(updater.getColorSource());
-        assertNull(updater.getThemeStyle());
-        assertNull(updater.getColorBoth());
+        ThemeSettingsPreset settings = ThemeSettings.builder(7,
+                ThemeStyle.TONAL_SPOT).buildFromPreset(testColor, testColor);
+
+        assertThat(settings.colorIndex()).isEqualTo(7);
+        assertThat(settings.themeStyle()).isEqualTo(ThemeStyle.TONAL_SPOT);
+        assertThat(settings.colorSource()).isEqualTo(VALUE_PRESET);
+        assertThat(settings.systemPalette()).isEqualTo(testColor);
+        assertThat(settings.accentColor()).isEqualTo(testColor);
+        // Timestamp is set internally
+        assertThat(settings.timeStamp()).isAtLeast(testStart);
     }
 
-    /**
-     * Test that the ThemeSettings object can be correctly parceled and restored.
-     */
     @Test
-    public void testParcel_roundTrip() {
-        ThemeSettingsUpdater updater = ThemeSettings.updater()
-                .colorIndex(2)
-                .systemPalette(0xFFFF0000)
-                .accentColor(0xFF00FF00)
-                .colorSource("preset")
-                .themeStyle(ThemeStyle.MONOCHROMATIC)
-                .colorBoth(false);
-
-        ThemeSettings settings = updater.toThemeSettings(DEFAULTS);
+    public void testParcel_roundTrip_wallpaper() throws JSONException {
+        ThemeSettings originalSettings = ThemeSettings.fromJson(WALLPAPER_JSON);
 
         Parcel parcel = Parcel.obtain();
-        settings.writeToParcel(parcel, 0);
+        originalSettings.writeToParcel(parcel, 0);
         parcel.setDataPosition(0);
-        ThemeSettings fromParcel = ThemeSettings.CREATOR.createFromParcel(parcel);
 
-        assertThat(settings.colorIndex()).isEqualTo(fromParcel.colorIndex());
-        assertThat(settings.systemPalette()).isEqualTo(fromParcel.systemPalette());
-        assertThat(settings.accentColor()).isEqualTo(fromParcel.accentColor());
-        assertThat(settings.colorSource()).isEqualTo(fromParcel.colorSource());
-        assertThat(settings.themeStyle()).isEqualTo(fromParcel.themeStyle());
-        assertThat(settings.colorBoth()).isEqualTo(fromParcel.colorBoth());
+        ThemeSettings settingsFromParcel = ThemeSettings.CREATOR.createFromParcel(parcel);
+        parcel.recycle();
+
+        assertThat(settingsFromParcel).isInstanceOf(ThemeSettingsWallpaper.class);
+        assertThat(settingsFromParcel).isEqualTo(originalSettings);
+        assertThat(settingsFromParcel.hashCode()).isEqualTo(originalSettings.hashCode());
+    }
+
+    @Test
+    public void testParcel_roundTrip_preset() throws JSONException {
+        ThemeSettings originalSettings = ThemeSettings.fromJson(PRESET_JSON);
+
+        Parcel parcel = Parcel.obtain();
+        originalSettings.writeToParcel(parcel, 0);
+        parcel.setDataPosition(0);
+
+        ThemeSettings settingsFromParcel = ThemeSettings.CREATOR.createFromParcel(parcel);
+        parcel.recycle();
+
+        assertThat(settingsFromParcel).isInstanceOf(ThemeSettingsPreset.class);
+        assertThat(settingsFromParcel).isEqualTo(originalSettings);
+        assertThat(settingsFromParcel.hashCode()).isEqualTo(originalSettings.hashCode());
+    }
+
+
+    @Test
+    public void testFromJSON_wallpaper() throws JSONException {
+        ThemeSettings settings = ThemeSettings.fromJson(WALLPAPER_JSON);
+
+        assertThat(settings).isInstanceOf(ThemeSettingsWallpaper.class);
+        ThemeSettingsWallpaper wallpaperSettings = (ThemeSettingsWallpaper) settings;
+
+        assertThat(wallpaperSettings.timeStamp()).isEqualTo(Instant.ofEpochMilli(1747862004148L));
+        assertThat(wallpaperSettings.colorIndex()).isEqualTo(1);
+        assertThat(wallpaperSettings.colorSource()).isEqualTo(
+                FieldColorSource.VALUE_HOME_WALLPAPER);
+        assertThat(wallpaperSettings.themeStyle()).isEqualTo(ThemeStyle.VIBRANT);
+        assertThat(wallpaperSettings.colorBoth()).isTrue();
+    }
+
+    @Test
+    public void testFromJson_preset() throws JSONException {
+        ThemeSettings settings = ThemeSettings.fromJson(PRESET_JSON);
+
+        assertThat(settings).isInstanceOf(ThemeSettingsPreset.class);
+        ThemeSettingsPreset presetSettings = (ThemeSettingsPreset) settings;
+
+        assertThat(presetSettings.timeStamp()).isEqualTo(Instant.ofEpochMilli(1749626671504L));
+        assertThat(presetSettings.colorIndex()).isEqualTo(7);
+        assertThat(presetSettings.colorSource()).isEqualTo(VALUE_PRESET);
+        assertThat(presetSettings.themeStyle()).isEqualTo(ThemeStyle.TONAL_SPOT);
+        assertThat(presetSettings.systemPalette().toArgb()).isEqualTo(
+                Color.valueOf(0xFF1A73E8).toArgb());
+        assertThat(presetSettings.accentColor().toArgb()).isEqualTo(
+                Color.valueOf(0xFF1A73E8).toArgb());
+    }
+
+    @Test
+    public void testToString_wallpaper() throws JSONException {
+        ThemeSettingsWallpaper settings = (ThemeSettingsWallpaper) ThemeSettings.fromJson(
+                WALLPAPER_JSON);
+
+        assertThat(settings.getClass()).isEqualTo(ThemeSettingsWallpaper.class);
+
+        String jsonString = settings.toString();
+        JSONObject jsonOutput = new JSONObject(jsonString);
+
+        assertThat(jsonOutput.has(TIMESTAMP)).isTrue();
+        assertThat(jsonOutput.getLong(TIMESTAMP)).isEqualTo(1747862004148L);
+        assertThat(jsonOutput.getString(OVERLAY_COLOR_INDEX)).isEqualTo("1");
+        assertThat(jsonOutput.getString(OVERLAY_COLOR_SOURCE)).isEqualTo("home_wallpaper");
+        assertThat(jsonOutput.getString(OVERLAY_CATEGORY_THEME_STYLE)).isEqualTo("VIBRANT");
+        assertThat(jsonOutput.getString(OVERLAY_COLOR_BOTH)).isEqualTo("1");
+        assertThat(jsonOutput.length()).isEqualTo(5);
+    }
+
+    @Test
+    public void testToString_preset() throws JSONException {
+        ThemeSettingsPreset settings = (ThemeSettingsPreset) ThemeSettings.fromJson(PRESET_JSON);
+
+        assertThat(settings.getClass()).isEqualTo(ThemeSettingsPreset.class);
+
+        String jsonString = settings.toString();
+        JSONObject jsonOutput = new JSONObject(jsonString);
+
+        assertThat(jsonOutput.has(TIMESTAMP)).isTrue();
+        assertThat(jsonOutput.getLong(TIMESTAMP)).isEqualTo(1749626671504L);
+        assertThat(jsonOutput.getString(OVERLAY_COLOR_INDEX)).isEqualTo("7");
+        assertThat(jsonOutput.getString(OVERLAY_COLOR_SOURCE)).isEqualTo("preset");
+        assertThat(jsonOutput.getString(OVERLAY_CATEGORY_THEME_STYLE)).isEqualTo("TONAL_SPOT");
+        assertThat(jsonOutput.getString(OVERLAY_CATEGORY_SYSTEM_PALETTE)).isEqualTo("FF1A73E8");
+        assertThat(jsonOutput.getString(OVERLAY_CATEGORY_ACCENT_COLOR)).isEqualTo("FF1A73E8");
+        assertThat(jsonOutput.length()).isEqualTo(6);
     }
 }

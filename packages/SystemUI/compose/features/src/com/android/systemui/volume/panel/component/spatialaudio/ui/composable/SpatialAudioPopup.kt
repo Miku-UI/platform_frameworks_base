@@ -68,6 +68,7 @@ constructor(
             text = stringResource(R.string.volume_panel_spatial_audio_title),
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
         )
     }

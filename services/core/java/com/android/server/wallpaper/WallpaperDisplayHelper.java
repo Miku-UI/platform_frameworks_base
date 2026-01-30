@@ -33,6 +33,8 @@ import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.WindowManager;
 
+import androidx.annotation.Nullable;
+
 import com.android.server.wm.WindowManagerInternal;
 
 import java.util.function.Consumer;
@@ -125,9 +127,14 @@ class WallpaperDisplayHelper {
         return mDisplayManager.getDisplays();
     }
 
+    @Nullable
     DisplayInfo getDisplayInfo(int displayId) {
         final DisplayInfo displayInfo = new DisplayInfo();
-        mDisplayManager.getDisplay(displayId).getDisplayInfo(displayInfo);
+        Display display = mDisplayManager.getDisplay(displayId);
+        if (display == null) {
+            return null;
+        }
+        display.getDisplayInfo(displayInfo);
         return displayInfo;
     }
 

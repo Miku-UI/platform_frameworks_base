@@ -45,6 +45,7 @@ import android.os.SharedMemory;
 import android.service.voice.HotwordAudioStream;
 import android.service.voice.VoiceInteractionManagerInternal;
 import android.service.voice.VoiceInteractionManagerInternal.WearableHotwordDetectionCallback;
+import android.service.wearable.IWearableSensingService;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
@@ -52,6 +53,7 @@ import android.util.IndentingPrintWriter;
 import android.util.Slog;
 
 import com.android.internal.R;
+import com.android.internal.infra.ServiceConnector;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.infra.AndroidFuture;
@@ -95,6 +97,15 @@ final class WearableSensingManagerPerUserService
     @GuardedBy("mSecureChannelMap")
     private final Map<Integer, WearableSensingSecureChannel> mSecureChannelMap = new HashMap<>();
 
+    // Keep track of the status callback for the deprecated WearableSensingManager#provideDataStream
+    // API so that we can notify the client when the remote service dies. This is not needed for the
+    // WearableSensingManager#provideConnection, WearableSensingManager#provideConcurrentConnection
+    // callbacks because they will receive STATUS_CHANNEL_ERROR when the secure channel is closed
+    // when the WearableSensingService process dies.
+    @GuardedBy("mLock")
+    @Nullable
+    private RemoteCallback mProvideDataStreamStatusCallback;
+
     private final AtomicInteger mNextConnectionId = new AtomicInteger(1);
 
     private final int mMaxNumberOfConcurrentConnections;
@@ -136,6 +147,22 @@ final class WearableSensingManagerPerUserService
         if (mRemoteService == null) {
             mRemoteService =
                     new RemoteWearableSensingService(getContext(), mComponentName, getUserId());
+            mRemoteService.setServiceLifecycleCallbacks(
+                    new ServiceConnector.ServiceLifecycleCallbacks<IWearableSensingService>() {
+                        @Override
+                        public void onBinderDied() {
+                            RemoteCallback statusCallback;
+                            synchronized (mLock) {
+                                statusCallback = mProvideDataStreamStatusCallback;
+                                mProvideDataStreamStatusCallback = null;
+                            }
+                            if (statusCallback != null) {
+                                notifyStatusCallback(
+                                        statusCallback,
+                                        WearableSensingManager.STATUS_SERVICE_UNAVAILABLE);
+                            }
+                        }
+                    });
         }
     }
 
@@ -487,6 +514,7 @@ final class WearableSensingManagerPerUserService
             }
             Slog.i(TAG, "calling over to remote servvice.");
             ensureRemoteServiceInitiated();
+            mProvideDataStreamStatusCallback = statusCallback;
             mRemoteService.provideDataStream(
                     parcelFileDescriptor,
                     wrapWearableSensingCallback(wearableSensingCallback),

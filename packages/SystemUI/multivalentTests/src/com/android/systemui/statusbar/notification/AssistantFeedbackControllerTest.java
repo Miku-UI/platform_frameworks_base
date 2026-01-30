@@ -52,10 +52,8 @@ import com.android.internal.config.sysui.SystemUiDeviceConfigFlags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
-import com.android.systemui.statusbar.notification.people.NotificationPersonExtractor;
 import com.android.systemui.util.DeviceConfigProxyFake;
 
-import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;

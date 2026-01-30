@@ -24,6 +24,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.display.data.repository.FocusedDisplayRepository
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.shade.ShadeExpansionStateManager
 import javax.inject.Inject
@@ -37,7 +38,10 @@ constructor(
     private val mExpansionMgr: ShadeExpansionStateManager,
     @Main private val mMainDispatcher: CoroutineDispatcher,
     private val activityStarter: ActivityStarter,
+    focusedDisplayRepository: FocusedDisplayRepository,
 ) : LifecycleService() {
+
+    private val focusedDisplayId = focusedDisplayRepository.focusedDisplayId
 
     private val mBinder: IBinder =
         object : IScreenshotProxy.Stub() {
@@ -53,6 +57,8 @@ constructor(
                     executeAfterDismissing(callback)
                 }
             }
+
+            override fun getFocusedDisplay(): Int = focusedDisplayId.value
         }
 
     private suspend fun executeAfterDismissing(callback: IOnDoneCallback) =

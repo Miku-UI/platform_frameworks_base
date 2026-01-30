@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.reducebrightness.ui.mapper
 
 import android.graphics.drawable.TestStubDrawable
-import android.service.quicksettings.Tile
 import android.widget.Switch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -88,13 +87,10 @@ class ReduceBrightColorsTileMapperTest : SysuiTestCase() {
             Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
             label,
             activationState,
-            context.resources
-                .getStringArray(R.array.tile_states_reduce_brightness)[
-                    if (activationState == QSTileState.ActivationState.ACTIVE) Tile.STATE_ACTIVE
-                    else Tile.STATE_INACTIVE],
+            secondaryLabel = null,
             setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
             label,
-            null,
+            stateDescription = null,
             QSTileState.SideViewIcon.None,
             QSTileState.EnabledState.ENABLED,
             Switch::class.qualifiedName,

@@ -44,6 +44,11 @@ final class CameraIdPackageNameBiMapping {
         mCameraIdToPackageMap.put(cameraId, packageName);
     }
 
+    @Nullable
+    String getPackageNameForCameraId(@NonNull String cameraId) {
+        return mCameraIdToPackageMap.get(cameraId);
+    }
+
     boolean containsPackageName(@NonNull String packageName) {
         return mPackageToCameraIdMap.containsKey(packageName);
     }
@@ -63,7 +68,8 @@ final class CameraIdPackageNameBiMapping {
     }
 
     @NonNull
-    String getSummaryForDisplayRotationHistoryRecord() {
+    @Override
+    public String toString() {
         return "{ mPackageToCameraIdMap=" + mPackageToCameraIdMap + " }";
     }
 

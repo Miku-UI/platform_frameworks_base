@@ -17,13 +17,9 @@
 package com.android.server.wm;
 
 import android.annotation.NonNull;
+import android.app.backup.BackupManager;
+import android.content.Context;
 import android.view.DisplayInfo;
-
-import java.util.HashMap;
-import java.util.Map;
-
-import com.android.server.wm.DisplayWindowSettingsProvider.WritableSettingsStorage;
-import com.android.server.wm.DisplayWindowSettings.SettingsProvider.SettingsEntry;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -31,6 +27,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * In-memory DisplayWindowSettingsProvider used in tests. Ensures no settings are read from or
@@ -40,8 +38,8 @@ public final class TestDisplayWindowSettingsProvider extends DisplayWindowSettin
 
     private final Map<String, SettingsEntry> mOverrideSettingsMap = new HashMap<>();
 
-    public TestDisplayWindowSettingsProvider() {
-        super(new TestStorage(), new TestStorage());
+    public TestDisplayWindowSettingsProvider(Context context) {
+        super(new TestStorage(), new TestStorage(), new BackupManager(context));
     }
 
     @Override

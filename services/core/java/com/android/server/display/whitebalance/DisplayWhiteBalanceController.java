@@ -17,6 +17,7 @@
 package com.android.server.display.whitebalance;
 
 import android.annotation.NonNull;
+import android.os.Handler;
 import android.util.Slog;
 import android.util.Spline;
 
@@ -124,6 +125,7 @@ public class DisplayWhiteBalanceController implements
     // knowing about it.
     private Callbacks mDisplayPowerControllerCallbacks;
 
+    private final Handler mHandler;
     /**
      * @param brightnessSensor
      *      The sensor used to detect changes in the ambient brightness.
@@ -138,6 +140,8 @@ public class DisplayWhiteBalanceController implements
      * @param throttler
      *      The throttler used to determine whether the new display color temperature should be
      *      updated or not.
+     * @param sensorSubscriptionHandler
+     *      Handler for subscribing/unsubsribing sensors
      * @param lowLightAmbientBrightnesses
      *      The ambient brightness used to map the ambient brightnesses to the biases used to
      *      interpolate to lowLightAmbientColorTemperature.
@@ -182,29 +186,21 @@ public class DisplayWhiteBalanceController implements
      *      - colorTemperatureFilter is null;
      *      - throttler is null.
      */
-    public DisplayWhiteBalanceController(
+    DisplayWhiteBalanceController(
             @NonNull AmbientSensor.AmbientBrightnessSensor brightnessSensor,
             @NonNull AmbientFilter brightnessFilter,
             @NonNull AmbientSensor.AmbientColorTemperatureSensor colorTemperatureSensor,
             @NonNull AmbientFilter colorTemperatureFilter,
             @NonNull DisplayWhiteBalanceThrottler throttler,
-            float[] lowLightAmbientBrightnesses,
-            float[] lowLightAmbientBrightnessesStrong,
-            float[] lowLightAmbientBiases,
-            float[] lowLightAmbientBiasesStrong,
-            float lowLightAmbientColorTemperature,
-            float lowLightAmbientColorTemperatureStrong,
-            float[] highLightAmbientBrightnesses,
-            float[] highLightAmbientBrightnessesStrong,
-            float[] highLightAmbientBiases,
-            float[] highLightAmbientBiasesStrong,
-            float highLightAmbientColorTemperature,
-            float highLightAmbientColorTemperatureStrong,
-            float[] ambientColorTemperatures,
-            float[] displayColorTemperatures,
-            float[] strongAmbientColorTemperatures,
-            float[] strongDisplayColorTemperatures,
-            boolean lightModeAllowed) {
+            @NonNull Handler sensorSubscriptionHandler, float[] lowLightAmbientBrightnesses,
+            float[] lowLightAmbientBrightnessesStrong, float[] lowLightAmbientBiases,
+            float[] lowLightAmbientBiasesStrong, float lowLightAmbientColorTemperature,
+            float lowLightAmbientColorTemperatureStrong, float[] highLightAmbientBrightnesses,
+            float[] highLightAmbientBrightnessesStrong, float[] highLightAmbientBiases,
+            float[] highLightAmbientBiasesStrong, float highLightAmbientColorTemperature,
+            float highLightAmbientColorTemperatureStrong, float[] ambientColorTemperatures,
+            float[] displayColorTemperatures, float[] strongAmbientColorTemperatures,
+            float[] strongDisplayColorTemperatures, boolean lightModeAllowed) {
         validateArguments(brightnessSensor, brightnessFilter, colorTemperatureSensor,
                 colorTemperatureFilter, throttler);
         mBrightnessSensor = brightnessSensor;
@@ -212,6 +208,7 @@ public class DisplayWhiteBalanceController implements
         mColorTemperatureSensor = colorTemperatureSensor;
         mColorTemperatureFilter = colorTemperatureFilter;
         mThrottler = throttler;
+        mHandler = sensorSubscriptionHandler;
         mLowLightAmbientColorTemperature = lowLightAmbientColorTemperature;
         mLowLightAmbientColorTemperatureStrong = lowLightAmbientColorTemperatureStrong;
         mHighLightAmbientColorTemperature = highLightAmbientColorTemperature;
@@ -465,6 +462,9 @@ public class DisplayWhiteBalanceController implements
 
     @Override // AmbientSensor.AmbientBrightnessSensor.Callbacks
     public void onAmbientBrightnessChanged(float value) {
+        if (!mEnabled) {
+            return;
+        }
         final long time = System.currentTimeMillis();
         mBrightnessFilter.addValue(time, value);
         updateAmbientColorTemperature();
@@ -472,6 +472,9 @@ public class DisplayWhiteBalanceController implements
 
     @Override // AmbientSensor.AmbientColorTemperatureSensor.Callbacks
     public void onAmbientColorTemperatureChanged(float value) {
+        if (!mEnabled) {
+            return;
+        }
         final long time = System.currentTimeMillis();
         mColorTemperatureFilter.addValue(time, value);
         updateAmbientColorTemperature();
@@ -651,8 +654,10 @@ public class DisplayWhiteBalanceController implements
             Slog.d(TAG, "enabling");
         }
         mEnabled = true;
-        mBrightnessSensor.setEnabled(true);
-        mColorTemperatureSensor.setEnabled(true);
+        mHandler.post(() -> {
+            mBrightnessSensor.setEnabled(true);
+            mColorTemperatureSensor.setEnabled(true);
+        });
         return true;
     }
 
@@ -664,9 +669,11 @@ public class DisplayWhiteBalanceController implements
             Slog.d(TAG, "disabling");
         }
         mEnabled = false;
-        mBrightnessSensor.setEnabled(false);
+        mHandler.post(() -> {
+            mBrightnessSensor.setEnabled(false);
+            mColorTemperatureSensor.setEnabled(false);
+        });
         mBrightnessFilter.clear();
-        mColorTemperatureSensor.setEnabled(false);
         mColorTemperatureFilter.clear();
         mThrottler.clear();
         mAmbientColorTemperature = -1.0f;

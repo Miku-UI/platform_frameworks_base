@@ -18,14 +18,22 @@ package com.android.systemui.shade.ui.viewmodel
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
-import com.android.systemui.qs.ui.adapter.qsSceneAdapter
+import com.android.systemui.qs.panels.ui.viewmodel.editModeViewModel
 import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 
 val Kosmos.shadeUserActionsViewModel: ShadeUserActionsViewModel by Fixture {
     ShadeUserActionsViewModel(
-        qsSceneAdapter = qsSceneAdapter,
+        editModeViewModel = editModeViewModel,
         shadeModeInteractor = shadeModeInteractor,
         sceneBackInteractor = sceneBackInteractor,
     )
+}
+
+val Kosmos.shadeUserAcionsViewModelFactory: ShadeUserActionsViewModel.Factory by Fixture {
+    object : ShadeUserActionsViewModel.Factory {
+        override fun create(): ShadeUserActionsViewModel {
+            return shadeUserActionsViewModel
+        }
+    }
 }

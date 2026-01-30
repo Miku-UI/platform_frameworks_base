@@ -17,23 +17,21 @@
 package com.android.settingslib.spa.widget.scaffold
 
 import androidx.appcompat.R
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Clear
 import androidx.compose.material.icons.outlined.FindInPage
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import com.android.settingslib.spa.framework.compose.LocalNavController
-import com.android.settingslib.spa.framework.theme.SettingsDimension
-import com.android.settingslib.spa.framework.theme.SettingsShape
+import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
 
 /** Action that navigates back to last page. */
@@ -51,34 +49,29 @@ internal fun CollapseAction(onClick: () -> Unit) {
     BackAction(contentDescription, onClick)
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun BackAction(contentDescription: String, onClick: () -> Unit) {
-    IconButton(
-        onClick = onClick,
-        modifier =
-            if (isSpaExpressiveEnabled)
-                Modifier.padding(
-                        start = SettingsDimension.paddingExtraSmall5,
-                        end = SettingsDimension.paddingSmall,
-                        top = SettingsDimension.paddingExtraSmall,
-                        bottom = SettingsDimension.paddingExtraSmall,
-                    )
-                    .size(SettingsDimension.actionIconSize)
-                    .clip(SettingsShape.CornerExtraLarge)
-            else Modifier,
-    ) {
-        Icon(
-            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-            contentDescription = contentDescription,
-            modifier =
-                if (isSpaExpressiveEnabled)
-                    Modifier.size(SettingsDimension.actionIconSize)
-                        .clip(SettingsShape.CornerExtraLarge)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                        .padding(SettingsDimension.actionIconPadding)
-                else Modifier,
-        )
+    if (isSpaExpressiveEnabled) {
+        FilledTonalIconButton(
+            onClick = onClick, shape = IconButtonDefaults.smallRoundShape,
+            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            )
+        ) {
+            ArrowBack(contentDescription)
+        }
+    } else {
+        IconButton(onClick = onClick) { ArrowBack(contentDescription) }
     }
+}
+
+@Composable
+private fun ArrowBack(contentDescription: String) {
+    Icon(
+        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+        contentDescription = contentDescription,
+    )
 }
 
 /** Action that expends the search bar. */
@@ -101,4 +94,10 @@ internal fun ClearAction(onClick: () -> Unit) {
             contentDescription = stringResource(R.string.abc_searchview_description_clear),
         )
     }
+}
+
+@Preview
+@Composable
+private fun BackActionPreview() {
+    SettingsTheme { BackAction("") {} }
 }

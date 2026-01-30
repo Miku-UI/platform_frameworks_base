@@ -23,7 +23,7 @@ import android.view.IRemoteAnimationFinishedCallback;
  * Interface that is used to callback from window manager to the process that runs a remote
  * animation to start or cancel it.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IRemoteAnimationRunner {
 

@@ -27,6 +27,9 @@ import android.graphics.fonts.FontFamily;
 import android.graphics.fonts.SystemFonts;
 import android.os.SharedMemory;
 import android.platform.test.annotations.DisabledOnRavenwood;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.text.FontConfig;
 import android.util.ArrayMap;
 
@@ -37,7 +40,9 @@ import androidx.test.filters.MediumTest;
 import androidx.test.filters.SmallTest;
 
 import com.android.frameworks.coretests.R;
+import com.android.text.flags.Flags;
 
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -48,6 +53,9 @@ import java.util.Random;
 
 @RunWith(AndroidJUnit4.class)
 public class TypefaceTest {
+
+    @Rule
+    public CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
 
     // create array of all std faces
     private final Typeface[] mFaces = new Typeface[] {
@@ -224,6 +232,7 @@ public class TypefaceTest {
         }
     }
 
+    @RequiresFlagsDisabled(Flags.FLAG_DO_NOT_OVERWRITE_STATIC_FINAL_FIELD)
     @SmallTest
     @Test
     public void testSetSystemFontMap() throws Exception {
@@ -277,5 +286,39 @@ public class TypefaceTest {
         Paint paint = new Paint();
         paint.setTypeface(typeface);
         return paint.measureText(text);
+    }
+
+    @SmallTest
+    @Test
+    public void testInitializePendingTypefaceLocked() throws Exception {
+        // Scenario 1: The font family exists in the map.
+        Map<String, Typeface> systemFontMap = new HashMap<>();
+        Typeface realSansSerif = Typeface.create("sans-serif", Typeface.NORMAL);
+        assertNotNull("Precondition: sans-serif should exist", realSansSerif);
+        systemFontMap.put("sans-serif", realSansSerif);
+
+        Typeface pendingSansSerif = new Typeface(Typeface.NORMAL, 400, "sans-serif");
+        Typeface.initializePendingTypefaceLocked(pendingSansSerif, "sans-serif", systemFontMap);
+
+        // Verify the pending Typeface was initialized with the real one.
+        assertEquals(realSansSerif.getNativeInstance(), pendingSansSerif.getNativeInstance());
+        // Verify the map was updated to point to the pending instance.
+        assertEquals(pendingSansSerif, systemFontMap.get("sans-serif"));
+
+
+        // Scenario 2: The font family does not exist, causing a fallback to the default.
+        Map<String, Typeface> systemFontMapWithFallback = new HashMap<>();
+        Typeface defaultTypeface = Typeface.create((String) null, Typeface.NORMAL);
+        assertNotNull("Precondition: default typeface should exist", defaultTypeface);
+        systemFontMapWithFallback.put(Typeface.DEFAULT_FAMILY, defaultTypeface);
+
+        Typeface pendingNonExistent = new Typeface(Typeface.NORMAL, 400, "non-existent-family");
+        Typeface.initializePendingTypefaceLocked(
+                pendingNonExistent, "non-existent-family", systemFontMapWithFallback);
+
+        // Verify the pending Typeface was initialized with the default typeface.
+        assertEquals(defaultTypeface.getNativeInstance(), pendingNonExistent.getNativeInstance());
+        // Verify the map was updated.
+        assertEquals(pendingNonExistent, systemFontMapWithFallback.get("non-existent-family"));
     }
 }

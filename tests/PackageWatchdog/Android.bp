@@ -19,6 +19,7 @@ package {
     // all of the 'license_kinds' from "frameworks_base_license"
     // to get the below license kinds:
     //   SPDX-license-identifier-Apache-2.0
+    default_team: "trendy_team_mainline_modularization",
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
@@ -35,6 +36,7 @@ android_test {
         "mockito-target-extended-minus-junit4",
         "services.core",
         "services.net",
+        "platform-parametric-runner-lib-no-robo",
         "truth",
     ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
         "true": [

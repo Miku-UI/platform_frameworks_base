@@ -170,27 +170,29 @@ public class KeyguardSecurityViewFlipperController
 
     private int getLayoutIdFor(SecurityMode securityMode) {
         // TODO (b/297863911, b/297864907) - implement motion layout for other bouncers
-        switch (securityMode) {
-            case Pattern: return R.layout.keyguard_pattern_motion_layout;
-            case PIN: return R.layout.keyguard_pin_motion_layout;
-            case Password: return R.layout.keyguard_password_motion_layout;
-            case SimPin: return R.layout.keyguard_sim_pin_view;
-            case SimPuk: return R.layout.keyguard_sim_puk_view;
-            default:
-                return 0;
-        }
+        return switch (securityMode) {
+            case SecureLockDeviceBiometricAuth ->
+                    R.layout.keyguard_secure_lock_device_biometric_auth_view;
+            case Pattern -> R.layout.keyguard_pattern_motion_layout;
+            case PIN -> R.layout.keyguard_pin_motion_layout;
+            case Password -> R.layout.keyguard_password_motion_layout;
+            case SimPin -> R.layout.keyguard_sim_pin_view;
+            case SimPuk -> R.layout.keyguard_sim_puk_view;
+            default -> 0;
+        };
     }
 
     private int getLegacyLayoutIdFor(SecurityMode securityMode) {
-        switch (securityMode) {
-            case Pattern: return R.layout.keyguard_pattern_view;
-            case PIN: return R.layout.keyguard_pin_view;
-            case Password: return R.layout.keyguard_password_view;
-            case SimPin: return R.layout.keyguard_sim_pin_view;
-            case SimPuk: return R.layout.keyguard_sim_puk_view;
-            default:
-                return 0;
-        }
+        return switch (securityMode) {
+            case SecureLockDeviceBiometricAuth ->
+                    R.layout.keyguard_secure_lock_device_biometric_auth_view;
+            case Pattern -> R.layout.keyguard_pattern_view;
+            case PIN -> R.layout.keyguard_pin_view;
+            case Password -> R.layout.keyguard_password_view;
+            case SimPin -> R.layout.keyguard_sim_pin_view;
+            case SimPuk -> R.layout.keyguard_sim_puk_view;
+            default -> 0;
+        };
     }
 
     /** Updates the keyguard view's constraints (single or split constraints).

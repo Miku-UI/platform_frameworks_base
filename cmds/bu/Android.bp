@@ -22,4 +22,5 @@ java_binary {
     name: "bu",
     wrapper: "bu.sh",
     srcs: ["**/*.java"],
+    libs: ["error_prone_annotations"],
 }

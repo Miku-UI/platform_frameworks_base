@@ -78,6 +78,7 @@ import java.lang.annotation.RetentionPolicy;
  */
 public final class PrintDocumentInfo implements Parcelable {
 
+    // LINT.IfChange
     /**
      * Constant for unknown page count.
      */
@@ -119,6 +120,8 @@ public final class PrintDocumentInfo implements Parcelable {
      * </p>
      */
     public static final int CONTENT_TYPE_PHOTO = 1;
+    // Update BuiltInPrintService stats logger too.
+    // LINT.ThenChange(/packages/PrintSpooler/src/com/android/printspooler/stats/StatsAsyncLogger.kt)
 
     private @NonNull String mName;
     private @IntRange(from = -1) int mPageCount;

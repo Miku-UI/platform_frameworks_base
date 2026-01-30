@@ -22,6 +22,7 @@ import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.display.data.repository.DisplayRepository
 import com.android.systemui.statusbar.data.repository.StatusBarModeRepositoryStore
 import com.android.systemui.statusbar.data.repository.StatusBarPerDisplayStoreImpl
+import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshInteractor
 import com.android.systemui.statusbar.phone.AutoHideControllerStore
 import com.android.systemui.statusbar.window.StatusBarWindowControllerStore
 import com.android.systemui.statusbar.window.data.repository.StatusBarWindowStateRepositoryStore
@@ -42,6 +43,7 @@ constructor(
     private val autoHideControllerStore: AutoHideControllerStore,
     private val displayScopeRepository: PerDisplayRepository<CoroutineScope>,
     private val statusBarWindowStateRepositoryStore: StatusBarWindowStateRepositoryStore,
+    private val statusBarIconRefreshInteractor: PerDisplayRepository<StatusBarIconRefreshInteractor>,
 ) :
     StatusBarPerDisplayStoreImpl<StatusBarOrchestrator>(
         backgroundApplicationScope,
@@ -60,6 +62,8 @@ constructor(
             statusBarWindowControllerStore.forDisplay(displayId) ?: return null
         val autoHideController = autoHideControllerStore.forDisplay(displayId) ?: return null
         val displayScope = displayScopeRepository[displayId] ?: return null
+        val statusubarIconRefreshInteractor =
+            statusBarIconRefreshInteractor[displayId] ?: return null
         return factory.create(
             displayId,
             displayScope,
@@ -67,6 +71,7 @@ constructor(
             statusBarModeRepository,
             statusBarInitializer,
             statusBarWindowController,
+            statusubarIconRefreshInteractor,
             autoHideController,
         )
     }

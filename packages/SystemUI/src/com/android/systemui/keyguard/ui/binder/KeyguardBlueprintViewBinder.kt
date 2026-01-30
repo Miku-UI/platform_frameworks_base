@@ -23,7 +23,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.Flags
-import com.android.systemui.customization.R as customR
+import com.android.systemui.customization.clocks.ClockLogger.Companion.getVisText
 import com.android.systemui.keyguard.shared.model.KeyguardBlueprint
 import com.android.systemui.keyguard.ui.view.layout.blueprints.transitions.IntraBlueprintTransition
 import com.android.systemui.keyguard.ui.view.layout.blueprints.transitions.IntraBlueprintTransition.Config
@@ -34,7 +34,7 @@ import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.Logger
 import com.android.systemui.log.dagger.KeyguardBlueprintLog
-import com.android.systemui.plugins.clocks.ClockLogger.Companion.getVisText
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.shared.R as sharedR
 import com.android.systemui.util.kotlin.pairwise
 
@@ -141,7 +141,7 @@ object KeyguardBlueprintViewBinder {
         if (currentClock == null) return
 
         this.i({ "applyCsToSmallClock: vis=${getVisText(int1)}; alpha=$str1; scale=$str2" }) {
-            val smallClockViewId = customR.id.lockscreen_clock_view
+            val smallClockViewId = ClockViewIds.LOCKSCREEN_CLOCK_VIEW_SMALL
             int1 = cs.getVisibility(smallClockViewId)
             str1 = "${cs.getConstraint(smallClockViewId).propertySet.alpha}"
             str2 = "${cs.getConstraint(smallClockViewId).transform.scaleX}"

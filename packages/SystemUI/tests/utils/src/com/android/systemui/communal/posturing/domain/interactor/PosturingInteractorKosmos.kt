@@ -23,8 +23,10 @@ import com.android.systemui.kosmos.applicationCoroutineScope
 import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.log.logcatLogBuffer
+import com.android.systemui.log.table.logcatTableLogBuffer
 import com.android.systemui.util.sensors.asyncSensorManager
 import com.android.systemui.util.time.systemClock
+import kotlin.time.Duration.Companion.milliseconds
 
 val Kosmos.posturingInteractor by
     Kosmos.Fixture<PosturingInteractor> {
@@ -34,11 +36,17 @@ val Kosmos.posturingInteractor by
             applicationScope = applicationCoroutineScope,
             bgDispatcher = testDispatcher,
             logBuffer = logcatLogBuffer("PosturingInteractor"),
+            tableLogBuffer = logcatTableLogBuffer(systemClock, "PosturingInteractor"),
             clock = systemClock,
         )
     }
 
-fun Kosmos.advanceTimeBySlidingWindowAndRun() {
-    advanceTimeBy(PosturingInteractor.SLIDING_WINDOW_DURATION)
+fun Kosmos.advanceTimeByBatchingDuration() {
+    advanceTimeBy(PosturingInteractor.BATCHING_DEBOUNCE_DURATION)
     runCurrent()
+}
+
+fun Kosmos.advanceTimeBySlidingWindowAndRun() {
+    advanceTimeBy(PosturingInteractor.SLIDING_WINDOW_DURATION + 10.milliseconds)
+    advanceTimeByBatchingDuration()
 }

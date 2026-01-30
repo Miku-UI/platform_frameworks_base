@@ -24,6 +24,7 @@ import static org.junit.Assert.assertTrue;
 import android.appwidget.AppWidgetHostView;
 import android.appwidget.AppWidgetManager;
 import android.content.Context;
+import android.os.Process;
 import android.view.View;
 import android.view.ViewGroup.OnHierarchyChangeListener;
 
@@ -50,6 +51,8 @@ import java.util.concurrent.Future;
 @RunWith(AndroidJUnit4.class)
 @SmallTest
 public class AppWidgetHostViewTest {
+
+    private static final String PKG_WIDGET_APP = "android.app.coretests.noupdateappwidgettestapp";
 
     @Rule
     public final ExpectedException exception = ExpectedException.none();
@@ -117,6 +120,19 @@ public class AppWidgetHostViewTest {
         executor.get(1).run();
         mViewAddListener.addLatch.await();
         assertNotNull(mHostView.findViewById(R.id.image));
+    }
+
+    @Test
+    public void default_views_updated() throws Exception {
+        mHostView.setAppWidget(0, AppWidgetManager.getInstance(
+                mContext).getInstalledProvidersForPackage(PKG_WIDGET_APP, Process.myUserHandle())
+                .get(0));
+        mHostView.updateAppWidget(null);
+
+        // Default view added
+        assertEquals(1, mHostView.getChildCount());
+        assertTrue(mHostView.getChildAt(0) instanceof TextView);
+        assertEquals("Test string", ((TextView) mHostView.getChildAt(0)).getText().toString());
     }
 
     private static class RunnableList extends ArrayList<Runnable> implements Executor {

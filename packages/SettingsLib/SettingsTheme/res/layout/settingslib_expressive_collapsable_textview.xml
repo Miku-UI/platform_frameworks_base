@@ -55,12 +55,30 @@
         android:visibility="gone"
         style="@style/SettingslibTextAppearance.LinkableTextStyle.Expressive"/>
 
-    <com.google.android.material.button.MaterialButton
+    <LinearLayout
         android:id="@+id/collapse_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingTop="@dimen/settingslib_expressive_space_extrasmall4"
+        android:paddingBottom="@dimen/settingslib_expressive_space_extrasmall4"
         app:layout_constraintTop_toBottomOf="@id/settingslib_expressive_learn_more"
         app:layout_constraintStart_toStartOf="parent"
-        android:textColor="@color/settingslib_materialColorOnSurface"
-        android:text="@string/settingslib_expressive_text_expand"
-        app:icon="@drawable/settingslib_expressive_icon_expand"
-        style="@style/SettingslibTextButtonStyle.Expressive"/>
+        android:gravity="center"
+        android:filterTouchesWhenObscured="false">
+
+        <ImageView
+            android:id="@android:id/icon1"
+            android:layout_width="@dimen/settingslib_expressive_space_small4"
+            android:layout_height="@dimen/settingslib_expressive_space_small4"
+            android:importantForAccessibility="no"
+            android:scaleType="centerInside"/>
+
+        <TextView
+            android:id="@android:id/text1"
+            android:layout_marginStart="@dimen/settingslib_expressive_space_extrasmall4"
+            style="@style/TextAppearance.SettingsLib.BodyLarge.Emphasized"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/settingslib_expressive_space_small4"/>
+    </LinearLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

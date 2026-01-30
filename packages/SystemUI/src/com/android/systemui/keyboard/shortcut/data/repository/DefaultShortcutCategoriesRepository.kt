@@ -119,7 +119,7 @@ constructor(
     ): List<InternalKeyboardShortcutGroup> {
         return keyboardShortcutGroups.map { group ->
             InternalKeyboardShortcutGroup(
-                label = group.label.toString(),
+                label = group.label?.toString() ?: "",
                 items = group.items.map { toInternalKeyboardShortcutInfo(it) },
                 packageName = group.packageName?.toString(),
             )

@@ -16,7 +16,6 @@
 
 package com.android.credentialmanager.createflow
 
-import android.credentials.flags.Flags.selectorUiImprovementsEnabled
 import android.hardware.biometrics.BiometricPrompt
 import android.os.CancellationSignal
 import android.text.TextUtils
@@ -396,15 +395,13 @@ fun CreationSelectionCard(
         item { Divider(thickness = 24.dp, color = Color.Transparent) }
 
         val footerDescription = createOptionInfo.footerDescription
-        if (selectorUiImprovementsEnabled()) {
-            if (!footerDescription.isNullOrBlank()) {
-                item {
-                    Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
-                        BodyMediumText(text = footerDescription)
-                    }
+        if (!footerDescription.isNullOrBlank()) {
+            item {
+                Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+                    BodyMediumText(text = footerDescription)
                 }
-                item { Divider(thickness = 24.dp, color = Color.Transparent) }
             }
+            item { Divider(thickness = 24.dp, color = Color.Transparent) }
         }
         item {
             CredentialContainerCard {
@@ -443,19 +440,17 @@ fun CreationSelectionCard(
                 },
             )
         }
-        if (!selectorUiImprovementsEnabled()) {
-            if (footerDescription != null && footerDescription.length > 0) {
-                item {
-                    Divider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant,
-                        modifier = Modifier.padding(vertical = 16.dp)
-                    )
-                }
-                item {
-                    Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
-                        BodySmallText(text = footerDescription)
-                    }
+        if (footerDescription != null && footerDescription.length > 0) {
+            item {
+                Divider(
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                    modifier = Modifier.padding(vertical = 16.dp)
+                )
+            }
+            item {
+                Row(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
+                    BodySmallText(text = footerDescription)
                 }
             }
         }

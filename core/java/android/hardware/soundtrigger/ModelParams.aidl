@@ -18,7 +18,7 @@ package android.hardware.soundtrigger;
 
 /**
  * Model specific parameters to be used with parameter set and get APIs
- * {@hide}
+ * @hide
  */
 @Backing(type="int")
 enum ModelParams {

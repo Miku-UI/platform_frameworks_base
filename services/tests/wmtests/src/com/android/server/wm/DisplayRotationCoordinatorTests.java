@@ -52,13 +52,14 @@ public class DisplayRotationCoordinatorTests {
         mCoordinator.onDefaultDisplayRotationChanged(Surface.ROTATION_90);
     }
 
-    @Test (expected = UnsupportedOperationException.class)
+    @Test
     public void testSecondRegistrationWithoutRemovingFirstWhenDifferentDisplay() {
         Runnable callback1 = mock(Runnable.class);
         Runnable callback2 = mock(Runnable.class);
         mCoordinator.setDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback1);
         mCoordinator.setDefaultDisplayRotationChangedCallback(SECOND_DISPLAY_ID, callback2);
-        assertEquals(callback1, mCoordinator.mDefaultDisplayRotationChangedCallback);
+        assertEquals(callback1,
+                mCoordinator.mDefaultDisplayRotationChangedCallbacks.get(FIRST_DISPLAY_ID));
     }
 
     @Test
@@ -67,7 +68,8 @@ public class DisplayRotationCoordinatorTests {
         Runnable callback2 = mock(Runnable.class);
         mCoordinator.setDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback1);
         mCoordinator.setDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback2);
-        assertEquals(callback2, mCoordinator.mDefaultDisplayRotationChangedCallback);
+        assertEquals(callback2,
+                mCoordinator.mDefaultDisplayRotationChangedCallbacks.get(FIRST_DISPLAY_ID));
     }
 
     @Test
@@ -75,20 +77,22 @@ public class DisplayRotationCoordinatorTests {
         Runnable callback1 = mock(Runnable.class);
         Runnable callback2 = mock(Runnable.class);
         mCoordinator.setDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback1);
-        mCoordinator.removeDefaultDisplayRotationChangedCallback(callback2);
-        assertEquals(callback1, mCoordinator.mDefaultDisplayRotationChangedCallback);
+        mCoordinator.removeDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback2);
+        assertEquals(callback1,
+                mCoordinator.mDefaultDisplayRotationChangedCallbacks.get(FIRST_DISPLAY_ID));
 
         // FIRST_DISPLAY_ID is still able to register another callback because the previous
         // removal should not have succeeded.
         mCoordinator.setDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback2);
-        assertEquals(callback2, mCoordinator.mDefaultDisplayRotationChangedCallback);
+        assertEquals(callback2,
+                mCoordinator.mDefaultDisplayRotationChangedCallbacks.get(FIRST_DISPLAY_ID));
     }
 
     @Test
     public void testSecondRegistrationAfterRemovingFirst() {
         Runnable callback1 = mock(Runnable.class);
         mCoordinator.setDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback1);
-        mCoordinator.removeDefaultDisplayRotationChangedCallback(callback1);
+        mCoordinator.removeDefaultDisplayRotationChangedCallback(FIRST_DISPLAY_ID, callback1);
 
         Runnable callback2 = mock(Runnable.class);
         mCoordinator.setDefaultDisplayRotationChangedCallback(SECOND_DISPLAY_ID, callback2);

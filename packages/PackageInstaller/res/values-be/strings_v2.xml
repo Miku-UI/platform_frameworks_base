@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Патрабуецца дазвол"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Усталяванне заблакіравана"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Ідзе падрыхтоўка праграмы…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Усталяваць праграму?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Ідзе ўсталяванне…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Праграма ўсталявана"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Пераўсталяваць праграму?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Ідзе пераўсталяванне…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Праграма пераўсталявана"</string>
+    <string name="title_update" msgid="1747328630716712391">"Абнавіць праграму?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Абнавіць гэту праграму з дапамогай рэсурсу \"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>\"?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Ідзе абнаўленне…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Праграма абноўлена"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Не ўдалося ўсталяваць праграму"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Усталяванне заблакіравана"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Праграма несумяшчальная"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Недапушчальны пакет"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Не хапае месца ў сховішчы"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Праграма не ўсталявана"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Выдаліць праграму?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Выдаліць клон праграмы?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Выдаліць абнаўленні праграмы?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Выдаліць абнаўленні праграмы для ўсіх карыстальнікаў?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Выдаліць гэту праграму для ўсіх карыстальнікаў?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Выдаліць гэту праграму для карыстальніка <xliff:g id="USER_NAME">%1$s</xliff:g>?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Праграма не знойдзена"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Не ўдаецца выдаліць праграму"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Праграма не выдалена"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Архіваваць праграму?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Архіваваць гэту праграму для ўсіх карыстальнікаў?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Архіваваць гэту праграму для карыстальніка <xliff:g id="USER_NAME">%1$s</xliff:g>?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Аднавіць праграму?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Патрабуецца дзеянне"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Не хапае месца ў сховішчы"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Вы па-за сеткай"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"Праграма \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" адключана"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"Праграма \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" не ўсталявана"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Адбылася памылка"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Звычайна гэта праграма атрымлівае абнаўленні з рэсурсу &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Пры абнаўленні з іншай крыніцы вы, магчыма, будзеце атрымліваць будучыя абнаўленні з любой крыніцы на планшэце. Функцыі праграмы могуць змяніцца."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Звычайна гэта праграма атрымлівае абнаўленні з рэсурсу &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Пры абнаўленні з іншай крыніцы вы, магчыма, будзеце атрымліваць будучыя абнаўленні з любой крыніцы на тэлевізары. Функцыі праграмы могуць змяніцца."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Звычайна гэта праграма атрымлівае абнаўленні з рэсурсу &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Пры абнаўленні з іншай крыніцы вы, магчыма, будзеце атрымліваць будучыя абнаўленні з любой крыніцы на тэлефоне. Функцыі праграмы могуць змяніцца."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"У мэтах бяспекі вашаму планшэту забаронена ўсталёўваць невядомыя праграмы з гэтай крыніцы. Гэта можна змяніць у Наладах."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"У мэтах бяспекі вашаму тэлевізару забаронена ўсталёўваць невядомыя праграмы з гэтай крыніцы. Гэта можна змяніць у Наладах."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"У мэтах бяспекі вашаму гадзінніку забаронена ўсталёўваць невядомыя праграмы з гэтай крыніцы. Гэта можна змяніць у Наладах."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"У мэтах бяспекі вашаму тэлефону забаронена ўсталёўваць невядомыя праграмы з гэтай крыніцы. Гэта можна змяніць у Наладах."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Ваш тэлефон і асабістыя даныя больш прыступныя для атак невядомых праграм. Усталёўваючы гэту праграму, вы згаджаецеся з тым, што несяце адказнасць за любыя пашкоджанні тэлефона ці страту даных, якія могуць адбыцца ў выніку выкарыстання гэтай праграмы."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Ваш планшэт і асабістыя даныя больш прыступныя для атак невядомых праграм. Усталёўваючы гэту праграму, вы згаджаецеся з тым, што несяце адказнасць за любыя пашкоджанні планшэта ці страту даных, якія могуць адбыцца ў выніку выкарыстання гэтай праграмы."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Ваш тэлевізар і асабістыя даныя больш прыступныя для атак невядомых праграм. Усталёўваючы гэту праграму, вы згаджаецеся з тым, што несяце адказнасць за любыя пашкоджанні тэлевізара ці страту даных, якія могуць адбыцца ў выніку выкарыстання гэтай праграмы."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Усталяванне гэтай праграмы было заблакіравана"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Гэта праграма канфліктуе з праграмай, якая ўжо ўсталявана на вашай прыладзе"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Гэта праграма несумяшчальная з вашай прыладай"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Узнікла праблема з файлам усталявання гэтай праграмы"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Каб усталяваць гэту праграму, вызваліце месца і паўтарыце спробу"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Узнікла праблема з файлам праграмы"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Усталяванне праграм было абмежавана"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Усталяванне невядомых праграм было абмежавана"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Клон гэтай праграмы ўжо існуе і будзе выдалены"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Гэта праграма з’яўляецца клонам праграмы \"<xliff:g id="APP_LABEL">%1$s</xliff:g>\""</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Гэта праграма будзе заменена на заводскую версію. Усе даныя праграмы будуць выдалены."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Гэта праграма будзе заменена на заводскую версію для ўсіх карыстальнікаў на гэтай прыладзе. Усе даныя праграмы будуць выдалены."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Гэта праграма будзе выдалена з вашага працоўнага профілю"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Гэта праграма будзе выдалена з вашай прыватнай прасторы"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Гэтай праграмы няма ў спісе ўсталяваных праграм або яна ўжо была выдалена"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Бягучы карыстальнік не можа выканаць такое выдаленне"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Не ўдалося выдаліць праграму"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Захавайце даныя праграмы"</string>
+    <string name="message_archive" msgid="943853731737315850">"Вашы даныя праграмы будуць захаваны"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Усе даныя праграмы будуць захаваны"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Даныя праграмы будуць захаваны"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Гэта праграма будзе архівавана з вашага працоўнага профілю. Вашы даныя праграмы будуць захаваны."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Гэта праграма будзе архівавана з вашай прыватнай прасторы. Вашы даныя праграмы будуць захаваны."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Гэта праграма будзе спампавана ў фонавым рэжыме з праграмы \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\""</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"Каб аднавіць гэту праграму, праграме \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" трэба атрымаць больш інфармацыі"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Каб аднавіць гэту праграму, вызваліце &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; і паўтарыце спробу"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Каб аднавіць гэту праграму, праверце падключэнне да інтэрнэту і паўтарыце спробу"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Каб аднавіць гэту праграму, уключыце ў наладах праграму \"<xliff:g id="INSTALLERNAME">%1$s</xliff:g>\""</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Каб аднавіць гэту праграму, усталюйце праграму \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\""</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Пры аднаўленні праграмы ўзнікла праблема"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"Дзеянне \"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g>\" з’яўляецца часткай наступнай праграмы: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Праграма была заблакіравана. У мэтах бяспекі прылады і даных дазваляецца ўсталёўваць праграмы толькі ад спраўджаных распрацоўшчыкаў.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Праграма не была абноўлена. У мэтах бяспекі прылады і даных дазваляецца ўсталёўваць абнаўленні толькі ад спраўджаных распрацоўшчыкаў.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Праграма не была ўсталявана. Праграмы ад няспраўджаных распрацоўшчыкаў могуць быць небяспечнымі.&lt;/p&gt; &lt;p&gt;Для спраўджання распрацоўшчыка праграмы патрабуецца падключэнне да інтэрнэту. Праверце падключэнне і паспрабуйце ўсталяваць праграму яшчэ раз. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Праграма не была абноўлена. Абнаўленні ад няспраўджаных распрацоўшчыкаў могуць быць небяспечнымі.&lt;/p&gt; &lt;p&gt;Для спраўджання распрацоўшчыка праграмы патрабуецца падключэнне да інтэрнэту. Праверце падключэнне і паспрабуйце абнавіць праграму яшчэ раз. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Узнікла праблема са спраўджаннем распрацоўшчыка праграмы. Праграма не была ўсталявана, бо праграмы ад няспраўджаных распрацоўшчыкаў могуць быць небяспечнымі.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Узнікла праблема са спраўджаннем распрацоўшчыка праграмы. Праграма не была абноўлена, бо праграмы ад няспраўджаных распрацоўшчыкаў могуць быць небяспечнымі.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Гэта праграма была заблакіравана, бо ўзнікла праблема са спраўджаннем распрацоўшчыка. У мэтах бяспекі прылады і даных дазваляецца ўсталёўваць праграмы толькі ад спраўджаных распрацоўшчыкаў.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Гэта праграма не была абноўлена, бо ўзнікла праблема са спраўджаннем распрацоўшчыка. У мэтах бяспекі прылады і даных дазваляецца ўсталёўваць абнаўленні толькі ад спраўджаных распрацоўшчыкаў.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Даведацца больш пра спраўджанне распрацоўшчыкаў&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Памятайце, што ўсталяванне праграм без спраўджання распрацоўшчыка можа паставіць вашу прыладу і даныя пад пагрозу."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Памятайце, што абнаўленне праграм без спраўджання распрацоўшчыка можа паставіць вашу прыладу і даныя пад пагрозу."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Распрацоўшчык праграмы не спраўджаны"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Не ўдалося спраўдзіць распрацоўшчыка праграмы: няма падключэння да інтэрнэту"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Не ўдаецца спраўдзіць распрацоўшчыка праграмы"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Усталяваць без спраўджання"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Абнавіць без спраўджання"</string>
+    <string name="button_install" msgid="7434013176505680162">"Усталяваць"</string>
+    <string name="button_update" msgid="3046719350226327526">"Абнавіць"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Усё роўна абнавіць"</string>
+    <string name="button_done" msgid="3408025390982260629">"Гатова"</string>
+    <string name="button_open" msgid="6892684987374117955">"Адкрыць"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Скасаваць"</string>
+    <string name="button_continue" msgid="107501685249826244">"Працягнуць"</string>
+    <string name="button_close" msgid="7187308556466275899">"Закрыць"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Выдаліць"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Выдаліць"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Пераўсталяваць"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Кіраваць праграмамі"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Архіваваць"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Аднавіць"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Выдаліць абнаўленні"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Налады"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Паўтарыць спробу"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Клон \"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>\""</string>
+</resources>

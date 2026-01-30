@@ -67,7 +67,7 @@ class AudioSharingStreamSliderViewModelTest : SysuiTestCase() {
                 .isEqualTo(
                     Icon.Loaded(
                         drawable = TestStubDrawable(),
-                        res = R.drawable.ic_volume_media_bt,
+                        resId = R.drawable.ic_volume_media_bt,
                         contentDescription = null,
                     )
                 )

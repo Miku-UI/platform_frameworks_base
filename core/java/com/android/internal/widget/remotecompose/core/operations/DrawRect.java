@@ -40,7 +40,7 @@ public class DrawRect extends DrawBase4 {
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         Maker m = DrawRect::new;
-        read(m, buffer, operations);
+        read(buffer, operations, m);
     }
 
     /**
@@ -105,7 +105,7 @@ public class DrawRect extends DrawBase4 {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serialize(serializer, "left", "top", "right", "bottom").addType(CLASS_NAME);
     }
 }

@@ -16,12 +16,14 @@
 
 package com.android.server.wm;
 
+import static android.internal.perfetto.protos.Windowmanagerservice.ActivityRecordProto.SAFE_REGION_BOUNDS;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_SAFE_REGION_LETTERBOXING;
 
 import android.annotation.NonNull;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Rect;
+import android.util.proto.ProtoOutputStream;
 
 import java.io.PrintWriter;
 import java.util.function.BooleanSupplier;
@@ -67,7 +69,7 @@ class AppCompatSafeRegionPolicy {
         });
     }
 
-    private boolean allowSafeRegionLetterboxing(PackageManager pm) {
+    private boolean allowSafeRegionLetterboxing(@NonNull PackageManager pm) {
         try {
             return pm.getPropertyAsUser(
                     PROPERTY_COMPAT_ALLOW_SAFE_REGION_LETTERBOXING,
@@ -75,20 +77,21 @@ class AppCompatSafeRegionPolicy {
                     /* className */ null,
                     mActivityRecord.mUserId).getBoolean();
         } catch (PackageManager.NameNotFoundException e) {
-            return true;
+            return false;
         }
     }
 
     /**
      * Computes the latest safe region bounds in
-     * {@link ActivityRecord#resolveOverrideConfiguration(Configuration)} since the activity has not
-     * been attached to the parent container when the ActivityRecord is instantiated. Note that the
-     * latest safe region bounds will be empty if activity has not allowed safe region letterboxing.
+     * {@link ActivityRecord#resolveOverrideConfiguration(Configuration)} since the activity has
+     * not been attached to the parent container when the ActivityRecord is instantiated. Note that
+     * the latest safe region bounds will be empty if activity has not allowed safe region
+     * letterboxing or if the activity does not need safe region bounds.
      *
      * @return latest safe region bounds as set on an ancestor window container.
      */
     public Rect getLatestSafeRegionBounds() {
-        if (!allowSafeRegionLetterboxing()) {
+        if (!allowSafeRegionLetterboxing() || !getNeedsSafeRegionBounds()) {
             mLatestSafeRegionBounds.setEmpty();
             return null;
         }
@@ -107,9 +110,6 @@ class AppCompatSafeRegionPolicy {
      */
     public void resolveSafeRegionBoundsConfigurationIfNeeded(@NonNull Configuration resolvedConfig,
             @NonNull Configuration newParentConfig) {
-        if (mLatestSafeRegionBounds.isEmpty()) {
-            return;
-        }
         // If activity can not be letterboxed for a safe region only or it has not been attached
         // to a WindowContainer yet.
         if (!isLetterboxedForSafeRegionOnlyAllowed() || mActivityRecord.getParent() == null) {
@@ -130,8 +130,9 @@ class AppCompatSafeRegionPolicy {
      * container.
      */
     boolean isLetterboxedForSafeRegionOnlyAllowed() {
-        return !mActivityRecord.areBoundsLetterboxed() && getNeedsSafeRegionBounds()
-                && getLatestSafeRegionBounds() != null;
+        return !mActivityRecord.areBoundsLetterboxed() && getLatestSafeRegionBounds() != null
+                // TODO(b/403628576): Remove once activity embedding activities support letterboxing
+                && mActivityRecord.getOrganizedTaskFragment() == null;
     }
 
     /**
@@ -164,6 +165,13 @@ class AppCompatSafeRegionPolicy {
         }
         if (!allowSafeRegionLetterboxing()) {
             pw.println(prefix + " allowSafeRegionLetterboxing=false");
+        }
+    }
+
+    public void dumpDebug(@NonNull ProtoOutputStream proto) {
+        // Only record if safe region bounds are not null.
+        if (getLatestSafeRegionBounds() != null) {
+            getLatestSafeRegionBounds().dumpDebug(proto, SAFE_REGION_BOUNDS);
         }
     }
 }

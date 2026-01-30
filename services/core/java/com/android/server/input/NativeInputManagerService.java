@@ -59,7 +59,7 @@ interface NativeInputManagerService {
 
     InputChannel createInputChannel(String name);
 
-    InputChannel createInputMonitor(int displayId, String name, int pid);
+    InputChannel createFocusInputMonitor(int displayId, String name, int pid);
 
     void removeInputChannel(IBinder connectionToken);
 
@@ -160,6 +160,8 @@ interface NativeInputManagerService {
 
     void setTouchpadAccelerationEnabled(boolean enabled);
 
+    void setTouchpadsEnabled(boolean enabled);
+
     void setShowTouches(boolean enabled);
 
     void setNonInteractiveDisplays(int[] displayIds);
@@ -217,7 +219,7 @@ interface NativeInputManagerService {
 
     void setPointerIconVisibility(int displayId, boolean visible);
 
-    void requestPointerCapture(IBinder windowToken, boolean enabled);
+    void requestPointerCapture(IBinder windowToken, int mode);
 
     boolean canDispatchToDisplay(int deviceId, int displayId);
 
@@ -228,6 +230,8 @@ interface NativeInputManagerService {
     void changeTypeAssociation();
 
     void changeKeyboardLayoutAssociation();
+
+    void changeVirtualDevices();
 
     void setDisplayEligibilityForPointerCapture(int displayId, boolean enabled);
 
@@ -259,15 +263,28 @@ interface NativeInputManagerService {
     void setStylusButtonMotionEventsEnabled(boolean enabled);
 
     /**
-     * Get the current position of the mouse cursor on the given display.
+     * Get the current position of the mouse cursor on the given display in the physical display
+     * coordinates.
      *
-     * If the mouse cursor is not currently shown, the coordinate values will be NaN-s. Use
+     * <p>If the mouse cursor is not currently shown, the coordinate values will be NaN-s. Use
      * {@link android.view.Display#INVALID_DISPLAY} to get the position of the default mouse cursor.
      *
-     * NOTE: This will grab the PointerController's lock, so we must be careful about calling this
-     * from the InputReader or Display threads, which may result in a deadlock.
+     * <p>NOTE: This will grab the PointerController's lock, so we must be careful about calling
+     * this from the InputReader or Display threads, which may result in a deadlock.
      */
-    float[] getMouseCursorPosition(int displayId);
+    float[] getMouseCursorPositionInPhysicalDisplay(int displayId);
+
+    /**
+     * Get the current position of the mouse cursor on the given display in the logical display
+     * coordinates.
+     *
+     * <p>If the mouse cursor is not currently shown, the coordinate values will be NaN-s. Use
+     * {@link android.view.Display#INVALID_DISPLAY} to get the position of the default mouse cursor.
+     *
+     * <p>NOTE: This will grab the PointerController's lock, so we must be careful about calling
+     * this from the InputReader or Display threads, which may result in a deadlock.
+     */
+    float[] getMouseCursorPositionInLogicalDisplay(int displayId);
 
     /** Set whether showing a pointer icon for styluses is enabled. */
     void setStylusPointerIconEnabled(boolean enabled);
@@ -328,6 +345,13 @@ interface NativeInputManagerService {
      */
     void setAccessibilityPointerMotionFilterEnabled(boolean enabled);
 
+    /**
+     * Get the physical location path of the input device, if known. This is also known as the
+     * "phys" identifier.
+     */
+    @Nullable
+    String getPhysicalLocationPath(int deviceId);
+
     /** The native implementation of InputManagerService methods. */
     class NativeImpl implements NativeInputManagerService {
         /** Pointer to native input manager service object, used by native code. */
@@ -372,7 +396,7 @@ interface NativeInputManagerService {
         public native InputChannel createInputChannel(String name);
 
         @Override
-        public native InputChannel createInputMonitor(int displayId, String name, int pid);
+        public native InputChannel createFocusInputMonitor(int displayId, String name, int pid);
 
         @Override
         public native void removeInputChannel(IBinder connectionToken);
@@ -481,6 +505,9 @@ interface NativeInputManagerService {
         public native void setTouchpadAccelerationEnabled(boolean enabled);
 
         @Override
+        public native void setTouchpadsEnabled(boolean enabled);
+
+        @Override
         public native void setShowTouches(boolean enabled);
 
         @Override
@@ -560,7 +587,7 @@ interface NativeInputManagerService {
         public native void setPointerIconVisibility(int displayId, boolean visible);
 
         @Override
-        public native void requestPointerCapture(IBinder windowToken, boolean enabled);
+        public native void requestPointerCapture(IBinder windowToken, int mode);
 
         @Override
         public native boolean canDispatchToDisplay(int deviceId, int displayId);
@@ -576,6 +603,9 @@ interface NativeInputManagerService {
 
         @Override
         public native void changeKeyboardLayoutAssociation();
+
+        @Override
+        public native void changeVirtualDevices();
 
         @Override
         public native void setDisplayEligibilityForPointerCapture(int displayId, boolean enabled);
@@ -616,7 +646,10 @@ interface NativeInputManagerService {
         public native void setStylusButtonMotionEventsEnabled(boolean enabled);
 
         @Override
-        public native float[] getMouseCursorPosition(int displayId);
+        public native float[] getMouseCursorPositionInPhysicalDisplay(int displayId);
+
+        @Override
+        public native float[] getMouseCursorPositionInLogicalDisplay(int displayId);
 
         @Override
         public native void setStylusPointerIconEnabled(boolean enabled);
@@ -647,5 +680,8 @@ interface NativeInputManagerService {
 
         @Override
         public native void setAccessibilityPointerMotionFilterEnabled(boolean enabled);
+
+        @Override
+        public native String getPhysicalLocationPath(int deviceId);
     }
 }

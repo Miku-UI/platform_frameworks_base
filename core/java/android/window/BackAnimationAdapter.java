@@ -16,6 +16,8 @@
 
 package android.window;
 
+import static android.view.Display.INVALID_DISPLAY;
+
 import android.annotation.NonNull;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -28,6 +30,8 @@ import java.util.ArrayList;
  * @hide
  */
 public class BackAnimationAdapter implements Parcelable {
+    /** The display id where the back gesture is started. */
+    public int mOriginDisplayId = INVALID_DISPLAY;
     private final IBackAnimationRunner mRunner;
     private int[] mSupportedAnimators;
 
@@ -39,6 +43,7 @@ public class BackAnimationAdapter implements Parcelable {
         mRunner = IBackAnimationRunner.Stub.asInterface(in.readStrongBinder());
         mSupportedAnimators = new int[in.readInt()];
         in.readIntArray(mSupportedAnimators);
+        mOriginDisplayId = in.readInt();
     }
 
     public IBackAnimationRunner getRunner() {
@@ -64,6 +69,7 @@ public class BackAnimationAdapter implements Parcelable {
         dest.writeStrongInterface(mRunner);
         dest.writeInt(mSupportedAnimators.length);
         dest.writeIntArray(mSupportedAnimators);
+        dest.writeInt(mOriginDisplayId);
     }
 
     public static final @android.annotation.NonNull Creator<BackAnimationAdapter> CREATOR =

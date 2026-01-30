@@ -17,13 +17,18 @@
 package com.android.systemui.qs.panels.domain.interactor
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.log.core.FakeLogBuffer
 import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
 
 val Kosmos.dynamicIconTilesInteractorFactory by
     Kosmos.Fixture {
         object : DynamicIconTilesInteractor.Factory {
             override fun create(): DynamicIconTilesInteractor {
-                return DynamicIconTilesInteractor(iconTilesInteractor, currentTilesInteractor)
+                return DynamicIconTilesInteractor(
+                    iconTilesInteractor,
+                    currentTilesInteractor,
+                    FakeLogBuffer.Factory.create(),
+                )
             }
         }
     }

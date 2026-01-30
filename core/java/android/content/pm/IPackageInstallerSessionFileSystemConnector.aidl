@@ -18,7 +18,7 @@ package android.content.pm;
 
 import android.os.ParcelFileDescriptor;
 
-/** {@hide} */
+/** @hide */
 interface IPackageInstallerSessionFileSystemConnector {
     void writeData(String name, long offsetBytes, long lengthBytes, in ParcelFileDescriptor fd);
 }

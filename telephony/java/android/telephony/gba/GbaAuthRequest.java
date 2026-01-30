@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * GBA authentication request
- * {@hide}
+ * @hide
  */
 public final class GbaAuthRequest implements Parcelable {
     private int mToken;

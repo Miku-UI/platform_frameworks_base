@@ -104,6 +104,33 @@ static jint nativeAudioAttributesFromJavaAudioAttributes(
     return (jint)AUDIO_JAVA_SUCCESS;
 }
 
+static jint nativeAudioAttributesToJavaAudioAttributesBuilder(
+        JNIEnv* env, jobject jAudioAttributesBuilder, const audio_attributes_t &attributes)
+{
+    const bool isSystemUsage = env->CallStaticBooleanMethod(gAudioAttributesClass,
+        gAudioAttributesClassMethods.isSystemUsage, attributes.usage);
+    if (isSystemUsage) {
+        env->CallObjectMethod(jAudioAttributesBuilder,
+                              gAudioAttributesBuilderMethods.setSystemUsage, attributes.usage);
+    } else {
+        env->CallObjectMethod(jAudioAttributesBuilder, gAudioAttributesBuilderMethods.setUsage,
+                              attributes.usage);
+    }
+    env->CallObjectMethod(jAudioAttributesBuilder,
+                          gAudioAttributesBuilderMethods.setInternalCapturePreset,
+                          attributes.source);
+    env->CallObjectMethod(jAudioAttributesBuilder,
+                          gAudioAttributesBuilderMethods.setInternalContentType,
+                          attributes.content_type);
+    env->CallObjectMethod(jAudioAttributesBuilder,
+                          gAudioAttributesBuilderMethods.replaceFlags,
+                          attributes.flags);
+    env->CallObjectMethod(jAudioAttributesBuilder,
+                          gAudioAttributesBuilderMethods.addTag,
+                          env->NewStringUTF(attributes.tags));
+    return (jint)AUDIO_JAVA_SUCCESS;
+}
+
 static jint nativeAudioAttributesToJavaAudioAttributes(
         JNIEnv* env, jobject *jAudioAttributes, const audio_attributes_t &attributes)
 {
@@ -113,28 +140,7 @@ static jint nativeAudioAttributesToJavaAudioAttributes(
         return (jint)AUDIO_JAVA_ERROR;
     }
 
-    const bool isSystemUsage = env->CallStaticBooleanMethod(gAudioAttributesClass,
-                                                      gAudioAttributesClassMethods.isSystemUsage,
-                                                      attributes.usage);
-    if (isSystemUsage) {
-        env->CallObjectMethod(jAttributeBuilder.get(),
-                              gAudioAttributesBuilderMethods.setSystemUsage, attributes.usage);
-    } else {
-        env->CallObjectMethod(jAttributeBuilder.get(), gAudioAttributesBuilderMethods.setUsage,
-                              attributes.usage);
-    }
-    env->CallObjectMethod(jAttributeBuilder.get(),
-                          gAudioAttributesBuilderMethods.setInternalCapturePreset,
-                          attributes.source);
-    env->CallObjectMethod(jAttributeBuilder.get(),
-                          gAudioAttributesBuilderMethods.setInternalContentType,
-                          attributes.content_type);
-    env->CallObjectMethod(jAttributeBuilder.get(),
-                          gAudioAttributesBuilderMethods.replaceFlags,
-                          attributes.flags);
-    env->CallObjectMethod(jAttributeBuilder.get(),
-                          gAudioAttributesBuilderMethods.addTag,
-                          env->NewStringUTF(attributes.tags));
+    nativeAudioAttributesToJavaAudioAttributesBuilder(env, jAttributeBuilder.get(), attributes);
 
     *jAudioAttributes = env->CallObjectMethod(jAttributeBuilder.get(),
                                               gAudioAttributesBuilderMethods.build);
@@ -161,11 +167,26 @@ jint JNIAudioAttributeHelper::nativeToJava(
     return nativeAudioAttributesToJavaAudioAttributes(env, jAudioAttributes, attributes);
 }
 
+
+jint JNIAudioAttributeHelper::nativeToJavaBuilder(
+        JNIEnv* env, jobject jAttributesBuilder, const audio_attributes_t &attributes)
+{
+    return nativeAudioAttributesToJavaAudioAttributesBuilder(env, jAttributesBuilder, attributes);
+}
+
 jint JNIAudioAttributeHelper::getJavaArray(
         JNIEnv* env, jobjectArray *jAudioAttributeArray, jint numAudioAttributes)
 {
     *jAudioAttributeArray = env->NewObjectArray(numAudioAttributes, gAudioAttributesClass, NULL);
     return *jAudioAttributeArray == NULL? (jint)AUDIO_JAVA_ERROR : (jint)AUDIO_JAVA_SUCCESS;
+}
+
+bool JNIAudioAttributeHelper::isInstanceOfAudioAttributes(JNIEnv *env, jobject object) {
+    return env->IsInstanceOf(object, gAudioAttributesClass);
+}
+
+bool JNIAudioAttributeHelper::isInstanceOfAudioAttributesBuilder(JNIEnv *env, jobject object) {
+    return env->IsInstanceOf(object, gAudioAttributesBuilderClass);
 }
 
 /*

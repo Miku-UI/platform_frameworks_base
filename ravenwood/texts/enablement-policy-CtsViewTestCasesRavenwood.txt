@@ -1,0 +1,944 @@
+!module CtsViewTestCasesRavenwood
+
+# Packages/classes we never want to run, even with RAVENWOOD_RUN_DISABLED_TESTS=1
+# (because we know they won't pass. Some of the test methods in them may pass,
+# but the failing tests are often slow, so let's just ignore them until we
+# know they might pass.)
+
+android.view.cts.input.** never
+android.view.animation.** never
+
+android.view.cts.Texture* never
+android.view.cts.Surface* never
+android.view.cts.Motion* never
+android.view.cts.*Animation* never
+
+# This one fails and is slow.
+android.view.cts.PointerCaptureTest never
+
+
+# Default to disable. Use RAVENWOOD_RUN_DISABLED_TESTS=1 to run disabled tests.
+** disable
+
+# Starting test methods that we want to run:
+# We list failed tests as "disable" too to keep track of known test methods.
+
+# AUTO-GENERATED START
+
+# Total=915 Passed=574 Failed=334 Skipped=7
+
+android.view.cts.AbsSavedStateTest#testConstructor disable
+android.view.cts.AbsSavedStateTest#testConstructorNullParcel
+android.view.cts.AbsSavedStateTest#testConstructorNullParcelAndClassLoader
+android.view.cts.AbsSavedStateTest#testConstructorNullParcelable
+android.view.cts.AbsSavedStateTest#testCreator disable
+android.view.cts.AbsSavedStateTest#testWriteToParcel
+android.view.cts.ActionModeCallback2Test#testCallbackOnGetContentRectDefaultWithView
+android.view.cts.ActionModeCallback2Test#testCallbackOnGetContentRectDefaultWithoutView
+android.view.cts.ActionModeTest#testHide
+android.view.cts.ActionModeTest#testInvalidateContentRectDoesNotInvalidateFull
+android.view.cts.ActionModeTest#testInvalidateContentRectOnFloatingCallsCallback disable
+android.view.cts.ActionModeTest#testIsTitleOptional
+android.view.cts.ActionModeTest#testIsUiFocusable
+android.view.cts.ActionModeTest#testOnWindowFocusChanged
+android.view.cts.ActionModeTest#testSetAndGetTag
+android.view.cts.ActionModeTest#testSetAndGetTitleOptionalHint
+android.view.cts.ActionModeTest#testSetType
+android.view.cts.AutoHandwritingTest#autoHandwriting_setToFalse disable
+android.view.cts.AutoHandwritingTest#autoHandwriting_setToFalseInXml disable
+android.view.cts.AutoHandwritingTest#autoHandwriting_setToTrue disable
+android.view.cts.AutoHandwritingTest#autoHandwriting_setToTrueInXml disable
+android.view.cts.AutoHandwritingTest#autoHandwriting_textView_defaultValueIsTrue disable
+android.view.cts.ContentPaneFocusTest#testAccessActionBar disable
+android.view.cts.ContentPaneFocusTest#testNoFocusablesInContent disable
+android.view.cts.ContextThemeWrapperTest#testAccessTheme
+android.view.cts.ContextThemeWrapperTest#testApplyOverrideConfiguration
+android.view.cts.ContextThemeWrapperTest#testAttachBaseContext
+android.view.cts.ContextThemeWrapperTest#testConstructor
+android.view.cts.ContextThemeWrapperTest#testGetSystemService
+android.view.cts.ContextThemeWrapperTest#testSetTheme
+android.view.cts.DisplayRefreshRateTest#testRefreshRate disable
+android.view.cts.FocusFinderTest#testBasicFocusOrder disable
+android.view.cts.FocusFinderTest#testChainVisibility disable
+android.view.cts.FocusFinderTest#testDuplicateId
+android.view.cts.FocusFinderTest#testFindNearestTouchable disable
+android.view.cts.FocusFinderTest#testFindNextAndPrevClusterAvoidingChain
+android.view.cts.FocusFinderTest#testFindNextAndPrevFocusAvoidingChain disable
+android.view.cts.FocusFinderTest#testFindNextCluster
+android.view.cts.FocusFinderTest#testFindNextFocus disable
+android.view.cts.FocusFinderTest#testFindNextFocusFromRect disable
+android.view.cts.FocusFinderTest#testGetInstance
+android.view.cts.FocusFinderTest#testNoClusters
+android.view.cts.FrameMetricsListenerTest#testDropCount disable
+android.view.cts.FrameMetricsListenerTest#testMultipleListeners disable
+android.view.cts.FrameMetricsListenerTest#testReceiveData disable
+android.view.cts.GestureDetectorTest#testConstructor
+android.view.cts.GestureDetectorTest#testConstructorNullListener
+android.view.cts.GestureDetectorTest#testLongpressEnabled
+android.view.cts.GestureDetectorTest#testOnContextClick
+android.view.cts.GestureDetectorTest#testOnGenericMotionEvent
+android.view.cts.GestureDetectorTest#testOnSetContextClickListener
+android.view.cts.GravityTest#testApply
+android.view.cts.GravityTest#testApplyDisplay
+android.view.cts.GravityTest#testConstructor
+android.view.cts.GravityTest#testGetAbsoluteGravity
+android.view.cts.GravityTest#testIsHorizontal
+android.view.cts.GravityTest#testIsVertical
+android.view.cts.HandwritingBoundsOffsetTest#handwritingBoundsOffset_editTextDefaultValue disable
+android.view.cts.HandwritingBoundsOffsetTest#handwritingBoundsOffset_setThoughXml disable
+android.view.cts.HandwritingBoundsOffsetTest#handwritingBoundsOffset_textViewDefaultValue disable
+android.view.cts.HandwritingBoundsOffsetTest#handwritingBoundsOffset_viewDefaultValue disable
+android.view.cts.HandwritingBoundsOffsetTest#setHandwritingBoundsOffsets disable
+android.view.cts.HoverTest#testHoverMove disable
+android.view.cts.HoverTest#testHoverMoveAndExit disable
+android.view.cts.HoverTest#testHoverMoveMultiple disable
+android.view.cts.HoverTest#testNoParentInteraction disable
+android.view.cts.HoverTest#testOverlappingHoverTargets disable
+android.view.cts.HoverTest#testParentInteraction disable
+android.view.cts.HoverTest#testRemoveAfterExit disable
+android.view.cts.HoverTest#testRemoveBeforeExit disable
+android.view.cts.HoverTest#testRemoveParentBeforeExit disable
+android.view.cts.InflateExceptionTest#testInflateException
+android.view.cts.InputQueueTest#testNativeInputQueue disable
+android.view.cts.KeyCharacterMapTest#testGetDeadChar
+android.view.cts.KeyCharacterMapTest#testGetEvents
+android.view.cts.KeyCharacterMapTest#testGetEventsNull
+android.view.cts.KeyCharacterMapTest#testGetKeyData disable
+android.view.cts.KeyCharacterMapTest#testGetKeyboardType
+android.view.cts.KeyCharacterMapTest#testGetMatch disable
+android.view.cts.KeyCharacterMapTest#testGetMatchMetaState disable
+android.view.cts.KeyCharacterMapTest#testGetMatchMetaStateNull
+android.view.cts.KeyCharacterMapTest#testGetMatchNull
+android.view.cts.KeyCharacterMapTest#testGetNumber disable
+android.view.cts.KeyCharacterMapTest#testIsPrintingKey disable
+android.view.cts.KeyCharacterMapTest#testLoad
+android.view.cts.KeyEventInjectionTest#testKeyEventInjectedViaAdb disable
+android.view.cts.KeyEventInjectionTest#testKeyEventInjectedViaInstrumentation disable
+android.view.cts.KeyEventInjectionTest#testLongPressKeyEventInjectedViaAdb disable
+android.view.cts.KeyEventInjectionTest#testLongPressKeyEventInjectedViaInstrumentation disable
+android.view.cts.KeyEventInterceptTest#testKeyCodeHome disable
+android.view.cts.KeyEventInterceptTest#testKeyCodeHomeShortcutLeftMeta disable
+android.view.cts.KeyEventInterceptTest#testKeyCodeHomeShortcutRightMeta disable
+android.view.cts.KeyEventInterceptTest#testKeyCodesForLaunchingApplications disable
+android.view.cts.KeyEventTest#testAccessSource disable
+android.view.cts.KeyEventTest#testChangeAction disable
+android.view.cts.KeyEventTest#testChangeFlags disable
+android.view.cts.KeyEventTest#testChangeTimeRepeat disable
+android.view.cts.KeyEventTest#testConstructor disable
+android.view.cts.KeyEventTest#testDescribeContents disable
+android.view.cts.KeyEventTest#testDispatch disable
+android.view.cts.KeyEventTest#testGetAction disable
+android.view.cts.KeyEventTest#testGetCharacters disable
+android.view.cts.KeyEventTest#testGetDeadChar disable
+android.view.cts.KeyEventTest#testGetDeviceId disable
+android.view.cts.KeyEventTest#testGetDisplayLabel disable
+android.view.cts.KeyEventTest#testGetDownTime disable
+android.view.cts.KeyEventTest#testGetEventTime disable
+android.view.cts.KeyEventTest#testGetFlags disable
+android.view.cts.KeyEventTest#testGetKeyCode disable
+android.view.cts.KeyEventTest#testGetKeyData disable
+android.view.cts.KeyEventTest#testGetMatch disable
+android.view.cts.KeyEventTest#testGetMatchWithMeta disable
+android.view.cts.KeyEventTest#testGetMaxKeyCode disable
+android.view.cts.KeyEventTest#testGetMetaState disable
+android.view.cts.KeyEventTest#testGetModifierMetaStateMask disable
+android.view.cts.KeyEventTest#testGetNumber disable
+android.view.cts.KeyEventTest#testGetRepeatCount disable
+android.view.cts.KeyEventTest#testGetScanCode disable
+android.view.cts.KeyEventTest#testGetUnicodeChar1 disable
+android.view.cts.KeyEventTest#testGetUnicodeChar2 disable
+android.view.cts.KeyEventTest#testHasModifiers disable
+android.view.cts.KeyEventTest#testHasNoModifiers disable
+android.view.cts.KeyEventTest#testIsLongPress disable
+android.view.cts.KeyEventTest#testIsMediaSessionKey disable
+android.view.cts.KeyEventTest#testIsModifierKey disable
+android.view.cts.KeyEventTest#testIsPrintingKey disable
+android.view.cts.KeyEventTest#testIsSystem disable
+android.view.cts.KeyEventTest#testJavaToNativeConverterMemoryLeak disable
+android.view.cts.KeyEventTest#testKeyCodeFromString disable
+android.view.cts.KeyEventTest#testMetaKeyStates disable
+android.view.cts.KeyEventTest#testMetaOn disable
+android.view.cts.KeyEventTest#testMetaStateHasModifiers disable
+android.view.cts.KeyEventTest#testMetaStateHasNoModifiers disable
+android.view.cts.KeyEventTest#testNativeConverter disable
+android.view.cts.KeyEventTest#testNativeToJavaConverter disable
+android.view.cts.KeyEventTest#testNativeToJavaConverterMemoryLeak disable
+android.view.cts.KeyEventTest#testNormalizeMetaState disable
+android.view.cts.KeyEventTest#testToString disable
+android.view.cts.KeyEventTest#testWriteToParcel disable
+android.view.cts.KeyboardShortcutGroupTest#testAddItem
+android.view.cts.KeyboardShortcutGroupTest#testConstructor
+android.view.cts.KeyboardShortcutGroupTest#testConstructorChecksList
+android.view.cts.KeyboardShortcutGroupTest#testShortConstructor
+android.view.cts.KeyboardShortcutGroupTest#testSystemConstructor
+android.view.cts.KeyboardShortcutGroupTest#testSystemShortConstructor
+android.view.cts.KeyboardShortcutGroupTest#testWriteToParcelAndRead disable
+android.view.cts.KeyboardShortcutInfoTest#testCharacterConstructor
+android.view.cts.KeyboardShortcutInfoTest#testConstructorChecksBaseCharacter
+android.view.cts.KeyboardShortcutInfoTest#testConstructorChecksKeycode
+android.view.cts.KeyboardShortcutInfoTest#testKeycodeConstructor
+android.view.cts.KeyboardShortcutInfoTest#testWriteToParcelAndReadCharacter disable
+android.view.cts.KeyboardShortcutInfoTest#testWriteToParcelAndReadKeycode disable
+android.view.cts.LayoutInflaterTest#testAccessLayoutInflaterProperties
+android.view.cts.LayoutInflaterTest#testCreateView
+android.view.cts.LayoutInflaterTest#testCreateViewWithContext disable
+android.view.cts.LayoutInflaterTest#testFrom
+android.view.cts.LayoutInflaterTest#testInclude
+android.view.cts.LayoutInflaterTest#testIncludeMissingAttr
+android.view.cts.LayoutInflaterTest#testInflate disable
+android.view.cts.LayoutInflaterTest#testInflateAttachToRoot disable
+android.view.cts.LayoutInflaterTest#testInflateAttachToRootInvalidId
+android.view.cts.LayoutInflaterTest#testInflateInvalidId
+android.view.cts.LayoutInflaterTest#testInflateParser disable
+android.view.cts.LayoutInflaterTest#testInflateParserAttachToRoot disable
+android.view.cts.LayoutInflaterTest#testInflateParserAttachToRootNullParser
+android.view.cts.LayoutInflaterTest#testInflateParserNullParser
+android.view.cts.LayoutInflaterTest#testInflateTags
+android.view.cts.LayoutInflaterTest#testOverrideTheme
+android.view.cts.MenuInflaterTest#testConstructor
+android.view.cts.MenuInflaterTest#testInflate
+android.view.cts.MenuInflaterTest#testInflateAlphabeticShortcutFromXml
+android.view.cts.MenuInflaterTest#testInflateCheckableFromXmlExclusive
+android.view.cts.MenuInflaterTest#testInflateCheckableFromXmlMultiples
+android.view.cts.MenuInflaterTest#testInflateCheckableFromXmlNone
+android.view.cts.MenuInflaterTest#testInflateCheckableFromXmlSubmenu
+android.view.cts.MenuInflaterTest#testInflateContentDescriptionFromXml
+android.view.cts.MenuInflaterTest#testInflateDrawableFromXml
+android.view.cts.MenuInflaterTest#testInflateInvalidId
+android.view.cts.MenuInflaterTest#testInflateNullMenu
+android.view.cts.MenuInflaterTest#testInflateOrderFromXml
+android.view.cts.MenuInflaterTest#testInflateShortcutModifiersFromXml
+android.view.cts.MenuInflaterTest#testInflateTooltipFromXml
+android.view.cts.MenuItemTest#testAccessIconTint disable
+android.view.cts.MenuTest#testGetShortcutModifiers
+android.view.cts.MenuTest#testIsShortcutWithBackspace
+android.view.cts.MenuTest#testIsShortcutWithNewline disable
+android.view.cts.MenuTest#testPerformShortcut disable
+android.view.cts.MenuTest#testSetAlphabeticShortcut disable
+android.view.cts.MenuTest#testSetNumericShortcut disable
+android.view.cts.MenuTest#testSetShortcutWithAlpha disable
+android.view.cts.MenuTest#testSetShortcutWithNumeric disable
+android.view.cts.OnBackInvokedDispatcherTest#findDispatcherOnView disable
+android.view.cts.OnBackInvokedDispatcherTest#findDispatcherOnViewGroup disable
+android.view.cts.OnBackInvokedDispatcherTest#testGetDispatcherOnDialog disable
+android.view.cts.OnBackInvokedDispatcherTest#testRegisterAndUnregisterCallbacks disable
+android.view.cts.OrientationEventListenerTest#testCanDetectOrientation disable
+android.view.cts.OrientationEventListenerTest#testConstructor disable
+android.view.cts.OrientationEventListenerTest#testEnableAndDisable disable
+android.view.cts.OrientationListenerTest#testConstructor disable
+android.view.cts.OrientationListenerTest#testOnAccuracyChanged disable
+android.view.cts.OrientationListenerTest#testOnOrientationChanged disable
+android.view.cts.OrientationListenerTest#testOnSensorChanged disable
+android.view.cts.OrientationListenerTest#testRegisterationOfOrientationListener disable
+android.view.cts.PixelCopyTest#testAutoSize disable
+android.view.cts.PixelCopyTest#testAutoSizeWithCrop disable
+android.view.cts.PixelCopyTest#testAutoSizeWithSrcRect disable
+android.view.cts.PixelCopyTest#testBufferQueueCrop disable
+android.view.cts.PixelCopyTest#testDialogProducer disable
+android.view.cts.PixelCopyTest#testDialogProducerCopyToRGBA16F disable
+android.view.cts.PixelCopyTest#testDialogProducerCropBottomHalf disable
+android.view.cts.PixelCopyTest#testDialogProducerCropCenter disable
+android.view.cts.PixelCopyTest#testDialogProducerCropTopLeft disable
+android.view.cts.PixelCopyTest#testDialogProducerScaling disable
+android.view.cts.PixelCopyTest#testEmptySourceRectSurface disable
+android.view.cts.PixelCopyTest#testEmptySourceRectWindow disable
+android.view.cts.PixelCopyTest#testGlProducerAutoSize disable
+android.view.cts.PixelCopyTest#testGlProducerCropBottomHalf disable
+android.view.cts.PixelCopyTest#testGlProducerCropCenter disable
+android.view.cts.PixelCopyTest#testGlProducerCropClamping disable
+android.view.cts.PixelCopyTest#testGlProducerCropTopLeft disable
+android.view.cts.PixelCopyTest#testGlProducerFullsize disable
+android.view.cts.PixelCopyTest#testGlProducerScaling disable
+android.view.cts.PixelCopyTest#testInvalidSourceRectSurface disable
+android.view.cts.PixelCopyTest#testInvalidSourceRectWindow disable
+android.view.cts.PixelCopyTest#testNoDecorView disable
+android.view.cts.PixelCopyTest#testNoSourceData disable
+android.view.cts.PixelCopyTest#testNoViewRoot disable
+android.view.cts.PixelCopyTest#testNotLeaking disable
+android.view.cts.PixelCopyTest#testNullDest disable
+android.view.cts.PixelCopyTest#testRecycledDest disable
+android.view.cts.PixelCopyTest#testRequestGetters disable
+android.view.cts.PixelCopyTest#testReuseBitmap disable
+android.view.cts.PixelCopyTest#testVideoProducer disable
+android.view.cts.PixelCopyTest#testViewProducer disable
+android.view.cts.PixelCopyTest#testViewProducerAutoSizeWithSrc disable
+android.view.cts.PixelCopyTest#testWideGamutWindowProducerCopyToRGBA16F disable
+android.view.cts.PixelCopyTest#testWideGamutWindowProducerCopyToRGBA8888 disable
+android.view.cts.PixelCopyTest#testWindowProducer disable
+android.view.cts.PixelCopyTest#testWindowProducerAutoSize disable
+android.view.cts.PixelCopyTest#testWindowProducerCopyToRGBA16F disable
+android.view.cts.PixelCopyTest#testWindowProducerCropBottomHalf disable
+android.view.cts.PixelCopyTest#testWindowProducerCropCenter disable
+android.view.cts.PixelCopyTest#testWindowProducerCropTopLeft disable
+android.view.cts.PixelCopyTest#testWindowProducerScaling disable
+android.view.cts.ScaleGestureDetectorTest#testAccessStylusScaleEnabled
+android.view.cts.ScaleGestureDetectorTest#testConstructor
+android.view.cts.ScaleGestureDetectorTest#testGetScaleFactor_whenGestureCrossesBackInsideSlopRadius_returns1 disable
+android.view.cts.ScrollCaptureSessionTest#testConstructor_requiresNonNullBounds
+android.view.cts.ScrollCaptureSessionTest#testConstructor_requiresNonNullPosition
+android.view.cts.ScrollCaptureSessionTest#testConstructor_requiresNonNullSurface
+android.view.cts.ScrollCaptureSessionTest#testGetPositionInWindow
+android.view.cts.ScrollCaptureSessionTest#testGetScrollBounds
+android.view.cts.ScrollCaptureSessionTest#testGetSurface
+android.view.cts.ScrollCaptureTargetTest#testCallback
+android.view.cts.ScrollCaptureTargetTest#testConstructor_requiresNonNullCallback
+android.view.cts.ScrollCaptureTargetTest#testConstructor_requiresNonNullPosition
+android.view.cts.ScrollCaptureTargetTest#testConstructor_requiresNonNullTarget
+android.view.cts.ScrollCaptureTargetTest#testConstructor_requiresNonNullVisibleRect
+android.view.cts.ScrollCaptureTargetTest#testContainingView
+android.view.cts.ScrollCaptureTargetTest#testHint
+android.view.cts.ScrollCaptureTargetTest#testLocalVisibleRect
+android.view.cts.ScrollCaptureTargetTest#testPositionInWindow disable
+android.view.cts.ScrollCaptureTargetTest#testScrollBounds
+android.view.cts.ScrollFeedbackProviderTest#testApisDontCrash_allExistingInputSourceAndAxesCombinations
+android.view.cts.ScrollFeedbackProviderTest#testApisDontCrash_invalidDeviceIds
+android.view.cts.ScrollFeedbackProviderTest#testApisDontCrash_invalidInputSourceAndAxesCombinations
+android.view.cts.ScrollFeedbackProviderTest#testDefaultProviderIsNotNull
+android.view.cts.SearchEventTest#testBasics
+android.view.cts.SearchEventTest#testConstructor
+android.view.cts.SoundEffectConstantsTest#testGetConstantForFocusDirection
+android.view.cts.SoundEffectConstantsTest#testGetConstantForFocusDirectionInvalid
+android.view.cts.SoundEffectConstantsTest#testGetContantForFocusDirection
+android.view.cts.SoundEffectConstantsTest#testGetContantForFocusDirectionInvalid
+android.view.cts.SystemGestureExclusionRectsTest#animatingView disable
+android.view.cts.SystemGestureExclusionRectsTest#ignoreHiddenViewRects disable
+android.view.cts.SystemGestureExclusionRectsTest#removingRects disable
+android.view.cts.SystemGestureExclusionRectsTest#rootExclusionRects
+android.view.cts.SystemGestureExclusionRectsTest#rootExclusionRectsMultipleCalls
+android.view.cts.SystemGestureExclusionRectsTest#rootExclusionRects_doesNotDispatchWhenRectsDidNotChange
+android.view.cts.SystemGestureExclusionRectsTest#staticView disable
+android.view.cts.TooltipTest#testGetSetTooltip
+android.view.cts.TooltipTest#testLongArbitraryKeyPressDoesNotShowTooltip disable
+android.view.cts.TooltipTest#testLongClickTooltipBlockedByContextMenu disable
+android.view.cts.TooltipTest#testLongClickTooltipBlockedByLongClickListener disable
+android.view.cts.TooltipTest#testLongClickTooltipHidesAfterUp disable
+android.view.cts.TooltipTest#testLongClickTooltipHidesOnClick disable
+android.view.cts.TooltipTest#testLongClickTooltipHidesOnClickElsewhere disable
+android.view.cts.TooltipTest#testLongClickTooltipHidesOnKey disable
+android.view.cts.TooltipTest#testLongClickTooltipOnClickableView disable
+android.view.cts.TooltipTest#testLongClickTooltipOnContextClickableView disable
+android.view.cts.TooltipTest#testLongClickTooltipOnLongClickableView disable
+android.view.cts.TooltipTest#testLongClickTooltipOnNonClickableView disable
+android.view.cts.TooltipTest#testLongClickTooltipStaysOnMouseMove disable
+android.view.cts.TooltipTest#testLongKeyPressOnAnotherViewDoesNotShowTooltip disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipHidesAfterUp disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipHidesOnClick disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipHidesOnClickElsewhere disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipHidesOnKey disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipOnClickableView disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipOnContextClickableView disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipOnLongClickableView disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipOnNonClickableView disable
+android.view.cts.TooltipTest#testLongKeyPressTooltipStaysOnMouseMove disable
+android.view.cts.TooltipTest#testLongKeyPressWithoutFocusDoesNotShowTooltip
+android.view.cts.TooltipTest#testMouseClickDoesNotShowTooltip
+android.view.cts.TooltipTest#testMouseHoverDoesNotShowTooltipImmediately
+android.view.cts.TooltipTest#testMouseHoverExitCancelsPendingTooltip
+android.view.cts.TooltipTest#testMouseHoverOverlap disable
+android.view.cts.TooltipTest#testMouseHoverTooltipDisableWhileHovering disable
+android.view.cts.TooltipTest#testMouseHoverTooltipFromParent disable
+android.view.cts.TooltipTest#testMouseHoverTooltipHidesOnClick disable
+android.view.cts.TooltipTest#testMouseHoverTooltipHidesOnClickOnElsewhere disable
+android.view.cts.TooltipTest#testMouseHoverTooltipHidesOnExit disable
+android.view.cts.TooltipTest#testMouseHoverTooltipHidesOnKey disable
+android.view.cts.TooltipTest#testMouseHoverTooltipHidesOnShortTimeout disable
+android.view.cts.TooltipTest#testMouseHoverTooltipHidesOnTimeout disable
+android.view.cts.TooltipTest#testMouseHoverTooltipOnClickableView disable
+android.view.cts.TooltipTest#testMouseHoverTooltipOnContextClickableView disable
+android.view.cts.TooltipTest#testMouseHoverTooltipOnLongClickableView disable
+android.view.cts.TooltipTest#testMouseHoverTooltipRemoveWhileShowing disable
+android.view.cts.TooltipTest#testMouseHoverTooltipRemoveWhileWaiting
+android.view.cts.TooltipTest#testMouseHoverTooltipStaysOnMouseMove disable
+android.view.cts.TooltipTest#testMouseHoverTooltipUnsetWhileHovering
+android.view.cts.TooltipTest#testMouseHoverTooltipWithHoverListener disable
+android.view.cts.TooltipTest#testMouseHoverWithJitter disable
+android.view.cts.TooltipTest#testNoTooltipWhenNotSet disable
+android.view.cts.TooltipTest#testPerformLongClickShowsTooltipImmediately disable
+android.view.cts.TooltipTest#testShortClickDoesNotShowTooltip disable
+android.view.cts.TooltipTest#testShortKeyPressDoesNotShowTooltip disable
+android.view.cts.TooltipTest#testStylusHoverWithJitter disable
+android.view.cts.TooltipTest#testTooltipHidesOnActivityFocusChange disable
+android.view.cts.TooltipTest#testTooltipHidesOnWindowFocusChange disable
+android.view.cts.TooltipTest#testTooltipInPopup disable
+android.view.cts.TooltipTest#testTooltipOnDisabledView disable
+android.view.cts.TooltipTest#testTouchscreenHoverWithJitter disable
+android.view.cts.TooltipTest#testUpdateOpenTooltip disable
+android.view.cts.TouchDelegateTest#testCancelEvent disable
+android.view.cts.TouchDelegateTest#testGetTouchDelegateInfo_withNullBounds_noException
+android.view.cts.TouchDelegateTest#testOnTouchExplorationHoverEvent_whenA11yEbtDisabled_receiveNoEvent disable
+android.view.cts.TouchDelegateTest#testOnTouchExplorationHoverEvent_withNullBounds_noException
+android.view.cts.TouchDelegateTest#testParentClick disable
+android.view.cts.TouchDelegateTest#testTwoPointers disable
+android.view.cts.VerifyInputEventTest#testDeviceIdBecomesVirtualForInjectedKeys disable
+android.view.cts.VerifyInputEventTest#testDeviceIdBecomesVirtualForInjectedMotions disable
+android.view.cts.VerifyInputEventTest#testKeyEvent disable
+android.view.cts.VerifyInputEventTest#testKeyEventWithoutHmac disable
+android.view.cts.VerifyInputEventTest#testMotionEvent disable
+android.view.cts.VerifyInputEventTest#testMotionEventWithoutHmac disable
+android.view.cts.VerifyInputEventTest#testTamperedKeyEvent disable
+android.view.cts.VerifyInputEventTest#testTamperedMotionEvent disable
+android.view.cts.ViewAttributeTest#testGetAttributeResolutionStack disable
+android.view.cts.ViewAttributeTest#testGetAttributeSourceResourceMap disable
+android.view.cts.ViewAttributeTest#testGetExplicitStyle disable
+android.view.cts.ViewConfigurationTest#testConstructor
+android.view.cts.ViewConfigurationTest#testExceptionsThrown
+android.view.cts.ViewConfigurationTest#testFlingThresholds_forAllAvailableDevices
+android.view.cts.ViewConfigurationTest#testFlingThresholds_forInvalidInputDeviceIds
+android.view.cts.ViewConfigurationTest#testGetAmbiguousGestureMultiplier
+android.view.cts.ViewConfigurationTest#testGetDoubleTapTimeoutMillisInstanceMethod
+android.view.cts.ViewConfigurationTest#testGetLongPressTimeoutMillisInstanceMethod
+android.view.cts.ViewConfigurationTest#testGetMaximumDrawingCacheSize
+android.view.cts.ViewConfigurationTest#testGetMultiPressTimeoutMillisInstanceMethod
+android.view.cts.ViewConfigurationTest#testGetScaledAmbiguousGestureMultiplier
+android.view.cts.ViewConfigurationTest#testGetTapTimeoutMillisInstanceMethod
+android.view.cts.ViewConfigurationTest#testGetTextCursorBlinkIntervalMillisInstanceMethod
+android.view.cts.ViewConfigurationTest#testInstanceValues
+android.view.cts.ViewConfigurationTest#testScrollFrictionAmountInstanceMethod
+android.view.cts.ViewConfigurationTest#testStaticValues
+android.view.cts.ViewDebugTest#testConstructor
+android.view.cts.ViewDebugTest#testHierarchyTracing
+android.view.cts.ViewDebugTest#testRecyclerTracing
+android.view.cts.ViewGroupChildDrawingOrderTest#testPublicGetChildDrawingOrderWithCustomOrder
+android.view.cts.ViewGroupChildDrawingOrderTest#testPublicGetChildDrawingOrderWithDefaultOrder
+android.view.cts.ViewGroupOverlayTest#testAddNullView
+android.view.cts.ViewGroupOverlayTest#testBasics disable
+android.view.cts.ViewGroupOverlayTest#testOverlayReparenting disable
+android.view.cts.ViewGroupOverlayTest#testOverlayViewNoClicks disable
+android.view.cts.ViewGroupOverlayTest#testOverlayWithNonOverlappingViewAndDrawable disable
+android.view.cts.ViewGroupOverlayTest#testOverlayWithNonOverlappingViews disable
+android.view.cts.ViewGroupOverlayTest#testOverlayWithOneView disable
+android.view.cts.ViewGroupOverlayTest#testOverlayWithOverlappingViewAndDrawable disable
+android.view.cts.ViewGroupOverlayTest#testOverlayWithOverlappingViews disable
+android.view.cts.ViewGroupOverlayTest#testRemoveNullView
+android.view.cts.ViewGroupTest#onInterceptHoverEvent_horizontalCanScroll_intercepts
+android.view.cts.ViewGroupTest#onInterceptHoverEvent_horizontalCantScroll_doesntIntercept
+android.view.cts.ViewGroupTest#onInterceptHoverEvent_verticalCanScroll_intercepts
+android.view.cts.ViewGroupTest#onInterceptHoverEvent_verticalCantScroll_doesntIntercept
+android.view.cts.ViewGroupTest#onInterceptTouchEvent_horizontalCanScroll_intercepts
+android.view.cts.ViewGroupTest#onInterceptTouchEvent_horizontalCantScroll_doesntIntercept
+android.view.cts.ViewGroupTest#onInterceptTouchEvent_verticalCanScroll_intercepts
+android.view.cts.ViewGroupTest#onInterceptTouchEvent_verticalCantScroll_doesntIntercept
+android.view.cts.ViewGroupTest#onResolvePointerIcon_horizontalCanScroll_pointerIsArrow
+android.view.cts.ViewGroupTest#onResolvePointerIcon_horizontalCantScroll_pointerIsProperty
+android.view.cts.ViewGroupTest#onResolvePointerIcon_verticalCanScroll_pointerIsArrow
+android.view.cts.ViewGroupTest#onResolvePointerIcon_verticalCantScroll_pointerIsProperty
+android.view.cts.ViewGroupTest#testAddFocusables
+android.view.cts.ViewGroupTest#testAddKeyboardNavigationClusters
+android.view.cts.ViewGroupTest#testAddStatesFromChildren
+android.view.cts.ViewGroupTest#testAddTouchables
+android.view.cts.ViewGroupTest#testAddView
+android.view.cts.ViewGroupTest#testAddViewInLayout
+android.view.cts.ViewGroupTest#testAddViewInLayoutWithParamViewIntLayB
+android.view.cts.ViewGroupTest#testAddViewWidthParaViewIntLayoutParam
+android.view.cts.ViewGroupTest#testAddViewWithDefaultFocus
+android.view.cts.ViewGroupTest#testAddViewWithParaViewInt
+android.view.cts.ViewGroupTest#testAddViewWithParaViewIntInt
+android.view.cts.ViewGroupTest#testAddViewWithParaViewLayoutPara
+android.view.cts.ViewGroupTest#testAttachLayoutAnimationParameters
+android.view.cts.ViewGroupTest#testAttachViewToParent
+android.view.cts.ViewGroupTest#testBringChildToFront
+android.view.cts.ViewGroupTest#testCanAnimate
+android.view.cts.ViewGroupTest#testCheckLayoutParams
+android.view.cts.ViewGroupTest#testChildDrawableStateChanged
+android.view.cts.ViewGroupTest#testCleanupLayoutState
+android.view.cts.ViewGroupTest#testClearChildFocus
+android.view.cts.ViewGroupTest#testClearDisappearingChildren
+android.view.cts.ViewGroupTest#testClearFocus
+android.view.cts.ViewGroupTest#testConstructor
+android.view.cts.ViewGroupTest#testDebug
+android.view.cts.ViewGroupTest#testDefaultCluster
+android.view.cts.ViewGroupTest#testDefaultFocusViewRemoved
+android.view.cts.ViewGroupTest#testDefaultFocusWorksForClusters
+android.view.cts.ViewGroupTest#testDetachAllViewsFromParent
+android.view.cts.ViewGroupTest#testDetachViewFromParent
+android.view.cts.ViewGroupTest#testDetachViewFromParentWithParamView
+android.view.cts.ViewGroupTest#testDetachViewsFromParent
+android.view.cts.ViewGroupTest#testDispatchDraw
+android.view.cts.ViewGroupTest#testDispatchFreezeSelfOnly
+android.view.cts.ViewGroupTest#testDispatchInsets_affectsChildren disable
+android.view.cts.ViewGroupTest#testDispatchInsets_consumeStopsDispatch
+android.view.cts.ViewGroupTest#testDispatchInsets_doesntAffectParentSiblings disable
+android.view.cts.ViewGroupTest#testDispatchInsets_doesntAffectSiblings disable
+android.view.cts.ViewGroupTest#testDispatchKeyEvent
+android.view.cts.ViewGroupTest#testDispatchKeyEventPreIme
+android.view.cts.ViewGroupTest#testDispatchSaveInstanceState
+android.view.cts.ViewGroupTest#testDispatchSetPressed
+android.view.cts.ViewGroupTest#testDispatchSetSelected
+android.view.cts.ViewGroupTest#testDispatchThawSelfOnly
+android.view.cts.ViewGroupTest#testDispatchTouchEvent disable
+android.view.cts.ViewGroupTest#testDispatchTrackballEvent
+android.view.cts.ViewGroupTest#testDispatchUnhandledMove
+android.view.cts.ViewGroupTest#testDispatchWindowFocusChanged
+android.view.cts.ViewGroupTest#testDispatchWindowVisibilityChanged
+android.view.cts.ViewGroupTest#testDrawChild
+android.view.cts.ViewGroupTest#testDrawableStateChanged
+android.view.cts.ViewGroupTest#testFindFocus
+android.view.cts.ViewGroupTest#testFindViewById_shouldBeDFS
+android.view.cts.ViewGroupTest#testFocusInClusterFocusableChanges
+android.view.cts.ViewGroupTest#testFocusInClusterRemovals
+android.view.cts.ViewGroupTest#testFocusSearch
+android.view.cts.ViewGroupTest#testFocusableViewAvailable
+android.view.cts.ViewGroupTest#testGatherTransparentRegion
+android.view.cts.ViewGroupTest#testGenerateDefaultLayoutParams
+android.view.cts.ViewGroupTest#testGenerateLayoutParams
+android.view.cts.ViewGroupTest#testGenerateLayoutParamsWithParaAttributeSet
+android.view.cts.ViewGroupTest#testGetChildDrawingOrder
+android.view.cts.ViewGroupTest#testGetChildMeasureSpec
+android.view.cts.ViewGroupTest#testGetChildStaticTransformation
+android.view.cts.ViewGroupTest#testGetChildVisibleRect
+android.view.cts.ViewGroupTest#testGetDescendantFocusability
+android.view.cts.ViewGroupTest#testGetLayoutAnimation
+android.view.cts.ViewGroupTest#testGetLayoutAnimationListener
+android.view.cts.ViewGroupTest#testGetPersistentDrawingCache
+android.view.cts.ViewGroupTest#testHasFocus
+android.view.cts.ViewGroupTest#testHasFocusable
+android.view.cts.ViewGroupTest#testIndexOfChild
+android.view.cts.ViewGroupTest#testInvalidateChild disable
+android.view.cts.ViewGroupTest#testIsAlwaysDrawnWithCacheEnabled
+android.view.cts.ViewGroupTest#testIsAnimationCacheEnabled
+android.view.cts.ViewGroupTest#testIsChildrenDrawnWithCacheEnabled
+android.view.cts.ViewGroupTest#testLayoutCalledAfterSettingBackSuppressLayoutToFalseTrue
+android.view.cts.ViewGroupTest#testLayoutNotCalledWithSuppressLayoutTrue
+android.view.cts.ViewGroupTest#testMeasureChild
+android.view.cts.ViewGroupTest#testMeasureChildWithMargins
+android.view.cts.ViewGroupTest#testMeasureChildren
+android.view.cts.ViewGroupTest#testOffsetDescendantRectToMyCoords
+android.view.cts.ViewGroupTest#testOffsetRectIntoDescendantCoords
+android.view.cts.ViewGroupTest#testOnAnimationEnd
+android.view.cts.ViewGroupTest#testOnAnimationStart
+android.view.cts.ViewGroupTest#testOnCreateDrawableState
+android.view.cts.ViewGroupTest#testOnDescendantInvalidated disable
+android.view.cts.ViewGroupTest#testOnInterceptTouchEvent
+android.view.cts.ViewGroupTest#testOnLayout
+android.view.cts.ViewGroupTest#testOnRequestFocusInDescendants
+android.view.cts.ViewGroupTest#testPropagateRequestedFrameRate_shouldNotOverride
+android.view.cts.ViewGroupTest#testPropagateRequestedFrameRate_shouldOverride
+android.view.cts.ViewGroupTest#testRemoveAllViews
+android.view.cts.ViewGroupTest#testRemoveAllViewsInLayout
+android.view.cts.ViewGroupTest#testRemoveDetachedView
+android.view.cts.ViewGroupTest#testRemoveView
+android.view.cts.ViewGroupTest#testRemoveViewAt
+android.view.cts.ViewGroupTest#testRemoveViewInLayout
+android.view.cts.ViewGroupTest#testRemoveViews
+android.view.cts.ViewGroupTest#testRemoveViewsInLayout
+android.view.cts.ViewGroupTest#testRequestChildFocus
+android.view.cts.ViewGroupTest#testRequestChildRectangleOnScreen
+android.view.cts.ViewGroupTest#testRequestDisallowInterceptTouchEvent
+android.view.cts.ViewGroupTest#testRequestFocus
+android.view.cts.ViewGroupTest#testRequestLayoutCalledAfterSettingSuppressToFalseWhenItWasCalledWithTrue
+android.view.cts.ViewGroupTest#testRequestTransparentRegion
+android.view.cts.ViewGroupTest#testRequestedFrameRateApi
+android.view.cts.ViewGroupTest#testResetRtlProperties
+android.view.cts.ViewGroupTest#testRestoreDefaultFocus
+android.view.cts.ViewGroupTest#testRestoreFocusInCluster
+android.view.cts.ViewGroupTest#testScheduleLayoutAnimation
+android.view.cts.ViewGroupTest#testSetAddStatesFromChildren
+android.view.cts.ViewGroupTest#testSetChildrenDrawingCacheEnabled
+android.view.cts.ViewGroupTest#testSetChildrenDrawnWithCacheEnabled
+android.view.cts.ViewGroupTest#testSetClipChildren
+android.view.cts.ViewGroupTest#testSetClipToPadding
+android.view.cts.ViewGroupTest#testSetDescendantFocusability
+android.view.cts.ViewGroupTest#testSetOnHierarchyChangeListener
+android.view.cts.ViewGroupTest#testSetPadding disable
+android.view.cts.ViewGroupTest#testSetPaddingRelative disable
+android.view.cts.ViewGroupTest#testSetPersistentDrawingCache
+android.view.cts.ViewGroupTest#testShowContextMenuForChild
+android.view.cts.ViewGroupTest#testShowContextMenuForChild_WithXYCoords
+android.view.cts.ViewGroupTest#testStartActionModeForChildIgnoresSubclassModeOnFloating
+android.view.cts.ViewGroupTest#testStartActionModeForChildRespectsSubclassModeOnPrimary
+android.view.cts.ViewGroupTest#testStartActionModeForChildTypedBubblesUpToParent
+android.view.cts.ViewGroupTest#testStartActionModeForChildTypelessBubblesUpToParent
+android.view.cts.ViewGroupTest#testStartLayoutAnimation
+android.view.cts.ViewGroupTest#testTemporaryDetach
+android.view.cts.ViewGroupTest#testTouchscreenBlocksFocus disable
+android.view.cts.ViewGroupTest#testUpdateViewLayout
+android.view.cts.ViewGroup_LayoutParamsTest#testConstructor
+android.view.cts.ViewGroup_LayoutParamsTest#testSetBaseAttributes
+android.view.cts.ViewGroup_MarginLayoutParamsTest#testConstructor
+android.view.cts.ViewGroup_MarginLayoutParamsTest#testResolveMarginsExplicit
+android.view.cts.ViewGroup_MarginLayoutParamsTest#testResolveMarginsRelative disable
+android.view.cts.ViewGroup_MarginLayoutParamsTest#testSetMargins
+android.view.cts.ViewGroup_MarginLayoutParamsTest#testSetMarginsRelative
+android.view.cts.ViewGroup_MarginLayoutParamsTest#testVerticalHorizontalMargins disable
+android.view.cts.ViewGroup_ScrollCaptureTest#testDispatchScrollCaptureSearch
+android.view.cts.ViewGroup_ScrollCaptureTest#testDispatchScrollCaptureSearch_toChildren
+android.view.cts.ViewGroup_ScrollCaptureTest#testDispatchScrollCaptureSearch_withCallback
+android.view.cts.ViewGroup_ScrollCaptureTest#testDispatchScrollCaptureSearch_withCallback_hintExclude
+android.view.cts.ViewGroup_ScrollCaptureTest#testOnScrollCaptureSearch_withPadding
+android.view.cts.ViewGroup_ScrollCaptureTest#testSetScrollCaptureHint
+android.view.cts.ViewGroup_ScrollCaptureTest#testSetScrollCaptureHint_mutuallyExclusiveFlags
+android.view.cts.ViewOutlineProviderTest#testBackground
+android.view.cts.ViewOutlineProviderTest#testBounds
+android.view.cts.ViewOutlineProviderTest#testPaddedBounds
+android.view.cts.ViewOverlayTest#testAddNullDrawable
+android.view.cts.ViewOverlayTest#testAddTheSameDrawableTwice disable
+android.view.cts.ViewOverlayTest#testBasics disable
+android.view.cts.ViewOverlayTest#testOverlayDynamicChangesToDrawable disable
+android.view.cts.ViewOverlayTest#testOverlayDynamicChangesToOverlappingDrawables disable
+android.view.cts.ViewOverlayTest#testOverlayWithNonOverlappingDrawables disable
+android.view.cts.ViewOverlayTest#testOverlayWithOneDrawable disable
+android.view.cts.ViewOverlayTest#testOverlayWithOverlappingDrawables disable
+android.view.cts.ViewOverlayTest#testRemoveNullDrawable
+android.view.cts.ViewOverlayTest#testRemoveTheSameDrawableTwice disable
+android.view.cts.ViewPaddingTest#testPadding disable
+android.view.cts.ViewReceiveContentTest#testOnDragEvent_noOnReceiveContentListener
+android.view.cts.ViewReceiveContentTest#testOnDragEvent_withOnReceiveContentListener
+android.view.cts.ViewReceiveContentTest#testOnDragEvent_withOnReceiveContentListener_noneOfTheContentAccepted
+android.view.cts.ViewReceiveContentTest#testOnDragEvent_withOnReceiveContentListener_someOfTheContentAccepted
+android.view.cts.ViewReceiveContentTest#testOnReceiveContent
+android.view.cts.ViewReceiveContentTest#testOnReceiveContent_mimeTypes
+android.view.cts.ViewReceiveContentTest#testPerformReceiveContent
+android.view.cts.ViewSourceLayoutTest#testGetSourceLayout
+android.view.cts.ViewStubTest#testAccessInflatedId
+android.view.cts.ViewStubTest#testAccessLayoutResource
+android.view.cts.ViewStubTest#testConstructor
+android.view.cts.ViewStubTest#testDraw
+android.view.cts.ViewStubTest#testInflate
+android.view.cts.ViewStubTest#testInflateErrorInvalidLayoutResource
+android.view.cts.ViewStubTest#testInflateErrorNullParent
+android.view.cts.ViewStubTest#testSetOnInflateListener
+android.view.cts.ViewStubTest#testSetOnInflateListenerError
+android.view.cts.ViewStubTest#testSetVisibility
+android.view.cts.ViewStubTest#testViewStubHasNoDimensions
+android.view.cts.ViewTest#onHoverEvent_horizontalCanScroll_awakenScrollBarsCalled
+android.view.cts.ViewTest#onHoverEvent_horizontalCantScroll_awakenScrollBarsNotCalled
+android.view.cts.ViewTest#onHoverEvent_verticalCanScroll_awakenScrollBarsCalled
+android.view.cts.ViewTest#onHoverEvent_verticalCantScroll_awakenScrollBarsNotCalled
+android.view.cts.ViewTest#onResolvePointerIcon_horizontalCanScroll_pointerIsArrow
+android.view.cts.ViewTest#onResolvePointerIcon_horizontalCantScroll_pointerIsProperty
+android.view.cts.ViewTest#onResolvePointerIcon_verticalCanScroll_pointerIsArrow
+android.view.cts.ViewTest#onResolvePointerIcon_verticalCantScroll_pointerIsProperty
+android.view.cts.ViewTest#setSetLayoutParamsNull
+android.view.cts.ViewTest#testAccessBackground
+android.view.cts.ViewTest#testAccessClickable
+android.view.cts.ViewTest#testAccessContextClickable
+android.view.cts.ViewTest#testAccessDrawingCacheBackgroundColor
+android.view.cts.ViewTest#testAccessDrawingCacheEnabled
+android.view.cts.ViewTest#testAccessDrawingCacheQuality
+android.view.cts.ViewTest#testAccessDuplicateParentStateEnabled
+android.view.cts.ViewTest#testAccessEnabled
+android.view.cts.ViewTest#testAccessId
+android.view.cts.ViewTest#testAccessKeepScreenOn
+android.view.cts.ViewTest#testAccessLayoutParams
+android.view.cts.ViewTest#testAccessLongClickable
+android.view.cts.ViewTest#testAccessMeasuredDimension
+android.view.cts.ViewTest#testAccessNextFocusDownId
+android.view.cts.ViewTest#testAccessNextFocusLeftId
+android.view.cts.ViewTest#testAccessNextFocusRightId
+android.view.cts.ViewTest#testAccessNextFocusUpId
+android.view.cts.ViewTest#testAccessOnFocusChangeListener
+android.view.cts.ViewTest#testAccessPointerIcon
+android.view.cts.ViewTest#testAccessPressed
+android.view.cts.ViewTest#testAccessSaveEnabled
+android.view.cts.ViewTest#testAccessScrollIndicators
+android.view.cts.ViewTest#testAccessSelected
+android.view.cts.ViewTest#testAccessSoundEffectsEnabled
+android.view.cts.ViewTest#testAccessTag
+android.view.cts.ViewTest#testAccessTouchDelegate disable
+android.view.cts.ViewTest#testAccessWillNotCacheDrawing
+android.view.cts.ViewTest#testAccessWillNotDraw
+android.view.cts.ViewTest#testAddFocusables
+android.view.cts.ViewTest#testAddFocusablesInTouchMode
+android.view.cts.ViewTest#testAddFocusablesWithoutTouchMode
+android.view.cts.ViewTest#testAddKeyboardNavigationClusters
+android.view.cts.ViewTest#testAddRemoveAffectsWrapContentLayout disable
+android.view.cts.ViewTest#testAddTouchables
+android.view.cts.ViewTest#testBackgroundTint
+android.view.cts.ViewTest#testBringToFront
+android.view.cts.ViewTest#testBuildAndDestroyDrawingCache disable
+android.view.cts.ViewTest#testCancelLongPress
+android.view.cts.ViewTest#testClearAnimation
+android.view.cts.ViewTest#testClipToOutline
+android.view.cts.ViewTest#testComputeHorizontalScroll
+android.view.cts.ViewTest#testComputeVerticalScroll
+android.view.cts.ViewTest#testConstructor
+android.view.cts.ViewTest#testConstructor2 disable
+android.view.cts.ViewTest#testConstructorNullContext1
+android.view.cts.ViewTest#testConstructorNullContext2
+android.view.cts.ViewTest#testCreateContextMenu
+android.view.cts.ViewTest#testCreateContextMenuNull
+android.view.cts.ViewTest#testCreatePointerIcons
+android.view.cts.ViewTest#testDispatchKeyEvent
+android.view.cts.ViewTest#testDispatchKeyShortcutEvent
+android.view.cts.ViewTest#testDispatchKeyShortcutEventNull
+android.view.cts.ViewTest#testDispatchSetPressed
+android.view.cts.ViewTest#testDispatchSetSelected
+android.view.cts.ViewTest#testDispatchTouchEvent
+android.view.cts.ViewTest#testDispatchTrackballMoveEvent
+android.view.cts.ViewTest#testDispatchUnhandledMove disable
+android.view.cts.ViewTest#testDraw disable
+android.view.cts.ViewTest#testDrawableState
+android.view.cts.ViewTest#testFilterTouchesWhenObscured
+android.view.cts.ViewTest#testFindViewById
+android.view.cts.ViewTest#testFitSystemWindows
+android.view.cts.ViewTest#testForceLayout
+android.view.cts.ViewTest#testFrameRateAPIsFlagDisabled disable
+android.view.cts.ViewTest#testFrameRateAPIsFlagEnabled disable
+android.view.cts.ViewTest#testGetAnimation
+android.view.cts.ViewTest#testGetApplicationWindowToken
+android.view.cts.ViewTest#testGetBaseline
+android.view.cts.ViewTest#testGetBottomFadingEdgeStrength
+android.view.cts.ViewTest#testGetBottomPaddingOffset
+android.view.cts.ViewTest#testGetContext
+android.view.cts.ViewTest#testGetContextMenuInfo
+android.view.cts.ViewTest#testGetDefaultSize
+android.view.cts.ViewTest#testGetDrawingCache disable
+android.view.cts.ViewTest#testGetDrawingRect
+android.view.cts.ViewTest#testGetDrawingTime disable
+android.view.cts.ViewTest#testGetFadingEdgeStrength
+android.view.cts.ViewTest#testGetFocusables
+android.view.cts.ViewTest#testGetFocusedRect
+android.view.cts.ViewTest#testGetGlobalVisibleRect disable
+android.view.cts.ViewTest#testGetGlobalVisibleRectPoint disable
+android.view.cts.ViewTest#testGetHandler
+android.view.cts.ViewTest#testGetHitRect
+android.view.cts.ViewTest#testGetHitRectNull
+android.view.cts.ViewTest#testGetLeftFadingEdgeStrength
+android.view.cts.ViewTest#testGetLeftPaddingOffset
+android.view.cts.ViewTest#testGetLocalVisibleRect disable
+android.view.cts.ViewTest#testGetLocationInWindow
+android.view.cts.ViewTest#testGetLocationInWindowNullArray
+android.view.cts.ViewTest#testGetLocationInWindowSmallArray
+android.view.cts.ViewTest#testGetLocationOnScreen
+android.view.cts.ViewTest#testGetLocationOnScreenNullArray
+android.view.cts.ViewTest#testGetLocationOnScreenSmallArray
+android.view.cts.ViewTest#testGetParent
+android.view.cts.ViewTest#testGetResources
+android.view.cts.ViewTest#testGetRightFadingEdgeStrength
+android.view.cts.ViewTest#testGetRightPaddingOffset
+android.view.cts.ViewTest#testGetRootView
+android.view.cts.ViewTest#testGetSolidColor
+android.view.cts.ViewTest#testGetSuggestedMinimumHeight
+android.view.cts.ViewTest#testGetSuggestedMinimumWidth
+android.view.cts.ViewTest#testGetTopFadingEdgeStrength
+android.view.cts.ViewTest#testGetTopPaddingOffset
+android.view.cts.ViewTest#testGetTouchables
+android.view.cts.ViewTest#testGetUniqueDrawingId
+android.view.cts.ViewTest#testGetViewTreeObserver
+android.view.cts.ViewTest#testGetWindowAttachCount
+android.view.cts.ViewTest#testGetWindowToken
+android.view.cts.ViewTest#testGetWindowVisibility disable
+android.view.cts.ViewTest#testGetWindowVisibleDisplayFrame
+android.view.cts.ViewTest#testHapticFeedback disable
+android.view.cts.ViewTest#testHapticFeedback_withInvalidCustomUsage_noVibration disable
+android.view.cts.ViewTest#testHapticFeedback_withValidCustomUsage disable
+android.view.cts.ViewTest#testHasWindowFocus
+android.view.cts.ViewTest#testInflate
+android.view.cts.ViewTest#testInitializeScrollbarsAndFadingEdge
+android.view.cts.ViewTest#testInputConnection disable
+android.view.cts.ViewTest#testInvalidate1 disable
+android.view.cts.ViewTest#testInvalidate2 disable
+android.view.cts.ViewTest#testInvalidate3 disable
+android.view.cts.ViewTest#testInvalidateDrawable disable
+android.view.cts.ViewTest#testIsInEditMode
+android.view.cts.ViewTest#testIsInTouchMode
+android.view.cts.ViewTest#testIsLayoutRequested
+android.view.cts.ViewTest#testIsPaddingOffsetRequired
+android.view.cts.ViewTest#testIsShowingLayoutBounds
+android.view.cts.ViewTest#testIsShown
+android.view.cts.ViewTest#testKeyPreIme disable
+android.view.cts.ViewTest#testKeyboardNavigationClusterSearch
+android.view.cts.ViewTest#testLayout
+android.view.cts.ViewTest#testMeasure disable
+android.view.cts.ViewTest#testMergeDrawableStates
+android.view.cts.ViewTest#testMouseEventCallsGetPointerIcon disable
+android.view.cts.ViewTest#testOnAnimation disable
+android.view.cts.ViewTest#testOnAttachedToAndDetachedFromWindow
+android.view.cts.ViewTest#testOnFocusChanged disable
+android.view.cts.ViewTest#testOnFocusChanged_callsRequestRectangleOnScreen
+android.view.cts.ViewTest#testOnFocusChanged_doesNotRequestRectangleOnScreen disable
+android.view.cts.ViewTest#testOnHoverEvent
+android.view.cts.ViewTest#testOnKeyDownOrUp disable
+android.view.cts.ViewTest#testOnKeyMultiple
+android.view.cts.ViewTest#testOnKeyShortcut disable
+android.view.cts.ViewTest#testOnSizeChanged disable
+android.view.cts.ViewTest#testOnStartAndFinishTemporaryDetach
+android.view.cts.ViewTest#testOnTouchEventScroll disable
+android.view.cts.ViewTest#testOnTouchEventTap disable
+android.view.cts.ViewTest#testOnTouchListener disable
+android.view.cts.ViewTest#testOnTrackballEvent disable
+android.view.cts.ViewTest#testOverlappingRendering
+android.view.cts.ViewTest#testPadding
+android.view.cts.ViewTest#testPerformClick
+android.view.cts.ViewTest#testPerformContextClick
+android.view.cts.ViewTest#testPerformLongClick
+android.view.cts.ViewTest#testPerformLongClickNullParent
+android.view.cts.ViewTest#testPerformLongClickXY
+android.view.cts.ViewTest#testPerformLongClickXYNullParent
+android.view.cts.ViewTest#testPerformLongClickXY_WithListener
+android.view.cts.ViewTest#testPerformLongClick_withDefaultHapticFeedbackDisabled_skipHapticFeedback
+android.view.cts.ViewTest#testPerformLongClick_withDefaultHapticFeedbackEnabled_performHapticFeedback
+android.view.cts.ViewTest#testPerformLongClick_withListenerRemovedOnLongClick_upholdDefaultHapticOverride
+android.view.cts.ViewTest#testPivot
+android.view.cts.ViewTest#testPlaySoundEffect disable
+android.view.cts.ViewTest#testPointerIconOverlap
+android.view.cts.ViewTest#testPost
+android.view.cts.ViewTest#testPostDelayed
+android.view.cts.ViewTest#testPostInvalidate1
+android.view.cts.ViewTest#testPostInvalidate2
+android.view.cts.ViewTest#testPostInvalidateDelayed
+android.view.cts.ViewTest#testRemoveCallbacks
+android.view.cts.ViewTest#testRequestFocusFromTouch
+android.view.cts.ViewTest#testRequestLayout
+android.view.cts.ViewTest#testRequestRectangleOnScreen1
+android.view.cts.ViewTest#testRequestRectangleOnScreen2
+android.view.cts.ViewTest#testRequestRectangleOnScreen3
+android.view.cts.ViewTest#testRequestRectangleOnScreen4
+android.view.cts.ViewTest#testRequestRectangleOnScreen5
+android.view.cts.ViewTest#testRequestRectangleOnScreenWithScale
+android.view.cts.ViewTest#testRequestRectangleOnScreen_withInputFocusSource
+android.view.cts.ViewTest#testRequestRectangleOnScreen_withScrollOnlySource
+android.view.cts.ViewTest#testRequestRectangleOnScreen_withTextCursorSource
+android.view.cts.ViewTest#testRequestRectangleOnScreen_withUndefinedSource
+android.view.cts.ViewTest#testRequireViewById
+android.view.cts.ViewTest#testRequireViewByIdInvalid
+android.view.cts.ViewTest#testRequireViewByIdNoId
+android.view.cts.ViewTest#testRequireViewByIdNotFound
+android.view.cts.ViewTest#testResolveSize
+android.view.cts.ViewTest#testRestoreDefaultFocus
+android.view.cts.ViewTest#testSaveAndRestoreHierarchyState
+android.view.cts.ViewTest#testScaleXNaN
+android.view.cts.ViewTest#testScaleXNegativeInfinity
+android.view.cts.ViewTest#testScaleXPositiveInfinity
+android.view.cts.ViewTest#testScaleYNaN
+android.view.cts.ViewTest#testScaleYNegativeInfinity
+android.view.cts.ViewTest#testScaleYPositiveInfinity
+android.view.cts.ViewTest#testScheduleDrawable
+android.view.cts.ViewTest#testScrollFading disable
+android.view.cts.ViewTest#testScrollIndicators
+android.view.cts.ViewTest#testScrollbarSize
+android.view.cts.ViewTest#testScrollbarStyle
+android.view.cts.ViewTest#testScrolling
+android.view.cts.ViewTest#testSetAllowClickWhenDisabled disable
+android.view.cts.ViewTest#testSetAnimation
+android.view.cts.ViewTest#testSetBackgroundColor
+android.view.cts.ViewTest#testSetBackgroundResource
+android.view.cts.ViewTest#testSetEnabled_receiveEvent disable
+android.view.cts.ViewTest#testSetGetOutlineShadowColor
+android.view.cts.ViewTest#testSetHorizontalScrollbarThumb
+android.view.cts.ViewTest#testSetHorizontalScrollbarTrack
+android.view.cts.ViewTest#testSetLeftTopRightBottom
+android.view.cts.ViewTest#testSetMinimumHeight
+android.view.cts.ViewTest#testSetMinimumWidth
+android.view.cts.ViewTest#testSetOnClickListener
+android.view.cts.ViewTest#testSetOnContextClickListener
+android.view.cts.ViewTest#testSetOnCreateContextMenuListener
+android.view.cts.ViewTest#testSetOnGenericMotionListener
+android.view.cts.ViewTest#testSetOnLongClickListener
+android.view.cts.ViewTest#testSetScrollContainer
+android.view.cts.ViewTest#testSetScrollIndicators
+android.view.cts.ViewTest#testSetTransitionVisibility
+android.view.cts.ViewTest#testSetVerticalScrollbarThumb
+android.view.cts.ViewTest#testSetVerticalScrollbarTrack
+android.view.cts.ViewTest#testShowContextMenu
+android.view.cts.ViewTest#testShowContextMenuNullParent
+android.view.cts.ViewTest#testShowContextMenuXY
+android.view.cts.ViewTest#testShowContextMenuXYNullParent
+android.view.cts.ViewTest#testShowContextMenu_withDefaultHapticFeedbackDisabled_performHapticFeedback
+android.view.cts.ViewTest#testStartActionModeTypedWithParent
+android.view.cts.ViewTest#testStartActionModeTypedWithoutParent
+android.view.cts.ViewTest#testStartActionModeWithParent
+android.view.cts.ViewTest#testStartActionModeWithoutParent
+android.view.cts.ViewTest#testStartAnimation
+android.view.cts.ViewTest#testStartAnimationNull
+android.view.cts.ViewTest#testTouchMode disable
+android.view.cts.ViewTest#testTransformMatrixToGlobal
+android.view.cts.ViewTest#testTransformMatrixToLocal
+android.view.cts.ViewTest#testTransitionAlpha
+android.view.cts.ViewTest#testTranslationSetter
+android.view.cts.ViewTest#testUnhandledKeys disable
+android.view.cts.ViewTest#testUnscheduleDrawable
+android.view.cts.ViewTest#testUpdateDragShadow disable
+android.view.cts.ViewTest#testUpdateDragShadow_detachedView
+android.view.cts.ViewTest#testUpdateDragShadow_noActiveDrag
+android.view.cts.ViewTest#testVelocityAPIsFlagDisabled disable
+android.view.cts.ViewTest#testVelocityAPIsFlagEnabled disable
+android.view.cts.ViewTest#testVerifyDrawable
+android.view.cts.ViewTest#testVisibilityAggregated disable
+android.view.cts.ViewTest#testWindowFocusChanged disable
+android.view.cts.ViewTest#testWindowVisibilityChanged disable
+android.view.cts.ViewTest#testXYZ
+android.view.cts.ViewTreeObserverTest#testAccessOnScrollChangedListener disable
+android.view.cts.ViewTreeObserverTest#testAddOnDrawListener
+android.view.cts.ViewTreeObserverTest#testAddOnGlobalFocusChangeListener disable
+android.view.cts.ViewTreeObserverTest#testAddOnGlobalLayoutListener
+android.view.cts.ViewTreeObserverTest#testAddOnPreDrawListener
+android.view.cts.ViewTreeObserverTest#testAddOnScrollChangedListener
+android.view.cts.ViewTreeObserverTest#testAddOnTouchModeChangeListener disable
+android.view.cts.ViewTreeObserverTest#testFrameCommitListener disable
+android.view.cts.ViewTreeObserverTest#testIsAlive
+android.view.cts.ViewTreeObserverTest#testRemoveGlobalOnLayoutListener
+android.view.cts.ViewTreeObserverTest#testRemoveOnDrawListenerInDispatch
+android.view.cts.ViewTreeObserverTest#testRemoveOnGlobalFocusChangeListener disable
+android.view.cts.ViewTreeObserverTest#testRemoveOnGlobalLayoutListener
+android.view.cts.ViewTreeObserverTest#testRemoveOnPreDrawListener
+android.view.cts.ViewTreeObserverTest#testRemoveOnScrollChangedListener
+android.view.cts.ViewTreeObserverTest#testRemoveOnTouchModeChangeListener disable
+android.view.cts.ViewUnbufferedTest#testNormalTouch disable
+android.view.cts.ViewUnbufferedTest#testUnbufferedHover disable
+android.view.cts.ViewUnbufferedTest#testUnbufferedJoystick disable
+android.view.cts.ViewUnbufferedTest#testUnbufferedJoystick_NoFocus disable
+android.view.cts.ViewUnbufferedTest#testUnbufferedTouch disable
+android.view.cts.ViewUnbufferedTest#testUnbufferedTouchByEvent disable
+android.view.cts.ViewUnbufferedTest#testUnbufferedTouch_Reset disable
+android.view.cts.ViewUnbufferedTest#testUnbuffered_DifferentSource disable
+android.view.cts.View_BaseSavedStateTest#testConstructorNullParcel
+android.view.cts.View_BaseSavedStateTest#testConstructorNullParcelAndLoader
+android.view.cts.View_BaseSavedStateTest#testConstructorNullParcelable
+android.view.cts.View_BaseSavedStateTest#testConstructors
+android.view.cts.View_BaseSavedStateTest#testCreator
+android.view.cts.View_BaseSavedStateTest#testWriteToParcel
+android.view.cts.View_DefaultFocusHighlightTest#testInflating disable
+android.view.cts.View_DefaultFocusHighlightTest#testIsDefaultFocusHighlightNeeded disable
+android.view.cts.View_DefaultFocusHighlightTest#testSettersAndGetters disable
+android.view.cts.View_DragShadowBuilderTest#testConstructor
+android.view.cts.View_DragShadowBuilderTest#testGetView
+android.view.cts.View_DragShadowBuilderTest#testOnDrawShadow
+android.view.cts.View_DragShadowBuilderTest#testOnProvideShadowMetrics
+android.view.cts.View_FocusHandlingTest#testEnabledHandling disable
+android.view.cts.View_FocusHandlingTest#testFocusAfterDescendantsTransfer disable
+android.view.cts.View_FocusHandlingTest#testFocusAuto
+android.view.cts.View_FocusHandlingTest#testFocusHandling disable
+android.view.cts.View_FocusHandlingTest#testFocusableInTouchMode
+android.view.cts.View_FocusHandlingTest#testHasFocusable
+android.view.cts.View_FocusHandlingTest#testSizeHandling
+android.view.cts.View_ForceLayout#measure_optimizationFlagOn_measuredTwiceWhileForceLayout_childMeasuredOnce disable
+android.view.cts.View_ForceLayout#requestLayout_onChild_propagatedToParentButNotSibling
+android.view.cts.View_ForceLayout#requestLayout_onParent_notPropagatedToChildren
+android.view.cts.View_ForceLayout#traversal_afterAllChildrenRequestedLayut_everythingRemeasured
+android.view.cts.View_ForceLayout#traversal_afterChildRequestLayout_onlyAncestorsRemeasured
+android.view.cts.View_ForceLayout#traversal_afterParentRequestLayout_onlyParentRemeasured
+android.view.cts.View_ForceLayout#traversal_differentMeasureSpecsWithoutRequestLayout_everythingRemeasured
+android.view.cts.View_ForceLayout#traversal_sameMeasureSpecsWithoutRequestLayout_nothingRemeasured
+android.view.cts.View_IdsTest#testIds disable
+android.view.cts.View_InitialFocusTest#testClearFocus disable
+android.view.cts.View_InitialFocusTest#testDefaultFocus disable
+android.view.cts.View_InitialFocusTest#testInitialFocus
+android.view.cts.View_InitialFocusTest#testNoInitialFocus disable
+android.view.cts.View_LayoutPositionTest#testPadding
+android.view.cts.View_LayoutPositionTest#testPositionInParent
+android.view.cts.View_MeasureSpecTest#testGetMode
+android.view.cts.View_MeasureSpecTest#testGetSize
+android.view.cts.View_MeasureSpecTest#testMakeMeasureSpec
+android.view.cts.View_MeasureSpecTest#testToString
+android.view.cts.View_UsingViewsTest#testSetFocus disable
+android.view.cts.View_UsingViewsTest#testSetProperties disable
+android.view.cts.View_UsingViewsTest#testSetVisibility disable
+android.view.cts.View_UsingViewsTest#testSetupListeners disable
+android.view.cts.WindowTest#testFrameRateBoostOnTouchEnabled
+android.view.cts.WindowTest#testFrameRatePowerSavingsBalanced
+android.view.cts.WindowTest#testSetGetDesiredHdrHeadroom
+android.view.inspector.cts.IntFlagMappingTest#testMixedFlags
+android.view.inspector.cts.IntFlagMappingTest#testMutuallyExclusiveFlags
+android.view.inspector.cts.IntFlagMappingTest#testNonExclusiveFlags
+android.view.inspector.cts.IntFlagMappingTest#testNullName
+android.view.inspector.cts.StaticInspectionCompanionProviderTest#testNestedClassLoading
+android.view.inspector.cts.StaticInspectionCompanionProviderTest#testNoCompanion
+android.view.inspector.cts.StaticInspectionCompanionProviderTest#testNonImplementingNestedClass
+android.view.inspector.cts.StaticInspectionCompanionProviderTest#testRelativeLayoutWorks
+android.view.inspector.cts.StaticInspectionCompanionProviderTest#testViewWorks
+android.view.inspector.cts.WindowInspectorTest#testAddRootViewListener_doesNotDoubleRegisterListener disable
+android.view.inspector.cts.WindowInspectorTest#testAddRootViewListener_returnsRootView disable
+android.view.inspector.cts.WindowInspectorTest#testAddedViewIsReported disable
+android.view.inspector.cts.WindowInspectorTest#testGetGlobalWindowViews disable
+android.view.inspector.cts.WindowInspectorTest#testRemovedViewIsReported disable

@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Atrakinkite slaptažodžiu arba piršto atspaudu"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Atrakinkite atrakinimo piešiniu arba piršto atspaudu"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Norint apsaugoti įrenginys užrakintas pagal darbo politiką"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Patvirtinimas dviem veiksmais"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Atrakinimo piršto atspaudu naudojimas"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Atrakinimo pagal veidą naudojimas"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Atrakinimo piršto atspaudu arba pagal veidą naudojimas"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Po užrakinimo reikalingas PIN kodas"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Po užrakinimo reikalingas slaptažodis"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Po užrakinimo reikalingas atrakinimo piešinys"</string>

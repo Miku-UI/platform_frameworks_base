@@ -33,7 +33,7 @@ import java.util.List;
  * @see <a href="https://en.wikipedia.org/wiki/Streaming_algorithm">Stream Algorithm</a> for
  * the definion of heavy hitters and the list of algorithms for detecting it.
  * <p>
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public interface HeavyHitterSketch<T> {

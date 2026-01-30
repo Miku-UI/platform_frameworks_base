@@ -169,8 +169,8 @@ public class DisplayTopologyXmlStoreTest {
 
     private static DisplayTopology generateTopology(int displayId1, int displayId2) {
         var topology = new DisplayTopology();
-        topology.addDisplay(displayId1, 800f, 600f);
-        topology.addDisplay(displayId2, 1920f, 1080f);
+        topology.addDisplay(displayId1, 800, 600, 160);
+        topology.addDisplay(displayId2, 1920, 1080, 160);
         return topology;
     }
 
@@ -210,7 +210,7 @@ public class DisplayTopologyXmlStoreTest {
         assertThat(mTopology.getRoot().getHeight()).isEqualTo(600f);
 
         // Change display size
-        assertThat(mTopology.updateDisplay(0, 640f, 480f)).isTrue();
+        assertThat(mTopology.updateDisplay(0, 640, 480, 160)).isTrue();
         assertThat(mTopology.getRoot().getWidth()).isEqualTo(640f);
         assertThat(mTopology.getRoot().getHeight()).isEqualTo(480f);
 
@@ -290,10 +290,10 @@ public class DisplayTopologyXmlStoreTest {
         store.reloadTopologies(/*userId=*/ 2);
 
         var topology4Displays = new DisplayTopology();
-        topology4Displays.addDisplay(0, 800f, 600f);
-        topology4Displays.addDisplay(1, 1920f, 1080f);
-        topology4Displays.addDisplay(2, 480f, 640f);
-        topology4Displays.addDisplay(3, 768f, 1024f);
+        topology4Displays.addDisplay(0, 800, 600, 160);
+        topology4Displays.addDisplay(1, 1920, 1080, 160);
+        topology4Displays.addDisplay(2, 480, 640, 160);
+        topology4Displays.addDisplay(3, 768, 1024, 160);
 
         var restored = store.restoreTopology(topology4Displays);
         assertThat(restored).isNotNull();

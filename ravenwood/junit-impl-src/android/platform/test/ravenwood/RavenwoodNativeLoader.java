@@ -16,7 +16,10 @@
 
 package android.platform.test.ravenwood;
 
-import com.android.ravenwood.common.RavenwoodCommonUtils;
+import static com.android.ravenwood.common.RavenwoodInternalUtils.getRavenwoodRuntimePath;
+
+import com.android.ravenwood.RavenwoodRuntimeNative;
+import com.android.ravenwood.common.RavenwoodInternalUtils;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -49,6 +52,19 @@ public final class RavenwoodNativeLoader {
             android.content.res.StringBlock.class,
             android.content.res.XmlBlock.class,
             android.text.AndroidCharacter.class,
+            com.android.internal.util.VirtualRefBasePtr.class,
+    };
+
+    /**
+     * When experimental APIs are enabled, we additionally initialize the following
+     * native code too.
+     */
+    private static final Class<?>[] sLibandroidExperimentalClasses = {
+            android.view.KeyCharacterMap.class,
+            android.view.KeyEvent.class,
+            android.view.InputDevice.class,
+            android.view.MotionEvent.class,
+            android.animation.PropertyValuesHolder.class,
     };
 
     /**
@@ -93,6 +109,7 @@ public final class RavenwoodNativeLoader {
             android.graphics.text.MeasuredText.class,
             android.graphics.text.TextRunShaper.class,
             android.graphics.text.GraphemeBreak.class,
+            android.graphics.drawable.VectorDrawable.class,
             android.util.PathParser.class,
     };
 
@@ -151,10 +168,25 @@ public final class RavenwoodNativeLoader {
         ensurePropertyNotSet(KEYBOARD_PATHS);
         ensurePropertyNotSet(GRAPHICS_NATIVE_CLASSES);
 
+        // Set ICU data file
+        String icuData = getRavenwoodRuntimePath()
+                + "ravenwood-data/"
+                + RavenwoodRuntimeNative.getIcuDataName()
+                + ".dat";
+        setProperty(ICU_DATA_PATH, icuData);
+
         // Build the property values
         final var joiner = Collectors.joining(",");
-        final var libandroidClasses =
-                Arrays.stream(sLibandroidClasses).map(Class::getName).collect(joiner);
+
+        // Libandroid classes. Maybe enable experimental classes too.
+        final var libandroidExperimentalClasses =
+                RavenwoodExperimentalApiChecker.isExperimentalApiEnabled()
+                ? sLibandroidExperimentalClasses : new Class[0];
+        final var libandroidClasses = Stream.concat(
+                Arrays.stream(sLibandroidClasses), Arrays.stream(libandroidExperimentalClasses))
+                .map(Class::getName).collect(joiner);
+
+        // Libhwui classes.
         final var libhwuiClasses = Stream.concat(
                 Arrays.stream(sLibhwuiClasses).map(Class::getName),
                 Arrays.stream(GRAPHICS_EXTRA_INIT_PARAMS)
@@ -165,6 +197,6 @@ public final class RavenwoodNativeLoader {
         setProperty(GRAPHICS_NATIVE_CLASSES, libhwuiClasses);
         log("Loading " + LIBANDROID_RUNTIME_NAME + " for '" + libandroidClasses + "' and '"
                 + libhwuiClasses + "'");
-        RavenwoodCommonUtils.loadJniLibrary(LIBANDROID_RUNTIME_NAME);
+        RavenwoodInternalUtils.loadJniLibrary(LIBANDROID_RUNTIME_NAME);
     }
 }

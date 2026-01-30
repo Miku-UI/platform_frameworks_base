@@ -39,13 +39,27 @@ public class TinyFrameworkPartiallyAllowlisted {
         }
     }
 
-    /** */
+    /**
+     * Test for invalid use of {@link HostSideTestPartiallyAllowlisted}.
+     *
+     * {@link HostSideTestPartiallyAllowlisted} isn't allowed to be combined with
+     * {@link HostSideTestWholeClassKeep}. We remove this class in
+     * annotation-allowed-classes-tiny-framework.txt
+     * so we can build "hoststubgen-test-tiny-framework-host-base".
+     *
+     * But in InvokeTest, we try to build it without the remove policy to make sure it fails.
+     */
     @HostSideTestPartiallyAllowlisted
     @HostSideTestWholeClassKeep // This should be disallowed.
     public static class PartialWithWholeClass_bad {
     }
 
-    /** */
+    /**
+     * Test for invalid use of missing {@link HostSideTestPartiallyAllowlisted}.
+     *
+     * In InvokeTest, we try to build it with a "allow-annotation" policy, but because
+     * the class doesn't have does @HostSideTestPartiallyAllowlisted, it'd fail.
+     */
     // Missing @HostSideTestPartiallyAllowlisted
     @HostSideTestKeep
     public static class PartiallyAllowlistedWithoutAnnot_bad {

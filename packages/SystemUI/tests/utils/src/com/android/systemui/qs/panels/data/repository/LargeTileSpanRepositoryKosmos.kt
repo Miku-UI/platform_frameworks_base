@@ -19,9 +19,6 @@ package com.android.systemui.qs.panels.data.repository
 import android.content.res.mainResources
 import com.android.systemui.common.ui.data.repository.configurationRepository
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.applicationCoroutineScope
 
 val Kosmos.largeTileSpanRepository by
-    Kosmos.Fixture {
-        LargeTileSpanRepository(applicationCoroutineScope, mainResources, configurationRepository)
-    }
+    Kosmos.Fixture { LargeTileSpanRepository(mainResources, configurationRepository) }

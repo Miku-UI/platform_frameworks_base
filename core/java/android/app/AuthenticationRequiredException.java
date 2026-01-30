@@ -41,7 +41,7 @@ public final class AuthenticationRequiredException extends SecurityException imp
 
     private final PendingIntent mUserAction;
 
-    /** {@hide} */
+    /** @hide */
     public AuthenticationRequiredException(Parcel in) {
         this(new SecurityException(in.readString()), PendingIntent.CREATOR.createFromParcel(in));
     }

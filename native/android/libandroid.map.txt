@@ -4,6 +4,23 @@ LIBANDROID {
     AActivityManager_removeUidImportanceListener; # systemapi introduced=31
     AActivityManager_isUidActive; # systemapi introduced=31
     AActivityManager_getUidImportance; # systemapi introduced=31
+    AActivityManager_createProcessObserver; # systemapi introduced=37
+    AActivityManager_destroyProcessObserver; # systemapi introduced=37
+    AActivityManager_ProcessObserver_setOnProcessStarted; # systemapi introduced=37
+    AActivityManager_ProcessObserver_setOnForegroundActivitiesChanged; # systemapi introduced=37
+    AActivityManager_ProcessObserver_setOnForegroundServicesChanged; # systemapi introduced=37
+    AActivityManager_ProcessObserver_setOnProcessDied; # systemapi introduced=37
+    AActivityManager_registerProcessObserver; # systemapi introduced=37
+    AActivityManager_unregisterProcessObserver; # systemapi introduced=37
+    AActivityManager_getRunningAppProcesses; # systemapi introduced=37
+    AActivityManager_RunningAppProcessInfoList_destroy; # systemapi introduced=37
+    AActivityManager_RunningAppProcessInfoList_getSize; # systemapi introduced=37
+    AActivityManager_RunningAppProcessInfoList_get; # systemapi introduced=37
+    ARunningAppProcessInfo_getPid; # systemapi introduced=37
+    ARunningAppProcessInfo_getUid; # systemapi introduced=37
+    ARunningAppProcessInfo_getProcessName; # systemapi introduced=37
+    ARunningAppProcessInfo_getPackageList; # systemapi introduced=37
+    ARunningAppProcessInfo_getImportance; # systemapi introduced=37
     ADynamicInstrumentationManager_TargetProcess_create; # systemapi
     ADynamicInstrumentationManager_TargetProcess_destroy; # systemapi
     ADynamicInstrumentationManager_MethodDescriptor_create; # systemapi
@@ -22,15 +39,15 @@ LIBANDROID {
     AAsset_close;
     AAsset_getBuffer;
     AAsset_getLength;
-    AAsset_getLength64; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AAsset_getLength64;
     AAsset_getRemainingLength;
-    AAsset_getRemainingLength64; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AAsset_getRemainingLength64;
     AAsset_isAllocated;
     AAsset_openFileDescriptor;
-    AAsset_openFileDescriptor64; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AAsset_openFileDescriptor64;
     AAsset_read;
     AAsset_seek;
-    AAsset_seek64; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AAsset_seek64;
     AChoreographer_getInstance; # introduced=24
     AChoreographer_postFrameCallback; # introduced=24
     AChoreographer_postFrameCallbackDelayed; # introduced=24
@@ -55,19 +72,19 @@ LIBANDROID {
     AConfiguration_getKeyboard;
     AConfiguration_getKeysHidden;
     AConfiguration_getLanguage;
-    AConfiguration_getLayoutDirection; # introduced-arm=17 introduced-arm64=21 introduced-mips=17 introduced-mips64=21 introduced-x86=17 introduced-x86_64=21
+    AConfiguration_getLayoutDirection;
     AConfiguration_getMcc;
     AConfiguration_getMnc;
     AConfiguration_getNavHidden;
     AConfiguration_getNavigation;
     AConfiguration_getOrientation;
-    AConfiguration_getScreenHeightDp; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AConfiguration_getScreenHeightDp;
     AConfiguration_getScreenLong;
     AConfiguration_getScreenRound; # introduced=30
     AConfiguration_getScreenSize;
-    AConfiguration_getScreenWidthDp; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AConfiguration_getScreenWidthDp;
     AConfiguration_getSdkVersion;
-    AConfiguration_getSmallestScreenWidthDp; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AConfiguration_getSmallestScreenWidthDp;
     AConfiguration_getTouchscreen;
     AConfiguration_getUiModeNight;
     AConfiguration_getUiModeType;
@@ -80,18 +97,18 @@ LIBANDROID {
     AConfiguration_setKeyboard;
     AConfiguration_setKeysHidden;
     AConfiguration_setLanguage;
-    AConfiguration_setLayoutDirection; # introduced-arm=17 introduced-arm64=21 introduced-mips=17 introduced-mips64=21 introduced-x86=17 introduced-x86_64=21
+    AConfiguration_setLayoutDirection;
     AConfiguration_setMcc;
     AConfiguration_setMnc;
     AConfiguration_setNavHidden;
     AConfiguration_setNavigation;
     AConfiguration_setOrientation;
-    AConfiguration_setScreenHeightDp; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AConfiguration_setScreenHeightDp;
     AConfiguration_setScreenLong;
     AConfiguration_setScreenSize;
-    AConfiguration_setScreenWidthDp; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AConfiguration_setScreenWidthDp;
     AConfiguration_setSdkVersion;
-    AConfiguration_setSmallestScreenWidthDp; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AConfiguration_setSmallestScreenWidthDp;
     AConfiguration_setTouchscreen;
     AConfiguration_setUiModeNight;
     AConfiguration_setUiModeType;
@@ -147,14 +164,14 @@ LIBANDROID {
     ALooper_wake;
     AMotionEvent_getAction;
     AMotionEvent_getActionButton; # introduced=Tiramisu
-    AMotionEvent_getAxisValue; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
-    AMotionEvent_getButtonState; # introduced-arm=14 introduced-arm64=21 introduced-mips=14 introduced-mips64=21 introduced-x86=14 introduced-x86_64=21
+    AMotionEvent_getAxisValue;
+    AMotionEvent_getButtonState;
     AMotionEvent_getClassification; # introduced=Tiramisu
     AMotionEvent_getDownTime;
     AMotionEvent_getEdgeFlags;
     AMotionEvent_getEventTime;
     AMotionEvent_getFlags;
-    AMotionEvent_getHistoricalAxisValue; # introduced-arm=13 introduced-arm64=21 introduced-mips=13 introduced-mips64=21 introduced-x86=13 introduced-x86_64=21
+    AMotionEvent_getHistoricalAxisValue;
     AMotionEvent_getHistoricalEventTime;
     AMotionEvent_getHistoricalOrientation;
     AMotionEvent_getHistoricalPressure;
@@ -178,7 +195,7 @@ LIBANDROID {
     AMotionEvent_getSize;
     AMotionEvent_getToolMajor;
     AMotionEvent_getToolMinor;
-    AMotionEvent_getToolType; # introduced-arm=14 introduced-arm64=21 introduced-mips=14 introduced-mips64=21 introduced-x86=14 introduced-x86_64=21
+    AMotionEvent_getToolType;
     AMotionEvent_getTouchMajor;
     AMotionEvent_getTouchMinor;
     AMotionEvent_getX;
@@ -238,24 +255,24 @@ LIBANDROID {
     ASensorManager_destroyDirectChannel; # introduced=26
     ASensorManager_destroyEventQueue;
     ASensorManager_getDefaultSensor;
-    ASensorManager_getDefaultSensorEx; # introduced=21
+    ASensorManager_getDefaultSensorEx;
     ASensorManager_getDynamicSensorList; # introduced=33
     ASensorManager_getInstance;
     ASensorManager_getInstanceForPackage; # introduced=26
     ASensorManager_getSensorList;
-    ASensor_getFifoMaxEventCount; # introduced=21
-    ASensor_getFifoReservedEventCount; # introduced=21
+    ASensor_getFifoMaxEventCount;
+    ASensor_getFifoReservedEventCount;
     ASensor_getHandle; # introduced=29
     ASensor_getHighestDirectReportRateLevel; # introduced=26
     ASensor_getMinDelay;
     ASensor_getName;
-    ASensor_getReportingMode; # introduced=21
+    ASensor_getReportingMode;
     ASensor_getResolution;
-    ASensor_getStringType; # introduced=21
+    ASensor_getStringType;
     ASensor_getType;
     ASensor_getVendor;
     ASensor_isDirectChannelTypeSupported; # introduced=26
-    ASensor_isWakeUpSensor; # introduced=21
+    ASensor_isWakeUpSensor;
     ASharedMemory_create; # introduced=26
     ASharedMemory_getSize; # introduced=26
     ASharedMemory_setProt; # introduced=26
@@ -432,6 +449,7 @@ LIBANDROID_PLATFORM {
     APerformanceHint_setUseNewLoadHintBehaviorForTesting;
     APerformanceHint_closeSessionFromJava;
     APerformanceHint_createSessionFromJava;
+    APerformanceHint_setReportBatchSizeCapForTesting;
     extern "C++" {
         ASurfaceControl_registerSurfaceStatsListener*;
         ASurfaceControl_unregisterSurfaceStatsListener*;

@@ -25,6 +25,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.Mockito.mock;
 
 import android.app.job.JobInfo;
 import android.content.ComponentName;
@@ -36,6 +37,7 @@ import android.util.SparseLongArray;
 
 import androidx.test.filters.LargeTest;
 
+import com.android.server.LocalServices;
 import com.android.server.job.controllers.JobStatus;
 
 import org.junit.Test;
@@ -434,6 +436,10 @@ public class PendingJobQueueTest {
 
     @Test
     public void testPendingJobSorting_namespacing() {
+        // Used by JobStatus.
+        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
+        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
+        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
         PendingJobQueue jobQueue = new PendingJobQueue();
 
         // First letter in job variable name indicate regular (r) or expedited (e).
@@ -608,6 +614,11 @@ public class PendingJobQueueTest {
 
     @Test
     public void testPendingJobSorting_Random_WithPriority() {
+        // Used by JobStatus.
+        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
+        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
+        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+
         PendingJobQueue jobQueue = new PendingJobQueue();
         Random random = new Random(1); // Always use the same series of pseudo random values.
 
@@ -631,6 +642,11 @@ public class PendingJobQueueTest {
 
     @Test
     public void testPendingJobSortingTransitivity_WithPriority() {
+        // Used by JobStatus.
+        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
+        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
+        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+
         PendingJobQueue jobQueue = new PendingJobQueue();
         // Always use the same series of pseudo random values.
         for (int seed : new int[]{1337, 7357, 606, 6357, 41106010, 3, 2, 1}) {
@@ -661,6 +677,11 @@ public class PendingJobQueueTest {
     @Test
     @LargeTest
     public void testPendingJobSortingTransitivity_Concentrated_WithPriority() {
+        // Used by JobStatus.
+        LocalServices.removeServiceForTest(JobSchedulerInternal.class);
+        JobSchedulerInternal jobSchedulerInternal = mock(JobSchedulerInternal.class);
+        LocalServices.addService(JobSchedulerInternal.class, jobSchedulerInternal);
+
         PendingJobQueue jobQueue = new PendingJobQueue();
         // Always use the same series of pseudo random values.
         for (int seed : new int[]{1337, 6000, 637739, 6357, 1, 7, 13}) {

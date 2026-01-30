@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibIntroPreference",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -21,14 +22,10 @@ android_library {
     resource_dirs: ["res"],
 
     static_libs: [
-        "androidx.preference_preference",
         "SettingsLibSettingsTheme",
+        "androidx.preference_preference",
     ],
 
     sdk_version: "system_current",
-    min_sdk_version: "21",
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.healthfitness",
-    ],
+    min_sdk_version: "23",
 }

@@ -57,7 +57,7 @@ public class AudioProductStrategyTest {
     @Test
     public void testGetProductStrategies() {
         List<AudioProductStrategy> audioProductStrategies =
-                AudioProductStrategy.getAudioProductStrategies();
+                AudioManager.getAudioProductStrategies();
 
         assertNotNull(audioProductStrategies);
         assertTrue(audioProductStrategies.size() > 0);
@@ -89,7 +89,7 @@ public class AudioProductStrategyTest {
     @Test
     public void testAudioAttributesFromStreamTypes() throws Exception {
         List<AudioProductStrategy> audioProductStrategies =
-                AudioProductStrategy.getAudioProductStrategies();
+                AudioManager.getAudioProductStrategies();
 
         assertNotNull(audioProductStrategies);
         assertTrue(audioProductStrategies.size() > 0);
@@ -164,7 +164,7 @@ public class AudioProductStrategyTest {
     @Test
     public void testAudioAttributesToStreamTypes() {
         List<AudioProductStrategy> audioProductStrategies =
-                AudioProductStrategy.getAudioProductStrategies();
+                AudioManager.getAudioProductStrategies();
 
         assertNotNull(audioProductStrategies);
         assertTrue(audioProductStrategies.size() > 0);
@@ -239,11 +239,59 @@ public class AudioProductStrategyTest {
     public void testEquals() {
         final EqualsTester equalsTester = new EqualsTester();
 
-        AudioProductStrategy.getAudioProductStrategies().forEach(
+        AudioManager.getAudioProductStrategies().forEach(
                 strategy -> equalsTester.addEqualityGroup(strategy,
                         writeToAndFromParcel(strategy)));
 
         equalsTester.testEquals();
+    }
+
+    @Test
+    public void testGetVolumeGroupIdForStreamType() {
+        List<AudioProductStrategy> audioProductStrategies =
+                AudioManager.getAudioProductStrategies();
+
+        for (var strategy : audioProductStrategies) {
+            var attributes = strategy.getAudioAttributes();
+            if (attributes.equals(AudioProductStrategy.getDefaultAttributes())) {
+                continue;
+            }
+            int stream = strategy.getLegacyStreamTypeForAudioAttributes(attributes);
+            if (stream == AudioSystem.STREAM_DEFAULT) {
+                continue;
+            }
+            int expectedId = strategy.getVolumeGroupIdForAudioAttributes(attributes);
+
+            int groupId = AudioProductStrategy
+                    .getVolumeGroupIdForStreamType(audioProductStrategies, stream);
+
+            assertEquals("Volume group id for product strategy " + strategy + " and stream "
+                            + AudioSystem.streamToString(stream),
+                    expectedId, groupId);
+        }
+    }
+
+    @Test
+    public void testGetAudioAttributesForStrategyWithLegacyStreamType() {
+        List<AudioProductStrategy> strategies =
+                AudioManager.getAudioProductStrategies();
+
+        for (var strategy : strategies) {
+            var expectedAttributes = strategy.getAudioAttributes();
+            if (expectedAttributes.equals(AudioProductStrategy.getDefaultAttributes())) {
+                continue;
+            }
+            int stream = strategy.getLegacyStreamTypeForAudioAttributes(expectedAttributes);
+            if (stream == AudioSystem.STREAM_DEFAULT) {
+                continue;
+            }
+
+            var attributes = AudioProductStrategy
+                    .getAudioAttributesForStrategyWithLegacyStreamType(strategies, stream);
+
+            assertEquals("Audio attribute from stream " + AudioSystem.streamToString(stream)
+                    + " and strategy " + strategy, expectedAttributes, attributes);
+        }
     }
 
     private static AudioProductStrategy writeToAndFromParcel(

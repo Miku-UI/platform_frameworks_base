@@ -25,9 +25,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 /** Fake implementation of [PrivacyChipRepository] */
 @SysUISingleton
 class FakePrivacyChipRepository @Inject constructor() : PrivacyChipRepository {
-    private val _isSafetyCenterEnabled = MutableStateFlow(false)
-    override val isSafetyCenterEnabled = _isSafetyCenterEnabled
-
     private val _privacyItems: MutableStateFlow<List<PrivacyItem>> = MutableStateFlow(emptyList())
     override val privacyItems = _privacyItems
 
@@ -37,8 +34,11 @@ class FakePrivacyChipRepository @Inject constructor() : PrivacyChipRepository {
     private val _isLocationIndicationEnabled = MutableStateFlow(false)
     override val isLocationIndicationEnabled = _isLocationIndicationEnabled
 
+    private var _isSafetyCenterEnabled = false
+    override suspend fun isSafetyCenterEnabled() : Boolean = _isSafetyCenterEnabled
+
     fun setIsSafetyCenterEnabled(value: Boolean) {
-        _isSafetyCenterEnabled.value = value
+        _isSafetyCenterEnabled = value
     }
 
     fun setPrivacyItems(value: List<PrivacyItem>) {

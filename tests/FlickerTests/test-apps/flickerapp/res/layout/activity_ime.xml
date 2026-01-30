@@ -27,4 +27,9 @@
         android:layout_height="wrap_content"
         android:imeOptions="flagNoExtractUi"
         android:inputType="text" />
+
+    <TextView
+        android:id="@+id/ime_bottom_inset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content" />
 </LinearLayout>

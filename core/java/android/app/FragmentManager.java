@@ -639,6 +639,7 @@ final class FragmentManagerState implements Parcelable {
  * Container for fragments associated with an activity.
  */
 final class FragmentManagerImpl extends FragmentManager implements LayoutInflater.Factory2 {
+    @SuppressWarnings("DebugNonFinal")
     static boolean DEBUG = false;
     static final String TAG = "FragmentManager";
     

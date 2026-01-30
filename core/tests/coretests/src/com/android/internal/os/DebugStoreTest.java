@@ -66,61 +66,264 @@ public class DebugStoreTest {
     }
 
     @Test
-    public void testRecordServiceOnStart() {
+    public void testRecordScheduleServiceStart() {
         Intent intent = new Intent();
         intent.setAction("com.android.ACTION");
         intent.setComponent(new ComponentName("com.android", "androidService"));
-        intent.setPackage("com.android");
 
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(1L);
-
-        long eventId = DebugStore.recordServiceOnStart(1, 0, intent);
-        assertThat(paramsForBeginEvent("SvcStart"))
+        DebugStore.recordScheduleServiceStart(1, intent);
+        assertThat(paramsForRecordEvent("SchSvcStart"))
                 .containsExactly(
-                        "stId", "1",
-                        "flg", "0",
-                        "act", "com.android.ACTION",
-                        "comp", "ComponentInfo{com.android/androidService}",
-                        "pkg", "com.android")
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "com.android.ACTION",
+                        "cmp",
+                        "com.android/androidService",
+                        "mid",
+                        "1")
                 .inOrder();
-        assertThat(eventId).isEqualTo(1L);
     }
 
     @Test
-    public void testRecordServiceCreate() {
+    public void testRecordScheduleServiceStart_withNullIntent() {
+        DebugStore.recordScheduleServiceStart(1, null);
+        assertThat(paramsForRecordEvent("SchSvcStart"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "null",
+                        "cmp",
+                        "null",
+                        "mid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordServiceStart() {
+        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(2L);
+
+        long eventId = DebugStore.recordServiceStart(1);
+        assertThat(paramsForBeginEvent("SvcStart")).containsExactly("mid", "1").inOrder();
+        assertThat(eventId).isEqualTo(2L);
+    }
+
+    @Test
+    public void testRecordScheduleServiceCreate() {
         ServiceInfo serviceInfo = new ServiceInfo();
         serviceInfo.name = "androidService";
         serviceInfo.packageName = "com.android";
 
+        DebugStore.recordScheduleServiceCreate(1, serviceInfo);
+        assertThat(paramsForRecordEvent("SchSvcCreate"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "name",
+                        "androidService",
+                        "mid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordScheduleServiceCreate_withNullServiceInfo() {
+        DebugStore.recordScheduleServiceCreate(1, null);
+        assertThat(paramsForRecordEvent("SchSvcCreate"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "name",
+                        "null",
+                        "mid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordServiceCreate() {
         when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(2L);
 
-        long eventId = DebugStore.recordServiceCreate(serviceInfo);
-        assertThat(paramsForBeginEvent("SvcCreate"))
+        long eventId = DebugStore.recordServiceCreate(1);
+        assertThat(paramsForBeginEvent("SvcCreate")).containsExactly("mid", "1").inOrder();
+        assertThat(eventId).isEqualTo(2L);
+    }
+
+    @Test
+    public void testRecordScheduleServiceBind() {
+        Intent intent = new Intent();
+        intent.setAction("com.android.ACTION");
+        intent.setComponent(new ComponentName("com.android", "androidService"));
+
+        DebugStore.recordScheduleServiceBind(1, intent);
+        assertThat(paramsForRecordEvent("SchSvcBind"))
                 .containsExactly(
-                        "name", "androidService",
-                        "pkg", "com.android")
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "com.android.ACTION",
+                        "cmp",
+                        "com.android/androidService",
+                        "mid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordScheduleServiceBind_withNullIntent() {
+        DebugStore.recordScheduleServiceBind(1, null);
+        assertThat(paramsForRecordEvent("SchSvcBind"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "null",
+                        "cmp",
+                        "null",
+                        "mid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordServiceBind() {
+        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(2L);
+
+        long eventId = DebugStore.recordServiceBind(1);
+        assertThat(paramsForBeginEvent("SvcBind")).containsExactly("mid", "1").inOrder();
+        assertThat(eventId).isEqualTo(2L);
+    }
+
+    @Test
+    public void testRecordScheduleBroadcastReceive() {
+        Intent intent = new Intent();
+        intent.setAction("com.android.ACTION");
+        intent.setComponent(new ComponentName("com.android", "androidService"));
+
+        DebugStore.recordScheduleBroadcastReceive(1, intent);
+        assertThat(paramsForRecordEvent("SchRcv"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "com.android.ACTION",
+                        "cmp",
+                        "com.android/androidService",
+                        "prid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordScheduleBroadcastReceive_withNullIntent() {
+        DebugStore.recordScheduleBroadcastReceive(1, null);
+        assertThat(paramsForRecordEvent("SchRcv"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "null",
+                        "cmp",
+                        "null",
+                        "prid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordBroadcastReceive() {
+        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(2L);
+
+        long eventId = DebugStore.recordBroadcastReceive(1, "com.android.Receiver");
+        assertThat(paramsForBeginEvent("Rcv"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "cls",
+                        "com.android.Receiver",
+                        "prid",
+                        "1")
                 .inOrder();
         assertThat(eventId).isEqualTo(2L);
     }
 
     @Test
-    public void testRecordServiceBind() {
+    public void testRecordScheduleBroadcastReceiveReg() {
         Intent intent = new Intent();
         intent.setAction("com.android.ACTION");
         intent.setComponent(new ComponentName("com.android", "androidService"));
-        intent.setPackage("com.android");
 
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(3L);
-
-        long eventId = DebugStore.recordServiceBind(true, intent);
-        assertThat(paramsForBeginEvent("SvcBind"))
+        DebugStore.recordScheduleBroadcastReceiveReg(1, intent);
+        assertThat(paramsForRecordEvent("SchRcvReg"))
                 .containsExactly(
-                        "rebind", "true",
-                        "act", "com.android.ACTION",
-                        "cmp", "ComponentInfo{com.android/androidService}",
-                        "pkg", "com.android")
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "com.android.ACTION",
+                        "cmp",
+                        "com.android/androidService",
+                        "prid",
+                        "1")
                 .inOrder();
-        assertThat(eventId).isEqualTo(3L);
+    }
+
+    @Test
+    public void testRecordScheduleBroadcastReceiveReg_withNullIntent() {
+        DebugStore.recordScheduleBroadcastReceiveReg(1, null);
+        assertThat(paramsForRecordEvent("SchRcvReg"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        "null",
+                        "cmp",
+                        "null",
+                        "prid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordBroadcastReceiveReg() {
+        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(2L);
+
+        long eventId = DebugStore.recordBroadcastReceiveReg(1, "com.android.Receiver");
+        assertThat(paramsForBeginEvent("RcvReg"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "cls",
+                        "com.android.Receiver",
+                        "prid",
+                        "1")
+                .inOrder();
+        assertThat(eventId).isEqualTo(2L);
     }
 
     @Test
@@ -166,201 +369,6 @@ public class DebugStoreTest {
     }
 
     @Test
-    public void testRecordBroadcastReceive() {
-        Intent intent = new Intent();
-        intent.setAction("com.android.ACTION");
-        intent.setComponent(new ComponentName("com.android", "androidReceiver"));
-        intent.setPackage("com.android");
-
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(4L);
-
-        long eventId = DebugStore.recordBroadcastReceive(intent, 3840 /* 0xf00 */);
-        assertThat(paramsForBeginEvent("BcRcv"))
-                .containsExactly(
-                        "tname", Thread.currentThread().getName(),
-                        "tid", String.valueOf(Thread.currentThread().getId()),
-                        "act", "com.android.ACTION",
-                        "cmp", "ComponentInfo{com.android/androidReceiver}",
-                        "pkg", "com.android",
-                        "prid", "f00")
-                .inOrder();
-        assertThat(eventId).isEqualTo(4L);
-    }
-
-    @Test
-    public void testRecordBroadcastReceiveReg() {
-        Intent intent = new Intent();
-        intent.setAction("com.android.ACTION");
-        intent.setComponent(new ComponentName("com.android", "androidReceiver"));
-        intent.setPackage("com.android");
-
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(5L);
-
-        long eventId = DebugStore.recordBroadcastReceiveReg(intent, 3840 /* 0xf00 */);
-        assertThat(paramsForBeginEvent("BcRcvReg"))
-                .containsExactly(
-                        "tname",
-                        Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
-                        "act",
-                        "com.android.ACTION",
-                        "cmp",
-                        "ComponentInfo{com.android/androidReceiver}",
-                        "pkg",
-                        "com.android",
-                        "prid",
-                        "f00")
-                .inOrder();
-        assertThat(eventId).isEqualTo(5L);
-    }
-
-    @Test
-    public void testRecordHandleBindApplication() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(6L);
-        long eventId = DebugStore.recordHandleBindApplication();
-
-        assertThat(paramsForBeginEvent("BindApp")).isEmpty();
-        assertThat(eventId).isEqualTo(6L);
-    }
-
-      @Test
-    public void testRecordScheduleReceiver() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(7L);
-        long eventId = DebugStore.recordScheduleReceiver();
-
-        assertThat(paramsForBeginEvent("SchRcv"))
-                .containsExactly(
-                        "tname",
-                        Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()))
-                .inOrder();
-        assertThat(eventId).isEqualTo(7L);
-    }
-
-        @Test
-    public void testRecordScheduleRegisteredReceiver() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(8L);
-        long eventId = DebugStore.recordScheduleRegisteredReceiver();
-
-        assertThat(paramsForBeginEvent("SchRcvReg"))
-                .containsExactly(
-                        "tname",
-                        Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()))
-                .inOrder();
-        assertThat(eventId).isEqualTo(8L);
-    }
-
-    @Test
-    public void testRecordEventEnd() {
-        DebugStore.recordEventEnd(1L);
-
-        verify(mDebugStoreNativeMock).endEvent(eq(1L), anyList());
-    }
-
-    @Test
-    public void testRecordServiceOnStart_withNullIntent() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(5L);
-
-        long eventId = DebugStore.recordServiceOnStart(1, 0, null);
-        assertThat(paramsForBeginEvent("SvcStart"))
-                .containsExactly(
-                        "stId", "1",
-                        "flg", "0",
-                        "act", "null",
-                        "comp", "null",
-                        "pkg", "null")
-                .inOrder();
-        assertThat(eventId).isEqualTo(5L);
-    }
-
-    @Test
-    public void testRecordServiceCreate_withNullServiceInfo() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(6L);
-
-        long eventId = DebugStore.recordServiceCreate(null);
-        assertThat(paramsForBeginEvent("SvcCreate"))
-                .containsExactly(
-                        "name", "null",
-                        "pkg", "null")
-                .inOrder();
-        assertThat(eventId).isEqualTo(6L);
-    }
-
-    @Test
-    public void testRecordServiceBind_withNullIntent() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(7L);
-
-        long eventId = DebugStore.recordServiceBind(false, null);
-        assertThat(paramsForBeginEvent("SvcBind"))
-                .containsExactly(
-                        "rebind", "false",
-                        "act", "null",
-                        "cmp", "null",
-                        "pkg", "null")
-                .inOrder();
-        assertThat(eventId).isEqualTo(7L);
-    }
-
-    @Test
-    public void testRecordBroadcastReceive_withNullIntent() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(8L);
-
-        long eventId = DebugStore.recordBroadcastReceive(null, 3840 /* 0xf00 */);
-        assertThat(paramsForBeginEvent("BcRcv"))
-                .containsExactly(
-                        "tname", Thread.currentThread().getName(),
-                        "tid", String.valueOf(Thread.currentThread().getId()),
-                        "act", "null",
-                        "cmp", "null",
-                        "pkg", "null",
-                        "prid", "f00")
-                .inOrder();
-        assertThat(eventId).isEqualTo(8L);
-    }
-
-    @Test
-    public void testRecordBroadcastReceiveReg_withNullIntent() {
-        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(8L);
-
-        long eventId = DebugStore.recordBroadcastReceiveReg(null, 3840 /* 0xf00 */);
-        assertThat(paramsForBeginEvent("BcRcvReg"))
-                .containsExactly(
-                        "tname",
-                        Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
-                        "act",
-                        "null",
-                        "cmp",
-                        "null",
-                        "pkg",
-                        "null",
-                        "prid",
-                        "f00")
-                .inOrder();
-        assertThat(eventId).isEqualTo(8L);
-    }
-
-    @Test
-    public void testRecordFinish_withNullReceiverClassName() {
-        DebugStore.recordFinish(3840 /* 0xf00 */);
-
-        assertThat(paramsForRecordEvent("Finish"))
-                .containsExactly(
-                        "tname",
-                        Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
-                        "prid",
-                        "f00")
-                .inOrder();
-    }
-
-    @Test
     public void testRecordLongLooperMessage_withNullTargetClass() {
         DebugStore.recordLongLooperMessage(200, null, 1000L);
 
@@ -372,6 +380,82 @@ public class DebugStoreTest {
                 .inOrder();
     }
 
+    @Test
+    public void testRecordScheduleBindApplication() {
+        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(6L);
+        DebugStore.recordScheduleBindApplication();
+
+        assertThat(paramsForRecordEvent("SchBindApp")).isEmpty();
+    }
+
+    @Test
+    public void testRecordBindApplication() {
+        when(mDebugStoreNativeMock.beginEvent(anyString(), anyList())).thenReturn(6L);
+        long eventId = DebugStore.recordBindApplication();
+
+        assertThat(paramsForBeginEvent("BindApp")).isEmpty();
+        assertThat(eventId).isEqualTo(6L);
+    }
+
+    @Test
+    public void testRecordScheduleStartJob() {
+        int jobId = 123;
+        String jobNamespace = "com.android.job";
+        DebugStore.recordScheduleStartJob(1, jobId, jobNamespace);
+        assertThat(paramsForRecordEvent("SchJobStart"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "jobid",
+                        "123",
+                        "jobns",
+                        "com.android.job",
+                        "mid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordStartJob() {
+        DebugStore.recordStartJob(1);
+        assertThat(paramsForBeginEvent("JobStart")).containsExactly("mid", "1").inOrder();
+    }
+
+    @Test
+    public void testRecordScheduleStopJob() {
+        int jobId = 123;
+        String jobNamespace = "com.android.job";
+        DebugStore.recordScheduleStopJob(1, jobId, jobNamespace);
+        assertThat(paramsForRecordEvent("SchJobStop"))
+                .containsExactly(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "jobid",
+                        "123",
+                        "jobns",
+                        "com.android.job",
+                        "mid",
+                        "1")
+                .inOrder();
+    }
+
+    @Test
+    public void testRecordStopJob() {
+        DebugStore.recordStopJob(1);
+        assertThat(paramsForBeginEvent("JobStop")).containsExactly("mid", "1").inOrder();
+    }
+
+    @Test
+    public void testRecordEventEnd() {
+        DebugStore.recordEventEnd(1L);
+
+        verify(mDebugStoreNativeMock).endEvent(eq(1L), anyList());
+    }
+
     private List<String> paramsForBeginEvent(String eventName) {
         verify(mDebugStoreNativeMock).beginEvent(eq(eventName), mListCaptor.capture());
         return mListCaptor.getValue();
@@ -381,5 +465,4 @@ public class DebugStoreTest {
         verify(mDebugStoreNativeMock).recordEvent(eq(eventName), mListCaptor.capture());
         return mListCaptor.getValue();
     }
-
 }

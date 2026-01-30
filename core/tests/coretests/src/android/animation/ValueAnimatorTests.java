@@ -924,7 +924,7 @@ public class ValueAnimatorTests {
 
     @Test
     public void testCancelOnPendingEndListener() throws Throwable {
-        testPendingEndListener(ValueAnimator::cancel);
+        testPendingEndListener(ValueAnimator::cancel, true /* expectCancel */);
     }
 
     @Test
@@ -935,11 +935,11 @@ public class ValueAnimatorTests {
             if (animator.isRunning() && animator.isStarted()) {
                 animator.end();
             }
-        });
+        }, false /* expectCancel */);
     }
 
-    private void testPendingEndListener(Consumer<ValueAnimator> finishOnLastFrame)
-            throws Throwable {
+    private void testPendingEndListener(Consumer<ValueAnimator> finishOnLastFrame,
+            boolean expectCancel) throws Throwable {
         final boolean[] endCalledImmediately = new boolean[1];
         final CountDownLatch endLatch = new CountDownLatch(1);
         final Handler handler = new Handler(Looper.getMainLooper());
@@ -963,6 +963,13 @@ public class ValueAnimatorTests {
             handler.post(va::start);
             assertThat(endLatch.await(1, TimeUnit.SECONDS)).isTrue();
             assertThat(endCalledImmediately[0]).isTrue();
+            assertThat(va.isRunning()).isFalse();
+            if (expectCancel) {
+                assertThat(listener.mCancelSeq).isEqualTo(1);
+                assertThat(listener.mEndSeq).isEqualTo(2);
+            } else {
+                assertThat(listener.mCancelSeq).isEqualTo(0);
+            }
         } finally {
             ValueAnimator.setPostNotifyEndListenerEnabled(false);
         }
@@ -1262,6 +1269,10 @@ public class ValueAnimatorTests {
         long startTime = -1;
         long endTime = -1;
 
+        private int mCallbackSeq;
+        int mCancelSeq;
+        int mEndSeq;
+
         @Override
         public void onAnimationStart(Animator animation) {
             startCalled = true;
@@ -1272,11 +1283,13 @@ public class ValueAnimatorTests {
         public void onAnimationEnd(Animator animation) {
             endCalled = true;
             endTime = SystemClock.uptimeMillis();
+            mEndSeq = ++mCallbackSeq;
         }
 
         @Override
         public void onAnimationCancel(Animator animation) {
             cancelCalled = true;
+            mCancelSeq = ++mCallbackSeq;
         }
 
         @Override

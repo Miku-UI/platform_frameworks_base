@@ -26,7 +26,7 @@ import android.os.Build;
 /**
  * The Download Manager
  *
- * @pending
+ * @hide pending
  */
 public final class Downloads {
     private Downloads() {}
@@ -779,7 +779,7 @@ public final class Downloads {
         @Deprecated
         public static final int STATUS_BLOCKED = 498;
 
-        /** {@hide} */
+        /** @hide */
         public static String statusToString(int status) {
             switch (status) {
                 case STATUS_PENDING: return "PENDING";

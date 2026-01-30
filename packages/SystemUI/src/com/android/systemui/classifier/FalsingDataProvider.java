@@ -28,6 +28,7 @@ import android.view.MotionEvent.PointerProperties;
 
 import com.android.systemui.Flags;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.desktop.domain.interactor.DesktopInteractor;
 import com.android.systemui.dock.DockManager;
 import com.android.systemui.statusbar.policy.BatteryController;
 
@@ -53,6 +54,8 @@ public class FalsingDataProvider {
     private BatteryController mBatteryController;
     private final FoldStateListener mFoldStateListener;
     private final DockManager mDockManager;
+
+    private final DesktopInteractor mDesktopInteractor;
     private boolean mIsFoldableDevice;
     private final float mXdpi;
     private final float mYdpi;
@@ -74,6 +77,7 @@ public class FalsingDataProvider {
     private boolean mDropLastEvent;
     private boolean mJustUnlockedWithFace;
     private boolean mA11YAction;
+    private boolean mShowingCommunalHub;
 
     @Inject
     public FalsingDataProvider(
@@ -81,6 +85,7 @@ public class FalsingDataProvider {
             BatteryController batteryController,
             FoldStateListener foldStateListener,
             DockManager dockManager,
+            DesktopInteractor desktopInteractor,
             @Named(IS_FOLDABLE_DEVICE) boolean isFoldableDevice) {
         mXdpi = displayMetrics.xdpi;
         mYdpi = displayMetrics.ydpi;
@@ -89,6 +94,7 @@ public class FalsingDataProvider {
         mBatteryController = batteryController;
         mFoldStateListener = foldStateListener;
         mDockManager = dockManager;
+        mDesktopInteractor = desktopInteractor;
         mIsFoldableDevice = isFoldableDevice;
 
         FalsingClassifier.logInfo("xdpi, ydpi: " + getXdpi() + ", " + getYdpi());
@@ -476,6 +482,14 @@ public class FalsingDataProvider {
         mSessionListeners.forEach(SessionListener::onSessionEnded);
     }
 
+    public boolean isShowingCommunalHub() {
+        return mShowingCommunalHub;
+    }
+
+    void setShowingCommunalHub(boolean showingCommunalHub) {
+        mShowingCommunalHub = showingCommunalHub;
+    }
+
     public boolean isJustUnlockedWithFace() {
         return mJustUnlockedWithFace;
     }
@@ -491,6 +505,10 @@ public class FalsingDataProvider {
 
     public boolean isUnfolded() {
         return mIsFoldableDevice && Boolean.FALSE.equals(mFoldStateListener.getFolded());
+    }
+
+    public boolean isDesktop() {
+        return mDesktopInteractor.isDesktopForFalsingPurposes().getValue();
     }
 
     /** Implement to be alerted abotu the beginning and ending of falsing tracking. */

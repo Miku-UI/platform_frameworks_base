@@ -18,6 +18,8 @@ package com.android.systemui.biometrics.dagger
 
 import android.content.Context
 import android.content.res.Resources
+import android.view.Display
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.internal.R
 import com.android.launcher3.icons.IconProvider
 import com.android.systemui.CoreStartable
@@ -26,8 +28,6 @@ import com.android.systemui.biometrics.EllipseOverlapDetectorParams
 import com.android.systemui.biometrics.UdfpsUtils
 import com.android.systemui.biometrics.data.repository.BiometricStatusRepository
 import com.android.systemui.biometrics.data.repository.BiometricStatusRepositoryImpl
-import com.android.systemui.biometrics.data.repository.DisplayStateRepository
-import com.android.systemui.biometrics.data.repository.DisplayStateRepositoryImpl
 import com.android.systemui.biometrics.data.repository.FacePropertyRepository
 import com.android.systemui.biometrics.data.repository.FacePropertyRepositoryImpl
 import com.android.systemui.biometrics.data.repository.FaceSettingsRepository
@@ -42,7 +42,10 @@ import com.android.systemui.biometrics.udfps.EllipseOverlapDetector
 import com.android.systemui.biometrics.udfps.OverlapDetector
 import com.android.systemui.biometrics.ui.binder.DeviceEntryUnlockTrackerViewBinder
 import com.android.systemui.biometrics.ui.binder.SideFpsOverlayViewBinder
+import com.android.systemui.camera.CameraSensorPrivacyModule
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
+import com.android.systemui.display.data.repository.DisplayStateRepository
 import com.android.systemui.keyguard.ui.binder.AlternateBouncerViewBinder
 import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener
 import com.android.systemui.util.concurrency.ThreadFactory
@@ -57,7 +60,7 @@ import java.util.concurrent.Executor
 import javax.inject.Qualifier
 
 /** Dagger module for all things biometric. */
-@Module
+@Module(includes = [CameraSensorPrivacyModule::class])
 interface BiometricsModule {
     /** Starts AuthController. */
     @Binds
@@ -100,15 +103,19 @@ interface BiometricsModule {
         impl: FingerprintPropertyRepositoryImpl
     ): FingerprintPropertyRepository
 
-    @Binds
-    @SysUISingleton
-    fun displayStateRepository(impl: DisplayStateRepositoryImpl): DisplayStateRepository
-
     @BindsOptionalOf fun authContextPlugins(): AuthContextPlugins
 
     @BindsOptionalOf fun deviceEntryUnlockTrackerViewBinder(): DeviceEntryUnlockTrackerViewBinder
 
     companion object {
+        @Provides
+        @SysUISingleton
+        fun displayStateRepository(
+            displayComponentRepo: PerDisplayRepository<SystemUIDisplaySubcomponent>
+        ): DisplayStateRepository {
+            return displayComponentRepo[Display.DEFAULT_DISPLAY]!!.displayStateRepository
+        }
+
         /** Background [Executor] for HAL related operations. */
         @Provides
         @SysUISingleton

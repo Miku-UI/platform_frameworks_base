@@ -589,7 +589,7 @@ public class MediaPlayer extends PlayerBase
        call.
        // FIXME: unhide.
        // FIXME: add link to getMetadata(boolean, boolean)
-       {@hide}
+       @hide
      */
     public static final boolean METADATA_UPDATE_ONLY = true;
 
@@ -597,7 +597,7 @@ public class MediaPlayer extends PlayerBase
        Constant to retrieve all the metadata.
        // FIXME: unhide.
        // FIXME: add link to getMetadata(boolean, boolean)
-       {@hide}
+       @hide
      */
     @UnsupportedAppUsage
     public static final boolean METADATA_ALL = false;
@@ -606,7 +606,7 @@ public class MediaPlayer extends PlayerBase
        Constant to enable the metadata filter during retrieval.
        // FIXME: unhide.
        // FIXME: add link to getMetadata(boolean, boolean)
-       {@hide}
+       @hide
      */
     public static final boolean APPLY_METADATA_FILTER = true;
 
@@ -614,7 +614,7 @@ public class MediaPlayer extends PlayerBase
        Constant to disable the metadata filter during retrieval.
        // FIXME: unhide.
        // FIXME: add link to getMetadata(boolean, boolean)
-       {@hide}
+       @hide
      */
     @UnsupportedAppUsage
     public static final boolean BYPASS_METADATA_FILTER = false;
@@ -751,7 +751,7 @@ public class MediaPlayer extends PlayerBase
      *
      * @return A parcel suitable to hold a request for the native
      * player.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public Parcel newRequest() {
@@ -772,7 +772,7 @@ public class MediaPlayer extends PlayerBase
      *
      * @param reply Output parcel with the data returned by the
      * native player.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public void invoke(Parcel request, Parcel reply) {
@@ -1596,11 +1596,7 @@ public class MediaPlayer extends PlayerBase
     private void broadcastRoutingChange() {
         AudioManager.resetAudioPortGeneration();
         synchronized (mRoutingChangeListeners) {
-            // Prevent the case where an event is triggered by registering a routing change
-            // listener via the media player.
-            if (mEnableSelfRoutingMonitor) {
-                baseUpdateDeviceIds(getRoutedDevicesInternal());
-            }
+            baseUpdateDeviceIds(getRoutedDevicesInternal());
             for (NativeRoutingEventHandlerDelegate delegate
                     : mRoutingChangeListeners.values()) {
                 delegate.notifyClient();
@@ -2147,7 +2143,7 @@ public class MediaPlayer extends PlayerBase
      *
      * @return The metadata, possibly empty. null if an error occured.
      // FIXME: unhide.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public Metadata getMetadata(final boolean update_only,
@@ -2186,7 +2182,7 @@ public class MediaPlayer extends PlayerBase
      * @return The call status code.
      *
      // FIXME: unhide.
-     * {@hide}
+     * @hide
      */
     public int setMetadataFilter(Set<Integer> allow, Set<Integer> block) {
         // Do our serialization manually instead of calling
@@ -2365,7 +2361,7 @@ public class MediaPlayer extends PlayerBase
      * @param key key indicates the parameter to be set.
      * @param value value of the parameter to be set.
      * @return true if the parameter is set successfully, false otherwise
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     private native boolean setParameter(int key, Parcel value);
@@ -3424,7 +3420,7 @@ public class MediaPlayer extends PlayerBase
      * @param reply Parcel with audio/video duration info for battery
                     tracking usage
      * @return The status code.
-     * {@hide}
+     * @hide
      */
     public native static int native_pullBatteryData(Parcel reply);
 
@@ -3453,7 +3449,7 @@ public class MediaPlayer extends PlayerBase
      * @throws IllegalArgumentException if the retransmit endpoint is supplied,
      * but invalid.
      *
-     * {@hide} pending API council
+     * @hide pending API council
      */
     @UnsupportedAppUsage
     public void setRetransmitEndpoint(InetSocketAddress endpoint)
@@ -4607,7 +4603,7 @@ public class MediaPlayer extends PlayerBase
     /** Failed to handle timed text track properly.
      * @see android.media.MediaPlayer.OnInfoListener
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static final int MEDIA_INFO_TIMED_TEXT_ERROR = 900;
@@ -5092,7 +5088,7 @@ public class MediaPlayer extends PlayerBase
                 // nothing else to do;
                 // if blocking or non-blocking, HandleProvisioninig does the re-attempt & cleanup
             } catch (Exception e) {
-                Log.e(TAG, "prepareDrm: Exception " + e);
+                Log.e(TAG, "prepareDrm Exception", e);
                 earlyExit = true;
                 throw e;
             } finally {
@@ -5235,7 +5231,7 @@ public class MediaPlayer extends PlayerBase
                         "Unexpected. Shouldn't have reached here.");
                 throw new IllegalStateException("getKeyRequest: Unexpected provisioning error.");
             } catch (Exception e) {
-                Log.w(TAG, "getKeyRequest Exception " + e);
+                Log.w(TAG, "getKeyRequest Exception", e);
                 throw e;
             }
 
@@ -5295,7 +5291,7 @@ public class MediaPlayer extends PlayerBase
                 throw new IllegalStateException("provideKeyResponse: " +
                         "Unexpected provisioning error.");
             } catch (Exception e) {
-                Log.w(TAG, "provideKeyResponse Exception " + e);
+                Log.w(TAG, "provideKeyResponse Exception", e);
                 throw e;
             }
         }   // synchronized
@@ -5323,7 +5319,7 @@ public class MediaPlayer extends PlayerBase
             try {
                 mDrmObj.restoreKeys(mDrmSessionId, keySetId);
             } catch (Exception e) {
-                Log.w(TAG, "restoreKeys Exception " + e);
+                Log.w(TAG, "restoreKeys Exception", e);
                 throw e;
             }
 
@@ -5357,7 +5353,7 @@ public class MediaPlayer extends PlayerBase
             try {
                 value = mDrmObj.getPropertyString(propertyName);
             } catch (Exception e) {
-                Log.w(TAG, "getDrmPropertyString Exception " + e);
+                Log.w(TAG, "getDrmPropertyString Exception", e);
                 throw e;
             }
         }   // synchronized
@@ -5394,7 +5390,7 @@ public class MediaPlayer extends PlayerBase
             try {
                 mDrmObj.setPropertyString(propertyName, value);
             } catch ( Exception e ) {
-                Log.w(TAG, "setDrmPropertyString Exception " + e);
+                Log.w(TAG, "setDrmPropertyString Exception", e);
                 throw e;
             }
         }   // synchronized
@@ -5584,7 +5580,7 @@ public class MediaPlayer extends PlayerBase
             mDrmObj = new MediaDrm(uuid);
             Log.v(TAG, "prepareDrm_createDrmStep: Created mDrmObj=" + mDrmObj);
         } catch (Exception e) { // UnsupportedSchemeException
-            Log.e(TAG, "prepareDrm_createDrmStep: MediaDrm failed with " + e);
+            Log.e(TAG, "prepareDrm_createDrmStep: MediaDrm failed", e);
             throw e;
         }
     }
@@ -5607,7 +5603,7 @@ public class MediaPlayer extends PlayerBase
             Log.v(TAG, "prepareDrm_openSessionStep: _prepareDrm/Crypto succeeded");
 
         } catch (Exception e) { //ResourceBusyException, NotProvisionedException
-            Log.e(TAG, "prepareDrm_openSessionStep: open/crypto failed with " + e);
+            Log.e(TAG, "prepareDrm_openSessionStep: open/crypto failed", e);
             throw e;
         }
 
@@ -5665,13 +5661,13 @@ public class MediaPlayer extends PlayerBase
                             response.length + " " + Arrays.toString(response));
                 } catch (Exception e) {
                     status = PREPARE_DRM_STATUS_PROVISIONING_NETWORK_ERROR;
-                    Log.w(TAG, "HandleProvisioninig: Thread run: connect " + e + " url: " + url);
+                    Log.w(TAG, "HandleProvisioninig: Thread run: connect url: " + url, e);
                 } finally {
                     connection.disconnect();
                 }
             } catch (Exception e)   {
                 status = PREPARE_DRM_STATUS_PROVISIONING_NETWORK_ERROR;
-                Log.w(TAG, "HandleProvisioninig: Thread run: openConnection " + e);
+                Log.w(TAG, "HandleProvisioninig: Thread run: openConnection", e);
             }
 
             if (response != null) {
@@ -5683,8 +5679,7 @@ public class MediaPlayer extends PlayerBase
                     provisioningSucceeded = true;
                 } catch (Exception e) {
                     status = PREPARE_DRM_STATUS_PROVISIONING_SERVER_ERROR;
-                    Log.w(TAG, "HandleProvisioninig: Thread run: " +
-                            "provideProvisionResponse " + e);
+                    Log.w(TAG, "HandleProvisioninig: Thread run: provideProvisionResponse", e);
                 }
             }
 
@@ -5766,7 +5761,7 @@ public class MediaPlayer extends PlayerBase
             try {
                 mDrmProvisioningThread.join();
             } catch (Exception e) {
-                Log.w(TAG, "HandleProvisioninig: Thread.join Exception " + e);
+                Log.w(TAG, "HandleProvisioninig: Thread.join Exception", e);
             }
             result = mDrmProvisioningThread.status();
             // no longer need the thread
@@ -5791,7 +5786,7 @@ public class MediaPlayer extends PlayerBase
 
             success = true;
         } catch (Exception e) {
-            Log.w(TAG, "HandleProvisioninig: Thread run _prepareDrm resume failed with " + e);
+            Log.w(TAG, "HandleProvisioninig: Thread run _prepareDrm resume failed", e);
             // mDrmObj clean up is done by the caller
         }
 
@@ -5816,7 +5811,7 @@ public class MediaPlayer extends PlayerBase
                     mDrmProvisioningThread.join();
                 }
                 catch (InterruptedException e) {
-                    Log.w(TAG, "resetDrmState: ProvThread.join Exception " + e);
+                    Log.w(TAG, "resetDrmState: ProvThread.join Exception", e);
                 }
                 mDrmProvisioningThread = null;
             }

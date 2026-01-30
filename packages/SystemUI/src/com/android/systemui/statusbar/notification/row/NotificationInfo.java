@@ -16,17 +16,18 @@
 
 package com.android.systemui.statusbar.notification.row;
 
-import static android.app.Flags.notificationsRedesignThemedAppIcons;
+import static android.app.Flags.notificationsRedesignTemplates;
 import static android.app.Notification.EXTRA_BUILDER_APPLICATION_INFO;
 import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
 import static android.app.NotificationManager.IMPORTANCE_DEFAULT;
 import static android.app.NotificationManager.IMPORTANCE_LOW;
 import static android.app.NotificationManager.IMPORTANCE_UNSPECIFIED;
+import static android.service.notification.Adjustment.KEY_CONTEXTUAL_ACTIONS;
 import static android.service.notification.Adjustment.KEY_SUMMARIZATION;
+import static android.service.notification.Adjustment.KEY_TEXT_REPLIES;
 import static android.service.notification.Adjustment.KEY_TYPE;
 
 import static com.android.app.animation.Interpolators.FAST_OUT_SLOW_IN;
-import static com.android.systemui.Flags.notificationsRedesignGuts;
 
 import static java.lang.annotation.RetentionPolicy.SOURCE;
 
@@ -49,10 +50,13 @@ import android.graphics.drawable.Drawable;
 import android.metrics.LogMaker;
 import android.os.Handler;
 import android.os.RemoteException;
+import android.os.UserHandle;
 import android.service.notification.NotificationAssistantService;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import android.text.Annotation;
 import android.text.Html;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.transition.ChangeBounds;
 import android.transition.Fade;
@@ -82,6 +86,7 @@ import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyl
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import java.lang.annotation.Retention;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -95,20 +100,20 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
     private TextView mSilentDescriptionView;
     private TextView mAutomaticDescriptionView;
 
-    private INotificationManager mINotificationManager;
+    protected INotificationManager mINotificationManager;
     private AppIconProvider mAppIconProvider;
     private NotificationIconStyleProvider mIconStyleProvider;
-    private OnUserInteractionCallback mOnUserInteractionCallback;
+    protected OnUserInteractionCallback mOnUserInteractionCallback;
     private PackageManager mPm;
     private MetricsLogger mMetricsLogger;
     private ChannelEditorDialogController mChannelEditorDialogController;
     private AssistantFeedbackController mAssistantFeedbackController;
 
     private String mPackageName;
-    private String mAppName;
+    protected String mAppName;
     private int mAppUid;
     private String mDelegatePkg;
-    private NotificationChannel mSingleNotificationChannel;
+    protected NotificationChannel mSingleNotificationChannel;
     private int mStartingChannelImportance;
     private boolean mWasShownHighPriority;
     private boolean mPressedApply;
@@ -124,18 +129,18 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
     private boolean mIsAutomaticChosen;
     private boolean mIsSingleDefaultChannel;
     private boolean mIsNonblockable;
-    private boolean mIsDismissable;
-    private NotificationEntry mEntry;
-    private StatusBarNotification mSbn;
+    protected boolean mIsDismissable;
+    protected NotificationEntry mEntry;
+    protected StatusBarNotification mSbn;
     private NotificationListenerService.Ranking mRanking;
-    private EntryAdapter mEntryAdapter;
+    protected EntryAdapter mEntryAdapter;
     private boolean mIsDeviceProvisioned;
     private boolean mIsSystemRegisteredCall;
 
     private OnSettingsClickListener mOnSettingsClickListener;
     private OnAppSettingsClickListener mAppSettingsClickListener;
     private OnFeedbackClickListener mFeedbackClickListener;
-    private NotificationGuts mGutsContainer;
+    protected NotificationGuts mGutsContainer;
     private Drawable mPkgIcon;
     private UiEventLogger mUiEventLogger;
 
@@ -163,11 +168,11 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
     };
 
     // used by standard ui
-    private final OnClickListener mOnDismissSettings = v -> {
+    protected final OnClickListener mOnDismissSettings = v -> {
         mPressedApply = true;
         mGutsContainer.closeControls(v, /* save= */ true);
     };
-    private OnClickListener mOnCloseClickListener;
+    protected OnClickListener mOnCloseClickListener;
 
     public NotificationInfo(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -266,7 +271,7 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
         mMetricsLogger.write(notificationControlsLogMaker());
     }
 
-    private void bindInlineControls() {
+    protected void bindInlineControls() {
         if (mIsSystemRegisteredCall) {
             findViewById(R.id.non_configurable_call_text).setVisibility(VISIBLE);
             findViewById(R.id.non_configurable_text).setVisibility(GONE);
@@ -289,7 +294,8 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
         }
 
         View turnOffButton = findViewById(R.id.turn_off_notifications);
-        turnOffButton.setOnClickListener(getTurnOffNotificationsClickListener());
+        turnOffButton.setOnClickListener(
+                getTurnOffNotificationsClickListener(mSingleNotificationChannel));
         turnOffButton.setVisibility(turnOffButton.hasOnClickListeners() && !mIsNonblockable
                 ? VISIBLE : GONE);
 
@@ -310,7 +316,7 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
         View automatic = findViewById(R.id.automatic);
         if (mShowAutomaticSetting) {
             mAutomaticDescriptionView.setText(Html.fromHtml(mContext.getText(
-                    mAssistantFeedbackController.getInlineDescriptionResource(mRanking))
+                            mAssistantFeedbackController.getInlineDescriptionResource(mRanking))
                     .toString()));
             automatic.setVisibility(VISIBLE);
             automatic.setOnClickListener(mOnAutomatic);
@@ -330,16 +336,13 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
         ApplicationInfo info =
                 mSbn.getNotification().extras.getParcelable(EXTRA_BUILDER_APPLICATION_INFO,
                         ApplicationInfo.class);
-        if (notificationsRedesignGuts()) {
+        if (notificationsRedesignTemplates()) {
             if (info != null) {
                 try {
                     mAppName = String.valueOf(mPm.getApplicationLabel(info));
                     // The app icon is likely already in the cache, so let's use it
-                    boolean withWorkProfileBadge =
-                            mIconStyleProvider.shouldShowWorkProfileBadge(mSbn, getContext());
-                    mPkgIcon = mAppIconProvider.getOrFetchAppIcon(info.packageName, getContext(),
-                            withWorkProfileBadge,
-                            /* themed = */ notificationsRedesignThemedAppIcons());
+                    mPkgIcon = mAppIconProvider.getOrFetchAppIcon(info.packageName,
+                            UserHandle.of(mSbn.getNormalizedUserId()), /* instanceKey= */ "LEGACY");
                 } catch (Exception ignored) {
                 }
             }
@@ -363,8 +366,7 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
         bindDelegate();
 
 
-        if (Flags.notificationClassificationUi() &&
-                SYSTEM_RESERVED_IDS.contains(mSingleNotificationChannel.getId())) {
+        if (Flags.notificationClassificationUi()) {
             bindFeedback();
         } else {
             // Set up app settings link (i.e. Customize)
@@ -391,9 +393,14 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
 
     private void bindFeedback() {
         View feedbackButton = findViewById(R.id.feedback);
+        if (feedbackButton == null) {
+            return;
+        }
         Intent intent = getAssistantFeedbackIntent(
                 mINotificationManager, mPm, mSbn.getKey(), mRanking);
-        if (!android.app.Flags.notificationClassificationUi() || intent == null) {
+        if ((!android.app.Flags.notificationClassificationUi() &&
+                !com.android.systemui.Flags.notificationAnimatedActionsTreatment())
+                 || intent == null) {
             feedbackButton.setVisibility(GONE);
         } else {
             feedbackButton.setVisibility(VISIBLE);
@@ -404,7 +411,21 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
             });
         }
     }
-
+    private static boolean isAnimatedReply(CharSequence choice) {
+        if (choice instanceof Spanned) {
+            Spanned spanned = (Spanned) choice;
+            Annotation[] annotations = spanned.getSpans(0, choice.length(), Annotation.class);
+            if (annotations != null) { // Add null check
+                for (Annotation annotation : annotations) {
+                    if ("isAnimatedReply".equals(annotation.getKey())
+                            && "1".equals(annotation.getValue())) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
     public static Intent getAssistantFeedbackIntent(INotificationManager inm, PackageManager pm,
             String key, NotificationListenerService.Ranking ranking) {
         try {
@@ -426,8 +447,55 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
             intent.setClassName(activityInfo.packageName, activityInfo.name);
 
             intent.putExtra(NotificationAssistantService.EXTRA_NOTIFICATION_KEY, key);
-            intent.putExtra(NotificationAssistantService.EXTRA_NOTIFICATION_ADJUSTMENT,
-                    ranking.getSummarization() != null ? KEY_SUMMARIZATION : KEY_TYPE);
+            if (ranking.getSummarization() != null ||
+                    SYSTEM_RESERVED_IDS.contains(ranking.getChannel().getId())) {
+                intent.putExtra(NotificationAssistantService.EXTRA_NOTIFICATION_ADJUSTMENT,
+                        ranking.getSummarization() != null
+                        ? KEY_SUMMARIZATION
+                        : KEY_TYPE);
+            }
+            ArrayList<String> keys = new ArrayList<>();
+            NotificationChannel channel = ranking.getChannel(); // Get channel from ranking
+
+            // Check for summarization
+            if (!TextUtils.isEmpty(ranking.getSummarization())) {
+                keys.add(KEY_SUMMARIZATION);
+            }
+
+            // Check if it's a reserved system channel type
+            if (channel != null && SYSTEM_RESERVED_IDS.contains(channel.getId())) {
+                keys.add(KEY_TYPE);
+            }
+
+            // Check for animated smart actions
+            List<Notification.Action> smartActions = ranking.getSmartActions();
+            if (smartActions != null) {
+                for (Notification.Action action : smartActions) {
+                    if (action != null && action.getExtras() != null &&
+                            action.getExtras().getBoolean(Notification.Action.EXTRA_IS_ANIMATED,
+                                    false)) {
+                        keys.add(KEY_CONTEXTUAL_ACTIONS);
+                        break;
+                    }
+                }
+            }
+
+            // Check for animated smart replies
+            List<CharSequence> smartReplies = ranking.getSmartReplies();
+            if (smartReplies != null) {
+                for (CharSequence reply : smartReplies) {
+                    if (isAnimatedReply(reply)) {
+                        keys.add(KEY_TEXT_REPLIES);
+                        break;
+                    }
+                }
+            }
+
+            if (!keys.isEmpty()) {
+                intent.putStringArrayListExtra(
+                        NotificationAssistantService.EXTRA_NOTIFICATION_ADJUSTMENTS, keys);
+            }
+
             return intent;
         } catch (Exception e) {
             Slog.d(TAG, "no assistant?", e);
@@ -445,13 +513,13 @@ public class NotificationInfo extends LinearLayout implements NotificationGuts.G
         return null;
     }
 
-    private OnClickListener getTurnOffNotificationsClickListener() {
+    OnClickListener getTurnOffNotificationsClickListener(NotificationChannel channel) {
         return ((View view) -> {
             if (!mPresentingChannelEditorDialog && mChannelEditorDialogController != null) {
                 mPresentingChannelEditorDialog = true;
 
                 mChannelEditorDialogController.prepareDialogForApp(mAppName, mPackageName, mAppUid,
-                        mSingleNotificationChannel, mPkgIcon, mOnSettingsClickListener);
+                        channel, mPkgIcon, mOnSettingsClickListener);
                 mChannelEditorDialogController.setOnFinishListener(() -> {
                     mPresentingChannelEditorDialog = false;
                     mGutsContainer.closeControls(this, false);

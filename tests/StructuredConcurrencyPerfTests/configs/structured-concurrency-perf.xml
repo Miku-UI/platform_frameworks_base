@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2025 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<configuration description="Installs apk needed for StructuredConcurrencyPerfTests">
+
+    <target_preparer class="com.android.tradefed.targetprep.suite.SuiteApkInstaller">
+        <option name="cleanup-apks" value="true" />
+        <option name="test-file-name" value="StructuredConcurrencyPerfTests.apk" />
+    </target_preparer>
+
+    <include name="structured-concurrency-base.config" />
+
+    <test class="com.android.tradefed.testtype.AndroidJUnitTest" >
+        <option name="package" value="com.android.app.concurrent.benchmark" />
+        <option name="runner" value="androidx.benchmark.junit4.AndroidBenchmarkRunner" />
+        <option name="device-listeners" value="android.device.collectors.ProcLoadListener,com.android.app.concurrent.benchmark.util.CsvMetricCollector" />
+        <!-- ProcLoadListener related arguments -->
+        <!-- Wait for device last minute threshold to reach 1.0 with 180 second timeout before starting the test -->
+        <option name="instrumentation-arg" key="proc-loadavg-threshold" value="1.0" />
+        <option name="instrumentation-arg" key="proc-loadavg-timeout" value="180000" />
+        <option name="instrumentation-arg" key="proc-loadavg-interval" value="5000" />
+        <option name="instrumentation-arg" key="csv-metric-collector:per_run" value="true" />
+        <option name="instrumentation-arg" key="androidx.benchmark.profiling.mode" value="None" />
+        <option name="instrumentation-arg" key="androidx.benchmark.iterations" value="100" />
+        <option name="instrumentation-arg" key="androidx.benchmark.zipTraceWithInMemoryEvents.enable" value="true" />
+    </test>
+
+    <!-- Reboot to undo perf-setup.sh -->
+    <target_preparer class="com.android.tradefed.targetprep.DeviceCleaner">
+        <option name="cleanup-action" value="REBOOT" />
+    </target_preparer>
+
+</configuration>

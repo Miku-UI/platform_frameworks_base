@@ -248,7 +248,7 @@ public class NotificationHistoryManager {
                 final NotificationHistoryDatabase userHistory =
                         getUserHistoryAndInitializeIfNeededLocked(notification.getUserId());
                 if (userHistory == null) {
-                    Slog.w(TAG, "Attempted to add notif for locked/gone/disabled user "
+                    Slog.v(TAG, "Attempted to add notif for locked/gone/disabled user "
                             + notification.getUserId());
                     return;
                 }

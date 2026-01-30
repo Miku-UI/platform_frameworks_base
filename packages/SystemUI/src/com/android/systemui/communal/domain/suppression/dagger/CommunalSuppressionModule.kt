@@ -16,6 +16,7 @@
 
 package com.android.systemui.communal.domain.suppression.dagger
 
+import android.os.UserHandle
 import com.android.systemui.Flags.glanceableHubV2
 import com.android.systemui.communal.data.model.SuppressionReason
 import com.android.systemui.communal.domain.interactor.CarProjectionInteractor
@@ -77,9 +78,9 @@ interface CommunalSuppressionModule {
         @Provides
         @IntoSet
         fun bindUserLockedSuppressor(interactor: UserLockedInteractor): Flow<SuppressionReason?> {
-            return interactor.currentUserUnlocked.mapToReasonIfNotAllowed(
-                SuppressionReason.ReasonUserLocked
-            )
+            return interactor
+                .isUserUnlocked(UserHandle.CURRENT)
+                .mapToReasonIfNotAllowed(SuppressionReason.ReasonUserLocked)
         }
 
         @Provides

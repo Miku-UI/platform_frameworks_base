@@ -28,43 +28,43 @@ import android.os.Parcelable;
 public final class ConfigurationStats implements Parcelable {
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public Configuration mConfiguration;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public long mBeginTimeStamp;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public long mEndTimeStamp;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public long mLastTimeActive;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public long mTotalTimeActive;
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     public int mActivationCount;
 
     /**
-     * {@hide}
+     * @hide
      */
     public ConfigurationStats() {
     }

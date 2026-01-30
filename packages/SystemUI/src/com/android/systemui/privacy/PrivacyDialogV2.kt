@@ -73,7 +73,7 @@ class PrivacyDialogV2(
     private val dismissListeners = mutableListOf<WeakReference<OnDialogDismissed>>()
     private val dismissed = AtomicBoolean(false)
     // Note: this will call the dialog create method during init
-    private val decorViewLayoutListener = maybeForceFullscreen()?.component2()
+    private val decorViewLayoutListener = maybeForceFullscreen()?.component3()
 
     /**
      * Add a listener that will be called when the dialog is dismissed.

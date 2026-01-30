@@ -22,7 +22,6 @@ import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.Back
 import com.android.compose.animation.scene.Edge
 import com.android.compose.animation.scene.Swipe
-import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
@@ -33,14 +32,17 @@ import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintA
 import com.android.systemui.keyguard.domain.interactor.keyguardEnabledInteractor
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.res.R
+import com.android.systemui.qs.panels.ui.viewmodel.editModeViewModel
 import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.scene.domain.resolver.homeSceneFamilyResolver
 import com.android.systemui.scene.domain.startable.sceneContainerStartable
 import com.android.systemui.scene.shared.model.SceneFamilies
 import com.android.systemui.scene.shared.model.Scenes
+import com.android.systemui.shade.domain.interactor.enableSingleShade
+import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
@@ -54,10 +56,10 @@ import org.junit.runner.RunWith
 @EnableSceneContainer
 class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos()
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val testScope = kosmos.testScope
-    private val qsFlexiglassAdapter = kosmos.fakeQsSceneAdapter
 
+    private val editModeViewModel = kosmos.editModeViewModel
     private val sceneInteractor = kosmos.sceneInteractor
     private val sceneBackInteractor = kosmos.sceneBackInteractor
     private val sceneContainerStartable = kosmos.sceneContainerStartable
@@ -69,7 +71,7 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
         sceneContainerStartable.start()
         underTest =
             QuickSettingsUserActionsViewModel(
-                qsSceneAdapter = qsFlexiglassAdapter,
+                editModeViewModel = editModeViewModel,
                 sceneBackInteractor = sceneBackInteractor,
             )
         underTest.activateIn(testScope)
@@ -78,10 +80,10 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
     @Test
     fun destinations_whenNotCustomizing_unlocked() =
         testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, false)
+            kosmos.enableSingleShade()
             val actions by collectLastValue(underTest.actions)
             val homeScene by collectLastValue(kosmos.homeSceneFamilyResolver.resolvedScene)
-            qsFlexiglassAdapter.setCustomizing(false)
+            editModeViewModel.stopEditing()
             kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
                 AuthenticationMethodModel.Pin
             )
@@ -92,9 +94,9 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
             assertThat(actions)
                 .isEqualTo(
                     mapOf(
-                        Back to UserActionResult(Scenes.Shade),
-                        Swipe.Up to UserActionResult(Scenes.Shade),
-                        Swipe.Up(fromSource = Edge.Bottom) to UserActionResult(SceneFamilies.Home),
+                        Back to Scenes.Shade,
+                        Swipe.Up to Scenes.Shade,
+                        Swipe.Up(fromSource = Edge.Bottom) to SceneFamilies.Home,
                     )
                 )
             assertThat(homeScene).isEqualTo(Scenes.Gone)
@@ -103,8 +105,8 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
     @Test
     fun destinations_whenNotCustomizing_withPreviousSceneLockscreen() =
         testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, false)
-            qsFlexiglassAdapter.setCustomizing(false)
+            kosmos.enableSingleShade()
+            editModeViewModel.stopEditing()
             val actions by collectLastValue(underTest.actions)
 
             val currentScene by collectLastValue(sceneInteractor.currentScene)
@@ -118,9 +120,9 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
             assertThat(actions)
                 .isEqualTo(
                     mapOf(
-                        Back to UserActionResult(Scenes.Lockscreen),
-                        Swipe.Up to UserActionResult(Scenes.Lockscreen),
-                        Swipe.Up(fromSource = Edge.Bottom) to UserActionResult(SceneFamilies.Home),
+                        Back to Scenes.Lockscreen,
+                        Swipe.Up to Scenes.Lockscreen,
+                        Swipe.Up(fromSource = Edge.Bottom) to SceneFamilies.Home,
                     )
                 )
             assertThat(homeScene).isEqualTo(Scenes.Lockscreen)
@@ -129,8 +131,8 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
     @Test
     fun destinations_whenNotCustomizing_withPreviousSceneLockscreen_butLockscreenDisabled() =
         testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, false)
-            qsFlexiglassAdapter.setCustomizing(false)
+            kosmos.enableSingleShade()
+            editModeViewModel.stopEditing()
             val actions by collectLastValue(underTest.actions)
 
             val currentScene by collectLastValue(sceneInteractor.currentScene)
@@ -146,9 +148,9 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
             assertThat(actions)
                 .isEqualTo(
                     mapOf(
-                        Back to UserActionResult(Scenes.Shade),
-                        Swipe.Up to UserActionResult(Scenes.Shade),
-                        Swipe.Up(fromSource = Edge.Bottom) to UserActionResult(SceneFamilies.Home),
+                        Back to Scenes.Shade,
+                        Swipe.Up to Scenes.Shade,
+                        Swipe.Up(fromSource = Edge.Bottom) to SceneFamilies.Home,
                     )
                 )
             assertThat(homeScene).isEqualTo(Scenes.Gone)
@@ -157,10 +159,10 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
     @Test
     fun destinations_whenNotCustomizing_authMethodSwipe_lockscreenNotDismissed() =
         testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, false)
+            kosmos.enableSingleShade()
             val actions by collectLastValue(underTest.actions)
             val homeScene by collectLastValue(kosmos.homeSceneFamilyResolver.resolvedScene)
-            qsFlexiglassAdapter.setCustomizing(false)
+            editModeViewModel.stopEditing()
             kosmos.fakeDeviceEntryRepository.setLockscreenEnabled(true)
             kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
                 AuthenticationMethodModel.None
@@ -169,31 +171,32 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
             assertThat(actions)
                 .isEqualTo(
                     mapOf(
-                        Back to UserActionResult(Scenes.Shade),
-                        Swipe.Up to UserActionResult(Scenes.Shade),
-                        Swipe.Up(fromSource = Edge.Bottom) to UserActionResult(SceneFamilies.Home),
+                        Back to Scenes.Shade,
+                        Swipe.Up to Scenes.Shade,
+                        Swipe.Up(fromSource = Edge.Bottom) to SceneFamilies.Home,
                     )
                 )
             assertThat(homeScene).isEqualTo(Scenes.Lockscreen)
         }
 
     @Test
-    fun destinations_whenCustomizing_noDestinations() =
+    fun destinations_whenCustomizing_canDismissOnlyFromBottomEdge() =
         testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, false)
+            kosmos.enableSingleShade()
             val actions by collectLastValue(underTest.actions)
-            qsFlexiglassAdapter.setCustomizing(true)
+            editModeViewModel.startEditing()
 
-            assertThat(actions).isEmpty()
+            assertThat(actions)
+                .isEqualTo(mapOf(Swipe.Up(fromSource = Edge.Bottom) to SceneFamilies.Home))
         }
 
     @Test
     fun destinations_whenNotCustomizing_inSplitShade_unlocked() =
         testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, true)
+            kosmos.enableSplitShade()
             val actions by collectLastValue(underTest.actions)
             val homeScene by collectLastValue(kosmos.homeSceneFamilyResolver.resolvedScene)
-            qsFlexiglassAdapter.setCustomizing(false)
+            editModeViewModel.stopEditing()
             kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
                 AuthenticationMethodModel.Pin
             )
@@ -204,21 +207,22 @@ class QuickSettingsUserActionsViewModelTest : SysuiTestCase() {
             assertThat(actions)
                 .isEqualTo(
                     mapOf(
-                        Back to UserActionResult(Scenes.Shade),
-                        Swipe.Up to UserActionResult(Scenes.Shade),
-                        Swipe.Up(fromSource = Edge.Bottom) to UserActionResult(SceneFamilies.Home),
+                        Back to Scenes.Shade,
+                        Swipe.Up to Scenes.Shade,
+                        Swipe.Up(fromSource = Edge.Bottom) to SceneFamilies.Home,
                     )
                 )
             assertThat(homeScene).isEqualTo(Scenes.Gone)
         }
 
     @Test
-    fun destinations_whenCustomizing_inSplitShade_noDestinations() =
+    fun destinations_whenCustomizing_inSplitShade_canDismissOnlyFromBottomEdge() =
         testScope.runTest {
-            overrideResource(R.bool.config_use_split_notification_shade, true)
+            kosmos.enableSplitShade()
             val actions by collectLastValue(underTest.actions)
-            qsFlexiglassAdapter.setCustomizing(true)
+            editModeViewModel.startEditing()
 
-            assertThat(actions).isEmpty()
+            assertThat(actions)
+                .isEqualTo(mapOf(Swipe.Up(fromSource = Edge.Bottom) to SceneFamilies.Home))
         }
 }

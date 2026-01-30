@@ -24,6 +24,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.shared.model.KeyguardState.OCCLUDED
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
+import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -39,10 +40,12 @@ constructor(
     animationFlow: KeyguardTransitionAnimationFlow,
 ) : DeviceEntryIconTransition {
     private val transitionAnimation =
-        animationFlow.setup(
-            duration = FromOccludedTransitionInteractor.TO_AOD_DURATION,
-            edge = Edge.create(from = OCCLUDED, to = AOD),
-        )
+        animationFlow
+            .setup(
+                duration = FromOccludedTransitionInteractor.TO_AOD_DURATION,
+                edge = Edge.create(from = Scenes.Occluded, to = AOD),
+            )
+            .setupWithoutSceneContainer(edge = Edge.create(from = OCCLUDED, to = AOD))
 
     val deviceEntryBackgroundViewAlpha: Flow<Float> =
         transitionAnimation.immediatelyTransitionTo(0f)

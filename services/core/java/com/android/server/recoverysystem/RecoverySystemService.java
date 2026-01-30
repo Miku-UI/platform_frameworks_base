@@ -26,8 +26,8 @@ import static android.os.RecoverySystem.ResumeOnRebootRebootErrorCode;
 import static android.os.UserHandle.USER_SYSTEM;
 import static android.ota.nano.OtaPackageMetadata.ApexMetadata;
 
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_NONE;
-import static com.android.internal.widget.LockSettingsInternal.ARM_REBOOT_ERROR_NO_PROVIDER;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_NONE;
+import static com.android.server.locksettings.LockSettingsInternal.ARM_REBOOT_ERROR_NO_PROVIDER;
 
 import android.annotation.IntDef;
 import android.annotation.Nullable;
@@ -64,11 +64,11 @@ import android.util.Slog;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.FrameworkStatsLog;
-import com.android.internal.widget.LockSettingsInternal;
-import com.android.internal.widget.RebootEscrowListener;
 import com.android.server.LocalServices;
 import com.android.server.SystemService;
 import com.android.server.Watchdog;
+import com.android.server.locksettings.LockSettingsInternal;
+import com.android.server.locksettings.RebootEscrowListener;
 import com.android.server.pm.ApexManager;
 import com.android.server.recoverysystem.hal.BootControlHIDL;
 import com.android.server.utils.Slogf;

@@ -18,11 +18,8 @@
 
 package com.android.systemui.statusbar.phone.ui
 
-import android.app.Flags
 import android.graphics.drawable.Icon
 import android.os.UserHandle
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -72,7 +69,6 @@ class IconManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI, Flags.FLAG_MODES_UI_ICONS)
     fun addIcon_shapeWrapContent_addsIconViewWithVariableWidth() {
         val sbIcon = newStatusBarIcon(StatusBarIcon.Shape.WRAP_CONTENT)
 
@@ -87,7 +83,6 @@ class IconManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI, Flags.FLAG_MODES_UI_ICONS)
     fun addIcon_shapeFixedSpace_addsIconViewWithFixedWidth() {
         val sbIcon = newStatusBarIcon(StatusBarIcon.Shape.FIXED_SPACE)
 
@@ -100,21 +95,6 @@ class IconManagerTest : SysuiTestCase() {
         assertThat(iconView.layoutParams.width).isNotEqualTo(ViewGroup.LayoutParams.WRAP_CONTENT)
         assertThat(iconView.layoutParams.width).isEqualTo(iconView.layoutParams.height)
         assertThat(iconView.scaleType).isEqualTo(ImageView.ScaleType.FIT_CENTER)
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_MODES_UI_ICONS)
-    fun addIcon_iconsFlagOff_addsIconViewWithVariableWidth() {
-        val sbIcon = newStatusBarIcon(StatusBarIcon.Shape.FIXED_SPACE)
-
-        underTest.addIcon(0, "slot", false, sbIcon)
-
-        assertThat(viewGroup.childCount).isEqualTo(1)
-        val iconView = viewGroup.getChildAt(0) as StatusBarIconView
-        assertThat(iconView).isNotNull()
-
-        assertThat(iconView.layoutParams.width).isEqualTo(ViewGroup.LayoutParams.WRAP_CONTENT)
-        assertThat(iconView.scaleType).isEqualTo(ImageView.ScaleType.CENTER)
     }
 
     private fun newStatusBarIcon(shape: StatusBarIcon.Shape) =

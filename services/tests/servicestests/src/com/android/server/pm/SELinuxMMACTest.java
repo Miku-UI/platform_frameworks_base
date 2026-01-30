@@ -56,8 +56,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoOptInToLatest() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.P).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -67,8 +71,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoOptInToR() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.P).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_R_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_R_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -78,8 +86,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoNoOptIn() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.P).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(false);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -89,8 +101,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoNoOptInButAlreadyLatest() {
         var packageState = new PackageStateBuilder(LATEST_OPT_IN_VERSION).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(false);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -100,8 +116,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoTargetingCurDevelopment() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.CUR_DEVELOPMENT).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -111,8 +131,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoNoOptInButAlreadyR() {
         var packageState = new PackageStateBuilder(R_OPT_IN_VERSION).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_R_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_R_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(false);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -122,8 +146,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoOptInRButLater() {
         var packageState = new PackageStateBuilder(R_OPT_IN_VERSION + 1).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_R_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_R_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -134,8 +162,12 @@ public class SELinuxMMACTest {
     public void getSeInfoPreinstalledToSystem() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.CUR_DEVELOPMENT)
                 .setSystem(true).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -147,8 +179,12 @@ public class SELinuxMMACTest {
     public void getSeInfoPreinstalledToSystemExt() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.CUR_DEVELOPMENT)
                 .setSystem(true).setSystemExt(true).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -160,8 +196,12 @@ public class SELinuxMMACTest {
     public void getSeInfoPreinstalledToProduct() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.CUR_DEVELOPMENT)
                 .setSystem(true).setProduct(true).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -173,8 +213,12 @@ public class SELinuxMMACTest {
     public void getSeInfoPreinstalledToVendor() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.CUR_DEVELOPMENT)
                 .setSystem(true).setVendor(true).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),
@@ -185,8 +229,12 @@ public class SELinuxMMACTest {
     @Test
     public void getSeInfoNotPreinstalled() {
         var packageState = new PackageStateBuilder(Build.VERSION_CODES.CUR_DEVELOPMENT).build();
-        when(mMockCompatibility.isChangeEnabledInternal(eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
-                argThat(argument -> argument.packageName.equals(packageState.getPackageName()))))
+        when(mMockCompatibility.isChangeEnabledAndReportInternal(
+                        eq(SELinuxMMAC.SELINUX_LATEST_CHANGES),
+                        argThat(
+                                argument ->
+                                        argument.packageName.equals(packageState.getPackageName())),
+                        eq(false)))
                 .thenReturn(true);
         assertThat(SELinuxMMAC.getSeInfo(packageState, packageState.getAndroidPackage(), null,
                         mMockCompatibility),

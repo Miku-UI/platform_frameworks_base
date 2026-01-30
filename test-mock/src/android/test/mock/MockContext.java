@@ -799,6 +799,7 @@ public class MockContext extends Context {
         throw new UnsupportedOperationException();
     }
 
+    @Override
     public void enforceUriPermission(
             Uri uri, String readPermission, String writePermission,
             int pid, int uid, int modeFlags, String message) {
@@ -811,7 +812,7 @@ public class MockContext extends Context {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public Context createApplicationContext(ApplicationInfo application, int flags)
             throws PackageManager.NameNotFoundException {
@@ -825,14 +826,14 @@ public class MockContext extends Context {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public Context createPackageContextAsUser(String packageName, int flags, UserHandle user)
             throws PackageManager.NameNotFoundException {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public Context createContextAsUser(UserHandle user, @CreatePackageOptions int flags) {
         throw new UnsupportedOperationException();
@@ -937,7 +938,7 @@ public class MockContext extends Context {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @SystemApi
     @Override
     public Context createCredentialProtectedStorageContext() {
@@ -955,51 +956,51 @@ public class MockContext extends Context {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @SystemApi
     @Override
     public boolean isCredentialProtectedStorage() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public boolean canLoadUnsafeResources() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public IBinder getActivityToken() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public IServiceConnection getServiceDispatcher(ServiceConnection conn, Handler handler,
             long flags) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public IApplicationThread getIApplicationThread() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public Handler getMainThreadHandler() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public boolean isUiContext() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public boolean isConfigurationContext() {
         throw new UnsupportedOperationException();

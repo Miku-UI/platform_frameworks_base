@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"ခွင့်ပြုချက် လိုအပ်သည်"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ထည့်သွင်းခြင်းကို ပိတ်ထားသည်"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"အက်ပ်ကို အသင့်ပြင်နေသည်…"</string>
+    <string name="title_install" msgid="6806728682404990326">"ဤအက်ပ်ကို ထည့်သွင်းမလား။"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ထည့်သွင်းနေသည်…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"အက်ပ် ထည့်သွင်းပြီးပါပြီ"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"ဤအက်ပ်ကို ပြန်ထည့်သွင်းမလား။"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"ပြန်ထည့်သွင်းနေသည်…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"အက်ပ်ကို ပြန်ထည့်သွင်းပြီးပါပြီ"</string>
+    <string name="title_update" msgid="1747328630716712391">"ဤအက်ပ်ကို အပ်ဒိတ်လုပ်မလား။"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> သုံး၍ ဤအက်ပ်ကို အပ်ဒိတ်လုပ်မလား။"</string>
+    <string name="title_updating" msgid="5449073288264173554">"အပ်ဒိတ်လုပ်နေသည်…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"အက်ပ်အပ်ဒိတ်လုပ်ပြီးပြီ"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"အက်ပ်ကို ထည့်သွင်း၍ မရပါ"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ထည့်သွင်းခြင်းကို ပိတ်ထားသည်"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"အက်ပ်ကို တွဲသုံး၍မရပါ"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"ပက်ကေ့ဂျ်မမှန်ပါ"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"သိုလှောင်ခန်း မလုံလောက်ပါ"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"အက်ပ် ထည့်သွင်းမထားပါ"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"ဤအက်ပ်ကို ဖြုတ်မလား"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"ဤအက်ပ်ပုံတူပွားကို ဖျက်မလား။"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"အက်ပ်အပ်ဒိတ်များကို ဖြုတ်မလား။"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"အက်ပ်အပ်ဒိတ်များကို အသုံးပြုသူအားလုံးအတွက် ဖြုတ်မလား။"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"ဤအက်ပ်ကို အသုံးပြုသူအားလုံးအတွက် ဖြုတ်မလား။"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"ဤအက်ပ်ကို အသုံးပြုသူ “<xliff:g id="USER_NAME">%1$s</xliff:g>” အတွက် ဖြုတ်မလား။"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"အက်ပ် မတွေ့ပါ"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"ဤအက်ပ်ကို ဖြုတ်၍မရပါ"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"အက်ပ်ကို ဖြုတ်မထားပါ"</string>
+    <string name="title_archive" msgid="2876455228073419830">"ဤအက်ပ်ကို သိမ်းဆည်းမလား။"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"ဤအက်ပ်ကို အသုံးပြုသူအားလုံးအတွက် သိမ်းဆည်းမလား။"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"ဤအက်ပ်ကို အသုံးပြုသူ “<xliff:g id="USER_NAME">%1$s</xliff:g>” အတွက် သိမ်းဆည်းမလား။"</string>
+    <string name="title_restore" msgid="8934911753892124574">"ဤအက်ပ်ကို ပြန်ယူမလား။"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"လုပ်ဆောင်ချက် လိုအပ်သည်"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"သိုလှောင်ခန်း မလုံလောက်ပါ"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"အော့ဖ်လိုင်းဖြစ်နေသည်"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ကို ပိတ်ထားသည်"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ကို ထည့်သွင်းမထားပါ"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"တစ်ခုခု မှားသွားသည်"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"ဤအက်ပ်သည် ပုံမှန်အားဖြင့် &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; ထံမှ အပ်ဒိတ်များရရှိသည်။ မတူညီသောရင်းမြစ်သုံး၍ အပ်ဒိတ်လုပ်ခြင်းဖြင့် တက်ဘလက်တွင် နောင်လာမည့်အပ်ဒိတ်များကို မည်သည့်ရင်းမြစ်မှမဆို လက်ခံရယူနိုင်သည်။ အက်ပ်လုပ်ဆောင်ချက် ပြောင်းလဲနိုင်သည်။"</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"ဤအက်ပ်သည် ပုံမှန်အားဖြင့် &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; ထံမှ အပ်ဒိတ်များရရှိသည်။ မတူညီသောရင်းမြစ်သုံး၍ အပ်ဒိတ်လုပ်ခြင်းဖြင့် TV တွင် နောင်လာမည့်အပ်ဒိတ်များကို မည်သည့်ရင်းမြစ်မှမဆို လက်ခံရယူနိုင်သည်။ အက်ပ်လုပ်ဆောင်ချက် ပြောင်းလဲနိုင်သည်။"</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"ဤအက်ပ်သည် ပုံမှန်အားဖြင့် &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt; ထံမှ အပ်ဒိတ်များရရှိသည်။ မတူညီသောရင်းမြစ်သုံး၍ အပ်ဒိတ်လုပ်ခြင်းဖြင့် ဖုန်းတွင် နောင်လာမည့်အပ်ဒိတ်များကို မည်သည့်ရင်းမြစ်မှမဆို လက်ခံရယူနိုင်သည်။ အက်ပ်လုပ်ဆောင်ချက် ပြောင်းလဲနိုင်သည်။"</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"ဤရင်းမြစ်မှရယူထားသည့် အမျိုးအမည်မသိသောအက်ပ်များကို လုံခြုံရေးအရ သင့်တက်ဘလက်တွင် လောလောဆယ် ထည့်သွင်းခွင့်မပြုပါ။ ၎င်းကို ဆက်တင်များတွင် ပြောင်းနိုင်သည်။"</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"ဤရင်းမြစ်မှရယူထားသည့် အမျိုးအမည်မသိသောအက်ပ်များကို လုံခြုံရေးအရ သင့် TV တွင် လောလောဆယ် ထည့်သွင်းခွင့်မပြုပါ။ ၎င်းကို ဆက်တင်များတွင် ပြောင်းနိုင်သည်။"</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"ဤရင်းမြစ်မှရယူထားသည့် အမျိုးအမည်မသိသောအက်ပ်များကို လုံခြုံရေးအရ သင့်လက်ပတ်နာရီတွင် လောလောဆယ် ထည့်သွင်းခွင့်မပြုပါ။ ၎င်းကို ဆက်တင်များတွင် ပြောင်းနိုင်သည်။"</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"ဤရင်းမြစ်မှရယူထားသည့် အမျိုးအမည်မသိသောအက်ပ်များကို လုံခြုံရေးအရ သင့်ဖုန်းတွင် လောလောဆယ် ထည့်သွင်းခွင့်မပြုပါ။ ၎င်းကို ဆက်တင်များတွင် ပြောင်းနိုင်သည်။"</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"သင်၏ ဖုန်းနှင့် ကိုယ်ရေးအချက်အလက်တို့သည် အမျိုးအမည် မသိသောအက်ပ်များ၏ တိုက်ခိုက်ခြင်းကို ပိုမိုခံရနိုင်ပါသည်။ ဤအက်ပ်ကို ထည့်သွင်းခြင်းအားဖြင့် ဖြစ်ပေါ်လာနိုင်သော ဖုန်းပျက်စီးမှု (သို့) ဒေတာဆုံးရှုံးမှုများအတွက် သင့်ထံ၌သာ တာဝန်ရှိကြောင်းကို သင်သဘောတူသည်။"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"သင်၏ တက်ဘလက်နှင့် ကိုယ်ရေးအချက်အလက်သည် အမျိုးအမည် မသိသောအက်ပ်များ၏ တိုက်ခိုက်ခြင်းကို ပိုမိုခံရနိုင်ပါသည်။ ဤအက်ပ်ကို ထည့်သွင်းခြင်းအားဖြင့် ဖြစ်ပေါ်လာနိုင်သော တက်ဘလက်ပျက်စီးမှု (သို့) ဒေတာဆုံးရှုံးမှုများအတွက် သင့်ထံ၌သာ တာဝန်ရှိကြောင်းကို သင်သဘောတူသည်။"</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"သင်၏ TV နှင့် ကိုယ်ရေးအချက်အလက်တို့သည် အမျိုးအမည် မသိသောအက်ပ်များ၏ တိုက်ခိုက်ခြင်းကို ပိုမိုခံရနိုင်ပါသည်။ ဤအက်ပ်ကို ထည့်သွင်းခြင်းအားဖြင့် ဖြစ်ပေါ်လာနိုင်သော TV ပျက်စီးမှု (သို့) ဒေတာဆုံးရှုံးမှုများအတွက် သင့်ထံ၌သာ တာဝန်ရှိကြောင်းကို သင်သဘောတူသည်။"</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"ဤအက်ပ်ထည့်သွင်းခြင်းကို ပိတ်ထားသည်"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"ဤအက်ပ်သည် သင့်စက်ပစ္စည်းတွင်ရှိသော အက်ပ်တစ်ခုနှင့် ဆန့်ကျင်နေသည်"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"ဤအက်ပ်ကို သင့်စက်ပစ္စည်းနှင့် တွဲသုံး၍မရပါ"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"ဤအက်ပ်၏ ထည့်သွင်းမှုဖိုင်တွင် ပြဿနာရှိသည်"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"ဤအက်ပ်ထည့်သွင်းရန် နေရာလွတ်အချို့ပြုလုပ်ပြီး ထပ်စမ်းကြည့်ပါ"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"အက်ပ်ဖိုင်တွင် ပြဿနာရှိသည်"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"အက်ပ်များထည့်သွင်းခြင်းကို ကန့်သတ်ထားသည်"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"အမျိုးအမည်မသိသော အက်ပ်များထည့်သွင်းခြင်းကို ကန့်သတ်ထားသည်"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"ဤအက်ပ်၏ ပုံတူပွားလည်း ရှိနေပြီး ၎င်းကိုလည်း ဖျက်ပါမည်"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"ဤအက်ပ်သည် <xliff:g id="APP_LABEL">%1$s</xliff:g> ၏ ပုံတူပွားဖြစ်သည်"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"ဤအက်ပ်ကို စက်ရုံထုတ်ဗားရှင်းဖြင့် အစားထိုးမည်။ အက်ပ်ဒေတာအားလုံးကို ဖယ်ရှားမည်။"</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"ဤအက်ပ်ကို စက်ပစ္စည်းပေါ်ရှိ အသုံးပြုသူအားလုံးအတွက် စက်ရုံထုတ်ဗားရှင်းဖြင့် အစားထိုးမည်။ အက်ပ်ဒေတာအားလုံးကို ဖယ်ရှားမည်။"</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"ဤအက်ပ်ကို သင့်အလုပ်ပရိုဖိုင်မှ ဖြုတ်ပါမည်"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"ဤအက်ပ်ကို သင့်သီးသန့်နေရာမှ ဖြုတ်ပါမည်"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"ဤအက်ပ်ကို ထည့်သွင်းထားသော အက်ပ်စာရင်းတွင် ရှာမတွေ့ပါ (သို့) ၎င်းကို ဖြုတ်ပြီးဖြစ်သည်"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"လက်ရှိအသုံးပြုသူအား ဤအက်ပ်ဖြုတ်ခြင်းကို လုပ်ဆောင်ခွင့်မပြုပါ"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"ဤအက်ပ်ကို ဖြုတ်၍မရလိုက်ပါ"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"အက်ပ်ဒေတာ ဆက်ထားရန်"</string>
+    <string name="message_archive" msgid="943853731737315850">"သင်၏အက်ပ်ဒေတာကို သိမ်းပါမည်"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"အက်ပ်ဒေတာအားလုံးကို သိမ်းပါမည်"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"အက်ပ်ဒေတာကို သိမ်းပါမည်"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"ဤအက်ပ်ကို သင့်အလုပ်ပရိုဖိုင်မှထုတ်၍ သိမ်းဆည်းပါမည်။ သင်၏အက်ပ်ဒေတာကို သိမ်းပါမည်။"</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"ဤအက်ပ်ကို သင်၏ သီးသန့်နေရာမှထုတ်၍ သိမ်းဆည်းပါမည်။ သင်၏အက်ပ်ဒေတာကို သိမ်းပါမည်။"</string>
+    <string name="message_restore" msgid="8402726798623569969">"ဤအက်ပ်သည် <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ထံမှ နောက်ခံတွင် ဒေါင်းလုဒ်လုပ်ပါမည်"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"ဤအက်ပ်ကို ပြန်မယူမီ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> သည် နောက်ထပ်အချက်အလက် လိုအပ်သည်"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"ဤအက်ပ်ကို ပြန်ယူရန် &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; နေရာလွတ်ပြုလုပ်ပြီး ထပ်စမ်းကြည့်ပါ"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"ဤအက်ပ်ကို ပြန်ယူရန် သင့်အင်တာနက်ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်စမ်းကြည့်ပါ"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"ဤအက်ပ်ကို ပြန်ယူရန် ဆက်တင်များတွင် <xliff:g id="INSTALLERNAME">%1$s</xliff:g> ဖွင့်ပါ"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"ဤအက်ပ်ကို ပြန်ယူရန် <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ကို ထည့်သွင်းရမည်"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"ဤအက်ပ်ကို ပြန်ယူရာတွင် ပြဿနာရှိသည်"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> သည် အောက်ပါအက်ပ်၏ တစ်စိတ်တစ်ဒေသဖြစ်သည်- <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;ဤအက်ပ်ကို ပိတ်ထားသည်။ သင့်စက်ပစ္စည်းနှင့် ဒေတာကို ဘေးကင်းလုံခြုံစေရန်အတွက် စိစစ်ထားသော ဆော့ဖ်ဝဲရေးသူများထံမှ အက်ပ်များကိုသာ ထည့်သွင်းနိုင်သည်။&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;ဤအက်ပ်ကို အပ်ဒိတ်လုပ်မထားပါ။ သင့်စက်ပစ္စည်းနှင့် ဒေတာကို ဘေးကင်းလုံခြုံစေရန်အတွက် စိစစ်ထားသော ဆော့ဖ်ဝဲရေးသူများထံမှ အပ်ဒိတ်များကိုသာ ထည့်သွင်းနိုင်သည်။&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;ဤအက်ပ်ကို ထည့်သွင်းမထားပါ။ စိစစ်မထားသော ဆော့ဖ်ဝဲရေးသူ၏ အက်ပ်များသည် ဘေးမကင်းနိုင်ပါ။&lt;/p&gt; &lt;p&gt;အက်ပ်ဆော့ဖ်ဝဲရေးသူကို စိစစ်ရန် အင်တာနက်ချိတ်ဆက်မှု လိုအပ်သည်။ ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်မံထည့်သွင်းကြည့်ပါ။ &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;ဤအက်ပ်ကို အပ်ဒိတ်လုပ်မထားပါ။ စိစစ်မထားသော ဆော့ဖ်ဝဲရေးသူ၏ အပ်ဒိတ်များသည် ဘေးမကင်းနိုင်ပါ။&lt;/p&gt; &lt;p&gt;အက်ပ်ဆော့ဖ်ဝဲရေးသူကို စိစစ်ရန် အင်တာနက်ချိတ်ဆက်မှု လိုအပ်သည်။ ချိတ်ဆက်မှုကို စစ်ဆေးပြီး ထပ်မံအပ်ဒိတ်လုပ်ကြည့်ပါ။ &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;ဤအက်ပ်၏ ဆော့ဖ်ဝဲရေးသူကို စိစစ်ရာတွင် ပြဿနာရှိသည်။ စိစစ်မထားသော ဆော့ဖ်ဝဲရေးသူ၏ အက်ပ်များသည် ဘေးမကင်းနိုင်သောကြောင့် အက်ပ်ကို ထည့်သွင်းမထားပါ။&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;ဤအက်ပ်၏ ဆော့ဖ်ဝဲရေးသူကို စိစစ်ရာတွင် ပြဿနာရှိသည်။ စိစစ်မထားသော ဆော့ဖ်ဝဲရေးသူထံမှ အပ်ဒိတ်များသည် ဘေးမကင်းနိုင်သောကြောင့် အက်ပ်ကို အပ်ဒိတ်လုပ်မထားပါ။&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;ဆော့ဖ်ဝဲရေးသူကို စိစစ်ရာတွင် ပြဿနာရှိသောကြောင့် ဤအက်ပ်ကို ပိတ်ထားသည်။ သင့်စက်ပစ္စည်းနှင့် ဒေတာကို ဘေးကင်းလုံခြုံစေရန်အတွက် စိစစ်ထားသော ဆော့ဖ်ဝဲရေးသူများထံမှ အက်ပ်များကိုသာ ထည့်သွင်းနိုင်သည်။&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;ဆော့ဖ်ဝဲရေးသူကို စိစစ်ရာတွင် ပြဿနာရှိသောကြောင့် ဤအက်ပ်ကို အပ်ဒိတ်လုပ်မထားပါ။ သင့်စက်ပစ္စည်းနှင့် ဒေတာကို ဘေးကင်းလုံခြုံစေရန်အတွက် စိစစ်ထားသော ဆော့ဖ်ဝဲရေးသူများထံမှ အပ်ဒိတ်များကိုသာ ထည့်သွင်းနိုင်သည်။&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ဆော့ဖ်ဝဲရေးသူ စိစစ်ခြင်းအကြောင်း ပိုလေ့လာရန်&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"မစိစစ်ဘဲ ထည့်သွင်းပါက စိစစ်မထားသော ဆော့ဖ်ဝဲရေးသူများထံမှ အက်ပ်များသည် သင့်စက်နှင့် ဒေတာကို အန္တရာယ်ဖြစ်စေနိုင်ကြောင်း သတိပြုပါ။"</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"မစိစစ်ဘဲ အပ်ဒိတ်လုပ်ပါက စိစစ်မထားသော ဆော့ဖ်ဝဲရေးသူများထံမှ အပ်ဒိတ်များက သင့်စက်နှင့် ဒေတာကို အန္တရာယ်ဖြစ်စေနိုင်ကြောင်း သတိပြုပါ။"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"အက်ပ်ဆော့ဖ်ဝဲရေးသူ စိစစ်မထားပါ"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"အင်တာနက် မရှိပါ။ အက်ပ်ဆော့ဖ်ဝဲရေးသူကို စိစစ်၍မရပါ"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"အက်ပ်ဆော့ဖ်ဝဲရေးသူကို စိစစ်၍မရပါ"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"မစိစစ်ဘဲ ထည့်သွင်းရန်"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"မစိစစ်ဘဲ အပ်ဒိတ်လုပ်ရန်"</string>
+    <string name="button_install" msgid="7434013176505680162">"ထည့်သွင်းရန်"</string>
+    <string name="button_update" msgid="3046719350226327526">"အပ်ဒိတ်လုပ်ရန်"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"မည်သို့ပင်ဖြစ်စေ အပ်ဒိတ်လုပ်ရန်"</string>
+    <string name="button_done" msgid="3408025390982260629">"ပြီးပြီ"</string>
+    <string name="button_open" msgid="6892684987374117955">"ဖွင့်ရန်"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"မလုပ်တော့"</string>
+    <string name="button_continue" msgid="107501685249826244">"ရှေ့ဆက်ရန်"</string>
+    <string name="button_close" msgid="7187308556466275899">"ပိတ်ရန်"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"ဖြုတ်ရန်"</string>
+    <string name="button_delete" msgid="1050833585936159792">"ဖျက်ရန်"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"ပြန်ထည့်သွင်းရန်"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"အက်ပ်များစီမံရန်"</string>
+    <string name="button_archive" msgid="2719647830439699121">"သိမ်းဆည်းရန်"</string>
+    <string name="button_restore" msgid="4388317532933866637">"ပြန်ယူရန်"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"အပ်ဒိတ်များကို ဖြုတ်ရန်"</string>
+    <string name="button_settings" msgid="3837571366246132287">"ဆက်တင်များ"</string>
+    <string name="button_retry" msgid="6736082260813816198">"ထပ်စမ်းကြည့်ရန်"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> ပုံတူပွား"</string>
+</resources>

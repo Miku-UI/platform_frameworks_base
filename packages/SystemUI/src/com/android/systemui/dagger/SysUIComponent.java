@@ -21,16 +21,20 @@ import com.android.systemui.CoreStartable;
 import com.android.systemui.Dependency;
 import com.android.systemui.InitController;
 import com.android.systemui.SystemUIAppComponentFactoryBase;
+import com.android.systemui.controls.dagger.StartControlsStartableModule;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dagger.qualifiers.PerUser;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.keyguard.KeyguardSliceProvider;
 import com.android.systemui.people.PeopleProvider;
+import com.android.systemui.settings.MultiUserUtilsModule;
 import com.android.systemui.startable.Dependencies;
 import com.android.systemui.statusbar.NotificationInsetsModule;
 import com.android.systemui.statusbar.QsFrameTranslateModule;
 import com.android.systemui.statusbar.phone.ConfigurationForwarder;
 import com.android.systemui.statusbar.policy.ConfigurationController;
+import com.android.systemui.util.StartBinderLoggerModule;
+import com.android.systemui.wallpapers.dagger.WallpaperModule;
 import com.android.wm.shell.appzoomout.AppZoomOut;
 import com.android.wm.shell.back.BackAnimation;
 import com.android.wm.shell.bubbles.Bubbles;
@@ -45,6 +49,7 @@ import com.android.wm.shell.splitscreen.SplitScreen;
 import com.android.wm.shell.startingsurface.StartingSurface;
 import com.android.wm.shell.sysui.ShellInterface;
 import com.android.wm.shell.taskview.TaskViewFactory;
+import com.android.wm.shell.windowdecor.viewholder.AppHandles;
 
 import dagger.BindsInstance;
 import dagger.Subcomponent;
@@ -56,19 +61,26 @@ import java.util.Set;
 import javax.inject.Provider;
 
 /**
- * An example Dagger Subcomponent for Core SysUI.
- * <p>
- * See {@link ReferenceSysUIComponent} for the one actually used by AOSP.
+ * A base Dagger Subcomponent for Core SysUI.
+ *
+ * Do not use this directly. Instead, extend it for your own variant's implementation. You will
+ * need to copy the included modules.
+ *
+ * See {@link ReferenceSysUIComponent} for a working example, as used in AOSP.
  */
 @SysUISingleton
 @Subcomponent(modules = {
         DefaultComponentBinder.class,
         DependencyProvider.class,
+        MultiUserUtilsModule.class,
         NotificationInsetsModule.class,
         QsFrameTranslateModule.class,
+        ReferenceSystemUIModule.class,
+        StartControlsStartableModule.class,
+        StartBinderLoggerModule.class,
         SystemUIModule.class,
         SystemUICoreStartableModule.class,
-        ReferenceSystemUIModule.class})
+        WallpaperModule.class})
 public interface SysUIComponent {
 
     /**
@@ -118,6 +130,9 @@ public interface SysUIComponent {
 
         @BindsInstance
         Builder setAppZoomOut(Optional<AppZoomOut> a);
+
+        @BindsInstance
+        Builder setAppHandles(Optional<AppHandles> appHandles);
 
         SysUIComponent build();
     }

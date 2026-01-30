@@ -92,6 +92,7 @@ public class ImePerfTest extends ImePerfTestBase
             "IMMS.applyImeVisibility",
             "applyPostLayoutPolicy",
             "applyWindowSurfaceChanges",
+            "ISC.onPreLayout",
             "ISC.onPostLayout"
     };
 

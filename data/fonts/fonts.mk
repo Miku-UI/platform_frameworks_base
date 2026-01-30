@@ -15,7 +15,10 @@
 # Warning: this is actually a product definition, to be inherited from
 
 PRODUCT_PACKAGES := \
-    DroidSansMono.ttf \
     AndroidClock.ttf \
     font_fallback.xml \
     fonts.xml
+
+ifneq ($(RELEASE_USE_ROBOTO_MONO_FONT),true)
+PRODUCT_PACKAGES += DroidSansMono.ttf
+endif

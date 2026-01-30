@@ -138,6 +138,19 @@ public final class UiccPortInfo implements Parcelable{
         return mLogicalSlotIndex;
     }
 
+    /**
+     * Return a copy of the current UiccPortInfo but with sensitive info (ICCID) redacted.
+     *
+     * @hide
+     */
+    public UiccPortInfo createSensitiveInfoSanitizedCopy() {
+        return new UiccPortInfo(
+                UiccPortInfo.ICCID_REDACTED,
+                this.getPortIndex(),
+                this.getLogicalSlotIndex(),
+                this.isActive());
+    }
+
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {

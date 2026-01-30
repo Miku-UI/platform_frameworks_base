@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"अ‍ॅप्स त्वरित स्विच करण्यासाठी डावीकडे ड्रॅग करा"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"नोटिफिकेशन उघडण्यासाठी सर्वात वरती उजवीकडून स्‍वाइप करा"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"क्विक सेटिंग्ज उघडण्यासाठी सर्वात वरती उजवीकडून स्‍वाइप करा"</string>
 </resources>

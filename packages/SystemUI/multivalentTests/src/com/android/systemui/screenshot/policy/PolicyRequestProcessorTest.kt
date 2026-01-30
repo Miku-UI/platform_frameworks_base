@@ -26,7 +26,9 @@ import android.view.Display.DEFAULT_DISPLAY
 import android.view.WindowManager.ScreenshotSource.SCREENSHOT_KEY_CHORD
 import android.view.WindowManager.TAKE_SCREENSHOT_FULLSCREEN
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.internal.util.ScreenshotRequest
 import com.android.systemui.Flags
+import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.screenshot.ImageCapture
 import com.android.systemui.screenshot.ScreenshotData
@@ -52,7 +54,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class PolicyRequestProcessorTest {
+class PolicyRequestProcessorTest : SysuiTestCase() {
     private val kosmos = Kosmos()
 
     private val screenshotRequest =

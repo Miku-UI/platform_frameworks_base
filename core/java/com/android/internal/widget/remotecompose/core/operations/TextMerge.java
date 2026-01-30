@@ -142,7 +142,7 @@ public class TextMerge extends Operation implements VariableSupport, Serializabl
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("id", mTextId)

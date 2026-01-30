@@ -52,7 +52,7 @@ class AppIdPermissionPolicyPermissionStatesTest : BasePermissionPolicyTest() {
 
     @Test
     fun testEvaluatePermissionState_normalPermissionAlreadyGranted_remainsUnchanged() {
-        val oldFlags = PermissionFlags.INSTALL_GRANTED or PermissionFlags.INSTALL_REVOKED
+        val oldFlags = PermissionFlags.INSTALL_GRANTED
         testEvaluatePermissionState(oldFlags, PermissionInfo.PROTECTION_NORMAL) {}
 
         val actualFlags = getPermissionFlags(APP_ID_1, getUserIdEvaluated(), PERMISSION_NAME_0)

@@ -21,6 +21,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
@@ -32,7 +33,9 @@ import org.mockito.Mockito.anyFloat
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.eq
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class SliderStateTrackerTest : SysuiTestCase() {
@@ -97,6 +100,54 @@ class SliderStateTrackerTest : SysuiTestCase() {
         verifyNoMoreInteractions(sliderStateListener)
         assertThat(mSliderStateTracker.isWaiting).isTrue()
     }
+
+    @Test
+    fun onProgressChangeByProgram_onIdle_insideSliderRange_movesToArrowMovedOnce() = runTest {
+        initTracker(CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+
+        // GIVEN a progress change by the program at the middle of the slider
+        val progress = 0.5f
+        sliderEventProducer.sendEvent(
+            SliderEvent(SliderEventType.PROGRESS_CHANGE_BY_PROGRAM, progress)
+        )
+
+        // THEN the tracker moves to the ARROW_HANDLE_MOVED_ONCE state and the state listener is
+        // called accordingly
+        assertThat(mSliderStateTracker.currentState).isEqualTo(SliderState.ARROW_HANDLE_MOVED_ONCE)
+        verify(sliderStateListener).onSelectAndArrow(eq(progress))
+    }
+
+    @Test
+    fun onProgressChangeByProgram_onIdle_onUpperBookend_executesOnUpperBookendAndResets() =
+        runTest {
+            initTracker(CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+
+            // GIVEN a progress change by the program at the middle of the slider
+            val progress = 1f
+            sliderEventProducer.sendEvent(
+                SliderEvent(SliderEventType.PROGRESS_CHANGE_BY_PROGRAM, progress)
+            )
+
+            // THEN the tracker executes on the upper bookend and resets the state
+            assertThat(mSliderStateTracker.currentState).isEqualTo(SliderState.IDLE)
+            verify(sliderStateListener).onUpperBookend()
+        }
+
+    @Test
+    fun onProgressChangeByProgram_onIdle_onLowerBookend_executesOnLowerBookendAndResets() =
+        runTest {
+            initTracker(CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+
+            // GIVEN a progress change by the program at the middle of the slider
+            val progress = 0f
+            sliderEventProducer.sendEvent(
+                SliderEvent(SliderEventType.PROGRESS_CHANGE_BY_PROGRAM, progress)
+            )
+
+            // THEN the tracker executes on the upper bookend and resets the state
+            assertThat(mSliderStateTracker.currentState).isEqualTo(SliderState.IDLE)
+            verify(sliderStateListener).onLowerBookend()
+        }
 
     // Tests on the WAIT state
 

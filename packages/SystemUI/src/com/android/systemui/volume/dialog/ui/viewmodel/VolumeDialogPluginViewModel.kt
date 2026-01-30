@@ -30,10 +30,12 @@ import com.android.systemui.volume.dialog.shared.model.VolumeDialogVisibilityMod
 import com.android.systemui.volume.dialog.ui.VolumeDialogUiEvent
 import javax.inject.Inject
 import javax.inject.Provider
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.onEach
 
 @VolumeDialogPluginScope
 class VolumeDialogPluginViewModel
@@ -51,12 +53,12 @@ constructor(
 
     fun launchVolumeDialog() {
         dialogVisibilityInteractor.dialogVisibility
-            .mapLatest { visibilityModel ->
+            .onEach { visibilityModel ->
                 with(visibilityModel) {
                     if (this is VolumeDialogVisibilityModel.Visible) {
-                        showDialog()
                         toVolumeDialogUiEvent()?.let(uiEventLogger::log)
                         logger.onShow(reason)
+                        showDialog()
                     }
                     if (this is VolumeDialogVisibilityModel.Dismissed) {
                         toVolumeDialogUiEvent()?.let(uiEventLogger::log)
@@ -86,12 +88,13 @@ constructor(
         dialogCsdWarningInteractor.onCsdWarningDismissed()
     }
 
-    private fun showDialog() {
+    private suspend fun showDialog(): Unit = suspendCoroutine { continuation ->
         volumeDialogProvider
             .get()
             .apply {
                 setOnDismissListener {
                     dialogVisibilityInteractor.dismissDialog(Events.DISMISS_REASON_UNKNOWN)
+                    continuation.resume(Unit)
                 }
             }
             .show()

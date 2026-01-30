@@ -22,6 +22,7 @@ import android.os.Bundle
 import android.telephony.SubscriptionInfo
 import android.view.ContextThemeWrapper
 import com.android.systemui.Dumpable
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.demomode.DemoMode
 import com.android.systemui.demomode.DemoMode.COMMAND_NETWORK
@@ -131,8 +132,16 @@ constructor(
          * system to properly load different carrier's iconography
          */
         private fun createCarrierConfigContext(context: Context, mcc: Int, mnc: Int): Context {
-            // Copy the existing configuration
-            val c = Configuration(context.resources.configuration)
+            val c =
+                if (Flags.fixShadeHeaderWrongIconSize()) {
+                    // Create an empty Configuration, and only set the fields that need to be
+                    // overridden. This way all the other fields will have the values of the base
+                    // context, even after other Configuration changes.
+                    Configuration()
+                } else {
+                    // Copy the existing configuration
+                    Configuration(context.resources.configuration)
+                }
             c.mcc = mcc
             c.mnc = mnc
 

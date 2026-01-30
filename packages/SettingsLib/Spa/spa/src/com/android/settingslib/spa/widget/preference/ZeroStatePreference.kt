@@ -17,8 +17,10 @@
 package com.android.settingslib.spa.widget.preference
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -48,77 +50,77 @@ import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.RoundedPolygon
 import androidx.graphics.shapes.star
 import androidx.graphics.shapes.toPath
+import com.android.settingslib.spa.framework.theme.SettingsSize
+import com.android.settingslib.spa.framework.theme.SettingsSpace
+import com.android.settingslib.spa.framework.theme.SettingsTheme
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ZeroStatePreference(icon: ImageVector, text: String? = null, description: String? = null) {
+fun ZeroStatePreference(icon: ImageVector, text: String = "", description: String = "") {
     val zeroStateShape = remember {
         RoundedPolygon.star(
             numVerticesPerRadius = 6,
             innerRadius = 0.8f,
-            rounding = CornerRounding(0.3f)
+            rounding = CornerRounding(0.3f),
         )
     }
-    val clip = remember(zeroStateShape) {
-        RoundedPolygonShape(polygon = zeroStateShape)
-    }
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    val clip = remember(zeroStateShape) { RoundedPolygonShape(polygon = zeroStateShape) }
+    Column(modifier = Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
-            modifier = Modifier
-                .clip(clip)
-                .background(MaterialTheme.colorScheme.primary)
-                .size(160.dp)
+            modifier =
+                Modifier.clip(clip)
+                    .background(MaterialTheme.colorScheme.surfaceBright)
+                    .size(160.dp),
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(72.dp),
-                tint = MaterialTheme.colorScheme.onPrimary,
                 contentDescription = null,
+                modifier = Modifier.size(SettingsSize.large2),
+                tint = MaterialTheme.colorScheme.onSurface,
             )
         }
-        if (text != null) {
-            Text(
-                text = text,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMediumEmphasized,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 24.dp),
-            )
-        }
-        if (description != null) {
-            Box {
+        Column(
+            modifier =
+                Modifier.padding(
+                    start = SettingsSpace.medium5,
+                    top = SettingsSpace.small4,
+                    end = SettingsSpace.medium5,
+                    bottom = SettingsSpace.small1,
+                ),
+            verticalArrangement = Arrangement.spacedBy(SettingsSpace.extraSmall2),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            if (text.isNotEmpty()) {
+                Text(
+                    text = text,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMediumEmphasized,
+                )
+            }
+            if (description.isNotEmpty()) {
                 Text(
                     text = description,
+                    color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
     }
 }
 
-@Preview
-@Composable
-private fun ZeroStatePreferencePreview() {
-    ZeroStatePreference(
-        Icons.Filled.History,
-        "No recent search history",
-        "Description"
-    )
-}
-
-class RoundedPolygonShape(
+private class RoundedPolygonShape(
     private val polygon: RoundedPolygon,
-    private var matrix: Matrix = Matrix()
+    private var matrix: Matrix = Matrix(),
 ) : Shape {
     private var path = Path()
+
     override fun createOutline(
         size: Size,
         layoutDirection: LayoutDirection,
-        density: Density
+        density: Density,
     ): Outline {
         path.rewind()
         path = polygon.toPath().asComposePath()
@@ -130,5 +132,29 @@ class RoundedPolygonShape(
 
         path.transform(matrix)
         return Outline.Generic(path)
+    }
+}
+
+@Preview
+@Composable
+private fun ZeroStatePreferencePreview() {
+    SettingsTheme {
+        ZeroStatePreference(
+            icon = Icons.Filled.History,
+            text = "No recent search history",
+            description = "Description",
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ZeroStatePreferenceMultiLinesPreview() {
+    SettingsTheme {
+        ZeroStatePreference(
+            icon = Icons.Filled.History,
+            text = "No recent search history No recent search history",
+            description = "Description Description Description Description Description",
+        )
     }
 }

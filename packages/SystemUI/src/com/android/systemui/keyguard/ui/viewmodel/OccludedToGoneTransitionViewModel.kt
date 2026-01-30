@@ -21,7 +21,6 @@ import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState.GONE
 import com.android.systemui.keyguard.shared.model.KeyguardState.OCCLUDED
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
-import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -30,18 +29,11 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class OccludedToGoneTransitionViewModel
 @Inject
-constructor(
-    animationFlow: KeyguardTransitionAnimationFlow,
-) {
+constructor(animationFlow: KeyguardTransitionAnimationFlow) {
     private val transitionAnimation =
         animationFlow
-            .setup(
-                duration = DEFAULT_DURATION,
-                edge = Edge.create(from = OCCLUDED, to = Scenes.Gone),
-            )
-            .setupWithoutSceneContainer(
-                edge = Edge.create(from = OCCLUDED, to = GONE),
-            )
+            .setup(duration = DEFAULT_DURATION, edge = Edge.INVALID)
+            .setupWithoutSceneContainer(edge = Edge.create(from = OCCLUDED, to = GONE))
 
     fun notificationAlpha(viewState: ViewStateAccessor): Flow<Float> {
         var currentAlpha = 0f

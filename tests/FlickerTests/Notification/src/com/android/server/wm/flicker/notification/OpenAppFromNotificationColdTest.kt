@@ -16,12 +16,12 @@
 
 package com.android.server.wm.flicker.notification
 
+import androidx.test.filters.RequiresDevice
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.helpers.wakeUpAndGoToHomeScreen
-import android.tools.traces.component.ComponentNameMatcher
 import androidx.test.filters.FlakyTest
 import com.android.server.wm.flicker.helpers.setRotation
 import com.android.server.wm.flicker.statusBarLayerPositionAtEnd
@@ -37,11 +37,12 @@ import org.junit.runners.Parameterized
  *
  * To run this test: `atest FlickerTestsNotification:OpenAppFromNotificationColdTest`
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 @FlakyTest(bugId = 384046002)
-open class OpenAppFromNotificationColdTest(flicker: LegacyFlickerTest) :
+open class OpenAppFromNotificationColdTest(flicker: FlickerTest) :
     OpenAppFromNotificationWarmTest(flicker) {
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit
@@ -98,11 +99,11 @@ open class OpenAppFromNotificationColdTest(flicker: LegacyFlickerTest) :
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.nonRotationTests()
+        fun getParams() = FlickerTestFactory.nonRotationTests()
     }
 }

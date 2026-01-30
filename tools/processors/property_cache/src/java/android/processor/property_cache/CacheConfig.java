@@ -30,12 +30,14 @@ public class CacheConfig {
     private final String mModuleName;
     private final String mApiName;
     private final String mClassName;
+    private final String mGeneratedClassName;
     private final String mQualifiedName;
     private String mPropertyName;
     private String mMethodName;
     private int mNumberOfParams = 0;
     private String mInputType = Constants.JAVA_LANG_VOID;
     private String mResultType;
+    private final boolean mCacheNulls;
 
     public CacheConfig(TypeElement classElement, ExecutableElement method) {
         CachedPropertyDefaults classAnnotation = classElement.getAnnotation(
@@ -44,7 +46,8 @@ public class CacheConfig {
 
         mModuleName = methodAnnotation.module().isEmpty() ? classAnnotation.module()
                 : methodAnnotation.module();
-        mClassName = classElement.getSimpleName().toString();
+        mClassName = classAnnotation.name().isEmpty() ? classElement.getSimpleName().toString()
+                : classAnnotation.name();
         mQualifiedName = classElement.getQualifiedName().toString();
         mModifiers = new CacheModifiers(methodAnnotation.mods());
         mMethodName = method.getSimpleName().toString();
@@ -58,6 +61,8 @@ public class CacheConfig {
                 method.getParameters().get(0).asType().toString());
         }
         mResultType = primitiveTypeToObjectEquivalent(method.getReturnType().toString());
+        mGeneratedClassName = classAnnotation.name().isEmpty() ? mClassName + "Cache" : mClassName;
+        mCacheNulls = methodAnnotation.cacheNulls();
     }
 
     public CacheModifiers getModifiers() {
@@ -74,6 +79,10 @@ public class CacheConfig {
 
     public String getClassName() {
         return mClassName;
+    }
+
+    public String getGeneratedClassName() {
+        return mGeneratedClassName;
     }
 
     public String getQualifiedName() {
@@ -104,6 +113,10 @@ public class CacheConfig {
         } else {
             return CaseFormat.LOWER_CAMEL.to(CaseFormat.UPPER_CAMEL, methodName);
         }
+    }
+
+    public boolean getCacheNulls() {
+        return mCacheNulls;
     }
 
     public int getNumberOfParams() {

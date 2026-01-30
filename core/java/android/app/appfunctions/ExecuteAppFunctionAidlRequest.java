@@ -42,8 +42,13 @@ public final class ExecuteAppFunctionAidlRequest implements Parcelable {
                     UserHandle userHandle = UserHandle.CREATOR.createFromParcel(in);
                     String callingPackage = in.readString8();
                     long requestTime = in.readLong();
+                    long requestWallTime = in.readLong();
                     return new ExecuteAppFunctionAidlRequest(
-                            clientRequest, userHandle, callingPackage, requestTime);
+                            clientRequest,
+                            userHandle,
+                            callingPackage,
+                            requestTime,
+                            requestWallTime);
                 }
 
                 @Override
@@ -61,15 +66,23 @@ public final class ExecuteAppFunctionAidlRequest implements Parcelable {
     /** The package name of the app that is requesting to execute the app function. */
     private final String mCallingPackage;
 
-    /** The time of calling executeAppFunction(). */
+    /** The elapsed time since last reboot when calling executeAppFunction(). */
     private final long mRequestTime;
 
-    public ExecuteAppFunctionAidlRequest(ExecuteAppFunctionRequest clientRequest,
-            UserHandle userHandle, String callingPackage, long requestTime) {
+    /** The wall clock time when calling executeAppFunction(). */
+    private final long mRequestWallTime;
+
+    public ExecuteAppFunctionAidlRequest(
+            ExecuteAppFunctionRequest clientRequest,
+            UserHandle userHandle,
+            String callingPackage,
+            long requestTime,
+            long requestWallTime) {
         this.mClientRequest = Objects.requireNonNull(clientRequest);
         this.mUserHandle = Objects.requireNonNull(userHandle);
         this.mCallingPackage = Objects.requireNonNull(callingPackage);
         this.mRequestTime = requestTime;
+        this.mRequestWallTime = requestWallTime;
     }
 
     @Override
@@ -83,6 +96,7 @@ public final class ExecuteAppFunctionAidlRequest implements Parcelable {
         mUserHandle.writeToParcel(dest, flags);
         dest.writeString8(mCallingPackage);
         dest.writeLong(mRequestTime);
+        dest.writeLong(mRequestWallTime);
     }
 
     /** Returns the client request to execute an app function. */
@@ -103,8 +117,13 @@ public final class ExecuteAppFunctionAidlRequest implements Parcelable {
         return mCallingPackage;
     }
 
-    /** Returns the time of calling executeAppFunction(). */
+    /** Returns the elapsed time since last reboot when calling executeAppFunction(). */
     public long getRequestTime() {
         return mRequestTime;
+    }
+
+    /** Returns the wall time when calling executeAppFunction(). */
+    public long getRequestWallTime() {
+        return mRequestWallTime;
     }
 }

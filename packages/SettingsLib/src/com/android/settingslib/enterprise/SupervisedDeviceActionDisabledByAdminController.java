@@ -16,7 +16,10 @@
 
 package com.android.settingslib.enterprise;
 
-
+import android.app.admin.EnforcingAdmin;
+import android.app.admin.SystemAuthority;
+import android.app.supervision.SupervisionManager;
+import android.app.supervision.flags.Flags;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
@@ -29,7 +32,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.settingslib.RestrictedLockUtils;
-
 
 final class SupervisedDeviceActionDisabledByAdminController
         extends BaseActionDisabledByAdminController {
@@ -49,6 +51,9 @@ final class SupervisedDeviceActionDisabledByAdminController
 
     @Override
     public String getAdminSupportTitle(@Nullable String restriction) {
+        if (Flags.enableSupervisionSettingsScreen()) {
+            return mStringProvider.getDisabledByParentalControlsTitle();
+        }
         return mStringProvider.getDisabledBiometricsParentConsentTitle();
     }
 
@@ -66,14 +71,56 @@ final class SupervisedDeviceActionDisabledByAdminController
                 || TextUtils.isEmpty(enforcedAdmin.component.getPackageName())) {
             return null;
         }
+        return getPositiveButtonListener(context, enforcedAdmin.component.getPackageName());
+    }
 
+    @Nullable
+    @Override
+    public DialogInterface.OnClickListener getPositiveButtonListener(@NonNull Context context,
+            @Nullable EnforcingAdmin enforcingAdmin) {
+        if (enforcingAdmin == null) {
+            return null;
+        }
+        if (Flags.supervisionManagerApis()
+                && enforcingAdmin.getAuthority() instanceof SystemAuthority authority
+                && authority
+                        .getSystemEntity()
+                        .equals(SupervisionManager.SUPERVISION_SYSTEM_ENTITY)) {
+            return startBypassRestrictionActivity(context);
+
+        }
+        if (TextUtils.isEmpty(enforcingAdmin.getPackageName())) {
+            return null;
+        }
+        return getPositiveButtonListener(context, enforcingAdmin.getPackageName());
+    }
+
+    @Nullable
+    private DialogInterface.OnClickListener getPositiveButtonListener(@NonNull Context context,
+            @NonNull String packageName) {
         final Intent intent = new Intent(Settings.ACTION_MANAGE_SUPERVISOR_RESTRICTED_SETTING)
                 .setData(new Uri.Builder()
                         .scheme("policy")
                         .appendPath("user_restrictions")
                         .appendPath(mRestriction)
                         .build())
-                .setPackage(enforcedAdmin.component.getPackageName());
+                .setPackage(packageName);
+        ComponentName resolvedSupervisionActivity =
+                intent.resolveActivity(context.getPackageManager());
+        if (resolvedSupervisionActivity == null) {
+            return null;
+        }
+        return (dialog, which) -> {
+            context.startActivity(intent);
+        };
+    }
+
+    @Nullable
+    private DialogInterface.OnClickListener startBypassRestrictionActivity(
+            @NonNull Context context) {
+        final Intent intent =
+                new Intent(Settings.ACTION_BYPASS_SUPERVISION_RESTRICTION)
+                        .putExtra(Settings.EXTRA_SUPERVISION_RESTRICTION, mRestriction);
         ComponentName resolvedSupervisionActivity =
                 intent.resolveActivity(context.getPackageManager());
         if (resolvedSupervisionActivity == null) {

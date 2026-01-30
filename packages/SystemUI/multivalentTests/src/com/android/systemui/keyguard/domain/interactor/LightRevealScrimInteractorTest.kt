@@ -23,6 +23,7 @@ import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
 import com.android.systemui.keyguard.data.fakeLightRevealScrimRepository
 import com.android.systemui.keyguard.data.repository.DEFAULT_REVEAL_DURATION
+import com.android.systemui.keyguard.data.repository.MINMODE_REVEAL_DURATION
 import com.android.systemui.keyguard.data.repository.DEFAULT_REVEAL_EFFECT
 import com.android.systemui.keyguard.data.repository.FakeLightRevealScrimRepository
 import com.android.systemui.keyguard.data.repository.FakeLightRevealScrimRepository.RevealAnimatorRequest
@@ -30,10 +31,15 @@ import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepos
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
+import com.android.systemui.minmode.fakeMinModeManager
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.power.shared.model.WakeSleepReason
 import com.android.systemui.power.shared.model.WakefulnessState
+import com.android.systemui.scene.data.repository.Transition
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.statusbar.LightRevealEffect
 import com.android.systemui.statusbar.LightRevealScrim
 import com.android.systemui.testKosmos
@@ -41,6 +47,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito
@@ -59,6 +66,8 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
 
     private val fakePowerRepository = kosmos.fakePowerRepository
 
+    private val fakeMinModeManager = kosmos.fakeMinModeManager
+
     private val underTest = kosmos.lightRevealScrimInteractor
 
     private val reveal1 =
@@ -70,6 +79,11 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
         object : LightRevealEffect {
             override fun setRevealAmountOnScrim(amount: Float, scrim: LightRevealScrim) {}
         }
+
+    @Before
+    fun setup() {
+        fakeMinModeManager.setMinModeEnabled(false)
+    }
 
     @Test
     fun lightRevealEffect_doesNotChangeDuringKeyguardTransition() =
@@ -150,15 +164,98 @@ class LightRevealScrimInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    fun supportsAmbientMode() =
+    fun transitionToAod_powerButton_minModeEnabled_animatesTheScrim() =
+        kosmos.testScope.runTest {
+            fakeMinModeManager.setMinModeEnabled(true)
+            updateWakefulness(goToSleepReason = WakeSleepReason.POWER_BUTTON)
+            runCurrent()
+
+            // Transition to AOD
+            fakeKeyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(to = KeyguardState.AOD, transitionState = TransitionState.STARTED)
+            )
+            runCurrent()
+
+            assertThat(fakeLightRevealScrimRepository.revealAnimatorRequests.last())
+                .isEqualTo(
+                    RevealAnimatorRequest(reveal = false, duration = MINMODE_REVEAL_DURATION)
+                )
+        }
+
+    @Test
+    fun maxAlpha_doesNotSupportAmbientMode() =
+        kosmos.testScope.runTest {
+            val maxAlpha by collectLastValue(underTest.maxAlpha)
+            underTest.setWallpaperSupportsAmbientMode(false)
+
+            assertThat(maxAlpha).isEqualTo(1f)
+        }
+
+    @Test
+    fun maxAlpha_supportsAmbientModeWithDarkScrim() =
         kosmos.testScope.runTest {
             val maxAlpha by collectLastValue(underTest.maxAlpha)
             assertThat(maxAlpha).isEqualTo(1f)
 
             underTest.setWallpaperSupportsAmbientMode(true)
-            assertThat(maxAlpha).isLessThan(1f)
+            fakeLightRevealScrimRepository.useDarkWallpaperScrim.value = true
 
-            underTest.setWallpaperSupportsAmbientMode(false)
+            assertThat(maxAlpha).isEqualTo(0.64f)
+        }
+
+    @Test
+    fun maxAlpha_supportsAmbientModeWithLightScrim() =
+        kosmos.testScope.runTest {
+            val maxAlpha by collectLastValue(underTest.maxAlpha)
+            assertThat(maxAlpha).isEqualTo(1f)
+
+            underTest.setWallpaperSupportsAmbientMode(true)
+            fakeLightRevealScrimRepository.useDarkWallpaperScrim.value = false
+
+            assertThat(maxAlpha).isEqualTo(0.4f)
+        }
+
+    @Test
+    fun maxAlpha_supportsAmbientModeDuringTransitionIsOpaque() =
+        kosmos.testScope.runTest {
+            val maxAlpha by collectLastValue(underTest.maxAlpha)
+
+            underTest.setWallpaperSupportsAmbientMode(true)
+            fakeLightRevealScrimRepository.useDarkWallpaperScrim.value = true
+
+            if (SceneContainerFlag.isEnabled) {
+                kosmos.setSceneTransition(
+                   Transition(
+                       from= Scenes.Gone,
+                       to=Scenes.Lockscreen,
+                   )
+                )
+            }
+
+            val from = if (SceneContainerFlag.isEnabled) {
+                KeyguardState.UNDEFINED
+            } else {
+                KeyguardState.GONE
+            }
+
+            fakeKeyguardTransitionRepository.sendTransitionSteps(
+                listOf(
+                    TransitionStep(
+                        from = from,
+                        to = KeyguardState.AOD,
+                        value = 0f,
+                        transitionState = TransitionState.STARTED,
+                    ),
+                    TransitionStep(
+                        from = from,
+                        to = KeyguardState.AOD,
+                        value = 0.4f,
+                        transitionState = TransitionState.RUNNING,
+                    ),
+                ),
+                kosmos.testScope,
+            )
+
             assertThat(maxAlpha).isEqualTo(1f)
         }
 

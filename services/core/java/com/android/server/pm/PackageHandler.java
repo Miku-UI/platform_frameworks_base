@@ -115,8 +115,7 @@ final class PackageHandler extends Handler {
             case DEFERRED_NO_KILL_POST_DELETE: {
                 CleanUpArgs args = (CleanUpArgs) msg.obj;
                 if (args != null) {
-                    mPm.cleanUpResources(args.getPackageName(), args.getCodeFile(),
-                            args.getInstructionSets());
+                    mPm.cleanUpResources(args.getPackageName(), args.getCodeFile());
                 }
             } break;
             case DEFERRED_NO_KILL_INSTALL_OBSERVER:

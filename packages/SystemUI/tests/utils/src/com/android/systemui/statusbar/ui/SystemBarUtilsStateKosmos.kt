@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.ui
 
+import android.content.applicationContext
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.testDispatcher
@@ -23,6 +24,7 @@ import com.android.systemui.statusbar.policy.configurationController
 
 val Kosmos.systemBarUtilsState by Fixture {
     SystemBarUtilsState(
+        applicationContext,
         testDispatcher,
         testDispatcher,
         configurationController,

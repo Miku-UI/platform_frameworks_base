@@ -36,29 +36,22 @@ class ViewerConfigProtoBuilder : ProtoLogTool.ProtologViewerConfigBuilder {
         //  logcat we try and load the viewer configurations for this group, so the group must exist
         //  in the viewer config. Once Kotlin is pre-processed or this logic changes we should only
         //  use the groups that are actually used as an optimization.
-        val groupIds = mutableMapOf<LogGroup, Int>()
-        groups.forEach {
-            groupIds.putIfAbsent(it, groupIds.size + 1)
-        }
-
-        groupIds.forEach { (group, id) ->
+        groups.forEach { group ->
             configBuilder.addGroups(ProtoLogViewerConfig.Group.newBuilder()
-                    .setId(id)
+                    .setId(group.id)
                     .setName(group.name)
                     .setTag(group.tag)
                     .build())
         }
 
         statements.forEach { (log, key) ->
-            val groupId = groupIds[log.logGroup] ?: error("missing group id")
-
             configBuilder.addMessages(
                 ProtoLogViewerConfig.MessageData.newBuilder()
                         .setMessageId(key)
                         .setMessage(log.messageString)
                         .setLevel(
-                            ProtoLogLevel.forNumber(log.logLevel.id))
-                        .setGroupId(groupId)
+                            ProtoLogLevel.forNumber(log.logLevel.protoMessageId))
+                        .setGroupId(log.logGroup.id)
                         .setLocation("${log.position}:${log.lineNumber}")
             )
         }

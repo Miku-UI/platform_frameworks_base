@@ -183,7 +183,6 @@ public class Editor {
     private static final int DELAY_BEFORE_HANDLE_FADES_OUT = 4000;
     private static final int RECENT_CUT_COPY_DURATION_MS = 15 * 1000; // 15 seconds in millis
 
-    static final int BLINK = 500;
     private static final int DRAG_SHADOW_MAX_TEXT_LENGTH = 20;
     private static final int UNSET_X_VALUE = -1;
     private static final int UNSET_LINE = -1;
@@ -238,8 +237,6 @@ public class Editor {
     private UndoOwner mUndoOwner = mUndoManager.getOwner(UNDO_OWNER_TAG, this);
     final UndoInputFilter mUndoInputFilter = new UndoInputFilter(this);
     boolean mAllowUndo = true;
-
-    private final MetricsLogger mMetricsLogger = new MetricsLogger();
 
     // Cursor Controllers.
     InsertionPointCursorController mInsertionPointCursorController;
@@ -342,6 +339,7 @@ public class Editor {
     private long mShowCursor;
     private boolean mRenderCursorRegardlessTiming;
     private Blink mBlink;
+    private int mBlinkInterval = ViewConfiguration.DEFAULT_TEXT_CURSOR_BLINK_INTERVAL_MS;
 
     // Whether to let magnifier draw cursor on its surface. This is for floating cursor effect.
     // And it can only be true when |mNewMagnifierEnabled| is true.
@@ -422,6 +420,7 @@ public class Editor {
     private Rect mTempRect;
 
     private final TextView mTextView;
+    private final int mDoubleTapTimeoutMillis;
 
     final ProcessTextIntentActionsHandler mProcessTextIntentActionsHandler;
 
@@ -483,6 +482,10 @@ public class Editor {
         mTextView = textView;
         // Synchronize the filter list, which places the undo input filter at the end.
         mTextView.setFilters(mTextView.getFilters());
+        mDoubleTapTimeoutMillis =
+                android.companion.virtualdevice.flags.Flags.viewconfigurationApis()
+                ? ViewConfiguration.get(mTextView.getContext()).getDoubleTapTimeoutMillis()
+                : ViewConfiguration.getDoubleTapTimeout();
         mProcessTextIntentActionsHandler = new ProcessTextIntentActionsHandler(this);
         mA11ySmartActions = new AccessibilitySmartActions(mTextView);
         mHapticTextHandleEnabled = mTextView.getContext().getResources().getBoolean(
@@ -523,6 +526,10 @@ public class Editor {
                 TypedValue.COMPLEX_UNIT_DIP, LINE_CHANGE_SLOP_MIN_DP,
                 mTextView.getContext().getResources().getDisplayMetrics());
 
+        if (android.view.accessibility.Flags.textCursorBlinkInterval()) {
+            mBlinkInterval = ViewConfiguration.get(mTextView.getContext())
+                    .getTextCursorBlinkIntervalMillis();
+        }
     }
 
     @VisibleForTesting
@@ -548,6 +555,16 @@ public class Editor {
     @VisibleForTesting
     public void setFlagInsertionHandleGesturesEnabled(boolean enabled) {
         mFlagInsertionHandleGesturesEnabled = enabled;
+    }
+
+    @VisibleForTesting
+    public void setTextCursorBlinkIntervalMs(int intervalMs) {
+        mBlinkInterval = intervalMs;
+    }
+
+    @VisibleForTesting
+    public void setShowCursorTime(long time) {
+        mShowCursor = time;
     }
 
     // Lazy creates the magnifier animator.
@@ -980,15 +997,20 @@ public class Editor {
         return mCursorVisible && mTextView.isTextEditable();
     }
 
-    boolean shouldRenderCursor() {
+    /**
+     * Return true if the cursor should be rendered, false otherwise.
+     */
+    @VisibleForTesting
+    public boolean shouldRenderCursor() {
         if (!isCursorVisible()) {
             return false;
         }
-        if (mRenderCursorRegardlessTiming) {
+        if (mRenderCursorRegardlessTiming
+                || mBlinkInterval == ViewConfiguration.NO_BLINK_TEXT_CURSOR_BLINK_INTERVAL_MS) {
             return true;
         }
         final long showCursorDelta = SystemClock.uptimeMillis() - mShowCursor;
-        return showCursorDelta % (2 * BLINK) < BLINK;
+        return showCursorDelta % (2L * mBlinkInterval) < mBlinkInterval;
     }
 
     void prepareCursorControllers() {
@@ -1101,6 +1123,12 @@ public class Editor {
         if (mBlink != null) {
             mBlink.uncancel();
         }
+
+        if (android.view.accessibility.Flags.textCursorBlinkInterval()) {
+            mBlinkInterval = ViewConfiguration.get(mTextView.getContext())
+                    .getTextCursorBlinkIntervalMillis();
+        }
+
         // Moving makeBlink outside of the null check block ensures that mBlink object gets
         // instantiated when the view is added to the window if mBlink is still null.
         makeBlink();
@@ -1831,8 +1859,7 @@ public class Editor {
         if (mTextActionMode != null && mTextView.showUIForTouchScreen()) {
             // Delay "show" so it doesn't interfere with click confirmations
             // or double-clicks that could "dismiss" the floating toolbar.
-            int delay = ViewConfiguration.getDoubleTapTimeout();
-            mTextView.postDelayed(mShowFloatingToolbar, delay);
+            mTextView.postDelayed(mShowFloatingToolbar, mDoubleTapTimeoutMillis);
 
             // This classifies the text and most likely returns before the toolbar is actually
             // shown. If not, it will update the toolbar with the result when classification
@@ -2767,8 +2794,7 @@ public class Editor {
                     mShowSuggestionRunnable = this::replace;
 
                     // removeCallbacks is performed on every touch
-                    mTextView.postDelayed(mShowSuggestionRunnable,
-                            ViewConfiguration.getDoubleTapTimeout());
+                    mTextView.postDelayed(mShowSuggestionRunnable, mDoubleTapTimeoutMillis);
                 } else if (hasInsertionController()) {
                     if (shouldInsertCursor && mTextView.showUIForTouchScreen()) {
                         getInsertionController().show();
@@ -2969,7 +2995,7 @@ public class Editor {
             // resume blinking unless uncancelled.
             mBlink.uncancel();
             mTextView.removeCallbacks(mBlink);
-            mTextView.postDelayed(mBlink, BLINK);
+            mTextView.postDelayed(mBlink, mBlinkInterval);
         } else {
             if (mBlink != null) mTextView.removeCallbacks(mBlink);
         }
@@ -3001,7 +3027,7 @@ public class Editor {
                     mTextView.invalidateCursorPath();
                 }
 
-                mTextView.postDelayed(this, BLINK);
+                mTextView.postDelayed(this, mBlinkInterval);
             }
         }
 
@@ -5997,7 +6023,7 @@ public class Editor {
                     mTouchDownX = ev.getX();
                     mTouchDownY = ev.getY();
                     mIsInActionMode = mTextActionMode != null;
-                    if (ev.getEventTime() - mLastUpTime < ViewConfiguration.getDoubleTapTimeout()) {
+                    if (ev.getEventTime() - mLastUpTime < mDoubleTapTimeoutMillis) {
                         stopTextActionMode();  // Avoid crash when double tap and drag backwards.
                     }
                     mTouchState.setIsOnHandle(true);
@@ -6799,7 +6825,7 @@ public class Editor {
                     }
                     mTextView.postDelayed(
                             mInsertionActionModeRunnable,
-                            ViewConfiguration.getDoubleTapTimeout() + 1);
+                            mDoubleTapTimeoutMillis + 1);
                 }
             }
 

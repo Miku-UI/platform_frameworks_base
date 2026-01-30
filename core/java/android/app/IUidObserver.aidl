@@ -16,7 +16,7 @@
 
 package android.app;
 
-/** {@hide} */
+/** @hide */
 oneway interface IUidObserver {
     // WARNING: when these transactions are updated, check if they are any callers on the native
     // side. If so, make sure they are using the correct transaction ids and arguments.

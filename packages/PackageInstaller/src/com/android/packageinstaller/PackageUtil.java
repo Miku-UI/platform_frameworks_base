@@ -25,6 +25,7 @@ import android.app.DialogFragment;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.Flags;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ProviderInfo;
@@ -36,10 +37,12 @@ import android.graphics.Canvas;
 import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.BadParcelableException;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.UserHandle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
@@ -402,5 +405,72 @@ public class PackageUtil {
             return appInfo;
         }
         return null;
+    }
+
+    /**
+     * Returns if the version two is enabled.
+     * 1. Currently, the version two is only enabled for the mobile devices
+     * 2. The aconfig usePiaV2 is true
+     * 3. The test settings use_pia_v2 is 1
+     */
+    public static boolean isVersionTwoEnabled(@NonNull Context context) {
+        if (isAuto(context) || isTV(context) || isWatch(context)) {
+            Log.d(LOG_TAG, "The device doesn't support PIA version 2");
+            return false;
+        }
+
+        // Only enable PIA V2 on the version that is newer than BAKLAVA
+        if (Build.VERSION.SDK_INT_FULL <= Build.VERSION_CODES_FULL.BAKLAVA) {
+            Log.d(LOG_TAG, "The OS version doesn't support PIA version 2");
+            return false;
+        }
+
+        boolean testOverrideForPiaV2 = Settings.System.getInt(context.getContentResolver(),
+                "use_pia_v2", 0) == 1;
+        boolean usePiaV2aConfig = Flags.usePiaV2();
+        if (usePiaV2aConfig || testOverrideForPiaV2) {
+            Log.d(LOG_TAG, getDebugStringForPiaV2(usePiaV2aConfig, testOverrideForPiaV2));
+            return true;
+        }
+
+        Log.d(LOG_TAG, "Use PIA V1");
+        return false;
+    }
+
+    private static boolean hasSystemFeature(@NonNull Context context, @NonNull String featureName) {
+        return context.getPackageManager().hasSystemFeature(featureName);
+    }
+
+    private static boolean isAuto(@NonNull Context context) {
+        return hasSystemFeature(context, PackageManager.FEATURE_AUTOMOTIVE);
+    }
+
+    private static boolean isWatch(@NonNull Context context) {
+        return hasSystemFeature(context, PackageManager.FEATURE_WATCH);
+    }
+
+    private static boolean isTV(@NonNull Context context) {
+        return hasSystemFeature(context, PackageManager.FEATURE_TELEVISION)
+                || hasSystemFeature(context, PackageManager.FEATURE_LEANBACK);
+    }
+
+    /**
+     * Returns a string containing the reason for using Pia V2. Used for debugging purposes
+     */
+    private static String getDebugStringForPiaV2(boolean usePiaV2aConfig,
+            boolean testOverrideForPiaV2) {
+        StringBuilder sb = new StringBuilder("Using Pia V2 due to: ");
+        boolean aconfigUsed = false;
+        if (usePiaV2aConfig) {
+            sb.append("aconfig flag USE_PIA_V2");
+            aconfigUsed = true;
+        }
+        if (testOverrideForPiaV2) {
+            if (aconfigUsed) {
+                sb.append(" and ");
+            }
+            sb.append("testOverrideForPiaV2.");
+        }
+        return sb.toString();
     }
 }

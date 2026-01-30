@@ -68,6 +68,7 @@ public class Letterbox {
     // for overlaping an app window and letterbox surfaces.
     private final LetterboxSurface mFullWindowSurface = new LetterboxSurface("fullWindow");
     private final LetterboxSurface[] mSurfaces = { mLeft, mTop, mRight, mBottom };
+    private final Rect[] mTmpSurfacesRect = new Rect[4];
 
     @NonNull
     private final AppCompatReachabilityPolicy mAppCompatReachabilityPolicy;
@@ -138,23 +139,11 @@ public class Letterbox {
      *
      * @param rect The area of the window frame.
      */
-    boolean notIntersectsOrFullyContains(Rect rect) {
-        int emptyCount = 0;
-        int noOverlappingCount = 0;
-        for (LetterboxSurface surface : mSurfaces) {
-            final Rect surfaceRect = surface.mLayoutFrameGlobal;
-            if (surfaceRect.isEmpty()) {
-                // empty letterbox
-                emptyCount++;
-            } else if (!Rect.intersects(surfaceRect, rect)) {
-                // no overlapping
-                noOverlappingCount++;
-            } else if (surfaceRect.contains(rect)) {
-                // overlapping and covered
-                return true;
-            }
+    boolean notIntersectsOrFullyContains(@NonNull Rect rect) {
+        for (int i = 0; i < mTmpSurfacesRect.length; i++) {
+            mTmpSurfacesRect[i] = mSurfaces[i].mLayoutFrameGlobal;
         }
-        return (emptyCount + noOverlappingCount) == mSurfaces.length;
+        return AppCompatLetterboxUtils.fullyContainsOrNotIntersects(rect, mTmpSurfacesRect);
     }
 
     /**

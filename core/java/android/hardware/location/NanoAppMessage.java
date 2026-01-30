@@ -290,10 +290,6 @@ public final class NanoAppMessage implements Parcelable {
 
     @Override
     public int hashCode() {
-        if (!Flags.fixApiCheck()) {
-            return super.hashCode();
-        }
-
         return Objects.hash(mNanoAppId, mMessageType, mIsBroadcasted,
                 Arrays.hashCode(mMessageBody), mIsReliable,
                 mMessageSequenceNumber);

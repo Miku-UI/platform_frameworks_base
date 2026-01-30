@@ -17,25 +17,20 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
-import android.tools.NavBar
 import android.tools.Rotation
-import android.tools.flicker.rules.ChangeDisplayOrientationRule
 import android.tools.traces.parsers.WindowManagerStateHelper
 import android.window.DesktopModeFlags
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
-import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.NewTasksAppHelper
 import com.android.server.wm.flicker.helpers.NonResizeableAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import com.android.window.flags.Flags
-import com.android.wm.shell.Utils
 import org.junit.After
 import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 /**
@@ -47,30 +42,29 @@ abstract class MinimizeAppWindows
 constructor(
     private val rotation: Rotation = Rotation.ROTATION_0,
     private val usingKeyboard: Boolean = false
-) {
+) : TestScenarioBase(rotation) {
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
-    private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
     private val testApp1 = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
     private val testApp2 = DesktopModeAppHelper(NonResizeableAppHelper(instrumentation))
-    private val testApp3 = DesktopModeAppHelper(NewTasksAppHelper(instrumentation))
+    val testApp3 = DesktopModeAppHelper(NewTasksAppHelper(instrumentation))
 
-    @Rule @JvmField val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, Rotation.ROTATION_0)
+    val appInDesktop: ArrayList<DesktopModeAppHelper> = ArrayList()
 
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopWindowingMode() && tapl.isTablet)
         Assume.assumeTrue(Flags.enableMinimizeButton())
+        Assume.assumeTrue(Flags.enableEmptyDeskOnMinimize())
         if (usingKeyboard) {
             Assume.assumeTrue(DesktopModeFlags.ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS.isTrue)
         }
-        tapl.setEnableRotation(true)
-        tapl.setExpectedRotation(rotation.value)
-        ChangeDisplayOrientationRule.setRotation(rotation)
         testApp1.enterDesktopMode(wmHelper, device)
+        appInDesktop.add(testApp1)
         testApp2.launchViaIntent(wmHelper)
+        appInDesktop.add(testApp2)
         testApp3.launchViaIntent(wmHelper)
+        appInDesktop.add(testApp3)
     }
 
     @Test

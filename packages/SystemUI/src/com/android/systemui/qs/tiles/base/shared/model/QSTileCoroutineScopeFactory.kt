@@ -17,6 +17,7 @@
 package com.android.systemui.qs.tiles.base.shared.model
 
 import com.android.systemui.coroutines.newTracingContext
+import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -24,6 +25,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 
 /** Creates a [CoroutineScope] for the [QSTileViewModelImpl]. */
+@SysUISingleton
 class QSTileCoroutineScopeFactory
 @Inject
 constructor(@Background private val bgDispatcher: CoroutineDispatcher) {

@@ -330,7 +330,7 @@ class MainActivity : ComponentActivity() {
 
         onWindowLayoutInfoChange()
 
-        enableEdgeToEdge(statusBarStyle = SystemBarStyle.dark(Color.Red.toArgb()))
+        enableEdgeToEdge()
 
         val universe = Universe(namer = Namer(resources), randomSeed = randomSeed())
 

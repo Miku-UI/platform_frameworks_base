@@ -141,11 +141,6 @@ public class SQLiteDatabasePerfTest {
             }
         }
 
-        Log.d("testSelectMemory",
-                "cacheMissRate: " + mDatabase.getStatementCacheMissRate()
-                        + "Total Statements: " + mDatabase.getTotalPreparedStatements()
-                        + ". Misses: " + mDatabase.getTotalStatementCacheMisses());
-
         // Make sure caching is working and our miss rate should definitely be less than 100%
         // however, we would expect this number to be actually closer to 0.
         assertTrue(mDatabase.getStatementCacheMissRate() < 1);

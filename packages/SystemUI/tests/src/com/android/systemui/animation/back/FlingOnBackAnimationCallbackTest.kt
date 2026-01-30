@@ -16,10 +16,6 @@
 
 package com.android.systemui.animation.back
 
-import android.platform.test.annotations.RequiresFlagsDisabled
-import android.platform.test.annotations.RequiresFlagsEnabled
-import android.platform.test.flag.junit.CheckFlagsRule
-import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.view.animation.Interpolator
 import android.window.BackEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -27,13 +23,11 @@ import androidx.test.filters.SmallTest
 import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
 import com.android.app.animation.Interpolators
 import com.android.systemui.SysuiTestCase
-import com.android.window.flags.Flags.FLAG_PREDICTIVE_BACK_TIMESTAMP_API
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito
@@ -41,8 +35,6 @@ import org.mockito.Mockito
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class FlingOnBackAnimationCallbackTest : SysuiTestCase() {
-
-    @get:Rule val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     @Test
     fun testProgressInterpolation() {
@@ -58,7 +50,6 @@ class FlingOnBackAnimationCallbackTest : SysuiTestCase() {
     }
 
     @Test
-    @RequiresFlagsEnabled(FLAG_PREDICTIVE_BACK_TIMESTAMP_API)
     fun testFling() {
         val callback = TestFlingOnBackAnimationCallback(Interpolators.LINEAR)
         callback.onBackStarted(backEventOf(progress = 0f, frameTime = 0))
@@ -77,21 +68,6 @@ class FlingOnBackAnimationCallbackTest : SysuiTestCase() {
         // Instead the fling animation is played and eventually onBackInvoked is called.
         callback.backInvokedLatch.await(1000, TimeUnit.MILLISECONDS)
         assertTrue(callback.backInvokedCalled)
-    }
-
-    @Test
-    @RequiresFlagsDisabled(FLAG_PREDICTIVE_BACK_TIMESTAMP_API)
-    fun testCallbackWithoutTimestampApi() {
-        // Assert that all callback methods are immediately forwarded
-        val callback = TestFlingOnBackAnimationCallback(Interpolators.LINEAR)
-        callback.onBackStarted(backEventOf(progress = 0f, frameTime = 0))
-        assertTrue("Assert onBackStartedCompat called", callback.backStartedCalled)
-        callback.onBackProgressed(backEventOf(0f, 8))
-        assertTrue("Assert onBackProgressedCompat called", callback.backProgressedCalled)
-        callback.onBackInvoked()
-        assertTrue("Assert onBackInvoked called", callback.backInvokedCalled)
-        callback.onBackCancelled()
-        assertTrue("Assert onBackCancelled called", callback.backCancelledCalled)
     }
 
     private fun backEventOf(progress: Float, frameTime: Long = 0): BackEvent {

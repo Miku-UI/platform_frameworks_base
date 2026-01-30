@@ -21,6 +21,7 @@ import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.app.WindowConfiguration.WINDOWING_MODE_MULTI_WINDOW;
 import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_UNDEFINED;
+import static android.view.ContentRecordingSession.RECORD_CONTENT_BELOW_OVERLAY;
 import static android.view.ContentRecordingSession.RECORD_CONTENT_DISPLAY;
 import static android.view.ContentRecordingSession.RECORD_CONTENT_TASK;
 
@@ -45,6 +46,7 @@ import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_STATE
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_STATE_CHANGED__STOP_SOURCE__STOP_SOURCE_USER_SWITCH;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_APP_TASK;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_DISPLAY;
+import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_OVERLAY;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_UNKNOWN;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_WINDOWING_MODE__WINDOWING_MODE_FREEFORM;
 import static com.android.internal.util.FrameworkStatsLog.MEDIA_PROJECTION_TARGET_CHANGED__TARGET_WINDOWING_MODE__WINDOWING_MODE_FULLSCREEN;
@@ -643,10 +645,13 @@ public class MediaProjectionMetricsLoggerTest {
         mExpect.that(mLogger.contentToRecordToTargetType(RECORD_CONTENT_DISPLAY))
                 .isEqualTo(MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_DISPLAY);
 
+        mExpect.that(mLogger.contentToRecordToTargetType(RECORD_CONTENT_BELOW_OVERLAY))
+                .isEqualTo(MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_OVERLAY);
+
         mExpect.that(mLogger.contentToRecordToTargetType(RECORD_CONTENT_TASK))
                 .isEqualTo(MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_APP_TASK);
 
-        mExpect.that(mLogger.contentToRecordToTargetType(2))
+        mExpect.that(mLogger.contentToRecordToTargetType(4))
                 .isEqualTo(MEDIA_PROJECTION_TARGET_CHANGED__TARGET_TYPE__TARGET_TYPE_UNKNOWN);
 
         mExpect.that(mLogger.contentToRecordToTargetType(-1))

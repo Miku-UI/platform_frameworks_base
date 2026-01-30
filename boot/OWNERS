@@ -4,3 +4,7 @@ file:platform/build/soong:/OWNERS
 # art-team@ manages the boot image profiles for frameworks
 per-file boot-* = islamelbanna@google.com, ngeoffray@google.com, vmarko@google.com
 per-file preloaded-classes* = islamelbanna@google.com, ngeoffray@google.com, vmarko@google.com
+
+# The performance team participates in tuning boot profiles
+per-file boot-* = file:/PERFORMANCE_OWNERS
+per-file preloaded-classes* = file:/PERFORMANCE_OWNERS

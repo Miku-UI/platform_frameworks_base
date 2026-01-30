@@ -30,7 +30,7 @@ import android.view.textclassifier.TextSelection;
 /**
  * TextClassifierService binder interface.
  * See TextClassifier for interface documentation.
- * {@hide}
+ * @hide
  */
 oneway interface ITextClassifierService {
 

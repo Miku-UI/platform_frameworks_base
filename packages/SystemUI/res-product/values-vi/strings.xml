@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Đang phát trên máy tính bảng này"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Bạn có thể định vị chiếc điện thoại này bằng ứng dụng Tìm thiết bị của tôi ngay cả khi điện thoại tắt nguồn"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Bạn có thể định vị chiếc máy tính bảng này bằng ứng dụng Tìm thiết bị của tôi ngay cả khi máy tính bảng tắt nguồn"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Bạn có thể tìm chiếc điện thoại này qua Trung tâm tìm thiết bị ngay cả khi điện thoại tắt nguồn"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Bạn có thể tìm chiếc máy tính bảng này qua Trung tâm tìm thiết bị ngay cả khi máy tính bảng tắt nguồn"</string>
 </resources>

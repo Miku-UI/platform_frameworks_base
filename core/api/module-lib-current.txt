@@ -75,7 +75,7 @@ package android.app {
 
 package android.app.admin {
 
-  public class DevicePolicyManager {
+  @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) public class DevicePolicyManager {
     method @RequiresPermission(anyOf={android.Manifest.permission.MANAGE_USERS, android.Manifest.permission.INTERACT_ACROSS_USERS}) public void acknowledgeNewUserDisclaimer();
     method @Nullable @RequiresPermission(anyOf={android.Manifest.permission.MANAGE_USERS, android.Manifest.permission.INTERACT_ACROSS_USERS}) public android.os.UserHandle getLogoutUser();
     method public boolean hasManagedProfileCallerIdAccess(@NonNull android.os.UserHandle, @NonNull String);
@@ -100,6 +100,7 @@ package android.content {
     method @NonNull public android.content.Context createContextForSdkInSandbox(@NonNull android.content.pm.ApplicationInfo, int) throws android.content.pm.PackageManager.NameNotFoundException;
     method @NonNull public android.os.IBinder getProcessToken();
     method @NonNull public android.os.UserHandle getUser();
+    field @FlaggedApi("android.os.profiling.anomaly.flags.anomaly_detector_core") public static final String ANOMALY_DETECTOR_SERVICE = "anomaly_detector";
     field @FlaggedApi("android.app.ondeviceintelligence.flags.enable_on_device_intelligence_module") public static final int BIND_FOREGROUND_SERVICE = 67108864; // 0x4000000
     field public static final String PAC_PROXY_SERVICE = "pac_proxy";
     field public static final String TEST_NETWORK_SERVICE = "test_network";
@@ -120,6 +121,7 @@ package android.content {
 package android.content.pm {
 
   public class ApplicationInfo extends android.content.pm.PackageItemInfo implements android.os.Parcelable {
+    method @FlaggedApi("android.security.conscrypt_network_security_config") @XmlRes public int getNetworkSecurityConfigResourceId();
     method @FlaggedApi("android.content.pm.sdk_lib_independence") @NonNull public java.util.List<android.content.pm.SharedLibraryInfo> getOptionalSharedLibraryInfos();
     method @NonNull public java.util.List<android.content.pm.SharedLibraryInfo> getSharedLibraryInfos();
     field public static final int HIDDEN_API_ENFORCEMENT_DEFAULT = -1; // 0xffffffff
@@ -137,6 +139,7 @@ package android.content.pm {
 
   @FlaggedApi("android.permission.flags.enhanced_confirmation_mode_apis_enabled") public class SignedPackage {
     method @NonNull public byte[] getCertificateDigest();
+    method @FlaggedApi("android.permission.flags.app_function_access_api_enabled") @Nullable public byte[] getCertificateDigestOrNull();
     method @NonNull public String getPackageName();
   }
 
@@ -144,7 +147,7 @@ package android.content.pm {
 
 package android.hardware.usb {
 
-  public class UsbManager {
+  @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) public class UsbManager {
     method @RequiresPermission(android.Manifest.permission.MANAGE_USB) public int getGadgetHalVersion();
     method @RequiresPermission(android.Manifest.permission.MANAGE_USB) public int getUsbHalVersion();
     field public static final int GADGET_HAL_NOT_SUPPORTED = -1; // 0xffffffff
@@ -220,6 +223,12 @@ package android.media {
 
   public static final class MediaServiceManager.ServiceRegisterer {
     method @Nullable public android.os.IBinder get();
+  }
+
+  @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public final class VibrationUtils {
+    method @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public static boolean hasVibrationParameter(@Nullable android.net.Uri);
+    field @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public static final String SYNCHRONIZED_VIBRATION = "synchronized";
+    field @FlaggedApi("android.media.audio.ringtone_vibration_utils_api") public static final String VIBRATION_URI_PARAM = "vibration_uri";
   }
 
 }
@@ -300,7 +309,7 @@ package android.net {
     method public static void setHttpProxyConfiguration(@Nullable android.net.ProxyInfo);
   }
 
-  public class VpnManager {
+  @RestrictedForEnvironment(environments=android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME, from=android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) public class VpnManager {
     field public static final int TYPE_VPN_LEGACY = 3; // 0x3
     field public static final int TYPE_VPN_NONE = -1; // 0xffffffff
     field public static final int TYPE_VPN_OEM = 4; // 0x4
@@ -412,7 +421,8 @@ package android.os {
     method public void invalidateCache();
     method public static void invalidateCache(@NonNull String, @NonNull String);
     method @Nullable public Result query(@NonNull Query);
-    method @FlaggedApi("android.os.ipc_data_cache_test_apis") public static void setCacheTestMode(boolean);
+    method @FlaggedApi("android.os.ipc_data_cache_testmode_apis") public static void setCacheTestMode(boolean);
+    field @FlaggedApi("android.os.ipc_data_cache_module_adservices") public static final String MODULE_ADSERVICES = "adservices";
     field public static final String MODULE_BLUETOOTH = "bluetooth";
   }
 
@@ -472,6 +482,15 @@ package android.os {
     method @FlaggedApi("android.permission.flags.enhanced_confirmation_mode_apis_enabled") @NonNull @RequiresPermission(android.Manifest.permission.MANAGE_ENHANCED_CONFIRMATION_STATES) public java.util.Set<android.content.pm.SignedPackage> getEnhancedConfirmationTrustedPackages();
   }
 
+  @FlaggedApi("com.android.internal.telephony.flags.enable_phone_number_parsing_api") public final class TelephonyServiceManager {
+    method @NonNull public android.os.TelephonyServiceManager.ServiceRegisterer getPhoneNumberServiceRegisterer();
+  }
+
+  public static final class TelephonyServiceManager.ServiceRegisterer {
+    method @Nullable public android.os.IBinder get();
+    method public void publishBinderService(@NonNull android.os.IBinder);
+  }
+
   public final class Trace {
     method public static void asyncTraceBegin(long, @NonNull String, int);
     method public static void asyncTraceEnd(long, @NonNull String, int);
@@ -484,6 +503,11 @@ package android.os {
 
   public class UpdateEngine {
     method @FlaggedApi("android.os.update_engine_api") public void triggerPostinstall(@NonNull String);
+  }
+
+  public class UserManager {
+    field @FlaggedApi("android.multiuser.user_restriction_config_wifi_shared_private") public static final String DISALLOW_CONFIG_WIFI_PRIVATE = "no_config_wifi_private";
+    field @FlaggedApi("android.multiuser.user_restriction_config_wifi_shared_private") public static final String DISALLOW_CONFIG_WIFI_SHARED = "no_config_wifi_shared";
   }
 
 }
@@ -619,9 +643,60 @@ package android.telephony {
     method public void removeSubscriptionInfoRecord(@NonNull String, int);
   }
 
+  @FlaggedApi("com.android.internal.telephony.flags.enable_phone_number_parsing_api") public class TelephonyFrameworkInitializer {
+    method @Nullable public static android.os.TelephonyServiceManager getTelephonyServiceManager();
+  }
+
   public class TelephonyManager {
     method @NonNull public static int[] getAllNetworkTypes();
     method @FlaggedApi("android.os.mainline_vcn_platform_api") @NonNull @RequiresPermission(android.Manifest.permission.READ_PRIVILEGED_PHONE_STATE) public java.util.Set<java.lang.String> getPackagesWithCarrierPrivileges();
+  }
+
+}
+
+package android.timezone {
+
+  @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public final class CountryTimeZones {
+    method @NonNull public String getCountryIso();
+    method @Nullable public android.icu.util.TimeZone getDefaultTimeZone();
+    method @Nullable public String getDefaultTimeZoneId();
+    method @NonNull public java.util.List<android.timezone.CountryTimeZones.TimeZoneMapping> getEffectiveTimeZoneMappingsAt(long);
+    method public boolean hasUtcZone(long);
+    method public boolean isDefaultTimeZoneBoosted();
+    method @Nullable public android.timezone.CountryTimeZones.OffsetResult lookupByOffsetWithBias(long, @NonNull android.icu.util.TimeZone, int, boolean);
+    method @Nullable public android.timezone.CountryTimeZones.OffsetResult lookupByOffsetWithBias(long, @NonNull android.icu.util.TimeZone, int);
+  }
+
+  @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public static final class CountryTimeZones.OffsetResult {
+    ctor public CountryTimeZones.OffsetResult(@NonNull android.icu.util.TimeZone, @Nullable String, boolean);
+    method @Nullable public String getCountryIsoCode();
+    method @NonNull public android.icu.util.TimeZone getTimeZone();
+    method public boolean isOnlyMatch();
+  }
+
+  @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public static final class CountryTimeZones.TimeZoneMapping {
+    method @Nullable public android.icu.util.TimeZone getTimeZone();
+    method @NonNull public String getTimeZoneId();
+  }
+
+  @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public final class MobileCountries {
+    method @NonNull public static android.timezone.MobileCountries createTestCell(@NonNull String);
+    method @NonNull public java.util.Set<java.lang.String> getCountryIsoCodes();
+    method @NonNull public String getDefaultCountryIsoCode();
+    method @NonNull public String getMcc();
+    method @Nullable public String getMnc();
+  }
+
+  @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public final class TelephonyNetworkFinder {
+    method @Nullable public android.timezone.MobileCountries findCountriesByMcc(@NonNull String);
+    method @Nullable public android.timezone.MobileCountries findCountriesByMccMnc(@NonNull String, @NonNull String);
+    method @Nullable public static android.timezone.TelephonyNetworkFinder getInstance();
+  }
+
+  @FlaggedApi("android.timezone.flags.expose_time_zone_system_api") public final class TimeZoneFinder {
+    method @Nullable public String getIanaVersion();
+    method @NonNull public static android.timezone.TimeZoneFinder getInstance();
+    method @Nullable public android.timezone.CountryTimeZones lookupCountryTimeZones(@NonNull String);
   }
 
 }

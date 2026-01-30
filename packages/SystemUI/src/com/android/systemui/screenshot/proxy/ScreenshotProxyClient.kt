@@ -19,7 +19,9 @@ package com.android.systemui.screenshot.proxy
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.os.UserHandle
 import android.util.Log
+import android.view.Display
 import com.android.internal.infra.ServiceConnector
 import com.android.systemui.dagger.qualifiers.Application
 import javax.inject.Inject
@@ -37,7 +39,7 @@ class ScreenshotProxyClient @Inject constructor(@Application context: Context) :
             context,
             Intent(context, ScreenshotProxyService::class.java),
             Context.BIND_AUTO_CREATE or Context.BIND_WAIVE_PRIORITY or Context.BIND_NOT_VISIBLE,
-            context.userId,
+            UserHandle.USER_SYSTEM,
             IScreenshotProxy.Stub::asInterface,
         )
 
@@ -63,5 +65,14 @@ class ScreenshotProxyClient @Inject constructor(@Application context: Context) :
         } else {
             Log.wtf(TAG, "Keyguard dismissal request failed")
         }
+    }
+
+    override suspend fun getFocusedDisplay(): Int = suspendCoroutine { k ->
+        proxyConnector
+            .postForResult { it.focusedDisplay }
+            .whenComplete { display, error ->
+                error?.also { Log.wtf(TAG, "getFocusedDisplay", it) }
+                k.resume(display ?: Display.DEFAULT_DISPLAY)
+            }
     }
 }

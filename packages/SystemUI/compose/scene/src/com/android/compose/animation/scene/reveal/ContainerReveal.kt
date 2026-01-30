@@ -25,6 +25,7 @@ import com.android.compose.animation.scene.UserActionDistance
 import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.mechanics.MotionValueInput
 import com.android.compose.animation.scene.mechanics.TransitionScopedMechanicsAdapter
+import com.android.compose.animation.scene.mechanics.VerticalContainerRevealFlag
 import com.android.compose.animation.scene.transformation.CustomPropertyTransformation
 import com.android.compose.animation.scene.transformation.PropertyTransformation
 import com.android.compose.animation.scene.transformation.PropertyTransformationScope
@@ -55,6 +56,7 @@ fun TransitionBuilder.verticalContainerReveal(
     container: ElementKey,
     motionSpec: VerticalExpandContainerSpec,
     haptics: ContainerRevealHaptics,
+    useMechanics: Boolean = VerticalContainerRevealFlag.isEnabled,
 ) {
     // Make the swipe distance be exactly the target height of the container.
     // TODO(b/376438969): Make sure that this works correctly when the target size of the element
@@ -72,6 +74,11 @@ fun TransitionBuilder.verticalContainerReveal(
         }
 
         (targetSizeInToContent?.height ?: targetSizeInFromContent?.height)?.toFloat() ?: 0f
+    }
+
+    if (!useMechanics) {
+        scaleSize(container, height = 0f)
+        return
     }
 
     // TODO(b/392534646) Add haptics back

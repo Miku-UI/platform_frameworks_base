@@ -1,0 +1,28 @@
+{
+  "wm": [
+    {
+      "name": "FlickerTestsQuickswitch-CatchAll",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsQuickswitch-QuickSwitchBetweenTwoAppsBackTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsQuickswitch-QuickSwitchBetweenTwoAppsForwardTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsQuickswitch-QuickSwitchFromLauncherTest",
+      "keywords": [
+        "device"
+      ]
+    }
+  ]
+}

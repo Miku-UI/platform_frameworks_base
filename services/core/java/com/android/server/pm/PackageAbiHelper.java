@@ -18,11 +18,11 @@ package com.android.server.pm;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.content.pm.ApplicationInfo;
 import android.util.ArraySet;
 import android.util.Pair;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.content.NativeLibraryHelper;
 import com.android.internal.pm.parsing.pkg.ParsedPackage;
 import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.pkg.PackageStateInternal;
@@ -84,11 +84,9 @@ public interface PackageAbiHelper {
      * @param libraryRoot directory for libraries
      * @param nativeLibraryRootRequiresIsa use isa
      * @param cpuAbiOverride ABI override mentioned in package
-     * @return {ApplicationInfo.PageSizeAppCompat} if successful or error code
-     *     which suggests undefined mode
+     * @return {ativeLibraryHelper.AlignmentResult} if successful or null
      */
-    @ApplicationInfo.PageSizeAppCompatFlags
-    int checkPackageAlignment(
+    NativeLibraryHelper.AlignmentResult checkPackageAlignment(
             AndroidPackage pkg,
             String libraryRoot,
             boolean nativeLibraryRootRequiresIsa,

@@ -17,8 +17,8 @@
 package com.android.server.wm;
 
 import android.annotation.NonNull;
-import android.annotation.Nullable;
 import android.util.Slog;
+import android.util.SparseArray;
 import android.view.Display;
 import android.view.Surface;
 
@@ -38,13 +38,12 @@ class DisplayRotationCoordinator {
     @Surface.Rotation
     private int mDefaultDisplayDefaultRotation;
 
-    @Nullable
-    @VisibleForTesting
-    Runnable mDefaultDisplayRotationChangedCallback;
-    private int mCallbackDisplayId = Display.INVALID_DISPLAY;
-
     @Surface.Rotation
     private int mDefaultDisplayCurrentRotation;
+
+    @VisibleForTesting
+    @NonNull
+    final SparseArray<Runnable> mDefaultDisplayRotationChangedCallbacks = new SparseArray<>();
 
     /**
      * Notifies clients when the default display rotation changes.
@@ -52,8 +51,8 @@ class DisplayRotationCoordinator {
     void onDefaultDisplayRotationChanged(@Surface.Rotation int rotation) {
         mDefaultDisplayCurrentRotation = rotation;
 
-        if (mDefaultDisplayRotationChangedCallback != null) {
-            mDefaultDisplayRotationChangedCallback.run();
+        for (int i = 0; i < mDefaultDisplayRotationChangedCallbacks.size(); i++) {
+            mDefaultDisplayRotationChangedCallbacks.valueAt(i).run();
         }
     }
 
@@ -71,14 +70,7 @@ class DisplayRotationCoordinator {
      * query the default display's current rotation via {@link #getDefaultDisplayCurrentRotation()}.
      */
     void setDefaultDisplayRotationChangedCallback(int displayId, @NonNull Runnable callback) {
-        if (mDefaultDisplayRotationChangedCallback != null && displayId != mCallbackDisplayId) {
-            throw new UnsupportedOperationException("Multiple clients unsupported"
-                    + ". Incoming displayId: " + displayId
-                    + ", existing displayId: " + mCallbackDisplayId);
-        }
-
-        mDefaultDisplayRotationChangedCallback = callback;
-        mCallbackDisplayId = displayId;
+        mDefaultDisplayRotationChangedCallbacks.put(displayId, callback);
 
         if (mDefaultDisplayCurrentRotation != mDefaultDisplayDefaultRotation) {
             callback.run();
@@ -89,15 +81,13 @@ class DisplayRotationCoordinator {
      * Removes the callback that was added via
      * {@link #setDefaultDisplayRotationChangedCallback(int, Runnable)}.
      */
-    void removeDefaultDisplayRotationChangedCallback(@NonNull Runnable callback) {
-        if (callback != mDefaultDisplayRotationChangedCallback) {
-            Slog.w(TAG, "Attempted to remove non-matching callback."
-                    + " DisplayId: " + mCallbackDisplayId);
+    void removeDefaultDisplayRotationChangedCallback(int displayId, @NonNull Runnable callback) {
+        Runnable currentCallback = mDefaultDisplayRotationChangedCallbacks.get(displayId);
+        if (!callback.equals(currentCallback)) {
+            Slog.w(TAG, "Attempted to remove non-matching callback. DisplayId: " + displayId);
             return;
         }
-
-        mDefaultDisplayRotationChangedCallback = null;
-        mCallbackDisplayId = Display.INVALID_DISPLAY;
+        mDefaultDisplayRotationChangedCallbacks.remove(displayId);
     }
 
     static boolean isSecondaryInternalDisplay(@NonNull DisplayContent displayContent) {

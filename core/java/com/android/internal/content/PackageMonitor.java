@@ -22,7 +22,6 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.Flags;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Bundle;
@@ -71,8 +70,7 @@ public abstract class PackageMonitor extends android.content.BroadcastReceiver {
 
     @UnsupportedAppUsage
     public PackageMonitor() {
-        // If the feature flag is enabled, set mSupportsPackageRestartQuery to false by default
-        this(!Flags.packageRestartQueryDisabledByDefault());
+        this(/* supportsPackageRestartQuery */ false);
     }
 
     /**

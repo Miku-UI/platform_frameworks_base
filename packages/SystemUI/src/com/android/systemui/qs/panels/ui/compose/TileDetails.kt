@@ -20,11 +20,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -42,18 +42,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.systemui.bluetooth.qsdialog.BluetoothDetailsContent
-import com.android.systemui.bluetooth.qsdialog.BluetoothDetailsViewModel
+import com.android.systemui.bluetooth.ui.viewModel.BluetoothDetailsViewModel
 import com.android.systemui.plugins.qs.TileDetailsViewModel
 import com.android.systemui.qs.flags.QsDetailedView
 import com.android.systemui.qs.panels.ui.viewmodel.DetailsViewModel
+import com.android.systemui.qs.tiles.dialog.AudioDetailsContent
+import com.android.systemui.qs.tiles.dialog.AudioDetailsViewModel
 import com.android.systemui.qs.tiles.dialog.CastDetailsContent
 import com.android.systemui.qs.tiles.dialog.CastDetailsViewModel
 import com.android.systemui.qs.tiles.dialog.InternetDetailsContent
 import com.android.systemui.qs.tiles.dialog.InternetDetailsViewModel
 import com.android.systemui.qs.tiles.dialog.ModesDetailsContent
 import com.android.systemui.qs.tiles.dialog.ModesDetailsViewModel
-import com.android.systemui.qs.tiles.dialog.ScreenRecordDetailsContent
-import com.android.systemui.qs.tiles.dialog.ScreenRecordDetailsViewModel
 
 @Composable
 fun TileDetails(modifier: Modifier = Modifier, detailsViewModel: DetailsViewModel) {
@@ -74,41 +74,37 @@ fun TileDetails(modifier: Modifier = Modifier, detailsViewModel: DetailsViewMode
         modifier =
             modifier
                 .fillMaxWidth()
-                // The height of the details view is TBD.
-                .fillMaxHeight()
+                .heightIn(
+                    min = TileDetailsDefaults.DetailsMinHeight,
+                    max = TileDetailsDefaults.DetailsMaxHeight,
+                )
                 .background(color = colors.onPrimary)
     ) {
         CompositionLocalProvider(
             value = LocalContentColor provides MaterialTheme.colorScheme.onSurfaceVariant
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(
-                        start = TileDetailsDefaults.TitleRowStart,
-                        top = TileDetailsDefaults.TitleRowTop,
-                        end = TileDetailsDefaults.TitleRowEnd,
-                        bottom = TileDetailsDefaults.TitleRowBottom
-                    ),
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .padding(
+                            start = TileDetailsDefaults.TitleRowStart,
+                            top = TileDetailsDefaults.TitleRowTop,
+                            end = TileDetailsDefaults.TitleRowEnd,
+                            bottom = TileDetailsDefaults.TitleRowBottom,
+                        ),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconButton(
                     onClick = { detailsViewModel.closeDetailedView() },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = colors.onSurface
-                    ),
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterVertically)
-                            .height(TileDetailsDefaults.IconHeight)
-                            .width(TileDetailsDefaults.IconWidth)
-                            .padding(start = TileDetailsDefaults.IconPadding),
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = colors.onSurface),
+                    modifier = Modifier.align(Alignment.CenterVertically),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         // Description is TBD
                         contentDescription = "Back to QS panel",
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
                 Text(
@@ -120,20 +116,14 @@ fun TileDetails(modifier: Modifier = Modifier, detailsViewModel: DetailsViewMode
                 )
                 IconButton(
                     onClick = { tileDetailedViewModel.clickOnSettingsButton() },
-                    colors = IconButtonDefaults.iconButtonColors(
-                        contentColor = colors.onSurface
-                    ),
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterVertically)
-                            .height(TileDetailsDefaults.IconHeight)
-                            .width(TileDetailsDefaults.IconWidth)
-                            .padding(end = TileDetailsDefaults.IconPadding),
+                    colors = IconButtonDefaults.iconButtonColors(contentColor = colors.onSurface),
+                    modifier = Modifier.align(Alignment.CenterVertically),
                 ) {
                     Icon(
                         imageVector = Icons.Default.Settings,
                         // Description is TBD
                         contentDescription = "Go to Settings",
+                        tint = MaterialTheme.colorScheme.onSurface,
                     )
                 }
             }
@@ -145,7 +135,10 @@ fun TileDetails(modifier: Modifier = Modifier, detailsViewModel: DetailsViewMode
                 color = colors.onSurfaceVariant,
             )
         }
-        MapTileDetailsContent(tileDetailedViewModel)
+
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            MapTileDetailsContent(tileDetailedViewModel)
+        }
     }
 }
 
@@ -153,20 +146,19 @@ fun TileDetails(modifier: Modifier = Modifier, detailsViewModel: DetailsViewMode
 private fun MapTileDetailsContent(tileDetailsViewModel: TileDetailsViewModel) {
     when (tileDetailsViewModel) {
         is InternetDetailsViewModel -> InternetDetailsContent(tileDetailsViewModel)
-        is ScreenRecordDetailsViewModel -> ScreenRecordDetailsContent(tileDetailsViewModel)
         is BluetoothDetailsViewModel ->
             BluetoothDetailsContent(tileDetailsViewModel.detailsContentViewModel)
         is ModesDetailsViewModel -> ModesDetailsContent(tileDetailsViewModel)
         is CastDetailsViewModel -> CastDetailsContent(tileDetailsViewModel)
+        is AudioDetailsViewModel -> AudioDetailsContent(tileDetailsViewModel)
     }
 }
 
 private object TileDetailsDefaults {
-    val IconHeight = 24.dp
-    val IconWidth = 24.dp
-    val IconPadding = 4.dp
-    val TitleRowStart = 14.dp
-    val TitleRowTop = 22.dp
-    val TitleRowEnd = 20.dp
-    val TitleRowBottom = 8.dp
+    val TitleRowStart = 2.dp
+    val TitleRowTop = 14.dp
+    val TitleRowEnd = 8.dp
+    val TitleRowBottom = 2.dp
+    val DetailsMaxHeight = 600.dp
+    val DetailsMinHeight = 300.dp
 }

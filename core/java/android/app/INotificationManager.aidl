@@ -44,7 +44,7 @@ import android.app.AutomaticZenRule;
 import android.service.notification.ZenModeConfig;
 import android.service.notification.ZenDeviceEffects;
 
-/** {@hide} */
+/** @hide */
 interface INotificationManager
 {
     @UnsupportedAppUsage
@@ -84,8 +84,9 @@ interface INotificationManager
     boolean isImportanceLocked(String pkg, int uid);
 
     List<String> getAllowedAssistantAdjustments(String pkg);
-    void allowAssistantAdjustment(String adjustmentType);
-    void disallowAssistantAdjustment(String adjustmentType);
+    List<String> getAllowedAssistantAdjustmentsForUser(int userId);
+    void allowAssistantAdjustment(int userId, String adjustmentType);
+    void disallowAssistantAdjustment(int userId, String adjustmentType);
 
     boolean shouldHideSilentStatusIcons(String callingPkg);
     void setHideSilentStatusIcons(boolean hide);
@@ -178,7 +179,6 @@ interface INotificationManager
     void setInterruptionFilter(String pkg, int interruptionFilter, boolean fromUser);
 
     NotificationChannel createConversationNotificationChannelForPackageFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, String parentChannelId, String conversationId);
-    void updateNotificationChannelGroupFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, in NotificationChannelGroup group);
     void updateNotificationChannelFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user, in NotificationChannel channel);
     ParceledListSlice getNotificationChannelsFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user);
     ParceledListSlice getNotificationChannelGroupsFromPrivilegedListener(in INotificationListener token, String pkg, in UserHandle user);
@@ -272,12 +272,9 @@ interface INotificationManager
     void setAdjustmentTypeSupportedState(in INotificationListener token, String key, boolean supported);
     List<String> getUnsupportedAdjustmentTypes();
 
-    int[] getAllowedAdjustmentKeyTypes();
-    void setAssistantAdjustmentKeyTypeState(int type, boolean enabled);
-    String[] getAdjustmentDeniedPackages(String key);
-    boolean isAdjustmentSupportedForPackage(String key, String pkg);
-    void setAdjustmentSupportedForPackage(String key, String pkg, boolean enabled);
-
-    // TODO: b/389918945 - Remove once nm_binder_perf flags are going to Nextfood.
-    void incrementCounter(String metricId);
+    int[] getAllowedClassificationTypes();
+    void setAssistantClassificationTypeState(int type, boolean enabled);
+    String[] getAdjustmentDeniedPackages(int userId, String key);
+    boolean isAdjustmentSupportedForPackage(int userId, String key, String pkg);
+    void setAdjustmentSupportedForPackage(int userId, String key, String pkg, boolean enabled);
 }

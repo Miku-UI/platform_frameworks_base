@@ -14,7 +14,7 @@ sealed interface CredentialView {
      */
     interface Host {
         /** When the user's credential has been verified. */
-        fun onCredentialMatched(attestation: ByteArray)
+        fun onCredentialMatched(attestation: ByteArray, credentialAllowed: Boolean = true)
 
         /** When the user abandons credential verification. */
         fun onCredentialAborted()

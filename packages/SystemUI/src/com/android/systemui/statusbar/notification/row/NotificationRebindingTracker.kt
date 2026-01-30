@@ -23,7 +23,12 @@ import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
+import dagger.Module
+import dagger.Provides
+import dagger.multibindings.ClassKey
+import dagger.multibindings.IntoMap
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -105,5 +110,20 @@ constructor(
      */
     fun interface RebindFinishedCallback {
         fun onFinished()
+    }
+}
+
+@Module
+object NotificationRebindingTrackerModule {
+
+    @Provides
+    @IntoMap
+    @ClassKey(NotificationRebindingTrackerModule::class)
+    fun provideNotificationRebindingTracker(impl: NotificationRebindingTracker): CoreStartable {
+        return if (ShadeWindowGoesAround.isEnabled) {
+            impl
+        } else {
+            return CoreStartable.NOP
+        }
     }
 }

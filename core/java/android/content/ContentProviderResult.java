@@ -54,7 +54,7 @@ public class ContentProviderResult implements Parcelable {
         this(null, null, null, exception);
     }
 
-    /** {@hide} */
+    /** @hide */
     public ContentProviderResult(Uri uri, Integer count, Bundle extras, Throwable exception) {
         this.uri = uri;
         this.count = count;

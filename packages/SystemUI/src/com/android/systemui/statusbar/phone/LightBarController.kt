@@ -16,7 +16,6 @@
 
 package com.android.systemui.statusbar.phone
 
-import android.content.Context
 import android.view.WindowInsetsController
 import com.android.internal.colorextraction.ColorExtractor
 import com.android.internal.view.AppearanceRegion
@@ -65,8 +64,4 @@ interface LightBarController : CoreStartable {
         scrimBehindAlpha: Float,
         scrimInFrontColor: ColorExtractor.GradientColors,
     )
-
-    fun interface Factory {
-        fun create(context: Context): LightBarController
-    }
 }

@@ -69,7 +69,7 @@ class Value {
     flag_ = val;
   }
 
-  std::optional<FeatureFlagAttribute> GetFlag() const {
+  const std::optional<FeatureFlagAttribute>& GetFlag() const {
     return flag_;
   }
 

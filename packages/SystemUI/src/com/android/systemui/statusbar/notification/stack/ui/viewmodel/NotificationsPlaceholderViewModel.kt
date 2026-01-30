@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.notification.stack.ui.viewmodel
 
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.ObservableTransitionState
@@ -41,6 +42,7 @@ import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrim
 import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrollState
 import com.android.systemui.util.kotlin.ActivatableFlowDumper
 import com.android.systemui.util.kotlin.ActivatableFlowDumperImpl
+import com.android.systemui.wallpapers.domain.interactor.WallpaperFocalAreaInteractor
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import java.util.function.Consumer
@@ -58,12 +60,13 @@ class NotificationsPlaceholderViewModel
 constructor(
     private val interactor: NotificationStackAppearanceInteractor,
     private val sceneInteractor: SceneInteractor,
-    private val shadeInteractor: ShadeInteractor,
+    shadeInteractor: ShadeInteractor,
     shadeModeInteractor: ShadeModeInteractor,
     private val headsUpNotificationInteractor: HeadsUpNotificationInteractor,
     remoteInputInteractor: RemoteInputInteractor,
     featureFlags: FeatureFlagsClassic,
     dumpManager: DumpManager,
+    private val wallpaperFocalAreaInteractor: WallpaperFocalAreaInteractor,
 ) :
     ExclusiveActivatable(),
     ActivatableFlowDumper by ActivatableFlowDumperImpl(
@@ -89,15 +92,22 @@ constructor(
             source = shadeModeInteractor.shadeMode.map { getQuickSettingsShadeContentKey(it) },
         )
 
-    /**
-     * Whether the current touch gesture is overscroll. If true, it means the NSSL has already
-     * consumed part of the gesture.
-     */
-    val isCurrentGestureOverscroll: Boolean by
+    /** @see NotificationStackAppearanceInteractor.notificationStackHorizontalAlignment */
+    val horizontalAlignment: Alignment.Horizontal by
         hydrator.hydratedStateOf(
-            traceName = "isCurrentGestureOverscroll",
+            traceName = "horizontalAlignment",
+            source = interactor.notificationStackHorizontalAlignment,
+        )
+
+    /**
+     * Whether the current gesture is expanding a Notification. If true, the NSSL has already
+     * consumed the swipe amount to increase the Notification's size.
+     */
+    val isCurrentGestureExpandingNotification: Boolean by
+        hydrator.hydratedStateOf(
+            traceName = "isCurrentGestureExpandingNotif",
             initialValue = false,
-            source = interactor.isCurrentGestureOverscroll
+            source = interactor.isCurrentGestureExpandingNotif,
         )
 
     /** DEBUG: whether the placeholder should be made slightly visible for positional debugging. */
@@ -109,12 +119,6 @@ constructor(
     override suspend fun onActivated(): Nothing {
         coroutineScope {
             launch { hydrator.activate() }
-
-            launch {
-                shadeInteractor.isAnyExpanded
-                    .filter { it }
-                    .collect { headsUpNotificationInteractor.unpinAll(true) }
-            }
 
             launch {
                 sceneInteractor.transitionState
@@ -192,6 +196,10 @@ constructor(
     /** Set a consumer for accessibility events to be handled by the placeholder. */
     fun setAccessibilityScrollEventConsumer(consumer: Consumer<AccessibilityScrollEvent>?) {
         interactor.setAccessibilityScrollEventConsumer(consumer)
+    }
+
+    fun onLockScreenStackBottomChanged(bottom: Float) {
+        wallpaperFocalAreaInteractor.setNotificationStackAbsoluteBottom(bottom)
     }
 
     private fun getNotificationsShadeContentKey(shadeMode: ShadeMode): ContentKey {

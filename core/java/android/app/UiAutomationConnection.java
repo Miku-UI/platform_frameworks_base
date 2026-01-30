@@ -47,8 +47,8 @@ import android.view.WindowAnimationFrameStats;
 import android.view.WindowContentFrameStats;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.IAccessibilityManager;
-import android.window.ScreenCapture;
-import android.window.ScreenCapture.CaptureArgs;
+import android.window.ScreenCaptureInternal;
+import android.window.ScreenCaptureInternal.CaptureArgs;
 
 import libcore.io.IoUtils;
 
@@ -226,8 +226,8 @@ public final class UiAutomationConnection extends IUiAutomationConnection.Stub {
     }
 
     @Override
-    public boolean takeScreenshot(Rect crop, ScreenCapture.ScreenCaptureListener listener,
-            int displayId) {
+    public boolean takeScreenshot(
+            Rect crop, ScreenCaptureInternal.ScreenCaptureListener listener, int displayId) {
         synchronized (mLock) {
             throwIfCalledByNotTrustedUidLocked();
             throwIfShutdownLocked();
@@ -251,8 +251,9 @@ public final class UiAutomationConnection extends IUiAutomationConnection.Stub {
 
     @Nullable
     @Override
-    public boolean takeSurfaceControlScreenshot(@NonNull SurfaceControl surfaceControl,
-            ScreenCapture.ScreenCaptureListener listener) {
+    public boolean takeSurfaceControlScreenshot(
+            @NonNull SurfaceControl surfaceControl,
+            ScreenCaptureInternal.ScreenCaptureListener listener) {
         synchronized (mLock) {
             throwIfCalledByNotTrustedUidLocked();
             throwIfShutdownLocked();
@@ -261,11 +262,11 @@ public final class UiAutomationConnection extends IUiAutomationConnection.Stub {
 
         final long identity = Binder.clearCallingIdentity();
         try {
-            ScreenCapture.LayerCaptureArgs args =
-                    new ScreenCapture.LayerCaptureArgs.Builder(surfaceControl)
-                    .setChildrenOnly(false)
-                    .build();
-            int status = ScreenCapture.captureLayers(args, listener);
+            ScreenCaptureInternal.LayerCaptureArgs args =
+                    new ScreenCaptureInternal.LayerCaptureArgs.Builder(surfaceControl)
+                            .setChildrenOnly(false)
+                            .build();
+            int status = ScreenCaptureInternal.captureLayers(args, listener);
 
             if (status != 0) {
                 return false;

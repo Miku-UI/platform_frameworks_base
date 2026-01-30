@@ -32,6 +32,27 @@ flag {
 }
 
 flag {
+    name: "consistent_max_users"
+    namespace: "multiuser"
+    description: "Makes max supported users be consistent and fine-grained."
+    bug: "394178333"
+}
+
+flag {
+    name: "decouple_max_users_from_profiles"
+    namespace: "multiuser"
+    description: "Builds on consistent_max_users, but now config_multiuserMaximumUsers only applies to non-Guest non-Demo switchable users, not profiles."
+    bug: "394178333"
+}
+
+flag {
+    name: "max_users_in_car_is_for_secondary"
+    namespace: "multiuser"
+    description: "Update Car SystemUi and Settings to specify FULL_SECONDARY for max users (alongside consistent_max_users flag)."
+    bug: "394178333"
+}
+
+flag {
     name: "support_communal_profile_nextgen"
     is_exported: true
     namespace: "multiuser"
@@ -46,19 +67,7 @@ flag {
     bug: "308105403"
 }
 
-flag {
-    name: "add_ui_for_sounds_from_background_users"
-    namespace: "multiuser"
-    description: "Allow foreground user to dismiss sounds that are coming from background users"
-    bug: "314907186"
-}
-
-flag {
-    name: "new_multiuser_settings_ux"
-    namespace: "multiuser"
-    description: "Update multiuser settings UI"
-    bug: "298008926"
-}
+# Begin Multiuser Widget flags #
 
 flag {
     name: "multiuser_widget"
@@ -68,14 +77,24 @@ flag {
 }
 
 flag {
-    name: "multiple_alarm_notifications_support"
+    name: "widget_current_user_view"
     namespace: "multiuser"
-    description: "Implement handling of multiple simultaneous alarms/timers on bg users"
-    bug: "367615180"
+    description: "When flag is enabled, widget shows the current user only"
+    bug: "409327566"
+}
+
+flag {
+    name: "widget_scaling_bugfix"
+    namespace: "multiuser"
+    description: "When flag is enabled, scaling fixes are applied to the widget"
+    bug: "430040190"
     metadata {
         purpose: PURPOSE_BUGFIX
-  }
+    }
 }
+
+
+# End Multiuser Widget flags #
 
 flag {
     name: "enable_biometrics_to_unlock_private_space"
@@ -83,21 +102,6 @@ flag {
     namespace: "profile_experiences"
     description: "Add support to unlock the private space using biometrics"
     bug: "312184187"
-}
-
-flag {
-    name: "support_autolock_for_private_space"
-    namespace: "profile_experiences"
-    description: "Add support to lock private space automatically after a time period"
-    bug: "303201022"
-}
-
-flag {
-    name: "avatar_sync"
-    namespace: "multiuser"
-    description: "Implement new Avatar Picker outside of SetttingsLib with ability to select avatars from Google Account and synchronise to any changes."
-    bug: "296829976"
-    is_fixed_read_only: true
 }
 
 flag {
@@ -131,90 +135,10 @@ flag {
 }
 
 flag {
-    name: "fix_avatar_picker_read_back_order"
-    namespace: "multiuser"
-    description: "Talkback focus doesn't move to the 'If you change your Google Account picture…' after swiping next to move the focus from 'Choose a picture'"
-    bug: "330835921"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "fix_avatar_picker_selected_read_back"
-    namespace: "multiuser"
-    description: "Talkback doesn't announce 'selected' after double tapping the button in the picture list in 'Choose a picture' page."
-    bug: "330840549"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "fix_avatar_concurrent_file_write"
-    namespace: "multiuser"
-    description: "Fix potential unexpected behavior due to concurrent file writing"
-    bug: "339351031"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "fix_avatar_cross_user_leak"
-    namespace: "multiuser"
-    description: "Fix cross-user picture uri leak for avatar picker apps."
-    bug: "341688848"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
     name: "fix_avatar_content_provider_null_authority"
     namespace: "multiuser"
     description: "Fix crash when content provider authority is null."
     bug: "362880068"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "fix_avatar_picker_not_responding_for_new_user"
-    namespace: "multiuser"
-    description: "Avatar picker is not responding after selecting photo for new user."
-    bug: "358407488"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "fix_get_user_property_cache"
-    namespace: "multiuser"
-    description: "Cache is not optimised for getUserProperty for values below 0, eg. UserHandler.USER_NULL or UserHandle.USER_ALL"
-    bug: "350416200"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "fix_disabling_of_mu_toggle_when_restriction_applied"
-    namespace: "multiuser"
-    description: "When no_user_switch is set but no EnforcedAdmin is present, the toggle has to be disabled"
-    bug: "356387759"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "place_add_user_dialog_within_activity"
-    namespace: "multiuser"
-    description: "Display dialog within activity to make it traversable by Accessibility"
-    bug: "376815882"
     metadata {
         purpose: PURPOSE_BUGFIX
   }
@@ -231,120 +155,11 @@ flag {
   is_fixed_read_only: true
 }
 
-
-flag {
-    name: "cache_profile_parent_read_only"
-    namespace: "multiuser"
-    description: "Cache getProfileParent to avoid unnecessary binder calls"
-    bug: "350417399"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "cache_profile_ids_read_only"
-    namespace: "multiuser"
-    description: "Cache getProfileIds to avoid unnecessary binder calls"
-    bug: "350421409"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
 flag {
     name: "cache_profile_type_read_only"
     namespace: "multiuser"
     description: "Cache getProfileType to avoid unnecessary binder calls"
     bug: "350417403"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "cache_profiles_read_only"
-    namespace: "multiuser"
-    description: "Cache getProfiles to avoid unnecessary binder calls"
-    bug: "350419395"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "cache_quiet_mode_state"
-    namespace: "multiuser"
-    description: "Optimise quiet mode state retrieval"
-    bug: "350420769"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "cache_user_properties_correctly_read_only"
-    namespace: "multiuser"
-    description: "UserProperties cache needs to take into account who the callingUid is."
-    bug: "369198539"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "cache_user_serial_number"
-    namespace: "multiuser"
-    description: "Optimise user serial number retrieval"
-    bug: "340018451"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "cache_user_serial_number_read_only"
-    namespace: "multiuser"
-    description: "Optimise user serial number retrieval. Read only flag, so that it can be used before the flags are initialized."
-    bug: "353134536"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "invalidate_cache_on_users_changed_read_only"
-    namespace: "multiuser"
-    description: "Invalidate the cache when users are added or removed to improve caches."
-    bug: "372383485"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "caches_not_invalidated_at_start_read_only"
-    namespace: "multiuser"
-    description: "PIC need to be invalidated at start in order to work properly."
-    bug: "356167673"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-  is_fixed_read_only: true
-}
-
-flag {
-    name: "cache_user_info_read_only"
-    namespace: "multiuser"
-    description: "Cache UserInfo to avoid unnecessary binder calls"
-    bug: "161915546"
     metadata {
         purpose: PURPOSE_BUGFIX
   }
@@ -384,16 +199,6 @@ flag {
   is_fixed_read_only: true
 }
 
-flag {
-    name: "require_pin_before_user_deletion"
-    namespace: "multiuser"
-    description: "Require credential authentication when a user tries to delete themselves or another user"
-    bug: "342395399"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-  }
-}
-
 # This flag guards the private space feature and all its implementations excluding the APIs. APIs are guarded by android.os.Flags.allow_private_profile.
 flag {
     name: "enable_private_space_features"
@@ -411,31 +216,10 @@ flag {
 }
 
 flag {
-    name: "handle_interleaved_settings_for_private_space"
-    namespace: "profile_experiences"
-    description: "Handle listing of private space apps in settings pages with interleaved content"
-    bug: "323212460"
-}
-
-flag {
     name: "enable_hiding_profiles"
     namespace: "profile_experiences"
     description: "Allow the use of a profileApiAvailability user property to exclude HIDDEN profiles in API results"
     bug: "316362775"
-}
-
-flag {
-    name: "enable_launcher_apps_hidden_profile_checks"
-    namespace: "profile_experiences"
-    description: "Enable extra check to limit access to hidden profiles data in Launcher apps APIs."
-    bug: "321988638"
-}
-
-flag {
-    name: "show_set_screen_lock_dialog"
-    namespace: "profile_experiences"
-    description: "Display the dialog to set up screen lock when private space unlock operation is requested"
-    bug: "316129700"
 }
 
 flag {
@@ -455,8 +239,29 @@ flag {
 flag {
     name: "schedule_stop_of_background_user"
     namespace: "multiuser"
-    description: "Schedule background users to be stopped at a future point."
+    description: "Schedule background users to be stopped at a future point. Infrastructure only."
     bug: "330351042"
+}
+
+flag {
+    name: "schedule_stop_of_background_user_by_default"
+    namespace: "multiuser"
+    description: "Activates the background-stopping schedule of inactive users based on the time specified in the configuration."
+    bug: "330351042"
+}
+
+flag {
+    name: "stop_excess_for_background_starts"
+    namespace: "multiuser"
+    description: "Be more aggressive when stopping excess users, by triggering this even on background user starts and by allowing user 0's profiles to be stopped."
+    bug: "419867128"
+}
+
+flag {
+    name: "reschedule_stop_if_visible_activities"
+    namespace: "multiuser"
+    description: "Don't automatically stop a background user that has a top visible activity; instead, reschedule it to stop later"
+    bug: "423731424"
 }
 
 flag {
@@ -496,27 +301,10 @@ flag {
 }
 
 flag {
-    name: "delete_private_space_from_reset"
-    namespace: "profile_experiences"
-    description: "Add entrypoint in Settings Reset options for deleting private space when lock is forgotten"
-    bug: "329601751"
-}
-
-flag {
     name: "allow_main_user_to_access_blocked_number_provider"
     namespace: "multiuser"
     description: "Allow MAIN user to access blocked number provider"
     bug: "338579331"
-}
-
-flag {
-  name: "get_user_switchability_permission"
-  namespace: "multiuser"
-  description: "Update permissions for getUserSwitchability"
-  bug: "390458180"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
 }
 
 flag {
@@ -540,79 +328,11 @@ flag {
 }
 
 flag {
-  name: "modify_private_space_secondary_unlock_setup_flow"
-  namespace: "profile_experiences"
-  description: "Updates to setting up secondary unlock factor from Settings for the first time"
-  bug: "332850595"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "fix_large_display_private_space_settings"
-  namespace: "profile_experiences"
-  description: "Fix tablet and foldable specific bugs for private space"
-  bug: "342563741"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "private_space_search_illustration_config"
-  namespace: "profile_experiences"
-  description: "Check config to show/hide the private space search illustration and search tile content in Hide Private Space settings page"
-  bug: "346612477"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "show_different_creation_error_for_unsupported_devices"
-  namespace: "profile_experiences"
-  description: "On private space create error due to child account added/fully managed user show message with link to the Help Center to find out more."
-  bug: "340130375"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "unicorn_mode_refactoring_for_hsum_read_only"
   namespace: "multiuser"
   description: "Refactorings related to unicorn mode to work on HSUM mode (Read only flag)"
   bug: "339201286"
   is_fixed_read_only: true
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-    name: "caching_development_improvements"
-    namespace: "multiuser"
-    description: "System API to simplify caching implamentations"
-    bug: "364947162"
-    is_fixed_read_only: true
-}
-
-flag {
-  name: "show_custom_unlock_title_inside_private_profile"
-  namespace: "profile_experiences"
-  description: "When private space is unlocked show dynamic title in unlock factor screens based on lock factor set for the profile"
-  bug: "323835257"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
-  name: "ignore_restrictions_when_deleting_private_profile"
-  namespace: "profile_experiences"
-  description: "Ignore any user restrictions when deleting private profiles."
-  bug: "350953833"
   metadata {
     purpose: PURPOSE_BUGFIX
   }
@@ -638,6 +358,7 @@ flag {
     namespace: "profile_experiences"
     description: "Enable moving content into the Private Space"
     bug: "360066001"
+    is_exported: true
 }
 
 flag {
@@ -648,18 +369,110 @@ flag {
 }
 
 flag {
-    name: "use_unified_resources"
+     name: "profiles_for_all"
+     namespace: "multiuser"
+     description: "Allows any regular user to have profiles"
+     bug: "374832167"
+}
+
+flag {
+     name: "perfetto_multiuser_table"
+     namespace: "multiuser"
+     description: "Generate file for perfetto, so it can create a users table"
+     bug: "391110239"
+}
+
+flag {
+    name: "backup_activated_for_all_users"
     namespace: "multiuser"
-    description: "Use same resources"
-    bug: "392972139"
+    description: "Activate backup for all users in headless system user mode (HSUM)."
+    bug: "374830726"
+    is_fixed_read_only: true
+}
+
+flag {
+     name: "create_initial_user"
+     namespace: "multiuser"
+     description: "Creates a non-main user on boot when device is HSUM and doesn't support main user"
+     bug: "409650316"
+}
+
+flag {
+     name: "demote_main_user"
+     namespace: "multiuser"
+     description: "Remove the FLAG_MAIN on boot when the device doesn't support Main User anymore"
+     bug: "402486365"
+}
+
+flag {
+     name: "hsu_device_provisioner"
+     namespace: "multiuser"
+     description: "Use new HsuDeviceProvisioner class for all device provisioning related activities when booting device in HSUM"
+     bug: "424203846"
+}
+
+flag {
+    name: "setupwizard_username_population"
+    namespace: "multiuser"
+    description: "Ensures the user's account name is correctly populated and persisted during the Android Setup Wizard across all flows."
+    bug: "389209342"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "move_set_screen_lock_dialog_to_settings_app"
+    namespace: "profile_experiences"
+    description: "Move the set screen lock dialog and activity from the platform to the Settings app for theming."
+    bug: "407327874"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+     name: "hsu_not_admin"
+     namespace: "multiuser"
+     description: "The Headless System User is not an Admin user"
+     bug: "419105275"
+}
+
+flag {
+     name: "disallow_removing_last_admin_user"
+     namespace: "multiuser"
+     description: "Disallow the removal of a user, if it is the last admin user"
+     bug: "394970894"
+}
+
+flag {
+     name: "user_restriction_config_wifi_shared_private"
+     is_exported: true
+     namespace: "multiuser"
+     description: "For user restrictions about adding or editing shared or private Wi-Fi configurations"
+     bug: "390240471"
+}
+
+flag {
+     name: "hsu_allowlist_activities"
+     namespace: "multiuser"
+     description: "Adds an allowlist mechanism to decide which activities can be launched when the current user is the headless system user"
+     bug: "412177078"
+}
+
+flag {
+    name: "private_space_file_limit_check_timeout"
+    namespace: "profile_experiences"
+    description: "Add a timeout for file limit checks during file transfer to private space"
+    bug: "421920538"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-     name: "profiles_for_all"
+     name: "user_filter_refactoring"
      namespace: "multiuser"
-     description: "Allows any regular user to have profiles"
-     bug: "374832167"
+     description: "Refactored some getUsers() methods to use a UserFilter object"
+     bug: "419086491"
 }

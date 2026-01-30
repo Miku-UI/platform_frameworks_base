@@ -36,17 +36,11 @@ import java.util.Arrays;
  * multiple instances of deferred calls are collapsed into a single call when the process is
  * unpaused.
  *
- * {@hide}
+ * @hide
  */
 final class ApplicationThreadDeferred extends IApplicationThread.Delegator {
 
     static final String TAG = TAG_WITH_CLASS_NAME ? "ApplicationThreadDeferred" : TAG_AM;
-
-    // The flag that enables the deferral behavior of this class.  If the flag is disabled then
-    // the class behaves exactly like an ApplicationThreadFilter.
-    private static boolean deferBindersWhenPaused() {
-        return Flags.deferBindersWhenPaused();
-    }
 
     // The list of notifications that may be deferred.
     private static final int CLEAR_DNS_CACHE = 0;
@@ -84,29 +78,19 @@ final class ApplicationThreadDeferred extends IApplicationThread.Delegator {
     @GuardedBy("mLock")
     private final boolean[] mPending = new boolean[NOTIFICATION_COUNT];
 
-    // When true, binder calls to paused processes will be deferred until the process is unpaused.
-    private final boolean mDefer;
-
     // The base thread, because Delegator does not expose it.
     private final IApplicationThread mBase;
 
-    /** Create an instance with a base thread and a deferral enable flag. */
-    @VisibleForTesting
-    public ApplicationThreadDeferred(IApplicationThread thread, boolean defer) {
+    /** Create an instance with a base thread. */
+    public ApplicationThreadDeferred(IApplicationThread thread) {
         super(thread);
 
         mBase = thread;
-        mDefer = defer;
 
         mOperations[CLEAR_DNS_CACHE] = () -> { super.clearDnsCache(); };
         mOperations[UPDATE_TIME_ZONE] = () -> { super.updateTimeZone(); };
         mOperations[SCHEDULE_LOW_MEMORY] = () -> { super.scheduleLowMemory(); };
         mOperations[UPDATE_HTTP_PROXY] = () -> { super.updateHttpProxy(); };
-    }
-
-    /** Create an instance with a base flag, using the system deferral enable flag. */
-    public ApplicationThreadDeferred(IApplicationThread thread) {
-        this(thread, deferBindersWhenPaused());
     }
 
     /**
@@ -155,7 +139,7 @@ final class ApplicationThreadDeferred extends IApplicationThread.Delegator {
      */
     private void execute(@NotificationType int tag) throws RemoteException {
         synchronized (mLock) {
-            if (mPaused && mDefer) {
+            if (mPaused) {
                 mPending[tag] = true;
                 return;
             }

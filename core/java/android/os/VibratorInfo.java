@@ -23,8 +23,8 @@ import android.hardware.vibrator.IVibrator;
 import android.os.vibrator.Flags;
 import android.util.IndentingPrintWriter;
 import android.util.MathUtils;
-import android.util.Pair;
 import android.util.Range;
+import android.util.Slog;
 import android.util.SparseBooleanArray;
 import android.util.SparseIntArray;
 
@@ -32,7 +32,6 @@ import com.android.internal.util.Preconditions;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -371,7 +370,7 @@ public class VibratorInfo implements Parcelable {
      * supported or not.
      */
     @Vibrator.VibrationEffectSupport
-    public int isEffectSupported(@VibrationEffect.EffectType int effectId) {
+    public int isEffectSupported(int effectId) {
         if (mSupportedEffects == null) {
             return Vibrator.VIBRATION_EFFECT_SUPPORT_UNKNOWN;
         }
@@ -424,8 +423,7 @@ public class VibratorInfo implements Parcelable {
      * @return The duration in milliseconds estimated for the primitive, or zero if primitive not
      * supported.
      */
-    public int getPrimitiveDuration(
-            @VibrationEffect.Composition.PrimitiveType int primitiveId) {
+    public int getPrimitiveDuration(int primitiveId) {
         return mSupportedPrimitives.get(primitiveId);
     }
 
@@ -692,13 +690,23 @@ public class VibratorInfo implements Parcelable {
 
             mResonantFrequencyHz = resonantFrequencyHz;
 
-            boolean isValid = !Float.isNaN(resonantFrequencyHz)
-                    && (resonantFrequencyHz > 0)
-                    && (frequenciesHz != null && outputAccelerationsGs != null)
+            boolean isValid = (frequenciesHz != null && outputAccelerationsGs != null)
                     && (frequenciesHz.length == outputAccelerationsGs.length)
                     && (frequenciesHz.length > 0);
 
+            if (Flags.decoupleFrequencyProfileFromResonance()) {
+                isValid = isValid
+                        && (Float.isNaN(resonantFrequencyHz) || (resonantFrequencyHz > 0));
+            } else {
+                isValid = isValid && !Float.isNaN(resonantFrequencyHz) && (resonantFrequencyHz > 0);
+            }
+
             if (!isValid) {
+                Slog.e(TAG, "Invalid frequency profile received from HAL."
+                        + " resonantFrequencyHz=" + resonantFrequencyHz
+                        + ", frequenciesHz=" + Arrays.toString(frequenciesHz)
+                        + ", outputAccelerationsGs=" + Arrays.toString(outputAccelerationsGs));
+
                 mFrequenciesHz = null;
                 mOutputAccelerationsGs = null;
                 mMinFrequencyHz = Float.NaN;
@@ -917,45 +925,6 @@ public class VibratorInfo implements Parcelable {
                         return new FrequencyProfile[size];
                     }
                 };
-
-        private static void deduplicateAndSortList(List<Pair<Float, Float>> list) {
-            if (list == null || list.size() < 2) {
-                return; // Nothing to dedupe
-            }
-
-            list.sort(Comparator.comparing(pair -> pair.first));
-
-            // Remove duplicates from the list
-            int writeIndex = 1;
-            for (int i = 1; i < list.size(); i++) {
-                Pair<Float, Float> currentPair = list.get(i);
-                Pair<Float, Float> previousPair = list.get(writeIndex - 1);
-
-                if (currentPair.first.compareTo(previousPair.first) != 0) {
-                    list.set(writeIndex++, currentPair);
-                }
-            }
-            list.subList(writeIndex, list.size()).clear();
-        }
-
-        private static ArrayList<Pair<Float, Float>> extractFrequencyToOutputAccelerationData(
-                float[] frequencies, float[] outputAccelerations) {
-
-            if (frequencies == null || outputAccelerations == null
-                    || frequencies.length == 0
-                    || frequencies.length != outputAccelerations.length) {
-                return new ArrayList<>(); // Return empty list for invalid or mismatched data
-            }
-
-            ArrayList<Pair<Float, Float>> frequencyToOutputAccelerationList = new ArrayList<>(
-                    frequencies.length);
-            for (int i = 0; i < frequencies.length; i++) {
-                frequencyToOutputAccelerationList.add(
-                        new Pair<>(frequencies[i], outputAccelerations[i]));
-            }
-
-            return frequencyToOutputAccelerationList;
-        }
     }
 
     /**

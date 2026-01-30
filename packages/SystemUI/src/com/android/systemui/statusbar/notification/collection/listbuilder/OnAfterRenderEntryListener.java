@@ -28,7 +28,7 @@ public interface OnAfterRenderEntryListener {
      * Called at the end of the pipeline after an entry has been handed off to the view layer.
      * This will be called for every top level entry, every group summary, and every group child.
      *
-     * @param entry the entry to read from.
+     * @param entry      the entry to read from.
      * @param controller the object to which data can be pushed.
      */
     void onAfterRenderEntry(

@@ -16,7 +16,6 @@
 
 package android.input
 
-import android.cts.input.EventVerifier
 import android.perftests.utils.PerfStatusReporter
 import android.view.MotionEvent.ACTION_DOWN
 import android.view.MotionEvent.ACTION_MOVE
@@ -45,7 +44,7 @@ class TouchPerfTest {
     fun testDownMoveUp() {
         UinputTouchScreen(instrumentation, virtualDisplayRule.virtualDisplay.display).use {
             touchScreen ->
-            val verifier = EventVerifier(virtualDisplayRule.activity::getInputEvent)
+            val verifier = virtualDisplayRule.activity.verifier
             val state = perfStatusReporter.benchmarkState
 
             while (state.keepRunning()) {

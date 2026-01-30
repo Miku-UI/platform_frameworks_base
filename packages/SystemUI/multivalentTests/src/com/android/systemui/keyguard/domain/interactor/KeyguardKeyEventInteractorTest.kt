@@ -23,12 +23,15 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.back.domain.interactor.BackActionInteractor
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.media.controls.util.MediaSessionLegacyHelperWrapper
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
 import com.android.systemui.power.domain.interactor.PowerInteractorFactory
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.shade.ShadeController
 import com.android.systemui.statusbar.StatusBarState
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
@@ -40,6 +43,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.anyString
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Mock
 import org.mockito.Mockito.clearInvocations
@@ -67,6 +71,7 @@ class KeyguardKeyEventInteractorTest : SysuiTestCase() {
     @Mock private lateinit var mediaSessionLegacyHelperWrapper: MediaSessionLegacyHelperWrapper
     @Mock private lateinit var mediaSessionLegacyHelper: MediaSessionLegacyHelper
     @Mock private lateinit var backActionInteractor: BackActionInteractor
+    @Mock private lateinit var deviceEntryInteractor: DeviceEntryInteractor
 
     private lateinit var underTest: KeyguardKeyEventInteractor
 
@@ -84,6 +89,7 @@ class KeyguardKeyEventInteractorTest : SysuiTestCase() {
                 shadeController,
                 mediaSessionLegacyHelperWrapper,
                 backActionInteractor,
+                deviceEntryInteractor,
                 powerInteractor,
                 kosmos.keyguardMediaKeyInteractor,
             )
@@ -219,6 +225,7 @@ class KeyguardKeyEventInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableSceneContainer
     fun interceptMediaKey_keyguard_SBKVMdoesNotHandle_doesNotHandleMediaKey() {
         val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_VOLUME_UP)
         whenever(statusBarStateController.state).thenReturn(StatusBarState.KEYGUARD)
@@ -229,6 +236,7 @@ class KeyguardKeyEventInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableSceneContainer
     fun interceptMediaKey_keyguard_handleMediaKey() {
         val keyEvent = KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_VOLUME_UP)
         whenever(statusBarStateController.state).thenReturn(StatusBarState.KEYGUARD)
@@ -267,20 +275,28 @@ class KeyguardKeyEventInteractorTest : SysuiTestCase() {
         // action down: does NOT collapse the shade
         val actionDownMenuKeyEvent = KeyEvent(KeyEvent.ACTION_DOWN, keycode)
         assertThat(underTest.dispatchKeyEvent(actionDownMenuKeyEvent)).isFalse()
-        verify(statusBarKeyguardViewManager, never())
-            .showPrimaryBouncer(
-                any(),
-                eq("KeyguardKeyEventInteractor#collapseShadeLockedOrShowPrimaryBouncer"),
-            )
+        if (SceneContainerFlag.isEnabled) {
+            verify(deviceEntryInteractor, never()).attemptDeviceEntry(anyString(), isNull())
+        } else {
+            verify(statusBarKeyguardViewManager, never())
+                .showPrimaryBouncer(
+                    any(),
+                    eq("KeyguardKeyEventInteractor#collapseShadeLockedOrShowPrimaryBouncer"),
+                )
+        }
 
         // action up: collapses the shade
         val actionUpMenuKeyEvent = KeyEvent(KeyEvent.ACTION_UP, keycode)
         assertThat(underTest.dispatchKeyEvent(actionUpMenuKeyEvent)).isTrue()
-        verify(statusBarKeyguardViewManager)
-            .showPrimaryBouncer(
-                eq(true),
-                eq("KeyguardKeyEventInteractor#collapseShadeLockedOrShowPrimaryBouncer"),
-            )
+        if (SceneContainerFlag.isEnabled) {
+            verify(deviceEntryInteractor).attemptDeviceEntry(anyString(), isNull())
+        } else {
+            verify(statusBarKeyguardViewManager)
+                .showPrimaryBouncer(
+                    eq(true),
+                    eq("KeyguardKeyEventInteractor#collapseShadeLockedOrShowPrimaryBouncer"),
+                )
+        }
     }
 
     private fun verifyActionsDoNothing(keycode: Int) {
@@ -288,6 +304,7 @@ class KeyguardKeyEventInteractorTest : SysuiTestCase() {
         val actionDownMenuKeyEvent = KeyEvent(KeyEvent.ACTION_DOWN, keycode)
         assertThat(underTest.dispatchKeyEvent(actionDownMenuKeyEvent)).isFalse()
         verify(shadeController, never()).animateCollapseShadeForced()
+        verify(deviceEntryInteractor, never()).attemptDeviceEntry(anyString(), isNull())
         verify(statusBarKeyguardViewManager, never())
             .showPrimaryBouncer(
                 any(),
@@ -298,6 +315,7 @@ class KeyguardKeyEventInteractorTest : SysuiTestCase() {
         val actionUpMenuKeyEvent = KeyEvent(KeyEvent.ACTION_UP, keycode)
         assertThat(underTest.dispatchKeyEvent(actionUpMenuKeyEvent)).isFalse()
         verify(shadeController, never()).animateCollapseShadeForced()
+        verify(deviceEntryInteractor, never()).attemptDeviceEntry(anyString(), isNull())
         verify(statusBarKeyguardViewManager, never())
             .showPrimaryBouncer(
                 any(),

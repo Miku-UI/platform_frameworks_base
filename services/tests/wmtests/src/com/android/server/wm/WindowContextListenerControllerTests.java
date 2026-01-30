@@ -134,20 +134,20 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     @Test
     public void testRegisterWindowContextListener() {
         mController.registerWindowContainerListener(mWpc, mClientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         assertEquals(1, mController.mListeners.size());
 
         final WindowTokenClient clientToken = mock(WindowTokenClient.class);
         mController.registerWindowContainerListener(mWpc, clientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         assertEquals(2, mController.mListeners.size());
 
         final WindowContainer<?> container = createTestWindowToken(TYPE_APPLICATION_OVERLAY,
                 mDefaultDisplay);
         mController.registerWindowContainerListener(mWpc, mClientToken, container,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         // The number of listeners doesn't increase since the listener just gets updated.
         assertEquals(2, mController.mListeners.size());
@@ -173,7 +173,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
         mContainer.onRequestedOverrideConfigurationChanged(config1);
 
         mController.registerWindowContainerListener(mWpc, clientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         assertEquals(bounds1, clientToken.mConfiguration.windowConfiguration.getBounds());
         assertEquals(config1.densityDpi, clientToken.mConfiguration.densityDpi);
@@ -189,7 +189,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
         container.onRequestedOverrideConfigurationChanged(config2);
 
         mController.registerWindowContainerListener(mWpc, clientToken, container,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         assertEquals(bounds2, clientToken.mConfiguration.windowConfiguration.getBounds());
         assertEquals(config2.densityDpi, clientToken.mConfiguration.densityDpi);
@@ -216,7 +216,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     @Test
     public void testAssertCallerCanModifyListener_CanManageAppTokens_ReturnTrue() {
         mController.registerWindowContainerListener(mWpc, mClientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         assertTrue(mController.assertCallerCanModifyListener(mClientToken,
                 true /* callerCanManagerAppTokens */, ANOTHER_UID));
@@ -225,7 +225,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     @Test
     public void testAssertCallerCanModifyListener_SameUid_ReturnTrue() {
         mController.registerWindowContainerListener(mWpc, mClientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         assertTrue(mController.assertCallerCanModifyListener(mClientToken,
                 false /* callerCanManagerAppTokens */, TEST_UID));
@@ -234,7 +234,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     @Test(expected = UnsupportedOperationException.class)
     public void testAssertCallerCanModifyListener_DifferentUid_ThrowException() {
         mController.registerWindowContainerListener(mWpc, mClientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         mController.assertCallerCanModifyListener(mClientToken,
                 false /* callerCanManagerAppTokens */, ANOTHER_UID);
@@ -250,7 +250,8 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
         final DisplayArea<?> da = windowContextCreatedToken.getDisplayArea();
 
         mController.registerWindowContainerListener(mWpc, mClientToken, windowContextCreatedToken,
-                TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY, null /* options */);
+                TYPE_ACCESSIBILITY_MAGNIFICATION_OVERLAY, false /* callerCanManageAppTokens */,
+                null /* options */);
 
         assertThat(mController.getContainer(mClientToken)).isEqualTo(windowContextCreatedToken);
 
@@ -285,7 +286,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
                 .setFromClientToken(true)
                 .build();
         mController.registerWindowContainerListener(mWpc, mClientToken, windowContextCreatedToken,
-                TYPE_INPUT_METHOD_DIALOG, null /* options */);
+                TYPE_INPUT_METHOD_DIALOG, false /* callerCanManageAppTokens */, null /* options */);
 
         assertThat(mController.getContainer(mClientToken)).isEqualTo(windowContextCreatedToken);
 
@@ -310,7 +311,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
         mContainer.onRequestedOverrideConfigurationChanged(config1);
 
         mController.registerWindowContainerListener(mWpc, mockToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /* options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, null /* options */);
 
         verify(mockToken, never()).onConfigurationChanged(any(), anyInt());
 
@@ -345,7 +346,7 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
         mContainer.onRequestedOverrideConfigurationChanged(config1);
 
         mController.registerWindowContainerListener(mWpc, clientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, options);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */, options);
 
         assertThat(clientToken.mConfiguration).isEqualTo(config1);
         assertThat(clientToken.mDisplayId).isEqualTo(mDisplayContent.mDisplayId);
@@ -355,7 +356,8 @@ public class WindowContextListenerControllerTests extends WindowTestsBase {
     @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
     public void assertCallerCanReparentListener_returnsTrueWhenExpected() {
         mController.registerWindowContainerListener(mWpc, mClientToken, mContainer,
-                TYPE_APPLICATION_OVERLAY, null /*  options */);
+                TYPE_APPLICATION_OVERLAY, false /* callerCanManageAppTokens */,
+                null /*  options */);
 
         // Here there are several checks in one test as wm tests are expensive.
 

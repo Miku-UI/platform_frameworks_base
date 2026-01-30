@@ -42,7 +42,7 @@ import java.io.OutputStreamWriter;
  * views of the opened windows. Communication with the views is ensured by the
  * {@link com.android.server.wm.WindowManagerService} and is a cross-process operation.
  *
- * {@hide}
+ * @hide
  */
 class ViewServer implements Runnable {
     /**

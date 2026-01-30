@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Iyaxhuma..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Ixhunyiwe<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Iyabhangqa..."</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Ayikwazi ukubhanqa"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Ayikwazi ukuxhuma"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Ixhunyiwe (ayikho ifoni)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Ixhunyiwe (ayikho imidiya)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Ixhunyiwe (ayikho ifoni noma imidiya)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ibhethri."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Kwesobunxele: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ibhethri"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Kwesokudla: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ibhethri"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Isikhwama: ibhethri lingu-<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Ngakwesokunxele: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Isikhwama: ibhethri lingu-<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Kwesokudla: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Isikhwama: ibhethri lingu-<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Kwesokunxele: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Kwesokudla: ibhethri lingu-<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, C: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, R: ibhethri lingu-<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Kwesokunxele <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Kwesokudla <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Iyasebenza"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Iyasebenza (ngakwesokudla kuphela)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Iyasebenza (ngakwesokunxele nakwesokudla)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Ayikwazanga ukubuyekeza izindawo ezizungezile"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Ayikwazanga ukubuyekeza ukusetha ngaphambilini"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Okukhethiwe"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Iyasebenza (imidiya kuphela). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> ibhethri."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Iyasebenza (imidiya kuphela). L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> ibhethri."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Idivayisi yesivakashi. Ibhethri engu-<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>."</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Uma le modi inikwe amandla, ikheli le-MAC lale divayisi lingashintsha njalo uma ixhuma kunethiwekhi ene-MAC engahleliwe enikwe amandla."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Kulinganisiwe"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Akulinganiselwa"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Amasayizi weloga ngebhafa"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Usayizi webhafa yokungena"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Khetha amasayizi weloga ngebhafa ngayinye yelogu"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Sula isitoreji seloga eqhubekayo?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Uma singasaqaphi  ngeloga eqhubekayo, kuzomele sisule idatha yeloga ehleli kudivayisi yakho."</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> edlule"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> osele"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Okuncane kakhulu"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Omncanyana"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Okuncane"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Okuzenzakalelayo"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Okukhulu"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Okukhulu kakhulu"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Okukhulu kakhulu"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Obukhudlwana"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Okukhulu Kakhulu"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Kukhulu Kakhulu"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Obukhulukazi"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Ngokwezifiso (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Imenyu"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Faka iphasiwedi ukuze wenze ukusetha kwefekthri kumodi yedemo"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{Idivayisi e-1 exhunyiwe}one{Amadivayisi angu-# axhunyiwe}other{Amadivayisi angu-# axhunyiwe}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Isikhathi esiningi."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Isikhathi esincane."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Ukukhuliswa"</string>
     <string name="cancel" msgid="5665114069455378395">"Khansela"</string>
     <string name="next" msgid="2699398661093607009">"Okulandelayo"</string>
     <string name="back" msgid="5554327870352703710">"Emuva"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Uma usakaza i-<xliff:g id="SWITCHAPP">%1$s</xliff:g> noma ushintsha okuphumayo, ukusakaza kwakho kwamanje kuzoma"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Sakaza i-<xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Shintsha okuphumayo"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Ukubikezelwa kwasemuva kopopayi"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Nika amandla ukubikezela emuva kopopayi besistimu."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Leli sethingi livumela opopayi besistimu mayelana nokuthinta okubikezelwayo kopopayi. Idinga ukusetha i-app ngayinye ku-enableOnBackInvokedCallback ukuze iqinisekise ifayela le-manifest."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Akucacisiwe"</string>
     <string name="neuter" msgid="2075249330106127310">"Okungenabulili"</string>

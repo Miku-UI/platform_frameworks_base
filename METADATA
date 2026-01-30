@@ -1,3 +1,33 @@
 third_party {
   license_type: RECIPROCAL
+  identifier {
+    type: "PrebuiltByAlphabet"
+    value: "packages/CtsShim/apk/x86/CtsShim.apk"
+    version: "16"
+  }
+  identifier {
+    type: "PrebuiltByAlphabet"
+    value: "packages/CtsShim/apk/x86/CtsShimPriv.apk"
+    version: "16"
+  }
+  identifier {
+    type: "PrebuiltByAlphabet"
+    value: "packages/CtsShim/apk/riscv64/CtsShim.apk"
+    version: "16"
+  }
+  identifier {
+    type: "PrebuiltByAlphabet"
+    value: "packages/CtsShim/apk/riscv64/CtsShimPriv.apk"
+    version: "16"
+  }
+  identifier {
+    type: "PrebuiltByAlphabet"
+    value: "packages/CtsShim/apk/arm/CtsShim.apk"
+    version: "16"
+  }
+  identifier {
+    type: "PrebuiltByAlphabet"
+    value: "packages/CtsShim/apk/arm/CtsShimPriv.apk"
+    version: "16"
+  }
 }

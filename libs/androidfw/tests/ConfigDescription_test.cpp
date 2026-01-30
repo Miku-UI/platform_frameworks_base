@@ -18,10 +18,13 @@
 #include "androidfw/StringPiece.h"
 
 #include "android-base/logging.h"
+#include "android-base/stringprintf.h"
 
 #include "gtest/gtest.h"
 
 #include <string>
+
+using ::android::base::StringPrintf;
 
 namespace android {
 
@@ -170,6 +173,71 @@ TEST(ConfigDescriptionTest, TestGrammaticalGenderQualifier) {
   EXPECT_EQ(android::ResTable_config::GRAMMATICAL_GENDER_NEUTER, config.grammaticalInflection);
   EXPECT_EQ(SDK_U, config.sdkVersion);
   EXPECT_EQ(std::string("neuter-v34"), config.toString().c_str());
+}
+
+TEST(ConfigDescriptionTest, ParseInvalidVersionQualifier) {
+  ConfigDescription config;
+  EXPECT_FALSE(TestParse("-v34"));
+  EXPECT_FALSE(TestParse("v0.3"));
+  EXPECT_FALSE(TestParse("v3x"));
+  EXPECT_FALSE(TestParse("v34."));
+  EXPECT_FALSE(TestParse("v34.x"));
+  EXPECT_FALSE(TestParse("v34.1x"));
+  EXPECT_FALSE(TestParse("v3x.1"));
+  EXPECT_FALSE(TestParse("v34.1.1"));
+  EXPECT_FALSE(TestParse("v.37"));
+  EXPECT_FALSE(TestParse("300x200-v"));
+  EXPECT_FALSE(TestParse("300x200-v0.3"));
+  EXPECT_FALSE(TestParse("300x200-v3x"));
+  EXPECT_FALSE(TestParse("300x200-v34."));
+  EXPECT_FALSE(TestParse("300x200-v34.x"));
+  EXPECT_FALSE(TestParse("300x200-v34.1x"));
+  EXPECT_FALSE(TestParse("300x200-v3x.1"));
+  EXPECT_FALSE(TestParse("300x200-v34.1.1"));
+  EXPECT_FALSE(TestParse("300x200-v.37"));
+}
+
+TEST(ConfigDescriptionTest, ParseValidVersionQualifier) {
+  ConfigDescription config;
+  EXPECT_TRUE(TestParse("v34", &config));
+  EXPECT_EQ(34, config.sdkVersion);
+  EXPECT_EQ(0, config.minorVersion);
+  EXPECT_STREQ("v34", config.toString());
+
+  EXPECT_TRUE(TestParse("v0", &config));
+  EXPECT_EQ(0, config.sdkVersion);
+  EXPECT_EQ(0, config.minorVersion);
+  EXPECT_STREQ("", config.toString());
+
+  EXPECT_TRUE(TestParse("v34.0", &config));
+  EXPECT_EQ(34, config.sdkVersion);
+  EXPECT_EQ(0, config.minorVersion);
+  EXPECT_STREQ("v34", config.toString());
+
+  EXPECT_TRUE(TestParse("v19876", &config));
+  EXPECT_EQ(19876, config.sdkVersion);
+  EXPECT_EQ(0, config.minorVersion);
+  EXPECT_STREQ("v19876", config.toString());
+
+  EXPECT_TRUE(TestParse("v19876.000", &config));
+  EXPECT_EQ(19876, config.sdkVersion);
+  EXPECT_EQ(0, config.minorVersion);
+  EXPECT_STREQ("v19876", config.toString());
+
+  EXPECT_TRUE(TestParse("v19876.23450", &config));
+  EXPECT_EQ(19876, config.sdkVersion);
+  EXPECT_EQ(23450, config.minorVersion);
+  EXPECT_STREQ("v19876.23450", config.toString());
+
+  EXPECT_TRUE(TestParse("v019876.023450", &config));
+  EXPECT_EQ(19876, config.sdkVersion);
+  EXPECT_EQ(23450, config.minorVersion);
+  EXPECT_STREQ("v19876.23450", config.toString());
+
+  EXPECT_TRUE(TestParse("v34.1", &config));
+  EXPECT_EQ(34, config.sdkVersion);
+  EXPECT_EQ(1, config.minorVersion);
+  EXPECT_STREQ("v34.1", config.toString());
 }
 
 }  // namespace android

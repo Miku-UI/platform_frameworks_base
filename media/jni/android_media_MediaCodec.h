@@ -23,6 +23,7 @@
 
 #include <C2Buffer.h>
 #include <binder/MemoryHeapBase.h>
+#include <gui/Flags.h> // Remove with MediaSurfaceType
 #include <media/MediaCodecBuffer.h>
 #include <media/MediaMetricsItem.h>
 #include <media/hardware/CryptoAPI.h>
@@ -40,7 +41,6 @@ struct ALooper;
 struct AMessage;
 struct AString;
 struct ICrypto;
-class IGraphicBufferProducer;
 struct MediaCodec;
 struct PersistentSurface;
 class Surface;
@@ -72,17 +72,16 @@ struct JMediaCodec : public AHandler {
 
     status_t configure(
             const sp<AMessage> &format,
-            const sp<IGraphicBufferProducer> &bufferProducer,
+            const sp<MediaSurfaceType> &surface,
             const sp<ICrypto> &crypto,
             const sp<IDescrambler> &descrambler,
             int flags);
 
-    status_t setSurface(
-            const sp<IGraphicBufferProducer> &surface);
+    status_t setSurface(const sp<MediaSurfaceType> &surface);
 
     status_t detachOutputSurface();
 
-    status_t createInputSurface(sp<IGraphicBufferProducer>* bufferProducer);
+    status_t createInputSurface(sp<MediaSurfaceType>* surface);
     status_t setInputSurface(const sp<PersistentSurface> &surface);
 
     status_t start();

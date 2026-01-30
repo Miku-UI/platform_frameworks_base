@@ -22,6 +22,7 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -39,6 +40,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class OccludedToLockscreenTransitionViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
     val testScope = kosmos.testScope
@@ -76,11 +78,54 @@ class OccludedToLockscreenTransitionViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    fun statusBarAlphaEmitsZero() =
+        testScope.runTest {
+            val values by collectValues(underTest.statusBarAlpha)
+            runCurrent()
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                listOf(
+                    step(0f, TransitionState.STARTED),
+                    step(0.1f),
+                    step(0.5f),
+                    step(1f, TransitionState.FINISHED),
+                ),
+                testScope,
+            )
+
+            assertThat(values.size).isEqualTo(3)
+            assertThat(values[0]).isEqualTo(0f)
+            assertThat(values[1]).isEqualTo(0f)
+            assertThat(values[2]).isEqualTo(-1f)
+        }
+
+    @Test
+    fun statusBarAlphaOnCancel() =
+        testScope.runTest {
+            val values by collectValues(underTest.statusBarAlpha)
+            runCurrent()
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                listOf(
+                    step(0f, TransitionState.STARTED),
+                    step(0.1f),
+                    step(0.5f, TransitionState.CANCELED),
+                ),
+                testScope,
+            )
+
+            assertThat(values.size).isEqualTo(3)
+            assertThat(values[0]).isEqualTo(0f)
+            assertThat(values[1]).isEqualTo(0f)
+            assertThat(values[2]).isEqualTo(-1f)
+        }
+
+    @Test
     fun lockscreenTranslationY() =
         testScope.runTest {
             configurationRepository.setDimensionPixelSize(
                 R.dimen.occluded_to_lockscreen_transition_lockscreen_translation_y,
-                100
+                100,
             )
             val values by collectValues(underTest.lockscreenTranslationY)
             runCurrent()
@@ -105,7 +150,7 @@ class OccludedToLockscreenTransitionViewModelTest : SysuiTestCase() {
         testScope.runTest {
             configurationRepository.setDimensionPixelSize(
                 R.dimen.occluded_to_lockscreen_transition_lockscreen_translation_y,
-                100
+                100,
             )
             val values by collectValues(underTest.lockscreenTranslationY)
             runCurrent()
@@ -162,14 +207,14 @@ class OccludedToLockscreenTransitionViewModelTest : SysuiTestCase() {
 
     private fun step(
         value: Float,
-        state: TransitionState = TransitionState.RUNNING
+        state: TransitionState = TransitionState.RUNNING,
     ): TransitionStep {
         return TransitionStep(
             from = KeyguardState.OCCLUDED,
             to = KeyguardState.LOCKSCREEN,
             value = value,
             transitionState = state,
-            ownerName = "OccludedToLockscreenTransitionViewModelTest"
+            ownerName = "OccludedToLockscreenTransitionViewModelTest",
         )
     }
 }

@@ -17,9 +17,8 @@
 package com.android.systemui.bouncer.ui.composable
 
 import androidx.annotation.VisibleForTesting
-import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
-import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
+import androidx.window.core.layout.WindowSizeClass
 import com.android.compose.windowsizeclass.LocalWindowSizeClass
 
 /**
@@ -29,31 +28,7 @@ import com.android.compose.windowsizeclass.LocalWindowSizeClass
  */
 @Composable
 fun calculateLayout(isOneHandedModeSupported: Boolean): BouncerOverlayLayout {
-    val windowSizeClass = LocalWindowSizeClass.current
-
-    return calculateLayoutInternal(
-        width = windowSizeClass.widthSizeClass.toEnum(),
-        height = windowSizeClass.heightSizeClass.toEnum(),
-        isOneHandedModeSupported = isOneHandedModeSupported,
-    )
-}
-
-private fun WindowWidthSizeClass.toEnum(): SizeClass {
-    return when (this) {
-        WindowWidthSizeClass.Compact -> SizeClass.COMPACT
-        WindowWidthSizeClass.Medium -> SizeClass.MEDIUM
-        WindowWidthSizeClass.Expanded -> SizeClass.EXPANDED
-        else -> error("Unsupported WindowWidthSizeClass \"$this\"")
-    }
-}
-
-private fun WindowHeightSizeClass.toEnum(): SizeClass {
-    return when (this) {
-        WindowHeightSizeClass.Compact -> SizeClass.COMPACT
-        WindowHeightSizeClass.Medium -> SizeClass.MEDIUM
-        WindowHeightSizeClass.Expanded -> SizeClass.EXPANDED
-        else -> error("Unsupported WindowHeightSizeClass \"$this\"")
-    }
+    return calculateLayoutInternal(LocalWindowSizeClass.current, isOneHandedModeSupported)
 }
 
 /** Enumerates all known adaptive layout configurations. */
@@ -68,37 +43,29 @@ enum class BouncerOverlayLayout {
     SPLIT_BOUNCER,
 }
 
-/** Enumerates the supported window size classes. */
-enum class SizeClass {
-    COMPACT,
-    MEDIUM,
-    EXPANDED,
-}
-
 /**
  * Internal version of `calculateLayout` in the System UI Compose library, extracted here to allow
  * for testing that's not dependent on Compose.
  */
 @VisibleForTesting
 fun calculateLayoutInternal(
-    width: SizeClass,
-    height: SizeClass,
+    windowSizeClass: WindowSizeClass,
     isOneHandedModeSupported: Boolean,
 ): BouncerOverlayLayout {
-    return when (height) {
-        SizeClass.COMPACT -> BouncerOverlayLayout.SPLIT_BOUNCER
-        SizeClass.MEDIUM ->
-            when (width) {
-                SizeClass.COMPACT -> BouncerOverlayLayout.STANDARD_BOUNCER
-                SizeClass.MEDIUM -> BouncerOverlayLayout.STANDARD_BOUNCER
-                SizeClass.EXPANDED -> BouncerOverlayLayout.BESIDE_USER_SWITCHER
-            }
-        SizeClass.EXPANDED ->
-            when (width) {
-                SizeClass.COMPACT -> BouncerOverlayLayout.STANDARD_BOUNCER
-                SizeClass.MEDIUM -> BouncerOverlayLayout.BELOW_USER_SWITCHER
-                SizeClass.EXPANDED -> BouncerOverlayLayout.BESIDE_USER_SWITCHER
-            }
-    }.takeIf { it != BouncerOverlayLayout.BESIDE_USER_SWITCHER || isOneHandedModeSupported }
-        ?: BouncerOverlayLayout.STANDARD_BOUNCER
+    with(windowSizeClass) {
+        return when {
+            isAtLeastBreakpoint(
+                WindowSizeClass.WIDTH_DP_EXPANDED_LOWER_BOUND,
+                WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND,
+            ) -> BouncerOverlayLayout.BESIDE_USER_SWITCHER
+            isAtLeastBreakpoint(
+                WindowSizeClass.WIDTH_DP_MEDIUM_LOWER_BOUND,
+                WindowSizeClass.HEIGHT_DP_EXPANDED_LOWER_BOUND,
+            ) -> BouncerOverlayLayout.BELOW_USER_SWITCHER
+            isHeightAtLeastBreakpoint(WindowSizeClass.HEIGHT_DP_MEDIUM_LOWER_BOUND) ->
+                BouncerOverlayLayout.STANDARD_BOUNCER
+            else -> BouncerOverlayLayout.SPLIT_BOUNCER
+        }.takeIf { it != BouncerOverlayLayout.BESIDE_USER_SWITCHER || isOneHandedModeSupported }
+            ?: BouncerOverlayLayout.STANDARD_BOUNCER
+    }
 }

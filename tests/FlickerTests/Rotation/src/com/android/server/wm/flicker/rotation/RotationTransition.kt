@@ -18,8 +18,8 @@ package com.android.server.wm.flicker.rotation
 
 import android.platform.test.annotations.Presubmit
 import android.tools.device.apphelpers.StandardAppHelper
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
 import android.tools.flicker.subject.layers.LayerTraceEntrySubject
 import android.tools.flicker.subject.layers.LayersTraceSubject
 import android.tools.traces.component.ComponentNameMatcher
@@ -30,7 +30,7 @@ import com.android.server.wm.flicker.helpers.setRotation
 import org.junit.Test
 
 /** Base class for app rotation tests */
-abstract class RotationTransition(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+abstract class RotationTransition(flicker: FlickerTest) : BaseTest(flicker) {
     protected abstract val testApp: StandardAppHelper
 
     /** {@inheritDoc} */

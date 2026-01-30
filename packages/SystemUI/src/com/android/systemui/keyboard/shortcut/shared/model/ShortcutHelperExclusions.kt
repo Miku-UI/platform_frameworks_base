@@ -26,6 +26,7 @@ class ShortcutHelperExclusions @Inject constructor(private val context: Context)
             listOf(
                 context.getString(R.string.group_system_cycle_forward),
                 context.getString(R.string.group_system_cycle_back),
+                context.getString(R.string.system_multiple_desktop_mode_switch_between_desks),
             )
 
     fun isShortcutCustomizable(label: String) = !nonCustomizableShortcutsLabels.contains(label)

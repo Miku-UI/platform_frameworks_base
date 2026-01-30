@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="dummy_string">رشتهٔ الکی</string>
+
+    <!-- Used in ResourcesLocaleTest. -->
+    <string name="multilocale_test_res_2">FA2</string>
 </resources>

@@ -71,6 +71,8 @@ class InWindowLauncherUnlockAnimationRepository @Inject constructor() {
      */
     val launcherSmartspaceState: MutableStateFlow<SmartspaceState?> = MutableStateFlow(null)
 
+    val isLauncherUnderneath: MutableStateFlow<Boolean> = MutableStateFlow(false)
+
     fun setStartedUnlockAnimation(started: Boolean) {
         startedUnlockAnimation.value = started
     }
@@ -85,5 +87,9 @@ class InWindowLauncherUnlockAnimationRepository @Inject constructor() {
 
     fun setLauncherSmartspaceState(state: SmartspaceState?) {
         launcherSmartspaceState.value = state
+    }
+
+    fun setIsLauncherUnderneath(isUnderneath: Boolean) {
+        isLauncherUnderneath.value = isUnderneath
     }
 }

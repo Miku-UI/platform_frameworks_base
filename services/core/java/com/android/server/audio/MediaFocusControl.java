@@ -17,6 +17,7 @@
 package com.android.server.audio;
 
 import static android.media.audiopolicy.Flags.enableFadeManagerConfiguration;
+import static android.media.audio.Flags.audioFocusDesktop;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -110,8 +111,16 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
         mAppOps = (AppOpsManager)mContext.getSystemService(Context.APP_OPS_SERVICE);
         mFocusEnforcer = pfe;
         final ContentResolver cr = mContext.getContentResolver();
+
+        boolean multiAudioFocusEnabledDefault =
+                audioFocusDesktop()
+                        && mContext.getResources()
+                                .getBoolean(
+                                        com.android.internal.R.bool
+                                                .config_multi_audio_focus_enabled_default);
         mMultiAudioFocusEnabled = Settings.System.getIntForUser(cr,
-                Settings.System.MULTI_AUDIO_FOCUS_ENABLED, 0, cr.getUserId()) != 0;
+                Settings.System.MULTI_AUDIO_FOCUS_ENABLED,
+                multiAudioFocusEnabledDefault ? 1 : 0, cr.getUserId()) != 0;
         initFocusThreading();
     }
 
@@ -242,9 +251,31 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
         }
     }
 
+    /*package*/ boolean hasAudioFocus(String packageName) {
+        synchronized (mAudioFocusLock) {
+            Iterator<FocusRequester> stackIterator = mFocusStack.iterator();
+            while (stackIterator.hasNext()) {
+                if (stackIterator.next().hasSamePackage(packageName)) {
+                    return true;
+                }
+            }
+
+            if (mMultiAudioFocusEnabled) {
+                Iterator<FocusRequester> listIterator = mMultiAudioFocusList.iterator();
+                while (listIterator.hasNext()) {
+                    if (listIterator.next().hasSamePackage(packageName)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     /*package*/ boolean hasAudioFocusUsers() {
         synchronized (mAudioFocusLock) {
-            return !mFocusStack.empty();
+            return !mFocusStack.empty() || (mMultiAudioFocusEnabled
+                    && !mMultiAudioFocusList.isEmpty());
         }
     }
 
@@ -376,10 +407,25 @@ public class MediaFocusControl implements PlayerFocusEnforcer {
             }
         }
 
+        // Also handle focus restoration for apps in the multi-focus list.
         if (mMultiAudioFocusEnabled && !mMultiAudioFocusList.isEmpty()) {
-            for (FocusRequester multifr : mMultiAudioFocusList) {
-                if (isLockedFocusOwner(multifr)) {
-                    multifr.handleFocusGain(AudioManager.AUDIOFOCUS_GAIN);
+            if (audioFocusDesktop()) {
+                final boolean canReassignAudioFocus = canReassignAudioFocus();
+                for (FocusRequester multifr : mMultiAudioFocusList) {
+                    // Check if the requester needs its focus restored. This is true if:
+                    //  - focus can be reassigned (e.g. no call) AND it had a transient loss,
+                    //  - OR it's a locked focus owner.
+                    if ((canReassignAudioFocus
+                            && multifr.toAudioFocusInfo().isLossReceivedTransient())
+                            || isLockedFocusOwner(multifr)) {
+                        multifr.handleFocusGain(AudioManager.AUDIOFOCUS_GAIN);
+                    }
+                }
+            } else {
+                for (FocusRequester multifr : mMultiAudioFocusList) {
+                    if (isLockedFocusOwner(multifr)) {
+                        multifr.handleFocusGain(AudioManager.AUDIOFOCUS_GAIN);
+                    }
                 }
             }
         }

@@ -539,6 +539,9 @@ public class LocationManager {
      *
      * @hide
      */
+    @FlaggedApi(Flags.FLAG_CHANGE_GET_ADAS_ALLOWLIST_FROM_HIDDEN_TO_SYSTEM)
+    @SystemApi
+    @RequiresPermission(Manifest.permission.READ_LOCATION_BYPASS_ALLOWLIST)
     public @NonNull PackageTagsList getAdasAllowlist() {
         try {
             return mService.getAdasAllowlist();

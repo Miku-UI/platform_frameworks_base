@@ -24,14 +24,12 @@
     <style name="Theme.SelectPrinterActivity"
            parent="android:style/Theme.DeviceDefault">
         <item name="android:textAppearanceListItemSecondary">@style/ListItemSecondary</item>
-        <item name="android:windowOptOutEdgeToEdgeEnforcement" android:featureFlag="!com.android.printspooler.flags.print_edge2edge">true</item>
     </style>
 
     <style name="Theme.PrintActivity" parent="@android:style/Theme.DeviceDefault">
         <item name="android:windowIsTranslucent">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowOptOutEdgeToEdgeEnforcement" android:featureFlag="!com.android.printspooler.flags.print_edge2edge">true</item>
     </style>
 
 </resources>

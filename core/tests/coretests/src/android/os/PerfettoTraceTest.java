@@ -33,7 +33,6 @@ import androidx.test.InstrumentationRegistry;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -55,13 +54,10 @@ import perfetto.protos.TracePacketOuterClass.TracePacket;
 import perfetto.protos.TrackDescriptorOuterClass.TrackDescriptor;
 import perfetto.protos.TrackEventConfigOuterClass.TrackEventConfig;
 import perfetto.protos.TrackEventOuterClass.EventCategory;
-import perfetto.protos.TrackEventOuterClass.EventName;
 import perfetto.protos.TrackEventOuterClass.TrackEvent;
 
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * This class is used to test the native tracing support. Run this test
@@ -75,18 +71,13 @@ public class PerfettoTraceTest {
             DeviceFlagsValueProvider.createCheckFlagsRule(
                     InstrumentationRegistry.getInstrumentation().getUiAutomation());
 
-    private static final String TAG = "PerfettoTraceTest";
     private static final String FOO = "foo";
     private static final String BAR = "bar";
     private static final String TEXT_ABOVE_4K_SIZE =
             new String(new char[8192]).replace('\0', 'a');
-
     private static final Category FOO_CATEGORY = new Category(FOO);
-    private static final int MESSAGE = 1234567;
-    private static final int MESSAGE_COUNT = 3;
 
     private final Set<String> mCategoryNames = new ArraySet<>();
-    private final Set<String> mEventNames = new ArraySet<>();
     private final Set<String> mDebugAnnotationNames = new ArraySet<>();
     private final Set<String> mTrackNames = new ArraySet<>();
 
@@ -96,7 +87,6 @@ public class PerfettoTraceTest {
         FOO_CATEGORY.register();
 
         mCategoryNames.clear();
-        mEventNames.clear();
         mDebugAnnotationNames.clear();
         mTrackNames.clear();
     }
@@ -268,7 +258,7 @@ public class PerfettoTraceTest {
         boolean hasTrackEvent = false;
         boolean hasCounterValue = false;
         boolean hasDoubleCounterValue = false;
-        for (TracePacket packet: trace.getPacketList()) {
+        for (TracePacket packet : trace.getPacketList()) {
             TrackEvent event;
             if (packet.hasTrackEvent()) {
                 hasTrackEvent = true;
@@ -610,103 +600,6 @@ public class PerfettoTraceTest {
         assertThat(mDebugAnnotationNames).doesNotContain("before");
     }
 
-    @Test
-    @RequiresFlagsEnabled(android.os.Flags.FLAG_PERFETTO_SDK_TRACING_V2)
-    @Ignore("b/303199244")
-    public void testMessageQueue() throws Exception {
-        TraceConfig traceConfig = getTraceConfig("mq");
-
-        PerfettoTrace.MQ_CATEGORY.register();
-        final HandlerThread thread = new HandlerThread("test");
-        thread.start();
-        final Handler handler = thread.getThreadHandler();
-        final CountDownLatch latch = new CountDownLatch(1);
-
-        PerfettoTrace.Session session = new PerfettoTrace.Session(true,
-                getTraceConfig("mq").toByteArray());
-
-        handler.sendEmptyMessage(MESSAGE);
-        handler.sendEmptyMessageDelayed(MESSAGE, 10);
-        handler.sendEmptyMessage(MESSAGE);
-        handler.postDelayed(() -> {
-            latch.countDown();
-        }, 10);
-        assertThat(latch.await(100, TimeUnit.MILLISECONDS)).isTrue();
-
-        byte[] traceBytes = session.close();
-
-        Trace trace = Trace.parseFrom(traceBytes);
-
-        boolean hasTrackEvent = false;
-        int instantCount = 0;
-        int counterCount = 0;
-        int beginCount = 0;
-        int endCount = 0;
-
-        Set<Long> flowIds = new ArraySet<>();
-        for (TracePacket packet: trace.getPacketList()) {
-            TrackEvent event;
-            if (packet.hasTrackEvent()) {
-                hasTrackEvent = true;
-                event = packet.getTrackEvent();
-            } else {
-                continue;
-            }
-
-            List<DebugAnnotation> annotations = event.getDebugAnnotationsList();
-            switch (event.getType()) {
-                case TrackEvent.Type.TYPE_INSTANT:
-                    if (annotations.get(2).getIntValue() == MESSAGE) {
-                        instantCount++;
-                        assertThat(annotations.get(0).getStringValue()).isEqualTo("test");
-                        assertThat(event.getFlowIdsCount()).isEqualTo(1);
-                        flowIds.addAll(event.getFlowIdsList());
-                    }
-                    break;
-                case TrackEvent.Type.TYPE_COUNTER:
-                    counterCount++;
-                    break;
-                case TrackEvent.Type.TYPE_SLICE_BEGIN:
-                    annotations = event.getDebugAnnotationsList();
-                    if (flowIds.containsAll(event.getTerminatingFlowIdsList())) {
-                        beginCount++;
-                        assertThat(event.getTerminatingFlowIdsCount()).isEqualTo(1);
-                    }
-                    break;
-                case TrackEvent.Type.TYPE_SLICE_END:
-                    endCount++;
-                    break;
-                default:
-                    break;
-            }
-            collectInternedData(packet);
-        }
-
-        assertThat(hasTrackEvent).isTrue();
-        assertThat(mCategoryNames).contains("mq");
-        assertThat(mEventNames).contains("message_queue_send");
-        assertThat(mEventNames).contains("message_queue_receive");
-        assertThat(mDebugAnnotationNames).contains("what");
-        assertThat(mDebugAnnotationNames).contains("delay");
-        assertThat(instantCount).isEqualTo(MESSAGE_COUNT);
-        assertThat(beginCount).isEqualTo(MESSAGE_COUNT);
-        assertThat(endCount).isAtLeast(MESSAGE_COUNT);
-        assertThat(counterCount).isAtLeast(MESSAGE_COUNT);
-    }
-
-    private TrackEvent getTrackEvent(Trace trace, int idx) {
-        int curIdx = 0;
-        for (TracePacket packet: trace.getPacketList()) {
-            if (packet.hasTrackEvent()) {
-                if (curIdx++ == idx) {
-                    return packet.getTrackEvent();
-                }
-            }
-        }
-
-        return null;
-    }
-
     private TraceConfig getTraceConfig(String cat) {
         BufferConfig bufferConfig = BufferConfig.newBuilder().setSizeKb(1024).build();
         TrackEventConfig trackEventConfig = TrackEventConfig
@@ -766,9 +659,6 @@ public class PerfettoTraceTest {
 
         for (EventCategory cat : data.getEventCategoriesList()) {
             mCategoryNames.add(cat.getName());
-        }
-        for (EventName ev : data.getEventNamesList()) {
-            mEventNames.add(ev.getName());
         }
         for (DebugAnnotationName dbg : data.getDebugAnnotationNamesList()) {
             mDebugAnnotationNames.add(dbg.getName());

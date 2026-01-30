@@ -151,7 +151,6 @@ public class NotificationChannelExtractorTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_CALL)
     public void testAudioAttributes_callStyleCanUseCallUsage() throws RemoteException {
         NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_HIGH);
         channel.setSound(Uri.EMPTY, new AudioAttributes.Builder()
@@ -175,7 +174,6 @@ public class NotificationChannelExtractorTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_CALL)
     public void testAudioAttributes_nonCallStyleCannotUseCallUsage() throws RemoteException {
         NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_HIGH);
         channel.setSound(Uri.EMPTY, new AudioAttributes.Builder()
@@ -196,7 +194,6 @@ public class NotificationChannelExtractorTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_ALARM)
     public void testAudioAttributes_alarmCategoryCanUseAlarmUsage() throws RemoteException {
         NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_HIGH);
         channel.setSound(Uri.EMPTY, new AudioAttributes.Builder()
@@ -216,7 +213,6 @@ public class NotificationChannelExtractorTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_ALARM)
     public void testAudioAttributes_nonAlarmCategoryCannotUseAlarmUsage() throws RemoteException {
         NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_HIGH);
         channel.setSound(Uri.EMPTY, new AudioAttributes.Builder()
@@ -237,7 +233,6 @@ public class NotificationChannelExtractorTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_MEDIA)
     public void testAudioAttributes_noMediaUsage() throws RemoteException {
         NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_HIGH);
         channel.setSound(Uri.EMPTY, new AudioAttributes.Builder()
@@ -258,7 +253,6 @@ public class NotificationChannelExtractorTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_MEDIA)
     public void testAudioAttributes_noUnknownUsage() throws RemoteException {
         NotificationChannel channel = new NotificationChannel("a", "a", IMPORTANCE_HIGH);
         channel.setSound(Uri.EMPTY, new AudioAttributes.Builder()

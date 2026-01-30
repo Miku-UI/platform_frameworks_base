@@ -19,6 +19,9 @@ package com.android.systemui.qs.tiles.dialog
 import android.app.AlertDialog
 import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
+import android.graphics.Canvas
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -35,17 +38,16 @@ import android.util.Log
 import android.view.View
 import android.view.ViewStub
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ProgressBar
-import android.widget.Switch
 import android.widget.TextView
 import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -57,21 +59,29 @@ import com.android.internal.logging.UiEventLogger
 import com.android.settingslib.satellite.SatelliteDialogUtils.TYPE_IS_WIFI
 import com.android.settingslib.satellite.SatelliteDialogUtils.mayStartSatelliteWarningDialog
 import com.android.settingslib.wifi.WifiEnterpriseRestrictionUtils
+import com.android.settingslib.wifi.WifiUtils
 import com.android.systemui.Prefs
 import com.android.systemui.accessibility.floatingmenu.AnnotationLinkSpan
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.qs.flags.QsWifiConfig
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.statusbar.policy.KeyguardStateController
+import com.android.systemui.user.domain.interactor.HeadlessSystemUserMode
+import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.wifitrackerlib.WifiEntry
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.common.annotations.VisibleForTesting
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import java.util.concurrent.Executor
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * View content for the Internet tile details that handles all UI interactions and state management.
@@ -86,6 +96,9 @@ constructor(
     @Main private val handler: Handler,
     @Background private val backgroundExecutor: Executor,
     private val keyguard: KeyguardStateController,
+    @Main private val mainDispatcher: CoroutineDispatcher,
+    private val selectedUserInteractor: SelectedUserInteractor,
+    private val hsum: HeadlessSystemUserMode,
 ) {
     // Lifecycle
     private lateinit var lifecycleRegistry: LifecycleRegistry
@@ -96,7 +109,6 @@ constructor(
 
     // UI Components
     private lateinit var contentView: View
-    private lateinit var divider: View
     private lateinit var progressBar: ProgressBar
     private lateinit var ethernetLayout: LinearLayout
     private lateinit var mobileNetworkLayout: LinearLayout
@@ -105,6 +117,7 @@ constructor(
     private lateinit var wifiToggleTitleTextView: TextView
     private lateinit var wifiScanNotifyLayout: LinearLayout
     private lateinit var wifiScanNotifyTextView: TextView
+    private lateinit var loginScreenConnectedWifiNotifyLayout: LinearLayout
     private lateinit var connectedWifiListLayout: LinearLayout
     private lateinit var connectedWifiIcon: ImageView
     private lateinit var connectedWifiTitleTextView: TextView
@@ -113,24 +126,31 @@ constructor(
     private lateinit var wifiRecyclerView: RecyclerView
     private lateinit var seeAllLayout: LinearLayout
     private lateinit var signalIcon: ImageView
+    private lateinit var turnMobileOnLayout: LinearLayout
+    private lateinit var connectedMobileLayout: LinearLayout
     private lateinit var mobileTitleTextView: TextView
     private lateinit var mobileSummaryTextView: TextView
     private lateinit var airplaneModeSummaryTextView: TextView
-    private lateinit var mobileDataToggle: Switch
-    private lateinit var mobileToggleDivider: View
-    private lateinit var wifiToggle: Switch
-    private lateinit var shareWifiButton: Button
-    private lateinit var airplaneModeButton: Button
+    private lateinit var mobileDataToggle: MaterialSwitch
+    private lateinit var wifiToggle: MaterialSwitch
+    private lateinit var shareWifiButton: LinearLayout
+    private lateinit var addNetworkButton: LinearLayout
+    private lateinit var airplaneModeButton: LinearLayout
+    private lateinit var wifiButtonsContainer: ConstraintLayout
     private var alertDialog: AlertDialog? = null
     private var canChangeWifiState = false
     private var wifiNetworkHeight = 0
-    private var backgroundOn: Drawable? = null
-    private var backgroundOff: Drawable? = null
+    private var entryBackgroundActive: Drawable? = null
+    private var entryBackgroundInactive: Drawable? = null
+    private var entryBackgroundStart: Drawable? = null
+    private var entryBackgroundEnd: Drawable? = null
+    private var entryBackgroundMiddle: Drawable? = null
     private var clickJob: Job? = null
     private var defaultDataSubId = internetDetailsContentController.defaultDataSubscriptionId
     @VisibleForTesting internal lateinit var adapter: InternetAdapter
     @VisibleForTesting internal var wifiEntriesCount: Int = 0
     @VisibleForTesting internal var hasMoreWifiEntries: Boolean = false
+    @VisibleForTesting internal var hasSeeAllClicked: Boolean = false
     private lateinit var context: Context
     private lateinit var coroutineScope: CoroutineScope
 
@@ -164,7 +184,12 @@ constructor(
         this.contentView = contentView
         context = contentView.context
         this.coroutineScope = coroutineScope
-        adapter = InternetAdapter(internetDetailsContentController, coroutineScope)
+        adapter =
+            InternetAdapter(
+                internetDetailsContentController,
+                coroutineScope,
+                /* isInDetailsView= */ true,
+            )
         canChangeWifiState = WifiEnterpriseRestrictionUtils.isChangeWifiStateAllowed(context)
 
         initializeLifecycle()
@@ -174,18 +199,21 @@ constructor(
     }
 
     /**
-     * Initializes the LifecycleRegistry if it hasn't been initialized yet. It sets the initial
-     * state of the LifecycleRegistry to Lifecycle.State.CREATED.
+     * Initializes the LifecycleRegistry. It sets the initial state of the LifecycleRegistry to
+     * Lifecycle.State.CREATED.
      */
     fun initializeLifecycle() {
-        if (!::lifecycleRegistry.isInitialized) {
-            lifecycleOwner =
-                object : LifecycleOwner {
-                    override val lifecycle: Lifecycle
-                        get() = lifecycleRegistry
-                }
-            lifecycleRegistry = LifecycleRegistry(lifecycleOwner!!)
+        // If a lifecycle already exists, destroy it before creating a new one.
+        if (::lifecycleRegistry.isInitialized) {
+            lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
         }
+
+        lifecycleOwner =
+            object : LifecycleOwner {
+                override val lifecycle: Lifecycle
+                    get() = lifecycleRegistry
+            }
+        lifecycleRegistry = LifecycleRegistry(lifecycleOwner!!)
         lifecycleRegistry.currentState = Lifecycle.State.CREATED
     }
 
@@ -204,8 +232,14 @@ constructor(
         }
 
         // Network layouts
-        divider = contentView.requireViewById(R.id.divider)
         progressBar = contentView.requireViewById(R.id.wifi_searching_progress)
+
+        // Background drawables
+        entryBackgroundActive = context.getDrawable(R.drawable.settingslib_entry_bg_on)
+        entryBackgroundInactive = context.getDrawable(R.drawable.settingslib_entry_bg_off)
+        entryBackgroundStart = context.getDrawable(R.drawable.settingslib_entry_bg_off_start)
+        entryBackgroundEnd = context.getDrawable(R.drawable.settingslib_entry_bg_off_end)
+        entryBackgroundMiddle = context.getDrawable(R.drawable.settingslib_entry_bg_off_middle)
 
         // Set wifi, mobile and ethernet layouts
         setWifiLayout()
@@ -225,27 +259,26 @@ constructor(
             }
         }
 
+        // Add network
+        addNetworkButton = contentView.requireViewById(R.id.add_network_button)
+        if (QsWifiConfig.isEnabled) {
+            addNetworkButton.setOnClickListener {
+                val intent =
+                    WifiUtils.getWifiDialogIntent(null, true /* connectForCaller */).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+                    }
+                internetDetailsContentController.startActivityForDialog(intent)
+            }
+        }
+
         // Airplane mode
         airplaneModeButton = contentView.requireViewById(R.id.apm_button)
         airplaneModeButton.setOnClickListener {
             internetDetailsContentController.setAirplaneModeDisabled()
         }
         airplaneModeSummaryTextView = contentView.requireViewById(R.id.airplane_mode_summary)
-
-        // Background drawables
-        backgroundOn = context.getDrawable(R.drawable.settingslib_switch_bar_bg_on)
-        backgroundOff = context.getDrawable(R.drawable.internet_dialog_selected_effect)
-
-        // Done button is only visible for the dialog view
-        contentView.findViewById<Button>(R.id.done_button).apply { visibility = View.GONE }
-
-        // Title and subtitle will be added in the `TileDetails`
-        contentView.findViewById<TextView>(R.id.internet_dialog_title).apply {
-            visibility = View.GONE
-        }
-        contentView.findViewById<TextView>(R.id.internet_dialog_subtitle).apply {
-            visibility = View.GONE
-        }
+        wifiButtonsContainer = contentView.requireViewById(R.id.wifi_buttons_container)
     }
 
     private fun setWifiLayout() {
@@ -254,6 +287,8 @@ constructor(
         wifiToggleTitleTextView = contentView.requireViewById(R.id.wifi_toggle_title)
         wifiScanNotifyLayout = contentView.requireViewById(R.id.wifi_scan_notify_layout)
         wifiScanNotifyTextView = contentView.requireViewById(R.id.wifi_scan_notify_text)
+        loginScreenConnectedWifiNotifyLayout =
+            contentView.requireViewById(R.id.login_screen_change_connected_wifi_notify_layout)
         connectedWifiListLayout = contentView.requireViewById(R.id.wifi_connected_layout)
         connectedWifiIcon = contentView.requireViewById(R.id.wifi_connected_icon)
         connectedWifiTitleTextView = contentView.requireViewById(R.id.wifi_connected_title)
@@ -265,28 +300,82 @@ constructor(
                 layoutManager = LinearLayoutManager(context)
                 adapter = this@InternetDetailsContentManager.adapter
             }
+
+        // Add backgrounds for each entry and also add a gap between each item.
+        val verticalSpacing =
+            context.resources.getDimensionPixelSize(R.dimen.tile_details_entry_gap)
+        wifiRecyclerView.addItemDecoration(
+            object : RecyclerView.ItemDecoration() {
+                override fun getItemOffsets(
+                    outRect: Rect,
+                    view: View,
+                    parent: RecyclerView,
+                    state: RecyclerView.State,
+                ) {
+                    outRect.top = verticalSpacing
+                }
+
+                override fun onDraw(c: Canvas, parent: RecyclerView, state: RecyclerView.State) {
+                    // `itemCount` represents the total number of items in your adapter's data set,
+                    // regardless of what's visible.
+                    val adapter = parent.adapter ?: return
+                    val itemCount = adapter.itemCount
+
+                    // `parent.childCount` is the number of child views currently visible on screen.
+                    // Often less than itemCount since RecyclerView recycles views that scroll
+                    // off-screen.
+                    for (i in 0 until parent.childCount) {
+                        val child = parent.getChildAt(i) ?: continue
+                        val adapterPosition = parent.getChildAdapterPosition(child)
+                        if (adapterPosition == RecyclerView.NO_POSITION) continue
+                        val entryView = child.requireViewById<LinearLayout>(R.id.wifi_list)
+                        val background =
+                            when {
+                                itemCount == 1 -> entryBackgroundInactive
+                                adapterPosition == 0 -> entryBackgroundStart
+                                adapterPosition == itemCount - 1 &&
+                                    !hasMoreWifiEntries &&
+                                    !QsWifiConfig.isEnabled -> entryBackgroundEnd
+                                else -> entryBackgroundMiddle
+                            }
+
+                        val left = child.left + entryView.left
+                        val top = child.top + entryView.top
+                        val right = child.left + entryView.right
+                        val bottom = child.top + entryView.bottom
+                        background?.setBounds(left, top, right, bottom)
+                        background?.draw(c)
+                    }
+                }
+            }
+        )
+
         seeAllLayout = contentView.requireViewById(R.id.see_all_layout)
 
         // Set click listeners for Wi-Fi related views
-        wifiToggle.setOnClickListener {
+        turnWifiOnLayout.setOnClickListener {
+            wifiToggle.toggle()
             val isChecked = wifiToggle.isChecked
             handleWifiToggleClicked(isChecked)
         }
+
         connectedWifiListLayout.setOnClickListener(this::onClickConnectedWifi)
+        connectedWifiListLayout.background = context.getDrawable(R.drawable.settingslib_entry_bg_on)
         seeAllLayout.setOnClickListener(this::onClickSeeMoreButton)
     }
 
     private fun setMobileLayout() {
         // Initialize mobile data related views
         mobileNetworkLayout = contentView.requireViewById(R.id.mobile_network_layout)
+        turnMobileOnLayout = contentView.requireViewById(R.id.turn_on_mobile_layout)
+        connectedMobileLayout = contentView.requireViewById(R.id.mobile_connected_layout)
         signalIcon = contentView.requireViewById(R.id.signal_icon)
         mobileTitleTextView = contentView.requireViewById(R.id.mobile_title)
         mobileSummaryTextView = contentView.requireViewById(R.id.mobile_summary)
         mobileDataToggle = contentView.requireViewById(R.id.mobile_toggle)
-        mobileToggleDivider = contentView.requireViewById(R.id.mobile_toggle_divider)
 
         // Set click listeners for mobile data related views
-        mobileNetworkLayout.setOnClickListener {
+        connectedMobileLayout.setOnClickListener {
             val autoSwitchNonDdsSubId: Int =
                 internetDetailsContentController.getActiveAutoSwitchNonDdsSubId()
             if (autoSwitchNonDdsSubId != SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
@@ -295,8 +384,9 @@ constructor(
             internetDetailsContentController.connectCarrierNetwork()
         }
 
-        // Mobile data toggle
-        mobileDataToggle.setOnClickListener {
+        // Mobile data toggle entry
+        turnMobileOnLayout.setOnClickListener {
+            mobileDataToggle.toggle()
             val isChecked = mobileDataToggle.isChecked
             if (!isChecked && shouldShowMobileDialog()) {
                 mobileDataToggle.isChecked = true
@@ -351,12 +441,14 @@ constructor(
         title = getTitleText()
         subTitle = getSubtitleText()
 
-        airplaneModeButton.visibility =
-            if (internetContent.isAirplaneModeEnabled) View.VISIBLE else View.GONE
+        if (!internetContent.isWifiEnabled) {
+            setProgressBarVisible(false)
+        }
 
         updateEthernetUI(internetContent)
         updateMobileUI(internetContent)
         updateWifiUI(internetContent)
+        updateButtonsLayout(internetContent)
     }
 
     private fun getStartingInternetContent(): InternetContent {
@@ -374,6 +466,7 @@ constructor(
         wifiRecyclerView.visibility = View.GONE
         seeAllLayout.visibility = View.GONE
         shareWifiButton.visibility = View.GONE
+        addNetworkButton.visibility = View.GONE
     }
 
     private fun setProgressBarVisible(visible: Boolean) {
@@ -386,7 +479,6 @@ constructor(
         isProgressBarVisible = visible
         progressBar.visibility = if (visible) View.VISIBLE else View.GONE
         progressBar.isIndeterminate = visible
-        divider.visibility = if (visible) View.GONE else View.VISIBLE
     }
 
     private fun showTurnOffAutoDataSwitchDialog(subId: Int) {
@@ -425,7 +517,6 @@ constructor(
     }
 
     private fun showTurnOffMobileDialog() {
-        val context = contentView.context
         var carrierName: CharSequence? = getMobileNetworkTitle(defaultDataSubId)
         val isInService: Boolean =
             internetDetailsContentController.isVoiceStateInService(defaultDataSubId)
@@ -454,7 +545,6 @@ constructor(
         SystemUIDialog.setShowForAllUsers(alertDialog, true)
         SystemUIDialog.registerDismissListener(alertDialog)
         SystemUIDialog.setWindowOnTop(alertDialog, keyguard.isShowing())
-
         alertDialog!!.show()
     }
 
@@ -466,7 +556,12 @@ constructor(
     }
 
     private fun onClickSeeMoreButton(view: View?) {
-        internetDetailsContentController.launchNetworkSetting(view)
+        if (QsWifiConfig.isEnabled) {
+            hasSeeAllClicked = true
+            updateContent(shouldUpdateMobileNetwork = false)
+        } else {
+            internetDetailsContentController.launchNetworkSetting(view)
+        }
     }
 
     private fun handleWifiToggleClicked(isChecked: Boolean) {
@@ -551,11 +646,6 @@ constructor(
         }
 
         mobileDataToggle.visibility = if (canConfigMobileData) View.VISIBLE else View.INVISIBLE
-        mobileToggleDivider.visibility = if (canConfigMobileData) View.VISIBLE else View.INVISIBLE
-        val primaryColor =
-            if (isNetworkConnected) R.color.connected_network_primary_color
-            else R.color.disconnected_network_primary_color
-        mobileToggleDivider.setBackgroundColor(context.getColor(primaryColor))
 
         // Display the info for the non-DDS if it's actively being used
         val autoSwitchNonDdsSubId: Int = internetContent.activeAutoSwitchNonDdsSubId
@@ -565,16 +655,17 @@ constructor(
             else View.GONE
 
         val secondaryRes =
-            if (isNetworkConnected) R.style.TextAppearance_InternetDialog_Secondary_Active
-            else R.style.TextAppearance_InternetDialog_Secondary
+            if (isNetworkConnected) R.style.TextAppearance_TileDetailsEntrySubTitle_Active
+            else R.style.TextAppearance_TileDetailsEntrySubTitle
         if (nonDdsVisibility == View.VISIBLE) {
             // non DDS is the currently active sub, set primary visual for it
             setNonDDSActive(autoSwitchNonDdsSubId)
         } else {
-            mobileNetworkLayout.background = if (isNetworkConnected) backgroundOn else backgroundOff
+            connectedMobileLayout.background =
+                if (isNetworkConnected) entryBackgroundActive else entryBackgroundInactive
             mobileTitleTextView.setTextAppearance(
-                if (isNetworkConnected) R.style.TextAppearance_InternetDialog_Active
-                else R.style.TextAppearance_InternetDialog
+                if (isNetworkConnected) R.style.TextAppearance_TileDetailsEntryTitle_Active
+                else R.style.TextAppearance_TileDetailsEntryTitle
             )
             mobileSummaryTextView.setTextAppearance(secondaryRes)
         }
@@ -601,11 +692,11 @@ constructor(
         secondaryMobileNetworkLayout?.setOnClickListener { view: View? ->
             this.onClickConnectedSecondarySub(view)
         }
-        secondaryMobileNetworkLayout?.background = backgroundOn
+        secondaryMobileNetworkLayout?.background = entryBackgroundActive
 
         contentView.requireViewById<TextView>(R.id.secondary_mobile_title).apply {
             text = getMobileNetworkTitle(autoSwitchNonDdsSubId)
-            setTextAppearance(R.style.TextAppearance_InternetDialog_Active)
+            setTextAppearance(R.style.TextAppearance_TileDetailsEntryTitle_Active)
         }
 
         val summary = getMobileNetworkSummary(autoSwitchNonDdsSubId)
@@ -613,7 +704,7 @@ constructor(
             if (!TextUtils.isEmpty(summary)) {
                 text = Html.fromHtml(summary, Html.FROM_HTML_MODE_LEGACY)
                 breakStrategy = Layout.BREAK_STRATEGY_SIMPLE
-                setTextAppearance(R.style.TextAppearance_InternetDialog_Active)
+                setTextAppearance(R.style.TextAppearance_TileDetailsEntryTitle_Active)
             }
         }
 
@@ -628,9 +719,9 @@ constructor(
         }
 
         // set secondary visual for default data sub
-        mobileNetworkLayout.background = backgroundOff
-        mobileTitleTextView.setTextAppearance(R.style.TextAppearance_InternetDialog)
-        mobileSummaryTextView.setTextAppearance(R.style.TextAppearance_InternetDialog_Secondary)
+        connectedMobileLayout.background = entryBackgroundInactive
+        mobileTitleTextView.setTextAppearance(R.style.TextAppearance_TileDetailsEntryTitle)
+        mobileSummaryTextView.setTextAppearance(R.style.TextAppearance_TileDetailsEntrySubTitle)
         signalIcon.setColorFilter(context.getColor(R.color.connected_network_secondary_color))
     }
 
@@ -639,15 +730,6 @@ constructor(
         if (wifiToggle.isChecked != internetContent.isWifiEnabled) {
             wifiToggle.isChecked = internetContent.isWifiEnabled
         }
-        if (internetContent.isDeviceLocked) {
-            wifiToggleTitleTextView.setTextAppearance(
-                if ((connectedWifiEntry != null)) R.style.TextAppearance_InternetDialog_Active
-                else R.style.TextAppearance_InternetDialog
-            )
-        }
-        turnWifiOnLayout.background =
-            if ((internetContent.isDeviceLocked && connectedWifiEntry != null)) backgroundOn
-            else null
 
         if (!canChangeWifiState && wifiToggle.isEnabled) {
             wifiToggle.isEnabled = false
@@ -660,6 +742,35 @@ constructor(
     }
 
     @MainThread
+    private fun updateButtonsLayout(internetContent: InternetContent) {
+        airplaneModeButton.visibility =
+            if (internetContent.isAirplaneModeEnabled) View.VISIBLE else View.GONE
+
+        val apmVisible = airplaneModeButton.visibility == View.VISIBLE
+        val shareVisible = shareWifiButton.visibility == View.VISIBLE
+        if (!apmVisible && !shareVisible) return
+
+        val shareParams = shareWifiButton.layoutParams as ConstraintLayout.LayoutParams
+        shareWifiButton.minimumWidth = 0
+
+        if (apmVisible) {
+            shareParams.matchConstraintDefaultWidth =
+                ConstraintLayout.LayoutParams.MATCH_CONSTRAINT_WRAP
+        } else {
+            shareParams.matchConstraintDefaultWidth =
+                ConstraintLayout.LayoutParams.MATCH_CONSTRAINT_SPREAD
+
+            // By setting `MATCH_CONSTRAINT_SPREAD`, we ask ConstraintLayout to expand this
+            // `shareWifiButton`. However, due to layout timing, this change may not be reflected
+            // immediately. To force the button to occupy the full width on the very next layout
+            // pass, we set its minimumWidth to the exact current width of the parent container.
+            shareWifiButton.minimumWidth = wifiButtonsContainer.width
+        }
+
+        shareWifiButton.layoutParams = shareParams
+    }
+
+    @MainThread
     private fun updateConnectedWifi(internetContent: InternetContent) {
         if (
             !internetContent.isWifiEnabled ||
@@ -668,6 +779,7 @@ constructor(
         ) {
             connectedWifiListLayout.visibility = View.GONE
             shareWifiButton.visibility = View.GONE
+            loginScreenConnectedWifiNotifyLayout.visibility = View.GONE
             return
         }
         connectedWifiListLayout.visibility = View.VISIBLE
@@ -676,6 +788,21 @@ constructor(
         connectedWifiIcon.setImageDrawable(
             internetDetailsContentController.getInternetWifiDrawable(connectedWifiEntry!!)
         )
+
+        coroutineScope.launch {
+            val isHsu = hsum.isHeadlessSystemUser(selectedUserInteractor.getSelectedUserId())
+            withContext(mainDispatcher) {
+                if (QsWifiConfig.isEnabled && isHsu) {
+                    wifiSettingsIcon.visibility = View.GONE
+                    loginScreenConnectedWifiNotifyLayout.visibility = View.VISIBLE
+                    connectedWifiListLayout.setClickable(false)
+                } else {
+                    wifiSettingsIcon.visibility = View.VISIBLE
+                    loginScreenConnectedWifiNotifyLayout.visibility = View.GONE
+                    connectedWifiListLayout.setClickable(true)
+                }
+            }
+        }
         wifiSettingsIcon.setColorFilter(context.getColor(R.color.connected_network_primary_color))
 
         val canShareWifi =
@@ -692,19 +819,40 @@ constructor(
         if (!internetContent.isWifiEnabled || internetContent.isDeviceLocked) {
             wifiRecyclerView.visibility = View.GONE
             seeAllLayout.visibility = View.GONE
+            addNetworkButton.visibility = View.GONE
             return
         }
-        val wifiListMaxCount = getWifiListMaxCount()
-        if (adapter.itemCount > wifiListMaxCount) {
-            hasMoreWifiEntries = true
+        val isAddNetworkVisible = QsWifiConfig.isEnabled
+
+        if (isAddNetworkVisible) {
+            addNetworkButton.visibility = View.VISIBLE
         }
-        adapter.setMaxEntriesCount(wifiListMaxCount)
-        val wifiListMinHeight = wifiNetworkHeight * wifiListMaxCount
-        if (wifiRecyclerView.minimumHeight != wifiListMinHeight) {
-            wifiRecyclerView.minimumHeight = wifiListMinHeight
+        if (isAddNetworkVisible && internetContent.showAllWifiInList) {
+            hasMoreWifiEntries = false
+            adapter.setShowAllWifi()
+            seeAllLayout.visibility = View.GONE
+        } else {
+            val wifiListMaxCount = getWifiListMaxCount()
+            if (adapter.itemCount > wifiListMaxCount) {
+                hasMoreWifiEntries = true
+            }
+            adapter.setMaxEntriesCount(wifiListMaxCount)
+            val wifiListMinHeight = wifiNetworkHeight * wifiListMaxCount
+            if (wifiRecyclerView.minimumHeight != wifiListMinHeight) {
+                wifiRecyclerView.minimumHeight = wifiListMinHeight
+            }
+            seeAllLayout.visibility = if (hasMoreWifiEntries) View.VISIBLE else View.INVISIBLE
         }
+        wifiRecyclerView.invalidateItemDecorations()
+
+        // Here using `View.setBackgroundResource` instead of setting the background directly. This
+        // is a deliberate choice to avoid issues where a shared Drawable's state can cause
+        // rendering problems (e.g., an empty background).
+        seeAllLayout.setBackgroundResource(
+            if (isAddNetworkVisible) R.drawable.settingslib_entry_bg_off_middle
+            else R.drawable.settingslib_entry_bg_off_end
+        )
         wifiRecyclerView.visibility = View.VISIBLE
-        seeAllLayout.visibility = if (hasMoreWifiEntries) View.VISIBLE else View.INVISIBLE
     }
 
     @MainThread
@@ -779,12 +927,14 @@ constructor(
             Log.d(TAG, "unBind")
         }
         lifecycleRegistry.currentState = Lifecycle.State.DESTROYED
-        mobileNetworkLayout.setOnClickListener(null)
+        connectedMobileLayout.setOnClickListener(null)
         connectedWifiListLayout.setOnClickListener(null)
         secondaryMobileNetworkLayout?.setOnClickListener(null)
         seeAllLayout.setOnClickListener(null)
-        wifiToggle.setOnCheckedChangeListener(null)
+        turnWifiOnLayout.setOnClickListener(null)
+        turnMobileOnLayout.setOnClickListener(null)
         shareWifiButton.setOnClickListener(null)
+        addNetworkButton.setOnClickListener(null)
         airplaneModeButton.setOnClickListener(null)
         internetDetailsContentController.onStop()
     }
@@ -821,23 +971,8 @@ constructor(
             isWifiScanEnabled = internetDetailsContentController.isWifiScanEnabled(),
             activeAutoSwitchNonDdsSubId =
                 internetDetailsContentController.getActiveAutoSwitchNonDdsSubId(),
+            showAllWifiInList = hasSeeAllClicked,
         )
-    }
-
-    /**
-     * Handles window focus changes. If the activity loses focus and the system UI dialog is
-     * showing, it dismisses the current alert dialog to prevent it from persisting in the
-     * background.
-     *
-     * @param dialog The internet system UI dialog whose focus state has changed.
-     * @param hasFocus True if the window has gained focus, false otherwise.
-     */
-    fun onWindowFocusChanged(dialog: SystemUIDialog, hasFocus: Boolean) {
-        if (alertDialog != null && !alertDialog!!.isShowing) {
-            if (!hasFocus && dialog.isShowing) {
-                dialog.dismiss()
-            }
-        }
     }
 
     private fun getDefaultCarrierName(): String? {
@@ -899,10 +1034,11 @@ constructor(
             }
 
             override fun dismissDialog() {
+                // With the dialog, this would be implemented to close the internet dialog. As this
+                // details view is embedded within the QS panel, collapsing is handled by System UI.
                 if (DEBUG) {
                     Log.d(TAG, "dismissDialog")
                 }
-                // TODO: b/377388104 Close details view
             }
 
             override fun onAccessPointsChanged(
@@ -928,6 +1064,10 @@ constructor(
             override fun onWifiScan(isScan: Boolean) {
                 setProgressBarVisible(isScan)
             }
+
+            override fun onSatelliteModemStateChanged(state: Int) {
+                updateContent(shouldUpdateMobileNetwork = true)
+            }
         }
 
     enum class InternetDetailsEvent(private val id: Int) : UiEventLogger.UiEventEnum {
@@ -951,6 +1091,7 @@ constructor(
         val hasActiveSubIdOnDds: Boolean = false,
         val isDeviceLocked: Boolean = false,
         val isWifiScanEnabled: Boolean = false,
+        val showAllWifiInList: Boolean = false,
         val activeAutoSwitchNonDdsSubId: Int = SubscriptionManager.INVALID_SUBSCRIPTION_ID,
     )
 

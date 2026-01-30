@@ -43,6 +43,7 @@ import java.util.function.Function;
 public abstract class CombinedVibration implements Parcelable {
     private static final int PARCEL_TOKEN_MONO = 1;
     private static final int PARCEL_TOKEN_STEREO = 2;
+    // TODO(b/421857859): remove this once flag remove_sequential_combination is removed
     private static final int PARCEL_TOKEN_SEQUENTIAL = 3;
 
     /** Prevent subclassing from outside of the framework. */
@@ -88,6 +89,7 @@ public abstract class CombinedVibration implements Parcelable {
      * @hide
      * @see CombinedVibration.SequentialCombination
      */
+    // TODO(b/421857859): remove this once flag remove_sequential_combination is removed
     @TestApi
     @NonNull
     public static SequentialCombination startSequential() {
@@ -252,6 +254,7 @@ public abstract class CombinedVibration implements Parcelable {
      * @hide
      * @see CombinedVibration#startSequential()
      */
+    // TODO(b/421857859): remove this class once flag remove_sequential_combination is removed
     @TestApi
     public static final class SequentialCombination {
 
@@ -766,6 +769,7 @@ public abstract class CombinedVibration implements Parcelable {
      *
      * @hide
      */
+    // TODO(b/421857859): remove this class once flag remove_sequential_combination is removed
     @TestApi
     public static final class Sequential extends CombinedVibration {
         // If a vibration is playing more than 3 effects, it's probably not haptic feedback
@@ -906,6 +910,10 @@ public abstract class CombinedVibration implements Parcelable {
             for (int i = 0; i < mEffects.size(); i++) {
                 CombinedVibration vibration = mEffects.get(i);
                 CombinedVibration newVibration = vibration.adapt(adapter);
+                if (newVibration == null) {
+                    // The vibration effect contains unsupported segments and cannot be played.
+                    return null;
+                }
                 combination.addNext(newVibration, mDelays.get(i));
                 hasSameEffects &= vibration.equals(newVibration);
             }

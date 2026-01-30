@@ -22,13 +22,15 @@
     android:layout_height="wrap_content"
     android:clipChildren="false"
     android:clipToPadding="false"
+    android:paddingLeft="@dimen/desktop_mode_handle_menu_padding_left_bottom_right"
+    android:paddingRight="@dimen/desktop_mode_handle_menu_padding_left_bottom_right"
     android:paddingBottom="@dimen/desktop_mode_handle_menu_pill_elevation_padding"
     android:paddingEnd="@dimen/desktop_mode_handle_menu_pill_elevation_padding"
     android:orientation="vertical">
 
     <LinearLayout
         android:id="@+id/app_info_pill"
-        android:layout_width="match_parent"
+        android:layout_width="@dimen/desktop_mode_handle_menu_width"
         android:layout_height="@dimen/desktop_mode_handle_menu_app_info_pill_height"
         android:layout_marginTop="@dimen/desktop_mode_handle_menu_margin_top"
         android:layout_marginStart="1dp"
@@ -62,7 +64,7 @@
 
     <LinearLayout
         android:id="@+id/windowing_pill"
-        android:layout_width="match_parent"
+        android:layout_width="@dimen/desktop_mode_handle_menu_width"
         android:layout_height="@dimen/desktop_mode_handle_menu_windowing_pill_height"
         android:layout_marginTop="@dimen/desktop_mode_handle_menu_pill_spacing_margin"
         android:layout_marginStart="1dp"
@@ -78,9 +80,11 @@
             android:contentDescription="@string/fullscreen_text"
             android:src="@drawable/desktop_mode_ic_handle_menu_fullscreen"
             android:tint="@androidprv:color/materialColorOnSurface"
+            android:tooltipText="@string/fullscreen_text"
             style="@style/DesktopModeHandleMenuWindowingButton"/>
 
         <Space
+            android:id="@+id/split_screen_button_space"
             android:layout_width="0dp"
             android:layout_height="0dp"
             android:layout_weight="1"/>
@@ -92,6 +96,7 @@
             android:contentDescription="@string/split_screen_text"
             android:src="@drawable/desktop_mode_ic_handle_menu_splitscreen"
             android:tint="@androidprv:color/materialColorOnSurface"
+            android:tooltipText="@string/split_screen_text"
             style="@style/DesktopModeHandleMenuWindowingButton"/>
 
         <Space
@@ -107,6 +112,7 @@
             android:contentDescription="@string/float_button_text"
             android:src="@drawable/desktop_mode_ic_handle_menu_floating"
             android:tint="@androidprv:color/materialColorOnSurface"
+            android:tooltipText="@string/float_button_text"
             style="@style/DesktopModeHandleMenuWindowingButton"/>
 
         <Space
@@ -122,13 +128,14 @@
             android:contentDescription="@string/desktop_text"
             android:src="@drawable/desktop_mode_ic_handle_menu_desktop"
             android:tint="@androidprv:color/materialColorOnSurface"
+            android:tooltipText="@string/desktop_text"
             style="@style/DesktopModeHandleMenuWindowingButton"/>
 
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/more_actions_pill"
-        android:layout_width="match_parent"
+        android:layout_width="@dimen/desktop_mode_handle_menu_width"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/desktop_mode_handle_menu_pill_spacing_margin"
         android:layout_marginStart="1dp"
@@ -164,17 +171,39 @@
             android:src="@drawable/desktop_mode_ic_handle_menu_change_aspect_ratio"
             style="@style/DesktopModeHandleMenuActionButton"/>
 
-        <com.android.wm.shell.windowdecor.HandleMenuActionButton
-            android:id="@+id/handle_menu_restart_button"
-            android:contentDescription="@string/handle_menu_restart_text"
-            android:text="@string/handle_menu_restart_text"
-            android:src="@drawable/desktop_mode_ic_handle_menu_restart"
-            style="@style/DesktopModeHandleMenuActionButton"/>
+        <LinearLayout
+            android:id="@+id/handle_menu_restart_pill"
+            android:layout_width="@dimen/desktop_mode_handle_menu_width"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <com.android.wm.shell.windowdecor.HandleMenuActionButton
+                android:id="@+id/handle_menu_restart_button"
+                android:contentDescription="@string/handle_menu_restart_text"
+                android:text="@string/handle_menu_restart_text"
+                android:src="@drawable/desktop_mode_ic_handle_menu_restart"
+                style="@style/DesktopModeHandleMenuActionButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"/>
+
+            <ImageView
+                android:id="@+id/restart_menu_error_icon"
+                android:contentDescription="@string/handle_menu_error_icon_text"
+                android:layout_gravity="end|center_vertical"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="12dp"
+                android:layout_marginEnd="16dp"
+                android:src="@drawable/expand_menu_error"
+                android:clickable="false"
+                android:focusable="false"
+                android:scaleType="centerCrop"/>
+        </LinearLayout>
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/open_in_app_or_browser_pill"
-        android:layout_width="match_parent"
+        android:layout_width="@dimen/desktop_mode_handle_menu_width"
         android:layout_height="@dimen/desktop_mode_handle_menu_open_in_browser_pill_height"
         android:layout_marginTop="@dimen/desktop_mode_handle_menu_pill_spacing_margin"
         android:layout_marginStart="1dp"

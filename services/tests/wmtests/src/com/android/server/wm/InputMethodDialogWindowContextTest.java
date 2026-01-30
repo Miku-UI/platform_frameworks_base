@@ -108,7 +108,8 @@ public class InputMethodDialogWindowContextTest extends WindowTestsBase {
             DisplayContent dc = mWm.mRoot.getDisplayContent(displayId);
             final WindowProcessController wpc = mAtm.getProcessController(appThread);
             mWm.mWindowContextListenerController.registerWindowContainerListener(wpc, clientToken,
-                    dc.getImeContainer(), TYPE_INPUT_METHOD_DIALOG, null /* options */);
+                    dc.getImeContainer(), TYPE_INPUT_METHOD_DIALOG,
+                    false /* callerCanManageAppTokens */, null /* options */);
             return new WindowContextInfo(dc.getImeContainer().getConfiguration(), displayId);
         }).when(mIWindowManager).attachWindowContextToDisplayArea(any(), any(),
                 eq(TYPE_INPUT_METHOD_DIALOG), anyInt(), any());

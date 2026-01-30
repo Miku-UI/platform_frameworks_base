@@ -16,26 +16,25 @@
 
 package com.android.systemui.statusbar.notification.row
 
-import com.android.internal.logging.metricsLogger
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactoryImpl
 import com.android.systemui.statusbar.notification.collection.coordinator.mockVisualStabilityCoordinator
+import com.android.systemui.statusbar.notification.collection.notifPipeline
 import com.android.systemui.statusbar.notification.collection.provider.mockHighPriorityProvider
 import com.android.systemui.statusbar.notification.headsup.mockHeadsUpManager
 import com.android.systemui.statusbar.notification.mockNotificationActivityStarter
 import com.android.systemui.statusbar.notification.people.peopleNotificationIdentifier
-import com.android.systemui.statusbar.notification.row.icon.notificationIconStyleProvider
 
 val Kosmos.entryAdapterFactory by
     Kosmos.Fixture {
         EntryAdapterFactoryImpl(
             mockNotificationActivityStarter,
-            metricsLogger,
             peopleNotificationIdentifier,
-            notificationIconStyleProvider,
             mockVisualStabilityCoordinator,
             mockNotificationActionClickManager,
             mockHighPriorityProvider,
             mockHeadsUpManager,
+            onUserInteractionCallback,
+            notifPipeline,
         )
     }

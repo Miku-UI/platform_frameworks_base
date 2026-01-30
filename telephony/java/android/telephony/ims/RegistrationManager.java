@@ -84,7 +84,8 @@ public interface RegistrationManager {
                 SUGGESTED_ACTION_TRIGGER_PLMN_BLOCK,
                 SUGGESTED_ACTION_TRIGGER_PLMN_BLOCK_WITH_TIMEOUT,
                 SUGGESTED_ACTION_TRIGGER_RAT_BLOCK,
-                SUGGESTED_ACTION_TRIGGER_CLEAR_RAT_BLOCKS
+                SUGGESTED_ACTION_TRIGGER_CLEAR_RAT_BLOCKS,
+                SUGGESTED_ACTION_TRIGGER_THROTTLE_TIME
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface SuggestedAction {}
@@ -135,6 +136,16 @@ public interface RegistrationManager {
     @SystemApi
     @FlaggedApi(Flags.FLAG_ADD_RAT_RELATED_SUGGESTED_ACTION_TO_IMS_REGISTRATION)
     int SUGGESTED_ACTION_TRIGGER_CLEAR_RAT_BLOCKS = 4;
+
+    /**
+     * Indicates whether to apply the registration throttling time.
+     * If this action is suggested, the value provided in should be used to delay subsequent
+     * IMS registration attempts.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_SUPPORT_THROTTLE_TIME_FOR_DEREGISTRATION)
+    int SUGGESTED_ACTION_TRIGGER_THROTTLE_TIME = 5;
 
     /**@hide*/
     // Translate ImsRegistrationImplBase API to new AccessNetworkConstant because WLAN
@@ -237,6 +248,22 @@ public interface RegistrationManager {
                 try {
                     mExecutor.execute(() -> mLocalCallback.onUnregistered(info,
                             suggestedAction, imsRadioTech));
+                } finally {
+                    restoreCallingIdentity(callingIdentity);
+                }
+            }
+
+            @Override
+            public void onDeregisteredWithTime(ImsReasonInfo info,
+                    @SuggestedAction int suggestedAction,
+                    @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech,
+                    int throttlingTimeSec) {
+                if (mLocalCallback == null) return;
+
+                final long callingIdentity = Binder.clearCallingIdentity();
+                try {
+                    mExecutor.execute(() -> mLocalCallback.onUnregistered(info,
+                            suggestedAction, imsRadioTech, throttlingTimeSec));
                 } finally {
                     restoreCallingIdentity(callingIdentity);
                 }
@@ -352,6 +379,26 @@ public interface RegistrationManager {
         public void onUnregistered(@NonNull ImsReasonInfo info,
                 @SuggestedAction int suggestedAction,
                 @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech) {
+            // Default impl to keep backwards compatibility with old implementations
+            onUnregistered(info);
+        }
+
+        /**
+         * Notifies the framework when the IMS Provider is unregistered from the IMS network.
+         *
+         * Since this callback is only required for the communication between telephony framework
+         * and ImsService, it is made hidden.
+         *
+         * @param info the {@link ImsReasonInfo} associated with why registration was disconnected.
+         * @param suggestedAction the expected behavior of radio protocol stack.
+         * @param imsRadioTech the network type on which IMS registration has failed.
+         * @param throttlingTimeSec The registration throttling time in seconds.
+         * @hide
+         */
+        public void onUnregistered(@NonNull ImsReasonInfo info,
+                @SuggestedAction int suggestedAction,
+                @ImsRegistrationImplBase.ImsRegistrationTech int imsRadioTech,
+                int throttlingTimeSec) {
             // Default impl to keep backwards compatibility with old implementations
             onUnregistered(info);
         }

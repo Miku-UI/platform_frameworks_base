@@ -30,11 +30,11 @@ import android.os.Parcelable;
 public class NetworkQuotaInfo implements Parcelable {
     public static final long NO_LIMIT = -1;
 
-    /** {@hide} */
+    /** @hide */
     public NetworkQuotaInfo() {
     }
 
-    /** {@hide} */
+    /** @hide */
     public NetworkQuotaInfo(Parcel in) {
     }
 

@@ -43,8 +43,6 @@ import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Pair;
 
-import com.android.media.flags.Flags;
-
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
@@ -446,18 +444,19 @@ public abstract class MediaBrowserService extends Service {
      * Call to set the media session.
      *
      * <p>This should be called as soon as possible during the service's startup. It may only be
-     * called once.
+     * called once with a non-null session token.
      *
-     * @param token The token for the service's {@link MediaSession}.
+     * <p>Passing null as the token removes the current association with a {@link MediaSession} and
+     * disconnects all existing {@link MediaBrowser} instances.
+     *
+     * @param token The token for the service's {@link MediaSession}, or null to remove the existing
+     *     {@link MediaSession} from the service and disconnect all connected {@link MediaBrowser}
+     *     instances.
      */
-    // TODO: b/185136506 - Update the javadoc to reflect API changes when
-    // enableNullSessionInMediaBrowserService makes it to nextfood.
-    public void setSessionToken(final MediaSession.Token token) {
+    public void setSessionToken(@Nullable final MediaSession.Token token) {
         ServiceState serviceState = mServiceState.get();
         if (token == null) {
-            if (!Flags.enableNullSessionInMediaBrowserService()) {
-                throw new IllegalArgumentException("Session token may not be null.");
-            } else if (serviceState.mSession != null) {
+            if (serviceState.mSession != null) {
                 ServiceState newServiceState = new ServiceState();
                 mBinder.setServiceState(newServiceState);
                 mServiceState.set(newServiceState);
@@ -607,6 +606,18 @@ public abstract class MediaBrowserService extends Service {
          * @see #EXTRA_OFFLINE
          */
         public static final String EXTRA_SUGGESTED = "android.service.media.extra.SUGGESTED";
+
+        /**
+         * A key for the root hint when connecting a browser to indicate that the bind connection
+         * should not include capabilities.
+         *
+         * <p>When using {@link #EXTRA_RECENT}, this flag is assumed to be set as well.
+         *
+         * @see android.content.Context#BIND_INCLUDE_CAPABILITIES
+         * @hide
+         */
+        public static final String EXTRA_EXCLUDE_CAPABILITIES =
+                "android.service.media.extra.EXCLUDE_CAPABILITIES";
 
         private final String mRootId;
         private final Bundle mExtras;

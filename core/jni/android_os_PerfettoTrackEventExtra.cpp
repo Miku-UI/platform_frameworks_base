@@ -137,8 +137,6 @@ public:
         const size_t next_offset = current_offset + len + 1;
         // Fast path: Enough space in char_buffer
         if (BASE_SIZE > next_offset) {
-            const size_t start_offset = current_offset;
-
             copy_utf16_to_ascii(temp_buffer, len, char_buffer + current_offset, env, val);
             char_buffer[current_offset + len] = '\0';
 

@@ -19,8 +19,6 @@ package com.android.server.am;
 import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_BOUND_SERVICE;
 import static android.app.ProcessMemoryState.HOSTING_COMPONENT_TYPE_FOREGROUND_SERVICE;
 
-import static com.android.server.am.Flags.serviceBindingOomAdjPolicy;
-
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.content.Context;
@@ -31,6 +29,8 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.server.am.psc.ProcessServiceRecordInternal;
+import com.android.server.am.psc.ServiceRecordInternal;
 import com.android.server.wm.WindowProcessController;
 
 import java.io.PrintWriter;
@@ -39,7 +39,7 @@ import java.util.ArrayList;
 /**
  * The state info of all services in the process.
  */
-final class ProcessServiceRecord {
+final class ProcessServiceRecord extends ProcessServiceRecordInternal {
     /**
      * Are there any client services with activities?
      */
@@ -62,25 +62,11 @@ final class ProcessServiceRecord {
     private boolean mHasTopStartedAlmostPerceptibleServices;
 
     /**
-     * The latest value of {@link ServiceRecord#lastTopAlmostPerceptibleBindRequestUptimeMs} among
-     * the currently running services.
+     * The latest value of {@link ServiceRecord#getLastTopAlmostPerceptibleBindRequestUptimeMs()}
+     * among the currently running services.
      */
     private long mLastTopStartedAlmostPerceptibleBindRequestUptimeMs;
 
-    /**
-     * Service that applied current connectionGroup/Importance.
-     */
-    private ServiceRecord mConnectionService;
-
-    /**
-     * Last group set by a connection.
-     */
-    private int mConnectionGroup;
-
-    /**
-     * Last importance set by a connection.
-     */
-    private int mConnectionImportance;
 
     /**
      * The OR'ed foreground service types that are running on this process.
@@ -95,26 +81,6 @@ final class ProcessServiceRecord {
      * @see #mFgServiceTypes
      */
     private boolean mHasTypeNoneFgs;
-
-    /**
-     * Last reported foreground service types.
-     */
-    private int mRepFgServiceTypes;
-
-    /**
-     * Bound using BIND_ABOVE_CLIENT, so want to be lower.
-     */
-    private boolean mHasAboveClient;
-
-    /**
-     * Bound using BIND_TREAT_LIKE_ACTIVITY.
-     */
-    private boolean mTreatLikeActivity;
-
-    /**
-     * Do we need to be executing services in the foreground?
-     */
-    private boolean mExecServicesFg;
 
     /**
      * App is allowed to manage allowlists such as temporary Power Save mode allowlist.
@@ -132,7 +98,7 @@ final class ProcessServiceRecord {
     private final ArraySet<ServiceRecord> mExecutingServices = new ArraySet<>();
 
     /**
-     * All ConnectionRecord this process holds.
+     * All outgoing connections from this process.
      */
     private final ArraySet<ConnectionRecord> mConnections = new ArraySet<>();
 
@@ -189,10 +155,8 @@ final class ProcessServiceRecord {
         }
     }
 
-    /**
-     * @return true if this process has any foreground services (even timed-out short-FGS)
-     */
-    boolean hasForegroundServices() {
+    @Override
+    public boolean hasForegroundServices() {
         return mHasForegroundServices;
     }
 
@@ -273,19 +237,10 @@ final class ProcessServiceRecord {
         return false;
     }
 
-
-    int getReportedForegroundServiceTypes() {
-        return mRepFgServiceTypes;
-    }
-
-    void setReportedForegroundServiceTypes(int foregroundServiceTypes) {
-        mRepFgServiceTypes = foregroundServiceTypes;
-    }
-
     int getNumForegroundServices() {
         int count = 0;
         for (int i = 0, serviceCount = mServices.size(); i < serviceCount; i++) {
-            if (mServices.valueAt(i).isForeground) {
+            if (mServices.valueAt(i).isForeground()) {
                 count++;
             }
         }
@@ -296,33 +251,14 @@ final class ProcessServiceRecord {
         mHasTopStartedAlmostPerceptibleServices = false;
         mLastTopStartedAlmostPerceptibleBindRequestUptimeMs = 0;
         for (int s = mServices.size() - 1; s >= 0; --s) {
-            final ServiceRecord sr = mServices.valueAt(s);
+            final ServiceRecordInternal sr = mServices.valueAt(s);
             mLastTopStartedAlmostPerceptibleBindRequestUptimeMs = Math.max(
                     mLastTopStartedAlmostPerceptibleBindRequestUptimeMs,
-                    sr.lastTopAlmostPerceptibleBindRequestUptimeMs);
+                    sr.getLastTopAlmostPerceptibleBindRequestUptimeMs());
             if (!mHasTopStartedAlmostPerceptibleServices && isAlmostPerceptible(sr)) {
                 mHasTopStartedAlmostPerceptibleServices = true;
             }
         }
-    }
-
-    private boolean isAlmostPerceptible(ServiceRecord record) {
-        if (record.lastTopAlmostPerceptibleBindRequestUptimeMs <= 0) {
-            return false;
-        }
-        final ArrayMap<IBinder, ArrayList<ConnectionRecord>> serviceConnections =
-                record.getConnections();
-        for (int m = serviceConnections.size() - 1; m >= 0; --m) {
-            final ArrayList<ConnectionRecord> clist = serviceConnections.valueAt(m);
-
-            for (int c = clist.size() - 1; c >= 0; --c) {
-                final ConnectionRecord cr = clist.get(c);
-                if (cr.hasFlag(Context.BIND_ALMOST_PERCEPTIBLE)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     boolean hasTopStartedAlmostPerceptibleServices() {
@@ -332,92 +268,18 @@ final class ProcessServiceRecord {
                 < mService.mConstants.mServiceBindAlmostPerceptibleTimeoutMs);
     }
 
-    ServiceRecord getConnectionService() {
-        return mConnectionService;
-    }
-
-    void setConnectionService(ServiceRecord connectionService) {
-        mConnectionService = connectionService;
-    }
-
-    int getConnectionGroup() {
-        return mConnectionGroup;
-    }
-
-    void setConnectionGroup(int connectionGroup) {
-        mConnectionGroup = connectionGroup;
-    }
-
-    int getConnectionImportance() {
-        return mConnectionImportance;
-    }
-
-    void setConnectionImportance(int connectionImportance) {
-        mConnectionImportance = connectionImportance;
-    }
-
     void updateHasAboveClientLocked() {
-        mHasAboveClient = false;
+        setHasAboveClient(false);
         for (int i = mConnections.size() - 1; i >= 0; i--) {
             ConnectionRecord cr = mConnections.valueAt(i);
 
             final boolean isSameProcess = cr.binding.service.app != null
                     && cr.binding.service.app.mServices == this;
             if (!isSameProcess && cr.hasFlag(Context.BIND_ABOVE_CLIENT)) {
-                mHasAboveClient = true;
+                setHasAboveClient(true);
                 break;
             }
         }
-    }
-
-    void setHasAboveClient(boolean hasAboveClient) {
-        mHasAboveClient = hasAboveClient;
-    }
-
-    boolean hasAboveClient() {
-        return mHasAboveClient;
-    }
-
-    int modifyRawOomAdj(int adj) {
-        if (mHasAboveClient) {
-            // If this process has bound to any services with BIND_ABOVE_CLIENT,
-            // then we need to drop its adjustment to be lower than the service's
-            // in order to honor the request.  We want to drop it by one adjustment
-            // level...  but there is special meaning applied to various levels so
-            // we will skip some of them.
-            if (adj < ProcessList.FOREGROUND_APP_ADJ) {
-                // System process will not get dropped, ever
-            } else if (adj < ProcessList.VISIBLE_APP_ADJ) {
-                adj = ProcessList.VISIBLE_APP_ADJ;
-            } else if (adj < ProcessList.PERCEPTIBLE_APP_ADJ) {
-                adj = ProcessList.PERCEPTIBLE_APP_ADJ;
-            } else if (adj < ProcessList.PERCEPTIBLE_LOW_APP_ADJ) {
-                adj = ProcessList.PERCEPTIBLE_LOW_APP_ADJ;
-            } else if (Flags.addModifyRawOomAdjServiceLevel() && adj < ProcessList.SERVICE_ADJ) {
-                adj = ProcessList.SERVICE_ADJ;
-            } else if (adj < ProcessList.CACHED_APP_MIN_ADJ) {
-                adj = ProcessList.CACHED_APP_MIN_ADJ;
-            } else if (adj < ProcessList.CACHED_APP_MAX_ADJ) {
-                adj++;
-            }
-        }
-        return adj;
-    }
-
-    boolean isTreatedLikeActivity() {
-        return mTreatLikeActivity;
-    }
-
-    void setTreatLikeActivity(boolean treatLikeActivity) {
-        mTreatLikeActivity = treatLikeActivity;
-    }
-
-    boolean shouldExecServicesFg() {
-        return mExecServicesFg;
-    }
-
-    void setExecServicesFg(boolean execServicesFg) {
-        mExecServicesFg = execServicesFg;
     }
 
     /**
@@ -435,10 +297,10 @@ final class ProcessServiceRecord {
             mApp.getWindowProcessController().onServiceStarted(record.serviceInfo);
             updateHostingComonentTypeForBindingsLocked();
         }
-        if (record.lastTopAlmostPerceptibleBindRequestUptimeMs > 0) {
+        if (record.getLastTopAlmostPerceptibleBindRequestUptimeMs() > 0) {
             mLastTopStartedAlmostPerceptibleBindRequestUptimeMs = Math.max(
                     mLastTopStartedAlmostPerceptibleBindRequestUptimeMs,
-                    record.lastTopAlmostPerceptibleBindRequestUptimeMs);
+                    record.getLastTopAlmostPerceptibleBindRequestUptimeMs());
             if (!mHasTopStartedAlmostPerceptibleServices) {
                 mHasTopStartedAlmostPerceptibleServices = isAlmostPerceptible(record);
             }
@@ -454,7 +316,7 @@ final class ProcessServiceRecord {
      */
     boolean stopService(ServiceRecord record) {
         final boolean removed = mServices.remove(record);
-        if (record.lastTopAlmostPerceptibleBindRequestUptimeMs > 0) {
+        if (record.getLastTopAlmostPerceptibleBindRequestUptimeMs() > 0) {
             updateHasTopStartedAlmostPerceptibleServices();
         }
         if (removed) {
@@ -478,7 +340,8 @@ final class ProcessServiceRecord {
      * @see #startService(ServiceRecord)
      * @see #stopService(ServiceRecord)
      */
-    int numberOfRunningServices() {
+    @Override
+    public int numberOfRunningServices() {
         return mServices.size();
     }
 
@@ -487,7 +350,8 @@ final class ProcessServiceRecord {
      *
      * @see #numberOfRunningServices()
      */
-    ServiceRecord getRunningServiceAt(int index) {
+    @Override
+    public ServiceRecord getRunningServiceAt(int index) {
         return mServices.valueAt(index);
     }
 
@@ -511,6 +375,11 @@ final class ProcessServiceRecord {
         return mExecutingServices.size();
     }
 
+    @Override
+    public boolean hasExecutingServices() {
+        return !mExecutingServices.isEmpty();
+    }
+
     void addConnection(ConnectionRecord connection) {
         mConnections.add(connection);
         addSdkSandboxConnectionIfNecessary(connection);
@@ -528,11 +397,13 @@ final class ProcessServiceRecord {
         mConnections.clear();
     }
 
-    ConnectionRecord getConnectionAt(int index) {
+    @Override
+    public ConnectionRecord getConnectionAt(int index) {
         return mConnections.valueAt(index);
     }
 
-    int numberOfConnections() {
+    @Override
+    public int numberOfConnections() {
         return mConnections.size();
     }
 
@@ -561,11 +432,13 @@ final class ProcessServiceRecord {
         }
     }
 
-    ConnectionRecord getSdkSandboxConnectionAt(int index) {
+    @Override
+    public ConnectionRecord getSdkSandboxConnectionAt(int index) {
         return mSdkSandboxConnections != null ? mSdkSandboxConnections.valueAt(index) : null;
     }
 
-    int numberOfSdkSandboxConnections() {
+    @Override
+    public int numberOfSdkSandboxConnections() {
         return mSdkSandboxConnections != null ? mSdkSandboxConnections.size() : 0;
     }
 
@@ -641,7 +514,7 @@ final class ProcessServiceRecord {
 
     @GuardedBy("mService")
     boolean incServiceCrashCountLocked(long now) {
-        final boolean procIsBoundForeground = mApp.mState.getCurProcState()
+        final boolean procIsBoundForeground = mApp.getCurProcState()
                 == ActivityManager.PROCESS_STATE_BOUND_FOREGROUND_SERVICE;
         boolean tryAgain = false;
         // Bump up the crash count of any services currently running in the proc.
@@ -658,7 +531,7 @@ final class ProcessServiceRecord {
             // Allow restarting for started or bound foreground services that are crashing.
             // This includes wallpapers.
             if (sr.crashCount < mService.mConstants.BOUND_SERVICE_MAX_CRASH_RETRY
-                    && (sr.isForeground || procIsBoundForeground)) {
+                    && (sr.isForeground() || procIsBoundForeground)) {
                 tryAgain = true;
             }
         }
@@ -667,8 +540,8 @@ final class ProcessServiceRecord {
 
     @GuardedBy("mService")
     void onCleanupApplicationRecordLocked() {
-        mTreatLikeActivity = false;
-        mHasAboveClient = false;
+        setTreatLikeActivity(false);
+        setHasAboveClient(false);
         setHasClientActivities(false);
     }
 
@@ -696,9 +569,6 @@ final class ProcessServiceRecord {
 
     @GuardedBy("mService")
     private void scheduleServiceTimeoutIfNeededLocked() {
-        if (!serviceBindingOomAdjPolicy()) {
-            return;
-        }
         if (mScheduleServiceTimeoutPending && mExecutingServices.size() > 0) {
             mService.mServices.scheduleServiceTimeoutLocked(mApp);
             // We'll need to reset the executingStart since the app was frozen.
@@ -710,9 +580,9 @@ final class ProcessServiceRecord {
     }
 
     void dump(PrintWriter pw, String prefix, long nowUptime) {
-        if (mHasForegroundServices || mApp.mState.getForcingToImportant() != null) {
+        if (mHasForegroundServices || mApp.getForcingToImportant() != null) {
             pw.print(prefix); pw.print("mHasForegroundServices="); pw.print(mHasForegroundServices);
-            pw.print(" forcingToImportant="); pw.println(mApp.mState.getForcingToImportant());
+            pw.print(" forcingToImportant="); pw.println(mApp.getForcingToImportant());
         }
         if (mHasTopStartedAlmostPerceptibleServices
                 || mLastTopStartedAlmostPerceptibleBindRequestUptimeMs > 0) {
@@ -721,15 +591,14 @@ final class ProcessServiceRecord {
             pw.print(" mLastTopStartedAlmostPerceptibleBindRequestUptimeMs=");
             pw.println(mLastTopStartedAlmostPerceptibleBindRequestUptimeMs);
         }
-        if (mHasClientActivities || mHasAboveClient || mTreatLikeActivity) {
+        if (mHasClientActivities || isHasAboveClient() || isTreatLikeActivity()) {
             pw.print(prefix); pw.print("hasClientActivities="); pw.print(mHasClientActivities);
-            pw.print(" hasAboveClient="); pw.print(mHasAboveClient);
-            pw.print(" treatLikeActivity="); pw.println(mTreatLikeActivity);
+            pw.print(" hasAboveClient="); pw.print(isHasAboveClient());
+            pw.print(" treatLikeActivity="); pw.println(isTreatLikeActivity());
         }
-        if (mConnectionService != null || mConnectionGroup != 0) {
-            pw.print(prefix); pw.print("connectionGroup="); pw.print(mConnectionGroup);
-            pw.print(" Importance="); pw.print(mConnectionImportance);
-            pw.print(" Service="); pw.println(mConnectionService);
+        if (getConnectionGroup() != 0) {
+            pw.print(prefix); pw.print("connectionGroup="); pw.print(getConnectionGroup());
+            pw.print(" Importance="); pw.print(getConnectionImportance());
         }
         if (mAllowlistManager) {
             pw.print(prefix); pw.print("allowlistManager="); pw.println(mAllowlistManager);
@@ -742,7 +611,7 @@ final class ProcessServiceRecord {
         }
         if (mExecutingServices.size() > 0) {
             pw.print(prefix); pw.print("Executing Services (fg=");
-            pw.print(mExecServicesFg); pw.println(")");
+            pw.print(isExecServicesFg()); pw.println(")");
             for (int i = 0, size = mExecutingServices.size(); i < size; i++) {
                 pw.print(prefix); pw.print("  - "); pw.println(mExecutingServices.valueAt(i));
             }
@@ -753,10 +622,8 @@ final class ProcessServiceRecord {
                 pw.print(prefix); pw.print("  - "); pw.println(mConnections.valueAt(i));
             }
         }
-        if (serviceBindingOomAdjPolicy()) {
-            pw.print(prefix);
-            pw.print("scheduleServiceTimeoutPending=");
-            pw.println(mScheduleServiceTimeoutPending);
-        }
+        pw.print(prefix);
+        pw.print("scheduleServiceTimeoutPending=");
+        pw.println(mScheduleServiceTimeoutPending);
     }
 }

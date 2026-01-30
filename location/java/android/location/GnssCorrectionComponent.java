@@ -118,6 +118,17 @@ public final class GnssCorrectionComponent implements Parcelable {
         dest.writeTypedObject(mPseudorangeCorrection, flags);
     }
 
+    @Override
+    @NonNull
+    public String toString() {
+        StringBuilder builder = new StringBuilder("GnssCorrectionComponent[");
+        builder.append("sourceKey = ").append(mSourceKey);
+        builder.append(", validityInterval = ").append(mValidityInterval);
+        builder.append(", pseudorangeCorrection = ").append(mPseudorangeCorrection);
+        builder.append("]");
+        return builder.toString();
+    }
+
     /**
      * Time interval referenced against the GPS epoch. The start must be less than or equal to the
      * end. When the start equals the end, the interval is empty.
@@ -210,7 +221,10 @@ public final class GnssCorrectionComponent implements Parcelable {
         /** Correction to be added to the measured pseudorange, in meters. */
         private final double mCorrectionMeters;
 
-        /** Uncertainty of the correction, in meters. */
+        /**
+         * Uncertainty of the correction, in meters.
+         * If the uncertainty is not available, this field should be set to 0.
+         */
         private final double mCorrectionUncertaintyMeters;
 
         /**
@@ -225,7 +239,8 @@ public final class GnssCorrectionComponent implements Parcelable {
          * Creates a PseudorangeCorrection.
          *
          * @param correctionMeters Correction to be added to the measured pseudorange, in meters.
-         * @param correctionUncertaintyMeters Uncertainty of the correction, in meters.
+         * @param correctionUncertaintyMeters Uncertainty of the correction, in meters. If the
+         *     uncertainty is not available, this field should be set to 0.
          * @param correctionRateMetersPerSecond Linear approximation of the change in correction
          *     over time. Intended usage is to adjust the correction using the formula:
          *     correctionMeters + correctionRateMetersPerSecond * delta_seconds Where

@@ -42,6 +42,8 @@ public class InputMediaDevice extends MediaDevice {
 
     private final String mId;
 
+    private final String mAddress;
+
     private final @AudioDeviceType int mAudioDeviceInfoType;
 
     private final int mMaxVolume;
@@ -50,22 +52,29 @@ public class InputMediaDevice extends MediaDevice {
 
     private final boolean mIsVolumeFixed;
 
+    private final boolean mIsSelected;
+
     private final String mProductName;
 
     private InputMediaDevice(
             @NonNull Context context,
             @NonNull String id,
+            @NonNull String address,
             @AudioDeviceType int audioDeviceInfoType,
             int maxVolume,
             int currentVolume,
             boolean isVolumeFixed,
+            boolean isSelected,
             @Nullable String productName) {
-        super(context, /* info= */ null, /* item= */ null);
+        super(context, /* routeInfo= */ null, /* dynamicRouteAttributes= */ null,
+                /* rlpItem= */ null);
         mId = id;
+        mAddress = address;
         mAudioDeviceInfoType = audioDeviceInfoType;
         mMaxVolume = maxVolume;
         mCurrentVolume = currentVolume;
         mIsVolumeFixed = isVolumeFixed;
+        mIsSelected = isSelected;
         mProductName = productName;
         initDeviceRecord();
     }
@@ -74,10 +83,12 @@ public class InputMediaDevice extends MediaDevice {
     public static InputMediaDevice create(
             @NonNull Context context,
             @NonNull String id,
+            @NonNull String address,
             @AudioDeviceType int audioDeviceInfoType,
             int maxVolume,
             int currentVolume,
             boolean isVolumeFixed,
+            boolean isSelected,
             @Nullable String productName) {
         if (!isSupportedInputDevice(audioDeviceInfoType)) {
             return null;
@@ -86,15 +97,21 @@ public class InputMediaDevice extends MediaDevice {
         return new InputMediaDevice(
                 context,
                 id,
+                address,
                 audioDeviceInfoType,
                 maxVolume,
                 currentVolume,
                 isVolumeFixed,
+                isSelected,
                 productName);
     }
 
     public @AudioDeviceType int getAudioDeviceInfoType() {
         return mAudioDeviceInfoType;
+    }
+
+    public @NonNull String getAddress() {
+        return mAddress;
     }
 
     public static boolean isSupportedInputDevice(@AudioDeviceType int audioDeviceInfoType) {
@@ -185,5 +202,15 @@ public class InputMediaDevice extends MediaDevice {
     @Override
     public boolean isVolumeFixed() {
         return mIsVolumeFixed;
+    }
+
+    @Override
+    public boolean isSelected() {
+        return mIsSelected;
+    }
+
+    @Override
+    public boolean isInputDevice() {
+        return true;
     }
 }

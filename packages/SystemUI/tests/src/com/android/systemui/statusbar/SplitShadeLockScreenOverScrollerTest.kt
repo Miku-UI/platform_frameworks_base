@@ -49,10 +49,11 @@ class SplitShadeLockScreenOverScrollerTest : SysuiTestCase() {
                 configurationController,
                 dumpManager,
                 context,
-                scrimController,
+                { scrimController },
                 statusBarStateController,
                 { qS },
-                { nsslController })
+                { nsslController },
+            )
     }
 
     @Test

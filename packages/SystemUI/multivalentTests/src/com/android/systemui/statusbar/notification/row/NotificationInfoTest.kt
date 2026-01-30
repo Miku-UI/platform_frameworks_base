@@ -75,7 +75,6 @@ import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 import com.android.systemui.testKosmos
 import com.android.telecom.telecomManager
 import com.google.common.truth.Truth.assertThat
-import java.util.concurrent.CountDownLatch
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -90,6 +89,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.util.concurrent.CountDownLatch
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -214,7 +214,7 @@ class NotificationInfoTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(com.android.systemui.Flags.FLAG_NOTIFICATIONS_REDESIGN_GUTS)
+    @DisableFlags(Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
     fun testBindNotification_SetsPackageIcon_flagOff() {
         val iconDrawable = mock<Drawable>()
         whenever(mockPackageManager.getApplicationIcon(any<ApplicationInfo>()))
@@ -225,19 +225,10 @@ class NotificationInfoTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(com.android.systemui.Flags.FLAG_NOTIFICATIONS_REDESIGN_GUTS)
+    @EnableFlags(Flags.FLAG_NOTIFICATIONS_REDESIGN_TEMPLATES)
     fun testBindNotification_SetsPackageIcon_flagOn() {
         val iconDrawable = mock<Drawable>()
-        whenever(mockIconStyleProvider.shouldShowWorkProfileBadge(anyOrNull(), anyOrNull()))
-            .thenReturn(false)
-        whenever(
-                mockAppIconProvider.getOrFetchAppIcon(
-                    anyOrNull(),
-                    anyOrNull(),
-                    anyBoolean(),
-                    anyBoolean(),
-                )
-            )
+        whenever(mockAppIconProvider.getOrFetchAppIcon(anyOrNull(), anyOrNull(), anyOrNull()))
             .thenReturn(iconDrawable)
         bindNotification()
         val iconView = underTest.findViewById<ImageView>(R.id.pkg_icon)
@@ -878,7 +869,12 @@ class NotificationInfoTest : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI)
+    @DisableFlags(
+        Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI,
+        Flags.FLAG_NM_SUMMARIZATION,
+        Flags.FLAG_NM_SUMMARIZATION_UI,
+        com.android.systemui.Flags.FLAG_NOTIFICATION_ANIMATED_ACTIONS_TREATMENT
+    )
     @Throws(Exception::class)
     fun testBindNotification_HidesFeedbackLink_flagOff() {
         bindNotification()
@@ -907,15 +903,6 @@ class NotificationInfoTest : SysuiTestCase() {
         feedback.performClick()
         // Verify that listener was triggered.
         assertThat(latch.count).isEqualTo(0)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_NOTIFICATION_CLASSIFICATION_UI)
-    @Throws(Exception::class)
-    fun testBindNotification_hidesFeedbackLink_notReservedChannel() {
-        bindNotification()
-
-        assertThat(underTest.findViewById<View>(R.id.feedback).visibility).isEqualTo(GONE)
     }
 
     @Test

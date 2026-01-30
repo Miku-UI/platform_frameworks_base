@@ -25,7 +25,7 @@
 
 constexpr const char* kCommonUtils = "com/android/ravenwood/common/RavenwoodCommonUtils";
 constexpr const char* kRuntimeEnvController =
-        "android/platform/test/ravenwood/RavenwoodRuntimeEnvironmentController";
+        "android/platform/test/ravenwood/RavenwoodDriver";
 constexpr const char* kRunnerState = "android/platform/test/ravenwood/RavenwoodRunnerState";
 constexpr const char* kRuntimeNative = "com/android/ravenwood/RavenwoodRuntimeNative";
 

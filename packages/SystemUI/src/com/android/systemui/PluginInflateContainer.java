@@ -74,7 +74,7 @@ public class PluginInflateContainer extends AutoReinflateContainer
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         if (mClass != null) {
-            Dependency.get(PluginManager.class).addPluginListener(this, mClass);
+            Dependency.get(PluginManager.class).addPluginListener(this, mClass, false);
         }
     }
 

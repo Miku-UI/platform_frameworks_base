@@ -16,6 +16,8 @@
 
 package android.os;
 
+import static android.security.Flags.failOnParcelSizeMismatch;
+
 import static com.android.internal.util.Preconditions.checkArgument;
 
 import static java.util.Objects.requireNonNull;
@@ -28,8 +30,6 @@ import android.annotation.SuppressLint;
 import android.annotation.TestApi;
 import android.app.AppOpsManager;
 import android.compat.annotation.UnsupportedAppUsage;
-import android.os.Flags;
-import android.ravenwood.annotation.RavenwoodClassLoadHook;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.ravenwood.annotation.RavenwoodReplace;
 import android.ravenwood.annotation.RavenwoodThrow;
@@ -50,12 +50,12 @@ import android.util.SparseIntArray;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
+import com.android.internal.util.StringCache;
 
 import dalvik.annotation.optimization.CriticalNative;
 import dalvik.annotation.optimization.FastNative;
+import dalvik.annotation.optimization.NeverInline;
 
-import java.nio.BufferOverflowException;
-import java.nio.ReadOnlyBufferException;
 import libcore.util.SneakyThrow;
 
 import java.io.ByteArrayInputStream;
@@ -66,12 +66,14 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
 import java.io.Serializable;
-import java.nio.ByteBuffer;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.nio.BufferOverflowException;
+import java.nio.ByteBuffer;
+import java.nio.ReadOnlyBufferException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -239,7 +241,6 @@ import java.util.function.IntFunction;
  * {@link #readSparseArray(ClassLoader, Class)}.
  */
 @RavenwoodKeepWholeClass
-@RavenwoodClassLoadHook(RavenwoodClassLoadHook.LIBANDROID_LOADING_HOOK)
 public final class Parcel {
 
     private static final boolean DEBUG_RECYCLE = false;
@@ -618,7 +619,6 @@ public final class Parcel {
         // able to print a stack when a Parcel is recycled twice, that
         // is cleared in obtain instead.
 
-        mClassCookies = null;
         freeBuffer();
 
         if (mOwnsNativeParcelObject) {
@@ -639,6 +639,21 @@ public final class Parcel {
                 }
             }
         }
+    }
+
+    @NeverInline
+    private void errorUsedWhileRecycling() {
+        String error = "Parcel used while recycled. "
+                + Log.getStackTraceString(new Throwable())
+                + " Original recycle call (if DEBUG_RECYCLE): ", mStack;
+        Log.wtf(TAG, error);
+        throw new BadParcelableException(error);
+    }
+
+    // TODO: call in more places, it costs a _lot_ to use this in many
+    // places, see b/390748425 for instance. Used as canary for now.
+    private void assertNotRecycled() {
+        if (mRecycled) errorUsedWhileRecycling();
     }
 
     /**
@@ -1306,12 +1321,12 @@ public final class Parcel {
         writeString16(val);
     }
 
-    /** {@hide} */
+    /** @hide */
     public final void writeString8(@Nullable String val) {
         mReadWriteHelper.writeString8(this, val);
     }
 
-    /** {@hide} */
+    /** @hide */
     public final void writeString16(@Nullable String val) {
         mReadWriteHelper.writeString16(this, val);
     }
@@ -1327,12 +1342,12 @@ public final class Parcel {
         writeString16NoHelper(val);
     }
 
-    /** {@hide} */
+    /** @hide */
     public void writeString8NoHelper(@Nullable String val) {
         nativeWriteString8(mNativePtr, val);
     }
 
-    /** {@hide} */
+    /** @hide */
     public void writeString16NoHelper(@Nullable String val) {
         nativeWriteString16(mNativePtr, val);
     }
@@ -1390,7 +1405,7 @@ public final class Parcel {
     }
 
     /**
-     * {@hide}
+     * @hide
      * This will be the new name for writeFileDescriptor, for consistency.
      **/
     public final void writeRawFileDescriptor(@NonNull FileDescriptor val) {
@@ -1398,7 +1413,7 @@ public final class Parcel {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Write an array of FileDescriptor objects into the Parcel.
      *
      * @param value The array of objects to be written.
@@ -1725,7 +1740,7 @@ public final class Parcel {
                 totalObjects = Math.multiplyExact(totalObjects, dimension);
             }
         } catch (ArithmeticException e) {
-            Log.e(TAG, "ArithmeticException occurred while multiplying dimensions " + e);
+            Log.e(TAG, "ArithmeticException occurred while multiplying dimensions", e);
             BadParcelableException badParcelableException = new BadParcelableException("Estimated "
                     + "array length is too large. Array Dimensions:" + Arrays.toString(dimensions));
             SneakyThrow.sneakyThrow(badParcelableException);
@@ -1739,7 +1754,7 @@ public final class Parcel {
             estimatedAllocationSize = Math.multiplyExact(typeSize, length);
         } catch (ArithmeticException e) {
             Log.e(TAG, "ArithmeticException occurred while multiplying values " + typeSize
-                    + " and "  + length + " Exception: " + e);
+                    + " and " + length, e);
             BadParcelableException badParcelableException = new BadParcelableException("Estimated "
                     + "allocation size is too large. typeSize: " + typeSize + " length: " + length);
             SneakyThrow.sneakyThrow(badParcelableException);
@@ -2031,7 +2046,7 @@ public final class Parcel {
         readString16Array(val);
     }
 
-    /** {@hide} */
+    /** @hide */
     public final void writeString8Array(@Nullable String[] val) {
         if (val != null) {
             int N = val.length;
@@ -2044,7 +2059,7 @@ public final class Parcel {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Nullable
     public final String[] createString8Array() {
         int N = readInt();
@@ -2060,7 +2075,7 @@ public final class Parcel {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public final void readString8Array(@NonNull String[] val) {
         int N = readInt();
         if (N == val.length) {
@@ -2072,10 +2087,28 @@ public final class Parcel {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public final void writeString16Array(@Nullable String[] val) {
         if (val != null) {
             int N = val.length;
+            // reduce the number of times we need to growData from writing each String16
+            int size = 4; // int32_t for the size of the array
+            for (int i = 0; i < N; i++) {
+                if (val[i] == null) {
+                    size += 4; // we write a -1 for len for null strings
+                } else {
+                    // + 4 byte int32 for len
+                    // String.length() * 2 because each char is at least one
+                    // UTF-16 code point (2 bytes)
+                    // + 2 for null char
+                    // The string + null is padded for 4 byte alignment
+                    size += ((val[i].length() * 2 + 2 + 3) & ~3) + 4;
+                }
+            }
+            size += dataPosition();
+            // size * 3/2 is what growData uses
+            if (dataCapacity() < size) setDataCapacity(size / 2 * 3);
+
             writeInt(N);
             for (int i=0; i<N; i++) {
                 writeString16(val[i]);
@@ -2085,7 +2118,7 @@ public final class Parcel {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Nullable
     public final String[] createString16Array() {
         int N = readInt();
@@ -2101,7 +2134,7 @@ public final class Parcel {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public final void readString16Array(@NonNull String[] val) {
         int N = readInt();
         if (N == val.length) {
@@ -3395,12 +3428,12 @@ public final class Parcel {
         return readString16();
     }
 
-    /** {@hide} */
+    /** @hide */
     public final @Nullable String readString8() {
         return mReadWriteHelper.readString8(this);
     }
 
-    /** {@hide} */
+    /** @hide */
     public final @Nullable String readString16() {
         return mReadWriteHelper.readString16(this);
     }
@@ -3416,14 +3449,22 @@ public final class Parcel {
         return readString16NoHelper();
     }
 
-    /** {@hide} */
+    /** @hide */
     public @Nullable String readString8NoHelper() {
-        return nativeReadString8(mNativePtr);
+        if (Flags.parcelStringCacheEnabled()) {
+            return StringCache.INSTANCE.cache(nativeReadString8(mNativePtr));
+        } else {
+            return nativeReadString8(mNativePtr);
+        }
     }
 
-    /** {@hide} */
+    /** @hide */
     public @Nullable String readString16NoHelper() {
-        return nativeReadString16(mNativePtr);
+        if (Flags.parcelStringCacheEnabled()) {
+            return StringCache.INSTANCE.cache(nativeReadString16(mNativePtr));
+        } else {
+            return nativeReadString16(mNativePtr);
+        }
     }
 
     /**
@@ -3466,14 +3507,14 @@ public final class Parcel {
         return fd != null ? new ParcelFileDescriptor(fd) : null;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public final FileDescriptor readRawFileDescriptor() {
         return nativeReadFileDescriptor(mNativePtr);
     }
 
     /**
-     * {@hide}
+     * @hide
      * Read and return a new array of FileDescriptors from the parcel.
      * @return the FileDescriptor array, or null if the array is null.
      **/
@@ -3492,7 +3533,7 @@ public final class Parcel {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Read an array of FileDescriptors from a parcel.
      * The passed array must be exactly the length of the array in the parcel.
      * @return the FileDescriptor array, or null if the array is null.
@@ -3728,7 +3769,7 @@ public final class Parcel {
 
     /**
      * Read and return a String[] object from the parcel.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     @Nullable
@@ -3738,7 +3779,7 @@ public final class Parcel {
 
     /**
      * Read and return a CharSequence[] object from the parcel.
-     * {@hide}
+     * @hide
      */
     @Nullable
     public final CharSequence[] readCharSequenceArray() {
@@ -3761,7 +3802,7 @@ public final class Parcel {
 
     /**
      * Read and return an ArrayList&lt;CharSequence&gt; object from the parcel.
-     * {@hide}
+     * @hide
      */
     @Nullable
     public final ArrayList<CharSequence> readCharSequenceList() {
@@ -4702,9 +4743,14 @@ public final class Parcel {
             object = readValue(type, loader, clazz, itemTypes);
             int actual = dataPosition() - start;
             if (actual != length) {
-                Slog.wtfStack(TAG,
-                        "Unparcelling of " + object + " of type " + Parcel.valueTypeToString(type)
-                                + "  consumed " + actual + " bytes, but " + length + " expected.");
+                boolean failOnMismatch = failOnParcelSizeMismatch();
+                String msg = "Unparcelling of " + object + " of type " + Parcel.valueTypeToString(
+                        type) + "  consumed " + actual + " bytes, but " + length + " expected."
+                        + (failOnMismatch ? " [throwing]" : " [ignored]");
+                Slog.wtfStack(TAG, msg);
+                if (failOnMismatch) {
+                    throw new BadParcelableException(msg);
+                }
             }
         } else {
             object = readValue(type, loader, clazz, itemTypes);
@@ -5203,6 +5249,7 @@ public final class Parcel {
     @SuppressWarnings("unchecked")
     @Nullable
     private <T> T readParcelableInternal(@Nullable ClassLoader loader, @Nullable Class<T> clazz) {
+        assertNotRecycled();
         Parcelable.Creator<?> creator = readParcelableCreatorInternal(loader, clazz);
         if (creator == null) {
             return null;
@@ -5595,9 +5642,11 @@ public final class Parcel {
             nativeFreeBuffer(mNativePtr);
         }
         mReadWriteHelper = ReadWriteHelper.DEFAULT;
+        mClassCookies = null;
     }
 
-    private void destroy() {
+    /** @hide */
+    public void destroy() {
         resetSqaushingState();
         if (mNativePtr != 0) {
             if (mOwnsNativeParcelObject) {

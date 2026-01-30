@@ -18,6 +18,7 @@ package com.android.settingslib.spaprivileged.tests.testutils
 
 import android.app.admin.EnforcingAdmin
 import android.app.admin.UnknownAuthority
+import android.app.admin.SystemAuthority
 import android.os.UserHandle
 import android.security.advancedprotection.AdvancedProtectionManager.ADVANCED_PROTECTION_SYSTEM_ENTITY
 import androidx.compose.runtime.Composable
@@ -61,8 +62,10 @@ class FakeRestrictionsProvider : RestrictionsProvider {
 }
 
 fun getEnforcingAdminAdvancedProtection(packageName: String, userId: Int): EnforcingAdmin =
-    EnforcingAdmin(packageName, UnknownAuthority(ADVANCED_PROTECTION_SYSTEM_ENTITY),
-        UserHandle.of(userId))
+    EnforcingAdmin(
+        packageName, SystemAuthority(ADVANCED_PROTECTION_SYSTEM_ENTITY),
+        UserHandle.of(userId)
+    )
 
 fun getEnforcingAdminNotAdvancedProtection(packageName: String, userId: Int): EnforcingAdmin =
     EnforcingAdmin(packageName, UnknownAuthority.UNKNOWN_AUTHORITY, UserHandle.of(userId))

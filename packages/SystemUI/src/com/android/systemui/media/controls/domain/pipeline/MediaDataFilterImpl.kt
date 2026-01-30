@@ -24,14 +24,11 @@ import com.android.internal.annotations.VisibleForTesting
 import com.android.internal.logging.InstanceId
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.media.controls.data.repository.MediaFilterRepository
 import com.android.systemui.media.controls.shared.MediaLogger
 import com.android.systemui.media.controls.shared.model.MediaData
-import com.android.systemui.media.controls.shared.model.MediaDataLoadingModel
+import com.android.systemui.media.remedia.data.repository.MediaPipelineRepository
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
-import com.android.systemui.util.time.SystemClock
-import java.util.SortedMap
 import java.util.concurrent.Executor
 import javax.inject.Inject
 
@@ -52,8 +49,7 @@ constructor(
     userTracker: UserTracker,
     private val lockscreenUserManager: NotificationLockscreenUserManager,
     @Main private val executor: Executor,
-    private val systemClock: SystemClock,
-    private val mediaFilterRepository: MediaFilterRepository,
+    private val mediaPipelineRepository: MediaPipelineRepository,
     private val mediaLogger: MediaLogger,
 ) : MediaDataManager.Listener {
     /** Non-UI listeners to media changes. */
@@ -85,13 +81,11 @@ constructor(
         oldKey: String?,
         data: MediaData,
         immediately: Boolean,
-        receivedSmartspaceCardLatency: Int,
-        isSsReactivated: Boolean,
     ) {
         if (oldKey != null && oldKey != key) {
-            mediaFilterRepository.removeMediaEntry(oldKey)
+            mediaPipelineRepository.removeMediaEntry(oldKey)
         }
-        mediaFilterRepository.addMediaEntry(key, data)
+        mediaPipelineRepository.addMediaEntry(key, data)
 
         if (
             !lockscreenUserManager.isCurrentProfile(data.userId) ||
@@ -100,25 +94,18 @@ constructor(
             return
         }
 
-        val isUpdate = mediaFilterRepository.addSelectedUserMediaEntry(data)
+        mediaPipelineRepository.addCurrentUserMediaEntry(data)
 
         mediaLogger.logMediaLoaded(data.instanceId, data.active, "loading media")
-        mediaFilterRepository.addMediaDataLoadingState(
-            MediaDataLoadingModel.Loaded(data.instanceId),
-            isUpdate,
-        )
 
         // Notify listeners
         listeners.forEach { it.onMediaDataLoaded(key, oldKey, data) }
     }
 
     override fun onMediaDataRemoved(key: String, userInitiated: Boolean) {
-        mediaFilterRepository.removeMediaEntry(key)?.let { mediaData ->
+        mediaPipelineRepository.removeMediaEntry(key)?.let { mediaData ->
             val instanceId = mediaData.instanceId
-            mediaFilterRepository.removeSelectedUserMediaEntry(instanceId)?.let {
-                mediaFilterRepository.addMediaDataLoadingState(
-                    MediaDataLoadingModel.Removed(instanceId)
-                )
+            mediaPipelineRepository.removeCurrentUserMediaEntry(instanceId)?.let {
                 mediaLogger.logMediaRemoved(instanceId, "removing media card")
                 // Only notify listeners if something actually changed
                 listeners.forEach { it.onMediaDataRemoved(key, userInitiated) }
@@ -129,13 +116,10 @@ constructor(
     @VisibleForTesting
     internal fun handleProfileChanged() {
         // TODO(b/317221348) re-add media removed when profile is available.
-        mediaFilterRepository.allUserEntries.value.forEach { (key, data) ->
+        mediaPipelineRepository.allMediaEntries.value.forEach { (key, data) ->
             if (!lockscreenUserManager.isProfileAvailable(data.userId)) {
                 // Only remove media when the profile is unavailable.
-                mediaFilterRepository.removeSelectedUserMediaEntry(data.instanceId, data)
-                mediaFilterRepository.addMediaDataLoadingState(
-                    MediaDataLoadingModel.Removed(data.instanceId)
-                )
+                mediaPipelineRepository.removeCurrentUserMediaEntry(data.instanceId, data)
                 mediaLogger.logMediaRemoved(data.instanceId, "Removing $key after profile change")
                 listeners.forEach { listener -> listener.onMediaDataRemoved(key, false) }
             }
@@ -146,26 +130,19 @@ constructor(
     internal fun handleUserSwitched() {
         // If the user changes, remove all current MediaData objects.
         val listenersCopy = listeners
-        val keyCopy = mediaFilterRepository.selectedUserEntries.value.keys.toMutableList()
+        val keyCopy = mediaPipelineRepository.currentUserEntries.value.keys.toMutableList()
         // Clear the list first and update loading state to remove media from UI.
-        mediaFilterRepository.clearSelectedUserMedia()
+        mediaPipelineRepository.clearCurrentUserMedia()
         keyCopy.forEach { instanceId ->
-            mediaFilterRepository.addMediaDataLoadingState(
-                MediaDataLoadingModel.Removed(instanceId)
-            )
             mediaLogger.logMediaRemoved(instanceId, "Removing media after user change")
             getKey(instanceId)?.let {
                 listenersCopy.forEach { listener -> listener.onMediaDataRemoved(it, false) }
             }
         }
 
-        mediaFilterRepository.allUserEntries.value.forEach { (key, data) ->
+        mediaPipelineRepository.allMediaEntries.value.forEach { (key, data) ->
             if (lockscreenUserManager.isCurrentProfile(data.userId)) {
-                val isUpdate = mediaFilterRepository.addSelectedUserMediaEntry(data)
-                mediaFilterRepository.addMediaDataLoadingState(
-                    MediaDataLoadingModel.Loaded(data.instanceId),
-                    isUpdate,
-                )
+                mediaPipelineRepository.addCurrentUserMediaEntry(data)
                 mediaLogger.logMediaLoaded(
                     data.instanceId,
                     data.active,
@@ -179,9 +156,9 @@ constructor(
     /** Invoked when the user has dismissed the media carousel */
     fun onSwipeToDismiss() {
         if (DEBUG) Log.d(TAG, "Media carousel swiped away")
-        val mediaEntries = mediaFilterRepository.allUserEntries.value.entries
+        val mediaEntries = mediaPipelineRepository.allMediaEntries.value.entries
         mediaEntries.forEach { (key, data) ->
-            if (mediaFilterRepository.selectedUserEntries.value.containsKey(data.instanceId)) {
+            if (mediaPipelineRepository.currentUserEntries.value.containsKey(data.instanceId)) {
                 // Force updates to listeners, needed for re-activated card
                 mediaDataProcessor.setInactive(key, timedOut = true, forceUpdate = true)
             }
@@ -194,27 +171,8 @@ constructor(
     /** Remove a listener that was registered with addListener */
     fun removeListener(listener: MediaDataProcessor.Listener) = _listeners.remove(listener)
 
-    /**
-     * Return the time since last active for the most-recent media.
-     *
-     * @param sortedEntries selectedUserEntries sorted from the earliest to the most-recent.
-     * @return The duration in milliseconds from the most-recent media's last active timestamp to
-     *   the present. MAX_VALUE will be returned if there is no media.
-     */
-    private fun timeSinceActiveForMostRecentMedia(
-        sortedEntries: SortedMap<InstanceId, MediaData>
-    ): Long {
-        if (sortedEntries.isEmpty()) {
-            return Long.MAX_VALUE
-        }
-
-        val now = systemClock.elapsedRealtime()
-        val lastActiveInstanceId = sortedEntries.lastKey() // most recently active
-        return sortedEntries[lastActiveInstanceId]?.let { now - it.lastActive } ?: Long.MAX_VALUE
-    }
-
     private fun getKey(instanceId: InstanceId): String? {
-        val allEntries = mediaFilterRepository.allUserEntries.value
+        val allEntries = mediaPipelineRepository.allMediaEntries.value
         val filteredEntries = allEntries.filter { (_, data) -> data.instanceId == instanceId }
         return if (filteredEntries.isNotEmpty()) {
             filteredEntries.keys.first()

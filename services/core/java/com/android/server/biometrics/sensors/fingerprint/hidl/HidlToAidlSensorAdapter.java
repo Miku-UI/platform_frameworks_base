@@ -234,7 +234,8 @@ public class HidlToAidlSensorAdapter extends Sensor implements IHwBinder.DeathRe
                 return new StopUserClient<>(getContext(),
                         HidlToAidlSensorAdapter.this::getSession,
                         null /* token */, userId, getSensorProperties().sensorId,
-                        BiometricLogger.ofUnknown(getContext()), getBiometricContext(),
+                        BiometricLogger.ofUnknown(getContext(), getHandler()),
+                        getBiometricContext(),
                         () -> {
                             mCurrentUserId = UserHandle.USER_NULL;
                             mSession = null;
@@ -270,7 +271,8 @@ public class HidlToAidlSensorAdapter extends Sensor implements IHwBinder.DeathRe
             boolean forceUpdateAuthenticatorIds) {
         return new FingerprintUpdateActiveUserClient(getContext(),
                 () -> getSession().getSession(), newUserId, TAG,
-                getSensorProperties().sensorId, BiometricLogger.ofUnknown(getContext()),
+                getSensorProperties().sensorId,
+                BiometricLogger.ofUnknown(getContext(), getHandler()),
                 getBiometricContext(), () -> mCurrentUserId,
                 !getFingerprintUtilsInstance().getBiometricsForUser(getContext(),
                 newUserId).isEmpty(), getAuthenticatorIds(), forceUpdateAuthenticatorIds,

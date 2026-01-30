@@ -21,7 +21,7 @@ import java.util.BitSet;
 
 /**
  * A batch of DNS events recorded by NetdEventListenerService for a specific network.
- * {@hide}
+ * @hide
  */
 final public class DnsEvent {
 

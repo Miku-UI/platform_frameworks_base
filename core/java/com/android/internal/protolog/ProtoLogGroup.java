@@ -27,8 +27,6 @@ public class ProtoLogGroup implements IProtoLogGroup {
     private final String mName;
     @NonNull
     private final String mTag;
-    private final boolean mEnabled;
-    private boolean mLogToProto;
     private boolean mLogToLogcat;
 
     public ProtoLogGroup(@NonNull String name) {
@@ -39,23 +37,17 @@ public class ProtoLogGroup implements IProtoLogGroup {
         this(name, tag, true);
     }
 
-    public ProtoLogGroup(@NonNull String name, @NonNull String tag, boolean enabled) {
+    public ProtoLogGroup(@NonNull String name, @NonNull String tag, boolean logToLogcat) {
         mName = name;
         mTag = tag;
-        mEnabled = enabled;
-        mLogToProto = enabled;
-        mLogToLogcat = enabled;
+        mLogToLogcat = logToLogcat;
     }
 
     @Override
     public boolean isEnabled() {
-        return mEnabled;
-    }
-
-    @Deprecated
-    @Override
-    public boolean isLogToProto() {
-        return mLogToProto;
+        // Should only be called by the source code pre-processor and this type of ProtoLogGroup is
+        // not yet supported by the ProtoLogTool so this should never be called.
+        throw new UnsupportedOperationException("ProtoLogGroup.isEnabled() should not be called");
     }
 
     @Override
@@ -67,12 +59,6 @@ public class ProtoLogGroup implements IProtoLogGroup {
     @NonNull
     public String getTag() {
         return mTag;
-    }
-
-    @Deprecated
-    @Override
-    public void setLogToProto(boolean logToProto) {
-        mLogToProto = logToProto;
     }
 
     @Override

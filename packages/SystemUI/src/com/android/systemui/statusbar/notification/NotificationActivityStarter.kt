@@ -41,12 +41,6 @@ interface NotificationActivityStarter {
     fun startNotificationGutsIntent(intent: Intent, appUid: Int, row: ExpandableNotificationRow)
 
     /**
-     * Called when the user clicks "Manage" or "History" in the Shade. Prefer using
-     * [startSettingsIntent] instead.
-     */
-    fun startHistoryIntent(view: View?, showHistory: Boolean)
-
-    /**
      * Called to open a settings intent from a launchable view (such as the "Manage" or "History"
      * button in the shade, or the "No notifications" text).
      *

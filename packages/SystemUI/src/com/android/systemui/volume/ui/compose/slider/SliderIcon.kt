@@ -17,6 +17,7 @@
 package com.android.systemui.volume.ui.compose.slider
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -24,6 +25,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
@@ -33,13 +38,32 @@ fun SliderIcon(
     isVisible: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    var previousIsVisible: Boolean? by remember { mutableStateOf(null) }
     Box(contentAlignment = Alignment.Center, modifier = modifier.fillMaxSize()) {
         AnimatedVisibility(
             visible = isVisible,
-            enter = fadeIn(animationSpec = tween(delayMillis = 33, durationMillis = 100)),
-            exit = fadeOut(animationSpec = tween(durationMillis = 50)),
+            enter =
+                fadeIn(
+                    animationSpec =
+                        if (previousIsVisible == null) {
+                            snap()
+                        } else {
+                            tween(delayMillis = 33, durationMillis = 100)
+                        }
+                ),
+            exit =
+                fadeOut(
+                    animationSpec =
+                        if (previousIsVisible == null) {
+                            snap()
+                        } else {
+                            tween(durationMillis = 50)
+                        }
+                ),
         ) {
             icon()
         }
     }
+
+    previousIsVisible = isVisible
 }

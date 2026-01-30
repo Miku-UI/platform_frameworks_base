@@ -24,6 +24,7 @@ import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State
 import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.flatMap
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.logDiffsForTable
@@ -60,17 +61,32 @@ constructor(
 
     init {
         onActivated {
-            logDiffsForTable(isCarrierMerged, tableLogBuffer, columnName = "isCarrierMerged")
+            logDiffsForTable(
+                name =
+                    nameTag {
+                        "FullMobileConnectionRepositoryKairos(subId=$subId).isCarrierMerged"
+                    },
+                isCarrierMerged,
+                tableLogBuffer,
+                columnName = "isCarrierMerged",
+            )
             combine(isCarrierMerged, activeRepo) { isCarrierMerged, activeRepo ->
                     DumpCache(isCarrierMerged, activeRepo)
                 }
-                .observe { dumpCache = it }
+                .observe(
+                    name =
+                        nameTag { "FullMobileConnectionRepositoryKairos(subId=$subId).dumpCache" }
+                ) {
+                    dumpCache = it
+                }
         }
     }
 
     @VisibleForTesting
     val activeRepo: State<MobileConnectionRepositoryKairos> = buildState {
-        isCarrierMerged.mapLatestBuild { merged ->
+        isCarrierMerged.mapLatestBuild(
+            nameTag { "FullMobileConnectionRepositoryKairos(subId=$subId).activeRepo" }
+        ) { merged ->
             if (merged) {
                 carrierMergedRepoSpec.applySpec()
             } else {
@@ -87,50 +103,130 @@ constructor(
         activeRepo
             .flatMap { it.isEmergencyOnly }
             .also {
-                onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_EMERGENCY) }
+                onActivated {
+                    logDiffsForTable(
+                        nameTag {
+                            "FullMobileConnectionRepositoryKairos(subId=$subId).isEmergencyOnly"
+                        },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_EMERGENCY,
+                    )
+                }
             }
 
     override val isRoaming: State<Boolean> =
         activeRepo
             .flatMap { it.isRoaming }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_ROAMING) } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        nameTag { "FullMobileConnectionRepositoryKairos(subId=$subId).isRoaming" },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_ROAMING,
+                    )
+                }
+            }
 
     override val operatorAlphaShort: State<String?> =
         activeRepo
             .flatMap { it.operatorAlphaShort }
             .also {
-                onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_OPERATOR) }
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).operatorAlphaShort"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_OPERATOR,
+                    )
+                }
             }
 
     override val isInService: State<Boolean> =
         activeRepo
             .flatMap { it.isInService }
             .also {
-                onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_IS_IN_SERVICE) }
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).isInService"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_IS_IN_SERVICE,
+                    )
+                }
             }
 
     override val isNonTerrestrial: State<Boolean> =
         activeRepo
             .flatMap { it.isNonTerrestrial }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_IS_NTN) } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).isNonTerrestrial"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_IS_NTN,
+                    )
+                }
+            }
 
     override val isGsm: State<Boolean> =
         activeRepo
             .flatMap { it.isGsm }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_IS_GSM) } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag { "FullMobileConnectionRepositoryKairos(subId=$subId).isGsm" },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_IS_GSM,
+                    )
+                }
+            }
 
     override val cdmaLevel: State<Int> =
         activeRepo
             .flatMap { it.cdmaLevel }
             .also {
-                onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_CDMA_LEVEL) }
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).cdmaLevel"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_CDMA_LEVEL,
+                    )
+                }
             }
 
     override val primaryLevel: State<Int> =
         activeRepo
             .flatMap { it.primaryLevel }
             .also {
-                onActivated { logDiffsForTable(it, tableLogBuffer, columnName = COL_PRIMARY_LEVEL) }
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).primaryLevel"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_PRIMARY_LEVEL,
+                    )
+                }
             }
 
     override val satelliteLevel: State<Int> =
@@ -138,51 +234,139 @@ constructor(
             .flatMap { it.satelliteLevel }
             .also {
                 onActivated {
-                    logDiffsForTable(it, tableLogBuffer, columnName = COL_SATELLITE_LEVEL)
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).satelliteLevel"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_SATELLITE_LEVEL,
+                    )
                 }
             }
 
     override val dataConnectionState: State<DataConnectionState> =
         activeRepo
             .flatMap { it.dataConnectionState }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnPrefix = "") } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).dataConnectionState"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnPrefix = "",
+                    )
+                }
+            }
 
     override val dataActivityDirection: State<DataActivityModel> =
         activeRepo
             .flatMap { it.dataActivityDirection }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnPrefix = "") } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).dataActivityDirection"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnPrefix = "",
+                    )
+                }
+            }
 
     override val carrierNetworkChangeActive: State<Boolean> =
         activeRepo
             .flatMap { it.carrierNetworkChangeActive }
             .also {
                 onActivated {
-                    logDiffsForTable(it, tableLogBuffer, columnName = COL_CARRIER_NETWORK_CHANGE)
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).carrierNetworkChangeActive"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = COL_CARRIER_NETWORK_CHANGE,
+                    )
                 }
             }
 
     override val resolvedNetworkType: State<ResolvedNetworkType> =
         activeRepo
             .flatMap { it.resolvedNetworkType }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnPrefix = "") } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).resolvedNetworkType"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnPrefix = "",
+                    )
+                }
+            }
 
     override val dataEnabled: State<Boolean> =
         activeRepo
             .flatMap { it.dataEnabled }
             .also {
-                onActivated { logDiffsForTable(it, tableLogBuffer, columnName = "dataEnabled") }
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).dataEnabled"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = "dataEnabled",
+                    )
+                }
             }
+
+    override fun setDataEnabled(enabled: Boolean) {
+        mobileRepo.setDataEnabled(enabled)
+    }
 
     override val inflateSignalStrength: State<Boolean> =
         activeRepo
             .flatMap { it.inflateSignalStrength }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnName = "inflate") } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).inflateSignalStrength"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = "inflate",
+                    )
+                }
+            }
 
     override val allowNetworkSliceIndicator: State<Boolean> =
         activeRepo
             .flatMap { it.allowNetworkSliceIndicator }
             .also {
-                onActivated { logDiffsForTable(it, tableLogBuffer, columnName = "allowSlice") }
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).allowNetworkSliceIndicator"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnName = "allowSlice",
+                    )
+                }
             }
 
     override val numberOfLevels: State<Int> = activeRepo.flatMap { it.numberOfLevels }
@@ -190,12 +374,36 @@ constructor(
     override val networkName: State<NetworkNameModel> =
         activeRepo
             .flatMap { it.networkName }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnPrefix = "intent") } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).networkName"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnPrefix = "intent",
+                    )
+                }
+            }
 
     override val carrierName: State<NetworkNameModel> =
         activeRepo
             .flatMap { it.carrierName }
-            .also { onActivated { logDiffsForTable(it, tableLogBuffer, columnPrefix = "sub") } }
+            .also {
+                onActivated {
+                    logDiffsForTable(
+                        name =
+                            nameTag {
+                                "FullMobileConnectionRepositoryKairos(subId=$subId).carrierName"
+                            },
+                        it,
+                        tableLogBuffer,
+                        columnPrefix = "sub",
+                    )
+                }
+            }
 
     override val isAllowedDuringAirplaneMode: State<Boolean> =
         activeRepo.flatMap { it.isAllowedDuringAirplaneMode }

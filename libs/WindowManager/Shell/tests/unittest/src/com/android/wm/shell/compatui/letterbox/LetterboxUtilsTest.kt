@@ -21,6 +21,7 @@ import android.testing.AndroidTestingRunner
 import android.view.SurfaceControl
 import androidx.test.filters.SmallTest
 import com.android.wm.shell.ShellTestCase
+import com.android.wm.shell.compatui.letterbox.LetterboxUtils.Maps.runOnFilteredItem
 import com.android.wm.shell.compatui.letterbox.LetterboxUtils.Maps.runOnItem
 import com.android.wm.shell.compatui.letterbox.LetterboxUtils.Transactions.moveAndCrop
 import java.util.function.Consumer
@@ -36,8 +37,7 @@ import org.mockito.kotlin.verify
 /**
  * Tests for [LetterboxUtils].
  *
- * Build/Install/Run:
- *  atest WMShellUnitTests:LetterboxUtilsTest
+ * Build/Install/Run: atest WMShellUnitTests:LetterboxUtilsTest
  */
 @RunWith(AndroidTestingRunner::class)
 @SmallTest
@@ -115,17 +115,41 @@ class LetterboxUtilsTest : ShellTestCase() {
     }
 
     @Test
-    fun `moveAndCrop invoked Move and then Crop`() {
+    fun `runOnFilterItem executes onItem when the predicate is true`() {
+        runTestScenario { r ->
+            r.initMap(1 to 2, 2 to 4, 3 to 6, 4 to 8)
+            r.runOnFilteredItem<Int> { k -> k % 2 == 0 }
+            r.verifyOnFilteredInvoked(mapOf(2 to 4, 4 to 8))
+        }
+    }
+
+    @Test
+    fun `moveAndCrop invoked Move and then Crop and Visible`() {
         runTestScenario { r ->
             r.invoke(Rect(1, 2, 51, 62))
             r.verifySetPosition(expectedX = 1f, expectedY = 2f)
             r.verifySetWindowCrop(expectedWidth = 50, expectedHeight = 60)
+            r.verifySetVisibility(expectedVisibility = true)
         }
     }
 
-    /**
-     * Runs a test scenario providing a Robot.
-     */
+    @Test
+    fun `moveAndCrop hide surface if rect has an empty dimension`() {
+        runTestScenario { r ->
+            r.invoke(Rect(100, 0, 100, 100))
+            r.verifySetVisibility(expectedVisibility = false)
+        }
+    }
+
+    @Test
+    fun `moveAndCrop hide surface if rect is empty`() {
+        runTestScenario { r ->
+            r.invoke(Rect(0, 0, 0, 0))
+            r.verifySetVisibility(expectedVisibility = false)
+        }
+    }
+
+    /** Runs a test scenario providing a Robot. */
     fun runTestScenario(consumer: Consumer<AppendLetterboxControllerRobotTest>) {
         consumer.accept(AppendLetterboxControllerRobotTest().apply { initController() })
     }
@@ -140,53 +164,52 @@ class LetterboxUtilsTest : ShellTestCase() {
         private var onItemState: Int? = null
         private var onMissingStateKey: Int? = null
         private var onMissingStateMap: MutableMap<Int, Int>? = null
+        private var onFilteredStateMap = mutableMapOf<Int, Int>()
 
         private val surface = SurfaceControl()
 
-        fun verifyCreateSurfaceInvokedWithRequest(
-            target: LetterboxController,
-            times: Int = 1
-        ) {
-            verify(target, times(times)).createLetterboxSurface(any(), any(), any())
+        fun verifyCreateSurfaceInvokedWithRequest(target: LetterboxController, times: Int = 1) {
+            verify(target, times(times)).createLetterboxSurface(any(), any(), any(), any())
         }
 
-        fun verifyDestroySurfaceInvokedWithRequest(
-            target: LetterboxController,
-            times: Int = 1
-        ) {
+        fun verifyDestroySurfaceInvokedWithRequest(target: LetterboxController, times: Int = 1) {
             verify(target, times(times)).destroyLetterboxSurface(any(), any())
         }
 
         fun verifyUpdateVisibilitySurfaceInvokedWithRequest(
             target: LetterboxController,
-            times: Int = 1
+            times: Int = 1,
         ) {
             verify(target, times(times)).updateLetterboxSurfaceVisibility(any(), any(), any())
         }
 
         fun verifyUpdateSurfaceBoundsInvokedWithRequest(
             target: LetterboxController,
-            times: Int = 1
+            times: Int = 1,
         ) {
             verify(target, times(times)).updateLetterboxSurfaceBounds(any(), any(), any(), any())
         }
 
-        fun verifyDumpInvoked(
-            target: LetterboxController,
-            times: Int = 1
-        ) {
+        fun verifyDumpInvoked(target: LetterboxController, times: Int = 1) {
             verify(target, times(times)).dump()
         }
 
         fun initMap(vararg values: Pair<Int, Int>) = testableMap.putAll(values.toMap())
 
         fun <T> runOnItem(key: Int) {
-            testableMap.runOnItem(key, onFound = { item ->
-                onItemState = item
-            }, onMissed = { k, m ->
-                onMissingStateKey = k
-                onMissingStateMap = m
-            })
+            testableMap.runOnItem(
+                key,
+                onFound = { item -> onItemState = item },
+                onMissed = { k, m ->
+                    onMissingStateKey = k
+                    onMissingStateMap = m
+                },
+            )
+        }
+
+        fun <T> runOnFilteredItem(predicate: (Int) -> Boolean) {
+            onFilteredStateMap.clear()
+            testableMap.runOnFilteredItem(predicate) { k, v -> onFilteredStateMap[k] = v }
         }
 
         fun verifyOnItemInvoked(expectedItem: Int) {
@@ -200,6 +223,10 @@ class LetterboxUtilsTest : ShellTestCase() {
         fun verifyOnMissingInvoked(expectedKey: Int) {
             assertEquals(expectedKey, onMissingStateKey)
             assertEquals(onMissingStateMap, testableMap)
+        }
+
+        fun verifyOnFilteredInvoked(expected: Map<Int, Int>) {
+            assertEquals(expected, onFilteredStateMap)
         }
 
         fun verifyOnMissingNotInvoked() {
@@ -219,8 +246,13 @@ class LetterboxUtilsTest : ShellTestCase() {
             verify(transaction).setWindowCrop(surface, expectedWidth, expectedHeight)
         }
 
+        fun verifySetVisibility(expectedVisibility: Boolean) {
+            verify(transaction).setVisibility(surface, expectedVisibility)
+        }
+
         override fun buildController(): LetterboxController =
-            firstLetterboxController.append(secondLetterboxController)
+            firstLetterboxController
+                .append(secondLetterboxController)
                 .append(thirdLetterboxController)
     }
 }

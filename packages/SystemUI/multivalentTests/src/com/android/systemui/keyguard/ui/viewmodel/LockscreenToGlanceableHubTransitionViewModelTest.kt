@@ -17,9 +17,12 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 import android.content.res.Configuration
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.util.LayoutDirection
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.flags.DisableSceneContainer
@@ -41,6 +44,7 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
 @SmallTest
+@DisableSceneContainer
 @RunWith(AndroidJUnit4::class)
 class LockscreenToGlanceableHubTransitionViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
@@ -51,7 +55,8 @@ class LockscreenToGlanceableHubTransitionViewModelTest : SysuiTestCase() {
     val underTest by lazy { kosmos.lockscreenToGlanceableHubTransitionViewModel }
 
     @Test
-    fun lockscreenFadeOut() =
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun lockscreenFadeOut_motionFlagDisabled() =
         kosmos.runTest {
             val values by collectValues(underTest.keyguardAlpha)
             assertThat(values).isEmpty()
@@ -69,7 +74,6 @@ class LockscreenToGlanceableHubTransitionViewModelTest : SysuiTestCase() {
                     step(0.6f),
                     step(0.7f),
                     step(0.8f),
-                    // ...up to here
                     step(1f),
                 ),
                 testScope,
@@ -80,6 +84,36 @@ class LockscreenToGlanceableHubTransitionViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun lockscreenFadeOut_motionFlagEnabled() =
+        kosmos.runTest {
+            val values by collectValues(underTest.keyguardAlpha)
+            assertThat(values).isEmpty()
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                listOf(
+                    // Should start running here
+                    step(0f, TransitionState.STARTED),
+                    step(0.1f),
+                    step(0.2f),
+                    step(0.3f),
+                    step(0.4f),
+                    step(0.5f),
+                    // ...up to here
+                    step(0.6f),
+                    step(0.7f),
+                    step(0.8f),
+                    step(1f),
+                ),
+                testScope,
+            )
+
+            assertThat(values).hasSize(6)
+            values.forEach { assertThat(it).isIn(Range.closed(0f, 1f)) }
+        }
+
+    @Test
+    @DisableFlags(Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
     fun lockscreenTranslationX() =
         kosmos.runTest {
             configurationRepository.setDimensionPixelSize(
@@ -108,7 +142,6 @@ class LockscreenToGlanceableHubTransitionViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @DisableSceneContainer
     fun blurBecomesMaxValueImmediately() =
         kosmos.runTest {
             val values by collectValues(underTest.windowBlurRadius)

@@ -32,8 +32,7 @@ import java.util.Iterator;
 /**
  * @hide
  */
-// Exported to Mainline modules; cannot use annotations
-// @android.ravenwood.annotation.RavenwoodKeepWholeClass
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class LocalLog {
 
     private final Deque<String> mLog;

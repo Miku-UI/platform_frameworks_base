@@ -16,6 +16,7 @@
 
 package com.android.systemui.screenshot.policy
 
+import android.app.ActivityTaskManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.res.Resources

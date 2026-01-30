@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.android.providers.settings;
 
 import static junit.framework.Assert.assertEquals;
@@ -25,19 +26,22 @@ import android.aconfig.Aconfig;
 import android.aconfig.Aconfig.parsed_flag;
 import android.aconfig.Aconfig.parsed_flags;
 import android.aconfigd.AconfigdFlagInfo;
+import android.content.Context;
 import android.os.Looper;
 import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.Xml;
 
 import androidx.test.InstrumentationRegistry;
-import androidx.test.runner.AndroidJUnit4;
 
 import com.android.modules.utils.TypedXmlSerializer;
 
 import com.google.common.base.Strings;
+
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
+import junitparams.naming.TestCaseName;
 
 import org.junit.After;
 import org.junit.Before;
@@ -49,12 +53,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-
-@RunWith(AndroidJUnit4.class)
+@RunWith(JUnitParamsRunner.class)
 public class SettingsStateTest {
     @Rule
     public final CheckFlagsRule mCheckFlagsRule =
@@ -116,7 +120,8 @@ public class SettingsStateTest {
 
     @Test
     public void testLoadValidAconfigProto() {
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        final long configKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_CONFIG, 0, Context.DEVICE_ID_DEFAULT);
         Object lock = new Object();
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), lock, mSettingsFile, configKey,
@@ -176,7 +181,8 @@ public class SettingsStateTest {
 
     @Test
     public void testSkipLoadingAconfigFlagWithMissingFields() {
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
         Object lock = new Object();
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), lock, mSettingsFile, configKey,
@@ -207,7 +213,8 @@ public class SettingsStateTest {
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_STAGE_ALL_ACONFIG_FLAGS)
     public void testWritingAconfigFlagStages() {
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
         Object lock = new Object();
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), lock, mSettingsFile, configKey,
@@ -338,31 +345,34 @@ public class SettingsStateTest {
     }
 
     /**
-     * Make sure settings can be written to a file and also can be read.
+     * Make sure settings for the default device can be written to a file and also can be read.
      */
     @Test
-    public void testReadWrite() {
+    public void testReadWriteForDefaultDevice() {
         final Object lock = new Object();
 
         assertFalse(mSettingsFile.exists());
         final SettingsState ssWriter =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), lock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), lock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_UNLIMITED, Looper.getMainLooper());
-        ssWriter.setVersionLocked(SettingsState.SETTINGS_VERSION_NEW_ENCODING);
-
-        ssWriter.insertSettingLocked("k1", "\u0000", null, false, "package");
-        ssWriter.insertSettingLocked("k2", "abc", null, false, "p2");
-        ssWriter.insertSettingLocked("k3", null, null, false, "p2");
-        ssWriter.insertSettingLocked("k4", CRAZY_STRING, null, false, "p3");
         synchronized (lock) {
+            ssWriter.setVersionLocked(SettingsState.SETTINGS_VERSION_NEW_ENCODING);
+            ssWriter.insertSettingLocked("k1", "\u0000", null, false, "package");
+            ssWriter.insertSettingLocked("k2", "abc", null, false, "p2");
+            ssWriter.insertSettingLocked("k3", null, null, false, "p2");
+            ssWriter.insertSettingLocked("k4", CRAZY_STRING, null, false, "p3");
             ssWriter.persistSettingsLocked();
         }
         ssWriter.waitForHandler();
         assertTrue(mSettingsFile.exists());
         final SettingsState ssReader =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), lock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), lock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_UNLIMITED, Looper.getMainLooper());
 
         synchronized (lock) {
@@ -371,6 +381,37 @@ public class SettingsStateTest {
             assertEquals(null, ssReader.getSettingLocked("k3").getValue());
             assertEquals(CRAZY_STRING, ssReader.getSettingLocked("k4").getValue());
         }
+    }
+
+    /**
+     * Make sure settings are not written to a file for virtual devices.
+     */
+    @Test
+    @Parameters(method = "getVirtualDeviceIds")
+    public void testNoWriteForVirtualDevice(int deviceId) {
+        final Object lock = new Object();
+        File settingsFile = new File(InstrumentationRegistry.getContext().getCacheDir(),
+                "vdsetting.xml");
+        settingsFile.delete();
+        assertFalse(settingsFile.exists());
+
+        final SettingsState ssWriter =
+                new SettingsState(
+                        InstrumentationRegistry.getContext(), lock, settingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                deviceId),
+                        SettingsState.MAX_BYTES_PER_APP_PACKAGE_UNLIMITED, Looper.getMainLooper());
+        synchronized (lock) {
+            ssWriter.setVersionLocked(SettingsState.SETTINGS_VERSION_NEW_ENCODING);
+            ssWriter.insertSettingLocked("k1", "\u0000", null, false, "package");
+            ssWriter.insertSettingLocked("k2", "abc", null, false, "p2");
+            ssWriter.insertSettingLocked("k3", null, null, false, "p2");
+            ssWriter.insertSettingLocked("k4", CRAZY_STRING, null, false, "p3");
+            ssWriter.persistSettingsLocked();
+        }
+        ssWriter.waitForHandler();
+
+        assertFalse(settingsFile.exists());
     }
 
     /**
@@ -391,7 +432,9 @@ public class SettingsStateTest {
 
         final SettingsState ss =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), lock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), lock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_UNLIMITED, Looper.getMainLooper());
         synchronized (lock) {
             SettingsState.Setting s;
@@ -473,7 +516,6 @@ public class SettingsStateTest {
 
         settingsState.resetSettingLocked(SETTING_NAME);
         assertFalse(settingsState.getSettingLocked(SETTING_NAME).isValuePreservedInRestore());
-
     }
 
     @Test
@@ -501,7 +543,9 @@ public class SettingsStateTest {
     private SettingsState getSettingStateObject() {
         SettingsState settingsState =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), mLock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), mLock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_UNLIMITED, Looper.getMainLooper());
         settingsState.setVersionLocked(SettingsState.SETTINGS_VERSION_NEW_ENCODING);
         return settingsState;
@@ -517,7 +561,9 @@ public class SettingsStateTest {
 
         settingsState =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), mLock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), mLock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_LIMITED, Looper.getMainLooper());
         // System package doesn't have memory usage limit
         settingsState.insertSettingLocked(SETTING_NAME, Strings.repeat("A", 20001),
@@ -556,7 +602,9 @@ public class SettingsStateTest {
     public void testMemoryUsagePerPackage() {
         SettingsState settingsState =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), mLock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), mLock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_LIMITED, Looper.getMainLooper());
 
         // Test inserting one key with default
@@ -646,7 +694,9 @@ public class SettingsStateTest {
     public void testLargeSettingKey() {
         SettingsState settingsState =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), mLock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), mLock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_LIMITED, Looper.getMainLooper());
         final String largeKey = Strings.repeat("A", SettingsState.MAX_LENGTH_PER_STRING + 1);
         final String testValue = "testValue";
@@ -672,7 +722,9 @@ public class SettingsStateTest {
     public void testLargeSettingValue() {
         SettingsState settingsState =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), mLock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), mLock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_UNLIMITED, Looper.getMainLooper());
         final String testKey = "testKey";
         final String largeValue = Strings.repeat("A", SettingsState.MAX_LENGTH_PER_STRING + 1);
@@ -696,7 +748,8 @@ public class SettingsStateTest {
 
     @Test
     public void testApplyStagedConfigValues() {
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
         Object lock = new Object();
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), lock, mSettingsFile, configKey,
@@ -744,7 +797,8 @@ public class SettingsStateTest {
 
     @Test
     public void testInvalidStagedFlagsUnaffectedByReboot() {
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
         Object lock = new Object();
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), lock, mSettingsFile, configKey,
@@ -772,7 +826,8 @@ public class SettingsStateTest {
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_STAGE_ALL_ACONFIG_FLAGS)
     public void testSetSettingsLockedStagesAconfigFlags() throws Exception {
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
 
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), mLock, mSettingsFile, configKey,
@@ -835,7 +890,8 @@ public class SettingsStateTest {
                         + "</settings>");
         os.close();
 
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
 
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), mLock, mSettingsFile, configKey,
@@ -911,7 +967,8 @@ public class SettingsStateTest {
                         + "</settings>");
         os.close();
 
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
 
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), mLock, mSettingsFile, configKey,
@@ -943,7 +1000,9 @@ public class SettingsStateTest {
     public void testMemoryUsagePerPackage_SameSettingUsedByDifferentPackages() {
         SettingsState settingsState =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), mLock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), mLock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_LIMITED, Looper.getMainLooper());
         final String testKey1 = SETTING_NAME;
         final String testKey2 = SETTING_NAME + "_2";
@@ -988,7 +1047,9 @@ public class SettingsStateTest {
     public void testMemoryUsagePerPackage_StatsUpdatedOnAppDataCleared() {
         SettingsState settingsState =
                 new SettingsState(
-                        InstrumentationRegistry.getContext(), mLock, mSettingsFile, 1,
+                        InstrumentationRegistry.getContext(), mLock, mSettingsFile,
+                        SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 1,
+                                Context.DEVICE_ID_DEFAULT),
                         SettingsState.MAX_BYTES_PER_APP_PACKAGE_LIMITED, Looper.getMainLooper());
         final String testKey1 = SETTING_NAME;
         final String testKey2 = SETTING_NAME + "_2";
@@ -1019,7 +1080,8 @@ public class SettingsStateTest {
 
     @Test
     public void testGetFlagOverrideToSync() {
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
         Object lock = new Object();
         SettingsState settingsState =
                 new SettingsState(
@@ -1101,7 +1163,8 @@ public class SettingsStateTest {
                         + "</settings>");
         os.close();
 
-        int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        long configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0,
+                Context.DEVICE_ID_DEFAULT);
 
         SettingsState settingsState = new SettingsState(
                 InstrumentationRegistry.getContext(), lock, mSettingsFile, configKey,
@@ -1180,5 +1243,37 @@ public class SettingsStateTest {
         assertNull(flag3.getServerFlagValue());
         assertFalse(flag3.getHasServerOverride());
         assertFalse(flag3.getHasLocalOverride());
+    }
+
+    @Test
+    @Parameters(method = "getAllKeyCombinations")
+    @TestCaseName("testSettingsStateKey_type_{0}_userId_{1}_deviceId_{2}")
+    public void testSettingsStateKey(int type, int userId, int deviceId) throws Exception {
+        long key = SettingsState.makeKey(type, userId, deviceId);
+        assertEquals(type, SettingsState.getTypeFromKey(key));
+        assertEquals(userId, SettingsState.getUserIdFromKey(key));
+        assertEquals(deviceId, SettingsState.getDeviceIdFromKey(key));
+    }
+
+    private static Object[] getAllKeyCombinations() {
+        int[] types = new int[]{SettingsState.SETTINGS_TYPE_SECURE,
+                SettingsState.SETTINGS_TYPE_CONFIG, SettingsState.SETTINGS_TYPE_SSAID,
+                SettingsState.SETTINGS_TYPE_SYSTEM, SettingsState.SETTINGS_TYPE_GLOBAL};
+        int[] userIds = new int[]{0, 10, 999, 94087, 0xFFFFFFF /* maximum 28-bit integer */};
+        int[] deviceIds = new int[]{Context.DEVICE_ID_DEFAULT, 5, 10, 93589, 999,
+                Integer.MAX_VALUE};
+        List<Object[]> combinations = new ArrayList<>();
+        for (int type : types) {
+            for (int userId : userIds) {
+                for (int deviceId : deviceIds) {
+                    combinations.add(new Object[]{type, userId, deviceId});
+                }
+            }
+        }
+        return combinations.toArray(new Object[0][]);
+    }
+
+    private static Integer[] getVirtualDeviceIds() {
+        return new Integer[]{5, 10, 934589, 999, Integer.MAX_VALUE};
     }
 }

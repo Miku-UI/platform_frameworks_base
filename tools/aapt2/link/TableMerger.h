@@ -20,11 +20,11 @@
 #include <functional>
 #include <map>
 
-#include "android-base/macros.h"
-
 #include "Resource.h"
 #include "ResourceTable.h"
 #include "ResourceValues.h"
+#include "android-base/function_ref.h"
+#include "android-base/macros.h"
 #include "filter/ConfigFilter.h"
 #include "io/File.h"
 #include "process/IResourceTableConsumer.h"
@@ -94,6 +94,14 @@ class TableMerger {
 
   std::unique_ptr<FileReference> CloneAndMangleFile(const std::string& package,
                                                     const FileReference& value);
+
+  using FindFunc = android::base::function_ref<ResourceConfigValue*(
+      const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
+      const std::string& product)>;
+
+  bool MergeConfigValues(const char* config_value_section, ResourceNameRef res_name, bool overlay,
+                         const std::vector<std::unique_ptr<ResourceConfigValue>>& values,
+                         FindFunc find_function, FindFunc find_or_create_function);
 };
 
 }  // namespace aapt

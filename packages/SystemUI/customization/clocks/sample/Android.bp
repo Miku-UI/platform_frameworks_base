@@ -1,0 +1,58 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// The build is divided into a library and an app to make testing
+// easier. It is not a necessary part of a plugin apk.
+android_library {
+    name: "SystemUIClocks-SampleLib",
+    manifest: "AndroidManifest.xml",
+
+    srcs: ["src/**/*.kt"],
+    resource_dirs: ["res"],
+    use_resource_processor: true,
+    libs: ["SystemUIPluginLib"],
+    static_libs: ["SystemUIClocks-CommonLib"],
+    kotlincflags: ["-Xjvm-default=all"],
+    min_sdk_version: "current",
+    system_ext_specific: true,
+    platform_apis: true,
+    optimize: {
+        enabled: true,
+        proguard_flags_files: ["proguard_sample.flags"],
+        export_proguard_flags_files: true,
+        shrink_resources: true,
+        optimized_shrink_resources: true,
+    },
+}
+
+android_app {
+    name: "SystemUIClocks-Sample",
+    manifest: "AndroidManifest.xml",
+
+    libs: ["SystemUIPluginLib"],
+    static_libs: ["SystemUIClocks-SampleLib"],
+    min_sdk_version: "current",
+    plugins: ["dagger2-compiler"],
+    use_resource_processor: true,
+    system_ext_specific: true,
+    platform_apis: true,
+    certificate: "platform",
+    privileged: true,
+    optimize: {
+        enabled: true,
+        shrink_resources: true,
+        optimized_shrink_resources: true,
+        proguard_flags_files: ["proguard_sample.flags"],
+    },
+}

@@ -68,7 +68,6 @@ class StatusBannerPreference @JvmOverloads constructor(
 
     init {
         layoutResource = R.layout.settingslib_expressive_preference_statusbanner
-        isSelectable = false
 
         initAttributes(context, attrs, defStyleAttr)
     }
@@ -167,9 +166,10 @@ class StatusBannerPreference @JvmOverloads constructor(
     }
 
     /**
-     * Register a callback to be invoked when positive button is clicked.
+     * Register a callback to be invoked when positive button is clicked. If null is passed as the
+     * callback, the button will be hidden.
      */
-    fun setButtonOnClickListener(listener: View.OnClickListener) {
+    fun setButtonOnClickListener(listener: View.OnClickListener?) {
         this.listener = listener
         notifyChanged()
     }

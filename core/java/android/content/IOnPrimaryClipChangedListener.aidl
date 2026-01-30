@@ -17,7 +17,7 @@
 package android.content;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IOnPrimaryClipChangedListener {
     void dispatchPrimaryClipChanged();

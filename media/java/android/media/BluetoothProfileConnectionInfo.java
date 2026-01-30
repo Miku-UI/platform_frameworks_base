@@ -26,7 +26,7 @@ import android.os.Parcelable;
 
 /**
  * Contains information about Bluetooth profile connection state changed
- * {@hide}
+ * @hide
  */
 @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
 public final class BluetoothProfileConnectionInfo implements Parcelable {
@@ -45,7 +45,7 @@ public final class BluetoothProfileConnectionInfo implements Parcelable {
 
     /**
      * Constructor used by BtHelper when a profile is connected
-     * {@hide}
+     * @hide
      */
     public BluetoothProfileConnectionInfo(int profile) {
         this(profile, false, -1, false);

@@ -20,11 +20,15 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.any;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.anyString;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
+import static com.android.server.am.Flags.FLAG_ROLLOUT_COMPUTER_CONTROL;
 
 import static org.mockito.Mockito.verify;
 
 import android.content.ContentResolver;
 import android.os.SystemProperties;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.text.TextUtils;
@@ -35,6 +39,7 @@ import com.android.dx.mockito.inline.extended.ExtendedMockito;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Answers;
 import org.mockito.Mock;
@@ -52,8 +57,11 @@ import java.util.List;
  * Test SettingsToPropertiesMapper.
  */
 public class SettingsToPropertiesMapperTest {
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
     private static final String NAME_VALID_CHARACTERS_REGEX = "^[\\w\\-@:]*$";
-    private static final String[] TEST_MAPPING = new String[] {
+    private static final String[] TEST_MAPPING = new String[]{
             Settings.Global.SQLITE_COMPATIBILITY_WAL_FLAGS
     };
 
@@ -71,7 +79,7 @@ public class SettingsToPropertiesMapperTest {
     public void setUp() throws Exception {
         mSession =
                 ExtendedMockito.mockitoSession().initMocks(
-                        this)
+                                this)
                         .strictness(Strictness.LENIENT)
                         .spyStatic(SystemProperties.class)
                         .spyStatic(Settings.Global.class)
@@ -107,7 +115,7 @@ public class SettingsToPropertiesMapperTest {
         ).when(() -> Settings.Global.getString(any(), anyString()));
 
         mTestMapper = new SettingsToPropertiesMapper(
-            mMockContentResolver, TEST_MAPPING, new String[] {}, new String[] {});
+                mMockContentResolver, TEST_MAPPING, new String[]{});
     }
 
     @After
@@ -118,7 +126,7 @@ public class SettingsToPropertiesMapperTest {
     @Test
     public void testClearAconfigStorageOverride() {
         SettingsToPropertiesMapper spyMapper = Mockito.spy(new SettingsToPropertiesMapper(
-                mMockContentResolver, TEST_MAPPING, new String[] {}, new String[] {}));
+                mMockContentResolver, TEST_MAPPING, new String[]{}));
         HashMap flags = new HashMap();
         flags.put("test_package.test_flag", null);
         DeviceConfig.Properties props = new DeviceConfig.Properties("test_namespace", flags);
@@ -153,7 +161,7 @@ public class SettingsToPropertiesMapperTest {
     @Test
     public void validateRegisteredDeviceConfigScopes() {
         HashSet<String> hashSet = new HashSet<>();
-        for (String deviceConfigScope : SettingsToPropertiesMapper.sDeviceConfigScopes) {
+        for (String deviceConfigScope : SettingsToPropertiesMapper.getDeviceConfigScopes()) {
             if (hashSet.contains(deviceConfigScope)) {
                 Assert.fail("deviceConfigScope "
                         + deviceConfigScope
@@ -168,6 +176,30 @@ public class SettingsToPropertiesMapperTest {
                 Assert.fail(deviceConfigScope + " contains invalid characters. "
                         + "Only alphanumeric characters, '-', '@', ':' and '_' are valid.");
             }
+        }
+    }
+
+    @Test
+    @EnableFlags(FLAG_ROLLOUT_COMPUTER_CONTROL)
+    public void validateComputerControlPresent() {
+        HashSet<String> hashSet = new HashSet<>(
+                Arrays.asList(SettingsToPropertiesMapper.getDeviceConfigScopes()));
+        if (!hashSet.contains("computer_control")) {
+            Assert.fail(
+                    "validateComputerControlPresent: computer_control isn't present in "
+                            + "sDeviceConfigScopes");
+        }
+    }
+
+    @Test
+    @DisableFlags(FLAG_ROLLOUT_COMPUTER_CONTROL)
+    public void validateComputerControlNotPresent() {
+        HashSet<String> hashSet = new HashSet<>(
+                Arrays.asList(SettingsToPropertiesMapper.getDeviceConfigScopes()));
+        if (hashSet.contains("computer_control")) {
+            Assert.fail(
+                    "validateComputerControlPresent: computer_control is present in "
+                            + "sDeviceConfigScopes");
         }
     }
 
@@ -246,7 +278,7 @@ public class SettingsToPropertiesMapperTest {
         doReturn("persist.device_config.category1.flag;"
                 + "persist.device_config.category2.flag;persist.device_config.category3.flag;"
                 + "persist.device_config.category3.flag2")
-            .when(() -> SettingsToPropertiesMapper.getResetFlagsFileContent());
+                .when(() -> SettingsToPropertiesMapper.getResetFlagsFileContent());
 
         mSystemSettingsMap.put("device_config.reset_performed", "");
         Assert.assertEquals(mTestMapper.getResetNativeCategories().length, 0);

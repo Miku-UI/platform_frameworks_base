@@ -39,7 +39,9 @@ import com.android.systemui.keyguard.ui.view.DeviceEntryIconView
 import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerDependencies
 import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerUdfpsIconViewModel
 import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerWindowViewModel
+import com.android.systemui.lifecycle.WindowLifecycleState
 import com.android.systemui.lifecycle.repeatWhenAttached
+import com.android.systemui.lifecycle.viewModel
 import com.android.systemui.log.TouchHandlingViewLogger
 import com.android.systemui.res.R
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
@@ -213,6 +215,16 @@ constructor(
                 launch("$TAG#viewModel.scrimColor") {
                     viewModel.scrimColor.collect { scrim.tint = it }
                 }
+            }
+        }
+
+        view.repeatWhenAttached {
+            view.viewModel(
+                traceName = "AlternateBouncerViewBinderViewModel",
+                minWindowLifecycleState = WindowLifecycleState.ATTACHED,
+                factory = { alternateBouncerDependencies.viewModel },
+            ) {
+                // no-op - currently used to activate viewModel
             }
         }
     }

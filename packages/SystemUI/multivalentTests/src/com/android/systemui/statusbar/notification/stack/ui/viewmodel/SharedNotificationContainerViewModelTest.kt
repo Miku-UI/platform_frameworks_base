@@ -20,15 +20,19 @@ package com.android.systemui.statusbar.notification.stack.ui.viewmodel
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import androidx.test.filters.SmallTest
+import com.android.compose.animation.scene.ObservableTransitionState
+import com.android.systemui.Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
+import com.android.systemui.Flags.FLAG_LOCKSCREEN_SHADE_TO_DREAM_TRANSITION_FIX
+import com.android.systemui.Flags.FLAG_STATUS_BAR_FOR_DESKTOP
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.data.repository.keyguardBouncerRepository
 import com.android.systemui.common.shared.model.NotificationContainerBounds
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
+import com.android.systemui.communal.data.repository.communalSceneRepository
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
-import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.coroutines.collectValues
+import com.android.systemui.desktop.domain.interactor.enableUsingDesktopStatusBar
 import com.android.systemui.flags.BrokenWithSceneContainer
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
@@ -55,35 +59,41 @@ import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
 import com.android.systemui.keyguard.ui.viewmodel.ViewStateAccessor
 import com.android.systemui.keyguard.ui.viewmodel.aodBurnInViewModel
 import com.android.systemui.keyguard.ui.viewmodel.keyguardRootViewModel
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.advanceTimeBy
 import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.collectValues
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.media.controls.domain.pipeline.legacyMediaDataManagerImpl
 import com.android.systemui.res.R
 import com.android.systemui.scene.data.repository.Idle
 import com.android.systemui.scene.data.repository.Transition
 import com.android.systemui.scene.data.repository.setTransition
 import com.android.systemui.scene.domain.interactor.sceneInteractor
-import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.domain.interactor.enableSplitShade
-import com.android.systemui.shade.mockLargeScreenHeaderHelper
+import com.android.systemui.shade.largeScreenHeaderHelper
 import com.android.systemui.shade.shadeTestUtil
+import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
+import com.android.systemui.statusbar.notification.data.repository.setActiveNotifs
 import com.android.systemui.statusbar.notification.stack.domain.interactor.sharedNotificationContainerInteractor
+import com.android.systemui.statusbar.notification.stack.ui.viewmodel.SharedNotificationContainerViewModel.Companion.PUSHBACK_SCALE
 import com.android.systemui.statusbar.notification.stack.ui.viewmodel.SharedNotificationContainerViewModel.HorizontalPosition
 import com.android.systemui.testKosmos
 import com.android.systemui.window.ui.viewmodel.fakeBouncerTransitions
 import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.assertIs
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -92,6 +102,7 @@ import org.mockito.kotlin.whenever
 import platform.test.runner.parameterized.ParameterizedAndroidJunit4
 import platform.test.runner.parameterized.Parameters
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(ParameterizedAndroidJunit4::class)
 class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : SysuiTestCase() {
@@ -108,11 +119,11 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         mSetFlagsRule.setFlagsParameterization(flags)
     }
 
-    val aodBurnInViewModel = mock(AodBurnInViewModel::class.java)
-    lateinit var movementFlow: MutableStateFlow<BurnInModel>
+    private val aodBurnInViewModel = mock(AodBurnInViewModel::class.java)
+    private lateinit var movementFlow: MutableStateFlow<BurnInModel>
 
-    val kosmos =
-        testKosmos().apply {
+    private val kosmos =
+        testKosmos().useUnconfinedTestDispatcher().apply {
             fakeFeatureFlagsClassic.apply { set(Flags.FULL_SCREEN_USER_SWITCHER, false) }
         }
 
@@ -120,58 +131,65 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         kosmos.aodBurnInViewModel = aodBurnInViewModel
     }
 
-    private val testScope = kosmos.testScope
-    private val configurationRepository by lazy { kosmos.fakeConfigurationRepository }
-    private val keyguardRepository by lazy { kosmos.fakeKeyguardRepository }
-    private val keyguardInteractor by lazy { kosmos.keyguardInteractor }
-    private val keyguardRootViewModel by lazy { kosmos.keyguardRootViewModel }
     private val keyguardTransitionRepository by lazy { kosmos.fakeKeyguardTransitionRepository }
-    private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
-    private val sharedNotificationContainerInteractor by lazy {
-        kosmos.sharedNotificationContainerInteractor
-    }
-    private val largeScreenHeaderHelper by lazy { kosmos.mockLargeScreenHeaderHelper }
 
-    lateinit var underTest: SharedNotificationContainerViewModel
+    private val Kosmos.underTest: SharedNotificationContainerViewModel by
+        Kosmos.Fixture { sharedNotificationContainerViewModel }
 
     @Before
     fun setUp() {
-        shadeTestUtil.setSplitShade(false)
+        kosmos.enableSingleShade()
         movementFlow = MutableStateFlow(BurnInModel())
         whenever(aodBurnInViewModel.movement).thenReturn(movementFlow)
-        underTest = kosmos.sharedNotificationContainerViewModel
     }
 
     @Test
-    fun validateMarginStartInSplitShade() =
-        testScope.runTest {
-            kosmos.enableSplitShade()
+    fun validateMarginStart_splitShade() =
+        kosmos.runTest {
+            enableSplitShade()
             overrideDimensionPixelSize(R.dimen.notification_panel_margin_horizontal, 20)
 
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(dimens!!.marginStart).isEqualTo(0)
         }
 
     @Test
     fun validateMarginStart() =
-        testScope.runTest {
-            kosmos.enableSingleShade()
+        kosmos.runTest {
+            enableSingleShade()
             overrideDimensionPixelSize(R.dimen.notification_panel_margin_horizontal, 20)
 
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(dimens!!.marginStart).isEqualTo(20)
         }
 
     @Test
-    fun validateHorizontalPositionSingleShade() =
-        testScope.runTest {
-            kosmos.enableSingleShade()
+    @EnableSceneContainer
+    @EnableFlags(FLAG_STATUS_BAR_FOR_DESKTOP)
+    fun validateMarginStart_dualShade_notificationShadeEndAligned() =
+        kosmos.runTest {
+            overrideResource(R.bool.config_notificationShadeOnTopEnd, true)
+            enableUsingDesktopStatusBar()
+            enableDualShade(wideLayout = true)
+
+            val dimens by collectLastValue(underTest.configurationBasedDimensions)
+
+            fakeConfigurationRepository.onAnyConfigurationChange()
+
+            assertThat(checkNotNull(dimens).marginStart).isEqualTo(0)
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun validateHorizontalPosition_singleShade() =
+        kosmos.runTest {
+            enableSingleShade()
             overrideDimensionPixelSize(R.dimen.shade_panel_width, 200)
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
@@ -180,22 +198,22 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         }
 
     @Test
-    fun validateHorizontalPositionSplitShade() =
-        testScope.runTest {
-            kosmos.enableSplitShade()
+    @DisableSceneContainer
+    fun validateHorizontalPosition_splitShade() =
+        kosmos.runTest {
+            enableSplitShade()
             overrideDimensionPixelSize(R.dimen.shade_panel_width, 200)
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
             val horizontalPosition = checkNotNull(dimens).horizontalPosition
             assertIs<HorizontalPosition.MiddleToEdge>(horizontalPosition)
-            assertThat(horizontalPosition.ratio).isEqualTo(0.5f)
         }
 
     @Test
     @EnableSceneContainer
-    fun validateHorizontalPositionInSceneContainerSingleShade() =
-        testScope.runTest {
-            kosmos.enableSingleShade()
+    fun validateHorizontalPosition_sceneContainer_singleShade() =
+        kosmos.runTest {
+            enableSingleShade()
             overrideDimensionPixelSize(R.dimen.shade_panel_width, 200)
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
@@ -204,22 +222,22 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         }
 
     @Test
-    fun validateHorizontalPositionInSceneContainerSplitShade() =
-        testScope.runTest {
-            kosmos.enableSplitShade()
+    @EnableSceneContainer
+    fun validateHorizontalPosition_sceneContainer_splitShade() =
+        kosmos.runTest {
+            enableSplitShade()
             overrideDimensionPixelSize(R.dimen.shade_panel_width, 200)
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
             val horizontalPosition = checkNotNull(dimens).horizontalPosition
             assertIs<HorizontalPosition.MiddleToEdge>(horizontalPosition)
-            assertThat(horizontalPosition.ratio).isEqualTo(0.5f)
         }
 
     @Test
     @EnableSceneContainer
-    fun validateHorizontalPositionInDualShade_narrowLayout() =
-        testScope.runTest {
-            kosmos.enableDualShade(wideLayout = false)
+    fun validateHorizontalPosition_dualShade_narrowLayout() =
+        kosmos.runTest {
+            enableDualShade(wideLayout = false)
             overrideDimensionPixelSize(R.dimen.shade_panel_width, 200)
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
@@ -229,37 +247,54 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     @EnableSceneContainer
-    fun validateHorizontalPositionInDualShade_wideLayout() =
-        testScope.runTest {
-            kosmos.enableDualShade(wideLayout = true)
+    fun validateHorizontalPosition_dualShade_wideLayout() =
+        kosmos.runTest {
+            enableDualShade(wideLayout = true)
             overrideDimensionPixelSize(R.dimen.shade_panel_width, 200)
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
             val horizontalPosition = checkNotNull(dimens).horizontalPosition
-            assertIs<HorizontalPosition.FloatAtStart>(horizontalPosition)
-            assertThat(horizontalPosition.width).isEqualTo(200)
+            assertIs<HorizontalPosition.EdgeToMiddle>(horizontalPosition)
+            assertThat(horizontalPosition.maxWidth).isEqualTo(200)
         }
 
     @Test
-    fun validatePaddingTopInSplitShade_usesLargeHeaderHelper() =
-        testScope.runTest {
-            kosmos.enableSplitShade()
+    @EnableSceneContainer
+    @EnableFlags(FLAG_STATUS_BAR_FOR_DESKTOP)
+    fun validateHorizontalPosition_dualShade_notificationShadeEndAligned() =
+        kosmos.runTest {
+            overrideResource(R.bool.config_notificationShadeOnTopEnd, true)
+            overrideDimensionPixelSize(R.dimen.shade_panel_width, 200)
+            enableUsingDesktopStatusBar()
+            enableDualShade(wideLayout = true)
+
+            val dimens by collectLastValue(underTest.configurationBasedDimensions)
+
+            val horizontalPosition = checkNotNull(dimens).horizontalPosition
+            assertIs<HorizontalPosition.MiddleToEdge>(horizontalPosition)
+            assertThat(horizontalPosition.maxWidth).isEqualTo(200)
+        }
+
+    @Test
+    fun validatePaddingTop_splitShade_usesLargeHeaderHelper() =
+        kosmos.runTest {
+            enableSplitShade()
             whenever(largeScreenHeaderHelper.getLargeScreenHeaderHeight()).thenReturn(5)
             overrideResource(R.bool.config_use_large_screen_shade_header, true)
             overrideDimensionPixelSize(R.dimen.large_screen_shade_header_height, 10)
             overrideDimensionPixelSize(R.dimen.keyguard_split_shade_top_margin, 50)
 
             val paddingTop by collectLastValue(underTest.paddingTopDimen)
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             // Should directly use the header height (flagged on value)
             assertThat(paddingTop).isEqualTo(5)
         }
 
     @Test
-    fun validatePaddingTopInNonSplitShade_usesLargeScreenHeader() =
-        testScope.runTest {
-            kosmos.enableSingleShade()
+    fun validatePaddingTop_singleShade_usesLargeScreenHeader() =
+        kosmos.runTest {
+            enableSingleShade()
             whenever(largeScreenHeaderHelper.getLargeScreenHeaderHeight()).thenReturn(10)
             overrideResource(R.bool.config_use_large_screen_shade_header, true)
             overrideDimensionPixelSize(R.dimen.large_screen_shade_header_height, 10)
@@ -267,15 +302,15 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
             val paddingTop by collectLastValue(underTest.paddingTopDimen)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(paddingTop).isEqualTo(10)
         }
 
     @Test
-    fun validatePaddingTopInNonSplitShade_doesNotUseLargeScreenHeader() =
-        testScope.runTest {
-            kosmos.enableSingleShade()
+    fun validatePaddingTop_singleShade_doesNotUseLargeScreenHeader() =
+        kosmos.runTest {
+            enableSingleShade()
             whenever(largeScreenHeaderHelper.getLargeScreenHeaderHeight()).thenReturn(10)
             overrideResource(R.bool.config_use_large_screen_shade_header, false)
             overrideDimensionPixelSize(R.dimen.large_screen_shade_header_height, 10)
@@ -283,30 +318,47 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
             val paddingTop by collectLastValue(underTest.paddingTopDimen)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
             assertThat(paddingTop).isEqualTo(0)
         }
 
     @Test
     fun validateMarginEnd() =
-        testScope.runTest {
+        kosmos.runTest {
             overrideResource(R.dimen.notification_panel_margin_horizontal, 50)
 
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(dimens!!.marginEnd).isEqualTo(50)
         }
 
     @Test
+    @EnableSceneContainer
+    @EnableFlags(FLAG_STATUS_BAR_FOR_DESKTOP)
+    fun validateMarginEnd_dualShade_isNotificationShadeEndAligned() =
+        kosmos.runTest {
+            overrideResource(R.bool.config_notificationShadeOnTopEnd, true)
+            overrideResource(R.dimen.shade_panel_margin_horizontal, 50)
+            enableUsingDesktopStatusBar()
+            enableDualShade(wideLayout = true)
+
+            val dimens by collectLastValue(underTest.configurationBasedDimensions)
+
+            fakeConfigurationRepository.onAnyConfigurationChange()
+
+            assertThat(checkNotNull(dimens).marginEnd).isEqualTo(50)
+        }
+
+    @Test
     fun validateMarginBottom() =
-        testScope.runTest {
+        kosmos.runTest {
             overrideResource(R.dimen.notification_panel_margin_bottom, 50)
 
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(dimens!!.marginBottom).isEqualTo(50)
         }
@@ -314,7 +366,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @DisableSceneContainer
     fun validateMarginTopWithLargeScreenHeader_usesHelper() =
-        testScope.runTest {
+        kosmos.runTest {
             val headerResourceHeight = 50
             val headerHelperHeight = 100
             whenever(largeScreenHeaderHelper.getLargeScreenHeaderHeight())
@@ -328,7 +380,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(dimens!!.marginTop).isEqualTo(headerHelperHeight)
         }
@@ -336,7 +388,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @EnableSceneContainer
     fun validateMarginTopWithLargeScreenHeader_sceneContainerFlagOn_stillZero() =
-        testScope.runTest {
+        kosmos.runTest {
             val headerResourceHeight = 50
             val headerHelperHeight = 100
             whenever(largeScreenHeaderHelper.getLargeScreenHeaderHeight())
@@ -350,14 +402,14 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(dimens!!.marginTop).isEqualTo(0)
         }
 
     @Test
     fun glanceableHubAlpha_lockscreenToHub() =
-        testScope.runTest {
+        kosmos.runTest {
             val alpha by collectLastValue(underTest.glanceableHubAlpha)
 
             // Start on lockscreen
@@ -365,10 +417,10 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             assertThat(alpha).isEqualTo(1f)
 
             // Start transitioning to glanceable hub
-            kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "")
+            sceneInteractor.changeScene(Scenes.Lockscreen, "")
 
             val progress = 0.6f
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Transition(from = Scenes.Lockscreen, to = Scenes.Communal),
                 stateTransition =
                     TransitionStep(
@@ -379,8 +431,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     ),
             )
 
-            runCurrent()
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition =
                     Transition(
                         from = Scenes.Lockscreen,
@@ -396,12 +447,11 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     ),
             )
 
-            runCurrent()
             assertThat(alpha).isIn(Range.closed(0f, 1f))
 
             // Finish transition to glanceable hub
-            kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
-            kosmos.setTransition(
+            sceneInteractor.changeScene(Scenes.Communal, "")
+            setTransition(
                 sceneTransition = Idle(Scenes.Communal),
                 stateTransition =
                     TransitionStep(
@@ -421,7 +471,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     fun glanceableHubAlpha_dreamToHub() =
-        testScope.runTest {
+        kosmos.runTest {
             val alpha by collectLastValue(underTest.glanceableHubAlpha)
 
             // Start on lockscreen, notifications should be unhidden.
@@ -437,10 +487,10 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             assertThat(alpha).isEqualTo(1f)
 
             // Start transitioning to glanceable hub
-            kosmos.sceneInteractor.snapToScene(Scenes.Lockscreen, "")
+            sceneInteractor.snapToScene(Scenes.Lockscreen, "")
 
             val progress = 0.6f
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Transition(from = Scenes.Lockscreen, to = Scenes.Communal),
                 stateTransition =
                     TransitionStep(
@@ -450,8 +500,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                         value = 0f,
                     ),
             )
-            runCurrent()
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition =
                     Transition(
                         from = Scenes.Lockscreen,
@@ -466,13 +515,12 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                         value = progress,
                     ),
             )
-            runCurrent()
             // Keep notifications hidden during the transition from dream to hub
             assertThat(alpha).isEqualTo(0)
 
             // Finish transition to glanceable hub
-            kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
-            kosmos.setTransition(
+            sceneInteractor.changeScene(Scenes.Communal, "")
+            setTransition(
                 sceneTransition = Idle(Scenes.Communal),
                 stateTransition =
                     TransitionStep(
@@ -487,7 +535,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     fun glanceableHubAlpha_dozingToHub() =
-        testScope.runTest {
+        kosmos.runTest {
             val alpha by collectLastValue(underTest.glanceableHubAlpha)
 
             // Start on lockscreen, notifications should be unhidden.
@@ -500,10 +548,10 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             assertThat(alpha).isEqualTo(0f)
 
             // Start transitioning to glanceable hub
-            kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "")
+            sceneInteractor.changeScene(Scenes.Lockscreen, "")
 
             val progress = 0.6f
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Transition(from = Scenes.Lockscreen, to = Scenes.Communal),
                 stateTransition =
                     TransitionStep(
@@ -513,8 +561,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                         value = 0f,
                     ),
             )
-            runCurrent()
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition =
                     Transition(
                         from = Scenes.Lockscreen,
@@ -529,13 +576,12 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                         value = progress,
                     ),
             )
-            runCurrent()
             // Keep notifications hidden during the transition from dream to hub
             assertThat(alpha).isEqualTo(0)
 
             // Finish transition to glanceable hub
-            kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
-            kosmos.setTransition(
+            sceneInteractor.changeScene(Scenes.Communal, "")
+            setTransition(
                 sceneTransition = Idle(Scenes.Communal),
                 stateTransition =
                     TransitionStep(
@@ -550,36 +596,36 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     fun validateMarginTop() =
-        testScope.runTest {
+        kosmos.runTest {
             overrideResource(R.bool.config_use_large_screen_shade_header, false)
             overrideDimensionPixelSize(R.dimen.large_screen_shade_header_height, 50)
             overrideDimensionPixelSize(R.dimen.notification_panel_margin_top, 0)
 
             val dimens by collectLastValue(underTest.configurationBasedDimensions)
 
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             assertThat(dimens!!.marginTop).isEqualTo(0)
         }
 
     @Test
     fun isOnLockscreen() =
-        testScope.runTest {
+        kosmos.runTest {
             val isOnLockscreen by collectLastValue(underTest.isOnLockscreen)
 
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Idle(Scenes.Gone),
                 stateTransition = TransitionStep(from = LOCKSCREEN, to = GONE),
             )
             assertThat(isOnLockscreen).isFalse()
 
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Idle(Scenes.Lockscreen),
                 stateTransition = TransitionStep(from = GONE, to = LOCKSCREEN),
             )
             assertThat(isOnLockscreen).isTrue()
             // While progressing from lockscreen, should still be true
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Transition(from = Scenes.Lockscreen, to = Scenes.Gone),
                 stateTransition =
                     TransitionStep(
@@ -591,13 +637,13 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             )
             assertThat(isOnLockscreen).isTrue()
 
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Idle(Scenes.Lockscreen),
                 stateTransition = TransitionStep(from = GONE, to = LOCKSCREEN),
             )
             assertThat(isOnLockscreen).isTrue()
 
-            kosmos.setTransition(
+            setTransition(
                 sceneTransition = Idle(Scenes.Lockscreen, setOf(Overlays.Bouncer)),
                 stateTransition = TransitionStep(from = LOCKSCREEN, to = PRIMARY_BOUNCER),
             )
@@ -617,7 +663,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             )
             assertThat(isOnLockscreen).isTrue()
 
-            testScope.showCommunalScene()
+            showCommunalScene()
 
             // If bouncer is showing over the hub, it should not be considered on lockscreen
             assertThat(isOnLockscreen).isFalse()
@@ -625,7 +671,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     fun isOnLockscreenWithoutShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val isOnLockscreenWithoutShade by collectLastValue(underTest.isOnLockscreenWithoutShade)
 
             // First on AOD
@@ -661,7 +707,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     fun isOnGlanceableHubWithoutShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val isOnGlanceableHubWithoutShade by
                 collectLastValue(underTest.isOnGlanceableHubWithoutShade)
 
@@ -670,8 +716,8 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             assertThat(isOnGlanceableHubWithoutShade).isFalse()
 
             // Move to glanceable hub
-            kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
-            kosmos.setTransition(
+            sceneInteractor.changeScene(Scenes.Communal, "")
+            setTransition(
                 sceneTransition = Idle(Scenes.Communal),
                 stateTransition = TransitionStep(from = LOCKSCREEN, to = GLANCEABLE_HUB),
             )
@@ -693,8 +739,8 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
             shadeTestUtil.setQsExpansion(0f)
             shadeTestUtil.setLockscreenShadeExpansion(0f)
-            kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
-            kosmos.setTransition(
+            sceneInteractor.changeScene(Scenes.Communal, "")
+            setTransition(
                 sceneTransition = Idle(Scenes.Communal),
                 stateTransition = TransitionStep(from = LOCKSCREEN, to = GLANCEABLE_HUB),
             )
@@ -703,14 +749,12 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     @DisableSceneContainer
-    fun boundsOnLockscreenNotInSplitShade() =
-        testScope.runTest {
+    fun bounds_onLockscreenInSingleShade() =
+        kosmos.runTest {
             val bounds by collectLastValue(underTest.bounds)
 
-            // When not in split shade
-            shadeTestUtil.setSplitShade(false)
-            configurationRepository.onAnyConfigurationChange()
-            runCurrent()
+            // When in single shade
+            enableSingleShade()
 
             // Start on lockscreen
             showLockscreen()
@@ -724,8 +768,8 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     @DisableSceneContainer
-    fun boundsStableWhenGoingToAlternateBouncer() =
-        testScope.runTest {
+    fun bounds_stableWhenGoingToAlternateBouncer() =
+        kosmos.runTest {
             val bounds by collectLastValue(underTest.bounds)
 
             // Start on lockscreen
@@ -741,30 +785,26 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             keyguardTransitionRepository.sendTransitionStep(
                 TransitionStep(LOCKSCREEN, ALTERNATE_BOUNCER, 0f, TransitionState.STARTED)
             )
-            runCurrent()
             keyguardTransitionRepository.sendTransitionStep(
                 TransitionStep(LOCKSCREEN, ALTERNATE_BOUNCER, 0f, TransitionState.RUNNING)
             )
-            runCurrent()
 
             // This is the last step before FINISHED is sent, which could trigger a change in bounds
             keyguardTransitionRepository.sendTransitionStep(
                 TransitionStep(LOCKSCREEN, ALTERNATE_BOUNCER, 1f, TransitionState.RUNNING)
             )
-            runCurrent()
             assertThat(bounds).isEqualTo(NotificationContainerBounds(top = 1f, bottom = 2f))
 
             keyguardTransitionRepository.sendTransitionStep(
                 TransitionStep(LOCKSCREEN, ALTERNATE_BOUNCER, 1f, TransitionState.FINISHED)
             )
-            runCurrent()
             assertThat(bounds).isEqualTo(NotificationContainerBounds(top = 1f, bottom = 2f))
         }
 
     @Test
     @DisableSceneContainer
     fun boundsDoNotChangeWhileLockscreenToAodTransitionIsActive() =
-        testScope.runTest {
+        kosmos.runTest {
             val bounds by collectLastValue(underTest.bounds)
 
             // Start on lockscreen
@@ -779,7 +819,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             keyguardTransitionRepository.sendTransitionStep(
                 TransitionStep(LOCKSCREEN, AOD, 0f, TransitionState.STARTED)
             )
-            runCurrent()
             keyguardTransitionRepository.sendTransitionStep(
                 TransitionStep(LOCKSCREEN, AOD, 0.5f, TransitionState.RUNNING)
             )
@@ -801,18 +840,15 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @DisableSceneContainer
     fun boundsOnLockscreenInSplitShade_usesLargeHeaderHelper() =
-        testScope.runTest {
+        kosmos.runTest {
             val bounds by collectLastValue(underTest.bounds)
 
             // When in split shade
+            enableSplitShade()
             whenever(largeScreenHeaderHelper.getLargeScreenHeaderHeight()).thenReturn(5)
-            shadeTestUtil.setSplitShade(true)
-            overrideResource(R.bool.config_use_large_screen_shade_header, true)
             overrideDimensionPixelSize(R.dimen.large_screen_shade_header_height, 10)
             overrideDimensionPixelSize(R.dimen.keyguard_split_shade_top_margin, 50)
-
-            configurationRepository.onAnyConfigurationChange()
-            runCurrent()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             // Start on lockscreen
             showLockscreen()
@@ -820,7 +856,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             keyguardInteractor.setNotificationContainerBounds(
                 NotificationContainerBounds(top = 1f, bottom = 52f)
             )
-            runCurrent()
 
             // Top should be equal to bounds (1) - padding adjustment (5)
             assertThat(bounds).isEqualTo(NotificationContainerBounds(top = -4f, bottom = 2f))
@@ -829,7 +864,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @DisableSceneContainer
     fun boundsOnShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val bounds by collectLastValue(underTest.bounds)
 
             // Start on lockscreen with shade expanded
@@ -845,7 +880,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @DisableSceneContainer
     fun boundsOnQS() =
-        testScope.runTest {
+        kosmos.runTest {
             val bounds by collectLastValue(underTest.bounds)
 
             // Start on lockscreen with shade expanded
@@ -860,48 +895,48 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     fun maxNotificationsOnLockscreen() =
-        testScope.runTest {
+        kosmos.runTest {
             var notificationCount = 10
             val calculateSpace = { space: Float, useExtraShelfSpace: Boolean -> notificationCount }
-            val config by collectLastValue(underTest.getLockscreenDisplayConfig(calculateSpace))
+            val maxNotifications by collectLastValue(underTest.getMaxNotifications(calculateSpace))
             advanceTimeBy(50L)
             showLockscreen()
 
-            shadeTestUtil.setSplitShade(false)
-            configurationRepository.onAnyConfigurationChange()
+            enableSingleShade()
 
-            assertThat(config?.maxNotifications).isEqualTo(10)
+            assertThat(maxNotifications).isEqualTo(10)
 
             // Also updates when directly requested (as it would from NotificationStackScrollLayout)
             notificationCount = 25
             sharedNotificationContainerInteractor.notificationStackChanged()
             advanceTimeBy(50L)
-            assertThat(config?.maxNotifications).isEqualTo(25)
+            assertThat(maxNotifications).isEqualTo(25)
 
             // Also ensure another collection starts with the same value. As an example, folding
             // then unfolding will restart the coroutine and it must get the last value immediately.
-            val newConfig by collectLastValue(underTest.getLockscreenDisplayConfig(calculateSpace))
+            val newMaxNotifications by
+                collectLastValue(underTest.getMaxNotifications(calculateSpace))
             advanceTimeBy(50L)
-            assertThat(newConfig?.maxNotifications).isEqualTo(25)
+            assertThat(newMaxNotifications).isEqualTo(25)
         }
 
     @Test
     fun maxNotificationsOnLockscreen_DoesNotUpdateWhenUserInteracting() =
-        testScope.runTest {
+        kosmos.runTest {
+            enableSingleShade()
             var notificationCount = 10
             val calculateSpace = { space: Float, useExtraShelfSpace: Boolean -> notificationCount }
-            val config by collectLastValue(underTest.getLockscreenDisplayConfig(calculateSpace))
+            val maxNotifications by collectLastValue(underTest.getMaxNotifications(calculateSpace))
             advanceTimeBy(50L)
             showLockscreen()
 
-            shadeTestUtil.setSplitShade(false)
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
-            assertThat(config?.maxNotifications).isEqualTo(10)
+            assertThat(maxNotifications).isEqualTo(10)
 
             // Shade expanding... still 10
             shadeTestUtil.setLockscreenShadeExpansion(0.5f)
-            assertThat(config?.maxNotifications).isEqualTo(10)
+            assertThat(maxNotifications).isEqualTo(10)
 
             notificationCount = 25
 
@@ -909,36 +944,35 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             shadeTestUtil.setLockscreenShadeTracking(true)
 
             // Should still be 10, since the user is interacting
-            assertThat(config?.maxNotifications).isEqualTo(10)
+            assertThat(maxNotifications).isEqualTo(10)
 
             shadeTestUtil.setLockscreenShadeTracking(false)
             shadeTestUtil.setLockscreenShadeExpansion(0f)
 
             // Stopped tracking, show 25
-            assertThat(config?.maxNotifications).isEqualTo(25)
+            assertThat(maxNotifications).isEqualTo(25)
         }
 
     @Test
     fun maxNotificationsOnShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val calculateSpace = { space: Float, useExtraShelfSpace: Boolean -> 10 }
-            val config by collectLastValue(underTest.getLockscreenDisplayConfig(calculateSpace))
+            val maxNotifications by collectLastValue(underTest.getMaxNotifications(calculateSpace))
             advanceTimeBy(50L)
 
             // Show lockscreen with shade expanded
             showLockscreenWithShadeExpanded()
 
-            shadeTestUtil.setSplitShade(false)
-            configurationRepository.onAnyConfigurationChange()
+            enableSingleShade()
 
             // -1 means No Limit
-            assertThat(config?.maxNotifications).isEqualTo(-1)
+            assertThat(maxNotifications).isEqualTo(-1)
         }
 
     @Test
     @DisableSceneContainer
-    fun translationYUpdatesOnKeyguardForBurnIn() =
-        testScope.runTest {
+    fun translationY_updatesOnKeyguardForBurnIn() =
+        kosmos.runTest {
             val translationY by collectLastValue(underTest.translationY)
 
             showLockscreen()
@@ -950,15 +984,15 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     @DisableSceneContainer
-    fun translationYUpdatesOnKeyguard() =
-        testScope.runTest {
+    fun translationY_updatesOnKeyguard() =
+        kosmos.runTest {
             val translationY by collectLastValue(underTest.translationY)
 
-            configurationRepository.setDimensionPixelSize(
+            fakeConfigurationRepository.setDimensionPixelSize(
                 R.dimen.keyguard_translate_distance_on_swipe_up,
                 -100,
             )
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
             // legacy expansion means the user is swiping up, usually for the bouncer
             shadeTestUtil.setShadeExpansion(0.5f)
@@ -971,18 +1005,18 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     @DisableSceneContainer
-    fun translationYDoesNotUpdateWhenShadeIsExpanded() =
-        testScope.runTest {
+    fun translationY_doesNotUpdateWhenShadeIsExpanded() =
+        kosmos.runTest {
             val translationY by collectLastValue(underTest.translationY)
 
-            configurationRepository.setDimensionPixelSize(
+            fakeConfigurationRepository.setDimensionPixelSize(
                 R.dimen.keyguard_translate_distance_on_swipe_up,
                 -100,
             )
-            configurationRepository.onAnyConfigurationChange()
+            fakeConfigurationRepository.onAnyConfigurationChange()
 
-            // legacy expansion means the user is swiping up, usually for the bouncer but also for
-            // shade collapsing
+            // Legacy expansion means the user is swiping up, usually for the bouncer but also for
+            // shade collapsing.
             shadeTestUtil.setShadeExpansion(0.5f)
 
             showLockscreenWithShadeExpanded()
@@ -993,7 +1027,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @DisableSceneContainer
     fun updateBounds_fromGone_withoutTransitions() =
-        testScope.runTest {
+        kosmos.runTest {
             // Start step is already at 1.0
             val runningStep = TransitionStep(GONE, AOD, 1.0f, TransitionState.RUNNING)
             val finishStep = TransitionStep(GONE, AOD, 1.0f, TransitionState.FINISHED)
@@ -1003,18 +1037,15 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             val bottom = 456f
 
             keyguardTransitionRepository.sendTransitionStep(runningStep)
-            runCurrent()
             keyguardTransitionRepository.sendTransitionStep(finishStep)
-            runCurrent()
             keyguardRootViewModel.onNotificationContainerBoundsChanged(top, bottom)
-            runCurrent()
 
             assertThat(bounds).isEqualTo(NotificationContainerBounds(top = top, bottom = bottom))
         }
 
     @Test
     fun alphaOnFullQsExpansion() =
-        testScope.runTest {
+        kosmos.runTest {
             val viewState = ViewStateAccessor()
             val alpha by
                 collectLastValue(underTest.keyguardAlpha(viewState, testScope.backgroundScope))
@@ -1035,7 +1066,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @BrokenWithSceneContainer(330311871)
     fun alphaWhenGoneIsSetToOne() =
-        testScope.runTest {
+        kosmos.runTest {
             val viewState = ViewStateAccessor()
             val alpha by
                 collectLastValue(underTest.keyguardAlpha(viewState, testScope.backgroundScope))
@@ -1052,7 +1083,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0f,
                 )
             )
-            runCurrent()
             keyguardTransitionRepository.sendTransitionStep(
                 TransitionStep(
                     from = LOCKSCREEN,
@@ -1061,10 +1091,9 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.9f,
                 )
             )
-            runCurrent()
-            // Change in state should not immediately set value to 1f. Should wait for
-            // transition to complete
-            keyguardRepository.setStatusBarState(StatusBarState.SHADE)
+            // Change in state should not immediately set value to 1f. Should wait for transition to
+            // complete.
+            fakeKeyguardRepository.setStatusBarState(StatusBarState.SHADE)
 
             // Transition is active, and NSSL should be nearly faded out
             assertThat(alpha).isLessThan(0.5f)
@@ -1077,14 +1106,13 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 1f,
                 )
             )
-            runCurrent()
             // Should reset to 1f
             assertThat(alpha).isEqualTo(1f)
         }
 
     @Test
     fun shadeCollapseFadeIn() =
-        testScope.runTest {
+        kosmos.runTest {
             val fadeIn by collectValues(underTest.shadeCollapseFadeIn)
 
             // Start on lockscreen without the shade
@@ -1105,7 +1133,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     fun shadeCollapseFadeIn_doesNotRunIfTransitioningToAod() =
-        testScope.runTest {
+        kosmos.runTest {
             val fadeIn by collectValues(underTest.shadeCollapseFadeIn)
 
             // Start on lockscreen without the shade
@@ -1125,9 +1153,34 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         }
 
     @Test
+    fun shadeCollapseFadeIn_doesNotRunIfTransitioningToDream() =
+        kosmos.runTest {
+            val fadeIn by collectValues(underTest.shadeCollapseFadeIn)
+
+            // Start on lockscreen without the shade
+            showLockscreen()
+            assertThat(fadeIn[0]).isEqualTo(false)
+
+            // ... then the shade expands
+            showLockscreenWithShadeExpanded()
+            assertThat(fadeIn[0]).isEqualTo(false)
+
+            // ... then user hits power to go to dream
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = LOCKSCREEN,
+                to = DREAMING,
+                testScope,
+            )
+            // ... followed by a shade collapse
+            showLockscreen()
+            // ... does not trigger a fade in
+            assertThat(fadeIn[0]).isEqualTo(false)
+        }
+
+    @Test
     @BrokenWithSceneContainer(330311871)
     fun alpha_isZero_fromPrimaryBouncerToGoneWhileCommunalSceneVisible() =
-        testScope.runTest {
+        kosmos.runTest {
             val viewState = ViewStateAccessor()
             val alpha by
                 collectLastValue(underTest.keyguardAlpha(viewState, testScope.backgroundScope))
@@ -1144,7 +1197,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0f,
                 )
             )
-            runCurrent()
 
             // PRIMARY_BOUNCER->GONE transition running
             keyguardTransitionRepository.sendTransitionStep(
@@ -1155,7 +1207,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.1f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isEqualTo(0f)
 
             keyguardTransitionRepository.sendTransitionStep(
@@ -1166,7 +1217,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.9f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isEqualTo(0f)
 
             hideCommunalScene()
@@ -1178,7 +1228,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 1f,
                 )
             )
-            runCurrent()
             // Resets to 1f after communal scene is hidden
             assertThat(alpha).isEqualTo(1f)
         }
@@ -1186,7 +1235,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @BrokenWithSceneContainer(330311871)
     fun alpha_fromPrimaryBouncerToGoneWhenCommunalSceneNotVisible() =
-        testScope.runTest {
+        kosmos.runTest {
             val viewState = ViewStateAccessor()
             val alpha by
                 collectLastValue(underTest.keyguardAlpha(viewState, testScope.backgroundScope))
@@ -1202,7 +1251,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     transitionState = TransitionState.STARTED,
                 )
             )
-            runCurrent()
 
             // PRIMARY_BOUNCER->GONE transition running
             keyguardTransitionRepository.sendTransitionStep(
@@ -1213,7 +1261,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.1f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isIn(Range.closedOpen(0f, 1f))
 
             keyguardTransitionRepository.sendTransitionStep(
@@ -1224,7 +1271,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.9f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isIn(Range.closedOpen(0f, 1f))
 
             keyguardTransitionRepository.sendTransitionStep(
@@ -1235,14 +1281,13 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 1f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isEqualTo(1f)
         }
 
     @Test
     @BrokenWithSceneContainer(330311871)
     fun alpha_isZero_fromAlternateBouncerToGoneWhileCommunalSceneVisible() =
-        testScope.runTest {
+        kosmos.runTest {
             val viewState = ViewStateAccessor()
             val alpha by
                 collectLastValue(underTest.keyguardAlpha(viewState, testScope.backgroundScope))
@@ -1259,7 +1304,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0f,
                 )
             )
-            runCurrent()
 
             // ALTERNATE_BOUNCER->GONE transition running
             keyguardTransitionRepository.sendTransitionStep(
@@ -1270,7 +1314,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.1f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isEqualTo(0f)
 
             keyguardTransitionRepository.sendTransitionStep(
@@ -1281,7 +1324,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.9f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isEqualTo(0f)
 
             hideCommunalScene()
@@ -1293,7 +1335,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 1f,
                 )
             )
-            runCurrent()
             // Resets to 1f after communal scene is hidden
             assertThat(alpha).isEqualTo(1f)
         }
@@ -1301,7 +1342,7 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
     @Test
     @BrokenWithSceneContainer(330311871)
     fun alpha_fromAlternateBouncerToGoneWhenCommunalSceneNotVisible() =
-        testScope.runTest {
+        kosmos.runTest {
             val viewState = ViewStateAccessor()
             val alpha by
                 collectLastValue(underTest.keyguardAlpha(viewState, testScope.backgroundScope))
@@ -1317,7 +1358,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     transitionState = TransitionState.STARTED,
                 )
             )
-            runCurrent()
 
             // ALTERNATE_BOUNCER->GONE transition running
             keyguardTransitionRepository.sendTransitionStep(
@@ -1328,7 +1368,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.1f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isIn(Range.closedOpen(0f, 1f))
 
             keyguardTransitionRepository.sendTransitionStep(
@@ -1339,7 +1378,6 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 0.9f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isIn(Range.closedOpen(0f, 1f))
 
             keyguardTransitionRepository.sendTransitionStep(
@@ -1350,14 +1388,50 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
                     value = 1f,
                 )
             )
-            runCurrent()
             assertThat(alpha).isEqualTo(1f)
         }
 
     @Test
+    @EnableFlags(FLAG_LOCKSCREEN_SHADE_TO_DREAM_TRANSITION_FIX)
+    @BrokenWithSceneContainer(430694649)
+    fun alpha_isZero_duringLockscreenToDreamTransition() =
+        kosmos.runTest {
+            val viewState = ViewStateAccessor()
+            val alpha by
+                collectLastValue(underTest.keyguardAlpha(viewState, testScope.backgroundScope))
+
+            showLockscreenWithQSExpanded()
+
+            // Start lockscreen to dream transition, alpha is 0 once the transition starts.
+            keyguardTransitionRepository.sendTransitionStep(
+                from = LOCKSCREEN,
+                to = DREAMING,
+                value = 0f,
+                transitionState = TransitionState.STARTED,
+            )
+            assertThat(alpha).isEqualTo(0f)
+
+            keyguardTransitionRepository.sendTransitionStep(
+                from = LOCKSCREEN,
+                to = DREAMING,
+                value = 0.5f,
+                transitionState = TransitionState.RUNNING,
+            )
+            assertThat(alpha).isEqualTo(0f)
+
+            // Shade collapse animation finishing up. This can happen in the real world as the shade
+            // collapse and dream start are not synced in any way. Keyguard alpha should not change
+            // even when this is happening as the transition is ongoing.
+            shadeTestUtil.setLockscreenShadeExpansion(0.1f)
+            shadeTestUtil.setQsExpansion(0.1f)
+            assertThat(alpha).isEqualTo(0f)
+        }
+
+    @Test
     @DisableSceneContainer
-    fun notificationAbsoluteBottom() =
-        testScope.runTest {
+    fun notificationAbsoluteBottom_maxNotificationChanged() =
+        kosmos.runTest {
+            enableSingleShade()
             var notificationCount = 2
             val calculateSpace = { _: Float, _: Boolean -> notificationCount }
             val shelfHeight = 10F
@@ -1365,24 +1439,21 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
             val calculateHeight = { count: Int -> count * heightForNotification + shelfHeight }
             val stackAbsoluteBottom by
                 collectLastValue(
-                    underTest.getNotificationStackAbsoluteBottom(
+                    underTest.getNotificationStackAbsoluteBottomOnLockscreen(
                         calculateSpace,
                         calculateHeight,
-                        shelfHeight,
                     )
                 )
-            advanceTimeBy(50L)
+            activeNotificationListRepository.setActiveNotifs(notificationCount)
             showLockscreen()
-
-            shadeTestUtil.setSplitShade(false)
             keyguardInteractor.setNotificationContainerBounds(
                 NotificationContainerBounds(top = 100F, bottom = 300F)
             )
-            configurationRepository.onAnyConfigurationChange()
 
+            sharedNotificationContainerInteractor.notificationStackChanged()
+            advanceTimeBy(50L)
             assertThat(stackAbsoluteBottom).isEqualTo(150F)
 
-            // Also updates when directly requested (as it would from NotificationStackScrollLayout)
             notificationCount = 3
             sharedNotificationContainerInteractor.notificationStackChanged()
             advanceTimeBy(50L)
@@ -1391,66 +1462,249 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
 
     @Test
     @DisableSceneContainer
-    fun notificationAbsoluteBottom_maxNotificationIsZero_noShelfHeight() =
-        testScope.runTest {
-            var notificationCount = 2
+    fun notificationAbsoluteBottom_noNotificationOnLockscreen() =
+        kosmos.runTest {
+            enableSingleShade()
+            val notificationCount = 0
             val calculateSpace = { _: Float, _: Boolean -> notificationCount }
             val shelfHeight = 10F
             val heightForNotification = 20F
             val calculateHeight = { count: Int -> count * heightForNotification + shelfHeight }
             val stackAbsoluteBottom by
                 collectLastValue(
-                    underTest.getNotificationStackAbsoluteBottom(
+                    underTest.getNotificationStackAbsoluteBottomOnLockscreen(
                         calculateSpace,
                         calculateHeight,
-                        shelfHeight,
                     )
                 )
-            advanceTimeBy(50L)
             showLockscreen()
-
-            shadeTestUtil.setSplitShade(false)
             keyguardInteractor.setNotificationContainerBounds(
                 NotificationContainerBounds(top = 100F, bottom = 300F)
             )
-            configurationRepository.onAnyConfigurationChange()
+            activeNotificationListRepository.setActiveNotifs(notificationCount)
+            advanceTimeBy(50L)
 
-            assertThat(stackAbsoluteBottom).isEqualTo(150F)
+            assertThat(stackAbsoluteBottom).isEqualTo(0F)
+        }
 
-            notificationCount = 0
+    @Test
+    @DisableSceneContainer
+    fun notificationAbsoluteBottomOnLockscreen_heightChangedWithoutMaxNotificationChange() =
+        kosmos.runTest {
+            val notificationCount = 2
+            val calculateSpace = { _: Float, _: Boolean -> notificationCount }
+            var shelfHeight = 10F
+            val heightForNotification = 20F
+            val calculateHeight = { count: Int -> count * heightForNotification + shelfHeight }
+            val stackAbsoluteBottom by
+                collectLastValue(
+                    underTest.getNotificationStackAbsoluteBottomOnLockscreen(
+                        calculateSpace,
+                        calculateHeight,
+                    )
+                )
+            activeNotificationListRepository.setActiveNotifs(notificationCount)
+            showLockscreen()
+
+            enableSingleShade()
+            keyguardInteractor.setNotificationContainerBounds(
+                NotificationContainerBounds(top = 100F, bottom = 300F)
+            )
+
             sharedNotificationContainerInteractor.notificationStackChanged()
             advanceTimeBy(50L)
-            assertThat(stackAbsoluteBottom).isEqualTo(100F)
+            assertThat(stackAbsoluteBottom).isEqualTo(150F)
+
+            shelfHeight = 0f
+            sharedNotificationContainerInteractor.notificationStackChanged()
+            advanceTimeBy(50L)
+            assertThat(stackAbsoluteBottom).isEqualTo(140F)
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun notificationAbsoluteBottomOnLockscreen_zeroOnHomescreen() =
+        kosmos.runTest {
+            val calculateSpace = { _: Float, _: Boolean -> -1 }
+            val shelfHeight = 10F
+            val heightForNotification = 20F
+            val calculateHeight = { count: Int -> count * heightForNotification + shelfHeight }
+            val stackAbsoluteBottom by
+                collectLastValue(
+                    underTest.getNotificationStackAbsoluteBottomOnLockscreen(
+                        calculateSpace,
+                        calculateHeight,
+                    )
+                )
+            advanceTimeBy(50L)
+
+            enableSingleShade()
+            keyguardInteractor.setNotificationContainerBounds(
+                NotificationContainerBounds(top = 100F, bottom = 300F)
+            )
+            setTransition(
+                sceneTransition = Idle(Scenes.Gone),
+                stateTransition = TransitionStep(from = LOCKSCREEN, to = GONE),
+            )
+            assertThat(stackAbsoluteBottom).isEqualTo(0F)
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun notificationAbsoluteBottom_notReactToHeightChangeOnShade() =
+        kosmos.runTest {
+            val notificationCount = 2
+            val calculateSpace = { _: Float, _: Boolean -> notificationCount }
+            val shelfHeight = 10F
+            val heightForNotification = 20F
+            val calculateHeight = { count: Int -> count * heightForNotification + shelfHeight }
+            val stackAbsoluteBottom by
+                collectLastValue(
+                    underTest.getNotificationStackAbsoluteBottomOnLockscreen(
+                        calculateSpace,
+                        calculateHeight,
+                    )
+                )
+            showLockscreen()
+            enableSingleShade()
+            activeNotificationListRepository.setActiveNotifs(notificationCount)
+            keyguardInteractor.setNotificationContainerBounds(
+                NotificationContainerBounds(top = 100F, bottom = 300F)
+            )
+            advanceTimeBy(50L)
+            assertThat(stackAbsoluteBottom).isEqualTo(150F)
+
+            showLockscreenWithQSExpanded()
+            keyguardInteractor.setNotificationContainerBounds(
+                NotificationContainerBounds(top = 200F, bottom = 300F)
+            )
+            advanceTimeBy(50L)
+            assertThat(stackAbsoluteBottom).isEqualTo(150F)
+        }
+
+    @Test
+    @DisableSceneContainer
+    fun notificationAbsoluteBottom_onlyMediaInNotifications() =
+        kosmos.runTest {
+            val notificationCount = 0
+            val calculateSpace = { _: Float, _: Boolean -> notificationCount }
+            val mediaHeight = 100F
+            val calculateHeight = { _: Int -> mediaHeight }
+            whenever(legacyMediaDataManagerImpl.hasActiveMedia()).thenReturn(true)
+            val stackAbsoluteBottom by
+                collectLastValue(
+                    underTest.getNotificationStackAbsoluteBottomOnLockscreen(
+                        calculateSpace,
+                        calculateHeight,
+                    )
+                )
+            showLockscreen()
+            enableSingleShade()
+            activeNotificationListRepository.setActiveNotifs(notificationCount)
+            keyguardInteractor.setNotificationContainerBounds(
+                NotificationContainerBounds(top = 100F, bottom = 100F)
+            )
+            advanceTimeBy(50L)
+            assertThat(stackAbsoluteBottom).isEqualTo(200F)
         }
 
     @Test
     fun blurRadius_emitsValues_fromPrimaryBouncerTransitions() =
-        testScope.runTest {
+        kosmos.runTest {
             val blurRadius by collectLastValue(underTest.blurRadius)
             assertThat(blurRadius).isEqualTo(0.0f)
 
-            kosmos.fakeBouncerTransitions.first().notificationBlurRadius.value = 30.0f
+            fakeBouncerTransitions.first().notificationBlurRadius.value = 30.0f
             assertThat(blurRadius).isEqualTo(30.0f)
 
-            kosmos.fakeBouncerTransitions.last().notificationBlurRadius.value = 40.0f
+            fakeBouncerTransitions.last().notificationBlurRadius.value = 40.0f
             assertThat(blurRadius).isEqualTo(40.0f)
         }
 
-    private suspend fun TestScope.showLockscreen() {
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun glanceableHubViewScale_transitionFromLockscreenToHubAndBack() =
+        kosmos.runTest {
+            val scale by collectLastValue(underTest.viewScale)
+            showLockscreen()
+            assertThat(scale).isEqualTo(1.0f)
+
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(
+                    ObservableTransitionState.Transition(
+                        fromScene = CommunalScenes.Blank,
+                        toScene = CommunalScenes.Communal,
+                        currentScene = flowOf(CommunalScenes.Blank),
+                        progress = flowOf(0f),
+                        isInitiatedByUserInput = true,
+                        isUserInputOngoing = flowOf(false),
+                    )
+                )
+
+            // Start transition to communal.
+            communalSceneRepository.setTransitionState(transitionState)
+
+            // Transition to the glanceable hub and back.
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = LOCKSCREEN,
+                to = GLANCEABLE_HUB,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Communal)
+
+            assertThat(scale).isEqualTo(1 - PUSHBACK_SCALE)
+
+            // Start transitioning back.
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = GLANCEABLE_HUB,
+                to = LOCKSCREEN,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Blank)
+
+            assertThat(scale).isEqualTo(1f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun glanceableHubViewScale_reset_transitionedAwayFromHub() =
+        kosmos.runTest {
+            val scale by collectLastValue(underTest.viewScale)
+
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(ObservableTransitionState.Idle(CommunalScenes.Blank))
+
+            // Transition to the glanceable hub and then to bouncer.
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = LOCKSCREEN,
+                to = GLANCEABLE_HUB,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Communal)
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = GLANCEABLE_HUB,
+                to = PRIMARY_BOUNCER,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Blank)
+
+            assertThat(scale).isEqualTo(1f)
+        }
+
+    private suspend fun Kosmos.showLockscreen() {
         shadeTestUtil.setQsExpansion(0f)
         shadeTestUtil.setLockscreenShadeExpansion(0f)
-        runCurrent()
-        keyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
-        runCurrent()
+        fakeKeyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
         keyguardTransitionRepository.sendTransitionSteps(from = AOD, to = LOCKSCREEN, testScope)
     }
 
-    private suspend fun TestScope.showDream() {
+    private suspend fun Kosmos.showDream() {
         shadeTestUtil.setQsExpansion(0f)
         shadeTestUtil.setLockscreenShadeExpansion(0f)
-        runCurrent()
-        keyguardRepository.setDreaming(true)
-        runCurrent()
+        fakeKeyguardRepository.setDreaming(true)
         keyguardTransitionRepository.sendTransitionSteps(
             from = LOCKSCREEN,
             to = DREAMING,
@@ -1458,32 +1712,25 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         )
     }
 
-    private suspend fun TestScope.showLockscreenWithShadeExpanded() {
+    private suspend fun Kosmos.showLockscreenWithShadeExpanded() {
         shadeTestUtil.setQsExpansion(0f)
         shadeTestUtil.setLockscreenShadeExpansion(1f)
-        runCurrent()
-        keyguardRepository.setStatusBarState(StatusBarState.SHADE_LOCKED)
-        runCurrent()
+        fakeKeyguardRepository.setStatusBarState(StatusBarState.SHADE_LOCKED)
         keyguardTransitionRepository.sendTransitionSteps(from = AOD, to = LOCKSCREEN, testScope)
     }
 
-    private suspend fun TestScope.showLockscreenWithQSExpanded() {
+    private suspend fun Kosmos.showLockscreenWithQSExpanded() {
         shadeTestUtil.setLockscreenShadeExpansion(0f)
         shadeTestUtil.setQsExpansion(1f)
-        runCurrent()
-        keyguardRepository.setStatusBarState(StatusBarState.SHADE_LOCKED)
-        runCurrent()
+        fakeKeyguardRepository.setStatusBarState(StatusBarState.SHADE_LOCKED)
         keyguardTransitionRepository.sendTransitionSteps(from = AOD, to = LOCKSCREEN, testScope)
     }
 
-    private suspend fun TestScope.showPrimaryBouncer() {
+    private suspend fun Kosmos.showPrimaryBouncer() {
         shadeTestUtil.setQsExpansion(0f)
         shadeTestUtil.setLockscreenShadeExpansion(0f)
-        runCurrent()
-        keyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
-        runCurrent()
-        kosmos.keyguardBouncerRepository.setPrimaryShow(true)
-        runCurrent()
+        fakeKeyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
+        keyguardBouncerRepository.setPrimaryShow(true)
         keyguardTransitionRepository.sendTransitionSteps(
             from = GLANCEABLE_HUB,
             to = PRIMARY_BOUNCER,
@@ -1491,14 +1738,11 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         )
     }
 
-    private suspend fun TestScope.showAlternateBouncer() {
+    private suspend fun Kosmos.showAlternateBouncer() {
         shadeTestUtil.setQsExpansion(0f)
         shadeTestUtil.setLockscreenShadeExpansion(0f)
-        runCurrent()
-        keyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
-        runCurrent()
-        kosmos.keyguardBouncerRepository.setPrimaryShow(false)
-        runCurrent()
+        fakeKeyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
+        keyguardBouncerRepository.setPrimaryShow(false)
         keyguardTransitionRepository.sendTransitionSteps(
             from = GLANCEABLE_HUB,
             to = ALTERNATE_BOUNCER,
@@ -1506,30 +1750,20 @@ class SharedNotificationContainerViewModelTest(flags: FlagsParameterization) : S
         )
     }
 
-    private fun TestScope.showCommunalScene() {
+    private fun Kosmos.showCommunalScene() {
         val targetScene =
-            if (SceneContainerFlag.isEnabled) {
-                Scenes.Communal
-            } else {
-                CommunalScenes.Communal
-            }
-        kosmos.communalSceneInteractor.changeScene(targetScene, "test")
-        runCurrent()
+            if (SceneContainerFlag.isEnabled) Scenes.Communal else CommunalScenes.Communal
+        communalSceneInteractor.changeScene(targetScene, "test")
     }
 
-    private fun TestScope.hideCommunalScene() {
+    private fun Kosmos.hideCommunalScene() {
         val targetScene =
-            if (SceneContainerFlag.isEnabled) {
-                Scenes.Lockscreen
-            } else {
-                CommunalScenes.Blank
-            }
-        kosmos.communalSceneInteractor.changeScene(targetScene, "test")
-        runCurrent()
+            if (SceneContainerFlag.isEnabled) Scenes.Lockscreen else CommunalScenes.Blank
+        communalSceneInteractor.changeScene(targetScene, "test")
     }
 
-    private fun overrideDimensionPixelSize(id: Int, pixelSize: Int) {
+    private fun Kosmos.overrideDimensionPixelSize(id: Int, pixelSize: Int) {
         overrideResource(id, pixelSize)
-        configurationRepository.setDimensionPixelSize(id, pixelSize)
+        fakeConfigurationRepository.setDimensionPixelSize(id, pixelSize)
     }
 }

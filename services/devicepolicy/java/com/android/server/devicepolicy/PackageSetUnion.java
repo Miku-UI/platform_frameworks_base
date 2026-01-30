@@ -17,8 +17,8 @@
 package com.android.server.devicepolicy;
 
 import android.annotation.NonNull;
-import android.app.admin.PolicyValue;
 import android.app.admin.PackageSetPolicyValue;
+import android.app.admin.PolicyValue;
 import android.app.admin.StringSetUnion;
 
 import java.util.HashSet;
@@ -29,17 +29,42 @@ import java.util.Set;
 final class PackageSetUnion extends ResolutionMechanism<Set<String>> {
 
     @Override
-    PolicyValue<Set<String>> resolve(
+    ResolvedPolicy<Set<String>> resolve(
             @NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<Set<String>>> adminPolicies) {
         Objects.requireNonNull(adminPolicies);
         if (adminPolicies.isEmpty()) {
             return null;
         }
         Set<String> unionOfPolicies = new HashSet<>();
-        for (PolicyValue<Set<String>> policy : adminPolicies.values()) {
-            unionOfPolicies.addAll(policy.getValue());
+        for (PolicyValue<Set<String>> policyValue : adminPolicies.values()) {
+            unionOfPolicies.addAll(policyValue.getValue());
         }
-        return new PackageSetPolicyValue(unionOfPolicies);
+        return new ResolvedPolicy<>(new PackageSetPolicyValue(unionOfPolicies),
+                // Since it's union, all admins contribute to the final value.
+                adminPolicies.keySet());
+    }
+    /**
+     * Checks whether the given policy {@code value} is considered applied
+     * based on the {@code resolvedPolicy} and the {@code PackageSetUnion} resolution
+     * mechanism.
+     *
+     * <p> The check passes if all packages found in the {@code value} parameter are also found
+     * in the {@code resolvedPolicy} set.
+     *
+     * @param value the policy value representing the set of packages to check for.
+     * @param resolvedPolicy The current resolved policy value, represented by a set of packages.
+     *
+     * @return true if all packages in {@code value} are found within
+     *         {@code resolvedPolicy}, false otherwise.
+     */
+    @Override
+    public boolean isPolicyApplied(@NonNull PolicyValue<Set<String>> value,
+            @NonNull PolicyValue<Set<String>> resolvedPolicy) {
+        Objects.requireNonNull(value, "Input PolicyValue 'value' cannot be null.");
+        Objects.requireNonNull(value, "Input PolicyValue 'resolvedPolicy' "
+                + "cannot be null");
+
+        return resolvedPolicy.getValue().containsAll(value.getValue());
     }
 
     @Override

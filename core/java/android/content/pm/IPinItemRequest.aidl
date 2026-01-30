@@ -20,7 +20,7 @@ import android.appwidget.AppWidgetProviderInfo;
 import android.content.pm.ShortcutInfo;
 
 /**
- * {@hide}
+ * @hide
  */
 interface IPinItemRequest {
     boolean isValid();

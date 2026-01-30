@@ -274,12 +274,12 @@ public class RootLayoutComponent extends Component {
      *
      * @return true if listeners, false otherwise
      */
-    public boolean hasTouchListeners() {
+    public boolean getHasTouchListeners() {
         return mHasTouchListeners;
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         super.serialize(serializer);
         serializer.addTags(SerializeTags.COMPONENT);
         serializer.addType("RootLayoutComponent");

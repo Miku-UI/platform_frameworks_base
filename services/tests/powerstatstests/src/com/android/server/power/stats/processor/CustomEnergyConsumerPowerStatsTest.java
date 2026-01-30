@@ -59,7 +59,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 
 public class CustomEnergyConsumerPowerStatsTest {
     @Rule(order = 0)
@@ -249,7 +248,7 @@ public class CustomEnergyConsumerPowerStatsTest {
         mStatsRule.setTime(timestamp, timestamp);
         List<PowerStats> results = new ArrayList<>();
         CountDownLatch latch = new CountDownLatch(2);
-        Consumer<PowerStats> consumer = powerStats -> {
+        PowerStatsCollector.PowerStatsConsumer consumer = (powerStats, realtime, uptime) -> {
             results.add(powerStats);
             latch.countDown();
         };

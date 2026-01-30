@@ -28,7 +28,6 @@ import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.StrictMode;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
-import android.ravenwood.annotation.RavenwoodThrow;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -560,7 +559,6 @@ public class TypedArray implements AutoCloseable {
      * @hide
      */
     @Nullable
-    @RavenwoodThrow(blockedBy = ComplexColor.class)
     public ComplexColor getComplexColor(@StyleableRes int index) {
         if (mRecycled) {
             throw new RuntimeException("Cannot make calls to a recycled instance!");
@@ -995,7 +993,6 @@ public class TypedArray implements AutoCloseable {
      *         not a color or drawable resource.
      */
     @Nullable
-    @RavenwoodThrow(blockedBy = Drawable.class)
     public Drawable getDrawable(@StyleableRes int index) {
         return getDrawableForDensity(index, 0);
     }
@@ -1005,7 +1002,6 @@ public class TypedArray implements AutoCloseable {
      * @hide
      */
     @Nullable
-    @RavenwoodThrow(blockedBy = Drawable.class)
     public Drawable getDrawableForDensity(@StyleableRes int index, int density) {
         if (mRecycled) {
             throw new RuntimeException("Cannot make calls to a recycled instance!");

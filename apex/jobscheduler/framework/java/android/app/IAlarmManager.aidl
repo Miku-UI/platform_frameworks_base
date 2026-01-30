@@ -25,7 +25,7 @@ import android.os.WorkSource;
 /**
  * System private API for talking with the alarm manager service.
  *
- * {@hide}
+ * @hide
  */
 interface IAlarmManager {
 	/** windowLength == 0 means exact; windowLength < 0 means the let the OS decide */

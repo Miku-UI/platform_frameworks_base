@@ -355,6 +355,31 @@ public class TelephonyRegistryManager {
     }
 
     /**
+     * Informs the system of an intentional upcoming carrier network change by a carrier app. At
+     * this time, there are no phone-based listeners to notify, so this method is only intended for
+     * cleaning up system state.
+     *
+     * <p>This will apply to the SIM slot provided, and subsequent listener registrations for
+     * subscriptions belonging to this slot will receive the updated value.
+     *
+     * Requires Permission: calling app has carrier privileges.
+     *
+     * @param phoneId that should be notified.
+     * @param subId the subscription of the carrier network.
+     * @param active Whether the carrier network change is or shortly will be active.
+     * @see TelephonyManager#hasCarrierPrivileges
+     * @hide
+     */
+    public void notifyCarrierNetworkChange(int phoneId, int subId, boolean active) {
+        try {
+            sRegistry.notifyCarrierNetworkChangeForPhoneAndSubId(phoneId, subId, active);
+        } catch (RemoteException ex) {
+            // system server crash
+            throw ex.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Informs the system of an intentional upcoming carrier network change by a carrier app on the
      * given {@code subscriptionId}. This call only used to allow the system to provide alternative
      * UI while telephony is performing an action that may result in intentional, temporary network
@@ -370,11 +395,13 @@ public class TelephonyRegistryManager {
      * @param active whether the carrier network change is or shortly will be active. Set this value
      *              to true to begin showing alternative UI and false to stop.
      * @see TelephonyManager#hasCarrierPrivileges
+     * TODO(b/418794900): Remove when all call sites are migrated.
      * @hide
      */
     public void notifyCarrierNetworkChange(int subscriptionId, boolean active) {
         try {
-            sRegistry.notifyCarrierNetworkChangeWithSubId(subscriptionId, active);
+            sRegistry.notifyCarrierNetworkChangeForPhoneAndSubId(
+                    SubscriptionManager.INVALID_SIM_SLOT_INDEX, subscriptionId, active);
         } catch (RemoteException ex) {
             // system server crash
             throw ex.rethrowFromSystemServer();
@@ -1527,13 +1554,18 @@ public class TelephonyRegistryManager {
             @NonNull @CallbackExecutor Executor executor,
             int subId, String pkgName, String attributionTag, @NonNull TelephonyCallback callback,
             boolean notifyNow) {
-        if (callback == null) {
-            throw new IllegalStateException("telephony service is null.");
-        }
+        Objects.requireNonNull(executor, "registerTelephonyCallback: executor cannot be null.");
+        Objects.requireNonNull(callback, "registerTelephonyCallback: callback cannot be null.");
+
         callback.init(executor);
+        final int[] events = getEventsFromCallback(callback).stream().mapToInt(i -> i).toArray();
+        if (events.length == 0) {
+            throw new IllegalArgumentException(
+                    "registerTelephonyCallback(): callback must implement at least one listener.");
+        }
+
         listenFromCallback(renounceFineLocationAccess, renounceCoarseLocationAccess, subId,
-                pkgName, attributionTag, callback,
-                getEventsFromCallback(callback).stream().mapToInt(i -> i).toArray(), notifyNow);
+                pkgName, attributionTag, callback, events, notifyNow);
     }
 
     /**

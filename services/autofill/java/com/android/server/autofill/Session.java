@@ -41,6 +41,7 @@ import static android.service.autofill.FillRequest.FLAG_VIEW_REQUESTS_CREDMAN_SE
 import static android.service.autofill.FillRequest.INVALID_REQUEST_ID;
 import static android.service.autofill.Flags.highlightAutofillSingleField;
 import static android.service.autofill.Flags.improveFillDialogAconfig;
+import static android.service.autofill.Flags.logAugmentedServiceUid;
 import static android.service.autofill.Flags.metricsFixes;
 import static android.view.autofill.AutofillManager.ACTION_RESPONSE_EXPIRED;
 import static android.view.autofill.AutofillManager.ACTION_START_SESSION;
@@ -1501,7 +1502,12 @@ final class Session
             mSessionFlags.mAugmentedAutofillOnly = true;
             mFillRequestEventLogger.maybeSetRequestId(AUGMENTED_AUTOFILL_REQUEST_ID);
             mFillRequestEventLogger.maybeSetIsAugmented(true);
-            mFillRequestEventLogger.logAndEndEvent();
+            if (logAugmentedServiceUid()) {
+                mFillRequestEventLogger.maybeSetAutofillServiceUid(
+                    mService.getAugmentedAutofillServiceUidLocked());
+            } else {
+                mFillRequestEventLogger.logAndEndEvent();
+            }
             triggerAugmentedAutofillLocked(flags);
             return Optional.empty();
         }
@@ -5805,6 +5811,9 @@ final class Session
         }
 
         synchronized (mLock) {
+            long currentTimestampMs = SystemClock.elapsedRealtime();
+            mPresentationStatsEventLogger.maybeSetFillDialogReadyToShowMs(
+                    currentTimestampMs);
             if (mLastFillDialogTriggerIds == null
                     || !ArrayUtils.contains(mLastFillDialogTriggerIds, filledId)) {
                 // Last fill dialog triggered ids are changed.
@@ -5815,7 +5824,6 @@ final class Session
             }
 
             if (mImproveFillDialogEnabled && mInlineSessionController.isImeShowing()) {
-                long currentTimestampMs = SystemClock.elapsedRealtime();
                 long durationMs = currentTimestampMs - mLastInputStartTime;
                 if (sVerbose) {
                     Log.d(TAG, "IME is showing. Checking for elapsed time ");
@@ -5848,8 +5856,6 @@ final class Session
                 // max of start input time or the ime finish time
                 long effectiveDuration = currentTimestampMs
                         - Math.max(mLastInputStartTime, mImeAnimationFinishTimeMs);
-                mPresentationStatsEventLogger.maybeSetFillDialogReadyToShowMs(
-                        currentTimestampMs);
                 mPresentationStatsEventLogger.maybeSetImeAnimationFinishMs(
                         Math.max(mLastInputStartTime, mImeAnimationFinishTimeMs));
                 if (effectiveDuration >= mFillDialogTimeoutMs) {
@@ -6517,6 +6523,10 @@ final class Session
         mFillRequestEventLogger.maybeSetFlags(mFlags);
         mFillRequestEventLogger.maybeSetRequestId(AUGMENTED_AUTOFILL_REQUEST_ID);
         mFillRequestEventLogger.maybeSetIsAugmented(true);
+        if (logAugmentedServiceUid()) {
+            mFillRequestEventLogger.maybeSetAutofillServiceUid(
+                    mService.getAugmentedAutofillServiceUidLocked());
+        }
         mFillRequestEventLogger.logAndEndEvent();
 
         final ViewState viewState = mViewStates.get(mCurrentViewId);
@@ -6707,6 +6717,13 @@ final class Session
         synchronized (mLock) {
             final RemoteAugmentedAutofillService remoteService =
                     mService.getRemoteAugmentedAutofillServiceLocked();
+            if (remoteService == null) {
+                Slog.i(
+                        TAG,
+                        "onAugmentedAutofillInlineSuggestionAccept(): no service for user, skipping"
+                                + " processing inline suggestion request");
+                return;
+            }
             logAugmentedAutofillRequestLocked(
                     mode,
                     remoteService.getComponentName(),

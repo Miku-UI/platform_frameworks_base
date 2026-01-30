@@ -18,7 +18,6 @@ package com.android.server.display.state;
 
 import android.hardware.display.DisplayManagerInternal;
 import android.util.IndentingPrintWriter;
-import android.util.Pair;
 import android.view.Display;
 
 import com.android.server.display.DisplayPowerProximityStateController;
@@ -52,10 +51,9 @@ public class DisplayStateController {
      * @param isDisplayEnabled      A boolean flag representing if the display is enabled
      * @param isDisplayInTransition A boolean flag representing if the display is undergoing the
      *                              transition phase
-     * @return a {@link Pair} of integers, the first being the updated display state, and the second
-     *                              being the reason behind the new display state.
+     * @return the display state and reason
      */
-    public Pair<Integer, Integer> updateDisplayState(
+    public DisplayState updateDisplayState(
             DisplayManagerInternal.DisplayPowerRequest displayPowerRequest,
             boolean isDisplayEnabled,
             boolean isDisplayInTransition) {
@@ -96,7 +94,7 @@ public class DisplayStateController {
             state = Display.STATE_OFF;
         }
 
-        return new Pair(state, reason);
+        return new DisplayState(state, reason);
     }
 
     /** Overrides the doze screen state with a given reason. */
@@ -129,4 +127,6 @@ public class DisplayStateController {
             mDisplayPowerProximityStateController.dumpLocal(ipw);
         }
     }
+
+    public record DisplayState(int state, @Display.StateReason int reason) {}
 }

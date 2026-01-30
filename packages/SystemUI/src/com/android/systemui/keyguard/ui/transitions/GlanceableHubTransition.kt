@@ -17,8 +17,13 @@
 package com.android.systemui.keyguard.ui.transitions
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 interface GlanceableHubTransition {
     /** Radius of blur applied to the window's root view. */
     val windowBlurRadius: Flow<Float>
+
+    /** Zoom out applied to the window's or keyguard's root view. */
+    val zoomOut: Flow<Float>
+        get() = emptyFlow()
 }

@@ -196,8 +196,7 @@ final class WearableSensingSecureChannel {
             mCompanionDeviceManager.attachSystemDataTransport(
                     associationId,
                     new AutoCloseInputStream(mUnderlyingTransport),
-                    new AutoCloseOutputStream(mUnderlyingTransport),
-                    CompanionDeviceManager.TRANSPORT_FLAG_EXTEND_PATCH_DIFF);
+                    new AutoCloseOutputStream(mUnderlyingTransport));
         }
     }
 

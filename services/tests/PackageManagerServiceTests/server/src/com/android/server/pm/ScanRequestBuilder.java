@@ -118,6 +118,6 @@ class ScanRequestBuilder {
         return new ScanRequest(
                 mPkg, mOldSharedUserSetting, mOldPkg, mPkgSetting, mSharedUserSetting,
                 mDisabledPkgSetting, mOriginalPkgSetting, mRealPkgName, mParseFlags, mScanFlags,
-                mIsPlatformPackage, mUser, mCpuAbiOverride);
+                mIsPlatformPackage, mUser, mCpuAbiOverride, /* enableAlignmentChecks= */ false);
     }
 }

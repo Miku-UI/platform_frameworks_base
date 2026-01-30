@@ -45,6 +45,7 @@ import com.android.systemui.statusbar.notification.data.repository.FakeHeadsUpRo
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
 import com.android.systemui.statusbar.notification.domain.interactor.lockScreenNotificationMinimalismSetting
 import com.android.systemui.statusbar.notification.headsup.PinnedStatus
+import com.android.systemui.statusbar.notification.row.data.repository.TEST_BUNDLE_SPEC
 import com.android.systemui.statusbar.notification.shared.NotificationMinimalism
 import com.android.systemui.statusbar.notification.stack.data.repository.headsUpNotificationRepository
 import com.android.systemui.testKosmos
@@ -195,16 +196,14 @@ class LockScreenMinimalismCoordinatorTest : SysuiTestCase() {
             kosmos.activeNotificationListRepository.topOngoingNotificationKey.value = null
             kosmos.activeNotificationListRepository.topUnseenNotificationKey.value = child2.key
             assertThat(promoter.shouldPromoteToTopLevel(child1)).isFalse()
-            assertThat(promoter.shouldPromoteToTopLevel(child2))
-                .isEqualTo(NotificationMinimalism.ungroupTopUnseen)
+            assertThat(promoter.shouldPromoteToTopLevel(child2)).isFalse()
             assertThat(promoter.shouldPromoteToTopLevel(child3)).isFalse()
             assertThat(promoter.shouldPromoteToTopLevel(parent)).isFalse()
 
             kosmos.activeNotificationListRepository.topOngoingNotificationKey.value = child1.key
             kosmos.activeNotificationListRepository.topUnseenNotificationKey.value = child2.key
             assertThat(promoter.shouldPromoteToTopLevel(child1)).isTrue()
-            assertThat(promoter.shouldPromoteToTopLevel(child2))
-                .isEqualTo(NotificationMinimalism.ungroupTopUnseen)
+            assertThat(promoter.shouldPromoteToTopLevel(child2)).isFalse()
             assertThat(promoter.shouldPromoteToTopLevel(child3)).isFalse()
             assertThat(promoter.shouldPromoteToTopLevel(parent)).isFalse()
         }
@@ -311,7 +310,7 @@ class LockScreenMinimalismCoordinatorTest : SysuiTestCase() {
         val group = GroupEntryBuilder().setSummary(parent).addChild(child1).addChild(child2).build()
         val listEntryList = listOf(group, solo1, solo2)
         val notificationEntryList = listOf(solo1, solo2, parent, child1, child2)
-        val bundle = BundleEntry("bundleKey")
+        val bundle = BundleEntry(TEST_BUNDLE_SPEC)
         val bundleList = listOf(bundle)
 
         runCoordinatorTest {
@@ -454,7 +453,7 @@ class LockScreenMinimalismCoordinatorTest : SysuiTestCase() {
 
     private fun KeyguardCoordinatorTestScope.setShadeAndQsExpansionThenWait(
         shadeExpansion: Float,
-        qsExpansion: Float
+        qsExpansion: Float,
     ) {
         kosmos.shadeTestUtil.setShadeAndQsExpansion(shadeExpansion, qsExpansion)
         // The coordinator waits a fraction of a second for the shade expansion to stick.

@@ -20,6 +20,8 @@ import static android.net.cts.util.IkeSessionTestUtils.CHILD_PARAMS;
 import static android.net.cts.util.IkeSessionTestUtils.IKE_PARAMS_V6;
 import static android.net.cts.util.IkeSessionTestUtils.getTestIkeSessionParams;
 
+import static com.android.internal.net.VpnProfile.TYPE_IKEV2_IPSEC_RSA;
+
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -29,6 +31,8 @@ import static org.junit.Assert.fail;
 
 import android.net.ipsec.ike.IkeKeyIdIdentification;
 import android.net.ipsec.ike.IkeTunnelConnectionParams;
+import android.security.keystore.KeyGenParameterSpec;
+import android.security.keystore.KeyProperties;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
@@ -44,6 +48,7 @@ import org.junit.runner.RunWith;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
+import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -344,6 +349,66 @@ public class Ikev2VpnProfileTest {
         // Check nothing else is set
         assertEquals("", profile.username);
         assertEquals("", profile.password);
+    }
+
+    @Test
+    public void testRsaWithKeystoreAliasToVpnProfileAndFromVpnProfile() throws Exception {
+        final String alias = "test-rsa-keystore-alias";
+        final KeyStore keyStore = KeyStore.getInstance("AndroidKeyStore");
+        keyStore.load(null);
+        // Clean up before test, in case of previous failures
+        if (keyStore.containsAlias(alias)) {
+            keyStore.deleteEntry(alias);
+        }
+
+        try {
+            // Generate and store a key pair in AndroidKeyStore
+            final KeyPairGenerator keyPairGenerator =
+                    KeyPairGenerator.getInstance(
+                            KeyProperties.KEY_ALGORITHM_RSA, "AndroidKeyStore");
+            keyPairGenerator.initialize(
+                    new KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)
+                            .setDigests(KeyProperties.DIGEST_SHA256)
+                            .setSignaturePaddings(KeyProperties.SIGNATURE_PADDING_RSA_PKCS1)
+                            .build());
+            final KeyPair keyPair = keyPairGenerator.generateKeyPair();
+            final PrivateKey privateKey = keyPair.getPrivate();
+
+            // The certificate is self-signed and generated automatically.
+            final X509Certificate userCert = (X509Certificate) keyStore.getCertificate(alias);
+            assertNotNull(userCert);
+
+            // Create a VpnProfile and convert it to an Ikev2VpnProfile via fromVpnProfile().
+            // Note: The key will be dropped in toVpnProfile() because it's unused in
+            // Ikev2VpnProfile. Therefore, initialize the key to an empty string in VpnProfile to
+            // ensure it won't be lost when converting Ikev2VpnProfile back to VpnProfile.
+            final VpnProfile vpnProfile = new VpnProfile("");
+            final String ipsecCaCert = Ikev2VpnProfile.certificateToPemString(mServerRootCa);
+            final String ipsecUserCert = Ikev2VpnProfile.certificateToPemString(userCert);
+            vpnProfile.server = SERVER_ADDR_STRING;
+            vpnProfile.ipsecIdentifier = IDENTITY_STRING;
+            vpnProfile.type = TYPE_IKEV2_IPSEC_RSA;
+            vpnProfile.setAllowedAlgorithms(Ikev2VpnProfile.DEFAULT_ALGORITHMS);
+            vpnProfile.ipsecSecret = Ikev2VpnProfile.PREFIX_KEYSTORE_ALIAS + alias;
+            vpnProfile.ipsecCaCert = ipsecCaCert;
+            vpnProfile.ipsecUserCert = ipsecUserCert;
+            vpnProfile.areAuthParamsInline = true;
+            final Ikev2VpnProfile profile = Ikev2VpnProfile.fromVpnProfile(vpnProfile);
+            // Verify that the private key and cert are from keystore
+            assertEquals(privateKey, profile.getRsaPrivateKey());
+            assertNull(profile.getRsaPrivateKey().getEncoded());
+            assertEquals(userCert, profile.getUserCert());
+            assertEquals(mServerRootCa, profile.getServerRootCaCert());
+
+            // Now, invoke toVpnProfile() and verify that all parameters within the VpnProfile are
+            // identical.
+            assertTrue(vpnProfile.equals(profile.toVpnProfile()));
+        } finally {
+            // Cleanup
+            if (keyStore.containsAlias(alias)) {
+                keyStore.deleteEntry(alias);
+            }
+        }
     }
 
     @Test

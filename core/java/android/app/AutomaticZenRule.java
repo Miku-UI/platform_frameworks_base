@@ -212,19 +212,6 @@ public final class AutomaticZenRule implements Parcelable {
         this.mZenPolicy = policy;
     }
 
-    /**
-     * @hide
-     * @deprecated Do not add new usages; will be removed soon.
-     */
-    // TODO: b/368247671 - Remove when modes_ui is inlined (remaining usages are in obsolete tests)
-    @Deprecated
-    public AutomaticZenRule(String name, ComponentName owner, ComponentName configurationActivity,
-            Uri conditionId, ZenPolicy policy, int interruptionFilter, boolean enabled,
-            long creationTime) {
-        this(name, owner, configurationActivity, conditionId, policy, interruptionFilter, enabled);
-        this.creationTime = creationTime;
-    }
-
     public AutomaticZenRule(Parcel source) {
         enabled = source.readInt() == ENABLED;
         if (source.readInt() == ENABLED) {

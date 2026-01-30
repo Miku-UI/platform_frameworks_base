@@ -20,7 +20,11 @@ import android.content.Context
 import android.content.ContextWrapper
 import android.content.Intent
 import android.os.Bundle
-import androidx.lifecycle.LifecycleCoroutineScope
+import androidx.activity.result.ActivityResultCallback
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.fragment.app.FragmentManager
+import androidx.lifecycle.LifecycleOwner
 import com.android.settingslib.datastore.KeyValueStore
 import kotlinx.coroutines.CoroutineScope
 
@@ -33,6 +37,18 @@ interface PreferenceTitleProvider {
 
     /** Provides preference title. */
     fun getTitle(context: Context): CharSequence?
+}
+
+/**
+ * Provides preference title to be shown in search result.
+ *
+ * This is used to add more context to the title, and it is effective only when building indexable
+ * data in [PreferenceSearchIndexablesProvider].
+ */
+interface PreferenceIndexableTitleProvider {
+
+    /** Provides preference indexable title. */
+    fun getIndexableTitle(context: Context): CharSequence?
 }
 
 /**
@@ -57,14 +73,38 @@ interface PreferenceIconProvider {
     fun getIcon(context: Context): Int
 }
 
-/**
- * Interface to provide the state of preference availability.
- *
- * UI framework normally does not show the preference widget if it is unavailable.
- */
+/** Interface to provide information for settings search. */
+interface PreferenceIndexableProvider {
+
+    /**
+     * Returns if preference is indexable for settings search.
+     *
+     * Return `false` only when the preference is unavailable for indexing on current device.
+     *
+     * Note:
+     * - For [PreferenceScreenMetadata], all the preferences on the screen are not indexable if
+     *   [isIndexable] returns `false`.
+     * - If [PreferenceScreenMetadata.isEnabled] is implemented, it should also implement this
+     *   interface to tell that the screen might be disabled and thus not accessible, in which case
+     *   all the preferences on the screen are not indexable.
+     * - Implement [PreferenceAvailabilityProvider] if it is available on condition but check
+     *   [PreferenceAvailabilityProvider.isAvailable] inside [isIndexable] is optional. Unavailable
+     *   preference is always non indexable no matter what [isIndexable] returns.
+     */
+    fun isIndexable(context: Context): Boolean
+}
+
+/** Interface to provide the state of preference availability. */
 interface PreferenceAvailabilityProvider {
 
-    /** Returns if the preference is available. */
+    /**
+     * Returns if the preference is available.
+     *
+     * When unavailable (i.e. `false` returned),
+     * - UI framework normally does not show the preference widget.
+     * - If it is a preference screen, all children may be disabled (depends on UI framework
+     *   implementation).
+     */
     fun isAvailable(context: Context): Boolean
 }
 
@@ -81,9 +121,11 @@ interface PreferenceRestrictionProvider {
 }
 
 /**
- * Preference lifecycle to deal with preference state.
+ * Preference lifecycle to deal with preference UI state.
  *
- * Implement this interface when preference depends on runtime conditions.
+ * Implement this interface when preference depends on runtime conditions for UI update. Note that
+ * [PreferenceMetadata] could be created for UI (shown in UI widget) or background (e.g. external
+ * Get/Set), callbacks in this interface will ONLY be invoked when it is for UI.
  */
 interface PreferenceLifecycleProvider {
 
@@ -141,12 +183,34 @@ interface PreferenceLifecycleProvider {
  */
 abstract class PreferenceLifecycleContext(context: Context) : ContextWrapper(context) {
 
+    /** Returns the fragment [LifecycleOwner]. */
+    abstract val lifecycleOwner: LifecycleOwner
+
     /**
      * [CoroutineScope] tied to the lifecycle, which is cancelled when the lifecycle is destroyed.
      *
      * @see [androidx.lifecycle.lifecycleScope]
      */
-    abstract val lifecycleScope: LifecycleCoroutineScope
+    abstract val lifecycleScope: CoroutineScope
+
+    /**
+     * Return the [FragmentManager] for interacting with fragments associated with current
+     * fragment's activity.
+     *
+     * @see [androidx.fragment.app.Fragment.getParentFragmentManager]
+     */
+    abstract val fragmentManager: FragmentManager
+
+    /**
+     * Return a private `FragmentManager` for placing and managing Fragments inside of current
+     * Fragment.
+     *
+     * @see [androidx.fragment.app.Fragment.getChildFragmentManager]
+     */
+    abstract val childFragmentManager: FragmentManager
+
+    /** Returns the key of current preference screen. */
+    abstract val preferenceScreenKey: String
 
     /** Returns the preference widget object associated with given key. */
     abstract fun <T> findPreference(key: String): T?
@@ -156,7 +220,7 @@ abstract class PreferenceLifecycleContext(context: Context) : ContextWrapper(con
      *
      * @throws NullPointerException if preference is not found
      */
-    abstract fun <T : Any> requirePreference(key: String): T
+    open fun <T : Any> requirePreference(key: String): T = findPreference(key)!!
 
     /** Returns the [KeyValueStore] attached to the preference of given key *on the same screen*. */
     abstract fun getKeyValueStore(key: String): KeyValueStore?
@@ -165,10 +229,40 @@ abstract class PreferenceLifecycleContext(context: Context) : ContextWrapper(con
     abstract fun notifyPreferenceChange(key: String)
 
     /**
+     * Switches to given preference hierarchy type for [PreferenceHierarchyGenerator].
+     *
+     * [PreferenceScreenMetadata.hasCompleteHierarchy] must return true.
+     */
+    abstract fun switchPreferenceHierarchy(hierarchyType: Any?)
+
+    /**
+     * Regenerates preference hierarchy.
+     *
+     * A new [PreferenceHierarchy] will be generated and applied to the preference screen. This is
+     * to support the case that dynamic preference hierarchy is changed at runtime (e.g. app list
+     * needs to be updated if new app is installed).
+     *
+     * [PreferenceScreenMetadata.hasCompleteHierarchy] must return true.
+     */
+    abstract fun regeneratePreferenceHierarchy()
+
+    /**
      * Starts activity for result, see [android.app.Activity.startActivityForResult].
      *
      * This API can be invoked by any preference, the caller must ensure the request code is unique
      * on the preference screen.
      */
     abstract fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?)
+
+    /**
+     * Register a request to start an activity, see [androidx.activity.result.ActivityResultCaller].
+     *
+     * Because this must be called unconditionally as part of the initialization path of the
+     * Fragment, this API can only be invoked by a preference during
+     * [PreferenceLifecycleProvider.onCreate].
+     */
+    abstract fun <I, O> registerForActivityResult(
+        contract: ActivityResultContract<I, O>,
+        callback: ActivityResultCallback<O>,
+    ): ActivityResultLauncher<I>
 }

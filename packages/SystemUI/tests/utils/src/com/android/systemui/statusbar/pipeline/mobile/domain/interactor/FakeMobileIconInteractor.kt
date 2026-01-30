@@ -24,18 +24,13 @@ import com.android.systemui.statusbar.pipeline.mobile.domain.model.SignalIconMod
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import kotlinx.coroutines.flow.MutableStateFlow
 
-class FakeMobileIconInteractor(
-    override val tableLogBuffer: TableLogBuffer,
-) : MobileIconInteractor {
+class FakeMobileIconInteractor(override val tableLogBuffer: TableLogBuffer) : MobileIconInteractor {
     override val alwaysShowDataRatIcon = MutableStateFlow(false)
 
+    override val subscriptionId: Int = 0
+
     override val activity =
-        MutableStateFlow(
-            DataActivityModel(
-                hasActivityIn = false,
-                hasActivityOut = false,
-            )
-        )
+        MutableStateFlow(DataActivityModel(hasActivityIn = false, hasActivityOut = false))
 
     override val carrierNetworkChangeActive = MutableStateFlow(false)
 

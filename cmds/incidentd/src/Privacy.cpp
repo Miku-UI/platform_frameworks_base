@@ -18,7 +18,7 @@
 
 #include <android/os/IncidentReportArgs.h>
 #include <stdlib.h>
-#include <strstream>
+#include <sstream>
 
 
 namespace android {
@@ -26,7 +26,6 @@ namespace os {
 namespace incidentd {
 
 using namespace android::os;
-using std::strstream;
 
 uint64_t encode_field_id(const Privacy* p) { return (uint64_t)p->type << 32 | p->field_id; }
 
@@ -34,7 +33,7 @@ string Privacy::toString() const {
     if (this == NULL) {
         return "Privacy{null}";
     }
-    strstream os;
+    std::ostringstream os;
     os << "Privacy{field_id=" << field_id << " type=" << ((int)type)
             << " children=" << ((void*)children) << " policy=" << ((int)policy) << "}";
     return os.str();

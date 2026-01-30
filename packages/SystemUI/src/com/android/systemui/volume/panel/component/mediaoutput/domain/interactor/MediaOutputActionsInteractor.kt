@@ -16,11 +16,22 @@
 
 package com.android.systemui.volume.panel.component.mediaoutput.domain.interactor
 
+import android.app.Dialog
+import android.content.Context
+import android.content.res.Configuration
+import android.view.Gravity
+import android.view.WindowManager
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
+import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.media.dialog.MediaOutputDialog
 import com.android.systemui.media.dialog.MediaOutputDialogManager
+import com.android.systemui.qs.panels.data.repository.QSPanelAppearanceRepository
+import com.android.systemui.res.R
+import com.android.systemui.statusbar.notification.stack.shared.model.ShadeScrimShape
+import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.panel.component.mediaoutput.domain.model.MediaOutputComponentModel
 import com.android.systemui.volume.panel.dagger.scope.VolumePanelScope
 import javax.inject.Inject
@@ -29,26 +40,71 @@ import javax.inject.Inject
 @VolumePanelScope
 class MediaOutputActionsInteractor
 @Inject
-constructor(private val mediaOutputDialogManager: MediaOutputDialogManager) {
+constructor(
+    @Application private val context: Context,
+    private val mediaOutputDialogManager: MediaOutputDialogManager,
+    private val qsPanelAppearanceRepository: QSPanelAppearanceRepository,
+    private val desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
+) {
+    private val mDesktopDialogWidth =
+        context.getResources().getDimensionPixelSize(R.dimen.shade_panel_width)
+    private val mDesktopDialogHeight = 650
 
     fun onBarClick(model: MediaOutputComponentModel?, expandable: Expandable?) {
+        val onDialogEventListener =
+            if (desktopAudioTileDetailsFeatureInteractor.isEnabled()) {
+                object : MediaOutputDialog.OnDialogEventListener {
+                    override fun onConfigurationChanged(dialog: Dialog, newConfig: Configuration) {
+                        updateDialogBounds(dialog, qsPanelAppearanceRepository.qsPanelShape.value)
+                    }
+
+                    override fun onCreate(dialog: Dialog) {
+                        updateDialogBounds(dialog, qsPanelAppearanceRepository.qsPanelShape.value)
+                    }
+                }
+            } else {
+                null
+            }
+
         if (model is MediaOutputComponentModel.MediaSession) {
             mediaOutputDialogManager.createAndShowWithController(
-                model.session.packageName,
-                false,
-                expandable?.dialogController()
+                packageName = model.session.packageName,
+                aboveStatusBar = false,
+                controller = expandable?.dialogController(),
+                onDialogEventListener = onDialogEventListener,
             )
         } else {
-            mediaOutputDialogManager.createAndShowForSystemRouting(expandable?.dialogController())
+            mediaOutputDialogManager.createAndShowForSystemRouting(
+                expandable?.dialogController(),
+                onDialogEventListener,
+            )
         }
     }
 
+    private fun updateDialogBounds(dialog: Dialog, shape: ShadeScrimShape?) {
+        if (shape == null) {
+            return
+        }
+        val qsPanelBounds = shape.bounds
+        val lp: WindowManager.LayoutParams = dialog.window!!.attributes
+        lp.gravity = Gravity.TOP or Gravity.LEFT
+        lp.width = mDesktopDialogWidth
+        lp.height = mDesktopDialogHeight
+        // Position the dialog at the center of the qsPanelBounds
+        lp.x = (qsPanelBounds.left + qsPanelBounds.right - mDesktopDialogWidth).toInt() / 2
+        lp.y = (qsPanelBounds.top + qsPanelBounds.bottom - mDesktopDialogHeight).toInt() / 2
+        dialog.window!!.attributes = lp
+    }
+
     private fun Expandable.dialogController(): DialogTransitionAnimator.Controller? {
+        if (desktopAudioTileDetailsFeatureInteractor.isEnabled()) {
+            return null
+        }
         return dialogTransitionController(
             cuj =
                 DialogCuj(
                     InteractionJankMonitor.CUJ_SHADE_DIALOG_OPEN,
-                    MediaOutputDialogManager.INTERACTION_JANK_TAG
+                    MediaOutputDialogManager.INTERACTION_JANK_TAG,
                 )
         )
     }

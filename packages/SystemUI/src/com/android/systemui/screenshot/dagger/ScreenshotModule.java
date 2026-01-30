@@ -16,16 +16,14 @@
 
 package com.android.systemui.screenshot.dagger;
 
-import static com.android.systemui.Flags.screenshotUiControllerRefactor;
-
 import android.app.Service;
-import android.view.accessibility.AccessibilityManager;
+import android.content.Context;
 
+import com.android.internal.util.ScreenshotHelper;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.screenshot.ImageCapture;
 import com.android.systemui.screenshot.ImageCaptureImpl;
 import com.android.systemui.screenshot.InteractiveScreenshotHandler;
-import com.android.systemui.screenshot.LegacyScreenshotController;
 import com.android.systemui.screenshot.ScreenshotController;
 import com.android.systemui.screenshot.ScreenshotSoundController;
 import com.android.systemui.screenshot.ScreenshotSoundControllerImpl;
@@ -39,7 +37,6 @@ import com.android.systemui.screenshot.appclips.AppClipsService;
 import com.android.systemui.screenshot.message.MessageModule;
 import com.android.systemui.screenshot.policy.ScreenshotPolicyModule;
 import com.android.systemui.screenshot.proxy.ScreenshotProxyModule;
-import com.android.systemui.screenshot.ui.viewmodel.ScreenshotViewModel;
 
 import dagger.Binds;
 import dagger.Module;
@@ -85,20 +82,14 @@ public abstract class ScreenshotModule {
             ScreenshotSoundControllerImpl screenshotSoundProviderImpl);
 
     @Provides
-    @SysUISingleton
-    static ScreenshotViewModel providesScreenshotViewModel(
-            AccessibilityManager accessibilityManager) {
-        return new ScreenshotViewModel(accessibilityManager);
+    static InteractiveScreenshotHandler.Factory providesScreenshotController(
+            ScreenshotController.Factory screenshotController) {
+        return screenshotController;
     }
 
     @Provides
-    static InteractiveScreenshotHandler.Factory providesScreenshotController(
-            LegacyScreenshotController.Factory legacyScreenshotController,
-            ScreenshotController.Factory screenshotController) {
-        if (screenshotUiControllerRefactor()) {
-            return screenshotController;
-        } else {
-            return legacyScreenshotController;
-        }
+    @SysUISingleton
+    static ScreenshotHelper provideScreenshotHelper(Context context) {
+        return new ScreenshotHelper(context);
     }
 }

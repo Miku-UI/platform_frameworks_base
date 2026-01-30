@@ -15,7 +15,7 @@
 
 package android.view;
 
-/** {@hide} */
+/** @hide */
 oneway interface IWindowFocusObserver
 {
     void focusGained(IBinder inputToken);

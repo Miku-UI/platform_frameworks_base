@@ -60,7 +60,15 @@ class ResizingState(tileSpec: TileSpec, startsAsIcon: Boolean) {
         )
     }
 
-    fun updateAnchors(min: Float, max: Float) {
+    /** Calculates and updates the drag anchors based on the size and maximum span. */
+    fun updateAnchors(isIcon: Boolean, width: Int, maxSpan: Int, padding: Int) {
+        val totalPadding = (maxSpan - 1) * padding
+        val min = if (isIcon) width else (width - totalPadding) / maxSpan
+        val max = if (isIcon) (width * maxSpan) + totalPadding else width
+        updateAnchors(min.toFloat(), max.toFloat())
+    }
+
+    private fun updateAnchors(min: Float, max: Float) {
         anchoredDraggableState.updateAnchors(
             DraggableAnchors {
                 QSDragAnchor.Icon at min

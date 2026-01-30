@@ -32,6 +32,7 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
+import org.mockito.ArgumentMatchers
 import org.mockito.Captor
 import org.mockito.Mock
 import org.mockito.Mockito.clearInvocations
@@ -116,14 +117,14 @@ class BlurUtilsTest : SysuiTestCase() {
         verify(syncRTTransactionApplier).scheduleApply(captor.capture())
         assertThat(captor.value.opaque).isTrue()
         SyncRtSurfaceTransactionApplier.applyParams(transaction, captor.value, tmpFloatArray)
-        verify(transaction).setEarlyWakeupStart()
+        verify(transaction).setEarlyWakeupStart(ArgumentMatchers.any())
 
         clearInvocations(syncRTTransactionApplier)
         clearInvocations(transaction)
         blurUtils.applyBlur(viewRootImpl, 0, true /* opaque */)
         verify(syncRTTransactionApplier).scheduleApply(captor.capture())
         SyncRtSurfaceTransactionApplier.applyParams(transaction, captor.value, tmpFloatArray)
-        verify(transaction).setEarlyWakeupEnd()
+        verify(transaction).setEarlyWakeupEnd(ArgumentMatchers.any())
     }
 
     inner class TestableBlurUtils :

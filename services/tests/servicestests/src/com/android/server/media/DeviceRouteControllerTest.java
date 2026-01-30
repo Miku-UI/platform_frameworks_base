@@ -38,9 +38,13 @@ import org.junit.runners.JUnit4;
 @RunWith(JUnit4.class)
 public class DeviceRouteControllerTest {
 
-    private final DeviceRouteController.OnDeviceRouteChangedListener mOnDeviceRouteChangedListener =
-            () -> {
-                // Empty on purpose.
+    private final DeviceRouteController.EventListener mEventListener =
+            new DeviceRouteController.EventListener() {
+                @Override
+                public void onDeviceRouteChanged() {}
+
+                @Override
+                public void onDeviceRouteRequestFailed(long requestId, int reason) {}
             };
 
     @Rule
@@ -58,7 +62,7 @@ public class DeviceRouteControllerTest {
     public void createInstance_audioPoliciesFlagIsDisabled_createsLegacyController() {
         DeviceRouteController deviceRouteController =
                 DeviceRouteController.createInstance(
-                        mContext, Looper.getMainLooper(), mOnDeviceRouteChangedListener);
+                        mContext, Looper.getMainLooper(), mEventListener);
 
         Truth.assertThat(deviceRouteController).isInstanceOf(LegacyDeviceRouteController.class);
     }
@@ -68,7 +72,7 @@ public class DeviceRouteControllerTest {
     public void createInstance_audioPoliciesFlagIsEnabled_createsAudioPoliciesController() {
         DeviceRouteController deviceRouteController =
                 DeviceRouteController.createInstance(
-                        mContext, Looper.getMainLooper(), mOnDeviceRouteChangedListener);
+                        mContext, Looper.getMainLooper(), mEventListener);
 
         Truth.assertThat(deviceRouteController).isInstanceOf(AudioManagerRouteController.class);
     }

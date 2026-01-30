@@ -21,17 +21,29 @@
 #include <gui/BufferQueue.h>
 #include <gui/ConsumerBase.h>
 #include <gui/IGraphicBufferConsumer.h>
+#include <gui/Surface.h>
+#include <ui/GraphicBuffer.h>
 #include <utils/RefBase.h>
 
 namespace android {
 
 class BufferItemConsumer : public ConsumerBase {
 public:
+    enum { DEFAULT_MAX_BUFFERS = -1 };
+
+    static std::tuple<sp<BufferItemConsumer>, sp<Surface>> create(
+            uint64_t consumerUsage, int bufferCount = DEFAULT_MAX_BUFFERS,
+            bool controlledByApp = false, bool isConsumerSurfaceFlinger = false) {
+        sp<BufferItemConsumer> bufferItemConsumer =
+                sp<BufferItemConsumer>::make(consumerUsage, bufferCount, controlledByApp,
+                                             isConsumerSurfaceFlinger);
+        return {bufferItemConsumer, bufferItemConsumer->getSurface()};
+    }
+
     BufferItemConsumer(const sp<IGraphicBufferConsumer>& consumer, uint64_t consumerUsage,
                        int bufferCount = -1, bool controlledByApp = false)
           : mConsumer(consumer) {}
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
     BufferItemConsumer(uint64_t consumerUsage, int bufferCount = -1,
                        bool controlledByApp = false, bool isConsumerSurfaceFlinger = false) {
         sp<IGraphicBufferProducer> producer;
@@ -42,7 +54,6 @@ public:
     status_t setConsumerIsProtected(bool isProtected) {
         return OK;
     }
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 
     status_t acquireBuffer(BufferItem* item, nsecs_t presentWhen, bool waitForFence = true) {
         return mConsumer->acquireBuffer(item, presentWhen, 0);
@@ -79,6 +90,10 @@ public:
         return OK;
     }
 
+    status_t detachBuffer(const sp<GraphicBuffer>& buffer) {
+        return OK;
+    }
+
     status_t discardFreeBuffers() {
         return OK;
     }
@@ -90,20 +105,16 @@ public:
         return OK;
     }
 
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
-// Returns a Surface that can be used as the producer for this consumer.
+    // Returns a Surface that can be used as the producer for this consumer.
     sp<Surface> getSurface() const {
         return mSurface;
     }
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 
 private:
     sp<IGraphicBufferConsumer> mConsumer;
-#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
-        // This Surface wraps the IGraphicBufferConsumer created for this
+    // This Surface wraps the IGraphicBufferConsumer created for this
     // ConsumerBase.
     sp<Surface> mSurface;
-#endif // COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_CONSUMER_BASE_OWNS_BQ)
 };
 
 } // namespace android

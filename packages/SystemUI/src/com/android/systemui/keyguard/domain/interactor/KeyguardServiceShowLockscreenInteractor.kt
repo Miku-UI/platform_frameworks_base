@@ -64,7 +64,7 @@ constructor(
             // This is not the only place we notify the lockNowCallbacks - there are cases where we
             // decide not to show the lockscreen despite being asked to, and we need to notify the
             // callback in those cases as well.
-            wmLockscreenVisibilityInteractor.get().lockscreenVisibility.collect { visible ->
+            wmLockscreenVisibilityInteractor.get().lockscreenVisibility.collect { (visible, _) ->
                 if (visible) {
                     notifyShowLockscreenCallbacks()
                 }

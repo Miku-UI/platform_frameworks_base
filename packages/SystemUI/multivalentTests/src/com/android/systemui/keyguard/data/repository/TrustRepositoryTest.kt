@@ -45,7 +45,6 @@ import org.mockito.MockitoAnnotations
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@android.platform.test.annotations.EnabledOnRavenwood
 class TrustRepositoryTest : SysuiTestCase() {
     @Mock private lateinit var trustManager: TrustManager
     @Captor private lateinit var listener: ArgumentCaptor<TrustManager.TrustListener>
@@ -236,7 +235,7 @@ class TrustRepositoryTest : SysuiTestCase() {
             runCurrent()
             verify(trustManager).registerTrustListener(listener.capture())
             val isCurrentUserActiveUnlockRunning by
-                collectLastValue(underTest.isCurrentUserActiveUnlockRunning)
+                collectLastValue(underTest.isCurrentUserActiveUnlockEnabled)
             userRepository.setSelectedUserInfo(users[1])
 
             // active unlock running = true for users[0].id, but not the current user
@@ -254,7 +253,7 @@ class TrustRepositoryTest : SysuiTestCase() {
             runCurrent()
             verify(trustManager).registerTrustListener(listener.capture())
             val isCurrentUserActiveUnlockRunning by
-                collectLastValue(underTest.isCurrentUserActiveUnlockRunning)
+                collectLastValue(underTest.isCurrentUserActiveUnlockEnabled)
             userRepository.setSelectedUserInfo(users[0])
 
             listener.value.onIsActiveUnlockRunningChanged(true, users[0].id)

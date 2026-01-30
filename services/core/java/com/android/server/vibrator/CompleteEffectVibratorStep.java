@@ -35,8 +35,8 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
     private final boolean mCancelled;
 
     CompleteEffectVibratorStep(VibrationStepConductor conductor, long startTime, boolean cancelled,
-            VibratorController controller, long pendingVibratorOffDeadline) {
-        super(conductor, startTime, controller, pendingVibratorOffDeadline);
+            HalVibrator vibrator, long pendingVibratorOffDeadline) {
+        super(conductor, startTime, vibrator, pendingVibratorOffDeadline);
         mCancelled = cancelled;
     }
 
@@ -53,7 +53,7 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
         if (mCancelled) {
             // Double cancelling will just turn off the vibrator right away.
             return Arrays.asList(new TurnOffVibratorStep(conductor, SystemClock.uptimeMillis(),
-                    controller, /* isCleanUp= */ true));
+                    vibrator, /* isCleanUp= */ true));
         }
         return super.cancel();
     }
@@ -66,7 +66,7 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
             if (VibrationThread.DEBUG) {
                 Slog.d(VibrationThread.TAG,
                         "Running " + (mCancelled ? "cancel" : "complete") + " vibration"
-                                + " step on vibrator " + controller.getVibratorInfo().getId());
+                                + " step on vibrator " + vibrator.getInfo().getId());
             }
             if (mVibratorCompleteCallbackReceived) {
                 // Vibration completion callback was received by this step, just turn if off
@@ -76,7 +76,7 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
             }
 
             long now = SystemClock.uptimeMillis();
-            float currentAmplitude = controller.getCurrentAmplitude();
+            float currentAmplitude = vibrator.getCurrentAmplitude();
             long remainingOnDuration =
                     mPendingVibratorOffDeadline - now
                             - VibrationStepConductor.CALLBACKS_EXTRA_TIMEOUT;
@@ -95,13 +95,13 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
                     // Vibration is completing normally, turn off after the deadline in case we
                     // don't receive the callback in time (callback also triggers it right away).
                     return Arrays.asList(new TurnOffVibratorStep(conductor,
-                            mPendingVibratorOffDeadline, controller, /* isCleanUp= */ false));
+                            mPendingVibratorOffDeadline, vibrator, /* isCleanUp= */ false));
                 }
             }
 
             if (VibrationThread.DEBUG) {
                 Slog.d(VibrationThread.TAG,
-                        "Ramping down vibrator " + controller.getVibratorInfo().getId()
+                        "Ramping down vibrator " + vibrator.getInfo().getId()
                                 + " from amplitude " + currentAmplitude
                                 + " for " + rampDownDuration + "ms");
             }
@@ -116,7 +116,7 @@ final class CompleteEffectVibratorStep extends AbstractVibratorStep {
             float amplitudeTarget = currentAmplitude - amplitudeDelta;
             return Arrays.asList(
                     new RampOffVibratorStep(conductor, startTime, amplitudeTarget, amplitudeDelta,
-                            controller, rampOffVibratorOffDeadline));
+                            vibrator, rampOffVibratorOffDeadline));
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_VIBRATOR);
         }

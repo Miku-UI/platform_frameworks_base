@@ -20,6 +20,7 @@ import android.util.ArrayMap;
 import android.util.TimeUtils;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.server.am.psc.ProcessProviderRecordInternal;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -27,14 +28,9 @@ import java.util.ArrayList;
 /**
  * The state info of all content providers in the process.
  */
-final class ProcessProviderRecord {
+final class ProcessProviderRecord extends ProcessProviderRecordInternal {
     final ProcessRecord mApp;
     private final ActivityManagerService mService;
-
-    /**
-     * The last time someone else was using a provider in this process.
-     */
-    private long mLastProviderTime = Long.MIN_VALUE;
 
     /**
      * class (String) -> ContentProviderRecord.
@@ -46,14 +42,6 @@ final class ProcessProviderRecord {
      */
     private final ArrayList<ContentProviderConnection> mConProviders = new ArrayList<>();
 
-    long getLastProviderTime() {
-        return mLastProviderTime;
-    }
-
-    void setLastProviderTime(long lastProviderTime) {
-        mLastProviderTime = lastProviderTime;
-    }
-
     boolean hasProvider(String name) {
         return mPubProviders.containsKey(name);
     }
@@ -62,11 +50,13 @@ final class ProcessProviderRecord {
         return mPubProviders.get(name);
     }
 
-    int numberOfProviders() {
+    @Override
+    public int numberOfProviders() {
         return mPubProviders.size();
     }
 
-    ContentProviderRecord getProviderAt(int index) {
+    @Override
+    public ContentProviderRecord getProviderAt(int index) {
         return mPubProviders.valueAt(index);
     }
 
@@ -82,11 +72,13 @@ final class ProcessProviderRecord {
         mPubProviders.ensureCapacity(capacity);
     }
 
-    int numberOfProviderConnections() {
+    @Override
+    public int numberOfProviderConnections() {
         return mConProviders.size();
     }
 
-    ContentProviderConnection getProviderConnectionAt(int index) {
+    @Override
+    public ContentProviderConnection getProviderConnectionAt(int index) {
         return mConProviders.get(index);
     }
 
@@ -152,9 +144,9 @@ final class ProcessProviderRecord {
     }
 
     void dump(PrintWriter pw, String prefix, long nowUptime) {
-        if (mLastProviderTime > 0) {
+        if (getLastProviderTime() > 0) {
             pw.print(prefix); pw.print("lastProviderTime=");
-            TimeUtils.formatDuration(mLastProviderTime, nowUptime, pw);
+            TimeUtils.formatDuration(getLastProviderTime(), nowUptime, pw);
             pw.println();
         }
         if (mPubProviders.size() > 0) {

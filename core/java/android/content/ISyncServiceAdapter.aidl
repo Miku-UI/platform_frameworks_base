@@ -22,7 +22,7 @@ import android.content.ISyncContext;
  * Interface to define an anonymous service that is extended by developers
  * in order to perform anonymous syncs (syncs without an Account or Content
  * Provider specified). See {@link android.content.AbstractThreadedSyncAdapter}.
- * {@hide}
+ * @hide
  */
 oneway interface ISyncServiceAdapter {
 

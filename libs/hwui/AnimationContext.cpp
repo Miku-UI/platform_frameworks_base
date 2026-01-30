@@ -68,7 +68,9 @@ void AnimationContext::runRemainingAnimations(TreeInfo& info) {
     while (mCurrentFrameAnimations.mNextHandle) {
         AnimationHandle* current = mCurrentFrameAnimations.mNextHandle;
         AnimatorManager& animators = current->mRenderNode->animators();
-        animators.pushStaging();
+        if (info.mode == TreeInfo::MODE_FULL) {
+            animators.pushStaging();
+        }
         animators.animateNoDamage(info);
         LOG_ALWAYS_FATAL_IF(mCurrentFrameAnimations.mNextHandle == current,
                             "Animate failed to remove from current frame list!");

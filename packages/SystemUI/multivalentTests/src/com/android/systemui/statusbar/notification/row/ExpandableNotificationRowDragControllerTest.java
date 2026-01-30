@@ -29,22 +29,21 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.app.Notification;
-import android.app.PendingIntent;
 import android.content.Context;
-import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunWithLooper;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.plugins.statusbar.NotificationMenuRowPlugin;
+import com.android.systemui.res.R;
 import com.android.systemui.shade.ShadeController;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.headsup.PinnedStatus;
 import com.android.systemui.statusbar.notification.logging.NotificationPanelLogger;
-import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import org.junit.Before;
@@ -57,38 +56,26 @@ import org.junit.runner.RunWith;
 public class ExpandableNotificationRowDragControllerTest extends SysuiTestCase {
 
     private ExpandableNotificationRow mRow;
-    private ExpandableNotificationRow mGroupRow;
     private ExpandableNotificationRowDragController mController;
-    private NotificationTestHelper mNotificationTestHelper;
-
-    private NotificationGutsManager mGutsManager = mock(NotificationGutsManager.class);
-    private HeadsUpManager mHeadsUpManager = mock(HeadsUpManager.class);
     private NotificationMenuRow mMenuRow = mock(NotificationMenuRow.class);
     private NotificationMenuRowPlugin.MenuItem mMenuItem =
             mock(NotificationMenuRowPlugin.MenuItem.class);
     private ShadeController mShadeController = mock(ShadeController.class);
     private NotificationPanelLogger mNotificationPanelLogger = mock(NotificationPanelLogger.class);
 
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
+
     @Before
     public void setUp() throws Exception {
         allowTestableLooperAsMainThread();
 
         mDependency.injectMockDependency(ShadeController.class);
-
-        mNotificationTestHelper = new NotificationTestHelper(
-                mContext,
-                mDependency,
-                TestableLooper.get(this));
-        mRow = spy(mNotificationTestHelper.createRow());
-        Notification notification = mRow.getEntry().getSbn().getNotification();
-        notification.contentIntent = mock(PendingIntent.class);
-        when(notification.contentIntent.isActivity()).thenReturn(true);
+        mRow = spy(mKosmos.createRow());
         doReturn(true).when(mRow).startDragAndDrop(any(), any(), any(), anyInt());
-        mGroupRow = mNotificationTestHelper.createGroup(4);
         when(mMenuRow.getLongpressMenuItem(any(Context.class))).thenReturn(mMenuItem);
 
-        mController = new ExpandableNotificationRowDragController(mContext, mHeadsUpManager,
-                mShadeController, mNotificationPanelLogger);
+        mController = new ExpandableNotificationRowDragController(mContext,
+                mKosmos.getMockHeadsUpManager(), mShadeController, mNotificationPanelLogger);
     }
 
     @Test
@@ -101,7 +88,7 @@ public class ExpandableNotificationRowDragControllerTest extends SysuiTestCase {
         mRow.doLongClickCallback(0, 0);
         mRow.doDragCallback(0, 0);
         verify(controller).startDragAndDrop(mRow);
-        verify(mHeadsUpManager, times(1)).releaseAllImmediately();
+        verify(mKosmos.getMockHeadsUpManager(), times(1)).releaseAllImmediately();
         if (NotificationBundleUi.isEnabled()) {
             verify(mNotificationPanelLogger, times(1))
                     .logNotificationDrag(any(EntryAdapter.class));
@@ -131,13 +118,11 @@ public class ExpandableNotificationRowDragControllerTest extends SysuiTestCase {
 
     @Test
     public void testDoStartDrag_noLaunchIntent() throws Exception {
+        mRow = spy(mKosmos.createRow(new Notification.Builder(mContext, "channel")
+                .setSmallIcon(R.drawable.ic_person)
+                .build()));
         ExpandableNotificationRowDragController controller = createSpyController();
         mRow.setDragController(controller);
-
-        // Clear the intents
-        Notification notification = mRow.getEntry().getSbn().getNotification();
-        notification.contentIntent = null;
-        notification.fullScreenIntent = null;
 
         mRow.doDragCallback(0, 0);
         verify(controller).startDragAndDrop(mRow);
@@ -150,7 +135,25 @@ public class ExpandableNotificationRowDragControllerTest extends SysuiTestCase {
         } else {
             verify(mNotificationPanelLogger, never())
                     .logNotificationDrag(any(NotificationEntry.class));
-        }    }
+        }
+    }
+
+    @Test
+    public void testCleanUpDragListenerOnDragFailed() {
+        ExpandableNotificationRowDragController controller = createSpyController();
+        mRow.setDragController(controller);
+        mRow.setHeadsUp(true);
+        mRow.setPinnedStatus(PinnedStatus.PinnedBySystem);
+
+        // Simulate a failure to initiate drag and drop
+        doReturn(false).when(mRow).startDragAndDrop(any(), any(), any(), anyInt());
+
+        mRow.doLongClickCallback(0, 0);
+        mRow.doDragCallback(0, 0);
+
+        // Verify that we've reset the listener
+        verify(mRow).setOnDragListener(null);
+    }
 
     private ExpandableNotificationRowDragController createSpyController() {
         return spy(mController);

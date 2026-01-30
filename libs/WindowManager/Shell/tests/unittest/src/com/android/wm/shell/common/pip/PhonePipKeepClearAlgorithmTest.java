@@ -49,12 +49,14 @@ public class PhonePipKeepClearAlgorithmTest extends ShellTestCase {
 
     @Mock private PipBoundsAlgorithm mMockPipBoundsAlgorithm;
     @Mock private PipBoundsState mMockPipBoundsState;
+    @Mock private PipDisplayLayoutState mMockPipDisplayLayoutState;
 
     private static final Rect DISPLAY_BOUNDS = new Rect(0, 0, 1000, 1000);
 
     @Before
     public void setUp() throws Exception {
-        mPipKeepClearAlgorithm = new PhonePipKeepClearAlgorithm(mContext);
+        mPipKeepClearAlgorithm = new PhonePipKeepClearAlgorithm(mContext,
+                mMockPipDisplayLayoutState);
     }
 
     @Test

@@ -41,7 +41,10 @@ class SessionStager internal constructor(
     val progress: LiveData<Int>
         get() = _progress
 
+    var isRunning = false
+
     suspend fun execute(): Boolean = withContext(Dispatchers.IO) {
+        isRunning = true
         val pi: PackageInstaller = context.packageManager.packageInstaller
         var sessionInfo: PackageInstaller.SessionInfo?
         try {
@@ -60,13 +63,15 @@ class SessionStager internal constructor(
                 session.openWrite("PackageInstaller", 0, sizeBytes).use { out ->
                     val buffer = ByteArray(1024 * 1024)
                     while (true) {
+                        if (!isRunning) {
+                            break
+                        }
                         val numRead = instream.read(buffer)
                         if (numRead == -1) {
                             session.fsync(out)
                             break
                         }
                         out.write(buffer, 0, numRead)
-
                         if (sizeBytes > 0) {
                             totalRead += numRead.toLong()
                             val fraction = totalRead.toFloat() / sizeBytes.toFloat()
@@ -78,6 +83,9 @@ class SessionStager internal constructor(
                 sessionInfo = pi.getSessionInfo(stagedSessionId)
             }
         } catch (e: Exception) {
+            // Note that when the above while loop is ended prematurely, it may also lead to an
+            // IOException with a message: write failed: EPIPE (Broken pipe). However, this is
+            // expected
             Log.w(LOG_TAG, "Error staging apk from content URI", e)
             sessionInfo = null
         }
@@ -91,6 +99,10 @@ class SessionStager internal constructor(
         } else {
             true
         }
+    }
+
+    fun cancel() {
+        isRunning = false
     }
 
     private fun getContentSizeBytes(): Long {

@@ -20,12 +20,9 @@ import android.media.MediaMetadata
 import android.media.session.MediaController
 import android.media.session.MediaSession
 import android.os.fakeExecutorHandler
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.service.notification.NotificationListenerService
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.dump.dumpManager
 import com.android.systemui.media.controls.domain.pipeline.MediaDataManager
@@ -87,7 +84,6 @@ class NotificationMediaManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MEDIA_CONTROLS_USER_INITIATED_DELETEINTENT)
     fun mediaDataRemoved_userInitiated_dismissNotif() {
         val notifEntryCaptor = argumentCaptor<NotificationEntry>()
         val notifEntry = mock<NotificationEntry>()
@@ -102,26 +98,10 @@ class NotificationMediaManagerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MEDIA_CONTROLS_USER_INITIATED_DELETEINTENT)
     fun mediaDataRemoved_notUserInitiated_doesNotDismissNotif() {
         listenerCaptor.lastValue.onMediaDataRemoved(KEY, false)
 
         verify(notifCollection, never()).dismissNotification(any(), any())
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_MEDIA_CONTROLS_USER_INITIATED_DELETEINTENT)
-    fun mediaDataRemoved_notUserInitiated_flagOff_dismissNotif() {
-        val notifEntryCaptor = argumentCaptor<NotificationEntry>()
-        val notifEntry = mock<NotificationEntry>()
-        whenever(notifEntry.key).thenReturn(KEY)
-        whenever(notifEntry.ranking).thenReturn(NotificationListenerService.Ranking())
-        whenever(notifPipeline.allNotifs).thenReturn(listOf(notifEntry))
-
-        listenerCaptor.lastValue.onMediaDataRemoved(KEY, false)
-
-        verify(notifCollection).dismissNotification(notifEntryCaptor.capture(), any())
-        assertThat(notifEntryCaptor.lastValue.key).isEqualTo(KEY)
     }
 
     @Test

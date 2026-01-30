@@ -40,7 +40,7 @@
             android:id="@+id/conversation_icon"
             android:layout_width="@dimen/notification_2025_icon_circle_size"
             android:layout_height="@dimen/notification_2025_icon_circle_size"
-            android:background="@drawable/notification_icon_circle"
+            android:background="@drawable/notification_2025_conversation_icon_background"
             android:clipToOutline="true"
             android:scaleType="centerCrop"
             android:importantForAccessibility="no"

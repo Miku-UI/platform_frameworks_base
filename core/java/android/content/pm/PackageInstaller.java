@@ -50,6 +50,7 @@ import android.app.AppGlobals;
 import android.app.PendingIntent;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -61,6 +62,8 @@ import android.content.pm.parsing.ApkLiteParseUtils;
 import android.content.pm.parsing.PackageLite;
 import android.content.pm.parsing.result.ParseResult;
 import android.content.pm.parsing.result.ParseTypeImpl;
+import android.content.pm.verify.developer.DeveloperVerificationSession;
+import android.content.pm.verify.developer.DeveloperVerificationStatus;
 import android.content.pm.verify.domain.DomainSet;
 import android.graphics.Bitmap;
 import android.icu.util.ULocale;
@@ -107,6 +110,7 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -153,7 +157,7 @@ public class PackageInstaller {
     private static final String ACTION_WAIT_INSTALL_CONSTRAINTS =
             "android.content.pm.action.WAIT_INSTALL_CONSTRAINTS";
 
-    /** {@hide} */
+    /** @hide */
     public static final boolean ENABLE_REVOCABLE_FD =
             SystemProperties.getBoolean("fw.revocable_fd", false);
 
@@ -227,6 +231,17 @@ public class PackageInstaller {
     @SystemApi
     public static final String ACTION_INSTALL_DEPENDENCY =
             "android.content.pm.action.INSTALL_DEPENDENCY";
+
+    /**
+     * Intent sent to the installer to indicate user action is required to proceed with the
+     * developer verification.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public static final String ACTION_CONFIRM_DEVELOPER_VERIFICATION =
+            "android.content.pm.action.CONFIRM_DEVELOPER_VERIFICATION";
 
     /**
      * An integer session ID that an operation is working with.
@@ -317,7 +332,7 @@ public class PackageInstaller {
     public static final String EXTRA_INSTALL_CONSTRAINTS_RESULT =
             "android.content.pm.extra.INSTALL_CONSTRAINTS_RESULT";
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public static final String EXTRA_PACKAGE_NAMES = "android.content.pm.extra.PACKAGE_NAMES";
 
@@ -329,7 +344,7 @@ public class PackageInstaller {
      */
     @SystemApi
     public static final String EXTRA_LEGACY_STATUS = "android.content.pm.extra.LEGACY_STATUS";
-    /** {@hide} */
+    /** @hide */
     public static final String EXTRA_LEGACY_BUNDLE = "android.content.pm.extra.LEGACY_BUNDLE";
     /**
      * The callback to execute once an uninstall is completed (used for both successful and
@@ -356,7 +371,7 @@ public class PackageInstaller {
      * See the individual types documentation for details.
      *
      * @see Intent#getIntExtra(String, int)
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final String EXTRA_DATA_LOADER_TYPE = "android.content.pm.extra.DATA_LOADER_TYPE";
@@ -429,11 +444,92 @@ public class PackageInstaller {
     public static final String EXTRA_WARNINGS = "android.content.pm.extra.WARNINGS";
 
     /**
+     * When an installation fails because the developer verification was incomplete or blocked,
+     * this extra provides a code that explains the reason, such
+     * as {@link #DEVELOPER_VERIFICATION_FAILED_REASON_NETWORK_UNAVAILABLE}. It is included in the
+     * installation result returned via the {@link IntentSender} in
+     * {@link Session#commit(IntentSender)}. However, along with this reason code, installers can
+     * receive different status codes from {@link #EXTRA_STATUS} depending on their target SDK and
+     * permission status:
+     * <ul>
+     * <li>
+     *      Installers without the
+     *      {@link android.Manifest.permission#INSTALL_PACKAGES INSTALL_PACKAGES} permission
+     *      but with the
+     *      {@link android.Manifest.permission#REQUEST_INSTALL_PACKAGES REQUEST_INSTALL_PACKAGES}
+     *      permission and targeting {@link android.os.Build.VERSION_CODES#BAKLAVA API 36}
+     *      or less will first receive the
+     *      {@link #STATUS_PENDING_USER_ACTION} status code without this reason code. They will be
+     *      forced through the user action flow to allow the OS to inform the user of such
+     *      verification context before continuing to fail the install. If the user has the option
+     *      to bypass the verification result and chooses to do so, the installation will proceed.
+     *      Otherwise, the installer will receive the {@link #STATUS_FAILURE_ABORTED} status code
+     *      along with this reason code that explains why the verification had failed.
+     * </li>
+     * <li>
+     *     Installers with the
+     *     {@link android.Manifest.permission#INSTALL_PACKAGES INSTALL_PACKAGES} permission and
+     *     targeting {@link android.os.Build.VERSION_CODES#BAKLAVA API 36}
+     *     or less will directly receive the
+     *     {@link #STATUS_FAILURE_ABORTED} status code. This is because they are not expected to
+     *     have the capability of handling the {@link #STATUS_PENDING_USER_ACTION} flow, so the
+     *     installation will directly fail. This reason code will be supplied to them for
+     *     providing additional information.
+     * </li>
+     * <li>
+     *     For all installers targeting higher than
+     *     {@link android.os.Build.VERSION_CODES#BAKLAVA API 36}
+     *     <ul>
+     *     <li>For situations that require user input, such as when the developer verification
+     *     policy allows the user to bypass a verification failure caused by network issues,
+     *     the installer will receive a {@link #STATUS_PENDING_USER_ACTION} status code without
+     *     this reason code. The installer will be forced through the user action flow to allow the
+     *     OS to inform the user of such verification context before continuing to fail the
+     *     installation. If the user has the option to bypass the verification result and chooses
+     *     to do so, the installation will proceed. Otherwise, the install will receive the
+     *     {@link #STATUS_FAILURE_ABORTED} status code along with this reason code that explains why
+     *     the verification had failed.
+     *     </li>
+     *     <li>For all other situations, the installer will receive a
+     *     {@link #STATUS_FAILURE_ABORTED}
+     *     status code along with this reason code, so the installers can explain the failure to the
+     *     user accordingly. An {@link Intent#EXTRA_INTENT} will also be populated with an intent
+     *     that can provide additional context where appropriate, should the installer prefer to
+     *     defer to the OS to explain the failure to the user.
+     *     </li>
+     *     </ul>
+     * </li>
+     * </ul>
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public static final String EXTRA_DEVELOPER_VERIFICATION_FAILURE_REASON =
+            "android.content.pm.extra.DEVELOPER_VERIFICATION_FAILURE_REASON";
+
+    /**
+     * An extra containing the response provided by the developer verifier to any extension
+     * params provided by the installer. It will be of type {@link PersistableBundle}.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public static final String EXTRA_DEVELOPER_VERIFICATION_EXTENSION_RESPONSE =
+            "android.content.pm.extra.DEVELOPER_VERIFICATION_EXTENSION_RESPONSE";
+
+    /**
+     * An extra containing a boolean indicating whether the lite version of the developer
+     * verification was performed on the app to be installed. It is included in the installation
+     * result returned via the {@link IntentSender} in {@link Session#commit(IntentSender)}
+     * when the installation failed.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public static final String EXTRA_DEVELOPER_VERIFICATION_LITE_PERFORMED =
+            "android.content.pm.extra.DEVELOPER_VERIFICATION_LITE_PERFORMED";
+
+
+    /**
      * Streaming installation pending.
      * Caller should make sure DataLoader is able to prepare image and reinitiate the operation.
      *
      * @see #EXTRA_SESSION_ID
-     * {@hide}
+     * @hide
      */
     public static final int STATUS_PENDING_STREAMING = -2;
 
@@ -547,7 +643,7 @@ public class PackageInstaller {
      * Default value, non-streaming installation session.
      *
      * @see #EXTRA_DATA_LOADER_TYPE
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int DATA_LOADER_TYPE_NONE = DataLoaderType.NONE;
@@ -556,7 +652,7 @@ public class PackageInstaller {
      * Streaming installation using data loader.
      *
      * @see #EXTRA_DATA_LOADER_TYPE
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int DATA_LOADER_TYPE_STREAMING = DataLoaderType.STREAMING;
@@ -565,7 +661,7 @@ public class PackageInstaller {
      * Streaming installation using Incremental FileSystem.
      *
      * @see #EXTRA_DATA_LOADER_TYPE
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int DATA_LOADER_TYPE_INCREMENTAL = DataLoaderType.INCREMENTAL;
@@ -574,7 +670,7 @@ public class PackageInstaller {
      * Target location for the file in installation session is /data/app/<packageName>-<id>.
      * This is the intended location for APKs.
      * Requires permission to install packages.
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int LOCATION_DATA_APP = InstallationFileLocation.DATA_APP;
@@ -582,7 +678,7 @@ public class PackageInstaller {
     /**
      * Target location for the file in installation session is
      * /data/media/<userid>/Android/obb/<packageName>. This is the intended location for OBBs.
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int LOCATION_MEDIA_OBB = InstallationFileLocation.MEDIA_OBB;
@@ -592,7 +688,7 @@ public class PackageInstaller {
      * /data/media/<userid>/Android/data/<packageName>.
      * This is the intended location for application data.
      * Can only be used by an app itself running under specific user.
-     * {@hide}
+     * @hide
      */
     @SystemApi
     public static final int LOCATION_MEDIA_DATA = InstallationFileLocation.MEDIA_DATA;
@@ -771,6 +867,141 @@ public class PackageInstaller {
     @Retention(RetentionPolicy.SOURCE)
     public @interface UnarchivalStatus {}
 
+    /**
+     * Developer verification failed because of unknown reasons, such as when the verifier times out
+     * or cannot be connected. It can also corresponds to the status of
+     * {@link DeveloperVerificationSession#DEVELOPER_VERIFICATION_INCOMPLETE_UNKNOWN} reported by
+     * the verifier via {@link DeveloperVerificationSession#reportVerificationIncomplete(int)}.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public static final int DEVELOPER_VERIFICATION_FAILED_REASON_UNKNOWN = 0;
+
+    /**
+     * Developer verification failed because the network is unavailable. This corresponds to the
+     * status of
+     * {@link DeveloperVerificationSession#DEVELOPER_VERIFICATION_INCOMPLETE_NETWORK_UNAVAILABLE}
+     * reported by the verifier via
+     * {@link DeveloperVerificationSession#reportVerificationIncomplete(int)}.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public static final int DEVELOPER_VERIFICATION_FAILED_REASON_NETWORK_UNAVAILABLE = 1;
+
+    /**
+     * Developer verification failed because the developer cannot be verified, as reported by the
+     * verifier via
+     * {@link DeveloperVerificationSession#reportVerificationComplete(DeveloperVerificationStatus)}
+     * or
+     * {@link DeveloperVerificationSession#reportVerificationComplete(
+     * DeveloperVerificationStatus, PersistableBundle)}
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public static final int DEVELOPER_VERIFICATION_FAILED_REASON_DEVELOPER_BLOCKED = 2;
+
+    /**
+     * @hide
+     */
+    @IntDef(value = {
+            DEVELOPER_VERIFICATION_FAILED_REASON_UNKNOWN,
+            DEVELOPER_VERIFICATION_FAILED_REASON_NETWORK_UNAVAILABLE,
+            DEVELOPER_VERIFICATION_FAILED_REASON_DEVELOPER_BLOCKED,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface DeveloperVerificationFailedReason {
+    }
+
+    /**
+     * Do not block installs, regardless of developer verification status.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_POLICY_NONE = 0; // platform default
+    /**
+     * Only block installations when the developer verification status says the developer is not
+     * verified, and ask the user if they'd like to install anyway when the verification cannot
+     * complete for any other reason. In case of a network issue, the user also has the option to
+     * retry the verification.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_OPEN = 1;
+    /**
+     * Only block installations when the developer verification result says the developer is not
+     * verified, and ask the user if they'd like to install anyway when the verification cannot
+     * complete for any other reason. In case of a network issue, the user also has the option to
+     * retry the verification.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_WARN = 2;
+    /**
+     * Block installations when the developer verification result says the developer is not verified
+     * or when the verification cannot be conducted because of unknown reasons. In case of a network
+     * issue, the user has the option to retry the verification.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_CLOSED = 3;
+    /**
+     * @hide
+     */
+    @IntDef(value = {
+            DEVELOPER_VERIFICATION_POLICY_NONE,
+            DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_OPEN,
+            DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_WARN,
+            DEVELOPER_VERIFICATION_POLICY_BLOCK_FAIL_CLOSED,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface DeveloperVerificationPolicy {
+    }
+
+    /**
+     * This response code indicates that there was some error while showing a user confirmation
+     * dialog for developer verification.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_USER_RESPONSE_ERROR = 0;
+    /**
+     * This indicates that the user has confirmed not to proceed with the installation as a response
+     * to the developer verification result.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_USER_RESPONSE_ABORT = 1;
+    /**
+     * For an incomplete developer verification with network error, the user has asked to retry the
+     * verification if the developer verification policy for the session is fail_closed.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_USER_RESPONSE_RETRY = 2;
+    /**
+     * For an incomplete developer verification, the user has confirmed proceeding with the
+     * installation anyway.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final int DEVELOPER_VERIFICATION_USER_RESPONSE_INSTALL_ANYWAY = 3;
+    /**
+     * @hide
+     */
+    @IntDef(value = {
+            DEVELOPER_VERIFICATION_USER_RESPONSE_ERROR,
+            DEVELOPER_VERIFICATION_USER_RESPONSE_ABORT,
+            DEVELOPER_VERIFICATION_USER_RESPONSE_RETRY,
+            DEVELOPER_VERIFICATION_USER_RESPONSE_INSTALL_ANYWAY,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface DeveloperVerificationUserResponse {
+    }
 
     /** Default set of checksums - includes all available checksums.
      * @see Session#requestChecksums  */
@@ -786,7 +1017,7 @@ public class PackageInstaller {
 
     private final ArrayList<SessionCallbackDelegate> mDelegates = new ArrayList<>();
 
-    /** {@hide} */
+    /** @hide */
     public PackageInstaller(IPackageInstaller installer,
             String installerPackageName, String installerAttributionTag, int userId) {
         Objects.requireNonNull(installer, "installer cannot be null");
@@ -908,6 +1139,27 @@ public class PackageInstaller {
     public @Nullable SessionInfo getSessionInfo(int sessionId) {
         try {
             return mInstaller.getSessionInfo(sessionId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns the details about an incomplete or failed developer verification. Used by the default
+     * PackageInstaller app on the device to show appropriate informational dialogs to the user,
+     * when a user action is required.
+     *
+     * @return details for the requested session, or {@code null} if the session does not exist.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.SET_DEVELOPER_VERIFICATION_USER_RESPONSE)
+    public @Nullable DeveloperVerificationUserConfirmationInfo
+    getDeveloperVerificationUserConfirmationInfo(int sessionId) {
+        try {
+            return mInstaller.getDeveloperVerificationUserConfirmationInfo(sessionId);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }
@@ -1167,7 +1419,7 @@ public class PackageInstaller {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @SystemApi
     @RequiresPermission(android.Manifest.permission.INSTALL_PACKAGES)
     public void setPermissionsResult(int sessionId, boolean accepted) {
@@ -1401,7 +1653,7 @@ public class PackageInstaller {
         public abstract void onFinished(int sessionId, boolean success);
     }
 
-    /** {@hide} */
+    /** @hide */
     static class SessionCallbackDelegate extends IPackageInstallerCallback.Stub {
         private static final int MSG_SESSION_CREATED = 1;
         private static final int MSG_SESSION_BADGING_CHANGED = 2;
@@ -1448,7 +1700,7 @@ public class PackageInstaller {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public void addSessionCallback(@NonNull SessionCallback callback) {
         registerSessionCallback(callback);
@@ -1462,7 +1714,7 @@ public class PackageInstaller {
         registerSessionCallback(callback, new Handler());
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public void addSessionCallback(@NonNull SessionCallback callback, @NonNull Handler handler) {
         registerSessionCallback(callback, handler);
@@ -1488,7 +1740,7 @@ public class PackageInstaller {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public void removeSessionCallback(@NonNull SessionCallback callback) {
         unregisterSessionCallback(callback);
@@ -1514,6 +1766,109 @@ public class PackageInstaller {
     }
 
     /**
+     * Return the current developer verification enforcement policy. This may only be called by:
+     * <ul>
+     *     <li> Packages with {@link android.Manifest.permission#DEVELOPER_VERIFICATION_AGENT}
+     *     permission. </li>
+     *     <li> The package set by the system as the developer verification service provider.</li>
+     *     <li> The package set by the system as the developer verification service policy delegate.
+     *     </li>
+     * </ul>
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    @RequiresPermission(value = Manifest.permission.DEVELOPER_VERIFICATION_AGENT,
+            conditional = true)
+    public final @DeveloperVerificationPolicy int getDeveloperVerificationPolicy() {
+        try {
+            return mInstaller.getDeveloperVerificationPolicy(mUserId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Set the current developer verification enforcement policy which will be applied to all future
+     * installation sessions. This may only be called by:
+     * <ul>
+     *     <li> The package set by the system as the developer verification service provider.</li>
+     *     <li> The package set by the system as the developer verification service policy delegate.
+     *     </li>
+     * </ul>
+     * @return whether the new policy was successfully set.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public final boolean setDeveloperVerificationPolicy(@DeveloperVerificationPolicy int policy) {
+        try {
+            return mInstaller.setDeveloperVerificationPolicy(policy, mUserId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     *  Return the component name of the developer verification service provider, for the
+     *  purpose of interacting with the specific verifier in relation to
+     *  extension parameters and response structure.  Return null if the system
+     *  verifier service provider is not available to the caller, or if there is no
+     *  such provider specified by the system.
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    public final @Nullable ComponentName getDeveloperVerificationServiceProvider() {
+        try {
+            return mInstaller.getDeveloperVerificationServiceProvider();
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Returns the package name of the app that is specified by the system as the delegate of
+     * the developer verification service provider (a.k.a. the verifier) and can change the default
+     * developer verification policy on behalf of the verifier. Only the verifier itself can call
+     * this method to query the package name of the delegate app, and it must also have package
+     * visibility to the delegate app to get the result.
+     *
+     * @return the package name of the delegate, or null if the delegate app is not specified by
+     * the system, or is not available to the caller.
+     * @hide
+     */
+    @FlaggedApi(android.content.pm.Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.DEVELOPER_VERIFICATION_AGENT)
+    @Nullable
+    public String getDeveloperVerificationPolicyDelegatePackage() {
+        try {
+            return mInstaller.getDeveloperVerificationPolicyDelegatePackage(mUserId);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Set user's response to an incomplete developer verification, regarding proceeding with the
+     * installation.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    @RequiresPermission(android.Manifest.permission.SET_DEVELOPER_VERIFICATION_USER_RESPONSE)
+    public void setDeveloperVerificationUserResponse(int sessionId,
+            @DeveloperVerificationUserResponse int developerVerificationUserResponse) {
+        try {
+            mInstaller.setDeveloperVerificationUserResponse(sessionId,
+                    developerVerificationUserResponse);
+        } catch (RemoteException e) {
+            e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * An installation that is being actively staged. For an install to succeed,
      * all existing and new packages must have identical package names, version
      * codes, and signing certificates.
@@ -1533,15 +1888,15 @@ public class PackageInstaller {
      * session will result in all child sessions being committed atomically.
      */
     public static class Session implements Closeable {
-        /** {@hide} */
+        /** @hide */
         protected final IPackageInstallerSession mSession;
 
-        /** {@hide} */
+        /** @hide */
         public Session(IPackageInstallerSession session) {
             mSession = session;
         }
 
-        /** {@hide} */
+        /** @hide */
         @Deprecated
         public void setProgress(float progress) {
             setStagingProgress(progress);
@@ -1564,7 +1919,7 @@ public class PackageInstaller {
             }
         }
 
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage
         public void addProgress(float progress) {
             try {
@@ -1623,7 +1978,7 @@ public class PackageInstaller {
             }
         }
 
-        /** {@hide} */
+        /** @hide */
         public void write(@NonNull String name, long offsetBytes, long lengthBytes,
                 @NonNull ParcelFileDescriptor fd) throws IOException {
             try {
@@ -1751,7 +2106,7 @@ public class PackageInstaller {
 
         /**
          * @return data loader params or null if the session is not using one.
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @RequiresPermission(android.Manifest.permission.USE_INSTALLER_V2)
@@ -1792,7 +2147,7 @@ public class PackageInstaller {
          *
          * @see android.content.pm.InstallationFile
          *
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @RequiresPermission(android.Manifest.permission.USE_INSTALLER_V2)
@@ -1816,7 +2171,7 @@ public class PackageInstaller {
          * @throws SecurityException if called after the session has been
          *             sealed or abandoned
          * @throws IllegalStateException if called for non-DataLoader session
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @RequiresPermission(android.Manifest.permission.USE_INSTALLER_V2)
@@ -2621,7 +2976,7 @@ public class PackageInstaller {
     public static class PackageParsingException extends Exception {
         private final int mErrorCode;
 
-        /** {@hide} */
+        /** @hide */
         public PackageParsingException(int errorCode, @Nullable String detailedMessage) {
             super(detailedMessage);
             mErrorCode = errorCode;
@@ -2637,7 +2992,7 @@ public class PackageInstaller {
      */
     public static class SessionParams implements Parcelable {
 
-        /** {@hide} */
+        /** @hide */
         public static final int MODE_INVALID = -1;
 
         /**
@@ -2662,7 +3017,7 @@ public class PackageInstaller {
          */
         public static final @NonNull Set<String> RESTRICTED_PERMISSIONS_ALL = new ArraySet<>();
 
-        /** {@hide} */
+        /** @hide */
         public static final int UID_UNKNOWN = -1;
 
         /**
@@ -2733,87 +3088,97 @@ public class PackageInstaller {
          */
         public static final int PERMISSION_STATE_DENIED = 2;
 
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public int mode = MODE_INVALID;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage
         public int installFlags = PackageManager.INSTALL_ALL_WHITELIST_RESTRICTED_PERMISSIONS;
-        /** {@hide} */
+        /** @hide */
         public int installLocation = PackageInfo.INSTALL_LOCATION_INTERNAL_ONLY;
-        /** {@hide} */
+        /** @hide */
         public @InstallReason int installReason = PackageManager.INSTALL_REASON_UNKNOWN;
         /**
-         * {@hide}
+         * @hide
          *
          * This flag indicates which installation scenario best describes this session.  The system
          * may use this value when making decisions about how to handle the installation, such as
          * prioritizing system health or user experience.
          */
         public @InstallScenario int installScenario = PackageManager.INSTALL_SCENARIO_DEFAULT;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public long sizeBytes = -1;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public String appPackageName;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public Bitmap appIcon;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public String appLabel;
-        /** {@hide} */
+        /** @hide */
         public long appIconLastModified = -1;
-        /** {@hide} */
+        /** @hide */
         public Uri originatingUri;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public int originatingUid = UID_UNKNOWN;
-        /** {@hide} */
+        /** @hide */
         public Uri referrerUri;
-        /** {@hide} */
+        /** @hide */
         public String abiOverride;
-        /** {@hide} */
+        /** @hide */
         public String volumeUuid;
-        /** {@hide} */
+        /** @hide */
         public List<String> whitelistedRestrictedPermissions;
-        /** {@hide} */
+        /** @hide */
         public int autoRevokePermissionsMode = MODE_DEFAULT;
-        /** {@hide} */
+        /** @hide */
         public String installerPackageName;
-        /** {@hide} */
+        /** @hide */
         public boolean isMultiPackage;
-        /** {@hide} */
+        /** @hide */
         public int packageSource = PACKAGE_SOURCE_UNSPECIFIED;
-        /** {@hide} */
+        /** @hide */
         public boolean isStaged;
-        /** {@hide} */
+        /** @hide */
         public long requiredInstalledVersionCode = PackageManager.VERSION_CODE_HIGHEST;
-        /** {@hide} */
+        /** @hide */
         public DataLoaderParams dataLoaderParams;
-        /** {@hide} */
+        /** @hide */
         public int rollbackDataPolicy = PackageManager.ROLLBACK_DATA_POLICY_RESTORE;
         /** @hide */
         public long rollbackLifetimeMillis = 0;
-        /** {@hide} */
+        /** @hide */
         public int rollbackImpactLevel = PackageManager.ROLLBACK_USER_IMPACT_LOW;
-        /** {@hide} */
+        /** @hide */
         public boolean forceQueryableOverride;
-        /** {@hide} */
+        /** @hide */
         public int requireUserAction = USER_ACTION_UNSPECIFIED;
-        /** {@hide} */
+        /** @hide */
         public boolean applicationEnabledSettingPersistent = false;
-        /** {@hide} */
+        /** @hide */
         public int developmentInstallFlags = 0;
-        /** {@hide} */
+        /** @hide */
         public int unarchiveId = -1;
-        /** {@hide} */
+        /** @hide */
         public @Nullable String dexoptCompilerFilter = null;
-        /** {@hide} */
+        /** @hide */
+        public boolean forceVerification;
+        /** @hide */
         public boolean isAutoInstallDependenciesEnabled = true;
+        /** @hide */
+        @Nullable
+        public PersistableBundle extensionParams;
 
         private final ArrayMap<String, Integer> mPermissionStates;
+
+        /** @hide */
+        public static final int MAX_URI_LENGTH = 2048;
+        /** @hide */
+        public static final int MAX_PERMISSION_STATES_SIZE = 16384;
 
         /**
          * Construct parameters for a new package install session.
@@ -2827,7 +3192,7 @@ public class PackageInstaller {
             mPermissionStates = new ArrayMap<>();
         }
 
-        /** {@hide} */
+        /** @hide */
         public SessionParams(Parcel source) {
             mode = source.readInt();
             installFlags = source.readInt();
@@ -2866,10 +3231,12 @@ public class PackageInstaller {
             developmentInstallFlags = source.readInt();
             unarchiveId = source.readInt();
             dexoptCompilerFilter = source.readString();
+            forceVerification = source.readBoolean();
             isAutoInstallDependenciesEnabled = source.readBoolean();
+            extensionParams = source.readPersistableBundle();
         }
 
-        /** {@hide} */
+        /** @hide */
         public SessionParams copy() {
             SessionParams ret = new SessionParams(mode);
             ret.installFlags = installFlags;
@@ -2903,7 +3270,9 @@ public class PackageInstaller {
             ret.developmentInstallFlags = developmentInstallFlags;
             ret.unarchiveId = unarchiveId;
             ret.dexoptCompilerFilter = dexoptCompilerFilter;
+            ret.forceVerification = forceVerification;
             ret.isAutoInstallDependenciesEnabled = isAutoInstallDependenciesEnabled;
+            ret.extensionParams = extensionParams;
             return ret;
         }
 
@@ -2988,6 +3357,11 @@ public class PackageInstaller {
          * @see Intent#EXTRA_ORIGINATING_URI
          */
         public void setOriginatingUri(@Nullable Uri originatingUri) {
+            if (originatingUri != null
+                    && originatingUri.toString().length() > MAX_URI_LENGTH) {
+                throw new IllegalArgumentException(
+                        "Originating URI exceeds " + MAX_URI_LENGTH + " length");
+            }
             this.originatingUri = originatingUri;
         }
 
@@ -3006,6 +3380,10 @@ public class PackageInstaller {
          * @see Intent#EXTRA_REFERRER
          */
         public void setReferrerUri(@Nullable Uri referrerUri) {
+            if (referrerUri != null && referrerUri.toString().length() > MAX_URI_LENGTH) {
+                throw new IllegalArgumentException(
+                        "Referrer URI exceeds " + MAX_URI_LENGTH + " length");
+            }
             this.referrerUri = referrerUri;
         }
 
@@ -3072,6 +3450,12 @@ public class PackageInstaller {
                 throw new IllegalArgumentException("Provided permissionName cannot be "
                         + (permissionName == null ? "null" : "empty"));
             }
+            if (state != PERMISSION_STATE_DEFAULT
+                    && !validatePermissionStates(Set.of(permissionName))) {
+                throw new IllegalArgumentException(
+                        "Permissions states exceeds size limits total size limit of "
+                                + MAX_PERMISSION_STATES_SIZE + " in length");
+            }
 
             switch (state) {
                 case PERMISSION_STATE_DEFAULT:
@@ -3088,9 +3472,27 @@ public class PackageInstaller {
             return this;
         }
 
+        private boolean validatePermissionStates(Collection<String> permissionNames) {
+            int totalLength = 0;
+            for (String permission : mPermissionStates.keySet()) {
+                totalLength += permission.length();
+            }
+            for (String permission : permissionNames) {
+                totalLength += permission.length();
+            }
+            return totalLength <= MAX_PERMISSION_STATES_SIZE;
+        }
+
         /** @hide */
         public void setPermissionStates(Collection<String> grantPermissions,
                 Collection<String> denyPermissions) {
+            Set<String> newPermissions = new HashSet<>(grantPermissions);
+            newPermissions.addAll(denyPermissions);
+            if (!validatePermissionStates(newPermissions)) {
+                throw new IllegalArgumentException(
+                        "Permissions states exceeds size limits total size limit of "
+                                + MAX_PERMISSION_STATES_SIZE + " in length");
+            }
             for (String grantPermission : grantPermissions) {
                 mPermissionStates.put(grantPermission, PERMISSION_STATE_GRANTED);
             }
@@ -3260,7 +3662,7 @@ public class PackageInstaller {
 
         /**
          * @deprecated use {@link #setRequestDowngrade(boolean)}.
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @Deprecated
@@ -3268,7 +3670,7 @@ public class PackageInstaller {
             setRequestDowngrade(allowDowngrade);
         }
 
-        /** {@hide} */
+        /** @hide */
         @SystemApi
         public void setRequestDowngrade(boolean requestDowngrade) {
             if (requestDowngrade) {
@@ -3291,7 +3693,7 @@ public class PackageInstaller {
             requiredInstalledVersionCode = versionCode;
         }
 
-        /** {@hide} */
+        /** @hide */
         public void setInstallFlagsForcePermissionPrompt() {
             installFlags |= PackageManager.INSTALL_FORCE_PERMISSION_PROMPT;
         }
@@ -3315,7 +3717,7 @@ public class PackageInstaller {
             }
         }
 
-        /** {@hide} */
+        /** @hide */
         @SystemApi
         public void setInstallAsInstantApp(boolean isInstantApp) {
             if (isInstantApp) {
@@ -3330,7 +3732,7 @@ public class PackageInstaller {
         /**
          * Sets the install as a virtual preload. Will only have effect when called
          * by the verifier.
-         * {@hide}
+         * @hide
          */
         @SystemApi
         public void setInstallAsVirtualPreload() {
@@ -3353,7 +3755,7 @@ public class PackageInstaller {
             this.installReason = installReason;
         }
 
-        /** {@hide} */
+        /** @hide */
         @SystemApi
         @RequiresPermission(android.Manifest.permission.ALLOCATE_AGGRESSIVE)
         public void setAllocateAggressive(boolean allocateAggressive) {
@@ -3411,7 +3813,7 @@ public class PackageInstaller {
          * <p>If the parent session is staged or has rollback enabled, all children sessions
          * must have the same properties.
          *
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @RequiresPermission(Manifest.permission.INSTALL_PACKAGES)
@@ -3422,7 +3824,7 @@ public class PackageInstaller {
         /**
          * Set this session to be installing an APEX package.
          *
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @RequiresPermission(Manifest.permission.INSTALL_PACKAGES)
@@ -3442,7 +3844,7 @@ public class PackageInstaller {
          *
          * @see android.service.dataloader.DataLoaderService.DataLoader
          *
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @RequiresPermission(allOf = {
@@ -3454,7 +3856,7 @@ public class PackageInstaller {
 
         /**
          *
-         * {@hide}
+         * @hide
          */
         public void setForceQueryable() {
             this.forceQueryableOverride = true;
@@ -3491,6 +3893,9 @@ public class PackageInstaller {
          *              </li>
          *              <li>{@link android.os.Build.VERSION_CODES#TIRAMISU API 33} or higher on
          *              Android V ({@link android.os.Build.VERSION_CODES#VANILLA_ICE_CREAM API 35})
+         *              </li>
+         *              <li>{@link android.os.Build.VERSION_CODES#UPSIDE_DOWN_CAKE API 34} or
+         *              higher on Android B ({@link android.os.Build.VERSION_CODES#BAKLAVA API 36})
          *              </li>
          *          </ul>
          *     </li>
@@ -3612,6 +4017,14 @@ public class PackageInstaller {
         }
 
         /**
+         * Used by adb installations to force enable the verification for this install.
+         * @hide
+         */
+        public void setForceVerification() {
+            this.forceVerification = true;
+        }
+
+        /**
          * Optionally indicate whether missing SDK or static shared library dependencies should be
          * automatically fetched and installed when installing an app that wants to use these
          * dependencies.
@@ -3630,7 +4043,19 @@ public class PackageInstaller {
             isAutoInstallDependenciesEnabled = enableAutoInstallDependencies;
         }
 
-        /** {@hide} */
+        /**
+         * Optionally called to provide a set of parameters to pass directly to the developer
+         * verification service provider (a.k.a., the verifier) to provide any additional context
+         * regarding the pending verification. The structure of this bundle will be specific to the
+         * implementation of the verifier, so callers can determine the verifier by calling
+         * {@link PackageInstaller#getDeveloperVerificationServiceProvider()}.
+         */
+        @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+        public void setExtensionParams(@NonNull PersistableBundle extensionParams) {
+            this.extensionParams = extensionParams;
+        }
+
+        /** @hide */
         public void dump(IndentingPrintWriter pw) {
             pw.printPair("mode", mode);
             pw.printHexPair("installFlags", installFlags);
@@ -3665,7 +4090,9 @@ public class PackageInstaller {
             pw.printHexPair("developmentInstallFlags", developmentInstallFlags);
             pw.printPair("unarchiveId", unarchiveId);
             pw.printPair("dexoptCompilerFilter", dexoptCompilerFilter);
+            pw.printPair("forceVerification", forceVerification);
             pw.printPair("isAutoInstallDependenciesEnabled", isAutoInstallDependenciesEnabled);
+            pw.printPair("extensionParams", extensionParams);
             pw.println();
         }
 
@@ -3712,7 +4139,9 @@ public class PackageInstaller {
             dest.writeInt(developmentInstallFlags);
             dest.writeInt(unarchiveId);
             dest.writeString(dexoptCompilerFilter);
+            dest.writeBoolean(forceVerification);
             dest.writeBoolean(isAutoInstallDependenciesEnabled);
+            dest.writePersistableBundle(extensionParams);
         }
 
         public static final Parcelable.Creator<SessionParams>
@@ -3738,7 +4167,7 @@ public class PackageInstaller {
          * A session ID that does not exist or is invalid.
          */
         public static final int INVALID_ID = -1;
-        /** {@hide} */
+        /** @hide */
         private static final int[] NO_SESSIONS = {};
 
         /**
@@ -3811,113 +4240,113 @@ public class PackageInstaller {
             }
         }
 
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public int sessionId;
-        /** {@hide} */
+        /** @hide */
         public int userId;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public String installerPackageName;
-        /** {@hide} */
+        /** @hide */
         public String installerAttributionTag;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public String resolvedBaseCodePath;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public float progress;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public boolean sealed;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public boolean active;
 
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public int mode;
-        /** {@hide} */
+        /** @hide */
         public @InstallReason int installReason;
-        /** {@hide} */
+        /** @hide */
         public @InstallScenario int installScenario;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public long sizeBytes;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public String appPackageName;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public Bitmap appIcon;
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
         public CharSequence appLabel;
 
-        /** {@hide} */
+        /** @hide */
         public int installLocation;
-        /** {@hide} */
+        /** @hide */
         public Uri originatingUri;
-        /** {@hide} */
+        /** @hide */
         public int originatingUid;
-        /** {@hide} */
+        /** @hide */
         public Uri referrerUri;
-        /** {@hide} */
+        /** @hide */
         public String[] grantedRuntimePermissions;
-        /** {@hide}*/
+        /** @hide*/
         public List<String> whitelistedRestrictedPermissions;
-        /** {@hide}*/
+        /** @hide*/
         public int autoRevokePermissionsMode = MODE_DEFAULT;
-        /** {@hide} */
+        /** @hide */
         public int installFlags;
-        /** {@hide} */
+        /** @hide */
         public boolean isMultiPackage;
-        /** {@hide} */
+        /** @hide */
         public boolean isStaged;
-        /** {@hide} */
+        /** @hide */
         public boolean forceQueryable;
-        /** {@hide} */
+        /** @hide */
         public int parentSessionId = INVALID_ID;
-        /** {@hide} */
+        /** @hide */
         public int[] childSessionIds = NO_SESSIONS;
 
-        /** {@hide} */
+        /** @hide */
         public boolean isSessionApplied;
-        /** {@hide} */
+        /** @hide */
         public boolean isSessionReady;
-        /** {@hide} */
+        /** @hide */
         public boolean isSessionFailed;
         private int mSessionErrorCode;
         private String mSessionErrorMessage;
 
-        /** {@hide} */
+        /** @hide */
         public boolean isAutoInstallingDependenciesEnabled;
 
-        /** {@hide} */
+        /** @hide */
         public boolean isCommitted;
 
-        /** {@hide} */
+        /** @hide */
         public long createdMillis;
 
-        /** {@hide} */
+        /** @hide */
         public long updatedMillis;
 
-        /** {@hide} */
+        /** @hide */
         public int rollbackDataPolicy;
 
         /** @hide */
         public long rollbackLifetimeMillis;
 
-        /** {@hide} */
+        /** @hide */
         public int rollbackImpactLevel;
 
-        /** {@hide} */
+        /** @hide */
         public int requireUserAction;
 
-        /** {@hide} */
+        /** @hide */
         public int packageSource = PACKAGE_SOURCE_UNSPECIFIED;
 
-        /** {@hide} */
+        /** @hide */
         public int installerUid;
 
         /** @hide */
@@ -3929,12 +4358,12 @@ public class PackageInstaller {
         /** @hide */
         public int pendingUserActionReason;
 
-        /** {@hide} */
+        /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public SessionInfo() {
         }
 
-        /** {@hide} */
+        /** @hide */
         public SessionInfo(Parcel source) {
             sessionId = source.readInt();
             userId = source.readInt();
@@ -4067,7 +4496,7 @@ public class PackageInstaller {
             return installReason;
         }
 
-        /** {@hide} */
+        /** @hide */
         @Deprecated
         public boolean isOpen() {
             return isActive();
@@ -4327,7 +4756,7 @@ public class PackageInstaller {
         }
 
 
-        /** {@hide} */
+        /** @hide */
         @Deprecated
         public @Nullable Intent getDetailsIntent() {
             return createDetailsIntent();
@@ -4369,7 +4798,7 @@ public class PackageInstaller {
 
         /**
          * Returns true if this session is marked as forceQueryable
-         * {@hide}
+         * @hide
          */
         public boolean isForceQueryable() {
             return forceQueryable;
@@ -4474,7 +4903,7 @@ public class PackageInstaller {
             return mSessionErrorMessage;
         }
 
-        /** {@hide} */
+        /** @hide */
         public void setSessionErrorCode(int errorCode, String errorMessage) {
             mSessionErrorCode = errorCode;
             mSessionErrorMessage = errorMessage;
@@ -4656,6 +5085,126 @@ public class PackageInstaller {
     }
 
     /**
+     * Details about an incomplete or failed developer verification that requires user intervention.
+     *
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_VERIFICATION_SERVICE)
+    @SystemApi
+    public static final class DeveloperVerificationUserConfirmationInfo implements Parcelable {
+        /**
+         * Developer verification requires user intervention because of unknown reasons, such as
+         * when the verifier times out or cannot be connected.
+         */
+        public static final int DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN = 0;
+
+        /**
+         * Developer verification requires user intervention because the network is unavailable.
+         */
+        public static final int
+                DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_NETWORK_UNAVAILABLE = 1;
+
+        /**
+         * Developer verification requires user intervention because the developer is not verified.
+         */
+        public static final int DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_DEVELOPER_BLOCKED =
+                2;
+
+        /**
+         * Developer verification requires user intervention because only the lite version of the
+         * verification was completed on the request, not the full verification.
+         * <p>Notice that it is currently not supported.</p>
+         */
+        public static final int DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_LITE_VERIFICATION =
+                3;
+
+        /**
+         * @hide
+         */
+        @IntDef(value = {
+                DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_UNKNOWN,
+                DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_NETWORK_UNAVAILABLE,
+                DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_DEVELOPER_BLOCKED,
+                DEVELOPER_VERIFICATION_USER_ACTION_NEEDED_REASON_LITE_VERIFICATION
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface UserActionNeededReason {
+        }
+
+        @DeveloperVerificationPolicy
+        private final int mVerificationPolicy;
+
+        @UserActionNeededReason
+        private final int mUserActionNeededReason;
+
+        /**
+         * Used by the system to inform the device's default package installer about the ongoing
+         * developer verification session that requires user confirmation.
+         */
+        public DeveloperVerificationUserConfirmationInfo(@DeveloperVerificationPolicy int policy,
+                @UserActionNeededReason int reason) {
+            mVerificationPolicy = policy;
+            mUserActionNeededReason = reason;
+        }
+
+        private DeveloperVerificationUserConfirmationInfo(@NonNull Parcel in) {
+            mVerificationPolicy = in.readInt();
+            mUserActionNeededReason = in.readInt();
+        }
+
+        /**
+         * @return The policy used for this developer verification session, which may affect the
+         * content or format of user confirmation.
+         */
+        @DeveloperVerificationPolicy
+        public int getVerificationPolicy() {
+            return mVerificationPolicy;
+        }
+
+        /**
+         * @return The reason for requesting user confirmation this developer verification session,
+         * which may affect the content or format of user confirmation.
+         */
+        @UserActionNeededReason
+        public int getUserActionNeededReason() {
+            return mUserActionNeededReason;
+        }
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(@NonNull Parcel dest, int flags) {
+            dest.writeInt(mVerificationPolicy);
+            dest.writeInt(mUserActionNeededReason);
+        }
+
+        public static final @NonNull Parcelable.Creator<DeveloperVerificationUserConfirmationInfo>
+                CREATOR = new Parcelable.Creator<>() {
+                    @Override
+                    public DeveloperVerificationUserConfirmationInfo createFromParcel(
+                            @NonNull Parcel p) {
+                        return new DeveloperVerificationUserConfirmationInfo(p);
+                    }
+
+                    @Override
+                    public DeveloperVerificationUserConfirmationInfo[] newArray(int size) {
+                        return new DeveloperVerificationUserConfirmationInfo[size];
+                    }
+                };
+
+        @Override
+        public String toString() {
+            return "VerificationUserConfirmationInfo{"
+                    + "verificationPolicy=" + mVerificationPolicy
+                    + ", verificationUserActionReason=" + mUserActionNeededReason
+                    + '}';
+        }
+    }
+
+    /**
      * Details for requesting the pre-commit install approval.
      */
     @DataClass(genConstructor = false, genToString = true)
@@ -4711,9 +5260,13 @@ public class PackageInstaller {
         @Override
         public void writeToParcel(@NonNull Parcel dest, int flags) {
             byte flg = 0;
-            if (mIcon != null) flg |= 0x1;
+            if (mIcon != null) {
+                flg |= 0x1;
+            }
             dest.writeByte(flg);
-            if (mIcon != null) mIcon.writeToParcel(dest, flags);
+            if (mIcon != null) {
+                mIcon.writeToParcel(dest, flags);
+            }
             dest.writeCharSequence(mLabel);
             dest.writeString8(mLocale.toString());
             dest.writeString8(mPackageName);
@@ -5480,5 +6033,4 @@ public class PackageInstaller {
             return mUserActionIntent;
         }
     }
-
 }

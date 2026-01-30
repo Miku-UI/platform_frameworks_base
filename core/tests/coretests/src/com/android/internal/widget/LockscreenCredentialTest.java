@@ -31,7 +31,9 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.util.Arrays;
+import java.util.Random;
 
+/** atest FrameworksCoreTests:LockscreenCredentialTest */
 @RunWith(AndroidJUnit4.class)
 public class LockscreenCredentialTest {
 
@@ -46,6 +48,7 @@ public class LockscreenCredentialTest {
         assertFalse(none.isPin());
         assertFalse(none.isPassword());
         assertFalse(none.isPattern());
+        assertFalse(none.isUnifiedProfilePassword());
         assertFalse(none.hasInvalidChars());
         none.validateBasicRequirements();
     }
@@ -61,6 +64,7 @@ public class LockscreenCredentialTest {
         assertFalse(pin.isNone());
         assertFalse(pin.isPassword());
         assertFalse(pin.isPattern());
+        assertFalse(pin.isUnifiedProfilePassword());
         assertFalse(pin.hasInvalidChars());
         pin.validateBasicRequirements();
     }
@@ -76,6 +80,7 @@ public class LockscreenCredentialTest {
         assertFalse(password.isNone());
         assertFalse(password.isPin());
         assertFalse(password.isPattern());
+        assertFalse(password.isUnifiedProfilePassword());
         assertFalse(password.hasInvalidChars());
         password.validateBasicRequirements();
     }
@@ -97,8 +102,28 @@ public class LockscreenCredentialTest {
         assertFalse(pattern.isNone());
         assertFalse(pattern.isPin());
         assertFalse(pattern.isPassword());
+        assertFalse(pattern.isUnifiedProfilePassword());
         assertFalse(pattern.hasInvalidChars());
         pattern.validateBasicRequirements();
+    }
+
+    @Test
+    public void testUnifiedProfilePasswordCredential() {
+        final byte[] passwordBytes = new byte[40];
+        new Random().nextBytes(passwordBytes);
+        final LockscreenCredential password =
+                LockscreenCredential.createUnifiedProfilePassword(passwordBytes);
+
+        assertTrue(password.isPassword());
+        assertTrue(password.isUnifiedProfilePassword());
+        assertEquals(passwordBytes.length, password.size());
+        assertArrayEquals(passwordBytes, password.getCredential());
+
+        assertFalse(password.isNone());
+        assertFalse(password.isPin());
+        assertFalse(password.isPattern());
+        assertFalse(password.hasInvalidChars());
+        password.validateBasicRequirements();
     }
 
     // Constructing a LockscreenCredential with a too-short length, even 0, should not throw an
@@ -197,6 +222,11 @@ public class LockscreenCredentialTest {
             fail("Sanitized credential still accessible");
         } catch (IllegalStateException expected) { }
         try {
+            password.isUnifiedProfilePassword();
+            fail("Sanitized credential still accessible");
+        } catch (IllegalStateException expected) {
+        }
+        try {
             password.getCredential();
             fail("Sanitized credential still accessible");
         } catch (IllegalStateException expected) { }
@@ -242,6 +272,12 @@ public class LockscreenCredentialTest {
         // the same byte[] (due to the truncation bug) but different values of mHasInvalidChars.
         assertNotEquals(LockscreenCredential.createPassword("™™™™"),
                 LockscreenCredential.createPassword("\"\"\"\""));
+
+        // Test that mIsUnifiedProfilePassword is compared.
+        final String password = "password";
+        assertNotEquals(
+                LockscreenCredential.createPassword(password),
+                LockscreenCredential.createUnifiedProfilePassword(password.getBytes()));
     }
 
     @Test
@@ -259,6 +295,10 @@ public class LockscreenCredentialTest {
 
         // Test that mHasInvalidChars is duplicated.
         credential = LockscreenCredential.createPassword("™™™™");
+        assertEquals(credential, credential.duplicate());
+
+        // Test that mIsUnifiedProfilePassword is duplicated.
+        credential = LockscreenCredential.createUnifiedProfilePassword("password".getBytes());
         assertEquals(credential, credential.duplicate());
     }
 

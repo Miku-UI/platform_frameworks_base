@@ -26,6 +26,7 @@ import com.android.systemui.plugins.PluginsModule;
 import com.android.systemui.unfold.UnfoldTransitionModule;
 import com.android.systemui.util.concurrency.GlobalConcurrencyModule;
 import com.android.systemui.util.kotlin.GlobalCoroutinesModule;
+import com.android.systemui.util.time.impl.TimeModule;
 
 import dagger.Module;
 import dagger.Provides;
@@ -52,6 +53,7 @@ import dagger.Provides;
         GlobalCoroutinesModule.class,
         UnfoldTransitionModule.class,
         PluginsModule.class,
+        TimeModule.class,
 })
 public class GlobalModule {
     /**

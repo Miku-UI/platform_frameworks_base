@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Atbloķējiet ar paroli vai pirksta nospiedumu"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Atbloķējiet ar kombināciju vai pirksta nospiedumu"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Saskaņā ar darbavietas politiku papildu drošībai ierīce ir bloķēta"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Divpakāpju verifikācija"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Izmantojiet autorizāciju ar pirksta nospiedumu"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Izmantojiet autorizāciju pēc sejas"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Izmantojiet autorizāciju pēc pirksta nospieduma vai sejas"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Pēc bloķēšanas ir jāievada PIN"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Pēc bloķēšanas ir jāievada parole"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Pēc bloķēšanas ir jāzīmē kombinācija"</string>

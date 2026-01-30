@@ -35,6 +35,8 @@ android_test {
 
     static_libs: [
         "PlatformComposeCore",
+        "PlatformMotionTestingCompose",
+        "platform-test-annotations",
 
         "androidx.test.runner",
         "androidx.test.ext.junit",
@@ -45,6 +47,7 @@ android_test {
 
         "truth",
     ],
+    asset_dirs: ["goldens"],
 
     kotlincflags: ["-Xjvm-default=all"],
     use_resource_processor: true,

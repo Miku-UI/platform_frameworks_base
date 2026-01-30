@@ -105,6 +105,11 @@
         internet,bt,flashlight,dnd,alarm,airplane,controls,wallet,rotation,battery,cast,screenrecord,mictoggle,cameratoggle,custom(com.android.permissioncontroller/.permission.service.v33.SafetyCenterQsTileService)
     </string>
 
+    <!-- The default tiles to display in QuickSettings with the new UI -->
+    <string name="quick_settings_tiles_new_default" translatable="false">
+        internet,bt,dnd,cast,flashlight,airplane,rotation,wallet,alarm,controls,screenrecord,battery
+    </string>
+
     <!-- The class path of the Safety Quick Settings Tile -->
     <string name="safety_quick_settings_tile_class" translatable="false">
         com.android.permissioncontroller.permission.service.v33.SafetyCenterQsTileService
@@ -131,6 +136,7 @@
          as custom(package/class). Relative class name is supported. -->
     <string-array name="config_quickSettingsAutoAdd" translatable="false">
         <item>accessibility_font_scaling_has_been_changed:font_scaling</item>
+        <item>accessibility_force_invert_color_enabled:dark</item>
     </string-array>
 
     <!-- Use collapsed layout for media player in landscape QQS -->
@@ -172,7 +178,7 @@
     <integer name="heads_up_notification_minimum_time_with_throttling">500</integer>
 
     <!-- Minimum display time for a heads up notification that was shown from a user action (like tapping on a different part of the UI), in milliseconds. -->
-    <integer name="heads_up_notification_minimum_time_for_user_initiated">3000</integer>
+    <integer name="heads_up_notification_minimum_time_for_user_initiated">5000</integer>
 
     <!-- Display time for a sticky heads up notification, in milliseconds. -->
     <integer name="sticky_heads_up_notification_time">60000</integer>
@@ -321,6 +327,19 @@
                Valid range is from 0 (transparent) to 255 (opaque).
                -1 means keeping the current opacity. -->
     <integer-array name="config_doze_brightness_sensor_to_scrim_opacity">
+        <item>-1</item> <!-- 0: OFF -->
+        <item>0</item> <!-- 1: NIGHT -->
+        <item>0</item> <!-- 2: LOW -->
+        <item>0</item> <!-- 3: HIGH -->
+        <item>0</item> <!-- 4: SUN -->
+    </integer-array>
+
+    <!-- Doze: Table that translates sensor values from the doze_brightness_sensor_type sensor
+           to an opacity value for a black scrim that is overlaid in AOD to darken the AOD
+           wallpaper.
+           Valid range is from 0 (transparent) to 255 (opaque).
+           -1 means keeping the current opacity. -->
+    <integer-array name="config_doze_brightness_sensor_to_wallpaper_scrim_opacity">
         <item>-1</item> <!-- 0: OFF -->
         <item>0</item> <!-- 1: NIGHT -->
         <item>0</item> <!-- 2: LOW -->
@@ -663,12 +682,17 @@
     <integer name="bouncer_secondary_message_lines">2</integer>
 
     <!-- Whether to use the split 2-column notification shade -->
+    <!-- TODO(b/411449027): This config is deprecated. Remove with the launch of SceneContainer. -->
     <bool name="config_use_split_notification_shade">false</bool>
 
-    <!-- Whether to force split shade.
-    For now, this value has effect only when flag lockscreen.enable_landscape is enabled.
-    TODO (b/293252410) - change this comment/resource when flag is enabled -->
+    <!-- Whether to force split shade. This value has effect only when flag
+    lockscreen.enable_landscape is enabled. -->
+    <!-- TODO(b/411449027): This config is deprecated. Remove with the launch of SceneContainer. -->
     <bool name="force_config_use_split_notification_shade">false</bool>
+
+    <!-- Whether to disable split shade on this configuration, and use dual shade instead. -->
+    <!-- TODO(b/411449027): Remove this config once it is true on all configurations. -->
+    <bool name="config_disableSplitShade">false</bool>
 
     <!-- Whether we use large screen shade header which takes only one row compared to QS header -->
     <bool name="config_use_large_screen_shade_header">false</bool>
@@ -988,46 +1012,6 @@
     <!-- Configuration to set Learn more in device logs as URL link -->
     <bool name="log_access_confirmation_learn_more_as_link">true</bool>
 
-    <!-- [START] MULTI SHADE -->
-    <!-- Whether the device should use dual shade. If false, the device uses single shade. -->
-    <bool name="dual_shade_enabled">true</bool>
-    <!--
-    When in dual shade, where should the horizontal split be on the screen to help determine whether
-    the user is pulling down the left shade or the right shade. Must be between 0.0 and 1.0,
-    inclusive. In other words: how much of the left-hand side of the screen, when pulled down on,
-    would reveal the left-hand side shade.
-
-    More concretely:
-    A value of 0.67 means that the left two-thirds of the screen are dedicated to the left-hand side
-    shade and the remaining one-third of the screen on the right is dedicated to the right-hand side
-    shade.
-    -->
-    <dimen name="dual_shade_split_fraction">0.67</dimen>
-    <!-- Width of the left-hand side shade. -->
-    <dimen name="left_shade_width">436dp</dimen>
-    <!-- Width of the right-hand side shade. -->
-    <dimen name="right_shade_width">436dp</dimen>
-    <!--
-    Opaque version of the scrim that shows up behind dual shades. The alpha channel is driven
-    programmatically.
-    -->
-    <color name="opaque_scrim">#D9D9D9</color>
-    <!-- Maximum opacity when the scrim that shows up behind the dual shades is fully visible. -->
-    <dimen name="dual_shade_scrim_alpha">0.1</dimen>
-    <!--
-    The amount that the user must swipe down when the shade is fully collapsed to automatically
-    expand once the user lets go of the shade. If the user swipes less than this amount, the shade
-    will automatically revert back to fully collapsed once the user stops swiping.
-    -->
-    <dimen name="shade_swipe_expand_threshold">0.5</dimen>
-    <!--
-    The amount that the user must swipe up when the shade is fully expanded to automatically
-    collapse once the user lets go of the shade. If the user swipes less than this amount, the shade
-    will automatically revert back to fully expanded once the user stops swiping.
-    -->
-    <dimen name="shade_swipe_collapse_threshold">0.5</dimen>
-    <!-- [END] MULTI SHADE -->
-
     <!-- Time (in ms) to delay the bouncer views from showing when passive auth may be used for
     device entry. -->
     <integer name="primary_bouncer_passive_auth_delay">500</integer>
@@ -1097,23 +1081,35 @@
     <string-array name="config_useActivityLogoForBiometricPrompt" translatable="false"/>
 
     <!--
-    Whether to enable the desktop specific feature set.
+    Whether to use the desktop screen size in screenshot test.
 
-    Refrain from using this from code that needs to make decisions
-    regarding the size or density of the display.
-
-    Variant owners and OEMs should override this to true when they want to
-    enable the desktop specific features.
+    Note: this config is only used for testing. It is overridden to true by desktop.
     -->
-    <bool name="config_enableDesktopFeatureSet">false</bool>
+    <bool name="config_testDesktopScreenSize">false</bool>
 
     <!--
-    Whether the user switching can only happen by logging out and going through the system user (login screen).
+    Whether to enable showing the shade header feature.
+
+    By default, the Shade header is shown. This should be overridden to true by desktop.
+    -If true, always show status bar instead.
+    -If false (default), show the shade header when shade is.
     -->
-    <bool name="config_userSwitchingMustGoThroughLoginScreen">false</bool>
+    <bool name="config_useDesktopStatusBar">false</bool>
+
+    <!--
+    Whether this is a desktop device for purposes of falsing.
+
+    By default, Falsing is enabled. This should be overridden to true by desktop.
+    -If true, it means this is a desktop device for purposes of falsing, and falsing will be skipped
+    -If false (default), Falsing is enabled.
+    -->
+    <bool name="config_isDesktopForFalsingPurposes">false</bool>
 
     <!-- The dream component used when the device is low light environment. -->
     <string translatable="false" name="config_lowLightDreamComponent"/>
+
+    <!-- Determines whether low light should be allowed pre-unlock -->
+    <bool translatable="false" name="config_allowLowLightBehaviorWhenLocked">false</bool>
 
     <!-- Configuration for wallpaper focal area -->
     <bool name="center_align_focal_area_shape">false</bool>
@@ -1124,4 +1120,70 @@
 
     <!-- Whether or not to show the UMO on the glanceable hub when media is playing. -->
     <bool name="config_showUmoOnHub">false</bool>
+
+    <!-- Whether or not to show the promoted notifications on AOD. -->
+    <bool name="config_showPromotedNotificationsOnAOD">true</bool>
+
+    <!-- Whether to enable the desktop specific audio tile details view. -->
+    <bool name="config_enableDesktopAudioTileDetailsView">false</bool>
+
+    <!-- Whether to enable audio input routing. -->
+    <bool name="config_enableInputRouting">false</bool>
+
+    <!-- If AOD can show an ambient version of the wallpaper (-1 means ignore) -->
+    <integer name="config_dozeSupportsAodWallpaperOverride">-1</integer>
+
+    <!-- Whether to enable large screen UI for screen capture. -->
+    <bool name="config_enableLargeScreenScreencapture">false</bool>
+
+    <!-- Whether to show the large screen privacy indicator. -->
+    <bool name="config_largeScreenPrivacyIndicator">false</bool>
+
+    <!-- Whether to enable features improving large screen interaction -->
+    <bool name="config_improveLargeScreenInteractionOnLockscreen">false</bool>
+
+    <!-- Whether to enable "Sign out" button on keyguard's status bar  -->
+    <bool name="config_enableSignOutButtonOnKeyguardStatusBar">false</bool>
+
+    <!-- Package name for the growth app. -->
+    <string name="config_growthAppPackageName" translatable="false" />
+    <!-- Class name for the growth app's receiver. -->
+    <string name="config_growthReceiverClassName" translatable="false" />
+    <!-- Delay in milliseconds before sending the broadcast to the growth app. -->
+    <integer name="config_growthBroadcastDelayMillis">10000</integer>
+
+    <!-- Whether minmode is enabled on the device. -->
+    <bool name="config_minmode_enabled">false</bool>
+
+    <!-- Indicates post recording flow to use flat bottom bar to save vertical space -->
+    <bool name="screen_record_post_recording_flat_bottom_bar">false</bool>
+
+    <!--
+    Whether to enable use brightness mirror in the QuickSettings shade overlay.
+
+    By default, when a user interacts with the brightness slider, the rest of the
+    Quick Settings shade overlay fades out to reduce distraction.
+    -If true (default), the Quick Settings shade overlay will fade out when the brightness slider
+     is used.
+    -If false, the Quick Settings shade overlay will remain visible during brightness adjustments.
+    -->
+    <bool name="config_useBrightnessMirrorInOverlay">true</bool>
+
+    <!-- List of allowed tiles for headless system user's quick settings.
+
+         Some example values are 'alarm', 'internet', 'bt' (bluetooth),
+         as defined by QSTile.getTileSpec().
+    -->
+    <string-array name="hsu_allow_list_qs_tiles" translatable="false">
+        <!-- default empty and all tiles will be allowed -->
+    </string-array>
+
+    <!-- Indicates whether the blurred wallpaper is supported -->
+    <bool name="config_supportBlurredWallpaper">true</bool>
+
+    <!-- Whether to hide notifications shade when the user presses ALL_APPS key. -->
+    <bool name="config_enableHideNotificationsShadeOnAllAppsKey">false</bool>
+
+    <!-- Indicates whether the tapping to open qs panel is supported -->
+    <bool name="config_statusBarTapToExpandShade">false</bool>
 </resources>

@@ -19,8 +19,8 @@ package com.android.systemui.keyguard.ui.viewmodel
 import com.android.compose.animation.scene.Swipe
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
+import com.android.systemui.communal.domain.interactor.CommunalInteractor
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
-import com.android.systemui.scene.domain.interactor.SceneContainerOcclusionInteractor
 import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.ui.viewmodel.UserActionsViewModel
@@ -43,9 +43,9 @@ class LockscreenUserActionsViewModel
 @AssistedInject
 constructor(
     private val deviceEntryInteractor: DeviceEntryInteractor,
+    private val communalInteractor: CommunalInteractor,
     private val shadeInteractor: ShadeInteractor,
     private val shadeModeInteractor: ShadeModeInteractor,
-    private val occlusionInteractor: SceneContainerOcclusionInteractor,
 ) : UserActionsViewModel() {
 
     override suspend fun hydrateActions(setActions: (Map<UserAction, UserActionResult>) -> Unit) {
@@ -57,10 +57,14 @@ constructor(
 
                 combine(
                     deviceEntryInteractor.isUnlocked,
+                    communalInteractor.isCommunalAvailable,
                     shadeModeInteractor.shadeMode,
-                    occlusionInteractor.isOccludingActivityShown,
-                ) { isDeviceUnlocked, shadeMode, isOccluded ->
+                ) { isDeviceUnlocked, isCommunalAvailable, shadeMode ->
                     buildList {
+                            if (isCommunalAvailable) {
+                                add(Swipe.Start to Scenes.Communal)
+                            }
+
                             if (isDeviceUnlocked) {
                                 add(Swipe.Up to Scenes.Gone)
                             } else {
@@ -69,8 +73,7 @@ constructor(
 
                             addAll(
                                 when (shadeMode) {
-                                    ShadeMode.Single ->
-                                        singleShadeActions(isDownFromTopEdgeEnabled = !isOccluded)
+                                    ShadeMode.Single -> singleShadeActions()
                                     ShadeMode.Split -> splitShadeActions()
                                     ShadeMode.Dual -> dualShadeActions()
                                 }

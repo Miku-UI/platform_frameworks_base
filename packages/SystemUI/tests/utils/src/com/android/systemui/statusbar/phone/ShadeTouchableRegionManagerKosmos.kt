@@ -20,14 +20,15 @@ import android.content.applicationContext
 import com.android.systemui.bouncer.domain.interactor.alternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.primaryBouncerInteractor
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
+import com.android.systemui.desktop.domain.interactor.desktopInteractor
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.testScope
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.notification.headsup.mockHeadsUpManager
 import com.android.systemui.statusbar.notificationShadeWindowController
 import com.android.systemui.statusbar.policy.configurationController
-import com.android.systemui.util.kotlin.JavaAdapter
+import com.android.systemui.util.kotlin.javaAdapter
 import com.android.systemui.util.mockito.mock
 
 var Kosmos.shadeTouchableRegionManager by
@@ -39,10 +40,12 @@ var Kosmos.shadeTouchableRegionManager by
             mockHeadsUpManager,
             shadeInteractor,
             { sceneInteractor },
-            JavaAdapter(testScope.backgroundScope),
+            javaAdapter,
             mock<UnlockedScreenOffAnimationController>(),
             primaryBouncerInteractor,
             alternateBouncerInteractor,
             communalSceneInteractor,
+            { shadeModeInteractor },
+            { desktopInteractor },
         )
     }

@@ -241,7 +241,7 @@ public class DialogFragment extends Fragment
         ft.commit();
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public void showAllowingStateLoss(FragmentManager manager, String tag) {
         mDismissed = false;

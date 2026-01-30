@@ -17,6 +17,7 @@
 package android.app;
 
 import android.app.ActivityManager;
+import android.app.HandoffActivityData;
 import android.app.IRequestFinishCallback;
 import android.app.PictureInPictureParams;
 import android.content.ComponentName;
@@ -34,7 +35,7 @@ import com.android.internal.policy.IKeyguardDismissCallback;
 /**
  * Interface for the callback and request from an activity to system.
  *
- * {@hide}
+ * @hide
  */
 interface IActivityClientController {
     oneway void activityIdle(in IBinder token, in Configuration config, in boolean stopProfiling);
@@ -44,7 +45,7 @@ interface IActivityClientController {
      * This call is not one-way because {@link #activityPaused()) is not one-way, or
      * the top-resumed-lost could be reported after activity paused.
      */
-    void activityTopResumedStateLost();
+    void activityTopResumedStateLost(in IBinder token);
     /**
      * Notifies that the activity has completed paused. This call is not one-way because it can make
      * consecutive launch in the same process more coherent. About the order of binder call, it
@@ -52,8 +53,12 @@ interface IActivityClientController {
      * there won't be other lifecycle changes.
      */
     void activityPaused(in IBinder token);
-    oneway void activityStopped(in IBinder token, in Bundle state,
-            in PersistableBundle persistentState, in CharSequence description);
+    oneway void activityStopped(
+        in IBinder token,
+        in Bundle state,
+        in PersistableBundle persistentState,
+        in HandoffActivityData handoffActivityData,
+        in CharSequence description);
     oneway void activityDestroyed(in IBinder token);
     oneway void activityLocalRelaunch(in IBinder token);
     oneway void activityRelaunched(in IBinder token);
@@ -104,6 +109,13 @@ interface IActivityClientController {
 
     boolean isImmersive(in IBinder token);
     void setImmersive(in IBinder token, boolean immersive);
+
+    boolean isHandoffEnabled(in IBinder token);
+    boolean isHandoffFullTaskRecreationAllowed(in IBinder token);
+    void setHandoffEnabled(
+        in IBinder token,
+        boolean handoffEnabled,
+        boolean allowFullTaskRecreation);
 
     boolean enterPictureInPictureMode(in IBinder token, in PictureInPictureParams params);
     void setPictureInPictureParams(in IBinder token, in PictureInPictureParams params);

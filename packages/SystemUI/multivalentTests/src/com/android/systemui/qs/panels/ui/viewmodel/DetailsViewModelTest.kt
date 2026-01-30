@@ -25,6 +25,7 @@ import com.android.systemui.qs.FakeQSTile
 import com.android.systemui.qs.pipeline.data.repository.tileSpecRepository
 import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
 import com.android.systemui.qs.pipeline.shared.TileSpec
+import com.android.systemui.qs.tiles.dialog.audioDetailsViewModelFactory
 import com.android.systemui.shade.domain.interactor.disableDualShade
 import com.android.systemui.shade.domain.interactor.enableDualShade
 import com.android.systemui.testKosmos
@@ -85,6 +86,11 @@ class DetailsViewModelTest : SysuiTestCase() {
                 // Click on a tile who dose not have a detailed view.
                 assertThat(underTest.onTileClicked(specNoDetails)).isFalse()
                 assertThat(underTest.activeTileDetails).isNull()
+
+                // Click on the volume settings button.
+                underTest.onVolumeSettingsButtonClicked(audioDetailsViewModelFactory.create())
+                assertThat(underTest.activeTileDetails).isNotNull()
+                assertThat(underTest.activeTileDetails?.title).isEqualTo("Volume")
 
                 underTest.closeDetailedView()
                 assertThat(underTest.activeTileDetails).isNull()

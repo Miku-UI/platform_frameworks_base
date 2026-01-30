@@ -25,6 +25,7 @@
 #include "AnimationContext.h"
 #include "DamageAccumulator.h"
 #include "FatalTestCanvas.h"
+#include "FeatureFlags.h"
 #include "IContextFactory.h"
 #include "RecordingCanvas.h"
 #include "SkiaCanvas.h"
@@ -960,6 +961,47 @@ RENDERTHREAD_TEST(RenderNodeDrawable, simple) {
     RenderNodeDrawable drawable(node.get(), &canvas, true);
     canvas.drawDrawable(&drawable);
     EXPECT_EQ(2, canvas.mDrawCounter);
+}
+
+RENDERTHREAD_TEST(RenderNodeDrawable, forceInvertBitmapBarcodePalette) {
+    if (!view_accessibility_flags::force_invert_color()) {
+        GTEST_SKIP() << "Test only applies when force_invert_color flag is enabled";
+    }
+    Properties::setIsForceInvertEnabled(true);
+    static const int CANVAS_WIDTH = 100;
+    static const int CANVAS_HEIGHT = 200;
+    class BarcodeTestCanvas : public TestCanvasBase {
+    public:
+        BarcodeTestCanvas() : TestCanvasBase(CANVAS_WIDTH, CANVAS_HEIGHT) {}
+        void onDrawRect(const SkRect& rect, const SkPaint& paint) override {
+            EXPECT_EQ(0, mDrawCounter++);
+            EXPECT_EQ(SK_ColorWHITE, paint.getColor());
+            EXPECT_EQ(SkRect::MakeLTRB(0, 0, 25, 25), rect);
+        }
+        void onDrawImageRect2(const SkImage*, const SkRect& src, const SkRect& dest,
+                              const SkSamplingOptions&, const SkPaint* paint,
+                              SrcRectConstraint) override {
+            EXPECT_EQ(1, mDrawCounter++);
+            EXPECT_EQ(SkRect::MakeLTRB(0, 0, 25, 25), src);
+            EXPECT_EQ(SkRect::MakeLTRB(5, 5, 20, 20), dest);
+            EXPECT_EQ(nullptr, paint->getColorFilter());
+        }
+    };
+
+    auto node = TestUtils::createSkiaNode(
+            0, 0, CANVAS_WIDTH, CANVAS_HEIGHT,
+            [](RenderProperties& props, SkiaRecordingCanvas& canvas) {
+                sk_sp<Bitmap> bitmap(TestUtils::createBitmap(25, 25));
+                bitmap->setPalette(BitmapPalette::Barcode);
+                canvas.drawBitmap(*bitmap, 0, 0, bitmap->width(), bitmap->height(), 0, 0,
+                                  bitmap->width(), bitmap->height(), nullptr);
+            });
+
+    BarcodeTestCanvas canvas;
+    RenderNodeDrawable drawable(node.get(), &canvas, true);
+    canvas.drawDrawable(&drawable);
+    EXPECT_EQ(2, canvas.mDrawCounter);
+    Properties::setIsForceInvertEnabled(false);
 }
 
 RENDERTHREAD_TEST(RenderNodeDrawable, colorOp_unbounded) {

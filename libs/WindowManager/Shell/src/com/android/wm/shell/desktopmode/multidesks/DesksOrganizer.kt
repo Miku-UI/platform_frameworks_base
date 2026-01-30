@@ -16,19 +16,31 @@
 package com.android.wm.shell.desktopmode.multidesks
 
 import android.app.ActivityManager
+import android.app.ActivityOptions
+import android.app.TaskInfo
 import android.window.TransitionInfo
 import android.window.WindowContainerTransaction
 
 /** An organizer of desk containers in which to host child desktop windows. */
 interface DesksOrganizer {
+    /** Creates a new desk for the given user if none exist. */
+    fun warmUpDefaultDesk(displayId: Int, userId: Int)
+
     /** Creates a new desk container to use in the given display for the given user. */
     fun createDesk(displayId: Int, userId: Int, callback: OnCreateCallback)
 
+    /**
+     * Creates and returns the id of a new desk container to use in the given display for the given
+     * user if it can be created synchronously, or null if it cannot.
+     */
+    @Deprecated("Use createDesk() instead.", ReplaceWith("createDesk()"))
+    fun createDeskImmediate(displayId: Int, userId: Int): Int?
+
     /** Activates the given desk, making it visible in its display. */
-    fun activateDesk(wct: WindowContainerTransaction, deskId: Int)
+    fun activateDesk(wct: WindowContainerTransaction, deskId: Int, skipReorder: Boolean = false)
 
     /** Deactivates the given desk, removing it as the default launch container for new tasks. */
-    fun deactivateDesk(wct: WindowContainerTransaction, deskId: Int)
+    fun deactivateDesk(wct: WindowContainerTransaction, deskId: Int, skipReorder: Boolean = false)
 
     /** Removes the given desk of the given user. */
     fun removeDesk(wct: WindowContainerTransaction, deskId: Int, userId: Int)
@@ -37,7 +49,8 @@ interface DesksOrganizer {
     fun moveTaskToDesk(
         wct: WindowContainerTransaction,
         deskId: Int,
-        task: ActivityManager.RunningTaskInfo,
+        task: TaskInfo,
+        minimized: Boolean = false,
     )
 
     /** Reorders a desk's task to the front. */
@@ -67,17 +80,37 @@ interface DesksOrganizer {
     /** Whether the change is for a known desk. */
     fun isDeskChange(change: TransitionInfo.Change): Boolean
 
+    /** The desk for a given change, if any. */
+    fun getDeskIdFromChange(change: TransitionInfo.Change): Int?
+
+    /** The desk for a given task info, if any. */
+    fun getDeskIdFromTaskInfo(taskInfo: TaskInfo): Int?
+
     /**
      * Returns the desk id in which the task in the given change is located at the end of a
      * transition, if any.
      */
     fun getDeskAtEnd(change: TransitionInfo.Change): Int?
 
+    /** Whether the task in [change] is minimized in a desk. */
+    fun isMinimizedInDeskAtEnd(change: TransitionInfo.Change): Boolean
+
     /** Whether the desk is activate according to the given change at the end of a transition. */
     fun isDeskActiveAtEnd(change: TransitionInfo.Change, deskId: Int): Boolean
 
     /** Allows for other classes to respond to task changes this organizer receives. */
-    fun setOnDesktopTaskInfoChangedListener(listener: (ActivityManager.RunningTaskInfo) -> Unit)
+    fun addOnDesktopTaskInfoChangedListener(listener: (ActivityManager.RunningTaskInfo) -> Unit)
+
+    /** Move a desk to the given display area. */
+    fun moveDeskToDisplay(
+        wct: WindowContainerTransaction,
+        deskId: Int,
+        displayId: Int,
+        onTop: Boolean,
+    )
+
+    /** Adds launch root task token to activity options to reparent task to desk after reboot. */
+    fun addLaunchDeskToActivityOptions(activityOptions: ActivityOptions, deskId: Int)
 
     /** A callback that is invoked when the desk container is created. */
     fun interface OnCreateCallback {

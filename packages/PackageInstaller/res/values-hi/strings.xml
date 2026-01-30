@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"अपडेट करें"</string>
     <string name="done" msgid="6632441120016885253">"हो गया"</string>
     <string name="cancel" msgid="1018267193425558088">"रद्द करें"</string>
+    <string name="more_details" msgid="3643407086654820243">"ज़्यादा जानकारी"</string>
+    <string name="dont_install" msgid="414055123295505225">"इंस्टॉल न करें"</string>
     <string name="installing" msgid="4921993079741206516">"इंस्टॉल हो रहा है..."</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> इंस्टॉल हो रहा है…"</string>
     <string name="install_done" msgid="5987363587661783896">"ऐप्लिकेशन इंस्‍टॉल हो गया."</string>
@@ -43,7 +45,7 @@
     <string name="unknown_apps_admin_dlg_text" msgid="4456572224020176095">"आपका एडमिन अनजान स्रोतों से मिलने वाले ऐप्लिकेशन को इंस्टॉल करने की अनुमति नहीं देता है"</string>
     <string name="unknown_apps_user_restriction_dlg_text" msgid="151020786933988344">"यह उपयोगकर्ता अनजान ऐप्लिकेशन इंस्टॉल नहीं कर सकता"</string>
     <string name="install_apps_user_restriction_dlg_text" msgid="2154119597001074022">"इस उपयोगकर्ता को ऐप्लिकेशन इंस्टॉल करने की अनुमति नहीं है"</string>
-    <string name="ok" msgid="7871959885003339302">"ठीक है"</string>
+    <string name="ok" msgid="7871959885003339302">"अनइंस्टॉल करें"</string>
     <string name="archive" msgid="4447791830199354721">"संग्रहित करें"</string>
     <string name="update_anyway" msgid="8792432341346261969">"फिर भी अपडेट करें"</string>
     <string name="manage_applications" msgid="5400164782453975580">"ऐप्लिकेशन प्रबंधित करें"</string>
@@ -58,7 +60,7 @@
     <string name="uninstall_application_title" msgid="4045420072401428123">"ऐप्लिकेशन अनइंस्‍टॉल करें"</string>
     <string name="uninstall_update_title" msgid="824411791011583031">"अपडेट अनइंस्‍टॉल करें"</string>
     <string name="uninstall_activity_text" msgid="1928194674397770771">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> इस ऐप्लिकेशन का भाग है:"</string>
-    <string name="uninstall_application_text" msgid="3816830743706143980">"क्‍या आपको इस ऐप्लिकेशन को अनइंस्‍टॉल करना है?"</string>
+    <string name="uninstall_application_text" msgid="3816830743706143980">"क्‍या इस ऐप्लिकेशन को अनइंस्‍टॉल करना है?"</string>
     <string name="archive_application_text" msgid="8482325710714386348">"आपका निजी डेटा सेव किया जाएगा"</string>
     <string name="archive_application_text_all_users" msgid="3151229641681672580">"क्या इस ऐप्लिकेशन को सभी के लिए संग्रहित करना है? आपका निजी डेटा सेव किया जाएगा"</string>
     <string name="archive_application_text_current_user_work_profile" msgid="1450487362134779752">"क्या आपको अपनी वर्क प्रोफ़ाइल से यह ऐप्लिकेशन संग्रहित करना है? आपका निजी डेटा सेव किया जाएगा"</string>

@@ -22,13 +22,12 @@ import com.android.systemui.util.animation.data.repository.AnimationStatusReposi
 import com.android.systemui.util.animation.data.repository.AnimationStatusRepositoryImpl;
 import com.android.systemui.util.icons.AppCategoryIconProvider;
 import com.android.systemui.util.icons.AppCategoryIconProviderImpl;
-import com.android.systemui.util.wrapper.UtilWrapperModule;
 
 import dagger.Binds;
 import dagger.Module;
 
 /** Dagger Module for code in the util package. */
-@Module(includes = {UtilWrapperModule.class})
+@Module
 public interface UtilModule {
     /** */
     @Binds

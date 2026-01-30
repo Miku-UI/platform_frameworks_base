@@ -331,6 +331,15 @@ public abstract class BrightnessMappingStrategy {
     public abstract float getBrightnessFromNits(float nits);
 
     /**
+     * Converts the provided nit value to a float scale value if possible. Adjustments, such as RBC
+     * might be applied to the nit value.
+     *
+     * Returns {@link PowerManager.BRIGHTNESS_INVALID_FLOAT} if there's no available mapping for
+     * the nits to float scale.
+     */
+    public abstract float getBrightnessFromAdjustedNits(float nits);
+
+    /**
      * Adds a user interaction data point to the brightness mapping.
      *
      * This data point <b>must</b> exist on the brightness curve as a result of this call. This is
@@ -704,6 +713,11 @@ public abstract class BrightnessMappingStrategy {
         }
 
         @Override
+        public float getBrightnessFromAdjustedNits(float nits) {
+            return PowerManager.BRIGHTNESS_INVALID_FLOAT;
+        }
+
+        @Override
         public void addUserDataPoint(float lux, float brightness) {
             float unadjustedBrightness = getUnadjustedBrightness(lux);
             if (mLoggingEnabled) {
@@ -984,6 +998,11 @@ public abstract class BrightnessMappingStrategy {
         @Override
         public float getBrightnessFromNits(float nits) {
             return mNitsToBrightnessSpline.interpolate(nits);
+        }
+
+        @Override
+        public float getBrightnessFromAdjustedNits(float nits) {
+            return mAdjustedNitsToBrightnessSpline.interpolate(nits);
         }
 
         @Override

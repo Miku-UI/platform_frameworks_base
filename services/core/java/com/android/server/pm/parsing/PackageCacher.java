@@ -75,11 +75,30 @@ public class PackageCacher implements IPackageCacher {
      * Returns the cache key for a specified {@code packageFile} and {@code flags}.
      */
     private String getCacheKey(File packageFile, int flags) {
-        StringBuilder sb = new StringBuilder(packageFile.getName());
+        String name = packageFile.getName();
+        String absPath = packageFile.getAbsolutePath();
+
+        // In case the package is an APEX which is from a device-mapper block
+        // device created by apexd, the filename (dm-NN) can be different on
+        // each boot. Hence, we use the device-mapper name instead, which is
+        // stable across reboots.
+        if (absPath.startsWith("/dev/block/dm-")) {
+            try {
+                name = IoUtils.readFileAsString("/sys/block/" + name + "/dm/name").trim();
+                // The device name represents the file. No need to append the hash of the full path.
+                absPath = null;
+            } catch (IOException e) {
+                Slog.w("Error while reading device name of " + name, e);
+            }
+        }
+
+        StringBuilder sb = new StringBuilder(name);
         sb.append('-');
         sb.append(flags);
-        sb.append('-');
-        sb.append(packageFile.getAbsolutePath().hashCode());
+        if (absPath != null) {
+            sb.append('-');
+            sb.append(absPath.hashCode());
+        }
 
         return sb.toString();
     }

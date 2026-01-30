@@ -121,6 +121,10 @@ final class DiscreteOpsTable {
     static final String OFFSET_ACCESS_TIME = "UPDATE " + DiscreteOpsTable.TABLE_NAME
             + " SET " + Columns.ACCESS_TIME + " = ACCESS_TIME - ?";
 
+    // Handle -1 for access_time + duration > begin_time expression
+    static final String EFFECTIVE_ACCESS_DURATION =
+            "(CASE WHEN access_duration = -1 THEN 0 ELSE access_duration END)";
+
     // Index on access time, uid and op code
     static final String CREATE_INDEX_SQL = "CREATE INDEX IF NOT EXISTS "
             + INDEX_APP_OP + " ON " + TABLE_NAME

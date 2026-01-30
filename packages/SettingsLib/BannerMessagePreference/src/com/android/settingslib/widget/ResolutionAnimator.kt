@@ -19,8 +19,6 @@ package com.android.settingslib.widget
 import android.graphics.drawable.Animatable2
 import android.graphics.drawable.AnimatedVectorDrawable
 import android.graphics.drawable.Drawable
-import android.os.Build
-import android.provider.DeviceConfig
 import android.transition.Fade
 import android.transition.Transition
 import android.transition.TransitionListenerAdapter
@@ -166,25 +164,13 @@ internal class ResolutionAnimator(
                 .setStartDelay(SHOW_RESOLVED_CONTENT_TRANSITION_DELAY.toMillis())
                 .setDuration(SHOW_RESOLVED_CONTENT_TRANSITION_DURATION.toMillis())
 
-        private val hideResolvedContentTransitionDelay
-            get() =
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    Duration.ofMillis(
-                        DeviceConfig.getLong(
-                            "settings_ui",
-                            "banner_message_pref_hide_resolved_content_delay_millis",
-                            400,
-                        )
-                    )
-                } else {
-                    Duration.ofMillis(400)
-                }
+        private val HIDE_RESOLVED_CONTENT_TRANSITION_DELAY = Duration.ofMillis(400)
 
         private val HIDE_RESOLVED_UI_TRANSITION_DURATION = Duration.ofMillis(167)
         private val hideResolvedContentTransition
             get() =
                 Fade(Fade.OUT)
-                    .setStartDelay(hideResolvedContentTransitionDelay.toMillis())
+                    .setStartDelay(HIDE_RESOLVED_CONTENT_TRANSITION_DELAY.toMillis())
                     .setDuration(HIDE_RESOLVED_UI_TRANSITION_DURATION.toMillis())
 
         inline fun <reified T : View> PreferenceViewHolder.findView(id: Int): T? =

@@ -26,7 +26,6 @@ import android.view.View
 import android.view.WindowInsets
 import android.widget.FrameLayout
 import androidx.core.view.updateMargins
-import com.android.systemui.Flags
 import com.android.systemui.compose.ComposeInitializer
 import com.android.systemui.res.R
 
@@ -108,7 +107,6 @@ open class WindowRootView(context: Context, attrs: AttributeSet?) : FrameLayout(
 
     private fun applyMargins() {
         val count = childCount
-        val hasFlagsEnabled = Flags.checkLockscreenGoneTransition()
         var hasChildMarginUpdated = false
         for (i in 0 until count) {
             val child = getChildAt(i)
@@ -121,13 +119,10 @@ open class WindowRootView(context: Context, attrs: AttributeSet?) : FrameLayout(
                 ) {
                     layoutParams.updateMargins(left = leftInset, right = rightInset)
                     hasChildMarginUpdated = true
-                    if (!hasFlagsEnabled) {
-                        child.requestLayout()
-                    }
                 }
             }
         }
-        if (hasFlagsEnabled && hasChildMarginUpdated) {
+        if (hasChildMarginUpdated) {
             // Request layout at once after all children's margins has updated
             requestLayout()
         }

@@ -16,7 +16,6 @@
 package com.android.test.input
 
 import android.app.Instrumentation
-import android.cts.input.EventVerifier
 import android.graphics.PointF
 import android.util.Log
 import android.util.Size
@@ -24,7 +23,7 @@ import android.view.InputDevice
 import android.view.InputEvent
 import android.view.MotionEvent
 import androidx.test.platform.app.InstrumentationRegistry
-import com.android.cts.input.BatchedEventSplitter
+import com.android.cts.input.BlockingQueueEventVerifier
 import com.android.cts.input.CaptureEventActivity
 import com.android.cts.input.DebugInputRule
 import com.android.cts.input.EvemuDevice
@@ -117,6 +116,7 @@ class UinputRecordingIntegrationTests {
                 size = testData.displaySize,
             )
             .use { scenario ->
+                scenario.activity.shouldSplitBatchedEvents = true
                 scenario.activity.window.decorView.requestUnbufferedDispatch(
                     INPUT_DEVICE_SOURCE_ALL
                 )
@@ -137,29 +137,24 @@ class UinputRecordingIntegrationTests {
                             fail("Test cannot pass in debug mode!")
                         }
 
-                        val verifier =
-                            EventVerifier(
-                                BatchedEventSplitter { scenario.activity.getInputEvent() }
-                            )
-                        verifyEvents(verifier)
+                        verifyEvents(scenario.activity.verifier)
                         scenario.activity.assertNoEvents()
                     }
             }
     }
 
     private fun printReceivedEventsToLogcat(activity: CaptureEventActivity) {
-        val getNextEvent = BatchedEventSplitter { activity.getInputEvent() }
-        var receivedEvent: InputEvent? = getNextEvent()
+        var receivedEvent: InputEvent? = activity.getInputEvent()
         while (receivedEvent != null) {
             Log.d(
                 TAG,
                 parser.encodeEvent(receivedEvent)?.toString() ?: "(Failed to encode received event)",
             )
-            receivedEvent = getNextEvent()
+            receivedEvent = activity.getInputEvent()
         }
     }
 
-    private fun verifyEvents(verifier: EventVerifier) {
+    private fun verifyEvents(verifier: BlockingQueueEventVerifier) {
         val uinputTestData = parser.getUinputTestData(testData.expectedEventsResource)
         for (test in uinputTestData) {
             for ((index, expectedEvent) in test.events.withIndex()) {

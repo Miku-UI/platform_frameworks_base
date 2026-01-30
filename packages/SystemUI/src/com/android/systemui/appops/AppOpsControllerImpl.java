@@ -26,6 +26,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.location.flags.Flags;
 import android.media.AudioManager;
 import android.media.AudioRecordingConfiguration;
 import android.os.Handler;
@@ -70,10 +71,14 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
         AppOpsManager.OnOpNotedInternalListener, IndividualSensorPrivacyController.Callback,
         Dumpable {
 
+    // LINT.IfChange
     // This is the minimum time that we will keep AppOps that are noted on record. If multiple
     // occurrences of the same (op, package, uid) happen in a shorter interval, they will not be
     // notified to listeners.
     private static final long NOTED_OP_TIME_DELAY_MS = 5000;
+    // This is the minimum time that we will keep AppOps that are noted on record for location only.
+    private static final long NOTED_OP_TIME_LOCATION_ONLY_DELAY_MS = 10_000;
+    // LINT.ThenChange(/packages/SystemUI/src/com/android/systemui/privacy/PrivacyItemController.kt, /core/java/android/permission/PermissionUsageHelper.java)
     private static final String TAG = "AppOpsControllerImpl";
     private static final boolean DEBUG = false;
 
@@ -255,7 +260,7 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
     }
 
     /**
-     * Adds a callback that will get notifified when an AppOp of the type the controller tracks
+     * Adds a callback that will get notified when an AppOp of the type the controller tracks
      * changes
      *
      * @param callback Callback to report changes
@@ -368,7 +373,11 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
         }
         // We should keep this so we make sure it cannot time out.
         mBGHandler.removeCallbacksAndMessages(item);
-        mBGHandler.scheduleRemoval(item, NOTED_OP_TIME_DELAY_MS);
+        final long delay =
+                (Flags.locationIndicatorsEnabled() && isOpLocation(code))
+                        ? NOTED_OP_TIME_LOCATION_ONLY_DELAY_MS
+                        : NOTED_OP_TIME_DELAY_MS;
+        mBGHandler.scheduleRemoval(item, delay);
         return createdNew;
     }
 
@@ -622,6 +631,13 @@ public class AppOpsControllerImpl extends BroadcastReceiver implements AppOpsCon
     private boolean isOpMicrophone(int op) {
         for (int i = 0; i < OPS_MIC.length; i++) {
             if (op == OPS_MIC[i]) return true;
+        }
+        return false;
+    }
+
+    private boolean isOpLocation(int op) {
+        for (int i = 0; i < OPS_LOC.length; i++) {
+            if (op == OPS_LOC[i]) return true;
         }
         return false;
     }

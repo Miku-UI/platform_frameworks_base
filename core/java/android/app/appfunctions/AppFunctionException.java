@@ -162,9 +162,8 @@ public final class AppFunctionException extends Exception implements Parcelable 
     }
 
     private AppFunctionException(@NonNull Parcel in) {
-        mErrorCode = in.readInt();
-        mErrorMessage = in.readString8();
-        mExtras = Objects.requireNonNull(in.readBundle(getClass().getClassLoader()));
+        this(/* errorCode= */ in.readInt(), /* errorMessage= */ in.readString8(),
+                /* extras= */Objects.requireNonNull(in.readBundle(Bundle.class.getClassLoader())));
     }
 
     /** Returns one of the {@code ERROR} constants. */
@@ -222,6 +221,11 @@ public final class AppFunctionException extends Exception implements Parcelable 
         dest.writeInt(mErrorCode);
         dest.writeString8(mErrorMessage);
         dest.writeBundle(mExtras);
+    }
+
+    @Override
+    public @NonNull String getMessage() {
+        return super.getMessage() + " (code " + mErrorCode + ")";
     }
 
     /**

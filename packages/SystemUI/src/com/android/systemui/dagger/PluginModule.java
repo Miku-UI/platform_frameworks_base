@@ -17,7 +17,11 @@
 package com.android.systemui.dagger;
 
 
+import android.view.Display;
+
+import com.android.app.displaylib.PerDisplayRepository;
 import com.android.systemui.classifier.FalsingManagerProxy;
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent;
 import com.android.systemui.globalactions.GlobalActionsComponent;
 import com.android.systemui.globalactions.GlobalActionsImpl;
 import com.android.systemui.plugins.ActivityStarter;
@@ -27,8 +31,6 @@ import com.android.systemui.plugins.GlobalActions;
 import com.android.systemui.plugins.VolumeDialogController;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.statusbar.StatusBarStateControllerImpl;
-import com.android.systemui.statusbar.data.repository.DarkIconDispatcherStore;
-import com.android.systemui.statusbar.data.repository.SysuiDarkIconDispatcherStore;
 import com.android.systemui.statusbar.phone.ActivityStarterImpl;
 import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher;
 import com.android.systemui.volume.VolumeDialogControllerImpl;
@@ -52,15 +54,17 @@ public abstract class PluginModule {
     /** */
     @Provides
     @SysUISingleton
-    static DarkIconDispatcher provideDarkIconDispatcher(DarkIconDispatcherStore store) {
-        return store.getDefaultDisplay();
+    static DarkIconDispatcher provideDarkIconDispatcher(
+            PerDisplayRepository<SystemUIDisplaySubcomponent> displaySubComponentRepository) {
+        return displaySubComponentRepository.get(Display.DEFAULT_DISPLAY).getDarkIconDispatcher();
     }
 
     @Provides
     @SysUISingleton
     static SysuiDarkIconDispatcher provideSysuiDarkIconDispatcher(
-            SysuiDarkIconDispatcherStore store) {
-        return store.getDefaultDisplay();
+            PerDisplayRepository<SystemUIDisplaySubcomponent> displaySubComponentRepository) {
+        return displaySubComponentRepository.get(
+                Display.DEFAULT_DISPLAY).getSysuiDarkIconDispatcher();
     }
 
     /** */

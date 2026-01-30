@@ -17,7 +17,6 @@
 package com.android.systemui.doze;
 
 import android.content.Context;
-import android.content.res.Configuration;
 import android.os.PowerManager;
 import android.os.SystemClock;
 import android.service.dreams.DreamService;
@@ -67,7 +66,6 @@ public class DozeService extends DreamService
         mPluginManager.addPluginListener(this, DozeServicePlugin.class, false /* allowMultiple */);
         DozeComponent dozeComponent = mDozeComponentBuilder.build(this);
         mDozeMachine = dozeComponent.getDozeMachine();
-        mDozeMachine.onConfigurationChanged(getResources().getConfiguration());
     }
 
     @Override
@@ -136,12 +134,6 @@ public class DozeService extends DreamService
     }
 
     @Override
-    public void onConfigurationChanged(Configuration newConfig) {
-        super.onConfigurationChanged(newConfig);
-        mDozeMachine.onConfigurationChanged(newConfig);
-    }
-
-    @Override
     public void onRequestHideDoze() {
         if (mDozeMachine != null) {
             mDozeMachine.requestState(DozeMachine.State.DOZE);
@@ -159,20 +151,11 @@ public class DozeService extends DreamService
     }
 
     @Override
-    public void setDozeScreenBrightness(int brightness) {
+    public void setDozeScreenBrightness(float brightness) {
         mBgExecutor.execute(() -> {
             mDozeLog.traceDozeScreenBrightness(brightness, /* afterRequest */ false);
             super.setDozeScreenBrightness(brightness);
             mDozeLog.traceDozeScreenBrightness(brightness, /* afterRequest */ true);
-        });
-    }
-
-    @Override
-    public void setDozeScreenBrightnessFloat(float brightness) {
-        mBgExecutor.execute(() -> {
-            mDozeLog.traceDozeScreenBrightnessFloat(brightness, /* afterRequest */ false);
-            super.setDozeScreenBrightnessFloat(brightness);
-            mDozeLog.traceDozeScreenBrightnessFloat(brightness, /* afterRequest */ true);
         });
     }
 }

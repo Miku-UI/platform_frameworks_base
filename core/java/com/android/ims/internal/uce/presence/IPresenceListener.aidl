@@ -29,7 +29,7 @@ import com.android.ims.internal.uce.presence.PresRlmiInfo;
 
 /**
  * IPresenceListener
- * {@hide} */
+ * @hide */
 interface IPresenceListener
 {
     /**

@@ -1,5 +1,6 @@
 package android.app.ondeviceintelligence;
 
+import android.app.ondeviceintelligence.InferenceInfo;
 import android.os.PersistableBundle;
 import android.os.RemoteCallback;
 import android.os.Bundle;
@@ -15,4 +16,5 @@ oneway interface IStreamingResponseCallback {
     void onSuccess(in Bundle result) = 2;
     void onFailure(int errorCode, in String errorMessage, in PersistableBundle errorParams) = 3;
     void onDataAugmentRequest(in Bundle processedContent, in RemoteCallback responseCallback) = 4;
+    void onInferenceInfo(in InferenceInfo info) = 5;
 }

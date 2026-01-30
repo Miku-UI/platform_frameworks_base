@@ -72,7 +72,13 @@ public final class GnssAlmanac implements Parcelable {
      */
     private final int mWeekNumber;
 
-    /** Almanac reference time in seconds. */
+    /**
+     * Almanac reference time in seconds.
+     *
+     * <p> This is unused for Baidou.
+     *
+     * <p>For Beidou, each satellite has its own toaSeconds.
+     */
     private final int mToaSeconds;
 
     /**
@@ -297,16 +303,26 @@ public final class GnssAlmanac implements Parcelable {
          */
         private final int mSvHealth;
 
+        /**
+         * Almanac reference time in seconds.
+         *
+         * <p> This is unused for GPS/QZSS/Galileo.
+         *
+         * <p>For Beidou, each satellite has its own toaSeconds.
+         */
+        private final int mToaSeconds;
+
         /** Eccentricity. */
         private final double mEccentricity;
 
         /**
          * Inclination in semi-circles.
          *
-         * <p>For GPS and Galileo, this is the difference between the inclination angle at reference
-         * time and the nominal inclination in semi-circles.
+         * <p>For GPS, QZSS(QZO) and Galileo, this is the difference between the inclination angle
+         * at referencetime and the nominal inclination in semi-circles.
          *
-         * <p>For Beidou and QZSS, this is the inclination angle at reference time in semi-circles.
+         * <p>For Beidou and QZSS(GEO/QGEO), this is the inclination angle at reference time
+         * in semi-circles.
          */
         private final double mInclination;
 
@@ -339,6 +355,7 @@ public final class GnssAlmanac implements Parcelable {
         private GnssSatelliteAlmanac(Builder builder) {
             Preconditions.checkArgument(builder.mSvid > 0);
             Preconditions.checkArgument(builder.mSvHealth >= 0);
+            Preconditions.checkArgumentInRange(builder.mToaSeconds, 0, 604800, "ToaSeconds");
             Preconditions.checkArgument(builder.mEccentricity >= 0.0f);
             Preconditions.checkArgumentInRange(builder.mInclination, -1.0f, 1.0f, "Inclination");
             Preconditions.checkArgumentInRange(builder.mOmega, -1.0f, 1.0f, "Omega");
@@ -350,6 +367,7 @@ public final class GnssAlmanac implements Parcelable {
             Preconditions.checkArgumentInRange(builder.mAf1, -1.5e-8f, 1.5e-8f, "Af1");
             mSvid = builder.mSvid;
             mSvHealth = builder.mSvHealth;
+            mToaSeconds = builder.mToaSeconds;
             mEccentricity = builder.mEccentricity;
             mInclination = builder.mInclination;
             mOmega = builder.mOmega;
@@ -386,6 +404,13 @@ public final class GnssAlmanac implements Parcelable {
             return mSvHealth;
         }
 
+        /** Returns the almanac reference time in seconds. */
+        @FlaggedApi(Flags.FLAG_SUPPORT_TOA_IN_GNSS_SATELLITE_ALMANAC)
+        @IntRange(from = 0, to = 604800)
+        public int getToaSeconds() {
+            return mToaSeconds;
+        }
+
         /** Returns the eccentricity. */
         @FloatRange(from = 0.0f)
         public double getEccentricity() {
@@ -395,10 +420,11 @@ public final class GnssAlmanac implements Parcelable {
         /**
          * Returns the inclination in semi-circles.
          *
-         * <p>For GPS and Galileo, this is the difference between the inclination angle at reference
-         * time and the nominal inclination in semi-circles.
+         * <p>For GPS, QZSS(QZO) and Galileo, this is the difference between the inclination angle
+         * at reference time and the nominal inclination in semi-circles.
          *
-         * <p>For Beidou and QZSS, this is the inclination angle at reference time in semi-circles.
+         * <p>For Beidou and QZSS(GEO/QGEO), this is the inclination angle at reference time in
+         * semi-circles.
          */
         @FloatRange(from = -1.0f, to = 1.0f)
         public double getInclination() {
@@ -463,6 +489,7 @@ public final class GnssAlmanac implements Parcelable {
         public void writeToParcel(@NonNull Parcel dest, int flags) {
             dest.writeInt(mSvid);
             dest.writeInt(mSvHealth);
+            dest.writeInt(mToaSeconds);
             dest.writeDouble(mEccentricity);
             dest.writeDouble(mInclination);
             dest.writeDouble(mOmega);
@@ -482,6 +509,7 @@ public final class GnssAlmanac implements Parcelable {
                                 new Builder()
                                         .setSvid(in.readInt())
                                         .setSvHealth(in.readInt())
+                                        .setToaSeconds(in.readInt())
                                         .setEccentricity(in.readDouble())
                                         .setInclination(in.readDouble())
                                         .setOmega(in.readDouble())
@@ -505,6 +533,7 @@ public final class GnssAlmanac implements Parcelable {
             StringBuilder builder = new StringBuilder("GnssSatelliteAlmanac[");
             builder.append("svid = ").append(mSvid);
             builder.append(", svHealth = ").append(mSvHealth);
+            builder.append(", toaSeconds = ").append(mToaSeconds);
             builder.append(", eccentricity = ").append(mEccentricity);
             builder.append(", inclination = ").append(mInclination);
             builder.append(", omega = ").append(mOmega);
@@ -522,6 +551,7 @@ public final class GnssAlmanac implements Parcelable {
         public static final class Builder {
             private int mSvid;
             private int mSvHealth;
+            private int mToaSeconds;
             private double mEccentricity;
             private double mInclination;
             private double mOmega;
@@ -559,6 +589,14 @@ public final class GnssAlmanac implements Parcelable {
                 return this;
             }
 
+            /** Sets the almanac reference time in seconds. */
+            @FlaggedApi(Flags.FLAG_SUPPORT_TOA_IN_GNSS_SATELLITE_ALMANAC)
+            @NonNull
+            public Builder setToaSeconds(@IntRange(from = 0, to = 604800) int toaSeconds) {
+                mToaSeconds = toaSeconds;
+                return this;
+            }
+
             /** Sets the eccentricity. */
             @NonNull
             public Builder setEccentricity(@FloatRange(from = 0.0f) double eccentricity) {
@@ -569,11 +607,11 @@ public final class GnssAlmanac implements Parcelable {
             /**
              * Sets the inclination in semi-circles.
              *
-             * <p>For GPS and Galileo, this is the difference between the inclination angle at
-             * reference time and the nominal inclination in semi-circles.
+             * <p>For GPS, QZSS(QZO) and Galileo, this is the difference between the inclination
+             * angle at reference time and the nominal inclination in semi-circles.
              *
-             * <p>For Beidou and QZSS, this is the inclination angle at reference time in
-             * semi-circles.
+             * <p>For Beidou and QZSS(GEO/QGEO), this is the inclination angle at reference time
+             * in semi-circles.
              */
             @NonNull
             public Builder setInclination(@FloatRange(from = -1.0f, to = 1.0f) double inclination) {

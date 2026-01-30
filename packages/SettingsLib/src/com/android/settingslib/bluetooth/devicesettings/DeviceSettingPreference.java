@@ -44,6 +44,8 @@ public abstract class DeviceSettingPreference {
                 return DeviceSettingFooterPreference.readFromParcel(in);
             case DeviceSettingType.DEVICE_SETTING_TYPE_HELP:
                 return DeviceSettingHelpPreference.readFromParcel(in);
+            case DeviceSettingType.DEVICE_SETTING_TYPE_BANNER:
+                return BannerPreference.readFromParcel(in);
             default:
                 return UNKNOWN;
         }

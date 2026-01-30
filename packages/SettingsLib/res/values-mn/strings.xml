@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Холбогдож байна..."</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Холбогдсон<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Хослуулж байна…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Хослуулах боломжгүй байна"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Холбох боломжгүй байна"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Холбогдсон (утас байхгүй)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Холбогдсон (медиа байхгүй)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Холбогдсон (утас эсвэл медиа байхгүй)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"З: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Б: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарей."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Зүүн: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> батарей"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Баруун: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> батарей."</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Гэр: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> батарей"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Зүүн: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, гэр: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарей"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Баруун: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, гэр: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарей"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Зүүн: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, баруун: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарей"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"З: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Г: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, Б: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> батарей"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Зүүн тал <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Баруун тал <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Идэвхтэй"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Идэвхтэй (зөвхөн баруун тал)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Идэвхтэй (зүүн, баруун тал)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Орчин тойрныг шинэчилж чадсангүй"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Урьдчилсан тохируулгыг шинэчилж чадсангүй"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Сонгосон"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Идэвхтэй (зөвхөн медиа). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> батарей."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Идэвхтэй (зөвхөн медиа). З: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Б: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> батарей."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Зочин төхөөрөмж. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> батарейн цэнэгтэй."</string>
@@ -306,7 +315,7 @@
     <string name="wifi_verbose_logging" msgid="1785910450009679371">"Wi‑Fi дэлгэрэнгүй логийг идэвхжүүлэх"</string>
     <string name="wifi_scan_throttling" msgid="2985624788509913617">"Wi‑Fi скан бууруулалт"</string>
     <string name="wifi_non_persistent_mac_randomization" msgid="7482769677894247316">"Wi‑Fi-н байнгын бус MAC-г санамсаргүй байдлаар эмхлэх"</string>
-    <string name="mobile_data_always_on" msgid="8275958101875563572">"Мобайл дата байнга идэвхтэй"</string>
+    <string name="mobile_data_always_on" msgid="8275958101875563572">"Хөдөлгөөнт төхөөрөмжийн дата байнга идэвхтэй"</string>
     <string name="tethering_hardware_offload" msgid="4116053719006939161">"Модем болгох техник хангамжийн хурдасгуур"</string>
     <string name="bluetooth_show_devices_without_names" msgid="923584526471885819">"Нэргүй Bluetooth төхөөрөмжийг харуулах"</string>
     <string name="bluetooth_disable_absolute_volume" msgid="1452342324349203434">"Үнэмлэхүй дууны түвшнийг идэвхгүй болгох"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Энэ горимыг идэвхжүүлсэн үед энэ төхөөрөмжийг MAC-н санамсаргүй байдлаар эмхлэх явцыг идэвхжүүлсэн сүлжээнд холбогдох бүрд үүний MAC хаягийг өөрчилж болзошгүй."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Хязгаартай"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Хязгааргүй"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Логгерын буферын хэмжээ"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Лог хийгчийн буферын хэмжээ"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Лог буфер бүрд ногдох логгерын хэмжээг сонгоно уу"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Нэвтрэгчийн тогтмол санг устгах уу?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Бид байнгын логоор хянаагүй үед таны төхөөрөмжтэй холбоотой нэвтрэгч өгөгдлийг устгах шаардлагатай."</string>
@@ -351,7 +360,7 @@
     <string name="allow_mock_location" msgid="2102650981552527884">"Хуурамч байршлыг зөвшөөрөх"</string>
     <string name="allow_mock_location_summary" msgid="179780881081354579">"Хуурамч байршлыг зөвшөөрөх"</string>
     <string name="debug_view_attributes" msgid="3539609843984208216">"Харах тохируулгын шалгалтыг идэвхжүүлэх"</string>
-    <string name="mobile_data_always_on_summary" msgid="1112156365594371019">"Wi‑Fi идэвхтэй байхад ч гэсэн гар утасны датаг идэвхтэй байлгадаг (сүлжээг түргэн солихын тулд)."</string>
+    <string name="mobile_data_always_on_summary" msgid="1112156365594371019">"Wi‑Fi идэвхтэй байхад ч гэсэн хөдөлгөөнт төхөөрөмжийн датаг идэвхтэй байлгадаг (сүлжээг түргэн солихын тулд)."</string>
     <string name="tethering_hardware_offload_summary" msgid="7801345335142803029">"Модем болгох техник хангамжийн хурдасгуурыг боломжтой тохиолдолд ашиглах"</string>
     <string name="adb_warning_title" msgid="7708653449506485728">"USB дебаг хийхийг зөвшөөрөх үү?"</string>
     <string name="adb_warning_message" msgid="8145270656419669221">"USB дебаг нь зөвхөн хөгжүүлэлтийн зорилготой. Үүнийг өөрийн компьютер болон төхөөрөмжийн хооронд өгөгдөл хуулах, өөрийн төхөөрөмж дээр мэдэгдэлгүйгээр аппликейшн суулгах, лог датаг унших зэрэгт ашиглаж болно."</string>
@@ -393,8 +402,8 @@
     <string name="pointer_location_summary" msgid="957120116989798464">"Дэлгэцийн давхаргаар одоогийн хүрэлтийн өгөгдлийг харуулж байна"</string>
     <string name="show_touches" msgid="8437666942161289025">"Товшилтыг харуулах"</string>
     <string name="show_touches_summary" msgid="3692861665994502193">"Товшилтын визуал хариу үйлдлийг харуулах"</string>
-    <string name="show_key_presses" msgid="6360141722735900214">"Түлхүүрийн даралт харуул"</string>
-    <string name="show_key_presses_summary" msgid="725387457373015024">"Биет түлхүүрийн даралтын визуал хариу үйлдлийг харуул"</string>
+    <string name="show_key_presses" msgid="6360141722735900214">"Товчлуурын даралт харуул"</string>
+    <string name="show_key_presses_summary" msgid="725387457373015024">"Биет товчлуурын даралтын визуал хариу үйлдлийг харуул"</string>
     <string name="touchpad_visualizer" msgid="3707916068870825115">"Мэдрэгч самбарын оролтыг харуулах"</string>
     <string name="touchpad_visualizer_summary" msgid="4056080018119847449">"Дэлгэцэд давхарлах нь мэдрэгч самбарын оролтын өгөгдөл болон танигдсан зангааг үзүүлж байна"</string>
     <string name="show_screen_updates" msgid="2078782895825535494">"Гадаргын шинэчлэлтүүдийг харуулах"</string>
@@ -445,7 +454,7 @@
     <string name="show_notification_channel_warnings" msgid="3448282400127597331">"Мэдэгдлийн сувгийн анхааруулгыг харуулах"</string>
     <string name="show_notification_channel_warnings_summary" msgid="68031143745094339">"Апп хүчинтэй суваггүйгээр мэдэгдэл гаргах үед дэлгэцэд сануулга харуулна"</string>
     <string name="force_allow_on_external" msgid="9187902444231637880">"Аппыг гадаад санах ойд хадгалахыг зөвшөөрөх"</string>
-    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"Манифест утгыг нь үл хамааран дурын апп-г гадаад санах ойд бичих боломжтой болгодог"</string>
+    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"Тодорхойлогч утгыг нь үл хамааран дурын аппыг гадаад санах ойд бичих боломжтой болгодог"</string>
     <string name="force_resizable_activities" msgid="7143612144399959606">"Үйл ажиллагааны хэмжээг өөрчилж болохуйц болгох"</string>
     <string name="force_resizable_activities_summary" msgid="2490382056981583062">"Тодорхойлогч файлын утгыг үл хамааран, бүх үйл ажиллагааны хэмжээг олон цонхонд өөрчилж болохуйц болгоно уу."</string>
     <string name="enable_freeform_support" msgid="7599125687603914253">"Чөлөөт хэлбэрийн цонхыг идэвхжүүлэх"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> өмнө"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> үлдсэн"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Хамгийн жижиг"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Илүү жижиг"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Жижиг"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Өгөгдмөл"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Том"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Илүү том"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Хамгийн том"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Илүү том"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Маш том"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Асар том"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Хамгийн том"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Тогтмол утга (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Цэс"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Үйлдвэрийн тохиргоог демо горимд ажиллуулахын тулд нууц үг оруулна уу"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 төхөөрөмж холбогдсон}other{# төхөөрөмж холбогдсон}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Их хугацаа."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Бага хугацаа."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Томруулах"</string>
     <string name="cancel" msgid="5665114069455378395">"Цуцлах"</string>
     <string name="next" msgid="2699398661093607009">"Дараах"</string>
     <string name="back" msgid="5554327870352703710">"Буцах"</string>
@@ -655,7 +669,7 @@
     <string name="user_grant_admin_message" msgid="1673791931033486709">"Админууд бусад хэрэглэгчид байхгүй тусгай эрхтэй байдаг. Админ нь бүх хэрэглэгчийг удирдах, энэ төхөөрөмжийг шинэчлэх, сэргээх, тохиргоог өөрчлөх, бүх суулгасан аппыг харах болон бусад хэрэглэгчид админы эрх өгөх эсвэл эрхийг нь цуцлах боломжтой."</string>
     <string name="user_grant_admin_button" msgid="5441486731331725756">"Админ болгох"</string>
     <string name="user_setup_dialog_title" msgid="8037342066381939995">"Хэрэглэгчийг одоо тохируулах уу?"</string>
-    <string name="user_setup_dialog_message" msgid="269931619868102841">"Хэрэглэгч төхөөрөмжийг авч өөрийн профайлыг тохируулах боломжтой эсэхийг шалгана уу"</string>
+    <string name="user_setup_dialog_message" msgid="269931619868102841">"Хэрэглэгч төхөөрөмжийг авч өөрийн орон зайг тохируулах боломжтой эсэхийг шалгана уу"</string>
     <string name="user_setup_profile_dialog_message" msgid="4788197052296962620">"Профайлыг одоо тохируулах уу?"</string>
     <string name="user_setup_button_setup_now" msgid="1708269547187760639">"Одоо тохируулах"</string>
     <string name="user_setup_button_setup_later" msgid="8712980133555493516">"Одоо биш"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Хэрэв та <xliff:g id="SWITCHAPP">%1$s</xliff:g>-г нэвтрүүлсэн эсвэл гаралтыг өөрчилсөн бол таны одоогийн нэвтрүүлэлтийг зогсооно"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g>-г нэвтрүүлэх"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Гаралтыг өөрчлөх"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Таамаглах боломжтой буцаах анимаци"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Таамаглах боломжтой буцаах зангаанд системийн анимацийг идэвхжүүлнэ үү."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Энэ тохиргоо нь таамаглах боломжтой зангааны анимацид системийн анимацийг идэвхжүүлнэ. Үүнд апп бүрд тодорхойлогч файлл enableOnBackInvokedCallback-г үнэн болгож тохируулахыг шаардана."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Заагаагүй"</string>
     <string name="neuter" msgid="2075249330106127310">"Саармаг үг"</string>

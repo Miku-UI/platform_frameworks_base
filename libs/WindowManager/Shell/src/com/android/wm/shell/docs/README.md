@@ -1,5 +1,7 @@
 # Window Manager Shell Readme
 
+go/wmshell
+
 The following docs present more detail about the implementation of the WMShell library (in no
 particular order):
 

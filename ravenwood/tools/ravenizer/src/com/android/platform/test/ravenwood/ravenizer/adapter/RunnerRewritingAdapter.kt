@@ -53,7 +53,7 @@ import org.objectweb.asm.tree.ClassNode
  * - Add RavenwoodAwareTestRunner's member rules as junit rules.
  * - Update the order of the existing JUnit rules to make sure they don't use the MIN or MAX.
  */
-class RunnerRewritingAdapter private constructor(
+class RunnerRewritingAdapter(
     protected val classes: ClassNodes,
     nextVisitor: ClassVisitor,
 ) : ClassVisitor(OPCODE_VERSION, nextVisitor) {
@@ -453,18 +453,6 @@ class RunnerRewritingAdapter private constructor(
                 }
             }
             return true
-        }
-
-        fun maybeApply(
-            className: String,
-            classes: ClassNodes,
-            nextVisitor: ClassVisitor,
-        ): ClassVisitor {
-            if (!shouldProcess(classes, className)) {
-                return nextVisitor
-            } else {
-                return RunnerRewritingAdapter(classes, nextVisitor)
-            }
         }
     }
 }

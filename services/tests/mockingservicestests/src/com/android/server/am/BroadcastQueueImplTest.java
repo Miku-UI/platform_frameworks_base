@@ -683,19 +683,6 @@ public final class BroadcastQueueImplTest extends BaseBroadcastQueueTest {
                 List.of(makeMockRegisteredReceiver()), null, false), REASON_CONTAINS_ALARM);
     }
 
-    @DisableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
-    @Test
-    public void testRunnableAt_Cached_Prioritized_NonDeferrable_flagDisabled() {
-        final List receivers = List.of(
-                withPriority(makeManifestReceiver(PACKAGE_RED, PACKAGE_RED), 10),
-                withPriority(makeManifestReceiver(PACKAGE_GREEN, PACKAGE_GREEN), -10));
-        final BroadcastOptions options = BroadcastOptions.makeBasic()
-                .setDeferralPolicy(BroadcastOptions.DEFERRAL_POLICY_NONE);
-        doRunnableAt_Cached(makeBroadcastRecord(makeMockIntent(), options,
-                receivers, null, false), REASON_CONTAINS_PRIORITIZED);
-    }
-
-    @EnableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
     @Test
     public void testRunnableAt_Cached_Prioritized_NonDeferrable() {
         final List receivers = List.of(
@@ -718,7 +705,6 @@ public final class BroadcastQueueImplTest extends BaseBroadcastQueueTest {
                 receivers, mock(IIntentReceiver.class), true), REASON_CONTAINS_ORDERED);
     }
 
-    @EnableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
     @Test
     public void testRunnableAt_Cached_Prioritized_NonDeferrable_changeIdDisabled() {
         doReturn(false).when(mPlatformCompat).isChangeEnabledInternalNoLogging(
@@ -1179,62 +1165,6 @@ public final class BroadcastQueueImplTest extends BaseBroadcastQueueTest {
         verifyPendingRecords(blueQueue, List.of(screenOn));
     }
 
-    @DisableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
-    @SuppressWarnings("GuardedBy")
-    @Test
-    public void testDeliveryGroupPolicy_prioritized_diffReceivers_flagDisabled() {
-        final Intent screenOn = new Intent(Intent.ACTION_SCREEN_ON);
-        final Intent screenOff = new Intent(Intent.ACTION_SCREEN_OFF);
-        final BroadcastOptions screenOnOffOptions = BroadcastOptions.makeBasic()
-                .setDeliveryGroupPolicy(BroadcastOptions.DELIVERY_GROUP_POLICY_MOST_RECENT)
-                .setDeliveryGroupMatchingKey("screenOnOff", Intent.ACTION_SCREEN_ON);
-
-        final Object greenReceiver = withPriority(
-                makeManifestReceiver(PACKAGE_GREEN, CLASS_GREEN), 10);
-        final Object redReceiver = withPriority(
-                makeManifestReceiver(PACKAGE_RED, CLASS_RED), 5);
-        final Object blueReceiver = withPriority(
-                makeManifestReceiver(PACKAGE_BLUE, CLASS_BLUE), 0);
-
-        mImpl.enqueueBroadcastLocked(makeBroadcastRecord(screenOn, screenOnOffOptions,
-                List.of(greenReceiver, blueReceiver), false));
-        mImpl.enqueueBroadcastLocked(makeBroadcastRecord(screenOff, screenOnOffOptions,
-                List.of(greenReceiver, redReceiver, blueReceiver), false));
-        final BroadcastProcessQueue greenQueue = mImpl.getProcessQueue(PACKAGE_GREEN,
-                getUidForPackage(PACKAGE_GREEN));
-        final BroadcastProcessQueue redQueue = mImpl.getProcessQueue(PACKAGE_RED,
-                getUidForPackage(PACKAGE_RED));
-        final BroadcastProcessQueue blueQueue = mImpl.getProcessQueue(PACKAGE_BLUE,
-                getUidForPackage(PACKAGE_BLUE));
-        verifyPendingRecords(greenQueue, List.of(screenOff));
-        verifyPendingRecords(redQueue, List.of(screenOff));
-        verifyPendingRecords(blueQueue, List.of(screenOff));
-
-        assertTrue(greenQueue.isEmpty());
-        assertTrue(redQueue.isEmpty());
-        assertTrue(blueQueue.isEmpty());
-
-        mImpl.enqueueBroadcastLocked(makeBroadcastRecord(screenOff, screenOnOffOptions,
-                List.of(greenReceiver, redReceiver, blueReceiver), false));
-        mImpl.enqueueBroadcastLocked(makeBroadcastRecord(screenOn, screenOnOffOptions,
-                List.of(greenReceiver, blueReceiver), false));
-        verifyPendingRecords(greenQueue, List.of(screenOff, screenOn));
-        verifyPendingRecords(redQueue, List.of(screenOff));
-        verifyPendingRecords(blueQueue, List.of(screenOff, screenOn));
-
-        final BroadcastRecord screenOffRecord = makeBroadcastRecord(screenOff, screenOnOffOptions,
-                List.of(greenReceiver, redReceiver, blueReceiver), false);
-        screenOffRecord.setDeliveryState(2, BroadcastRecord.DELIVERY_DEFERRED,
-                "testDeliveryGroupPolicy_prioritized_diffReceivers_flagDisabled");
-        mImpl.enqueueBroadcastLocked(screenOffRecord);
-        mImpl.enqueueBroadcastLocked(makeBroadcastRecord(screenOn, screenOnOffOptions,
-                List.of(greenReceiver, blueReceiver), false));
-        verifyPendingRecords(greenQueue, List.of(screenOff, screenOn));
-        verifyPendingRecords(redQueue, List.of(screenOff));
-        verifyPendingRecords(blueQueue, List.of(screenOn));
-    }
-
-    @EnableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
     @SuppressWarnings("GuardedBy")
     @Test
     public void testDeliveryGroupPolicy_prioritized_diffReceivers() {
@@ -1289,7 +1219,6 @@ public final class BroadcastQueueImplTest extends BaseBroadcastQueueTest {
         verifyPendingRecords(blueQueue, List.of(screenOn));
     }
 
-    @EnableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
     @SuppressWarnings("GuardedBy")
     @Test
     public void testDeliveryGroupPolicy_prioritized_diffReceivers_changeIdDisabled() {
@@ -1832,45 +1761,6 @@ public final class BroadcastQueueImplTest extends BaseBroadcastQueueTest {
     }
 
     @SuppressWarnings("GuardedBy")
-    @DisableFlags(Flags.FLAG_AVOID_NOTE_OP_AT_ENQUEUE)
-    @Test
-    public void testSkipPolicy_atEnqueueTime_flagDisabled() throws Exception {
-        final Intent userPresent = new Intent(Intent.ACTION_USER_PRESENT);
-        final Object greenReceiver = makeManifestReceiver(PACKAGE_GREEN, CLASS_GREEN);
-        final Object redReceiver = makeManifestReceiver(PACKAGE_RED, CLASS_RED);
-
-        final BroadcastRecord userPresentRecord = makeBroadcastRecord(userPresent,
-                List.of(greenReceiver, redReceiver));
-
-        final Intent timeTick = new Intent(Intent.ACTION_TIME_TICK);
-        final BroadcastRecord timeTickRecord = makeBroadcastRecord(timeTick,
-                List.of(greenReceiver, redReceiver));
-
-        doAnswer(invocation -> {
-            final BroadcastRecord r = invocation.getArgument(0);
-            final Object o = invocation.getArgument(1);
-            if (userPresent.getAction().equals(r.intent.getAction())
-                    && isReceiverEquals(o, greenReceiver)) {
-                return "receiver skipped by test";
-            }
-            return null;
-        }).when(mSkipPolicy).shouldSkipMessage(any(BroadcastRecord.class), any());
-
-        mImpl.enqueueBroadcastLocked(userPresentRecord);
-        mImpl.enqueueBroadcastLocked(timeTickRecord);
-
-        final BroadcastProcessQueue greenQueue = mImpl.getProcessQueue(PACKAGE_GREEN,
-                getUidForPackage(PACKAGE_GREEN));
-        // There should be only one broadcast for green process as the other would have
-        // been skipped.
-        verifyPendingRecords(greenQueue, List.of(timeTick));
-        final BroadcastProcessQueue redQueue = mImpl.getProcessQueue(PACKAGE_RED,
-                getUidForPackage(PACKAGE_RED));
-        verifyPendingRecords(redQueue, List.of(userPresent, timeTick));
-    }
-
-    @SuppressWarnings("GuardedBy")
-    @EnableFlags(Flags.FLAG_AVOID_NOTE_OP_AT_ENQUEUE)
     @Test
     public void testSkipPolicy_atEnqueueTime() throws Exception {
         final Intent userPresent = new Intent(Intent.ACTION_USER_PRESENT);
@@ -1907,103 +1797,6 @@ public final class BroadcastQueueImplTest extends BaseBroadcastQueueTest {
         verifyPendingRecords(redQueue, List.of(userPresent, timeTick));
     }
 
-    @DisableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
-    @Test
-    public void testDeliveryDeferredForCached_flagDisabled() throws Exception {
-        final ProcessRecord greenProcess = makeProcessRecord(makeApplicationInfo(PACKAGE_GREEN));
-        final ProcessRecord redProcess = makeProcessRecord(makeApplicationInfo(PACKAGE_RED));
-
-        final Intent timeTick = new Intent(Intent.ACTION_TIME_TICK);
-        final BroadcastRecord timeTickRecord = makeBroadcastRecord(timeTick,
-                List.of(makeRegisteredReceiver(greenProcess, 0)));
-
-        final Intent batteryChanged = new Intent(Intent.ACTION_BATTERY_CHANGED);
-        final BroadcastOptions optionsBatteryChanged =
-                BroadcastOptions.makeWithDeferUntilActive(true);
-        final BroadcastRecord batteryChangedRecord = makeBroadcastRecord(batteryChanged,
-                optionsBatteryChanged,
-                List.of(makeRegisteredReceiver(greenProcess, 10),
-                        makeRegisteredReceiver(redProcess, 0)),
-                false /* ordered */);
-
-        mImpl.enqueueBroadcastLocked(timeTickRecord);
-        mImpl.enqueueBroadcastLocked(batteryChangedRecord);
-
-        final BroadcastProcessQueue greenQueue = mImpl.getProcessQueue(PACKAGE_GREEN,
-                getUidForPackage(PACKAGE_GREEN));
-        final BroadcastProcessQueue redQueue = mImpl.getProcessQueue(PACKAGE_RED,
-                getUidForPackage(PACKAGE_RED));
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, greenQueue.getRunnableAtReason());
-        assertFalse(greenQueue.shouldBeDeferred());
-        assertEquals(BroadcastProcessQueue.REASON_BLOCKED, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        // Simulate process state change
-        greenQueue.setProcessAndUidState(greenProcess, false /* uidForeground */,
-                true /* processFreezable */);
-        greenQueue.updateDeferredStates(mImpl.mBroadcastConsumerDeferApply,
-                mImpl.mBroadcastConsumerDeferClear);
-
-        assertEquals(BroadcastProcessQueue.REASON_CACHED, greenQueue.getRunnableAtReason());
-        assertTrue(greenQueue.shouldBeDeferred());
-        // Once the broadcasts to green process are deferred, broadcasts to red process
-        // shouldn't be blocked anymore.
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        // All broadcasts to green process should be deferred.
-        greenQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_DEFERRED, r.getDeliveryState(i));
-        }, false /* andRemove */);
-        redQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-
-        final Intent packageChanged = new Intent(Intent.ACTION_PACKAGE_CHANGED);
-        final BroadcastRecord packageChangedRecord = makeBroadcastRecord(packageChanged,
-                List.of(makeRegisteredReceiver(greenProcess, 0)));
-        mImpl.enqueueBroadcastLocked(packageChangedRecord);
-
-        assertEquals(BroadcastProcessQueue.REASON_CACHED, greenQueue.getRunnableAtReason());
-        assertTrue(greenQueue.shouldBeDeferred());
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        // All broadcasts to the green process, including the newly enqueued one, should be
-        // deferred.
-        greenQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_DEFERRED, r.getDeliveryState(i));
-        }, false /* andRemove */);
-        redQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-
-        // Simulate process state change
-        greenQueue.setProcessAndUidState(greenProcess, false /* uidForeground */,
-                false /* processFreezable */);
-        greenQueue.updateDeferredStates(mImpl.mBroadcastConsumerDeferApply,
-                mImpl.mBroadcastConsumerDeferClear);
-
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, greenQueue.getRunnableAtReason());
-        assertFalse(greenQueue.shouldBeDeferred());
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        greenQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-        redQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-    }
-
-    @EnableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
     @SuppressWarnings("GuardedBy")
     @Test
     public void testDeliveryDeferredForCached_changeIdDisabled() throws Exception {
@@ -2104,110 +1897,6 @@ public final class BroadcastQueueImplTest extends BaseBroadcastQueueTest {
         }, false /* andRemove */);
     }
 
-    @DisableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
-    @SuppressWarnings("GuardedBy")
-    @Test
-    public void testDeliveryDeferredForCached_withInfiniteDeferred_flagDisabled() throws Exception {
-        final ProcessRecord greenProcess = makeProcessRecord(makeApplicationInfo(PACKAGE_GREEN));
-        final ProcessRecord redProcess = makeProcessRecord(makeApplicationInfo(PACKAGE_RED));
-
-        final Intent timeTick = new Intent(Intent.ACTION_TIME_TICK);
-        final BroadcastOptions optionsTimeTick = BroadcastOptions.makeWithDeferUntilActive(true);
-        final BroadcastRecord timeTickRecord = makeBroadcastRecord(timeTick, optionsTimeTick,
-                List.of(makeRegisteredReceiver(greenProcess, 0)), false /* ordered */);
-
-        final Intent batteryChanged = new Intent(Intent.ACTION_BATTERY_CHANGED);
-        final BroadcastOptions optionsBatteryChanged =
-                BroadcastOptions.makeWithDeferUntilActive(true);
-        final BroadcastRecord batteryChangedRecord = makeBroadcastRecord(batteryChanged,
-                optionsBatteryChanged,
-                List.of(makeRegisteredReceiver(greenProcess, 10),
-                        makeRegisteredReceiver(redProcess, 0)),
-                false /* ordered */);
-
-        mImpl.enqueueBroadcastLocked(timeTickRecord);
-        mImpl.enqueueBroadcastLocked(batteryChangedRecord);
-
-        final BroadcastProcessQueue greenQueue = mImpl.getProcessQueue(PACKAGE_GREEN,
-                getUidForPackage(PACKAGE_GREEN));
-        final BroadcastProcessQueue redQueue = mImpl.getProcessQueue(PACKAGE_RED,
-                getUidForPackage(PACKAGE_RED));
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, greenQueue.getRunnableAtReason());
-        assertFalse(greenQueue.shouldBeDeferred());
-        assertEquals(BroadcastProcessQueue.REASON_BLOCKED, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        // Simulate process state change
-        greenQueue.setProcessAndUidState(greenProcess, false /* uidForeground */,
-                true /* processFreezable */);
-        greenQueue.updateDeferredStates(mImpl.mBroadcastConsumerDeferApply,
-                mImpl.mBroadcastConsumerDeferClear);
-
-        assertEquals(BroadcastProcessQueue.REASON_CACHED_INFINITE_DEFER,
-                greenQueue.getRunnableAtReason());
-        assertTrue(greenQueue.shouldBeDeferred());
-        // Once the broadcasts to green process are deferred, broadcasts to red process
-        // shouldn't be blocked anymore.
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        // All broadcasts to green process should be deferred.
-        greenQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_DEFERRED, r.getDeliveryState(i));
-        }, false /* andRemove */);
-        redQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-
-        final Intent packageChanged = new Intent(Intent.ACTION_PACKAGE_CHANGED);
-        final BroadcastOptions optionsPackageChanged =
-                BroadcastOptions.makeWithDeferUntilActive(true);
-        final BroadcastRecord packageChangedRecord = makeBroadcastRecord(packageChanged,
-                optionsPackageChanged,
-                List.of(makeRegisteredReceiver(greenProcess, 0)), false /* ordered */);
-        mImpl.enqueueBroadcastLocked(packageChangedRecord);
-
-        assertEquals(BroadcastProcessQueue.REASON_CACHED_INFINITE_DEFER,
-                greenQueue.getRunnableAtReason());
-        assertTrue(greenQueue.shouldBeDeferred());
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        // All broadcasts to the green process, including the newly enqueued one, should be
-        // deferred.
-        greenQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_DEFERRED, r.getDeliveryState(i));
-        }, false /* andRemove */);
-        redQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-
-        // Simulate process state change
-        greenQueue.setProcessAndUidState(greenProcess, false /* uidForeground */,
-                false /* processFreezable */);
-        greenQueue.updateDeferredStates(mImpl.mBroadcastConsumerDeferApply,
-                mImpl.mBroadcastConsumerDeferClear);
-
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, greenQueue.getRunnableAtReason());
-        assertFalse(greenQueue.shouldBeDeferred());
-        assertEquals(BroadcastProcessQueue.REASON_NORMAL, redQueue.getRunnableAtReason());
-        assertFalse(redQueue.shouldBeDeferred());
-
-        greenQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-        redQueue.forEachMatchingBroadcast(BROADCAST_PREDICATE_ANY, (r, i) -> {
-            assertEquals("Unexpected state for " + r,
-                    BroadcastRecord.DELIVERY_PENDING, r.getDeliveryState(i));
-        }, false /* andRemove */);
-    }
-
-    @EnableFlags(Flags.FLAG_LIMIT_PRIORITY_SCOPE)
     @Test
     public void testDeliveryDeferredForCached_withInfiniteDeferred_changeIdDisabled()
             throws Exception {

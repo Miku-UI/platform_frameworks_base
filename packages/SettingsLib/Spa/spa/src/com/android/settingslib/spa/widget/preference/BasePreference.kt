@@ -30,7 +30,7 @@ import com.android.settingslib.spa.widget.ui.SettingsBody
 @Composable
 internal fun BasePreference(
     title: String,
-    summary: () -> String,
+    summary: () -> CharSequence,
     modifier: Modifier = Modifier,
     titleContentDescription: String? = null,
     summaryContentDescription: () -> String? = { null },

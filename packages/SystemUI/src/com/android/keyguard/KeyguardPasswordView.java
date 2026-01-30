@@ -340,8 +340,7 @@ public class KeyguardPasswordView extends KeyguardAbsKeyInputView {
      */
     public void hideKeyboard() {
         post(() -> {
-            if (mPasswordEntry.isAttachedToWindow()
-                    && mPasswordEntry.getRootWindowInsets().isVisible(WindowInsets.Type.ime())) {
+            if (mPasswordEntry.isAttachedToWindow()) {
                 mPasswordEntry.clearFocus();
                 mPasswordEntry.getWindowInsetsController().hide(WindowInsets.Type.ime());
             }

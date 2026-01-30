@@ -60,6 +60,7 @@ import java.util.Arrays;
  * @attr ref android.R.styleable#DrawableStates_state_last
  * @attr ref android.R.styleable#DrawableStates_state_pressed
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class StateListDrawable extends DrawableContainer {
     private static final String TAG = "StateListDrawable";
 

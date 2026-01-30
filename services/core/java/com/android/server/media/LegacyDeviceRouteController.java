@@ -34,12 +34,12 @@ import android.media.AudioRoutesInfo;
 import android.media.IAudioRoutesObserver;
 import android.media.IAudioService;
 import android.media.MediaRoute2Info;
+import android.media.RoutingSessionInfo;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Slog;
 
 import com.android.internal.R;
-import com.android.media.flags.Flags;
 
 import java.util.Collections;
 import java.util.List;
@@ -68,8 +68,7 @@ import java.util.Objects;
     @NonNull
     private final IAudioService mAudioService;
 
-    @NonNull
-    private final OnDeviceRouteChangedListener mOnDeviceRouteChangedListener;
+    @NonNull private final EventListener mEventListener;
     @NonNull
     private final AudioRoutesObserver mAudioRoutesObserver = new AudioRoutesObserver();
 
@@ -78,17 +77,18 @@ import java.util.Objects;
     private int mDeviceVolume;
     private MediaRoute2Info mDeviceRoute;
 
-    /* package */ LegacyDeviceRouteController(@NonNull Context context,
+    /* package */ LegacyDeviceRouteController(
+            @NonNull Context context,
             @NonNull AudioManager audioManager,
             @NonNull IAudioService audioService,
-            @NonNull OnDeviceRouteChangedListener onDeviceRouteChangedListener) {
+            @NonNull EventListener eventListener) {
         Objects.requireNonNull(context);
         Objects.requireNonNull(audioManager);
         Objects.requireNonNull(audioService);
-        Objects.requireNonNull(onDeviceRouteChangedListener);
+        Objects.requireNonNull(eventListener);
 
         mContext = context;
-        mOnDeviceRouteChangedListener = onDeviceRouteChangedListener;
+        mEventListener = eventListener;
 
         mAudioManager = audioManager;
         mAudioService = audioService;
@@ -117,22 +117,54 @@ import java.util.Objects;
     }
 
     @Override
+    public @RoutingSessionInfo.ReleaseType int getSessionReleaseType() {
+        return RoutingSessionInfo.RELEASE_UNSUPPORTED;
+    }
+
+    @Override
+    public void releaseRoutingSession() {
+        // Nothing to do.
+    }
+
+    @Override
     @NonNull
-    public synchronized MediaRoute2Info getSelectedRoute() {
-        return mDeviceRoute;
+    public synchronized List<MediaRoute2Info> getSelectedRoutes() {
+        return List.of(mDeviceRoute);
+    }
+
+    @Override
+    @NonNull
+    public List<MediaRoute2Info> getSelectableRoutes() {
+        // Unsupported.
+        return Collections.emptyList();
+    }
+
+    @Override
+    @NonNull
+    public List<MediaRoute2Info> getDeselectableRoutes() {
+        // Unsupported.
+        return Collections.emptyList();
     }
 
     @Override
     public synchronized List<MediaRoute2Info> getAvailableRoutes() {
-        return Flags.enableFixForEmptySystemRoutesCrash()
-                ? List.of(mDeviceRoute)
-                : Collections.emptyList();
+        return List.of(mDeviceRoute);
     }
 
     @Override
-    public synchronized void transferTo(@Nullable String routeId) {
+    public synchronized void transferTo(long requestId, @Nullable String routeId) {
         // Unsupported. This implementation doesn't support transferable routes (always exposes a
         // single non-bluetooth route).
+    }
+
+    @Override
+    public synchronized void selectRoute(long requestId, @NonNull String routeId) {
+        // Unsupported.
+    }
+
+    @Override
+    public synchronized void deselectRoute(long requestId, @NonNull String routeId) {
+        // Unsupported.
     }
 
     @Override
@@ -147,6 +179,11 @@ import java.util.Objects;
                 .build();
 
         return true;
+    }
+
+    @Override
+    public synchronized void setVolume(long requestId, @NonNull String routeId, int volume) {
+        // Do nothing
     }
 
     private MediaRoute2Info createRouteFromAudioInfo(@Nullable AudioRoutesInfo newRoutes) {
@@ -199,7 +236,7 @@ import java.util.Objects;
     }
 
     private void notifyDeviceRouteUpdate() {
-        mOnDeviceRouteChangedListener.onDeviceRouteChanged();
+        mEventListener.onDeviceRouteChanged();
     }
 
     private class AudioRoutesObserver extends IAudioRoutesObserver.Stub {

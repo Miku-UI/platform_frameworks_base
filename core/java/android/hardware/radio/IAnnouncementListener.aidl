@@ -18,7 +18,7 @@ package android.hardware.radio;
 
 import android.hardware.radio.Announcement;
 
-/** {@hide} */
+/** @hide */
 oneway interface IAnnouncementListener {
     void onListUpdated(in List<Announcement> activeAnnouncements);
 }

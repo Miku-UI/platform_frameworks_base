@@ -21,4 +21,5 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="owner_name" msgid="8713560351570795743">"Eigentümerin"</string>
+    <string name="unnamed_user_name" msgid="6096699110534542980">"Nutzerin"</string>
 </resources>

@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"업데이트"</string>
     <string name="done" msgid="6632441120016885253">"완료"</string>
     <string name="cancel" msgid="1018267193425558088">"취소"</string>
+    <string name="more_details" msgid="3643407086654820243">"세부정보 더보기"</string>
+    <string name="dont_install" msgid="414055123295505225">"설치 안함"</string>
     <string name="installing" msgid="4921993079741206516">"설치 중..."</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> 설치 중…"</string>
     <string name="install_done" msgid="5987363587661783896">"앱이 설치되었습니다."</string>

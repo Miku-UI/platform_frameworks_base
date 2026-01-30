@@ -144,10 +144,15 @@ public final class MediaRoute2ProviderInfo implements Parcelable {
         }
 
         public Builder(@NonNull MediaRoute2ProviderInfo descriptor) {
+            this(descriptor, descriptor.mRoutes);
+        }
+
+        public Builder(@NonNull MediaRoute2ProviderInfo descriptor,
+                ArrayMap<String, MediaRoute2Info> routes) {
             Objects.requireNonNull(descriptor, "descriptor must not be null");
 
             mUniqueId = descriptor.mUniqueId;
-            mRoutes = new ArrayMap<>(descriptor.mRoutes);
+            mRoutes = new ArrayMap<>(routes);
         }
 
         /**

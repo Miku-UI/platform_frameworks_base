@@ -16,6 +16,7 @@
 
 package android.view;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.util.SparseArray;
 import android.util.proto.ProtoOutputStream;
@@ -34,13 +35,15 @@ public interface InsetsAnimationControlRunner {
     /**
      * @return The {@link InsetsType} the animation of this runner controls.
      */
-    @InsetsType int getTypes();
+    @InsetsType
+    int getTypes();
 
     /**
      * @return The {@link InsetsType} the animation of this runner is controlling. This can be
-     *         changed if a control is revoked.
+     * changed if a control is revoked.
      */
-    @InsetsType int getControllingTypes();
+    @InsetsType
+    int getControllingTypes();
 
     /**
      * Notifies {@link InsetsType types} of control are getting revoked.
@@ -52,7 +55,7 @@ public interface InsetsAnimationControlRunner {
      *
      * @param controls An array of {@link InsetsSourceControl} that the caller newly receives.
      */
-    void updateSurfacePosition(SparseArray<InsetsSourceControl> controls);
+    void updateSurfacePosition(@NonNull SparseArray<InsetsSourceControl> controls);
 
     /**
      * Returns {@code true} if this runner will keep playing the animation and updating the surface.
@@ -68,6 +71,7 @@ public interface InsetsAnimationControlRunner {
     /**
      * @return The animation this runner is running.
      */
+    @NonNull
     WindowInsetsAnimation getAnimation();
 
     /**
@@ -80,11 +84,13 @@ public interface InsetsAnimationControlRunner {
     /**
      * @return The animation type this runner is running.
      */
-    @AnimationType int getAnimationType();
+    @AnimationType
+    int getAnimationType();
 
     /**
      * @return The {@link SurfaceParamsApplier} this runner is using.
      */
+    @NonNull
     SurfaceParamsApplier getSurfaceParamsApplier();
 
     /**
@@ -102,14 +108,13 @@ public interface InsetsAnimationControlRunner {
             @LayoutInsetsDuringAnimation int layoutInsetsDuringAnimation);
 
     /**
-     *
      * Export the state of classes that implement this interface into a protocol buffer
      * output stream.
      *
-     * @param proto Stream to write the state to
+     * @param proto   Stream to write the state to
      * @param fieldId FieldId of the implementation class
      */
-    void dumpDebug(ProtoOutputStream proto, long fieldId);
+    void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId);
 
     /**
      * Interface applying given surface operations.
@@ -117,7 +122,7 @@ public interface InsetsAnimationControlRunner {
     interface SurfaceParamsApplier {
 
         SurfaceParamsApplier DEFAULT = params -> {
-            final SurfaceControl.Transaction t = new SurfaceControl.Transaction();
+            final var t = new SurfaceControl.Transaction();
             for (int i = params.length - 1; i >= 0; i--) {
                 SyncRtSurfaceTransactionApplier.applyParams(t, params[i], new float[9]);
             }
@@ -130,7 +135,7 @@ public interface InsetsAnimationControlRunner {
          *
          * @param params The {@link SyncRtSurfaceTransactionApplier.SurfaceParams} to apply.
          */
-        void applySurfaceParams(SyncRtSurfaceTransactionApplier.SurfaceParams... params);
+        void applySurfaceParams(@NonNull SyncRtSurfaceTransactionApplier.SurfaceParams... params);
 
     }
 }

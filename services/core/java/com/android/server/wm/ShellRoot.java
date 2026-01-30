@@ -126,7 +126,7 @@ public class ShellRoot {
         anim.initialize(displayInfo.logicalWidth, displayInfo.logicalHeight,
                 displayInfo.appWidth, displayInfo.appHeight);
         anim.restrictDuration(MAX_ANIMATION_DURATION);
-        anim.scaleCurrentDuration(mDisplayContent.mWmService.getWindowAnimationScaleLocked());
+        anim.scaleCurrentDuration(mDisplayContent.getWindowAnimationScaleLocked());
         final AnimationAdapter adapter = new LocalAnimationAdapter(
                 new WindowAnimationSpec(anim, new Point(0, 0), false /* canSkipFirstFrame */,
                         0 /* windowCornerRadius */),

@@ -38,8 +38,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public abstract class AbstractStatsBase<T> {
 
-    private static final int WRITE_INTERVAL_MS =
-            (PackageManagerService.DEBUG_DEXOPT) ? 0 : 30*60*1000;
+    private static final int WRITE_INTERVAL_MS = 30 * 60 * 1000;
     private final Object mFileLock = new Object();
     private final AtomicLong mLastTimeWritten = new AtomicLong(0);
     private final AtomicBoolean mBackgroundWriteRunning = new AtomicBoolean(false);
@@ -66,8 +65,7 @@ public abstract class AbstractStatsBase<T> {
     }
 
     protected boolean maybeWriteAsync(final T data) {
-        if (SystemClock.elapsedRealtime() - mLastTimeWritten.get() < WRITE_INTERVAL_MS
-            && !PackageManagerService.DEBUG_DEXOPT) {
+        if (SystemClock.elapsedRealtime() - mLastTimeWritten.get() < WRITE_INTERVAL_MS) {
             return false;
         }
 

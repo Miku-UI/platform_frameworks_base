@@ -29,8 +29,6 @@ import android.view.DisplayInfo;
 
 import androidx.test.filters.SmallTest;
 
-import com.android.window.flags.Flags;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ErrorCollector;
@@ -52,7 +50,6 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
 
         verifyStableInsets(di, 0, STATUS_BAR_HEIGHT, 0, NAV_BAR_HEIGHT);
         verifyNonDecorInsets(di, 0, 0, 0, NAV_BAR_HEIGHT);
-        verifyConsistency(di);
     }
 
     @Test
@@ -61,7 +58,6 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
 
         verifyStableInsets(di, 0, STATUS_BAR_HEIGHT, 0, NAV_BAR_HEIGHT);
         verifyNonDecorInsets(di, 0, DISPLAY_CUTOUT_HEIGHT, 0, NAV_BAR_HEIGHT);
-        verifyConsistency(di);
     }
 
     @Test
@@ -76,7 +72,6 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
             verifyStableInsets(di, 0, STATUS_BAR_HEIGHT, 0, NAV_BAR_HEIGHT);
             verifyNonDecorInsets(di, 0, 0, 0, NAV_BAR_HEIGHT);
         }
-        verifyConsistency(di);
     }
 
     @Test
@@ -91,7 +86,6 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
             verifyStableInsets(di, DISPLAY_CUTOUT_HEIGHT, STATUS_BAR_HEIGHT, 0, NAV_BAR_HEIGHT);
             verifyNonDecorInsets(di, DISPLAY_CUTOUT_HEIGHT, 0, 0, NAV_BAR_HEIGHT);
         }
-        verifyConsistency(di);
     }
 
     @Test
@@ -106,7 +100,6 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
             verifyStableInsets(di, 0, STATUS_BAR_HEIGHT, 0, NAV_BAR_HEIGHT);
             verifyNonDecorInsets(di, 0, 0, 0, NAV_BAR_HEIGHT);
         }
-        verifyConsistency(di);
     }
 
     @Test
@@ -121,7 +114,6 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
             verifyStableInsets(di, 0, STATUS_BAR_HEIGHT, DISPLAY_CUTOUT_HEIGHT, NAV_BAR_HEIGHT);
             verifyNonDecorInsets(di, 0, 0, DISPLAY_CUTOUT_HEIGHT, NAV_BAR_HEIGHT);
         }
-        verifyConsistency(di);
     }
 
     @Test
@@ -130,7 +122,6 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
 
         verifyStableInsets(di, 0, STATUS_BAR_HEIGHT, 0, NAV_BAR_HEIGHT);
         verifyNonDecorInsets(di, 0, 0, 0, NAV_BAR_HEIGHT);
-        verifyConsistency(di);
     }
 
     @Test
@@ -139,36 +130,18 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
 
         verifyStableInsets(di, 0, STATUS_BAR_HEIGHT, 0, NAV_BAR_HEIGHT + DISPLAY_CUTOUT_HEIGHT);
         verifyNonDecorInsets(di, 0, 0, 0, NAV_BAR_HEIGHT + DISPLAY_CUTOUT_HEIGHT);
-        verifyConsistency(di);
     }
 
     private void verifyStableInsets(DisplayInfo di, int left, int top,
             int right, int bottom) {
-        if (Flags.insetsDecoupledConfiguration()) {
-            // TODO: update the verification to match the new behavior.
-            return;
-        }
-        mErrorCollector.checkThat("stableInsets", getStableInsets(di),
+        mErrorCollector.checkThat("overrideConfigInsets", getOverrideConfigInsets(di),
                 equalTo(new Rect(left, top, right, bottom)));
     }
 
     private void verifyNonDecorInsets(DisplayInfo di, int left, int top,
             int right, int bottom) {
-        if (Flags.insetsDecoupledConfiguration()) {
-            // TODO: update the verification to match the new behavior.
-            return;
-        }
-        mErrorCollector.checkThat("nonDecorInsets",
-                getNonDecorInsets(di), equalTo(new Rect(left, top, right, bottom)));
-    }
-
-    private void verifyConsistency(DisplayInfo  di) {
-        final DisplayPolicy.DecorInsets.Info info = mDisplayPolicy.getDecorInsetsInfo(
-                di.rotation, di.logicalWidth, di.logicalHeight);
-        verifyConsistency("configDisplay", di, info.mConfigInsets,
-                info.mConfigFrame.width(), info.mConfigFrame.height());
-        verifyConsistency("nonDecorDisplay", di, info.mNonDecorInsets,
-                info.mNonDecorFrame.width(), info.mNonDecorFrame.height());
+        mErrorCollector.checkThat("overrideDecorInsets",
+                getOverrideNonDecorInsets(di), equalTo(new Rect(left, top, right, bottom)));
     }
 
     private void verifyConsistency(String what, DisplayInfo di, Rect insets, int width,
@@ -179,14 +152,14 @@ public class DisplayPolicyInsetsTests extends DisplayPolicyTestsBase {
                 equalTo(di.logicalHeight - insets.top - insets.bottom));
     }
 
-    private Rect getStableInsets(DisplayInfo di) {
+    private Rect getOverrideConfigInsets(DisplayInfo di) {
         return mDisplayPolicy.getDecorInsetsInfo(
-                di.rotation, di.logicalWidth, di.logicalHeight).mConfigInsets;
+                di.rotation, di.logicalWidth, di.logicalHeight).mOverrideConfigInsets;
     }
 
-    private Rect getNonDecorInsets(DisplayInfo di) {
+    private Rect getOverrideNonDecorInsets(DisplayInfo di) {
         return mDisplayPolicy.getDecorInsetsInfo(
-                di.rotation, di.logicalWidth, di.logicalHeight).mNonDecorInsets;
+                di.rotation, di.logicalWidth, di.logicalHeight).mOverrideNonDecorInsets;
     }
 
     private DisplayInfo displayInfoForRotation(int rotation, boolean withDisplayCutout) {

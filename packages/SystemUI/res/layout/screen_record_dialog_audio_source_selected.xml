@@ -24,13 +24,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/screenrecord_audio_label"
-        android:textAppearance="?android:attr/textAppearanceMedium"
-        android:fontFamily="@*android:string/config_headlineFontFamily"
-        android:textColor="?android:attr/textColorPrimary"/>
+        android:textAppearance="@style/TextAppearance.ScreenRecord.SwitchLabel" />
     <TextView
         android:id="@+id/screen_recording_dialog_source_text"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textColor="?android:attr/textColorSecondary"
-        android:textAppearance="?android:attr/textAppearanceSmall"/>
+        android:textAppearance="?android:attr/textAppearanceSmall"
+        android:fontFamily="variable-body-medium"
+        android:textSize="14sp" />
 </LinearLayout>

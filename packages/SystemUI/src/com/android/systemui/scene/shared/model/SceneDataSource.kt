@@ -48,11 +48,6 @@ interface SceneDataSource {
     fun changeScene(toScene: SceneKey, transitionKey: TransitionKey? = null)
 
     /**
-     * Asks for an instant scene switch to [toScene], without an animated transition of any kind.
-     */
-    fun snapToScene(toScene: SceneKey)
-
-    /**
      * Request to show [overlay] so that it animates in from [currentScene] and ends up being
      * visible on screen.
      *
@@ -78,15 +73,20 @@ interface SceneDataSource {
      */
     fun replaceOverlay(from: OverlayKey, to: OverlayKey, transitionKey: TransitionKey? = null)
 
-    /** Asks for [overlay] to be instantly shown, without an animated transition of any kind. */
-    fun instantlyShowOverlay(overlay: OverlayKey)
-
-    /** Asks for [overlay] to be instantly hidden, without an animated transition of any kind. */
-    fun instantlyHideOverlay(overlay: OverlayKey)
-
     /**
      * If currently in a transition between contents, cancel that transition and go back to the
      * pre-transition state.
      */
     fun freezeAndAnimateToCurrentState()
+
+    /**
+     * Asks for an instant switch to [scene] and [overlays].
+     *
+     * The change is instantaneous and not animated; it will be observable in the next frame and
+     * there will be no transition animation.
+     *
+     * When either one of [scene] or [overlays] is `null`, their current value in the scene
+     * transition layout state is used.
+     */
+    fun instantlyTransitionTo(scene: SceneKey? = null, overlays: Set<OverlayKey>? = null)
 }

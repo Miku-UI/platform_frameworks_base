@@ -4,7 +4,7 @@ package junit.runner;
  * execution of a test run. Unlike TestListener,
  * this interface using only primitive objects,
  * making it suitable for remote test execution.
- * {@hide} - Not needed for 1.0 SDK
+ * @hide - Not needed for 1.0 SDK
  */
  public interface TestRunListener {
      /* test status constants*/

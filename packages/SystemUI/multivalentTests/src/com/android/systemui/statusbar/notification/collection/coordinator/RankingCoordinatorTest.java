@@ -48,6 +48,7 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.statusbar.RankingBuilder;
 import com.android.systemui.statusbar.SbnBuilder;
 import com.android.systemui.statusbar.notification.collection.BundleEntry;
+import com.android.systemui.statusbar.notification.collection.BundleSpec;
 import com.android.systemui.statusbar.notification.collection.ListEntry;
 import com.android.systemui.statusbar.notification.collection.NotifPipeline;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
@@ -58,6 +59,7 @@ import com.android.systemui.statusbar.notification.collection.listbuilder.plugga
 import com.android.systemui.statusbar.notification.collection.provider.HighPriorityProvider;
 import com.android.systemui.statusbar.notification.collection.render.NodeController;
 import com.android.systemui.statusbar.notification.collection.render.SectionHeaderController;
+import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -70,6 +72,8 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 @SmallTest
 @RunWith(AndroidJUnit4.class)
@@ -151,6 +155,25 @@ public class RankingCoordinatorTest extends SysuiTestCase {
         setSbnClearable(false);
         mSilentSectioner.onEntriesUpdated(Arrays.asList(listEntry));
         verify(mSilentHeaderController).setClearSectionEnabled(eq(false));
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testSilentHeader_clearableBundle_enableClearSectionTrue() {
+        // Set up bundle with clearable listEntry child
+        BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getNEWS());
+        ListEntry listEntry = new ListEntry(mEntry.getKey(), 0L) {
+            @Nullable
+            @Override
+            public NotificationEntry getRepresentativeEntry() {
+                return mEntry;
+            }
+        };
+        setSbnClearable(true);
+        bundleEntry.addChild(listEntry);
+
+        mSilentSectioner.onEntriesUpdated(Arrays.asList(bundleEntry));
+        verify(mSilentHeaderController).setClearSectionEnabled(eq(true));
     }
 
     @Test
@@ -293,8 +316,9 @@ public class RankingCoordinatorTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testSilentSectioner_accepts_bundle() {
-        BundleEntry bundleEntry = new BundleEntry("testBundleKey");
+        BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getNEWS());
         assertTrue(mSilentSectioner.isInSection(bundleEntry));
     }
 
@@ -306,8 +330,40 @@ public class RankingCoordinatorTest extends SysuiTestCase {
     }
 
     @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testSilentSectionComparator_sortsBundlesByPrefixedKeys() {
+        // This is the sorted order
+        BundleEntry socialBundle = new BundleEntry(BundleSpec.Companion.getSOCIAL_MEDIA());
+        BundleEntry newsBundle = new BundleEntry(BundleSpec.Companion.getNEWS());
+        BundleEntry recsBundle = new BundleEntry(BundleSpec.Companion.getRECOMMENDED());
+        BundleEntry promoBundle = new BundleEntry(BundleSpec.Companion.getPROMOTIONS());
+
+        // Add them in unsorted order
+        List<BundleEntry> bundles = new ArrayList<>(Arrays.asList(
+                promoBundle, newsBundle, socialBundle, recsBundle
+        ));
+        Collections.sort(bundles, mSilentSectioner.getComparator());
+
+        assertEquals("i=0 expected Social", socialBundle, bundles.get(0));
+        assertEquals("i=1 expected News", newsBundle, bundles.get(1));
+        assertEquals("i=2 expected Recs", recsBundle, bundles.get(2));
+        assertEquals("i=3 expected Promo", promoBundle, bundles.get(3));
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
+    public void testSilentSectionComparator_sortsBundlesBeforeNotifs() {
+        BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getSOCIAL_MEDIA());
+        int comparison = mSilentSectioner.getComparator().compare(bundleEntry, mEntry);
+        assertTrue("Expected BundleEntry before NotifEntry (comparison < 0) but was: "
+                        + comparison,
+                comparison < 0);
+    }
+
+    @Test
+    @EnableFlags(NotificationBundleUi.FLAG_NAME)
     public void testMinimizedSectioner_rejectsBundle() {
-        BundleEntry bundleEntry = new BundleEntry("testBundleKey");
+        BundleEntry bundleEntry = new BundleEntry(BundleSpec.Companion.getNEWS());
         assertFalse(mMinimizedSectioner.isInSection(bundleEntry));
     }
 

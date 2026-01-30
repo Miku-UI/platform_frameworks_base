@@ -26,14 +26,14 @@ import androidx.annotation.IdRes
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.test.filters.SmallTest
+import com.android.systemui.LauncherProxyService
+import com.android.systemui.LauncherProxyService.LauncherProxyListener
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.fragments.FragmentHostManager
 import com.android.systemui.fragments.FragmentService
 import com.android.systemui.navigationbar.NavigationModeController
 import com.android.systemui.navigationbar.NavigationModeController.ModeChangedListener
 import com.android.systemui.plugins.qs.QS
-import com.android.systemui.recents.LauncherProxyService
-import com.android.systemui.recents.LauncherProxyService.LauncherProxyListener
 import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController

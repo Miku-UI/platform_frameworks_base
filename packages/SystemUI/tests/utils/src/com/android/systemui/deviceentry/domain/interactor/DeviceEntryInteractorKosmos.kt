@@ -30,13 +30,13 @@ val Kosmos.deviceEntryInteractor by
     Kosmos.Fixture {
         DeviceEntryInteractor(
             applicationScope = applicationCoroutineScope,
-            repository = deviceEntryRepository,
-            authenticationInteractor = authenticationInteractor,
-            sceneInteractor = sceneInteractor,
-            deviceUnlockedInteractor = deviceUnlockedInteractor,
-            alternateBouncerInteractor = alternateBouncerInteractor,
-            dismissCallbackRegistry = dismissCallbackRegistry,
-            sceneBackInteractor = sceneBackInteractor,
-            tableLogBuffer = logcatTableLogBuffer(this, "sceneFrameworkTableLogBuffer"),
+            repository = { deviceEntryRepository },
+            authenticationInteractor = { authenticationInteractor },
+            sceneInteractor = { sceneInteractor },
+            deviceUnlockedInteractor = { deviceUnlockedInteractor },
+            alternateBouncerInteractor = { alternateBouncerInteractor },
+            dismissCallbackRegistry = { dismissCallbackRegistry },
+            sceneBackInteractor = { sceneBackInteractor },
+            tableLogBuffer = { logcatTableLogBuffer(this, "sceneFrameworkTableLogBuffer") },
         )
     }

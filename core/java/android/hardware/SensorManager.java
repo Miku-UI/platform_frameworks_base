@@ -378,7 +378,7 @@ public abstract class SensorManager {
 
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public SensorManager() {
@@ -1469,7 +1469,7 @@ public abstract class SensorManager {
      *                Likewise, when facing east, this angle is &pi;/2, and
      *                when facing west, this angle is -&pi;/2. The range of
      *                values is -&pi; to &pi;.</li>
-     * <li>values[1]: <i>Pitch</i>, angle of rotation about the x axis.
+     * <li>values[1]: <i>Pitch</i>, angle of rotation about the -x axis.
      *                This value represents the angle between a plane parallel
      *                to the device's screen and a plane parallel to the ground.
      *                Assuming that the bottom edge of the device faces the
@@ -1480,7 +1480,7 @@ public abstract class SensorManager {
      *                value represents the angle between a plane perpendicular
      *                to the device's screen and a plane perpendicular to the
      *                ground. Assuming that the bottom edge of the device faces
-     *                the user and that the screen is face-up, tilting the left
+     *                the user and that the screen is face-up, tilting the right
      *                edge of the device toward the ground creates a positive
      *                roll angle. The range of values is -&pi; to &pi;.</li>
      * </ul>

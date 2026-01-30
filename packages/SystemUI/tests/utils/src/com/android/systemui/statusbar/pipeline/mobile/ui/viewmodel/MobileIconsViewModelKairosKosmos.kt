@@ -16,10 +16,11 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel
 
-import com.android.systemui.flags.featureFlagsClassic
+import android.content.applicationContext
 import com.android.systemui.kairos.ActivatedKairosFixture
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.log.table.tableLogBufferFactory
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.airplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.mobileIconsInteractorKairos
 import com.android.systemui.statusbar.pipeline.mobile.ui.mobileViewLogger
@@ -33,6 +34,7 @@ val Kosmos.mobileIconsViewModelKairos by ActivatedKairosFixture {
         interactor = mobileIconsInteractorKairos,
         airplaneModeInteractor = airplaneModeInteractor,
         constants = mock(),
-        flags = featureFlagsClassic,
+        logFactory = tableLogBufferFactory,
+        context = applicationContext,
     )
 }

@@ -31,6 +31,7 @@ import java.util.Objects;
  * if you instead pass the ArcShape to a
  * {@link android.graphics.drawable.ShapeDrawable}.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class ArcShape extends RectShape {
     private final float mStartAngle;
     private final float mSweepAngle;

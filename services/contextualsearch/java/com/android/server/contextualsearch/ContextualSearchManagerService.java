@@ -17,8 +17,11 @@
 package com.android.server.contextualsearch;
 
 import static android.Manifest.permission.ACCESS_CONTEXTUAL_SEARCH;
+import static android.Manifest.permission.START_TASKS_FROM_RECENTS;
 import static android.app.AppOpsManager.OP_ASSIST_SCREENSHOT;
 import static android.app.AppOpsManager.OP_ASSIST_STRUCTURE;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.contextualsearch.ContextualSearchManager.FEATURE_CONTEXTUAL_SEARCH;
 import static android.content.Context.CONTEXTUAL_SEARCH_SERVICE;
 import static android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
@@ -41,6 +44,7 @@ import android.app.AppOpsManager;
 import android.app.assist.AssistContent;
 import android.app.assist.AssistStructure;
 import android.app.contextualsearch.CallbackToken;
+import android.app.contextualsearch.ContextualSearchConfig;
 import android.app.contextualsearch.ContextualSearchManager;
 import android.app.contextualsearch.ContextualSearchState;
 import android.app.contextualsearch.IContextualSearchCallback;
@@ -53,6 +57,9 @@ import android.content.pm.PackageManagerInternal;
 import android.content.pm.ResolveInfo;
 import android.graphics.Bitmap;
 import android.media.AudioManager;
+import android.media.projection.IMediaProjection;
+import android.media.projection.IMediaProjectionManager;
+import android.media.projection.MediaProjectionManager;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.Handler;
@@ -70,8 +77,10 @@ import android.os.UserManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.util.Slog;
+import android.view.Display;
 import android.view.IWindowManager;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
+import android.window.DesktopExperienceFlags;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
@@ -131,7 +140,6 @@ public class ContextualSearchManagerService extends SystemService {
                         final Bundle data,
                         final int activityIndex,
                         final int activityCount) {
-
                     final IContextualSearchCallback callback;
                     synchronized (mLock) {
                         callback = mStateCallback;
@@ -279,26 +287,27 @@ public class ContextualSearchManagerService extends SystemService {
         }
     }
 
-    private Intent getResolvedLaunchIntent(int userId) {
+    @Nullable
+    private Intent getResolvedLaunchIntent(final int userId) {
         synchronized (this) {
-            if(DEBUG) Log.d(TAG, "Attempting to getResolvedLaunchIntent");
+            if (DEBUG) Log.d(TAG, "Attempting to getResolvedLaunchIntent");
             // If mTemporaryPackage is not null, use it to get the ContextualSearch intent.
-            String csPkgName = getContextualSearchPackageName();
+            final String csPkgName = getContextualSearchPackageName();
             if (csPkgName.isEmpty()) {
                 // Return null if csPackageName is not specified.
                 if (DEBUG) Log.w(TAG, "getContextualSearchPackageName is empty");
                 return null;
             }
-            Intent launchIntent = new Intent(
+            final Intent launchIntent = new Intent(
                     ContextualSearchManager.ACTION_LAUNCH_CONTEXTUAL_SEARCH);
             launchIntent.setPackage(csPkgName);
-            ResolveInfo resolveInfo = mContext.getPackageManager().resolveActivityAsUser(
+            final ResolveInfo resolveInfo = mContext.getPackageManager().resolveActivityAsUser(
                     launchIntent, MATCH_DIRECT_BOOT_AWARE | MATCH_DIRECT_BOOT_UNAWARE, userId);
             if (resolveInfo == null) {
-                if (DEBUG) Log.w(TAG, "resolveInfo is null");
+                if (DEBUG) Log.w(TAG, "resolveInfo is null for package: " + csPkgName);
                 return null;
             }
-            ComponentName componentName = resolveInfo.getComponentInfo().getComponentName();
+            final ComponentName componentName = resolveInfo.getComponentInfo().getComponentName();
             if (componentName == null) {
                 if (DEBUG) Log.w(TAG, "componentName is null");
                 return null;
@@ -313,8 +322,9 @@ public class ContextualSearchManagerService extends SystemService {
             android.Manifest.permission.CREATE_USERS,
             android.Manifest.permission.QUERY_USERS
     })
-    private Intent getContextualSearchIntent(int entrypoint, int userId, String callingPackage,
-            CallbackToken mToken) {
+    private Intent getContextualSearchIntent(final int entrypoint,
+            @Nullable final ContextualSearchConfig config, final int userId,
+            final String callingPackage, final CallbackToken token) {
         final Intent launchIntent = getResolvedLaunchIntent(userId);
         if (launchIntent == null) {
             if (DEBUG) Log.w(TAG, "Failed getContextualSearchIntent: launchIntent is null");
@@ -324,24 +334,31 @@ public class ContextualSearchManagerService extends SystemService {
         if (DEBUG) Log.d(TAG, "Launch component: " + launchIntent.getComponent());
         launchIntent.addFlags(FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_NO_ANIMATION
                 | FLAG_ACTIVITY_NO_USER_ACTION | FLAG_ACTIVITY_CLEAR_TASK);
+        if (config != null) {
+            // Add these first to avoid overwriting any extras set below.
+            launchIntent.putExtras(config.getIntentExtras());
+        }
         launchIntent.putExtra(
                 ContextualSearchManager.EXTRA_INVOCATION_TIME_MS,
                 SystemClock.uptimeMillis());
         launchIntent.putExtra(ContextualSearchManager.EXTRA_ENTRYPOINT, entrypoint);
-        launchIntent.putExtra(ContextualSearchManager.EXTRA_TOKEN, mToken);
+        launchIntent.putExtra(ContextualSearchManager.EXTRA_TOKEN, token);
+        if (config != null) {
+            launchIntent.setSourceBounds(config.getSourceBounds());
+        }
         if (Flags.includeAudioPlayingStatus()) {
             launchIntent.putExtra(ContextualSearchManager.EXTRA_IS_AUDIO_PLAYING,
                     mAudioManager.isMusicActive());
         }
-        if (Flags.selfInvocation()) {
+        if (Flags.configParameters()) {
             launchIntent.putExtra(Intent.EXTRA_CALLING_PACKAGE, callingPackage);
         }
-        boolean isAssistDataAllowed = mAtmInternal.isAssistDataAllowed();
+        final boolean isAssistDataAllowed = mAtmInternal.isAssistDataAllowed();
         final List<ActivityAssistInfo> records = mAtmInternal.getTopVisibleActivities();
         final List<IBinder> activityTokens = new ArrayList<>(records.size());
-        ArrayList<String> visiblePackageNames = new ArrayList<>();
+        final ArrayList<String> visiblePackageNames = new ArrayList<>();
         boolean isManagedProfileVisible = false;
-        for (ActivityAssistInfo record : records) {
+        for (final ActivityAssistInfo record : records) {
             // Add the package name to the list only if assist data is allowed.
             if (isAssistDataAllowed) {
                 visiblePackageNames.add(record.getComponentName().getPackageName());
@@ -368,8 +385,10 @@ public class ContextualSearchManagerService extends SystemService {
                 Log.e(TAG, "Could not request assist data", e);
             }
         }
-        final ScreenshotHardwareBuffer shb = mWmInternal.takeContextualSearchScreenshot(
-                (Flags.contextualSearchPreventSelfCapture() ? csUid : -1));
+        final int displayId = getDisplayIdFromConfig(config);
+        if (DEBUG) Log.d(TAG, "Taking contextual search screenshot for displayId=" + displayId);
+        final ScreenshotHardwareBuffer shb =
+                mWmInternal.takeContextualSearchScreenshot(csUid, displayId);
         final Bitmap bm = shb != null ? shb.asBitmap() : null;
         // Now that everything is fetched, putting it in the launchIntent.
         if (bm != null) {
@@ -380,6 +399,13 @@ public class ContextualSearchManagerService extends SystemService {
                 launchIntent.putExtra(ContextualSearchManager.EXTRA_SCREENSHOT, bm.asShared());
             }
         }
+
+        final IMediaProjection mediaProjection = getMediaProjection(csUid, csPackage, displayId);
+        if (mediaProjection != null) {
+            launchIntent.putExtra(MediaProjectionManager.EXTRA_MEDIA_PROJECTION,
+                    mediaProjection.asBinder());
+        }
+
         launchIntent.putExtra(ContextualSearchManager.EXTRA_IS_MANAGED_PROFILE_VISIBLE,
                 isManagedProfileVisible);
         // Only put the list of visible package names if assist data is allowed
@@ -390,28 +416,58 @@ public class ContextualSearchManagerService extends SystemService {
         return launchIntent;
     }
 
-    @RequiresPermission(android.Manifest.permission.START_TASKS_FROM_RECENTS)
-    private int invokeContextualSearchIntent(Intent launchIntent, final int userId) {
+    private IMediaProjection getMediaProjection(final int uid, final String packageName,
+            final int displayId) {
+        if (Flags.contextualSearchMediaProjection()) {
+            return Binder.withCleanCallingIdentity(() -> {
+                final IBinder binder = ServiceManager.getService(Context.MEDIA_PROJECTION_SERVICE);
+                final IMediaProjectionManager mediaProjectionManager =
+                        IMediaProjectionManager.Stub.asInterface(binder);
+                final IMediaProjection mediaProjection = mediaProjectionManager.createProjection(
+                        uid, packageName, MediaProjectionManager.TYPE_SCREEN_CAPTURE, false,
+                        displayId);
+                mediaProjection.setRecordingOverlay(true);
+                return mediaProjection;
+            });
+        } else {
+            return null;
+        }
+    }
+
+    @RequiresPermission(START_TASKS_FROM_RECENTS)
+    private int invokeContextualSearchIntent(final Intent launchIntent, final int userId,
+            @Nullable final ContextualSearchConfig config) {
         // Contextual search starts with a frozen screen - so we launch without
         // any system animations or starting window.
         final ActivityOptions opts = ActivityOptions.makeCustomTaskAnimation(mContext,
                 /* enterResId= */ 0, /* exitResId= */ 0, null, null, null);
         opts.setDisableStartingWindow(true);
+        final int displayId = getDisplayIdFromConfig(config);
+        opts.setLaunchDisplayId(displayId);
+        if (DesktopExperienceFlags.ENABLE_FREEFORM_DISPLAY_LAUNCH_PARAMS.isTrue()) {
+            opts.setLaunchWindowingMode(WINDOWING_MODE_FULLSCREEN);
+        }
         return mAtmInternal.startActivityWithScreenshot(launchIntent,
                 mContext.getPackageName(), Binder.getCallingUid(), Binder.getCallingPid(), null,
                 opts.toBundle(), userId);
     }
 
     private void enforcePermission(@NonNull final String func) {
-        Context ctx = getContext();
+        final Context ctx = getContext();
         if (!(ctx.checkCallingPermission(ACCESS_CONTEXTUAL_SEARCH) == PERMISSION_GRANTED
                 || isCallerTemporary())) {
-            String msg = "Permission Denial: Cannot call " + func + " from pid="
+            final String msg = "Permission Denial: Cannot call " + func + " from pid="
                     + Binder.getCallingPid() + ", uid=" + Binder.getCallingUid();
             throw new SecurityException(msg);
         }
     }
 
+    /**
+     * Check that the calling process has an activity in the foreground.
+     *
+     * @param func The function being called, for logging purposes
+     * @throws SecurityException if the calling process is not in the foreground
+     */
     private void enforceForegroundApp(@NonNull final String func) {
         final int callingUid = Binder.getCallingUid();
         final String callingPackage = mPackageManager.getNameForUid(Binder.getCallingUid());
@@ -430,8 +486,10 @@ public class ContextualSearchManagerService extends SystemService {
         if (!(Binder.getCallingUid() == Process.SHELL_UID
                 || Binder.getCallingUid() == Process.ROOT_UID
                 || Binder.getCallingUid() == Process.SYSTEM_UID)) {
-            String msg = "Permission Denial: Cannot override Contextual Search. Called " + func
-                    + " from pid=" + Binder.getCallingPid() + ", uid=" + Binder.getCallingUid();
+            final String msg =
+                    "Permission Denial: Cannot override Contextual Search. Called " + func
+                            + " from pid=" + Binder.getCallingPid()
+                            + ", uid=" + Binder.getCallingUid();
             throw new SecurityException(msg);
         }
     }
@@ -444,10 +502,18 @@ public class ContextualSearchManagerService extends SystemService {
         }
     }
 
+    private static int getDisplayIdFromConfig(@Nullable final ContextualSearchConfig config) {
+        if (config == null || config.getDisplayId() == Display.INVALID_DISPLAY) {
+            return Display.DEFAULT_DISPLAY;
+        }
+        return config.getDisplayId();
+    }
+
     private class ContextualSearchManagerStub extends IContextualSearchManager.Stub {
         @GuardedBy("this")
         private Handler mTokenHandler;
         private @Nullable CallbackToken mToken;
+        private @Nullable ContextualSearchConfig mConfig;
 
         private void invalidateToken() {
             synchronized (this) {
@@ -457,12 +523,14 @@ public class ContextualSearchManagerService extends SystemService {
                 }
                 if (DEBUG) Log.d(TAG, "mToken invalidated.");
                 mToken = null;
+                mConfig = null;
             }
         }
 
-        private void issueToken() {
+        private void issueToken(@Nullable final ContextualSearchConfig config) {
             synchronized (this) {
                 mToken = new CallbackToken();
+                mConfig = config;
                 if (mTokenHandler == null) {
                     mTokenHandler = new Handler(Looper.getMainLooper(), null, true) {
                         @Override
@@ -483,40 +551,76 @@ public class ContextualSearchManagerService extends SystemService {
         }
 
         @Override
-        public void startContextualSearchForForegroundApp() {
+        public boolean isContextualSearchAvailable() {
+            return mContext.getPackageManager().hasSystemFeature(FEATURE_CONTEXTUAL_SEARCH)
+                    && getResolvedLaunchIntent(Binder.getCallingUserHandle().getIdentifier())
+                            != null;
+        }
+
+        @Override
+        @RequiresPermission(START_TASKS_FROM_RECENTS)
+        public void startContextualSearchForActivity(@NonNull final IBinder activityToken,
+                @Nullable ContextualSearchConfig config) {
             synchronized (this) {
                 if (DEBUG) {
                     Log.d(TAG, "Starting contextual search from: "
-                            + mPackageManager.getNameForUid(Binder.getCallingUid()));
+                            + mPackageManager.getNameForUid(Binder.getCallingUid())
+                            + ", config: " + config);
                 }
-                enforceForegroundApp("startContextualSearchForForegroundApp");
-                startContextualSearchInternal(INTERNAL_ENTRYPOINT_APP);
+                enforceForegroundApp("startContextualSearchForActivity");
+                // If a display ID is not specified, use the display of the activity.
+                if (Flags.configParameters()
+                        && (config == null || config.getDisplayId() == Display.INVALID_DISPLAY)) {
+                    final ContextualSearchConfig.Builder builder =
+                            config != null ? new ContextualSearchConfig.Builder(config)
+                                    : new ContextualSearchConfig.Builder();
+                    int displayId = mAtmInternal.getDisplayId(activityToken);
+                    if (displayId == Display.INVALID_DISPLAY) {
+                        Log.e(TAG, "Invalid display id for activity token: " + activityToken);
+                        displayId = Display.DEFAULT_DISPLAY;
+                    }
+                    builder.setDisplayId(displayId);
+                    config = builder.build();
+                }
+                startContextualSearchInternal(INTERNAL_ENTRYPOINT_APP, config);
             }
         }
 
         @Override
-        public void startContextualSearch(int entrypoint) {
+        @RequiresPermission(allOf = {START_TASKS_FROM_RECENTS, ACCESS_CONTEXTUAL_SEARCH})
+        public void startContextualSearch(final int entrypoint,
+                @Nullable ContextualSearchConfig config) {
             synchronized (this) {
-                if (DEBUG) Log.d(TAG, "startContextualSearch entrypoint: " + entrypoint);
+                if (DEBUG) {
+                    Log.d(TAG, "startContextualSearch entrypoint: " + entrypoint
+                            + ", config: " + config);
+                }
                 enforcePermission("startContextualSearch");
-                startContextualSearchInternal(entrypoint);
+                if (Flags.configParameters() && config == null) {
+                    config = new ContextualSearchConfig.Builder().build();
+                }
+                startContextualSearchInternal(entrypoint, config);
             }
         }
 
-        private void startContextualSearchInternal(int entrypoint) {
+        // TODO(b/371552433): Make config @NonNull when the config_parameters flag is cleaned up.
+        @RequiresPermission(START_TASKS_FROM_RECENTS)
+        private void startContextualSearchInternal(final int entrypoint,
+                                                   @Nullable final ContextualSearchConfig config) {
             final String callingPackage = mPackageManager.getNameForUid(Binder.getCallingUid());
             final int callingUserId = Binder.getCallingUserHandle().getIdentifier();
             mAssistDataRequester.cancel();
             // Creates a new CallbackToken at mToken and an expiration handler.
-            issueToken();
+            issueToken(config);
             // We get the launch intent with the system server's identity because the system
             // server has READ_FRAME_BUFFER permission to get the screenshot and because only
             // the system server can invoke non-exported activities.
             Binder.withCleanCallingIdentity(() -> {
-                Intent launchIntent = getContextualSearchIntent(entrypoint, callingUserId,
-                            callingPackage, mToken);
+                final Intent launchIntent = getContextualSearchIntent(entrypoint, config,
+                        callingUserId, callingPackage, mToken);
                 if (launchIntent != null) {
-                    int result = invokeContextualSearchIntent(launchIntent, callingUserId);
+                    final int result =
+                            invokeContextualSearchIntent(launchIntent, callingUserId, config);
                     if (DEBUG) {
                         Log.d(TAG, "Launch intent: " + launchIntent);
                         Log.d(TAG, "Launch result: " + result);
@@ -527,8 +631,8 @@ public class ContextualSearchManagerService extends SystemService {
 
         @Override
         public void getContextualSearchState(
-                @NonNull IBinder token,
-                @NonNull IContextualSearchCallback callback) {
+                @NonNull final IBinder token,
+                @NonNull final IContextualSearchCallback callback) {
             if (DEBUG) {
                 Log.i(TAG, "getContextualSearchState token: " + token + ", callback: " + callback);
             }
@@ -544,24 +648,34 @@ public class ContextualSearchManagerService extends SystemService {
                 }
                 return;
             }
+
+            final ContextualSearchConfig config = mConfig;
             invalidateToken();
             if (Flags.enableTokenRefresh()) {
-                issueToken();
-                Bundle bundle = new Bundle();
+                issueToken(config);
+                final Bundle bundle = new Bundle();
                 bundle.putParcelable(ContextualSearchManager.EXTRA_TOKEN, mToken);
+
                 // We get take the screenshot with the system server's identity because the system
                 // server has READ_FRAME_BUFFER permission to get the screenshot.
                 final int callingUid = Binder.getCallingUid();
+                final int displayId = getDisplayIdFromConfig(config);
+                final IMediaProjection mediaProjection = getMediaProjection(callingUid,
+                        getContextualSearchPackageName(), displayId);
                 Binder.withCleanCallingIdentity(() -> {
                     final ScreenshotHardwareBuffer shb =
-                            mWmInternal.takeContextualSearchScreenshot(
-                               (Flags.contextualSearchPreventSelfCapture() ? callingUid : -1));
+                            mWmInternal.takeContextualSearchScreenshot(callingUid, displayId);
                     final Bitmap bm = shb != null ? shb.asBitmap() : null;
                     if (bm != null) {
                         bundle.putParcelable(ContextualSearchManager.EXTRA_SCREENSHOT,
                                 bm.asShared());
                         bundle.putBoolean(ContextualSearchManager.EXTRA_FLAG_SECURE_FOUND,
                                 shb.containsSecureLayers());
+                    }
+
+                    if (mediaProjection != null) {
+                        bundle.putBinder(MediaProjectionManager.EXTRA_MEDIA_PROJECTION,
+                                mediaProjection.asBinder());
                     }
                     try {
                         callback.onResult(

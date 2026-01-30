@@ -17,7 +17,6 @@ package android.database;
 
 import android.database.sqlite.SQLiteException;
 import android.os.Parcel;
-import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.Base64;
 
 import java.text.DecimalFormat;
@@ -27,7 +26,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-@RavenwoodKeepWholeClass
 class CursorWindow_ravenwood {
 
     private static final HashMap<Long, CursorWindow_ravenwood> sInstances = new HashMap<>();

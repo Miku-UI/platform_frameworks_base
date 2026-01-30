@@ -16,15 +16,26 @@
 
 package com.android.server.input;
 
+import static android.Manifest.permission.CAPTURE_KEYBOARD;
+import static android.Manifest.permission.OVERRIDE_SYSTEM_KEY_BEHAVIOR_IN_FOCUSED_WINDOW;
+import static android.content.PermissionChecker.PERMISSION_GRANTED;
+import static android.content.PermissionChecker.PID_UNKNOWN;
 import static android.content.pm.PackageManager.FEATURE_LEANBACK;
 import static android.content.pm.PackageManager.FEATURE_WATCH;
 import static android.os.UserManager.isVisibleBackgroundUsersEnabled;
 import static android.view.Display.DEFAULT_DISPLAY;
+import static android.view.WindowManager.ScreenshotSource.SCREENSHOT_KEY_CHORD;
+import static android.view.WindowManager.ScreenshotSource.SCREENSHOT_KEY_OTHER;
 import static android.view.WindowManagerPolicyConstants.FLAG_INTERACTIVE;
+import static android.window.DesktopExperienceFlags.TOGGLE_FULLSCREEN_STATE_VIA_FULLSCREEN_KEY;
 
 import static com.android.hardware.input.Flags.enableNew25q2Keycodes;
+import static com.android.hardware.input.Flags.fixSearchModifierFallbacks;
+import static com.android.internal.config.sysui.SystemUiDeviceConfigFlags.SCREENSHOT_KEYCHORD_DELAY;
 
 import android.annotation.BinderThread;
+import android.annotation.IntDef;
+import android.annotation.LongDef;
 import android.annotation.MainThread;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -32,6 +43,7 @@ import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
 import android.content.ContentResolver;
 import android.content.Context;
+import android.content.PermissionChecker;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.database.ContentObserver;
@@ -43,7 +55,6 @@ import android.hardware.input.IKeyGestureEventListener;
 import android.hardware.input.IKeyGestureHandler;
 import android.hardware.input.InputGestureData;
 import android.hardware.input.InputManager;
-import android.hardware.input.InputSettings;
 import android.hardware.input.KeyGestureEvent;
 import android.os.Handler;
 import android.os.IBinder;
@@ -53,6 +64,7 @@ import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
 import android.os.UserHandle;
+import android.provider.DeviceConfig;
 import android.provider.Settings;
 import android.util.IndentingPrintWriter;
 import android.util.Log;
@@ -64,25 +76,35 @@ import android.view.InputDevice;
 import android.view.KeyCharacterMap;
 import android.view.KeyEvent;
 import android.view.ViewConfiguration;
+import android.view.WindowManager;
+import android.widget.Toast;
 
 import com.android.internal.R;
 import com.android.internal.accessibility.AccessibilityShortcutController;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.policy.IShortcutService;
+import com.android.internal.policy.KeyInterceptionInfo;
+import com.android.internal.util.ScreenshotHelper;
+import com.android.internal.util.ScreenshotRequest;
 import com.android.server.LocalServices;
+import com.android.server.UiThread;
+import com.android.server.input.data.InputDataStore;
 import com.android.server.pm.UserManagerInternal;
-import com.android.server.policy.KeyCombinationManager;
+import com.android.server.wm.WindowManagerInternal;
 
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -108,6 +130,8 @@ final class KeyGestureController {
     private static final int MSG_PERSIST_CUSTOM_GESTURES = 2;
     private static final int MSG_LOAD_CUSTOM_GESTURES = 3;
     private static final int MSG_ACCESSIBILITY_SHORTCUT = 4;
+    private static final int MSG_SCREENSHOT_SHORTCUT = 5;
+    private static final int MSG_EXIT_FOCUSED_APP = 6;
 
     // must match: config_settingsKeyBehavior in config.xml
     private static final int SETTINGS_KEY_BEHAVIOR_SETTINGS_ACTIVITY = 0;
@@ -125,12 +149,67 @@ final class KeyGestureController {
     static final int POWER_VOLUME_UP_BEHAVIOR_MUTE = 1;
     static final int POWER_VOLUME_UP_BEHAVIOR_GLOBAL_ACTIONS = 2;
 
+    // Screenshot trigger states
+    // Increase the chord delay when taking a screenshot from the keyguard
+    private static final float KEYGUARD_SCREENSHOT_CHORD_DELAY_MULTIPLIER = 2.5f;
+
+    // Duration to long press escape to exit application when app is capturing keyboard keys
+    private static final long LONG_PRESS_DURATION_FOR_EXIT_APP_MS = 1000;
+
+    @LongDef(prefix = {"KEY_INTERCEPT_RESULT_"}, value = {
+            KEY_INTERCEPT_RESULT_NOT_CONSUMED_GO_FALLBACK,
+            KEY_INTERCEPT_RESULT_CONSUMED,
+            KEY_INTERCEPT_RESULT_NOT_CONSUMED
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    private @interface KeyInterceptResult {
+    }
+
+    private static final long KEY_INTERCEPT_RESULT_NOT_CONSUMED_GO_FALLBACK = -2;
+    static final long KEY_INTERCEPT_RESULT_CONSUMED = -1;
+    static final long KEY_INTERCEPT_RESULT_NOT_CONSUMED = 0;
+
+    @IntDef(prefix = {"INTERCEPT_STAGE"}, value = {
+            INTERCEPT_STAGE_SHORTCUTS_BEFORE_KEY_CAPTURE,
+            INTERCEPT_STAGE_SHORTCUTS_AFTER_KEY_CAPTURE,
+            INTERCEPT_STAGE_UNHANDLED_SHORTCUTS
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    private @interface InterceptStage {
+    }
+
+    private static final int INTERCEPT_STAGE_SHORTCUTS_BEFORE_KEY_CAPTURE = 0;
+    private static final int INTERCEPT_STAGE_SHORTCUTS_AFTER_KEY_CAPTURE = 1;
+    private static final int INTERCEPT_STAGE_UNHANDLED_SHORTCUTS = 2;
+
+    private final Map<Integer, InterceptKeyStage> mInterceptStages = Map.of(
+            INTERCEPT_STAGE_SHORTCUTS_BEFORE_KEY_CAPTURE, new InterceptKeyStage() {
+                @Override
+                protected boolean onKeyEvent(@Nullable IBinder focus, @NonNull KeyEvent event) {
+                    return interceptShortcutsBeforeKeyCapture(focus, event);
+                }
+            },
+            INTERCEPT_STAGE_SHORTCUTS_AFTER_KEY_CAPTURE, new InterceptKeyStage() {
+                @Override
+                protected boolean onKeyEvent(@Nullable IBinder focus, @NonNull KeyEvent event) {
+                    return interceptShortcutsAfterKeyCapture(focus, event);
+                }
+            },
+            INTERCEPT_STAGE_UNHANDLED_SHORTCUTS, new InterceptKeyStage() {
+                @Override
+                protected boolean onKeyEvent(@Nullable IBinder focus, @NonNull KeyEvent event) {
+                    return interceptUnhandledShortcuts(focus, event);
+                }
+            }
+    );
+
     private final Context mContext;
     private InputManagerService.WindowManagerCallbacks mWindowManagerCallbacks;
     private final Handler mHandler;
     private final Handler mIoHandler;
     private final int mSystemPid;
     private final KeyCombinationManager mKeyCombinationManager;
+    private final ScreenshotHelper mScreenshotHelper;
     private final SettingsObserver mSettingsObserver;
     private final AppLaunchShortcutManager mAppLaunchShortcutManager;
     @VisibleForTesting
@@ -178,10 +257,8 @@ final class KeyGestureController {
 
     private final ArrayDeque<KeyGestureEvent> mLastHandledEvents = new ArrayDeque<>();
 
-    /** Currently fully consumed key codes per device */
-    private final SparseArray<Set<Integer>> mConsumedKeysForDevice = new SparseArray<>();
-
     private final UserManagerInternal mUserManagerInternal;
+    private WindowManagerInternal mWindowManagerInternal;
 
     private final boolean mVisibleBackgroundUsersEnabled = isVisibleBackgroundUsersEnabled();
 
@@ -198,6 +275,7 @@ final class KeyGestureController {
         mIoHandler = new Handler(ioLooper, this::handleIoMessage);
         mSystemPid = Process.myPid();
         mKeyCombinationManager = new KeyCombinationManager(mHandler);
+        mScreenshotHelper = injector.getScreenshotHelper(mContext);
         mSettingsObserver = new SettingsObserver(mHandler);
         mAppLaunchShortcutManager = new AppLaunchShortcutManager(mContext);
         mInputGestureManager = new InputGestureManager(mContext);
@@ -243,9 +321,6 @@ final class KeyGestureController {
     }
 
     private void initKeyCombinationRules() {
-        if (!InputSettings.doesKeyGestureEventHandlerSupportMultiKeyGestures()) {
-            return;
-        }
         // TODO(b/358569822): Handle Power, Back key properly since key combination gesture is
         //  captured here and rest of the Power, Back key behaviors are handled in PWM
         final boolean screenshotChordEnabled = mContext.getResources().getBoolean(
@@ -441,6 +516,7 @@ final class KeyGestureController {
     }
 
     public void systemRunning() {
+        mWindowManagerInternal = LocalServices.getService(WindowManagerInternal.class);
         mSettingsObserver.observe();
         mAppLaunchShortcutManager.init();
         mInputGestureManager.init(mAppLaunchShortcutManager.getBookmarks());
@@ -458,31 +534,18 @@ final class KeyGestureController {
     private void initKeyGestures() {
         InputManager im = Objects.requireNonNull(mContext.getSystemService(InputManager.class));
         im.registerKeyGestureEventHandler(
-                List.of(KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_SHORTCUT_CHORD),
-                (event, focusedToken) -> {
-                    if (event.getKeyGestureType()
-                            == KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_SHORTCUT_CHORD) {
-                        if (event.getAction() == KeyGestureEvent.ACTION_GESTURE_START) {
-                            mHandler.removeMessages(MSG_ACCESSIBILITY_SHORTCUT);
-                            mHandler.sendMessageDelayed(
-                                    mHandler.obtainMessage(MSG_ACCESSIBILITY_SHORTCUT),
-                                    getAccessibilityShortcutTimeout());
-                        } else {
-                            mHandler.removeMessages(MSG_ACCESSIBILITY_SHORTCUT);
-                        }
-                    } else {
-                        Log.w(TAG, "Received a key gesture " + event
-                                + " that was not registered by this handler");
-                    }
-                });
+                List.of(KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_SHORTCUT_CHORD,
+                        KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_SHORTCUT,
+                        KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT,
+                        KeyGestureEvent.KEY_GESTURE_TYPE_SCREENSHOT_CHORD),
+                new LocalKeyGestureEventHandler());
     }
 
     public boolean interceptKeyBeforeQueueing(KeyEvent event, int policyFlags) {
         if (mVisibleBackgroundUsersEnabled && shouldIgnoreKeyEventForVisibleBackgroundUser(event)) {
             return false;
         }
-        if (InputSettings.doesKeyGestureEventHandlerSupportMultiKeyGestures()
-                && (event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
+        if ((event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
             final boolean interactive = (policyFlags & FLAG_INTERACTIVE) != 0;
             final boolean isDefaultDisplayOn = isDefaultDisplayOn();
             return mKeyCombinationManager.interceptKey(event, interactive && isDefaultDisplayOn);
@@ -508,64 +571,30 @@ final class KeyGestureController {
         return false;
     }
 
-    public long interceptKeyBeforeDispatching(IBinder focusedToken, KeyEvent event,
-            int policyFlags) {
-        // TODO(b/358569822): Handle shortcuts trigger logic here and pass it to appropriate
-        //  KeyGestureHandler (PWM is one of the handlers)
-        final int keyCode = event.getKeyCode();
-        final int deviceId = event.getDeviceId();
-        final int flags = event.getFlags();
-        final long keyConsumed = -1;
-        final long keyNotConsumed = 0;
-
-        if (InputSettings.doesKeyGestureEventHandlerSupportMultiKeyGestures()) {
-            if (mKeyCombinationManager.isKeyConsumed(event)) {
-                return keyConsumed;
-            }
-
-            if ((flags & KeyEvent.FLAG_FALLBACK) == 0) {
-                final long now = SystemClock.uptimeMillis();
-                final long interceptTimeout = mKeyCombinationManager.getKeyInterceptTimeout(
-                        keyCode);
-                if (now < interceptTimeout) {
-                    return interceptTimeout - now;
-                }
-            }
-        }
-
-        Set<Integer> consumedKeys = mConsumedKeysForDevice.get(deviceId);
-        if (consumedKeys == null) {
-            consumedKeys = new HashSet<>();
-            mConsumedKeysForDevice.put(deviceId, consumedKeys);
-        }
-
-        if (interceptSystemKeysAndShortcuts(focusedToken, event)
-                && event.getAction() == KeyEvent.ACTION_DOWN && event.getRepeatCount() == 0) {
-            consumedKeys.add(keyCode);
-            return keyConsumed;
-        }
-
-        boolean needToConsumeKey = consumedKeys.contains(keyCode);
-        if (event.getAction() == KeyEvent.ACTION_UP || event.isCanceled()) {
-            consumedKeys.remove(keyCode);
-            if (consumedKeys.isEmpty()) {
-                mConsumedKeysForDevice.remove(deviceId);
-            }
-        }
-
-        return needToConsumeKey ? keyConsumed : keyNotConsumed;
+    // Need to handle multi-key combinations before providing keys to A11y services like
+    // talkback, etc.
+    public long interceptKeyCombinationBeforeAccessibility(@NonNull KeyEvent event) {
+        return interceptMultiKeyCombination(event);
     }
 
-    @SuppressLint("MissingPermission")
-    private boolean interceptSystemKeysAndShortcuts(IBinder focusedToken, KeyEvent event) {
+    // Shortcut handling stages:
+    // 1. Before key capture
+    //     - All Meta key shortcuts with "allowCaptureByFocusedWindow" set to false
+    //     - Special system keys (Functional row keys) that can't be captured by focussed window
+    // 2. After key capture
+    //     - All Meta key shortcuts
+    //     - System keys that can be captured by focussed window
+    //     - App launch bookmarks
+    //     - Custom shortcuts added by the user
+    //     - Stateful shortcuts (Alt+Tab: Recents, Meta: App drawer, Alt+Meta: Caps lock toggle)
+    // 3. Unhandled keys by apps (Can reach here if key capture is on and app doesn't consume)
+    //     - All Meta key shortcuts
+    //     - System keys that can be captured by focussed window
+    //     - App launch bookmarks
+    //     - Custom shortcuts added by the user
+    //     - All non-Meta system shortcuts like Ctrl+Space, etc.
+    public long interceptKeyBeforeDispatching(IBinder focus, KeyEvent event, int policyFlags) {
         final int keyCode = event.getKeyCode();
-        final int repeatCount = event.getRepeatCount();
-        final int metaState = event.getMetaState() & SHORTCUT_META_MASK;
-        final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-        final boolean canceled = event.isCanceled();
-        final int displayId = event.getDisplayId();
-        final int deviceId = event.getDeviceId();
-        final boolean firstDown = down && repeatCount == 0;
 
         // Cancel any pending meta actions if we see any other keys being pressed between the
         // down of the meta key and its corresponding up.
@@ -577,25 +606,106 @@ final class KeyGestureController {
             mPendingCapsLockToggle = false;
         }
 
-        // Handle App launch shortcuts
-        AppLaunchShortcutManager.InterceptKeyResult result = mAppLaunchShortcutManager.interceptKey(
-                event);
-        if (result.consumed()) {
-            return true;
-        }
-        if (result.appLaunchData() != null) {
-            handleKeyGesture(deviceId, new int[]{keyCode}, metaState,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_APPLICATION,
-                    KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId, focusedToken, /* flags = */
-                    0, result.appLaunchData());
-            return true;
+        // Multi-key shortcuts should never be blocked by any focused window configuration
+        long result = interceptMultiKeyCombination(event);
+        if (result != KEY_INTERCEPT_RESULT_NOT_CONSUMED) {
+            return result;
         }
 
-        // Handle system shortcuts
+        // TODO(b/358569822) Remove below once we have nicer API for listening to shortcuts
+        if ((event.isMetaPressed() || KeyEvent.isMetaKey(event.getKeyCode()))
+                && shouldInterceptShortcuts(focus)) {
+            return KEY_INTERCEPT_RESULT_NOT_CONSUMED;
+        }
+
+        // Capture shortcuts and system keys that should not be sent to focused window
+        if (mInterceptStages.get(INTERCEPT_STAGE_SHORTCUTS_BEFORE_KEY_CAPTURE).interceptKey(focus,
+                event)) {
+            return KEY_INTERCEPT_RESULT_CONSUMED;
+        }
+
+        // Allow focused window to capture key events
+        if (canFocusedWindowCaptureKeys(focus)) {
+            return KEY_INTERCEPT_RESULT_NOT_CONSUMED;
+        }
+
+        // Capture shortcuts and system keys if focused window is not capturing keys
+        if (mInterceptStages.get(INTERCEPT_STAGE_SHORTCUTS_AFTER_KEY_CAPTURE).interceptKey(focus,
+                event)) {
+            return KEY_INTERCEPT_RESULT_CONSUMED;
+        }
+        if (event.isMetaPressed()) {
+            if (fixSearchModifierFallbacks() ) {
+                // If the key has not been consumed and includes the meta key, do not send the event
+                // to the app and attempt to generate a fallback.
+                final KeyCharacterMap kcm = event.getKeyCharacterMap();
+                final KeyCharacterMap.FallbackAction fallbackAction =
+                        kcm.getFallbackAction(event.getKeyCode(), event.getMetaState());
+                if (fallbackAction != null) {
+                    return KEY_INTERCEPT_RESULT_NOT_CONSUMED_GO_FALLBACK;
+                }
+            }
+            return KEY_INTERCEPT_RESULT_CONSUMED;
+        }
+        return KEY_INTERCEPT_RESULT_NOT_CONSUMED;
+    }
+
+    private long interceptMultiKeyCombination(@NonNull KeyEvent event) {
+        if (mKeyCombinationManager.isKeyConsumed(event)) {
+            return KEY_INTERCEPT_RESULT_CONSUMED;
+        }
+
+        if ((event.getFlags() & KeyEvent.FLAG_FALLBACK) == 0) {
+            final long now = SystemClock.uptimeMillis();
+            final long interceptTimeout = mKeyCombinationManager.getKeyInterceptTimeout(
+                    event.getKeyCode());
+            if (now < interceptTimeout) {
+                return interceptTimeout - now;
+            }
+        }
+        return KEY_INTERCEPT_RESULT_NOT_CONSUMED;
+    }
+
+    private boolean shouldInterceptShortcuts(IBinder focusedToken) {
+        KeyInterceptionInfo info =
+                mWindowManagerInternal.getKeyInterceptionInfoFromToken(focusedToken);
+        boolean hasInterceptWindowFlag = info != null && (info.layoutParamsPrivateFlags
+                & WindowManager.LayoutParams.PRIVATE_FLAG_ALLOW_ACTION_KEY_EVENTS) != 0;
+        return hasInterceptWindowFlag && PermissionChecker.checkPermissionForDataDelivery(mContext,
+                OVERRIDE_SYSTEM_KEY_BEHAVIOR_IN_FOCUSED_WINDOW, PID_UNKNOWN, info.windowOwnerUid,
+                null, null, null) == PERMISSION_GRANTED;
+    }
+
+    private boolean canFocusedWindowCaptureKeys(IBinder focusedToken) {
+        KeyInterceptionInfo info =
+                mWindowManagerInternal.getKeyInterceptionInfoFromToken(focusedToken);
+        boolean hasCaptureKeyboardFlag = info != null && (info.layoutParamsInputFeatures
+                & WindowManager.LayoutParams.INPUT_FEATURE_CAPTURE_KEYBOARD) != 0;
+        return hasCaptureKeyboardFlag && PermissionChecker.checkPermissionForDataDelivery(mContext,
+                CAPTURE_KEYBOARD, PID_UNKNOWN, info.windowOwnerUid,
+                null, null, null) == PERMISSION_GRANTED;
+    }
+
+    @SuppressLint("MissingPermission")
+    private boolean interceptShortcutsBeforeKeyCapture(@Nullable IBinder focusedToken,
+            @NonNull KeyEvent event) {
+        if (DEBUG) {
+            Slog.d(TAG, "interceptShortcutsBeforeKeyCapture: event = " + event);
+        }
+        final int keyCode = event.getKeyCode();
+        final int repeatCount = event.getRepeatCount();
+        final int metaState = event.getMetaState() & SHORTCUT_META_MASK;
+        final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+        final boolean canceled = event.isCanceled();
+        final int displayId = event.getDisplayId();
+        final int deviceId = event.getDeviceId();
+        final boolean firstDown = down && repeatCount == 0;
+
+        // Handle system shortcuts that should not be captured by the focused window
         if (firstDown) {
             InputGestureData systemShortcut = mInputGestureManager.getSystemShortcutForKeyEvent(
                     event);
-            if (systemShortcut != null) {
+            if (systemShortcut != null && !systemShortcut.allowCaptureByFocusedWindow()) {
                 handleKeyGesture(deviceId, new int[]{keyCode}, metaState,
                         systemShortcut.getAction().keyGestureType(),
                         KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
@@ -672,49 +782,6 @@ final class KeyGestureController {
                             focusedToken, /* flags = */0, /* appLaunchData = */null);
                 }
                 return true;
-            case KeyEvent.KEYCODE_NOTIFICATION:
-                if (!down) {
-                    handleKeyGesture(deviceId, new int[]{keyCode}, /* modifierState = */0,
-                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL,
-                            KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
-                            focusedToken, /* flags = */0, /* appLaunchData = */null);
-                }
-                return true;
-            case KeyEvent.KEYCODE_SEARCH:
-                if (firstDown && mSearchKeyBehavior == SEARCH_KEY_BEHAVIOR_TARGET_ACTIVITY) {
-                    handleKeyGesture(deviceId, new int[]{keyCode}, /* modifierState = */0,
-                            KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SEARCH,
-                            KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
-                            focusedToken, /* flags = */0, /* appLaunchData = */null);
-                    return true;
-                }
-                break;
-            case KeyEvent.KEYCODE_SETTINGS:
-                if (firstDown) {
-                    if (mSettingsKeyBehavior == SETTINGS_KEY_BEHAVIOR_SETTINGS_ACTIVITY) {
-                        handleKeyGesture(deviceId,
-                                new int[]{keyCode}, /* modifierState = */0,
-                                KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SYSTEM_SETTINGS,
-                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
-                                focusedToken, /* flags = */0, /* appLaunchData = */null);
-                    } else if (mSettingsKeyBehavior == SETTINGS_KEY_BEHAVIOR_NOTIFICATION_PANEL) {
-                        handleKeyGesture(deviceId,
-                                new int[]{keyCode}, /* modifierState = */0,
-                                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL,
-                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
-                                focusedToken, /* flags = */0, /* appLaunchData = */null);
-                    }
-                }
-                return true;
-            case KeyEvent.KEYCODE_LANGUAGE_SWITCH:
-                if (firstDown) {
-                    handleKeyGesture(deviceId, new int[]{keyCode},
-                            event.isShiftPressed() ? KeyEvent.META_SHIFT_ON : 0,
-                            KeyGestureEvent.KEY_GESTURE_TYPE_LANGUAGE_SWITCH,
-                            KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
-                            focusedToken, /* flags = */0, /* appLaunchData = */null);
-                }
-                return true;
             case KeyEvent.KEYCODE_CAPS_LOCK:
                 // Just logging/notifying purposes
                 // Caps lock is already handled in inputflinger native
@@ -737,6 +804,113 @@ final class KeyGestureController {
                             focusedToken, /* flags = */0, /* appLaunchData = */null);
                 }
                 return true;
+            case KeyEvent.KEYCODE_LOCK:
+                if (enableNew25q2Keycodes()) {
+                    if (firstDown) {
+                        handleKeyGesture(deviceId, new int[]{KeyEvent.KEYCODE_LOCK},
+                                /* modifierState = */0,
+                                KeyGestureEvent.KEY_GESTURE_TYPE_LOCK_SCREEN,
+                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                                focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    }
+                }
+                return true;
+            case KeyEvent.KEYCODE_FULLSCREEN:
+                if (enableNew25q2Keycodes()) {
+                    if (firstDown) {
+                        handleKeyGesture(deviceId, new int[]{KeyEvent.KEYCODE_FULLSCREEN},
+                                /* modifierState = */0,
+                                TOGGLE_FULLSCREEN_STATE_VIA_FULLSCREEN_KEY.isTrue()
+                                        ? KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_FULLSCREEN
+                                        : KeyGestureEvent.KEY_GESTURE_TYPE_MULTI_WINDOW_NAVIGATION,
+                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                                focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    }
+                }
+                return true;
+            case KeyEvent.KEYCODE_ESCAPE:
+                // TODO(b/358569822): Currently implemented long press using handler and delayed
+                //  message here, instead of using SingleKeyGestureDetector because that detection
+                //  logic doesn't have access to focused token. Refactor this so that we don't
+                //  have this custom logic to detect long press.
+                if (firstDown && canFocusedWindowCaptureKeys(focusedToken)) {
+                    // Toast to quit application is shown on key down for ESCAPE key, when the
+                    // focused window is capturing keys.
+                    Toast.makeText(mContext, UiThread.get().getLooper(),
+                            mContext.getString(R.string.exit_toast_on_long_press_escape),
+                            Toast.LENGTH_SHORT).show();
+                    handleKeyGesture(event.getDeviceId(), new int[]{KeyEvent.KEYCODE_ESCAPE},
+                            metaState, KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_TASK,
+                            KeyGestureEvent.ACTION_GESTURE_START,
+                            displayId, focusedToken, /* flags= */0, /* appLaunchData= */ null);
+                    AidlKeyGestureEvent eventToSend = createKeyGestureEvent(event.getDeviceId(),
+                            new int[]{KeyEvent.KEYCODE_ESCAPE},
+                            metaState, KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_TASK,
+                            KeyGestureEvent.ACTION_GESTURE_COMPLETE,
+                            displayId, /* flags= */0, /* appLaunchData= */ null);
+                    Message msg = Message.obtain(mHandler, MSG_EXIT_FOCUSED_APP, eventToSend);
+                    mHandler.sendMessageDelayed(msg, LONG_PRESS_DURATION_FOR_EXIT_APP_MS);
+                } else if (!down) {
+                    if (mHandler.hasMessages(MSG_EXIT_FOCUSED_APP)) {
+                        mHandler.removeMessages(MSG_EXIT_FOCUSED_APP);
+                        handleKeyGesture(event.getDeviceId(), new int[]{KeyEvent.KEYCODE_ESCAPE},
+                                metaState, KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_TASK,
+                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId, focusedToken,
+                                KeyGestureEvent.FLAG_CANCELLED, /* appLaunchData= */ null);
+                    }
+                }
+                break;
+            case KeyEvent.KEYCODE_ASSIST:
+                Slog.wtf(TAG, "KEYCODE_ASSIST should be handled in interceptKeyBeforeQueueing");
+                return true;
+            case KeyEvent.KEYCODE_VOICE_ASSIST:
+                Slog.wtf(TAG, "KEYCODE_VOICE_ASSIST should be handled in"
+                        + " interceptKeyBeforeQueueing");
+                return true;
+            case KeyEvent.KEYCODE_STYLUS_BUTTON_PRIMARY:
+            case KeyEvent.KEYCODE_STYLUS_BUTTON_SECONDARY:
+            case KeyEvent.KEYCODE_STYLUS_BUTTON_TERTIARY:
+            case KeyEvent.KEYCODE_STYLUS_BUTTON_TAIL:
+                Slog.wtf(TAG, "KEYCODE_STYLUS_BUTTON_* should be handled in"
+                        + " interceptKeyBeforeQueueing");
+                return true;
+            case KeyEvent.KEYCODE_DO_NOT_DISTURB:
+                if (enableNew25q2Keycodes()) {
+                    if (firstDown) {
+                        handleKeyGesture(deviceId, new int[]{KeyEvent.KEYCODE_DO_NOT_DISTURB},
+                                /* modifierState = */0,
+                                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_DO_NOT_DISTURB,
+                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                                focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    }
+                }
+                return true;
+        }
+
+        return mWindowManagerCallbacks.interceptKeyBeforeDispatching(focusedToken, event);
+    }
+
+    @SuppressLint("MissingPermission")
+    private boolean interceptShortcutsAfterKeyCapture(@Nullable IBinder focusedToken,
+            @NonNull KeyEvent event) {
+        if (DEBUG) {
+            Slog.d(TAG, "interceptShortcutsAfterKeyCapture: event = " + event);
+        }
+
+        if (interceptCapturableShortcuts(focusedToken, event)) {
+            return true;
+        }
+
+        final int keyCode = event.getKeyCode();
+        final int repeatCount = event.getRepeatCount();
+        final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+        final boolean canceled = event.isCanceled();
+        final int displayId = event.getDisplayId();
+        final int deviceId = event.getDeviceId();
+        final boolean firstDown = down && repeatCount == 0;
+
+        // Handle stateful shortcuts (only if key capture is not enabled)
+        switch (keyCode) {
             case KeyEvent.KEYCODE_META_LEFT:
             case KeyEvent.KEYCODE_META_RIGHT:
                 if (down) {
@@ -819,53 +993,48 @@ final class KeyGestureController {
                     }
                 }
                 break;
-            case KeyEvent.KEYCODE_LOCK:
-                if (enableNew25q2Keycodes()) {
-                    if (firstDown) {
-                        handleKeyGesture(deviceId, new int[]{KeyEvent.KEYCODE_LOCK},
-                                /* modifierState = */0,
-                                KeyGestureEvent.KEY_GESTURE_TYPE_LOCK_SCREEN,
-                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId, focusedToken,
-                                /* flags = */0, /* appLaunchData = */null);
-                    }
-                }
+        }
+
+        return false;
+    }
+
+    private boolean interceptCapturableShortcuts(@Nullable IBinder focusedToken,
+            @NonNull KeyEvent event) {
+        final int keyCode = event.getKeyCode();
+        final int repeatCount = event.getRepeatCount();
+        final int metaState = event.getMetaState() & SHORTCUT_META_MASK;
+        final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
+        final int displayId = event.getDisplayId();
+        final int deviceId = event.getDeviceId();
+        final boolean firstDown = down && repeatCount == 0;
+
+        // Handle App launch shortcuts
+        AppLaunchShortcutManager.InterceptKeyResult result = mAppLaunchShortcutManager.interceptKey(
+                event);
+        if (result.consumed()) {
+            return true;
+        }
+        if (result.appLaunchData() != null) {
+            handleKeyGesture(deviceId, new int[]{keyCode}, metaState,
+                    KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_APPLICATION,
+                    KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                    focusedToken, /* flags = */
+                    0, result.appLaunchData());
+            return true;
+        }
+
+        // Handle system shortcuts: That can be captured by key capture
+        if (firstDown) {
+            InputGestureData systemShortcut = mInputGestureManager.getSystemShortcutForKeyEvent(
+                    event);
+            if (systemShortcut != null) {
+                handleKeyGesture(deviceId, new int[]{keyCode}, metaState,
+                        systemShortcut.getAction().keyGestureType(),
+                        KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                        focusedToken, /* flags = */0,
+                        systemShortcut.getAction().appLaunchData());
                 return true;
-            case KeyEvent.KEYCODE_FULLSCREEN:
-                if (enableNew25q2Keycodes()) {
-                    if (firstDown) {
-                        handleKeyGesture(deviceId, new int[]{KeyEvent.KEYCODE_FULLSCREEN},
-                                /* modifierState = */0,
-                                KeyGestureEvent.KEY_GESTURE_TYPE_MULTI_WINDOW_NAVIGATION,
-                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId, focusedToken,
-                                /* flags = */0, /* appLaunchData = */null);
-                    }
-                }
-                return true;
-            case KeyEvent.KEYCODE_ASSIST:
-                Slog.wtf(TAG, "KEYCODE_ASSIST should be handled in interceptKeyBeforeQueueing");
-                return true;
-            case KeyEvent.KEYCODE_VOICE_ASSIST:
-                Slog.wtf(TAG, "KEYCODE_VOICE_ASSIST should be handled in"
-                        + " interceptKeyBeforeQueueing");
-                return true;
-            case KeyEvent.KEYCODE_STYLUS_BUTTON_PRIMARY:
-            case KeyEvent.KEYCODE_STYLUS_BUTTON_SECONDARY:
-            case KeyEvent.KEYCODE_STYLUS_BUTTON_TERTIARY:
-            case KeyEvent.KEYCODE_STYLUS_BUTTON_TAIL:
-                Slog.wtf(TAG, "KEYCODE_STYLUS_BUTTON_* should be handled in"
-                        + " interceptKeyBeforeQueueing");
-                return true;
-            case KeyEvent.KEYCODE_DO_NOT_DISTURB:
-                if (enableNew25q2Keycodes()) {
-                    if (firstDown) {
-                        handleKeyGesture(deviceId, new int[]{KeyEvent.KEYCODE_DO_NOT_DISTURB},
-                                /* modifierState = */0,
-                                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_DO_NOT_DISTURB,
-                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId, focusedToken,
-                                /* flags = */0, /* appLaunchData = */null);
-                    }
-                }
-                return true;
+            }
         }
 
         // Handle shortcuts through shortcut services
@@ -880,29 +1049,87 @@ final class KeyGestureController {
                 customGesture = mInputGestureManager.getCustomGestureForKeyEvent(mCurrentUserId,
                         event);
             }
-            if (customGesture == null) {
-                return false;
+            if (customGesture != null) {
+                handleKeyGesture(deviceId, new int[]{keyCode}, metaState,
+                        customGesture.getAction().keyGestureType(),
+                        KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId, focusedToken,
+                        /* flags = */0, customGesture.getAction().appLaunchData());
+                return true;
             }
-            handleKeyGesture(deviceId, new int[]{keyCode}, metaState,
-                    customGesture.getAction().keyGestureType(),
-                    KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId, focusedToken,
-                    /* flags = */0, customGesture.getAction().appLaunchData());
-            return true;
+        }
+
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_NOTIFICATION:
+                if (!down) {
+                    handleKeyGesture(deviceId, new int[]{keyCode}, /* modifierState = */0,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL,
+                            KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                            focusedToken, /* flags = */0, /* appLaunchData = */null);
+                }
+                return true;
+            case KeyEvent.KEYCODE_SEARCH:
+                if (firstDown && mSearchKeyBehavior == SEARCH_KEY_BEHAVIOR_TARGET_ACTIVITY) {
+                    handleKeyGesture(deviceId, new int[]{keyCode}, /* modifierState = */0,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SEARCH,
+                            KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                            focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    return true;
+                }
+                break;
+            case KeyEvent.KEYCODE_SETTINGS:
+                if (firstDown) {
+                    if (mSettingsKeyBehavior == SETTINGS_KEY_BEHAVIOR_SETTINGS_ACTIVITY) {
+                        handleKeyGesture(deviceId,
+                                new int[]{keyCode}, /* modifierState = */0,
+                                KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SYSTEM_SETTINGS,
+                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                                focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    } else if (mSettingsKeyBehavior == SETTINGS_KEY_BEHAVIOR_NOTIFICATION_PANEL) {
+                        handleKeyGesture(deviceId,
+                                new int[]{keyCode}, /* modifierState = */0,
+                                KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL,
+                                KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                                focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    }
+                }
+                return true;
+            case KeyEvent.KEYCODE_LANGUAGE_SWITCH:
+                if (firstDown) {
+                    handleKeyGesture(deviceId, new int[]{keyCode},
+                            event.isShiftPressed() ? KeyEvent.META_SHIFT_ON : 0,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_LANGUAGE_SWITCH,
+                            KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
+                            focusedToken, /* flags = */0, /* appLaunchData = */null);
+                }
+                return true;
         }
         return false;
     }
 
-    boolean interceptUnhandledKey(KeyEvent event, IBinder focusedToken) {
+    boolean interceptUnhandledKey(@NonNull KeyEvent event, @Nullable IBinder focus) {
+        return mInterceptStages.get(INTERCEPT_STAGE_UNHANDLED_SHORTCUTS).interceptKey(focus, event);
+    }
+
+    private boolean interceptUnhandledShortcuts(IBinder focusedToken, KeyEvent event) {
+        if (DEBUG) {
+            Slog.d(TAG, "interceptUnhandledShortcuts: event = " + event);
+        }
+
+        if (interceptCapturableShortcuts(focusedToken, event)) {
+            return true;
+        }
+
         final int keyCode = event.getKeyCode();
         final int repeatCount = event.getRepeatCount();
         final boolean down = event.getAction() == KeyEvent.ACTION_DOWN;
-        final int metaState = event.getModifiers();
+        final int metaState = event.getMetaState() & SHORTCUT_META_MASK;
         final int deviceId = event.getDeviceId();
         final int displayId = event.getDisplayId();
+        final boolean firstDown = down && repeatCount == 0;
 
         switch(keyCode) {
             case KeyEvent.KEYCODE_SPACE:
-                if (down && repeatCount == 0) {
+                if (firstDown) {
                     // Handle keyboard layout switching. (CTRL + SPACE)
                     if (KeyEvent.metaStateHasModifiers(metaState & ~KeyEvent.META_SHIFT_MASK,
                             KeyEvent.META_CTRL_ON)) {
@@ -912,34 +1139,40 @@ final class KeyGestureController {
                                 KeyGestureEvent.KEY_GESTURE_TYPE_LANGUAGE_SWITCH,
                                 KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
                                 focusedToken, /* flags = */0, /* appLaunchData = */null);
+                        return true;
                     }
                 }
                 break;
             case KeyEvent.KEYCODE_Z:
-                if (down && KeyEvent.metaStateHasModifiers(metaState,
-                        KeyEvent.META_CTRL_ON | KeyEvent.META_ALT_ON)) {
+                if (firstDown && KeyEvent.metaStateHasModifiers(metaState,
+                        KeyEvent.META_CTRL_ON | KeyEvent.META_ALT_ON)
+                        && mAccessibilityShortcutController.isAccessibilityShortcutAvailable(
+                        mWindowManagerCallbacks.isKeyguardLocked(DEFAULT_DISPLAY))) {
                     // Intercept the Accessibility keychord (CTRL + ALT + Z) for keyboard users.
                     handleKeyGesture(deviceId, new int[]{keyCode},
                             KeyEvent.META_CTRL_ON | KeyEvent.META_ALT_ON,
                             KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_SHORTCUT,
                             KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
                             focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    return true;
                 }
                 break;
             case KeyEvent.KEYCODE_SYSRQ:
-                if (down && repeatCount == 0) {
+                if (firstDown) {
                     handleKeyGesture(deviceId, new int[]{keyCode}, /* modifierState = */0,
                             KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT,
                             KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
                             focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    return true;
                 }
                 break;
             case KeyEvent.KEYCODE_ESCAPE:
-                if (down && KeyEvent.metaStateHasNoModifiers(metaState) && repeatCount == 0) {
+                if (firstDown && KeyEvent.metaStateHasNoModifiers(metaState)) {
                     handleKeyGesture(deviceId, new int[]{keyCode}, /* modifierState = */0,
                             KeyGestureEvent.KEY_GESTURE_TYPE_CLOSE_ALL_DIALOGS,
                             KeyGestureEvent.ACTION_GESTURE_COMPLETE, displayId,
                             focusedToken, /* flags = */0, /* appLaunchData = */null);
+                    return true;
                 }
                 break;
         }
@@ -961,7 +1194,6 @@ final class KeyGestureController {
                 DEFAULT_DISPLAY, /* focusedToken = */null, /* flags = */0, appLaunchData);
     }
 
-    @VisibleForTesting
     void handleKeyGesture(int deviceId, int[] keycodes, int modifierState,
             @KeyGestureEvent.KeyGestureType int gestureType, int action, int displayId,
             @Nullable IBinder focusedToken, int flags, @Nullable AppLaunchData appLaunchData) {
@@ -1017,14 +1249,6 @@ final class KeyGestureController {
         mHandler.obtainMessage(MSG_NOTIFY_KEY_GESTURE_EVENT, event).sendToTarget();
     }
 
-    public void handleKeyGesture(int deviceId, int[] keycodes, int modifierState,
-            @KeyGestureEvent.KeyGestureType int gestureType) {
-        AidlKeyGestureEvent event = createKeyGestureEvent(deviceId, keycodes, modifierState,
-                gestureType, KeyGestureEvent.ACTION_GESTURE_COMPLETE, DEFAULT_DISPLAY,
-                /* flags = */0, /* appLaunchData = */null);
-        handleKeyGesture(event, null /*focusedToken*/);
-    }
-
     public void handleTouchpadGesture(int touchpadGestureType) {
         // Handle custom shortcuts
         InputGestureData customGesture;
@@ -1064,20 +1288,22 @@ final class KeyGestureController {
 
     @MainThread
     private void notifyKeyGestureEvent(AidlKeyGestureEvent event) {
-        InputDevice device = getInputDevice(event.deviceId);
-        if (device == null) {
-            return;
-        }
-        KeyGestureEvent keyGestureEvent = new KeyGestureEvent(event);
-        if (event.action == KeyGestureEvent.ACTION_GESTURE_COMPLETE) {
-            KeyboardMetricsCollector.logKeyboardSystemsEventReportedAtom(device, event.keycodes,
-                    event.modifierState, keyGestureEvent.getLogEvent());
-        }
         notifyAllListeners(event);
+        KeyGestureEvent keyGestureEvent = new KeyGestureEvent(event);
         while (mLastHandledEvents.size() >= MAX_TRACKED_EVENTS) {
             mLastHandledEvents.removeFirst();
         }
         mLastHandledEvents.addLast(keyGestureEvent);
+        boolean complete = keyGestureEvent.getAction() == KeyGestureEvent.ACTION_GESTURE_COMPLETE
+                && !keyGestureEvent.isCancelled();
+        if (complete) {
+            InputDevice device = getInputDevice(event.deviceId);
+            if (device == null) {
+                return;
+            }
+            KeyboardMetricsCollector.logKeyboardSystemsEventReportedAtom(device, event.keycodes,
+                    event.modifierState, keyGestureEvent.getLogEvent());
+        }
     }
 
     @MainThread
@@ -1102,6 +1328,12 @@ final class KeyGestureController {
                 break;
             case MSG_ACCESSIBILITY_SHORTCUT:
                 mAccessibilityShortcutController.performAccessibilityShortcut();
+                break;
+            case MSG_SCREENSHOT_SHORTCUT:
+                takeScreenshot(msg.arg1, msg.arg2);
+                break;
+            case MSG_EXIT_FOCUSED_APP:
+                handleKeyGesture((AidlKeyGestureEvent) msg.obj, /* focusedToken= */null);
                 break;
         }
         return true;
@@ -1236,7 +1468,8 @@ final class KeyGestureController {
                 mInputGestureManager.getCustomInputGestures(userId, null);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         synchronized (mInputDataStore) {
-            mInputDataStore.writeInputGestureXml(byteArrayOutputStream, true, inputGestureDataList);
+            mInputDataStore.writeData(byteArrayOutputStream, true, inputGestureDataList,
+                    InputGestureData.class);
         }
         return byteArrayOutputStream.toByteArray();
     }
@@ -1246,7 +1479,8 @@ final class KeyGestureController {
         final ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(payload);
         List<InputGestureData> inputGestureDataList;
         synchronized (mInputDataStore) {
-            inputGestureDataList = mInputDataStore.readInputGesturesXml(byteArrayInputStream, true);
+            inputGestureDataList = mInputDataStore.readData(byteArrayInputStream, true,
+                    InputGestureData.class);
         }
         for (final InputGestureData inputGestureData : inputGestureDataList) {
             mInputGestureManager.addCustomInputGesture(userId, inputGestureData);
@@ -1297,9 +1531,21 @@ final class KeyGestureController {
             }
             for (int gestureType : keyGesturesToHandle) {
                 if (mSupportedKeyGestureToPidMap.indexOfKey(gestureType) >= 0) {
-                    throw new IllegalArgumentException(
-                            "Key gesture " + gestureType + " is already registered by pid = "
-                                    + mSupportedKeyGestureToPidMap.get(gestureType));
+                    // Check if existing registered pid is dead or not.
+                    // Due to race conditions it is possible to get cases where the process is
+                    // killed and we haven't yet received the binderDied() callback.
+                    int existingPid = mSupportedKeyGestureToPidMap.get(gestureType);
+                    KeyGestureHandlerRecord existingHandler = Objects.requireNonNull(
+                            mKeyGestureHandlerRecords.get(existingPid));
+                    if (existingHandler.mKeyGestureHandler.asBinder().pingBinder()) {
+                        throw new IllegalArgumentException(
+                                "Key gesture " + gestureType + " is already registered by pid = "
+                                        + existingPid);
+                    } else {
+                        Slog.w(TAG, "registerKeyGestureHandler: pid = " + existingPid
+                                + " was killed but we didn't receive binderDied callback");
+                        onKeyGestureHandlerRemoved(existingPid);
+                    }
                 }
             }
             KeyGestureHandlerRecord record = new KeyGestureHandlerRecord(pid, handler);
@@ -1358,15 +1604,15 @@ final class KeyGestureController {
             final List<InputGestureData> inputGestureDataList =
                     mInputGestureManager.getCustomInputGestures(userId,
                             null);
-            mInputDataStore.saveInputGestures(userId, inputGestureDataList);
+            mInputDataStore.saveData(userId, inputGestureDataList, InputGestureData.class);
         }
     }
 
     private void loadInputGestures(int userId) {
         synchronized (mInputDataStore) {
             mInputGestureManager.removeAllCustomInputGestures(userId, null);
-            final List<InputGestureData> inputGestureDataList = mInputDataStore.loadInputGestures(
-                    userId);
+            final List<InputGestureData> inputGestureDataList = mInputDataStore.loadData(
+                    userId, InputGestureData.class);
             for (final InputGestureData inputGestureData : inputGestureDataList) {
                 mInputGestureManager.addCustomInputGesture(userId, inputGestureData);
             }
@@ -1474,6 +1720,25 @@ final class KeyGestureController {
         }
     }
 
+    private void takeScreenshot(int source, int displayId) {
+        ScreenshotRequest request =
+                new ScreenshotRequest.Builder(WindowManager.TAKE_SCREENSHOT_FULLSCREEN, source)
+                        .setDisplayId(displayId)
+                        .build();
+        mScreenshotHelper.takeScreenshot(request, mHandler, null /* completionConsumer */);
+    }
+
+    private long getScreenshotChordLongPressDelay() {
+        long delayMs = DeviceConfig.getLong(
+                DeviceConfig.NAMESPACE_SYSTEMUI, SCREENSHOT_KEYCHORD_DELAY,
+                ViewConfiguration.get(mContext).getScreenshotChordKeyTimeout());
+        if (mWindowManagerCallbacks.isKeyguardLocked(DEFAULT_DISPLAY)) {
+            // Double the time it takes to take a screenshot from the keyguard
+            return (long) (KEYGUARD_SCREENSHOT_CHORD_DELAY_MULTIPLIER * delayMs);
+        }
+        return delayMs;
+    }
+
     public void dump(IndentingPrintWriter ipw) {
         ipw.println("KeyGestureController:");
         ipw.increaseIndent();
@@ -1530,5 +1795,91 @@ final class KeyGestureController {
                 Handler handler) {
             return new AccessibilityShortcutController(context, handler, UserHandle.USER_SYSTEM);
         }
+
+        ScreenshotHelper getScreenshotHelper(Context context) {
+            return new ScreenshotHelper(context);
+        }
+    }
+
+    private class LocalKeyGestureEventHandler implements InputManager.KeyGestureEventHandler {
+
+        @Override
+        public void handleKeyGestureEvent(@NonNull KeyGestureEvent event,
+                @Nullable IBinder focusedToken) {
+            final boolean complete = event.getAction() == KeyGestureEvent.ACTION_GESTURE_COMPLETE
+                    && !event.isCancelled();
+            final boolean start = event.getAction() == KeyGestureEvent.ACTION_GESTURE_START;
+            switch (event.getKeyGestureType()) {
+                case KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_SHORTCUT_CHORD:
+                    mHandler.removeMessages(MSG_ACCESSIBILITY_SHORTCUT);
+                    if (start) {
+                        mHandler.sendMessageDelayed(
+                                mHandler.obtainMessage(MSG_ACCESSIBILITY_SHORTCUT),
+                                getAccessibilityShortcutTimeout());
+                    }
+                    break;
+                case KeyGestureEvent.KEY_GESTURE_TYPE_ACCESSIBILITY_SHORTCUT:
+                    if (complete) {
+                        mHandler.sendMessage(mHandler.obtainMessage(MSG_ACCESSIBILITY_SHORTCUT));
+                    }
+                    break;
+                case KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT:
+                    if (complete) {
+                        mHandler.sendMessage(mHandler.obtainMessage(MSG_SCREENSHOT_SHORTCUT,
+                                SCREENSHOT_KEY_OTHER, event.getDisplayId()));
+                    }
+                    break;
+                case KeyGestureEvent.KEY_GESTURE_TYPE_SCREENSHOT_CHORD:
+                    mHandler.removeMessages(MSG_SCREENSHOT_SHORTCUT);
+                    if (start) {
+                        mHandler.sendMessageDelayed(
+                                mHandler.obtainMessage(MSG_SCREENSHOT_SHORTCUT,
+                                        SCREENSHOT_KEY_CHORD,
+                                        event.getDisplayId()),
+                                getScreenshotChordLongPressDelay());
+                    }
+                    break;
+                default:
+                    Log.w(TAG, "Received a key gesture " + event
+                            + " that was not registered by this handler");
+            }
+        }
+    }
+
+    // TODO(b/416681006): Add more state and verification code common to all stages.
+    //  e.g. If previous stage consumes key down but doesn't consume key up, have policy to
+    //  determine whether to consume shortcuts or not.
+    private abstract static class InterceptKeyStage {
+
+        /** Currently fully consumed key codes per device */
+        private final SparseArray<Set<Integer>> mConsumedKeysForDevice = new SparseArray<>();
+
+        private boolean interceptKey(@Nullable IBinder focusedToken, @NonNull KeyEvent event) {
+            final int deviceId = event.getDeviceId();
+            final int keyCode = event.getKeyCode();
+            Set<Integer> consumedKeys = mConsumedKeysForDevice.get(deviceId);
+            if (consumedKeys == null) {
+                consumedKeys = new HashSet<>();
+                mConsumedKeysForDevice.put(deviceId, consumedKeys);
+            }
+
+            if (onKeyEvent(focusedToken, event) && event.getAction() == KeyEvent.ACTION_DOWN
+                    && event.getRepeatCount() == 0) {
+                consumedKeys.add(keyCode);
+                return true;
+            }
+
+            boolean needToConsumeKey = consumedKeys.contains(keyCode);
+            if (event.getAction() == KeyEvent.ACTION_UP || event.isCanceled()) {
+                consumedKeys.remove(keyCode);
+                if (consumedKeys.isEmpty()) {
+                    mConsumedKeysForDevice.remove(deviceId);
+                }
+            }
+            return needToConsumeKey;
+        }
+
+        protected abstract boolean onKeyEvent(@Nullable IBinder focusedToken,
+                @NonNull KeyEvent event);
     }
 }

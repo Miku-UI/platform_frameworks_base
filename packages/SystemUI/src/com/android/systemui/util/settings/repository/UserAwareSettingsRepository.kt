@@ -36,7 +36,6 @@ import kotlinx.coroutines.withContext
  * the new value. For any system that tracks the desired user internally (e.g. the Quick Settings
  * tiles system), use a [SettingsForUserRepository] instead.
  */
-// TODO: b/377244768 - Make internal when UserAwareSecureSettingsRepository can be made internal.
 abstract class UserAwareSettingsRepository(
     private val userSettings: UserSettingsProxy,
     private val userRepository: UserRepository,

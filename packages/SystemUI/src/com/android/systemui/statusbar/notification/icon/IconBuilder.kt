@@ -18,24 +18,38 @@ package com.android.systemui.statusbar.notification.icon
 
 import android.app.Notification
 import android.content.Context
-import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.statusbar.StatusBarIconView
+import com.android.systemui.statusbar.dagger.StatusBarMain
+import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.contentDescForNotification
 import javax.inject.Inject
 
 /** Testable wrapper around Context. */
-class IconBuilder @Inject constructor(@Main private val context: Context) {
-    @JvmOverloads
-    fun createIconView(
-        entry: NotificationEntry,
-        context: Context = this.context,
-    ): StatusBarIconView {
+class IconBuilder @Inject constructor(@StatusBarMain private val context: Context) {
+
+    fun createIconView(entry: NotificationEntry, context: Context): StatusBarIconView {
         return StatusBarIconView(
             context,
             "${entry.sbn.packageName}/0x${Integer.toHexString(entry.sbn.id)}",
             entry.sbn,
         )
+    }
+
+    fun createIconView(entry: BundleEntry, context: Context): StatusBarIconView {
+        return StatusBarIconView(context, entry.key, null, entry)
+    }
+
+    // TODO b/362720336: remove all usages of this without a provided context.
+    @Deprecated("Use createIconView(entry, context), providing the correct context.")
+    fun createIconView(entry: NotificationEntry): StatusBarIconView {
+        return createIconView(entry, context)
+    }
+
+    // TODO b/362720336: remove all usages of this without a provided context.
+    @Deprecated("Use createIconView(entry, context), providing the correct context.")
+    fun createIconView(entry: BundleEntry): StatusBarIconView {
+        return createIconView(entry, context)
     }
 
     fun getIconContentDescription(n: Notification): CharSequence {

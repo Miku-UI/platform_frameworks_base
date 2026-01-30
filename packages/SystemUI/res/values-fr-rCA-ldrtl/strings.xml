@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"Balayez l\'écran vers la gauche pour changer rapidement d\'appli"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"Balayer l\'écran du haut vers la droite pour ouvrir les notifications"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"Balayez l\'écran du haut vers la gauche pour ouvrir Paramètres rapides"</string>
 </resources>

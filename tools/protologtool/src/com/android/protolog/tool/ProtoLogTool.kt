@@ -20,9 +20,10 @@ import com.android.internal.protolog.common.IProtoLog
 import com.android.internal.protolog.common.LogLevel
 import com.android.internal.protolog.common.ProtoLogToolInjected
 import com.android.protolog.tool.CommandOptions.Companion.USAGE
+import com.github.javaparser.JavaParser
+import com.github.javaparser.JavaParserAdapter
 import com.github.javaparser.ParseProblemException
 import com.github.javaparser.ParserConfiguration
-import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.NodeList
@@ -38,7 +39,6 @@ import com.github.javaparser.ast.expr.IntegerLiteralExpr
 import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.MethodReferenceExpr
 import com.github.javaparser.ast.expr.NameExpr
-import com.github.javaparser.ast.expr.NullLiteralExpr
 import com.github.javaparser.ast.expr.ObjectCreationExpr
 import com.github.javaparser.ast.expr.SimpleName
 import com.github.javaparser.ast.expr.StringLiteralExpr
@@ -47,7 +47,6 @@ import com.github.javaparser.ast.stmt.BlockStmt
 import com.github.javaparser.ast.stmt.ReturnStmt
 import com.github.javaparser.ast.type.ClassOrInterfaceType
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.OutputStream
@@ -64,6 +63,9 @@ object ProtoLogTool {
         "frameworks/base/core/java/com/android/internal/protolog/ProtoLogImpl.java"
 
     private const val PROTOLOG_CLASS_NAME = "ProtoLog"; // ProtoLog::class.java.simpleName
+
+    private val PARSER_CONFIG = ParserConfiguration()
+        .setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_21)
 
     data class LogCall(
         val messageString: String,
@@ -116,7 +118,6 @@ object ProtoLogTool {
         outJar.putNextEntry(zipEntry(protologImplPath))
 
         outJar.write(generateProtoLogImpl(protologImplName, command.viewerConfigFilePathArg,
-            command.legacyViewerConfigFilePathArg, command.legacyOutputFilePath,
             groups, command.protoLogGroupsClassNameArg).toByteArray())
 
         val executor = newThreadPool()
@@ -161,8 +162,6 @@ object ProtoLogTool {
     private fun generateProtoLogImpl(
         protoLogImplGenName: String,
         viewerConfigFilePath: String,
-        legacyViewerConfigFilePath: String?,
-        legacyOutputFilePath: String?,
         groups: Map<String, LogGroup>,
         protoLogGroupsClassName: String,
     ): String {
@@ -186,9 +185,7 @@ object ProtoLogTool {
 
         injectCacheClass(classDeclaration, groups, protoLogGroupsClassName)
 
-        injectConstants(classDeclaration,
-            viewerConfigFilePath, legacyViewerConfigFilePath, legacyOutputFilePath, groups,
-            protoLogGroupsClassName)
+        injectConstants(classDeclaration, viewerConfigFilePath, groups, protoLogGroupsClassName)
 
         return code.toString()
     }
@@ -196,8 +193,6 @@ object ProtoLogTool {
     private fun injectConstants(
         classDeclaration: ClassOrInterfaceDeclaration,
         viewerConfigFilePath: String,
-        legacyViewerConfigFilePath: String?,
-        legacyOutputFilePath: String?,
         groups: Map<String, LogGroup>,
         protoLogGroupsClassName: String
     ) {
@@ -213,20 +208,6 @@ object ProtoLogTool {
                                     field.setFinal(true)
                                     field.variables.first()
                                             .setInitializer(StringLiteralExpr(viewerConfigFilePath))
-                                }
-                                ProtoLogToolInjected.Value.LEGACY_OUTPUT_FILE_PATH.name -> {
-                                    field.setFinal(true)
-                                    field.variables.first()
-                                            .setInitializer(legacyOutputFilePath?.let {
-                                                StringLiteralExpr(it)
-                                            } ?: NullLiteralExpr())
-                                }
-                                ProtoLogToolInjected.Value.LEGACY_VIEWER_CONFIG_PATH.name -> {
-                                    field.setFinal(true)
-                                    field.variables.first()
-                                            .setInitializer(legacyViewerConfigFilePath?.let {
-                                                StringLiteralExpr(it)
-                                            } ?: NullLiteralExpr())
                                 }
                                 ProtoLogToolInjected.Value.LOG_GROUPS.name -> {
                                     needsCreateLogGroupsMap = true
@@ -302,7 +283,7 @@ object ProtoLogTool {
             cacheClass.addFieldWithInitializer(
                 "boolean[]",
                 "${group.key}_enabled",
-                ArrayCreationExpr().setElementType("boolean[]").setInitializer(
+                ArrayCreationExpr().setElementType("boolean").setInitializer(
                     ArrayInitializerExpr().setValues(nodeList)
                 ),
                 Modifier.Keyword.PUBLIC,
@@ -345,7 +326,8 @@ object ProtoLogTool {
 
     private fun tryParse(code: String, fileName: String): CompilationUnit {
         try {
-            return StaticJavaParser.parse(code)
+            val javaParser = JavaParser(PARSER_CONFIG)
+            return JavaParserAdapter(javaParser).parse(code)
         } catch (ex: ParseProblemException) {
             val problem = ex.problems.first()
             throw ParsingException("Java parsing error: ${problem.verboseMessage}",
@@ -383,13 +365,8 @@ object ProtoLogTool {
                 command.protoLogGroupsClassNameArg)
         val processor = ProtoLogCallProcessorImpl(command.protoLogClassNameArg,
                 command.protoLogGroupsClassNameArg, groups)
-        val outputType = command.viewerConfigTypeArg
 
-        val configBuilder: ProtologViewerConfigBuilder = when (outputType.lowercase()) {
-            "json" -> ViewerConfigJsonBuilder()
-            "proto" -> ViewerConfigProtoBuilder()
-            else -> error("Invalid output type provide. Provided '$outputType'.")
-        }
+        val configBuilder: ProtologViewerConfigBuilder = ViewerConfigProtoBuilder()
 
         val executor = newThreadPool()
 
@@ -457,12 +434,6 @@ object ProtoLogTool {
         return packagePath
     }
 
-    private fun read(command: CommandOptions) {
-        LogParser(ViewerConfigParser())
-                .parse(FileInputStream(command.logProtofileArg),
-                        FileInputStream(command.viewerConfigFileNameArg), System.out)
-    }
-
     @JvmStatic
     fun main(args: Array<String>) {
         try {
@@ -486,21 +457,14 @@ object ProtoLogTool {
     }
 
     fun invoke(command: CommandOptions) {
-        StaticJavaParser.setConfiguration(ParserConfiguration().apply {
-            setLanguageLevel(ParserConfiguration.LanguageLevel.RAW)
-            setAttributeComments(false)
-        })
-
         when (command.command) {
             CommandOptions.TRANSFORM_CALLS_CMD -> processClasses(command)
             CommandOptions.GENERATE_CONFIG_CMD -> viewerConf(command)
-            CommandOptions.READ_LOG_CMD -> read(command)
         }
     }
 
     var injector = object : Injector {
-        override val processingErrors: MutableList<CodeProcessingException>
-            get() = mutableListOf()
+        override val processingErrors: MutableList<CodeProcessingException> = mutableListOf()
         override fun fileOutputStream(file: String) = FileOutputStream(file)
         override fun readText(file: File) = file.readText()
         override fun readLogGroups(jarPath: String, className: String) =

@@ -25,18 +25,16 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.plugins.PluginLifecycleManager
 import com.android.systemui.plugins.PluginListener
 import com.android.systemui.plugins.PluginManager
-import com.android.systemui.plugins.clocks.ClockAxisStyle
-import com.android.systemui.plugins.clocks.ClockController
-import com.android.systemui.plugins.clocks.ClockId
-import com.android.systemui.plugins.clocks.ClockMessageBuffers
-import com.android.systemui.plugins.clocks.ClockMetadata
-import com.android.systemui.plugins.clocks.ClockPickerConfig
-import com.android.systemui.plugins.clocks.ClockProviderPlugin
-import com.android.systemui.plugins.clocks.ClockSettings
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockAxisStyle
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockEventListeners
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockId
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockMessageBuffers
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockMetadata
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockPickerConfig
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockProviderPlugin
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockSettings
 import com.android.systemui.util.ThreadAssert
-import com.android.systemui.util.mockito.argumentCaptor
-import com.android.systemui.util.mockito.eq
-import java.util.function.BiConsumer
 import junit.framework.Assert.assertEquals
 import junit.framework.Assert.fail
 import kotlinx.coroutines.CoroutineDispatcher
@@ -56,6 +54,8 @@ import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when` as whenever
 import org.mockito.junit.MockitoJUnit
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
@@ -90,37 +90,39 @@ class ClockRegistryTest : SysuiTestCase() {
         }
     }
 
-    private class FakeLifecycle(private val tag: String, private val plugin: ClockProviderPlugin?) :
-        PluginLifecycleManager<ClockProviderPlugin> {
+    private class FakeLifecycle(
+        override val componentName: ComponentName,
+        private val testPlugin: ClockProviderPlugin? = null,
+    ) : PluginLifecycleManager<ClockProviderPlugin> {
         var onLoad: (() -> Unit)? = null
         var onUnload: (() -> Unit)? = null
 
-        private var mIsLoaded: Boolean = true
+        constructor(
+            tag: String,
+            testPlugin: ClockProviderPlugin? = null,
+        ) : this(ComponentName("Package[$tag]", "Class[$tag]"), testPlugin)
 
-        override fun isLoaded() = mIsLoaded
+        override var isLoaded: Boolean = true
+            private set
 
-        override fun getPlugin(): ClockProviderPlugin? = if (isLoaded) plugin else null
+        override val plugin: ClockProviderPlugin?
+            get() = if (isLoaded) testPlugin else null
 
-        var mComponentName = ComponentName("Package[$tag]", "Class[$tag]")
+        override val packageName: String
+            get() = componentName.packageName
 
-        override fun toString() = "Manager[$tag]"
-
-        override fun getPackage(): String = mComponentName.getPackageName()
-
-        override fun getComponentName(): ComponentName = mComponentName
-
-        override fun setLogFunc(func: BiConsumer<String, String>) {}
+        override fun toString() = "Manager[${componentName.className}]"
 
         override fun loadPlugin() {
-            if (!mIsLoaded) {
-                mIsLoaded = true
+            if (!isLoaded) {
+                isLoaded = true
                 onLoad?.invoke()
             }
         }
 
         override fun unloadPlugin() {
-            if (mIsLoaded) {
-                mIsLoaded = false
+            if (isLoaded) {
+                isLoaded = false
                 onUnload?.invoke()
             }
         }
@@ -133,7 +135,7 @@ class ClockRegistryTest : SysuiTestCase() {
 
         override fun getClocks() = metadata
 
-        override fun createClock(settings: ClockSettings): ClockController {
+        override fun createClock(ctx: Context, settings: ClockSettings): ClockController {
             val clockId = settings.clockId ?: throw IllegalArgumentException("No clockId specified")
             return createCallbacks[clockId]?.invoke(clockId)
                 ?: throw NotImplementedError("No callback for '$clockId'")
@@ -176,6 +178,7 @@ class ClockRegistryTest : SysuiTestCase() {
         fakeDefaultProvider =
             FakeClockPlugin().addClock(DEFAULT_CLOCK_ID, { mockDefaultClock }, { pickerConfig })
         whenever(mockContext.contentResolver).thenReturn(mockContentResolver)
+        whenever(mockClock.eventListeners).thenReturn(ClockEventListeners())
 
         val captor = argumentCaptor<PluginListener<ClockProviderPlugin>>()
         registry =
@@ -203,7 +206,7 @@ class ClockRegistryTest : SysuiTestCase() {
 
         verify(mockPluginManager)
             .addPluginListener(captor.capture(), eq(ClockProviderPlugin::class.java), eq(true))
-        pluginListener = captor.value
+        pluginListener = captor.firstValue
     }
 
     @Test
@@ -243,7 +246,7 @@ class ClockRegistryTest : SysuiTestCase() {
 
     @Test
     fun noPlugins_createDefaultClock() {
-        val clock = registry.createCurrentClock()
+        val clock = registry.createCurrentClock(mockContext)
         assertEquals(mockDefaultClock, clock)
     }
 
@@ -270,8 +273,8 @@ class ClockRegistryTest : SysuiTestCase() {
             list.toSet(),
         )
 
-        assertEquals(mockClock, registry.createExampleClock("clock_1"))
-        assertEquals(mockClock, registry.createExampleClock("clock_2"))
+        assertEquals(mockClock, registry.createExampleClock(mockContext, "clock_1"))
+        assertEquals(mockClock, registry.createExampleClock(mockContext, "clock_2"))
         assertEquals(pickerConfig, registry.getClockPickerConfig("clock_1"))
         assertEquals(pickerConfig, registry.getClockPickerConfig("clock_2"))
         verify(lifecycle1, never()).unloadPlugin()
@@ -290,7 +293,7 @@ class ClockRegistryTest : SysuiTestCase() {
         pluginListener.onPluginLoaded(plugin1, mockContext, lifecycle1)
         pluginListener.onPluginLoaded(plugin2, mockContext, lifecycle2)
 
-        val clock = registry.createCurrentClock()
+        val clock = registry.createCurrentClock(mockContext)
         assertEquals(mockClock, clock)
     }
 
@@ -324,7 +327,7 @@ class ClockRegistryTest : SysuiTestCase() {
         pluginListener.onPluginLoaded(plugin2, mockContext, lifecycle2)
         pluginListener.onPluginUnloaded(plugin2, lifecycle2)
 
-        val clock = registry.createCurrentClock()
+        val clock = registry.createCurrentClock(mockContext)
         assertEquals(mockDefaultClock, clock)
     }
 
@@ -388,11 +391,7 @@ class ClockRegistryTest : SysuiTestCase() {
 
     @Test
     fun unknownPluginAttached_clockAndListUnchanged_loadRequested() {
-        val lifecycle =
-            FakeLifecycle("", null).apply {
-                mComponentName = ComponentName("some.other.package", "SomeClass")
-            }
-
+        val lifecycle = FakeLifecycle(ComponentName("some.other.package", "SomeClass"))
         var changeCallCount = 0
         var listChangeCallCount = 0
         registry.registerClockChangeListener(
@@ -416,18 +415,11 @@ class ClockRegistryTest : SysuiTestCase() {
     @Test
     fun knownPluginAttached_clockAndListChanged_loadedCurrent() {
         val metroLifecycle =
-            FakeLifecycle("Metro", null).apply {
-                mComponentName = ComponentName("com.android.systemui.clocks.metro", "Metro")
-            }
+            FakeLifecycle(ComponentName("com.android.systemui.clocks.metro", "Metro"))
         val bignumLifecycle =
-            FakeLifecycle("BigNum", null).apply {
-                mComponentName = ComponentName("com.android.systemui.clocks.bignum", "BigNum")
-            }
+            FakeLifecycle(ComponentName("com.android.systemui.clocks.bignum", "BigNum"))
         val calligraphyLifecycle =
-            FakeLifecycle("Calligraphy", null).apply {
-                mComponentName =
-                    ComponentName("com.android.systemui.clocks.calligraphy", "Calligraphy")
-            }
+            FakeLifecycle(ComponentName("com.android.systemui.clocks.calligraphy", "Calligraphy"))
 
         var changeCallCount = 0
         var listChangeCallCount = 0

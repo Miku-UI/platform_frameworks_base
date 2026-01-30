@@ -29,7 +29,7 @@ message GenerationRegistryProto {
 }
 
 message BackingStoreProto {
-  optional int32 key = 1;
+  optional int64 key = 1;
   optional int32 backing_store_size = 2;
   optional int32 num_cached_entries = 3;
   repeated CacheEntryProto cache_entries = 4;

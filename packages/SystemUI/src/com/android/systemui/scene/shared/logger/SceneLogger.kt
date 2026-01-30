@@ -28,7 +28,7 @@ import javax.inject.Inject
 
 class SceneLogger @Inject constructor(@SceneFrameworkLog private val logBuffer: LogBuffer) {
 
-    fun logFrameworkEnabled(isEnabled: Boolean, reason: String? = null) {
+    fun logFrameworkEnabled(isEnabled: Boolean) {
         fun asWord(isEnabled: Boolean): String {
             return if (isEnabled) "enabled" else "disabled"
         }
@@ -36,13 +36,8 @@ class SceneLogger @Inject constructor(@SceneFrameworkLog private val logBuffer: 
         logBuffer.log(
             tag = TAG,
             level = if (isEnabled) LogLevel.INFO else LogLevel.WARNING,
-            messageInitializer = {
-                bool1 = isEnabled
-                str1 = reason
-            },
-            messagePrinter = {
-                "Scene framework is ${asWord(bool1)}${if (str1 != null) " $str1" else ""}"
-            },
+            messageInitializer = { bool1 = isEnabled },
+            messagePrinter = { "Scene framework is ${asWord(bool1)}" },
         )
     }
 
@@ -190,6 +185,22 @@ class SceneLogger @Inject constructor(@SceneFrameworkLog private val logBuffer: 
                 str3 = reason
             },
             messagePrinter = { "$str1 → $str2, reason: $str3" },
+        )
+    }
+
+    fun logVisibilityRejection(to: Boolean, reason: String) {
+        fun asWord(isVisible: Boolean): String {
+            return if (isVisible) "visible" else "invisible"
+        }
+
+        logBuffer.log(
+            tag = TAG,
+            level = LogLevel.INFO,
+            messageInitializer = {
+                str1 = asWord(to)
+                str2 = reason
+            },
+            messagePrinter = { "REJECTED visibility change to $str1 with reason: $str2" },
         )
     }
 

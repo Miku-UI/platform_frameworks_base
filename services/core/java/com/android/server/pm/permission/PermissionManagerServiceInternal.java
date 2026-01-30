@@ -475,7 +475,7 @@ public interface PermissionManagerServiceInternal extends PermissionManagerInter
      * {@link android.service.voice.HotwordDetectionService}, which should be granted RECORD_AUDIO,
      * CAPTURE_AUDIO_HOTWORD and CAPTURE_AUDIO_OUTPUT permissions.
      */
-    interface HotwordDetectionServiceProvider {
+    public interface HotwordDetectionServiceProvider {
         int getUid();
     }
 }

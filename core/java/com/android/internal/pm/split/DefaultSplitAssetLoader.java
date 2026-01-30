@@ -83,7 +83,7 @@ public class DefaultSplitAssetLoader implements SplitAssetLoader {
 
         AssetManager assets = new AssetManager();
         assets.setConfiguration(0, 0, null, new String[0], 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, Build.VERSION.RESOURCES_SDK_INT);
+                0, 0, Build.VERSION.RESOURCES_SDK_INT_FULL);
         assets.setApkAssets(apkAssets, false /*invalidateCaches*/);
 
         mCachedAssetManager = assets;

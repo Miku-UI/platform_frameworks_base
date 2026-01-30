@@ -39,6 +39,7 @@ import android.os.Handler;
 import android.os.HandlerExecutor;
 import android.os.HandlerThread;
 import android.os.SystemClock;
+import android.os.Trace;
 import android.provider.DeviceConfig;
 import android.text.TextUtils;
 import android.util.Log;
@@ -378,6 +379,7 @@ public class InteractionJankMonitor {
      * @return boolean true if the tracker is begun successfully, false otherwise.
      */
     public boolean begin(@NonNull Configuration.Builder builder) {
+        Trace.beginSection("InteractionJankMonitor#begin");
         try {
             final Configuration config = builder.build();
             postEventLogToWorkerThread((unixNanos, elapsedNanos, realtimeNanos) -> {
@@ -395,6 +397,8 @@ public class InteractionJankMonitor {
         } catch (IllegalArgumentException ex) {
             Log.d(TAG, "Build configuration failed!", ex);
             return false;
+        } finally {
+            Trace.endSection();
         }
     }
 
@@ -543,7 +547,9 @@ public class InteractionJankMonitor {
 
             mRunningTrackers.put(cuj, tracker);
             if (mDebugOverlay != null) {
-                mDebugOverlay.onTrackerAdded(cuj, tracker.mTracker.hashCode());
+                Configuration config = tracker.mConfig;
+                mDebugOverlay.onTrackerAdded(
+                        config.getSessionName(), System.identityHashCode(config));
             }
 
             return tracker;
@@ -578,7 +584,9 @@ public class InteractionJankMonitor {
             running.mConfig.getHandler().removeCallbacks(running.mTimeoutAction);
             mRunningTrackers.remove(cuj);
             if (mDebugOverlay != null) {
-                mDebugOverlay.onTrackerRemoved(cuj, reason, tracker.hashCode());
+                boolean cancelled = reason >= REASON_CANCEL_NORMAL;
+                mDebugOverlay.onTrackerRemoved(cancelled,
+                        System.identityHashCode(running.mConfig));
             }
             return false;
         }

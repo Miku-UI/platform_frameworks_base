@@ -40,7 +40,7 @@ public class MatrixTranslate extends DrawBase2 {
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         Maker m = MatrixTranslate::new;
-        read(m, buffer, operations);
+        read(buffer, operations, m);
     }
 
     /**
@@ -101,7 +101,7 @@ public class MatrixTranslate extends DrawBase2 {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serialize(serializer, "dx", "dy").addType(CLASS_NAME);
     }
 }

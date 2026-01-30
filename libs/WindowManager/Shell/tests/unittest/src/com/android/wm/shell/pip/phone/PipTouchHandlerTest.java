@@ -16,15 +16,11 @@
 
 package com.android.wm.shell.pip.phone;
 
-import static com.android.wm.shell.Flags.FLAG_ENABLE_PIP2;
-
 import static org.junit.Assert.assertEquals;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.graphics.Rect;
-import android.platform.test.annotations.DisableFlags;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.util.Size;
@@ -32,6 +28,7 @@ import android.util.Size;
 import androidx.test.filters.SmallTest;
 
 import com.android.wm.shell.ShellTestCase;
+import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.DisplayLayout;
 import com.android.wm.shell.common.FloatingContentCoordinator;
 import com.android.wm.shell.common.ShellExecutor;
@@ -92,6 +89,9 @@ public class PipTouchHandlerTest extends ShellTestCase {
     @Mock
     private ShellExecutor mMainExecutor;
 
+    @Mock
+    private DisplayController mDisplayController;
+
     private PipBoundsState mPipBoundsState;
     private PipBoundsAlgorithm mPipBoundsAlgorithm;
     private PipSnapAlgorithm mPipSnapAlgorithm;
@@ -112,7 +112,10 @@ public class PipTouchHandlerTest extends ShellTestCase {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mPipDisplayLayoutState = new PipDisplayLayoutState(mContext);
+        mPipDisplayLayoutState = new PipDisplayLayoutState(mContext, mDisplayController,
+                mShellInit);
+        // Directly call onInit instead of using ShellInit
+        mPipDisplayLayoutState.onInit();
         mSizeSpecSource = new PhoneSizeSpecSource(mContext, mPipDisplayLayoutState);
         mPipBoundsState = new PipBoundsState(mContext, mSizeSpecSource, mPipDisplayLayoutState);
         mPipSnapAlgorithm = new PipSnapAlgorithm();
@@ -149,12 +152,6 @@ public class PipTouchHandlerTest extends ShellTestCase {
         mFromShelfAdjustment = false;
         mDisplayRotation = 0;
         mImeHeight = 100;
-    }
-
-    @Test
-    @DisableFlags(FLAG_ENABLE_PIP2)
-    public void instantiate_addInitCallback() {
-        verify(mShellInit, times(1)).addInitCallback(any(), any());
     }
 
     @Test

@@ -28,6 +28,8 @@ import androidx.test.filters.SmallTest;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.doze.DozeHost;
 import com.android.systemui.doze.DozeLog;
+import com.android.systemui.flags.DisableSceneContainer;
+import com.android.systemui.flags.EnableSceneContainer;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 
 import org.junit.Before;
@@ -58,6 +60,7 @@ public class DozeScrimControllerTest extends SysuiTestCase {
     }
 
     @Test
+    @DisableSceneContainer
     public void callsPulseCallback() {
         DozeHost.PulseCallback callback = mock(DozeHost.PulseCallback.class);
         mDozeScrimController.pulse(callback, 0);
@@ -68,6 +71,17 @@ public class DozeScrimControllerTest extends SysuiTestCase {
         mDozeScrimController.getScrimCallback().onFinished();
 
         verify(callback).onPulseStarted();
+        mDozeScrimController.pulseOutNow();
+        verify(callback).onPulseFinished();
+    }
+
+    @Test
+    @EnableSceneContainer
+    public void callsPulseCallbacks() {
+        DozeHost.PulseCallback callback = mock(DozeHost.PulseCallback.class);
+        mDozeScrimController.pulse(callback, 0);
+        verify(callback).onPulseStarted();
+
         mDozeScrimController.pulseOutNow();
         verify(callback).onPulseFinished();
     }

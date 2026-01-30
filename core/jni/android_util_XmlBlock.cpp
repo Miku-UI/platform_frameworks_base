@@ -16,21 +16,24 @@
 */
 
 #define LOG_TAG "XmlBlock"
-
-#include "jni.h"
-#include <nativehelper/JNIHelp.h>
-#include <core_jni_helpers.h>
 #include <androidfw/AssetManager.h>
 #include <androidfw/ResourceTypes.h>
+#include <core_jni_helpers.h>
+#include <nativehelper/JNIHelp.h>
+#include <stdio.h>
 #include <utils/Log.h>
 #include <utils/misc.h>
 
-#include <stdio.h>
-
+#include "jni.h"
 namespace android {
 constexpr int kNullDocument = UNEXPECTED_NULL;
 // The reason not to ResXMLParser::BAD_DOCUMENT which is -1 is that other places use the same value.
 constexpr int kBadDocument = BAD_VALUE;
+
+static struct flag_info_fields {
+    jclass jClass;
+    jmethodID jConstructor;
+} gFlagInfo;
 
 // ----------------------------------------------------------------------------
 
@@ -338,64 +341,72 @@ static void android_content_XmlBlock_nativeDestroy(JNIEnv* env, jobject clazz,
     delete osb;
 }
 
+static jobject android_content_XmlBlock_nativeGetFlagInfo(JNIEnv* env, jobject clazz, jlong token) {
+    ResXMLParser* st = reinterpret_cast<ResXMLParser*>(token);
+    if (st == nullptr) {
+        return nullptr;
+    }
+
+    if (auto info = st->getFlagInfo()) {
+        return env->NewObject(gFlagInfo.jClass, gFlagInfo.jConstructor,
+                              static_cast<jint>(info->flagNameIndex),
+                              static_cast<jboolean>(info->flagNegated));
+    } else {
+        return nullptr;
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /*
  * JNI registration.
  */
 static const JNINativeMethod gXmlBlockMethods[] = {
-    /* name, signature, funcPtr */
-    { "nativeCreate",               "([BII)J",
-            (void*) android_content_XmlBlock_nativeCreate },
-    { "nativeGetStringBlock",       "(J)J",
-            (void*) android_content_XmlBlock_nativeGetStringBlock },
-    { "nativeCreateParseState",     "(JI)J",
-            (void*) android_content_XmlBlock_nativeCreateParseState },
-    { "nativeDestroyParseState",    "(J)V",
-            (void*) android_content_XmlBlock_nativeDestroyParseState },
-    { "nativeDestroy",              "(J)V",
-            (void*) android_content_XmlBlock_nativeDestroy },
+        /* name, signature, funcPtr */
+        {"nativeCreate", "([BII)J", (void*)android_content_XmlBlock_nativeCreate},
+        {"nativeGetStringBlock", "(J)J", (void*)android_content_XmlBlock_nativeGetStringBlock},
+        {"nativeCreateParseState", "(JI)J", (void*)android_content_XmlBlock_nativeCreateParseState},
+        {"nativeDestroyParseState", "(J)V",
+         (void*)android_content_XmlBlock_nativeDestroyParseState},
+        {"nativeDestroy", "(J)V", (void*)android_content_XmlBlock_nativeDestroy},
 
-    // ------------------- @FastNative ----------------------
+        // ------------------- @FastNative ----------------------
 
-    { "nativeNext",                 "(J)I",
-            (void*) android_content_XmlBlock_nativeNext },
-    { "nativeGetNamespace",         "(J)I",
-            (void*) android_content_XmlBlock_nativeGetNamespace },
-    { "nativeGetName",              "(J)I",
-            (void*) android_content_XmlBlock_nativeGetName },
-    { "nativeGetText",              "(J)I",
-            (void*) android_content_XmlBlock_nativeGetText },
-    { "nativeGetLineNumber",        "(J)I",
-            (void*) android_content_XmlBlock_nativeGetLineNumber },
-    { "nativeGetAttributeCount",    "(J)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeCount },
-    { "nativeGetAttributeNamespace","(JI)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeNamespace },
-    { "nativeGetAttributeName",     "(JI)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeName },
-    { "nativeGetAttributeResource", "(JI)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeResource },
-    { "nativeGetAttributeDataType", "(JI)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeDataType },
-    { "nativeGetAttributeData",    "(JI)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeData },
-    { "nativeGetAttributeStringValue", "(JI)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeStringValue },
-    { "nativeGetAttributeIndex",    "(JLjava/lang/String;Ljava/lang/String;)I",
-            (void*) android_content_XmlBlock_nativeGetAttributeIndex },
-    { "nativeGetIdAttribute",      "(J)I",
-            (void*) android_content_XmlBlock_nativeGetIdAttribute },
-    { "nativeGetClassAttribute",   "(J)I",
-            (void*) android_content_XmlBlock_nativeGetClassAttribute },
-    { "nativeGetStyleAttribute",   "(J)I",
-            (void*) android_content_XmlBlock_nativeGetStyleAttribute },
-    { "nativeGetSourceResId",      "(J)I",
-            (void*) android_content_XmlBlock_nativeGetSourceResId},
+        {"nativeNext", "(J)I", (void*)android_content_XmlBlock_nativeNext},
+        {"nativeGetNamespace", "(J)I", (void*)android_content_XmlBlock_nativeGetNamespace},
+        {"nativeGetName", "(J)I", (void*)android_content_XmlBlock_nativeGetName},
+        {"nativeGetText", "(J)I", (void*)android_content_XmlBlock_nativeGetText},
+        {"nativeGetLineNumber", "(J)I", (void*)android_content_XmlBlock_nativeGetLineNumber},
+        {"nativeGetAttributeCount", "(J)I",
+         (void*)android_content_XmlBlock_nativeGetAttributeCount},
+        {"nativeGetAttributeNamespace", "(JI)I",
+         (void*)android_content_XmlBlock_nativeGetAttributeNamespace},
+        {"nativeGetAttributeName", "(JI)I", (void*)android_content_XmlBlock_nativeGetAttributeName},
+        {"nativeGetAttributeResource", "(JI)I",
+         (void*)android_content_XmlBlock_nativeGetAttributeResource},
+        {"nativeGetAttributeDataType", "(JI)I",
+         (void*)android_content_XmlBlock_nativeGetAttributeDataType},
+        {"nativeGetAttributeData", "(JI)I", (void*)android_content_XmlBlock_nativeGetAttributeData},
+        {"nativeGetAttributeStringValue", "(JI)I",
+         (void*)android_content_XmlBlock_nativeGetAttributeStringValue},
+        {"nativeGetAttributeIndex", "(JLjava/lang/String;Ljava/lang/String;)I",
+         (void*)android_content_XmlBlock_nativeGetAttributeIndex},
+        {"nativeGetIdAttribute", "(J)I", (void*)android_content_XmlBlock_nativeGetIdAttribute},
+        {"nativeGetClassAttribute", "(J)I",
+         (void*)android_content_XmlBlock_nativeGetClassAttribute},
+        {"nativeGetStyleAttribute", "(J)I",
+         (void*)android_content_XmlBlock_nativeGetStyleAttribute},
+        {"nativeGetSourceResId", "(J)I", (void*)android_content_XmlBlock_nativeGetSourceResId},
+        {"nativeGetFlagInfo", "(J)Landroid/content/res/XmlBlock$FlagInfo;",
+         (void*)android_content_XmlBlock_nativeGetFlagInfo},
 };
 
 int register_android_content_XmlBlock(JNIEnv* env)
 {
+    gFlagInfo.jClass =
+            MakeGlobalRefOrDie(env, FindClassOrDie(env, "android/content/res/XmlBlock$FlagInfo"));
+    gFlagInfo.jConstructor = GetMethodIDOrDie(env, gFlagInfo.jClass, "<init>", "(IZ)V");
+
     return RegisterMethodsOrDie(env,
             "android/content/res/XmlBlock", gXmlBlockMethods, NELEM(gXmlBlockMethods));
 }

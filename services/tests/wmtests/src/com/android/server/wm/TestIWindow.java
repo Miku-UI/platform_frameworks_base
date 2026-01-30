@@ -20,16 +20,14 @@ import android.annotation.Nullable;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
-import android.util.MergedConfiguration;
 import android.view.DragEvent;
 import android.view.IScrollCaptureResponseListener;
 import android.view.IWindow;
 import android.view.InsetsSourceControl;
 import android.view.InsetsState;
 import android.view.ScrollCaptureResponse;
+import android.view.WindowRelayoutResult;
 import android.view.inputmethod.ImeTracker;
-import android.window.ActivityWindowInfo;
-import android.window.ClientWindowFrames;
 
 import com.android.internal.os.IResultReceiver;
 
@@ -45,10 +43,8 @@ public class TestIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void resized(ClientWindowFrames frames, boolean reportDraw,
-            MergedConfiguration mergedConfig, InsetsState insetsState, boolean forceLayout,
-            boolean alwaysConsumeSystemBars, int displayId, int seqId, boolean dragResizing,
-            @Nullable ActivityWindowInfo activityWindowInfo) throws RemoteException {
+    public void resized(WindowRelayoutResult result, boolean reportDraw, boolean forceLayout,
+            int displayId, boolean syncWithBuffers, boolean dragResizing) throws RemoteException {
     }
 
     @Override
@@ -61,7 +57,7 @@ public class TestIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void dispatchAppVisibility(boolean visible) throws RemoteException {
+    public void dispatchAppVisibility(boolean visible, int seqId) throws RemoteException {
     }
 
     @Override
@@ -73,14 +69,13 @@ public class TestIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void dispatchWallpaperOffsets(float x, float y, float xStep, float yStep, float zoom,
-            boolean sync)
+    public void dispatchWallpaperOffsets(float x, float y, float xStep, float yStep, float zoom)
             throws RemoteException {
     }
 
     @Override
-    public void dispatchWallpaperCommand(String action, int x, int y, int z, Bundle extras,
-            boolean sync) throws RemoteException {
+    public void dispatchWallpaperCommand(String action, int x, int y, int z, Bundle extras)
+            throws RemoteException {
     }
 
     public void setDragEventJournal(ArrayList<DragEvent> journal) {
@@ -116,12 +111,12 @@ public class TestIWindow extends IWindow.Stub {
     }
 
     @Override
-    public void showInsets(int types, boolean fromIme, @Nullable ImeTracker.Token statsToken)
+    public void showInsets(int types, @Nullable ImeTracker.Token statsToken)
             throws RemoteException {
     }
 
     @Override
-    public void hideInsets(int types, boolean fromIme, @Nullable ImeTracker.Token statsToken)
+    public void hideInsets(int types, @Nullable ImeTracker.Token statsToken)
             throws RemoteException {
     }
 

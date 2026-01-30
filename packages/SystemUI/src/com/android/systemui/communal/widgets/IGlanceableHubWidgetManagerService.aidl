@@ -1,5 +1,6 @@
 package com.android.systemui.communal.widgets;
 
+import android.appwidget.AppWidgetEvent;
 import android.appwidget.AppWidgetProviderInfo;
 import android.content.ComponentName;
 import android.content.IntentSender;
@@ -20,6 +21,9 @@ interface IGlanceableHubWidgetManagerService {
 
     // Sets a listener for updates on a specific widget.
     oneway void setAppWidgetHostListener(int appWidgetId, in IAppWidgetHostListener listener);
+
+    // Removes the current listener for the specific widget.
+    oneway void removeAppWidgetHostListener(int appWidgetId);
 
     // Requests to add a widget in the Glanceable Hub.
     oneway void addWidget(in ComponentName provider, in UserHandle user, int rank,
@@ -44,14 +48,16 @@ interface IGlanceableHubWidgetManagerService {
     }
 
     // Mirrors [AppWidgetHost#AppWidgetHostListener].
-    oneway interface IAppWidgetHostListener {
-        void onUpdateProviderInfo(in @nullable AppWidgetProviderInfo appWidget);
+    interface IAppWidgetHostListener {
+        oneway void onUpdateProviderInfo(in @nullable AppWidgetProviderInfo appWidget);
 
-        void updateAppWidget(in @nullable RemoteViews views);
+        oneway void updateAppWidget(in @nullable RemoteViews views);
 
-        void updateAppWidgetDeferred(in String packageName, int appWidgetId);
+        oneway void updateAppWidgetDeferred(in String packageName, int appWidgetId);
 
-        void onViewDataChanged(int viewId);
+        oneway void onViewDataChanged(int viewId);
+
+        @nullable AppWidgetEvent collectWidgetEvent();
     }
 
     oneway interface IConfigureWidgetCallback {

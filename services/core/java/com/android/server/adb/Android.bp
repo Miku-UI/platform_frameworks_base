@@ -1,0 +1,13 @@
+aconfig_declarations {
+    name: "adb_flags",
+    package: "com.android.server.adb",
+    container: "system",
+    srcs: [
+        "*.aconfig",
+    ],
+}
+
+java_aconfig_library {
+    name: "adb_flags_lib",
+    aconfig_declarations: "adb_flags",
+}

@@ -16,7 +16,6 @@
 
 package com.android.server.biometrics.sensors.fingerprint.aidl;
 
-import static android.adaptiveauth.Flags.reportBiometricAuthAttempts;
 import static android.hardware.biometrics.BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_VENDOR;
 import static android.hardware.biometrics.BiometricFingerprintConstants.FINGERPRINT_ACQUIRED_VENDOR_BASE;
 import static android.hardware.fingerprint.FingerprintManager.getAcquiredString;
@@ -182,23 +181,19 @@ public class FingerprintAuthenticationClient
         if (authenticated) {
             mState = STATE_STOPPED;
             mSensorOverlays.hide(getSensorId());
-            if (reportBiometricAuthAttempts()) {
-                mAuthenticationStateListeners.onAuthenticationSucceeded(
-                        new AuthenticationSucceededInfo.Builder(BiometricSourceType.FINGERPRINT,
-                                getRequestReason(), mIsStrongBiometric, getTargetUserId()).build()
-                );
-            }
+            mAuthenticationStateListeners.onAuthenticationSucceeded(
+                    new AuthenticationSucceededInfo.Builder(BiometricSourceType.FINGERPRINT,
+                            getRequestReason(), mIsStrongBiometric, getTargetUserId()).build()
+            );
             mAuthenticationStateListeners.onAuthenticationStopped(new AuthenticationStoppedInfo
                     .Builder(BiometricSourceType.FINGERPRINT, getRequestReason()).build()
             );
         } else {
             mState = STATE_STARTED_PAUSED_ATTEMPTED;
-            if (reportBiometricAuthAttempts()) {
-                mAuthenticationStateListeners.onAuthenticationFailed(new AuthenticationFailedInfo
-                        .Builder(BiometricSourceType.FINGERPRINT, getRequestReason(),
-                        getTargetUserId()).build()
-                );
-            }
+            mAuthenticationStateListeners.onAuthenticationFailed(new AuthenticationFailedInfo
+                    .Builder(BiometricSourceType.FINGERPRINT, getRequestReason(),
+                    getTargetUserId()).build()
+            );
         }
     }
 

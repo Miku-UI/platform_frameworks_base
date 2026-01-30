@@ -37,6 +37,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import com.android.settingslib.spa.framework.compose.thenIf
 import com.android.settingslib.spa.framework.theme.SettingsDimension
+import com.android.settingslib.spa.framework.theme.SettingsSpace
 import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
 import com.android.settingslib.spa.widget.ui.Category
 import com.android.settingslib.spa.widget.ui.SettingsListItem
@@ -84,7 +85,7 @@ fun Radio2(
         Spacer(
             modifier =
                 Modifier.width(
-                    if (isSpaExpressiveEnabled) SettingsDimension.paddingExtraSmall6
+                    if (isSpaExpressiveEnabled) SettingsSpace.extraSmall6
                     else SettingsDimension.itemDividerHeight
                 )
         )

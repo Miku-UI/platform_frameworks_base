@@ -18,8 +18,8 @@ package com.android.keyguard
 
 import android.content.Context
 import android.view.View
-import com.android.systemui.customization.R as customR
 import com.android.systemui.keyguard.ui.view.KeyguardRootView
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.res.R
 import com.android.systemui.shade.NotificationShadeWindowView
@@ -90,12 +90,12 @@ constructor(
             viewsIdToTranslate =
                 setOf(
                     ViewIdToTranslate(
-                        viewId = customR.id.lockscreen_clock_view_large,
+                        viewId = ClockViewIds.LOCKSCREEN_CLOCK_VIEW_LARGE,
                         direction = START,
                         shouldBeAnimated = filterKeyguardAndSplitShadeOnly,
                     ),
                     ViewIdToTranslate(
-                        viewId = customR.id.lockscreen_clock_view,
+                        viewId = ClockViewIds.LOCKSCREEN_CLOCK_VIEW_SMALL,
                         direction = START,
                         shouldBeAnimated = filterKeyguard,
                     ),

@@ -16,13 +16,21 @@
 
 package android.companion.virtual.camera;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.SystemApi;
+import android.companion.virtualdevice.flags.Flags;
 import android.graphics.ImageFormat;
+import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CaptureRequest;
+import android.hardware.camera2.CaptureResult;
+import android.hardware.camera2.params.SessionConfiguration;
 import android.view.Surface;
 
 import java.util.concurrent.Executor;
+import java.util.function.ObjLongConsumer;
 
 /**
  * Interface to be provided when creating a new {@link VirtualCamera} in order to receive callbacks
@@ -35,8 +43,46 @@ import java.util.concurrent.Executor;
 public interface VirtualCameraCallback {
 
     /**
+     * Called when the client application calls
+     * {@link android.hardware.camera2.CameraManager#openCamera}. This is the earliest signal that
+     * this camera will be used. At this point, no stream is opened yet, nor any configuration took
+     * place. The owner of the virtual camera can use this as signal to prepare the camera and
+     * reduce latency for when
+     * {@link android.hardware.camera2.CameraDevice#createCaptureSession(SessionConfiguration)} is
+     * called and before
+     * {@link CameraCaptureSession.StateCallback#onConfigured(CameraCaptureSession)}
+     * is called.
+     */
+    @FlaggedApi(Flags.FLAG_VIRTUAL_CAMERA_ON_OPEN)
+    default void onOpenCamera() {}
+
+    /**
+     * Called when the app using the {@link VirtualCamera} creates a new
+     * {@link CameraCaptureSession}. This callback is sent when clients open and configure the
+     * capture session for the virtual camera.
+     *
+     * @param virtualCameraSessionConfig The virtual camera session configuration with the session
+     *      parameters provided by the app in association with the requested capture session.
+     * @param captureResultConsumer The consumer interface through which the virtual camera
+     *      owner can pass {@link android.hardware.camera2.CaptureResult}s for each timestamp of
+     *      the streams associated with this session. The timestamp must match the timestamp of the
+     *      buffer posted on the corresponding {@link Surface}. This is {@code null} if the per
+     *      frame metadata is not enabled in the {@link VirtualCameraConfig} of the virtual camera.
+     *
+     * @see VirtualCameraConfig.Builder#setPerFrameCameraMetadataEnabled(boolean)
+     * @see CameraCaptureSession
+     */
+    @FlaggedApi(Flags.FLAG_VIRTUAL_CAMERA_METADATA)
+    default void onConfigureSession(
+            @NonNull VirtualCameraSessionConfig virtualCameraSessionConfig,
+            @Nullable ObjLongConsumer<CaptureResult> captureResultConsumer) {}
+
+    /**
      * Called when one of the requested stream has been configured by the virtual camera service and
      * is ready to receive data onto its {@link Surface}
+     * <p>
+     * This corresponds to the client calling
+     * {@link android.hardware.camera2.CameraDevice#createCaptureSession(SessionConfiguration)}
      *
      * @param streamId The id of the configured stream
      * @param surface The surface to write data into for this stream
@@ -55,12 +101,45 @@ public interface VirtualCameraCallback {
      * this stream that was provided during the
      * {@link #onStreamConfigured(int, Surface, int, int, int)} call.
      *
+     * <p>This callback is called <b>only</b> when the support for per frame camera metadata is
+     * <b>disabled</b> (default value).
+     *
      * @param streamId The streamId for which the frame is requested. This corresponds to the
      *     streamId that was given in {@link #onStreamConfigured(int, Surface, int, int, int)}
      * @param frameId The frameId that is being requested. Each request will have a different
      *     frameId, that will be increasing for each call with a particular streamId.
+     *
+     * @see VirtualCameraConfig.Builder#setPerFrameCameraMetadataEnabled(boolean)
+     * @see #onProcessCaptureRequest(int, long, CaptureRequest)
      */
     default void onProcessCaptureRequest(int streamId, long frameId) {}
+
+    /**
+     * The client application is requesting a camera frame for the given streamId and frameId with
+     * the provided {@link CaptureRequest} metadata.
+     *
+     * <p>The virtual camera needs to write the frame data in the {@link Surface} corresponding to
+     * this stream that was provided during the
+     * {@link #onStreamConfigured(int, Surface, int, int, int)} call.
+     *
+     * <p>This callback is called <b>instead</b> of the {@link #onProcessCaptureRequest(int, long)}
+     * when support for per frame camera metadata is <b>enabled</b> with
+     * {@link VirtualCameraConfig.Builder#setPerFrameCameraMetadataEnabled(boolean)}.
+     *
+     * @param streamId The streamId for which the frame is requested. This corresponds to the
+     *      streamId that was given in {@link #onStreamConfigured(int, Surface, int, int, int)}.
+     * @param frameId The frameId that is being requested. Each request will have a different
+     *      frameId, that will be increasing for each call with a particular streamId.
+     * @param captureRequest The {@link CaptureRequest} metadata provided by the app in association
+     *      with the requested frameId. It is {@code null} if there is no change from the previous
+     *      {@link CaptureRequest}.
+     *
+     * @see VirtualCameraConfig.Builder#setPerFrameCameraMetadataEnabled(boolean)
+     * @see #onProcessCaptureRequest(int, long)
+     */
+    @FlaggedApi(Flags.FLAG_VIRTUAL_CAMERA_METADATA)
+    default void onProcessCaptureRequest(int streamId, long frameId,
+            @Nullable CaptureRequest captureRequest) {}
 
     /**
      * The stream previously configured when

@@ -18,6 +18,7 @@ package android.view;
 
 import static android.view.InsetsController.DEBUG;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UiThread;
 import android.content.res.CompatibilityInfo;
@@ -42,8 +43,11 @@ import android.view.inputmethod.ImeTracker;
 public class InsetsAnimationThreadControlRunner implements InsetsAnimationControlRunner {
 
     private static final String TAG = "InsetsAnimThreadRunner";
+    @NonNull
     private final InsetsAnimationControlImpl mControl;
+    @NonNull
     private final InsetsAnimationControlCallbacks mOuterCallbacks;
+    @NonNull
     private final Handler mMainThreadHandler;
     private final InsetsAnimationControlCallbacks mCallbacks =
             new InsetsAnimationControlCallbacks() {
@@ -51,13 +55,14 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
         @Override
         @UiThread
         public <T extends InsetsAnimationControlRunner & InternalInsetsAnimationController>
-        void startAnimation(T runner, WindowInsetsAnimationControlListener listener, int types,
-                WindowInsetsAnimation animation, Bounds bounds) {
+        void startAnimation(@NonNull T runner,
+                @NonNull WindowInsetsAnimationControlListener listener, @InsetsType int types,
+                @NonNull WindowInsetsAnimation animation, @NonNull Bounds bounds) {
             // Animation will be started in constructor already.
         }
 
         @Override
-        public void scheduleApplyChangeInsets(InsetsAnimationControlRunner runner) {
+        public void scheduleApplyChangeInsets(@NonNull InsetsAnimationControlRunner runner) {
             synchronized (mControl) {
                 // This reads the surface position on the animation thread, but the surface position
                 // would be updated on the UI thread, so we need this critical section.
@@ -67,7 +72,7 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
         }
 
         @Override
-        public void notifyFinished(InsetsAnimationControlRunner runner, boolean shown) {
+        public void notifyFinished(@NonNull InsetsAnimationControlRunner runner, boolean shown) {
             Trace.asyncTraceEnd(Trace.TRACE_TAG_VIEW,
                     "InsetsAsyncAnimation: " + WindowInsets.Type.toString(runner.getTypes()),
                     runner.getTypes());
@@ -77,14 +82,14 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
         }
 
         @Override
-        public void releaseSurfaceControlFromRt(SurfaceControl sc) {
+        public void releaseSurfaceControlFromRt(@NonNull SurfaceControl sc) {
             if (DEBUG) Log.d(TAG, "releaseSurfaceControlFromRt");
             // Since we don't push the SurfaceParams to the RT we can release directly
             sc.release();
         }
 
         @Override
-        public void reportPerceptible(int types, boolean perceptible) {
+        public void reportPerceptible(@InsetsType int types, boolean perceptible) {
             mMainThreadHandler.post(() -> mOuterCallbacks.reportPerceptible(types, perceptible));
         }
     };
@@ -94,7 +99,8 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
         private final float[] mTmpFloat9 = new float[9];
 
         @Override
-        public void applySurfaceParams(SyncRtSurfaceTransactionApplier.SurfaceParams... params) {
+        public void applySurfaceParams(
+                @NonNull SyncRtSurfaceTransactionApplier.SurfaceParams... params) {
             final SurfaceControl.Transaction t = new SurfaceControl.Transaction();
             for (int i = params.length - 1; i >= 0; i--) {
                 SyncRtSurfaceTransactionApplier.applyParams(t, params[i], mTmpFloat9);
@@ -106,16 +112,17 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
     };
 
     @UiThread
-    public InsetsAnimationThreadControlRunner(SparseArray<InsetsSourceControl> controls,
-            @Nullable Rect frame, InsetsState state, WindowInsetsAnimationControlListener listener,
-            @InsetsType int types, InsetsAnimationControlCallbacks controller,
-            InsetsAnimationSpec insetsAnimationSpec, @AnimationType int animationType,
+    public InsetsAnimationThreadControlRunner(@NonNull SparseArray<InsetsSourceControl> controls,
+            @Nullable Rect frame, @Nullable Rect bounds, @NonNull InsetsState state,
+            @NonNull WindowInsetsAnimationControlListener listener, @InsetsType int types,
+            @NonNull InsetsAnimationControlCallbacks controller,
+            @NonNull InsetsAnimationSpec insetsAnimationSpec, @AnimationType int animationType,
             @LayoutInsetsDuringAnimation int layoutInsetsDuringAnimation,
-            CompatibilityInfo.Translator translator, Handler mainThreadHandler,
+            @Nullable CompatibilityInfo.Translator translator, @NonNull Handler mainThreadHandler,
             @Nullable ImeTracker.Token statsToken) {
         mMainThreadHandler = mainThreadHandler;
         mOuterCallbacks = controller;
-        mControl = new InsetsAnimationControlImpl(controls, frame, state, listener, types,
+        mControl = new InsetsAnimationControlImpl(controls, frame, bounds, state, listener, types,
                 mCallbacks, mSurfaceParamsApplier, insetsAnimationSpec, animationType,
                 layoutInsetsDuringAnimation, translator, statsToken);
         InsetsAnimationThread.getHandler().post(() -> {
@@ -130,7 +137,7 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
 
     @Override
     @UiThread
-    public void dumpDebug(ProtoOutputStream proto, long fieldId) {
+    public void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
         mControl.dumpDebug(proto, fieldId);
     }
 
@@ -160,7 +167,7 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
 
     @Override
     @UiThread
-    public void updateSurfacePosition(SparseArray<InsetsSourceControl> controls) {
+    public void updateSurfacePosition(@NonNull SparseArray<InsetsSourceControl> controls) {
         synchronized (mControl) {
             // This is called from the UI thread, however, the surface position will be used on the
             // animation thread, so we need this critical section. See: scheduleApplyChangeInsets.
@@ -185,17 +192,20 @@ public class InsetsAnimationThreadControlRunner implements InsetsAnimationContro
         InsetsAnimationThread.getHandler().post(mControl::cancel);
     }
 
+    @NonNull
     @Override
     @UiThread
     public WindowInsetsAnimation getAnimation() {
         return mControl.getAnimation();
     }
 
+    @AnimationType
     @Override
     public int getAnimationType() {
         return mControl.getAnimationType();
     }
 
+    @NonNull
     @Override
     public SurfaceParamsApplier getSurfaceParamsApplier() {
         return mSurfaceParamsApplier;

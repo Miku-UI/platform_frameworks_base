@@ -25,12 +25,12 @@
 
 FileInfo::FileInfo()
 {
-    memset(this, 0, sizeof(FileInfo));
+    memset(static_cast<void*>(this), 0, sizeof(FileInfo));
 }
 
 FileInfo::FileInfo(const FileInfo& that)
 {
-    memcpy(this, &that, sizeof(FileInfo));
+    memcpy(static_cast<void*>(this), &that, sizeof(FileInfo));
 }
 
 FileInfo::FileInfo(const string& filename)
@@ -38,7 +38,7 @@ FileInfo::FileInfo(const string& filename)
     struct stat st;
     int err = stat(filename.c_str(), &st);
     if (err != 0) {
-        memset(this, 0, sizeof(FileInfo));
+        memset(static_cast<void*>(this), 0, sizeof(FileInfo));
     } else {
         exists = true;
         mtime = st.st_mtime;

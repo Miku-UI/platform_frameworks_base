@@ -724,6 +724,33 @@ final class HdmiUtils {
         }
     }
 
+    /**
+     * Whether the given path is located in the tail of current active path.
+     *
+     * @param path to be tested
+     * @param activePath current active path
+     * @return true if the given path is located in the tail of current active path; otherwise,
+     *         false
+     */
+    static boolean isTailOfActivePath(int path, int activePath) {
+        // If active routing path is internal source, return false.
+        if (activePath == 0) {
+            return false;
+        }
+        for (int i = 12; i >= 0; i -= 4) {
+            int curActivePath = (activePath >> i) & 0xF;
+            if (curActivePath == 0) {
+                return true;
+            } else {
+                int curPath = (path >> i) & 0xF;
+                if (curPath != curActivePath) {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+
     // Device configuration of its supported Codecs and their Short Audio Descriptors.
     public static class DeviceConfig {
         /** Name of the device. Should be {@link Constants.AudioDevice}. **/

@@ -27,9 +27,11 @@ import android.hardware.biometrics.AuthenticateOptions;
 import android.hardware.biometrics.IBiometricContextListener;
 import android.hardware.biometrics.common.OperationContext;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.RemoteException;
 import android.os.ServiceManager;
 import android.os.ServiceManager.ServiceNotFoundException;
+import android.util.Pair;
 import android.util.Slog;
 import android.view.Display;
 import android.view.WindowManager;
@@ -38,6 +40,7 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.logging.InstanceId;
 import com.android.internal.statusbar.ISessionListener;
 import com.android.internal.statusbar.IStatusBarService;
+import com.android.server.biometrics.BiometricHandlerProvider;
 import com.android.server.biometrics.sensors.AuthSessionCoordinator;
 
 import java.util.Map;
@@ -65,7 +68,8 @@ public final class BiometricContextProvider implements BiometricContext {
                     sInstance = new BiometricContextProvider(context,
                             (WindowManager) context.getSystemService(Context.WINDOW_SERVICE),
                             IStatusBarService.Stub.asInterface(ServiceManager.getServiceOrThrow(
-                                    Context.STATUS_BAR_SERVICE)), null /* handler */,
+                                    Context.STATUS_BAR_SERVICE)),
+                            BiometricHandlerProvider.getInstance().getBiometricCallbackHandler(),
                             new AuthSessionCoordinator());
                 } catch (ServiceNotFoundException e) {
                     throw new IllegalStateException("Failed to find required service", e);
@@ -76,14 +80,13 @@ public final class BiometricContextProvider implements BiometricContext {
     }
 
     @NonNull
-    private final Map<OperationContextExt, Consumer<OperationContext>> mSubscribers =
-            new ConcurrentHashMap<>();
+    private final ContextSubscribers mSubscribers = new ContextSubscribers();
 
     @Nullable
     private final Map<Integer, BiometricContextSessionInfo> mSession = new ConcurrentHashMap<>();
     private final AuthSessionCoordinator mAuthSessionCoordinator;
     private final WindowManager mWindowManager;
-    @Nullable private final Handler mHandler;
+    @NonNull private final Handler mHandler;
     private int mDockState = Intent.EXTRA_DOCK_STATE_UNDOCKED;
     private int mFoldState = IBiometricContextListener.FoldState.UNKNOWN;
     private int mDisplayState = AuthenticateOptions.DISPLAY_STATE_UNKNOWN;
@@ -101,7 +104,7 @@ public final class BiometricContextProvider implements BiometricContext {
     @VisibleForTesting
     public BiometricContextProvider(@NonNull Context context,
             @NonNull WindowManager windowManager,
-            @NonNull IStatusBarService service, @Nullable Handler handler,
+            @NonNull IStatusBarService service, @NonNull Handler handler,
             @NonNull AuthSessionCoordinator authSessionCoordinator) {
         mWindowManager = windowManager;
         mAuthSessionCoordinator = authSessionCoordinator;
@@ -232,7 +235,9 @@ public final class BiometricContextProvider implements BiometricContext {
             @NonNull Consumer<OperationContext> startHalConsumer,
             @NonNull Consumer<OperationContext> updateContextConsumer,
             @Nullable AuthenticateOptions options) {
-        mSubscribers.put(updateContext(context, context.isCrypto()), updateContextConsumer);
+        final Handler handler = new Handler(Looper.myLooper());
+        mSubscribers.add(updateContext(context, context.isCrypto()),
+                updateContextConsumer, handler);
         if (options != null) {
             startHalConsumer.accept(context.toAidlContext(options));
         } else {
@@ -251,17 +256,7 @@ public final class BiometricContextProvider implements BiometricContext {
     }
 
     private void notifyChanged() {
-        if (mHandler != null) {
-            mHandler.post(this::notifySubscribers);
-        } else {
-            notifySubscribers();
-        }
-    }
-
-    private void notifySubscribers() {
-        mSubscribers.forEach((context, consumer) -> {
-            consumer.accept(context.update(this, context.isCrypto()).toAidlContext());
-        });
+        mHandler.post(() -> mSubscribers.notifySubscribers(this));
     }
 
     @Override
@@ -275,5 +270,35 @@ public final class BiometricContextProvider implements BiometricContext {
                 + "dock: " + getDockedState() + ", "
                 + "rotation: " + getCurrentRotation() + ", "
                 + "foldState: " + mFoldState + "]";
+    }
+
+    /** Helper class for running the subscribers on the HAL threads. */
+    private static final class ContextSubscribers {
+        private final Map<OperationContextExt, Pair<Consumer<OperationContext>, Handler>> mSubscribers =
+                new ConcurrentHashMap<>();
+
+        public void add(@NonNull OperationContextExt context,
+                @NonNull Consumer<OperationContext> callback,
+                @NonNull Handler handler) {
+            mSubscribers.put(context, new Pair<>(callback, handler));
+        }
+
+        public void remove(@NonNull OperationContextExt context) {
+            mSubscribers.remove(context);
+        }
+
+        public void notifySubscribers(@NonNull BiometricContext biometricContext) {
+            mSubscribers.forEach((context, consumer) -> {
+                final Handler handler = consumer.second;
+                final Runnable callback = () -> consumer.first.accept(
+                        context.update(biometricContext, context.isCrypto()).toAidlContext());
+
+                if (handler.getLooper().isCurrentThread()) {
+                    callback.run();
+                } else {
+                    handler.post(callback);
+                }
+            });
+        }
     }
 }

@@ -31,7 +31,6 @@ import com.android.internal.pm.parsing.PackageParser2;
 import com.android.server.SystemConfig;
 import com.android.server.compat.PlatformCompat;
 import com.android.server.pm.dex.ArtManagerService;
-import com.android.server.pm.dex.DexManager;
 import com.android.server.pm.dex.DynamicCodeLogger;
 import com.android.server.pm.permission.LegacyPermissionManagerInternal;
 import com.android.server.pm.permission.PermissionManagerServiceInternal;
@@ -81,6 +80,23 @@ public class PackageManagerServiceInjector {
         }
     }
 
+    static class SingletonWithArgument<T, R> {
+        private final ProducerWithArgument<T, R> mProducer;
+        private volatile T mInstance = null;
+
+        SingletonWithArgument(ProducerWithArgument<T, R> producer) {
+            this.mProducer = producer;
+        }
+
+        T get(PackageManagerServiceInjector injector,
+                PackageManagerService packageManagerService, R argument) {
+            if (mInstance == null) {
+                mInstance = mProducer.produce(injector, packageManagerService, argument);
+            }
+            return mInstance;
+        }
+    }
+
     private PackageManagerService mPackageManager;
 
     private final PackageAbiHelper mAbiHelper;
@@ -105,9 +121,6 @@ public class PackageManagerServiceInjector {
     private final Singleton<PlatformCompat>
             mPlatformCompatProducer;
     private final Singleton<SystemConfig> mSystemConfigProducer;
-    private final Singleton<PackageDexOptimizer>
-            mPackageDexOptimizerProducer;
-    private final Singleton<DexManager> mDexManagerProducer;
     private final Singleton<DynamicCodeLogger> mDynamicCodeLoggerProducer;
     private final Singleton<ArtManagerService>
             mArtManagerServiceProducer;
@@ -124,7 +137,7 @@ public class PackageManagerServiceInjector {
             mScanningPackageParserProducer;
     private final Producer<PackageParser2>
             mPreparingPackageParserProducer;
-    private final Singleton<PackageInstallerService>
+    private final SingletonWithArgument<PackageInstallerService, ComponentName>
             mPackageInstallerServiceProducer;
 
     private final ProducerWithArgument<InstantAppResolverConnection, ComponentName>
@@ -157,8 +170,6 @@ public class PackageManagerServiceInjector {
             Producer<AppsFilterImpl> appsFilterProducer,
             Producer<PlatformCompat> platformCompatProducer,
             Producer<SystemConfig> systemConfigProducer,
-            Producer<PackageDexOptimizer> packageDexOptimizerProducer,
-            Producer<DexManager> dexManagerProducer,
             Producer<DynamicCodeLogger> dynamicCodeLoggerProducer,
             Producer<ArtManagerService> artManagerServiceProducer,
             Producer<ApexManager> apexManagerProducer,
@@ -168,7 +179,8 @@ public class PackageManagerServiceInjector {
             Producer<PackageParser2> scanningCachingPackageParserProducer,
             Producer<PackageParser2> scanningPackageParserProducer,
             Producer<PackageParser2> preparingPackageParserProducer,
-            Producer<PackageInstallerService> packageInstallerServiceProducer,
+            ProducerWithArgument<PackageInstallerService, ComponentName>
+                    packageInstallerServiceProducer,
             ProducerWithArgument<InstantAppResolverConnection,
                     ComponentName>
                     instantAppResolverConnectionProducer,
@@ -204,9 +216,6 @@ public class PackageManagerServiceInjector {
         mPlatformCompatProducer = new Singleton<>(
                 platformCompatProducer);
         mSystemConfigProducer = new Singleton<>(systemConfigProducer);
-        mPackageDexOptimizerProducer = new Singleton<>(
-                packageDexOptimizerProducer);
-        mDexManagerProducer = new Singleton<>(dexManagerProducer);
         mDynamicCodeLoggerProducer = new Singleton<>(dynamicCodeLoggerProducer);
         mArtManagerServiceProducer = new Singleton<>(
                 artManagerServiceProducer);
@@ -220,7 +229,7 @@ public class PackageManagerServiceInjector {
         mScanningCachingPackageParserProducer = scanningCachingPackageParserProducer;
         mScanningPackageParserProducer = scanningPackageParserProducer;
         mPreparingPackageParserProducer = preparingPackageParserProducer;
-        mPackageInstallerServiceProducer = new Singleton<>(
+        mPackageInstallerServiceProducer = new SingletonWithArgument<>(
                 packageInstallerServiceProducer);
         mInstantAppResolverConnectionProducer = instantAppResolverConnectionProducer;
         mModuleInfoProviderProducer = new Singleton<>(
@@ -318,14 +327,6 @@ public class PackageManagerServiceInjector {
         return mSystemConfigProducer.get(this, mPackageManager);
     }
 
-    public PackageDexOptimizer getPackageDexOptimizer() {
-        return mPackageDexOptimizerProducer.get(this, mPackageManager);
-    }
-
-    public DexManager getDexManager() {
-        return mDexManagerProducer.get(this, mPackageManager);
-    }
-
     public DynamicCodeLogger getDynamicCodeLogger() {
         return mDynamicCodeLoggerProducer.get(this, mPackageManager);
     }
@@ -382,8 +383,13 @@ public class PackageManagerServiceInjector {
         return mPreparingPackageParserProducer.produce(this, mPackageManager);
     }
 
-    public PackageInstallerService getPackageInstallerService() {
-        return mPackageInstallerServiceProducer.get(this, mPackageManager);
+    /**
+     * Create a PackageInstallerService instance for the given verifier package name.
+     */
+    public PackageInstallerService getPackageInstallerService(
+            ComponentName developerVerificationServiceProvider) {
+        return mPackageInstallerServiceProducer.get(this, mPackageManager,
+                developerVerificationServiceProvider);
     }
 
     public InstantAppResolverConnection getInstantAppResolverConnection(

@@ -18,6 +18,7 @@ package android.service.voice;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
@@ -48,6 +49,7 @@ import android.os.ServiceManager;
 import android.os.SharedMemory;
 import android.os.SystemProperties;
 import android.provider.Settings;
+import android.service.voice.flags.Flags;
 import android.util.ArraySet;
 import android.util.Log;
 
@@ -1112,6 +1114,62 @@ public class VoiceInteractionService extends Service {
 
         try {
             mSystemService.setUiHints(hints);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Sets the enabled state for the invocation effect, a graphical indication displayed when a
+     * voice session is launched by the system.
+     *
+     * <p>This effect is specifically triggered when a voice session is initiated via a dedicated
+     * system entry point, e.g. by long-pressing the power button to activate the current
+     * {@link android.service.voice.VoiceInteractionService}. It does not apply to voice sessions
+     * started by general {@link Intent#ACTION_ASSIST} intents from arbitrary applications.
+     *
+     * <p><b>Controlling the Effect and Persistence:</b>
+     * The {@link android.service.voice.VoiceInteractionService} (the API caller) controls this
+     * setting. The choice (enabled or disabled) made through this method is persisted by SystemUI
+     * for the current user and their selected assistant. This allows the setting to be remembered
+     * across device reboots or if the same {@link android.service.voice.VoiceInteractionService}
+     * is restarted for that specific user and assistant combination.
+     *
+     * <p><b>Default State and Behavior on Context Change:</b>
+     * <ul>
+     * <li>The invocation effect is <b>disabled by default</b>.</li>
+     * <li>If the current user changes, or if the selected assistant for that user changes, any
+     * previously persisted setting for a different user/assistant combination will not
+     * automatically apply to the new context.</li>
+     * <li>In such new contexts (e.g., a new user or a change in the selected assistant), or if
+     * this method has not been explicitly called to enable the effect for the current
+     * context, the effect will remain <b>disabled</b> (its default state).</li>
+     * <li>To enable the effect, or to ensure a specific state (enabled or disabled) is applied,
+     * the {@link android.service.voice.VoiceInteractionService} <b>must call this method</b>.
+     * It is strongly recommended to do so every time the service becomes active to
+     * assert the intended state for the current operational context.</li>
+     * </ul>
+     *
+     * <p><b>System Conditions:</b>
+     * SystemUI will honor the state set by this method for the invocation effect, provided other
+     * system-level conditions are met, such as the correct hardware gesture for invocation
+     * (e.g., power button long-press) being detected. Note that the actual visualization of this
+     * effect is contingent on the specific SystemUI implementation; some variants, such as those on
+     * automotive or television platforms, may not have a visual representation for this effect.
+     *
+     * @param enabled {@code true} to enable the invocation effect for the current user and
+     *                            assistant,
+     * {@code false} to disable it. This state is persisted by SystemUI.
+     * @throws SecurityException if the caller is not the current active
+     * {@link android.service.voice.VoiceInteractionService}.
+     */
+    @FlaggedApi(Flags.FLAG_SET_INVOCATION_EFFECT_ENABLED_API)
+    public final void setInvocationEffectEnabled(boolean enabled) {
+        if (!Flags.setInvocationEffectEnabledApi()) {
+            throw new UnsupportedOperationException("Flagged API usage while flag disabled.");
+        }
+        try {
+            mSystemService.setInvocationEffectEnabled(enabled);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         }

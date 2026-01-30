@@ -18,12 +18,14 @@ package com.android.systemui.keyguard.ui.viewmodel
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
+import com.android.systemui.keyguard.dagger.GlanceableHubBlurComponent
 import com.android.systemui.keyguard.domain.interactor.FromGlanceableHubTransitionInteractor
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
+import com.android.systemui.keyguard.ui.transitions.GlanceableHubTransition
 import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
@@ -39,7 +41,8 @@ class GlanceableHubToAodTransitionViewModel
 constructor(
     deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     animationFlow: KeyguardTransitionAnimationFlow,
-) : DeviceEntryIconTransition {
+    blurComponentFactory: GlanceableHubBlurComponent.Factory,
+) : DeviceEntryIconTransition, GlanceableHubTransition {
 
     private val transitionAnimation =
         animationFlow
@@ -58,6 +61,17 @@ constructor(
             startTime = 233.milliseconds,
             duration = 250.milliseconds,
             onStep = { it },
+            onCancel = { 0f },
+            onFinish = { 1f },
+        )
+
+    override val zoomOut: Flow<Float> =
+        transitionAnimation.sharedFlow(
+            onStep = { 1f - it },
+            // reset zoom out on wallpaper and keyguard view
+            onFinish = { 0f },
+            onCancel = { 1f },
+            name = "GLANCEABLE_HUB->AOD: zoomOut",
         )
 
     override val deviceEntryParentViewAlpha: Flow<Float> =
@@ -69,4 +83,7 @@ constructor(
                 emptyFlow()
             }
         }
+
+    override val windowBlurRadius: Flow<Float> =
+        blurComponentFactory.create(transitionAnimation).getBlurProvider().exitBlurRadius
 }

@@ -16,7 +16,7 @@
 
 package com.android.systemui.qs.tiles.dialog
 
-import android.content.Context
+import android.graphics.drawable.Drawable
 import android.media.MediaRouter
 import android.provider.Settings
 import android.testing.TestableLooper.RunWithLooper
@@ -27,8 +27,10 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.qs.tiles.base.domain.actions.FakeQSTileIntentUserInputHandler
 import com.android.systemui.qs.tiles.base.domain.actions.intentInputs
 import com.google.common.truth.Truth.assertThat
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.stub
@@ -38,13 +40,22 @@ import org.mockito.kotlin.stub
 @RunWith(AndroidJUnit4::class)
 class CastDetailsViewModelTest : SysuiTestCase() {
     var inputHandler: FakeQSTileIntentUserInputHandler = FakeQSTileIntentUserInputHandler()
-    private var context: Context = mock()
-    private var mediaRouter: MediaRouter = mock()
     private var selectedRoute: MediaRouter.RouteInfo = mock()
+    private var mediaRouter: MediaRouter =
+        mock<MediaRouter> { on { selectedRoute } doReturn selectedRoute }
+
+    @Before
+    fun SetUp() {
+        // We need to set up a fake system service here since shouldShowChooserDialog access's
+        // context system service, and we want to use the mocked selectedRoute to test this
+        // function's behavior.
+        context.addMockSystemService(MediaRouter::class.java, mediaRouter)
+    }
 
     @Test
     fun testClickOnSettingsButton() {
-        var viewModel = CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
+        val viewModel =
+            CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
 
         viewModel.clickOnSettingsButton()
 
@@ -56,14 +67,7 @@ class CastDetailsViewModelTest : SysuiTestCase() {
 
     @Test
     fun testShouldShowChooserDialog() {
-        context.stub {
-            on { getSystemService(MediaRouter::class.java) } doReturn mediaRouter
-        }
-        mediaRouter.stub {
-            on { selectedRoute } doReturn selectedRoute
-        }
-
-        var viewModel =
+        val viewModel =
             CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
 
         assertThat(viewModel.shouldShowChooserDialog())
@@ -73,5 +77,59 @@ class CastDetailsViewModelTest : SysuiTestCase() {
                     MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY,
                 )
             )
+    }
+
+    @Test
+    fun shouldShowChooserDialogFalse_subTitleEmpty() {
+        selectedRoute.stub {
+            on { isDefault } doReturn false
+            on { matchesTypes(anyInt()) } doReturn true
+        }
+        val viewModel =
+            CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
+
+        assertThat(viewModel.shouldShowChooserDialog()).isEqualTo(false)
+        assertThat(viewModel.subTitle).isEqualTo("")
+    }
+
+    @Test
+    fun shouldShowChooserDialogTrue_useDefaultSubTitle() {
+        selectedRoute.stub { on { isDefault } doReturn true }
+        val viewModel =
+            CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
+
+        assertThat(viewModel.shouldShowChooserDialog()).isEqualTo(true)
+        assertThat(viewModel.subTitle).isEqualTo("Searching for devices...")
+    }
+
+    @Test
+    fun shouldShowChooserDialogTrue_useDefaultTitle() {
+        selectedRoute.stub { on { isDefault } doReturn true }
+        val viewModel =
+            CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
+
+        assertThat(viewModel.shouldShowChooserDialog()).isEqualTo(true)
+        assertThat(viewModel.title).isEqualTo("Cast screen to device")
+    }
+
+    @Test
+    fun setMediaRouteDeviceTitle() {
+        val viewModel =
+            CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
+
+        viewModel.setMediaRouteDeviceTitle("test")
+
+        assertThat(viewModel.title).isEqualTo("test")
+    }
+
+    @Test
+    fun setMediaRouteDeviceIcon() {
+        val viewModel =
+            CastDetailsViewModel(inputHandler, context, MediaRouter.ROUTE_TYPE_REMOTE_DISPLAY)
+        val testIcon = mock<Drawable>()
+
+        viewModel.setMediaRouteDeviceIcon(testIcon)
+
+        assertThat(viewModel.deviceIcon).isEqualTo(testIcon)
     }
 }

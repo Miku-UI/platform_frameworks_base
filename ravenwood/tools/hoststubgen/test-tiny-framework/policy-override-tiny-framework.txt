@@ -1,18 +1,18 @@
 class com/android/hoststubgen/test/tinyframework/TinyFrameworkForTextPolicy	keep
-  field stub	keep
+  field stub	keep # test policy on field
   # field remove	remove # Implicitly remove
-  method <init>	()V	            keep
-  method addOne	(I)I	        keep
-  method addOneInner	keep
+  method <init>	()V	            keep # test keep policy on ctor
+  method addOne	(I)I	        keep # test keep policy on method
   method toBeRemoved	(Ljava/lang/String;)V	remove
   method addTwo	(I)I	        @addTwo_host
   # method addTwo_host	(I)I	# used as a substitute
   method nativeAddThree	        @addThree_host
   # method addThree_host	(I)I	# used as a substitute
+  method addFour (I)I           experimental
   method unsupportedMethod	()Ljava/lang/String;	throw
   method visibleButUsesUnsupportedMethod	()Ljava/lang/String;	keep
   method toBeIgnoredObj	()Ljava/lang/String;	ignore
-  method toBeIgnoredV	()V	ignore
+  method toBeIgnoredV	()V	ignore # test ignore policy
   method toBeIgnoredZ	()Z	ignore
   method toBeIgnoredB	()B	ignore
   method toBeIgnoredC	()C	ignore
@@ -22,8 +22,16 @@ class com/android/hoststubgen/test/tinyframework/TinyFrameworkForTextPolicy	keep
   method toBeIgnoredF	()F	ignore
   method toBeIgnoredD	()D	ignore
 
+class com/android/hoststubgen/test/tinyframework/TinyFrameworkExperimental experimental
+  method keep          ()V experimental
+  method replace       ()V experimental
+  method unsupported   ()V experimental
+
+class com/android/hoststubgen/test/tinyframework/TinyFrameworkClassWideAnnotations
+  method experimental  ()V experimental
+
 # Class load hook
-class com/android/hoststubgen/test/tinyframework/TinyFrameworkForTextPolicy	~com.android.hoststubgen.test.tinyframework.TinyFrameworkClassLoadHook.onClassLoaded
+class com/android/hoststubgen/test/tinyframework/TinyFrameworkForTextPolicy	~com.android.hoststubgen.test.tinyframework.TinyFrameworkHooks.onClassLoaded
 
 # Heuristics rule: Stub all the AIDL classes.
 class :aidl keepclass
@@ -32,7 +40,7 @@ class :aidl keepclass
 class :r keepclass
 
 # Default is "remove", so let's put all the base classes / interfaces in the stub first.
-class com.android.hoststubgen.test.tinyframework.subclasstest.C1 keep
+class com.android.hoststubgen.test.tinyframework.subclasstest.C1 keep # test-class-policy
 class com.android.hoststubgen.test.tinyframework.subclasstest.C2 keep
 class com.android.hoststubgen.test.tinyframework.subclasstest.C3 keep
 class com.android.hoststubgen.test.tinyframework.subclasstest.CA keep
@@ -51,25 +59,22 @@ class *com.android.hoststubgen.test.tinyframework.subclasstest.I1 keep
 class *com.android.hoststubgen.test.tinyframework.subclasstest.IA remove
 
 # Test package directive
-package com.android.hoststubgen.test.tinyframework.packagetest keep
+package com.android.hoststubgen.test.tinyframework.packagetest keepclass # test-package-policy
 class com.android.hoststubgen.test.tinyframework.packagetest.B remove
 class com.android.hoststubgen.test.tinyframework.packagetest.sub.B remove
-# The following rules are the same as above
-# class com.android.hoststubgen.test.tinyframework.packagetest.A keep
-# class com.android.hoststubgen.test.tinyframework.packagetest.sub.A keep
+
+package com.android.hoststubgen.test.tinyframework.exp experimental # test-experimental-package-policy
 
 # Used to test method call replacement.
-class com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace keepclass
+class com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace
   method originalAdd (II)I @com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ReplaceTo.add
 
 # Used to test method call replacement.
-# Note because java.lang.Thread is _not_ within the tiny-framework jar, the policy ("keep")
-# doesn't realy matter.
-class java.lang.Thread keep
+class java.lang.Thread
   method start ()V @com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ReplaceTo.startThread
 
 # Used to test constructor replacement.
-class com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ConstructorTester keepclass
+class com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ConstructorTester
   method <init> (I)V @com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ReplaceTo.newConstructorTester
 
 
@@ -81,5 +86,46 @@ rename ^.*/TinyFrameworkToBeRenamed$ /rename_prefix/
 class com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartiallyAllowlisted allow-annotation
     method foo2 allow-annotation
 
+# The following classes contain an invalid use of HostSideTestPartiallyAllowlisted, so we need to delete it.
+# It's used in invoke test.
 class com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartialWithWholeClass_bad remove
 class com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartiallyAllowlistedWithoutAnnot_bad remove
+
+
+# Test for Ravenhelper-PTA's golden test.
+class com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta keep
+    method <clinit> keep    # Keep static initializer
+    method <init>   keep    # Keep implicit ctor
+    method foo  (Ljava/lang/String;Ljava/lang/Object;)V keep    # keep multi-arg method
+
+class com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1 keep
+    method bar   keep
+
+class com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1$Nest2 keep
+    method baz   keep
+
+# For "MoreClasses" in the "exp" package.
+class com.android.hoststubgen.test.tinyframework.exp.ExpC2_WithClassPolicy_keep      keep
+class com.android.hoststubgen.test.tinyframework.exp.ExpC3_WithClassPolicy_keepclass keepclass
+class com.android.hoststubgen.test.tinyframework.exp.ExpC6_MethodAnnotations_withClassExpPolicy exp
+class com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+    method <clinit> exp
+    method <init> exp
+    method m1_keep exp
+    method m2_ignore exp
+    method m3_throw exp
+    method m4_remove exp
+    method m5_redirect exp
+
+# For "MoreClasses" in the "packagetest" package.
+class com.android.hoststubgen.test.tinyframework.packagetest.KeepC2_WithClassPolicy_keep      keep
+class com.android.hoststubgen.test.tinyframework.packagetest.KeepC3_WithClassPolicy_keepclass keepclass
+class com.android.hoststubgen.test.tinyframework.packagetest.KeepC6_MethodAnnotations_withClassExpPolicy exp
+class com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+    method <clinit> exp
+    method <init> exp
+    method m1_keep exp
+    method m2_ignore exp
+    method m3_throw exp
+    method m4_remove exp
+    method m5_redirect exp

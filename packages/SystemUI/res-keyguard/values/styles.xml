@@ -41,7 +41,7 @@
         <item name="android:textAlignment">center</item>
         <item name="android:fontFamily">@*android:string/config_bodyFontFamily</item>
         <item name="android:ellipsize">end</item>
-        <item name="android:textColor">@androidprv:color/materialColorOnSurfaceVariant</item>
+        <item name="android:textColor">@androidprv:color/materialColorOnSurface</item>
     </style>
     <style name="Keyguard.TextView.EmergencyButton" parent="Theme.SystemUI">
         <item name="android:textColor">@androidprv:color/materialColorOnTertiaryFixed</item>
@@ -137,12 +137,7 @@
         <item name="android:gravity">start</item>
         <item name="android:ellipsize">end</item>
         <item name="android:maxLines">2</item>
-        <item name="android:fontFamily" android:featureFlag="!com.android.systemui.lockscreen_font">
-          @*android:string/config_headlineFontFamily
-        </item>
-        <item name="android:fontFamily" android:featureFlag="com.android.systemui.lockscreen_font">
-          variable-title-small
-        </item>
+        <item name="android:fontFamily">variable-title-small</item>
         <item name="android:fontFamily"></item>
         <item name="android:shadowColor">@color/keyguard_shadow_color</item>
         <item name="android:shadowRadius">?attr/shadowRadius</item>
@@ -198,6 +193,15 @@
     </style>
 
     <style name="Bouncer.UserSwitcher.Spinner.Item">
-        <item name="android:textSize">@dimen/bouncer_user_switcher_item_text_size</item>
+      <item name="android:fontFamily">variable-title-medium</item>
+      <item name="android:textSize">@dimen/bouncer_user_switcher_item_text_size</item>
+    </style>
+
+    <style name="Theme.SystemUI.WallpaperPresentation">
+        <item name="android:windowActionBar">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:colorBackground">@android:color/transparent</item>
     </style>
 </resources>

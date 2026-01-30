@@ -50,7 +50,6 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.window.flags.Flags;
 
 import java.util.Map;
 import java.util.concurrent.Executor;
@@ -125,13 +124,15 @@ class JetpackTaskFragmentOrganizer extends TaskFragmentOrganizer {
      * @param activityOptions   ActivityOptions to start the secondary Activity with.
      * @param windowingMode     the windowing mode to set for the TaskFragments.
      * @param splitAttributes   the {@link SplitAttributes} to represent the split.
+     * @param activityToBeFinishedWithSecondary the activity to be finished with the secondary.
      */
     void startActivityToSide(@NonNull WindowContainerTransaction wct,
             @NonNull IBinder launchingFragmentToken, @NonNull Rect launchingRelBounds,
             @NonNull Activity launchingActivity, @NonNull IBinder secondaryFragmentToken,
             @NonNull Rect secondaryRelBounds, @NonNull Intent activityIntent,
             @Nullable Bundle activityOptions, @NonNull SplitRule rule,
-            @WindowingMode int windowingMode, @NonNull SplitAttributes splitAttributes) {
+            @WindowingMode int windowingMode, @NonNull SplitAttributes splitAttributes,
+            @Nullable IBinder activityToBeFinishedWithSecondary) {
         final IBinder ownerToken = launchingActivity.getActivityToken();
 
         // Create or resize the launching TaskFragment.
@@ -163,7 +164,10 @@ class JetpackTaskFragmentOrganizer extends TaskFragmentOrganizer {
         // Set adjacent to each other so that the containers below will be invisible.
         setAdjacentTaskFragmentsWithRule(wct, launchingFragmentToken, secondaryFragmentToken, rule);
         setCompanionTaskFragment(wct, launchingFragmentToken, secondaryFragmentToken, rule,
-                false /* isStacked */);
+                false /* isStacked */,
+                // No activity to be finished with primary because secondary is still empty.
+                null /* activityToBeFinishedWithPrimary */,
+                activityToBeFinishedWithSecondary);
     }
 
     /**
@@ -279,7 +283,8 @@ class JetpackTaskFragmentOrganizer extends TaskFragmentOrganizer {
 
     void setCompanionTaskFragment(@NonNull WindowContainerTransaction wct,
             @NonNull IBinder primary, @NonNull IBinder secondary, @NonNull SplitRule splitRule,
-            boolean isStacked) {
+            boolean isStacked, @Nullable IBinder activityToBeFinishedWithPrimary,
+            @Nullable IBinder activityToBeFinishedWithSecondary) {
         final boolean finishPrimaryWithSecondary;
         if (isStacked) {
             finishPrimaryWithSecondary = shouldFinishAssociatedContainerWhenStacked(
@@ -287,7 +292,12 @@ class JetpackTaskFragmentOrganizer extends TaskFragmentOrganizer {
         } else {
             finishPrimaryWithSecondary = shouldFinishPrimaryWithSecondary(splitRule);
         }
-        setCompanionTaskFragment(wct, primary, finishPrimaryWithSecondary ? secondary : null);
+        if (finishPrimaryWithSecondary) {
+            setCompanionTaskFragment(wct, primary, secondary, activityToBeFinishedWithSecondary);
+        } else {
+            setCompanionTaskFragment(wct, primary, null /* secondary */,
+                    null /* toBeFinishedActivity*/);
+        }
 
         final boolean finishSecondaryWithPrimary;
         if (isStacked) {
@@ -296,12 +306,17 @@ class JetpackTaskFragmentOrganizer extends TaskFragmentOrganizer {
         } else {
             finishSecondaryWithPrimary = shouldFinishSecondaryWithPrimary(splitRule);
         }
-        setCompanionTaskFragment(wct, secondary, finishSecondaryWithPrimary ? primary : null);
+        if (finishSecondaryWithPrimary) {
+            setCompanionTaskFragment(wct, secondary, primary, activityToBeFinishedWithPrimary);
+        } else {
+            setCompanionTaskFragment(wct, secondary, null /* secondary */,
+                    null /* toBeFinishedActivity*/);
+        }
     }
 
     void setCompanionTaskFragment(@NonNull WindowContainerTransaction wct, @NonNull IBinder primary,
-            @Nullable IBinder secondary) {
-        wct.setCompanionTaskFragment(primary, secondary);
+            @Nullable IBinder secondary, @Nullable IBinder toBeFinishedActivity) {
+        wct.setCompanionTaskFragment(primary, secondary, toBeFinishedActivity);
     }
 
     void resizeTaskFragment(@NonNull WindowContainerTransaction wct, @NonNull IBinder fragmentToken,

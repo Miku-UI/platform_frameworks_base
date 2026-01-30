@@ -16,7 +16,7 @@
 
 package android.content.pm;
 
-/** {@hide} */
+/** @hide */
 oneway interface IPackageInstallerCallback {
     @UnsupportedAppUsage
     void onSessionCreated(int sessionId);

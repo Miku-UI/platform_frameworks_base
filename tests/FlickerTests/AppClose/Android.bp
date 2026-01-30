@@ -34,33 +34,28 @@ android_test {
     data: ["trace_config/*"],
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Begin breakdowns for FlickerTestsAppClose module
+// Auto generated section, don't update it manually
 
 test_module_config {
     name: "FlickerTestsAppClose-CatchAll",
     base: "FlickerTestsAppClose",
+    test_suites: ["device-tests"],
     exclude_filters: [
         "com.android.server.wm.flicker.close.CloseAppBackButtonTest",
         "com.android.server.wm.flicker.close.CloseAppHomeButtonTest",
-        "com.android.server.wm.flicker.close.",
     ],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
     name: "FlickerTestsAppClose-CloseAppBackButtonTest",
     base: "FlickerTestsAppClose",
-    include_filters: ["com.android.server.wm.flicker.close.CloseAppBackButtonTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.close.CloseAppBackButtonTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppClose-CloseAppHomeButtonTest",
     base: "FlickerTestsAppClose",
-    include_filters: ["com.android.server.wm.flicker.close.CloseAppHomeButtonTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.close.CloseAppHomeButtonTest"],
 }
-
-// End breakdowns for FlickerTestsAppClose module
-////////////////////////////////////////////////////////////////////////////////

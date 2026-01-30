@@ -16,10 +16,15 @@
 
 package android.debug;
 
+/*
+ * Must be in sync with framewroks/native/libs/adbd_auth/include/adbd_auth.h
+ */
+
 /** @hide */
 @Backing(type="byte")
 enum AdbTransportType {
     USB,
     WIFI,
+    VSOCK,
 }
 

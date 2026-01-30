@@ -15,11 +15,15 @@
 -->
 
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="12dp"
-    android:height="20dp"
-    android:viewportWidth="12"
-    android:viewportHeight="20">
-    <path
-        android:pathData="M10 15L5 20L-0.000000953674 15L1.4 13.6L4 16.175L4 3.825L1.4 6.4L-0.000000953674 5L5 -0.000000476837L10 5L8.6 6.4L6 3.825L6 16.175L8.6 13.6L10 15Z"
-        android:fillColor="@color/materialColorPrimary" />
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportHeight="24"
+    android:viewportWidth="24">
+    <group>
+        <clip-path
+            android:pathData="M0,0h24v24h-24z"/>
+        <path
+            android:pathData="M12,22L7.75,17.75L9.175,16.325L11,18.15V14H13V18.125L14.8,16.3L16.25,17.75L12,22ZM6.25,16.25L2,12L6.225,7.775L7.65,9.2L5.85,11H10V13H5.875L7.7,14.8L6.25,16.25ZM17.75,16.25L16.325,14.825L18.15,13H14V11H18.125L16.3,9.2L17.75,7.75L22,12L17.75,16.25ZM11,10V5.85L9.175,7.675L7.75,6.25L12,2L16.25,6.25L14.825,7.675L13,5.85V10H11Z"
+            android:fillColor="@color/materialColorOnSurface"/>
+    </group>
 </vector>

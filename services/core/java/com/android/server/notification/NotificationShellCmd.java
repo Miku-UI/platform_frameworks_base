@@ -51,6 +51,8 @@ import android.service.notification.StatusBarNotification;
 import android.text.TextUtils;
 import android.util.Slog;
 
+import com.android.server.utils.Slogf;
+
 import java.io.PrintWriter;
 import java.net.URISyntaxException;
 import java.util.Collections;
@@ -95,6 +97,7 @@ public class NotificationShellCmd extends ShellCommand {
             + "  -I|--large-icon <iconspec>\n"
             + "  -S|--style <style> [styleargs]\n"
             + "  -c|--content-intent <intentspec>\n"
+            + "  -u|--user <user_id>"
             + "\n"
             + "styles: (default none)\n"
             + "  bigtext\n"
@@ -494,6 +497,7 @@ public class NotificationShellCmd extends ShellCommand {
         final Notification.Builder builder = new Notification.Builder(context, CHANNEL_ID);
         String opt;
 
+        int userId = UserHandle.USER_NULL;
         boolean verbose = false;
         Notification.BigPictureStyle bigPictureStyle = null;
         Notification.BigTextStyle bigTextStyle = null;
@@ -660,6 +664,15 @@ public class NotificationShellCmd extends ShellCommand {
                     }
                     messagingStyle.setConversationTitle(getNextArgRequired());
                     break;
+                case "-u":
+                case "--user":
+                    String userArg = getNextArg();
+                    userId = UserHandle.parseUserArg(userArg);
+                    if (userId == UserHandle.USER_CURRENT) {
+                        userId = ActivityManager.getCurrentUser();
+                    }
+                    Slogf.v(TAG, "userId: %s %s converted into %d", opt, userArg, userId);
+                    break;
                 case "-h":
                 case "--help":
                 case "--wtf":
@@ -687,12 +700,16 @@ public class NotificationShellCmd extends ShellCommand {
 
         ensureChannel(callingPackage, callingUid);
 
+        if (userId == UserHandle.USER_NULL) {
+            userId = UserHandle.getUserId(callingUid);
+            Slogf.v(TAG, "set user id (%d) from calling uid (%d)", userId, callingUid);
+        }
         final Notification n = builder.build();
-        pw.println("posting:\n  " + n);
-        Slog.v("NotificationManager", "posting: " + n);
+        pw.printf("posting for user %d:\n  %s\n", userId, n);
+        Slogf.v(TAG, "posting: %s for user %d", n, userId);
 
         mBinderService.enqueueNotificationWithTag(callingPackage, callingPackage, tag,
-                NOTIFICATION_ID, n, UserHandle.getUserId(callingUid));
+                NOTIFICATION_ID, n, userId);
 
         if (verbose) {
             NotificationRecord nr = mDirectService.findNotificationLocked(

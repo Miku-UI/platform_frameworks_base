@@ -49,7 +49,6 @@ public class DrawBitmapScaled extends PaintOperation
     int mContentDescId;
     float mScaleFactor, mOutScaleFactor;
     int mScaleType;
-    int mMode;
 
     @NonNull ImageScaling mScaling = new ImageScaling();
     public static final int SCALE_NONE = ImageScaling.SCALE_NONE;
@@ -84,7 +83,9 @@ public class DrawBitmapScaled extends PaintOperation
         mOutDstRight = mDstRight = dstRight;
         mOutDstBottom = mDstBottom = dstBottom;
         mScaleType = type & 0xFF;
-        mMode = type >> 8;
+        if (((type >> 8) & 0x1) != 0) {
+            mImageId |= PTR_DEREFERENCE;
+        }
         mOutScaleFactor = mScaleFactor = scale;
         this.mContentDescId = cdId;
     }
@@ -195,7 +196,7 @@ public class DrawBitmapScaled extends PaintOperation
     }
 
     @Override
-    public Integer getContentDescriptionId() {
+    public @NonNull Integer getContentDescriptionId() {
         return mContentDescId;
     }
 
@@ -233,7 +234,7 @@ public class DrawBitmapScaled extends PaintOperation
      * @param dstBottom the bottom most pixel in the destination
      * @param scaleType the type of scale operation
      * @param scaleFactor the scalefactor to use with fixed scale
-     * @param cdId the content discription id
+     * @param cdId the content description id
      */
     public static void apply(
             @NonNull WireBuffer buffer,
@@ -357,13 +358,8 @@ public class DrawBitmapScaled extends PaintOperation
         context.save();
         context.clipRect(mOutDstLeft, mOutDstTop, mOutDstRight, mOutDstBottom);
 
-        int imageId = mImageId;
-        if ((mMode & 0x1) != 0) {
-            imageId = context.getContext().getInteger(imageId);
-        }
-
         context.drawBitmap(
-                imageId,
+                getId(mImageId, context),
                 (int) mOutSrcLeft,
                 (int) mOutSrcTop,
                 (int) mOutSrcRight,
@@ -377,13 +373,12 @@ public class DrawBitmapScaled extends PaintOperation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("imageId", mImageId)
                 .add("contentDescriptionId", mContentDescId)
                 .add("scaleType", getScaleTypeString())
-                .add("mode", mMode)
                 .add("scaleFactor", mScaleFactor, mOutScaleFactor)
                 .add("srcLeft", mSrcLeft, mOutSrcLeft)
                 .add("srcTop", mSrcTop, mOutSrcTop)

@@ -136,20 +136,76 @@ public final class AudioDeviceAttributes implements Parcelable {
     public AudioDeviceAttributes(@Role int role, @AudioDeviceInfo.AudioDeviceType int type,
             @NonNull String address, @NonNull String name, @NonNull List<AudioProfile> profiles,
             @NonNull List<AudioDescriptor> descriptors) {
+        this(role,
+                type,
+                role == ROLE_OUTPUT ? AudioDeviceInfo.convertDeviceTypeToInternalDevice(type)
+                         : AudioDeviceInfo.convertDeviceTypeToInternalInputDevice(type, address),
+                address,
+                name,
+                profiles,
+                descriptors);
+    }
+
+    /**
+     * @hide
+     * Constructor with specification of all attributes
+     * @param role indicates input or output role
+     * @param nativeType the native device type
+     * @param address the address of the device, or an empty string for devices without one
+     * @param name the name of the device, or an empty string for devices without one
+     * @param profiles the list of AudioProfiles supported by the device
+     * @param descriptors the list of AudioDescriptors supported by the device
+     */
+    public AudioDeviceAttributes(@Role int role, @NonNull String address,
+                                 int nativeType, @NonNull String name,
+                                 @NonNull List<AudioProfile> profiles,
+                                 @NonNull List<AudioDescriptor> descriptors) {
+        this(role,
+                AudioDeviceInfo.convertInternalDeviceToDeviceType(nativeType),
+                nativeType,
+                address,
+                name,
+                profiles,
+                descriptors);
+    }
+
+    /**
+     * Constructor with specification of all attributes
+     * @param role indicates input or output role
+     * @param type the device type, as defined in {@link AudioDeviceInfo}
+     * @param nativeType the native device type
+     * @param address the address of the device, or an empty string for devices without one
+     * @param name the name of the device, or an empty string for devices without one
+     * @param profiles the list of AudioProfiles supported by the device
+     * @param descriptors the list of AudioDescriptors supported by the device
+     */
+    private AudioDeviceAttributes(@Role int role, @AudioDeviceInfo.AudioDeviceType int type,
+                                  int nativeType, @NonNull String address,
+                                  @NonNull String name, @NonNull List<AudioProfile> profiles,
+                                  @NonNull List<AudioDescriptor> descriptors) {
         Objects.requireNonNull(address);
         if (role != ROLE_OUTPUT && role != ROLE_INPUT) {
             throw new IllegalArgumentException("Invalid role " + role);
         }
         if (role == ROLE_OUTPUT) {
             AudioDeviceInfo.enforceValidAudioDeviceTypeOut(type);
-            mNativeType = AudioDeviceInfo.convertDeviceTypeToInternalDevice(type);
-        } else if (role == ROLE_INPUT) {
-            AudioDeviceInfo.enforceValidAudioDeviceTypeIn(type);
-            mNativeType = AudioDeviceInfo.convertDeviceTypeToInternalInputDevice(type, address);
+            int externalType = AudioDeviceInfo.convertInternalDeviceToDeviceType(nativeType);
+            if (externalType != type) {
+                throw new IllegalArgumentException(
+                        "Native type(" + nativeType + ") and external type(" + type
+                                + ") do not match ");
+            }
         } else {
-            mNativeType = AudioSystem.DEVICE_NONE;
+            AudioDeviceInfo.enforceValidAudioDeviceTypeIn(type);
+            int externalType = AudioDeviceInfo.convertInternalDeviceToDeviceType(nativeType);
+            if (externalType != type) {
+                throw new IllegalArgumentException(
+                        "Native type(" + nativeType + ") and external type(" + type
+                                + ") do not match ");
+            }
         }
 
+        mNativeType = nativeType;
         mRole = role;
         mType = type;
         mAddress = address;
@@ -329,6 +385,20 @@ public final class AudioDeviceAttributes implements Parcelable {
                 + " name:" + mName
                 + " profiles:" + mAudioProfiles.toString()
                 + " descriptors:" + mAudioDescriptors.toString());
+    }
+
+    /**
+     * @hide
+     * Creates a copy of an AudioDeviceAttributes that only stores the device type, role and
+     * address.
+     *
+     * <p>It's recommended to use this method when comparing instances with equals (e.g.: when
+     * using them as keys to maps) to recognize a given device based on type and address,
+     * ignoring any other fields such as audio descriptors and profiles.
+     * @return a new AudioDeviceAttributes from type and address of the original one
+     */
+    public AudioDeviceAttributes createFromTypeAndAddress() {
+        return new AudioDeviceAttributes(mNativeType, mAddress);
     }
 
     @Override

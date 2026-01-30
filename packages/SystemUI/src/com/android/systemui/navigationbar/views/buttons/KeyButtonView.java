@@ -50,7 +50,6 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.view.inputmethod.Flags;
 import android.widget.ImageView;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -60,8 +59,8 @@ import com.android.internal.logging.UiEventLogger;
 import com.android.internal.logging.UiEventLoggerImpl;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.systemui.Dependency;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.assist.AssistManager;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.res.R;
 import com.android.systemui.shared.navigationbar.KeyButtonRipple;
 import com.android.systemui.shared.system.QuickStepContract;
@@ -248,7 +247,7 @@ public class KeyButtonView extends ImageView implements ButtonInterface {
      */
     @Nullable
     private CharSequence getAccessibilityLongClickActionLabel() {
-        if (Flags.imeSwitcherRevamp() && getId() == R.id.ime_switcher) {
+        if (getId() == R.id.ime_switcher) {
             return getContext().getText(
                     com.android.internal.R.string.input_method_ime_switch_long_click_action_desc);
         }

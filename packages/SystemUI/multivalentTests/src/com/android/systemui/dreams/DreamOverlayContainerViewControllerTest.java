@@ -230,7 +230,7 @@ public class DreamOverlayContainerViewControllerTest extends SysuiTestCase {
                 bouncerExpansionCaptor.capture());
 
         bouncerExpansionCaptor.getValue().onExpansionChanged(0.5f);
-        verify(mBlurUtils, never()).applyBlur(eq(mViewRoot), anyInt(), eq(false));
+        verify(mBlurUtils, never()).applyBlur(eq(mViewRoot), anyInt(), eq(false), anyFloat());
     }
 
     @Test
@@ -242,8 +242,8 @@ public class DreamOverlayContainerViewControllerTest extends SysuiTestCase {
         verify(mPrimaryBouncerCallbackInteractor).addBouncerExpansionCallback(
                 bouncerExpansionCaptor.capture());
 
-        final float blurRadius = 1337f;
-        when(mBlurUtils.blurRadiusOfRatio(anyFloat())).thenReturn(blurRadius);
+        final int blurRadius = 1337;
+        when(mBlurUtils.blurRadiusOfRatio(anyFloat())).thenReturn((float) blurRadius);
 
         bouncerExpansionCaptor.getValue().onStartingToShow();
 
@@ -253,7 +253,7 @@ public class DreamOverlayContainerViewControllerTest extends SysuiTestCase {
 
         bouncerExpansionCaptor.getValue().onExpansionChanged(bouncerHideAmount);
         verify(mBlurUtils).blurRadiusOfRatio(1 - scaledFraction);
-        verify(mBlurUtils).applyBlur(mViewRoot, (int) blurRadius, false);
+        verify(mBlurUtils).applyBlur(eq(mViewRoot), eq(blurRadius), eq(false), anyFloat());
     }
 
     @Test
@@ -273,7 +273,7 @@ public class DreamOverlayContainerViewControllerTest extends SysuiTestCase {
 
         bouncerExpansionCaptor.getValue().onExpansionChanged(bouncerHideAmount);
         verify(mBlurUtils, never()).blurRadiusOfRatio(anyFloat());
-        verify(mBlurUtils, never()).applyBlur(eq(mViewRoot), anyInt(), anyBoolean());
+        verify(mBlurUtils, never()).applyBlur(eq(mViewRoot), anyInt(), anyBoolean(), anyFloat());
     }
 
     @Test

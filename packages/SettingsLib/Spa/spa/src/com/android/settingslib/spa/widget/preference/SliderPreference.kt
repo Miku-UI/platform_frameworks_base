@@ -38,7 +38,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.android.settingslib.spa.framework.theme.SettingsDimension
 import com.android.settingslib.spa.framework.theme.SettingsTheme
-import com.android.settingslib.spa.framework.util.EntryHighlight
 import com.android.settingslib.spa.widget.ui.SettingsSlider
 
 /** The widget model for [SliderPreference] widget. */
@@ -99,18 +98,16 @@ interface SliderPreferenceModel {
  */
 @Composable
 fun SliderPreference(model: SliderPreferenceModel) {
-    EntryHighlight {
-        SliderPreference(
-            title = model.title,
-            initValue = model.initValue,
-            valueRange = model.valueRange,
-            onValueChange = model.onValueChange,
-            onValueChangeFinished = model.onValueChangeFinished,
-            iconStart = model.iconStart,
-            iconEnd = model.iconEnd,
-            showSteps = model.showSteps,
-        )
-    }
+    SliderPreference(
+        title = model.title,
+        initValue = model.initValue,
+        valueRange = model.valueRange,
+        onValueChange = model.onValueChange,
+        onValueChangeFinished = model.onValueChangeFinished,
+        iconStart = model.iconStart,
+        iconEnd = model.iconEnd,
+        showSteps = model.showSteps,
+    )
 }
 
 @Composable

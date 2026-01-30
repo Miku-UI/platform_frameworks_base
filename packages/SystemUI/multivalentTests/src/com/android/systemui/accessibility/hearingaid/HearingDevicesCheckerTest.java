@@ -94,7 +94,7 @@ public class HearingDevicesCheckerTest extends SysuiTestCase {
     @Test
     public void isAnyPairedHearingDevice_hearingAidBonded_returnTrue() {
         when(mLocalBluetoothAdapter.isEnabled()).thenReturn(true);
-        when(mCachedDevice.isHearingAidDevice()).thenReturn(true);
+        when(mCachedDevice.isHearingDevice()).thenReturn(true);
         when(mCachedDevice.getBondState()).thenReturn(BluetoothDevice.BOND_BONDED);
         mCachedDevices.add(mCachedDevice);
 

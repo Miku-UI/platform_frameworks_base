@@ -14,11 +14,12 @@
 
 package com.android.systemui.statusbar.notification.row;
 
-import static android.provider.Settings.Global.SHOW_NEW_NOTIF_DISMISS;
 import static android.view.HapticFeedbackConstants.CLOCK_TICK;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.assertNull;
 import static junit.framework.Assert.assertTrue;
 
 import static org.mockito.Mockito.doNothing;
@@ -28,8 +29,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import android.app.NotificationChannel;
 import android.platform.test.annotations.DisableFlags;
-import android.provider.Settings;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunWithLooper;
 import android.testing.ViewUtils;
@@ -42,10 +44,12 @@ import androidx.test.filters.SmallTest;
 import com.android.systemui.Flags;
 import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.plugins.statusbar.NotificationMenuRowPlugin;
+import com.android.systemui.statusbar.notification.NotificationActivityStarter;
 import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
+import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.utils.leaks.LeakCheckedTest;
 
 import org.junit.Before;
@@ -62,6 +66,7 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
     private ExpandableNotificationRow mRow;
     private View mView;
     private PeopleNotificationIdentifier mPeopleNotificationIdentifier;
+    private NotificationActivityStarter mNotificationActivityStarter;
 
     @Before
     public void setup() {
@@ -69,16 +74,23 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
         mRow = mock(ExpandableNotificationRow.class);
         mView = mock(View.class);
         mPeopleNotificationIdentifier = mock(PeopleNotificationIdentifier.class);
-        NotificationEntry entry = new NotificationEntryBuilder().build();
-        when(mRow.getEntry()).thenReturn(entry);
-        EntryAdapter entryAdapter = mKosmos.getEntryAdapterFactory().create(entry);
-        when(mRow.getEntryAdapter()).thenReturn(entryAdapter);
+        mNotificationActivityStarter = mock(NotificationActivityStarter.class);
+        NotificationEntry entry = new NotificationEntryBuilder()
+                .setChannel(new NotificationChannel("hi", "hi", 2))
+                .build();
+        if (NotificationBundleUi.isEnabled()) {
+            EntryAdapter entryAdapter = mKosmos.getEntryAdapterFactory().create(entry);
+            when(mRow.getEntryAdapter()).thenReturn(entryAdapter);
+        } else {
+            when(mRow.getEntryLegacy()).thenReturn(entry);
+        }
+
     }
 
     @Test
     public void testAttachDetach() {
-        NotificationMenuRowPlugin row =
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier);
+        NotificationMenuRowPlugin row = new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter);
         row.createMenu(mRow);
         ViewUtils.attachView(row.getMenuView());
         TestableLooper.get(this).processAllMessages();
@@ -88,8 +100,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testRecreateMenu() {
-        NotificationMenuRowPlugin row =
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier);
+        NotificationMenuRowPlugin row = new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter);
         row.createMenu(mRow);
         assertTrue(row.getMenuView() != null);
         row.createMenu(mRow);
@@ -98,17 +110,17 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testResetUncreatedMenu() {
-        NotificationMenuRowPlugin row =
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier);
+        NotificationMenuRowPlugin row = new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter);
         row.resetMenu();
     }
 
     @Test
     public void testSlowSwipe_newDismiss() {
         when(mRow.getShowSnooze()).thenReturn(true);
-        Settings.Global.putInt(mContext.getContentResolver(), SHOW_NEW_NOTIF_DISMISS, 1);
 
-        NotificationMenuRow row = new NotificationMenuRow(mContext, mPeopleNotificationIdentifier);
+        NotificationMenuRowPlugin row = new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter);
         row.createMenu(mRow);
 
         ViewGroup container = (ViewGroup) row.getMenuView();
@@ -118,8 +130,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testIsSnappedAndOnSameSide() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
 
         when(row.isMenuVisible()).thenReturn(true);
         when(row.isMenuSnapped()).thenReturn(true);
@@ -151,8 +163,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testGetMenuSnapTarget() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         when(row.isMenuOnLeft()).thenReturn(true);
         doReturn(30).when(row).getSpaceForMenu();
 
@@ -166,8 +178,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testIsSwipedEnoughToShowMenu() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         when(row.isMenuVisible()).thenReturn(true);
         when(row.isMenuOnLeft()).thenReturn(true);
         doReturn(40f).when(row).getMinimumSwipeDistance();
@@ -193,8 +205,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testIsWithinSnapMenuThreshold() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         doReturn(30f).when(row).getSnapBackThreshold();
         doReturn(50f).when(row).getDismissThreshold();
         doReturn(70).when(row).getSpaceForMenu();
@@ -228,8 +240,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testShouldSnapBack() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         doReturn(40f).when(row).getSnapBackThreshold();
         when(row.isMenuVisible()).thenReturn(false);
         when(row.isMenuOnLeft()).thenReturn(true);
@@ -250,8 +262,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testCanBeDismissed() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         ExpandableNotificationRow parent = mock(ExpandableNotificationRow.class);
 
         when(row.getParent()).thenReturn(parent);
@@ -266,8 +278,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testIsTowardsMenu() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         when(row.isMenuVisible()).thenReturn(true);
         when(row.isMenuOnLeft()).thenReturn(true);
 
@@ -287,8 +299,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void onSnapBack() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         NotificationMenuRowPlugin.OnMenuEventListener listener = mock(NotificationMenuRowPlugin
                 .OnMenuEventListener.class);
         row.setMenuClickListener(listener);
@@ -309,8 +321,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testOnSnap() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         when(row.isMenuOnLeft()).thenReturn(true);
         NotificationMenuRowPlugin.OnMenuEventListener listener = mock(NotificationMenuRowPlugin
                 .OnMenuEventListener.class);
@@ -330,8 +342,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testOnDismiss() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         doNothing().when(row).cancelDrag();
         row.onSnapOpen();
 
@@ -347,8 +359,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testOnDown() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         doNothing().when(row).beginDrag();
 
         row.onTouchStart();
@@ -358,8 +370,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testOnUp() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         row.onTouchStart();
 
         assertTrue("before onTouchEnd, isUserTouching is true", row.isUserTouching());
@@ -371,8 +383,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
 
     @Test
     public void testIsMenuVisible() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         row.setMenuAlpha(0);
 
         assertFalse("when alpha is 0, menu is not visible", row.isMenuVisible());
@@ -384,8 +396,8 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
     @DisableFlags(Flags.FLAG_MAGNETIC_NOTIFICATION_SWIPES)
     @Test
     public void testOnTouchMove() {
-        NotificationMenuRow row = Mockito.spy(
-                new NotificationMenuRow(mContext, mPeopleNotificationIdentifier));
+        NotificationMenuRow row = Mockito.spy(new NotificationMenuRow(
+                mContext, mPeopleNotificationIdentifier, mNotificationActivityStarter));
         row.createMenu(mRow);
         doReturn(50f).when(row).getDismissThreshold();
         doReturn(true).when(row).canBeDismissed();
@@ -437,5 +449,21 @@ public class NotificationMenuRowTest extends LeakCheckedTest {
         assertFalse("When moving not farther than threshold, menu is not snapping to dismiss",
                 row.isSnappingToDismiss());
         verify(mView, times(4)).performHapticFeedback(CLOCK_TICK);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_PERMISSION_HELPER_INLINE_UI_RICH_ONGOING)
+    public void testProhibitInlineSnooze() {
+        NotificationMenuRowPlugin.MenuItem snoozeItem =
+                NotificationMenuRow.createSnoozeItem(mContext);
+        assertNull(snoozeItem.getMenuView());
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_PERMISSION_HELPER_INLINE_UI_RICH_ONGOING)
+    public void testAllowInlineSnooze() {
+        NotificationMenuRowPlugin.MenuItem snoozeItem =
+                NotificationMenuRow.createSnoozeItem(mContext);
+        assertNotNull(snoozeItem.getMenuView());
     }
 }

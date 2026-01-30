@@ -1536,8 +1536,8 @@ public class BlobStoreManagerService extends SystemService {
             blobHandle.assertIsValid();
             Preconditions.checkArgument(
                     ResourceId.isValid(descriptionResId) || description != null,
-                    "Description must be valid; descriptionId=" + descriptionResId
-                            + ", description=" + description);
+                    "Description must be valid; descriptionId=%d, description=%s",
+                    descriptionResId,  description);
             Preconditions.checkArgumentNonnegative(leaseExpiryTimeMillis,
                     "leaseExpiryTimeMillis must not be negative");
             Objects.requireNonNull(packageName, "packageName must not be null");

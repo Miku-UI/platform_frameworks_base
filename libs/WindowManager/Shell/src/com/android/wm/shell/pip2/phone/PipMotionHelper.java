@@ -44,25 +44,29 @@ import com.android.wm.shell.animation.FloatProperties;
 import com.android.wm.shell.common.FloatingContentCoordinator;
 import com.android.wm.shell.common.pip.PipAppOpsListener;
 import com.android.wm.shell.common.pip.PipBoundsState;
+import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipPerfHintController;
 import com.android.wm.shell.common.pip.PipSnapAlgorithm;
 import com.android.wm.shell.common.pip.PipUiEventLogger;
+import com.android.wm.shell.common.pip.PipUtils;
+import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.pip2.animation.PipResizeAnimator;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.animation.PhysicsAnimator;
 import com.android.wm.shell.shared.magnetictarget.MagnetizedObject;
 
-import java.util.Optional;
-
 import kotlin.Unit;
 import kotlin.jvm.functions.Function0;
+
+import java.util.Optional;
 
 /**
  * A helper to animate and manipulate the PiP.
  */
 public class PipMotionHelper implements PipAppOpsListener.Callback,
         FloatingContentCoordinator.FloatingContent,
-        PipTransitionState.PipTransitionStateChangedListener {
+        PipTransitionState.PipTransitionStateChangedListener,
+        PipDisplayLayoutState.DisplayIdListener {
     private static final String TAG = "PipMotionHelper";
     private static final String FLING_BOUNDS_CHANGE = "fling_bounds_change";
     private static final String ANIMATING_BOUNDS_CHANGE = "animating_bounds_change";
@@ -79,8 +83,9 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
     /** How much of the dismiss circle size to use when scaling down PIP. **/
     private static final float DISMISS_CIRCLE_PERCENT = 0.85f;
 
-    private final Context mContext;
+    private Context mContext;
     @NonNull private final PipBoundsState mPipBoundsState;
+    @NonNull private final PipDisplayLayoutState mPipDisplayLayoutState;
     @NonNull private final PipScheduler mPipScheduler;
     @NonNull private final PipTransitionState mPipTransitionState;
     @NonNull private final PipUiEventLogger mPipUiEventLogger;
@@ -164,11 +169,16 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
      */
     private Runnable mPostPipTransitionCallback;
 
+    private final @NonNull PipSurfaceTransactionHelper mSurfaceTransactionHelper;
+
     public PipMotionHelper(Context context, @NonNull PipBoundsState pipBoundsState,
             PhonePipMenuController menuController, PipSnapAlgorithm snapAlgorithm,
             FloatingContentCoordinator floatingContentCoordinator, PipScheduler pipScheduler,
             Optional<PipPerfHintController> pipPerfHintControllerOptional,
-            PipTransitionState pipTransitionState, PipUiEventLogger pipUiEventLogger) {
+            PipTransitionState pipTransitionState,
+            PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
+            PipUiEventLogger pipUiEventLogger,
+            PipDisplayLayoutState pipDisplayLayoutState) {
         mContext = context;
         mPipBoundsState = pipBoundsState;
         mPipScheduler = pipScheduler;
@@ -185,6 +195,9 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
         mPipTransitionState = pipTransitionState;
         mPipTransitionState.addPipTransitionStateChangedListener(this);
         mPipUiEventLogger = pipUiEventLogger;
+        mSurfaceTransactionHelper = pipSurfaceTransactionHelper;
+        mPipDisplayLayoutState = pipDisplayLayoutState;
+        mPipDisplayLayoutState.addDisplayIdListener(this);
     }
 
     void init() {
@@ -225,20 +238,32 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
     }
 
     /**
-     * Tries to move the pinned stack to the given {@param bounds}.
+     * Tries to move the pinned stack to the given {@param toBounds} on the current display ID.
      */
     void movePip(Rect toBounds) {
-        movePip(toBounds, false /* isDragging */);
+        movePip(toBounds, false /* isDragging */,
+                mPipDisplayLayoutState.getDisplayId() /* focusedDisplayId */);
+    }
+
+
+    /**
+     * Tries to move the pinned stack to {@param toBounds} on the {@param focusedDisplayId} which
+     * follows the cursor's focus.
+     */
+    void movePip(Rect toBounds, int focusedDisplayId) {
+        movePip(toBounds, false /* isDragging */, focusedDisplayId /* focusedDisplayId */);
     }
 
     /**
-     * Tries to move the pinned stack to the given {@param bounds}.
+     * Tries to move the pinned stack to the given bounds.
      *
-     * @param isDragging Whether this movement is the result of a drag touch gesture. If so, we
-     *                   won't notify the floating content coordinator of this move, since that will
-     *                   happen when the gesture ends.
+     * @param toBounds          bounds to move the pinned stack to
+     * @param isDragging        Whether this movement is the result of a drag touch gesture. If
+     *                          so, we won't notify the floating content coordinator of this move,
+     *                          since that will happen when the gesture ends.
+     * @param focusedDisplayId  the display ID of where the cursor currently is
      */
-    void movePip(Rect toBounds, boolean isDragging) {
+    void movePip(Rect toBounds, boolean isDragging, int focusedDisplayId) {
         if (!isDragging) {
             mFloatingContentCoordinator.onContentMoved(this);
         }
@@ -253,7 +278,7 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
                 mPipBoundsState.setBounds(toBounds);
             } else {
                 mPipBoundsState.getMotionBoundsState().setBoundsInMotion(toBounds);
-                mPipScheduler.scheduleUserResizePip(toBounds);
+                mPipScheduler.scheduleUserResizePip(toBounds, focusedDisplayId);
             }
         } else {
             // If PIP is 'catching up' after being stuck in the dismiss target, update the animation
@@ -336,7 +361,12 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
         }
         cancelPhysicsAnimation();
         mMenuController.hideMenu(ANIM_TYPE_NONE, false /* resize */);
-        mPipScheduler.scheduleExitPipViaExpand();
+
+        if (PipUtils.isContentPip(mPipTransitionState.getPipTaskInfo())) {
+            mPipScheduler.scheduleRemovePip(true /* withFadeout */);
+        } else {
+            mPipScheduler.scheduleExitPipViaExpand(true /* wasVisible */);
+        }
     }
 
     /**
@@ -729,6 +759,11 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
     }
 
     @Override
+    public void onDisplayIdChanged(@NonNull Context context) {
+        mContext = context;
+    }
+
+    @Override
     public void onPipTransitionStateChanged(@PipTransitionState.TransitionState int oldState,
             @PipTransitionState.TransitionState int newState,
             @Nullable Bundle extra) {
@@ -773,6 +808,7 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
                 if (mWaitingForFlingTransition) {
                     mWaitingForFlingTransition = false;
                     handleFlingTransition(startTx, finishTx, destinationBounds);
+                    settlePipBoundsAfterFling();
                 } else if (mWaitingToPlayBoundsChangeTransition) {
                     mWaitingToPlayBoundsChangeTransition = false;
                     startResizeAnimation(startTx, finishTx, destinationBounds, duration);
@@ -787,6 +823,7 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
             case PipTransitionState.CHANGED_PIP_BOUNDS:
                 // Check whether changed bounds imply we need to update stash state too.
                 stashEndActionIfNeeded();
+                settlePipBoundsAfterPhysicsAnimation(false /* animatingAfter */);
                 break;
         }
     }
@@ -794,15 +831,13 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
     private void handleFlingTransition(SurfaceControl.Transaction startTx,
             SurfaceControl.Transaction finishTx, Rect destinationBounds) {
         SurfaceControl pipLeash = mPipTransitionState.getPinnedTaskLeash();
-        int cornerRadius = mContext.getResources().getDimensionPixelSize(R.dimen.pip_corner_radius);
-        int shadowRadius = mContext.getResources().getDimensionPixelSize(R.dimen.pip_shadow_radius);
 
         // merge transactions so everything is done on startTx
         startTx.merge(finishTx);
 
-        startTx.setPosition(pipLeash, destinationBounds.left, destinationBounds.top)
-                .setCornerRadius(pipLeash, cornerRadius)
-                .setShadowRadius(pipLeash, shadowRadius);
+        startTx.setPosition(pipLeash, destinationBounds.left, destinationBounds.top);
+        mSurfaceTransactionHelper.round(startTx, pipLeash, true /* applyCornerRadius */);
+        mSurfaceTransactionHelper.shadow(startTx, pipLeash, true /* applyShadow */);
         startTx.apply();
 
         // All motion operations have actually finished, so make bounds cache updates.
@@ -810,7 +845,18 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
         cleanUpHighPerfSessionMaybe();
 
         // Signal that the transition is done - should update transition state by default.
-        mPipScheduler.scheduleFinishResizePip(destinationBounds);
+        mPipScheduler.scheduleFinishPipBoundsChange(destinationBounds);
+    }
+
+    private void settlePipBoundsAfterFling() {
+        mPipTransitionState.setOnIdlePipTransitionStateRunnable(() -> {
+            final int delta =
+                    mPipBoundsState.getMovementBounds().bottom - mPipBoundsState.getBounds().top;
+            if (delta < 0) {
+                // Move the PiP window to the movementBounds.
+                animateToOffset(mPipBoundsState.getBounds(), delta);
+            }
+        });
     }
 
     private void startResizeAnimation(SurfaceControl.Transaction startTx,
@@ -819,7 +865,8 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
         Preconditions.checkState(pipLeash != null,
                 "No leash cached by mPipTransitionState=" + mPipTransitionState);
 
-        PipResizeAnimator animator = new PipResizeAnimator(mContext, pipLeash,
+        PipResizeAnimator animator = new PipResizeAnimator(mContext, mSurfaceTransactionHelper,
+                pipLeash,
                 startTx, finishTx, destinationBounds, mPipBoundsState.getBounds(),
                 destinationBounds, duration, 0f /* angle */);
         animator.setAnimationEndCallback(() -> {
@@ -830,8 +877,8 @@ public class PipMotionHelper implements PipAppOpsListener.Callback,
             settlePipBoundsAfterPhysicsAnimation(false /* animatingAfter */);
 
             cleanUpHighPerfSessionMaybe();
-            // Signal that we are done with resize transition
-            mPipScheduler.scheduleFinishResizePip(destinationBounds);
+            // Signal that we are done with bounds change transition
+            mPipScheduler.scheduleFinishPipBoundsChange(destinationBounds);
         });
         animator.start();
     }

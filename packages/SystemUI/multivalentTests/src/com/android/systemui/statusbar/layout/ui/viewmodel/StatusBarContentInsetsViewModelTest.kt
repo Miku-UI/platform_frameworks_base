@@ -18,6 +18,8 @@ package com.android.systemui.statusbar.layout.ui.viewmodel
 
 import android.content.res.Configuration
 import android.platform.test.annotations.EnableFlags
+import android.view.Display
+import android.view.Surface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -30,9 +32,12 @@ import com.android.systemui.statusbar.layout.statusBarContentInsetsProvider
 import com.android.systemui.statusbar.policy.configurationController
 import com.android.systemui.statusbar.policy.fake
 import com.android.systemui.testKosmos
+import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.whenever
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
@@ -43,6 +48,11 @@ class StatusBarContentInsetsViewModelTest : SysuiTestCase() {
 
     private val Kosmos.underTest by Kosmos.Fixture { statusBarContentInsetsViewModel }
 
+    @Before
+    fun setUp() {
+        kosmos.configurationController.fake.notifyLayoutDirectionChanged(isRtl = false)
+    }
+
     @Test
     fun contentArea_onMaxBoundsChanged_emitsNewValue() =
         kosmos.runTest {
@@ -51,6 +61,13 @@ class StatusBarContentInsetsViewModelTest : SysuiTestCase() {
             val values by collectValues(underTest.contentArea)
 
             // WHEN the content area changes
+
+            // changing to RTL is not sufficient to trigger a different contentArea if the privacy
+            // chip and corner rounding are the same, so we'll also rotate the display
+            val mockDisplay = mock<Display>()
+            context.display = mockDisplay
+            whenever(mockDisplay.getRotation()).thenReturn(Surface.ROTATION_90)
+
             configurationController.fake.notifyLayoutDirectionChanged(isRtl = true)
             configurationController.fake.notifyDensityOrFontScaleChanged()
 

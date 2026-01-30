@@ -19,7 +19,6 @@ package com.android.systemui.keyguard.domain.interactor
 
 import com.android.keyguard.logging.KeyguardLogger
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
-import com.android.systemui.bouncer.shared.flag.ComposeBouncerFlags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.deviceentry.domain.interactor.DeviceUnlockedInteractor
@@ -119,14 +118,6 @@ constructor(
                     isAnyExpanded && unlockStatus.isUnlocked
                 }
                 .distinctUntilChanged()
-        } else if (ComposeBouncerFlags.isOnlyComposeBouncerEnabled()) {
-            combine(
-                    shadeInteractor.get().isAnyExpanded,
-                    keyguardInteractor.get().isKeyguardDismissible,
-                ) { isAnyExpanded, keyguardDismissible ->
-                    isAnyExpanded && keyguardDismissible
-                }
-                .distinctUntilChanged()
         } else {
             flow {
                 error(
@@ -141,7 +132,7 @@ constructor(
     }
 
     fun runAfterKeyguardGone(runnable: Runnable) {
-        if (ComposeBouncerFlags.isUnexpectedlyInLegacyMode()) return
+        if (SceneContainerFlag.isUnexpectedlyInLegacyMode()) return
         setDismissAction(
             DismissAction.RunAfterKeyguardGone(
                 dismissAction = { runnable.run() },
@@ -153,7 +144,7 @@ constructor(
     }
 
     fun setDismissAction(dismissAction: DismissAction) {
-        if (ComposeBouncerFlags.isUnexpectedlyInLegacyMode()) return
+        if (SceneContainerFlag.isUnexpectedlyInLegacyMode()) return
         repository.dismissAction.value.onCancelAction.run()
         repository.setDismissAction(dismissAction)
     }

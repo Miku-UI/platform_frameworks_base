@@ -76,8 +76,8 @@ public class WindowLayout {
         final Rect outFrame = frames.frame;
 
         // Compute bounds restricted by insets
-        final Insets insets = state.calculateInsets(windowBounds, attrs.getFitInsetsTypes(),
-                attrs.isFitInsetsIgnoringVisibility());
+        final Insets insets = state.calculateInsets(windowBounds, windowBounds,
+                attrs.getFitInsetsTypes(), attrs.isFitInsetsIgnoringVisibility());
         final @WindowInsets.Side.InsetsSide int sides = attrs.getFitInsetsSides();
         final int left = (sides & WindowInsets.Side.LEFT) != 0 ? insets.left : 0;
         final int top = (sides & WindowInsets.Side.TOP) != 0 ? insets.top : 0;
@@ -92,7 +92,7 @@ public class WindowLayout {
                 final InsetsSource source = state.peekSource(ID_IME);
                 if (source != null) {
                     outParentFrame.inset(source.calculateInsets(
-                            outParentFrame, false /* ignoreVisibility */));
+                            outParentFrame, windowBounds, false /* ignoreVisibility */));
                 }
             }
         } else {
@@ -123,7 +123,7 @@ public class WindowLayout {
                     && (cutoutMode == LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT
                     || cutoutMode == LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES)) {
                 final Insets systemBarsInsets = state.calculateInsets(
-                        displayFrame, systemBars(), requestedVisibleTypes);
+                        displayFrame, windowBounds, systemBars(), requestedVisibleTypes);
                 if (systemBarsInsets.left >= cutout.getSafeInsetLeft()) {
                     displayCutoutSafeExceptMaybeBars.left = MIN_X;
                 }
@@ -139,7 +139,8 @@ public class WindowLayout {
             }
             if (type == TYPE_INPUT_METHOD
                     && displayCutoutSafeExceptMaybeBars.bottom != MAX_Y
-                    && state.calculateInsets(displayFrame, navigationBars(), true).bottom > 0) {
+                    && state.calculateInsets(displayFrame, windowBounds, navigationBars(), true)
+                            .bottom > 0) {
                 // The IME can always extend under the bottom cutout if the navbar is there.
                 displayCutoutSafeExceptMaybeBars.bottom = MAX_Y;
             }

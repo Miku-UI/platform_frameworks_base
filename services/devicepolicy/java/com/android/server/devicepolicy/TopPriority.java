@@ -23,9 +23,9 @@ import android.app.admin.PolicyValue;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 
 final class TopPriority<V> extends ResolutionMechanism<V> {
 
@@ -37,7 +37,8 @@ final class TopPriority<V> extends ResolutionMechanism<V> {
     }
 
     @Override
-    PolicyValue<V> resolve(@NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies) {
+    ResolvedPolicy<V> resolve(
+            @NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<V>> adminPolicies) {
         if (adminPolicies.isEmpty()) {
             return null;
         }
@@ -45,13 +46,11 @@ final class TopPriority<V> extends ResolutionMechanism<V> {
             Optional<EnforcingAdmin> admin = adminPolicies.keySet().stream()
                     .filter(a -> a.hasAuthority(authority)).findFirst();
             if (admin.isPresent()) {
-                return adminPolicies.get(admin.get());
+                return new ResolvedPolicy<>(adminPolicies.get(admin.get()), Set.of(admin.get()));
             }
         }
         // Return first set policy if no known authority is found
-        Map.Entry<EnforcingAdmin, PolicyValue<V>> policy =
-                adminPolicies.entrySet().stream().findFirst().get();
-        return policy.getValue();
+        return new ResolvedPolicy<>(adminPolicies.firstEntry());
     }
 
     @Override

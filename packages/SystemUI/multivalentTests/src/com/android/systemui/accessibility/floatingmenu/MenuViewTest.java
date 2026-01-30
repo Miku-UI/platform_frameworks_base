@@ -36,7 +36,6 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
-import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.view.WindowManager;
@@ -216,37 +215,6 @@ public class MenuViewTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_FLOATING_MENU_NOTIFY_TARGETS_CHANGED_ON_STRICT_DIFF)
-    public void onTargetFeaturesChanged_listenerCalled_flagDisabled() {
-        // Call show() to start observing the target features change listener.
-        mMenuView.show();
-
-        // The target features change listener should be called when the observer is added.
-        verify(mOnTargetFeaturesChangeListener, times(1)).onChange(any());
-
-        // When the target features list changes, the listener should be called.
-        mMenuViewModel.onTargetFeaturesChanged(
-                List.of(
-                        new TestAccessibilityTarget(mContext, 123),
-                        new TestAccessibilityTarget(mContext, 456)));
-        verify(mOnTargetFeaturesChangeListener, times(2)).onChange(any());
-
-        // Double check that when the target features list changes, the listener should be called.
-        List<AccessibilityTarget> newFeaturesList =
-                List.of(
-                        new TestAccessibilityTarget(mContext, 123),
-                        new TestAccessibilityTarget(mContext, 789),
-                        new TestAccessibilityTarget(mContext, 456));
-        mMenuViewModel.onTargetFeaturesChanged(newFeaturesList);
-        verify(mOnTargetFeaturesChangeListener, times(3)).onChange(any());
-
-        // When the target features list doesn't change, the listener will still be called.
-        mMenuViewModel.onTargetFeaturesChanged(newFeaturesList);
-        verify(mOnTargetFeaturesChangeListener, times(4)).onChange(any());
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_NOTIFY_TARGETS_CHANGED_ON_STRICT_DIFF)
     public void onTargetFeaturesChanged_listenerCalled_flagEnabled() {
         // Call show() to start observing the target features change listener.
         mMenuView.show();

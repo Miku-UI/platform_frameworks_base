@@ -55,7 +55,13 @@ public interface SysuiDarkIconDispatcher extends DarkIconDispatcher, Dumpable {
             this.tint = tint;
         }
 
+        /**
+         * Regions where icons should be dark. Icons outside of these regions should be light.
+         * Note: This is empty if all icons should be the same color, regardless of light or dark.
+         * This is only non-empty when some icons should be light and others dark.
+         */
         public final Collection<Rect> areas;
+        /** 0.0f = white icons, 1.0f = black icons */
         public final float darkIntensity;
         public final int tint;
     }

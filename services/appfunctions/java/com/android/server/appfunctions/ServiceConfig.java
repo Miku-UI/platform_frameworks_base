@@ -26,4 +26,18 @@ public interface ServiceConfig {
      * successfully cancel the execution of an app function before forcefully unbinding the service.
      */
     long getExecuteAppFunctionCancellationTimeoutMillis();
+
+    /**
+     * Returns the maximum age, in milliseconds, for an AppFunction access history record.
+     *
+     * <p>Access history records older than this retention period will be removed during the next
+     * maintenance cleanup.
+     */
+    long getAppFunctionAccessHistoryRetentionMillis();
+
+    /**
+     * Returns the interval, in milliseconds, at which the maintenance job runs to delete expired
+     * AppFunction access histories.
+     */
+    long getAppFunctionExpiredAccessHistoryDeletionIntervalMillis();
 }

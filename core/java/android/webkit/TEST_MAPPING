@@ -4,6 +4,9 @@
       "name": "CtsWebkitTestCases"
     },
     {
+      "name": "CtsWebkitMultiuserTestCases"
+    },
+    {
       "name": "CtsSdkSandboxWebkitTestCases"
     },
     {

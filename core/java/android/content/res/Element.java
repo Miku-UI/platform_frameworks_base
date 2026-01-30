@@ -32,7 +32,7 @@ import java.util.Set;
 /**
  * Defines the string attribute length and child tag count restrictions for a xml element.
  *
- * {@hide}
+ * @hide
  */
 @RavenwoodKeepWholeClass
 public class Element {

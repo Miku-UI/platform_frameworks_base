@@ -29,6 +29,7 @@ import android.view.ViewTreeObserver;
 import android.view.ViewTreeObserver.OnComputeInternalInsetsListener;
 import android.view.WindowInsets;
 
+import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.compose.animation.scene.ObservableTransitionState;
@@ -39,19 +40,26 @@ import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor;
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.desktop.domain.interactor.DesktopInteractor;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.domain.interactor.SceneInteractor;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.scene.shared.model.Scenes;
+import com.android.systemui.shade.ShadeOverlayBoundsListener;
 import com.android.systemui.shade.domain.interactor.ShadeInteractor;
+import com.android.systemui.shade.domain.interactor.ShadeModeInteractor;
+import com.android.systemui.shade.shared.model.ShadeMode;
 import com.android.systemui.statusbar.NotificationShadeWindowController;
-import com.android.systemui.statusbar.policy.ConfigurationController;
-import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener;
+import com.android.systemui.statusbar.core.StatusBarForDesktop;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.headsup.OnHeadsUpChangedListener;
+import com.android.systemui.statusbar.policy.ConfigurationController;
+import com.android.systemui.statusbar.policy.ConfigurationController.ConfigurationListener;
 import com.android.systemui.util.kotlin.JavaAdapter;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.inject.Inject;
 import javax.inject.Provider;
@@ -69,23 +77,30 @@ public final class ShadeTouchableRegionManager implements Dumpable {
     private final HeadsUpManager mHeadsUpManager;
     private final NotificationShadeWindowController mNotificationShadeWindowController;
     private final UnlockedScreenOffAnimationController mUnlockedScreenOffAnimationController;
+    private final ShadeInteractor mShadeInteractor;
+    private final PrimaryBouncerInteractor mPrimaryBouncerInteractor;
+    private final AlternateBouncerInteractor mAlternateBouncerInteractor;
+    private final Provider<ShadeModeInteractor> mShadeModeInteractorProvider;
+    private final Provider<DesktopInteractor> mDesktopInteractorProvider;
 
-    private boolean mIsStatusBarExpanded = false;
+
+    private boolean mIsAnyShadeExpanded = false;
     // Whether the scene container has no UI to render, i.e. is in idle state on the Gone scene and
     // without any overlays to display.
     private boolean mIsSceneContainerUiEmpty = true;
+    private boolean mIsSceneGone = false;
+    private boolean mIsDesktopStatusBarEnabled = false;
     private boolean mIsRemoteUserInteractionOngoing = false;
     private boolean mShouldAdjustInsets = false;
-    private View mNotificationShadeWindowView;
-    private View mNotificationPanelView;
     private boolean mForceCollapsedUntilLayout = false;
     private Boolean mCommunalVisible = false;
-
-    private Region mTouchableRegion = new Region();
+    private final Region mTouchableRegion = new Region();
+    private @Nullable Rect mShadeBounds = null;
     private int mDisplayCutoutTouchableRegionSize;
     private int mStatusBarHeight;
-    private final PrimaryBouncerInteractor mPrimaryBouncerInteractor;
-    private final AlternateBouncerInteractor mAlternateBouncerInteractor;
+
+    private View mNotificationShadeWindowView;
+    private View mNotificationPanelView;
 
     private final OnComputeInternalInsetsListener mOnComputeInternalInsetsListener;
 
@@ -101,8 +116,12 @@ public final class ShadeTouchableRegionManager implements Dumpable {
             UnlockedScreenOffAnimationController unlockedScreenOffAnimationController,
             PrimaryBouncerInteractor primaryBouncerInteractor,
             AlternateBouncerInteractor alternateBouncerInteractor,
-            CommunalSceneInteractor communalSceneInteractor
+            CommunalSceneInteractor communalSceneInteractor,
+            Provider<ShadeModeInteractor> shadeModeInteractor,
+            Provider<DesktopInteractor> desktopInteractor
     ) {
+        mShadeModeInteractorProvider = shadeModeInteractor;
+        mDesktopInteractorProvider = desktopInteractor;
         mContext = context;
         initResources();
         configurationController.addCallback(new ConfigurationListener() {
@@ -130,6 +149,19 @@ public final class ShadeTouchableRegionManager implements Dumpable {
                 });
         mHeadsUpManager.addHeadsUpPhoneListener(this::onHeadsUpAnimatingAwayStateChanged);
 
+        mShadeInteractor = shadeInteractor;
+        if (StatusBarForDesktop.isEnabled()) {
+            ShadeOverlayBoundsListener shadeOverlayBoundsListener = bounds -> {
+                if (!mIsDesktopStatusBarEnabled) {
+                    return;
+                }
+                mShadeBounds = bounds;
+                updateTouchableRegion();
+            };
+
+            mShadeInteractor.addShadeOverlayBoundsListener(shadeOverlayBoundsListener);
+        }
+
         mNotificationShadeWindowController = notificationShadeWindowController;
         mNotificationShadeWindowController.setForcePluginOpenListener((forceOpen) -> {
             updateTouchableRegion();
@@ -144,6 +176,12 @@ public final class ShadeTouchableRegionManager implements Dumpable {
             javaAdapter.alwaysCollectFlow(
                     sceneInteractor.get().isRemoteUserInteractionOngoing(),
                     this::onRemoteUserInteractionOngoingChanged);
+            if (StatusBarForDesktop.isEnabled()) {
+                javaAdapter.alwaysCollectFlow(shadeModeInteractor.get().getShadeMode(),
+                        this::onShadeModeChanged);
+                javaAdapter.alwaysCollectFlow(desktopInteractor.get().getUseDesktopStatusBar(),
+                        this::onDesktopStatusBarStateChanged);
+            }
         } else {
             javaAdapter.alwaysCollectFlow(
                     shadeInteractor.isAnyExpanded(),
@@ -168,11 +206,15 @@ public final class ShadeTouchableRegionManager implements Dumpable {
         pw.println("ShadeTouchableRegionManager state:");
         pw.print("  mTouchableRegion=");
         pw.println(mTouchableRegion);
+        pw.print("  mIsDesktopStatusBarEnabled=");
+        pw.println(mIsDesktopStatusBarEnabled);
+        pw.print("  mShadeBounds=");
+        pw.println(mShadeBounds);
     }
 
     private void onShadeOrQsExpanded(Boolean isExpanded) {
-        if (isExpanded != mIsStatusBarExpanded) {
-            mIsStatusBarExpanded = isExpanded;
+        if (isExpanded != mIsAnyShadeExpanded) {
+            mIsAnyShadeExpanded = isExpanded;
             if (isExpanded) {
                 // make sure our state is sensible
                 mForceCollapsedUntilLayout = false;
@@ -181,8 +223,43 @@ public final class ShadeTouchableRegionManager implements Dumpable {
         }
     }
 
+    private void onShadeModeChanged(ShadeMode mode) {
+        final boolean isDualShadeEnabled = mode.equals(ShadeMode.dual());
+        final boolean desktopStatusBarEnabled = StatusBarForDesktop.isEnabled()
+                && isDualShadeEnabled
+                && mDesktopInteractorProvider.get().getUseDesktopStatusBar().getValue();
+
+        if (mIsDesktopStatusBarEnabled == desktopStatusBarEnabled) {
+            return;
+        }
+
+        mIsDesktopStatusBarEnabled = desktopStatusBarEnabled;
+        if (!desktopStatusBarEnabled) {
+            mShadeBounds = null;
+        }
+        updateTouchableRegion();
+    }
+
+    private void onDesktopStatusBarStateChanged(boolean enabled) {
+        final boolean isDualShadeEnabled =
+                mShadeModeInteractorProvider.get()
+                        .getShadeMode().getValue().equals(ShadeMode.dual());
+        final boolean desktopStatusBarEnabled =
+                StatusBarForDesktop.isEnabled() && enabled && isDualShadeEnabled;
+        if (mIsDesktopStatusBarEnabled == desktopStatusBarEnabled) {
+            return;
+        }
+
+        mIsDesktopStatusBarEnabled = desktopStatusBarEnabled;
+        if (!desktopStatusBarEnabled) {
+            mShadeBounds = null;
+        }
+        updateTouchableRegion();
+    }
+
     private void onSceneContainerTransition(ObservableTransitionState transitionState) {
-        boolean isSceneContainerUiEmpty = transitionState.isIdle(Scenes.Gone)
+        mIsSceneGone = transitionState.isIdle(Scenes.Gone);
+        boolean isSceneContainerUiEmpty = mIsSceneGone
                 && ((ObservableTransitionState.Idle) transitionState).getCurrentOverlays()
                 .isEmpty();
         if (isSceneContainerUiEmpty != mIsSceneContainerUiEmpty) {
@@ -226,6 +303,39 @@ public final class ShadeTouchableRegionManager implements Dumpable {
         return mTouchableRegion;
     }
 
+    /**
+     * Returns the touchable region for the Shade Window when the {@code DesktopStatusBar}
+     * is enabled.
+     *
+     * <p> When an overlay is visible over the {@link Scenes.Gone} scene, only the
+     * overlay bounds should be touchable. When not on {@code Gone}, the entire screen except the
+     * status bar area should be touchable, as the {@code DesktopStatusBar} is not part of the
+     * shade window.
+     *
+     * <p>The touchable region for heads-up notifications is handled separately and merged.
+     */
+    @VisibleForTesting
+    List<Rect> calculateTouchableRegionForDesktop() {
+        final List<Rect> touchableRects = new ArrayList<>();
+        if (mShadeBounds != null && mIsSceneGone) {
+            touchableRects.add(mShadeBounds);
+        } else {
+            touchableRects.add(
+                    new Rect(
+                            /* left= */ 0,
+                            /* top= */ mStatusBarHeight,
+                            /* right= */ mNotificationShadeWindowView.getWidth(),
+                            /* bottom= */ mNotificationShadeWindowView.getHeight()));
+        }
+
+        final Region headsUpTouchableRegion = mHeadsUpManager.getTouchableRegion();
+        if (headsUpTouchableRegion != null) {
+            touchableRects.add(headsUpTouchableRegion.getBounds());
+        }
+
+        return touchableRects;
+    }
+
     private void initResources() {
         Resources resources = mContext.getResources();
         mDisplayCutoutTouchableRegionSize = resources.getDimensionPixelSize(
@@ -237,27 +347,47 @@ public final class ShadeTouchableRegionManager implements Dumpable {
      * Set the touchable portion of the status bar based on what elements are visible.
      */
     public void updateTouchableRegion() {
-        boolean hasCutoutInset = (mNotificationShadeWindowView != null)
-                && (mNotificationShadeWindowView.getRootWindowInsets() != null)
-                && (mNotificationShadeWindowView.getRootWindowInsets().getDisplayCutout() != null);
-        boolean shouldObserve = mHeadsUpManager.hasPinnedHeadsUp()
-                        || mHeadsUpManager.isHeadsUpAnimatingAwayValue()
-                        || mForceCollapsedUntilLayout
-                        || hasCutoutInset
-                        || mNotificationShadeWindowController.getForcePluginOpen();
+        final boolean shouldObserve = mIsDesktopStatusBarEnabled
+                ? shouldObserveForDesktop()
+                : shouldObserveForStandardMode();
+
         if (shouldObserve == mShouldAdjustInsets) {
             return;
         }
 
+        final ViewTreeObserver observer = mNotificationShadeWindowView.getViewTreeObserver();
         if (shouldObserve) {
-            mNotificationShadeWindowView.getViewTreeObserver()
-                    .addOnComputeInternalInsetsListener(mOnComputeInternalInsetsListener);
+            observer.addOnComputeInternalInsetsListener(mOnComputeInternalInsetsListener);
             mNotificationShadeWindowView.requestLayout();
         } else {
-            mNotificationShadeWindowView.getViewTreeObserver()
-                    .removeOnComputeInternalInsetsListener(mOnComputeInternalInsetsListener);
+            observer.removeOnComputeInternalInsetsListener(mOnComputeInternalInsetsListener);
         }
         mShouldAdjustInsets = shouldObserve;
+    }
+
+    /**
+     * Determines if we need to compute custom insets when in desktop mode.
+     */
+    private boolean shouldObserveForDesktop() {
+        return mNotificationShadeWindowView != null
+                && (mHeadsUpManager.hasPinnedHeadsUp()
+                || mHeadsUpManager.isHeadsUpAnimatingAwayValue()
+                || mShadeBounds != null
+                || !mIsSceneGone);
+    }
+
+    /**
+     * Determines if we need to compute custom insets when in standard (non-desktop) mode.
+     */
+    private boolean shouldObserveForStandardMode() {
+        boolean hasCutoutInset = (mNotificationShadeWindowView != null)
+                && (mNotificationShadeWindowView.getRootWindowInsets() != null)
+                && (mNotificationShadeWindowView.getRootWindowInsets().getDisplayCutout() != null);
+        return mHeadsUpManager.hasPinnedHeadsUp()
+                || mHeadsUpManager.isHeadsUpAnimatingAwayValue()
+                || mForceCollapsedUntilLayout
+                || hasCutoutInset
+                || mNotificationShadeWindowController.getForcePluginOpen();
     }
 
     /**
@@ -305,11 +435,17 @@ public final class ShadeTouchableRegionManager implements Dumpable {
      */
     @VisibleForTesting
     boolean shouldMakeEntireScreenTouchable() {
+        if (mIsDesktopStatusBarEnabled) {
+            // In desktop mode, the shade window never covers the entire screen's touchable area,
+            // as the status bar is in a separate window.
+            return false;
+        }
+
         // The touchable region is always the full area when expanded, whether we're showing the
         // shade or the bouncer. It's also fully touchable when the screen off animation is playing
         // since we don't want stray touches to go through the light reveal scrim to whatever is
         // underneath.
-        return mIsStatusBarExpanded
+        return mIsAnyShadeExpanded
                 || (SceneContainerFlag.isEnabled()
                 && (!mIsSceneContainerUiEmpty || mIsRemoteUserInteractionOngoing))
                 || mPrimaryBouncerInteractor.isShowing().getValue()
@@ -330,12 +466,20 @@ public final class ShadeTouchableRegionManager implements Dumpable {
 
     private void onComputeInternalInsets(ViewTreeObserver.InternalInsetsInfo info) {
         if (shouldMakeEntireScreenTouchable()) {
+            info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_FRAME);
             return;
         }
-
         // Update touch insets to include any area needed for touching features that live in
         // the status bar (ie: heads up notifications)
         info.setTouchableInsets(ViewTreeObserver.InternalInsetsInfo.TOUCHABLE_INSETS_REGION);
-        info.touchableRegion.set(calculateTouchableRegion());
+        if (mIsDesktopStatusBarEnabled) {
+            // The touchableRegion is a shared object, so we must clear it before rebuilding.
+            info.touchableRegion.setEmpty();
+            for (Rect rect : calculateTouchableRegionForDesktop()) {
+                info.touchableRegion.union(rect);
+            }
+        } else {
+            info.touchableRegion.set(calculateTouchableRegion());
+        }
     }
 }

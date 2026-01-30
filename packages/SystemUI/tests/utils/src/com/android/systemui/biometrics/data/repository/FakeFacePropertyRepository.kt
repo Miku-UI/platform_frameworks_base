@@ -18,6 +18,7 @@
 package com.android.systemui.biometrics.data.repository
 
 import android.graphics.Point
+import com.android.systemui.biometrics.shared.model.FaceSensorInfo
 import com.android.systemui.biometrics.shared.model.LockoutMode
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.shared.model.DevicePosture
@@ -48,6 +49,7 @@ class FakeFacePropertyRepository @Inject constructor() : FacePropertyRepository 
     fun setLockoutMode(userId: Int, mode: LockoutMode) {
         lockoutModesForUser[userId] = mode
     }
+
     override suspend fun getLockoutMode(userId: Int): LockoutMode {
         return lockoutModesForUser[userId]!!
     }

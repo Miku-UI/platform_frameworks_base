@@ -16,8 +16,6 @@
 
 package com.android.systemui.keyguard;
 
-import static com.android.systemui.flags.Flags.KEYGUARD_TALKBACK_FIX;
-
 import android.annotation.Nullable;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
@@ -30,7 +28,6 @@ import androidx.annotation.VisibleForTesting;
 import com.android.keyguard.logging.KeyguardLogger;
 import com.android.systemui.Dumpable;
 import com.android.systemui.dagger.qualifiers.Main;
-import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.statusbar.KeyguardIndicationController;
 import com.android.systemui.statusbar.phone.KeyguardIndicationTextView;
@@ -78,7 +75,6 @@ public class KeyguardIndicationRotateTextViewController extends
 
     // Executor that will show the next message after a delay
     private final DelayableExecutor mExecutor;
-    private final FeatureFlags mFeatureFlags;
 
     @VisibleForTesting
     @Nullable ShowNextIndication mShowNextIndicationRunnable;
@@ -95,8 +91,7 @@ public class KeyguardIndicationRotateTextViewController extends
             KeyguardIndicationTextView view,
             @Main DelayableExecutor executor,
             StatusBarStateController statusBarStateController,
-            KeyguardLogger logger,
-            FeatureFlags flags
+            KeyguardLogger logger
     ) {
         super(view);
         mMaxAlpha = view.getAlpha();
@@ -105,14 +100,12 @@ public class KeyguardIndicationRotateTextViewController extends
                 ? mView.getTextColors() : ColorStateList.valueOf(Color.WHITE);
         mStatusBarStateController = statusBarStateController;
         mLogger = logger;
-        mFeatureFlags = flags;
         init();
     }
 
     @Override
     protected void onViewAttached() {
         mStatusBarStateController.addCallback(mStatusBarStateListener);
-        mView.setAlwaysAnnounceEnabled(mFeatureFlags.isEnabled(KEYGUARD_TALKBACK_FIX));
     }
 
     @Override
@@ -402,6 +395,8 @@ public class KeyguardIndicationRotateTextViewController extends
     public static final int INDICATION_TYPE_BIOMETRIC_MESSAGE_FOLLOW_UP = 12;
     public static final int INDICATION_IS_DISMISSIBLE = 13;
     public static final int INDICATION_TYPE_ADAPTIVE_AUTH = 14;
+    public static final int INDICATION_TYPE_WATCH_DISCONNECTED = 15;
+    public static final int INDICATION_TYPE_SECURE_LOCK_DEVICE = 16;
 
     @IntDef({
             INDICATION_TYPE_NONE,
@@ -418,7 +413,9 @@ public class KeyguardIndicationRotateTextViewController extends
             INDICATION_TYPE_BIOMETRIC_MESSAGE,
             INDICATION_TYPE_BIOMETRIC_MESSAGE_FOLLOW_UP,
             INDICATION_IS_DISMISSIBLE,
-            INDICATION_TYPE_ADAPTIVE_AUTH
+            INDICATION_TYPE_ADAPTIVE_AUTH,
+            INDICATION_TYPE_WATCH_DISCONNECTED,
+            INDICATION_TYPE_SECURE_LOCK_DEVICE
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface IndicationType{}
@@ -456,6 +453,10 @@ public class KeyguardIndicationRotateTextViewController extends
                 return "biometric_message_followup";
             case INDICATION_TYPE_ADAPTIVE_AUTH:
                 return "adaptive_auth";
+            case INDICATION_TYPE_WATCH_DISCONNECTED:
+                return "watch_disconnected";
+            case INDICATION_TYPE_SECURE_LOCK_DEVICE:
+                return "secure_lock_device";
             default:
                 return "unknown[" + type + "]";
         }

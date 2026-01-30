@@ -16,9 +16,11 @@
 
 package android.tracing.perfetto;
 
-import android.annotation.Nullable;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.util.proto.ProtoInputStream;
+
+import dalvik.annotation.optimization.CriticalNative;
 
 /**
  * Templated base class meant to be derived by embedders to create a custom data
@@ -135,7 +137,7 @@ public abstract class DataSource<DataSourceInstanceType extends DataSourceInstan
      */
     public void register(DataSourceParams params) {
         nativeRegisterDataSource(this.mNativeObj, params.bufferExhaustedPolicy,
-                params.willNotifyOnStop, params.noFlush);
+                params.willNotifyOnStop, params.noFlush, params.postponeStop);
     }
 
     /**
@@ -170,8 +172,17 @@ public abstract class DataSource<DataSourceInstanceType extends DataSourceInstan
         return this.createInstance(inputStream, instanceIndex);
     }
 
+    /**
+     * Stop the datasource instance at the specified index (whose stop operation was previously
+     * postponed with DataSourceParams#postponeStop).
+     */
+    protected void stopDoneDataSourceInstance(int instanceIndex) {
+        nativeStopDonePerfettoInstanceLocked(mNativeObj, instanceIndex);
+    }
+
     private static native void nativeRegisterDataSource(long dataSourcePtr,
-            int bufferExhaustedPolicy, boolean willNotifyOnStop, boolean noFlush);
+            int bufferExhaustedPolicy, boolean willNotifyOnStop, boolean noFlush,
+            boolean postponeStop);
 
     private static native long nativeCreate(DataSource thiz, String name);
     private static native void nativeFlushAll(long nativeDataSourcePointer);
@@ -182,9 +193,16 @@ public abstract class DataSource<DataSourceInstanceType extends DataSourceInstan
     private static native void nativeReleasePerfettoInstanceLocked(
             long dataSourcePtr, int dsInstanceIdx);
 
+    private static native void nativeStopDonePerfettoInstanceLocked(
+            long dataSourcePtr, int dsInstanceIdx);
+
+    @CriticalNative
     private static native boolean nativePerfettoDsTraceIterateBegin(long dataSourcePtr);
+    @CriticalNative
     private static native boolean nativePerfettoDsTraceIterateNext(long dataSourcePtr);
+    @CriticalNative
     private static native void nativePerfettoDsTraceIterateBreak(long dataSourcePtr);
+    @CriticalNative
     private static native int nativeGetPerfettoDsInstanceIndex(long dataSourcePtr);
 
     private static native void nativeWritePackets(long dataSourcePtr, byte[][] packetData);

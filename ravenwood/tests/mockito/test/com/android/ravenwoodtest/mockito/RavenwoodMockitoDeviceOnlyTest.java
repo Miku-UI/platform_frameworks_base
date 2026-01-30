@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.app.ActivityManager;
 import android.platform.test.ravenwood.RavenwoodRule;
+import android.platform.test.ravenwood.RavenwoodUtils;
 
 import com.android.dx.mockito.inline.extended.ExtendedMockito;
 
@@ -39,6 +40,11 @@ public class RavenwoodMockitoDeviceOnlyTest {
             ExtendedMockito.doReturn(true).when(ActivityManager::isUserAMonkey);
 
             assertThat(ActivityManager.isUserAMonkey()).isEqualTo(true);
+
+            // Extended mockito's static mocking works on any threads.
+            RavenwoodUtils.runOnMainThreadSync(() -> {
+                assertThat(ActivityManager.isUserAMonkey()).isEqualTo(true);
+            });
         } finally {
             mockingSession.finishMocking();
         }

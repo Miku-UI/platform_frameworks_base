@@ -60,11 +60,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:7: Warning: Unsafe Parcel.readSerializable() \
+                        src/test/pkg/TestClass.java:7: Error: Unsafe Parcel.readSerializable() \
                         API usage [UnsafeParcelApi]
                                 Serializable ans = p.readSerializable();
                                                    ~~~~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -111,11 +111,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:6: Warning: Unsafe Parcel.readArrayList() API \
+                        src/test/pkg/TestClass.java:6: Error: Unsafe Parcel.readArrayList() API \
                         usage [UnsafeParcelApi]
                                 ArrayList ans = p.readArrayList(null);
                                                 ~~~~~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -165,11 +165,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:9: Warning: Unsafe Parcel.readList() API usage \
+                        src/test/pkg/TestClass.java:9: Error: Unsafe Parcel.readList() API usage \
                         [UnsafeParcelApi]
                                 p.readList(list, null);
                                 ~~~~~~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -219,11 +219,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:7: Warning: Unsafe Parcel.readParcelable() API \
+                        src/test/pkg/TestClass.java:7: Error: Unsafe Parcel.readParcelable() API \
                         usage [UnsafeParcelApi]
                                 Intent ans = p.readParcelable(null);
                                              ~~~~~~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -273,11 +273,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:9: Warning: Unsafe Parcel.readParcelableList() \
+                        src/test/pkg/TestClass.java:9: Error: Unsafe Parcel.readParcelableList() \
                         API usage [UnsafeParcelApi]
                                 List<Intent> ans = p.readParcelableList(list, null);
                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -329,11 +329,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:8: Warning: Unsafe Parcel.readSparseArray() API\
+                        src/test/pkg/TestClass.java:8: Error: Unsafe Parcel.readSparseArray() API\
                          usage [UnsafeParcelApi]
                                 SparseArray<Intent> ans = p.readSparseArray(null);
                                                           ~~~~~~~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -383,11 +383,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:7: Warning: Unsafe Parcel.readArray() API\
+                        src/test/pkg/TestClass.java:7: Error: Unsafe Parcel.readArray() API\
                          usage [UnsafeParcelApi]
                                 Intent[] ans = p.readArray(null);
                                                ~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -435,11 +435,11 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                        src/test/pkg/TestClass.java:7: Warning: Unsafe Parcel.readParcelableArray() API\
+                        src/test/pkg/TestClass.java:7: Error: Unsafe Parcel.readParcelableArray() API\
                          usage [UnsafeParcelApi]
                                 Intent[] ans = p.readParcelableArray(null);
                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                        0 errors, 1 warnings
+                        1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -489,10 +489,10 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                    src/test/pkg/TestClass.java:7: Warning: Unsafe Bundle.getParcelable() API usage [UnsafeParcelApi]
+                    src/test/pkg/TestClass.java:7: Error: Unsafe Bundle.getParcelable() API usage [UnsafeParcelApi]
                             Intent ans = b.getParcelable("key");
                                          ~~~~~~~~~~~~~~~~~~~~~~
-                    0 errors, 1 warnings
+                    1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -540,10 +540,10 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                    src/test/pkg/TestClass.java:7: Warning: Unsafe Bundle.getParcelableArrayList() API usage [UnsafeParcelApi]
+                    src/test/pkg/TestClass.java:7: Error: Unsafe Bundle.getParcelableArrayList() API usage [UnsafeParcelApi]
                             ArrayList<Intent> ans = b.getParcelableArrayList("key");
                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    0 errors, 1 warnings
+                    1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -591,10 +591,10 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                    src/test/pkg/TestClass.java:7: Warning: Unsafe Bundle.getParcelableArray() API usage [UnsafeParcelApi]
+                    src/test/pkg/TestClass.java:7: Error: Unsafe Bundle.getParcelableArray() API usage [UnsafeParcelApi]
                             Intent[] ans = b.getParcelableArray("key");
                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    0 errors, 1 warnings
+                    1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -642,10 +642,10 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                    src/test/pkg/TestClass.java:7: Warning: Unsafe Bundle.getSparseParcelableArray() API usage [UnsafeParcelApi]
+                    src/test/pkg/TestClass.java:7: Error: Unsafe Bundle.getSparseParcelableArray() API usage [UnsafeParcelApi]
                             SparseArray<Intent> ans = b.getSparseParcelableArray("key");
                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    0 errors, 1 warnings
+                    1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }
@@ -694,10 +694,10 @@ class SaferParcelCheckerTest : LintDetectorTest() {
             .run()
             .expect(
                 """
-                    src/test/pkg/TestClass.java:6: Warning: Unsafe Intent.getParcelableExtra() API usage [UnsafeParcelApi]
+                    src/test/pkg/TestClass.java:6: Error: Unsafe Intent.getParcelableExtra() API usage [UnsafeParcelApi]
                             Intent ans = i.getParcelableExtra("name");
                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-                    0 errors, 1 warnings
+                    1 errors, 0 warnings
                         """.addLineContinuation()
             )
     }

@@ -16,11 +16,14 @@
 
 package android.media;
 
+import static android.media.RoutingChangeInfo.ENTRY_POINT_LOCAL_ROUTER_UNSPECIFIED;
+import static android.media.RoutingChangeInfo.ENTRY_POINT_PROXY_ROUTER_UNSPECIFIED;
+
 import static com.android.internal.util.function.pooled.PooledLambda.obtainMessage;
 import static com.android.media.flags.Flags.FLAG_ENABLE_BUILT_IN_SPEAKER_ROUTE_SUITABILITY_STATUSES;
 import static com.android.media.flags.Flags.FLAG_ENABLE_GET_TRANSFERABLE_ROUTES;
 import static com.android.media.flags.Flags.FLAG_ENABLE_PRIVILEGED_ROUTING_FOR_MEDIA_ROUTING_CONTROL;
-import static com.android.media.flags.Flags.FLAG_ENABLE_RLP_CALLBACKS_IN_MEDIA_ROUTER2;
+import static com.android.media.flags.Flags.FLAG_ENABLE_ROUTE_VISIBILITY_CONTROL_API;
 import static com.android.media.flags.Flags.FLAG_ENABLE_SCREEN_OFF_SCANNING;
 import static com.android.media.flags.Flags.FLAG_ENABLE_SUGGESTED_DEVICE_API;
 
@@ -36,6 +39,7 @@ import android.annotation.TestApi;
 import android.app.AppOpsManager;
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.media.session.MediaSession;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -64,6 +68,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -136,13 +141,10 @@ public final class MediaRouter2 {
     // The manager request ID representing that no manager is involved.
     private static final long MANAGER_REQUEST_ID_NONE = MediaRoute2ProviderService.REQUEST_ID_NONE;
 
-    private record PackageNameUserHandlePair(String packageName, UserHandle user) {}
-
     private record InstanceInvalidatedCallbackRecord(Executor executor, Runnable runnable) {}
 
     @GuardedBy("sSystemRouterLock")
-    private static final Map<PackageNameUserHandlePair, MediaRouter2> sAppToProxyRouterMap =
-            new ArrayMap<>();
+    private static final Map<AppId, MediaRouter2> sAppToProxyRouterMap = new ArrayMap<>();
 
     @GuardedBy("sRouterLock")
     private static MediaRouter2 sInstance;
@@ -160,8 +162,8 @@ public final class MediaRouter2 {
             new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<ControllerCallbackRecord> mControllerCallbackRecords =
             new CopyOnWriteArrayList<>();
-    private final CopyOnWriteArrayList<DeviceSuggestionsCallbackRecord>
-            mDeviceSuggestionsCallbackRecords = new CopyOnWriteArrayList<>();
+    private final CopyOnWriteArrayList<DeviceSuggestionsUpdatesCallbackRecord>
+            mDeviceSuggestionsUpdatesCallbackRecords = new CopyOnWriteArrayList<>();
 
     private final CopyOnWriteArrayList<ControllerCreationRequest> mControllerCreationRequests =
             new CopyOnWriteArrayList<>();
@@ -434,7 +436,7 @@ public final class MediaRouter2 {
             }
         }
 
-        PackageNameUserHandlePair key = new PackageNameUserHandlePair(clientPackageName, user);
+        AppId key = new AppId(clientPackageName, user);
 
         synchronized (sSystemRouterLock) {
             MediaRouter2 instance = sAppToProxyRouterMap.get(key);
@@ -752,7 +754,6 @@ public final class MediaRouter2 {
      *
      * @see #setRouteListingPreference(RouteListingPreference)
      */
-    @FlaggedApi(FLAG_ENABLE_RLP_CALLBACKS_IN_MEDIA_ROUTER2)
     public void registerRouteListingPreferenceUpdatedCallback(
             @NonNull @CallbackExecutor Executor executor,
             @NonNull Consumer<RouteListingPreference> routeListingPreferenceCallback) {
@@ -771,20 +772,20 @@ public final class MediaRouter2 {
      * router changes.
      *
      * <p>Calls using a previously registered callback will overwrite the previous executor.
-     *
-     * @hide
      */
-    public void registerDeviceSuggestionsCallback(
+    @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
+    public void registerDeviceSuggestionsUpdatesCallback(
             @NonNull @CallbackExecutor Executor executor,
-            @NonNull DeviceSuggestionsCallback deviceSuggestionsCallback) {
+            @NonNull DeviceSuggestionsUpdatesCallback deviceSuggestionsUpdatesCallback) {
         Objects.requireNonNull(executor, "executor must not be null");
-        Objects.requireNonNull(deviceSuggestionsCallback, "callback must not be null");
+        Objects.requireNonNull(deviceSuggestionsUpdatesCallback, "callback must not be null");
 
-        DeviceSuggestionsCallbackRecord record =
-                new DeviceSuggestionsCallbackRecord(executor, deviceSuggestionsCallback);
+        DeviceSuggestionsUpdatesCallbackRecord record =
+                new DeviceSuggestionsUpdatesCallbackRecord(
+                        executor, deviceSuggestionsUpdatesCallback);
 
-        mDeviceSuggestionsCallbackRecords.remove(record);
-        mDeviceSuggestionsCallbackRecords.add(record);
+        mDeviceSuggestionsUpdatesCallbackRecords.remove(record);
+        mDeviceSuggestionsUpdatesCallbackRecords.add(record);
     }
 
     /**
@@ -792,7 +793,6 @@ public final class MediaRouter2 {
      *
      * @see #registerRouteListingPreferenceUpdatedCallback(Executor, Consumer)
      */
-    @FlaggedApi(FLAG_ENABLE_RLP_CALLBACKS_IN_MEDIA_ROUTER2)
     public void unregisterRouteListingPreferenceUpdatedCallback(
             @NonNull Consumer<RouteListingPreference> callback) {
         Objects.requireNonNull(callback, "callback must not be null");
@@ -809,15 +809,19 @@ public final class MediaRouter2 {
     /**
      * Unregisters the given callback to not receive {@link SuggestedDeviceInfo} change events.
      *
-     * @see #registerDeviceSuggestionsCallback(Executor, DeviceSuggestionsCallback)
-     * @hide
+     * @see #registerDeviceSuggestionsUpdatesCallback(Executor, DeviceSuggestionsUpdatesCallback)
      */
-    public void unregisterDeviceSuggestionsCallback(@NonNull DeviceSuggestionsCallback callback) {
+    @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
+    public void unregisterDeviceSuggestionsUpdatesCallback(
+            @NonNull DeviceSuggestionsUpdatesCallback callback) {
         Objects.requireNonNull(callback, "callback must not be null");
 
-        if (!mDeviceSuggestionsCallbackRecords.remove(
-                new DeviceSuggestionsCallbackRecord(/* executor */ null, callback))) {
-            Log.w(TAG, "unregisterDeviceSuggestionsCallback: Ignoring an unknown" + " callback");
+        if (!mDeviceSuggestionsUpdatesCallbackRecords.remove(
+                new DeviceSuggestionsUpdatesCallbackRecord(/* executor */ null, callback))) {
+            Log.w(
+                    TAG,
+                    "unregisterDeviceSuggestionsUpdatesCallback: Ignoring an unknown"
+                            + " callback");
         }
     }
 
@@ -838,7 +842,29 @@ public final class MediaRouter2 {
      * call is ignored because the app is in the background.
      */
     public boolean showSystemOutputSwitcher() {
-        return mImpl.showSystemOutputSwitcher();
+        return mImpl.showSystemOutputSwitcher(null);
+    }
+
+    /**
+     * Shows the system output switcher dialog for a specific {@link MediaSession}.
+     *
+     * <p>The {@link MediaSession.Token} argument allows the system to identify which
+     * {@link RoutingSessionInfo routing session} to display as active. This is done via
+     * {@link MediaSession#setPlaybackToRemote} and {@link VolumeProvider#getVolumeControlId} when
+     * playing remotely, and {@link MediaSession#setPlaybackToLocal} when playing on this device.
+     *
+     * <p>This method is preferred over {@link #showSystemOutputSwitcher()} to prevent the system
+     * from making wrong inferences about where playback is happening.
+     *
+     * @return {@code true} if the output switcher dialog is being shown, or {@code false} if the
+     * call is ignored because the app is in the background.
+     *
+     * @throws IllegalArgumentException if the provided {@code sessionToken} is invalid.
+     */
+    @FlaggedApi(FLAG_ENABLE_ROUTE_VISIBILITY_CONTROL_API)
+    public boolean showSystemOutputSwitcher(@NonNull MediaSession.Token sessionToken) {
+        Objects.requireNonNull(sessionToken, "sessionToken must not be null");
+        return mImpl.showSystemOutputSwitcher(sessionToken);
     }
 
     /**
@@ -875,33 +901,57 @@ public final class MediaRouter2 {
     }
 
     /**
-     * Sets the suggested devices.
+     * Sets a list of {@link SuggestedDeviceInfo device suggestions}.
      *
-     * <p>Use this method to inform the system UI that this device is suggested in the Output
-     * Switcher and media controls.
+     * <p>Use this method to tell the system about device suggestions for the current router. The
+     * system may use these suggestions to populate system UI such as Output Switcher and media
+     * controls.
      *
-     * <p>You should pass null to this method to clear a previously set suggestion without setting a
-     * new one.
+     * <p>Suggestions will be expired automatically by the system, at which point you should call
+     * this method again if the suggestion is still relevant and should still be surfaced.
      *
      * @param suggestedDeviceInfo The {@link SuggestedDeviceInfo} the router suggests should be
      *     provided to the user.
-     * @hide
      */
     @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
-    public void setDeviceSuggestions(@Nullable List<SuggestedDeviceInfo> suggestedDeviceInfo) {
+    public void setDeviceSuggestions(@NonNull List<SuggestedDeviceInfo> suggestedDeviceInfo) {
         mImpl.setDeviceSuggestions(suggestedDeviceInfo);
+    }
+
+    /**
+     * Clears the {@link SuggestedDeviceInfo device suggestions} provided by this router.
+     *
+     * <p>Use this method to tell the system that this router is not currently providing any
+     * suggestions.
+     *
+     * <p>If the router explicitly wants to recommend that no suggestion is appropriate, use {@link
+     * setDeviceSuggestions} with an empty list
+     */
+    @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
+    public void clearDeviceSuggestions() {
+        mImpl.setDeviceSuggestions(null);
     }
 
     /**
      * Gets the current suggested devices.
      *
      * @return the suggested devices, keyed by the package name providing each suggestion list.
+     */
+    @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
+    @NonNull
+    public Map<String, List<SuggestedDeviceInfo>> getDeviceSuggestions() {
+        return mImpl.getDeviceSuggestions();
+    }
+
+    /**
+     * Notifies other suggestion providers that a suggestion has been requested. Calling this method
+     * on local routers is a no-op.
+     *
      * @hide
      */
     @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
-    @Nullable
-    public Map<String, List<SuggestedDeviceInfo>> getDeviceSuggestions() {
-        return mImpl.getDeviceSuggestions();
+    public void notifyDeviceSuggestionRequested() {
+        mImpl.notifyDeviceSuggestionRequested();
     }
 
     /**
@@ -912,7 +962,6 @@ public final class MediaRouter2 {
      *
      * @see #setRouteListingPreference(RouteListingPreference)
      */
-    @FlaggedApi(FLAG_ENABLE_RLP_CALLBACKS_IN_MEDIA_ROUTER2)
     @Nullable
     public RouteListingPreference getRouteListingPreference() {
         synchronized (mLock) {
@@ -931,6 +980,18 @@ public final class MediaRouter2 {
         }
         mDiscoveryPreference = newDiscoveryPreference;
         updateFilteredRoutesLocked();
+        if (Flags.enableRouteVisibilityControlCompatFixes()) {
+            mHandler.sendMessage(
+                    obtainMessage(
+                            MediaRouter2::dispatchFilteredRoutesUpdatedOnHandler,
+                            this,
+                            mFilteredRoutes));
+            mHandler.sendMessage(
+                    obtainMessage(
+                            MediaRouter2::dispatchControllerUpdatedIfNeededOnHandler,
+                            this,
+                            new HashMap<>(mRoutes)));
+        }
         return true;
     }
 
@@ -1030,6 +1091,38 @@ public final class MediaRouter2 {
     }
 
     /**
+     * Registers a {@link SystemSessionOverridesListener}.
+     *
+     * <p>Passing the same listener to this method twice updates the associated {@code executor} but
+     * does not register the same callback twice.
+     *
+     * @param executor the executor to execute the listener on
+     * @param listener the {@link SystemSessionOverridesListener} to register
+     * @throws UnsupportedOperationException if this method is called on a non-proxy instance
+     *     (instances created using {@link #getInstance(Context)})
+     * @hide
+     */
+    public void registerSystemSessionOverridesListener(
+            @NonNull Executor executor, @NonNull SystemSessionOverridesListener listener) {
+        Objects.requireNonNull(executor);
+        Objects.requireNonNull(listener);
+        mImpl.registerSystemSessionOverridesListener(executor, listener);
+    }
+
+    /**
+     * Unregisters the given {@link SystemSessionOverridesListener}.
+     *
+     * @param listener the {@link SystemSessionOverridesListener} to unregister
+     * @throws UnsupportedOperationException if this method is called on a non-proxy instance
+     *     (instances created using {@link #getInstance(Context)})
+     * @hide
+     */
+    public void unregisterSystemSessionOverridesListener(
+            @NonNull SystemSessionOverridesListener listener) {
+        mImpl.unregisterSystemSessionOverridesListener(listener);
+    }
+
+    /**
      * Sets an {@link OnGetControllerHintsListener} to send hints when creating a
      * {@link RoutingController}. To send the hints, listener should be set <em>BEFORE</em> calling
      * {@link #transferTo(MediaRoute2Info)}.
@@ -1051,7 +1144,24 @@ public final class MediaRouter2 {
      * @see TransferCallback#onTransferFailure
      */
     public void transferTo(@NonNull MediaRoute2Info route) {
-        mImpl.transferTo(route);
+        mImpl.transferTo(route, /* routingChangeInfo= */ null);
+    }
+
+    /**
+     * Transfers the current media to the given route. If it's necessary a new {@link
+     * RoutingController} is created or it is handled within the current routing controller.
+     *
+     * @param route the route you want to transfer the current media to. Pass {@code null} to stop
+     *     routing of the current media.
+     * @param routingChangeInfo information about the start of the media routing session. See {@link
+     *     RoutingChangeInfo}
+     * @see TransferCallback#onTransfer
+     * @see TransferCallback#onTransferFailure
+     * @hide
+     */
+    public void transferTo(
+            @NonNull MediaRoute2Info route, @NonNull RoutingChangeInfo routingChangeInfo) {
+        mImpl.transferTo(route, routingChangeInfo);
     }
 
     /**
@@ -1074,13 +1184,39 @@ public final class MediaRouter2 {
     @SystemApi
     @RequiresPermission(android.Manifest.permission.MEDIA_CONTENT_CONTROL)
     public void transfer(@NonNull RoutingController controller, @NonNull MediaRoute2Info route) {
-        mImpl.transfer(controller.getRoutingSessionInfo(), route);
+        mImpl.transfer(controller.getRoutingSessionInfo(), route, /* routingChangeInfo= */ null);
+    }
+
+    /**
+     * Transfers the media of a routing controller to the given route.
+     *
+     * <p>This will be no-op for non-system media routers.
+     *
+     * @param controller a routing controller controlling media routing.
+     * @param route the route you want to transfer the media to.
+     * @param routingChangeInfo information about the start of the media routing session. See {@link
+     *     android.media.RoutingChangeInfo}
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.MEDIA_CONTENT_CONTROL)
+    public void transfer(
+            @NonNull RoutingController controller,
+            @NonNull MediaRoute2Info route,
+            @NonNull RoutingChangeInfo routingChangeInfo) {
+        mImpl.transfer(controller.getRoutingSessionInfo(), route, routingChangeInfo);
     }
 
     void requestCreateController(
             @NonNull RoutingController controller,
             @NonNull MediaRoute2Info route,
-            long managerRequestId) {
+            long managerRequestId,
+            @NonNull RoutingChangeInfo routingChangeInfo) {
+
+        if (route.isSystemRoute()) {
+            notifyTransfer(controller, getSystemController());
+            controller.release();
+            return;
+        }
 
         final int requestId = mNextRequestId.getAndIncrement();
 
@@ -1109,6 +1245,7 @@ public final class MediaRouter2 {
                         managerRequestId,
                         controller.getRoutingSessionInfo(),
                         route,
+                        routingChangeInfo,
                         controllerHints);
             } catch (RemoteException ex) {
                 Log.e(TAG, "createControllerForTransfer: "
@@ -1193,6 +1330,18 @@ public final class MediaRouter2 {
         mImpl.setRouteVolume(route, volume);
     }
 
+    /**
+     * Returns the set of apps currently affected by a system session override.
+     *
+     * <p>This method is only supported by proxy routers.
+     *
+     * @see SystemSessionOverridesListener
+     * @hide
+     */
+    public Set<AppId> getSystemSessionOverridesAppIds() {
+        return mImpl.getSystemSessionOverridesAppIds();
+    }
+
     void syncRoutesOnHandler(
             List<MediaRoute2Info> currentRoutes, RoutingSessionInfo currentSystemSessionInfo) {
         if (currentRoutes == null || currentRoutes.isEmpty() || currentSystemSessionInfo == null) {
@@ -1207,7 +1356,7 @@ public final class MediaRouter2 {
         mSystemController.setRoutingSessionInfo(ensureClientPackageNameForSystemSession(
                 currentSystemSessionInfo, mContext.getPackageName()));
         if (!oldInfo.equals(currentSystemSessionInfo)) {
-            notifyControllerUpdated(mSystemController);
+            notifyControllerUpdated(mSystemController, /* shouldShowVolumeUi= */ false);
         }
     }
 
@@ -1271,7 +1420,7 @@ public final class MediaRouter2 {
                     MediaRoute2Info currentRoute = routesMap.get(selectedRoute);
                     MediaRoute2Info oldRoute = mPreviousUnfilteredRoutes.get(selectedRoute);
                     if (!currentRoute.equals(oldRoute)) {
-                        notifyControllerUpdated(controller);
+                        notifyControllerUpdated(controller, /* shouldShowVolumeUi= */ false);
                         break;
                     }
                 }
@@ -1289,6 +1438,10 @@ public final class MediaRouter2 {
                 mRoutes.put(route.getId(), route);
             }
             updateFilteredRoutesLocked();
+            if (Flags.enableRouteVisibilityControlCompatFixes()) {
+                dispatchFilteredRoutesUpdatedOnHandler(mFilteredRoutes);
+                dispatchControllerUpdatedIfNeededOnHandler(mRoutes);
+            }
         }
     }
 
@@ -1298,16 +1451,18 @@ public final class MediaRouter2 {
         mFilteredRoutes =
                 Collections.unmodifiableList(
                         filterRoutesWithCompositePreferenceLocked(List.copyOf(mRoutes.values())));
-        mHandler.sendMessage(
-                obtainMessage(
-                        MediaRouter2::dispatchFilteredRoutesUpdatedOnHandler,
-                        this,
-                        mFilteredRoutes));
-        mHandler.sendMessage(
-                obtainMessage(
-                        MediaRouter2::dispatchControllerUpdatedIfNeededOnHandler,
-                        this,
-                        new HashMap<>(mRoutes)));
+        if (!Flags.enableRouteVisibilityControlCompatFixes()) {
+            mHandler.sendMessage(
+                    obtainMessage(
+                            MediaRouter2::dispatchFilteredRoutesUpdatedOnHandler,
+                            this,
+                            mFilteredRoutes));
+            mHandler.sendMessage(
+                    obtainMessage(
+                            MediaRouter2::dispatchControllerUpdatedIfNeededOnHandler,
+                            this,
+                            new HashMap<>(mRoutes)));
+        }
     }
 
     /**
@@ -1396,8 +1551,13 @@ public final class MediaRouter2 {
         RoutingController controller =
                 getMatchingController(sessionInfo, /* logPrefix */ "updateControllerOnHandler");
         if (controller != null) {
+            if (Flags.enableMirroringInMediaRouter2()) {
+                sessionInfo =
+                        ensureClientPackageNameForSystemSession(
+                                sessionInfo, mImpl.getClientPackageName());
+            }
             controller.setRoutingSessionInfo(sessionInfo);
-            notifyControllerUpdated(controller);
+            notifyControllerUpdated(controller, /* shouldShowVolumeUi= */ false);
         }
     }
 
@@ -1451,7 +1611,10 @@ public final class MediaRouter2 {
     }
 
     void onRequestCreateControllerByManagerOnHandler(
-            RoutingSessionInfo oldSession, MediaRoute2Info route, long managerRequestId) {
+            RoutingSessionInfo oldSession,
+            MediaRoute2Info route,
+            long managerRequestId,
+            RoutingChangeInfo routingChangeInfo) {
         Log.i(
                 TAG,
                 TextUtils.formatSimple(
@@ -1475,7 +1638,7 @@ public final class MediaRouter2 {
                             managerRequestId, oldSessionId));
             return;
         }
-        requestCreateController(controller, route, managerRequestId);
+        requestCreateController(controller, route, managerRequestId, routingChangeInfo);
     }
 
     private List<MediaRoute2Info> getSortedRoutes(
@@ -1594,11 +1757,26 @@ public final class MediaRouter2 {
     private void notifyDeviceSuggestionsUpdated(
             @NonNull String suggestingPackageName,
             @Nullable List<SuggestedDeviceInfo> deviceSuggestions) {
-        for (DeviceSuggestionsCallbackRecord record : mDeviceSuggestionsCallbackRecords) {
+        for (DeviceSuggestionsUpdatesCallbackRecord record :
+                mDeviceSuggestionsUpdatesCallbackRecords) {
             record.mExecutor.execute(
-                    () ->
-                            record.mDeviceSuggestionsCallback.onSuggestionUpdated(
-                                    suggestingPackageName, deviceSuggestions));
+                    () -> {
+                        if (deviceSuggestions != null) {
+                            record.mDeviceSuggestionsUpdatesCallback.onSuggestionsUpdated(
+                                    suggestingPackageName, deviceSuggestions);
+                        } else {
+                            record.mDeviceSuggestionsUpdatesCallback.onSuggestionsCleared(
+                                    suggestingPackageName);
+                        }
+                    });
+        }
+    }
+
+    private void notifyCallbacksDeviceSuggestionRequested() {
+        for (DeviceSuggestionsUpdatesCallbackRecord record :
+                mDeviceSuggestionsUpdatesCallbackRecords) {
+            record.mExecutor.execute(
+                    () -> record.mDeviceSuggestionsUpdatesCallback.onSuggestionsRequested());
         }
     }
 
@@ -1627,9 +1805,10 @@ public final class MediaRouter2 {
         }
     }
 
-    private void notifyControllerUpdated(RoutingController controller) {
+    private void notifyControllerUpdated(RoutingController controller, boolean shouldShowVolumeUi) {
         for (ControllerCallbackRecord record : mControllerCallbackRecords) {
-            record.mExecutor.execute(() -> record.mCallback.onControllerUpdated(controller));
+            record.mExecutor.execute(
+                    () -> record.mCallback.onControllerUpdated(controller, shouldShowVolumeUi));
         }
     }
 
@@ -1652,23 +1831,29 @@ public final class MediaRouter2 {
                 .build();
     }
 
-    /**
-     * Callback for receiving events about device suggestions
-     *
-     * @hide
-     */
-    public interface DeviceSuggestionsCallback {
+    /** Callback for receiving events about device suggestions */
+    @FlaggedApi(FLAG_ENABLE_SUGGESTED_DEVICE_API)
+    public interface DeviceSuggestionsUpdatesCallback {
 
         /**
-         * Called when suggestions are updated. Whenever you register a callback, this will be
-         * invoked with the current suggestions.
+         * Called when suggestions are updated.
          *
          * @param suggestingPackageName the package that provided the suggestions.
          * @param suggestedDeviceInfo the suggestions provided by the package.
          */
-        void onSuggestionUpdated(
+        void onSuggestionsUpdated(
                 @NonNull String suggestingPackageName,
-                @Nullable List<SuggestedDeviceInfo> suggestedDeviceInfo);
+                @NonNull List<SuggestedDeviceInfo> suggestedDeviceInfo);
+
+        /**
+         * Called when suggestions are cleared.
+         *
+         * @param suggestingPackageName the package that cleared their provided suggestions.
+         */
+        void onSuggestionsCleared(@NonNull String suggestingPackageName);
+
+        /** Called when a router requests a suggestion from suggestion providers. */
+        void onSuggestionsRequested();
     }
 
     /** Callback for receiving events about media route discovery. */
@@ -1806,6 +1991,55 @@ public final class MediaRouter2 {
          * @see #getSystemController()
          */
         public void onControllerUpdated(@NonNull RoutingController controller) {}
+
+        /**
+         * Equivalent to {@link #onControllerUpdated(RoutingController)} except it adds {@code
+         * shouldShowVolumeUi}, which indicates that a UI affordance should be presented as a result
+         * of this controller update. Likely, because the update is the result of a HW volume key
+         * press.
+         *
+         * <p>By default, this method invokes {@link #onControllerUpdated(RoutingController)}, which
+         * means it's sufficient to override any of the methods in this class to receive controller
+         * update events.
+         *
+         * @hide
+         */
+        public void onControllerUpdated(
+                @NonNull RoutingController controller, boolean shouldShowVolumeUi) {
+            this.onControllerUpdated(controller);
+        }
+    }
+
+    /**
+     * Listens for changes in the list of apps with an overriding system routing session.
+     *
+     * <p>An overriding system routing session is a system {@link RoutingSessionInfo session} that
+     * overrides the global system routing, which applies to all apps (typically describing the
+     * audio framework's routing decisions, for example {@link
+     * android.media.AudioManager#getPreferredDeviceForStrategy}).
+     *
+     * <p>By default, applications' system routing session (queried using {@link
+     * #getSystemController()}) will be the global session. However, specific apps see a different
+     * {@link #getSystemController() system session} when affected by a {@link
+     * MediaRoute2ProviderService#onCreateSystemRoutingSession service-managed} system routing
+     * session that overrides the global session. This listener reports changes to the set of apps
+     * affected by a system session override.
+     *
+     * <p>The list of apps with overriding system sessions is useful, for example, to display a
+     * dedicated volume slider in SysUI when a physical volume rocker switch is pressed.
+     *
+     * <p>A client interested in specific aspects (for example, volume level) of the overriding
+     * system routing session should register a {@link #getInstance(Context, String, UserHandle)
+     * proxy router} for the relevant app and listen for {@link #registerControllerCallback}routing
+     * session changes.
+     *
+     * @see #registerSystemSessionOverridesListener
+     * @hide
+     */
+    public interface SystemSessionOverridesListener {
+
+        /** Called when the set of apps with an overriding system session changes. */
+        void onSystemSessionOverridesChanged(Set<AppId> appIdsWithOverridingSystemSession);
     }
 
     /**
@@ -2095,6 +2329,17 @@ public final class MediaRouter2 {
          * @see ControllerCallback#onControllerUpdated
          */
         public void selectRoute(@NonNull MediaRoute2Info route) {
+            selectRoute(route, /* routingChangeInfo= */ null);
+        }
+
+        /**
+         * Same as {@link #selectRoute(MediaRoute2Info)} but also takes {@link RoutingChangeInfo} as
+         * a parameter for logging purposes.
+         *
+         * @hide
+         */
+        public void selectRoute(
+                @NonNull MediaRoute2Info route, @Nullable RoutingChangeInfo routingChangeInfo) {
             Objects.requireNonNull(route, "route must not be null");
             if (isReleased()) {
                 Log.w(TAG, "selectRoute: Called on released controller. Ignoring.");
@@ -2113,7 +2358,7 @@ public final class MediaRouter2 {
                 return;
             }
 
-            mImpl.selectRoute(route, getRoutingSessionInfo());
+            mImpl.selectRoute(route, getRoutingSessionInfo(), routingChangeInfo);
         }
 
         /**
@@ -2134,6 +2379,17 @@ public final class MediaRouter2 {
          * @see ControllerCallback#onControllerUpdated
          */
         public void deselectRoute(@NonNull MediaRoute2Info route) {
+            deselectRoute(route, /* routingChangeInfo= */ null);
+        }
+
+        /**
+         * Same as {@link #deselectRoute(MediaRoute2Info)} but also takes {@link RoutingChangeInfo}
+         * as a parameter for logging purposes.
+         *
+         * @hide
+         */
+        public void deselectRoute(
+                @NonNull MediaRoute2Info route, RoutingChangeInfo routingChangeInfo) {
             Objects.requireNonNull(route, "route must not be null");
             if (isReleased()) {
                 Log.w(TAG, "deselectRoute: called on released controller. Ignoring.");
@@ -2152,7 +2408,7 @@ public final class MediaRouter2 {
                 return;
             }
 
-            mImpl.deselectRoute(route, getRoutingSessionInfo());
+            mImpl.deselectRoute(route, getRoutingSessionInfo(), routingChangeInfo);
         }
 
         /**
@@ -2170,8 +2426,10 @@ public final class MediaRouter2 {
          * @see RoutingSessionInfo#getTransferableRoutes()
          * @see ControllerCallback#onControllerUpdated
          */
-        boolean tryTransferWithinProvider(@NonNull MediaRoute2Info route) {
+        boolean tryTransferWithinProvider(
+                @NonNull MediaRoute2Info route, @NonNull RoutingChangeInfo routingChangeInfo) {
             Objects.requireNonNull(route, "route must not be null");
+            Objects.requireNonNull(routingChangeInfo, "routingChangeInfo must not be null");
             synchronized (mControllerLock) {
                 if (isReleased()) {
                     Log.w(
@@ -2206,7 +2464,8 @@ public final class MediaRouter2 {
             }
             if (stub != null) {
                 try {
-                    mMediaRouterService.transferToRouteWithRouter2(stub, getId(), route);
+                    mMediaRouterService.transferToRouteWithRouter2(
+                            stub, getId(), route, routingChangeInfo);
                 } catch (RemoteException ex) {
                     Log.e(TAG, "Unable to transfer to route for session.", ex);
                 }
@@ -2365,7 +2624,35 @@ public final class MediaRouter2 {
 
         @Override
         void releaseInternal(boolean shouldReleaseSession) {
-            // Do nothing. SystemRoutingController will never be released
+            // SystemRoutingController will never be released. But in some cases, the session can be
+            // released, for example Bluetooth broadcast
+            if (Flags.enableOutputSwitcherPersonalAudioSharing()) {
+                mImpl.releaseSession(
+                        shouldReleaseSession,
+                        /* shouldNotifyStop= */ false,
+                        /* controller= */ this);
+            }
+        }
+    }
+
+    private record SystemSessionOverridesListenerRecord(
+            Executor mExecutor, SystemSessionOverridesListener mSystemSessionOverridesListener) {
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (!(obj instanceof SystemSessionOverridesListenerRecord)) {
+                return false;
+            }
+            return mSystemSessionOverridesListener
+                    == ((SystemSessionOverridesListenerRecord) obj).mSystemSessionOverridesListener;
+        }
+
+        @Override
+        public int hashCode() {
+            return mSystemSessionOverridesListener.hashCode();
         }
     }
 
@@ -2429,15 +2716,15 @@ public final class MediaRouter2 {
         }
     }
 
-    private static final class DeviceSuggestionsCallbackRecord {
+    private static final class DeviceSuggestionsUpdatesCallbackRecord {
         public final Executor mExecutor;
-        public final DeviceSuggestionsCallback mDeviceSuggestionsCallback;
+        public final DeviceSuggestionsUpdatesCallback mDeviceSuggestionsUpdatesCallback;
 
-        /* package */ DeviceSuggestionsCallbackRecord(
+        /* package */ DeviceSuggestionsUpdatesCallbackRecord(
                 @NonNull Executor executor,
-                @NonNull DeviceSuggestionsCallback deviceSuggestionsCallback) {
+                @NonNull DeviceSuggestionsUpdatesCallback deviceSuggestionsUpdatesCallback) {
             mExecutor = executor;
-            mDeviceSuggestionsCallback = deviceSuggestionsCallback;
+            mDeviceSuggestionsUpdatesCallback = deviceSuggestionsUpdatesCallback;
         }
 
         @Override
@@ -2445,16 +2732,17 @@ public final class MediaRouter2 {
             if (this == obj) {
                 return true;
             }
-            if (!(obj instanceof DeviceSuggestionsCallbackRecord)) {
+            if (!(obj instanceof DeviceSuggestionsUpdatesCallbackRecord)) {
                 return false;
             }
-            return mDeviceSuggestionsCallback
-                    == ((DeviceSuggestionsCallbackRecord) obj).mDeviceSuggestionsCallback;
+            return mDeviceSuggestionsUpdatesCallback
+                    == ((DeviceSuggestionsUpdatesCallbackRecord) obj)
+                            .mDeviceSuggestionsUpdatesCallback;
         }
 
         @Override
         public int hashCode() {
-            return mDeviceSuggestionsCallback.hashCode();
+            return mDeviceSuggestionsUpdatesCallback.hashCode();
         }
     }
 
@@ -2579,7 +2867,7 @@ public final class MediaRouter2 {
 
         @Override
         public void notifyDeviceSuggestionsUpdated(
-                String suggestingPackageName, List<SuggestedDeviceInfo> suggestions) {
+                String suggestingPackageName, @Nullable List<SuggestedDeviceInfo> suggestions) {
             mHandler.sendMessage(
                     obtainMessage(
                             MediaRouter2::notifyDeviceSuggestionsUpdated,
@@ -2589,15 +2877,27 @@ public final class MediaRouter2 {
         }
 
         @Override
+        public void notifyDeviceSuggestionRequested() {
+            mHandler.sendMessage(
+                    obtainMessage(
+                            MediaRouter2::notifyCallbacksDeviceSuggestionRequested,
+                            MediaRouter2.this));
+        }
+
+        @Override
         public void requestCreateSessionByManager(
-                long managerRequestId, RoutingSessionInfo oldSession, MediaRoute2Info route) {
+                long managerRequestId,
+                RoutingSessionInfo oldSession,
+                MediaRoute2Info route,
+                RoutingChangeInfo routingChangeInfo) {
             mHandler.sendMessage(
                     obtainMessage(
                             MediaRouter2::onRequestCreateControllerByManagerOnHandler,
                             MediaRouter2.this,
                             oldSession,
                             route,
-                            managerRequestId));
+                            managerRequestId,
+                            routingChangeInfo));
         }
     }
 
@@ -2635,17 +2935,22 @@ public final class MediaRouter2 {
         @Nullable
         Map<String, List<SuggestedDeviceInfo>> getDeviceSuggestions();
 
-        boolean showSystemOutputSwitcher();
+        void notifyDeviceSuggestionRequested();
+
+        boolean showSystemOutputSwitcher(@Nullable MediaSession.Token token);
 
         List<MediaRoute2Info> getAllRoutes();
 
         void setOnGetControllerHintsListener(OnGetControllerHintsListener listener);
 
-        void transferTo(MediaRoute2Info route);
+        void transferTo(MediaRoute2Info route, @Nullable RoutingChangeInfo routingChangeInfo);
 
         void stop();
 
-        void transfer(@NonNull RoutingSessionInfo sessionInfo, @NonNull MediaRoute2Info route);
+        void transfer(
+                @NonNull RoutingSessionInfo sessionInfo,
+                @NonNull MediaRoute2Info route,
+                @Nullable RoutingChangeInfo routingChangeInfo);
 
         List<RoutingController> getControllers();
 
@@ -2657,9 +2962,15 @@ public final class MediaRouter2 {
         // RoutingController methods.
         void setSessionVolume(int volume, RoutingSessionInfo sessionInfo);
 
-        void selectRoute(MediaRoute2Info route, RoutingSessionInfo sessionInfo);
+        void selectRoute(
+                MediaRoute2Info route,
+                RoutingSessionInfo sessionInfo,
+                RoutingChangeInfo routingChangeInfo);
 
-        void deselectRoute(MediaRoute2Info route, RoutingSessionInfo sessionInfo);
+        void deselectRoute(
+                MediaRoute2Info route,
+                RoutingSessionInfo sessionInfo,
+                RoutingChangeInfo routingChangeInfo);
 
         void releaseSession(
                 boolean shouldReleaseSession,
@@ -2671,6 +2982,32 @@ public final class MediaRouter2 {
          * associated with this router.
          */
         boolean wasTransferredBySelf(RoutingSessionInfo sessionInfo);
+
+        /**
+         * Registers a {@link SystemSessionOverridesListener}.
+         *
+         * <p>Passing the same listener to this method twice updates the associated {@code executor}
+         * but does not register the same callback twice.
+         *
+         * @param executor the executor to execute the listener on
+         * @param listener The listener to register.
+         */
+        void registerSystemSessionOverridesListener(
+                Executor executor, SystemSessionOverridesListener listener);
+
+        /**
+         * Unregisters a {@link SystemSessionOverridesListener}.
+         *
+         * @param listener The listener to unregister.
+         */
+        void unregisterSystemSessionOverridesListener(SystemSessionOverridesListener listener);
+
+        /**
+         * Returns the set of apps affected by a system session override.
+         *
+         * @see SystemSessionOverridesListener
+         */
+        Set<AppId> getSystemSessionOverridesAppIds();
     }
 
     /**
@@ -2688,6 +3025,9 @@ public final class MediaRouter2 {
         private final IMediaRouter2Manager.Stub mClient;
         private final CopyOnWriteArrayList<MediaRouter2Manager.TransferRequest>
                 mTransferRequests = new CopyOnWriteArrayList<>();
+
+        private final CopyOnWriteArraySet<SystemSessionOverridesListenerRecord>
+                mSystemSessionOverridesListenerRecords = new CopyOnWriteArraySet<>();
         private final AtomicInteger mScanRequestCount = new AtomicInteger(/* initialValue= */ 0);
 
         // Fields originating from MediaRouter2.
@@ -2698,6 +3038,17 @@ public final class MediaRouter2 {
         @GuardedBy("mLock")
         private final List<InstanceInvalidatedCallbackRecord> mInstanceInvalidatedCallbackRecords =
                 new ArrayList<>();
+
+        /**
+         * Holds the last snapshot of ids of apps affected by a system session override.
+         *
+         * <p>Must hold an immutable set to avoid the need for a copy in {@link
+         * #getSystemSessionOverridesAppIds}.
+         *
+         * @see SystemSessionOverridesListener
+         */
+        @GuardedBy("mLock")
+        private Set<AppId> mLastSystemSessionSessionOverridesLocked = Set.of();
 
         ProxyMediaRouter2Impl(
                 @NonNull Context context,
@@ -2716,8 +3067,19 @@ public final class MediaRouter2 {
                         mContext.getApplicationContext().getPackageName(),
                         mClientPackageName,
                         mClientUser);
+                initSystemSessionOverridesSnapshot();
             } catch (RemoteException ex) {
                 throw ex.rethrowFromSystemServer();
+            }
+        }
+
+        private void initSystemSessionOverridesSnapshot() throws RemoteException {
+            if (!Flags.enableMirroringInMediaRouter2()) {
+                return;
+            }
+            synchronized (mLock) {
+                mLastSystemSessionSessionOverridesLocked =
+                        Set.copyOf(mMediaRouterService.getSystemSessionOverridesAppIds(mClient));
             }
         }
 
@@ -2858,9 +3220,19 @@ public final class MediaRouter2 {
         }
 
         @Override
-        public boolean showSystemOutputSwitcher() {
+        public void notifyDeviceSuggestionRequested() {
             try {
-                return mMediaRouterService.showMediaOutputSwitcherWithProxyRouter(mClient);
+                mMediaRouterService.onDeviceSuggestionRequestedWithManager(mClient);
+            } catch (RemoteException ex) {
+                throw ex.rethrowFromSystemServer();
+            }
+        }
+
+        @Override
+        public boolean showSystemOutputSwitcher(MediaSession.Token sessionToken) {
+            try {
+                return mMediaRouterService.showMediaOutputSwitcherWithProxyRouter(mClient,
+                        sessionToken);
             } catch (RemoteException ex) {
                 throw ex.rethrowFromSystemServer();
             }
@@ -2890,14 +3262,22 @@ public final class MediaRouter2 {
          * router's {@link #mClientPackageName client package name}.
          *
          * @param route The route to transfer to.
+         * @param routingChangeInfo information about the start of the media routing session. See
+         *     {@link android.media.RoutingChangeInfo}
          */
         @Override
-        public void transferTo(MediaRoute2Info route) {
+        public void transferTo(
+                MediaRoute2Info route, @Nullable RoutingChangeInfo routingChangeInfo) {
             Objects.requireNonNull(route, "route must not be null");
 
             List<RoutingSessionInfo> sessionInfos = getRoutingSessions();
             RoutingSessionInfo targetSession = sessionInfos.get(sessionInfos.size() - 1);
-            transfer(targetSession, route);
+            routingChangeInfo =
+                    routingChangeInfo == null
+                            ? new RoutingChangeInfo(
+                                    ENTRY_POINT_PROXY_ROUTER_UNSPECIFIED, /* isSuggested= */ false)
+                            : routingChangeInfo;
+            transfer(targetSession, route, routingChangeInfo);
         }
 
         @Override
@@ -2920,13 +3300,18 @@ public final class MediaRouter2 {
          *
          * @param sessionInfo The {@link RoutingSessionInfo routing session} to transfer.
          * @param route The {@link MediaRoute2Info route} to transfer to.
-         * @see #transferToRoute(RoutingSessionInfo, MediaRoute2Info, UserHandle, String)
-         * @see #requestCreateSession(RoutingSessionInfo, MediaRoute2Info)
+         * @param routingChangeInfo information about the start of the media routing session. See
+         *     {@link android.media.RoutingChangeInfo}
+         * @see #transferToRoute(RoutingSessionInfo, MediaRoute2Info, UserHandle, String,
+         *     RoutingChangeInfo)
+         * @see #requestCreateSession(RoutingSessionInfo, MediaRoute2Info, RoutingChangeInfo)
          */
         @Override
         @SuppressWarnings("AndroidFrameworkRequiresPermission")
         public void transfer(
-                @NonNull RoutingSessionInfo sessionInfo, @NonNull MediaRoute2Info route) {
+                @NonNull RoutingSessionInfo sessionInfo,
+                @NonNull MediaRoute2Info route,
+                @Nullable RoutingChangeInfo routingChangeInfo) {
             Objects.requireNonNull(sessionInfo, "sessionInfo must not be null");
             Objects.requireNonNull(route, "route must not be null");
 
@@ -2945,9 +3330,15 @@ public final class MediaRouter2 {
                 return;
             }
 
-            // If this call is trying to transfer to a selected system route, we let them
-            // through as a provider driven transfer in order to update the transfer reason and
-            // initiator data.
+            routingChangeInfo =
+                    routingChangeInfo == null
+                            ? new RoutingChangeInfo(
+                                    ENTRY_POINT_PROXY_ROUTER_UNSPECIFIED, /* isSuggested= */ false)
+                            : routingChangeInfo;
+
+            // If this call is trying to transfer from an existing system route to a selected system
+            // route, we will handle the transfer through as a provider driven transfer in order to
+            // update the transfer reason and initiator data.
             boolean isSystemRouteReselection =
                     Flags.enableBuiltInSpeakerRouteSuitabilityStatuses()
                             && sessionInfo.isSystemSession()
@@ -2955,9 +3346,27 @@ public final class MediaRouter2 {
                             && sessionInfo.getSelectedRoutes().contains(route.getId());
             if (sessionInfo.getTransferableRoutes().contains(route.getId())
                     || isSystemRouteReselection) {
-                transferToRoute(sessionInfo, route, mClientUser, mClientPackageName);
+                transferToRoute(
+                        sessionInfo, route, mClientUser, mClientPackageName, routingChangeInfo);
             } else {
-                requestCreateSession(sessionInfo, route);
+                RoutingSessionInfo systemSessionInfo = mSystemController.getRoutingSessionInfo();
+                boolean isTransferFromUserRouteToUnselectedSystemRoute =
+                        !sessionInfo.isSystemSession()
+                                && route.isSystemRoute()
+                                && !systemSessionInfo.getSelectedRoutes().contains(route.getId());
+                if (isTransferFromUserRouteToUnselectedSystemRoute) {
+                    // During a transfer from a user route to an unselected system route, the system
+                    // session must first be transferred to the target system route. Subsequently,
+                    // the user route to system route transfer is processed by releasing the user
+                    // route.
+                    transferToRoute(
+                            systemSessionInfo,
+                            route,
+                            mClientUser,
+                            mClientPackageName,
+                            routingChangeInfo);
+                }
+                requestCreateSession(sessionInfo, route, routingChangeInfo);
             }
         }
 
@@ -2969,20 +3378,23 @@ public final class MediaRouter2 {
          * RoutingSessionInfo routing session's} {@link RoutingSessionInfo#getTransferableRoutes()
          * transferable routes list}. Otherwise, the request will fail.
          *
-         * <p>Use {@link #requestCreateSession(RoutingSessionInfo, MediaRoute2Info)} to request an
-         * out-of-session transfer.
+         * <p>Use {@link #requestCreateSession(RoutingSessionInfo, MediaRoute2Info,
+         * RoutingChangeInfo)} to request an out-of-session transfer.
          *
          * @param session The {@link RoutingSessionInfo routing session} to transfer.
          * @param route The {@link MediaRoute2Info route} to transfer to. Must be one of the {@link
          *     RoutingSessionInfo routing session's} {@link
          *     RoutingSessionInfo#getTransferableRoutes() transferable routes}.
+         * @param routingChangeInfo information about the start of the media routing session. See
+         *     {@link android.media.RoutingChangeInfo}
          */
         @RequiresPermission(Manifest.permission.MEDIA_CONTENT_CONTROL)
         private void transferToRoute(
                 @NonNull RoutingSessionInfo session,
                 @NonNull MediaRoute2Info route,
                 @NonNull UserHandle transferInitiatorUserHandle,
-                @NonNull String transferInitiatorPackageName) {
+                @NonNull String transferInitiatorPackageName,
+                @NonNull RoutingChangeInfo routingChangeInfo) {
             int requestId = createTransferRequest(session, route);
 
             try {
@@ -2992,7 +3404,8 @@ public final class MediaRouter2 {
                         session.getId(),
                         route,
                         transferInitiatorUserHandle,
-                        transferInitiatorPackageName);
+                        transferInitiatorPackageName,
+                        routingChangeInfo);
             } catch (RemoteException ex) {
                 throw ex.rethrowFromSystemServer();
             }
@@ -3006,14 +3419,18 @@ public final class MediaRouter2 {
          * whether the {@link MediaRoute2Info route} is one of the {@link RoutingSessionInfo current
          * session's} {@link RoutingSessionInfo#getTransferableRoutes() transferable routes}.
          *
-         * <p>Use {@link #transferToRoute(RoutingSessionInfo, MediaRoute2Info)} to request an
-         * in-session transfer.
+         * <p>Use {@link #transferToRoute(RoutingSessionInfo, MediaRoute2Info, UserHandle, String,
+         * RoutingChangeInfo)} to request an in-session transfer.
          *
          * @param oldSession The {@link RoutingSessionInfo routing session} to transfer.
          * @param route The {@link MediaRoute2Info route} to transfer to.
+         * @param routingChangeInfo information about the start of the media routing session. See
+         *     {@link android.media.RoutingChangeInfo}
          */
         private void requestCreateSession(
-                @NonNull RoutingSessionInfo oldSession, @NonNull MediaRoute2Info route) {
+                @NonNull RoutingSessionInfo oldSession,
+                @NonNull MediaRoute2Info route,
+                @NonNull RoutingChangeInfo routingChangeInfo) {
             if (TextUtils.isEmpty(oldSession.getClientPackageName())) {
                 Log.w(TAG, "requestCreateSession: Can't create a session without package name.");
                 this.onTransferFailed(oldSession, route);
@@ -3024,7 +3441,7 @@ public final class MediaRouter2 {
 
             try {
                 mMediaRouterService.requestCreateSessionWithManager(
-                        mClient, requestId, oldSession, route);
+                        mClient, requestId, oldSession, routingChangeInfo, route);
             } catch (RemoteException ex) {
                 throw ex.rethrowFromSystemServer();
             }
@@ -3138,7 +3555,10 @@ public final class MediaRouter2 {
          * @see RoutingSessionInfo#getSelectableRoutes()
          */
         @Override
-        public void selectRoute(MediaRoute2Info route, RoutingSessionInfo sessionInfo) {
+        public void selectRoute(
+                MediaRoute2Info route,
+                RoutingSessionInfo sessionInfo,
+                RoutingChangeInfo routingChangeInfo) {
             Objects.requireNonNull(sessionInfo, "sessionInfo must not be null");
             Objects.requireNonNull(route, "route must not be null");
 
@@ -3155,7 +3575,7 @@ public final class MediaRouter2 {
             try {
                 int requestId = mNextRequestId.getAndIncrement();
                 mMediaRouterService.selectRouteWithManager(
-                        mClient, requestId, sessionInfo.getId(), route);
+                        mClient, requestId, sessionInfo.getId(), route, routingChangeInfo);
             } catch (RemoteException ex) {
                 throw ex.rethrowFromSystemServer();
             }
@@ -3173,7 +3593,10 @@ public final class MediaRouter2 {
          * @see RoutingSessionInfo#getDeselectableRoutes()
          */
         @Override
-        public void deselectRoute(MediaRoute2Info route, RoutingSessionInfo sessionInfo) {
+        public void deselectRoute(
+                MediaRoute2Info route,
+                RoutingSessionInfo sessionInfo,
+                RoutingChangeInfo routingChangeInfo) {
             Objects.requireNonNull(sessionInfo, "sessionInfo must not be null");
             Objects.requireNonNull(route, "route must not be null");
 
@@ -3189,8 +3612,13 @@ public final class MediaRouter2 {
 
             try {
                 int requestId = mNextRequestId.getAndIncrement();
+                if (routingChangeInfo == null) {
+                    routingChangeInfo =
+                            new RoutingChangeInfo(
+                                    ENTRY_POINT_PROXY_ROUTER_UNSPECIFIED, /* isSuggested= */ false);
+                }
                 mMediaRouterService.deselectRouteWithManager(
-                        mClient, requestId, sessionInfo.getId(), route);
+                        mClient, requestId, sessionInfo.getId(), route, routingChangeInfo);
             } catch (RemoteException ex) {
                 throw ex.rethrowFromSystemServer();
             }
@@ -3210,6 +3638,33 @@ public final class MediaRouter2 {
             String transferInitiatorPackageName = sessionInfo.getTransferInitiatorPackageName();
             return Objects.equals(mClientUser, transferInitiatorUserHandle)
                     && Objects.equals(mClientPackageName, transferInitiatorPackageName);
+        }
+
+        @Override
+        public void registerSystemSessionOverridesListener(
+                Executor executor, SystemSessionOverridesListener listener) {
+            var record = new SystemSessionOverridesListenerRecord(executor, listener);
+            // We remove it first so as to ensure the latest provided executor for a given listener
+            // is used.
+            mSystemSessionOverridesListenerRecords.remove(record);
+            mSystemSessionOverridesListenerRecords.add(record);
+        }
+
+        @Override
+        public void unregisterSystemSessionOverridesListener(
+                SystemSessionOverridesListener listener) {
+            // We use a placeholder executor to keep the field non-nullable, but it will be ignored
+            // in equality checks.
+            mSystemSessionOverridesListenerRecords.remove(
+                    new SystemSessionOverridesListenerRecord(
+                            /* executor= */ Runnable::run, listener));
+        }
+
+        @Override
+        public Set<AppId> getSystemSessionOverridesAppIds() {
+            synchronized (mLock) {
+                return mLastSystemSessionSessionOverridesLocked;
+            }
         }
 
         /**
@@ -3333,7 +3788,8 @@ public final class MediaRouter2 {
             notifyTransferFailure(route);
         }
 
-        private void onSessionUpdated(@NonNull RoutingSessionInfo session) {
+        private void onSessionUpdated(
+                @NonNull RoutingSessionInfo session, boolean shouldShowVolumeUi) {
             if (!isSessionRelatedToTargetPackageName(session)) {
                 return;
             }
@@ -3346,7 +3802,7 @@ public final class MediaRouter2 {
             } else {
                 controller = new RoutingController(session);
             }
-            notifyControllerUpdated(controller);
+            notifyControllerUpdated(controller, shouldShowVolumeUi);
         }
 
         /**
@@ -3402,7 +3858,8 @@ public final class MediaRouter2 {
             }
         }
 
-        private void onSessionUpdatedOnHandler(@NonNull RoutingSessionInfo updatedSession) {
+        private void onSessionUpdatedOnHandler(
+                @NonNull RoutingSessionInfo updatedSession, boolean shouldShowVolumeUi) {
             for (MediaRouter2Manager.TransferRequest request : mTransferRequests) {
                 String sessionId = request.mOldSessionInfo.getId();
                 if (!TextUtils.equals(sessionId, updatedSession.getId())) {
@@ -3414,7 +3871,7 @@ public final class MediaRouter2 {
                     break;
                 }
             }
-            this.onSessionUpdated(updatedSession);
+            this.onSessionUpdated(updatedSession, shouldShowVolumeUi);
         }
 
         private void onSessionReleasedOnHandler(@NonNull RoutingSessionInfo session) {
@@ -3447,6 +3904,10 @@ public final class MediaRouter2 {
                 updateFilteredRoutesLocked();
             }
             notifyPreferredFeaturesChanged(preference.getPreferredFeatures());
+            if (Flags.enableRouteVisibilityControlCompatFixes()) {
+                dispatchFilteredRoutesUpdatedOnHandler(mFilteredRoutes);
+                dispatchControllerUpdatedIfNeededOnHandler(mRoutes);
+            }
         }
 
         private void onRouteListingPreferenceChangedOnHandler(
@@ -3484,6 +3945,10 @@ public final class MediaRouter2 {
             notifyDeviceSuggestionsUpdated(suggestingPackageName, suggestedDeviceInfo);
         }
 
+        private void notifyDeviceSuggestionRequestedHandler() {
+            notifyCallbacksDeviceSuggestionRequested();
+        }
+
         private void onRequestFailedOnHandler(int requestId, int reason) {
             MediaRouter2Manager.TransferRequest matchingRequest = null;
             for (MediaRouter2Manager.TransferRequest request : mTransferRequests) {
@@ -3509,8 +3974,7 @@ public final class MediaRouter2 {
             // After this block, all following getInstance() calls should throw a SecurityException,
             // so no new onInstanceInvalidatedListeners can be registered to this instance.
             synchronized (sSystemRouterLock) {
-                PackageNameUserHandlePair key =
-                        new PackageNameUserHandlePair(mClientPackageName, mClientUser);
+                AppId key = new AppId(mClientPackageName, mClientUser);
                 sAppToProxyRouterMap.remove(key);
             }
 
@@ -3523,6 +3987,19 @@ public final class MediaRouter2 {
             mRouteCallbackRecords.clear();
             mControllerCallbackRecords.clear();
             mTransferCallbackRecords.clear();
+        }
+
+        private void notifySystemSessionOverridesChangedOnHandler(List<AppId> appsWithOverrides) {
+            var appsWithOverridesAsSet = Set.copyOf(appsWithOverrides);
+            synchronized (mLock) {
+                mLastSystemSessionSessionOverridesLocked = appsWithOverridesAsSet;
+            }
+            for (var record : mSystemSessionOverridesListenerRecords) {
+                record.mExecutor.execute(
+                        () ->
+                                record.mSystemSessionOverridesListener
+                                        .onSystemSessionOverridesChanged(appsWithOverridesAsSet));
+            }
         }
 
         private class Client extends IMediaRouter2Manager.Stub {
@@ -3538,12 +4015,14 @@ public final class MediaRouter2 {
             }
 
             @Override
-            public void notifySessionUpdated(RoutingSessionInfo routingSessionInfo) {
+            public void notifySessionUpdated(
+                    RoutingSessionInfo routingSessionInfo, boolean shouldShowVolumeUi) {
                 mHandler.sendMessage(
                         obtainMessage(
                                 ProxyMediaRouter2Impl::onSessionUpdatedOnHandler,
                                 ProxyMediaRouter2Impl.this,
-                                routingSessionInfo));
+                                routingSessionInfo,
+                                shouldShowVolumeUi));
             }
 
             @Override
@@ -3592,6 +4071,14 @@ public final class MediaRouter2 {
             }
 
             @Override
+            public void notifyDeviceSuggestionRequested() {
+                mHandler.sendMessage(
+                        obtainMessage(
+                                ProxyMediaRouter2Impl::notifyDeviceSuggestionRequestedHandler,
+                                ProxyMediaRouter2Impl.this));
+            }
+
+            @Override
             public void notifyRoutesUpdated(List<MediaRoute2Info> routes) {
                 mHandler.sendMessage(
                         obtainMessage(
@@ -3614,6 +4101,15 @@ public final class MediaRouter2 {
                         obtainMessage(
                                 ProxyMediaRouter2Impl::onInvalidateInstanceOnHandler,
                                 ProxyMediaRouter2Impl.this));
+            }
+
+            @Override
+            public void notifySystemSessionOverridesChanged(List<AppId> appsWithOverrides) {
+                mHandler.sendMessage(
+                        obtainMessage(
+                                ProxyMediaRouter2Impl::notifySystemSessionOverridesChangedOnHandler,
+                                ProxyMediaRouter2Impl.this,
+                                appsWithOverrides));
             }
         }
     }
@@ -3665,13 +4161,12 @@ public final class MediaRouter2 {
             }
         }
 
-        /**
-         * Returns {@code null}. The client package name is only associated to proxy {@link
-         * MediaRouter2} instances.
-         */
         @Override
         public String getClientPackageName() {
-            return null;
+            // TODO: b/362507305 - Merge getPackageName and getClientPackageName so that they both
+            // return the package name of the client app, once enableMirroringInMediaRouter2 reaches
+            // nextfood.
+            return Flags.enableMirroringInMediaRouter2() ? mPackageName : null;
         }
 
         @Override
@@ -3779,10 +4274,16 @@ public final class MediaRouter2 {
         }
 
         @Override
-        public boolean showSystemOutputSwitcher() {
+        public void notifyDeviceSuggestionRequested() {
+            // no-op, local routers can not call this method.
+        }
+
+        @Override
+        public boolean showSystemOutputSwitcher(@Nullable MediaSession.Token sessionToken) {
             synchronized (mLock) {
                 try {
-                    return mMediaRouterService.showMediaOutputSwitcherWithRouter2(mPackageName);
+                    return mMediaRouterService.showMediaOutputSwitcherWithRouter2(mPackageName,
+                            sessionToken);
                 } catch (RemoteException ex) {
                     ex.rethrowFromSystemServer();
                 }
@@ -3805,7 +4306,8 @@ public final class MediaRouter2 {
         }
 
         @Override
-        public void transferTo(MediaRoute2Info route) {
+        public void transferTo(
+                MediaRoute2Info route, @Nullable RoutingChangeInfo routingChangeInfo) {
             Log.v(TAG, "Transferring to route: " + route);
 
             boolean routeFound;
@@ -3818,9 +4320,15 @@ public final class MediaRouter2 {
                 return;
             }
 
+            routingChangeInfo =
+                    routingChangeInfo == null
+                            ? new RoutingChangeInfo(
+                                    ENTRY_POINT_LOCAL_ROUTER_UNSPECIFIED, /* isSuggested= */ false)
+                            : routingChangeInfo;
             RoutingController controller = getCurrentController();
-            if (!controller.tryTransferWithinProvider(route)) {
-                requestCreateController(controller, route, MANAGER_REQUEST_ID_NONE);
+            if (!controller.tryTransferWithinProvider(route, routingChangeInfo)) {
+                requestCreateController(
+                        controller, route, MANAGER_REQUEST_ID_NONE, routingChangeInfo);
             }
         }
 
@@ -3838,7 +4346,9 @@ public final class MediaRouter2 {
          */
         @Override
         public void transfer(
-                @NonNull RoutingSessionInfo sessionInfo, @NonNull MediaRoute2Info route) {
+                @NonNull RoutingSessionInfo sessionInfo,
+                @NonNull MediaRoute2Info route,
+                @Nullable RoutingChangeInfo routingChangeInfo) {
             // Do nothing.
         }
 
@@ -3898,14 +4408,24 @@ public final class MediaRouter2 {
         }
 
         @Override
-        public void selectRoute(MediaRoute2Info route, RoutingSessionInfo sessionInfo) {
+        public void selectRoute(
+                MediaRoute2Info route,
+                RoutingSessionInfo sessionInfo,
+                RoutingChangeInfo routingChangeInfo) {
             MediaRouter2Stub stub;
             synchronized (mLock) {
                 stub = mStub;
             }
             if (stub != null) {
                 try {
-                    mMediaRouterService.selectRouteWithRouter2(stub, sessionInfo.getId(), route);
+                    if (routingChangeInfo == null) {
+                        routingChangeInfo =
+                                new RoutingChangeInfo(
+                                        ENTRY_POINT_LOCAL_ROUTER_UNSPECIFIED,
+                                        /* isSuggested= */ false);
+                    }
+                    mMediaRouterService.selectRouteWithRouter2(
+                            stub, sessionInfo.getId(), route, routingChangeInfo);
                 } catch (RemoteException ex) {
                     Log.e(TAG, "Unable to select route for session.", ex);
                 }
@@ -3913,14 +4433,24 @@ public final class MediaRouter2 {
         }
 
         @Override
-        public void deselectRoute(MediaRoute2Info route, RoutingSessionInfo sessionInfo) {
+        public void deselectRoute(
+                MediaRoute2Info route,
+                RoutingSessionInfo sessionInfo,
+                RoutingChangeInfo routingChangeInfo) {
             MediaRouter2Stub stub;
             synchronized (mLock) {
                 stub = mStub;
             }
             if (stub != null) {
                 try {
-                    mMediaRouterService.deselectRouteWithRouter2(stub, sessionInfo.getId(), route);
+                    if (routingChangeInfo == null) {
+                        routingChangeInfo =
+                                new RoutingChangeInfo(
+                                        ENTRY_POINT_LOCAL_ROUTER_UNSPECIFIED,
+                                        /* isSuggested= */ false);
+                    }
+                    mMediaRouterService.deselectRouteWithRouter2(
+                            stub, sessionInfo.getId(), route, routingChangeInfo);
                 } catch (RemoteException ex) {
                     Log.e(TAG, "Unable to deselect route from session.", ex);
                 }
@@ -3963,6 +4493,26 @@ public final class MediaRouter2 {
             String transferInitiatorPackageName = sessionInfo.getTransferInitiatorPackageName();
             return Objects.equals(Process.myUserHandle(), transferInitiatorUserHandle)
                     && Objects.equals(mContext.getPackageName(), transferInitiatorPackageName);
+        }
+
+        @Override
+        public void registerSystemSessionOverridesListener(
+                Executor executor, SystemSessionOverridesListener listener) {
+            throw new UnsupportedOperationException(
+                    "registerSystemSessionOverridesListener is only supported on proxy routers.");
+        }
+
+        @Override
+        public void unregisterSystemSessionOverridesListener(
+                SystemSessionOverridesListener listener) {
+            throw new UnsupportedOperationException(
+                    "unregisterSystemSessionOverridesListener is only supported on proxy routers.");
+        }
+
+        @Override
+        public Set<AppId> getSystemSessionOverridesAppIds() {
+            throw new UnsupportedOperationException(
+                    "getAppsWithSystemSessionOverrides is only supported on proxy routers.");
         }
 
         @GuardedBy("mLock")

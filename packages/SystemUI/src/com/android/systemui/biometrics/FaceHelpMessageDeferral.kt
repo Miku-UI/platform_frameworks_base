@@ -20,7 +20,6 @@ import android.content.res.Resources
 import android.os.SystemClock.elapsedRealtime
 import com.android.keyguard.logging.BiometricMessageDeferralLogger
 import com.android.systemui.Dumpable
-import com.android.systemui.Flags.faceMessageDeferUpdate
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.deviceentry.shared.model.HelpFaceAuthenticationStatus
@@ -94,47 +93,32 @@ open class BiometricMessageDeferral(
     private val systemClock: Lazy<SystemClock>,
 ) : Dumpable {
 
-    private val faceHelpMessageDebouncer: FaceHelpMessageDebouncer? =
-        if (faceMessageDeferUpdate()) {
-            FaceHelpMessageDebouncer(
-                window = windowToAnalyzeLastNFrames,
-                startWindow = 0L,
-                shownFaceMessageFrequencyBoost = 0,
-                threshold = threshold,
-            )
-        } else {
-            null
-        }
+    private val faceHelpMessageDebouncer: FaceHelpMessageDebouncer =
+        FaceHelpMessageDebouncer(
+            window = windowToAnalyzeLastNFrames,
+            startWindow = 0L,
+            shownFaceMessageFrequencyBoost = 0,
+            threshold = threshold,
+        )
     private val acquiredInfoToFrequency: MutableMap<Int, Int> = HashMap()
     private val acquiredInfoToHelpString: MutableMap<Int, String> = HashMap()
     private var mostFrequentAcquiredInfoToDefer: Int? = null
     private var totalFrames = 0
 
     init {
-        dumpManager.registerNormalDumpable(
-            "${this.javaClass.name}[$id]",
-            this,
-        )
+        dumpManager.registerNormalDumpable("${this.javaClass.name}[$id]", this)
     }
 
     override fun dump(pw: PrintWriter, args: Array<out String>) {
         pw.println("messagesToDefer=$messagesToDefer")
         pw.println("totalFrames=$totalFrames")
         pw.println("threshold=$threshold")
-        pw.println("faceMessageDeferUpdateFlagEnabled=${faceMessageDeferUpdate()}")
-        if (faceMessageDeferUpdate()) {
-            pw.println("windowToAnalyzeLastNFrames(ms)=$windowToAnalyzeLastNFrames")
-        }
+        pw.println("windowToAnalyzeLastNFrames(ms)=$windowToAnalyzeLastNFrames")
     }
 
     /** Reset all saved counts. */
     fun reset() {
         totalFrames = 0
-        if (!faceMessageDeferUpdate()) {
-            mostFrequentAcquiredInfoToDefer = null
-            acquiredInfoToFrequency.clear()
-        }
-
         acquiredInfoToHelpString.clear()
         logBuffer.reset()
     }
@@ -170,46 +154,26 @@ open class BiometricMessageDeferral(
         }
         totalFrames++
 
-        if (faceMessageDeferUpdate()) {
-            faceHelpMessageDebouncer?.let {
-                val helpFaceAuthStatus =
-                    HelpFaceAuthenticationStatus(
-                        msgId = acquiredInfo,
-                        msg = null,
-                        systemClock.get().elapsedRealtime()
-                    )
-                if (totalFrames == 1) { // first frame
-                    it.startNewFaceAuthSession(helpFaceAuthStatus.createdAt)
-                }
-                it.addMessage(helpFaceAuthStatus)
+        with(faceHelpMessageDebouncer) {
+            val helpFaceAuthStatus =
+                HelpFaceAuthenticationStatus(
+                    msgId = acquiredInfo,
+                    msg = null,
+                    systemClock.get().elapsedRealtime(),
+                )
+            if (totalFrames == 1) { // first frame
+                startNewFaceAuthSession(helpFaceAuthStatus.createdAt)
             }
-        } else {
-            val newAcquiredInfoCount = acquiredInfoToFrequency.getOrDefault(acquiredInfo, 0) + 1
-            acquiredInfoToFrequency[acquiredInfo] = newAcquiredInfoCount
-            if (
-                messagesToDefer.contains(acquiredInfo) &&
-                    (mostFrequentAcquiredInfoToDefer == null ||
-                        newAcquiredInfoCount >
-                            acquiredInfoToFrequency.getOrDefault(
-                                mostFrequentAcquiredInfoToDefer!!,
-                                0
-                            ))
-            ) {
-                mostFrequentAcquiredInfoToDefer = acquiredInfo
-            }
+            addMessage(helpFaceAuthStatus)
         }
 
         logBuffer.logFrameProcessed(
             acquiredInfo,
             totalFrames,
-            if (faceMessageDeferUpdate()) {
-                faceHelpMessageDebouncer
-                    ?.getMessageToShow(systemClock.get().elapsedRealtime())
-                    ?.msgId
-                    .toString()
-            } else {
-                mostFrequentAcquiredInfoToDefer?.toString()
-            }
+            faceHelpMessageDebouncer
+                .getMessageToShow(systemClock.get().elapsedRealtime())
+                ?.msgId
+                .toString(),
         )
     }
 
@@ -221,17 +185,9 @@ open class BiometricMessageDeferral(
      *   [threshold] percentage.
      */
     fun getDeferredMessage(): CharSequence? {
-        if (faceMessageDeferUpdate()) {
-            faceHelpMessageDebouncer?.let {
-                val helpFaceAuthStatus = it.getMessageToShow(systemClock.get().elapsedRealtime())
-                return acquiredInfoToHelpString[helpFaceAuthStatus?.msgId]
-            }
-        } else {
-            mostFrequentAcquiredInfoToDefer?.let {
-                if (acquiredInfoToFrequency.getOrDefault(it, 0) > (threshold * totalFrames)) {
-                    return acquiredInfoToHelpString[it]
-                }
-            }
+        with(faceHelpMessageDebouncer) {
+            val helpFaceAuthStatus = getMessageToShow(systemClock.get().elapsedRealtime())
+            return acquiredInfoToHelpString[helpFaceAuthStatus?.msgId]
         }
         return null
     }

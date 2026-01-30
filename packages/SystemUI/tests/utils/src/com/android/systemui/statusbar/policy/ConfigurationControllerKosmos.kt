@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.policy
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController
+import org.mockito.kotlin.mock
 
 var Kosmos.configurationController: ConfigurationController by
     Kosmos.Fixture { fakeConfigurationController }
@@ -25,6 +26,9 @@ val Kosmos.fakeConfigurationController: FakeConfigurationController by
     Kosmos.Fixture { FakeConfigurationController() }
 val Kosmos.statusBarConfigurationController: StatusBarConfigurationController by
     Kosmos.Fixture { fakeConfigurationController }
+
+val Kosmos.mockStatusBarConfigurationController by
+    Kosmos.Fixture { mock<StatusBarConfigurationController>() }
 
 val ConfigurationController.fake
     get() = this as FakeConfigurationController

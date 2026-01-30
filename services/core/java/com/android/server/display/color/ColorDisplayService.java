@@ -1193,6 +1193,7 @@ public final class ColorDisplayService extends SystemService {
         }
 
         pw.println("Color mode: " + getColorModeInternal());
+        pw.println("mEvenDimmerSpline: " + mEvenDimmerSpline);
     }
 
     private abstract class NightDisplayAutoMode {
@@ -1730,12 +1731,18 @@ public final class ColorDisplayService extends SystemService {
         }
 
         /**
-         * Get spline to map between requested nits, and required even dimmer strength.
+         * Gets a spline that can be used to get the appropriate EvenDimmer strength [0-1] to use
+         * for a given nits that we want. This spline is used to make the screen darker than the
+         * lowest nits supported by the hardware. As such, the provided baselineNits should be the
+         * minimum nits supported by the hardware, and we can use this spline to figure out the
+         * strength we need to achieve a nits lower than the hardware minimum.
+         *
+         * @param baselineNits The baseline nits produced when 0% strength is used.
          * @return nits to strength spline
          */
-        public Spline fetchEvenDimmerSpline(float nits) {
+        public Spline fetchEvenDimmerSpline(float baselineNits) {
             if (mEvenDimmerSpline == null) {
-                mEvenDimmerSpline = createNitsToStrengthSpline(nits);
+                mEvenDimmerSpline = createNitsToStrengthSpline(baselineNits);
             }
             return mEvenDimmerSpline;
         }

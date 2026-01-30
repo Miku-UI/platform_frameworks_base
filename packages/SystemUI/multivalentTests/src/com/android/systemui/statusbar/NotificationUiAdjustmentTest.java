@@ -232,6 +232,22 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
                 .isTrue();
     }
 
+    @Test
+    public void needReinflate_differentBundling() {
+        assertThat(NotificationUiAdjustment.needReinflate(
+                createUiAdjustmentFromSmartReplies("first", new CharSequence[]{"a", "b"}),
+                createUiAdjustmentFromSmartReplies("first", new CharSequence[] {"b", "a"})))
+                .isTrue();
+    }
+
+    @Test
+    public void needReinflate_sameBundling() {
+        assertThat(NotificationUiAdjustment.needReinflate(
+                createUiAdjustmentForBundling("first", true),
+                createUiAdjustmentForBundling("first", true)))
+                .isFalse();
+    }
+
     private Notification.Action.Builder createActionBuilder(
             String title, int drawableRes, PendingIntent pendingIntent) {
         return new Notification.Action.Builder(
@@ -244,16 +260,21 @@ public class NotificationUiAdjustmentTest extends SysuiTestCase {
 
     private NotificationUiAdjustment createUiAdjustmentFromSmartActions(
             String key, List<Notification.Action> actions) {
-        return new NotificationUiAdjustment(key, actions, null, false);
+        return new NotificationUiAdjustment(key, actions, null, false, false);
     }
 
     private NotificationUiAdjustment createUiAdjustmentFromSmartReplies(
             String key, CharSequence[] replies) {
-        return new NotificationUiAdjustment(key, null, Arrays.asList(replies), false);
+        return new NotificationUiAdjustment(key, null, Arrays.asList(replies), false, false);
     }
 
     private NotificationUiAdjustment createUiAdjustmentForConversation(
             String key, boolean isConversation) {
-        return new NotificationUiAdjustment(key, null, null, isConversation);
+        return new NotificationUiAdjustment(key, null, null, isConversation, false);
+    }
+
+    private NotificationUiAdjustment createUiAdjustmentForBundling(
+            String key, boolean isBundle) {
+        return new NotificationUiAdjustment(key, null, null, false, isBundle);
     }
 }

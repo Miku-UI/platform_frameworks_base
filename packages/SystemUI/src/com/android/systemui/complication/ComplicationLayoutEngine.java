@@ -31,6 +31,7 @@ import static com.android.systemui.complication.dagger.ComplicationHostViewModul
 import static com.android.systemui.complication.dagger.ComplicationHostViewModule.SCOPED_COMPLICATIONS_LAYOUT;
 
 import android.graphics.Rect;
+import android.service.dreams.Flags;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
@@ -115,7 +116,7 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
      */
     private static class ViewEntry implements Comparable<ViewEntry> {
         private final View mView;
-        private final ComplicationLayoutParams mLayoutParams;
+        private ComplicationLayoutParams mLayoutParams;
         private final TouchInsetManager.TouchInsetSession mTouchInsetSession;
         private final Parent mParent;
         @Complication.Category
@@ -156,6 +157,13 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
          */
         public ComplicationLayoutParams getLayoutParams() {
             return mLayoutParams;
+        }
+
+        /**
+         * Updates the {@link ComplicationLayoutParams} associated with the view.
+         */
+        public void updateLayoutParams(ComplicationLayoutParams lp) {
+            mLayoutParams = lp;
         }
 
         /**
@@ -278,10 +286,15 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
          * Informs the {@link ViewEntry}'s parent entity to remove the {@link ViewEntry} from
          * being shown further.
          */
-        public void remove() {
+        public void remove(boolean destroyed) {
             mParent.removeEntry(this);
 
-            ((ViewGroup) mView.getParent()).removeView(mView);
+            // In the case we're destroyed and going away, we maintain the view inside its parent
+            // for exit transition purposes.
+            if (!destroyed) {
+                ((ViewGroup) mView.getParent()).removeView(mView);
+            }
+
             mTouchInsetSession.removeViewFromTracking(mView);
         }
 
@@ -380,7 +393,7 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
 
         private final HashMap<Integer, Margins> mDirectionalMargins;
 
-        private final int mDefaultDirectionalSpacing;
+        private int mDefaultDirectionalSpacing;
 
         PositionGroup(int defaultDirectionalSpacing, HashMap<Integer, Margins> directionalMargins) {
             mDefaultDirectionalSpacing = defaultDirectionalSpacing;
@@ -411,6 +424,17 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
             }
             mDirectionalMargins.replaceAll((direction, v) -> directionalMargins.get(direction));
         }
+
+        public void updateDirectionalSpacing(int directionalSpacing) {
+            mDefaultDirectionalSpacing = directionalSpacing;
+        }
+
+        public void sortByWeight() {
+            for (DirectionGroup directionGroup : mDirectionGroups.values()) {
+                directionGroup.sortViews();
+            }
+        }
+
 
         @Override
         public void onEntriesChanged() {
@@ -524,8 +548,7 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
             mViews.add(entry);
 
             // After adding view, reverse sort collection.
-            Collections.sort(mViews);
-            Collections.reverse(mViews);
+            sortViews();
 
             mParent.onEntriesChanged();
 
@@ -586,10 +609,15 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
         private List<ViewEntry> getViews() {
             return mViews;
         }
+
+        private void sortViews() {
+            // Reverse sort collection.
+            mViews.sort(Collections.reverseOrder());
+        }
     }
 
     private final ConstraintLayout mLayout;
-    private final int mDefaultDirectionalSpacing;
+    private final Provider<Integer> mDefaultDirectionalSpacingProvider;
     private final HashMap<ComplicationId, ViewEntry> mEntries = new HashMap<>();
     private final HashMap<Integer, PositionGroup> mPositions = new HashMap<>();
     private final TouchInsetManager.TouchInsetSession mSession;
@@ -599,17 +627,20 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
             new HashMap<>();
     private final Provider<Margins> mComplicationMarginsProvider;
     private Rect mScreenBounds = new Rect();
+    private boolean mDestroyed;
+
     /** */
     @Inject
     public ComplicationLayoutEngine(@Named(SCOPED_COMPLICATIONS_LAYOUT) ConstraintLayout layout,
-            @Named(COMPLICATION_DIRECTIONAL_SPACING_DEFAULT) int defaultDirectionalSpacing,
+            @Named(COMPLICATION_DIRECTIONAL_SPACING_DEFAULT) Provider<Integer>
+                    defaultDirectionalSpacingProvider,
             @Named(COMPLICATION_MARGINS) Provider<Margins> complicationMarginsProvider,
             TouchInsetManager.TouchInsetSession session,
             @Named(COMPLICATIONS_FADE_IN_DURATION) int fadeInDuration,
             @Named(COMPLICATIONS_FADE_OUT_DURATION) int fadeOutDuration
     ) {
         mLayout = layout;
-        mDefaultDirectionalSpacing = defaultDirectionalSpacing;
+        mDefaultDirectionalSpacingProvider = defaultDirectionalSpacingProvider;
         mSession = session;
         mFadeInDuration = fadeInDuration;
         mFadeOutDuration = fadeOutDuration;
@@ -648,24 +679,37 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
     }
 
     /**
-     * Update margins on screen dimension change.
+     * Update positions for complications based on screen dimension change.
       */
-    public void updateLayoutEngine(@NonNull Rect bounds) {
-        if (bounds.width() == mScreenBounds.width() && bounds.height() == mScreenBounds.height()) {
+    public void updateLayoutEngine(@NonNull Rect bounds,
+            Map<ComplicationId, ComplicationLayoutParams> complicationLayoutParams) {
+        if (!Flags.dreamsV2() || (bounds.width() == mScreenBounds.width()
+                && bounds.height() == mScreenBounds.height())) {
             return;
         }
         mScreenBounds = bounds;
         updatePositionDirectionalMarginsMapping(mPositionDirectionMarginMapping,
                 mComplicationMarginsProvider.get());
 
+        // update layout params for each view entry
+        for (Map.Entry<ComplicationId, ComplicationLayoutParams> entry :
+                complicationLayoutParams.entrySet()) {
+            ViewEntry viewEntry = mEntries.get(entry.getKey());
+            if (viewEntry != null) {
+                viewEntry.updateLayoutParams(entry.getValue());
+            }
+        }
+
         // update each position group and layout of entries
         for (Integer position : mPositions.keySet()) {
             PositionGroup positionGroup = mPositions.get(position);
             positionGroup.updateDirectionalMargins(mPositionDirectionMarginMapping
                     .get(position));
+            positionGroup.updateDirectionalSpacing(mDefaultDirectionalSpacingProvider.get());
+            positionGroup.sortByWeight();
             positionGroup.onEntriesChanged();
         }
-        Log.d(TAG, "Updated margins for complications as screen size changed to width = "
+        Log.d(TAG, "Updated position for complications as screen size changed to width = "
                 + bounds.width() + "px, height = " + bounds.height() + "px.");
     }
 
@@ -679,6 +723,13 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
                     mFadeOutDuration,
                     /* delay= */ 0);
         }
+    }
+
+    protected void onDestroyed() {
+        // Some behaviors change upon destroy. For example, removing a complication will not result
+        // in its removal from the layout as there might be exit animations in progress. We note
+        // this state with the following variable to reference in those cases.
+        mDestroyed = true;
     }
 
     /**
@@ -705,7 +756,7 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
         // Add position group if doesn't already exist
         final int position = lp.getPosition();
         if (!mPositions.containsKey(position)) {
-            mPositions.put(position, new PositionGroup(mDefaultDirectionalSpacing,
+            mPositions.put(position, new PositionGroup(mDefaultDirectionalSpacingProvider.get(),
                     mPositionDirectionMarginMapping.get(lp.getPosition())));
         }
 
@@ -727,7 +778,7 @@ public class ComplicationLayoutEngine implements Complication.VisibilityControll
             return false;
         }
 
-        entry.remove();
+        entry.remove(mDestroyed);
         return true;
     }
 

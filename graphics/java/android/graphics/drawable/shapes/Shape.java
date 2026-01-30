@@ -33,6 +33,7 @@ import java.util.Objects;
  * Custom Shape classes must implement {@link #clone()} and return an instance
  * of the custom Shape class.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class Shape implements Cloneable {
     private float mWidth;
     private float mHeight;

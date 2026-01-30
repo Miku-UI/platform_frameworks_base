@@ -21,12 +21,12 @@ import android.content.Context
 import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
 import android.os.UserHandle
+import android.telephony.SubscriptionManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
 import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.Flags.multiuserWifiPickerTrackerSupport
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
@@ -39,7 +39,10 @@ import com.android.systemui.statusbar.connectivity.WifiPickerTrackerFactory
 import com.android.systemui.statusbar.pipeline.dagger.WifiInputLog
 import com.android.systemui.statusbar.pipeline.dagger.WifiTableLog
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import com.android.systemui.statusbar.pipeline.shared.data.model.DefaultConnectionModel
 import com.android.systemui.statusbar.pipeline.shared.data.model.toWifiDataActivityModel
+import com.android.systemui.statusbar.pipeline.shared.data.repository.ConnectivityRepository
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.RealWifiRepository
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.WifiRepository.Companion.COL_NAME_IS_DEFAULT
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.WifiRepository.Companion.COL_NAME_IS_ENABLED
@@ -47,6 +50,7 @@ import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkMode
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel.Unavailable.toHotspotDeviceType
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiScanEntry
 import com.android.systemui.user.data.repository.UserRepository
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.wifitrackerlib.HotspotNetworkEntry
 import com.android.wifitrackerlib.MergedCarrierEntry
 import com.android.wifitrackerlib.WifiEntry
@@ -55,16 +59,22 @@ import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * A real implementation of [WifiRepository] that uses [com.android.wifitrackerlib] as the source of
@@ -76,6 +86,7 @@ class WifiRepositoryImpl
 constructor(
     @Application applicationContext: Context,
     private val userRepository: UserRepository,
+    private val connectivityRepository: ConnectivityRepository,
     @Application private val scope: CoroutineScope,
     @Main private val mainExecutor: Executor,
     @Background private val bgDispatcher: CoroutineDispatcher,
@@ -84,6 +95,8 @@ constructor(
     @WifiInputLog private val inputLogger: LogBuffer,
     @WifiTableLog private val tableLogger: TableLogBuffer,
 ) : RealWifiRepository, LifecycleOwner {
+    private var pauseWifiTimeoutJob: Job? = null
+    private var scanForWifiTimeoutJob: Job? = null
 
     override val lifecycle =
         LifecycleRegistry(this).also {
@@ -432,6 +445,55 @@ constructor(
 
     private fun List<ScanResult>.toModel(): List<WifiScanEntry> = map { WifiScanEntry(it.SSID) }
 
+    private val _wifiToggleState = MutableStateFlow<WifiToggleState>(WifiToggleState.Normal)
+    override val wifiToggleState: StateFlow<WifiToggleState> = _wifiToggleState.asStateFlow()
+
+    private fun cancelOptimisticToggleTimeoutJobs() {
+        scanForWifiTimeoutJob?.cancel()
+        pauseWifiTimeoutJob?.cancel()
+    }
+
+    private fun DefaultConnectionModel.isWifiDefault(): Boolean {
+        return wifi.isDefault && !carrierMerged.isDefault
+    }
+
+    override fun pauseWifi() {
+        cancelOptimisticToggleTimeoutJobs()
+        wifiManager.startRestrictingAutoJoinToSubscriptionId(
+            SubscriptionManager.getDefaultDataSubscriptionId()
+        )
+        pauseWifiTimeoutJob =
+            scope.launch {
+                withTimeoutOrNull(WIFI_TOGGLE_OPTIMISTIC_PAUSE_TIMEOUT_MS) {
+                    // Wait until wifi is no longer default
+                    connectivityRepository.defaultConnections.first { !it.isWifiDefault() }
+                }
+                // Toggle is back to Normal
+                _wifiToggleState.value = WifiToggleState.Normal
+            }
+    }
+
+    override fun scanForWifi() {
+        cancelOptimisticToggleTimeoutJobs()
+        _wifiToggleState.value = WifiToggleState.Scanning
+        wifiManager.stopRestrictingAutoJoinToSubscriptionId()
+        wifiManager.startScan()
+        scanForWifiTimeoutJob =
+            scope.launch {
+                withTimeoutOrNull(WIFI_TOGGLE_OPTIMISTIC_SCANNING_TIMEOUT_MS) {
+                    // Wait until wifi is connected and default
+                    connectivityRepository.defaultConnections.first { it.isWifiDefault() }
+                }
+                // Toggle is back to Normal
+                _wifiToggleState.value = WifiToggleState.Normal
+            }
+    }
+
+    override fun enableWifi() {
+        wifiManager.setWifiEnabled(true)
+        scanForWifi()
+    }
+
     private fun logOnWifiEntriesChanged(connectedEntry: WifiEntry?) {
         inputLogger.log(
             TAG,
@@ -495,6 +557,7 @@ constructor(
     constructor(
         @Application private val applicationContext: Context,
         private val userRepository: UserRepository,
+        private val connectivityRepository: ConnectivityRepository,
         @Application private val scope: CoroutineScope,
         @Main private val mainExecutor: Executor,
         @Background private val bgDispatcher: CoroutineDispatcher,
@@ -506,6 +569,7 @@ constructor(
             return WifiRepositoryImpl(
                 applicationContext,
                 userRepository,
+                connectivityRepository,
                 scope,
                 mainExecutor,
                 bgDispatcher,
@@ -526,5 +590,8 @@ constructor(
         val ACTIVITY_DEFAULT = DataActivityModel(hasActivityIn = false, hasActivityOut = false)
 
         private const val TAG = "WifiTrackerLibInputLog"
+
+        @VisibleForTesting const val WIFI_TOGGLE_OPTIMISTIC_PAUSE_TIMEOUT_MS = 10_000L
+        @VisibleForTesting const val WIFI_TOGGLE_OPTIMISTIC_SCANNING_TIMEOUT_MS = 10_000L
     }
 }

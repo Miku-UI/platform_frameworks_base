@@ -97,7 +97,7 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * {@hide}
+ * @hide
  */
 public final class ContentService extends IContentService.Stub {
     static final String TAG = "ContentService";
@@ -426,7 +426,8 @@ public final class ContentService extends IContentService.Stub {
      */
     @Override
     public void notifyChange(Uri[] uris, IContentObserver observer,
-            boolean observerWantsSelfNotifications, int flags, int userId,
+            boolean observerWantsSelfNotifications, int flags,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId,
             int targetSdkVersion, String callingPackage) {
         if (DEBUG) {
             Slog.d(TAG, "Notifying update of " + Arrays.toString(uris) + " for user " + userId
@@ -1661,7 +1662,7 @@ public final class ContentService extends IContentService.Stub {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public static final class ObserverNode {
         private class ObserverEntry implements IBinder.DeathRecipient {

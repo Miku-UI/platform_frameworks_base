@@ -17,12 +17,11 @@
 
 package com.android.systemui.statusbar.notification.row
 
-import android.app.Notification
 import android.net.Uri
 import android.os.UserHandle
-import android.os.UserHandle.USER_ALL
 import android.service.notification.StatusBarNotification
 import android.testing.TestableLooper
+import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
@@ -34,15 +33,14 @@ import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.plugins.FalsingManager
 import com.android.systemui.plugins.PluginManager
 import com.android.systemui.plugins.statusbar.StatusBarStateController
-import com.android.systemui.statusbar.SbnBuilder
 import com.android.systemui.statusbar.SmartReplyController
+import com.android.systemui.statusbar.notification.BundleInteractionLogger
 import com.android.systemui.statusbar.notification.ColorUpdateLogger
 import com.android.systemui.statusbar.notification.NotificationActivityStarter
 import com.android.systemui.statusbar.notification.collection.EntryAdapter
 import com.android.systemui.statusbar.notification.collection.EntryAdapterFactory
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
-import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
-import com.android.systemui.statusbar.notification.collection.coordinator.VisualStabilityCoordinator
+import com.android.systemui.statusbar.notification.collection.buildNotificationEntry
 import com.android.systemui.statusbar.notification.collection.provider.NotificationDismissibilityProvider
 import com.android.systemui.statusbar.notification.collection.render.FakeNodeController
 import com.android.systemui.statusbar.notification.collection.render.GroupExpansionManager
@@ -50,9 +48,7 @@ import com.android.systemui.statusbar.notification.collection.render.GroupMember
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRowController.BUBBLES_SETTING_URI
-import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProvider
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
-import com.android.systemui.statusbar.notification.stack.NotificationChildrenContainer
 import com.android.systemui.statusbar.notification.stack.NotificationChildrenContainerLogger
 import com.android.systemui.statusbar.notification.stack.NotificationListContainer
 import com.android.systemui.statusbar.notification.stack.ui.view.NotificationRowStatsLogger
@@ -63,40 +59,37 @@ import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.withArgCaptor
 import com.android.systemui.util.time.SystemClock
 import com.android.systemui.window.domain.interactor.windowRootViewBlurInteractor
 import com.google.android.msdl.domain.MSDLPlayer
-import junit.framework.Assert
+import com.google.common.truth.Truth.assertThat
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito
-import org.mockito.Mockito.anyBoolean
+import org.mockito.ArgumentCaptor
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
+import org.mockito.Mockito.spy
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when` as whenever
+import org.mockito.kotlin.atLeastOnce
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper
 class ExpandableNotificationRowControllerTest : SysuiTestCase() {
 
-    private val appName = "MyApp"
-    private val notifKey = "MyNotifKey"
-
     private val kosmos = testKosmos()
 
-    private val view: ExpandableNotificationRow = mock()
+    private lateinit var entry: NotificationEntry
+    private lateinit var view: ExpandableNotificationRow
     private val activableNotificationViewController: ActivatableNotificationViewController = mock()
     private val rivSubComponentFactory: RemoteInputViewSubcomponent.Factory = mock()
     private val metricsLogger: MetricsLogger = mock()
     private val logBufferLogger = NotificationRowLogger(logcatLogBuffer(), logcatLogBuffer())
     private val colorUpdateLogger: ColorUpdateLogger = mock()
     private val listContainer: NotificationListContainer = mock()
-    private val childrenContainer: NotificationChildrenContainer = mock()
     private val smartReplyConstants: SmartReplyConstants = mock()
     private val smartReplyController: SmartReplyController = mock()
     private val pluginManager: PluginManager = mock()
@@ -122,56 +115,62 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
     private val msdlPlayer: MSDLPlayer = mock()
     private val rebindingTracker: NotificationRebindingTracker = mock()
     private val entryAdapterFactory: EntryAdapterFactory = mock()
+    private val bundleInteractionLogger: BundleInteractionLogger = mock()
     private lateinit var controller: ExpandableNotificationRowController
+    private val notificationActivityStarter: NotificationActivityStarter = mock()
 
     @Before
     fun setUp() {
-        allowTestableLooperAsMainThread()
-        controller =
-            ExpandableNotificationRowController(
-                view,
-                activableNotificationViewController,
-                rivSubComponentFactory,
-                metricsLogger,
-                colorUpdateLogger,
-                logBufferLogger,
-                NotificationChildrenContainerLogger(logcatLogBuffer()),
-                listContainer,
-                smartReplyConstants,
-                smartReplyController,
-                pluginManager,
-                systemClock,
-                appName,
-                notifKey,
-                keyguardBypassController,
-                groupMembershipManager,
-                groupExpansionManager,
-                rowContentBindStage,
-                notifLogger,
-                headsUpManager,
-                onExpandClickListener,
-                statusBarStateController,
-                gutsManager,
-                /*allowLongPress=*/ false,
-                onUserInteractionCallback,
-                falsingManager,
-                featureFlags,
-                peopleNotificationIdentifier,
-                settingsController,
-                dragController,
-                dismissibilityProvider,
-                statusBarService,
-                uiEventLogger,
-                msdlPlayer,
-                rebindingTracker,
-                entryAdapterFactory,
-                kosmos.windowRootViewBlurInteractor,
-            )
-        whenever(view.childrenContainer).thenReturn(childrenContainer)
+        entry = kosmos.buildNotificationEntry()
+        view = spy(kosmos.createRowWithEntry(entry))
 
-        val notification = Notification.Builder(mContext).build()
-        val sbn = SbnBuilder().setNotification(notification).build()
-        whenever(view.entry).thenReturn(NotificationEntryBuilder().setSbn(sbn).build())
+        allowTestableLooperAsMainThread()
+        controller = initController(view)
+    }
+
+    private fun initController(
+        row: ExpandableNotificationRow
+    ): ExpandableNotificationRowController {
+        return ExpandableNotificationRowController(
+            row,
+            activableNotificationViewController,
+            rivSubComponentFactory,
+            metricsLogger,
+            colorUpdateLogger,
+            logBufferLogger,
+            NotificationChildrenContainerLogger(logcatLogBuffer()),
+            listContainer,
+            smartReplyConstants,
+            smartReplyController,
+            pluginManager,
+            systemClock,
+            context,
+            keyguardBypassController,
+            groupMembershipManager,
+            groupExpansionManager,
+            rowContentBindStage,
+            notifLogger,
+            headsUpManager,
+            onExpandClickListener,
+            statusBarStateController,
+            gutsManager,
+            /*allowLongPress=*/ false,
+            onUserInteractionCallback,
+            falsingManager,
+            featureFlags,
+            peopleNotificationIdentifier,
+            settingsController,
+            dragController,
+            dismissibilityProvider,
+            statusBarService,
+            uiEventLogger,
+            msdlPlayer,
+            rebindingTracker,
+            entryAdapterFactory,
+            kosmos.windowRootViewBlurInteractor,
+            bundleInteractionLogger,
+            notificationActivityStarter,
+        )
     }
 
     @After
@@ -181,156 +180,155 @@ class ExpandableNotificationRowControllerTest : SysuiTestCase() {
 
     @Test
     fun offerKeepInParent_parentDismissed() {
-        whenever(view.isParentDismissed).thenReturn(true)
+        entry.dismissState = NotificationEntry.DismissState.PARENT_DISMISSED
 
-        Assert.assertTrue(controller.offerToKeepInParentForAnimation())
-        verify(view).setKeepInParentForDismissAnimation(true)
+        assertThat(controller.offerToKeepInParentForAnimation()).isTrue()
+        assertThat(view.keepInParentForDismissAnimation()).isTrue()
     }
 
     @Test
     fun offerKeepInParent_parentNotDismissed() {
-        Assert.assertFalse(controller.offerToKeepInParentForAnimation())
-        verify(view, never()).setKeepInParentForDismissAnimation(anyBoolean())
+        assertThat(controller.offerToKeepInParentForAnimation()).isFalse()
+        assertThat(view.keepInParentForDismissAnimation()).isFalse()
     }
 
     @Test
     fun removeFromParent_keptForAnimation() {
         val parentView: ExpandableNotificationRow = mock()
-        whenever(view.notificationParent).thenReturn(parentView)
-        whenever(view.keepInParentForDismissAnimation()).thenReturn(true)
+        view.setIsChildInGroup(true, parentView)
+        view.setKeepInParentForDismissAnimation(true)
 
-        Assert.assertTrue(controller.removeFromParentIfKeptForAnimation())
+        assertThat(controller.removeFromParentIfKeptForAnimation()).isTrue()
         verify(parentView).removeChildNotification(view)
     }
 
     @Test
     fun removeFromParent_notKeptForAnimation() {
         val parentView: ExpandableNotificationRow = mock()
-        whenever(view.notificationParent).thenReturn(parentView)
+        view.setIsChildInGroup(true, parentView)
 
-        Assert.assertFalse(controller.removeFromParentIfKeptForAnimation())
-        Mockito.verifyNoMoreInteractions(parentView)
+        assertThat(controller.removeFromParentIfKeptForAnimation()).isFalse()
     }
 
     @Test
     fun removeChild_whenTransfer() {
-        val childView: ExpandableNotificationRow = mock()
-        val childNodeController = FakeNodeController(childView)
+        var rowGroup = kosmos.createRowGroup()
+        val controllerGroup = initController(rowGroup)
+        val firstChild = rowGroup.getChildNotificationAt(0)!!
+        val childNodeController = FakeNodeController(firstChild)
 
         // GIVEN a child is removed for transfer
-        controller.removeChild(childNodeController, /* isTransfer= */ true)
+        controllerGroup.removeChild(childNodeController, /* isTransfer= */ true)
 
         // VERIFY the listContainer is not notified
-        verify(childView).isChangingPosition = eq(true)
-        verify(view).removeChildNotification(eq(childView))
+        assertThat(firstChild.isChangingPosition).isTrue()
+        assertThat(rowGroup.getChildNotificationAt(0)).isNotEqualTo(firstChild)
         verify(listContainer, never()).notifyGroupChildRemoved(any(), any())
     }
 
     @Test
     fun removeChild_whenNotTransfer() {
-        val childView: ExpandableNotificationRow = mock()
-        val childNodeController = FakeNodeController(childView)
+        var rowGroup = kosmos.createRowGroup()
+        val controllerGroup = initController(rowGroup)
+        val firstChild = rowGroup.getChildNotificationAt(0)!!
+        val childNodeController = FakeNodeController(firstChild)
 
         // GIVEN a child is removed for real
-        controller.removeChild(childNodeController, /* isTransfer= */ false)
+        controllerGroup.removeChild(childNodeController, /* isTransfer= */ false)
 
         // VERIFY the listContainer is passed the childrenContainer for transient animations
-        verify(childView, never()).isChangingPosition = any()
-        verify(view).removeChildNotification(eq(childView))
-        verify(listContainer).notifyGroupChildRemoved(eq(childView), eq(childrenContainer))
+        assertThat(firstChild.isChangingPosition).isFalse()
+        assertThat(rowGroup.getChildNotificationAt(0)).isNotEqualTo(firstChild)
+        verify(listContainer).notifyGroupChildRemoved(eq(firstChild), any())
     }
 
     @Test
     fun registerSettingsListener_forBubbles() {
-        controller.init(mock(NotificationEntry::class.java))
+        val row: ExpandableNotificationRow = mock()
+        val entryLegacy: NotificationEntry = mock()
+        controller = initController(row)
+        controller.init(entryLegacy)
         val entryAdapter = mock(EntryAdapter::class.java)
         whenever(entryAdapter.sbn).thenReturn(mock(StatusBarNotification::class.java))
-        whenever(view.entryAdapter).thenReturn(entryAdapter)
+        whenever(row.entryAdapter).thenReturn(entryAdapter)
+        whenever(row.entryLegacy).thenReturn(mock())
+        val captor = ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
+        verify(row, atLeastOnce()).addOnAttachStateChangeListener(captor.capture())
+        captor.allValues[0].onViewAttachedToWindow(view)
 
-        val viewStateObserver = withArgCaptor {
-            verify(view).addOnAttachStateChangeListener(capture())
-        }
-        viewStateObserver.onViewAttachedToWindow(view)
         verify(settingsController).addCallback(any(), any())
     }
 
     @Test
     fun unregisterSettingsListener_forBubbles() {
-        controller.init(mock(NotificationEntry::class.java))
+        val row: ExpandableNotificationRow = mock()
+        val entryLegacy: NotificationEntry = mock()
+        controller = initController(row)
+        controller.init(entryLegacy)
         val entryAdapter = mock(EntryAdapter::class.java)
         whenever(entryAdapter.sbn).thenReturn(mock(StatusBarNotification::class.java))
-        whenever(view.entryAdapter).thenReturn(entryAdapter)
-        val viewStateObserver = withArgCaptor {
-            verify(view).addOnAttachStateChangeListener(capture())
-        }
-        viewStateObserver.onViewDetachedFromWindow(view)
+        whenever(row.entryAdapter).thenReturn(entryAdapter)
+        whenever(row.entryLegacy).thenReturn(entryLegacy)
+        val captor = ArgumentCaptor.forClass(View.OnAttachStateChangeListener::class.java)
+        verify(row, atLeastOnce()).addOnAttachStateChangeListener(captor.capture())
+        captor.allValues[0].onViewDetachedFromWindow(view)
+
         verify(settingsController).removeCallback(any(), any())
     }
 
     @Test
     fun settingsListener_invalidUri() {
-        controller.mSettingsListener.onSettingChanged(Uri.EMPTY, view.entry.sbn.userId, "1")
-
-        verify(view, never()).getPrivateLayout()
+        controller.mSettingsListener.onSettingChanged(Uri.EMPTY, entry.sbn.userId, "1")
+        assertThat(
+                view.privateLayout.shouldShowBubbleButton(
+                    if (NotificationBundleUi.isEnabled) null else entry
+                )
+            )
+            .isFalse()
     }
 
     @Test
     fun settingsListener_invalidUserId() {
-        whenever(view.entryAdapter).thenReturn(mock(EntryAdapter::class.java))
         controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, -1000, "1")
         controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, -1000, null)
 
-        verify(view, never()).getPrivateLayout()
+        assertThat(
+                view.privateLayout.shouldShowBubbleButton(
+                    if (NotificationBundleUi.isEnabled) null else entry
+                )
+            )
+            .isFalse()
     }
 
     @Test
     fun settingsListener_validUserId() {
         val childView: NotificationContentView = mock()
-        whenever(view.privateLayout).thenReturn(childView)
-        val entryAdapter = mock(EntryAdapter::class.java)
-        val sbn =
-            SbnBuilder()
-                .setNotification(Notification.Builder(mContext).build())
-                .setUser(UserHandle.of(view.entry.sbn.userId))
-                .build()
-        whenever(entryAdapter.sbn).thenReturn(sbn)
-        whenever(view.entryAdapter).thenReturn(entryAdapter)
+        view.privateLayout = childView
 
-        controller.mSettingsListener.onSettingChanged(
-            BUBBLES_SETTING_URI,
-            view.entry.sbn.userId,
-            "1",
-        )
+        controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, entry.sbn.userId, "1")
         verify(childView).setBubblesEnabledForUser(true)
 
-        controller.mSettingsListener.onSettingChanged(
-            BUBBLES_SETTING_URI,
-            view.entry.sbn.userId,
-            "9",
-        )
+        controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, entry.sbn.userId, "9")
         verify(childView).setBubblesEnabledForUser(false)
     }
 
     @Test
     fun settingsListener_userAll() {
+        val entryAll =
+            kosmos.buildNotificationEntry {
+                setUser(UserHandle.ALL)
+                setUid(UserHandle.ALL.getUid(1234))
+            }
+        val row = kosmos.createRowWithEntry(entryAll)
+        val controllerUser = initController(row)
+
         val childView: NotificationContentView = mock()
-        whenever(view.privateLayout).thenReturn(childView)
+        row.privateLayout = childView
 
-        val notification = Notification.Builder(mContext).build()
-        val sbn =
-            SbnBuilder().setNotification(notification).setUser(UserHandle.of(USER_ALL)).build()
-        whenever(view.entryLegacy)
-            .thenReturn(
-                NotificationEntryBuilder().setSbn(sbn).setUser(UserHandle.of(USER_ALL)).build()
-            )
-        val entryAdapter = mock(EntryAdapter::class.java)
-        whenever(entryAdapter.sbn).thenReturn(sbn)
-        whenever(view.entryAdapter).thenReturn(entryAdapter)
-
-        controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, 9, "1")
+        controllerUser.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, 9, "1")
         verify(childView).setBubblesEnabledForUser(true)
 
-        controller.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, 1, "0")
+        controllerUser.mSettingsListener.onSettingChanged(BUBBLES_SETTING_URI, 1, "0")
         verify(childView).setBubblesEnabledForUser(false)
     }
 }

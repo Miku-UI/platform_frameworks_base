@@ -35,13 +35,14 @@ import com.android.systemui.bouncer.shared.logging.BouncerUiEvent
 import com.android.systemui.common.ui.data.repository.fakeConfigurationRepository
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.deviceentry.domain.interactor.canTriggerActiveUnlock
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryFaceAuthInteractor
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.flags.Flags.FULL_SCREEN_USER_SWITCHER
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
+import com.android.systemui.keyguard.data.repository.fakeTrustRepository
 import com.android.systemui.kosmos.collectLastValue
-import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.data.repository.fakePowerRepository
@@ -88,6 +89,50 @@ class BouncerInteractorTest : SysuiTestCase() {
         overrideResource(R.string.kg_wrong_password, MESSAGE_WRONG_PASSWORD)
         overrideResource(R.string.kg_wrong_pattern, MESSAGE_WRONG_PATTERN)
     }
+
+    @Test
+    fun simAuth_passiveAuthMaySucceedBeforeFullyShowingBouncer_false() =
+        kosmos.runTest {
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Sim
+            )
+            assertThat(underTest.passiveAuthMaySucceedBeforeFullyShowingBouncer()).isFalse()
+        }
+
+    @Test
+    fun noPassiveAuth_passiveAuthMaySucceedBeforeFullyShowingBouncer_false() =
+        kosmos.runTest {
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.fakeDeviceEntryFaceAuthRepository.canRunFaceAuth.value = false
+            kosmos.fakeTrustRepository.setCurrentUserActiveUnlockAvailable(false)
+            assertThat(underTest.passiveAuthMaySucceedBeforeFullyShowingBouncer()).isFalse()
+        }
+
+    @Test
+    fun canRunFaceAuth_passiveAuthMaySucceedBeforeFullyShowingBouncer_true() =
+        kosmos.runTest {
+            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                AuthenticationMethodModel.Pin
+            )
+            kosmos.fakeDeviceEntryFaceAuthRepository.canRunFaceAuth.value = true
+            assertThat(underTest.passiveAuthMaySucceedBeforeFullyShowingBouncer()).isTrue()
+        }
+
+    @Test
+    fun isCurrentUserActiveUnlockRunning_passiveAuthMaySucceedBeforeFullyShowingBouncer_true() =
+        kosmos.runTest {
+            // We need lazy<BouncerInteractor> to be initialized so that ActiveUnlockInteractor
+            // is also initialized and eagerly updates canRunActiveUnlock
+            underTest.let {
+                kosmos.fakeAuthenticationRepository.setAuthenticationMethod(
+                    AuthenticationMethodModel.Pin
+                )
+                kosmos.canTriggerActiveUnlock(canRun = true)
+                assertThat(underTest.passiveAuthMaySucceedBeforeFullyShowingBouncer()).isTrue()
+            }
+        }
 
     @Test
     fun pinAuthMethod_sim_skipsAuthentication() =

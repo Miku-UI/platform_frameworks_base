@@ -18,5 +18,6 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/message_text"
     android:textAlignment="viewStart"
+    android:paddingStart="@dimen/notification_text_message_start_padding"
     style="@style/Widget.DeviceDefault.Notification.MessagingText"
 />

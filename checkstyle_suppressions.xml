@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suppressions PUBLIC "-//Puppy Crawl//DTD Suppressions 1.1//EN" "http://www.puppycrawl.com/dtds/suppressions_1_1.dtd">
+<suppressions>
+    <!-- Let google-java-format handle the ImportOrder. -->
+    <suppress files="services/core/java/com/android/server/adb/*,tests/AppJankTest" checks="ImportOrder" />
+
+    <!-- Let google-java-format handle the indentation. -->
+    <suppress files="services/core/java/com/android/server/adb/*,tests/AppJankTest" checks="Indentation" />
+
+    <!-- Let google-java-format handle the line length. -->
+    <suppress files="services/core/java/com/android/server/adb/*,tests/AppJankTest" checks="LineLength" />
+
+    <!-- Let google-java-format handle the { placement. -->
+    <suppress files="services/core/java/com/android/server/adb/*,tests/AppJankTest" checks="LeftCurly" />
+</suppressions>

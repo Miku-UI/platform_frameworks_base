@@ -32,6 +32,7 @@ import androidx.annotation.Nullable;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.wm.shell.R;
+import com.android.wm.shell.common.pip.PipUtils;
 import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.shared.animation.Interpolators;
 
@@ -44,6 +45,7 @@ public class PipExpandAnimator extends ValueAnimator {
     private final SurfaceControl.Transaction mStartTransaction;
     private final SurfaceControl.Transaction mFinishTransaction;
     private final @Surface.Rotation int mRotation;
+    private final Boolean mIsPipInDesktopMode;
 
     // optional callbacks for tracking animation start and end
     @Nullable
@@ -54,7 +56,7 @@ public class PipExpandAnimator extends ValueAnimator {
     private final Rect mStartBounds = new Rect();
     private final Rect mEndBounds = new Rect();
 
-    @Nullable private final Rect mSourceRectHint;
+    private final Rect mSourceRectHint = new Rect();
     private final Rect mSourceRectHintInsets = new Rect();
     private final Rect mZeroInsets = new Rect(0, 0, 0, 0);
 
@@ -65,7 +67,7 @@ public class PipExpandAnimator extends ValueAnimator {
             mSurfaceControlTransactionFactory;
     private final RectEvaluator mRectEvaluator;
     private final RectEvaluator mInsetEvaluator;
-    private final PipSurfaceTransactionHelper mPipSurfaceTransactionHelper;
+    private @NonNull final PipSurfaceTransactionHelper mPipSurfaceTransactionHelper;
 
     private final Animator.AnimatorListener mAnimatorListener = new AnimatorListenerAdapter() {
         @Override
@@ -85,6 +87,11 @@ public class PipExpandAnimator extends ValueAnimator {
             super.onAnimationEnd(animation);
             if (mFinishTransaction != null) {
                 onExpandAnimationUpdate(mFinishTransaction, 1f);
+                // Reset the corner radius at the end, if not in desktop windowing mode.
+                if (!mIsPipInDesktopMode) {
+                    mPipSurfaceTransactionHelper.round(mFinishTransaction, mLeash,
+                            false /* applyCornerRadius */);
+                }
             }
             if (mAnimationEndCallback != null) {
                 mAnimationEndCallback.run();
@@ -105,6 +112,7 @@ public class PipExpandAnimator extends ValueAnimator {
             };
 
     public PipExpandAnimator(Context context,
+            @NonNull PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
             @NonNull SurfaceControl leash,
             SurfaceControl.Transaction startTransaction,
             SurfaceControl.Transaction finishTransaction,
@@ -112,7 +120,8 @@ public class PipExpandAnimator extends ValueAnimator {
             @NonNull Rect startBounds,
             @NonNull Rect endBounds,
             @Nullable Rect sourceRectHint,
-            @Surface.Rotation int rotation) {
+            @Surface.Rotation int rotation,
+            boolean isPipInDesktopMode) {
         mLeash = leash;
         mStartTransaction = startTransaction;
         mFinishTransaction = finishTransaction;
@@ -122,18 +131,26 @@ public class PipExpandAnimator extends ValueAnimator {
         mEndBounds.set(endBounds);
         mRectEvaluator = new RectEvaluator(mAnimatedRect);
         mInsetEvaluator = new RectEvaluator(new Rect());
-        mPipSurfaceTransactionHelper = new PipSurfaceTransactionHelper(context);
+        mPipSurfaceTransactionHelper = pipSurfaceTransactionHelper;
         mRotation = rotation;
+        mIsPipInDesktopMode = isPipInDesktopMode;
 
-        mSourceRectHint = sourceRectHint != null ? new Rect(sourceRectHint) : null;
-        if (mSourceRectHint != null) {
-            mSourceRectHintInsets.set(
-                    mSourceRectHint.left - mBaseBounds.left,
-                    mSourceRectHint.top - mBaseBounds.top,
-                    mBaseBounds.right - mSourceRectHint.right,
-                    mBaseBounds.bottom - mSourceRectHint.bottom
-            );
+        if (sourceRectHint == null || sourceRectHint.isEmpty()) {
+            // Similar to enter animation, use a pseudo source rect hint on exit if app does not
+            // provide one to get a unified exit animation experience.
+            final float aspectRatio = mStartBounds.width() / (float) mStartBounds.height();
+            mSourceRectHint.set(
+                    PipUtils.getPseudoSourceRectHint(mBaseBounds, aspectRatio));
+            mSourceRectHint.offsetTo(mBaseBounds.left, mBaseBounds.top);
+        } else {
+            mSourceRectHint.set(sourceRectHint);
         }
+        mSourceRectHintInsets.set(
+                mSourceRectHint.left - mBaseBounds.left,
+                mSourceRectHint.top - mBaseBounds.top,
+                mBaseBounds.right - mSourceRectHint.right,
+                mBaseBounds.bottom - mSourceRectHint.bottom
+        );
 
         mSurfaceControlTransactionFactory =
                 new PipSurfaceTransactionHelper.VsyncSurfaceControlTransactionFactory();
@@ -179,7 +196,9 @@ public class PipExpandAnimator extends ValueAnimator {
                     mAnimatedRect, insets, degrees, x, y,
                     true /* isExpanding */, mRotation == ROTATION_90);
         }
-        mPipSurfaceTransactionHelper.round(tx, mLeash, false /* applyCornerRadius */)
+        // Apply round corner during the animation, it will be reset at the end if not in desktop
+        // windowing mode.
+        mPipSurfaceTransactionHelper.round(tx, mLeash, true /* applyCornerRadius */)
                 .shadow(tx, mLeash, false /* applyShadowRadius */);
     }
 

@@ -34,7 +34,6 @@ import com.android.systemui.power.shared.model.WakefulnessState
 import com.android.systemui.statusbar.phone.ScreenOffAnimationController
 import javax.inject.Inject
 import javax.inject.Provider
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collect
@@ -53,7 +52,7 @@ constructor(
     private val cameraGestureHelper: Provider<CameraGestureHelper?>,
 ) {
     /** Whether the screen is on or off. */
-    val isInteractive: Flow<Boolean> = repository.isInteractive
+    val isInteractive: StateFlow<Boolean> = repository.isInteractive
 
     /**
      * Whether we're awake or asleep, along with additional information about why we're awake/asleep

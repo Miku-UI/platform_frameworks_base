@@ -21,7 +21,7 @@ import android.hardware.location.IGeofenceHardware;
 /**
  * An interface for location providers implementing the Geofencing service
  *
- * {@hide}
+ * @hide
  */
 oneway interface IGeofenceProvider {
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)

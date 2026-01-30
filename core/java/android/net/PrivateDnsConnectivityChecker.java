@@ -28,7 +28,7 @@ import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Class for testing connectivity to DNS-over-TLS servers.
- * {@hide}
+ * @hide
  */
 public class PrivateDnsConnectivityChecker {
     private static final String TAG = "NetworkUtils";

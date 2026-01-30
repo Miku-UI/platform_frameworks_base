@@ -25,5 +25,6 @@ val Kosmos.glanceableHubToDozingTransitionViewModel by
         GlanceableHubToDozingTransitionViewModel(
             animationFlow = keyguardTransitionAnimationFlow,
             blurComponentFactory = glanceableHubBlurComponentFactory,
+            dozingTransitionFlows = dozingTransitionFlows,
         )
     }

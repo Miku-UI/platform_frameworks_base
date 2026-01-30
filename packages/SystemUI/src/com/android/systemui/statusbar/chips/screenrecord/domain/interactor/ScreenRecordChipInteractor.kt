@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.chips.screenrecord.domain.interactor
 
 import android.media.projection.StopReason
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.log.LogBuffer
@@ -85,11 +84,7 @@ constructor(
                 mediaProjectionRepository.mediaProjectionState,
                 shouldAssumeIsRecording,
             ) { screenRecordState, mediaProjectionState, shouldAssumeIsRecording ->
-                if (
-                    Flags.statusBarAutoStartScreenRecordChip() &&
-                        shouldAssumeIsRecording &&
-                        screenRecordState is ScreenRecordModel.Starting
-                ) {
+                if (shouldAssumeIsRecording && screenRecordState is ScreenRecordModel.Starting) {
                     logger.log(
                         TAG,
                         LogLevel.INFO,

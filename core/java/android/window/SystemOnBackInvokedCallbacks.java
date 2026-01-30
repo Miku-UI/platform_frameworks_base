@@ -16,12 +16,9 @@
 
 package android.window;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.app.Activity;
 import android.util.ArrayMap;
-
-import com.android.window.flags.Flags;
 
 import java.lang.ref.WeakReference;
 
@@ -42,7 +39,6 @@ import java.lang.ref.WeakReference;
  * </pre>
  */
 @SuppressWarnings("SingularCallback")
-@FlaggedApi(Flags.FLAG_PREDICTIVE_BACK_SYSTEM_OVERRIDE_CALLBACK)
 public final class SystemOnBackInvokedCallbacks {
     private static final OverrideCallbackFactory<Activity> sMoveTaskToBackFactory = new
             MoveTaskToBackCallbackFactory();
@@ -63,7 +59,6 @@ public final class SystemOnBackInvokedCallbacks {
      * @param activity The associated {@link Activity}
      * @see Activity#moveTaskToBack(boolean)
      */
-    @FlaggedApi(Flags.FLAG_PREDICTIVE_BACK_SYSTEM_OVERRIDE_CALLBACK)
     @NonNull
     public static OnBackInvokedCallback moveTaskToBackCallback(@NonNull Activity activity) {
         return sMoveTaskToBackFactory.getOverrideCallback(activity);
@@ -78,7 +73,6 @@ public final class SystemOnBackInvokedCallbacks {
      * @param activity The associated {@link Activity}
      * @see Activity#finishAndRemoveTask()
      */
-    @FlaggedApi(Flags.FLAG_PREDICTIVE_BACK_SYSTEM_OVERRIDE_CALLBACK)
     @NonNull
     public static OnBackInvokedCallback finishAndRemoveTaskCallback(@NonNull Activity activity) {
         return sFinishAndRemoveTaskFactory.getOverrideCallback(activity);

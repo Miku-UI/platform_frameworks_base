@@ -16,7 +16,9 @@
 
 package com.android.server.wm;
 
+import android.annotation.ColorInt;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.util.proto.ProtoOutputStream;
 import android.view.SurfaceControl;
 import android.view.SurfaceControl.Transaction;
@@ -32,7 +34,7 @@ import java.io.PrintWriter;
  * Interface that describes an animation and bridges the animation start to the component
  * responsible for running the animation.
  */
-@VisibleForTesting
+@VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 public interface AnimationAdapter {
 
     long STATUS_BAR_TRANSITION_DURATION = 120L;
@@ -55,6 +57,7 @@ public interface AnimationAdapter {
      * @return The background color to use during an animation if getShowBackground returns true.
      * @see Animation#getBackdropColor()
      */
+    @ColorInt
     default int getBackgroundColor() {
         return 0;
     }
@@ -70,8 +73,8 @@ public interface AnimationAdapter {
      * @param type The type of the animation.
      * @param finishCallback The callback to be invoked when the animation has finished.
      */
-    void startAnimation(SurfaceControl animationLeash, Transaction t, @AnimationType int type,
-            @NonNull OnAnimationFinishedCallback finishCallback);
+    void startAnimation(@NonNull SurfaceControl animationLeash, @NonNull Transaction t,
+            @AnimationType int type, @NonNull OnAnimationFinishedCallback finishCallback);
 
     /**
      * Called when the animation that was started with {@link #startAnimation} was cancelled by the
@@ -79,7 +82,7 @@ public interface AnimationAdapter {
      *
      * @param animationLeash The leash passed to {@link #startAnimation}.
      */
-    void onAnimationCancelled(SurfaceControl animationLeash);
+    void onAnimationCancelled(@Nullable SurfaceControl animationLeash);
 
     /**
      * @return The approximate duration of the animation, in milliseconds.
@@ -95,15 +98,15 @@ public interface AnimationAdapter {
      */
     long getStatusBarTransitionsStartTime();
 
-    void dump(PrintWriter pw, String prefix);
+    void dump(@NonNull PrintWriter pw, @NonNull String prefix);
 
-    default void dumpDebug(ProtoOutputStream proto, long fieldId) {
+    default void dumpDebug(@NonNull ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         dumpDebug(proto);
         proto.end(token);
     }
 
-    void dumpDebug(ProtoOutputStream proto);
+    void dumpDebug(@NonNull ProtoOutputStream proto);
 
     /**
      * Gets called when the animation is about to finish and gives the client the opportunity to
@@ -113,7 +116,7 @@ public interface AnimationAdapter {
      * @param endDeferFinishCallback The callback to call when defer finishing should be ended.
      * @return Whether the client would like to defer the animation finish.
      */
-    default boolean shouldDeferAnimationFinish(Runnable endDeferFinishCallback) {
+    default boolean shouldDeferAnimationFinish(@NonNull Runnable endDeferFinishCallback) {
         return false;
     }
 }

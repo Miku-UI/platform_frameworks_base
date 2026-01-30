@@ -22,7 +22,7 @@
         <uses-library android:name="android.test.runner" />
     </application>
 
-    <instrumentation android:name="android.test.InstrumentationTestRunner"
+    <instrumentation android:name="androidx.test.runner.AndroidJUnitRunner"
         android:targetPackage="android.security.net.config"
         android:label="ANSC Tests">
     </instrumentation>

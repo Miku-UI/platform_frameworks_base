@@ -21,6 +21,7 @@
     android:id="@+id/user_switcher_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:visibility="invisible"
     android:orientation="vertical">
 
   <ScrollView
@@ -63,6 +64,7 @@
 
     <TextView
         android:id="@+id/cancel"
+        android:fontFamily="variable-title-small"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
@@ -80,6 +82,7 @@
 
     <TextView
         android:id="@+id/add"
+        android:fontFamily="variable-title-small"
         android:background="@drawable/user_switcher_fullscreen_button_bg"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

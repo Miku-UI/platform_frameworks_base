@@ -19,6 +19,7 @@ package com.android.localtransport;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.backup.BackupAgent;
+import android.app.backup.BackupAgent.BackupTransportFlags;
 import android.app.backup.BackupAnnotations;
 import android.app.backup.BackupDataInput;
 import android.app.backup.BackupDataOutput;
@@ -42,6 +43,7 @@ import android.util.Base64;
 import android.util.Dumpable;
 import android.util.Log;
 
+import com.android.server.backup.Flags;
 import com.android.tools.r8.keepanno.annotations.KeepTarget;
 import com.android.tools.r8.keepanno.annotations.UsesReflection;
 
@@ -61,25 +63,22 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Backup transport for stashing stuff into a known location on disk, and
- * later restoring from there.  For testing only.
+ * Backup transport for stashing stuff into a known location on disk, and later restoring from
+ * there. For testing only.
  *
- * <p>Note: the quickest way to build and sync this class is:
- * {@code m LocalTransport && adb install $OUT/system/priv-app/LocalTransport/LocalTransport.apk}
+ * <p>Note: the quickest way to build and sync this class is: {@code m LocalTransport && adb install
+ * $OUT/system/priv-app/LocalTransport/LocalTransport.apk}
  */
-
 public class LocalTransport extends BackupTransport {
     static final String TAG = "LocalTransport";
     static final boolean DEBUG = Log.isLoggable(TAG, Log.VERBOSE);
 
-    private static final String TRANSPORT_DIR_NAME
-            = "com.android.localtransport.LocalTransport";
+    private static final String TRANSPORT_DIR_NAME = "com.android.localtransport.LocalTransport";
 
-    private static final String TRANSPORT_DESTINATION_STRING
-            = "Backing up to debug-only private cache";
+    private static final String TRANSPORT_DESTINATION_STRING =
+            "Backing up to debug-only private cache";
 
-    private static final String TRANSPORT_DATA_MANAGEMENT_LABEL
-            = "";
+    private static final String TRANSPORT_DATA_MANAGEMENT_LABEL = "";
 
     private static final String INCREMENTAL_DIR = "_delta";
     private static final String FULL_DATA_DIR = "_full";
@@ -100,7 +99,7 @@ public class LocalTransport extends BackupTransport {
     private File mCurrentSetFullDir;
 
     protected PackageInfo[] mRestorePackages = null;
-    protected int mRestorePackage = -1;  // Index into mRestorePackages
+    protected int mRestorePackage = -1; // Index into mRestorePackages
     protected int mRestoreType;
     private File mRestoreSetDir;
     protected File mRestoreSetIncrementalDir;
@@ -131,8 +130,13 @@ public class LocalTransport extends BackupTransport {
     }
 
     public LocalTransport(Context context, LocalTransportParameters parameters) {
-        Log.i(TAG, "Creating LocalTransport for user " + context.getUserId()
-                + " (DEBUG=" + DEBUG + ")");
+        Log.i(
+                TAG,
+                "Creating LocalTransport for user "
+                        + context.getUserId()
+                        + " (DEBUG="
+                        + DEBUG
+                        + ")");
         mContext = context;
         mParameters = parameters;
         makeDataDirs();
@@ -142,11 +146,10 @@ public class LocalTransport extends BackupTransport {
         return mParameters;
     }
 
-
     @UsesReflection({
-            // As the runtime class name is used to generate the returned name, and the returned
-            // name may be used used with reflection, generate the necessary keep rules.
-            @KeepTarget(instanceOfClassConstant = LocalTransport.class)
+        // As the runtime class name is used to generate the returned name, and the returned
+        // name may be used used with reflection, generate the necessary keep rules.
+        @KeepTarget(instanceOfClassConstant = LocalTransport.class)
     })
     @Override
     public String name() {
@@ -196,6 +199,9 @@ public class LocalTransport extends BackupTransport {
         if (mParameters.isEncrypted()) {
             flags |= BackupAgent.FLAG_CLIENT_SIDE_ENCRYPTION_ENABLED;
         }
+        if (Flags.enableCrossPlatformTransfer() && mParameters.isCrossPlatformTransferIos()) {
+            flags |= BackupAgent.FLAG_CROSS_PLATFORM_DATA_TRANSFER_IOS;
+        }
         return flags;
     }
 
@@ -215,18 +221,18 @@ public class LocalTransport extends BackupTransport {
 
     // Encapsulation of a single k/v element change
     private class KVOperation {
-        final String key;     // Element filename, not the raw key, for efficiency
-        final byte[] value;   // null when this is a deletion operation
+        final String mKey; // Element filename, not the raw key, for efficiency
+        final byte[] mValue; // null when this is a deletion operation
 
         KVOperation(String k, byte[] v) {
-            key = k;
-            value = v;
+            mKey = k;
+            mValue = v;
         }
     }
 
     @Override
     public int performBackup(PackageInfo packageInfo, ParcelFileDescriptor data) {
-        return performBackup(packageInfo, data, /*flags=*/ 0);
+        return performBackup(packageInfo, data, /* flags= */ 0);
     }
 
     @Override
@@ -260,11 +266,19 @@ public class LocalTransport extends BackupTransport {
         if (DEBUG) {
             try {
                 StructStat ss = Os.fstat(data.getFileDescriptor());
-                Log.v(TAG, "performBackup() pkg=" + packageInfo.packageName
-                        + " size=" + ss.st_size + " flags=" + flags);
+                Log.v(
+                        TAG,
+                        "performBackup() pkg="
+                                + packageInfo.packageName
+                                + " size="
+                                + ss.st_size
+                                + " flags="
+                                + flags);
             } catch (ErrnoException e) {
-                Log.w(TAG, "Unable to stat input file in performBackup() on "
-                        + packageInfo.packageName);
+                Log.w(
+                        TAG,
+                        "Unable to stat input file in performBackup() on "
+                                + packageInfo.packageName);
             }
         }
 
@@ -277,7 +291,8 @@ public class LocalTransport extends BackupTransport {
                     Log.w(TAG, "Transport is in non-incremental only mode.");
 
                 } else {
-                    Log.w(TAG,
+                    Log.w(
+                            TAG,
                             "Requested incremental, but transport currently stores no data for the "
                                     + "package, requesting non-incremental retry.");
                 }
@@ -321,20 +336,24 @@ public class LocalTransport extends BackupTransport {
         int updatedSize = totalSize;
         for (KVOperation op : changeOps) {
             // Deduct the size of the key we're about to replace, if any
-            final Integer curSize = datastore.get(op.key);
+            final Integer curSize = datastore.get(op.mKey);
             if (curSize != null) {
                 updatedSize -= curSize.intValue();
-                if (DEBUG && op.value == null) {
-                    Log.v(TAG, "  delete " + op.key + ", updated total " + updatedSize);
+                if (DEBUG && op.mValue == null) {
+                    Log.v(TAG, "  delete " + op.mKey + ", updated total " + updatedSize);
                 }
             }
 
             // And add back the size of the value we're about to store, if any
-            if (op.value != null) {
-                updatedSize += op.value.length;
+            if (op.mValue != null) {
+                updatedSize += op.mValue.length;
                 if (DEBUG) {
-                    Log.v(TAG, ((curSize == null) ? "  new " : "  replace ")
-                            +  op.key + ", updated total " + updatedSize);
+                    Log.v(
+                            TAG,
+                            ((curSize == null) ? "  new " : "  replace ")
+                                    + op.mKey
+                                    + ", updated total "
+                                    + updatedSize);
                 }
             }
         }
@@ -342,8 +361,12 @@ public class LocalTransport extends BackupTransport {
         // If our final size is over quota, report the failure
         if (updatedSize > KEY_VALUE_BACKUP_SIZE_QUOTA) {
             if (DEBUG) {
-                Log.i(TAG, "New datastore size " + updatedSize
-                        + " exceeds quota " + KEY_VALUE_BACKUP_SIZE_QUOTA);
+                Log.i(
+                        TAG,
+                        "New datastore size "
+                                + updatedSize
+                                + " exceeds quota "
+                                + KEY_VALUE_BACKUP_SIZE_QUOTA);
             }
             return TRANSPORT_QUOTA_EXCEEDED;
         }
@@ -351,16 +374,16 @@ public class LocalTransport extends BackupTransport {
         // No problem with storage size, so go ahead and apply the delta operations
         // (in the order that the app provided them)
         for (KVOperation op : changeOps) {
-            File element = new File(packageDir, op.key);
+            File element = new File(packageDir, op.mKey);
 
             // this is either a deletion or a rewrite-from-zero, so we can just remove
             // the existing file and proceed in either case.
             element.delete();
 
             // if this wasn't a deletion, put the new data in place
-            if (op.value != null) {
+            if (op.mValue != null) {
                 try (FileOutputStream out = new FileOutputStream(element)) {
-                    out.write(op.value, 0, op.value.length);
+                    out.write(op.mValue, 0, op.mValue.length);
                 } catch (IOException e) {
                     Log.e(TAG, "Unable to update key file " + element, e);
                     return TRANSPORT_ERROR;
@@ -371,8 +394,7 @@ public class LocalTransport extends BackupTransport {
     }
 
     // Parses a backup stream into individual key/value operations
-    private ArrayList<KVOperation> parseBackupStream(ParcelFileDescriptor data)
-            throws IOException {
+    private ArrayList<KVOperation> parseBackupStream(ParcelFileDescriptor data) throws IOException {
         ArrayList<KVOperation> changeOps = new ArrayList<>();
         BackupDataInput changeSet = new BackupDataInput(data.getFileDescriptor());
         while (changeSet.readNextHeader()) {
@@ -380,8 +402,14 @@ public class LocalTransport extends BackupTransport {
             String base64Key = new String(Base64.encode(key.getBytes(), Base64.NO_WRAP));
             int dataSize = changeSet.getDataSize();
             if (DEBUG) {
-                Log.v(TAG, "  Delta operation key " + key + "   size " + dataSize
-                        + "   key64 " + base64Key);
+                Log.v(
+                        TAG,
+                        "  Delta operation key "
+                                + key
+                                + "   size "
+                                + dataSize
+                                + "   key64 "
+                                + base64Key);
             }
 
             byte[] buf = (dataSize >= 0) ? new byte[dataSize] : null;
@@ -404,7 +432,7 @@ public class LocalTransport extends BackupTransport {
             }
             for (String file : elements) {
                 File element = new File(packageDir, file);
-                String key = file;  // filename
+                String key = file; // filename
                 int size = (int) element.length();
                 totalSize += size;
                 if (DEBUG) {
@@ -614,7 +642,7 @@ public class LocalTransport extends BackupTransport {
 
     // ------------------------------------------------------------------------------------
     // Restore handling
-    static final long[] POSSIBLE_SETS = { 2, 3, 4, 5, 6, 7, 8, 9 };
+    static final long[] POSSIBLE_SETS = {2, 3, 4, 5, 6, 7, 8, 9};
 
     @Override
     public RestoreSet[] getAvailableRestoreSets() {
@@ -631,10 +659,17 @@ public class LocalTransport extends BackupTransport {
         existing[num++] = CURRENT_SET_TOKEN;
 
         RestoreSet[] available = new RestoreSet[num];
-        String deviceName = mParameters.isDeviceTransfer() ? DEVICE_NAME_FOR_D2D_RESTORE_SET
-                : DEFAULT_DEVICE_NAME_FOR_RESTORE_SET;
+        String deviceName =
+                mParameters.isDeviceTransfer()
+                        ? DEVICE_NAME_FOR_D2D_RESTORE_SET
+                        : DEFAULT_DEVICE_NAME_FOR_RESTORE_SET;
+        @BackupTransportFlags int transportFlags = 0;
+        if (Flags.enableCrossPlatformTransfer() && mParameters.isCrossPlatformTransferIos()) {
+            transportFlags |= BackupAgent.FLAG_CROSS_PLATFORM_DATA_TRANSFER_IOS;
+        }
         for (int i = 0; i < available.length; i++) {
-            available[i] = new RestoreSet("Local disk image", deviceName, existing[i]);
+            available[i] =
+                    new RestoreSet("Local disk image", deviceName, existing[i], transportFlags);
         }
         return available;
     }
@@ -647,8 +682,9 @@ public class LocalTransport extends BackupTransport {
 
     @Override
     public int startRestore(long token, PackageInfo[] packages) {
-        if (DEBUG) Log.v(TAG, "start restore " + token + " : " + packages.length
-                + " matching packages");
+        if (DEBUG) {
+            Log.v(TAG, "start restore " + token + " : " + packages.length + " matching packages");
+        }
         mRestorePackages = packages;
         mRestorePackage = -1;
         mRestoreSetDir = new File(mDataDir, Long.toString(token));
@@ -660,8 +696,12 @@ public class LocalTransport extends BackupTransport {
     @Override
     public RestoreDescription nextRestorePackage() {
         if (DEBUG) {
-            Log.v(TAG, "nextRestorePackage() : mRestorePackage=" + mRestorePackage
-                    + " length=" + mRestorePackages.length);
+            Log.v(
+                    TAG,
+                    "nextRestorePackage() : mRestorePackage="
+                            + mRestorePackage
+                            + " length="
+                            + mRestorePackages.length);
         }
         if (mRestorePackages == null) throw new IllegalStateException("startRestore not called");
 
@@ -681,11 +721,15 @@ public class LocalTransport extends BackupTransport {
                 File maybeFullData = new File(mRestoreSetFullDir, name);
                 if (maybeFullData.length() > 0) {
                     if (DEBUG) {
-                        Log.v(TAG, "  nextRestorePackage(TYPE_FULL_STREAM) @ "
-                                + mRestorePackage + " = " + name);
+                        Log.v(
+                                TAG,
+                                "  nextRestorePackage(TYPE_FULL_STREAM) @ "
+                                        + mRestorePackage
+                                        + " = "
+                                        + name);
                     }
                     mRestoreType = RestoreDescription.TYPE_FULL_STREAM;
-                    mCurFullRestoreStream = null;   // ensure starting from the ground state
+                    mCurFullRestoreStream = null; // ensure starting from the ground state
                     found = true;
                 }
             }
@@ -695,8 +739,13 @@ public class LocalTransport extends BackupTransport {
             }
 
             if (DEBUG) {
-                Log.v(TAG, "  ... package @ " + mRestorePackage + " = " + name
-                        + " has no data; skipping");
+                Log.v(
+                        TAG,
+                        "  ... package @ "
+                                + mRestorePackage
+                                + " = "
+                                + name
+                                + " has no data; skipping");
             }
         }
 
@@ -708,8 +757,12 @@ public class LocalTransport extends BackupTransport {
         String[] contents = (new File(mRestoreSetIncrementalDir, packageName)).list();
         if (contents != null && contents.length > 0) {
             if (DEBUG) {
-                Log.v(TAG, "  nextRestorePackage(TYPE_KEY_VALUE) @ "
-                        + mRestorePackage + " = " + packageName);
+                Log.v(
+                        TAG,
+                        "  nextRestorePackage(TYPE_KEY_VALUE) @ "
+                                + mRestorePackage
+                                + " = "
+                                + packageName);
             }
             return true;
         }
@@ -723,8 +776,8 @@ public class LocalTransport extends BackupTransport {
         if (mRestoreType != RestoreDescription.TYPE_KEY_VALUE) {
             throw new IllegalStateException("getRestoreData(fd) for non-key/value dataset");
         }
-        File packageDir = new File(mRestoreSetIncrementalDir,
-                mRestorePackages[mRestorePackage].packageName);
+        File packageDir =
+                new File(mRestoreSetIncrementalDir, mRestorePackages[mRestorePackage].packageName);
 
         // The restore set is the concatenation of the individual record blobs,
         // each of which is a file in the package's directory.  We return the
@@ -732,7 +785,7 @@ public class LocalTransport extends BackupTransport {
         // keys like BLOB_1, BLOB_2, etc will see the date in the most obvious
         // order.
         ArrayList<DecodedFilename> blobs = contentsByKey(packageDir);
-        if (blobs == null) {  // nextRestorePackage() ensures the dir exists, so this is an error
+        if (blobs == null) { // nextRestorePackage() ensures the dir exists, so this is an error
             Log.e(TAG, "No keys for package: " + packageDir);
             return TRANSPORT_ERROR;
         }
@@ -814,26 +867,24 @@ public class LocalTransport extends BackupTransport {
     }
 
     /**
-     * Ask the transport to provide data for the "current" package being restored.  The
-     * transport then writes some data to the socket supplied to this call, and returns
-     * the number of bytes written.  The system will then read that many bytes and
-     * stream them to the application's agent for restore, then will call this method again
-     * to receive the next chunk of the archive.  This sequence will be repeated until the
-     * transport returns zero indicating that all of the package's data has been delivered
-     * (or returns a negative value indicating some sort of hard error condition at the
-     * transport level).
+     * Ask the transport to provide data for the "current" package being restored. The transport
+     * then writes some data to the socket supplied to this call, and returns the number of bytes
+     * written. The system will then read that many bytes and stream them to the application's agent
+     * for restore, then will call this method again to receive the next chunk of the archive. This
+     * sequence will be repeated until the transport returns zero indicating that all of the
+     * package's data has been delivered (or returns a negative value indicating some sort of hard
+     * error condition at the transport level).
      *
-     * <p>After this method returns zero, the system will then call
-     * {@link #getNextFullRestorePackage()} to begin the restore process for the next
-     * application, and the sequence begins again.
+     * <p>After this method returns zero, the system will then call {@link
+     * #getNextFullRestorePackage()} to begin the restore process for the next application, and the
+     * sequence begins again.
      *
-     * @param socket The file descriptor that the transport will use for delivering the
-     *    streamed archive.
-     * @return 0 when no more data for the current package is available.  A positive value
-     *    indicates the presence of that much data to be delivered to the app.  A negative
-     *    return value is treated as equivalent to {@link BackupTransport#TRANSPORT_ERROR},
-     *    indicating a fatal error condition that precludes further restore operations
-     *    on the current dataset.
+     * @param socket The file descriptor that the transport will use for delivering the streamed
+     *     archive.
+     * @return 0 when no more data for the current package is available. A positive value indicates
+     *     the presence of that much data to be delivered to the app. A negative return value is
+     *     treated as equivalent to {@link BackupTransport#TRANSPORT_ERROR}, indicating a fatal
+     *     error condition that precludes further restore operations on the current dataset.
      */
     @Override
     public int getNextFullRestoreDataChunk(ParcelFileDescriptor socket) {
@@ -854,7 +905,7 @@ public class LocalTransport extends BackupTransport {
                 Log.e(TAG, "Unable to read archive for " + name);
                 return TRANSPORT_PACKAGE_REJECTED;
             }
-            mFullRestoreBuffer = new byte[2*1024];
+            mFullRestoreBuffer = new byte[2 * 1024];
         }
 
         FileOutputStream stream = new FileOutputStream(socket.getFileDescriptor());
@@ -878,7 +929,7 @@ public class LocalTransport extends BackupTransport {
                 stream.write(mFullRestoreBuffer, 0, nRead);
             }
         } catch (IOException e) {
-            return TRANSPORT_ERROR;  // Hard error accessing the file; shouldn't happen
+            return TRANSPORT_ERROR; // Hard error accessing the file; shouldn't happen
         } finally {
             IoUtils.closeQuietly(socket);
         }
@@ -888,16 +939,15 @@ public class LocalTransport extends BackupTransport {
 
     /**
      * If the OS encounters an error while processing {@link RestoreDescription#TYPE_FULL_STREAM}
-     * data for restore, it will invoke this method to tell the transport that it should
-     * abandon the data download for the current package.  The OS will then either call
-     * {@link #nextRestorePackage()} again to move on to restoring the next package in the
-     * set being iterated over, or will call {@link #finishRestore()} to shut down the restore
-     * operation.
+     * data for restore, it will invoke this method to tell the transport that it should abandon the
+     * data download for the current package. The OS will then either call {@link
+     * #nextRestorePackage()} again to move on to restoring the next package in the set being
+     * iterated over, or will call {@link #finishRestore()} to shut down the restore operation.
      *
-     * @return {@link #TRANSPORT_OK} if the transport was successful in shutting down the
-     *    current stream cleanly, or {@link #TRANSPORT_ERROR} to indicate a serious
-     *    transport-level failure.  If the transport reports an error here, the entire restore
-     *    operation will immediately be finished with no further attempts to restore app data.
+     * @return {@link #TRANSPORT_OK} if the transport was successful in shutting down the current
+     *     stream cleanly, or {@link #TRANSPORT_ERROR} to indicate a serious transport-level
+     *     failure. If the transport reports an error here, the entire restore operation will
+     *     immediately be finished with no further attempts to restore app data.
      */
     @Override
     public int abortFullRestore() {
@@ -939,9 +989,10 @@ public class LocalTransport extends BackupTransport {
             }
             mNumberReceivedEvents++;
             boolean logResults = mParameters.logAgentResults();
-            ArrayList<DataTypeResult> results = event.getParcelableArrayList(
-                    BackupManagerMonitor.EXTRA_LOG_AGENT_LOGGING_RESULTS,
-                    DataTypeResult.class);
+            ArrayList<DataTypeResult> results =
+                    event.getParcelableArrayList(
+                            BackupManagerMonitor.EXTRA_LOG_AGENT_LOGGING_RESULTS,
+                            DataTypeResult.class);
             int size = results.size();
             if (size == 0) {
                 if (logResults) {
@@ -999,7 +1050,8 @@ public class LocalTransport extends BackupTransport {
     @Override
     public String toString() {
         try {
-            try (StringWriter sw = new StringWriter(); PrintWriter pw = new PrintWriter(sw)) {
+            try (StringWriter sw = new StringWriter();
+                    PrintWriter pw = new PrintWriter(sw)) {
                 dump(pw, /* args= */ null);
                 pw.flush();
                 return sw.toString();

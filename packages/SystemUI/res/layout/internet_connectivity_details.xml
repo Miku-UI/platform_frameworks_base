@@ -1,0 +1,589 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/internet_connectivity_details"
+    android:layout_width="@dimen/large_dialog_width"
+    android:layout_height="wrap_content"
+    android:paddingBottom="@dimen/tile_details_bottom_padding"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="@dimen/internet_dialog_progress_bar_width"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="@dimen/internet_dialog_network_layout_margin"
+        android:orientation="vertical"
+        android:paddingTop="@dimen/settingslib_expressive_space_extrasmall3">
+
+        <ProgressBar
+            android:id="@+id/wifi_searching_progress"
+            style="@style/TrimmedHorizontalProgressBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:paddingTop="@dimen/settingslib_expressive_space_extrasmall3"
+            android:progressBackgroundTint="@androidprv:color/materialColorSecondaryContainer"
+            android:progressTint="@androidprv:color/materialColorPrimary"
+            android:splitTrack="false"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:id="@+id/scroll_layout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/ethernet_layout"
+                    android:baselineAligned="false"
+                    android:layout_height="@dimen/tile_details_toggle_row_height"
+                    style="@style/InternetDialog.Network"
+                    android:background="@drawable/settingslib_switch_bar_bg_on"
+                    android:visibility="gone">
+
+                    <FrameLayout
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center_vertical|start"
+                        android:clickable="false">
+
+                        <ImageView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="@string/ethernet_label"
+                            android:layout_gravity="center"
+                            android:autoMirrored="true"
+                            android:src="@drawable/stat_sys_ethernet_fully"
+                            android:tint="@color/connected_network_primary_color" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:clickable="false"
+                        android:gravity="start|center_vertical"
+                        android:orientation="vertical">
+
+                        <TextView
+                            style="@style/InternetDetails.EntryTitle.Active"
+                            android:text="@string/ethernet_label" />
+
+                        <TextView
+                            style="@style/InternetDetails.EntrySubTitle.Active"
+                            android:text="@string/to_switch_networks_disconnect_ethernet" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/mobile_network_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:id="@+id/turn_on_mobile_layout"
+                        style="@style/InternetDialog.Network"
+                        android:baselineAligned="false"
+                        android:layout_height="@dimen/tile_details_toggle_row_height"
+                        android:clickable="false"
+                        android:focusable="false"
+                        android:gravity="center">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:clickable="false"
+                            android:gravity="start|center_vertical"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/mobile_toggle_title"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:gravity="start|center_vertical"
+                                android:text="@string/mobile_data"
+                                android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle" />
+                        </LinearLayout>
+
+                        <FrameLayout
+                            android:layout_width="@dimen/tile_details_switch_container_width"
+                            android:layout_height="@dimen/tile_details_switch_track_height"
+                            android:layout_marginBottom="6dp"
+                            android:layout_marginTop="6dp">
+
+                            <com.google.android.material.materialswitch.MaterialSwitch
+                                android:id="@+id/mobile_toggle"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:scaleX="0.77"
+                                android:scaleY="0.77"
+                                android:layout_gravity="center_vertical"
+                                android:focusable="false"
+                                android:clickable="false"
+                                android:theme="@style/Theme.Material3.DynamicColors.DayNight"
+                                style="@style/SettingslibSwitchStyle.Expressive"
+                                tools:ignore="UseSwitchCompatOrMaterialXml" />
+                        </FrameLayout>
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/mobile_connected_layout"
+                        android:baselineAligned="false"
+                        style="@style/InternetDialog.Network">
+
+                        <FrameLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="24dp"
+                            android:clickable="false"
+                            android:layout_gravity="center_vertical|start">
+
+                            <ImageView
+                                android:id="@+id/signal_icon"
+                                android:contentDescription="@string/mobile_data"
+                                android:tint="@androidprv:color/materialColorOnSurface"
+                                android:autoMirrored="true"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="center" />
+                        </FrameLayout>
+
+                        <LinearLayout
+                            android:layout_weight="1"
+                            android:orientation="vertical"
+                            android:clickable="false"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:minHeight="72dp"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:id="@+id/mobile_title"
+                                android:maxLines="1"
+                                style="@style/InternetDetails.EntryTitle" />
+
+                            <TextView
+                                android:id="@+id/mobile_summary"
+                                style="@style/InternetDetails.EntrySubTitle" />
+
+                            <TextView
+                                android:id="@+id/airplane_mode_summary"
+                                android:text="@string/airplane_mode"
+                                android:visibility="gone"
+                                style="@style/InternetDetails.EntrySubTitle" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </LinearLayout>
+
+                <ViewStub
+                    android:id="@+id/secondary_mobile_network_stub"
+                    android:inflatedId="@+id/secondary_mobile_network_layout"
+                    android:layout="@layout/qs_dialog_secondary_mobile_network"
+                    style="@style/InternetDialog.Network" />
+
+                <LinearLayout
+                    android:id="@+id/turn_on_wifi_layout"
+                    style="@style/InternetDialog.Network"
+                    android:baselineAligned="false"
+                    android:layout_height="@dimen/internet_dialog_wifi_network_height"
+                    android:gravity="center"
+                    android:clickable="false"
+                    android:focusable="false">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:gravity="start|center_vertical"
+                        android:orientation="vertical"
+                        android:clickable="false">
+
+                        <TextView
+                            android:id="@+id/wifi_toggle_title"
+                            android:text="@string/turn_on_wifi"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="start|center_vertical"
+                            android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle" />
+
+                        <TextView
+                            android:id="@+id/wifi_toggle_summary"
+                            android:text="@string/wifitrackerlib_admin_restricted_network"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="start|center_vertical"
+                            android:textAppearance="@style/TextAppearance.TileDetailsEntrySubTitle"
+                            android:visibility="gone" />
+                    </LinearLayout>
+
+                    <FrameLayout
+                        android:layout_width="@dimen/tile_details_switch_container_width"
+                        android:layout_height="@dimen/tile_details_switch_track_height"
+                        android:layout_marginTop="6dp"
+                        android:layout_marginBottom="6dp">
+
+                        <com.google.android.material.materialswitch.MaterialSwitch
+                            android:id="@+id/wifi_toggle"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:scaleX="0.77"
+                            android:scaleY="0.77"
+                            android:layout_gravity="center_vertical"
+                            android:focusable="false"
+                            android:clickable="false"
+                            android:theme="@style/Theme.Material3.DynamicColors.DayNight"
+                            style="@style/SettingslibSwitchStyle.Expressive"
+                            tools:ignore="UseSwitchCompatOrMaterialXml" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/wifi_connected_layout"
+                    style="@style/InternetDialog.Network"
+                    android:baselineAligned="false"
+                    android:layout_height="@dimen/internet_dialog_wifi_network_height"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="24dp"
+                    android:background="@drawable/settingslib_switch_bar_bg_on"
+                    android:visibility="gone">
+
+                    <FrameLayout
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:clickable="false"
+                        android:layout_gravity="center_vertical|start">
+
+                        <ImageView
+                            android:id="@+id/wifi_connected_icon"
+                            android:contentDescription="@string/turn_on_wifi"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="fitCenter"
+                            android:layout_gravity="center" />
+                    </FrameLayout>
+
+                    <LinearLayout
+                        android:orientation="vertical"
+                        android:clickable="false"
+                        android:layout_width="0dp"
+                        android:layout_height="@dimen/internet_dialog_wifi_network_height"
+                        android:layout_marginEnd="30dp"
+                        android:layout_weight="1"
+                        android:gravity="start|center_vertical">
+
+                        <TextView
+                            android:id="@+id/wifi_connected_title"
+                            style="@style/InternetDetails.EntryTitle.Active"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/wifi_connected_summary"
+                            style="@style/InternetDetails.EntrySubTitle.Active" />
+                    </LinearLayout>
+
+                    <FrameLayout
+                        android:layout_width="24dp"
+                        android:layout_height="match_parent"
+                        android:clickable="false"
+                        android:layout_gravity="end|center_vertical"
+                        android:gravity="center">
+
+                        <ImageView
+                            android:id="@+id/wifi_settings_icon"
+                            android:contentDescription="@string/turn_on_wifi"
+                            android:src="@drawable/ic_settings_24dp"
+                            android:layout_width="24dp"
+                            android:layout_gravity="end|center_vertical"
+                            android:layout_height="wrap_content" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/wifi_list_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:overScrollMode="never"
+                    android:scrollbars="vertical" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/see_all_layout"
+                style="@style/InternetDialog.Network"
+                android:layout_marginTop="@dimen/tile_details_entry_gap"
+                android:layout_height="64dp"
+                android:paddingStart="20dp">
+
+                <FrameLayout
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center_vertical|start"
+                    android:clickable="false">
+
+                    <ImageView
+                        android:id="@+id/arrow_forward"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_arrow_forward" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/internet_dialog_network_layout_margin"
+                    android:clickable="false"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="start|center_vertical"
+                        android:text="@string/see_all_networks"
+                        android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle"
+                        android:textSize="14sp" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/add_network_button"
+                style="@style/InternetDialog.Network"
+                android:background="@drawable/settingslib_entry_bg_off_end"
+                android:layout_marginTop="@dimen/tile_details_entry_gap"
+                android:layout_height="64dp"
+                android:paddingStart="20dp"
+                android:visibility="gone">
+
+                <FrameLayout
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center_vertical|start"
+                    android:clickable="false">
+
+                    <ImageView
+                        android:contentDescription="@string/add_network_button_text"
+                        android:src="@drawable/ic_add"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:tint="@androidprv:color/materialColorOnSurface" />
+                </FrameLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/internet_dialog_network_layout_margin"
+                    android:clickable="false"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:text="@string/add_network_button_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:gravity="start|center_vertical"
+                        android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle"
+                        android:textSize="14sp" />
+                </FrameLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/login_screen_change_connected_wifi_notify_layout"
+                style="@style/InternetDialog.Network"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false"
+                android:orientation="horizontal"
+                android:paddingBottom="4dp"
+                android:paddingTop="8dp"
+                android:gravity="start|center_vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:contentDescription="@string/change_connected_wifi_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_info_outline"
+                    android:tint="?android:attr/textColorTertiary" />
+
+                <TextView
+                    android:text="@string/change_connected_wifi_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="4dp"
+                    android:textAppearance="@style/TextAppearance.TileDetailsEntrySubTitle" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/wifi_scan_notify_layout"
+                style="@style/InternetDialog.Network"
+                android:layout_height="wrap_content"
+                android:clickable="false"
+                android:focusable="false"
+                android:orientation="vertical"
+                android:paddingBottom="4dp"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="start|top"
+                    android:minWidth="56dp"
+                    android:orientation="horizontal"
+                    android:paddingBottom="4dp"
+                    android:paddingEnd="12dp"
+                    android:paddingTop="16dp">
+
+                    <ImageView
+                        android:contentDescription="@string/turn_on_wifi"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:src="@drawable/ic_info_outline"
+                        android:tint="?android:attr/textColorTertiary" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/wifi_scan_notify_text"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:clickable="true"
+                        android:paddingBottom="8dp"
+                        android:paddingTop="16dp"
+                        android:textColor="?android:attr/textColorSecondary" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/wifi_buttons_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="@dimen/dialog_bottom_padding">
+
+                <LinearLayout
+                    android:id="@+id/apm_button"
+                    style="@style/InternetDialog.Network.ButtonRow"
+                    android:layout_marginStart="16dp"
+                    app:layout_goneMarginEnd="16dp"
+                    android:layout_height="@dimen/tile_details_button_row_height"
+                    android:layout_width="0dp"
+                    app:layout_constraintEnd_toStartOf="@id/share_wifi_button"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    android:background="@drawable/settingslib_entry_bg_off"
+                    android:gravity="center"
+                    app:layout_constraintWidth_default="spread"
+                    app:layout_constraintHorizontal_chainStyle="spread"
+                    android:visibility="gone">
+
+                    <FrameLayout
+                        android:layout_width="@dimen/tile_details_button_size"
+                        android:layout_height="@dimen/tile_details_button_size"
+                        android:clickable="false">
+
+                        <ImageView
+                            android:contentDescription="@string/turn_off_airplane_mode"
+                            android:src="@drawable/qs_airplane_icon_on"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:tint="@androidprv:color/materialColorOnSurface" />
+                    </FrameLayout>
+
+                    <FrameLayout
+                        android:clickable="false"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/internet_dialog_network_layout_margin">
+
+                        <TextView
+                            android:text="@string/turn_off_airplane_mode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="marquee"
+                            android:singleLine="true"
+                            android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle" />
+                    </FrameLayout>
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/share_wifi_button"
+                    style="@style/InternetDialog.Network.ButtonRow"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="16dp"
+                    app:layout_goneMarginStart="16dp"
+                    android:layout_height="@dimen/tile_details_button_row_height"
+                    android:layout_width="0dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/apm_button"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    android:background="@drawable/settingslib_entry_bg_off"
+                    android:gravity="center">
+
+                    <FrameLayout
+                        android:layout_width="@dimen/tile_details_button_size"
+                        android:layout_height="@dimen/tile_details_button_size"
+                        android:clickable="false">
+
+                        <ImageView
+                            android:src="@drawable/ic_screenshot_share"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:tint="@androidprv:color/materialColorOnSurface" />
+                    </FrameLayout>
+
+                    <FrameLayout
+                        android:clickable="false"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/internet_dialog_network_layout_margin">
+
+                        <TextView
+                            android:text="@string/share_wifi_button_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="marquee"
+                            android:singleLine="true"
+                            android:textAppearance="@style/TextAppearance.TileDetailsEntryTitle" />
+                    </FrameLayout>
+                </LinearLayout>
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

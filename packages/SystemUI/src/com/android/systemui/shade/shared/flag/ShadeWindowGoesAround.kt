@@ -18,7 +18,6 @@ package com.android.systemui.shade.shared.flag
 
 import android.window.DesktopExperienceFlags
 import com.android.systemui.Flags
-import com.android.systemui.flags.FlagToken
 import com.android.systemui.flags.RefactorFlagUtils
 
 /** Helper for reading or using the shade window goes around flag state. */
@@ -27,24 +26,22 @@ object ShadeWindowGoesAround {
     /** The aconfig flag name */
     const val FLAG_NAME = Flags.FLAG_SHADE_WINDOW_GOES_AROUND
 
-    /** A token used for dependency declaration */
-    val token: FlagToken
-        get() = FlagToken(FLAG_NAME, isEnabled)
-
     /**
-     * This is defined as [DesktopExperienceFlags] to make it possible to enable it together with
-     * all the other desktop experience flags from the dev settings.
+     * When true, this is defined as [DesktopExperienceFlags] to make it possible to enable it
+     * together with all the other desktop experience flags from the dev settings.
      *
      * Alternatively, using adb:
      * ```bash
-     * adb shell aflags enable com.android.window.flags.show_desktop_experience_dev_option && \
-     *   adb shell setprop persist.wm.debug.desktop_experience_devopts 1
+     * adb shell setprop persist.wm.debug.desktop_experience_devopts 1
      * ```
      */
+    private const val ENABLED_BY_DESKTOP_EXPERIENCE_DEV_OPTION = true
+
     val FLAG =
         DesktopExperienceFlags.DesktopExperienceFlag(
             Flags::shadeWindowGoesAround,
-            /* shouldOverrideByDevOption= */ true,
+            /* shouldOverrideByDevOption= */ ENABLED_BY_DESKTOP_EXPERIENCE_DEV_OPTION,
+            Flags.FLAG_SHADE_WINDOW_GOES_AROUND,
         )
 
     /** Is the refactor enabled */
@@ -60,16 +57,6 @@ object ShadeWindowGoesAround {
     @JvmStatic
     inline fun isUnexpectedlyInLegacyMode() =
         RefactorFlagUtils.isUnexpectedlyInLegacyMode(isEnabled, FLAG_NAME)
-
-    /**
-     * Called to ensure code is only run when the flag is enabled. This will throw an exception if
-     * the flag is not enabled to ensure that the refactor author catches issues in testing.
-     * Caution!! Using this check incorrectly will cause crashes in nextfood builds!
-     */
-    @JvmStatic
-    @Deprecated("Avoid crashing.", ReplaceWith("if (this.isUnexpectedlyInLegacyMode()) return"))
-    inline fun unsafeAssertInNewMode() =
-        RefactorFlagUtils.unsafeAssertInNewMode(isEnabled, FLAG_NAME)
 
     /**
      * Called to ensure code is only run when the flag is disabled. This will throw an exception if

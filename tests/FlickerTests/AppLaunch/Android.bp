@@ -34,14 +34,20 @@ android_test {
     data: ["trace_config/*"],
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Begin breakdowns for FlickerTestsAppLaunch module
+// Auto generated section, don't update it manually
+
+test_module_config {
+    name: "FlickerTestsAppLaunch-ActivityTransitionTest",
+    base: "FlickerTestsAppLaunch",
+    test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.ActivityTransitionTest"],
+}
 
 test_module_config {
     name: "FlickerTestsAppLaunch-CatchAll",
     base: "FlickerTestsAppLaunch",
+    test_suites: ["device-tests"],
     exclude_filters: [
-        "com.android.server.wm.flicker.launch.TaskTransitionTest",
         "com.android.server.wm.flicker.launch.ActivityTransitionTest",
         "com.android.server.wm.flicker.launch.OpenAppFromIconColdTest",
         "com.android.server.wm.flicker.launch.OpenAppFromIntentColdAfterCameraTest",
@@ -50,89 +56,70 @@ test_module_config {
         "com.android.server.wm.flicker.launch.OpenAppFromLockscreenViaIntentTest",
         "com.android.server.wm.flicker.launch.OpenAppFromOverviewTest",
         "com.android.server.wm.flicker.launch.OpenCameraFromHomeOnDoubleClickPowerButtonTest",
-        "com.android.server.wm.flicker.launch.OpenTransferSplashscreenAppFromLauncherTransition",
         "com.android.server.wm.flicker.launch.OverrideTaskTransitionTest",
         "com.android.server.wm.flicker.launch.TaskTransitionTest",
     ],
-    test_suites: ["device-tests"],
-}
-
-test_module_config {
-    name: "FlickerTestsAppLaunch-ActivityTransitionTest",
-    base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.ActivityTransitionTest"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OpenAppFromIconColdTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIconColdTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIconColdTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OpenAppFromIntentColdAfterCameraTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIntentColdAfterCameraTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIntentColdAfterCameraTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OpenAppFromIntentColdTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIntentColdTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIntentColdTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OpenAppFromIntentWarmTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIntentWarmTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromIntentWarmTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OpenAppFromLockscreenViaIntentTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromLockscreenViaIntentTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromLockscreenViaIntentTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OpenAppFromOverviewTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromOverviewTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.OpenAppFromOverviewTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OpenCameraFromHomeOnDoubleClickPowerButtonTest",
     base: "FlickerTestsAppLaunch",
+    test_suites: ["device-tests"],
     include_filters: ["com.android.server.wm.flicker.launch.OpenCameraFromHomeOnDoubleClickPowerButtonTest"],
-    test_suites: ["device-tests"],
-}
-
-test_module_config {
-    name: "FlickerTestsAppLaunch-OpenTransferSplashscreenAppFromLauncherTransition",
-    base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OpenTransferSplashscreenAppFromLauncherTransition"],
-    test_suites: ["device-tests"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-OverrideTaskTransitionTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.OverrideTaskTransitionTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.OverrideTaskTransitionTest"],
 }
 
 test_module_config {
     name: "FlickerTestsAppLaunch-TaskTransitionTest",
     base: "FlickerTestsAppLaunch",
-    include_filters: ["com.android.server.wm.flicker.launch.TaskTransitionTest"],
     test_suites: ["device-tests"],
+    include_filters: ["com.android.server.wm.flicker.launch.TaskTransitionTest"],
 }
-
-// End breakdowns for FlickerTestsAppLaunch module
-////////////////////////////////////////////////////////////////////////////////

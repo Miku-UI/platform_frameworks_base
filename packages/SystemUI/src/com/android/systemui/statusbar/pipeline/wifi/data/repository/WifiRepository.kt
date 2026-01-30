@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.pipeline.wifi.data.repository
 
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiScanEntry
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +50,25 @@ interface WifiRepository {
      * updated and does not trigger a scan.
      */
     val wifiScanResults: StateFlow<List<WifiScanEntry>>
+
+    /** Current optimistic state of the toggle. */
+    val wifiToggleState: StateFlow<WifiToggleState>
+
+    /** Enables Wi-Fi. See [WifiManager.setWifiEnabled] */
+    fun enableWifi()
+
+    /**
+     * Pauses Wi-Fi by immediately disconnecting and restricting autojoin to all networks except for
+     * carrier Wi-Fi networks of the current subscription ID. See
+     * [WifiManager.startRestrictingAutoJoinToSubscriptionId]
+     */
+    fun pauseWifi()
+
+    /**
+     * Unpauses Wi-fi and immediately initiates a scan for available Wi-Fi. See
+     * [WifiManager.stopRestrictingAutoJoinToSubscriptionId] See [WifiManager.startScan]
+     */
+    fun scanForWifi()
 
     /**
      * Returns true if the device is currently connected to a wifi network with a valid SSID and

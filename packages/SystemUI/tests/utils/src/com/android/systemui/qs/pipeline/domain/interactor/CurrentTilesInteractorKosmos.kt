@@ -22,6 +22,7 @@ import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.qs.external.customTileStatePersister
 import com.android.systemui.qs.external.tileLifecycleManagerFactory
 import com.android.systemui.qs.pipeline.data.repository.customTileAddedRepository
+import com.android.systemui.qs.pipeline.data.repository.hsuTilesRepository
 import com.android.systemui.qs.pipeline.data.repository.installedTilesRepository
 import com.android.systemui.qs.pipeline.data.repository.minimumTilesRepository
 import com.android.systemui.qs.pipeline.data.repository.retailModeRepository
@@ -32,6 +33,7 @@ import com.android.systemui.qs.qsTileFactory
 import com.android.systemui.qs.tiles.base.ui.model.newQSTileFactory
 import com.android.systemui.settings.userTracker
 import com.android.systemui.user.data.repository.userRepository
+import com.android.systemui.user.domain.interactor.fakeHeadlessSystemUserMode
 
 val Kosmos.currentTilesInteractor: CurrentTilesInteractor by
     Kosmos.Fixture {
@@ -47,6 +49,8 @@ val Kosmos.currentTilesInteractor: CurrentTilesInteractor by
             customTileAddedRepository,
             tileLifecycleManagerFactory,
             userTracker,
+            fakeHeadlessSystemUserMode,
+            hsuTilesRepository,
             testDispatcher,
             testDispatcher,
             applicationCoroutineScope,

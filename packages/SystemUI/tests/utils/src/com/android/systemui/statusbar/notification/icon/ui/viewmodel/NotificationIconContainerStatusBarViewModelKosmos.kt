@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.notification.icon.ui.viewmodel
 
 import android.content.res.mainResources
+import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
@@ -30,6 +31,7 @@ val Kosmos.notificationIconContainerStatusBarViewModel by
         NotificationIconContainerStatusBarViewModel(
             bgContext = testDispatcher,
             darkIconInteractor = darkIconInteractor,
+            dumpManager = dumpManager,
             iconsInteractor = statusBarNotificationIconsInteractor,
             headsUpIconInteractor = headsUpNotificationIconInteractor,
             keyguardInteractor = keyguardInteractor,

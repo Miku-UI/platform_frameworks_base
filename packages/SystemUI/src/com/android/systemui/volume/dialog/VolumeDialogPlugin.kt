@@ -97,7 +97,9 @@ constructor(
                 object : SafetyWarningDialog(context, audioManager) {
                     override fun cleanUp() {
                         onDismissed()
-                        continuation.resume(Unit)
+                        if (!continuation.isCompleted) {
+                            continuation.resume(Unit)
+                        }
                     }
                 }
             dialog.show()
@@ -114,7 +116,9 @@ constructor(
                 warning,
                 {
                     onDismissed()
-                    continuation.resume(Unit)
+                    if (!continuation.isCompleted) {
+                        continuation.resume(Unit)
+                    }
                 },
                 Optional.of(actions),
             )

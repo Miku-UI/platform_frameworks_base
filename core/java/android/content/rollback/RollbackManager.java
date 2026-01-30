@@ -66,7 +66,7 @@ public final class RollbackManager {
     public static final String PROPERTY_ROLLBACK_LIFETIME_MILLIS =
             "rollback_lifetime_in_millis";
 
-    /** {@hide} */
+    /** @hide */
     public RollbackManager(Context context, IRollbackManager binder) {
         mCallerPackageName = context.getPackageName();
         mBinder = binder;

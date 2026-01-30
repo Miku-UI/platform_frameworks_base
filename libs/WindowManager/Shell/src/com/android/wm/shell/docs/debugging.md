@@ -28,33 +28,31 @@ building to check the log state (is enabled) before printing the print format st
   traces in Winscope)
 
 ### Kotlin
-Kotlin protologging is supported but not as optimized as in Java.
-
-The Protolog tool does not yet have support for Kotlin code ([b/168581922](https://b.corp.google.com/issues/168581922)).
-
-What this implies is that ProtoLogs are not pre-processed to extract the static strings out when used in Kotlin. So,
-there is no memory gain when using ProtoLogging in Kotlin. The logs will still be traced to Perfetto, but with a subtly
-worse performance due to the additional string interning that needs to be done at run time instead of at build time.
+Kotlin protologging is supported, but with some differences compared to Java. The ProtoLog tool
+currently does not process Kotlin code. This means that while ProtoLogs in Kotlin will still be
+traced to Perfetto, they are not pre-processed to extract static strings like in Java. Consequently,
+using ProtoLogging in Kotlin does not provide the same memory gains as in Java, and log calls may be
+slightly less performant due to additional string interning at runtime.
 
 ### Enabling ProtoLog command line logging
-Run these commands to enable protologs (in logcat) for WM Core ([list of all core tags](/core/java/com/android/internal/protolog/ProtoLogGroup.java)):
-```shell
-adb shell wm logging enable-text TAG
-adb shell wm logging disable-text TAG
-```
-
-And these commands to enable protologs (in logcat) for WM Shell ([list of all shell tags](/libs/WindowManager/Shell/src/com/android/wm/shell/protolog/ShellProtoLogGroup.java)):
+Run these commands to enable protologs (in logcat) for WM Core ([list of all core groups](/core/java/com/android/internal/protolog/WmProtoLogGroups.java)) or WM Shell ([list of all shell groups](/libs/WindowManager/Shell/src/com/android/wm/shell/protolog/ShellProtoLogGroup.java)):
 ```shell
 # Note: prior to 25Q2, you may need to use:
 #   adb shell dumpsys activity service SystemUIService WMShell protolog enable-text TAG
-adb shell wm shell protolog enable-text TAG
-adb shell wm shell protolog disable-text TAG
+adb shell cmd protolog_configuration logcat enable <group>
+adb shell cmd protolog_configuration logcat disable <group>
+```
+
+Use these commands to print protolog groups and their status:
+```shell
+adb shell cmd protolog_configuration groups list
+adb shell cmd protolog_configuration groups status <group>
 ```
 
 ### R8 optimizations & ProtoLog
 
 If the APK that the Shell library is included into has R8 optimizations enabled, then you may need
-to update the proguard flags to keep the generated protolog classes (ie. AOSP SystemUI's [proguard.flags](base/packages/SystemUI/proguard_common.flags)).
+to update the proguard flags to keep the generated protolog classes (ie. AOSP SystemUI's [proguard.flags](/packages/SystemUI/proguard_common.flags)).
 
 ## Winscope Tracing
 
@@ -168,17 +166,20 @@ adb shell setprop persist.wm.debug.finish_activity \"\"
 adb reboot
 ```
 
-## Tracing transition requests in the Shell
+## Tracing transition starts/finishes in the Shell
 
-To trace where a new WM transition is started in the Shell, you can enable this system property:
+To trace where a new WM transition is started and finished in the Shell, you can enable these system
+properties respectively:
 ```shell
 # Enabling
 adb shell setprop persist.wm.debug.start_shell_transition true
+adb shell setprop persist.wm.debug.finish_shell_transition true
 adb reboot
 adb logcat -s "ShellTransitions"
 
 # Disabling
 adb shell setprop persist.wm.debug.start_shell_transition \"\"
+adb shell setprop persist.wm.debug.finish_shell_transition \"\"
 adb reboot
 ```
 

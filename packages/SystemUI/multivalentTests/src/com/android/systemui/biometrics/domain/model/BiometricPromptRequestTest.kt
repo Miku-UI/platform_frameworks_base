@@ -1,6 +1,8 @@
 package com.android.systemui.biometrics.domain.model
 
 import android.graphics.Bitmap
+import android.hardware.biometrics.BiometricManager
+import android.hardware.biometrics.FallbackOption
 import android.hardware.biometrics.PromptContentItemBulletedText
 import android.hardware.biometrics.PromptContentViewWithMoreOptionsButton
 import android.hardware.biometrics.PromptVerticalListContentView
@@ -12,6 +14,7 @@ import com.android.systemui.biometrics.fingerprintSensorPropertiesInternal
 import com.android.systemui.biometrics.promptInfo
 import com.android.systemui.biometrics.shared.model.BiometricModalities
 import com.android.systemui.biometrics.shared.model.BiometricUserInfo
+import com.android.systemui.biometrics.shared.model.toFingerprintSensorInfo
 import com.android.systemui.res.R
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors
@@ -34,6 +37,7 @@ class BiometricPromptRequestTest : SysuiTestCase() {
         val title = "what"
         val subtitle = "a"
         val description = "request"
+        val fallbackOptions = listOf(FallbackOption("Account", BiometricManager.ICON_TYPE_ACCOUNT))
         val contentView =
             PromptVerticalListContentView.Builder()
                 .setDescription("content description")
@@ -52,10 +56,11 @@ class BiometricPromptRequestTest : SysuiTestCase() {
                     subtitle = subtitle,
                     description = description,
                     contentView = contentView,
+                    fallbackOptions = fallbackOptions,
                 ),
                 BiometricUserInfo(USER_ID),
                 BiometricOperationInfo(OPERATION_ID),
-                BiometricModalities(fingerprintProperties = fpPros),
+                BiometricModalities(fingerprintSensorInfo = fpPros.toFingerprintSensorInfo()),
                 OP_PACKAGE_NAME,
             )
 
@@ -69,7 +74,10 @@ class BiometricPromptRequestTest : SysuiTestCase() {
         assertThat(request.userInfo).isEqualTo(BiometricUserInfo(USER_ID))
         assertThat(request.operationInfo).isEqualTo(BiometricOperationInfo(OPERATION_ID))
         assertThat(request.modalities)
-            .isEqualTo(BiometricModalities(fingerprintProperties = fpPros))
+            .isEqualTo(
+                BiometricModalities(fingerprintSensorInfo = fpPros.toFingerprintSensorInfo())
+            )
+        assertThat(request.fallbackOptions).containsExactlyElementsIn(fallbackOptions)
     }
 
     @Test
@@ -89,7 +97,7 @@ class BiometricPromptRequestTest : SysuiTestCase() {
                 promptInfo(title = title, description = description, contentView = contentView),
                 BiometricUserInfo(USER_ID),
                 BiometricOperationInfo(OPERATION_ID),
-                BiometricModalities(fingerprintProperties = fpPros),
+                BiometricModalities(fingerprintSensorInfo = fpPros.toFingerprintSensorInfo()),
                 OP_PACKAGE_NAME,
             )
         assertThat(request.contentView).isSameInstanceAs(contentView)
@@ -104,7 +112,7 @@ class BiometricPromptRequestTest : SysuiTestCase() {
                 promptInfo(logoBitmap = logoBitmap),
                 BiometricUserInfo(USER_ID),
                 BiometricOperationInfo(OPERATION_ID),
-                BiometricModalities(fingerprintProperties = fpPros),
+                BiometricModalities(fingerprintSensorInfo = fpPros.toFingerprintSensorInfo()),
                 OP_PACKAGE_NAME,
             )
         assertThat(request.logoBitmap).isEqualTo(logoBitmap)

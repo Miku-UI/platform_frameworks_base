@@ -26,6 +26,7 @@ import static android.view.WindowManager.LayoutParams.TYPE_NAVIGATION_BAR_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_NOTIFICATION_SHADE;
 import static android.view.WindowManager.LayoutParams.TYPE_SECURE_SYSTEM_OVERLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR;
+import static android.view.WindowManager.LayoutParams.TYPE_STATUS_BAR_SUB_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_VOLUME_OVERLAY;
 import static android.view.WindowManager.LayoutParams.TYPE_WALLPAPER;
 import static android.window.DisplayAreaOrganizer.FEATURE_APP_ZOOM_OUT;
@@ -116,8 +117,9 @@ public abstract class DisplayAreaPolicy {
         public DisplayAreaPolicy instantiate(WindowManagerService wmService,
                 DisplayContent content, RootDisplayArea root,
                 DisplayArea.Tokens imeContainer) {
-            final TaskDisplayArea defaultTaskDisplayArea = new TaskDisplayArea(content, wmService,
-                    "DefaultTaskDisplayArea", FEATURE_DEFAULT_TASK_CONTAINER);
+            final TaskDisplayArea defaultTaskDisplayArea = new TaskDisplayArea(wmService,
+                    "DefaultTaskDisplayArea", FEATURE_DEFAULT_TASK_CONTAINER,
+                    false /* createdByOrganizer */, true /* canHostHomeTask */);
             final List<TaskDisplayArea> tdaList = new ArrayList<>();
             tdaList.add(defaultTaskDisplayArea);
 
@@ -133,7 +135,8 @@ public abstract class DisplayAreaPolicy {
 
             // Instantiate the policy with the hierarchy defined above. This will create and attach
             // all the necessary DisplayAreas to the root.
-            return new DisplayAreaPolicyBuilder().setRootHierarchy(rootHierarchy).build(wmService);
+            return new DisplayAreaPolicyBuilder(content.getDisplayId(), rootHierarchy)
+                    .build(wmService);
         }
 
         private void configureTrustedHierarchyBuilder(HierarchyBuilder rootHierarchy,
@@ -164,10 +167,11 @@ public abstract class DisplayAreaPolicy {
                                 .build())
                         .addFeature(new Feature.Builder(wmService.mPolicy, "AppZoomOut",
                                 FEATURE_APP_ZOOM_OUT)
-                                .all()
+                                .upTo(TYPE_VOLUME_OVERLAY)
                                 .except(TYPE_NAVIGATION_BAR, TYPE_NAVIGATION_BAR_PANEL,
-                                        TYPE_STATUS_BAR, TYPE_NOTIFICATION_SHADE,
-                                        TYPE_KEYGUARD_DIALOG, TYPE_WALLPAPER, TYPE_VOLUME_OVERLAY)
+                                        TYPE_STATUS_BAR, TYPE_STATUS_BAR_SUB_PANEL,
+                                        TYPE_NOTIFICATION_SHADE, TYPE_KEYGUARD_DIALOG,
+                                        TYPE_WALLPAPER)
                                 .build());
             }
             if (USE_DISPLAY_AREA_FOR_FULLSCREEN_MAGNIFICATION) {

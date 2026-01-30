@@ -16,7 +16,6 @@
 
 package com.android.credentialmanager.createflow
 
-import android.credentials.flags.Flags.credmanBiometricApiEnabled
 import android.graphics.drawable.Drawable
 import com.android.credentialmanager.R
 import com.android.credentialmanager.model.CredentialType
@@ -46,9 +45,6 @@ internal fun findBiometricFlowEntry(
     activeEntry: ActiveEntry,
     isAutoSelectFlow: Boolean,
 ): CreateOptionInfo? {
-    if (!credmanBiometricApiEnabled()) {
-        return null
-    }
     if (isAutoSelectFlow) {
         // Since this is the create flow, auto select will only ever be true for a single provider.
         // However, for all other cases, biometric should be used if that bit is opted into. If

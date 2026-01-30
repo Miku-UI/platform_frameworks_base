@@ -18,6 +18,7 @@ import android.content.Context
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Rect
+import android.graphics.fonts.FontStyle.FONT_WEIGHT_MIN
 import android.os.LocaleList
 import android.view.View.LAYOUT_DIRECTION_RTL
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController
@@ -43,6 +44,7 @@ constructor(@Assisted private val context: Context) :
     private var localeList: LocaleList? = null
     private var layoutDirection: Int
     private var orientation = Configuration.ORIENTATION_UNDEFINED
+    private var fontWeightAdjustment: Int = FONT_WEIGHT_MIN
 
     init {
         val currentConfig = context.resources.configuration
@@ -56,6 +58,7 @@ constructor(@Assisted private val context: Context) :
         uiMode = currentConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
         localeList = currentConfig.locales
         layoutDirection = currentConfig.layoutDirection
+        fontWeightAdjustment = currentConfig.fontWeightAdjustment
     }
 
     override fun notifyThemeChanged() {
@@ -79,13 +82,16 @@ constructor(@Assisted private val context: Context) :
         val fontScale = newConfig.fontScale
         val density = newConfig.densityDpi
         val uiMode = newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        val fontWeightAdjustment = newConfig.fontWeightAdjustment
         val uiModeChanged = uiMode != this.uiMode
-        if (density != this.density || fontScale != this.fontScale || inCarMode && uiModeChanged) {
+        if (density != this.density || fontScale != this.fontScale || inCarMode && uiModeChanged
+            || fontWeightAdjustment != this.fontWeightAdjustment) {
             listeners.filterForEach({ this.listeners.contains(it) }) {
                 it.onDensityOrFontScaleChanged()
             }
             this.density = density
             this.fontScale = fontScale
+            this.fontWeightAdjustment = fontWeightAdjustment
         }
 
         val smallestScreenWidth = newConfig.smallestScreenWidthDp

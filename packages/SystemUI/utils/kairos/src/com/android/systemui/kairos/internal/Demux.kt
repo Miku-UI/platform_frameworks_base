@@ -16,25 +16,32 @@
 
 package com.android.systemui.kairos.internal
 
-import com.android.systemui.kairos.internal.store.ConcurrentHashMapK
+import androidx.collection.ScatterSet
+import com.android.systemui.kairos.internal.store.HashMapK
 import com.android.systemui.kairos.internal.store.MapHolder
 import com.android.systemui.kairos.internal.store.MapK
 import com.android.systemui.kairos.internal.store.MutableMapK
-import com.android.systemui.kairos.internal.util.hashString
 import com.android.systemui.kairos.internal.util.logDuration
-import kotlinx.coroutines.sync.Mutex
+import com.android.systemui.kairos.util.NameData
+import com.android.systemui.kairos.util.forceInit
+import com.android.systemui.kairos.util.plus
 
 internal class DemuxNode<W, K, A>(
+    val nameData: NameData,
     private val branchNodeByKey: MutableMapK<W, K, DemuxNode<W, K, A>.BranchNode>,
     val lifecycle: DemuxLifecycle<K, A>,
     private val spec: DemuxActivator<W, K, A>,
 ) : SchedulableNode {
 
+    init {
+        nameData.forceInit()
+    }
+
     val schedulable = Schedulable.N(this)
 
     lateinit var upstreamConnection: NodeConnection<MapK<W, K, A>>
 
-    @Volatile private var epoch: Long = Long.MIN_VALUE
+    private var epoch: Long = Long.MIN_VALUE
 
     fun hasCurrentValueLocked(logIndent: Int, evalScope: EvalScope, key: K): Boolean =
         evalScope.epoch == epoch &&
@@ -47,21 +54,22 @@ internal class DemuxNode<W, K, A>(
         branchNodeByKey.getOrPut(key) { BranchNode(key) }
 
     override fun schedule(logIndent: Int, evalScope: EvalScope) =
-        logDuration(logIndent, "DemuxNode.schedule") {
+        logDuration(logIndent, { "DemuxNode.schedule" }) {
             val upstreamResult =
-                logDuration("upstream.getPushEvent") {
+                logDuration({ "upstream.getPushEvent" }) {
                     upstreamConnection.getPushEvent(currentLogIndent, evalScope)
                 }
             updateEpoch(evalScope)
-            for ((key, _) in upstreamResult) {
-                if (!branchNodeByKey.contains(key)) continue
-                val branch = branchNodeByKey.getValue(key)
-                branch.schedule(currentLogIndent, evalScope)
+            upstreamResult.forEach { key, _ ->
+                if (branchNodeByKey.contains(key)) {
+                    val branch = branchNodeByKey.getValue(key)
+                    branch.schedule(currentLogIndent, evalScope)
+                }
             }
         }
 
     override fun adjustDirectUpstream(scheduler: Scheduler, oldDepth: Int, newDepth: Int) {
-        for ((_, branchNode) in branchNodeByKey) {
+        branchNodeByKey.forEach { _, branchNode ->
             branchNode.downstreamSet.adjustDirectUpstream(scheduler, oldDepth, newDepth)
         }
     }
@@ -69,10 +77,10 @@ internal class DemuxNode<W, K, A>(
     override fun moveIndirectUpstreamToDirect(
         scheduler: Scheduler,
         oldIndirectDepth: Int,
-        oldIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
         newDirectDepth: Int,
     ) {
-        for ((_, branchNode) in branchNodeByKey) {
+        branchNodeByKey.forEach { _, branchNode ->
             branchNode.downstreamSet.moveIndirectUpstreamToDirect(
                 scheduler,
                 oldIndirectDepth,
@@ -86,10 +94,10 @@ internal class DemuxNode<W, K, A>(
         scheduler: Scheduler,
         oldDepth: Int,
         newDepth: Int,
-        removals: Set<MuxDeferredNode<*, *, *>>,
-        additions: Set<MuxDeferredNode<*, *, *>>,
+        removals: ScatterSet<MuxDeferredNode<*, *, *>>,
+        additions: ScatterSet<MuxDeferredNode<*, *, *>>,
     ) {
-        for ((_, branchNode) in branchNodeByKey) {
+        branchNodeByKey.forEach { _, branchNode ->
             branchNode.downstreamSet.adjustIndirectUpstream(
                 scheduler,
                 oldDepth,
@@ -104,9 +112,9 @@ internal class DemuxNode<W, K, A>(
         scheduler: Scheduler,
         oldDirectDepth: Int,
         newIndirectDepth: Int,
-        newIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
     ) {
-        for ((_, branchNode) in branchNodeByKey) {
+        branchNodeByKey.forEach { _, branchNode ->
             branchNode.downstreamSet.moveDirectUpstreamToIndirect(
                 scheduler,
                 oldDirectDepth,
@@ -119,17 +127,17 @@ internal class DemuxNode<W, K, A>(
     override fun removeIndirectUpstream(
         scheduler: Scheduler,
         depth: Int,
-        indirectSet: Set<MuxDeferredNode<*, *, *>>,
+        indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
     ) {
         lifecycle.lifecycleState = DemuxLifecycleState.Dead
-        for ((_, branchNode) in branchNodeByKey) {
+        branchNodeByKey.forEach { _, branchNode ->
             branchNode.downstreamSet.removeIndirectUpstream(scheduler, depth, indirectSet)
         }
     }
 
     override fun removeDirectUpstream(scheduler: Scheduler, depth: Int) {
         lifecycle.lifecycleState = DemuxLifecycleState.Dead
-        for ((_, branchNode) in branchNodeByKey) {
+        branchNodeByKey.forEach { _, branchNode ->
             branchNode.downstreamSet.removeDirectUpstream(scheduler, depth)
         }
     }
@@ -138,7 +146,6 @@ internal class DemuxNode<W, K, A>(
         branchNodeByKey.remove(key)
         val deactivate = branchNodeByKey.isEmpty()
         if (deactivate) {
-            // No need for mutex here; no more concurrent changes to can occur during this phase
             lifecycle.lifecycleState = DemuxLifecycleState.Inactive(spec)
             upstreamConnection.removeDownstreamAndDeactivateIfNeeded(downstream = schedulable)
         }
@@ -149,9 +156,11 @@ internal class DemuxNode<W, K, A>(
     }
 
     fun getPushEvent(logIndent: Int, evalScope: EvalScope, key: K): A =
-        logDuration(logIndent, "Demux.getPushEvent($key)") {
+        logDuration(logIndent, { "Demux.getPushEvent($key)" }) {
             upstreamConnection.getPushEvent(currentLogIndent, evalScope).getValue(key)
         }
+
+    override fun toString(): String = "${super.toString()}[$nameData]"
 
     inner class BranchNode(val key: K) : PushNode<A> {
 
@@ -195,7 +204,7 @@ internal class DemuxNode<W, K, A>(
         }
 
         fun schedule(logIndent: Int, evalScope: EvalScope) {
-            logDuration(logIndent, "DemuxBranchNode($key).schedule") {
+            logDuration(logIndent, { "DemuxBranchNode($key).schedule" }) {
                 if (!scheduleAll(currentLogIndent, downstreamSet, evalScope)) {
                     evalScope.scheduleDeactivation(this@BranchNode)
                 }
@@ -205,32 +214,47 @@ internal class DemuxNode<W, K, A>(
 }
 
 internal fun <W, K, A> DemuxImpl(
+    nameData: NameData,
     upstream: EventsImpl<MapK<W, K, A>>,
     numKeys: Int?,
     storeFactory: MutableMapK.Factory<W, K>,
 ): DemuxImpl<K, A> =
     DemuxImpl(
+        nameData,
         DemuxLifecycle(
-            DemuxLifecycleState.Inactive(DemuxActivator(numKeys, upstream, storeFactory))
-        )
+            nameData,
+            DemuxLifecycleState.Inactive(DemuxActivator(nameData, numKeys, upstream, storeFactory)),
+        ),
     )
 
 internal fun <K, A> demuxMap(
+    nameData: NameData,
     upstream: EvalScope.() -> EventsImpl<Map<K, A>>,
     numKeys: Int?,
 ): DemuxImpl<K, A> =
-    DemuxImpl(mapImpl(upstream) { it, _ -> MapHolder(it) }, numKeys, ConcurrentHashMapK.Factory())
+    DemuxImpl(
+        nameData,
+        mapImpl(upstream, nameData + "toMapHolder") { it, _ -> MapHolder(it) },
+        numKeys,
+        HashMapK.Factory(),
+    )
 
 internal class DemuxActivator<W, K, A>(
+    private val nameData: NameData,
     private val numKeys: Int?,
     private val upstream: EventsImpl<MapK<W, K, A>>,
     private val storeFactory: MutableMapK.Factory<W, K>,
 ) {
+
+    init {
+        nameData.forceInit()
+    }
+
     fun activate(
         evalScope: EvalScope,
         lifecycle: DemuxLifecycle<K, A>,
     ): Pair<DemuxNode<W, K, A>, Set<K>>? {
-        val demux = DemuxNode(storeFactory.create(numKeys), lifecycle, this)
+        val demux = DemuxNode(nameData, storeFactory.create(numKeys), lifecycle, this)
         return upstream.activate(evalScope, demux.schedulable)?.let { (conn, needsEval) ->
             Pair(
                 demux.apply { upstreamConnection = conn },
@@ -243,9 +267,14 @@ internal class DemuxActivator<W, K, A>(
             )
         }
     }
+
+    override fun toString(): String = "${super.toString()}[$nameData]"
 }
 
-internal class DemuxImpl<in K, out A>(private val dmux: DemuxLifecycle<K, A>) {
+internal class DemuxImpl<in K, out A>(
+    val nameData: NameData,
+    private val dmux: DemuxLifecycle<K, A>,
+) {
     fun eventsForKey(key: K): EventsImpl<A> = EventsImplCheap { downstream ->
         dmux.activate(evalScope = this, key)?.let { (branchNode, needsEval) ->
             branchNode.addDownstream(downstream)
@@ -256,12 +285,18 @@ internal class DemuxImpl<in K, out A>(private val dmux: DemuxLifecycle<K, A>) {
             )
         }
     }
+
+    override fun toString(): String = "${super.toString()}[$nameData]"
 }
 
-internal class DemuxLifecycle<K, A>(@Volatile var lifecycleState: DemuxLifecycleState<K, A>) {
-    val mutex = Mutex()
+internal class DemuxLifecycle<K, A>(
+    val nameData: NameData,
+    @Volatile var lifecycleState: DemuxLifecycleState<K, A>,
+) {
 
-    override fun toString(): String = "EventsDmuxState[$hashString][$lifecycleState][$mutex]"
+    init {
+        nameData.forceInit()
+    }
 
     fun activate(evalScope: EvalScope, key: K): Pair<DemuxNode<*, K, A>.BranchNode, Boolean>? =
         when (val state = lifecycleState) {
@@ -290,6 +325,8 @@ internal class DemuxLifecycle<K, A>(@Volatile var lifecycleState: DemuxLifecycle
                     }
             }
         }
+
+    override fun toString(): String = "${super.toString()}[$nameData]"
 }
 
 internal sealed interface DemuxLifecycleState<out K, out A> {

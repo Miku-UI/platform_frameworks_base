@@ -23,7 +23,7 @@ import com.android.internal.compat.OverrideAllowedState;
 /**
  * Platform private API for determining whether a changeId can be overridden.
  *
- * {@hide}
+ * @hide
  */
 interface IOverrideValidator
 {

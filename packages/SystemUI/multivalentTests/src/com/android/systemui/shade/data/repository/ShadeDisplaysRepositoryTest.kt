@@ -17,6 +17,7 @@
 package com.android.systemui.shade.data.repository
 
 import android.provider.Settings.Global.DEVELOPMENT_SHADE_DISPLAY_AWARENESS
+import android.provider.Settings.Secure.MIRROR_BUILT_IN_DISPLAY
 import android.view.Display
 import android.view.Display.TYPE_EXTERNAL
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -36,6 +37,7 @@ import com.android.systemui.shade.display.FocusShadeDisplayPolicy
 import com.android.systemui.shade.display.StatusBarTouchShadeDisplayPolicy
 import com.android.systemui.testKosmos
 import com.android.systemui.util.settings.fakeGlobalSettings
+import com.android.systemui.util.settings.fakeSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -47,6 +49,7 @@ class ShadeDisplaysRepositoryTest : SysuiTestCase() {
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val testScope = kosmos.testScope
     private val globalSettings = kosmos.fakeGlobalSettings
+    private val secureSettings = kosmos.fakeSettings
     private val displayRepository = kosmos.displayRepository
     private val defaultPolicy = DefaultDisplayShadePolicy()
     private val policies = kosmos.shadeDisplayPolicies
@@ -55,6 +58,7 @@ class ShadeDisplaysRepositoryTest : SysuiTestCase() {
     private fun createUnderTest(shadeOnDefaultDisplayWhenLocked: Boolean = false) =
         ShadeDisplaysRepositoryImpl(
             globalSettings,
+            secureSettings,
             defaultPolicy,
             testScope.backgroundScope,
             policies,
@@ -188,5 +192,31 @@ class ShadeDisplaysRepositoryTest : SysuiTestCase() {
             underTest.onDisplayChangedSucceeded(1)
 
             assertThat(displayId).isEqualTo(1)
+        }
+
+    @Test
+    fun displayId_whileMirroringEnabled_ignoresThePolicyId() =
+        testScope.runTest {
+            val underTest = createUnderTest()
+            globalSettings.putString(
+                DEVELOPMENT_SHADE_DISPLAY_AWARENESS,
+                FakeShadeDisplayPolicy.name,
+            )
+            secureSettings.putInt(MIRROR_BUILT_IN_DISPLAY, 0)
+
+            val displayId by collectLastValue(underTest.pendingDisplayId)
+
+            displayRepository.addDisplays(display(id = 2, type = TYPE_EXTERNAL))
+            FakeShadeDisplayPolicy.setDisplayId(2)
+
+            assertThat(displayId).isEqualTo(2)
+
+            secureSettings.putInt(MIRROR_BUILT_IN_DISPLAY, 1)
+
+            assertThat(displayId).isEqualTo(Display.DEFAULT_DISPLAY)
+
+            secureSettings.putInt(MIRROR_BUILT_IN_DISPLAY, 0)
+
+            assertThat(displayId).isEqualTo(2)
         }
 }

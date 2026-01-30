@@ -27,16 +27,23 @@ import android.os.UserHandle;
  */
 final class CallerIdentity {
 
+    private final int mPid;
     private final int mUid;
     @Nullable
     private final String mPackageName;
     @Nullable
     private final ComponentName mComponentName;
 
-    CallerIdentity(int uid, @Nullable String packageName, @Nullable ComponentName componentName) {
+    CallerIdentity(int pid, int uid, @Nullable String packageName,
+            @Nullable ComponentName componentName) {
+        mPid = pid;
         mUid = uid;
         mPackageName = packageName;
         mComponentName = componentName;
+    }
+
+    public int getPid() {
+        return mPid;
     }
 
     public int getUid() {
@@ -51,11 +58,13 @@ final class CallerIdentity {
         return UserHandle.getUserHandleForUid(mUid);
     }
 
-    @Nullable public String getPackageName() {
+    @Nullable
+    public String getPackageName() {
         return mPackageName;
     }
 
-    @Nullable public ComponentName getComponentName() {
+    @Nullable
+    public ComponentName getComponentName() {
         return mComponentName;
     }
 

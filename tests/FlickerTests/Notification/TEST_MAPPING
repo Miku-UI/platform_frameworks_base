@@ -1,0 +1,40 @@
+{
+  "wm": [
+    {
+      "name": "FlickerTestsNotification-CatchAll",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsNotification-OpenAppFromLockscreenNotificationColdTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsNotification-OpenAppFromLockscreenNotificationWarmTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsNotification-OpenAppFromLockscreenNotificationWithOverlayAppTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsNotification-OpenAppFromNotificationColdTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsNotification-OpenAppFromNotificationWarmTest",
+      "keywords": [
+        "device"
+      ]
+    }
+  ]
+}

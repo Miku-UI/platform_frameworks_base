@@ -25,7 +25,7 @@ import android.os.CombinedVibration;
  *
  * 1) Decide whether the current session should have the vibrator control.
  * 2) Stop any on-going session for a new session/vibration, based on current system policy.
- * {@hide}
+ * @hide
  */
 interface IVibrationSession {
     const int STATUS_UNKNOWN = 0;

@@ -25,11 +25,10 @@ import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.media.controls.data.repository.mediaFilterRepository
 import com.android.systemui.media.controls.shared.model.MediaData
-import com.android.systemui.media.controls.shared.model.MediaDataLoadingModel
+import com.android.systemui.media.remedia.data.repository.mediaPipelineRepository
 import com.android.systemui.statusbar.featurepods.popups.StatusBarPopupChips
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipId
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipId
 import com.android.systemui.statusbar.featurepods.popups.ui.viewmodel.statusBarPopupChipsViewModelFactory
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
@@ -61,10 +60,8 @@ class StatusBarPopupChipsViewModelTest : SysuiTestCase() {
         kosmos.runTest {
             val shownPopupChips = underTest.shownPopupChips
             val userMedia = MediaData(active = true, song = "test")
-            val instanceId = userMedia.instanceId
 
-            mediaFilterRepository.addSelectedUserMediaEntry(userMedia)
-            mediaFilterRepository.addMediaDataLoadingState(MediaDataLoadingModel.Loaded(instanceId))
+            mediaPipelineRepository.addCurrentUserMediaEntry(userMedia)
 
             Snapshot.takeSnapshot {
                 assertThat(shownPopupChips).hasSize(1)
@@ -78,10 +75,8 @@ class StatusBarPopupChipsViewModelTest : SysuiTestCase() {
             val shownPopupChips = underTest.shownPopupChips
 
             val userMedia = MediaData(active = true, song = "test")
-            val instanceId = userMedia.instanceId
 
-            mediaFilterRepository.addSelectedUserMediaEntry(userMedia)
-            mediaFilterRepository.addMediaDataLoadingState(MediaDataLoadingModel.Loaded(instanceId))
+            mediaPipelineRepository.addCurrentUserMediaEntry(userMedia)
 
             Snapshot.takeSnapshot {
                 assertThat(shownPopupChips).hasSize(1)

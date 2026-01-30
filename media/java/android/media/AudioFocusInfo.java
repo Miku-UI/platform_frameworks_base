@@ -130,6 +130,12 @@ public final class AudioFocusInfo implements Parcelable {
      */
     public int getFlags() { return mFlags; }
 
+    /** @hide */
+    public boolean isLossReceivedTransient() {
+        return mLossReceived == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT
+                || mLossReceived == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK;
+    }
+
     @Override
     public int describeContents() {
         return 0;

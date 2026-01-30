@@ -366,9 +366,9 @@ public class RavenwoodRunnerCallbackTest extends RavenwoodRunnerTestBase {
     @Expected("""
     testRunStarted: classes
     testSuiteStarted: classes
-    testSuiteStarted: ClassUnloadbleAndDisabledTest(com.android.ravenwoodtest.runnercallbacktests.RavenwoodRunnerCallbackTest$ClassUnloadbleAndDisabledTest)
-    testIgnored: ClassUnloadbleAndDisabledTest(com.android.ravenwoodtest.runnercallbacktests.RavenwoodRunnerCallbackTest$ClassUnloadbleAndDisabledTest)
-    testSuiteFinished: ClassUnloadbleAndDisabledTest(com.android.ravenwoodtest.runnercallbacktests.RavenwoodRunnerCallbackTest$ClassUnloadbleAndDisabledTest)
+    testSuiteStarted: <init>(com.android.ravenwoodtest.runnercallbacktests.RavenwoodRunnerCallbackTest$ClassUnloadbleAndDisabledTest)
+    testIgnored: <init>(com.android.ravenwoodtest.runnercallbacktests.RavenwoodRunnerCallbackTest$ClassUnloadbleAndDisabledTest)
+    testSuiteFinished: <init>(com.android.ravenwoodtest.runnercallbacktests.RavenwoodRunnerCallbackTest$ClassUnloadbleAndDisabledTest)
     testSuiteFinished: classes
     testRunFinished: 0,0,0,1
     """)

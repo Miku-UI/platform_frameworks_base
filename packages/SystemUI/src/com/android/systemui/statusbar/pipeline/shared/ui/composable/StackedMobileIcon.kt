@@ -17,14 +17,16 @@
 package com.android.systemui.statusbar.pipeline.shared.ui.composable
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement.spacedBy
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -32,11 +34,25 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
-import com.android.systemui.common.ui.compose.Icon
+import com.android.systemui.common.ui.compose.load
+import com.android.systemui.res.R
+import com.android.systemui.statusbar.pipeline.mobile.ui.compose.ActivityIndicators
+import com.android.systemui.statusbar.pipeline.mobile.ui.model.DualSim
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.StackedMobileIconViewModel
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.BarBaseHeightFiveBarsSp
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.BarBaseHeightFourBarsSp
@@ -54,6 +70,9 @@ import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobil
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.IconSpacingSp
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.IconWidthFiveBarsSp
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.IconWidthFourBarsSp
+import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.RatIndicatorPaddingSp
+import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.RoamingIconHeightSp
+import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.RoamingIconPaddingTopSp
 import com.android.systemui.statusbar.pipeline.shared.ui.composable.StackedMobileIconDimensions.SecondaryBarHeightSp
 import kotlin.math.max
 
@@ -74,18 +93,55 @@ fun StackedMobileIcon(viewModel: StackedMobileIconViewModel, modifier: Modifier 
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.padding(horizontal = padding),
     ) {
-        viewModel.networkTypeIcon?.let {
-            Icon(it, tint = contentColor, modifier = Modifier.fillMaxHeight())
+        if (viewModel.activityContainerVisible) {
+            ActivityIndicators(
+                activityInVisible = viewModel.activityInVisible,
+                activityOutVisible = viewModel.activityOutVisible,
+                color = contentColor,
+            )
         }
 
-        StackedMobileIcon(dualSim, contentColor)
+        viewModel.networkTypeIcon?.let {
+            // Provide the RAT context needed for the resource overlays
+            val ratContext = viewModel.mobileContext ?: LocalContext.current
+            CompositionLocalProvider(LocalContext provides ratContext) {
+                val height = with(LocalDensity.current) { IconHeightSp.toDp() }
+                val paddingEnd = with(LocalDensity.current) { RatIndicatorPaddingSp.toDp() }
+                Image(
+                    painter = painterResource(it.resId),
+                    contentDescription = it.contentDescription?.load(),
+                    modifier = Modifier.height(height).padding(end = paddingEnd),
+                    colorFilter = ColorFilter.tint(contentColor, BlendMode.SrcIn),
+                    contentScale = ContentScale.FillHeight,
+                )
+            }
+        }
+
+        StackedMobileIcon(
+            viewModel = dualSim,
+            color = contentColor,
+            contentDescription = viewModel.contentDescription,
+        )
+
+        if (viewModel.roaming) {
+            val height = with(LocalDensity.current) { RoamingIconHeightSp.toDp() }
+            val paddingTop = with(LocalDensity.current) { RoamingIconPaddingTopSp.toDp() }
+            Image(
+                painter = painterResource(R.drawable.stat_sys_roaming_updated),
+                contentDescription = stringResource(R.string.data_connection_roaming),
+                modifier = Modifier.height(height).offset(y = paddingTop),
+                colorFilter = ColorFilter.tint(contentColor, BlendMode.SrcIn),
+                contentScale = ContentScale.FillHeight,
+            )
+        }
     }
 }
 
 @Composable
 private fun StackedMobileIcon(
-    viewModel: StackedMobileIconViewModel.DualSim,
+    viewModel: DualSim,
     color: Color,
+    contentDescription: String?,
     modifier: Modifier = Modifier,
 ) {
     // Removing 1 to get the real number of bars
@@ -94,47 +150,56 @@ private fun StackedMobileIcon(
     val iconSize =
         with(LocalDensity.current) { dimensions.totalWidth.toDp() to IconHeightSp.toDp() }
 
-    Canvas(modifier.width(iconSize.first).height(iconSize.second)) {
-        val verticalPaddingPx = BarsVerticalPaddingSp.roundToPx()
-        val horizontalPaddingPx = dimensions.barsHorizontalPadding.roundToPx()
-        val totalPaddingWidthPx = horizontalPaddingPx * (numberOfBars - 1)
+    Canvas(
+        modifier
+            .width(iconSize.first)
+            .height(iconSize.second)
+            .semantics { contentDescription?.let { this.contentDescription = it } }
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    ) {
+        val rtl = layoutDirection == LayoutDirection.Rtl
+        scale(if (rtl) -1f else 1f, 1f) {
+            val verticalPaddingPx = BarsVerticalPaddingSp.roundToPx()
+            val horizontalPaddingPx = dimensions.barsHorizontalPadding.roundToPx()
+            val totalPaddingWidthPx = horizontalPaddingPx * (numberOfBars - 1)
 
-        val barWidthPx = (size.width - totalPaddingWidthPx) / numberOfBars
-        val dotHeightPx = SecondaryBarHeightSp.toPx()
-        val baseBarHeightPx = dimensions.barBaseHeight.toPx()
+            val barWidthPx = (size.width - totalPaddingWidthPx) / numberOfBars
+            val dotHeightPx = SecondaryBarHeightSp.toPx()
+            val baseBarHeightPx = dimensions.barBaseHeight.toPx()
 
-        var xOffsetPx = 0f
-        for (bar in 1..numberOfBars) {
-            // Bottom dots representing secondary sim
-            val dotYOffsetPx = size.height - dotHeightPx
-            if (bar <= viewModel.secondary.numberOfLevels) {
-                drawMobileIconBar(
-                    level = viewModel.secondary.level,
-                    bar = bar,
-                    topLeft = Offset(xOffsetPx, dotYOffsetPx),
-                    size = Size(barWidthPx, dotHeightPx),
-                    activeColor = color,
-                )
+            var xOffsetPx = 0f
+            for (bar in 1..numberOfBars) {
+                // Bottom dots representing secondary sim
+                val dotYOffsetPx = size.height - dotHeightPx
+                if (bar <= viewModel.secondary.numberOfLevels) {
+                    drawMobileIconBar(
+                        level = viewModel.secondary.level,
+                        bar = bar,
+                        topLeft = Offset(xOffsetPx, dotYOffsetPx),
+                        size = Size(barWidthPx, dotHeightPx),
+                        activeColor = color,
+                    )
+                }
+
+                // Top bars representing primary sim
+                if (bar <= viewModel.primary.numberOfLevels) {
+                    val barHeightPx = baseBarHeightPx + (BarsLevelIncrementSp.toPx() * (bar - 1))
+                    val barYOffsetPx = dotYOffsetPx - verticalPaddingPx - barHeightPx
+                    drawMobileIconBar(
+                        level = viewModel.primary.level,
+                        bar = bar,
+                        topLeft = Offset(xOffsetPx, barYOffsetPx),
+                        size = Size(barWidthPx, barHeightPx),
+                        activeColor = color,
+                    )
+                }
+
+                xOffsetPx += barWidthPx + horizontalPaddingPx
             }
 
-            // Top bars representing primary sim
-            if (bar <= viewModel.primary.numberOfLevels) {
-                val barHeightPx = baseBarHeightPx + (BarsLevelIncrementSp.toPx() * (bar - 1))
-                val barYOffsetPx = dotYOffsetPx - verticalPaddingPx - barHeightPx
-                drawMobileIconBar(
-                    level = viewModel.primary.level,
-                    bar = bar,
-                    topLeft = Offset(xOffsetPx, barYOffsetPx),
-                    size = Size(barWidthPx, barHeightPx),
-                    activeColor = color,
-                )
+            if (viewModel.primary.showExclamationMark) {
+                drawExclamationCutout(color)
             }
-
-            xOffsetPx += barWidthPx + horizontalPaddingPx
-        }
-
-        if (viewModel.primary.showExclamationMark) {
-            drawExclamationCutout(color)
         }
     }
 }
@@ -217,6 +282,9 @@ private object StackedMobileIconDimensions {
     val BarsVerticalPaddingSp = 1.5.sp
     val BarsLevelIncrementSp = 1.sp
     val SecondaryBarHeightSp = 3.sp
+    val RatIndicatorPaddingSp = 4.sp // 6.sp total between RAT and bars
+    val RoamingIconHeightSp = 10.sp
+    val RoamingIconPaddingTopSp = 1.sp
 
     // Exclamation cutout dimensions
     val ExclamationCutoutRadiusSp = 5.sp

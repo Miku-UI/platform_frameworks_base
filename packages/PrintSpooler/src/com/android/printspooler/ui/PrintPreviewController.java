@@ -16,24 +16,27 @@
 
 package com.android.printspooler.ui;
 
+import android.graphics.Insets;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.ParcelFileDescriptor;
 import android.print.PageRange;
-import android.print.PrintAttributes.MediaSize;
 import android.print.PrintAttributes.Margins;
+import android.print.PrintAttributes.MediaSize;
 import android.print.PrintDocumentInfo;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.support.v7.widget.RecyclerView.ViewHolder;
 import android.support.v7.widget.RecyclerView.LayoutManager;
+import android.support.v7.widget.RecyclerView.ViewHolder;
 import android.view.View;
+import android.view.WindowInsets;
+
 import com.android.internal.os.SomeArgs;
 import com.android.printspooler.R;
 import com.android.printspooler.model.MutexFileProvider;
-import com.android.printspooler.widget.PrintContentView;
 import com.android.printspooler.widget.EmbeddedContentContainer;
+import com.android.printspooler.widget.PrintContentView;
 import com.android.printspooler.widget.PrintOptionsLayout;
 
 import java.io.File;
@@ -214,7 +217,14 @@ class PrintPreviewController implements MutexFileProvider.OnReleaseRequestCallba
     }
 
     @Override
-    public void setPadding(int left, int top , int right, int bottom) {
+    public void setPadding(int left, int top, int right, int bottom) {
+        WindowInsets winsets = mRecyclerView.getRootWindowInsets();
+        if (winsets != null) {
+            // The preview area has been pushed down to make space for the other settings content.
+            // Insert enough padding to allow the user to scroll a multi-page document back up.
+            Insets insets = winsets.getInsets(WindowInsets.Type.systemBars());
+            bottom += insets.bottom + insets.top;
+        }
         mRecyclerView.setPadding(left, top, right, bottom);
     }
 

@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"Dragðu til vinstri til að skipta hratt á milli forrita"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"Strjúktu til vinstri efst á skjánum til að opna tilkynningar"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"Strjúktu til hægri efst á skjánum til að opna flýtistillingar"</string>
 </resources>

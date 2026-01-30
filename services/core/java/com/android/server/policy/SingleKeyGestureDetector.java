@@ -16,10 +16,19 @@
 
 package com.android.server.policy;
 
+import static com.android.server.policy.SingleKeyGestureEvent.ACTION_CANCEL;
+import static com.android.server.policy.SingleKeyGestureEvent.ACTION_COMPLETE;
+import static com.android.server.policy.SingleKeyGestureEvent.ACTION_START;
+import static com.android.server.policy.SingleKeyGestureEvent.SINGLE_KEY_GESTURE_TYPE_LONG_PRESS;
+import static com.android.server.policy.SingleKeyGestureEvent.SINGLE_KEY_GESTURE_TYPE_PRESS;
+import static com.android.server.policy.SingleKeyGestureEvent.SINGLE_KEY_GESTURE_TYPE_VERY_LONG_PRESS;
+
+import android.annotation.NonNull;
 import android.content.Context;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.os.SystemClock;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.ViewConfiguration;
@@ -116,13 +125,11 @@ public final class SingleKeyGestureDetector {
         }
 
         /**
-         *  Called when short press has been detected.
+         * Called when a single key gesture is started, is completed or is cancelled.
+         * {@link SingleKeyGestureEvent}
          */
-        abstract void onPress(long downTime, int displayId);
-        /**
-         *  Callback when multi press (>= 2) has been detected.
-         */
-        void onMultiPress(long downTime, int count, int displayId) {}
+        void onKeyGesture(@NonNull SingleKeyGestureEvent event) {}
+
         /**
          *  Returns the timeout in milliseconds for a long press.
          *
@@ -133,10 +140,7 @@ public final class SingleKeyGestureDetector {
         long getLongPressTimeoutMs() {
             return sDefaultLongPressTimeout;
         }
-        /**
-         *  Callback when long press has been detected.
-         */
-        void onLongPress(long eventTime) {}
+
         /**
          *  Returns the timeout in milliseconds for a very long press.
          *
@@ -145,20 +149,13 @@ public final class SingleKeyGestureDetector {
         long getVeryLongPressTimeoutMs() {
             return sDefaultVeryLongPressTimeout;
         }
-        /**
-         *  Callback when very long press has been detected.
-         */
-        void onVeryLongPress(long eventTime) {}
+
         /**
          * Callback executed upon each key up event that hasn't been processed by long press.
          *
-         * @param eventTime  the timestamp of this event
          * @param pressCount the number of presses detected leading up to this key up event
-         * @param displayId  the display ID of the event
-         * @param deviceId   the ID of the input device that generated this event
-         * @param metaState  the state of the modifiers when this gesture was detected
          */
-        void onKeyUp(long eventTime, int pressCount, int displayId, int deviceId, int metaState) {}
+        void onKeyUp(int pressCount, KeyEvent event) {}
 
         @Override
         public String toString() {
@@ -186,13 +183,9 @@ public final class SingleKeyGestureDetector {
         }
     }
 
-    private record MessageObject(SingleKeyRule activeRule, int keyCode, int pressCount,
-                                 int displayId, int metaState, int deviceId) {
-        MessageObject(SingleKeyRule activeRule, int keyCode, int pressCount, KeyEvent event) {
-            this(activeRule, keyCode, pressCount, event.getDisplayId(), event.getMetaState(),
-                    event.getDeviceId());
-        }
-    }
+    private record KeyUpMessage(SingleKeyRule rule, int pressCount, KeyEvent event) {}
+
+    private record GestureMessage(SingleKeyRule rule, SingleKeyGestureEvent event) {}
 
     static SingleKeyGestureDetector get(Context context, Looper looper) {
         SingleKeyGestureDetector detector = new SingleKeyGestureDetector(looper);
@@ -241,13 +234,8 @@ public final class SingleKeyGestureDetector {
                     Log.i(TAG, "Long press key " + KeyEvent.keyCodeToString(keyCode));
                 }
                 mHandledByLongPress = true;
-                mHandler.removeMessages(MSG_KEY_LONG_PRESS);
-                mHandler.removeMessages(MSG_KEY_VERY_LONG_PRESS);
-                MessageObject object = new MessageObject(mActiveRule, keyCode, /* pressCount= */ 1,
-                        event);
-                final Message msg = mHandler.obtainMessage(MSG_KEY_LONG_PRESS, object);
-                msg.setAsynchronous(true);
-                mHandler.sendMessage(msg);
+                cancelVeryLongPress(mActiveRule);
+                completeLongPress(mActiveRule);
             }
             return;
         }
@@ -291,24 +279,16 @@ public final class SingleKeyGestureDetector {
 
         if (mKeyPressCounter == 1) {
             if (mActiveRule.supportLongPress()) {
-                MessageObject object = new MessageObject(mActiveRule, keyCode, mKeyPressCounter,
-                        event);
-                final Message msg = mHandler.obtainMessage(MSG_KEY_LONG_PRESS, object);
-                msg.setAsynchronous(true);
-                mHandler.sendMessageDelayed(msg, mActiveRule.getLongPressTimeoutMs());
+                startLongPress(mActiveRule);
             }
 
             if (mActiveRule.supportVeryLongPress()) {
-                MessageObject object = new MessageObject(mActiveRule, keyCode, mKeyPressCounter,
-                        event);
-                final Message msg = mHandler.obtainMessage(MSG_KEY_VERY_LONG_PRESS, object);
-                msg.setAsynchronous(true);
-                mHandler.sendMessageDelayed(msg, mActiveRule.getVeryLongPressTimeoutMs());
+                startVeryLongPress(mActiveRule);
             }
         } else {
-            mHandler.removeMessages(MSG_KEY_LONG_PRESS);
-            mHandler.removeMessages(MSG_KEY_VERY_LONG_PRESS);
-            mHandler.removeMessages(MSG_KEY_DELAYED_PRESS);
+            cancelLongPress(mActiveRule);
+            cancelVeryLongPress(mActiveRule);
+            cancelDelayedPress(mActiveRule, mKeyPressCounter - 1);
 
             // Trigger multi press immediately when reach max count.( > 1)
             if (mActiveRule.getMaxMultiPressCount() > 1
@@ -317,11 +297,7 @@ public final class SingleKeyGestureDetector {
                     Log.i(TAG, "Trigger multi press " + mActiveRule.toString() + " for it"
                             + " reached the max count " + mKeyPressCounter);
                 }
-                MessageObject object = new MessageObject(mActiveRule, keyCode, mKeyPressCounter,
-                        event);
-                final Message msg = mHandler.obtainMessage(MSG_KEY_DELAYED_PRESS, object);
-                msg.setAsynchronous(true);
-                mHandler.sendMessage(msg);
+                completeDelayedPress(mActiveRule, mKeyPressCounter, event.getDisplayId());
             }
         }
     }
@@ -335,13 +311,13 @@ public final class SingleKeyGestureDetector {
         if (!mHandledByLongPress) {
             final long eventTime = event.getEventTime();
             if (eventTime < mLastDownTime + mActiveRule.getLongPressTimeoutMs()) {
-                mHandler.removeMessages(MSG_KEY_LONG_PRESS);
+                cancelLongPress(mActiveRule);
             } else {
                 mHandledByLongPress = mActiveRule.supportLongPress();
             }
 
             if (eventTime < mLastDownTime + mActiveRule.getVeryLongPressTimeoutMs()) {
-                mHandler.removeMessages(MSG_KEY_VERY_LONG_PRESS);
+                cancelVeryLongPress(mActiveRule);
             } else {
                 // If long press or very long press (~3.5s) had been handled, we should skip the
                 // short press behavior.
@@ -371,8 +347,7 @@ public final class SingleKeyGestureDetector {
             }
 
             // key-up action should always be triggered if not processed by long press.
-            MessageObject object = new MessageObject(mActiveRule, mActiveRule.mKeyCode,
-                    mKeyPressCounter, event);
+            KeyUpMessage object = new KeyUpMessage(mActiveRule, mKeyPressCounter, event.copy());
             Message msgKeyUp = mHandler.obtainMessage(MSG_KEY_UP, object);
             msgKeyUp.setAsynchronous(true);
             mHandler.sendMessage(msgKeyUp);
@@ -382,22 +357,14 @@ public final class SingleKeyGestureDetector {
                 if (DEBUG) {
                     Log.i(TAG, "press key " + KeyEvent.keyCodeToString(event.getKeyCode()));
                 }
-                object = new MessageObject(mActiveRule, mActiveRule.mKeyCode,
-                        /* pressCount= */ 1, event);
-                Message msg = mHandler.obtainMessage(MSG_KEY_DELAYED_PRESS, object);
-                msg.setAsynchronous(true);
-                mHandler.sendMessage(msg);
+                completeDelayedPress(mActiveRule, /* pressCount = */1, event.getDisplayId());
                 mActiveRule = null;
                 return true;
             }
 
             // This could be a multi-press.  Wait a little bit longer to confirm.
             if (mKeyPressCounter < mActiveRule.getMaxMultiPressCount()) {
-                object = new MessageObject(mActiveRule, mActiveRule.mKeyCode,
-                        mKeyPressCounter, event);
-                Message msg = mHandler.obtainMessage(MSG_KEY_DELAYED_PRESS, object);
-                msg.setAsynchronous(true);
-                mHandler.sendMessageDelayed(msg, MULTI_PRESS_TIMEOUT);
+                startDelayedPress(mActiveRule, mKeyPressCounter, event.getDisplayId());
             }
             return true;
         }
@@ -416,12 +383,12 @@ public final class SingleKeyGestureDetector {
     void reset() {
         if (mActiveRule != null) {
             if (mDownKeyCode != KeyEvent.KEYCODE_UNKNOWN) {
-                mHandler.removeMessages(MSG_KEY_LONG_PRESS);
-                mHandler.removeMessages(MSG_KEY_VERY_LONG_PRESS);
+                cancelLongPress(mActiveRule);
+                cancelVeryLongPress(mActiveRule);
             }
 
             if (mKeyPressCounter > 0) {
-                mHandler.removeMessages(MSG_KEY_DELAYED_PRESS);
+                cancelDelayedPress(mActiveRule, mKeyPressCounter);
                 mKeyPressCounter = 0;
             }
             mActiveRule = null;
@@ -443,6 +410,118 @@ public final class SingleKeyGestureDetector {
         return mBeganFromDefaultDisplayOn;
     }
 
+    private void startLongPress(@NonNull SingleKeyRule rule) {
+        rule.onKeyGesture(new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                SINGLE_KEY_GESTURE_TYPE_LONG_PRESS, ACTION_START)
+                        .setStartTime(mLastDownTime)
+                        .build());
+        // Add delayed complete gesture to handler with long press timeout
+        long longPressTimeout = mActiveRule.getLongPressTimeoutMs();
+        GestureMessage object = new GestureMessage(mActiveRule,
+                new SingleKeyGestureEvent.Builder(rule.mKeyCode, SINGLE_KEY_GESTURE_TYPE_LONG_PRESS,
+                        ACTION_COMPLETE)
+                        .setStartTime(mLastDownTime)
+                        .setEventTime(SystemClock.uptimeMillis() + longPressTimeout)
+                        .build());
+        final Message msg = mHandler.obtainMessage(MSG_KEY_LONG_PRESS, object);
+        msg.setAsynchronous(true);
+        mHandler.sendMessageDelayed(msg, longPressTimeout);
+    }
+
+    private void completeLongPress(@NonNull SingleKeyRule rule) {
+        mHandler.removeMessages(MSG_KEY_LONG_PRESS);
+        GestureMessage object = new GestureMessage(mActiveRule,
+                new SingleKeyGestureEvent.Builder(rule.mKeyCode, SINGLE_KEY_GESTURE_TYPE_LONG_PRESS,
+                        ACTION_COMPLETE)
+                        .setStartTime(mLastDownTime)
+                        .setEventTime(SystemClock.uptimeMillis())
+                        .build());
+        final Message msg = mHandler.obtainMessage(MSG_KEY_LONG_PRESS, object);
+        msg.setAsynchronous(true);
+        mHandler.sendMessage(msg);
+    }
+
+    private void cancelLongPress(@NonNull SingleKeyRule rule) {
+        if (mHandler.hasMessages(MSG_KEY_LONG_PRESS)) {
+            mHandler.removeMessages(MSG_KEY_LONG_PRESS);
+            rule.onKeyGesture(
+                    new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                            SINGLE_KEY_GESTURE_TYPE_LONG_PRESS, ACTION_CANCEL).build());
+        }
+    }
+
+    private void startVeryLongPress(@NonNull SingleKeyRule rule) {
+        rule.onKeyGesture(new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                SINGLE_KEY_GESTURE_TYPE_VERY_LONG_PRESS, ACTION_START)
+                .setStartTime(mLastDownTime)
+                .build());
+        // Add delayed complete gesture to handler with very long press timeout
+        long veryLongPressTimeout = mActiveRule.getVeryLongPressTimeoutMs();
+        GestureMessage object = new GestureMessage(mActiveRule,
+                new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                        SINGLE_KEY_GESTURE_TYPE_VERY_LONG_PRESS, ACTION_COMPLETE)
+                        .setStartTime(mLastDownTime)
+                        .setEventTime(SystemClock.uptimeMillis() + veryLongPressTimeout)
+                        .build());
+        final Message msg = mHandler.obtainMessage(MSG_KEY_VERY_LONG_PRESS, object);
+        msg.setAsynchronous(true);
+        mHandler.sendMessageDelayed(msg, veryLongPressTimeout);
+    }
+
+    private void cancelVeryLongPress(@NonNull SingleKeyRule rule) {
+        if (mHandler.hasMessages(MSG_KEY_VERY_LONG_PRESS)) {
+            mHandler.removeMessages(MSG_KEY_VERY_LONG_PRESS);
+            rule.onKeyGesture(
+                    new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                            SINGLE_KEY_GESTURE_TYPE_VERY_LONG_PRESS, ACTION_CANCEL).build());
+        }
+    }
+
+    private void startDelayedPress(@NonNull SingleKeyRule rule, int pressCount, int displayId) {
+        rule.onKeyGesture(new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                SINGLE_KEY_GESTURE_TYPE_PRESS, ACTION_START)
+                .setPressCount(pressCount)
+                .setStartTime(mLastDownTime)
+                .setDisplayId(displayId)
+                .build());
+        // Add delayed complete gesture to handler with multi press timeout
+        GestureMessage object = new GestureMessage(mActiveRule,
+                new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                        SINGLE_KEY_GESTURE_TYPE_PRESS, ACTION_COMPLETE)
+                        .setStartTime(mLastDownTime)
+                        .setEventTime(SystemClock.uptimeMillis() + MULTI_PRESS_TIMEOUT)
+                        .setPressCount(pressCount)
+                        .setDisplayId(displayId)
+                        .build());
+        final Message msg = mHandler.obtainMessage(MSG_KEY_DELAYED_PRESS, object);
+        msg.setAsynchronous(true);
+        mHandler.sendMessageDelayed(msg, MULTI_PRESS_TIMEOUT);
+    }
+
+    private void completeDelayedPress(@NonNull SingleKeyRule rule, int pressCount, int displayId) {
+        GestureMessage object = new GestureMessage(mActiveRule,
+                new SingleKeyGestureEvent.Builder(rule.mKeyCode, SINGLE_KEY_GESTURE_TYPE_PRESS,
+                        ACTION_COMPLETE)
+                        .setStartTime(mLastDownTime)
+                        .setEventTime(SystemClock.uptimeMillis())
+                        .setPressCount(pressCount)
+                        .setDisplayId(displayId)
+                        .build());
+        final Message msg = mHandler.obtainMessage(MSG_KEY_DELAYED_PRESS, object);
+        msg.setAsynchronous(true);
+        mHandler.sendMessage(msg);
+    }
+
+    private void cancelDelayedPress(@NonNull SingleKeyRule rule, int pressCount) {
+        if (mHandler.hasMessages(MSG_KEY_DELAYED_PRESS)) {
+            mHandler.removeMessages(MSG_KEY_DELAYED_PRESS);
+            rule.onKeyGesture(
+                    new SingleKeyGestureEvent.Builder(rule.mKeyCode,
+                            SINGLE_KEY_GESTURE_TYPE_PRESS, ACTION_CANCEL)
+                            .setPressCount(pressCount).build());
+        }
+    }
+
     void dump(String prefix, PrintWriter pw) {
         pw.println(prefix + "SingleKey rules:");
         for (SingleKeyRule rule : mRules) {
@@ -457,48 +536,32 @@ public final class SingleKeyGestureDetector {
 
         @Override
         public void handleMessage(Message msg) {
-            final MessageObject object = (MessageObject) msg.obj;
-            final SingleKeyRule rule = object.activeRule;
-            if (rule == null) {
-                Log.wtf(TAG, "No active rule.");
-                return;
-            }
-
-            final int keyCode = object.keyCode;
-            final int pressCount = object.pressCount;
-            final int displayId = object.displayId;
             switch(msg.what) {
-                case MSG_KEY_UP:
-                    if (DEBUG) {
-                        Log.i(TAG, "Detect key up " + KeyEvent.keyCodeToString(keyCode)
-                                + " on display " + displayId);
+                case MSG_KEY_UP: {
+                    KeyUpMessage object = (KeyUpMessage) msg.obj;
+                    if (object.rule == null || object.event == null) {
+                        Log.wtf(TAG, "Active rule or associated event is null");
+                        return;
                     }
-                    rule.onKeyUp(mLastDownTime, pressCount, displayId, object.deviceId,
-                            object.metaState);
+                    if (DEBUG) {
+                        Log.i(TAG, "Detect key up " + KeyEvent.keyCodeToString(
+                                object.event.getKeyCode()));
+                    }
+                    object.rule.onKeyUp(object.pressCount, object.event);
                     break;
+                }
                 case MSG_KEY_LONG_PRESS:
-                    if (DEBUG) {
-                        Log.i(TAG, "Detect long press " + KeyEvent.keyCodeToString(keyCode));
-                    }
-                    rule.onLongPress(mLastDownTime);
-                    break;
                 case MSG_KEY_VERY_LONG_PRESS:
-                    if (DEBUG) {
-                        Log.i(TAG, "Detect very long press "
-                                + KeyEvent.keyCodeToString(keyCode));
-                    }
-                    rule.onVeryLongPress(mLastDownTime);
-                    break;
                 case MSG_KEY_DELAYED_PRESS:
+                    GestureMessage object = (GestureMessage) msg.obj;
+                    if (object.rule == null || object.event == null) {
+                        Log.wtf(TAG, "Active rule or associated event is null");
+                        return;
+                    }
                     if (DEBUG) {
-                        Log.i(TAG, "Detect press " + KeyEvent.keyCodeToString(keyCode)
-                                + " on display " + displayId + ", count " + pressCount);
+                        Log.i(TAG, "Detect key gesture: " + object.event);
                     }
-                    if (pressCount == 1) {
-                        rule.onPress(mLastDownTime, displayId);
-                    } else {
-                        rule.onMultiPress(mLastDownTime, pressCount, displayId);
-                    }
+                    object.rule.onKeyGesture(object.event);
                     break;
             }
         }

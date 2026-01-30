@@ -41,6 +41,7 @@ import android.telephony.TelephonyManager.ERI_ON
 import android.telephony.TelephonyManager.EXTRA_SUBSCRIPTION_ID
 import android.telephony.TelephonyManager.NETWORK_TYPE_UNKNOWN
 import android.telephony.TelephonyManager.UNKNOWN_CARRIER_ID
+import android.telephony.satellite.NtnSignalStrength
 import com.android.settingslib.Utils
 import com.android.systemui.KairosBuilder
 import com.android.systemui.broadcast.BroadcastDispatcher
@@ -58,6 +59,7 @@ import com.android.systemui.kairos.map
 import com.android.systemui.kairos.mapNotNull
 import com.android.systemui.kairos.stateOf
 import com.android.systemui.kairos.transactionally
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.MobileInputLogger
@@ -163,7 +165,7 @@ constructor(
                     }
 
                     override fun onCarrierRoamingNtnModeChanged(active: Boolean) {
-                        logger.logOnCarrierRoamingNtnModeChanged(active)
+                        logger.logOnCarrierRoamingNtnModeChanged(active, subId)
                         emit(CallbackEvent.OnCarrierRoamingNtnModeChanged(active))
                     }
 
@@ -197,6 +199,13 @@ constructor(
                         emit(CallbackEvent.OnSignalStrengthChanged(signalStrength))
                     }
 
+                    override fun onCarrierRoamingNtnSignalStrengthChanged(
+                        signalStrength: NtnSignalStrength
+                    ) {
+                        logger.logNtnSignalStrengthChanged(signalStrength, subId)
+                        emit(CallbackEvent.OnCarrierRoamingNtnSignalStrengthChanged(signalStrength))
+                    }
+
                     override fun onCallbackModeStarted(
                         type: Int,
                         timerDuration: Duration,
@@ -227,13 +236,17 @@ constructor(
     }
 
     private val serviceState: State<ServiceState?> = buildState {
-        callbackEvents.mapNotNull { it.onServiceStateChanged?.serviceState }.holdState(null)
+        callbackEvents
+            .mapNotNull { it.onServiceStateChanged?.serviceState }
+            .holdState(null, nameTag("MobileConnectionRepositoryKairosImpl.serviceState"))
     }
 
     override val isEmergencyOnly: State<Boolean> = serviceState.map { it?.isEmergencyOnly == true }
 
     private val displayInfo: State<TelephonyDisplayInfo?> = buildState {
-        callbackEvents.mapNotNull { it.onDisplayInfoChanged?.telephonyDisplayInfo }.holdState(null)
+        callbackEvents
+            .mapNotNull { it.onDisplayInfoChanged?.telephonyDisplayInfo }
+            .holdState(null, nameTag("MobileConnectionRepositoryKairosImpl.displayInfo"))
     }
 
     override val isRoaming: State<Boolean> =
@@ -249,14 +262,21 @@ constructor(
         serviceState.map { it?.let(Utils::isInService) == true }
 
     private val carrierRoamingNtnActive: State<Boolean> = buildState {
-        callbackEvents.mapNotNull { it.onCarrierRoamingNtnModeChanged?.active }.holdState(false)
+        callbackEvents
+            .mapNotNull { it.onCarrierRoamingNtnModeChanged?.active }
+            .holdState(
+                false,
+                nameTag("MobileConnectionRepositoryKairosImpl.carrierRoamingNtnActive"),
+            )
     }
 
     override val isNonTerrestrial: State<Boolean>
         get() = carrierRoamingNtnActive
 
     private val signalStrength: State<SignalStrength?> = buildState {
-        callbackEvents.mapNotNull { it.onSignalStrengthChanged?.signalStrength }.holdState(null)
+        callbackEvents
+            .mapNotNull { it.onSignalStrengthChanged?.signalStrength }
+            .holdState(null, nameTag("MobileConnectionRepositoryKairosImpl.signalStrength"))
     }
 
     override val isGsm: State<Boolean> = signalStrength.map { it?.isGsm == true }
@@ -273,27 +293,40 @@ constructor(
     override val satelliteLevel: State<Int> = buildState {
         callbackEvents
             .mapNotNull { it.onCarrierRoamingNtnSignalStrengthChanged?.signalStrength?.level }
-            .holdState(0)
+            .holdState(0, nameTag("MobileConnectionRepositoryKairosImpl.satelliteLevel"))
     }
 
     override val dataConnectionState: State<DataConnectionState> = buildState {
         callbackEvents
             .mapNotNull { it.onDataConnectionStateChanged?.dataState?.toDataConnectionType() }
-            .holdState(Disconnected)
+            .holdState(
+                Disconnected,
+                nameTag("MobileConnectionRepositoryKairosImpl.dataConnectionState"),
+            )
     }
 
     override val dataActivityDirection: State<DataActivityModel> = buildState {
         callbackEvents
             .mapNotNull { it.onDataActivity?.direction?.toMobileDataActivityModel() }
-            .holdState(DataActivityModel(hasActivityIn = false, hasActivityOut = false))
+            .holdState(
+                DataActivityModel(hasActivityIn = false, hasActivityOut = false),
+                nameTag("MobileConnectionRepositoryKairosImpl.dataActivityDirection"),
+            )
     }
 
     override val carrierNetworkChangeActive: State<Boolean> = buildState {
-        callbackEvents.mapNotNull { it.onCarrierNetworkChange?.active }.holdState(false)
+        callbackEvents
+            .mapNotNull { it.onCarrierNetworkChange?.active }
+            .holdState(
+                false,
+                nameTag("MobileConnectionRepositoryKairosImpl.carrierNetworkChangeActive"),
+            )
     }
 
     private val telephonyDisplayInfo: State<TelephonyDisplayInfo?> = buildState {
-        callbackEvents.mapNotNull { it.onDisplayInfoChanged?.telephonyDisplayInfo }.holdState(null)
+        callbackEvents
+            .mapNotNull { it.onDisplayInfoChanged?.telephonyDisplayInfo }
+            .holdState(null, nameTag("MobileConnectionRepositoryKairosImpl.telephonyDisplayInfo"))
     }
 
     override val resolvedNetworkType: State<ResolvedNetworkType> =
@@ -310,11 +343,15 @@ constructor(
         }
 
     override val inflateSignalStrength: State<Boolean> = buildState {
-        systemUiCarrierConfig.shouldInflateSignalStrength.toState()
+        systemUiCarrierConfig.shouldInflateSignalStrength.toState(
+            nameTag("MobileConnectionRepositoryKairosImpl.inflateSignalStrength")
+        )
     }
 
     override val allowNetworkSliceIndicator: State<Boolean> = buildState {
-        systemUiCarrierConfig.allowNetworkSliceIndicator.toState()
+        systemUiCarrierConfig.allowNetworkSliceIndicator.toState(
+            nameTag("MobileConnectionRepositoryKairosImpl.allowNetworkSliceIndicator")
+        )
     }
 
     override val numberOfLevels: State<Int> =
@@ -354,7 +391,7 @@ constructor(
                 val cdmaEri = cdmaEnhancedRoamingIndicatorDisplayNumber.sample()
                 cdmaEri == ERI_ON || cdmaEri == ERI_FLASH
             }
-            .holdState(false)
+            .holdState(false, nameTag("MobileConnectionRepositoryKairosImpl.cdmaRoaming"))
     }
 
     override val carrierId: State<Int> = buildState {
@@ -368,7 +405,10 @@ constructor(
                 intent.getIntExtra(EXTRA_SUBSCRIPTION_ID, INVALID_SUBSCRIPTION_ID) == subId
             }
             .map { it.carrierId() }
-            .toState(telephonyManager.simCarrierId)
+            .toState(
+                telephonyManager.simCarrierId,
+                nameTag("MobileConnectionRepositoryKairosImpl.carrierId"),
+            )
     }
 
     /**
@@ -406,13 +446,23 @@ constructor(
 
                 awaitClose { context.unregisterReceiver(receiver) }
             }
-            .holdState(defaultNetworkName)
+            .holdState(
+                defaultNetworkName,
+                nameTag("MobileConnectionRepositoryKairosImpl.networkName"),
+            )
     }
 
     override val dataEnabled: State<Boolean> = buildState {
         callbackEvents
             .mapNotNull { it.onDataEnabledChanged?.enabled }
-            .holdState(telephonyManager.isDataConnectionAllowed)
+            .holdState(
+                telephonyManager.isDataConnectionAllowed,
+                nameTag("MobileConnectionRepositoryKairosImpl.dataEnabled"),
+            )
+    }
+
+    override fun setDataEnabled(enabled: Boolean) {
+        telephonyManager.setDataEnabledForReason(TelephonyManager.DATA_ENABLED_REASON_USER, enabled)
     }
 
     override val isInEcmMode: State<Boolean> = buildState {
@@ -422,8 +472,13 @@ constructor(
                     added.isNotEmpty() || removed.isNotEmpty()
                 }
             }
-            .foldState(emptySet<Int>()) { (added, removed), acc -> acc - removed + added }
-            .mapTransactionally { it.isNotEmpty() }
+            .foldState(
+                emptySet<Int>(),
+                nameTag("MobileConnectionRepositoryKairosImpl.isInEcmMode"),
+            ) { (added, removed), acc ->
+                acc - removed + added
+            }
+            .map { it.isNotEmpty() }
     }
 
     /** Typical mobile connections aren't available during airplane mode. */
@@ -464,7 +519,10 @@ constructor(
 
                 awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
             }
-            .holdState(false)
+            .holdState(
+                false,
+                nameTag("MobileConnectionRepositoryKairosImpl.hasPrioritizedNetworkCapabilities"),
+            )
     }
 
     @AssistedFactory

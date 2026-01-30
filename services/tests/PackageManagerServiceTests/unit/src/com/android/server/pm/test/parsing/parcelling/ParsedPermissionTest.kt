@@ -20,6 +20,7 @@ import com.android.internal.pm.pkg.component.ParsedPermission
 import com.android.internal.pm.pkg.component.ParsedPermissionGroup
 import com.android.internal.pm.pkg.component.ParsedPermissionGroupImpl
 import com.android.internal.pm.pkg.component.ParsedPermissionImpl
+import com.android.internal.pm.pkg.component.ParsedValidPurposeImpl
 import kotlin.contracts.ExperimentalContracts
 
 @ExperimentalContracts
@@ -46,11 +47,25 @@ class ParsedPermissionTest : ParsedComponentTest(
         ParsedPermission::getGroup,
         ParsedPermission::getRequestRes,
         ParsedPermission::getProtectionLevel,
+        ParsedPermission::getRequiresPurposeTargetSdkVersion,
         ParsedPermission::isTree,
+        ParsedPermission::isPurposeRequired,
     )
 
     override fun subclassExtraParams() = listOf(
         getter(ParsedPermission::getKnownCerts, setOf("testCert")),
+        getSetByValue(
+            ParsedPermission::getValidPurposes,
+            ParsedPermissionImpl::setValidPurposes,
+            Pair("validPurpose", 20),
+            transformGet = { it.singleOrNull()?.let { Pair(it.name, it.maxTargetSdkVersion) } },
+            transformSet = {
+                listOf(ParsedValidPurposeImpl(
+                    it!!.first,
+                    it.second
+                ))
+            }
+        ),
         getSetByValue(
             ParsedPermission::getParsedPermissionGroup,
             ParsedPermissionImpl::setParsedPermissionGroup,

@@ -156,6 +156,7 @@ class MobileIconsInteractorKairosAdapterTest : MobileIconsInteractorTestBase() {
     }
 
     private class MobileConnectionRepoWrapper(
+        val unwrapped: MobileConnectionRepository,
         override val subId: Int,
         override val carrierId: State<Int>,
         override val inflateSignalStrength: State<Boolean>,
@@ -182,7 +183,11 @@ class MobileIconsInteractorKairosAdapterTest : MobileIconsInteractorTestBase() {
         override val isAllowedDuringAirplaneMode: State<Boolean>,
         override val hasPrioritizedNetworkCapabilities: State<Boolean>,
         override val isInEcmMode: State<Boolean>,
-    ) : MobileConnectionRepositoryKairos
+    ) : MobileConnectionRepositoryKairos {
+        override fun setDataEnabled(enabled: Boolean) {
+            unwrapped.setDataEnabled(enabled)
+        }
+    }
 
     companion object {
         /** Allows us to wrap a (likely fake) MobileConnectionRepository into a Kairos version. */
@@ -191,6 +196,7 @@ class MobileIconsInteractorKairosAdapterTest : MobileIconsInteractorTestBase() {
         ): MobileConnectionRepositoryKairos =
             with(conn) {
                 MobileConnectionRepoWrapper(
+                    unwrapped = conn,
                     subId = subId,
                     carrierId = carrierId.toState(),
                     inflateSignalStrength = inflateSignalStrength.toState(),

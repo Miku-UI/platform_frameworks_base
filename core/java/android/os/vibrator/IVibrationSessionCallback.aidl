@@ -19,7 +19,7 @@ import android.os.vibrator.IVibrationSession;
 
 /**
  * Callback for vibration session state.
- * {@hide}
+ * @hide
  */
 oneway interface IVibrationSessionCallback {
 

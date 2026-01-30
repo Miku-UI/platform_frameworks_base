@@ -16,10 +16,13 @@
 
 package android.hardware.biometrics;
 
+import static android.Manifest.permission.SET_BIOMETRIC_DIALOG_ADVANCED;
 import static android.Manifest.permission.TEST_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC;
 import static android.Manifest.permission.USE_BIOMETRIC_INTERNAL;
 import static android.Manifest.permission.WRITE_DEVICE_CONFIG;
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
+import static android.hardware.biometrics.Flags.FLAG_ADD_FALLBACK;
 
 import static com.android.internal.util.FrameworkStatsLog.AUTH_DEPRECATED_APIUSED__DEPRECATED_API__API_BIOMETRIC_MANAGER_CAN_AUTHENTICATE;
 
@@ -29,11 +32,13 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.app.KeyguardManager;
 import android.content.Context;
+import android.os.Build;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.UserHandle;
@@ -42,14 +47,20 @@ import android.util.Slog;
 
 import com.android.internal.util.FrameworkStatsLog;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A class that contains biometric utilities. For authentication, see {@link BiometricPrompt}.
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @SystemService(Context.BIOMETRIC_SERVICE)
 public class BiometricManager {
 
@@ -141,6 +152,80 @@ public class BiometricManager {
             BIOMETRIC_ERROR_IDENTITY_CHECK_NOT_ACTIVE})
     @Retention(RetentionPolicy.SOURCE)
     public @interface BiometricError {}
+
+    /**
+     * Constant representing fingerprint.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_MOVE_FM_API_TO_BM)
+    public static final int TYPE_FINGERPRINT = BiometricAuthenticator.TYPE_FINGERPRINT;
+
+    /**
+     * Constant representing face.
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(Flags.FLAG_MOVE_FM_API_TO_BM)
+    public static final int TYPE_FACE = BiometricAuthenticator.TYPE_FACE;
+
+    /**
+     * An {@link IntDef} representing the biometric modalities.
+     * @hide
+     */
+    @IntDef(flag = true, value = {
+            TYPE_FINGERPRINT,
+            TYPE_FACE
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    @Target(ElementType.TYPE_USE)
+    @interface BiometricModality {
+    }
+
+    /**
+     * An {@link IntDef} representing the different icon types that can be used in the biometric
+     * prompt fallback options
+     * @hide
+     */
+    @IntDef(prefix = { "ICON_TYPE_" }, value = {
+            ICON_TYPE_PASSWORD,
+            ICON_TYPE_QR_CODE,
+            ICON_TYPE_ACCOUNT,
+            ICON_TYPE_GENERIC,
+            ICON_TYPE_SETTING
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface IconType {}
+
+    /**
+     * An icon representing a password.
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK)
+    public static final int ICON_TYPE_PASSWORD = 0;
+
+    /**
+     * An icon representing a QR code.
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK)
+    public static final int ICON_TYPE_QR_CODE = 1;
+
+    /**
+     * An icon representing a user account.
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK)
+    public static final int ICON_TYPE_ACCOUNT = 2;
+
+    /**
+     * A generic icon.
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK)
+    public static final int ICON_TYPE_GENERIC = 3;
+
+    /**
+     * An icon representing settings (a gear).
+     */
+    @FlaggedApi(FLAG_ADD_FALLBACK)
+    public static final int ICON_TYPE_SETTING = 4;
 
     /**
      * Types of authenticators, defined at a level of granularity supported by
@@ -453,6 +538,24 @@ public class BiometricManager {
     }
 
     /**
+     * Sets Identity Check status for testing purpose.
+     * @hide
+     */
+    @TestApi
+    @RequiresPermission(TEST_BIOMETRIC)
+    @FlaggedApi(Flags.FLAG_IDENTITY_CHECK_TEST_API)
+    public void setIdentityCheckTestStatus(@NonNull IdentityCheckStatus identityCheckStatus) {
+        try {
+            Slog.d(TAG, "Identity Check status being set to "
+                    + identityCheckStatus.isIdentityCheckActive()
+                    + ". For test: " + identityCheckStatus.isIdentityCheckValueForTestAvailable());
+            mService.setIdentityCheckTestStatus(identityCheckStatus);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * Retrieves the package where BiometricPrompt's UI is implemented.
      * @hide
      */
@@ -567,6 +670,35 @@ public class BiometricManager {
     }
 
     /**
+     * Return the current biometrics enrollment status map (modality -> BiometricEnrollmentStatus).
+     *
+     * <p>This method is intended for system apps, such as settings or device setup, which require
+     * detailed enrollment information to show or hide features or to encourage users to enroll
+     * in a specific modality. Applications should instead use
+     * {@link BiometricManager#canAuthenticate(int)} to check the enrollment status and use the
+     * enroll intent, when needed to allow users to enroll. That ensures that users are presented
+     * with a consistent set of options across all of their apps and can be redirected to a
+     * single system-managed settings surface.</p>
+     *
+     * @hide
+     */
+    @SystemApi
+    @RequiresPermission(SET_BIOMETRIC_DIALOG_ADVANCED)
+    @FlaggedApi(Flags.FLAG_MOVE_FM_API_TO_BM)
+    @NonNull
+    public Map<@BiometricManager.BiometricModality Integer, BiometricEnrollmentStatus>
+            getEnrollmentStatus() {
+        try {
+            final List<BiometricEnrollmentStatusInternal> statusInternalList =
+                    mService.getEnrollmentStatusList(mContext.getUserId(),
+                            mContext.getOpPackageName());
+            return convertBiometricEnrollmentStatusInternalToMap(statusInternalList);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
      * @hide
      * @param userId
      * @return
@@ -637,6 +769,42 @@ public class BiometricManager {
             }
         } else {
             Slog.w(TAG, "unregisterAuthenticationStateListener(): Service not connected");
+        }
+    }
+
+    /**
+     * Registers listener for changes to Identity Check state.
+     * @param listener Listener for changes to Identity Check state
+     * @hide
+     */
+    @RequiresPermission(USE_BIOMETRIC_INTERNAL)
+    public void registerIdentityCheckStateListener(IIdentityCheckStateListener listener) {
+        if (mService != null) {
+            try {
+                mService.registerIdentityCheckStateListener(listener);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            Slog.w(TAG, "registerIdentityCheckStateListener(): Service not connected");
+        }
+    }
+
+    /**
+     * Unregisters listener for changes to Identity Check state.
+     * @param listener Listener for changes to Identity Check state
+     * @hide
+     */
+    @RequiresPermission(USE_BIOMETRIC_INTERNAL)
+    public void unregisterIdentityCheckStateListener(IIdentityCheckStateListener listener) {
+        if (mService != null) {
+            try {
+                mService.unregisterIdentityCheckStateListener(listener);
+            } catch (RemoteException e) {
+                throw e.rethrowFromSystemServer();
+            }
+        } else {
+            Slog.w(TAG, "unregisterIdentityCheckStateListener(): Service not connected");
         }
     }
 
@@ -793,6 +961,17 @@ public class BiometricManager {
         } else {
             return BIOMETRIC_NO_AUTHENTICATION;
         }
+    }
+
+    private static Map<Integer, BiometricEnrollmentStatus>
+            convertBiometricEnrollmentStatusInternalToMap(
+            List<BiometricEnrollmentStatusInternal> list) {
+        Map<Integer, BiometricEnrollmentStatus> map = new HashMap<>();
+
+        for (BiometricEnrollmentStatusInternal item : list) {
+            map.put(item.getModality(), item.getStatus());
+        }
+        return map;
     }
 }
 

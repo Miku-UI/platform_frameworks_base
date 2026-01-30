@@ -26,13 +26,16 @@ import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGI
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_MANUAL;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_TELEPHONY;
 import static com.android.server.timezonedetector.TimeZoneDetectorStrategy.ORIGIN_UNKNOWN;
+import static com.android.server.SystemTimeZone.TIME_ZONE_CONFIDENCE_LOW;
 
 import android.annotation.DurationMillisLong;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.UserIdInt;
 import android.app.ActivityManagerInternal;
+import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
@@ -64,51 +67,47 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * An implementation of {@link TimeZoneChangeListener} that fires notifications.
- */
+/** An implementation of {@link TimeZoneChangeListener} that fires notifications. */
 public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
-    @IntDef({STATUS_UNKNOWN, STATUS_UNTRACKED, STATUS_REJECTED,
-            STATUS_ACCEPTED, STATUS_SUPERSEDED})
+    @IntDef({STATUS_UNKNOWN, STATUS_UNTRACKED, STATUS_REJECTED, STATUS_ACCEPTED, STATUS_SUPERSEDED})
     @Retention(RetentionPolicy.SOURCE)
     @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
     @interface TimeZoneChangeStatus {}
 
     /** Used to indicate the status could not be inferred. */
-    @TimeZoneChangeStatus
-    static final int STATUS_UNKNOWN = 0;
-    /** Used to indicate the change is not one that needs to be tracked. */
-    @TimeZoneChangeStatus
-    static final int STATUS_UNTRACKED = 1;
-    @TimeZoneChangeStatus
-    static final int STATUS_REJECTED = 2;
-    @TimeZoneChangeStatus
-    static final int STATUS_ACCEPTED = 3;
-    /** Used to indicate a change was superseded before its status could be determined. */
-    @TimeZoneChangeStatus
-    static final int STATUS_SUPERSEDED = 4;
+    @TimeZoneChangeStatus static final int STATUS_UNKNOWN = 0;
 
-    @IntDef({SIGNAL_TYPE_UNKNOWN, SIGNAL_TYPE_NONE, SIGNAL_TYPE_NOTIFICATION,
-            SIGNAL_TYPE_HEURISTIC})
+    /** Used to indicate the change is not one that needs to be tracked. */
+    @TimeZoneChangeStatus static final int STATUS_UNTRACKED = 1;
+
+    @TimeZoneChangeStatus static final int STATUS_REJECTED = 2;
+    @TimeZoneChangeStatus static final int STATUS_ACCEPTED = 3;
+
+    /** Used to indicate a change was superseded before its status could be determined. */
+    @TimeZoneChangeStatus static final int STATUS_SUPERSEDED = 4;
+
+    @IntDef({
+        SIGNAL_TYPE_UNKNOWN,
+        SIGNAL_TYPE_NONE,
+        SIGNAL_TYPE_NOTIFICATION,
+        SIGNAL_TYPE_HEURISTIC
+    })
     @Retention(RetentionPolicy.SOURCE)
     @Target({ElementType.TYPE_USE, ElementType.TYPE_PARAMETER})
     @interface SignalType {}
 
     /** Used when the signal type cannot be inferred. */
-    @SignalType
-    static final int SIGNAL_TYPE_UNKNOWN = 0;
+    @SignalType static final int SIGNAL_TYPE_UNKNOWN = 0;
+
     /** Used when the status is not one that needs a signal type. */
-    @SignalType
-    static final int SIGNAL_TYPE_NONE = 1;
-    @SignalType
-    static final int SIGNAL_TYPE_NOTIFICATION = 2;
-    @SignalType
-    static final int SIGNAL_TYPE_HEURISTIC = 3;
+    @SignalType static final int SIGNAL_TYPE_NONE = 1;
+
+    @SignalType static final int SIGNAL_TYPE_NOTIFICATION = 2;
+    @SignalType static final int SIGNAL_TYPE_HEURISTIC = 3;
 
     private static final int MAX_EVENTS_TO_TRACK = 10;
 
-    @VisibleForTesting
-    @DurationMillisLong
+    @VisibleForTesting @DurationMillisLong
     static final long AUTO_REVERT_THRESHOLD = Duration.ofMinutes(15).toMillis();
 
     private static final String TAG = "TimeZoneChangeTracker";
@@ -124,6 +123,7 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     private final Context mContext;
     private final NotificationManager mNotificationManager;
     private final ActivityManagerInternal mActivityManagerInternal;
+    private final KeyguardManager mKeyguardManager;
 
     // For scheduling callbacks
     private final Handler mHandler;
@@ -136,31 +136,39 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     private final ReferenceWithHistory<TimeZoneChangeRecord> mTimeZoneChangeRecord =
             new ReferenceWithHistory<>(MAX_EVENTS_TO_TRACK);
 
-    private final BroadcastReceiver mNotificationReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            switch (intent.getAction()) {
-                case ACTION_NOTIFICATION_DELETED:
-                    int notifiedUserId = intent.getIntExtra(
-                            NOTIFICATION_INTENT_EXTRA_USER_ID, UserHandle.USER_NULL);
-                    int changeEventId = intent.getIntExtra(
-                            NOTIFICATION_INTENT_EXTRA_CHANGE_ID, 0);
-                    notificationSwipedAway(notifiedUserId, changeEventId);
-                    break;
-                default:
-                    Log.d(TAG, "Unknown intent action received: " + intent.getAction());
-            }
-        }
-    };
+    private final BroadcastReceiver mNotificationReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    switch (intent.getAction()) {
+                        case ACTION_NOTIFICATION_DELETED:
+                            int notifiedUserId =
+                                    intent.getIntExtra(
+                                            NOTIFICATION_INTENT_EXTRA_USER_ID,
+                                            UserHandle.USER_NULL);
+                            int changeEventId =
+                                    intent.getIntExtra(NOTIFICATION_INTENT_EXTRA_CHANGE_ID, 0);
+                            notificationSwipedAway(notifiedUserId, changeEventId);
+                            break;
+                        default:
+                            Log.d(TAG, "Unknown intent action received: " + intent.getAction());
+                    }
+                }
+            };
 
-    @NonNull
-    private final Environment mEnvironment;
+    @NonNull private final Environment mEnvironment;
 
     private final Object mConfigurationLock = new Object();
+
     @GuardedBy("mConfigurationLock")
     private ConfigurationInternal mConfigurationInternal;
+
     @GuardedBy("mConfigurationLock")
     private boolean mIsRegistered;
+
+    @VisibleForTesting
+    @GuardedBy("mConfigurationLock")
+    UserPresentReceiver mUserPresentReceiver;
 
     private int mAcceptedManualChanges;
     private int mAcceptedTelephonyChanges;
@@ -172,15 +180,19 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
 
     /** Create and initialise a new {@code TimeZoneChangeTrackerImpl} */
     @RequiresPermission("android.permission.INTERACT_ACROSS_USERS_FULL")
-    public static NotifyingTimeZoneChangeListener create(Handler handler, Context context,
+    public static NotifyingTimeZoneChangeListener create(
+            Handler handler,
+            Context context,
             ServiceConfigAccessor serviceConfigAccessor,
             @NonNull Environment environment) {
         NotifyingTimeZoneChangeListener changeTracker =
-                new NotifyingTimeZoneChangeListener(handler,
+                new NotifyingTimeZoneChangeListener(
+                        handler,
                         context,
                         serviceConfigAccessor,
                         context.getSystemService(NotificationManager.class),
-                        environment);
+                        environment,
+                        context.getSystemService(KeyguardManager.class));
 
         // Pretend there was an update to initialize configuration.
         changeTracker.handleConfigurationUpdate();
@@ -189,9 +201,13 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     }
 
     @VisibleForTesting
-    NotifyingTimeZoneChangeListener(Handler handler, Context context,
-            ServiceConfigAccessor serviceConfigAccessor, NotificationManager notificationManager,
-            @NonNull Environment environment) {
+    NotifyingTimeZoneChangeListener(
+            Handler handler,
+            Context context,
+            ServiceConfigAccessor serviceConfigAccessor,
+            NotificationManager notificationManager,
+            @NonNull Environment environment,
+            KeyguardManager keyguardManager) {
         mHandler = Objects.requireNonNull(handler);
         mContext = Objects.requireNonNull(context);
         mServiceConfigAccessor = Objects.requireNonNull(serviceConfigAccessor);
@@ -200,6 +216,7 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
         mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
         mNotificationManager = notificationManager;
         mEnvironment = Objects.requireNonNull(environment);
+        mKeyguardManager = keyguardManager;
     }
 
     @RequiresPermission("android.permission.INTERACT_ACROSS_USERS_FULL")
@@ -212,8 +229,12 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
                 if (!mIsRegistered) {
                     IntentFilter intentFilter = new IntentFilter();
                     intentFilter.addAction(ACTION_NOTIFICATION_DELETED);
-                    mContext.registerReceiverForAllUsers(mNotificationReceiver, intentFilter,
-                            /* broadcastPermission= */ null, mHandler, RECEIVER_NOT_EXPORTED);
+                    mContext.registerReceiverForAllUsers(
+                            mNotificationReceiver,
+                            intentFilter,
+                            /* broadcastPermission= */ null,
+                            mHandler,
+                            RECEIVER_NOT_EXPORTED);
                     mIsRegistered = true;
                 }
             } else if (mIsRegistered) {
@@ -265,8 +286,8 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
      * zone change by manually changing the time zone within {@code AUTO_REVERT_THRESHOLD} of the
      * notification being received.
      */
-    private void markChangeAsAccepted(int changeEventId, @UserIdInt int userId,
-            @SignalType int signalType) {
+    private void markChangeAsAccepted(
+            int changeEventId, @UserIdInt int userId, @SignalType int signalType) {
         if (!isUserIdCurrentUser(userId)) {
             return;
         }
@@ -316,8 +337,8 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
      * notification being received.
      */
     @GuardedBy("mTimeZoneChangeRecord")
-    private void markChangeAsRejected(int changeEventId, @UserIdInt int userId,
-            @SignalType int signalType) {
+    private void markChangeAsRejected(
+            int changeEventId, @UserIdInt int userId, @SignalType int signalType) {
         if (!isUserIdCurrentUser(userId)) {
             return;
         }
@@ -367,14 +388,16 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
                     TimeZoneChangeEvent lastChangeEvent = lastTimeZoneChangeRecord.getEvent();
 
                     if (shouldRejectChangeEvent(changeEvent, lastChangeEvent)) {
-                        markChangeAsRejected(lastTimeZoneChangeRecord.getId(),
-                                changeEvent.getUserId(), SIGNAL_TYPE_HEURISTIC);
+                        markChangeAsRejected(
+                                lastTimeZoneChangeRecord.getId(),
+                                changeEvent.getUserId(),
+                                SIGNAL_TYPE_HEURISTIC);
                     }
                 }
 
                 // Schedule a callback for the new time zone so that we can implement "user accepted
                 // the change because they didn't revert it"
-                scheduleChangeAcceptedHeuristicCallback(trackedChangeEvent, AUTO_REVERT_THRESHOLD);
+                scheduleChangeAcceptedHeuristicCallback(trackedChangeEvent.getId());
             }
 
             if (lastTimeZoneChangeRecord != null
@@ -398,7 +421,10 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
             if (changeEvent.getOrigin() == ORIGIN_MANUAL) {
                 // Just clear any existing notification.
                 clearNotificationForUser(currentUserId);
-            } else {
+            } else if (changeEvent.getOldConfidence() != TIME_ZONE_CONFIDENCE_LOW) {
+                // b/421857844 Only notify if the old confidence is not 0. This
+                // is to prevent notifying users when the time zone is first set
+                // after setup wizard.
                 notifyOfTimeZoneChange(currentUserId, trackedChangeEvent);
             }
         }
@@ -425,10 +451,17 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
             TimeZoneChangeEvent lastChangeEvent = lastTimeZoneChangeRecord.getEvent();
             if (!changeEvent.getOldZoneId().equals(lastChangeEvent.getNewZoneId())) {
                 int changeEventId = mNextChangeEventId.getAndIncrement();
-                TimeZoneChangeEvent syntheticChangeEvent = new TimeZoneChangeEvent(
-                        mEnvironment.elapsedRealtimeMillis(), mEnvironment.currentTimeMillis(),
-                        ORIGIN_UNKNOWN, UserHandle.USER_NULL, lastChangeEvent.getNewZoneId(),
-                        changeEvent.getOldZoneId(), 0, "Synthetic");
+                TimeZoneChangeEvent syntheticChangeEvent =
+                        new TimeZoneChangeEvent(
+                                mEnvironment.elapsedRealtimeMillis(),
+                                mEnvironment.currentTimeMillis(),
+                                ORIGIN_UNKNOWN,
+                                UserHandle.USER_NULL,
+                                /* oldZoneId= */ lastChangeEvent.getNewZoneId(),
+                                /* newZoneId= */ changeEvent.getOldZoneId(),
+                                /* oldConfidence= */ lastChangeEvent.getNewConfidence(),
+                                /* newConfidence= */ TIME_ZONE_CONFIDENCE_LOW,
+                                "Synthetic");
                 TimeZoneChangeRecord syntheticTrackedChangeEvent =
                         new TimeZoneChangeRecord(changeEventId, syntheticChangeEvent);
                 syntheticTrackedChangeEvent.setStatus(STATUS_SUPERSEDED, SIGNAL_TYPE_NONE);
@@ -444,19 +477,67 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
         }
     }
 
-    private static boolean shouldRejectChangeEvent(TimeZoneChangeEvent changeEvent,
-            TimeZoneChangeEvent lastChangeEvent) {
+    private static boolean shouldRejectChangeEvent(
+            TimeZoneChangeEvent changeEvent, TimeZoneChangeEvent lastChangeEvent) {
         return changeEvent.getOrigin() == ORIGIN_MANUAL
                 && lastChangeEvent.getOrigin() != ORIGIN_MANUAL
                 && (changeEvent.getElapsedRealtimeMillis()
-                - lastChangeEvent.getElapsedRealtimeMillis() < AUTO_REVERT_THRESHOLD);
+                                - lastChangeEvent.getElapsedRealtimeMillis()
+                        < AUTO_REVERT_THRESHOLD);
     }
 
-    private void scheduleChangeAcceptedHeuristicCallback(
-            TimeZoneChangeRecord trackedChangeEvent,
-            @DurationMillisLong long delayMillis) {
-        mHandler.postDelayed(
-                () -> changeAcceptedTimeHeuristicCallback(trackedChangeEvent.getId()), delayMillis);
+    private void scheduleChangeAcceptedHeuristicCallback(int trackedChangeEventId) {
+        if (!android.timezone.flags.Flags.enableAutomaticTimeZoneRejectionLogging()) {
+            mHandler.postDelayed(
+                    () -> changeAcceptedTimeHeuristicCallback(trackedChangeEventId),
+                    AUTO_REVERT_THRESHOLD);
+            return;
+        }
+        if (mKeyguardManager == null || !mKeyguardManager.isDeviceLocked()) {
+            mHandler.postDelayed(
+                    () -> changeAcceptedTimeHeuristicCallback(trackedChangeEventId),
+                    AUTO_REVERT_THRESHOLD);
+            return;
+        }
+        resetUserPresentReceiver(new UserPresentReceiver(trackedChangeEventId));
+    }
+
+    // Registering receiver to wait until device is unlocked.
+    private void resetUserPresentReceiver(@Nullable UserPresentReceiver userPresentReceiver) {
+        synchronized (mConfigurationLock) {
+            if (mUserPresentReceiver != null) {
+                try {
+                    mContext.unregisterReceiver(mUserPresentReceiver);
+                } catch (IllegalArgumentException e) {
+                    // Handle the case where the receiver might have already been unregistered
+                }
+            }
+            mUserPresentReceiver = userPresentReceiver;
+            if (mUserPresentReceiver != null) {
+                IntentFilter filter = new IntentFilter(Intent.ACTION_USER_PRESENT);
+                mContext.registerReceiver(mUserPresentReceiver, filter);
+            }
+        }
+    }
+
+    // BroadcastReceiver to listen for ACTION_USER_PRESENT.
+    @VisibleForTesting
+    class UserPresentReceiver extends BroadcastReceiver {
+        private final int trackedChangeEventId;
+
+        public UserPresentReceiver(int trackedChangeEventId) {
+            this.trackedChangeEventId = trackedChangeEventId;
+        }
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (Intent.ACTION_USER_PRESENT.equals(intent.getAction())) {
+                mHandler.postDelayed(
+                        () -> changeAcceptedTimeHeuristicCallback(trackedChangeEventId),
+                        AUTO_REVERT_THRESHOLD);
+                resetUserPresentReceiver(null);
+            }
+        }
     }
 
     private void changeAcceptedTimeHeuristicCallback(int changeEventId) {
@@ -467,12 +548,12 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     }
 
     private void clearNotificationForUser(@UserIdInt int userId) {
-        mNotificationManager.cancelAsUser(NOTIFICATION_TAG, TZ_CHANGE_NOTIFICATION_ID,
-                UserHandle.of(userId));
+        mNotificationManager.cancelAsUser(
+                NOTIFICATION_TAG, TZ_CHANGE_NOTIFICATION_ID, UserHandle.of(userId));
     }
 
-    private void notifyOfTimeZoneChange(@UserIdInt int userId,
-            TimeZoneChangeRecord trackedChangeEvent) {
+    private void notifyOfTimeZoneChange(
+            @UserIdInt int userId, TimeZoneChangeRecord trackedChangeEvent) {
         TimeZoneChangeEvent changeEvent = trackedChangeEvent.getEvent();
 
         if (!Flags.datetimeNotifications() || !areNotificationsEnabled()) {
@@ -482,8 +563,9 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
         TimeZone oldTimeZone = TimeZone.getTimeZone(changeEvent.getOldZoneId());
         TimeZone newTimeZone = TimeZone.getTimeZone(changeEvent.getNewZoneId());
         long unixEpochTimeMillis = changeEvent.getUnixEpochTimeMillis();
-        boolean hasOffsetChanged = newTimeZone.getOffset(unixEpochTimeMillis)
-                == oldTimeZone.getOffset(unixEpochTimeMillis);
+        boolean hasOffsetChanged =
+                newTimeZone.getOffset(unixEpochTimeMillis)
+                        == oldTimeZone.getOffset(unixEpochTimeMillis);
 
         if (hasOffsetChanged) {
             // If the time zone ID changes but not the offset, we do not send a notification to
@@ -496,41 +578,46 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
         final CharSequence title = mRes.getString(R.string.time_zone_change_notification_title);
         final CharSequence body = getNotificationBody(newTimeZone, unixEpochTimeMillis);
 
-        final Intent clickNotificationIntent = new Intent(ACTION_DATE_SETTINGS)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
-                        | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
-                        | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        final Intent clickNotificationIntent =
+                new Intent(ACTION_DATE_SETTINGS)
+                        .addFlags(
+                                Intent.FLAG_ACTIVITY_NEW_TASK
+                                        | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
+                                        | Intent.FLAG_ACTIVITY_CLEAR_TOP);
 
-        final Intent clearNotificationIntent = new Intent(ACTION_NOTIFICATION_DELETED)
-                .putExtra(NOTIFICATION_INTENT_EXTRA_USER_ID, userId)
-                .putExtra(NOTIFICATION_INTENT_EXTRA_CHANGE_ID, trackedChangeEvent.getId());
+        final Intent clearNotificationIntent =
+                new Intent(ACTION_NOTIFICATION_DELETED)
+                        .putExtra(NOTIFICATION_INTENT_EXTRA_USER_ID, userId)
+                        .putExtra(NOTIFICATION_INTENT_EXTRA_CHANGE_ID, trackedChangeEvent.getId());
 
-        Notification notification = new Notification.Builder(mContext,
-                SystemNotificationChannels.TIME)
-                .setSmallIcon(R.drawable.btn_clock_material)
-                .setStyle(new Notification.BigTextStyle().bigText(body))
-                .setOnlyAlertOnce(true)
-                .setColor(mContext.getColor(R.color.system_notification_accent_color))
-                .setTicker(title)
-                .setContentTitle(title)
-                .setContentText(body)
-                .setContentIntent(PendingIntent.getActivityAsUser(
-                        mContext,
-                        /* requestCode= */ 0,
-                        clickNotificationIntent,
-                        /* flags= */ FLAG_CANCEL_CURRENT | FLAG_IMMUTABLE,
-                        /* options= */ null,
-                        UserHandle.of(userId)))
-                .setDeleteIntent(PendingIntent.getBroadcast(
-                        mContext,
-                        /* requestCode= */ 0,
-                        clearNotificationIntent,
-                        /* flags= */ FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE))
-                .setAutoCancel(true) // auto-clear notification on selection
-                .build();
+        Notification notification =
+                new Notification.Builder(mContext, SystemNotificationChannels.TIME)
+                        .setSmallIcon(R.drawable.btn_clock_material)
+                        .setStyle(new Notification.BigTextStyle().bigText(body))
+                        .setOnlyAlertOnce(true)
+                        .setColor(mContext.getColor(R.color.system_notification_accent_color))
+                        .setTicker(title)
+                        .setContentTitle(title)
+                        .setContentText(body)
+                        .setContentIntent(
+                                PendingIntent.getActivityAsUser(
+                                        mContext,
+                                        /* requestCode= */ 0,
+                                        clickNotificationIntent,
+                                        /* flags= */ FLAG_CANCEL_CURRENT | FLAG_IMMUTABLE,
+                                        /* options= */ null,
+                                        UserHandle.of(userId)))
+                        .setDeleteIntent(
+                                PendingIntent.getBroadcast(
+                                        mContext,
+                                        /* requestCode= */ 0,
+                                        clearNotificationIntent,
+                                        /* flags= */ FLAG_UPDATE_CURRENT | FLAG_IMMUTABLE))
+                        .setAutoCancel(true) // auto-clear notification on selection
+                        .build();
 
-        mNotificationManager.notifyAsUser(NOTIFICATION_TAG,
-                TZ_CHANGE_NOTIFICATION_ID, notification, UserHandle.of(userId));
+        mNotificationManager.notifyAsUser(
+                NOTIFICATION_TAG, TZ_CHANGE_NOTIFICATION_ID, notification, UserHandle.of(userId));
     }
 
     private CharSequence getNotificationBody(TimeZone newTimeZone, long unixEpochTimeMillis) {
@@ -543,8 +630,8 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
         return mRes.getString(R.string.time_zone_change_notification_body, newTime, newOffset);
     }
 
-    private static String formatInZone(DateFormat timeFormat, TimeZone timeZone,
-            long unixEpochTimeMillis) {
+    private static String formatInZone(
+            DateFormat timeFormat, TimeZone timeZone, long unixEpochTimeMillis) {
         timeFormat.setTimeZone(timeZone);
         return timeFormat.format(unixEpochTimeMillis);
     }
@@ -553,12 +640,15 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
     public void dump(IndentingPrintWriter pw) {
         synchronized (mConfigurationLock) {
             pw.println("currentUserId=" + mConfigurationInternal.getUserId());
-            pw.println("notificationsEnabledBehavior="
-                    + mConfigurationInternal.getNotificationsEnabledBehavior());
-            pw.println("notificationTrackingSupported="
-                    + mConfigurationInternal.isNotificationTrackingSupported());
-            pw.println("manualChangeTrackingSupported="
-                    + mConfigurationInternal.isManualChangeTrackingSupported());
+            pw.println(
+                    "notificationsEnabledBehavior="
+                            + mConfigurationInternal.getNotificationsEnabledBehavior());
+            pw.println(
+                    "notificationTrackingSupported="
+                            + mConfigurationInternal.isNotificationTrackingSupported());
+            pw.println(
+                    "manualChangeTrackingSupported="
+                            + mConfigurationInternal.isManualChangeTrackingSupported());
         }
 
         pw.println("mAcceptedLocationChanges=" + mAcceptedLocationChanges);
@@ -619,10 +709,14 @@ public class NotifyingTimeZoneChangeListener implements TimeZoneChangeListener {
         @Override
         public String toString() {
             return "TrackedTimeZoneChangeEvent{"
-                    + "mId=" + mId
-                    + ", mEvent=" + mEvent
-                    + ", mStatus=" + mStatus
-                    + ", mSignalType=" + mSignalType
+                    + "mId="
+                    + mId
+                    + ", mEvent="
+                    + mEvent
+                    + ", mStatus="
+                    + mStatus
+                    + ", mSignalType="
+                    + mSignalType
                     + '}';
         }
 

@@ -120,6 +120,8 @@ class DeviceItemFactoryTest : SysuiTestCase() {
                     R.string.quick_settings_bluetooth_device_audio_sharing_or_switch_active
                 )
             )
+        assertThat(deviceItem.actionIconAccessibilityLabelRes)
+            .isEqualTo(R.string.accessibility_bluetooth_device_settings_plus_button_with_name)
     }
 
     @Test
@@ -295,6 +297,8 @@ class DeviceItemFactoryTest : SysuiTestCase() {
         assertThat(deviceItem.deviceName).isEqualTo(DEVICE_NAME)
         assertThat(deviceItem.connectionSummary).isEqualTo(CONNECTION_SUMMARY)
         assertThat(deviceItem.actionIconRes).isEqualTo(R.drawable.ic_settings_24dp)
+        assertThat(deviceItem.actionIconAccessibilityLabelRes)
+            .isEqualTo(R.string.accessibility_bluetooth_device_settings_gear_with_name)
     }
 
     companion object {

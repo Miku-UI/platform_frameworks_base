@@ -21,10 +21,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import androidx.annotation.DrawableRes
-import com.android.systemui.res.R
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
-import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.controls.ControlsServiceInfo
@@ -34,10 +32,11 @@ import com.android.systemui.controls.management.ControlsListingController
 import com.android.systemui.controls.ui.ControlsActivity
 import com.android.systemui.controls.ui.ControlsUiController
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.keyguard.data.quickaffordance.KeyguardQuickAffordanceConfig.Companion.appStoreIntent
+import com.android.systemui.res.R
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.util.kotlin.getOrNull
+import com.android.systemui.utils.coroutines.flow.conflatedCallbackFlow
 import javax.inject.Inject
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -99,7 +98,7 @@ constructor(
                     explanation =
                         context.getString(
                             R.string.home_quick_affordance_unavailable_install_the_app
-                        ),
+                        )
                 )
             }
             !hasFavorites && !hasPanels -> {
@@ -124,22 +123,19 @@ constructor(
     }
 
     override fun onTriggered(
-        expandable: Expandable?,
+        expandable: Expandable?
     ): KeyguardQuickAffordanceConfig.OnTriggeredResult {
         return KeyguardQuickAffordanceConfig.OnTriggeredResult.StartActivity(
             intent =
                 Intent(appContext, ControlsActivity::class.java)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                    .putExtra(
-                        ControlsUiController.EXTRA_ANIMATE,
-                        true,
-                    ),
+                    .putExtra(ControlsUiController.EXTRA_ANIMATE, true),
             canShowWhileLocked = component.canShowWhileLockedSetting.value,
         )
     }
 
     private fun stateInternal(
-        listingController: ControlsListingController?,
+        listingController: ControlsListingController?
     ): Flow<KeyguardQuickAffordanceConfig.LockScreenState> {
         if (listingController == null) {
             return flowOf(KeyguardQuickAffordanceConfig.LockScreenState.Hidden)
@@ -190,12 +186,10 @@ constructor(
             KeyguardQuickAffordanceConfig.LockScreenState.Visible(
                 icon =
                     Icon.Resource(
-                        res = iconResourceId,
+                        resId = iconResourceId,
                         contentDescription =
-                            ContentDescription.Resource(
-                                res = component.getTileTitleId(),
-                            ),
-                    ),
+                            ContentDescription.Resource(res = component.getTileTitleId()),
+                    )
             )
         } else {
             KeyguardQuickAffordanceConfig.LockScreenState.Hidden

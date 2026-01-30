@@ -82,7 +82,7 @@ public class NetworkLogSource implements DataSource {
             return;
         }
         try {
-            if (!mIpConnectivityMetrics.removeNetdEventCallback(
+            if (mIpConnectivityMetrics.removeNetdEventCallback(
                     INetdEventCallback.CALLBACK_CALLER_DEVICE_POLICY)) {
 
                 mIsNetworkLoggingEnabled.set(false);

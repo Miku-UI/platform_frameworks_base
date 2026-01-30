@@ -78,7 +78,9 @@ public interface NavigationBarModule {
             SysUiState defaultState,
             PerDisplayRepository<SysUiState> repository) {
         if (ShadeWindowGoesAround.isEnabled()) {
-            return repository.get(context.getDisplayId());
+            SysUiState displaySpecific = repository.get(context.getDisplayId());
+            if (displaySpecific == null) return defaultState;
+            return displaySpecific;
         } else {
             return defaultState;
         }

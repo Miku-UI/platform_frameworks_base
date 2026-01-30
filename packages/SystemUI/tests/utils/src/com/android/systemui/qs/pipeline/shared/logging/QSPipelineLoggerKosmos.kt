@@ -26,5 +26,6 @@ var Kosmos.qsLogger: QSPipelineLogger by
             logcatLogBuffer(QSPipelineLogger.TILE_LIST_TAG),
             logcatLogBuffer(QSPipelineLogger.AUTO_ADD_TAG),
             logcatLogBuffer(QSPipelineLogger.RESTORE_TAG),
+            logcatLogBuffer(QSPipelineLogger.UPGRADER_TAG),
         )
     }

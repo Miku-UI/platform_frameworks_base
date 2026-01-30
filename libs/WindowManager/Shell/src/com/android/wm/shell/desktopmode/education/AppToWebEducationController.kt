@@ -23,15 +23,15 @@ import android.content.Context
 import android.content.res.Resources
 import android.graphics.Point
 import android.os.SystemProperties
+import android.window.DesktopExperienceFlags
 import androidx.compose.ui.graphics.toArgb
-import com.android.window.flags.Flags
 import com.android.wm.shell.R
 import com.android.wm.shell.desktopmode.CaptionState
-import com.android.wm.shell.desktopmode.WindowDecorCaptionHandleRepository
+import com.android.wm.shell.desktopmode.WindowDecorCaptionRepository
 import com.android.wm.shell.desktopmode.education.data.AppToWebEducationDatastoreRepository
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread
 import com.android.wm.shell.shared.annotations.ShellMainThread
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus.canEnterDesktopMode
+import com.android.wm.shell.shared.desktopmode.DesktopState
 import com.android.wm.shell.windowdecor.common.DecorThemeUtil
 import com.android.wm.shell.windowdecor.education.DesktopWindowingEducationPromoController
 import com.android.wm.shell.windowdecor.education.DesktopWindowingEducationPromoController.EducationColorScheme
@@ -62,10 +62,11 @@ class AppToWebEducationController(
     private val context: Context,
     private val appToWebEducationFilter: AppToWebEducationFilter,
     private val appToWebEducationDatastoreRepository: AppToWebEducationDatastoreRepository,
-    private val windowDecorCaptionHandleRepository: WindowDecorCaptionHandleRepository,
+    private val windowDecorCaptionRepository: WindowDecorCaptionRepository,
     private val windowingEducationViewController: DesktopWindowingEducationPromoController,
     @ShellMainThread private val applicationCoroutineScope: CoroutineScope,
     @ShellBackgroundThread private val backgroundDispatcher: MainCoroutineDispatcher,
+    private val desktopState: DesktopState,
 ) {
     private val decorThemeUtil = DecorThemeUtil(context)
 
@@ -83,7 +84,7 @@ class AppToWebEducationController(
                             emptyFlow()
                         } else {
                             // Listen for changes to window decor's caption.
-                            windowDecorCaptionHandleRepository.captionStateFlow
+                            windowDecorCaptionRepository.captionStateFlow
                                 // Wait for few seconds before emitting the latest state.
                                 .debounce(APP_TO_WEB_EDUCATION_DELAY_MILLIS)
                                 .filter { captionState ->
@@ -105,7 +106,7 @@ class AppToWebEducationController(
 
             applicationCoroutineScope.launch {
                 if (isFeatureUsed()) return@launch
-                windowDecorCaptionHandleRepository.appToWebUsageFlow.collect {
+                windowDecorCaptionRepository.appToWebUsageFlow.collect {
                     // If user utilizes App-to-Web, mark user has used the feature
                     appToWebEducationDatastoreRepository.updateFeatureUsedTimestampMillis(
                         isViewed = true
@@ -117,16 +118,21 @@ class AppToWebEducationController(
 
     private inline fun runIfEducationFeatureEnabled(block: () -> Unit) {
         if (
-            canEnterDesktopMode(context) &&
-                Flags.enableDesktopWindowingAppToWebEducationIntegration()
+            desktopState.canEnterDesktopMode &&
+                DesktopExperienceFlags.ENABLE_DESKTOP_WINDOWING_APP_TO_WEB_EDUCATION_INTEGRATION
+                    .isTrue &&
+                DesktopExperienceFlags.ENABLE_APP_TO_WEB_EDUCATION_ANIMATION.isTrue
         ) {
             block()
         }
     }
 
-    private fun showEducation(captionState: CaptionState, colorScheme: EducationColorScheme) {
+    private suspend fun showEducation(
+        captionState: CaptionState,
+        colorScheme: EducationColorScheme,
+    ) {
         val educationGlobalCoordinates: Point
-        val taskId: Int
+        val taskInfo: RunningTaskInfo
         when (captionState) {
             is CaptionState.AppHandle -> {
                 val appHandleBounds = captionState.globalAppHandleBounds
@@ -134,7 +140,7 @@ class AppToWebEducationController(
                     loadDimensionPixelSize(R.dimen.desktop_windowing_education_promo_width)
                 educationGlobalCoordinates =
                     Point(appHandleBounds.centerX() - educationWidth / 2, appHandleBounds.bottom)
-                taskId = captionState.runningTaskInfo.taskId
+                taskInfo = captionState.runningTaskInfo
             }
 
             is CaptionState.AppHeader -> {
@@ -142,7 +148,7 @@ class AppToWebEducationController(
                     captionState.runningTaskInfo.configuration.windowConfiguration.bounds
                 educationGlobalCoordinates =
                     Point(taskBounds.left, captionState.globalAppChipBounds.bottom)
-                taskId = captionState.runningTaskInfo.taskId
+                taskInfo = captionState.runningTaskInfo
             }
 
             else -> return
@@ -155,13 +161,14 @@ class AppToWebEducationController(
                 educationColorScheme = colorScheme,
                 viewGlobalCoordinates = educationGlobalCoordinates,
                 educationText = getString(R.string.desktop_windowing_app_to_web_education_text),
+                educationImage = R.raw.app_to_web_education_image,
                 widthId = R.dimen.desktop_windowing_education_promo_width,
                 heightId = R.dimen.desktop_windowing_education_promo_height,
             )
 
         windowingEducationViewController.showEducation(
             viewConfig = educationConfig,
-            taskId = taskId,
+            taskInfo = taskInfo,
         )
     }
 

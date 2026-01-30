@@ -16,22 +16,25 @@
 
 package com.android.server.wm;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.util.proto.ProtoOutputStream;
 
 /**
  * Common interface between focusable objects.
  *
- * Both WindowState and EmbeddedWindows can receive input. This consolidates some common properties
- * of both targets.
+ * <p>Both {@link WindowState} and {@link EmbeddedWindowController.EmbeddedWindow} can receive
+ * input. This consolidates some common properties of both targets.
  */
 interface InputTarget extends InsetsTarget {
-    /* Get the WindowState associated with the target. */
+    /** Get the WindowState associated with the target. */
+    @Nullable
     WindowState getWindowState();
 
-    /* Display id of the target. */
+    /** Display id of the target. */
     int getDisplayId();
 
-    /* Owning pid of the target. */
+    /** Owning pid of the target. */
     int getPid();
     int getUid();
 
@@ -50,17 +53,19 @@ interface InputTarget extends InsetsTarget {
 
     // Whether this input target can control the IME itself
     boolean shouldControlIme();
-    // Whether this input target can be screenshoted by the IME system
+    // Whether this input target can be screenshotted by the IME system
     boolean canScreenshotIme();
 
+    @Nullable
     ActivityRecord getActivityRecord();
 
     boolean isInputMethodClientFocus(int uid, int pid);
 
+    @Nullable
     DisplayContent getDisplayContent();
     InsetsControlTarget getImeControlTarget();
 
-    void dumpProto(ProtoOutputStream proto, long fieldId,
-                   @WindowTracingLogLevel int logLevel);
+    void dumpProto(@NonNull ProtoOutputStream proto, long fieldId,
+            @WindowTracingLogLevel int logLevel);
 }
 

@@ -37,10 +37,10 @@ android_test {
     ],
 
     libs: [
-        "android.test.runner.stubs",
-        "telephony-common",
         "android.test.base.stubs",
         "android.test.mock.stubs",
+        "android.test.runner.stubs",
+        "telephony-common",
         "truth",
     ],
 
@@ -48,20 +48,19 @@ android_test {
     test_suites: ["device-tests"],
 
     static_libs: [
+        "SettingsLibDeviceStateRotationLock",
+        "SettingsLibSettingsSpinner",
+        "SettingsLibUsageProgressBarPreference",
         "androidx.test.core",
-        "androidx.test.rules",
         "androidx.test.espresso.core",
         "androidx.test.ext.junit",
+        "androidx.test.rules",
         "flag-junit",
         "kotlinx_coroutines_test",
         "mockito-target-extended-minus-junit4",
         "platform-test-annotations",
-        "truth",
-        "SettingsLibAvatarPicker",
-        "SettingsLibDeviceStateRotationLock",
-        "SettingsLibSettingsSpinner",
-        "SettingsLibUsageProgressBarPreference",
         "settingslib_media_flags_lib",
+        "truth",
     ],
 
     jni_libs: [
@@ -71,6 +70,10 @@ android_test {
     ],
     dxflags: ["--multi-dex"],
     manifest: "AndroidManifest.xml",
+
+    visibility: [
+        "//platform_testing:__subpackages__",
+    ],
 }
 
 test_module_config {

@@ -144,7 +144,7 @@ public class WatchedArrayMap<K, V> extends WatchableImpl
         this(capacity, false);
     }
 
-    /** {@hide} */
+    /** @hide */
     public WatchedArrayMap(int capacity, boolean identityHashCode) {
         mStorage = new ArrayMap<K, V>(capacity, identityHashCode);
     }

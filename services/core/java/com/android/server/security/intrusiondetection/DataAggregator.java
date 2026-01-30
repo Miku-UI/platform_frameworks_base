@@ -36,14 +36,11 @@ public class DataAggregator {
     private static final int MSG_BATCH_DATA = 1;
     private static final int MSG_DISABLE = 2;
 
-    private static final int STORED_EVENTS_SIZE_LIMIT = 1024;
-
     private final IntrusionDetectionService mIntrusionDetectionService;
     private final ArrayList<DataSource> mDataSources;
     private final AtomicBoolean mIsLoggingInitialized = new AtomicBoolean(false);
 
     private Context mContext;
-    private List<IntrusionDetectionEvent> mStoredEvents = new ArrayList<>();
     private ServiceThread mHandlerThread;
     private Handler mHandler;
 
@@ -104,12 +101,9 @@ public class DataAggregator {
     }
 
     private void onNewSingleData(IntrusionDetectionEvent event) {
-        if (mStoredEvents.size() < STORED_EVENTS_SIZE_LIMIT) {
-            mStoredEvents.add(event);
-        } else {
-            mIntrusionDetectionService.addNewData(mStoredEvents);
-            mStoredEvents = new ArrayList<>();
-        }
+        List<IntrusionDetectionEvent> events = new ArrayList<>();
+        events.add(event);
+        mIntrusionDetectionService.addNewData(events);
     }
 
     private void onNewBatchData(List<IntrusionDetectionEvent> events) {

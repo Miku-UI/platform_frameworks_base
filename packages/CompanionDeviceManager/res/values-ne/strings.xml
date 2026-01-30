@@ -28,22 +28,25 @@
     <string name="chooser_title" msgid="2235819929238267637">"सेट अप गर्नका लागि <xliff:g id="PROFILE_NAME">%1$s</xliff:g> छनौट गर्नुहोस्"</string>
     <string name="single_device_title" msgid="4199861437545438606">"<xliff:g id="PROFILE_NAME">%1$s</xliff:g> खोजिँदै छ"</string>
     <string name="summary_watch" msgid="8134580124808507407">"तपाईंको <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>मा यो एपलाई कल गर्ने व्यक्तिको नाम जस्ता जानकारी सिंक गर्ने र निम्न कुरासँग सम्बन्धित अनुमतिहरू दिइने छ"</string>
+    <string name="profile_name_fitness_tracker" msgid="3107192493390199691">"फिटनेस ट्र्याकर"</string>
     <string name="confirmation_title_glasses" msgid="8288346850537727333">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; लाई &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; व्यवस्थापन गर्ने अनुमति दिने हो?"</string>
     <string name="profile_name_glasses" msgid="3506504967216601277">"डिभाइस"</string>
-    <string name="summary_glasses" msgid="5469208629679579157">"तपाईंको <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> मा यो एपलाई निम्न अनुमति दिइने छ:"</string>
-    <string name="title_app_streaming" msgid="1047090167914857893">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; लाई तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> मा भएका एप तथा सिस्टमका सुविधाहरू &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; मा स्ट्रिम गर्न दिने हो?"</string>
-    <string name="summary_app_streaming" msgid="7990244299655610920">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ले तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> मा देखिने वा प्ले गरिने अडियो, फोटो, भुक्तानीसम्बन्धी जानकारी, पासवर्ड र म्यासेजलगायतका सबै कुरा एक्सेस गर्न सक्ने छ।&lt;br/&gt;&lt;br/&gt;तपाईंले यो अनुमति रद्द नगरेसम्म <xliff:g id="APP_NAME_1">%1$s</xliff:g> ले एपहरू <xliff:g id="DEVICE_NAME">%3$s</xliff:g> मा स्ट्रिम गर्न पाइराख्ने छ।"</string>
-    <string name="helper_summary_app_streaming" msgid="1872657107404139828">"<xliff:g id="APP_NAME">%1$s</xliff:g> <xliff:g id="DEVICE_NAME">%2$s</xliff:g> को तर्फबाट तपाईंको <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> बाट एप र सिस्टमका अन्य सुविधाहरू स्ट्रिम गर्ने अनुमति माग्दै छ"</string>
+    <string name="summary_glasses" msgid="5469208629679579157">"तपाईंको <xliff:g id="DEVICE_TYPE">%1$s</xliff:g>मा यो एपलाई निम्न अनुमति दिइने छ:"</string>
+    <string name="profile_name_medical" msgid="5617160509499466400">"चिकित्सकीय उपकरण"</string>
+    <string name="title_app_streaming" msgid="237666000400427614">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; लाई तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> र &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; का बिचमा एप र सिस्टमका सुविधाहरू स्ट्रिम गर्ने अनुमति दिने हो?"</string>
+    <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> लाई निम्न अनुमतिहरू दिइने छन्:"</string>
+    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ले तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> मा देखिने वा प्ले गरिने अडियो, फोटो, भुक्तानीसम्बन्धी जानकारी, पासवर्ड र म्यासेजलगायतका सबै कुरा एक्सेस गर्न सक्ने छ।&lt;br/&gt;&lt;br/&gt;तपाईंले यो अनुमति रद्द नगरेसम्म <xliff:g id="APP_NAME_1">%1$s</xliff:g> ले एपहरू <xliff:g id="DEVICE_NAME">%3$s</xliff:g> मा स्ट्रिम गर्न पाइराख्ने छ।"</string>
+    <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> ले डिभाइस <xliff:g id="DEVICE_NAME">%2$s</xliff:g> को तर्फबाट तपाईंका डिभाइसहरूका बिचमा एप र सिस्टमका सुविधाहरू स्ट्रिम गर्ने अनुमति माग्दै छ"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
-    <string name="title_computer" msgid="4782923323932440751">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; लाई तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> मा भएको यो जानकारी एक्सेस गर्ने अनुमति दिनुहोस्"</string>
-    <string name="summary_computer" msgid="3798467601598297062"></string>
+    <string name="title_computer" msgid="5040395223341777259">"&lt;strong&gt;<xliff:g id="DISPLAY_NAME">%3$s</xliff:g>&lt;/strong&gt; लाई तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> मा भएको यो जानकारी एक्सेस गर्ने अनुमति दिनुहोस्"</string>
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> तपाईंको डिभाइस <xliff:g id="DEVICE_NAME">%2$s</xliff:g> को तर्फबाट तपाईंको <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> मा भएका फोटो, मिडिया र सूचनाहरू एक्सेस गर्ने अनुमति माग्दै छ"</string>
-    <string name="title_nearby_device_streaming" msgid="2727103756701741359">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; लाई तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> मा भएका एपहरू &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; मा स्ट्रिम गर्न दिने हो?"</string>
-    <string name="summary_nearby_device_streaming" msgid="70434958004946884">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ले <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> मा देखिने वा प्ले गरिने अडियो, फोटो, भुक्तानीसम्बन्धी जानकारी, पासवर्ड र म्यासेजलगायतका सबै कुरा एक्सेस गर्न सक्ने छ।&lt;br/&gt;&lt;br/&gt;तपाईंले यो अनुमति रद्द नगरेसम्म <xliff:g id="APP_NAME_2">%1$s</xliff:g> ले एपहरू <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> मा स्ट्रिम गर्न पाइराख्ने छ।"</string>
+    <string name="title_nearby_device_streaming" msgid="5342768208699657581">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; लाई तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> र &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; का बिचमा एप र सिस्टमका सुविधाहरू स्ट्रिम गर्ने अनुमति दिने हो?"</string>
+    <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> लाई निम्न अनुमतिहरू दिइने छन्:"</string>
+    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ले <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> मा देखिने वा प्ले गरिने अडियो, फोटो, भुक्तानीसम्बन्धी जानकारी, पासवर्ड र म्यासेजलगायतका सबै कुरा एक्सेस गर्न सक्ने छ।&lt;br/&gt;&lt;br/&gt;तपाईंले यो अनुमति रद्द नगरेसम्म <xliff:g id="APP_NAME_2">%1$s</xliff:g> ले एपहरू <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> मा स्ट्रिम गर्न पाइराख्ने छ।"</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> <xliff:g id="DEVICE_NAME">%2$s</xliff:g> को तर्फबाट तपाईंको <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> बाट एपहरू स्ट्रिम गर्ने अनुमति माग्दै छ"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"&lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; लाई तपाईंको <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> र &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; का बिचमा अडियो र सिस्टमका सुविधाहरू स्ट्रिम गर्ने अनुमति दिने हो?"</string>
-    <string name="summary_virtual_device" msgid="3502592544171322817">"<xliff:g id="APP_NAME_0">%2$s</xliff:g> ले <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> मा प्ले गरिने सबै कुरा एक्सेस गर्न सक्ने छ।&lt;br/&gt;&lt;br/&gt;तपाईंले यो अनुमति रद्द नगरेसम्म <xliff:g id="APP_NAME_2">%2$s</xliff:g> ले <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> मा अडियो स्ट्रिम गर्न पाइराख्ने छ।"</string>
+    <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> लाई निम्न अनुमतिहरू दिइने छन्:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"डिभाइस"</string>
     <string name="summary_generic" msgid="1761976003668044801">"यो एपले तपाईंको फोन र छनौट गरिएको डिभाइसका बिचमा कल गर्ने व्यक्तिको नाम जस्ता जानकारी सिंक गर्न सक्ने छ"</string>
     <string name="consent_yes" msgid="8344487259618762872">"अनुमति दिनुहोस्"</string>
@@ -67,6 +70,11 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"मिडिया आउटपुट बदल्ने"</string>
     <string name="permission_storage" msgid="6831099350839392343">"फोटो र मिडिया"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"नोटिफिकेसनहरू"</string>
+    <string name="permission_create_virtual_device" msgid="1102905050922460040">"तपाईंको <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> को डेटा स्ट्रिम गर्ने"</string>
+    <string name="permission_add_mirror_display" msgid="3743433250535606288">"तपाईंको स्क्रिन मिरर गर्ने"</string>
+    <string name="permission_add_trusted_display" msgid="9052824856626276723">"एपहरू स्ट्रिम गर्ने"</string>
+    <string name="permission_schedule_exact_alarm" msgid="5680932535987512225">"अलार्म र रिमाइन्डरहरू सेट गर्ने"</string>
+    <string name="permission_bypass_dnd" msgid="1241123166903040347">"Do Not Disturb का सेटिङ बाइपास गर्ने"</string>
     <string name="permission_phone_summary" msgid="8246321093970051702">"फोन कल गर्ने र व्यवस्थापन गर्ने"</string>
     <string name="permission_call_logs_summary" msgid="7545243592757693321">"फोन कलको लग रिड र राइट गर्ने"</string>
     <string name="permission_sms_summary" msgid="8499509535410068616">"SMS म्यासेज पठाउने र हेर्ने"</string>
@@ -75,9 +83,15 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"अडियो रेकर्ड गर्ने"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"नजिकैका डिभाइसहरू भेट्टाउने, ती डिभाइससँग कनेक्ट गर्ने र तिनको सापेक्ष स्थिति निर्धारण गर्ने"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"कन्ट्याक्ट, म्यासेज र फोटो जस्ता जानकारीलगायतका सबै सूचनाहरू रिड गर्ने"</string>
-    <string name="permission_notifications_summary" msgid="2272810466047367030">"• कन्ट्याक्ट, म्यासेज र फोटो जस्ता जानकारीलगायतका सबै सूचनाहरू रिड गर्ने&lt;br/&gt;• सूचनाहरू पठाउने&lt;br/&gt;&lt;br/&gt;तपाईं जुनसुकै बेला सेटिङ &gt; सूचनाहरू खण्डमा गई यो एपलाई सूचनाहरू रिड गर्न र पठाउन दिने कि नदिने भन्ने कुरा व्यवस्थापन गर्न सक्नुहुन्छ।"</string>
+    <string name="permission_notifications_summary" msgid="6819393427371255636">"• कन्ट्याक्ट, म्यासेज र फोटो जस्ता जानकारीलगायतका सबै नोटिफिकेसनहरू रिड गर्ने&lt;br/&gt;• तपाईंलाई नोटिफिकेसनहरू पठाउने&lt;br/&gt;&lt;br/&gt;तपाईं जुनसुकै बेला \"सेटिङ &gt; नोटिफिकेसनहरू\" मा गई यो एपलाई नोटिफिकेसनहरू रिड गर्न र पठाउन दिने कि नदिने भन्ने कुरा व्यवस्थापन गर्न सक्नुहुन्छ।"</string>
     <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_post_notifications_summary" msgid="1099188848900200165">"तपाईंलाई नोटिफिकेसनहरू पठाउने"</string>
+    <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"&lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; बाट तपाईंको <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> मा माइक्रोफोन, क्यामेरा र सेन्सरसम्बन्धी अन्य डेटा स्ट्रिम गर्ने।"</string>
+    <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"&lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; मा तपाईंको <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> को स्क्रिन रेकर्ड, कास्ट वा सेयर गर्ने।&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> सँग अडियो, फोटो, भुक्तानीसम्बन्धी जानकारी, पासवर्ड र म्यासेजलगायतका तपाईंको <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g> मा देखिने वा प्ले गरिने सबै कुराको एक्सेस हुने छ।"</string>
+    <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"&lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt; मा तपाईंको <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> का एपहरू स्ट्रिम गर्ने।&lt;br/&gt;&lt;br/&gt;तपाईंको <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> लक भएका बेलामा पनि <xliff:g id="APP_NAME">%1$s</xliff:g> सँग अडियो, फोटो, भुक्तानीसम्बन्धी जानकारी, पासवर्ड र म्यासेजलगायतका तपाईंको <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g> मा देखिने वा प्ले गरिने सबै कुराको एक्सेस हुने छ।"</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"उपलब्ध डिभाइसहरूको सूची एक्सेस गर्नुहोस् र अन्य एपका अडियो वा भिडियो कुन डिभाइसबाट कास्ट गर्ने भन्ने कुरा नियन्त्रण गर्नुहोस्"</string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
+    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
     <string name="device_type" product="default" msgid="8268703872070046263">"फोन"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"ट्याब्लेट"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"टिभी"</string>

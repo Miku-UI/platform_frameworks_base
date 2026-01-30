@@ -1,0 +1,103 @@
+# Copyright (C) 2025 The Android Open Source Project
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# The Surfaceflinger process consists of key slices: commit, composition, and postComposition,
+# Refresh Rate Selection and Transaction Handling in the CriticalWorkload track.
+# This template spec tracks metrics related to duration and count for these slices.
+# The metrics are cuj-scoped.
+
+# SQL query to retrieve details about various CUJs, including their unique IDs, names, timestamps
+# and their durations.
+query: {
+    id: "cujs"
+    table: {
+        table_name: "android_jank_latency_cujs"
+        module_name: "android.cujs.sysui_cujs"
+        column_names: "cuj_name"
+        column_names: "ts"
+        column_names: "dur"
+        column_names: "cuj_id"
+    }
+    select_columns: { column_name: "cuj_name" }
+    select_columns: { column_name: "dur" }
+    select_columns: { column_name: "cuj_id" alias: "id" }
+    select_columns: { column_name: "ts" }
+}
+
+# SQL query that joins the slice and track table of the standard SQL library. Subsequently, the
+# results are filtered based on the track name, process name, and specific slices of interest.
+
+query: {
+    id: "sf_critical_work_slices"
+    simple_slices: {
+      track_name_glob: "CriticalWorkload"
+      process_name_glob: "/system/bin/surfaceflinger"
+    }
+    # filtering slices by slice name since few instantaneous events are also tracked in CriticalWorkload
+    # track and they appear as slices in the stdlib slice table.
+    filters: {
+      column_name: "slice_name"
+      op: EQUAL
+      string_rhs: "Commit"
+      string_rhs: "Composition"
+      string_rhs: "Post Composition"
+      string_rhs: "Transaction Handling"
+      string_rhs: "Refresh Rate Selection"
+    }
+    select_columns: { column_name: "dur" }
+    select_columns: { column_name: "slice_name" }
+    select_columns: { column_name: "id" }
+    select_columns: { column_name: "ts" }
+}
+
+# Define the TraceMetricV2TemplateSpec to generate these aggregates as 5 metrics with cuj_name
+# and slice_name as dimensions.
+# The spec uses interval_intersect to ensure the metrics are CUJ scoped.
+metric_template_spec: {
+    id_prefix: "android_sf_critical_work_main_thread_cuj"
+    dimensions: "cuj_name"
+    dimensions: "slice_name"
+    value_columns: "max_dur"
+    value_columns: "avg_dur"
+    value_columns: "count"
+    query: {
+        interval_intersect: {
+            base: {
+                inner_query_id: "sf_critical_work_slices"
+            }
+            interval_intersect: {
+                inner_query_id: "cujs"
+            }
+        }
+        group_by: {
+            column_names: "slice_name"
+            column_names: "cuj_name"
+            aggregates: {
+              column_name: "dur"
+              op: MAX
+              result_column_name: "max_dur"
+            }
+            aggregates: {
+              column_name: "dur"
+              op: MEAN
+              result_column_name: "avg_dur"
+            }
+            aggregates: {
+              column_name: "slice_name"
+              op: COUNT
+              result_column_name: "count"
+            }
+        }
+    }
+}

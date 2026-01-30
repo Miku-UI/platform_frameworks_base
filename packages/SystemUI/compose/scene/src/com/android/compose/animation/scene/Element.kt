@@ -52,7 +52,6 @@ import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.compose.ui.util.fastForEachReversed
 import androidx.compose.ui.util.lerp
-import com.android.compose.animation.scene.Element.Companion.SizeUnspecified
 import com.android.compose.animation.scene.content.Content
 import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.transformation.CustomPropertyTransformation
@@ -105,13 +104,6 @@ internal class Element(val key: ElementKey) {
          */
         var targetSize by mutableStateOf(SizeUnspecified)
         var targetOffset by mutableStateOf(Offset.Unspecified)
-
-        /**
-         * The *approach* state of this element in this content, i.e. the intermediate layout state
-         * during transitions, used for smooth animation. Note: These values are computed before
-         * measuring the children.
-         */
-        var approachSize by mutableStateOf(SizeUnspecified)
 
         /** The last state this element had in this content. */
         var lastOffset = Offset.Unspecified
@@ -173,10 +165,10 @@ internal fun Modifier.element(
     // we can ensure that SceneTransitionLayoutImpl will compose new contents first.
     val currentTransitionStates = getAllNestedTransitionStates(layoutImpl)
 
-    return thenIf(layoutImpl.state.isElevationPossible(content.key, key)) {
+    return then(ElementModifier(layoutImpl, currentTransitionStates, content, key))
+        .thenIf(layoutImpl.state.isElevationPossible(content.key, key)) {
             Modifier.maybeElevateInContent(layoutImpl, content, key, currentTransitionStates)
         }
-        .then(ElementModifier(layoutImpl, currentTransitionStates, content, key))
         .thenIf(layoutImpl.implicitTestTags) { Modifier.testTag(key.testTag) }
 }
 
@@ -236,7 +228,10 @@ private fun Modifier.maybeElevateInContent(
                     content.key,
                     layoutImpl.elements.getValue(key),
                     state,
-                )
+                ) &&
+                // Always draw in the original content when overscrolling.
+                state.progress > 0f &&
+                state.progress < 1f
         },
     )
 }
@@ -348,11 +343,7 @@ internal class ElementNode(
     override fun isMeasurementApproachInProgress(lookaheadSize: IntSize): Boolean {
         // TODO(b/324191441): Investigate whether making this check more complex (checking if this
         // element is shared or transformed) would lead to better performance.
-        val isTransitioning = isAnyStateTransitioning()
-        if (!isTransitioning) {
-            stateInContent.approachSize = SizeUnspecified
-        }
-        return isTransitioning
+        return isAnyStateTransitioning()
     }
 
     override fun Placeable.PlacementScope.isPlacementApproachInProgress(
@@ -404,7 +395,6 @@ internal class ElementNode(
             // sharedElement isn't part of either but the element is still rendered as part of
             // the underlying scene that is currently not being transitioned.
             val currentState = currentTransitionStates.last().last()
-            stateInContent.approachSize = Element.SizeUnspecified
             val shouldPlaceInThisContent =
                 elementContentWhenIdle(
                     layoutImpl,
@@ -422,14 +412,7 @@ internal class ElementNode(
         val transition = elementState as? TransitionState.Transition
 
         val placeable =
-            approachMeasure(
-                layoutImpl = layoutImpl,
-                element = element,
-                transition = transition,
-                stateInContent = stateInContent,
-                measurable = measurable,
-                constraints = constraints,
-            )
+            measure(layoutImpl, element, transition, stateInContent, measurable, constraints)
         stateInContent.lastSize = placeable.size()
         return layout(placeable.width, placeable.height) { place(elementState, placeable) }
     }
@@ -707,7 +690,7 @@ internal class ElementNode(
 }
 
 /** The [TransitionState] that we should consider for [element]. */
-private fun elementState(
+internal fun elementState(
     layoutImpl: SceneTransitionLayoutImpl,
     element: Element,
     transitionStates: List<List<TransitionState>>,
@@ -1142,7 +1125,7 @@ private fun isElementOpaque(
  * [isElementOpaque] is checked during placement and we don't want to read the transition progress
  * in that phase.
  */
-private fun elementAlpha(
+internal fun elementAlpha(
     layoutImpl: SceneTransitionLayoutImpl,
     element: Element,
     transition: TransitionState.Transition?,
@@ -1203,7 +1186,7 @@ private fun interruptedAlpha(
     )
 }
 
-private fun approachMeasure(
+private fun measure(
     layoutImpl: SceneTransitionLayoutImpl,
     element: Element,
     transition: TransitionState.Transition?,
@@ -1234,7 +1217,6 @@ private fun approachMeasure(
     maybePlaceable?.let { placeable ->
         stateInContent.sizeBeforeInterruption = Element.SizeUnspecified
         stateInContent.sizeInterruptionDelta = IntSize.Zero
-        stateInContent.approachSize = Element.SizeUnspecified
         return placeable
     }
 
@@ -1257,10 +1239,6 @@ private fun approachMeasure(
                 )
             },
         )
-
-    // Important: Set approachSize before child measurement. Could be used for their calculations.
-    stateInContent.approachSize = interruptedSize
-
     return measurable.measure(
         Constraints.fixed(
             interruptedSize.width.coerceAtLeast(0),
@@ -1564,9 +1542,10 @@ private fun getTransformationContentKey(
                 transition.toContent
             } else {
                 throw IllegalStateException(
-                    "Ancestor transition is active but no transformation " +
-                        "spec was found. The ancestor transition should have only been selected " +
-                        "when a transformation for that element and content was defined."
+                    "Ancestor transition $transition is active but no transformation for element " +
+                        "${element.key} spec was found. The ancestor transition should have only " +
+                        "been selected when a transformation for that element and content was " +
+                        "defined."
                 )
             }
         }

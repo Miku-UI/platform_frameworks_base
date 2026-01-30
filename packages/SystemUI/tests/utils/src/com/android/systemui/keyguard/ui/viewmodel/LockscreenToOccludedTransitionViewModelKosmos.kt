@@ -23,7 +23,6 @@ import com.android.systemui.kosmos.Kosmos.Fixture
 
 val Kosmos.lockscreenToOccludedTransitionViewModel by Fixture {
     LockscreenToOccludedTransitionViewModel(
-        shadeDependentFlows = shadeDependentFlows,
         configurationInteractor = configurationInteractor,
         animationFlow = keyguardTransitionAnimationFlow,
     )

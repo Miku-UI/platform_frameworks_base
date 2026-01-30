@@ -35,7 +35,7 @@ import com.android.server.pm.pkg.AndroidPackage;
 
 import org.xmlpull.v1.XmlPullParser;
 
-import java.util.List;
+import java.util.Collection;
 
 /** Helper class for managing update ownership and optouts for the feature. */
 public class UpdateOwnershipHelper {
@@ -63,10 +63,11 @@ public class UpdateOwnershipHelper {
 
     /** Returns true if a package setting declares that it uses a permission */
     private static boolean usesAnyPermission(AndroidPackage pkgSetting, String... permissions) {
-        List<ParsedUsesPermission> usesPermissions = pkgSetting.getUsesPermissions();
-        for (int i = 0; i < usesPermissions.size(); i++) {
+        Collection<ParsedUsesPermission> usesPermissions =
+                pkgSetting.getUsesPermissionMapping().values();
+        for (ParsedUsesPermission usesPermission : usesPermissions) {
             for (int j = 0; j < permissions.length; j++) {
-                if (permissions[j].equals(usesPermissions.get(i).getName())) {
+                if (permissions[j].equals(usesPermission.getName())) {
                     return true;
                 }
             }

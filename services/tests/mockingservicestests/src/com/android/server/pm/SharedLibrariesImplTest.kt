@@ -104,13 +104,19 @@ class SharedLibrariesImplTest {
         stageBuiltinLibrary(mTempFolder.newFolder())
         stageScanExistingPackages()
 
+        val sdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT
+        val sdkVersionFull = if (android.sdk.Flags.majorMinorVersioningScheme())
+            Build.parseFullVersion(sdkVersion.toString())
+        else
+            0
         mPms = spy(PackageManagerService(mMockSystem.mocks().injector,
             false /*factoryTest*/,
             MockSystem.DEFAULT_VERSION_INFO.fingerprint,
             false /*isEngBuild*/,
             false /*isUserDebugBuild*/,
-            Build.VERSION_CODES.CUR_DEVELOPMENT,
-            Build.VERSION.INCREMENTAL))
+            sdkVersion,
+            Build.VERSION.INCREMENTAL,
+            sdkVersionFull))
         mMockSystem.system().validateFinalState()
         mSettings = mMockSystem.mocks().injector.settings
         mSharedLibrariesImpl = mMockSystem.mocks().injector.sharedLibrariesImpl
@@ -222,8 +228,8 @@ class SharedLibrariesImplTest {
             staticLibrary = STATIC_LIB_NAME, staticLibraryVersion = 10L)
         val parsedPackage = pair.second as ParsedPackage
         val scanRequest = ScanRequest(parsedPackage, null, null, null, null,
-            null, null, null, 0, 0, false, null, null)
-        val scanResult = ScanResult(scanRequest, null, null, false, 0, null, null, null)
+            null, null, null, 0, 0, false, null, null, false)
+        val scanResult = ScanResult(scanRequest, null, false, 0, null, null, null)
         var installRequest = InstallRequest(parsedPackage, 0, 0, UserHandle(0), scanResult, null)
 
         val latestInfoSetting =
@@ -307,8 +313,7 @@ class SharedLibrariesImplTest {
     @Test
     fun getAllowedSharedLibInfos_withStaticSharedLibInfo() {
         val testInfo = libOfStatic(TEST_LIB_PACKAGE_NAME, TEST_LIB_NAME, 1L)
-        val scanResult = ScanResult(mock(), null, null,
-            false, 0, null, testInfo, null)
+        val scanResult = ScanResult(mock(), null, false, 0, null, testInfo, null)
         var installRequest = InstallRequest(mock(), 0, 0, UserHandle(0), scanResult, null)
 
         val allowedInfos = mSharedLibrariesImpl.getAllowedSharedLibInfos(installRequest)
@@ -329,9 +334,9 @@ class SharedLibrariesImplTest {
             .createBasicSettingBuilder(pair.first.parentFile, parsedPackage.hideAsFinal())
             .setPkgFlags(ApplicationInfo.FLAG_SYSTEM).build()
         val scanRequest = ScanRequest(parsedPackage, null, null, null, null,
-            null, null, null, 0, 0, false, null, null)
-        val scanResult = ScanResult(scanRequest, packageSetting, null,
-            false, 0, null, null, listOf(testInfo))
+            null, null, null, 0, 0, false, null, null, false)
+        val scanResult = ScanResult(scanRequest, packageSetting, false, 0, null, null,
+            listOf(testInfo))
         var installRequest = InstallRequest(parsedPackage, 0, 0, UserHandle(0), scanResult, null)
 
         val allowedInfos = mSharedLibrariesImpl.getAllowedSharedLibInfos(installRequest)

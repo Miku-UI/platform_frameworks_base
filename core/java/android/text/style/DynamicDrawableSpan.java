@@ -66,6 +66,7 @@ import java.lang.ref.WeakReference;
  * <img src="{@docRoot}reference/android/images/text/style/dynamicdrawablespan.png" />
  * <figcaption>Replacing text with a drawable.</figcaption>
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class DynamicDrawableSpan extends ReplacementSpan {
 
     /**

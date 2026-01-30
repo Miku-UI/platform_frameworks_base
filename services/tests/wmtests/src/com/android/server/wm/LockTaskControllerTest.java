@@ -187,7 +187,7 @@ public class LockTaskControllerTest {
         assertTrue(mLockTaskController.isTaskLocked(tr));
 
         // THEN lock task mode should be started
-        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK);
+        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK, tr.mUserId);
     }
 
     @Test
@@ -207,7 +207,7 @@ public class LockTaskControllerTest {
         assertTrue(mLockTaskController.isTaskLocked(tr2));
 
         // THEN lock task mode should be started
-        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK);
+        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK, tr1.mUserId);
     }
 
     @Test
@@ -236,7 +236,7 @@ public class LockTaskControllerTest {
         assertTrue(mLockTaskController.isTaskLocked(tr));
 
         // THEN lock task mode should be started
-        verifyLockTaskStarted(STATUS_BAR_MASK_PINNED, DISABLE2_NONE);
+        verifyLockTaskStarted(STATUS_BAR_MASK_PINNED, DISABLE2_NONE, tr.mUserId);
         // THEN screen pinning toast should be shown
         verify(mStatusBarService).showPinningEnterExitToast(eq(true /* entering */));
 
@@ -332,7 +332,7 @@ public class LockTaskControllerTest {
         // THEN the task should no longer be locked
         assertFalse(mLockTaskController.isTaskLocked(tr));
         // THEN lock task mode should have been finished
-        verifyLockTaskStopped(times(1));
+        verifyLockTaskStopped(times(1), tr.mUserId);
     }
 
     @Test(expected = SecurityException.class)
@@ -378,7 +378,7 @@ public class LockTaskControllerTest {
         // THEN the top task should no longer be locked
         assertFalse(mLockTaskController.isTaskLocked(tr2));
         // THEN lock task mode should not have been finished
-        verifyLockTaskStopped(never());
+        verifyLockTaskStopped(never(), tr1.mUserId);
     }
 
     @Test
@@ -399,7 +399,7 @@ public class LockTaskControllerTest {
         // THEN the top task should no longer be locked
         assertFalse(mLockTaskController.isTaskLocked(tr2));
         // THEN lock task mode should be finished
-        verifyLockTaskStopped(times(1));
+        verifyLockTaskStopped(times(1), tr1.mUserId);
     }
 
     @Test
@@ -422,7 +422,7 @@ public class LockTaskControllerTest {
         // THEN the task should no longer be locked
         assertFalse(mLockTaskController.isTaskLocked(tr));
         // THEN lock task mode should have been finished
-        verifyLockTaskStopped(times(1));
+        verifyLockTaskStopped(times(1), tr.mUserId);
         // THEN the keyguard should be shown
         verify(mLockPatternUtils).requireCredentialEntry(eq(UserHandle.USER_ALL));
         // THEN screen pinning toast should be shown
@@ -447,7 +447,7 @@ public class LockTaskControllerTest {
         // THEN the top task should no longer be locked
         assertFalse(mLockTaskController.isTaskLocked(tr2));
         // THEN lock task mode should be finished
-        verifyLockTaskStopped(times(1));
+        verifyLockTaskStopped(times(1), tr1.mUserId);
     }
 
     @Test
@@ -572,7 +572,7 @@ public class LockTaskControllerTest {
         assertEquals(LOCK_TASK_MODE_LOCKED, mLockTaskController.getLockTaskModeState());
         assertTrue(mLockTaskController.isTaskLocked(tr1));
         assertTrue(mLockTaskController.isTaskLocked(tr2));
-        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK);
+        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK, tr1.mUserId);
 
         // WHEN removing one package from allowlist
         allowlist = new String[] {TEST_PACKAGE_NAME};
@@ -584,7 +584,7 @@ public class LockTaskControllerTest {
         // THEN the other task should remain locked
         assertEquals(LOCK_TASK_MODE_LOCKED, mLockTaskController.getLockTaskModeState());
         assertTrue(mLockTaskController.isTaskLocked(tr1));
-        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK);
+        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK, tr1.mUserId);
 
         // WHEN removing the last package from allowlist
         allowlist = new String[] {};
@@ -594,7 +594,7 @@ public class LockTaskControllerTest {
         verify(tr1).performClearTaskForReuse(false /* excludingTaskOverlay*/);
         assertFalse(mLockTaskController.isTaskLocked(tr1));
         assertEquals(LOCK_TASK_MODE_NONE, mLockTaskController.getLockTaskModeState());
-        verifyLockTaskStopped(times(1));
+        verifyLockTaskStopped(times(1), tr1.mUserId);
     }
 
     @Test
@@ -604,7 +604,7 @@ public class LockTaskControllerTest {
         mLockTaskController.startLockTaskMode(tr, false, TEST_UID);
 
         // THEN lock task mode should be started with default status bar masks
-        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK);
+        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK, tr.mUserId);
 
         // reset invocation counter
         reset(mStatusBarService);
@@ -616,10 +616,10 @@ public class LockTaskControllerTest {
         int expectedFlags = STATUS_BAR_MASK_LOCKED
                 & ~DISABLE_HOME;
         int expectedFlags2 = DISABLE2_MASK;
-        verify(mStatusBarService).disable(eq(expectedFlags), any(IBinder.class),
-                eq(mPackageName));
-        verify(mStatusBarService).disable2(eq(expectedFlags2), any(IBinder.class),
-                eq(mPackageName));
+        verify(mStatusBarService).disableForUser(eq(expectedFlags), any(IBinder.class),
+                eq(mPackageName), eq(tr.mUserId));
+        verify(mStatusBarService).disable2ForUser(eq(expectedFlags2), any(IBinder.class),
+                eq(mPackageName), eq(tr.mUserId));
 
         // reset invocation counter
         reset(mStatusBarService);
@@ -633,10 +633,10 @@ public class LockTaskControllerTest {
                 & ~DISABLE_NOTIFICATION_ALERTS;
         expectedFlags2 = DISABLE2_MASK
                 & ~DISABLE2_NOTIFICATION_SHADE;
-        verify(mStatusBarService).disable(eq(expectedFlags), any(IBinder.class),
-                eq(mPackageName));
-        verify(mStatusBarService).disable2(eq(expectedFlags2), any(IBinder.class),
-                eq(mPackageName));
+        verify(mStatusBarService).disableForUser(eq(expectedFlags), any(IBinder.class),
+                eq(mPackageName), eq(tr.mUserId));
+        verify(mStatusBarService).disable2ForUser(eq(expectedFlags2), any(IBinder.class),
+                eq(mPackageName), eq(tr.mUserId));
     }
 
     @Test
@@ -646,7 +646,7 @@ public class LockTaskControllerTest {
         mLockTaskController.startLockTaskMode(tr, false, TEST_UID);
 
         // THEN lock task mode should be started with default status bar masks
-        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK);
+        verifyLockTaskStarted(STATUS_BAR_MASK_LOCKED, DISABLE2_MASK, tr.mUserId);
 
         // reset invocation counter
         reset(mStatusBarService);
@@ -798,14 +798,15 @@ public class LockTaskControllerTest {
         return tr;
     }
 
-    private void verifyLockTaskStarted(int statusBarMask, int statusBarMask2) throws Exception {
+    private void verifyLockTaskStarted(int statusBarMask, int statusBarMask2, int userId)
+            throws Exception {
         // THEN the keyguard should have been disabled
         verify(mWindowManager).disableKeyguard(any(IBinder.class), anyString(), eq(TEST_USER_ID));
         // THEN the status bar should have been disabled
-        verify(mStatusBarService).disable(eq(statusBarMask), any(IBinder.class),
-                eq(mPackageName));
-        verify(mStatusBarService).disable2(eq(statusBarMask2), any(IBinder.class),
-                eq(mPackageName));
+        verify(mStatusBarService).disableForUser(eq(statusBarMask), any(IBinder.class),
+                eq(mPackageName), eq(userId));
+        verify(mStatusBarService).disable2ForUser(eq(statusBarMask2), any(IBinder.class),
+                eq(mPackageName), eq(userId));
         // THEN recents should have been notified
         verify(mRecentTasks).onLockTaskModeStateChanged(anyInt(), eq(TEST_USER_ID));
         // THEN the DO/PO should be informed about the operation
@@ -813,14 +814,14 @@ public class LockTaskControllerTest {
                 eq(TEST_USER_ID));
     }
 
-    private void verifyLockTaskStopped(VerificationMode mode) throws Exception {
+    private void verifyLockTaskStopped(VerificationMode mode, int userId) throws Exception {
         // THEN the keyguard should have been disabled
         verify(mWindowManager, mode).reenableKeyguard(any(IBinder.class), eq(TEST_USER_ID));
         // THEN the status bar should have been disabled
-        verify(mStatusBarService, mode).disable(eq(StatusBarManager.DISABLE_NONE),
-                any(IBinder.class), eq(mPackageName));
-        verify(mStatusBarService, mode).disable2(eq(StatusBarManager.DISABLE2_NONE),
-                any(IBinder.class), eq(mPackageName));
+        verify(mStatusBarService, mode).disableForUser(eq(StatusBarManager.DISABLE_NONE),
+                any(IBinder.class), eq(mPackageName), eq(userId));
+        verify(mStatusBarService, mode).disable2ForUser(eq(StatusBarManager.DISABLE2_NONE),
+                any(IBinder.class), eq(mPackageName), eq(userId));
         // THEN the DO/PO should be informed about the operation
         verify(mDevicePolicyManager, mode).notifyLockTaskModeChanged(eq(false), isNull(),
                 eq(TEST_USER_ID));

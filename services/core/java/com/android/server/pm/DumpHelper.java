@@ -245,8 +245,6 @@ final class DumpHelper {
                 dumpState.setDump(DumpState.DUMP_VOLUMES);
             } else if ("dexopt".equals(cmd)) {
                 dumpState.setDump(DumpState.DUMP_DEXOPT);
-            } else if ("compiler-stats".equals(cmd)) {
-                dumpState.setDump(DumpState.DUMP_COMPILER_STATS);
             } else if ("changes".equals(cmd)) {
                 dumpState.setDump(DumpState.DUMP_CHANGES);
             } else if ("service-permissions".equals(cmd)) {
@@ -527,11 +525,6 @@ final class DumpHelper {
         if (!checkin
                 && dumpState.isDumping(DumpState.DUMP_DEXOPT)) {
             snapshot.dump(DumpState.DUMP_DEXOPT, fd, pw, dumpState);
-        }
-
-        if (!checkin
-                && dumpState.isDumping(DumpState.DUMP_COMPILER_STATS)) {
-            snapshot.dump(DumpState.DUMP_COMPILER_STATS, fd, pw, dumpState);
         }
 
         if (dumpState.isDumping(DumpState.DUMP_MESSAGES)

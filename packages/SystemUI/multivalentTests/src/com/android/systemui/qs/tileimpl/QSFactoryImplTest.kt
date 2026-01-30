@@ -32,14 +32,14 @@ import com.android.systemui.qs.tiles.ColorCorrectionTile
 import com.android.systemui.qs.tiles.ColorInversionTile
 import com.android.systemui.qs.tiles.DataSaverTile
 import com.android.systemui.qs.tiles.DeviceControlsTile
-import com.android.systemui.qs.tiles.DndTile
 import com.android.systemui.qs.tiles.DreamTile
 import com.android.systemui.qs.tiles.FlashlightTile
 import com.android.systemui.qs.tiles.FontScalingTile
 import com.android.systemui.qs.tiles.HotspotTile
-import com.android.systemui.qs.tiles.InternetTile
+import com.android.systemui.qs.tiles.InternetTileNewImpl
 import com.android.systemui.qs.tiles.LocationTile
 import com.android.systemui.qs.tiles.MicrophoneToggleTile
+import com.android.systemui.qs.tiles.ModesTile
 import com.android.systemui.qs.tiles.NfcTile
 import com.android.systemui.qs.tiles.NightDisplayTile
 import com.android.systemui.qs.tiles.OneHandedModeTile
@@ -52,20 +52,21 @@ import com.android.systemui.qs.tiles.UiModeNightTile
 import com.android.systemui.qs.tiles.WorkModeTile
 import com.android.systemui.util.mockito.any
 import com.google.common.truth.Truth.assertThat
+import javax.inject.Provider
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.Mock
 import org.mockito.Mockito.inOrder
-import org.mockito.MockitoAnnotations
-import javax.inject.Provider
 import org.mockito.Mockito.`when` as whenever
+import org.mockito.MockitoAnnotations
 
-private val specMap = mapOf(
-        "internet" to InternetTile::class.java,
+private val specMap =
+    mapOf(
+        "internet" to InternetTileNewImpl::class.java,
         "bt" to BluetoothTile::class.java,
-        "dnd" to DndTile::class.java,
+        "dnd" to ModesTile::class.java,
         "inversion" to ColorInversionTile::class.java,
         "airplane" to AirplaneModeTile::class.java,
         "work" to WorkModeTile::class.java,
@@ -90,8 +91,8 @@ private val specMap = mapOf(
         "onehanded" to OneHandedModeTile::class.java,
         "color_correction" to ColorCorrectionTile::class.java,
         "dream" to DreamTile::class.java,
-        "font_scaling" to FontScalingTile::class.java
-)
+        "font_scaling" to FontScalingTile::class.java,
+    )
 
 @RunWith(AndroidJUnit4::class)
 @SmallTest
@@ -101,9 +102,9 @@ class QSFactoryImplTest : SysuiTestCase() {
     @Mock private lateinit var customTileFactory: CustomTile.Factory
     @Mock private lateinit var customTile: CustomTile
 
-    @Mock private lateinit var internetTile: InternetTile
+    @Mock private lateinit var internetTile: InternetTileNewImpl
     @Mock private lateinit var bluetoothTile: BluetoothTile
-    @Mock private lateinit var dndTile: DndTile
+    @Mock private lateinit var modesTile: ModesTile
     @Mock private lateinit var colorInversionTile: ColorInversionTile
     @Mock private lateinit var airplaneTile: AirplaneModeTile
     @Mock private lateinit var workTile: WorkModeTile
@@ -140,50 +141,45 @@ class QSFactoryImplTest : SysuiTestCase() {
         whenever(qsHost.userContext).thenReturn(mContext)
         whenever(customTileFactory.create(anyString(), any())).thenReturn(customTile)
 
-        val tileMap = mutableMapOf<String, Provider<QSTileImpl<*>>>(
-            "internet" to Provider { internetTile },
-            "bt" to Provider { bluetoothTile },
-            "dnd" to Provider { dndTile },
-            "inversion" to Provider { colorInversionTile },
-            "airplane" to Provider { airplaneTile },
-            "work" to Provider { workTile },
-            "rotation" to Provider { rotationTile },
-            "flashlight" to Provider { flashlightTile },
-            "location" to Provider { locationTile },
-            "cast" to Provider { castTile },
-            "hotspot" to Provider { hotspotTile },
-            "battery" to Provider { batterySaverTile },
-            "saver" to Provider { dataSaverTile },
-            "night" to Provider { nightDisplayTile },
-            "nfc" to Provider { nfcTile },
-            "dark" to Provider { darkModeTile },
-            "screenrecord" to Provider { screenRecordTile },
-            "reduce_brightness" to Provider { reduceBrightColorsTile },
-            "cameratoggle" to Provider { cameraToggleTile },
-            "mictoggle" to Provider { microphoneToggleTile },
-            "controls" to Provider { deviceControlsTile },
-            "alarm" to Provider { alarmTile },
-            "wallet" to Provider { quickAccessWalletTile },
-            "qr_code_scanner" to Provider { qrCodeScannerTile },
-            "onehanded" to Provider { oneHandedModeTile },
-            "color_correction" to Provider { colorCorrectionTile },
-            "dream" to Provider { dreamTile },
-            "font_scaling" to Provider { fontScalingTile }
-        )
+        val tileMap =
+            mutableMapOf<String, Provider<QSTileImpl<*>>>(
+                "internet" to Provider { internetTile },
+                "bt" to Provider { bluetoothTile },
+                "dnd" to Provider { modesTile },
+                "inversion" to Provider { colorInversionTile },
+                "airplane" to Provider { airplaneTile },
+                "work" to Provider { workTile },
+                "rotation" to Provider { rotationTile },
+                "flashlight" to Provider { flashlightTile },
+                "location" to Provider { locationTile },
+                "cast" to Provider { castTile },
+                "hotspot" to Provider { hotspotTile },
+                "battery" to Provider { batterySaverTile },
+                "saver" to Provider { dataSaverTile },
+                "night" to Provider { nightDisplayTile },
+                "nfc" to Provider { nfcTile },
+                "dark" to Provider { darkModeTile },
+                "screenrecord" to Provider { screenRecordTile },
+                "reduce_brightness" to Provider { reduceBrightColorsTile },
+                "cameratoggle" to Provider { cameraToggleTile },
+                "mictoggle" to Provider { microphoneToggleTile },
+                "controls" to Provider { deviceControlsTile },
+                "alarm" to Provider { alarmTile },
+                "wallet" to Provider { quickAccessWalletTile },
+                "qr_code_scanner" to Provider { qrCodeScannerTile },
+                "onehanded" to Provider { oneHandedModeTile },
+                "color_correction" to Provider { colorCorrectionTile },
+                "dream" to Provider { dreamTile },
+                "font_scaling" to Provider { fontScalingTile },
+            )
 
-        factory = QSFactoryImpl(
-                { qsHost },
-                { customTileFactory },
-                tileMap,
-        )
+        factory = QSFactoryImpl({ qsHost }, { customTileFactory }, tileMap)
         // When adding/removing tiles, fix also [specMap] and [tileMap]
     }
 
     @Test
     fun testCorrectTileClassStock() {
-        specMap.forEach { spec, klazz ->
-            assertThat(factory.createTile(spec)).isInstanceOf(klazz)
-        }
+        specMap.forEach { spec, klazz -> assertThat(factory.createTile(spec)).isInstanceOf(klazz) }
     }
 
     @Test

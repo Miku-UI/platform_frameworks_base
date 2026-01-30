@@ -35,6 +35,7 @@ class FakeBubbleFactory {
             context: Context,
             bubblePositioner: BubblePositioner,
             expandedViewManager: BubbleExpandedViewManager,
+            bubble: Bubble,
             bubbleTaskView: BubbleTaskView,
             mainExecutor: TestShellExecutor,
             bgExecutor: TestShellExecutor,
@@ -50,23 +51,21 @@ class FakeBubbleFactory {
                             expandedViewManager,
                             bubblePositioner,
                             false, /* isOverflow */
+                            bubble,
                             bubbleTaskView,
-                            mainExecutor,
-                            bgExecutor,
-                            null, /* regionSamplingProvider */
                         )
                     }
+            bubble.setViewInfo(createViewInfo(bubbleBarExpandedView))
             return bubbleBarExpandedView
         }
 
-        fun createViewInfo(bubbleExpandedView: BubbleBarExpandedView): BubbleViewInfo {
+        private fun createViewInfo(bubbleExpandedView: BubbleBarExpandedView): BubbleViewInfo {
             return BubbleViewInfo().apply { bubbleBarExpandedView = bubbleExpandedView }
         }
 
         fun createChatBubble(
             context: Context,
             key: String = "key",
-            viewInfo: BubbleViewInfo? = null,
         ): Bubble {
             val bubble =
                 Bubble(
@@ -81,9 +80,6 @@ class FakeBubbleFactory {
                     directExecutor(),
                     directExecutor(),
                 ) {}
-            if (viewInfo != null) {
-                bubble.setViewInfo(viewInfo)
-            }
             return bubble
         }
     }

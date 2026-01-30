@@ -29,7 +29,7 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileUserAction
 import com.android.systemui.qs.tiles.base.shared.model.qSTileConfigProvider
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModel
 import com.android.systemui.qs.tiles.base.ui.viewmodel.QSTileViewModelFactory
-import com.android.systemui.qs.tiles.base.ui.viewmodel.qsTileViewModelAdaperFactory
+import com.android.systemui.qs.tiles.base.ui.viewmodel.qsTileViewModelAdapterFactory
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
@@ -77,7 +77,7 @@ var Kosmos.newQSTileFactory by
     Kosmos.Fixture {
         NewQSTileFactory(
             qSTileConfigProvider,
-            qsTileViewModelAdaperFactory,
+            qsTileViewModelAdapterFactory,
             newFactoryTileMap,
             customTileViewModelFactory,
         )

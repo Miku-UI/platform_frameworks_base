@@ -123,6 +123,12 @@ public class LockTaskController {
         STATUS_BAR_FLAG_MAP_LOCKED.append(DevicePolicyManager.LOCK_TASK_FEATURE_GLOBAL_ACTIONS,
                 new Pair<>(StatusBarManager.DISABLE_NONE,
                         StatusBarManager.DISABLE2_GLOBAL_ACTIONS));
+
+        if (android.app.supervision.flags.Flags.enableLockTaskFeatureQuickSettings()) {
+            STATUS_BAR_FLAG_MAP_LOCKED.append(DevicePolicyManager.LOCK_TASK_FEATURE_QUICK_SETTINGS,
+                    new Pair<>(StatusBarManager.DISABLE_NONE,
+                            StatusBarManager.DISABLE2_QUICK_SETTINGS));
+        }
     }
 
     /** Tag used for disabling of keyguard */
@@ -466,7 +472,9 @@ public class LockTaskController {
         // 3. Telephony then starts the default package for making the call
         final TelecomManager tm = getTelecomManager();
         final String dialerPackage = tm != null ? tm.getSystemDialerPackage() : null;
-        if (dialerPackage != null && dialerPackage.equals(intent.getComponent().getPackageName())) {
+        final String intentPackage =
+                intent.getComponent() == null ? null : intent.getComponent().getPackageName();
+        if (dialerPackage != null && dialerPackage.equals(intentPackage)) {
             return true;
         }
 
@@ -671,8 +679,7 @@ public class LockTaskController {
                 stopLockTaskMode(/* task= */ null, /* stopAppPinning= */ true, callingUid);
             }
         }
-
-        // When a task is locked, dismiss the root pinned task if it exists 
+        // When a task is locked, dismiss the root pinned task if it exists
         mSupervisor.mRootWindowContainer.removeRootTasksInWindowingModes(WINDOWING_MODE_PINNED);
 
         // System can only initiate screen pinning, not full lock task mode
@@ -906,8 +913,8 @@ public class LockTaskController {
         }
 
         try {
-            statusBar.disable(flags1, mToken, mContext.getPackageName());
-            statusBar.disable2(flags2, mToken, mContext.getPackageName());
+            statusBar.disableForUser(flags1, mToken, mContext.getPackageName(), userId);
+            statusBar.disable2ForUser(flags2, mToken, mContext.getPackageName(), userId);
         } catch (RemoteException e) {
             Slog.e(TAG, "Failed to set status bar flags", e);
         }

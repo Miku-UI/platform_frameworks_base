@@ -311,10 +311,11 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
             )
 
             // When the user expands a sensitive Notification
-            val row = createRow(createNotificationEntry())
-            row.entry.apply { setSensitive(/* sensitive= */ true, /* deviceSensitive= */ true) }
+            val entry = createNotificationEntry()
+            val row = createRow(entry)
+            entry.apply { setSensitive(/* sensitive= */ true, /* deviceSensitive= */ true) }
 
-            underTest.onExpandClicked(row.entry, mock(), /* nowExpanded= */ true)
+            underTest.onExpandClicked(entry, mock(), /* nowExpanded= */ true)
 
             // Then we open the locked shade
             verify(kosmos.lockscreenShadeTransitionController)
@@ -360,10 +361,9 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
             )
 
             // When the user expands a sensitive Notification
-            val entry =
-                createRow(createNotificationEntry()).entry.apply {
-                    setSensitive(/* sensitive= */ true, /* deviceSensitive= */ true)
-                }
+            val entry = createNotificationEntry()
+            val row = createRow(entry)
+            entry.apply { setSensitive(/* sensitive= */ true, /* deviceSensitive= */ true) }
             underTest.onExpandClicked(entry, mock(), /* nowExpanded= */ true)
 
             // Then we show the bouncer
@@ -459,7 +459,7 @@ class StatusBarNotificationPresenterTest : SysuiTestCase() {
         if (NotificationBundleUi.isEnabled) {
             whenever(row.entryAdapter).thenReturn(factory.create(entry))
         } else {
-            whenever(row.entry).thenReturn(entry)
+            whenever(row.entryLegacy).thenReturn(entry)
         }
         entry.row = row
         return row

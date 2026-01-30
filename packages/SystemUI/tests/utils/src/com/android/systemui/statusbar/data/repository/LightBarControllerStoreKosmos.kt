@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.data.repository
 
 import com.android.systemui.display.data.repository.displayRepository
 import com.android.systemui.display.data.repository.displayScopeRepository
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
 import org.mockito.kotlin.mock
@@ -30,7 +31,7 @@ val Kosmos.lightBarControllerStoreImpl by
             factory = { _, _, _, _ -> mock() },
             displayScopeRepository = displayScopeRepository,
             statusBarModeRepositoryStore = statusBarModeRepository,
-            darkIconDispatcherStore = darkIconDispatcherStore,
+            displaySubComponentRepository = displaySubcomponentPerDisplayRepository,
         )
     }
 

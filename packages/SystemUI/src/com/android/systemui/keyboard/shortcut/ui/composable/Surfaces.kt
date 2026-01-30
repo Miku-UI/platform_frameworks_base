@@ -17,6 +17,7 @@
 package com.android.systemui.keyboard.shortcut.ui.composable
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Indication
 import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -445,8 +446,12 @@ fun ProvideShortcutHelperIndication(
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
-        LocalIndication provides ShortcutHelperIndication(interactionsConfig)
-    ) {
-        content()
-    }
+        LocalIndication provides rememberShortcutHelperIndication(interactionsConfig),
+        content = content,
+    )
+}
+
+@Composable
+fun rememberShortcutHelperIndication(interactionsConfig: InteractionsConfig): Indication {
+    return remember(interactionsConfig) { ShortcutHelperIndication(interactionsConfig) }
 }

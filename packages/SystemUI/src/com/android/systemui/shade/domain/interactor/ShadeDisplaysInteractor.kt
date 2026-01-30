@@ -23,14 +23,13 @@ import android.window.WindowContext
 import androidx.annotation.UiThread
 import com.android.app.tracing.coroutines.launchTraced
 import com.android.systemui.CoreStartable
-import com.android.systemui.common.ui.data.repository.ConfigurationRepository
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
 import com.android.systemui.shade.ShadeDisplayAware
-import com.android.systemui.shade.ShadeDisplayChangeLatencyTracker
+import com.android.systemui.shade.ShadeDisplayChangePerformanceTracker
 import com.android.systemui.shade.ShadeDisplayLog
 import com.android.systemui.shade.ShadeTraceLogger.logMoveShadeWindowTo
 import com.android.systemui.shade.ShadeTraceLogger.t
@@ -38,9 +37,9 @@ import com.android.systemui.shade.ShadeTraceLogger.traceReparenting
 import com.android.systemui.shade.data.repository.MutableShadeDisplaysRepository
 import com.android.systemui.shade.data.repository.ShadeDisplaysRepository
 import com.android.systemui.shade.display.ShadeExpansionIntent
+import com.android.systemui.shade.domain.interactor.ShadeExpandedStateInteractor.ShadeElement
 import com.android.systemui.shade.shared.flag.ShadeWindowGoesAround
 import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
-import com.android.systemui.statusbar.notification.row.NotificationRebindingTracker
 import com.android.systemui.statusbar.notification.stack.NotificationStackRebindingHider
 import com.android.systemui.statusbar.phone.ConfigurationForwarder
 import com.android.window.flags.Flags
@@ -50,36 +49,45 @@ import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** Handles Shade window display change when [ShadeDisplaysRepository.displayId] changes. */
+interface ShadeDisplaysInteractor {
+    /** Current display id of the shade window. */
+    val displayId: StateFlow<Int>
+    /**
+     * Target display id of the shade window.
+     *
+     * Triggers the window move. Once committed, [displayId] will match this.
+     */
+    val pendingDisplayId: StateFlow<Int>
+}
+
 @SysUISingleton
-class ShadeDisplaysInteractor
+class ShadeDisplaysInteractorImpl
 @Inject
 constructor(
     private val shadePositionRepository: MutableShadeDisplaysRepository,
     @ShadeDisplayAware private val shadeContext: WindowContext,
-    @ShadeDisplayAware private val configurationRepository: ConfigurationRepository,
     @Background private val bgScope: CoroutineScope,
     @Main private val mainThreadContext: CoroutineContext,
-    private val shadeDisplayChangeLatencyTracker: ShadeDisplayChangeLatencyTracker,
+    private val shadeDisplayChangePerformanceTracker: ShadeDisplayChangePerformanceTracker,
     private val shadeExpandedInteractor: ShadeExpandedStateInteractor,
     private val shadeExpansionIntent: ShadeExpansionIntent,
     private val activeNotificationsInteractor: ActiveNotificationsInteractor,
-    private val notificationRebindingTracker: NotificationRebindingTracker,
     private val notificationStackRebindingHider: NotificationStackRebindingHider,
     @ShadeDisplayAware private val configForwarder: ConfigurationForwarder,
     @ShadeDisplayLog private val logBuffer: LogBuffer,
-) : CoreStartable {
+    private val waitInteractor: ShadeDisplaysWaitInteractor,
+) : ShadeDisplaysInteractor, CoreStartable {
 
     private val hasActiveNotifications: Boolean
         get() = activeNotificationsInteractor.areAnyNotificationsPresentValue
 
-    /** Current display id of the shade window. */
-    val displayId: StateFlow<Int> = shadePositionRepository.displayId
+    override val displayId: StateFlow<Int> = shadePositionRepository.displayId
+
+    override val pendingDisplayId: StateFlow<Int> = shadePositionRepository.pendingDisplayId
 
     override fun start() {
         ShadeWindowGoesAround.isUnexpectedlyInLegacyMode()
@@ -134,11 +142,20 @@ constructor(
             withContext(mainThreadContext) {
                 traceReparenting {
                     collapseAndExpandShadeIfNeeded(destinationId) {
-                        shadeDisplayChangeLatencyTracker.onShadeDisplayChanging(destinationId)
+                        shadeDisplayChangePerformanceTracker.onShadeDisplayChanging(destinationId)
                         reparentToDisplayId(id = destinationId)
                     }
                     checkContextDisplayMatchesExpected(destinationId)
                     shadePositionRepository.onDisplayChangedSucceeded(destinationId)
+                    logBuffer.log(
+                        TAG,
+                        LogLevel.DEBUG,
+                        {
+                            int1 = currentId
+                            int2 = destinationId
+                        },
+                        { "Shade window successfully moved from display $int1 to $int2" },
+                    )
                 }
             }
         } catch (e: IllegalStateException) {
@@ -156,8 +173,28 @@ constructor(
     }
 
     private suspend fun collapseAndExpandShadeIfNeeded(newDisplayId: Int, reparent: () -> Unit) {
-        val previouslyExpandedElement = shadeExpandedInteractor.currentlyExpandedElement.value
-        previouslyExpandedElement?.collapse(reason = COLLAPSE_EXPAND_REASON)
+        val previouslyExpandedElement: ShadeElement? =
+            shadeExpandedInteractor.currentlyExpandedElement.value
+
+        // The next expanded element depends on the reason why the shade is changing window. e.g. if
+        // the trigger was a status bar swipe, based on the swipe location we might want to open
+        // quick settings or notifications next (in case of dual shade)
+        val nextExpandedElement =
+            shadeExpansionIntent.consumeExpansionIntent() ?: previouslyExpandedElement
+
+        // We first collapse the shade only if the element to show after the reparenting is
+        // different (e.g. if notifications where visible, but now the user is expanding quick
+        // settings in a different display, with dual shade enabled).
+        // If we didn't do this, there would be some flicker where the previous element appear for
+        // some time.
+        val needsToCollapseThenExpand = previouslyExpandedElement != nextExpandedElement
+
+        if (needsToCollapseThenExpand) {
+            // We could also consider adding an API to collapse/hide the previous instantaneously in
+            // the future.
+            previouslyExpandedElement?.collapse(reason = COLLAPSE_EXPAND_REASON)
+        }
+
         val notificationStackHidden =
             if (!hasActiveNotifications) {
                 // This covers the case the previous move was cancelled before setting the
@@ -175,11 +212,13 @@ constructor(
 
         reparent()
 
-        val elementToExpand =
-            shadeExpansionIntent.consumeExpansionIntent() ?: previouslyExpandedElement
-        // If the user was trying to expand a specific shade element, let's make sure to expand
-        // that one. Otherwise, we can just re-expand the previous expanded element.
-        elementToExpand?.expand(COLLAPSE_EXPAND_REASON)
+        if (needsToCollapseThenExpand) {
+            waitForOnMovedToDisplayDispatchedToView(newDisplayId)
+            // Let's make sure a frame has been drawn with the new configuration before expanding
+            // the shade again, otherwise we might end up having a flicker.
+            waitForNextFrameDrawn(newDisplayId)
+            nextExpandedElement?.expand(reason = COLLAPSE_EXPAND_REASON)
+        }
         if (notificationStackHidden) {
             if (hasActiveNotifications) {
                 // "onMovedToDisplay" is what synchronously triggers the rebinding of views: we need
@@ -193,33 +232,29 @@ constructor(
 
     private suspend fun waitForOnMovedToDisplayDispatchedToView(newDisplayId: Int) {
         withContext(bgScope.coroutineContext) {
-            t.traceAsync({
-                "waitForOnMovedToDisplayDispatchedToView(newDisplayId=$newDisplayId)"
-            }) {
-                withTimeoutOrNull(TIMEOUT) {
-                    configurationRepository.onMovedToDisplay.filter { it == newDisplayId }.first()
-                    t.instant { "onMovedToDisplay received with $newDisplayId" }
-                }
-                    ?: errorLog(
-                        "Timed out while waiting for onMovedToDisplay to be dispatched to " +
-                            "the shade root view in ShadeDisplaysInteractor"
-                    )
+            withTimeoutOrNull(WAIT_TIMEOUT) {
+                waitInteractor.waitForOnMovedToDisplayDispatchedToView(newDisplayId, TAG)
             }
+                ?: errorLog(
+                    "Timed out while waiting for onMovedToDisplay to be dispatched to " +
+                        "the shade root view"
+                )
+        }
+    }
+
+    private suspend fun waitForNextFrameDrawn(newDisplayId: Int) {
+        withContext(bgScope.coroutineContext) {
+            withTimeoutOrNull(WAIT_TIMEOUT) {
+                waitInteractor.waitForNextDoFrameDone(newDisplayId, TAG)
+            } ?: errorLog("Timed out while waiting for the next frame to be drawn.")
         }
     }
 
     private suspend fun waitForNotificationsRebinding() {
-        // here we don't need to wait for rebinding to appear (e.g. going > 0), as it already
-        // happened synchronously when the new configuration was received by ViewConfigCoordinator.
-        t.traceAsync("waiting for notifications rebinding to finish") {
-            withTimeoutOrNull(TIMEOUT) {
-                notificationRebindingTracker.rebindingInProgressCount.first { it == 0 }
-            } ?: errorLog("Timed out while waiting for inflations to finish")
+        withContext(bgScope.coroutineContext) {
+            withTimeoutOrNull(WAIT_TIMEOUT) { waitInteractor.waitForNotificationsRebinding(TAG) }
+                ?: errorLog("Timed out while waiting for inflations to finish")
         }
-    }
-
-    private fun errorLog(s: String) {
-        logBuffer.log(TAG, LogLevel.ERROR, s)
     }
 
     private fun checkContextDisplayMatchesExpected(destinationId: Int) {
@@ -234,6 +269,10 @@ constructor(
         }
     }
 
+    private fun errorLog(s: String) {
+        logBuffer.log(TAG, LogLevel.ERROR, s)
+    }
+
     @UiThread
     private fun reparentToDisplayId(id: Int) {
         t.traceSyncAndAsync({ "reparentToDisplayId(id=$id)" }) {
@@ -242,8 +281,8 @@ constructor(
     }
 
     private companion object {
+        val WAIT_TIMEOUT = 1.seconds
         const val TAG = "ShadeDisplaysInteractor"
         const val COLLAPSE_EXPAND_REASON = "Shade window move"
-        val TIMEOUT = 1.seconds
     }
 }

@@ -27,7 +27,7 @@ import android.app.job.JobWorkItem;
  * In all cases, the 'who' parameter is the caller's service binder, used to track
  * which Job Service instance is reporting.
  *
- * {@hide}
+ * @hide
  */
 interface IJobCallback {
     /**

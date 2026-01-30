@@ -18,6 +18,7 @@ package com.android.systemui.education.domain.interactor
 
 import android.content.pm.UserInfo
 import androidx.test.filters.SmallTest
+import com.android.systemui.LauncherProxyService.LauncherProxyListener
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.contextualeducation.GestureType
 import com.android.systemui.contextualeducation.GestureType.ALL_APPS
@@ -34,7 +35,6 @@ import com.android.systemui.inputdevice.tutorial.data.repository.DeviceType
 import com.android.systemui.inputdevice.tutorial.tutorialSchedulerRepository
 import com.android.systemui.keyboard.data.repository.keyboardRepository
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.recents.LauncherProxyService.LauncherProxyListener
 import com.android.systemui.testKosmos
 import com.android.systemui.touchpad.data.repository.touchpadRepository
 import com.android.systemui.user.data.repository.fakeUserRepository

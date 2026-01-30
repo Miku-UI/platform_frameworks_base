@@ -16,20 +16,16 @@
 
 package com.android.commands.telecom;
 
-import android.app.ActivityThread;
-import android.content.Context;
-import android.os.Looper;
-import android.os.ServiceManager;
-
-import com.android.internal.telecom.ITelecomService;
-import com.android.server.telecom.TelecomShellCommand;
-
+import java.io.BufferedReader;
 import java.io.FileDescriptor;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 
 /**
  * @deprecated Use {@code com.android.server.telecom.TelecomShellCommand} instead and execute the
- * shell command using {@code adb shell cmd telecom...}. This is only here for backwards
- * compatibility reasons.
+ * shell command using {@code adb shell cmd telecom...}. Commands sent here are proxied to telecom
+ * for backwards compatibility reasons.
  */
 @Deprecated
 public final class Telecom {
@@ -40,15 +36,19 @@ public final class Telecom {
      * @param args The command-line arguments
      */
     public static void main(String[] args) {
-        // Initialize the telephony module.
-        // TODO: Do it in zygote and RuntimeInit. b/148897549
-        ActivityThread.initializeMainlineModules();
-
-        Looper.prepareMainLooper();
-        ITelecomService service = ITelecomService.Stub.asInterface(
-                ServiceManager.getService(Context.TELECOM_SERVICE));
-        Context context = ActivityThread.systemMain().getSystemContext();
-        new TelecomShellCommand(service, context).exec(null, FileDescriptor.in,
-                FileDescriptor.out, FileDescriptor.err, args);
+        PrintWriter outputWriter = new PrintWriter(new FileOutputStream(FileDescriptor.out));
+        try {
+            // proxy args to "cmd telecom" and send response to output.
+            Process proc = Runtime.getRuntime().exec("cmd telecom " + String.join(" ", args));
+            BufferedReader stdInput = new BufferedReader(
+                    new InputStreamReader(proc.getInputStream()));
+            proc.waitFor();
+            while (stdInput.ready()) {
+                outputWriter.print((char) stdInput.read());
+            }
+        } catch (Exception e) {
+            outputWriter.print("error executing command: " + e);
+        }
+        outputWriter.flush();
     }
 }

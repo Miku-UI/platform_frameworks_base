@@ -755,7 +755,7 @@ public class AlarmManagerService extends SystemService {
         private static final long DEFAULT_ALLOW_WHILE_IDLE_WINDOW = 60 * 60 * 1000; // 1 hour.
         private static final long DEFAULT_ALLOW_WHILE_IDLE_COMPAT_WINDOW = 60 * 60 * 1000;
 
-        private static final long DEFAULT_PRIORITY_ALARM_DELAY = 9 * 60_000;
+        private static final long DEFAULT_PRIORITY_ALARM_DELAY = 1 * 60_000;
 
         private static final long DEFAULT_MIN_DEVICE_IDLE_FUZZ = 2 * 60_000;
         private static final long DEFAULT_MAX_DEVICE_IDLE_FUZZ = 15 * 60_000;
@@ -1784,9 +1784,9 @@ public class AlarmManagerService extends SystemService {
         mMetricsHelper = new MetricsHelper(getContext(), mLock);
         mActivityManagerInternal = LocalServices.getService(ActivityManagerInternal.class);
 
-        mStartUserBeforeScheduledAlarms = Flags.startUserBeforeScheduledAlarms()
-                && UserManager.supportsMultipleUsers() && Resources.getSystem().getBoolean(
-                com.android.internal.R.bool.config_allowAlarmsOnStoppedUsers);
+        mStartUserBeforeScheduledAlarms = UserManager.supportsMultipleUsers()
+                && Resources.getSystem().getBoolean(
+                        com.android.internal.R.bool.config_allowAlarmsOnStoppedUsers);
         if (mStartUserBeforeScheduledAlarms) {
             mUserWakeupStore = new UserWakeupStore();
             mUserWakeupStore.init();
@@ -2992,9 +2992,6 @@ public class AlarmManagerService extends SystemService {
 
             pw.println("Feature Flags:");
             pw.increaseIndent();
-            pw.print(Flags.FLAG_START_USER_BEFORE_SCHEDULED_ALARMS,
-                    Flags.startUserBeforeScheduledAlarms());
-            pw.println();
             pw.print(Flags.FLAG_ACQUIRE_WAKELOCK_BEFORE_SEND, Flags.acquireWakelockBeforeSend());
             pw.println();
             pw.decreaseIndent();
@@ -4528,8 +4525,10 @@ public class AlarmManagerService extends SystemService {
                                     mUserWakeupStore.getUserIdsToWakeup(nowELAPSED);
                             for (int i = 0; i < userIds.length; i++) {
                                 if (mActivityManagerInternal.isUserRunning(userIds[i], 0)
-                                        || !mActivityManagerInternal.startUserInBackground(
-                                                userIds[i])) {
+                                        || !mActivityManagerInternal
+                                                .startUserInBackgroundTemporarily(
+                                                        userIds[i],
+                                                        UserWakeupStore.USER_RUN_FOR_TIME_SECS)) {
                                     mUserWakeupStore.removeUserWakeup(userIds[i]);
                                 }
                             }

@@ -18,6 +18,7 @@ package com.android.server;
 
 import static android.service.watchdog.ExplicitHealthCheckService.PackageConfig;
 
+import static com.android.crashrecovery.flags.Flags.FLAG_FLAG_RESET_ENABLED;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doAnswer;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -48,7 +49,9 @@ import android.net.ConnectivityModuleConnector.ConnectivityModuleHealthListener;
 import android.os.Handler;
 import android.os.SystemProperties;
 import android.os.test.TestLooper;
-import android.platform.test.flag.junit.SetFlagsRule;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.DeviceConfig;
 import android.util.AtomicFile;
 
@@ -107,7 +110,8 @@ public class CrashRecoveryTest {
             PackageManager.ROLLBACK_USER_IMPACT_ONLY_MANUAL);
 
     @Rule
-    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    public final CheckFlagsRule mCheckFlagsRule =
+            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private final TestClock mTestClock = new TestClock();
     private TestLooper mTestLooper;
@@ -302,6 +306,7 @@ public class CrashRecoveryTest {
     }
 
     @Test
+    @RequiresFlagsDisabled(FLAG_FLAG_RESET_ENABLED)
     public void testBootLoopWithRescuePartyAndRollbackObserverNoFlags() throws Exception {
         PackageWatchdog watchdog = createWatchdog();
         RescuePartyObserver rescuePartyObserver = setUpRescuePartyObserver(watchdog);

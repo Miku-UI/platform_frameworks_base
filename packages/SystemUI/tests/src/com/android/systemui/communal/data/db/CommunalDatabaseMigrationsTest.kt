@@ -218,6 +218,65 @@ class CommunalDatabaseMigrationsTest : SysuiTestCase() {
         databaseV5.verifyWidgetsV5(fakeWidgetsV4.map { it.getV5() })
     }
 
+    @Test
+    fun migrate5To6_removesDuplicates() {
+        val databaseV5 = migrationTestHelper.createDatabase(DATABASE_NAME, version = 5)
+
+        val uniqueWidget =
+            FakeCommunalWidgetItemV5(
+                widgetId = 3,
+                componentName = "test_widget_3",
+                itemId = 13,
+                userSerialNumber = 0,
+                spanY = 0,
+                spanYNew = 0,
+            )
+
+        val fakeWidgetsV5 =
+            listOf(
+                FakeCommunalWidgetItemV5(
+                    widgetId = 1,
+                    componentName = "test_widget_1",
+                    itemId = 10,
+                    userSerialNumber = 0,
+                    spanY = 3,
+                    spanYNew = 3,
+                ),
+                FakeCommunalWidgetItemV5(
+                    widgetId = 1,
+                    componentName = "test_widget_2",
+                    itemId = 11,
+                    userSerialNumber = 10,
+                    spanY = 6,
+                    spanYNew = 6,
+                ),
+                FakeCommunalWidgetItemV5(
+                    widgetId = 1,
+                    componentName = "test_widget_2",
+                    itemId = 12,
+                    userSerialNumber = 10,
+                    spanY = 6,
+                    spanYNew = 6,
+                ),
+                uniqueWidget,
+            )
+
+        val correctedWidgetsV6 = listOf(uniqueWidget.getV6())
+
+        databaseV5.insertWidgetsV5(fakeWidgetsV5)
+        databaseV5.verifyWidgetsV5(fakeWidgetsV5)
+
+        val databaseV6 =
+            migrationTestHelper.runMigrationsAndValidate(
+                name = DATABASE_NAME,
+                version = 6,
+                validateDroppedTables = false,
+                CommunalDatabase.MIGRATION_5_6,
+            )
+
+        databaseV6.verifyWidgetsV6(correctedWidgetsV6)
+    }
+
     private fun SupportSQLiteDatabase.insertWidgetsV1(widgets: List<FakeCommunalWidgetItemV1>) {
         widgets.forEach { widget ->
             execSQL(
@@ -257,6 +316,26 @@ class CommunalDatabaseMigrationsTest : SysuiTestCase() {
                     "${widget.itemId}, " +
                     "${widget.userSerialNumber}," +
                     "${widget.spanY})"
+            )
+        }
+    }
+
+    private fun SupportSQLiteDatabase.insertWidgetsV5(widgets: List<FakeCommunalWidgetItemV5>) {
+        widgets.forEach { widget ->
+            execSQL(
+                "INSERT INTO communal_widget_table(" +
+                    "widget_id, " +
+                    "component_name, " +
+                    "item_id, " +
+                    "user_serial_number, " +
+                    "span_y, " +
+                    "span_y_new) " +
+                    "VALUES(${widget.widgetId}, " +
+                    "'${widget.componentName}', " +
+                    "${widget.itemId}, " +
+                    "${widget.userSerialNumber}," +
+                    "${widget.spanY}," +
+                    "${widget.spanYNew})"
             )
         }
     }
@@ -354,6 +433,29 @@ class CommunalDatabaseMigrationsTest : SysuiTestCase() {
         assertThat(cursor.isAfterLast).isTrue()
     }
 
+    private fun SupportSQLiteDatabase.verifyWidgetsV6(widgets: List<FakeCommunalWidgetItemV6>) {
+        val cursor = query("SELECT * FROM communal_widget_table")
+
+        assertThat(cursor.count).isEqualTo(widgets.size)
+        assertThat(cursor.moveToFirst()).isTrue()
+
+        widgets.forEach { widget ->
+            assertThat(cursor.getInt(cursor.getColumnIndex("widget_id"))).isEqualTo(widget.widgetId)
+            assertThat(cursor.getString(cursor.getColumnIndex("component_name")))
+                .isEqualTo(widget.componentName)
+            assertThat(cursor.getInt(cursor.getColumnIndex("item_id"))).isEqualTo(widget.itemId)
+            assertThat(cursor.getInt(cursor.getColumnIndex("user_serial_number")))
+                .isEqualTo(widget.userSerialNumber)
+            assertThat(cursor.getInt(cursor.getColumnIndex("span_y"))).isEqualTo(widget.spanY)
+            assertThat(cursor.getInt(cursor.getColumnIndex("span_y_new")))
+                .isEqualTo(widget.spanYNew)
+
+            cursor.moveToNext()
+        }
+
+        assertThat(cursor.isAfterLast).isTrue()
+    }
+
     private fun SupportSQLiteDatabase.insertRanks(ranks: List<FakeCommunalItemRank>) {
         ranks.forEach { rank ->
             execSQL("INSERT INTO communal_item_rank_table(rank) VALUES(${rank.rank})")
@@ -431,6 +533,26 @@ class CommunalDatabaseMigrationsTest : SysuiTestCase() {
     }
 
     private data class FakeCommunalWidgetItemV5(
+        val widgetId: Int,
+        val componentName: String,
+        val itemId: Int,
+        val userSerialNumber: Int,
+        val spanY: Int,
+        val spanYNew: Int,
+    )
+
+    private fun FakeCommunalWidgetItemV5.getV6(): FakeCommunalWidgetItemV6 {
+        return FakeCommunalWidgetItemV6(
+            widgetId = widgetId,
+            componentName = componentName,
+            itemId = itemId,
+            userSerialNumber = userSerialNumber,
+            spanY = spanY,
+            spanYNew = spanYNew,
+        )
+    }
+
+    private data class FakeCommunalWidgetItemV6(
         val widgetId: Int,
         val componentName: String,
         val itemId: Int,

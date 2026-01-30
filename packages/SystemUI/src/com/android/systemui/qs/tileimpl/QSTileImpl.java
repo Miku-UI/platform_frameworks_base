@@ -69,7 +69,6 @@ import com.android.systemui.qs.QSEvent;
 import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.QsEventLogger;
 import com.android.systemui.qs.SideLabelTileLayout;
-import com.android.systemui.qs.flags.QsInCompose;
 import com.android.systemui.qs.logging.QSLogger;
 
 import java.io.PrintWriter;
@@ -317,7 +316,9 @@ public abstract class QSTileImpl<TState extends State> implements QSTile, Lifecy
         final int eventId = mClickEventId++;
         mQSLogger.logTileSecondaryClick(mTileSpec, mStatusBarStateController.getState(),
                 mState.state, eventId);
-        mHandler.obtainMessage(H.SECONDARY_CLICK, eventId, 0, expandable).sendToTarget();
+        if (!mFalsingManager.isFalseTap(FalsingManager.LOW_PENALTY)) {
+            mHandler.obtainMessage(H.SECONDARY_CLICK, eventId, 0, expandable).sendToTarget();
+        }
     }
 
     @Override
@@ -562,16 +563,11 @@ public abstract class QSTileImpl<TState extends State> implements QSTile, Lifecy
     }
 
     /**
-     * Returns the {@link QSTile.Icon} for the resource ID, optionally loading the drawable if
-     * {@link QsInCompose#isEnabled()} is true.
+     * Returns the {@link QSTile.Icon} for the resource ID, loading the drawable.
      */
     @SuppressLint("UseCompatLoadingForDrawables")
     public static Icon maybeLoadResourceIcon(int id, Context context) {
-        if (QsInCompose.isEnabled()) {
-            return new DrawableIconWithRes(context.getDrawable(id), id);
-        } else {
-            return ResourceIcon.get(id);
-        }
+        return new DrawableIconWithRes(context.getDrawable(id), id);
     }
 
     @Override

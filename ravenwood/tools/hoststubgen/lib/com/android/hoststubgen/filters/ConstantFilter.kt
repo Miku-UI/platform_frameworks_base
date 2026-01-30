@@ -22,38 +22,30 @@ import com.android.hoststubgen.HostStubGenInternalException
  * [OutputFilter] with a given policy. Used to represent the default policy.
  *
  * This is used as the last fallback filter.
- *
- * @param policy the policy. Cannot be a "substitute" policy.
  */
 class ConstantFilter(
-    policy: FilterPolicy,
-    private val reason: String
+    private val classPolicy: FilterPolicyWithReason,
+    private val fieldPolicy: FilterPolicyWithReason = classPolicy,
+    private val methodPolicy: FilterPolicyWithReason = classPolicy,
 ) : OutputFilter() {
-
-    private val classPolicy: FilterPolicy
-    private val fieldPolicy: FilterPolicy
-    private val methodPolicy: FilterPolicy
-
     init {
-        if (!policy.isUsableWithDefault) {
-            throw HostStubGenInternalException("ConstantFilter doesn't support $policy.")
+        if (!classPolicy.policy.isUsableWithClasses) {
+            throw HostStubGenInternalException("${classPolicy.policy} can't be used for classes")
         }
-        methodPolicy = policy
-
-        // If the default policy is "throw", we convert it to "keep" for classes and fields.
-        classPolicy = when (policy) {
-            FilterPolicy.Throw -> FilterPolicy.Keep
-            else -> policy
+        if (!fieldPolicy.policy.isUsableWithFields) {
+            throw HostStubGenInternalException("${fieldPolicy.policy} can't be used for fields")
         }
-        fieldPolicy = classPolicy
+        if (!methodPolicy.policy.isUsableWithMethods) {
+            throw HostStubGenInternalException("${methodPolicy.policy} can't be used for methods")
+        }
     }
 
     override fun getPolicyForClass(className: String): FilterPolicyWithReason {
-        return classPolicy.withReason(reason)
+        return classPolicy
     }
 
     override fun getPolicyForField(className: String, fieldName: String): FilterPolicyWithReason {
-        return fieldPolicy.withReason(reason)
+        return fieldPolicy
     }
 
     override fun getPolicyForMethod(
@@ -61,6 +53,6 @@ class ConstantFilter(
         methodName: String,
         descriptor: String,
     ): FilterPolicyWithReason {
-        return methodPolicy.withReason(reason)
+        return methodPolicy
     }
 }

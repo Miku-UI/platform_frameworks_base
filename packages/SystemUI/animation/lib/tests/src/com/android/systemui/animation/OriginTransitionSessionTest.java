@@ -16,6 +16,8 @@
 
 package com.android.systemui.animation;
 
+import static android.app.ActivityTaskManager.INVALID_TASK_ID;
+
 import static com.google.common.truth.Truth.assertThat;
 
 import android.annotation.Nullable;
@@ -28,9 +30,11 @@ import android.os.RemoteException;
 import android.util.ArrayMap;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
+import android.window.ActivityTransitionInfo;
 import android.window.IRemoteTransition;
 import android.window.IRemoteTransitionFinishedCallback;
 import android.window.RemoteTransition;
+import android.window.TransitionFilter;
 import android.window.TransitionInfo;
 import android.window.WindowAnimationState;
 import android.window.WindowContainerTransaction;
@@ -45,10 +49,16 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.List;
 import java.util.Map;
 import java.util.function.Predicate;
 
-/** Unit tests for {@link OriginTransitionSession}. */
+/**
+ * Unit tests for {@link OriginTransitionSession}.
+ *
+ * Build/Install/Run:
+ *  atest PlatformAnimationLibCoreTests:OriginTransitionSessionTest
+ */
 @SmallTest
 @RunWith(JUnit4.class)
 public final class OriginTransitionSessionTest {
@@ -247,11 +257,11 @@ public final class OriginTransitionSessionTest {
         TransitionInfo.Change c1 =
                 new TransitionInfo.Change(/* container= */ null, /* leash= */ null);
         c1.setMode(WindowManager.TRANSIT_OPEN);
-        c1.setActivityComponent(to);
+        c1.setActivityTransitionInfo(new ActivityTransitionInfo(to, INVALID_TASK_ID));
         TransitionInfo.Change c2 =
                 new TransitionInfo.Change(/* container= */ null, /* leash= */ null);
         c2.setMode(WindowManager.TRANSIT_CLOSE);
-        c2.setActivityComponent(from);
+        c2.setActivityTransitionInfo(new ActivityTransitionInfo(from, INVALID_TASK_ID));
         info.addChange(c2);
         info.addChange(c1);
         return info;
@@ -332,8 +342,22 @@ public final class OriginTransitionSessionTest {
         }
 
         @Override
+        public RemoteTransition makeOriginTransitionWithReturnFilters(
+                RemoteTransition launchTransition,
+                List<RemoteTransition> returnTransition,
+                List<TransitionFilter> returnFilters) {
+            mRecords.put(launchTransition, returnTransition.get(0));
+            return launchTransition;
+        }
+
+        @Override
         public void cancelOriginTransition(RemoteTransition originTransition) {
             mRecords.remove(originTransition);
+        }
+
+        @Override
+        public IBinder getDefaultTransactionApplyToken() throws RemoteException {
+            return null;
         }
 
         public void runReturnTransition(RemoteTransition originTransition, TransitionInfo info) {

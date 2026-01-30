@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -53,18 +54,17 @@ import androidx.compose.ui.unit.dp
 import com.android.settingslib.spa.debug.UiModePreviews
 import com.android.settingslib.spa.framework.compose.contentDescription
 import com.android.settingslib.spa.framework.theme.SettingsDimension
-import com.android.settingslib.spa.framework.theme.SettingsShape.CornerExtraLarge
-import com.android.settingslib.spa.framework.theme.SettingsShape.CornerExtraSmall
+import com.android.settingslib.spa.framework.theme.SettingsShape.CornerExtraLarge1
+import com.android.settingslib.spa.framework.theme.SettingsShape.CornerExtraSmall2
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.framework.theme.isSpaExpressiveEnabled
-import com.android.settingslib.spa.framework.theme.toSemiBoldWeight
 import com.android.settingslib.spa.widget.ui.SettingsBody
 import com.android.settingslib.spa.widget.ui.SettingsTitle
 
 @Composable
 fun SettingsBanner(content: @Composable ColumnScope.() -> Unit) {
     Card(
-        shape = CornerExtraLarge,
+        shape = CornerExtraLarge1,
         colors = CardDefaults.cardColors(containerColor = Color.Transparent),
         modifier =
             Modifier.fillMaxWidth()
@@ -82,7 +82,7 @@ fun SettingsBannerContent(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(
-        shape = if (isSpaExpressiveEnabled) CornerExtraLarge else CornerExtraSmall,
+        shape = if (isSpaExpressiveEnabled) CornerExtraLarge1 else CornerExtraSmall2,
         colors =
             CardDefaults.cardColors(
                 containerColor = containerColor.takeOrElse { MaterialTheme.colorScheme.surface }
@@ -157,11 +157,12 @@ fun BannerHeader(imageVector: ImageVector?, iconColor: Color, onDismiss: (() -> 
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BannerTitleHeader(title: String, onDismiss: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth()) {
         Box(modifier = Modifier.weight(1f)) {
-            Text(text = title, style = MaterialTheme.typography.titleMedium.toSemiBoldWeight())
+            Text(text = title, style = MaterialTheme.typography.titleMediumEmphasized)
         }
         Spacer(modifier = Modifier.padding(SettingsDimension.paddingSmall))
         DismissButton(onDismiss)

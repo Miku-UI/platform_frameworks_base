@@ -16,16 +16,16 @@
 
 package com.android.systemui.qs.tiles
 
-import android.app.Flags
 import android.os.Handler
-import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.FlagsParameterization
+import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import android.service.quicksettings.Tile
 import android.testing.TestableLooper
 import android.testing.TestableLooper.RunWithLooper
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
 import com.android.settingslib.notification.modes.TestModeBuilder
+import com.android.systemui.Flags.FLAG_DO_NOT_USE_RUN_BLOCKING
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.classifier.FalsingManagerFake
 import com.android.systemui.kosmos.mainCoroutineContext
@@ -65,12 +65,13 @@ import org.junit.runner.RunWith
 import org.mockito.Mock
 import org.mockito.MockitoAnnotations
 import org.mockito.kotlin.whenever
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
-@EnableFlags(Flags.FLAG_MODES_UI)
 @SmallTest
-@RunWith(AndroidJUnit4::class)
+@RunWith(ParameterizedAndroidJunit4::class)
 @RunWithLooper(setAsMainLooper = true)
-class ModesDndTileTest : SysuiTestCase() {
+class ModesDndTileTest(flags: FlagsParameterization) : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
     private val testDispatcher = kosmos.testDispatcher
@@ -92,6 +93,18 @@ class ModesDndTileTest : SysuiTestCase() {
     @Mock private lateinit var dialogDelegate: ModesDialogDelegate
 
     @Mock private lateinit var settingsPackageRepository: QSSettingsPackageRepository
+
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return allCombinationsOf(FLAG_DO_NOT_USE_RUN_BLOCKING)
+        }
+    }
 
     private val inputHandler = FakeQSTileIntentUserInputHandler()
     private val zenModeRepository = kosmos.zenModeRepository

@@ -30,7 +30,7 @@ import android.os.Message;
 
 /**
  * See MMTelFeature for more information.
- * {@hide}
+ * @hide
  */
 interface IImsMMTelFeature {
     int startSession(in PendingIntent incomingCallIntent,

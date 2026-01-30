@@ -25,36 +25,25 @@ import androidx.test.uiautomator.UiDevice
 import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
-import com.android.window.flags.Flags
-import com.android.wm.shell.Utils
 import org.junit.After
-import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 @Ignore("Base Test Class")
-abstract class EnterDesktopViaStaticDesktopOverviewTask constructor() {
+abstract class EnterDesktopViaStaticDesktopOverviewTask(
+    val navigationMode: NavBar = NavBar.MODE_GESTURAL,
+    val rotation: Rotation = Rotation.ROTATION_0
+) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val desktopApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
-
-    @Rule
-    @JvmField
-    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, Rotation.ROTATION_0)
+    val desktopApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
 
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopWindowingMode() && tapl.isTablet)
-        // Clear all tasks
-        val overview = tapl.goHome().switchToOverview()
-        if (overview.hasTasks()) {
-            overview.dismissAllTasks()
-        }
         desktopApp.enterDesktopMode(wmHelper, device)
         tapl.goHome().switchToOverview()
     }

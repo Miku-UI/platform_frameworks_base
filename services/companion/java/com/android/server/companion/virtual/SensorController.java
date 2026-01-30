@@ -218,14 +218,12 @@ public class SensorController {
         }
     }
 
-    void dump(@NonNull PrintWriter fout) {
-        fout.println("    SensorController: ");
+    void dump(@NonNull PrintWriter fout, String indent) {
         synchronized (mLock) {
-            fout.println("      Active descriptors: ");
+            fout.println(indent + "SensorController: " + mSensorDescriptors.size()
+                    + " virtual sensors");
             for (SensorDescriptor sensorDescriptor : mSensorDescriptors.values()) {
-                fout.println("        handle: " + sensorDescriptor.getHandle());
-                fout.println("          type: " + sensorDescriptor.getType());
-                fout.println("          name: " + sensorDescriptor.getName());
+                fout.println(indent + indent + sensorDescriptor);
             }
         }
     }
@@ -373,6 +371,14 @@ public class SensorController {
         }
         public String getName() {
             return mName;
+        }
+
+        @Override
+        public String toString() {
+            return "SensorDescriptor("
+                    + " name=" + mName
+                    + " type=" + mType
+                    + " handle=" + mHandle + " )";
         }
     }
 

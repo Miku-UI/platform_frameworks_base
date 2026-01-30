@@ -43,6 +43,7 @@ import com.android.systemui.qs.ReduceBrightColorsController;
 import com.android.systemui.qs.logging.QSLogger;
 import com.android.systemui.qs.tileimpl.QSTileImpl;
 import com.android.systemui.res.R.drawable;
+import com.android.systemui.util.settings.SecureSettings;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -54,9 +55,9 @@ public class ReduceBrightColorsTile extends QSTileImpl<QSTile.BooleanState>
     public static final String TILE_SPEC = "reduce_brightness";
     private boolean mIsAvailable;
     private final ReduceBrightColorsController mReduceBrightColorsController;
-    private boolean mIsListening;
     private final boolean mInUpgradeMode;
     private final ExtraDimDialogManager mExtraDimDialogManager;
+    private final SecureSettings mSecureSettings;
 
     @Inject
     public ReduceBrightColorsTile(
@@ -71,7 +72,8 @@ public class ReduceBrightColorsTile extends QSTileImpl<QSTile.BooleanState>
             StatusBarStateController statusBarStateController,
             ActivityStarter activityStarter,
             QSLogger qsLogger,
-            ExtraDimDialogManager extraDimDialogManager
+            ExtraDimDialogManager extraDimDialogManager,
+            SecureSettings secureSettings
     ) {
         super(host, uiEventLogger, backgroundLooper, mainHandler, falsingManager, metricsLogger,
                 statusBarStateController, activityStarter, qsLogger);
@@ -81,6 +83,7 @@ public class ReduceBrightColorsTile extends QSTileImpl<QSTile.BooleanState>
 
         mInUpgradeMode = reduceBrightColorsController.isInUpgradeMode(mContext.getResources());
         mIsAvailable = isAvailable || mInUpgradeMode;
+        mSecureSettings = secureSettings;
     }
 
     @Override
@@ -136,7 +139,9 @@ public class ReduceBrightColorsTile extends QSTileImpl<QSTile.BooleanState>
 
     @Override
     protected void handleUpdateState(BooleanState state, Object arg) {
-        state.value = mReduceBrightColorsController.isReduceBrightColorsActivated();
+        state.value = mSecureSettings.getIntForUser(
+                Settings.Secure.REDUCE_BRIGHT_COLORS_ACTIVATED, /* default= */ 0,
+                getCurrentTileUser()) == 1;
         state.state = state.value ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE;
         state.label = mContext.getString(R.string.reduce_bright_colors_feature_name);
         state.expandedAccessibilityClassName = Switch.class.getName();

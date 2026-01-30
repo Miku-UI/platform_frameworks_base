@@ -29,8 +29,8 @@ per-file com_android_server_tv_* = file:/media/java/android/media/tv/OWNERS
 per-file com_android_server_vibrator_* = file:/services/core/java/com/android/server/vibrator/OWNERS
 per-file com_android_server_am_CachedAppOptimizer.cpp = file:/PERFORMANCE_OWNERS
 per-file com_android_server_am_Freezer.cpp = file:/PERFORMANCE_OWNERS
-per-file com_android_server_companion_virtual_InputController.cpp = file:/services/companion/java/com/android/server/companion/virtual/OWNERS
 per-file com_android_server_utils_LazyJniRegistrar.cpp = file:/PERFORMANCE_OWNERS
+per-file com_android_server_stats_pull_StatsPullAtomService.cpp = file:/services/core/jni/stats/OWNERS
 
 # Memory
 per-file com_android_server_am_OomConnection.cpp = file:/MEMORY_OWNERS
@@ -40,3 +40,6 @@ per-file *AnrTimer* = file:/PERFORMANCE_OWNERS
 
 # HintManagerService
 per-file com_android_server_hint_HintManagerService.cpp = file:/ADPF_OWNERS
+
+# Long Method Tracer
+per-file com_android_server_utils_LongMethodTracer.cpp = benmiles@google.com, ilkos@google.com, mohamadmahmoud@google.com

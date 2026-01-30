@@ -18,12 +18,14 @@ package com.android.systemui.complication.dagger;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.service.dreams.Flags;
 import android.view.LayoutInflater;
 
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import com.android.internal.util.Preconditions;
 import com.android.systemui.communal.util.WindowSizeUtils;
+import com.android.systemui.communal.util.WindowSizeUtils.WindowSizeCategory;
 import com.android.systemui.complication.ComplicationLayoutEngine;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.res.R;
@@ -64,8 +66,24 @@ public abstract class ComplicationHostViewModule {
 
     @Provides
     @Named(COMPLICATION_DIRECTIONAL_SPACING_DEFAULT)
-    static int providesComplicationPadding(@Main Resources resources) {
-        return resources.getDimensionPixelSize(R.dimen.dream_overlay_complication_margin);
+    static int providesComplicationPadding(@Main Resources resources,
+            Context context) {
+        if (!Flags.dreamsV2()) {
+            return resources.getDimensionPixelSize(R.dimen.dream_overlay_complication_margin);
+        }
+        final int padding;
+        final WindowSizeCategory windowSize = WindowSizeUtils.getWindowSizeCategory(context);
+        if (windowSize == WindowSizeCategory.MOBILE_PORTRAIT) {
+            padding = resources.getDimensionPixelSize(
+                    R.dimen.dream_overlay_complication_small_margin);
+        } else if (windowSize == WindowSizeCategory.TABLET) {
+            padding = resources.getDimensionPixelSize(
+                    R.dimen.dream_overlay_complication_medium_margin);
+        } else {
+            padding = resources.getDimensionPixelSize(
+                    R.dimen.dream_overlay_complication_large_margin);
+        }
+        return padding;
     }
 
     /**
@@ -76,7 +94,7 @@ public abstract class ComplicationHostViewModule {
     @Named(COMPLICATION_MARGINS)
     static ComplicationLayoutEngine.Margins providesComplicationMargins(@Main Resources resources,
             Context context) {
-        return WindowSizeUtils.isCompactWindowSize(context)
+        return WindowSizeUtils.getWindowSizeCategory(context) == WindowSizeCategory.MOBILE_PORTRAIT
                 ? new ComplicationLayoutEngine.Margins(resources.getDimensionPixelSize(
                         R.dimen.dream_overlay_container_small_padding_start),
                 resources.getDimensionPixelSize(

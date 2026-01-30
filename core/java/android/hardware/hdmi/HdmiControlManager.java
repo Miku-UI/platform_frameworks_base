@@ -434,6 +434,32 @@ public final class HdmiControlManager {
     @Retention(RetentionPolicy.SOURCE)
     public @interface SoundbarMode {}
 
+    // -- Defines the TV's behavior upon receiving a <Standby> message.
+    /**
+     * TV goes to sleep upon receiving <Standby>.
+     *
+     * @see HdmiControlManager#CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE
+     * @hide
+     */
+    public static final int TV_BEHAVIOR_ON_STANDBY_MESSAGE_GO_TO_SLEEP = 0;
+    /**
+     * TV goes to dream upon receiving <Standby>.
+     *
+     * @see HdmiControlManager#CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE
+     * @hide
+     */
+    public static final int TV_BEHAVIOR_ON_STANDBY_MESSAGE_GO_TO_DREAM = 1;
+    /**
+     * @see HdmiControlManager#CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE
+     * @hide
+     */
+    @IntDef(prefix = { "TV_BEHAVIOR_ON_STANDBY_MESSAGE_" }, value = {
+            TV_BEHAVIOR_ON_STANDBY_MESSAGE_GO_TO_SLEEP,
+            TV_BEHAVIOR_ON_STANDBY_MESSAGE_GO_TO_DREAM
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface TvBehaviorOnStandbyMessage {}
+
     // -- Scope of CEC power control messages sent by a playback device.
     /**
      * Send CEC power control messages to TV only:
@@ -864,6 +890,14 @@ public final class HdmiControlManager {
      */
     public static final String CEC_SETTING_NAME_SOUNDBAR_MODE = "soundbar_mode";
     /**
+     * Name of a setting that defines the TV's behavior (sleep or dream) upon receiving a
+     * <Standby> message.
+     *
+     * @hide
+     */
+    public static final String CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE =
+            "tv_behavior_on_standby_message";
+    /**
      * Name of a setting deciding on the power control mode.
      *
      * @see HdmiControlManager#setPowerControlMode(String)
@@ -1185,7 +1219,7 @@ public final class HdmiControlManager {
     private final boolean mIsSwitchDevice;
 
     /**
-     * {@hide} - hide this constructor because it has a parameter of type IHdmiControlService,
+     * @hide - hide this constructor because it has a parameter of type IHdmiControlService,
      * which is a system private class. The right way to create an instance of this class is
      * using the factory Context.getSystemService.
      */
@@ -2388,6 +2422,50 @@ public final class HdmiControlManager {
             return mService.getCecSettingIntValue(CEC_SETTING_NAME_SOUNDBAR_MODE);
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Set the TV's behavior upon receiving a <Standby> message.
+     *
+     * <p>Sets whether the TV should go to sleep or go to dream.
+     *
+     * @see HdmiControlManager#CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE
+     * @hide
+     */
+    @RequiresPermission(android.Manifest.permission.HDMI_CEC)
+    public void setTvBehaviorOnStandbyMessage(@NonNull @TvBehaviorOnStandbyMessage int value) {
+        if (mService == null) {
+          Log.e(TAG, "setTvBehaviorOnStandbyMessage: HdmiControlService is not available");
+          throw new RuntimeException("HdmiControlService is not available");
+        }
+        try {
+          mService.setCecSettingIntValue(CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE, value);
+        } catch (RemoteException e) {
+          throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Get the TV's behavior upon receiving a <Standby> message.
+     *
+     * <p>Reflects whether the TV will go to sleep or go to dream.
+     *
+     * @see HdmiControlManager#CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE
+     * @hide
+     */
+    @NonNull
+    @TvBehaviorOnStandbyMessage
+    @RequiresPermission(android.Manifest.permission.HDMI_CEC)
+    public int getTvBehaviorOnStandbyMessage() {
+        if (mService == null) {
+          Log.e(TAG, "getTvBehaviorOnStandbyMessage: HdmiControlService is not available");
+          throw new RuntimeException("HdmiControlService is not available");
+        }
+        try {
+          return mService.getCecSettingIntValue(CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE);
+        } catch (RemoteException e) {
+          throw e.rethrowFromSystemServer();
         }
     }
 

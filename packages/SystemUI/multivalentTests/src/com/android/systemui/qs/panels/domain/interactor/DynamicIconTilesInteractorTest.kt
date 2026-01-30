@@ -29,12 +29,14 @@ import com.android.systemui.qs.pipeline.domain.interactor.currentTilesInteractor
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class DynamicIconTilesInteractorTest : SysuiTestCase() {
@@ -72,8 +74,27 @@ class DynamicIconTilesInteractorTest : SysuiTestCase() {
             }
         }
 
+    @Test
+    fun removingAndResizingTiles_updatesSharedPreferences() =
+        with(kosmos) {
+            testScope.runTest {
+                val latest by collectLastValue(qsPreferencesRepository.largeTilesSpecs)
+                runCurrent()
+
+                // Remove the large tile from the current tiles
+                iconTilesInteractor.setLargeTiles(latest!! + newTile)
+                currentTilesInteractor.removeTiles(listOf(largeTile))
+                runCurrent()
+
+                // Assert that it resized to small
+                assertThat(latest).doesNotContain(largeTile)
+                assertThat(latest).contains(newTile)
+            }
+        }
+
     private companion object {
         private val largeTile = TileSpec.create("large")
         private val smallTile = TileSpec.create("small")
+        private val newTile = TileSpec.create("new")
     }
 }

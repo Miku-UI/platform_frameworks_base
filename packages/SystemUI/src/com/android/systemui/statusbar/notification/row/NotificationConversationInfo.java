@@ -16,7 +16,9 @@
 
 package com.android.systemui.statusbar.notification.row;
 
+import static android.app.Flags.notificationClassificationUi;
 import static android.app.Notification.EXTRA_BUILDER_APPLICATION_INFO;
+import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_ALL;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_NONE;
 import static android.app.NotificationManager.BUBBLE_PREFERENCE_SELECTED;
@@ -33,6 +35,7 @@ import static java.lang.annotation.RetentionPolicy.SOURCE;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.Flags;
 import android.app.INotificationManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -51,6 +54,8 @@ import android.os.UserHandle;
 import android.os.UserManager;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
+import android.text.Annotation;
+import android.text.Spanned;
 import android.text.TextUtils;
 import android.transition.ChangeBounds;
 import android.transition.Fade;
@@ -81,6 +86,8 @@ import com.android.systemui.wmshell.BubblesManager;
 
 import java.lang.annotation.Retention;
 import java.util.Optional;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * The guts of a conversation notification revealed when performing a long press.
@@ -250,9 +257,6 @@ public class NotificationConversationInfo extends LinearLayout implements
             throw new IllegalArgumentException("Does not have required information");
         }
 
-        mNotificationChannel = NotificationChannelHelper.createConversationChannelIfNeeded(
-                getContext(), mINotificationManager, entry, mNotificationChannel);
-
         try {
             mAppBubble = mINotificationManager.getBubblePreferenceForPackage(mPackageName, mAppUid);
         } catch (RemoteException e) {
@@ -264,9 +268,11 @@ public class NotificationConversationInfo extends LinearLayout implements
         bindActions();
 
         View dismissButton = findViewById(R.id.inline_dismiss);
-        dismissButton.setOnClickListener(onCloseClick);
-        dismissButton.setVisibility(dismissButton.hasOnClickListeners() && isDismissable
-                ? VISIBLE : GONE);
+        if (dismissButton != null) {
+            dismissButton.setOnClickListener(onCloseClick);
+            dismissButton.setVisibility(dismissButton.hasOnClickListeners() && isDismissable
+                    ? VISIBLE : GONE);
+        }
 
         View done = findViewById(R.id.done);
         done.setOnClickListener(mOnDone);
@@ -274,19 +280,6 @@ public class NotificationConversationInfo extends LinearLayout implements
     }
 
     private void bindActions() {
-
-        // TODO: b/152050825
-        /*
-        Button home = findViewById(R.id.home);
-        home.setOnClickListener(mOnHomeClick);
-        home.setVisibility(mShortcutInfo != null
-                && mShortcutManager.isRequestPinShortcutSupported()
-                ? VISIBLE : GONE);
-
-        Button snooze = findViewById(R.id.snooze);
-        snooze.setOnClickListener(mOnSnoozeClick);
-        */
-
         TextView defaultSummaryTextView = findViewById(R.id.default_summary);
         if (mAppBubble == BUBBLE_PREFERENCE_ALL
                 && BubblesManager.areBubblesEnabled(mContext, mSbn.getUser())) {
@@ -317,11 +310,22 @@ public class NotificationConversationInfo extends LinearLayout implements
         // Delegate
         bindDelegate();
     }
+    private boolean showSummarizationFeedback() {
+        return NmSummarizationUiFlag.isEnabled();
+    }
+
+    private boolean showAnimatedFeedback() {
+        return com.android.systemui.Flags.notificationAnimatedActionsTreatment();
+    }
+
+    private boolean showClassificationFeedback() {
+        return Flags.notificationClassificationUi();
+    }
 
     private void bindFeedback() {
         View feedbackButton = findViewById(R.id.feedback);
-        if (!NmSummarizationUiFlag.isEnabled()
-                || TextUtils.isEmpty(mRanking.getSummarization())) {
+        if (!showSummarizationFeedback() && !showAnimatedFeedback()
+                && !showClassificationFeedback()) {
             feedbackButton.setVisibility(GONE);
         } else {
             Intent intent = NotificationInfo.getAssistantFeedbackIntent(
@@ -349,11 +353,9 @@ public class NotificationConversationInfo extends LinearLayout implements
 
     private void bindConversationDetails() {
         final TextView channelName = findViewById(R.id.parent_channel_name);
-        channelName.setText(mNotificationChannel.getName());
+        channelName.setText(NotificationChannelHelper.getName(mRanking, mSbn));
 
         bindGroup();
-        // TODO: bring back when channel name does not include name
-        // bindName();
         bindPackage();
         bindIcon(mNotificationChannel.isImportantConversation());
 
@@ -565,7 +567,7 @@ public class NotificationConversationInfo extends LinearLayout implements
                 new UpdateChannelRunnable(mINotificationManager, mPackageName,
                         mAppUid, mSelectedAction, mNotificationChannel));
         if (NotificationBundleUi.isEnabled()) {
-            mEntryAdapter.markForUserTriggeredMovement();
+            mEntryAdapter.markForUserTriggeredMovement(true);
             mMainHandler.postDelayed(
                     () -> mEntryAdapter.onImportanceChanged(),
                     StackStateAnimator.ANIMATION_DURATION_STANDARD);
@@ -668,6 +670,14 @@ public class NotificationConversationInfo extends LinearLayout implements
         @Override
         public void run() {
             try {
+                if (!mChannelToUpdate.isConversation()) {
+                    // first, create the channel just for this conversation
+                    mChannelToUpdate =
+                            NotificationChannelHelper.createConversationChannelIfNeeded(
+                                    getContext(), mINotificationManager, mRanking, mSbn,
+                                    mChannelToUpdate);
+                }
+
                 switch (mAction) {
                     case ACTION_FAVORITE:
                         mChannelToUpdate.setImportantConversation(true);

@@ -35,10 +35,17 @@ import android.util.Log
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.internal.infra.AndroidFuture
 import com.google.common.truth.Truth.assertThat
+import org.mockito.kotlin.mock
 import java.util.concurrent.atomic.AtomicBoolean
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.JUnit4
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
 @RunWith(JUnit4::class)
 class MetadataSyncAdapterTest {
@@ -56,7 +63,7 @@ class MetadataSyncAdapterTest {
         searchSession.put(putDocumentsRequest).get()
 
         val packageToFunctionIdMap =
-            MetadataSyncAdapter.getPackageToFunctionIdMap(
+            MetadataSyncAdapter.getPackageToFunctionIdMapWithRetry(
                 searchSession,
                 "fakeSchema",
                 AppFunctionRuntimeMetadata.PROPERTY_FUNCTION_ID,
@@ -90,7 +97,7 @@ class MetadataSyncAdapterTest {
         searchSession.put(putDocumentsRequest).get()
 
         val packageToFunctionIdMap =
-            MetadataSyncAdapter.getPackageToFunctionIdMap(
+            MetadataSyncAdapter.getPackageToFunctionIdMapWithRetry(
                 searchSession,
                 AppFunctionRuntimeMetadata.RUNTIME_SCHEMA_TYPE,
                 AppFunctionRuntimeMetadata.PROPERTY_FUNCTION_ID,
@@ -293,6 +300,32 @@ class MetadataSyncAdapterTest {
             )
 
         assertThat(removedFunctionsDiffMap.isEmpty()).isEqualTo(true)
+    }
+
+    @Test
+    fun getPackageToFunctionIdMapWithRetry_result_aborted_retries() {
+        val futureSearchSession = mock<FutureAppSearchSession>()
+        val futureSearchResults = mock<FutureSearchResults> {
+            on { nextPage } doReturn AndroidFuture.completedFuture(listOf())
+            on { close() } doAnswer {}
+        }
+
+        whenever(futureSearchSession.search(any(), any()))
+            .thenReturn(
+                AndroidFuture<FutureSearchResults?>().apply {
+                    completeExceptionally(AppSearchException(/* resultCode= */ 13, ""))
+                }
+            )
+            .thenReturn(AndroidFuture.completedFuture(futureSearchResults))
+
+        MetadataSyncAdapter.getPackageToFunctionIdMapWithRetry(
+            futureSearchSession,
+            /* schemaType= */ "fakeSchema",
+            AppFunctionRuntimeMetadata.PROPERTY_FUNCTION_ID,
+            AppFunctionRuntimeMetadata.PROPERTY_PACKAGE_NAME,
+        )
+
+        verify(futureSearchSession, times(2)).search(any(), any())
     }
 
     private companion object {

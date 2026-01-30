@@ -16,47 +16,55 @@
 
 package com.android.wm.shell.bubbles
 
+import android.app.ActivityManager
+import android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN
 import android.content.ComponentName
 import android.content.Context
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.FlagsParameterization
 import android.platform.test.flag.junit.SetFlagsRule
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.wm.shell.Flags
+import com.android.wm.shell.Flags.FLAG_ENABLE_CREATE_ANY_BUBBLE
+import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper
+import com.android.wm.shell.splitscreen.SplitScreenController
 import com.android.wm.shell.taskview.TaskView
-
 import com.google.common.truth.Truth.assertThat
 import com.google.common.util.concurrent.MoreExecutors.directExecutor
-import org.junit.Before
+import java.util.Optional
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.stub
 import org.mockito.kotlin.verify
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 @SmallTest
-@RunWith(AndroidJUnit4::class)
-class BubbleTaskViewTest {
+@RunWith(ParameterizedAndroidJunit4::class)
+class BubbleTaskViewTest(flags: FlagsParameterization) {
 
     @get:Rule
-    val setFlagsRule = SetFlagsRule()
+    val setFlagsRule = SetFlagsRule(flags)
 
-    private lateinit var bubbleTaskView: BubbleTaskView
     private val context = ApplicationProvider.getApplicationContext<Context>()
-    private lateinit var taskView: TaskView
-
-    @Before
-    fun setUp() {
-        taskView = mock()
-        bubbleTaskView = BubbleTaskView(taskView, directExecutor())
+    private val componentName = ComponentName(context, "TestClass")
+    private val runningTaskInfo = ActivityManager.RunningTaskInfo()
+    private val splitScreenController = mock<SplitScreenController>()
+    private val taskView = mock<TaskView> {
+        on { taskInfo } doReturn runningTaskInfo
     }
+    private val bubbleTaskView =
+        BubbleTaskView(
+            taskView,
+            executor = directExecutor(),
+            splitScreenController = { Optional.of(splitScreenController) },
+        )
 
     @Test
     fun onTaskCreated_updatesState() {
-        val componentName = ComponentName(context, "TestClass")
         bubbleTaskView.listener.onTaskCreated(123, componentName)
 
         assertThat(bubbleTaskView.taskId).isEqualTo(123)
@@ -76,44 +84,70 @@ class BubbleTaskViewTest {
         }
         bubbleTaskView.delegateListener = delegateListener
 
-        val componentName = ComponentName(context, "TestClass")
-        bubbleTaskView.listener.onTaskCreated(123, componentName)
+        bubbleTaskView.listener.onTaskCreated(123 /* taskId */, componentName)
 
         assertThat(actualTaskId).isEqualTo(123)
         assertThat(actualComponentName).isEqualTo(componentName)
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_TASK_VIEW_CONTROLLER_CLEANUP)
     @Test
-    fun cleanup_flagOff_invalidTaskId_doesNotRemoveTask() {
+    fun cleanup_noTaskCreated_removesTask() {
         bubbleTaskView.cleanup()
+
+        verify(taskView, never()).unregisterTask()
+        verify(taskView).removeTask()
+    }
+
+    @Test
+    fun cleanup_regularBubbleTask_removesTask() {
+        bubbleTaskView.listener.onTaskCreated(123 /* taskId */, componentName)
+
+        bubbleTaskView.cleanup()
+
+        verify(taskView, never()).unregisterTask()
+        verify(taskView).removeTask()
+    }
+
+    @Test
+    fun cleanup_taskTransitioningToSplitScreen_unregistersTask() {
+        val sideStageRootTask = 5
+        splitScreenController.stub {
+            on { isTaskRootOrStageRoot(sideStageRootTask) } doReturn true
+        }
+        runningTaskInfo.apply {
+            parentTaskId = sideStageRootTask // Task is running in split-screen mode.
+        }
+        bubbleTaskView.listener.onTaskCreated(123 /* taskId */, componentName)
+
+        bubbleTaskView.cleanup()
+
+        verify(taskView).unregisterTask()
         verify(taskView, never()).removeTask()
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_TASK_VIEW_CONTROLLER_CLEANUP)
     @Test
-    fun cleanup_flagOn_invalidTaskId_removesTask() {
+    fun cleanup_taskTransitioningToFullscreen_removesOrUnregistersTask() {
+        runningTaskInfo.apply {
+            configuration.windowConfiguration.windowingMode = WINDOWING_MODE_FULLSCREEN
+        }
+        bubbleTaskView.listener.onTaskCreated(123 /* taskId */, componentName)
+
         bubbleTaskView.cleanup()
-        verify(taskView).removeTask()
+
+        if (BubbleAnythingFlagHelper.enableCreateAnyBubble()) {
+            verify(taskView).unregisterTask()
+            verify(taskView, never()).removeTask()
+        } else {
+            verify(taskView, never()).unregisterTask()
+            verify(taskView).removeTask()
+        }
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_TASK_VIEW_CONTROLLER_CLEANUP)
-    @Test
-    fun cleanup_flagOff_validTaskId_removesTask() {
-        val componentName = ComponentName(context, "TestClass")
-        bubbleTaskView.listener.onTaskCreated(123, componentName)
-
-        bubbleTaskView.cleanup()
-        verify(taskView).removeTask()
-    }
-
-    @EnableFlags(Flags.FLAG_ENABLE_TASK_VIEW_CONTROLLER_CLEANUP)
-    @Test
-    fun cleanup_flagOn_validTaskId_removesTask() {
-        val componentName = ComponentName(context, "TestClass")
-        bubbleTaskView.listener.onTaskCreated(123, componentName)
-
-        bubbleTaskView.cleanup()
-        verify(taskView).removeTask()
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams() = FlagsParameterization.allCombinationsOf(
+            FLAG_ENABLE_CREATE_ANY_BUBBLE,
+        )
     }
 }

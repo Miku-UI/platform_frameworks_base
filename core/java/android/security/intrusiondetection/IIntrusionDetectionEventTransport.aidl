@@ -20,7 +20,7 @@ import android.security.intrusiondetection.IntrusionDetectionEvent;
 
 import com.android.internal.infra.AndroidFuture;
 
-/** {@hide} */
+/** @hide */
 oneway interface IIntrusionDetectionEventTransport {
     /**
      * Initialize the server side.

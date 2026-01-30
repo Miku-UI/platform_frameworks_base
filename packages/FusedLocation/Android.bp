@@ -16,6 +16,7 @@ package {
     default_applicable_licenses: [
         "frameworks_base_packages_FusedLocation_license",
     ],
+    default_team: "trendy_team_location_time",
 }
 
 // Added automatically by a large-scale-change

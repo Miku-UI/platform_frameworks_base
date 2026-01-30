@@ -18,6 +18,7 @@ package {
     // all of the 'license_kinds' from "frameworks_base_license"
     // to get the below license kinds:
     //   SPDX-license-identifier-Apache-2.0
+    default_team: "trendy_team_mainline_modularization",
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
@@ -28,8 +29,8 @@ android_test {
     srcs: ["RollbackTest/src/**/*.java"],
     static_libs: [
         "androidx.test.rules",
-        "cts-rollback-lib",
         "cts-install-lib",
+        "cts-rollback-lib",
     ],
     test_suites: ["general-tests"],
     test_config: "RollbackTest.xml",
@@ -45,17 +46,17 @@ java_test_host {
     srcs: ["StagedRollbackTest/src/**/*.java"],
     libs: ["tradefed"],
     static_libs: [
+        "RollbackTestLib",
         "compatibility-tradefed",
         "frameworks-base-hostutils",
-        "RollbackTestLib",
         "testng",
     ],
     test_suites: ["general-tests"],
     test_config: "StagedRollbackTest.xml",
     device_common_data: [
+        ":RollbackTest",
         ":com.android.apex.apkrollback.test_v1",
         ":test.rebootless_apex_v1",
-        ":RollbackTest",
     ],
 }
 

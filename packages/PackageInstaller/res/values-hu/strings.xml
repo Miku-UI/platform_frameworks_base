@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Frissítés"</string>
     <string name="done" msgid="6632441120016885253">"Kész"</string>
     <string name="cancel" msgid="1018267193425558088">"Mégse"</string>
+    <string name="more_details" msgid="3643407086654820243">"További részletek"</string>
+    <string name="dont_install" msgid="414055123295505225">"Ne telepítse"</string>
     <string name="installing" msgid="4921993079741206516">"Telepítés…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> telepítése…"</string>
     <string name="install_done" msgid="5987363587661783896">"Alkalmazás telepítve."</string>
@@ -123,7 +125,7 @@
     <string name="unarchive_error_installer_disabled_title" msgid="4815715617014985605">"A(z) <xliff:g id="INSTALLERNAME">%1$s</xliff:g> le van tiltva"</string>
     <string name="unarchive_error_installer_disabled_body" msgid="4820821285907011729">"Az alkalmazás visszaállításához engedélyezze a következőt a Beállításokban: <xliff:g id="INSTALLERNAME">%1$s</xliff:g>."</string>
     <string name="unarchive_error_installer_uninstalled_title" msgid="3748354109176326489">"A(z) <xliff:g id="INSTALLERNAME">%1$s</xliff:g> nincs telepítve"</string>
-    <string name="unarchive_error_installer_uninstalled_body" msgid="944733542444183204">"Az alkalmazás app visszaállításához telepítse a következőt: <xliff:g id="INSTALLERNAME">%1$s</xliff:g>."</string>
+    <string name="unarchive_error_installer_uninstalled_body" msgid="944733542444183204">"Az alkalmazás visszaállításához telepítse a következőt: <xliff:g id="INSTALLERNAME">%1$s</xliff:g>."</string>
     <string name="unarchive_action_required_continue" msgid="5711202111224184257">"Tovább"</string>
     <string name="unarchive_clear_storage_button" msgid="1549537154535608744">"Tárhely ürítése"</string>
     <string name="unarchive_settings_button" msgid="3504171760009177425">"Beállítások"</string>

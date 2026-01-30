@@ -1984,22 +1984,24 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
         }
 
         for (int subId : subIds) {
-            notifyCarrierNetworkChangeWithPermission(subId, active);
+            notifyCarrierNetworkChangeWithPermission(getPhoneIdFromSubId(subId), subId, active);
         }
     }
 
     @Override
-    public void notifyCarrierNetworkChangeWithSubId(int subId, boolean active) {
-        if (!TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId)) {
+    public void notifyCarrierNetworkChangeForPhoneAndSubId(int phoneId, int subId, boolean active) {
+        // We only need to check carrier privileges for the subId if we don't have
+        // MODIFY_PHONE_STATE.
+        if (!checkNotifyPermission("notifyCarrierNetworkChangeForPhoneAndSubId()")
+                && !TelephonyPermissions.checkCarrierPrivilegeForSubId(mContext, subId)) {
             throw new SecurityException(
-                    "notifyCarrierNetworkChange without carrier privilege on subId " + subId);
+                     "notifyCarrierNetworkChange without carrier privilege on subId " + subId);
         }
 
-        notifyCarrierNetworkChangeWithPermission(subId, active);
+        notifyCarrierNetworkChangeWithPermission(phoneId, subId, active);
     }
 
-    private void notifyCarrierNetworkChangeWithPermission(int subId, boolean active) {
-        int phoneId = getPhoneIdFromSubId(subId);
+    private void notifyCarrierNetworkChangeWithPermission(int phoneId, int subId, boolean active) {
         synchronized (mRecords) {
             mCarrierNetworkChangeState[phoneId] = active;
 
@@ -3872,6 +3874,10 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
      */
     public void notifyCarrierRoamingNtnSignalStrengthChanged(int subId,
             @NonNull NtnSignalStrength ntnSignalStrength) {
+        if (!SubscriptionManager.isValidSubscriptionId(subId)) {
+            log("notifyCarrierRoamingNtnSignalStrengthChanged: invalid subscription id");
+            return;
+        }
         if (!checkNotifyPermission("notifyCarrierRoamingNtnSignalStrengthChanged")) {
             log("notifyCarrierRoamingNtnSignalStrengthChanged: caller does not have required "
                     + "permissions.");
@@ -4563,10 +4569,6 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
      * TODO: b/337878785 for longterm fix
      */
     boolean idMatchRelaxed(Record r, int subId, int phoneId) {
-        if (!Flags.useRelaxedIdMatch()) {
-            return idMatch(r, subId, phoneId);
-        }
-
         if (subId < 0) {
             // Invalid case, we need compare phoneId.
             // If the record does not have a valid phone Id send phone 0 notifications.

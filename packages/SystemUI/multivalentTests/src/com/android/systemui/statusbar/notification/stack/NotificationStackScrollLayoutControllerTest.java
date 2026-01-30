@@ -20,8 +20,9 @@ import static com.android.server.notification.Flags.FLAG_SCREENSHARE_NOTIFICATIO
 import static com.android.systemui.log.LogBufferHelperKt.logcatLogBuffer;
 import static com.android.systemui.statusbar.StatusBarState.KEYGUARD;
 import static com.android.systemui.statusbar.StatusBarState.SHADE;
-import static com.android.systemui.statusbar.notification.row.NotificationRowContentBinder.FLAG_CONTENT_VIEW_ALL;
 import static com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayout.ROWS_ALL;
+
+import static com.google.common.truth.Truth.assertThat;
 
 import static kotlinx.coroutines.flow.FlowKt.emptyFlow;
 
@@ -67,6 +68,7 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.power.domain.interactor.PowerInteractor;
 import com.android.systemui.scene.ui.view.WindowRootView;
 import com.android.systemui.shade.ShadeController;
+import com.android.systemui.statusbar.DragDownHelper;
 import com.android.systemui.statusbar.LockscreenShadeTransitionController;
 import com.android.systemui.statusbar.NotificationLockscreenUserManager;
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.UserChangedListener;
@@ -76,17 +78,18 @@ import com.android.systemui.statusbar.notification.DynamicPrivacyController;
 import com.android.systemui.statusbar.notification.NotificationWakeUpCoordinator;
 import com.android.systemui.statusbar.notification.collection.NotifCollection;
 import com.android.systemui.statusbar.notification.collection.NotifPipeline;
+import com.android.systemui.statusbar.notification.collection.NotificationEntry;
+import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
 import com.android.systemui.statusbar.notification.collection.provider.NotificationDismissibilityProvider;
 import com.android.systemui.statusbar.notification.collection.provider.VisibilityLocationProviderDelegator;
 import com.android.systemui.statusbar.notification.collection.render.GroupExpansionManager;
 import com.android.systemui.statusbar.notification.collection.render.NotificationVisibilityProvider;
-import com.android.systemui.statusbar.notification.headsup.HeadsUpManager;
 import com.android.systemui.statusbar.notification.headsup.HeadsUpTouchHelper;
 import com.android.systemui.statusbar.notification.init.NotificationsController;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.row.NotificationGutsManager;
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper;
 import com.android.systemui.statusbar.notification.shared.GroupHunAnimationFix;
+import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
 import com.android.systemui.statusbar.notification.stack.NotificationStackScrollLayoutController.NotificationPanelEvent;
 import com.android.systemui.statusbar.notification.stack.NotificationSwipeHelper.NotificationCallback;
 import com.android.systemui.statusbar.notification.stack.ui.viewbinder.NotificationListViewBinder;
@@ -97,7 +100,6 @@ import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController;
 import com.android.systemui.statusbar.policy.SensitiveNotificationProtectionController;
 import com.android.systemui.tuner.TunerService;
 import com.android.systemui.util.settings.SecureSettings;
-import com.android.systemui.wallpapers.domain.interactor.WallpaperInteractor;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -124,7 +126,6 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
     @Mock private NotificationsController mNotificationsController;
     @Mock private NotificationVisibilityProvider mVisibilityProvider;
     @Mock private NotificationWakeUpCoordinator mNotificationWakeUpCoordinator;
-    @Mock private HeadsUpManager mHeadsUpManager;
     @Mock private HeadsUpTouchHelper.Callback mHeadsUpCallback;
     @Mock private Provider<IStatusBarService> mStatusBarService;
     @Mock private NotificationRoundnessManager mNotificationRoundnessManager;
@@ -136,7 +137,6 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
     @Mock private SysuiStatusBarStateController mSysuiStatusBarStateController;
     @Mock private KeyguardBypassController mKeyguardBypassController;
     @Mock private PowerInteractor mPowerInteractor;
-    @Mock private WallpaperInteractor mWallpaperInteractor;
     @Mock private NotificationLockscreenUserManager mNotificationLockscreenUserManager;
     @Mock private MetricsLogger mMetricsLogger;
     @Mock private ColorUpdateLogger mColorUpdateLogger;
@@ -149,6 +149,7 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
     @Mock private NotifCollection mNotifCollection;
     @Mock private UiEventLogger mUiEventLogger;
     @Mock private LockscreenShadeTransitionController mLockscreenShadeTransitionController;
+    @Mock private DragDownHelper mDragDownHelper;
     @Mock private VisibilityLocationProviderDelegator mVisibilityLocationProviderDelegator;
     @Mock private ShadeController mShadeController;
     @Mock private Provider<WindowRootView> mWindowRootView;
@@ -176,8 +177,6 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
 
     private NotificationStackScrollLayoutController mController;
 
-    private NotificationTestHelper mNotificationTestHelper;
-
     @Before
     public void setUp() {
         allowTestableLooperAsMainThread();
@@ -185,11 +184,6 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
 
         when(mNotificationSwipeHelperBuilder.build()).thenReturn(mNotificationSwipeHelper);
         when(mKeyguardTransitionRepo.getTransitions()).thenReturn(emptyFlow());
-        mNotificationTestHelper = new NotificationTestHelper(
-                mContext,
-                mDependency,
-                TestableLooper.get(this));
-        mNotificationTestHelper.setDefaultInflationFlags(FLAG_CONTENT_VIEW_ALL);
     }
 
     @Test
@@ -220,14 +214,14 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
         initController(/* viewIsAttached= */ true);
         mController.setHeadsUpAppearanceController(mock(HeadsUpAppearanceController.class));
         NotificationListContainer listContainer = mController.getNotificationListContainer();
-        ExpandableNotificationRow row = mNotificationTestHelper.createRow();
+        ExpandableNotificationRow row = mKosmos.createRow();
         listContainer.bindRow(row);
 
         // When: call setHeadsUpAnimatingAway to change set mHeadsupDisappearRunning to true
         row.setHeadsUpAnimatingAway(true);
 
         // Then: mHeadsUpManager.onEntryAnimatingAwayEnded is not called
-        verify(mHeadsUpManager, never()).onEntryAnimatingAwayEnded(row.getEntry());
+        verify(mKosmos.getMockHeadsUpManager(), never()).onEntryAnimatingAwayEnded(any());
     }
 
     @Test
@@ -238,7 +232,8 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
         initController(/* viewIsAttached= */ true);
         mController.setHeadsUpAppearanceController(mock(HeadsUpAppearanceController.class));
         NotificationListContainer listContainer = mController.getNotificationListContainer();
-        ExpandableNotificationRow row = mNotificationTestHelper.createRow();
+        NotificationEntry entry = mKosmos.buildNotificationEntry(NotificationEntryBuilder::done);
+        ExpandableNotificationRow row = mKosmos.createRow(entry);
         listContainer.bindRow(row);
         row.setHeadsUpAnimatingAway(true);
 
@@ -246,7 +241,7 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
         row.setHeadsUpAnimatingAway(false);
 
         // Then: mHeadsUpManager.onEntryAnimatingAwayEnded is called
-        verify(mHeadsUpManager).onEntryAnimatingAwayEnded(row.getEntry());
+        verify(mKosmos.getMockHeadsUpManager()).onEntryAnimatingAwayEnded(entry);
     }
     @Test
     public void testOnDensityOrFontScaleChanged_reInflatesFooterViews() {
@@ -570,8 +565,13 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
     @Test
     public void testOnMenuShownLogging() {
         ExpandableNotificationRow row = mock(ExpandableNotificationRow.class, RETURNS_DEEP_STUBS);
-        when(row.getEntry().getSbn().getLogMaker()).thenReturn(new LogMaker(
-                MetricsProto.MetricsEvent.VIEW_UNKNOWN));
+        if (NotificationBundleUi.isEnabled()) {
+            when(row.getEntryAdapter().getSbn().getLogMaker()).thenReturn(new LogMaker(
+                    MetricsProto.MetricsEvent.VIEW_UNKNOWN));
+        } else {
+            when(row.getEntryLegacy().getSbn().getLogMaker()).thenReturn(new LogMaker(
+                    MetricsProto.MetricsEvent.VIEW_UNKNOWN));
+        }
 
         ArgumentCaptor<OnMenuEventListener> onMenuEventListenerArgumentCaptor =
                 ArgumentCaptor.forClass(OnMenuEventListener.class);
@@ -583,7 +583,12 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
         OnMenuEventListener onMenuEventListener = onMenuEventListenerArgumentCaptor.getValue();
 
         onMenuEventListener.onMenuShown(row);
-        verify(row.getEntry().getSbn()).getLogMaker();  // This writes most of the log data
+        // This writes most of the log data
+        if (NotificationBundleUi.isEnabled()) {
+            verify(row.getEntryAdapter().getSbn()).getLogMaker();
+        } else {
+            verify(row.getEntryLegacy().getSbn()).getLogMaker();
+        }
         verify(mMetricsLogger).write(logMatcher(MetricsProto.MetricsEvent.ACTION_REVEAL_GEAR,
                 MetricsProto.MetricsEvent.TYPE_ACTION));
     }
@@ -591,7 +596,8 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
     @Test
     public void callSwipeCallbacksDuringClearAll() {
         initController(/* viewIsAttached= */ true);
-        ExpandableNotificationRow row = mock(ExpandableNotificationRow.class);
+        ExpandableNotificationRow row =
+                createExpandableNotificationRow();
         NotificationCallback notificationCallback = mController.mNotificationCallback;
 
         when(mNotificationStackScrollLayout.getClearAllInProgress()).thenReturn(true);
@@ -606,7 +612,8 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
     @Test
     public void callSwipeCallbacksDuringClearNotification() {
         initController(/* viewIsAttached= */ true);
-        ExpandableNotificationRow row = mock(ExpandableNotificationRow.class);
+        ExpandableNotificationRow row =
+                createExpandableNotificationRow();
         NotificationCallback notificationCallback = mController.mNotificationCallback;
 
         when(mNotificationStackScrollLayout.getClearAllInProgress()).thenReturn(false);
@@ -621,8 +628,13 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
     @Test
     public void testOnMenuClickedLogging() {
         ExpandableNotificationRow row = mock(ExpandableNotificationRow.class, RETURNS_DEEP_STUBS);
-        when(row.getEntry().getSbn().getLogMaker()).thenReturn(new LogMaker(
-                MetricsProto.MetricsEvent.VIEW_UNKNOWN));
+        if (NotificationBundleUi.isEnabled()) {
+            when(row.getEntryAdapter().getSbn().getLogMaker()).thenReturn(new LogMaker(
+                    MetricsProto.MetricsEvent.VIEW_UNKNOWN));
+        } else {
+            when(row.getEntryLegacy().getSbn().getLogMaker()).thenReturn(new LogMaker(
+                    MetricsProto.MetricsEvent.VIEW_UNKNOWN));
+        }
 
         ArgumentCaptor<OnMenuEventListener> onMenuEventListenerArgumentCaptor =
                 ArgumentCaptor.forClass(OnMenuEventListener.class);
@@ -635,7 +647,12 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
 
         onMenuEventListener.onMenuClicked(row, 0, 0, mock(
                 NotificationMenuRowPlugin.MenuItem.class));
-        verify(row.getEntry().getSbn()).getLogMaker();  // This writes most of the log data
+        // This writes most of the log data
+        if (NotificationBundleUi.isEnabled()) {
+            verify(row.getEntryAdapter().getSbn()).getLogMaker();
+        } else {
+            verify(row.getEntryLegacy().getSbn()).getLogMaker();
+        }
         verify(mMetricsLogger).write(logMatcher(MetricsProto.MetricsEvent.ACTION_TOUCH_GEAR,
                 MetricsProto.MetricsEvent.TYPE_ACTION));
     }
@@ -745,6 +762,54 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
         ));
     }
 
+    @Test
+    @EnableSceneContainer
+    public void onTouchEvent_lockScreenExpandSwallowsIt() {
+        initController(/* viewIsAttached= */ true);
+        when(mNotificationStackScrollLayout.getExpandHelper()).thenReturn(mExpandHelper);
+        when(mNotificationStackScrollLayout.isExpanded()).thenReturn(true);
+        NotificationStackScrollLayoutController.TouchHandler touchHandler =
+                mController.getTouchHandler();
+
+        MotionEvent event = MotionEvent.obtain(
+                /* downTime= */ 0,
+                /* eventTime= */ 0,
+                MotionEvent.ACTION_DOWN,
+                0,
+                0,
+                /* metaState= */ 0
+        );
+        when(mDragDownHelper.onTouchEvent(event)).thenReturn(true);
+        boolean touchHandled = touchHandler.onTouchEvent(event);
+
+        assertThat(touchHandled).isTrue();
+        verify(mNotificationStackScrollLayout, never()).onScrollTouch(any());
+    }
+
+    @Test
+    @EnableSceneContainer
+    public void onInterceptTouchEvent_lockScreenExpandSwallowsIt() {
+        initController(/* viewIsAttached= */ true);
+        when(mNotificationStackScrollLayout.getExpandHelper()).thenReturn(mExpandHelper);
+        when(mNotificationStackScrollLayout.isExpanded()).thenReturn(true);
+        NotificationStackScrollLayoutController.TouchHandler touchHandler =
+                mController.getTouchHandler();
+
+        MotionEvent event = MotionEvent.obtain(
+                /* downTime= */ 0,
+                /* eventTime= */ 0,
+                MotionEvent.ACTION_DOWN,
+                0,
+                0,
+                /* metaState= */ 0
+        );
+        when(mDragDownHelper.onInterceptTouchEvent(event)).thenReturn(true);
+        boolean touchIntercepted = touchHandler.onInterceptTouchEvent(event);
+
+        assertThat(touchIntercepted).isTrue();
+        verify(mNotificationStackScrollLayout, never()).onInterceptTouchEventScroll(event);
+    }
+
     private LogMaker logMatcher(int category, int type) {
         return argThat(new LogMatcher(category, type));
     }
@@ -757,6 +822,7 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
         when(mNotificationStackScrollLayout.getContext()).thenReturn(getContext());
         when(mNotificationStackScrollLayout.getHeadsUpCallback()).thenReturn(mHeadsUpCallback);
         when(mHeadsUpCallback.getContext()).thenReturn(getContext());
+        when(mLockscreenShadeTransitionController.getTouchHelper()).thenReturn(mDragDownHelper);
         mController = new NotificationStackScrollLayoutController(
                 mNotificationStackScrollLayout,
                 true,
@@ -764,7 +830,7 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
                 mNotificationsController,
                 mVisibilityProvider,
                 mNotificationWakeUpCoordinator,
-                mHeadsUpManager,
+                mKosmos.getMockHeadsUpManager(),
                 mStatusBarService,
                 mNotificationRoundnessManager,
                 mTunerService,
@@ -800,9 +866,15 @@ public class NotificationStackScrollLayoutControllerTest extends SysuiTestCase {
                 mActivityStarter,
                 new ResourcesSplitShadeStateController(),
                 mSensitiveNotificationProtectionController,
-                mWallpaperInteractor,
                 mMagneticNotificationRowManager,
                 mSectionsManager);
+    }
+
+
+    private static ExpandableNotificationRow createExpandableNotificationRow() {
+        ExpandableNotificationRow row = mock(ExpandableNotificationRow.class);
+        when(row.getLoggingKey()).thenReturn("ENR_loggingKey");
+        return row;
     }
 
     static class LogMatcher implements ArgumentMatcher<LogMaker> {

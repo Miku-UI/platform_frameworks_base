@@ -343,7 +343,8 @@ public class TvPipTransition extends PipTransitionController {
 
         final SurfaceControl.Transaction transaction = mTransactionFactory.getTransaction();
         for (SurfaceControl leash : closeLeashes) {
-            startTransaction.setShadowRadius(leash, 0f);
+            mSurfaceTransactionHelper.shadow(startTransaction, leash,
+                    false /* applyShadowRadius */);
         }
 
         ValueAnimator closeFadeOutAnimator = createAnimator();
@@ -361,7 +362,8 @@ public class TvPipTransition extends PipTransitionController {
                 ProtoLog.v(ShellProtoLogGroup.WM_SHELL_PICTURE_IN_PICTURE,
                         "%s: close animation: start", TAG);
                 for (SurfaceControl leash : closeLeashes) {
-                    startTransaction.setShadowRadius(leash, 0f);
+                    mSurfaceTransactionHelper.shadow(startTransaction, leash,
+                            false /* applyShadowRadius */);
                 }
                 startTransaction.apply();
 

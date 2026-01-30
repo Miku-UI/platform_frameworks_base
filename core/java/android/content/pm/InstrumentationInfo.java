@@ -25,6 +25,7 @@ import android.util.SparseArray;
  * instrumentation.  This corresponds to information collected
  * from the AndroidManifest.xml's &lt;instrumentation&gt; tag.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class InstrumentationInfo extends PackageItemInfo implements Parcelable {
     /**
      * The name of the application package being instrumented.  From the
@@ -96,21 +97,21 @@ public class InstrumentationInfo extends PackageItemInfo implements Parcelable {
      */
     public String dataDir;
 
-    /** {@hide} */
+    /** @hide */
     public String deviceProtectedDataDir;
-    /** {@hide} */
+    /** @hide */
     public String credentialProtectedDataDir;
 
-    /** {@hide} */
+    /** @hide */
     public String primaryCpuAbi;
 
-    /** {@hide} */
+    /** @hide */
     public String secondaryCpuAbi;
 
-    /** {@hide} Full path to the directory containing primary ABI native libraries. */
+    /** @hide Full path to the directory containing primary ABI native libraries. */
     public String nativeLibraryDir;
 
-    /** {@hide} Full path to the directory containing secondary ABI native libraries. */
+    /** @hide Full path to the directory containing secondary ABI native libraries. */
     public String secondaryNativeLibraryDir;
 
     /**
@@ -208,7 +209,7 @@ public class InstrumentationInfo extends PackageItemInfo implements Parcelable {
         functionalTest = source.readInt() != 0;
     }
 
-    /** {@hide} */
+    /** @hide */
     public void copyTo(ApplicationInfo ai) {
         ai.packageName = packageName;
         ai.sourceDir = sourceDir;

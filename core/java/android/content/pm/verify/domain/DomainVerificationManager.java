@@ -16,12 +16,15 @@
 
 package android.content.pm.verify.domain;
 
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
+
 import android.annotation.CheckResult;
 import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
 import android.content.Context;
@@ -29,6 +32,7 @@ import android.content.Intent;
 import android.content.UriRelativeFilterGroup;
 import android.content.UriRelativeFilterGroupParcel;
 import android.content.pm.PackageManager.NameNotFoundException;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.ServiceSpecificException;
@@ -59,6 +63,8 @@ import java.util.UUID;
  * {@link android.content.pm.PackageManager#MATCH_DEFAULT_ONLY}, which is usually added for the
  * caller when using {@link Context#startActivity(Intent)} and similar.
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @SystemService(Context.DOMAIN_VERIFICATION_SERVICE)
 public final class DomainVerificationManager {
 

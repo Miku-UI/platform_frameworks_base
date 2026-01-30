@@ -22,11 +22,12 @@ import android.view.WindowManager
 import com.android.systemui.biometrics.FingerprintInteractiveToAuthProvider
 import com.android.systemui.biometrics.data.repository.FingerprintPropertyRepository
 import com.android.systemui.biometrics.domain.model.SideFpsSensorLocation
-import com.android.systemui.biometrics.shared.model.DisplayRotation
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
-import com.android.systemui.biometrics.shared.model.isDefaultOrientation
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.display.domain.interactor.DisplayStateInteractor
+import com.android.systemui.display.shared.model.DisplayRotation
+import com.android.systemui.display.shared.model.isDefaultOrientation
 import com.android.systemui.keyguard.data.repository.BiometricSettingsRepository
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -64,7 +65,7 @@ constructor(
         combine(
                 displayStateInteractor.displayChanges,
                 fingerprintPropertyRepository.sensorLocations,
-                ::Pair
+                ::Pair,
             )
             .map { (_, locations) -> locations[context.display?.uniqueId] }
             .filterNotNull()
@@ -103,10 +104,7 @@ constructor(
         if (!isProlongedTouchEnabledForDevice) {
             flowOf(false)
         } else {
-            combine(
-                isAvailable,
-                isSettingEnabled,
-            ) { sfpsAvailable, isSettingEnabled ->
+            combine(isAvailable, isSettingEnabled) { sfpsAvailable, isSettingEnabled ->
                 sfpsAvailable && isSettingEnabled
             }
         }
@@ -139,7 +137,7 @@ constructor(
                                     0,
                                     displayHeight -
                                         sensorLocation.sensorLocationY -
-                                        sensorLengthInPx
+                                        sensorLengthInPx,
                                 )
                             }
                             DisplayRotation.ROTATION_270 -> {
@@ -147,7 +145,7 @@ constructor(
                                     displayHeight -
                                         sensorLocation.sensorLocationY -
                                         sensorLengthInPx,
-                                    displayWidth
+                                    displayWidth,
                                 )
                             }
                         }
@@ -159,7 +157,7 @@ constructor(
                             DisplayRotation.ROTATION_90 -> {
                                 Pair(
                                     0,
-                                    displayWidth - sensorLocation.sensorLocationX - sensorLengthInPx
+                                    displayWidth - sensorLocation.sensorLocationX - sensorLengthInPx,
                                 )
                             }
                             DisplayRotation.ROTATION_180 -> {
@@ -167,7 +165,7 @@ constructor(
                                     displayWidth -
                                         sensorLocation.sensorLocationX -
                                         sensorLengthInPx,
-                                    displayHeight
+                                    displayHeight,
                                 )
                             }
                             DisplayRotation.ROTATION_270 -> {
@@ -179,7 +177,7 @@ constructor(
                     left = sensorLeft,
                     top = sensorTop,
                     length = sensorLengthInPx,
-                    isSensorVerticalInDefaultOrientation = isSensorVerticalInDefaultOrientation
+                    isSensorVerticalInDefaultOrientation = isSensorVerticalInDefaultOrientation,
                 )
             }
             .distinctUntilChanged(
@@ -196,7 +194,7 @@ constructor(
                     it.left,
                     it.top,
                     it.length,
-                    it.isSensorVerticalInDefaultOrientation
+                    it.isSensorVerticalInDefaultOrientation,
                 )
             }
 }

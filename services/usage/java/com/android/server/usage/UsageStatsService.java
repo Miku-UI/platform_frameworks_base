@@ -106,7 +106,6 @@ import android.util.SparseSetArray;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.content.PackageMonitor;
-import com.android.internal.os.BackgroundThread;
 import com.android.internal.util.CollectionUtils;
 import com.android.internal.util.DumpUtils;
 import com.android.internal.util.FrameworkStatsLog;
@@ -153,10 +152,6 @@ public class UsageStatsService extends SystemService implements
     static final String TAG = "UsageStatsService";
     public static final boolean ENABLE_TIME_CHANGE_CORRECTION
             = SystemProperties.getBoolean("persist.debug.time_correction", true);
-
-    private static final boolean USE_DEDICATED_HANDLER_THREAD =
-            SystemProperties.getBoolean("persist.debug.use_dedicated_handler_thread",
-            Flags.useDedicatedHandlerThread());
 
     static final boolean DEBUG = false; // Never submit with true
     static final boolean DEBUG_RESPONSE_STATS = DEBUG || Log.isLoggable(TAG, Log.DEBUG);
@@ -406,18 +401,16 @@ public class UsageStatsService extends SystemService implements
 
         mAppStandby.addListener(mStandbyChangeListener);
 
-        mPackageMonitor.register(getContext(),
-                /* thread= */ USE_DEDICATED_HANDLER_THREAD ? mHandler.getLooper() : null,
+        mPackageMonitor.register(getContext(), /* thread= */ mHandler.getLooper(),
                 UserHandle.ALL, true);
 
         IntentFilter filter = new IntentFilter(Intent.ACTION_USER_REMOVED);
         filter.addAction(Intent.ACTION_USER_STARTED);
         getContext().registerReceiverAsUser(new UserActionsReceiver(), UserHandle.ALL, filter,
-                null, /* scheduler= */ USE_DEDICATED_HANDLER_THREAD ? mHandler : null);
+                null, /* scheduler= */ mHandler);
 
         getContext().registerReceiverAsUser(new UidRemovedReceiver(), UserHandle.ALL,
-                new IntentFilter(ACTION_UID_REMOVED), null,
-                /* scheduler= */ USE_DEDICATED_HANDLER_THREAD ? mHandler : null);
+                new IntentFilter(ACTION_UID_REMOVED), null, /* scheduler= */ mHandler);
 
         mRealTimeSnapshot = SystemClock.elapsedRealtime();
         mSystemTimeSnapshot = System.currentTimeMillis();
@@ -509,11 +502,7 @@ public class UsageStatsService extends SystemService implements
     }
 
     private Handler getUsageEventProcessingHandler() {
-        if (USE_DEDICATED_HANDLER_THREAD) {
-            return new H(UsageStatsHandlerThread.get().getLooper());
-        } else {
-            return new H(BackgroundThread.get().getLooper());
-        }
+        return new H(UsageStatsHandlerThread.get().getLooper());
     }
 
     private void onUserUnlocked(int userId) {
@@ -670,11 +659,8 @@ public class UsageStatsService extends SystemService implements
                     mHandler.obtainMessage(MSG_REMOVE_USER, userId, 0).sendToTarget();
                 }
             } else if (Intent.ACTION_USER_STARTED.equals(action)) {
-                if (userId >= 0) {
-                    if (!Flags.disableIdleCheck() || userId > 0) {
-                        // Don't check idle state for USER_SYSTEM during the boot up.
-                        mHandler.obtainMessage(MSG_USER_STARTED, userId, 0).sendToTarget();
-                    }
+                if (userId > 0) {
+                    mHandler.obtainMessage(MSG_USER_STARTED, userId, 0).sendToTarget();
                 }
             }
         }
@@ -1907,7 +1893,7 @@ public class UsageStatsService extends SystemService implements
         mHandler.removeMessages(MSG_FLUSH_TO_DISK);
     }
 
-    private String getTrimmedString(String input) {
+    static String getTrimmedString(String input) {
         if (input != null && input.length() > MAX_TEXT_LENGTH) {
             return input.substring(0, MAX_TEXT_LENGTH);
         }
@@ -2057,12 +2043,8 @@ public class UsageStatsService extends SystemService implements
         pw.println("Flags:");
         pw.println("    " + Flags.FLAG_USER_INTERACTION_TYPE_API
                 + ": " + Flags.userInteractionTypeApi());
-        pw.println("    " + Flags.FLAG_USE_PARCELED_LIST
-                + ": " + Flags.useParceledList());
         pw.println("    " + Flags.FLAG_FILTER_BASED_EVENT_QUERY_API
                 + ": " + Flags.filterBasedEventQueryApi());
-        pw.println("    " + Flags.FLAG_DISABLE_IDLE_CHECK
-                + ": " + Flags.disableIdleCheck());
 
         final int[] userIds;
         synchronized (mLock) {
@@ -2359,23 +2341,16 @@ public class UsageStatsService extends SystemService implements
 
         private void reportUserInteractionInnerHelper(String packageName, @UserIdInt int userId,
                 PersistableBundle extras) {
-            if (Flags.reportUsageStatsPermission()) {
-                if (!canReportUsageStats()) {
-                    throw new SecurityException(
-                        "Only the system or holders of the REPORT_USAGE_STATS"
-                            + " permission are allowed to call reportUserInteraction");
-                }
-                if (userId != UserHandle.getCallingUserId()) {
-                    // Cross-user event reporting.
-                    getContext().enforceCallingPermission(
-                            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
-                            "Caller doesn't have INTERACT_ACROSS_USERS_FULL permission");
-                }
-            } else {
-                if (!isCallingUidSystem()) {
-                    throw new SecurityException("Only system is allowed to call"
-                        + " reportUserInteraction");
-                }
+            if (!canReportUsageStats()) {
+                throw new SecurityException(
+                    "Only the system or holders of the REPORT_USAGE_STATS"
+                        + " permission are allowed to call reportUserInteraction");
+            }
+            if (userId != UserHandle.getCallingUserId()) {
+                // Cross-user event reporting.
+                getContext().enforceCallingPermission(
+                        Manifest.permission.INTERACT_ACROSS_USERS_FULL,
+                        "Caller doesn't have INTERACT_ACROSS_USERS_FULL permission");
             }
 
             // Verify if this package exists before reporting an event for it.
@@ -2815,12 +2790,10 @@ public class UsageStatsService extends SystemService implements
                 return;
             }
 
-            if (Flags.reportUsageStatsPermission()) {
-                if (!canReportUsageStats()) {
-                    throw new SecurityException(
-                        "Only the system or holders of the REPORT_USAGE_STATS"
-                            + " permission are allowed to call reportChooserSelection");
-                }
+            if (!canReportUsageStats()) {
+                throw new SecurityException(
+                    "Only the system or holders of the REPORT_USAGE_STATS"
+                        + " permission are allowed to call reportChooserSelection");
             }
 
             // Verify if this package exists before reporting an event for it.
@@ -3363,6 +3336,12 @@ public class UsageStatsService extends SystemService implements
         @StandbyBuckets public int getAppStandbyBucket(String packageName, int userId,
                 long nowElapsed) {
             return mAppStandby.getAppStandbyBucket(packageName, userId, nowElapsed, false);
+        }
+
+        @Override
+        public long getAppStandbyBucketAndReason(String packageName,
+                @UserIdInt int userId, long nowElapsed) {
+            return mAppStandby.getAppStandbyBucketAndReason(packageName, userId, nowElapsed);
         }
 
         @Override

@@ -15,7 +15,7 @@
  */
 package com.android.server.pm;
 
-import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_DENIED;
+import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS;
 
 import static com.android.server.pm.ShortcutUser.DIRECTORY_LAUNCHERS;
 import static com.android.server.pm.ShortcutUser.DIRECTORY_PACKAGES;
@@ -99,6 +99,7 @@ import android.os.UserHandle;
 import android.text.TextUtils;
 import android.text.format.TimeMigrationUtils;
 import android.util.ArraySet;
+import android.util.IntArray;
 import android.util.KeyValueListParser;
 import android.util.Log;
 import android.util.Slog;
@@ -393,7 +394,7 @@ public class ShortcutService extends IShortcutService.Stub {
     final SparseLongArray mUidLastForegroundElapsedTime = new SparseLongArray();
 
     @GuardedBy("mServiceLock")
-    private List<Integer> mDirtyUserIds = new ArrayList<>();
+    private IntArray mDirtyUserIds = new IntArray();
 
     private final AtomicBoolean mBootCompleted = new AtomicBoolean();
     private final AtomicBoolean mShutdown = new AtomicBoolean();
@@ -1235,14 +1236,29 @@ public class ShortcutService extends IShortcutService.Stub {
         if (DEBUG || DEBUG_REBOOT) {
             Slog.d(TAG, "Scheduling to save for userId=" + userId);
         }
+        addDirtyUserId(userId);
+        // If already scheduled, remove that and re-schedule in N seconds.
+        mHandler.removeCallbacks(mSaveDirtyInfoRunner);
+        mHandler.postDelayed(mSaveDirtyInfoRunner, mSaveDelayMillis);
+    }
+
+    @VisibleForTesting
+    void addDirtyUserId(int userId) {
         synchronized (mServiceLock) {
             if (!mDirtyUserIds.contains(userId)) {
                 mDirtyUserIds.add(userId);
             }
         }
-        // If already scheduled, remove that and re-schedule in N seconds.
-        mHandler.removeCallbacks(mSaveDirtyInfoRunner);
-        mHandler.postDelayed(mSaveDirtyInfoRunner, mSaveDelayMillis);
+    }
+
+    private IntArray getDirtyUserIds() {
+        IntArray dirtyUserIds = new IntArray();
+        synchronized (mServiceLock) {
+            IntArray tmp = mDirtyUserIds;
+            mDirtyUserIds = dirtyUserIds;
+            dirtyUserIds = tmp;
+        }
+        return dirtyUserIds;
     }
 
     @VisibleForTesting
@@ -1255,12 +1271,7 @@ public class ShortcutService extends IShortcutService.Stub {
         }
         try {
             Trace.traceBegin(Trace.TRACE_TAG_SYSTEM_SERVER, "shortcutSaveDirtyInfo");
-            List<Integer> dirtyUserIds = new ArrayList<>();
-            synchronized (mServiceLock) {
-                List<Integer> tmp = mDirtyUserIds;
-                mDirtyUserIds = dirtyUserIds;
-                dirtyUserIds = tmp;
-            }
+            IntArray dirtyUserIds = getDirtyUserIds();
             for (int i = dirtyUserIds.size() - 1; i >= 0; i--) {
                 final int userId = dirtyUserIds.get(i);
                 if (userId == UserHandle.USER_NULL) { // USER_NULL for base state.
@@ -3706,8 +3717,7 @@ public class ShortcutService extends IShortcutService.Stub {
     /**
      * Called when a user is unlocked.
      * - Check all known packages still exist, and otherwise perform cleanup.
-     * - If a package still exists, check the version code.  If it's been updated, may need to
-     * update timestamps of its shortcuts.
+     * - Rescan installed packages for manifest shortcuts.
      */
     @VisibleForTesting
     void checkPackageChanges(@UserIdInt int ownerUserId) {
@@ -3748,7 +3758,8 @@ public class ShortcutService extends IShortcutService.Stub {
                     }
                 }
 
-                rescanUpdatedPackagesLocked(ownerUserId, user.getLastAppScanTime());
+                // Rescan all packages
+                rescanUpdatedPackagesLocked(ownerUserId, /* lastScanTime= */ 0);
             }
         } finally {
             logDurationStat(Stats.CHECK_PACKAGE_CHANGES, start);
@@ -4052,7 +4063,8 @@ public class ShortcutService extends IShortcutService.Stub {
 
     // Due to b/38267327, ActivityInfo.enabled may not reflect the current state of the component
     // and we need to check the enabled state via PackageManager.getComponentEnabledSetting.
-    private boolean isEnabled(@Nullable ActivityInfo ai, int userId) {
+    @VisibleForTesting
+    boolean isEnabled(@Nullable ActivityInfo ai, int userId) {
         if (ai == null) {
             return false;
         }
@@ -4062,6 +4074,9 @@ public class ShortcutService extends IShortcutService.Stub {
         try {
             enabledFlag = mIPackageManager.getComponentEnabledSetting(
                     ai.getComponentName(), userId);
+        } catch (IllegalArgumentException e) {
+            Slog.w(TAG, "Failed to get component enabled setting of " + ai.getComponentName(), e);
+            return false;
         } catch (RemoteException e) {
             // Shouldn't happen.
             Slog.wtf(TAG, "RemoteException", e);
@@ -4321,7 +4336,7 @@ public class ShortcutService extends IShortcutService.Stub {
         try {
             ActivityOptions options = ActivityOptions.makeBasic()
                     .setPendingIntentBackgroundActivityStartMode(
-                            MODE_BACKGROUND_ACTIVITY_START_DENIED);
+                            MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS);
             intentSender.sendIntent(mContext, 0 /* code */, extras,
                     null /* requiredPermission */, options.toBundle(),
                     null /* executor */, null /* onFinished*/);

@@ -41,6 +41,7 @@ import com.android.systemui.accessibility.AccessibilityButtonTargetsObserver;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.navigationbar.NavigationModeController;
+import com.android.systemui.res.R;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.util.settings.SecureSettings;
 
@@ -200,6 +201,7 @@ public class AccessibilityFloatingMenuController implements
                     mDisplayTracker.getDefaultDisplayId());
             final Context windowContext = mContext.createWindowContext(defaultDisplay,
                     TYPE_NAVIGATION_BAR_PANEL, /* options= */ null);
+            windowContext.setTheme(R.style.Theme_SystemUI);
             mFloatingMenu = new MenuViewLayerController(windowContext, mWindowManager,
                     mAccessibilityManager, mSecureSettings, mNavigationModeController,
                     mHearingAidDeviceManager);

@@ -35,12 +35,25 @@ import org.robolectric.android.controller.ServiceController
 /** Rule for messenger service testing. */
 open class MessengerServiceRule<C : MessengerServiceClient>(
     private val serviceClass: Class<out MessengerService>,
-    val client: C,
+    private val nullableClient: C? = null,
 ) : TestWatcher() {
     val application: Application = ApplicationProvider.getApplicationContext()
     val isRobolectric = Build.FINGERPRINT.contains("robolectric")
 
     private var serviceController: ServiceController<out Service>? = null
+
+    val client: C
+        get() = nullableClient!!
+
+    init {
+        if (isRobolectric) {
+            // `starting` is invoked by `startingQuietly`, which swallows exception. Hence we must
+            // check thread in constructor instead.
+            check(Thread.currentThread() != Looper.getMainLooper().thread) {
+                "To avoid deadlock, run test with @LooperMode(LooperMode.Mode.INSTRUMENTATION_TEST)"
+            }
+        }
+    }
 
     override fun starting(description: Description) {
         if (isRobolectric) {
@@ -49,7 +62,7 @@ open class MessengerServiceRule<C : MessengerServiceClient>(
     }
 
     override fun finished(description: Description) {
-        client.close()
+        nullableClient?.close()
         if (isRobolectric) {
             runBlocking {
                 withContext(Dispatchers.Main) { serviceController?.run { unbind().destroy() } }
@@ -58,11 +71,6 @@ open class MessengerServiceRule<C : MessengerServiceClient>(
     }
 
     private suspend fun setupRobolectricService() {
-        if (Thread.currentThread() == Looper.getMainLooper().thread) {
-            throw IllegalStateException(
-                "To avoid deadlock, run test with @LooperMode(LooperMode.Mode.INSTRUMENTATION_TEST)"
-            )
-        }
         withContext(Dispatchers.Main) {
             serviceController = Robolectric.buildService(serviceClass)
             val service = serviceController!!.create().get()

@@ -17,7 +17,7 @@
 package com.android.systemui.qs.tiles.dialog
 
 import android.view.LayoutInflater
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -29,11 +29,11 @@ fun InternetDetailsContent(viewModel: InternetDetailsViewModel) {
     val coroutineScope = rememberCoroutineScope()
 
     AndroidView(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth(),
         factory = { context ->
             // Inflate with the existing dialog xml layout and bind it with the manager
             val view =
-                LayoutInflater.from(context).inflate(R.layout.internet_connectivity_dialog, null)
+                LayoutInflater.from(context).inflate(R.layout.internet_connectivity_details, null)
             viewModel.internetDetailsContentManager.bind(view, coroutineScope)
 
             view

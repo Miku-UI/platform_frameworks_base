@@ -18,7 +18,6 @@ package com.android.systemui.qs.pipeline.data.repository
 
 import android.content.ComponentName
 import android.content.SharedPreferences
-import android.platform.test.annotations.EnabledOnRavenwood
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -30,7 +29,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class CustomTileAddedSharedPreferencesRepositoryTest : SysuiTestCase() {
 
@@ -124,13 +122,29 @@ class CustomTileAddedSharedPreferencesRepositoryTest : SysuiTestCase() {
         assertThat(underTest.isTileAdded(TEST_COMPONENT, userId = 1)).isTrue()
     }
 
+    @Test
+    fun removeAllNonCurrent() {
+        val userId = 0
+        val sharedPrefs = FakeSharedPreferences()
+        val userFileManager = FakeUserFileManager(mapOf(userId to sharedPrefs))
+        underTest = CustomTileAddedSharedPrefsRepository(userFileManager)
+
+        underTest.setTileAdded(TEST_COMPONENT, userId, true)
+        underTest.setTileAdded(OTHER_TEST_COMPONENT, userId, true)
+
+        underTest.removeNonCurrentTiles(currentTiles = listOf(OTHER_TEST_COMPONENT), userId)
+
+        assertThat(underTest.isTileAdded(TEST_COMPONENT, userId)).isFalse()
+        assertThat(underTest.isTileAdded(OTHER_TEST_COMPONENT, userId)).isTrue()
+    }
+
     private fun SharedPreferences.getForComponentName(componentName: ComponentName): Boolean {
         return getBoolean(componentName.flattenToString(), false)
     }
 
     private fun SharedPreferences.setForComponentName(
         componentName: ComponentName,
-        value: Boolean
+        value: Boolean,
     ) {
         edit().putBoolean(componentName.flattenToString(), value).commit()
     }

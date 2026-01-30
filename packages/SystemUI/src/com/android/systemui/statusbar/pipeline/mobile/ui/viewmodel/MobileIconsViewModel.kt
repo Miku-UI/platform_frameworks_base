@@ -21,8 +21,11 @@ import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.coroutines.newTracingContext
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.log.table.TableLogBuffer
+import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.statusbar.phone.StatusBarLocation
 import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
+import com.android.systemui.statusbar.pipeline.dagger.MobileSummaryLog
 import com.android.systemui.statusbar.pipeline.mobile.domain.interactor.MobileIconsInteractor
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileViewLogger
 import com.android.systemui.statusbar.pipeline.mobile.ui.VerboseMobileViewLogger
@@ -58,6 +61,7 @@ constructor(
     private val interactor: MobileIconsInteractor,
     private val airplaneModeInteractor: AirplaneModeInteractor,
     private val constants: ConnectivityConstants,
+    @MobileSummaryLog private val tableLogger: TableLogBuffer,
     @Background private val scope: CoroutineScope,
 ) {
     @VisibleForTesting
@@ -103,14 +107,29 @@ constructor(
 
     /** Whether all of [mobileSubViewModels] are visible or not. */
     private val iconsAreAllVisible =
-        mobileSubViewModels.flatMapLatest { viewModels ->
-            combine(viewModels.map { it.isVisible }) { isVisibleArray -> isVisibleArray.all { it } }
-        }
+        mobileSubViewModels
+            .flatMapLatest { viewModels ->
+                combine(viewModels.map { it.isVisible }) { isVisibleArray ->
+                    isVisibleArray.all { it }
+                }
+            }
+            .logDiffsForTable(
+                tableLogger,
+                LOGGING_PREFIX,
+                columnName = COL_ICONS_VISIBLE,
+                initialValue = false,
+            )
 
     val isStackable: StateFlow<Boolean> =
         combine(iconsAreAllVisible, interactor.isStackable) { isVisible, isStackable ->
                 isVisible && isStackable
             }
+            .logDiffsForTable(
+                tableLogger,
+                LOGGING_PREFIX,
+                columnName = COL_IS_STACKABLE,
+                initialValue = false,
+            )
             .stateIn(scope, SharingStarted.WhileSubscribed(), false)
 
     init {
@@ -160,5 +179,11 @@ constructor(
                     ?.second
                     ?.cancel()
             }
+    }
+
+    companion object {
+        private const val LOGGING_PREFIX = "VM"
+        private const val COL_IS_STACKABLE = "isStackable"
+        private const val COL_ICONS_VISIBLE = "iconsAreAllVisible"
     }
 }

@@ -14,6 +14,5 @@
  * limitations under the License.
  */
 package com.android.internal.widget.remotecompose.core.operations;
-
 /** Tagging interface to operations providing data within a component */
 public interface ComponentData {}

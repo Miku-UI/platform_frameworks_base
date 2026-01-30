@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for the AudioService to signal audio focus listeners of focus updates.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAudioFocusDispatcher {
 

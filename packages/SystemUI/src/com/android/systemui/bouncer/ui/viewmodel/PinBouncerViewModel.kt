@@ -29,6 +29,8 @@ import androidx.compose.ui.input.key.KeyEvent
 import androidx.compose.ui.input.key.KeyEventType
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.keyguard.PinShapeAdapter
+import com.android.keyguard.domain.interactor.KeyguardKeyboardInteractor
+import com.android.systemui.Flags
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
 import com.android.systemui.bouncer.domain.interactor.BouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.SimBouncerInteractor
@@ -40,6 +42,7 @@ import dagger.assisted.AssistedInject
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,6 +58,7 @@ constructor(
     applicationContext: Context,
     interactor: BouncerInteractor,
     private val simBouncerInteractor: SimBouncerInteractor,
+    keyguardKeyboardInteractor: KeyguardKeyboardInteractor,
     @Assisted bouncerHapticPlayer: BouncerHapticPlayer,
     @Assisted isInputEnabled: StateFlow<Boolean>,
     @Assisted private val onIntentionalUserInput: () -> Unit,
@@ -74,6 +78,12 @@ constructor(
     val isSimAreaVisible = authenticationMethod == AuthenticationMethodModel.Sim
     val isLockedEsim: StateFlow<Boolean?> = simBouncerInteractor.isLockedEsim
     val errorDialogMessage: StateFlow<String?> = simBouncerInteractor.errorDialogMessage
+
+    val isPinDisplayBorderVisible: Flow<Boolean> =
+        keyguardKeyboardInteractor.isAnyKeyboardConnected.map { isAnyKeyboardConnected ->
+            isAnyKeyboardConnected && Flags.pinInputFieldStyledFocusState()
+        }
+
     val isSimUnlockingDialogVisible: MutableStateFlow<Boolean> = MutableStateFlow(false)
     val pinShapes = PinShapeAdapter(applicationContext)
     private val mutablePinInput = MutableStateFlow(PinInputViewModel.empty())
@@ -248,33 +258,27 @@ constructor(
      * @return `true` when the [KeyEvent] was consumed as user input on bouncer; `false` otherwise.
      */
     override fun onKeyEvent(type: KeyEventType, keyCode: Int): Boolean {
-        return when (type) {
-            KeyEventType.KeyUp -> {
-                if (isConfirmKey(keyCode)) {
-                    onAuthenticateButtonClicked()
-                    true
-                } else {
-                    false
-                }
+        if (isConfirmKey(keyCode)) {
+            if (type == KeyEventType.KeyUp) {
+                onAuthenticateButtonClicked()
             }
-            KeyEventType.KeyDown -> {
-                when (keyCode) {
-                    KEYCODE_DEL -> {
-                        onBackspaceButtonClicked()
-                        true
-                    }
-                    in KEYCODE_0..KEYCODE_9 -> {
-                        onPinButtonClicked(keyCode - KEYCODE_0)
-                        true
-                    }
-                    in KEYCODE_NUMPAD_0..KEYCODE_NUMPAD_9 -> {
-                        onPinButtonClicked(keyCode - KEYCODE_NUMPAD_0)
-                        true
-                    }
-                    else -> {
-                        false
-                    }
-                }
+            return true
+        }
+
+        if (type != KeyEventType.KeyDown) return false
+
+        return when (keyCode) {
+            KEYCODE_DEL -> {
+                onBackspaceButtonClicked()
+                true
+            }
+            in KEYCODE_0..KEYCODE_9 -> {
+                onPinButtonClicked(keyCode - KEYCODE_0)
+                true
+            }
+            in KEYCODE_NUMPAD_0..KEYCODE_NUMPAD_9 -> {
+                onPinButtonClicked(keyCode - KEYCODE_NUMPAD_0)
+                true
             }
             else -> false
         }

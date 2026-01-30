@@ -18,10 +18,15 @@ package com.android.wm.shell.shared.bubbles
 
 /** A Bubble object being dragged. */
 sealed interface DraggedObject {
-    /** The initial location of the object at the start of the drag gesture. */
-    val initialLocation: BubbleBarLocation
 
-    data class Bubble(override val initialLocation: BubbleBarLocation) : DraggedObject
-    data class BubbleBar(override val initialLocation: BubbleBarLocation) : DraggedObject
-    data class ExpandedView(override val initialLocation: BubbleBarLocation) : DraggedObject
+    data class Bubble(val initialLocation: BubbleBarLocation) : DraggedObject
+
+    data class BubbleBar(val initialLocation: BubbleBarLocation) : DraggedObject
+
+    data class ExpandedView(val initialLocation: BubbleBarLocation) : DraggedObject
+
+    data class LauncherIcon(
+        val showExpandedViewDropTarget: Boolean = true,
+        val showBubbleBarPillowDropTarget: Boolean = false,
+    ) : DraggedObject
 }

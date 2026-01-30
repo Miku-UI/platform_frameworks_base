@@ -27,12 +27,12 @@ import android.os.RemoteException;
 import android.os.SystemProperties;
 import android.os.storage.IStorageManager;
 import android.os.storage.StorageManager;
-import android.os.storage.StorageManagerInternal;
 import android.provider.Settings;
 import android.text.format.DateUtils;
 import android.util.Slog;
 
 import com.android.internal.content.InstallLocationUtils;
+import com.android.server.StorageManagerInternal;
 
 import java.io.File;
 import java.io.IOException;

@@ -67,7 +67,6 @@ import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.findRootCoordinates
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.node.DrawModifierNode
@@ -85,6 +84,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.android.compose.modifiers.animatedBackground
 import com.android.compose.modifiers.thenIf
 import com.android.compose.ui.graphics.FullScreenComposeViewInOverlay
+import com.android.systemui.Flags.expandableUseModifierImplementation
 import com.android.systemui.animation.ComposableControllerFactory
 import com.android.systemui.animation.Expandable
 import com.android.systemui.animation.TransitionAnimator
@@ -127,6 +127,8 @@ import kotlin.math.min
  *
  * @sample com.android.systemui.compose.gallery.ActivityLaunchScreen
  * @sample com.android.systemui.compose.gallery.DialogLaunchScreen
+ * @param onClickLabel semantic / accessibility label for the onClick action. See
+ *   [Modifier.clickable].
  * @param defaultMinSize true if a default minimum size should be enforced even if this Expandable
  *   isn't currently clickable and false otherwise.
  */
@@ -138,10 +140,9 @@ fun Expandable(
     contentColor: Color = contentColorFor(color),
     borderStroke: BorderStroke? = null,
     onClick: ((Expandable) -> Unit)? = null,
+    onClickLabel: String? = null,
     interactionSource: MutableInteractionSource? = null,
-    // TODO(b/285250939): Default this to true then remove once the Compose QS expandables have
-    // proven that the new implementation is robust.
-    useModifierBasedImplementation: Boolean = false,
+    useModifierBasedImplementation: Boolean = expandableUseModifierImplementation(),
     defaultMinSize: Boolean = true,
     transitionControllerFactory: ComposableControllerFactory? = null,
     content: @Composable (Expandable) -> Unit,
@@ -156,6 +157,7 @@ fun Expandable(
         ),
         modifier,
         onClick,
+        onClickLabel,
         interactionSource,
         useModifierBasedImplementation,
         defaultMinSize,
@@ -186,6 +188,8 @@ fun Expandable(
  *
  * @sample com.android.systemui.compose.gallery.ActivityLaunchScreen
  * @sample com.android.systemui.compose.gallery.DialogLaunchScreen
+ * @param onClickLabel semantic / accessibility label for the onClick action. See
+ *   [Modifier.clickable].
  * @param defaultMinSize true if a default minimum size should be enforced even if this Expandable
  *   isn't currently clickable and false otherwise.
  */
@@ -194,6 +198,7 @@ fun Expandable(
     controller: ExpandableController,
     modifier: Modifier = Modifier,
     onClick: ((Expandable) -> Unit)? = null,
+    onClickLabel: String? = null,
     interactionSource: MutableInteractionSource? = null,
     // TODO(b/285250939): Default this to true then remove once the Compose QS expandables have
     // proven that the new implementation is robust.
@@ -215,7 +220,7 @@ fun Expandable(
     }
 
     if (useModifierBasedImplementation) {
-        Box(modifier.expandable(controller, onClick, interactionSource)) {
+        Box(modifier.expandable(controller, onClick, onClickLabel, interactionSource)) {
             WrappedContent(
                 controller.expandable,
                 controller.contentColor,
@@ -303,10 +308,14 @@ fun Expandable(
                 modifier
                     .updateExpandableSize()
                     .then(minInteractiveSizeModifier)
-                    .then(clickModifier(controller, onClick, interactionSource))
+                    .then(clickModifier(controller, onClick, onClickLabel, interactionSource))
                     .animatedBackground(color, shape = shape)
                     .border(controller)
-                    .onGloballyPositioned { controller.boundsInComposeViewRoot = it.boundsInRoot() }
+                    .onGloballyPositioned {
+                        if (it.isAttached) {
+                            controller.boundsInComposeViewRoot = it.boundsInRoot()
+                        }
+                    }
             ) {
                 wrappedContent(controller.expandable)
             }
@@ -352,6 +361,7 @@ private fun WrappedContent(
 private fun Modifier.expandable(
     controller: ExpandableController,
     onClick: ((Expandable) -> Unit)? = null,
+    onClickLabel: String? = null,
     interactionSource: MutableInteractionSource? = null,
 ): Modifier {
     val controller = controller as ExpandableControllerImpl
@@ -368,10 +378,15 @@ private fun Modifier.expandable(
     return this.thenIf(onClick != null) { Modifier.minimumInteractiveComponentSize() }
         .thenIf(drawContent) {
             Modifier.border(controller)
-                .then(clickModifier(controller, onClick, interactionSource))
+                .then(clickModifier(controller, onClick, onClickLabel, interactionSource))
                 .animatedBackground(controller.color, shape = controller.shape)
         }
-        .onPlaced { controller.boundsInComposeViewRoot = it.boundsInRoot() }
+        .onPlaced { coords ->
+            // TODO(b/415570057): Remove this check.
+            if (coords.isAttached) {
+                controller.boundsInComposeViewRoot = coords.boundsInRoot()
+            }
+        }
         .drawWithContent {
             graphicsLayer.record { this@drawWithContent.drawContent() }
 
@@ -471,6 +486,7 @@ private class DrawExpandableInOverlayNode(
 private fun clickModifier(
     controller: ExpandableControllerImpl,
     onClick: ((Expandable) -> Unit)?,
+    onClickLabel: String? = null,
     interactionSource: MutableInteractionSource?,
 ): Modifier {
     if (onClick == null) {
@@ -480,14 +496,20 @@ private fun clickModifier(
     if (interactionSource != null) {
         // If the caller provided an interaction source, then that means that they will draw the
         // click indication themselves.
-        return Modifier.clickable(interactionSource, indication = null) {
+        return Modifier.clickable(
+            interactionSource,
+            indication = null,
+            onClickLabel = onClickLabel,
+        ) {
             onClick(controller.expandable)
         }
     }
 
     // If no interaction source is provided, we draw the default indication (a ripple) and make sure
     // it's clipped by the expandable shape.
-    return Modifier.clip(controller.shape).clickable { onClick(controller.expandable) }
+    return Modifier.clip(controller.shape).clickable(onClickLabel = onClickLabel) {
+        onClick(controller.expandable)
+    }
 }
 
 /** Draw [content] in [overlay] while respecting its screen position given by [animatorState]. */

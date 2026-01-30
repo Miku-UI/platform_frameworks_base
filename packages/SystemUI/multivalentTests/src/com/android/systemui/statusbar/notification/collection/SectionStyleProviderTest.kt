@@ -29,11 +29,8 @@ import com.android.systemui.statusbar.notification.collection.provider.HighPrior
 import com.android.systemui.statusbar.notification.collection.provider.SectionStyleProvider
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.stack.BUCKET_ALERTING
-import com.android.systemui.statusbar.notification.stack.BUCKET_FOREGROUND_SERVICE
 import com.android.systemui.statusbar.notification.stack.BUCKET_PEOPLE
 import com.android.systemui.statusbar.notification.stack.BUCKET_SILENT
-import com.android.systemui.statusbar.notification.stack.BUCKET_UNKNOWN
-import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.mock
 import com.google.common.collect.ImmutableList
 import com.google.common.truth.Truth.assertThat
@@ -42,9 +39,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
-import org.mockito.Mockito.verify
-import org.mockito.MockitoAnnotations
 import org.mockito.Mockito.`when` as whenever
+import org.mockito.MockitoAnnotations
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -54,9 +50,9 @@ class SectionStyleProviderTest : SysuiTestCase() {
 
     @Mock private lateinit var highPriorityProvider: HighPriorityProvider
 
-    @Mock private lateinit var peopleMixedSectioner : NotifSectioner
-    @Mock private lateinit var allSilentSectioner : NotifSectioner
-    @Mock private lateinit var allAlertingSectioner : NotifSectioner
+    @Mock private lateinit var peopleMixedSectioner: NotifSectioner
+    @Mock private lateinit var allSilentSectioner: NotifSectioner
+    @Mock private lateinit var allAlertingSectioner: NotifSectioner
 
     private lateinit var sectionStyleProvider: SectionStyleProvider
 
@@ -65,9 +61,9 @@ class SectionStyleProviderTest : SysuiTestCase() {
         MockitoAnnotations.initMocks(this)
         sectionStyleProvider = SectionStyleProvider(highPriorityProvider)
 
-        whenever(peopleMixedSectioner.bucket).thenReturn(BUCKET_PEOPLE);
-        whenever(allSilentSectioner.bucket).thenReturn(BUCKET_SILENT);
-        whenever(allAlertingSectioner.bucket).thenReturn(BUCKET_ALERTING);
+        whenever(peopleMixedSectioner.bucket).thenReturn(BUCKET_PEOPLE)
+        whenever(allSilentSectioner.bucket).thenReturn(BUCKET_SILENT)
+        whenever(allAlertingSectioner.bucket).thenReturn(BUCKET_ALERTING)
 
         sectionStyleProvider.setSilentSections(ImmutableList.of(allSilentSectioner))
     }
@@ -87,7 +83,6 @@ class SectionStyleProviderTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SORT_SECTION_BY_TIME)
     fun testIsSilent_silentPeople() {
         val listEntry = fakeNotification(peopleMixedSectioner)
         whenever(highPriorityProvider.isHighPriorityConversation(listEntry)).thenReturn(false)
@@ -103,19 +98,19 @@ class SectionStyleProviderTest : SysuiTestCase() {
     }
 
     private fun fakeNotification(inputSectioner: NotifSectioner): ListEntry {
-        val mockUserHandle =
-                mock<UserHandle>().apply { whenever(identifier).thenReturn(0) }
+        val mockUserHandle = mock<UserHandle>().apply { whenever(identifier).thenReturn(0) }
         val mockSbn: StatusBarNotification =
-                mock<StatusBarNotification>().apply { whenever(user).thenReturn(mockUserHandle) }
+            mock<StatusBarNotification>().apply { whenever(user).thenReturn(mockUserHandle) }
         val mockRow: ExpandableNotificationRow = mock<ExpandableNotificationRow>()
-        val mockEntry = mock<NotificationEntry>().apply {
-            whenever(sbn).thenReturn(mockSbn)
-            whenever(row).thenReturn(mockRow)
-        }
+        val mockEntry =
+            mock<NotificationEntry>().apply {
+                whenever(sbn).thenReturn(mockSbn)
+                whenever(row).thenReturn(mockRow)
+            }
         whenever(mockEntry.rowExists()).thenReturn(true)
         return object : ListEntry("key", 0) {
-            override fun getRepresentativeEntry(): NotificationEntry = mockEntry
-            override fun getSection(): NotifSection? = NotifSection(inputSectioner, 1)
-        }
+                override val representativeEntry: NotificationEntry = mockEntry
+            }
+            .apply { attachState.section = NotifSection(inputSectioner, 1) }
     }
 }

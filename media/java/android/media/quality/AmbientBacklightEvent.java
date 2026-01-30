@@ -78,7 +78,8 @@ public final class AmbientBacklightEvent implements Parcelable {
 
     private AmbientBacklightEvent(Parcel in) {
         mEventType = in.readInt();
-        mMetadata = in.readParcelable(AmbientBacklightMetadata.class.getClassLoader());
+        mMetadata = in.readParcelable(AmbientBacklightMetadata.class.getClassLoader(),
+                AmbientBacklightMetadata.class);
     }
 
     /**

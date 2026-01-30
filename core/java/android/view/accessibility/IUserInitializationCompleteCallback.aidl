@@ -28,6 +28,9 @@ oneway interface IUserInitializationCompleteCallback {
     /**
      * Called when a user initialization completes.
      *
+     * If the user has been initialized completely at the time the caller register the callback,
+     * the caller will receive the userInitializationComplete immediately.
+     *
      * @param userId the id of the initialized user
      */
     @RequiresNoPermission

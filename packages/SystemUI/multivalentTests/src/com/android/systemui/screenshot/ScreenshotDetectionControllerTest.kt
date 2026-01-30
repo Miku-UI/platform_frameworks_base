@@ -26,6 +26,7 @@ import android.view.IWindowManager
 import android.view.WindowManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.SysuiTestCase
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.argThat
 import com.android.systemui.util.mockito.eq
@@ -39,12 +40,13 @@ import org.mockito.ArgumentMatcher
 import org.mockito.Mock
 import org.mockito.Mockito.mock
 import org.mockito.Mockito.never
+import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-class ScreenshotDetectionControllerTest {
+class ScreenshotDetectionControllerTest : SysuiTestCase() {
 
     @Mock lateinit var windowManager: IWindowManager
 
@@ -68,6 +70,19 @@ class ScreenshotDetectionControllerTest {
 
         assertTrue(list.isEmpty())
         verify(windowManager, never()).notifyScreenshotListeners(any())
+    }
+
+    @Test
+    fun testMaybeNotifyOfScreenshot_evaluatesForScreenCaptureUISource() {
+        val data =
+            ScreenshotData.forTesting(
+                source = WindowManager.ScreenshotSource.SCREENSHOT_SCREEN_CAPTURE_UI
+            )
+
+        val list = controller.maybeNotifyOfScreenshot(data)
+
+        assertTrue(list.isEmpty())
+        verify(windowManager, times(1)).notifyScreenshotListeners(any())
     }
 
     @Test

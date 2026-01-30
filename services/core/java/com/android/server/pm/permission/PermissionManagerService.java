@@ -29,7 +29,6 @@ import static android.app.AppOpsManager.MODE_IGNORED;
 import static android.app.AppOpsManager.OP_BLUETOOTH_CONNECT;
 import static android.content.pm.ApplicationInfo.AUTO_REVOKE_DISALLOWED;
 import static android.content.pm.ApplicationInfo.AUTO_REVOKE_DISCOURAGED;
-import static android.permission.flags.Flags.serverSideAttributionRegistration;
 
 import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
 
@@ -79,6 +78,8 @@ import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.Preconditions;
 import com.android.server.LocalServices;
 import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
+import com.android.server.pm.PackageManagerService;
+import com.android.server.pm.PackageMetrics;
 import com.android.server.pm.UserManagerService;
 import com.android.server.pm.permission.PermissionManagerServiceInternal.CheckPermissionDelegate;
 import com.android.server.pm.permission.PermissionManagerServiceInternal.HotwordDetectionServiceProvider;
@@ -144,7 +145,8 @@ public class PermissionManagerService extends IPermissionManager.Stub {
         // The package info cache is the cache for package and permission information.
         // Disable the package info and package permission caches locally but leave the
         // checkPermission cache active.
-        PackageManager.invalidatePackageInfoCache();
+        PackageManagerService.invalidatePackageInfoCache(
+                PackageMetrics.INVALIDATION_REASON_PERMISSION_MANAGER_SERVICE_INIT);
         PermissionManager.disablePackageNamePermissionCache();
 
         mContext = context;
@@ -160,13 +162,8 @@ public class PermissionManagerService extends IPermissionManager.Stub {
         LocalServices.addService(PermissionManagerServiceInternal.class, localService);
         LocalServices.addService(PermissionManagerInternal.class, localService);
 
-        if (PermissionManager.USE_ACCESS_CHECKING_SERVICE) {
-            mPermissionManagerServiceImpl = LocalServices.getService(
-                    PermissionManagerServiceInterface.class);
-        } else {
-            mPermissionManagerServiceImpl = new PermissionManagerServiceImpl(context,
-                    availableFeatures);
-        }
+        mPermissionManagerServiceImpl = LocalServices.getService(
+                PermissionManagerServiceInterface.class);
     }
 
     /**
@@ -457,16 +454,10 @@ public class PermissionManagerService extends IPermissionManager.Stub {
      */
     @Override
     public IBinder registerAttributionSource(@NonNull AttributionSourceState source) {
-        if (serverSideAttributionRegistration()) {
-            Binder token = new Binder();
-            mAttributionSourceRegistry
-                    .registerAttributionSource(new AttributionSource(source).withToken(token));
-            return token;
-        } else {
-            mAttributionSourceRegistry
-                    .registerAttributionSource(new AttributionSource(source));
-            return source.token;
-        }
+        Binder token = new Binder();
+        mAttributionSourceRegistry
+                .registerAttributionSource(new AttributionSource(source).withToken(token));
+        return token;
     }
 
     @Override

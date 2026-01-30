@@ -20,7 +20,7 @@ import android.telephony.ims.stub.ImsFeatureConfiguration;
 
 /**
  * See ImsService#Listener for more information.
- * {@hide}
+ * @hide
  */
 oneway interface IImsServiceControllerListener {
     void onUpdateSupportedImsFeatures(in ImsFeatureConfiguration c);

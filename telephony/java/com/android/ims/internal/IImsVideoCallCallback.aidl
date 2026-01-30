@@ -28,7 +28,7 @@ import android.telecom.VideoProfile;
  * @see android.telecom.internal.IVideoCallCallback
  * @see android.telecom.VideoCallImpl
  *
- * {@hide}
+ * @hide
  */
 oneway interface IImsVideoCallCallback {
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)

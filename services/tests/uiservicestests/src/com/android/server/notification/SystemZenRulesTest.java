@@ -22,10 +22,8 @@ import static android.service.notification.SystemZenRules.getTriggerDescriptionF
 import static com.google.common.truth.Truth.assertThat;
 
 import android.app.AutomaticZenRule;
-import android.app.Flags;
 import android.content.res.Configuration;
 import android.os.LocaleList;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.SystemZenRules;
 import android.service.notification.ZenModeConfig;
@@ -74,7 +72,6 @@ public class SystemZenRulesTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI)
     public void maybeUpgradeRules_oldSystemRules_upgraded() {
         ZenModeConfig config = new ZenModeConfig();
         ZenRule timeRule = new ZenRule();
@@ -97,7 +94,6 @@ public class SystemZenRulesTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI)
     public void maybeUpgradeRules_newSystemRules_untouched() {
         ZenModeConfig config = new ZenModeConfig();
         ZenRule timeRule = new ZenRule();

@@ -59,6 +59,9 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
     private val _isKeyguardUnlocked = MutableStateFlow(false)
     override val isKeyguardDismissible: StateFlow<Boolean> = _isKeyguardUnlocked.asStateFlow()
 
+    private val _hasTrust = MutableStateFlow(false)
+    override val hasTrust: StateFlow<Boolean> = _hasTrust.asStateFlow()
+
     private val _isKeyguardOccluded = MutableStateFlow(false)
     override val isKeyguardOccluded: StateFlow<Boolean> = _isKeyguardOccluded
 
@@ -81,9 +84,6 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
 
     private val _isDreamingWithOverlay = MutableStateFlow(false)
     override val isDreamingWithOverlay: Flow<Boolean> = _isDreamingWithOverlay
-
-    private val _dozeAmount = MutableStateFlow(0f)
-    override val linearDozeAmount: Flow<Float> = _dozeAmount
 
     private val _statusBarState = MutableStateFlow(StatusBarState.SHADE)
     override val statusBarState: StateFlow<StatusBarState> = _statusBarState
@@ -134,6 +134,14 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
 
     override val onCameraLaunchDetected = MutableStateFlow(CameraLaunchSourceModel())
 
+    private var _isSignOutButtonOnStatusBarEnabledInConfig: Boolean = false
+    override val isSignOutButtonOnStatusBarEnabledInConfig: Boolean
+        get() = _isSignOutButtonOnStatusBarEnabledInConfig
+
+    fun setIsSignOutButtonOnStatusBarEnabledInConfig(value: Boolean) {
+        _isSignOutButtonOnStatusBarEnabledInConfig = value
+    }
+
     override fun setQuickSettingsVisible(isVisible: Boolean) {
         _isQuickSettingsVisible.value = isVisible
     }
@@ -160,6 +168,10 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
 
     fun setKeyguardDismissible(isUnlocked: Boolean) {
         _isKeyguardUnlocked.value = isUnlocked
+    }
+
+    fun setHasTrust(hasTrust: Boolean) {
+        _hasTrust.value = hasTrust
     }
 
     override fun setIsDozing(isDozing: Boolean) {
@@ -211,10 +223,6 @@ class FakeKeyguardRepository @Inject constructor() : KeyguardRepository {
 
     fun setDreamingWithOverlay(isDreaming: Boolean) {
         _isDreamingWithOverlay.value = isDreaming
-    }
-
-    fun setDozeAmount(dozeAmount: Float) {
-        _dozeAmount.value = dozeAmount
     }
 
     override fun setBiometricUnlockState(

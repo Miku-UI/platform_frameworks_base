@@ -20,6 +20,7 @@ package com.android.systemui.user.ui.binder
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.ui.binder.TextViewBinder
 import com.android.systemui.lifecycle.repeatWhenAttached
@@ -27,16 +28,12 @@ import com.android.systemui.statusbar.phone.userswitcher.StatusBarUserSwitcherCo
 import com.android.systemui.user.ui.viewmodel.StatusBarUserChipViewModel
 import kotlinx.coroutines.InternalCoroutinesApi
 import kotlinx.coroutines.flow.collect
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 @OptIn(InternalCoroutinesApi::class)
 object StatusBarUserChipViewBinder {
     /** Binds the status bar user chip view model to the given view */
     @JvmStatic
-    fun bind(
-        view: StatusBarUserSwitcherContainer,
-        viewModel: StatusBarUserChipViewModel,
-    ) {
+    fun bind(view: StatusBarUserSwitcherContainer, viewModel: StatusBarUserChipViewModel) {
         view.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
@@ -60,6 +57,6 @@ object StatusBarUserChipViewBinder {
         view: StatusBarUserSwitcherContainer,
         viewModel: StatusBarUserChipViewModel,
     ) {
-        view.setOnClickListener { viewModel.onClick(Expandable.fromView(view)) }
+        view.setOnClickListener { viewModel.onClick(Expandable.fromView(view), view.context) }
     }
 }

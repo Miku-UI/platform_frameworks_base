@@ -88,12 +88,19 @@ public final class TimeZoneDetectorService extends ITimeZoneDetectorService.Stub
                     DeviceActivityMonitorImpl.create(context, handler);
 
             // Wire up the telephony fallback behavior to activity detection.
-            deviceActivityMonitor.addListener(new DeviceActivityMonitor.Listener() {
-                @Override
-                public void onFlightComplete() {
-                    timeZoneDetectorStrategy.enableTelephonyTimeZoneFallback("onFlightComplete()");
-                }
-            });
+            deviceActivityMonitor.addListener(
+                    new DeviceActivityMonitor.Listener() {
+                        @Override
+                        public void onFlightStart() {
+                            // do nothing
+                        }
+
+                        @Override
+                        public void onFlightComplete() {
+                            timeZoneDetectorStrategy.enableTelephonyTimeZoneFallback(
+                                    "onFlightComplete()");
+                        }
+                    });
 
             // Create and publish the local service for use by internal callers.
             CurrentUserIdentityInjector currentUserIdentityInjector =

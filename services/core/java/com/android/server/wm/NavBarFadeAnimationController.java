@@ -19,6 +19,7 @@ package com.android.server.wm;
 import static com.android.server.wm.SurfaceAnimator.ANIMATION_TYPE_TOKEN_TRANSFORM;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.view.SurfaceControl;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
@@ -29,7 +30,7 @@ import android.view.animation.PathInterpolator;
  * Controller to fade in and out  navigation bar during app transition when
  * config_attachNavBarToAppDuringTransition is true.
  */
-public class NavBarFadeAnimationController extends FadeAnimationController{
+class NavBarFadeAnimationController extends FadeAnimationController {
     private static final int FADE_IN_DURATION = 266;
     private static final int FADE_OUT_DURATION = 133;
     private static final Interpolator FADE_IN_INTERPOLATOR =
@@ -38,13 +39,15 @@ public class NavBarFadeAnimationController extends FadeAnimationController{
             new PathInterpolator(0.2f, 0f, 1f, 1f);
 
     private final WindowState mNavigationBar;
-    private Animation mFadeInAnimation;
-    private Animation mFadeOutAnimation;
+    @NonNull
+    private final Animation mFadeInAnimation;
+    @NonNull
+    private final Animation mFadeOutAnimation;
     private SurfaceControl mFadeInParent;
     private SurfaceControl mFadeOutParent;
     private boolean mPlaySequentially = false;
 
-    public NavBarFadeAnimationController(DisplayContent displayContent) {
+    NavBarFadeAnimationController(@NonNull DisplayContent displayContent) {
         super(displayContent);
         mNavigationBar = displayContent.getDisplayPolicy().getNavigationBar();
         mFadeInAnimation = new AlphaAnimation(0f, 1f);
@@ -56,19 +59,22 @@ public class NavBarFadeAnimationController extends FadeAnimationController{
         mFadeOutAnimation.setInterpolator(FADE_OUT_INTERPOLATOR);
     }
 
+    @NonNull
     @Override
     public Animation getFadeInAnimation() {
         return mFadeInAnimation;
     }
 
+    @NonNull
     @Override
     public Animation getFadeOutAnimation() {
         return mFadeOutAnimation;
     }
 
+    @NonNull
     @Override
-    protected FadeAnimationAdapter createAdapter(LocalAnimationAdapter.AnimationSpec animationSpec,
-            boolean show, WindowToken windowToken) {
+    FadeAnimationAdapter createAdapter(@NonNull LocalAnimationAdapter.AnimationSpec animationSpec,
+            boolean show, @NonNull WindowToken windowToken) {
         return new NavFadeAnimationAdapter(
                 animationSpec, windowToken.getSurfaceAnimationRunner(), show, windowToken,
                 show ? mFadeInParent : mFadeOutParent);
@@ -117,19 +123,21 @@ public class NavBarFadeAnimationController extends FadeAnimationController{
      * The animation adapter that is capable of playing fade-out and fade-in sequentially and
      * reparenting the navigation bar to a specified SurfaceControl when fade animation starts.
      */
-    protected class NavFadeAnimationAdapter extends FadeAnimationAdapter {
-        private SurfaceControl mParent;
+    class NavFadeAnimationAdapter extends FadeAnimationAdapter {
+        @Nullable
+        private final SurfaceControl mParent;
 
-        NavFadeAnimationAdapter(AnimationSpec windowAnimationSpec,
-                SurfaceAnimationRunner surfaceAnimationRunner, boolean show,
-                WindowToken token, SurfaceControl parent) {
+        NavFadeAnimationAdapter(@NonNull AnimationSpec windowAnimationSpec,
+                @NonNull SurfaceAnimationRunner surfaceAnimationRunner, boolean show,
+                @NonNull WindowToken token, @Nullable SurfaceControl parent) {
             super(windowAnimationSpec, surfaceAnimationRunner, show, token);
             mParent = parent;
         }
 
         @Override
-        public void startAnimation(SurfaceControl animationLeash, SurfaceControl.Transaction t,
-                int type, @NonNull SurfaceAnimator.OnAnimationFinishedCallback finishCallback) {
+        public void startAnimation(@NonNull SurfaceControl animationLeash,
+                @NonNull SurfaceControl.Transaction t, @SurfaceAnimator.AnimationType int type,
+                @NonNull SurfaceAnimator.OnAnimationFinishedCallback finishCallback) {
             super.startAnimation(animationLeash, t, type, finishCallback);
             if (mParent != null && mParent.isValid()) {
                 t.reparent(animationLeash, mParent);
@@ -140,7 +148,7 @@ public class NavBarFadeAnimationController extends FadeAnimationController{
         }
 
         @Override
-        public boolean shouldDeferAnimationFinish(Runnable endDeferFinishCallback) {
+        public boolean shouldDeferAnimationFinish(@NonNull Runnable endDeferFinishCallback) {
             if (mPlaySequentially) {
                 if (!mShow) {
                     fadeWindowToken(true);

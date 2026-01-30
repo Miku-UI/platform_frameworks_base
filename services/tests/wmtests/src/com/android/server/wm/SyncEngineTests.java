@@ -33,6 +33,7 @@ import static com.android.server.wm.WindowState.BLAST_TIMEOUT_DURATION;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -446,7 +447,7 @@ public class SyncEngineTests extends WindowTestsBase {
         bse.setSyncMethod(id, METHOD_NONE);
         bse.addToSyncSet(id, mAppWindow.mToken);
         mAppWindow.prepareSync();
-        assertFalse(mAppWindow.shouldSyncWithBuffers());
+        assertNotEquals(BLASTSyncEngine.METHOD_BLAST, mAppWindow.getSyncMethod());
 
         mAppWindow.removeImmediately();
     }

@@ -24,6 +24,7 @@ import androidx.test.filters.SmallTest
 import com.android.internal.statusbar.IStatusBarService
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.assist.AssistManager
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeKeyguardRepository
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.LogBuffer
@@ -33,6 +34,7 @@ import com.android.systemui.scene.data.repository.WindowRootViewVisibilityReposi
 import com.android.systemui.scene.domain.interactor.WindowRootViewVisibilityInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
 import com.android.systemui.statusbar.CommandQueue
+import com.android.systemui.statusbar.NotificationPresenter
 import com.android.systemui.statusbar.NotificationShadeWindowController
 import com.android.systemui.statusbar.notification.domain.interactor.activeNotificationsInteractor
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManager
@@ -61,6 +63,7 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper(setAsMainLooper = true)
 @SmallTest
+@DisableSceneContainer
 class ShadeControllerImplTest : SysuiTestCase() {
     private val executor = FakeExecutor(FakeSystemClock())
     private val kosmos = testKosmos()
@@ -83,6 +86,7 @@ class ShadeControllerImplTest : SysuiTestCase() {
     @Mock private lateinit var touchLog: LogBuffer
     @Mock private lateinit var iStatusBarService: IStatusBarService
     @Mock private lateinit var headsUpManager: HeadsUpManager
+    @Mock private lateinit var notifPresenter: NotificationPresenter
 
     private val windowRootViewVisibilityInteractor: WindowRootViewVisibilityInteractor by lazy {
         WindowRootViewVisibilityInteractor(
@@ -189,5 +193,20 @@ class ShadeControllerImplTest : SysuiTestCase() {
 
         // THEN the interactor is notified
         assertThat(windowRootViewVisibilityInteractor.isLockscreenOrShadeVisible.value).isFalse()
+    }
+
+    @Test
+    fun visible_launchAnimationEnds_windowControllerInstantlyHidden() {
+        // GIVEN the shade is currently expanded
+        shadeController.setNotificationPresenter(notifPresenter)
+        shadeController.makeExpandedVisible(true)
+        assertThat(windowRootViewVisibilityInteractor.isLockscreenOrShadeVisible.value).isTrue()
+
+        // WHEN a fullscreen launch animation ends
+        shadeController.onLaunchAnimationEnd(launchIsFullScreen = true)
+
+        // THEN the window controller is forced to hide the shade synchronously
+        verify(notificationShadeWindowController).setPanelVisible(false)
+        verify(notificationShadeWindowController).setForceHideAfterActivityLaunch(true)
     }
 }

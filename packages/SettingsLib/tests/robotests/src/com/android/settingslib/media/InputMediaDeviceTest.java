@@ -42,11 +42,17 @@ public class InputMediaDeviceTest {
     private final int MAX_VOLUME = 1;
     private final int CURRENT_VOLUME = 0;
     private final boolean IS_VOLUME_FIXED = true;
+    private static final boolean IS_SELECTED = true;
     private static final String PRODUCT_NAME_BUILTIN_MIC = "Built-in Mic";
     private static final String PRODUCT_NAME_WIRED_HEADSET = "My Wired Headset";
     private static final String PRODUCT_NAME_USB_HEADSET = "My USB Headset";
     private static final String PRODUCT_NAME_BT_HEADSET = "My Bluetooth Headset";
     private static final String PRODUCT_NAME_BLE_HEADSET = "My BLE Headset";
+    private static final String ADDR_BUILTIN_MIC = "";
+    private static final String ADDR_WIRED_HEADSET = "";
+    private static final String ADDR_USB_HEADSET = "card=1;device=0";
+    private static final String ADDR_BT_HEADSET = "00:11:22:33:44:55";
+    private static final String ADDR_BLE_HEADSET = "11:11:22:33:44:55";
 
     @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
@@ -63,10 +69,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(BUILTIN_MIC_ID),
+                        ADDR_BUILTIN_MIC,
                         AudioDeviceInfo.TYPE_BUILTIN_MIC,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         PRODUCT_NAME_BUILTIN_MIC);
         assertThat(builtinMediaDevice).isNotNull();
         assertThat(builtinMediaDevice.getDrawableResId()).isEqualTo(R.drawable.ic_media_microphone);
@@ -78,10 +86,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(BUILTIN_MIC_ID),
+                        ADDR_BUILTIN_MIC,
                         AudioDeviceInfo.TYPE_BUILTIN_MIC,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         PRODUCT_NAME_BUILTIN_MIC);
         assertThat(builtinMediaDevice).isNotNull();
         assertThat(builtinMediaDevice.getName())
@@ -94,10 +104,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(WIRED_HEADSET_ID),
+                        ADDR_WIRED_HEADSET,
                         AudioDeviceInfo.TYPE_WIRED_HEADSET,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         PRODUCT_NAME_WIRED_HEADSET);
         assertThat(wiredMediaDevice).isNotNull();
         assertThat(wiredMediaDevice.getName())
@@ -110,10 +122,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(USB_HEADSET_ID),
+                        ADDR_USB_HEADSET,
                         AudioDeviceInfo.TYPE_USB_HEADSET,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         PRODUCT_NAME_USB_HEADSET);
         assertThat(usbMediaDevice).isNotNull();
         assertThat(usbMediaDevice.getName()).isEqualTo(PRODUCT_NAME_USB_HEADSET);
@@ -125,10 +139,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(USB_HEADSET_ID),
+                        ADDR_USB_HEADSET,
                         AudioDeviceInfo.TYPE_USB_HEADSET,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         null);
         assertThat(usbMediaDevice).isNotNull();
         assertThat(usbMediaDevice.getName())
@@ -141,10 +157,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(BT_HEADSET_ID),
+                        ADDR_BT_HEADSET,
                         AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         PRODUCT_NAME_BT_HEADSET);
         assertThat(btMediaDevice).isNotNull();
         assertThat(btMediaDevice.getName()).isEqualTo(PRODUCT_NAME_BT_HEADSET);
@@ -156,10 +174,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(BT_HEADSET_ID),
+                        ADDR_BT_HEADSET,
                         AudioDeviceInfo.TYPE_BLUETOOTH_SCO,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         null);
         assertThat(btMediaDevice).isNotNull();
         assertThat(btMediaDevice.getName())
@@ -172,10 +192,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(BLE_HEADSET_ID),
+                        ADDR_BLE_HEADSET,
                         AudioDeviceInfo.TYPE_BLE_HEADSET,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         PRODUCT_NAME_BLE_HEADSET);
         assertThat(bleMediaDevice).isNotNull();
         assertThat(bleMediaDevice.getName()).isEqualTo(PRODUCT_NAME_BLE_HEADSET);
@@ -187,10 +209,12 @@ public class InputMediaDeviceTest {
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(BLE_HEADSET_ID),
+                        ADDR_BLE_HEADSET,
                         AudioDeviceInfo.TYPE_BLE_HEADSET,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         IS_VOLUME_FIXED,
+                        IS_SELECTED,
                         null);
         assertThat(bleMediaDevice).isNotNull();
         assertThat(bleMediaDevice.getName())

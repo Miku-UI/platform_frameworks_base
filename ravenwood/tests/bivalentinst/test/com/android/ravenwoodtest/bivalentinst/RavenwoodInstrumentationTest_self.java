@@ -17,6 +17,7 @@ package com.android.ravenwoodtest.bivalentinst;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.app.Application;
 import android.app.Instrumentation;
 import android.content.Context;
 
@@ -47,6 +48,16 @@ public class RavenwoodInstrumentationTest_self {
         sInstrumentation = InstrumentationRegistry.getInstrumentation();
         sTestContext = sInstrumentation.getContext();
         sTargetContext = sInstrumentation.getTargetContext();
+    }
+
+    @Test
+    public void testTestAppContextType() {
+        assertThat(sTestContext.getApplicationContext()).isInstanceOf(Application.class);
+    }
+
+    @Test
+    public void testTargetAppContextType() {
+        assertThat(sTargetContext.getApplicationContext()).isInstanceOf(Application.class);
     }
 
     @Test

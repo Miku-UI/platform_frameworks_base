@@ -16,7 +16,6 @@
 package com.android.systemui.dreams.conditions
 
 import android.app.DreamManager
-import android.platform.test.annotations.EnabledOnRavenwood
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.keyguard.KeyguardUpdateMonitor
@@ -40,7 +39,6 @@ import org.mockito.kotlin.whenever
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnabledOnRavenwood
 class DreamConditionTest : SysuiTestCase() {
     private val kosmos = Kosmos()
 

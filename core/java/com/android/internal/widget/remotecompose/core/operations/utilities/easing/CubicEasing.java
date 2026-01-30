@@ -64,7 +64,7 @@ class CubicEasing extends Easing {
         mType = type;
     }
 
-    void setup(@NonNull float[] values) {
+    void setup(@NonNull float [] values) {
         setup(values[0], values[1], values[2], values[3]);
     }
 

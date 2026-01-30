@@ -22,7 +22,6 @@ java_binary {
     name: "telecom",
     wrapper: "telecom.sh",
     srcs: [
-        ":telecom-shell-commands-src",
         "**/*.java",
     ],
 }

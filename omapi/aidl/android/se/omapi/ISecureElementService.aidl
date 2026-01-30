@@ -52,7 +52,7 @@ interface ISecureElementService {
      * Checks if the application defined by the package name is allowed to
      * receive NFC transaction events for the defined AID.
      */
-    boolean[] isNfcEventAllowed(in String reader, in byte[] aid,
-            in String[] packageNames, in int userId);
+    @nullable boolean[] isNfcEventAllowed(in String reader, in @nullable byte[] aid,
+            in @nullable String[] packageNames, in int userId);
 
 }

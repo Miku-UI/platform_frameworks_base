@@ -36,20 +36,25 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"हे अ‍ॅप फक्त एका विंडोमध्ये उघडले जाऊ शकते"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"दुसऱ्या डिस्प्लेवर अ‍ॅप कदाचित चालणार नाही."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"दुसऱ्या डिस्प्लेवर अ‍ॅप लाँच होणार नाही."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"अ‍ॅप बबलला सपोर्ट करत नाही"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"स्प्लिट स्क्रीन विभाजक"</string>
     <string name="divider_title" msgid="1963391955593749442">"स्प्लिट स्क्रीन विभाजक"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"डावी फुल स्क्रीन"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"डावी 70%"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"डावी 50%"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"डावी 30%"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"उजवी फुल स्क्रीन"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"सर्वात वरचे अ‍ॅप हे तळाशी असलेल्या अ‍ॅपने स्वॅप करा"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"डावीकडील अ‍ॅप हे उजवीकडील अ‍ॅपने स्वॅप करा"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"शीर्ष फुल स्क्रीन"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"शीर्ष 70%"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"शीर्ष 50%"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"शीर्ष 10"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"तळाशी फुल स्क्रीन"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"डावीकडे असलेले अ‍ॅप फुल स्क्रीन करा"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"१०% डावीकडे, ९०% उजवीकडे"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"३०% डावीकडे, ७०% उजवीकडे"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"५०% डावीकडे, ५०% उजवीकडे"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"७०% डावीकडे, ३०% उजवीकडे"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"९०% डावीकडे, १०% उजवीकडे"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"उजवीकडे असलेले अ‍ॅप फुल स्क्रीन करा"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"वर असलेले अ‍ॅप खालच्या अ‍ॅपसह स्वॅप करा, सद्य स्प्लिट असू द्या"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"डावीकडे असलेले अ‍ॅप उजवीकडच्या अ‍ॅपसह स्वॅप करा, सद्य स्प्लिट असू द्या"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"वर असलेले अ‍ॅप फुल स्क्रीन करा"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"१०% वर, ९०% खाली"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"३०% वर, ७०% खाली"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"५०% वर, ५०% खाली"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"७०% वर, ३०% खाली"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"९०% वर, १०% खाली"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"खाली असलेले अ‍ॅप फुल स्क्रीन करा"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"डावीकडे स्प्लिट करा"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"उजवीकडे स्प्लिट करा"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"सर्वात वरती स्प्लिट करा"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"विंडो व्यवस्थापित करा"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"आस्पेक्ट रेशो बदला"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"दृश्य ऑप्टिमाइझ करा"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"एरर आयकन"</string>
     <string name="close_text" msgid="4986518933445178928">"बंद करा"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"मेनू बंद करा"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (डेस्कटॉप विंडोइंग)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"स्क्रीन मोठी करा"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"आकार बदला"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"अ‍ॅप इथे हलवू शकत नाही"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"नवीन अ‍ॅप विंडो उघडत आहे"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"अ‍ॅपची विंडो बंद करत आहे"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"अ‍ॅप विंडो लहान करत आहे"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (फोकस केलेले)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (फोकस न केलेले)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"इमर्सिव्ह"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"रिस्टोअर करा"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"मोठे करा"</string>

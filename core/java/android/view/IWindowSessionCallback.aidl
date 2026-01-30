@@ -19,7 +19,7 @@ package android.view;
 /**
  * Callback to active sessions of the window manager
  *
- * {@hide}
+ * @hide
  */
 oneway interface IWindowSessionCallback
 {

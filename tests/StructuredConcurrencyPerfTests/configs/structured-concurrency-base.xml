@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Copyright (C) 2025 The Android Open Source Project
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<configuration description="Runs StructuredConcurrencyPerfTests metric instrumentation.">
+    <!-- Declare as a performance test module -->
+    <option name="config-descriptor:metadata" key="test-type" value="performance" />
+    <option name="test-tag" value="structured-concurrency-perf-test" />
+
+    <!-- Needed for storing the perfetto trace files in the sdcard/test_results-->
+    <option name="isolated-storage" value="false"/>
+
+    <target_preparer class="com.android.tradefed.targetprep.RootTargetPreparer"/>
+    <target_preparer class="com.android.tradefed.targetprep.DeviceSetup">
+        <option name="airplane-mode" value="on" />
+        <option name="wifi" value="off" />
+        <option name="bluetooth" value="off" />
+        <option name="nfc" value="off" />
+        <option name="screen-adaptive-brightness" value="off" />
+        <option name="screen-always-on" value="on" />
+    </target_preparer>
+
+    <target_preparer class="com.android.tradefed.targetprep.RunCommandTargetPreparer">
+        <!-- perf-setup.sh is pre-installed on eng and userdebug builds -->
+        <option name="run-command" value="perf-setup.sh" />
+        <option name="run-command" value="pm compile -m speed -f com.android.app.concurrent.benchmark" />
+        <option name="run-command" value="cat /dev/cpuset/camera-daemon-high-group/cpus > /dev/cpuset/top-app/cpus" />
+        <option name="throw-if-cmd-fail" value="true" />
+    </target_preparer>
+
+    <metrics_collector class="com.android.tradefed.device.metric.PerfettoFilePullerCollector">
+        <option name="pull-pattern-keys" value="additionalTestOutputFile_.*"/>
+        <!-- Collect the files on each test case ended. Otherwise, traces of sibling tests will
+             be associated with each test, and 2) additionalTestOutputFile_profiling_trace
+             will be overwritten by subsequent test runs, meaning we'll only get one
+             profiling trace for whatever ran last -->
+        <option name="collect-on-run-ended-only" value="false"/>
+        <!-- Don't clean up the file after pulling. Otherwise, the removal of the file from the last
+             test may overlap with execution of the next test, causing inconsistent results. The
+             benchmark runner will clean up the test output directory at the beginning of each test
+             module. -->
+        <option name="clean-up" value="false"/>
+    </metrics_collector>
+
+    <!-- Pull test metric results summary file from device to host -->
+    <metrics_collector class="com.android.tradefed.device.metric.FilePullerLogCollector">
+        <option name="pull-pattern-keys" value="metricSummaryOutputFile"/>
+        <option name="clean-up" value="false" />
+    </metrics_collector>
+
+    <metric_post_processor class="com.android.tradefed.postprocessor.MetricFilePostProcessor">
+        <option name="enable-per-test-log" value="true" />
+        <option name="strict-include-metric-filter" value="(perfetto_mt|time_nanos|allocation_count)_.*" />
+    </metric_post_processor>
+
+</configuration>

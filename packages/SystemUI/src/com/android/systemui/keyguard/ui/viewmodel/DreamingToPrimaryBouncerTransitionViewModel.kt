@@ -27,7 +27,6 @@ import com.android.systemui.keyguard.ui.transitions.PrimaryBouncerTransition
 import com.android.systemui.scene.shared.model.Overlays
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 
 @SysUISingleton
 class DreamingToPrimaryBouncerTransitionViewModel
@@ -45,5 +44,13 @@ constructor(blurConfig: BlurConfig, animationFlow: KeyguardTransitionAnimationFl
     override val windowBlurRadius: Flow<Float> =
         transitionAnimation.immediatelyTransitionTo(blurConfig.maxBlurRadiusPx)
 
-    override val notificationBlurRadius: Flow<Float> = emptyFlow()
+    override val notificationBlurRadius: Flow<Float> =
+        transitionAnimation.sharedFlowWithShade(
+            onStep = { _, isShadeExpanded ->
+                when {
+                    isShadeExpanded -> blurConfig.maxBlurRadiusPx
+                    else -> null
+                }
+            }
+        )
 }

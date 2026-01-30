@@ -150,6 +150,7 @@
         <item>en-AT</item> <!-- English (Austria) -->
         <item>en-AU</item> <!-- English (Australia) -->
         <item>en-BB</item> <!-- English (Barbados) -->
+        <item>en-BD</item> <!-- English (Bangladesh) -->
         <item>en-BE</item> <!-- English (Belgium) -->
         <item>en-BI</item> <!-- English (Burundi) -->
         <item>en-BM</item> <!-- English (Bermuda) -->
@@ -161,6 +162,7 @@
         <item>en-CH</item> <!-- English (Switzerland) -->
         <item>en-CK</item> <!-- English (Cook Islands) -->
         <item>en-CM</item> <!-- English (Cameroon) -->
+        <item>en-CO</item> <!-- English (Colombia) -->
         <item>en-CX</item> <!-- English (Christmas Island) -->
         <item>en-CY</item> <!-- English (Cyprus) -->
         <item>en-CZ</item> <!-- English (Czechia) -->
@@ -168,6 +170,7 @@
         <item>en-DG</item> <!-- English (Diego Garcia) -->
         <item>en-DK</item> <!-- English (Denmark) -->
         <item>en-DM</item> <!-- English (Dominica) -->
+        <item>en-EE</item> <!-- English (Estonia) -->
         <item>en-ER</item> <!-- English (Eritrea) -->
         <item>en-ES</item> <!-- English (Spain) -->
         <item>en-FI</item> <!-- English (Finland) -->
@@ -177,6 +180,7 @@
         <item>en-FR</item> <!-- English (France) -->
         <item>en-GB</item> <!-- English (United Kingdom) -->
         <item>en-GD</item> <!-- English (Grenada) -->
+        <item>en-GE</item> <!-- English (Georgia) -->
         <item>en-GG</item> <!-- English (Guernsey) -->
         <item>en-GH</item> <!-- English (Ghana) -->
         <item>en-GI</item> <!-- English (Gibraltar) -->
@@ -194,13 +198,18 @@
         <item>en-IT</item> <!-- English (Italy) -->
         <item>en-JE</item> <!-- English (Jersey) -->
         <item>en-JM</item> <!-- English (Jamaica) -->
+        <item>en-JP</item> <!-- English (Japan) -->
         <item>en-KE</item> <!-- English (Kenya) -->
         <item>en-KI</item> <!-- English (Kiribati) -->
         <item>en-KN</item> <!-- English (St. Kitts & Nevis) -->
         <item>en-KY</item> <!-- English (Cayman Islands) -->
         <item>en-LC</item> <!-- English (St. Lucia) -->
+        <item>en-LK</item> <!-- English (Sri Lanka) -->
+        <item>en-LT</item> <!-- English (Lithuania) -->
+        <item>en-LV</item> <!-- English (Latvia) -->
         <item>en-LR</item> <!-- English (Liberia) -->
         <item>en-LS</item> <!-- English (Lesotho) -->
+        <item>en-MA</item> <!-- English (Morocco) -->
         <item>en-MG</item> <!-- English (Madagascar) -->
         <item>en-MH</item> <!-- English (Marshall Islands) -->
         <item>en-MO</item> <!-- English (Macao) -->
@@ -210,6 +219,7 @@
         <item>en-MU</item> <!-- English (Mauritius) -->
         <item>en-MV</item> <!-- English (Maldives) -->
         <item>en-MW</item> <!-- English (Malawi) -->
+        <item>en-MX</item> <!-- English (Mexico) -->
         <item>en-MY</item> <!-- English (Malaysia) -->
         <item>en-NA</item> <!-- English (Namibia) -->
         <item>en-NF</item> <!-- English (Norfolk Island) -->
@@ -229,6 +239,7 @@
         <item>en-PW</item> <!-- English (Palau) -->
         <item>en-RO</item> <!-- English (Romania) -->
         <item>en-RW</item> <!-- English (Rwanda) -->
+        <item>en-SA</item> <!-- English (Saudi Arabia) -->
         <item>en-SB</item> <!-- English (Solomon Islands) -->
         <item>en-SC</item> <!-- English (Seychelles) -->
         <item>en-SD</item> <!-- English (Sudan) -->
@@ -246,7 +257,9 @@
         <item>en-TO</item> <!-- English (Tonga) -->
         <item>en-TT</item> <!-- English (Trinidad & Tobago) -->
         <item>en-TV</item> <!-- English (Tuvalu) -->
+        <item>en-TW</item> <!-- English (Taiwan) -->
         <item>en-TZ</item> <!-- English (Tanzania) -->
+        <item>en-UA</item> <!-- English (Ukraine) -->
         <item>en-UG</item> <!-- English (Uganda) -->
         <item>en-UM</item> <!-- English (U.S. Outlying Islands) -->
         <item>en-US</item> <!-- English (United States) -->
@@ -432,8 +445,6 @@
         <item>kln-KE</item> <!-- Kalenjin (Kenya) -->
         <item>km-KH</item> <!-- Khmer (Cambodia) -->
         <item>kn-IN</item> <!-- Kannada (India) -->
-        <item>ko-CN</item> <!-- Korean (China) -->
-        <item>ko-KP</item> <!-- Korean (North Korea) -->
         <item>ko-KR</item> <!-- Korean (South Korea) -->
         <item>kok-IN</item> <!-- Konkani (India) -->
         <item>ks-Arab-IN</item> <!-- Kashmiri (Arabic, India) -->
@@ -553,9 +564,13 @@
         <item>ro-RO</item> <!-- Romanian (Romania) -->
         <item>rof-TZ</item> <!-- Rombo (Tanzania) -->
         <item>ru-BY</item> <!-- Russian (Belarus) -->
+        <item>ru-EE</item> <!-- Russian (Estonia) -->
         <item>ru-KG</item> <!-- Russian (Kyrgyzstan) -->
         <item>ru-KZ</item> <!-- Russian (Kazakhstan) -->
+        <item>ru-LT</item> <!-- Russian (Lithuania) -->
+        <item>ru-LV</item> <!-- Russian (Latvia) -->
         <item>ru-MD</item> <!-- Russian (Moldova) -->
+        <item>ru-PL</item> <!-- Russian (Poland) -->
         <item>ru-RU</item> <!-- Russian (Russia) -->
         <item>ru-UA</item> <!-- Russian (Ukraine) -->
         <item>rw-RW</item> <!-- Kinyarwanda (Rwanda) -->

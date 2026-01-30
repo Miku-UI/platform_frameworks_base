@@ -154,7 +154,7 @@
   </string-array>
   <string-array name="bluetooth_a2dp_codec_ldac_playback_quality_titles">
     <item msgid="1241278021345116816">"Optimizado para la calidad del audio (990 kbps/909 kbps)"</item>
-    <item msgid="3523665555859696539">"Equilibrar la calidad del audio y de la conexión (660/606&amp;nbsp;kbps)"</item>
+    <item msgid="3523665555859696539">"Equilibrar la calidad del audio y de la conexión (660/606 kbps)"</item>
     <item msgid="886408010459747589">"Optimizado para la calidad de la conexión (330 kbps/303 kbps)"</item>
     <item msgid="3808414041654351577">"Mejor esfuerzo (tasa de bits flexible)"</item>
   </string-array>

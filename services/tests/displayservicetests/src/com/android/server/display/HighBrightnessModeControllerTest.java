@@ -52,6 +52,7 @@ import androidx.test.core.app.ApplicationProvider;
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
+import com.android.internal.display.BrightnessSynchronizer;
 import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.internal.util.test.FakeSettingsProviderRule;
@@ -84,7 +85,7 @@ public class HighBrightnessModeControllerTest {
     private static final int DISPLAY_WIDTH = 900;
     private static final int DISPLAY_HEIGHT = 1600;
 
-    private static final float EPSILON = 0.000001f;
+    private static final float EPSILON = BrightnessSynchronizer.EPSILON;
 
     private OffsettableClock mClock;
     private TestLooper mTestLooper;
@@ -371,8 +372,8 @@ public class HighBrightnessModeControllerTest {
                 .build();
 
         // Passthrough return the max desired hdr/sdr ratio
-        when(mHdrBrightnessDeviceConfigMock.getHdrBrightnessFromSdr(anyFloat(), anyFloat()))
-                .thenAnswer(i -> i.getArgument(1));
+        when(mHdrBrightnessDeviceConfigMock.getHdrBrightnessFromSdr(anyFloat(), anyFloat(),
+                anyFloat())).thenAnswer(i -> i.getArgument(1));
 
         hbmc.getHdrListener().onHdrInfoChanged(null /*displayToken*/, 1 /*numberOfHdrLayers*/,
                 DISPLAY_WIDTH, DISPLAY_HEIGHT, 0 /*flags*/, 2.0f /*maxDesiredHdrSdrRatio*/);
@@ -403,8 +404,8 @@ public class HighBrightnessModeControllerTest {
                 .build();
 
         // Passthrough return the max desired hdr/sdr ratio
-        when(mHdrBrightnessDeviceConfigMock.getHdrBrightnessFromSdr(anyFloat(), anyFloat()))
-                .thenAnswer(i -> i.getArgument(1));
+        when(mHdrBrightnessDeviceConfigMock.getHdrBrightnessFromSdr(anyFloat(), anyFloat(),
+                anyFloat())).thenAnswer(i -> i.getArgument(1));
 
         hbmc.getHdrListener().onHdrInfoChanged(null /*displayToken*/, 1 /*numberOfHdrLayers*/,
                 DISPLAY_WIDTH, DISPLAY_HEIGHT, 0 /*flags*/, 2.0f /*maxDesiredHdrSdrRatio*/);
@@ -421,7 +422,6 @@ public class HighBrightnessModeControllerTest {
         assertEquals(3.0f, hbmc.getHdrBrightnessValue(), 0.0);
         verify(hbmChangedCallback, times(2)).run();
     }
-
 
     @Test
     public void testHdrTrumpsSunlight() {

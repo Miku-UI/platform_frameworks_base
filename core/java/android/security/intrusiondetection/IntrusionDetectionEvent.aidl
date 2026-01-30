@@ -16,5 +16,5 @@
 
 package android.security.intrusiondetection;
 
-/** {@hide} */
+/** @hide */
 parcelable IntrusionDetectionEvent;

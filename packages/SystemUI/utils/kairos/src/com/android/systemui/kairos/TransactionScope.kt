@@ -16,8 +16,12 @@
 
 package com.android.systemui.kairos
 
-import com.android.systemui.kairos.util.Maybe
+import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.These
+import com.android.systemui.kairos.util.maybeOf
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 
 /**
  * Kairos operations that are available while a transaction is active.
@@ -85,21 +89,45 @@ interface TransactionScope : KairosScope {
  * emission of the original [Events], within the same transaction of the original emission.
  */
 @ExperimentalKairosApi
-fun <A> Events<Transactional<A>>.sampleTransactionals(): Events<A> = map { it.sample() }
+fun <A> Events<Transactional<A>>.sampleTransactionals(): Events<A> =
+    sampleTransactionals(
+        nameTag("Events.sampleTransactionals").toNameData("Events.sampleTransactionals")
+    )
+
+internal fun <A> Events<Transactional<A>>.sampleTransactionals(nameData: NameData): Events<A> =
+    map(nameData) { it.sample() }
 
 /** @see TransactionScope.sample */
 @ExperimentalKairosApi
 fun <A, B, C> Events<A>.sample(
     state: State<B>,
     transform: TransactionScope.(A, B) -> C,
-): Events<C> = map { transform(it, state.sample()) }
+): Events<C> =
+    sample(nameTag("Events.sampleState").toNameData("Events.sampleState"), state, transform)
+
+internal fun <A, B, C> Events<A>.sample(
+    nameData: NameData,
+    state: State<B>,
+    transform: TransactionScope.(A, B) -> C,
+): Events<C> = map(nameData) { transform(it, state.sample()) }
 
 /** @see TransactionScope.sample */
 @ExperimentalKairosApi
 fun <A, B, C> Events<A>.sample(
-    sampleable: Transactional<B>,
+    transactional: Transactional<B>,
     transform: TransactionScope.(A, B) -> C,
-): Events<C> = map { transform(it, sampleable.sample()) }
+): Events<C> =
+    sample(
+        nameTag("Events.sampleTransactional").toNameData("Events.sampleTransactional"),
+        transactional,
+        transform,
+    )
+
+internal fun <A, B, C> Events<A>.sample(
+    nameData: NameData,
+    transactional: Transactional<B>,
+    transform: TransactionScope.(A, B) -> C,
+): Events<C> = map(nameData) { transform(it, transactional.sample()) }
 
 /**
  * Like [sample], but if [state] is changing at the time it is sampled ([changes] is emitting), then
@@ -115,17 +143,33 @@ fun <A, B, C> Events<A>.samplePromptly(
     state: State<B>,
     transform: TransactionScope.(A, B) -> C,
 ): Events<C> =
-    sample(state) { a, b -> These.first(a to b) }
-        .mergeWith(state.changes.map { These.second(it) }) { thiz, that ->
+    samplePromptly(
+        nameTag("Events.samplePromptly").toNameData("Events.samplePromptly"),
+        state,
+        transform,
+    )
+
+internal fun <A, B, C> Events<A>.samplePromptly(
+    nameData: NameData,
+    state: State<B>,
+    transform: TransactionScope.(A, B) -> C,
+): Events<C> =
+    sample(nameData + "makeThese", state) { a, b -> These.first(a to b) }
+        .mergeWith(
+            nameData + "mergeWithSampleTarget",
+            state.changes(nameData + "changes").map(nameData + "makeTheseSecond") {
+                These.second(it)
+            },
+        ) { thiz, that ->
             These.both((thiz as These.First).value, (that as These.Second).value)
         }
-        .mapMaybe { these ->
+        .mapMaybe(nameData) { these ->
             when (these) {
                 // both present, transform the upstream value and the new value
-                is These.Both -> Maybe.present(transform(these.first.first, these.second))
+                is These.Both -> maybeOf(transform(these.first.first, these.second))
                 // no upstream present, so don't perform the sample
-                is These.Second -> Maybe.absent()
+                is These.Second -> maybeOf()
                 // just the upstream, so transform the upstream and the old value
-                is These.First -> Maybe.present(transform(these.value.first, these.value.second))
+                is These.First -> maybeOf(transform(these.value.first, these.value.second))
             }
         }

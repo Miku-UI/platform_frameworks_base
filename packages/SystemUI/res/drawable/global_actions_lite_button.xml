@@ -17,6 +17,7 @@
 */
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     android:shape="oval">
-  <solid android:color="@color/global_actions_lite_button_background"/>
+  <solid android:color="@androidprv:color/materialColorSurfaceContainerHighest"/>
 </shape>

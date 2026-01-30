@@ -19,7 +19,7 @@ package android.location;
 import android.location.GnssMeasurementsEvent;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IGnssMeasurementsListener {
     void onGnssMeasurementsReceived(in GnssMeasurementsEvent event);

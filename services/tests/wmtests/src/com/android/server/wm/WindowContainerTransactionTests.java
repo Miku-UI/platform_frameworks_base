@@ -16,6 +16,9 @@
 
 package com.android.server.wm;
 
+import static android.app.TaskInfo.SELF_MOVABLE_ALLOWED;
+import static android.app.TaskInfo.SELF_MOVABLE_DEFAULT;
+import static android.app.TaskInfo.SELF_MOVABLE_DENIED;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
 import static android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_APP_COMPAT_REACHABILITY;
@@ -28,6 +31,7 @@ import static com.android.dx.mockito.inline.extended.ExtendedMockito.spyOn;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
@@ -85,6 +89,11 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
         assertTrue(task.hasChild());
         assertTrue(activity.finishing);
 
+        if (Flags.polishCloseWallpaperIncludesOpenChange()) {
+            // Simulate idle to destroy mFinishingActivities
+            mSupervisor.processStoppingAndFinishingActivities(null /* launchedActivity */,
+                    false /* processPausingActivities */, "test");
+        }
         activity.destroyed("testRemoveContainer");
         // Assert that the container was removed after the activity is destroyed.
         assertNull(task.getParent());
@@ -112,6 +121,11 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
         assertTrue(task.hasChild());
         assertTrue(activity.finishing);
 
+        if (Flags.polishCloseWallpaperIncludesOpenChange()) {
+            // Simulate idle to destroy mFinishingActivities.
+            mSupervisor.processStoppingAndFinishingActivities(null /* launchedActivity */,
+                    false /* processPausingActivities */, "test");
+        }
         activity.destroyed("testRemoveRootTask");
         // Assert that the container was removed after the activity is destroyed.
         assertNull(task.getParent());
@@ -215,7 +229,7 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnTaskDisplayArea() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -235,7 +249,7 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnRootTask() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -255,7 +269,7 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnTask() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -275,7 +289,7 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnTask_resetSafeRegionBounds() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -304,7 +318,7 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnRootTaskAndTask() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -327,7 +341,7 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING)
+    @EnableFlags(Flags.FLAG_SAFE_REGION_LETTERBOXING_V1)
     public void testSetSafeRegionBoundsOnRootTaskAndTask_resetSafeRegionBoundsOnTask() {
         final Task rootTask = createTask(mDisplayContent);
         final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
@@ -358,6 +372,35 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
         assertEquals(task.getSafeRegionBounds(), mSafeRegionBounds);
         assertEquals(rootTask.getSafeRegionBounds(), mSafeRegionBounds);
         assertNull(taskDisplayArea.getSafeRegionBounds());
+    }
+
+    @Test
+    public void testSetTaskForceExcludedFromRecents() {
+        final Task rootTask = createTask(mDisplayContent);
+        final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        final WindowContainerToken token = task.mRemoteToken.toWindowContainerToken();
+
+        wct.setTaskForceExcludedFromRecents(token, true /* forceExcluded */);
+        applyTransaction(wct);
+
+        assertTrue(task.isForceExcludedFromRecents());
+    }
+
+    @Test
+    public void testSetTaskForceExcludedFromRecents_resetsTaskForceExcludedFromRecents() {
+        final Task rootTask = createTask(mDisplayContent);
+        final Task task = createTaskInRootTask(rootTask, 0 /* userId */);
+        final WindowContainerTransaction wct = new WindowContainerTransaction();
+        final WindowContainerToken token = task.mRemoteToken.toWindowContainerToken();
+        wct.setTaskForceExcludedFromRecents(token, true /* forceExcluded */);
+        applyTransaction(wct);
+
+        // Re-include the task using WCT.
+        wct.setTaskForceExcludedFromRecents(token, false /* forceExcluded */);
+        applyTransaction(wct);
+
+        assertFalse(task.isForceExcludedFromRecents());
     }
 
     @Test
@@ -408,6 +451,131 @@ public class WindowContainerTransactionTests extends WindowTestsBase {
         assertEquals(10, appCompatOptions.getInt(REACHABILITY_EVENT_X));
         assertEquals(20, appCompatOptions.getInt(REACHABILITY_EVENT_Y));
         assertSame(asBinder, appCompatOp.getContainer());
+    }
+
+    @Test
+    public void testSetLaunchNextToBubble() {
+        final Task task = createTask(mDisplayContent);
+
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        WindowContainerToken token = task.getTaskInfo().token;
+        wct.setLaunchNextToBubble(token, true /* launchNextToBubble */);
+        applyTransaction(wct);
+
+        assertTrue(task.mLaunchNextToBubble);
+
+        wct = new WindowContainerTransaction();
+        wct.setLaunchNextToBubble(token, false /* launchNextToBubble */);
+        applyTransaction(wct);
+
+        assertFalse(task.mLaunchNextToBubble);
+    }
+
+    @Test
+    public void testSetDisablePip() {
+        final Task task = createTask(mDisplayContent);
+        assertFalse(task.isDisablePip());
+
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        WindowContainerToken token = task.getTaskInfo().token;
+        wct.setDisablePip(token, true /* disablePip */);
+        applyTransaction(wct);
+
+        assertTrue(task.isDisablePip());
+
+        wct = new WindowContainerTransaction();
+        wct.setDisablePip(token, false /* disablePip */);
+        applyTransaction(wct);
+
+        assertFalse(task.isDisablePip());
+    }
+
+    @Test
+    public void testSetDisableLaunchAdjacent() {
+        final Task task = createTask(mDisplayContent);
+        assertFalse(task.isLaunchAdjacentDisabled());
+
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        final WindowContainerToken token = task.getTaskInfo().token;
+        wct.setDisableLaunchAdjacent(token, true /* disabled */);
+        applyTransaction(wct);
+
+        assertTrue(task.isLaunchAdjacentDisabled());
+
+        wct = new WindowContainerTransaction();
+        wct.setDisableLaunchAdjacent(token, false /* disabled */);
+        applyTransaction(wct);
+
+        assertFalse(task.isLaunchAdjacentDisabled());
+    }
+
+    @Test
+    public void testSetSelfMovable() {
+        final Task task = createTask(mDisplayContent);
+
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        WindowContainerToken token = task.getTaskInfo().token;
+        wct.setSelfMovable(token, SELF_MOVABLE_ALLOWED /* selfMovable */);
+        applyTransaction(wct);
+
+        assertEquals(SELF_MOVABLE_ALLOWED, task.getSelfMovable());
+
+        wct = new WindowContainerTransaction();
+        wct.setSelfMovable(token, SELF_MOVABLE_DENIED /* selfMovable */);
+        applyTransaction(wct);
+
+        assertEquals(SELF_MOVABLE_DENIED, task.getSelfMovable());
+
+        wct = new WindowContainerTransaction();
+        wct.setSelfMovable(token, SELF_MOVABLE_DEFAULT /* selfMovable */);
+        applyTransaction(wct);
+
+        assertEquals(SELF_MOVABLE_DEFAULT, task.getSelfMovable());
+    }
+
+    @Test
+    public void testSetIsTaskMoveAllowed() {
+        final Task task = createTask(mDisplayContent);
+        assertFalse(task.getIsTaskMoveAllowed());
+
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        WindowContainerToken token = task.getTaskInfo().token;
+        wct.setIsTaskMoveAllowed(token, true /* isTaskMoveAllowed */);
+        applyTransaction(wct);
+
+        assertTrue(task.getIsTaskMoveAllowed());
+
+        wct = new WindowContainerTransaction();
+        wct.setIsTaskMoveAllowed(token, false /* isTaskMoveAllowed */);
+        applyTransaction(wct);
+
+        assertFalse(task.getIsTaskMoveAllowed());
+    }
+
+    @Test
+    public void testSetDisallowOverrideBoundsForChildren() {
+        final Rect overrideBounds = new Rect(10, 10, 100, 100);
+        final Rect emptyBounds = new Rect();
+        final Task parentTask = createTask(mDisplayContent);
+        final Task childTask = new TaskBuilder(mSupervisor)
+                .setTaskDisplayArea(parentTask.getTaskDisplayArea())
+                .setParentTask(parentTask)
+                .build();
+        parentTask.mCreatedByOrganizer = true;
+
+        // Verifies the override bounds once set.
+        childTask.setBounds(overrideBounds);
+        assertEquals(overrideBounds, childTask.getRequestedOverrideBounds());
+
+        // Verifies the override bounds are cleared if the ancestor disallowed.
+        WindowContainerTransaction wct = new WindowContainerTransaction();
+        wct.setDisallowOverrideBoundsForChildren(parentTask.getTaskInfo().token, true);
+        applyTransaction(wct);
+        assertEquals(emptyBounds, childTask.getRequestedOverrideBounds());
+
+        // Verifies the override bounds cannot be set if the ancestor disallowed.
+        childTask.setBounds(overrideBounds);
+        assertEquals(emptyBounds, childTask.getRequestedOverrideBounds());
     }
 
     private Task createTask(int taskId) {

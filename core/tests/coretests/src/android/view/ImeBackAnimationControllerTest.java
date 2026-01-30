@@ -133,7 +133,7 @@ public class ImeBackAnimationControllerTest {
         mBackAnimationController.onBackStarted(new BackEvent(0f, 0f, 0f, EDGE_LEFT));
         // verify that ImeBackAnimationController takes control over IME insets
         verify(mInsetsController, times(1)).controlWindowInsetsAnimation(anyInt(), any(), any(),
-                anyBoolean(), anyLong(), any(), anyInt(), anyBoolean());
+                anyLong(), any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -146,7 +146,7 @@ public class ImeBackAnimationControllerTest {
         mBackAnimationController.onBackStarted(new BackEvent(0f, 0f, 0f, EDGE_LEFT));
         // verify that ImeBackAnimationController takes control over IME insets
         verify(mInsetsController, times(1)).controlWindowInsetsAnimation(anyInt(), any(), any(),
-                anyBoolean(), anyLong(), any(), anyInt(), anyBoolean());
+                anyLong(), any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -159,12 +159,12 @@ public class ImeBackAnimationControllerTest {
         mBackAnimationController.onBackProgressed(new BackEvent(100f, 0f, 0.5f, EDGE_LEFT));
         // commit back gesture
         mBackAnimationController.onBackInvoked();
-        // verify that InputMethodManager#notifyImeHidden is called (which is the case whenever
-        // getInputMethodManager is called from ImeBackAnimationController)
-        verify(mViewRootInsetsControllerHost, times(2)).getInputMethodManager();
+        // verify that ImeOnBackInvokedDispatcher#preliminaryClear is called (which is the case
+        // whenever getInputMethodManager is called from ImeBackAnimationController)
+        verify(mViewRootInsetsControllerHost, times(1)).getInputMethodManager();
         // verify that ImeBackAnimationController does not take control over IME insets
         verify(mInsetsController, never()).controlWindowInsetsAnimation(anyInt(), any(), any(),
-                anyBoolean(), anyLong(), any(), anyInt(), anyBoolean());
+                anyLong(), any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -178,12 +178,12 @@ public class ImeBackAnimationControllerTest {
         mBackAnimationController.onBackProgressed(new BackEvent(100f, 0f, 0.5f, EDGE_LEFT));
         // commit back gesture
         mBackAnimationController.onBackInvoked();
-        // verify that InputMethodManager#notifyImeHidden is called (which is the case whenever
-        // getInputMethodManager is called from ImeBackAnimationController)
-        verify(mViewRootInsetsControllerHost, times(2)).getInputMethodManager();
+        // verify that ImeOnBackInvokedDispatcher#preliminaryClear is called (which is the case
+        // whenever getInputMethodManager is called from ImeBackAnimationController)
+        verify(mViewRootInsetsControllerHost, times(1)).getInputMethodManager();
         // verify that ImeBackAnimationController does not take control over IME insets
         verify(mInsetsController, never()).controlWindowInsetsAnimation(anyInt(), any(), any(),
-                anyBoolean(), anyLong(), any(), anyInt(), anyBoolean());
+                anyLong(), any(), anyInt(), anyBoolean());
     }
 
     @Test
@@ -298,9 +298,9 @@ public class ImeBackAnimationControllerTest {
 
             // commit back gesture
             mBackAnimationController.onBackInvoked();
-            // verify that InputMethodManager#notifyImeHidden is called (which is the case whenever
-            // getInputMethodManager is called from ImeBackAnimationController)
-            verify(mViewRootInsetsControllerHost, times(2)).getInputMethodManager();
+            // verify that ImeOnBackInvokedDispatcher#preliminaryClear is called (which is the case
+            // whenever getInputMethodManager is called from ImeBackAnimationController)
+            verify(mViewRootInsetsControllerHost, times(1)).getInputMethodManager();
         });
     }
 
@@ -312,7 +312,7 @@ public class ImeBackAnimationControllerTest {
         ArgumentCaptor<WindowInsetsAnimationControlListener> animationControlListener =
                 ArgumentCaptor.forClass(WindowInsetsAnimationControlListener.class);
         verify(mInsetsController, times(1)).controlWindowInsetsAnimation(anyInt(), any(),
-                animationControlListener.capture(), anyBoolean(), anyLong(), any(), anyInt(),
+                animationControlListener.capture(), anyLong(), any(), anyInt(),
                 anyBoolean());
 
         return animationControlListener.getValue();

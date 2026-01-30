@@ -26,8 +26,10 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.validateMockitoUsage;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
 
@@ -189,5 +191,32 @@ public class WifiKeystoreTest {
         String[] retrieved = WifiKeystore.list(TEST_ALIAS);
         Arrays.sort(retrieved);
         assertArrayEquals(expected, retrieved);
+    }
+
+    /**
+     * Test that removeAll only affects WifiBlobStore if that database is supported.
+     */
+    @Test
+    public void testRemoveAll_wifiBlobStore() throws Exception {
+        when(WifiBlobStore.supplicantCanAccessBlobstore()).thenReturn(true);
+        when(mWifiBlobStore.removeAll()).thenReturn(true);
+        assertTrue(WifiKeystore.removeAll());
+        verify(mWifiBlobStore, times(1)).removeAll();
+        verifyNoInteractions(mLegacyKeystore);
+    }
+
+    /**
+     * Test that removeAll only affects Legacy Keystore if WifiBlobStore is not supported.
+     */
+    @Test
+    public void testRemoveAll_legacyKeystore() throws Exception {
+        String[] legacyAliases = {"alias1", "alias2", "alias3"};
+        when(WifiBlobStore.supplicantCanAccessBlobstore()).thenReturn(false);
+        when(mLegacyKeystore.list(anyString(), anyInt())).thenReturn(legacyAliases);
+        assertTrue(WifiKeystore.removeAll());
+
+        verify(mLegacyKeystore, times(1)).list(anyString(), anyInt());
+        verify(mLegacyKeystore, times(legacyAliases.length)).remove(anyString(), anyInt());
+        verifyNoInteractions(mWifiBlobStore);
     }
 }

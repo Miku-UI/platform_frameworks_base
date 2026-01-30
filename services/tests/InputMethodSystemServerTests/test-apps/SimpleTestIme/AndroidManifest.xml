@@ -54,5 +54,15 @@
                 <action android:name="android.intent.action.MAIN" />
             </intent-filter>
         </activity>
+
+        <activity android:name="com.android.apps.inputmethod.simpleime.SettingsActivity"
+            android:label="Simple IME Settings"
+            android:exported="true">
+        </activity>
+
+        <activity android:name="com.android.apps.inputmethod.simpleime.LanguageSettingsActivity"
+            android:label="Simple IME Language Settings"
+            android:exported="true">
+        </activity>
     </application>
 </manifest>

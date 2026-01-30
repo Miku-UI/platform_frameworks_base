@@ -31,12 +31,15 @@ import static android.content.res.Configuration.EMPTY;
 import static android.content.res.Configuration.SMALLEST_SCREEN_WIDTH_DP_UNDEFINED;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import android.content.res.Configuration;
 import android.graphics.Rect;
 import android.platform.test.annotations.Presubmit;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.test.filters.SmallTest;
 
 import org.junit.Test;
@@ -47,7 +50,7 @@ import java.util.List;
 /**
  * Test class for {@link ConfigurationContainer}.
  *
- * Build/Install/Run:
+ * <p>Build/Install/Run:
  *  atest WmTests:ConfigurationContainerTests
  */
 @SmallTest
@@ -218,10 +221,10 @@ public class ConfigurationContainerTests {
         root.setWindowingMode(WINDOWING_MODE_MULTI_WINDOW);
         root.setAlwaysOnTop(true);
         final TestConfigurationContainer child3 = root.addChild();
-        assertEquals(true, root.isAlwaysOnTop());
-        assertEquals(false, child1.isAlwaysOnTop());
-        assertEquals(false, child2.isAlwaysOnTop());
-        assertEquals(false, child3.isAlwaysOnTop());
+        assertTrue(root.isAlwaysOnTop());
+        assertFalse(child1.isAlwaysOnTop());
+        assertFalse(child2.isAlwaysOnTop());
+        assertFalse(child3.isAlwaysOnTop());
     }
 
     @Test
@@ -411,7 +414,7 @@ public class ConfigurationContainerTests {
      */
     private class TestConfigurationContainer
             extends ConfigurationContainer<TestConfigurationContainer> {
-        private List<TestConfigurationContainer> mChildren = new ArrayList<>();
+        private final List<TestConfigurationContainer> mChildren = new ArrayList<>();
         private TestConfigurationContainer mParent;
 
         private boolean mProvidesMaxBounds = false;
@@ -449,11 +452,13 @@ public class ConfigurationContainerTests {
             return mChildren.size();
         }
 
+        @Nullable
         @Override
         protected TestConfigurationContainer getChildAt(int index) {
             return mChildren.get(index);
         }
 
+        @Nullable
         @Override
         protected ConfigurationContainer getParent() {
             return mParent;
@@ -469,11 +474,10 @@ public class ConfigurationContainerTests {
      * Contains minimal implementation of {@link ConfigurationContainer}'s abstract behavior needed
      * for testing.
      */
-    private class TestConfigurationContainerWithConstraints
-            extends TestConfigurationContainer {
+    private class TestConfigurationContainerWithConstraints extends TestConfigurationContainer {
 
         @Override
-        public void resolveOverrideConfiguration(Configuration newParentConfig) {
+        public void resolveOverrideConfiguration(@NonNull Configuration newParentConfig) {
             // Restrict smallestScreenWidthDp to 100
             getResolvedOverrideConfiguration().setTo(getRequestedOverrideConfiguration());
             int smallestScreenWidthDp =
@@ -493,7 +497,8 @@ public class ConfigurationContainerTests {
         final Configuration mOverrideConfiguration = new Configuration();
 
         @Override
-        public void onRequestedOverrideConfigurationChanged(Configuration overrideConfiguration) {
+        public void onRequestedOverrideConfigurationChanged(
+                @NonNull Configuration overrideConfiguration) {
             mOverrideConfiguration.setTo(overrideConfiguration);
         }
     }

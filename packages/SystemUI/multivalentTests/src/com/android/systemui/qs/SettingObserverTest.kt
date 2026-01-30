@@ -18,12 +18,10 @@ package com.android.systemui.qs
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.util.settings.SettingObserver
 import com.android.systemui.util.settings.SettingsProxy
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -62,14 +60,13 @@ class SettingObserverTest : SysuiTestCase() {
                     settingsProxy,
                     Handler(Looper.getMainLooper()),
                     "test_setting",
-                    DEFAULT_VALUE
+                    DEFAULT_VALUE,
                 ) {
                 override fun handleValueChanged(value: Int, observedChange: Boolean) {}
             }
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_REGISTER_SETTING_OBSERVER_ON_BG_THREAD)
     fun setListening_true_settingsProxyRegistered() {
         testSettingObserver.isListening = true
         verify(settingsProxy)
@@ -77,7 +74,7 @@ class SettingObserverTest : SysuiTestCase() {
                 any<Uri>(),
                 eq(false),
                 eq(testSettingObserver),
-                capture(argumentCaptor)
+                capture(argumentCaptor),
             )
         assertThat(testSettingObserver.value).isEqualTo(5)
 
@@ -88,30 +85,11 @@ class SettingObserverTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_REGISTER_SETTING_OBSERVER_ON_BG_THREAD)
     fun setListening_false_settingsProxyRegistered() {
         testSettingObserver.isListening = true
         reset(settingsProxy)
         testSettingObserver.isListening = false
 
         verify(settingsProxy).unregisterContentObserverAsync(eq(testSettingObserver))
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_QS_REGISTER_SETTING_OBSERVER_ON_BG_THREAD)
-    fun setListening_bgFlagDisabled_true_settingsProxyRegistered() {
-        testSettingObserver.isListening = true
-        verify(settingsProxy)
-            .registerContentObserverSync(any<Uri>(), eq(false), eq(testSettingObserver))
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_QS_REGISTER_SETTING_OBSERVER_ON_BG_THREAD)
-    fun setListening_bgFlagDisabled_false_settingsProxyRegistered() {
-        testSettingObserver.isListening = true
-        reset(settingsProxy)
-        testSettingObserver.isListening = false
-
-        verify(settingsProxy).unregisterContentObserverSync(eq(testSettingObserver))
     }
 }

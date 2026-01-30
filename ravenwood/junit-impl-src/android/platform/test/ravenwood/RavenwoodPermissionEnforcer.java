@@ -20,7 +20,9 @@ import static android.permission.PermissionManager.PERMISSION_GRANTED;
 
 import android.content.AttributionSource;
 import android.os.PermissionEnforcer;
+import android.ravenwood.annotation.RavenwoodSupported.RavenwoodProvidingImplementation;
 
+@RavenwoodProvidingImplementation(target = PermissionEnforcer.class)
 public class RavenwoodPermissionEnforcer extends PermissionEnforcer {
     @Override
     protected int checkPermission(String permission, AttributionSource source) {

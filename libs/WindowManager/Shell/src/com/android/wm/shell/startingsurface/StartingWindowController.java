@@ -22,23 +22,34 @@ import static android.window.StartingWindowInfo.STARTING_WINDOW_TYPE_SNAPSHOT;
 import static android.window.StartingWindowInfo.STARTING_WINDOW_TYPE_SOLID_COLOR_SPLASH_SCREEN;
 import static android.window.StartingWindowInfo.STARTING_WINDOW_TYPE_SPLASH_SCREEN;
 import static android.window.StartingWindowInfo.STARTING_WINDOW_TYPE_WINDOWLESS;
+import static android.window.TransitionInfo.FLAG_BACK_GESTURE_ANIMATED;
+import static android.window.TransitionInfo.FLAG_IS_BEHIND_STARTING_WINDOW;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager.RunningTaskInfo;
 import android.app.TaskInfo;
 import android.content.Context;
 import android.graphics.Color;
+import android.os.IBinder;
 import android.os.Trace;
+import android.util.ArrayMap;
+import android.util.ArraySet;
+import android.util.Log;
+import android.util.SparseArray;
 import android.util.SparseIntArray;
+import android.view.SurfaceControl;
 import android.window.StartingWindowInfo;
 import android.window.StartingWindowInfo.StartingWindowType;
 import android.window.StartingWindowRemovalInfo;
 import android.window.TaskOrganizer;
 import android.window.TaskSnapshot;
+import android.window.TransitionInfo;
 
 import androidx.annotation.BinderThread;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.protolog.ProtoLog;
 import com.android.internal.util.function.TriConsumer;
 import com.android.launcher3.icons.IconProvider;
 import com.android.wm.shell.ShellTaskOrganizer;
@@ -46,9 +57,15 @@ import com.android.wm.shell.common.ExternalInterfaceBinder;
 import com.android.wm.shell.common.RemoteCallable;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.SingleInstanceRemoteListener;
+import com.android.wm.shell.protolog.ShellProtoLogGroup;
 import com.android.wm.shell.shared.TransactionPool;
+import com.android.wm.shell.shared.TransitionUtil;
+import com.android.wm.shell.shared.annotations.ShellMainThread;
 import com.android.wm.shell.sysui.ShellController;
 import com.android.wm.shell.sysui.ShellInit;
+import com.android.wm.shell.transition.Transitions;
+
+import java.util.ArrayList;
 
 /**
  * Implementation to draw the starting window to an application, and remove the starting window
@@ -70,6 +87,7 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
     public static final String TAG = "ShellStartingWindow";
 
     private static final long TASK_BG_COLOR_RETAIN_TIME_MS = 5000;
+    static final long UNCERTAIN_TRANSITION_TIMEOUT_MS = 2000;
 
     private final StartingSurfaceDrawer mStartingSurfaceDrawer;
     private final StartingWindowTypeAlgorithm mStartingWindowTypeAlgorithm;
@@ -80,11 +98,15 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
     private final ShellController mShellController;
     private final ShellTaskOrganizer mShellTaskOrganizer;
     private final ShellExecutor mSplashScreenExecutor;
+    private final ShellExecutor mShellMainExecutor;
+    private final Transitions mTransitions;
     /**
      * Need guarded because it has exposed to StartingSurface
      */
     @GuardedBy("mTaskBackgroundColors")
     private final SparseIntArray mTaskBackgroundColors = new SparseIntArray();
+    @VisibleForTesting
+    final RemoveStartingObserver mRemoveStartingObserver = new RemoveStartingObserver();
 
     public StartingWindowController(Context context,
             ShellInit shellInit,
@@ -93,7 +115,9 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
             ShellExecutor splashScreenExecutor,
             StartingWindowTypeAlgorithm startingWindowTypeAlgorithm,
             IconProvider iconProvider,
-            TransactionPool pool) {
+            TransactionPool pool,
+            ShellExecutor mainExecutor,
+            Transitions transitions) {
         mContext = context;
         mShellController = shellController;
         mShellTaskOrganizer = shellTaskOrganizer;
@@ -101,6 +125,8 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
                 iconProvider, pool);
         mStartingWindowTypeAlgorithm = startingWindowTypeAlgorithm;
         mSplashScreenExecutor = splashScreenExecutor;
+        mShellMainExecutor = mainExecutor;
+        mTransitions = transitions;
         shellInit.addInitCallback(this::onInit, this);
     }
 
@@ -119,6 +145,215 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
         mShellTaskOrganizer.initStartingWindow(this);
         mShellController.addExternalInterface(IStartingWindow.DESCRIPTOR,
                 this::createExternalInterface, this);
+        mTransitions.registerObserver(mRemoveStartingObserver);
+    }
+
+    @VisibleForTesting
+    @ShellMainThread
+    class RemoveStartingObserver implements Transitions.TransitionObserver {
+        /** Task id -> removal info */
+        private final SparseArray<WindowRecord> mWindowRecords = new SparseArray<>();
+        /** Transition -> removal */
+        private final ArrayMap<IBinder, UncertainTracker> mUncertainTrackers = new ArrayMap<>();
+
+        @Override
+        public void onTransitionReady(@NonNull IBinder transition, @NonNull TransitionInfo info,
+                @NonNull SurfaceControl.Transaction startTransaction,
+                @NonNull SurfaceControl.Transaction finishTransaction) {
+            if (!hasPendingRemoval()) {
+                return;
+            }
+            final ArrayList<WindowRecord> records = findRecords(transition);
+            if (records != null) {
+                startTransaction.addTransactionCommittedListener(mShellMainExecutor, () -> {
+                    for (int i = records.size() - 1; i >= 0; --i) {
+                        final int taskId = records.get(i).mTaskId;
+                        final WindowRecord wr = mWindowRecords.get(taskId);
+                        if (wr == null) {
+                            return;
+                        }
+                        ProtoLog.v(ShellProtoLogGroup.WM_SHELL_REMOVE_STARTING_TRACKER,
+                                "RSO:Transaction applied for task=%d", taskId);
+                        wr.mTransactionApplied = true;
+                        executeRemovalIfPossible(wr);
+                    }
+                });
+                return;
+            }
+
+            for (int i = info.getChanges().size() - 1; i >= 0; --i) {
+                final TransitionInfo.Change c = info.getChanges().get(i);
+                if ((c.hasFlags(FLAG_IS_BEHIND_STARTING_WINDOW)
+                        || c.hasFlags(FLAG_BACK_GESTURE_ANIMATED))
+                        && TransitionUtil.isOpeningMode(c.getMode())) {
+                    // Uncertain condition, this is activity transition so we don't know which
+                    // task the starting window belongs.
+                    final UncertainTracker tracker = new UncertainTracker(info.getDebugId(),
+                            () -> uncertainTrackComplete(transition));
+                    mUncertainTrackers.put(transition, tracker);
+                    startTransaction.addTransactionCommittedListener(mShellMainExecutor,
+                            tracker);
+                    mShellMainExecutor.executeDelayed(tracker, UNCERTAIN_TRANSITION_TIMEOUT_MS);
+                    ProtoLog.v(ShellProtoLogGroup.WM_SHELL_REMOVE_STARTING_TRACKER,
+                            "RSO:Create uncertain transition tracker=%s", tracker);
+                    break;
+                }
+            }
+        }
+
+        @Override
+        public void onTransitionFinished(@NonNull IBinder transition, boolean aborted) {
+            if (!hasPendingRemoval()) {
+                return;
+            }
+            // Ensure nothing left.
+            final ArrayList<WindowRecord> records = findRecords(transition);
+            if (records != null) {
+                for (int i = records.size() - 1; i >= 0; --i) {
+                    final WindowRecord r = records.get(i);
+                    r.mTransactionApplied = true;
+                    executeRemovalIfPossible(r);
+                }
+            } else {
+                uncertainTrackComplete(transition);
+            }
+        }
+
+        void onAddingWindow(int taskId, IBinder transitionToken, IBinder appToken) {
+            final WindowRecord wr = mWindowRecords.get(taskId);
+            if (wr != null) {
+                wr.addAppToken(appToken);
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_REMOVE_STARTING_TRACKER,
+                        "RSO:Start tracking appToken=%s for task=%d", appToken, taskId);
+            } else {
+                mWindowRecords.put(taskId, new WindowRecord(taskId, transitionToken, appToken));
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_REMOVE_STARTING_TRACKER,
+                        "RSO:Start tracking for task=%d", taskId);
+            }
+        }
+
+        // Stop tracking because the window is not created.
+        void forceRemoveWindow(int taskId, IBinder appToken) {
+            final WindowRecord wr = mWindowRecords.get(taskId);
+            if (wr == null || !wr.removeAppToken(appToken)) {
+                return;
+            }
+            ProtoLog.v(ShellProtoLogGroup.WM_SHELL_REMOVE_STARTING_TRACKER,
+                    "RSO:Window wasn't created, removal record task=%d", taskId);
+            mWindowRecords.remove(taskId);
+        }
+
+        boolean hasPendingRemoval() {
+            return mWindowRecords.size() != 0;
+        }
+
+        ArrayList<WindowRecord> findRecords(IBinder transition) {
+            ArrayList<WindowRecord> records = null;
+            for (int i = mWindowRecords.size() - 1; i >= 0; --i) {
+                final WindowRecord record = mWindowRecords.valueAt(i);
+                if (record.mTransition == transition) {
+                    if (records == null) {
+                        records = new ArrayList<>();
+                    }
+                    records.add(record);
+                }
+            }
+            return records;
+        }
+
+        void requestRemoval(int taskId, StartingWindowRemovalInfo removalInfo) {
+            final WindowRecord wr = mWindowRecords.get(taskId);
+            if (wr == null) {
+                return;
+            }
+            wr.mStartingWindowRemovalInfo = removalInfo;
+            ProtoLog.v(ShellProtoLogGroup.WM_SHELL_REMOVE_STARTING_TRACKER,
+                    "RSO:Receive removal info for task=%d", taskId);
+            executeRemovalIfPossible(wr);
+        }
+
+        void executeRemovalIfPossible(WindowRecord record) {
+            if (record.mStartingWindowRemovalInfo == null) {
+                return;
+            }
+            if (record.mTransition == null
+                    || (record.mTransactionApplied && mUncertainTrackers.isEmpty())) {
+                mWindowRecords.remove(record.mTaskId);
+                removeStartingWindowInner(record.mStartingWindowRemovalInfo);
+            }
+        }
+
+        private void uncertainTrackComplete(IBinder transition) {
+            final UncertainTracker tracker = mUncertainTrackers.remove(transition);
+            if (tracker == null) {
+                return;
+            }
+
+            mShellMainExecutor.removeCallbacks(tracker);
+            if (!mUncertainTrackers.isEmpty()) {
+                return;
+            }
+            // check if anything task left due to uncertain transition.
+            for (int i = mWindowRecords.size() - 1; i >= 0; --i) {
+                final WindowRecord record = mWindowRecords.valueAt(i);
+                executeRemovalIfPossible(record);
+            }
+        }
+
+        static class UncertainTracker implements SurfaceControl.TransactionCommittedListener,
+                Runnable {
+            private final int mTransitionId;
+            private final Runnable mCleanUp;
+
+            UncertainTracker(int transitionId, Runnable cleanUp) {
+                mTransitionId = transitionId;
+                mCleanUp = cleanUp;
+            }
+
+            @Override
+            public void onTransactionCommitted() {
+                ProtoLog.v(ShellProtoLogGroup.WM_SHELL_REMOVE_STARTING_TRACKER,
+                        "RSO:Uncertain transition tracker complete=%s", this);
+                mCleanUp.run();
+            }
+
+            /** Runs on timeout. */
+            @Override
+            public void run() {
+                Log.wtf(TAG, "RSO:Uncertain transition tracker timeout! " + this);
+                mCleanUp.run();
+            }
+
+            @Override
+            public String toString() {
+                return "UncertainTracker@" + Integer.toHexString(System.identityHashCode(this))
+                        + ", monitor transitionId= " + mTransitionId;
+            }
+        }
+
+        private static class WindowRecord {
+            final int mTaskId;
+            final IBinder mTransition;
+            boolean mTransactionApplied;
+            StartingWindowRemovalInfo mStartingWindowRemovalInfo;
+
+            final ArraySet<IBinder> mAppTokens = new ArraySet<>();
+
+            WindowRecord(int taskId, IBinder transition, IBinder appToken) {
+                mTaskId = taskId;
+                mTransition = transition;
+                addAppToken(appToken);
+            }
+
+            void addAppToken(IBinder token) {
+                mAppTokens.add(token);
+            }
+
+            boolean removeAppToken(IBinder token) {
+                mAppTokens.remove(token);
+                return mAppTokens.isEmpty();
+            }
+        }
     }
 
     @Override
@@ -150,13 +385,17 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
      * Called when a task need a starting window.
      */
     public void addStartingWindow(StartingWindowInfo windowInfo) {
+        mShellMainExecutor.execute(() -> mRemoveStartingObserver.onAddingWindow(
+                windowInfo.taskInfo.taskId, windowInfo.transitionToken, windowInfo.appToken));
         mSplashScreenExecutor.execute(() -> {
             Trace.traceBegin(TRACE_TAG_WINDOW_MANAGER, "addStartingWindow");
 
             final int suggestionType = mStartingWindowTypeAlgorithm.getSuggestedWindowType(
                     windowInfo);
             final RunningTaskInfo runningTaskInfo = windowInfo.taskInfo;
-            if (suggestionType == STARTING_WINDOW_TYPE_WINDOWLESS) {
+            final int taskId = runningTaskInfo.taskId;
+            final boolean isWindowless = suggestionType == STARTING_WINDOW_TYPE_WINDOWLESS;
+            if (isWindowless) {
                 mStartingSurfaceDrawer.addWindowlessStartingSurface(windowInfo);
             } else if (isSplashScreenType(suggestionType)) {
                 mStartingSurfaceDrawer.addSplashScreenStartingWindow(windowInfo, suggestionType);
@@ -166,7 +405,6 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
             }
             if (suggestionType != STARTING_WINDOW_TYPE_NONE
                     && suggestionType != STARTING_WINDOW_TYPE_WINDOWLESS) {
-                int taskId = runningTaskInfo.taskId;
                 int color = mStartingSurfaceDrawer
                         .getStartingWindowBackgroundColorForTask(taskId);
                 if (color != Color.TRANSPARENT) {
@@ -178,7 +416,10 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
                     mTaskLaunchingCallback.accept(taskId, suggestionType, color);
                 }
             }
-
+            if (!mStartingSurfaceDrawer.hasStartingWindow(taskId, isWindowless)) {
+                mShellMainExecutor.execute(() ->
+                        mRemoveStartingObserver.forceRemoveWindow(taskId, windowInfo.appToken));
+            }
             Trace.traceEnd(TRACE_TAG_WINDOW_MANAGER);
         });
     }
@@ -214,6 +455,12 @@ public class StartingWindowController implements RemoteCallable<StartingWindowCo
      * Called when the content of a task is ready to show, starting window can be removed.
      */
     public void removeStartingWindow(StartingWindowRemovalInfo removalInfo) {
+        final int taskId = removalInfo.taskId;
+        mShellMainExecutor.execute(() ->
+                mRemoveStartingObserver.requestRemoval(taskId, removalInfo));
+    }
+
+    void removeStartingWindowInner(StartingWindowRemovalInfo removalInfo) {
         mSplashScreenExecutor.execute(() -> mStartingSurfaceDrawer.removeStartingWindow(
                 removalInfo));
         if (!removalInfo.windowlessSurface) {

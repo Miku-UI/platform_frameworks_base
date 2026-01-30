@@ -57,8 +57,10 @@ public class VisibilityExtractor implements NotificationSignalExtractor {
                     mConfig.canShowNotificationsOnLockscreen(userId);
             boolean dpmCanShowNotifications = adminAllowsKeyguardFeature(userId,
                     DevicePolicyManager.KEYGUARD_DISABLE_SECURE_NOTIFICATIONS);
-            boolean channelCanShowNotifications = record.getChannel().getLockscreenVisibility()
-                    != Notification.VISIBILITY_SECRET;
+            boolean channelCanShowNotifications =
+                    record.getChannel().getLockscreenVisibility() != Notification.VISIBILITY_SECRET
+                            && record.getOriginalChannelVisibility()
+                            != Notification.VISIBILITY_SECRET;
 
             if (!userCanShowNotifications || !dpmCanShowNotifications
                     || !channelCanShowNotifications) {

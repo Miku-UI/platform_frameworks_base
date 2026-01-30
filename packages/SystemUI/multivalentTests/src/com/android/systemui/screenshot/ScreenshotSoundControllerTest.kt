@@ -16,13 +16,13 @@
 
 package com.android.systemui.screenshot
 
+import android.media.MediaActionSound
 import android.media.MediaPlayer
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
 import java.lang.IllegalStateException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -32,19 +32,27 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
+import org.mockito.kotlin.any
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @SmallTest
+@OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(AndroidJUnit4::class)
 class ScreenshotSoundControllerTest : SysuiTestCase() {
 
     private val soundProvider = mock<ScreenshotSoundProvider>()
     private val mediaPlayer = mock<MediaPlayer>()
+    private val mediaActionSound = mock<MediaActionSound>()
+    private val soundPolicy = mock<ScreenshotSoundPolicy>()
     private val bgDispatcher = UnconfinedTestDispatcher()
     private val scope = TestScope(bgDispatcher)
 
     @Before
     fun setup() {
         whenever(soundProvider.getScreenshotSound()).thenReturn(mediaPlayer)
+        whenever(soundProvider.getForcedShutterSound()).thenReturn(mediaActionSound)
+        whenever(soundPolicy.shouldForceShutterSound()).thenReturn(false) // default
     }
 
     @Test
@@ -53,6 +61,7 @@ class ScreenshotSoundControllerTest : SysuiTestCase() {
         scope.advanceUntilIdle()
 
         verify(soundProvider).getScreenshotSound()
+        verify(soundProvider).getForcedShutterSound()
     }
 
     @Test
@@ -78,6 +87,7 @@ class ScreenshotSoundControllerTest : SysuiTestCase() {
             advanceUntilIdle()
 
             verify(mediaPlayer).start()
+            verify(mediaActionSound, never()).play(any())
         }
 
     @Test
@@ -91,6 +101,7 @@ class ScreenshotSoundControllerTest : SysuiTestCase() {
 
             verify(mediaPlayer).start()
             verify(mediaPlayer).release()
+            verify(mediaActionSound).release()
         }
 
     @Test
@@ -102,8 +113,23 @@ class ScreenshotSoundControllerTest : SysuiTestCase() {
             advanceUntilIdle()
 
             verify(mediaPlayer).release()
+            verify(mediaActionSound).release()
         }
 
+    @Test
+    fun screenshotSoundForced_usesShutterSound() {
+        scope.runTest {
+            whenever(soundPolicy.shouldForceShutterSound()).thenReturn(true)
+            val controller = createController()
+
+            controller.playScreenshotSound()
+            advanceUntilIdle()
+
+            verify(mediaPlayer, never()).start()
+            verify(mediaActionSound).play(MediaActionSound.SHUTTER_CLICK)
+        }
+    }
+
     private fun createController() =
-        ScreenshotSoundControllerImpl(soundProvider, scope, bgDispatcher)
+        ScreenshotSoundControllerImpl(soundProvider, soundPolicy, scope, bgDispatcher)
 }

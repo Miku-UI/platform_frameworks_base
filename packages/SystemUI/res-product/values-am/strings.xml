@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"በዚህ ጡባዊ ላይ በመጫወት ላይ"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"ይህን ስልክ ኃይል ጠፍቶ ቢሆን እንኳን የእኔን መሣሪያ አግኝ በሚለው አማካኝነት ማግኘት ይችላሉ"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"ይህን ጡባዊ ኃይል ጠፍቶ ቢሆን እንኳን የእኔን መሣሪያ አግኝ በሚለው አማካኝነት ማግኘት ይችላሉ"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"ይህን ስልክ ኃይል ጠፍቶ ቢሆንም እንኳን በማግኛ ማዕከል ማግኘት ይችላሉ"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"ይህን ጡባዊ ኃይል ጠፍቶ ቢሆንም እንኳን በማግኛ ማዕከል ማግኘት ይችላሉ"</string>
 </resources>

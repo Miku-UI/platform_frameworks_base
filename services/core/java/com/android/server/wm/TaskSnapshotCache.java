@@ -18,6 +18,8 @@ package com.android.server.wm;
 
 import android.annotation.Nullable;
 import android.window.TaskSnapshot;
+import android.window.TaskSnapshotManager;
+import android.window.TaskSnapshotManager.Resolution;
 
 /**
  * Caches snapshots. See {@link TaskSnapshotController}.
@@ -50,17 +52,37 @@ class TaskSnapshotCache extends SnapshotCache<Task> {
 
     /**
      * Retrieves a snapshot from cache.
+     * @deprecated Use {@link #getSnapshot(int, int, int)}
      */
+    @Deprecated
     @Nullable TaskSnapshot getSnapshot(int taskId, boolean isLowResolution) {
         return getSnapshot(taskId, isLowResolution, TaskSnapshot.REFERENCE_NONE);
     }
 
     // TODO (b/238206323) Respect isLowResolution.
+    @Deprecated
     @Nullable TaskSnapshot getSnapshot(int taskId, boolean isLowResolution,
             @TaskSnapshot.ReferenceFlags int usage) {
         synchronized (mLock) {
             final TaskSnapshot snapshot = getSnapshotInner(taskId);
             if (snapshot != null) {
+                if (usage != TaskSnapshot.REFERENCE_NONE) {
+                    snapshot.addReference(usage);
+                }
+                return snapshot;
+            }
+        }
+        return null;
+    }
+
+    @Nullable TaskSnapshot getSnapshot(int taskId, @Resolution int retrieveResolution,
+            @TaskSnapshot.ReferenceFlags int usage) {
+        synchronized (mLock) {
+            final TaskSnapshot snapshot = getSnapshotInner(taskId);
+            if (snapshot == null) {
+                return null;
+            }
+            if (TaskSnapshotManager.isResolutionMatch(snapshot, retrieveResolution)) {
                 if (usage != TaskSnapshot.REFERENCE_NONE) {
                     snapshot.addReference(usage);
                 }

@@ -16,8 +16,6 @@
 
 package com.android.wallpaperbackup;
 
-import static android.app.Flags.FLAG_LIVE_WALLPAPER_CONTENT_HANDLING;
-
 import static com.android.wallpaperbackup.WallpaperEventLogger.WALLPAPER_DESCRIPTION_LOCK;
 import static com.android.wallpaperbackup.WallpaperEventLogger.WALLPAPER_DESCRIPTION_SYSTEM;
 import static com.android.wallpaperbackup.WallpaperEventLogger.WALLPAPER_IMG_LOCK;
@@ -40,7 +38,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.wallpaper.WallpaperService;
 
@@ -277,7 +274,6 @@ public class WallpaperEventLoggerTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void onSystemLiveWallpaperRestoredWithDescription_logsSuccess() {
         setUpLoggerForRestore();
 
@@ -335,7 +331,6 @@ public class WallpaperEventLoggerTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void onSystemLiveWallpaperRestoredDescription_logsMetadata() {
         setUpLoggerForRestore();
 
@@ -435,7 +430,6 @@ public class WallpaperEventLoggerTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void onSystemWallpaperRestoreException_descriptionProcessed_doesNotLogForSameImgType() {
         setUpLoggerForRestore();
         mWallpaperEventLogger.onSystemLiveWallpaperRestoredWithDescription(mWallpaperDescription);
@@ -458,7 +452,6 @@ public class WallpaperEventLoggerTest {
     }
 
     @Test
-    @EnableFlags(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
     public void onLockWallpaperRestoreException_descriptionProcessed_doesNotLogForSameImgType() {
         setUpLoggerForRestore();
         mWallpaperEventLogger.onLockLiveWallpaperRestoredWithDescription(mWallpaperDescription);

@@ -81,6 +81,15 @@ public final class DisplayViewport {
 
     public @ViewportType int type;
 
+    // The logical display density which is the basis for density-independent pixels.
+    public int densityDpi;
+
+    // The physical density of the display in DPI in the X direction.
+    public float xDpi;
+
+    // The physical density of the display in DPI in the Y direction.
+    public float yDpi;
+
     public void copyFrom(DisplayViewport viewport) {
         valid = viewport.valid;
         isActive = viewport.isActive;
@@ -93,6 +102,9 @@ public final class DisplayViewport {
         uniqueId = viewport.uniqueId;
         physicalPort = viewport.physicalPort;
         type = viewport.type;
+        densityDpi = viewport.densityDpi;
+        xDpi = viewport.xDpi;
+        yDpi = viewport.yDpi;
     }
 
     /**
@@ -125,7 +137,10 @@ public final class DisplayViewport {
               && deviceHeight == other.deviceHeight
               && TextUtils.equals(uniqueId, other.uniqueId)
               && Objects.equals(physicalPort, other.physicalPort)
-              && type == other.type;
+              && type == other.type
+              && densityDpi == other.densityDpi
+              && xDpi == other.xDpi
+              && yDpi == other.yDpi;
     }
 
     @Override
@@ -145,6 +160,9 @@ public final class DisplayViewport {
             result += prime * result + physicalPort.hashCode();
         }
         result += prime * result + type;
+        result += prime * result + densityDpi;
+        result += prime * result + xDpi;
+        result += prime * result + yDpi;
         return result;
     }
 
@@ -158,6 +176,9 @@ public final class DisplayViewport {
                 + ", uniqueId='" + uniqueId + "'"
                 + ", physicalPort=" + physicalPort
                 + ", orientation=" + orientation
+                + ", densityDpi=" + densityDpi
+                + ", xDpi=" + xDpi
+                + ", yDpi=" + yDpi
                 + ", logicalFrame=" + logicalFrame
                 + ", physicalFrame=" + physicalFrame
                 + ", deviceWidth=" + deviceWidth

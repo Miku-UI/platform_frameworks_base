@@ -7,3 +7,20 @@ flag {
     description: "Whether or not window policy allows injecting input wake-up delegate."
     bug: "319132073"
 }
+
+flag {
+    name: "bug_toasts_on_top_of_bubble"
+    namespace: "windowing_sdk"
+    description: "Show system added toasts at same level as system error."
+    bug: "409222337"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "wear_key_gesture_handling"
+    namespace: "wear_frameworks"
+    description: "Migrate Wear key gestures handling logic to Wear code base."
+    bug: "368159846"
+}

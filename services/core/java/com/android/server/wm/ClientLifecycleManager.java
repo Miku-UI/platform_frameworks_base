@@ -25,7 +25,6 @@ import android.app.servertransaction.LaunchActivityItem;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledSince;
 import android.os.Build;
-import android.os.DeadObjectException;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.os.Trace;
@@ -90,15 +89,10 @@ class ClientLifecycleManager {
      * @see WindowProcessController#setReportedProcState(int)
      */
     boolean scheduleTransactionItemNow(@NonNull IApplicationThread client,
-            @NonNull ClientTransactionItem transactionItem) throws RemoteException {
+            @NonNull ClientTransactionItem transactionItem) {
         final ClientTransaction clientTransaction = new ClientTransaction(client);
         clientTransaction.addTransactionItem(transactionItem);
-        final boolean res = scheduleTransaction(clientTransaction);
-        if (!com.android.window.flags.Flags.cleanupDispatchPendingTransactionsRemoteException()
-                && !res) {
-            throw new DeadObjectException();
-        }
-        return res;
+        return scheduleTransaction(clientTransaction);
     }
 
     /**
@@ -110,19 +104,14 @@ class ClientLifecycleManager {
      * @see ClientTransactionItem
      */
     boolean scheduleTransactionItem(@NonNull IApplicationThread client,
-            @NonNull ClientTransactionItem item) throws RemoteException {
+            @NonNull ClientTransactionItem item) {
         // Wait until RootWindowContainer#performSurfacePlacementNoTrace to dispatch all pending
         // transactions at once.
         final ClientTransaction clientTransaction = getOrCreatePendingTransaction(client);
         clientTransaction.addTransactionItem(item);
 
-        final boolean res = onClientTransactionItemScheduled(clientTransaction,
+        return onClientTransactionItemScheduled(clientTransaction,
                 false /* shouldDispatchImmediately */);
-        if (!com.android.window.flags.Flags.cleanupDispatchPendingTransactionsRemoteException()
-                && !res) {
-            throw new DeadObjectException();
-        }
-        return res;
     }
 
     /**
@@ -134,7 +123,7 @@ class ClientLifecycleManager {
      * @see ClientTransactionItem
      */
     boolean scheduleTransactionItems(@NonNull IApplicationThread client,
-            @NonNull ClientTransactionItem... items) throws RemoteException {
+            @NonNull ClientTransactionItem... items) {
         return scheduleTransactionItems(client, false /* shouldDispatchImmediately */, items);
     }
 
@@ -154,7 +143,7 @@ class ClientLifecycleManager {
      */
     boolean scheduleTransactionItems(@NonNull IApplicationThread client,
             boolean shouldDispatchImmediately,
-            @NonNull ClientTransactionItem... items) throws RemoteException {
+            @NonNull ClientTransactionItem... items) {
         // Wait until RootWindowContainer#performSurfacePlacementNoTrace to dispatch all pending
         // transactions at once.
         final ClientTransaction clientTransaction = getOrCreatePendingTransaction(client);
@@ -164,13 +153,7 @@ class ClientLifecycleManager {
             clientTransaction.addTransactionItem(items[i]);
         }
 
-        final boolean res = onClientTransactionItemScheduled(clientTransaction,
-                shouldDispatchImmediately);
-        if (!com.android.window.flags.Flags.cleanupDispatchPendingTransactionsRemoteException()
-                && !res) {
-            throw new DeadObjectException();
-        }
-        return res;
+        return onClientTransactionItemScheduled(clientTransaction, shouldDispatchImmediately);
     }
 
     /** Executes all the pending transactions. */

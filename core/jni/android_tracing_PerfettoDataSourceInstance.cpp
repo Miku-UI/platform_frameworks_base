@@ -70,8 +70,11 @@ void callJavaMethodWithArgsObject(JNIEnv* env, jobject classRef, jmethodID metho
 }
 
 PerfettoDataSourceInstance::PerfettoDataSourceInstance(JNIEnv* env, jobject javaDataSourceInstance,
-                                                       PerfettoDsInstanceIndex inst_idx)
-      : inst_idx(inst_idx), mJavaDataSourceInstance(env->NewGlobalRef(javaDataSourceInstance)) {}
+                                                       PerfettoDsInstanceIndex inst_idx,
+                                                       bool postpone_stop)
+      : inst_idx(inst_idx),
+        mJavaDataSourceInstance(env->NewGlobalRef(javaDataSourceInstance)),
+        postpone_stop(postpone_stop) {}
 
 PerfettoDataSourceInstance::~PerfettoDataSourceInstance() {
     JNIEnv* env = GetOrAttachJNIEnvironment(gVm, JNI_VERSION_1_6);
@@ -100,15 +103,23 @@ void PerfettoDataSourceInstance::onFlush(JNIEnv* env) {
     callJavaMethodWithArgsObject(env, mJavaDataSourceInstance, mid, args.get());
 }
 
-void PerfettoDataSourceInstance::onStop(JNIEnv* env) {
-    ScopedLocalRef<jobject> args(env,
-                                 env->NewObject(gStopCallbackArgumentsClassInfo.clazz,
-                                                gStopCallbackArgumentsClassInfo.init));
+void PerfettoDataSourceInstance::onStop(JNIEnv* env, struct PerfettoDsOnStopArgs* args) {
+    ScopedLocalRef<jobject> jargs(env,
+                                  env->NewObject(gStopCallbackArgumentsClassInfo.clazz,
+                                                 gStopCallbackArgumentsClassInfo.init));
     jclass cls = env->GetObjectClass(mJavaDataSourceInstance);
     jmethodID mid =
             env->GetMethodID(cls, "onStop", "(Landroid/tracing/perfetto/StopCallbackArguments;)V");
 
-    callJavaMethodWithArgsObject(env, mJavaDataSourceInstance, mid, args.get());
+    if (postpone_stop) {
+        async_stopper = PerfettoDsOnStopArgsPostpone(args);
+    }
+
+    callJavaMethodWithArgsObject(env, mJavaDataSourceInstance, mid, jargs.get());
+}
+
+void PerfettoDataSourceInstance::stopDone() {
+    PerfettoDsStopDone(async_stopper);
 }
 
 int register_android_tracing_PerfettoDataSourceInstance(JNIEnv* env) {

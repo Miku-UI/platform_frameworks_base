@@ -32,8 +32,8 @@ message InputMethodManagerServiceProto {
     optional .android.view.inputmethod.EditorInfoProto cur_attribute = 7;
     optional string cur_id = 8;
     reserved 9; // deprecated show_requested
-    optional bool show_explicitly_requested = 10;
-    optional bool show_forced = 11;
+    optional bool show_explicitly_requested = 10 [deprecated=true];
+    optional bool show_forced = 11 [deprecated=true];
     optional bool input_shown = 12;
     optional bool in_fullscreen_mode = 13;
     optional string cur_token = 14;
@@ -45,7 +45,8 @@ message InputMethodManagerServiceProto {
     optional bool is_interactive = 20;
     optional int32 back_disposition = 21;
     optional int32 ime_window_visibility = 22;
-    optional bool show_ime_with_hard_keyboard = 23;
+    optional bool show_ime_with_hard_keyboard = 23 [deprecated = true];
     optional bool accessibility_requesting_no_soft_keyboard = 24;
     optional bool concurrent_multi_user_mode_enabled = 25;
+    optional bool prevent_ime_startup_unless_text_editor = 26;
 }

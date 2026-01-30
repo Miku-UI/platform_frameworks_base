@@ -20,7 +20,7 @@ import android.media.soundtrigger.Properties;
 /**
  * A descriptor of an available sound trigger module, containing the handle used to reference the
  * module, as well its capabilities.
- * {@hide}
+ * @hide
  */
 @JavaDerive(equals = true, toString = true)
 parcelable SoundTriggerModuleDescriptor {

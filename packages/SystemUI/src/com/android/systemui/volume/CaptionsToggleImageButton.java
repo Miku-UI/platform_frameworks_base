@@ -60,7 +60,10 @@ public class CaptionsToggleImageButton extends AlphaOptimizedImageButton {
         return super.onCreateDrawableState(extraSpace + 1);
     }
 
-    Runnable setCaptionsEnabled(boolean areCaptionsEnabled) {
+    /**
+     * Sets the captions enabled state.
+     */
+    public Runnable setCaptionsEnabled(boolean areCaptionsEnabled) {
         this.mCaptionsEnabled = areCaptionsEnabled;
 
         ViewCompat.replaceAccessibilityAction(
@@ -88,7 +91,10 @@ public class CaptionsToggleImageButton extends AlphaOptimizedImageButton {
         return this.mCaptionsEnabled;
     }
 
-    void setOnConfirmedTapListener(ConfirmedTapListener listener, Handler handler) {
+    /**
+     * Sets the confirmed tap listener.
+     */
+    public void setOnConfirmedTapListener(ConfirmedTapListener listener, Handler handler) {
         mConfirmedTapListener = listener;
 
         if (mGestureDetector == null) {
@@ -97,7 +103,7 @@ public class CaptionsToggleImageButton extends AlphaOptimizedImageButton {
     }
 
     /** Listener for confirmed taps rather than normal on click listener. */
-    interface ConfirmedTapListener {
+    public interface ConfirmedTapListener {
         void onConfirmedTap();
     }
 }

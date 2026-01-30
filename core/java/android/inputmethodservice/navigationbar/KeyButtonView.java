@@ -42,7 +42,6 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import android.view.inputmethod.Flags;
 import android.view.inputmethod.InputConnection;
 import android.widget.ImageView;
 
@@ -142,8 +141,7 @@ public class KeyButtonView extends ImageView implements ButtonInterface {
      */
     @Nullable
     private CharSequence getAccessibilityLongClickActionLabel() {
-        if (Flags.imeSwitcherRevamp()
-                && getId() == com.android.internal.R.id.input_method_nav_ime_switcher) {
+        if (getId() == com.android.internal.R.id.input_method_nav_ime_switcher) {
             return getContext().getText(
                     com.android.internal.R.string.input_method_ime_switch_long_click_action_desc);
         }
@@ -208,9 +206,9 @@ public class KeyButtonView extends ImageView implements ButtonInterface {
                 if (!showSwipeUI) {
                     playSoundEffect(SoundEffectConstants.CLICK);
                 }
-                if (Flags.imeSwitcherRevamp() && isLongClickable()) {
+                if (isLongClickable()) {
                     removeCallbacks(mCheckLongPress);
-                    postDelayed(mCheckLongPress, ViewConfiguration.getLongPressTimeout());
+                    postDelayed(mCheckLongPress, getLongPressTimeoutMillis());
                 }
                 break;
             case MotionEvent.ACTION_MOVE:

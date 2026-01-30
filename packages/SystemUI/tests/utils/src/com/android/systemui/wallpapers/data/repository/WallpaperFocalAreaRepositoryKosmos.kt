@@ -19,5 +19,4 @@ package com.android.systemui.wallpapers.data.repository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 
-val Kosmos.wallpaperFocalAreaRepository by Fixture { fakeWallpaperFocalAreaRepository }
-val Kosmos.fakeWallpaperFocalAreaRepository by Fixture { FakeWallpaperFocalAreaRepository() }
+val Kosmos.wallpaperFocalAreaRepository by Fixture { WallpaperFocalAreaRepository() }

@@ -60,7 +60,7 @@ class SizeVote implements Vote {
                 summary.height = mHeight;
                 summary.minWidth = mMinWidth;
                 summary.minHeight = mMinHeight;
-            } else if (summary.mIsDisplayResolutionRangeVotingEnabled) {
+            } else {
                 summary.width = Math.min(summary.width, mWidth);
                 summary.height = Math.min(summary.height, mHeight);
                 summary.minWidth = Math.max(summary.minWidth, mMinWidth);

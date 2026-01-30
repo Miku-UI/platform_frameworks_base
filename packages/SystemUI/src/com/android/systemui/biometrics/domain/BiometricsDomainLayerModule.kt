@@ -19,8 +19,6 @@ import com.android.systemui.biometrics.domain.interactor.BiometricStatusInteract
 import com.android.systemui.biometrics.domain.interactor.BiometricStatusInteractorImpl
 import com.android.systemui.biometrics.domain.interactor.CredentialInteractor
 import com.android.systemui.biometrics.domain.interactor.CredentialInteractorImpl
-import com.android.systemui.biometrics.domain.interactor.DisplayStateInteractor
-import com.android.systemui.biometrics.domain.interactor.DisplayStateInteractorImpl
 import com.android.systemui.biometrics.domain.interactor.LogContextInteractor
 import com.android.systemui.biometrics.domain.interactor.LogContextInteractorImpl
 import com.android.systemui.biometrics.domain.interactor.PromptSelectorInteractor
@@ -47,10 +45,6 @@ interface BiometricsDomainLayerModule {
     @Binds
     @SysUISingleton
     fun providesCredentialInteractor(impl: CredentialInteractorImpl): CredentialInteractor
-
-    @Binds
-    @SysUISingleton
-    fun providesDisplayStateInteractor(impl: DisplayStateInteractorImpl): DisplayStateInteractor
 
     @Binds
     @SysUISingleton

@@ -16,6 +16,7 @@
 
 package com.android.server.display.brightness;
 
+import android.annotation.Nullable;
 import android.hardware.display.DisplayManagerInternal;
 
 import java.util.Objects;
@@ -34,13 +35,18 @@ public final class StrategyExecutionRequest {
 
     private boolean mIsStylusBeingUsed;
 
+    @Nullable
+    private final DisplayManagerInternal.DisplayOffloadSession mDisplayOffloadSession;
+
     public StrategyExecutionRequest(DisplayManagerInternal.DisplayPowerRequest displayPowerRequest,
             float currentScreenBrightness, boolean userSetBrightnessChanged,
-            boolean isStylusBeingUsed) {
+            boolean isStylusBeingUsed,
+            DisplayManagerInternal.DisplayOffloadSession offloadSession) {
         mDisplayPowerRequest = displayPowerRequest;
         mCurrentScreenBrightness = currentScreenBrightness;
         mUserSetBrightnessChanged = userSetBrightnessChanged;
         mIsStylusBeingUsed = isStylusBeingUsed;
+        mDisplayOffloadSession = offloadSession;
     }
 
     public DisplayManagerInternal.DisplayPowerRequest getDisplayPowerRequest() {
@@ -59,6 +65,10 @@ public final class StrategyExecutionRequest {
         return mIsStylusBeingUsed;
     }
 
+    public DisplayManagerInternal.DisplayOffloadSession getOffloadSession() {
+        return mDisplayOffloadSession;
+    }
+
     @Override
     public boolean equals(Object obj) {
         if (!(obj instanceof StrategyExecutionRequest)) {
@@ -68,12 +78,13 @@ public final class StrategyExecutionRequest {
         return Objects.equals(mDisplayPowerRequest, other.getDisplayPowerRequest())
                 && mCurrentScreenBrightness == other.getCurrentScreenBrightness()
                 && mUserSetBrightnessChanged == other.isUserSetBrightnessChanged()
-                && mIsStylusBeingUsed == other.isStylusBeingUsed();
+                && mIsStylusBeingUsed == other.isStylusBeingUsed()
+                && mDisplayOffloadSession == other.mDisplayOffloadSession;
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(mDisplayPowerRequest, mCurrentScreenBrightness,
-                mUserSetBrightnessChanged, mIsStylusBeingUsed);
+                mUserSetBrightnessChanged, mIsStylusBeingUsed, mDisplayOffloadSession);
     }
 }

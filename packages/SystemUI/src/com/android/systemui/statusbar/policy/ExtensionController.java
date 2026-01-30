@@ -50,9 +50,7 @@ public interface ExtensionController {
     interface ExtensionBuilder<T> {
         ExtensionBuilder<T> withTunerFactory(TunerFactory<T> factory);
         <P extends T> ExtensionBuilder<T> withPlugin(Class<P> cls);
-        <P extends T> ExtensionBuilder<T> withPlugin(Class<P> cls, String action);
-        <P> ExtensionBuilder<T> withPlugin(Class<P> cls, String action,
-                PluginConverter<T, P> converter);
+        <P> ExtensionBuilder<T> withPlugin(Class<P> cls, PluginConverter<T, P> converter);
         ExtensionBuilder<T> withDefault(Supplier<T> def);
         ExtensionBuilder<T> withCallback(Consumer<T> callback);
         ExtensionBuilder<T> withUiMode(int mode, Supplier<T> def);

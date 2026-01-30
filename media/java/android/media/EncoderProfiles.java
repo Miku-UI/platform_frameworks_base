@@ -16,6 +16,9 @@
 
 package android.media;
 
+import static android.media.codec.Flags.apvSupport;
+import static android.media.mediarecorder.Flags.apvRecordingSupport;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 
@@ -106,6 +109,9 @@ public final class EncoderProfiles
                 return MediaFormat.MIMETYPE_VIDEO_DOLBY_VISION;
             } else if (codec == MediaRecorder.VideoEncoder.AV1) {
                 return MediaFormat.MIMETYPE_VIDEO_AV1;
+            } else if (apvRecordingSupport() && apvSupport()
+                        && codec == MediaRecorder.VideoEncoder.APV) {
+                return MediaFormat.MIMETYPE_VIDEO_APV;
             }
             // we should never be here
             throw new RuntimeException("Unknown codec");

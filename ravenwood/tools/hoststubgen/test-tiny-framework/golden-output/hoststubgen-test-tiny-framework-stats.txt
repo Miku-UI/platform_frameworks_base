@@ -1,0 +1,1991 @@
+PackageName
+  ClassName
+  Inherited
+  DeclareClass
+  MethodName
+  MethodDesc
+  Supported
+  Policy
+  Reason
+  Boring
+  StatsLabelValue
+com.android.hoststubgen.test.tinyframework
+  IPretendingAidl$Stub
+  0
+  com.android.hoststubgen.test.tinyframework.IPretendingAidl$Stub
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl [inner-reason: file-override [special-class: AIDL - 'keepclass']]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  IPretendingAidl$Stub
+  0
+  com.android.hoststubgen.test.tinyframework.IPretendingAidl$Stub
+  addOne
+  addOne(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl [inner-reason: file-override [special-class: AIDL - 'keepclass']]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  IPretendingAidl$Stub$Proxy
+  0
+  com.android.hoststubgen.test.tinyframework.IPretendingAidl$Stub$Proxy
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub$Proxy [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl [inner-reason: file-override [special-class: AIDL - 'keepclass']]]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  IPretendingAidl$Stub$Proxy
+  0
+  com.android.hoststubgen.test.tinyframework.IPretendingAidl$Stub$Proxy
+  addTwo
+  addTwo(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub$Proxy [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl$Stub [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/IPretendingAidl [inner-reason: file-override [special-class: AIDL - 'keepclass']]]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  R
+  0
+  com.android.hoststubgen.test.tinyframework.R
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/R [inner-reason: file-override [special-class: R - 'keepclass']]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  R$Nested
+  0
+  com.android.hoststubgen.test.tinyframework.R$Nested
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/R$Nested [inner-reason: file-override [special-class: R - 'keepclass']]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  R$Nested
+  0
+  com.android.hoststubgen.test.tinyframework.R$Nested
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/R$Nested [inner-reason: file-override [special-class: R - 'keepclass']]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  <init>
+  <init>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  addOne
+  addOne(I)I
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  addTwo
+  addTwo(I)I
+  1
+  Substitute
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  addTwo
+  addTwo(I)I
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  nativeAddThree
+  nativeAddThree(I)I
+  1
+  Substitute
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  nativeAddThree
+  nativeAddThree(I)I
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  throwButSupported
+  throwButSupported()V
+  1
+  Throw
+  annotation(ThrowButSupported)
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  toBeIgnored
+  toBeIgnored()I
+  0
+  Ignore
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations
+  unsupportedMethod
+  unsupportedMethod()Ljava/lang/String;
+  0
+  Throw
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkClassWideAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkClassWideAnnotations
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkClassWideAnnotations [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkClassWideAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkClassWideAnnotations
+  addOne
+  addOne(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkClassWideAnnotations [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkClassWideAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkClassWideAnnotations
+  addTwo
+  addTwo(I)I
+  1
+  Substitute
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkClassWideAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkClassWideAnnotations
+  addTwo
+  addTwo(I)I
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkClassWideAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkClassWideAnnotations
+  experimental
+  experimental()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkClassWideAnnotations [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkClassWideAnnotations
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkClassWideAnnotations
+  unsupportedMethod
+  unsupportedMethod()Ljava/lang/String;
+  0
+  Throw
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkClassWithInitializerStub
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkClassWithInitializerStub
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkEnumComplex
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkEnumComplex
+  <init>
+  <init>(Ljava/lang/String;ILjava/lang/String;Ljava/lang/String;)V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkEnumComplex
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkEnumComplex
+  getLongName
+  getLongName()Ljava/lang/String;
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkEnumComplex
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkEnumComplex
+  getShortName
+  getShortName()Ljava/lang/String;
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExceptionTester
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExceptionTester
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkExceptionTester [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExceptionTester
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExceptionTester
+  testException
+  testException()I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkExceptionTester [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExperimental
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExperimental
+  <init>
+  <init>()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkExperimental [inner-reason: file-override [class - 'experimental']]
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExperimental
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExperimental
+  keep
+  keep()V
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExperimental
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExperimental
+  replace
+  replace()V
+  1
+  Substitute
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExperimental
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExperimental
+  replace
+  replace()V
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExperimental
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExperimental
+  simple
+  simple()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkExperimental [inner-reason: file-override [class - 'experimental']]
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkExperimental
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkExperimental
+  unsupported
+  unsupported()V
+  0
+  Experimental
+  file-override [method - 'experimental']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForPta
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  file-override [method - 'keep'] (#Keep static initializer)
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForPta
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta
+  <init>
+  <init>()V
+  1
+  Keep
+  file-override [method - 'keep'] (#Keep implicit ctor)
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForPta
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta
+  foo
+  foo(Ljava/lang/String;Ljava/lang/Object;)V
+  1
+  Keep
+  file-override [method - 'keep'] (#keep multi-arg method)
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForPta$Nest1
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1
+  bar
+  bar()V
+  1
+  Keep
+  file-override [method - 'keep']
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForPta$Nest1$Nest2
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForPta$Nest1$Nest2
+  baz
+  baz()V
+  1
+  Keep
+  file-override [method - 'keep']
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  <init>
+  <init>()V
+  1
+  Keep
+  file-override [method - 'keep'] (#test keep policy on ctor)
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  addFour
+  addFour(I)I
+  0
+  Experimental
+  file-override [method - 'experimental']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  addOne
+  addOne(I)I
+  1
+  Keep
+  file-override [method - 'keep'] (#test keep policy on method)
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  nativeAddThree
+  nativeAddThree(I)I
+  1
+  Keep
+  in-class-replace-target - file-override [method - '@addThree_host']
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  addTwo
+  addTwo(I)I
+  1
+  Substitute
+  file-override [method - '@addTwo_host']
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  addTwo
+  addTwo(I)I
+  1
+  Keep
+  in-class-replace-target - file-override [method - '@addTwo_host']
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  nativeAddThree
+  nativeAddThree(I)I
+  1
+  Substitute
+  file-override [method - '@addThree_host']
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredB
+  toBeIgnoredB()B
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredC
+  toBeIgnoredC()C
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredD
+  toBeIgnoredD()D
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredF
+  toBeIgnoredF()F
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredI
+  toBeIgnoredI()I
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredObj
+  toBeIgnoredObj()Ljava/lang/String;
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredS
+  toBeIgnoredS()S
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredV
+  toBeIgnoredV()V
+  0
+  Ignore
+  file-override [method - 'ignore'] (#test ignore policy)
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  toBeIgnoredZ
+  toBeIgnoredZ()Z
+  0
+  Ignore
+  file-override [method - 'ignore']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkForTextPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy
+  unsupportedMethod
+  unsupportedMethod()Ljava/lang/String;
+  0
+  Throw
+  file-override [method - 'throw']
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas
+  <init>
+  <init>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas
+  getSupplier
+  getSupplier()Ljava/util/function/Supplier;
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas
+  getSupplier_static
+  getSupplier_static()Ljava/util/function/Supplier;
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas$Nested
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas$Nested
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas$Nested
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas$Nested
+  <init>
+  <init>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas$Nested
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas$Nested
+  getSupplier
+  getSupplier()Ljava/util/function/Supplier;
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkLambdas$Nested
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkLambdas$Nested
+  getSupplier_static
+  getSupplier_static()Ljava/util/function/Supplier;
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace
+  constructorReplaceTester
+  constructorReplaceTester(I)Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace$ConstructorTester;
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace
+  nonStaticMethodCallReplaceTester
+  nonStaticMethodCallReplaceTester()Z
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace
+  originalAdd
+  originalAdd(II)I
+  1
+  Keep
+  file-override [out-class-replace-from]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace
+  staticMethodCallReplaceTester
+  staticMethodCallReplaceTester()I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace$ConstructorTester
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ConstructorTester
+  <init>
+  <init>(I)V
+  1
+  Keep
+  file-override [out-class-replace-from]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace$ReplaceTo
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ReplaceTo
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace$ReplaceTo [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace$ReplaceTo
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ReplaceTo
+  add
+  add(II)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace$ReplaceTo [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace$ReplaceTo
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ReplaceTo
+  newConstructorTester
+  newConstructorTester(I)Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace$ConstructorTester;
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace$ReplaceTo [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkMethodCallReplace$ReplaceTo
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkMethodCallReplace$ReplaceTo
+  startThread
+  startThread(Ljava/lang/Thread;)V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace$ReplaceTo [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkMethodCallReplace [inner-reason: class-annotation]]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeAddTwo
+  nativeAddTwo(I)I
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeAddTwo_should_be_like_this
+  nativeAddTwo_should_be_like_this(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeBytePlus
+  nativeBytePlus(BB)B
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeLongPlus
+  nativeLongPlus(JJ)J
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeLongPlus_should_be_like_this
+  nativeLongPlus_should_be_like_this(JJ)J
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeNonStaticAddToValue
+  nativeNonStaticAddToValue(I)I
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeNonStaticAddToValue_should_be_like_this
+  nativeNonStaticAddToValue_should_be_like_this(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeStillKeep
+  nativeStillKeep()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeStillNotSupported
+  nativeStillNotSupported()V
+  0
+  Throw
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  nativeStillNotSupported_should_be_like_this
+  nativeStillNotSupported_should_be_like_this()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  notNativeRedirected
+  notNativeRedirected()V
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  notNativeStaticRedirected
+  notNativeStaticRedirected()V
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative
+  setValue
+  setValue(I)V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative_host
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative_host
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
+  nativeAddTwo
+  nativeAddTwo(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative_host
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
+  nativeBytePlus
+  nativeBytePlus(BB)B
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative_host
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
+  nativeLongPlus
+  nativeLongPlus(JJ)J
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative_host
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
+  nativeNonStaticAddToValue
+  nativeNonStaticAddToValue(Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkNative;I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative_host
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
+  notNativeRedirected
+  notNativeRedirected(Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkNative;)V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNative_host
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNative_host
+  notNativeStaticRedirected
+  notNativeStaticRedirected()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNative_host [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses
+  getSupplier
+  getSupplier()Ljava/util/function/Supplier;
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses
+  getSupplier_static
+  getSupplier_static()Ljava/util/function/Supplier;
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses$BaseClass
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses$BaseClass
+  <init>
+  <init>(I)V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses$BaseClass [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses$InnerClass
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses$InnerClass
+  <init>
+  <init>(Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses;)V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses$InnerClass [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses$StaticNestedClass
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses$StaticNestedClass
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses$StaticNestedClass [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses$StaticNestedClass
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses$StaticNestedClass
+  getSupplier_static
+  getSupplier_static()Ljava/util/function/Supplier;
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses$StaticNestedClass [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses$StaticNestedClass$Double$NestedClass
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses$StaticNestedClass$Double$NestedClass
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses$StaticNestedClass$Double$NestedClass [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses$StaticNestedClass [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkNestedClasses$SubClass
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkNestedClasses$SubClass
+  <init>
+  <init>(I)V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses$SubClass [inner-reason: class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkNestedClasses [inner-reason: class-annotation]]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkPackageRedirect
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkPackageRedirect
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkPackageRedirect [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkPackageRedirect
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkPackageRedirect
+  foo
+  foo(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkPackageRedirect [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkPartiallyAllowlisted$PartiallyAllowlisted
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkPartiallyAllowlisted$PartiallyAllowlisted
+  foo2
+  foo2(I)I
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkRenamedClassCaller
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkRenamedClassCaller
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkRenamedClassCaller [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkRenamedClassCaller
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkRenamedClassCaller
+  bar
+  bar(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkRenamedClassCaller [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkRenamedClassCaller
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkRenamedClassCaller
+  foo
+  foo(I)I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkRenamedClassCaller [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkToBeRenamed
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkToBeRenamed
+  <init>
+  <init>(I)V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkToBeRenamed [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkToBeRenamed
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkToBeRenamed
+  getArray
+  getArray(I)[Lcom/android/hoststubgen/test/tinyframework/TinyFrameworkToBeRenamed;
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkToBeRenamed [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkToBeRenamed
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkToBeRenamed
+  getValue
+  getValue()I
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkToBeRenamed [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework
+  TinyFrameworkUnsupportedApiException
+  0
+  com.android.hoststubgen.test.tinyframework.TinyFrameworkUnsupportedApiException
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/TinyFrameworkUnsupportedApiException [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.exp.A
+  <clinit>
+  <clinit>()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/A [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.exp.A
+  <init>
+  <init>()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/A [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.exp.A
+  foo
+  foo()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/A [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  B
+  0
+  com.android.hoststubgen.test.tinyframework.exp.B
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/B [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  B
+  0
+  com.android.hoststubgen.test.tinyframework.exp.B
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/B [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC1_NoannotationNoClassPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC1_NoannotationNoClassPolicy
+  <clinit>
+  <clinit>()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC1_NoannotationNoClassPolicy [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC1_NoannotationNoClassPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC1_NoannotationNoClassPolicy
+  <init>
+  <init>()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC1_NoannotationNoClassPolicy [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC1_NoannotationNoClassPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC1_NoannotationNoClassPolicy
+  foo
+  foo()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC1_NoannotationNoClassPolicy [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC3_WithClassPolicy_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC3_WithClassPolicy_keepclass
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC3_WithClassPolicy_keepclass [inner-reason: file-override [class - 'keepclass']]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC3_WithClassPolicy_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC3_WithClassPolicy_keepclass
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC3_WithClassPolicy_keepclass [inner-reason: file-override [class - 'keepclass']]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC3_WithClassPolicy_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC3_WithClassPolicy_keepclass
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC3_WithClassPolicy_keepclass [inner-reason: file-override [class - 'keepclass']]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC5_WithAnnotation_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC5_WithAnnotation_keepclass
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC5_WithAnnotation_keepclass [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC5_WithAnnotation_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC5_WithAnnotation_keepclass
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC5_WithAnnotation_keepclass [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC5_WithAnnotation_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC5_WithAnnotation_keepclass
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC5_WithAnnotation_keepclass [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC6_MethodAnnotations_withClassExpPolicy
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC6_MethodAnnotations_withClassExpPolicy
+  <init>
+  <init>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC6_MethodAnnotations_withClassExpPolicy
+  m1_keep
+  m1_keep()V
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC6_MethodAnnotations_withClassExpPolicy
+  m2_ignore
+  m2_ignore()V
+  0
+  Ignore
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC6_MethodAnnotations_withClassExpPolicy
+  m3_throw
+  m3_throw()V
+  0
+  Throw
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC6_MethodAnnotations_withClassExpPolicy
+  m5_redirect
+  m5_redirect()V
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+  <init>
+  <init>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+  m1_keep
+  m1_keep()V
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+  m2_ignore
+  m2_ignore()V
+  0
+  Experimental
+  file-override [method - 'exp']
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+  m3_throw
+  m3_throw()V
+  0
+  Experimental
+  file-override [method - 'exp']
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+  m4_remove
+  m4_remove()V
+  0
+  Experimental
+  file-override [method - 'exp']
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC7_MethodAnnotations_withMethodExpPolicy
+  m5_redirect
+  m5_redirect()V
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp
+  ExpC8_Enum
+  0
+  com.android.hoststubgen.test.tinyframework.exp.ExpC8_Enum
+  foo
+  foo()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/ExpC8_Enum [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp
+  RedirectTo
+  0
+  com.android.hoststubgen.test.tinyframework.exp.RedirectTo
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/RedirectTo [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.exp
+  RedirectTo
+  0
+  com.android.hoststubgen.test.tinyframework.exp.RedirectTo
+  redirect
+  redirect()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/RedirectTo [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.exp.sub
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.exp.sub.A
+  <init>
+  <init>()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/sub/A [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.exp.sub
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.exp.sub.A
+  foo
+  foo()V
+  0
+  Experimental
+  class-wide in com/android/hoststubgen/test/tinyframework/exp/sub/A [inner-reason: file-override [package - 'experimental'] (#test-experimental-package-policy)]
+  0
+  0
+com.android.hoststubgen.test.tinyframework.packagetest
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.A
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/A [inner-reason: file-override [package - 'keepclass'] (#test-package-policy)]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.A
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/A [inner-reason: file-override [package - 'keepclass'] (#test-package-policy)]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  C
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.C
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/C [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  C
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.C
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/C [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC1_NoannotationNoClassPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC1_NoannotationNoClassPolicy
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC1_NoannotationNoClassPolicy [inner-reason: file-override [package - 'keepclass'] (#test-package-policy)]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC1_NoannotationNoClassPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC1_NoannotationNoClassPolicy
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC1_NoannotationNoClassPolicy [inner-reason: file-override [package - 'keepclass'] (#test-package-policy)]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC1_NoannotationNoClassPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC1_NoannotationNoClassPolicy
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC1_NoannotationNoClassPolicy [inner-reason: file-override [package - 'keepclass'] (#test-package-policy)]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC3_WithClassPolicy_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC3_WithClassPolicy_keepclass
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC3_WithClassPolicy_keepclass [inner-reason: file-override [class - 'keepclass']]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC3_WithClassPolicy_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC3_WithClassPolicy_keepclass
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC3_WithClassPolicy_keepclass [inner-reason: file-override [class - 'keepclass']]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC3_WithClassPolicy_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC3_WithClassPolicy_keepclass
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC3_WithClassPolicy_keepclass [inner-reason: file-override [class - 'keepclass']]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC5_WithAnnotation_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC5_WithAnnotation_keepclass
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC5_WithAnnotation_keepclass [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC5_WithAnnotation_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC5_WithAnnotation_keepclass
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC5_WithAnnotation_keepclass [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC5_WithAnnotation_keepclass
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC5_WithAnnotation_keepclass
+  foo
+  foo()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/KeepC5_WithAnnotation_keepclass [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC6_MethodAnnotations_withClassExpPolicy
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC6_MethodAnnotations_withClassExpPolicy
+  <init>
+  <init>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC6_MethodAnnotations_withClassExpPolicy
+  m1_keep
+  m1_keep()V
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC6_MethodAnnotations_withClassExpPolicy
+  m2_ignore
+  m2_ignore()V
+  0
+  Ignore
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC6_MethodAnnotations_withClassExpPolicy
+  m3_throw
+  m3_throw()V
+  0
+  Throw
+  annotation
+  0
+  0
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC6_MethodAnnotations_withClassExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC6_MethodAnnotations_withClassExpPolicy
+  m5_redirect
+  m5_redirect()V
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+  <clinit>
+  <clinit>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+  <init>
+  <init>()V
+  1
+  Keep
+  annotation
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+  m1_keep
+  m1_keep()V
+  1
+  Keep
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+  m2_ignore
+  m2_ignore()V
+  0
+  Experimental
+  file-override [method - 'exp']
+  0
+  0
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+  m3_throw
+  m3_throw()V
+  0
+  Experimental
+  file-override [method - 'exp']
+  0
+  0
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+  m4_remove
+  m4_remove()V
+  0
+  Experimental
+  file-override [method - 'exp']
+  0
+  0
+com.android.hoststubgen.test.tinyframework.packagetest
+  KeepC7_MethodAnnotations_withMethodExpPolicy
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.KeepC7_MethodAnnotations_withMethodExpPolicy
+  m5_redirect
+  m5_redirect()V
+  1
+  Redirect
+  annotation
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest
+  RedirectTo
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.RedirectTo
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/RedirectTo [inner-reason: class-annotation]
+  1
+  1
+com.android.hoststubgen.test.tinyframework.packagetest
+  RedirectTo
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.RedirectTo
+  redirect
+  redirect()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/RedirectTo [inner-reason: class-annotation]
+  0
+  2
+com.android.hoststubgen.test.tinyframework.packagetest.sub
+  A
+  0
+  com.android.hoststubgen.test.tinyframework.packagetest.sub.A
+  <init>
+  <init>()V
+  1
+  Keep
+  class-wide in com/android/hoststubgen/test/tinyframework/packagetest/sub/A [inner-reason: file-override [package - 'keepclass'] (#test-package-policy)]
+  1
+  1
+com.supported
+  UnsupportedClass
+  0
+  com.supported.UnsupportedClass
+  <init>
+  <init>(I)V
+  1
+  Keep
+  class-wide in com/supported/UnsupportedClass [inner-reason: class-annotation]
+  1
+  1
+com.supported
+  UnsupportedClass
+  0
+  com.supported.UnsupportedClass
+  getValue
+  getValue()I
+  1
+  Keep
+  class-wide in com/supported/UnsupportedClass [inner-reason: class-annotation]
+  0
+  2
+com.unsupported
+  UnsupportedClass
+  0
+  com.unsupported.UnsupportedClass
+  <init>
+  <init>(I)V
+  1
+  Keep
+  class-wide in com/unsupported/UnsupportedClass [inner-reason: class-annotation]
+  1
+  1
+com.unsupported
+  UnsupportedClass
+  0
+  com.unsupported.UnsupportedClass
+  getValue
+  getValue()I
+  1
+  Keep
+  class-wide in com/unsupported/UnsupportedClass [inner-reason: class-annotation]
+  0
+  2

@@ -41,6 +41,10 @@ class MapOptions(
     override fun parseOption(option: String, args: ArgIterator): Boolean {
         fun nextArg(): String = args.nextArgRequired(option)
 
+        if (!option.startsWith("-")) {
+            sourceFilesOrDirectories.add(option.ensureFileExists())
+            return true
+        }
         when (option) {
             // TODO: Write help
             "-h", "--help" -> TODO("Help is not implemented yet")

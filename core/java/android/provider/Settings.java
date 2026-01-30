@@ -30,6 +30,8 @@ import android.annotation.PermissionName;
 import android.annotation.RequiresPermission;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
+import android.annotation.SpecialUsers.CanBeCURRENT;
+import android.annotation.SpecialUsers.CannotBeSpecialUser;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
@@ -45,6 +47,7 @@ import android.app.NotificationManager;
 import android.app.SearchManager;
 import android.app.WallpaperManager;
 import android.compat.annotation.UnsupportedAppUsage;
+import android.content.AttributionSource;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -1174,6 +1177,22 @@ public final class Settings {
             "android.settings.DARK_THEME_SETTINGS";
 
     /**
+     * Activity Action: Show settings to configure the screen magnification feature.
+     * <p>
+     * In some cases, a matching Activity may not exist, so ensure you
+     * safeguard against this.
+     * <p>
+     * Input: Nothing.
+     * <p>
+     * Output: Nothing.
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_SCREEN_MAGNIFICATION_SETTINGS =
+            "android.settings.MAGNIFICATION_SETTINGS";
+
+    /**
      * Activity Action: Show settings to allow configuration of locale.
      * <p>
      * In some cases, a matching Activity may not exist, so ensure you
@@ -1726,12 +1745,26 @@ public final class Settings {
      * In some cases, a matching Activity may not exist, so ensure you
      * safeguard against this.
      * <p>
+     * This intent is designed to be handled by a system component. To securely launch this intent,
+     * resolve the intent to a system application and verify that its priority is higher than the
+     * default value (0). This prevents other apps from intercepting the intent. If multiple system
+     * applications can handle this intent, the component with the highest priority will be
+     * launched.
+     * <p>
+     * For example:
+     * <pre>
+     * final PackageManager pm = context.getPackageManager();
+     * final Intent intent = new Intent(Settings.ACTION_SYSTEM_UPDATE_SETTINGS);
+     * final List&lt;ResolveInfo&gt; resolveInfos =
+     *         pm.queryIntentActivities(intent, PackageManager.MATCH_SYSTEM_ONLY);
+     * // ... find the ResolveInfo with the highest priority, ensure it's > 0, and launch it.
+     * </pre>
+     * <p>
      * Input: Nothing.
      * <p>
      * Output: Nothing.
-     *
-     * @hide
      */
+    @FlaggedApi(Flags.FLAG_EXPOSE_SYSTEM_UPDATE_SETTINGS)
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_SYSTEM_UPDATE_SETTINGS =
             "android.settings.SYSTEM_UPDATE_SETTINGS";
@@ -2407,6 +2440,25 @@ public final class Settings {
             = "android.settings.NOTIFICATION_HISTORY";
 
     /**
+     * Activity Action: Show notification bundling settings screen
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_NOTIFICATION_BUNDLES
+            = "android.settings.NOTIFICATION_BUNDLES";
+
+
+    /**
+     * Activity Action: Show notification summarization settings screen
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_NOTIFICATION_SUMMARIZATION =
+            "android.settings.NOTIFICATION_SUMMARIZATION";
+
+    /**
      * Activity Action: Show app listing settings, filtered by those that send notifications.
      *
      */
@@ -2491,7 +2543,6 @@ public final class Settings {
      *
      * @hide
      */
-    @FlaggedApi(com.android.internal.telephony.flags.Flags.FLAG_ACTION_SIM_PREFERENCE_SETTINGS)
     @SystemApi
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_SIM_PREFERENCE_SETTINGS =
@@ -2650,6 +2701,30 @@ public final class Settings {
     @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
     public static final String ACTION_MANAGE_SUPERVISOR_RESTRICTED_SETTING =
             "android.settings.MANAGE_SUPERVISOR_RESTRICTED_SETTING";
+
+    /**
+     * Activity action: Launch UI to bypass the user restrictions set by the SupervisionService
+     * system entity.
+     *
+     * <p>Input: {@link #EXTRA_SUPERVISION_RESTRICTION} specifies the restriction to bypass.
+     *
+     * <p>Output: Nothing.
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.ACTIVITY_INTENT_ACTION)
+    public static final String ACTION_BYPASS_SUPERVISION_RESTRICTION =
+            "android.settings.BYPASS_SUPERVISION_RESTRICTION";
+
+    /**
+     * Intent extra: supervision restriction that we are trying to pybass.
+     *
+     * <p>This should be used when launching {@link #ACTION_BYPASS_SUPERVISION_RESTRICTION} .
+     *
+     * @hide
+     */
+    public static final String EXTRA_SUPERVISION_RESTRICTION =
+            "android.settings.EXTRA_SUPERVISION_RESTRICTION";
 
     /**
      * Activity Action: Show a dialog for remote bugreport flow.
@@ -3360,15 +3435,15 @@ public final class Settings {
     }
 
     private static final class GenerationTracker {
-        @NonNull private final String mName;
+        @NonNull private final Key mKey;
         @NonNull private final MemoryIntArray mArray;
-        @NonNull private final Consumer<String> mErrorHandler;
+        @NonNull private final Consumer<Key> mErrorHandler;
         private final int mIndex;
         private int mCurrentGeneration;
 
-        GenerationTracker(@NonNull String name, @NonNull MemoryIntArray array, int index,
-                int generation, Consumer<String> errorHandler) {
-            mName = name;
+        GenerationTracker(@NonNull Key key, @NonNull MemoryIntArray array, int index,
+                int generation, @NonNull Consumer<Key> errorHandler) {
+            mKey = key;
             mArray = array;
             mIndex = index;
             mErrorHandler = errorHandler;
@@ -3396,7 +3471,7 @@ public final class Settings {
                 return mArray.get(mIndex);
             } catch (IOException e) {
                 Log.e(TAG, "Error getting current generation", e);
-                mErrorHandler.accept(mName);
+                mErrorHandler.accept(mKey);
             }
             return -1;
         }
@@ -3411,6 +3486,28 @@ public final class Settings {
                 destroy();
             } finally {
                 super.finalize();
+            }
+        }
+
+        private static final class Key {
+            private final String mName;
+            private final int mDeviceId;
+
+            Key(String name, int deviceId) {
+                mName = name;
+                mDeviceId = deviceId;
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                if (this == o) return true;
+                if (!(o instanceof Key key)) return false;
+                return mDeviceId == key.mDeviceId && Objects.equals(mName, key.mName);
+            }
+
+            @Override
+            public int hashCode() {
+                return Objects.hash(mName, mDeviceId);
             }
         }
     }
@@ -3470,9 +3567,9 @@ public final class Settings {
         private static final String NAME_EQ_PLACEHOLDER = "name=?";
 
         // Cached values of queried settings.
-        // Key is the setting's name, value is the setting's value.
+        // Key is composed by the setting's name and deviceId, value is the setting's value.
         // Must synchronize on 'this' to access mValues and mValuesVersion.
-        private final ArrayMap<String, String> mValues = new ArrayMap<>();
+        private final ArrayMap<GenerationTracker.Key, String> mValues = new ArrayMap<>();
 
         // Cached values for queried prefixes.
         // Key is the prefix, value is all of the settings under the prefix, mapped from a setting's
@@ -3496,19 +3593,22 @@ public final class Settings {
         private final ArraySet<String> mAllFields;
         private final ArrayMap<String, Integer> mReadableFieldsWithMaxTargetSdk;
 
-        // Mapping from the name of a setting (or the prefix of a namespace) to a generation tracker
+        // Mapping of key to generation trackers for queried settings.
+        // Key is composed by the setting's name and deviceId, value is the generation tracker.
+        // Must synchronize on 'this' to access mGenerationTrackers.
         @GuardedBy("this")
-        private ArrayMap<String, GenerationTracker> mGenerationTrackers = new ArrayMap<>();
+        private final ArrayMap<GenerationTracker.Key, GenerationTracker> mGenerationTrackers =
+                new ArrayMap<>();
 
-        private Consumer<String> mGenerationTrackerErrorHandler = (String name) -> {
+        private final Consumer<GenerationTracker.Key> mGenerationTrackerErrorHandler = (key) -> {
             synchronized (NameValueCache.this) {
                 Log.e(TAG, "Error accessing generation tracker - removing");
-                final GenerationTracker tracker = mGenerationTrackers.get(name);
+                final GenerationTracker tracker = mGenerationTrackers.get(key);
                 if (tracker != null) {
                     tracker.destroy();
-                    mGenerationTrackers.remove(name);
+                    mGenerationTrackers.remove(key);
                 }
-                mValues.remove(name);
+                mValues.remove(key);
             }
         };
 
@@ -3537,12 +3637,12 @@ public final class Settings {
         }
 
         public boolean putStringForUser(ContentResolver cr, String name, String value,
-                String tag, boolean makeDefault, final int userHandle,
+                String tag, boolean makeDefault, final @CanBeCURRENT @UserIdInt int userId,
                 boolean overrideableByRestore) {
             try {
                 Bundle arg = new Bundle();
                 arg.putString(Settings.NameValueTable.VALUE, value);
-                arg.putInt(CALL_METHOD_USER_KEY, userHandle);
+                arg.putInt(CALL_METHOD_USER_KEY, userId);
                 if (tag != null) {
                     arg.putString(CALL_METHOD_TAG_KEY, tag);
                 }
@@ -3553,6 +3653,10 @@ public final class Settings {
                     arg.putBoolean(CALL_METHOD_OVERRIDEABLE_BY_RESTORE_KEY, true);
                 }
                 IContentProvider cp = mProviderHolder.getProvider(cr);
+                if (cp == null) {
+                    Log.w(TAG, "Can't set key " + name + " in " + mUri + " because cp is null");
+                    return false;
+                }
                 cp.call(cr.getAttributionSource(),
                         mProviderHolder.mUri.getAuthority(), mCallSetCommand, name, arg);
             } catch (RemoteException e) {
@@ -3573,6 +3677,10 @@ public final class Settings {
                 args.putString(CALL_METHOD_PREFIX_KEY, prefix);
                 args.putSerializable(CALL_METHOD_FLAGS_KEY, keyValues);
                 IContentProvider cp = mProviderHolder.getProvider(cr);
+                if (cp == null) {
+                    Log.w(TAG, "Can't set strings for prefix " + prefix + " because cp is null");
+                    return SET_ALL_RESULT_FAILURE;
+                }
                 Bundle bundle = cp.call(cr.getAttributionSource(),
                         mProviderHolder.mUri.getAuthority(),
                         mCallSetAllCommand, null, args);
@@ -3588,6 +3696,10 @@ public final class Settings {
                 Bundle arg = new Bundle();
                 arg.putInt(CALL_METHOD_USER_KEY, userHandle);
                 IContentProvider cp = mProviderHolder.getProvider(cr);
+                if (cp == null) {
+                    Log.w(TAG, "Can't delete key " + name + " because cp is null");
+                    return false;
+                }
                 cp.call(cr.getAttributionSource(),
                         mProviderHolder.mUri.getAuthority(), mCallDeleteCommand, name, arg);
             } catch (RemoteException e) {
@@ -3598,43 +3710,50 @@ public final class Settings {
         }
 
         @UnsupportedAppUsage
-        public String getStringForUser(ContentResolver cr, String name, final int userHandle) {
-            final boolean isSelf = (userHandle == UserHandle.myUserId());
+        public String getStringForUser(ContentResolver cr, String name,
+                final @CanBeCURRENT @UserIdInt int userId) {
+            final boolean isSelf = (userId == UserHandle.myUserId());
+            final AttributionSource attributionSource = cr.getAttributionSource();
+            final int deviceId =
+                    android.companion.virtualdevice.flags.Flags.deviceAwareSettingsOverride()
+                            && android.permission.flags.Flags.deviceAwarePermissionApisEnabled()
+                            && attributionSource != null
+                            ? attributionSource.getDeviceId() : Context.DEVICE_ID_DEFAULT;
+            final GenerationTracker.Key key = new GenerationTracker.Key(name, deviceId);
             final boolean useCache = isSelf && !isInSystemServer();
             boolean needsGenerationTracker = false;
             if (useCache) {
                 synchronized (NameValueCache.this) {
-                    final GenerationTracker generationTracker = mGenerationTrackers.get(name);
+                    final GenerationTracker generationTracker = mGenerationTrackers.get(key);
                     if (generationTracker != null) {
                         if (generationTracker.isGenerationChanged()) {
                             if (DEBUG) {
                                 Log.i(TAG, "Generation changed for setting:" + name
                                         + " type:" + mUri.getPath()
                                         + " in package:" + cr.getPackageName()
-                                        + " and user:" + userHandle);
+                                        + " and user:" + userId);
                             }
                             // When a generation number changes, remove cached value, remove the old
                             // generation tracker and request a new one
-                            mValues.remove(name);
+                            mValues.remove(key);
                             generationTracker.destroy();
-                            mGenerationTrackers.remove(name);
-                        } else if (mValues.containsKey(name)) {
+                            mGenerationTrackers.remove(key);
+                        } else if (mValues.containsKey(key)) {
                             if (DEBUG) {
                                 Log.i(TAG, "Cache hit for setting:" + name);
                             }
-                            return mValues.get(name);
+                            return mValues.get(key);
                         }
                     }
                 }
                 if (DEBUG) {
-                    Log.i(TAG, "Cache miss for setting:" + name + " for user:"
-                            + userHandle);
+                    Log.i(TAG, "Cache miss for setting:" + name + " for user:" + userId);
                 }
                 // Generation tracker doesn't exist or the value isn't cached
                 needsGenerationTracker = true;
             } else {
                 if (DEBUG || LOCAL_LOGV) {
-                    Log.v(TAG, "get setting for user " + userHandle
+                    Log.v(TAG, "get setting for user " + userId
                             + " by user " + UserHandle.myUserId() + " so skipping cache");
                 }
             }
@@ -3673,6 +3792,10 @@ public final class Settings {
             }
 
             IContentProvider cp = mProviderHolder.getProvider(cr);
+            if (cp == null) {
+                Log.w(TAG, "Can't get key " + name + " because cp is null");
+                return null;  // Return null, but don't cache it.
+            }
 
             // Try the fast path first, not using query().  If this
             // fails (alternate Settings provider that doesn't support
@@ -3682,7 +3805,7 @@ public final class Settings {
                 try {
                     Bundle args = new Bundle();
                     if (!isSelf) {
-                        args.putInt(CALL_METHOD_USER_KEY, userHandle);
+                        args.putInt(CALL_METHOD_USER_KEY, userId);
                     }
                     if (needsGenerationTracker) {
                         args.putString(CALL_METHOD_TRACK_GENERATION_KEY, null);
@@ -3690,7 +3813,7 @@ public final class Settings {
                             Log.i(TAG, "Requested generation tracker for setting:" + name
                                     + " type:" + mUri.getPath()
                                     + " in package:" + cr.getPackageName()
-                                    + " and user:" + userHandle);
+                                    + " and user:" + userId);
                         }
                     }
                     Bundle b;
@@ -3731,33 +3854,33 @@ public final class Settings {
                                                     + name
                                                     + " type:" + mUri.getPath()
                                                     + " in package:" + cr.getPackageName()
-                                                    + " and user:" + userHandle
+                                                    + " and user:" + userId
                                                     + " with index:" + index);
                                         }
                                         // Always make sure to close any pre-existing tracker before
                                         // replacing it, to prevent memory leaks
-                                        var oldTracker = mGenerationTrackers.get(name);
+                                        var oldTracker = mGenerationTrackers.get(key);
                                         if (oldTracker != null) {
                                             oldTracker.destroy();
                                         }
-                                        mGenerationTrackers.put(name, new GenerationTracker(name,
+                                        mGenerationTrackers.put(key, new GenerationTracker(key,
                                                 array, index, generation,
                                                 mGenerationTrackerErrorHandler));
                                     } else {
                                         maybeCloseGenerationArray(array);
                                     }
                                 }
-                                if (mGenerationTrackers.get(name) != null
-                                        && !mGenerationTrackers.get(name).isGenerationChanged()) {
+                                GenerationTracker tracker = mGenerationTrackers.get(key);
+                                if (tracker != null && !tracker.isGenerationChanged()) {
                                     if (DEBUG) {
                                         Log.i(TAG, "Updating cache for setting:" + name);
                                     }
-                                    mValues.put(name, value);
+                                    mValues.put(key, value);
                                 }
                             }
                         } else {
                             if (DEBUG || LOCAL_LOGV) {
-                                Log.i(TAG, "call-query of user " + userHandle
+                                Log.i(TAG, "call-query of user " + userId
                                         + " by " + UserHandle.myUserId()
                                         + (isInSystemServer() ? " in system_server" : "")
                                         + " so not updating cache");
@@ -3797,12 +3920,12 @@ public final class Settings {
 
                 String value = c.moveToNext() ? c.getString(0) : null;
                 synchronized (NameValueCache.this) {
-                    if (mGenerationTrackers.get(name) != null
-                            && !mGenerationTrackers.get(name).isGenerationChanged()) {
+                    GenerationTracker tracker = mGenerationTrackers.get(key);
+                    if (tracker != null && !tracker.isGenerationChanged()) {
                         if (DEBUG) {
                             Log.i(TAG, "Updating cache for setting:" + name + " using query");
                         }
-                        mValues.put(name, value);
+                        mValues.put(key, value);
                     }
                 }
                 return value;
@@ -3834,13 +3957,15 @@ public final class Settings {
 
         private Map<String, String> getStringsForPrefixStripPrefix(
                 ContentResolver cr, String prefix, List<String> names) {
+            final GenerationTracker.Key trackerKey = new GenerationTracker.Key(prefix,
+                    Context.DEVICE_ID_DEFAULT);
             String namespace = prefix.substring(0, prefix.length() - 1);
             ArrayMap<String, String> keyValues = new ArrayMap<>();
             int substringLength = prefix.length();
             int currentGeneration = -1;
             boolean needsGenerationTracker = false;
             synchronized (NameValueCache.this) {
-                final GenerationTracker generationTracker = mGenerationTrackers.get(prefix);
+                final GenerationTracker generationTracker = mGenerationTrackers.get(trackerKey);
                 if (generationTracker != null) {
                     if (generationTracker.isGenerationChanged()) {
                         if (DEBUG) {
@@ -3851,7 +3976,7 @@ public final class Settings {
                         // When a generation number changes, remove cached values, remove the old
                         // generation tracker and request a new one
                         generationTracker.destroy();
-                        mGenerationTrackers.remove(prefix);
+                        mGenerationTrackers.remove(trackerKey);
                         mPrefixToValues.remove(prefix);
                         needsGenerationTracker = true;
                     } else {
@@ -3887,6 +4012,10 @@ public final class Settings {
                 Log.i(TAG, "Cache miss for prefix:" + prefix);
             }
             IContentProvider cp = mProviderHolder.getProvider(cr);
+            if (cp == null) {
+                Log.w(TAG, "Can't get strings for prefix " + prefix + " because cp is null");
+                return keyValues;
+            }
 
             try {
                 Bundle args = new Bundle();
@@ -3964,20 +4093,20 @@ public final class Settings {
                             }
                             // Always make sure to close any pre-existing tracker before
                             // replacing it, to prevent memory leaks
-                            var oldTracker = mGenerationTrackers.get(prefix);
+                            var oldTracker = mGenerationTrackers.get(trackerKey);
                             if (oldTracker != null) {
                                 oldTracker.destroy();
                             }
-                            mGenerationTrackers.put(prefix,
-                                    new GenerationTracker(prefix, array, index, generation,
+                            mGenerationTrackers.put(trackerKey,
+                                    new GenerationTracker(trackerKey, array, index, generation,
                                             mGenerationTrackerErrorHandler));
                             currentGeneration = generation;
                         } else {
                             maybeCloseGenerationArray(array);
                         }
                     }
-                    if (mGenerationTrackers.get(prefix) != null && currentGeneration
-                            == mGenerationTrackers.get(prefix).getCurrentGeneration()) {
+                    GenerationTracker tracker = mGenerationTrackers.get(trackerKey);
+                    if (tracker != null && currentGeneration == tracker.getCurrentGeneration()) {
                         if (DEBUG) {
                             Log.i(TAG, "Updating cache for prefix:" + prefix);
                         }
@@ -4310,19 +4439,19 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage
         public static String getStringForUser(ContentResolver resolver, String name,
-                int userHandle) {
+                @CanBeCURRENT @UserIdInt int userId) {
             if (MOVED_TO_SECURE.contains(name)) {
                 Log.w(TAG, "Setting " + name + " has moved from android.provider.Settings.System"
                         + " to android.provider.Settings.Secure, returning read-only value.");
-                return Secure.getStringForUser(resolver, name, userHandle);
+                return Secure.getStringForUser(resolver, name, userId);
             }
             if (MOVED_TO_GLOBAL.contains(name) || MOVED_TO_SECURE_THEN_GLOBAL.contains(name)) {
                 Log.w(TAG, "Setting " + name + " has moved from android.provider.Settings.System"
                         + " to android.provider.Settings.Global, returning read-only value.");
-                return Global.getStringForUser(resolver, name, userHandle);
+                return Global.getStringForUser(resolver, name, userId);
             }
 
-            return sNameValueCache.getStringForUser(resolver, name, userHandle);
+            return sNameValueCache.getStringForUser(resolver, name, userId);
         }
 
         /**
@@ -4380,22 +4509,23 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage
         public static boolean putStringForUser(ContentResolver resolver, String name, String value,
-                int userHandle) {
-            return putStringForUser(resolver, name, value, userHandle,
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(resolver, name, value, userId,
                     DEFAULT_OVERRIDEABLE_BY_RESTORE);
         }
 
         private static boolean putStringForUser(ContentResolver resolver, String name, String value,
-                int userHandle, boolean overrideableByRestore) {
+                @CanBeCURRENT @UserIdInt int userId, boolean overrideableByRestore) {
             return putStringForUser(resolver, name, value, /* tag= */ null,
-                    /* makeDefault= */ false, userHandle, overrideableByRestore);
+                    /* makeDefault= */ false, userId, overrideableByRestore);
         }
 
         private static boolean putStringForUser(ContentResolver resolver, String name, String value,
-                String tag, boolean makeDefault, int userHandle, boolean overrideableByRestore) {
+                String tag, boolean makeDefault, @CanBeCURRENT @UserIdInt int userId,
+                boolean overrideableByRestore) {
             if (LOCAL_LOGV) {
                 Log.v(TAG, "System.putString(name=" + name + ", value=" + value + ") for "
-                        + userHandle);
+                        + userId);
             }
             if (MOVED_TO_SECURE.contains(name)) {
                 Log.w(TAG, "Setting " + name + " has moved from android.provider.Settings.System"
@@ -4408,7 +4538,7 @@ public final class Settings {
                 return false;
             }
             return sNameValueCache.putStringForUser(resolver, name, value, tag, makeDefault,
-                    userHandle, overrideableByRestore);
+                    userId, overrideableByRestore);
         }
 
         /**
@@ -4440,7 +4570,7 @@ public final class Settings {
          * @param resolver Handle to the content resolver.
          * @param tag Optional tag which should be associated with the settings to reset.
          * @param mode The reset mode.
-         * @param userHandle The user for which to reset to defaults.
+         * @param userId The user for which to reset to defaults.
          *
          * @see #RESET_MODE_PACKAGE_DEFAULTS
          * @see #RESET_MODE_UNTRUSTED_DEFAULTS
@@ -4450,15 +4580,21 @@ public final class Settings {
          * @hide
          */
         public static void resetToDefaultsAsUser(@NonNull ContentResolver resolver,
-                @Nullable String tag, @ResetMode int mode, @IntRange(from = 0) int userHandle) {
+                @Nullable String tag, @ResetMode int mode,
+                @IntRange(from = 0) @CannotBeSpecialUser @UserIdInt int userId) {
             try {
                 Bundle arg = new Bundle();
-                arg.putInt(CALL_METHOD_USER_KEY, userHandle);
+                arg.putInt(CALL_METHOD_USER_KEY, userId);
                 if (tag != null) {
                     arg.putString(CALL_METHOD_TAG_KEY, tag);
                 }
                 arg.putInt(CALL_METHOD_RESET_MODE_KEY, mode);
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't reset to defaults for " + CONTENT_URI
+                        + " because cp is null");
+                    return;
+                }
                 cp.call(resolver.getAttributionSource(),
                         sProviderHolder.mUri.getAuthority(), CALL_METHOD_RESET_SYSTEM, null, arg);
             } catch (RemoteException e) {
@@ -4506,8 +4642,9 @@ public final class Settings {
 
         /** @hide */
         @UnsupportedAppUsage
-        public static int getIntForUser(ContentResolver cr, String name, int def, int userHandle) {
-            String v = getStringForUser(cr, name, userHandle);
+        public static int getIntForUser(ContentResolver cr, String name, int def,
+                @CanBeCURRENT @UserIdInt int userId) {
+            String v = getStringForUser(cr, name, userId);
             return parseIntSettingWithDefault(v, def);
         }
 
@@ -4536,9 +4673,10 @@ public final class Settings {
 
         /** @hide */
         @UnsupportedAppUsage
-        public static int getIntForUser(ContentResolver cr, String name, int userHandle)
+        public static int getIntForUser(ContentResolver cr, String name,
+                @CanBeCURRENT @UserIdInt int userId)
                 throws SettingNotFoundException {
-            String v = getStringForUser(cr, name, userHandle);
+            String v = getStringForUser(cr, name, userId);
             return parseIntSetting(v, name);
         }
 
@@ -4562,8 +4700,8 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage
         public static boolean putIntForUser(ContentResolver cr, String name, int value,
-                int userHandle) {
-            return putStringForUser(cr, name, Integer.toString(value), userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(cr, name, Integer.toString(value), userId);
         }
 
         /**
@@ -4586,8 +4724,8 @@ public final class Settings {
 
         /** @hide */
         public static long getLongForUser(ContentResolver cr, String name, long def,
-                int userHandle) {
-            String v = getStringForUser(cr, name, userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            String v = getStringForUser(cr, name, userId);
             return parseLongSettingWithDefault(v, def);
         }
 
@@ -4614,9 +4752,10 @@ public final class Settings {
         }
 
         /** @hide */
-        public static long getLongForUser(ContentResolver cr, String name, int userHandle)
+        public static long getLongForUser(ContentResolver cr, String name,
+                @CanBeCURRENT @UserIdInt int userId)
                 throws SettingNotFoundException {
-            String v = getStringForUser(cr, name, userHandle);
+            String v = getStringForUser(cr, name, userId);
             return parseLongSetting(v, name);
         }
 
@@ -4639,8 +4778,8 @@ public final class Settings {
 
         /** @hide */
         public static boolean putLongForUser(ContentResolver cr, String name, long value,
-                int userHandle) {
-            return putStringForUser(cr, name, Long.toString(value), userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(cr, name, Long.toString(value), userId);
         }
 
         /**
@@ -4663,8 +4802,8 @@ public final class Settings {
 
         /** @hide */
         public static float getFloatForUser(ContentResolver cr, String name, float def,
-                int userHandle) {
-            String v = getStringForUser(cr, name, userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            String v = getStringForUser(cr, name, userId);
             return parseFloatSettingWithDefault(v, def);
         }
 
@@ -4692,9 +4831,10 @@ public final class Settings {
         }
 
         /** @hide */
-        public static float getFloatForUser(ContentResolver cr, String name, int userHandle)
+        public static float getFloatForUser(ContentResolver cr, String name,
+                @CanBeCURRENT @UserIdInt int userId)
                 throws SettingNotFoundException {
-            String v = getStringForUser(cr, name, userHandle);
+            String v = getStringForUser(cr, name, userId);
             return parseFloatSetting(v, name);
         }
 
@@ -4717,8 +4857,8 @@ public final class Settings {
 
         /** @hide */
         public static boolean putFloatForUser(ContentResolver cr, String name, float value,
-                int userHandle) {
-            return putStringForUser(cr, name, Float.toString(value), userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(cr, name, Float.toString(value), userId);
         }
 
         /**
@@ -4774,9 +4914,8 @@ public final class Settings {
         }
 
         private static float getDefaultFontScale(ContentResolver cr, int userHandle) {
-            return com.android.window.flags.Flags.configurableFontScaleDefault()
-                    ? Settings.System.getFloatForUser(cr, DEFAULT_DEVICE_FONT_SCALE,
-                    DEFAULT_FONT_SCALE, userHandle) : DEFAULT_FONT_SCALE;
+            return Settings.System.getFloatForUser(cr, DEFAULT_DEVICE_FONT_SCALE,
+                    DEFAULT_FONT_SCALE, userHandle);
         }
 
         /**
@@ -4954,7 +5093,7 @@ public final class Settings {
 
         /**
          * @deprecated Use {@link android.provider.Settings.Global#RADIO_WIMAX} instead
-         * {@hide}
+         * @hide
          */
         @Deprecated
         public static final String RADIO_WIMAX = Global.RADIO_WIMAX;
@@ -4980,7 +5119,7 @@ public final class Settings {
         /**
          * @deprecated Use {@link android.provider.Settings.Global#AIRPLANE_MODE_TOGGLEABLE_RADIOS} instead
          *
-         * {@hide}
+         * @hide
          */
         @Deprecated
         @UnsupportedAppUsage
@@ -5471,6 +5610,25 @@ public final class Settings {
                 "hardware_haptic_feedback_intensity";
 
         /**
+         * The intensity of gesture input vibrations if configurable. See {@link
+         * android.os.VibrationAttributes#USAGE_GESTURE_INPUT} for details about gesture input
+         * vibrations.
+         *
+         * Not all devices are capable of changing their feedback intensity; on these devices
+         * there will likely be no difference between the various vibration intensities except for
+         * intensity 0 (off) and the rest.
+         *
+         * <b>Values:</b><br/>
+         * 0 - Vibration is disabled<br/>
+         * 1 - Weak vibrations<br/>
+         * 2 - Medium vibrations<br/>
+         * 3 - Strong vibrations
+         * @hide
+         */
+        public static final String GESTURE_INPUT_VIBRATION_INTENSITY =
+                "gesture_input_vibration_intensity";
+
+        /**
          * Whether keyboard vibration feedback is enabled. The value is boolean (1 or 0).
          *
          * @hide
@@ -5682,9 +5840,9 @@ public final class Settings {
          */
         public static final Uri DEFAULT_RINGTONE_URI = getUriFor(RINGTONE);
 
-        /** {@hide} */
+        /** @hide */
         public static final String RINGTONE_CACHE = "ringtone_cache";
-        /** {@hide} */
+        /** @hide */
         public static final Uri RINGTONE_CACHE_URI = getUriFor(RINGTONE_CACHE);
 
         /**
@@ -5704,10 +5862,10 @@ public final class Settings {
          */
         public static final Uri DEFAULT_NOTIFICATION_URI = getUriFor(NOTIFICATION_SOUND);
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NOTIFICATION_SOUND_CACHE = "notification_sound_cache";
-        /** {@hide} */
+        /** @hide */
         public static final Uri NOTIFICATION_SOUND_CACHE_URI = getUriFor(NOTIFICATION_SOUND_CACHE);
 
         /**
@@ -5759,10 +5917,10 @@ public final class Settings {
          */
         public static final Uri DEFAULT_ALARM_ALERT_URI = getUriFor(ALARM_ALERT);
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String ALARM_ALERT_CACHE = "alarm_alert_cache";
-        /** {@hide} */
+        /** @hide */
         public static final Uri ALARM_ALERT_CACHE_URI = getUriFor(ALARM_ALERT_CACHE);
 
         /**
@@ -5961,13 +6119,12 @@ public final class Settings {
         public static final String DTMF_TONE_TYPE_WHEN_DIALING = "dtmf_tone_type";
 
         /**
-         * Whether the hearing aid is enabled. The value is
-         * boolean (1 or 0).
+         * Whether the hearing aid compatibility is enabled. The value is boolean (1 or 0).
          * @hide
          */
         @UnsupportedAppUsage
         @Readable
-        public static final String HEARING_AID = "hearing_aid";
+        public static final String HEARING_AID_COMPATIBILITY = "hearing_aid";
 
         /**
          * CDMA only settings
@@ -6338,6 +6495,13 @@ public final class Settings {
                 "touchpad_acceleration_enabled";
 
         /**
+         * Whether to enable touchpads.
+         *
+         * @hide
+         */
+        public static final String TOUCHPAD_ENABLED = "touchpad_enabled";
+
+        /**
          * Whether to enable reversed vertical scrolling for connected mice.
          *
          * When enabled, scrolling down on the mouse wheel will move the screen up and vice versa.
@@ -6425,6 +6589,27 @@ public final class Settings {
         public static final String EGG_MODE = "egg_mode";
 
         /**
+         * Comma-separated string of package names will have force invert applied no matter what,
+         * overriding any device-level config blocklists or other criteria, for debugging.
+         *
+         * Note: HWUI may still determine that the app already appears to be dark theme and may not
+         * obey this setting.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_ENABLE =
+                "accessibility_force_invert_color_override_packages_to_enable";
+
+        /**
+         * Comma-separated string of package names will *never* have force invert applied,
+         * overriding any device-level config blocklists or other criteria, for debugging.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE =
+                "accessibility_force_invert_color_override_packages_to_disable";
+
+        /**
          * Setting to determine whether or not to show the battery percentage in the status bar.
          *    0 - Don't show percentage
          *    1 - Show percentage
@@ -6490,6 +6675,23 @@ public final class Settings {
          */
         public static final String CV_ENABLED =
                 "cv_enabled";
+
+        /**
+         * Setting to set enable/disable CV dynamic mode.
+         * Setting should be boolean (0 or 1)
+         *
+         * @hide
+         */
+        public static final String CV_DYNAMIC_ENABLED =
+                "cv_dynamic_enabled";
+
+        /**
+         * Setting to set CV preferred intensity
+         * Setting should be float range (0.0 - 1.0)
+         *
+         * @hide
+         */
+        public static final String CV_PREFERRED_INTENSITY = "cv_preferred_intensity";
 
         /**
          * Integer property that specifes the color for screen flash notification as a
@@ -6624,6 +6826,8 @@ public final class Settings {
             PRIVATE_SETTINGS.add(WIFI_USE_STATIC_IP);
             PRIVATE_SETTINGS.add(END_BUTTON_BEHAVIOR);
             PRIVATE_SETTINGS.add(ADVANCED_SETTINGS);
+            PRIVATE_SETTINGS.add(ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE);
+            PRIVATE_SETTINGS.add(ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_ENABLE);
             PRIVATE_SETTINGS.add(WEAR_ACCESSIBILITY_GESTURE_ENABLED);
             PRIVATE_SETTINGS.add(WEAR_ACCESSIBILITY_GESTURE_ENABLED_DURING_OOBE);
             PRIVATE_SETTINGS.add(WEAR_TTS_PREWARM_ENABLED);
@@ -6637,7 +6841,7 @@ public final class Settings {
             PRIVATE_SETTINGS.add(MEDIA_BUTTON_RECEIVER);
             PRIVATE_SETTINGS.add(HIDE_ROTATION_LOCK_TOGGLE_FOR_ACCESSIBILITY);
             PRIVATE_SETTINGS.add(DTMF_TONE_TYPE_WHEN_DIALING);
-            PRIVATE_SETTINGS.add(HEARING_AID);
+            PRIVATE_SETTINGS.add(HEARING_AID_COMPATIBILITY);
             PRIVATE_SETTINGS.add(TTY_MODE);
             PRIVATE_SETTINGS.add(NOTIFICATION_LIGHT_PULSE);
             PRIVATE_SETTINGS.add(POINTER_LOCATION);
@@ -6677,6 +6881,7 @@ public final class Settings {
             PRIVATE_SETTINGS.add(TOUCHPAD_RIGHT_CLICK_ZONE);
             PRIVATE_SETTINGS.add(TOUCHPAD_SYSTEM_GESTURES);
             PRIVATE_SETTINGS.add(TOUCHPAD_ACCELERATION_ENABLED);
+            PRIVATE_SETTINGS.add(TOUCHPAD_ENABLED);
             PRIVATE_SETTINGS.add(CAMERA_FLASH_NOTIFICATION);
             PRIVATE_SETTINGS.add(SCREEN_FLASH_NOTIFICATION);
             PRIVATE_SETTINGS.add(SCREEN_FLASH_NOTIFICATION_COLOR);
@@ -7224,11 +7429,11 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage
         public static String getStringForUser(ContentResolver resolver, String name,
-                int userHandle) {
+                @CanBeCURRENT @UserIdInt int userId) {
             if (MOVED_TO_GLOBAL.contains(name)) {
                 Log.w(TAG, "Setting " + name + " has moved from android.provider.Settings.Secure"
                         + " to android.provider.Settings.Global.");
-                return Global.getStringForUser(resolver, name, userHandle);
+                return Global.getStringForUser(resolver, name, userId);
             }
 
             if (MOVED_TO_LOCK_SETTINGS.contains(name) && Process.myUid() != Process.SYSTEM_UID) {
@@ -7252,7 +7457,7 @@ public final class Settings {
                         " longer accessible. See API documentation for potential replacements.");
             }
 
-            return sNameValueCache.getStringForUser(resolver, name, userHandle);
+            return sNameValueCache.getStringForUser(resolver, name, userId);
         }
 
         /**
@@ -7287,8 +7492,8 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage
         public static boolean putStringForUser(ContentResolver resolver, String name, String value,
-                int userHandle) {
-            return putStringForUser(resolver, name, value, null, false, userHandle,
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(resolver, name, value, null, false, userId,
                     DEFAULT_OVERRIDEABLE_BY_RESTORE);
         }
 
@@ -7296,19 +7501,20 @@ public final class Settings {
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public static boolean putStringForUser(@NonNull ContentResolver resolver,
                 @NonNull String name, @Nullable String value, @Nullable String tag,
-                boolean makeDefault, @UserIdInt int userHandle, boolean overrideableByRestore) {
+                boolean makeDefault, @CanBeCURRENT @UserIdInt int userId,
+                boolean overrideableByRestore) {
             if (LOCAL_LOGV) {
                 Log.v(TAG, "Secure.putString(name=" + name + ", value=" + value + ") for "
-                        + userHandle);
+                        + userId);
             }
             if (MOVED_TO_GLOBAL.contains(name)) {
                 Log.w(TAG, "Setting " + name + " has moved from android.provider.Settings.Secure"
                         + " to android.provider.Settings.Global");
                 return Global.putStringForUser(resolver, name, value,
-                        tag, makeDefault, userHandle, DEFAULT_OVERRIDEABLE_BY_RESTORE);
+                        tag, makeDefault, userId, DEFAULT_OVERRIDEABLE_BY_RESTORE);
             }
             return sNameValueCache.putStringForUser(resolver, name, value, tag,
-                    makeDefault, userHandle, overrideableByRestore);
+                    makeDefault, userId, overrideableByRestore);
         }
 
         /**
@@ -7390,7 +7596,7 @@ public final class Settings {
          * @param resolver Handle to the content resolver.
          * @param tag Optional tag which should be associated with the settings to reset.
          * @param mode The reset mode.
-         * @param userHandle The user for which to reset to defaults.
+         * @param userId The user for which to reset to defaults.
          *
          * @see #RESET_MODE_PACKAGE_DEFAULTS
          * @see #RESET_MODE_UNTRUSTED_DEFAULTS
@@ -7400,15 +7606,21 @@ public final class Settings {
          * @hide
          */
         public static void resetToDefaultsAsUser(@NonNull ContentResolver resolver,
-                @Nullable String tag, @ResetMode int mode, @IntRange(from = 0) int userHandle) {
+                @Nullable String tag, @ResetMode int mode,
+                @IntRange(from = 0) @CannotBeSpecialUser @UserIdInt int userId) {
             try {
                 Bundle arg = new Bundle();
-                arg.putInt(CALL_METHOD_USER_KEY, userHandle);
+                arg.putInt(CALL_METHOD_USER_KEY, userId);
                 if (tag != null) {
                     arg.putString(CALL_METHOD_TAG_KEY, tag);
                 }
                 arg.putInt(CALL_METHOD_RESET_MODE_KEY, mode);
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't reset to defaults for " + CONTENT_URI
+                        + " because cp is null");
+                    return;
+                }
                 cp.call(resolver.getAttributionSource(),
                         sProviderHolder.mUri.getAuthority(), CALL_METHOD_RESET_SECURE, null, arg);
             } catch (RemoteException e) {
@@ -7451,8 +7663,9 @@ public final class Settings {
 
         /** @hide */
         @UnsupportedAppUsage
-        public static int getIntForUser(ContentResolver cr, String name, int def, int userHandle) {
-            String v = getStringForUser(cr, name, userHandle);
+        public static int getIntForUser(ContentResolver cr, String name, int def,
+                @CanBeCURRENT @UserIdInt int userId) {
+            String v = getStringForUser(cr, name, userId);
             return parseIntSettingWithDefault(v, def);
         }
 
@@ -7480,9 +7693,10 @@ public final class Settings {
         }
 
         /** @hide */
-        public static int getIntForUser(ContentResolver cr, String name, int userHandle)
+        public static int getIntForUser(ContentResolver cr, String name,
+                @CanBeCURRENT @UserIdInt int userId)
                 throws SettingNotFoundException {
-            String v = getStringForUser(cr, name, userHandle);
+            String v = getStringForUser(cr, name, userId);
             return parseIntSetting(v, name);
         }
 
@@ -7506,8 +7720,8 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage
         public static boolean putIntForUser(ContentResolver cr, String name, int value,
-                int userHandle) {
-            return putStringForUser(cr, name, Integer.toString(value), userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(cr, name, Integer.toString(value), userId);
         }
 
         /**
@@ -7531,8 +7745,8 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public static long getLongForUser(ContentResolver cr, String name, long def,
-                int userHandle) {
-            String v = getStringForUser(cr, name, userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            String v = getStringForUser(cr, name, userId);
             return parseLongSettingWithDefault(v, def);
         }
 
@@ -7559,9 +7773,10 @@ public final class Settings {
         }
 
         /** @hide */
-        public static long getLongForUser(ContentResolver cr, String name, int userHandle)
+        public static long getLongForUser(ContentResolver cr, String name,
+                @CanBeCURRENT @UserIdInt int userId)
                 throws SettingNotFoundException {
-            String v = getStringForUser(cr, name, userHandle);
+            String v = getStringForUser(cr, name, userId);
             return parseLongSetting(v, name);
         }
 
@@ -7585,8 +7800,8 @@ public final class Settings {
         /** @hide */
         @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
         public static boolean putLongForUser(ContentResolver cr, String name, long value,
-                int userHandle) {
-            return putStringForUser(cr, name, Long.toString(value), userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(cr, name, Long.toString(value), userId);
         }
 
         /**
@@ -7609,8 +7824,8 @@ public final class Settings {
 
         /** @hide */
         public static float getFloatForUser(ContentResolver cr, String name, float def,
-                int userHandle) {
-            String v = getStringForUser(cr, name, userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            String v = getStringForUser(cr, name, userId);
             return parseFloatSettingWithDefault(v, def);
         }
 
@@ -7638,9 +7853,10 @@ public final class Settings {
         }
 
         /** @hide */
-        public static float getFloatForUser(ContentResolver cr, String name, int userHandle)
+        public static float getFloatForUser(ContentResolver cr, String name,
+                @CanBeCURRENT @UserIdInt int userId)
                 throws SettingNotFoundException {
-            String v = getStringForUser(cr, name, userHandle);
+            String v = getStringForUser(cr, name, userId);
             return parseFloatSetting(v, name);
         }
 
@@ -7663,8 +7879,8 @@ public final class Settings {
 
         /** @hide */
         public static boolean putFloatForUser(ContentResolver cr, String name, float value,
-                int userHandle) {
-            return putStringForUser(cr, name, Float.toString(value), userHandle);
+                @CanBeCURRENT @UserIdInt int userId) {
+            return putStringForUser(cr, name, Float.toString(value), userId);
         }
 
         /**
@@ -8698,8 +8914,8 @@ public final class Settings {
          * Setting to indicate that content filters should be enabled on web browsers.
          *
          * <ul>
-         *   <li>0 = Allow all sites
-         *   <li>1 = Try to block explicit sites
+         *   <li> non-positive (less or equal to 0) = Allow all sites
+         *   <li> positive (greater than 0) = Try to block explicit sites
          * </ul>
          *
          * @hide
@@ -8712,8 +8928,8 @@ public final class Settings {
          * Setting to indicate that content filters should be enabled in web search engines.
          *
          * <ul>
-         *   <li>0 = Off
-         *   <li>1 = Filter
+         *   <li> non-positive (less or equal to 0) = Off
+         *   <li> positive (greater than 0) = Filter
          * </ul>
          *
          * @hide
@@ -8721,6 +8937,41 @@ public final class Settings {
         @Readable
         public static final String SEARCH_CONTENT_FILTERS_ENABLED =
                 "search_content_filters_enabled";
+
+        /**
+         * Setting to indicate that themes should be enabled in related app.
+         *
+         * <ul>
+         *   <li>0 = Off
+         *   <li>1 = Enable themes
+         * </ul>
+         *
+         * @hide
+         */
+        public static final String PACK_THEME_FEATURE_ENABLED =
+                "pack_theme_feature_enabled";
+
+        /**
+         * Setting to indicate that suggested themes feature should be enabled in related app.
+         *
+         * <ul>
+         *   <li>0 = Off
+         *   <li>1 = Enable suggested themes
+         * </ul>
+         *
+         * @hide
+         */
+        public static final String SUGGESTED_THEME_FEATURE_ENABLED =
+                "suggested_theme_feature_enabled";
+
+        /**
+         * String property which is a comma separated list of package names. These package names
+         * will be added to the existing agent allowlist. Since this contains package names, it must
+         * NOT be marked @Readable.
+         * @hide
+         */
+        public static final String APP_FUNCTION_ADDITIONAL_AGENT_ALLOWLIST =
+                "app_function_additional_agent_allowlist";
 
         /**
          * Set by the system to track if the user needs to see the call to action for
@@ -9442,10 +9693,15 @@ public final class Settings {
          * Whether or not larger size icons are used for the pointer of mouse/trackpad for
          * accessibility.
          * (0 = false, 1 = true)
+         *
+         * @deprecated This setting is no longer in use, as the size of pointer icons is now
+         *             controlled by the {@link #POINTER_SCALE} setting. The value of this setting
+         *             is ignored.
          * @hide
          */
         @UnsupportedAppUsage
         @Readable
+        @Deprecated
         public static final String ACCESSIBILITY_LARGE_POINTER_ICON =
                 "accessibility_large_pointer_icon";
 
@@ -9455,6 +9711,8 @@ public final class Settings {
          */
         @UnsupportedAppUsage
         @Readable
+        @TestApi
+        @SuppressLint({"UnflaggedApi", "NoSettingsProvider"}) // @TestApi purely for CTS support.
         public static final String LONG_PRESS_TIMEOUT = "long_press_timeout";
 
         /**
@@ -9463,6 +9721,8 @@ public final class Settings {
          * @hide
          */
         @Readable
+        @TestApi
+        @SuppressLint({"UnflaggedApi", "NoSettingsProvider"}) // @TestApi purely for CTS support.
         public static final String MULTI_PRESS_TIMEOUT = "multi_press_timeout";
 
         /**
@@ -9537,12 +9797,40 @@ public final class Settings {
                 "reduce_bright_colors_persist_across_reboots";
 
         /**
+         * Integer setting that specifies the duration in ms required to invert the text cursor's
+         * pixels.
+         *
+         * @see ViewConfiguration#getTextCursorBlinkIntervalMillis()
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_TEXT_CURSOR_BLINK_INTERVAL_MS =
+                "accessibility_text_cursor_blink_interval_ms";
+
+        /**
          * Setting that holds EM_VALUE (proprietary)
          *
          * @hide
          */
         public static final String EM_VALUE =
                 "em_value";
+        /**
+         * Setting that specifies whether High Dynamic Range brightness is enabled.
+         *
+         * @hide
+         */
+        public static final String HDR_BRIGHTNESS_ENABLED =
+                "hdr_brightness_enabled";
+
+        /**
+         * Setting that specifies the intensity of the High Dynamic Range brightness. The range is
+         * [0, 1], which is which is used to scale the HDR/SDR ratio.
+         *
+         * @hide
+         */
+        public static final String HDR_BRIGHTNESS_BOOST_LEVEL =
+                "hdr_brightness_boost_level";
+
         /**
          * List of the enabled print services.
          *
@@ -10219,7 +10507,19 @@ public final class Settings {
          * Whether to mirror the built-in display on all connected displays.
          * @hide
          */
+        @TestApi
+        @Readable
+        @SuppressLint({"UnflaggedApi", "NoSettingsProvider"}) // @TestApi purely for CTS support.
         public static final String MIRROR_BUILT_IN_DISPLAY = "mirror_built_in_display";
+
+        /**
+         * Whether to include the default display in the display topology.
+         *
+         * Note that this value is used for projected mode.
+         * @hide
+         */
+        public static final String INCLUDE_DEFAULT_DISPLAY_IN_TOPOLOGY =
+                "include_default_display_in_topology";
 
         /**
          * No mode switching will happen.
@@ -10712,6 +11012,73 @@ public final class Settings {
                 "when_to_start_glanceable_hub";
 
         /**
+         * Whether glanceable hub should only start when charging wirelessly.
+         *
+         * @hide
+         */
+        public static final String GLANCEABLE_HUB_RESTRICT_TO_WIRELESS_CHARGING =
+                "glanceable_hub_restrict_to_writeless_charging";
+
+        /**
+         * Nothing should be done during low light
+         *
+         * @hide
+         */
+        public static final int LOW_LIGHT_DISPLAY_BEHAVIOR_NONE = 0;
+
+        /**
+         * The screen should turn completely off in low light.
+         *
+         * @hide
+         */
+        public static final int LOW_LIGHT_DISPLAY_BEHAVIOR_SCREEN_OFF = 1;
+
+        /**
+         * The screen should switch to a low light clock dream if dreaming is enabled in low light.
+         *
+         * @hide
+         */
+        public static final int LOW_LIGHT_DISPLAY_BEHAVIOR_LOW_LIGHT_CLOCK_DREAM = 2;
+
+        /**
+         * The screen should not show dreams if enabled (AOD will be permitted).
+         *
+         * @hide
+         */
+        public static final int LOW_LIGHT_DISPLAY_BEHAVIOR_NO_DREAM = 3;
+
+        /** @hide */
+        @Retention(RetentionPolicy.SOURCE)
+        @IntDef({
+                LOW_LIGHT_DISPLAY_BEHAVIOR_NONE,
+                LOW_LIGHT_DISPLAY_BEHAVIOR_SCREEN_OFF,
+                LOW_LIGHT_DISPLAY_BEHAVIOR_LOW_LIGHT_CLOCK_DREAM,
+                LOW_LIGHT_DISPLAY_BEHAVIOR_NO_DREAM,
+        })
+        public @interface LowLightDisplayBehavior {
+        }
+
+        /**
+         * Indicates display behavior in low light. Options are:
+         * 0: None
+         * 1: Keep screen off
+         * 2: Show low light clock dream
+         * 3: Disable dreaming
+         *
+         * @hide
+         */
+        public static final String LOW_LIGHT_DISPLAY_BEHAVIOR =
+                "low_light_display_behavior";
+
+        /**
+         * Indicates whether display behavior in low light is enabled.
+         *
+         * @hide
+         */
+        public static final String LOW_LIGHT_DISPLAY_BEHAVIOR_ENABLED =
+                "low_light_display_behavior_enabled";
+
+        /**
          * Whether home controls are enabled to be shown over the screensaver by the user.
          *
          * @hide
@@ -10719,6 +11086,13 @@ public final class Settings {
         public static final String SCREENSAVER_HOME_CONTROLS_ENABLED =
                 "screensaver_home_controls_enabled";
 
+        /**
+         * Whether screensaver should only start when charging wirelessly.
+         *
+         * @hide
+         */
+        public static final String SCREENSAVER_RESTRICT_TO_WIRELESS_CHARGING =
+                "screensaver_restrict_to_writeless_charging";
 
         /**
          * Default, indicates that the user has not yet started the dock setup flow.
@@ -11505,6 +11879,9 @@ public final class Settings {
          * Whether or not the UDFPS device is enabling the screen off unlock settings.
          * @hide
          */
+        @TestApi
+        @Readable
+        @SuppressLint({"UnflaggedApi", "NoSettingsProvider"}) // @TestApi without associated feature
         public static final String SCREEN_OFF_UNLOCK_UDFPS_ENABLED = "screen_off_udfps_enabled";
 
         /**
@@ -12203,7 +12580,7 @@ public final class Settings {
          * backup_finished_notification_receivers  (String[])
          * </pre>
          *
-         * backup_finished_notification_receivers uses ":" as delimeter for values.
+         * backup_finished_notification_receivers uses ":" as delimiter for values.
          *
          * <p>
          * Type: string
@@ -12431,6 +12808,14 @@ public final class Settings {
          * @hide
          */
         public static final String NAV_BAR_KIDS_MODE = "nav_bar_kids_mode";
+
+        /**
+         * This defines the order in which the 3-button navigation bar's buttons are displayed.
+         * 0 = left-to-right (back, home, recent)
+         * 1 = right-to-left (recent, home, back)
+         * @hide
+         */
+        public static final String NAVIGATIONBAR_KEY_ORDER = "navigationbar_key_order";
 
         /**
          * Navigation bar mode.
@@ -12677,6 +13062,13 @@ public final class Settings {
                 "accessibility_magnification_follow_typing_enabled";
 
         /**
+         * Whether the following keyboard focus feature for magnification is enabled.
+         * @hide
+         */
+        public static final String ACCESSIBILITY_MAGNIFICATION_FOLLOW_KEYBOARD_ENABLED =
+                "accessibility_magnification_follow_keyboard_enabled";
+
+        /**
          * Whether the magnification joystick controller feature is enabled.
          * @hide
          */
@@ -12691,6 +13083,22 @@ public final class Settings {
          */
         public static final String ACCESSIBILITY_MAGNIFICATION_TWO_FINGER_TRIPLE_TAP_ENABLED =
                 "accessibility_magnification_two_finger_triple_tap_enabled";
+
+        /**
+         * Whether to always expand notification bundles in the notification shade.
+         * 1 = expand, 0 = collapse.
+         * @hide
+         */
+        public static final String NOTIFICATION_BUNDLES_ALWAYS_EXPAND =
+                "notification_bundles_always_expand";
+
+        /**
+         * Whether the magnify navigation bar and keyboard feature is enabled.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_MAGNIFICATION_MAGNIFY_NAV_AND_IME =
+                "accessibility_magnification_magnify_nav_and_ime";
 
         /**
          * For pinch to zoom anywhere feature.
@@ -12842,7 +13250,10 @@ public final class Settings {
          *
          * @hide
          */
+        @TestApi
         @Readable
+        @FlaggedApi(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+        @SuppressLint("NoSettingsProvider")
         public static final String ACCESSIBILITY_FORCE_INVERT_COLOR_ENABLED =
                 "accessibility_force_invert_color_enabled";
 
@@ -12857,6 +13268,30 @@ public final class Settings {
         @Readable
         public static final String ACCESSIBILITY_MOUSE_KEYS_ENABLED =
                 "accessibility_mouse_keys_enabled";
+
+        /**
+         * The current float acceleration value for mouse keys movement.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_MOUSE_KEYS_ACCELERATION =
+                "accessibility_mouse_keys_acceleration";
+
+        /**
+         * The max speed as a factor of the minimum speed for mouse keys movement.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_MOUSE_KEYS_MAX_SPEED =
+                "accessibility_mouse_keys_max_speed";
+
+        /**
+         * Whether the primary keys are selected to control the mouse keys.
+         *
+         * @hide
+         */
+        public static final String ACCESSIBILITY_MOUSE_KEYS_USE_PRIMARY_KEYS =
+                "accessibility_mouse_keys_use_primary_keys";
 
         /**
          * Whether the Adaptive connectivity option is enabled.
@@ -13027,6 +13462,63 @@ public final class Settings {
          */
         public static final String DEVICE_STATE_ROTATION_LOCK =
                 "device_state_rotation_lock";
+
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_NONE = 0;
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_HOME = 1;
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_OVERVIEW = 2;
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_NOTIFICATIONS = 3;
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_QUICK_SETTINGS = 4;
+        /** @hide */
+        public static final int ACTION_CORNER_ACTION_LOCKSCREEN = 5;
+
+        /**
+         * The different actions that can be used for action corners
+         * @hide
+         */
+        @IntDef(prefix = {"ACTION_CORNER_ACTION_"}, value = {
+                ACTION_CORNER_ACTION_NONE,
+                ACTION_CORNER_ACTION_HOME,
+                ACTION_CORNER_ACTION_OVERVIEW,
+                ACTION_CORNER_ACTION_NOTIFICATIONS,
+                ACTION_CORNER_ACTION_QUICK_SETTINGS,
+                ACTION_CORNER_ACTION_LOCKSCREEN,
+        })
+        @Retention(RetentionPolicy.SOURCE)
+        public @interface ActionCornerActionType {
+        }
+
+        /**
+         * Action Corner type configured for top left corner of display.
+         * @hide
+         */
+        public static final String ACTION_CORNER_TOP_LEFT_ACTION =
+                "action_corner_top_left_action";
+
+        /**
+         * Action Corner type configured for top right corner of display.
+         * @hide
+         */
+        public static final String ACTION_CORNER_TOP_RIGHT_ACTION =
+                "action_corner_top_right_action";
+
+        /**
+         * Action Corner type configured for bottom left corner of display.
+         * @hide
+         */
+        public static final String ACTION_CORNER_BOTTOM_LEFT_ACTION =
+                "action_corner_bottom_left_action";
+
+        /**
+         * Action Corner type configured for bottom right corner of display.
+         * @hide
+         */
+        public static final String ACTION_CORNER_BOTTOM_RIGHT_ACTION =
+                "action_corner_bottom_right_action";
 
         /**
          * Control whether communal mode is allowed on this device.
@@ -13399,6 +13891,23 @@ public final class Settings {
          * @hide
          */
         public static final String AAPM_USB_DATA_PROTECTION = "aapm_usb_data_protection";
+
+        /**
+         * Tracks if the user has seen the promo card for Identity Check.
+         * The promo card should only appear once per user via Safety Center.
+         *
+         * @hide
+         */
+        public static final String IDENTITY_CHECK_PROMO_CARD_SHOWN =
+                "identity_check_promo_card_shown";
+
+        /**
+         * Tracks if the user has interacted with the Identity Check promo notification.
+         * The notification should only appear once per user via Safety Center.
+         * @hide
+         */
+        public static final String IDENTITY_CHECK_NOTIFICATION_VIEW_DETAILS_CLICKED =
+                "identity_check_notification_view_details_clicked";
     }
 
     /**
@@ -13475,7 +13984,7 @@ public final class Settings {
 
         /**
          * Whether Theater Mode is on.
-         * {@hide}
+         * @hide
          */
         @SystemApi
         @Readable
@@ -13495,7 +14004,7 @@ public final class Settings {
         public static final String RADIO_WIFI = "wifi";
 
         /**
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String RADIO_WIMAX = "wimax";
@@ -13514,7 +14023,7 @@ public final class Settings {
         /**
          * Constant for use in SATELLITE_MODE_RADIOS to specify UWB radio.
          *
-         * {@hide}
+         * @hide
          */
         public static final String RADIO_UWB = "uwb";
 
@@ -13522,7 +14031,7 @@ public final class Settings {
         /**
          * A comma separated list of radios that need to be disabled when satellite mode is on.
          *
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String SATELLITE_MODE_RADIOS = "satellite_mode_radios";
@@ -13536,7 +14045,7 @@ public final class Settings {
          * When this setting is set to 0, it means the satellite mode is disabled. When this
          * setting is set to 1, it means the satellite mode is enabled.
          *
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String SATELLITE_MODE_ENABLED = "satellite_mode_enabled";
@@ -13574,7 +14083,7 @@ public final class Settings {
         /**
          * A Long representing a bitmap of profiles that should be disabled when bluetooth starts.
          * See {@link android.bluetooth.BluetoothProfile}.
-         * {@hide}
+         * @hide
          */
         @Readable
         @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
@@ -14369,92 +14878,92 @@ public final class Settings {
         public static final String CONNECTIVITY_METRICS_BUFFER_SIZE =
               "connectivity_metrics_buffer_size";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_ENABLED = "netstats_enabled";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_POLL_INTERVAL = "netstats_poll_interval";
         /**
          * @deprecated
-         * {@hide}
+         * @hide
          */
         @Deprecated
         @Readable
         public static final String NETSTATS_TIME_CACHE_MAX_AGE = "netstats_time_cache_max_age";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_GLOBAL_ALERT_BYTES = "netstats_global_alert_bytes";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_SAMPLE_ENABLED = "netstats_sample_enabled";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_AUGMENT_ENABLED = "netstats_augment_enabled";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_COMBINE_SUBTYPE_ENABLED =
                 "netstats_combine_subtype_enabled";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_DEV_BUCKET_DURATION = "netstats_dev_bucket_duration";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_DEV_PERSIST_BYTES = "netstats_dev_persist_bytes";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_DEV_ROTATE_AGE = "netstats_dev_rotate_age";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_DEV_DELETE_AGE = "netstats_dev_delete_age";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_BUCKET_DURATION = "netstats_uid_bucket_duration";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_PERSIST_BYTES = "netstats_uid_persist_bytes";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_ROTATE_AGE = "netstats_uid_rotate_age";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_DELETE_AGE = "netstats_uid_delete_age";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_TAG_BUCKET_DURATION =
                 "netstats_uid_tag_bucket_duration";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_TAG_PERSIST_BYTES =
                 "netstats_uid_tag_persist_bytes";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_TAG_ROTATE_AGE = "netstats_uid_tag_rotate_age";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETSTATS_UID_TAG_DELETE_AGE = "netstats_uid_tag_delete_age";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETPOLICY_QUOTA_ENABLED = "netpolicy_quota_enabled";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETPOLICY_QUOTA_UNLIMITED = "netpolicy_quota_unlimited";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETPOLICY_QUOTA_LIMITED = "netpolicy_quota_limited";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETPOLICY_QUOTA_FRAC_JOBS = "netpolicy_quota_frac_jobs";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETPOLICY_QUOTA_FRAC_MULTIPATH =
                 "netpolicy_quota_frac_multipath";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String NETPOLICY_OVERRIDE_ENABLED = "netpolicy_override_enabled";
 
@@ -14554,20 +15063,20 @@ public final class Settings {
         @Readable
         public static final String NTP_TIMEOUT = "ntp_timeout";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String STORAGE_BENCHMARK_INTERVAL = "storage_benchmark_interval";
 
         /**
          * Whether or not Settings should enable psd API.
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String SETTINGS_USE_PSD_API = "settings_use_psd_api";
 
         /**
          * Whether or not Settings should enable external provider API.
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String SETTINGS_USE_EXTERNAL_PROVIDER_API =
@@ -14575,7 +15084,7 @@ public final class Settings {
 
         /**
         * Sample validity in seconds to configure for the system DNS resolver.
-        * {@hide}
+        * @hide
         */
         @Readable
         public static final String DNS_RESOLVER_SAMPLE_VALIDITY_SECONDS =
@@ -14583,7 +15092,7 @@ public final class Settings {
 
         /**
         * Success threshold in percent for use with the system DNS resolver.
-        * {@hide}
+        * @hide
         */
         @Readable
         public static final String DNS_RESOLVER_SUCCESS_THRESHOLD_PERCENT =
@@ -14592,14 +15101,14 @@ public final class Settings {
         /**
         * Minimum number of samples needed for statistics to be considered meaningful in the
         * system DNS resolver.
-        * {@hide}
+        * @hide
         */
         @Readable
         public static final String DNS_RESOLVER_MIN_SAMPLES = "dns_resolver_min_samples";
 
         /**
         * Maximum number taken into account for statistics purposes in the system DNS resolver.
-        * {@hide}
+        * @hide
         */
         @Readable
         public static final String DNS_RESOLVER_MAX_SAMPLES = "dns_resolver_max_samples";
@@ -15057,7 +15566,7 @@ public final class Settings {
                "wifi_networks_available_notification_on";
 
         /**
-        * {@hide}
+        * @hide
         */
         @Readable
         public static final String WIMAX_NETWORKS_AVAILABLE_NOTIFICATION_ON =
@@ -16018,7 +16527,7 @@ public final class Settings {
         public static final String
                 INET_CONDITION_DEBOUNCE_DOWN_DELAY = "inet_condition_debounce_down_delay";
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 READ_EXTERNAL_STORAGE_ENFORCED_DEFAULT = "read_external_storage_enforced_default";
@@ -16110,63 +16619,63 @@ public final class Settings {
           *
           * Value is a string, suitable for assignment to PRIVATE_DNS_MODE above.
           *
-          * {@hide}
+          * @hide
           */
         @Readable
         public static final String PRIVATE_DNS_DEFAULT_MODE = "private_dns_default_mode";
 
 
-        /** {@hide} */
+        /** @hide */
         @Readable
         @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
         @SuppressLint("NoSettingsProvider")
         public static final String
                 BLUETOOTH_BTSNOOP_DEFAULT_MODE = "bluetooth_btsnoop_default_mode";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_HEADSET_PRIORITY_PREFIX = "bluetooth_headset_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_A2DP_SINK_PRIORITY_PREFIX = "bluetooth_a2dp_sink_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_A2DP_SRC_PRIORITY_PREFIX = "bluetooth_a2dp_src_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String BLUETOOTH_A2DP_SUPPORTS_OPTIONAL_CODECS_PREFIX =
                 "bluetooth_a2dp_supports_optional_codecs_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String BLUETOOTH_A2DP_OPTIONAL_CODECS_ENABLED_PREFIX =
                 "bluetooth_a2dp_optional_codecs_enabled_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_INPUT_DEVICE_PRIORITY_PREFIX = "bluetooth_input_device_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_MAP_PRIORITY_PREFIX = "bluetooth_map_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_MAP_CLIENT_PRIORITY_PREFIX = "bluetooth_map_client_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_PBAP_CLIENT_PRIORITY_PREFIX = "bluetooth_pbap_client_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_SAP_PRIORITY_PREFIX = "bluetooth_sap_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_PAN_PRIORITY_PREFIX = "bluetooth_pan_priority_";
-        /** {@hide} */
+        /** @hide */
         @Readable
         public static final String
                 BLUETOOTH_HEARING_AID_PRIORITY_PREFIX = "bluetooth_hearing_aid_priority_";
@@ -16174,7 +16683,7 @@ public final class Settings {
         /**
          * Enable/disable radio bug detection
          *
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String
@@ -16183,7 +16692,7 @@ public final class Settings {
         /**
          * Count threshold of RIL wakelock timeout for radio bug detection
          *
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String
@@ -16193,7 +16702,7 @@ public final class Settings {
         /**
          * Count threshold of RIL system error for radio bug detection
          *
-         * {@hide}
+         * @hide
          */
         @Readable
         public static final String
@@ -18497,6 +19006,15 @@ public final class Settings {
                 "power_button_long_press";
 
         /**
+         * Marks POWER_BUTTON_LONG_PRESS has been restored.
+         * Type: int (0 to false, 1 to true)
+         *
+         * @hide
+         */
+        public static final String POWER_BUTTON_LONG_PRESS_RESTORED =
+                "power_button_long_press_restored";
+
+        /**
          * Override internal R.integer.config_longPressOnPowerDurationMs. It determines the length
          * of power button press to be considered a long press in milliseconds.
          * Used by PhoneWindowManager.
@@ -18634,6 +19152,17 @@ public final class Settings {
                 "hearing_device_local_notification";
 
         /**
+         * This defines the order in which the 3-button navigation bar's buttons are displayed.
+         * 0 = left-to-right (back, home, recent)
+         * 1 = right-to-left (recent, home, back)
+         * @hide
+         * @deprecated Use
+         * {@link Secure#NAVIGATIONBAR_KEY_ORDER} instead.
+         */
+        @Deprecated
+        public static final String NAVIGATIONBAR_KEY_ORDER = "navigationbar_key_order";
+
+        /**
          * Global settings that shouldn't be persisted.
          *
          * @hide
@@ -18681,6 +19210,7 @@ public final class Settings {
             MOVED_TO_SECURE.add(Global.BUGREPORT_IN_POWER_MENU);
             MOVED_TO_SECURE.add(Global.CUSTOM_BUGREPORT_HANDLER_APP);
             MOVED_TO_SECURE.add(Global.CUSTOM_BUGREPORT_HANDLER_USER);
+            MOVED_TO_SECURE.add(Global.NAVIGATIONBAR_KEY_ORDER);
         }
 
         // Certain settings have been moved from global to the per-user system namespace
@@ -18877,6 +19407,11 @@ public final class Settings {
                 }
                 arg.putInt(CALL_METHOD_RESET_MODE_KEY, mode);
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't reset to defaults for " + CONTENT_URI
+                        + " because cp is null");
+                    return;
+                }
                 cp.call(resolver.getAttributionSource(),
                         sProviderHolder.mUri.getAuthority(), CALL_METHOD_RESET_GLOBAL, null, arg);
             } catch (RemoteException e) {
@@ -19145,32 +19680,6 @@ public final class Settings {
         @Readable
         public static final String MULTI_SIM_SMS_PROMPT = "multi_sim_sms_prompt";
 
-        /** User preferred subscriptions setting.
-          * This holds the details of the user selected subscription from the card and
-          * the activation status. Each settings string have the comma separated values
-          * iccId,appType,appId,activationStatus,3gppIndex,3gpp2Index
-          * @hide
-         */
-        @UnsupportedAppUsage
-        @Readable
-        public static final String[] MULTI_SIM_USER_PREFERRED_SUBS = {"user_preferred_sub1",
-                "user_preferred_sub2","user_preferred_sub3"};
-
-        /**
-         * Which subscription is enabled for a physical slot.
-         * @hide
-         */
-        @Readable
-        public static final String ENABLED_SUBSCRIPTION_FOR_SLOT = "enabled_subscription_for_slot";
-
-        /**
-         * Whether corresponding logical modem is enabled for a physical slot.
-         * The value 1 - enable, 0 - disable
-         * @hide
-         */
-        @Readable
-        public static final String MODEM_STACK_ENABLED_FOR_SLOT = "modem_stack_enabled_for_slot";
-
         /**
          * Whether to enable new contacts aggregator or not.
          * The value 1 - enable, 0 - disable
@@ -19338,30 +19847,6 @@ public final class Settings {
         public static final String NOTIFICATION_FEEDBACK_ENABLED = "notification_feedback_enabled";
 
         /**
-         * Settings key for the ratio of notification dismissals to notification views - one of the
-         * criteria for showing the notification blocking helper.
-         *
-         * <p>The value is a float ranging from 0.0 to 1.0 (the closer to 0.0, the more intrusive
-         * the blocking helper will be).
-         *
-         * @hide
-         */
-        @Readable
-        public static final String BLOCKING_HELPER_DISMISS_TO_VIEW_RATIO_LIMIT =
-                "blocking_helper_dismiss_to_view_ratio";
-
-        /**
-         * Settings key for the longest streak of dismissals  - one of the criteria for showing the
-         * notification blocking helper.
-         *
-         * <p>The value is an integer greater than 0.
-         *
-         * @hide
-         */
-        @Readable
-        public static final String BLOCKING_HELPER_STREAK_LIMIT = "blocking_helper_streak_limit";
-
-        /**
          * Configuration flags for SQLite Compatibility WAL. Encoded as a key-value list, separated
          * by commas. E.g.: compatibility_wal_supported=true, wal_syncmode=OFF
          *
@@ -19468,23 +19953,6 @@ public final class Settings {
                 "smart_replies_in_notifications_flags";
 
         /**
-         * Configuration flags for the automatic generation of smart replies and smart actions in
-         * notifications. This is encoded as a key=value list, separated by commas. Ex:
-         * "generate_replies=false,generate_actions=true".
-         *
-         * The following keys are supported:
-         *
-         * <pre>
-         * generate_replies                 (boolean)
-         * generate_actions                 (boolean)
-         * </pre>
-         * @hide
-         */
-        @Readable
-        public static final String SMART_SUGGESTIONS_IN_NOTIFICATIONS_FLAGS =
-                "smart_suggestions_in_notifications_flags";
-
-        /**
          * If nonzero, crashes in foreground processes will bring up a dialog.
          * Otherwise, the process will be silently killed.
          * @hide
@@ -19573,6 +20041,26 @@ public final class Settings {
          */
         @Readable
         public static final String BINDER_CALLS_STATS = "binder_calls_stats";
+
+        /**
+         * Native binder stats settings.
+         *
+         * These parameters are represented by a comma-delimited key-value list.
+         *
+         * The following strings are supported as keys:
+         * <pre>
+         *     enabled                      (boolean)
+         *     process_sharding             (int)
+         *     spam_sharding                (int)
+         *     call_sharding                (int)
+         *     system_process_sharding      (int)
+         *     system_spam_sharding         (int)
+         *     system_call_sharding         (int)
+         * </pre>
+         *
+         * @hide
+         */
+        public static final String NATIVE_BINDER_STATS = "native_binder_stats";
 
         /**
          * Looper stats settings.
@@ -19780,15 +20268,6 @@ public final class Settings {
                 "people_space_conversation_type";
 
         /**
-         * Whether to show new notification dismissal.
-         * Values are:
-         * 0: Disabled
-         * 1: Enabled
-         * @hide
-         */
-        public static final String SHOW_NEW_NOTIF_DISMISS = "show_new_notif_dismiss";
-
-        /**
          * The maximum allowed obscuring opacity by UID to propagate touches.
          *
          * For certain window types (eg. SAWs), the decision of honoring {@link LayoutParams
@@ -19899,6 +20378,37 @@ public final class Settings {
          */
         public static final String REDACT_OTP_NOTIFICATIONS_FROM_UNTRUSTED_LISTENERS =
                 "redact_otp_notifications_from_untrusted_listeners";
+
+        /**
+         * Timeout used to dismiss the Global Actions Dialog to avoid the possibility of
+         * OLED burn-in from the dialog.
+         * @hide
+         */
+        public static final String GLOBAL_ACTIONS_TIMEOUT_MILLIS =
+                "global_actions_timeout_ms";
+
+        /**
+         * Indicates if the primary device is eligible for watch ranging or not.
+         *
+         * @hide
+         */
+        public static final String WATCH_RANGING_SUPPORTED_BY_PRIMARY_DEVICE =
+                "watch_ranging_supported_by_primary_device";
+
+        /**
+         * Indicates whether the device is in minmode.
+         *
+         * @hide
+         */
+        public static final String MINMODE_ACTIVE = "minmode_active";
+
+        /**
+          * Indicates if watch ranging is available for the device.
+         *
+         * @hide
+         */
+        public static final String WATCH_RANGING_AVAILABLE =
+                "watch_ranging_available";
 
         /**
          * Settings migrated from Wear OS settings provider.
@@ -20016,6 +20526,12 @@ public final class Settings {
             public static final int AUTO_TIME_ZONE_OFF = 2;
             /** @hide */
             public static final int INVALID_AUTO_TIME_ZONE_STATE = 3;
+
+            /** Store user enablement settings for location time zone detection
+             * Type: int (0 to disabled, 1 to enabled)
+             * @hide */
+            public static final String CLOCKWORK_LOCATION_TIME_ZONE_DETECTION_ENABLED =
+                    "clockwork_location_time_zone_detection_enabled";
 
             /**
              * Whether 24 hour time format is enabled on the watch.
@@ -20928,6 +21444,16 @@ public final class Settings {
             public static final String GESTURE_DISMISS_ACTION_USER_PREFERENCE =
                     "gesture_dismiss_action_user_preference";
 
+            /**
+             * Setting indicating the duration, in days, between two gesture hint sessions.
+             *
+             * <p>A value of 0 means that gesture hints will always show without any delay, and a
+             * value of -1 means that gesture hints will never show.
+             *
+             * @hide
+             */
+            public static final String GESTURE_HINT_PERIOD_DAYS = "gesture_hint_period_days";
+
             /** Whether Wear Power Anomaly Service is enabled.
              *
              * (0 = false, 1 = true)
@@ -21119,6 +21645,10 @@ public final class Settings {
                 Bundle arg = new Bundle();
                 arg.putInt(Settings.CALL_METHOD_USER_KEY, resolver.getUserId());
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't get all strings because cp is null");
+                    return allFlags;
+                }
 
                 if (Flags.reduceBinderTransactionSizeForGetAllProperties()) {
                     Bundle b = cp.call(resolver.getAttributionSource(),
@@ -21296,6 +21826,11 @@ public final class Settings {
                     arg.putString(Settings.CALL_METHOD_PREFIX_KEY, createPrefix(namespace));
                 }
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't reset to defaults for " + CONTENT_URI
+                        + " because cp is null");
+                    return;
+                }
                 cp.call(resolver.getAttributionSource(),
                         sProviderHolder.mUri.getAuthority(), CALL_METHOD_RESET_CONFIG, null, arg);
             } catch (RemoteException e) {
@@ -21318,6 +21853,11 @@ public final class Settings {
                 Bundle args = new Bundle();
                 args.putInt(CALL_METHOD_SYNC_DISABLED_MODE_KEY, disableSyncMode);
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't set sync disabled mode for " + CONTENT_URI
+                        + " because cp is null");
+                    return;
+                }
                 cp.call(resolver.getAttributionSource(), sProviderHolder.mUri.getAuthority(),
                         CALL_METHOD_SET_SYNC_DISABLED_MODE_CONFIG, null, args);
             } catch (RemoteException e) {
@@ -21339,6 +21879,11 @@ public final class Settings {
                 ContentResolver resolver = getContentResolver();
                 Bundle args = Bundle.EMPTY;
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't query sync disabled mode for " + CONTENT_URI
+                        + " because cp is null");
+                    return -1;
+                }
                 Bundle bundle = cp.call(resolver.getAttributionSource(),
                         sProviderHolder.mUri.getAuthority(),
                         CALL_METHOD_GET_SYNC_DISABLED_MODE_CONFIG,
@@ -21380,6 +21925,10 @@ public final class Settings {
                 Bundle arg = new Bundle();
                 arg.putInt(CALL_METHOD_USER_KEY, resolver.getUserId());
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't clear config monitor callback because cp is null");
+                    return;
+                }
                 cp.call(resolver.getAttributionSource(),
                         sProviderHolder.mUri.getAuthority(),
                         CALL_METHOD_UNREGISTER_MONITOR_CALLBACK_CONFIG, null, arg);
@@ -21451,6 +22000,10 @@ public final class Settings {
                             handleMonitorCallback(result, executor, callback);
                         }));
                 IContentProvider cp = sProviderHolder.getProvider(resolver);
+                if (cp == null) {
+                    Log.w(TAG, "Can't set config monitor callback because cp is null");
+                    return;
+                }
                 cp.call(resolver.getAttributionSource(),
                         sProviderHolder.mUri.getAuthority(),
                         CALL_METHOD_REGISTER_MONITOR_CALLBACK_CONFIG, null, arg);

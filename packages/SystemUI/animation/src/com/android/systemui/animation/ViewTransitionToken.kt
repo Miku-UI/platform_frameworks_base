@@ -19,16 +19,16 @@ package com.android.systemui.animation
 import java.util.UUID
 
 /**
- * A token uniquely mapped to a View in [ViewTransitionRegistry]. This token is guaranteed to be
+ * A token uniquely mapped to a View in [ViewTransitionRegistryImpl]. This token is guaranteed to be
  * unique as timestamp is appended to the token string
  *
- * @constructor creates an instance of [ViewTransitionToken] with token as "UUID" or
- * "ClassName_UUID"
- *
  * @property token String value of a unique token
+ * @constructor creates an instance of [ViewTransitionToken] with token as "UUID" or
+ *   "ClassName_UUID"
  */
 @JvmInline
 value class ViewTransitionToken private constructor(val token: String) {
     constructor() : this(token = UUID.randomUUID().toString())
+
     constructor(clazz: Class<*>) : this(token = clazz.simpleName + "_${UUID.randomUUID()}")
 }

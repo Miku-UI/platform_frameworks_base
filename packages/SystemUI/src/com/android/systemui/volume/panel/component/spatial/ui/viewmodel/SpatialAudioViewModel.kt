@@ -17,6 +17,7 @@
 package com.android.systemui.volume.panel.component.spatial.ui.viewmodel
 
 import android.content.Context
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.logging.UiEventLogger
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.dagger.qualifiers.Application
@@ -35,7 +36,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 @VolumePanelScope
 class SpatialAudioViewModel
@@ -58,6 +58,7 @@ constructor(
                         isChecked = isEnabled is SpatialAudioEnabledModel.SpatialAudioEnabled,
                         isHeadTrackingAvailable =
                             isAvailable is SpatialAudioAvailabilityModel.HeadTracking,
+                        shouldUseLabelInStateDescription = true,
                     )
                     .copy(label = context.getString(R.string.volume_panel_spatial_audio_title))
             }
@@ -94,6 +95,7 @@ constructor(
                                 isChecked = isEnabled == currentIsEnabled,
                                 isHeadTrackingAvailable =
                                     isAvailable is SpatialAudioAvailabilityModel.HeadTracking,
+                                shouldUseLabelInStateDescription = false,
                             )
                         SpatialAudioButtonViewModel(button = buttonViewModel, model = isEnabled)
                     }
@@ -112,7 +114,7 @@ constructor(
                 else -> {
                     -1
                 }
-            }
+            },
         )
         scope.launch { interactor.setEnabled(model) }
     }
@@ -120,10 +122,12 @@ constructor(
     private fun SpatialAudioEnabledModel.toViewModel(
         isChecked: Boolean,
         isHeadTrackingAvailable: Boolean,
+        shouldUseLabelInStateDescription: Boolean,
     ): ButtonViewModel {
         // This method deliberately uses the same icon for the case when head tracking is disabled
         // to show a toggle button with a non-changing icon
         if (this is SpatialAudioEnabledModel.HeadTrackingEnabled) {
+            val label = context.getString(R.string.volume_panel_spatial_audio_tracking)
             return ButtonViewModel(
                 isActive = isChecked,
                 icon =
@@ -132,11 +136,13 @@ constructor(
                     } else {
                         spatialSpeakerIcon
                     },
-                label = context.getString(R.string.volume_panel_spatial_audio_tracking)
+                label = label,
+                stateDescription = label.takeIf { shouldUseLabelInStateDescription },
             )
         }
 
         if (this is SpatialAudioEnabledModel.SpatialAudioEnabled) {
+            val label = context.getString(R.string.volume_panel_spatial_audio_fixed)
             return ButtonViewModel(
                 isActive = isChecked,
                 icon =
@@ -145,11 +151,13 @@ constructor(
                     } else {
                         spatialSpeakerIcon
                     },
-                label = context.getString(R.string.volume_panel_spatial_audio_fixed)
+                label = label,
+                stateDescription = label.takeIf { shouldUseLabelInStateDescription },
             )
         }
 
         if (this is SpatialAudioEnabledModel.Disabled) {
+            val label = context.getString(R.string.volume_panel_spatial_audio_off)
             return ButtonViewModel(
                 isActive = isChecked,
                 icon =
@@ -158,7 +166,8 @@ constructor(
                     } else {
                         spatialSpeakerIcon
                     },
-                label = context.getString(R.string.volume_panel_spatial_audio_off)
+                label = label,
+                stateDescription = label.takeIf { shouldUseLabelInStateDescription },
             )
         }
 

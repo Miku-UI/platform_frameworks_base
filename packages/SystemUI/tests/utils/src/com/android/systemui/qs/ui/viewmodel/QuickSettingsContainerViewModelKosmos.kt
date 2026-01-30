@@ -19,36 +19,31 @@ package com.android.systemui.qs.ui.viewmodel
 import com.android.systemui.brightness.ui.viewmodel.brightnessSliderViewModelFactory
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarouselInteractor
-import com.android.systemui.media.controls.ui.controller.mediaCarouselController
-import com.android.systemui.media.controls.ui.view.MediaHost
+import com.android.systemui.media.remedia.ui.viewmodel.factory.mediaViewModelFactory
 import com.android.systemui.qs.panels.ui.viewmodel.detailsViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.editModeViewModel
+import com.android.systemui.qs.panels.ui.viewmodel.mediaInRowInLandscapeViewModelFactory
 import com.android.systemui.qs.panels.ui.viewmodel.tileGridViewModelFactory
-import com.android.systemui.qs.panels.ui.viewmodel.toolbar.toolbarViewModelFactory
-import com.android.systemui.shade.domain.interactor.shadeModeInteractor
+import com.android.systemui.shade.domain.interactor.shadeDisplaysInteractor
 import com.android.systemui.shade.ui.viewmodel.shadeHeaderViewModelFactory
-import org.mockito.kotlin.mock
 
 val Kosmos.quickSettingsContainerViewModelFactory by
     Kosmos.Fixture {
         object : QuickSettingsContainerViewModel.Factory {
             override fun create(
-                supportsBrightnessMirroring: Boolean,
-                expansion: Float?,
+                supportsBrightnessMirroring: Boolean
             ): QuickSettingsContainerViewModel {
                 return QuickSettingsContainerViewModel(
                     brightnessSliderViewModelFactory = brightnessSliderViewModelFactory,
                     shadeHeaderViewModelFactory = shadeHeaderViewModelFactory,
                     tileGridViewModelFactory = tileGridViewModelFactory,
                     supportsBrightnessMirroring = supportsBrightnessMirroring,
-                    expansion = expansion,
                     editModeViewModel = editModeViewModel,
                     detailsViewModel = detailsViewModel,
-                    toolbarViewModelFactory = toolbarViewModelFactory,
-                    shadeModeInteractor = shadeModeInteractor,
+                    shadeDisplaysInteractor = { shadeDisplaysInteractor },
                     mediaCarouselInteractor = mediaCarouselInteractor,
-                    mediaCarouselController = mediaCarouselController,
-                    mediaHost = mock<MediaHost>(),
+                    mediaViewModelFactory = mediaViewModelFactory,
+                    mediaInRowInLandscapeViewModelFactory = mediaInRowInLandscapeViewModelFactory,
                 )
             }
         }

@@ -96,7 +96,7 @@ internal fun SettingsAlertDialogContent(
 ) {
     Surface(
         modifier = modifier,
-        shape = SettingsShape.CornerExtraLarge,
+        shape = SettingsShape.CornerExtraLarge1,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(modifier = Modifier.padding(DialogPadding)) {

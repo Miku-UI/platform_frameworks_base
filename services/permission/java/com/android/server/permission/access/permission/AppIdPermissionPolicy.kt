@@ -160,6 +160,12 @@ class AppIdPermissionPolicy : SchemePolicy() {
         trimPermissions(packageName, changedPermissionNames)
         if (appId in newState.externalState.appIdPackageNames) {
             trimPermissionStates(appId)
+            // The removed package could be the reason why other packages sharing the same UID might
+            // have been granted a permission. As a result, all permissions requested by the app ID
+            // must be re-evaluated.
+            if (Flags.purposeDeclarationEnabled()) {
+                evaluateAllPermissionStatesForAppId(appId)
+            }
         }
         changedPermissionNames.forEachIndexed { _, permissionName ->
             evaluatePermissionStateForAllPackages(permissionName, null)
@@ -947,6 +953,18 @@ class AppIdPermissionPolicy : SchemePolicy() {
         }
     }
 
+    private fun MutateStateScope.evaluateAllPermissionStatesForAppId(appId: Int) {
+        val requestedPermissions = MutableIndexedSet<String>()
+        forEachPackageInAppId(appId) {
+            requestedPermissions += it.androidPackage!!.requestedPermissions
+        }
+        newState.externalState.userIds.forEachIndexed { _, userId ->
+            requestedPermissions.forEachIndexed { _, permissionName ->
+                evaluatePermissionState(appId, userId, permissionName, null)
+            }
+        }
+    }
+
     private fun MutateStateScope.evaluatePermissionState(
         appId: Int,
         userId: Int,
@@ -986,9 +1004,12 @@ class AppIdPermissionPolicy : SchemePolicy() {
             return
         }
         if (permission.isNormal) {
-            val wasGranted = oldFlags.hasBits(PermissionFlags.INSTALL_GRANTED)
-            if (!wasGranted) {
-                val wasRevoked = oldFlags.hasBits(PermissionFlags.INSTALL_REVOKED)
+            var newFlags: Int
+            val wasInstallGranted = oldFlags.hasBits(PermissionFlags.INSTALL_GRANTED)
+            val wasInstallRevoked = oldFlags.hasBits(PermissionFlags.INSTALL_REVOKED)
+            if (wasInstallGranted || !wasInstallRevoked) {
+                newFlags = PermissionFlags.INSTALL_GRANTED
+            } else {
                 val isRequestedByInstalledPackage =
                     installedPackageState != null &&
                         permissionName in
@@ -1002,10 +1023,9 @@ class AppIdPermissionPolicy : SchemePolicy() {
                 // If this is an existing, non-system package,
                 // then we can't add any new permissions to it.
                 // Except if this is a permission that was added to the platform
-                var newFlags =
+                newFlags =
                     if (
-                        !wasRevoked ||
-                            isRequestedByInstalledPackage ||
+                        isRequestedByInstalledPackage ||
                             isRequestedBySystemPackage ||
                             isCompatibilityPermission
                     ) {
@@ -1013,13 +1033,25 @@ class AppIdPermissionPolicy : SchemePolicy() {
                     } else {
                         PermissionFlags.INSTALL_REVOKED
                     }
-                if (permission.isAppOp) {
-                    newFlags =
-                        newFlags or
-                            (oldFlags and (PermissionFlags.ROLE or PermissionFlags.USER_SET))
-                }
-                setPermissionFlags(appId, userId, permissionName, newFlags)
             }
+            // Starting from Android 17, an app requesting permission which requires purpose must
+            // declare at least one valid purpose in its manifest before it can be granted. Note
+            // that a flag state may have INSTALL_GRANTED and PURPOSE_REVOKED bits set, in which
+            // case the permission will not be granted.
+            if (Flags.purposeDeclarationEnabled() && permission.requiresPurpose) {
+                val hasValidPurpose =
+                    requestingPackageStates.anyIndexed { _, it ->
+                        hasValidPurposeForPackage(it.androidPackage!!, permission)
+                    }
+                if (!hasValidPurpose) {
+                    newFlags = newFlags or PermissionFlags.PURPOSE_REVOKED
+                }
+            }
+            if (permission.isAppOp) {
+                newFlags =
+                    newFlags or (oldFlags and (PermissionFlags.ROLE or PermissionFlags.USER_SET))
+            }
+            setPermissionFlags(appId, userId, permissionName, newFlags)
         } else if (permission.isSignature || permission.isInternal) {
             val wasProtectionGranted = oldFlags.hasBits(PermissionFlags.PROTECTION_GRANTED)
             var newFlags =
@@ -1305,6 +1337,24 @@ class AppIdPermissionPolicy : SchemePolicy() {
             }
         }
         return false
+    }
+
+    private fun hasValidPurposeForPackage(
+        androidPackage: AndroidPackage,
+        permission: Permission,
+    ): Boolean {
+        val targetSdkVersion = androidPackage.targetSdkVersion
+        if (targetSdkVersion < permission.requiresPurposeTargetSdkVersion) {
+            return true
+        }
+        val purposes =
+            androidPackage.usesPermissionMapping[permission.name]?.purposes ?: return false
+        return purposes.any {
+            // NOTE: Map cannot be empty. The package parser ensures at least one valid purpose is
+            // required to be defined when {@code requiresPurpose} is {@code true}.
+            val validPurpose = permission.validPurposes[it]
+            validPurpose != null && targetSdkVersion <= validPurpose.maxTargetSdkVersion
+        }
     }
 
     private fun MutateStateScope.shouldGrantPermissionBySignature(

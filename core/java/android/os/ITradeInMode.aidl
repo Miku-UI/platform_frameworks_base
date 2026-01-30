@@ -92,4 +92,68 @@ interface ITradeInMode {
      * ENTER_TRADE_IN_MODE permission is required and ro.debuggable must be 1.
      */
     boolean isTesting();
+    /**
+     * Get HingeCount on device
+     *
+     */
+    int getHingeCount();
+    /**
+     * Get foldCount of specific hinge on device
+     *
+     */
+    int getFoldCount(in int hingeId);
+    /**
+     * Get lifeSpan of specific hinge on device
+     *
+     */
+    int getHingeLifeSpan(in int hingeId);
+    /**
+     * Information relating to internal screen panel part originality
+     * This is imported from composer HAL's screen part status
+     */
+    @VintfStability
+    @Backing(type="int")
+    enum ScreenPartStatus {
+        /**
+         * Device cannot differentiate an original screen from a replaced screen.
+         */
+        UNSUPPORTED = 0,
+        /**
+         * Device has the original screen it was manufactured with.
+         */
+        ORIGINAL = 1,
+        /**
+         * Device has a replaced screen.
+         */
+        REPLACED = 2,
+    }
+    /**
+     * Get ScreenPartStatus
+     *
+     */
+    ScreenPartStatus[] getScreenPartStatus();
+    /**
+     * Information relating to moisture instrusion within device chassis
+     */
+    @VintfStability
+    @Backing(type="int")
+    enum MoistureIntrusionStatus {
+        /**
+         * Device cannot detect moisture intrusion
+         */
+        UNSUPPORTED = -1,
+        /**
+         * Device has no moisture detected
+         */
+        UNDETECTED = 0,
+        /**
+         * Device has moisutre detected
+         */
+        DETECTED = 1,
+    }
+    /**
+     * Detect water intrusion damage within device chassis
+     *
+     */
+    MoistureIntrusionStatus getMoistureIntrusionDetected(in long timeoutMillis);
 }

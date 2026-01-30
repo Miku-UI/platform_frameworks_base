@@ -36,7 +36,7 @@ object SatelliteIconModel {
             SatelliteConnectionState.Off,
             SatelliteConnectionState.On ->
                 Icon.Resource(
-                    res = R.drawable.ic_satellite_not_connected,
+                    resId = R.drawable.ic_satellite_not_connected,
                     contentDescription =
                         ContentDescription.Resource(
                             R.string.accessibility_status_bar_satellite_available
@@ -49,41 +49,39 @@ object SatelliteIconModel {
      * Satellite icon appropriate for when we are connected. Use [fromConnectionState] for a more
      * generally correct representation.
      */
-    fun fromSignalStrength(
-        signalStrength: Int,
-    ): Icon.Resource? =
+    fun fromSignalStrength(signalStrength: Int): Icon.Resource? =
         // TODO(b/316634365): these need content descriptions
         when (signalStrength) {
             // No signal
             0 ->
                 Icon.Resource(
-                    res = R.drawable.ic_satellite_connected_0,
+                    resId = R.drawable.ic_satellite_connected_0,
                     contentDescription =
                         ContentDescription.Resource(
                             R.string.accessibility_status_bar_satellite_no_connection
-                        )
+                        ),
                 )
 
             // Poor -> Moderate
             1,
             2 ->
                 Icon.Resource(
-                    res = R.drawable.ic_satellite_connected_1,
+                    resId = R.drawable.ic_satellite_connected_1,
                     contentDescription =
                         ContentDescription.Resource(
                             R.string.accessibility_status_bar_satellite_poor_connection
-                        )
+                        ),
                 )
 
             // Good -> Great
             3,
             4 ->
                 Icon.Resource(
-                    res = R.drawable.ic_satellite_connected_2,
+                    resId = R.drawable.ic_satellite_connected_2,
                     contentDescription =
                         ContentDescription.Resource(
                             R.string.accessibility_status_bar_satellite_good_connection
-                        )
+                        ),
                 )
             else -> null
         }

@@ -31,6 +31,7 @@ import static com.android.internal.accessibility.AccessibilityShortcutController
 
 import android.annotation.IntDef;
 import android.content.ComponentName;
+import android.provider.Settings;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -109,6 +110,26 @@ public final class ShortcutConstants {
             // LINT.ThenChange(:shortcut_type_intdef)
     };
 
+    /**
+     * A list of shortcut settings key accessibility features share
+     */
+    public static final String[] GENERAL_SHORTCUT_SETTINGS = {
+            Settings.Secure.ACCESSIBILITY_BUTTON_TARGETS,
+            Settings.Secure.ACCESSIBILITY_SHORTCUT_TARGET_SERVICE,
+            Settings.Secure.ACCESSIBILITY_QS_TARGETS,
+            Settings.Secure.ACCESSIBILITY_GESTURE_TARGETS
+    };
+
+    /**
+     * A list of shortcut settings key magnification uses
+     */
+    public static final String[] MAGNIFICATION_SHORTCUT_SETTINGS = {
+            Settings.Secure.ACCESSIBILITY_BUTTON_TARGETS,
+            Settings.Secure.ACCESSIBILITY_SHORTCUT_TARGET_SERVICE,
+            Settings.Secure.ACCESSIBILITY_GESTURE_TARGETS,
+            Settings.Secure.ACCESSIBILITY_DISPLAY_MAGNIFICATION_ENABLED,
+            Settings.Secure.ACCESSIBILITY_MAGNIFICATION_TWO_FINGER_TRIPLE_TAP_ENABLED
+    };
 
     /**
      * Annotation for the different accessibility fragment type.

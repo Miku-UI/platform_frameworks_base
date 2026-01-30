@@ -67,7 +67,8 @@ public class PhoneMediaDeviceTest {
         MockitoAnnotations.initMocks(this);
         mContext = RuntimeEnvironment.application;
 
-        mPhoneMediaDevice = new PhoneMediaDevice(mContext, mInfo, null);
+        mPhoneMediaDevice = new PhoneMediaDevice(mContext, mInfo, /* dynamicRouteAttributes= */
+                null, null);
     }
 
     @Test

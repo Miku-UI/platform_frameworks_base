@@ -50,6 +50,7 @@ final class SystemAudioAutoInitiationAction extends HdmiCecFeatureAction {
     @Override
     boolean start() {
         mState = STATE_WAITING_FOR_SYSTEM_AUDIO_MODE_STATUS;
+        tv().removeAction(RequestArcTerminationAction.class);
 
         addTimer(mState, HdmiConfig.TIMEOUT_MS);
         sendGiveSystemAudioModeStatus();
@@ -91,21 +92,9 @@ final class SystemAudioAutoInitiationAction extends HdmiCecFeatureAction {
 
         // If System Audio Control feature is enabled, turn on system audio mode when new AVR is
         // detected. Otherwise, turn off system audio mode.
-        // If AVR reports SAM on and it is in standby, the action SystemAudioActionFromTv
-        // triggers a <SAM Request> that will wake-up the AVR.
         boolean targetSystemAudioMode = tv().isSystemAudioControlFeatureEnabled();
-        if (currentSystemAudioMode != targetSystemAudioMode
-                || (currentSystemAudioMode && tv().getAvrDeviceInfo() != null
-                && tv().getAvrDeviceInfo().getDevicePowerStatus()
-                == HdmiControlManager.POWER_STATUS_STANDBY)) {
-            // Start System Audio Control feature actions only if necessary.
-            addAndStartAction(
+        addAndStartAction(
                     new SystemAudioActionFromTv(tv(), mAvrAddress, targetSystemAudioMode, null));
-        } else {
-            // If AVR already has correct system audio mode, update target system audio mode
-            // immediately rather than starting feature action.
-            tv().setSystemAudioMode(targetSystemAudioMode);
-        }
         finish();
     }
 

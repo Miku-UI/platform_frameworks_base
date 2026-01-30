@@ -67,9 +67,10 @@ class DeviceStateToLayoutMap {
     private static final String DATA_CONFIG_FILE_PATH =
             "system/displayconfig/display_layout_configuration.xml";
 
+    private static final String DEFAULT_LAYOUT_NAME = "default_layout";
+
     private final SparseArray<Layout> mLayoutMap = new SparseArray<>();
     private final DisplayIdProducer mIdProducer;
-    private final boolean mIsPortInDisplayLayoutEnabled;
 
     DeviceStateToLayoutMap(DisplayIdProducer idProducer, DisplayManagerFlags flags) {
         this(idProducer, flags, getConfigFile());
@@ -77,10 +78,9 @@ class DeviceStateToLayoutMap {
 
     DeviceStateToLayoutMap(DisplayIdProducer idProducer, DisplayManagerFlags flags,
             File configFile) {
-        mIsPortInDisplayLayoutEnabled = flags.isPortInDisplayLayoutEnabled();
         mIdProducer = idProducer;
         loadLayoutsFromConfig(configFile);
-        createLayout(STATE_DEFAULT);
+        createLayout(STATE_DEFAULT, DEFAULT_LAYOUT_NAME);
     }
 
     static private File getConfigFile() {
@@ -98,7 +98,6 @@ class DeviceStateToLayoutMap {
         ipw.println("-----------------------");
         ipw.increaseIndent();
 
-        ipw.println("mIsPortInDisplayLayoutEnabled=" + mIsPortInDisplayLayoutEnabled);
         ipw.println("Registered Layouts:");
         for (int i = 0; i < mLayoutMap.size(); i++) {
             ipw.println("state(" + mLayoutMap.keyAt(i) + "): " + mLayoutMap.valueAt(i));
@@ -111,6 +110,14 @@ class DeviceStateToLayoutMap {
             layout = mLayoutMap.get(STATE_DEFAULT);
         }
         return layout;
+    }
+
+    void put(int state, Layout layout) {
+        mLayoutMap.put(state, layout);
+    }
+
+    void remove(int state) {
+        mLayoutMap.remove(state);
     }
 
     int size() {
@@ -135,7 +142,8 @@ class DeviceStateToLayoutMap {
             }
             for (com.android.server.display.config.layout.Layout l : layouts.getLayout()) {
                 final int state = l.getState().intValue();
-                final Layout layout = createLayout(state);
+                final String name = l.getName();
+                final Layout layout = createLayout(state, name);
                 for (com.android.server.display.config.layout.Display d: l.getDisplay()) {
                     assert layout != null;
                     final DisplayAddress address = getDisplayAddressForLayoutDisplay(d);
@@ -172,7 +180,7 @@ class DeviceStateToLayoutMap {
         if (xmlAddress != null) {
             return DisplayAddress.fromPhysicalDisplayId(xmlAddress.longValue());
         }
-        if (!mIsPortInDisplayLayoutEnabled || display.getPort_optional() == null) {
+        if (display.getPort_optional() == null) {
             throw new IllegalArgumentException(
                   "Must specify a display identifier in display layout configuration: " + display);
         }
@@ -190,13 +198,13 @@ class DeviceStateToLayoutMap {
         return positionInt;
     }
 
-    private Layout createLayout(int state) {
+    private Layout createLayout(int state, String name) {
         if (mLayoutMap.contains(state)) {
             Slog.e(TAG, "Attempted to create a second layout for state " + state);
             return null;
         }
 
-        final Layout layout = new Layout();
+        final Layout layout = new Layout(name);
         mLayoutMap.append(state, layout);
         return layout;
     }

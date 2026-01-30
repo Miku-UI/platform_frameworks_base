@@ -144,7 +144,8 @@ public class Sensor {
                         return new FingerprintStopUserClient(mContext,
                                 () -> mLazySession.get().getSession(), mToken,
                                 userId, mSensorProperties.sensorId,
-                                BiometricLogger.ofUnknown(mContext), mBiometricContext,
+                                BiometricLogger.ofUnknown(mContext, getHandler()),
+                                mBiometricContext,
                                 () -> mCurrentSession = null);
                     }
 
@@ -203,7 +204,7 @@ public class Sensor {
 
         return new FingerprintStartUserClient(mContext, mProvider::getHalInstance,
                 mToken, newUserId, mSensorProperties.sensorId,
-                BiometricLogger.ofUnknown(mContext), mBiometricContext,
+                BiometricLogger.ofUnknown(mContext, getHandler()), mBiometricContext,
                 resultController, userStartedCallback);
     }
 

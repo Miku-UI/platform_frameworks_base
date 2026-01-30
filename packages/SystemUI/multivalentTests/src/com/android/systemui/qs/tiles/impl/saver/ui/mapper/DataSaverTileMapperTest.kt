@@ -83,21 +83,15 @@ class DataSaverTileMapperTest : SysuiTestCase() {
         iconRes: Int,
     ): QSTileState {
         val label = context.getString(R.string.data_saver)
-        val secondaryLabel =
-            if (activationState == QSTileState.ActivationState.ACTIVE)
-                context.resources.getStringArray(R.array.tile_states_saver)[2]
-            else if (activationState == QSTileState.ActivationState.INACTIVE)
-                context.resources.getStringArray(R.array.tile_states_saver)[1]
-            else context.resources.getStringArray(R.array.tile_states_saver)[0]
 
         return QSTileState(
             Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
             label,
             activationState,
-            secondaryLabel,
+            secondaryLabel = null,
             setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
             label,
-            null,
+            stateDescription = null,
             QSTileState.SideViewIcon.None,
             QSTileState.EnabledState.ENABLED,
             Switch::class.qualifiedName,

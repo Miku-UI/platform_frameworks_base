@@ -708,55 +708,55 @@ public class MockPackageManager extends PackageManager {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public int getMoveStatus(int moveId) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public void registerMoveCallback(MoveCallback callback, Handler handler) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public void unregisterMoveCallback(MoveCallback callback) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public int movePackage(String packageName, VolumeInfo vol) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public VolumeInfo getPackageCurrentVolume(ApplicationInfo app) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public List<VolumeInfo> getPackageCandidateVolumes(ApplicationInfo app) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public int movePrimaryStorage(VolumeInfo vol) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public VolumeInfo getPrimaryStorageCurrentVolume() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public List<VolumeInfo> getPrimaryStorageCandidateVolumes() {
         throw new UnsupportedOperationException();
@@ -789,14 +789,14 @@ public class MockPackageManager extends PackageManager {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public void freeStorageAndNotify(String volumeUuid, long idealStorageSize,
             IPackageDataObserver observer) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public void freeStorage(String volumeUuid, long idealStorageSize, IntentSender pi) {
         throw new UnsupportedOperationException();
@@ -1085,25 +1085,25 @@ public class MockPackageManager extends PackageManager {
         throw new UnsupportedOperationException();
     }
 
-    /** {@removed} */
+    /** @removed */
     @Deprecated
     public String getDefaultBrowserPackageName(int userId) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public String getDefaultBrowserPackageNameAsUser(int userId) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@removed} */
+    /** @removed */
     @Deprecated
     public boolean setDefaultBrowserPackageName(String packageName, int userId) {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public boolean setDefaultBrowserPackageNameAsUser(String packageName, int userId) {
         throw new UnsupportedOperationException();
@@ -1150,12 +1150,12 @@ public class MockPackageManager extends PackageManager {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     public PackageInstaller getPackageInstaller() {
         throw new UnsupportedOperationException();
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public boolean isPackageAvailable(String packageName) {
         throw new UnsupportedOperationException();

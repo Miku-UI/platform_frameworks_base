@@ -26,6 +26,7 @@ import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
+import android.annotation.XmlRes;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
@@ -41,6 +42,7 @@ import android.os.Parcelable;
 import android.os.SystemClock;
 import android.os.UserHandle;
 import android.os.storage.StorageManager;
+import android.ravenwood.annotation.RavenwoodIgnore;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Printer;
@@ -48,6 +50,7 @@ import android.util.SparseArray;
 import android.util.proto.ProtoOutputStream;
 import android.window.OnBackInvokedCallback;
 
+import com.android.internal.content.LibraryAlignmentInfo;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.Parcelling;
 import com.android.internal.util.Parcelling.BuiltIn.ForBoolean;
@@ -509,7 +512,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
     /**
      * Value for {@link #privateFlags}: true if the application is hidden via restrictions and for
      * most purposes is considered as not installed.
-     * {@hide}
+     * @hide
      */
     public static final int PRIVATE_FLAG_HIDDEN = 1<<0;
 
@@ -522,7 +525,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * android.R.styleable#AndroidManifestApplication_cantSaveState
      * attribute of the &lt;application&gt; tag.
      *
-     * {@hide}
+     * @hide
      */
     public static final int PRIVATE_FLAG_CANT_SAVE_STATE = 1<<1;
 
@@ -530,7 +533,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * Value for {@link #privateFlags}: set to {@code true} if the application
      * is permitted to hold privileged permissions.
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     @TestApi
@@ -540,7 +543,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * Value for {@link #privateFlags}: {@code true} if the application has any IntentFiler
      * with some data URI using HTTP or HTTPS with an associated VIEW action.
      *
-     * {@hide}
+     * @hide
      */
     public static final int PRIVATE_FLAG_HAS_DOMAIN_URLS = 1<<4;
 
@@ -857,6 +860,13 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      */
     public static final int PRIVATE_FLAG_EXT_NOT_LAUNCHED = 1 << 6;
 
+    /**
+     * Whether the app should run in the Private Compute Core sandbox
+     * @hide
+     * @see android.R.styleable.AndroidManifestApplication_runInPccSandbox
+     */
+    public static final int PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX = 1 << 7;
+
     /** @hide */
     @IntDef(flag = true, prefix = { "PRIVATE_FLAG_EXT_" }, value = {
             PRIVATE_FLAG_EXT_PROFILEABLE,
@@ -866,6 +876,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
             PRIVATE_FLAG_EXT_ALLOWLISTED_FOR_HIDDEN_APIS,
             PRIVATE_FLAG_EXT_CPU_OVERRIDE,
             PRIVATE_FLAG_EXT_NOT_LAUNCHED,
+            PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX,
     })
     @Retention(RetentionPolicy.SOURCE)
     public @interface ApplicationInfoPrivateFlagsExt {}
@@ -978,10 +989,10 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      */
     public UUID storageUuid;
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public String scanSourceDir;
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public String scanPublicSourceDir;
 
@@ -1052,7 +1063,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * this application uses. This field is only used if there are extra resource
      * packages, otherwise it is null.
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public String[] resourceDirs;
@@ -1061,7 +1072,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * Contains the contents of {@link #resourceDirs} and along with paths for overlays that may or
      * may not be APK packages.
      *
-     * {@hide}
+     * @hide
      */
     public String[] overlayPaths;
 
@@ -1070,7 +1081,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * the mac_permissions.xml policy construct. This value is used for setting an SELinux security
      * context on the process as well as its data directory.
      *
-     * {@hide}
+     * @hide
      */
     public String seInfo;
 
@@ -1084,7 +1095,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * work than necessary and these values should only be set once. When that
      * happens, we can merge the per-user value with the seInfo state above.
      *
-     * {@hide}
+     * @hide
      */
     public String seInfoUser;
 
@@ -1104,7 +1115,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      *
      * NOTE: the list also contains the result of {@link #getOptionalSharedLibraryInfos}.
      *
-     * {@hide}
+     * @hide
      */
     @Nullable
     public List<SharedLibraryInfo> sharedLibraryInfos;
@@ -1193,7 +1204,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      *
      * If non-null, the application will always be launched with this ABI.
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public String primaryCpuAbi;
@@ -1203,7 +1214,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * installs. The application itself never uses this ABI, but other applications that
      * use its code might.
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public String secondaryCpuAbi;
@@ -1338,7 +1349,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      */
     public @Category int category = CATEGORY_UNDEFINED;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = { "CATEGORY_" }, value = {
             CATEGORY_UNDEFINED,
             CATEGORY_GAME,
@@ -1538,7 +1549,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
     private @PageSizeAppCompatFlags int mPageSizeAppCompatFlags =
             ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(
             prefix = {"PAGE_SIZE_APP_COMPAT_FLAG_"},
             value = {
@@ -1554,6 +1565,13 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
             })
     @Retention(RetentionPolicy.SOURCE)
     public @interface PageSizeAppCompatFlags {}
+
+    /**
+     * If mPageSizeCompatFlags indicates a mismatch, this will contain detailed
+     * information for each native library that was found to be unaligned.
+     * @hide
+     */
+    public LibraryAlignmentInfo[] unalignedNativeLibraries;
 
     /** @hide */
     public String classLoaderName;
@@ -1892,7 +1910,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         super.dumpBack(pw, prefix);
     }
 
-    /** {@hide} */
+    /** @hide */
     public void dumpDebug(ProtoOutputStream proto, long fieldId, int dumpFlags) {
         long token = proto.start(fieldId);
         super.dumpDebug(proto, ApplicationInfoProto.PACKAGE, dumpFlags);
@@ -2026,7 +2044,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         return (flags & FLAG_SUPPORTS_RTL) == FLAG_SUPPORTS_RTL;
     }
 
-    /** {@hide} */
+    /** @hide */
     public boolean hasCode() {
         return (flags & FLAG_HAS_CODE) != 0;
     }
@@ -2137,6 +2155,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         allowCrossUidActivitySwitchFromBelow = orig.allowCrossUidActivitySwitchFromBelow;
         createTimestamp = SystemClock.uptimeMillis();
         mPageSizeAppCompatFlags = orig.mPageSizeAppCompatFlags;
+        this.unalignedNativeLibraries = orig.unalignedNativeLibraries;
     }
 
     public String toString() {
@@ -2244,6 +2263,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         dest.writeInt(localeConfigRes);
         dest.writeInt(allowCrossUidActivitySwitchFromBelow ? 1 : 0);
         dest.writeInt(mPageSizeAppCompatFlags);
+        dest.writeTypedArray(unalignedNativeLibraries, parcelableFlags);
 
         sForStringSet.parcel(mKnownActivityEmbeddingCerts, dest, flags);
     }
@@ -2347,6 +2367,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         localeConfigRes = source.readInt();
         allowCrossUidActivitySwitchFromBelow = source.readInt() != 0;
         mPageSizeAppCompatFlags = source.readInt();
+        unalignedNativeLibraries = source.createTypedArray(LibraryAlignmentInfo.CREATOR);
 
         mKnownActivityEmbeddingCerts = sForStringSet.unparcel(source);
         if (mKnownActivityEmbeddingCerts.isEmpty()) {
@@ -2400,7 +2421,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
                  FLAG_SUPPORTS_SCREEN_DENSITIES | FLAG_SUPPORTS_XLARGE_SCREENS)) == 0;
     }
 
-    /** {@hide} */
+    /** @hide */
     @android.ravenwood.annotation.RavenwoodThrow(blockedBy = Environment.class)
     public void initForUser(int userId) {
         uid = UserHandle.getUid(userId, UserHandle.getAppId(uid));
@@ -2552,6 +2573,18 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
             return mHiddenApiPolicy;
         }
         return HIDDEN_API_ENFORCEMENT_ENABLED;
+    }
+
+    /**
+     * Get the resource Id of the network security config file for this app.
+     *
+     * @return the resource Id of the NSC.
+     * @hide
+     */
+    @FlaggedApi(android.security.Flags.FLAG_CONSCRYPT_NETWORK_SECURITY_CONFIG)
+    @SystemApi(client = SystemApi.Client.MODULE_LIBRARIES)
+    public @XmlRes int getNetworkSecurityConfigResourceId() {
+        return networkSecurityConfigRes;
     }
 
     /**
@@ -2805,6 +2838,15 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
     }
 
     /**
+     * Returns whether the app should run in the Private Compute Core sandbox.
+     * @hide
+     * @see android.R.styleable#AndroidManifestApplication_runInPccSandbox
+     */
+    public boolean shouldRunInPccSandbox() {
+        return (privateFlagsExt & ApplicationInfo.PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX) != 0;
+    }
+
+    /**
      * Checks if a changeId is enabled for the current user
      * @param changeId The changeId to verify
      * @return True of the changeId is enabled
@@ -2873,24 +2915,24 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         return overrideDensity;
     }
 
-    /** {@hide} */ public void setCodePath(String codePath) { scanSourceDir = codePath; }
-    /** {@hide} */ public void setBaseCodePath(String baseCodePath) { sourceDir = baseCodePath; }
-    /** {@hide} */ public void setSplitCodePaths(String[] splitCodePaths) { splitSourceDirs = splitCodePaths; }
-    /** {@hide} */ public void setResourcePath(String resourcePath) { scanPublicSourceDir = resourcePath; }
-    /** {@hide} */ public void setBaseResourcePath(String baseResourcePath) { publicSourceDir = baseResourcePath; }
-    /** {@hide} */ public void setSplitResourcePaths(String[] splitResourcePaths) { splitPublicSourceDirs = splitResourcePaths; }
-    /** {@hide} */ public void setGwpAsanMode(@GwpAsanMode int value) { gwpAsanMode = value; }
-    /** {@hide} */ public void setMemtagMode(@MemtagMode int value) { memtagMode = value; }
-    /** {@hide} */ public void setNativeHeapZeroInitialized(@NativeHeapZeroInitialized int value) {
+    /** @hide */ public void setCodePath(String codePath) { scanSourceDir = codePath; }
+    /** @hide */ public void setBaseCodePath(String baseCodePath) { sourceDir = baseCodePath; }
+    /** @hide */ public void setSplitCodePaths(String[] splitCodePaths) { splitSourceDirs = splitCodePaths; }
+    /** @hide */ public void setResourcePath(String resourcePath) { scanPublicSourceDir = resourcePath; }
+    /** @hide */ public void setBaseResourcePath(String baseResourcePath) { publicSourceDir = baseResourcePath; }
+    /** @hide */ public void setSplitResourcePaths(String[] splitResourcePaths) { splitPublicSourceDirs = splitResourcePaths; }
+    /** @hide */ public void setGwpAsanMode(@GwpAsanMode int value) { gwpAsanMode = value; }
+    /** @hide */ public void setMemtagMode(@MemtagMode int value) { memtagMode = value; }
+    /** @hide */ public void setNativeHeapZeroInitialized(@NativeHeapZeroInitialized int value) {
         nativeHeapZeroInitialized = value;
     }
-    /** {@hide} */
+    /** @hide */
     public void setRequestRawExternalStorageAccess(@Nullable Boolean value) {
         requestRawExternalStorageAccess = value;
     }
     /** {@hide} */ public void setOverrideRes(int overrideResolution) { overrideRes = overrideResolution; }
 
-    /** {@hide} */
+    /** @hide */
     public void setPageSizeAppCompatFlags(@PageSizeAppCompatFlags int value) {
         mPageSizeAppCompatFlags |= value;
     }
@@ -2898,7 +2940,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
     /**
      * Replaces {@link #mAppClassNamesByProcess}. This takes over the ownership of the passed map.
      * Do not modify the argument at the callsite.
-     * {@hide}
+     * @hide
      */
     public void setAppClassNamesByProcess(@Nullable ArrayMap<String, String> value) {
         if (ArrayUtils.size(value) == 0) {
@@ -2908,16 +2950,16 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public String getCodePath() { return scanSourceDir; }
-    /** {@hide} */ public String getBaseCodePath() { return sourceDir; }
-    /** {@hide} */ public String[] getSplitCodePaths() { return splitSourceDirs; }
-    /** {@hide} */ public String getResourcePath() { return scanPublicSourceDir; }
-    /** {@hide} */
+    /** @hide */ public String getBaseCodePath() { return sourceDir; }
+    /** @hide */ public String[] getSplitCodePaths() { return splitSourceDirs; }
+    /** @hide */ public String getResourcePath() { return scanPublicSourceDir; }
+    /** @hide */
     @UnsupportedAppUsage
     public String getBaseResourcePath() { return publicSourceDir; }
-    /** {@hide} */ public String[] getSplitResourcePaths() { return splitPublicSourceDirs; }
+    /** @hide */ public String[] getSplitResourcePaths() { return splitPublicSourceDirs; }
     @GwpAsanMode
     public int getGwpAsanMode() { return gwpAsanMode; }
 
@@ -2945,6 +2987,7 @@ public class ApplicationInfo extends PackageItemInfo implements Parcelable {
      * @hide
      */
     @Nullable
+    @RavenwoodIgnore(reason = "Custom Application class not supported yet")
     public String getCustomApplicationClassNameForProcess(String processName) {
         if (mAppClassNamesByProcess != null) {
             String byProcess = mAppClassNamesByProcess.get(processName);

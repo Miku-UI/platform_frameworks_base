@@ -24,6 +24,7 @@ import android.view.MotionEvent;
 import androidx.test.uiautomator.Configurator;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.desktop.domain.interactor.DesktopInteractor;
 import com.android.systemui.dock.DockManagerFake;
 import com.android.systemui.statusbar.policy.BatteryController;
 
@@ -44,7 +45,8 @@ public class ClassifierTest extends SysuiTestCase {
     private BatteryController mBatteryController;
     private FoldStateListener mFoldStateListener = new FoldStateListener(mContext);
     private final DockManagerFake mDockManager = new DockManagerFake();
-
+    @Mock
+    private DesktopInteractor mDesktopInteractor;
     public void setup() {
         MockitoAnnotations.initMocks(this);
         DisplayMetrics displayMetrics = new DisplayMetrics();
@@ -53,7 +55,8 @@ public class ClassifierTest extends SysuiTestCase {
         displayMetrics.widthPixels = 1000;
         displayMetrics.heightPixels = 1000;
         mDataProvider = new FalsingDataProvider(
-                displayMetrics, mBatteryController, mFoldStateListener, mDockManager, false);
+                displayMetrics, mBatteryController, mFoldStateListener, mDockManager,
+                mDesktopInteractor, false);
     }
 
     @After

@@ -16,8 +16,9 @@
 
 package com.android.statementservice.retriever;
 
-import android.annotation.NonNull;
 import android.net.Network;
+
+import androidx.annotation.NonNull;
 
 import com.android.statementservice.network.retriever.StatementRetriever;
 

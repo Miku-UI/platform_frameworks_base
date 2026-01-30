@@ -25,7 +25,7 @@ import android.util.Pools;
 import android.util.Slog;
 import android.view.KeyEvent;
 
-import com.android.server.policy.WindowManagerPolicy;
+import com.android.server.input.InputManagerInternal;
 
 /**
  * Intercepts key events and forwards them to accessibility manager service.
@@ -35,7 +35,7 @@ public class KeyboardInterceptor extends BaseEventStreamTransformation implement
     private static final String LOG_TAG = "KeyboardInterceptor";
 
     private final AccessibilityManagerService mAms;
-    private final WindowManagerPolicy mPolicy;
+    private final InputManagerInternal mInputManagerInternal;
     private final Handler mHandler;
 
     private KeyEventHolder mEventQueueStart;
@@ -43,24 +43,25 @@ public class KeyboardInterceptor extends BaseEventStreamTransformation implement
 
     /**
      * @param service The service to notify of key events
-     * @param policy The policy to check for keys that may affect a11y
+     * @param inputManager The input manager to check for keys that may affect a11y
      */
-    public KeyboardInterceptor(AccessibilityManagerService service, WindowManagerPolicy policy) {
+    public KeyboardInterceptor(AccessibilityManagerService service,
+            InputManagerInternal inputManager) {
         mAms = service;
-        mPolicy = policy;
+        mInputManagerInternal = inputManager;
         mHandler = new Handler(this);
     }
 
     /**
      * @param service The service to notify of key events
-     * @param policy The policy to check for keys that may affect a11y
+     * @param inputManager The input manager to check for keys that may affect a11y
      * @param handler The handler to use. Only used for testing.
      */
-    public KeyboardInterceptor(AccessibilityManagerService service, WindowManagerPolicy policy,
-            Handler handler) {
+    public KeyboardInterceptor(AccessibilityManagerService service,
+            InputManagerInternal inputManager, Handler handler) {
         // Can't combine the constructors without making at least mHandler non-final.
         mAms = service;
-        mPolicy = policy;
+        mInputManagerInternal = inputManager;
         mHandler = handler;
     }
 
@@ -148,7 +149,7 @@ public class KeyboardInterceptor extends BaseEventStreamTransformation implement
     private long getEventDelay(KeyEvent event, int policyFlags) {
         int keyCode = event.getKeyCode();
         if ((keyCode == KeyEvent.KEYCODE_VOLUME_DOWN) || (keyCode == KeyEvent.KEYCODE_VOLUME_UP)) {
-            return mPolicy.interceptKeyBeforeDispatching(null, event, policyFlags);
+            return mInputManagerInternal.interceptKeyCombinationBeforeAccessibility(event);
         }
         return 0;
     }

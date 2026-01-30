@@ -4,46 +4,12 @@ container: "system"
 # NOTE: Keep alphabetized to help limit merge conflicts from multiple simultaneous editors.
 
 flag {
-    name: "add_black_background_for_window_magnifier"
+    name: "cleanup_instances_when_display_removed"
     namespace: "accessibility"
-    description: "Set the background for SurfaceView in window magnification black."
-    bug: "299981434"
+    description: "When a specific display is removed, cleanup the cached instances related to it."
+    bug: "437868750"
     metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "create_windowless_window_magnifier"
-    namespace: "accessibility"
-    description: "Uses SurfaceControlViewHost to create the magnifier for window magnification."
-    bug: "280992417"
-}
-
-flag {
-    name: "delay_show_magnification_button"
-    namespace: "accessibility"
-    description: "Delays the showing of magnification mode switch button."
-    bug: "338259519"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "floating_menu_animated_tuck"
-    namespace: "accessibility"
-    description: "Sets up animations for tucking/untucking and adjusts clipbounds."
-    bug: "297556899"
-}
-
-flag {
-    name: "floating_menu_display_cutout_support"
-    namespace: "accessibility"
-    description: "Makes FAB properly react to and avoid DisplayCutouts."
-    bug: "384399408"
-    metadata {
-      purpose: PURPOSE_BUGFIX
+        purpose: PURPOSE_BUGFIX
     }
 }
 
@@ -55,34 +21,10 @@ flag {
 }
 
 flag {
-    name: "floating_menu_drag_to_edit"
+    name: "floating_menu_hearing_device_status_icon"
     namespace: "accessibility"
-    description: "adds a second drag button to allow the user edit the shortcut."
-    bug: "297583708"
-}
-
-flag {
-    name: "floating_menu_ime_displacement_animation"
-    namespace: "accessibility"
-    description: "Adds an animation for when the FAB is displaced by an IME becoming visible."
-    bug: "281150010"
-}
-
-flag {
-    name: "floating_menu_narrow_target_content_observer"
-    namespace: "accessibility"
-    description: "stops the FAB from monitoring enabled services to trigger target content changes."
-    bug: "331740049"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "floating_menu_overlaps_nav_bars_flag"
-    namespace: "accessibility"
-    description: "Adjusts bounds to allow the floating menu to render on top of navigation bars."
-    bug: "283768342"
+    description: "Update hearing device icon in floating menu according to the connection status."
+    bug: "357882387"
 }
 
 flag {
@@ -90,43 +32,6 @@ flag {
     namespace: "accessibility"
     description: "Animates the floating menu's transition between curved and jagged edges."
     bug: "281140482"
-}
-
-flag {
-    name: "redesign_magnification_window_size"
-    namespace: "accessibility"
-    description: "Redesigns the window magnification magnifier sizes provided in the settings panel."
-    bug: "288056772"
-}
-
-flag {
-    name: "save_and_restore_magnification_settings_buttons"
-    namespace: "accessibility"
-    description: "Saves the selected button status in magnification settings and restore the status when revisiting the same smallest screen DP."
-    bug: "325567876"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "update_corner_radius_on_display_changed"
-    namespace: "accessibility"
-    description: "Updates the corner radius to the magnification fullscreen border when the display changes."
-    bug: "335113174"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "update_window_magnifier_bottom_boundary"
-    namespace: "accessibility"
-    description: "Update the window magnifier boundary at the bottom to the top of the system gesture inset."
-    bug: "380320995"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -140,18 +45,45 @@ flag {
 }
 
 flag {
-    name: "floating_menu_hearing_device_status_icon"
+    name: "privacy_dot_live_region"
     namespace: "accessibility"
-    description: "Update hearing device icon in floating menu according to the connection status."
-    bug: "357882387"
+    description: "Exposes the status bar privacy dot as a live region so it is announced when it appears."
+    bug: "197201744"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
-    name: "floating_menu_notify_targets_changed_on_strict_diff"
+    name: "redesign_magnification_window_size"
     namespace: "accessibility"
-    description: "Only notify listeners that the list of accessibility targets has changed if the lists are not identical."
-    bug: "376473165"
+    description: "Redesigns the window magnification magnifier sizes provided in the settings panel."
+    bug: "288056772"
+}
+
+flag {
+    name: "status_bar_region_sampling"
+    namespace: "accessibility"
+    description: "Uses region sampling in the Status Bar to avoid contrast bugs in the status bar when expanded dark theme is enabled"
+    bug: "379760792"
+}
+
+flag {
+    name: "update_window_magnifier_bottom_boundary_with_mouse"
+    namespace: "accessibility"
+    description:  "Update the window magnification behavior with bottom gesture insets with mouse."
+    bug: "419389153"
     metadata {
       purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "window_magnification_move_with_mouse_on_edge"
+    namespace: "accessibility"
+    description: "Allows window magnification to be moved by mouse further on the edge of the screen."
+    bug: "420776720"
+    metadata {
+        purpose: PURPOSE_BUGFIX
     }
 }

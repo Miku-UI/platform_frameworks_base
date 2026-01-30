@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Требуется разрешение"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Установка заблокирована"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Подготовка приложения…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Установить приложение?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Установка…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Приложение установлено"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Переустановить приложение?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Переустановка…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Приложение переустановлено"</string>
+    <string name="title_update" msgid="1747328630716712391">"Обновить приложение?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Обновить приложение через <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Обновление…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Приложение обновлено"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Не удалось установить приложение"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Установка заблокирована"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Несовместимое приложение"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Недопустимый пакет"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Недостаточно места"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Приложение не установлено"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Удалить приложение?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Удалить клон приложения?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Удалить обновления приложения?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Удалить обновления приложения для всех пользователей?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Удалить приложение для всех пользователей?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Удалить приложение для пользователя <xliff:g id="USER_NAME">%1$s</xliff:g>?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Приложение не найдено"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Не удалось удалить приложение"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Приложение не удалено"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Отправить приложение в архив?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Отправить приложение в архив для всех пользователей?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Отправить приложение в архив для пользователя <xliff:g id="USER_NAME">%1$s</xliff:g>?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Восстановить приложение?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Требуется действие"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Недостаточно места"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Вы не в Сети"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"Приложение \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" отключено"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"Приложение \"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>\" не установлено"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Что-то пошло не так"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Обычно это приложение использует для обновления &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Если обновить приложение из другого источника, в будущем для обновления могут использоваться любые источники на планшете. Функции приложения могут измениться."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Обычно это приложение использует для обновления &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Если обновить приложение из другого источника, в будущем для обновления могут использоваться любые источники на телевизоре. Функции приложения могут измениться."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Обычно это приложение использует для обновления &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Если обновить приложение из другого источника, в будущем для обновления могут использоваться любые источники на телефоне. Функции приложения могут измениться."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"В целях безопасности ваш планшет блокирует установку неизвестных приложений из этого источника. Изменить параметры можно в настройках."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"В целях безопасности ваш телевизор блокирует установку неизвестных приложений из этого источника. Изменить параметры можно в настройках."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"В целях безопасности ваши часы блокируют установку неизвестных приложений из этого источника. Изменить параметры можно в настройках."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"В целях безопасности ваш телефон блокирует установку неизвестных приложений из этого источника. Изменить параметры можно в настройках."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Данные телефона и ваши личные данные более уязвимы для атак приложений из неизвестных источников. Устанавливая это приложение, вы берете на себя всю ответственность за последствия, связанные с его использованием, то есть за любой ущерб, нанесенный телефону, и возможную потерю данных."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Данные планшета и ваши личные данные более уязвимы для атак приложений из неизвестных источников. Устанавливая это приложение, вы берете на себя всю ответственность за последствия, связанные с его использованием, то есть за любой ущерб, нанесенный планшету, и возможную потерю данных."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Данные телевизора и ваши личные данные более уязвимы для атак приложений из неизвестных источников. Устанавливая это приложение, вы берете на себя всю ответственность за последствия, связанные с его использованием, то есть за любой ущерб, нанесенный телевизору, и возможную потерю данных."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Установка приложения заблокирована."</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Это приложение конфликтует с приложением, установленным на устройстве."</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Это приложение несовместимо с вашим устройством."</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Возникла проблема с файлом установки приложения."</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Чтобы установить приложение, освободите место и повторите попытку."</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Возникла проблема с файлом приложения."</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Установка приложений ограничена."</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Установка приложений из неизвестных источников ограничена."</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Клон приложения также будет удален."</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Это клон приложения \"<xliff:g id="APP_LABEL">%1$s</xliff:g>\"."</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Приложение будет заменено на исходную версию, а все его данные – удалены."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Приложение будет заменено на исходную версию для всех пользователей устройства. Все данные в приложении будут удалены."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Приложение будет удалено из вашего рабочего профиля."</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Приложение будет удалено из частного пространства."</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Приложение не найдено в списке установленных или уже удалено."</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Этому пользователю запрещено удалять приложение."</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Не удалось удалить приложение."</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Сохранить данные приложения"</string>
+    <string name="message_archive" msgid="943853731737315850">"Ваши данные в приложении сохранятся."</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Все данные в приложении сохранятся."</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Данные приложения сохранятся."</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Это приложение будет отправлено в архив из рабочего профиля. Ваши данные в приложении сохранятся."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Это приложение будет отправлено в архив из частного пространства. Ваши данные в приложении сохранятся."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Приложение будет скачано в фоновом режиме из <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>."</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"Чтобы восстановить приложение, предоставьте <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> больше информации."</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Чтобы восстановить приложение, освободите &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; и повторите попытку."</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Чтобы восстановить приложение, проверьте подключение к интернету и повторите попытку."</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Чтобы восстановить приложение, включите <xliff:g id="INSTALLERNAME">%1$s</xliff:g> в настройках."</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Чтобы восстановить приложение, установите <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>."</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Не удалось восстановить приложение."</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> – часть приложения \"<xliff:g id="APP_NAME">%2$s</xliff:g>\"."</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Приложение заблокировано. Чтобы защитить ваши данные и устройство, запрещено устанавливать приложения от непроверенных разработчиков.&lt;/p&gt; Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Приложение не обновлено. Чтобы защитить ваши данные и устройство, запрещено устанавливать обновления от непроверенных разработчиков.&lt;/p&gt; Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Приложение не установлено. Приложения от непроверенных разработчиков могут быть опасны.&lt;/p&gt; &lt;p&gt;Чтобы проверить разработчика, требуется подключение к интернету. Убедитесь, что оно есть, и снова попробуйте установить приложение. &lt;/p&gt;Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Приложение не обновлено. Обновления от непроверенных разработчиков могут быть опасны.&lt;/p&gt; &lt;p&gt;Чтобы проверить разработчика, требуется подключение к интернету. Убедитесь, что оно есть, и снова попробуйте обновить приложение. &lt;/p&gt;Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Ошибка при проверке разработчика. Приложения от непроверенных разработчиков могут быть опасны, поэтому установка прервана.&lt;/p&gt; Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Ошибка при проверке разработчика. Обновления от непроверенных разработчиков могут быть опасны, поэтому установка прервана.&lt;/p&gt; Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Приложение заблокировано, поскольку не удалось проверить разработчика. Чтобы защитить ваши данные и устройство, запрещено устанавливать приложения от непроверенных разработчиков.&lt;/p&gt; Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Приложение не обновлено, поскольку не удалось проверить разработчика. Чтобы защитить ваши данные и устройство, запрещено устанавливать обновления от непроверенных разработчиков.&lt;/p&gt; Подробнее &lt;a href=https://g.co/android/developer&gt;о проверке разработчиков&lt;/a&gt;…"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"При установке приложения от непроверенного разработчика помните, что оно может быть опасно для вашего устройства и данных."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"При установке обновления от непроверенного разработчика помните, что оно может быть опасно для вашего устройства и данных."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Разработчик приложения не проверен"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Нет подключения к интернету. Не удалось проверить разработчика приложения"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Не удалось проверить разработчика приложения"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Установить без проверки"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Обновить без проверки"</string>
+    <string name="button_install" msgid="7434013176505680162">"Установить"</string>
+    <string name="button_update" msgid="3046719350226327526">"Обновить"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Все равно обновить"</string>
+    <string name="button_done" msgid="3408025390982260629">"Готово"</string>
+    <string name="button_open" msgid="6892684987374117955">"Открыть"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Отмена"</string>
+    <string name="button_continue" msgid="107501685249826244">"Продолжить"</string>
+    <string name="button_close" msgid="7187308556466275899">"Закрыть"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Удалить"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Удалить"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Переустановить"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Управление приложениями"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Отправить в архив"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Восстановить"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Удалить обновления"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Настройки"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Повторить"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Клон пакета \"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>\""</string>
+</resources>

@@ -27,6 +27,7 @@ import android.testing.LeakCheck;
 import android.testing.TestableContext;
 import android.util.ArraySet;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Display;
 
 import androidx.annotation.Nullable;
@@ -44,6 +45,7 @@ public class SysuiTestableContext extends TestableContext {
     private final Set<BroadcastReceiver> mRegisteredReceivers = new ArraySet<>();
     private final Map<UserHandle, Context> mContextForUser = new HashMap<>();
     private final Map<String, Context> mContextForPackage = new HashMap<>();
+    private final Map<Pair<String, UserHandle>, Context> mContextForPackageUser = new HashMap<>();
 
     @Nullable
     private Display mCustomDisplay;
@@ -219,5 +221,25 @@ public class SysuiTestableContext extends TestableContext {
             return packageContext;
         }
         return super.createPackageContext(packageName, flags);
+    }
+
+    /**
+     * Sets a Context object that will be returned as the result of
+     * {@link #createPackageContextAsUser} for a specific {@code packageName} and {@code user}.
+     */
+    public void prepareCreatePackageContextAsUser(String packageName, UserHandle user,
+            Context context) {
+        mContextForPackageUser.put(new Pair<>(packageName, user), context);
+    }
+
+    @Override
+    @NonNull
+    public Context createPackageContextAsUser(String packageName, int flags, UserHandle user)
+            throws PackageManager.NameNotFoundException {
+        Context packageUserContext = mContextForPackageUser.get(new Pair<>(packageName, user));
+        if (packageUserContext != null) {
+            return packageUserContext;
+        }
+        return super.createPackageContextAsUser(packageName, flags, user);
     }
 }

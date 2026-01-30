@@ -81,12 +81,14 @@
     <string name="speed_label_fast" msgid="2677719134596044051">"Veloce"</string>
     <string name="speed_label_very_fast" msgid="8215718029533182439">"Molto veloce"</string>
     <string name="wifi_passpoint_expired" msgid="6540867261754427561">"Scaduta"</string>
-    <string name="preference_summary_default_combination" msgid="2644094566845577901">"<xliff:g id="STATE">%1$s</xliff:g>/<xliff:g id="DESCRIPTION">%2$s</xliff:g>"</string>
+    <string name="preference_summary_default_combination" msgid="2644094566845577901">"<xliff:g id="STATE">%1$s</xliff:g> / <xliff:g id="DESCRIPTION">%2$s</xliff:g>"</string>
     <string name="bluetooth_disconnected" msgid="7739366554710388701">"Disconnesso"</string>
     <string name="bluetooth_disconnecting" msgid="7638892134401574338">"Disconnessione…"</string>
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Connessione…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Connessione a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Accoppiamento in corso…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Impossibile eseguire l\'accoppiamento"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Impossibile connettersi"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> connesso (telefono escluso)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> connesso (contenuti multimediali esclusi)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> connesso (telefono o media esclusi)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"S: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> di batteria. D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> di batteria."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Sinistro: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> di batteria"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Destro: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> di batteria"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Custodia: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> di batteria"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Sinistro: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, custodia: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> di batteria"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Destro: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, custodia: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> di batteria"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Sinistro: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, destro: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> di batteria"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"S: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, C: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> di batteria"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Sinistra: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Destra: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Attivo"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Attivo (solo destro)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Attivi (destro e sinistro)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Impossibile aggiornare audio ambientale"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Impossibile aggiornare preset"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Selezionato"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Attivo (solo contenuti multimediali). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> di batteria."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Attivo (solo contenuti multimediali). S: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> di batteria. D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> di batteria."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Dispositivo ospite. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> di batteria."</string>
@@ -137,7 +146,7 @@
     <string name="bluetooth_profile_headset" msgid="5395952236133499331">"Telefonate"</string>
     <string name="bluetooth_profile_opp" msgid="6692618568149493430">"Trasferimento file"</string>
     <string name="bluetooth_profile_hid" msgid="2969922922664315866">"Dispositivo di input"</string>
-    <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Accesso a Internet"</string>
+    <string name="bluetooth_profile_pan" msgid="1006235139308318188">"Accesso a internet"</string>
     <string name="bluetooth_profile_pbap" msgid="2103406516858653017">"Consenti l\'accesso ai contatti e alla cronologia delle chiamate"</string>
     <string name="bluetooth_profile_pbap_summary" msgid="402819589201138227">"Le informazioni saranno utilizzate per gli annunci delle chiamate e altro ancora"</string>
     <string name="bluetooth_profile_pan_nap" msgid="7871974753822470050">"Condivisione connessione Internet"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Quando questa modalità è attiva, l\'indirizzo MAC del dispositivo potrebbe cambiare ogni volta che il dispositivo si connette a una rete con randomizzazione degli indirizzi MAC attiva"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"A consumo"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Non a consumo"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Dimensioni buffer logger"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Dimensione buffer logger"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Seleziona dimensioni logger per buffer log"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Cancellare i dati nello spazio di archiviazione permanente del logger?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Quando il monitoraggio tramite logger permanente viene interrotto, siamo obbligati a eliminare i dati del logger memorizzati sul dispositivo."</string>
@@ -418,7 +427,7 @@
     <string name="transparent_navigation_bar_summary" msgid="5454359021817330722">"Rendi trasparente il colore di sfondo della barra di navigazione per impostazione predefinita"</string>
     <string name="window_blurs" msgid="6831008984828425106">"Consenti sfocature finestre"</string>
     <string name="force_msaa" msgid="4081288296137775550">"Forza MSAA 4x"</string>
-    <string name="force_msaa_summary" msgid="9070437493586769500">"Attiva MSAA 4x in applicazioni OpenGL ES 2.0"</string>
+    <string name="force_msaa_summary" msgid="9070437493586769500">"Attiva MSAA 4x in app OpenGL ES 2.0"</string>
     <string name="show_non_rect_clip" msgid="7499758654867881817">"Debug operazioni ritaglio non rettangolare"</string>
     <string name="track_frame_time" msgid="522674651937771106">"Rendering HWUI profilo"</string>
     <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"Attiva livelli debug GPU"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> fa"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> rimanenti"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Minimo"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Più piccolo"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Piccole"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Predefinite"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Grandi"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Più grandi"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Massimo"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Più grande"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Molto grande"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Extra large"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Massimo"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Personalizzato (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menu"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Inserisci la password per eseguire il ripristino dei dati di fabbrica in modalità demo"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 dispositivo connesso}other{# dispositivi connessi}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Più tempo."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Meno tempo."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Ingrandimento"</string>
     <string name="cancel" msgid="5665114069455378395">"Annulla"</string>
     <string name="next" msgid="2699398661093607009">"Avanti"</string>
     <string name="back" msgid="5554327870352703710">"Indietro"</string>
@@ -633,7 +647,7 @@
     <string name="storage_category" msgid="2287342585424631813">"Archiviazione"</string>
     <string name="shared_data_title" msgid="1017034836800864953">"Dati condivisi"</string>
     <string name="shared_data_summary" msgid="5516326713822885652">"Visualizza e modifica i dati condivisi"</string>
-    <string name="shared_data_no_blobs_text" msgid="3108114670341737434">"Nessun dato condiviso per questo utente."</string>
+    <string name="shared_data_no_blobs_text" msgid="3108114670341737434">"Nessun dato condiviso per questo utente"</string>
     <string name="shared_data_query_failure_text" msgid="3489828881998773687">"Si è verificato un errore durante il recupero dei dati condivisi. Riprova."</string>
     <string name="blob_id_text" msgid="8680078988996308061">"ID dati condivisi: <xliff:g id="BLOB_ID">%d</xliff:g>"</string>
     <string name="blob_expires_text" msgid="7882727111491739331">"Scadenza: <xliff:g id="DATE">%s</xliff:g>"</string>
@@ -678,7 +692,7 @@
     <string name="guest_exit_guest" msgid="5908239569510734136">"Rimuovi ospite"</string>
     <string name="guest_reset_guest" msgid="6110013010356013758">"Reimposta sessione Ospite"</string>
     <string name="guest_reset_guest_dialog_title" msgid="8047270010895437534">"Reimpostare sessione Ospite?"</string>
-    <string name="guest_remove_guest_dialog_title" msgid="4548511006624088072">"Vuoi rimuovere l\'ospite?"</string>
+    <string name="guest_remove_guest_dialog_title" msgid="4548511006624088072">"Rimuovere l\'ospite?"</string>
     <string name="guest_reset_guest_confirm_button" msgid="2989915693215617237">"Reimposta"</string>
     <string name="guest_remove_guest_confirm_button" msgid="7858123434954143879">"Rimuovi"</string>
     <string name="guest_resetting" msgid="7822120170191509566">"Reimpostazione sessione Ospite in corso…"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Se trasmetti l\'app <xliff:g id="SWITCHAPP">%1$s</xliff:g> o cambi l\'uscita, la trasmissione attuale viene interrotta"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Trasmetti l\'app <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Cambia uscita"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Animazioni predittive per Indietro"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Attiva le animazioni di sistema per il gesto Indietro predittivo."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Questa impostazione attiva le animazioni di sistema per il gesto Indietro predittivo. Richiede di impostare il metodo enableOnBackInvokedCallback su true nel file manifest di tutte le app."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g>%%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Non specificato"</string>
     <string name="neuter" msgid="2075249330106127310">"Neutro"</string>

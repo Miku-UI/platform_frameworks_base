@@ -139,7 +139,7 @@ public class QSPanelController extends QSPanelControllerBase<QSPanel> {
 
     @Override
     StateFlow<Boolean> getMediaVisibleFlow() {
-        return mMediaCarouselInteractor.getHasAnyMediaOrRecommendation();
+        return mMediaCarouselInteractor.getHasAnyMedia();
     }
 
     @Override

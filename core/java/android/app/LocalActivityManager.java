@@ -638,7 +638,7 @@ public class LocalActivityManager {
      * results in a HashMap by id.  Only construct the HashMap if there is a non-null
      * object to store.  Note that this does not support nested ActivityGroups.
      * 
-     * {@hide}
+     * @hide
      */
     public HashMap<String,Object> dispatchRetainNonConfigurationInstance() {
         HashMap<String,Object> instanceMap = null;

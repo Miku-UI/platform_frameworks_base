@@ -34,6 +34,7 @@ public class DocumentedOperation {
 
     public static final int FLOAT_ARRAY = 10;
     public static final int INT_ARRAY = 11;
+    public static final int BYTE_ARRAY = 12;
 
     @NonNull final String mCategory;
     int mId;
@@ -80,6 +81,8 @@ public class DocumentedOperation {
                 return "FLOAT[]";
             case INT_ARRAY:
                 return "INT[]";
+            case BYTE_ARRAY:
+                return "byte[]";
         }
         return "UNKNOWN";
     }

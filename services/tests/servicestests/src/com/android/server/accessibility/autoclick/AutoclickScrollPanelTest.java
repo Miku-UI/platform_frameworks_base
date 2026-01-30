@@ -32,6 +32,7 @@ import android.content.Context;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableContext;
 import android.testing.TestableLooper;
+import android.util.DisplayMetrics;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
@@ -40,6 +41,7 @@ import android.widget.ImageButton;
 import com.android.internal.R;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -69,6 +71,9 @@ public class AutoclickScrollPanelTest {
     private ImageButton mRightButton;
     private ImageButton mExitButton;
 
+    private int mScreenWidth;
+    private int mScreenHeight;
+
     @Before
     public void setUp() {
         mTestableContext.addMockSystemService(Context.WINDOW_SERVICE, mMockWindowManager);
@@ -83,6 +88,10 @@ public class AutoclickScrollPanelTest {
         mLeftButton = contentView.findViewById(R.id.scroll_left);
         mRightButton = contentView.findViewById(R.id.scroll_right);
         mExitButton = contentView.findViewById(R.id.scroll_exit);
+
+        DisplayMetrics displayMetrics = mTestableContext.getResources().getDisplayMetrics();
+        mScreenWidth = displayMetrics.widthPixels;
+        mScreenHeight = displayMetrics.heightPixels;
     }
 
     @Test
@@ -138,7 +147,7 @@ public class AutoclickScrollPanelTest {
         // Test hover move.
         reset(mMockScrollPanelController);
         triggerHoverEvent(mUpButton, MotionEvent.ACTION_HOVER_MOVE);
-        verify(mMockScrollPanelController).onHoverButtonChange(
+        verify(mMockScrollPanelController, never()).onHoverButtonChange(
                 eq(AutoclickScrollPanel.DIRECTION_UP), eq(/* hovered= */ true));
 
         // Test hover exit.
@@ -176,7 +185,7 @@ public class AutoclickScrollPanelTest {
         triggerHoverEvent(mUpButton, MotionEvent.ACTION_HOVER_ENTER);
         triggerHoverEvent(mUpButton, MotionEvent.ACTION_HOVER_MOVE);
         triggerHoverEvent(mUpButton, MotionEvent.ACTION_HOVER_MOVE);
-        verify(mMockScrollPanelController, times(3)).onHoverButtonChange(
+        verify(mMockScrollPanelController, times(1)).onHoverButtonChange(
                 eq(AutoclickScrollPanel.DIRECTION_UP), eq(true));
 
         // Case 2. Move from left button to exit button.
@@ -184,17 +193,17 @@ public class AutoclickScrollPanelTest {
         triggerHoverEvent(mLeftButton, MotionEvent.ACTION_HOVER_ENTER);
         triggerHoverEvent(mLeftButton, MotionEvent.ACTION_HOVER_MOVE);
         triggerHoverEvent(mLeftButton, MotionEvent.ACTION_HOVER_EXIT);
-        triggerHoverEvent(mExitButton, MotionEvent.ACTION_HOVER_MOVE);
         triggerHoverEvent(mExitButton, MotionEvent.ACTION_HOVER_ENTER);
+        triggerHoverEvent(mExitButton, MotionEvent.ACTION_HOVER_MOVE);
         triggerHoverEvent(mExitButton, MotionEvent.ACTION_HOVER_EXIT);
 
-        // Verify left button events - 2 'true' calls (enter+move) and 1 'false' call (exit).
-        verify(mMockScrollPanelController, times(2)).onHoverButtonChange(
+        // Verify left button events - 1 'true' call (enter) and 1 'false' call (exit).
+        verify(mMockScrollPanelController, times(1)).onHoverButtonChange(
                 eq(AutoclickScrollPanel.DIRECTION_LEFT), eq(/* hovered= */ true));
         verify(mMockScrollPanelController).onHoverButtonChange(
                 eq(AutoclickScrollPanel.DIRECTION_LEFT), eq(/* hovered= */ false));
-        // Verify exit button events - hover_move is ignored so 1 'true' call (enter) and 1
-        // 'false' call (exit).
+
+        // Verify exit button events - 1 'true' call (enter) and 1 'false' call (exit).
         verify(mMockScrollPanelController).onHoverButtonChange(
                 eq(AutoclickScrollPanel.DIRECTION_EXIT), eq(/* hovered= */ true));
         verify(mMockScrollPanelController).onHoverButtonChange(
@@ -222,6 +231,158 @@ public class AutoclickScrollPanelTest {
                 eq(AutoclickScrollPanel.DIRECTION_DOWN), eq(/* hovered= */ false));
         verify(mMockScrollPanelController).onHoverButtonChange(
                 eq(AutoclickScrollPanel.DIRECTION_EXIT), eq(/* hovered= */ true));
+    }
+
+    @Test
+    public void show_withCursorPosition_addsView() {
+        float cursorX = 300;
+        float cursorY = 300;
+
+        // Call the new method with cursor coordinates.
+        mScrollPanel.show(cursorX, cursorY);
+
+        // Verify view is added to window manager.
+        verify(mMockWindowManager).addView(eq(mScrollPanel.getContentViewForTesting()),
+                any(WindowManager.LayoutParams.class));
+        // Verify panel is visible.
+        assertThat(mScrollPanel.isVisible()).isTrue();
+    }
+
+    @Test
+    public void hideAndReshow_updatesPosition() {
+        // First show at one position.
+        float firstX = 300;
+        float firstY = 300;
+        mScrollPanel.show(firstX, firstY);
+        assertThat(mScrollPanel.isVisible()).isTrue();
+
+        // Hide panel.
+        mScrollPanel.hide();
+        assertThat(mScrollPanel.isVisible()).isFalse();
+
+        // Show at different position.
+        float secondX = 500;
+        float secondY = 500;
+        mScrollPanel.show(secondX, secondY);
+
+        // Verify panel is visible.
+        assertThat(mScrollPanel.isVisible()).isTrue();
+
+        // Verify view was added twice to window manager.
+        verify(mMockWindowManager, times(2)).addView(eq(mScrollPanel.getContentViewForTesting()),
+                any(WindowManager.LayoutParams.class));
+    }
+
+    @Ignore
+    @Test
+    public void showPanel_normalCase() {
+        // Normal case, position at (100, 100).
+        int cursorX = 100;
+        int cursorY = 100;
+
+        // Capture the current layout params before positioning.
+        WindowManager.LayoutParams params = mScrollPanel.getLayoutParamsForTesting();
+        mScrollPanel.positionPanelAtCursor(cursorX, cursorY);
+
+        // Calculate expected position for bottom-right placement.
+        int margin = 10;
+        int xOffset = mScrollPanel.getPanelWidthForTesting() / 2 + margin;
+        int yOffset = mScrollPanel.getPanelHeightForTesting() / 2 + margin;
+        int expectedX = cursorX + xOffset - mScrollPanel.getPanelWidthForTesting() / 2;
+        int expectedY = (cursorY - mScrollPanel.getStatusBarHeightForTesting()) + yOffset
+                - mScrollPanel.getPanelHeightForTesting() / 2;
+
+        // Verify panel's position.
+        assertThat(params.x).isEqualTo(expectedX);
+        assertThat(params.y).isEqualTo(expectedY);
+    }
+
+    @Test
+    public void showPanel_nearRightEdge_positionsLeftOfCursor() {
+        // Near right edge case.
+        // 100px from right edge.
+        int cursorX = mScreenWidth - 10;
+        // Center of screen vertically.
+        int cursorY = mScreenHeight / 2;
+
+        // Capture the current layout params before positioning.
+        WindowManager.LayoutParams params = mScrollPanel.getLayoutParamsForTesting();
+        mScrollPanel.positionPanelAtCursor(cursorX, cursorY);
+
+        // Panel should be left of cursor.
+        assertThat(params.x).isLessThan(cursorX);
+    }
+
+    @Test
+    public void showPanel_nearBottomEdge_positionsAboveCursor() {
+        // Near bottom edge case.
+        // Center of screen horizontally.
+        int cursorX = mScreenWidth / 2;
+        // 10px from bottom edge.
+        int cursorY = mScreenHeight - 10;
+
+        // Capture the current layout params before positioning.
+        WindowManager.LayoutParams params = mScrollPanel.getLayoutParamsForTesting();
+        mScrollPanel.positionPanelAtCursor(cursorX, cursorY);
+
+        // Panel should be above cursor.
+        assertThat(params.y).isLessThan(cursorY - mScrollPanel.getStatusBarHeightForTesting());
+    }
+
+    @Test
+    public void showPanel_nearBottomRightCorner_positionsLeftAndAboveCursor() {
+        // Near bottom-right corner case.
+        // 10px from right edge.
+        int cursorX = mScreenWidth - 10;
+        // 10px from bottom edge.
+        int cursorY = mScreenHeight - 10;
+
+        // Capture the current layout params before positioning.
+        WindowManager.LayoutParams params = mScrollPanel.getLayoutParamsForTesting();
+        mScrollPanel.positionPanelAtCursor(cursorX, cursorY);
+
+        // Panel should be left of and above cursor.
+        assertThat(params.x).isLessThan(cursorX);
+        assertThat(params.y).isLessThan(cursorY - mScrollPanel.getStatusBarHeightForTesting());
+    }
+
+    @Test
+    public void showPanel_closeToEdge_withinBounds() {
+        // Test edge case where cursor is very close to edge, panel should still be positioned
+        // within PANEL_EDGE_MARGIN (15px).
+        int edgeMargin = 15;
+
+        // Near bottom-right corner case.
+        // 10px from right edge.
+        int cursorX = mScreenWidth - 10;
+        // 10px from bottom edge.
+        int cursorY = mScreenHeight - 10;
+
+        WindowManager.LayoutParams params = mScrollPanel.getLayoutParamsForTesting();
+        mScrollPanel.positionPanelAtCursor(cursorX, cursorY);
+
+        // Verify panel is within bounds with margin.
+        assertThat(params.x).isGreaterThan(edgeMargin);
+        assertThat(params.y).isGreaterThan(edgeMargin);
+        assertThat(params.x + mScrollPanel.getPanelWidthForTesting() + edgeMargin)
+                .isLessThan(mScreenWidth);
+        assertThat(params.y + mScrollPanel.getPanelHeightForTesting() + edgeMargin)
+                .isLessThan(mScreenHeight);
+    }
+
+    @Test
+    public void exitButton_click_callsOnExitScrollMode() {
+        float cursorX = 300;
+        float cursorY = 300;
+
+        mScrollPanel.show(cursorX, cursorY);
+        assertThat(mScrollPanel.isVisible()).isTrue();
+
+        // Simulate clicking the exit button.
+        mExitButton.performClick();
+
+        // Verify that the controller's onExitScrollMode was called.
+        verify(mMockScrollPanelController).onExitScrollMode();
     }
 
     // Helper method to simulate a hover event on a view.

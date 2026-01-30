@@ -19,6 +19,7 @@
 
 #include "NativeCallbackThread.h"
 
+#include <mutex>
 #include <utils/Log.h>
 
 namespace android {

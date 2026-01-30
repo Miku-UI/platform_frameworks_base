@@ -16,7 +16,6 @@
 
 package com.android.settingslib.spa.screenshot.widget.preference
 
-import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.DisabledByDefault
@@ -24,6 +23,7 @@ import androidx.compose.runtime.Composable
 import com.android.settingslib.spa.screenshot.util.settingsScreenshotTestRule
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
+import com.android.settingslib.spa.widget.ui.Category
 import com.android.settingslib.spa.widget.ui.SettingsIcon
 import org.junit.Rule
 import org.junit.Test
@@ -33,7 +33,6 @@ import platform.test.runner.parameterized.Parameters
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.PhoneAndTabletMinimal
 
-/** A screenshot test for ExampleFeature. */
 @RunWith(ParameterizedAndroidJunit4::class)
 class PreferenceScreenshotTest(emulationSpec: DeviceEmulationSpec) {
     companion object {
@@ -55,7 +54,7 @@ class PreferenceScreenshotTest(emulationSpec: DeviceEmulationSpec) {
     @Test
     fun test() {
         screenshotRule.screenshotTest("preference") {
-            Column {
+            Category {
                 Preference(object : PreferenceModel {
                     override val title = TITLE
                 })

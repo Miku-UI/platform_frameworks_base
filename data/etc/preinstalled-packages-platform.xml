@@ -111,13 +111,6 @@ to pre-existing users, but cannot uninstall pre-existing system packages from pr
         <do-not-install-in user-type="android.os.usertype.profile.PRIVATE" />
     </install-in-user-type>
 
-    <!--  Settings (Settings app) -->
-    <install-in-user-type package="com.android.settings">
-        <install-in user-type="SYSTEM" />
-        <install-in user-type="FULL" />
-        <install-in user-type="PROFILE" />
-    </install-in-user-type>
-
     <!-- Settings Storage (SettingsProvider)  -->
     <install-in-user-type package="com.android.providers.settings">
         <install-in user-type="SYSTEM" />
@@ -143,6 +136,20 @@ to pre-existing users, but cannot uninstall pre-existing system packages from pr
     <!-- PrivateSpace App, only install in private profile -->
     <install-in-user-type package="com.android.privatespace">
         <install-in user-type="android.os.usertype.profile.PRIVATE" />
+    </install-in-user-type>
+
+   <!-- b/441173306 This is temporary fix to unblock the post submit failures
+      @TODO vladokom@ to Remove this once the package is preinstalled in the
+      correct XML to MK mapped configs
+   -->
+    <!--  Virtual Device Manager  -->
+    <install-in-user-type package="com.android.virtualdevicemanager">
+        <install-in user-type="FULL" />
+    </install-in-user-type>
+
+    <!-- Cross device data sync app (CrossDeviceSync)  -->
+    <install-in-user-type package="com.android.crossdevicesync">
+        <install-in user-type="SYSTEM" />
     </install-in-user-type>
 
 </config>

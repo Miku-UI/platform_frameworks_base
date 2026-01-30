@@ -22,6 +22,7 @@
 #include <android_runtime/AndroidRuntime.h>
 #include <android_runtime/Log.h>
 #include <attestation/HmacKeyManager.h>
+#include <ftl/flags.h>
 #include <input/Input.h>
 #include <log/log.h>
 #include <nativehelper/JNIHelp.h>
@@ -322,7 +323,7 @@ static void pointerPropertiesFromNative(JNIEnv* env, const PointerProperties* po
 
 static jlong android_view_MotionEvent_nativeInitialize(
         JNIEnv* env, jclass clazz, jlong nativePtr, jint deviceId, jint source, jint displayId,
-        jint action, jint flags, jint edgeFlags, jint metaState, jint buttonState,
+        jint action, jint jFlags, jint edgeFlags, jint metaState, jint buttonState,
         jint classification, jfloat xOffset, jfloat yOffset, jfloat xPrecision, jfloat yPrecision,
         jlong downTimeNanos, jlong eventTimeNanos, jint pointerCount,
         jobjectArray pointerPropertiesObjArray, jobjectArray pointerCoordsObjArray) {
@@ -338,6 +339,8 @@ static jlong android_view_MotionEvent_nativeInitialize(
     } else {
         event = std::make_unique<MotionEvent>();
     }
+
+    ftl::Flags<MotionFlag> flags(jFlags);
 
     ui::Transform transform;
     transform.set(xOffset, yOffset);
@@ -364,8 +367,8 @@ static jlong android_view_MotionEvent_nativeInitialize(
         rawPointerCoords.emplace_back(pointerCoordsToNative(env, pointerCoordsObj));
         PointerCoords& coords = rawPointerCoords.back();
         if (coords.getAxisValue(AMOTION_EVENT_AXIS_ORIENTATION) != 0.f) {
-            flags |= AMOTION_EVENT_PRIVATE_FLAG_SUPPORTS_ORIENTATION |
-                    AMOTION_EVENT_PRIVATE_FLAG_SUPPORTS_DIRECTIONAL_ORIENTATION;
+            flags |= MotionFlag::SUPPORTS_ORIENTATION;
+            flags |= MotionFlag::SUPPORTS_DIRECTIONAL_ORIENTATION;
         }
         MotionEvent::calculateTransformedCoordsInPlace(coords, source, flags, inverseTransform);
         env->DeleteLocalRef(pointerCoordsObj);
@@ -697,15 +700,16 @@ static jboolean android_view_MotionEvent_nativeIsTouchEvent(
 static jint android_view_MotionEvent_nativeGetFlags(CRITICAL_JNI_PARAMS_COMMA jlong nativePtr) {
     MotionEvent* event = reinterpret_cast<MotionEvent*>(nativePtr);
     // Prevent private flags from being used in Java.
-    return event->getFlags() & ~AMOTION_EVENT_PRIVATE_FLAG_MASK;
+    return event->getFlags().get() & ~AMOTION_EVENT_PRIVATE_FLAG_MASK;
 }
 
 static void android_view_MotionEvent_nativeSetFlags(CRITICAL_JNI_PARAMS_COMMA jlong nativePtr,
-                                                    jint flags) {
+                                                    jint jFlags) {
     MotionEvent* event = reinterpret_cast<MotionEvent*>(nativePtr);
     // Prevent private flags from being used from Java.
-    const int32_t privateFlags = event->getFlags() & AMOTION_EVENT_PRIVATE_FLAG_MASK;
-    event->setFlags((flags & ~AMOTION_EVENT_PRIVATE_FLAG_MASK) | privateFlags);
+    const int32_t privateFlags = event->getFlags().get() & AMOTION_EVENT_PRIVATE_FLAG_MASK;
+    uint32_t flags = (jFlags & ~AMOTION_EVENT_PRIVATE_FLAG_MASK) | privateFlags;
+    event->setFlags(ftl::Flags<MotionFlag>(flags));
 }
 
 static jint android_view_MotionEvent_nativeGetEdgeFlags(CRITICAL_JNI_PARAMS_COMMA jlong nativePtr) {

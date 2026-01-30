@@ -22,7 +22,11 @@ import com.android.systemui.kairos.internal.init
 import com.android.systemui.kairos.internal.mapImpl
 import com.android.systemui.kairos.internal.switchDeferredImplSingle
 import com.android.systemui.kairos.internal.switchPromptImplSingle
+import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.mapPatchFromFullDiff
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 
 /**
  * Returns an [Events] that switches to the [Events] contained within this [State] whenever it
@@ -34,13 +38,19 @@ import com.android.systemui.kairos.util.mapPatchFromFullDiff
  * @sample com.android.systemui.kairos.KairosSamples.switchEvents
  */
 @ExperimentalKairosApi
-fun <A> State<Events<A>>.switchEvents(): Events<A> {
+fun <A> State<Events<A>>.switchEvents(): Events<A> =
+    switchEvents(nameTag("State.switchEvents").toNameData("State.switchEvents"))
+
+internal fun <A> State<Events<A>>.switchEvents(nameData: NameData): Events<A> {
     val patches =
-        mapImpl({ init.connect(this).changes }) { newEvents, _ -> newEvents.init.connect(this) }
+        mapImpl({ init.connect(this).changes }, nameData + "patches") { newEvents, _ ->
+            newEvents.init.connect(this)
+        }
     return EventsInit(
         constInit(
-            name = null,
+            nameData,
             switchDeferredImplSingle(
+                nameData,
                 getStorage = {
                     init.connect(this).getCurrentWithEpoch(this).first.init.connect(this)
                 },
@@ -66,13 +76,21 @@ fun <A> State<Events<A>>.switchEvents(): Events<A> {
  */
 // TODO: parameter to handle coincidental emission from both old and new
 @ExperimentalKairosApi
-fun <A> State<Events<A>>.switchEventsPromptly(): Events<A> {
+fun <A> State<Events<A>>.switchEventsPromptly(): Events<A> =
+    switchEventsPromptly(
+        nameTag("State.switchEventsPromptly").toNameData("State.switchEventsPromptly")
+    )
+
+internal fun <A> State<Events<A>>.switchEventsPromptly(nameData: NameData): Events<A> {
     val patches =
-        mapImpl({ init.connect(this).changes }) { newEvents, _ -> newEvents.init.connect(this) }
+        mapImpl({ init.connect(this).changes }, nameData + "patches") { newEvents, _ ->
+            newEvents.init.connect(this)
+        }
     return EventsInit(
         constInit(
-            name = null,
+            nameData,
             switchPromptImplSingle(
+                nameData,
                 getStorage = {
                     init.connect(this).getCurrentWithEpoch(this).first.init.connect(this)
                 },
@@ -83,25 +101,34 @@ fun <A> State<Events<A>>.switchEventsPromptly(): Events<A> {
 }
 
 /** Returns an [Incremental] that behaves like current value of this [State]. */
-fun <K, V> State<Incremental<K, V>>.switchIncremental(): Incremental<K, V> {
+fun <K, V> State<Incremental<K, V>>.switchIncremental(): Incremental<K, V> =
+    switchIncremental(nameTag("State.switchIncremental").toNameData("State.switchIncremental"))
+
+internal fun <K, V> State<Incremental<K, V>>.switchIncremental(
+    nameData: NameData
+): Incremental<K, V> {
     val stateChangePatches =
-        transitions.mapNotNull { (old, new) ->
+        transitions(nameData + "transitions").mapNotNull(nameData + "makePatchFromDiff") {
+            (old, new) ->
             mapPatchFromFullDiff(old.sample(), new.sample()).takeIf { it.isNotEmpty() }
         }
     val innerChanges =
-        map { inner ->
-                merge(stateChangePatches, inner.updates) { switchPatch, upcomingPatch ->
+        map(nameData + "innerChangesPatch") { inner ->
+                merge(
+                    nameData + "mergeCoincidentalPatches",
+                    stateChangePatches,
+                    inner.updates(nameData + "innerUpdates"),
+                ) { switchPatch, upcomingPatch ->
                     switchPatch + upcomingPatch
                 }
             }
-            .switchEventsPromptly()
-    val flattened = flatten()
+            .switchEventsPromptly(nameData + "innerChanges")
+    val flattened = flatten(nameData)
     return IncrementalInit(
-        init("switchIncremental") {
+        init(nameData) {
             val upstream = flattened.init.connect(this)
             IncrementalImpl(
-                "switchIncremental",
-                "switchIncremental",
+                nameData,
                 upstream.changes,
                 innerChanges.init.connect(this),
                 upstream.store,

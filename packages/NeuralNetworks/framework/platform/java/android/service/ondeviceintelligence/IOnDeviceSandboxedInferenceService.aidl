@@ -20,6 +20,7 @@ import android.app.ondeviceintelligence.IStreamingResponseCallback;
 import android.app.ondeviceintelligence.IResponseCallback;
 import android.app.ondeviceintelligence.ITokenInfoCallback;
 import android.app.ondeviceintelligence.IProcessingSignal;
+import android.app.ondeviceintelligence.ILifecycleListener;
 import android.app.ondeviceintelligence.Feature;
 import android.os.IRemoteCallback;
 import android.os.ICancellationSignal;
@@ -50,4 +51,5 @@ oneway interface IOnDeviceSandboxedInferenceService {
                                 in IStreamingResponseCallback callback) = 3;
     void updateProcessingState(in Bundle processingState,
                                      in IProcessingUpdateStatusCallback callback) = 4;
+    void registerInferenceServiceLifecycleListener(in ILifecycleListener listener) = 5;
 }

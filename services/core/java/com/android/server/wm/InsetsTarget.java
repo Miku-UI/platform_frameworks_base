@@ -18,7 +18,7 @@ package com.android.server.wm;
 
 import android.annotation.Nullable;
 import android.os.IBinder;
-import android.view.WindowInsets;
+import android.view.WindowInsets.Type.InsetsType;
 
 /**
  * A common parent for {@link InputTarget} and {@link InsetsControlTarget}: Some types (like the
@@ -35,14 +35,14 @@ public interface InsetsTarget {
     IBinder getWindowToken();
 
     /**
-     * @param types The {@link WindowInsets.Type}s which requestedVisibility status is returned.
-     * @return {@code true} if any of the {@link WindowInsets.Type.InsetsType} is requested
-     * visible by this target.
+     * @param types The {@link InsetsType}s which requestedVisibility status is returned.
+     * @return {@code true} if any of the {@link InsetsType} is requested visible by this target.
      */
-    boolean isRequestedVisible(@WindowInsets.Type.InsetsType int types);
+    boolean isRequestedVisible(@InsetsType int types);
 
     /**
-     * @return {@link WindowInsets.Type.InsetsType}s which are requested visible by this target.
+     * @return {@link InsetsType}s which are requested visible by this target.
      */
-    @WindowInsets.Type.InsetsType int getRequestedVisibleTypes();
+    @InsetsType
+    int getRequestedVisibleTypes();
 }

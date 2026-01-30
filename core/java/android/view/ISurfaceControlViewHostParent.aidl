@@ -21,7 +21,7 @@ import android.view.WindowManager;
 
 /**
  * API from embedded content in SurfaceControlViewHost to parent containing the embedded.
- * {@hide}
+ * @hide
  */
 oneway interface ISurfaceControlViewHostParent {
     void updateParams(in WindowManager.LayoutParams[] childAttrs);

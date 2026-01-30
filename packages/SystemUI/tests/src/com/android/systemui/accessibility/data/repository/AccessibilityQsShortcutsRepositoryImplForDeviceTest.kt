@@ -20,11 +20,21 @@ import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ComponentName
 import android.content.pm.ResolveInfo
 import android.content.pm.ServiceInfo
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
+import android.platform.test.flag.junit.SetFlagsRule
 import android.view.accessibility.AccessibilityManager
+import android.view.accessibility.IUserInitializationCompleteCallback
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.accessibility.AccessibilityShortcutController
+import com.android.server.accessibility.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.backgroundScope
+import com.android.systemui.kosmos.runCurrent
+import com.android.systemui.kosmos.runTest
+import com.android.systemui.kosmos.testDispatcher
+import com.android.systemui.log.core.FakeLogBuffer
 import com.android.systemui.qs.pipeline.shared.TileSpec
 import com.android.systemui.qs.tiles.ColorCorrectionTile
 import com.android.systemui.qs.tiles.ColorInversionTile
@@ -32,14 +42,10 @@ import com.android.systemui.qs.tiles.FontScalingTile
 import com.android.systemui.qs.tiles.HearingDevicesTile
 import com.android.systemui.qs.tiles.OneHandedModeTile
 import com.android.systemui.qs.tiles.ReduceBrightColorsTile
-import com.android.systemui.util.mockito.whenever
-import com.android.systemui.util.settings.FakeSettings
+import com.android.systemui.testKosmosNew
+import com.android.systemui.util.settings.fakeSettings
 import com.android.systemui.utils.FieldSetter
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -48,6 +54,9 @@ import org.mockito.Mock
 import org.mockito.Mockito
 import org.mockito.junit.MockitoJUnit
 import org.mockito.junit.MockitoRule
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.whenever
 
 /**
  * Unit tests for AccessibilityQsShortcutsRepositoryImpl that requires a device. For example, we
@@ -57,13 +66,14 @@ import org.mockito.junit.MockitoRule
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
-    @Rule @JvmField val mockitoRule: MockitoRule = MockitoJUnit.rule()
+    @get:Rule val mockitoRule: MockitoRule = MockitoJUnit.rule()
+    @get:Rule val setFlagsRule: SetFlagsRule = SetFlagsRule()
 
     // mocks
     @Mock private lateinit var a11yManager: AccessibilityManager
-    private val testDispatcher = StandardTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
-    private val secureSettings = FakeSettings()
+    private var userInitializationCallback: IUserInitializationCompleteCallback? = null
+    private val kosmos = testKosmosNew()
+    private val secureSettings = kosmos.fakeSettings
 
     private val userA11yQsShortcutsRepositoryFactory =
         object : UserA11yQsShortcutsRepository.Factory {
@@ -71,8 +81,8 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
                 return UserA11yQsShortcutsRepository(
                     userId,
                     secureSettings,
-                    testScope.backgroundScope,
-                    testDispatcher,
+                    kosmos.backgroundScope,
+                    kosmos.testDispatcher,
                 )
             }
         }
@@ -81,12 +91,24 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
+        // Use doAnswer to define behavior based on the input 'user'
+        doAnswer { invocation ->
+                // Get the User object passed as the first argument
+                userInitializationCallback =
+                    invocation.arguments[0] as IUserInitializationCompleteCallback
+            }
+            .whenever(a11yManager)
+            .registerUserInitializationCompleteCallback(any())
         underTest =
             AccessibilityQsShortcutsRepositoryImpl(
                 a11yManager,
                 userA11yQsShortcutsRepositoryFactory,
-                testDispatcher
+                kosmos.testDispatcher,
+                kosmos.backgroundScope,
+                FakeLogBuffer.Factory.create(),
             )
+
+        userInitializationCallback?.onUserInitializationComplete(context.userId)
     }
 
     @Test
@@ -112,9 +134,56 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
             )
     }
 
+    @DisableFlags(Flags.FLAG_NOTIFY_QS_TILE_CHANGED_AFTER_USER_INITIALIZATION)
+    @Test
+    fun initRepository_doesNotRegisterUserInitializationCallback() =
+        kosmos.runTest {
+            runCurrent()
+
+            assertThat(userInitializationCallback).isNull()
+        }
+
+    @EnableFlags(Flags.FLAG_NOTIFY_QS_TILE_CHANGED_AFTER_USER_INITIALIZATION)
+    @Test
+    fun initRepository_registeredUserInitializationCallback() =
+        kosmos.runTest {
+            runCurrent()
+
+            assertThat(userInitializationCallback).isNotNull()
+        }
+
+    @EnableFlags(Flags.FLAG_NOTIFY_QS_TILE_CHANGED_AFTER_USER_INITIALIZATION)
+    @Test
+    fun notifyAccessibilityManagerTilesChanged_notifyOnlyWhenUserInitializationComplete() =
+        kosmos.runTest {
+            // Change completedUser
+            userInitializationCallback?.onUserInitializationComplete(context.userId + 1)
+            runCurrent()
+
+            val changedTiles = listOf(TileSpec.create(ColorInversionTile.TILE_SPEC))
+
+            underTest.notifyAccessibilityManagerTilesChanged(context, changedTiles)
+            runCurrent()
+
+            // Should not notify, because the user is not initialized
+            Mockito.verify(a11yManager, Mockito.times(0))
+                .notifyQuickSettingsTilesChanged(any(), any())
+
+            // Change completedUser
+            userInitializationCallback?.onUserInitializationComplete(context.userId)
+            runCurrent()
+
+            // Flush previous pending execution
+            Mockito.verify(a11yManager, Mockito.times(1))
+                .notifyQuickSettingsTilesChanged(
+                    context.userId,
+                    listOf(AccessibilityShortcutController.COLOR_INVERSION_TILE_COMPONENT_NAME),
+                )
+        }
+
     @Test
     fun notifyAccessibilityManagerTilesChanged_customTiles_onlyNotifyA11yTileServices() =
-        testScope.runTest {
+        kosmos.runTest {
             val a11yServiceTileService = ComponentName("a11yPackageName", "TileServiceClassName")
             setupInstalledAccessibilityServices(a11yServiceTileService)
             // TileService should match accessibility_shortcut_test_activity.xml,
@@ -122,7 +191,7 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
             val a11yShortcutTileService =
                 ComponentName(
                     mContext.packageName,
-                    "com.android.systemui.accessibility.TileService"
+                    "com.android.systemui.accessibility.TileService",
                 )
             setupInstalledAccessibilityShortcutTargets()
             // Other custom tile service that isn't linked to an accessibility feature
@@ -132,7 +201,7 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
                 listOf(
                     TileSpec.create(a11yServiceTileService),
                     TileSpec.create(a11yShortcutTileService),
-                    TileSpec.create(nonA11yTileService)
+                    TileSpec.create(nonA11yTileService),
                 )
 
             underTest.notifyAccessibilityManagerTilesChanged(context, changedTiles)
@@ -141,13 +210,13 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
             Mockito.verify(a11yManager, Mockito.times(1))
                 .notifyQuickSettingsTilesChanged(
                     context.userId,
-                    listOf(a11yServiceTileService, a11yShortcutTileService)
+                    listOf(a11yServiceTileService, a11yShortcutTileService),
                 )
         }
 
     @Test
     fun notifyAccessibilityManagerTilesChanged_noMatchingA11yFrameworkTiles() =
-        testScope.runTest {
+        kosmos.runTest {
             val changedTiles = listOf(TileSpec.create("a"))
 
             underTest.notifyAccessibilityManagerTilesChanged(context, changedTiles)
@@ -159,14 +228,14 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
 
     @Test
     fun notifyAccessibilityManagerTilesChanged_convertA11yTilesSpecToComponentName() =
-        testScope.runTest {
+        kosmos.runTest {
             val changedTiles =
                 listOf(
                     TileSpec.create(ColorCorrectionTile.TILE_SPEC),
                     TileSpec.create(ColorInversionTile.TILE_SPEC),
                     TileSpec.create(OneHandedModeTile.TILE_SPEC),
                     TileSpec.create(ReduceBrightColorsTile.TILE_SPEC),
-                    TileSpec.create(FontScalingTile.TILE_SPEC)
+                    TileSpec.create(FontScalingTile.TILE_SPEC),
                 )
 
             underTest.notifyAccessibilityManagerTilesChanged(context, changedTiles)
@@ -181,8 +250,8 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
                         AccessibilityShortcutController.ONE_HANDED_TILE_COMPONENT_NAME,
                         AccessibilityShortcutController
                             .REDUCE_BRIGHT_COLORS_TILE_SERVICE_COMPONENT_NAME,
-                        AccessibilityShortcutController.FONT_SIZE_TILE_COMPONENT_NAME
-                    )
+                        AccessibilityShortcutController.FONT_SIZE_TILE_COMPONENT_NAME,
+                    ),
                 )
         }
 
@@ -203,7 +272,7 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
                 listOf(
                     createFakeAccessibilityServiceInfo(
                         tileService.packageName,
-                        tileService.className
+                        tileService.className,
                     )
                 )
             )
@@ -211,7 +280,7 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
 
     private fun createFakeAccessibilityServiceInfo(
         packageName: String,
-        tileServiceClass: String
+        tileServiceClass: String,
     ): AccessibilityServiceInfo {
         val serviceInfo = ServiceInfo().also { it.packageName = packageName }
         val resolveInfo = ResolveInfo().also { it.serviceInfo = serviceInfo }
@@ -223,7 +292,7 @@ class AccessibilityQsShortcutsRepositoryImplForDeviceTest : SysuiTestCase() {
         FieldSetter.setField(
             a11yServiceInfo,
             AccessibilityServiceInfo::class.java.getDeclaredField("mTileServiceName"),
-            tileServiceClass
+            tileServiceClass,
         )
 
         return a11yServiceInfo

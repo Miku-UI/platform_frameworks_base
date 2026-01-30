@@ -681,7 +681,7 @@ public abstract class Animator implements Cloneable {
         AnimationHandler.getInstance().removePendingEndAnimationCallback(mPendingEndCallback);
         mPendingEndCallback = null;
         if (notifyListeners) {
-            notifyEndListeners(false /* isReversing */);
+            completeEndAnimation(false /* isReversing */, "notifyAnimEndNow");
         }
         return true;
     }

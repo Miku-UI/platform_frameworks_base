@@ -21,12 +21,9 @@ import com.android.systemui.qs.ReduceBrightColorsController
 import com.android.systemui.qs.ReduceBrightColorsControllerImpl
 import com.android.systemui.qs.composefragment.dagger.QSFragmentComposeModule
 import com.android.systemui.qs.external.QSExternalModule
-import com.android.systemui.qs.panels.dagger.PanelsModule
 import com.android.systemui.qs.pipeline.dagger.QSPipelineModule
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tiles.base.ui.model.QSTilesModule
-import com.android.systemui.qs.ui.adapter.QSSceneAdapter
-import com.android.systemui.qs.ui.adapter.QSSceneAdapterImpl
 import dagger.Binds
 import dagger.Module
 import dagger.multibindings.Multibinds
@@ -40,7 +37,6 @@ import dagger.multibindings.Multibinds
     includes =
         [
             MediaModule::class,
-            PanelsModule::class,
             QSFragmentComposeModule::class,
             QSExternalModule::class,
             QSFlagsModule::class,
@@ -53,8 +49,6 @@ interface QSModuleBase {
 
     /** A map of internal QS tiles. Ensures that this can be injected even if it is empty */
     @Multibinds fun tileMap(): Map<String?, QSTileImpl<*>?>?
-
-    @Binds fun bindsQsSceneAdapter(impl: QSSceneAdapterImpl): QSSceneAdapter
 
     /** Dims the screen */
     @Binds

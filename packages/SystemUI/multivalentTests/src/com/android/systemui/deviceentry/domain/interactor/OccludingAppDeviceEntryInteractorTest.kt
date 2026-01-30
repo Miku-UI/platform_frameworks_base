@@ -43,6 +43,10 @@ import com.android.systemui.plugins.ActivityStarter.OnDismissAction
 import com.android.systemui.plugins.activityStarter
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.res.R
+import com.android.systemui.scene.data.repository.Idle
+import com.android.systemui.scene.data.repository.setSceneTransition
+import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.whenever
@@ -329,6 +333,10 @@ class OccludingAppDeviceEntryInteractorTest : SysuiTestCase() {
         bouncerRepository.setPrimaryShow(!isOnOccludingApp)
         bouncerRepository.setAlternateVisible(!isOnOccludingApp)
 
+        if (isOnCommunal) {
+            kosmos.sceneInteractor.changeScene(Scenes.Communal, "")
+            kosmos.setSceneTransition(Idle(Scenes.Communal))
+        }
         kosmos.fakeCommunalSceneRepository.setTransitionState(
             flowOf(
                 ObservableTransitionState.Idle(

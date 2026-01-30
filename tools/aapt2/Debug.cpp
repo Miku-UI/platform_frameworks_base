@@ -261,6 +261,34 @@ class ValueBodyPrinter : public ConstValueVisitor {
 
 }  // namespace
 
+static void printResourceConfigValues(Printer* printer, bool show_sources,
+                                      ConstValueVisitor* headline_printer,
+                                      ConstValueVisitor* body_printer,
+                                      const std::vector<const ResourceConfigValue*>& values) {
+  for (const auto& value : values) {
+    printer->Print("(");
+    printer->Print(value->config.to_string());
+    printer->Print(") ");
+    if (value->value->GetFlag()) {
+      printer->Print("(featureFlag=");
+      if (value->value->GetFlag()->negated) {
+        printer->Print("!");
+      }
+      printer->Print(value->value->GetFlag()->name);
+      printer->Print(") ");
+    }
+    value->value->Accept(headline_printer);
+    if (show_sources && !value->value->GetSource().path.empty()) {
+      printer->Print(" src=");
+      printer->Print(value->value->GetSource().to_string());
+    }
+    printer->Println();
+    printer->Indent();
+    value->value->Accept(body_printer);
+    printer->Undent();
+  }
+}
+
 void Debug::PrintTable(const ResourceTable& table, const DebugPrintTableOptions& options,
                        Printer* printer) {
   const auto table_view = table.GetPartitionedView();
@@ -335,36 +363,17 @@ void Debug::PrintTable(const ResourceTable& table, const DebugPrintTableOptions&
 
         if (options.show_values) {
           printer->Indent();
-          for (const auto& value : entry.values) {
-            printer->Print("(");
-            printer->Print(value->config.to_string());
-            printer->Print(") ");
-            value->value->Accept(&headline_printer);
-            if (options.show_sources && !value->value->GetSource().path.empty()) {
-              printer->Print(" src=");
-              printer->Print(value->value->GetSource().to_string());
-            }
-            printer->Println();
-            printer->Indent();
-            value->value->Accept(&body_printer);
-            printer->Undent();
-          }
+          printResourceConfigValues(printer, options.show_sources, &headline_printer, &body_printer,
+                                    entry.values);
           if (!entry.flag_disabled_values.empty()) {
             printer->Println("Flag disabled values:");
-            for (const auto& value : entry.flag_disabled_values) {
-              printer->Print("(");
-              printer->Print(value->config.to_string());
-              printer->Print(") ");
-              value->value->Accept(&headline_printer);
-              if (options.show_sources && !value->value->GetSource().path.empty()) {
-                printer->Print(" src=");
-                printer->Print(value->value->GetSource().to_string());
-              }
-              printer->Println();
-              printer->Indent();
-              value->value->Accept(&body_printer);
-              printer->Undent();
-            }
+            printResourceConfigValues(printer, options.show_sources, &headline_printer,
+                                      &body_printer, entry.flag_disabled_values);
+          }
+          if (!entry.readwrite_flag_values.empty()) {
+            printer->Println("Read/write flag values:");
+            printResourceConfigValues(printer, options.show_sources, &headline_printer,
+                                      &body_printer, entry.readwrite_flag_values);
           }
           printer->Undent();
         }
@@ -649,6 +658,12 @@ class ChunkPrinter {
       case RES_TABLE_TYPE_SPEC_TYPE:
         printer_->Print("[RES_TABLE_TYPE_SPEC_TYPE]");
         break;
+      case RES_TABLE_FLAGGED:
+        printer_->Print("[RES_TABLE_FLAGGED]");
+        break;
+      case RES_TABLE_FLAG_LIST:
+        printer_->Print("[RES_TABLE_FLAG_LIST]");
+        break;
       default:
         break;
     }
@@ -917,6 +932,33 @@ class ChunkPrinter {
     return success;
   }
 
+  bool PrintFlagged(const ResTable_flagged* chunk) {
+    const auto flag_name = android::util::GetString(
+        value_pool_, android::util::DeviceToHost32(chunk->flag_name_index.index));
+    printer_->Print(StringPrintf(" name: %s", flag_name.c_str()));
+    printer_->Print(StringPrintf(" negated: %s\n", chunk->flag_negated ? "true" : "false"));
+    printer_->Indent();
+    bool success = PrintChunk(
+        ResChunkPullParser(GetChunkData(&chunk->header), GetChunkDataLen(&chunk->header)));
+    printer_->Undent();
+    return success;
+  }
+
+  bool PrintFlagList(const ResTable_flag_list* chunk) {
+    auto index = reinterpret_cast<const uint32_t*>(reinterpret_cast<const char*>(chunk) +
+                                                   chunk->header.headerSize);
+    size_t count = (chunk->header.size - chunk->header.headerSize) / sizeof(uint32_t);
+    printer_->Println(StringPrintf(" count: %zu", count));
+    printer_->Indent();
+    for (int i = 0; i < count; i++) {
+      auto id = android::util::DeviceToHost32(index[i]);
+      const auto flag_name = android::util::GetString(value_pool_, id);
+      printer_->Println(StringPrintf("[%d] flag name: %u '%s'", i, id, flag_name.c_str()));
+    }
+    printer_->Undent();
+    return true;
+  }
+
   bool PrintChunk(ResChunkPullParser&& parser) {
     while (ResChunkPullParser::IsGoodEvent(parser.Next())) {
       auto chunk = parser.chunk();
@@ -943,6 +985,14 @@ class ChunkPrinter {
 
         case RES_TABLE_TYPE_SPEC_TYPE:
           PrintTypeSpec(reinterpret_cast<const ResTable_typeSpec*>(chunk));
+          break;
+
+        case RES_TABLE_FLAGGED:
+          PrintFlagged(reinterpret_cast<const ResTable_flagged*>(chunk));
+          break;
+
+        case RES_TABLE_FLAG_LIST:
+          PrintFlagList(reinterpret_cast<const ResTable_flag_list*>(chunk));
           break;
 
         default:

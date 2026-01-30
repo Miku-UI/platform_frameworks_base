@@ -31,7 +31,6 @@ import android.annotation.SystemService;
 import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.content.Intent;
-import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.RemoteException;
 import android.os.UserManager;
@@ -98,7 +97,6 @@ public final class AdvancedProtectionManager {
      * Feature identifier for disallowing connections to Wi-Fi Wired Equivalent Privacy (WEP)
      * networks.
      *
-     * @see WifiManager#isWepSupported()
      * @hide */
     @SystemApi
     public static final int FEATURE_ID_DISALLOW_WEP = 3;
@@ -118,7 +116,6 @@ public final class AdvancedProtectionManager {
             FEATURE_ID_DISALLOW_CELLULAR_2G,
             FEATURE_ID_DISALLOW_INSTALL_UNKNOWN_SOURCES,
             FEATURE_ID_DISALLOW_USB,
-            FEATURE_ID_DISALLOW_WEP,
             FEATURE_ID_ENABLE_MTE,
     })
     @Retention(RetentionPolicy.SOURCE)
@@ -130,7 +127,6 @@ public final class AdvancedProtectionManager {
             case FEATURE_ID_DISALLOW_CELLULAR_2G -> "DISALLOW_CELLULAR_2G";
             case FEATURE_ID_DISALLOW_INSTALL_UNKNOWN_SOURCES -> "DISALLOW_INSTALL_UNKNOWN_SOURCES";
             case FEATURE_ID_DISALLOW_USB -> "DISALLOW_USB";
-            case FEATURE_ID_DISALLOW_WEP -> "DISALLOW_WEP";
             case FEATURE_ID_ENABLE_MTE -> "ENABLE_MTE";
             default -> "UNKNOWN";
         };
@@ -140,7 +136,6 @@ public final class AdvancedProtectionManager {
             FEATURE_ID_DISALLOW_CELLULAR_2G,
             FEATURE_ID_DISALLOW_INSTALL_UNKNOWN_SOURCES,
             FEATURE_ID_DISALLOW_USB,
-            FEATURE_ID_DISALLOW_WEP,
             FEATURE_ID_ENABLE_MTE);
 
     /**

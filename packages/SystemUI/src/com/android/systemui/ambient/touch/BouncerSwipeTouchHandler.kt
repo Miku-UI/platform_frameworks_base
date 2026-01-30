@@ -135,15 +135,17 @@ constructor(
                     capture =
                         if (Flags.dreamOverlayBouncerSwipeDirectionFiltering()) {
                             (abs(distanceY.toDouble()) > abs(distanceX.toDouble()) &&
-                                distanceY > 0) &&
-                                if (Flags.hubmodeFullscreenVerticalSwipeFix()) touchAvailable
-                                else true
+                                distanceY > 0) && touchAvailable
                         } else {
                             // If the user scrolling favors a vertical direction, begin capturing
                             // scrolls.
                             abs(distanceY.toDouble()) > abs(distanceX.toDouble())
                         }
                     if (capture == true) {
+                        // Set legacy shade tracking when opening bouncer, same as lock screen does.
+                        // This prevents issues with the bouncer swipe getting cancelled/stuck
+                        // midway.
+                        shadeRepository.setLegacyShadeTracking(true)
                         // reset expanding
                         expanded = false
                         // Since the user is dragging the bouncer up, set scrimmed to false.
@@ -234,12 +236,8 @@ constructor(
         }
 
     init {
-        if (Flags.hubmodeFullscreenVerticalSwipeFix()) {
-            scope.launch {
-                communalViewModel.glanceableTouchAvailable.collect {
-                    onGlanceableTouchAvailable(it)
-                }
-            }
+        scope.launch {
+            communalViewModel.glanceableTouchAvailable.collect { onGlanceableTouchAvailable(it) }
         }
     }
 
@@ -277,10 +275,8 @@ constructor(
         val normalRegion =
             Rect(0, Math.round(height * (1 - bouncerZoneScreenPercentage)), width, height)
 
-        if (Flags.hubmodeFullscreenVerticalSwipeFix()) {
-            region.op(bounds, Region.Op.UNION)
-            exclusionRect?.apply { region.op(this, Region.Op.DIFFERENCE) }
-        }
+        region.op(bounds, Region.Op.UNION)
+        exclusionRect?.apply { region.op(this, Region.Op.DIFFERENCE) }
 
         if (exclusionRect != null) {
             val lowestBottom =
@@ -299,11 +295,15 @@ constructor(
             notificationShadeWindowController.setForcePluginOpen(true, this)
         }
         scrimManager.addCallback(scrimManagerCallback)
-        currentScrimController = scrimManager.currentController
         isKeyguardScreenRotationAllowed = keyguardStateController.isKeyguardScreenRotationAllowed()
 
-        shadeRepository.setLegacyShadeTracking(true)
         session.registerCallback {
+            if (capture == true) {
+                // Only set tracking to false if we started capturing a bouncer swipe gesture.
+                // Otherwise this can interfere with opening the shade.
+                shadeRepository.setLegacyShadeTracking(false)
+            }
+
             velocityTracker?.apply { recycle() }
             velocityTracker = null
 
@@ -314,7 +314,6 @@ constructor(
             if (!Flags.communalBouncerDoNotModifyPluginOpen()) {
                 notificationShadeWindowController.setForcePluginOpen(false, this)
             }
-            shadeRepository.setLegacyShadeTracking(false)
         }
         session.registerGestureListener(onGestureListener)
         session.registerInputListener { ev: InputEvent -> onMotionEvent(ev) }
@@ -329,7 +328,7 @@ constructor(
         when (motionEvent.action) {
             MotionEvent.ACTION_CANCEL,
             MotionEvent.ACTION_UP -> {
-                if (Flags.hubmodeFullscreenVerticalSwipeFix() && capture == true) {
+                if (capture == true) {
                     communalViewModel.onResetTouchState()
                 }
                 touchSession?.apply { pop() }

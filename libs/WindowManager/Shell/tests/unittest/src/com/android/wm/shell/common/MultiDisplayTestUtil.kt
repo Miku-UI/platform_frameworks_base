@@ -24,22 +24,31 @@ import org.mockito.Mockito.spy
 
 /** Utility class for tests of [DesktopModeWindowDecorViewModel] */
 object MultiDisplayTestUtil {
-    // We have two displays, display#1 is placed on middle top of display#0:
-    //   +---+
-    //   | 1 |
-    // +-+---+-+
-    // |   0   |
-    // +-------+
-    val DISPLAY_GLOBAL_BOUNDS_0 = RectF(0f, 0f, 1200f, 800f)
-    val DISPLAY_GLOBAL_BOUNDS_1 = RectF(100f, -1000f, 1100f, 0f)
-    val DISPLAY_DPI_0 = DisplayMetrics.DENSITY_DEFAULT
-    val DISPLAY_DPI_1 = DisplayMetrics.DENSITY_DEFAULT * 2
+    // We have four displays, display#1 is placed on the center top of display#0, display#2 is
+    // adjacent to display#1 and display#3 is on the right of display#0.
+    //   +---+-------+
+    //   | 1 |   2   |
+    // +-+---+-+---+-+
+    // |   0   | 3 |
+    // +-------+   |
+    //         +---+
 
-    fun createSpyDisplayLayout(globalBounds: RectF, dpi: Int, resources: Resources): DisplayLayout {
-        val displayInfo = DisplayInfo()
-        displayInfo.logicalDensityDpi = dpi
-        val displayLayout = spy(DisplayLayout(displayInfo, resources, true, true))
-        displayLayout.setGlobalBoundsDp(globalBounds)
-        return displayLayout
+    enum class TestDisplay(val id: Int, val bounds: RectF, val dpi: Int) {
+        DISPLAY_0(0, RectF(0f, 0f, 1200f, 800f), DisplayMetrics.DENSITY_DEFAULT),
+        DISPLAY_1(1, RectF(100f, -1000f, 1100f, 0f), DisplayMetrics.DENSITY_DEFAULT * 2),
+        DISPLAY_2(2, RectF(1100f, -1000f, 2100f, 0f), DisplayMetrics.DENSITY_DEFAULT),
+        DISPLAY_3(3, RectF(1200f, 0f, 1600f, 1200f), DisplayMetrics.DENSITY_DEFAULT / 4);
+
+        fun getSpyDisplayLayout(resources: Resources): DisplayLayout {
+            val displayInfo = DisplayInfo()
+            displayInfo.logicalDensityDpi = dpi
+            displayInfo.logicalWidth =
+                (bounds.width() * dpi / DisplayMetrics.DENSITY_DEFAULT).toInt()
+            displayInfo.logicalHeight =
+                (bounds.height() * dpi / DisplayMetrics.DENSITY_DEFAULT).toInt()
+            val displayLayout = spy(DisplayLayout(displayInfo, resources, true, true))
+            displayLayout.setGlobalBoundsDp(bounds)
+            return displayLayout
+        }
     }
 }

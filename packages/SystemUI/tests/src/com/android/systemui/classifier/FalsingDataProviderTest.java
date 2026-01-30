@@ -18,6 +18,8 @@ package com.android.systemui.classifier;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import static kotlinx.coroutines.flow.StateFlowKt.MutableStateFlow;
+
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
@@ -41,6 +43,7 @@ import androidx.test.filters.SmallTest;
 
 import com.android.systemui.Flags;
 import com.android.systemui.classifier.FalsingDataProvider.GestureFinalizedListener;
+import com.android.systemui.desktop.domain.interactor.DesktopInteractor;
 import com.android.systemui.dock.DockManagerFake;
 import com.android.systemui.statusbar.policy.BatteryController;
 
@@ -62,6 +65,8 @@ public class FalsingDataProviderTest extends ClassifierTest {
     private BatteryController mBatteryController;
     @Mock
     private FoldStateListener mFoldStateListener;
+    @Mock
+    private DesktopInteractor mDesktopInteractor;
     private final DockManagerFake mDockManager = new DockManagerFake();
     private DisplayMetrics mDisplayMetrics;
     private IInputManager mIInputManager;
@@ -344,6 +349,15 @@ public class FalsingDataProviderTest extends ClassifierTest {
     }
 
     @Test
+    public void test_isDesktop() {
+        when(mDesktopInteractor.isDesktopForFalsingPurposes()).thenReturn(MutableStateFlow(false));
+        assertThat(mDataProvider.isDesktop()).isFalse();
+
+        when(mDesktopInteractor.isDesktopForFalsingPurposes()).thenReturn(MutableStateFlow(true));
+        assertThat(mDataProvider.isDesktop()).isTrue();
+    }
+
+    @Test
     public void test_GestureFinalizedListener() {
         GestureFinalizedListener listener = mock(GestureFinalizedListener.class);
 
@@ -501,6 +515,6 @@ public class FalsingDataProviderTest extends ClassifierTest {
 
     private FalsingDataProvider createWithFoldCapability(boolean foldable) {
         return new FalsingDataProvider(mDisplayMetrics, mBatteryController, mFoldStateListener,
-                mDockManager, foldable);
+                mDockManager, mDesktopInteractor, foldable);
     }
 }

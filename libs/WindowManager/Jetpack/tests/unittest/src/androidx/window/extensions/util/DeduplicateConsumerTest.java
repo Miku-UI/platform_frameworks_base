@@ -18,6 +18,8 @@ package androidx.window.extensions.util;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import android.platform.test.annotations.Presubmit;
+
 import androidx.window.extensions.core.util.function.Consumer;
 
 import org.junit.Test;
@@ -27,7 +29,11 @@ import java.util.List;
 
 /**
  * A class to validate {@link DeduplicateConsumer}.
+ *
+ * Build/Install/Run:
+ *  atest WMJetpackUnitTests:DeduplicateConsumerTest
  */
+@Presubmit
 public class DeduplicateConsumerTest {
 
     @Test

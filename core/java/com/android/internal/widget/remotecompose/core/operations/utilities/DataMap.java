@@ -19,10 +19,10 @@ import android.annotation.NonNull;
 
 public class DataMap {
     @NonNull public final String[] mNames;
-    @NonNull public final int[] mIds;
-    @NonNull public final byte[] mTypes;
+    public final @NonNull int [] mIds;
+    public final @NonNull byte [] mTypes;
 
-    public DataMap(@NonNull String[] names, @NonNull byte[] types, @NonNull int[] ids) {
+    public DataMap(@NonNull String[] names, @NonNull byte [] types, @NonNull int [] ids) {
         mNames = names;
         mTypes = types;
         mIds = ids;

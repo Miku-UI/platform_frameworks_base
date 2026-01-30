@@ -173,7 +173,7 @@ public abstract class InputFilter extends IInputFilter.Stub {
         try {
             mHost.sendInputEvent(event, policyFlags);
         } catch (RemoteException re) {
-            /* ignore */
+            onSendInputEventException(re);
         }
     }
 
@@ -212,6 +212,15 @@ public abstract class InputFilter extends IInputFilter.Stub {
      * </p>
      */
     public void onUninstalled() {
+    }
+
+    /**
+     * Called when a exception is raised when the filter sends the input event.
+     *
+     * @param exception The exception
+     */
+    public void onSendInputEventException(Exception exception) {
+        /* ignore */
     }
 
     private final class H extends Handler {

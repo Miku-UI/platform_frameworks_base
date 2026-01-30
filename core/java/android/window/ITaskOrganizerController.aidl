@@ -22,6 +22,7 @@ import android.window.ITaskOrganizer;
 import android.window.TaskAppearedInfo;
 import android.window.WindowContainerToken;
 import android.window.WindowContainerTransaction;
+import android.view.SurfaceControl;
 
 /** @hide */
 interface ITaskOrganizerController {
@@ -46,7 +47,8 @@ interface ITaskOrganizerController {
     * {@link WindowContainerTransaction#removeRootTask}.
     */
     void createRootTask(int displayId, int windowingMode, IBinder launchCookie,
-            boolean removeWithTaskOrganizer);
+            boolean removeWithTaskOrganizer, boolean reparentOnDisplayRemoval,
+            in @nullable String name);
 
     /** Deletes a persistent root task in WM */
     boolean deleteRootTask(in WindowContainerToken task);
@@ -58,18 +60,33 @@ interface ITaskOrganizerController {
     /** Gets all root tasks on a display (ordered from top-to-bottom) */
     List<ActivityManager.RunningTaskInfo> getRootTasks(int displayId, in int[] activityTypes);
 
-    /** Get the {@link WindowContainerToken} of the task which contains the current ime target */
-    WindowContainerToken getImeTarget(int display);
-
     /**
-     * Requests that the given task organizer is notified when back is pressed on the root activity
-     * of one of its controlled tasks.
+     * Get the {@link WindowContainerToken} of the task which contains the current IME layering
+     * target
      */
-    void setInterceptBackPressedOnTaskRoot(in WindowContainerToken task,
-            boolean interceptBackPressed);
+    @nullable WindowContainerToken getImeLayeringTarget(int display);
 
     /**
      * Restarts the top activity in the given task by killing its process if it is visible.
      */
     void restartTaskTopActivityProcessIfVisible(in WindowContainerToken task);
+
+    /**
+     * Set layers to be excluded when taking a task snapshot.
+     *
+     * Warning: MUST NOT pass layers that are managed by the Window Manager (e.g., from a Task or
+     * Activity). Doing so may cause the corresponding layer to be destroyed when
+     * clearExcludeLayersFromTaskSnapshot is called.
+     */
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+            + "android.Manifest.permission.MANAGE_ACTIVITY_TASKS)")
+    void setExcludeLayersFromTaskSnapshot(in WindowContainerToken task,
+            in SurfaceControl[] layers);
+
+    /**
+     * Clears all layers that were registered for exclusion via setExcludeLayersFromTaskSnapshot.
+     */
+    @JavaPassthrough(annotation="@android.annotation.RequiresPermission(value = "
+            + "android.Manifest.permission.MANAGE_ACTIVITY_TASKS)")
+    void clearExcludeLayersFromTaskSnapshot(in WindowContainerToken task);
 }

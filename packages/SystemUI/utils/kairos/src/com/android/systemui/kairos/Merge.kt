@@ -21,10 +21,14 @@ import com.android.systemui.kairos.internal.constInit
 import com.android.systemui.kairos.internal.mapImpl
 import com.android.systemui.kairos.internal.mergeNodes
 import com.android.systemui.kairos.internal.mergeNodesLeft
-import com.android.systemui.kairos.internal.store.ConcurrentHashMapK
+import com.android.systemui.kairos.internal.store.HashMapK
 import com.android.systemui.kairos.internal.switchDeferredImpl
 import com.android.systemui.kairos.internal.switchPromptImpl
+import com.android.systemui.kairos.util.NameData
 import com.android.systemui.kairos.util.map
+import com.android.systemui.kairos.util.nameTag
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 
 /**
  * Merges the given [Events] into a single [Events] that emits events from both.
@@ -47,15 +51,27 @@ import com.android.systemui.kairos.util.map
 fun <A> Events<A>.mergeWith(
     other: Events<A>,
     transformCoincidence: TransactionScope.(A, A) -> A = { a, _ -> a },
+): Events<A> =
+    mergeWith(
+        nameTag("Events.mergeWith").toNameData("Events.mergeWith"),
+        other,
+        transformCoincidence,
+    )
+
+internal fun <A> Events<A>.mergeWith(
+    nameData: NameData,
+    other: Events<A>,
+    transformCoincidence: TransactionScope.(A, A) -> A = { a, _ -> a },
 ): Events<A> {
     val node =
         mergeNodes(
+            nameData,
             getPulse = { init.connect(evalScope = this) },
             getOther = { other.init.connect(evalScope = this) },
         ) { a, b ->
             transformCoincidence(a, b)
         }
-    return EventsInit(constInit(name = null, node))
+    return EventsInit(constInit(nameData, node))
 }
 
 /**
@@ -70,7 +86,11 @@ fun <A> Events<A>.mergeWith(
  * @see mergeLeft
  */
 @ExperimentalKairosApi
-fun <A> merge(vararg events: Events<A>): Events<List<A>> = events.asIterable().merge()
+fun <A> merge(vararg events: Events<A>): Events<List<A>> =
+    merge(nameTag("mergeList").toNameData("mergeList"), *events)
+
+internal fun <A> merge(nameData: NameData, vararg events: Events<A>): Events<List<A>> =
+    events.asIterable().merge(nameData)
 
 /**
  * Merges the given [Events] into a single [Events] that emits events from all. In the case of
@@ -83,7 +103,11 @@ fun <A> merge(vararg events: Events<A>): Events<List<A>> = events.asIterable().m
  * @see merge
  */
 @ExperimentalKairosApi
-fun <A> mergeLeft(vararg events: Events<A>): Events<A> = events.asIterable().mergeLeft()
+fun <A> mergeLeft(vararg events: Events<A>): Events<A> =
+    mergeLeft(nameTag("mergeLeftVarArg").toNameData("mergeLeftVarArg"), *events)
+
+internal fun <A> mergeLeft(nameData: NameData, vararg events: Events<A>): Events<A> =
+    events.asIterable().mergeLeft(nameData)
 
 /**
  * Merges the given [Events] into a single [Events] that emits events from all.
@@ -98,7 +122,20 @@ fun <A> mergeLeft(vararg events: Events<A>): Events<A> = events.asIterable().mer
  * ```
  */
 fun <A> merge(vararg events: Events<A>, transformCoincidence: (A, A) -> A): Events<A> =
-    merge(*events).map { l -> l.reduce(transformCoincidence) }
+    merge(
+        nameTag("mergeVarArg").toNameData("mergeVarArg"),
+        *events,
+        transformCoincidence = transformCoincidence,
+    )
+
+internal fun <A> merge(
+    nameData: NameData,
+    vararg events: Events<A>,
+    transformCoincidence: (A, A) -> A,
+): Events<A> =
+    merge(nameData, *events).map(nameData + "reduceCoincidences") { l ->
+        l.reduce(transformCoincidence)
+    }
 
 /**
  * Merges the given [Events] into a single [Events] that emits events from all. All coincident
@@ -110,7 +147,12 @@ fun <A> merge(vararg events: Events<A>, transformCoincidence: (A, A) -> A): Even
  */
 @ExperimentalKairosApi
 fun <A> Iterable<Events<A>>.merge(): Events<List<A>> =
-    EventsInit(constInit(name = null, mergeNodes { map { it.init.connect(evalScope = this) } }))
+    merge(nameTag("Iterable<Events>.merge").toNameData("Iterable<Events>.merge"))
+
+internal fun <A> Iterable<Events<A>>.merge(nameData: NameData): Events<List<A>> =
+    EventsInit(
+        constInit(nameData, mergeNodes(nameData) { map { it.init.connect(evalScope = this) } })
+    )
 
 /**
  * Merges the given [Events] into a single [Events] that emits events from all. In the case of
@@ -129,7 +171,12 @@ fun <A> Iterable<Events<A>>.merge(): Events<List<A>> =
  */
 @ExperimentalKairosApi
 fun <A> Iterable<Events<A>>.mergeLeft(): Events<A> =
-    EventsInit(constInit(name = null, mergeNodesLeft { map { it.init.connect(evalScope = this) } }))
+    mergeLeft(nameTag("Iterable<Events>.mergeLeft").toNameData("Iterable<Events>.mergeLeft"))
+
+internal fun <A> Iterable<Events<A>>.mergeLeft(nameData: NameData): Events<A> =
+    EventsInit(
+        constInit(nameData, mergeNodesLeft(nameData) { map { it.init.connect(evalScope = this) } })
+    )
 
 /**
  * Creates a new [Events] that emits events from all given [Events]. All simultaneous emissions are
@@ -141,7 +188,12 @@ fun <A> Iterable<Events<A>>.mergeLeft(): Events<A> =
  *
  * @see mergeWith
  */
-@ExperimentalKairosApi fun <A> Sequence<Events<A>>.merge(): Events<List<A>> = asIterable().merge()
+@ExperimentalKairosApi
+fun <A> Sequence<Events<A>>.merge(): Events<List<A>> =
+    merge(nameTag("Sequence<Events>.mergeList").toNameData("Sequence<Events>.mergeList"))
+
+internal fun <A> Sequence<Events<A>>.merge(nameData: NameData): Events<List<A>> =
+    asIterable().merge(nameData)
 
 /**
  * Creates a new [Events] that emits events from all given [Events]. All simultaneous emissions are
@@ -161,11 +213,14 @@ fun <A> Iterable<Events<A>>.mergeLeft(): Events<A> =
  */
 @ExperimentalKairosApi
 fun <K, A> Map<K, Events<A>>.merge(): Events<Map<K, A>> =
+    merge(nameTag("Map<K, Events>.merge").toNameData("Map<K, Events>.merge"))
+
+internal fun <K, A> Map<K, Events<A>>.merge(nameData: NameData): Events<Map<K, A>> =
     asSequence()
-        .map { (k, events) -> events.map { a -> k to a } }
+        .map { (k, events) -> events.mapCheap(nameData + "pairWithKey") { a -> k to a } }
         .toList()
-        .merge()
-        .map { it.toMap() }
+        .merge(nameData)
+        .map(nameData + "toMap") { it.toMap() }
 
 /**
  * Returns an [Events] that emits from a merged, incrementally-accumulated collection of [Events]
@@ -184,18 +239,24 @@ fun <K, A> Map<K, Events<A>>.merge(): Events<Map<K, A>> =
  * @sample com.android.systemui.kairos.KairosSamples.mergeEventsIncrementally
  * @see merge
  */
-fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementally(): Events<Map<K, V>> {
-    val operatorName = "mergeEventsIncrementally"
-    val name = operatorName
+fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementally(): Events<Map<K, V>> =
+    mergeEventsIncrementally(
+        nameTag("Incremental<K, Events>.mergeEventsIncrementally")
+            .toNameData("Incremental<K, Events>.mergeEventsIncrementally")
+    )
+
+internal fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementally(
+    nameData: NameData
+): Events<Map<K, V>> {
     val patches =
-        mapImpl({ init.connect(this).patches }) { patch, _ ->
+        mapImpl({ init.connect(this).patches }, nameData + "patches") { patch, _ ->
             patch.mapValues { (_, m) -> m.map { events -> events.init.connect(this) } }.asIterable()
         }
     return EventsInit(
         constInit(
-            name,
+            nameData,
             switchDeferredImpl(
-                    name = name,
+                    nameData,
                     getStorage = {
                         init
                             .connect(this)
@@ -205,9 +266,9 @@ fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementally(): Events<Map<K, V
                             .asIterable()
                     },
                     getPatches = { patches },
-                    storeFactory = ConcurrentHashMapK.Factory(),
+                    storeFactory = HashMapK.Factory(),
                 )
-                .awaitValues(),
+                .awaitValues(nameData + "awaitValues"),
         )
     )
 }
@@ -229,18 +290,24 @@ fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementally(): Events<Map<K, V
  * @sample com.android.systemui.kairos.KairosSamples.mergeEventsIncrementallyPromptly
  * @see merge
  */
-fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementallyPromptly(): Events<Map<K, V>> {
-    val operatorName = "mergeEventsIncrementallyPromptly"
-    val name = operatorName
+fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementallyPromptly(): Events<Map<K, V>> =
+    mergeEventsIncrementallyPromptly(
+        nameTag("Incremental<K, Events>.mergeEventsIncrementallyPromptly")
+            .toNameData("Incremental<K, Events>.mergeEventsIncrementallyPromptly")
+    )
+
+internal fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementallyPromptly(
+    nameData: NameData
+): Events<Map<K, V>> {
     val patches =
-        mapImpl({ init.connect(this).patches }) { patch, _ ->
+        mapImpl({ init.connect(this).patches }, nameData + "patches") { patch, _ ->
             patch.mapValues { (_, m) -> m.map { events -> events.init.connect(this) } }.asIterable()
         }
     return EventsInit(
         constInit(
-            name,
+            nameData,
             switchPromptImpl(
-                    name = name,
+                    nameData,
                     getStorage = {
                         init
                             .connect(this)
@@ -250,9 +317,9 @@ fun <K, V> Incremental<K, Events<V>>.mergeEventsIncrementallyPromptly(): Events<
                             .asIterable()
                     },
                     getPatches = { patches },
-                    storeFactory = ConcurrentHashMapK.Factory(),
+                    storeFactory = HashMapK.Factory(),
                 )
-                .awaitValues(),
+                .awaitValues(nameData + "awaitValues"),
         )
     )
 }

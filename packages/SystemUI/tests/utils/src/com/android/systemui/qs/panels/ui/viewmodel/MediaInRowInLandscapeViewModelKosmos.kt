@@ -22,7 +22,9 @@ import com.android.systemui.common.ui.data.repository.fakeConfigurationRepositor
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runCurrent
+import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarouselInteractor
 import com.android.systemui.media.controls.ui.controller.mediaHostStatesManager
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
 import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragment
 import com.android.systemui.shade.data.repository.shadeRepository
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
@@ -30,21 +32,26 @@ import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 val Kosmos.mediaInRowInLandscapeViewModelFactory by
     Kosmos.Fixture {
         object : MediaInRowInLandscapeViewModel.Factory {
-            override fun create(inLocation: Int): MediaInRowInLandscapeViewModel {
+            override fun create(
+                inLocation: Int,
+                mediaUiBehavior: MediaUiBehavior,
+            ): MediaInRowInLandscapeViewModel {
                 return MediaInRowInLandscapeViewModel(
                     mainResources,
                     configurationInteractor,
                     shadeModeInteractor,
                     mediaHostStatesManager,
                     usingMediaInComposeFragment,
+                    mediaCarouselInteractor,
                     inLocation,
+                    mediaUiBehavior,
                 )
             }
         }
     }
 
 fun Kosmos.setConfigurationForMediaInRow(mediaInRow: Boolean) {
-    shadeRepository.setShadeLayoutWide(!mediaInRow) // media in row only in non wide
+    shadeRepository.legacyUseSplitShade.value = !mediaInRow // media in row only in non wide
     val config =
         Configuration(mainResources.configuration).apply {
             orientation =

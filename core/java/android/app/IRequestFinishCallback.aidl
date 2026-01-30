@@ -20,7 +20,7 @@ package android.app;
  * This callback allows ActivityTaskManager to ask the calling Activity
  * to finish in response to a call to onBackPressed.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IRequestFinishCallback {
     void requestFinish();

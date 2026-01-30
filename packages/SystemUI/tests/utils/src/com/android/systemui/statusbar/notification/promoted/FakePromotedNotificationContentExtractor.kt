@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.notification.promoted
 
 import android.app.Notification
+import android.content.Context
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.RedactionType
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentModels
@@ -33,6 +34,8 @@ class FakePromotedNotificationContentExtractor : PromotedNotificationContentExtr
         recoveredBuilder: Notification.Builder,
         @RedactionType redactionType: Int,
         imageModelProvider: ImageModelProvider,
+        packageContext: Context,
+        systemUiContext: Context,
     ): PromotedNotificationContentModels? {
         extractCalls.add(entry to recoveredBuilder)
 

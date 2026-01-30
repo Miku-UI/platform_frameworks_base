@@ -1,0 +1,28 @@
+{
+  "wm": [
+    {
+      "name": "FlickerTestsRotation-CatchAll",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsRotation-ChangeAppRotationTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsRotation-OpenShowWhenLockedSeamlessAppRotationTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsRotation-SeamlessAppRotationTest",
+      "keywords": [
+        "device"
+      ]
+    }
+  ]
+}

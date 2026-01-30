@@ -18,6 +18,7 @@ package com.android.systemui.keyguard.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.keyguard.data.repository.InWindowLauncherUnlockAnimationRepository
 import com.android.systemui.keyguard.data.repository.KeyguardSurfaceBehindRepository
 import com.android.systemui.keyguard.shared.model.Edge
@@ -31,8 +32,10 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
 @SysUISingleton
 class InWindowLauncherUnlockAnimationInteractor
@@ -40,6 +43,7 @@ class InWindowLauncherUnlockAnimationInteractor
 constructor(
     private val repository: InWindowLauncherUnlockAnimationRepository,
     @Application scope: CoroutineScope,
+    @Background val backgroundScope: CoroutineScope,
     transitionInteractor: KeyguardTransitionInteractor,
     surfaceBehindRepository: dagger.Lazy<KeyguardSurfaceBehindRepository>,
     private val activityManager: ActivityManagerWrapper,
@@ -54,7 +58,7 @@ constructor(
         transitionInteractor
             .isInTransition(
                 edge = Edge.create(to = Scenes.Gone),
-                edgeWithoutSceneContainer = Edge.create(to = GONE)
+                edgeWithoutSceneContainer = Edge.create(to = GONE),
             )
             .map { transitioningToGone -> transitioningToGone && isLauncherUnderneath() }
             .stateIn(scope, SharingStarted.Eagerly, false)
@@ -74,6 +78,24 @@ constructor(
             }
             .stateIn(scope, SharingStarted.Eagerly, false)
 
+    init {
+        backgroundScope.launch {
+            // Whenever we're not GONE, update whether Launcher was the app in front. We need to do
+            // this before the next unlock, but it triggers a binder call, so this is the best time
+            // to do it. In edge cases where this changes while we're locked (the foreground app
+            // crashes, etc.) the worst case is that we fall back to the normal unlock animation (or
+            // unnecessarily play the animation on Launcher when there's an app over it), which is
+            // not a big deal.
+            transitionInteractor.isCurrentlyIn(Scenes.Gone, GONE)
+                .distinctUntilChanged()
+                .collect { gone ->
+                    if (!gone) {
+                        updateIsLauncherUnderneath()
+                    }
+                }
+        }
+    }
+
     /** Sets whether we've started */
     fun setStartedUnlockAnimation(started: Boolean) {
         repository.setStartedUnlockAnimation(started)
@@ -92,13 +114,24 @@ constructor(
     }
 
     /**
-     * Whether the Launcher is currently underneath the lockscreen (it's at the top of the activity
-     * task stack).
+     * Whether the Launcher was underneath the lockscreen as of the last time we locked (it's at the
+     * top of the activity task stack).
      */
     fun isLauncherUnderneath(): Boolean {
-        return repository.launcherActivityClass.value?.let {
-            activityManager.runningTask?.topActivity?.className?.equals(it)
+        return repository.isLauncherUnderneath.value
+    }
+
+    /**
+     * Updates whether Launcher is the app underneath the lock screen as of this moment. Triggers a
+     * binder call, so this is run in the background.
+     */
+    private fun updateIsLauncherUnderneath() {
+        backgroundScope.launch {
+            repository.setIsLauncherUnderneath(
+                repository.launcherActivityClass.value?.let {
+                    activityManager.runningTask?.topActivity?.className?.equals(it)
+                } ?: false
+            )
         }
-            ?: false
     }
 }

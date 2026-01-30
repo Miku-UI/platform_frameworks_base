@@ -35,29 +35,92 @@ class SqueezeEffectInteractorTest : SysuiTestCase() {
 
     private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    private val Kosmos.underTest by Kosmos.Fixture {
-        SqueezeEffectInteractor(
-            squeezeEffectRepository = fakeSqueezeEffectRepository
-        )
-    }
-
-    @Test
-    fun testIsSqueezeEffectDisabled_whenDisabledInRepository() =
-        kosmos.runTest {
-            fakeSqueezeEffectRepository.isSqueezeEffectEnabled.value = false
-
-            val isSqueezeEffectEnabled by collectLastValue(underTest.isSqueezeEffectEnabled)
-
-            assertThat(isSqueezeEffectEnabled).isFalse()
+    private val Kosmos.underTest by
+        Kosmos.Fixture {
+            SqueezeEffectInteractor(squeezeEffectRepository = fakeSqueezeEffectRepository)
         }
 
     @Test
-    fun testIsSqueezeEffectEnabled_whenEnabledInRepository() =
+    fun powerButtonSemantics_powerKeyNotDownAsSingleGestureAndDisabled_cancelsSqueeze() =
         kosmos.runTest {
-            fakeSqueezeEffectRepository.isSqueezeEffectEnabled.value = true
+            fakeSqueezeEffectRepository.isEffectEnabled.value = false
+            fakeSqueezeEffectRepository.isPowerButtonPressedAsSingleGesture.value = false
 
-            val isSqueezeEffectEnabled by collectLastValue(underTest.isSqueezeEffectEnabled)
+            val powerButtonSemantics by collectLastValue(underTest.powerButtonSemantics)
 
-            assertThat(isSqueezeEffectEnabled).isTrue()
+            assertThat(powerButtonSemantics).isEqualTo(PowerButtonSemantics.CANCEL_SQUEEZE)
+        }
+
+    @Test
+    fun powerButtonSemantics_powerKeyNotDownAsSingleGestureAndEnabled_cancelsSqueeze() =
+        kosmos.runTest {
+            fakeSqueezeEffectRepository.isEffectEnabled.value = true
+            fakeSqueezeEffectRepository.isPowerButtonPressedAsSingleGesture.value = false
+
+            val powerButtonSemantics by collectLastValue(underTest.powerButtonSemantics)
+
+            assertThat(powerButtonSemantics).isEqualTo(PowerButtonSemantics.CANCEL_SQUEEZE)
+        }
+
+    @Test
+    fun powerButtonSemantics_powerKeyDownAsSingleGestureAndDisabled_isNull() =
+        kosmos.runTest {
+            fakeSqueezeEffectRepository.isEffectEnabled.value = false
+            fakeSqueezeEffectRepository.isPowerButtonPressedAsSingleGesture.value = true
+
+            val powerButtonSemantics by collectLastValue(underTest.powerButtonSemantics)
+
+            assertThat(powerButtonSemantics).isNull()
+        }
+
+    @Test
+    fun powerButtonSemantics_powerKeyDownAsSingleGestureAndEnabled_withRumble_startsEffect() =
+        kosmos.runTest {
+            fakeSqueezeEffectRepository.isEffectEnabled.value = true
+            fakeSqueezeEffectRepository.isPowerButtonPressedAsSingleGesture.value = true
+            fakeSqueezeEffectRepository.shouldUseHapticRumble = true
+
+            val powerButtonSemantics by collectLastValue(underTest.powerButtonSemantics)
+
+            assertThat(powerButtonSemantics)
+                .isEqualTo(PowerButtonSemantics.START_SQUEEZE_WITH_RUMBLE)
+        }
+
+    @Test
+    fun powerButtonSemantics_powerKeyDownAsSingleGestureAndEnabled_withoutRumble_startsEffect() =
+        kosmos.runTest {
+            fakeSqueezeEffectRepository.isEffectEnabled.value = true
+            fakeSqueezeEffectRepository.isPowerButtonPressedAsSingleGesture.value = true
+            fakeSqueezeEffectRepository.shouldUseHapticRumble = false
+
+            val powerButtonSemantics by collectLastValue(underTest.powerButtonSemantics)
+
+            assertThat(powerButtonSemantics)
+                .isEqualTo(PowerButtonSemantics.START_SQUEEZE_WITHOUT_RUMBLE)
+        }
+
+    @Test
+    fun powerButtonSemantics_onLPPAndDisabledAndPowerKeyAsSingleGesture_playsAssistantHaptics() =
+        kosmos.runTest {
+            fakeSqueezeEffectRepository.isEffectEnabled.value = false
+            fakeSqueezeEffectRepository.isPowerButtonPressedAsSingleGesture.value = true
+            fakeSqueezeEffectRepository.isPowerButtonLongPressed.value = true
+
+            val powerButtonSemantics by collectLastValue(underTest.powerButtonSemantics)
+
+            assertThat(powerButtonSemantics)
+                .isEqualTo(PowerButtonSemantics.PLAY_DEFAULT_ASSISTANT_HAPTICS)
+        }
+
+    @Test
+    fun powerButtonSemantics_onLPPAndDisabledAndPowerKeyNotAsSingleGesture_cancelsSqueeze() =
+        kosmos.runTest {
+            fakeSqueezeEffectRepository.isEffectEnabled.value = false
+            fakeSqueezeEffectRepository.isPowerButtonPressedAsSingleGesture.value = false
+            fakeSqueezeEffectRepository.isPowerButtonLongPressed.value = true
+
+            val powerButtonSemantics by collectLastValue(underTest.powerButtonSemantics)
+
+            assertThat(powerButtonSemantics).isEqualTo(PowerButtonSemantics.CANCEL_SQUEEZE)
         }
 }

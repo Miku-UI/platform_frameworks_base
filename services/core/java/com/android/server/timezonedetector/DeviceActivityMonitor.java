@@ -34,6 +34,9 @@ interface DeviceActivityMonitor extends Dumpable {
      * A listener for device activities. See {@link DeviceActivityMonitor#addListener(Listener)}.
      */
     interface Listener {
+        /** A flight has started. */
+        void onFlightStart();
+
         /** A flight has completed. */
         void onFlightComplete();
     }

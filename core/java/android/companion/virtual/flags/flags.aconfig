@@ -35,13 +35,6 @@ flag {
 }
 
 flag {
-     namespace: "virtual_devices"
-     name: "enforce_remote_device_opt_out_on_all_virtual_displays"
-     description: "Respect canDisplayOnRemoteDevices on all virtual displays"
-     bug: "338973239"
-}
-
-flag {
     namespace: "virtual_devices"
     name: "virtual_display_rotation_api"
     description: "API for on-demand rotation of virtual displays"
@@ -73,14 +66,6 @@ flag {
 }
 
 flag {
-    namespace: "virtual_devices"
-    name: "display_power_manager_apis"
-    description: "Make relevant PowerManager APIs display aware by default"
-    bug: "365042486"
-    is_fixed_read_only: true
-}
-
-flag {
     name: "status_bar_and_insets"
     namespace: "virtual_devices"
     description: "Allow for status bar and insets on virtual devices"
@@ -101,6 +86,24 @@ flag {
     description: "New VDM role without trusted displays or input"
     bug: "370657575"
     is_exported: true
+}
+
+flag {
+    namespace: "virtual_devices"
+    name: "vdm_mirror_display_permission"
+    description: "Dedicated permission for mirror display creation"
+    bug: "378605160"
+    is_exported: true
+}
+
+flag {
+    name: "itemized_vdm_permissions"
+    namespace: "virtual_devices"
+    description: "Itemized permissions in CDM dialog for VDM roles"
+    bug: "419169396"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -127,13 +130,6 @@ flag {
     metadata {
         purpose: PURPOSE_BUGFIX
     }
-}
-
-flag {
-    name: "vdm_settings"
-    namespace: "virtual_devices"
-    description: "Show virtual devices in Settings"
-    bug: "338974320"
 }
 
 flag {
@@ -172,4 +168,121 @@ flag {
     namespace: "virtual_devices"
     description: "Allow external virtual cameras visible only in the Context of the virtual device"
     bug: "375609768"
+}
+
+flag {
+    name: "virtual_camera_no_frame_duplication"
+    namespace: "virtual_devices"
+    description: "Do not duplicate frames if no input is received and the capture request is not PREVIEW"
+    bug: "383779587"
+}
+
+flag {
+    name: "computer_control_access"
+    namespace: "virtual_devices"
+    description: "Enable VDM access for computer control"
+    bug: "410570802"
+}
+
+flag {
+    name: "virtual_camera_on_open"
+    namespace: "virtual_devices"
+    description: "Callback called when the virtual camera device is requested to be opened"
+    bug: "409241122"
+    is_exported: true
+}
+
+flag {
+    name: "device_aware_ui_mode"
+    namespace: "virtual_devices"
+    description: "Device and display awareness for UiModeManager"
+    bug: "340667076"
+}
+
+flag {
+    name: "fix_vdm_opt_out_on_mirror_displays"
+    namespace: "virtual_devices"
+    description: "Do not show content from opted out activities on mirror displays"
+    bug: "394573488"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "virtual_camera_metadata"
+    namespace: "virtual_devices"
+    description: "API for enabling metadata support for virtual cameras"
+    bug: "371167033"
+    is_exported: true
+}
+
+flag {
+    name: "handle_invalid_device_id"
+    namespace: "virtual_devices"
+    description: "Handle invalid device ids in various system services"
+    bug: "394613051"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "external_camera_default_policy"
+    namespace: "virtual_devices"
+    description: "Allow virtual external cameras to be aded to a virtual device with a default camera policy"
+    bug: "371167033"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "enable_animations_per_display"
+    namespace: "virtual_devices"
+    description: "Enable/disable window and transition animations per display"
+    bug: "427437362"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "computer_control_consent"
+    namespace: "virtual_devices"
+    description: "Show a consent dialog for computer control session creation"
+    bug: "437901655"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "automated_app_launch_interception"
+    namespace: "virtual_devices"
+    description: "Show a warning dialog when launching an automated app"
+    bug: "442627126"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "computer_control_activity_policy_strict"
+    namespace: "virtual_devices"
+    description: "Implements a strict Activity policy for ComputerControl VirtualDevices"
+    bug: "437849470"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "computer_control_typing"
+    namespace: "virtual_devices"
+    description: "Support input connection based CC text manipulation APIs"
+    bug: "422134565"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Used in ResourcesLocaleTest. -->
+    <string name="multilocale_test_res_3">DE3</string>
+    <string name="multilocale_test_res_4">DE4</string>
+</resources>

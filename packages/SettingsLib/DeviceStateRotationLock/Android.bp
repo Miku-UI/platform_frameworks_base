@@ -13,8 +13,7 @@ android_library {
 
     srcs: [
         "src/**/*.java",
-        "src/**/*.kt",
     ],
 
-    min_sdk_version: "21",
+    min_sdk_version: "23",
 }

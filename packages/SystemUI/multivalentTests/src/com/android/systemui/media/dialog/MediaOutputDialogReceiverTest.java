@@ -25,13 +25,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import android.content.Intent;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
-import com.android.settingslib.flags.Flags;
 import com.android.settingslib.media.MediaOutputConstants;
 import com.android.systemui.SysuiTestCase;
 
@@ -48,13 +45,9 @@ public class MediaOutputDialogReceiverTest extends SysuiTestCase {
     private final MediaOutputDialogManager mMockMediaOutputDialogManager =
             mock(MediaOutputDialogManager.class);
 
-    private final MediaOutputBroadcastDialogManager mMockMediaOutputBroadcastDialogManager =
-            mock(MediaOutputBroadcastDialogManager.class);
-
     @Before
     public void setup() {
-        mMediaOutputDialogReceiver = new MediaOutputDialogReceiver(mMockMediaOutputDialogManager,
-                mMockMediaOutputBroadcastDialogManager);
+        mMediaOutputDialogReceiver = new MediaOutputDialogReceiver(mMockMediaOutputDialogManager);
     }
 
     @Test
@@ -65,8 +58,6 @@ public class MediaOutputDialogReceiverTest extends SysuiTestCase {
 
         verify(mMockMediaOutputDialogManager, times(1))
                 .createAndShow(eq(getContext().getPackageName()), eq(false), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
     }
 
     @Test
@@ -77,8 +68,6 @@ public class MediaOutputDialogReceiverTest extends SysuiTestCase {
 
         verify(mMockMediaOutputDialogManager, never())
                 .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
     }
 
     @Test
@@ -88,63 +77,6 @@ public class MediaOutputDialogReceiverTest extends SysuiTestCase {
 
         verify(mMockMediaOutputDialogManager, never())
                 .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    public void launchMediaOutputBroadcastDialog_flagOff_broadcastDialogFactoryNotCalled() {
-        Intent intent = new Intent(
-                MediaOutputConstants.ACTION_LAUNCH_MEDIA_OUTPUT_BROADCAST_DIALOG);
-        intent.putExtra(MediaOutputConstants.EXTRA_PACKAGE_NAME, getContext().getPackageName());
-        mMediaOutputDialogReceiver.onReceive(getContext(), intent);
-
-        verify(mMockMediaOutputDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    public void launchMediaOutputBroadcastDialog_ExtraPackageName_BroadcastDialogFactoryCalled() {
-        Intent intent = new Intent(
-                MediaOutputConstants.ACTION_LAUNCH_MEDIA_OUTPUT_BROADCAST_DIALOG);
-        intent.putExtra(MediaOutputConstants.EXTRA_PACKAGE_NAME, getContext().getPackageName());
-        mMediaOutputDialogReceiver.onReceive(getContext(), intent);
-
-        verify(mMockMediaOutputDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, times(1))
-                .createAndShow(eq(getContext().getPackageName()), eq(true), any());
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    public void launchMediaOutputBroadcastDialog_WrongExtraKey_DialogBroadcastFactoryNotCalled() {
-        Intent intent = new Intent(
-                MediaOutputConstants.ACTION_LAUNCH_MEDIA_OUTPUT_BROADCAST_DIALOG);
-        intent.putExtra("Wrong Package Name Key", getContext().getPackageName());
-        mMediaOutputDialogReceiver.onReceive(getContext(), intent);
-
-        verify(mMockMediaOutputDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_LEGACY_LE_AUDIO_SHARING)
-    public void launchMediaOutputBroadcastDialog_NoExtra_BroadcastDialogFactoryNotCalled() {
-        Intent intent = new Intent(
-                MediaOutputConstants.ACTION_LAUNCH_MEDIA_OUTPUT_BROADCAST_DIALOG);
-        mMediaOutputDialogReceiver.onReceive(getContext(), intent);
-
-        verify(mMockMediaOutputDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
     }
 
     @Test
@@ -156,8 +88,6 @@ public class MediaOutputDialogReceiverTest extends SysuiTestCase {
 
         verify(mMockMediaOutputDialogManager, never())
                 .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
     }
 
     @Test
@@ -167,7 +97,5 @@ public class MediaOutputDialogReceiverTest extends SysuiTestCase {
 
         verify(mMockMediaOutputDialogManager, never())
                 .createAndShow(any(), anyBoolean(), any(), any(), any());
-        verify(mMockMediaOutputBroadcastDialogManager, never())
-                .createAndShow(any(), anyBoolean(), any());
     }
 }

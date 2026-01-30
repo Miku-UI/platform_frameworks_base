@@ -117,7 +117,7 @@ public class SystemAudioInitiationActionFromAvr extends HdmiCecFeatureAction {
 
     private void handleActiveSourceTimeout() {
         HdmiLogger.debug("Cannot get active source.");
-        if (audioSystem().mService.isStandbyMessageReceived()) {
+        if (!audioSystem().mService.getPowerManager().isInteractive()) {
             Slog.d(TAG, "Device is going to sleep, avoid to wake it up.");
             return;
         }

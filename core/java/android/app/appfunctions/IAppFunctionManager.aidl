@@ -20,8 +20,11 @@ import android.app.appfunctions.ExecuteAppFunctionAidlRequest;
 import android.app.appfunctions.IAppFunctionEnabledCallback;
 import android.app.appfunctions.IExecuteAppFunctionCallback;
 import android.os.ICancellationSignal;
-
 import android.os.UserHandle;
+import android.content.Intent;
+import android.content.pm.SignedPackageParcel;
+
+import java.util.List;
 /**
  * Defines the interface for apps to interact with the app function execution service
  * {@code AppFunctionManagerService} running in the system server process.
@@ -50,4 +53,45 @@ interface IAppFunctionManager {
         int enabledState,
         in IAppFunctionEnabledCallback callback
     );
+
+    int getAccessRequestState(
+        in String agentPackageName,
+        int agentUserId,
+        in String targetPackageName,
+        int targetUserId
+    );
+
+    int getAccessFlags(
+        in String agentPackageName,
+        int agentUserId,
+        in String targetPackageName,
+        int targetUserId
+    );
+
+    boolean updateAccessFlags(
+        in String agentPackageName,
+        int agentUserId,
+        in String targetPackageName,
+        int targetUserId,
+        int flagMask,
+        int flags
+    );
+
+    void revokeSelfAccess(in String targetPackageName);
+
+    List<String> getValidAgents(
+        int userId
+    );
+
+    List<String> getValidTargets(
+        int targetUserId
+    );
+
+    @EnforcePermission("MANAGE_APP_FUNCTION_ACCESS")
+    List<SignedPackageParcel> getAgentAllowlist();
+
+    @EnforcePermission("MANAGE_APP_FUNCTION_ACCESS")
+    void clearAccessHistory(int userId);
+
+    Intent createRequestAccessIntent(in String targetPackageName);
 }

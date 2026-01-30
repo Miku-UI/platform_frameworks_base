@@ -220,7 +220,7 @@ std::unique_ptr<SymbolTable::Symbol> ResourceTableSymbolSource::FindByName(
 
 bool AssetManagerSymbolSource::AddAssetPath(StringPiece path) {
   TRACE_CALL();
-  if (auto apk = ApkAssets::Load(path.data())) {
+  if (auto apk = ApkAssets::Load(path.data(), nullptr)) {
     apk_assets_.push_back(std::move(apk));
     asset_manager_.SetApkAssets(apk_assets_);
     return true;

@@ -1182,7 +1182,12 @@ public class ValueAnimator extends Animator implements AnimationHandler.Animatio
         // If end has already been requested, through a previous end() or cancel() call, no-op
         // until animation starts again.
         if (mAnimationEndRequested) {
-            consumePendingEndListeners(true /* notifyListeners */);
+            if (consumePendingEndListeners(false /* notifyListeners */)) {
+                if (mRunning) {
+                    notifyListeners(AnimatorCaller.ON_CANCEL, false /* isReversing */);
+                }
+                completeEndAnimation(false /* isReversing */, "notifyAnimEndByCancel");
+            }
             return;
         }
 

@@ -34,8 +34,10 @@ import com.android.systemui.FaceScanningOverlay
 import com.android.systemui.biometrics.AuthController
 import com.android.systemui.biometrics.data.repository.FacePropertyRepository
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.log.ScreenDecorationsLogger
 import com.android.systemui.plugins.statusbar.StatusBarStateController
+import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -58,6 +60,8 @@ constructor(
     @Main private val mainExecutor: Executor,
     private val logger: ScreenDecorationsLogger,
     private val facePropertyRepository: FacePropertyRepository,
+    private val keyguardInteractor: KeyguardInteractor,
+    private val shadeInteractor: ShadeInteractor,
 ) : FaceScanningProviderFactory {
     private val display = context.display
     private val displayInfo = DisplayInfo()
@@ -99,6 +103,8 @@ constructor(
                                 mainExecutor,
                                 logger,
                                 facePropertyRepository,
+                                keyguardInteractor,
+                                shadeInteractor,
                             )
                         )
                     }
@@ -112,7 +118,7 @@ constructor(
 
     override fun shouldShowFaceScanningAnim(): Boolean {
         return canShowFaceScanningAnim() &&
-            (keyguardUpdateMonitor.isFaceDetectionRunning || authController.isShowing)
+            (keyguardUpdateMonitor.isFaceAuthOrDetectionRunning || authController.isShowing)
     }
 
     // Using the name "Creator" so that it doesn't become "...FactoryFactory".
@@ -130,6 +136,8 @@ class FaceScanningOverlayProviderImpl(
     private val mainExecutor: Executor,
     private val logger: ScreenDecorationsLogger,
     private val facePropertyRepository: FacePropertyRepository,
+    private val keyguardInteractor: KeyguardInteractor,
+    private val shadeInteractor: ShadeInteractor,
 ) : BoundDecorProvider() {
     override val viewId: Int = com.android.systemui.res.R.id.face_scanning_anim
 
@@ -162,6 +170,8 @@ class FaceScanningOverlayProviderImpl(
                 alignedBound,
                 statusBarStateController,
                 keyguardUpdateMonitor,
+                keyguardInteractor,
+                shadeInteractor,
                 mainExecutor,
                 logger,
                 authController,

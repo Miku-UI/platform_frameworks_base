@@ -248,7 +248,6 @@ public class MenuViewLayerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void onEditAction_startsActivity() {
         mockActivityQuery(true);
         mMenuViewLayer.dispatchAccessibilityAction(R.id.action_edit);
@@ -259,7 +258,6 @@ public class MenuViewLayerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void onEditAction_noResolve_doesNotStart() {
         mockActivityQuery(false);
         mMenuViewLayer.dispatchAccessibilityAction(R.id.action_edit);
@@ -380,7 +378,6 @@ public class MenuViewLayerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void onDismissAction_incrementsTexMetricDismiss() {
         List<AccessibilityTarget> testTargets = new ArrayList<>();
         testTargets.add(new TestAccessibilityTarget(mSpyContext, 1234));
@@ -393,7 +390,6 @@ public class MenuViewLayerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void onEditAction_incrementsTexMetricEdit() {
         List<AccessibilityTarget> testTargets = new ArrayList<>();
         testTargets.add(new TestAccessibilityTarget(mSpyContext, 1234));

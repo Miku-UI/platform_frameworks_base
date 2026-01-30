@@ -16,6 +16,7 @@
 
 package com.android.systemui.communal.widgets
 
+import android.appwidget.AppWidgetEvent
 import android.appwidget.AppWidgetHost.AppWidgetHostListener
 import android.appwidget.AppWidgetProviderInfo
 import android.widget.RemoteViews
@@ -54,5 +55,13 @@ constructor(
 
     override fun onViewDataChanged(viewId: Int) {
         mainScope.launchTraced("$tag#onViewDataChanged") { listener.onViewDataChanged(viewId) }
+    }
+
+    override fun collectWidgetEvent(): AppWidgetEvent? {
+        if (!android.appwidget.flags.Flags.engagementMetrics()) {
+            return null
+        }
+        // collectWidgetEvent does not need to run on the main thread.
+        return listener.collectWidgetEvent()
     }
 }

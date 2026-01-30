@@ -17,6 +17,7 @@
 package com.android.wm.shell.windowdecor.tiling
 
 import android.app.ActivityManager.RunningTaskInfo
+import android.content.res.Configuration
 import android.graphics.Rect
 import com.android.wm.shell.desktopmode.DesktopTasksController.SnapPosition
 
@@ -29,14 +30,21 @@ interface SnapEventHandler {
         position: SnapPosition,
     ): Boolean
 
+    /** Snaps an app to half the screen for tiling after a persistence trigger. */
+    fun snapPersistedTaskToHalfScreen(
+        taskInfo: RunningTaskInfo,
+        currentDragBounds: Rect,
+        position: SnapPosition,
+    ): Boolean
+
     /** Removes a task from tiling if it's tiled, for example on task exiting. */
     fun removeTaskIfTiled(displayId: Int, taskId: Int)
 
     /** Notifies the tiling handler of user switch. */
-    fun onUserChange()
+    fun onUserChange(userId: Int)
 
-    /** Notifies the tiling handler of overview animation state change. */
-    fun onOverviewAnimationStateChange(running: Boolean)
+    /** Notifies the tiling handler of recents animation state change. */
+    fun onRecentsAnimationEndedToSameDesk()
 
     /** If a task is tiled, delegate moving to front to tiling infrastructure. */
     fun moveTaskToFrontIfTiled(taskInfo: RunningTaskInfo): Boolean
@@ -52,4 +60,30 @@ interface SnapEventHandler {
      * snapping bounds if no task is tiled.
      */
     fun getRightSnapBoundsIfTiled(displayId: Int): Rect
+
+    /** Notifies the snap handler of a desk being de-activated. */
+    fun onDeskDeactivated(deskId: Int)
+
+    /** Notifies the snap event handler of a display disconnect event. */
+    fun onDisplayDisconnected(disconnectedDisplayId: Int)
+
+    /** Notifies the snap event handler of a desk being activated. */
+    fun onDeskActivated(deskId: Int, displayId: Int)
+
+    /** Notifies the snap event handler of a desk being removed. */
+    fun onDeskRemoved(deskId: Int)
+
+    /** Notifies tiling of an exploded view reorder to prepare the tiling view for the event. */
+    fun notifyTilingOfExplodedViewReorder(deskId: Int, topTaskId: Int)
+
+    /** Gets the current divider bounds for a tiling session. */
+    fun getDividerBounds(deskId: Int): Rect
+
+    /** Notifies tiling of a stable bounds change. */
+    fun onDisplayLayoutChange(
+        displayId: Int,
+        config: Configuration?,
+        oldStableBounds: Rect,
+        newToOldDpiRatio: Double,
+    )
 }

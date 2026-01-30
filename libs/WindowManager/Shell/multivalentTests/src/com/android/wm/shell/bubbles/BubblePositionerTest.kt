@@ -222,7 +222,7 @@ class BubblePositionerTest {
 
         positioner.setShowingInBubbleBar(true)
         positioner.update(deviceConfig)
-        positioner.bubbleBarTopOnScreen = 2500
+        positioner.updateBubbleBarTopOnScreen(100)
 
         val spaceBetweenTopInsetAndBubbleBarInLandscape = 1680
         val expandedViewVerticalSpacing =
@@ -248,7 +248,7 @@ class BubblePositionerTest {
             )
         positioner.setShowingInBubbleBar(true)
         positioner.update(deviceConfig)
-        positioner.bubbleBarTopOnScreen = 2500
+        positioner.updateBubbleBarTopOnScreen(100)
 
         val spaceBetweenTopInsetAndBubbleBarInLandscape = 180
         val expandedViewSpacing =
@@ -585,22 +585,42 @@ class BubblePositionerTest {
 
     @Test
     fun testGetBubbleBarExpandedViewBounds_onLeft() {
-        testGetBubbleBarExpandedViewBounds(onLeft = true, isOverflow = false)
+        verifyGetBubbleBarExpandedViewBounds(onLeft = true, isOverflow = false)
     }
 
     @Test
     fun testGetBubbleBarExpandedViewBounds_onRight() {
-        testGetBubbleBarExpandedViewBounds(onLeft = false, isOverflow = false)
+        verifyGetBubbleBarExpandedViewBounds(onLeft = false, isOverflow = false)
     }
 
     @Test
     fun testGetBubbleBarExpandedViewBounds_isOverflow_onLeft() {
-        testGetBubbleBarExpandedViewBounds(onLeft = true, isOverflow = true)
+        verifyGetBubbleBarExpandedViewBounds(onLeft = true, isOverflow = true)
     }
 
     @Test
     fun testGetBubbleBarExpandedViewBounds_isOverflow_onRight() {
-        testGetBubbleBarExpandedViewBounds(onLeft = false, isOverflow = true)
+        verifyGetBubbleBarExpandedViewBounds(onLeft = false, isOverflow = true)
+    }
+
+    @Test
+    fun testGetTaskViewRestBounds_phone() {
+        val deviceConfig =
+            defaultDeviceConfig.copy(
+                insets = Insets.of(10, 20, 5, 15),
+                windowBounds = Rect(0, 0, 1800, 2600)
+            )
+        positioner.update(deviceConfig)
+
+        val padding = context.resources.getDimensionPixelSize(R.dimen.bubble_expanded_view_padding)
+        val top = positioner.expandedViewYTopAligned
+        val left = positioner.insets.left + padding
+        val right = positioner.screenRect.right - positioner.insets.right - padding
+        val bottom = top + positioner.getMaxExpandedViewHeight(false)
+
+        val rect = Rect()
+        positioner.getTaskViewRestBounds(rect)
+        assertThat(rect).isEqualTo(Rect(left, top, right, bottom))
     }
 
     @Test
@@ -667,8 +687,13 @@ class BubblePositionerTest {
         assertThat(paddings).isEqualTo(intArrayOf(padding - positioner.pointerSize, 0, padding, 0))
     }
 
-    private fun testGetBubbleBarExpandedViewBounds(onLeft: Boolean, isOverflow: Boolean) {
+    private fun verifyGetBubbleBarExpandedViewBounds(onLeft: Boolean, isOverflow: Boolean) {
         positioner.isShowingInBubbleBar = true
+        positioner.bubbleBarLocation = if (onLeft) {
+            BubbleBarLocation.LEFT
+        } else {
+            BubbleBarLocation.RIGHT
+        }
         val windowBounds = Rect(0, 0, 2000, 2600)
         val insets = Insets.of(10, 20, 5, 15)
         val deviceConfig =
@@ -681,7 +706,7 @@ class BubblePositionerTest {
         positioner.update(deviceConfig)
 
         val bubbleBarHeight = 100
-        positioner.bubbleBarTopOnScreen = windowBounds.bottom - insets.bottom - bubbleBarHeight
+        positioner.updateBubbleBarTopOnScreen(bubbleBarHeight)
 
         val expandedViewPadding =
             context.resources.getDimensionPixelSize(R.dimen.bubble_expanded_view_padding)
@@ -706,8 +731,14 @@ class BubblePositionerTest {
 
         val bounds = Rect()
         positioner.getBubbleBarExpandedViewBounds(onLeft, isOverflow, bounds)
-
         assertThat(bounds).isEqualTo(expectedBounds)
+
+        if (!isOverflow) {
+            val bounds2 = Rect()
+            // In bubble bar mode this should return the same bounds
+            positioner.getTaskViewRestBounds(bounds2)
+            assertThat(bounds2).isEqualTo(expectedBounds)
+        }
     }
 
     private val defaultYPosition: Float

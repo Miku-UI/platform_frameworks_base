@@ -40,11 +40,11 @@ final class ComposePrimitivesVibratorStep extends AbstractComposedVibratorStep {
     private static final int DEFAULT_COMPOSITION_SIZE_LIMIT = 100;
 
     ComposePrimitivesVibratorStep(VibrationStepConductor conductor, long startTime,
-            VibratorController controller, VibrationEffect.Composed effect, int index,
+            HalVibrator vibrator, VibrationEffect.Composed effect, int index,
             long pendingVibratorOffDeadline) {
         // This step should wait for the last vibration to finish (with the timeout) and for the
         // intended step start time (to respect the effect delays).
-        super(conductor, Math.max(startTime, pendingVibratorOffDeadline), controller, effect,
+        super(conductor, Math.max(startTime, pendingVibratorOffDeadline), vibrator, effect,
                 index, pendingVibratorOffDeadline);
     }
 
@@ -55,15 +55,14 @@ final class ComposePrimitivesVibratorStep extends AbstractComposedVibratorStep {
         try {
             // Load the next PrimitiveSegments to create a single compose call to the vibrator,
             // limited to the vibrator composition maximum size.
-            int limit = controller.getVibratorInfo().getCompositionSizeMax();
+            int limit = vibrator.getInfo().getCompositionSizeMax();
             List<PrimitiveSegment> primitives = unrollPrimitiveSegments(effect, segmentIndex,
                     limit > 0 ? limit : DEFAULT_COMPOSITION_SIZE_LIMIT);
 
             if (primitives.isEmpty()) {
                 Slog.w(VibrationThread.TAG, "Ignoring wrong segment for a ComposePrimitivesStep: "
                         + effect.getSegments().get(segmentIndex));
-                // Skip this step and play the next one right away.
-                return nextSteps(/* segmentsPlayed= */ 1);
+                return skipStep();
             }
 
             if (VibrationThread.DEBUG) {
@@ -74,12 +73,10 @@ final class ComposePrimitivesVibratorStep extends AbstractComposedVibratorStep {
             PrimitiveSegment[] primitivesArray =
                     primitives.toArray(new PrimitiveSegment[primitives.size()]);
             int stepId = conductor.nextVibratorCallbackStepId(getVibratorId());
-            long vibratorOnResult = controller.on(primitivesArray, getVibration().id, stepId);
+            long vibratorOnResult = vibrator.on(getVibration().id, stepId, primitivesArray);
             handleVibratorOnResult(vibratorOnResult);
             getVibration().stats.reportComposePrimitives(vibratorOnResult, primitivesArray);
-
-            // The next start and off times will be calculated from mVibratorOnResult.
-            return nextSteps(/* segmentsPlayed= */ primitives.size());
+            return vibratorOnNextSteps(/* segmentsPlayed= */ primitives.size());
         } finally {
             Trace.traceEnd(Trace.TRACE_TAG_VIBRATOR);
         }

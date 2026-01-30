@@ -55,6 +55,7 @@ import java.io.IOException;
  * @attr ref android.R.styleable#InsetDrawable_insetTop
  * @attr ref android.R.styleable#InsetDrawable_insetBottom
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class InsetDrawable extends DrawableWrapper {
     private final Rect mTmpRect = new Rect();
     private final Rect mTmpInsetRect = new Rect();

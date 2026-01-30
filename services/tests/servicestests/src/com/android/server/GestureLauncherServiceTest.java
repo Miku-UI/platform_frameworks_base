@@ -95,7 +95,6 @@ import java.util.concurrent.TimeUnit;
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 public class GestureLauncherServiceTest {
 
-    private static final int FAKE_USER_ID = 1337;
     private static final int FAKE_SOURCE = 1982;
     private static final long INITIAL_EVENT_TIME_MILLIS = 20000L;
     private static final long IGNORED_DOWN_TIME = 1234L;
@@ -225,7 +224,7 @@ public class GestureLauncherServiceTest {
         withDoubleTapPowerGestureActionSettingValue(LAUNCH_CAMERA_ON_DOUBLE_TAP_POWER);
 
         assertFalse(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -235,7 +234,7 @@ public class GestureLauncherServiceTest {
         withCameraDoubleTapPowerDisableSettingValue(1);
 
         assertFalse(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -246,7 +245,7 @@ public class GestureLauncherServiceTest {
         withDoubleTapPowerGestureActionSettingValue(LAUNCH_CAMERA_ON_DOUBLE_TAP_POWER);
 
         assertFalse(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -256,7 +255,7 @@ public class GestureLauncherServiceTest {
         withCameraDoubleTapPowerDisableSettingValue(0);
 
         assertFalse(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -267,7 +266,7 @@ public class GestureLauncherServiceTest {
         withDoubleTapPowerGestureActionSettingValue(LAUNCH_CAMERA_ON_DOUBLE_TAP_POWER);
 
         assertFalse(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -277,7 +276,7 @@ public class GestureLauncherServiceTest {
         withCameraDoubleTapPowerDisableSettingValue(1);
 
         assertFalse(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -288,7 +287,7 @@ public class GestureLauncherServiceTest {
         withDoubleTapPowerGestureActionSettingValue(LAUNCH_CAMERA_ON_DOUBLE_TAP_POWER);
 
         assertTrue(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -298,7 +297,7 @@ public class GestureLauncherServiceTest {
         withCameraDoubleTapPowerDisableSettingValue(0);
 
         assertTrue(mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -309,7 +308,7 @@ public class GestureLauncherServiceTest {
 
         assertTrue(
                 mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -320,7 +319,7 @@ public class GestureLauncherServiceTest {
 
         assertFalse(
                 mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -332,7 +331,7 @@ public class GestureLauncherServiceTest {
 
         assertFalse(
                 mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -344,7 +343,7 @@ public class GestureLauncherServiceTest {
 
         assertTrue(
                 mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -356,7 +355,7 @@ public class GestureLauncherServiceTest {
 
         assertFalse(
                 mGestureLauncherService.isCameraDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -368,7 +367,7 @@ public class GestureLauncherServiceTest {
 
         assertTrue(
                 mGestureLauncherService.isWalletDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -380,7 +379,7 @@ public class GestureLauncherServiceTest {
 
         assertFalse(
                 mGestureLauncherService.isWalletDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -392,7 +391,7 @@ public class GestureLauncherServiceTest {
 
         assertFalse(
                 mGestureLauncherService.isWalletDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -404,7 +403,7 @@ public class GestureLauncherServiceTest {
 
         assertFalse(
                 mGestureLauncherService.isWalletDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -416,7 +415,7 @@ public class GestureLauncherServiceTest {
 
         assertTrue(
                 mGestureLauncherService.isWalletDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -428,7 +427,7 @@ public class GestureLauncherServiceTest {
 
         assertFalse(
                 mGestureLauncherService.isWalletDoubleTapPowerSettingEnabled(
-                        mContext, FAKE_USER_ID));
+                        mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -436,7 +435,7 @@ public class GestureLauncherServiceTest {
         withEmergencyGestureEnabledConfigValue(true);
         withEmergencyGestureEnabledSettingValue(false);
         assertFalse(mGestureLauncherService.isEmergencyGestureSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -444,7 +443,7 @@ public class GestureLauncherServiceTest {
         withEmergencyGestureEnabledConfigValue(true);
         withEmergencyGestureEnabledSettingValue(true);
         assertTrue(mGestureLauncherService.isEmergencyGestureSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -452,7 +451,7 @@ public class GestureLauncherServiceTest {
         withEmergencyGestureEnabledConfigValue(false);
         withEmergencyGestureEnabledSettingValue(true);
         assertFalse(mGestureLauncherService.isEmergencyGestureSettingEnabled(
-                mContext, FAKE_USER_ID));
+                mContext, UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -460,7 +459,7 @@ public class GestureLauncherServiceTest {
         withEmergencyGesturePowerButtonCooldownPeriodMsValue(4000);
         assertEquals(4000,
                 mGestureLauncherService.getEmergencyGesturePowerButtonCooldownPeriodMs(mContext,
-                        FAKE_USER_ID));
+                        UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -468,7 +467,7 @@ public class GestureLauncherServiceTest {
         withEmergencyGesturePowerButtonCooldownPeriodMsValue(0);
         assertEquals(0,
                 mGestureLauncherService.getEmergencyGesturePowerButtonCooldownPeriodMs(mContext,
-                        FAKE_USER_ID));
+                        UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -476,7 +475,7 @@ public class GestureLauncherServiceTest {
         withEmergencyGesturePowerButtonCooldownPeriodMsValue(10000);
         assertEquals(GestureLauncherService.EMERGENCY_GESTURE_POWER_BUTTON_COOLDOWN_PERIOD_MS_MAX,
                 mGestureLauncherService.getEmergencyGesturePowerButtonCooldownPeriodMs(mContext,
-                        FAKE_USER_ID));
+                        UserHandle.USER_CURRENT));
     }
 
     @Test
@@ -743,6 +742,8 @@ public class GestureLauncherServiceTest {
 
         if (launchWalletViaSysuiCallbacks()) {
             verify(mStatusBarManagerInternal).onWalletLaunchGestureDetected();
+            verify(mUiEventLogger, times(1)).log(
+                    GestureLauncherService.GestureLauncherEvent.GESTURE_WALLET_DOUBLE_TAP_POWER);
         } else {
             assertTrue(receiver.waitUntilShown());
         }
@@ -778,6 +779,8 @@ public class GestureLauncherServiceTest {
 
         if (launchWalletViaSysuiCallbacks()) {
             verify(mStatusBarManagerInternal).onWalletLaunchGestureDetected();
+            verify(mUiEventLogger, times(1)).log(
+                    GestureLauncherService.GestureLauncherEvent.GESTURE_WALLET_DOUBLE_TAP_POWER);
         } else {
             assertTrue(receiver.waitUntilShown());
         }

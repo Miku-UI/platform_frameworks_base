@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"連線中…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"已連線到「<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>」"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"配對中…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"無法配對"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"無法連線"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"已連線到「<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>」(無手機音訊)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"已連線到「<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>」(無媒體音訊)"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"已連線到「<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>」(無手機或媒體音訊)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"左側電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右側電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"左側電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"右側電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"電量：充電盒 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"電量：左側 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，充電盒 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"電量：右側 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，充電盒 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"電量：左側 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右側 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"電量：左側 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，中間 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>，右側 <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"左耳機：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"右耳機：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"使用中"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"使用中 (僅右側)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"使用中 (左右兩側)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"無法更新環境狀態"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"無法更新預設設定"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"已選取"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"已啟用 (僅限媒體)。電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"已啟用 (僅限媒體)。左側電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>，右側電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>。"</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"訪客裝置。電量：<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>。"</string>
@@ -335,12 +344,12 @@
     <string name="private_dns_mode_provider_hostname_hint" msgid="6564868953748514595">"輸入 DNS 供應商的主機名稱"</string>
     <string name="private_dns_mode_provider_failure" msgid="8356259467861515108">"無法連線"</string>
     <string name="wifi_display_certification_summary" msgid="8111151348106907513">"顯示無線螢幕分享認證的選項"</string>
-    <string name="wifi_verbose_logging_summary" msgid="4993823188807767892">"讓 Wi‑Fi 記錄功能升級，在 Wi‑Fi 選擇器中依每個 SSID RSSI 顯示 Wi‑Fi 詳細記錄"</string>
+    <string name="wifi_verbose_logging_summary" msgid="4993823188807767892">"提高 Wi‑Fi 記錄等級，在 Wi‑Fi 選擇器中依每個 SSID RSSI 顯示記錄"</string>
     <string name="wifi_scan_throttling_summary" msgid="2577105472017362814">"降低耗電量以及改善網路效能"</string>
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"這個模式啟用後，每當這部裝置連線到已啟用隨機 MAC 位址的網路時，裝置的 MAC 位址可能都會改變。"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"計量付費"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"非計量付費"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"記錄器緩衝區空間"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"記錄器緩衝區空間"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"選取每個記錄緩衝區的記錄器空間"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"要清除永久儲存的記錄器資料嗎？"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"如果你選擇不再透過永久記錄器進行監控，系統就必須清除裝置中的記錄器資料。"</string>
@@ -402,7 +411,7 @@
     <string name="show_hw_screen_updates" msgid="2021286231267747506">"顯示畫面更新"</string>
     <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"繪圖時在視窗中閃爍顯示畫面"</string>
     <string name="show_hw_layers_updates" msgid="5268370750002509767">"顯示硬體層更新"</string>
-    <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"在硬體層更新時閃綠燈"</string>
+    <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"在硬體層更新時閃爍綠色"</string>
     <string name="debug_hw_overdraw" msgid="8944851091008756796">"針對 GPU 過度繪製進行偵錯"</string>
     <string name="disable_overlays" msgid="4206590799671557143">"停用硬體重疊圖層"</string>
     <string name="disable_overlays_summary" msgid="1954852414363338166">"一律使用 GPU 進行畫面合成"</string>
@@ -412,19 +421,19 @@
     <string name="usb_audio_disable_routing_summary" msgid="8768242894849534699">"停用 USB 音訊周邊設備的自動路由功能"</string>
     <string name="debug_layout" msgid="1659216803043339741">"顯示版面配置界限"</string>
     <string name="debug_layout_summary" msgid="8825829038287321978">"顯示剪輯範圍、邊界等"</string>
-    <string name="force_rtl_layout_all_locales" msgid="8690762598501599796">"強制使用從右至左版面配置方向"</string>
+    <string name="force_rtl_layout_all_locales" msgid="8690762598501599796">"強制使用由右至左版面配置方向"</string>
     <string name="force_rtl_layout_all_locales_summary" msgid="6663016859517239880">"強制將所有語言代碼的畫面配置方向改為從右至左"</string>
     <string name="transparent_navigation_bar" msgid="1933192171384678484">"透明導覽列"</string>
-    <string name="transparent_navigation_bar_summary" msgid="5454359021817330722">"使用透明色做為導覽列的預設背景顏色"</string>
+    <string name="transparent_navigation_bar_summary" msgid="5454359021817330722">"將導覽列背景預設為透明"</string>
     <string name="window_blurs" msgid="6831008984828425106">"允許視窗層級模糊處理"</string>
     <string name="force_msaa" msgid="4081288296137775550">"強制 4x MSAA"</string>
     <string name="force_msaa_summary" msgid="9070437493586769500">"在 OpenGL ES 2.0 應用程式中啟用 4x MSAA"</string>
     <string name="show_non_rect_clip" msgid="7499758654867881817">"針對非矩形裁剪操作進行偵錯"</string>
     <string name="track_frame_time" msgid="522674651937771106">"剖析 HWUI 轉譯"</string>
     <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"啟用 GPU 偵錯圖層"</string>
-    <string name="enable_gpu_debug_layers_summary" msgid="4921521407377170481">"允許載入 GPU 偵錯圖層為應用程式偵錯"</string>
+    <string name="enable_gpu_debug_layers_summary" msgid="4921521407377170481">"允許為偵錯應用程式載入 GPU 偵錯圖層"</string>
     <string name="enable_verbose_vendor_logging" msgid="1196698788267682072">"啟用詳細供應商記錄功能"</string>
-    <string name="enable_verbose_vendor_logging_summary" msgid="5426292185780393708">"在錯誤報告中附上其他的裝置專屬供應商記錄。如果你這麼做，可能會增加電池用量及/或占用較多儲存空間，報告中可能也會包含私人資訊。"</string>
+    <string name="enable_verbose_vendor_logging_summary" msgid="5426292185780393708">"在錯誤報告中附上其他的裝置專屬供應商記錄，可能會增加電池用量且/或占用較多儲存空間，報告中也可能包含私人資訊。"</string>
     <string name="enable_verbose_vendor_logging_checkbox" msgid="3864578373293835530">"一天後停用"</string>
     <string name="verbose_vendor_logging_notification_title" msgid="6811217272559843592">"已停用詳細供應商記錄功能"</string>
     <string name="verbose_vendor_logging_notification_summary" msgid="5226524769774370942">"已啟用一天"</string>
@@ -444,7 +453,7 @@
     <string name="show_all_anrs_summary" msgid="8562788834431971392">"為背景應用程式顯示「應用程式無回應」對話方塊"</string>
     <string name="show_notification_channel_warnings" msgid="3448282400127597331">"顯示通知管道警告"</string>
     <string name="show_notification_channel_warnings_summary" msgid="68031143745094339">"當應用程式未經有效管道發布通知時，在畫面上顯示警告"</string>
-    <string name="force_allow_on_external" msgid="9187902444231637880">"強制允許將應用程式寫入外部儲存空間"</string>
+    <string name="force_allow_on_external" msgid="9187902444231637880">"強制允許應用程式外部寫入"</string>
     <string name="force_allow_on_external_summary" msgid="8525425782530728238">"允許將任何應用程式寫入外部儲存空間 (無論資訊清單值為何)"</string>
     <string name="force_resizable_activities" msgid="7143612144399959606">"將活動強制設為可調整大小"</string>
     <string name="force_resizable_activities_summary" msgid="2490382056981583062">"將所有活動設為可配合多重視窗環境調整大小 (無論資訊清單值為何)。"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g>前"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"還剩 <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"最小"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"較小"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"小"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"預設"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"大"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"較大"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"最大"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"較大"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"很大"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"特大"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"最大"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"自訂 (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"選單"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"如要在展示模式中恢復原廠設定，請輸入密碼"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{已與 1 部裝置連線}other{已與 # 部裝置連線}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"增加時間。"</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"減少時間。"</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"放大"</string>
     <string name="cancel" msgid="5665114069455378395">"取消"</string>
     <string name="next" msgid="2699398661093607009">"繼續"</string>
     <string name="back" msgid="5554327870352703710">"返回"</string>
@@ -655,7 +669,7 @@
     <string name="user_grant_admin_message" msgid="1673791931033486709">"管理員具備其他使用者沒有的權限，例如可管理所有使用者、更新或重設這部裝置、修改設定、查看所有已安裝的應用程式，以及將管理員權限授予他人，或撤銷他人的管理員權限。"</string>
     <string name="user_grant_admin_button" msgid="5441486731331725756">"設為管理員"</string>
     <string name="user_setup_dialog_title" msgid="8037342066381939995">"立即設定使用者？"</string>
-    <string name="user_setup_dialog_message" msgid="269931619868102841">"請確保對方可以使用裝置並設定自己的空間"</string>
+    <string name="user_setup_dialog_message" msgid="269931619868102841">"請確定對方現在能用裝置設定自己的空間"</string>
     <string name="user_setup_profile_dialog_message" msgid="4788197052296962620">"立即建立個人資料？"</string>
     <string name="user_setup_button_setup_now" msgid="1708269547187760639">"立即設定"</string>
     <string name="user_setup_button_setup_later" msgid="8712980133555493516">"暫時不要"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"如果播送「<xliff:g id="SWITCHAPP">%1$s</xliff:g>」的內容或變更輸出來源，系統就會停止播送目前的內容"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"播送「<xliff:g id="SWITCHAPP">%1$s</xliff:g>」的內容"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"變更輸出來源"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"預測返回操作動畫"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"為預測返回操作啟用系統動畫。"</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"這項設定會啟用系統動畫做為預測手勢動畫。這必須在資訊清單檔案中將個別應用程式的 enableOnBackInvokedCallback 設為 true。"</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"未指定"</string>
     <string name="neuter" msgid="2075249330106127310">"中性"</string>

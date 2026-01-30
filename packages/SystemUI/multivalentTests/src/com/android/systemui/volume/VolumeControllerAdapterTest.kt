@@ -28,7 +28,6 @@ import com.android.systemui.volume.data.repository.audioRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
-import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.eq
@@ -45,11 +44,6 @@ class VolumeControllerAdapterTest : SysuiTestCase() {
         with(kosmos) { VolumeControllerAdapter(applicationCoroutineScope, audioRepository) }
 
     private val volumeController = mock<IVolumeController> {}
-
-    @Before
-    fun setUp() {
-        kosmos.audioRepository.init()
-    }
 
     @Test
     fun volumeControllerEvent_volumeChanged_callsMethod() =

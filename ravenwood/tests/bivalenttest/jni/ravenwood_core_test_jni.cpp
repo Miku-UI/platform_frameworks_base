@@ -15,6 +15,7 @@
  */
 
 #include <nativehelper/JNIHelp.h>
+#include <com_android_internal_os.h>
 #include <atomic>
 #include "jni.h"
 #include "utils/Log.h"
@@ -79,6 +80,31 @@ static const JNINativeMethod sMethods_NarTestData[] =
     { "nGetTotalAlloc", "()I", (void*)NarTestData_nGetTotalAlloc },
 };
 
+// JNI methods for RavenwoodAconfigNativeFlagsTest
+static jboolean getRavenwoodFlagRo1(JNIEnv* env, jclass clazz) {
+    return ::com::android::internal::os::ravenwood_flag_ro_1();
+}
+
+static jboolean getRavenwoodFlagRo2(JNIEnv* env, jclass clazz) {
+    return ::com::android::internal::os::ravenwood_flag_ro_2();
+}
+
+static jboolean getRavenwoodFlagRw1(JNIEnv* env, jclass clazz) {
+    return ::com::android::internal::os::ravenwood_flag_rw_1();
+}
+
+static jboolean getRavenwoodFlagRw2(JNIEnv* env, jclass clazz) {
+    return ::com::android::internal::os::ravenwood_flag_rw_2();
+}
+
+static const JNINativeMethod sMethods_RavenwoodAconfigNativeFlagsTest[] =
+{
+    { "getRavenwoodFlagRo1", "()Z", (void*)getRavenwoodFlagRo1 },
+    { "getRavenwoodFlagRo2", "()Z", (void*)getRavenwoodFlagRo2 },
+    { "getRavenwoodFlagRw1", "()Z", (void*)getRavenwoodFlagRw1 },
+    { "getRavenwoodFlagRw2", "()Z", (void*)getRavenwoodFlagRw2 },
+};
+
 extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
 {
     JNIEnv* env = NULL;
@@ -101,6 +127,13 @@ extern "C" jint JNI_OnLoad(JavaVM* vm, void* /* reserved */)
     res = jniRegisterNativeMethods(env,
             "com/android/ravenwoodtest/bivalenttest/RavenwoodNativeAllocationRegistryTest$Data",
             sMethods_NarTestData, NELEM(sMethods_NarTestData));
+    if (res < 0) {
+        return res;
+    }
+    res = jniRegisterNativeMethods(env,
+            "com/android/ravenwoodtest/bivalenttest/aconfig/RavenwoodAconfigNativeFlagsTest",
+            sMethods_RavenwoodAconfigNativeFlagsTest,
+            NELEM(sMethods_RavenwoodAconfigNativeFlagsTest));
     if (res < 0) {
         return res;
     }

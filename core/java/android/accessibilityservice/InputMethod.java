@@ -38,7 +38,7 @@ import com.android.internal.inputmethod.RemoteAccessibilityInputConnection;
 
 /**
  * This class provides input method APIs. Some public methods such as
- * @link #onUpdateSelection(int, int, int, int, int, int)} do nothing by default and service
+ * {@link #onUpdateSelection(int, int, int, int, int, int)} do nothing by default and service
  * developers should override them as needed. Developers should also override
  * {@link AccessibilityService#onCreateInputMethod()} to return
  * their custom InputMethod implementation. Accessibility services also need to set the

@@ -34,6 +34,7 @@ import java.util.Objects;
  * but more graphical control is available if you instead pass
  * the RoundRectShape to a {@link android.graphics.drawable.ShapeDrawable}.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class RoundRectShape extends RectShape {
     private float[] mOuterRadii;
     private RectF mInset;

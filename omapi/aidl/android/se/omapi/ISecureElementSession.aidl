@@ -33,7 +33,7 @@ interface ISecureElementSession {
     /**
      * Returns the ATR of the connected card or null if the ATR is not available
      */
-    byte[] getAtr();
+    @nullable byte[] getAtr();
 
     /**
      * Close the connection with the Secure Element. This will close any
@@ -62,7 +62,7 @@ interface ISecureElementSession {
      * Listener is passed to secure element service and used to monitor whether
      * the client application that uses OMAPI is still alive or not.
      */
-    ISecureElementChannel openBasicChannel(in byte[] aid, in byte p2,
+    @nullable ISecureElementChannel openBasicChannel(in @nullable byte[] aid, in byte p2,
             in ISecureElementListener listener);
 
     /**
@@ -72,6 +72,6 @@ interface ISecureElementSession {
      * Listener is passed to secure element service and used to monitor whether
      * the client application that uses OMAPI is still alive or not.
      */
-    ISecureElementChannel openLogicalChannel(in byte[] aid, in byte p2,
+    @nullable ISecureElementChannel openLogicalChannel(in @nullable byte[] aid, in byte p2,
             in ISecureElementListener listener);
 }

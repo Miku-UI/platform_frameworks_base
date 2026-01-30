@@ -31,7 +31,7 @@ import android.util.Slog;
  * Value type that represents a sync operation.
  * This holds all information related to a sync operation - both one off and periodic.
  * Data stored in this is used to schedule a job with the JobScheduler.
- * {@hide}
+ * @hide
  */
 public class SyncOperation {
     public static final String TAG = "SyncManager";

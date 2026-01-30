@@ -26,10 +26,6 @@ import java.lang.annotation.Retention;
  * A set of flags notified from {@link com.android.server.inputmethod.InputMethodManagerService} to
  * {@link android.inputmethodservice.InputMethodService} regarding how
  * {@link android.inputmethodservice.NavigationBarController} should behave.
- *
- * <p>These flags will take effect when and only when
- * {@link android.inputmethodservice.InputMethodService#canImeRenderGesturalNavButtons} returns
- * {@code true}.</p>
  */
 @Retention(SOURCE)
 @IntDef(flag = true, value = {

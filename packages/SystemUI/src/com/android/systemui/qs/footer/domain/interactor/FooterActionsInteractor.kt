@@ -42,11 +42,13 @@ import com.android.systemui.qs.footer.domain.model.SecurityButtonConfig
 import com.android.systemui.security.data.repository.SecurityRepository
 import com.android.systemui.shade.ShadeDisplayAware
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
+import com.android.systemui.supervision.data.repository.SupervisionRepository
 import com.android.systemui.user.data.repository.UserSwitcherRepository
 import com.android.systemui.user.domain.interactor.UserSwitcherInteractor
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 
@@ -105,6 +107,7 @@ constructor(
     private val fgsManagerController: FgsManagerController,
     private val userSwitcherInteractor: UserSwitcherInteractor,
     securityRepository: SecurityRepository,
+    supervisionRepository: SupervisionRepository,
     foregroundServicesRepository: ForegroundServicesRepository,
     userSwitcherRepository: UserSwitcherRepository,
     broadcastDispatcher: BroadcastDispatcher,
@@ -112,8 +115,20 @@ constructor(
     @ShadeDisplayAware private val context: Context,
 ) : FooterActionsInteractor {
     override val securityButtonConfig: Flow<SecurityButtonConfig?> =
-        securityRepository.security.map { security ->
-            withContext(bgDispatcher) { qsSecurityFooterUtils.getButtonConfig(security) }
+        if (android.app.supervision.flags.Flags.enableSupervisionAppService()) {
+            securityRepository.security.combine(supervisionRepository.supervision) {
+                security,
+                supervision ->
+                withContext(bgDispatcher) {
+                    qsSecurityFooterUtils.getButtonConfig(security, supervision)
+                }
+            }
+        } else {
+            securityRepository.security.map { security ->
+                withContext(bgDispatcher) {
+                    qsSecurityFooterUtils.getButtonConfig(security, /* supervisionModel= */ null)
+                }
+            }
         }
 
     override val foregroundServicesCount: Flow<Int> =

@@ -21,7 +21,6 @@ import com.android.systemui.KairosBuilder
 import com.android.systemui.activated
 import com.android.systemui.common.shared.model.ContentDescription
 import com.android.systemui.common.shared.model.Icon
-import com.android.systemui.flags.FeatureFlagsClassic
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.State as KairosState
 import com.android.systemui.kairos.State
@@ -29,6 +28,7 @@ import com.android.systemui.kairos.combine
 import com.android.systemui.kairos.flatMap
 import com.android.systemui.kairos.map
 import com.android.systemui.kairos.stateOf
+import com.android.systemui.kairos.util.nameTag
 import com.android.systemui.kairosBuilder
 import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.res.R
@@ -73,11 +73,12 @@ class MobileIconViewModelKairos(
     override val iconInteractor: MobileIconInteractorKairos,
     private val airplaneModeInteractor: AirplaneModeInteractor,
     private val constants: ConnectivityConstants,
-    private val flags: FeatureFlagsClassic,
 ) : MobileIconViewModelKairosCommon, KairosBuilder by kairosBuilder() {
 
     private val isAirplaneMode: State<Boolean> = buildState {
-        airplaneModeInteractor.isAirplaneMode.toState()
+        airplaneModeInteractor.isAirplaneMode.toState(
+            nameTag("MobileIconViewModelKairos.isAirplaneMode")
+        )
     }
 
     private val satelliteProvider by lazy {
@@ -89,7 +90,9 @@ class MobileIconViewModelKairos(
      * states, since they are different by nature
      */
     private val vmProvider: KairosState<MobileIconViewModelKairosCommon> = buildState {
-        iconInteractor.isNonTerrestrial.mapLatestBuild { nonTerrestrial ->
+        iconInteractor.isNonTerrestrial.mapLatestBuild(
+            nameTag("MobileIconViewModelKairos.vmProvider")
+        ) { nonTerrestrial ->
             if (nonTerrestrial) {
                 satelliteProvider
             } else {
@@ -99,7 +102,6 @@ class MobileIconViewModelKairos(
                         iconInteractor,
                         airplaneModeInteractor,
                         constants,
-                        flags,
                     )
                 }
             }
@@ -160,7 +162,6 @@ private class CellularIconViewModelKairos(
     override val iconInteractor: MobileIconInteractorKairos,
     airplaneModeInteractor: AirplaneModeInteractor,
     constants: ConnectivityConstants,
-    flags: FeatureFlagsClassic,
 ) : MobileIconViewModelKairosCommon, KairosBuilder by kairosBuilder() {
 
     override val isVisible: KairosState<Boolean> =
@@ -169,7 +170,11 @@ private class CellularIconViewModelKairos(
         } else {
             buildState {
                 combine(
-                        airplaneModeInteractor.isAirplaneMode.toState(),
+                        airplaneModeInteractor.isAirplaneMode.toState(
+                            nameTag {
+                                "CellularIconViewModelKairos(subId=$subscriptionId).isAirplaneMode"
+                            }
+                        ),
                         iconInteractor.isAllowedDuringAirplaneMode,
                         iconInteractor.isForceHidden,
                     ) { isAirplaneMode, isAllowedDuringAirplaneMode, isForceHidden ->
@@ -182,7 +187,15 @@ private class CellularIconViewModelKairos(
                         }
                     }
                     .also {
-                        logDiffsForTable(it, iconInteractor.tableLogBuffer, columnName = "visible")
+                        logDiffsForTable(
+                            name =
+                                nameTag {
+                                    "CellularIconViewModelKairos(subId=$subscriptionId).filteredSubscriptions"
+                                },
+                            it,
+                            iconInteractor.tableLogBuffer,
+                            columnName = "visible",
+                        )
                     }
             }
         }
@@ -236,6 +249,10 @@ private class CellularIconViewModelKairos(
             .also {
                 onActivated {
                     logDiffsForTable(
+                        name =
+                            nameTag(
+                                "CellularIconViewModelKairos(subId=$subscriptionId).showNetworkTypeIcon"
+                            ),
                         it,
                         iconInteractor.tableLogBuffer,
                         columnName = "showNetworkTypeIcon",
@@ -278,7 +295,12 @@ private class CellularIconViewModelKairos(
     override val roaming: KairosState<Boolean> =
         iconInteractor.isRoaming.also {
             onActivated {
-                logDiffsForTable(it, iconInteractor.tableLogBuffer, columnName = "roaming")
+                logDiffsForTable(
+                    name = nameTag { "CellularIconViewModelKairos(subId=$subscriptionId).roaming" },
+                    it,
+                    iconInteractor.tableLogBuffer,
+                    columnName = "roaming",
+                )
             }
         }
 

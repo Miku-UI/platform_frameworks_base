@@ -30,14 +30,12 @@ import android.content.res.AssetManager;
 import android.content.res.CompatResources;
 import android.content.res.CompatibilityInfo;
 import android.content.res.Configuration;
-import android.content.res.Flags;
 import android.content.res.Resources;
 import android.content.res.ResourcesImpl;
 import android.content.res.ResourcesKey;
 import android.content.res.loader.ResourcesLoader;
 import android.hardware.display.DisplayManagerGlobal;
 import android.os.IBinder;
-import android.os.LocaleList;
 import android.os.Process;
 import android.os.Trace;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
@@ -136,11 +134,6 @@ public class ResourcesManager {
     private final ArrayList<WeakReference<Resources>> mAllResourceReferences = new ArrayList<>();
     private final ReferenceQueue<Resources> mAllResourceReferencesQueue = new ReferenceQueue<>();
 
-    /**
-     * The localeConfig of the app.
-     */
-    private LocaleConfig mLocaleConfig = new LocaleConfig(LocaleList.getEmptyLocaleList());
-
     private final ArrayMap<String, SharedLibraryAssets> mSharedLibAssetsMap =
             new ArrayMap<>();
 
@@ -154,12 +147,8 @@ public class ResourcesManager {
      * This will collect the package resources' paths from its ApplicationInfo and add them to all
      * existing and future contexts while the application is running.
      */
-    @RavenwoodThrow(reason = "FLAG_REGISTER_RESOURCE_PATHS is unsupported")
+    @RavenwoodThrow(reason = "registerResourcePaths is unsupported")
     public void registerResourcePaths(@NonNull String uniqueId, @NonNull ApplicationInfo appInfo) {
-        if (!Flags.registerResourcePaths()) {
-            return;
-        }
-
         final var application = ActivityThread.currentActivityThread().getApplication();
         final var currentAppInfo = application != null ? application.getApplicationInfo() : null;
         final var sharedLibAssets = new SharedLibraryAssets(appInfo, currentAppInfo);
@@ -184,10 +173,6 @@ public class ResourcesManager {
      */
     public @NonNull Pair<AssetManager, Integer> updateResourceImplAssetsWithRegisteredLibs(
             @NonNull AssetManager assets, boolean reuseAssets) {
-        if (!Flags.registerResourcePaths()) {
-            return new Pair<>(assets, 0);
-        }
-
         final int size;
         final PathCollector collector;
 
@@ -202,33 +187,23 @@ public class ResourcesManager {
                 collector.appendKey(libraryKey);
             }
         }
-        if (collector.isSameAsOriginal()) {
-            return new Pair<>(assets, size);
+        if (!collector.isSameAsOriginal()) {
+            // The right way to do this if we're not allowed to reuse the assets would be to create
+            // a new AssetManager object and set the required asset paths in it, leaving the old
+            // one intact. This would guarantee that the existing users of that object wouldn't be
+            // affected, and any currently running operation on it won't see inconsistent results,
+            // e.g. when we do a reference lookup and then resolution as a two-step operation from
+            // the Java layer.
+            // Unfortunately, several popular apps somehow link their internal state to the
+            // AssetManager object, I guess by using it as a key in a map, and replacing it makes
+            // them bug out in their resources customizations. That's why instead we have to
+            // perform an update to the existing object instead, using the more heavyweight full
+            // recalculation under its lock (preset = false), and hope that the newly added assets
+            // won't cause that bad issues for the non-atomic lookups.
+            // See b/412905284 and many of its duplicates.
+            assets.addApkKeys(extractApkKeys(collector.collectedKey()), reuseAssets);
         }
-        if (reuseAssets) {
-            assets.addPresetApkKeys(extractApkKeys(collector.collectedKey()));
-            return new Pair<>(assets, size);
-        }
-        final var newAssetsBuilder = new AssetManager.Builder().setNoInit();
-        for (final var asset : assets.getApkAssets()) {
-            // Skip everything that's either default, or will get added by the collector (builder
-            // doesn't check for duplicates at all).
-            if (asset.isSystem() || asset.isForLoader() || asset.isOverlay()
-                    || asset.isSharedLib()) {
-                continue;
-            }
-            newAssetsBuilder.addApkAssets(asset);
-        }
-        for (final var key : extractApkKeys(collector.collectedKey())) {
-            try {
-                final var asset = loadApkAssets(key);
-                newAssetsBuilder.addApkAssets(asset);
-            } catch (IOException e) {
-                Log.e(TAG, "Couldn't load assets for key " + key, e);
-            }
-        }
-        assets.getLoaders().forEach(newAssetsBuilder::addLoader);
-        return new Pair<>(newAssetsBuilder.build(), size);
+        return new Pair<>(assets, size);
     }
 
     public static class ApkKey {
@@ -364,6 +339,9 @@ public class ResourcesManager {
 
         @Nullable
         public WeakReference<Resources> resources;
+
+        /** Whether this resource is created for the token itself. */
+        boolean isBaseResource;
 
         private ActivityResource() {}
     }
@@ -779,19 +757,6 @@ public class ResourcesManager {
         pw.println(resImpls);
     }
 
-    private Configuration generateConfig(@NonNull ResourcesKey key) {
-        Configuration config;
-        final boolean hasOverrideConfig = key.hasOverrideConfiguration();
-        if (hasOverrideConfig) {
-            config = new Configuration(getConfiguration());
-            config.updateFrom(key.mOverrideConfiguration);
-            if (DEBUG) Slog.v(TAG, "Applied overrideConfig=" + key.mOverrideConfiguration);
-        } else {
-            config = getConfiguration();
-        }
-        return config;
-    }
-
     private int generateDisplayId(@NonNull ResourcesKey key) {
         return key.mDisplayId != INVALID_DISPLAY ? key.mDisplayId : mResDisplayId;
     }
@@ -803,10 +768,19 @@ public class ResourcesManager {
             return null;
         }
 
-        final DisplayAdjustments daj = new DisplayAdjustments(key.mOverrideConfiguration);
+        final DisplayAdjustments daj;
+        final Configuration config;
+        if (key.hasOverrideConfiguration()) {
+            daj = new DisplayAdjustments(key.mOverrideConfiguration);
+            config = new Configuration(getConfiguration());
+            config.updateFrom(key.mOverrideConfiguration);
+            if (DEBUG) Slog.v(TAG, "Applied overrideConfig=" + key.mOverrideConfiguration);
+        } else {
+            daj = new DisplayAdjustments();
+            config = getConfiguration();
+        }
         daj.setCompatibilityInfo(key.mCompatInfo);
 
-        final Configuration config = generateConfig(key);
         final DisplayMetrics displayMetrics = getDisplayMetrics(generateDisplayId(key), daj);
         final ResourcesImpl impl = new ResourcesImpl(assets, displayMetrics, config, daj, true);
 
@@ -820,13 +794,19 @@ public class ResourcesManager {
      * Finds a cached ResourcesImpl object that matches the given ResourcesKey.
      *
      * @param key The key to match.
-     * @return a ResourcesImpl if the key matches a cache entry, null otherwise.
+     * @return a pair of key and ResourcesImpl if the key matches a cache entry, null otherwise.
      */
-    private @Nullable ResourcesImpl findResourcesImplForKeyLocked(@NonNull ResourcesKey key) {
-        WeakReference<ResourcesImpl> weakImplRef = mResourceImpls.get(key);
-        ResourcesImpl impl = weakImplRef != null ? weakImplRef.get() : null;
+    @Nullable
+    private Pair<ResourcesKey, ResourcesImpl> findResourcesImplPairForKeyLocked(
+            @NonNull ResourcesKey key) {
+        final int index = mResourceImpls.indexOfKey(key);
+        if (index < 0) {
+            return null;
+        }
+        final WeakReference<ResourcesImpl> weakImplRef = mResourceImpls.valueAt(index);
+        final ResourcesImpl impl = weakImplRef != null ? weakImplRef.get() : null;
         if (impl != null && impl.getAssets().isUpToDate()) {
-            return impl;
+            return new Pair<>(mResourceImpls.keyAt(index), impl);
         }
         return null;
     }
@@ -848,15 +828,29 @@ public class ResourcesManager {
      */
     private @Nullable ResourcesImpl findOrCreateResourcesImplForKeyLocked(
             @NonNull ResourcesKey key, @Nullable ApkAssetsSupplier apkSupplier) {
-        ResourcesImpl impl = findResourcesImplForKeyLocked(key);
+        final Pair<ResourcesKey, ResourcesImpl> pair =
+                findOrCreateResourcesImplPairForKeyLocked(key, apkSupplier);
+        return pair != null ? pair.second : null;
+    }
+
+    /**
+     * Returns a pair consisting of the key (the instance may be different from the given one if
+     * it matches an existing ResourcesImpl) and ResourcesImpl object matching the key.
+     */
+    @Nullable
+    private Pair<ResourcesKey, ResourcesImpl> findOrCreateResourcesImplPairForKeyLocked(
+            @NonNull ResourcesKey key, @Nullable ApkAssetsSupplier apkSupplier) {
+        final Pair<ResourcesKey, ResourcesImpl> pair = findResourcesImplPairForKeyLocked(key);
+        ResourcesImpl impl = pair != null ? pair.second : null;
         // ResourcesImpl also need to be recreated if its shared library hash is not up-to-date.
         if (impl == null || impl.getAppliedSharedLibsHash() != mSharedLibAssetsMap.size()) {
             impl = createResourcesImpl(key, apkSupplier);
             if (impl != null) {
                 mResourceImpls.put(key, new WeakReference<>(impl));
+                return new Pair<>(key, impl);
             }
         }
-        return impl;
+        return pair;
     }
 
     /**
@@ -955,6 +949,9 @@ public class ResourcesManager {
         activityResource.overrideConfig.setTo(initialOverrideConfig);
         activityResource.overrideDisplayId = overrideDisplayId;
         activityResources.activityResources.add(activityResource);
+        if (activityResources.activityResources.size() == 1) {
+            activityResource.isBaseResource = true;
+        }
         if (DEBUG) {
             Slog.d(TAG, "- creating new ref=" + resources);
             Slog.d(TAG, "- setting ref=" + resources + " with impl=" + impl);
@@ -1015,6 +1012,7 @@ public class ResourcesManager {
             Trace.traceBegin(Trace.TRACE_TAG_RESOURCES,
                     "ResourcesManager#createBaseActivityResources");
             final ResourcesKey key = new ResourcesKey(
+                    System.identityHashCode(token),
                     resDir,
                     splitResDirs,
                     combinedOverlayPaths(legacyOverlayDirs, overlayPaths),
@@ -1106,13 +1104,16 @@ public class ResourcesManager {
     private void rebaseKeyForDisplay(ResourcesKey key, int overrideDisplay) {
         final Configuration temp = new Configuration();
 
-        DisplayAdjustments daj = new DisplayAdjustments(key.mOverrideConfiguration);
+        final boolean hasOverrideConfiguration = key.hasOverrideConfiguration();
+        final DisplayAdjustments daj = hasOverrideConfiguration
+                ? new DisplayAdjustments(key.mOverrideConfiguration)
+                : new DisplayAdjustments();
         daj.setCompatibilityInfo(key.mCompatInfo);
 
         final DisplayMetrics dm = getDisplayMetrics(overrideDisplay, daj);
         applyDisplayMetricsToConfiguration(dm, temp);
 
-        if (key.hasOverrideConfiguration()) {
+        if (hasOverrideConfiguration) {
             temp.updateFrom(key.mOverrideConfiguration);
         }
         key.mOverrideConfiguration.setTo(temp);
@@ -1273,6 +1274,7 @@ public class ResourcesManager {
         try {
             Trace.traceBegin(Trace.TRACE_TAG_RESOURCES, "ResourcesManager#getResources");
             final ResourcesKey key = new ResourcesKey(
+                    System.identityHashCode(activityToken),
                     resDir,
                     splitResDirs,
                     combinedOverlayPaths(legacyOverlayDirs, overlayPaths),
@@ -1377,20 +1379,46 @@ public class ResourcesManager {
                         continue;
                     }
 
-                    final ResourcesKey newKey = rebaseActivityOverrideConfig(activityResource,
-                            overrideConfig, displayId);
+                    final ResourcesKey newKey = rebaseActivityOverrideConfig(activityToken,
+                            activityResource, overrideConfig, displayId);
                     if (newKey == null) {
                         continue;
                     }
 
                     // TODO(b/173090263): Improve the performance of AssetManager & ResourcesImpl
                     // constructions.
-                    final ResourcesImpl resourcesImpl =
-                            findOrCreateResourcesImplForKeyLocked(newKey);
-                    if (resourcesImpl != null && resourcesImpl != resources.getImpl()) {
+                    final Pair<ResourcesKey, ResourcesImpl> implPair =
+                            findOrCreateResourcesImplPairForKeyLocked(
+                                    newKey, null /* apkSupplier */);
+                    final ResourcesImpl resourcesImpl = implPair != null ? implPair.second : null;
+                    if (resourcesImpl == null) {
+                        continue;
+                    }
+                    if (resourcesImpl != resources.getImpl()) {
                         // Set the ResourcesImpl, updating it for all users of this Resources
                         // object.
                         resources.setImpl(resourcesImpl);
+                    }
+                    // Even if the new key matches an existing ResourcesImpl, the window
+                    // configuration of the new key and the existing key can be different, e.g.
+                    // only position change. So retrieve the existing key to check.
+                    final ResourcesKey currentKey = implPair.first;
+                    final boolean isReusedResImpl =
+                            android.content.res.Flags.ignoreNonPublicConfigDiffForResourcesKey()
+                                    && currentKey != null && currentKey != newKey;
+                    if (isReusedResImpl) {
+                        // If the ResourcesImpl is reused, also update fields not related to
+                        // resources in case the app accesses WindowConfiguration, e.g. rotation.
+                        // Note that the content of window configuration won't affect the result of
+                        // ResourcesKey#equals/hashCode for the reused case.
+                        if (updateWindowConfiguration(currentKey.mOverrideConfiguration,
+                                newKey.mOverrideConfiguration)) {
+                            updateWindowConfiguration(resourcesImpl.getConfiguration(),
+                                    newKey.mOverrideConfiguration);
+                            updateWindowConfiguration(
+                                    resourcesImpl.getDisplayAdjustments().getConfiguration(),
+                                    newKey.mOverrideConfiguration);
+                        }
                     }
                 }
             }
@@ -1404,7 +1432,8 @@ public class ResourcesManager {
      * that an Activity's Resources should be set to.
      */
     @Nullable
-    private ResourcesKey rebaseActivityOverrideConfig(@NonNull ActivityResource activityResource,
+    private ResourcesKey rebaseActivityOverrideConfig(@NonNull IBinder activityToken,
+            @NonNull ActivityResource activityResource,
             @Nullable Configuration newOverrideConfig, int displayId) {
         final Resources resources = activityResource.resources.get();
         if (resources == null) {
@@ -1453,9 +1482,14 @@ public class ResourcesManager {
         // Ensure the new key keeps the expected override display instead of the new token display.
         displayId = overrideDisplayId != null ? overrideDisplayId : displayId;
 
+        // Do not use token identify if it is a derived resource (isBaseResource == false) because
+        // if the window configuration is different, the key for derived resource should not find
+        // the ResourcesImpl instance of token resource.
+        final int tokenIdentity = activityResource.isBaseResource
+                ? System.identityHashCode(activityToken) : 0;
         // Create the new ResourcesKey with the rebased override config.
-        final ResourcesKey newKey = new ResourcesKey(oldKey.mResDir,
-                oldKey.mSplitResDirs, oldKey.mOverlayPaths, oldKey.mLibDirs,
+        final ResourcesKey newKey = new ResourcesKey(tokenIdentity,
+                oldKey.mResDir, oldKey.mSplitResDirs, oldKey.mOverlayPaths, oldKey.mLibDirs,
                 displayId, rebasedOverrideConfig, oldKey.mCompatInfo, oldKey.mLoaders);
 
         if (DEBUG) {
@@ -1465,6 +1499,25 @@ public class ResourcesManager {
 
         return newKey;
     }
+
+    /**
+     * Updates the window configuration of the destination configuration from the source
+     * configuration.
+     *
+     * @param destConfig The destination configuration to update.
+     * @param srcConfig The source configuration which will update to the destination configuration.
+     * @return true if the destination configuration is changed.
+     */
+    private static boolean updateWindowConfiguration(@NonNull Configuration destConfig,
+            @NonNull Configuration srcConfig) {
+        final int changes = destConfig.windowConfiguration.updateFrom(
+                srcConfig.windowConfiguration);
+        if (changes != 0 && srcConfig.seq != 0) {
+            destConfig.seq = srcConfig.seq;
+        }
+        return changes != 0;
+    }
+
 
     @RavenwoodThrow(reason = "AppInfo update not supported")
     public void appendPendingAppInfoUpdate(@NonNull String[] oldSourceDirs,
@@ -1620,6 +1673,7 @@ public class ResourcesManager {
 
                     if (!Arrays.equals(newLibAssets, key.mLibDirs)) {
                         updatedResourceKeys.put(impl, new ResourcesKey(
+                                key.mTokenIdentity,
                                 key.mResDir,
                                 key.mSplitResDirs,
                                 key.mOverlayPaths,
@@ -1692,6 +1746,7 @@ public class ResourcesManager {
 
         @NonNull ResourcesKey collectedKey() {
             return new ResourcesKey(
+                    originalKey == null ? 0 : originalKey.mTokenIdentity,
                     originalKey == null ? null : originalKey.mResDir,
                     originalKey == null ? null : originalKey.mSplitResDirs,
                     orderedOverlays.toArray(new String[0]), orderedLibs.toArray(new String[0]),
@@ -1776,6 +1831,7 @@ public class ResourcesManager {
                         || key.mResDir.equals(baseCodePath)
                         || ArrayUtils.contains(oldSourceDirs, key.mResDir)) {
                     updatedResourceKeys.put(impl, new ResourcesKey(
+                            key.mTokenIdentity,
                             baseCodePath,
                             copiedSplitDirs,
                             copiedResourceDirs,
@@ -1892,10 +1948,12 @@ public class ResourcesManager {
             final ResourcesKey key = updatedResourceKeys.get(r.getImpl());
             if (key != null) {
                 final ResourcesImpl impl = findOrCreateResourcesImplForKeyLocked(key);
-                if (impl == null) {
-                    throw new Resources.NotFoundException("failed to redirect ResourcesImpl");
+                if (impl != null) {
+                    r.setImpl(impl);
+                } else {
+                    Slog.w(TAG, "failed to redirect ResourcesImpl, left untouched, for a key "
+                            + key);
                 }
-                r.setImpl(impl);
             } else {
                 // ResourcesKey is null which means the ResourcesImpl could belong to a
                 // Resources created by application through Resources constructor and was not
@@ -1919,23 +1977,6 @@ public class ResourcesManager {
         }
     }
 
-    /**
-     * Returns the LocaleConfig current set
-     */
-    public LocaleConfig getLocaleConfig() {
-        return mLocaleConfig;
-    }
-
-    /**
-     * Sets the LocaleConfig of the app
-     */
-    public void setLocaleConfig(LocaleConfig localeConfig) {
-        if ((localeConfig != null) && (localeConfig.getSupportedLocales() != null)
-                && !localeConfig.getSupportedLocales().isEmpty()) {
-            mLocaleConfig = localeConfig;
-        }
-    }
-
     private class UpdateHandler implements Resources.UpdateCallbacks {
 
         /**
@@ -1954,6 +1995,7 @@ public class ResourcesManager {
                 }
 
                 final ResourcesKey newKey = new ResourcesKey(
+                        oldKey.mTokenIdentity,
                         oldKey.mResDir,
                         oldKey.mSplitResDirs,
                         oldKey.mOverlayPaths,
@@ -2006,7 +2048,9 @@ public class ResourcesManager {
             // its own ApplicationInfo.
             final var collector = new PathCollector(null);
             // Pre-populate the collector's sets with the base app paths so they all get filtered
-            // out if they exist in the info that's being registered as well.
+            // out if they exist in the info that's being registered as well. Ignore the linked
+            // shared libraries though, as those are commonly altered by the apps to make the system
+            // load the same library that's being registered here.
             // Note: if someone is registering their own appInfo, we can't filter out anything
             // here and this means any asset path changes are going to be ignored.
             if (baseAppInfo != null && !baseAppInfo.sourceDir.equals(appInfo.sourceDir)) {
@@ -2014,9 +2058,7 @@ public class ResourcesManager {
                 if (baseAppInfo.splitSourceDirs != null) {
                     collector.libsSet.addAll(Arrays.asList(baseAppInfo.splitSourceDirs));
                 }
-                if (baseAppInfo.sharedLibraryFiles != null) {
-                    collector.libsSet.addAll(Arrays.asList(baseAppInfo.sharedLibraryFiles));
-                }
+                // Skipped |baseAppInfo.sharedLibraryFiles| intentionally.
                 if (baseAppInfo.resourceDirs != null) {
                     collector.overlaysSet.addAll(Arrays.asList(baseAppInfo.resourceDirs));
                 }
@@ -2054,12 +2096,10 @@ public class ResourcesManager {
      * asset paths. This is invoked in Resources constructor to include all Resources instances.
      */
     public void registerAllResourcesReference(@NonNull Resources resources) {
-        if (android.content.res.Flags.registerResourcePaths()) {
-            synchronized (mLock) {
-                cleanupReferences(mAllResourceReferences, mAllResourceReferencesQueue);
-                mAllResourceReferences.add(
-                        new WeakReference<>(resources, mAllResourceReferencesQueue));
-            }
+        synchronized (mLock) {
+            cleanupReferences(mAllResourceReferences, mAllResourceReferencesQueue);
+            mAllResourceReferences.add(
+                    new WeakReference<>(resources, mAllResourceReferencesQueue));
         }
     }
 }

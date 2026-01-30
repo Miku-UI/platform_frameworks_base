@@ -355,10 +355,12 @@ constructor(
         getOrCreateRepoForSubId(subId)
 
     private fun getOrCreateRepoForSubId(subId: Int) =
-        subIdRepositoryCache[subId]?.get()
-            ?: createRepositoryForSubId(subId).also {
-                subIdRepositoryCache[subId] = WeakReference(it)
-            }
+        synchronized(subIdRepositoryCache) {
+            subIdRepositoryCache[subId]?.get()
+                ?: createRepositoryForSubId(subId).also {
+                    subIdRepositoryCache[subId] = WeakReference(it)
+                }
+        }
 
     override val mobileIsDefault: StateFlow<Boolean> =
         connectivityRepository.defaultConnections

@@ -49,8 +49,21 @@ class Annotations {
                 "@android.ravenwood.annotation.RavenwoodIgnore"
             FilterPolicy.Remove ->
                 "@android.ravenwood.annotation.RavenwoodRemove"
-            FilterPolicy.AnnotationAllowed -> null // Can't convert to an annotation.
+            // Can't convert to an annotation.
+            FilterPolicy.AnnotationAllowed, FilterPolicy.Experimental,
+            FilterPolicy.ExperimentalClass
+                 -> null
         }
+    }
+
+    /**
+     * Keeping <clinit> requires a special policy on the class.
+     */
+    fun getClassInitializerPolicy(policy: FilterPolicy): String? {
+        if (policy == FilterPolicy.Keep) {
+            return "@android.ravenwood.annotation.RavenwoodKeepStaticInitializer"
+        }
+        return null
     }
 
     private fun withArg(annot: String, arg: String): String {
@@ -65,4 +78,3 @@ class Annotations {
         return withArg("android.ravenwood.annotation.RavenwoodRedirectionClass", arg)
     }
 }
-

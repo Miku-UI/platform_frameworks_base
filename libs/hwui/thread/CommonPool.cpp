@@ -52,9 +52,13 @@ CommonPool::CommonPool() : CommonPoolBase() {
     }
 }
 
+CommonPool::~CommonPool() {
+    LOG_ALWAYS_FATAL("CommonPool can't be stopped");
+}
+
 CommonPool& CommonPool::instance() {
-    static CommonPool pool;
-    return pool;
+    static CommonPool* pool = new CommonPool();
+    return *pool;
 }
 
 void CommonPool::post(Task&& task) {
@@ -80,7 +84,7 @@ void CommonPool::enqueue(Task&& task) {
 
 void CommonPool::workerLoop() {
     std::unique_lock lock(mLock);
-    while (!mIsStopping) {
+    while (true) {
         if (!mWorkQueue.hasWork()) {
             mWaitingThreads++;
             mCondition.wait(lock);

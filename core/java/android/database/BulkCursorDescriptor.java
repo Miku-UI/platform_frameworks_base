@@ -23,7 +23,7 @@ import android.os.Parcelable;
  * Describes the properties of a {@link CursorToBulkCursorAdaptor} that are
  * needed to initialize its {@link BulkCursorToCursorAdaptor} counterpart on the client's end.
  *
- * {@hide}
+ * @hide
  */
 public final class BulkCursorDescriptor implements Parcelable {
     public static final @android.annotation.NonNull Parcelable.Creator<BulkCursorDescriptor> CREATOR =

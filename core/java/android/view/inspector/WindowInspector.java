@@ -43,7 +43,9 @@ public final class WindowInspector {
 
     /**
      * Adds a listener that is notified whenever the value of {@link #getGlobalWindowViews()}
-     * changes. The current value is provided immediately using the provided {@link Executor}.
+     * changes. The current value is provided immediately using the provided {@link Executor}. The
+     * value is initially relayed using the main thread and then posted to the {@link Executor}.
+     * Using a direct {@link Executor} and doing heavy calculations can cause performance issues.
      * If this {@link Consumer} is already registered, then this method is a no op.
      * @see #getGlobalWindowViews()
      */

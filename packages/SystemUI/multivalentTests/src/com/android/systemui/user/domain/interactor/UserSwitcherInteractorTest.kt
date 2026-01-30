@@ -157,8 +157,7 @@ class UserSwitcherInteractorTest : SysuiTestCase() {
 
     @Test
     fun createUserInteractor_nonProcessUser_startsSecondaryService() {
-        val userId = Process.myUserHandle().identifier + 1
-        whenever(manager.aliveUsers).thenReturn(listOf(createUserInfo(userId, "abc")))
+        whenever(manager.isUserRunning(anyInt())).thenReturn(true)
 
         createUserInteractor(false /* startAsProcessUser */)
         verify(spyContext).startServiceAsUser(any(), any())
@@ -710,7 +709,9 @@ class UserSwitcherInteractorTest : SysuiTestCase() {
     fun userSwitchedBroadcast() {
         testScope.runTest {
             val userInfos = createUserInfos(count = 2, includeGuest = false)
-            whenever(manager.aliveUsers).thenReturn(userInfos)
+            for (userInfo in userInfos) {
+                whenever(manager.isUserRunning(eq(userInfo.id))).thenReturn(true)
+            }
             createUserInteractor()
             userRepository.setUserInfos(userInfos)
             userRepository.setSelectedUserInfo(userInfos[0])
@@ -997,6 +998,48 @@ class UserSwitcherInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    fun showUserSwitcher_fullScreenDisabled_propagatesCustomContext() {
+        createUserInteractor()
+        testScope.runTest {
+            val expandable = mock<Expandable>()
+            val context = mock<Context>()
+            underTest.showUserSwitcher(expandable, context)
+
+            val dialogRequest = collectLastValue(underTest.dialogShowRequests)
+
+            // Dialog is shown.
+            assertThat(dialogRequest())
+                .isEqualTo(ShowDialogRequestModel.ShowUserSwitcherDialog(expandable, context))
+
+            underTest.onDialogShown()
+            assertThat(dialogRequest()).isNull()
+        }
+    }
+
+    @Test
+    fun showUserSwitcher_fullScreenEnabled_propagatesCustomContext() {
+        createUserInteractor()
+        testScope.runTest {
+            kosmos.fakeFeatureFlagsClassic.set(Flags.FULL_SCREEN_USER_SWITCHER, true)
+
+            val expandable = mock<Expandable>()
+            val context = mock<Context>()
+            underTest.showUserSwitcher(expandable, context)
+
+            val dialogRequest = collectLastValue(underTest.dialogShowRequests)
+
+            // Dialog is shown.
+            assertThat(dialogRequest())
+                .isEqualTo(
+                    ShowDialogRequestModel.ShowUserSwitcherFullscreenDialog(expandable, context)
+                )
+
+            underTest.onDialogShown()
+            assertThat(dialogRequest()).isNull()
+        }
+    }
+
+    @Test
     fun showUserSwitcher_fullScreenEnabled_launchesFullScreenDialog() {
         createUserInteractor()
         testScope.runTest {
@@ -1046,8 +1089,13 @@ class UserSwitcherInteractorTest : SysuiTestCase() {
             userRepository.setUserInfos(userInfos)
             userRepository.setSelectedUserInfo(userInfos[1])
             userRepository.setSettings(UserSwitcherSettingsModel(isUserSwitcherEnabled = false))
+
             val selectedUser = collectLastValue(underTest.selectedUser)
-            assertThat(selectedUser()).isNotNull()
+            assertUser(selectedUser(), id = 1, isSelected = true)
+
+            val users = collectLastValue(underTest.users)
+            assertThat(users()?.size == 1).isTrue()
+            assertUser(users()?.firstOrNull(), id = 1, isSelected = true)
         }
     }
 
@@ -1100,8 +1148,8 @@ class UserSwitcherInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    fun initWithNoAliveUsers() {
-        whenever(manager.aliveUsers).thenReturn(listOf())
+    fun initWithNoRunningUsers() {
+        whenever(manager.isUserRunning(anyInt())).thenReturn(false)
         createUserInteractor()
         verify(spyContext, never()).startServiceAsUser(any(), any())
     }

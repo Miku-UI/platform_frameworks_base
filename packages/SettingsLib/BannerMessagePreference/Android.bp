@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibBannerMessagePreference",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -28,9 +29,4 @@ android_library {
 
     sdk_version: "system_current",
     min_sdk_version: "28",
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.healthfitness",
-        "com.android.permission",
-    ],
 }

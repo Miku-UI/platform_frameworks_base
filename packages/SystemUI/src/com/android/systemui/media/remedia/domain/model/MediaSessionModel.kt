@@ -17,7 +17,7 @@
 package com.android.systemui.media.remedia.domain.model
 
 import androidx.compose.runtime.Stable
-import androidx.compose.ui.graphics.ImageBitmap
+import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.media.remedia.shared.model.MediaCardActionButtonLayout
 import com.android.systemui.media.remedia.shared.model.MediaColorScheme
@@ -33,15 +33,15 @@ interface MediaSessionModel {
 
     val appIcon: Icon
 
-    val background: ImageBitmap?
+    val background: Icon?
 
-    val colorScheme: MediaColorScheme
+    val colorScheme: MediaColorScheme?
 
     val title: String
 
     val subtitle: String
 
-    val onClick: () -> Unit
+    val onClick: (Expandable) -> Unit
 
     /**
      * Whether the session is currently active. Under some UIs, only currently active session should
@@ -67,6 +67,8 @@ interface MediaSessionModel {
     val durationMs: Long
 
     val outputDevice: MediaOutputDeviceModel
+
+    val suggestedOutputDevice: MediaOutputDeviceModel?
 
     /** How to lay out the action buttons. */
     val actionButtonLayout: MediaCardActionButtonLayout

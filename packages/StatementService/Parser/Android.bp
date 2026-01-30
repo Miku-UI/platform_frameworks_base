@@ -23,4 +23,5 @@ android_library {
         "src/**/*.kt",
     ],
     target_sdk_version: "29",
+    sdk_version: "system_current",
 }

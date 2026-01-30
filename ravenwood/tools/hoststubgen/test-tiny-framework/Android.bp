@@ -19,62 +19,81 @@ java_library {
     visibility: ["//frameworks/base/ravenwood/tools/hoststubgen:__subpackages__"],
 }
 
-// Create stub/impl jars from "hoststubgen-test-tiny-framework", using the following 3 rules.
-java_genrule_host {
-    name: "hoststubgen-test-tiny-framework-host-base",
-    defaults: ["hoststubgen-command-defaults"],
-    cmd: hoststubgen_common_options +
-        "--in-jar $(location :hoststubgen-test-tiny-framework) " +
-        "--policy-override-file $(location policy-override-tiny-framework.txt) " +
-        "--package-redirect com.unsupported:com.supported ",
+// File that contains the standard command line argumetns to hoststubgen.
+// This is only for the prototype. The productionized version is "ravenwood-standard-options".
+filegroup {
+    name: "hoststubgen-standard-options",
     srcs: [
+        "hoststubgen-standard-options.txt",
+    ],
+    visibility: ["//visibility:private"],
+}
+
+tf_hsg_base_options = "@$(location :hoststubgen-standard-options) " +
+    "--in-jar $(location :hoststubgen-test-tiny-framework) " +
+    "--policy-override-file $(location policy-override-tiny-framework.txt) " +
+    "--package-redirect com.unsupported:com.supported " +
+    "--gen-keep-all-file $(location hoststubgen_keep_all.txt) " +
+    "--gen-input-dump-file $(location hoststubgen_dump.txt) "
+
+tf_hsg_base_options_with_out = tf_hsg_base_options +
+    "--out-jar $(location host.jar) "
+
+genrule_defaults {
+    name: "tf_hsg_base-defaults",
+    tools: [
+        "hoststubgen",
+        "ravenhelper",
+    ],
+    srcs: [
+        ":hoststubgen-standard-options",
         ":hoststubgen-test-tiny-framework",
         "policy-override-tiny-framework.txt",
     ],
+    out: [
+        "hoststubgen_keep_all.txt",
+        "hoststubgen_dump.txt",
+    ],
     visibility: ["//visibility:private"],
+}
+
+genrule_defaults {
+    name: "tf_hsg_base_with_out-defaults",
+    defaults: ["tf_hsg_base-defaults"],
+    out: [
+        "host.jar",
+    ],
+}
+
+java_genrule_host {
+    name: "hoststubgen-test-tiny-framework-host-base",
+    defaults: ["tf_hsg_base_with_out-defaults"],
+    cmd: "$(location hoststubgen) " + tf_hsg_base_options_with_out,
+}
+
+java_genrule_host {
+    name: "hoststubgen-test-tiny-framework-stats",
+    defaults: ["tf_hsg_base-defaults"],
+    cmd: "$(location ravenhelper) stats " + tf_hsg_base_options +
+    "--supported-api-list-file $(location api-stats.csv)",
+    out: [
+        "api-stats.csv",
+    ],
+}
+
+java_genrule_host {
+    name: "hoststubgen-test-tiny-framework-stats-flatten",
+    cmd: "$(location csv-flattener) $(location :hoststubgen-test-tiny-framework-stats{api-stats.csv}) > $(location hoststubgen-test-tiny-framework-stats.txt)",
+    tools: ["csv-flattener"],
+    srcs: [":hoststubgen-test-tiny-framework-stats{api-stats.csv}"],
+    out: ["hoststubgen-test-tiny-framework-stats.txt"],
 }
 
 java_genrule_host {
     name: "hoststubgen-test-tiny-framework-host",
     cmd: "cp $(in) $(out)",
-    srcs: [
-        ":hoststubgen-test-tiny-framework-host-base{host.jar}",
-    ],
-    out: [
-        "host.jar",
-    ],
-    visibility: ["//visibility:private"],
-}
-
-// Same as "hoststubgen-test-tiny-framework-host", but with more options, to test more hoststubgen
-// features.
-java_genrule_host {
-    name: "hoststubgen-test-tiny-framework-host-ext-base",
-    defaults: ["hoststubgen-command-defaults"],
-    cmd: hoststubgen_common_options +
-        "--in-jar $(location :hoststubgen-test-tiny-framework) " +
-        "--policy-override-file $(location policy-override-tiny-framework.txt) " +
-        "--package-redirect com.unsupported:com.supported " +
-
-        // More options.
-        "--default-method-call-hook com.android.hoststubgen.hosthelper.HostTestUtils.logMethodCall " +
-        "--default-class-load-hook com.android.hoststubgen.hosthelper.HostTestUtils.logClassLoaded ",
-    srcs: [
-        ":hoststubgen-test-tiny-framework",
-        "policy-override-tiny-framework.txt",
-    ],
-    visibility: ["//visibility:private"],
-}
-
-java_genrule_host {
-    name: "hoststubgen-test-tiny-framework-host-ext",
-    cmd: "cp $(in) $(out)",
-    srcs: [
-        ":hoststubgen-test-tiny-framework-host-ext-base{host.jar}",
-    ],
-    out: [
-        "host.jar",
-    ],
+    srcs: [":hoststubgen-test-tiny-framework-host-base{host.jar}"],
+    out: ["host.jar"],
     visibility: ["//visibility:private"],
 }
 
@@ -86,6 +105,7 @@ java_library_host {
 
     libs: [
         "hoststubgen-test-tiny-framework",
+        "hoststubgen-helper-runtime",
     ],
     static_libs: [
         "junit",
@@ -110,8 +130,15 @@ java_test_host {
     test_suites: ["general-tests"],
 }
 
-// Dump the original, stub and impl jars as text files.
+// Dump the original and processed jars as text files.
 // We use them in test-and-update-golden.sh.
+genrule_defaults {
+    name: "hoststubgen-jar-dump-defaults",
+    tools: ["dump-jar"],
+    cmd: "$(location dump-jar) -s -o $(out) $(in)",
+    visibility: ["//visibility:private"],
+}
+
 java_genrule_host {
     name: "hoststubgen-test-tiny-framework-orig-dump",
     defaults: ["hoststubgen-jar-dump-defaults"],
@@ -119,9 +146,8 @@ java_genrule_host {
         ":hoststubgen-test-tiny-framework",
     ],
     out: [
-        "01-hoststubgen-test-tiny-framework-orig-dump.txt",
+        "hoststubgen-test-tiny-framework-orig-dump.txt",
     ],
-    visibility: ["//visibility:private"],
 }
 
 java_genrule_host {
@@ -131,24 +157,74 @@ java_genrule_host {
         ":hoststubgen-test-tiny-framework-host",
     ],
     out: [
-        "03-hoststubgen-test-tiny-framework-host-dump.txt",
+        "hoststubgen-test-tiny-framework-host-dump.txt",
     ],
-    visibility: ["//visibility:private"],
 }
 
-java_genrule_host {
-    name: "hoststubgen-test-tiny-framework-host-ext-dump",
-    defaults: ["hoststubgen-jar-dump-defaults"],
+// Generate "PTA" script for tiny-framework.
+// The output contains files in the fullpaths, so we use the next
+// build rule "hoststubgen-test-tiny-framework-pta-output-normalized" to
+// remove the unnecessary prefixes.
+genrule {
+    name: "hoststubgen-test-tiny-framework-pta-output-orig",
+    tools: ["ravenhelper"],
+    cmd: "$(location ravenhelper) pta " +
+        "--output-script $(out) " +
+        "--annotation-allowed-classes-file $(location annotation-allowed-classes-tiny-framework-for-pta-test.txt) " +
+        "--policy-override-file $(location policy-override-tiny-framework.txt) " +
+        "$(locations tiny-framework/src/**/*.java) ",
     srcs: [
-        ":hoststubgen-test-tiny-framework-host-ext",
+        "policy-override-tiny-framework.txt",
+        "annotation-allowed-classes-tiny-framework-for-pta-test.txt",
+        "tiny-framework/src/**/*.java",
     ],
     out: [
-        "13-hoststubgen-test-tiny-framework-host-ext-dump.txt",
+        "pta-output-orig.sed.txt",
     ],
-    visibility: ["//visibility:private"],
 }
 
-// Run it with `atest`. Compare the dump of the jar files to the golden output.
+genrule {
+    name: "hoststubgen-test-tiny-framework-pta-output-normalized",
+    cmd: "sed -e 's!^apply .*/test-tiny-framework/!apply \"!' $(in) > $(out)",
+    srcs: [
+        ":hoststubgen-test-tiny-framework-pta-output-orig",
+    ],
+    out: [
+        "pta-output.sed.txt",
+    ],
+}
+
+// Generate "MM" script for tiny-framework.
+// The output contains files in the fullpaths, so we use the next
+// build rule to remove the unnecessary prefixes.
+genrule {
+    name: "hoststubgen-test-tiny-framework-mm-output-orig",
+    tools: ["ravenhelper"],
+    cmd: "$(location ravenhelper) mm " +
+        "--output-script $(out) " +
+        "$(locations tiny-framework/src/**/*.java) " +
+        "< $(location mm-method-list.txt) ",
+    srcs: [
+        "tiny-framework/src/**/*.java",
+        "mm-method-list.txt",
+    ],
+    out: [
+        "mm-output-orig.sed.txt",
+    ],
+}
+
+genrule {
+    name: "hoststubgen-test-tiny-framework-mm-output-normalized",
+    cmd: "sed -e 's!^apply .*/test-tiny-framework/!apply \"!' $(in) > $(out)",
+    srcs: [
+        ":hoststubgen-test-tiny-framework-mm-output-orig",
+    ],
+    out: [
+        "mm-output.sed.txt",
+    ],
+}
+
+// Compare the dump of the jar files to the golden output.
 python_test_host {
     name: "tiny-framework-dump-test",
     srcs: [
@@ -156,12 +232,13 @@ python_test_host {
     ],
     data: [
         "golden-output/*.txt",
-        "golden-output.RELEASE_TARGET_JAVA_21/*.txt",
+        ":hoststubgen-test-tiny-framework-pta-output-normalized",
+        ":hoststubgen-test-tiny-framework-mm-output-normalized",
     ],
     java_data: [
         "hoststubgen-test-tiny-framework-orig-dump",
         "hoststubgen-test-tiny-framework-host-dump",
-        "hoststubgen-test-tiny-framework-host-ext-dump",
+        "hoststubgen-test-tiny-framework-stats-flatten",
     ],
     test_suites: ["general-tests"],
 }

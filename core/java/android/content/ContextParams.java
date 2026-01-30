@@ -26,6 +26,7 @@ import android.annotation.RequiresPermission;
 import android.annotation.SystemApi;
 import android.app.ActivityThread;
 import android.content.pm.PackageManager;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 
 import java.util.Collections;
 import java.util.Objects;
@@ -49,13 +50,14 @@ import java.util.Set;
  * @see Context#createContext(ContextParams)
  * @see AttributionSource
  */
+@RavenwoodKeepWholeClass
 public final class ContextParams {
     private final @Nullable String mAttributionTag;
     private final @Nullable AttributionSource mNext;
     private final @NonNull Set<String> mRenouncedPermissions;
     private final boolean mShouldRegisterAttributionSource;
 
-    /** {@hide} */
+    /** @hide */
     public static final ContextParams EMPTY = new ContextParams.Builder().build();
 
     private ContextParams(@Nullable String attributionTag,

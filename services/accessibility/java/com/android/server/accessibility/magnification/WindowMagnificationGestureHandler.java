@@ -170,12 +170,14 @@ public class WindowMagnificationGestureHandler extends MagnificationGestureHandl
     }
 
     @Override
-    public void onDestroy() {
+    public void onDestroy(boolean resetMagnification) {
         if (DEBUG_ALL) {
             Slog.i(mLogTag, "onDestroy(); delayed = "
                     + mDetectingState.toString());
         }
-        mMagnificationConnectionManager.disableWindowMagnification(mDisplayId, true);
+        if (resetMagnification) {
+            mMagnificationConnectionManager.disableWindowMagnification(mDisplayId, true);
+        }
         resetToDetectState();
     }
 

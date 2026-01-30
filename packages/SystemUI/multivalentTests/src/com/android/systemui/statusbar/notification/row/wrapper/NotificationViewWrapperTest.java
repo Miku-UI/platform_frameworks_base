@@ -28,8 +28,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -42,13 +42,13 @@ public class NotificationViewWrapperTest extends SysuiTestCase {
     private View mView;
     private ExpandableNotificationRow mRow;
     private TestableNotificationViewWrapper mNotificationViewWrapper;
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
 
     @Before
     public void setup() throws Exception {
         mView = mock(View.class);
         when(mView.getContext()).thenReturn(mContext);
-        NotificationTestHelper helper = new NotificationTestHelper(mContext, mDependency);
-        mRow = helper.createRow();
+        mRow = mKosmos.createRow();
         mNotificationViewWrapper = new TestableNotificationViewWrapper(mContext, mView, mRow);
     }
 

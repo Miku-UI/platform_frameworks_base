@@ -1,0 +1,35 @@
+/*
+ * Copyright (C) 2025 The Android Open Source Project
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package android.app.admin;
+
+import android.processor.devicepolicy.PolicyDefinition;
+
+public final class PolicyIdentifier<T> {
+    // We don't actually do anything with this.
+    public PolicyIdentifier(String id) {
+    }
+
+    private static final String TEST_POLICY_1_KEY = "test_policy_1_key";
+
+    /**
+     * Test policy 1
+     */
+    @PolicyDefinition
+    public static final PolicyIdentifier<Boolean>
+            TEST_POLICY_1 = new PolicyIdentifier<>(
+            TEST_POLICY_1_KEY);
+}

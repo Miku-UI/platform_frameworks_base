@@ -553,11 +553,13 @@ public class LocationManagerService extends ILocationManager.Stub implements
             setLocationFudgerCache(new LocationFudgerCache(mPopulationDensityProvider));
         }
 
-        // bind to hardware activity recognition
-        HardwareActivityRecognitionProxy hardwareActivityRecognitionProxy =
-                HardwareActivityRecognitionProxy.createAndRegister(mContext);
-        if (hardwareActivityRecognitionProxy == null) {
-            Log.e(TAG, "unable to bind ActivityRecognitionProxy");
+        if (!Flags.disableHardwareAr()) {
+            // bind to hardware activity recognition
+            HardwareActivityRecognitionProxy hardwareActivityRecognitionProxy =
+                    HardwareActivityRecognitionProxy.createAndRegister(mContext);
+            if (hardwareActivityRecognitionProxy == null) {
+                Log.e(TAG, "unable to bind ActivityRecognitionProxy");
+            }
         }
 
         // bind to gnss geofence proxy
@@ -815,6 +817,9 @@ public class LocationManagerService extends ILocationManager.Stub implements
 
     @Override
     public PackageTagsList getAdasAllowlist() {
+        if (Flags.changeGetAdasAllowlistFromHiddenToSystem()) {
+            LocationPermissions.enforceCallingOrSelfAccessBypassAllowlistPermission(mContext);
+        }
         return mInjector.getSettingsHelper().getAdasAllowlist();
     }
 
@@ -847,8 +852,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
         request = validateLocationRequest(provider, request, identity);
 
         LocationProviderManager manager = getLocationProviderManager(provider);
-        Preconditions.checkArgument(manager != null,
-                "provider \"" + provider + "\" does not exist");
+        Preconditions.checkArgument(manager != null, "provider \"%s\" does not exist", provider);
 
         return manager.getCurrentLocation(request, identity, permissionLevel, consumer);
     }
@@ -890,8 +894,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
         request = validateLocationRequest(provider, request, identity);
 
         LocationProviderManager manager = getLocationProviderManager(provider);
-        Preconditions.checkArgument(manager != null,
-                "provider \"" + provider + "\" does not exist");
+        Preconditions.checkArgument(manager != null, "provider \"%s\" does not exist", provider);
 
         manager.registerLocationRequest(request, identity, permissionLevel, listener);
     }
@@ -939,8 +942,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
         request = validateLocationRequest(provider, request, identity);
 
         LocationProviderManager manager = getLocationProviderManager(provider);
-        Preconditions.checkArgument(manager != null,
-                "provider \"" + provider + "\" does not exist");
+        Preconditions.checkArgument(manager != null, "provider \"%s\" does not exist", provider);
 
         manager.registerLocationRequest(request, identity, permissionLevel, pendingIntent);
     }
@@ -1024,8 +1026,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
     @Override
     public void requestListenerFlush(String provider, ILocationListener listener, int requestCode) {
         LocationProviderManager manager = getLocationProviderManager(provider);
-        Preconditions.checkArgument(manager != null,
-                "provider \"" + provider + "\" does not exist");
+        Preconditions.checkArgument(manager != null, "provider \"%s\" does not exist", provider);
 
         manager.flush(Objects.requireNonNull(listener), requestCode);
     }
@@ -1034,8 +1035,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
     public void requestPendingIntentFlush(String provider, PendingIntent pendingIntent,
             int requestCode) {
         LocationProviderManager manager = getLocationProviderManager(provider);
-        Preconditions.checkArgument(manager != null,
-                "provider \"" + provider + "\" does not exist");
+        Preconditions.checkArgument(manager != null, "provider \"%s\" does not exist", provider);
 
         manager.flush(Objects.requireNonNull(pendingIntent), requestCode);
     }
@@ -1309,8 +1309,7 @@ public class LocationManagerService extends ILocationManager.Stub implements
     @Override
     public ProviderProperties getProviderProperties(String provider) {
         LocationProviderManager manager = getLocationProviderManager(provider);
-        Preconditions.checkArgument(manager != null,
-                "provider \"" + provider + "\" does not exist");
+        Preconditions.checkArgument(manager != null, "provider \"%s\" does not exist", provider);
         return manager.getProperties();
     }
 
@@ -1756,8 +1755,8 @@ public class LocationManagerService extends ILocationManager.Stub implements
                     builder.add(identity.getPackageName(), identity.getAttributionTag());
                 }
             }
-            builder.add(mInjector.getSettingsHelper().getIgnoreSettingsAllowlist());
-            builder.add(mInjector.getSettingsHelper().getAdasAllowlist());
+            builder.addAll(mInjector.getSettingsHelper().getIgnoreSettingsAllowlist());
+            builder.addAll(mInjector.getSettingsHelper().getAdasAllowlist());
             allowedPackages = builder.build();
         }
 

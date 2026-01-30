@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Reproducindo contido nesta tableta"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Podes atopar este teléfono (mesmo se está apagado) con Localizar o meu dispositivo"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Podes atopar esta tableta (mesmo se está apagada) con Localizar o meu dispositivo"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Podes localizar este teléfono co Atopador mesmo se está apagado"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Podes localizar esta tableta co Atopador mesmo se está apagada"</string>
 </resources>

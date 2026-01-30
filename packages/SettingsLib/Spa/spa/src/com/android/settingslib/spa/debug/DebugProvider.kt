@@ -29,7 +29,6 @@ import android.net.Uri
 import android.util.Log
 import com.android.settingslib.spa.framework.common.SpaEnvironmentFactory
 import com.android.settingslib.spa.framework.util.KEY_DESTINATION
-import com.android.settingslib.spa.framework.util.KEY_HIGHLIGHT_ENTRY
 import com.android.settingslib.spa.framework.util.KEY_SESSION_SOURCE_NAME
 import com.android.settingslib.spa.framework.util.SESSION_BROWSE
 import com.android.settingslib.spa.framework.util.SESSION_SEARCH
@@ -196,10 +195,7 @@ private fun createBrowseAdbCommand(
     val activityName = browseActivityClass.name.replace(packageName, "")
     val destinationParam =
         if (destination != null) " -e $KEY_DESTINATION $destination" else ""
-    val highlightParam =
-        if (entryId != null) " -e $KEY_HIGHLIGHT_ENTRY $entryId" else ""
     val sessionParam =
         if (sessionName != null) " -e $KEY_SESSION_SOURCE_NAME $sessionName" else ""
-    return "adb shell am start -n $packageName/$activityName" +
-        "$destinationParam$highlightParam$sessionParam"
+    return "adb shell am start -n $packageName/$activityName$destinationParam$sessionParam"
 }

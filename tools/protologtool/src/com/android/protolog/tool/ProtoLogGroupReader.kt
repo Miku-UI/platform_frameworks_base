@@ -38,13 +38,30 @@ class ProtoLogGroupReader {
         try {
             val classLoader = getClassloaderForJar(jarPath)
             val clazz = classLoader.loadClass(className)
-            val values = getEnumValues(clazz)
-            return values.map { group ->
-                group.name() to
-                        LogGroup(group.name(), group.isEnabled, group.isLogToLogcat, group.tag)
-            }.toMap()
+            return loadFromClass(clazz)
         } catch (ex: ReflectiveOperationException) {
             throw RuntimeException("Unable to load ProtoLogGroup enum class", ex)
         }
+    }
+
+    fun loadFromClass(clazz: Class<*>): Map<String, LogGroup> {
+        try {
+            val values = getEnumValues(clazz)
+            return loadFromIProtoLogGroups(values)
+        } catch (ex: ReflectiveOperationException) {
+            throw RuntimeException("Unable to load ProtoLogGroup enum class", ex)
+        }
+    }
+
+    fun loadFromIProtoLogGroups(values: List<IProtoLogGroup>): Map<String, LogGroup> {
+        return values.map { group ->
+            group.name() to LogGroup(
+                group.name(),
+                group.isEnabled,
+                group.isLogToLogcat,
+                group.tag,
+                group.id
+            )
+        }.toMap()
     }
 }

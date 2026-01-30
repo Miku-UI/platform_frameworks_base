@@ -20,3 +20,5 @@ import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.util.mockito.mock
 
 val Kosmos.activityManager by Kosmos.Fixture { mock<ActivityManager>() }
+
+val Kosmos.activityManagerInterface by Kosmos.Fixture { mock<IActivityManager>() }

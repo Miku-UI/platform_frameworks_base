@@ -22,6 +22,8 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Slog;
 
+import com.android.internal.util.NamedLock;
+
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 
@@ -206,7 +208,7 @@ public class LockGuard {
     }
 
     public static Object installNewLock(int index, boolean doWtf) {
-        final Object lock = new Object();
+        final Object lock = NamedLock.create(lockToString(index));
         installLock(lock, index, doWtf);
         return lock;
     }

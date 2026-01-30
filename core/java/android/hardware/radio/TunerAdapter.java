@@ -423,7 +423,7 @@ final class TunerAdapter extends RadioTuner {
 
     private @RadioManager.ConfigFlag int convertForceAnalogConfigFlag(
             @RadioManager.ConfigFlag int flag) throws RemoteException {
-        if (Flags.hdRadioImproved() && flag == RadioManager.CONFIG_FORCE_ANALOG
+        if (flag == RadioManager.CONFIG_FORCE_ANALOG
                 && mTuner.isConfigFlagSupported(RadioManager.CONFIG_FORCE_ANALOG_FM)) {
             flag = RadioManager.CONFIG_FORCE_ANALOG_FM;
         }

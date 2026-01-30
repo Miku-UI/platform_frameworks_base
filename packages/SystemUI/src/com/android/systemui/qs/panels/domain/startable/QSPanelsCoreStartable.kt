@@ -21,6 +21,7 @@ import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.flags.QsInCompose
 import com.android.systemui.qs.panels.domain.interactor.QSPreferencesInteractor
+import com.android.systemui.qs.panels.domain.interactor.TextFeedbackInteractor
 import com.android.systemui.qs.pipeline.data.repository.TileSpecRepository
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -32,6 +33,7 @@ class QSPanelsCoreStartable
 constructor(
     private val tileSpecRepository: TileSpecRepository,
     private val preferenceInteractor: QSPreferencesInteractor,
+    private val toggleTextFeedbackInteractor: TextFeedbackInteractor,
     @Background private val backgroundApplicationScope: CoroutineScope,
 ) : CoreStartable {
     override fun start() {
@@ -40,6 +42,11 @@ constructor(
                 tileSpecRepository.tilesUpgradePath.receiveAsFlow().collect { (tiles, userId) ->
                     preferenceInteractor.setInitialOrUpgradeLargeTilesSpecs(tiles, userId)
                 }
+            }
+            backgroundApplicationScope.launchTraced(
+                "QSPanelsCoreStartable.activateTextFeedbackInteractor"
+            ) {
+                toggleTextFeedbackInteractor.activate()
             }
         } else {
             backgroundApplicationScope.launch { preferenceInteractor.deleteLargeTilesDataJob() }

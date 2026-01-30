@@ -90,7 +90,7 @@ public class ContentProviderClient implements ContentInterface, AutoCloseable {
     private long mAnrTimeout;
     private NotRespondingRunnable mAnrRunnable;
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public ContentProviderClient(ContentResolver contentResolver, IContentProvider contentProvider,
             boolean stable) {
@@ -98,7 +98,7 @@ public class ContentProviderClient implements ContentInterface, AutoCloseable {
         this(contentResolver, contentProvider, "unknown", stable);
     }
 
-    /** {@hide} */
+    /** @hide */
     public ContentProviderClient(ContentResolver contentResolver, IContentProvider contentProvider,
             String authority, boolean stable) {
         mContentResolver = contentResolver;
@@ -310,7 +310,7 @@ public class ContentProviderClient implements ContentInterface, AutoCloseable {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     public int checkUriPermission(@NonNull Uri uri, int uid, @Intent.AccessUriMode int modeFlags)
             throws RemoteException {
@@ -670,13 +670,13 @@ public class ContentProviderClient implements ContentInterface, AutoCloseable {
         return ContentProvider.coerceToLocalContentProvider(mContentProvider);
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public static void closeQuietly(ContentProviderClient client) {
         IoUtils.closeQuietly(client);
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public static void releaseQuietly(ContentProviderClient client) {
         IoUtils.closeQuietly(client);

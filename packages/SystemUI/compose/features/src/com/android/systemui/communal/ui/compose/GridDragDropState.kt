@@ -208,8 +208,8 @@ private class GridDragDropStateV1(
 ) : GridDragDropStateInternal(gridState) {
     private val scrollChannel = Channel<Float>()
 
-    private val spacer = CommunalContentModel.Spacer(CommunalContentSize.Responsive(1))
-    private var spacerIndex: Int? = null
+    private val spacer =
+        CommunalContentModel.Spacer(CommunalContentSize.fixedThirdOrResponsiveSize())
 
     private var previousTargetItemKey: Any? = null
 
@@ -232,7 +232,7 @@ private class GridDragDropStateV1(
                 offset.y,
             )
         state.layoutInfo.visibleItemsInfo
-            .filter { item -> contentListState.isItemEditable(item.index) }
+            .filter { item -> contentListState.isItemEditable(item.key) }
             // grid item offset is based off grid content container so we need to deduct
             // before content padding from the initial pointer position
             .firstItemAtOffset(normalizedOffset - contentOffset)
@@ -248,7 +248,6 @@ private class GridDragDropStateV1(
                         lastWidget.size.span > draggingItemLayoutInfo!!.span
                 ) {
                     contentListState.list.add(spacer)
-                    spacerIndex = contentListState.list.size - 1
                 }
                 return true
             }
@@ -272,10 +271,12 @@ private class GridDragDropStateV1(
         previousTargetItemKey = null
         draggingItemDraggedDelta = Offset.Zero
         draggingItemInitialOffset = Offset.Zero
-        // Remove spacer, if any, when a drag gesture finishes.
-        spacerIndex?.let {
-            contentListState.list.removeAt(it)
-            spacerIndex = null
+        // Remove spacer, if one is added at the end, when a drag gesture finishes.
+        if (
+            contentListState.list.isNotEmpty() &&
+                contentListState.list.last() is CommunalContentModel.Spacer
+        ) {
+            contentListState.list.removeLast()
         }
     }
 
@@ -297,7 +298,7 @@ private class GridDragDropStateV1(
                     val lastVisibleItemIndex = state.layoutInfo.visibleItemsInfo.last().index
                     val itemBoundingBox = IntRect(item.offset, item.size)
                     draggingItemKey != item.key &&
-                        contentListState.isItemEditable(item.index) &&
+                        contentListState.isItemEditable(item.key) &&
                         (draggingBoundingBox.contains(itemBoundingBox.center) ||
                             itemBoundingBox.contains(draggingBoundingBox.center)) &&
                         // If we swap with the last visible item, and that item doesn't fit
@@ -310,7 +311,7 @@ private class GridDragDropStateV1(
             } else {
                 state.layoutInfo.visibleItemsInfo
                     .asSequence()
-                    .filter { item -> contentListState.isItemEditable(item.index) }
+                    .filter { item -> contentListState.isItemEditable(item.key) }
                     .filter { item -> draggingItem.index != item.index }
                     .firstItemAtOffset(middleOffset)
             }
@@ -394,8 +395,8 @@ private class GridDragDropStateV2(
     // and no longer in the list of visible items).
     private var draggingItemWhileScrolling: LazyGridItemInfo? by mutableStateOf(null)
 
-    private val spacer = CommunalContentModel.Spacer(CommunalContentSize.Responsive(1))
-    private var spacerIndex: Int? = null
+    private val spacer =
+        CommunalContentModel.Spacer(CommunalContentSize.fixedThirdOrResponsiveSize())
 
     private var previousTargetItemKey: Any? = null
 
@@ -447,7 +448,7 @@ private class GridDragDropStateV2(
         this.contentOffset = contentOffset
 
         state.layoutInfo.visibleItemsInfo
-            .filter { item -> contentListState.isItemEditable(item.index) }
+            .filter { item -> contentListState.isItemEditable(item.key) }
             // grid item offset is based off grid content container so we need to deduct
             // before content padding from the initial pointer position
             .firstItemAtOffset(normalizedOffset - contentOffset)
@@ -468,7 +469,6 @@ private class GridDragDropStateV2(
                         lastWidget.size.span > draggingItemLayoutInfo!!.span
                 ) {
                     contentListState.list.add(spacer)
-                    spacerIndex = contentListState.list.size - 1
                 }
                 return true
             }
@@ -494,10 +494,12 @@ private class GridDragDropStateV2(
         draggingItemInitialOffset = Offset.Zero
         currentDragPositionOnScreen = Offset.Zero
         draggingItemWhileScrolling = null
-        // Remove spacer, if any, when a drag gesture finishes.
-        spacerIndex?.let {
-            contentListState.list.removeAt(it)
-            spacerIndex = null
+        // Remove spacer, if one is added at the end, when a drag gesture finishes.
+        if (
+            contentListState.list.isNotEmpty() &&
+                contentListState.list.last() is CommunalContentModel.Spacer
+        ) {
+            contentListState.list.removeLast()
         }
     }
 
@@ -527,7 +529,7 @@ private class GridDragDropStateV2(
                     fun(item): Boolean {
                         val itemBoundingBox = IntRect(item.offset, item.size)
                         return draggingItemKey != item.key &&
-                            contentListState.isItemEditable(item.index) &&
+                            contentListState.isItemEditable(item.key) &&
                             itemBoundingBox.contains(curDragPositionInGrid.round()) &&
                             // If we swap with the last visible item, and that item doesn't fit
                             // in the gap created by moving the current item, then the current item
@@ -540,7 +542,7 @@ private class GridDragDropStateV2(
             } else {
                 state.layoutInfo.visibleItemsInfo
                     .asSequence()
-                    .filter { item -> contentListState.isItemEditable(item.index) }
+                    .filter { item -> contentListState.isItemEditable(item.key) }
                     .filter { item -> draggingItem.index != item.index }
                     .firstItemAtOffset(curDragPositionInGrid)
             }

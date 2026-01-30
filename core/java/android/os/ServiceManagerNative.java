@@ -133,6 +133,11 @@ class ServiceManagerProxy implements IServiceManager {
         return mServiceManager.getServiceDebugInfo();
     }
 
+    public boolean checkServiceAccess(CallerContext callerCtx, String service,
+                                      String access) throws RemoteException {
+        return mServiceManager.checkServiceAccess(callerCtx, service, access);
+    }
+
     /**
      * Same as mServiceManager but used by apps.
      *

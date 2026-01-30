@@ -33,7 +33,9 @@ import android.util.SparseBooleanArray;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.os.ProcessCpuTracker;
+import com.android.internal.os.TimeoutRecord;
 import com.android.internal.os.anr.AnrLatencyTracker;
+import com.android.server.utils.AnrTimer;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -84,25 +86,39 @@ public class StackTracesDumpHelper {
     /**
      * If a stack trace dump file is configured, dump process stack traces.
      * @param firstPids of dalvik VM processes to dump stack traces for first
+     * @param processCpuTracker
      * @param lastPids of dalvik VM processes to dump stack traces for last
      * @param nativePidsFuture optional future for a list of native pids to dump stack crawls
      * @param logExceptionCreatingFile optional writer to which we log errors creating the file
      * @param auxiliaryTaskExecutor executor to execute auxiliary tasks on
      * @param latencyTracker the latency tracker instance of the current ANR.
      */
-    public static File dumpStackTraces(ArrayList<Integer> firstPids,
-            ProcessCpuTracker processCpuTracker, SparseBooleanArray lastPids,
-            Future<ArrayList<Integer>> nativePidsFuture, StringWriter logExceptionCreatingFile,
-            @NonNull Executor auxiliaryTaskExecutor, AnrLatencyTracker latencyTracker) {
+    public static File dumpStackTraces(
+            ArrayList<Integer> firstPids,
+            ProcessCpuTracker processCpuTracker,
+            SparseBooleanArray lastPids,
+            Future<ArrayList<Integer>> nativePidsFuture,
+            StringWriter logExceptionCreatingFile,
+            @NonNull Executor auxiliaryTaskExecutor,
+            AnrLatencyTracker latencyTracker) {
         return dumpStackTraces(firstPids, processCpuTracker, lastPids, nativePidsFuture,
                 logExceptionCreatingFile, null, null, null, null, auxiliaryTaskExecutor, null,
-                latencyTracker);
+                latencyTracker, null);
     }
 
     /**
+     * If a stack trace dump file is configured, dump process stack traces.
+     *
+     * @param firstPids of dalvik VM processes to dump stack traces for first
+     * @param processCpuTracker of dalvik VM processes
+     * @param lastPids of dalvik VM processes to dump stack traces for last
+     * @param nativePidsFuture optional future for a list of native pids to dump stack crawls
+     * @param logExceptionCreatingFile optional writer to which we log errors creating the file
      * @param subject the subject of the dumped traces
      * @param criticalEventSection the critical event log, passed as a string
      * @param extraHeaders Optional, Extra headers added by the dumping method
+     * @param auxiliaryTaskExecutor executor to execute auxiliary tasks on
+     * @param latencyTracker the latency tracker instance of the current ANR.
      */
     public static File dumpStackTraces(ArrayList<Integer> firstPids,
             ProcessCpuTracker processCpuTracker, SparseBooleanArray lastPids,
@@ -110,21 +126,75 @@ public class StackTracesDumpHelper {
             String subject, String criticalEventSection,
             LinkedHashMap<String, String> extraHeaders, @NonNull Executor auxiliaryTaskExecutor,
             AnrLatencyTracker latencyTracker) {
+        return dumpStackTraces(
+                firstPids,
+                processCpuTracker,
+                lastPids,
+                nativePidsFuture,
+                logExceptionCreatingFile,
+                /* firstPidEndOffset= */ null,
+                subject,
+                criticalEventSection,
+                extraHeaders,
+                auxiliaryTaskExecutor,
+                /* firstPidFilePromise= */ null,
+                latencyTracker,
+                /* timeoutRecord= */ null);
+    }
+
+
+    /**
+     * If a stack trace dump file is configured, dump process stack traces.
+     *
+     * @param firstPids of dalvik VM processes to dump stack traces for first
+     * @param processCpuTracker of dalvik VM processes
+     * @param lastPids of dalvik VM processes to dump stack traces for last
+     * @param nativePidsFuture optional future for a list of native pids to dump stack crawls
+     * @param logExceptionCreatingFile optional writer to which we log errors creating the file
+     * @param subject the subject of the dumped traces
+     * @param criticalEventSection the critical event log, passed as a string
+     * @param extraHeaders Optional, Extra headers added by the dumping method
+     * @param auxiliaryTaskExecutor executor to execute auxiliary tasks on
+     * @param firstPidEndOffset Optional, when it's set, it receives the start/end offset of the
+     *     very first pid to be dumped.
+     * @param latencyTracker the latency tracker instance of the current ANR.
+     */
+    public static File dumpStackTraces(
+            ArrayList<Integer> firstPids,
+            ProcessCpuTracker processCpuTracker,
+            SparseBooleanArray lastPids,
+            Future<ArrayList<Integer>> nativePidsFuture,
+            StringWriter logExceptionCreatingFile,
+            AtomicLong firstPidEndOffset,
+            String subject,
+            String criticalEventSection,
+            LinkedHashMap<String, String> extraHeaders,
+            @NonNull Executor auxiliaryTaskExecutor,
+            Future<File> firstPidFilePromise,
+            AnrLatencyTracker latencyTracker) {
         return dumpStackTraces(firstPids, processCpuTracker, lastPids, nativePidsFuture,
-                logExceptionCreatingFile, null, subject, criticalEventSection,
-                extraHeaders, auxiliaryTaskExecutor, null, latencyTracker);
+                logExceptionCreatingFile, firstPidEndOffset, subject, criticalEventSection,
+                extraHeaders, auxiliaryTaskExecutor, firstPidFilePromise, latencyTracker,
+                null);
     }
 
     /**
-     * @param firstPidEndOffset Optional, when it's set, it receives the start/end offset
-     *                        of the very first pid to be dumped.
+     * @param timeoutRecord the timeout record of the current ANR.
      */
-    /* package */ static File dumpStackTraces(ArrayList<Integer> firstPids,
-            ProcessCpuTracker processCpuTracker, SparseBooleanArray lastPids,
-            Future<ArrayList<Integer>> nativePidsFuture, StringWriter logExceptionCreatingFile,
-            AtomicLong firstPidEndOffset, String subject, String criticalEventSection,
-            LinkedHashMap<String, String> extraHeaders, @NonNull Executor auxiliaryTaskExecutor,
-           Future<File> firstPidFilePromise, AnrLatencyTracker latencyTracker) {
+    public static File dumpStackTraces(
+            ArrayList<Integer> firstPids,
+            ProcessCpuTracker processCpuTracker,
+            SparseBooleanArray lastPids,
+            Future<ArrayList<Integer>> nativePidsFuture,
+            StringWriter logExceptionCreatingFile,
+            AtomicLong firstPidEndOffset,
+            String subject,
+            String criticalEventSection,
+            LinkedHashMap<String, String> extraHeaders,
+            @NonNull Executor auxiliaryTaskExecutor,
+            Future<File> firstPidFilePromise,
+            AnrLatencyTracker latencyTracker,
+            TimeoutRecord timeoutRecord) {
         try {
 
             if (latencyTracker != null) {
@@ -163,13 +233,31 @@ public class StackTracesDumpHelper {
                 }
                 return null;
             }
-            boolean extraHeadersExist = extraHeaders != null && !extraHeaders.isEmpty();
-
-            if (subject != null || criticalEventSection != null || extraHeadersExist) {
-                appendtoANRFile(tracesFile.getAbsolutePath(),
-                        (subject != null ? "Subject: " + subject + "\n" : "")
-                        + (extraHeadersExist ? stringifyHeaders(extraHeaders) + "\n\n" : "")
-                        + (criticalEventSection != null ? criticalEventSection : ""));
+            StringBuilder headers = new StringBuilder();
+            if (subject != null) {
+                headers.append("Subject: ").append(subject).append("\n");
+            }
+            if (timeoutRecord != null) {
+                AnrTimer.ExpiredTimer expiredTimer = AnrTimer.expiredTimer(timeoutRecord);
+                if (expiredTimer != null && expiredTimer.mDurationMs > 0) {
+                    headers.append("Timeout: ")
+                            .append(expiredTimer.mDurationMs)
+                            .append("\n");
+                }
+                if (expiredTimer != null && expiredTimer.mStartMs > 0) {
+                    headers.append("TimeoutStart: ")
+                            .append(expiredTimer.mStartMs)
+                            .append("\n");
+                }
+            }
+            if (extraHeaders != null && !extraHeaders.isEmpty()) {
+                headers.append(stringifyHeaders(extraHeaders)).append("\n\n");
+            }
+            if (criticalEventSection != null) {
+                headers.append(criticalEventSection);
+            }
+            if (!headers.isEmpty()) {
+                appendtoANRFile(tracesFile.getAbsolutePath(), headers.toString());
             }
 
             long firstPidEndPos = dumpStackTraces(

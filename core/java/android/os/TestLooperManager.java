@@ -63,6 +63,7 @@ public class TestLooperManager {
         if (!mLooperIsMyLooper) {
             // Post a message that will keep the looper blocked as long as we are dispatching.
             new Handler(looper).post(new LooperHolder());
+            waitForLooperHolder();
         } else {
             mLooperHolderLatch.countDown();
         }

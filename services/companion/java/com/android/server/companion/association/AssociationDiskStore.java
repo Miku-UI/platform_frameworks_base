@@ -32,6 +32,7 @@ import static com.android.server.companion.utils.DataStoreUtils.fileToByteArray;
 import static com.android.server.companion.utils.DataStoreUtils.isEndOfTag;
 import static com.android.server.companion.utils.DataStoreUtils.isStartOfTag;
 import static com.android.server.companion.utils.DataStoreUtils.writeToFileSafely;
+import static com.android.server.companion.utils.Utils.generateRandom128BitKey;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -42,6 +43,7 @@ import android.companion.DeviceId;
 import android.graphics.drawable.Icon;
 import android.net.MacAddress;
 import android.os.Environment;
+import android.os.PersistableBundle;
 import android.util.AtomicFile;
 import android.util.Slog;
 import android.util.Xml;
@@ -61,6 +63,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -134,24 +137,34 @@ import java.util.concurrent.ConcurrentMap;
  *             last_time_connected="1634641160229"
  *             time_approved="1634389553216"
  *             system_data_sync_flags="0"
- *             device_icon="device_icon">
+ *             transport_flags="0">
  *             <device_id
  *                 custom_device_id="1234"/>
+ *             <packages_to_notify
+ *                 package_to_notify="com.sample.anotherCompanion.app"/>
  *         </association>
  *         <association
  *             id="3"
  *             profile="android.app.role.COMPANION_DEVICE_WATCH"
  *             package="com.sample.companion.another.app"
- *             display_name="Jhon's Chromebook"
+ *             display_name="John's Watch"
  *             self_managed="true"
  *             notify_device_nearby="false"
  *             revoked="false"
  *             last_time_connected="1634641160229"
  *             time_approved="1634641160229"
  *             system_data_sync_flags="1"
- *             device_icon="device_icon">
+ *             transport_flags="0">
  *             <device_id
  *                 custom_device_id="1234"/>
+ *             <packages_to_notify
+ *                 package_to_notify="com.example.app1|com.example.app2"/>
+ *             <metadata>
+ *                 <pbundle_as_map name="feature1">
+ *                     <int name="version">1</string>
+ *                     <string name="data">test</string>
+ *                 </pbundle_as_map>
+ *             </metadata>
  *         </association>
  *     </associations>
  * </state>
@@ -160,6 +173,9 @@ import java.util.concurrent.ConcurrentMap;
 @SuppressLint("LongLogTag")
 public final class AssociationDiskStore {
     private static final String TAG = "CDM_AssociationDiskStore";
+
+    private static final String DELIMITER = "|";
+    private static final String REGEX = "\\|";
 
     private static final int CURRENT_PERSISTENCE_VERSION = 1;
 
@@ -171,6 +187,9 @@ public final class AssociationDiskStore {
     private static final String XML_TAG_ASSOCIATIONS = "associations";
     private static final String XML_TAG_ASSOCIATION = "association";
     private static final String XML_TAG_DEVICE_ID = "device_id";
+    private static final String XML_TAG_PACKAGES_TO_NOTIFY = "packages_to_notify";
+    private static final String XML_TAG_METADATA = "metadata";
+
 
     private static final String XML_ATTR_PERSISTENCE_VERSION = "persistence-version";
     private static final String XML_ATTR_MAX_ID = "max-id";
@@ -186,9 +205,13 @@ public final class AssociationDiskStore {
     private static final String XML_ATTR_TIME_APPROVED = "time_approved";
     private static final String XML_ATTR_LAST_TIME_CONNECTED = "last_time_connected";
     private static final String XML_ATTR_SYSTEM_DATA_SYNC_FLAGS = "system_data_sync_flags";
+    private static final String XML_ATTR_TRANSPORT_FLAGS = "transport_flags";
     private static final String XML_ATTR_DEVICE_ICON = "device_icon";
     private static final String XML_ATTR_CUSTOM_DEVICE_ID = "custom_device_id";
     private static final String XML_ATTR_MAC_ADDRESS_DEVICE_ID = "mac_address_device_id";
+    private static final String XML_ATTR_KEY_DEVICE_ID = "key_device_id";
+    private static final String XML_ATTR_PACKAGE_TO_NOTIFY = "package_to_notify";
+    private static final String XML_ATTR_METADATA = "metadata";
 
     private static final String LEGACY_XML_ATTR_DEVICE = "device";
 
@@ -332,7 +355,7 @@ public final class AssociationDiskStore {
     }
 
     @NonNull
-    private static Associations readAssociationsFromInputStream(@UserIdInt int userId,
+    public static Associations readAssociationsFromInputStream(@UserIdInt int userId,
             @NonNull InputStream in, @NonNull String rootTag)
             throws XmlPullParserException, IOException {
         final TypedXmlPullParser parser = Xml.resolvePullParser(in);
@@ -348,10 +371,15 @@ public final class AssociationDiskStore {
             case 1:
                 while (true) {
                     parser.nextTag();
+                    if (isEndOfTag(parser, rootTag)) {
+                        break;
+                    }
                     if (isStartOfTag(parser, XML_TAG_ASSOCIATIONS)) {
                         associations = readAssociationsV1(parser, userId);
-                    } else if (isEndOfTag(parser, rootTag)) {
-                        break;
+                    } else {
+                        Slog.e(TAG, "Unexpected tag " + parser.getName()
+                                + " inside <" + rootTag + "> for user " + userId);
+                        XmlUtils.skipCurrentTag(parser);
                     }
                 }
                 break;
@@ -366,7 +394,7 @@ public final class AssociationDiskStore {
         writeToFileSafely(file, out -> {
             final TypedXmlSerializer serializer = Xml.resolveSerializer(out);
             serializer.setFeature("http://xmlpull.org/v1/doc/features.html#indent-output", true);
-            serializer.startDocument(null, true);
+            serializer.startDocument("UTF-8", true);
             serializer.startTag(null, XML_TAG_STATE);
             writeIntAttribute(serializer,
                     XML_ATTR_PERSISTENCE_VERSION, CURRENT_PERSISTENCE_VERSION);
@@ -456,11 +484,13 @@ public final class AssociationDiskStore {
         final boolean notify = readBooleanAttribute(parser, XML_ATTR_NOTIFY_DEVICE_NEARBY);
         final long timeApproved = readLongAttribute(parser, XML_ATTR_TIME_APPROVED, 0L);
 
-        return new AssociationInfo(associationId, userId, appPackage,
-                MacAddress.fromString(deviceAddress), null, profile, null,
-                /* managedByCompanionApp */ false, notify, /* revoked */ false, /* pending */ false,
-                timeApproved, Long.MAX_VALUE, /* systemDataSyncFlags */ 0, /* deviceIcon */ null,
-                /* deviceId */ null);
+        return new AssociationInfo.Builder(associationId, userId, appPackage)
+                .setDeviceMacAddress(MacAddress.fromString(deviceAddress))
+                .setDeviceProfile(profile)
+                .setNotifyOnDeviceNearby(notify)
+                .setTimeApproved(timeApproved)
+                .setSystemDataSyncFlags(0)
+                .build();
     }
 
     private static Associations readAssociationsV1(@NonNull TypedXmlPullParser parser,
@@ -476,13 +506,18 @@ public final class AssociationDiskStore {
 
         while (true) {
             parser.nextTag();
-            if (isEndOfTag(parser, XML_TAG_ASSOCIATIONS)) break;
-            if (!isStartOfTag(parser, XML_TAG_ASSOCIATION)) continue;
-
-            AssociationInfo association = readAssociationV1(parser, userId);
-            associations.addAssociation(association);
-
-            maxId = Math.max(maxId, association.getId());
+            if (isEndOfTag(parser, XML_TAG_ASSOCIATIONS)) {
+                break;
+            }
+            if (isStartOfTag(parser, XML_TAG_ASSOCIATION)) {
+                AssociationInfo association = readAssociationV1(parser, userId);
+                associations.addAssociation(association);
+                maxId = Math.max(maxId, association.getId());
+            } else {
+                Slog.e(TAG, "Unexpected tag " + parser.getName()
+                        + " inside <" + XML_TAG_ASSOCIATIONS + "> for user " + userId);
+                XmlUtils.skipCurrentTag(parser);
+            }
         }
 
         associations.setMaxId(maxId);
@@ -510,28 +545,86 @@ public final class AssociationDiskStore {
                 parser, XML_ATTR_LAST_TIME_CONNECTED, Long.MAX_VALUE);
         final int systemDataSyncFlags = readIntAttribute(parser,
                 XML_ATTR_SYSTEM_DATA_SYNC_FLAGS, 0);
+        final int transportFlags = readIntAttribute(parser,
+                XML_ATTR_TRANSPORT_FLAGS, 0);
         final Icon deviceIcon = byteArrayToIcon(
                 readByteArrayAttribute(parser, XML_ATTR_DEVICE_ICON));
-        parser.nextTag();
-        final DeviceId deviceId = readDeviceId(parser);
 
-        return new AssociationInfo(associationId, userId, appPackage, macAddress, displayName,
-                profile, null, selfManaged, notify, revoked, pending, timeApproved,
-                lastTimeConnected, systemDataSyncFlags, deviceIcon, deviceId);
+        // Read nested tags
+        DeviceId deviceId = null;
+        List<String> packagesToNotify = null;
+        PersistableBundle metadata = new PersistableBundle();
+        while (true) {
+            parser.nextTag();
+            if (isEndOfTag(parser, XML_TAG_ASSOCIATION)) {
+                break;
+            }
+            if (isStartOfTag(parser, XML_TAG_DEVICE_ID)) {
+                deviceId = readDeviceId(parser);
+            } else if (isStartOfTag(parser, XML_TAG_PACKAGES_TO_NOTIFY)) {
+                packagesToNotify = readPackagesToNotify(parser);
+            } else if (isStartOfTag(parser, XML_TAG_METADATA)) {
+                metadata = readMetadata(parser);
+            } else {
+                Slog.e(TAG, "Unexpected tag " + parser.getName()
+                        + " inside <" + XML_TAG_ASSOCIATION + "> for user " + userId);
+                XmlUtils.skipCurrentTag(parser);
+            }
+        }
+
+        return new AssociationInfo.Builder(associationId, userId, appPackage)
+                .setDeviceMacAddress(macAddress)
+                .setDisplayName(displayName)
+                .setDeviceProfile(profile)
+                .setSelfManaged(selfManaged)
+                .setNotifyOnDeviceNearby(notify)
+                .setRevoked(revoked)
+                .setPending(pending)
+                .setTimeApproved(timeApproved)
+                .setLastTimeConnected(lastTimeConnected)
+                .setSystemDataSyncFlags(systemDataSyncFlags)
+                .setDeviceIcon(deviceIcon)
+                .setDeviceId(deviceId)
+                .setPackagesToNotify(packagesToNotify)
+                .setMetadata(metadata)
+                .build();
+    }
+
+    private static List<String> readPackagesToNotify(@NonNull TypedXmlPullParser parser)
+            throws XmlPullParserException, IOException {
+        String packageNames = readStringAttribute(parser, XML_ATTR_PACKAGE_TO_NOTIFY);
+
+        // Manually move to the END tag of XML_TAG_PACKAGES_TO_NOTIFY.
+        parser.nextTag();
+
+        return deserializePackagesToNotify(packageNames);
     }
 
     private static DeviceId readDeviceId(@NonNull TypedXmlPullParser parser)
-            throws XmlPullParserException {
-        if (isStartOfTag(parser, XML_TAG_DEVICE_ID)) {
-            final String customDeviceId = readStringAttribute(
-                    parser, XML_ATTR_CUSTOM_DEVICE_ID);
-            final MacAddress macAddress = stringToMacAddress(
-                    readStringAttribute(parser, XML_ATTR_MAC_ADDRESS_DEVICE_ID));
-
-            return new DeviceId(customDeviceId, macAddress);
+            throws XmlPullParserException, IOException {
+        final String customDeviceId = readStringAttribute(
+                parser, XML_ATTR_CUSTOM_DEVICE_ID);
+        final MacAddress macAddress = stringToMacAddress(
+                readStringAttribute(parser, XML_ATTR_MAC_ADDRESS_DEVICE_ID));
+        byte[] id = readByteArrayAttribute(parser, XML_ATTR_KEY_DEVICE_ID);
+        if (id == null) {
+            id = generateRandom128BitKey();
         }
 
-        return null;
+        // Manually move to the END tag of XML_TAG_DEVICE_ID.
+        parser.nextTag();
+
+        return new DeviceId(customDeviceId, macAddress, id);
+    }
+
+    private static PersistableBundle readMetadata(@NonNull TypedXmlPullParser parser)
+            throws XmlPullParserException, IOException {
+        try {
+            return PersistableBundle.restoreFromXml(parser);
+        } catch (XmlPullParserException e) {
+            Slog.w(TAG, "Error while reading metadata of association", e);
+        }
+        return new PersistableBundle();
     }
 
     private static void writeAssociations(@NonNull XmlSerializer parent,
@@ -563,29 +656,60 @@ public final class AssociationDiskStore {
         writeLongAttribute(
                 serializer, XML_ATTR_LAST_TIME_CONNECTED, a.getLastTimeConnectedMs());
         writeIntAttribute(serializer, XML_ATTR_SYSTEM_DATA_SYNC_FLAGS, a.getSystemDataSyncFlags());
+        writeIntAttribute(serializer, XML_ATTR_TRANSPORT_FLAGS, a.getTransportFlags());
         writeByteArrayAttribute(
                 serializer, XML_ATTR_DEVICE_ICON, iconToByteArray(a.getDeviceIcon()));
 
-        writeDeviceId(serializer, a);
+        if (a.getDeviceId() != null) {
+            writeDeviceId(serializer, a);
+        }
+        if (a.getPackagesToNotify() != null && !a.getPackagesToNotify().isEmpty()) {
+            writePackagesToNotify(serializer, a);
+        }
+        if (!a.getMetadata().isEmpty()) {
+            writeMetadata(serializer, a);
+        }
         serializer.endTag(null, XML_TAG_ASSOCIATION);
+    }
+
+    private static void writePackagesToNotify(
+            XmlSerializer parent, @NonNull AssociationInfo a) throws IOException {
+        final XmlSerializer serializer = parent.startTag(null, XML_TAG_PACKAGES_TO_NOTIFY);
+        String packagesToNotify = serializePackagesToNotify(a.getPackagesToNotify());
+        writeStringAttribute(serializer, XML_ATTR_PACKAGE_TO_NOTIFY, packagesToNotify);
+        serializer.endTag(null, XML_TAG_PACKAGES_TO_NOTIFY);
     }
 
     private static void writeDeviceId(XmlSerializer parent, @NonNull AssociationInfo a)
             throws IOException {
-        if (a.getDeviceId() != null) {
-            final XmlSerializer serializer = parent.startTag(null, XML_TAG_DEVICE_ID);
-            writeStringAttribute(
-                    serializer,
-                    XML_ATTR_CUSTOM_DEVICE_ID,
-                    a.getDeviceId().getCustomId()
-            );
-            writeStringAttribute(
-                    serializer,
-                    XML_ATTR_MAC_ADDRESS_DEVICE_ID,
-                    a.getDeviceId().getMacAddressAsString()
-            );
-            serializer.endTag(null, XML_TAG_DEVICE_ID);
+        final XmlSerializer serializer = parent.startTag(null, XML_TAG_DEVICE_ID);
+        writeStringAttribute(
+                serializer,
+                XML_ATTR_CUSTOM_DEVICE_ID,
+                a.getDeviceId().getCustomId()
+        );
+        writeStringAttribute(
+                serializer,
+                XML_ATTR_MAC_ADDRESS_DEVICE_ID,
+                a.getDeviceId().getMacAddressAsString()
+        );
+        writeByteArrayAttribute(
+                serializer,
+                XML_ATTR_KEY_DEVICE_ID,
+                a.getDeviceId().getKey()
+        );
+        serializer.endTag(null, XML_TAG_DEVICE_ID);
+    }
+
+    private static void writeMetadata(XmlSerializer parent, @NonNull AssociationInfo a)
+            throws IOException {
+        final XmlSerializer serializer = parent.startTag(null, XML_TAG_METADATA);
+        try {
+            a.getMetadata().saveToXml(serializer);
+        } catch (XmlPullParserException e) {
+            Slog.w(TAG, "Error while writing metadata of association " + a.getId(), e);
         }
+        serializer.endTag(null, XML_TAG_METADATA);
     }
 
     private static void requireStartOfTag(@NonNull XmlPullParser parser, @NonNull String tag)
@@ -617,5 +741,20 @@ public final class AssociationDiskStore {
 
         ByteArrayInputStream byteStream = new ByteArrayInputStream(bytes);
         return Icon.createFromStream(byteStream);
+    }
+
+    private static String serializePackagesToNotify(List<String> packagesToNotify) {
+        if (packagesToNotify == null) {
+            return "";
+        }
+        return String.join(DELIMITER, packagesToNotify);
+    }
+
+    private static List<String> deserializePackagesToNotify(String serializedString) {
+        if (serializedString == null) {
+            return null;
+        }
+        String[] stringArray = serializedString.split(REGEX);
+        return Arrays.asList(stringArray);
     }
 }

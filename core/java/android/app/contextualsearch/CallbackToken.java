@@ -46,7 +46,7 @@ import java.util.concurrent.Executor;
  */
 @SystemApi
 public final class CallbackToken implements Parcelable {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
     private static final String TAG = CallbackToken.class.getSimpleName();
     private final IBinder mToken;
 

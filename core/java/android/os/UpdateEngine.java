@@ -51,7 +51,7 @@ import java.lang.annotation.RetentionPolicy;
  * and
  * {@code system/update_engine/binder_bindings/android/os/IUpdateEngineCallback.aidl}.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public class UpdateEngine {

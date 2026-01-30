@@ -16,10 +16,27 @@
 
 package com.android.systemui.keyguard.shared.model
 
+import com.android.systemui.shared.Flags
+
 /** Clock burn-in translation/scaling data */
 data class BurnInModel(
     val translationX: Int = 0,
     val translationY: Int = 0,
-    val scale: Float = 1f,
+    val scale: Float = MAX_LARGE_CLOCK_SCALE,
     val scaleClockOnly: Boolean = false,
-)
+) {
+    companion object {
+        /**
+         * The maximum scale for the large clock.
+         *
+         * We use a custom getter here instead of static initialization to support test
+         * environments. This ensures the value of the flag is read dynamically during each test
+         * run, after test rules have had a chance to set the flag's state, preventing a
+         * FlagSetException.
+         */
+        val MAX_LARGE_CLOCK_SCALE: Float
+            get() {
+                return if (Flags.clockReactiveSmartspaceLayout()) 0.9f else 1f
+            }
+    }
+}

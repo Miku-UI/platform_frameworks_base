@@ -77,8 +77,11 @@ import android.view.IWindowManager;
 
 import com.android.internal.util.test.FakeSettingsProvider;
 import com.android.internal.widget.LockPatternUtils;
-import com.android.internal.widget.LockSettingsInternal;
+import com.android.role.RoleManagerLocal;
 import com.android.server.AlarmManagerInternal;
+import com.android.server.LocalManagerRegistry;
+import com.android.server.LocalServices;
+import com.android.server.locksettings.LockSettingsInternal;
 import com.android.server.net.NetworkPolicyManagerInternal;
 import com.android.server.pdb.PersistentDataBlockManagerInternal;
 import com.android.server.pm.PackageManagerLocal;
@@ -145,6 +148,7 @@ public class MockSystemServices {
     public final LocationManager locationManager;
     public final RoleManager roleManager;
     public final RoleManagerForMock roleManagerForMock;
+    public final RoleManagerLocal roleManagerLocal;
     public final SubscriptionManager subscriptionManager;
     /** Note this is a partial mock, not a real mock. */
     public final PackageManager packageManager;
@@ -206,9 +210,19 @@ public class MockSystemServices {
         locationManager = mock(LocationManager.class);
         roleManager = realContext.getSystemService(RoleManager.class);
         roleManagerForMock = mock(RoleManagerForMock.class);
+        roleManagerLocal = mock(RoleManagerLocal.class);
         subscriptionManager = mock(SubscriptionManager.class);
         supervisionManagerInternal = mock(SupervisionManagerInternal.class);
         euiccManager = mock(EuiccManager.class);
+
+        if (LocalManagerRegistry.getManager(RoleManagerLocal.class) == null) {
+            LocalManagerRegistry.addManager(RoleManagerLocal.class, roleManagerLocal);
+        }
+
+        LocalServices.removeServiceForTest(PackageManagerInternal.class);
+        LocalServices.addService(PackageManagerInternal.class, packageManagerInternal);
+        LocalServices.removeServiceForTest(UsageStatsManagerInternal.class);
+        LocalServices.addService(UsageStatsManagerInternal.class, usageStatsManagerInternal);
 
         // Package manager is huge, so we use a partial mock instead.
         packageManager = spy(realContext.getPackageManager());

@@ -15,6 +15,8 @@
  */
 package com.android.server.usage;
 
+import static android.appwidget.flags.Flags.engagementMetrics;
+
 import android.app.usage.ConfigurationStats;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageEvents.Event.UserInteractionEventExtrasToken;
@@ -931,6 +933,12 @@ final class UsageStatsProtoV2 {
                     interactionExtrasToken.mActionToken = proto.readInt(
                             ObfuscatedUserInteractionExtrasProto.ACTION_TOKEN) - 1;
                     break;
+                case (int) ObfuscatedUserInteractionExtrasProto.TOKENIZED_EXTRAS:
+                    if (engagementMetrics()) {
+                        interactionExtrasToken.mTokenizedExtras = proto.readBytes(
+                            ObfuscatedUserInteractionExtrasProto.TOKENIZED_EXTRAS);
+                    }
+                    break;
                 case ProtoInputStream.NO_MORE_FIELDS:
                     return interactionExtrasToken;
             }
@@ -944,6 +952,10 @@ final class UsageStatsProtoV2 {
                 interactionExtras.mCategoryToken + 1);
         proto.write(ObfuscatedUserInteractionExtrasProto.ACTION_TOKEN,
                 interactionExtras.mActionToken + 1);
+        if (engagementMetrics()) {
+            proto.write(ObfuscatedUserInteractionExtrasProto.TOKENIZED_EXTRAS,
+                interactionExtras.mTokenizedExtras);
+        }
         proto.end(token);
     }
 

@@ -133,11 +133,6 @@ public final class SystemUiDeviceConfigFlags {
     public static final String PROPERTY_MIC_CAMERA_ENABLED = "camera_mic_icons_enabled";
 
     /**
-     * Whether to show app ops chip for location.
-     */
-    public static final String PROPERTY_LOCATION_INDICATORS_ENABLED = "location_indicators_enabled";
-
-    /**
      * Whether to show privacy chip for media projection.
      */
     public static final String PROPERTY_MEDIA_PROJECTION_INDICATORS_ENABLED =
@@ -578,6 +573,12 @@ public final class SystemUiDeviceConfigFlags {
      */
     public static final String GENERATED_PREVIEW_API_MAX_PROVIDERS =
             "generated_preview_api_max_providers";
+
+    /**
+     * (long) The bucket interval for reporting widget interaction events to UsageStatsManager.
+     */
+    public static final String WIDGET_EVENTS_REPORT_INTERVAL_MS =
+            "widget_events_report_interval_ms";
 
     private SystemUiDeviceConfigFlags() {
     }

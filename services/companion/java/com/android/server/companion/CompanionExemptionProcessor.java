@@ -22,29 +22,25 @@ import static android.app.AppOpsManager.MODE_IGNORED;
 import static com.android.server.companion.utils.PackageUtils.getPackageInfo;
 
 import android.annotation.SuppressLint;
+import android.annotation.UserIdInt;
 import android.app.ActivityManagerInternal;
 import android.app.AppOpsManager;
 import android.companion.AssociationInfo;
 import android.content.Context;
-import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
 import android.net.NetworkPolicyManager;
 import android.os.Binder;
-import android.os.Environment;
 import android.os.PowerExemptionManager;
 import android.util.ArraySet;
 import android.util.Pair;
 import android.util.Slog;
 
 import com.android.internal.util.ArrayUtils;
-import com.android.server.LocalServices;
 import com.android.server.companion.association.AssociationStore;
-import com.android.server.pm.UserManagerInternal;
 import com.android.server.wm.ActivityTaskManagerInternal;
 
-import java.io.File;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -172,36 +168,23 @@ public class CompanionExemptionProcessor {
      * Update auto revoke exemptions.
      * If the app has any association, exempt it from permission auto revoke.
      */
-    public void updateAutoRevokeExemptions() {
+    public void updateAutoRevokeExemptions(@UserIdInt int userId) {
         Slog.d(TAG, "maybeGrantAutoRevokeExemptions()");
 
         PackageManager pm = mContext.getPackageManager();
-        for (int userId : LocalServices.getService(UserManagerInternal.class).getUserIds()) {
-            SharedPreferences pref = mContext.getSharedPreferences(
-                    new File(Environment.getUserSystemDirectory(userId), PREF_FILE_NAME),
-                    Context.MODE_PRIVATE);
-            if (pref.getBoolean(PREF_KEY_AUTO_REVOKE_GRANTS_DONE, false)) {
-                continue;
-            }
-
+        final List<AssociationInfo> associations =
+                mAssociationStore.getActiveAssociationsByUser(userId);
+        Set<Pair<String, Integer>> exemptedPackages = new HashSet<>();
+        for (AssociationInfo a : associations) {
             try {
-                final List<AssociationInfo> associations =
-                        mAssociationStore.getActiveAssociationsByUser(userId);
-                Set<Pair<String, Integer>> exemptedPackages = new HashSet<>();
-                for (AssociationInfo a : associations) {
-                    try {
-                        int uid = pm.getPackageUidAsUser(a.getPackageName(), userId);
-                        exemptedPackages.add(new Pair<>(a.getPackageName(), uid));
-                    } catch (PackageManager.NameNotFoundException e) {
-                        Slog.w(TAG, "Unknown companion package: " + a.getPackageName(), e);
-                    }
-                }
-                for (Pair<String, Integer> exemptedPackage : exemptedPackages) {
-                    updateAutoRevokeExemption(exemptedPackage.first, exemptedPackage.second, true);
-                }
-            } finally {
-                pref.edit().putBoolean(PREF_KEY_AUTO_REVOKE_GRANTS_DONE, true).apply();
+                int uid = pm.getPackageUidAsUser(a.getPackageName(), userId);
+                exemptedPackages.add(new Pair<>(a.getPackageName(), uid));
+            } catch (PackageManager.NameNotFoundException e) {
+                Slog.w(TAG, "Unknown companion package: " + a.getPackageName(), e);
             }
+        }
+        for (Pair<String, Integer> exemptedPackage : exemptedPackages) {
+            updateAutoRevokeExemption(exemptedPackage.first, exemptedPackage.second, true);
         }
     }
 

@@ -226,12 +226,13 @@ public class SystemVibrator extends Vibrator {
     }
 
     @Override
-    public void performHapticFeedback(int constant, String reason, int flags, int privFlags) {
+    public void performHapticFeedback(int constant, @VibrationAttributes.Usage int usage,
+            String reason, int flags, int privFlags) {
         if (mVibratorManager == null) {
             Log.w(TAG, "Failed to perform haptic feedback; no vibrator manager.");
             return;
         }
-        mVibratorManager.performHapticFeedback(constant, reason, flags, privFlags);
+        mVibratorManager.performHapticFeedback(constant, usage, reason, flags, privFlags);
     }
 
     @Override

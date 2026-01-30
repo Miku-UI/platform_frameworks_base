@@ -26,6 +26,7 @@ import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.log.core.FakeLogBuffer
 import com.android.systemui.testKosmos
 import com.android.systemui.util.settings.fakeSettings
 import com.google.common.truth.Truth.assertThat
@@ -69,6 +70,8 @@ class AccessibilityQsShortcutsRepositoryImplTest : SysuiTestCase() {
                 a11yManager,
                 userA11yQsShortcutsRepositoryFactory,
                 kosmos.testDispatcher,
+                kosmos.testScope.backgroundScope,
+                FakeLogBuffer.Factory.create(),
             )
     }
 

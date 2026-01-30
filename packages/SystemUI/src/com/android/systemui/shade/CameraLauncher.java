@@ -17,6 +17,7 @@
 package com.android.systemui.shade;
 
 import com.android.systemui.camera.CameraGestureHelper;
+import com.android.systemui.camera.CameraIntents;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.keyguard.domain.interactor.KeyguardQuickAffordanceInteractor;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
@@ -82,5 +83,9 @@ public class CameraLauncher {
      */
     public boolean canCameraGestureBeLaunched(int barState) {
         return mCameraGestureHelper.canCameraGestureBeLaunched(barState);
+    }
+
+    public boolean willLaunchSecureIntent() {
+        return CameraIntents.isSecureCameraIntent(mCameraGestureHelper.getStartCameraIntent());
     }
 }

@@ -38,7 +38,7 @@ import java.util.function.Function;
 
 /** Helper for handling drag-corner-to-resize gestures. */
 public class PipDragToResizeHandler {
-    private final Context mContext;
+    private Context mContext;
     private final PipResizeGestureHandler mPipResizeGestureHandler;
     private final PipBoundsState mPipBoundsState;
     private final PhonePipMenuController mPhonePipMenuController;
@@ -69,7 +69,8 @@ public class PipDragToResizeHandler {
     }
 
     /** Invoked by {@link PipResizeGestureHandler#reloadResources}. */
-    void reloadResources() {
+    void reloadResources(Context context) {
+        mContext = context;
         final Resources res = mContext.getResources();
         mDelta = res.getDimensionPixelSize(R.dimen.pip_resize_edge_size);
     }
@@ -135,8 +136,9 @@ public class PipDragToResizeHandler {
     /**
      * Check whether the current x,y coordinate is within the region in which drag-resize should
      * start.
-     * This consists of 4 small squares on the 4 corners of the PIP window, a quarter of which
-     * overlaps with the PIP window while the rest goes outside of the PIP window.
+     * This consists of 4 small squares on the 4 corners of the PIP window, 1/16th of which
+     * overlaps with the PIP window (the overlap is not bigger so that the drag area doesn't overlap
+     * with the PiP menu buttons) while the rest goes outside of the PIP window.
      * _ _           _ _
      * |_|_|_________|_|_|
      * |_|_|         |_|_|
@@ -152,14 +154,14 @@ public class PipDragToResizeHandler {
             return false;
         }
         resetDragCorners();
-        mTmpTopLeftCorner.offset(currentPipBounds.left - mDelta / 2,
-                currentPipBounds.top - mDelta / 2);
-        mTmpTopRightCorner.offset(currentPipBounds.right - mDelta / 2,
-                currentPipBounds.top - mDelta / 2);
-        mTmpBottomLeftCorner.offset(currentPipBounds.left - mDelta / 2,
-                currentPipBounds.bottom - mDelta / 2);
-        mTmpBottomRightCorner.offset(currentPipBounds.right - mDelta / 2,
-                currentPipBounds.bottom - mDelta / 2);
+        mTmpTopLeftCorner.offset(currentPipBounds.left - mDelta * 3 / 4,
+                currentPipBounds.top - mDelta * 3 / 4);
+        mTmpTopRightCorner.offset(currentPipBounds.right - mDelta / 4,
+                currentPipBounds.top - mDelta * 3 / 4);
+        mTmpBottomLeftCorner.offset(currentPipBounds.left - mDelta * 3 / 4,
+                currentPipBounds.bottom - mDelta / 4);
+        mTmpBottomRightCorner.offset(currentPipBounds.right - mDelta / 4,
+                currentPipBounds.bottom - mDelta / 4);
 
         mTmpRegion.setEmpty();
         mTmpRegion.op(mTmpTopLeftCorner, Region.Op.UNION);

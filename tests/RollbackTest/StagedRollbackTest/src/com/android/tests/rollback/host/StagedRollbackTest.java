@@ -77,8 +77,7 @@ public class StagedRollbackTest extends BaseHostJUnit4Test {
 
     @Before
     public void setUp() throws Exception {
-        deleteFiles("/system/apex/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex",
-                "/data/apex/active/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex");
+        deleteFiles("/system/apex/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex");
         runPhase("expireRollbacks");
         mLogger.start(getDevice());
         getDevice().uninstallPackage("com.android.cts.install.lib.testapp.A");
@@ -94,11 +93,9 @@ public class StagedRollbackTest extends BaseHostJUnit4Test {
         mLogger.stop();
         runPhase("expireRollbacks");
         deleteFiles("/system/apex/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex",
-                "/data/apex/active/" + APK_IN_APEX_TESTAPEX_NAME + "*.apex",
                 apexDataDirDeSys(APK_IN_APEX_TESTAPEX_NAME) + "*",
                 apexDataDirCe(APK_IN_APEX_TESTAPEX_NAME, 0) + "*",
-                "/system/apex/test.rebootless_apex_v*.apex",
-                "/data/apex/active/test.apex.rebootless*.apex");
+                "/system/apex/test.rebootless_apex_v*.apex");
     }
 
     /**

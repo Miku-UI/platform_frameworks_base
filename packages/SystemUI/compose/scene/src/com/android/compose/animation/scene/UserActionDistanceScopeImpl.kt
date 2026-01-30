@@ -31,12 +31,6 @@ internal class ElementStateScopeImpl(private val layoutImpl: SceneTransitionLayo
         }
     }
 
-    override fun ElementKey.approachSize(content: ContentKey): IntSize? {
-        return layoutImpl.elements[this]?.stateByContent?.get(content)?.approachSize.takeIf {
-            it != Element.SizeUnspecified
-        }
-    }
-
     override fun ElementKey.targetOffset(content: ContentKey): Offset? {
         return layoutImpl.elements[this]?.stateByContent?.get(content)?.targetOffset.takeIf {
             it != Offset.Unspecified

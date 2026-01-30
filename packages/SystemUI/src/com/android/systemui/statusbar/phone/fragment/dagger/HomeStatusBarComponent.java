@@ -17,15 +17,13 @@
 package com.android.systemui.statusbar.phone.fragment.dagger;
 
 import com.android.systemui.battery.BatteryMeterViewController;
-import com.android.systemui.dagger.qualifiers.DisplaySpecific;
 import com.android.systemui.dagger.qualifiers.RootView;
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware;
 import com.android.systemui.plugins.DarkIconDispatcher;
 import com.android.systemui.statusbar.core.NewStatusBarIcons;
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationController;
 import com.android.systemui.statusbar.layout.StatusBarBoundsProvider;
-import com.android.systemui.statusbar.notification.shared.NotificationsLiveDataStoreRefactor;
 import com.android.systemui.statusbar.phone.HeadsUpAppearanceController;
-import com.android.systemui.statusbar.phone.LegacyLightsOutNotifController;
 import com.android.systemui.statusbar.phone.PhoneStatusBarTransitions;
 import com.android.systemui.statusbar.phone.PhoneStatusBarView;
 import com.android.systemui.statusbar.phone.PhoneStatusBarViewController;
@@ -62,13 +60,16 @@ public interface HomeStatusBarComponent {
         HomeStatusBarComponent create(
                 @BindsInstance @RootView PhoneStatusBarView phoneStatusBarView,
                 @BindsInstance StatusBarConfigurationController configurationController,
-                @BindsInstance StatusBarWindowController statusBarWindowController,
-                @BindsInstance @DisplaySpecific DarkIconDispatcher darkIconDispatcher);
+                @BindsInstance StatusBarWindowController statusBarWindowController);
     }
 
     /**
      * Performs initialization logic after {@link HomeStatusBarComponent} has been constructed.
+     *
+     * @deprecated Startables are not started (or stopped) when [StatusBarRootModernization] is
+     * enabled.
      */
+    @Deprecated
     interface Startable {
         /** */
         void start();
@@ -91,9 +92,6 @@ public interface HomeStatusBarComponent {
         }
         getHeadsUpAppearanceController().init();
         getPhoneStatusBarViewController().init();
-        if (!NotificationsLiveDataStoreRefactor.isEnabled()) {
-            getLegacyLightsOutNotifController().init();
-        }
         getStatusBarDemoMode().init();
     }
 
@@ -116,10 +114,6 @@ public interface HomeStatusBarComponent {
 
     /** */
     @HomeStatusBarScope
-    LegacyLightsOutNotifController getLegacyLightsOutNotifController();
-
-    /** */
-    @HomeStatusBarScope
     StatusBarDemoMode getStatusBarDemoMode();
 
     /** */
@@ -133,10 +127,10 @@ public interface HomeStatusBarComponent {
     StatusBarBoundsProvider getBoundsProvider();
 
     /** */
-    @DisplaySpecific
+    @DisplayAware
     DarkIconDispatcher getDarkIconDispatcher();
 
     /** */
-    @DisplaySpecific
+    @DisplayAware
     int getDisplayId();
 }

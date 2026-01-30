@@ -16,11 +16,12 @@
 
 package com.android.server.companion.securechannel;
 
-import static android.companion.CompanionDeviceManager.TRANSPORT_FLAG_EXTEND_PATCH_DIFF;
 import static android.security.attestationverification.AttestationVerificationManager.PARAM_CHALLENGE;
 import static android.security.attestationverification.AttestationVerificationManager.PARAM_MAX_PATCH_LEVEL_DIFF_MONTHS;
 import static android.security.attestationverification.AttestationVerificationManager.PROFILE_PEER_DEVICE;
 import static android.security.attestationverification.AttestationVerificationManager.TYPE_CHALLENGE;
+
+import static com.android.server.companion.transport.Transport.FLAG_EXTEND_PATCH_DIFF;
 
 import android.annotation.NonNull;
 import android.content.Context;
@@ -113,7 +114,7 @@ public class AttestationVerifier {
             return;
         }
 
-        if ((mFlags & TRANSPORT_FLAG_EXTEND_PATCH_DIFF) > 0) {
+        if ((mFlags & FLAG_EXTEND_PATCH_DIFF) > 0) {
             requirements.putInt(PARAM_MAX_PATCH_LEVEL_DIFF_MONTHS,
                     EXTENDED_PATCH_LEVEL_DIFF_MONTHS);
         }

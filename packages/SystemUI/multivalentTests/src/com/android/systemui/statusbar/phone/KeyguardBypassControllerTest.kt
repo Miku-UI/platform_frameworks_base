@@ -28,6 +28,7 @@ import com.android.systemui.flags.andSceneContainer
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.res.R
 import com.android.systemui.shade.domain.interactor.shadeInteractor
@@ -42,7 +43,6 @@ import com.android.systemui.statusbar.policy.KeyguardStateController
 import com.android.systemui.testKosmos
 import com.android.systemui.tuner.TunerService
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -66,7 +66,8 @@ import platform.test.runner.parameterized.Parameters
 @RunWith(ParameterizedAndroidJunit4::class)
 @TestableLooper.RunWithLooper
 class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase() {
-    private val kosmos = testKosmos()
+
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
     private val testScope = kosmos.testScope
     private val featureFlags = FakeFeatureFlags()
     private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
@@ -117,7 +118,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     private fun defaultConfigPostureClosed() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_auth_supported_posture,
-            DEVICE_POSTURE_CLOSED
+            DEVICE_POSTURE_CLOSED,
         )
         initKeyguardBypassController()
         verify(devicePostureController).addCallback(postureCallbackCaptor.capture())
@@ -127,7 +128,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     private fun defaultConfigPostureOpened() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_auth_supported_posture,
-            DEVICE_POSTURE_OPENED
+            DEVICE_POSTURE_OPENED,
         )
         initKeyguardBypassController()
         verify(devicePostureController).addCallback(postureCallbackCaptor.capture())
@@ -137,7 +138,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     private fun defaultConfigPostureFlipped() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_auth_supported_posture,
-            DEVICE_POSTURE_FLIPPED
+            DEVICE_POSTURE_FLIPPED,
         )
         initKeyguardBypassController()
         verify(devicePostureController).addCallback(postureCallbackCaptor.capture())
@@ -147,7 +148,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     private fun defaultConfigPostureUnknown() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_auth_supported_posture,
-            DEVICE_POSTURE_UNKNOWN
+            DEVICE_POSTURE_UNKNOWN,
         )
         initKeyguardBypassController()
         verify(devicePostureController, never()).addCallback(postureCallbackCaptor.capture())
@@ -268,7 +269,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     fun defaultConfigPostureClosed_canOverrideByPassAlways_shouldReturnFalse() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_unlock_bypass_override,
-            1 /* FACE_UNLOCK_BYPASS_ALWAYS */
+            1, /* FACE_UNLOCK_BYPASS_ALWAYS */
         )
 
         defaultConfigPostureClosed()
@@ -282,7 +283,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     fun defaultConfigPostureUnknown_canNotOverrideByPassAlways_shouldReturnTrue() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_unlock_bypass_override,
-            1 /* FACE_UNLOCK_BYPASS_ALWAYS */
+            1, /* FACE_UNLOCK_BYPASS_ALWAYS */
         )
 
         defaultConfigPostureUnknown()
@@ -294,7 +295,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     fun defaultConfigPostureUnknown_canNotOverrideByPassNever_shouldReturnFalse() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_unlock_bypass_override,
-            2 /* FACE_UNLOCK_BYPASS_NEVER */
+            2, /* FACE_UNLOCK_BYPASS_NEVER */
         )
 
         defaultConfigPostureUnknown()
@@ -309,12 +310,10 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
             assertThat(keyguardBypassController.qsExpanded).isFalse()
             val job = keyguardBypassController.listenForQsExpandedChange()
             shadeTestUtil.setQsExpansion(0.5f)
-            runCurrent()
 
             assertThat(keyguardBypassController.qsExpanded).isTrue()
 
             shadeTestUtil.setQsExpansion(0f)
-            runCurrent()
 
             assertThat(keyguardBypassController.qsExpanded).isFalse()
 
@@ -326,7 +325,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     fun canBypass_bypassDisabled() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_unlock_bypass_override,
-            2 /* FACE_UNLOCK_BYPASS_NEVER */
+            2, /* FACE_UNLOCK_BYPASS_NEVER */
         )
         initKeyguardBypassController()
         assertThat(keyguardBypassController.canBypass()).isFalse()
@@ -336,7 +335,7 @@ class KeyguardBypassControllerTest(flags: FlagsParameterization) : SysuiTestCase
     fun canBypass_bypassEnabled_alternateBouncerShowing() {
         context.orCreateTestableResources.addOverride(
             R.integer.config_face_unlock_bypass_override,
-            1 /* FACE_UNLOCK_BYPASS_ALWAYS */
+            1, /* FACE_UNLOCK_BYPASS_ALWAYS */
         )
         initKeyguardBypassController()
         whenever(keyguardTransitionInteractor.getCurrentState())

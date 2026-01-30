@@ -16,6 +16,7 @@
 
 package com.android.internal.util;
 
+import android.os.PerfettoTrace;
 import android.os.SystemClock;
 import android.util.Log;
 import android.util.SparseLongArray;
@@ -23,7 +24,13 @@ import android.util.SparseLongArray;
 import java.io.IOException;
 
 /**
- * A trigger implementation with perfetto backend.
+ * Sends a named trigger to the central perfetto tracing service, which may activate or stop
+ * preconfigured tracing.
+ *
+ * <p>The historical codepath is to fork-exec a system binary that performs the task. However, for
+ * processes that are now registering with perfetto through the {@code PerfettoTrace} SDK, they can
+ * use the SDK for sending the trigger.
+ *
  * @hide
  */
 public class PerfettoTrigger {
@@ -51,6 +58,12 @@ public class PerfettoTrigger {
             }
 
             sLastInvocationPerTrigger.put(triggerName.hashCode(), SystemClock.elapsedRealtime());
+        }
+
+        // If we are registering with the SDK, use it directly.
+        if (PerfettoTrace.getAttempedSystemRegistration()) {
+            PerfettoTrace.activateTrigger(triggerName, 0);
+            return;
         }
 
         try {

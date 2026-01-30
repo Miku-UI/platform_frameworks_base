@@ -45,10 +45,12 @@ import android.metrics.LogMaker;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Bundle;
+import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Process;
+import android.os.RemoteCallback;
 import android.os.RemoteCallbackList;
 import android.os.RemoteException;
 import android.os.SystemClock;
@@ -71,6 +73,7 @@ import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.DebugUtils;
 import android.util.LocalLog;
+import android.util.Log;
 import android.util.Pair;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -96,6 +99,7 @@ import com.android.server.contentcapture.ContentCaptureManagerInternal;
 import com.android.server.infra.AbstractPerUserSystemService;
 import com.android.server.inputmethod.InputMethodManagerInternal;
 import com.android.server.pm.UserManagerInternal;
+import com.android.server.wm.ActivityTaskManagerInternal.ActivityTokens;
 import com.android.server.wm.ActivityTaskManagerInternal;
 
 import java.io.PrintWriter;
@@ -210,6 +214,8 @@ final class AutofillManagerServiceImpl
 
     private final DisabledInfoCache mDisabledInfoCache;
 
+    private final ActivityTaskManagerInternal mActivityTaskManagerInternal;
+
     AutofillManagerServiceImpl(AutofillManagerService master, Object lock,
             LocalLog uiLatencyHistory, LocalLog wtfHistory, int userId, AutoFillUI ui,
             AutofillCompatState autofillCompatState,
@@ -227,6 +233,7 @@ final class AutofillManagerServiceImpl
         mUserManagerInternal = LocalServices.getService(UserManagerInternal.class);
         mDisabledInfoCache = disableCache;
         updateLocked(disabled);
+        mActivityTaskManagerInternal = LocalServices.getService(ActivityTaskManagerInternal.class);
     }
 
     boolean sendActivityAssistDataToContentCapture(@NonNull IBinder activityToken,
@@ -237,6 +244,41 @@ final class AutofillManagerServiceImpl
         }
 
         return false;
+    }
+
+    @GuardedBy("mLock")
+    void autofillRemoteAppLocked(
+            @NonNull IBinder activityToken,
+            int taskId,
+            @NonNull AutofillId autofillId,
+            @NonNull AutofillValue autofillValue) {
+        ActivityTokens candidateActivityTokens =
+                mActivityTaskManagerInternal.getAttachedNonFinishingActivityForTask(
+                        taskId, activityToken);
+        if (candidateActivityTokens == null) {
+            Slog.w(TAG, "Unknown activity or it was finished to query for update "
+                    + "for token=" + activityToken + " taskId=" + taskId);
+            return;
+        }
+
+        IBinder token = candidateActivityTokens.getActivityToken();
+        try {
+            Bundle bundle = new Bundle();
+            bundle.putParcelable(AutofillManager.EXTRA_REMOTE_AUTOFILL_ID, autofillId);
+            bundle.putParcelable(AutofillManager.EXTRA_REMOTE_AUTOFILL_VALUE, autofillValue);
+            final RemoteCallback resultCallback = new RemoteCallback((unused) -> {});
+
+            candidateActivityTokens
+                    .getApplicationThread()
+                    .performDirectAction(
+                            token,
+                            AutofillManager.DIRECT_ACTION_ID_REMOTE_AUTOFILL,
+                            bundle,
+                            /* cancellationCallback= */ null,
+                            resultCallback);
+        } catch (RemoteException e) {
+            Slog.w(TAG, "autofillRemoteApp fail: " + e);
+        }
     }
 
     @GuardedBy("mLock")
@@ -1827,7 +1869,7 @@ final class AutofillManagerServiceImpl
     }
 
     @GuardedBy("mLock")
-    private int getAugmentedAutofillServiceUidLocked() {
+    int getAugmentedAutofillServiceUidLocked() {
         if (mRemoteAugmentedAutofillServiceInfo == null) {
             if (mMaster.verbose) {
                 Slog.v(TAG, "getAugmentedAutofillServiceUid(): "

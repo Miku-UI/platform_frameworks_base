@@ -17,11 +17,11 @@
 package com.android.server.wm.flicker.launch.common
 
 import android.tools.Rotation
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
 import android.tools.flicker.rules.RemoveAllTasksButHomeRule
 
-abstract class OpenAppFromIconTransition(flicker: LegacyFlickerTest) :
+abstract class OpenAppFromIconTransition(flicker: FlickerTest) :
     OpenAppFromLauncherTransition(flicker) {
     /** {@inheritDoc} */
     override val transition: FlickerBuilder.() -> Unit

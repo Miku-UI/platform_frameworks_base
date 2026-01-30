@@ -47,10 +47,8 @@ constructor(@ShadeDisplayAware private val resources: Resources, private val the
 
             if (data.isEnabled) {
                 activationState = QSTileState.ActivationState.ACTIVE
-                secondaryLabel = resources.getStringArray(R.array.tile_states_location)[2]
             } else {
                 activationState = QSTileState.ActivationState.INACTIVE
-                secondaryLabel = resources.getStringArray(R.array.tile_states_location)[1]
             }
             contentDescription = label
             supportedActions =

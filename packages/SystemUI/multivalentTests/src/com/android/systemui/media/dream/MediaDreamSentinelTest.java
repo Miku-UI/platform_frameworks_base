@@ -80,13 +80,11 @@ public class MediaDreamSentinelTest extends SysuiTestCase {
         final MediaDataManager.Listener listener = captureMediaDataListener();
 
         when(mMediaDataManager.hasActiveMedia()).thenReturn(false);
-        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */ true,
-                /* receivedSmartspaceCardLatency= */ 0, /* isSsReactived= */ false);
+        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */ true);
         verify(mDreamOverlayStateController, never()).addComplication(any());
 
         when(mMediaDataManager.hasActiveMedia()).thenReturn(true);
-        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true,
-                /* receivedSmartspaceCardLatency= */0, /* isSsReactived= */ false);
+        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true);
         verify(mDreamOverlayStateController).addComplication(eq(mMediaEntryComplication));
         verify(mDreamOverlayStateController, never()).addComplication(
                 not(eq(mMediaEntryComplication)));
@@ -101,8 +99,7 @@ public class MediaDreamSentinelTest extends SysuiTestCase {
         final MediaDataManager.Listener listener = captureMediaDataListener();
 
         when(mMediaDataManager.hasActiveMedia()).thenReturn(true);
-        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true,
-                /* receivedSmartspaceCardLatency= */0, /* isSsReactived= */ false);
+        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true);
 
         listener.onMediaDataRemoved(mKey, false);
         verify(mDreamOverlayStateController, never()).removeComplication(any());
@@ -121,17 +118,14 @@ public class MediaDreamSentinelTest extends SysuiTestCase {
         final MediaDataManager.Listener listener = captureMediaDataListener();
 
         when(mMediaDataManager.hasActiveMedia()).thenReturn(true);
-        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true,
-                /* receivedSmartspaceCardLatency= */0, /* isSsReactived= */ false);
+        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true);
         verify(mDreamOverlayStateController, never()).removeComplication(any());
 
-        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true,
-                /* receivedSmartspaceCardLatency= */0, /* isSsReactived= */ false);
+        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true);
         verify(mDreamOverlayStateController, never()).removeComplication(any());
 
         when(mMediaDataManager.hasActiveMedia()).thenReturn(false);
-        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true,
-                /* receivedSmartspaceCardLatency= */0, /* isSsReactived= */ false);
+        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true);
         verify(mDreamOverlayStateController).removeComplication(eq(mMediaEntryComplication));
     }
 
@@ -146,8 +140,7 @@ public class MediaDreamSentinelTest extends SysuiTestCase {
 
         final MediaDataManager.Listener listener = captureMediaDataListener();
         when(mMediaDataManager.hasActiveMedia()).thenReturn(true);
-        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true,
-                /* receivedSmartspaceCardLatency= */0, /* isSsReactived= */ false);
+        listener.onMediaDataLoaded(mKey, mOldKey, mData, /* immediately= */true);
         verify(mDreamOverlayStateController, never()).addComplication(any());
     }
 

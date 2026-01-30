@@ -15,6 +15,7 @@
 -->
 <com.android.systemui.globalactions.GlobalActionsItem
     xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
     android:layout_width="match_parent"
     android:layout_weight="1"
     android:layout_height="wrap_content"
@@ -29,7 +30,7 @@
             android:layout_marginBottom="@dimen/global_actions_grid_container_bottom_margin"
             android:padding="@dimen/global_actions_button_padding"
             android:scaleType="centerInside"
-            android:tint="@color/global_actions_lite_text"
+            android:tint="@androidprv:color/materialColorOnSurface"
             android:background="@drawable/global_actions_lite_button"/>
         <TextView
             android:id="@*android:id/message"
@@ -40,6 +41,6 @@
             android:singleLine="true"
             android:textSize="14sp"
             android:gravity="center"
-            android:textColor="@color/global_actions_lite_text"
+            android:textColor="@androidprv:color/materialColorOnSurface"
             android:textAppearance="?android:attr/textAppearanceSmall" />
 </com.android.systemui.globalactions.GlobalActionsItem>

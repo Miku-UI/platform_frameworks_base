@@ -20,7 +20,6 @@ import com.android.compose.animation.scene.Swipe
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.deviceentry.domain.interactor.DeviceUnlockedInteractor
-import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.ui.viewmodel.UserActionsViewModel
 import com.android.systemui.shade.domain.interactor.ShadeInteractor
@@ -59,7 +58,7 @@ constructor(
                                 if (isDeviceUnlocked) {
                                     add(Swipe.Up to Scenes.Gone)
                                 } else {
-                                    add(Swipe.Up to Overlays.Bouncer)
+                                    add(Swipe.Up to Scenes.Lockscreen)
                                 }
 
                                 addAll(

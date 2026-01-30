@@ -20,7 +20,7 @@ import android.media.soundtrigger.PhraseRecognitionExtra;
 
 /**
  * Interface for injecting recognition events into the ST Mock HAL.
- * {@hide}
+ * @hide
  */
 oneway interface IInjectRecognitionEvent {
 

@@ -18,5 +18,12 @@ package com.android.systemui.qs.pipeline.data.repository
 
 import com.android.systemui.qs.pipeline.shared.TileSpec
 
-class FakeDefaultTilesRepository(override val defaultTiles: List<TileSpec> = emptyList()) :
-    DefaultTilesRepository
+class FakeDefaultTilesRepository(
+    private val defaultTiles: List<TileSpec> = emptyList(),
+    private val defaultHsuTiles: List<TileSpec> = emptyList(),
+) : DefaultTilesRepository {
+
+    override fun getDefaultTiles(isHeadlessSystemUser: Boolean): List<TileSpec> {
+        return if (isHeadlessSystemUser) defaultHsuTiles else defaultTiles
+    }
+}

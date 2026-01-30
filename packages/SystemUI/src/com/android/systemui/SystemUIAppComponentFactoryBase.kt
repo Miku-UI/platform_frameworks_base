@@ -24,6 +24,8 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.AppComponentFactory
+import com.android.systemui.application.ApplicationContextInitializer
+import com.android.systemui.application.ContentProviderContextInitializer
 import com.android.systemui.dagger.ContextComponentHelper
 import com.android.systemui.dagger.SysUIComponent
 import com.android.tools.r8.keepanno.annotations.KeepTarget
@@ -37,8 +39,8 @@ import javax.inject.Inject
  *
  * This class sets up dependency injection when creating our application.
  *
- * Activities, Services, and BroadcastReceivers support dependency injection into
- * their constructors.
+ * Activities, Services, and BroadcastReceivers support dependency injection into their
+ * constructors.
  *
  * ContentProviders support injection into member variables - _not_ constructors.
  */
@@ -49,8 +51,7 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
         var systemUIInitializer: SystemUIInitializer? = null
     }
 
-    @set:Inject
-    lateinit var componentHelper: ContextComponentHelper
+    @set:Inject lateinit var componentHelper: ContextComponentHelper
 
     /**
      * Returns a new [SystemUIInitializer].
@@ -60,47 +61,47 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
     protected abstract fun createSystemUIInitializer(context: Context): SystemUIInitializer
 
     private fun createSystemUIInitializerInternal(context: Context): SystemUIInitializer {
-        return systemUIInitializer ?: run {
-            val initializer = createSystemUIInitializer(context.applicationContext)
-            try {
-                initializer.init(false)
-            } catch (exception: ExecutionException) {
-                throw RuntimeException("Failed to initialize SysUI", exception)
-            } catch (exception: InterruptedException) {
-                throw RuntimeException("Failed to initialize SysUI", exception)
-            }
-            initializer.sysUIComponent.inject(
-                this@SystemUIAppComponentFactoryBase
-            )
+        return systemUIInitializer
+            ?: run {
+                val initializer = createSystemUIInitializer(context.applicationContext)
+                try {
+                    initializer.init(false)
+                } catch (exception: ExecutionException) {
+                    throw RuntimeException("Failed to initialize SysUI", exception)
+                } catch (exception: InterruptedException) {
+                    throw RuntimeException("Failed to initialize SysUI", exception)
+                }
+                initializer.sysUIComponent.inject(this@SystemUIAppComponentFactoryBase)
 
-            systemUIInitializer = initializer
-            return initializer
-        }
+                systemUIInitializer = initializer
+                return initializer
+            }
     }
 
     override fun instantiateApplicationCompat(cl: ClassLoader, className: String): Application {
         val app = super.instantiateApplicationCompat(cl, className)
-        if (app !is ContextInitializer) {
-            throw RuntimeException("App must implement ContextInitializer")
+        if (app !is ApplicationContextInitializer) {
+            throw RuntimeException("App must implement ApplicationContextInitializer")
         } else {
             app.setContextAvailableCallback { context ->
                 createSystemUIInitializerInternal(context)
             }
         }
-
         return app
     }
 
-    @UsesReflection(KeepTarget(instanceOfClassConstant = SysUIComponent::class, methodName = "inject"))
+    @UsesReflection(
+        KeepTarget(instanceOfClassConstant = SysUIComponent::class, methodName = "inject")
+    )
     override fun instantiateProviderCompat(cl: ClassLoader, className: String): ContentProvider {
         val contentProvider = super.instantiateProviderCompat(cl, className)
-        if (contentProvider is ContextInitializer) {
+        if (contentProvider is ContentProviderContextInitializer) {
             contentProvider.setContextAvailableCallback { context ->
                 val initializer = createSystemUIInitializerInternal(context)
                 val rootComponent = initializer.sysUIComponent
                 try {
-                    val injectMethod = rootComponent.javaClass
-                        .getMethod("inject", contentProvider.javaClass)
+                    val injectMethod =
+                        rootComponent.javaClass.getMethod("inject", contentProvider.javaClass)
                     injectMethod.invoke(rootComponent, contentProvider)
                 } catch (e: NoSuchMethodException) {
                     Log.w(TAG, "No injector for class: " + contentProvider.javaClass, e)
@@ -118,7 +119,7 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
     override fun instantiateActivityCompat(
         cl: ClassLoader,
         className: String,
-        intent: Intent?
+        intent: Intent?,
     ): Activity {
         if (!this::componentHelper.isInitialized) {
             // This shouldn't happen, but is seen on occasion.
@@ -132,7 +133,7 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
     override fun instantiateServiceCompat(
         cl: ClassLoader,
         className: String,
-        intent: Intent?
+        intent: Intent?,
     ): Service {
         if (!this::componentHelper.isInitialized) {
             // This shouldn't happen, but does when a device is freshly formatted.
@@ -146,7 +147,7 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
     override fun instantiateReceiverCompat(
         cl: ClassLoader,
         className: String,
-        intent: Intent?
+        intent: Intent?,
     ): BroadcastReceiver {
         if (!this::componentHelper.isInitialized) {
             // This shouldn't happen, but does when a device is freshly formatted.
@@ -155,33 +156,5 @@ abstract class SystemUIAppComponentFactoryBase : AppComponentFactory() {
         }
         return componentHelper.resolveBroadcastReceiver(className)
             ?: super.instantiateReceiverCompat(cl, className, intent)
-    }
-
-    /**
-     * An Interface for classes that can be notified when an Application Context becomes available.
-     *
-     * An instance of this will be passed to implementers of [ContextInitializer].
-     */
-    fun interface ContextAvailableCallback {
-        /** Notifies when the Application Context is available.  */
-        fun onContextAvailable(context: Context): SystemUIInitializer
-    }
-
-    /**
-     * Interface for classes that can be constructed by the system before a context is available.
-     *
-     * This is intended for [Application] and [ContentProvider] implementations that
-     * either may not have a Context until some point after construction or are themselves
-     * a [Context].
-     *
-     * Implementers will be passed a [ContextAvailableCallback] that they should call as soon
-     * as an Application Context is ready.
-     */
-    interface ContextInitializer {
-        /**
-         * Called to supply the [ContextAvailableCallback] that should be called when an
-         * Application [Context] is available.
-         */
-        fun setContextAvailableCallback(callback: ContextAvailableCallback)
     }
 }

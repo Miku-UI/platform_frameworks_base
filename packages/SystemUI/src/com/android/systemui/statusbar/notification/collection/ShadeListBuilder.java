@@ -19,6 +19,7 @@ package com.android.systemui.statusbar.notification.collection;
 import static com.android.internal.util.Preconditions.checkArgument;
 import static com.android.internal.util.Preconditions.checkState;
 import static com.android.systemui.statusbar.notification.collection.GroupEntry.ROOT_ENTRY;
+import static com.android.systemui.statusbar.notification.collection.coordinator.BundleCoordinator.debugBundleLog;
 import static com.android.systemui.statusbar.notification.collection.listbuilder.PipelineState.STATE_BUILD_STARTED;
 import static com.android.systemui.statusbar.notification.collection.listbuilder.PipelineState.STATE_FINALIZE_FILTERING;
 import static com.android.systemui.statusbar.notification.collection.listbuilder.PipelineState.STATE_FINALIZING;
@@ -34,6 +35,7 @@ import static java.util.Objects.requireNonNull;
 
 import android.annotation.MainThread;
 import android.annotation.Nullable;
+import android.app.Notification;
 import android.os.Trace;
 import android.service.notification.StatusBarNotification;
 import android.util.ArrayMap;
@@ -41,6 +43,7 @@ import android.util.ArraySet;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.OptIn;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.systemui.Dumpable;
@@ -97,6 +100,7 @@ import javax.inject.Inject;
  */
 @MainThread
 @SysUISingleton
+@OptIn(markerClass = InternalNotificationsApi.class)
 public class ShadeListBuilder implements Dumpable, PipelineDumpable {
     private final SystemClock mSystemClock;
     private final ShadeListBuilderLogger mLogger;
@@ -136,14 +140,17 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
             mOnBeforeFinalizeFilterListeners = new NamedListenerSet<>();
     private final NamedListenerSet<OnBeforeRenderListListener>
             mOnBeforeRenderListListeners = new NamedListenerSet<>();
-    @Nullable private OnRenderListListener mOnRenderListListener;
+    @Nullable
+    private OnRenderListListener mOnRenderListListener;
 
     private List<PipelineEntry> mReadOnlyNotifList = Collections.unmodifiableList(mNotifList);
     private List<PipelineEntry> mReadOnlyNewNotifList = Collections.unmodifiableList(mNewNotifList);
     private final NotifPipelineChoreographer mChoreographer;
 
     private int mConsecutiveReentrantRebuilds = 0;
-    @VisibleForTesting public static final int MAX_CONSECUTIVE_REENTRANT_REBUILDS = 3;
+    @VisibleForTesting
+    public static final int MAX_CONSECUTIVE_REENTRANT_REBUILDS = 3;
+    private static final boolean DEBUG_FILTER = false;
 
     @Inject
     public ShadeListBuilder(
@@ -288,11 +295,9 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         }
 
         mIdToBundleEntry.clear();
-        for (String id: mNotifBundler.getBundleIds()) {
-            if (BundleCoordinator.debugBundleUi) {
-                Log.i(TAG, "create BundleEntry with id: " + id);
-            }
-            mIdToBundleEntry.put(id, new BundleEntry(id));
+        for (BundleSpec spec : mNotifBundler.getBundleSpecs()) {
+            debugBundleLog(TAG, () -> "create BundleEntry with id: " + spec.getKey());
+            mIdToBundleEntry.put(spec.getKey(), new BundleEntry(spec));
         }
     }
 
@@ -430,6 +435,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
     private void buildList() {
         Trace.beginSection("ShadeListBuilder.buildList");
         mPipelineState.requireIsBefore(STATE_BUILD_STARTED);
+        debugBundleLog(TAG, () -> mPipelineState.getStateName() + "---------------------");
 
         if (mPendingEntries != null) {
             mAllEntries = mPendingEntries;
@@ -451,6 +457,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
 
         // Step 2: Filter out any notifications that shouldn't be shown right now
         mPipelineState.incrementTo(STATE_PRE_GROUP_FILTERING);
+        debugList("before filterNotifs");
         filterNotifs(mAllEntries, mNotifList, mNotifPreGroupFilters);
 
         // Step 3: Group notifications with the same group key and set summaries
@@ -458,6 +465,13 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         groupNotifs(mNotifList, mNewNotifList);
         applyNewNotifList();
         pruneIncompleteGroups(mNotifList);
+
+        // Step 3.5: Bundle notifications according to classification
+        if (NotificationBundleUi.isEnabled()) {
+            bundleNotifs(mNotifList, mNewNotifList);
+            applyNewNotifList();
+            debugList("after bundling");
+        }
 
         // Step 4: Group transforming
         // Move some notifs out of their groups and up to top-level (mostly used for heads-upping)
@@ -469,6 +483,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         // Step 4.5: Reassign/revert any groups to maintain visual stability
         mPipelineState.incrementTo(STATE_GROUP_STABILIZING);
         stabilizeGroupingNotifs(mNotifList);
+        debugList("after stabilizeGroupingNotifs");
 
         // Step 5: Section & Sort
         // Assign each top-level entry a section, and copy to all of its children
@@ -478,6 +493,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         notifySectionEntriesUpdated();
         // Sort the list by section and then within section by our list of custom comparators
         sortListAndGroups();
+        debugList("after sortListAndGroups");
 
         // Step 6: Filter out entries after pre-group filtering, grouping, promoting, and sorting
         // Now filters can see grouping, sectioning, and order information to determine whether
@@ -486,13 +502,17 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         mPipelineState.incrementTo(STATE_FINALIZE_FILTERING);
         filterNotifs(mNotifList, mNewNotifList, mNotifFinalizeFilters);
         applyNewNotifList();
+        debugList("after filterNotifs");
         pruneIncompleteGroups(mNotifList);
+        debugList("after pruneIncompleteGroups");
 
         // Step 7: Lock in our group structure and log anything that's changed since the last run
         mPipelineState.incrementTo(STATE_FINALIZING);
         logChanges();
         freeEmptyGroups();
+        debugList("after freeEmptyGroups");
         cleanupPluggables();
+        debugList("after cleanupPluggables");
 
         // Step 8: Dispatch the new list, first to any listeners and then to the view layer
         dispatchOnBeforeRenderList(mReadOnlyNotifList);
@@ -504,10 +524,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
 
         Trace.beginSection("ShadeListBuilder.logEndBuildList");
         // Step 9: We're done!
-        mLogger.logEndBuildList(
-                mIterationCount,
-                mReadOnlyNotifList.size(),
-                countChildren(mReadOnlyNotifList),
+        logEndBuildList(mLogger, mIterationCount, mReadOnlyNotifList,
                 /* enforcedVisualStability */ !mNotifStabilityManager.isEveryChangeAllowed());
         if (mAlwaysLogList || mIterationCount % 10 == 0) {
             Trace.beginSection("ShadeListBuilder.logFinalList");
@@ -573,39 +590,65 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         mNotifList.clear();
     }
 
+    private void applyFilterToGroup(GroupEntry groupEntry, long now, List<NotifFilter> filters) {
+        // apply filter on its summary
+        final NotificationEntry summary = groupEntry.getRepresentativeEntry();
+        if (applyFilters(summary, now, filters)) {
+            groupEntry.setSummary(null);
+            annulAddition(summary);
+        }
+
+        // apply filter on its children
+        final List<NotificationEntry> children = groupEntry.getRawChildren();
+        for (int j = children.size() - 1; j >= 0; j--) {
+            final NotificationEntry child = children.get(j);
+            if (applyFilters(child, now, filters)) {
+                children.remove(child);
+                annulAddition(child);
+            }
+        }
+    }
+
+    private void applyFilterToBundle(BundleEntry bundleEntry, long now, List<NotifFilter> filters) {
+        List<ListEntry> bundleChildren = bundleEntry.getChildren();
+        List<ListEntry> bundleChildrenToRemove = new ArrayList<>();
+        for (ListEntry listEntry : bundleChildren) {
+            if (listEntry instanceof GroupEntry groupEntry) {
+                applyFilterToGroup(groupEntry, now, filters);
+            } else {
+                if (applyFilters((NotificationEntry) listEntry, now, filters)) {
+                    bundleChildrenToRemove.add(listEntry);
+                    debugBundleLog(TAG, () ->
+                            "annulled bundle child" + listEntry.getKey()
+                                    + " bundle size: " + bundleEntry.getChildren().size());
+                }
+            }
+        }
+        for (ListEntry r : bundleChildrenToRemove) {
+            bundleEntry.removeChild(r);
+            annulAddition(r);
+        }
+    }
+
     private void filterNotifs(
             Collection<? extends PipelineEntry> entries,
             List<PipelineEntry> out,
             List<NotifFilter> filters) {
         Trace.beginSection("ShadeListBuilder.filterNotifs");
-        final long now = UseElapsedRealtimeForCreationTime.getCurrentTime(mSystemClock);
-        for (PipelineEntry entry : entries) {
-            if (entry instanceof GroupEntry) {
-                final GroupEntry groupEntry = (GroupEntry) entry;
-
-                // apply filter on its summary
-                final NotificationEntry summary = groupEntry.getRepresentativeEntry();
-                if (applyFilters(summary, now, filters)) {
-                    groupEntry.setSummary(null);
-                    annulAddition(summary);
-                }
-
-                // apply filter on its children
-                final List<NotificationEntry> children = groupEntry.getRawChildren();
-                for (int j = children.size() - 1; j >= 0; j--) {
-                    final NotificationEntry child = children.get(j);
-                    if (applyFilters(child, now, filters)) {
-                        children.remove(child);
-                        annulAddition(child);
-                    }
-                }
-
+        final long now = mSystemClock.elapsedRealtime();
+        for (PipelineEntry pipelineEntry : entries) {
+            if (pipelineEntry instanceof BundleEntry bundleEntry) {
+                applyFilterToBundle(bundleEntry, now, filters);
+                // We unconditionally preserve the BundleEntry here, then prune if empty later.
+                out.add(bundleEntry);
+            } else if (pipelineEntry instanceof GroupEntry groupEntry) {
+                applyFilterToGroup(groupEntry, now, filters);
                 out.add(groupEntry);
             } else {
-                if (applyFilters((NotificationEntry) entry, now, filters)) {
-                    annulAddition(entry);
+                if (applyFilters((NotificationEntry) pipelineEntry, now, filters)) {
+                    annulAddition(pipelineEntry);
                 } else {
-                    out.add(entry);
+                    out.add(pipelineEntry);
                 }
             }
         }
@@ -614,16 +657,14 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
 
     private void groupNotifs(List<PipelineEntry> entries, List<PipelineEntry> out) {
         Trace.beginSection("ShadeListBuilder.groupNotifs");
-        for (PipelineEntry PipelineEntry : entries) {
+        for (PipelineEntry pipelineEntry : entries) {
             // since grouping hasn't happened yet, all notifs are NotificationEntries
-            NotificationEntry entry = (NotificationEntry) PipelineEntry;
+            NotificationEntry entry = (NotificationEntry) pipelineEntry;
             if (entry.getSbn().isGroup()) {
                 final String topLevelKey = entry.getSbn().getGroupKey();
-
                 GroupEntry group = mGroups.get(topLevelKey);
                 if (group == null) {
-                    group = new GroupEntry(topLevelKey,
-                            UseElapsedRealtimeForCreationTime.getCurrentTime(mSystemClock));
+                    group = new GroupEntry(topLevelKey, mSystemClock.elapsedRealtime());
                     mGroups.put(topLevelKey, group);
                 }
                 if (group.getParent() == null) {
@@ -641,13 +682,23 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
                     } else {
                         mLogger.logDuplicateSummary(mIterationCount, group, existingSummary, entry);
 
-                        // Use whichever one was posted most recently
-                        if (entry.getSbn().getPostTime()
-                                > existingSummary.getSbn().getPostTime()) {
-                            group.setSummary(entry);
-                            annulAddition(existingSummary, out);
+                        NotificationEntry autogroupSummary = getAutogroupSummary(entry,
+                                existingSummary);
+                        if (autogroupSummary != null) {
+                            // Prioritize the autogroup summary if duplicate summaries found
+                            group.setSummary(autogroupSummary);
+                            NotificationEntry otherEntry =
+                                    autogroupSummary.equals(entry) ? existingSummary : entry;
+                            annulAddition(otherEntry, out);
                         } else {
-                            annulAddition(entry, out);
+                            // Use whichever one was posted most recently
+                            if (entry.getSbn().getPostTime()
+                                    > existingSummary.getSbn().getPostTime()) {
+                                group.setSummary(entry);
+                                annulAddition(existingSummary, out);
+                            } else {
+                                annulAddition(entry, out);
+                            }
                         }
                     }
                 } else {
@@ -668,43 +719,166 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         Trace.endSection();
     }
 
+    private @Nullable NotificationEntry getAutogroupSummary(NotificationEntry newSummary,
+            NotificationEntry existingSummary) {
+        if ((newSummary.getSbn().getNotification().flags
+                & Notification.FLAG_AUTOGROUP_SUMMARY) != 0) {
+            return newSummary;
+        } else if ((existingSummary.getSbn().getNotification().flags
+                & Notification.FLAG_AUTOGROUP_SUMMARY) != 0) {
+            return existingSummary;
+        }
+        return null;
+    }
+
+    @Nullable
+    BundleEntry getBundleEntry(String id) {
+        BundleEntry be = mIdToBundleEntry.get(id);
+        if (be == null) {
+            debugBundleLog(TAG, () -> "BundleEntry not found for bundleId: " + id);
+        }
+        return be;
+    }
+
+    Collection<BundleEntry> getBundleEntries() {
+        return Collections.unmodifiableCollection(mIdToBundleEntry.values());
+    }
+
+    private void debugList(String s) {
+        if (!BundleCoordinator.debugBundleLogs) {
+            return;
+        }
+        StringBuilder listStr = new StringBuilder();
+        for (int i = 0; i < mNotifList.size(); i++) {
+            PipelineEntry pipelineEntry = mNotifList.get(i);
+            String className = " Notif:";
+            if (pipelineEntry instanceof GroupEntry) {
+                className = " Group:";
+                listStr.append("i=" + i).append(className).append(pipelineEntry.getKey())
+                        .append("\n");
+            } else if (pipelineEntry instanceof BundleEntry bundleEntry) {
+                className = " Bundle:";
+                listStr.append("i=" + i).append(className).append(pipelineEntry.getKey())
+                        .append(" size: " + bundleEntry.getChildren().size()).append("\n");
+
+                for (ListEntry listEntry : bundleEntry.getChildren()) {
+
+                    if (listEntry instanceof NotificationEntry notifEntry) {
+                        listStr.append("  Notif").append(notifEntry.getKey()).append("\n");
+
+                    } else if (listEntry instanceof GroupEntry groupEntry) {
+                        listStr.append("  Group").append(groupEntry.getKey())
+                                .append(" size: " + groupEntry.getChildren().size()).append("\n");
+
+                        for (NotificationEntry notifEntry : groupEntry.getChildren()) {
+                            listStr.append("    Notif").append(notifEntry.getKey()).append("\n");
+                        }
+                    }
+                }
+            } else { // Unbundled NotifEntry
+                listStr.append("i=" + i).append(className).append(pipelineEntry.getKey())
+                        .append("\n");
+            }
+        }
+        Log.d(TAG, mPipelineState.getStateName() + " " + s + " list ---\n" + listStr + "\n");
+    }
+
+    private void bundleNotifs(List<PipelineEntry> in, List<PipelineEntry> out) {
+        Trace.beginSection("ShadeListBuilder.bundleNotifs");
+        // Bundle NotificationEntry and non-empty GroupEntry
+        for (PipelineEntry pipelineEntry : in) {
+            if (!(pipelineEntry instanceof ListEntry listEntry)) {
+                // This should not happen
+                continue;
+            }
+            String id = getNotifBundler().getBundleIdOrNull(listEntry);
+            if (id == null) {
+                debugBundleLog(TAG, () ->"bundleNotifs: no bundle id for:" + listEntry.getKey());
+                out.add(listEntry);
+            } else {
+                BundleEntry bundleEntry = getBundleEntry(id);
+                if (bundleEntry == null) {
+                    debugBundleLog(TAG, () ->"bundleNotifs: BundleEntry NULL for: "
+                            + listEntry.getKey() + " bundleId:" + id);
+                    out.add(listEntry);
+                } else {
+                    debugBundleLog(TAG, () ->"bundleNotifs: ADD listEntry:" + listEntry.getKey()
+                            + " to bundle:" + bundleEntry.getKey());
+                    bundleEntry.addChild(listEntry);
+                    listEntry.setParent(bundleEntry);
+                }
+            }
+        }
+        // Add all BundleEntries to the list. They will be pruned later if they are empty.
+        final Collection<BundleEntry> allBundles = mIdToBundleEntry.values();
+        for (final BundleEntry bundle : allBundles) {
+            bundle.setParent(ROOT_ENTRY);
+        }
+        out.addAll(allBundles);
+        Trace.endSection();
+    }
+
+    @OptIn(markerClass = InternalNotificationsApi.class) // for BundleEntry#getRawChildren()
     private void stabilizeGroupingNotifs(List<PipelineEntry> topLevelList) {
         if (getStabilityManager().isEveryChangeAllowed()) {
             return;
         }
         Trace.beginSection("ShadeListBuilder.stabilizeGroupingNotifs");
-
         for (int i = 0; i < topLevelList.size(); i++) {
             final PipelineEntry tle = topLevelList.get(i);
-            if (tle instanceof GroupEntry) {
-                // maybe put children back into their old group (including moving back to top-level)
-                GroupEntry groupEntry = (GroupEntry) tle;
+            if (tle instanceof BundleEntry bundleEntry) {
+                // maybe put bundle children back into their old parents (including moving back to
+                // top-level)
+                final List<ListEntry> bundleChildren = bundleEntry.getRawChildren();
+                for (int j = 0; j < bundleChildren.size(); j++) {
+                    final ListEntry child = bundleChildren.get(j);
+                    if (maybeSuppressParentChange(child, topLevelList)) {
+                        bundleChildren.remove(j);
+                        j--;
+                    }
+                    if (child instanceof GroupEntry groupEntry) {
+                        // maybe put group children back into their old parents (including moving
+                        // back to top-level)
+                        final List<NotificationEntry> groupChildren = groupEntry.getRawChildren();
+                        for (int k = 0; k < groupChildren.size(); k++) {
+                            if (maybeSuppressParentChange(groupChildren.get(k), topLevelList)) {
+                                // child was put back into its previous parent, so we remove it from
+                                // this group
+                                groupChildren.remove(k);
+                                k--;
+                            }
+                        }
+                    }
+                }
+            } else if (tle instanceof GroupEntry groupEntry) {
+                // maybe put children back into their old parents (including moving back to
+                // top-level)
                 List<NotificationEntry> children = groupEntry.getRawChildren();
                 for (int j = 0; j < groupEntry.getChildren().size(); j++) {
-                    if (maybeSuppressGroupChange(children.get(j), topLevelList)) {
-                        // child was put back into its previous group, so we remove it from this
+                    if (maybeSuppressParentChange(children.get(j), topLevelList)) {
+                        // child was put back into its previous parent, so we remove it from this
                         // group
                         children.remove(j);
                         j--;
                     }
                 }
-            } else if (tle instanceof NotificationEntry) {
-                // maybe put top-level-entries back into their previous groups
-                if (maybeSuppressGroupChange(tle.getRepresentativeEntry(), topLevelList)) {
-                    // entry was put back into its previous group, so we remove it from the list of
+            } else if (tle instanceof NotificationEntry notifEntry) {
+                // maybe put top-level-entries back into their previous parents
+                if (maybeSuppressParentChange(notifEntry, topLevelList)) {
+                    // entry was put back into its previous parent, so we remove it from the list of
                     // top-level-entries
                     topLevelList.remove(i);
                     i--;
                 }
-            } // Promoters ignore bundles so we don't have to demote any here.
+            }
         }
         Trace.endSection();
     }
 
     /**
-     * Returns true if the group change was suppressed, else false
+     * Returns true if the parent change was suppressed, else false
      */
-    private boolean maybeSuppressGroupChange(NotificationEntry entry, List<PipelineEntry> out) {
+    private boolean maybeSuppressParentChange(ListEntry entry, List<PipelineEntry> out) {
         final PipelineEntry prevParent = entry.getPreviousAttachState().getParent();
         if (prevParent == null) {
             // New entries are always allowed.
@@ -723,19 +897,36 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         }
         // TODO: Rather than perform "half" of the move here and require the caller remove the child
         //  from the assignedParent, ideally we would have an atomic "move" operation.
-        if (!getStabilityManager().isGroupChangeAllowed(entry.getRepresentativeEntry())) {
-            entry.getAttachState().getSuppressedChanges().setParent(assignedParent);
-            entry.setParent(prevParent);
-            if (prevParent == ROOT_ENTRY) {
-                out.add(entry);
-            } else if (prevParent instanceof GroupEntry) {
-                ((GroupEntry) prevParent).addChild(entry);
-                if (!mGroups.containsKey(prevParent.getKey())) {
-                    mGroups.put(prevParent.getKey(), (GroupEntry) prevParent);
+        if (entry instanceof NotificationEntry notifEntry) {
+            if (!getStabilityManager().isParentChangeAllowed(notifEntry)) {
+                entry.getAttachState().getSuppressedChanges().setParent(assignedParent);
+                entry.setParent(prevParent);
+                if (prevParent == ROOT_ENTRY) {
+                    out.add(entry);
+                } else if (prevParent instanceof GroupEntry groupEntry) {
+                    groupEntry.addChild(notifEntry);
+                    if (!mGroups.containsKey(groupEntry.getKey())) {
+                        mGroups.put(groupEntry.getKey(), groupEntry);
+                    }
+                } else if (prevParent instanceof BundleEntry bundleEntry) {
+                    bundleEntry.addChild(entry);
                 }
+                return true;
             }
-            // TODO(b/394483200): Revisit group stability for BundleEntry
-            return true;
+        } else if (entry instanceof GroupEntry groupEntry) {
+            if (!getStabilityManager().isParentChangeAllowed(groupEntry)) {
+                entry.getAttachState().getSuppressedChanges().setParent(assignedParent);
+                entry.setParent(prevParent);
+                if (prevParent == ROOT_ENTRY) {
+                    out.add(entry);
+                } else if (prevParent instanceof BundleEntry bundleEntry) {
+                    bundleEntry.addChild(entry);
+                } else {
+                    throw new IllegalStateException("GroupEntry " + groupEntry.getKey()
+                            + " was previously attached to illegal parent: " + prevParent.getKey());
+                }
+                return true;
+            }
         }
         return false;
     }
@@ -745,9 +936,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         for (int i = 0; i < list.size(); i++) {
             final PipelineEntry tle = list.get(i);
 
-            if (tle instanceof GroupEntry) {
-                final GroupEntry group = (GroupEntry) tle;
-
+            if (tle instanceof GroupEntry group) {
                 group.getRawChildren().removeIf(child -> {
                     final boolean shouldPromote = applyTopLevelPromoters(child);
 
@@ -759,8 +948,25 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
                     return shouldPromote;
                 });
             }
+            // Notifications inside BundleEntry will never be considered for promotion.
         }
         Trace.endSection();
+    }
+
+    private void pruneBundleEntry(BundleEntry bundleEntry,
+            ArraySet<String> groupsExemptFromSummaryPromotion,
+            Set<String> groupsWithChildrenLostToStability, List<PipelineEntry> shadeList) {
+        final List<ListEntry> bundleChildren = bundleEntry.getRawChildren();
+        // Iterate backwards, so that we can remove elements without affecting indices of
+        // yet-to-be-accessed entries.
+        for (int i = bundleChildren.size() - 1; i >= 0; i--) {
+            final ListEntry listEntry = bundleChildren.get(i);
+            if (listEntry instanceof GroupEntry groupEntry) {
+                pruneGroupEntry(groupEntry, i, bundleEntry, bundleChildren,
+                        groupsExemptFromSummaryPromotion, groupsWithChildrenLostToStability,
+                        shadeList);
+            }
+        }
     }
 
     private void pruneIncompleteGroups(List<PipelineEntry> shadeList) {
@@ -779,67 +985,106 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
 
         // Iterate backwards, so that we can remove elements without affecting indices of
         // yet-to-be-accessed entries.
+        debugBundleLog(TAG, () -> mPipelineState.getStateName() + " pruneIncompleteGroups size: "
+                + shadeList.size());
+
         for (int i = shadeList.size() - 1; i >= 0; i--) {
-            final PipelineEntry tle = shadeList.get(i);
+            final PipelineEntry pipelineEntry = shadeList.get(i);
 
-            if (tle instanceof GroupEntry) {
-                final GroupEntry group = (GroupEntry) tle;
-                final List<NotificationEntry> children = group.getRawChildren();
-                final boolean hasSummary = group.getSummary() != null;
+            if (pipelineEntry instanceof GroupEntry groupEntry) {
+                pruneGroupEntry(groupEntry, i, ROOT_ENTRY, shadeList,
+                        groupsExemptFromSummaryPromotion, groupsWithChildrenLostToStability,
+                        shadeList);
+            } else if (pipelineEntry instanceof BundleEntry bundleEntry) {
+                pruneBundleEntry(bundleEntry, groupsExemptFromSummaryPromotion,
+                        groupsWithChildrenLostToStability, shadeList);
 
-                if (hasSummary && children.size() == 0) {
-                    if (groupsExemptFromSummaryPromotion.contains(group.getKey())) {
-                        // This group lost a child on this run to promotion or stability, so it is
-                        //  exempt from having its summary promoted to the top level, so prune it.
-                        //  It has no children, so it will just vanish.
-                        pruneGroupAtIndexAndPromoteAnyChildren(shadeList, group, i);
-                    } else {
-                        // For any other summary with no children, promote the summary.
-                        pruneGroupAtIndexAndPromoteSummary(shadeList, group, i);
-                    }
-                } else if (!hasSummary) {
-                    // If the group doesn't provide a summary, ignore it and add
-                    //  any children it may have directly to top-level.
-                    pruneGroupAtIndexAndPromoteAnyChildren(shadeList, group, i);
-                } else if (children.size() < MIN_CHILDREN_FOR_GROUP) {
-                    // This group has a summary and insufficient, but nonzero children.
-                    checkState(hasSummary, "group must have summary at this point");
-                    checkState(!children.isEmpty(), "empty group should have been promoted");
-
-                    if (groupsWithChildrenLostToStability.contains(group.getKey())) {
-                        // This group lost a child on this run to stability, so it is exempt from
-                        //  the "min children" requirement; keep it around in case more children are
-                        //  added before changes are allowed again.
-                        group.getAttachState().getSuppressedChanges().setWasPruneSuppressed(true);
-                        continue;
-                    }
-                    if (group.wasAttachedInPreviousPass()
-                            && !getStabilityManager().isGroupPruneAllowed(group)) {
-                        checkState(!children.isEmpty(), "empty group should have been pruned");
-                        // This group was previously attached and group changes aren't
-                        //  allowed; keep it around until group changes are allowed again.
-                        group.getAttachState().getSuppressedChanges().setWasPruneSuppressed(true);
-                        continue;
-                    }
-
-                    // The group is too small, ignore it and add
-                    // its children (if any) directly to top-level.
-                    pruneGroupAtIndexAndPromoteAnyChildren(shadeList, group, i);
+                if (bundleEntry.getChildren().isEmpty()) {
+                    BundleEntry prunedBundle = (BundleEntry) shadeList.remove(i);
+                    annulAddition(bundleEntry, shadeList);
+                    debugBundleLog(TAG, () -> mPipelineState.getStateName()
+                            + " pruned empty bundle: "
+                            + prunedBundle.getKey());
+                } else {
+                    debugBundleLog(TAG, () -> mPipelineState.getStateName()
+                            + " skip pruning bundle: " + bundleEntry.getKey()
+                            + " size: " + bundleEntry.getChildren().size());
                 }
             }
         }
         Trace.endSection();
     }
 
-    private void pruneGroupAtIndexAndPromoteSummary(List<PipelineEntry> shadeList,
-            GroupEntry group, int index) {
+    private void pruneGroupEntry(GroupEntry group, int i, PipelineEntry parent,
+            List<? super ListEntry> siblings, ArraySet<String> groupsExemptFromSummaryPromotion,
+            Set<String> groupsWithChildrenLostToStability, List<PipelineEntry> shadeList) {
+        final List<NotificationEntry> children = group.getRawChildren();
+        final boolean hasSummary = group.getSummary() != null;
+        debugBundleLog(TAG,
+                () -> mPipelineState.getStateName() + " pruneGroupEntry " + group.getKey()
+                        + " hasSummary:" + hasSummary
+                        + " childCount:" + children.size()
+        );
+        if (hasSummary && children.isEmpty()) {
+            if (groupsExemptFromSummaryPromotion.contains(group.getKey())) {
+                // This group lost a child on this run to promotion or stability, so it is
+                //  exempt from having its summary promoted to the top level, so prune it.
+                //  It has no children, so it will just vanish.
+                pruneGroupAtIndexAndPromoteAnyChildren(parent, siblings, group, i, "no child",
+                        shadeList);
+            } else {
+                // For any other summary with no children, promote the summary.
+                pruneGroupAtIndexAndPromoteSummary(parent, siblings, group, i, shadeList);
+            }
+        } else if (!hasSummary) {
+            // If the group doesn't provide a summary, ignore it and add
+            //  any children it may have directly to parent entry.
+            pruneGroupAtIndexAndPromoteAnyChildren(parent, siblings, group, i, "no summary",
+                    shadeList);
+
+        } else if (children.size() < MIN_CHILDREN_FOR_GROUP) {
+            // This group has a summary and insufficient, but nonzero children.
+            checkState(hasSummary, "group must have summary at this point");
+            checkState(!children.isEmpty(), "empty group should have been promoted");
+
+            if (groupsWithChildrenLostToStability.contains(group.getKey())) {
+                // This group lost a child on this run to stability, so it is exempt from
+                //  the "min children" requirement; keep it around in case more children are
+                //  added before changes are allowed again.
+                group.getAttachState().getSuppressedChanges().setWasPruneSuppressed(true);
+                return;
+            }
+            if (group.wasAttachedInPreviousPass()
+                    && !getStabilityManager().isGroupPruneAllowed(group)) {
+                checkState(!children.isEmpty(), "empty group should have been pruned");
+                // This group was previously attached and group changes aren't
+                //  allowed; keep it around until group changes are allowed again.
+                group.getAttachState().getSuppressedChanges().setWasPruneSuppressed(true);
+                return;
+            }
+            // The group is too small, ignore it and add
+            // its children (if any) directly to top-level.
+            pruneGroupAtIndexAndPromoteAnyChildren(parent, siblings, group, i, "too small",
+                    shadeList);
+        } else {
+            debugBundleLog(TAG, () -> mPipelineState.getStateName()
+                    + " group not pruned: " + group.getKey());
+        }
+    }
+
+    private void pruneGroupAtIndexAndPromoteSummary(PipelineEntry parent,
+            List<? super ListEntry> siblings, GroupEntry group, int index,
+            List<PipelineEntry> shadeList) {
+        debugBundleLog(TAG, () -> mPipelineState.getStateName() + " promote summary prune group:"
+                + group.getKey());
+
         // Validate that the group has no children
         checkArgument(group.getChildren().isEmpty(), "group should have no children");
 
         NotificationEntry summary = group.getSummary();
-        summary.setParent(ROOT_ENTRY);
+        summary.setParent(parent);
         // The list may be sorted; replace the group with the summary, in its place
-        PipelineEntry oldEntry = shadeList.set(index, summary);
+        PipelineEntry oldEntry = (PipelineEntry) siblings.set(index, summary);
 
         // Validate that the replaced entry was the group entry
         checkState(oldEntry == group);
@@ -850,12 +1095,26 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
                 "SUMMARY with no children @ " + mPipelineState.getStateName());
     }
 
-    private void pruneGroupAtIndexAndPromoteAnyChildren(List<PipelineEntry> shadeList,
-            GroupEntry group, int index) {
+    private void pruneGroupAtIndexAndPromoteAnyChildren(PipelineEntry parent,
+            List<? super ListEntry> siblings, GroupEntry group, int index, String reason,
+            List<PipelineEntry> shadeList) {
+
+        final boolean inBundle = group.getAttachState().getParent() instanceof BundleEntry;
+        debugBundleLog(TAG, () -> mPipelineState.getStateName()
+                + " " + reason + " => promote child prune group:" + group.getKey()
+                + " parent: " + group.getAttachState().getParent().getKey()
+                + " inBundle:" + inBundle
+        );
+
         // REMOVE the GroupEntry at this index
-        PipelineEntry oldEntry = shadeList.remove(index);
+        PipelineEntry oldEntry = (PipelineEntry) siblings.remove(index);
 
         // Validate that the replaced entry was the group entry
+        if (oldEntry != group) {
+            debugBundleLog(TAG, () -> mPipelineState.getStateName()
+                    + " oldEntry:" + oldEntry.getKey()
+                    + " groupToRemove:" + group.getKey());
+        }
         checkState(oldEntry == group);
 
         List<NotificationEntry> children = group.getRawChildren();
@@ -875,17 +1134,17 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
             // create the reason we will report on the child for why its group was pruned.
             String childReason = hasSummary
                     ? ("CHILD with " + (children.size() - 1) + " siblings @ "
-                        + mPipelineState.getStateName())
+                    + mPipelineState.getStateName())
                     : ("CHILD with no summary @ " + mPipelineState.getStateName());
 
             // Remove children from the group and add them to the shadeList.
             for (int j = 0; j < children.size(); j++) {
                 final NotificationEntry child = children.get(j);
-                child.setParent(ROOT_ENTRY);
+                child.setParent(parent);
                 child.getAttachState().setGroupPruneReason(requireNonNull(childReason));
             }
             // The list may be sorted, so add the children in order where the group was.
-            shadeList.addAll(index, children);
+            siblings.addAll(index, children);
             children.clear();
         }
 
@@ -896,9 +1155,9 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
      * Collect the keys of any groups which have already lost a child to stability this run.
      *
      * If stability is being enforced, then {@link #stabilizeGroupingNotifs(List)} might have
-     * detached some children from their groups and left them at the top level because the child was
-     * previously attached at the top level.  Doing so would set the
-     * {@link SuppressedAttachState#getParent() suppressed parent} for the current attach state.
+     * detached some children from their groups and left them with their previous parent. Doing so
+     * would set the {@link SuppressedAttachState#getParent() suppressed parent} for the current
+     * attach state.
      *
      * If we've already removed a child from this group, we don't want to remove any more children
      * from the group (even if that would leave only a single notification in the group) because
@@ -913,15 +1172,31 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         ArraySet<String> groupsWithChildrenLostToStability = new ArraySet<>();
         for (int i = 0; i < shadeList.size(); i++) {
             final PipelineEntry tle = shadeList.get(i);
-            final PipelineEntry suppressedParent =
-                    tle.getAttachState().getSuppressedChanges().getParent();
-            if (suppressedParent != null) {
-                // This top-level-entry was supposed to be attached to this group,
-                //  so mark the group as having lost a child to stability.
-                groupsWithChildrenLostToStability.add(suppressedParent.getKey());
-            }
+            addGroupsWithChildrenLostToStability(tle, groupsWithChildrenLostToStability);
         }
         return groupsWithChildrenLostToStability;
+    }
+
+    private void addGroupsWithChildrenLostToStability(PipelineEntry entry, Set<String> out) {
+        if (entry instanceof BundleEntry be) {
+            final List<ListEntry> children = be.getChildren();
+            for (int i = 0; i < children.size(); i++) {
+                final ListEntry child = children.get(i);
+                addGroupsWithChildrenLostToStability(child, out);
+            }
+        } else if (entry instanceof ListEntry le) {
+            addGroupsWithChildrenLostToStability(le, out);
+        }
+    }
+
+    private void addGroupsWithChildrenLostToStability(ListEntry entry, Set<String> out) {
+        final PipelineEntry suppressedParent =
+                entry.getAttachState().getSuppressedChanges().getParent();
+        if (suppressedParent != null) {
+            // This ListEntry was supposed to be attached to this group, so mark the group as
+            // having lost a child to stability.
+            out.add(suppressedParent.getKey());
+        }
     }
 
     /**
@@ -933,8 +1208,8 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
     private void addGroupsWithChildrenLostToPromotion(List<PipelineEntry> shadeList,
             Set<String> out) {
         for (int i = 0; i < shadeList.size(); i++) {
-            final PipelineEntry tle = shadeList.get(i);
-            if (tle.getAttachState().getPromoter() != null) {
+            final ListEntry tle = shadeList.get(i).asListEntry();
+            if (tle != null && tle.getAttachState().getPromoter() != null) {
                 // This top-level-entry was part of a group, but was promoted out of it.
                 final String groupKey = tle.getRepresentativeEntry().getSbn().getGroupKey();
                 out.add(groupKey);
@@ -950,10 +1225,14 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
      */
     private void addGroupsWithChildrenLostToFiltering(Set<String> out) {
         for (PipelineEntry tle : mAllEntries) {
-            StatusBarNotification sbn = tle.getRepresentativeEntry().getSbn();
+            final ListEntry listEntry = tle.asListEntry();
+            if (listEntry == null) {
+                continue;
+            }
+            StatusBarNotification sbn = listEntry.getRepresentativeEntry().getSbn();
             if (sbn.isGroup()
                     && !sbn.getNotification().isGroupSummary()
-                    && tle.getAttachState().getExcludingFilter() != null) {
+                    && listEntry.getAttachState().getExcludingFilter() != null) {
                 out.add(sbn.getGroupKey());
             }
         }
@@ -963,7 +1242,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
      * If a PipelineEntry was added to the shade list and then later removed (e.g. because it was a
      * group that was broken up), this method will erase any bookkeeping traces of that addition
      * and/or check that they were already erased.
-     *
+     * <p>
      * Before calling this method, the entry must already have been removed from its parent. If
      * it's a group, its summary must be null and its children must be empty.
      */
@@ -972,21 +1251,21 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         // This function does very little, but if any of its assumptions are violated (and it has a
         // lot of them), it will put the system into an inconsistent state. So we check all of them
         // here.
+        final PipelineEntry parent = entry.getParent();
 
-        if (entry.getParent() == null) {
+        if (parent == null) {
             throw new IllegalStateException(
                     "Cannot nullify addition of " + entry.getKey() + ": no parent.");
         }
 
-        if (entry.getParent() == ROOT_ENTRY) {
+        if (parent == ROOT_ENTRY) {
             if (shadeList.contains(entry)) {
                 throw new IllegalStateException("Cannot nullify addition of " + entry.getKey()
                         + ": it's still in the shade list.");
             }
         }
 
-        if (entry instanceof GroupEntry) {
-            GroupEntry ge = (GroupEntry) entry;
+        if (entry instanceof GroupEntry ge) {
             if (ge.getSummary() != null) {
                 throw new IllegalStateException(
                         "Cannot nullify group " + ge.getKey() + ": summary is not null");
@@ -995,18 +1274,27 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
                 throw new IllegalStateException(
                         "Cannot nullify group " + ge.getKey() + ": still has children");
             }
-        } else if (entry instanceof NotificationEntry
-                && entry.getParent() instanceof GroupEntry) {
-            GroupEntry parentGroupEntry = (GroupEntry) entry.getParent();
+        } else if (entry instanceof BundleEntry be) {
+            if (!be.getChildren().isEmpty()) {
+                throw new IllegalStateException(
+                        "Cannot nullify bundle " + be.getKey() + ": still has children");
+            }
+        }
+
+        if (parent instanceof GroupEntry parentGroupEntry) {
             if (entry == parentGroupEntry.getSummary()
                     || parentGroupEntry.getChildren().contains(entry)) {
+                throw new IllegalStateException("Cannot nullify addition of child "
+                        + entry.getKey() + ": it's still attached to its parent.");
+            }
+        } else if (parent instanceof BundleEntry parentBundleEntry) {
+            if (parentBundleEntry.getChildren().contains(entry)) {
                 throw new IllegalStateException("Cannot nullify addition of child "
                         + entry.getKey() + ": it's still attached to its parent.");
             }
         }
 
         annulAddition(entry);
-
     }
 
     /**
@@ -1023,10 +1311,19 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         // Assign sections to top-level elements and their children
         for (PipelineEntry entry : mNotifList) {
             NotifSection section = applySections(entry);
-            if (entry instanceof GroupEntry) {
-                GroupEntry parent = (GroupEntry) entry;
+
+            if (entry instanceof GroupEntry parent) {
                 for (NotificationEntry child : parent.getChildren()) {
                     setEntrySection(child, section);
+                }
+            } else if (entry instanceof BundleEntry be) {
+                for (ListEntry le : be.getChildren()) {
+                    setEntrySection(le, section);
+                    if (le instanceof GroupEntry ge) {
+                        for (NotificationEntry ne : ge.getChildren()) {
+                            setEntrySection(ne, section);
+                        }
+                    }
                 }
             }
         }
@@ -1043,9 +1340,16 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         // Sort each group's children
         boolean allSorted = true;
         for (PipelineEntry entry : mNotifList) {
-            if (entry instanceof GroupEntry) {
-                GroupEntry parent = (GroupEntry) entry;
+            if (entry instanceof GroupEntry parent) {
                 allSorted &= sortGroupChildren(parent.getRawChildren());
+            } else if (entry instanceof BundleEntry bundleEntry) {
+                allSorted &= sortBundleChildren(bundleEntry.getRawChildren());
+                // Sort children of groups within bundles
+                for (ListEntry le : bundleEntry.getChildren()) {
+                    if (le instanceof GroupEntry ge) {
+                        allSorted &= sortGroupChildren(ge.getRawChildren());
+                    }
+                }
             }
         }
         // Sort each section within the top level list
@@ -1073,6 +1377,15 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
             return true;
         } else {
             return mSemiStableSort.sort(entries, mStableOrder, mGroupChildrenComparator);
+        }
+    }
+
+    private boolean sortBundleChildren(List<ListEntry> entries) {
+        if (getStabilityManager().isEveryChangeAllowed()) {
+            entries.sort(mBundleChildrenComparator);
+            return true;
+        } else {
+            return mSemiStableSort.sort(entries, mStableOrder, mBundleChildrenComparator);
         }
     }
 
@@ -1110,14 +1423,26 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
                 currentSection = section;
             }
             entry.getAttachState().setStableIndex(sectionMemberIndex++);
-            if (entry instanceof GroupEntry) {
-                final GroupEntry parent = (GroupEntry) entry;
+            if (entry instanceof GroupEntry parent) {
                 final NotificationEntry summary = parent.getSummary();
                 if (summary != null) {
                     summary.getAttachState().setStableIndex(sectionMemberIndex++);
                 }
                 for (NotificationEntry child : parent.getChildren()) {
                     child.getAttachState().setStableIndex(sectionMemberIndex++);
+                }
+            } else if (entry instanceof BundleEntry bundleEntry) {
+                for (ListEntry child : bundleEntry.getChildren()) {
+                    child.getAttachState().setStableIndex(sectionMemberIndex++);
+                    if (child instanceof GroupEntry groupEntry) {
+                        final NotificationEntry summary = groupEntry.getSummary();
+                        if (summary != null) {
+                            summary.getAttachState().setStableIndex(sectionMemberIndex++);
+                        }
+                        for (NotificationEntry notifEntry : groupEntry.getChildren()) {
+                            notifEntry.getAttachState().setStableIndex(sectionMemberIndex++);
+                        }
+                    }
                 }
             }
         }
@@ -1252,6 +1577,7 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
     @Nullable
     private NotifComparator getSectionComparator(
             @NonNull PipelineEntry o1, @NonNull PipelineEntry o2) {
+        // Sections should be able to sort any PipelineEntry, including bundles
         final NotifSection section = o1.getSection();
         if (section != o2.getSection()) {
             throw new RuntimeException("Entry ordering should only be done within sections");
@@ -1279,7 +1605,31 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
             if (cmp != 0) return cmp;
         }
 
-        cmp = Integer.compare(
+        cmp = Integer.compare(getRanking(o1), getRanking(o2));
+        if (cmp != 0) return cmp;
+
+        cmp = -1 * Long.compare(getWhen(o1), getWhen(o2));
+        return cmp;
+    };
+
+    private static int getRanking(PipelineEntry pipelineEntry) {
+        final ListEntry listEntry = pipelineEntry.asListEntry();
+        return listEntry != null
+                ? listEntry.getRepresentativeEntry().getRanking().getRank()
+                // Rank bundles last
+                : Integer.MAX_VALUE;
+    }
+
+    private static long getWhen(PipelineEntry pipelineEntry) {
+        final ListEntry listEntry = pipelineEntry.asListEntry();
+        return listEntry != null
+                ? listEntry.getRepresentativeEntry().getSbn().getNotification().getWhen()
+                // Treat bundles as oldest
+                : Integer.MIN_VALUE;
+    }
+
+    private final Comparator<NotificationEntry> mGroupChildrenComparator = (o1, o2) -> {
+        int cmp = Integer.compare(
                 o1.getRepresentativeEntry().getRanking().getRank(),
                 o2.getRepresentativeEntry().getRanking().getRank());
         if (cmp != 0) return cmp;
@@ -1287,12 +1637,10 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         cmp = -1 * Long.compare(
                 o1.getRepresentativeEntry().getSbn().getNotification().getWhen(),
                 o2.getRepresentativeEntry().getSbn().getNotification().getWhen());
-
         return cmp;
     };
 
-
-    private final Comparator<NotificationEntry> mGroupChildrenComparator = (o1, o2) -> {
+    private final Comparator<ListEntry> mBundleChildrenComparator = (o1, o2) -> {
         int cmp = Integer.compare(
                 o1.getRepresentativeEntry().getRanking().getRank(),
                 o2.getRepresentativeEntry().getRanking().getRank());
@@ -1319,6 +1667,12 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         return stableIndex == -1 ? null : stableIndex;
     }
 
+    private static void debugFilterLog(String s) {
+        if (DEBUG_FILTER) {
+            android.util.Log.d(TAG, s);
+        }
+    }
+
     private boolean applyFilters(NotificationEntry entry, long now, List<NotifFilter> filters) {
         final NotifFilter filter = findRejectingFilter(entry, now, filters);
         entry.getAttachState().setExcludingFilter(filter);
@@ -1335,15 +1689,20 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         return filter != null;
     }
 
-    @Nullable private static NotifFilter findRejectingFilter(NotificationEntry entry, long now,
+    @Nullable
+    private static NotifFilter findRejectingFilter(NotificationEntry entry, long now,
             List<NotifFilter> filters) {
         final int size = filters.size();
 
         for (int i = 0; i < size; i++) {
             NotifFilter filter = filters.get(i);
             if (filter.shouldFilterOut(entry, now)) {
+                debugFilterLog("findRejectingFilter: " + filter.getName() + " rejects: "
+                        + entry.getKey());
                 return filter;
             }
+            debugFilterLog("findRejectingFilter: " + filter.getName() + " pass: "
+                    + entry.getKey());
         }
         return null;
     }
@@ -1354,7 +1713,8 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         return promoter != null;
     }
 
-    @Nullable private NotifPromoter findPromoter(NotificationEntry entry) {
+    @Nullable
+    private NotifPromoter findPromoter(NotificationEntry entry) {
         for (int i = 0; i < mNotifPromoters.size(); i++) {
             NotifPromoter promoter = mNotifPromoters.get(i);
             if (promoter.shouldPromoteToTopLevel(entry)) {
@@ -1370,11 +1730,14 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
 
         NotifSection finalSection = newSection;
 
+        final ListEntry listEntry = entry.asListEntry();
+
         // have we seen this entry before and are we changing its section?
-        if (entry.wasAttachedInPreviousPass() && newSection != prevAttachState.getSection()) {
+        if (listEntry != null && listEntry.wasAttachedInPreviousPass()
+                && newSection != prevAttachState.getSection()) {
 
             // are section changes allowed?
-            if (!getStabilityManager().isSectionChangeAllowed(entry.getRepresentativeEntry())) {
+            if (!getStabilityManager().isSectionChangeAllowed(listEntry.getRepresentativeEntry())) {
                 // record the section that we wanted to change to
                 entry.getAttachState().getSuppressedChanges().setSection(newSection);
 
@@ -1389,7 +1752,11 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
 
     private void setEntrySection(PipelineEntry entry, NotifSection finalSection) {
         entry.getAttachState().setSection(finalSection);
-        NotificationEntry representativeEntry = entry.getRepresentativeEntry();
+        final ListEntry listEntry = entry.asListEntry();
+        if (listEntry == null) {
+            return;
+        }
+        final NotificationEntry representativeEntry = listEntry.getRepresentativeEntry();
         if (representativeEntry != null) {
             representativeEntry.getAttachState().setSection(finalSection);
             if (finalSection != null) {
@@ -1469,15 +1836,40 @@ public class ShadeListBuilder implements Dumpable, PipelineDumpable {
         mChoreographer.schedule();
     }
 
-    private static int countChildren(List<PipelineEntry> entries) {
-        int count = 0;
-        for (int i = 0; i < entries.size(); i++) {
-            final PipelineEntry entry = entries.get(i);
-            if (entry instanceof GroupEntry) {
-                count += ((GroupEntry) entry).getChildren().size();
+    private static void logEndBuildList(
+            ShadeListBuilderLogger logger,
+            int iterationCount,
+            List<PipelineEntry> shadeList,
+            boolean enforcedVisualStability) {
+        Trace.beginSection("ShadeListBuilder.logEndBuildList");
+        final int numTopLevelEntries = shadeList.size();
+        int bundledCount = 0;
+        int bundledChildCount = 0;
+        int childCount = 0;
+        for (int i = 0; i < numTopLevelEntries; i++) {
+            final PipelineEntry entry = shadeList.get(i);
+            if (entry instanceof GroupEntry groupEntry) {
+                childCount += groupEntry.getChildren().size();
+            } else if (entry instanceof BundleEntry bundleEntry) {
+                int numBundleChildren = bundleEntry.getChildren().size();
+                bundledCount += numBundleChildren;
+                for (int j = 0; j < numBundleChildren; j++) {
+                    final ListEntry bundleChild = bundleEntry.getChildren().get(j);
+                    if (bundleChild instanceof GroupEntry bundleChildGroup) {
+                        bundledChildCount += bundleChildGroup.getChildren().size();
+                    }
+                }
             }
         }
-        return count;
+
+        logger.logEndBuildList(
+                iterationCount,
+                numTopLevelEntries,
+                childCount,
+                bundledCount,
+                bundledChildCount,
+                /* enforcedVisualStability */ enforcedVisualStability);
+        Trace.endSection();
     }
 
     private void dispatchOnBeforeTransformGroups(List<PipelineEntry> entries) {

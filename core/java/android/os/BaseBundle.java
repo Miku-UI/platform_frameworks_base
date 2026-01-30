@@ -22,6 +22,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Intent;
+import android.security.Flags;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.MathUtils;
@@ -94,7 +95,7 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
     // A parcel cannot be obtained during compile-time initialization. Put the
     // empty parcel into an inner class that can be initialized separately. This
     // allows to initialize BaseBundle, and classes depending on it.
-    /** {@hide} */
+    /** @hide */
     static final class NoImagePreloadHolder {
         public static final Parcel EMPTY_PARCEL = Parcel.obtain();
     }
@@ -140,7 +141,7 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
      */
     private ClassLoader mClassLoader;
 
-    /** {@hide} */
+    /** @hide */
     @VisibleForTesting
     public int mFlags;
     private boolean mHasIntent = false;
@@ -446,7 +447,16 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
                 object = ((BiFunction<Class<?>, Class<?>[], ?>) object).apply(clazz, itemTypes);
             } catch (BadParcelableException e) {
                 if (sShouldDefuse) {
-                    Log.w(TAG, "Failed to parse item " + mMap.keyAt(i) + ", returning null.", e);
+                    if (Flags.wtfBundleDefuse()) {
+                        Slog.wtf(TAG, "Failed to parse item " + mMap.keyAt(i) + ", returning null.",
+                                e);
+                    } else {
+                        Log.w(TAG, "Failed to parse item " + mMap.keyAt(i) + ", returning null.",
+                                e);
+                    }
+                    if (Flags.deprecateBundleDefuse()) {
+                        throw e;
+                    }
                     return null;
                 } else {
                     throw e;
@@ -457,11 +467,11 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
             if (mOwnsLazyValues) {
                 Preconditions.checkState(mLazyValues >= 0,
                         "Lazy values ref count below 0");
-                // No more lazy values in mMap, so we can recycle the parcel early rather than
+                // No more lazy values in mMap, so we can destroy the parcel early rather than
                 // waiting for the next GC run
                 Parcel parcel = mWeakParcelledData.get();
                 if (mLazyValues == 0 && parcel != null) {
-                    recycleParcel(parcel);
+                    parcel.destroy();
                     mWeakParcelledData = null;
                 }
             }
@@ -507,7 +517,14 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
                     /* lazy */ ownsParcel, this, numLazyValues);
         } catch (BadParcelableException e) {
             if (sShouldDefuse) {
-                Log.w(TAG, "Failed to parse Bundle, but defusing quietly", e);
+                if (Flags.wtfBundleDefuse()) {
+                    Slog.wtf(TAG, "Failed to parse Bundle, but defusing quietly", e);
+                } else {
+                    Log.w(TAG, "Failed to parse Bundle, but defusing quietly", e);
+                }
+                if (Flags.deprecateBundleDefuse()) {
+                    throw e;
+                }
                 map.erase();
             } else {
                 throw e;
@@ -516,7 +533,8 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
             mWeakParcelledData = null;
             if (ownsParcel) {
                 if (numLazyValues[0] == 0) {
-                    recycleParcel(parcelledData);
+                    // No lazy value, we can directly recycle this parcel
+                    parcelledData.recycle();
                 } else {
                     mWeakParcelledData = new WeakReference<>(parcelledData);
                 }
@@ -554,12 +572,6 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
      */
     private static boolean isEmptyParcel(Parcel p) {
         return p == NoImagePreloadHolder.EMPTY_PARCEL;
-    }
-
-    private static void recycleParcel(Parcel p) {
-        if (p != null && !isEmptyParcel(p)) {
-            p.recycle();
-        }
     }
 
     /**
@@ -667,7 +679,10 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
     public void clear() {
         unparcel();
         if (mOwnsLazyValues && mWeakParcelledData != null) {
-            recycleParcel(mWeakParcelledData.get());
+            Parcel parcel = mWeakParcelledData.get();
+            if (parcel != null) {
+                parcel.destroy();
+            }
         }
 
         mWeakParcelledData = null;
@@ -812,7 +827,7 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
         return mMap.keySet();
     }
 
-    /** {@hide} */
+    /** @hide */
     public void putObject(@Nullable String key, @Nullable Object value) {
         if (value == null) {
             putString(key, null);
@@ -1944,7 +1959,7 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
         mHasIntent = parcel.readBoolean();
     }
 
-    /** {@hide} */
+    /** @hide */
     public static void dumpStats(IndentingPrintWriter pw, String key, Object value) {
         final Parcel tmp = Parcel.obtain();
         tmp.writeValue(value);
@@ -1962,7 +1977,7 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static void dumpStats(IndentingPrintWriter pw, SparseArray array) {
         pw.increaseIndent();
         if (array == null) {
@@ -1975,7 +1990,7 @@ public class BaseBundle implements Parcel.ClassLoaderProvider {
         pw.decreaseIndent();
     }
 
-    /** {@hide} */
+    /** @hide */
     public static void dumpStats(IndentingPrintWriter pw, BaseBundle bundle) {
         pw.increaseIndent();
         if (bundle == null) {

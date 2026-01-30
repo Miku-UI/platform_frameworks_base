@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Pušta se na ovom tabletu"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Možete da locirate ovaj telefon pomoću usluge Pronađi moj uređaj čak i kada je isključen"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Možete da locirate ovaj tablet pomoću usluge Pronađi moj uređaj čak i kada je isključen"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Možete da locirate ovaj telefon pomoću Centra za pronalaženje čak i kada je isključen"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Možete da locirate ovaj tablet pomoću Centra za pronalaženje čak i kada je isključen"</string>
 </resources>

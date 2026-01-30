@@ -28,7 +28,7 @@ please see styles_device_defaults.xml.
                         PLEASE READ
 ===============================================================
  -->
-<resources>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Preference styles -->
     <eat-comment/>
 
@@ -474,13 +474,14 @@ please see styles_device_defaults.xml.
 
     <style name="TextAppearance.Material.Notification.Title">
         <item name="textColor">@color/notification_primary_text_color_current</item>
-        <item name="fontFamily">sans-serif-medium</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">sans-serif-medium</item>
         <item name="textSize">@dimen/notification_title_text_size</item>
     </style>
 
+    <!-- unused as of the 2025 redesign -->
     <style name="TextAppearance.Material.Notification.BigTitle">
         <item name="textColor">@color/notification_primary_text_color_current</item>
-        <item name="fontFamily">sans-serif-medium</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">sans-serif-medium</item>
         <item name="textSize">@dimen/notification_big_title_text_size</item>
     </style>
 

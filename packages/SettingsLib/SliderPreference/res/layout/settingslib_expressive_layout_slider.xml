@@ -46,7 +46,8 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_weight="1"
-        android:theme="@style/Theme.MaterialComponents.DayNight" />
+        android:theme="@style/Theme.MaterialComponents.DayNight"
+        style="@style/SettingslibSliderStyle.Expressive" />
 
     <FrameLayout
         android:id="@+id/icon_end_frame"

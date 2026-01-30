@@ -14,19 +14,20 @@
  * limitations under the License.
  */
 package com.android.internal.widget.remotecompose.core;
-
 import android.annotation.NonNull;
 
 import java.util.Arrays;
+import java.util.Set;
 
 /** The base communication buffer capable of encoding and decoding various types */
 public class WireBuffer {
-    private static final int BUFFER_SIZE = 1024 * 1024 * 1;
+    private static final int BUFFER_SIZE = 1024 * 1024;
     int mMaxSize;
-    @NonNull byte[] mBuffer;
+    @NonNull byte [] mBuffer;
     int mIndex = 0;
     int mStartingIndex = 0;
     int mSize = 0;
+    boolean[] mValidOperations = new boolean[256];
 
     /**
      * Create a wire buffer
@@ -36,6 +37,7 @@ public class WireBuffer {
     public WireBuffer(int size) {
         mMaxSize = size;
         mBuffer = new byte[mMaxSize];
+        Arrays.fill(mValidOperations, true);
     }
 
     /** Create a wire buffer of default size */
@@ -56,7 +58,7 @@ public class WireBuffer {
      *
      * @return byte array of the wire buffer
      */
-    public @NonNull byte[] getBuffer() {
+    public @NonNull byte [] getBuffer() {
         return mBuffer;
     }
 
@@ -102,6 +104,9 @@ public class WireBuffer {
      * @param type the command id
      */
     public void start(int type) {
+        if (!mValidOperations[type]) {
+            throw new RuntimeException("Operation " + type + " is not supported for this version");
+        }
         mStartingIndex = mIndex;
         writeByte(type);
     }
@@ -272,7 +277,7 @@ public class WireBuffer {
      *
      * @return byte array
      */
-    public @NonNull byte[] readBuffer() {
+    public @NonNull byte [] readBuffer() {
         int count = readInt();
         byte[] b = Arrays.copyOfRange(mBuffer, mIndex, mIndex + count);
         mIndex += count;
@@ -286,7 +291,7 @@ public class WireBuffer {
      *
      * @return byte array
      */
-    public @NonNull byte[] readBuffer(int maxSize) {
+    public @NonNull byte [] readBuffer(int maxSize) {
         int count = readInt();
         if (count < 0 || count > maxSize) {
             throw new RuntimeException(
@@ -416,7 +421,7 @@ public class WireBuffer {
      *
      * @param b array of bytes write
      */
-    public void writeBuffer(@NonNull byte[] b) {
+    public void writeBuffer(@NonNull byte [] b) {
         resize(b.length + 4);
         writeInt(b.length);
         for (int i = 0; i < b.length; i++) {
@@ -433,5 +438,42 @@ public class WireBuffer {
     public void writeUTF8(@NonNull String content) {
         byte[] buffer = content.getBytes();
         writeBuffer(buffer);
+    }
+
+    /**
+     * copy the buffer to a new byte array
+     *
+     * @return copy of the byte array cut to the current size
+     */
+    public @NonNull byte [] cloneBytes() {
+        return Arrays.copyOfRange(mBuffer, 0, mSize);
+    }
+
+    /**
+     * Set the version used to write operations in this buffer. If not called, any operations will
+     * be allowed, but if called only operations valid for the given api level and profiles used
+     * will.
+     *
+     * @param documentApiLevel api level
+     * @param profiles profiles mask used
+     */
+    public void setVersion(int documentApiLevel, int profiles) {
+        for (int i = 0; i < mValidOperations.length; i++) {
+            mValidOperations[i] = Operations.valid(i, documentApiLevel, profiles);
+        }
+    }
+
+    /**
+     * Sets the operations that are considered valid for this buffer. This is typically used to
+     * restrict operations based on a specific version or profile. By default, all operations
+     * (0-255) are considered valid.
+     *
+     * @param supportedOperations A set of integers representing the operation codes that are valid.
+     *     Any operation code not in this set will be considered invalid.
+     */
+    public void setValidOperations(@NonNull Set<Integer> supportedOperations) {
+        for (Integer o : supportedOperations) {
+            mValidOperations[o] = true;
+        }
     }
 }

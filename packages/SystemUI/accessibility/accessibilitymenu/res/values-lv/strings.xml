@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"Pāriet uz iepriekšējo ekrānu"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Pāriet uz nākamo ekrānu"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"Pieejamības izvēlne nodrošina lielu ekrāna izvēlni, ko varat izmantot ierīces kontrolēšanai. Varat bloķēt ierīci, kontrolēt skaļumu un spilgtumu, veidot ekrānuzņēmumus un paveikt daudz ko citu."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Kontrolējiet ierīci, izmantojot lielu izvēlni"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Izmantojiet lielu izvēlni skaļuma, spilgtuma un citas iespēju kontrolēšanai"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Pieejamības izvēlnes iestatījumi"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Lielas pogas"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Palielināt pieejamības izvēlnes pogu lielumu"</string>

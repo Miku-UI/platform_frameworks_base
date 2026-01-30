@@ -18,7 +18,6 @@ package com.android.systemui.media.controls.shared
 
 import android.content.Context
 import android.graphics.drawable.Drawable
-import com.android.systemui.Flags.mediaControlsDrawablesReuseBugfix
 import com.android.systemui.res.R
 
 object MediaControlDrawables {
@@ -29,46 +28,25 @@ object MediaControlDrawables {
     private var nextIcon: Drawable? = null
     // Output switcher drawables.
     private var leAudioSharing: Drawable? = null
-    private var antenna: Drawable? = null
     private var groupDevice: Drawable? = null
     private var homeDevices: Drawable? = null
 
     fun getNextIcon(context: Context): Drawable? {
-        if (!mediaControlsDrawablesReuseBugfix()) {
-            return context.getDrawable(R.drawable.ic_media_next)
-        }
         return nextIcon ?: context.getDrawable(R.drawable.ic_media_next).also { nextIcon = it }
     }
 
     fun getPrevIcon(context: Context): Drawable? {
-        if (!mediaControlsDrawablesReuseBugfix()) {
-            return context.getDrawable(R.drawable.ic_media_prev)
-        }
         return prevIcon ?: context.getDrawable(R.drawable.ic_media_prev).also { prevIcon = it }
     }
 
     fun getLeAudioSharing(context: Context): Drawable? {
-        if (!mediaControlsDrawablesReuseBugfix()) {
-            return context.getDrawable(com.android.settingslib.R.drawable.ic_bt_le_audio_sharing)
-        }
         return leAudioSharing
             ?: context.getDrawable(com.android.settingslib.R.drawable.ic_bt_le_audio_sharing).also {
                 leAudioSharing = it
             }
     }
 
-    fun getAntenna(context: Context): Drawable? {
-        if (!mediaControlsDrawablesReuseBugfix()) {
-            return context.getDrawable(R.drawable.settings_input_antenna)
-        }
-        return antenna
-            ?: context.getDrawable(R.drawable.settings_input_antenna).also { antenna = it }
-    }
-
     fun getGroupDevice(context: Context): Drawable? {
-        if (!mediaControlsDrawablesReuseBugfix()) {
-            return context.getDrawable(com.android.settingslib.R.drawable.ic_media_group_device)
-        }
         return groupDevice
             ?: context.getDrawable(com.android.settingslib.R.drawable.ic_media_group_device).also {
                 groupDevice = it
@@ -76,9 +54,6 @@ object MediaControlDrawables {
     }
 
     fun getHomeDevices(context: Context): Drawable? {
-        if (!mediaControlsDrawablesReuseBugfix()) {
-            return context.getDrawable(R.drawable.ic_media_home_devices)
-        }
         return homeDevices
             ?: context.getDrawable(R.drawable.ic_media_home_devices).also { homeDevices = it }
     }

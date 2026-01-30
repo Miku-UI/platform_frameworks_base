@@ -31,14 +31,18 @@ import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.ui.viewmodel.DreamingToGlanceableHubTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.DreamingToLockscreenTransitionViewModel
 import com.android.systemui.keyguard.ui.viewmodel.GlanceableHubToDreamingTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.GoneToDreamingTransitionViewModel
+import com.android.systemui.keyguard.ui.viewmodel.LockscreenToDreamingTransitionViewModel
 import com.android.systemui.res.R
 import com.android.systemui.settings.UserTracker
+import com.android.systemui.util.kotlin.BooleanFlowOperators.anyOf
 import com.android.systemui.util.kotlin.FlowDumperImpl
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 
 @SysUISingleton
@@ -49,6 +53,8 @@ constructor(
     keyguardTransitionInteractor: KeyguardTransitionInteractor,
     fromGlanceableHubTransitionViewModel: GlanceableHubToDreamingTransitionViewModel,
     toGlanceableHubTransitionViewModel: DreamingToGlanceableHubTransitionViewModel,
+    fromLockscreenTransitionViewModel: LockscreenToDreamingTransitionViewModel,
+    fromGoneTransitionViewModel: GoneToDreamingTransitionViewModel,
     private val toLockscreenTransitionViewModel: DreamingToLockscreenTransitionViewModel,
     private val fromDreamingTransitionInteractor: FromDreamingTransitionInteractor,
     private val communalInteractor: CommunalInteractor,
@@ -106,4 +112,24 @@ constructor(
             step.transitionState == TransitionState.FINISHED ||
                 step.transitionState == TransitionState.CANCELED
         }
+
+    val transitioningFromOrToDream =
+        anyOf(
+                keyguardTransitionInteractor.startedKeyguardTransitionStep.map { step ->
+                    step.to == DREAMING
+                },
+                keyguardTransitionInteractor.isInTransition(Edge.create(from = DREAMING)),
+            )
+            .distinctUntilChanged()
+
+    val statusBarAlpha: Flow<Float> =
+        merge(
+                toLockscreenTransitionViewModel.statusBarAlpha,
+                fromLockscreenTransitionViewModel.statusBarAlpha,
+                fromGoneTransitionViewModel.statusBarAlpha,
+                // Reset explicit alpha once dream-exit transition ended
+                transitionEnded.map { -1f },
+            )
+            .distinctUntilChanged()
+            .dumpWhileCollecting("statusBarAlphaByDream")
 }

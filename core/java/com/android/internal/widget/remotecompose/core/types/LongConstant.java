@@ -52,7 +52,7 @@ public class LongConstant extends Operation implements Serializable {
      *
      * @param from the constant to copy from
      */
-    public void update(LongConstant from) {
+    public void update(@NonNull LongConstant from) {
         mValue = from.mValue;
     }
 
@@ -135,7 +135,7 @@ public class LongConstant extends Operation implements Serializable {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("id", mId).add("value", mValue);
     }
 }

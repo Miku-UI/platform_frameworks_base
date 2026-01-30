@@ -27,6 +27,7 @@ import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
 import com.android.settingslib.spa.widget.scaffold.RegularScaffold
+import com.android.settingslib.spa.widget.ui.Category
 
 private const val TITLE = "Sample page with arguments"
 private const val STRING_PARAM_NAME = "stringParam"
@@ -35,10 +36,11 @@ private const val INT_PARAM_NAME = "intParam"
 object ArgumentPageProvider : SettingsPageProvider {
     override val name = "Argument"
 
-    override val parameter = listOf(
-        navArgument(STRING_PARAM_NAME) { type = NavType.StringType },
-        navArgument(INT_PARAM_NAME) { type = NavType.IntType },
-    )
+    override val parameter =
+        listOf(
+            navArgument(STRING_PARAM_NAME) { type = NavType.StringType },
+            navArgument(INT_PARAM_NAME) { type = NavType.IntType },
+        )
 
     @Composable
     override fun Page(arguments: Bundle?) {
@@ -50,37 +52,45 @@ object ArgumentPageProvider : SettingsPageProvider {
 
     @Composable
     fun EntryItem(stringParam: String, intParam: Int) {
-        Preference(object : PreferenceModel {
-            override val title = TITLE
-            override val summary = { "$STRING_PARAM_NAME=$stringParam, $INT_PARAM_NAME=$intParam" }
-            override val onClick = navigator("$name/$stringParam/$intParam")
-        })
+        Preference(
+            object : PreferenceModel {
+                override val title = TITLE
+                override val summary = {
+                    "$STRING_PARAM_NAME=$stringParam, $INT_PARAM_NAME=$intParam"
+                }
+                override val onClick = navigator("$name/$stringParam/$intParam")
+            }
+        )
     }
 }
 
 @Composable
 fun ArgumentPage(stringParam: String, intParam: Int) {
     RegularScaffold(title = TITLE) {
-        Preference(object : PreferenceModel {
-            override val title = "String param value"
-            override val summary = { stringParam }
-        })
+        Category {
+            Preference(
+                object : PreferenceModel {
+                    override val title = "String param value"
+                    override val summary = { stringParam }
+                }
+            )
+            Preference(
+                object : PreferenceModel {
+                    override val title = "Int param value"
+                    override val summary = { intParam.toString() }
+                }
+            )
+        }
 
-        Preference(object : PreferenceModel {
-            override val title = "Int param value"
-            override val summary = { intParam.toString() }
-        })
-
-        ArgumentPageProvider.EntryItem(stringParam = "foo", intParam = intParam + 1)
-
-        ArgumentPageProvider.EntryItem(stringParam = "bar", intParam = intParam + 1)
+        Category {
+            ArgumentPageProvider.EntryItem(stringParam = "foo", intParam = intParam + 1)
+            ArgumentPageProvider.EntryItem(stringParam = "bar", intParam = intParam + 1)
+        }
     }
 }
 
 @Preview(showBackground = true)
 @Composable
 private fun ArgumentPagePreview() {
-    SettingsTheme {
-        ArgumentPage(stringParam = "foo", intParam = 0)
-    }
+    SettingsTheme { ArgumentPage(stringParam = "foo", intParam = 0) }
 }

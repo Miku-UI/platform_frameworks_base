@@ -43,7 +43,8 @@ public abstract class AbstractMultiplePendingRequestsRemoteService<S
 
     private final int mInitialCapacity;
 
-    protected @NonNull List<BasePendingRequest<S, I>> mPendingRequests;
+    protected final @NonNull List<BasePendingRequest<S, I>> mPendingRequests;
+    private static final long PENDING_REQUEST_TIMEOUT_MS = 5000;
 
     public AbstractMultiplePendingRequestsRemoteService(@NonNull Context context,
             @NonNull String serviceInterface, @NonNull ComponentName componentName, int userId,
@@ -114,6 +115,18 @@ public abstract class AbstractMultiplePendingRequestsRemoteService<S
                 Slog.v(mTag,
                         "queued " + mPendingRequests.size() + " requests; last=" + pendingRequest);
             }
+            final Runnable handleTimeout = () -> {
+                synchronized (mPendingRequests) {
+                    if (mPendingRequests.remove(pendingRequest)) {
+                        if (mVerbose) {
+                            Slog.v(mTag, "pendingRequest timeout, remove");
+                        }
+                        pendingRequest.onFailed();
+                        pendingRequest.finish();
+                    }
+                }
+            };
+            mHandler.postDelayed(handleTimeout, PENDING_REQUEST_TIMEOUT_MS);
         }
     }
 }

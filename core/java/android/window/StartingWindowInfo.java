@@ -208,6 +208,8 @@ public final class StartingWindowInfo implements Parcelable {
      */
     public SurfaceControl rootSurface;
 
+    public IBinder transitionToken;
+
     /**
      * Notify windowless surface is created.
      * @param addedSurface Created surface.
@@ -256,6 +258,7 @@ public final class StartingWindowInfo implements Parcelable {
         dest.writeStrongBinder(appToken);
         dest.writeStrongInterface(windowlessStartingSurfaceCallback);
         dest.writeTypedObject(rootSurface, flags);
+        dest.writeStrongBinder(transitionToken);
     }
 
     void readFromParcel(@NonNull Parcel source) {
@@ -272,6 +275,7 @@ public final class StartingWindowInfo implements Parcelable {
         windowlessStartingSurfaceCallback = IWindowlessStartingSurfaceCallback.Stub
                 .asInterface(source.readStrongBinder());
         rootSurface = source.readTypedObject(SurfaceControl.CREATOR);
+        transitionToken = source.readStrongBinder();
     }
 
     @Override

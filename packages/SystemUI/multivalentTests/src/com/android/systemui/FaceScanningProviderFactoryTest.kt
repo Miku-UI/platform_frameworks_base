@@ -28,9 +28,11 @@ import com.android.systemui.biometrics.AuthController
 import com.android.systemui.biometrics.data.repository.FakeFacePropertyRepository
 import com.android.systemui.decor.FaceScanningProviderFactory
 import com.android.systemui.decor.FaceScanningProviderFactoryImpl
+import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.log.ScreenDecorationsLogger
 import com.android.systemui.log.logcatLogBuffer
 import com.android.systemui.plugins.statusbar.StatusBarStateController
+import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import java.util.concurrent.Executor
@@ -46,6 +48,7 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 @SmallTest
 class FaceScanningProviderFactoryTest : SysuiTestCase() {
+    private val kosmos = testKosmos()
 
     private lateinit var underTest: FaceScanningProviderFactory
 
@@ -91,6 +94,8 @@ class FaceScanningProviderFactoryTest : SysuiTestCase() {
                 mock(Executor::class.java),
                 ScreenDecorationsLogger(logcatLogBuffer("FaceScanningProviderFactoryTest")),
                 facePropertyRepository,
+                kosmos.keyguardInteractor,
+                kosmos.shadeInteractor,
             )
 
         facePropertyRepository.setSensorLocation(Point(10, 10))
@@ -115,7 +120,7 @@ class FaceScanningProviderFactoryTest : SysuiTestCase() {
     @Test
     fun shouldShowFaceScanningAnimationIfKeyguardFaceDetectionIsShowing() {
         whenever(keyguardUpdateMonitor.isFaceEnabledAndEnrolled).thenReturn(true)
-        whenever(keyguardUpdateMonitor.isFaceDetectionRunning).thenReturn(true)
+        whenever(keyguardUpdateMonitor.isFaceAuthOrDetectionRunning).thenReturn(true)
 
         assertThat(underTest.shouldShowFaceScanningAnim()).isTrue()
     }

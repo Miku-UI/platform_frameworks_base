@@ -50,5 +50,7 @@ sealed interface CommunalContentSize {
                     ?: throw IllegalArgumentException("$span is not a valid span size")
             }
         }
+
+        fun fixedThirdOrResponsiveSize() = toSize(FixedSize.THIRD.span)
     }
 }

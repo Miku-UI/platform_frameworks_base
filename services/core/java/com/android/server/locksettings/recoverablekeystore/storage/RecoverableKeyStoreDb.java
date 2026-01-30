@@ -441,6 +441,54 @@ public class RecoverableKeyStoreDb {
     }
 
     /**
+     * Sets the {@code lskfSalt} for the user {@code userId}.
+     *
+     * @return The number of updated rows.
+     */
+    public long setLskfSalt(int userId, byte[] lskfSalt) {
+        SQLiteDatabase db = mKeyStoreDbHelper.getWritableDatabase();
+        ContentValues values = new ContentValues();
+        values.put(UserMetadataEntry.COLUMN_NAME_USER_ID, userId);
+        values.put(UserMetadataEntry.COLUMN_NAME_LSKF_SALT, lskfSalt);
+        String selection = UserMetadataEntry.COLUMN_NAME_USER_ID + " = ?";
+        String[] selectionArguments = new String[] {String.valueOf(userId)};
+
+        ensureUserMetadataEntryExists(userId);
+        return db.update(UserMetadataEntry.TABLE_NAME, values, selection, selectionArguments);
+    }
+
+    /**
+     * Returns salt used to create previous snapshot for user {@code userId}.
+     */
+    public @Nullable byte[] getLskfSalt(int userId) {
+        SQLiteDatabase db = mKeyStoreDbHelper.getReadableDatabase();
+        String[] projection = {
+                UserMetadataEntry.COLUMN_NAME_LSKF_SALT};
+        String selection =
+                UserMetadataEntry.COLUMN_NAME_USER_ID + " = ?";
+        String[] selectionArguments = {
+                Integer.toString(userId)};
+
+        try (Cursor cursor = db.query(
+                UserMetadataEntry.TABLE_NAME,
+                projection,
+                selection,
+                selectionArguments,
+                /*groupBy=*/ null,
+                /*having=*/ null,
+                /*orderBy=*/ null)
+        ) {
+            if (cursor.getCount() == 0) {
+                return null; // previous value was not stored.
+            }
+            cursor.moveToFirst();
+            return cursor.getBlob(
+                    cursor.getColumnIndexOrThrow(
+                            UserMetadataEntry.COLUMN_NAME_LSKF_SALT));
+        }
+    }
+
+    /**
      * Updates status of old keys to {@code RecoveryController.RECOVERY_STATUS_PERMANENT_FAILURE}.
      */
     public void invalidateKeysForUser(int userId) {

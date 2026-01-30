@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.uimodenight.domain.interactor
 
 import android.app.UiModeManager
-import android.platform.test.annotations.EnabledOnRavenwood
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -39,7 +38,6 @@ import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class UiModeNightTileUserActionInteractorTest : SysuiTestCase() {
 

@@ -36,7 +36,6 @@ import android.content.pm.PackageManager;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.database.ContentObserver;
 import android.net.Uri;
-import android.os.BatteryStatsInternal;
 import android.os.Binder;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
@@ -54,12 +53,12 @@ import com.android.internal.os.BackgroundThread;
 import com.android.internal.os.BinderCallsStats;
 import com.android.internal.os.BinderInternal;
 import com.android.internal.os.CachedDeviceState;
+import com.android.internal.os.NativeBinderStats;
 import com.android.internal.util.DumpUtils;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public class BinderCallsStatsService extends Binder {
@@ -257,6 +256,7 @@ public class BinderCallsStatsService extends Binder {
         private BinderCallsStatsService mService;
         private BinderCallsStats mBinderCallsStats;
         private AuthorizedWorkSourceProvider mWorkSourceProvider;
+        private NativeBinderStats mNativeBinderStats;
 
         public LifeCycle(Context context) {
             super(context);
@@ -268,6 +268,7 @@ public class BinderCallsStatsService extends Binder {
             mWorkSourceProvider = new AuthorizedWorkSourceProvider();
             mService = new BinderCallsStatsService(
                     mBinderCallsStats, mWorkSourceProvider);
+            mNativeBinderStats = new NativeBinderStats(getContext());
             publishLocalService(Internal.class, new Internal(mBinderCallsStats));
             publishBinderService(SERVICE_NAME, mService);
             boolean detailedTrackingEnabled = SystemProperties.getBoolean(
@@ -288,27 +289,11 @@ public class BinderCallsStatsService extends Binder {
                         CachedDeviceState.Readonly.class);
                 mBinderCallsStats.setDeviceState(deviceState);
 
-                if (!com.android.server.power.optimization.Flags.disableSystemServicePowerAttr()) {
-                    BatteryStatsInternal batteryStatsInternal = getLocalService(
-                            BatteryStatsInternal.class);
-                    mBinderCallsStats.setCallStatsObserver(new BinderInternal.CallStatsObserver() {
-                        @Override
-                        public void noteCallStats(int workSourceUid, long incrementalCallCount,
-                                Collection<BinderCallsStats.CallStat> callStats) {
-                            batteryStatsInternal.noteBinderCallStats(workSourceUid,
-                                    incrementalCallCount, callStats);
-                        }
-
-                        @Override
-                        public void noteBinderThreadNativeIds(int[] binderThreadNativeTids) {
-                            batteryStatsInternal.noteBinderThreadNativeIds(binderThreadNativeTids);
-                        }
-                    });
-                }
                 // It needs to be called before mService.systemReady to make sure the observer is
                 // initialized before installing it.
                 mWorkSourceProvider.systemReady(getContext());
                 mService.systemReady(getContext());
+                mNativeBinderStats.systemReady();
             }
         }
     }

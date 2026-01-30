@@ -21,7 +21,7 @@ import android.media.AudioDeviceAttributes;
 /**
  * AIDL for AudioService to signal non-daefault devices updates for audio strategies.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IStrategyNonDefaultDevicesDispatcher {
 

@@ -42,7 +42,6 @@ import android.content.pm.UserInfo;
 import android.os.Binder;
 import android.os.RemoteException;
 import android.os.UserHandle;
-import android.platform.test.annotations.EnableFlags;
 import android.provider.DeviceConfig;
 import android.testing.TestableLooper;
 
@@ -50,7 +49,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.internal.config.sysui.SystemUiDeviceConfigFlags;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.animation.DialogTransitionAnimator;
 import com.android.systemui.broadcast.BroadcastDispatcher;
@@ -320,7 +318,6 @@ public class FgsManagerControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_STOPPABLE_FGS_SYSTEM_APP)
     public void testButtonVisibilityOfStoppableApps() throws Exception {
         setUserProfiles(0);
         setBackgroundRestrictionExemptionReason("pkg", 12345, REASON_ALLOWLISTED_PACKAGE);

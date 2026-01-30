@@ -41,6 +41,9 @@ sealed class AuthenticationMethodModel(
 
     data object Pattern : AuthenticationMethodModel(isSecure = true)
 
+    /** Used during Secure Lock Device for the two-factor authentication flow. */
+    data object Biometric : AuthenticationMethodModel(isSecure = true)
+
     data object Sim : AuthenticationMethodModel(isSecure = true)
 
     override fun logDiffs(prevVal: AuthenticationMethodModel, row: TableRowLogger) {

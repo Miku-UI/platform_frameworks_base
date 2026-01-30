@@ -31,6 +31,7 @@
 
 #include <charconv>
 #include <chrono>
+#include <mutex>
 #include <span>
 #include <string>
 #include <thread>

@@ -16,7 +16,10 @@
 
 package android.content;
 
+import android.annotation.Nullable;
+import android.app.IBinderSession;
 import android.os.IBinder;
+import android.util.Log;
 
 /**
  * Interface for monitoring the state of an application service.  See
@@ -43,6 +46,34 @@ public interface ServiceConnection {
      * which you can now make calls on.
      */
     void onServiceConnected(ComponentName name, IBinder service);
+
+    /**
+     * Same as {@link #onServiceConnected(ComponentName, IBinder)} but provides a
+     * {@link IBinderSession} to account for binder calls to a frozen remote process whenever the
+     * {@link Context#BIND_ALLOW_FREEZE} or {@link Context#BIND_SIMULATE_ALLOW_FREEZE} was used with
+     * the bindService call. Other clients can continue overriding and using
+     * {@link #onServiceConnected(ComponentName, IBinder)} normally.
+     *
+     * <p> Note that clients that use {@link Context#BIND_ALLOW_FREEZE} but do not override this
+     * will have to deal with the remote process's frozen state on their own.
+     *
+     * @param name The concrete component name of the service that has been connected.
+     * @param service The IBinder of the Service's communication channel, which you can now make
+     *                calls on.
+     * @param binderSession An IBinderSession used to keep the remote service unfrozen to process
+     *                      any binder calls. Will be {@code null} when neither
+     *                      {@link Context#BIND_ALLOW_FREEZE} nor
+     *                      {@link Context#BIND_SIMULATE_ALLOW_FREEZE} was used.
+     * @hide
+     */
+    default void onServiceConnected(ComponentName name, IBinder service,
+            @Nullable IBinderSession binderSession) {
+        if (binderSession != null) {
+            final String tag = getClass().getSimpleName();
+            Log.w(tag, "Binder session present but potentially unused for binding to " + name);
+        }
+        onServiceConnected(name, service);
+    }
 
     /**
      * Called when a connection to the Service has been lost.  This typically

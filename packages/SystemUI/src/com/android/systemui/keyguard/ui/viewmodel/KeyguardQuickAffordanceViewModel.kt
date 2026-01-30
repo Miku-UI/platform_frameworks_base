@@ -25,7 +25,7 @@ data class KeyguardQuickAffordanceViewModel(
     val isVisible: Boolean = false,
     /** Whether to animate the transition of the quick affordance from invisible to visible. */
     val animateReveal: Boolean = false,
-    val icon: Icon = Icon.Resource(res = 0, contentDescription = null),
+    val icon: Icon = Icon.Resource(resId = 0, contentDescription = null),
     val onClicked: (OnClickedParameters) -> Unit = {},
     val isClickable: Boolean = false,
     val isActivated: Boolean = false,

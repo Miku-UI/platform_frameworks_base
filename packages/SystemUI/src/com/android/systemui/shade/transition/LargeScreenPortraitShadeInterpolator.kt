@@ -17,12 +17,15 @@
 package com.android.systemui.shade.transition
 
 import android.util.MathUtils
+import androidx.annotation.VisibleForTesting
 import com.android.systemui.animation.ShadeInterpolation
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 import javax.inject.Inject
 
 /** Interpolator responsible for the shade when in portrait on a large screen. */
-internal class LargeScreenPortraitShadeInterpolator @Inject internal constructor() :
-    LargeScreenShadeInterpolator {
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+class LargeScreenPortraitShadeInterpolator @Inject constructor() : LargeScreenShadeInterpolator {
 
     override fun getBehindScrimAlpha(fraction: Float): Float {
         return MathUtils.constrainedMap(0f, 1f, 0f, 0.3f, fraction)

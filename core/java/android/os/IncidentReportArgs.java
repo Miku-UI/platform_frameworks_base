@@ -26,7 +26,7 @@ import java.util.ArrayList;
 
 /**
  * The arguments for an incident report.
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class IncidentReportArgs implements Parcelable {

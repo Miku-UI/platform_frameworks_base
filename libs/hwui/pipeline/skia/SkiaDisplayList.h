@@ -126,6 +126,9 @@ public:
         mDisplayList.applyColorTransform(transform);
     }
 
+    /** Adds all relevant draw calls with fills to the given ColorArea */
+    void findFillAreas(ColorArea& accumulator) { mDisplayList.findFillAreas(accumulator); }
+
     /**
      * ONLY to be called by RenderNode::prepareTree in order to prepare this
      * list while the UI thread is blocked.  Here we can upload mutable bitmaps

@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -62,8 +63,7 @@ class SettingsTextFieldPasswordTest {
                 label = label,
                 onTextChange = { value = it })
         }
-        composeTestRule.onNodeWithText(value, substring = true)
-            .assertDoesNotExist()
+        composeTestRule.onNodeWithText(label, substring = true).assertTextEquals("•••••", label)
     }
 
     @Test

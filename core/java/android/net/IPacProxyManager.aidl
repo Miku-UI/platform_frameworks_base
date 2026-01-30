@@ -19,7 +19,7 @@ package android.net;
 import android.net.IPacProxyInstalledListener;
 import android.net.ProxyInfo;
 
-/** {@hide} */
+/** @hide */
 interface IPacProxyManager
 {
     void addListener(IPacProxyInstalledListener listener);

@@ -16,9 +16,6 @@
 
 package com.android.settingslib.spa.widget.scaffold
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
+import com.android.settingslib.spa.framework.compose.getActivity
 import com.android.settingslib.spa.framework.compose.horizontalValues
 import com.android.settingslib.spa.framework.compose.verticalValues
 import com.android.settingslib.spa.framework.theme.SettingsTheme
@@ -50,6 +48,7 @@ import com.android.settingslib.spa.widget.preference.PreferenceModel
 @Composable
 fun SettingsScaffold(
     title: String,
+    isFirstLayerPageWhenEmbedded: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
@@ -58,7 +57,7 @@ fun SettingsScaffold(
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = { SettingsTopAppBar(title, scrollBehavior, actions) },
+        topBar = { SettingsTopAppBar(title, scrollBehavior, isFirstLayerPageWhenEmbedded, actions) },
         containerColor = MaterialTheme.colorScheme.settingsBackground,
         contentWindowInsets = WindowInsets.safeDrawing,
     ) { paddingValues ->
@@ -79,12 +78,6 @@ internal fun ActivityTitle(title: String) {
     LaunchedEffect(true) {
         context.getActivity()?.title = title
     }
-}
-
-private fun Context.getActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.getActivity()
-    else -> null
 }
 
 @Preview

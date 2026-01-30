@@ -21,6 +21,7 @@ import static android.app.StatusBarManager.SESSION_BIOMETRIC_PROMPT;
 import static android.app.StatusBarManager.SESSION_KEYGUARD;
 
 import android.annotation.Nullable;
+import android.hardware.biometrics.PromptInfo;
 import android.os.RemoteException;
 import android.os.UserManager;
 import android.util.Log;
@@ -36,6 +37,7 @@ import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
 import com.android.systemui.CoreStartable;
 import com.android.systemui.biometrics.AuthController;
+import com.android.systemui.biometrics.BiometricPromptLogger;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.process.ProcessWrapper;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
@@ -66,6 +68,7 @@ public class SessionTracker implements CoreStartable {
     private final KeyguardStateController mKeyguardStateController;
     private final UiEventLogger mUiEventLogger;
     private final ProcessWrapper mProcessWrapper;
+    private final BiometricPromptLogger mBiometricPromptLogger;
     private final Map<Integer, InstanceId> mSessionToInstanceId = new HashMap<>();
 
     private boolean mKeyguardSessionStarted;
@@ -77,7 +80,8 @@ public class SessionTracker implements CoreStartable {
             KeyguardUpdateMonitor keyguardUpdateMonitor,
             KeyguardStateController keyguardStateController,
             UiEventLogger uiEventLogger,
-            ProcessWrapper processWrapper
+            ProcessWrapper processWrapper,
+            BiometricPromptLogger biometricPromptLogger
     ) {
         mStatusBarManagerService = statusBarService;
         mAuthController = authController;
@@ -85,6 +89,7 @@ public class SessionTracker implements CoreStartable {
         mKeyguardStateController = keyguardStateController;
         mUiEventLogger = uiEventLogger;
         mProcessWrapper = processWrapper;
+        mBiometricPromptLogger = biometricPromptLogger;
     }
 
     @Override
@@ -205,12 +210,15 @@ public class SessionTracker implements CoreStartable {
 
     public AuthController.Callback mAuthControllerCallback = new AuthController.Callback() {
         @Override
-        public void onBiometricPromptShown() {
+        public void onBiometricPromptShown(PromptInfo promptInfo) {
             startSession(SESSION_BIOMETRIC_PROMPT);
+            mBiometricPromptLogger.logPromptStart(getSessionId(SESSION_BIOMETRIC_PROMPT),
+                    promptInfo);
         }
 
         @Override
-        public void onBiometricPromptDismissed() {
+        public void onBiometricPromptDismissed(int reason) {
+            mBiometricPromptLogger.logPromptEnd(getSessionId(SESSION_BIOMETRIC_PROMPT), reason);
             endSession(SESSION_BIOMETRIC_PROMPT);
         }
     };

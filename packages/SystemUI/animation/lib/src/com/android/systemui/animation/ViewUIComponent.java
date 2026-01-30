@@ -18,7 +18,9 @@ package com.android.systemui.animation;
 
 import android.annotation.Nullable;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.Rect;
@@ -56,16 +58,18 @@ public class ViewUIComponent implements UIComponent {
     private final LifecycleListener mLifecycleListener = new LifecycleListener();
     private final View mView;
     private final Handler mMainHandler;
-
     @Nullable private SurfaceControl mSurfaceControl;
     @Nullable private Surface mSurface;
-    @Nullable private Rect mViewBoundsOverride;
+    @Nullable private RectF mViewBoundsOverride;
     private boolean mVisibleOverride;
+    private final boolean mEnableBackgroundDimming;
+    private final Paint mPaint = new Paint();
     private boolean mDirty;
 
-    public ViewUIComponent(View view) {
+    public ViewUIComponent(View view, boolean enableBackgroundDimming) {
         mView = view;
         mMainHandler = new Handler(Looper.getMainLooper());
+        mEnableBackgroundDimming = enableBackgroundDimming;
     }
 
     /**
@@ -87,7 +91,7 @@ public class ViewUIComponent implements UIComponent {
     }
 
     @Override
-    public Rect getBounds() {
+    public RectF getBounds() {
         if (isAttachedToLeash() && mViewBoundsOverride != null) {
             return mViewBoundsOverride;
         }
@@ -191,7 +195,7 @@ public class ViewUIComponent implements UIComponent {
             return;
         }
 
-        final Rect realBounds = getRealBounds();
+        final RectF realBounds = getRealBounds();
         if (realBounds.width() == 0 || realBounds.height() == 0) {
             // bad bounds.
             logD("draw: skipped - zero bounds");
@@ -203,17 +207,34 @@ public class ViewUIComponent implements UIComponent {
         // Clear the canvas first.
         canvas.drawColor(0, PorterDuff.Mode.CLEAR);
         if (mVisibleOverride) {
-            Rect renderBounds = getBounds();
+            RectF renderBounds = getBounds();
             canvas.translate(renderBounds.left, renderBounds.top);
+
+            float cornerRadius = (float) Math.min(renderBounds.width(), renderBounds.height()) / 2;
+
+            if (mEnableBackgroundDimming) {
+                // draw backing layer for background dimming using bounds/radius
+                mPaint.setColor(Color.BLACK);
+                mPaint.setStyle(Paint.Style.FILL);
+                canvas.drawRoundRect(
+                        0,
+                        0,
+                        renderBounds.width(),
+                        renderBounds.height(),
+                        cornerRadius,
+                        cornerRadius,
+                        mPaint);
+            }
+
             canvas.scale(
-                    (float) renderBounds.width() / realBounds.width(),
-                    (float) renderBounds.height() / realBounds.height());
+                    renderBounds.width() / realBounds.width(),
+                    renderBounds.height() / realBounds.height());
 
             if (mView.getClipToOutline()) {
                 mView.getOutlineProvider().getOutline(mView, mClippingOutline);
                 mClippingPath.reset();
                 RectF rect = new RectF(0, 0, mView.getWidth(), mView.getHeight());
-                final float cornerRadius = mClippingOutline.getRadius();
+                cornerRadius = mClippingOutline.getRadius();
                 mClippingPath.addRoundRect(rect, cornerRadius, cornerRadius, Path.Direction.CW);
                 mClippingPath.close();
                 canvas.clipPath(mClippingPath);
@@ -232,10 +253,10 @@ public class ViewUIComponent implements UIComponent {
         draw();
     }
 
-    private Rect getRealBounds() {
+    private RectF getRealBounds() {
         Rect output = new Rect();
         mView.getBoundsOnScreen(output);
-        return output;
+        return new RectF(output);
     }
 
     private boolean isAttachedToLeash() {
@@ -249,7 +270,7 @@ public class ViewUIComponent implements UIComponent {
     }
 
     private void setVisible(boolean visible) {
-        logD("setVisibility: " + visible);
+        logD("setVisibility: " + visible + " (attached: " + isAttachedToLeash() + ")");
         if (isAttachedToLeash()) {
             mVisibleOverride = visible;
             postDraw();
@@ -258,7 +279,7 @@ public class ViewUIComponent implements UIComponent {
         }
     }
 
-    private void setBounds(Rect bounds) {
+    private void setBounds(RectF bounds) {
         logD("setBounds: " + bounds);
         mViewBoundsOverride = bounds;
         if (isAttachedToLeash()) {
@@ -360,7 +381,7 @@ public class ViewUIComponent implements UIComponent {
         }
 
         @Override
-        public Transaction setBounds(ViewUIComponent ui, Rect bounds) {
+        public Transaction setBounds(ViewUIComponent ui, RectF bounds) {
             mChanges.add(() -> ui.post(() -> ui.setBounds(bounds)));
             return this;
         }

@@ -124,23 +124,32 @@ constructor(
                     ),
                 )
                 it.view.alpha = 0f
-                // For some reason, the window view's measured width is always 0 here, so use the
-                // parent (status bar)
-                it.view.measure(
-                    View.MeasureSpec.makeMeasureSpec(
-                        (animationWindowView.parent as View).width,
-                        AT_MOST,
-                    ),
-                    View.MeasureSpec.makeMeasureSpec(
-                        (animationWindowView.parent as View).height,
-                        AT_MOST,
-                    ),
-                )
 
-                updateChipBounds(
-                    it,
-                    contentInsetsProvider.getStatusBarContentAreaForCurrentRotation(),
-                )
+                // b/294462223: We are not guaranteed to be attached to a window at this point so we
+                // need this check to prevent a crash.
+                if (it.view.isAttachedToWindow) {
+                    measure(it.view)
+                    updateChipBounds(
+                        it,
+                        contentInsetsProvider.getStatusBarContentAreaForCurrentRotation(),
+                    )
+                } else {
+                    it.view.addOnAttachStateChangeListener(
+                        object : View.OnAttachStateChangeListener {
+                            override fun onViewAttachedToWindow(v: View) {
+                                measure(v)
+                                updateChipBounds(
+                                    it,
+                                    contentInsetsProvider
+                                        .getStatusBarContentAreaForCurrentRotation(),
+                                )
+                                v.removeOnAttachStateChangeListener(this)
+                            }
+
+                            override fun onViewDetachedFromWindow(v: View) {}
+                        }
+                    )
+                }
             }
     }
 
@@ -340,7 +349,7 @@ constructor(
     }
 
     override fun announceForAccessibility(contentDescriptions: String) {
-        currentAnimatedView?.view?.announceForAccessibility(contentDescriptions)
+        currentAnimatedView?.view?.stateDescription = contentDescriptions
     }
 
     private fun updateDimens(contentArea: Rect) {
@@ -374,6 +383,15 @@ constructor(
         }
         chipBounds = Rect(chipLeft, chipTop, chipRight, chipBottom)
         animRect.set(chipBounds)
+    }
+
+    private fun measure(v: View) {
+        // For some reason, the window view's measured width is always 0 here, so use the parent
+        // (status bar)
+        v.measure(
+            View.MeasureSpec.makeMeasureSpec((animationWindowView.parent as View).width, AT_MOST),
+            View.MeasureSpec.makeMeasureSpec((animationWindowView.parent as View).height, AT_MOST),
+        )
     }
 
     private fun layoutParamsDefault(marginEnd: Int): FrameLayout.LayoutParams =

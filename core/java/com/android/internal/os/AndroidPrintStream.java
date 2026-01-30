@@ -22,7 +22,7 @@ import android.util.Log;
 /**
  * Print stream which log lines using Android's logging system.
  *
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 class AndroidPrintStream extends LoggingPrintStream {

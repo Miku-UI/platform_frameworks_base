@@ -20,6 +20,7 @@ import android.annotation.NonNull;
 import android.annotation.NonUiContext;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.SuppressLint;
 import android.annotation.SystemApi;
 import android.annotation.SystemService;
@@ -169,8 +170,9 @@ public class OverlayManager {
             "android.permission.INTERACT_ACROSS_USERS",
             "android.permission.INTERACT_ACROSS_USERS_FULL"
     })
-    public void setEnabledExclusiveInCategory(@NonNull final String packageName,
-            @NonNull UserHandle user) throws SecurityException, IllegalStateException {
+    public void setEnabledExclusiveInCategory(
+            @NonNull final String packageName, @NonNull @CanBeCURRENT UserHandle user)
+            throws SecurityException, IllegalStateException {
         try {
             if (!mService.setEnabledExclusiveInCategory(packageName, user.getIdentifier())) {
                 throw new IllegalStateException("setEnabledExclusiveInCategory failed");
@@ -205,7 +207,8 @@ public class OverlayManager {
             "android.permission.INTERACT_ACROSS_USERS_FULL"
     })
     public void setEnabled(@NonNull final String packageName, final boolean enable,
-            @NonNull UserHandle user) throws SecurityException, IllegalStateException {
+            @NonNull @CanBeCURRENT UserHandle user)
+            throws SecurityException, IllegalStateException {
         try {
             if (!mService.setEnabled(packageName, enable, user.getIdentifier())) {
                 throw new IllegalStateException("setEnabled failed");
@@ -240,7 +243,8 @@ public class OverlayManager {
             "android.permission.INTERACT_ACROSS_USERS",
             "android.permission.INTERACT_ACROSS_USERS_FULL"
     })
-    public void enableWithConstraints(@NonNull final String packageName, @NonNull UserHandle user,
+    public void enableWithConstraints(@NonNull final String packageName,
+            @NonNull @CanBeCURRENT UserHandle user,
             @Nullable final List<OverlayConstraint> constraints)
             throws SecurityException, IllegalStateException {
         try {
@@ -268,7 +272,7 @@ public class OverlayManager {
     @SystemApi
     @Nullable
     public OverlayInfo getOverlayInfo(@NonNull final String packageName,
-            @NonNull final UserHandle userHandle) {
+            final @NonNull @CanBeCURRENT UserHandle userHandle) {
         try {
             return mService.getOverlayInfo(packageName, userHandle.getIdentifier());
         } catch (RemoteException e) {
@@ -287,7 +291,7 @@ public class OverlayManager {
      */
     @Nullable
     public OverlayInfo getOverlayInfo(@NonNull final OverlayIdentifier overlay,
-            @NonNull final UserHandle userHandle) {
+            final @NonNull @CanBeCURRENT UserHandle userHandle) {
         try {
             return mService.getOverlayInfoByIdentifier(overlay, userHandle.getIdentifier());
         } catch (RemoteException e) {
@@ -314,7 +318,7 @@ public class OverlayManager {
     })
     @NonNull
     public List<OverlayInfo> getOverlayInfosForTarget(@NonNull final String targetPackageName,
-            @NonNull UserHandle user) {
+            @NonNull @CanBeCURRENT UserHandle user) {
         try {
             return mService.getOverlayInfosForTarget(targetPackageName, user.getIdentifier());
         } catch (RemoteException e) {
@@ -335,7 +339,7 @@ public class OverlayManager {
             "android.permission.INTERACT_ACROSS_USERS",
     })
     public void invalidateCachesForOverlay(@NonNull final String targetPackageName,
-            @NonNull UserHandle user) {
+            @NonNull @CanBeCURRENT UserHandle user) {
         try {
             mService.invalidateCachesForOverlay(targetPackageName, user.getIdentifier());
         } catch (RemoteException e) {

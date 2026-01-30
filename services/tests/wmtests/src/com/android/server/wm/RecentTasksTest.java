@@ -30,6 +30,11 @@ import static android.content.Intent.FLAG_ACTIVITY_NEW_DOCUMENT;
 import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
 import static android.os.Process.NOBODY_UID;
+import static android.view.WindowManager.LayoutParams.FIRST_APPLICATION_WINDOW;
+import static android.view.WindowManager.LayoutParams.FIRST_SYSTEM_WINDOW;
+import static android.view.WindowManager.LayoutParams.LAST_APPLICATION_WINDOW;
+import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
+import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD_DIALOG;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doNothing;
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn;
@@ -81,7 +86,6 @@ import android.window.TaskSnapshot;
 import androidx.test.filters.MediumTest;
 
 import com.android.server.wm.RecentTasks.Callbacks;
-import com.android.window.flags.Flags;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -430,11 +434,20 @@ public class RecentTasksTest extends WindowTestsBase {
 
     @Test
     public void testAddTaskCompatibleWindowingMode_withFreeformAndFullscreen_expectRemove() {
+        verifyCompatibleWindowingModeWithFullscreen(WINDOWING_MODE_FREEFORM);
+    }
+
+    @Test
+    public void testAddTaskCompatibleWindowingMode_withMultiWindowAndFullscreen_expectRemove() {
+        verifyCompatibleWindowingModeWithFullscreen(WINDOWING_MODE_MULTI_WINDOW);
+    }
+
+    private void verifyCompatibleWindowingModeWithFullscreen(int windowingMode) {
         Task task1 = createTaskBuilder(".Task1")
                 .setTaskId(1)
                 .setFlags(FLAG_ACTIVITY_NEW_TASK)
                 .build();
-        doReturn(WINDOWING_MODE_FREEFORM).when(task1).getWindowingMode();
+        doReturn(windowingMode).when(task1).getWindowingMode();
         mRecentTasks.add(task1);
         mCallbacksRecorder.clear();
 
@@ -932,17 +945,13 @@ public class RecentTasksTest extends WindowTestsBase {
     }
 
     @Test
-    public void testVisibleTask_forceExcludedFromRecents() {
+    public void testVisibleTask_forceExcludedFromRecents_returnsFalse() {
         final Task forceExcludedFromRecentsTask = mTasks.getFirst();
         forceExcludedFromRecentsTask.setForceExcludedFromRecents(true);
 
         final boolean visible = mRecentTasks.isVisibleRecentTask(forceExcludedFromRecentsTask);
 
-        if (Flags.excludeTaskFromRecents()) {
-            assertFalse(visible);
-        } else {
-            assertTrue(visible);
-        }
+        assertFalse(visible);
     }
 
     @Test
@@ -1087,6 +1096,17 @@ public class RecentTasksTest extends WindowTestsBase {
                 mTasks.get(3),
                 mTasks.get(1),
                 mTasks.get(0));
+    }
+
+    @Test
+    public void testUnfreezeTaskListOrder_windowTypes() {
+        for (int i = FIRST_APPLICATION_WINDOW; i <= LAST_APPLICATION_WINDOW; i++) {
+            assertThat(RecentTasks.shouldUnfreezeOnInteractionInWindow(i)).isTrue();
+        }
+        assertThat(RecentTasks.shouldUnfreezeOnInteractionInWindow(TYPE_INPUT_METHOD)).isTrue();
+        assertThat(RecentTasks.shouldUnfreezeOnInteractionInWindow(TYPE_INPUT_METHOD_DIALOG))
+                .isTrue();
+        assertThat(RecentTasks.shouldUnfreezeOnInteractionInWindow(FIRST_SYSTEM_WINDOW)).isFalse();
     }
 
     @Test
@@ -1449,7 +1469,8 @@ public class RecentTasksTest extends WindowTestsBase {
                 Surface.ROTATION_0, taskSize, new Rect() /* contentInsets */,
                 new Rect() /* letterboxInsets*/, false /* isLowResolution */,
                 true /* isRealSnapshot */, WINDOWING_MODE_FULLSCREEN, 0 /* mSystemUiVisibility */,
-                false /* isTranslucent */, false /* hasImeSurface */, 0 /* uiMode */);
+                false /* isTranslucent */, false /* hasImeSurface */, 0 /* uiMode */,
+                300 /* densityDpi */);
     }
 
     /**

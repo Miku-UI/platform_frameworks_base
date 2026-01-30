@@ -87,7 +87,7 @@ public class ConversationIconFactory extends BaseIconFactory {
      * Returns the conversation info drawable
      */
     public Drawable getBaseIconDrawable(ShortcutInfo shortcutInfo) {
-        return mLauncherApps.getShortcutIconDrawable(shortcutInfo, mFullResIconDpi);
+        return mLauncherApps.getShortcutIconDrawable(shortcutInfo, fullResIconDpi);
     }
 
     /**
@@ -99,7 +99,7 @@ public class ConversationIconFactory extends BaseIconFactory {
         try {
             final ApplicationInfo appInfo = mPackageManager.getApplicationInfoAsUser(
                     packageName, PackageManager.GET_META_DATA, userId);
-            badge = Utils.getBadgedIcon(mContext, appInfo);
+            badge = Utils.getBadgedIcon(context, appInfo);
         } catch (PackageManager.NameNotFoundException e) {
             badge = mPackageManager.getDefaultActivityIcon();
         }
@@ -123,7 +123,7 @@ public class ConversationIconFactory extends BaseIconFactory {
             boolean important) {
         return new ConversationIconDrawable(baseIcon,
                 getAppBadge(packageName, UserHandle.getUserId(uid)),
-                mIconBitmapSize,
+                iconBitmapSize,
                 mImportantConversationColor,
                 important);
     }

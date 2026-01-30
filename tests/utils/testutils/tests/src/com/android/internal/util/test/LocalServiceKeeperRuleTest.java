@@ -73,18 +73,24 @@ public class LocalServiceKeeperRuleTest {
     }
 
     @Test
-    public void testDoesNotAllowToOverrideSameServiceTwice() throws Throwable {
+    public void testAllowsOverrideSameServiceTwice() throws Throwable {
+        TestService expectedService = new TestService() {};
+        LocalServices.addService(TestService.class, expectedService);
+
         TestService service = new TestService() {};
+        TestService secondService = new TestService() {};
 
         runInRuleApply(() -> {
             mRule.overrideLocalService(TestService.class, service);
-            assertThrows(IllegalArgumentException.class,
-                    () -> mRule.overrideLocalService(TestService.class, service));
+            mRule.overrideLocalService(TestService.class, secondService);
+            assertEquals(secondService, LocalServices.getService(TestService.class));
         });
+
+        assertEquals(expectedService, LocalServices.getService(TestService.class));
     }
 
     @Test
-    public void testRestroresLocalServiceAfterTestIfPresent() throws Throwable {
+    public void testRestoresLocalServiceAfterTestIfPresent() throws Throwable {
         TestService expectedService = new TestService() {};
         LocalServices.addService(TestService.class, expectedService);
         TestService overriddenService = new TestService() {};

@@ -51,10 +51,12 @@
 #include <utils/misc.h>
 #include <vintf/KernelConfigs.h>
 
+
 #include <iomanip>
 #include <string>
 #include <vector>
 
+#include "core_jni_helpers.h"
 #include "jni.h"
 
 namespace android
@@ -102,19 +104,19 @@ static jfieldID hasSwappedOutPss_field;
 
 #define BINDER_STATS "/proc/binder/stats"
 
-static jlong android_os_Debug_getNativeHeapSize(JNIEnv *env, jobject clazz)
+static jlong android_os_Debug_getNativeHeapSize(CRITICAL_JNI_PARAMS)
 {
     struct mallinfo info = mallinfo();
     return (jlong) info.usmblks;
 }
 
-static jlong android_os_Debug_getNativeHeapAllocatedSize(JNIEnv *env, jobject clazz)
+static jlong android_os_Debug_getNativeHeapAllocatedSize(CRITICAL_JNI_PARAMS)
 {
     struct mallinfo info = mallinfo();
     return (jlong) info.uordblks;
 }
 
-static jlong android_os_Debug_getNativeHeapFreeSize(JNIEnv *env, jobject clazz)
+static jlong android_os_Debug_getNativeHeapFreeSize(CRITICAL_JNI_PARAMS)
 {
     struct mallinfo info = mallinfo();
     return (jlong) info.fordblks;
@@ -406,6 +408,7 @@ enum {
     MEMINFO_INACTIVE_FILE,
     MEMINFO_CMA_TOTAL,
     MEMINFO_CMA_FREE,
+    MEMINFO_SWAP_CACHED,
     MEMINFO_COUNT
 };
 

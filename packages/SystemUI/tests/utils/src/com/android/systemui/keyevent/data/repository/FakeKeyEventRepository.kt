@@ -27,15 +27,8 @@ class FakeKeyEventRepository @Inject constructor() : KeyEventRepository {
     private val _isPowerButtonDown = MutableStateFlow(false)
     override val isPowerButtonDown: Flow<Boolean> = _isPowerButtonDown.asStateFlow()
 
-    private val _isPowerButtonLongPressed = MutableStateFlow(false)
-    override val isPowerButtonLongPressed = _isPowerButtonLongPressed.asStateFlow()
-
     fun setPowerButtonDown(isDown: Boolean) {
         _isPowerButtonDown.value = isDown
-    }
-
-    fun setPowerButtonLongPressed(isLongPressed: Boolean) {
-        _isPowerButtonLongPressed.value = isLongPressed
     }
 }
 

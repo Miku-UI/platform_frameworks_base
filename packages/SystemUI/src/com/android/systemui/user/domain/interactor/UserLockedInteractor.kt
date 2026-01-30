@@ -34,12 +34,13 @@ constructor(
     val userRepository: UserRepository,
     val selectedUserInteractor: SelectedUserInteractor,
 ) {
-    /** Whether the current user is unlocked */
-    val currentUserUnlocked: Flow<Boolean> =
-        selectedUserInteractor.selectedUserInfo.flatMapLatestConflated { user ->
-            isUserUnlocked(user.userHandle)
-        }
-
     fun isUserUnlocked(userHandle: UserHandle?): Flow<Boolean> =
-        userRepository.isUserUnlocked(userHandle).flowOn(backgroundDispatcher)
+        if (userHandle == UserHandle.CURRENT) {
+                selectedUserInteractor.selectedUserInfo.flatMapLatestConflated { user ->
+                    isUserUnlocked(user.userHandle)
+                }
+            } else {
+                userRepository.isUserUnlocked(userHandle)
+            }
+            .flowOn(backgroundDispatcher)
 }

@@ -17,6 +17,7 @@
 package android.app;
 
 import android.annotation.CallSuper;
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
@@ -51,6 +52,7 @@ import java.util.ArrayList;
  * <code>getInstance()</code> method.
  * </p>
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class Application extends ContextWrapper implements ComponentCallbacks2 {
     private static final String TAG = "Application";
 
@@ -65,6 +67,7 @@ public class Application extends ContextWrapper implements ComponentCallbacks2 {
 
     /** @hide */
     @UnsupportedAppUsage
+    @android.ravenwood.annotation.RavenwoodRemove(blockedBy = LoadedApk.class)
     public LoadedApk mLoadedApk;
 
     public interface ActivityLifecycleCallbacks {
@@ -213,6 +216,13 @@ public class Application extends ContextWrapper implements ComponentCallbacks2 {
          */
         default void onActivityConfigurationChanged(@NonNull Activity activity) {
         }
+
+        /**
+         * Called when the Activity calls {@link Activity#onRestart super.onRestart()}
+         */
+        @FlaggedApi(Flags.FLAG_ON_RESTART_ACTIVITY_LIFECYCLE_CALLBACK)
+        default void onActivityRestarted(@NonNull Activity activity) {
+        }
     }
 
     /**
@@ -344,6 +354,11 @@ public class Application extends ContextWrapper implements ComponentCallbacks2 {
     @UnsupportedAppUsage
     /* package */ final void attach(Context context) {
         attachBaseContext(context);
+        setLoadedApk(context);
+    }
+
+    @android.ravenwood.annotation.RavenwoodIgnore(blockedBy = LoadedApk.class)
+    private void setLoadedApk(Context context) {
         mLoadedApk = ContextImpl.getImpl(context).mPackageInfo;
     }
 
@@ -579,6 +594,16 @@ public class Application extends ContextWrapper implements ComponentCallbacks2 {
         }
     }
 
+    @FlaggedApi(Flags.FLAG_ON_RESTART_ACTIVITY_LIFECYCLE_CALLBACK)
+    void dispatchActivityRestarted(@NonNull Activity activity) {
+        Object[] callbacks = collectActivityLifecycleCallbacks();
+        if (callbacks != null) {
+            for (int i = 0; i < callbacks.length; i++) {
+                ((ActivityLifecycleCallbacks) callbacks[i]).onActivityRestarted(activity);
+            }
+        }
+    }
+
     @UnsupportedAppUsage
     private Object[] collectActivityLifecycleCallbacks() {
         Object[] callbacks = null;
@@ -607,6 +632,7 @@ public class Application extends ContextWrapper implements ComponentCallbacks2 {
 
     /** @hide */
     @Override
+    @android.ravenwood.annotation.RavenwoodIgnore(blockedBy = AutofillManager.class)
     public AutofillManager.AutofillClient getAutofillClient() {
         final AutofillManager.AutofillClient client = super.getAutofillClient();
         if (client != null) {

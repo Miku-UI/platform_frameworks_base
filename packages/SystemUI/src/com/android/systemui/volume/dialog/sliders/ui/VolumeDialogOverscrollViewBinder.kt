@@ -21,6 +21,7 @@ import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import com.android.app.tracing.coroutines.launchInTraced
+import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogOverscrollViewModel
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogOverscrollViewModel.OverscrollEventModel
@@ -31,7 +32,13 @@ import kotlinx.coroutines.flow.onEach
 @VolumeDialogSliderScope
 class VolumeDialogOverscrollViewBinder
 @Inject
-constructor(private val viewModel: VolumeDialogOverscrollViewModel) {
+constructor(
+    private val viewModel: VolumeDialogOverscrollViewModel,
+    desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
+) {
+
+    // Use horizontal volume dialog if the audio tile details view is enabled
+    private val isVolumeDialogVertical = !desktopAudioTileDetailsFeatureInteractor.isEnabled()
 
     /**
      * [viewsToAnimate] is an array of [View] to be affected by the overscroll animation. [view] is
@@ -47,7 +54,9 @@ constructor(private val viewModel: VolumeDialogOverscrollViewModel) {
                         dampingRatio = 0.6f
                     }
                 )
-                .addUpdateListener { _, value, _ -> viewsToAnimate.setTranslationY(value) }
+                .addUpdateListener { _, value, _ ->
+                    viewsToAnimate.setTranslation(value, isVolumeDialogVertical)
+                }
 
         viewModel.overscrollEvent
             .onEach { event ->
@@ -57,7 +66,7 @@ constructor(private val viewModel: VolumeDialogOverscrollViewModel) {
                     }
                     is OverscrollEventModel.Move -> {
                         animation.cancel()
-                        viewsToAnimate.setTranslationY(event.touchOffsetPx)
+                        viewsToAnimate.setTranslation(event.touchOffsetPx, isVolumeDialogVertical)
                         animationValueHolder.value = event.touchOffsetPx
                     }
                 }
@@ -66,8 +75,12 @@ constructor(private val viewModel: VolumeDialogOverscrollViewModel) {
     }
 }
 
-private fun Array<View>.setTranslationY(translation: Float) {
+private fun Array<View>.setTranslation(translation: Float, isVertical: Boolean) {
     for (viewToAnimate in this) {
-        viewToAnimate.translationY = translation
+        if (isVertical) {
+            viewToAnimate.translationY = translation
+        } else {
+            viewToAnimate.translationX = translation
+        }
     }
 }

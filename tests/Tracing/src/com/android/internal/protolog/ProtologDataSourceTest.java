@@ -35,11 +35,6 @@ import perfetto.protos.ProtologCommon;
 import perfetto.protos.ProtologConfig;
 
 public class ProtologDataSourceTest {
-    @Before
-    public void before() {
-        assumeTrue(android.tracing.Flags.perfettoProtologTracing());
-    }
-
     @Test
     public void noConfig() {
         final ProtoLogDataSource.TlsState tlsState = createTlsState(
@@ -61,7 +56,7 @@ public class ProtologDataSourceTest {
                                         .build()
                         ).build());
 
-        Truth.assertThat(tlsState.getLogFromLevel("SOME_TAG")).isEqualTo(LogLevel.DEBUG);
+        Truth.assertThat(tlsState.getLogFromLevel("SOME_TAG")).isEqualTo(LogLevel.VERBOSE);
         Truth.assertThat(tlsState.getShouldCollectStacktrace("SOME_TAG")).isFalse();
     }
 
@@ -76,7 +71,7 @@ public class ProtologDataSourceTest {
                 ).build()
         );
 
-        Truth.assertThat(tlsState.getLogFromLevel("SOME_TAG")).isEqualTo(LogLevel.DEBUG);
+        Truth.assertThat(tlsState.getLogFromLevel("SOME_TAG")).isEqualTo(LogLevel.VERBOSE);
         Truth.assertThat(tlsState.getShouldCollectStacktrace("SOME_TAG")).isFalse();
     }
 
@@ -147,6 +142,56 @@ public class ProtologDataSourceTest {
 
         Truth.assertThat(tlsState.getLogFromLevel("UNKNOWN_TAG")).isEqualTo(LogLevel.WTF);
         Truth.assertThat(tlsState.getShouldCollectStacktrace("UNKNOWN_TAG")).isFalse();
+    }
+
+    @Test
+    public void registerAndUnregisterAllCallbacksSuccessfully() {
+        final ProtoLogDataSource ds = new ProtoLogDataSource();
+        ProtoLogDataSource.Instance.TracingInstanceStartCallback mockStartCallback =
+                Mockito.mock(ProtoLogDataSource.Instance.TracingInstanceStartCallback.class);
+        // Updated type for mockFlushCallback
+        ProtoLogDataSource.Instance.TracingFlushCallback mockFlushCallback =
+                Mockito.mock(ProtoLogDataSource.Instance.TracingFlushCallback.class);
+        ProtoLogDataSource.Instance.TracingInstanceStopCallback mockStopCallback =
+                Mockito.mock(ProtoLogDataSource.Instance.TracingInstanceStopCallback.class);
+
+        // Register all callbacks
+        ds.registerOnStartCallback(mockStartCallback);
+        ds.registerOnFlushCallback(mockFlushCallback);
+        ds.registerOnStopCallback(mockStopCallback);
+
+        // Simulate events to trigger callbacks
+        ProtoLogDataSource.Instance instance1 = ds.createInstance(new ProtoInputStream(
+                DataSourceConfigOuterClass.DataSourceConfig.newBuilder().build().toByteArray()), 0);
+        instance1.onStart(Mockito.mock(android.tracing.perfetto.StartCallbackArguments.class));
+        instance1.onFlush(Mockito.mock(android.tracing.perfetto.FlushCallbackArguments.class));
+        instance1.onStop(Mockito.mock(android.tracing.perfetto.StopCallbackArguments.class));
+
+        // Verify callbacks were called once with correct methods and arguments
+        Mockito.verify(mockStartCallback, Mockito.times(1)).onTracingInstanceStart(Mockito.anyInt(),
+                Mockito.any(ProtoLogDataSource.ProtoLogConfig.class));
+        Mockito.verify(mockFlushCallback, Mockito.times(1)).onTracingFlush();
+        Mockito.verify(mockStopCallback, Mockito.times(1)).onTracingInstanceStop(Mockito.anyInt(),
+                Mockito.any(ProtoLogDataSource.ProtoLogConfig.class));
+
+        // Unregister all callbacks
+        ds.unregisterOnStartCallback(mockStartCallback);
+        ds.unregisterOnFlushCallback(mockFlushCallback);
+        ds.unregisterOnStopCallback(mockStopCallback);
+
+        // Simulate events again
+        ProtoLogDataSource.Instance instance2 = ds.createInstance(new ProtoInputStream(
+                DataSourceConfigOuterClass.DataSourceConfig.newBuilder().build().toByteArray()), 1);
+        instance2.onStart(Mockito.mock(android.tracing.perfetto.StartCallbackArguments.class));
+        instance2.onFlush(Mockito.mock(android.tracing.perfetto.FlushCallbackArguments.class));
+        instance2.onStop(Mockito.mock(android.tracing.perfetto.StopCallbackArguments.class));
+
+        // Verify callbacks were not called again (still only once in total)
+        Mockito.verify(mockStartCallback, Mockito.times(1)).onTracingInstanceStart(Mockito.anyInt(),
+                Mockito.any(ProtoLogDataSource.ProtoLogConfig.class));
+        Mockito.verify(mockFlushCallback, Mockito.times(1)).onTracingFlush();
+        Mockito.verify(mockStopCallback, Mockito.times(1)).onTracingInstanceStop(Mockito.anyInt(),
+                Mockito.any(ProtoLogDataSource.ProtoLogConfig.class));
     }
 
     private ProtoLogDataSource.TlsState createTlsState(

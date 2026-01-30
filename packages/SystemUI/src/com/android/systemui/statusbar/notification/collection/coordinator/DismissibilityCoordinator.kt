@@ -16,9 +16,11 @@
 
 package com.android.systemui.statusbar.notification.collection.coordinator
 
+import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
-import com.android.systemui.statusbar.notification.collection.PipelineEntry
+import com.android.systemui.statusbar.notification.collection.ListEntry
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
+import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.coordinator.dagger.CoordinatorScope
 import com.android.systemui.statusbar.notification.collection.provider.NotificationDismissibilityProviderImpl
 import com.android.systemui.statusbar.policy.KeyguardStateController
@@ -30,7 +32,7 @@ class DismissibilityCoordinator
 @Inject
 constructor(
     private val keyguardStateController: KeyguardStateController,
-    private val provider: NotificationDismissibilityProviderImpl
+    private val provider: NotificationDismissibilityProviderImpl,
 ) : Coordinator {
 
     override fun attach(pipeline: NotifPipeline) {
@@ -55,28 +57,36 @@ constructor(
     private fun markNonDismissibleEntries(
         markedKeys: MutableSet<String>,
         entries: List<PipelineEntry>,
-        isLocked: Boolean
+        isLocked: Boolean,
     ): Boolean {
-        var anyNonDismissableEntries = false
-
+        var anyNonDismissibleEntries = false
         for (entry in entries) {
-            entry.representativeEntry?.let { notifEntry ->
-                // mark the entry if it is non-dismissible
-                if (!notifEntry.isDismissableForState(isLocked)) {
-                    markedKeys.add(notifEntry.key)
-                    anyNonDismissableEntries = true
+            when (entry) {
+                is BundleEntry -> {
+                    if (markNonDismissibleEntries(markedKeys, entry.children, isLocked)) {
+                        // if any child is non-dismissible, mark the parent as well
+                        markedKeys.add(entry.key)
+                        anyNonDismissibleEntries = true
+                    }
                 }
-            }
-
-            if (entry is GroupEntry) {
-                if (markNonDismissibleEntries(markedKeys, entry.children, isLocked)) {
-                    // if any child is non-dismissible, mark the parent as well
-                    entry.representativeEntry?.let { markedKeys.add(it.key) }
-                    anyNonDismissableEntries = true
+                is ListEntry -> {
+                    entry.representativeEntry?.let { notifEntry ->
+                        // mark the entry if it is non-dismissible
+                        if (!notifEntry.isDismissableForState(isLocked)) {
+                            markedKeys.add(notifEntry.key)
+                            anyNonDismissibleEntries = true
+                        }
+                    }
+                    if (entry is GroupEntry) {
+                        if (markNonDismissibleEntries(markedKeys, entry.children, isLocked)) {
+                            // if any child is non-dismissible, mark the parent as well
+                            entry.representativeEntry?.let { markedKeys.add(it.key) }
+                            anyNonDismissibleEntries = true
+                        }
+                    }
                 }
             }
         }
-
-        return anyNonDismissableEntries
+        return anyNonDismissibleEntries
     }
 }

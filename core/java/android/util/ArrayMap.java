@@ -335,7 +335,7 @@ public final class ArrayMap<K, V> implements Map<K, V> {
         this(capacity, false);
     }
 
-    /** {@hide} */
+    /** @hide */
     public ArrayMap(int capacity, boolean identityHashCode) {
         mIdentityHashCode = identityHashCode;
 

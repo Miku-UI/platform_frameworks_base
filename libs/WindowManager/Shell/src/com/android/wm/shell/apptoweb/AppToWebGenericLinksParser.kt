@@ -23,7 +23,7 @@ import com.android.internal.annotations.VisibleForTesting
 import com.android.wm.shell.R
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.shared.annotations.ShellMainThread
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus.useAppToWebBuildTimeGenericLinks
+import com.android.wm.shell.shared.desktopmode.DesktopConfig
 
 /**
  * Retrieves the build-time or server-side generic links list and parses and stores the
@@ -31,13 +31,14 @@ import com.android.wm.shell.shared.desktopmode.DesktopModeStatus.useAppToWebBuil
  */
 class AppToWebGenericLinksParser(
     private val context: Context,
-    @ShellMainThread private val mainExecutor: ShellExecutor
+    @ShellMainThread private val mainExecutor: ShellExecutor,
+    private val desktopConfig: DesktopConfig,
 ) {
     private val genericLinksMap: MutableMap<String, String> = mutableMapOf()
 
     init {
         // If using the server-side generic links list, register a listener
-        if (!useAppToWebBuildTimeGenericLinks()) {
+        if (!desktopConfig.useAppToWebBuildTimeGenericLinks) {
             DeviceConfigListener()
         }
 
@@ -49,7 +50,7 @@ class AppToWebGenericLinksParser(
 
     private fun updateGenericLinksMap() {
         val genericLinksList =
-            if (useAppToWebBuildTimeGenericLinks()) {
+            if (desktopConfig.useAppToWebBuildTimeGenericLinks) {
                 context.resources.getString(R.string.generic_links_list)
             } else {
                 DeviceConfig.getString(NAMESPACE, FLAG_GENERIC_LINKS, /* defaultValue= */ "")

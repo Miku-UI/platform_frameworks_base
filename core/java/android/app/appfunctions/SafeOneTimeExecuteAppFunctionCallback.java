@@ -41,16 +41,20 @@ public class SafeOneTimeExecuteAppFunctionCallback {
 
     @Nullable private final CompletionCallback mCompletionCallback;
 
+    @Nullable private final BeforeCompletionCallback mBeforeCompletionCallback;
+
     private final AtomicLong mExecutionStartTimeAfterBindMillis = new AtomicLong();
 
     public SafeOneTimeExecuteAppFunctionCallback(@NonNull IExecuteAppFunctionCallback callback) {
-        this(callback, /* completionCallback= */ null);
+        this(callback, /* beforeCompletionCallback= */ null, /* completionCallback= */ null);
     }
 
     public SafeOneTimeExecuteAppFunctionCallback(
             @NonNull IExecuteAppFunctionCallback callback,
+            @Nullable BeforeCompletionCallback beforeCompletionCallback,
             @Nullable CompletionCallback completionCallback) {
         mCallback = Objects.requireNonNull(callback);
+        mBeforeCompletionCallback = beforeCompletionCallback;
         mCompletionCallback = completionCallback;
     }
 
@@ -61,6 +65,9 @@ public class SafeOneTimeExecuteAppFunctionCallback {
             return;
         }
         try {
+            if (mBeforeCompletionCallback != null) {
+                mBeforeCompletionCallback.beforeOnSuccess(result);
+            }
             mCallback.onSuccess(result);
             if (mCompletionCallback != null) {
                 mCompletionCallback.finalizeOnSuccess(
@@ -120,5 +127,19 @@ public class SafeOneTimeExecuteAppFunctionCallback {
 
         /** Called after {@link IExecuteAppFunctionCallback#onError}. */
         void finalizeOnError(@NonNull AppFunctionException error, long executionStartTimeMillis);
+    }
+
+    /**
+     * Provides a hook to execute additional actions before the {@link IExecuteAppFunctionCallback}
+     * has been invoked.
+     */
+    public interface BeforeCompletionCallback {
+        /**
+         * Called before {@link IExecuteAppFunctionCallback#onSuccess(ExecuteAppFunctionResponse)}
+         * is invoked.
+         *
+         * @param result The result that will be passed to the main callback.
+         */
+        void beforeOnSuccess(@NonNull ExecuteAppFunctionResponse result);
     }
 }

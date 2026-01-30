@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibBulletPreference",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -21,13 +22,10 @@ android_library {
     resource_dirs: ["res"],
 
     static_libs: [
+        "SettingsLibSettingsTheme",
         "androidx.annotation_annotation",
         "androidx.preference_preference",
-        "SettingsLibSettingsTheme",
     ],
     sdk_version: "system_current",
-    min_sdk_version: "21",
-    apex_available: [
-        "//apex_available:platform",
-    ],
+    min_sdk_version: "23",
 }

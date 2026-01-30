@@ -21,7 +21,7 @@ import android.app.usage.ExternalStorageStats;
 import android.content.pm.ParceledListSlice;
 import android.os.storage.CrateInfo;
 
-/** {@hide} */
+/** @hide */
 interface IStorageStatsManager {
     boolean isQuotaSupported(String volumeUuid, String callingPackage);
     boolean isReservedSupported(String volumeUuid, String callingPackage);

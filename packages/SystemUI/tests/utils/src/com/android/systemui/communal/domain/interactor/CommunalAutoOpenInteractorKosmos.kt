@@ -16,17 +16,19 @@
 
 package com.android.systemui.communal.domain.interactor
 
-import com.android.systemui.common.domain.interactor.batteryInteractor
+import com.android.systemui.common.domain.interactor.batteryInteractorDeprecated
 import com.android.systemui.communal.posturing.domain.interactor.posturingInteractor
 import com.android.systemui.dock.dockManager
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.backgroundCoroutineContext
+import com.android.systemui.statusbar.pipeline.battery.domain.interactor.batteryInteractor
 
 val Kosmos.communalAutoOpenInteractor by Fixture {
     CommunalAutoOpenInteractor(
         communalSettingsInteractor = communalSettingsInteractor,
         backgroundContext = backgroundCoroutineContext,
+        batteryInteractorDeprecated = batteryInteractorDeprecated,
         batteryInteractor = batteryInteractor,
         posturingInteractor = posturingInteractor,
         dockManager = dockManager,

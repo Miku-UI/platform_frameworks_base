@@ -25,8 +25,8 @@ import android.graphics.ColorSpace;
 import android.hardware.HardwareBuffer;
 import android.os.RemoteException;
 import android.view.Display;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
-import android.window.ScreenCapture.SynchronousScreenCaptureListener;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
+import android.window.ScreenCaptureInternal.SynchronousScreenCaptureListener;
 
 import androidx.test.runner.AndroidJUnit4;
 

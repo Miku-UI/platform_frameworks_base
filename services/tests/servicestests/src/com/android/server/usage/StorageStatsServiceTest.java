@@ -19,33 +19,35 @@ package com.android.server.usage;
 import static com.google.common.truth.Truth.assertThat;
 
 import android.provider.Settings;
-import android.test.AndroidTestCase;
 import android.test.mock.MockContentResolver;
+
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.android.internal.util.test.FakeSettingsProvider;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 
-public class StorageStatsServiceTest extends AndroidTestCase {
+@RunWith(AndroidJUnit4.class)
+public final class StorageStatsServiceTest {
     private MockContentResolver mContentResolver;
 
     @Before
     public void setUp() throws Exception {
-        super.setUp();
         mContentResolver = new MockContentResolver();
         mContentResolver.addProvider(Settings.AUTHORITY, new FakeSettingsProvider());
     }
 
     @Test
-    public void testDontRunWhenDisabledFromSettingsGlobal() throws Exception {
+    public void testDoNotRunWhenDisabledFromSettingsGlobal() {
         Settings.Global.putInt(mContentResolver, Settings.Global.ENABLE_CACHE_QUOTA_CALCULATION, 0);
 
         assertThat(StorageStatsService.isCacheQuotaCalculationsEnabled(mContentResolver)).isFalse();
     }
 
     @Test
-    public void testCalculationTaskIsEnabledByDefault() throws Exception {
+    public void testCalculationTaskIsEnabledByDefault() {
         // Put null to act as though there is no value here.
         Settings.Global.putString(
                 mContentResolver, Settings.Global.ENABLE_CACHE_QUOTA_CALCULATION, null);

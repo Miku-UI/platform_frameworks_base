@@ -58,6 +58,7 @@ public class ActivityOptions {
             public static final String LABEL = "ImeAppAutoFocus";
             public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
                     FLICKER_APP_PACKAGE + ".ImeActivityAutoFocus");
+            public static final String RES_ID_IME_BOTTOM_INSET = "ime_bottom_inset";
         }
 
         public static class StateInitializeActivity {
@@ -71,6 +72,18 @@ public class ActivityOptions {
             public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
                     FLICKER_APP_PACKAGE + ".ImeEditorPopupDialogActivity");
         }
+    }
+
+    public static class TrampolineStartActivity {
+        public static final String LABEL = "TrampolineStartActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".TrampolineStartActivity");
+    }
+
+    public static class TrampolineFinishActivity {
+        public static final String LABEL = "TrampolineFinishActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".TrampolineFinishActivity");
     }
 
     public static class NonResizeableActivity {
@@ -194,6 +207,10 @@ public class ActivityOptions {
         public static final String LABEL = "LaunchNewTaskActivity";
         public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
                 FLICKER_APP_PACKAGE + ".LaunchNewTaskActivity");
+
+        public static final String RES_ID_NEW_MULTIPLE_TASK_BUTTON = "launch_new_task";
+        public static final String RES_ID_NEW_TASK_RECYCLE_IF_POSSIBLE_BUTTON =
+                "launch_new_task_with_recycle_if_possible";
     }
 
     public static class Game {
@@ -206,6 +223,8 @@ public class ActivityOptions {
         public static final String LABEL = "LaunchNewActivity";
         public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
                 FLICKER_APP_PACKAGE + ".LaunchNewActivity");
+
+        public static final String RES_ID_LAUNCH_SECOND_ACTIVITY_BUTTON = "launch_second_activity";
     }
 
     public static class TransferSplashscreenActivity {
@@ -286,6 +305,12 @@ public class ActivityOptions {
         }
     }
 
+    public static class ScrollToFinish {
+        public static final String LABEL = "ScrollToFinishActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".ScrollToFinishActivity");
+    }
+
     public static final String GAME_ACTIVITY_LAUNCHER_NAME = "GameApp";
     public static final ComponentName GAME_ACTIVITY_COMPONENT_NAME =
             new ComponentName(FLICKER_APP_PACKAGE, FLICKER_APP_PACKAGE + ".GameActivity");
@@ -293,4 +318,10 @@ public class ActivityOptions {
     public static final ComponentName ASSISTANT_SERVICE_COMPONENT_NAME =
             new ComponentName(
                     FLICKER_APP_PACKAGE, FLICKER_APP_PACKAGE + ".AssistantInteractionService");
+
+    public static class ImmersiveActivity {
+        public static final String LABEL = "ImmersiveActivity";
+        public static final ComponentName COMPONENT = new ComponentName(FLICKER_APP_PACKAGE,
+                FLICKER_APP_PACKAGE + ".ImmersiveActivity");
+    }
 }

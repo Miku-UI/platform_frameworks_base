@@ -21,6 +21,7 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffColorFilter
 import android.graphics.drawable.Drawable
 import android.util.AttributeSet
+import android.view.ViewGroup
 import android.widget.ImageView
 import androidx.preference.Preference
 import androidx.preference.PreferenceViewHolder
@@ -35,28 +36,57 @@ class ZeroStatePreference @JvmOverloads constructor(
 ) : Preference(context, attrs, defStyleAttr, defStyleRes), GroupSectionDividerMixin {
 
     private val iconTint: Int = context.getColor(
-        com.android.settingslib.widget.theme.R.color.settingslib_materialColorOnSecondaryContainer
+        com.android.settingslib.widget.theme.R.color.settingslib_materialColorOnSurface
     )
     private var tintedIcon: Drawable? = null
+
+    private var layoutHeight: Int = ViewGroup.LayoutParams.WRAP_CONTENT
 
     init {
         isSelectable = false
         layoutResource = R.layout.settingslib_expressive_preference_zerostate
-        icon?.let { originalIcon ->
-            tintedIcon = originalIcon.mutate().apply {
-                colorFilter = PorterDuffColorFilter(iconTint, PorterDuff.Mode.SRC_IN)
-            }
-        }
+        applyColorFilterToIcon()
     }
 
     override fun onBindViewHolder(holder: PreferenceViewHolder) {
         super.onBindViewHolder(holder)
 
+        holder.isDividerAllowedBelow = false
+        holder.isDividerAllowedAbove = false
         holder.itemView.isFocusable = false
         holder.itemView.isClickable = false
 
+        holder.itemView.layoutParams.height = layoutHeight
+
         (holder.findViewById(android.R.id.icon) as? ImageView)?.apply {
             setImageDrawable(tintedIcon ?: icon)
+        }
+    }
+
+    /**
+     * Center ZeroStatePreference in the middle of the screen.
+     *
+     * @param isScreenCentered whether to center or not
+     */
+    fun setScreenCentering(isScreenCentered: Boolean) {
+        layoutHeight = if (isScreenCentered) {
+            ViewGroup.LayoutParams.MATCH_PARENT
+        } else {
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        }
+    }
+
+    override fun setIcon(iconResId: Int) {
+        super.setIcon(iconResId)
+
+        applyColorFilterToIcon()
+    }
+
+    private fun applyColorFilterToIcon() {
+        icon?.let { originalIcon ->
+            tintedIcon = originalIcon.mutate().apply {
+                colorFilter = PorterDuffColorFilter(iconTint, PorterDuff.Mode.SRC_IN)
+            }
         }
     }
 }

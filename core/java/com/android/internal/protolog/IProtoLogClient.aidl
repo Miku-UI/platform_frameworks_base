@@ -22,7 +22,7 @@ package com.android.internal.protolog;
  * These clients will communicate bi-directionally with the ProtoLog service
  * (@see IProtoLogConfigurationService.aidl) running in the system process.
  *
- * {@hide}
+ * @hide
  */
 interface IProtoLogClient {
     void toggleLogcat(boolean enabled, in String[] groups);

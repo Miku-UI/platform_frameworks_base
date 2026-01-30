@@ -23,7 +23,7 @@ import android.speech.IRecognitionServiceManagerCallback;
 /**
  * Binder service allowing speech recognition proxied by the system.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IRecognitionServiceManager {
     void createSession(

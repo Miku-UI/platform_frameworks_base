@@ -50,7 +50,7 @@ import com.android.systemui.plugins.qs.QS;
 import com.android.systemui.power.domain.interactor.PowerInteractor;
 import com.android.systemui.qs.QSFragmentLegacy;
 import com.android.systemui.res.R;
-import com.android.systemui.screenrecord.RecordingController;
+import com.android.systemui.screenrecord.ScreenRecordUxController;
 import com.android.systemui.shade.data.repository.FakeShadeRepository;
 import com.android.systemui.shade.domain.interactor.ShadeInteractor;
 import com.android.systemui.shade.domain.interactor.ShadeInteractorImpl;
@@ -79,7 +79,6 @@ import com.android.systemui.statusbar.policy.ResourcesSplitShadeStateController;
 import com.android.systemui.statusbar.policy.data.repository.FakeUserSetupRepository;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.user.domain.interactor.UserSwitcherInteractor;
-import com.android.systemui.util.kotlin.JavaAdapter;
 import com.android.systemui.utils.windowmanager.WindowManagerProvider;
 
 import dagger.Lazy;
@@ -136,7 +135,7 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
     @Mock protected MediaDataManager mMediaDataManager;
     @Mock protected MediaHierarchyManager mMediaHierarchyManager;
     @Mock protected AmbientState mAmbientState;
-    @Mock protected RecordingController mRecordingController;
+    @Mock protected ScreenRecordUxController mScreenRecordUxController;
     @Mock protected FalsingManager mFalsingManager;
     @Mock protected AccessibilityManager mAccessibilityManager;
     @Mock protected LockscreenGestureLogger mLockscreenGestureLogger;
@@ -199,7 +198,8 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
                         mTestScope.getBackgroundScope(),
                         mKeyguardRepository,
                         mShadeRepository
-                ));
+                ),
+                mKosmos.getSceneInteractor());
 
         when(mResources.getDimensionPixelSize(
                 R.dimen.lockscreen_shade_qs_transition_distance)).thenReturn(DEFAULT_HEIGHT);
@@ -257,7 +257,7 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
                 mMediaDataManager,
                 mMediaHierarchyManager,
                 mAmbientState,
-                mRecordingController,
+                mScreenRecordUxController,
                 mFalsingManager,
                 mAccessibilityManager,
                 mLockscreenGestureLogger,
@@ -269,7 +269,7 @@ public class QuickSettingsControllerImplBaseTest extends SysuiTestCase {
                 mShadeRepository,
                 mShadeInteractor,
                 mKosmos.getActiveNotificationsInteractor(),
-                new JavaAdapter(mTestScope.getBackgroundScope()),
+                mKosmos.getJavaAdapter(),
                 mCastController,
                 splitShadeStateController,
                 () -> mKosmos.getCommunalTransitionViewModel(),

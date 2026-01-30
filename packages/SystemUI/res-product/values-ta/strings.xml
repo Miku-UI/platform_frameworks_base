@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"இந்த டேப்லெட்டில் பிளே ஆகிறது"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"இந்த மொபைல் பவர் ஆஃப் செய்யப்பட்டிருக்கும்போதும் Find My Device மூலம் இதன் இருப்பிடத்தைக் கண்டறியலாம்"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"இந்த டேப்லெட் பவர் ஆஃப் செய்யப்பட்டிருக்கும்போதும் Find My Device மூலம் இதன் இருப்பிடத்தைக் கண்டறியலாம்"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"இந்த மொபைல் பவர் ஆஃப் செய்யப்பட்டிருக்கும்போதும் Find Hub மூலம் இதன் இருப்பிடத்தைக் கண்டறியலாம்"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"இந்த டேப்லெட் பவர் ஆஃப் செய்யப்பட்டிருக்கும்போதும் Find Hub மூலம் இதன் இருப்பிடத்தைக் கண்டறியலாம்"</string>
 </resources>

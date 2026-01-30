@@ -20,6 +20,7 @@ import android.content.Context
 import android.content.res.Resources
 import android.hardware.devicestate.DeviceState
 import android.hardware.devicestate.DeviceStateManager
+import android.platform.test.annotations.Presubmit
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.window.common.layout.CommonFoldingFeature
@@ -53,6 +54,7 @@ import org.mockito.kotlin.verify
  * Build/Install/Run:
  *  atest WMJetpackUnitTests:DeviceStateManagerFoldingFeatureProducerTest
  */
+@Presubmit
 @RunWith(AndroidJUnit4::class)
 class DeviceStateManagerFoldingFeatureProducerTest {
     private val mMockDeviceStateManager = mock<DeviceStateManager>()

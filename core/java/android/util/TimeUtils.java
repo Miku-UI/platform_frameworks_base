@@ -45,7 +45,7 @@ import java.util.List;
 @android.ravenwood.annotation.RavenwoodKeepStaticInitializer
 public class TimeUtils {
     /** @hide */ public TimeUtils() {}
-    /** {@hide} */
+    /** @hide */
     private static final SimpleDateFormat sLoggingFormat =
             new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -428,7 +428,7 @@ public class TimeUtils {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @android.ravenwood.annotation.RavenwoodKeep
     public static String formatForLogging(long millis) {
         if (millis <= 0) {

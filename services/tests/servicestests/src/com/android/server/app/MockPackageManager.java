@@ -810,7 +810,7 @@ public class MockPackageManager extends PackageManager {
     }
 
     @Override
-    public void setUpdateAvailable(@NonNull String packageName, boolean updateAvaialble) {
+    public void setUpdateAvailable(@NonNull String packageName, boolean updateAvailable) {
 
     }
 

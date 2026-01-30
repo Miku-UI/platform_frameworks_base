@@ -17,23 +17,20 @@
 package com.android.systemui.statusbar.notification.collection.coordinator
 
 import android.app.NotificationChannel.SYSTEM_RESERVED_IDS
-import com.android.systemui.statusbar.notification.collection.NotificationClassificationFlag
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.PipelineEntry
 
-/**
- * Helper class for classified notifications.
- */
+/** Helper class for classified notifications. */
 class BundleUtil {
     companion object {
-        fun isClassified(pipelineEntry: PipelineEntry): Boolean {
-            if (pipelineEntry !is NotificationEntry) {
+        fun isClassified(pipelineEntry: PipelineEntry): Boolean =
+            pipelineEntry is NotificationEntry && isClassified(pipelineEntry)
+
+        fun isClassified(notificationEntry: NotificationEntry): Boolean {
+            if (notificationEntry.channel == null) {
                 return false
             }
-            if (pipelineEntry.getRepresentativeEntry()!!.channel == null) {
-                return false
-            }
-            val channelId = pipelineEntry.getRepresentativeEntry()!!.channel.id
+            val channelId = notificationEntry.channel.id
             if (SYSTEM_RESERVED_IDS.contains(channelId)) {
                 return true
             }

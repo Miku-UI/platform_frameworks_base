@@ -8,3 +8,11 @@ flag {
      description: "Controls whether to report memory metrics post GC cleanup"
      bug: "331243037"
 }
+
+flag {
+     namespace: "art_mainline"
+     name: "get_optimization_info_from_app_process"
+     is_exported: false
+     description: "Controls whether to get ART optimization info from the app process for metrics reporting"
+     bug: "422941949"
+}

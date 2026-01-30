@@ -135,7 +135,8 @@ public class ZenModesBackend {
                 .setInterruptionFilter(dndInterruptionFilter)
                 .build();
 
-        return ZenMode.manualDndMode(manualDndRule, config.isManualActive());
+        return ZenMode.manualDndMode(manualDndRule, config.isManualActive(),
+                manualRule.lastManualActivation);
     }
 
     public void updateMode(ZenMode mode) {

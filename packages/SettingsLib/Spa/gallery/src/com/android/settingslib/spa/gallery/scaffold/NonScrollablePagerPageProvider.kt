@@ -22,9 +22,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.preference.Preference
@@ -37,23 +35,21 @@ object NonScrollablePagerPageProvider : SettingsPageProvider {
     override val name = "NonScrollablePager"
     private const val TITLE = "Sample Non Scrollable SettingsPager"
 
-    fun buildInjectEntry() = SettingsEntryBuilder.createInject(owner = createSettingsPage())
-        .setUiLayoutFn {
-            Preference(object : PreferenceModel {
+    @Composable
+    fun Entry() {
+        Preference(
+            object : PreferenceModel {
                 override val title = TITLE
                 override val onClick = navigator(name)
-            })
-        }
-
-    override fun getTitle(arguments: Bundle?) = TITLE
+            }
+        )
+    }
 
     @Composable
     override fun Page(arguments: Bundle?) {
         SettingsScaffold(title = getTitle(arguments)) { paddingValues ->
             Box(Modifier.padding(paddingValues)) {
-                SettingsPager(listOf("Personal", "Work")) {
-                    PlaceholderTitle("Page $it")
-                }
+                SettingsPager(listOf("Personal", "Work")) { PlaceholderTitle("Page $it") }
             }
         }
     }
@@ -62,7 +58,5 @@ object NonScrollablePagerPageProvider : SettingsPageProvider {
 @Preview(showBackground = true)
 @Composable
 private fun NonScrollablePagerPageProviderPreview() {
-    SettingsTheme {
-        NonScrollablePagerPageProvider.Page(null)
-    }
+    SettingsTheme { NonScrollablePagerPageProvider.Page(null) }
 }

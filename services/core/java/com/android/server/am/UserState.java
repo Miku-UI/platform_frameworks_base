@@ -16,9 +16,6 @@
 
 package com.android.server.am;
 
-import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
-import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
-
 import android.annotation.UserIdInt;
 import android.app.IStopUserCallback;
 import android.os.Trace;
@@ -33,7 +30,7 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 
 public final class UserState {
-    private static final String TAG = TAG_WITH_CLASS_NAME ? "UserState" : TAG_AM;
+    private static final String TAG = "UserController.UserState";
 
     // user doesn't exist.
     public static final int STATE_NONE = -1;

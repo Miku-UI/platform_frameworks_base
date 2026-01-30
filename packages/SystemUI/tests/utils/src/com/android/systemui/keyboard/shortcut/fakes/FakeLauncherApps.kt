@@ -17,6 +17,7 @@
 package com.android.systemui.keyboard.shortcut.fakes
 
 import android.content.ComponentName
+import android.content.pm.ApplicationInfo
 import android.content.pm.LauncherActivityInfo
 import android.content.pm.LauncherApps
 import android.os.UserHandle
@@ -51,11 +52,15 @@ class FakeLauncherApps {
             }
     }
 
-    fun installPackageForUser(packageName: String, className: String, userHandle: UserHandle) {
-        val launcherActivityInfo: LauncherActivityInfo = mock {
-            on { componentName }
-                .thenReturn(ComponentName(/* pkg= */ packageName, /* cls= */ className))
-        }
+    fun installPackageForUser(
+        packageName: String,
+        className: String,
+        userHandle: UserHandle,
+        iconRes: Int? = null,
+        label: String? = null,
+    ) {
+        val launcherActivityInfo: LauncherActivityInfo =
+            buildLauncherActivityInfo(packageName, className, label, iconRes ?: 0)
 
         if (!activityListPerUser.containsKey(userHandle.identifier)) {
             activityListPerUser[userHandle.identifier] = mutableListOf()
@@ -64,6 +69,27 @@ class FakeLauncherApps {
         activityListPerUser[userHandle.identifier]!!.add(launcherActivityInfo)
 
         callbacks.forEach { it.onPackageAdded(/* pkg= */ packageName, userHandle) }
+    }
+
+    private fun buildLauncherActivityInfo(
+        packageName: String,
+        className: String,
+        label: String?,
+        iconRes: Int = 0,
+    ): LauncherActivityInfo {
+
+        val applicationInfo: ApplicationInfo =
+            ApplicationInfo().also {
+                it.iconRes = iconRes
+                it.packageName = packageName
+            }
+
+        return mock {
+            on { componentName }
+                .thenReturn(ComponentName(/* pkg= */ packageName, /* cls= */ className))
+            on { this.applicationInfo }.thenReturn(applicationInfo)
+            on { this.label }.thenReturn(label)
+        }
     }
 
     fun uninstallPackageForUser(packageName: String, className: String, userHandle: UserHandle) {

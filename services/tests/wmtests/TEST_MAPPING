@@ -1,0 +1,535 @@
+{
+  "wm": [
+    {
+      "name": "WmTests-CatchAll"
+    },
+    {
+      "name": "WmTests-policy-DeferredKeyActionExecutorTests"
+    },
+    {
+      "name": "WmTests-policy-KeyGestureEventTests"
+    },
+    {
+      "name": "WmTests-policy-KeyGestureEventTvTests"
+    },
+    {
+      "name": "WmTests-policy-PhoneWindowManagerTests"
+    },
+    {
+      "name": "WmTests-policy-PowerKeyGestureTests"
+    },
+    {
+      "name": "WmTests-policy-SingleKeyGestureTests"
+    },
+    {
+      "name": "WmTests-policy-StemKeyGestureTests"
+    },
+    {
+      "name": "WmTests-policy-WindowWakeUpPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityInterceptorCallbackRegistryTest"
+    },
+    {
+      "name": "WmTests-wm-ActivityInterceptorCallbackTest"
+    },
+    {
+      "name": "WmTests-wm-ActivityLeakTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityMetricsLaunchObserverTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityOptionsTest"
+    },
+    {
+      "name": "WmTests-wm-ActivityRecordInputSinkTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityRecordTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityRefresherTests"
+    },
+    {
+      "name": "WmTests-wm-ActivitySnapshotControllerTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityStartControllerTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityStartInterceptorTest"
+    },
+    {
+      "name": "WmTests-wm-ActivityStarterTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityTaskManagerServiceTests"
+    },
+    {
+      "name": "WmTests-wm-ActivityTaskSupervisorTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatAspectRatioOverridesTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraDisplayRotationPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraOverridesTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraPolicyTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraRotationStateTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraSimReqOrientationPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraStateSourceTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraStateStrategyForPackageTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatCameraStateStrategyForTaskTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatConfigurationPersisterTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatConfigurationTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatDisplayCompatTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatDisplayOverridesTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatFocusOverridesTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatLetterboxOverrideTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatLetterboxPolicyStateTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatLetterboxPolicyTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatLetterboxUtilsTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatOrientationOverridesTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatOrientationPolicyTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatReachabilityOverridesTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatReachabilityPolicyTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatResizeOverridesTest"
+    },
+    {
+      "name": "WmTests-wm-AppCompatSafeRegionPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatSizeCompatTests"
+    },
+    {
+      "name": "WmTests-wm-AppCompatUtilsTest"
+    },
+    {
+      "name": "WmTests-wm-AssistDataRequesterTest"
+    },
+    {
+      "name": "WmTests-wm-BackNavigationControllerTests"
+    },
+    {
+      "name": "WmTests-wm-BackgroundActivityStartControllerExemptionTests"
+    },
+    {
+      "name": "WmTests-wm-BackgroundActivityStartControllerLogTests"
+    },
+    {
+      "name": "WmTests-wm-BackgroundActivityStartControllerTests"
+    },
+    {
+      "name": "WmTests-wm-BackgroundLaunchProcessControllerTests"
+    },
+    {
+      "name": "WmTests-wm-CameraIdAppPairsSetTests"
+    },
+    {
+      "name": "WmTests-wm-CameraIdPackageNameBiMappingTests"
+    },
+    {
+      "name": "WmTests-wm-CameraStateMonitorTests"
+    },
+    {
+      "name": "WmTests-wm-ClientLifecycleManagerTests"
+    },
+    {
+      "name": "WmTests-wm-CompatModePackagesTests"
+    },
+    {
+      "name": "WmTests-wm-CompatScaleProviderTest"
+    },
+    {
+      "name": "WmTests-wm-ConfigurationContainerTests"
+    },
+    {
+      "name": "WmTests-wm-ContentRecorderTests"
+    },
+    {
+      "name": "WmTests-wm-ContentRecordingControllerTests"
+    },
+    {
+      "name": "WmTests-wm-DeferredDisplayUpdaterDiffTest"
+    },
+    {
+      "name": "WmTests-wm-DesktopAppCompatAspectRatioPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-DesktopModeHelperTest"
+    },
+    {
+      "name": "WmTests-wm-DesktopModeLaunchParamsModifierTests"
+    },
+    {
+      "name": "WmTests-wm-DeviceStateAutoRotateSettingControllerTests"
+    },
+    {
+      "name": "WmTests-wm-DeviceStateAutoRotateSettingIssueLoggerTests"
+    },
+    {
+      "name": "WmTests-wm-DeviceStateControllerTests"
+    },
+    {
+      "name": "WmTests-wm-DimmerTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayAreaGroupTest"
+    },
+    {
+      "name": "WmTests-wm-DisplayAreaOrganizerTest"
+    },
+    {
+      "name": "WmTests-wm-DisplayAreaPolicyBuilderTest"
+    },
+    {
+      "name": "WmTests-wm-DisplayAreaPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayAreaProviderTest"
+    },
+    {
+      "name": "WmTests-wm-DisplayAreaTest"
+    },
+    {
+      "name": "WmTests-wm-DisplayContentDeferredUpdateTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayContentTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayPolicyInsetsTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayPolicyLayoutTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayRotationCoordinatorTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayRotationImmersiveAppCompatPolicyTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayRotationReversionControllerTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayRotationTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayWindowPolicyControllerTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayWindowSettingsProviderTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayWindowSettingsTests"
+    },
+    {
+      "name": "WmTests-wm-DisplayWindowSettingsXmlHelperTests"
+    },
+    {
+      "name": "WmTests-wm-DragDropControllerTests"
+    },
+    {
+      "name": "WmTests-wm-DualDisplayAreaGroupPolicyTest"
+    },
+    {
+      "name": "WmTests-wm-EmulatorDisplayOverlayTests"
+    },
+    {
+      "name": "WmTests-wm-FrameRateSelectionPriorityTests"
+    },
+    {
+      "name": "WmTests-wm-HighRefreshRateDenylistTest"
+    },
+    {
+      "name": "WmTests-wm-ImeInsetsSourceProviderTest"
+    },
+    {
+      "name": "WmTests-wm-InputMethodDialogWindowContextTest"
+    },
+    {
+      "name": "WmTests-wm-InsetsPolicyTest"
+    },
+    {
+      "name": "WmTests-wm-InsetsSourceProviderTest"
+    },
+    {
+      "name": "WmTests-wm-InsetsStateControllerTest"
+    },
+    {
+      "name": "WmTests-wm-KeyguardDisableHandlerTest"
+    },
+    {
+      "name": "WmTests-wm-LaunchParamsControllerTests"
+    },
+    {
+      "name": "WmTests-wm-LaunchParamsPersisterTests"
+    },
+    {
+      "name": "WmTests-wm-LetterboxAttachInputTest"
+    },
+    {
+      "name": "WmTests-wm-LetterboxTest"
+    },
+    {
+      "name": "WmTests-wm-LockTaskControllerTest"
+    },
+    {
+      "name": "WmTests-wm-PendingRemoteAnimationRegistryTest"
+    },
+    {
+      "name": "WmTests-wm-PersisterQueueTests"
+    },
+    {
+      "name": "WmTests-wm-PossibleDisplayInfoMapperTests"
+    },
+    {
+      "name": "WmTests-wm-PresentationControllerTests"
+    },
+    {
+      "name": "WmTests-wm-ProtoLogIntegrationTest"
+    },
+    {
+      "name": "WmTests-wm-RecentTasksTest"
+    },
+    {
+      "name": "WmTests-wm-RecentsAnimationTest"
+    },
+    {
+      "name": "WmTests-wm-RefreshRatePolicyTest"
+    },
+    {
+      "name": "WmTests-wm-RootTaskTests"
+    },
+    {
+      "name": "WmTests-wm-RootWindowContainerTests"
+    },
+    {
+      "name": "WmTests-wm-RunningTasksTest"
+    },
+    {
+      "name": "WmTests-wm-SafeActivityOptionsTest"
+    },
+    {
+      "name": "WmTests-wm-ScreenshotTests"
+    },
+    {
+      "name": "WmTests-wm-SensitiveContentPackagesTest"
+    },
+    {
+      "name": "WmTests-wm-SizeCompatTests"
+    },
+    {
+      "name": "WmTests-wm-SplashScreenExceptionListTest"
+    },
+    {
+      "name": "WmTests-wm-SurfaceAnimationRunnerTest"
+    },
+    {
+      "name": "WmTests-wm-SurfaceAnimatorTest"
+    },
+    {
+      "name": "WmTests-wm-SurfaceControlTests"
+    },
+    {
+      "name": "WmTests-wm-SurfaceControlViewHostTests"
+    },
+    {
+      "name": "WmTests-wm-SurfaceSyncGroupTest"
+    },
+    {
+      "name": "WmTests-wm-SurfaceSyncGroupTests"
+    },
+    {
+      "name": "WmTests-wm-SurfaceViewSyncContinuousTest"
+    },
+    {
+      "name": "WmTests-wm-SyncEngineTests"
+    },
+    {
+      "name": "WmTests-wm-SynchedDeviceConfigTests"
+    },
+    {
+      "name": "WmTests-wm-SystemServicesTestRuleTest"
+    },
+    {
+      "name": "WmTests-wm-TaskDisplayAreaTests"
+    },
+    {
+      "name": "WmTests-wm-TaskFragmentOrganizerControllerTest"
+    },
+    {
+      "name": "WmTests-wm-TaskFragmentTest"
+    },
+    {
+      "name": "WmTests-wm-TaskLaunchParamsModifierTests"
+    },
+    {
+      "name": "WmTests-wm-TaskPersisterTest"
+    },
+    {
+      "name": "WmTests-wm-TaskSnapshotCacheTest"
+    },
+    {
+      "name": "WmTests-wm-TaskSnapshotControllerTest"
+    },
+    {
+      "name": "WmTests-wm-TaskSnapshotLowResDisabledTest"
+    },
+    {
+      "name": "WmTests-wm-TaskSnapshotPersisterLoaderTest"
+    },
+    {
+      "name": "WmTests-wm-TaskStackChangedListenerTest"
+    },
+    {
+      "name": "WmTests-wm-TaskTests"
+    },
+    {
+      "name": "WmTests-wm-TransitionControllerTest"
+    },
+    {
+      "name": "WmTests-wm-TransitionTests"
+    },
+    {
+      "name": "WmTests-wm-TransparentPolicyTest"
+    },
+    {
+      "name": "WmTests-wm-TrustedOverlayTests"
+    },
+    {
+      "name": "WmTests-wm-UnknownAppVisibilityControllerTest"
+    },
+    {
+      "name": "WmTests-wm-VisibleActivityProcessTrackerTests"
+    },
+    {
+      "name": "WmTests-wm-WallpaperControllerTests"
+    },
+    {
+      "name": "WmTests-wm-WindowAnimationSpecTest"
+    },
+    {
+      "name": "WmTests-wm-WindowConfigurationTests"
+    },
+    {
+      "name": "WmTests-wm-WindowContainerTests"
+    },
+    {
+      "name": "WmTests-wm-WindowContainerTransactionTests"
+    },
+    {
+      "name": "WmTests-wm-WindowContainerTraversalTests"
+    },
+    {
+      "name": "WmTests-wm-WindowContextListenerControllerTests"
+    },
+    {
+      "name": "WmTests-wm-WindowManagerConstantsTest"
+    },
+    {
+      "name": "WmTests-wm-WindowManagerServiceTests"
+    },
+    {
+      "name": "WmTests-wm-WindowManagerSettingsTests"
+    },
+    {
+      "name": "WmTests-wm-WindowOrganizerTests"
+    },
+    {
+      "name": "WmTests-wm-WindowProcessControllerMapTests"
+    },
+    {
+      "name": "WmTests-wm-WindowProcessControllerTests"
+    },
+    {
+      "name": "WmTests-wm-WindowStateTests"
+    },
+    {
+      "name": "WmTests-wm-WindowTokenTests"
+    },
+    {
+      "name": "WmTests-wm-WindowTracingLegacyTest"
+    },
+    {
+      "name": "WmTests-wm-WindowTracingPerfettoTest"
+    },
+    {
+      "name": "WmTests-wm-ZOrderingTests"
+    },
+    {
+      "name": "WmTests-wm-testing-AssertTest"
+    },
+    {
+      "name": "WmTests-wm-utils-CoordinateTransformsTest"
+    },
+    {
+      "name": "WmTests-wm-utils-InsetUtilsTest"
+    },
+    {
+      "name": "WmTests-wm-utils-OptPropFactoryTest"
+    },
+    {
+      "name": "WmTests-wm-utils-RotationAnimationUtilsTest"
+    },
+    {
+      "name": "WmTests-wm-utils-RotationCacheTest"
+    },
+    {
+      "name": "WmTests-wm-utils-StateMachineTest"
+    },
+    {
+      "name": "WmTests-wm-utils-WindowStyleCacheTest"
+    },
+    {
+      "name": "WmTests-wm-utils-WmDisplayCutoutTest"
+    }
+  ]
+}

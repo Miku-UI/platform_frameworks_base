@@ -1,6 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!--
-  ~ Copyright (C) 2020 The Android Open Source Project
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ Copyright (C) 2025 The Android Open Source Project
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -14,16 +13,34 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-<ImageView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/settings_cog"
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:androidprv="http://schemas.android.com/apk/prv/res/android"
+    android:id="@+id/settings_cog_layout"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:contentDescription="@string/controls_media_settings_button"
-    android:paddingStart="30dp"
-    android:paddingEnd="30dp"
-    android:paddingBottom="20dp"
-    android:paddingTop="20dp"
-    android:src="@drawable/ic_settings"
-    android:tint="@color/notification_gear_color"
     android:visibility="invisible"
-    android:forceHasOverlappingRendering="false"/>
+    android:forceHasOverlappingRendering="false">
+
+    <View
+        android:id="@+id/background"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp"
+        android:layout_gravity="center"
+        android:background="@drawable/media_carousel_settings_bg" />
+
+    <ImageView
+        android:id="@+id/settings_cog"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/controls_media_settings_button"
+        android:paddingStart="30dp"
+        android:paddingEnd="30dp"
+        android:paddingBottom="20dp"
+        android:paddingTop="20dp"
+        android:src="@drawable/ic_media_settings"
+        android:tint="@androidprv:color/materialColorOnSurface" />
+
+</FrameLayout>

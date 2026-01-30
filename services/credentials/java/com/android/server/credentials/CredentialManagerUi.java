@@ -22,7 +22,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.credentials.CredentialManager;
 import android.credentials.CredentialProviderInfo;
-import android.credentials.flags.Flags;
 import android.credentials.selection.DisabledProviderData;
 import android.credentials.selection.IntentCreationResult;
 import android.credentials.selection.IntentFactory;
@@ -182,11 +181,9 @@ public class CredentialManagerUi {
                 mContext, intentCreationResult, mUserId);
         Intent intent = intentCreationResult.getIntent();
         intent.setAction(UUID.randomUUID().toString());
-        if (Flags.frameworkSessionIdMetricBundle()) {
-            intent.putExtra(SESSION_ID_TRACK_ONE,
-                    requestSessionMetric.getInitialPhaseMetric().getSessionIdCaller());
-            intent.putExtra(SESSION_ID_TRACK_TWO, requestSessionMetric.getSessionIdTrackTwo());
-        }
+        intent.putExtra(SESSION_ID_TRACK_ONE,
+                requestSessionMetric.getInitialPhaseMetric().getSessionIdCaller());
+        intent.putExtra(SESSION_ID_TRACK_TWO, requestSessionMetric.getSessionIdTrackTwo());
         //TODO: Create unique pending intent using request code and cancel any pre-existing pending
         // intents
         return PendingIntent.getActivityAsUser(

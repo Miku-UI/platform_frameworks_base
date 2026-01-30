@@ -80,3 +80,74 @@ flag {
   description: "Flag that enables the web content filters screen with Supervision settings entry point"
   bug: "395134536"
 }
+
+flag {
+  name: "enable_web_content_filters_screen_search_redirection"
+  is_exported: false
+  namespace: "supervision"
+  description: "Flag that enables the web content filters screen search redirection"
+  bug: "437389231"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "enable_supervision_settings_ui_updates"
+  is_exported: false
+  namespace: "supervision"
+  description: "Flag that enables supervision settings phase 2 UI updates"
+  bug: "444303437"
+}
+
+flag {
+  name: "enable_lock_task_feature_quick_settings"
+  is_exported: true
+  namespace: "supervision"
+  description: "Enables usage of lock task feature to enable Quick Settings on LockTask mode"
+  bug: "401576820"
+}
+
+flag {
+  name: "persistent_supervision_settings"
+  is_exported: false
+  namespace: "supervision"
+  description: "Saves supervision user data and recovery info into a binary xml file"
+  bug: "406449915"
+}
+
+flag {
+  name: "enable_remove_policies_on_supervision_disable"
+  is_exported: false
+  namespace: "supervision"
+  description: "Removes all enforced policies to the user when supervision is disabled."
+  bug: "414575617"
+}
+
+flag {
+    name: "enable_app_store_filters_screen"
+    is_exported: false
+    namespace: "supervision"
+    description: "Flag that enables app store filters screen with Supervision settings entry point"
+    bug: "438298503"
+}
+
+flag {
+  name: "enable_app_service_connection_callback"
+  is_exported: false
+  namespace: "supervision"
+  description: "Enables AppBindingService to dispatch actions to be executed by AppServiceConnection after a connection is established."
+  bug: "441932377"
+}
+
+flag {
+  name: "enable_confirmation_dialog_bypass"
+  is_exported: false
+  namespace: "supervision"
+  description: "Flag that enables the confirmation dialog bypass"
+  bug: "415102122"
+
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}

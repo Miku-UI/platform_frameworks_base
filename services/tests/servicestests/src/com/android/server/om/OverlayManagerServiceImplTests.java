@@ -36,6 +36,7 @@ import android.content.om.OverlayIdentifier;
 import android.content.om.OverlayInfo;
 import android.content.pm.UserPackage;
 import android.content.res.Flags;
+import android.os.FabricatedOverlayInternal;
 import android.platform.test.annotations.RequiresFlagsDisabled;
 import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
@@ -349,6 +350,31 @@ public class OverlayManagerServiceImplTests extends OverlayManagerServiceImplTes
         downgradeAndAssert(target(TARGET), USER,
                 Set.of(UserPackage.of(USER, TARGET)),
                 Set.of(UserPackage.of(USER, TARGET)));
+    }
+
+    @Test
+    public void testRegisterFabricatedOverlayTwice() throws Exception {
+        installAndAssert(target(TARGET), USER,
+                Set.of(UserPackage.of(USER, TARGET)));
+        installAndAssert(target(TARGET), USER2,
+                Set.of(UserPackage.of(USER2, TARGET)));
+        installAndAssert(overlay(OVERLAY, TARGET), USER,
+                Set.of(UserPackage.of(USER, OVERLAY), UserPackage.of(USER, TARGET)));
+        installAndAssert(overlay(OVERLAY, TARGET), USER2,
+                Set.of(UserPackage.of(USER2, OVERLAY), UserPackage.of(USER2, TARGET)));
+
+        final var overlay = new FabricatedOverlayInternal();
+        overlay.packageName = TARGET;
+        overlay.overlayName = "Test";
+        overlay.targetPackageName = TARGET;
+        overlay.targetOverlayable = "";
+        overlay.entries = Collections.emptyList();
+
+        final var impl = getImpl();
+        final var expected = Set.of(UserPackage.of(USER, TARGET), UserPackage.of(USER2, TARGET));
+        assertEquals(expected, impl.registerFabricatedOverlay(overlay));
+
+        assertEquals(expected, impl.registerFabricatedOverlay(overlay));
     }
 
     private void testSetEnabledAtVariousConditions(final List<OverlayConstraint> constraints)

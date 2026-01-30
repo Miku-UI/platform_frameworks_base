@@ -22,6 +22,8 @@ import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DISABLED;
 import static android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED;
 
+import static com.android.server.pm.PackageManagerService.TAG;
+
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -40,14 +42,18 @@ import android.os.UserHandle;
 import android.os.incremental.IncrementalManager;
 import android.service.pm.PackageProto;
 import android.service.pm.PackageProto.UserInfoProto.ArchiveState.ArchiveActivityInfo;
+import android.system.Os;
+import android.system.OsConstants;
 import android.text.TextUtils;
 import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.IntArray;
+import android.util.Slog;
 import android.util.SparseArray;
 import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.content.LibraryAlignmentInfo;
 import com.android.internal.pm.parsing.pkg.AndroidPackageInternal;
 import com.android.internal.util.CollectionUtils;
 import com.android.internal.util.DataClass;
@@ -65,6 +71,7 @@ import com.android.server.pm.pkg.PackageUserStateInternal;
 import com.android.server.pm.pkg.SharedLibrary;
 import com.android.server.pm.pkg.SharedLibraryWrapper;
 import com.android.server.pm.pkg.SuspendParams;
+import com.android.server.pm.verify.developer.DeveloperVerificationStatusInternal;
 import com.android.server.utils.SnapshotCache;
 import com.android.server.utils.WatchedArraySet;
 
@@ -90,7 +97,6 @@ import java.util.UUID;
 @DataClass(genGetters = true, genConstructor = false, genSetters = false, genBuilder = false)
 @DataClass.Suppress({"getSnapshot", "getBooleans"})
 public class PackageSetting extends SettingBase implements PackageStateInternal {
-
     // Use a bitset to store boolean data to save memory
     private static class Booleans {
         @IntDef({
@@ -224,6 +230,15 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
 
     private int mPageSizeAppCompatFlags = ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED;
 
+    /**
+     * This array will be populated during scanning when all the following are true for the app
+     * - Developer mode is unlocked
+     * - app is debuggable
+     * - new package is being installed
+     * - App is installed by adb
+     */
+    private LibraryAlignmentInfo[] mUnalignedNativeLibraries;
+
     @NonNull
     private final PackageStateUnserialized pkgState = new PackageStateUnserialized(this);
 
@@ -256,6 +271,13 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
 
     private int mBaseRevisionCode;
 
+    // This is the developer verification status received at the verification time during the
+    // package installation. Even if the package was installed successfully, this verification
+    // result might indicate that there was an issue during the developer verification or app
+    // metadata verification and the user might need be aware of it. We preserve this information
+    // as part of the package state for such usages.
+    @Nullable
+    private DeveloperVerificationStatusInternal mDeveloperVerificationStatusInternal;
     /**
      * Snapshot support.
      */
@@ -789,6 +811,10 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
                 != 0;
     }
 
+    public boolean isAudioPlaybackCaptureAllowed() {
+        return (getPrivateFlags() & ApplicationInfo.PRIVATE_FLAG_ALLOW_AUDIO_PLAYBACK_CAPTURE) != 0;
+    }
+
     public SigningDetails getSigningDetails() {
         return signatures.mSigningDetails;
     }
@@ -853,7 +879,7 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         usesStaticLibrariesVersions = other.usesStaticLibrariesVersions != null
                 ? Arrays.copyOf(other.usesStaticLibrariesVersions,
                 other.usesStaticLibrariesVersions.length) : null;
-        mUserStates.clear();
+
         for (int i = 0; i < other.mUserStates.size(); i++) {
             if (sealedSnapshot) {
                 mUserStates.put(other.mUserStates.keyAt(i),
@@ -867,6 +893,9 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
 
         copyMimeGroups(other.mimeGroups);
         mPageSizeAppCompatFlags = other.mPageSizeAppCompatFlags;
+        mUnalignedNativeLibraries = other.mUnalignedNativeLibraries != null
+                ? Arrays.copyOf(other.mUnalignedNativeLibraries,
+                other.mUnalignedNativeLibraries.length) : null;
 
         pkgState.updateFrom(other.pkgState);
         onChanged();
@@ -1588,12 +1617,6 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         return pkgState.isHiddenUntilInstalled();
     }
 
-    @NonNull
-    @Override
-    public long[] getLastPackageUsageTime() {
-        return pkgState.getLastPackageUsageTimeInMills();
-    }
-
     @Override
     public boolean isUpdatedSystemApp() {
         return pkgState.isUpdatedSystemApp();
@@ -1622,12 +1645,23 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         return this;
     }
 
+
+    /**
+     * Clear the page size app compat flags.
+     */
+    public PackageSetting clearPageSizeAppCompatFlags() {
+        this.mPageSizeAppCompatFlags = ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED;
+        onChanged();
+        return this;
+    }
+
     /**
      * @see Set page size app compat mode.
      */
     public PackageSetting setPageSizeAppCompatFlags(int mode) {
         if (mode < 0 || mode >= ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_MAX) {
-            throw new IllegalArgumentException("Invalid page size compat mode specified");
+            Slog.e(TAG, "Invalid page size compat mode specified. mode : " + mode);
+            return this;
         }
 
         // OR assignment is used here to avoid overriding the mode set by the manifest.
@@ -1648,6 +1682,19 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
 
     public int getPageSizeAppCompatFlags() {
         return mPageSizeAppCompatFlags;
+    }
+
+    /**
+     * Set native library alignment info.
+     */
+    public PackageSetting setLibraryAlignmentInfo(LibraryAlignmentInfo[] libs) {
+        if (libs == null) {
+            Slog.e(TAG, "Invalid LibraryAlignmentInfo specified");
+            return this;
+        }
+        this.mUnalignedNativeLibraries = libs;
+        onChanged();
+        return this;
     }
 
     public PackageSetting setLegacyNativeLibraryPath(
@@ -1845,13 +1892,11 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
      */
     @Override
     public String getPageSizeCompatWarningMessage(Context context) {
-        boolean manifestOverrideEnabled =  (mPageSizeAppCompatFlags
-                & ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_MANIFEST_OVERRIDE_ENABLED) != 0;
         boolean settingsOverrideEnabled =  (mPageSizeAppCompatFlags
                 & ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_SETTINGS_OVERRIDE_ENABLED) != 0;
         boolean settingsOverrideDisabled =  (mPageSizeAppCompatFlags
                 & ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_SETTINGS_OVERRIDE_DISABLED) != 0;
-        if (manifestOverrideEnabled || settingsOverrideEnabled || settingsOverrideDisabled) {
+        if (settingsOverrideEnabled || settingsOverrideDisabled) {
             return null;
         }
 
@@ -1860,25 +1905,76 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         boolean elfNotAligned = (mPageSizeAppCompatFlags
                 & ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_ELF_NOT_ALIGNED) != 0;
 
+        // On 4 KB device, show a warning to fix compatibility.
+        boolean is4kbDevice = Os.sysconf(OsConstants._SC_PAGESIZE) == 4096;
+        StringBuilder fullMessage = new StringBuilder();
+
+        String message = getWarningMessage(context, uncompressedLibsNotAligned, elfNotAligned,
+                is4kbDevice);
+        if (message == null) {
+            return null;
+        }
+        fullMessage.append(message);
+
+        if (mUnalignedNativeLibraries != null) {
+            for (LibraryAlignmentInfo info : mUnalignedNativeLibraries) {
+                String libInfo = getErrorMessageForLib(context, info.libraryName, info.errorCode);
+                fullMessage.append(libInfo);
+            }
+        }
+
+        return fullMessage.toString();
+    }
+
+    private String getWarningMessage(@NonNull Context context, boolean uncompressedLibsNotAligned,
+            boolean elfNotAligned, boolean is4kbDevice) {
         if (uncompressedLibsNotAligned && elfNotAligned) {
-            return context.getText(
-                            com.android.internal.R.string.page_size_compat_apk_and_elf_warning)
-                    .toString();
+            return context.getString(is4kbDevice
+                            ? com.android.internal.R.string.page_size_compat_apk_and_elf_warning_4kb
+                            : com.android.internal.R.string.page_size_compat_apk_and_elf_warning);
         }
 
         if (uncompressedLibsNotAligned) {
-            return context.getText(com.android.internal.R.string.page_size_compat_apk_warning)
-                    .toString();
+            return context.getString(is4kbDevice
+                            ? com.android.internal.R.string.page_size_compat_apk_warning_4kb
+                            : com.android.internal.R.string.page_size_compat_apk_warning);
         }
 
         if (elfNotAligned) {
-            return context.getText(com.android.internal.R.string.page_size_compat_elf_warning)
-                    .toString();
+            return context.getString(is4kbDevice
+                            ? com.android.internal.R.string.page_size_compat_elf_warning_4kb
+                            : com.android.internal.R.string.page_size_compat_elf_warning);
         }
-
         return null;
     }
 
+    private String getErrorMessageForLib(Context context, String name, int errorCode) {
+        boolean uncompressedLibsNotAligned = (errorCode
+                & ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNCOMPRESSED_LIBS_NOT_ALIGNED) != 0;
+        boolean elfNotAligned = (errorCode
+                & ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_ELF_NOT_ALIGNED) != 0;
+
+        if (uncompressedLibsNotAligned && elfNotAligned) {
+            return context.getString(
+                    com.android.internal.R.string.page_size_compat_apk_and_elf_not_aligned, name);
+        }
+
+        if (uncompressedLibsNotAligned) {
+            return context.getString(
+                    com.android.internal.R.string.page_size_compat_apk_not_aligned, name);
+        }
+
+        if (elfNotAligned) {
+            return context.getString(
+                    com.android.internal.R.string.page_size_compat_elf_not_aligned, name);
+        }
+        return context.getString(com.android.internal.R.string.page_size_compat_unknown, name);
+    }
+
+    public void setDeveloperVerificationStatusInternal(
+            @Nullable DeveloperVerificationStatusInternal internalStatus) {
+        mDeveloperVerificationStatusInternal = internalStatus;
+    }
 
 
     // Code below generated by codegen v1.0.23.
@@ -2036,13 +2132,19 @@ public class PackageSetting extends SettingBase implements PackageStateInternal 
         return mRestrictUpdateHash;
     }
 
+    @DataClass.Generated.Member
+    public @Nullable DeveloperVerificationStatusInternal getDeveloperVerificationStatusInternal() {
+        return mDeveloperVerificationStatusInternal;
+    }
+
     @DataClass.Generated(
-            time = 1706698406378L,
+            time = 1750101521074L,
             codegenVersion = "1.0.23",
             sourceFile = "frameworks/base/services/core/java/com/android/server/pm/PackageSetting.java",
-            inputSignatures = "private  int mBooleans\nprivate  int mSharedUserAppId\nprivate @android.annotation.Nullable java.util.Map<java.lang.String,java.util.Set<java.lang.String>> mimeGroups\nprivate @android.annotation.Nullable java.lang.String[] usesSdkLibraries\nprivate @android.annotation.Nullable long[] usesSdkLibrariesVersionsMajor\nprivate @android.annotation.Nullable boolean[] usesSdkLibrariesOptional\nprivate @android.annotation.Nullable java.lang.String[] usesStaticLibraries\nprivate @android.annotation.Nullable long[] usesStaticLibrariesVersions\nprivate @android.annotation.Nullable @java.lang.Deprecated java.lang.String legacyNativeLibraryPath\nprivate @android.annotation.NonNull java.lang.String mName\nprivate @android.annotation.Nullable java.lang.String mRealName\nprivate  int mAppId\nprivate @android.annotation.Nullable com.android.internal.pm.parsing.pkg.AndroidPackageInternal pkg\nprivate @android.annotation.NonNull java.io.File mPath\nprivate @android.annotation.NonNull java.lang.String mPathString\nprivate @android.annotation.Nullable java.util.LinkedHashSet<java.io.File> mOldPaths\nprivate  float mLoadingProgress\nprivate  long mLoadingCompletedTime\nprivate @android.annotation.Nullable java.lang.String mPrimaryCpuAbi\nprivate @android.annotation.Nullable java.lang.String mSecondaryCpuAbi\nprivate @android.annotation.Nullable java.lang.String mCpuAbiOverride\nprivate  long mLastModifiedTime\nprivate  long lastUpdateTime\nprivate  long versionCode\nprivate @android.annotation.NonNull com.android.server.pm.PackageSignatures signatures\nprivate @android.annotation.NonNull com.android.server.pm.PackageKeySetData keySetData\nprivate final @android.annotation.NonNull android.util.SparseArray<com.android.server.pm.pkg.PackageUserStateImpl> mUserStates\nprivate @android.annotation.NonNull com.android.server.pm.InstallSource installSource\nprivate @android.annotation.Nullable java.lang.String volumeUuid\nprivate  int categoryOverride\nprivate final @android.annotation.NonNull com.android.server.pm.pkg.PackageStateUnserialized pkgState\nprivate @android.annotation.NonNull java.util.UUID mDomainSetId\nprivate @android.annotation.Nullable java.lang.String mAppMetadataFilePath\nprivate  int mAppMetadataSource\nprivate  int mTargetSdkVersion\nprivate @android.annotation.Nullable byte[] mRestrictUpdateHash\nprivate final @android.annotation.NonNull com.android.server.utils.SnapshotCache<com.android.server.pm.PackageSetting> mSnapshot\nprivate  void setBoolean(int,boolean)\nprivate  boolean getBoolean(int)\nprivate  com.android.server.utils.SnapshotCache<com.android.server.pm.PackageSetting> makeCache()\npublic  com.android.server.pm.PackageSetting snapshot()\npublic  void dumpDebug(android.util.proto.ProtoOutputStream,long,java.util.List<android.content.pm.UserInfo>,com.android.server.pm.permission.LegacyPermissionDataProvider)\npublic  com.android.server.pm.PackageSetting setAppId(int)\npublic  com.android.server.pm.PackageSetting setCpuAbiOverride(java.lang.String)\npublic  com.android.server.pm.PackageSetting setFirstInstallTimeFromReplaced(com.android.server.pm.pkg.PackageStateInternal,int[])\npublic  com.android.server.pm.PackageSetting setFirstInstallTime(long,int)\npublic  com.android.server.pm.PackageSetting setForceQueryableOverride(boolean)\npublic  com.android.server.pm.PackageSetting setInstallerPackage(java.lang.String,int)\npublic  com.android.server.pm.PackageSetting setUpdateOwnerPackage(java.lang.String)\npublic  com.android.server.pm.PackageSetting setInstallSource(com.android.server.pm.InstallSource)\n  com.android.server.pm.PackageSetting removeInstallerPackage(java.lang.String)\npublic  com.android.server.pm.PackageSetting setIsOrphaned(boolean)\npublic  com.android.server.pm.PackageSetting setKeySetData(com.android.server.pm.PackageKeySetData)\npublic  com.android.server.pm.PackageSetting setLastModifiedTime(long)\npublic  com.android.server.pm.PackageSetting setLastUpdateTime(long)\npublic  com.android.server.pm.PackageSetting setLongVersionCode(long)\npublic  boolean setMimeGroup(java.lang.String,android.util.ArraySet<java.lang.String>)\npublic  com.android.server.pm.PackageSetting setPkg(com.android.server.pm.pkg.AndroidPackage)\npublic  com.android.server.pm.PackageSetting setPkgStateLibraryFiles(java.util.Collection<java.lang.String>)\npublic  com.android.server.pm.PackageSetting setPrimaryCpuAbi(java.lang.String)\npublic  com.android.server.pm.PackageSetting setSecondaryCpuAbi(java.lang.String)\npublic  com.android.server.pm.PackageSetting setSignatures(com.android.server.pm.PackageSignatures)\npublic  com.android.server.pm.PackageSetting setVolumeUuid(java.lang.String)\npublic @java.lang.Override boolean isExternalStorage()\npublic  com.android.server.pm.PackageSetting setUpdateAvailable(boolean)\npublic  com.android.server.pm.PackageSetting setSharedUserAppId(int)\npublic  com.android.server.pm.PackageSetting setTargetSdkVersion(int)\npublic  com.android.server.pm.PackageSetting setRestrictUpdateHash(byte[])\npublic @java.lang.Override int getSharedUserAppId()\npublic @java.lang.Override boolean hasSharedUser()\npublic @java.lang.Override java.lang.String toString()\nprivate  void copyMimeGroups(java.util.Map<java.lang.String,java.util.Set<java.lang.String>>)\npublic  void updateFrom(com.android.server.pm.PackageSetting)\n  com.android.server.pm.PackageSetting updateMimeGroups(java.util.Set<java.lang.String>)\npublic @java.lang.Deprecated @java.lang.Override com.android.server.pm.permission.LegacyPermissionState getLegacyPermissionState()\npublic  com.android.server.pm.PackageSetting setInstallPermissionsFixed(boolean)\npublic  boolean isPrivileged()\npublic  boolean isOem()\npublic  boolean isVendor()\npublic  boolean isProduct()\npublic @java.lang.Override boolean isRequiredForSystemUser()\npublic  boolean isSystemExt()\npublic  boolean isOdm()\npublic  boolean isSystem()\npublic  boolean isRequestLegacyExternalStorage()\npublic  boolean isUserDataFragile()\npublic  android.content.pm.SigningDetails getSigningDetails()\npublic  com.android.server.pm.PackageSetting setSigningDetails(android.content.pm.SigningDetails)\npublic  void copyPackageSetting(com.android.server.pm.PackageSetting,boolean)\n @com.android.internal.annotations.VisibleForTesting com.android.server.pm.pkg.PackageUserStateImpl modifyUserState(int)\npublic  com.android.server.pm.pkg.PackageUserStateImpl getOrCreateUserState(int)\npublic @android.annotation.NonNull com.android.server.pm.pkg.PackageUserStateInternal readUserState(int)\n  void setEnabled(int,int,java.lang.String)\n  int getEnabled(int)\n  void setInstalled(boolean,int)\n  void setArchiveState(com.android.server.pm.pkg.ArchiveState,int)\n  boolean getInstalled(int)\n  boolean isArchived(int)\n  int getInstallReason(int)\n  void setInstallReason(int,int)\n  int getUninstallReason(int)\n  void setUninstallReason(int,int)\n @android.annotation.NonNull android.content.pm.overlay.OverlayPaths getOverlayPaths(int)\n  boolean setOverlayPathsForLibrary(java.lang.String,android.content.pm.overlay.OverlayPaths,int)\n  boolean isInstalledOnAnyOtherUser(int[],int)\n  boolean hasDataOnAnyOtherUser(int[],int)\n  int[] queryInstalledUsers(int[],boolean)\n  int[] queryUsersInstalledOrHasData(int[])\n  long getCeDataInode(int)\n  long getDeDataInode(int)\n  void setCeDataInode(long,int)\n  void setDeDataInode(long,int)\n  boolean getStopped(int)\n  void setStopped(boolean,int)\npublic  com.android.server.pm.PackageSetting setScannedAsStoppedSystemApp(boolean)\n  boolean getNotLaunched(int)\n  void setNotLaunched(boolean,int)\n  boolean getHidden(int)\n  void setHidden(boolean,int)\n  int getDistractionFlags(int)\n  void setDistractionFlags(int,int)\npublic  boolean getInstantApp(int)\n  void setInstantApp(boolean,int)\n  boolean getVirtualPreload(int)\n  void setVirtualPreload(boolean,int)\n  void setUserState(int,long,long,int,boolean,boolean,boolean,boolean,int,android.util.ArrayMap<android.content.pm.UserPackage,com.android.server.pm.pkg.SuspendParams>,boolean,boolean,java.lang.String,android.util.ArraySet<java.lang.String>,android.util.ArraySet<java.lang.String>,int,int,java.lang.String,java.lang.String,long,int,com.android.server.pm.pkg.ArchiveState)\n  void setUserState(int,com.android.server.pm.pkg.PackageUserStateInternal)\n  com.android.server.utils.WatchedArraySet<java.lang.String> getEnabledComponents(int)\n  com.android.server.utils.WatchedArraySet<java.lang.String> getDisabledComponents(int)\n  void setEnabledComponents(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  void setDisabledComponents(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  void setEnabledComponentsCopy(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  void setDisabledComponentsCopy(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  com.android.server.pm.pkg.PackageUserStateImpl modifyUserStateComponents(int,boolean,boolean)\n  void addDisabledComponent(java.lang.String,int)\n  void addEnabledComponent(java.lang.String,int)\n  boolean enableComponentLPw(java.lang.String,int)\n  boolean disableComponentLPw(java.lang.String,int)\n  boolean restoreComponentLPw(java.lang.String,int)\n  void restoreComponentSettings(int)\n  int getCurrentEnabledStateLPr(java.lang.String,int)\n  void removeUser(int)\npublic  int[] getNotInstalledUserIds()\n  void writePackageUserPermissionsProto(android.util.proto.ProtoOutputStream,long,java.util.List<android.content.pm.UserInfo>,com.android.server.pm.permission.LegacyPermissionDataProvider)\nprotected  void writeUsersInfoToProto(android.util.proto.ProtoOutputStream,long)\nprivate static  void writeArchiveState(android.util.proto.ProtoOutputStream,com.android.server.pm.pkg.ArchiveState)\npublic @com.android.internal.annotations.VisibleForTesting com.android.server.pm.PackageSetting setPath(java.io.File)\npublic @com.android.internal.annotations.VisibleForTesting com.android.server.pm.PackageSetting addOldPath(java.io.File)\npublic @com.android.internal.annotations.VisibleForTesting com.android.server.pm.PackageSetting removeOldPath(java.io.File)\npublic @com.android.internal.annotations.VisibleForTesting boolean overrideNonLocalizedLabelAndIcon(android.content.ComponentName,java.lang.String,java.lang.Integer,int)\npublic  void resetOverrideComponentLabelIcon(int)\npublic @android.annotation.Nullable java.lang.String getSplashScreenTheme(int)\npublic  boolean isIncremental()\npublic  boolean isLoading()\npublic  com.android.server.pm.PackageSetting setLoadingProgress(float)\npublic  com.android.server.pm.PackageSetting setLoadingCompletedTime(long)\npublic  com.android.server.pm.PackageSetting setAppMetadataFilePath(java.lang.String)\npublic  com.android.server.pm.PackageSetting setAppMetadataSource(int)\npublic @android.annotation.NonNull @java.lang.Override long getVersionCode()\npublic @android.annotation.Nullable @java.lang.Override java.util.Map<java.lang.String,java.util.Set<java.lang.String>> getMimeGroups()\npublic @android.annotation.NonNull @java.lang.Override java.lang.String getPackageName()\npublic @android.annotation.Nullable @java.lang.Override com.android.server.pm.pkg.AndroidPackage getAndroidPackage()\npublic @android.annotation.NonNull android.content.pm.SigningInfo getSigningInfo()\npublic @android.annotation.NonNull @java.lang.Override java.lang.String[] getUsesSdkLibraries()\npublic @android.annotation.NonNull @java.lang.Override long[] getUsesSdkLibrariesVersionsMajor()\npublic @android.annotation.NonNull @java.lang.Override boolean[] getUsesSdkLibrariesOptional()\npublic @android.annotation.NonNull @java.lang.Override java.lang.String[] getUsesStaticLibraries()\npublic @android.annotation.NonNull @java.lang.Override long[] getUsesStaticLibrariesVersions()\npublic @android.annotation.NonNull @java.lang.Override java.util.List<com.android.server.pm.pkg.SharedLibrary> getSharedLibraryDependencies()\npublic @android.annotation.NonNull com.android.server.pm.PackageSetting addUsesLibraryInfo(android.content.pm.SharedLibraryInfo)\npublic @android.annotation.NonNull @java.lang.Override java.util.List<java.lang.String> getUsesLibraryFiles()\npublic @android.annotation.NonNull com.android.server.pm.PackageSetting addUsesLibraryFile(java.lang.String)\npublic @java.lang.Override boolean isHiddenUntilInstalled()\npublic @android.annotation.NonNull @java.lang.Override long[] getLastPackageUsageTime()\npublic @java.lang.Override boolean isUpdatedSystemApp()\npublic @java.lang.Override boolean isApkInUpdatedApex()\npublic @android.annotation.Nullable @java.lang.Override java.lang.String getApexModuleName()\npublic  com.android.server.pm.PackageSetting setDomainSetId(java.util.UUID)\npublic  com.android.server.pm.PackageSetting setCategoryOverride(int)\npublic  com.android.server.pm.PackageSetting setLegacyNativeLibraryPath(java.lang.String)\npublic  com.android.server.pm.PackageSetting setMimeGroups(java.util.Map<java.lang.String,java.util.Set<java.lang.String>>)\npublic  com.android.server.pm.PackageSetting setUsesSdkLibraries(java.lang.String[])\npublic  com.android.server.pm.PackageSetting setUsesSdkLibrariesVersionsMajor(long[])\npublic  com.android.server.pm.PackageSetting setUsesSdkLibrariesOptional(boolean[])\npublic  com.android.server.pm.PackageSetting setUsesStaticLibraries(java.lang.String[])\npublic  com.android.server.pm.PackageSetting setUsesStaticLibrariesVersions(long[])\npublic  com.android.server.pm.PackageSetting setApexModuleName(java.lang.String)\npublic @android.annotation.NonNull @java.lang.Override com.android.server.pm.pkg.PackageStateUnserialized getTransientState()\npublic @android.annotation.NonNull android.util.SparseArray<? extends PackageUserStateInternal> getUserStates()\npublic  com.android.server.pm.PackageSetting addMimeTypes(java.lang.String,java.util.Set<java.lang.String>)\npublic @android.annotation.NonNull @java.lang.Override com.android.server.pm.pkg.PackageUserState getStateForUser(android.os.UserHandle)\npublic @android.annotation.Nullable java.lang.String getPrimaryCpuAbi()\npublic @android.annotation.Nullable java.lang.String getSecondaryCpuAbi()\npublic @android.annotation.Nullable @java.lang.Override java.lang.String getSeInfo()\npublic @android.annotation.Nullable java.lang.String getPrimaryCpuAbiLegacy()\npublic @android.annotation.Nullable java.lang.String getSecondaryCpuAbiLegacy()\npublic @android.content.pm.ApplicationInfo.HiddenApiEnforcementPolicy @java.lang.Override int getHiddenApiEnforcementPolicy()\npublic @java.lang.Override boolean isApex()\npublic @java.lang.Override boolean isForceQueryableOverride()\npublic @java.lang.Override boolean isUpdateAvailable()\npublic @java.lang.Override boolean isInstallPermissionsFixed()\npublic @java.lang.Override boolean isDefaultToDeviceProtectedStorage()\npublic @java.lang.Override boolean isPersistent()\npublic @java.lang.Override boolean isScannedAsStoppedSystemApp()\nclass PackageSetting extends com.android.server.pm.SettingBase implements [com.android.server.pm.pkg.PackageStateInternal]\nprivate static final  int INSTALL_PERMISSION_FIXED\nprivate static final  int UPDATE_AVAILABLE\nprivate static final  int FORCE_QUERYABLE_OVERRIDE\nprivate static final  int SCANNED_AS_STOPPED_SYSTEM_APP\nclass Booleans extends java.lang.Object implements []\n@com.android.internal.util.DataClass(genGetters=true, genConstructor=false, genSetters=false, genBuilder=false)")
+            inputSignatures = "private  int mBooleans\nprivate  int mSharedUserAppId\nprivate @android.annotation.Nullable java.util.Map<java.lang.String,java.util.Set<java.lang.String>> mimeGroups\nprivate @android.annotation.Nullable java.lang.String[] usesSdkLibraries\nprivate @android.annotation.Nullable long[] usesSdkLibrariesVersionsMajor\nprivate @android.annotation.Nullable boolean[] usesSdkLibrariesOptional\nprivate @android.annotation.Nullable java.lang.String[] usesStaticLibraries\nprivate @android.annotation.Nullable long[] usesStaticLibrariesVersions\nprivate @android.annotation.Nullable @java.lang.Deprecated java.lang.String legacyNativeLibraryPath\nprivate @android.annotation.NonNull java.lang.String mName\nprivate @android.annotation.Nullable java.lang.String mRealName\nprivate  int mAppId\nprivate @android.annotation.Nullable com.android.internal.pm.parsing.pkg.AndroidPackageInternal pkg\nprivate @android.annotation.NonNull java.io.File mPath\nprivate @android.annotation.NonNull java.lang.String mPathString\nprivate @android.annotation.Nullable java.util.LinkedHashSet<java.io.File> mOldPaths\nprivate  float mLoadingProgress\nprivate  long mLoadingCompletedTime\nprivate @android.annotation.Nullable java.lang.String mPrimaryCpuAbi\nprivate @android.annotation.Nullable java.lang.String mSecondaryCpuAbi\nprivate @android.annotation.Nullable java.lang.String mCpuAbiOverride\nprivate  long mLastModifiedTime\nprivate  long lastUpdateTime\nprivate  long versionCode\nprivate @android.annotation.NonNull com.android.server.pm.PackageSignatures signatures\nprivate @android.annotation.NonNull com.android.server.pm.PackageKeySetData keySetData\nprivate final @android.annotation.NonNull android.util.SparseArray<com.android.server.pm.pkg.PackageUserStateImpl> mUserStates\nprivate @android.annotation.NonNull com.android.server.pm.InstallSource installSource\nprivate @android.annotation.Nullable java.lang.String volumeUuid\nprivate  int categoryOverride\nprivate  int mPageSizeAppCompatFlags\nprivate final @android.annotation.NonNull com.android.server.pm.pkg.PackageStateUnserialized pkgState\nprivate @android.annotation.NonNull java.util.UUID mDomainSetId\nprivate @android.annotation.Nullable java.lang.String mAppMetadataFilePath\nprivate  int mAppMetadataSource\nprivate  int mTargetSdkVersion\nprivate @android.annotation.Nullable byte[] mRestrictUpdateHash\nprivate @android.annotation.Nullable java.lang.String[] mSplitNames\nprivate @android.annotation.Nullable int[] mSplitRevisionCodes\nprivate  int mBaseRevisionCode\nprivate @android.annotation.Nullable com.android.server.pm.verify.developer.DeveloperVerificationStatusInternal mDeveloperVerificationStatusInternal\nprivate final @android.annotation.NonNull com.android.server.utils.SnapshotCache<com.android.server.pm.PackageSetting> mSnapshot\nprivate  void setBoolean(int,boolean)\nprivate  boolean getBoolean(int)\nprivate  com.android.server.utils.SnapshotCache<com.android.server.pm.PackageSetting> makeCache()\npublic  com.android.server.pm.PackageSetting snapshot()\npublic  void dumpDebug(android.util.proto.ProtoOutputStream,long,java.util.List<android.content.pm.UserInfo>,com.android.server.pm.permission.LegacyPermissionDataProvider)\npublic  com.android.server.pm.PackageSetting setAppId(int)\npublic  com.android.server.pm.PackageSetting setCpuAbiOverride(java.lang.String)\npublic  com.android.server.pm.PackageSetting setFirstInstallTimeFromReplaced(com.android.server.pm.pkg.PackageStateInternal,int[])\npublic  com.android.server.pm.PackageSetting setFirstInstallTime(long,int)\npublic  com.android.server.pm.PackageSetting setForceQueryableOverride(boolean)\npublic  com.android.server.pm.PackageSetting setInstallerPackage(java.lang.String,int)\npublic  com.android.server.pm.PackageSetting setUpdateOwnerPackage(java.lang.String)\npublic  com.android.server.pm.PackageSetting setInstallSource(com.android.server.pm.InstallSource)\n  com.android.server.pm.PackageSetting removeInstallerPackage(java.lang.String)\npublic  com.android.server.pm.PackageSetting setIsOrphaned(boolean)\npublic  com.android.server.pm.PackageSetting setKeySetData(com.android.server.pm.PackageKeySetData)\npublic  com.android.server.pm.PackageSetting setLastModifiedTime(long)\npublic  com.android.server.pm.PackageSetting setLastUpdateTime(long)\npublic  com.android.server.pm.PackageSetting setLongVersionCode(long)\npublic  boolean setMimeGroup(java.lang.String,android.util.ArraySet<java.lang.String>)\npublic  com.android.server.pm.PackageSetting setPkg(com.android.server.pm.pkg.AndroidPackage)\npublic  com.android.server.pm.PackageSetting setPkgStateLibraryFiles(java.util.Collection<java.lang.String>)\npublic  com.android.server.pm.PackageSetting setPrimaryCpuAbi(java.lang.String)\npublic  com.android.server.pm.PackageSetting setSecondaryCpuAbi(java.lang.String)\npublic  com.android.server.pm.PackageSetting setSignatures(com.android.server.pm.PackageSignatures)\npublic  com.android.server.pm.PackageSetting setVolumeUuid(java.lang.String)\npublic @java.lang.Override boolean isExternalStorage()\npublic  com.android.server.pm.PackageSetting setUpdateAvailable(boolean)\npublic  com.android.server.pm.PackageSetting setSharedUserAppId(int)\npublic  com.android.server.pm.PackageSetting setTargetSdkVersion(int)\npublic  com.android.server.pm.PackageSetting setRestrictUpdateHash(byte[])\npublic @java.lang.Override int getSharedUserAppId()\npublic @java.lang.Override boolean hasSharedUser()\npublic  com.android.server.pm.PackageSetting setPendingRestore(boolean)\npublic @java.lang.Override boolean isPendingRestore()\npublic  com.android.server.pm.PackageSetting setDebuggable(boolean)\npublic @java.lang.Override boolean isDebuggable()\npublic  com.android.server.pm.PackageSetting setLeavingSharedUser(boolean)\npublic @java.lang.Override boolean isLeavingSharedUser()\npublic  com.android.server.pm.PackageSetting setBaseRevisionCode(int)\npublic  int getBaseRevisionCode()\npublic  com.android.server.pm.PackageSetting setSplitNames(java.lang.String[])\npublic @android.annotation.NonNull java.lang.String[] getSplitNames()\npublic  com.android.server.pm.PackageSetting setSplitRevisionCodes(int[])\npublic @android.annotation.NonNull int[] getSplitRevisionCodes()\npublic @java.lang.Override java.lang.String toString()\nprivate  void copyMimeGroups(java.util.Map<java.lang.String,java.util.Set<java.lang.String>>)\npublic  void updateFrom(com.android.server.pm.PackageSetting)\n  com.android.server.pm.PackageSetting updateMimeGroups(java.util.Set<java.lang.String>)\npublic @java.lang.Deprecated @java.lang.Override com.android.server.pm.permission.LegacyPermissionState getLegacyPermissionState()\npublic  com.android.server.pm.PackageSetting setInstallPermissionsFixed(boolean)\npublic  boolean isPrivileged()\npublic  boolean isOem()\npublic  boolean isVendor()\npublic  boolean isProduct()\npublic @java.lang.Override boolean isRequiredForSystemUser()\npublic  boolean isSystemExt()\npublic  boolean isOdm()\npublic  boolean isSystem()\npublic  boolean isRequestLegacyExternalStorage()\npublic  boolean isUserDataFragile()\npublic  android.content.pm.SigningDetails getSigningDetails()\npublic  com.android.server.pm.PackageSetting setSigningDetails(android.content.pm.SigningDetails)\npublic  void copyPackageSetting(com.android.server.pm.PackageSetting,boolean)\n @com.android.internal.annotations.VisibleForTesting com.android.server.pm.pkg.PackageUserStateImpl modifyUserState(int)\npublic  com.android.server.pm.pkg.PackageUserStateImpl getOrCreateUserState(int)\npublic @android.annotation.NonNull com.android.server.pm.pkg.PackageUserStateInternal readUserState(int)\n  void setEnabled(int,int,java.lang.String)\n  int getEnabled(int)\n  void setInstalled(boolean,int)\n  void setArchiveState(com.android.server.pm.pkg.ArchiveState,int)\n  boolean getInstalled(int)\n  boolean isArchived(int)\n  boolean isArchivedOnAnyUser(int[])\n  int getInstallReason(int)\n  void setInstallReason(int,int)\n  int getUninstallReason(int)\n  void setUninstallReason(int,int)\n @android.annotation.NonNull android.content.pm.overlay.OverlayPaths getOverlayPaths(int)\n  boolean setOverlayPathsForLibrary(java.lang.String,android.content.pm.overlay.OverlayPaths,int)\n  boolean isInstalledOnAnyOtherUser(int[],int)\n  boolean hasDataOnAnyOtherUser(int[],int)\n  int[] queryInstalledUsers(int[],boolean)\n  int[] queryUsersInstalledOrHasData(int[])\n  long getCeDataInode(int)\n  long getDeDataInode(int)\n  void setCeDataInode(long,int)\n  void setDeDataInode(long,int)\n  boolean getStopped(int)\n  void setStopped(boolean,int)\npublic  com.android.server.pm.PackageSetting setScannedAsStoppedSystemApp(boolean)\n  boolean getNotLaunched(int)\n  void setNotLaunched(boolean,int)\n  boolean getHidden(int)\n  void setHidden(boolean,int)\n  int getDistractionFlags(int)\n  void setDistractionFlags(int,int)\npublic  boolean getInstantApp(int)\n  void setInstantApp(boolean,int)\n  boolean getVirtualPreload(int)\n  void setVirtualPreload(boolean,int)\n  void setUserState(int,long,long,int,boolean,boolean,boolean,boolean,int,android.util.ArrayMap<android.content.pm.UserPackage,com.android.server.pm.pkg.SuspendParams>,boolean,boolean,java.lang.String,android.util.ArraySet<java.lang.String>,android.util.ArraySet<java.lang.String>,int,int,java.lang.String,java.lang.String,long,int,com.android.server.pm.pkg.ArchiveState)\n  void setUserState(int,com.android.server.pm.pkg.PackageUserStateInternal)\n  com.android.server.utils.WatchedArraySet<java.lang.String> getEnabledComponents(int)\n  com.android.server.utils.WatchedArraySet<java.lang.String> getDisabledComponents(int)\n  void setEnabledComponents(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  void setDisabledComponents(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  void setEnabledComponentsCopy(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  void setDisabledComponentsCopy(com.android.server.utils.WatchedArraySet<java.lang.String>,int)\n  com.android.server.pm.pkg.PackageUserStateImpl modifyUserStateComponents(int,boolean,boolean)\n  void addDisabledComponent(java.lang.String,int)\n  void addEnabledComponent(java.lang.String,int)\n  boolean enableComponentLPw(java.lang.String,int)\n  boolean disableComponentLPw(java.lang.String,int)\n  boolean restoreComponentLPw(java.lang.String,int)\n  void restoreComponentSettings(int)\n  int getCurrentEnabledStateLPr(java.lang.String,int)\n  void removeUser(int)\npublic  int[] getNotInstalledUserIds()\n  void writePackageUserPermissionsProto(android.util.proto.ProtoOutputStream,long,java.util.List<android.content.pm.UserInfo>,com.android.server.pm.permission.LegacyPermissionDataProvider)\nprotected  void writeUsersInfoToProto(android.util.proto.ProtoOutputStream,long)\nprivate static  void writeArchiveState(android.util.proto.ProtoOutputStream,com.android.server.pm.pkg.ArchiveState)\npublic @com.android.internal.annotations.VisibleForTesting com.android.server.pm.PackageSetting setPath(java.io.File)\npublic @com.android.internal.annotations.VisibleForTesting com.android.server.pm.PackageSetting addOldPath(java.io.File)\npublic @com.android.internal.annotations.VisibleForTesting com.android.server.pm.PackageSetting removeOldPath(java.io.File)\npublic @com.android.internal.annotations.VisibleForTesting boolean overrideNonLocalizedLabelAndIcon(android.content.ComponentName,java.lang.String,java.lang.Integer,int)\npublic  void resetOverrideComponentLabelIcon(int)\npublic @android.annotation.Nullable java.lang.String getSplashScreenTheme(int)\npublic  boolean isIncremental()\npublic  boolean isLoading()\npublic  com.android.server.pm.PackageSetting setLoadingProgress(float)\npublic  com.android.server.pm.PackageSetting setLoadingCompletedTime(long)\npublic  com.android.server.pm.PackageSetting setAppMetadataFilePath(java.lang.String)\npublic  com.android.server.pm.PackageSetting setAppMetadataSource(int)\npublic @android.annotation.NonNull @java.lang.Override long getVersionCode()\npublic @android.annotation.Nullable @java.lang.Override java.util.Map<java.lang.String,java.util.Set<java.lang.String>> getMimeGroups()\npublic @android.annotation.NonNull @java.lang.Override java.lang.String getPackageName()\npublic @android.annotation.Nullable @java.lang.Override com.android.server.pm.pkg.AndroidPackage getAndroidPackage()\npublic @android.annotation.NonNull android.content.pm.SigningInfo getSigningInfo()\npublic @android.annotation.NonNull @java.lang.Override java.lang.String[] getUsesSdkLibraries()\npublic @android.annotation.NonNull @java.lang.Override long[] getUsesSdkLibrariesVersionsMajor()\npublic @android.annotation.NonNull @java.lang.Override boolean[] getUsesSdkLibrariesOptional()\npublic @android.annotation.NonNull @java.lang.Override java.lang.String[] getUsesStaticLibraries()\npublic @android.annotation.NonNull @java.lang.Override long[] getUsesStaticLibrariesVersions()\npublic @android.annotation.NonNull @java.lang.Override java.util.List<com.android.server.pm.pkg.SharedLibrary> getSharedLibraryDependencies()\npublic @android.annotation.NonNull com.android.server.pm.PackageSetting addUsesLibraryInfo(android.content.pm.SharedLibraryInfo)\npublic @android.annotation.NonNull @java.lang.Override java.util.List<java.lang.String> getUsesLibraryFiles()\npublic @android.annotation.NonNull com.android.server.pm.PackageSetting addUsesLibraryFile(java.lang.String)\npublic @java.lang.Override boolean isHiddenUntilInstalled()\npublic @android.annotation.NonNull @java.lang.Override long[] getLastPackageUsageTime()\npublic @java.lang.Override boolean isUpdatedSystemApp()\npublic @java.lang.Override boolean isApkInUpdatedApex()\npublic @android.annotation.Nullable @java.lang.Override java.lang.String getApexModuleName()\npublic  com.android.server.pm.PackageSetting setDomainSetId(java.util.UUID)\npublic  com.android.server.pm.PackageSetting setCategoryOverride(int)\npublic  com.android.server.pm.PackageSetting setPageSizeAppCompatFlags(int)\npublic  int getPageSizeAppCompatFlags()\npublic  com.android.server.pm.PackageSetting setLegacyNativeLibraryPath(java.lang.String)\npublic  com.android.server.pm.PackageSetting setMimeGroups(java.util.Map<java.lang.String,java.util.Set<java.lang.String>>)\npublic  com.android.server.pm.PackageSetting setUsesSdkLibraries(java.lang.String[])\npublic  com.android.server.pm.PackageSetting setUsesSdkLibrariesVersionsMajor(long[])\npublic  com.android.server.pm.PackageSetting setUsesSdkLibrariesOptional(boolean[])\npublic  com.android.server.pm.PackageSetting setUsesStaticLibraries(java.lang.String[])\npublic  com.android.server.pm.PackageSetting setUsesStaticLibrariesVersions(long[])\npublic  com.android.server.pm.PackageSetting setApexModuleName(java.lang.String)\npublic @android.annotation.NonNull @java.lang.Override com.android.server.pm.pkg.PackageStateUnserialized getTransientState()\npublic @android.annotation.NonNull android.util.SparseArray<? extends PackageUserStateInternal> getUserStates()\npublic  com.android.server.pm.PackageSetting addMimeTypes(java.lang.String,java.util.Set<java.lang.String>)\npublic @android.annotation.NonNull @java.lang.Override com.android.server.pm.pkg.PackageUserState getStateForUser(android.os.UserHandle)\npublic @android.annotation.Nullable java.lang.String getPrimaryCpuAbi()\npublic @android.annotation.Nullable java.lang.String getSecondaryCpuAbi()\npublic @android.annotation.Nullable @java.lang.Override java.lang.String getSeInfo()\npublic @android.annotation.Nullable java.lang.String getPrimaryCpuAbiLegacy()\npublic @android.annotation.Nullable java.lang.String getSecondaryCpuAbiLegacy()\npublic @android.content.pm.ApplicationInfo.HiddenApiEnforcementPolicy @java.lang.Override int getHiddenApiEnforcementPolicy()\npublic @java.lang.Override boolean isApex()\npublic @java.lang.Override boolean isForceQueryableOverride()\npublic @java.lang.Override boolean isUpdateAvailable()\npublic @java.lang.Override boolean isInstallPermissionsFixed()\npublic @java.lang.Override boolean isDefaultToDeviceProtectedStorage()\npublic @java.lang.Override boolean isPersistent()\npublic @java.lang.Override boolean isScannedAsStoppedSystemApp()\npublic @java.lang.Override boolean isPageSizeAppCompatEnabled()\npublic @java.lang.Override java.lang.String getPageSizeCompatWarningMessage(android.content.Context)\nclass PackageSetting extends com.android.server.pm.SettingBase implements [com.android.server.pm.pkg.PackageStateInternal]\nprivate static final  int INSTALL_PERMISSION_FIXED\nprivate static final  int UPDATE_AVAILABLE\nprivate static final  int FORCE_QUERYABLE_OVERRIDE\nprivate static final  int SCANNED_AS_STOPPED_SYSTEM_APP\nprivate static final  int PENDING_RESTORE\nprivate static final  int DEBUGGABLE\nprivate static final  int IS_LEAVING_SHARED_USER\nclass Booleans extends java.lang.Object implements []\n@com.android.internal.util.DataClass(genGetters=true, genConstructor=false, genSetters=false, genBuilder=false)")
     @Deprecated
     private void __metadata() {}
+
 
     //@formatter:on
     // End of generated code

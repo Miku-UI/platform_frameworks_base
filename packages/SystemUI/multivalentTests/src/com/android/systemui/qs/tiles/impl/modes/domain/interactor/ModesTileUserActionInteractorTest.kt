@@ -17,13 +17,14 @@
 package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
 import android.graphics.drawable.TestStubDrawable
+import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.notification.modes.TestModeBuilder
 import com.android.settingslib.notification.modes.TestModeBuilder.MANUAL_DND
-import com.android.systemui.Flags
+import com.android.settingslib.notification.modes.ZenMode
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.shared.model.asIcon
@@ -40,6 +41,7 @@ import com.android.systemui.statusbar.policy.ui.dialog.mockModesDialogDelegate
 import com.android.systemui.statusbar.policy.ui.dialog.modesDialogEventLogger
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,7 +51,6 @@ import org.mockito.kotlin.verify
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(android.app.Flags.FLAG_MODES_UI)
 class ModesTileUserActionInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
@@ -57,6 +58,7 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
     private val mockDialogDelegate = kosmos.mockModesDialogDelegate
     private val zenModeRepository = kosmos.zenModeRepository
     private val zenModeInteractor = kosmos.zenModeInteractor
+    private val tileDataInteractor = kosmos.modesTileDataInteractor
 
     private val underTest =
         ModesTileUserActionInteractor(
@@ -64,6 +66,7 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
             inputHandler,
             mockDialogDelegate,
             zenModeInteractor,
+            tileDataInteractor,
             kosmos.modesDialogEventLogger,
         )
 
@@ -88,7 +91,6 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_UI_REFACTOR_COMPOSE_FRAGMENT)
     fun handleToggleClick_multipleModesActive_deactivatesAll() =
         testScope.runTest {
             val activeModes by collectLastValue(zenModeInteractor.activeModes)
@@ -100,7 +102,7 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
                     TestModeBuilder().setName("Mode 2").setActive(true).build(),
                 )
             )
-            assertThat(activeModes?.modeNames?.count()).isEqualTo(3)
+            assertThat(activeModes?.count).isEqualTo(3)
 
             underTest.handleInput(
                 QSTileInputTestKtx.toggleClick(
@@ -112,7 +114,6 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_UI_REFACTOR_COMPOSE_FRAGMENT)
     fun handleToggleClick_dndActive_deactivatesDnd() =
         testScope.runTest {
             val dndMode by collectLastValue(zenModeInteractor.dndMode)
@@ -128,7 +129,7 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_QS_UI_REFACTOR_COMPOSE_FRAGMENT)
+    @DisableFlags(android.app.Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
     fun handleToggleClick_dndInactive_activatesDnd() =
         testScope.runTest {
             val dndMode by collectLastValue(zenModeInteractor.dndMode)
@@ -140,6 +141,21 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
             )
 
             assertThat(dndMode?.isActive).isTrue()
+        }
+
+    @Test
+    @EnableFlags(android.app.Flags.FLAG_MODES_UI_TILE_REACTIVATES_LAST)
+    fun handleToggleClick_noModesActive_activatesQuickMode() =
+        testScope.runTest {
+            val dndMode by collectLastValue(zenModeInteractor.dndMode)
+            zenModeRepository.addMode("mode", active = false)
+            val model = modelOf(false, emptyList(), quickMode = zenModeRepository.getMode("mode")!!)
+
+            underTest.handleInput(QSTileInputTestKtx.toggleClick(model))
+
+            runCurrent()
+            assertThat(zenModeRepository.getMode("mode")?.isActive).isTrue()
+            assertThat(dndMode?.isActive).isFalse()
         }
 
     @Test
@@ -160,11 +176,22 @@ class ModesTileUserActionInteractorTest : SysuiTestCase() {
         }
     }
 
-    private fun modelOf(isActivated: Boolean, activeModeNames: List<String>): ModesTileModel {
+    private fun modelOf(
+        isActivated: Boolean,
+        activeModeIdsAndNames: List<String>,
+        quickMode: ZenMode? = MANUAL_DND,
+    ): ModesTileModel {
         return ModesTileModel(
             isActivated,
-            activeModeNames,
-            TestStubDrawable("icon").asIcon(res = 123),
+            activeModeIdsAndNames.map {
+                // For testing purposes, we use the same value for id and name, but replicate
+                // the flagged behavior of the DataInteractor.
+                if (android.app.Flags.modesUiTileReactivatesLast())
+                    ModesTileModel.ActiveMode(it, it)
+                else ModesTileModel.ActiveMode(null, it)
+            },
+            TestStubDrawable("icon").asIcon(resId = 123),
+            quickMode,
         )
     }
 }

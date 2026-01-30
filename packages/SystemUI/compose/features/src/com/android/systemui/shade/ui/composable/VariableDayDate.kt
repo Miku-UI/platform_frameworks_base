@@ -1,5 +1,6 @@
 package com.android.systemui.shade.ui.composable
 
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -7,6 +8,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun VariableDayDate(
     longerDateText: String,
@@ -20,7 +22,7 @@ fun VariableDayDate(
                 {
                     Text(
                         text = longerDateText,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMediumEmphasized,
                         color = textColor,
                         maxLines = 1,
                     )
@@ -28,7 +30,7 @@ fun VariableDayDate(
                 {
                     Text(
                         text = shorterDateText,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMediumEmphasized,
                         color = textColor,
                         maxLines = 1,
                     )

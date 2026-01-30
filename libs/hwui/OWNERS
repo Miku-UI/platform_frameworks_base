@@ -1,10 +1,8 @@
 # Bug component: 1075005
 
-alecmouri@google.com
-djsollen@google.com
-jreck@google.com
+include /graphics/java/android/graphics/CORE_GRAPHICS_OWNERS
+
 nscobie@google.com
-sumir@google.com
 
 # For text, e.g. Typeface, Font, Minikin, etc.
 nona@google.com

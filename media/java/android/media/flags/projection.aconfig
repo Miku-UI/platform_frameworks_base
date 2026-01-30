@@ -48,3 +48,39 @@ flag {
     is_exported: true
 }
 
+flag {
+  name: "media_projection_connected_display_screen_sharing"
+  namespace: "media_projection"
+  description: "Enable sharing and casting connected display"
+  bug: "406217983"
+}
+
+flag {
+    namespace: "media_projection"
+    name: "recording_overlay"
+    description: "Allows overlay recordings via MediaProjection"
+    bug: "395054309"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "media_projection"
+    name: "start_uid_check"
+    description: "Improves permission model when starting MediaProjection session"
+    bug: "419269649"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "media_projection"
+    name: "stop_on_display_removal"
+    description: "Stops the current media projection session when the recorded display is removed"
+    bug: "439017127"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}

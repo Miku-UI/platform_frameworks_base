@@ -143,6 +143,16 @@ public abstract class NotificationAssistantService extends NotificationListenerS
             = "android.service.notification.extra.NOTIFICATION_ADJUSTMENT";
 
     /**
+     * A string ArrayList extra containing the {@link Adjustment} key that the user wants to file
+     * feedback about.
+     *
+     * Extra for {@link #ACTION_NOTIFICATION_ASSISTANT_FEEDBACK_SETTINGS}.
+     */
+    @FlaggedApi(android.app.Flags.FLAG_NM_SUMMARIZATION)
+    public static final String EXTRA_NOTIFICATION_ADJUSTMENTS
+            = "android.service.notification.extra.NOTIFICATION_ADJUSTMENTS";
+
+    /**
      * Data type: int, the feedback rating score provided by user. The score can be any integer
      *            value depends on the experimental and feedback UX design.
      */

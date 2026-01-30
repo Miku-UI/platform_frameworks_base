@@ -149,7 +149,8 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 else -> {
                     assertThat(actualIcon).isInstanceOf(WifiIcon.Visible::class.java)
                     val actualIconVisible = actualIcon as WifiIcon.Visible
-                    assertThat(actualIconVisible.icon.res).isEqualTo(testCase.expected.iconResource)
+                    assertThat(actualIconVisible.icon.resId)
+                        .isEqualTo(testCase.expected.iconResource)
                     val expectedContentDescription =
                         testCase.expected.contentDescription.invoke(context)
                     assertThat(actualIconVisible.contentDescription.loadContentDescription(context))
@@ -185,7 +186,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
         val network: WifiNetworkModel,
 
         /** The expected output. Null if we expect the output to be hidden. */
-        val expected: Expected?
+        val expected: Expected?,
     ) {
         override fun toString(): String {
             return "when INPUT(enabled=$enabled, " +
@@ -209,11 +210,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                     network = WifiNetworkModel.CarrierMerged.of(subscriptionId = 1, level = 1),
                     expected = null,
                 ),
-                TestCase(
-                    enabled = false,
-                    network = WifiNetworkModel.Inactive(),
-                    expected = null,
-                ),
+                TestCase(enabled = false, network = WifiNetworkModel.Inactive(), expected = null),
                 TestCase(
                     enabled = false,
                     network = WifiNetworkModel.Active.of(isValidated = false, level = 1),
@@ -377,11 +374,7 @@ internal class WifiViewModelIconParameterizedTest(private val testCase: TestCase
                 ),
 
                 // isDefault = false => no networks shown
-                TestCase(
-                    isDefault = false,
-                    network = WifiNetworkModel.Inactive(),
-                    expected = null,
-                ),
+                TestCase(isDefault = false, network = WifiNetworkModel.Inactive(), expected = null),
                 TestCase(
                     isDefault = false,
                     network = WifiNetworkModel.Unavailable,

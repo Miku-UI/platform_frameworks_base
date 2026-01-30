@@ -16,23 +16,48 @@
 
 package com.android.server.wm;
 
+import static android.Manifest.permission.REPOSITION_SELF_WINDOWS;
+import static android.app.TaskInfo.SELF_MOVABLE_ALLOWED;
+import static android.app.TaskInfo.SELF_MOVABLE_DEFAULT;
+import static android.app.TaskMoveRequestHandler.REMOTE_CALLBACK_BOUNDS_KEY;
+import static android.app.TaskMoveRequestHandler.REMOTE_CALLBACK_DISPLAY_ID_KEY;
+import static android.app.TaskMoveRequestHandler.REMOTE_CALLBACK_RESULT_KEY;
+import static android.app.TaskMoveRequestHandler.RESULT_APPROVED;
+import static android.app.TaskMoveRequestHandler.RESULT_FAILED_BAD_BOUNDS;
+import static android.app.TaskMoveRequestHandler.RESULT_FAILED_BAD_STATE;
+import static android.app.TaskMoveRequestHandler.RESULT_FAILED_IMMOVABLE_TASK;
+import static android.app.TaskMoveRequestHandler.RESULT_FAILED_NONEXISTENT_DISPLAY;
+import static android.app.TaskMoveRequestHandler.RESULT_FAILED_NO_PERMISSIONS;
+import static android.app.TaskMoveRequestHandler.RESULT_FAILED_UNABLE_TO_PLACE_TASK;
+import static android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM;
+import static android.content.pm.PackageManager.PERMISSION_GRANTED;
+import static android.view.Display.INVALID_DISPLAY;
+import static android.view.WindowManager.TRANSIT_CHANGE;
+
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.DEBUG_ACTIVITY_STARTS;
 import static com.android.server.wm.ActivityTaskSupervisor.REMOVE_FROM_RECENTS;
 import static com.android.server.wm.BackgroundActivityStartController.BalVerdict;
 import static com.android.server.wm.RootWindowContainer.MATCH_ATTACHED_TASK_OR_RECENT_TASKS;
 
+import android.annotation.NonNull;
 import android.app.ActivityManager;
 import android.app.IAppTask;
 import android.app.IApplicationThread;
+import android.app.TaskMoveRequestHandler;
+import android.app.TaskWindowingLayerRequestHandler;
 import android.content.Intent;
+import android.graphics.Rect;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.IRemoteCallback;
 import android.os.Parcel;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.util.Slog;
+
+import java.util.Objects;
 
 /**
  * An implementation of IAppTask, that allows an app to manage its own tasks via
@@ -154,6 +179,152 @@ class AppTaskImpl extends IAppTask.Stub {
         }
     }
 
+    /**
+     * This method uses different Shell Transitions machinery than
+     * {@link ActivityTaskManagerService#resizeTask}. We want to give the Shell some freedom to
+     * adjust the target bounds as the WM Core may not know about some limitations of how the tasks
+     * are presented by the WM Shell.
+     */
+    @Override
+    public void moveTaskTo(int displayId, Rect bounds, IRemoteCallback callback) {
+        checkCallerOrSystemOrRoot();
+        final int origCallingPid = Binder.getCallingPid();
+        final int origCallingUid = Binder.getCallingUid();
+        final long origId = Binder.clearCallingIdentity();
+        try {
+            if (mService.checkPermission(REPOSITION_SELF_WINDOWS, origCallingPid, origCallingUid)
+                    != PERMISSION_GRANTED) {
+                reportTaskMoveRequestResult(
+                        RESULT_FAILED_NO_PERMISSIONS, INVALID_DISPLAY, null /* bounds */, callback);
+                return;
+            }
+            synchronized (mService.mGlobalLock) {
+                final Task task = mService.mRootWindowContainer.anyTaskForId(mTaskId);
+                if (task == null) {
+                    reportTaskMoveRequestResult(
+                            RESULT_FAILED_BAD_STATE, INVALID_DISPLAY, null /* bounds */, callback);
+                    return;
+                }
+
+                if (displayId == INVALID_DISPLAY) {
+                    displayId = task.getDisplayId();
+                }
+
+                final int result = validateTaskMoveRequest(displayId, bounds, task,
+                        origCallingPid, origCallingUid);
+                if (result != RESULT_APPROVED) {
+                    reportTaskMoveRequestResult(
+                            result, INVALID_DISPLAY, null /* bounds */, callback);
+                    return;
+                }
+
+                final TransitionController controller = mService.getTransitionController();
+                final Transition transition = new Transition(
+                        TRANSIT_CHANGE, 0, controller, mService.mWindowManager.mSyncEngine);
+                transition.setRequestedLocation(displayId, bounds);
+                transition.addTransactionPresentedListener(() ->
+                        reportTaskMoveRequestResult(
+                            result, task.getDisplayId(), task.getBounds(), callback));
+                controller.startCollectOrQueue(transition,
+                        (deferred) -> {
+                            if (deferred) {
+                                int lateResult = validateTaskMoveRequest(
+                                        transition.getRequestedLocation().getDisplayId(),
+                                        transition.getRequestedLocation().getBounds(),
+                                        task,
+                                        origCallingPid,
+                                        origCallingUid);
+                                if (lateResult != RESULT_APPROVED) {
+                                    reportTaskMoveRequestResult(
+                                            lateResult,
+                                            INVALID_DISPLAY,
+                                            null /* bounds */,
+                                            callback);
+                                    transition.abort();
+                                    return;
+                                }
+                            }
+                            controller.requestStartTransition(transition, task, null, null);
+                            transition.setReady(task, true);
+                        });
+            }
+        } finally {
+            Binder.restoreCallingIdentity(origId);
+        }
+    }
+
+    /**
+     * Reports execution result of a {@link #moveTaskTo} request using the callback provided.
+     *
+     * @param result The result code.
+     * @param displayId The final display ID of the moved task after request execution.
+     * @param bounds The final bounds on host display of the moved task after request execution.
+     * @param callback The callback to notify about request result.
+     */
+    private void reportTaskMoveRequestResult(
+            int result, int displayId, Rect bounds, IRemoteCallback callback) {
+        if (callback == null) {
+            return;
+        }
+        final Bundle res = new Bundle();
+        res.putInt(REMOTE_CALLBACK_RESULT_KEY, result);
+        if (result == RESULT_APPROVED) {
+            res.putInt(REMOTE_CALLBACK_DISPLAY_ID_KEY, displayId);
+            res.putParcelable(REMOTE_CALLBACK_BOUNDS_KEY, bounds);
+        }
+
+        try {
+            callback.sendResult(res);
+        } catch (RemoteException e) {
+            // Client throwed an exception back to the server, ignoring it.
+        }
+    }
+
+    @TaskMoveRequestHandler.RequestResult
+    private int validateTaskMoveRequest(
+            int displayId,
+            Rect bounds,
+            @NonNull Task task,
+            int origCallingPid,
+            int origCallingUid) {
+        final DisplayContent targetDisplay =
+                mService.mRootWindowContainer.getDisplayContent(displayId);
+        if (targetDisplay == null) {
+            return RESULT_FAILED_NONEXISTENT_DISPLAY;
+        }
+
+        if (!mService.mTaskSupervisor.canPlaceEntityOnDisplay(
+                displayId, origCallingPid, origCallingUid, task)) {
+            return RESULT_FAILED_UNABLE_TO_PLACE_TASK;
+        }
+
+        final Rect maximalBounds = targetDisplay.getBounds();
+        if (!maximalBounds.contains(bounds)) {
+            return RESULT_FAILED_BAD_BOUNDS;
+        }
+
+        final float minimalWindowSizeDp = (float) targetDisplay.mMinSizeOfResizeableTaskDp;
+        final float targetDisplayDensity = targetDisplay.getDisplayMetrics().density;
+        if (bounds.width() < Math.ceil(minimalWindowSizeDp * targetDisplayDensity)
+                || bounds.height() < Math.ceil(minimalWindowSizeDp * targetDisplayDensity)) {
+            return RESULT_FAILED_BAD_BOUNDS;
+        }
+
+        final int taskMovableState = task.getSelfMovable();
+        final boolean isTaskMovable = (taskMovableState == SELF_MOVABLE_ALLOWED
+                || (taskMovableState == SELF_MOVABLE_DEFAULT
+                    && task.getWindowingMode() == WINDOWING_MODE_FREEFORM));
+        if (!isTaskMovable) {
+            return RESULT_FAILED_IMMOVABLE_TASK;
+        }
+
+        if (!mService.getTransitionController().isShellTransitionsEnabled()) {
+            return RESULT_FAILED_BAD_STATE;
+        }
+
+        return RESULT_APPROVED;
+    }
+
     @Override
     public int startActivity(IBinder whoThread, String callingPackage, String callingFeatureId,
             Intent intent, String resolvedType, Bundle bOptions) {
@@ -210,6 +381,23 @@ class AppTaskImpl extends IAppTask.Stub {
             } finally {
                 Binder.restoreCallingIdentity(origId);
             }
+        }
+    }
+
+    @Override
+    public void requestWindowingLayer(int layer, IRemoteCallback callback) {
+        checkCallerOrSystemOrRoot();
+        Objects.requireNonNull(callback, "The callback provided is null.");
+
+        final Bundle result = new Bundle();
+        // TODO(b/443206707): implement requesting a transition
+        // currently, just return failed due to bad state
+        result.putInt(TaskWindowingLayerRequestHandler.REMOTE_CALLBACK_RESULT_KEY,
+                TaskWindowingLayerRequestHandler.RESULT_FAILED_BAD_STATE);
+        try {
+            callback.sendResult(result);
+        } catch (RemoteException e) {
+            // Client thrown an exception back to the server, ignoring it.
         }
     }
 }

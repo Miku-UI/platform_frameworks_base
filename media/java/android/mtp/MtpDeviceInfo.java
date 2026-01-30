@@ -153,7 +153,7 @@ public class MtpDeviceInfo {
      * @see MtpConstants#DEVICE_PROPERTY_DEVICE_FRIENDLY_NAME
      * @see MtpConstants#DEVICE_PROPERTY_SESSION_INITIATOR_VERSION_INFO
      *
-     * {@hide}
+     * @hide
      */
     public final @NonNull int[] getDevicePropertySupported() {
         return mDevicePropertySupported;
@@ -182,7 +182,7 @@ public class MtpDeviceInfo {
      * @param code Device property code.
      * @return If the given Device property is supported by the device or not.
      *
-     * {@hide}
+     * @hide
      */
     public boolean isDevicePropertySupported(int code) {
         return isSupported(mDevicePropertySupported, code);

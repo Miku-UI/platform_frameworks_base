@@ -213,7 +213,6 @@ public final class AudioRecordingConfiguration implements Parcelable {
     public AudioFormat getClientFormat() { return mClientFormat; }
 
     /**
-     * @pending for SystemApi
      * Returns the package name of the application performing the recording.
      * Where there are multiple packages sharing the same user id through the "sharedUserId"
      * mechanism, only the first one with that id will be returned
@@ -222,6 +221,7 @@ public final class AudioRecordingConfiguration implements Parcelable {
      * {@link android.Manifest.permission.MODIFY_AUDIO_ROUTING} permission.
      * <br>When called without the permission, the result is an empty string.
      * @return the package name
+     * @hide pending for SystemApi
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public String getClientPackageName() { return mClientPackageName; }

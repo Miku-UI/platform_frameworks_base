@@ -44,7 +44,6 @@ import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.pkg.AndroidPackageSplit;
 import com.android.server.pm.pkg.PackageState;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.mockito.Mockito;
 
@@ -255,7 +254,7 @@ class OverlayManagerServiceImplTestsBase {
 
         void add(PackageBuilder pkgBuilder, int userId) {
             final Package pkg = pkgBuilder.build();
-            final Package previousPkg = select(pkg.packageName, userId);
+            final Package previousPkg = mPackages.get(pkg.packageName);
             mPackages.put(pkg.packageName, pkg);
 
             pkg.installedUserIds.add(userId);
@@ -475,7 +474,10 @@ class OverlayManagerServiceImplTestsBase {
 
         private int getCrc(@NonNull final String path) {
             final FakeDeviceState.Package pkg = mState.selectFromPath(path);
-            Assert.assertNotNull("path = " + path, pkg);
+            if (pkg == null) {
+                // This is for fabricated overlays which are not in the fake package/device state.
+                return path.hashCode();
+            }
             return pkg.versionCode;
         }
 

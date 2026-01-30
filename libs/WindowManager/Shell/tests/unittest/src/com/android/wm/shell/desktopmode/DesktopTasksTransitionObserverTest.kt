@@ -23,7 +23,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
-import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.view.Display.DEFAULT_DISPLAY
 import android.view.WindowManager
@@ -36,22 +35,22 @@ import android.window.TransitionInfo
 import android.window.TransitionInfo.Change
 import android.window.WindowContainerToken
 import android.window.WindowContainerTransaction
+import android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_REMOVE_TASK
 import android.window.WindowContainerTransaction.HierarchyOp.HIERARCHY_OP_TYPE_REORDER
-import com.android.modules.utils.testing.ExtendedMockitoRule
 import com.android.window.flags.Flags
 import com.android.wm.shell.MockToken
 import com.android.wm.shell.ShellTaskOrganizer
-import com.android.wm.shell.back.BackAnimationController
+import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.ShellExecutor
-import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.TRANSIT_EXIT_DESKTOP_MODE_TASK_DRAG
+import com.android.wm.shell.desktopmode.data.DesktopRepository
+import com.android.wm.shell.desktopmode.data.TopTransparentFullscreenTaskData
 import com.android.wm.shell.desktopmode.desktopwallpaperactivity.DesktopWallpaperActivityTokenProvider
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.transition.Transitions
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.anyInt
@@ -71,31 +70,26 @@ import org.mockito.kotlin.whenever
  *
  * Build/Install/Run: atest WMShellUnitTests:DesktopTasksTransitionObserverTest
  */
-class DesktopTasksTransitionObserverTest {
-    @JvmField
-    @Rule
-    val extendedMockitoRule =
-        ExtendedMockitoRule.Builder(this).mockStatic(DesktopModeStatus::class.java).build()!!
+class DesktopTasksTransitionObserverTest : ShellTestCase() {
 
     private val testExecutor = mock<ShellExecutor>()
-    private val mockShellInit = mock<ShellInit>()
     private val transitions = mock<Transitions>()
     private val context = mock<Context>()
     private val shellTaskOrganizer = mock<ShellTaskOrganizer>()
     private val userRepositories = mock<DesktopUserRepositories>()
     private val taskRepository = mock<DesktopRepository>()
     private val mixedHandler = mock<DesktopMixedTransitionHandler>()
-    private val backAnimationController = mock<BackAnimationController>()
     private val desktopWallpaperActivityTokenProvider =
         mock<DesktopWallpaperActivityTokenProvider>()
     private val wallpaperToken = MockToken().token()
+    private val desktopState = FakeDesktopState()
 
     private lateinit var transitionObserver: DesktopTasksTransitionObserver
     private lateinit var shellInit: ShellInit
 
     @Before
     fun setup() {
-        whenever(DesktopModeStatus.canEnterDesktopMode(any())).thenReturn(true)
+        desktopState.canEnterDesktopMode = true
         shellInit = spy(ShellInit(testExecutor))
 
         whenever(userRepositories.current).thenReturn(taskRepository)
@@ -104,171 +98,16 @@ class DesktopTasksTransitionObserverTest {
 
         transitionObserver =
             DesktopTasksTransitionObserver(
-                context,
                 userRepositories,
                 transitions,
                 shellTaskOrganizer,
                 mixedHandler,
-                backAnimationController,
                 desktopWallpaperActivityTokenProvider,
+                desktopState,
                 shellInit,
             )
     }
 
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    fun backNavigation_taskMinimized() {
-        val task = createTaskInfo(1)
-        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
-
-        transitionObserver.onTransitionReady(
-            transition = mock(),
-            info = createBackNavigationTransition(task),
-            startTransaction = mock(),
-            finishTransaction = mock(),
-        )
-
-        verify(taskRepository).minimizeTask(task.displayId, task.taskId)
-        verify(mixedHandler).addPendingMixedTransition(any())
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    fun backNavigation_withCloseTransitionNotLastTask_taskMinimized() {
-        val task = createTaskInfo(1)
-        val transition = mock<IBinder>()
-        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
-        whenever(taskRepository.isOnlyVisibleTask(task.taskId, task.displayId)).thenReturn(false)
-        whenever(taskRepository.hasOnlyOneVisibleTask(task.displayId)).thenReturn(false)
-        whenever(taskRepository.isClosingTask(task.taskId)).thenReturn(false)
-        whenever(backAnimationController.latestTriggerBackTask).thenReturn(task.taskId)
-
-        transitionObserver.onTransitionReady(
-            transition = transition,
-            info = createBackNavigationTransition(task, TRANSIT_CLOSE),
-            startTransaction = mock(),
-            finishTransaction = mock(),
-        )
-
-        verify(taskRepository).minimizeTask(task.displayId, task.taskId)
-        val pendingTransition =
-            DesktopMixedTransitionHandler.PendingMixedTransition.Minimize(
-                transition,
-                task.taskId,
-                isLastTask = false,
-            )
-        verify(mixedHandler).addPendingMixedTransition(pendingTransition)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    @DisableFlags(Flags.FLAG_ENABLE_DESKTOP_WALLPAPER_ACTIVITY_FOR_SYSTEM_USER)
-    fun backNavigation_withCloseTransitionLastTask_wallpaperActivityClosed_taskMinimized() {
-        val task = createTaskInfo(1)
-        val transition = mock<IBinder>()
-        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
-        whenever(taskRepository.isClosingTask(task.taskId)).thenReturn(false)
-        whenever(backAnimationController.latestTriggerBackTask).thenReturn(task.taskId)
-
-        transitionObserver.onTransitionReady(
-            transition = transition,
-            info = createBackNavigationTransition(task, TRANSIT_CLOSE, true),
-            startTransaction = mock(),
-            finishTransaction = mock(),
-        )
-
-        verify(taskRepository).minimizeTask(task.displayId, task.taskId)
-        val pendingTransition =
-            DesktopMixedTransitionHandler.PendingMixedTransition.Minimize(
-                transition,
-                task.taskId,
-                isLastTask = true,
-            )
-        verify(mixedHandler).addPendingMixedTransition(pendingTransition)
-    }
-
-    @Test
-    @EnableFlags(
-        Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION,
-        Flags.FLAG_ENABLE_DESKTOP_WALLPAPER_ACTIVITY_FOR_SYSTEM_USER,
-    )
-    fun backNavigation_withCloseTransitionLastTask_wallpaperActivityReordered_taskMinimized() {
-        val task = createTaskInfo(1)
-        val transition = mock<IBinder>()
-        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
-        whenever(taskRepository.isClosingTask(task.taskId)).thenReturn(false)
-        whenever(backAnimationController.latestTriggerBackTask).thenReturn(task.taskId)
-
-        transitionObserver.onTransitionReady(
-            transition = transition,
-            info = createBackNavigationTransition(task, TRANSIT_CLOSE, true, TRANSIT_TO_BACK),
-            startTransaction = mock(),
-            finishTransaction = mock(),
-        )
-
-        verify(taskRepository).minimizeTask(task.displayId, task.taskId)
-        val pendingTransition =
-            DesktopMixedTransitionHandler.PendingMixedTransition.Minimize(
-                transition,
-                task.taskId,
-                isLastTask = true,
-            )
-        verify(mixedHandler).addPendingMixedTransition(pendingTransition)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    fun backNavigation_nullTaskInfo_taskNotMinimized() {
-        val task = createTaskInfo(1)
-        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
-
-        transitionObserver.onTransitionReady(
-            transition = mock(),
-            info = createBackNavigationTransition(null),
-            startTransaction = mock(),
-            finishTransaction = mock(),
-        )
-
-        verify(taskRepository, never()).minimizeTask(task.displayId, task.taskId)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    fun removeTasks_onTaskFullscreenLaunchWithOpenTransition_taskRemovedFromRepo() {
-        val task = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
-        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
-        whenever(taskRepository.isActiveTask(task.taskId)).thenReturn(true)
-
-        transitionObserver.onTransitionReady(
-            transition = mock(),
-            info = createOpenChangeTransition(task),
-            startTransaction = mock(),
-            finishTransaction = mock(),
-        )
-
-        verify(taskRepository, never()).minimizeTask(task.displayId, task.taskId)
-        verify(taskRepository).removeTask(task.displayId, task.taskId)
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION)
-    fun removeTasks_onTaskFullscreenLaunchExitDesktopTransition_taskRemovedFromRepo() {
-        val task = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
-        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
-        whenever(taskRepository.isActiveTask(task.taskId)).thenReturn(true)
-
-        transitionObserver.onTransitionReady(
-            transition = mock(),
-            info = createOpenChangeTransition(task, TRANSIT_EXIT_DESKTOP_MODE_TASK_DRAG),
-            startTransaction = mock(),
-            finishTransaction = mock(),
-        )
-
-        verify(taskRepository, never()).minimizeTask(task.displayId, task.taskId)
-        verify(taskRepository).removeTask(task.displayId, task.taskId)
-    }
-
-    @Test
     @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_WALLPAPER_ACTIVITY_FOR_SYSTEM_USER)
     fun closeLastTask_wallpaperTokenExists_wallpaperIsRemoved() {
         val mockTransition = Mockito.mock(IBinder::class.java)
@@ -277,7 +116,7 @@ class DesktopTasksTransitionObserverTest {
 
         transitionObserver.onTransitionReady(
             transition = mockTransition,
-            info = createCloseTransition(task),
+            info = createCloseTransition(listOf(task)),
             startTransaction = mock(),
             finishTransaction = mock(),
         )
@@ -293,20 +132,23 @@ class DesktopTasksTransitionObserverTest {
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODALS_POLICY,
         Flags.FLAG_INCLUDE_TOP_TRANSPARENT_FULLSCREEN_TASK_IN_DESKTOP_HEURISTIC,
     )
-    fun topTransparentTaskClosed_clearTaskIdFromRepository() {
+    fun topTransparentTaskClosed_clearTaskDataFromRepository() {
         val mockTransition = Mockito.mock(IBinder::class.java)
         val topTransparentTask = createTaskInfo(1)
-        whenever(taskRepository.getTopTransparentFullscreenTaskId(any()))
-            .thenReturn(topTransparentTask.taskId)
+        val topTransparentTaskData =
+            TopTransparentFullscreenTaskData(topTransparentTask.taskId, topTransparentTask.token)
+        val deskId = 0
+        whenever(taskRepository.getTopTransparentFullscreenTaskData(deskId))
+            .thenReturn(topTransparentTaskData)
 
         transitionObserver.onTransitionReady(
             transition = mockTransition,
-            info = createCloseTransition(topTransparentTask),
+            info = createCloseTransition(listOf(topTransparentTask)),
             startTransaction = mock(),
             finishTransaction = mock(),
         )
 
-        verify(taskRepository).clearTopTransparentFullscreenTaskId(topTransparentTask.displayId)
+        verify(taskRepository).clearTopTransparentFullscreenTaskData(deskId)
     }
 
     @Test
@@ -314,11 +156,14 @@ class DesktopTasksTransitionObserverTest {
         Flags.FLAG_ENABLE_DESKTOP_WINDOWING_MODALS_POLICY,
         Flags.FLAG_INCLUDE_TOP_TRANSPARENT_FULLSCREEN_TASK_IN_DESKTOP_HEURISTIC,
     )
-    fun topTransparentTaskSentToBack_clearTaskIdFromRepository() {
+    fun topTransparentTaskSentToBack_clearTaskDataFromRepository() {
         val mockTransition = Mockito.mock(IBinder::class.java)
         val topTransparentTask = createTaskInfo(1)
-        whenever(taskRepository.getTopTransparentFullscreenTaskId(any()))
-            .thenReturn(topTransparentTask.taskId)
+        val topTransparentTaskData =
+            TopTransparentFullscreenTaskData(topTransparentTask.taskId, topTransparentTask.token)
+        val deskId = 0
+        whenever(taskRepository.getTopTransparentFullscreenTaskData(deskId))
+            .thenReturn(topTransparentTaskData)
 
         transitionObserver.onTransitionReady(
             transition = mockTransition,
@@ -327,7 +172,7 @@ class DesktopTasksTransitionObserverTest {
             finishTransaction = mock(),
         )
 
-        verify(taskRepository).clearTopTransparentFullscreenTaskId(topTransparentTask.displayId)
+        verify(taskRepository).clearTopTransparentFullscreenTaskData(deskId)
     }
 
     @Test
@@ -338,9 +183,12 @@ class DesktopTasksTransitionObserverTest {
     fun nonTopTransparentTaskOpened_clearTopTransparentTaskIdFromRepository() {
         val mockTransition = Mockito.mock(IBinder::class.java)
         val topTransparentTask = createTaskInfo(1)
+        val topTransparentTaskData =
+            TopTransparentFullscreenTaskData(topTransparentTask.taskId, topTransparentTask.token)
+        val deskId = 0
         val nonTopTransparentTask = createTaskInfo(2)
-        whenever(taskRepository.getTopTransparentFullscreenTaskId(any()))
-            .thenReturn(topTransparentTask.taskId)
+        whenever(taskRepository.getTopTransparentFullscreenTaskData(deskId))
+            .thenReturn(topTransparentTaskData)
 
         transitionObserver.onTransitionReady(
             transition = mockTransition,
@@ -349,7 +197,7 @@ class DesktopTasksTransitionObserverTest {
             finishTransaction = mock(),
         )
 
-        verify(taskRepository).clearTopTransparentFullscreenTaskId(topTransparentTask.displayId)
+        verify(taskRepository).clearTopTransparentFullscreenTaskData(deskId)
     }
 
     @Test
@@ -360,9 +208,12 @@ class DesktopTasksTransitionObserverTest {
     fun nonTopTransparentTaskSentToFront_clearTopTransparentTaskIdFromRepository() {
         val mockTransition = Mockito.mock(IBinder::class.java)
         val topTransparentTask = createTaskInfo(1)
+        val topTransparentTaskData =
+            TopTransparentFullscreenTaskData(topTransparentTask.taskId, topTransparentTask.token)
+        val deskId = 0
         val nonTopTransparentTask = createTaskInfo(2)
-        whenever(taskRepository.getTopTransparentFullscreenTaskId(any()))
-            .thenReturn(topTransparentTask.taskId)
+        whenever(taskRepository.getTopTransparentFullscreenTaskData(deskId))
+            .thenReturn(topTransparentTaskData)
 
         transitionObserver.onTransitionReady(
             transition = mockTransition,
@@ -371,7 +222,7 @@ class DesktopTasksTransitionObserverTest {
             finishTransaction = mock(),
         )
 
-        verify(taskRepository).clearTopTransparentFullscreenTaskId(topTransparentTask.displayId)
+        verify(taskRepository).clearTopTransparentFullscreenTaskData(deskId)
     }
 
     @Test
@@ -380,12 +231,138 @@ class DesktopTasksTransitionObserverTest {
 
         transitionObserver.onTransitionReady(
             transition = mock(),
-            info = createCloseTransition(wallpaperTask),
+            info = createCloseTransition(listOf(wallpaperTask)),
             startTransaction = mock(),
             finishTransaction = mock(),
         )
 
         verify(desktopWallpaperActivityTokenProvider).removeToken(wallpaperTask.displayId)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX)
+    fun onTransitionReady_noTransitionInHandler_addPendingMixedTransition() {
+        val mockTransition = Mockito.mock(IBinder::class.java)
+        val topTransparentTask = createTaskInfo(1)
+        val topTransparentTaskData =
+            TopTransparentFullscreenTaskData(topTransparentTask.taskId, topTransparentTask.token)
+        whenever(taskRepository.getTopTransparentFullscreenTaskData(any()))
+            .thenReturn(topTransparentTaskData)
+        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
+        whenever(mixedHandler.hasTransition(mockTransition)).thenReturn(false)
+
+        transitionObserver.onTransitionReady(
+            transition = mockTransition,
+            info = createCloseTransition(listOf(topTransparentTask)),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+        )
+
+        verify(mixedHandler)
+            .addPendingMixedTransition(
+                DesktopMixedTransitionHandler.PendingMixedTransition.Close(mockTransition)
+            )
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX)
+    fun onTransitionReady_closingTaskAndExitDesktop_notAddPendingMixedTransition() {
+        val mockTransition = Mockito.mock(IBinder::class.java)
+        val task = createTaskInfo(1, WINDOWING_MODE_FREEFORM)
+        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(false)
+        whenever(mixedHandler.hasTransition(mockTransition)).thenReturn(false)
+
+        transitionObserver.onTransitionReady(
+            transition = mockTransition,
+            info = createCloseTransition(listOf(task)),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+        )
+
+        verify(mixedHandler, never()).addPendingMixedTransition(any())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX)
+    fun onTransitionReady_closingTaskNotFreeform_notAddPendingMixedTransition() {
+        val mockTransition = Mockito.mock(IBinder::class.java)
+        val task = createTaskInfo(1, WINDOWING_MODE_FULLSCREEN)
+        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
+        whenever(mixedHandler.hasTransition(mockTransition)).thenReturn(false)
+
+        transitionObserver.onTransitionReady(
+            transition = mockTransition,
+            info = createCloseTransition(listOf(task)),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+        )
+
+        verify(mixedHandler, never()).addPendingMixedTransition(any())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX)
+    fun onTransitionReady_notClosingTask_notAddPendingMixedTransition() {
+        val mockTransition = Mockito.mock(IBinder::class.java)
+        val task = createTaskInfo(1, WINDOWING_MODE_FREEFORM)
+        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
+        whenever(mixedHandler.hasTransition(mockTransition)).thenReturn(false)
+
+        transitionObserver.onTransitionReady(
+            transition = mockTransition,
+            info = createOpenChangeTransition(task),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+        )
+
+        verify(mixedHandler, never()).addPendingMixedTransition(any())
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX)
+    fun closingTask_startsTransitionToRemoveFully() {
+        val mockTransition = Mockito.mock(IBinder::class.java)
+        val freeformTask = createTaskInfo(1)
+        val freeformTask2 = createTaskInfo(2)
+        whenever(taskRepository.isAnyDeskActive(any())).thenReturn(true)
+        whenever(mixedHandler.hasTransition(mockTransition)).thenReturn(false)
+
+        transitionObserver.onTransitionReady(
+            transition = mockTransition,
+            info = createCloseTransition(listOf(freeformTask, freeformTask2)),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+        )
+        transitionObserver.onTransitionFinished(transition = mockTransition, aborted = false)
+
+        val wct = getLatestWct(type = TRANSIT_CLOSE)
+        assertThat(wct.hierarchyOps).hasSize(2)
+        wct.assertRemoveAt(index = 0, freeformTask.token)
+        wct.assertRemoveAt(index = 1, freeformTask2.token)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX)
+    fun onTransitionReady_handlerHasTransition_notAddPendingMixedTransition() {
+        val mockTransition = Mockito.mock(IBinder::class.java)
+        val topTransparentTask = createTaskInfo(1)
+        val topTransparentTaskData =
+            TopTransparentFullscreenTaskData(topTransparentTask.taskId, topTransparentTask.token)
+        whenever(taskRepository.getTopTransparentFullscreenTaskData(any()))
+            .thenReturn(topTransparentTaskData)
+        whenever(mixedHandler.hasTransition(mockTransition)).thenReturn(true)
+
+        transitionObserver.onTransitionReady(
+            transition = mockTransition,
+            info = createCloseTransition(listOf(topTransparentTask)),
+            startTransaction = mock(),
+            finishTransaction = mock(),
+        )
+
+        verify(mixedHandler, never())
+            .addPendingMixedTransition(
+                DesktopMixedTransitionHandler.PendingMixedTransition.Close(mockTransition)
+            )
     }
 
     private fun createBackNavigationTransition(
@@ -432,16 +409,18 @@ class DesktopTasksTransitionObserverTest {
         }
     }
 
-    private fun createCloseTransition(task: RunningTaskInfo?) =
+    private fun createCloseTransition(tasks: List<RunningTaskInfo?>) =
         TransitionInfo(TRANSIT_CLOSE, /* flags= */ 0).apply {
-            addChange(
-                Change(mock(), mock()).apply {
-                    mode = TRANSIT_CLOSE
-                    parent = null
-                    taskInfo = task
-                    flags = flags
-                }
-            )
+            tasks.forEach {
+                addChange(
+                    Change(mock(), mock()).apply {
+                        mode = TRANSIT_CLOSE
+                        parent = null
+                        taskInfo = it
+                        flags = flags
+                    }
+                )
+            }
         }
 
     private fun createToBackTransition(task: RunningTaskInfo?) =
@@ -480,6 +459,13 @@ class DesktopTasksTransitionObserverTest {
             Mockito.verify(transitions).startTransition(eq(type), arg.capture(), isA(handlerClass))
         }
         return arg.value
+    }
+
+    private fun WindowContainerTransaction.assertRemoveAt(index: Int, token: WindowContainerToken) {
+        assertIndexInBounds(index)
+        val op = hierarchyOps[index]
+        assertThat(op.type).isEqualTo(HIERARCHY_OP_TYPE_REMOVE_TASK)
+        assertThat(op.container).isEqualTo(token.asBinder())
     }
 
     private fun WindowContainerTransaction.assertReorderAt(

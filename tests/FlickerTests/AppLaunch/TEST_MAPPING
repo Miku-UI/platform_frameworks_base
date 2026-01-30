@@ -1,0 +1,70 @@
+{
+  "wm": [
+    {
+      "name": "FlickerTestsAppLaunch-ActivityTransitionTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-CatchAll",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OpenAppFromIconColdTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OpenAppFromIntentColdAfterCameraTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OpenAppFromIntentColdTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OpenAppFromIntentWarmTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OpenAppFromLockscreenViaIntentTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OpenAppFromOverviewTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OpenCameraFromHomeOnDoubleClickPowerButtonTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-OverrideTaskTransitionTest",
+      "keywords": [
+        "device"
+      ]
+    },
+    {
+      "name": "FlickerTestsAppLaunch-TaskTransitionTest",
+      "keywords": [
+        "device"
+      ]
+    }
+  ]
+}

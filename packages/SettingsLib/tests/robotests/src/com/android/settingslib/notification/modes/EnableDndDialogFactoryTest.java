@@ -20,8 +20,6 @@ import static com.android.settingslib.notification.modes.EnableDndDialogFactory.
 import static com.android.settingslib.notification.modes.EnableDndDialogFactory.COUNTDOWN_CONDITION_INDEX;
 import static com.android.settingslib.notification.modes.EnableDndDialogFactory.FOREVER_CONDITION_INDEX;
 
-import static com.google.common.truth.Truth.assertThat;
-
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -42,8 +40,6 @@ import android.content.res.Resources;
 import android.net.Uri;
 import android.service.notification.Condition;
 import android.view.LayoutInflater;
-
-import com.android.settingslib.notification.modes.EnableDndDialogFactory.ConditionTag;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -186,26 +182,5 @@ public class EnableDndDialogFactoryTest {
 
         // alarm warning should NOT be null
         assertNotNull(mController.computeAlarmWarningText(null));
-    }
-
-    @Test
-    public void testAccessibility() {
-        mController.bindConditions(null);
-        ConditionTag forever = mController.getConditionTagAt(
-                DndDurationDialogFactory.FOREVER_CONDITION_INDEX);
-        ConditionTag countdown = mController.getConditionTagAt(
-                DndDurationDialogFactory.COUNTDOWN_CONDITION_INDEX);
-        ConditionTag alwaysAsk = mController.getConditionTagAt(
-                DndDurationDialogFactory.ALWAYS_ASK_CONDITION_INDEX);
-
-        forever.rb.setChecked(true);
-        assertThat(forever.line1.getStateDescription().toString()).isEqualTo("selected");
-        assertThat(countdown.line1.getStateDescription()).isNull();
-        assertThat(alwaysAsk.line1.getStateDescription()).isNull();
-
-        alwaysAsk.rb.setChecked(true);
-        assertThat(forever.line1.getStateDescription()).isNull();
-        assertThat(countdown.line1.getStateDescription()).isNull();
-        assertThat(alwaysAsk.line1.getStateDescription().toString()).isEqualTo("selected");
     }
 }

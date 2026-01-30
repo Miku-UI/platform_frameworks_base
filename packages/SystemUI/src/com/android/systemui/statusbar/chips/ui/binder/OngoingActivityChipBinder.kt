@@ -34,13 +34,13 @@ import com.android.systemui.common.ui.binder.ContentDescriptionViewBinder
 import com.android.systemui.common.ui.binder.IconViewBinder
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.chips.ui.model.ColorsModel
 import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
 import com.android.systemui.statusbar.chips.ui.view.ChipBackgroundContainer
 import com.android.systemui.statusbar.chips.ui.view.ChipChronometer
 import com.android.systemui.statusbar.core.StatusBarConnectedDisplays
 import com.android.systemui.statusbar.notification.icon.ui.viewbinder.NotificationIconContainerViewBinder.IconViewStore
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 
 /** Binder for ongoing activity chip views. */
 object OngoingActivityChipBinder {
@@ -61,7 +61,12 @@ object OngoingActivityChipBinder {
             is OngoingActivityChipModel.Active -> {
                 // Data
                 setChipIcon(chipModel, chipBackgroundView, chipDefaultIconView, iconViewStore)
-                setChipMainContent(chipModel, chipTextView, chipTimeView, chipShortTimeDeltaView)
+                setChipMainContent(
+                    chipModel.content,
+                    chipTextView,
+                    chipTimeView,
+                    chipShortTimeDeltaView,
+                )
 
                 viewBinding.rootView.setOnClickListener(chipModel.onClickListenerLegacy)
                 updateChipPadding(
@@ -121,7 +126,7 @@ object OngoingActivityChipBinder {
         }
         resetChipMainContentWidthRestrictions(
             primaryChipViewBinding,
-            currentPrimaryChipViewModel as OngoingActivityChipModel.Active,
+            (currentPrimaryChipViewModel as OngoingActivityChipModel.Active).content,
         )
     }
 
@@ -141,21 +146,22 @@ object OngoingActivityChipBinder {
         secondaryChipViewBinding.rootView.resetWidthRestriction()
         resetChipMainContentWidthRestrictions(
             secondaryChipViewBinding,
-            currentSecondaryChipModel as OngoingActivityChipModel.Active,
+            (currentSecondaryChipModel as OngoingActivityChipModel.Active).content,
         )
     }
 
     private fun resetChipMainContentWidthRestrictions(
         viewBinding: OngoingActivityChipViewBinding,
-        model: OngoingActivityChipModel.Active,
+        model: OngoingActivityChipModel.Content,
     ) {
         when (model) {
-            is OngoingActivityChipModel.Active.Text -> viewBinding.textView.resetWidthRestriction()
-            is OngoingActivityChipModel.Active.Timer -> viewBinding.timeView.resetWidthRestriction()
-            is OngoingActivityChipModel.Active.ShortTimeDelta ->
+            is OngoingActivityChipModel.Content.Text -> viewBinding.textView.resetWidthRestriction()
+            is OngoingActivityChipModel.Content.Timer ->
+                viewBinding.timeView.resetWidthRestriction()
+            is OngoingActivityChipModel.Content.ShortTimeDelta ->
                 viewBinding.shortTimeDeltaView.resetWidthRestriction()
-            is OngoingActivityChipModel.Active.IconOnly,
-            is OngoingActivityChipModel.Active.Countdown -> {}
+            is OngoingActivityChipModel.Content.IconOnly,
+            is OngoingActivityChipModel.Content.Countdown -> {}
         }
     }
 
@@ -255,7 +261,7 @@ object OngoingActivityChipBinder {
         // 1. Set up the right visual params.
         with(iconView) {
             id = CUSTOM_ICON_VIEW_ID
-            if (StatusBarNotifChips.isEnabled) {
+            if (PromotedNotificationUi.isEnabled) {
                 ContentDescriptionViewBinder.bind(iconContentDescription, this)
             } else {
                 contentDescription =
@@ -294,27 +300,27 @@ object OngoingActivityChipBinder {
     }
 
     private fun setChipMainContent(
-        chipModel: OngoingActivityChipModel.Active,
+        chipModel: OngoingActivityChipModel.Content,
         chipTextView: TextView,
         chipTimeView: ChipChronometer,
         chipShortTimeDeltaView: DateTimeView,
     ) {
         when (chipModel) {
-            is OngoingActivityChipModel.Active.Countdown -> {
+            is OngoingActivityChipModel.Content.Countdown -> {
                 chipTextView.text = chipModel.secondsUntilStarted.toString()
                 chipTextView.visibility = View.VISIBLE
 
                 chipTimeView.hide()
                 chipShortTimeDeltaView.visibility = View.GONE
             }
-            is OngoingActivityChipModel.Active.Text -> {
+            is OngoingActivityChipModel.Content.Text -> {
                 chipTextView.text = chipModel.text
                 chipTextView.visibility = View.VISIBLE
 
                 chipTimeView.hide()
                 chipShortTimeDeltaView.visibility = View.GONE
             }
-            is OngoingActivityChipModel.Active.Timer -> {
+            is OngoingActivityChipModel.Content.Timer -> {
                 ChipChronometerBinder.bind(
                     chipModel.startTimeMs,
                     chipModel.isEventInFuture,
@@ -325,21 +331,20 @@ object OngoingActivityChipBinder {
                 chipTextView.visibility = View.GONE
                 chipShortTimeDeltaView.visibility = View.GONE
             }
-            is OngoingActivityChipModel.Active.ShortTimeDelta -> {
+            is OngoingActivityChipModel.Content.ShortTimeDelta -> {
                 chipShortTimeDeltaView.setTime(chipModel.time)
-                chipShortTimeDeltaView.visibility = View.VISIBLE
+                // Note: DateTimeView's relative time doesn't quite match the format we want
+                // in the status bar chips. But, the only chips using ShortTimeDelta are
+                // notification chips, which are launching in the same release as when the
+                // chips being displayed in Compose is launching. So, we don't expect any end
+                // users to see the wrong format.
                 chipShortTimeDeltaView.isShowRelativeTime = true
-                chipShortTimeDeltaView.setRelativeTimeDisambiguationTextMask(
-                    DateTimeView.DISAMBIGUATION_TEXT_PAST
-                )
-                chipShortTimeDeltaView.setRelativeTimeUnitDisplayLength(
-                    DateTimeView.UNIT_DISPLAY_LENGTH_MEDIUM
-                )
+                chipShortTimeDeltaView.visibility = View.VISIBLE
 
                 chipTextView.visibility = View.GONE
                 chipTimeView.hide()
             }
-            is OngoingActivityChipModel.Active.IconOnly -> {
+            is OngoingActivityChipModel.Content.IconOnly -> {
                 chipTextView.visibility = View.GONE
                 chipShortTimeDeltaView.visibility = View.GONE
                 chipTimeView.hide()
@@ -423,7 +428,7 @@ object OngoingActivityChipBinder {
 
     private fun View.setBackgroundPaddingForEmbeddedPaddingIcon() {
         val sidePadding =
-            if (StatusBarNotifChips.isEnabled) {
+            if (PromotedNotificationUi.isEnabled) {
                 context.resources.getDimensionPixelSize(
                     R.dimen.ongoing_activity_chip_side_padding_for_embedded_padding_icon
                 )
@@ -453,15 +458,15 @@ object OngoingActivityChipBinder {
         chipView: View,
         chipBackgroundView: View,
     ) {
-        when (chipModel) {
-            is OngoingActivityChipModel.Active.Countdown -> {
+        when (chipModel.content) {
+            is OngoingActivityChipModel.Content.Countdown -> {
                 // Set as assertive so talkback will announce the countdown
                 chipView.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
             }
-            is OngoingActivityChipModel.Active.Timer,
-            is OngoingActivityChipModel.Active.Text,
-            is OngoingActivityChipModel.Active.ShortTimeDelta,
-            is OngoingActivityChipModel.Active.IconOnly -> {
+            is OngoingActivityChipModel.Content.Timer,
+            is OngoingActivityChipModel.Content.Text,
+            is OngoingActivityChipModel.Content.ShortTimeDelta,
+            is OngoingActivityChipModel.Content.IconOnly -> {
                 chipView.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_NONE
             }
         }

@@ -27,8 +27,9 @@ import kotlinx.coroutines.CoroutineDispatcher
 /**
  * Repository for observing values of [Settings.System] for the currently active user. That means
  * when user is switched and the new user has different value, flow will emit new value.
+ *
+ * Don't inject this class directly; get it as [SystemSettingsRepository] instead.
  */
-// TODO: b/377244768 - Make internal once call sites inject SystemSettingsRepository instead.
 class UserAwareSystemSettingsRepository(
     systemSettings: SystemSettings,
     userRepository: UserRepository,

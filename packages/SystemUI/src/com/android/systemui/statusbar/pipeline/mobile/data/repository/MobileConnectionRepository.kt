@@ -19,13 +19,22 @@ package com.android.systemui.statusbar.pipeline.mobile.data.repository
 import android.telephony.CellSignalStrength
 import android.telephony.SubscriptionInfo
 import android.telephony.TelephonyManager
+import com.android.systemui.kairos.ExperimentalKairosApi
+import com.android.systemui.kairos.State
+import com.android.systemui.kairos.combine as kairosCombine
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.statusbar.pipeline.mobile.data.model.DataConnectionState
 import com.android.systemui.statusbar.pipeline.mobile.data.model.NetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.model.ResolvedNetworkType
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 
 /**
  * Every mobile line of service can be identified via a [SubscriptionInfo] object. We set up a
@@ -134,6 +143,9 @@ interface MobileConnectionRepository {
     /** Observable tracking [TelephonyManager.isDataConnectionAllowed] */
     val dataEnabled: StateFlow<Boolean>
 
+    /** Enables/disables data. See [TelephonyManager.setDataEnabledForReason] */
+    fun setDataEnabled(enabled: Boolean)
+
     /**
      * See [TelephonyManager.getCdmaEnhancedRoamingIndicatorDisplayNumber]. This bit only matters if
      * the connection type is CDMA.
@@ -174,5 +186,70 @@ interface MobileConnectionRepository {
     companion object {
         /** The default number of levels to use for [numberOfLevels]. */
         val DEFAULT_NUM_LEVELS = CellSignalStrength.getNumSignalStrengthLevels()
+
+        /**
+         * Automatically implements [MobileConnectionRepository.numberOfLevels] based on the
+         * [inflateSignalStrength] value.
+         *
+         * @param default The default number of levels to use if [inflateSignalStrength] is false.
+         */
+        fun createNumberOfLevelsFlow(
+            scope: CoroutineScope,
+            inflateSignalStrength: Flow<Boolean>,
+            default: Int = DEFAULT_NUM_LEVELS,
+        ): StateFlow<Int> {
+            return inflateSignalStrength
+                .map { shouldInflate ->
+                    if (shouldInflate) {
+                        default + 1
+                    } else {
+                        default
+                    }
+                }
+                .stateIn(scope, SharingStarted.WhileSubscribed(), default)
+        }
+
+        /**
+         * Automatically implements [MobileConnectionRepository.numberOfLevels] based on the
+         * [inflateSignalStrength] value.
+         *
+         * @param default The default number of levels to use if [inflateSignalStrength] is false.
+         */
+        fun createNumberOfLevelsFlow(
+            scope: CoroutineScope,
+            inflateSignalStrength: Flow<Boolean>,
+            default: StateFlow<Int>,
+        ): StateFlow<Int> {
+            return combine(default, inflateSignalStrength) { defaultNumberOfLevels, shouldInflate ->
+                    if (shouldInflate) {
+                        defaultNumberOfLevels + 1
+                    } else {
+                        defaultNumberOfLevels
+                    }
+                }
+                .stateIn(scope, SharingStarted.WhileSubscribed(), default.value)
+        }
+
+        /**
+         * Automatically implements [MobileConnectionRepository.numberOfLevels] based on the
+         * [inflateSignalStrength] value, but for Kairos states.
+         *
+         * @param default The default number of levels to use if [inflateSignalStrength] is false.
+         */
+        @ExperimentalKairosApi
+        fun createNumberOfLevelsState(
+            inflateSignalStrength: State<Boolean>,
+            default: State<Int>,
+        ): State<Int> {
+            return kairosCombine(default, inflateSignalStrength) {
+                defaultNumberOfLevels,
+                shouldInflate ->
+                if (shouldInflate) {
+                    defaultNumberOfLevels + 1
+                } else {
+                    defaultNumberOfLevels
+                }
+            }
+        }
     }
 }

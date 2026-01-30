@@ -25,6 +25,7 @@ import android.platform.test.flag.junit.FlagsParameterization
 import android.view.View
 import androidx.test.filters.SmallTest
 import com.android.compose.animation.scene.ObservableTransitionState
+import com.android.systemui.Flags.FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.data.repository.communalSceneRepository
@@ -32,6 +33,7 @@ import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.domain.interactor.setCommunalV2ConfigEnabled
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryBypassRepository
 import com.android.systemui.deviceentry.data.repository.fakeDeviceEntryRepository
 import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.EnableSceneContainer
@@ -42,6 +44,7 @@ import com.android.systemui.keyguard.domain.interactor.pulseExpansionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
+import com.android.systemui.keyguard.ui.viewmodel.KeyguardRootViewModel.Companion.PUSHBACK_SCALE_FOR_LOCKSCREEN
 import com.android.systemui.kosmos.collectLastValue
 import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.runTest
@@ -52,6 +55,7 @@ import com.android.systemui.scene.data.repository.setSceneTransition
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.shadeTestUtil
+import com.android.systemui.shared.Flags
 import com.android.systemui.statusbar.notification.data.model.activeNotificationModel
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
@@ -65,6 +69,7 @@ import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.ui.isAnimating
 import com.android.systemui.util.ui.stopAnimating
 import com.android.systemui.util.ui.value
+import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -88,6 +93,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
     private val communalRepository by lazy { kosmos.communalSceneRepository }
     private val screenOffAnimationController by lazy { kosmos.screenOffAnimationController }
     private val deviceEntryRepository by lazy { kosmos.fakeDeviceEntryRepository }
+    private val deviceEntryBypassRepository by lazy { kosmos.fakeDeviceEntryBypassRepository }
     private val pulseExpansionInteractor by lazy { kosmos.pulseExpansionInteractor }
     private val notificationsKeyguardInteractor by lazy { kosmos.notificationsKeyguardInteractor }
     private val dozeParameters by lazy { kosmos.dozeParameters }
@@ -133,10 +139,19 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
     }
 
     @Test
+    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun defaultBurnInScaleEqualsOne() =
         testScope.runTest {
             val burnInScale by collectLastValue(underTest.scale)
             assertThat(burnInScale!!.scale).isEqualTo(1f)
+        }
+
+    @Test
+    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
+    fun defaultBurnInScaleEqualsMaxLargeClockScale() =
+        testScope.runTest {
+            val burnInScale by collectLastValue(underTest.scale)
+            assertThat(burnInScale!!.scale).isEqualTo(0.9f)
         }
 
     @Test
@@ -196,7 +211,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
             val isVisible by collectLastValue(underTest.isNotifIconContainerVisible)
             runCurrent()
             pulseExpansionInteractor.setPulseExpanding(true)
-            deviceEntryRepository.setBypassEnabled(false)
+            deviceEntryBypassRepository.setBypassEnabled(false)
             runCurrent()
 
             assertThat(isVisible?.value).isEqualTo(false)
@@ -208,7 +223,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
             val isVisible by collectLastValue(underTest.isNotifIconContainerVisible)
             runCurrent()
             pulseExpansionInteractor.setPulseExpanding(false)
-            deviceEntryRepository.setBypassEnabled(true)
+            deviceEntryBypassRepository.setBypassEnabled(true)
             notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
             runCurrent()
 
@@ -227,7 +242,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
                 testScope,
             )
             pulseExpansionInteractor.setPulseExpanding(false)
-            deviceEntryRepository.setBypassEnabled(false)
+            deviceEntryBypassRepository.setBypassEnabled(false)
             whenever(dozeParameters.alwaysOn).thenReturn(false)
             notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
             runCurrent()
@@ -247,7 +262,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
                 testScope,
             )
             pulseExpansionInteractor.setPulseExpanding(false)
-            deviceEntryRepository.setBypassEnabled(false)
+            deviceEntryBypassRepository.setBypassEnabled(false)
             whenever(dozeParameters.alwaysOn).thenReturn(true)
             whenever(dozeParameters.displayNeedsBlanking).thenReturn(true)
             notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
@@ -268,7 +283,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
                 testScope,
             )
             pulseExpansionInteractor.setPulseExpanding(false)
-            deviceEntryRepository.setBypassEnabled(false)
+            deviceEntryBypassRepository.setBypassEnabled(false)
             whenever(dozeParameters.alwaysOn).thenReturn(true)
             whenever(dozeParameters.displayNeedsBlanking).thenReturn(false)
             notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
@@ -284,7 +299,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
             val isVisible by collectLastValue(underTest.isNotifIconContainerVisible)
             runCurrent()
             pulseExpansionInteractor.setPulseExpanding(false)
-            deviceEntryRepository.setBypassEnabled(true)
+            deviceEntryBypassRepository.setBypassEnabled(true)
             whenever(dozeParameters.alwaysOn).thenReturn(true)
             whenever(dozeParameters.displayNeedsBlanking).thenReturn(false)
             notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
@@ -306,7 +321,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
             val isVisible by collectLastValue(underTest.isNotifIconContainerVisible)
             runCurrent()
             pulseExpansionInteractor.setPulseExpanding(false)
-            deviceEntryRepository.setBypassEnabled(false)
+            deviceEntryBypassRepository.setBypassEnabled(false)
             whenever(dozeParameters.alwaysOn).thenReturn(true)
             whenever(dozeParameters.displayNeedsBlanking).thenReturn(false)
             notificationsKeyguardInteractor.setNotificationsFullyHidden(true)
@@ -325,6 +340,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
             val topClippingBounds by collectLastValue(underTest.topClippingBounds)
             assertThat(topClippingBounds).isNull()
 
+            shadeTestUtil.setShadeExpansion(0.5f)
             keyguardRepository.topClippingBounds.value = 50
             assertThat(topClippingBounds).isEqualTo(50)
 
@@ -339,9 +355,23 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
             )
 
             kosmos.setSceneTransition(Idle(Scenes.Gone))
-            // Make sure the value hasn't changed since we're GONE
+            shadeTestUtil.setShadeExpansion(0f)
             keyguardRepository.topClippingBounds.value = 5
-            assertThat(topClippingBounds).isEqualTo(1000)
+            assertThat(topClippingBounds).isEqualTo(null)
+        }
+
+    @Test
+    fun topClippingBoundsEmitsNullWhenNotExpanded() =
+        testScope.runTest {
+            val topClippingBounds by collectLastValue(underTest.topClippingBounds)
+            assertThat(topClippingBounds).isNull()
+
+            shadeTestUtil.setShadeExpansion(0f)
+            keyguardRepository.topClippingBounds.value = 50
+            assertThat(topClippingBounds).isNull()
+
+            keyguardRepository.topClippingBounds.value = 1000
+            assertThat(topClippingBounds).isNull()
         }
 
     @Test
@@ -527,6 +557,200 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
             )
 
             assertThat(alpha).isEqualTo(1.0f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun scaleFromGlanceableHub_transitionFromLockscreenToHubAndBack() =
+        testScope.runTest {
+            val scaleToApply by collectLastValue(underTest.scaleFromZoomOut)
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(
+                    ObservableTransitionState.Transition(
+                        fromScene = CommunalScenes.Blank,
+                        toScene = CommunalScenes.Communal,
+                        currentScene = flowOf(CommunalScenes.Blank),
+                        progress = flowOf(0f),
+                        isInitiatedByUserInput = true,
+                        isUserInputOngoing = flowOf(false),
+                    )
+                )
+
+            // Start transition to communal.
+            communalRepository.setTransitionState(transitionState)
+
+            // Transition to the glanceable hub and back.
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.GLANCEABLE_HUB,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Communal)
+
+            assertThat(scaleToApply).isEqualTo(1 - PUSHBACK_SCALE_FOR_LOCKSCREEN)
+
+            // Start transitioning back.
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.GLANCEABLE_HUB,
+                to = KeyguardState.LOCKSCREEN,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Blank)
+
+            assertThat(scaleToApply).isEqualTo(1f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun scaleFromGlanceableHub_reset_transitionedAwayFromHub() =
+        testScope.runTest {
+            val scaleToApply by collectLastValue(underTest.scaleFromZoomOut)
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(ObservableTransitionState.Idle(CommunalScenes.Blank))
+
+            // Transition to the glanceable hub and then to bouncer.
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.GLANCEABLE_HUB,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Communal)
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.GLANCEABLE_HUB,
+                to = KeyguardState.PRIMARY_BOUNCER,
+                testScope,
+            )
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Blank)
+
+            assertThat(scaleToApply).isEqualTo(1f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun scaleFromGlanceableHub_reset_whenTransitionedFromHubToAod() =
+        testScope.runTest {
+            val scaleToApply by collectLastValue(underTest.scaleFromZoomOut)
+
+            // Start on communal scene.
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(ObservableTransitionState.Idle(CommunalScenes.Communal))
+            communalRepository.setTransitionState(transitionState)
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.LOCKSCREEN,
+                to = KeyguardState.GLANCEABLE_HUB,
+                testScope,
+            )
+
+            assertThat(scaleToApply).isEqualTo(1 - PUSHBACK_SCALE_FOR_LOCKSCREEN)
+
+            // Start transition to AOD
+            transitionState.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Communal,
+                    toScene = CommunalScenes.Blank,
+                    currentScene = flowOf(CommunalScenes.Communal),
+                    progress = flowOf(0f),
+                    isInitiatedByUserInput = true,
+                    isUserInputOngoing = flowOf(false),
+                )
+            keyguardTransitionRepository.sendTransitionSteps(
+                listOf(
+                    TransitionStep(
+                        transitionState = TransitionState.STARTED,
+                        from = KeyguardState.GLANCEABLE_HUB,
+                        to = KeyguardState.AOD,
+                    ),
+                    TransitionStep(
+                        transitionState = TransitionState.RUNNING,
+                        from = KeyguardState.GLANCEABLE_HUB,
+                        to = KeyguardState.AOD,
+                        value = 0.6f,
+                    ),
+                ),
+                testScope,
+            )
+            runCurrent()
+
+            assertThat(scaleToApply).isIn(Range.open(1 - PUSHBACK_SCALE_FOR_LOCKSCREEN, 1f))
+
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    transitionState = TransitionState.FINISHED,
+                    from = KeyguardState.GLANCEABLE_HUB,
+                    to = KeyguardState.AOD,
+                )
+            )
+            runCurrent()
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Blank)
+
+            assertThat(scaleToApply).isEqualTo(1f)
+        }
+
+    @Test
+    @DisableSceneContainer
+    @EnableFlags(Flags.FLAG_AMBIENT_AOD, FLAG_GESTURE_BETWEEN_HUB_AND_LOCKSCREEN_MOTION)
+    fun scaleFromGlanceableHub_whenTransitionedFromAodToHub() =
+        testScope.runTest {
+            val scaleToApply by collectLastValue(underTest.scaleFromZoomOut)
+
+            // Start on blank scene.
+            val transitionState: MutableStateFlow<ObservableTransitionState> =
+                MutableStateFlow(ObservableTransitionState.Idle(CommunalScenes.Blank))
+            communalRepository.setTransitionState(transitionState)
+
+            keyguardTransitionRepository.sendTransitionSteps(
+                from = KeyguardState.GLANCEABLE_HUB,
+                to = KeyguardState.AOD,
+                testScope,
+            )
+
+            assertThat(scaleToApply).isEqualTo(1f)
+
+            // Start transition to hub.
+            transitionState.value =
+                ObservableTransitionState.Transition(
+                    fromScene = CommunalScenes.Blank,
+                    toScene = CommunalScenes.Communal,
+                    currentScene = flowOf(CommunalScenes.Blank),
+                    progress = flowOf(0f),
+                    isInitiatedByUserInput = true,
+                    isUserInputOngoing = flowOf(false),
+                )
+            keyguardTransitionRepository.sendTransitionSteps(
+                listOf(
+                    TransitionStep(
+                        transitionState = TransitionState.STARTED,
+                        from = KeyguardState.AOD,
+                        to = KeyguardState.GLANCEABLE_HUB,
+                    ),
+                    TransitionStep(
+                        transitionState = TransitionState.RUNNING,
+                        from = KeyguardState.AOD,
+                        to = KeyguardState.GLANCEABLE_HUB,
+                        value = 0.2f,
+                    ),
+                ),
+                testScope,
+            )
+
+            assertThat(scaleToApply).isIn(Range.open(1 - PUSHBACK_SCALE_FOR_LOCKSCREEN, 1f))
+
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    transitionState = TransitionState.FINISHED,
+                    from = KeyguardState.AOD,
+                    to = KeyguardState.GLANCEABLE_HUB,
+                )
+            )
+            runCurrent()
+            transitionState.value = ObservableTransitionState.Idle(CommunalScenes.Communal)
+
+            assertThat(scaleToApply).isEqualTo(1f - PUSHBACK_SCALE_FOR_LOCKSCREEN)
         }
 
     @Test
@@ -766,6 +990,7 @@ class KeyguardRootViewModelTest(flags: FlagsParameterization) : SysuiTestCase() 
         }
 
     @Test
+    @DisableSceneContainer
     fun alpha_idleOnOccluded_isZero() =
         testScope.runTest {
             val alpha by collectLastValue(underTest.alpha(viewState))

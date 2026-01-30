@@ -19,7 +19,7 @@ package android.app.appfunctions;
 import android.app.appfunctions.ExecuteAppFunctionResponse;
 import android.app.appfunctions.AppFunctionException;
 
-/** {@hide} */
+/** @hide */
 oneway interface IExecuteAppFunctionCallback {
     void onSuccess(in ExecuteAppFunctionResponse result);
     void onError(in AppFunctionException exception);

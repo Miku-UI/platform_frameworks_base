@@ -20,6 +20,7 @@ import static android.app.WindowConfiguration.ACTIVITY_TYPE_STANDARD;
 import static android.app.WindowConfiguration.ACTIVITY_TYPE_UNDEFINED;
 import static android.view.InsetsSource.FLAG_FORCE_CONSUMING;
 import static android.view.InsetsSource.FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR;
+import static android.view.InsetsSource.FLAG_INVALID;
 import static android.view.InsetsSource.ID_IME;
 import static android.view.InsetsSource.SIDE_BOTTOM;
 import static android.view.InsetsSource.SIDE_TOP;
@@ -57,10 +58,14 @@ import android.graphics.Rect;
 import android.os.Parcel;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.SparseIntArray;
 import android.view.WindowInsets.Type;
 
+import androidx.annotation.NonNull;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.android.window.flags.Flags;
@@ -86,6 +91,10 @@ public class InsetsStateTest {
 
     @Rule
     public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule =
+            DeviceFlagsValueProvider.createCheckFlagsRule();
 
     private static final int ID_STATUS_BAR = InsetsSource.createId(
             null /* owner */, 0 /* index */, statusBars());
@@ -114,7 +123,7 @@ public class InsetsStateTest {
                 .setFrame(new Rect(0, 200, 100, 300))
                 .setVisible(true);
         SparseIntArray typeSideMap = new SparseIntArray();
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 typeSideMap);
         assertEquals(Insets.of(0, 100, 0, 100), insets.getSystemWindowInsets());
@@ -133,7 +142,7 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_IME, ime())
                 .setFrame(new Rect(0, 100, 100, 300))
                 .setVisible(true);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 null);
         assertEquals(100, insets.getStableInsetBottom());
@@ -152,7 +161,7 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_NAVIGATION_BAR, navigationBars())
                 .setFrame(new Rect(80, 0, 100, 300))
                 .setVisible(true);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 0, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(Insets.of(0, 100, 20, 0), insets.getSystemWindowInsets());
         assertEquals(Insets.of(0, 100, 0, 0), insets.getInsets(statusBars()));
@@ -160,14 +169,14 @@ public class InsetsStateTest {
     }
 
     @Test
-    public void testCalculateInsets_extraNavRightClimateTop() throws Exception {
+    public void testCalculateInsets_extraNavRightClimateTop() {
         mState.getOrCreateSource(ID_CLIMATE_BAR, statusBars())
                 .setFrame(new Rect(0, 0, 100, 100))
                 .setVisible(true);
         mState.getOrCreateSource(ID_EXTRA_NAVIGATION_BAR, navigationBars())
                 .setFrame(new Rect(80, 0, 100, 300))
                 .setVisible(true);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 0, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(Insets.of(0, 100, 20, 0), insets.getSystemWindowInsets());
         assertEquals(Insets.of(0, 100, 0, 0), insets.getInsets(Type.statusBars()));
@@ -182,7 +191,7 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_IME, ime())
                 .setFrame(new Rect(0, 200, 100, 300))
                 .setVisible(true);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 null);
         assertEquals(0, insets.getSystemWindowInsetBottom());
@@ -198,11 +207,11 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_IME, ime())
                 .setFrame(new Rect(0, 200, 100, 300))
                 .setVisible(true);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, 0, SYSTEM_UI_FLAG_LAYOUT_STABLE, TYPE_APPLICATION,
                 ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(100, insets.getSystemWindowInsetTop());
-        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, 0, 0 /* legacySystemUiFlags */, TYPE_APPLICATION,
                 ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(0, insets.getSystemWindowInsetTop());
@@ -213,11 +222,11 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_STATUS_BAR, statusBars())
                 .setFrame(new Rect(0, 0, 100, 100))
                 .setVisible(false);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, FLAG_FULLSCREEN, SYSTEM_UI_FLAG_LAYOUT_STABLE,
                 TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(0, insets.getSystemWindowInsetTop());
-        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, 0, 0 /* legacySystemUiFlags */, TYPE_APPLICATION,
                 ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(0, insets.getSystemWindowInsetTop());
@@ -229,24 +238,25 @@ public class InsetsStateTest {
                 .setFrame(new Rect(0, 0, 100, 100))
                 .setVisible(true)
                 .setFlags(FLAG_FORCE_CONSUMING);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, FLAG_LAYOUT_NO_LIMITS,
                 0 /* legacySystemUiFlags */, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(0, insets.getSystemWindowInsetTop());
-        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, FLAG_LAYOUT_NO_LIMITS,
-                0 /* legacySystemUiFlags */, TYPE_SYSTEM_ERROR, ACTIVITY_TYPE_UNDEFINED, null);
+                0 /* legacySystemUiFlags */, TYPE_SYSTEM_ERROR, ACTIVITY_TYPE_UNDEFINED, null
+        );
         assertEquals(100, insets.getSystemWindowInsetTop());
-        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, FLAG_LAYOUT_NO_LIMITS,
                 0 /* legacySystemUiFlags */, TYPE_WALLPAPER, ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(100, insets.getSystemWindowInsetTop());
-        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 SOFT_INPUT_ADJUST_NOTHING, FLAG_LAYOUT_NO_LIMITS,
-                0 /* legacySystemUiFlags */, TYPE_APPLICATION, ACTIVITY_TYPE_STANDARD, null);
+                0 /* legacySystemUiFlags */, TYPE_APPLICATION, ACTIVITY_TYPE_STANDARD, null
+        );
         assertEquals(100, insets.getSystemWindowInsetTop());
     }
-
 
     @Test
     public void testCalculateInsets_captionStatusBarOverlap() {
@@ -258,7 +268,7 @@ public class InsetsStateTest {
                 .setVisible(true);
 
         Insets visibleInsets = mState.calculateVisibleInsets(
-                new Rect(0, 0, 100, 400), TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                new Rect(0, 0, 100, 400), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
         assertEquals(Insets.of(0, 300, 0, 0), visibleInsets);
     }
@@ -270,9 +280,32 @@ public class InsetsStateTest {
                 .setVisible(true);
 
         Insets visibleInsets = mState.calculateVisibleInsets(
-                new Rect(0, 0, 150, 400), TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                new Rect(0, 0, 150, 400), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
         assertEquals(Insets.of(0, 300, 0, 0), visibleInsets);
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_RELATIVE_INSETS)
+    public void testCalculateInsets_captionRelativeInsets() {
+        mState.getOrCreateSource(ID_CAPTION_BAR, captionBar())
+                .setAttachedInsets(Insets.of(0, 100, 0, 0))
+                .setVisible(true);
+
+        Insets visibleInsets = mState.calculateVisibleInsets(
+                new Rect(100, 200, 200, 600), new Rect(100, 200, 200, 600), TYPE_APPLICATION,
+                ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+        assertEquals(Insets.of(0, 100, 0, 0), visibleInsets);
+
+        Insets insideWindowInsets = mState.calculateVisibleInsets(
+                new Rect(110, 250, 190, 550), new Rect(100, 200, 200, 600), TYPE_APPLICATION,
+                ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+        assertEquals(Insets.of(0, 50, 0, 0), insideWindowInsets);
+
+        Insets insideNonOverlappingWindowInsets = mState.calculateVisibleInsets(
+                new Rect(110, 310, 190, 550), new Rect(100, 200, 200, 600), TYPE_APPLICATION,
+                ACTIVITY_TYPE_UNDEFINED, SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
+        assertEquals(Insets.of(0, 0, 0, 0), insideNonOverlappingWindowInsets);
     }
 
     @Test
@@ -283,7 +316,7 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_EXTRA_NAVIGATION_BAR, navigationBars())
                 .setFrame(new Rect(80, 0, 100, 300))
                 .setVisible(true);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 0, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(Insets.of(0, 100, 20, 0), insets.getSystemWindowInsets());
         assertEquals(Insets.of(0, 100, 0, 0), insets.getInsets(statusBars()));
@@ -298,7 +331,7 @@ public class InsetsStateTest {
         mState.getOrCreateSource(ID_NAVIGATION_BAR, navigationBars())
                 .setFrame(new Rect(80, 0, 100, 300))
                 .setVisible(true);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
                 0, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
         assertEquals(Insets.of(0, 100, 20, 0), insets.getSystemWindowInsets());
         assertEquals(Insets.of(0, 100, 0, 0), insets.getInsets(statusBars()));
@@ -307,11 +340,13 @@ public class InsetsStateTest {
 
     @Test
     public void testCalculateInsets_emptyIme() {
-        WindowInsets insets1 = mState.calculateInsets(new Rect(), null, false,
-                SOFT_INPUT_ADJUST_NOTHING, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
+        WindowInsets insets1 = mState.calculateInsets(new Rect(), null, null, false,
+                SOFT_INPUT_ADJUST_NOTHING, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                null);
         mState.getOrCreateSource(ID_IME, ime());
-        WindowInsets insets2 = mState.calculateInsets(new Rect(), null, false,
-                SOFT_INPUT_ADJUST_NOTHING, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
+        WindowInsets insets2 = mState.calculateInsets(new Rect(), null, null, false,
+                SOFT_INPUT_ADJUST_NOTHING, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                null);
         assertEquals(Insets.NONE, insets1.getInsets(ime()));
         assertEquals(Insets.NONE, insets2.getInsets(ime()));
         assertEquals(insets1, insets2);
@@ -326,8 +361,9 @@ public class InsetsStateTest {
                 .setFrame(new Rect(0, 200, 100, 300))
                 .setVisible(true);
         mState.removeSource(ID_IME);
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, false,
-                SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED, null);
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 100, 300), null, null, false,
+                SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                null);
         assertEquals(0, insets.getSystemWindowInsetBottom());
     }
 
@@ -335,16 +371,16 @@ public class InsetsStateTest {
     public void testEquals() {
         final InsetsState state1 = new InsetsState();
         final InsetsState state2 = new InsetsState();
-        assertTrue(state1.equals(state2));
+        assertEquals(state1, state2);
 
         state1.addSource(new InsetsSource(ID_STATUS_BAR, statusBars()));
-        assertFalse(state1.equals(state2));
+        assertNotEquals(state1, state2);
 
         state2.addSource(new InsetsSource(ID_STATUS_BAR, statusBars()));
-        assertTrue(state1.equals(state2));
+        assertEquals(state1, state2);
 
         state2.addSource(new InsetsSource(ID_NAVIGATION_BAR, navigationBars()));
-        assertFalse(state1.equals(state2));
+        assertNotEquals(state1, state2);
     }
 
     @Test
@@ -354,22 +390,40 @@ public class InsetsStateTest {
 
         state1.addSource(new InsetsSource(ID_CAPTION_BAR, captionBar()).setFrame(0, 0, 0, 5));
         assertFalse(state1.equals(
-                state2, false /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
         assertTrue(state1.equals(
-                state2, true /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                true /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
 
         state2.addSource(new InsetsSource(ID_CAPTION_BAR, captionBar()).setFrame(0, 0, 0, 10));
         assertFalse(state1.equals(
-                state2, false /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
         assertTrue(state1.equals(
-                state2, true /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                true /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
 
         state1.addSource(new InsetsSource(ID_STATUS_BAR, statusBars()));
         state2.addSource(new InsetsSource(ID_STATUS_BAR, statusBars()));
         assertFalse(state1.equals(
-                state2, false /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
         assertTrue(state1.equals(
-                state2, true /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                true /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
     }
 
     @Test
@@ -380,22 +434,86 @@ public class InsetsStateTest {
         final InsetsSource imeSource1 = new InsetsSource(ID_IME, ime()).setVisible(true);
         state1.addSource(imeSource1);
         assertFalse(state1.equals(
-                state2, false /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
         assertFalse(state1.equals(
-                state2, false /* excludesCaptionBar */, true /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                true /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
 
         imeSource1.setVisible(false);
         assertFalse(state1.equals(
-                state2, false /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
         assertTrue(state1.equals(
-                state2, false /* excludesCaptionBar */, true /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                true /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
 
         final InsetsSource imeSource2 = new InsetsSource(ID_IME, ime()).setFrame(0, 0, 0, 10);
         state2.addSource(imeSource2);
         assertFalse(state1.equals(
-                state2, false /* excludesCaptionBar */, false /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
         assertTrue(state1.equals(
-                state2, false /* excludesCaptionBar */, true /* excludesInvisibleIme */));
+                state2,
+                false /* excludesCaptionBar */,
+                true /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
+    }
+
+    @Test
+    public void testEquals_excludesInvalidSource() {
+        final InsetsState state1 = new InsetsState();
+        final InsetsState state2 = new InsetsState();
+
+        final InsetsSource imeSource1 = new InsetsSource(ID_IME, ime());
+        state1.addSource(imeSource1);
+        assertFalse(state1.equals(
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
+        assertFalse(state1.equals(
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                true /* excludesInvalidSource */));
+
+        imeSource1.setFlags(FLAG_INVALID);
+        assertFalse(state1.equals(
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
+        assertTrue(state1.equals(
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                true /* excludesInvalidSource */));
+
+        final InsetsSource imeSource2 = new InsetsSource(ID_IME, ime())
+                .setFrame(0, 0, 0, 10)
+                .setFlags(FLAG_INVALID);
+        state2.addSource(imeSource2);
+        assertFalse(state1.equals(
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                false /* excludesInvalidSource */));
+        assertTrue(state1.equals(
+                state2,
+                false /* excludesCaptionBar */,
+                false /* excludesInvisibleIme */,
+                true /* excludesInvalidSource */));
     }
 
     @Test
@@ -541,6 +659,55 @@ public class InsetsStateTest {
     }
 
     @Test
+    public void testSet() {
+        mState.getOrCreateSource(ID_IME, ime())
+                .setFrame(new Rect(1, 2, 3, 4));
+        mState.getOrCreateSource(ID_STATUS_BAR, statusBars())
+                .setFrame(new Rect(5, 6, 7, 8));
+        final int size = mState.sourceSize();
+
+        mState.set(mState);
+        assertEquals(size, mState.sourceSize());
+        mState.set(mState, true /* copiesSource */);
+        assertEquals(size, mState.sourceSize());
+
+        mState2.getOrCreateSource(ID_NAVIGATION_BAR, navigationBars())
+                .setFrame(new Rect(9, 10, 11, 12));
+        mState2.set(mState);
+        assertEquals(size, mState2.sourceSize());
+        assertEquals(mState, mState2);
+
+        mState2.getOrCreateSource(ID_NAVIGATION_BAR, navigationBars())
+                .setFrame(new Rect(13, 14, 15, 16));
+        mState2.set(mState, true /* copiesSource */);
+        assertEquals(size, mState2.sourceSize());
+        assertEquals(mState, mState2);
+    }
+
+    @Test
+    public void testSetForTypes() {
+        mState.getOrCreateSource(ID_IME, ime())
+                .setFrame(new Rect(1, 2, 3, 4));
+        mState.getOrCreateSource(ID_STATUS_BAR, statusBars())
+                .setFrame(new Rect(5, 6, 7, 8));
+        final int size = mState.sourceSize();
+
+        mState.set(mState, ime() | statusBars());
+        assertEquals(size, mState.sourceSize());
+
+        mState2.getOrCreateSource(ID_NAVIGATION_BAR, navigationBars())
+                .setFrame(new Rect(9, 10, 11, 12));
+        mState2.set(mState, ime() | statusBars());
+        assertEquals(
+                mState.getOrCreateSource(ID_IME, ime()),
+                mState2.getOrCreateSource(ID_IME, ime()));
+        assertEquals(
+                mState.getOrCreateSource(ID_IME, statusBars()),
+                mState2.getOrCreateSource(ID_IME, statusBars()));
+        assertEquals(size + 1, mState2.sourceSize());
+    }
+
+    @Test
     public void testCopy() {
         mState.getOrCreateSource(ID_IME, ime())
                 .setFrame(new Rect(0, 0, 100, 100))
@@ -568,7 +735,7 @@ public class InsetsStateTest {
                 .setFrame(new Rect(0, 100, 100, 300))
                 .setVisible(true);
         Insets visibleInsets = mState.calculateVisibleInsets(
-                new Rect(0, 0, 100, 300), TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                new Rect(0, 0, 100, 300), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 SOFT_INPUT_ADJUST_PAN, 0 /* windowFlags */);
         assertEquals(Insets.of(0, 100, 0, 100), visibleInsets);
     }
@@ -587,7 +754,7 @@ public class InsetsStateTest {
                 .setFrame(new Rect(0, 100, 100, 300))
                 .setVisible(true);
         Insets visibleInsets = mState.calculateVisibleInsets(
-                new Rect(0, 0, 100, 300), TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                new Rect(0, 0, 100, 300), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 SOFT_INPUT_ADJUST_NOTHING, 0 /* windowFlags */);
         assertEquals(Insets.of(0, 100, 0, 0), visibleInsets);
     }
@@ -606,7 +773,7 @@ public class InsetsStateTest {
                 .setFrame(new Rect(0, 100, 100, 300))
                 .setVisible(true);
         Insets visibleInsets = mState.calculateVisibleInsets(
-                new Rect(0, 0, 100, 300), TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+                new Rect(0, 0, 100, 300), null, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 SOFT_INPUT_ADJUST_PAN, FLAG_LAYOUT_NO_LIMITS);
         assertEquals(Insets.NONE, visibleInsets);
     }
@@ -625,11 +792,14 @@ public class InsetsStateTest {
 
         mState.setDisplayFrame(new Rect(0, 0, 200, 300));
         assertEquals(0,
-                mState.calculateUncontrollableInsetsFromFrame(new Rect(0, 0, 200, 300)));
+                mState.calculateUncontrollableInsetsFromFrame(new Rect(0, 0, 200, 300),
+                        new Rect(0, 0, 200, 300)));
         assertEquals(statusBars() | ime(),
-                mState.calculateUncontrollableInsetsFromFrame(new Rect(0, 50, 200, 250)));
+                mState.calculateUncontrollableInsetsFromFrame(new Rect(0, 50, 200, 250),
+                        new Rect(0, 50, 200, 250)));
         assertEquals(navigationBars(),
-                mState.calculateUncontrollableInsetsFromFrame(new Rect(50, 0, 150, 300)));
+                mState.calculateUncontrollableInsetsFromFrame(new Rect(50, 0, 150, 300),
+                        new Rect(50, 0, 150, 300)));
     }
 
     @Test
@@ -640,7 +810,7 @@ public class InsetsStateTest {
                 new Rect(0, 0, 1, 2),
                 new Rect(197, 296, 200, 300),
                 new Rect(197, 296, 200, 300)));
-        DisplayCutout cutout = mState.calculateInsets(new Rect(1, 1, 199, 300), null, false,
+        DisplayCutout cutout = mState.calculateInsets(new Rect(1, 1, 199, 300), null, null, false,
                 SOFT_INPUT_ADJUST_UNSPECIFIED, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 new SparseIntArray()).getDisplayCutout();
         assertEquals(0, cutout.getSafeInsetLeft());
@@ -665,8 +835,8 @@ public class InsetsStateTest {
                 new RoundedCorner(POSITION_TOP_RIGHT, 10, 190, 10),
                 new RoundedCorner(POSITION_BOTTOM_RIGHT, 20, 180, 380),
                 new RoundedCorner(POSITION_BOTTOM_LEFT, 20, 20, 380)));
-        WindowInsets windowInsets = mState.calculateInsets(new Rect(1, 2, 197, 396), null, false,
-                SOFT_INPUT_ADJUST_UNSPECIFIED, 0, 0, TYPE_APPLICATION,
+        WindowInsets windowInsets = mState.calculateInsets(new Rect(1, 2, 197, 396), null, null,
+                false, SOFT_INPUT_ADJUST_UNSPECIFIED, 0, 0, TYPE_APPLICATION,
                 ACTIVITY_TYPE_UNDEFINED, new SparseIntArray());
         assertEquals(new RoundedCorner(POSITION_TOP_LEFT, 10, 9, 8),
                 windowInsets.getRoundedCorner(POSITION_TOP_LEFT));
@@ -682,8 +852,8 @@ public class InsetsStateTest {
     public void testCalculateRelativeDisplayShape() {
         mState.setDisplayFrame(new Rect(0, 0, 200, 400));
         mState.setDisplayShape(DisplayShape.createDefaultDisplayShape(200, 400, false));
-        WindowInsets windowInsets = mState.calculateInsets(new Rect(10, 20, 200, 400), null, false,
-                SOFT_INPUT_ADJUST_UNSPECIFIED, 0, 0, TYPE_APPLICATION,
+        WindowInsets windowInsets = mState.calculateInsets(new Rect(10, 20, 200, 400), null, null,
+                false, SOFT_INPUT_ADJUST_UNSPECIFIED, 0, 0, TYPE_APPLICATION,
                 ACTIVITY_TYPE_UNDEFINED, new SparseIntArray());
 
         final DisplayShape expect =
@@ -725,14 +895,14 @@ public class InsetsStateTest {
 
         InsetsState.traverse(insetsState1, insetsState2, new InsetsState.OnTraverseCallbacks() {
             @Override
-            public void onStart(InsetsState state1, InsetsState state2) {
+            public void onStart(@NonNull InsetsState state1, @NonNull InsetsState state2) {
                 assertSame("state1 must be the same as insetsState1", state1, insetsState1);
                 assertSame("state2 must be the same as insetsState2", state2, insetsState2);
                 onStartCalled[0]++;
             }
 
             @Override
-            public void onIdMatch(InsetsSource source1, InsetsSource source2) {
+            public void onIdMatch(@NonNull InsetsSource source1, @NonNull InsetsSource source2) {
                 assertNotNull("source1 must not be null.", source1);
                 assertNotNull("source2 must not be null.", source2);
                 assertEquals("Source IDs must match.", source1.getId(), source2.getId());
@@ -740,7 +910,7 @@ public class InsetsStateTest {
             }
 
             @Override
-            public void onIdNotFoundInState1(int index2, InsetsSource source2) {
+            public void onIdNotFoundInState1(int index2, @NonNull InsetsSource source2) {
                 assertNotNull("source2 must not be null.", source2);
                 assertSame(source2 + " must be placed at " + index2 + " of insetsState2",
                         source2, insetsState2.sourceAt(index2));
@@ -750,7 +920,7 @@ public class InsetsStateTest {
             }
 
             @Override
-            public void onIdNotFoundInState2(int index1, InsetsSource source1) {
+            public void onIdNotFoundInState2(int index1, @NonNull InsetsSource source1) {
                 assertNotNull("source1 must not be null.", source1);
                 assertSame(source1 + " must be placed at " + index1 + " of insetsState1",
                         source1, insetsState1.sourceAt(index1));
@@ -760,7 +930,7 @@ public class InsetsStateTest {
             }
 
             @Override
-            public void onFinish(InsetsState state1, InsetsState state2) {
+            public void onFinish(@NonNull InsetsState state1, @NonNull InsetsState state2) {
                 assertSame("state1 must be the same as insetsState1", state1, insetsState1);
                 assertSame("state2 must be the same as insetsState2", state2, insetsState2);
                 onFinishCalled[0]++;
@@ -789,7 +959,7 @@ public class InsetsStateTest {
                 .setVisible(true);
         SparseIntArray typeSideMap = new SparseIntArray();
 
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, null, false,
                 SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 typeSideMap);
 
@@ -818,7 +988,7 @@ public class InsetsStateTest {
                 .setVisible(true);
         SparseIntArray typeSideMap = new SparseIntArray();
 
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, null, false,
                 SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 typeSideMap);
 
@@ -841,7 +1011,7 @@ public class InsetsStateTest {
                 .setVisible(true);
         SparseIntArray typeSideMap = new SparseIntArray();
 
-        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, false,
+        WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, null, false,
                 SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 typeSideMap);
 
@@ -872,8 +1042,8 @@ public class InsetsStateTest {
                 .setVisible(true)
                 .setFlags(FLAG_FORCE_CONSUMING_OPAQUE_CAPTION_BAR);
 
-        final WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, false,
-                SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
+        final WindowInsets insets = mState.calculateInsets(new Rect(0, 0, 1000, 1000), null, null,
+                false, SOFT_INPUT_ADJUST_RESIZE, 0, 0, TYPE_APPLICATION, ACTIVITY_TYPE_UNDEFINED,
                 new SparseIntArray());
 
         assertTrue(insets.isForceConsumingOpaqueCaptionBar());

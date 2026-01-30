@@ -20,6 +20,8 @@ import static com.android.server.input.InputManagerService.SW_HEADPHONE_INSERT;
 import static com.android.server.input.InputManagerService.SW_HEADPHONE_INSERT_BIT;
 import static com.android.server.input.InputManagerService.SW_LINEOUT_INSERT;
 import static com.android.server.input.InputManagerService.SW_LINEOUT_INSERT_BIT;
+import static com.android.server.input.InputManagerService.SW_VIDEOOUT_INSERT;
+import static com.android.server.input.InputManagerService.SW_VIDEOOUT_INSERT_BIT;
 import static com.android.server.input.InputManagerService.SW_MICROPHONE_INSERT;
 import static com.android.server.input.InputManagerService.SW_MICROPHONE_INSERT_BIT;
 
@@ -66,6 +68,9 @@ final class WiredAccessoryManager implements WiredAccessoryCallbacks {
     private static final int SUPPORTED_HEADSETS = (BIT_HEADSET | BIT_HEADSET_NO_MIC |
             BIT_USB_HEADSET_ANLG | BIT_USB_HEADSET_DGTL |
             BIT_HDMI_AUDIO | BIT_LINEOUT);
+    private static final int SW_HEADSET_INSERT_BITS =
+            SW_HEADPHONE_INSERT_BIT | SW_MICROPHONE_INSERT_BIT;
+    private static final int SW_AVOUT_INSERT_BITS = SW_LINEOUT_INSERT_BIT | SW_VIDEOOUT_INSERT_BIT;
 
     private static final String NAME_H2W = "h2w";
     private static final String NAME_USB_AUDIO = "usb_audio";
@@ -81,8 +86,6 @@ final class WiredAccessoryManager implements WiredAccessoryCallbacks {
     private final AudioManager mAudioManager;
 
     private int mHeadsetState;
-
-    private int mSwitchValues;
 
     private final WiredAccessoryObserver mObserver;
     private final WiredAccessoryExtconObserver mExtconObserver;
@@ -118,13 +121,27 @@ final class WiredAccessoryManager implements WiredAccessoryCallbacks {
             if (mInputManager.getSwitchState(-1, InputDevice.SOURCE_ANY, SW_LINEOUT_INSERT) == 1) {
                 switchValues |= SW_LINEOUT_INSERT_BIT;
             }
-            notifyWiredAccessoryChanged(
-                    0,
-                    switchValues,
-                    SW_HEADPHONE_INSERT_BIT | SW_MICROPHONE_INSERT_BIT | SW_LINEOUT_INSERT_BIT,
-                    true /*isSynchronous*/);
+            if (mInputManager.getSwitchState(-1, InputDevice.SOURCE_ANY, SW_VIDEOOUT_INSERT) == 1) {
+                switchValues |= SW_VIDEOOUT_INSERT_BIT;
+            }
+            // Making our best guess here.
+            int headphone = switchValues & SW_HEADSET_INSERT_BITS;
+            if (headphone != 0) {
+                notifyWiredAccessoryChanged(
+                            0,
+                            headphone,
+                            headphone,
+                            true /*isSynchronous*/);
+            }
+            int lineout_or_hdmi = switchValues & SW_AVOUT_INSERT_BITS;
+            if (lineout_or_hdmi != 0) {
+                notifyWiredAccessoryChanged(
+                            0,
+                            lineout_or_hdmi,
+                            lineout_or_hdmi,
+                            true /*isSynchronous*/);
+            }
         }
-
 
         if (ExtconUEventObserver.extconExists()) {
             if (mUseDevInputEventForAudioJack) {
@@ -135,6 +152,46 @@ final class WiredAccessoryManager implements WiredAccessoryCallbacks {
         } else {
             mObserver.init();
         }
+    }
+
+    static int calculateHeadsetState(int headsetState, int switchValues, int switchMask) {
+        // Assumptions:
+        // 1. Events will only be plug 1 device or unplug 1 device.
+        //    It would not have plug and unplug in the same time.
+        // 2. events for LINEOUT devices won't have a mask that
+        //    is SW_AVOUT_INSERT_BITS
+        int newHeadsetState = headsetState;
+        if ((switchMask & SW_HEADSET_INSERT_BITS) != 0) {
+            int clearMask = BIT_HEADSET | BIT_HEADSET_NO_MIC;
+
+            newHeadsetState = newHeadsetState & ~clearMask;
+            int device = switch(switchValues & SW_HEADSET_INSERT_BITS) {
+                case SW_HEADPHONE_INSERT_BIT -> BIT_HEADSET_NO_MIC;
+                case SW_MICROPHONE_INSERT_BIT -> BIT_HEADSET;
+                case SW_HEADSET_INSERT_BITS -> BIT_HEADSET;
+                default -> 0;
+            };
+            newHeadsetState = newHeadsetState | device;
+        }
+
+        if ((switchMask & SW_AVOUT_INSERT_BITS) != 0) {
+            int clearMask = switch(switchMask & SW_AVOUT_INSERT_BITS) {
+                case SW_LINEOUT_INSERT_BIT -> BIT_LINEOUT;
+                case SW_AVOUT_INSERT_BITS -> BIT_HDMI_AUDIO;
+                default -> 0;
+            };
+
+            newHeadsetState = newHeadsetState & ~clearMask;
+            int device = switch(switchValues & SW_AVOUT_INSERT_BITS) {
+                case SW_LINEOUT_INSERT_BIT -> BIT_LINEOUT;
+                case SW_AVOUT_INSERT_BITS -> BIT_HDMI_AUDIO;
+                default -> 0;
+            };
+
+            newHeadsetState = newHeadsetState | device;
+        }
+
+        return newHeadsetState;
     }
 
     @Override
@@ -152,40 +209,12 @@ final class WiredAccessoryManager implements WiredAccessoryCallbacks {
         }
 
         synchronized (mLock) {
-            int headset;
-            mSwitchValues = (mSwitchValues & ~switchMask) | switchValues;
-            switch (mSwitchValues &
-                    (SW_HEADPHONE_INSERT_BIT | SW_MICROPHONE_INSERT_BIT | SW_LINEOUT_INSERT_BIT)) {
-                case 0:
-                    headset = 0;
-                    break;
+            // Extracting the logic for unit test
+            int newHeadsetState = calculateHeadsetState(mHeadsetState, switchValues, switchMask);
 
-                case SW_HEADPHONE_INSERT_BIT:
-                    headset = BIT_HEADSET_NO_MIC;
-                    break;
-
-                case SW_LINEOUT_INSERT_BIT:
-                    headset = BIT_LINEOUT;
-                    break;
-
-                case SW_HEADPHONE_INSERT_BIT | SW_MICROPHONE_INSERT_BIT:
-                    headset = BIT_HEADSET;
-                    break;
-
-                case SW_MICROPHONE_INSERT_BIT:
-                    headset = BIT_HEADSET;
-                    break;
-
-                default:
-                    headset = 0;
-                    break;
-            }
-
-            updateLocked(
-                    NAME_H2W,
-                    (mHeadsetState & ~(BIT_HEADSET | BIT_HEADSET_NO_MIC | BIT_LINEOUT)) | headset,
-                    isSynchronous);
+            updateLocked(NAME_H2W, newHeadsetState, isSynchronous);
         }
+
     }
 
     @Override

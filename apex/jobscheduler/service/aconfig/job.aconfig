@@ -30,16 +30,6 @@ flag {
 }
 
 flag {
-    name: "count_quota_fix"
-    namespace: "backstage_power"
-    description: "Fix job count quota check"
-    bug: "300862949"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
    name: "thermal_restrictions_to_fgs_jobs"
    namespace: "backstage_power"
    description: "Apply thermal restrictions to FGS jobs."
@@ -50,37 +40,10 @@ flag {
 }
 
 flag {
-   name: "create_work_chain_by_default"
-   namespace: "backstage_power"
-   description: "Create a workchain by default when acquiring a wakelock"
-   bug: "352676818"
-   metadata {
-       purpose: PURPOSE_BUGFIX
-   }
-}
-
-flag {
    name: "remove_user_during_user_switch"
    namespace: "backstage_power"
    description: "Remove started user if user will be stopped due to user switch"
    bug: "337077643"
-}
-
-flag {
-   name: "use_correct_process_state_for_logging"
-   namespace: "backstage_power"
-   description: "Use correct process state for statsd logging"
-   bug: "361308212"
-   metadata {
-       purpose: PURPOSE_BUGFIX
-   }
-}
-
-flag {
-   name: "enforce_quota_policy_to_fgs_jobs"
-   namespace: "backstage_power"
-   description: "Applies the normal quota policy to FGS jobs"
-   bug: "341201311"
 }
 
 flag {
@@ -117,24 +80,34 @@ flag {
     }
 }
 
+
+
 flag {
-    name: "additional_quota_for_system_installer"
+    name: "fix_reporting_active_jobs"
     namespace: "backstage_power"
-    description: "Offer additional quota for system installer"
-    bug: "398264531"
+    description: "Correctly report the active jobs to idle controller"
+    bug: "425761099"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
 flag {
-    name: "tune_quota_window_default_parameters"
+    name: "allow_cmp_exemption_for_restricted_bucket"
     namespace: "backstage_power"
-    description: "Tune default active/exempted bucket quota parameters"
-    bug: "401767691"
+    description: "Allow CMP exemption for apps in Restricted bucket due to timeout reason"
+    bug: "409606405"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
 }
 
-
+flag {
+    name: "update_media_backup_exemption_policy"
+    namespace: "backstage_power"
+    description: "Update the criteria for media backup job exemption"
+    bug: "436531976"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

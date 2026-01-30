@@ -31,6 +31,7 @@ val Kosmos.modesTileUserActionInteractor: ModesTileUserActionInteractor by
             qsTileIntentUserInputHandler,
             Provider { modesDialogDelegate }.get(),
             zenModeInteractor,
+            modesTileDataInteractor,
             modesDialogEventLogger,
         )
     }

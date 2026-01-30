@@ -29,7 +29,7 @@ public class CenterParallaxSpec implements ParallaxSpec {
     public void getParallax(Point retreatingOut, Point advancingOut, int position,
             DividerSnapAlgorithm snapAlgorithm, boolean isLeftRightSplit, Rect displayBounds,
             Rect retreatingSurface, Rect retreatingContent, Rect advancingSurface,
-            Rect advancingContent, int dimmingSide, boolean topLeftShrink) {
+            Rect advancingContent, int dimmingSide, boolean topLeftShrink, SplitState splitState) {
         if (isLeftRightSplit) {
             retreatingOut.x = (retreatingSurface.width() - retreatingContent.width()) / 2;
         } else {

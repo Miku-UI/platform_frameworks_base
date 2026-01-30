@@ -64,12 +64,23 @@ public final class DisplayLuts {
         /**
          * Create a Lut entry.
          *
-         * <p>
-         * Noted that 1D Lut(s) are treated as gain curves.
-         * For 3D Lut(s), 3D Lut(s) are used for direct color manipulations.
-         * The values of 3D Lut(s) data should be normalized to the range {@code 0.0}
-         * to {@code 1.0}, inclusive. And 3D Lut(s) data is organized in the order of
-         * R, G, B channels.
+         * <p> 1D Lut(s) are treated as gain curves. </p>
+         * <p> 3D Lut(s) are used for direct color manipulations. </p>
+         * <p> For 3D Lut(s), the values should be normalized to the range {@code 0.0}
+         * to {@code 1.0}, inclusive. And {@code 1.0} is the maximum panel luminance.
+         * And If N is the size of each dimension, the data is arranged in RGB order:
+         * <pre>
+         * R(0, 0, 0), R(0, 0, 1), ..., R(0, 0, N - 1),
+         * R(0, 1, 0), ..., R(0, 1, N - 1), ..., R(0, N - 1, N - 1),
+         * R(1, 0, 0), ..., R(1, 0, N - 1), ..., R(1, N - 1, N - 1), ..., R(N - 1, N - 1, N - 1),
+         * G(0, 0, 0), ..., G(N - 1, N - 1, N - 1),
+         * B(0, 0, 0), ..., B(N - 1, N - 1, N - 1)</pre>
+         * When a GPU shader samples 3D Lut data, it's accessed in a flat,
+         * one-dimensional arrangement. Assuming that we have a 3D array
+         * {@code ORIGINAL[N][N][N]}, then
+         * <pre>
+         * FLAT[z + N * (y + N * x)] = ORIGINAL[x][y][z]</pre>
+         * </p>
          *
          * @param buffer The raw lut data
          * @param dimension Either 1D or 3D

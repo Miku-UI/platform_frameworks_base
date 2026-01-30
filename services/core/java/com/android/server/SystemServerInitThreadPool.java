@@ -32,8 +32,10 @@ import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -72,26 +74,39 @@ public final class SystemServerInitThreadPool implements Dumpable {
                 "system-server-init-thread", Process.THREAD_PRIORITY_FOREGROUND);
     }
 
-    /**
-     * Submits a task for execution.
-     *
-     * @throws IllegalStateException if it hasn't been started or has been shut down already.
-     */
-    public static @NonNull Future<?> submit(@NonNull Runnable runnable,
-            @NonNull String description) {
-        Objects.requireNonNull(description, "description cannot be null");
-
+    static SystemServerInitThreadPool getInstance() {
         SystemServerInitThreadPool instance;
         synchronized (LOCK) {
             Preconditions.checkState(sInstance != null, "Cannot get " + TAG
                     + " - it has been shut down");
             instance = sInstance;
         }
-
-        return instance.submitTask(runnable, description);
+        return instance;
     }
 
-    private @NonNull Future<?> submitTask(@NonNull Runnable runnable,
+    /**
+     * Submits a task for execution and returns a Future that returns null on success.
+     *
+     * @throws IllegalStateException if it hasn't been started or has been shut down already.
+     */
+    public static @NonNull Future<?> submit(@NonNull Runnable runnable,
+            @NonNull String description) {
+        Objects.requireNonNull(description, "description cannot be null");
+        return getInstance().submitTask(Executors.callable(runnable), description);
+    }
+
+    /**
+     * Submits a task for execution and returns a Future containing the Callable's result.
+     *
+     * @throws IllegalStateException if it hasn't been started or has been shut down already.
+     */
+    public static <T> @NonNull Future<T> submit(@NonNull Callable<T> callable,
+            @NonNull String description) {
+        Objects.requireNonNull(description, "description cannot be null");
+        return getInstance().submitTask(callable, description);
+    }
+
+    private <T> @NonNull Future<T> submitTask(@NonNull Callable<T> callable,
             @NonNull String description) {
         synchronized (mPendingTasks) {
             Preconditions.checkState(!mShutDown, TAG + " already shut down");
@@ -103,8 +118,9 @@ public final class SystemServerInitThreadPool implements Dumpable {
             if (IS_DEBUGGABLE) {
                 Slog.d(TAG, "Started executing " + description);
             }
+            T result = null;
             try {
-                runnable.run();
+                result = callable.call();
             } catch (RuntimeException e) {
                 Slog.e(TAG, "Failure in " + description + ": " + e, e);
                 traceLog.traceEnd();
@@ -117,6 +133,7 @@ public final class SystemServerInitThreadPool implements Dumpable {
                 Slog.d(TAG, "Finished executing " + description);
             }
             traceLog.traceEnd();
+            return result;
         });
     }
 
@@ -127,13 +144,11 @@ public final class SystemServerInitThreadPool implements Dumpable {
      *
      * @throws IllegalStateException if it has been started already without being shut down yet.
      */
-    static SystemServerInitThreadPool start() {
-        SystemServerInitThreadPool instance;
+    static void start() {
         synchronized (LOCK) {
             Preconditions.checkState(sInstance == null, TAG + " already started");
-            instance = sInstance = new SystemServerInitThreadPool();
+            sInstance = new SystemServerInitThreadPool();
         }
-        return instance;
     }
 
     /**

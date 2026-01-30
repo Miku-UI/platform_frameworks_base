@@ -17,8 +17,11 @@
 package android.app;
 
 import static android.app.appfunctions.flags.Flags.enableAppFunctionManager;
+import static android.app.userrecovery.flags.Flags.enableUserRecoveryManager;
+import static android.hardware.serial.flags.Flags.enableWiredSerialApi;
 import static android.provider.flags.Flags.newStoragePublicApi;
 import static android.server.Flags.removeGameManagerServiceFromWear;
+import static android.service.chooser.Flags.interactiveChooser;
 
 import android.accounts.AccountManager;
 import android.accounts.IAccountManager;
@@ -62,6 +65,8 @@ import android.app.usage.IStorageStatsManager;
 import android.app.usage.IUsageStatsManager;
 import android.app.usage.StorageStatsManager;
 import android.app.usage.UsageStatsManager;
+import android.app.userrecovery.IUserRecoveryManager;
+import android.app.userrecovery.UserRecoveryManager;
 import android.app.wallpapereffectsgeneration.IWallpaperEffectsGenerationManager;
 import android.app.wallpapereffectsgeneration.WallpaperEffectsGenerationManager;
 import android.app.wearable.IWearableSensingManager;
@@ -71,6 +76,10 @@ import android.appwidget.AppWidgetManager;
 import android.bluetooth.BluetoothFrameworkInitializer;
 import android.companion.CompanionDeviceManager;
 import android.companion.ICompanionDeviceManager;
+import android.companion.datatransfer.continuity.ITaskContinuityManager;
+import android.companion.datatransfer.continuity.IUniversalClipboardManager;
+import android.companion.datatransfer.continuity.TaskContinuityManager;
+import android.companion.datatransfer.continuity.UniversalClipboardManager;
 import android.companion.virtual.IVirtualDeviceManager;
 import android.companion.virtual.VirtualDeviceManager;
 import android.compat.Compatibility;
@@ -104,10 +113,8 @@ import android.devicelock.DeviceLockFrameworkInitializer;
 import android.graphics.fonts.FontManager;
 import android.hardware.ConsumerIrManager;
 import android.hardware.ISensorPrivacyManager;
-import android.hardware.ISerialManager;
 import android.hardware.SensorManager;
 import android.hardware.SensorPrivacyManager;
-import android.hardware.SerialManager;
 import android.hardware.SystemSensorManager;
 import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.IAuthService;
@@ -177,6 +184,7 @@ import android.net.wifi.nl80211.WifiNl80211Manager;
 import android.net.wifi.sharedconnectivity.app.SharedConnectivityManager;
 import android.nfc.NfcFrameworkInitializer;
 import android.ondevicepersonalization.OnDevicePersonalizationFrameworkInitializer;
+import android.os.AnomalyDetectorFrameworkInitializer;
 import android.os.BatteryManager;
 import android.os.BatteryStats;
 import android.os.BatteryStatsManager;
@@ -230,6 +238,12 @@ import android.print.PrintManager;
 import android.provider.E2eeContactKeysManager;
 import android.provider.ProviderFrameworkInitializer;
 import android.ranging.RangingFrameworkInitializer;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodKeepStaticInitializer;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.safetycenter.SafetyCenterFrameworkInitializer;
 import android.scheduling.SchedulingFrameworkInitializer;
 import android.security.FileIntegrityManager;
@@ -243,6 +257,7 @@ import android.security.authenticationpolicy.IAuthenticationPolicyService;
 import android.security.intrusiondetection.IIntrusionDetectionService;
 import android.security.intrusiondetection.IntrusionDetectionManager;
 import android.security.keystore.KeyStoreManager;
+import android.service.chooser.ChooserManager;
 import android.service.oemlock.IOemLockService;
 import android.service.oemlock.OemLockManager;
 import android.service.persistentdata.IPersistentDataBlockService;
@@ -269,6 +284,8 @@ import android.view.contentcapture.ContentCaptureManager;
 import android.view.contentcapture.IContentCaptureManager;
 import android.view.displayhash.DisplayHashManager;
 import android.view.inputmethod.InputMethodManager;
+import android.view.selectiontoolbar.ISelectionToolbarManager;
+import android.view.selectiontoolbar.SelectionToolbarManager;
 import android.view.textclassifier.TextClassificationManager;
 import android.view.textservice.TextServicesManager;
 import android.view.translation.ITranslationManager;
@@ -277,6 +294,7 @@ import android.view.translation.UiTranslationManager;
 import android.webkit.WebViewBootstrapFrameworkInitializer;
 
 import com.android.internal.R;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.app.IAppOpsService;
 import com.android.internal.app.IBatteryStats;
 import com.android.internal.app.ISoundTriggerService;
@@ -287,6 +305,7 @@ import com.android.internal.os.IBinaryTransparencyService;
 import com.android.internal.os.IDropBoxManagerService;
 import com.android.internal.policy.PhoneLayoutInflater;
 import com.android.internal.util.Preconditions;
+import com.android.modules.utils.ravenwood.RavenwoodHelper;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -299,6 +318,11 @@ import java.util.Objects;
  * @hide
  */
 @SystemApi
+@RavenwoodKeepPartialClass(comment =
+        "The whole service registration is done in SystemServiceRegistry_ravenwood"
+)
+@RavenwoodKeepStaticInitializer
+@RavenwoodRedirectionClass("SystemServiceRegistry_ravenwood")
 public final class SystemServiceRegistry {
     private static final String TAG = "SystemServiceRegistry";
 
@@ -331,6 +355,11 @@ public final class SystemServiceRegistry {
     private SystemServiceRegistry() { }
 
     static {
+        registerServices();
+    }
+
+    @RavenwoodRedirect
+    private static void registerServices() {
         //CHECKSTYLE:OFF IndentationCheck
         registerService(Context.ACCESSIBILITY_SERVICE, AccessibilityManager.class,
                 new CachedServiceFetcher<AccessibilityManager>() {
@@ -421,6 +450,33 @@ public final class SystemServiceRegistry {
             public TextClassificationManager createService(ContextImpl ctx) {
                 return new TextClassificationManager(ctx);
             }});
+
+        registerService(Context.SELECTION_TOOLBAR_SERVICE, SelectionToolbarManager.class,
+                new CachedServiceFetcher<SelectionToolbarManager>() {
+                    @Override
+                    public SelectionToolbarManager createService(ContextImpl ctx)
+                            throws ServiceNotFoundException {
+                        final PackageManager pm = ctx.getPackageManager();
+                        final boolean serviceRequired =
+                                !pm.hasSystemFeature(PackageManager.FEATURE_WATCH)
+                                && !pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK);
+                        // If the service is required on the device, use `getServiceOrThrow`, which
+                        // will throw an Exception if the service is missing.
+                        // If the service is not required on the device, use `getService`. This
+                        // method simply returns `null` if the service is absent. Avoiding the
+                        // Exception is critical for such devices, because the Exception may cause
+                        // process crashes, and we do not want that given that the service is not
+                        // mandatory.
+                        IBinder b = serviceRequired
+                                ? ServiceManager.getServiceOrThrow(
+                                        Context.SELECTION_TOOLBAR_SERVICE)
+                                : ServiceManager.getService(Context.SELECTION_TOOLBAR_SERVICE);
+                        if (b == null) {
+                            return null;
+                        }
+                        return new SelectionToolbarManager(
+                                ISelectionToolbarManager.Stub.asInterface(b));
+                    }});
 
         registerService(Context.FONT_SERVICE, FontManager.class,
                 new CachedServiceFetcher<FontManager>() {
@@ -788,13 +844,29 @@ public final class SystemServiceRegistry {
                         return new AdbManager(ctx, IAdbManager.Stub.asInterface(b));
                     }});
 
-        registerService(Context.SERIAL_SERVICE, SerialManager.class,
-                new CachedServiceFetcher<SerialManager>() {
-            @Override
-            public SerialManager createService(ContextImpl ctx) throws ServiceNotFoundException {
-                IBinder b = ServiceManager.getServiceOrThrow(Context.SERIAL_SERVICE);
-                return new SerialManager(ctx, ISerialManager.Stub.asInterface(b));
-            }});
+        if (enableWiredSerialApi()) {
+            registerService(Context.SERIAL_SERVICE, android.hardware.serial.SerialManager.class,
+                    new CachedServiceFetcher<android.hardware.serial.SerialManager>() {
+                        @Override
+                        public android.hardware.serial.SerialManager createService(ContextImpl ctx)
+                                throws ServiceNotFoundException {
+                            IBinder b = ServiceManager.getServiceOrThrow(Context.SERIAL_SERVICE);
+                            return new android.hardware.serial.SerialManager(ctx,
+                                    android.hardware.serial.ISerialManager.Stub.asInterface(b));
+                        }
+                    });
+        } else {
+            registerService(Context.SERIAL_SERVICE, android.hardware.SerialManager.class,
+                    new CachedServiceFetcher<android.hardware.SerialManager>() {
+                        @Override
+                        public android.hardware.SerialManager createService(ContextImpl ctx)
+                                throws ServiceNotFoundException {
+                            IBinder b = ServiceManager.getServiceOrThrow(Context.SERIAL_SERVICE);
+                            return new android.hardware.SerialManager(ctx,
+                                    android.hardware.ISerialManager.Stub.asInterface(b));
+                        }
+                    });
+        }
 
         registerService(Context.VIBRATOR_MANAGER_SERVICE, VibratorManager.class,
                 new CachedServiceFetcher<VibratorManager>() {
@@ -809,6 +881,14 @@ public final class SystemServiceRegistry {
             public Vibrator createService(ContextImpl ctx) {
                 return new SystemVibrator(ctx);
             }});
+
+        registerService(Context.THEME_SERVICE, ThemeManager.class,
+            new CachedServiceFetcher<ThemeManager>() {
+                @Override
+                public ThemeManager createService(ContextImpl ctx) {
+                    return new ThemeManager();
+                }
+            });
 
         registerService(Context.WALLPAPER_SERVICE, WallpaperManager.class,
                 new CachedServiceFetcher<WallpaperManager>() {
@@ -940,6 +1020,22 @@ public final class SystemServiceRegistry {
                     });
         }
 
+      if (enableUserRecoveryManager()) {
+            registerService(Context.USER_RECOVERY_SERVICE, UserRecoveryManager.class,
+                    new CachedServiceFetcher<>() {
+                        @Override
+                        public UserRecoveryManager createService(ContextImpl ctx)
+                                throws ServiceNotFoundException {
+                                    IUserRecoveryManager service;
+                            service = IUserRecoveryManager.Stub.asInterface(
+                                    ServiceManager.getServiceOrThrow(
+                                        Context.USER_RECOVERY_SERVICE));
+                            return new UserRecoveryManager(service, ctx.getOuterContext());
+                        }
+                    });
+        }
+
+
         registerService(Context.VIRTUAL_DEVICE_SERVICE, VirtualDeviceManager.class,
                 new CachedServiceFetcher<VirtualDeviceManager>() {
             @Override
@@ -1030,11 +1126,6 @@ public final class SystemServiceRegistry {
                     @Override
                     public AuthenticationPolicyManager createService(ContextImpl ctx)
                             throws ServiceNotFoundException {
-                        if (!android.security.Flags.secureLockdown()) {
-                            throw new ServiceNotFoundException(
-                                    Context.AUTHENTICATION_POLICY_SERVICE);
-                        }
-
                         final IBinder binder = ServiceManager.getServiceOrThrow(
                                 Context.AUTHENTICATION_POLICY_SERVICE);
                         final IAuthenticationPolicyService service =
@@ -1412,6 +1503,36 @@ public final class SystemServiceRegistry {
                 return new VrManager(IVrManager.Stub.asInterface(b));
             }
         });
+
+        if (android.companion.Flags.enableTaskContinuity()) {
+            registerService(Context.TASK_CONTINUITY_SERVICE, TaskContinuityManager.class,
+                    new CachedServiceFetcher<TaskContinuityManager>() {
+                        @Override
+                        public TaskContinuityManager createService(ContextImpl ctx)
+                                throws ServiceNotFoundException {
+                            IBinder iBinder = ServiceManager.getServiceOrThrow(
+                                    Context.TASK_CONTINUITY_SERVICE);
+                            ITaskContinuityManager service =
+                                    ITaskContinuityManager.Stub.asInterface(iBinder);
+                            return new TaskContinuityManager(ctx, service);
+                        }
+                    });
+        }
+
+        if (android.companion.Flags.enableUniversalClipboard()) {
+            registerService(Context.UNIVERSAL_CLIPBOARD_SERVICE, UniversalClipboardManager.class,
+                    new CachedServiceFetcher<UniversalClipboardManager>() {
+                        @Override
+                        public UniversalClipboardManager createService(ContextImpl ctx)
+                                throws ServiceNotFoundException {
+                            IBinder iBinder = ServiceManager.getServiceOrThrow(
+                                    Context.UNIVERSAL_CLIPBOARD_SERVICE);
+                            IUniversalClipboardManager service =
+                                    IUniversalClipboardManager.Stub.asInterface(iBinder);
+                            return new UniversalClipboardManager(ctx, service);
+                        }
+                    });
+        }
 
         registerService(Context.CROSS_PROFILE_APPS_SERVICE, CrossProfileApps.class,
                 new CachedServiceFetcher<CrossProfileApps>() {
@@ -1809,6 +1930,23 @@ public final class SystemServiceRegistry {
                     }
                 });
 
+        if (interactiveChooser()) {
+            registerService(
+                    Context.CHOOSER_SERVICE,
+                    ChooserManager.class,
+                    new StaticServiceFetcher<>() {
+                        @Override
+                        public boolean isServiceEnabled(ContextImpl ctx) {
+                            return isChooserManagerSupported(ctx);
+                        }
+
+                        @Override
+                        public ChooserManager createService() {
+                            return new ChooserManager();
+                        }
+                    });
+        }
+
         sInitializing = true;
         try {
             // Note: the following functions need to be @SystemApis, once they become mainline
@@ -1852,8 +1990,9 @@ public final class SystemServiceRegistry {
             if (android.permission.flags.Flags.enhancedConfirmationModeApisEnabled()) {
                 EnhancedConfirmationFrameworkInitializer.registerServiceWrappers();
             }
-            if (android.server.Flags.telemetryApisService()) {
-                ProfilingFrameworkInitializer.registerServiceWrappers();
+            ProfilingFrameworkInitializer.registerServiceWrappers();
+            if (android.os.profiling.anomaly.flags.Flags.anomalyDetectorCore()) {
+                AnomalyDetectorFrameworkInitializer.registerServiceWrappers();
             }
             if (android.webkit.Flags.updateServiceIpcWrapper()) {
                 WebViewBootstrapFrameworkInitializer.registerServiceWrappers();
@@ -1864,6 +2003,9 @@ public final class SystemServiceRegistry {
             // aconfig lib for ranging module is built only if  RELEASE_RANGING_STACK is enabled,
             // flagcannot be added here.
             RangingFrameworkInitializer.registerServiceWrappers();
+
+            // When RELEASE_ANOMALY_DETECTOR is "false", this call is a no-op.
+            AnomalyDetectorFrameworkInitializer.registerServiceWrappers();
         } finally {
             // If any of the above code throws, we're in a pretty bad shape and the process
             // will likely crash, but we'll reset it just in case there's an exception handler...
@@ -1880,10 +2022,12 @@ public final class SystemServiceRegistry {
      * Creates an array which is used to cache per-Context service instances.
      * @hide
      */
+    @RavenwoodKeep
     public static Object[] createServiceCache() {
         return new Object[sServiceCacheSize];
     }
 
+    @RavenwoodKeep
     private static ServiceFetcher<?> getSystemServiceFetcher(String name) {
         if (name == null) {
             return null;
@@ -1909,6 +2053,7 @@ public final class SystemServiceRegistry {
      * Gets a system service from a given context.
      * @hide
      */
+    @RavenwoodKeep
     public static Object getSystemService(@NonNull ContextImpl ctx, String name) {
         final ServiceFetcher<?> fetcher = getSystemServiceFetcher(name);
         if (fetcher == null) {
@@ -1950,11 +2095,33 @@ public final class SystemServiceRegistry {
                         return null;
                     }
                     break;
+                case Context.WIFI_AWARE_SERVICE:
+                    if (!hasSystemFeatureOpportunistic(ctx, PackageManager.FEATURE_WIFI_AWARE)) {
+                        return null;
+                    }
+                    break;
+            }
+            // TODO (b/404593897): make it a case of the switch statement above when the flag is
+            //  removed.
+            if (interactiveChooser()) {
+                if (Context.CHOOSER_SERVICE.equals(name) && !isChooserManagerSupported(ctx)) {
+                    return null;
+                }
             }
             Slog.wtf(TAG, "Manager wrapper not available: " + name);
             return null;
         }
         return ret;
+    }
+
+    private static boolean isChooserManagerSupported(ContextImpl ctx) {
+        PackageManager pm = ctx.getPackageManager();
+        if (pm == null) {
+            return true;
+        }
+        return !pm.hasSystemFeature(PackageManager.FEATURE_WATCH)
+                && !pm.hasSystemFeature(PackageManager.FEATURE_LEANBACK)
+                && !pm.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE);
     }
 
     /**
@@ -1981,6 +2148,7 @@ public final class SystemServiceRegistry {
      * Gets the name of the system-level service that is represented by the specified class.
      * @hide
      */
+    @RavenwoodKeep
     public static String getSystemServiceName(Class<?> serviceClass) {
         if (serviceClass == null) {
             return null;
@@ -1997,11 +2165,28 @@ public final class SystemServiceRegistry {
      * Statically registers a system service with the context.
      * This method must be called during static initialization only.
      */
+    @RavenwoodKeep
     private static <T> void registerService(@NonNull String serviceName,
             @NonNull Class<T> serviceClass, @NonNull ServiceFetcher<T> serviceFetcher) {
         SYSTEM_SERVICE_NAMES.put(serviceClass, serviceName);
         SYSTEM_SERVICE_FETCHERS.put(serviceName, serviceFetcher);
         SYSTEM_SERVICE_CLASS_NAMES.put(serviceName, serviceClass.getSimpleName());
+    }
+
+    /**
+     * Provides a package-private access to {@link #registerService}. Must be only used on
+     * Ravenwood.
+     * (We don't use @RavenwoodReplace because a package-private $ravenwood method can
+     * be used on the device side too anyway)
+     */
+    @RavenwoodKeep
+    static <T> void registerServiceForRavenwood(@NonNull String serviceName,
+            @NonNull Class<T> serviceClass, @NonNull ServiceFetcher<T> serviceFetcher) {
+        if (!RavenwoodHelper.isRunningOnRavenwood()) {
+            throw new IllegalStateException(
+                    "registerServiceForRavenwood must not be called once static {} is done");
+        }
+        registerService(serviceName, serviceClass, serviceFetcher);
     }
 
     /**
@@ -2012,6 +2197,7 @@ public final class SystemServiceRegistry {
      * @hide
      */
     @Nullable
+    @RavenwoodRedirect
     public static String getSystemServiceClassName(@NonNull String name) {
         return SYSTEM_SERVICE_CLASS_NAMES.get(name);
     }
@@ -2262,6 +2448,7 @@ public final class SystemServiceRegistry {
      * Base interface for classes that fetch services.
      * These objects must only be created during static initialization.
      */
+    @RavenwoodKeepWholeClass
     static abstract interface ServiceFetcher<T> {
         T getService(ContextImpl ctx);
 
@@ -2282,6 +2469,7 @@ public final class SystemServiceRegistry {
      * Override this class when the system service constructor needs a
      * ContextImpl and should be cached and retained by that context.
      */
+    @RavenwoodKeepWholeClass
     static abstract class CachedServiceFetcher<T> implements ServiceFetcher<T> {
         private final int mCacheIndex;
 
@@ -2394,21 +2582,48 @@ public final class SystemServiceRegistry {
      * Override this class when the system service does not need a ContextImpl
      * and should be cached and retained process-wide.
      */
+    @RavenwoodKeepWholeClass
     static abstract class StaticServiceFetcher<T> implements ServiceFetcher<T> {
+        /**
+         * Indicates whether a service reference has been cached.
+         * The cached reference can be {@code null} if the service is not available i.e.
+         * {@link #isServiceEnabled(ContextImpl)} returns {@code false}.
+         */
+        @GuardedBy("StaticServiceFetcher.this")
+        private boolean mIsCached = false;
+        @GuardedBy("StaticServiceFetcher.this")
         private T mCachedInstance;
 
         @Override
         public final T getService(ContextImpl ctx) {
             synchronized (StaticServiceFetcher.this) {
-                if (mCachedInstance == null) {
+                if (mIsCached) {
+                    return mCachedInstance;
+                }
+            }
+            // In case isServiceEnabled would require an IPC, run it outside a synchronized block.
+            boolean isEnabled = isServiceEnabled(ctx);
+            synchronized (StaticServiceFetcher.this) {
+                if (!mIsCached) {
                     try {
-                        mCachedInstance = createService();
+                        if (isEnabled) {
+                            mCachedInstance = createService();
+                            // for a bug-to-bug compatibility, do not cache null-references
+                            mIsCached = mCachedInstance != null;
+                        } else {
+                            mCachedInstance = null;
+                            mIsCached = true;
+                        }
                     } catch (ServiceNotFoundException e) {
                         onServiceNotFound(e);
                     }
                 }
                 return mCachedInstance;
             }
+        }
+
+        protected boolean isServiceEnabled(ContextImpl ctx) {
+            return true;
         }
 
         public abstract T createService() throws ServiceNotFoundException;
@@ -2422,6 +2637,7 @@ public final class SystemServiceRegistry {
     }
 
     /** @hide */
+    @RavenwoodKeepWholeClass
     public static void onServiceNotFound(ServiceNotFoundException e) {
         // We're mostly interested in tracking down long-lived core system
         // components that might stumble if they obtain bad references; just

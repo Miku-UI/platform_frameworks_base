@@ -16,8 +16,6 @@
 
 package android.content.pm;
 
-import static android.content.pm.Flags.FLAG_OPTIMIZE_PARSING_IN_REGISTERED_SERVICES_CACHE;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -44,10 +42,10 @@ import android.os.Handler;
 import android.os.Message;
 import android.os.UserHandle;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.SparseArray;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -75,7 +73,6 @@ import java.util.Objects;
  */
 @Presubmit
 @RunWith(AndroidJUnit4.class)
-@RequiresFlagsEnabled(FLAG_OPTIMIZE_PARSING_IN_REGISTERED_SERVICES_CACHE)
 public class RegisteredServicesCacheUnitTest {
     private static final String TAG = "RegisteredServicesCacheUnitTest";
     private static final int U0 = 0;
@@ -344,8 +341,12 @@ public class RegisteredServicesCacheUnitTest {
         // of U1 user.
         doAnswer(invocation -> {
             Message message = invocation.getArgument(0);
-            if (!message.obj.equals(Integer.valueOf(U0))) {
-                message.getCallback().run();
+            if (message.obj instanceof RegisteredServicesCache.ServiceInfoCachesToken) {
+                final RegisteredServicesCache.ServiceInfoCachesToken token =
+                        (RegisteredServicesCache.ServiceInfoCachesToken) message.obj;
+                if (token.mUserId == U1) {
+                    message.getCallback().run();
+                }
             }
             return true;
         }).when(mMockBackgroundHandler).sendMessageAtTime(any(Message.class), anyLong());
@@ -367,6 +368,87 @@ public class RegisteredServicesCacheUnitTest {
         testServicesCache.invalidateCache(U1);
         testServicesCache.getAllServices(U1);
         verify(testServicesCache, times(1)).parseServiceInfo(eq(mResolveInfo2), eq(2000L));
+    }
+
+    @Test
+    public void testClearServiceInfoCachesForTwoDifferentInstancesAfterTimeout() throws Exception {
+        PackageInfo packageInfo1 = createPackageInfo(1000L /* lastUpdateTime */);
+        when(mMockPackageManager.getPackageInfoAsUser(eq(mResolveInfo1.serviceInfo.packageName),
+                anyInt(), eq(U0))).thenReturn(packageInfo1);
+
+        TestRegisteredServicesCache testServicesCache1 = spy(
+                new TestRegisteredServicesCache(mMockInjector, null /* serializerAndParser */));
+        final RegisteredServicesCache.ServiceInfo<TestServiceType> serviceInfo1 = newServiceInfo(
+                mTestServiceType1, UID1, mResolveInfo1.serviceInfo.getComponentName(),
+                1000L /* lastUpdateTime */);
+        testServicesCache1.addServiceForQuerying(U0, mResolveInfo1, serviceInfo1);
+
+        TestRegisteredServicesCache testServicesCache2 = spy(
+                new TestRegisteredServicesCache(mMockInjector, null /* serializerAndParser */));
+        testServicesCache2.addServiceForQuerying(U0, mResolveInfo1, serviceInfo1);
+
+        final ArrayList<RegisteredServicesCache<TestServiceType>> registeredServicesCacheArrayList =
+                new ArrayList<>();
+
+        doAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            if (message.obj instanceof RegisteredServicesCache.ServiceInfoCachesToken) {
+                final RegisteredServicesCache.ServiceInfoCachesToken token =
+                        (RegisteredServicesCache.ServiceInfoCachesToken) message.obj;
+                Log.d(TAG, "RegisteredServicesCache token: " + token.mRegisteredServicesCache);
+                registeredServicesCacheArrayList.add(token.mRegisteredServicesCache);
+            }
+            return true;
+        }).when(mMockBackgroundHandler).sendMessageAtTime(any(Message.class), anyLong());
+
+        testServicesCache1.getAllServices(U0);
+        verify(mMockBackgroundHandler, times(1)).sendMessageAtTime(any(Message.class), anyLong());
+
+        testServicesCache2.getAllServices(U0);
+        verify(mMockBackgroundHandler, times(2)).sendMessageAtTime(any(Message.class), anyLong());
+
+        assertThat(registeredServicesCacheArrayList.size()).isEqualTo(2);
+        assertThat(registeredServicesCacheArrayList.get(0)).isNotEqualTo(
+                registeredServicesCacheArrayList.get(1));
+    }
+
+    @Test
+    public void testClearServiceInfoCachesForTwoSameInstancesAfterTimeout() throws Exception {
+        PackageInfo packageInfo1 = createPackageInfo(1000L /* lastUpdateTime */);
+        when(mMockPackageManager.getPackageInfoAsUser(eq(mResolveInfo1.serviceInfo.packageName),
+                anyInt(), eq(U0))).thenReturn(packageInfo1);
+
+        TestRegisteredServicesCache testServicesCache1 = spy(
+                new TestRegisteredServicesCache(mMockInjector, null /* serializerAndParser */));
+        final RegisteredServicesCache.ServiceInfo<TestServiceType> serviceInfo1 = newServiceInfo(
+                mTestServiceType1, UID1, mResolveInfo1.serviceInfo.getComponentName(),
+                1000L /* lastUpdateTime */);
+        testServicesCache1.addServiceForQuerying(U0, mResolveInfo1, serviceInfo1);
+
+        final ArrayList<RegisteredServicesCache<TestServiceType>> registeredServicesCacheArrayList =
+                new ArrayList<>();
+
+        doAnswer(invocation -> {
+            Message message = invocation.getArgument(0);
+            if (message.obj instanceof RegisteredServicesCache.ServiceInfoCachesToken) {
+                final RegisteredServicesCache.ServiceInfoCachesToken token =
+                        (RegisteredServicesCache.ServiceInfoCachesToken) message.obj;
+                Log.d(TAG, "RegisteredServicesCache token: " + token.mRegisteredServicesCache);
+                registeredServicesCacheArrayList.add(token.mRegisteredServicesCache);
+            }
+            return true;
+        }).when(mMockBackgroundHandler).sendMessageAtTime(any(Message.class), anyLong());
+
+        testServicesCache1.getAllServices(U0);
+        verify(mMockBackgroundHandler, times(1)).sendMessageAtTime(any(Message.class), anyLong());
+
+        testServicesCache1.invalidateCache(U0);
+        testServicesCache1.getAllServices(U0);
+        verify(mMockBackgroundHandler, times(2)).sendMessageAtTime(any(Message.class), anyLong());
+
+        assertThat(registeredServicesCacheArrayList.size()).isEqualTo(2);
+        assertThat(registeredServicesCacheArrayList.get(0)).isEqualTo(
+                registeredServicesCacheArrayList.get(1));
     }
 
     private static RegisteredServicesCache.ServiceInfo<TestServiceType> newServiceInfo(

@@ -22,7 +22,21 @@ import android.graphics.PathMeasure;
 
 import com.android.internal.widget.remotecompose.core.operations.PathData;
 
+/**
+ * Utility class to convert a float array representation of a path into an Android {@link Path}
+ * object.
+ */
 public class FloatsToPath {
+    private FloatsToPath() {}
+
+    /**
+     * Converts a float array representing a path into a Path object.
+     *
+     * @param retPath The Path object to populate with the converted path data.
+     * @param floatPath The float array representing the path.
+     * @param start The starting percentage (0.0 to 1.0) of the path to include.
+     * @param stop The ending percentage (0.0 to 1.0) of the path to include.
+     */
     public static void genPath(Path retPath, float[] floatPath, float start, float stop) {
         int i = 0;
         Path path = new Path(); // todo this should be cached for performance
@@ -79,7 +93,6 @@ public class FloatsToPath {
         retPath.reset();
         if (start > 0f || stop < 1f) {
             if (start < stop) {
-
                 PathMeasure measure = new PathMeasure(); // todo cached
                 measure.setPath(path, false);
                 float len = measure.getLength();
@@ -88,7 +101,6 @@ public class FloatsToPath {
                 measure.getSegment(scaleStart, scaleStop, retPath, true);
             }
         } else {
-
             retPath.addPath(path);
         }
     }

@@ -21,6 +21,7 @@ import com.android.systemui.common.shared.model.Icon
 /** Models base buttons appearance. */
 data class ButtonViewModel(
     val icon: Icon,
-    val label: CharSequence,
+    val label: String,
     val isActive: Boolean = true,
+    val stateDescription: String? = null,
 )

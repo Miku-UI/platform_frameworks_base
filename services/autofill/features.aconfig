@@ -60,3 +60,10 @@ flag {
   description: "Adds focused id to each event that's part of the fill event history"
   bug: "334141398"
 }
+
+flag {
+  name: "support_multi_user_multi_display"
+  namespace: "autofill"
+  description: "Supports multiple concurrent users on different displays"
+  bug: "280116881"
+}

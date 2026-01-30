@@ -18,7 +18,6 @@ package com.android.systemui.statusbar.phone.ui
 
 import android.graphics.drawable.ColorDrawable
 import android.os.UserHandle
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.statusbar.StatusBarIcon
@@ -421,7 +420,6 @@ class StatusBarIconControllerImplTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_MODES_UI, android.app.Flags.FLAG_MODES_UI_ICONS)
     fun setResourceIcon_setsIconAndPreloadedIconInHolder() {
         val drawable = ColorDrawable(1)
         underTest.setResourceIcon(
@@ -430,7 +428,7 @@ class StatusBarIconControllerImplTest : SysuiTestCase() {
             123,
             drawable,
             "description",
-            StatusBarIcon.Shape.FIXED_SPACE
+            StatusBarIcon.Shape.FIXED_SPACE,
         )
 
         val iconHolder = iconList.getIconHolder("slot", 0)
@@ -456,14 +454,11 @@ class StatusBarIconControllerImplTest : SysuiTestCase() {
     }
 }
 
-class FakeBindableIconsRegistry(
-    override val bindableIcons: List<BindableIcon>,
-) : BindableIconsRegistry
+class FakeBindableIconsRegistry(override val bindableIcons: List<BindableIcon>) :
+    BindableIconsRegistry
 
-class FakeBindableIcon(
-    override val slot: String,
-    override val shouldBindIcon: Boolean = true,
-) : BindableIcon {
+class FakeBindableIcon(override val slot: String, override val shouldBindIcon: Boolean = true) :
+    BindableIcon {
     // Track initialized so we can know that our icon was properly bound
     var hasInitialized = false
 

@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.UserHandle
 import android.permission.PermissionGroupUsage
 import android.permission.PermissionManager
 import android.safetycenter.SafetyCenterManager
@@ -14,6 +15,8 @@ import com.android.internal.logging.UiEventLogger
 import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.appops.AppOpsController
 import com.android.systemui.broadcast.BroadcastDispatcher
+import com.android.systemui.dagger.qualifiers.Background
+import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.flags.FeatureFlags
 import com.android.systemui.flags.Flags
 import com.android.systemui.plugins.ActivityStarter
@@ -24,14 +27,13 @@ import com.android.systemui.privacy.PrivacyDialogControllerV2
 import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.privacy.PrivacyItemController
 import com.android.systemui.privacy.logging.PrivacyLogger
-import com.android.systemui.statusbar.phone.StatusIconContainer
-import java.util.concurrent.Executor
-import javax.inject.Inject
-import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.settings.UserTracker
 import com.android.systemui.shade.ShadeViewProviderModule.Companion.SHADE_HEADER
 import com.android.systemui.shade.domain.interactor.ShadeDialogContextInteractor
+import com.android.systemui.statusbar.phone.StatusIconContainer
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
+import java.util.concurrent.Executor
+import javax.inject.Inject
 import javax.inject.Named
 
 interface ChipVisibilityListener {
@@ -40,15 +42,17 @@ interface ChipVisibilityListener {
 
 /**
  * Controls privacy icons/chip residing in QS header which show up when app is using camera,
- * microphone or location.
- * Manages their visibility depending on privacy signals coming from [PrivacyItemController].
+ * microphone or location. Manages their visibility depending on privacy signals coming from
+ * [PrivacyItemController].
  *
  * Unlike typical controller extending [com.android.systemui.util.ViewController] this view doesn't
  * observe its attachment state because depending on where it is used, it might be never detached.
  * Instead, parent controller should use [onParentVisible] and [onParentInvisible] to "activate" or
  * "deactivate" this controller.
  */
-class HeaderPrivacyIconsController @Inject constructor(
+class HeaderPrivacyIconsController
+@Inject
+constructor(
     private val privacyItemController: PrivacyItemController,
     private val uiEventLogger: UiEventLogger,
     @Named(SHADE_HEADER) private val privacyChip: OngoingPrivacyChip,
@@ -66,6 +70,7 @@ class HeaderPrivacyIconsController @Inject constructor(
     private val deviceProvisionedController: DeviceProvisionedController,
     private val featureFlags: FeatureFlags,
     private val shadeDialogContextInteractor: ShadeDialogContextInteractor,
+    private val userTracker: UserTracker,
 ) {
 
     var chipVisibilityListener: ChipVisibilityListener? = null
@@ -80,25 +85,27 @@ class HeaderPrivacyIconsController @Inject constructor(
     private val dialogContext: Context
         get() = shadeDialogContextInteractor.context
 
-    private val safetyCenterReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            safetyCenterEnabled = safetyCenterManager.isSafetyCenterEnabled()
+    private val safetyCenterReceiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                safetyCenterEnabled = safetyCenterManager.isSafetyCenterEnabled()
+            }
         }
-    }
 
-    val attachStateChangeListener = object : View.OnAttachStateChangeListener {
-        override fun onViewAttachedToWindow(v: View) {
-            broadcastDispatcher.registerReceiver(
+    val attachStateChangeListener =
+        object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) {
+                broadcastDispatcher.registerReceiver(
                     safetyCenterReceiver,
                     IntentFilter(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
-                    executor = backgroundExecutor
-            )
-        }
+                    executor = backgroundExecutor,
+                )
+            }
 
-        override fun onViewDetachedFromWindow(v: View) {
-            broadcastDispatcher.unregisterReceiver(safetyCenterReceiver)
+            override fun onViewDetachedFromWindow(v: View) {
+                broadcastDispatcher.unregisterReceiver(safetyCenterReceiver)
+            }
         }
-    }
 
     init {
         backgroundExecutor.execute {
@@ -107,9 +114,9 @@ class HeaderPrivacyIconsController @Inject constructor(
 
         if (privacyChip.isAttachedToWindow()) {
             broadcastDispatcher.registerReceiver(
-                    safetyCenterReceiver,
-                    IntentFilter(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
-                    executor = backgroundExecutor
+                safetyCenterReceiver,
+                IntentFilter(SafetyCenterManager.ACTION_SAFETY_CENTER_ENABLED_CHANGED),
+                executor = backgroundExecutor,
             )
         }
 
@@ -117,31 +124,31 @@ class HeaderPrivacyIconsController @Inject constructor(
     }
 
     private val picCallback: PrivacyItemController.Callback =
-            object : PrivacyItemController.Callback {
-        override fun onPrivacyItemsChanged(privacyItems: List<PrivacyItem>) {
-            privacyChip.privacyList = privacyItems
-            setChipVisibility(privacyItems.isNotEmpty())
-        }
+        object : PrivacyItemController.Callback {
+            override fun onPrivacyItemsChanged(privacyItems: List<PrivacyItem>) {
+                privacyChip.privacyList = privacyItems
+                setChipVisibility(privacyItems.isNotEmpty())
+            }
 
-        override fun onFlagMicCameraChanged(flag: Boolean) {
-            if (micCameraIndicatorsEnabled != flag) {
-                micCameraIndicatorsEnabled = flag
-                update()
+            override fun onFlagMicCameraChanged(flag: Boolean) {
+                if (micCameraIndicatorsEnabled != flag) {
+                    micCameraIndicatorsEnabled = flag
+                    update()
+                }
+            }
+
+            override fun onFlagLocationChanged(flag: Boolean) {
+                if (locationIndicatorsEnabled != flag) {
+                    locationIndicatorsEnabled = flag
+                    update()
+                }
+            }
+
+            private fun update() {
+                updatePrivacyIconSlots()
+                setChipVisibility(privacyChip.privacyList.isNotEmpty())
             }
         }
-
-        override fun onFlagLocationChanged(flag: Boolean) {
-            if (locationIndicatorsEnabled != flag) {
-                locationIndicatorsEnabled = flag
-                update()
-            }
-        }
-
-        private fun update() {
-            updatePrivacyIconSlots()
-            setChipVisibility(privacyChip.privacyList.isNotEmpty())
-        }
-    }
 
     private fun getChipEnabled() = micCameraIndicatorsEnabled || locationIndicatorsEnabled
 
@@ -171,22 +178,39 @@ class HeaderPrivacyIconsController @Inject constructor(
 
     private fun showSafetyCenter() {
         backgroundExecutor.execute {
-            val usage = ArrayList(permGroupUsage())
+            val usage = permGroupUsage()
             privacyLogger.logUnfilteredPermGroupUsage(usage)
             val startSafetyCenter = Intent(Intent.ACTION_VIEW_SAFETY_CENTER_QS)
-            startSafetyCenter.putParcelableArrayListExtra(PermissionManager.EXTRA_PERMISSION_USAGES,
-                usage)
+            startSafetyCenter.putParcelableArrayListExtra(
+                PermissionManager.EXTRA_PERMISSION_USAGES,
+                usage,
+            )
             startSafetyCenter.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             uiExecutor.execute {
-                activityStarter.startActivity(startSafetyCenter, true,
-                    ActivityTransitionAnimator.Controller.fromView(privacyChip))
+                activityStarter.startActivity(
+                    startSafetyCenter,
+                    true,
+                    ActivityTransitionAnimator.Controller.fromView(privacyChip),
+                )
             }
         }
     }
 
     @WorkerThread
-    private fun permGroupUsage(): List<PermissionGroupUsage> {
-        return permissionManager.getIndicatorAppOpUsageData(appOpsController.isMicMuted)
+    fun permGroupUsage(): ArrayList<PermissionGroupUsage> {
+        val usages =
+            ArrayList(permissionManager.getIndicatorAppOpUsageData(appOpsController.isMicMuted))
+        val invalidUserUsages = mutableListOf<PermissionGroupUsage>()
+        val userProfiles = userTracker.userProfiles
+        for (usage in usages) {
+            val userId = UserHandle.getUserId(usage.uid)
+            if (usage.isPhoneCall || userProfiles.any { it.id == userId }) {
+                continue
+            }
+            invalidUserUsages.add(usage)
+        }
+        usages.removeAll(invalidUserUsages)
+        return usages
     }
 
     fun onParentInvisible() {

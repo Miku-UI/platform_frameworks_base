@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"ਐਪਾਂ ਵਿਚਾਲੇ ਤੇਜ਼ੀ ਨਾਲ ਅਦਲਾ-ਬਦਲੀ ਕਰਨ ਲਈ ਖੱਬੇ ਪਾਸੇ ਵੱਲ ਘਸੀਟੋ"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"ਸੂਚਨਾਵਾਂ ਖੋਲ੍ਹਣ ਲਈ ਸਿਖਰਲੇ ਸੱਜੇ ਪਾਸੇ ਤੋਂ ਸਵਾਈਪ ਕਰੋ"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"ਤਤਕਾਲ ਸੈਟਿੰਗਾਂ ਖੋਲ੍ਹਣ ਲਈ ਸਿਖਰਲੇ ਖੱਬੇ ਪਾਸੇ ਤੋਂ ਸਵਾਈਪ ਕਰੋ"</string>
 </resources>

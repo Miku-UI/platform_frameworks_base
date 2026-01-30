@@ -31,7 +31,7 @@ import java.util.ArrayDeque;
  * Validates manifest files by ensuring that tag counts and the length of string attributes are
  * restricted.
  *
- * {@hide}
+ * @hide
  */
 @RavenwoodKeepWholeClass
 public class Validator {

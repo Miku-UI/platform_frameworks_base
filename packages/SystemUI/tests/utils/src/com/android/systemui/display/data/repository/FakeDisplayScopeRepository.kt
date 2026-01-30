@@ -17,6 +17,7 @@
 package com.android.systemui.display.data.repository
 
 import com.android.app.displaylib.PerDisplayRepository
+import java.util.function.Consumer
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 
@@ -29,5 +30,9 @@ class FakeDisplayScopeRepository(
 
     override fun get(displayId: Int): CoroutineScope {
         return perDisplayScopes.computeIfAbsent(displayId) { CoroutineScope(dispatcher) }
+    }
+
+    override fun forEach(createIfAbsent: Boolean, action: Consumer<CoroutineScope>) {
+        perDisplayScopes.forEach { (_, scope) -> action.accept(scope) }
     }
 }

@@ -16,10 +16,12 @@
 
 package android.app.slice;
 
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
 import static android.content.pm.PackageManager.PERMISSION_DENIED;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SdkConstant;
 import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SystemService;
@@ -33,6 +35,7 @@ import android.content.pm.PackageManager.PermissionResult;
 import android.content.pm.ResolveInfo;
 import android.net.Uri;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -65,6 +68,8 @@ import java.util.Set;
  *          {@link android.app.appsearch.AppSearchManager}.
  */
 @Deprecated
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 @SystemService(Context.SLICE_SERVICE)
 public class SliceManager {
 

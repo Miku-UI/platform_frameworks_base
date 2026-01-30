@@ -23,6 +23,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.lifecycle.repeatWhenAttached
 import java.util.function.Consumer
 import javax.inject.Inject
@@ -41,7 +42,12 @@ import kotlinx.coroutines.plus
 
 /** A class allowing Java classes to collect on Kotlin flows. */
 @SysUISingleton
-class JavaAdapter @Inject constructor(@Application private val scope: CoroutineScope) {
+class JavaAdapter
+@Inject
+constructor(
+    @Application private val applicationScope: CoroutineScope,
+    @Background private val backgroundScope: CoroutineScope,
+) {
     /**
      * Collect information for the given [flow], calling [consumer] for each emitted event.
      *
@@ -54,6 +60,19 @@ class JavaAdapter @Inject constructor(@Application private val scope: CoroutineS
      * [com.android.systemui.CoreStartable.start] or similar method.
      */
     fun <T> alwaysCollectFlow(flow: Flow<T>, consumer: Consumer<T>): Job {
+        return alwaysCollectFlow(applicationScope, flow, consumer)
+    }
+
+    /** See [alwaysCollectFlow] */
+    fun <T> alwaysCollectFlowInBackground(flow: Flow<T>, consumer: Consumer<T>): Job {
+        return alwaysCollectFlow(backgroundScope, flow, consumer)
+    }
+
+    private fun <T> alwaysCollectFlow(
+        scope: CoroutineScope,
+        flow: Flow<T>,
+        consumer: Consumer<T>,
+    ): Job {
         return scope.launch { flow.collect { consumer.accept(it) } }
     }
 
@@ -63,7 +82,7 @@ class JavaAdapter @Inject constructor(@Application private val scope: CoroutineS
         initialValue: T,
         started: SharingStarted = SharingStarted.Eagerly,
     ): StateFlow<T> {
-        return flow.stateIn(scope, started, initialValue)
+        return flow.stateIn(applicationScope, started, initialValue)
     }
 
     /** Call suspend functions from Java */
@@ -74,7 +93,7 @@ class JavaAdapter @Inject constructor(@Application private val scope: CoroutineS
         onCancel: (CancellationException) -> Unit,
         onFailure: (Throwable) -> Unit,
     ): Job =
-        scope.launch {
+        applicationScope.launch {
             val result =
                 try {
                     suspendFunction(arg)

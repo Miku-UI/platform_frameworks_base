@@ -16,8 +16,6 @@
 
 package com.android.internal.app;
 
-import static android.service.chooser.Flags.notifySingleItemChangeOnIconLoad;
-
 import static com.android.internal.app.ChooserActivity.TARGET_TYPE_SHORTCUTS_FROM_PREDICTION_SERVICE;
 import static com.android.internal.app.ChooserActivity.TARGET_TYPE_SHORTCUTS_FROM_SHORTCUT_MANAGER;
 
@@ -101,7 +99,6 @@ public class ChooserListAdapter extends ResolverListAdapter {
 
     private final ChooserActivity.BaseChooserTargetComparator mBaseTargetComparator =
             new ChooserActivity.BaseChooserTargetComparator();
-    private boolean mListViewDataChanged = false;
 
     // Sorted list of DisplayResolveInfos for the alphabetical app section.
     private List<DisplayResolveInfo> mSortedList = new ArrayList<>();
@@ -243,21 +240,6 @@ public class ChooserListAdapter extends ResolverListAdapter {
 
     }
 
-    @Override
-    public void notifyDataSetChanged() {
-        if (!mListViewDataChanged) {
-            mChooserListCommunicator.sendListViewUpdateMessage(getUserHandle());
-            mListViewDataChanged = true;
-        }
-    }
-
-    void refreshListView() {
-        if (mListViewDataChanged) {
-            super.notifyDataSetChanged();
-        }
-        mListViewDataChanged = false;
-    }
-
     private void createPlaceHolders() {
         mNumShortcutResults = 0;
         mServiceTargets.clear();
@@ -342,7 +324,7 @@ public class ChooserListAdapter extends ResolverListAdapter {
 
     @Override
     protected void onIconLoaded(DisplayResolveInfo info) {
-        if (notifySingleItemChangeOnIconLoad() && mOnIconLoadedListener != null) {
+        if (mOnIconLoadedListener != null) {
             mOnIconLoadedListener.accept(info);
         } else {
             notifyDataSetChanged();
@@ -791,8 +773,6 @@ public class ChooserListAdapter extends ResolverListAdapter {
     public interface ChooserListCommunicator extends ResolverListCommunicator {
 
         int getMaxRankedTargets();
-
-        void sendListViewUpdateMessage(UserHandle userHandle);
 
         boolean isSendAction(Intent targetIntent);
 

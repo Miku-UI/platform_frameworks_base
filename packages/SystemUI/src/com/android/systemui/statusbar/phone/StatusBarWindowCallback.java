@@ -15,7 +15,7 @@
  */
 package com.android.systemui.statusbar.phone;
 
-import com.android.systemui.util.annotations.WeaklyReferencedCallback;
+import com.android.internal.annotations.WeaklyReferencedCallback;
 
 @WeaklyReferencedCallback
 public interface StatusBarWindowCallback {

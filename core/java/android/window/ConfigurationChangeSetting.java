@@ -30,7 +30,6 @@ import android.view.IWindowManager;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.server.LocalServices;
-import com.android.window.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -61,12 +60,6 @@ public abstract class ConfigurationChangeSetting implements Parcelable {
     private final int mSettingType;
 
     private ConfigurationChangeSetting(@SettingType int settingType) {
-        if (!Flags.condenseConfigurationChangeForSimpleMode()) {
-            throw new IllegalStateException(
-                    "ConfigurationChangeSetting cannot be instantiated because the "
-                            + "condenseConfigurationChangeForSimpleMode flag is not enabled. "
-                            + "Please ensure this flag is enabled.");
-        }
         mSettingType = settingType;
     }
 

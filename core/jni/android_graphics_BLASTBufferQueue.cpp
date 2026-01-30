@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-#undef ANDROID_UTILS_REF_BASE_DISABLE_IMPLICIT_CONSTRUCTION // TODO:remove this and fix code
 
 #define LOG_TAG "BLASTBufferQueue"
 
@@ -21,6 +20,7 @@
 #include <android_runtime/android_view_Surface.h>
 #include <android_util_Binder.h>
 #include <gui/BLASTBufferQueue.h>
+#include <gui/CornerRadii.h>
 #include <gui/Surface.h>
 #include <gui/SurfaceComposerClient.h>
 #include <nativehelper/JNIHelp.h>
@@ -122,6 +122,52 @@ private:
     jobject mWaitForBufferReleaseObject;
 };
 
+struct {
+    jmethodID onCornerRadiiChanged;
+} gCornerRadiiCallback;
+
+class CornerRadiiCallbackWrapper : public LightRefBase<CornerRadiiCallbackWrapper> {
+public:
+    explicit CornerRadiiCallbackWrapper(JNIEnv* env, jobject jobject) {
+        env->GetJavaVM(&mVm);
+        mCornerRadiiCallbackObject = env->NewGlobalRef(jobject);
+        LOG_ALWAYS_FATAL_IF(!mCornerRadiiCallbackObject, "Failed to make global ref");
+    }
+
+    ~CornerRadiiCallbackWrapper() {
+        if (mCornerRadiiCallbackObject != nullptr) {
+            getenv(mVm)->DeleteGlobalRef(mCornerRadiiCallbackObject);
+            mCornerRadiiCallbackObject = nullptr;
+        }
+    }
+
+    void onCornerRadiiChanged(const gui::CornerRadii cornerRadii) {
+        JNIEnv* env = getenv(mVm);
+        ScopedLocalRef<jfloatArray> javaCornerRadiiArray(env, env->NewFloatArray(4));
+        if (javaCornerRadiiArray == nullptr) {
+            ALOGE("Failed to create new Java float array for cornerRadii");
+            return;
+        }
+
+        jfloat tempCornerRadii[4];
+        tempCornerRadii[0] = cornerRadii.topLeft.x;
+        tempCornerRadii[1] = cornerRadii.topRight.x;
+        tempCornerRadii[2] = cornerRadii.bottomLeft.x;
+        tempCornerRadii[3] = cornerRadii.bottomRight.x;
+
+        env->SetFloatArrayRegion(javaCornerRadiiArray.get(), 0, 4, tempCornerRadii);
+        getenv(mVm)->CallVoidMethod(mCornerRadiiCallbackObject,
+                                    gCornerRadiiCallback.onCornerRadiiChanged,
+                                    javaCornerRadiiArray.get());
+
+        DieIfException(env, "Uncaught exception in CornerRadiiCallback.");
+    }
+
+private:
+    JavaVM* mVm;
+    jobject mCornerRadiiCallbackObject;
+};
+
 static jlong nativeCreate(JNIEnv* env, jclass clazz, jstring jName,
                           jboolean updateDestinationFrame) {
     ScopedUtfChars name(env, jName);
@@ -131,13 +177,13 @@ static jlong nativeCreate(JNIEnv* env, jclass clazz, jstring jName,
 }
 
 static void nativeDestroy(JNIEnv* env, jclass clazz, jlong ptr) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     queue->decStrong((void*)nativeCreate);
 }
 
 static jobject nativeGetSurface(JNIEnv* env, jclass clazz, jlong ptr,
                                 jboolean includeSurfaceControlHandle) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     return android_view_Surface_createFromSurface(env,
                                                   queue->getSurface(includeSurfaceControlHandle));
 }
@@ -166,7 +212,7 @@ static bool nativeSyncNextTransaction(JNIEnv* env, jclass clazz, jlong ptr, jobj
                                       jboolean acquireSingleBuffer) {
     LOG_ALWAYS_FATAL_IF(!callback, "callback passed in to syncNextTransaction must not be NULL");
 
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     JavaVM* vm = nullptr;
     LOG_ALWAYS_FATAL_IF(env->GetJavaVM(&vm) != JNI_OK, "Unable to get Java VM");
 
@@ -186,51 +232,53 @@ static bool nativeSyncNextTransaction(JNIEnv* env, jclass clazz, jlong ptr, jobj
 }
 
 static void nativeStopContinuousSyncTransaction(JNIEnv* env, jclass clazz, jlong ptr) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     queue->stopContinuousSyncTransaction();
 }
 
 static void nativeClearSyncTransaction(JNIEnv* env, jclass clazz, jlong ptr) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     queue->clearSyncTransaction();
 }
 
-static void nativeUpdate(JNIEnv* env, jclass clazz, jlong ptr, jlong surfaceControl, jlong width,
+static void nativeUpdate(JNIEnv* env, jclass clazz, jlong ptr, jlong surfaceControlPtr, jlong width,
                          jlong height, jint format) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
-    queue->update(reinterpret_cast<SurfaceControl*>(surfaceControl), width, height, format);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto surfaceControl = SpFromRawPtr<SurfaceControl>(surfaceControlPtr);
+    queue->update(surfaceControl, width, height, format);
 }
 
 static void nativeMergeWithNextTransaction(JNIEnv*, jclass clazz, jlong ptr, jlong transactionPtr,
                                            jlong framenumber) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     auto transaction = reinterpret_cast<SurfaceComposerClient::Transaction*>(transactionPtr);
     queue->mergeWithNextTransaction(transaction, CC_UNLIKELY(framenumber < 0) ? 0 : framenumber);
 }
 
 static jlong nativeGetLastAcquiredFrameNum(JNIEnv* env, jclass clazz, jlong ptr) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     return queue->getLastAcquiredFrameNum();
 }
 
 static void nativeApplyPendingTransactions(JNIEnv* env, jclass clazz, jlong ptr, jlong frameNum) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     queue->applyPendingTransactions(frameNum);
 }
 
-static bool nativeIsSameSurfaceControl(JNIEnv* env, jclass clazz, jlong ptr, jlong surfaceControl) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
-    return queue->isSameSurfaceControl(reinterpret_cast<SurfaceControl*>(surfaceControl));
+static bool nativeIsSameSurfaceControl(JNIEnv* env, jclass clazz, jlong ptr,
+                                       jlong surfaceControlPtr) {
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto surfaceControl = SpFromRawPtr<SurfaceControl>(surfaceControlPtr);
+    return queue->isSameSurfaceControl(surfaceControl);
 }
 
 static void nativeSetTransactionHangCallback(JNIEnv* env, jclass clazz, jlong ptr,
                                              jobject transactionHangCallback) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     if (transactionHangCallback == nullptr) {
         queue->setTransactionHangCallback(nullptr);
     } else {
-        sp<TransactionHangCallbackWrapper> wrapper =
-                new TransactionHangCallbackWrapper{env, transactionHangCallback};
+        auto wrapper = sp<TransactionHangCallbackWrapper>::make(env, transactionHangCallback);
         queue->setTransactionHangCallback(
                 [wrapper](const std::string& reason) { wrapper->onTransactionHang(reason); });
     }
@@ -238,26 +286,39 @@ static void nativeSetTransactionHangCallback(JNIEnv* env, jclass clazz, jlong pt
 
 static jobject nativeGatherPendingTransactions(JNIEnv* env, jclass clazz, jlong ptr,
                                                jlong frameNum) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     SurfaceComposerClient::Transaction* transaction = queue->gatherPendingTransactions(frameNum);
     return env->NewObject(gTransactionClassInfo.clazz, gTransactionClassInfo.ctor,
                           reinterpret_cast<jlong>(transaction));
 }
 
 static void nativeSetApplyToken(JNIEnv* env, jclass clazz, jlong ptr, jobject applyTokenObject) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     sp<IBinder> token(ibinderForJavaObject(env, applyTokenObject));
     return queue->setApplyToken(std::move(token));
 }
 
+static void nativeSetCornerRadiiCallback(JNIEnv* env, jclass clazz, jlong ptr,
+                                         jobject cornerRadiiCallback) {
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    if (cornerRadiiCallback == nullptr) {
+        queue->setCornerRadiiCallback(nullptr);
+    } else {
+        auto wrapper = sp<CornerRadiiCallbackWrapper>::make(env, cornerRadiiCallback);
+        queue->setCornerRadiiCallback([wrapper](const gui::CornerRadii cornerRadii) {
+            wrapper->onCornerRadiiChanged(cornerRadii);
+        });
+    }
+}
+
 static void nativeSetWaitForBufferReleaseCallback(JNIEnv* env, jclass clazz, jlong ptr,
                                                   jobject waitForBufferReleaseCallback) {
-    sp<BLASTBufferQueue> queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
+    auto queue = reinterpret_cast<BLASTBufferQueue*>(ptr);
     if (waitForBufferReleaseCallback == nullptr) {
         queue->setWaitForBufferReleaseCallback(nullptr);
     } else {
-        sp<WaitForBufferReleaseCallbackWrapper> wrapper =
-                new WaitForBufferReleaseCallbackWrapper{env, waitForBufferReleaseCallback};
+        auto wrapper =
+                sp<WaitForBufferReleaseCallbackWrapper>::make(env, waitForBufferReleaseCallback);
         queue->setWaitForBufferReleaseCallback([wrapper](const nsecs_t durationNanos) {
             wrapper->onWaitForBufferRelease(durationNanos);
         });
@@ -286,6 +347,9 @@ static const JNINativeMethod gMethods[] = {
         {"nativeSetWaitForBufferReleaseCallback",
          "(JLandroid/graphics/BLASTBufferQueue$WaitForBufferReleaseCallback;)V",
          (void*)nativeSetWaitForBufferReleaseCallback},
+        {"nativeSetCornerRadiiCallback",
+         "(JLandroid/graphics/BLASTBufferQueue$CornerRadiiCallback;)V",
+         (void*)nativeSetCornerRadiiCallback},
         // clang-format on
 };
 
@@ -311,6 +375,10 @@ int register_android_graphics_BLASTBufferQueue(JNIEnv* env) {
             FindClassOrDie(env, "android/graphics/BLASTBufferQueue$WaitForBufferReleaseCallback");
     gWaitForBufferReleaseCallback.onWaitForBufferRelease =
             GetMethodIDOrDie(env, waitForBufferReleaseClass, "onWaitForBufferRelease", "(J)V");
+    jclass cornerRadiiCallbackClass =
+            FindClassOrDie(env, "android/graphics/BLASTBufferQueue$CornerRadiiCallback");
+    gCornerRadiiCallback.onCornerRadiiChanged =
+            GetMethodIDOrDie(env, cornerRadiiCallbackClass, "onCornerRadiiChanged", "([F)V");
 
     return 0;
 }

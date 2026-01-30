@@ -16,6 +16,7 @@
 
 package android.media.projection;
 
+import android.Manifest;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SuppressLint;
@@ -23,12 +24,15 @@ import android.annotation.SystemService;
 import android.annotation.TestApi;
 import android.app.Activity;
 import android.app.ActivityOptions.LaunchCookie;
+import android.app.job.JobParameters.StopReason;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.Disabled;
 import android.compat.annotation.Overridable;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.hardware.display.VirtualDisplay;
 import android.os.Handler;
 import android.os.IBinder;
@@ -38,6 +42,8 @@ import android.util.ArrayMap;
 import android.util.Log;
 import android.view.ContentRecordingSession;
 import android.view.Surface;
+
+import com.android.media.projection.flags.Flags;
 
 import java.util.Map;
 
@@ -187,14 +193,47 @@ public final class MediaProjectionManager {
      *
      * @param config Customization for the {@link MediaProjection} that this {@link Intent} requests
      *               the user's consent for.
+     * @throws IllegalArgumentException if
+     * {@link MediaProjectionConfig#isOwnAppContentProvided()} is true but no
+     * {@link AppContentProjectionService} is declared.
+     *
      * @return An {@link Intent} requesting the user's consent, specialized based upon the given
      * configuration.
      */
     @NonNull
     public Intent createScreenCaptureIntent(@NonNull MediaProjectionConfig config) {
+        if (Flags.appContentSharing()) {
+            if (config.isOwnAppContentProvided()) {
+                checkAppContentPrerequisites();
+            }
+        }
         Intent i = createScreenCaptureIntent();
         i.putExtra(EXTRA_MEDIA_PROJECTION_CONFIG, config);
         return i;
+    }
+
+    private void checkAppContentPrerequisites() {
+        PackageManager packageManager = mContext.getPackageManager();
+        Intent serviceIntent = new Intent(AppContentProjectionService.SERVICE_INTERFACE)
+                .setPackage(mContext.getPackageName());
+
+        ResolveInfo resolveInfo = packageManager.resolveService(serviceIntent,
+                PackageManager.MATCH_ALL);
+        Log.d(TAG, "ResolveInfo:" + (resolveInfo == null ? "null" : resolveInfo.toString()));
+        if (resolveInfo == null) {
+            Log.w(TAG, "Could not resolve service declaring an intent-filter with "
+                    + AppContentProjectionService.SERVICE_INTERFACE);
+            throw new IllegalArgumentException(
+                    "Could not resolve service declaring an intent-filter with "
+                            + AppContentProjectionService.SERVICE_INTERFACE);
+        }
+        if (resolveInfo != null && !Manifest.permission.MANAGE_MEDIA_PROJECTION.equals(
+                resolveInfo.serviceInfo.permission)) {
+            Log.w(TAG,
+                    "Service declaring action %s must check %s".formatted(
+                            AppContentProjectionService.SERVICE_INTERFACE,
+                            Manifest.permission.MANAGE_MEDIA_PROJECTION));
+        }
     }
 
     /**

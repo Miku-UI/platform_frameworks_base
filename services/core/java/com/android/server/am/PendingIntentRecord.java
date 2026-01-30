@@ -20,10 +20,10 @@ import static android.app.ActivityManager.PROCESS_STATE_TOP;
 import static android.app.ActivityManager.START_SUCCESS;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS;
+import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_COMPAT;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_DENIED;
 import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_SYSTEM_DEFINED;
-import static android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE;
 import static android.os.PowerWhitelistManager.TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_ALLOWED;
 import static android.os.PowerWhitelistManager.TEMPORARY_ALLOWLIST_TYPE_FOREGROUND_SERVICE_NOT_ALLOWED;
 import static android.os.Process.ROOT_UID;
@@ -31,6 +31,7 @@ import static android.os.Process.SYSTEM_UID;
 
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_WITH_CLASS_NAME;
+import static com.android.window.flags.Flags.balCheckBroadcastWhenDispatched;
 
 import android.annotation.IntDef;
 import android.annotation.Nullable;
@@ -731,9 +732,6 @@ public final class PendingIntentRecord extends IIntentSender.Stub {
      */
     @Nullable
     private Bundle createSafeActivityOptionsBundle(@Nullable Bundle optionsBundle) {
-        if (!com.android.window.flags.Flags.supportWidgetIntentsOnConnectedDisplay()) {
-            return null;
-        }
         if (optionsBundle == null) {
             return null;
         }
@@ -758,7 +756,8 @@ public final class PendingIntentRecord extends IIntentSender.Stub {
         }
         // temporarily allow receivers and services to open activities from background if the
         // PendingIntent.send() caller was foreground at the time of sendInner() call
-        if (uid != callingUid && controller.mAtmInternal.isUidForeground(callingUid)) {
+        if ((uid != callingUid || balCheckBroadcastWhenDispatched())
+                && controller.mAtmInternal.isUidForeground(callingUid)) {
             return getBackgroundStartPrivilegesAllowedByCaller(options, callingUid, null);
         }
         return BackgroundStartPrivileges.NONE;

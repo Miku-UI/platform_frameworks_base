@@ -48,10 +48,13 @@ import android.os.vibrator.StepSegment;
 import android.os.vibrator.VibrationEffectSegment;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.RequiresFlagsEnabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 
 import com.android.internal.R;
 
 import org.jetbrains.annotations.NotNull;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
@@ -61,6 +64,9 @@ import java.util.Arrays;
 
 @RunWith(MockitoJUnitRunner.class)
 public class VibrationEffectTest {
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
+
     private static final float TOLERANCE = 1e-2f;
     private static final String RINGTONE_URI_1 = "content://test/system/ringtone_1";
     private static final String RINGTONE_URI_2 = "content://test/system/ringtone_2";

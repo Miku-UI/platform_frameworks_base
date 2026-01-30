@@ -33,7 +33,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.Parcelable;
 import android.os.Process;
 import android.os.RemoteException;
 import android.os.SystemClock;
@@ -51,7 +50,7 @@ import android.view.accessibility.AccessibilityRequestPreparer;
 import android.view.accessibility.Flags;
 import android.view.accessibility.IAccessibilityInteractionConnectionCallback;
 import android.view.accessibility.IWindowSurfaceInfoCallback;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
@@ -596,11 +595,12 @@ public final class AccessibilityInteractionController {
     }
 
     /**
-     * Take a screenshot using {@link ScreenCapture} of this {@link ViewRootImpl}'s {@link
+     * Take a screenshot using {@link ScreenCaptureInternal} of this {@link ViewRootImpl}'s {@link
      * SurfaceControl}.
      */
-    public void takeScreenshotOfWindowClientThread(int interactionId,
-            ScreenCapture.ScreenCaptureListener listener,
+    public void takeScreenshotOfWindowClientThread(
+            int interactionId,
+            ScreenCaptureInternal.ScreenCaptureListener listener,
             IAccessibilityInteractionConnectionCallback callback) {
         Message message = PooledLambda.obtainMessage(
                 AccessibilityInteractionController::takeScreenshotOfWindowUiThread,
@@ -611,8 +611,9 @@ public final class AccessibilityInteractionController {
         mHandler.sendMessage(message);
     }
 
-    private void takeScreenshotOfWindowUiThread(int interactionId,
-            ScreenCapture.ScreenCaptureListener listener,
+    private void takeScreenshotOfWindowUiThread(
+            int interactionId,
+            ScreenCaptureInternal.ScreenCaptureListener listener,
             IAccessibilityInteractionConnectionCallback callback) {
         try {
             if ((mViewRootImpl.getWindowFlags() & WindowManager.LayoutParams.FLAG_SECURE) != 0) {
@@ -620,10 +621,13 @@ public final class AccessibilityInteractionController {
                         AccessibilityService.ERROR_TAKE_SCREENSHOT_SECURE_WINDOW, interactionId);
                 return;
             }
-            final ScreenCapture.LayerCaptureArgs captureArgs =
-                    new ScreenCapture.LayerCaptureArgs.Builder(mViewRootImpl.getSurfaceControl())
-                            .setChildrenOnly(false).setUid(Process.myUid()).build();
-            if (ScreenCapture.captureLayers(captureArgs, listener) != 0) {
+            final ScreenCaptureInternal.LayerCaptureArgs captureArgs =
+                    new ScreenCaptureInternal.LayerCaptureArgs.Builder(
+                                    mViewRootImpl.getSurfaceControl())
+                            .setChildrenOnly(false)
+                            .setUid(Process.myUid())
+                            .build();
+            if (ScreenCaptureInternal.captureLayers(captureArgs, listener) != 0) {
                 callback.sendTakeScreenshotOfWindowError(
                         AccessibilityService.ERROR_TAKE_SCREENSHOT_INTERNAL_ERROR, interactionId);
             }
@@ -644,8 +648,20 @@ public final class AccessibilityInteractionController {
 
     private void getWindowSurfaceInfoUiThread(IWindowSurfaceInfoCallback callback) {
         try {
-            callback.provideWindowSurfaceInfo(mViewRootImpl.getWindowFlags(), Process.myUid(),
-                    mViewRootImpl.getSurfaceControl());
+            if (Flags.copySurfaceControlForWindowScreenshots()) {
+                SurfaceControl sc = mViewRootImpl.getSurfaceControl();
+                if (sc.isValid()) {
+                    SurfaceControl copiedSc = new SurfaceControl(sc,
+                            "AccessibilityInteractionController"
+                                    + "#getWindowSurfaceInfoUiThread");
+                    callback.provideWindowSurfaceInfo(mViewRootImpl.getWindowFlags(),
+                            Process.myUid(),
+                            copiedSc);
+                }
+            } else {
+                callback.provideWindowSurfaceInfo(mViewRootImpl.getWindowFlags(), Process.myUid(),
+                        mViewRootImpl.getSurfaceControl());
+            }
         } catch (RemoteException re) {
             // ignore - the other side will time out
         }
@@ -963,11 +979,23 @@ public final class AccessibilityInteractionController {
         }
     }
 
-    private View getRootView() {
+    /**
+     * @hide
+     */
+    @VisibleForTesting
+    public View getRootView() {
         if (!isVisibleToAccessibilityService(mViewRootImpl.mView)) {
             return null;
         }
-        return mViewRootImpl.mView;
+        if (Flags.ignoreUnimportantRoot()) {
+            if (mViewRootImpl.mView == null || !mViewRootImpl.mView.includeForAccessibility()) {
+                return null;
+            } else {
+                return mViewRootImpl.mView;
+            }
+        } else {
+            return mViewRootImpl.mView;
+        }
     }
 
     private void setAccessibilityFetchFlags(int flags) {
@@ -1273,11 +1301,11 @@ public final class AccessibilityInteractionController {
 
     private boolean handleClickableSpanActionUiThread(
             View view, int virtualDescendantId, Bundle arguments) {
-        Parcelable span = arguments.getParcelable(ACTION_ARGUMENT_ACCESSIBLE_CLICKABLE_SPAN);
-        if (!(span instanceof AccessibilityClickableSpan)) {
+        AccessibilityClickableSpan span = arguments.getParcelable(
+                ACTION_ARGUMENT_ACCESSIBLE_CLICKABLE_SPAN, AccessibilityClickableSpan.class);
+        if (span == null) {
             return false;
         }
-
         // Find the original ClickableSpan if it's still on the screen
         AccessibilityNodeInfo infoWithSpan = null;
         AccessibilityNodeProvider provider = view.getAccessibilityNodeProvider();
@@ -1291,7 +1319,7 @@ public final class AccessibilityInteractionController {
         }
 
         // Click on the corresponding span
-        ClickableSpan clickableSpan = ((AccessibilityClickableSpan) span).findClickableSpan(
+        ClickableSpan clickableSpan = span.findClickableSpan(
                 infoWithSpan.getOriginalText());
         if (clickableSpan != null) {
             clickableSpan.onClick(view);

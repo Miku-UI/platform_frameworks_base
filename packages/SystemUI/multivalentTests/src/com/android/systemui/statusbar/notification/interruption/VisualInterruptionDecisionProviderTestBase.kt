@@ -56,6 +56,8 @@ import android.provider.Settings.Global.HEADS_UP_ON
 import com.android.internal.logging.UiEventLogger.UiEventEnum
 import com.android.internal.logging.testing.UiEventLoggerFake
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.LogcatEchoTracker
 import com.android.systemui.log.core.LogLevel
@@ -77,11 +79,12 @@ import com.android.systemui.statusbar.notification.interruption.NotificationInte
 import com.android.systemui.statusbar.notification.interruption.NotificationInterruptStateProviderImpl.NotificationInterruptEvent.FSI_SUPPRESSED_SUPPRESSIVE_GROUP_ALERT_BEHAVIOR
 import com.android.systemui.statusbar.notification.interruption.NotificationInterruptStateProviderImpl.NotificationInterruptEvent.HUN_SUPPRESSED_OLD_WHEN
 import com.android.systemui.statusbar.policy.FakeDeviceProvisionedController
+import com.android.systemui.statusbar.policy.data.repository.fakeDeviceProvisioningRepository
 import com.android.systemui.util.FakeEventLog
-import com.android.systemui.util.settings.FakeGlobalSettings
-import com.android.systemui.util.settings.FakeSettings
 import com.android.systemui.util.settings.SystemSettings
-import com.android.systemui.util.time.FakeSystemClock
+import com.android.systemui.util.settings.fakeGlobalSettings
+import com.android.systemui.util.settings.fakeSettings
+import com.android.systemui.util.time.fakeSystemClock
 import com.android.systemui.utils.leaks.FakeBatteryController
 import com.android.systemui.utils.leaks.FakeKeyguardStateController
 import com.android.systemui.utils.leaks.LeakCheckedTest
@@ -114,13 +117,14 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
 
     private val leakCheck = LeakCheckedTest.SysuiLeakCheck()
 
+    protected val kosmos = Kosmos()
     protected val ambientDisplayConfiguration = FakeAmbientDisplayConfiguration(context)
     protected val batteryController = FakeBatteryController(leakCheck)
     protected val deviceProvisionedController = FakeDeviceProvisionedController()
     protected val eventLog = FakeEventLog()
     protected val flags: NotifPipelineFlags = mock()
     protected val globalSettings =
-        FakeGlobalSettings().also { it.putInt(HEADS_UP_NOTIFICATIONS_ENABLED, HEADS_UP_ON) }
+        kosmos.fakeGlobalSettings.also { it.putInt(HEADS_UP_NOTIFICATIONS_ENABLED, HEADS_UP_ON) }
     protected val headsUpManager: HeadsUpManager = mock()
     protected val keyguardNotificationVisibilityProvider: KeyguardNotificationVisibilityProvider =
         mock()
@@ -130,7 +134,7 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
     protected val oldLogger = NotificationInterruptLogger(fakeLogBuffer)
     protected val powerManager: PowerManager = mock()
     protected val statusBarStateController = FakeStatusBarStateController()
-    protected val systemClock = FakeSystemClock()
+    protected val systemClock = kosmos.fakeSystemClock
     protected val uiEventLogger = UiEventLoggerFake()
     protected val userTracker = FakeUserTracker()
     protected val avalancheProvider: AvalancheProvider = mock()
@@ -139,6 +143,7 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
     protected val settingsInteractor: NotificationSettingsInteractor = mock()
     protected val packageManager: PackageManager = mock()
     protected val notificationManager: NotificationManager = mock()
+    protected val deviceProvisioningRepository = kosmos.fakeDeviceProvisioningRepository
     protected val logger: VisualInterruptionDecisionLogger = mock()
     protected abstract val provider: VisualInterruptionDecisionProvider
 
@@ -166,10 +171,12 @@ abstract class VisualInterruptionDecisionProviderTestBase : SysuiTestCase() {
 
         deviceProvisionedController.currentUser = userId
         userTracker.set(listOf(user), /* currentUserIndex= */ 0)
-        systemSettings = FakeSettings()
+        systemSettings = kosmos.fakeSettings
         whenever(bubbles.canShowBubbleNotification()).thenReturn(true)
         whenever(settingsInteractor.isCooldownEnabled).thenReturn(MutableStateFlow(true))
         provider.start()
+        // Needed to handle async settings registrations
+        kosmos.runCurrent()
     }
 
     @Test

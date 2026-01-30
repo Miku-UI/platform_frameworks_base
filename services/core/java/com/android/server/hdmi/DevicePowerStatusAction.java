@@ -42,7 +42,7 @@ final class DevicePowerStatusAction extends HdmiCecFeatureAction {
 
     // Retry the power status query as it might happen when the target device is waking up. In
     // that case a device may be quite busy and can fail to respond within the 2s timeout.
-    private int mRetriesOnTimeout = 1;
+    private int mRetriesOnTimeout = 3;
 
     static DevicePowerStatusAction create(HdmiCecLocalDevice source,
             int targetAddress, IHdmiControlCallback callback) {

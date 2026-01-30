@@ -38,8 +38,6 @@ import androidx.test.filters.SmallTest;
 import com.android.window.flags.Flags;
 import com.android.wm.shell.ShellTestCase;
 
-import com.google.common.testing.EqualsTester;
-
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -91,31 +89,45 @@ public class DragResizeWindowGeometryTests extends ShellTestCase {
      */
     @Test
     public void testEqualsAndHash() {
-        new EqualsTester()
-                .addEqualityGroup(
-                        GEOMETRY,
-                        new DragResizeWindowGeometry(TASK_CORNER_RADIUS, TASK_SIZE,
-                                EDGE_RESIZE_THICKNESS, EDGE_RESIZE_HANDLE_INSET, FINE_CORNER_SIZE,
-                                LARGE_CORNER_SIZE, DragResizeWindowGeometry.DisabledEdge.NONE))
-                .addEqualityGroup(
-                        new DragResizeWindowGeometry(TASK_CORNER_RADIUS, TASK_SIZE,
-                                EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
-                                FINE_CORNER_SIZE, LARGE_CORNER_SIZE,
-                                DragResizeWindowGeometry.DisabledEdge.NONE),
-                        new DragResizeWindowGeometry(TASK_CORNER_RADIUS, TASK_SIZE,
-                                EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
-                                FINE_CORNER_SIZE, LARGE_CORNER_SIZE,
-                                DragResizeWindowGeometry.DisabledEdge.NONE))
-                .addEqualityGroup(
-                        new DragResizeWindowGeometry(TASK_CORNER_RADIUS, TASK_SIZE,
-                                EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
-                                FINE_CORNER_SIZE,
-                                LARGE_CORNER_SIZE + 5, DragResizeWindowGeometry.DisabledEdge.NONE),
-                        new DragResizeWindowGeometry(TASK_CORNER_RADIUS, TASK_SIZE,
-                                EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
-                                FINE_CORNER_SIZE,
-                                LARGE_CORNER_SIZE + 5, DragResizeWindowGeometry.DisabledEdge.NONE))
-                .testEquals();
+        final DragResizeWindowGeometry geometry1 = new DragResizeWindowGeometry(
+                TASK_CORNER_RADIUS, TASK_SIZE, EDGE_RESIZE_THICKNESS, EDGE_RESIZE_HANDLE_INSET,
+                FINE_CORNER_SIZE, LARGE_CORNER_SIZE, DragResizeWindowGeometry.DisabledEdge.NONE);
+        // 2 & 3 are intentionally created with the same params
+        final DragResizeWindowGeometry geometry2 = new DragResizeWindowGeometry(
+                TASK_CORNER_RADIUS, TASK_SIZE, EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
+                FINE_CORNER_SIZE, LARGE_CORNER_SIZE, DragResizeWindowGeometry.DisabledEdge.NONE);
+        final DragResizeWindowGeometry geometry3 = new DragResizeWindowGeometry(
+                TASK_CORNER_RADIUS, TASK_SIZE, EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
+                FINE_CORNER_SIZE, LARGE_CORNER_SIZE, DragResizeWindowGeometry.DisabledEdge.NONE);
+        // 4 & 5 are intentionally created with the same params
+        final DragResizeWindowGeometry geometry4 = new DragResizeWindowGeometry(
+                TASK_CORNER_RADIUS, TASK_SIZE, EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
+                FINE_CORNER_SIZE, LARGE_CORNER_SIZE + 5,
+                DragResizeWindowGeometry.DisabledEdge.NONE);
+        final DragResizeWindowGeometry geometry5 = new DragResizeWindowGeometry(
+                TASK_CORNER_RADIUS, TASK_SIZE, EDGE_RESIZE_THICKNESS + 10, EDGE_RESIZE_HANDLE_INSET,
+                FINE_CORNER_SIZE, LARGE_CORNER_SIZE + 5,
+                DragResizeWindowGeometry.DisabledEdge.NONE);
+
+        // Assert that geometries with the same params are equal
+        assertThat(GEOMETRY).isEqualTo(geometry1);
+        assertThat(GEOMETRY.hashCode()).isEqualTo(geometry1.hashCode());
+
+        assertThat(geometry2).isEqualTo(geometry3);
+        assertThat(geometry2.hashCode()).isEqualTo(geometry3.hashCode());
+
+        assertThat(geometry4).isEqualTo(geometry5);
+        assertThat(geometry4.hashCode()).isEqualTo(geometry5.hashCode());
+
+        // Assert that geometries with different params are not equal
+        assertThat(geometry1).isNotEqualTo(geometry2);
+        assertThat(geometry1.hashCode()).isNotEqualTo(geometry2.hashCode());
+
+        assertThat(geometry1).isNotEqualTo(geometry4);
+        assertThat(geometry1.hashCode()).isNotEqualTo(geometry4.hashCode());
+
+        assertThat(geometry2).isNotEqualTo(geometry4);
+        assertThat(geometry2.hashCode()).isNotEqualTo(geometry4.hashCode());
     }
 
     @Test

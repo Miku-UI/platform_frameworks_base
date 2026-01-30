@@ -130,7 +130,7 @@ constructor(
         newSession?.addOnTargetsAvailableListener(uiExecutor, sessionListener)
         this.session = newSession
 
-        plugin?.registerSmartspaceEventNotifier { e -> session?.notifySmartspaceEvent(e) }
+        plugin.setEventDispatcher { e -> session?.notifySmartspaceEvent(e) }
 
         reloadSmartspace()
     }
@@ -152,7 +152,7 @@ constructor(
 
         session = null
 
-        plugin?.registerSmartspaceEventNotifier(null)
+        plugin?.setEventDispatcher(null)
         plugin?.onTargetsAvailable(emptyList())
         Log.d(TAG, "Ending smartspace session for communal")
     }

@@ -54,6 +54,11 @@ class FakeMobileConnectionRepositoryKairos(
         MutableState<ResolvedNetworkType>(kairos, ResolvedNetworkType.UnknownNetworkType)
     override val numberOfLevels = MutableState(kairos, DEFAULT_NUM_LEVELS)
     override val dataEnabled = MutableState(kairos, true)
+
+    override fun setDataEnabled(enabled: Boolean) {
+        dataEnabled.setValue(enabled)
+    }
+
     override val cdmaRoaming = MutableState(kairos, false)
     override val networkName =
         MutableState<NetworkNameModel>(kairos, NetworkNameModel.Default(DEFAULT_NETWORK_NAME))

@@ -3,15 +3,6 @@ container: "system"
 
 flag {
      namespace: "system_performance"
-     name: "pic_uses_shared_memory"
-     is_exported: true
-     is_fixed_read_only: true
-     description: "PropertyInvalidatedCache uses shared memory for nonces."
-     bug: "360897450"
-}
-
-flag {
-     namespace: "system_performance"
      name: "enforce_pic_testmode_protocol"
      is_exported: true
      is_fixed_read_only: true
@@ -21,39 +12,35 @@ flag {
 
 flag {
      namespace: "system_performance"
-     name: "pic_isolate_cache_by_uid"
-     is_fixed_read_only: true
-     description: "Ensure that different UIDs use different caches"
-     bug: "373752556"
-}
-
-flag {
-     namespace: "system_performance"
-     name: "pic_isolated_cache_statistics"
-     is_fixed_read_only: true
-     description: "Collects statistics for cache UID isolation strategies"
-     bug: "379098894"
-}
-
-flag {
-     namespace: "system_performance"
-     name: "pic_separate_permission_notifications"
-     is_fixed_read_only: true
-     description: "Seperate PermissionManager notifications from cache udpates"
-     bug: "379699402"
-}
-
-flag {
-     namespace: "system_performance"
-     name: "pic_cache_nulls"
-     is_fixed_read_only: true
-     description: "Cache null returns from binder calls"
-     bug: "372923336"
-}
-
-flag {
-     namespace: "system_performance"
      name: "pic_test_mode"
      description: "Updated test mode for PIC"
      bug: "396173886"
+}
+
+flag {
+     name: "app_exit_info_debug_memory_api"
+     namespace: "system_performance"
+     description: "Controls the ability to get Debug.MemoryInfo stats from ApplicationExitInfo api"
+     bug: "283096463"
+}
+
+flag {
+    name: "on_restart_activity_lifecycle_callback"
+    namespace: "system_performance"
+    description: "Controls the onRestart callback in ActivityLifeCycleCallbacks"
+    bug: "417520188"
+}
+
+flag {
+    name: "include_anr_subreason"
+    namespace: "system_performance"
+    description: "Include the ANR subreason in the description retrieved from ApplicationExitInfo"
+    bug: "295599954"
+}
+
+flag {
+     name: "sharedpreferences_skip_fsync"
+     namespace: "system_performance"
+     description: "What if SharedPreferences just didn't fsync()? Let's find out."
+     bug: "435433868"
 }

@@ -23,6 +23,7 @@ import com.android.systemui.kairos.KairosNetwork
 import com.android.systemui.kairos.runKairosTest
 import com.android.systemui.kairos.toColdConflatedFlow
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.google.common.truth.Truth.assertThat
@@ -40,7 +41,12 @@ class KairosCoreStartableTest : SysuiTestCase() {
     fun kairosNetwork_usedBeforeStarted() =
         testKosmos().useUnconfinedTestDispatcher().runKairosTest {
             lateinit var activatable: TestActivatable
-            val underTest = KairosCoreStartable(applicationCoroutineScope) { setOf(activatable) }
+            val underTest =
+                KairosCoreStartable(
+                    appScope = applicationCoroutineScope,
+                    activatables = { setOf(activatable) },
+                    bgDispatcher = testDispatcher,
+                )
             activatable = TestActivatable(underTest)
 
             // collect from the cold flow before starting the CoreStartable

@@ -53,15 +53,21 @@ public final class AdbNotifications {
         int titleId;
         int messageId;
 
-        if (transportType == AdbTransportType.USB) {
-            titleId = com.android.internal.R.string.adb_active_notification_title;
-            messageId = com.android.internal.R.string.adb_active_notification_message;
-        } else if (transportType == AdbTransportType.WIFI) {
-            titleId = com.android.internal.R.string.adbwifi_active_notification_title;
-            messageId = com.android.internal.R.string.adbwifi_active_notification_message;
-        } else {
-            throw new IllegalArgumentException(
-                    "createNotification called with unknown transport type=" + transportType);
+        switch (transportType) {
+            case AdbTransportType.USB:
+                titleId = com.android.internal.R.string.adb_active_notification_title;
+                messageId = com.android.internal.R.string.adb_active_notification_message;
+                break;
+            case AdbTransportType.WIFI:
+                titleId = com.android.internal.R.string.adbwifi_active_notification_title;
+                messageId = com.android.internal.R.string.adbwifi_active_notification_message;
+                break;
+            case AdbTransportType.VSOCK:
+                throw new IllegalArgumentException(
+                        "AdbTransportType.VSOCK is not yet supported here");
+            default:
+                throw new IllegalArgumentException(
+                        "createNotification called with unknown transport type=" + transportType);
         }
 
         CharSequence title = resources.getText(titleId);

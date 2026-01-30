@@ -17,9 +17,8 @@
 package com.android.systemui.qs.tiles
 
 import android.os.Handler
-import android.platform.test.flag.junit.FlagsParameterization
-import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import android.testing.TestableLooper
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
 import com.android.systemui.SysuiTestCase
@@ -29,11 +28,8 @@ import com.android.systemui.plugins.qs.QSTile
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.qs.QSHost
 import com.android.systemui.qs.QsEventLogger
-import com.android.systemui.qs.flags.QSComposeFragment
-import com.android.systemui.qs.flags.QsInCompose.isEnabled
 import com.android.systemui.qs.logging.QSLogger
 import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
-import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.qs.tileimpl.QSTileImpl.DrawableIconWithRes
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.KeyguardStateController
@@ -49,17 +45,11 @@ import org.mockito.Mock
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
 
-@RunWith(ParameterizedAndroidJunit4::class)
+@RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
 @SmallTest
-class LocationTileTest(flags: FlagsParameterization) : SysuiTestCase() {
-
-    init {
-        mSetFlagsRule.setFlagsParameterization(flags)
-    }
+class LocationTileTest : SysuiTestCase() {
 
     @Mock private lateinit var qsLogger: QSLogger
     @Mock private lateinit var qsHost: QSHost
@@ -139,18 +129,6 @@ class LocationTileTest(flags: FlagsParameterization) : SysuiTestCase() {
     }
 
     private fun createExpectedIcon(resId: Int): QSTile.Icon {
-        return if (isEnabled) {
-            DrawableIconWithRes(mContext.getDrawable(resId), resId)
-        } else {
-            QSTileImpl.ResourceIcon.get(resId)
-        }
-    }
-
-    companion object {
-        @JvmStatic
-        @Parameters(name = "{0}")
-        fun getParams(): List<FlagsParameterization> {
-            return allCombinationsOf(QSComposeFragment.FLAG_NAME)
-        }
+        return DrawableIconWithRes(mContext.getDrawable(resId), resId)
     }
 }

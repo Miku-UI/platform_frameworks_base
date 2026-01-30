@@ -26,17 +26,14 @@ import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.BlurConfig
 import com.android.systemui.keyguard.ui.transitions.PrimaryBouncerTransition
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 
 @SysUISingleton
 class OccludedToPrimaryBouncerTransitionViewModel
 @Inject
-constructor(
-    shadeDependentFlows: ShadeDependentFlows,
-    blurConfig: BlurConfig,
-    animationFlow: KeyguardTransitionAnimationFlow,
-) : PrimaryBouncerTransition {
+constructor(blurConfig: BlurConfig, animationFlow: KeyguardTransitionAnimationFlow) :
+    PrimaryBouncerTransition {
     private val transitionAnimation =
         animationFlow
             .setup(
@@ -52,21 +49,30 @@ constructor(
     val lockscreenAlpha: Flow<Float> = transitionAnimation.immediatelyTransitionTo(0f)
 
     override val windowBlurRadius: Flow<Float> =
-        shadeDependentFlows.transitionFlow(
-            flowWhenShadeIsExpanded =
-                if (Flags.notificationShadeBlur()) {
-                    transitionAnimation.immediatelyTransitionTo(blurConfig.maxBlurRadiusPx)
+        transitionAnimation.sharedFlowWithShade(
+            duration = 1.milliseconds,
+            onStep = { _, isShadeExpanded ->
+                if (isShadeExpanded) {
+                    if (Flags.notificationShadeBlur()) {
+                        blurConfig.maxBlurRadiusPx
+                    } else {
+                        blurConfig.minBlurRadiusPx
+                    }
                 } else {
-                    transitionAnimation.immediatelyTransitionTo(blurConfig.minBlurRadiusPx)
-                },
-            flowWhenShadeIsNotExpanded =
-                transitionAnimation.immediatelyTransitionTo(blurConfig.maxBlurRadiusPx),
+                    blurConfig.maxBlurRadiusPx
+                }
+            },
         )
 
     override val notificationBlurRadius: Flow<Float> =
-        shadeDependentFlows.transitionFlow(
-            flowWhenShadeIsExpanded =
-                transitionAnimation.immediatelyTransitionTo(blurConfig.maxBlurRadiusPx),
-            flowWhenShadeIsNotExpanded = emptyFlow(),
+        transitionAnimation.sharedFlowWithShade(
+            duration = 1.milliseconds,
+            onStep = { _, isShadeExpanded ->
+                if (isShadeExpanded) {
+                    blurConfig.maxBlurRadiusPx
+                } else {
+                    null
+                }
+            },
         )
 }

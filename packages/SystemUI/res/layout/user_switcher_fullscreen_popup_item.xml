@@ -39,6 +39,7 @@
 
     <TextView
         android:id="@+id/text"
+        android:fontFamily="variable-title-small"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textColor="@color/user_switcher_fullscreen_popup_item_tint"

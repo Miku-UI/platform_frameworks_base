@@ -66,6 +66,9 @@ public class AutoclickLinearLayout extends LinearLayout {
         setHovered(action == MotionEvent.ACTION_HOVER_ENTER
                 || action == MotionEvent.ACTION_HOVER_MOVE);
 
+        // Return false so that hover events are dispatched to children.
+        // This allows individual buttons to handle their own hover states if needed,
+        // while this layout still tracks the overall hover state of the group.
         return false;
     }
 

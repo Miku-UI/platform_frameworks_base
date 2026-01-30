@@ -22,7 +22,7 @@ import android.media.AudioMixerAttributes;
 /**
  * AIDL for AudioService to signal preferred mixer attributes update.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IPreferredMixerAttributesDispatcher {
 

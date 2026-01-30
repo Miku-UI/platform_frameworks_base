@@ -23,6 +23,7 @@ import android.content.pm.ParceledListSlice;
 import android.os.Bundle;
 import android.os.UserHandle;
 import android.service.notification.NotificationStats;
+import android.service.notification.IDispatchCompletionListener;
 import android.service.notification.IStatusBarNotificationHolder;
 import android.service.notification.StatusBarNotification;
 import android.service.notification.NotificationRankingUpdate;
@@ -31,24 +32,27 @@ import android.service.notification.NotificationRankingUpdate;
 oneway interface INotificationListener
 {
     // listeners and assistant
-    void onListenerConnected(in NotificationRankingUpdate update);
+    void onListenerConnected(in NotificationRankingUpdate update,
+            in IDispatchCompletionListener completionCallback, in long dispatchToken);
     void onNotificationPosted(in IStatusBarNotificationHolder notificationHolder,
-            in NotificationRankingUpdate update);
+            in NotificationRankingUpdate update, in long dispatchToken);
     void onNotificationPostedFull(in StatusBarNotification sbn,
-            in NotificationRankingUpdate update);
-    void onStatusBarIconsBehaviorChanged(boolean hideSilentStatusIcons);
+            in NotificationRankingUpdate update, in long dispatchToken);
+    void onStatusBarIconsBehaviorChanged(boolean hideSilentStatusIcons, in long dispatchToken);
     // stats only for assistant
     void onNotificationRemoved(in IStatusBarNotificationHolder notificationHolder,
-            in NotificationRankingUpdate update, in NotificationStats stats, int reason);
+            in NotificationRankingUpdate update, in NotificationStats stats, int reason,
+            in long dispatchToken);
     void onNotificationRemovedFull(in StatusBarNotification sbn,
-                in NotificationRankingUpdate update, in NotificationStats stats, int reason);
-    void onNotificationRankingUpdate(in NotificationRankingUpdate update);
-    void onListenerHintsChanged(int hints);
-    void onInterruptionFilterChanged(int interruptionFilter);
+                in NotificationRankingUpdate update, in NotificationStats stats, int reason,
+                in long dispatchToken);
+    void onNotificationRankingUpdate(in NotificationRankingUpdate update, in long dispatchToken);
+    void onListenerHintsChanged(int hints, in long dispatchToken);
+    void onInterruptionFilterChanged(int interruptionFilter, in long dispatchToken);
 
     // companion device managers and assistants only
-    void onNotificationChannelModification(String pkgName, in UserHandle user, in NotificationChannel channel, int modificationType);
-    void onNotificationChannelGroupModification(String pkgName, in UserHandle user, in NotificationChannelGroup group, int modificationType);
+    void onNotificationChannelModification(String pkgName, in UserHandle user, in NotificationChannel channel, int modificationType, in long dispatchToken);
+    void onNotificationChannelGroupModification(String pkgName, in UserHandle user, in NotificationChannelGroup group, int modificationType, in long dispatchToken);
 
     // assistants only
     void onNotificationEnqueuedWithChannel(in IStatusBarNotificationHolder notificationHolder, in NotificationChannel channel, in NotificationRankingUpdate update);

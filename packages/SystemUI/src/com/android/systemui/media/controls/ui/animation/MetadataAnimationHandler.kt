@@ -18,6 +18,8 @@ package com.android.systemui.media.controls.ui.animation
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
+import androidx.annotation.VisibleForTesting
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 
 /**
  * MetadataAnimationHandler controls the current state of the MediaControlPanel's transition motion.
@@ -26,9 +28,11 @@ import android.animation.AnimatorListenerAdapter
  * animation if necessary. When the motion has fully transitioned the elements out, it runs the
  * update callback to modify the view data, before the enter animation runs.
  */
-internal open class MetadataAnimationHandler(
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+open class MetadataAnimationHandler(
     private val exitAnimator: Animator,
-    private val enterAnimator: Animator
+    private val enterAnimator: Animator,
 ) : AnimatorListenerAdapter() {
 
     private var postExitUpdate: (() -> Unit)? = null

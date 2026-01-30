@@ -20,7 +20,7 @@ import android.os.Temperature;
 
 /**
  * Listener for thermal events.
- * {@hide}
+ * @hide
  */
 oneway interface IThermalEventListener {
     /**

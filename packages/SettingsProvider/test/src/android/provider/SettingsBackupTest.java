@@ -104,6 +104,7 @@ public class SettingsBackupTest {
                     Settings.Global.BATTERY_SAVER_DEVICE_SPECIFIC_CONSTANTS,
                     Settings.Global.BATTERY_STATS_CONSTANTS,
                     Settings.Global.BINDER_CALLS_STATS,
+                    Settings.Global.NATIVE_BINDER_STATS,
                     Settings.Global.BLE_SCAN_ALWAYS_AVAILABLE,
                     Settings.Global.BLE_SCAN_LOW_POWER_WINDOW_MS,
                     Settings.Global.BLE_SCAN_LOW_POWER_INTERVAL_MS,
@@ -113,8 +114,6 @@ public class SettingsBackupTest {
                     Settings.Global.BLE_SCAN_LOW_LATENCY_INTERVAL_MS,
                     Settings.Global.BLE_SCAN_BACKGROUND_MODE,
                     Settings.Global.BLOCKED_SLICES,
-                    Settings.Global.BLOCKING_HELPER_DISMISS_TO_VIEW_RATIO_LIMIT,
-                    Settings.Global.BLOCKING_HELPER_STREAK_LIMIT,
                     Settings.Global.BLUETOOTH_BTSNOOP_DEFAULT_MODE,
                     Settings.Global.BLUETOOTH_A2DP_SINK_PRIORITY_PREFIX,
                     Settings.Global.BLUETOOTH_A2DP_SRC_PRIORITY_PREFIX,
@@ -228,7 +227,6 @@ public class SettingsBackupTest {
                     Settings.Global.DYNAMIC_POWER_SAVINGS_ENABLED,
                     Settings.Global.DYNAMIC_POWER_SAVINGS_DISABLE_THRESHOLD,
                     Settings.Global.SMART_REPLIES_IN_NOTIFICATIONS_FLAGS,
-                    Settings.Global.SMART_SUGGESTIONS_IN_NOTIFICATIONS_FLAGS,
                     Settings.Global.STYLUS_EVER_USED,
                     Settings.Global.ENABLE_ADB_INCREMENTAL_INSTALL_DEFAULT,
                     Settings.Global.ENABLE_MULTI_SLOT_TIMEOUT_MILLIS,
@@ -372,6 +370,7 @@ public class SettingsBackupTest {
                     Settings.Global.PDP_WATCHDOG_TRIGGER_PACKET_COUNT,
                     Settings.Global.PEOPLE_SPACE_CONVERSATION_TYPE,
                     Settings.Global.POLICY_CONTROL,
+                    Settings.Global.POWER_BUTTON_LONG_PRESS_RESTORED,
                     Settings.Global.POWER_BUTTON_SUPPRESSION_DELAY_AFTER_GESTURE_WAKE,
                     Settings.Global.POWER_MANAGER_CONSTANTS,
                     Settings.Global.PREFERRED_NETWORK_MODE,
@@ -407,7 +406,6 @@ public class SettingsBackupTest {
                     Settings.Global.SHOW_NEW_APP_INSTALLED_NOTIFICATION_ENABLED,
                     Settings.Global.SHOW_NOTIFICATION_CHANNEL_WARNINGS,
                     Settings.Global.SHOW_PEOPLE_SPACE,
-                    Settings.Global.SHOW_NEW_NOTIF_DISMISS,
                     Settings.Global.SHOW_RESTART_IN_CRASH_DIALOG,
                     Settings.Global.SHOW_TEMPERATURE_WARNING,
                     Settings.Global.SHOW_USB_TEMPERATURE_ALARM,
@@ -546,8 +544,6 @@ public class SettingsBackupTest {
                     Settings.Global.REPAIR_MODE_ACTIVE,
                     Settings.Global.RADIO_BUG_WAKELOCK_TIMEOUT_COUNT_THRESHOLD,
                     Settings.Global.RADIO_BUG_SYSTEM_ERROR_COUNT_THRESHOLD,
-                    Settings.Global.ENABLED_SUBSCRIPTION_FOR_SLOT,
-                    Settings.Global.MODEM_STACK_ENABLED_FOR_SLOT,
                     Settings.Global.POWER_BUTTON_SHORT_PRESS,
                     Settings.Global.POWER_BUTTON_DOUBLE_PRESS,
                     Settings.Global.POWER_BUTTON_TRIPLE_PRESS,
@@ -809,8 +805,11 @@ public class SettingsBackupTest {
                  Settings.Secure.NAVIGATION_MODE_RESTORE,
                  Settings.Secure.V_TO_U_RESTORE_ALLOWLIST,
                  Settings.Secure.V_TO_U_RESTORE_DENYLIST,
+                 Settings.Secure.PACK_THEME_FEATURE_ENABLED,
+                 Settings.Secure.SUGGESTED_THEME_FEATURE_ENABLED,
                  Settings.Secure.REDACT_OTP_NOTIFICATION_WHILE_CONNECTED_TO_WIFI,
-                 Settings.Secure.OTP_NOTIFICATION_REDACTION_LOCK_TIME);
+                 Settings.Secure.OTP_NOTIFICATION_REDACTION_LOCK_TIME,
+                 Settings.Secure.APP_FUNCTION_ADDITIONAL_AGENT_ALLOWLIST);
 
     @Test
     public void systemSettingsBackedUpOrDenied() {
@@ -870,6 +869,7 @@ public class SettingsBackupTest {
                         Settings.Secure.NAS_SETTINGS_UPDATED,
                         Settings.Secure.NAV_BAR_FORCE_VISIBLE,
                         Settings.Secure.NAV_BAR_KIDS_MODE,
+                        Settings.Secure.NAVIGATIONBAR_KEY_ORDER,
                         Settings.Secure.NEARBY_FAST_PAIR_SETTINGS_DEVICES_COMPONENT,
                         Settings.Secure.NEARBY_SHARING_SLICE_URI,
                         Settings.Secure.NOTIFIED_NON_ACCESSIBILITY_CATEGORY_SERVICES,
@@ -908,6 +908,10 @@ public class SettingsBackupTest {
                         Settings.System.APPEND_FOR_LAST_AUDIBLE, // suffix deprecated since API 2
                         Settings.System.EGG_MODE, // I am the lolrus
                         Settings.System.END_BUTTON_BEHAVIOR, // bug?
+                        Settings.System
+                                .ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_ENABLE,
+                        Settings.System
+                                .ACCESSIBILITY_FORCE_INVERT_COLOR_OVERRIDE_PACKAGES_TO_DISABLE,
                         Settings.System.DEFAULT_DEVICE_FONT_SCALE, // Non configurable
                         Settings.System.HIDE_ROTATION_LOCK_TOGGLE_FOR_ACCESSIBILITY,
                         Settings.System.INPUT_GAIN_INDEX_SETTINGS,
@@ -952,7 +956,9 @@ public class SettingsBackupTest {
                         Settings.System.SCREEN_AUTO_BRIGHTNESS_ADJ,
                         Settings.System.MULTI_AUDIO_FOCUS_ENABLED, // form-factor/OEM specific
                         // Potentially disruptive to on-boarding flow on new devices
-                        Settings.System.TOUCHPAD_SYSTEM_GESTURES
+                        Settings.System.TOUCHPAD_SYSTEM_GESTURES,
+                        // Potentially disruptive to on-boarding flow on new devices
+                        Settings.System.TOUCHPAD_ENABLED
                 );
         if (!Flags.backUpSmoothDisplayAndForcePeakRefreshRate()) {
             settings.add(Settings.System.MIN_REFRESH_RATE);

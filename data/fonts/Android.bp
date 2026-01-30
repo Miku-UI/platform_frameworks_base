@@ -89,12 +89,18 @@ genrule {
         ":ComingSoon",
         ":CutiveMono",
         ":DancingScript",
-        ":DroidSansMono",
         ":Roboto",
         ":RobotoFlex",
         ":SourceSansPro",
         ":noto-fonts",
-    ],
+    ] + select(release_flag("RELEASE_USE_ROBOTO_MONO_FONT"), {
+        true: [
+            ":RobotoMono",
+        ],
+        default: [
+            ":DroidSansMono",
+        ],
+    }),
     exclude_srcs: [
         "alias.json",
         "fallback_order.json",

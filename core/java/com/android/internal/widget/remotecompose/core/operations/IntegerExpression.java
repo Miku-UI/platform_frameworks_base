@@ -47,13 +47,13 @@ public class IntegerExpression extends Operation implements VariableSupport, Ser
     public int mId;
     private int mMask;
     private int mPreMask;
-    @NonNull public final int[] mSrcValue;
-    @Nullable public int[] mPreCalcValue;
+    public final @NonNull int [] mSrcValue;
+    public @Nullable int [] mPreCalcValue;
     private float mLastChange = Float.NaN;
     public static final int MAX_SIZE = 320;
     @NonNull IntegerExpressionEvaluator mExp = new IntegerExpressionEvaluator();
 
-    public IntegerExpression(int id, int mask, @NonNull int[] value) {
+    public IntegerExpression(int id, int mask, @NonNull int [] value) {
         this.mId = id;
         this.mMask = mask;
         this.mSrcValue = value;
@@ -166,7 +166,7 @@ public class IntegerExpression extends Operation implements VariableSupport, Ser
      * @param mask the mask bits of ints & operators or variables
      * @param value array of integers to be evaluated
      */
-    public static void apply(@NonNull WireBuffer buffer, int id, int mask, @NonNull int[] value) {
+    public static void apply(@NonNull WireBuffer buffer, int id, int mask, @NonNull int [] value) {
         buffer.start(OP_CODE);
         buffer.writeInt(id);
         buffer.writeInt(mask);
@@ -230,7 +230,7 @@ public class IntegerExpression extends Operation implements VariableSupport, Ser
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.EXPRESSION)
                 .addType(CLASS_NAME)

@@ -19,6 +19,7 @@ package com.android.server.notification;
 import static android.app.UiModeManager.MODE_ATTENTION_THEME_OVERLAY_NIGHT;
 import static android.app.UiModeManager.MODE_ATTENTION_THEME_OVERLAY_OFF;
 import static android.service.notification.ZenModeConfig.ORIGIN_APP;
+import static android.service.notification.ZenModeConfig.ORIGIN_INIT;
 import static android.service.notification.ZenModeConfig.ORIGIN_USER_IN_SYSTEMUI;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -80,6 +81,8 @@ public class DefaultDeviceEffectsApplierTest {
     @Mock KeyguardManager mKeyguardManager;
     @Mock UiModeManager mUiModeManager;
     @Mock WallpaperManager mWallpaperManager;
+
+    private static final ZenDeviceEffects NO_EFFECTS = new ZenDeviceEffects.Builder().build();
 
     @Before
     public void setUp() {
@@ -360,5 +363,29 @@ public class DefaultDeviceEffectsApplierTest {
         mApplier.apply(effects, ORIGIN_USER_IN_SYSTEMUI);
 
         // No crashes
+    }
+
+    @Test
+    public void apply_onBootWithLeftoverDim_forceRemovesDimWallpaper() {
+        when(mWallpaperManager.getWallpaperDimAmount()).thenReturn(0.6f);
+        mApplier.apply(NO_EFFECTS, ORIGIN_INIT);
+        verify(mWallpaperManager).setWallpaperDimAmount(eq(0f));
+
+        String zenLog = getZenLog();
+        assertThat(zenLog).contains("apply_device_effect: dimWallpaper (reset on boot) -> false");
+    }
+
+    @Test
+    public void apply_onBootWithUnrelatedDim_doesNotForceRemoveDimWallpaper() {
+        when(mWallpaperManager.getWallpaperDimAmount()).thenReturn(0.42f);
+        mApplier.apply(NO_EFFECTS, ORIGIN_INIT);
+        verify(mWallpaperManager, never()).setWallpaperDimAmount(anyFloat());
+    }
+
+    @Test
+    public void apply_notOnBoot_doesNotForceRemoveDimWallpaper() {
+        when(mWallpaperManager.getWallpaperDimAmount()).thenReturn(0.6f);
+        mApplier.apply(NO_EFFECTS, ORIGIN_APP);
+        verify(mWallpaperManager, never()).setWallpaperDimAmount(anyFloat());
     }
 }

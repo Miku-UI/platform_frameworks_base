@@ -25,10 +25,13 @@ import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.graphics.drawable.BitmapDrawable;
+import android.media.MediaRoute2Info;
+import android.platform.test.flag.junit.SetFlagsRule;
 
 import com.android.settingslib.bluetooth.CachedBluetoothDevice;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
@@ -40,9 +43,17 @@ import org.robolectric.RuntimeEnvironment;
 public class BluetoothMediaDeviceTest {
 
     private static final String TEST_ADDRESS = "11:22:33:44:55:66";
+    private static final String TEST_ROUTE_NAME = "Name from route";
+    private static final String TEST_CACHED_DEVICE_NAME = "Name from cached device";
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     @Mock
     private CachedBluetoothDevice mDevice;
+
+    @Mock
+    private MediaRoute2Info mRouteInfo;
 
     private Context mContext;
     private BluetoothMediaDevice mBluetoothMediaDevice;
@@ -56,7 +67,8 @@ public class BluetoothMediaDeviceTest {
         when(mDevice.isActiveDevice(BluetoothProfile.HEARING_AID)).thenReturn(true);
         when(mDevice.isActiveDevice(BluetoothProfile.LE_AUDIO)).thenReturn(true);
 
-        mBluetoothMediaDevice = new BluetoothMediaDevice(mContext, mDevice, null, null);
+        mBluetoothMediaDevice = new BluetoothMediaDevice(mContext, mDevice,
+                null, /* dynamicRouteAttributes= */ null, null);
     }
 
     @Test
@@ -118,5 +130,35 @@ public class BluetoothMediaDeviceTest {
     public void getId_returnsCachedBluetoothDeviceAddress() {
         when(mDevice.getAddress()).thenReturn(TEST_ADDRESS);
         assertThat(mBluetoothMediaDevice.getId()).isEqualTo(TEST_ADDRESS);
+    }
+
+    @Test
+    public void getName_hasRouteInfo_usesNameFromRoute() {
+        when(mRouteInfo.getName()).thenReturn(TEST_ROUTE_NAME);
+        when(mDevice.getName()).thenReturn(TEST_CACHED_DEVICE_NAME);
+        MediaDevice bluetoothMediaDevice = new BluetoothMediaDevice(mContext, mDevice,
+                mRouteInfo, /* dynamicRouteAttributes= */ null, null);
+
+        assertThat(bluetoothMediaDevice.getName()).isEqualTo(TEST_ROUTE_NAME);
+    }
+
+    @Test
+    public void getName_noRouteInfo_usesNameFromCachedDevice() {
+        when(mDevice.getName()).thenReturn(TEST_CACHED_DEVICE_NAME);
+
+        MediaDevice bluetoothMediaDevice = new BluetoothMediaDevice(mContext, mDevice,
+                null, /* dynamicRouteAttributes= */ null, null);
+        assertThat(bluetoothMediaDevice.getName()).isEqualTo(TEST_CACHED_DEVICE_NAME);
+    }
+
+    @Test
+    public void getIsMutingExpectedDevice_dependsOnConstructorArgument() {
+        MediaDevice bluetoothMediaDevice = new BluetoothMediaDevice(mContext, mDevice,
+                null, /* dynamicRouteAttributes= */ null, null);
+        assertThat(bluetoothMediaDevice.isMutingExpectedDevice()).isFalse();
+
+        MediaDevice mutingExpectedDevice = new BluetoothMediaDevice(mContext, mDevice,
+                null, /* dynamicRouteAttributes= */ null, null, /* isMutingExpectedDevice= */ true);
+        assertThat(mutingExpectedDevice.isMutingExpectedDevice()).isTrue();
     }
 }

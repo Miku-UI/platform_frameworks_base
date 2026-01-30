@@ -36,6 +36,9 @@ interface BubbleStackViewManager {
     /** Requests to hide the current input method. */
     fun hideCurrentInputMethod(onImeHidden: Runnable?)
 
+    /** Allows callers to clear the runnable set by [hideCurrentInputMethod]. */
+    fun clearImeHiddenRunnable()
+
     companion object {
 
         @JvmStatic
@@ -54,6 +57,10 @@ interface BubbleStackViewManager {
 
             override fun hideCurrentInputMethod(onImeHidden: Runnable?) {
                 controller.hideCurrentInputMethod(onImeHidden)
+            }
+
+            override fun clearImeHiddenRunnable() {
+                controller.clearImeHiddenRunnable()
             }
         }
     }

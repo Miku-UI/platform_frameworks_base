@@ -70,10 +70,10 @@
             android:layout_height="wrap_content"
             android:minHeight="48dp"
             android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:layout_marginEnd="@dimen/screenrecord_show_taps_margin_end"
             android:text="@string/screenrecord_taps_label"
-            android:textAppearance="?android:attr/textAppearanceMedium"
-            android:fontFamily="@*android:string/config_bodyFontFamily"
-            android:textColor="?android:attr/textColorPrimary"
+            android:textAppearance="@style/TextAppearance.ScreenRecord.SwitchLabel"
             android:contentDescription="@string/screenrecord_taps_label"/>
 
         <Switch

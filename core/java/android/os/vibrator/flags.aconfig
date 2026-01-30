@@ -3,45 +3,6 @@ container: "system"
 
 flag {
     namespace: "haptics"
-    name: "haptic_feedback_vibration_oem_customization_enabled"
-    description: "Enables OEMs/devices to customize vibrations for haptic feedback"
-    # Make read only. This is because the flag is used only once, and this could happen before
-    # the read-write flag values propagate to the device.
-    is_fixed_read_only: true
-    bug: "291128479"
-}
-
-flag {
-    namespace: "haptics"
-    name: "adaptive_haptics_enabled"
-    description: "Enables the adaptive haptics feature"
-    bug: "305961689"
-}
-
-flag {
-    namespace: "haptics"
-    name: "cancel_by_appops"
-    description: "Cancels ongoing vibrations when the appops mode changes to disallow them"
-    bug: "230745615"
-    is_fixed_read_only: true
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "haptics"
-    name: "vibration_xml_apis"
-    is_exported: true
-    description: "Enabled System APIs for vibration effect XML parser and serializer"
-    bug: "347273158"
-    metadata {
-        purpose: PURPOSE_FEATURE
-    }
-}
-
-flag {
-    namespace: "haptics"
     name: "vendor_vibration_effects"
     is_exported: true
     description: "Enabled System APIs for vendor-defined vibration effects"
@@ -53,52 +14,10 @@ flag {
 
 flag {
     namespace: "haptics"
-    name: "throttle_vibration_params_requests"
-    description: "Control the frequency of vibration params requests to prevent overloading the vendor service"
-    bug: "355320860"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "haptics"
     name: "vibration_attribute_ime_usage_api"
     is_exported: true
     description: "A public API for IME usage vibration attribute"
     bug: "332661766"
-    metadata {
-        purpose: PURPOSE_FEATURE
-    }
-}
-
-flag {
-    namespace: "haptics"
-    name: "fix_audio_coupled_haptics_scaling"
-    description: "Fix the audio-coupled haptics scaling to use same function as VibrationEffect"
-    bug: "356144312"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "haptics"
-    name: "load_haptic_feedback_vibration_customization_from_resources"
-    description: "Load haptic feedback vibrations customization from resources."
-    is_fixed_read_only: true
-    bug: "295142743"
-    metadata {
-        purpose: PURPOSE_FEATURE
-    }
-}
-
-flag {
-    namespace: "haptics"
-    name: "haptic_feedback_input_source_customization_enabled"
-    description: "Enabled the extended haptic feedback customization by input source."
-    bug: "331819348"
-    is_fixed_read_only: true
     metadata {
         purpose: PURPOSE_FEATURE
     }
@@ -138,41 +57,82 @@ flag {
 
 flag {
     namespace: "haptics"
-    name: "vibration_pipeline_enabled"
-    description: "Enables functionality to pipeline vibration effects to avoid cancelling short vibrations"
-    bug: "344494220"
-    metadata {
-        purpose: PURPOSE_FEATURE
-    }
-}
-
-flag {
-    namespace: "haptics"
-    name: "fix_vibration_thread_callback_handling"
-    description: "Fix how the VibrationThread handles late callbacks from the vibrator HAL"
-    bug: "395005081"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "haptics"
-    name: "fix_external_vibration_system_update_aware"
-    description: "Fix the audio-coupled haptics handling of system updates."
-    bug: "372241975"
-    metadata {
-      purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    namespace: "haptics"
     name: "remove_hidl_support"
     description: "Remove framework code to support HIDL vibrator HALs."
-    bug: "308452413"
+    bug: "442504716"
     is_fixed_read_only: true
     metadata {
       purpose: PURPOSE_FEATURE
+    }
+}
+
+flag {
+    namespace: "haptics"
+    name: "haptic_feedback_with_custom_usage"
+    description: "API to play haptic feedback with custom usage types."
+    bug: "408393305"
+    is_exported: true
+    metadata {
+      purpose: PURPOSE_FEATURE
+    }
+}
+
+flag {
+    namespace: "haptics"
+    name: "vibration_scale_device_config_enabled"
+    description: "Enables device-configurable vibration scale factors"
+    bug: "427503922"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "haptics"
+    name: "vibration_scale_bounds_fix_enabled"
+    description: "Enables audio-coupled haptics vibration scale bounds fix"
+    bug: "427912736"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "haptics"
+    name: "haptic_pcm_generation"
+    description: "Enables the feature to generate Haptic PCM from vibration effects"
+    bug: "417649629"
+    metadata {
+      purpose: PURPOSE_FEATURE
+    }
+}
+
+flag {
+    namespace: "haptics"
+    name: "decouple_frequency_profile_from_resonance"
+    description: "Removes frequency profiles dependency on resonant frequency when not present"
+    bug: "430503750"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "haptics"
+    name: "remove_sequential_combination"
+    description: "Remove CombinedVibration.SequentialCombination and related types"
+    bug: "421857859"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    namespace: "haptics"
+    name: "composition_pwle_apis"
+    description: "Enabled public APIs to support composition of PWLE effects and primitives"
+    bug: "442507169"
+    metadata {
+        purpose: PURPOSE_FEATURE
     }
 }

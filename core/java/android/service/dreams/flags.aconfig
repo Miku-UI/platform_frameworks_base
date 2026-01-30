@@ -92,3 +92,72 @@ flag {
         "such as new triggers and various bug fixes"
     bug: "403579494"
 }
+
+flag {
+  name: "dreams_v2_resources"
+  namespace: "systemui"
+  description: "Read only flag for rolling out dream v2 resource values"
+  bug: "403579494"
+  is_fixed_read_only: true
+}
+
+flag {
+    name: "nap_when_dream_enabled"
+    namespace: "systemui"
+    description: "Allows napping only when dream settings is enabled"
+    bug: "436573884"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "allow_dream_with_charge_limit"
+    namespace: "systemui"
+    description: "Allows dreaming even when a charge limit is active"
+    bug: "397717022"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "disallow_dream_on_auto_projection"
+    namespace: "systemui"
+    description: "Disallows dreaming when Android Auto projected display is active"
+    bug: "413508543"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "allow_dream_attach_failure"
+    namespace: "systemui"
+    description: "Fails starting dream when attaching to a service that is already attached"
+    bug: "434674824"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "wake_on_stopping_doze"
+    namespace: "systemui"
+    description: "Sends a wakeUp when explicitly stopping the doze dream"
+    bug: "298073718"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+
+flag {
+    name: "dream_overlay_started_fix"
+    namespace: "systemui"
+    description: "Guards fix for the lifetime of when the dream is considered started"
+    bug: "432039567"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}

@@ -24,7 +24,6 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.os.Build;
-import android.ravenwood.annotation.RavenwoodClassLoadHook;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.TypedValue;
 
@@ -44,12 +43,11 @@ import java.io.Reader;
 
 /**
  * Wrapper around a compiled XML file.
- * 
- * {@hide}
+ *
+ * @hide
  */
 @VisibleForTesting(visibility = VisibleForTesting.Visibility.PACKAGE)
 @RavenwoodKeepWholeClass
-@RavenwoodClassLoadHook(RavenwoodClassLoadHook.LIBANDROID_LOADING_HOOK)
 public final class XmlBlock implements AutoCloseable {
     private static final boolean DEBUG=false;
     public static final String ANDROID_RESOURCES = "http://schemas.android.com/apk/res/android";
@@ -349,21 +347,25 @@ public final class XmlBlock implements AutoCloseable {
                 throw new XmlPullParserException("Corrupt XML binary file");
             }
 
-            if (useLayoutReadwrite() && mUsesFeatureFlags && ev == START_TAG) {
-                AconfigFlags flags = ParsingPackageUtils.getAconfigFlags();
-                if (flags.skipCurrentElement(/* pkg= */ null, this)) {
-                    int depth = 1;
-                    while (depth > 0) {
-                        int ev2 = nativeNext(mParseState);
-                        if (ev2 == ERROR_BAD_DOCUMENT) {
-                            throw new XmlPullParserException("Corrupt XML binary file");
-                        } else if (ev2 == START_TAG) {
-                            depth++;
-                        } else if (ev2 == END_TAG) {
-                            depth--;
+            if (Flags.layoutReadwriteFlags() && mUsesFeatureFlags && ev == START_TAG) {
+                FlagInfo flag = nativeGetFlagInfo(mParseState);
+                if (flag != null && flag.mNameIndex > 0) {
+                    AconfigFlags flags = ParsingPackageUtils.getAconfigFlags();
+                    String flagName = getSequenceString(mStrings.getSequence(flag.mNameIndex));
+                    if (flags.skip(/* pkg= */ null, flagName, flag.mNegated)) {
+                        int depth = 1;
+                        while (depth > 0) {
+                            int ev2 = nativeNext(mParseState);
+                            if (ev2 == ERROR_BAD_DOCUMENT) {
+                                throw new XmlPullParserException("Corrupt XML binary file");
+                            } else if (ev2 == START_TAG) {
+                                depth++;
+                            } else if (ev2 == END_TAG) {
+                                depth--;
+                            }
                         }
+                        return next();
                     }
-                    return next();
                 }
             }
             if (mDecNextDepth) {
@@ -390,17 +392,6 @@ public final class XmlBlock implements AutoCloseable {
                 close();
             }
             return ev;
-        }
-
-        // Until ravenwood supports AconfigFlags, we just don't do layoutReadwriteFlags().
-        @android.ravenwood.annotation.RavenwoodReplace(
-                bug = 396458006, blockedBy = AconfigFlags.class)
-        private static boolean useLayoutReadwrite() {
-            return Flags.layoutReadwriteFlags();
-        }
-
-        private static boolean useLayoutReadwrite$ravenwood() {
-            return false;
         }
 
         public void require(int type, String namespace, String name) throws XmlPullParserException,IOException {
@@ -440,12 +431,12 @@ public final class XmlBlock implements AutoCloseable {
             }
             if (eventType != START_TAG && eventType != END_TAG) {
                throw new XmlPullParserException(
-                   getPositionDescription() 
+                   getPositionDescription()
                    + ": expected start or end tag", this, null);
             }
             return eventType;
         }
-    
+
         public int getAttributeNameResource(int index) {
             final int resourceNameId = nativeGetAttributeResource(mParseState, index);
             if (resourceNameId == ERROR_NULL_DOCUMENT) {
@@ -453,7 +444,7 @@ public final class XmlBlock implements AutoCloseable {
             }
             return resourceNameId;
         }
-    
+
         public int getAttributeListValue(String namespace, String attribute,
                 String[] options, int defaultValue) {
             int idx = nativeGetAttributeIndex(mParseState, namespace, attribute);
@@ -696,6 +687,17 @@ public final class XmlBlock implements AutoCloseable {
 
     private final boolean mUsesFeatureFlags;
 
+    // This class only exists for JNI communication
+    private static class FlagInfo {
+        private int mNameIndex;
+        private boolean mNegated;
+
+        private FlagInfo(int nameIndex, boolean negated) {
+            mNameIndex = nameIndex;
+            mNegated = negated;
+        }
+    }
+
     private static final native long nativeCreate(byte[] data,
                                                  int offset,
                                                  int size);
@@ -758,4 +760,7 @@ public final class XmlBlock implements AutoCloseable {
 
     @CriticalNative
     private static final native int nativeGetSourceResId(long state);
+
+    @FastNative
+    private static final native FlagInfo nativeGetFlagInfo(long state);
 }

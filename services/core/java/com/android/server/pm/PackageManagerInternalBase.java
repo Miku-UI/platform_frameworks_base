@@ -24,6 +24,7 @@ import static com.android.server.pm.PackageManagerService.PLATFORM_PACKAGE_NAME;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers;
 import android.annotation.UserIdInt;
 import android.content.ComponentName;
 import android.content.Context;
@@ -53,7 +54,7 @@ import android.util.ArraySet;
 import android.util.SparseArray;
 
 import com.android.internal.pm.pkg.component.ParsedMainComponent;
-import com.android.server.pm.dex.DexManager;
+import com.android.internal.util.ArrayUtils;
 import com.android.server.pm.permission.PermissionManagerServiceInternal;
 import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.pkg.PackageStateInternal;
@@ -91,7 +92,6 @@ abstract class PackageManagerInternalBase extends PackageManagerInternal {
     @NonNull protected abstract UserNeedsBadgingCache getUserNeedsBadging();
     @NonNull protected abstract InstantAppRegistry getInstantAppRegistry();
     @NonNull protected abstract ApexManager getApexManager();
-    @NonNull protected abstract DexManager getDexManager();
 
     @Override
     public final Computer snapshot() {
@@ -329,9 +329,18 @@ abstract class PackageManagerInternalBase extends PackageManagerInternal {
     @Deprecated
     public final List<ResolveInfo> queryIntentReceivers(
             Intent intent, String resolvedType, @PackageManager.ResolveInfoFlagsBits long flags,
-            int filterCallingUid, int callingPid, int userId, boolean forSend) {
-        return getResolveIntentHelper().queryIntentReceiversInternal(snapshot(), intent,
+            int filterCallingUid, int callingPid, int userId, boolean forSend,
+            String[] includedPackages) {
+        final List<ResolveInfo> result = getResolveIntentHelper().queryIntentReceiversInternal(
+                snapshot(), intent,
                 resolvedType, flags, userId, filterCallingUid, callingPid, forSend);
+        // TODO: b/428262517 - filter out packages that are not in includedPackages close to
+        // intent resolution.
+        if (includedPackages != null) {
+            result.removeIf(resolvedInfo -> !ArrayUtils.contains(
+                    includedPackages, resolvedInfo.activityInfo.packageName));
+        }
+        return result;
     }
 
     @Override
@@ -700,6 +709,15 @@ abstract class PackageManagerInternalBase extends PackageManagerInternal {
         return snapshot().isSuspendingAnyPackages(PLATFORM_PACKAGE_NAME, suspendingUserId, userId);
     }
 
+
+    @Override
+    @Deprecated
+    public void unsuspendForSuspendingPackage(String suspendingPackage,
+            @UserIdInt int suspendingUserId, @SpecialUsers.CanBeALL @UserIdInt int affectedUserId) {
+        mService.unsuspendForSuspendingPackage(
+                snapshot(), suspendingPackage, suspendingUserId, affectedUserId);
+    }
+
     @Override
     @Deprecated
     public final void requestChecksums(@NonNull String packageName, boolean includeSplits,
@@ -716,7 +734,8 @@ abstract class PackageManagerInternalBase extends PackageManagerInternal {
     @Deprecated
     public final boolean isPackageFrozen(@NonNull String packageName,
             int callingUid, int userId) {
-        return snapshot().getPackageStartability(mService.getSafeMode(), packageName, callingUid, userId)
+        return snapshot().getPackageStartability(mService.getSafeMode(),
+                packageName, callingUid, userId)
                 == PackageManagerService.PACKAGE_STARTABILITY_FROZEN;
     }
 

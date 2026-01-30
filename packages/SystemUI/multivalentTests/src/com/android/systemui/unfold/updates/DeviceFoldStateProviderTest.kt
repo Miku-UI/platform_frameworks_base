@@ -459,17 +459,6 @@ class DeviceFoldStateProviderTest : SysuiTestCase() {
         assertThat(foldProvider.getNumberOfCallbacks()).isEqualTo(1)
     }
 
-    @Test(expected = AssertionError::class)
-    fun startMethod_whileNotOnMainThread_throwsException() {
-        whenever(mainLooper.isCurrentThread).thenReturn(true)
-        try {
-            foldStateProvider.start()
-            fail("Should have thrown AssertionError: should be called from the main thread.")
-        } catch (e: AssertionError) {
-            assertThat(e.message).contains("backgroundThread")
-        }
-    }
-
     @Test
     fun startClosingEvent_whileNotOnKeyguard_triggersAfterThreshold() {
         setKeyguardVisibility(visible = false)

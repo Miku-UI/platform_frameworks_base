@@ -16,10 +16,9 @@
 
 package com.android.server.wm;
 
+import static android.internal.perfetto.protos.Windowmanagerservice.WindowOrientationListenerProto.ENABLED;
+import static android.internal.perfetto.protos.Windowmanagerservice.WindowOrientationListenerProto.ROTATION;
 import static android.provider.DeviceConfig.NAMESPACE_WINDOW_MANAGER;
-
-import static com.android.server.wm.WindowOrientationListenerProto.ENABLED;
-import static com.android.server.wm.WindowOrientationListenerProto.ROTATION;
 
 import android.app.ActivityThread;
 import android.content.Context;

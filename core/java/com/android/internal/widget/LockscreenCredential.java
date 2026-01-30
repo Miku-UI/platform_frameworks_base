@@ -78,14 +78,26 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
     // needed to do that check, since the conversion to mCredential may have been lossy.
     private final boolean mHasInvalidChars;
 
+    // Whether the credential is a unified profile password, i.e. a long random password the system
+    // generates and manages transparently to the user. Implies mType == CREDENTIAL_TYPE_PASSWORD.
+    private final boolean mIsUnifiedProfilePassword;
+
+    // Whether the credential was unmarshalled from a Parcel, rather than constructed directly.
+    private final boolean mIsFromParcel;
+
     /**
      * Private constructor, use static builder methods instead.
      *
-     * <p> Builder methods should create a private copy of the credential bytes using a non-movable
-     * array and pass it in here.  LockscreenCredential will only store the reference internally
+     * <p>Builder methods should create a private copy of the credential bytes using a non-movable
+     * array and pass it in here. LockscreenCredential will only store the reference internally
      * without copying. This is to minimize the number of extra copies introduced.
      */
-    private LockscreenCredential(int type, byte[] credential, boolean hasInvalidChars) {
+    private LockscreenCredential(
+            int type,
+            byte[] credential,
+            boolean hasInvalidChars,
+            boolean isUnifiedProfilePassword,
+            boolean isFromParcel) {
         Objects.requireNonNull(credential);
         if (type == CREDENTIAL_TYPE_NONE) {
             Preconditions.checkArgument(credential.length == 0);
@@ -102,28 +114,40 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
             // LockscreenCredential object to be constructed so that the validation logic can run,
             // even though the validation logic will ultimately reject the credential as too short.
         }
+        Preconditions.checkState(!isUnifiedProfilePassword || type == CREDENTIAL_TYPE_PASSWORD);
         mType = type;
         mCredential = credential;
         mHasInvalidChars = hasInvalidChars;
+        mIsUnifiedProfilePassword = isUnifiedProfilePassword;
+        mIsFromParcel = isFromParcel;
     }
 
     private LockscreenCredential(int type, CharSequence credential) {
-        this(type, charsToBytesTruncating(credential), hasInvalidChars(credential));
+        this(
+                type,
+                charsToBytesTruncating(credential),
+                hasInvalidChars(credential),
+                /* isUnifiedProfilePassword= */ false,
+                /* isFromParcel= */ false);
     }
 
     /**
      * Creates a LockscreenCredential object representing a none credential.
      */
     public static LockscreenCredential createNone() {
-        return new LockscreenCredential(CREDENTIAL_TYPE_NONE, new byte[0], false);
+        return new LockscreenCredential(CREDENTIAL_TYPE_NONE, new byte[0], false, false, false);
     }
 
     /**
      * Creates a LockscreenCredential object representing the given pattern.
      */
     public static LockscreenCredential createPattern(@NonNull List<LockPatternView.Cell> pattern) {
-        return new LockscreenCredential(CREDENTIAL_TYPE_PATTERN,
-                LockPatternUtils.patternToByteArray(pattern), /* hasInvalidChars= */ false);
+        return new LockscreenCredential(
+                CREDENTIAL_TYPE_PATTERN,
+                LockPatternUtils.patternToByteArray(pattern),
+                /* hasInvalidChars= */ false,
+                /* isUnifiedProfilePassword= */ false,
+                /* isFromParcel= */ false);
     }
 
     /**
@@ -140,8 +164,12 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
      * can then supersede the isLockTiedToParent argument in various places in LSS.
      */
     public static LockscreenCredential createUnifiedProfilePassword(@NonNull byte[] password) {
-        return new LockscreenCredential(CREDENTIAL_TYPE_PASSWORD,
-                copyOfArrayNonMovable(password), /* hasInvalidChars= */ false);
+        return new LockscreenCredential(
+                CREDENTIAL_TYPE_PASSWORD,
+                copyOfArrayNonMovable(password),
+                /* hasInvalidChars= */ false,
+                /* isUnifiedProfilePassword= */ true,
+                /* isFromParcel= */ false);
     }
 
     /**
@@ -234,20 +262,40 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
         return mHasInvalidChars;
     }
 
-    /** Create a copy of the credential */
-    public LockscreenCredential duplicate() {
-        return new LockscreenCredential(mType,
-                mCredential != null ? copyOfArrayNonMovable(mCredential) : null,
-                mHasInvalidChars);
+    /**
+     * Returns whether this is a unified profile password credential.
+     *
+     * <p>Note that currently "unified profile password" is not a dedicated credential type, but
+     * rather a subset of the "password" type. {@link #isPassword()} also returns true for them.
+     */
+    public boolean isUnifiedProfilePassword() {
+        ensureNotZeroized();
+        return mIsUnifiedProfilePassword;
     }
 
-    /**
-     * Zeroize the credential bytes.
-     */
+    /** Create a copy of the credential */
+    public LockscreenCredential duplicate() {
+        return new LockscreenCredential(
+                mType,
+                mCredential != null ? copyOfArrayNonMovable(mCredential) : null,
+                mHasInvalidChars,
+                mIsUnifiedProfilePassword,
+                /* Any duplicate copy is not from a Parcel, so set isFromParcel=false */
+                /* isFromParcel= */ false);
+    }
+
+    /** Zeroizes the credential bytes. */
     public void zeroize() {
         if (mCredential != null) {
-            LockPatternUtils.zeroize(mCredential);
+            ArrayUtils.zeroize(mCredential);
             mCredential = null;
+        }
+    }
+
+    /** Zeroizes the given LockscreenCredential if it is non-null and was created from a Parcel. */
+    public static void zeroizeIfFromParcel(@Nullable LockscreenCredential credential) {
+        if (credential != null && credential.mIsFromParcel) {
+            credential.zeroize();
         }
     }
 
@@ -255,7 +303,7 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
      * Copies the given array into a new non-movable array.
      */
     private static byte[] copyOfArrayNonMovable(byte[] array) {
-        byte[] copy = LockPatternUtils.newNonMovableByteArray(array.length);
+        byte[] copy = ArrayUtils.newNonMovableByteArray(array.length);
         System.arraycopy(array, 0, copy, 0, array.length);
         return copy;
     }
@@ -355,7 +403,7 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
             byte[] sha1 = MessageDigest.getInstance("SHA-1").digest(saltedPassword);
             byte[] md5 = MessageDigest.getInstance("MD5").digest(saltedPassword);
 
-            LockPatternUtils.zeroize(saltedPassword);
+            ArrayUtils.zeroize(saltedPassword);
             return HexEncoding.encodeToString(ArrayUtils.concat(sha1, md5));
         } catch (NoSuchAlgorithmException e) {
             throw new AssertionError("Missing digest algorithm: ", e);
@@ -367,22 +415,27 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
         dest.writeInt(mType);
         dest.writeByteArray(mCredential);
         dest.writeBoolean(mHasInvalidChars);
+        dest.writeBoolean(mIsUnifiedProfilePassword);
     }
 
     public static final Parcelable.Creator<LockscreenCredential> CREATOR =
             new Parcelable.Creator<LockscreenCredential>() {
 
-        @Override
-        public LockscreenCredential createFromParcel(Parcel source) {
-            return new LockscreenCredential(source.readInt(), source.createByteArray(),
-                    source.readBoolean());
-        }
+                @Override
+                public LockscreenCredential createFromParcel(Parcel source) {
+                    return new LockscreenCredential(
+                            source.readInt(),
+                            source.createByteArray(),
+                            source.readBoolean(),
+                            source.readBoolean(),
+                            /* isFromParcel= */ true);
+                }
 
-        @Override
-        public LockscreenCredential[] newArray(int size) {
-            return new LockscreenCredential[size];
-        }
-    };
+                @Override
+                public LockscreenCredential[] newArray(int size) {
+                    return new LockscreenCredential[size];
+                }
+            };
 
     @Override
     public int describeContents() {
@@ -402,7 +455,8 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
     @Override
     public int hashCode() {
         // Effective Java — Always override hashCode when you override equals
-        return Objects.hash(mType, Arrays.hashCode(mCredential), mHasInvalidChars);
+        return Objects.hash(
+                mType, Arrays.hashCode(mCredential), mHasInvalidChars, mIsUnifiedProfilePassword);
     }
 
     @Override
@@ -410,8 +464,10 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
         if (o == this) return true;
         if (!(o instanceof LockscreenCredential)) return false;
         final LockscreenCredential other = (LockscreenCredential) o;
-        return mType == other.mType && Arrays.equals(mCredential, other.mCredential)
-            && mHasInvalidChars == other.mHasInvalidChars;
+        return mType == other.mType
+                && Arrays.equals(mCredential, other.mCredential)
+                && mHasInvalidChars == other.mHasInvalidChars
+                && mIsUnifiedProfilePassword == other.mIsUnifiedProfilePassword;
     }
 
     private static boolean hasInvalidChars(CharSequence chars) {
@@ -449,7 +505,7 @@ public class LockscreenCredential implements Parcelable, AutoCloseable {
      * @return A byte array representing the input
      */
     private static byte[] charsToBytesTruncating(CharSequence chars) {
-        byte[] bytes = LockPatternUtils.newNonMovableByteArray(chars.length());
+        byte[] bytes = ArrayUtils.newNonMovableByteArray(chars.length());
         for (int i = 0; i < chars.length(); i++) {
             bytes[i] = (byte) chars.charAt(i);
         }

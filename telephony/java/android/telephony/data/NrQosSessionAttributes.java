@@ -36,7 +36,7 @@ import java.util.Objects;
 /**
  * Provides Qos attributes of an NR bearer.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class NrQosSessionAttributes implements Parcelable, QosSessionAttributes {

@@ -29,12 +29,13 @@ import android.graphics.drawable.Drawable
 import android.graphics.drawable.Icon
 import android.os.Handler
 import android.os.Parcel
+import android.os.UserManager
 import android.service.quicksettings.IQSTileService
 import android.service.quicksettings.Tile
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.filters.SmallTest
 import android.testing.TestableLooper
 import android.view.IWindowManager
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.animation.ActivityTransitionAnimator
@@ -53,10 +54,12 @@ import com.android.systemui.util.mockito.eq
 import com.android.systemui.util.mockito.nullable
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
+import java.util.Arrays
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,8 +73,6 @@ import org.mockito.Mockito.reset
 import org.mockito.Mockito.verify
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
-import java.util.Arrays
-
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
@@ -106,27 +107,28 @@ class CustomTileTest : SysuiTestCase() {
     private val componentName = ComponentName(packageName, className)
     private val TILE_SPEC = CustomTile.toSpec(componentName)
 
-    private val customTileFactory = object : CustomTile.Factory {
-        override fun create(action: String, userContext: Context): CustomTile {
-            return CustomTile(
-                { tileHost },
-                uiEventLogger,
-                testableLooper.looper,
-                Handler(testableLooper.looper),
-                FalsingManagerFake(),
-                metricsLogger,
-                statusBarStateController,
-                activityStarter,
-                qsLogger,
-                action,
-                userContext,
-                customTileStatePersister,
-                tileServices,
-                displayTracker,
-                ugm,
-            )
+    private val customTileFactory =
+        object : CustomTile.Factory {
+            override fun create(action: String, userContext: Context): CustomTile {
+                return CustomTile(
+                    { tileHost },
+                    uiEventLogger,
+                    testableLooper.looper,
+                    Handler(testableLooper.looper),
+                    FalsingManagerFake(),
+                    metricsLogger,
+                    statusBarStateController,
+                    activityStarter,
+                    qsLogger,
+                    action,
+                    userContext,
+                    customTileStatePersister,
+                    tileServices,
+                    displayTracker,
+                    ugm,
+                )
+            }
         }
-    }
 
     @Before
     fun setUp() {
@@ -137,18 +139,16 @@ class CustomTileTest : SysuiTestCase() {
         mContext.setMockPackageManager(packageManager)
         `when`(tileHost.context).thenReturn(mContext)
         `when`(tileServices.getTileWrapper(any(CustomTile::class.java)))
-                .thenReturn(tileServiceManager)
+            .thenReturn(tileServiceManager)
         `when`(tileServiceManager.tileService).thenReturn(tileService)
-        `when`(packageManager.getApplicationInfo(anyString(), anyInt()))
-                .thenReturn(applicationInfo)
+        `when`(packageManager.getApplicationInfo(anyString(), anyInt())).thenReturn(applicationInfo)
 
         `when`(packageManager.getServiceInfo(any(ComponentName::class.java), anyInt()))
-                .thenReturn(serviceInfo)
+            .thenReturn(serviceInfo)
         `when`(packageManager.getResourcesForApplication(any<ApplicationInfo>()))
-                .thenReturn(context.resources)
+            .thenReturn(context.resources)
 
         serviceInfo.applicationInfo = applicationInfo
-
 
         customTile = CustomTile.create(customTileFactory, TILE_SPEC, mContext)
         customTile.initialize()
@@ -156,18 +156,26 @@ class CustomTileTest : SysuiTestCase() {
     }
 
     @Test
-    fun testCorrectUser() {
+    fun testCorrectUser_notHSUM() {
+        Assume.assumeFalse(UserManager.isHeadlessSystemUserMode())
         assertEquals(0, customTile.user)
 
         val userContext = mock(Context::class.java)
         `when`(userContext.packageManager).thenReturn(packageManager)
-        `when`(userContext.userId).thenReturn(10)
+        `when`(userContext.userId).thenReturn(12)
 
         val tile = CustomTile.create(customTileFactory, TILE_SPEC, userContext)
         tile.initialize()
         testableLooper.processAllMessages()
 
-        assertEquals(10, tile.user)
+        assertEquals(12, tile.user)
+    }
+
+    @Test
+    fun testCorrectUser_whenHSUM() {
+        Assume.assumeTrue(UserManager.isHeadlessSystemUserMode())
+        // on HSUM the primary user would be the first real user (10)
+        assertEquals(10, customTile.user)
     }
 
     @Test
@@ -196,7 +204,7 @@ class CustomTileTest : SysuiTestCase() {
 
         customTile.qsTile.icon = mock(Icon::class.java)
         `when`(customTile.qsTile.icon.loadDrawable(any(Context::class.java)))
-                .thenReturn(mock(Drawable::class.java))
+            .thenReturn(mock(Drawable::class.java))
 
         val state = customTile.newTileState()
         assertTrue(state is QSTile.BooleanState)
@@ -217,8 +225,7 @@ class CustomTileTest : SysuiTestCase() {
     @Test
     fun testNoCrashOnNullDrawable() {
         customTile.qsTile.icon = mock(Icon::class.java)
-        `when`(customTile.qsTile.icon.loadDrawable(any(Context::class.java)))
-                .thenReturn(null)
+        `when`(customTile.qsTile.icon.loadDrawable(any(Context::class.java))).thenReturn(null)
         customTile.handleUpdateState(customTile.newTileState(), null)
     }
 
@@ -233,9 +240,7 @@ class CustomTileTest : SysuiTestCase() {
     @Test
     fun testNoPersistedStateTileNotActive() {
         // Not active by default
-        val t = Tile().apply {
-            state = Tile.STATE_INACTIVE
-        }
+        val t = Tile().apply { state = Tile.STATE_INACTIVE }
         customTile.updateTileState(t, UID)
         testableLooper.processAllMessages()
 
@@ -250,16 +255,17 @@ class CustomTileTest : SysuiTestCase() {
         val contentDescription = "test_content_description"
         val stateDescription = "test_state_description"
 
-        val t = Tile().apply {
-            this.state = state
-            this.label = label
-            this.subtitle = subtitle
-            this.contentDescription = contentDescription
-            this.stateDescription = stateDescription
-        }
+        val t =
+            Tile().apply {
+                this.state = state
+                this.label = label
+                this.subtitle = subtitle
+                this.contentDescription = contentDescription
+                this.stateDescription = stateDescription
+            }
         `when`(tileServiceManager.isActiveTile).thenReturn(true)
-        `when`(customTileStatePersister
-                .readState(TileServiceKey(componentName, customTile.user))).thenReturn(t)
+        `when`(customTileStatePersister.readState(TileServiceKey(componentName, customTile.user)))
+            .thenReturn(t)
         val tile = CustomTile.create(customTileFactory, TILE_SPEC, mContext)
         tile.initialize()
         testableLooper.processAllMessages()
@@ -268,7 +274,7 @@ class CustomTileTest : SysuiTestCase() {
         // This should not be overridden by the retrieved tile that has null icon.
         tile.qsTile.icon = mock(Icon::class.java)
         `when`(tile.qsTile.icon.loadDrawable(any(Context::class.java)))
-                .thenReturn(mock(Drawable::class.java))
+            .thenReturn(mock(Drawable::class.java))
 
         val pi = mock(PendingIntent::class.java)
         `when`(pi.isActivity).thenReturn(true)
@@ -289,13 +295,14 @@ class CustomTileTest : SysuiTestCase() {
 
     @Test
     fun testStoreStateOnChange() {
-        val t = Tile().apply {
-            state = Tile.STATE_INACTIVE
-            label = "test_label"
-            subtitle = "test_subtitle"
-            contentDescription = "test_content_description"
-            stateDescription = "test_state_description"
-        }
+        val t =
+            Tile().apply {
+                state = Tile.STATE_INACTIVE
+                label = "test_label"
+                subtitle = "test_subtitle"
+                contentDescription = "test_content_description"
+                stateDescription = "test_state_description"
+            }
         `when`(tileServiceManager.isActiveTile).thenReturn(true)
 
         val tile = CustomTile.create(customTileFactory, TILE_SPEC, mContext)
@@ -307,13 +314,13 @@ class CustomTileTest : SysuiTestCase() {
         testableLooper.processAllMessages()
 
         verify(customTileStatePersister)
-                .persistState(TileServiceKey(componentName, customTile.user), t)
+            .persistState(TileServiceKey(componentName, customTile.user), t)
     }
 
     @Test
     fun testAvailableBeforeInitialization() {
         `when`(packageManager.getApplicationInfo(anyString(), anyInt()))
-                .thenThrow(PackageManager.NameNotFoundException())
+            .thenThrow(PackageManager.NameNotFoundException())
         val tile = CustomTile.create(customTileFactory, TILE_SPEC, mContext)
         assertTrue(tile.isAvailable)
     }
@@ -371,7 +378,10 @@ class CustomTileTest : SysuiTestCase() {
 
         verify(activityStarter)
             .startPendingIntentMaybeDismissingKeyguard(
-                eq(pi), nullable(), nullable<ActivityTransitionAnimator.Controller>())
+                eq(pi),
+                nullable(),
+                nullable<ActivityTransitionAnimator.Controller>(),
+            )
     }
 
     @Test
@@ -397,7 +407,7 @@ class CustomTileTest : SysuiTestCase() {
         // This should not be overridden by the retrieved tile that has null icon.
         tile.qsTile.icon = mock(Icon::class.java)
         `when`(tile.qsTile.icon.loadDrawable(any(Context::class.java)))
-                .thenReturn(mock(Drawable::class.java))
+            .thenReturn(mock(Drawable::class.java))
 
         tile.postStale()
         testableLooper.processAllMessages()
@@ -452,12 +462,8 @@ class CustomTileTest : SysuiTestCase() {
         val icon = mock(Icon::class.java)
         val drawable = context.getDrawable(R.drawable.cloud)!!
         whenever(icon.loadDrawable(any())).thenReturn(drawable)
-        whenever(icon.loadDrawableCheckingUriGrant(
-            any(),
-            eq(ugm),
-            anyInt(),
-            anyString())
-        ).thenReturn(drawable)
+        whenever(icon.loadDrawableCheckingUriGrant(any(), eq(ugm), anyInt(), anyString()))
+            .thenReturn(drawable)
 
         serviceInfo.icon = R.drawable.android
 
@@ -478,11 +484,12 @@ class CustomTileTest : SysuiTestCase() {
 
         assertThat(
                 areDrawablesEqual(
-                        customTile.state.iconSupplier.get().getDrawable(context),
-                        drawable,
-                        size
+                    customTile.state.iconSupplier.get().getDrawable(context),
+                    drawable,
+                    size,
                 )
-        ).isTrue()
+            )
+            .isTrue()
     }
 
     @Test
@@ -491,12 +498,8 @@ class CustomTileTest : SysuiTestCase() {
         val drawable = context.getDrawable(R.drawable.cloud)!!
         val icon = mock(Icon::class.java)
         whenever(icon.loadDrawable(any())).thenReturn(drawable)
-        whenever(icon.loadDrawableCheckingUriGrant(
-            any(),
-            eq(ugm),
-            anyInt(),
-            anyString())
-        ).thenReturn(null)
+        whenever(icon.loadDrawableCheckingUriGrant(any(), eq(ugm), anyInt(), anyString()))
+            .thenReturn(null)
 
         // Give it an icon to prevent issues
         serviceInfo.icon = R.drawable.android
@@ -518,11 +521,12 @@ class CustomTileTest : SysuiTestCase() {
 
         assertThat(
                 areDrawablesEqual(
-                        customTile.state.iconSupplier.get().getDrawable(context),
-                        context.getDrawable(R.drawable.android)!!,
-                        size
+                    customTile.state.iconSupplier.get().getDrawable(context),
+                    context.getDrawable(R.drawable.android)!!,
+                    size,
                 )
-        ).isTrue()
+            )
+            .isTrue()
     }
 }
 

@@ -17,7 +17,6 @@
 package com.android.systemui.common.ui.binder
 
 import android.widget.ImageView
-import com.android.settingslib.Utils
 import com.android.systemui.common.shared.model.TintedIcon
 
 object TintedIconViewBinder {
@@ -27,14 +26,11 @@ object TintedIconViewBinder {
      * [TintedIcon.tint] will always be applied, meaning that if it is null, then the tint *will* be
      * reset to null.
      */
-    fun bind(
-        tintedIcon: TintedIcon,
-        view: ImageView,
-    ) {
+    fun bind(tintedIcon: TintedIcon, view: ImageView) {
         IconViewBinder.bind(tintedIcon.icon, view)
         view.imageTintList =
             if (tintedIcon.tint != null) {
-                Utils.getColorAttr(view.context, tintedIcon.tint)
+                view.context.getColorStateList(tintedIcon.tint)
             } else {
                 null
             }

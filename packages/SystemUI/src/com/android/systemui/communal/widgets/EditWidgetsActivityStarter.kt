@@ -16,8 +16,14 @@
 
 package com.android.systemui.communal.widgets
 
+import android.Manifest
+import android.app.ActivityManager
+import android.app.ActivityOptions
 import android.content.Context
 import android.content.Intent
+import androidx.annotation.RequiresPermission
+import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
+import com.android.systemui.communal.shared.model.EditModeState
 import com.android.systemui.communal.widgets.EditWidgetsActivity.Companion.EXTRA_OPEN_WIDGET_PICKER_ON_START
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.plugins.ActivityStarter
@@ -25,9 +31,7 @@ import com.android.systemui.res.R
 import javax.inject.Inject
 
 interface EditWidgetsActivityStarter {
-    fun startActivity(
-        shouldOpenWidgetPickerOnStart: Boolean = false,
-    )
+    fun startActivity(shouldOpenWidgetPickerOnStart: Boolean = false)
 }
 
 class EditWidgetsActivityStarterImpl
@@ -35,9 +39,28 @@ class EditWidgetsActivityStarterImpl
 constructor(
     @Application private val applicationContext: Context,
     private val activityStarter: ActivityStarter,
+    private val communalSceneInteractor: CommunalSceneInteractor,
 ) : EditWidgetsActivityStarter {
 
+    @RequiresPermission(Manifest.permission.START_TASKS_FROM_RECENTS)
     override fun startActivity(shouldOpenWidgetPickerOnStart: Boolean) {
+        if (communalSceneInteractor.editModeState.value != null) {
+            return
+        }
+
+        communalSceneInteractor.setEditModeState(EditModeState.STARTING)
+
+        val options =
+            ActivityOptions.makeCustomTaskAnimation(
+                    applicationContext,
+                    R.anim.hub_edit_mode_activity_enter,
+                    R.anim.hub_edit_mode_activity_exit,
+                    /*handler=*/ null,
+                    /*startedListener=*/ null,
+                    /*finishedListener=*/ null,
+                )
+                .apply { overrideTaskTransition = true }
+
         activityStarter.startActivityDismissingKeyguard(
             Intent(applicationContext, EditWidgetsActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -47,6 +70,11 @@ constructor(
             /* onlyProvisioned = */ true,
             /* dismissShade = */ true,
             applicationContext.resources.getString(R.string.unlock_reason_to_customize_widgets),
-        )
+            options,
+        ) { resultCode ->
+            if (resultCode == ActivityManager.START_CANCELED) {
+                communalSceneInteractor.setEditModeState(null)
+            }
+        }
     }
 }

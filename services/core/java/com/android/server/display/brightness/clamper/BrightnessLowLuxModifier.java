@@ -38,7 +38,8 @@ import java.io.PrintWriter;
  * lux conditions and user preferred minimum.
  */
 public class BrightnessLowLuxModifier extends BrightnessModifier implements
-        BrightnessClamperController.UserSwitchListener {
+        BrightnessClamperController.UserSwitchListener,
+        BrightnessClamperController.StatefulModifier {
 
     // To enable these logs, run:
     // 'adb shell setprop persist.log.tag.BrightnessLowLuxModifier DEBUG && adb reboot'
@@ -155,12 +156,20 @@ public class BrightnessLowLuxModifier extends BrightnessModifier implements
     @Override
     public void apply(DisplayManagerInternal.DisplayPowerRequest request,
             DisplayBrightnessState.Builder stateBuilder) {
-        stateBuilder.setMinBrightness(mBrightnessLowerBound);
+        float minBrightness = Math.max(stateBuilder.getMinBrightness(), mBrightnessLowerBound);
+        stateBuilder.setMinBrightness(minBrightness);
         float boundedBrightness = Math.max(mBrightnessLowerBound, stateBuilder.getBrightness());
         stateBuilder.setBrightness(boundedBrightness);
         if (BrightnessSynchronizer.floatEquals(stateBuilder.getBrightness(),
                 mBrightnessLowerBound)) {
             stateBuilder.getBrightnessReason().addModifier(mReason);
+        }
+    }
+
+    @Override
+    public void applyStateChange(BrightnessClamperController.ModifiersAggregatedState state) {
+        if (state.mMinBrightness < mBrightnessLowerBound) {
+            state.mMinBrightness = mBrightnessLowerBound;
         }
     }
 

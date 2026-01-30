@@ -40,7 +40,7 @@ import java.util.TreeSet;
  * provided to allow for arbitrary inclusion or exclusion of sub-packages. Typically a
  * {@link TestGrouping} will have only one root package, but this is not a requirement.
  * 
- * {@hide} Not needed for 1.0 SDK.
+ * @hide Not needed for 1.0 SDK.
  */
 class TestGrouping {
 

@@ -35,7 +35,6 @@
 #include <signal.h>
 #include <time.h>
 
-#include <cutils/atomic.h>
 #include <cutils/properties.h>
 
 #include <android/imagedecoder.h>

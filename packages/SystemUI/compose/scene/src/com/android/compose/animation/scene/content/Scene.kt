@@ -35,8 +35,8 @@ internal class Scene(
     zIndex: Float,
     globalZIndex: Long,
     effectFactory: OverscrollFactory,
-    val alwaysCompose: Boolean,
-) : Content(key, layoutImpl, content, actions, zIndex, globalZIndex, effectFactory) {
+    alwaysCompose: Boolean,
+) : Content(key, layoutImpl, content, actions, zIndex, globalZIndex, effectFactory, alwaysCompose) {
     override fun toString(): String {
         return "Scene(key=$key)"
     }

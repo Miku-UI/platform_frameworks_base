@@ -21,7 +21,7 @@ import android.media.AudioDeviceAttributes;
 /**
  * AIDL for the AudioService to signal mute events tied to audio device connections.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IMuteAwaitConnectionCallback {
 

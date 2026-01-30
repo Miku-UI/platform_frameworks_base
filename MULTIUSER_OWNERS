@@ -1,4 +1,7 @@
 # OWNERS of Multiuser related files
+# Bug component: 71510
+# Route bugs to: android-multiuser-triage@google.com
+
 annabauza@google.com
 bookatz@google.com
 nykkumar@google.com

@@ -16,6 +16,8 @@
 
 package com.android.wm.shell.appzoomout;
 
+import android.os.Handler;
+
 import com.android.wm.shell.shared.annotations.ExternalThread;
 
 /**
@@ -25,9 +27,22 @@ import com.android.wm.shell.shared.annotations.ExternalThread;
 public interface AppZoomOut {
 
     /**
-     * Called when the zoom out progress is updated, which is used to scale down the current app
-     * surface from fullscreen to the max pushback level we want to apply. {@param progress} ranges
-     * between [0,1], 0 when fullscreen, 1 when it's at the max pushback level.
+     * Sets the squeeze effect progress.
+     *
+     * <p>The {@code progress} parameter determines the current zoom level and surface crop, ranging
+     * from {@code 0f} to {@code 1f}.
+     * <ul>
+     * <li>A value of {@code 0f} indicates no scaling and cropping (content is displayed at its
+     * original size).</li>
+     * <li>A value of {@code 0.0f} represents the maximum zoom-out, effectively scaling and cropping
+     * the content to the max pushback level</li>
+     * <li>Values between {@code 0.0f} and {@code 1.0f} represent intermediate zoom levels.</li>
+     * </ul>
+     *
+     * @param progress The progress to set the squeeze zoom effect to.
+     * @param vsyncId The vsync id to align the frame to.
+     * @param sysuiMainHandler The main handler from SystemUI (required for CUJ tracking)
      */
-    void setProgress(float progress);
+    void setTopLevelProgress(float progress, long vsyncId, Handler sysuiMainHandler);
+
 }

@@ -42,6 +42,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.hardware.devicestate.DeviceState;
 import android.hardware.display.DisplayManager;
 import android.hardware.input.InputSensorInfo;
 import android.os.Handler;
@@ -71,6 +72,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.internal.util.reflection.FieldSetter;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +88,9 @@ public final class BookStyleDeviceStatePolicyTest {
     private static final int DEVICE_STATE_CLOSED = 0;
     private static final int DEVICE_STATE_HALF_OPENED = 1;
     private static final int DEVICE_STATE_OPENED = 2;
+    private static final int EXTERNAL_DISPLAY_ID = 17;
+    private static final int DEVICE_STATE_CONCURRENT_INNER_DEFAULT = 4;
+    private static final int DEVICE_STATE_REAR_DISPLAY_OUTER_DEFAULT = 5;
 
     @Captor
     private ArgumentCaptor<Integer> mDeviceStateCaptor;
@@ -476,6 +481,21 @@ public final class BookStyleDeviceStatePolicyTest {
     }
 
     @Test
+    public void test_unfoldTo30Degrees_becomesLandscapeScreenRotation_keepsClosedState() {
+        sendHingeAngle(0f);
+        sendRightSideFlatSensorEvent(false);
+        sendScreenRotation(Surface.ROTATION_0);
+        mProvider.setListener(mListener);
+        assertLatestReportedState(DEVICE_STATE_CLOSED);
+        sendScreenRotation(Surface.ROTATION_90);
+        clearInvocations(mListener);
+
+        sendHingeAngle(30f);
+
+        verify(mListener, never()).onStateChanged(mDeviceStateCaptor.capture());
+    }
+
+    @Test
     public void test_unfoldTo30Degrees_seascapeScreenRotation_keepsClosedState() {
         sendHingeAngle(0f);
         sendRightSideFlatSensorEvent(false);
@@ -644,6 +664,47 @@ public final class BookStyleDeviceStatePolicyTest {
     }
 
     @Test
+    public void test_unfoldTo85Degrees_afterScreenWakeLockBecomesActive_keepsClosedDeviceState()
+            throws Exception {
+        mFakeFeatureFlags.setFlag(Flags.FLAG_FORCE_FOLDABLES_TENT_MODE_WITH_SCREEN_WAKELOCK, true);
+        mInstrumentation.runOnMainSync(() -> mProvider = createProvider());
+        mPolicy.getDeviceStateProvider().onSystemReady();
+        sendHingeAngle(0f);
+        mProvider.setListener(mListener);
+        assertLatestReportedState(DEVICE_STATE_CLOSED);
+
+        final ScreenTimeoutPolicyListener listener = captureScreenTimeoutPolicyListener();
+        listener.onScreenTimeoutPolicyChanged(PowerManager.SCREEN_TIMEOUT_KEEP_DISPLAY_ON);
+
+        sendHingeAngle(15f);
+        assertLatestReportedState(DEVICE_STATE_CLOSED);
+
+        sendHingeAngle(85f);
+        assertLatestReportedState(DEVICE_STATE_CLOSED);
+    }
+
+    @Test
+    public void test_unfoldTo85Degrees_screenWakeLockPresentAndThenRemoved_movesToHalfOpenedState()
+            throws Exception {
+        mFakeFeatureFlags.setFlag(Flags.FLAG_FORCE_FOLDABLES_TENT_MODE_WITH_SCREEN_WAKELOCK, true);
+        mInstrumentation.runOnMainSync(() -> mProvider = createProvider());
+        mPolicy.getDeviceStateProvider().onSystemReady();
+        sendHingeAngle(0f);
+        mProvider.setListener(mListener);
+        assertLatestReportedState(DEVICE_STATE_CLOSED);
+
+        final ScreenTimeoutPolicyListener listener = captureScreenTimeoutPolicyListener();
+        listener.onScreenTimeoutPolicyChanged(PowerManager.SCREEN_TIMEOUT_KEEP_DISPLAY_ON);
+        listener.onScreenTimeoutPolicyChanged(PowerManager.SCREEN_TIMEOUT_ACTIVE);
+
+        sendHingeAngle(15f);
+        assertLatestReportedState(DEVICE_STATE_HALF_OPENED);
+
+        sendHingeAngle(85f);
+        assertLatestReportedState(DEVICE_STATE_HALF_OPENED);
+    }
+
+    @Test
     public void test_unfoldTo85Degrees_notSubscribedToWakeLocks_forceTentModeWithWakeLockDisabled()
             throws Exception {
         mFakeFeatureFlags.setFlag(Flags.FLAG_FORCE_FOLDABLES_TENT_MODE_WITH_SCREEN_WAKELOCK, false);
@@ -702,6 +763,34 @@ public final class BookStyleDeviceStatePolicyTest {
         assertNoListenersForSensor(mLeftAccelerometer);
         assertNoListenersForSensor(mRightAccelerometer);
         assertNoListenersForSensor(mOrientationSensor);
+    }
+
+    @Test
+    public void test_externalDisplay_noDualDisplayModes() {
+        List<Integer> lastStatesIdentifiers = new ArrayList<>();
+        Listener captureStates = new Listener() {
+            @Override
+            public void onSupportedDeviceStatesChanged(DeviceState[] newDeviceStates, int reason) {
+                lastStatesIdentifiers.clear();
+                Arrays.stream(newDeviceStates)
+                        .map(DeviceState::getIdentifier)
+                        .forEach(lastStatesIdentifiers::add);
+            }
+
+            @Override
+            public void onStateChanged(int identifier) {
+            }
+        };
+        mProvider.setListener(captureStates);
+        Display display = mock(Display.class);
+        when(display.getType()).thenReturn(Display.TYPE_EXTERNAL);
+        when(mDisplayManager.getDisplay(EXTERNAL_DISPLAY_ID)).thenReturn(display);
+        DisplayManager.DisplayListener displayListener = (DisplayManager.DisplayListener) mProvider;
+
+        displayListener.onDisplayAdded(EXTERNAL_DISPLAY_ID);
+
+        assertThat(lastStatesIdentifiers).containsNoneOf(DEVICE_STATE_CONCURRENT_INNER_DEFAULT,
+                DEVICE_STATE_REAR_DISPLAY_OUTER_DEFAULT);
     }
 
     @Test

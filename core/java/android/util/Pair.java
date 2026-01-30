@@ -25,8 +25,7 @@ import java.util.Objects;
  * implementation of equals(), returning true if equals() is true on each of the contained
  * objects.
  */
-// Exported to Mainline modules; cannot use annotations
-// @android.ravenwood.annotation.RavenwoodKeepWholeClass
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class Pair<F, S> {
     public final F first;
     public final S second;

@@ -138,7 +138,7 @@ public class ForegroundServiceTypeLoggerModule {
         if (record.getComponentName() != null) {
             final String traceTag = record.getComponentName().flattenToString() + ":" + uid;
             Trace.asyncTraceForTrackBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER, traceTag,
-                    "foregroundService", record.foregroundServiceType);
+                    "foregroundService", record.getForegroundServiceType());
         }
         // initialize the UID stack
         UidState uidState = mUids.get(uid);
@@ -148,7 +148,7 @@ public class ForegroundServiceTypeLoggerModule {
         }
         // grab the appropriate types
         final IntArray apiTypes =
-                convertFgsTypeToApiTypes(record.foregroundServiceType);
+                convertFgsTypeToApiTypes(record.getForegroundServiceType());
         if (apiTypes.size() == 0) {
             Slog.w(TAG, "Foreground service start for UID: "
                     + uid + " does not have any types");
@@ -216,7 +216,7 @@ public class ForegroundServiceTypeLoggerModule {
             Trace.asyncTraceForTrackEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER,
                     traceTag, record.hashCode());
         }
-        final IntArray apiTypes = convertFgsTypeToApiTypes(record.foregroundServiceType);
+        final IntArray apiTypes = convertFgsTypeToApiTypes(record.getForegroundServiceType());
         final UidState uidState = mUids.get(uid);
         if (apiTypes.size() == 0) {
             Slog.w(TAG, "FGS stop call for: " + uid + " has no types!");
@@ -521,7 +521,7 @@ public class ForegroundServiceTypeLoggerModule {
                 r.mStartForegroundCount,
                 0, // Short instance name -- no longer logging it.
                 r.mFgsHasNotificationPermission,
-                r.foregroundServiceType,
+                r.getForegroundServiceType(),
                 0,
                 r.mIsFgsDelegate,
                 r.mFgsDelegation != null ? r.mFgsDelegation.mOptions.mClientUid : INVALID_UID,

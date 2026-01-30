@@ -18,8 +18,8 @@ package com.android.server.wm.flicker.close
 
 import android.platform.test.annotations.Presubmit
 import android.tools.device.apphelpers.StandardAppHelper
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
 import android.tools.flicker.subject.layers.LayersTraceSubject.Companion.VISIBLE_FOR_MORE_THAN_ONE_ENTRY_IGNORE_LAYERS
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.component.ComponentNameMatcher.Companion.LAUNCHER
@@ -31,7 +31,7 @@ import com.android.server.wm.flicker.replacesLayer
 import org.junit.Test
 
 /** Base test class for transitions that close an app back to the launcher screen */
-abstract class CloseAppTransition(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+abstract class CloseAppTransition(flicker: FlickerTest) : BaseTest(flicker) {
     protected open val testApp: StandardAppHelper = SimpleAppHelper(instrumentation)
 
     /** {@inheritDoc} */

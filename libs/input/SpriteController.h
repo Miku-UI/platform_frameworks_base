@@ -136,6 +136,9 @@ public:
     virtual void openTransaction();
     virtual void closeTransaction();
 
+    static uint32_t getBitmapFormat();
+    static PixelFormat getPixelFormat();
+
 private:
     class Handler : public virtual android::MessageHandler {
     public:

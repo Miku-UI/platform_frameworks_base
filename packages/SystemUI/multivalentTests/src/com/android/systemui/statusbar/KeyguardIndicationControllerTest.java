@@ -16,17 +16,18 @@
 
 package com.android.systemui.statusbar;
 
-import static android.app.admin.DevicePolicyManager.DEVICE_OWNER_TYPE_FINANCED;
 import static android.content.pm.UserInfo.FLAG_MANAGED_PROFILE;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_TOO_DARK;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ERROR_LOCKOUT_PERMANENT;
 import static android.hardware.biometrics.BiometricFaceConstants.FACE_ERROR_TIMEOUT;
+import static android.security.Flags.FLAG_SECURE_LOCK_DEVICE;
 import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
 import static com.android.keyguard.KeyguardUpdateMonitor.BIOMETRIC_HELP_FACE_NOT_AVAILABLE;
 import static com.android.keyguard.KeyguardUpdateMonitor.BIOMETRIC_HELP_FACE_NOT_RECOGNIZED;
 import static com.android.keyguard.KeyguardUpdateMonitor.BIOMETRIC_HELP_FINGERPRINT_NOT_RECOGNIZED;
+import static com.android.systemui.Flags.showLockedByYourWatchKeyguardIndicator;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_ADAPTIVE_AUTH;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_ALIGNMENT;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_BATTERY;
@@ -36,8 +37,10 @@ import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewCont
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_LOGOUT;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_OWNER_INFO;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_PERSISTENT_UNLOCK_MESSAGE;
+import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_SECURE_LOCK_DEVICE;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_TRANSIENT;
 import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_TRUST;
+import static com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController.INDICATION_TYPE_WATCH_DISCONNECTED;
 import static com.android.systemui.keyguard.ScreenLifecycle.SCREEN_OFF;
 import static com.android.systemui.keyguard.ScreenLifecycle.SCREEN_TURNING_ON;
 
@@ -67,17 +70,21 @@ import android.hardware.biometrics.BiometricFingerprintConstants;
 import android.hardware.biometrics.BiometricSourceType;
 import android.os.BatteryManager;
 import android.os.RemoteException;
+import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.FlakyTest;
 import androidx.test.filters.SmallTest;
 
+import com.android.internal.widget.LockPatternUtils;
 import com.android.keyguard.TrustGrantFlags;
 import com.android.settingslib.fuelgauge.BatteryStatus;
+import com.android.systemui.Flags;
 import com.android.systemui.dock.DockManager;
 import com.android.systemui.keyguard.KeyguardIndication;
 import com.android.systemui.keyguard.KeyguardIndicationRotateTextViewController;
+import com.android.systemui.keyguard.shared.model.AuthenticationFlags;
 import com.android.systemui.res.R;
 
 import org.junit.Test;
@@ -303,9 +310,6 @@ public class KeyguardIndicationControllerTest extends KeyguardIndicationControll
         when(mDevicePolicyManager.isDeviceManaged()).thenReturn(true);
         when(mDevicePolicyManager.getDeviceOwnerOrganizationName()).thenReturn(ORGANIZATION_NAME);
         when(mDevicePolicyManager.isFinancedDevice()).thenReturn(true);
-        // TODO(b/259908270): remove
-        when(mDevicePolicyManager.getDeviceOwnerType(DEVICE_OWNER_COMPONENT))
-                .thenReturn(DEVICE_OWNER_TYPE_FINANCED);
         sendUpdateDisclosureBroadcast();
         mExecutor.runAllReady();
         mController.setVisible(true);
@@ -1595,6 +1599,46 @@ public class KeyguardIndicationControllerTest extends KeyguardIndicationControll
 
         // Verify that the adaptive auth message does not show
         verifyNoMessage(INDICATION_TYPE_ADAPTIVE_AUTH);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SHOW_LOCKED_BY_YOUR_WATCH_KEYGUARD_INDICATOR)
+    public void updateWatchDisconnectedMessage_whenNotLockedWatchDisconnect_doesNotShowMsg() {
+        createController();
+        mController.setVisible(true);
+
+        // Verify that the locked by your watch disconnect message does not show
+        verifyNoMessage(INDICATION_TYPE_WATCH_DISCONNECTED);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_SHOW_LOCKED_BY_YOUR_WATCH_KEYGUARD_INDICATOR)
+    public void updateWatchDisconnectedMessage_whenLockedWatchDisconnect_noSkipBouncer_showsMsg() {
+        assertTrue(showLockedByYourWatchKeyguardIndicator());
+        when(mKeyguardUpdateMonitor.getUserCanSkipBouncer(getCurrentUser())).thenReturn(false);
+        createController();
+        mController.mDeviceEntryBiometricSettingsInteractorCallback.accept(
+                new AuthenticationFlags(mCurrentUserId,
+                LockPatternUtils.StrongAuthTracker.SOME_AUTH_REQUIRED_AFTER_WATCH_DISCONNECTED));
+        mController.setVisible(true);
+
+        // Verify that the locked by your watch disconnect message shows
+        String message = mContext.getString(R.string.keyguard_indication_after_watch_disconnected);
+        verifyIndicationMessage(INDICATION_TYPE_WATCH_DISCONNECTED, message);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    public void updateSecureLockDeviceMessage_whenSecureLockDeviceEnabled_showsMsg() {
+        mSecureLockDeviceRepository.onSecureLockDeviceEnabled();
+        mKosmos.getTestScope().getTestScheduler().runCurrent();
+
+        createController();
+        mController.setVisible(true);
+
+        // Verify that the secure lock device message shows
+        String message = mContext.getString(R.string.keyguard_indication_after_secure_lock_device);
+        verifyIndicationMessage(INDICATION_TYPE_SECURE_LOCK_DEVICE, message);
     }
 
     private void screenIsTurningOn() {

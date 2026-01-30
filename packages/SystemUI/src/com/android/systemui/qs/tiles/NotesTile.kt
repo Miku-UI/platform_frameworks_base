@@ -94,7 +94,9 @@ constructor(
         state?.apply {
             this.state = tileState.activationState.legacyState
             icon =
-                maybeLoadResourceIcon((tileState.icon as Icon.Loaded).res ?: R.drawable.ic_qs_notes)
+                maybeLoadResourceIcon(
+                    (tileState.icon as Icon.Loaded).resId ?: R.drawable.ic_qs_notes
+                )
             label = tileState.label
             contentDescription = tileState.contentDescription
             expandedAccessibilityClassName = tileState.expandedAccessibilityClassName

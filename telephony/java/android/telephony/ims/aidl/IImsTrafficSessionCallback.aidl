@@ -19,7 +19,7 @@ package android.telephony.ims.aidl;
 import android.telephony.ims.feature.ConnectionFailureInfo;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IImsTrafficSessionCallback {
     void onReady();

@@ -24,6 +24,7 @@ import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.UserAction
 import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.communal.shared.model.CommunalBackgroundType
+import com.android.systemui.communal.ui.compose.section.AmbientStatusBarSection
 import com.android.systemui.communal.ui.viewmodel.CommunalUserActionsViewModel
 import com.android.systemui.communal.ui.viewmodel.CommunalViewModel
 import com.android.systemui.communal.util.CommunalColors
@@ -43,12 +44,15 @@ constructor(
     actionsViewModelFactory: CommunalUserActionsViewModel.Factory,
     private val communalColors: CommunalColors,
     private val communalContent: CommunalContent,
+    private val ambientStatusBarSection: AmbientStatusBarSection,
 ) : ExclusiveActivatable(), Scene {
     override val key = Scenes.Communal
 
     private val actionsViewModel: CommunalUserActionsViewModel = actionsViewModelFactory.create()
 
     override val userActions: Flow<Map<UserAction, UserActionResult>> = actionsViewModel.actions
+
+    override val alwaysCompose: Boolean = false
 
     override suspend fun onActivated(): Nothing {
         actionsViewModel.activate()
@@ -65,6 +69,7 @@ constructor(
             backgroundType = backgroundType,
             colors = communalColors,
             content = communalContent,
+            ambientStatusBarSection = ambientStatusBarSection,
             viewModel = contentViewModel,
         )
     }

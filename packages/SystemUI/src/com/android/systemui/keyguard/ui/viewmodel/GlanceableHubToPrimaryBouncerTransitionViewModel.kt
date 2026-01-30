@@ -73,5 +73,13 @@ constructor(
             isLandscape
 
     override val notificationBlurRadius: Flow<Float> =
-        transitionAnimation.immediatelyTransitionTo(0.0f)
+        transitionAnimation.sharedFlowWithShade(
+            onStep = { _, isShadeExpanded ->
+                if (isShadeExpanded) {
+                    blurConfig.maxBlurRadiusPx
+                } else {
+                    null
+                }
+            }
+        )
 }

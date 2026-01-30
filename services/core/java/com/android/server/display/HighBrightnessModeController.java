@@ -68,7 +68,8 @@ class HighBrightnessModeController {
     public interface HdrBrightnessDeviceConfig {
         // maxDesiredHdrSdrRatio will restrict the HDR brightness if the ratio is less than
         // Float.POSITIVE_INFINITY
-        float getHdrBrightnessFromSdr(float sdrBrightness, float maxDesiredHdrSdrRatio);
+        float getHdrBrightnessFromSdr(float sdrBrightness, float maxDesiredHdrSdrRatio,
+                float ratioScaleFactor);
     }
 
     private final float mBrightnessMin;
@@ -196,8 +197,10 @@ class HighBrightnessModeController {
 
     float getHdrBrightnessValue() {
         if (mHdrBrightnessCfg != null) {
+            // ratioScaleFactor is implemented in HdrBrightnessModifier which replaces the HDR code
+            // in this class
             float hdrBrightness = mHdrBrightnessCfg.getHdrBrightnessFromSdr(
-                    mBrightness, mMaxDesiredHdrSdrRatio);
+                    mBrightness, mMaxDesiredHdrSdrRatio, /* ratioScaleFactor= */ 1);
             if (hdrBrightness != PowerManager.BRIGHTNESS_INVALID) {
                 return hdrBrightness;
             }

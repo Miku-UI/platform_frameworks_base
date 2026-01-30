@@ -30,6 +30,7 @@ import android.os.Bundle;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.SparseArray;
+import android.view.SurfaceControl;
 
 import com.android.internal.protolog.ProtoLog;
 
@@ -81,18 +82,8 @@ class WallpaperWindowToken extends WindowToken {
     }
 
     @Override
-    public void prepareSurfaces() {
-        super.prepareSurfaces();
-
-        if (mWmService.mFlags.mEnsureWallpaperInTransitions) {
-            // Similar to Task.prepareSurfaces, outside of transitions we need to apply visibility
-            // changes directly. In transitions the transition player will take care of applying the
-            // visibility change.
-            if (!mTransitionController.isCollecting(this)
-                    && !mTransitionController.isPlayingTarget(this)) {
-                getPendingTransaction().setVisibility(mSurfaceControl, isVisible());
-            }
-        }
+    void updateSurfaceVisibility(SurfaceControl.Transaction t) {
+        t.setVisibility(mSurfaceControl, isVisible());
     }
 
     /**
@@ -119,6 +110,15 @@ class WallpaperWindowToken extends WindowToken {
         return mShowWhenLocked;
     }
 
+    @Override
+    void setInitialSurfaceControlProperties(SurfaceControl.Builder b) {
+        // Replace the name from toString because surface cannot rename and mShowWhenLocked is set
+        // after surface creation.
+        b.setName("WallpaperWindowToken{"
+                + Integer.toHexString(System.identityHashCode(this)) + '}');
+        super.setInitialSurfaceControlProperties(b);
+    }
+
     void setCropHints(SparseArray<Rect> cropHints) {
         mCropHints = cropHints.clone();
     }
@@ -128,27 +128,20 @@ class WallpaperWindowToken extends WindowToken {
     }
 
     void sendWindowWallpaperCommand(
-            String action, int x, int y, int z, Bundle extras, boolean sync) {
+            String action, int x, int y, int z, Bundle extras) {
         for (int wallpaperNdx = mChildren.size() - 1; wallpaperNdx >= 0; wallpaperNdx--) {
             final WindowState wallpaper = mChildren.get(wallpaperNdx);
             try {
-                wallpaper.mClient.dispatchWallpaperCommand(action, x, y, z, extras, sync);
-                // We only want to be synchronous with one wallpaper.
-                sync = false;
+                wallpaper.mClient.dispatchWallpaperCommand(action, x, y, z, extras);
             } catch (RemoteException e) {
             }
         }
     }
 
-    void updateWallpaperOffset(boolean sync) {
+    void updateWallpaperOffset() {
         final WallpaperController wallpaperController = mDisplayContent.mWallpaperController;
-        for (int wallpaperNdx = mChildren.size() - 1; wallpaperNdx >= 0; wallpaperNdx--) {
-            final WindowState wallpaper = mChildren.get(wallpaperNdx);
-            if (wallpaperController.updateWallpaperOffset(wallpaper,
-                    sync && !mWmService.mFlags.mWallpaperOffsetAsync)) {
-                // We only want to be synchronous with one wallpaper.
-                sync = false;
-            }
+        for (int i = mChildren.size() - 1; i >= 0; i--) {
+            wallpaperController.updateWallpaperOffset(mChildren.get(i));
         }
     }
 
@@ -190,6 +183,9 @@ class WallpaperWindowToken extends WindowToken {
                 final WindowState wallpaper = mChildren.get(i);
                 wallpaper.requestUpdateWallpaperIfNeeded();
             }
+        }
+        if (visible != wasClientVisible) {
+            mWmService.mAnimator.addSurfaceVisibilityUpdate(this);
         }
     }
 

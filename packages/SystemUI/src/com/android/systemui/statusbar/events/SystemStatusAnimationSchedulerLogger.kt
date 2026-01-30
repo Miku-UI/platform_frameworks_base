@@ -1,5 +1,6 @@
 package com.android.systemui.statusbar.events
 
+import android.location.flags.Flags.locationIndicatorsEnabled
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.log.LogBuffer
 import com.android.systemui.log.core.LogLevel
@@ -42,6 +43,25 @@ constructor(@SystemStatusAnimationSchedulerLog private val logBuffer: LogBuffer)
                     "showAnimation=$bool2), animationState=$str2"
             },
         )
+    }
+
+    fun logNotifyEvent(event: StatusEvent) {
+        if (locationIndicatorsEnabled()) {
+            logBuffer.log(
+                TAG,
+                LogLevel.DEBUG,
+                {
+                    str1 = event.javaClass.simpleName
+                    int1 = event.priority
+                    bool1 = event.forceVisible
+                    bool2 = event.showAnimation
+                },
+                {
+                    "Notifying event: $str1(forceVisible=$bool1, priority=$int1, " +
+                        "showAnimation=$bool2)"
+                },
+            )
+        }
     }
 
     fun logIgnoreEvent(event: StatusEvent) {

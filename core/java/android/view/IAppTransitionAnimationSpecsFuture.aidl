@@ -21,7 +21,7 @@ import android.view.AppTransitionAnimationSpec;
 /**
  * A cross-process future to fetch the specifications for app transitions.
  *
- * {@hide}
+ * @hide
  */
 interface IAppTransitionAnimationSpecsFuture {
     AppTransitionAnimationSpec[] get();

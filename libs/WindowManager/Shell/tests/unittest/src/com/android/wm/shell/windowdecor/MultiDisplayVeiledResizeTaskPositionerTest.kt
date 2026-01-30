@@ -23,6 +23,7 @@ import android.graphics.Rect
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.platform.test.annotations.EnableFlags
 import android.testing.AndroidTestingRunner
 import android.testing.TestableResources
 import android.view.Display
@@ -37,36 +38,38 @@ import android.window.WindowContainerToken
 import androidx.test.filters.SmallTest
 import androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread
 import com.android.internal.jank.InteractionJankMonitor
+import com.android.window.flags.Flags
 import com.android.wm.shell.ShellTaskOrganizer
 import com.android.wm.shell.ShellTestCase
 import com.android.wm.shell.common.DisplayController
 import com.android.wm.shell.common.DisplayLayout
 import com.android.wm.shell.common.MultiDisplayDragMoveIndicatorController
-import com.android.wm.shell.common.MultiDisplayTestUtil
+import com.android.wm.shell.common.MultiDisplayTestUtil.TestDisplay
+import com.android.wm.shell.desktopmode.DesktopTasksController
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.transition.Transitions
 import com.android.wm.shell.transition.Transitions.TransitionFinishCallback
 import com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE_BOTTOM
 import com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE_RIGHT
 import com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE_TOP
 import com.android.wm.shell.windowdecor.DragPositioningCallback.CTRL_TYPE_UNDEFINED
+import com.android.wm.shell.windowdecor.DragPositioningCallback.INPUT_METHOD_TYPE_UNKNOWN
 import java.util.function.Supplier
 import junit.framework.Assert
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
-import org.mockito.Mock
-import org.mockito.Mockito.argThat
-import org.mockito.Mockito.doAnswer
-import org.mockito.Mockito.eq
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.never
-import org.mockito.Mockito.times
-import org.mockito.Mockito.verify
-import org.mockito.Mockito.verifyNoInteractions
-import org.mockito.Mockito.`when`
-import org.mockito.Mockito.`when` as whenever
-import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.argThat
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.doAnswer
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.verifyNoInteractions
+import org.mockito.kotlin.whenever
 
 /**
  * Tests for [MultiDisplayVeiledResizeTaskPositioner].
@@ -77,29 +80,30 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidTestingRunner::class)
 class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
 
-    @Mock private lateinit var mockShellTaskOrganizer: ShellTaskOrganizer
-    @Mock private lateinit var mockDesktopWindowDecoration: DesktopModeWindowDecoration
-    @Mock
-    private lateinit var mockDragEventListener: DragPositioningCallbackUtility.DragEventListener
+    private val mockShellTaskOrganizer = mock<ShellTaskOrganizer>()
+    private val mockWindowDecoration = mock<WindowDecorationWrapper>()
+    private val mockDragEventListener = mock<DragPositioningCallbackUtility.DragEventListener>()
 
-    @Mock private lateinit var taskToken: WindowContainerToken
-    @Mock private lateinit var taskBinder: IBinder
+    private val taskToken = mock<WindowContainerToken>()
+    private val taskBinder = mock<IBinder>()
 
-    @Mock private lateinit var mockDisplayController: DisplayController
-    @Mock private lateinit var mockDisplay: Display
-    @Mock private lateinit var mockTransactionFactory: Supplier<SurfaceControl.Transaction>
-    @Mock private lateinit var mockTransaction: SurfaceControl.Transaction
-    @Mock private lateinit var mockTransitionBinder: IBinder
-    @Mock private lateinit var mockTransitionInfo: TransitionInfo
-    @Mock private lateinit var mockFinishCallback: TransitionFinishCallback
-    @Mock private lateinit var mockTransitions: Transitions
-    @Mock private lateinit var mockInteractionJankMonitor: InteractionJankMonitor
-    @Mock private lateinit var mockSurfaceControl: SurfaceControl
-    @Mock private lateinit var mockMultiDisplayDragMoveIndicatorController:
-            MultiDisplayDragMoveIndicatorController
+    private val mockDisplayController = mock<DisplayController>()
+    private val mockDisplay = mock<Display>()
+    private val mockTransactionFactory = mock<Supplier<SurfaceControl.Transaction>>()
+    private val mockTransaction = mock<SurfaceControl.Transaction>()
+    private val mockTransitionBinder = mock<IBinder>()
+    private val mockTransitionInfo = mock<TransitionInfo>()
+    private val mockFinishCallback = mock<TransitionFinishCallback>()
+    private val mockTransitions = mock<Transitions>()
+    private val mockInteractionJankMonitor = mock<InteractionJankMonitor>()
+    private val mockSurfaceControl = mock<SurfaceControl>()
+    private val mockMultiDisplayDragMoveIndicatorController =
+        mock<MultiDisplayDragMoveIndicatorController>()
+    private val mockDesktopTasksController = mock<DesktopTasksController>()
     private lateinit var resources: TestableResources
     private lateinit var spyDisplayLayout0: DisplayLayout
     private lateinit var spyDisplayLayout1: DisplayLayout
+    private val desktopState = FakeDesktopState()
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -107,27 +111,16 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
 
     @Before
     fun setUp() {
-        MockitoAnnotations.initMocks(this)
-
         whenever(taskToken.asBinder()).thenReturn(taskBinder)
-        mockDesktopWindowDecoration.mDisplay = mockDisplay
-        mockDesktopWindowDecoration.mDecorWindowContext = mContext
+        whenever(mockWindowDecoration.display).thenReturn(mockDisplay)
+        whenever(mockWindowDecoration.decorWindowContext).thenReturn(mContext)
         resources = mContext.orCreateTestableResources
         val resourceConfiguration = Configuration()
         resourceConfiguration.uiMode = 0
         resources.overrideConfiguration(resourceConfiguration)
-        spyDisplayLayout0 =
-            MultiDisplayTestUtil.createSpyDisplayLayout(
-                MultiDisplayTestUtil.DISPLAY_GLOBAL_BOUNDS_0,
-                MultiDisplayTestUtil.DISPLAY_DPI_0,
-                resources.resources,
-            )
-        spyDisplayLayout1 =
-            MultiDisplayTestUtil.createSpyDisplayLayout(
-                MultiDisplayTestUtil.DISPLAY_GLOBAL_BOUNDS_1,
-                MultiDisplayTestUtil.DISPLAY_DPI_1,
-                resources.resources,
-            )
+        spyDisplayLayout0 = TestDisplay.DISPLAY_0.getSpyDisplayLayout(resources.resources)
+        spyDisplayLayout1 = TestDisplay.DISPLAY_1.getSpyDisplayLayout(resources.resources)
+
         whenever(mockDisplayController.getDisplayLayout(DISPLAY_ID_0)).thenReturn(spyDisplayLayout0)
         whenever(mockDisplayController.getDisplayLayout(DISPLAY_ID_1)).thenReturn(spyDisplayLayout1)
         whenever(spyDisplayLayout0.densityDpi()).thenReturn(DENSITY_DPI)
@@ -135,9 +128,9 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
         doAnswer { i ->
                 val rect = i.getArgument<Rect>(0)
                 if (
-                    mockDesktopWindowDecoration.mTaskInfo.configuration.windowConfiguration
+                    mockWindowDecoration.taskInfo.configuration.windowConfiguration
                         .displayRotation == ROTATION_90 ||
-                        mockDesktopWindowDecoration.mTaskInfo.configuration.windowConfiguration
+                        mockWindowDecoration.taskInfo.configuration.windowConfiguration
                             .displayRotation == ROTATION_270
                 ) {
                     rect.set(STABLE_BOUNDS_LANDSCAPE)
@@ -146,38 +139,42 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
                 }
                 null
             }
-            .`when`(spyDisplayLayout0)
+            .whenever(spyDisplayLayout0)
             .getStableBounds(any())
-        `when`(mockTransactionFactory.get()).thenReturn(mockTransaction)
-        `when`(mockDesktopWindowDecoration.leash).thenReturn(mockSurfaceControl)
-        `when`(mockTransaction.setPosition(any(), any(), any())).thenReturn(mockTransaction)
-        mockDesktopWindowDecoration.mTaskInfo =
-            ActivityManager.RunningTaskInfo().apply {
-                taskId = TASK_ID
-                token = taskToken
-                minWidth = MIN_WIDTH
-                minHeight = MIN_HEIGHT
-                defaultMinSize = DEFAULT_MIN
-                displayId = DISPLAY_ID_0
-                configuration.windowConfiguration.setBounds(STARTING_BOUNDS)
-                configuration.windowConfiguration.displayRotation = ROTATION_90
-                isResizeable = true
-            }
-        `when`(mockDesktopWindowDecoration.calculateValidDragArea()).thenReturn(VALID_DRAG_AREA)
-        mockDesktopWindowDecoration.mDisplay = mockDisplay
+        whenever(mockTransactionFactory.get()).thenReturn(mockTransaction)
+        whenever(mockWindowDecoration.taskSurface).thenReturn(mockSurfaceControl)
+        whenever(mockTransaction.setPosition(any(), any(), any())).thenReturn(mockTransaction)
+        whenever(mockTransaction.setAlpha(any(), any())).thenReturn(mockTransaction)
+        whenever(mockWindowDecoration.taskInfo)
+            .thenReturn(
+                ActivityManager.RunningTaskInfo().apply {
+                    taskId = TASK_ID
+                    token = taskToken
+                    minWidth = MIN_WIDTH
+                    minHeight = MIN_HEIGHT
+                    defaultMinSize = DEFAULT_MIN
+                    displayId = DISPLAY_ID_0
+                    configuration.windowConfiguration.setBounds(STARTING_BOUNDS)
+                    configuration.windowConfiguration.displayRotation = ROTATION_90
+                    isResizeable = true
+                }
+            )
+        whenever(mockWindowDecoration.getValidDragArea()).thenReturn(VALID_DRAG_AREA)
+        whenever(mockWindowDecoration.display).thenReturn(mockDisplay)
         whenever(mockDisplay.displayId).thenAnswer { DISPLAY_ID_0 }
 
         taskPositioner =
             MultiDisplayVeiledResizeTaskPositioner(
                 mockShellTaskOrganizer,
-                mockDesktopWindowDecoration,
+                mockWindowDecoration,
                 mockDisplayController,
-                mockDragEventListener,
                 { mockTransaction },
                 mockTransitions,
                 mockInteractionJankMonitor,
                 mainHandler,
                 mockMultiDisplayDragMoveIndicatorController,
+                desktopState,
+                mockDesktopTasksController,
             )
     }
 
@@ -188,8 +185,9 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
-        verify(mockDesktopWindowDecoration, never()).showResizeVeil(STARTING_BOUNDS)
+        verify(mockWindowDecoration, never()).showResizeVeil(STARTING_BOUNDS)
 
         taskPositioner.onDragPositioningEnd(
             DISPLAY_ID_0,
@@ -210,17 +208,19 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
                 },
                 eq(taskPositioner),
             )
-        verify(mockDesktopWindowDecoration, never()).hideResizeVeil()
+        verify(mockWindowDecoration, never()).hideResizeVeil()
         verifyNoInteractions(mockMultiDisplayDragMoveIndicatorController)
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
     fun testDragResize_movesTask_doesNotShowResizeVeil() = runOnUiThread {
         taskPositioner.onDragPositioningStart(
             CTRL_TYPE_UNDEFINED,
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         taskPositioner.onDragPositioningMove(
@@ -228,13 +228,6 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
             STARTING_BOUNDS.left.toFloat() + 60,
             STARTING_BOUNDS.top.toFloat() + 100,
         )
-        val rectAfterMove = Rect(STARTING_BOUNDS)
-        rectAfterMove.left += 60
-        rectAfterMove.right += 60
-        rectAfterMove.top += 100
-        rectAfterMove.bottom += 100
-        verify(mockTransaction)
-            .setPosition(any(), eq(rectAfterMove.left.toFloat()), eq(rectAfterMove.top.toFloat()))
 
         val endBounds =
             taskPositioner.onDragPositioningEnd(
@@ -243,24 +236,59 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
                 STARTING_BOUNDS.top.toFloat() + 20,
             )
         val rectAfterEnd = Rect(STARTING_BOUNDS)
-        rectAfterEnd.left += 70
-        rectAfterEnd.right += 70
-        rectAfterEnd.top += 20
-        rectAfterEnd.bottom += 20
+        rectAfterEnd.offset(70, 20)
 
-        verify(mockDesktopWindowDecoration, never()).showResizeVeil(any())
-        verify(mockDesktopWindowDecoration, never()).hideResizeVeil()
-        verify(mockMultiDisplayDragMoveIndicatorController).onDragEnd(eq(TASK_ID), any())
+        verify(mockWindowDecoration, never()).showResizeVeil(any())
+        verify(mockWindowDecoration, never()).hideResizeVeil()
+        verify(mockMultiDisplayDragMoveIndicatorController, never()).onDragEnd(any(), any())
         Assert.assertEquals(rectAfterEnd, endBounds)
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
+    fun testDragResize_movesTask_movesTaskSurfaceOffscreen() = runOnUiThread {
+        whenever(spyDisplayLayout0.width()).thenReturn(DISPLAY_BOUNDS.width())
+        whenever(spyDisplayLayout0.height()).thenReturn(DISPLAY_BOUNDS.height())
+
+        taskPositioner.onDragPositioningStart(
+            CTRL_TYPE_UNDEFINED,
+            DISPLAY_ID_0,
+            STARTING_BOUNDS.left.toFloat(),
+            STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
+        )
+
+        taskPositioner.onDragPositioningMove(
+            DISPLAY_ID_0,
+            STARTING_BOUNDS.left.toFloat() + 60,
+            STARTING_BOUNDS.top.toFloat() + 100,
+        )
+
+        val leftAfterMoveCaptor = argumentCaptor<Float>()
+        val topAfterMoveCaptor = argumentCaptor<Float>()
+        verify(mockTransaction)
+            .setPosition(
+                eq(mockSurfaceControl),
+                leftAfterMoveCaptor.capture(),
+                topAfterMoveCaptor.capture(),
+            )
+        val rectAfterMove = Rect(STARTING_BOUNDS)
+        rectAfterMove.offsetTo(
+            leftAfterMoveCaptor.firstValue.toInt(),
+            topAfterMoveCaptor.firstValue.toInt(),
+        )
+        Assert.assertFalse(DISPLAY_BOUNDS.intersect(rectAfterMove))
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
     fun testDragResize_movesTaskOnSameDisplay_noPxDpConversion() = runOnUiThread {
         taskPositioner.onDragPositioningStart(
             CTRL_TYPE_UNDEFINED,
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         taskPositioner.onDragPositioningEnd(
@@ -271,32 +299,127 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
 
         verify(spyDisplayLayout0, never()).localPxToGlobalDp(any(), any())
         verify(spyDisplayLayout0, never()).globalDpToLocalPx(any(), any())
-        verify(mockMultiDisplayDragMoveIndicatorController).onDragEnd(eq(TASK_ID), any())
+        verify(mockMultiDisplayDragMoveIndicatorController, never()).onDragEnd(any(), any())
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
     fun testDragResize_movesTaskToNewDisplay() = runOnUiThread {
         taskPositioner.onDragPositioningStart(
             CTRL_TYPE_UNDEFINED,
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         taskPositioner.onDragPositioningMove(DISPLAY_ID_1, 200f, 1900f)
 
-        val rectAfterMove = Rect(200, -50, 300, 50)
-        verify(mockTransaction)
-            .setPosition(any(), eq(rectAfterMove.left.toFloat()), eq(rectAfterMove.top.toFloat()))
-
         val endBounds = taskPositioner.onDragPositioningEnd(DISPLAY_ID_1, 300f, 450f)
         val rectAfterEnd = Rect(300, 450, 500, 650)
 
-        verify(mockDesktopWindowDecoration, never()).showResizeVeil(any())
-        verify(mockDesktopWindowDecoration, never()).hideResizeVeil()
-        verify(mockMultiDisplayDragMoveIndicatorController).onDragEnd(eq(TASK_ID), any())
+        verify(mockWindowDecoration, never()).showResizeVeil(any())
+        verify(mockWindowDecoration, never()).hideResizeVeil()
+        verify(mockMultiDisplayDragMoveIndicatorController, never()).onDragEnd(any(), any())
         Assert.assertEquals(rectAfterEnd, endBounds)
     }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
+    fun testDragResize_movesTaskToNewDisplay_movesTaskSurfaceOffscreen() = runOnUiThread {
+        whenever(spyDisplayLayout0.width()).thenReturn(DISPLAY_BOUNDS.width())
+        whenever(spyDisplayLayout0.height()).thenReturn(DISPLAY_BOUNDS.height())
+
+        taskPositioner.onDragPositioningStart(
+            CTRL_TYPE_UNDEFINED,
+            DISPLAY_ID_0,
+            STARTING_BOUNDS.left.toFloat(),
+            STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
+        )
+
+        taskPositioner.onDragPositioningMove(DISPLAY_ID_1, 200f, 1900f)
+
+        val leftAfterMoveCaptor = argumentCaptor<Float>()
+        val topAfterMoveCaptor = argumentCaptor<Float>()
+        verify(mockTransaction)
+            .setPosition(
+                eq(mockSurfaceControl),
+                leftAfterMoveCaptor.capture(),
+                topAfterMoveCaptor.capture(),
+            )
+        val rectAfterMove = Rect(STARTING_BOUNDS)
+        rectAfterMove.offsetTo(
+            leftAfterMoveCaptor.firstValue.toInt(),
+            topAfterMoveCaptor.firstValue.toInt(),
+        )
+        Assert.assertFalse(DISPLAY_BOUNDS.intersect(rectAfterMove))
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
+    fun testDragResize_movesTaskToNewDisplayThenBackToOriginalDisplay() = runOnUiThread {
+        taskPositioner.onDragPositioningStart(
+            CTRL_TYPE_UNDEFINED,
+            DISPLAY_ID_0,
+            STARTING_BOUNDS.left.toFloat(),
+            STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
+        )
+
+        // Move to the display 1
+        taskPositioner.onDragPositioningMove(DISPLAY_ID_1, 200f, 800f)
+
+        // Moving back to the original display
+        taskPositioner.onDragPositioningMove(DISPLAY_ID_0, 100f, 1500f)
+
+        // Finish the drag move on the original display
+        val endBounds = taskPositioner.onDragPositioningEnd(DISPLAY_ID_0, 50f, 50f)
+        val rectAfterMove = Rect(50, 50, 150, 150)
+
+        verify(mockWindowDecoration, never()).showResizeVeil(any())
+        verify(mockWindowDecoration, never()).hideResizeVeil()
+        verify(mockMultiDisplayDragMoveIndicatorController, never()).onDragEnd(any(), any())
+        Assert.assertEquals(rectAfterMove, endBounds)
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_WINDOW_DROP_SMOOTH_TRANSITION)
+    fun testDragResize_movesTaskToNewDisplayThenBackToOriginalDisplay_movesTaskSurfaceOffscreen() =
+        runOnUiThread {
+            whenever(spyDisplayLayout0.width()).thenReturn(DISPLAY_BOUNDS.width())
+            whenever(spyDisplayLayout0.height()).thenReturn(DISPLAY_BOUNDS.height())
+
+            taskPositioner.onDragPositioningStart(
+                CTRL_TYPE_UNDEFINED,
+                DISPLAY_ID_0,
+                STARTING_BOUNDS.left.toFloat(),
+                STARTING_BOUNDS.top.toFloat(),
+                INPUT_METHOD_TYPE_UNKNOWN,
+            )
+
+            // Move to the display 1
+            taskPositioner.onDragPositioningMove(DISPLAY_ID_1, 200f, 800f)
+
+            // Moving back to the original display
+            taskPositioner.onDragPositioningMove(DISPLAY_ID_0, 100f, 1500f)
+
+            // Check that setPosition is only called once and the surface is outside of display.
+            val leftAfterMoveCaptor = argumentCaptor<Float>()
+            val topAfterMoveCaptor = argumentCaptor<Float>()
+            verify(mockTransaction)
+                .setPosition(
+                    eq(mockSurfaceControl),
+                    leftAfterMoveCaptor.capture(),
+                    topAfterMoveCaptor.capture(),
+                )
+            val rectAfterMove = Rect(STARTING_BOUNDS)
+            rectAfterMove.offsetTo(
+                leftAfterMoveCaptor.firstValue.toInt(),
+                topAfterMoveCaptor.firstValue.toInt(),
+            )
+            Assert.assertFalse(DISPLAY_BOUNDS.intersect(rectAfterMove))
+        }
 
     @Test
     fun testDragResize_resize_boundsUpdateOnEnd() = runOnUiThread {
@@ -305,6 +428,7 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
             DISPLAY_ID_0,
             STARTING_BOUNDS.right.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         taskPositioner.onDragPositioningMove(
@@ -316,7 +440,7 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
         val rectAfterMove = Rect(STARTING_BOUNDS)
         rectAfterMove.right += 10
         rectAfterMove.top += 10
-        verify(mockDesktopWindowDecoration).showResizeVeil(rectAfterMove)
+        verify(mockWindowDecoration).showResizeVeil(rectAfterMove)
         verify(mockShellTaskOrganizer, never())
             .applyTransaction(
                 argThat { wct ->
@@ -337,7 +461,7 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
         val rectAfterEnd = Rect(rectAfterMove)
         rectAfterEnd.right += 10
         rectAfterEnd.top += 10
-        verify(mockDesktopWindowDecoration).updateResizeVeil(any())
+        verify(mockWindowDecoration).updateResizeVeil(any())
         verify(mockTransitions)
             .startTransition(
                 eq(TRANSIT_CHANGE),
@@ -361,6 +485,7 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
             CTRL_TYPE_TOP or CTRL_TYPE_RIGHT,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         taskPositioner.onDragPositioningMove(
@@ -408,6 +533,7 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         val newX = STARTING_BOUNDS.left.toFloat() + 5
@@ -430,16 +556,17 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
 
     @Test
     fun testDragResize_resize_resizingTaskReorderedToTopWhenNotFocused() = runOnUiThread {
-        mockDesktopWindowDecoration.mHasGlobalFocus = false
+        whenever(mockWindowDecoration.hasGlobalFocus).thenReturn(false)
         taskPositioner.onDragPositioningStart(
             CTRL_TYPE_RIGHT, // Resize right
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         // Verify task is reordered to top
-        verify(mockShellTaskOrganizer)
+        verify(mockShellTaskOrganizer, never())
             .applyTransaction(
                 argThat { wct ->
                     return@argThat wct.hierarchyOps.any { hierarchyOps ->
@@ -451,12 +578,13 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
 
     @Test
     fun testDragResize_resize_resizingTaskNotReorderedToTopWhenFocused() = runOnUiThread {
-        mockDesktopWindowDecoration.mHasGlobalFocus = true
+        whenever(mockWindowDecoration.hasGlobalFocus).thenReturn(true)
         taskPositioner.onDragPositioningStart(
             CTRL_TYPE_RIGHT, // Resize right
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         // Verify task is not reordered to top
@@ -472,12 +600,13 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
 
     @Test
     fun testDragResize_drag_draggedTaskNotReorderedToTop() = runOnUiThread {
-        mockDesktopWindowDecoration.mHasGlobalFocus = false
+        whenever(mockWindowDecoration.hasGlobalFocus).thenReturn(false)
         taskPositioner.onDragPositioningStart(
             CTRL_TYPE_UNDEFINED, // drag
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         // Verify task is not reordered to top since task is already brought to top before dragging
@@ -533,7 +662,7 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
         verify(spyDisplayLayout0, times(1)).getStableBounds(any())
 
         // Rotate the screen to portrait
-        mockDesktopWindowDecoration.mTaskInfo.apply {
+        mockWindowDecoration.taskInfo.apply {
             configuration.windowConfiguration.displayRotation = ROTATION_0
         }
         // Test portrait stable bounds
@@ -565,18 +694,93 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
     }
 
     @Test
+    @EnableFlags(Flags.FLAG_ENABLE_DRAG_END_STABLE_BOUNDS_RESET)
+    fun testDragResize_displayHasChanged_refetchStableBounds() = runOnUiThread {
+        // Start drag on display 0
+        taskPositioner.onDragPositioningStart(
+            CTRL_TYPE_UNDEFINED,
+            DISPLAY_ID_0,
+            STARTING_BOUNDS.left.toFloat(),
+            STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
+        )
+
+        // First drag; we should fetch stable bounds for display 0.
+        verify(spyDisplayLayout0, times(1)).getStableBounds(any())
+
+        // End drag on display 1
+        taskPositioner.onDragPositioningEnd(DISPLAY_ID_1, 200f, 800f)
+        mockWindowDecoration.taskInfo.apply { displayId = DISPLAY_ID_1 }
+
+        // Display has changed; we expect a new stable bounds for display 1.
+        verify(spyDisplayLayout1, times(1)).getStableBounds(any())
+    }
+
+    @Test
+    fun testDragResize_moved_updatesTaskbarRounding() = runOnUiThread {
+        val moveBounds = Rect(STARTING_BOUNDS)
+        moveBounds.union(moveBounds.right + 100, moveBounds.bottom + 100)
+        taskPositioner.onDragPositioningStart(
+            CTRL_TYPE_RIGHT or CTRL_TYPE_BOTTOM,
+            DISPLAY_ID_0,
+            STARTING_BOUNDS.right.toFloat(),
+            STARTING_BOUNDS.bottom.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
+        )
+
+        taskPositioner.onDragPositioningMove(
+            DISPLAY_ID_0,
+            moveBounds.right.toFloat(),
+            moveBounds.bottom.toFloat(),
+        )
+
+        verify(mockDesktopTasksController)
+            .updateTaskbarRoundingOnTaskResize(DISPLAY_ID_0, TASK_ID, moveBounds)
+    }
+
+    @Test
+    fun testDragResize_movedSeveralTimes_updatesTaskbarRoundingOnce() = runOnUiThread {
+        val firstmoveBounds = Rect(STARTING_BOUNDS)
+        firstmoveBounds.union(firstmoveBounds.right + 100, firstmoveBounds.bottom + 100)
+        val secondMoveBounds = Rect(firstmoveBounds)
+        secondMoveBounds.union(secondMoveBounds.right + 100, secondMoveBounds.bottom + 100)
+        taskPositioner.onDragPositioningStart(
+            CTRL_TYPE_RIGHT or CTRL_TYPE_BOTTOM,
+            DISPLAY_ID_0,
+            STARTING_BOUNDS.right.toFloat(),
+            STARTING_BOUNDS.bottom.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
+        )
+
+        taskPositioner.onDragPositioningMove(
+            DISPLAY_ID_0,
+            firstmoveBounds.right.toFloat(),
+            firstmoveBounds.bottom.toFloat(),
+        )
+        taskPositioner.onDragPositioningMove(
+            DISPLAY_ID_0,
+            secondMoveBounds.right.toFloat() + 100,
+            secondMoveBounds.bottom.toFloat() + 100,
+        )
+
+        verify(mockDesktopTasksController)
+            .updateTaskbarRoundingOnTaskResize(DISPLAY_ID_0, TASK_ID, firstmoveBounds)
+        verify(mockDesktopTasksController, never())
+            .updateTaskbarRoundingOnTaskResize(DISPLAY_ID_0, TASK_ID, secondMoveBounds)
+    }
+
+    @Test
     fun testClose() = runOnUiThread {
-        verify(mockDisplayController, times(1))
-            .addDisplayWindowListener(eq(taskPositioner))
+        verify(mockDisplayController, times(1)).addDisplayWindowListener(eq(taskPositioner))
 
         taskPositioner.close()
 
-        verify(mockDisplayController, times(1))
-            .removeDisplayWindowListener(eq(taskPositioner))
+        verify(mockDisplayController, times(1)).removeDisplayWindowListener(eq(taskPositioner))
     }
 
     @Test
     fun testIsResizingOrAnimatingResizeSet() = runOnUiThread {
+        taskPositioner.addDragEventListener(mockDragEventListener)
         Assert.assertFalse(taskPositioner.isResizingOrAnimating)
 
         taskPositioner.onDragPositioningStart(
@@ -584,6 +788,7 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
             DISPLAY_ID_0,
             STARTING_BOUNDS.left.toFloat(),
             STARTING_BOUNDS.top.toFloat(),
+            INPUT_METHOD_TYPE_UNKNOWN,
         )
 
         taskPositioner.onDragPositioningMove(
@@ -629,19 +834,27 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
     }
 
     @Test
-    fun testStartAnimation_useEndRelOffset() = runOnUiThread {
-        val changeMock = mock(TransitionInfo.Change::class.java)
-        val startTransaction = mock(Transaction::class.java)
-        val finishTransaction = mock(Transaction::class.java)
+    fun testStartAnimation_updatesLeash() = runOnUiThread {
+        val changeMock = mock<TransitionInfo.Change>()
+        val nonTaskChangeMock = mock<TransitionInfo.Change>()
+        val taskLeash = mock<SurfaceControl>()
+        val nonTaskLeash = mock<SurfaceControl>()
+        val startTransaction = mock<Transaction>()
+        val finishTransaction = mock<Transaction>()
         val point = Point(10, 20)
         val bounds = Rect(1, 2, 3, 4)
-        `when`(changeMock.leash).thenReturn(mock(SurfaceControl::class.java))
-        `when`(changeMock.endRelOffset).thenReturn(point)
-        `when`(changeMock.endAbsBounds).thenReturn(bounds)
-        `when`(mockTransitionInfo.changes).thenReturn(listOf(changeMock))
-        `when`(startTransaction.setWindowCrop(any(), eq(bounds.width()), eq(bounds.height())))
+        whenever(changeMock.leash).thenReturn(taskLeash)
+        whenever(changeMock.endRelOffset).thenReturn(point)
+        whenever(changeMock.endAbsBounds).thenReturn(bounds)
+        whenever(changeMock.taskInfo).thenReturn(ActivityManager.RunningTaskInfo())
+        whenever(nonTaskChangeMock.leash).thenReturn(nonTaskLeash)
+        whenever(nonTaskChangeMock.endRelOffset).thenReturn(point)
+        whenever(nonTaskChangeMock.endAbsBounds).thenReturn(bounds)
+        whenever(nonTaskChangeMock.taskInfo).thenReturn(null)
+        whenever(mockTransitionInfo.changes).thenReturn(listOf(changeMock, nonTaskChangeMock))
+        whenever(startTransaction.setWindowCrop(any(), eq(bounds.width()), eq(bounds.height())))
             .thenReturn(startTransaction)
-        `when`(finishTransaction.setWindowCrop(any(), eq(bounds.width()), eq(bounds.height())))
+        whenever(finishTransaction.setWindowCrop(any(), eq(bounds.width()), eq(bounds.height())))
             .thenReturn(finishTransaction)
 
         taskPositioner.startAnimation(
@@ -652,13 +865,23 @@ class MultiDisplayVeiledResizeTaskPositionerTest : ShellTestCase() {
             mockFinishCallback,
         )
 
-        verify(startTransaction).setPosition(any(), eq(point.x.toFloat()), eq(point.y.toFloat()))
-        verify(finishTransaction).setPosition(any(), eq(point.x.toFloat()), eq(point.y.toFloat()))
+        verify(startTransaction)
+            .setPosition(eq(taskLeash), eq(point.x.toFloat()), eq(point.y.toFloat()))
+        verify(finishTransaction)
+            .setPosition(eq(taskLeash), eq(point.x.toFloat()), eq(point.y.toFloat()))
+        verify(startTransaction, never()).setPosition(eq(nonTaskLeash), any(), any())
+        verify(finishTransaction, never()).setPosition(eq(nonTaskLeash), any(), any())
         verify(changeMock).endRelOffset
     }
 
     private fun performDrag(startX: Float, startY: Float, endX: Float, endY: Float, ctrlType: Int) {
-        taskPositioner.onDragPositioningStart(ctrlType, DISPLAY_ID_0, startX, startY)
+        taskPositioner.onDragPositioningStart(
+            ctrlType,
+            DISPLAY_ID_0,
+            startX,
+            startY,
+            INPUT_METHOD_TYPE_UNKNOWN,
+        )
         taskPositioner.onDragPositioningMove(DISPLAY_ID_0, endX, endY)
 
         taskPositioner.onDragPositioningEnd(DISPLAY_ID_0, endX, endY)

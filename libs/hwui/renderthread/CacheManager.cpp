@@ -32,6 +32,7 @@
 #include "RenderThread.h"
 #include "VulkanManager.h"
 #include "pipeline/skia/ATraceMemoryDump.h"
+#include "pipeline/skia/PersistentGraphicsCache.h"
 #include "pipeline/skia/ShaderCache.h"
 #include "pipeline/skia/SkiaMemoryTracer.h"
 #include "renderstate/RenderState.h"
@@ -106,9 +107,11 @@ void CacheManager::configureContext(GrContextOptions* contextOptions, const void
     contextOptions->fGlyphCacheTextureMaximumBytes = mMaxGpuFontAtlasBytes;
     contextOptions->fExecutor = &sDefaultExecutor;
 
-    auto& cache = skiapipeline::ShaderCache::get();
-    cache.initShaderDiskCache(identity, size);
-    contextOptions->fPersistentCache = &cache;
+    auto& shaderCache = skiapipeline::ShaderCache::get();
+    shaderCache.initShaderDiskCache(identity, size);
+
+    auto& graphicsCache = skiapipeline::PersistentGraphicsCache::get();
+    contextOptions->fPersistentCache = &graphicsCache;
 }
 
 static GrPurgeResourceOptions toSkiaEnum(bool scratchOnly) {

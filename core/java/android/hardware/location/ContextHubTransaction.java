@@ -23,6 +23,7 @@ import android.annotation.SystemApi;
 import android.chre.flags.Flags;
 import android.os.Handler;
 import android.os.HandlerExecutor;
+import android.util.Log;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -360,7 +361,6 @@ public class ContextHubTransaction<T> {
      * invoked more than once.
      *
      * @param response the response to set
-     * @throws IllegalStateException if this method is invoked multiple times
      * @throws NullPointerException if the response is null
      * @hide
      */
@@ -368,8 +368,8 @@ public class ContextHubTransaction<T> {
         synchronized (this) {
             Objects.requireNonNull(response, "Response cannot be null");
             if (mIsResponseSet) {
-                throw new IllegalStateException(
-                        "Cannot set response of ContextHubTransaction multiple times");
+              Log.e(TAG, "Cannot set response of ContextHubTransaction multiple times");
+              return;
             }
 
             mResponse = response;

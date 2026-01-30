@@ -67,38 +67,27 @@ public class LightsService extends SystemService {
 
     private Handler mH;
 
-    private final class LightsManagerBinderService extends ILightsManager.Stub {
+    private final class LightsManagerBinderService extends ILightsManager.Stub
+          implements IBinder.DeathRecipient {
+
+        @GuardedBy("LightsService.this")
+        private final List<Session> mSessions = new ArrayList<>();
+
         LightsManagerBinderService() {
             super(PermissionEnforcer.fromContext(getContext()));
         }
 
-        private final class Session implements Comparable<Session> {
-            final IBinder mToken;
-            final SparseArray<LightState> mRequests = new SparseArray<>();
-            final int mPriority;
+        /** @see #binderDied(IBinder) */
+        @Override
+        public void binderDied() {}
 
-            Session(IBinder token, int priority) {
-                mToken = token;
-                mPriority = priority;
-            }
-
-            void setRequest(int lightId, LightState state) {
-                if (state != null) {
-                    mRequests.put(lightId, state);
-                } else {
-                    mRequests.remove(lightId);
-                }
-            }
-
-            @Override
-            public int compareTo(Session otherSession) {
-                // Sort descending by priority
-                return Integer.compare(otherSession.mPriority, mPriority);
-            }
+        /**
+         * Callback for sessions which died without explicitly closing.
+         */
+        @Override
+        public void binderDied(IBinder token) {
+            closeSessionInternal(token);
         }
-
-        @GuardedBy("LightsService.this")
-        private final List<Session> mSessions = new ArrayList<>();
 
         /**
          * Returns the lights available for apps to control on the device. Only lights that aren't
@@ -170,7 +159,7 @@ public class LightsService extends SystemService {
             synchronized (LightsService.this) {
                 Preconditions.checkState(getSessionLocked(token) == null, "already registered");
                 try {
-                    token.linkToDeath(() -> closeSessionInternal(token), 0);
+                    token.linkToDeath(LightsManagerBinderService.this, 0);
                     mSessions.add(new Session(token, priority));
                     Collections.sort(mSessions);
                 } catch (RemoteException e) {
@@ -224,6 +213,7 @@ public class LightsService extends SystemService {
                 if (session != null) {
                     mSessions.remove(session);
                     invalidateLightStatesLocked();
+                    token.unlinkToDeath(LightsManagerBinderService.this, 0);
                 }
             }
         }
@@ -269,6 +259,31 @@ public class LightsService extends SystemService {
                 }
             }
             return null;
+        }
+
+        private final class Session implements Comparable<Session> {
+            final IBinder mToken;
+            final SparseArray<LightState> mRequests = new SparseArray<>();
+            final int mPriority;
+
+            Session(IBinder token, int priority) {
+                mToken = token;
+                mPriority = priority;
+            }
+
+            void setRequest(int lightId, LightState state) {
+                if (state != null) {
+                    mRequests.put(lightId, state);
+                } else {
+                    mRequests.remove(lightId);
+                }
+            }
+
+            @Override
+            public int compareTo(Session otherSession) {
+                // Sort descending by priority
+                return Integer.compare(otherSession.mPriority, mPriority);
+            }
         }
     }
 

@@ -34,6 +34,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -351,11 +352,12 @@ private fun PressedKeysTextContainer(pressedKeys: List<ShortcutKey>) {
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ShortcutKeySeparator() {
     Text(
         text = stringResource(id = R.string.shortcut_helper_plus_symbol),
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.bodyLargeEmphasized,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -387,11 +389,12 @@ private fun PressKeyPrompt() {
     )
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun ShortcutTextKey(key: ShortcutKey.Text) {
     Text(
         text = key.value,
-        style = MaterialTheme.typography.titleSmall,
+        style = MaterialTheme.typography.bodyLargeEmphasized,
         fontSize = 16.sp,
         lineHeight = 24.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -463,7 +466,7 @@ private fun ActionKeyContainer(defaultModifierKey: ShortcutKey.Icon.ResIdIcon) {
 @Composable
 private fun ActionKeyText() {
     Text(
-        text = "Action",
+        text = stringResource(R.string.shortcut_helper_customizer_action_key_text),
         style = MaterialTheme.typography.titleMedium,
         fontSize = 16.sp,
         lineHeight = 24.sp,

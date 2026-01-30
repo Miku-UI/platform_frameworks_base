@@ -41,7 +41,6 @@ import android.os.RemoteCallbackList
 import android.os.RemoteException
 import android.os.ServiceManager
 import android.os.UserHandle
-import android.os.UserManager
 import android.permission.IOnPermissionsChangeListener
 import android.permission.PermissionControllerManager
 import android.permission.PermissionManager
@@ -54,6 +53,7 @@ import android.util.DebugUtils
 import android.util.IndentingPrintWriter
 import android.util.IntArray as GrowingIntArray
 import android.util.Slog
+import android.util.SparseArray
 import android.util.SparseBooleanArray
 import com.android.internal.annotations.GuardedBy
 import com.android.internal.compat.IPlatformCompat
@@ -79,6 +79,7 @@ import com.android.server.permission.access.UidUri
 import com.android.server.permission.access.appop.AppIdAppOpPolicy
 import com.android.server.permission.access.collection.* // ktlint-disable no-wildcard-imports
 import com.android.server.permission.access.immutable.* // ktlint-disable no-wildcard-imports
+import com.android.server.permission.access.util.PermissionEnforcer
 import com.android.server.permission.access.util.andInv
 import com.android.server.permission.access.util.hasAnyBit
 import com.android.server.permission.access.util.hasBits
@@ -86,6 +87,8 @@ import com.android.server.permission.access.util.withClearedCallingIdentity
 import com.android.server.pm.KnownPackages
 import com.android.server.pm.PackageInstallerService
 import com.android.server.pm.PackageManagerLocal
+import com.android.server.pm.PackageManagerService
+import com.android.server.pm.PackageMetrics
 import com.android.server.pm.UserManagerInternal
 import com.android.server.pm.UserManagerService
 import com.android.server.pm.permission.LegacyPermission
@@ -126,6 +129,7 @@ class PermissionService(private val service: AccessCheckingService) :
     private lateinit var handler: Handler
     private lateinit var onPermissionsChangeListeners: OnPermissionsChangeListeners
     private lateinit var onPermissionFlagsChangedListener: OnPermissionFlagsChangedListener
+    private lateinit var permissionEnforcer: PermissionEnforcer
 
     private val storageVolumeLock = Any()
     @GuardedBy("storageVolumeLock") private val mountedStorageVolumes = ArraySet<String?>()
@@ -134,7 +138,10 @@ class PermissionService(private val service: AccessCheckingService) :
 
     private var virtualDeviceManagerInternal: VirtualDeviceManagerInternal? = null
 
-    private lateinit var permissionControllerManager: PermissionControllerManager
+    /**
+     * Cache of PermissionControllerManager instances, keyed by user ID.
+     */
+    private val permissionControllerManagers = SparseArray<PermissionControllerManager>()
 
     /**
      * A permission backup might contain apps that are not installed. In this case we delay the
@@ -156,11 +163,13 @@ class PermissionService(private val service: AccessCheckingService) :
             )
         systemConfig = SystemConfig.getInstance()
         userManagerInternal = LocalServices.getService(UserManagerInternal::class.java)
+        permissionEnforcer = PermissionEnforcer(context)
         userManagerService = UserManagerService.getInstance()
         // The package info cache is the cache for package and permission information.
         // Disable the package info and package permission caches locally but leave the
         // checkPermission cache active.
-        PackageManager.invalidatePackageInfoCache()
+        PackageManagerService.invalidatePackageInfoCache(
+                PackageMetrics.INVALIDATION_REASON_PERMISSION_SERVICE_INIT)
         PermissionManager.disablePackageNamePermissionCache()
 
         handlerThread =
@@ -193,7 +202,7 @@ class PermissionService(private val service: AccessCheckingService) :
 
     override fun getPermissionGroupInfo(
         permissionGroupName: String,
-        flags: Int
+        flags: Int,
     ): PermissionGroupInfo? {
         val permissionGroup: PermissionGroupInfo
         packageManagerLocal.withUnfilteredSnapshot().use { snapshot ->
@@ -228,7 +237,7 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun getPermissionInfo(
         permissionName: String,
         flags: Int,
-        opPackageName: String
+        opPackageName: String,
     ): PermissionInfo? {
         val permission: Permission
         val targetSdkVersion: Int
@@ -262,7 +271,7 @@ class PermissionService(private val service: AccessCheckingService) :
     /** Generate a new [PermissionInfo] from [Permission] and adjust it accordingly. */
     private fun Permission.generatePermissionInfo(
         flags: Int,
-        targetSdkVersion: Int = Build.VERSION_CODES.CUR_DEVELOPMENT
+        targetSdkVersion: Int = Build.VERSION_CODES.CUR_DEVELOPMENT,
     ): PermissionInfo =
         @Suppress("DEPRECATION")
         PermissionInfo(permissionInfo).apply {
@@ -283,7 +292,7 @@ class PermissionService(private val service: AccessCheckingService) :
 
     override fun queryPermissionsByGroup(
         permissionGroupName: String?,
-        flags: Int
+        flags: Int,
     ): List<PermissionInfo>? {
         packageManagerLocal.withUnfilteredSnapshot().use { snapshot ->
             val callingUid = Binder.getCallingUid()
@@ -437,7 +446,7 @@ class PermissionService(private val service: AccessCheckingService) :
 
     private fun GetStateScope.enforcePermissionTreeSize(
         permissionInfo: PermissionInfo,
-        permissionTree: Permission
+        permissionTree: Permission,
     ) {
         // We calculate the max size of permissions defined by this uid and throw
         // if that plus the size of 'info' would exceed our stated maximum.
@@ -468,15 +477,16 @@ class PermissionService(private val service: AccessCheckingService) :
         packageName: String,
         permissionName: String,
         deviceId: Int,
-        persistentDeviceId: String
+        persistentDeviceId: String,
     ): Int {
         val pid = Binder.getCallingPid()
         val uid = Binder.getCallingUid()
-        val deviceContext = if (deviceId == context.deviceId){
-            context
-        } else {
-            context.createDeviceContext(deviceId)
-        }
+        val deviceContext =
+            if (deviceId == context.deviceId) {
+                context
+            } else {
+                context.createDeviceContext(deviceId)
+            }
         val result = deviceContext.checkPermission(permissionName, pid, uid)
         if (result == PackageManager.PERMISSION_GRANTED) {
             return Context.PERMISSION_REQUEST_STATE_GRANTED
@@ -507,8 +517,10 @@ class PermissionService(private val service: AccessCheckingService) :
             }
         val isUnreqestable = permissionFlags.hasAnyBit(UNREQUESTABLE_MASK)
         // Special case for READ_MEDIA_IMAGES due to photo picker
-        if ((permissionName == Manifest.permission.READ_MEDIA_IMAGES ||
-                permissionName == Manifest.permission.READ_MEDIA_VIDEO) && isUnreqestable) {
+        if (
+            (permissionName == Manifest.permission.READ_MEDIA_IMAGES ||
+                permissionName == Manifest.permission.READ_MEDIA_VIDEO) && isUnreqestable
+        ) {
             val isUserSelectedGranted =
                 deviceContext.checkPermission(
                     Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
@@ -556,7 +568,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 Slog.e(
                     LOG_TAG,
                     "checkUidPermission: PackageState not found for AndroidPackage" +
-                        " $androidPackage"
+                        " $androidPackage",
                 )
                 return PackageManager.PERMISSION_DENIED
             }
@@ -598,7 +610,7 @@ class PermissionService(private val service: AccessCheckingService) :
         packageName: String,
         permissionName: String,
         deviceId: String,
-        userId: Int
+        userId: Int,
     ): Int {
         if (!userManagerInternal.exists(userId)) {
             return PackageManager.PERMISSION_DENIED
@@ -628,7 +640,7 @@ class PermissionService(private val service: AccessCheckingService) :
         packageState: PackageState,
         userId: Int,
         permissionName: String,
-        deviceId: String
+        deviceId: String,
     ): Boolean {
         val appId = packageState.appId
         // Note that instant apps can't have shared UIDs, so we only need to check the current
@@ -646,7 +658,7 @@ class PermissionService(private val service: AccessCheckingService) :
                     userId,
                     isInstantApp,
                     fullerPermissionName,
-                    deviceId
+                    deviceId,
                 )
         ) {
             return true
@@ -700,7 +712,7 @@ class PermissionService(private val service: AccessCheckingService) :
                         packageState,
                         userId,
                         permissionName,
-                        VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT
+                        VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,
                     )
                 ) {
                     permissionName
@@ -745,7 +757,7 @@ class PermissionService(private val service: AccessCheckingService) :
         packageName: String,
         permissionName: String,
         deviceId: String,
-        userId: Int
+        userId: Int,
     ) {
         setRuntimePermissionGranted(packageName, userId, permissionName, deviceId, isGranted = true)
     }
@@ -755,7 +767,7 @@ class PermissionService(private val service: AccessCheckingService) :
         permissionName: String,
         deviceId: String,
         userId: Int,
-        reason: String?
+        reason: String?,
     ) {
         setRuntimePermissionGranted(
             packageName,
@@ -763,13 +775,13 @@ class PermissionService(private val service: AccessCheckingService) :
             permissionName,
             deviceId,
             isGranted = false,
-            revokeReason = reason
+            revokeReason = reason,
         )
     }
 
     override fun revokePostNotificationPermissionWithoutKillForTest(
         packageName: String,
-        userId: Int
+        userId: Int,
     ) {
         setRuntimePermissionGranted(
             packageName,
@@ -777,7 +789,7 @@ class PermissionService(private val service: AccessCheckingService) :
             Manifest.permission.POST_NOTIFICATIONS,
             VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,
             isGranted = false,
-            skipKillUid = true
+            skipKillUid = true,
         )
     }
 
@@ -792,7 +804,7 @@ class PermissionService(private val service: AccessCheckingService) :
         deviceId: String,
         isGranted: Boolean,
         skipKillUid: Boolean = false,
-        revokeReason: String? = null
+        revokeReason: String? = null,
     ) {
         val methodName = if (isGranted) "grantRuntimePermission" else "revokeRuntimePermission"
         val callingUid = Binder.getCallingUid()
@@ -815,7 +827,7 @@ class PermissionService(private val service: AccessCheckingService) :
                     ", userId = $userId," +
                     " callingUid = $callingUidName ($callingUid))," +
                     " deviceId = $deviceId",
-                RuntimeException()
+                RuntimeException(),
             )
         }
 
@@ -824,11 +836,11 @@ class PermissionService(private val service: AccessCheckingService) :
             return
         }
 
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = true,
             enforceShellRestriction = true,
-            methodName
+            methodName,
         )
         val enforcedPermissionName =
             if (isGranted) {
@@ -843,7 +855,7 @@ class PermissionService(private val service: AccessCheckingService) :
             packageManagerInternal
                 .getKnownPackageNames(
                     KnownPackages.PACKAGE_PERMISSION_CONTROLLER,
-                    UserHandle.USER_SYSTEM
+                    UserHandle.USER_SYSTEM,
                 )
                 .first()
         val permissionControllerPackageState: PackageState?
@@ -889,7 +901,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 canManageRolePermission,
                 overridePolicyFixed,
                 reportError = true,
-                methodName
+                methodName,
             )
         }
     }
@@ -897,7 +909,7 @@ class PermissionService(private val service: AccessCheckingService) :
     private fun setRequestedPermissionStates(
         packageState: PackageState,
         userId: Int,
-        permissionStates: ArrayMap<String, Int>
+        permissionStates: ArrayMap<String, Int>,
     ) {
         service.mutateState {
             permissionStates.forEachIndexed { _, permissionName, permissionState ->
@@ -908,7 +920,7 @@ class PermissionService(private val service: AccessCheckingService) :
                         Slog.w(
                             LOG_TAG,
                             "setRequestedPermissionStates: Unknown permission state" +
-                                " $permissionState for permission $permissionName"
+                                " $permissionState for permission $permissionName",
                         )
                         return@forEachIndexed
                     }
@@ -933,7 +945,7 @@ class PermissionService(private val service: AccessCheckingService) :
                                 canManageRolePermission = false,
                                 overridePolicyFixed = false,
                                 reportError = false,
-                                "setRequestedPermissionStates"
+                                "setRequestedPermissionStates",
                             )
                             updatePermissionFlags(
                                 packageState.appId,
@@ -947,7 +959,7 @@ class PermissionService(private val service: AccessCheckingService) :
                                 reportErrorForUnknownPermission = false,
                                 isPermissionRequested = true,
                                 "setRequestedPermissionStates",
-                                packageState.packageName
+                                packageState.packageName,
                             )
                         }
                     }
@@ -959,7 +971,7 @@ class PermissionService(private val service: AccessCheckingService) :
                             userId,
                             permissionName,
                             permissionState ==
-                                PackageInstaller.SessionParams.PERMISSION_STATE_GRANTED
+                                PackageInstaller.SessionParams.PERMISSION_STATE_GRANTED,
                         )
                     else -> {}
                 }
@@ -977,7 +989,7 @@ class PermissionService(private val service: AccessCheckingService) :
         canManageRolePermission: Boolean,
         overridePolicyFixed: Boolean,
         reportError: Boolean,
-        methodName: String
+        methodName: String,
     ) {
         val permission = with(policy) { getPermissions()[permissionName] }
         if (permission == null) {
@@ -1037,7 +1049,7 @@ class PermissionService(private val service: AccessCheckingService) :
             if (reportError) {
                 Slog.e(
                     LOG_TAG,
-                    "Permission $permissionName isn't requested by package $packageName"
+                    "Permission $permissionName isn't requested by package $packageName",
                 )
             }
             return
@@ -1048,7 +1060,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 Slog.e(
                     LOG_TAG,
                     "$methodName: Cannot change system fixed permission $permissionName" +
-                        " for package $packageName"
+                        " for package $packageName",
                 )
             }
             return
@@ -1059,7 +1071,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 Slog.e(
                     LOG_TAG,
                     "$methodName: Cannot change policy fixed permission $permissionName" +
-                        " for package $packageName"
+                        " for package $packageName",
                 )
             }
             return
@@ -1070,7 +1082,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 Slog.e(
                     LOG_TAG,
                     "$methodName: Cannot grant hard-restricted non-exempt permission" +
-                        " $permissionName to package $packageName"
+                        " $permissionName to package $packageName",
                 )
             }
             return
@@ -1081,7 +1093,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 Slog.e(
                     LOG_TAG,
                     "$methodName: Cannot grant soft-restricted non-exempt permission" +
-                        " $permissionName to package $packageName"
+                        " $permissionName to package $packageName",
                 )
             }
             return
@@ -1114,7 +1126,7 @@ class PermissionService(private val service: AccessCheckingService) :
         packageState: PackageState,
         userId: Int,
         permissionName: String,
-        isGranted: Boolean
+        isGranted: Boolean,
     ) {
         val appOpPolicy =
             service.getSchemePolicy(UidUri.SCHEME, AppOpUri.SCHEME) as AppIdAppOpPolicy
@@ -1134,17 +1146,17 @@ class PermissionService(private val service: AccessCheckingService) :
             return 0
         }
 
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = true,
             enforceShellRestriction = false,
-            "getPermissionFlags"
+            "getPermissionFlags",
         )
-        enforceCallingOrSelfAnyPermission(
+        permissionEnforcer.enforceCallingOrSelfAnyPermission(
             "getPermissionFlags",
             Manifest.permission.GRANT_RUNTIME_PERMISSIONS,
             Manifest.permission.REVOKE_RUNTIME_PERMISSIONS,
-            Manifest.permission.GET_RUNTIME_PERMISSIONS
+            Manifest.permission.GET_RUNTIME_PERMISSIONS,
         )
 
         val packageState =
@@ -1171,23 +1183,23 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun getAllPermissionStates(
         packageName: String,
         deviceId: String,
-        userId: Int
+        userId: Int,
     ): Map<String, PermissionState> {
         if (!userManagerInternal.exists(userId)) {
             Slog.w(LOG_TAG, "getAllPermissionStates: Unknown user $userId")
             return emptyMap()
         }
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = true,
             enforceShellRestriction = false,
-            "getAllPermissionStates"
+            "getAllPermissionStates",
         )
-        enforceCallingOrSelfAnyPermission(
+        permissionEnforcer.enforceCallingOrSelfAnyPermission(
             "getAllPermissionStates",
             Manifest.permission.GRANT_RUNTIME_PERMISSIONS,
             Manifest.permission.REVOKE_RUNTIME_PERMISSIONS,
-            Manifest.permission.GET_RUNTIME_PERMISSIONS
+            Manifest.permission.GET_RUNTIME_PERMISSIONS,
         )
 
         val packageState =
@@ -1220,18 +1232,18 @@ class PermissionService(private val service: AccessCheckingService) :
         packageName: String,
         permissionName: String,
         deviceId: String,
-        userId: Int
+        userId: Int,
     ): Boolean {
         if (!userManagerInternal.exists(userId)) {
             Slog.w(LOG_TAG, "isPermissionRevokedByPolicy: Unknown user $userId")
             return false
         }
 
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = true,
             enforceShellRestriction = false,
-            "isPermissionRevokedByPolicy"
+            "isPermissionRevokedByPolicy",
         )
 
         val packageState =
@@ -1277,11 +1289,11 @@ class PermissionService(private val service: AccessCheckingService) :
             return false
         }
 
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = true,
             enforceShellRestriction = false,
-            "shouldShowRequestPermissionRationale"
+            "shouldShowRequestPermissionRationale",
         )
 
         val callingUid = Binder.getCallingUid()
@@ -1313,14 +1325,14 @@ class PermissionService(private val service: AccessCheckingService) :
                         platformCompat.isChangeEnabledByPackageName(
                             BACKGROUND_RATIONALE_CHANGE_ID,
                             packageName,
-                            userId
+                            userId,
                         )
                     } catch (e: RemoteException) {
                         Slog.e(
                             LOG_TAG,
                             "shouldShowRequestPermissionRationale: Unable to check if" +
                                 " compatibility change is enabled",
-                            e
+                            e,
                         )
                         false
                     }
@@ -1340,7 +1352,7 @@ class PermissionService(private val service: AccessCheckingService) :
         flagValues: Int,
         enforceAdjustPolicyPermission: Boolean,
         deviceId: String,
-        userId: Int
+        userId: Int,
     ) {
         val callingUid = Binder.getCallingUid()
         if (
@@ -1351,13 +1363,13 @@ class PermissionService(private val service: AccessCheckingService) :
                 DebugUtils.flagsToString(
                     PackageManager::class.java,
                     "FLAG_PERMISSION_",
-                    flagMask.toLong()
+                    flagMask.toLong(),
                 )
             val flagValuesString =
                 DebugUtils.flagsToString(
                     PackageManager::class.java,
                     "FLAG_PERMISSION_",
-                    flagValues.toLong()
+                    flagValues.toLong(),
                 )
             val callingUidName = packageManagerInternal.getNameForUid(callingUid)
             Slog.i(
@@ -1367,7 +1379,7 @@ class PermissionService(private val service: AccessCheckingService) :
                     " flagValues = $flagValuesString, userId = $userId," +
                     " deviceId = $deviceId," +
                     " callingUid = $callingUidName ($callingUid))",
-                RuntimeException()
+                RuntimeException(),
             )
         }
 
@@ -1376,16 +1388,16 @@ class PermissionService(private val service: AccessCheckingService) :
             return
         }
 
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = true,
             enforceShellRestriction = true,
-            "updatePermissionFlags"
+            "updatePermissionFlags",
         )
-        enforceCallingOrSelfAnyPermission(
+        permissionEnforcer.enforceCallingOrSelfAnyPermission(
             "updatePermissionFlags",
             Manifest.permission.GRANT_RUNTIME_PERMISSIONS,
-            Manifest.permission.REVOKE_RUNTIME_PERMISSIONS
+            Manifest.permission.REVOKE_RUNTIME_PERMISSIONS,
         )
 
         // Different from the old implementation, which implicitly didn't allow modifying the
@@ -1398,7 +1410,7 @@ class PermissionService(private val service: AccessCheckingService) :
                     context.enforceCallingOrSelfPermission(
                         Manifest.permission.ADJUST_RUNTIME_PERMISSIONS_POLICY,
                         "Need ${Manifest.permission.ADJUST_RUNTIME_PERMISSIONS_POLICY} to change" +
-                            " policy flags"
+                            " policy flags",
                     )
                 } else {
                     val targetSdkVersion = packageManagerInternal.getUidTargetSdkVersion(callingUid)
@@ -1462,7 +1474,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 reportErrorForUnknownPermission = true,
                 isPermissionRequested,
                 "updatePermissionFlags",
-                packageName
+                packageName,
             )
         }
     }
@@ -1474,13 +1486,13 @@ class PermissionService(private val service: AccessCheckingService) :
                 DebugUtils.flagsToString(
                     PackageManager::class.java,
                     "FLAG_PERMISSION_",
-                    flagMask.toLong()
+                    flagMask.toLong(),
                 )
             val flagValuesString =
                 DebugUtils.flagsToString(
                     PackageManager::class.java,
                     "FLAG_PERMISSION_",
-                    flagValues.toLong()
+                    flagValues.toLong(),
                 )
             val callingUidName = packageManagerInternal.getNameForUid(callingUid)
             Slog.i(
@@ -1488,7 +1500,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 "updatePermissionFlagsForAllApps(flagMask = $flagMaskString," +
                     " flagValues = $flagValuesString, userId = $userId," +
                     " callingUid = $callingUidName ($callingUid))",
-                RuntimeException()
+                RuntimeException(),
             )
         }
 
@@ -1497,16 +1509,16 @@ class PermissionService(private val service: AccessCheckingService) :
             return
         }
 
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = true,
             enforceShellRestriction = true,
-            "updatePermissionFlagsForAllApps"
+            "updatePermissionFlagsForAllApps",
         )
-        enforceCallingOrSelfAnyPermission(
+        permissionEnforcer.enforceCallingOrSelfAnyPermission(
             "updatePermissionFlagsForAllApps",
             Manifest.permission.GRANT_RUNTIME_PERMISSIONS,
-            Manifest.permission.REVOKE_RUNTIME_PERMISSIONS
+            Manifest.permission.REVOKE_RUNTIME_PERMISSIONS,
         )
 
         // Different from the old implementation, which only sanitized the SYSTEM_FIXED
@@ -1532,7 +1544,7 @@ class PermissionService(private val service: AccessCheckingService) :
                         reportErrorForUnknownPermission = false,
                         isPermissionRequested = true,
                         "updatePermissionFlagsForAllApps",
-                        packageName
+                        packageName,
                     )
                 }
             }
@@ -1551,7 +1563,7 @@ class PermissionService(private val service: AccessCheckingService) :
         reportErrorForUnknownPermission: Boolean,
         isPermissionRequested: Boolean,
         methodName: String,
-        packageName: String
+        packageName: String,
     ) {
         @Suppress("NAME_SHADOWING") var flagMask = flagMask
         @Suppress("NAME_SHADOWING") var flagValues = flagValues
@@ -1583,7 +1595,7 @@ class PermissionService(private val service: AccessCheckingService) :
             Slog.w(
                 LOG_TAG,
                 "$methodName: Permission $permissionName isn't requested by package" +
-                    " $packageName"
+                    " $packageName",
             )
             return
         }
@@ -1595,7 +1607,7 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun getAllowlistedRestrictedPermissions(
         packageName: String,
         allowlistedFlags: Int,
-        userId: Int
+        userId: Int,
     ): ArrayList<String>? {
         requireNotNull(packageName) { "packageName cannot be null" }
         Preconditions.checkFlagsArgument(allowlistedFlags, PERMISSION_ALLOWLIST_MASK)
@@ -1606,11 +1618,11 @@ class PermissionService(private val service: AccessCheckingService) :
             return null
         }
 
-        enforceCallingOrSelfCrossUserPermission(
+        permissionEnforcer.enforceCallingOrSelfCrossUserPermission(
             userId,
             enforceFullPermission = false,
             enforceShellRestriction = false,
-            "getAllowlistedRestrictedPermissions"
+            "getAllowlistedRestrictedPermissions",
         )
 
         val callingUid = Binder.getCallingUid()
@@ -1655,7 +1667,7 @@ class PermissionService(private val service: AccessCheckingService) :
         return getAllowlistedRestrictedPermissionsUnchecked(
             packageState.appId,
             allowlistedFlags,
-            userId
+            userId,
         )
     }
 
@@ -1675,7 +1687,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 Slog.i(
                     LOG_TAG,
                     "$permissionName is not device aware permission, " +
-                        " get the flags for default device."
+                        " get the flags for default device.",
                 )
                 return with(policy) { getPermissionFlags(appId, userId, permissionName) }
             }
@@ -1688,7 +1700,7 @@ class PermissionService(private val service: AccessCheckingService) :
         userId: Int,
         permissionName: String,
         deviceId: String,
-        flags: Int
+        flags: Int,
     ): Boolean {
         return if (
             !Flags.deviceAwarePermissionApisEnabled() ||
@@ -1700,7 +1712,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 Slog.i(
                     LOG_TAG,
                     "$permissionName is not device aware permission, " +
-                        " set the flags for default device."
+                        " set the flags for default device.",
                 )
                 return with(policy) { setPermissionFlags(appId, userId, permissionName, flags) }
             }
@@ -1718,7 +1730,7 @@ class PermissionService(private val service: AccessCheckingService) :
     private fun getAllowlistedRestrictedPermissionsUnchecked(
         appId: Int,
         allowlistedFlags: Int,
-        userId: Int
+        userId: Int,
     ): ArrayList<String>? {
         val permissionFlags =
             service.getState { with(policy) { getUidPermissionFlags(appId, userId) } }
@@ -1744,7 +1756,7 @@ class PermissionService(private val service: AccessCheckingService) :
         packageName: String,
         permissionName: String,
         allowlistedFlags: Int,
-        userId: Int
+        userId: Int,
     ): Boolean {
         requireNotNull(permissionName) { "permissionName cannot be null" }
         if (!enforceRestrictedPermission(permissionName)) {
@@ -1762,7 +1774,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 permissionNames,
                 allowlistedFlags,
                 userId,
-                isAddingPermission = true
+                isAddingPermission = true,
             )
         }
         return false
@@ -1772,13 +1784,13 @@ class PermissionService(private val service: AccessCheckingService) :
         androidPackage: AndroidPackage,
         appId: Int,
         permissionNames: List<String>,
-        userId: Int
+        userId: Int,
     ) {
         val newPermissionNames =
             getAllowlistedRestrictedPermissionsUnchecked(
                     appId,
                     PackageManager.FLAG_PERMISSION_WHITELIST_INSTALLER,
-                    userId
+                    userId,
                 )
                 ?.let { ArraySet(permissionNames).apply { this += it }.toList() } ?: permissionNames
 
@@ -1787,7 +1799,7 @@ class PermissionService(private val service: AccessCheckingService) :
             appId,
             newPermissionNames,
             PackageManager.FLAG_PERMISSION_WHITELIST_INSTALLER,
-            userId
+            userId,
         )
     }
 
@@ -1795,7 +1807,7 @@ class PermissionService(private val service: AccessCheckingService) :
         packageName: String,
         permissionName: String,
         allowlistedFlags: Int,
-        userId: Int
+        userId: Int,
     ): Boolean {
         requireNotNull(permissionName) { "permissionName cannot be null" }
         if (!enforceRestrictedPermission(permissionName)) {
@@ -1812,7 +1824,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 permissions,
                 allowlistedFlags,
                 userId,
-                isAddingPermission = false
+                isAddingPermission = false,
             )
         }
 
@@ -1855,7 +1867,7 @@ class PermissionService(private val service: AccessCheckingService) :
         permissionNames: List<String>,
         allowlistedFlags: Int,
         userId: Int,
-        isAddingPermission: Boolean
+        isAddingPermission: Boolean,
     ): Boolean {
         Preconditions.checkArgument(allowlistedFlags.countOneBits() == 1)
 
@@ -1894,7 +1906,7 @@ class PermissionService(private val service: AccessCheckingService) :
             packageState.appId,
             permissionNames,
             allowlistedFlags,
-            userId
+            userId,
         )
 
         return true
@@ -1909,7 +1921,7 @@ class PermissionService(private val service: AccessCheckingService) :
         appId: Int,
         permissionNames: List<String>,
         allowlistedFlags: Int,
-        userId: Int
+        userId: Int,
     ) {
         var exemptMask = 0
         if (allowlistedFlags.hasBits(PackageManager.FLAG_PERMISSION_WHITELIST_SYSTEM)) {
@@ -1962,7 +1974,7 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun addOnPermissionsChangeListener(listener: IOnPermissionsChangeListener) {
         context.enforceCallingOrSelfPermission(
             Manifest.permission.OBSERVE_GRANT_REVOKE_PERMISSIONS,
-            "addOnPermissionsChangeListener"
+            "addOnPermissionsChangeListener",
         )
 
         onPermissionsChangeListeners.addListener(listener)
@@ -1971,7 +1983,7 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun removeOnPermissionsChangeListener(listener: IOnPermissionsChangeListener) {
         context.enforceCallingOrSelfPermission(
             Manifest.permission.OBSERVE_GRANT_REVOKE_PERMISSIONS,
-            "removeOnPermissionsChangeListener"
+            "removeOnPermissionsChangeListener",
         )
 
         onPermissionsChangeListeners.removeListener(listener)
@@ -1989,10 +2001,10 @@ class PermissionService(private val service: AccessCheckingService) :
 
         val permission = service.getState { with(policy) { getPermissions()[permissionName] } }
         if (permission == null || !permission.isAppOp) {
-            packageNames.toTypedArray()
+            return packageNames.toTypedArray()
         }
 
-        packageManagerLocal.withUnfilteredSnapshot().use { snapshot ->
+        packageManagerLocal.withFilteredSnapshot().use { snapshot ->
             snapshot.packageStates.forEach { (_, packageState) ->
                 if (packageState.isApex) {
                     return@forEach
@@ -2032,10 +2044,10 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun backupRuntimePermissions(userId: Int): ByteArray? {
         Preconditions.checkArgumentNonnegative(userId, "userId cannot be null")
         val backup = CompletableFuture<ByteArray>()
-        permissionControllerManager.getRuntimePermissionBackup(
+        getPermissionControllerManager(userId).getRuntimePermissionBackup(
             UserHandle.of(userId),
             PermissionThread.getExecutor(),
-            backup::complete
+            backup::complete,
         )
 
         return try {
@@ -2060,9 +2072,9 @@ class PermissionService(private val service: AccessCheckingService) :
         synchronized(isDelayedPermissionBackupFinished) {
             isDelayedPermissionBackupFinished -= userId
         }
-        permissionControllerManager.stageAndApplyRuntimePermissionsBackup(
+        getPermissionControllerManager(userId).stageAndApplyRuntimePermissionsBackup(
             backup,
-            UserHandle.of(userId)
+            UserHandle.of(userId),
         )
     }
 
@@ -2075,10 +2087,10 @@ class PermissionService(private val service: AccessCheckingService) :
                 return
             }
         }
-        permissionControllerManager.applyStagedRuntimePermissionBackup(
+        getPermissionControllerManager(userId).applyStagedRuntimePermissionBackup(
             packageName,
             UserHandle.of(userId),
-            PermissionThread.getExecutor()
+            PermissionThread.getExecutor(),
         ) { hasMoreBackup ->
             if (hasMoreBackup) {
                 return@applyStagedRuntimePermissionBackup
@@ -2088,6 +2100,14 @@ class PermissionService(private val service: AccessCheckingService) :
             }
         }
     }
+
+    private fun getPermissionControllerManager(userId: Int): PermissionControllerManager =
+        synchronized(permissionControllerManagers) {
+            permissionControllerManagers.getOrPut(userId) {
+                val userContext = context.createContextAsUser(UserHandle.of(userId), 0)
+                PermissionControllerManager(userContext, PermissionThread.getHandler())
+            }
+        }
 
     override fun dump(fd: FileDescriptor, pw: PrintWriter, args: Array<out String>?) {
         if (!DumpUtils.checkDumpPermission(context, LOG_TAG, pw)) {
@@ -2207,7 +2227,7 @@ class PermissionService(private val service: AccessCheckingService) :
     private fun IndentingPrintWriter.dumpAppIdState(
         appId: Int,
         state: AccessState,
-        packageNames: IndexedSet<String>?
+        packageNames: IndexedSet<String>?,
     ) {
         println("App ID: $appId")
         withIndent {
@@ -2289,7 +2309,7 @@ class PermissionService(private val service: AccessCheckingService) :
             permission.isReconciled,
             permission.appId,
             permission.gids,
-            permission.areGidsPerUser
+            permission.areGidsPerUser,
         )
     }
 
@@ -2301,7 +2321,7 @@ class PermissionService(private val service: AccessCheckingService) :
                     permission.permissionInfo,
                     permission.type,
                     permission.appId,
-                    permission.gids
+                    permission.gids,
                 )
             }
 
@@ -2343,7 +2363,7 @@ class PermissionService(private val service: AccessCheckingService) :
                             permissionName,
                             permission.isRuntime,
                             PermissionFlags.isPermissionGranted(flags),
-                            PermissionFlags.toApiFlags(flags)
+                            PermissionFlags.toApiFlags(flags),
                         )
                     legacyState.putPermissionState(legacyPermissionState, userId)
                 }
@@ -2378,9 +2398,6 @@ class PermissionService(private val service: AccessCheckingService) :
         virtualDeviceManagerInternal?.registerPersistentDeviceIdRemovedListener { deviceId ->
             service.mutateState { with(devicePolicy) { onDeviceIdRemoved(deviceId) } }
         }
-
-        permissionControllerManager =
-            PermissionControllerManager(context, PermissionThread.getHandler())
     }
 
     override fun onUserCreated(userId: Int) {
@@ -2407,7 +2424,7 @@ class PermissionService(private val service: AccessCheckingService) :
     override fun onPackageAdded(
         packageState: PackageState,
         isInstantApp: Boolean,
-        oldPackage: AndroidPackage?
+        oldPackage: AndroidPackage?,
     ) {
         if (packageState.isApex) {
             return
@@ -2437,7 +2454,7 @@ class PermissionService(private val service: AccessCheckingService) :
         androidPackage: AndroidPackage,
         previousAppId: Int,
         params: PermissionManagerServiceInternal.PackageInstalledParams,
-        userId: Int
+        userId: Int,
     ) {
         if (androidPackage.isApex) {
             return
@@ -2481,7 +2498,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 androidPackage,
                 packageState.appId,
                 params.allowlistedRestrictedPermissions,
-                userId
+                userId,
             )
             setRequestedPermissionStates(packageState, userId, params.permissionStates)
         }
@@ -2493,21 +2510,22 @@ class PermissionService(private val service: AccessCheckingService) :
         packageState: PackageState,
         androidPackage: AndroidPackage?,
         sharedUserPkgs: List<AndroidPackage>,
-        userId: Int
+        userId: Int,
     ) {
         if (packageState.isApex) {
             return
         }
 
-        val userIds =
-            if (userId == UserHandle.USER_ALL) {
-                userManagerService.userIdsIncludingPreCreated
-            } else {
-                intArrayOf(userId)
-            }
-        userIds.forEach { service.onPackageUninstalled(packageName, appId, it) }
         val packageState = packageManagerInternal.packageStates[packageName]
-        if (packageState == null) {
+        if (packageState != null) {
+            val userIds =
+                if (userId == UserHandle.USER_ALL) {
+                    userManagerService.userIdsIncludingPreCreated
+                } else {
+                    intArrayOf(userId)
+                }
+            userIds.forEach { service.onPackageUninstalled(packageName, appId, it) }
+        } else {
             service.onPackageRemoved(packageName, appId)
         }
     }
@@ -2560,7 +2578,7 @@ class PermissionService(private val service: AccessCheckingService) :
     /** @see PackageManagerLocal.withFilteredSnapshot */
     private fun PackageManagerLocal.withFilteredSnapshot(
         callingUid: Int,
-        userId: Int
+        userId: Int,
     ): PackageManagerLocal.FilteredSnapshot =
         withFilteredSnapshot(callingUid, UserHandle.of(userId))
 
@@ -2585,113 +2603,21 @@ class PermissionService(private val service: AccessCheckingService) :
     /** Check whether a package is visible to a UID within the same user as the UID. */
     private fun PackageManagerLocal.UnfilteredSnapshot.isPackageVisibleToUid(
         packageName: String,
-        uid: Int
+        uid: Int,
     ): Boolean = isPackageVisibleToUid(packageName, UserHandle.getUserId(uid), uid)
 
     /** Check whether a package in a particular user is visible to a UID. */
     private fun PackageManagerLocal.UnfilteredSnapshot.isPackageVisibleToUid(
         packageName: String,
         userId: Int,
-        uid: Int
+        uid: Int,
     ): Boolean = filtered(uid, userId).use { it.getPackageState(packageName) != null }
 
     /** @see PackageManagerLocal.UnfilteredSnapshot.filtered */
     private fun PackageManagerLocal.UnfilteredSnapshot.filtered(
         callingUid: Int,
-        userId: Int
-    ): PackageManagerLocal.FilteredSnapshot = filtered(callingUid, UserHandle.of(userId))
-
-    /**
-     * If neither you nor the calling process of an IPC you are handling has been granted the
-     * permission for accessing a particular [userId], throw a [SecurityException].
-     *
-     * @see Context.enforceCallingOrSelfPermission
-     * @see UserManager.DISALLOW_DEBUGGING_FEATURES
-     */
-    private fun enforceCallingOrSelfCrossUserPermission(
         userId: Int,
-        enforceFullPermission: Boolean,
-        enforceShellRestriction: Boolean,
-        message: String?
-    ) {
-        require(userId >= 0) { "userId $userId is invalid" }
-        val callingUid = Binder.getCallingUid()
-        val callingUserId = UserHandle.getUserId(callingUid)
-        if (userId != callingUserId) {
-            val permissionName =
-                if (enforceFullPermission) {
-                    Manifest.permission.INTERACT_ACROSS_USERS_FULL
-                } else {
-                    Manifest.permission.INTERACT_ACROSS_USERS
-                }
-            if (
-                context.checkCallingOrSelfPermission(permissionName) !=
-                    PackageManager.PERMISSION_GRANTED
-            ) {
-                val exceptionMessage = buildString {
-                    if (message != null) {
-                        append(message)
-                        append(": ")
-                    }
-                    append("Neither user ")
-                    append(callingUid)
-                    append(" nor current process has ")
-                    append(permissionName)
-                    append(" to access user ")
-                    append(userId)
-                }
-                throw SecurityException(exceptionMessage)
-            }
-        }
-        if (enforceShellRestriction && isShellUid(callingUid)) {
-            val isShellRestricted =
-                userManagerInternal.hasUserRestriction(
-                    UserManager.DISALLOW_DEBUGGING_FEATURES,
-                    userId
-                )
-            if (isShellRestricted) {
-                val exceptionMessage = buildString {
-                    if (message != null) {
-                        append(message)
-                        append(": ")
-                    }
-                    append("Shell is disallowed to access user ")
-                    append(userId)
-                }
-                throw SecurityException(exceptionMessage)
-            }
-        }
-    }
-
-    /**
-     * If neither you nor the calling process of an IPC you are handling has been granted any of the
-     * permissions, throw a [SecurityException].
-     *
-     * @see Context.enforceCallingOrSelfPermission
-     */
-    private fun enforceCallingOrSelfAnyPermission(
-        message: String?,
-        vararg permissionNames: String
-    ) {
-        val hasAnyPermission =
-            permissionNames.any { permissionName ->
-                context.checkCallingOrSelfPermission(permissionName) ==
-                    PackageManager.PERMISSION_GRANTED
-            }
-        if (!hasAnyPermission) {
-            val exceptionMessage = buildString {
-                if (message != null) {
-                    append(message)
-                    append(": ")
-                }
-                append("Neither user ")
-                append(Binder.getCallingUid())
-                append(" nor current process has any of ")
-                permissionNames.joinTo(this, ", ")
-            }
-            throw SecurityException(exceptionMessage)
-        }
-    }
+    ): PackageManagerLocal.FilteredSnapshot = filtered(callingUid, UserHandle.of(userId))
 
     /** Callback invoked when interesting actions have been taken on a permission. */
     private inner class OnPermissionFlagsChangedListener :
@@ -2720,7 +2646,7 @@ class PermissionService(private val service: AccessCheckingService) :
             userId: Int,
             permissionName: String,
             oldFlags: Int,
-            newFlags: Int
+            newFlags: Int,
         ) {
             onDevicePermissionFlagsChanged(
                 appId,
@@ -2728,7 +2654,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,
                 permissionName,
                 oldFlags,
-                newFlags
+                newFlags,
             )
         }
 
@@ -2738,7 +2664,7 @@ class PermissionService(private val service: AccessCheckingService) :
             deviceId: String,
             permissionName: String,
             oldFlags: Int,
-            newFlags: Int
+            newFlags: Int,
         ) {
             isPermissionFlagsChanged = true
 
@@ -2768,7 +2694,8 @@ class PermissionService(private val service: AccessCheckingService) :
 
         override fun onStateMutated() {
             if (isPermissionFlagsChanged) {
-                PackageManager.invalidatePackageInfoCache()
+                PackageManagerService.invalidatePackageInfoCache(
+                        PackageMetrics.INVALIDATION_REASON_PERMISSION_FLAG_CHANGED)
                 isPermissionFlagsChanged = false
             }
 
@@ -2790,21 +2717,35 @@ class PermissionService(private val service: AccessCheckingService) :
                     _,
                     uid,
                     areOnlyNotificationsPermissionsRevoked ->
-                    handler.post {
-                        if (
-                            areOnlyNotificationsPermissionsRevoked &&
-                                isAppBackupAndRestoreRunning(uid)
-                        ) {
-                            return@post
-                        }
-                        killUid(uid, reason)
+                    if (!handler.hasMessages(uid, areOnlyNotificationsPermissionsRevoked)) {
+                        handler
+                            .obtainMessage(uid, areOnlyNotificationsPermissionsRevoked)
+                            .setCallback {
+                                if (
+                                    areOnlyNotificationsPermissionsRevoked &&
+                                        isAppBackupAndRestoreRunning(uid)
+                                ) {
+                                    return@setCallback
+                                }
+                                killUid(uid, reason)
+                            }
+                            .sendToTarget()
                     }
                 }
             }
             runtimePermissionRevokedUids.clear()
 
             gidsChangedUids.forEachIndexed { _, uid ->
-                handler.post { killUid(uid, PermissionManager.KILL_APP_REASON_GIDS_CHANGED) }
+                // We must pass a non-null object to avoid matching the true/false being used by
+                // the code for runtimePermissionRevokedUids above.
+                if (!handler.hasMessages(uid, 0)) {
+                    handler
+                        .obtainMessage(uid, 0)
+                        .setCallback {
+                            killUid(uid, PermissionManager.KILL_APP_REASON_GIDS_CHANGED)
+                        }
+                        .sendToTarget()
+                }
             }
             gidsChangedUids.clear()
 
@@ -2817,7 +2758,7 @@ class PermissionService(private val service: AccessCheckingService) :
                 checkUidPermission(
                     uid,
                     Manifest.permission.BACKUP,
-                    VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT
+                    VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
                 return false

@@ -39,11 +39,14 @@ import android.hardware.biometrics.common.OperationContext;
 import android.hardware.biometrics.common.OperationReason;
 import android.hardware.display.DisplayManagerGlobal;
 import android.hardware.fingerprint.FingerprintAuthenticateOptions;
+import android.os.Handler;
 import android.os.RemoteException;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
+import android.testing.AndroidTestingRunner;
 import android.testing.TestableContext;
+import android.testing.TestableLooper;
 import android.view.Display;
 import android.view.DisplayInfo;
 import android.view.WindowManager;
@@ -58,6 +61,7 @@ import com.android.internal.statusbar.IStatusBarService;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
@@ -70,6 +74,8 @@ import java.util.function.Consumer;
 
 @Presubmit
 @SmallTest
+@RunWith(AndroidTestingRunner.class)
+@TestableLooper.RunWithLooper
 public class BiometricContextProviderTest {
 
     @Rule
@@ -90,6 +96,8 @@ public class BiometricContextProviderTest {
     @Mock
     private Consumer<OperationContext> mStartHalConsumer;
 
+    private TestableLooper mLooper;
+    private Handler mHandler;
     private final FingerprintAuthenticateOptions mAuthenticateOptions =
             new FingerprintAuthenticateOptions.Builder().build();
     private final OperationContextExt mOpContext = new OperationContextExt(true);
@@ -98,12 +106,14 @@ public class BiometricContextProviderTest {
 
     @Before
     public void setup() throws RemoteException {
+        mLooper = TestableLooper.get(this);
+        mHandler = new Handler(mLooper.getLooper());
+
         when(mWindowManager.getDefaultDisplay()).thenReturn(
                 new Display(DisplayManagerGlobal.getInstance(), Display.DEFAULT_DISPLAY,
                         new DisplayInfo(), DEFAULT_DISPLAY_ADJUSTMENTS));
         mProvider = new BiometricContextProvider(mContext, mWindowManager,
-                mStatusBarService, null /* handler */,
-                null /* authSessionCoordinator */);
+                mStatusBarService, mHandler, null /* authSessionCoordinator */);
         ArgumentCaptor<IBiometricContextListener> captor =
                 ArgumentCaptor.forClass(IBiometricContextListener.class);
         verify(mStatusBarService).setBiometicContextListener(captor.capture());
@@ -212,6 +222,7 @@ public class BiometricContextProviderTest {
 
         for (int v : expected) {
             mListener.onFoldChanged(v);
+            mLooper.processAllMessages();
         }
 
         assertThat(actual).containsExactly(
@@ -240,6 +251,7 @@ public class BiometricContextProviderTest {
 
         for (int v : expected) {
             mListener.onDisplayStateChanged(v);
+            mLooper.processAllMessages();
         }
 
         assertThat(actual).containsExactly(
@@ -268,6 +280,7 @@ public class BiometricContextProviderTest {
                 AuthenticateOptions.DISPLAY_STATE_NO_UI,
                 AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN)) {
             mListener.onDisplayStateChanged(v);
+            mLooper.processAllMessages();
         }
 
         assertThat(actual).containsExactly(true, false, true, false, false).inOrder();
@@ -290,6 +303,7 @@ public class BiometricContextProviderTest {
                 AuthenticateOptions.DISPLAY_STATE_AOD,
                 AuthenticateOptions.DISPLAY_STATE_NO_UI)) {
             mListener.onDisplayStateChanged(v);
+            mLooper.processAllMessages();
         }
 
         assertThat(actual).containsExactly(true, false, true, true, false, false).inOrder();
@@ -300,6 +314,7 @@ public class BiometricContextProviderTest {
         final Consumer<OperationContext> nonEmptyConsumer = mock(Consumer.class);
         mListener.onDisplayStateChanged(AuthenticateOptions.DISPLAY_STATE_AOD);
         mProvider.subscribe(mOpContext, mStartHalConsumer, nonEmptyConsumer, mAuthenticateOptions);
+        mLooper.processAllMessages();
 
         assertThat(mOpContext.getDisplayState()).isEqualTo(AuthenticateOptions.DISPLAY_STATE_AOD);
     }
@@ -311,15 +326,19 @@ public class BiometricContextProviderTest {
         mProvider.unsubscribe(mOpContext);
 
         mListener.onDisplayStateChanged(AuthenticateOptions.DISPLAY_STATE_AOD);
+        mLooper.processAllMessages();
 
         //reset to unknown to avoid trigger accept when subscribe
         mListener.onDisplayStateChanged(AuthenticateOptions.DISPLAY_STATE_UNKNOWN);
+        mLooper.processAllMessages();
 
         final Consumer<OperationContext> nonEmptyConsumer = mock(Consumer.class);
         mProvider.subscribe(mOpContext, mStartHalConsumer, nonEmptyConsumer, mAuthenticateOptions);
         mListener.onDisplayStateChanged(AuthenticateOptions.DISPLAY_STATE_LOCKSCREEN);
+        mLooper.processAllMessages();
         mProvider.unsubscribe(mOpContext);
         mListener.onDisplayStateChanged(AuthenticateOptions.DISPLAY_STATE_NO_UI);
+        mLooper.processAllMessages();
 
         verify(emptyConsumer, never()).accept(any());
         verify(nonEmptyConsumer).accept(same(mOpContext.toAidlContext()));

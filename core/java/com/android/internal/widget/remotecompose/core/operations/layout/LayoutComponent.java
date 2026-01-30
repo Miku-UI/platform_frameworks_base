@@ -286,7 +286,7 @@ public class LayoutComponent extends Component {
     }
 
     @Override
-    public void getLocationInWindow(@NonNull float[] value, boolean forSelf) {
+    public void getLocationInWindow(@NonNull float [] value, boolean forSelf) {
         value[0] += mX + mPaddingLeft;
         value[1] += mY + mPaddingTop;
         if (mParent != null) {
@@ -429,7 +429,7 @@ public class LayoutComponent extends Component {
      * @param padding output start and end padding values
      * @return padding width
      */
-    public float computeModifierDefinedPaddingWidth(@NonNull float[] padding) {
+    public float computeModifierDefinedPaddingWidth(@NonNull float [] padding) {
         float s = 0f;
         float e = 0f;
         for (OperationInterface c : mComponentModifiers.getList()) {
@@ -477,7 +477,7 @@ public class LayoutComponent extends Component {
      * @param padding output top and bottom padding values
      * @return padding height
      */
-    public float computeModifierDefinedPaddingHeight(@NonNull float[] padding) {
+    public float computeModifierDefinedPaddingHeight(@NonNull float [] padding) {
         float t = 0f;
         float b = 0f;
         for (OperationInterface c : mComponentModifiers.getList()) {
@@ -503,7 +503,7 @@ public class LayoutComponent extends Component {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         super.serialize(serializer);
         serializer
                 .addTags(SerializeTags.LAYOUT_COMPONENT)
@@ -514,7 +514,7 @@ public class LayoutComponent extends Component {
     }
 
     @Override
-    public <T> @Nullable T selfOrModifier(Class<T> operationClass) {
+    public <T> @Nullable T selfOrModifier(@NonNull Class<T> operationClass) {
         if (operationClass.isInstance(this)) {
             return operationClass.cast(this);
         }
@@ -529,7 +529,7 @@ public class LayoutComponent extends Component {
     }
 
     @Override
-    public void registerVariables(RemoteContext context) {
+    public void registerVariables(@NonNull RemoteContext context) {
         if (mDrawContentOperations != null) {
             mDrawContentOperations.registerListening(context);
         }

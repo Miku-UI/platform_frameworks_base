@@ -27,6 +27,7 @@ import android.view.Display;
 import android.view.WindowManager;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.systemui.Flags;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.utils.windowmanager.WindowManagerProvider;
 
@@ -102,6 +103,19 @@ public class ModeSwitchesController implements ClickListener {
     void onConfigurationChanged(int configDiff) {
         mSwitchSupplier.forEach(
                 switchController -> switchController.onConfigurationChanged(configDiff));
+    }
+
+    /**
+     * Called when the specific displayId is removed to cleanup.
+     *
+     * @param displayId The logical display id
+     */
+    @MainThread
+    void onDisplayRemoved(int displayId) {
+        if (Flags.cleanupInstancesWhenDisplayRemoved()) {
+            removeButton(displayId);
+            mSwitchSupplier.remove(displayId);
+        }
     }
 
     @Override

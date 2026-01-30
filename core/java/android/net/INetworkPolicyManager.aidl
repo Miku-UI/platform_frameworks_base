@@ -25,7 +25,7 @@ import android.telephony.SubscriptionPlan;
 /**
  * Interface that creates and modifies network policy rules.
  *
- * {@hide}
+ * @hide
  */
 interface INetworkPolicyManager {
 

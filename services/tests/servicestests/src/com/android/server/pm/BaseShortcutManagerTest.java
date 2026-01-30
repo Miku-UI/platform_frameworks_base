@@ -23,13 +23,13 @@ import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.makeBundle;
 import static com.android.server.pm.shortcutmanagertest.ShortcutManagerTestUtils.set;
 
-import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
@@ -110,7 +110,6 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -571,58 +570,6 @@ public abstract class BaseShortcutManagerTest extends InstrumentationTestCase {
         void wtf(String message, Throwable th) {
             // During tests, WTF is fatal.
             fail(message + "  exception: " + th + "\n" + Log.getStackTraceString(th));
-        }
-
-        @Override
-        void injectSaveBaseState() {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            try {
-                saveBaseStateAsXml(baos);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            mBaseState = baos.toByteArray();
-        }
-
-        @Override
-        protected void injectLoadBaseState() {
-            if (mBaseState == null) {
-                return;
-            }
-            ByteArrayInputStream bais = new ByteArrayInputStream(mBaseState);
-            try {
-                loadBaseStateAsXml(bais);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }
-
-        @Override
-        protected void injectSaveUser(@UserIdInt int userId) {
-            synchronized (mServiceLock) {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                try {
-                    saveUserInternalLocked(userId, baos, /* forBackup= */ false);
-                    cleanupDanglingBitmapDirectoriesLocked(userId);
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-                mUserStates.put(userId, baos.toByteArray());
-            }
-        }
-
-        @Override
-        protected ShortcutUser injectLoadUserLocked(@UserIdInt int userId) {
-            final byte[] userState = mUserStates.get(userId);
-            if (userState == null) {
-                return null;
-            }
-            ByteArrayInputStream bais = new ByteArrayInputStream(userState);
-            try {
-                return loadUserInternal(userId, bais, /* forBackup= */ false);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
         }
     }
 

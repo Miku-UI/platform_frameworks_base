@@ -41,7 +41,17 @@ public final class ContentCaptureCondition implements Parcelable {
     public static final int FLAG_IS_REGEX = 0x2;
 
     /** @hide */
+    private static final int FLAG_ENABLE_EXPORTING_VIRTUAL_CHILDREN = 0x4;
+    /** @hide */
+    private static final LocusId LOCUS_ID_NOT_EXIST = new LocusId("__NOT_EXIST");
+
+    /** @hide */
+    public static final ContentCaptureCondition CONDITION_ENABLE_EXPORTING_VIRTUAL_CHILDREN =
+            new ContentCaptureCondition(LOCUS_ID_NOT_EXIST, FLAG_ENABLE_EXPORTING_VIRTUAL_CHILDREN);
+
+    /** @hide */
     @IntDef(prefix = { "FLAG" }, flag = true, value = {
+            FLAG_ENABLE_EXPORTING_VIRTUAL_CHILDREN,
             FLAG_IS_REGEX
     })
     @Retention(RetentionPolicy.SOURCE)

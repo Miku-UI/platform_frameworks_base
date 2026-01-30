@@ -24,9 +24,9 @@ import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.scene.ui.composable.Overlay
 import kotlinx.coroutines.awaitCancellation
 
-class FakeOverlay(
-    override val key: OverlayKey,
-) : ExclusiveActivatable(), Overlay {
+class FakeOverlay(override val key: OverlayKey) : ExclusiveActivatable(), Overlay {
+
+    override val alwaysCompose: Boolean = false
 
     @Composable override fun ContentScope.Content(modifier: Modifier) = Unit
 

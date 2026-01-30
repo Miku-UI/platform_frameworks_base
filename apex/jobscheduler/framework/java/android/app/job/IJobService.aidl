@@ -23,7 +23,7 @@ import android.app.job.JobWorkItem;
  * Interface that the framework uses to communicate with application code that implements a
  * JobService.  End user code does not implement this interface directly; instead, the app's
  * service implementation will extend android.app.job.JobService.
- * {@hide}
+ * @hide
  */
 oneway interface IJobService {
     /** Begin execution of application's job. */

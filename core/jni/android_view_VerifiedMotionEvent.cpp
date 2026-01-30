@@ -34,7 +34,7 @@ jobject android_view_VerifiedMotionEvent(JNIEnv* env, const VerifiedMotionEvent&
     return env->NewObject(gVerifiedMotionEventClassInfo.clazz,
                           gVerifiedMotionEventClassInfo.constructor, event.deviceId,
                           event.eventTimeNanos, event.source, event.displayId, event.rawX,
-                          event.rawY, event.actionMasked, event.downTimeNanos, event.flags,
+                          event.rawY, event.actionMasked, event.downTimeNanos, event.flags.get(),
                           event.metaState, event.buttonState);
 }
 

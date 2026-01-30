@@ -27,8 +27,11 @@ import android.content.pm.PackageManager
 import android.content.pm.verify.domain.DomainVerificationManager
 import android.content.pm.verify.domain.DomainVerificationUserState
 import android.net.Uri
+import android.view.Display
 import com.android.internal.protolog.ProtoLog
 import com.android.wm.shell.protolog.ShellProtoLogGroup
+import com.android.wm.shell.shared.bubbles.BubbleAnythingFlagHelper
+import com.android.wm.shell.shared.desktopmode.DesktopState
 
 private const val TAG = "AppToWebUtils"
 
@@ -36,6 +39,16 @@ private val GenericBrowserIntent = Intent()
     .setAction(ACTION_VIEW)
     .addCategory(Intent.CATEGORY_BROWSABLE)
     .setData(Uri.parse("http:"))
+
+/**
+ * Check if app links can be shown
+ */
+fun canShowAppLinks(display: Display, desktopState: DesktopState): Boolean {
+    if (BubbleAnythingFlagHelper.enableBubbleToFullscreen()) {
+        return desktopState.isDesktopModeSupportedOnDisplay(display)
+    }
+    return true
+}
 
 /**
  * Returns a boolean indicating whether a given package is a browser app.

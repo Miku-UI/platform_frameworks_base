@@ -122,16 +122,6 @@ flag {
 }
 
 flag {
-  name: "tif_extension_standardization_bugfix"
-  namespace: "tv_os"
-  description: "Bug fix flag for standardizing AIDL extension interface of TIS"
-  bug: "389779152"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "media_quality_fw_bugfix"
   namespace: "tv_os"
   description: "Bug fix flag for Media Quality framework"
@@ -139,4 +129,18 @@ flag {
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+}
+
+flag {
+    name: "enable_tv_watchdog_emmc_protection"
+    namespace: "tv_os"
+    description: "Feature flag to enable TV Watchdog Service eMMC protection"
+    bug: "335423167"
+}
+
+flag {
+    name: "tif_extension_standardization_c"
+    namespace: "tv_os"
+    description: "Continue efforts for standardizing AIDL Extension Interface of TIS in Android 17"
+    bug: "443346064"
 }

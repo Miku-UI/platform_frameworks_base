@@ -17,7 +17,6 @@
 package com.android.systemui.shade.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
-import kotlinx.coroutines.flow.Flow
 
 /**
  * Expansion-related methods used throughout SysUI before the addition of the scene container as the
@@ -30,20 +29,11 @@ import kotlinx.coroutines.flow.Flow
 @Deprecated("Use ShadeInteractor instead.")
 interface PanelExpansionInteractor {
     /**
-     * The amount by which the "panel" has been expanded (`0` when fully collapsed, `1` when fully
-     * expanded).
-     *
-     * This is a legacy concept from the time when the "panel" included the notification/QS shades
-     * as well as the keyguard (lockscreen and bouncer). This value is meant only for
-     * backwards-compatibility and should not be consumed by newer code.
-     */
-    @Deprecated("Use SceneInteractor.currentScene instead.") val legacyPanelExpansion: Flow<Float>
-
-    /**
      * Returns whether the shade height is greater than zero or the shade is expecting a synthesized
      * down event.
      */
-    @Deprecated("Use ShadeInteractor.isAnyExpanded instead.") val isPanelExpanded: Boolean
+    @Deprecated("Legitimately deprecated and broken. Use ShadeInteractor.isAnyExpanded instead.")
+    val isPanelExpanded: Boolean
 
     /**
      * This method should not be used anymore, you should probably use [.isShadeFullyOpen] instead.

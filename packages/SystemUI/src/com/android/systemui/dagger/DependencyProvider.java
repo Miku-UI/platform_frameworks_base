@@ -23,7 +23,9 @@ import com.android.systemui.util.leak.LeakModule;
 import dagger.Module;
 
 /**
- * @deprecated This module is going away. Don't put anything in here.
+ * DEPRECATED: DO NOT ADD THINGS TO THIS FILE. b/427499553
+ *
+ * @deprecated b/427499553
  */
 @Deprecated
 @Module(includes = {

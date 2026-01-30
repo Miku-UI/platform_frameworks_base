@@ -146,17 +146,17 @@ internal constructor(
         traceSection("updateNotifOnUiModeChanged") {
             mPipeline?.allNotifs?.forEach { entry ->
                 entry.row?.onUiModeChanged()
-                mGutsManager.closeAndUndoGuts()
             }
+            mPipeline?.allBundles?.forEach { entry -> entry.onUiModeChanged() }
+            mGutsManager.closeAndUndoGuts()
         }
     }
 
     private fun updateNotificationsOnDensityOrFontScaleChanged() {
         colorUpdateLogger.logEvent("VCC.updateNotificationsOnDensityOrFontScaleChanged()")
-        mPipeline?.allNotifs?.forEach { entry ->
-            entry.onDensityOrFontScaleChanged()
-            mGutsManager.closeAndUndoGuts()
-        }
+        mPipeline?.allNotifs?.forEach { entry -> entry.onDensityOrFontScaleChanged() }
+        mPipeline?.allBundles?.forEach { entry -> entry.onDensityOrFontScaleChanged() }
+        mGutsManager.closeAndUndoGuts()
     }
 
     private inline fun log(message: () -> String) {

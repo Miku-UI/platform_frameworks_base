@@ -53,9 +53,6 @@ public class PipAlphaAnimator extends ValueAnimator {
     private final SurfaceControl.Transaction mFinishTransaction;
 
     private final int mDirection;
-    private final int mCornerRadius;
-    private final int mShadowRadius;
-
     private final Animator.AnimatorListener mAnimatorListener = new AnimatorListenerAdapter() {
         @Override
         public void onAnimationStart(Animator animation) {
@@ -99,8 +96,10 @@ public class PipAlphaAnimator extends ValueAnimator {
 
     @NonNull private PipSurfaceTransactionHelper.SurfaceControlTransactionFactory
             mSurfaceControlTransactionFactory;
+    @NonNull private final PipSurfaceTransactionHelper mSurfaceTransactionHelper;
 
     public PipAlphaAnimator(Context context,
+            @NonNull PipSurfaceTransactionHelper pipSurfaceTransactionHelper,
             SurfaceControl leash,
             SurfaceControl.Transaction startTransaction,
             SurfaceControl.Transaction finishTransaction,
@@ -108,6 +107,7 @@ public class PipAlphaAnimator extends ValueAnimator {
         mLeash = leash;
         mStartTransaction = startTransaction;
         mFinishTransaction = finishTransaction;
+        mSurfaceTransactionHelper = pipSurfaceTransactionHelper;
 
         mDirection = direction;
         setFloatValues(getStartAlphaValue(), getEndAlphaValue());
@@ -115,8 +115,6 @@ public class PipAlphaAnimator extends ValueAnimator {
                 new PipSurfaceTransactionHelper.VsyncSurfaceControlTransactionFactory();
         final int enterAnimationDuration = context.getResources()
                 .getInteger(R.integer.config_pipEnterAnimationDuration);
-        mCornerRadius = context.getResources().getDimensionPixelSize(R.dimen.pip_corner_radius);
-        mShadowRadius = context.getResources().getDimensionPixelSize(R.dimen.pip_shadow_radius);
         setDuration(enterAnimationDuration);
         addListener(mAnimatorListener);
         addUpdateListener(mAnimatorUpdateListener);
@@ -132,9 +130,9 @@ public class PipAlphaAnimator extends ValueAnimator {
 
     private void onAlphaAnimationUpdate(float alpha, SurfaceControl.Transaction tx) {
         // only set shadow radius on fade in
-        tx.setAlpha(mLeash, alpha)
-                .setCornerRadius(mLeash, mCornerRadius)
-                .setShadowRadius(mLeash, mDirection == FADE_IN ? mShadowRadius : 0f);
+        tx.setAlpha(mLeash, alpha);
+        mSurfaceTransactionHelper.round(tx, mLeash, true /* applyCornerRadius */);
+        mSurfaceTransactionHelper.shadow(tx, mLeash, mDirection == FADE_IN /* applyCornerRadius */);
         tx.apply();
     }
 

@@ -19,6 +19,8 @@ package com.android.systemui.statusbar.notification.collection;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
+import androidx.annotation.VisibleForTesting;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -36,7 +38,8 @@ public class GroupEntry extends ListEntry {
             Collections.unmodifiableList(mChildren);
     private int mUntruncatedChildCount;
 
-    GroupEntry(String key, long creationTime) {
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public GroupEntry(String key, long creationTime) {
         super(key, creationTime);
     }
 
@@ -55,7 +58,8 @@ public class GroupEntry extends ListEntry {
         return mUnmodifiableChildren;
     }
 
-    void setSummary(@Nullable NotificationEntry summary) {
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public void setSummary(@Nullable NotificationEntry summary) {
         mSummary = summary;
     }
 
@@ -71,7 +75,11 @@ public class GroupEntry extends ListEntry {
         mChildren.sort(c);
     }
 
-    List<NotificationEntry> getRawChildren() {
+    /**
+     * @return modifiable list of NotificationEntry children
+     */
+    @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
+    public List<NotificationEntry> getRawChildren() {
         return mChildren;
     }
 

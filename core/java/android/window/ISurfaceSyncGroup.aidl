@@ -24,7 +24,7 @@ import android.os.IBinder;
  *
  * See SurfaceSyncGroup.md
  *
- * {@hide}
+ * @hide
  */
 interface ISurfaceSyncGroup {
     /**

@@ -86,6 +86,15 @@ class QSPreferencesRepositoryTest : SysuiTestCase() {
     }
 
     @Test
+    fun removeLargeTilesSpecs_inSharedPreferences() {
+        val setA = setOf("tileA", "tileB", "tileC", "tileD")
+        setLargeTilesSpecsInSharedPreferences(setA)
+
+        underTest.removeLargeTileSpecs(setOf(TileSpec.create("tileB"), TileSpec.create("tileD")))
+        assertThat(getLargeTilesSpecsFromSharedPreferences()).isEqualTo(setOf("tileA", "tileC"))
+    }
+
+    @Test
     fun setLargeTilesSpecs_forDifferentUser() =
         with(kosmos) {
             testScope.runTest {

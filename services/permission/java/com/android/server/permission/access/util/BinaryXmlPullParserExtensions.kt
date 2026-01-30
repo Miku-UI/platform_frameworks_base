@@ -19,7 +19,6 @@ package com.android.server.permission.access.util
 import com.android.modules.utils.BinaryXmlPullParser
 import java.io.IOException
 import java.io.InputStream
-import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 
 /** Parse content from [InputStream] with [BinaryXmlPullParser]. */
@@ -28,91 +27,6 @@ inline fun InputStream.parseBinaryXml(block: BinaryXmlPullParser.() -> Unit) {
     BinaryXmlPullParser().apply {
         setInput(this@parseBinaryXml, null)
         block()
-    }
-}
-
-/**
- * Iterate through child tags of the current tag.
- *
- * <p>
- * Attributes for the current tag needs to be accessed before this method is called because this
- * method will advance the parser past the start tag of the current tag. The code inspecting each
- * child tag may access the attributes of the child tag, and/or call [forEachTag] recursively to
- * inspect grandchild tags, which will naturally leave the parser at either the start tag or the end
- * tag of the child tag it inspected.
- *
- * @see BinaryXmlPullParser.next
- * @see BinaryXmlPullParser.getEventType
- * @see BinaryXmlPullParser.getDepth
- */
-@Throws(IOException::class, XmlPullParserException::class)
-inline fun BinaryXmlPullParser.forEachTag(block: BinaryXmlPullParser.() -> Unit) {
-    when (val eventType = eventType) {
-        // Document start or start tag of the parent tag.
-        XmlPullParser.START_DOCUMENT,
-        XmlPullParser.START_TAG -> nextTagOrEnd()
-        else -> throw XmlPullParserException("Unexpected event type $eventType")
-    }
-    while (true) {
-        when (val eventType = eventType) {
-            // Start tag of a child tag.
-            XmlPullParser.START_TAG -> {
-                val childDepth = depth
-                block()
-                // block() should leave the parser at either the start tag (no grandchild tags
-                // expected) or the end tag (grandchild tags parsed with forEachTag()) of this child
-                // tag.
-                val postBlockDepth = depth
-                if (postBlockDepth != childDepth) {
-                    throw XmlPullParserException(
-                        "Unexpected post-block depth $postBlockDepth, expected $childDepth"
-                    )
-                }
-                // Skip the parser to the end tag of this child tag.
-                while (true) {
-                    when (val childEventType = this.eventType) {
-                        // Start tag of either this child tag or a grandchild tag.
-                        XmlPullParser.START_TAG -> nextTagOrEnd()
-                        XmlPullParser.END_TAG -> {
-                            if (depth > childDepth) {
-                                // End tag of a grandchild tag.
-                                nextTagOrEnd()
-                            } else {
-                                // End tag of this child tag.
-                                break
-                            }
-                        }
-                        else ->
-                            throw XmlPullParserException("Unexpected event type $childEventType")
-                    }
-                }
-                // Skip the end tag of this child tag.
-                nextTagOrEnd()
-            }
-            // End tag of the parent tag, or document end.
-            XmlPullParser.END_TAG,
-            XmlPullParser.END_DOCUMENT -> break
-            else -> throw XmlPullParserException("Unexpected event type $eventType")
-        }
-    }
-}
-
-/**
- * Advance the parser until the current event is one of [XmlPullParser.START_TAG],
- * [XmlPullParser.START_TAG] and [XmlPullParser.START_TAG]
- *
- * @see BinaryXmlPullParser.next
- */
-@Throws(IOException::class, XmlPullParserException::class)
-@Suppress("NOTHING_TO_INLINE")
-inline fun BinaryXmlPullParser.nextTagOrEnd(): Int {
-    while (true) {
-        when (val eventType = next()) {
-            XmlPullParser.START_TAG,
-            XmlPullParser.END_TAG,
-            XmlPullParser.END_DOCUMENT -> return eventType
-            else -> continue
-        }
     }
 }
 
@@ -205,7 +119,7 @@ inline fun BinaryXmlPullParser.getAttributeLongOrThrow(name: String): Long =
 @Suppress("NOTHING_TO_INLINE")
 inline fun BinaryXmlPullParser.getAttributeLongHexOrDefault(
     name: String,
-    defaultValue: Long
+    defaultValue: Long,
 ): Long = getAttributeLongHex(null, name, defaultValue)
 
 /** @see BinaryXmlPullParser.getAttributeLongHex */
@@ -218,7 +132,7 @@ inline fun BinaryXmlPullParser.getAttributeLongHexOrThrow(name: String): Long =
 @Suppress("NOTHING_TO_INLINE")
 inline fun BinaryXmlPullParser.getAttributeFloatOrDefault(
     name: String,
-    defaultValue: Float
+    defaultValue: Float,
 ): Float = getAttributeFloat(null, name, defaultValue)
 
 /** @see BinaryXmlPullParser.getAttributeFloat */
@@ -231,7 +145,7 @@ inline fun BinaryXmlPullParser.getAttributeFloatOrThrow(name: String): Float =
 @Suppress("NOTHING_TO_INLINE")
 inline fun BinaryXmlPullParser.getAttributeDoubleOrDefault(
     name: String,
-    defaultValue: Double
+    defaultValue: Double,
 ): Double = getAttributeDouble(null, name, defaultValue)
 
 /** @see BinaryXmlPullParser.getAttributeDouble */
@@ -244,7 +158,7 @@ inline fun BinaryXmlPullParser.getAttributeDoubleOrThrow(name: String): Double =
 @Suppress("NOTHING_TO_INLINE")
 inline fun BinaryXmlPullParser.getAttributeBooleanOrDefault(
     name: String,
-    defaultValue: Boolean
+    defaultValue: Boolean,
 ): Boolean = getAttributeBoolean(null, name, defaultValue)
 
 /** @see BinaryXmlPullParser.getAttributeBoolean */

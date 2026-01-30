@@ -31,6 +31,7 @@ import android.graphics.Path;
 import android.graphics.PorterDuff;
 import android.graphics.RectF;
 import android.graphics.Region;
+import android.hardware.display.DisplayManager;
 import android.hardware.input.InputManager;
 import android.hardware.input.InputManager.InputDeviceListener;
 import android.os.Handler;
@@ -123,6 +124,7 @@ public class PointerLocationView extends View implements InputDeviceListener,
     }
 
     private final InputManager mIm;
+    private final DisplayManager mDisplayManager;
 
     private final ViewConfiguration mVC;
     private final Paint mTextPaint;
@@ -170,11 +172,35 @@ public class PointerLocationView extends View implements InputDeviceListener,
 
     private float mDensity;
 
+    private final DisplayManager.DisplayListener mDisplayListener =
+            new DisplayManager.DisplayListener() {
+                @Override
+                public void onDisplayAdded(int displayId) {
+                    onDisplayChanged(displayId);
+                }
+
+                @Override
+                public void onDisplayRemoved(int displayId) {
+
+                }
+
+                @Override
+                public void onDisplayChanged(int displayId) {
+                    if (displayId != mContext.getDisplayId()) {
+                        return;
+                    }
+                    // Reconfigure the trace bitmap whenever there are changes to the display, since
+                    // the bitmap depends on display size.
+                    configureTraceBitmap();
+                }
+            };
+
     public PointerLocationView(Context c) {
         super(c);
         setFocusableInTouchMode(true);
 
         mIm = c.getSystemService(InputManager.class);
+        mDisplayManager = c.getSystemService(DisplayManager.class);
 
         mVC = ViewConfiguration.get(c);
         mTextPaint = new Paint();
@@ -798,6 +824,7 @@ public class PointerLocationView extends View implements InputDeviceListener,
         super.onAttachedToWindow();
 
         mIm.registerInputDeviceListener(this, getHandler());
+        mDisplayManager.registerDisplayListener(mDisplayListener, getHandler());
         if (shouldShowSystemGestureExclusion()) {
             try {
                 WindowManagerGlobal.getWindowManagerService()
@@ -820,6 +847,7 @@ public class PointerLocationView extends View implements InputDeviceListener,
         super.onDetachedFromWindow();
 
         mIm.unregisterInputDeviceListener(this);
+        mDisplayManager.unregisterDisplayListener(mDisplayListener);
         try {
             WindowManagerGlobal.getWindowManagerService().unregisterSystemGestureExclusionListener(
                     mSystemGestureExclusionListener, mContext.getDisplayId());

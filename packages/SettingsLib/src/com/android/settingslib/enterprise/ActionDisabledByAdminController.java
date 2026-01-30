@@ -17,6 +17,7 @@
 package com.android.settingslib.enterprise;
 
 import android.annotation.UserIdInt;
+import android.app.admin.EnforcingAdmin;
 import android.content.Context;
 import android.content.DialogInterface;
 
@@ -54,15 +55,32 @@ public interface ActionDisabledByAdminController {
 
     /**
      * Updates the enforced admin
+     * @deprecated Please use the same method that takes {@link EnforcingAdmin}.
      */
+    @Deprecated
     void updateEnforcedAdmin(RestrictedLockUtils.EnforcedAdmin admin, @UserIdInt int adminUserId);
+
+    /**
+     * Updates the enforcing admin
+     */
+    void updateEnforcingAdmin(@Nullable EnforcingAdmin admin);
+
+    /**
+     * Returns a listener for handling positive button clicks.
+     * @deprecated Please use the same method that takes {@link EnforcingAdmin}.
+     */
+    @Nullable
+    default DialogInterface.OnClickListener getPositiveButtonListener(@NonNull Context context,
+            @NonNull RestrictedLockUtils.EnforcedAdmin enforcedAdmin) {
+        return null;
+    }
 
     /**
      * Returns a listener for handling positive button clicks
      */
     @Nullable
     default DialogInterface.OnClickListener getPositiveButtonListener(@NonNull Context context,
-            @NonNull RestrictedLockUtils.EnforcedAdmin enforcedAdmin) {
+            @Nullable EnforcingAdmin enforcingAdmin) {
         return null;
     }
 }

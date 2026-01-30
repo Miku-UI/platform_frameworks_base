@@ -38,7 +38,7 @@ constructor(@ShadeDisplayAware private val resources: Resources, val theme: Reso
             icon =
                 Icon.Loaded(
                     resources.getDrawable(iconResource, theme),
-                    res = iconResource,
+                    resId = iconResource,
                     contentDescription = null,
                 )
 

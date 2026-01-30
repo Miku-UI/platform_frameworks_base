@@ -46,6 +46,7 @@
 #include <android_runtime/android_view_Surface.h>
 #include <android/content/AttributionSourceState.h>
 #include <android_os_Parcel.h>
+#include <com_android_graphics_libgui_flags.h> // Remove with WB_MEDIA_MIGRATION.
 
 // ----------------------------------------------------------------------------
 
@@ -457,7 +458,17 @@ android_media_MediaRecorder_prepare(JNIEnv *env, jobject thiz)
         }
 
         ALOGI("prepare: surface=%p", native_surface.get());
-        if (process_media_recorder_call(env, mr->setPreviewSurface(native_surface->getIGraphicBufferProducer()), "java/lang/RuntimeException", "setPreviewSurface failed.")) {
+
+#if COM_ANDROID_GRAPHICS_LIBGUI_FLAGS(WB_MEDIA_MIGRATION)
+        const sp<Surface> &preview_surface = native_surface;
+#else
+        const sp<IGraphicBufferProducer> preview_surface =
+                native_surface->getIGraphicBufferProducer();
+#endif
+
+        if (process_media_recorder_call(env, mr->setPreviewSurface(preview_surface),
+                                        "java/lang/RuntimeException",
+                                        "setPreviewSurface failed.")) {
             return;
         }
     }
@@ -488,8 +499,8 @@ android_media_MediaRecorder_getSurface(JNIEnv *env, jobject thiz)
         return NULL;
     }
 
-    sp<IGraphicBufferProducer> bufferProducer = mr->querySurfaceMediaSourceFromMediaServer();
-    if (bufferProducer == NULL) {
+    sp<MediaSurfaceType> qSurface = mr->querySurfaceMediaSourceFromMediaServer();
+    if (qSurface == NULL) {
         jniThrowException(
                 env,
                 "java/lang/IllegalStateException",
@@ -497,9 +508,9 @@ android_media_MediaRecorder_getSurface(JNIEnv *env, jobject thiz)
         return NULL;
     }
 
-    // Wrap the IGBP in a Java-language Surface.
-    return android_view_Surface_createFromIGraphicBufferProducer(env,
-            bufferProducer);
+    // This will be removed once the flag is disabled, with the wb_media flag this is a no op.
+    sp<Surface> surface = sp<Surface>::make(mediaflagtools::surfaceTypeToIGBP(qSurface), true);
+    return android_view_Surface_createFromSurface(env, surface);
 }
 
 static void

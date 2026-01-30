@@ -19,12 +19,13 @@ package com.android.systemui.deviceentry.domain.interactor
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.keyguard.data.repository.deviceEntryFingerprintAuthRepository
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.applicationCoroutineScope
 
 val Kosmos.deviceEntryFingerprintAuthInteractor by
     Kosmos.Fixture {
         DeviceEntryFingerprintAuthInteractor(
-            biometricSettingsInteractor = deviceEntryBiometricSettingsInteractor,
             repository = deviceEntryFingerprintAuthRepository,
             fingerprintPropertyRepository = fingerprintPropertyRepository,
+            applicationScope = applicationCoroutineScope,
         )
     }

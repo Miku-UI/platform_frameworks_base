@@ -16,10 +16,15 @@
 
 package android.timezone;
 
+import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SystemApi;
 
 import com.android.internal.annotations.GuardedBy;
+import android.timezone.flags.Flags;
 
 import java.util.Objects;
 
@@ -28,6 +33,8 @@ import java.util.Objects;
  *
  * @hide
  */
+@FlaggedApi(Flags.FLAG_EXPOSE_TIME_ZONE_SYSTEM_API)
+@SystemApi(client = MODULE_LIBRARIES)
 public final class TimeZoneFinder {
 
     private static final Object sLock = new Object();

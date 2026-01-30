@@ -20,6 +20,7 @@ class FakeGlanceableHubMultiUserHelper(
     override val glanceableHubHsumFlagEnabled: Boolean = true,
     private var isHeadlessSystemUserMode: Boolean = false,
     private var isInHeadlessSystemUser: Boolean = false,
+    private var isSystemUser: Boolean = true,
 ) : GlanceableHubMultiUserHelper {
 
     override fun isHeadlessSystemUserMode(): Boolean {
@@ -34,8 +35,16 @@ class FakeGlanceableHubMultiUserHelper(
         return isInHeadlessSystemUser
     }
 
+    override fun isSystemUser(): Boolean {
+        return isSystemUser
+    }
+
     fun setIsInHeadlessSystemUser(isInHeadlessSystemUser: Boolean) {
         this.isInHeadlessSystemUser = isInHeadlessSystemUser
+    }
+
+    fun setIsSystemUser(isSystemUser: Boolean) {
+        this.isSystemUser = isSystemUser
     }
 
     override fun assertInHeadlessSystemUser() {

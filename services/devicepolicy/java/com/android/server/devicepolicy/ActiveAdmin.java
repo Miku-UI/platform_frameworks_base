@@ -1059,7 +1059,7 @@ class ActiveAdmin {
                     Slogf.w(LOG_TAG, "Package name missing under %s", outerTag);
                 }
             } else {
-                Slogf.w(LOG_TAG, "Unknown tag under %s: ", tag, outerTag);
+                Slogf.w(LOG_TAG, "Unknown tag (%s) under %s: ", tag, outerTag);
             }
         }
         return result;

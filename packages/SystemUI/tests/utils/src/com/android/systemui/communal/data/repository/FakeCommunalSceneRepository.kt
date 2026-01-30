@@ -2,10 +2,12 @@ package com.android.systemui.communal.data.repository
 
 import android.content.res.Configuration
 import com.android.compose.animation.scene.ObservableTransitionState
+import com.android.compose.animation.scene.OverlayKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.TransitionKey
 import com.android.systemui.communal.shared.model.CommunalScenes
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,22 +19,45 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 /** Fake implementation of [CommunalSceneRepository]. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class FakeCommunalSceneRepository(
     private val applicationScope: CoroutineScope,
-    override val currentScene: MutableStateFlow<SceneKey> = MutableStateFlow(CommunalScenes.Default),
+    override val currentScene: MutableStateFlow<SceneKey> =
+        MutableStateFlow(CommunalScenes.Default),
+    override val currentOverlays: MutableStateFlow<Set<OverlayKey>> = MutableStateFlow(emptySet()),
 ) : CommunalSceneRepository {
 
     override fun changeScene(toScene: SceneKey, transitionKey: TransitionKey?) =
-        snapToScene(toScene)
+        instantlyTransitionTo(scene = toScene)
 
-    override fun snapToScene(toScene: SceneKey) {
+    override fun showOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
+
+    override fun hideOverlay(overlay: OverlayKey, transitionKey: TransitionKey?) = Unit
+
+    override fun replaceOverlay(from: OverlayKey, to: OverlayKey, transitionKey: TransitionKey?) =
+        Unit
+
+    override fun freezeAndAnimateToCurrentState() = Unit
+
+    override fun instantlyTransitionTo(scene: SceneKey?, overlays: Set<OverlayKey>?) {
         applicationScope.launch {
-            currentScene.value = toScene
-            _transitionState.value = flowOf(ObservableTransitionState.Idle(toScene))
+            if (scene != null) {
+                currentScene.value = scene
+            }
+            if (overlays != null) {
+                currentOverlays.value = overlays
+            }
+            _transitionState.value =
+                flowOf(ObservableTransitionState.Idle(currentScene.value, currentOverlays.value))
         }
     }
 
-    private val defaultTransitionState = ObservableTransitionState.Idle(CommunalScenes.Default)
+    override fun showHubFromPowerButton() {
+        instantlyTransitionTo(CommunalScenes.Communal)
+    }
+
+    private val defaultTransitionState =
+        ObservableTransitionState.Idle(currentScene.value, currentOverlays.value)
     private val _transitionState = MutableStateFlow<Flow<ObservableTransitionState>?>(null)
     override val transitionState: StateFlow<ObservableTransitionState> =
         _transitionState

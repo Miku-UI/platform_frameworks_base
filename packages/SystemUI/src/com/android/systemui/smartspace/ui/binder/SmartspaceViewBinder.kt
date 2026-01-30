@@ -19,10 +19,10 @@ package com.android.systemui.smartspace.ui.binder
 import android.view.View
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.plugins.BcSmartspaceDataPlugin.SmartspaceView
 import com.android.systemui.smartspace.ui.viewmodel.SmartspaceViewModel
-import com.android.app.tracing.coroutines.launchTraced as launch
 
 /** Binds the view and view-model for the smartspace. */
 object SmartspaceViewBinder {
@@ -30,6 +30,7 @@ object SmartspaceViewBinder {
     /** Binds the view and view-model for the smartspace. */
     fun bind(
         smartspaceView: SmartspaceView,
+        refreshInvoker: () -> Unit,
         viewModel: SmartspaceViewModel,
     ) {
         val view = smartspaceView as View
@@ -38,6 +39,10 @@ object SmartspaceViewBinder {
                 launch {
                     // Observe screen on/off changes
                     viewModel.isAwake.collect { isAwake -> smartspaceView.setScreenOn(isAwake) }
+                }
+                launch {
+                    // Observe aod tick tick event
+                    viewModel.aodTimeTick.collect { refreshInvoker.invoke() }
                 }
             }
         }

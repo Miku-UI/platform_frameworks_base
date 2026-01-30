@@ -298,7 +298,7 @@ public final class ArraySet<E> implements Collection<E>, Set<E> {
         this(capacity, false);
     }
 
-    /** {@hide} */
+    /** @hide */
     public ArraySet(int capacity, boolean identityHashCode) {
         mIdentityHashCode = identityHashCode;
         if (capacity == 0) {

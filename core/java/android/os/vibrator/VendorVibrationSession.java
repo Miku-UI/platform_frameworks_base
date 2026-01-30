@@ -188,6 +188,19 @@ public final class VendorVibrationSession implements AutoCloseable {
         }
     }
 
+    /** @hide */
+    public static String sessionStatusToString(@Status int status) {
+        return switch (status) {
+            case STATUS_SUCCESS -> "SUCCESS";
+            case STATUS_IGNORED -> "IGNORED";
+            case STATUS_UNSUPPORTED -> "UNSUPPORTED";
+            case STATUS_CANCELED -> "CANCELED";
+            case STATUS_UNKNOWN -> "UNKNOWN";
+            case STATUS_UNKNOWN_ERROR -> "UNKNOWN_ERROR";
+            default -> Integer.toString(status);
+        };
+    }
+
     /**
      * Callbacks for {@link VendorVibrationSession} events.
      *

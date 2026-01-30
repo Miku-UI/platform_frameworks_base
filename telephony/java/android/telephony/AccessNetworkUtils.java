@@ -231,6 +231,47 @@ public class AccessNetworkUtils {
     }
 
     /**
+     * Gets the duplex mode for the given NGRAN operating band.
+     * This method does not return SDL or SUL as they are supplemental.
+     *
+     * <p> See 3GPP TS 38.101 Table 5.2-1 </p>
+     *
+     * @param band The NGRAN band number
+     * @return The duplex mode of the given NGRAN band
+     */
+    @DuplexMode
+    public static int getDuplexModeForNgranBandPCell(int band) {
+        if (band == INVALID_BAND) {
+            return DUPLEX_MODE_UNKNOWN;
+        }
+
+        return switch (band) {
+            // FDD Bands
+            case NgranBands.BAND_1, NgranBands.BAND_2, NgranBands.BAND_3, NgranBands.BAND_5,
+                 NgranBands.BAND_7, NgranBands.BAND_8, NgranBands.BAND_12, NgranBands.BAND_14,
+                 NgranBands.BAND_18, NgranBands.BAND_20, NgranBands.BAND_25, NgranBands.BAND_26,
+                 NgranBands.BAND_28, NgranBands.BAND_30, NgranBands.BAND_65, NgranBands.BAND_66,
+                 NgranBands.BAND_70, NgranBands.BAND_71, NgranBands.BAND_74 -> DUPLEX_MODE_FDD;
+
+            // TDD Bands
+            // FR2 Bands are typically TDD
+            case NgranBands.BAND_34, NgranBands.BAND_38, NgranBands.BAND_39, NgranBands.BAND_40,
+                 NgranBands.BAND_41, NgranBands.BAND_48, NgranBands.BAND_50, NgranBands.BAND_51,
+                 NgranBands.BAND_53, NgranBands.BAND_77, NgranBands.BAND_78, NgranBands.BAND_79,
+                 NgranBands.BAND_90, NgranBands.BAND_257, NgranBands.BAND_258, NgranBands.BAND_260,
+                 NgranBands.BAND_261 -> DUPLEX_MODE_TDD;
+
+            // SDL and SUL bands are not considered primary duplex modes for a PCell
+            case NgranBands.BAND_29, NgranBands.BAND_75, NgranBands.BAND_76, NgranBands.BAND_80,
+                 NgranBands.BAND_81, NgranBands.BAND_82, NgranBands.BAND_83, NgranBands.BAND_84,
+                 NgranBands.BAND_86, NgranBands.BAND_89, NgranBands.BAND_95 ->
+                    DUPLEX_MODE_UNKNOWN;
+
+            default -> DUPLEX_MODE_UNKNOWN;
+        };
+    }
+
+    /**
      * Gets the NR Operating band for a given downlink NRARFCN.
      *
      * <p>See 3GPP TS 38.104 Table 5.2-1 NR operating bands in FR1 and

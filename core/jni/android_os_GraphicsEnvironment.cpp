@@ -110,6 +110,17 @@ void nativeToggleAngleAsSystemDriver_native(JNIEnv* env, jobject clazz, jboolean
     android::GraphicsEnv::getInstance().nativeToggleAngleAsSystemDriver(enabled);
 }
 
+jstring nativeGetPersistGraphicsEgl_native(JNIEnv* env, jobject clazz) {
+    std::string persistGraphicsEGLValue =
+            android::GraphicsEnv::getInstance().nativeGetPersistGraphicsEgl();
+    jstring result = nullptr;
+    if (persistGraphicsEGLValue.empty()) {
+        return nullptr;
+    }
+    result = env->NewStringUTF(persistGraphicsEGLValue.c_str());
+    return result;
+}
+
 const JNINativeMethod g_methods[] = {
         {"isDebuggable", "()Z", reinterpret_cast<void*>(isDebuggable_native)},
         {"setDriverPathAndSphalLibraries", "(Ljava/lang/String;Ljava/lang/String;)V",
@@ -128,6 +139,8 @@ const JNINativeMethod g_methods[] = {
         {"hintActivityLaunch", "()V", reinterpret_cast<void*>(hintActivityLaunch_native)},
         {"nativeToggleAngleAsSystemDriver", "(Z)V",
          reinterpret_cast<void*>(nativeToggleAngleAsSystemDriver_native)},
+        {"nativeGetPersistGraphicsEgl", "()Ljava/lang/String;",
+         reinterpret_cast<void*>(nativeGetPersistGraphicsEgl_native)},
 };
 
 const char* const kGraphicsEnvironmentName = "android/os/GraphicsEnvironment";

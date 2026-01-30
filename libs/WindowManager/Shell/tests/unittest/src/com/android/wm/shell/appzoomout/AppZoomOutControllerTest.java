@@ -48,7 +48,8 @@ public class AppZoomOutControllerTest extends ShellTestCase {
 
     @Mock private ShellTaskOrganizer mTaskOrganizer;
     @Mock private DisplayController mDisplayController;
-    @Mock private AppZoomOutDisplayAreaOrganizer mDisplayAreaOrganizer;
+    @Mock private AppZoomOutDisplayAreaOrganizer mAppDisplayAreaOrganizer;
+    @Mock private TopLevelZoomOutDisplayAreaOrganizer mTopLevelDisplayAreaOrganizer;
     @Mock private ShellExecutor mExecutor;
     @Mock private ActivityManager.RunningTaskInfo mRunningTaskInfo;
 
@@ -64,7 +65,8 @@ public class AppZoomOutControllerTest extends ShellTestCase {
 
         ShellInit shellInit = spy(new ShellInit(mExecutor));
         mController = spy(new AppZoomOutController(mContext, shellInit, mTaskOrganizer,
-                mDisplayController, mDisplayAreaOrganizer, mExecutor));
+                mDisplayController, mAppDisplayAreaOrganizer, mTopLevelDisplayAreaOrganizer,
+                mExecutor));
     }
 
     @Test
@@ -73,7 +75,7 @@ public class AppZoomOutControllerTest extends ShellTestCase {
         when(mRunningTaskInfo.getActivityType()).thenReturn(ACTIVITY_TYPE_HOME);
         mController.onFocusTaskChanged(mRunningTaskInfo);
 
-        verify(mDisplayAreaOrganizer).setIsHomeTaskFocused(true);
+        verify(mAppDisplayAreaOrganizer).setIsHomeTaskFocused(true);
     }
 
     @Test
@@ -82,6 +84,6 @@ public class AppZoomOutControllerTest extends ShellTestCase {
         when(mRunningTaskInfo.getActivityType()).thenReturn(ACTIVITY_TYPE_HOME);
         mController.onFocusTaskChanged(mRunningTaskInfo);
 
-        verify(mDisplayAreaOrganizer).setIsHomeTaskFocused(false);
+        verify(mAppDisplayAreaOrganizer).setIsHomeTaskFocused(false);
     }
 }

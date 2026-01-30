@@ -19,7 +19,7 @@ package android.media.soundtrigger;
 /**
  * AIDL for the callbacks from a ISoundTriggerDetectionService.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ISoundTriggerDetectionServiceClient {
     void onOpFinished(int opId);

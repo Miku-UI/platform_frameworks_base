@@ -16,19 +16,21 @@
 package com.android.server.wm.flicker.ime
 
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.flicker.subject.region.RegionSubject
 import android.tools.helpers.WindowUtils
 import android.tools.traces.component.ComponentNameMatcher
-import androidx.test.filters.RequiresDevice
 import com.android.server.wm.flicker.BaseTest
 import com.android.server.wm.flicker.helpers.ImeShownOnAppStartHelper
 import com.android.server.wm.flicker.testapp.ActivityOptions.Ime.Default.ACTION_TOGGLE_ORIENTATION
+import com.android.window.flags.Flags
+import org.junit.Assume
 import org.junit.FixMethodOrder
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,7 +45,7 @@ import org.junit.runners.Parameterized
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class OpenImeWindowToFixedPortraitAppTest(flicker: LegacyFlickerTest) : BaseTest(flicker) {
+class OpenImeWindowToFixedPortraitAppTest(flicker: FlickerTest) : BaseTest(flicker) {
     private val testApp = ImeShownOnAppStartHelper(instrumentation, flicker.scenario.startRotation)
 
     /** {@inheritDoc} */
@@ -93,6 +95,8 @@ class OpenImeWindowToFixedPortraitAppTest(flicker: LegacyFlickerTest) : BaseTest
     @Presubmit
     @Test
     fun appWindowWithLetterboxCoversExactlyOnScreen() {
+        // TODO(b/409043134): Remove assumption when Shell handles setRequestedOrientation().
+        Assume.assumeFalse(Flags.appCompatRefactoring())
         val displayBounds = WindowUtils.getDisplayBounds(flicker.scenario.startRotation)
         flicker.assertLayersEnd {
             this.visibleRegion(testApp.or(ComponentNameMatcher.LETTERBOX))
@@ -104,13 +108,13 @@ class OpenImeWindowToFixedPortraitAppTest(flicker: LegacyFlickerTest) : BaseTest
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 supportedRotations =
                     listOf(
                         Rotation.ROTATION_90,

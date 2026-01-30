@@ -23,6 +23,7 @@ import static com.android.server.wm.WindowManagerService.H.REPORT_WINDOWS_CHANGE
 import static com.android.server.wm.WindowManagerService.LAYOUT_REPEAT_THRESHOLD;
 
 import android.os.Debug;
+import android.os.Trace;
 import android.util.Slog;
 
 import java.io.PrintWriter;
@@ -170,7 +171,12 @@ class WindowSurfacePlacer {
         }
 
         try {
-            mService.mRoot.performSurfacePlacement();
+            Trace.traceBegin(Trace.TRACE_TAG_WINDOW_MANAGER, "performSurfacePlacement");
+            try {
+                mService.mRoot.performSurfacePlacement();
+            } finally {
+                Trace.traceEnd(Trace.TRACE_TAG_WINDOW_MANAGER);
+            }
 
             mInLayout = false;
 

@@ -21,7 +21,7 @@ import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 /**
  * Counter used to track the number of tags seen during manifest validation.
  *
- * {@hide}
+ * @hide
  */
 @RavenwoodKeepWholeClass
 public class TagCounter {

@@ -57,6 +57,7 @@ import java.util.Objects;
   *  }</pre>
   */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
+@android.ravenwood.annotation.RavenwoodRedirectionClass("Looper_ravenwood")
 public final class Looper {
     /*
      * API Implementation Note:
@@ -199,14 +200,28 @@ public final class Looper {
             return false;
         }
 
-        PerfettoTrace.begin(PerfettoTrace.MQ_CATEGORY, "message_queue_receive")
-                .beginProto()
-                .beginNested(2004 /* message_queue */)
-                .addField(1 /* sending_thread_name */, msg.mSendingThreadName)
-                .endNested()
-                .endProto()
-                .setTerminatingFlow(msg.mEventId.get())
-                .emit();
+        if (PerfettoTrace.isMQCategoryEnabled()) {
+            if (PerfettoTrace.IS_USE_SDK_TRACING_API_V3) {
+                com.android.internal.dev.perfetto.sdk.PerfettoTrace.begin(
+                                PerfettoTrace.MQ_CATEGORY_V3, "message_queue_receive")
+                        .beginProto()
+                        .beginNested(2004 /* message_queue */)
+                        .addField(1 /* sending_thread_name */, msg.sendingThreadName)
+                        .endNested()
+                        .endProto()
+                        .setTerminatingFlow(msg.eventId)
+                        .emit();
+            } else {
+                PerfettoTrace.begin(PerfettoTrace.MQ_CATEGORY, "message_queue_receive")
+                        .beginProto()
+                        .beginNested(2004 /* message_queue */)
+                        .addField(1 /* sending_thread_name */, msg.sendingThreadName)
+                        .endNested()
+                        .endProto()
+                        .setTerminatingFlow(msg.eventId)
+                        .emit();
+            }
+        }
 
         // This must be in a local variabe, in case a UI event sets the logger
         final Printer logging = me.mLogging;
@@ -245,7 +260,7 @@ public final class Looper {
         }
         long origWorkSource = ThreadLocalWorkSource.setUid(msg.workSourceUid);
         try {
-            msg.target.dispatchMessage(msg);
+            dispatchMessage(msg);
             if (observer != null) {
                 observer.messageDispatched(token, msg);
             }
@@ -297,11 +312,25 @@ public final class Looper {
                     + msg.target.getClass().getName() + " "
                     + msg.callback + " what=" + msg.what);
         }
+        if (PerfettoTrace.isMQCategoryEnabled()) {
+            if (PerfettoTrace.IS_USE_SDK_TRACING_API_V3) {
+                com.android.internal.dev.perfetto.sdk.PerfettoTrace.end(
+                                PerfettoTrace.MQ_CATEGORY_V3)
+                        .emit();
+            } else {
+                PerfettoTrace.end(PerfettoTrace.MQ_CATEGORY).emit();
+            }
+        }
 
-        PerfettoTrace.end(PerfettoTrace.MQ_CATEGORY).emit();
         msg.recycleUnchecked();
 
         return true;
+    }
+
+    /** Allow ravenwood to hook any "dispatch". */
+    @android.ravenwood.annotation.RavenwoodRedirect
+    private static void dispatchMessage(Message msg) {
+        msg.target.dispatchMessage(msg);
     }
 
     /**
@@ -457,6 +486,9 @@ public final class Looper {
      * at the beginning and ending of each message dispatch, identifying the
      * target Handler and message contents.
      *
+     * Message logging introduces a performance penalty, and is disabled by
+     * default.
+     *
      * @param printer A Printer object that will receive log messages, or
      * null to disable message logging.
      */
@@ -464,7 +496,7 @@ public final class Looper {
         mLogging = printer;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public void setTraceTag(long traceTag) {
         mTraceTag = traceTag;
@@ -472,7 +504,7 @@ public final class Looper {
 
     /**
      * Set a thresholds for slow dispatch/delivery log.
-     * {@hide}
+     * @hide
      */
     public void setSlowLogThresholdMs(long slowDispatchThresholdMs, long slowDeliveryThresholdMs) {
         mSlowDispatchThresholdMs = slowDispatchThresholdMs;
@@ -487,6 +519,9 @@ public final class Looper {
      * </p><p>
      * Any attempt to post messages to the queue after the looper is asked to quit will fail.
      * For example, the {@link Handler#sendMessage(Message)} method will return false.
+     * </p><p>
+     * If {@link #quit} or {@link #quitSafely} is called multiple times, the first call
+     * will have an effect and the subsequent calls will be no-ops.
      * </p><p class="note">
      * Using this method may be unsafe because some messages may not be delivered
      * before the looper terminates.  Consider using {@link #quitSafely} instead to ensure
@@ -509,6 +544,9 @@ public final class Looper {
      * </p><p>
      * Any attempt to post messages to the queue after the looper is asked to quit will fail.
      * For example, the {@link Handler#sendMessage(Message)} method will return false.
+     * </p><p>
+     * If {@link #quit} or {@link #quitSafely} is called multiple times, the first call
+     * will have an effect and the subsequent calls will be no-ops.
      * </p>
      */
     public void quitSafely() {
@@ -574,7 +612,7 @@ public final class Looper {
                 + ") {" + Integer.toHexString(System.identityHashCode(this)) + "}";
     }
 
-    /** {@hide} */
+    /** @hide */
     public interface Observer {
         /**
          * Called right before a message is dispatched.

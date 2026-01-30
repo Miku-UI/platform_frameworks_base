@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.window
 
 import android.content.Context
+import android.view.Display
 import android.view.WindowManager
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -70,6 +71,7 @@ constructor(
             statusBarDisplayContext.windowManager,
             statusBarConfigurationController,
             contentInsetsProvider,
+            displayId,
         )
     }
 
@@ -97,6 +99,7 @@ constructor(
             windowManager,
             statusBarConfigurationControllerStore.defaultDisplay,
             statusBarContentInsetsProviderStore.defaultDisplay,
+            Display.DEFAULT_DISPLAY,
         )
     ) {
 

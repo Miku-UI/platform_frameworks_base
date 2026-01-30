@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Odblokuj hasłem lub odciskiem palca"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Odblokuj wzorem lub odciskiem palca"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Dla bezpieczeństwa zablokowano urządzenie z powodu zasad obowiązujących w firmie"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Weryfikacja dwuetapowa"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Używaj odblokowywania odciskiem palca"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Używaj rozpoznawania twarzy"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Używaj odblokowywania odciskiem palca lub przez rozpoznawanie twarzy"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Po zablokowaniu wymagany jest kod PIN"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Po zablokowaniu wymagane jest hasło"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Po zablokowaniu wymagany jest wzór"</string>

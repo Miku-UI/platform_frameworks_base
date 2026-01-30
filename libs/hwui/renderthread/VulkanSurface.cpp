@@ -65,7 +65,7 @@ static SkMatrix GetPreTransformMatrix(SkISize windowSize, int transform) {
     return SkMatrix::I();
 }
 
-static SkM44 GetPixelSnapMatrix(SkISize windowSize, int transform) {
+SkM44 VulkanSurface::GetPixelSnapMatrix(SkISize windowSize, int transform) {
     // Small (~1/16th) nudge to ensure that pixel-aligned non-AA'd draws fill the
     // desired fragment
     static const SkScalar kOffset = 0.063f;

@@ -18,6 +18,7 @@ package com.android.systemui.statusbar.notification.row;
 
 import androidx.annotation.NonNull;
 
+import com.android.systemui.statusbar.notification.collection.BundleEntry;
 import com.android.systemui.statusbar.notification.collection.NotifCollection.CancellationReason;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 
@@ -35,7 +36,7 @@ public interface OnUserInteractionCallback {
     /**
      * Called once it is known that a dismissal will take place for the given reason.
      * This returns a Runnable which MUST be invoked when the dismissal is ready to be completed.
-     *
+     * <p>
      * Registering for future dismissal is typically done before notifying the NMS that a
      * notification was clicked or dismissed, but the local dismissal may happen later.
      *
@@ -46,4 +47,17 @@ public interface OnUserInteractionCallback {
     @NonNull
     Runnable registerFutureDismissal(@NonNull NotificationEntry entry,
             @CancellationReason int cancellationReason);
+
+    /**
+     * Called once it is known that a dismissal will take place for the given reason.
+     * This returns a Runnable which MUST be invoked when the dismissal is ready to be completed.
+     * <p>
+     * Registering for future dismissal is typically done before notifying the NMS that a
+     * notification was clicked or dismissed, but the local dismissal may happen later.
+     *
+     * @param entry              the bundle being cancelled
+     * @return the runnable to call when the dismissal can happen
+     */
+    @NonNull
+    Runnable registerFutureDismissal(@NonNull BundleEntry entry);
 }

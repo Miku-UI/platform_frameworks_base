@@ -66,16 +66,16 @@ class SyntheticModeManagerTest {
         VRR_SYNTHETIC_NOT_SUPPORTED(false, false, false, DISPLAY_MODES, DISPLAY_MODES),
         SINGLE_RESOLUTION_MODES(true, true, true, DISPLAY_MODES, arrayOf(
             Mode(2, 100, 100, 120f),
-            Mode(3, 100, 100, 60f, 60f, true, floatArrayOf(), intArrayOf())
+            Mode(3, -1, 0, 100, 100, 60f, 60f, floatArrayOf(), intArrayOf())
         )),
         SINGLE_RESOLUTION_MODES_HASARR(true, false, true, DISPLAY_MODES, arrayOf(
             Mode(2, 100, 100, 120f),
-            Mode(3, 100, 100, 60f, 60f, true, floatArrayOf(), intArrayOf())
+            Mode(3, -1, 0, 100, 100, 60f, 60f, floatArrayOf(), intArrayOf())
         )),
         NO_60HZ_MODES(true, true, true, arrayOf(Mode(2, 100, 100, 120f)),
             arrayOf(
                 Mode(2, 100, 100, 120f),
-                Mode(3, 100, 100, 60f, 60f, true, floatArrayOf(), intArrayOf())
+                Mode(3, -1, 0, 100, 100, 60f, 60f, floatArrayOf(), intArrayOf())
             )
         ),
         MULTI_RESOLUTION_MODES(true, true, true,
@@ -88,22 +88,22 @@ class SyntheticModeManagerTest {
             arrayOf(
                 Mode(1, 100, 100, 120f),
                 Mode(4, 300, 300, 90f),
-                Mode(5, 100, 100, 60f, 60f, true, floatArrayOf(), intArrayOf()),
-                Mode(6, 200, 200, 60f, 60f, true, floatArrayOf(), intArrayOf()),
-                Mode(7, 300, 300, 60f, 60f, true, floatArrayOf(), intArrayOf())
+                Mode(5, -1, 0, 100, 100, 60f, 60f, floatArrayOf(), intArrayOf()),
+                Mode(6, -1, 0, 200, 200, 60f, 60f, floatArrayOf(), intArrayOf()),
+                Mode(7, -1, 0, 300, 300, 60f, 60f, floatArrayOf(), intArrayOf())
             )
         ),
         WITH_HDR_TYPES(true, true, true,
             arrayOf(
-                Mode(1, 100, 100, 120f, 120f, false, floatArrayOf(), intArrayOf(1, 2)),
-                Mode(2, 200, 200, 60f, 120f, false, floatArrayOf(), intArrayOf(3, 4)),
-                Mode(3, 200, 200, 120f, 120f, false, floatArrayOf(), intArrayOf(5, 6)),
+                Mode(1, -1, 0, 100, 100, 120f, 120f, floatArrayOf(), intArrayOf(1, 2)),
+                Mode(2, -1, 0, 200, 200, 60f, 120f, floatArrayOf(), intArrayOf(3, 4)),
+                Mode(3, -1, 0, 200, 200, 120f, 120f, floatArrayOf(), intArrayOf(5, 6)),
             ),
             arrayOf(
-                Mode(1, 100, 100, 120f, 120f, false, floatArrayOf(), intArrayOf(1, 2)),
-                Mode(3, 200, 200, 120f, 120f, false, floatArrayOf(), intArrayOf(5, 6)),
-                Mode(4, 100, 100, 60f, 60f, true, floatArrayOf(), intArrayOf(1, 2)),
-                Mode(5, 200, 200, 60f, 60f, true, floatArrayOf(), intArrayOf(5, 6)),
+                Mode(1, -1, 0, 100, 100, 120f, 120f, floatArrayOf(), intArrayOf(1, 2)),
+                Mode(3, -1, 0, 200, 200, 120f, 120f, floatArrayOf(), intArrayOf(5, 6)),
+                Mode(4, -1, 0, 100, 100, 60f, 60f, floatArrayOf(), intArrayOf(1, 2)),
+                Mode(5, -1, 0, 200, 200, 60f, 60f, floatArrayOf(), intArrayOf(5, 6)),
             )
         ),
         UNACHIEVABLE_60HZ(true, true, true,
@@ -122,7 +122,7 @@ class SyntheticModeManagerTest {
             arrayOf(
                 Mode(1, 100, 100, 120f),
                 Mode(2, 200, 200, 90f),
-                Mode(3, 100, 100, 60f, 60f, true, floatArrayOf(), intArrayOf()),
+                Mode(3, -1, 0, 100, 100, 60f, 60f, floatArrayOf(), intArrayOf()),
             )
         ),
         LOWER_THAN_60HZ_MODES(true, true, true,

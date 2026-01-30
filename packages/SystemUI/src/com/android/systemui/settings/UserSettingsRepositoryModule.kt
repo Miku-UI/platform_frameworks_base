@@ -16,14 +16,10 @@
 
 package com.android.systemui.settings
 
-import android.content.ContentResolver
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.shared.settings.data.repository.SecureSettingsRepository
-import com.android.systemui.shared.settings.data.repository.SecureSettingsRepositoryImpl
 import com.android.systemui.shared.settings.data.repository.SystemSettingsRepository
-import com.android.systemui.shared.settings.data.repository.SystemSettingsRepositoryImpl
 import com.android.systemui.user.data.repository.UserRepository
 import com.android.systemui.util.settings.SecureSettings
 import com.android.systemui.util.settings.SystemSettings
@@ -43,20 +39,15 @@ object UserSettingsRepositoryModule {
     fun provideSecureSettingsRepository(
         secureSettings: Lazy<SecureSettings>,
         userRepository: Lazy<UserRepository>,
-        contentResolver: Lazy<ContentResolver>,
         @Background backgroundDispatcher: CoroutineDispatcher,
         @Background backgroundContext: CoroutineContext,
     ): SecureSettingsRepository {
-        return if (Flags.userAwareSettingsRepositories()) {
-            UserAwareSecureSettingsRepository(
-                secureSettings.get(),
-                userRepository.get(),
-                backgroundDispatcher,
-                backgroundContext,
-            )
-        } else {
-            SecureSettingsRepositoryImpl(contentResolver.get(), backgroundDispatcher)
-        }
+        return UserAwareSecureSettingsRepository(
+            secureSettings.get(),
+            userRepository.get(),
+            backgroundDispatcher,
+            backgroundContext,
+        )
     }
 
     @JvmStatic
@@ -65,19 +56,14 @@ object UserSettingsRepositoryModule {
     fun provideSystemSettingsRepository(
         systemSettings: Lazy<SystemSettings>,
         userRepository: Lazy<UserRepository>,
-        contentResolver: Lazy<ContentResolver>,
         @Background backgroundDispatcher: CoroutineDispatcher,
         @Background backgroundContext: CoroutineContext,
     ): SystemSettingsRepository {
-        return if (Flags.userAwareSettingsRepositories()) {
-            UserAwareSystemSettingsRepository(
-                systemSettings.get(),
-                userRepository.get(),
-                backgroundDispatcher,
-                backgroundContext,
-            )
-        } else {
-            SystemSettingsRepositoryImpl(contentResolver.get(), backgroundDispatcher)
-        }
+        return UserAwareSystemSettingsRepository(
+            systemSettings.get(),
+            userRepository.get(),
+            backgroundDispatcher,
+            backgroundContext,
+        )
     }
 }

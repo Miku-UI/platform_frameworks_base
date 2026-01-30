@@ -23,7 +23,7 @@
     <string name="keyguard_enter_your_pin" msgid="5429932527814874032">"Zadejte PIN"</string>
     <string name="keyguard_enter_pin" msgid="8114529922480276834">"Zadejte kód PIN"</string>
     <string name="keyguard_enter_your_pattern" msgid="351503370332324745">"Zadejte gesto"</string>
-    <string name="keyguard_enter_pattern" msgid="7616595160901084119">"Nakreslete gesto"</string>
+    <string name="keyguard_enter_pattern" msgid="7616595160901084119">"Zadejte gesto"</string>
     <string name="keyguard_enter_your_password" msgid="7225626204122735501">"Zadejte heslo"</string>
     <string name="keyguard_enter_password" msgid="6483623792371009758">"Zadejte heslo"</string>
     <string name="keyguard_sim_error_message_short" msgid="633630844240494070">"Neplatná karta."</string>
@@ -54,14 +54,14 @@
     <string name="kg_wrong_pattern_try_again" msgid="3603524940234151881">"Nesprávné gesto. Zkuste to znovu."</string>
     <string name="kg_wrong_password" msgid="4143127991071670512">"Špatné heslo"</string>
     <string name="kg_wrong_password_try_again" msgid="6602878676125765920">"Nesprávné heslo. Zkuste to znovu."</string>
-    <string name="kg_wrong_pin" msgid="4160978845968732624">"Nesprávný kód PIN"</string>
+    <string name="kg_wrong_pin" msgid="4160978845968732624">"Nesprávný PIN"</string>
     <string name="kg_wrong_pin_try_again" msgid="3129729383303430190">"Nesprávný PIN. Zkuste to znovu."</string>
     <string name="kg_wrong_input_try_fp_suggestion" msgid="3143861542242024833">"Nebo odemkněte otiskem prstu"</string>
     <string name="kg_fp_not_recognized" msgid="5183108260932029241">"Otisk prstu nebyl rozpoznán"</string>
     <string name="bouncer_face_not_recognized" msgid="1666128054475597485">"Obličej nebyl rozpoznán"</string>
     <string name="kg_bio_try_again_or_pin" msgid="4752168242723808390">"Zkuste to znovu nebo zadejte PIN"</string>
     <string name="kg_bio_try_again_or_password" msgid="1473132729225398039">"Zkuste to znovu nebo zadejte heslo"</string>
-    <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"Zkuste to znovu nebo nakreslete gesto"</string>
+    <string name="kg_bio_try_again_or_pattern" msgid="4867893307468801501">"Zkuste to znovu nebo zadejte gesto"</string>
     <string name="kg_bio_too_many_attempts_pin" msgid="5850845723433047605">"Po příliš mnoha pokusech je vyžadován PIN"</string>
     <string name="kg_bio_too_many_attempts_password" msgid="5551690347827728042">"Po příliš mnoha pokusech je vyžadováno heslo"</string>
     <string name="kg_bio_too_many_attempts_pattern" msgid="736884689355181602">"Po příliš mnoha pokusech je vyžadováno gesto"</string>
@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"Zadejte heslo nebo otisk"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"Zadejte gesto nebo otisk"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"Kvůli zabezpečení se zařízení zamkne prac. zásadami"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"Dvoufázové ověření"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"Proveďte odemknutí otiskem prstu"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"Proveďte odemknutí obličejem"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"Proveďte odemknutí otiskem prstu nebo obličejem"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"Po uzamčení je třeba zadat PIN"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"Po uzamčení je třeba zadat heslo"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"Po uzamčení je třeba zadat gesto"</string>

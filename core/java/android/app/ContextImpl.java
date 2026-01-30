@@ -26,6 +26,8 @@ import android.annotation.CallbackExecutor;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
 import android.annotation.SuppressLint;
 import android.annotation.UiContext;
 import android.companion.virtual.VirtualDeviceManager;
@@ -83,6 +85,13 @@ import android.os.UserManager;
 import android.os.storage.StorageManager;
 import android.permission.PermissionControllerManager;
 import android.permission.PermissionManager;
+import android.ravenwood.annotation.RavenwoodIgnore;
+import android.ravenwood.annotation.RavenwoodKeep;
+import android.ravenwood.annotation.RavenwoodKeepPartialClass;
+import android.ravenwood.annotation.RavenwoodRedirect;
+import android.ravenwood.annotation.RavenwoodRedirectionClass;
+import android.ravenwood.annotation.RavenwoodReplace;
+import android.ravenwood.annotation.RavenwoodSupported.RavenwoodProvidingImplementation;
 import android.system.ErrnoException;
 import android.system.Os;
 import android.system.OsConstants;
@@ -196,6 +205,9 @@ class ReceiverRestrictedContext extends ContextWrapper {
  * Common implementation of Context API, which provides the base
  * context object for Activity and other application components.
  */
+@RavenwoodKeepPartialClass
+@RavenwoodRedirectionClass("ContextImpl_ravenwood")
+@RavenwoodProvidingImplementation(target = Context.class)
 class ContextImpl extends Context {
     private final static String TAG = "ContextImpl";
     private final static boolean DEBUG = false;
@@ -242,7 +254,7 @@ class ContextImpl extends Context {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.P, trackingBug = 115609023)
     private final String mOpPackageName;
     private final @NonNull ContextParams mParams;
-    private @NonNull AttributionSource mAttributionSource;
+    private @NonNull AttributionSource mAttributionSource; // Used by supported API
 
     private final @NonNull ResourcesManager mResourcesManager;
     @UnsupportedAppUsage
@@ -338,14 +350,6 @@ class ContextImpl extends Context {
     @ContextType
     private int mContextType;
 
-    /**
-     * {@code true} to indicate that the {@link Context} owns the {@link #getWindowContextToken()}
-     * and is responsible for detaching the token when the Context is released.
-     *
-     * @see #finalize()
-     */
-    private boolean mOwnsToken = false;
-
     private final Object mDatabasesDirLock = new Object();
     @GuardedBy("mDatabasesDirLock")
     private File mDatabasesDir;
@@ -432,27 +436,35 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public AssetManager getAssets() {
         return getResources().getAssets();
     }
 
     @Override
+    @RavenwoodKeep
     public Resources getResources() {
         return mResources;
     }
 
     @Override
+    @RavenwoodKeep
     public PackageManager getPackageManager() {
         if (mPackageManager != null) {
             return mPackageManager;
         }
+        // Doesn't matter if we make more than one instance, so no synchronization
+        // is needed on mPackageManager.
+        mPackageManager = getPackageManagerInner();
+        return mPackageManager;
+    }
 
+    @RavenwoodRedirect
+    private PackageManager getPackageManagerInner() {
         final IPackageManager pm = ActivityThread.getPackageManager();
         if (pm != null) {
-            // Doesn't matter if we make more than one instance.
-            return (mPackageManager = new ApplicationPackageManager(this, pm));
+            return new ApplicationPackageManager(this, pm);
         }
-
         return null;
     }
 
@@ -462,22 +474,26 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public Looper getMainLooper() {
         return mMainThread.getLooper();
     }
 
     @Override
+    @RavenwoodKeep
     public Executor getMainExecutor() {
         return mMainThread.getExecutor();
     }
 
     @Override
+    @RavenwoodKeep
     public Context getApplicationContext() {
         return (mPackageInfo != null) ?
                 mPackageInfo.getApplication() : mMainThread.getApplication();
     }
 
     @Override
+    @RavenwoodKeep
     public void setTheme(int resId) {
         synchronized (mThemeLock) {
             if (mThemeResource != resId) {
@@ -495,6 +511,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public Resources.Theme getTheme() {
         synchronized (mThemeLock) {
             if (mTheme != null) {
@@ -503,12 +520,13 @@ class ContextImpl extends Context {
 
             mThemeResource = Resources.selectDefaultTheme(mThemeResource,
                     getOuterContext().getApplicationInfo().targetSdkVersion);
-            initializeTheme();
+            initializeTheme(); // XXX TODO: does it work??
 
             return mTheme;
         }
     }
 
+    @RavenwoodKeep
     private void initializeTheme() {
         if (mTheme == null) {
             mTheme = mResources.newTheme();
@@ -517,11 +535,13 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public ClassLoader getClassLoader() {
         return mClassLoader != null ? mClassLoader : (mPackageInfo != null ? mPackageInfo.getClassLoader() : ClassLoader.getSystemClassLoader());
     }
 
     @Override
+    @RavenwoodKeep
     public String getPackageName() {
         if (mPackageInfo != null) {
             return mPackageInfo.getPackageName();
@@ -533,33 +553,39 @@ class ContextImpl extends Context {
 
     /** @hide */
     @Override
+    @RavenwoodKeep
     public String getBasePackageName() {
         return mBasePackageName != null ? mBasePackageName : getPackageName();
     }
 
     /** @hide */
     @Override
+    @RavenwoodKeep
     public String getOpPackageName() {
         return mAttributionSource.getPackageName();
     }
 
     /** @hide */
     @Override
+    @RavenwoodKeep
     public @Nullable String getAttributionTag() {
         return mAttributionSource.getAttributionTag();
     }
 
     @Override
+    @RavenwoodKeep
     public @Nullable ContextParams getParams() {
         return mParams;
     }
 
     @Override
+    @RavenwoodKeep
     public @NonNull AttributionSource getAttributionSource() {
         return mAttributionSource;
     }
 
     @Override
+    @RavenwoodKeep
     public ApplicationInfo getApplicationInfo() {
         if (mPackageInfo != null) {
             return mPackageInfo.getApplicationInfo();
@@ -568,6 +594,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public String getPackageResourcePath() {
         if (mPackageInfo != null) {
             return mPackageInfo.getResDir();
@@ -711,7 +738,7 @@ class ContextImpl extends Context {
                     res++;
                 }
             } catch (IOException e) {
-                Log.w(TAG, "Failed to migrate " + sourceFile + ": " + e);
+                Log.w(TAG, "Failed to migrate " + sourceFile, e);
                 res = -1;
             }
         }
@@ -767,6 +794,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public FileInputStream openFileInput(String name)
         throws FileNotFoundException {
         File f = makeFilename(getFilesDir(), name);
@@ -774,6 +802,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public FileOutputStream openFileOutput(String name, int mode) throws FileNotFoundException {
         checkMode(mode);
         final boolean append = (mode&MODE_APPEND) != 0;
@@ -797,6 +826,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public boolean deleteFile(String name) {
         File f = makeFilename(getFilesDir(), name);
         return f.delete();
@@ -805,15 +835,18 @@ class ContextImpl extends Context {
     /**
      * Common-path handling of app data dir creation
      */
+    @RavenwoodKeep
     private static File ensurePrivateDirExists(File file) {
         return ensurePrivateDirExists(file, 0771, -1, null);
     }
 
+    @RavenwoodKeep(comment = "xattr is ignored")
     private static File ensurePrivateCacheDirExists(File file, String xattr) {
         final int gid = UserHandle.getCacheAppGid(Process.myUid());
         return ensurePrivateDirExists(file, 02771, gid, xattr);
     }
 
+    @RavenwoodRedirect(comment = "gid, xattr are ignored")
     private static File ensurePrivateDirExists(File file, int mode, int gid, String xattr) {
         if (!file.exists()) {
             final String path = file.getAbsolutePath();
@@ -827,7 +860,7 @@ class ContextImpl extends Context {
                 if (e.errno == OsConstants.EEXIST) {
                     // We must have raced with someone; that's okay
                 } else {
-                    Log.w(TAG, "Failed to ensure " + file + ": " + e.getMessage());
+                    Log.w(TAG, "Failed to ensure " + file, e);
                 }
             }
 
@@ -838,7 +871,7 @@ class ContextImpl extends Context {
                     Memory.pokeLong(value, 0, stat.st_ino, ByteOrder.nativeOrder());
                     Os.setxattr(file.getParentFile().getAbsolutePath(), xattr, value, 0);
                 } catch (ErrnoException e) {
-                    Log.w(TAG, "Failed to update " + xattr + ": " + e.getMessage());
+                    Log.w(TAG, "Failed to update " + xattr, e);
                 }
             }
         }
@@ -846,6 +879,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public File getFilesDir() {
         synchronized (mFilesDirLock) {
             if (mFilesDir == null) {
@@ -874,6 +908,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public File getNoBackupFilesDir() {
         synchronized (mNoBackupFilesDirLock) {
             if (mNoBackupFilesDir == null) {
@@ -917,6 +952,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public File getCacheDir() {
         synchronized (mCacheDirLock) {
             if (mCacheDir == null) {
@@ -927,6 +963,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public File getCodeCacheDir() {
         synchronized (mCodeCacheDirLock) {
             if (mCodeCacheDir == null) {
@@ -981,11 +1018,13 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public File getFileStreamPath(String name) {
         return makeFilename(getFilesDir(), name);
     }
 
     @Override
+    @RavenwoodKeep
     public File getSharedPreferencesPath(String name) {
         return makeFilename(getPreferencesDir(), name + ".xml");
     }
@@ -1577,10 +1616,17 @@ class ContextImpl extends Context {
         sendOrderedBroadcastAsUserMultiplePermissions(intent, user, receiverPermissions, appOp,
                 options, resultReceiver, scheduler, initialCode, initialData, initialExtras);
     }
-
     @Override
     public void sendOrderedBroadcastAsUserMultiplePermissions(Intent intent, UserHandle user,
             String[] receiverPermissions, int appOp, Bundle options,
+            BroadcastReceiver resultReceiver, Handler scheduler, int initialCode,
+            String initialData, Bundle initialExtras) {
+        sendOrderedBroadcastAsUserMultiplePermissions(intent, user, receiverPermissions, null,
+                appOp, options, resultReceiver, scheduler, initialCode, initialData, initialExtras);
+    }
+
+    private void sendOrderedBroadcastAsUserMultiplePermissions(Intent intent, UserHandle user,
+            String[] receiverPermissions, String[] excludedPermissions, int appOp, Bundle options,
             BroadcastReceiver resultReceiver, Handler scheduler, int initialCode,
             String initialData, Bundle initialExtras) {
         IIntentReceiver rd = null;
@@ -1607,7 +1653,7 @@ class ContextImpl extends Context {
             ActivityManager.getService().broadcastIntentWithFeature(
                     mMainThread.getApplicationThread(), getAttributionTag(), intent, resolvedType,
                     rd, initialCode, initialData, initialExtras, receiverPermissions,
-                    null /*excludedPermissions=*/, null, appOp, options, true, false,
+                    excludedPermissions, null, appOp, options, true, false,
                     user.getIdentifier());
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
@@ -1639,6 +1685,20 @@ class ContextImpl extends Context {
         sendOrderedBroadcastAsUserMultiplePermissions(intent, getUser(), receiverPermissions,
                 intAppOp, options, resultReceiver, scheduler, initialCode, initialData,
                 initialExtras);
+    }
+
+    @Override
+    public void sendOrderedBroadcastMultiplePermissions(Intent intent, String[] receiverPermissions,
+            String[] excludedPermissions, String receiverAppOp, BroadcastReceiver resultReceiver,
+            Handler scheduler, int initialCode, String initialData, @Nullable Bundle initialExtras,
+            @Nullable Bundle options) {
+        int intAppOp = AppOpsManager.OP_NONE;
+        if (!TextUtils.isEmpty(receiverAppOp)) {
+            intAppOp = AppOpsManager.strOpToOp(receiverAppOp);
+        }
+        sendOrderedBroadcastAsUserMultiplePermissions(intent, getUser(), receiverPermissions,
+                excludedPermissions, intAppOp, options, resultReceiver, scheduler, initialCode,
+                initialData, initialExtras);
     }
 
     @Override
@@ -2194,6 +2254,7 @@ class ContextImpl extends Context {
 
     /** @hide */
     @Override
+    @RavenwoodKeep
     public Handler getMainThreadHandler() {
         return mMainThread.getHandler();
     }
@@ -2263,6 +2324,37 @@ class ContextImpl extends Context {
     }
 
     @Override
+    public void updateServiceBindings(@NonNull List<UpdateBindingParams> params) {
+        final ArrayList<BindUpdateInfo> updates = new ArrayList<>(params.size());
+        for (int i = 0, size = params.size(); i < size; i++) {
+            final UpdateBindingParams param = params.get(i);
+            final ServiceConnection conn = param.getConnection();
+            if (conn == null) {
+                throw new IllegalArgumentException("connection is null");
+            }
+            if (mPackageInfo == null) {
+                throw new RuntimeException("Not supported in system context");
+            }
+            final IServiceConnection sd = mPackageInfo.lookupServiceDispatcher(
+                            conn, getOuterContext());
+            if (sd == null) {
+                throw new IllegalArgumentException("ServiceConnection not currently bound: "
+                        + conn);
+            }
+            final BindUpdateInfo update = new BindUpdateInfo();
+            update.connection = sd.asBinder();
+            update.unbind = param.isUnbind();
+            update.flags = param.getFlags() != null ? param.getFlags().getValue() : 0;
+            updates.add(update);
+        }
+        try {
+            ActivityManager.getService().updateServiceBindings(updates);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    @Override
     public void unbindService(ServiceConnection conn) {
         if (conn == null) {
             throw new IllegalArgumentException("connection is null");
@@ -2277,6 +2369,32 @@ class ContextImpl extends Context {
             }
         } else {
             throw new RuntimeException("Not supported in system context");
+        }
+    }
+
+    @Override
+    public void rebindService(ServiceConnection conn, @NonNull BindServiceFlags flags) {
+        if (conn == null) {
+            throw new IllegalArgumentException("ServiceConnection is null");
+        }
+        if (mPackageInfo == null) {
+            throw new RuntimeException("Not supported in system context");
+        }
+        final IServiceConnection sd = mPackageInfo.lookupServiceDispatcher(
+                        conn, getOuterContext());
+        if (sd == null) {
+            throw new IllegalArgumentException("ServiceConnection not currently bound: " + conn);
+        }
+        final BindUpdateInfo update = new BindUpdateInfo();
+        update.connection = sd.asBinder();
+        update.unbind = false;
+        update.flags = flags.getValue();
+        final ArrayList<BindUpdateInfo> updates = new ArrayList<>(1);
+        updates.add(update);
+        try {
+            ActivityManager.getService().updateServiceBindings(updates);
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -2296,6 +2414,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public Object getSystemService(String name) {
         if (vmIncorrectContextUseEnabled()) {
             // Check incorrect Context usage.
@@ -2316,6 +2435,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public String getSystemServiceName(Class<?> serviceClass) {
         return SystemServiceRegistry.getSystemServiceName(serviceClass);
     }
@@ -2348,6 +2468,7 @@ class ContextImpl extends Context {
      * TODO(b/147647877): Fix usages and remove.
      */
     @SuppressWarnings("AndroidFrameworkClientSidePermissionCheck")
+    @RavenwoodIgnore // Always false on Ravenwood.
     private static boolean isSystemOrSystemUI(Context context) {
         return ActivityThread.isSystem() || context.checkPermission(
                 "android.permission.STATUS_BAR_SERVICE",
@@ -2827,7 +2948,8 @@ class ContextImpl extends Context {
     }
 
     @Override
-    public Context createContextAsUser(UserHandle user, @CreatePackageOptions int flags) {
+    public Context createContextAsUser(
+            @CanBeALL @CanBeCURRENT UserHandle user, @CreatePackageOptions int flags) {
         try {
             return createPackageContextAsUser(getPackageName(), flags, user);
         } catch (NameNotFoundException e) {
@@ -2940,6 +3062,7 @@ class ContextImpl extends Context {
         updateResourceOverlayConstraints();
     }
 
+    @RavenwoodKeep
     private void updateResourceOverlayConstraints() {
         if (mResources != null) {
             // Avoid calling getDisplay() here, as it makes a binder call into
@@ -3131,21 +3254,25 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public boolean isRestricted() {
         return (mFlags & Context.CONTEXT_RESTRICTED) != 0;
     }
 
     @Override
+    @RavenwoodKeep
     public boolean isDeviceProtectedStorage() {
         return (mFlags & Context.CONTEXT_DEVICE_PROTECTED_STORAGE) != 0;
     }
 
     @Override
+    @RavenwoodKeep
     public boolean isCredentialProtectedStorage() {
         return (mFlags & Context.CONTEXT_CREDENTIAL_PROTECTED_STORAGE) != 0;
     }
 
     @Override
+    @RavenwoodKeep
     public boolean canLoadUnsafeResources() {
         if (getPackageName().equals(getOpPackageName())) {
             return true;
@@ -3264,6 +3391,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public int getDeviceId() {
         return mDeviceId;
     }
@@ -3332,6 +3460,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public File getDataDir() {
         if (mPackageInfo != null) {
             File res = null;
@@ -3360,6 +3489,7 @@ class ContextImpl extends Context {
     }
 
     @Override
+    @RavenwoodKeep
     public File getDir(String name, int mode) {
         checkMode(mode);
         name = "app_" + name;
@@ -3372,14 +3502,16 @@ class ContextImpl extends Context {
         return file;
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
+    @RavenwoodKeep
     public UserHandle getUser() {
         return mUser;
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
+    @RavenwoodKeep
     public int getUserId() {
         return mUser.getIdentifier();
     }
@@ -3420,22 +3552,15 @@ class ContextImpl extends Context {
         mContentCaptureOptions = options;
     }
 
-    @Override
-    protected void finalize() throws Throwable {
-        // If mToken is a WindowTokenClient, the Context is usually associated with a
-        // WindowContainer. We should detach from WindowContainer when the Context is finalized
-        // if this Context is not a WindowContext. WindowContext finalization is handled in
-        // WindowContext class.
-        if (mToken instanceof WindowTokenClient && mOwnsToken) {
-            WindowTokenClientController.getInstance().detachIfNeeded(
-                    (WindowTokenClient) mToken);
-        }
-        super.finalize();
-    }
-
     @UnsupportedAppUsage
+    @RavenwoodKeep
     static ContextImpl createSystemContext(ActivityThread mainThread) {
         LoadedApk packageInfo = new LoadedApk(mainThread);
+        return createSystemContextInner(mainThread, packageInfo);
+    }
+
+    @RavenwoodKeep
+    static ContextImpl createSystemContextInner(ActivityThread mainThread, LoadedApk packageInfo) {
         ContextImpl context = new ContextImpl(null, mainThread, packageInfo,
                 ContextParams.EMPTY, null, null, null, null, null, 0, null, null,
                 DEVICE_ID_DEFAULT, false);
@@ -3460,28 +3585,23 @@ class ContextImpl extends Context {
 
         // Step 2. Create a SystemUiContext to wrap the ContextImpl, which enables to listen to
         // its config updates.
-        final Context systemUiContext;
-        if (com.android.window.flags.Flags.trackSystemUiContextBeforeWms()) {
-            systemUiContext = new SystemUiContext(context);
-            context.setOuterContext(systemUiContext);
-        } else {
-            systemUiContext = context;
-        }
+        final SystemUiContext systemUiContext = new SystemUiContext(context);
+        context.setOuterContext(systemUiContext);
         token.attachContext(systemUiContext);
 
         // Step 3. Associate the SystemUiContext with the display specified with ID.
         WindowTokenClientController.getInstance().attachToDisplayContent(token, displayId);
         context.mContextType = CONTEXT_TYPE_SYSTEM_OR_SYSTEM_UI;
-        context.mOwnsToken = true;
-
         return systemUiContext;
     }
 
     @UnsupportedAppUsage
+    @RavenwoodKeep
     static ContextImpl createAppContext(ActivityThread mainThread, LoadedApk packageInfo) {
         return createAppContext(mainThread, packageInfo, null);
     }
 
+    @RavenwoodKeep
     static ContextImpl createAppContext(ActivityThread mainThread, LoadedApk packageInfo,
             String opPackageName) {
         if (packageInfo == null) throw new IllegalArgumentException("packageInfo");
@@ -3557,6 +3677,7 @@ class ContextImpl extends Context {
         return context;
     }
 
+    @RavenwoodKeep
     private ContextImpl(@Nullable ContextImpl container, @NonNull ActivityThread mainThread,
             @NonNull LoadedApk packageInfo, @NonNull ContextParams params,
             @Nullable String attributionTag, @Nullable AttributionSource nextAttributionSource,
@@ -3627,9 +3748,10 @@ class ContextImpl extends Context {
         mParams = Objects.requireNonNull(params);
         mAttributionSource = createAttributionSource(attributionTag, nextAttributionSource,
                 params.getRenouncedPermissions(), params.shouldRegisterAttributionSource(), mDeviceId);
-        mContentResolver = new ApplicationContentResolver(this, mainThread);
+        mContentResolver = newApplicationContentResolver(this, mainThread);
     }
 
+    @RavenwoodKeep
     private @NonNull AttributionSource createAttributionSource(@Nullable String attributionTag,
             @Nullable AttributionSource nextAttributionSource,
             @Nullable Set<String> renouncedPermissions, boolean shouldRegister,
@@ -3652,6 +3774,7 @@ class ContextImpl extends Context {
         return registerAttributionSourceIfNeeded(oldSource.withDeviceId(deviceId), shouldRegister);
     }
 
+    @RavenwoodReplace(blockedBy = PermissionManager.class)
     private @NonNull AttributionSource registerAttributionSourceIfNeeded(
             @NonNull AttributionSource attributionSource, boolean shouldRegister) {
         if (shouldRegister || attributionSource.getNext() != null) {
@@ -3661,6 +3784,12 @@ class ContextImpl extends Context {
         return attributionSource;
     }
 
+    private @NonNull AttributionSource registerAttributionSourceIfNeeded$ravenwood(
+            @NonNull AttributionSource attributionSource, boolean shouldRegister) {
+        return attributionSource;
+    }
+
+    @RavenwoodKeep
     void setResources(Resources r) {
         if (r instanceof CompatResources) {
             ((CompatResources) r).setContext(this);
@@ -3672,7 +3801,7 @@ class ContextImpl extends Context {
             if (android.content.res.Flags.defaultLocale()
                     && r.getConfiguration().getLocales().size() > 1) {
                 LocaleConfig lc = LocaleConfig.fromContextIgnoringOverride(this);
-                mResourcesManager.setLocaleConfig(lc);
+                mResources.setLocaleConfig(lc);
             }
         }
         updateResourceOverlayConstraints();
@@ -3705,11 +3834,13 @@ class ContextImpl extends Context {
     }
 
     @UnsupportedAppUsage
+    @RavenwoodKeep
     final void setOuterContext(@NonNull Context context) {
         mOuterContext = context;
     }
 
     @UnsupportedAppUsage
+    @RavenwoodKeep
     final Context getOuterContext() {
         return mOuterContext;
     }
@@ -3731,6 +3862,7 @@ class ContextImpl extends Context {
         }
     }
 
+    @RavenwoodIgnore(comment = "Not simulating file permissions")
     private void checkMode(int mode) {
         if (getApplicationInfo().targetSdkVersion >= Build.VERSION_CODES.N) {
             if ((mode & MODE_WORLD_READABLE) != 0) {
@@ -3743,6 +3875,7 @@ class ContextImpl extends Context {
     }
 
     @SuppressWarnings("deprecation")
+    @RavenwoodIgnore(comment = "Not simulating file permissions")
     static void setFilePermissionsFromMode(String name, int mode,
             int extraPermissions) {
         int perms = FileUtils.S_IRUSR|FileUtils.S_IWUSR
@@ -3761,16 +3894,22 @@ class ContextImpl extends Context {
         FileUtils.setPermissions(name, perms, -1, -1);
     }
 
+    @RavenwoodKeep
     private File makeFilename(File base, String name) {
         if (name.indexOf(File.separatorChar) < 0) {
             final File res = new File(base, name);
             // We report as filesystem access here to give us the best shot at
             // detecting apps that will pass the path down to native code.
-            BlockGuard.getVmPolicy().onPathAccess(res.getPath());
+            onPathAccess(res.getPath());
             return res;
         }
         throw new IllegalArgumentException(
                 "File " + name + " contains a path separator");
+    }
+
+    @RavenwoodIgnore(blockedBy = BlockGuard.class)
+    private static void onPathAccess(@NonNull String path) {
+        BlockGuard.getVmPolicy().onPathAccess(path);
     }
 
     /**
@@ -3793,7 +3932,7 @@ class ContextImpl extends Context {
                         }
                     }
                 } catch (Exception e) {
-                    Log.w(TAG, "Failed to ensure " + dir + ": " + e);
+                    Log.w(TAG, "Failed to ensure " + dir, e);
                     dir = null;
                 }
             }
@@ -3831,6 +3970,12 @@ class ContextImpl extends Context {
     // ----------------------------------------------------------------------
     // ----------------------------------------------------------------------
     // ----------------------------------------------------------------------
+
+    @RavenwoodIgnore
+    private static ApplicationContentResolver newApplicationContentResolver(
+            Context context, ActivityThread mainThread) {
+        return new ApplicationContentResolver(context, mainThread);
+    }
 
     private static final class ApplicationContentResolver extends ContentResolver {
         @UnsupportedAppUsage

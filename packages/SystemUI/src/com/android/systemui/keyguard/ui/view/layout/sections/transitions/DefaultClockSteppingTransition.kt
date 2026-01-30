@@ -22,13 +22,15 @@ import android.transition.Transition
 import android.transition.TransitionValues
 import android.view.ViewGroup
 import com.android.app.animation.Interpolators
-import com.android.systemui.plugins.clocks.ClockController
+import com.android.systemui.keyguard.ui.composable.elements.LockscreenUpperRegionElementProvider
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockPositionAnimationArgs
 import com.android.systemui.shared.R as sharedR
 
 class DefaultClockSteppingTransition(private val clock: ClockController) : Transition() {
     init {
         interpolator = Interpolators.LINEAR
-        duration = KEYGUARD_STATUS_VIEW_CUSTOM_CLOCK_MOVE_DURATION_MS
+        duration = LockscreenUpperRegionElementProvider.ClockCenteringDurationMS.toLong()
         addTarget(clock.largeClock.view)
         if (com.android.systemui.shared.Flags.clockReactiveSmartspaceLayout()) {
             addTarget(sharedR.id.date_smartspace_view_large)
@@ -66,10 +68,8 @@ class DefaultClockSteppingTransition(private val clock: ClockController) : Trans
         // toLeft - fromLeft is always positive, even when moving left.
         val direction = if (toWindowX - fromWindowX > 0) 1 else -1
         anim.addUpdateListener { animation: ValueAnimator ->
-            clock.largeClock.animations.onPositionUpdated(
-                fromLeft,
-                direction,
-                animation.animatedFraction,
+            clock.largeClock.animations.onPositionAnimated(
+                ClockPositionAnimationArgs(fromLeft, direction, animation.animatedFraction)
             )
         }
         return anim
@@ -83,6 +83,5 @@ class DefaultClockSteppingTransition(private val clock: ClockController) : Trans
         private const val PROP_BOUNDS_LEFT = "DefaultClockSteppingTransition:boundsLeft"
         private const val PROP_X_IN_WINDOW = "DefaultClockSteppingTransition:xInWindow"
         private val TRANSITION_PROPERTIES = arrayOf(PROP_BOUNDS_LEFT, PROP_X_IN_WINDOW)
-        private const val KEYGUARD_STATUS_VIEW_CUSTOM_CLOCK_MOVE_DURATION_MS = 1000L
     }
 }

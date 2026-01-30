@@ -43,7 +43,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             TAG,
             LogLevel.VERBOSE,
             { double1 = h.toDouble() },
-            { "onQsIntercept: move action, QS tracking enabled. h = $double1" }
+            { "onQsIntercept: move action, QS tracking enabled. h = $double1" },
         )
     }
 
@@ -55,7 +55,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
         qsExpanded: Boolean,
         keyguardShowing: Boolean,
         qsExpansionEnabled: Boolean,
-        downTime: Long
+        downTime: Long,
     ) {
         buffer.log(
             TAG,
@@ -73,7 +73,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             {
                 "QsTrackingNotStarted: downTime=$str1,initTouchY=$int1,y=$int2,h=$long1," +
                     "slop=$double1,qsExpanded=$bool1,keyguardShowing=$bool2,qsExpansion=$bool3"
-            }
+            },
         )
     }
 
@@ -88,7 +88,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 int1 = event.action
                 int2 = event.classification
             },
-            { "$str1: eventTime=$long1,downTime=$long2,action=$int1,class=$int2" }
+            { "$str1: eventTime=$long1,downTime=$long2,action=$int1,class=$int2" },
         )
     }
 
@@ -110,7 +110,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                         null -> "SHADE TOUCH DISPATCHED"
                     }
                 "$prefix: eventTime=$long1,downTime=$long2, reason=$str1"
-            }
+            },
         )
     }
 
@@ -134,7 +134,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                                 2 -> "SHADE_LOCKED"
                                 else -> "UNKNOWN:$int2"
                             }}"
-            }
+            },
         )
     }
 
@@ -159,7 +159,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 "$str1 fraction=$double1,expanded=$bool1," +
                     "tracking=$bool2," +
                     "dragDownPxAmount=$dragDownPxAmount"
-            }
+            },
         )
     }
 
@@ -171,7 +171,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 bool1 = hasVibratedOnOpen
                 double1 = fraction.toDouble()
             },
-            { "hasVibratedOnOpen=$bool1, expansionFraction=$double1" }
+            { "hasVibratedOnOpen=$bool1, expansionFraction=$double1" },
         )
     }
 
@@ -186,7 +186,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
         qsMaxExpansionHeight: Int,
         stackScrollerOverscrolling: Boolean,
         qsAnimatorExpand: Boolean,
-        animatingQs: Boolean
+        animatingQs: Boolean,
     ) {
         buffer.log(
             TAG,
@@ -205,7 +205,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 "$str1 qsExpanded=$bool1,qsMinExpansionHeight=$int1,qsMaxExpansionHeight=$int2," +
                     "stackScrollerOverscrolling=$bool2,qsAnimatorExpand=$bool3," +
                     "animatingQs=$long1"
-            }
+            },
         )
     }
 
@@ -222,7 +222,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 "PulsingGestureListener#onSingleTapUp all of this must true for single " +
                     "tap to be detected: isDozing: $bool1, singleTapEnabled: $bool2," +
                     " isNotDocked: $bool3"
-            }
+            },
         )
     }
 
@@ -237,14 +237,14 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             {
                 "PulsingGestureListener#onSingleTapUp all of this must true for single " +
                     "tap to be detected: proximityIsNotNear: $bool1, isNotFalseTap: $bool2"
-            }
+            },
         )
     }
 
     fun logNotInterceptingTouchInstantExpanding(
         instantExpanding: Boolean,
         notificationsDragEnabled: Boolean,
-        touchDisabled: Boolean
+        touchDisabled: Boolean,
     ) {
         buffer.log(
             TAG,
@@ -257,7 +257,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             {
                 "NPVC not intercepting touch, instantExpanding: $bool1, " +
                     "!notificationsDragEnabled: $bool2, touchDisabled: $bool3"
-            }
+            },
         )
     }
 
@@ -266,7 +266,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             TAG,
             LogLevel.VERBOSE,
             { bool1 = expand },
-            { "NPVC mLastFlingWasExpanding set to: $bool1" }
+            { "NPVC mLastFlingWasExpanding set to: $bool1" },
         )
     }
 
@@ -276,7 +276,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
         interactionType: Int,
         minVelocityPxPerSecond: Float,
         expansionOverHalf: Boolean,
-        allowExpandForSmallExpansion: Boolean
+        allowExpandForSmallExpansion: Boolean,
     ) {
         buffer.log(
             TAG,
@@ -293,15 +293,11 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 "NPVC flingExpands called with vel: $long1, vectorVel: $long2, " +
                     "interactionType: $int1, minVelocityPxPerSecond: $double1 " +
                     "expansionOverHalf: $bool1, allowExpandForSmallExpansion: $bool2"
-            }
+            },
         )
     }
 
-    fun logEndMotionEvent(
-        msg: String,
-        forceCancel: Boolean,
-        expand: Boolean,
-    ) {
+    fun logEndMotionEvent(msg: String, forceCancel: Boolean, expand: Boolean) {
         buffer.log(
             TAG,
             LogLevel.VERBOSE,
@@ -310,15 +306,11 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 bool1 = forceCancel
                 bool2 = expand
             },
-            { "$str1; force=$bool1; expand=$bool2" }
+            { "$str1; force=$bool1; expand=$bool2" },
         )
     }
 
-    fun logPanelClosedOnDown(
-        msg: String,
-        panelClosedOnDown: Boolean,
-        expandFraction: Float,
-    ) {
+    fun logPanelClosedOnDown(msg: String, panelClosedOnDown: Boolean, expandFraction: Float) {
         buffer.log(
             TAG,
             LogLevel.VERBOSE,
@@ -327,7 +319,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 bool1 = panelClosedOnDown
                 double1 = expandFraction.toDouble()
             },
-            { "$str1; mPanelClosedOnDown=$bool1; mExpandedFraction=$double1" }
+            { "$str1; mPanelClosedOnDown=$bool1; mExpandedFraction=$double1" },
         )
     }
 
@@ -336,7 +328,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             TAG,
             LogLevel.VERBOSE,
             { str1 = panelState.panelStateToString() },
-            { "New panel State: $str1" }
+            { "New panel State: $str1" },
         )
     }
 
@@ -348,7 +340,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 str1 = flingTypeToString(flingType)
                 bool1 = isClick
             },
-            { "QS fling with type $str1, originated from click: $isClick" }
+            { "QS fling with type $str1, originated from click: $isClick" },
         )
     }
 
@@ -365,7 +357,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             TAG,
             LogLevel.VERBOSE,
             { bool1 = splitShadeEnabled },
-            { "Split shade state changed: split shade ${if (bool1) "enabled" else "disabled"}" }
+            { "Split shade state changed: split shade ${if (bool1) "enabled" else "disabled"}" },
         )
     }
 
@@ -390,14 +382,11 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 "CentralSurfaces updateNotificationPanelTouchState set disabled to: $bool1\n" +
                     "isGoingToSleep: $bool2, !shouldControlScreenOff: $bool3," +
                     "!mDeviceInteractive: $bool4, !isPulsing: $str1"
-            }
+            },
         )
     }
 
-    fun logNoTouchDispatch(
-        isTrackingBarGesture: Boolean,
-        isExpandAnimationRunning: Boolean,
-    ) {
+    fun logNoTouchDispatch(isTrackingBarGesture: Boolean, isExpandAnimationRunning: Boolean) {
         buffer.log(
             TAG,
             LogLevel.VERBOSE,
@@ -408,7 +397,7 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
             {
                 "NSWVC: touch not dispatched: isTrackingBarGesture: $bool1, " +
                     "isExpandAnimationRunning: $bool2"
-            }
+            },
         )
     }
 
@@ -433,7 +422,28 @@ class ShadeLogger @Inject constructor(@ShadeLog private val buffer: LogBuffer) {
                 "Setting keyguard status bar visibility to: $bool1, isOnAod: $bool2" +
                     "oldShadeState: $int1, newShadeState: $int2," +
                     "animatingUnlockedShadeToKeyguardBypass: $bool3"
-            }
+            },
+        )
+    }
+
+    fun logQsExpansionNotEnabled(
+        expansionEnabledPolicy: Boolean,
+        expansionEnabledAmbient: Boolean,
+        remoteInputActive: Boolean,
+    ) {
+        buffer.log(
+            TAG,
+            LogLevel.VERBOSE,
+            {
+                bool1 = expansionEnabledPolicy
+                bool2 = expansionEnabledAmbient
+                bool3 = remoteInputActive
+            },
+            {
+                "QS expansion not enabled " +
+                    "expansionEnabledPolicy: $bool1, expansionEnabledAmbient: $bool2," +
+                    "remoteInputActive: $bool3"
+            },
         )
     }
 }

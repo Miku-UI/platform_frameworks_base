@@ -163,7 +163,7 @@ public static final int EGL_CORE_NATIVE_ENGINE             = 0x305B;
     );
 
     /**
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static native EGLDisplay eglGetDisplay(
@@ -346,7 +346,7 @@ public static final int EGL_CORE_NATIVE_ENGINE             = 0x305B;
     );
     // TODO Unhide the below method
     /**
-     * {@hide}
+     * @hide
      */
     public static native EGLSurface eglCreatePbufferFromClientBuffer(
         EGLDisplay dpy,

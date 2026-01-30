@@ -29,4 +29,6 @@ import java.lang.annotation.Target;
 public @interface HostStubGenProcessedAsThrow {
     String CLASS_INTERNAL_NAME = HostTestUtils.getInternalName(HostStubGenProcessedAsThrow.class);
     String CLASS_DESCRIPTOR = "L" + CLASS_INTERNAL_NAME + ";";
+
+    String reason() default "";
 }

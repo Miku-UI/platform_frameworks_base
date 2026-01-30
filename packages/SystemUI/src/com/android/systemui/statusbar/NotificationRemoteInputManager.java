@@ -63,9 +63,9 @@ import com.android.systemui.statusbar.notification.collection.EntryAdapter;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry.EditedSuggestionInfo;
 import com.android.systemui.statusbar.notification.collection.render.NotificationVisibilityProvider;
-import com.android.systemui.statusbar.notification.logging.NotificationLogger;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
 import com.android.systemui.statusbar.notification.shared.NotificationBundleUi;
+import com.android.systemui.statusbar.notification.stack.shared.NotificationLocationHelperKt;
 import com.android.systemui.statusbar.phone.ExpandHeadsUpOnInlineReply;
 import com.android.systemui.statusbar.policy.RemoteInputUriController;
 import com.android.systemui.statusbar.policy.RemoteInputView;
@@ -371,7 +371,7 @@ public class NotificationRemoteInputManager implements CoreStartable {
                                 entry.getSbn().getKey(),
                                 entry.editedSuggestionInfo.index,
                                 entry.editedSuggestionInfo.originalText,
-                                NotificationLogger
+                                NotificationLocationHelperKt
                                         .getNotificationLocation(entry)
                                         .toMetricsEventEnum(),
                                 modifiedBeforeSending);

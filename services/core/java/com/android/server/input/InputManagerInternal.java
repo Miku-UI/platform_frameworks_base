@@ -20,14 +20,22 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
-import android.graphics.PointF;
 import android.hardware.display.DisplayTopologyGraph;
 import android.hardware.display.DisplayViewport;
+import android.hardware.input.IVirtualInputDevice;
 import android.hardware.input.KeyGestureEvent;
+import android.hardware.input.VirtualDpadConfig;
+import android.hardware.input.VirtualKeyboardConfig;
+import android.hardware.input.VirtualMouseConfig;
+import android.hardware.input.VirtualNavigationTouchpadConfig;
+import android.hardware.input.VirtualRotaryEncoderConfig;
+import android.hardware.input.VirtualStylusConfig;
+import android.hardware.input.VirtualTouchscreenConfig;
 import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.SparseBooleanArray;
 import android.view.InputChannel;
+import android.view.KeyEvent;
 import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.inputmethod.InputMethodSubtypeHandle;
@@ -116,25 +124,6 @@ public abstract class InputManagerInternal {
             @NonNull IBinder toChannelToken, boolean transferEntireGesture);
 
     /**
-     * Gets the current position of the mouse cursor.
-     *
-     * Returns NaN-s as the coordinates if the cursor is not available.
-     */
-    public abstract PointF getCursorPosition(int displayId);
-
-    /**
-     * Set whether all pointer scaling, including linear scaling based on the
-     * user's pointer speed setting, should be enabled or disabled for mice.
-     *
-     * Note that this only affects pointer movements from mice (that is, pointing devices which send
-     * relative motions, including trackballs and pointing sticks), not from other pointer devices
-     * such as touchpads and styluses.
-     *
-     * Scaling is enabled by default on new displays until it is explicitly disabled.
-     */
-    public abstract void setMouseScalingEnabled(boolean enabled, int displayId);
-
-    /**
      * Sets the eligibility of windows on a given display for pointer capture. If a display is
      * marked ineligible, requests to enable pointer capture for windows on that display will be
      * ignored.
@@ -158,13 +147,6 @@ public abstract class InputManagerInternal {
      */
     public abstract void notifyInputMethodConnectionActive(boolean connectionIsActive);
 
-    /**
-     * Notify user id changes to input.
-     *
-     * TODO(b/362473586): Cleanup after input shifts to Lifecycle with user change callbacks
-     */
-    public abstract void setCurrentUser(@UserIdInt int newUserId);
-
     /** Callback interface for notifications relating to the lid switch. */
     public interface LidSwitchCallback {
         /**
@@ -180,12 +162,6 @@ public abstract class InputManagerInternal {
 
     /** Create an {@link InputChannel} that is registered to InputDispatcher. */
     public abstract InputChannel createInputChannel(String inputChannelName);
-
-    /**
-     * Pilfer pointers from the input channel with the given token so that ongoing gestures are
-     * canceled for all other channels.
-     */
-    public abstract void pilferPointers(IBinder token);
 
     /**
      * Called when the current input method and/or {@link InputMethodSubtype} is updated.
@@ -292,14 +268,10 @@ public abstract class InputManagerInternal {
      * NOTE: This is a temporary API added to assist in a long-term refactor, and is not meant for
      * general use by system services.
      *
-     * @param deviceId the device ID of the keyboard using which the event was completed
-     * @param keycodes the keys pressed for the event
-     * @param modifierState the modifier state
-     * @param event the gesture event that was completed
+     * @param event the gesture event that needs to be handled.
      *
      */
-    public abstract void handleKeyGestureInKeyGestureController(int deviceId, int[] keycodes,
-            int modifierState, @KeyGestureEvent.KeyGestureType int event);
+    public abstract void handleKeyGestureInKeyGestureController(@NonNull KeyGestureEvent event);
 
     /**
      * Sets the magnification scale factor for pointer icons.
@@ -387,4 +359,100 @@ public abstract class InputManagerInternal {
      */
     public abstract void registerAccessibilityPointerMotionFilter(
             @Nullable AccessibilityPointerMotionFilter filter);
+
+    /**
+     * Allows A11y input filter to allow processing of key combinations (or wait for key
+     * combination processing).
+     *
+     * @param event key to intercept
+     * @return 0 if the key is not consumed and can be immediately forwarded to respective A11y
+     * service, -1 if the key is consumed and should not be sent forward, or a positive value
+     * indicating the number of milliseconds by which the key forwarding should be delayed before
+     * trying again.
+     */
+    public abstract long interceptKeyCombinationBeforeAccessibility(@NonNull KeyEvent event);
+
+    /**
+     * Creates a new virtual keyboard.
+     *
+     * @param token token identifying the device
+     * @param config the input device configuration
+     * @return the new virtual input device, or {@code null} if the creation failed.
+     */
+    @NonNull
+    public abstract IVirtualInputDevice createVirtualKeyboard(@NonNull IBinder token,
+            @NonNull VirtualKeyboardConfig config);
+
+    /**
+     * Creates a new virtual mouse.
+     *
+     * @param token token identifying the device
+     * @param config the input device configuration
+     * @return the new virtual input device, or {@code null} if the creation failed.
+     */
+    @NonNull
+    public abstract IVirtualInputDevice createVirtualMouse(@NonNull IBinder token,
+            @NonNull VirtualMouseConfig config);
+
+    /**
+     * Creates a new virtual touchscreen.
+     *
+     * @param token token identifying the device
+     * @param config the input device configuration
+     * @return the new virtual input device, or {@code null} if the creation failed.
+     */
+    @NonNull
+    public abstract IVirtualInputDevice createVirtualTouchscreen(@NonNull IBinder token,
+            @NonNull VirtualTouchscreenConfig config);
+
+    /**
+     * Creates a new virtual navigation touchpad.
+     *
+     * @param token token identifying the device
+     * @param config the input device configuration
+     * @return the new virtual input device, or {@code null} if the creation failed.
+     */
+    @NonNull
+    public abstract IVirtualInputDevice createVirtualNavigationTouchpad(@NonNull IBinder token,
+            @NonNull VirtualNavigationTouchpadConfig config);
+
+    /**
+     * Creates a new virtual dpad.
+     *
+     * @param token token identifying the device
+     * @param config the input device configuration
+     * @return the new virtual input device, or {@code null} if the creation failed.
+     */
+    @NonNull
+    public abstract IVirtualInputDevice createVirtualDpad(@NonNull IBinder token,
+            @NonNull VirtualDpadConfig config);
+
+    /**
+     * Creates a new virtual stylus.
+     *
+     * @param token token identifying the device
+     * @param config the input device configuration
+     * @return the new virtual input device, or {@code null} if the creation failed.
+     */
+    @NonNull
+    public abstract IVirtualInputDevice createVirtualStylus(@NonNull IBinder token,
+            @NonNull VirtualStylusConfig config);
+
+    /**
+     * Creates a new virtual rotary encoder.
+     *
+     * @param token token identifying the device
+     * @param config the input device configuration
+     * @return the new virtual input device, or {@code null} if the creation failed.
+     */
+    @NonNull
+    public abstract IVirtualInputDevice createVirtualRotaryEncoder(@NonNull IBinder token,
+            @NonNull VirtualRotaryEncoderConfig config);
+
+    /**
+     * Removes an input device with the given id.
+     *
+     * @param token token identifying the device to remove
+     */
+    public abstract void closeVirtualInputDevice(IBinder token);
 }

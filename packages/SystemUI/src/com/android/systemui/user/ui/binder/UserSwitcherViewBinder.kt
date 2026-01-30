@@ -163,6 +163,11 @@ object UserSwitcherViewBinder {
                                     viewModel = userViewModel,
                                 )
                             }
+
+                            // Mark the whole view as visible only after loading users, to prevent
+                            // a11y services from announcing other elements too early, such as the
+                            // "Cancel" button
+                            view.visibility = View.VISIBLE
                         }
                     }
                 }

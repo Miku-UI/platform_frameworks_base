@@ -54,17 +54,18 @@ import android.os.UserHandle;
 import android.platform.test.annotations.Presubmit;
 import android.provider.Settings;
 
+import com.android.server.LocalServices;
 import com.android.server.backup.testing.BackupManagerServiceTestUtils;
 import com.android.server.backup.testing.TransportData;
 import com.android.server.backup.testing.TransportTestUtils.TransportMock;
 import com.android.server.backup.transport.TransportNotRegisteredException;
+import com.android.server.pm.UserManagerInternal;
 import com.android.server.testing.shadows.ShadowApplicationPackageManager;
 import com.android.server.testing.shadows.ShadowBackupEligibilityRules;
 import com.android.server.testing.shadows.ShadowBinder;
 import com.android.server.testing.shadows.ShadowKeyValueBackupJob;
 import com.android.server.testing.shadows.ShadowKeyValueBackupTask;
 import com.android.server.testing.shadows.ShadowSystemServiceRegistry;
-import com.android.server.testing.shadows.ShadowUserManager;
 
 import org.junit.After;
 import org.junit.Before;
@@ -99,7 +100,6 @@ import java.util.List;
             ShadowBackupEligibilityRules.class,
             ShadowApplicationPackageManager.class,
             ShadowSystemServiceRegistry.class,
-            ShadowUserManager.class
         })
 @Presubmit
 public class UserBackupManagerServiceTest {
@@ -109,6 +109,7 @@ public class UserBackupManagerServiceTest {
     private static final int USER_ID = 10;
 
     @Mock private TransportManager mTransportManager;
+    @Mock private UserManagerInternal mUserManagerInternal;
     private HandlerThread mBackupThread;
     private ShadowLooper mShadowBackupLooper;
     private File mBaseStateDir;
@@ -141,6 +142,9 @@ public class UserBackupManagerServiceTest {
         mShadowPackageManager = shadowOf(context.getPackageManager());
         mContext = context;
         mShadowContext = shadowOf(context);
+
+        LocalServices.removeServiceForTest(UserManagerInternal.class);
+        LocalServices.addService(UserManagerInternal.class, mUserManagerInternal);
 
         File cacheDir = mContext.getCacheDir();
         // Corresponds to /data/backup

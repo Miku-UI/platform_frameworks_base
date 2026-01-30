@@ -16,19 +16,20 @@
 
 package com.android.systemui.communal.view.viewmodel
 
-import android.appwidget.AppWidgetProviderInfo
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
 import android.content.pm.PackageManager
 import android.content.pm.UserInfo
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import android.provider.Settings
-import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.accessibilityManager
 import android.widget.RemoteViews
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.uiEventLogger
 import com.android.internal.logging.uiEventLoggerFake
+import com.android.systemui.Flags.FLAG_HUB_EDIT_MODE_TRANSITION
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.data.model.CommunalSmartspaceTimer
 import com.android.systemui.communal.data.repository.fakeCommunalMediaRepository
@@ -54,9 +55,12 @@ import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.log.logcatLogBuffer
+import com.android.systemui.media.controls.domain.pipeline.interactor.mediaCarouselInteractor
 import com.android.systemui.media.controls.ui.controller.mediaCarouselController
 import com.android.systemui.media.controls.ui.view.MediaHost
+import com.android.systemui.media.remedia.ui.viewmodel.factory.mediaViewModelFactory
 import com.android.systemui.settings.fakeUserTracker
+import com.android.systemui.statusbar.policy.keyguardStateController
 import com.android.systemui.testKosmos
 import com.android.systemui.user.data.repository.fakeUserRepository
 import com.google.common.truth.Truth.assertThat
@@ -69,12 +73,8 @@ import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mockito
-import org.mockito.Mockito.never
 import org.mockito.Mockito.verify
-import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
@@ -95,6 +95,7 @@ class CommunalEditModeViewModelTest : SysuiTestCase() {
                 communalInteractor,
                 communalSettingsInteractor,
                 keyguardTransitionInteractor,
+                keyguardStateController,
                 mock<MediaHost>(),
                 uiEventLogger,
                 logcatLogBuffer("CommunalEditModeViewModelTest"),
@@ -105,6 +106,8 @@ class CommunalEditModeViewModelTest : SysuiTestCase() {
                 packageManager,
                 WIDGET_PICKER_PACKAGE_NAME,
                 kosmos.mediaCarouselController,
+                kosmos.mediaViewModelFactory,
+                { kosmos.mediaCarouselInteractor },
             )
         }
 
@@ -171,12 +174,32 @@ class CommunalEditModeViewModelTest : SysuiTestCase() {
             assertThat(isCommunalContentVisible).isEqualTo(true)
         }
 
+    @DisableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
     @Test
     fun isCommunalContentVisible_isFalse_whenEditModeNotShowing() =
         kosmos.runTest {
             val isCommunalContentVisible by collectLastValue(underTest.isCommunalContentVisible)
             communalSceneInteractor.setEditModeState(null)
             assertThat(isCommunalContentVisible).isEqualTo(false)
+        }
+
+    @EnableFlags(FLAG_HUB_EDIT_MODE_TRANSITION)
+    @Test
+    fun isCommunalContentVisible_flagEnabled_alwaysTrue() =
+        kosmos.runTest {
+            val isCommunalContentVisible by collectLastValue(underTest.isCommunalContentVisible)
+
+            communalSceneInteractor.setEditModeState(null)
+            assertThat(isCommunalContentVisible).isTrue()
+
+            communalSceneInteractor.setEditModeState(EditModeState.STARTING)
+            assertThat(isCommunalContentVisible).isTrue()
+
+            communalSceneInteractor.setEditModeState(EditModeState.CREATED)
+            assertThat(isCommunalContentVisible).isTrue()
+
+            communalSceneInteractor.setEditModeState(EditModeState.SHOWING)
+            assertThat(isCommunalContentVisible).isTrue()
         }
 
     @Test
@@ -327,48 +350,29 @@ class CommunalEditModeViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    fun scrollPosition_persistedOnEditCleanup() =
+    fun scrollPosition_persistedOnEditDone() =
         kosmos.runTest {
             val index = 2
             val offset = 30
             underTest.onScrollPositionUpdated(index, offset)
-            underTest.cleanupEditModeState()
+            underTest.onEditDone()
 
             assertThat(communalInteractor.firstVisibleItemIndex).isEqualTo(index)
             assertThat(communalInteractor.firstVisibleItemOffset).isEqualTo(offset)
         }
 
     @Test
-    fun onNewWidgetAdded_accessibilityDisabled_doNothing() =
+    fun scrollPosition_clearsSelectedItem() =
         kosmos.runTest {
-            whenever(accessibilityManager.isEnabled).thenReturn(false)
-
-            val provider =
-                mock<AppWidgetProviderInfo> {
-                    on { loadLabel(packageManager) }.thenReturn("Test Clock")
-                }
-            underTest.onNewWidgetAdded(provider)
-
-            verify(accessibilityManager, never()).sendAccessibilityEvent(any())
-        }
-
-    @Test
-    fun onNewWidgetAdded_accessibilityEnabled_sendAccessibilityAnnouncement() =
-        kosmos.runTest {
-            whenever(accessibilityManager.isEnabled).thenReturn(true)
-
-            val provider =
-                mock<AppWidgetProviderInfo> {
-                    on { loadLabel(packageManager) }.thenReturn("Test Clock")
-                }
-            underTest.onNewWidgetAdded(provider)
-
-            val captor = argumentCaptor<AccessibilityEvent>()
-            verify(accessibilityManager).sendAccessibilityEvent(captor.capture())
-
-            val event = captor.firstValue
-            assertThat(event.eventType).isEqualTo(AccessibilityEvent.TYPE_ANNOUNCEMENT)
-            assertThat(event.contentDescription).isEqualTo("Test Clock widget added to lock screen")
+            val index = 2
+            val offset = 30
+            val testKey = "testKey"
+            underTest.setSelectedKey(testKey)
+            assertThat(underTest.selectedKey.value).isNotNull()
+            underTest.onScrollPositionUpdated(index, communalInteractor.firstVisibleItemOffset)
+            assertThat(underTest.selectedKey.value).isEqualTo(testKey)
+            underTest.onScrollPositionUpdated(index, offset)
+            assertThat(underTest.selectedKey.value).isNull()
         }
 
     @Test

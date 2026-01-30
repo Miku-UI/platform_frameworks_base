@@ -28,22 +28,25 @@
     <string name="chooser_title" msgid="2235819929238267637">"ເລືອກ <xliff:g id="PROFILE_NAME">%1$s</xliff:g> ທີ່ຈະຕັ້ງຄ່າ"</string>
     <string name="single_device_title" msgid="4199861437545438606">"ກຳລັງຊອກຫາ <xliff:g id="PROFILE_NAME">%1$s</xliff:g>"</string>
     <string name="summary_watch" msgid="8134580124808507407">"ແອັບນີ້ຈະໄດ້ຮັບອະນຸຍາດໃຫ້ຊິ້ງຂໍ້ມູນ ເຊັ່ນ: ຊື່ຂອງຄົນທີ່ໂທເຂົ້າ ແລະ ສິດເຂົ້າເຖິງການອະນຸຍາດເຫຼົ່ານີ້ຢູ່ <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> ຂອງທ່ານ"</string>
+    <string name="profile_name_fitness_tracker" msgid="3107192493390199691">"ຕົວຕິດຕາມການເຄື່ອນໄຫວ"</string>
     <string name="confirmation_title_glasses" msgid="8288346850537727333">"ອະນຸຍາດ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ຈັດການ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; ບໍ?"</string>
     <string name="profile_name_glasses" msgid="3506504967216601277">"ອຸປະກອນ"</string>
     <string name="summary_glasses" msgid="5469208629679579157">"ແອັບນີ້ຈະໄດ້ຮັບສິດເຂົ້າເຖິງການອະນຸຍາດເຫຼົ່ານີ້ຢູ່ <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> ຂອງທ່ານ"</string>
-    <string name="title_app_streaming" msgid="1047090167914857893">"ອະນຸຍາດໃຫ້ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ສະຕຣີມແອັບ ແລະ ຄຸນສົມບັດຂອງລະບົບຂອງ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານໄປຫາ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ບໍ?"</string>
-    <string name="summary_app_streaming" msgid="7990244299655610920">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ຈະມີສິດເຂົ້າເຖິງທຸກຢ່າງທີ່ປາກົດ ຫຼື ຫຼິ້ນຢູ່ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານ, ເຊິ່ງຮວມທັງສຽງ, ຮູບພາບ, ຂໍ້ມູນການຈ່າຍເງິນ ລະຫັດຜ່ານ ແລະ ຂໍ້ຄວາມ.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> ຈະສາມາດສະຕຣີມແອັບໄປຫາ <xliff:g id="DEVICE_NAME">%3$s</xliff:g> ໄດ້ຈົນກວ່າທ່ານຈະລຶບສິດເຂົ້າເຖິງການອະນຸຍາດນີ້ອອກ."</string>
-    <string name="helper_summary_app_streaming" msgid="1872657107404139828">"<xliff:g id="APP_NAME">%1$s</xliff:g> ກຳລັງຮ້ອງຂໍການອະນຸຍາດໃນນາມ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ເພື່ອສະຕຣີມແອັລ ແລະ ຄຸນສົມບັດລະບົບຈາກ <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> ຂອງທ່ານ"</string>
+    <string name="profile_name_medical" msgid="5617160509499466400">"ອຸປະກອນການແພດ"</string>
+    <string name="title_app_streaming" msgid="237666000400427614">"ອະນຸຍາດໃຫ້ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ສະຕຣີມແອັບ ແລະ ຄຸນສົມບັດຂອງລະບົບລະຫວ່າງ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານກັບ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ບໍ?"</string>
+    <string name="summary_app_streaming" msgid="8346968726357732862">"<xliff:g id="APP_NAME">%1$s</xliff:g> ຈະໄດ້ຮັບການອະນຸຍາດຕໍ່ໄປນີ້:"</string>
+    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ຈະມີສິດເຂົ້າເຖິງທຸກຢ່າງທີ່ປາກົດ ຫຼື ຫຼິ້ນຢູ່ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານ, ເຊິ່ງຮວມທັງສຽງ, ຮູບພາບ, ຂໍ້ມູນການຈ່າຍເງິນ ລະຫັດຜ່ານ ແລະ ຂໍ້ຄວາມ.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_1">%1$s</xliff:g> ຈະສາມາດສະຕຣີມແອັບໄປຫາ <xliff:g id="DEVICE_NAME">%3$s</xliff:g> ໄດ້ຈົນກວ່າທ່ານຈະລຶບສິດເຂົ້າເຖິງການອະນຸຍາດນີ້ອອກ."</string>
+    <string name="helper_summary_app_streaming" msgid="160149899100957545">"<xliff:g id="APP_NAME">%1$s</xliff:g> ກຳລັງຮ້ອງຂໍການອະນຸຍາດໃນນາມຂອງ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ເພື່ອສະຕຣີມແອັບ ແລະ ຄຸນສົມບັດຂອງລະບົບລະຫວ່າງອຸປະກອນຕ່າງໆຂອງທ່ານ"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
-    <string name="title_computer" msgid="4782923323932440751">"ອະນຸຍາດໃຫ້ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ເຂົ້າເຖິງຂໍ້ມູນນີ້ຈາກ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານ"</string>
-    <string name="summary_computer" msgid="3798467601598297062"></string>
+    <string name="title_computer" msgid="5040395223341777259">"ອະນຸຍາດໃຫ້ &lt;strong&gt;<xliff:g id="DISPLAY_NAME">%3$s</xliff:g>&lt;/strong&gt; ເຂົ້າເຖິງຂໍ້ມູນນີ້ຈາກ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານ"</string>
     <string name="helper_summary_computer" msgid="2298803016482139668">"<xliff:g id="APP_NAME">%1$s</xliff:g> ກຳລັງຮ້ອງຂໍການອະນຸຍາດໃນນາມຂອງ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ຂອງທ່ານເພື່ອເຂົ້າເຖິງຮູບພາບ, ສື່ ແລະ ການແຈ້ງເຕືອນໃນ <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> ຂອງທ່ານ"</string>
-    <string name="title_nearby_device_streaming" msgid="2727103756701741359">"ອະນຸຍາດໃຫ້ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ສະຕຣີມແອັບຂອງ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານໄປຫາ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ບໍ?"</string>
-    <string name="summary_nearby_device_streaming" msgid="70434958004946884">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ຈະມີສິດເຂົ້າເຖິງທຸກຢ່າງທີ່ປາກົດ ຫຼື ຫຼິ້ນຢູ່ <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, ເຊິ່ງຮວມທັງສຽງ, ຮູບພາບ, ຂໍ້ມູນການຈ່າຍເງິນ, ລະຫັດຜ່ານ ແລະ ຂໍ້ຄວາມ.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> ຈະສາມາດສະຕຣີມແອັບໄປຫາ <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> ໄດ້ຈົນກວ່າທ່ານຈະລຶບສິດເຂົ້າເຖິງການອະນຸຍາດນີ້ອອກ."</string>
+    <string name="title_nearby_device_streaming" msgid="5342768208699657581">"ອະນຸຍາດໃຫ້ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ສະຕຣີມແອັບ ແລະ ຄຸນສົມບັດຂອງລະບົບລະຫວ່າງ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານກັບ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ບໍ?"</string>
+    <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"<xliff:g id="APP_NAME">%1$s</xliff:g> ຈະໄດ້ຮັບການອະນຸຍາດຕໍ່ໄປນີ້:"</string>
+    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"<xliff:g id="APP_NAME_0">%1$s</xliff:g> ຈະມີສິດເຂົ້າເຖິງທຸກຢ່າງທີ່ປາກົດ ຫຼື ຫຼິ້ນຢູ່ <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>, ເຊິ່ງຮວມທັງສຽງ, ຮູບພາບ, ຂໍ້ມູນການຈ່າຍເງິນ, ລະຫັດຜ່ານ ແລະ ຂໍ້ຄວາມ.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%1$s</xliff:g> ຈະສາມາດສະຕຣີມແອັບໄປຫາ <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> ໄດ້ຈົນກວ່າທ່ານຈະລຶບສິດເຂົ້າເຖິງການອະນຸຍາດນີ້ອອກ."</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"<xliff:g id="APP_NAME">%1$s</xliff:g> ກຳລັງຮ້ອງຂໍການອະນຸຍາດໃນນາມ <xliff:g id="DEVICE_NAME">%2$s</xliff:g> ເພື່ອສະຕຣີມແອັບຈາກ <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> ຂອງທ່ານ"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"ອະນຸຍາດໃຫ້ &lt;strong&gt;<xliff:g id="APP_NAME">%1$s</xliff:g>&lt;/strong&gt; ສະຕຣີມສຽງ ແລະ ຄຸນສົມບັດຂອງລະບົບລະຫວ່າງ <xliff:g id="DEVICE_TYPE">%3$s</xliff:g> ຂອງທ່ານກັບ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%2$s</xliff:g>&lt;/strong&gt; ບໍ?"</string>
-    <string name="summary_virtual_device" msgid="3502592544171322817">"<xliff:g id="APP_NAME_0">%2$s</xliff:g> ຈະມີສິດເຂົ້າເຖິງທຸກຢ່າງທີ່ຫຼິ້ນຢູ່ <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME_2">%2$s</xliff:g> ຈະສາມາດສະຕຣີມສຽງໄປຫາ <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g> ໄດ້ຈົນກວ່າທ່ານຈະລຶບສິດເຂົ້າເຖິງການອະນຸຍາດນີ້ອອກ."</string>
+    <string name="summary_virtual_device" msgid="1062189396947962635">"<xliff:g id="APP_NAME">%2$s</xliff:g> ຈະໄດ້ຮັບການອະນຸຍາດຕໍ່ໄປນີ້:"</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"ອຸປະກອນ"</string>
     <string name="summary_generic" msgid="1761976003668044801">"ແອັບນີ້ຈະສາມາດຊິ້ງຂໍ້ມູນ ເຊັ່ນ: ຊື່ຂອງຄົນທີ່ໂທເຂົ້າ, ລະຫວ່າງໂທລະສັບຂອງທ່ານ ແລະ ອຸປະກອນທີ່ເລືອກໄວ້ໄດ້"</string>
     <string name="consent_yes" msgid="8344487259618762872">"ອະນຸຍາດ"</string>
@@ -67,6 +70,11 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"ປ່ຽນເອົ້າພຸດສື່"</string>
     <string name="permission_storage" msgid="6831099350839392343">"ຮູບພາບ ແລະ ມີເດຍ"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"ການແຈ້ງເຕືອນ"</string>
+    <string name="permission_create_virtual_device" msgid="1102905050922460040">"ຖ່າຍທອດຂໍ້ມູນໄປຫາ <xliff:g id="DEVICE_TYPE">%1$s</xliff:g> ຂອງທ່ານ"</string>
+    <string name="permission_add_mirror_display" msgid="3743433250535606288">"ສະທ້ອນໜ້າຈໍຂອງທ່ານ"</string>
+    <string name="permission_add_trusted_display" msgid="9052824856626276723">"ຖ່າຍທອດແອັບຕ່າງໆ"</string>
+    <string name="permission_schedule_exact_alarm" msgid="5680932535987512225">"ຕັ້ງໂມງປຸກ ແລະ ການແຈ້ງເຕືອນ"</string>
+    <string name="permission_bypass_dnd" msgid="1241123166903040347">"ການຕັ້ງຄ່າຫ້າມລົບກວນບາຍພາສ"</string>
     <string name="permission_phone_summary" msgid="8246321093970051702">"ໂທອອກ ແລະ ຈັດການການໂທ"</string>
     <string name="permission_call_logs_summary" msgid="7545243592757693321">"ອ່ານ ແລະ ຂຽນບັນທຶກການໂທຂອງໂທລະສັບ"</string>
     <string name="permission_sms_summary" msgid="8499509535410068616">"ສົ່ງ ແລະ ເບິ່ງຂໍ້ຄວາມ SMS"</string>
@@ -75,9 +83,15 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"ບັນທຶກສຽງ"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"ຊອກຫາ, ເຊື່ອມຕໍ່ ແລະ ລະບຸສະຖານທີ່ທີ່ກ່ຽວຂ້ອງກັນຂອງອຸປະກອນທີ່ຢູ່ໃກ້ຄຽງ"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"ອ່ານການແຈ້ງເຕືອນທັງໝົດ, ຮວມທັງຂໍ້ມູນ ເຊັ່ນ: ລາຍຊື່ຜູ້ຕິດຕໍ່, ຂໍ້ຄວາມ ແລະ ຮູບພາບ"</string>
-    <string name="permission_notifications_summary" msgid="2272810466047367030">"• ອ່ານການແຈ້ງເຕືອນທັງໝົດ, ຮວມທັງຂໍ້ມູນ ເຊັ່ນ: ລາຍຊື່ຜູ້ຕິດຕໍ່, ຂໍ້ຄວາມ ແລະ ຮູບພາບ&lt;br/&gt;• ສົ່ງການແຈ້ງເຕືອນ&lt;br/&gt;&lt;br/&gt;ທ່ານສາມາດຈັດການຄວາມສາມາດຂອງແອັບນີ້ໃນການອ່ານ ແລະ ສົ່ງການແຈ້ງເຕືອນໄດ້ທຸກເວລາໃນການຕັ້ງຄ່າ&gt; ການແຈ້ງເຕືອນ."</string>
+    <string name="permission_notifications_summary" msgid="6819393427371255636">"• ອ່ານການແຈ້ງເຕືອນທັງໝົດ, ຮວມທັງຂໍ້ມູນ ເຊັ່ນ: ລາຍຊື່ຜູ້ຕິດຕໍ່, ຂໍ້ຄວາມ ແລະ ຮູບພາບ&lt;br/&gt;• ສົ່ງການແຈ້ງເຕືອນໃຫ້ທ່ານ&lt;br/&gt;&lt;br/&gt;ທ່ານສາມາດຈັດການຄວາມສາມາດຂອງແອັບນີ້ໃນການອ່ານ ແລະ ສົ່ງການແຈ້ງເຕືອນໄດ້ທຸກເວລາໃນການຕັ້ງຄ່າ &gt; ການແຈ້ງເຕືອນ."</string>
     <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_post_notifications_summary" msgid="1099188848900200165">"ສົ່ງການແຈ້ງເຕືອນໃຫ້ທ່ານ"</string>
+    <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"ຖ່າຍທອດຂໍ້ມູນໄມໂຄຣໂຟນ, ກ້ອງຖ່າຍຮູບ ແລະ ຂໍ້ມູນເຊັນເຊີອື່ນໆຈາກ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; ໄປຫາ <xliff:g id="DEVICE_TYPE">%2$s</xliff:g> ຂອງທ່ານ."</string>
+    <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"ບັນທຶກ, ສົ່ງສັນຍານ ຫຼື ແບ່ງປັນໜ້າຈໍຂອງ <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g> ໄປຫາ &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> ຈະມີສິດເຂົ້າເຖິງສິ່ງໃດກໍຕາມທີ່ປາກົດ ຫຼື ຫຼິ້ນຢູ່ <xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g> ຂອງທ່ານ, ຮວມທັງສຽງ, ຮູບພາບ, ຂໍ້ມູນການຈ່າຍເງິນ, ລະຫັດຜ່ານ ແລະ ຂໍ້ຄວາມ."</string>
+    <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"ສະ​ຕ​ຣີມແອັບຂອງ <xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>ໄປຫາ &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>&lt;/strong&gt;.&lt;br/&gt;&lt;br/&gt;<xliff:g id="APP_NAME">%1$s</xliff:g> ຈະມີສິດເຂົ້າເຖິງທຸກຢ່າງທີ່ເຫັນໄດ້ ຫຼື ຫຼິ້ນຢູ່ <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g>, ຮວມທັງສຽງ, ຮູບພາບ, ຂໍ້ມູນການຈ່າຍເງິນ, ລະຫັດຜ່ານ ແລະ ຂໍ້ຄວາມ, ເຖິງແມ່ນວ່າເມື່ອ <xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g> ຂອງທ່ານລັອກຢູ່."</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"ເຂົ້າເຖິງລາຍຊື່ຂອງອຸປະກອນທີ່ມີ ແລະ ຄວບຄຸມອຸປະກອນທີ່ຈະສະຕຣີມ ຫຼື ສົ່ງສັນຍານສຽງ ຫຼື ວິດີໂອຈາກແອັບອື່ນໆ"</string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
+    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
     <string name="device_type" product="default" msgid="8268703872070046263">"ໂທລະສັບ"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"ແທັບເລັດ"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"ໂທລະທັດ"</string>

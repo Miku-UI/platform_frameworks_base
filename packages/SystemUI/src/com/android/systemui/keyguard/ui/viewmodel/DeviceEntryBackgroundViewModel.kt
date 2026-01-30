@@ -23,7 +23,11 @@ import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
+import com.android.systemui.scene.domain.interactor.SceneInteractor
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.shade.ShadeDisplayAware
+import dagger.Lazy
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -62,6 +66,7 @@ constructor(
     lockscreenToDozingTransitionViewModel: LockscreenToDozingTransitionViewModel,
     glanceableHubToAodTransitionViewModel: GlanceableHubToAodTransitionViewModel,
     glanceableHubToLockscreenTransitionViewModel: GlanceableHubToLockscreenTransitionViewModel,
+    private val sceneInteractor: Lazy<SceneInteractor>,
 ) {
     val color: Flow<Int> =
         deviceEntryIconViewModel.useBackgroundProtection.flatMapLatest { useBackground ->
@@ -113,24 +118,39 @@ constructor(
                     )
                     .merge()
                     .onStart {
-                        when (
-                            keyguardTransitionInteractor.currentKeyguardState.replayCache.last()
-                        ) {
-                            KeyguardState.GLANCEABLE_HUB,
-                            KeyguardState.GONE,
-                            KeyguardState.OCCLUDED,
-                            KeyguardState.OFF,
-                            KeyguardState.DOZING,
-                            KeyguardState.DREAMING,
-                            KeyguardState.PRIMARY_BOUNCER,
-                            KeyguardState.AOD,
-                            KeyguardState.UNDEFINED -> emit(0f)
-                            KeyguardState.ALTERNATE_BOUNCER,
-                            KeyguardState.LOCKSCREEN -> emit(1f)
-                        }
+                        emit(
+                            calculateDeviceEntryIconBackgroundAlpha(
+                                keyguardTransitionInteractor.currentKeyguardState.replayCache.last()
+                            )
+                        )
                     }
             } else {
                 flowOf(0f)
             }
         }
+
+    private fun calculateDeviceEntryIconBackgroundAlpha(state: KeyguardState): Float {
+        return when (state) {
+            KeyguardState.GLANCEABLE_HUB,
+            KeyguardState.GONE,
+            KeyguardState.OCCLUDED,
+            KeyguardState.OFF,
+            KeyguardState.DOZING,
+            KeyguardState.DREAMING,
+            KeyguardState.PRIMARY_BOUNCER,
+            KeyguardState.AOD -> 0f
+            KeyguardState.ALTERNATE_BOUNCER,
+            KeyguardState.LOCKSCREEN -> 1f
+            KeyguardState.UNDEFINED ->
+                if (SceneContainerFlag.isEnabled) {
+                    when (sceneInteractor.get().currentScene.value) {
+                        Scenes.Shade,
+                        Scenes.QuickSettings -> 1f
+                        else -> 0f
+                    }
+                } else {
+                    1f
+                }
+        }
+    }
 }

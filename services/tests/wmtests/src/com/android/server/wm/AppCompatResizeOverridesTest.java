@@ -169,16 +169,14 @@ public class AppCompatResizeOverridesTest extends WindowTestsBase {
      * Runs a test scenario providing a Robot.
      */
     void runTestScenario(@NonNull Consumer<ResizeOverridesRobotTest> consumer) {
-        final ResizeOverridesRobotTest robot = new ResizeOverridesRobotTest(mWm, mAtm, mSupervisor);
+        final ResizeOverridesRobotTest robot = new ResizeOverridesRobotTest(this);
         consumer.accept(robot);
     }
 
     private static class ResizeOverridesRobotTest extends AppCompatRobotBase {
 
-        ResizeOverridesRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        ResizeOverridesRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
 

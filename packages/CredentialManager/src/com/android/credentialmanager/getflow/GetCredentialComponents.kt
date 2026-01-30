@@ -16,8 +16,6 @@
 
 package com.android.credentialmanager.getflow
 
-import android.credentials.flags.Flags.credmanBiometricApiEnabled
-import android.credentials.flags.Flags.selectorUiImprovementsEnabled
 import android.graphics.drawable.Drawable
 import android.hardware.biometrics.BiometricPrompt
 import android.os.CancellationSignal
@@ -122,32 +120,19 @@ fun GetCredentialScreen(
                     ProviderActivityState.NOT_APPLICABLE -> {
                         if (getCredentialUiState.currentScreenState
                             == GetScreenState.PRIMARY_SELECTION) {
-                            if (selectorUiImprovementsEnabled()) {
-                                PrimarySelectionCardVImpl(
-                                    requestDisplayInfo = getCredentialUiState.requestDisplayInfo,
-                                    providerDisplayInfo = getCredentialUiState.providerDisplayInfo,
-                                    providerInfoList = getCredentialUiState.providerInfoList,
-                                    activeEntry = getCredentialUiState.activeEntry,
-                                    onEntrySelected = viewModel::getFlowOnEntrySelected,
-                                    onConfirm = viewModel::getFlowOnConfirmEntrySelected,
-                                    onMoreOptionSelected = viewModel::getFlowOnMoreOptionSelected,
-                                    onLog = { viewModel.logUiEvent(it) },
-                                )
-                            } else {
-                                PrimarySelectionCard(
-                                    requestDisplayInfo = getCredentialUiState.requestDisplayInfo,
-                                    providerDisplayInfo = getCredentialUiState.providerDisplayInfo,
-                                    providerInfoList = getCredentialUiState.providerInfoList,
-                                    activeEntry = getCredentialUiState.activeEntry,
-                                    onEntrySelected = viewModel::getFlowOnEntrySelected,
-                                    onConfirm = viewModel::getFlowOnConfirmEntrySelected,
-                                    onMoreOptionSelected = viewModel::getFlowOnMoreOptionSelected,
-                                    onLog = { viewModel.logUiEvent(it) },
-                                )
-                            }
+                            PrimarySelectionCardVImpl(
+                                requestDisplayInfo = getCredentialUiState.requestDisplayInfo,
+                                providerDisplayInfo = getCredentialUiState.providerDisplayInfo,
+                                providerInfoList = getCredentialUiState.providerInfoList,
+                                activeEntry = getCredentialUiState.activeEntry,
+                                onEntrySelected = viewModel::getFlowOnEntrySelected,
+                                onConfirm = viewModel::getFlowOnConfirmEntrySelected,
+                                onMoreOptionSelected = viewModel::getFlowOnMoreOptionSelected,
+                                onLog = { viewModel.logUiEvent(it) },
+                            )
                             viewModel.uiMetrics.log(GetCredentialEvent
                                     .CREDMAN_GET_CRED_SCREEN_PRIMARY_SELECTION)
-                        } else if (credmanBiometricApiEnabled() && getCredentialUiState
+                        } else if (getCredentialUiState
                                 .currentScreenState == GetScreenState.BIOMETRIC_SELECTION) {
                             BiometricSelectionPage(
                                 biometricEntry = getCredentialUiState.activeEntry,
@@ -169,8 +154,7 @@ fun GetCredentialScreen(
                                 viewModel::getBiometricCancellationSignal,
                                 onLog = { viewModel.logUiEvent(it) },
                             )
-                        } else if (credmanBiometricApiEnabled() &&
-                                getCredentialUiState.currentScreenState
+                        } else if (getCredentialUiState.currentScreenState
                                 == GetScreenState.ALL_SIGN_IN_OPTIONS_ONLY) {
                             AllSignInOptionCard(
                                     providerInfoList = getCredentialUiState.providerInfoList,
@@ -285,186 +269,6 @@ internal fun BiometricSelectionPage(
     if (biometricFlowCalled) {
         onLog(GetCredentialEvent.CREDMAN_GET_CRED_BIOMETRIC_FLOW_LAUNCHED)
     }
-}
-
-/** Draws the primary credential selection page, used in Android U. */
-// TODO(b/327518384) - remove after flag selectorUiImprovementsEnabled is enabled.
-@Composable
-fun PrimarySelectionCard(
-    requestDisplayInfo: RequestDisplayInfo,
-    providerDisplayInfo: ProviderDisplayInfo,
-    providerInfoList: List<ProviderInfo>,
-    activeEntry: EntryInfo?,
-    onEntrySelected: (EntryInfo) -> Unit,
-    onConfirm: () -> Unit,
-    onMoreOptionSelected: () -> Unit,
-    onLog: @Composable (UiEventEnum) -> Unit,
-) {
-    val showMoreForTruncatedEntry = remember { mutableStateOf(false) }
-    val sortedUserNameToCredentialEntryList =
-        providerDisplayInfo.sortedUserNameToCredentialEntryList
-    val authenticationEntryList = providerDisplayInfo.authenticationEntryList
-    SheetContainerCard {
-        val preferTopBrandingContent = requestDisplayInfo.preferTopBrandingContent
-        if (preferTopBrandingContent != null) {
-            item {
-                HeadlineProviderIconAndName(
-                    preferTopBrandingContent.icon,
-                    preferTopBrandingContent.displayName
-                )
-            }
-        } else {
-            // When only one provider (not counting the remote-only provider) exists, display that
-            // provider's icon + name up top.
-            val providersWithActualEntries = providerInfoList.filter {
-                it.credentialEntryList.isNotEmpty() || it.authenticationEntryList.isNotEmpty()
-            }
-            if (providersWithActualEntries.size == 1) {
-                // First should always work but just to be safe.
-                val providerInfo = providersWithActualEntries.firstOrNull()
-                if (providerInfo != null) {
-                    item {
-                        HeadlineProviderIconAndName(
-                            providerInfo.icon,
-                            providerInfo.displayName
-                        )
-                    }
-                }
-            }
-        }
-
-        val hasSingleEntry = (sortedUserNameToCredentialEntryList.size == 1 &&
-            authenticationEntryList.isEmpty()) || (sortedUserNameToCredentialEntryList.isEmpty() &&
-            authenticationEntryList.size == 1)
-        item {
-            if (requestDisplayInfo.preferIdentityDocUi) {
-                HeadlineText(
-                    text = stringResource(
-                        if (hasSingleEntry) {
-                            R.string.get_dialog_title_use_info_on
-                        } else {
-                            R.string.get_dialog_title_choose_option_for
-                        },
-                        requestDisplayInfo.appName
-                    ),
-                )
-            } else {
-                HeadlineText(
-                    text = stringResource(
-                        if (hasSingleEntry) {
-                            val singleEntryType = sortedUserNameToCredentialEntryList.firstOrNull()
-                                ?.sortedCredentialEntryList?.firstOrNull()?.credentialType
-                            generateDisplayTitleTextResCode(singleEntryType!!,
-                                authenticationEntryList)
-                        } else {
-                            if (authenticationEntryList.isNotEmpty() ||
-                                sortedUserNameToCredentialEntryList.any { perNameEntryList ->
-                                    perNameEntryList.sortedCredentialEntryList.any { entry ->
-                                        entry.credentialType != CredentialType.PASSWORD &&
-                                            entry.credentialType != CredentialType.PASSKEY
-                                    }
-                                }
-                            )
-                                R.string.get_dialog_title_choose_sign_in_for
-                            else
-                                R.string.get_dialog_title_choose_saved_sign_in_for
-                        },
-                        requestDisplayInfo.appName
-                    ),
-                )
-            }
-        }
-        item { Divider(thickness = 24.dp, color = Color.Transparent) }
-        item {
-            CredentialContainerCard {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    val usernameForCredentialSize = sortedUserNameToCredentialEntryList.size
-                    val authenticationEntrySize = authenticationEntryList.size
-                    // If true, render a view more button for the single truncated entry on the
-                    // front page.
-                    // Show max 4 entries in this primary page
-                    if (usernameForCredentialSize + authenticationEntrySize <= 4) {
-                        sortedUserNameToCredentialEntryList.forEach {
-                            CredentialEntryRow(
-                                credentialEntryInfo = it.sortedCredentialEntryList.first(),
-                                onEntrySelected = onEntrySelected,
-                                enforceOneLine = true,
-                                onTextLayout = {
-                                    showMoreForTruncatedEntry.value = it.hasVisualOverflow
-                                }
-                            )
-                        }
-                        authenticationEntryList.forEach {
-                            AuthenticationEntryRow(
-                                authenticationEntryInfo = it,
-                                onEntrySelected = onEntrySelected,
-                                enforceOneLine = true,
-                            )
-                        }
-                    } else if (usernameForCredentialSize < 4) {
-                        sortedUserNameToCredentialEntryList.forEach {
-                            CredentialEntryRow(
-                                credentialEntryInfo = it.sortedCredentialEntryList.first(),
-                                onEntrySelected = onEntrySelected,
-                                enforceOneLine = true,
-                            )
-                        }
-                        authenticationEntryList.take(4 - usernameForCredentialSize).forEach {
-                            AuthenticationEntryRow(
-                                authenticationEntryInfo = it,
-                                onEntrySelected = onEntrySelected,
-                                enforceOneLine = true,
-                            )
-                        }
-                    } else {
-                        sortedUserNameToCredentialEntryList.take(4).forEach {
-                            CredentialEntryRow(
-                                credentialEntryInfo = it.sortedCredentialEntryList.first(),
-                                onEntrySelected = onEntrySelected,
-                                enforceOneLine = true,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-        item { Divider(thickness = 24.dp, color = Color.Transparent) }
-        var totalEntriesCount = sortedUserNameToCredentialEntryList
-            .flatMap { it.sortedCredentialEntryList }.size + authenticationEntryList
-            .size + providerInfoList.flatMap { it.actionEntryList }.size
-        if (providerDisplayInfo.remoteEntry != null) totalEntriesCount += 1
-        // Row horizontalArrangement differs on only one actionButton(should place on most
-        // left)/only one confirmButton(should place on most right)/two buttons exist the same
-        // time(should be one on the left, one on the right)
-        item {
-            CtaButtonRow(
-                leftButton = if (totalEntriesCount > 1) {
-                    {
-                        ActionButton(
-                            stringResource(R.string.get_dialog_title_sign_in_options),
-                            onMoreOptionSelected
-                        )
-                    }
-                } else if (showMoreForTruncatedEntry.value) {
-                    {
-                        ActionButton(
-                            stringResource(R.string.button_label_view_more),
-                            onMoreOptionSelected
-                        )
-                    }
-                } else null,
-                rightButton = if (activeEntry != null) { // Only one sign-in options exist
-                    {
-                        ConfirmButton(
-                            stringResource(R.string.string_continue),
-                            onClick = onConfirm
-                        )
-                    }
-                } else null,
-            )
-        }
-    }
-    onLog(GetCredentialEvent.CREDMAN_GET_CRED_PRIMARY_SELECTION_CARD)
 }
 
 internal const val MAX_ENTRY_FOR_PRIMARY_PAGE = 4

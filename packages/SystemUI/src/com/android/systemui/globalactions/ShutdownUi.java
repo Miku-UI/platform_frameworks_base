@@ -18,10 +18,13 @@ package com.android.systemui.globalactions;
 
 import static android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
 
+import static com.android.systemui.Flags.globalActionsEmphasizedFont;
+
 import android.annotation.Nullable;
 import android.annotation.StringRes;
 import android.app.Dialog;
 import android.content.Context;
+import android.graphics.Typeface;
 import android.nearby.NearbyManager;
 import android.net.platform.flags.Flags;
 import android.os.PowerManager;
@@ -36,6 +39,7 @@ import android.widget.TextView;
 import androidx.annotation.VisibleForTesting;
 
 import com.android.internal.R;
+import com.android.systemui.FontStyles;
 import com.android.systemui.scrim.ScrimDrawable;
 
 import javax.inject.Inject;
@@ -56,8 +60,9 @@ public class ShutdownUi {
 
     /**
      * Display the shutdown UI.
+     *
      * @param isReboot Whether the device will be rebooting after this shutdown.
-     * @param reason Cause for the shutdown.
+     * @param reason   Cause for the shutdown.
      * @return Shutdown dialog.
      */
     public Dialog showShutdownUi(boolean isReboot, String reason) {
@@ -110,6 +115,13 @@ public class ShutdownUi {
         reasonView.setTextColor(color);
         messageView.setTextColor(color);
 
+        if (globalActionsEmphasizedFont()) {
+            Typeface typeface = Typeface.create(FontStyles.GSF_LABEL_LARGE_EMPHASIZED,
+                    Typeface.NORMAL);
+            reasonView.setTypeface(typeface);
+            messageView.setTypeface(typeface);
+        }
+
         messageView.setText(getRebootMessage(isReboot, reason));
         String rebootReasonMessage = getReasonMessage(reason);
         if (rebootReasonMessage != null) {
@@ -124,9 +136,11 @@ public class ShutdownUi {
 
     /**
      * Returns the layout resource to use for UI while shutting down.
+     *
      * @param isReboot Whether this is a reboot or a shutdown.
      */
-    @VisibleForTesting int getShutdownDialogContent(boolean isReboot) {
+    @VisibleForTesting
+    int getShutdownDialogContent(boolean isReboot) {
         if (!Flags.poweredOffFindingPlatform()) {
             return R.layout.shutdown_dialog;
         }
@@ -147,7 +161,8 @@ public class ShutdownUi {
     }
 
     @StringRes
-    @VisibleForTesting int getRebootMessage(boolean isReboot, @Nullable String reason) {
+    @VisibleForTesting
+    int getRebootMessage(boolean isReboot, @Nullable String reason) {
         if (reason != null && reason.startsWith(PowerManager.REBOOT_RECOVERY_UPDATE)) {
             return R.string.reboot_to_update_reboot;
         } else if (reason != null && reason.equals(PowerManager.REBOOT_RECOVERY)) {
@@ -160,7 +175,8 @@ public class ShutdownUi {
     }
 
     @Nullable
-    @VisibleForTesting String getReasonMessage(@Nullable String reason) {
+    @VisibleForTesting
+    String getReasonMessage(@Nullable String reason) {
         if (reason != null && reason.startsWith(PowerManager.REBOOT_RECOVERY_UPDATE)) {
             return mContext.getString(R.string.reboot_to_update_title);
         } else if (reason != null && reason.equals(PowerManager.REBOOT_RECOVERY)) {

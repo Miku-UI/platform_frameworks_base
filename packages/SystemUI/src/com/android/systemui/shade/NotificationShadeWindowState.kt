@@ -42,15 +42,16 @@ class NotificationShadeWindowState(
     @JvmField var qsExpanded: Boolean = false,
     @JvmField var headsUpNotificationShowing: Boolean = false,
     @JvmField var lightRevealScrimOpaque: Boolean = false,
+    @JvmField var pendingDisplayChange: Boolean = false,
     @JvmField var isSwitchingUsers: Boolean = false,
     @JvmField var forceWindowCollapsed: Boolean = false,
     @JvmField var forceDozeBrightness: Boolean = false,
     // TODO: forceUserActivity seems to be unused, delete?
     @JvmField var forceUserActivity: Boolean = false,
     @JvmField var launchingActivityFromNotification: Boolean = false,
+    @JvmField var forceHideAfterActivityLaunch: Boolean = false,
     @JvmField var mediaBackdropShowing: Boolean = false,
     @JvmField var windowNotTouchable: Boolean = false,
-    @JvmField var componentsForcingTopUi: MutableSet<String> = mutableSetOf(),
     @JvmField var forceOpenTokens: MutableSet<Any> = mutableSetOf(),
     /** one of [StatusBarState] */
     @JvmField var statusBarState: Int = 0,
@@ -61,6 +62,7 @@ class NotificationShadeWindowState(
     @JvmField var scrimsVisibility: Int = 0,
     @JvmField var backgroundBlurRadius: Int = 0,
     @JvmField var communalVisible: Boolean = false,
+    @JvmField var isOnOrGoingToDream: Boolean = false,
 ) {
 
     fun isKeyguardShowingAndNotOccluded(): Boolean {
@@ -88,6 +90,7 @@ class NotificationShadeWindowState(
             qsExpanded.toString(),
             headsUpNotificationShowing.toString(),
             lightRevealScrimOpaque.toString(),
+            pendingDisplayChange.toString(),
             isSwitchingUsers.toString(),
             forceWindowCollapsed.toString(),
             forceDozeBrightness.toString(),
@@ -95,7 +98,6 @@ class NotificationShadeWindowState(
             launchingActivityFromNotification.toString(),
             mediaBackdropShowing.toString(),
             windowNotTouchable.toString(),
-            componentsForcingTopUi.toString(),
             forceOpenTokens.toString(),
             StatusBarState.toString(statusBarState),
             remoteInputActive.toString(),
@@ -104,6 +106,7 @@ class NotificationShadeWindowState(
             scrimsVisibility.toString(),
             backgroundBlurRadius.toString(),
             communalVisible.toString(),
+            isOnOrGoingToDream.toString(),
         )
     }
 
@@ -131,6 +134,7 @@ class NotificationShadeWindowState(
             qsExpanded: Boolean,
             headsUpShowing: Boolean,
             lightRevealScrimOpaque: Boolean,
+            pendingDisplayChange: Boolean,
             isSwitchingUsers: Boolean,
             forceCollapsed: Boolean,
             forceDozeBrightness: Boolean,
@@ -138,7 +142,6 @@ class NotificationShadeWindowState(
             launchingActivity: Boolean,
             backdropShowing: Boolean,
             notTouchable: Boolean,
-            componentsForcingTopUi: MutableSet<String>,
             forceOpenTokens: MutableSet<Any>,
             statusBarState: Int,
             remoteInputActive: Boolean,
@@ -147,6 +150,7 @@ class NotificationShadeWindowState(
             scrimsVisibility: Int,
             backgroundBlurRadius: Int,
             communalVisible: Boolean,
+            isOnOrGoingToDream: Boolean,
         ) {
             buffer.advance().apply {
                 this.keyguardShowing = keyguardShowing
@@ -163,6 +167,7 @@ class NotificationShadeWindowState(
                 this.qsExpanded = qsExpanded
                 this.headsUpNotificationShowing = headsUpShowing
                 this.lightRevealScrimOpaque = lightRevealScrimOpaque
+                this.pendingDisplayChange = pendingDisplayChange
                 this.isSwitchingUsers = isSwitchingUsers
                 this.forceWindowCollapsed = forceCollapsed
                 this.forceDozeBrightness = forceDozeBrightness
@@ -170,8 +175,6 @@ class NotificationShadeWindowState(
                 this.launchingActivityFromNotification = launchingActivity
                 this.mediaBackdropShowing = backdropShowing
                 this.windowNotTouchable = notTouchable
-                this.componentsForcingTopUi.clear()
-                this.componentsForcingTopUi.addAll(componentsForcingTopUi)
                 this.forceOpenTokens.clear()
                 this.forceOpenTokens.addAll(forceOpenTokens)
                 this.statusBarState = statusBarState
@@ -181,6 +184,7 @@ class NotificationShadeWindowState(
                 this.scrimsVisibility = scrimsVisibility
                 this.backgroundBlurRadius = backgroundBlurRadius
                 this.communalVisible = communalVisible
+                this.isOnOrGoingToDream = isOnOrGoingToDream
             }
         }
 
@@ -213,6 +217,7 @@ class NotificationShadeWindowState(
                 "qsExpanded",
                 "headsUpShowing",
                 "lightRevealScrimOpaque",
+                "pendingDisplayChange",
                 "isSwitchingUsers",
                 "forceCollapsed",
                 "forceDozeBrightness",
@@ -220,7 +225,6 @@ class NotificationShadeWindowState(
                 "launchingActivity",
                 "backdropShowing",
                 "notTouchable",
-                "componentsForcingTopUi",
                 "forceOpenTokens",
                 "statusBarState",
                 "remoteInputActive",
@@ -229,6 +233,7 @@ class NotificationShadeWindowState(
                 "scrimsVisibility",
                 "backgroundBlurRadius",
                 "communalVisible",
+                "isOnOrGoingToDream",
             )
     }
 }

@@ -69,6 +69,10 @@
     <string name="kg_unlock_with_password_or_fp" msgid="2251295907826814237">"ਪਾਸਵਰਡ ਜਾਂ ਫਿੰਗਰਪ੍ਰਿੰਟ ਨਾਲ ਅਣਲਾਕ ਕਰੋ"</string>
     <string name="kg_unlock_with_pattern_or_fp" msgid="2391870539909135046">"ਪੈਟਰਨ ਜਾਂ ਫਿੰਗਰਪ੍ਰਿੰਟ ਨਾਲ ਅਣਲਾਕ ਕਰੋ"</string>
     <string name="kg_prompt_after_dpm_lock" msgid="6002804765868345917">"ਵਾਧੂ ਸੁਰੱਖਿਆ ਲਈ, ਡੀਵਾਈਸ ਕਾਰਜ ਨੀਤੀ ਵੱਲੋਂ ਲਾਕ ਕੀਤਾ ਗਿਆ"</string>
+    <string name="kg_prompt_title_after_secure_lock_device" msgid="2646423690908627259">"2-ਪੜਾਵੀ ਪੁਸ਼ਟੀਕਰਨ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint" msgid="6596633555720510932">"ਫਿੰਗਰਪ੍ਰਿੰਟ ਅਣਲਾਕ ਦੀ ਵਰਤੋਂ ਕਰੋ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face" msgid="4550701327607935441">"ਫ਼ੇਸ ਅਣਲਾਕ ਦੀ ਵਰਤੋਂ ਕਰੋ"</string>
+    <string name="kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex" msgid="2093026058274456330">"ਫਿੰਗਰਪ੍ਰਿੰਟ ਜਾਂ ਫ਼ੇਸ ਅਣਲਾਕ ਦੀ ਵਰਤੋਂ ਕਰੋ"</string>
     <string name="kg_prompt_after_user_lockdown_pin" msgid="5374732179740050373">"ਲਾਕਡਾਊਨ ਤੋਂ ਬਾਅਦ ਪਿੰਨ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ"</string>
     <string name="kg_prompt_after_user_lockdown_password" msgid="9097968458291129795">"ਲਾਕਡਾਊਨ ਤੋਂ ਬਾਅਦ ਪਾਸਵਰਡ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ"</string>
     <string name="kg_prompt_after_user_lockdown_pattern" msgid="215072203613597906">"ਲਾਕਡਾਊਨ ਤੋਂ ਬਾਅਦ ਪੈਟਰਨ ਦੀ ਲੋੜ ਹੁੰਦੀ ਹੈ"</string>
@@ -80,7 +84,7 @@
     <string name="kg_face_locked_out" msgid="2751559491287575">"ਚਿਹਰੇ ਨਾਲ ਅਣਲਾਕ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ। ਬਹੁਤ ਸਾਰੀਆਂ ਕੋਸ਼ਿਸ਼ਾਂ।"</string>
     <string name="kg_fp_locked_out" msgid="6228277682396768830">"ਫਿੰਗਰਪ੍ਰਿੰਟ ਨਾਲ ਅਣਲਾਕ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ। ਬਹੁਤ ਸਾਰੀਆਂ ਕੋਸ਼ਿਸ਼ਾਂ।"</string>
     <string name="kg_trust_agent_disabled" msgid="5400691179958727891">"ਭਰੋਸੇਯੋਗ ਏਜੰਟ ਉਪਲਬਧ ਨਹੀਂ ਹੈ"</string>
-    <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"ਗਲਤ ਪਿੰਨ ਨਾਲ ਬਹੁਤ ਸਾਰੀਆਂ ਕੋਸ਼ਿਸ਼ਾਂ"</string>
+    <string name="kg_primary_auth_locked_out_pin" msgid="5492230176361601475">"ਬਹੁਤ ਵਾਰ ਗਲਤ ਪਿੰਨ ਪਾ ਦਿੱਤਾ ਹੈ"</string>
     <string name="kg_primary_auth_locked_out_pattern" msgid="8266214607346180952">"ਗਲਤ ਪੈਟਰਨ ਨਾਲ ਬਹੁਤ ਸਾਰੀਆਂ ਕੋਸ਼ਿਸ਼ਾਂ"</string>
     <string name="kg_primary_auth_locked_out_password" msgid="6170245108400198659">"ਗਲਤ ਪਾਸਵਰਡ ਨਾਲ ਬਹੁਤ ਸਾਰੀਆਂ ਕੋਸ਼ਿਸ਼ਾਂ"</string>
     <string name="kg_too_many_failed_attempts_countdown" msgid="2038195171919795529">"{count,plural, =1{# ਸਕਿੰਟ ਵਿੱਚ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।}one{# ਸਕਿੰਟ ਵਿੱਚ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।}other{# ਸਕਿੰਟਾਂ ਵਿੱਚ ਦੁਬਾਰਾ ਕੋਸ਼ਿਸ਼ ਕਰੋ।}}"</string>

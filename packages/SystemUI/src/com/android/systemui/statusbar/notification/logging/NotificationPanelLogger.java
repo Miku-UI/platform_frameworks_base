@@ -51,13 +51,6 @@ public interface NotificationPanelLogger {
     void logPanelShown(boolean isLockscreen, Notifications.NotificationList proto);
 
     /**
-     * Log a NOTIFICATION_PANEL_REPORTED statsd event.
-     * @param visibleNotifications as provided by NotificationEntryManager.getVisibleNotifications()
-     */
-    void logPanelShown(boolean isLockscreen,
-            @Nullable List<NotificationEntry> visibleNotifications);
-
-    /**
      * Log a NOTIFICATION_PANEL_REPORTED statsd event, with
      * {@link NotificationPanelEvent#NOTIFICATION_DRAG} as the eventID.
      *

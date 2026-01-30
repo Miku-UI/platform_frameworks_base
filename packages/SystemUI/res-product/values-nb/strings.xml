@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Spilles av på dette nettbrettet"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Du kan finne denne telefonen med Finn enheten min, selv når den er slått av"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Du kan finne dette nettbrettet med Finn enheten min, selv når det er slått av"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Du kan finne denne telefonen med Finn-oversikt, selv når den er slått av"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Du kan finne dette nettbrettet med Finn-oversikt, selv når det er slått av"</string>
 </resources>

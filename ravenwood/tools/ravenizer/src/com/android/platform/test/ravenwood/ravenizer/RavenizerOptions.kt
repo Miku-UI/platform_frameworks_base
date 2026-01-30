@@ -18,24 +18,28 @@ package com.android.platform.test.ravenwood.ravenizer
 import com.android.hoststubgen.ArgumentsException
 import com.android.hoststubgen.HostStubGenClassProcessorOptions
 import com.android.hoststubgen.utils.ArgIterator
+import com.android.hoststubgen.utils.DEFAULT_SHARD_COUNT
+import com.android.hoststubgen.utils.IntSetOnce
 import com.android.hoststubgen.utils.SetOnce
 import com.android.hoststubgen.utils.ensureFileExists
 
 class RavenizerOptions(
     /** Input jar file*/
-    var inJar: SetOnce<String> = SetOnce(""),
+    val inJar: SetOnce<String> = SetOnce(""),
 
     /** Output jar file */
-    var outJar: SetOnce<String> = SetOnce(""),
+    val outJar: SetOnce<String> = SetOnce(""),
 
     /** Whether to enable test validation. */
-    var enableValidation: SetOnce<Boolean> = SetOnce(true),
+    val enableValidation: SetOnce<Boolean> = SetOnce(true),
 
     /** Whether the validation failure is fatal or not. */
-    var fatalValidation: SetOnce<Boolean> = SetOnce(true),
+    val fatalValidation: SetOnce<Boolean> = SetOnce(true),
 
     /** Whether to remove mockito and dexmaker classes. */
-    var stripMockito: SetOnce<Boolean> = SetOnce(false),
+    val stripMockito: SetOnce<Boolean> = SetOnce(false),
+
+    val numShards: IntSetOnce = IntSetOnce(DEFAULT_SHARD_COUNT),
 ) : HostStubGenClassProcessorOptions() {
 
     override fun parseOption(option: String, args: ArgIterator): Boolean {
@@ -56,6 +60,12 @@ class RavenizerOptions(
 
             "--strip-mockito" -> stripMockito.set(true)
             "--no-strip-mockito" -> stripMockito.set(false)
+
+            "--num-shards" -> numShards.set(nextArg()).also {
+                if (it < 1) {
+                    throw ArgumentsException("$option must be positive integer")
+                }
+            }
 
             else -> return super.parseOption(option, args)
         }
@@ -79,6 +89,7 @@ class RavenizerOptions(
             enableValidation=$enableValidation,
             fatalValidation=$fatalValidation,
             stripMockito=$stripMockito,
+            numShards=$numShards,
         """.trimIndent() + '\n' + super.dumpFields()
     }
 }

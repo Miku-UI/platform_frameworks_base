@@ -37,10 +37,10 @@ import android.view.SurfaceControl;
 import android.window.TransitionInfo;
 
 import com.android.internal.protolog.ProtoLog;
-import com.android.wm.shell.common.pip.PipUtils;
 import com.android.wm.shell.keyguard.KeyguardTransitionHandler;
 import com.android.wm.shell.pip.PipTransitionController;
 import com.android.wm.shell.protolog.ShellProtoLogGroup;
+import com.android.wm.shell.shared.pip.PipFlags;
 import com.android.wm.shell.splitscreen.SplitScreen;
 import com.android.wm.shell.splitscreen.StageCoordinator;
 
@@ -149,7 +149,7 @@ public class MixedTransitionHelper {
             }
 
             pipHandler.setEnterAnimationType(ANIM_TYPE_ALPHA);
-            if (PipUtils.isPip2ExperimentEnabled()) {
+            if (PipFlags.isPip2ExperimentEnabled()) {
                 TransitionInfo pipInfo = subCopy(info, TRANSIT_PIP, false /* withChanges */);
                 pipInfo.getChanges().add(pipChange);
                 if (pipActivityChange != null) {

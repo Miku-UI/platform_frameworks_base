@@ -22,7 +22,7 @@ import android.content.Intent;
 /**
  * Testing interface to monitor what is happening in the activity manager
  * while tests are running.  Not for normal application development.
- * {@hide}
+ * @hide
  */
 interface IActivityController
 {

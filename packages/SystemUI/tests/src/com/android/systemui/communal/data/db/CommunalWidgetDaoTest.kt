@@ -81,6 +81,27 @@ class CommunalWidgetDaoTest : SysuiTestCase() {
         }
 
     @Test
+    fun addWidgetWithSameWidgetIdMultipleTimes() =
+        testScope.runTest {
+            val (widgetId, provider, rank, userSerialNumber, spanY) = widgetInfo1
+            communalWidgetDao.addWidget(
+                widgetId = widgetId,
+                provider = provider,
+                rank = rank,
+                userSerialNumber = userSerialNumber,
+                spanY = spanY,
+            )
+            communalWidgetDao.addWidget(
+                widgetId = widgetId,
+                provider = provider,
+                rank = rank,
+                userSerialNumber = userSerialNumber,
+                spanY = spanY,
+            )
+            assertThat(communalWidgetDao.getWidgetCount(widgetId)).isEqualTo(1)
+        }
+
+    @Test
     fun deleteWidget_notInDb_returnsFalse() =
         testScope.runTest {
             val (widgetId, provider, rank, userSerialNumber, spanY) = widgetInfo1

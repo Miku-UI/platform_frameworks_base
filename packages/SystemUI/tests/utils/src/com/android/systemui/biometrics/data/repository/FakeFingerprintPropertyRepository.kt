@@ -49,7 +49,7 @@ class FakeFingerprintPropertyRepository @Inject constructor() : FingerprintPrope
         sensorId: Int,
         strength: SensorStrength,
         sensorType: FingerprintSensorType,
-        sensorLocations: Map<String, SensorLocationInternal>
+        sensorLocations: Map<String, SensorLocationInternal>,
     ) {
         _sensorId.value = sensorId
         _strength.value = strength
@@ -59,30 +59,30 @@ class FakeFingerprintPropertyRepository @Inject constructor() : FingerprintPrope
     }
 
     /** setProperties as if the device supports UDFPS_OPTICAL. */
-    fun supportsUdfps() {
+    fun supportsUdfps(sensorStrength: SensorStrength = SensorStrength.STRONG) {
         setProperties(
             sensorId = 0,
-            strength = SensorStrength.STRONG,
+            strength = sensorStrength,
             sensorType = FingerprintSensorType.UDFPS_OPTICAL,
             sensorLocations = emptyMap(),
         )
     }
 
     /** setProperties as if the device supports POWER_BUTTON fingerprint sensor. */
-    fun supportsSideFps() {
+    fun supportsSideFps(sensorStrength: SensorStrength = SensorStrength.STRONG) {
         setProperties(
             sensorId = 0,
-            strength = SensorStrength.STRONG,
+            strength = sensorStrength,
             sensorType = FingerprintSensorType.POWER_BUTTON,
             sensorLocations = emptyMap(),
         )
     }
 
     /** setProperties as if the device supports the rear fingerprint sensor. */
-    fun supportsRearFps() {
+    fun supportsRearFps(sensorStrength: SensorStrength = SensorStrength.STRONG) {
         setProperties(
             sensorId = 0,
-            strength = SensorStrength.STRONG,
+            strength = sensorStrength,
             sensorType = FingerprintSensorType.REAR,
             sensorLocations = emptyMap(),
         )

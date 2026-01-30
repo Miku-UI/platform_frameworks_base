@@ -86,7 +86,7 @@ fun <A> maybe(block: suspend MaybeScope.() -> A): Maybe<A> {
             override val context: CoroutineContext = EmptyCoroutineContext
 
             override fun resumeWith(result: Result<A>) {
-                maybeResult = result.getOrNull()?.let { Maybe.present(it) } ?: Absent
+                maybeResult = result.getOrNull()?.let { Present(it) } ?: Absent
             }
         }
     block.startCoroutine(MaybeScope, k)
@@ -97,7 +97,7 @@ fun <A> maybe(block: suspend MaybeScope.() -> A): Maybe<A> {
 inline fun <A> (A?).toMaybe(): Maybe<A> = maybe(this)
 
 /** Returns a [Maybe] containing [value] if it is not `null`. */
-inline fun <A> maybe(value: A?): Maybe<A> = value?.let { Maybe.present(it) } ?: Absent
+inline fun <A> maybe(value: A?): Maybe<A> = value?.let { maybeOf(it) } ?: Absent
 
 /** Returns a [Maybe] that is absent. */
 fun <A> maybeOf(): Maybe<A> = Absent
@@ -114,7 +114,7 @@ inline fun <A> Maybe<A>.orNull(): A? = orElse(null)
  */
 inline fun <A, B> Maybe<A>.map(transform: (A) -> B): Maybe<B> =
     when (this) {
-        is Present -> Maybe.present(transform(value))
+        is Present -> maybeOf(transform(value))
         is Absent -> Absent
     }
 
@@ -175,20 +175,20 @@ inline fun <A, B, C> Maybe<A>.alignWith(other: Maybe<B>, transform: (These<A, B>
             when (other) {
                 is Present -> {
                     val b = other.value
-                    Maybe.present(transform(These.both(a, b)))
+                    maybeOf(transform(These.both(a, b)))
                 }
 
-                Absent -> Maybe.present(transform(These.first(a)))
+                Absent -> maybeOf(transform(These.first(a)))
             }
         }
         Absent ->
             when (other) {
                 is Present -> {
                     val b = other.value
-                    Maybe.present(transform(These.second(b)))
+                    maybeOf(transform(These.second(b)))
                 }
 
-                Absent -> Maybe.absent
+                Absent -> maybeOf()
             }
     }
 
@@ -289,9 +289,9 @@ fun <A, B> Maybe<Pair<A, B>>.splitPair(): Pair<Maybe<A>, Maybe<B>> =
 fun <K, V> Map<K, V>.getMaybe(key: K): Maybe<V> {
     val value = get(key)
     if (value == null && !containsKey(key)) {
-        return Maybe.absent
+        return maybeOf()
     } else {
         @Suppress("UNCHECKED_CAST")
-        return Maybe.present(value as V)
+        return maybeOf(value as V)
     }
 }

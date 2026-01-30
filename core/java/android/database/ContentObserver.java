@@ -81,7 +81,7 @@ public abstract class ContentObserver {
     /**
      * Gets access to the binder transport object. Not for public consumption.
      *
-     * {@hide}
+     * @hide
      */
     public IContentObserver getContentObserver() {
         synchronized (mLock) {
@@ -96,7 +96,7 @@ public abstract class ContentObserver {
      * Gets access to the binder transport object, and unlinks the transport object
      * from the ContentObserver. Not for public consumption.
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public IContentObserver releaseContentObserver() {

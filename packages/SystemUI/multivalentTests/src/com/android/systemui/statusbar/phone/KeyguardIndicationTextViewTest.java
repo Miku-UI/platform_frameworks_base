@@ -16,9 +16,6 @@
 
 package com.android.systemui.statusbar.phone;
 
-import static android.view.View.ACCESSIBILITY_LIVE_REGION_NONE;
-import static android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE;
-
 import static com.google.common.truth.Truth.assertThat;
 
 import android.testing.TestableLooper;
@@ -49,7 +46,9 @@ public class KeyguardIndicationTextViewTest extends SysuiTestCase {
 
     @After
     public void tearDown() {
-        mKeyguardIndicationTextView.setAnimationsEnabled(true);
+        if (mKeyguardIndicationTextView != null) {
+            mKeyguardIndicationTextView.setAnimationsEnabled(true);
+        }
     }
 
     @Test
@@ -57,22 +56,6 @@ public class KeyguardIndicationTextViewTest extends SysuiTestCase {
         mKeyguardIndicationTextView.switchIndication(null /* text */, null);
 
         assertThat(mKeyguardIndicationTextView.getText()).isEqualTo("");
-    }
-
-    @Test
-    public void alwaysAnnounce_setsLiveRegionToNone() {
-        mKeyguardIndicationTextView.setAlwaysAnnounceEnabled(true);
-
-        assertThat(mKeyguardIndicationTextView.getAccessibilityLiveRegion()).isEqualTo(
-                ACCESSIBILITY_LIVE_REGION_NONE);
-    }
-
-    @Test
-    public void alwaysAnnounce_setsLiveRegionToDefaultPolite_whenDisabled() {
-        mKeyguardIndicationTextView.setAlwaysAnnounceEnabled(false);
-
-        assertThat(mKeyguardIndicationTextView.getAccessibilityLiveRegion()).isEqualTo(
-                ACCESSIBILITY_LIVE_REGION_POLITE);
     }
 
     @Test

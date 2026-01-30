@@ -7,9 +7,8 @@ package {
     default_applicable_licenses: ["frameworks_base_license"],
 }
 
-// Minimum ravenwood test according to test-authors.md.
-android_ravenwood_test {
-    name: "RavenwoodMinimumTest",
+java_defaults {
+    name: "RavenwoodMinimumTest-defaults",
 
     static_libs: [
         "androidx.annotation_annotation",
@@ -22,4 +21,17 @@ android_ravenwood_test {
     ],
     sdk_version: "test_current",
     auto_gen_config: true,
+}
+
+// Minimum ravenwood test according to test-authors.md.
+android_ravenwood_test {
+    name: "RavenwoodMinimumTest",
+    defaults: ["RavenwoodMinimumTest-defaults"],
+}
+
+// Make sure Ravenwood tests can use "module_current" too.
+android_ravenwood_test {
+    name: "RavenwoodMinimumTest-with-module-current",
+    defaults: ["RavenwoodMinimumTest-defaults"],
+    sdk_version: "module_current",
 }

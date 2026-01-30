@@ -2,7 +2,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="app_name" msgid="2809080280462257271">"การสื่อสารจากผู้ให้บริการ"</string>
-    <string name="android_system_label" msgid="2797790869522345065">"ผู้ให้บริการเครือข่ายมือถือ"</string>
+    <string name="android_system_label" msgid="2797790869522345065">"ผู้ให้บริการมือถือ"</string>
     <string name="portal_notification_id" msgid="5155057562457079297">"เน็ตมือถือหมดแล้ว"</string>
     <string name="no_data_notification_id" msgid="668400731803969521">"อินเทอร์เน็ตมือถือของคุณถูกปิดใช้งานแล้ว"</string>
     <string name="portal_notification_detail" msgid="2295729385924660881">"แตะเพื่อเข้าชมเว็บไซต์ %s"</string>

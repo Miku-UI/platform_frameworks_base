@@ -16,11 +16,15 @@
 
 package com.android.server.wm;
 
+import static android.internal.perfetto.protos.Animationadapter.AnimationSpecProto.WINDOW;
+import static android.internal.perfetto.protos.Animationadapter.WindowAnimationSpecProto.ANIMATION;
+
 import static com.android.server.wm.AnimationAdapter.STATUS_BAR_TRANSITION_DURATION;
-import static com.android.server.wm.AnimationSpecProto.WINDOW;
-import static com.android.server.wm.WindowAnimationSpecProto.ANIMATION;
 import static com.android.server.wm.WindowStateAnimator.ROOT_TASK_CLIP_NONE;
 
+import android.annotation.ColorInt;
+import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.graphics.Insets;
 import android.graphics.Point;
 import android.graphics.Rect;
@@ -43,25 +47,29 @@ import java.io.PrintWriter;
  */
 public class WindowAnimationSpec implements AnimationSpec {
 
-    private Animation mAnimation;
+    @NonNull
+    private final Animation mAnimation;
+    @NonNull
     private final Point mPosition = new Point();
+    @NonNull
     private final ThreadLocal<TmpValues> mThreadLocalTmps = ThreadLocal.withInitial(TmpValues::new);
     private final boolean mCanSkipFirstFrame;
     private final boolean mIsAppAnimation;
+    @NonNull
     private final Rect mRootTaskBounds = new Rect();
-    private int mRootTaskClipMode;
+    private final int mRootTaskClipMode;
     private final Rect mTmpRect = new Rect();
     private final float mWindowCornerRadius;
 
-    public WindowAnimationSpec(Animation animation, Point position, boolean canSkipFirstFrame,
-            float windowCornerRadius)  {
+    public WindowAnimationSpec(@NonNull Animation animation, Point position,
+            boolean canSkipFirstFrame, float windowCornerRadius)  {
         this(animation, position, null /* rootTaskBounds */, canSkipFirstFrame, ROOT_TASK_CLIP_NONE,
                 false /* isAppAnimation */, windowCornerRadius);
     }
 
-    public WindowAnimationSpec(Animation animation, Point position, Rect rootTaskBounds,
-            boolean canSkipFirstFrame, int rootTaskClipMode, boolean isAppAnimation,
-            float windowCornerRadius) {
+    public WindowAnimationSpec(@NonNull Animation animation, @Nullable Point position,
+            @Nullable Rect rootTaskBounds, boolean canSkipFirstFrame, int rootTaskClipMode,
+            boolean isAppAnimation, float windowCornerRadius) {
         mAnimation = animation;
         if (position != null) {
             mPosition.set(position.x, position.y);
@@ -75,6 +83,7 @@ public class WindowAnimationSpec implements AnimationSpec {
         }
     }
 
+    @NonNull
     @Override
     public WindowAnimationSpec asWindowAnimationSpec() {
         return this;
@@ -90,6 +99,7 @@ public class WindowAnimationSpec implements AnimationSpec {
         return mAnimation.getShowBackdrop();
     }
 
+    @ColorInt
     @Override
     public int getBackgroundColor() {
         return mAnimation.getBackdropColor();
@@ -108,16 +118,18 @@ public class WindowAnimationSpec implements AnimationSpec {
         return mAnimation.computeDurationHint();
     }
 
+    @NonNull
     public Rect getRootTaskBounds() {
         return mRootTaskBounds;
     }
 
+    @NonNull
     public Animation getAnimation() {
         return mAnimation;
     }
 
     @Override
-    public void apply(Transaction t, SurfaceControl leash, long currentPlayTime) {
+    public void apply(@NonNull Transaction t, @NonNull SurfaceControl leash, long currentPlayTime) {
         final TmpValues tmp = mThreadLocalTmps.get();
         tmp.transformation.clear();
         mAnimation.getTransformation(currentPlayTime, tmp.transformation);
@@ -201,12 +213,12 @@ public class WindowAnimationSpec implements AnimationSpec {
     }
 
     @Override
-    public void dump(PrintWriter pw, String prefix) {
+    public void dump(@NonNull PrintWriter pw, @NonNull String prefix) {
         pw.print(prefix); pw.println(mAnimation);
     }
 
     @Override
-    public void dumpDebugInner(ProtoOutputStream proto) {
+    public void dumpDebugInner(@NonNull ProtoOutputStream proto) {
         final long token = proto.start(WINDOW);
         proto.write(ANIMATION, mAnimation.toString());
         proto.end(token);
@@ -217,7 +229,8 @@ public class WindowAnimationSpec implements AnimationSpec {
      *
      * @return the found animation, {@code null} otherwise
      */
-    private static TranslateAnimation findTranslateAnimation(Animation animation) {
+    @Nullable
+    private static TranslateAnimation findTranslateAnimation(@NonNull Animation animation) {
         if (animation instanceof TranslateAnimation) {
             return (TranslateAnimation) animation;
         } else if (animation instanceof AnimationSet) {
@@ -236,15 +249,15 @@ public class WindowAnimationSpec implements AnimationSpec {
      * Finds the fraction of the animation's duration at which the transition is almost done with a
      * maximal error of 0.01 when it is animated with {@code interpolator}.
      */
-    private static float findAlmostThereFraction(Interpolator interpolator) {
+    private static float findAlmostThereFraction(@NonNull Interpolator interpolator) {
         return findInterpolationAdjustedTargetFraction(interpolator, 0.99f, 0.01f);
     }
 
     /**
-     * Finds the fraction of the animation's duration at which the transition is spacially half way
+     * Finds the fraction of the animation's duration at which the transition is spatially half way
      * done with a maximal error of 0.01 when it is animated with {@code interpolator}.
      */
-    private float findMiddleOfTranslationFraction(Interpolator interpolator) {
+    private float findMiddleOfTranslationFraction(@NonNull Interpolator interpolator) {
         return findInterpolationAdjustedTargetFraction(interpolator, 0.5f, 0.01f);
     }
 
@@ -252,8 +265,8 @@ public class WindowAnimationSpec implements AnimationSpec {
      * Binary searches for a {@code val} such that there exists an {@code -0.01 < epsilon < 0.01}
      * for which {@code interpolator(val + epsilon) > target}.
      */
-    private static float findInterpolationAdjustedTargetFraction(
-            Interpolator interpolator, float target, float epsilon) {
+    private static float findInterpolationAdjustedTargetFraction(@NonNull Interpolator interpolator,
+            float target, float epsilon) {
         float val = 0.5f;
         float adj = 0.25f;
 
@@ -269,8 +282,10 @@ public class WindowAnimationSpec implements AnimationSpec {
         return val;
     }
 
-    private static class TmpValues {
+    private static final class TmpValues {
+        @NonNull
         final Transformation transformation = new Transformation();
+        @NonNull
         final float[] floats = new float[9];
     }
 }

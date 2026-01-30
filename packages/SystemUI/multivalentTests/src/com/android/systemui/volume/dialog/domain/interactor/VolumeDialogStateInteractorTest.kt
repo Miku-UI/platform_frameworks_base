@@ -42,7 +42,7 @@ class VolumeDialogStateInteractorTest : SysuiTestCase() {
     fun dialogState_collectedEagerly() =
         kosmos.runTest {
             val nonDefaultActiveStream = 123
-            fakeVolumeDialogController.setActiveStream(123)
+            fakeVolumeDialogController.setActiveStream(123, true)
 
             val volumeDialogStateModel by collectLastValue(underTest.volumeDialogState)
 

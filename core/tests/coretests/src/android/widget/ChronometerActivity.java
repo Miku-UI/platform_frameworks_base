@@ -17,17 +17,26 @@
 package android.widget;
 
 import android.app.Activity;
+import android.app.KeyguardManager;
 import android.os.Bundle;
 
 import com.android.frameworks.coretests.R;
 
 /**
- * A minimal application for DatePickerFocusTest.
+ * A minimal activity for ChronometerTest.
  */
 public class ChronometerActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        turnOnScreenAndDismissKeyguard();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.chronometer_layout);
+    }
+
+    private void turnOnScreenAndDismissKeyguard() {
+        setTurnScreenOn(true);
+        setShowWhenLocked(true);
+        KeyguardManager keyguardManager = getSystemService(KeyguardManager.class);
+        keyguardManager.requestDismissKeyguard(this, null);
     }
 }

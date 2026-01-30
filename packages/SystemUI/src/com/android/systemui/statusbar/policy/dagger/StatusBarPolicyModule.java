@@ -26,9 +26,10 @@ import com.android.internal.R;
 import com.android.settingslib.devicestate.AndroidSecureSettings;
 import com.android.settingslib.devicestate.DeviceStateAutoRotateSettingManager;
 import com.android.settingslib.devicestate.DeviceStateAutoRotateSettingManagerProvider;
-import com.android.settingslib.devicestate.PosturesHelper;
+import com.android.settingslib.devicestate.PostureDeviceStateConverter;
 import com.android.settingslib.devicestate.SecureSettings;
 import com.android.settingslib.notification.modes.ZenIconLoader;
+import com.android.systemui.CoreStartable;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Background;
@@ -71,6 +72,7 @@ import com.android.systemui.statusbar.policy.RotationLockController;
 import com.android.systemui.statusbar.policy.RotationLockControllerImpl;
 import com.android.systemui.statusbar.policy.SecurityController;
 import com.android.systemui.statusbar.policy.SecurityControllerImpl;
+import com.android.systemui.statusbar.policy.SecurityControllerStartable;
 import com.android.systemui.statusbar.policy.SensitiveNotificationProtectionController;
 import com.android.systemui.statusbar.policy.SensitiveNotificationProtectionControllerImpl;
 import com.android.systemui.statusbar.policy.SplitShadeStateController;
@@ -81,13 +83,22 @@ import com.android.systemui.statusbar.policy.WalletController;
 import com.android.systemui.statusbar.policy.WalletControllerImpl;
 import com.android.systemui.statusbar.policy.ZenModeController;
 import com.android.systemui.statusbar.policy.ZenModeControllerImpl;
-import com.android.systemui.statusbar.policy.bluetooth.BluetoothRepository;
-import com.android.systemui.statusbar.policy.bluetooth.BluetoothRepositoryImpl;
+import com.android.systemui.statusbar.policy.bluetooth.data.repository.BluetoothRepository;
+import com.android.systemui.statusbar.policy.bluetooth.data.repository.BluetoothRepositoryImpl;
 import com.android.systemui.statusbar.policy.data.repository.DeviceProvisioningRepositoryModule;
+import com.android.systemui.statusbar.policy.profile.data.repository.ManagedProfileRepository;
+import com.android.systemui.statusbar.policy.profile.data.repository.impl.ManagedProfileRepositoryImpl;
+import com.android.systemui.statusbar.policy.vpn.data.repository.VpnRepository;
+import com.android.systemui.statusbar.policy.vpn.data.repository.impl.VpnRepositoryImpl;
+import com.android.systemui.supervision.data.repository.SupervisionRepositoryModule;
+import com.android.systemui.util.wrapper.CameraRotationSettingProvider;
+import com.android.systemui.util.wrapper.CameraRotationSettingProviderImpl;
 
 import dagger.Binds;
 import dagger.Module;
 import dagger.Provides;
+import dagger.multibindings.ClassKey;
+import dagger.multibindings.IntoMap;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -95,7 +106,7 @@ import java.util.concurrent.ExecutorService;
 import javax.inject.Named;
 
 /** Dagger Module for code in the statusbar.policy package. */
-@Module(includes = {DeviceProvisioningRepositoryModule.class})
+@Module(includes = {DeviceProvisioningRepositoryModule.class, SupervisionRepositoryModule.class})
 public interface StatusBarPolicyModule {
 
     String DEVICE_STATE_ROTATION_LOCK_DEFAULTS = "DEVICE_STATE_ROTATION_LOCK_DEFAULTS";
@@ -107,6 +118,10 @@ public interface StatusBarPolicyModule {
     /** */
     @Binds
     BluetoothRepository provideBluetoothRepository(BluetoothRepositoryImpl impl);
+
+    /** */
+    @Binds
+    VpnRepository provideVpnRepository(VpnRepositoryImpl impl);
 
     /** */
     @Binds
@@ -146,6 +161,11 @@ public interface StatusBarPolicyModule {
 
     /** */
     @Binds
+    ManagedProfileRepository provideManagedProfileRepository(
+            ManagedProfileRepositoryImpl impl);
+
+    /** */
+    @Binds
     NetworkController provideNetworkController(NetworkControllerImpl controllerImpl);
 
     /** */
@@ -155,6 +175,12 @@ public interface StatusBarPolicyModule {
     /** */
     @Binds
     RotationLockController provideRotationLockController(RotationLockControllerImpl controllerImpl);
+
+    /** */
+    @Binds
+    @SysUISingleton
+    CameraRotationSettingProvider bindCameraRotationSettingProvider(
+            CameraRotationSettingProviderImpl impl);
 
     /** */
     @Binds
@@ -239,9 +265,9 @@ public interface StatusBarPolicyModule {
     /**  */
     @SysUISingleton
     @Provides
-    static PosturesHelper providePosturesHelper(Context context,
+    static PostureDeviceStateConverter providePosturesHelper(Context context,
             DeviceStateManager deviceStateManager) {
-        return new PosturesHelper(context, deviceStateManager);
+        return new PostureDeviceStateConverter(context, deviceStateManager);
     }
 
     /** Returns a singleton instance of DeviceStateAutoRotateSettingManager based on auto-rotate
@@ -253,10 +279,10 @@ public interface StatusBarPolicyModule {
             @Background Executor bgExecutor,
             SecureSettings secureSettings,
             @Main Handler mainHandler,
-            PosturesHelper posturesHelper
+            PostureDeviceStateConverter postureDeviceStateConverter
     ) {
         return DeviceStateAutoRotateSettingManagerProvider.createInstance(context, bgExecutor,
-                secureSettings, mainHandler, posturesHelper);
+                secureSettings, mainHandler, postureDeviceStateConverter);
     }
 
     /**
@@ -281,7 +307,7 @@ public interface StatusBarPolicyModule {
     @SysUISingleton
     @BatteryControllerLog
     static LogBuffer provideBatteryControllerLog(LogBufferFactory factory) {
-        return factory.create(BatteryControllerLogger.TAG, 30);
+        return factory.create(BatteryControllerLogger.TAG, 150);
     }
 
     /** Provides a log buffer for CastControllerImpl */
@@ -299,4 +325,10 @@ public interface StatusBarPolicyModule {
             @UiBackground ExecutorService backgroundExecutorService) {
         return new ZenIconLoader(backgroundExecutorService);
     }
+
+    /** Binds {@link SecurityControllerStartable}. */
+    @Binds
+    @IntoMap
+    @ClassKey(SecurityControllerStartable.class)
+    CoreStartable bindSecurityControllerCoreStartable(SecurityControllerStartable startable);
 }

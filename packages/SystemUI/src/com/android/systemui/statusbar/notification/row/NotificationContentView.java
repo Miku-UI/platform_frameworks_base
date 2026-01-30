@@ -20,7 +20,6 @@ import static android.app.Flags.notificationsRedesignTemplates;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
-import android.app.Flags;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
@@ -29,7 +28,6 @@ import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.RemoteException;
-import android.os.Trace;
 import android.service.notification.StatusBarNotification;
 import android.util.ArrayMap;
 import android.util.AttributeSet;
@@ -59,9 +57,9 @@ import com.android.systemui.statusbar.notification.FeedbackIcon;
 import com.android.systemui.statusbar.notification.NotificationFadeAware;
 import com.android.systemui.statusbar.notification.NotificationUtils;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
+import com.android.systemui.statusbar.notification.collection.RemoteInputEntryAdapter;
 import com.android.systemui.statusbar.notification.collection.render.GroupMembershipManager;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
-import com.android.systemui.statusbar.notification.row.shared.AsyncHybridViewInflation;
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationCompactHeadsUpTemplateViewWrapper;
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationCustomViewWrapper;
 import com.android.systemui.statusbar.notification.row.wrapper.NotificationHeaderViewWrapper;
@@ -136,6 +134,8 @@ public class NotificationContentView extends FrameLayout implements Notification
     @Nullable private NotificationViewWrapper mShownWrapper = null;
     private final HybridGroupManager mHybridGroupManager;
     private int mClipTopAmount;
+    private int mTopOverlap;
+    private int mBottomOverlap;
     private int mContentHeight;
     private int mVisibleType = VISIBLE_TYPE_NONE;
     private boolean mAnimate;
@@ -145,7 +145,8 @@ public class NotificationContentView extends FrameLayout implements Notification
     private int mSmallHeight;
     private int mHeadsUpHeight;
     private int mNotificationMaxHeight;
-    private NotificationEntry mNotificationEntry;
+    private @Nullable NotificationEntry mNotificationEntry;
+    private @Nullable StatusBarNotification mSbn;
     private RemoteInputController mRemoteInputController;
     private Runnable mExpandedVisibleListener;
     private PeopleNotificationIdentifier mPeopleIdentifier;
@@ -253,14 +254,12 @@ public class NotificationContentView extends FrameLayout implements Notification
     public void reinflate() {
         mMinContractedHeight = getResources().getDimensionPixelSize(
                 R.dimen.min_notification_layout_height);
-        if (AsyncHybridViewInflation.isEnabled()) {
-            //TODO (b/217799515): single-line view height is the greater of two heights: text view
-            // height and icon height (when there's an icon). icon height is fixed to be
-            // conversation_single_line_face_pile_size (24dp), the text view's height is 16sp,
-            // its pixel height changes with the system's font scaling factor.
-            mMinSingleLineHeight = getResources().getDimensionPixelSize(
-                    R.dimen.conversation_single_line_face_pile_size);
-        }
+        //TODO (b/217799515): single-line view height is the greater of two heights: text view
+        // height and icon height (when there's an icon). icon height is fixed to be
+        // conversation_single_line_face_pile_size (24dp), the text view's height is 16sp,
+        // its pixel height changes with the system's font scaling factor.
+        mMinSingleLineHeight = getResources().getDimensionPixelSize(
+                R.dimen.conversation_single_line_face_pile_size);
     }
 
     public void setHeights(int smallHeight, int headsUpMaxHeight, int maxHeight) {
@@ -510,7 +509,11 @@ public class NotificationContentView extends FrameLayout implements Notification
         mExpandedWrapper = NotificationViewWrapper.wrap(getContext(), child,
                 mContainingNotification);
         if (mContainingNotification != null) {
-            applySystemActions(mExpandedChild, mContainingNotification.getEntry());
+            if (NotificationBundleUi.isEnabled()) {
+                applySystemActions(mExpandedChild, null);
+            } else {
+                applySystemActions(mExpandedChild, mContainingNotification.getEntryLegacy());
+            }
         }
         // The expanded wrapper has changed. If this is the shown wrapper, we need to update it.
         updateShownWrapper(mVisibleType);
@@ -563,14 +566,17 @@ public class NotificationContentView extends FrameLayout implements Notification
         mHeadsUpWrapper = NotificationViewWrapper.wrap(getContext(), child,
                 mContainingNotification);
 
-        mIsHUNCompact = Flags.compactHeadsUpNotification()
-                && mHeadsUpWrapper instanceof NotificationCompactHeadsUpTemplateViewWrapper;
+        mIsHUNCompact = mHeadsUpWrapper instanceof NotificationCompactHeadsUpTemplateViewWrapper;
         if (mIsHUNCompact) {
             logCompactHUNShownEvent();
         }
 
         if (mContainingNotification != null) {
-            applySystemActions(mHeadsUpChild, mContainingNotification.getEntry());
+            if (NotificationBundleUi.isEnabled()) {
+                applySystemActions(mHeadsUpChild, null);
+            } else {
+                applySystemActions(mHeadsUpChild, mContainingNotification.getEntryLegacy());
+            }
         }
         // The heads up wrapper has changed. If this is the shown wrapper, we need to update it.
         updateShownWrapper(mVisibleType);
@@ -610,7 +616,6 @@ public class NotificationContentView extends FrameLayout implements Notification
      * @param child single-line content view to set
      */
     public void setSingleLineView(@Nullable HybridNotificationView child) {
-        if (AsyncHybridViewInflation.isUnexpectedlyInLegacyMode()) return;
         if (mSingleLineView != null) {
             mOnContentViewInactiveListeners.remove(mSingleLineView);
             mSingleLineView.animate().cancel();
@@ -892,20 +897,15 @@ public class NotificationContentView extends FrameLayout implements Notification
     }
 
     public int getMinHeight(boolean likeGroupExpanded) {
-        if (likeGroupExpanded || !mIsChildInGroup || isGroupExpanded()) {
+        if (likeGroupExpanded || !mIsChildInGroup || isParentGroupExpanded()) {
             return mContractedChild != null
                     ? getViewHeight(VISIBLE_TYPE_CONTRACTED) : mMinContractedHeight;
         } else {
-            if (AsyncHybridViewInflation.isEnabled()) {
-                if (mSingleLineView != null) {
-                    return getViewHeight(VISIBLE_TYPE_SINGLELINE);
-                } else {
-                    //TODO(b/217799515): investigate the impact of min-height value
-                    return mMinSingleLineHeight;
-                }
+            if (mSingleLineView != null) {
+                return getViewHeight(VISIBLE_TYPE_SINGLELINE);
             } else {
-                AsyncHybridViewInflation.assertInLegacyMode();
-                return mSingleLineView.getHeight();
+                //TODO(b/217799515): investigate the impact of min-height value
+                return mMinSingleLineHeight;
             }
         }
     }
@@ -918,11 +918,36 @@ public class NotificationContentView extends FrameLayout implements Notification
         return mContainingNotification.isGroupExpanded();
     }
 
+    private boolean isParentGroupExpanded() {
+        return mContainingNotification.isParentGroupExpanded();
+    }
+
     public void setClipTopAmount(int clipTopAmount) {
         mClipTopAmount = clipTopAmount;
         updateClipping();
     }
 
+    /**
+     * Sets the overlap on the top of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipTopAmount, however it is a separate way to clip which is usually
+     * then combined with the clipTopAmount to take the maximum.
+     */
+    public void setTopOverlap(int topOverlap) {
+        mTopOverlap = topOverlap;
+        updateClipping();
+    }
+
+    /**
+     * Sets the overlap on the bottom of the view with other views. As a result we should clip the
+     * background and content such that no overlap is visible anymore.
+     * This is related to setClipBottomAmount, however it is a separate way to clip which is usually
+     * then combined with the clipBottomAmount to take the maximum.
+     */
+    public void setBottomOverlap(int bottomOverlap) {
+        mBottomOverlap = bottomOverlap;
+        updateClipping();
+    }
 
     public void setClipBottomAmount(int clipBottomAmount) {
         mClipBottomAmount = clipBottomAmount;
@@ -937,8 +962,10 @@ public class NotificationContentView extends FrameLayout implements Notification
 
     private void updateClipping() {
         if (mClipToActualHeight) {
-            int top = (int) (mClipTopAmount - getTranslationY());
-            int bottom = (int) (mUnrestrictedContentHeight - mClipBottomAmount - getTranslationY());
+            int clipTop = Math.max(mClipTopAmount, mTopOverlap);
+            int top = (int) (clipTop - getTranslationY());
+            int clipBottomAmount = Math.max(mClipBottomAmount, mBottomOverlap);
+            int bottom = (int) (mUnrestrictedContentHeight - clipBottomAmount - getTranslationY());
             bottom = Math.max(top, bottom);
             mClipBounds.set(0, top, getWidth(), bottom);
             setClipBounds(mClipBounds);
@@ -1033,7 +1060,7 @@ public class NotificationContentView extends FrameLayout implements Notification
     }
 
     public void setBackgroundTintColor(int color) {
-        boolean colorized = mNotificationEntry.getSbn().getNotification().isColorized();
+        boolean colorized = mSbn != null && mSbn.getNotification().isColorized();
         if (mExpandedSmartReplyView != null) {
             mExpandedSmartReplyView.setBackgroundTintColor(color, colorized);
         }
@@ -1231,6 +1258,10 @@ public class NotificationContentView extends FrameLayout implements Notification
         }
     }
 
+    private boolean shouldShowSingleLineView() {
+        return mIsChildInGroup && !isParentGroupExpanded();
+    }
+
     /**
      * @return one of the static enum types in this view, calculated from the current state
      */
@@ -1244,14 +1275,13 @@ public class NotificationContentView extends FrameLayout implements Notification
                 height = mContentHeight;
             }
             int expandedVisualType = getVisualTypeForHeight(height);
-            final boolean shouldShowSingleLineView = mIsChildInGroup && !isGroupExpanded();
             final boolean isSingleLineViewPresent = mSingleLineView != null;
 
-            if (shouldShowSingleLineView && !isSingleLineViewPresent) {
+            if (shouldShowSingleLineView() && !isSingleLineViewPresent) {
                 Log.wtf(TAG, "calculateVisibleType: SingleLineView is not available!");
             }
 
-            final int collapsedVisualType = shouldShowSingleLineView && isSingleLineViewPresent
+            final int collapsedVisualType = shouldShowSingleLineView() && isSingleLineViewPresent
                     ? VISIBLE_TYPE_SINGLELINE
                     : getVisualTypeForHeight(mContainingNotification.getCollapsedHeight());
             return mTransformationStartVisibleType == collapsedVisualType
@@ -1272,10 +1302,9 @@ public class NotificationContentView extends FrameLayout implements Notification
         if (!noExpandedChild && viewHeight == getViewHeight(VISIBLE_TYPE_EXPANDED)) {
             return VISIBLE_TYPE_EXPANDED;
         }
-        final boolean shouldShowSingleLineView = mIsChildInGroup && !isGroupExpanded();
         final boolean isSingleLinePresent =  mSingleLineView != null;
 
-        if (!mUserExpanding && shouldShowSingleLineView && isSingleLinePresent) {
+        if (!mUserExpanding && shouldShowSingleLineView() && isSingleLinePresent) {
             return VISIBLE_TYPE_SINGLELINE;
         }
 
@@ -1346,23 +1375,32 @@ public class NotificationContentView extends FrameLayout implements Notification
         if (mHeadsUpChild != null) {
             mHeadsUpWrapper.setIsChildInGroup(mIsChildInGroup);
         }
-        updateAllSingleLineViews();
     }
 
     public void onNotificationUpdated(NotificationEntry entry) {
+        if (NotificationBundleUi.isEnabled()) {
+            if (entry != null) {
+                throw new IllegalStateException("Entry is not null but should be");
+            }
+        }
         mNotificationEntry = entry;
-        mBeforeN = entry.targetSdk < Build.VERSION_CODES.N;
-        updateAllSingleLineViews();
-        ExpandableNotificationRow row = entry.getRow();
+        mSbn = NotificationBundleUi.isEnabled()
+            ? mContainingNotification.getEntryAdapter().getSbn()
+            : entry.getSbn();
+        mBeforeN = NotificationBundleUi.isEnabled()
+                ? mContainingNotification.getEntryAdapter().getTargetSdk() < Build.VERSION_CODES.N
+                : entry.targetSdk < Build.VERSION_CODES.N;
+
         if (mContractedChild != null) {
-            mContractedWrapper.onContentUpdated(row);
+            mContractedWrapper.onContentUpdated(mContainingNotification);
         }
         if (mExpandedChild != null) {
-            mExpandedWrapper.onContentUpdated(row);
+            mExpandedWrapper.onContentUpdated(mContainingNotification);
         }
         if (mHeadsUpChild != null) {
-            mHeadsUpWrapper.onContentUpdated(row);
+            mHeadsUpWrapper.onContentUpdated(mContainingNotification);
         }
+
         applyRemoteInputAndSmartReply();
         updateLegacy();
         mForceSelectNextLayout = true;
@@ -1372,49 +1410,20 @@ public class NotificationContentView extends FrameLayout implements Notification
         applySystemActions(mHeadsUpChild, entry);
     }
 
-    private void updateAllSingleLineViews() {
-        updateSingleLineView();
-    }
-
-    private void updateSingleLineView() {
-        try {
-            Trace.beginSection("NotifContentView#updateSingleLineView");
-            if (AsyncHybridViewInflation.isEnabled()) {
-                return;
-            }
-            AsyncHybridViewInflation.assertInLegacyMode();
-            if (mIsChildInGroup) {
-                boolean isNewView = mSingleLineView == null;
-                mSingleLineView = mHybridGroupManager.bindFromNotification(
-                        /* reusableView = */ mSingleLineView,
-                        /* contentView = */ mContractedChild,
-                        /* notification = */ mNotificationEntry.getSbn(),
-                        /* parent = */ this
-                );
-                if (isNewView && mSingleLineView != null) {
-                    updateViewVisibility(mVisibleType, VISIBLE_TYPE_SINGLELINE,
-                            mSingleLineView, mSingleLineView);
-                }
-            } else if (mSingleLineView != null) {
-                removeView(mSingleLineView);
-                mSingleLineView = null;
-            }
-        } finally {
-            Trace.endSection();
-        }
-    }
-
     /**
      * Returns whether the {@link Notification} represented by entry has a free-form remote input.
      * Such an input can be used e.g. to implement smart reply buttons - by passing the replies
      * through the remote input.
      */
-    public static boolean hasFreeformRemoteInput(NotificationEntry entry) {
-        Notification notification = entry.getSbn().getNotification();
+    private static boolean hasFreeformRemoteInput(StatusBarNotification sbn) {
+        Notification notification = sbn.getNotification();
         return null != notification.findRemoteInputActionPair(true /* freeform */);
     }
 
     private void applyRemoteInputAndSmartReply() {
+        if (mSbn == null) {
+            return;
+        }
         if (mRemoteInputController != null) {
             applyRemoteInput();
         }
@@ -1427,7 +1436,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         }
         if (DEBUG) {
             Log.d(TAG, String.format("Adding suggestions for %s, %d actions, and %d replies.",
-                    mNotificationEntry.getSbn().getKey(),
+                    mSbn.getKey(),
                     mCurrentSmartReplyState.getSmartActionsList().size(),
                     mCurrentSmartReplyState.getSmartRepliesList().size()));
         }
@@ -1435,9 +1444,9 @@ public class NotificationContentView extends FrameLayout implements Notification
     }
 
     private void applyRemoteInput() {
-        boolean hasFreeformRemoteInput = hasFreeformRemoteInput(mNotificationEntry);
+        boolean hasFreeformRemoteInput = hasFreeformRemoteInput(mSbn);
         if (mExpandedChild != null) {
-            RemoteInputViewData expandedData = applyRemoteInput(mExpandedChild, mNotificationEntry,
+            RemoteInputViewData expandedData = applyRemoteInput(mExpandedChild,
                     hasFreeformRemoteInput, mPreviousExpandedRemoteInputIntent,
                     mCachedExpandedRemoteInput, mCachedExpandedRemoteInputViewController,
                     mExpandedWrapper);
@@ -1470,7 +1479,6 @@ public class NotificationContentView extends FrameLayout implements Notification
             ExpandHeadsUpOnInlineReply.assertInLegacyMode();
             if (mHeadsUpChild != null) {
                 RemoteInputViewData headsUpData = applyRemoteInput(mHeadsUpChild,
-                        mNotificationEntry,
                         hasFreeformRemoteInput, mPreviousHeadsUpRemoteInputIntent,
                         mCachedHeadsUpRemoteInput, mCachedHeadsUpRemoteInputViewController,
                         mHeadsUpWrapper);
@@ -1496,7 +1504,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         }
     }
 
-    private RemoteInputViewData applyRemoteInput(View view, NotificationEntry entry,
+    private RemoteInputViewData applyRemoteInput(View view,
             boolean hasRemoteInput, PendingIntent existingPendingIntent, RemoteInputView cachedView,
             RemoteInputViewController cachedController, NotificationViewWrapper wrapper) {
         RemoteInputViewData result = new RemoteInputViewData();
@@ -1513,8 +1521,12 @@ public class NotificationContentView extends FrameLayout implements Notification
             if (result.mView == null && hasRemoteInput) {
                 ViewGroup actionContainer = (FrameLayout) actionContainerCandidate;
                 if (cachedView == null) {
+                    RemoteInputEntryAdapter riea = NotificationBundleUi.isEnabled()
+                            ? mContainingNotification.getEntryAdapter().getRemoteInputEntryAdapter()
+                            : null;
                     RemoteInputView riv = RemoteInputView.inflate(
-                            mContext, actionContainer, entry, mRemoteInputController);
+                            mContext, actionContainer, mContainingNotification, riea,
+                            mRemoteInputController);
 
                     riv.setVisibility(View.GONE);
                     actionContainer.addView(riv, new LayoutParams(
@@ -1543,7 +1555,7 @@ public class NotificationContentView extends FrameLayout implements Notification
                 if (existingPendingIntent != null || result.mView.isActive()) {
                     // The current action could be gone, or the pending intent no longer valid.
                     // If we find a matching action in the new notification, focus, otherwise close.
-                    Notification.Action[] actions = entry.getSbn().getNotification().actions;
+                    Notification.Action[] actions = mSbn.getNotification().actions;
                     if (existingPendingIntent != null) {
                         result.mController.setPendingIntent(existingPendingIntent);
                     }
@@ -1559,8 +1571,8 @@ public class NotificationContentView extends FrameLayout implements Notification
                 }
             }
             if (result.mView != null) {
-                int backgroundColor = entry.getRow().getCurrentBackgroundTint();
-                boolean colorized = entry.getSbn().getNotification().isColorized();
+                int backgroundColor = mContainingNotification.getCurrentBackgroundTint();
+                boolean colorized = mSbn.getNotification().isColorized();
                 result.mView.setBackgroundTintColor(backgroundColor, colorized);
             }
         }
@@ -1581,13 +1593,26 @@ public class NotificationContentView extends FrameLayout implements Notification
      * Setup icon buttons provided by System UI.
      */
     private void applySystemActions(View layout, NotificationEntry entry) {
+        if (mSbn == null) {
+            return;
+        }
+        if (NotificationBundleUi.isEnabled()) {
+            if (entry != null) {
+                throw new IllegalStateException("Entry is not null but should be");
+            }
+        }
         applySnoozeAction(layout);
         applyBubbleAction(layout, entry);
     }
 
-    private void applyBubbleAction(View layout, NotificationEntry entry) {
+    private void applyBubbleAction(View layout, @Nullable NotificationEntry entry) {
         if (layout == null || mContainingNotification == null || mPeopleIdentifier == null) {
             return;
+        }
+        if (NotificationBundleUi.isEnabled()) {
+            if (entry != null) {
+                throw new IllegalStateException("Entry is not null but should be");
+            }
         }
         ImageView bubbleButton = layout.findViewById(com.android.internal.R.id.bubble_button);
         // With the new design, the actions_container should always be visible to act as padding
@@ -1651,7 +1676,12 @@ public class NotificationContentView extends FrameLayout implements Notification
     }
 
     @VisibleForTesting
-    boolean shouldShowBubbleButton(NotificationEntry entry) {
+    boolean shouldShowBubbleButton(@Nullable NotificationEntry entry) {
+        if (NotificationBundleUi.isEnabled()) {
+            if (entry != null) {
+                throw new IllegalStateException("Entry is not null but should be");
+            }
+        }
         int peopleType = NotificationBundleUi.isEnabled()
                 ? mContainingNotification.getEntryAdapter().getPeopleNotificationType()
                 : mPeopleIdentifier.getPeopleNotificationType(entry);
@@ -1713,7 +1743,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         if (mExpandedChild != null) {
             applyExternalSmartReplyState(mExpandedChild, mCurrentSmartReplyState);
             mExpandedSmartReplyView = applySmartReplyView(mExpandedChild, mCurrentSmartReplyState,
-                    mNotificationEntry, mExpandedInflatedSmartReplies);
+                    mContainingNotification, mSbn, mExpandedInflatedSmartReplies);
             if (mExpandedSmartReplyView != null) {
                 SmartReplyView.SmartReplies smartReplies =
                         mCurrentSmartReplyState.getSmartReplies();
@@ -1728,8 +1758,14 @@ public class NotificationContentView extends FrameLayout implements Notification
                     boolean editBeforeSending = smartReplies != null
                             && mSmartReplyConstants.getEffectiveEditChoicesBeforeSending(
                             smartReplies.remoteInput.getEditChoicesBeforeSending());
+                    String key;
+                    if (NotificationBundleUi.isEnabled()) {
+                        key = mContainingNotification.getEntryAdapter().getKey();
+                    } else {
+                        key = mNotificationEntry.getKey();
+                    }
 
-                    mSmartReplyController.smartSuggestionsAdded(mNotificationEntry, numSmartReplies,
+                    mSmartReplyController.smartSuggestionsAdded(key, numSmartReplies,
                             numSmartActions, fromAssistant, editBeforeSending);
                 }
             }
@@ -1738,7 +1774,7 @@ public class NotificationContentView extends FrameLayout implements Notification
             applyExternalSmartReplyState(mHeadsUpChild, mCurrentSmartReplyState);
             if (mSmartReplyConstants.getShowInHeadsUp()) {
                 mHeadsUpSmartReplyView = applySmartReplyView(mHeadsUpChild, mCurrentSmartReplyState,
-                        mNotificationEntry, mHeadsUpInflatedSmartReplies);
+                        mContainingNotification, mSbn, mHeadsUpInflatedSmartReplies);
             }
         }
     }
@@ -1760,21 +1796,32 @@ public class NotificationContentView extends FrameLayout implements Notification
             if (DEBUG && !suppressedActionIndices.isEmpty()) {
                 Log.d(TAG, "Suppressing actions with indices: " + suppressedActionIndices);
             }
+            int suppressedActionCount = 0;
             for (int i = 0; i < actionsList.getChildCount(); i++) {
                 View actionBtn = actionsList.getChildAt(i);
                 Object actionIndex =
                         actionBtn.getTag(com.android.internal.R.id.notification_action_index_tag);
                 boolean suppressAction = actionIndex instanceof Integer
                         && suppressedActionIndices.contains(actionIndex);
-                actionBtn.setVisibility(suppressAction ? View.GONE : View.VISIBLE);
+                if (suppressAction) {
+                    actionBtn.setVisibility(View.GONE);
+                    suppressedActionCount++;
+                } else {
+                    actionBtn.setVisibility(View.VISIBLE);
+                }
+            }
+            // If all the actions in the actionList ViewGroup are suppressed, hide the ViewGroup
+            // as well to remove the empty space with no action buttons.
+            if (suppressedActionCount >= actionsList.getChildCount()) {
+                actionsList.setVisibility(View.GONE);
             }
         }
     }
 
     @Nullable
     private static SmartReplyView applySmartReplyView(View view,
-            InflatedSmartReplyState smartReplyState,
-            NotificationEntry entry, InflatedSmartReplyViewHolder inflatedSmartReplyViewHolder) {
+            InflatedSmartReplyState smartReplyState, ExpandableNotificationRow row,
+            StatusBarNotification sbn, InflatedSmartReplyViewHolder inflatedSmartReplyViewHolder) {
         View smartReplyContainerCandidate = view.findViewById(
                 com.android.internal.R.id.smart_reply_container);
         if (!(smartReplyContainerCandidate instanceof LinearLayout)) {
@@ -1782,7 +1829,7 @@ public class NotificationContentView extends FrameLayout implements Notification
         }
 
         LinearLayout smartReplyContainer = (LinearLayout) smartReplyContainerCandidate;
-        if (!SmartReplyStateInflaterKt.shouldShowSmartReplyView(entry, smartReplyState)) {
+        if (!SmartReplyStateInflaterKt.shouldShowSmartReplyView(sbn, smartReplyState)) {
             smartReplyContainer.setVisibility(View.GONE);
             return null;
         }
@@ -1813,8 +1860,8 @@ public class NotificationContentView extends FrameLayout implements Notification
             smartReplyView.addPreInflatedButtons(
                     inflatedSmartReplyViewHolder.getSmartSuggestionButtons());
             // Ensure the colors of the smart suggestion buttons are up-to-date.
-            int backgroundColor = entry.getRow().getCurrentBackgroundTint();
-            boolean colorized = entry.getSbn().getNotification().isColorized();
+            int backgroundColor = row.getCurrentBackgroundTint();
+            boolean colorized = sbn.getNotification().isColorized();
             smartReplyView.setBackgroundTintColor(backgroundColor, colorized);
             smartReplyContainer.setVisibility(View.VISIBLE);
         }
@@ -1974,7 +2021,6 @@ public class NotificationContentView extends FrameLayout implements Notification
         if (mIsChildInGroup && mSingleLineView != null) {
             removeView(mSingleLineView);
             mSingleLineView = null;
-            updateAllSingleLineViews();
         }
     }
 
@@ -2200,7 +2246,7 @@ public class NotificationContentView extends FrameLayout implements Notification
      */
     @Override
     public boolean pointInView(float localX, float localY, float slop) {
-        float top = mClipTopAmount;
+        float top = Math.max(mClipTopAmount, mTopOverlap);
         float bottom = mUnrestrictedContentHeight;
         return localX >= -slop && localY >= top - slop && localX < ((mRight - mLeft) + slop) &&
                 localY < (bottom + slop);
@@ -2550,18 +2596,17 @@ public class NotificationContentView extends FrameLayout implements Notification
     private void cancelNotification(Exception exception) {
         try {
             setVisibility(GONE);
-            final StatusBarNotification sbn = mNotificationEntry.getSbn();
             if (mStatusBarService != null) {
                 // report notification inflation errors back up
                 // to notification delegates
                 mStatusBarService.onNotificationError(
-                        sbn.getPackageName(),
-                        sbn.getTag(),
-                        sbn.getId(),
-                        sbn.getUid(),
-                        sbn.getInitialPid(),
+                        mSbn.getPackageName(),
+                        mSbn.getTag(),
+                        mSbn.getId(),
+                        mSbn.getUid(),
+                        mSbn.getInitialPid(),
                         exception.getMessage(),
-                        sbn.getUser().getIdentifier());
+                        mSbn.getUser().getIdentifier());
             }
         } catch (RemoteException ex) {
             Log.e(TAG, "cancelNotification failed: " + ex);

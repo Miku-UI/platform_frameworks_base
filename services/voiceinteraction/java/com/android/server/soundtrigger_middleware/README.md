@@ -135,11 +135,9 @@ to call another module, while having its local mutex(es) held:
     changed while the lock has been released.
   - Release the local lock.
   - Invoke any synchronous callbacks if needed.
-- Calling from `SoundTriggerMiddlewareImpl` / `SoundTriggerModule` into the audio policy service via
-  `acquireSession()` / `releaseSession()` while holding the local lock is legal.
 - `setCaptureState()` calls, originating from Audio Policy Service, into the lower layers of the
   stack may call into the HAL (specifically, they must invoke `stopRecognition()`, but must not
-  block on callbacks. For this reason, `SoundTriggerHw2ConcurrentCaptureHandler`, which is the 
+  block on callbacks. For this reason, `SoundTriggerHw2ConcurrentCaptureHandler`, which is the
   recipient of these calls, features a buffer and an additional thread, which allows the actual
   stopping to be synchronous, as required, without having to block the call upon higher layers
   processing the callbacks.

@@ -5,7 +5,7 @@ import android.service.remotelockscreenvalidation.IRemoteLockscreenValidationCal
 
 /**
 * Interface used by the System to validate remote device lockscreen.
-* {@hide}
+* @hide
 */
 interface IRemoteLockscreenValidationService {
     void validateLockscreenGuess(in byte[] guess, in IRemoteLockscreenValidationCallback callback);

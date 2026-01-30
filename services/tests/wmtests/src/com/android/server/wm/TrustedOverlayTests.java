@@ -27,8 +27,6 @@ import android.app.Activity;
 import android.app.Instrumentation;
 import android.os.IBinder;
 import android.platform.test.annotations.Presubmit;
-import android.platform.test.annotations.RequiresFlagsDisabled;
-import android.platform.test.annotations.RequiresFlagsEnabled;
 import android.platform.test.flag.junit.CheckFlagsRule;
 import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.server.wm.BuildUtils;
@@ -41,7 +39,6 @@ import androidx.test.ext.junit.rules.ActivityScenarioRule;
 import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.server.wm.utils.CommonUtils;
-import com.android.window.flags.Flags;
 
 import org.junit.After;
 import org.junit.Before;
@@ -85,14 +82,7 @@ public class TrustedOverlayTests {
         CommonUtils.waitUntilActivityRemoved(mActivity);
     }
 
-    @RequiresFlagsDisabled(Flags.FLAG_SURFACE_TRUSTED_OVERLAY)
     @Test
-    public void setTrustedOverlayInputWindow() throws InterruptedException {
-        testTrustedOverlayChildHelper(false);
-    }
-
-    @Test
-    @RequiresFlagsEnabled(Flags.FLAG_SURFACE_TRUSTED_OVERLAY)
     public void setTrustedOverlayChildLayer() throws InterruptedException {
         testTrustedOverlayChildHelper(true);
     }

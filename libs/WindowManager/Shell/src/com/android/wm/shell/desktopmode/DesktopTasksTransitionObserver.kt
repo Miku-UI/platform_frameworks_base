@@ -18,7 +18,6 @@ package com.android.wm.shell.desktopmode
 
 import android.app.ActivityManager
 import android.app.WindowConfiguration.WINDOWING_MODE_FREEFORM
-import android.content.Context
 import android.os.IBinder
 import android.view.SurfaceControl
 import android.view.WindowManager.TRANSIT_CLOSE
@@ -32,14 +31,11 @@ import android.window.TransitionInfo
 import android.window.WindowContainerTransaction
 import com.android.internal.protolog.ProtoLog
 import com.android.wm.shell.ShellTaskOrganizer
-import com.android.wm.shell.back.BackAnimationController
-import com.android.wm.shell.desktopmode.DesktopModeTransitionTypes.isExitDesktopModeTransition
 import com.android.wm.shell.desktopmode.desktopwallpaperactivity.DesktopWallpaperActivityTokenProvider
 import com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_DESKTOP_MODE
-import com.android.wm.shell.shared.TransitionUtil
 import com.android.wm.shell.shared.TransitionUtil.isClosingMode
 import com.android.wm.shell.shared.TransitionUtil.isOpeningMode
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus
+import com.android.wm.shell.shared.desktopmode.DesktopState
 import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.transition.Transitions
 
@@ -49,23 +45,23 @@ import com.android.wm.shell.transition.Transitions
  * other transitions that originate both within and outside shell.
  */
 class DesktopTasksTransitionObserver(
-    private val context: Context,
     private val desktopUserRepositories: DesktopUserRepositories,
     private val transitions: Transitions,
     private val shellTaskOrganizer: ShellTaskOrganizer,
     private val desktopMixedTransitionHandler: DesktopMixedTransitionHandler,
-    private val backAnimationController: BackAnimationController,
     private val desktopWallpaperActivityTokenProvider: DesktopWallpaperActivityTokenProvider,
+    desktopState: DesktopState,
     shellInit: ShellInit,
 ) : Transitions.TransitionObserver {
 
     data class CloseWallpaperTransition(val transition: IBinder, val displayId: Int)
 
     private var transitionToCloseWallpaper: CloseWallpaperTransition? = null
+    private var closingTransitionToTransitionInfo = HashMap<IBinder, TransitionInfo>()
     private var currentProfileId: Int
 
     init {
-        if (DesktopModeStatus.canEnterDesktopMode(context)) {
+        if (desktopState.canEnterDesktopMode) {
             shellInit.addInitCallback(::onInit, this)
         }
         currentProfileId = ActivityManager.getCurrentUser()
@@ -84,132 +80,44 @@ class DesktopTasksTransitionObserver(
     ) {
         // TODO: b/332682201 Update repository state
         if (
-            DesktopModeFlags.INCLUDE_TOP_TRANSPARENT_FULLSCREEN_TASK_IN_DESKTOP_HEURISTIC
-                .isTrue() && DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_MODALS_POLICY.isTrue()
+            DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_MODALS_POLICY.isTrue &&
+                (DesktopModeFlags.INCLUDE_TOP_TRANSPARENT_FULLSCREEN_TASK_IN_DESKTOP_HEURISTIC
+                    .isTrue ||
+                    DesktopExperienceFlags.FORCE_CLOSE_TOP_TRANSPARENT_FULLSCREEN_TASK.isTrue)
         ) {
             updateTopTransparentFullscreenTaskId(info)
         }
         updateWallpaperToken(info)
-        if (DesktopModeFlags.ENABLE_DESKTOP_WINDOWING_BACK_NAVIGATION.isTrue()) {
-            handleBackNavigation(transition, info)
-            removeTaskIfNeeded(info)
+        if (
+            DesktopExperienceFlags.ENABLE_DESKTOP_CLOSE_TASK_ANIMATION_IN_DTC_BUGFIX.isTrue &&
+                !desktopMixedTransitionHandler.hasTransition(transition) &&
+                containsClosingTaskInDesktop(info)
+        ) {
+            desktopMixedTransitionHandler.addPendingMixedTransition(
+                DesktopMixedTransitionHandler.PendingMixedTransition.Close(transition)
+            )
+            closingTransitionToTransitionInfo.put(transition, info)
         }
         removeWallpaperOnLastTaskClosingIfNeeded(transition, info)
     }
 
-    private fun removeTaskIfNeeded(info: TransitionInfo) {
-        // Since we are no longer removing all the tasks [onTaskVanished], we need to remove them by
-        // checking the transitions.
-        if (!(TransitionUtil.isOpeningType(info.type) || info.type.isExitDesktopModeTransition())) {
-            return
-        }
-        // Remove a task from the repository if the app is launched outside of desktop.
+    private fun containsClosingTaskInDesktop(info: TransitionInfo): Boolean {
         for (change in info.changes) {
             val taskInfo = change.taskInfo
-            if (taskInfo == null || taskInfo.taskId == -1) continue
-
+            if (taskInfo == null || taskInfo.taskId == -1) {
+                continue
+            }
             val desktopRepository = desktopUserRepositories.getProfile(taskInfo.userId)
+            val isInDesktop = desktopRepository.isAnyDeskActive(taskInfo.displayId)
             if (
-                desktopRepository.isActiveTask(taskInfo.taskId) &&
-                    taskInfo.windowingMode != WINDOWING_MODE_FREEFORM
+                isInDesktop &&
+                    change.mode == TRANSIT_CLOSE &&
+                    taskInfo.windowingMode == WINDOWING_MODE_FREEFORM
             ) {
-                desktopRepository.removeTask(taskInfo.displayId, taskInfo.taskId)
+                return true
             }
         }
-    }
-
-    private fun handleBackNavigation(transition: IBinder, info: TransitionInfo) {
-        // When default back navigation happens, transition type is TO_BACK and the change is
-        // TO_BACK. Mark the task going to back as minimized.
-        if (info.type == TRANSIT_TO_BACK) {
-            for (change in info.changes) {
-                val taskInfo = change.taskInfo
-                if (taskInfo == null || taskInfo.taskId == -1) {
-                    continue
-                }
-                val desktopRepository = desktopUserRepositories.getProfile(taskInfo.userId)
-                val isInDesktop = desktopRepository.isAnyDeskActive(taskInfo.displayId)
-                if (
-                    isInDesktop &&
-                        change.mode == TRANSIT_TO_BACK &&
-                        taskInfo.windowingMode == WINDOWING_MODE_FREEFORM
-                ) {
-                    val isLastTask =
-                        if (!DesktopExperienceFlags.ENABLE_MULTIPLE_DESKTOPS_BACKEND.isTrue) {
-                            desktopRepository.hasOnlyOneVisibleTask(taskInfo.displayId)
-                        } else {
-                            desktopRepository.isOnlyVisibleTask(taskInfo.taskId, taskInfo.displayId)
-                        }
-                    desktopRepository.minimizeTask(taskInfo.displayId, taskInfo.taskId)
-                    desktopMixedTransitionHandler.addPendingMixedTransition(
-                        DesktopMixedTransitionHandler.PendingMixedTransition.Minimize(
-                            transition,
-                            taskInfo.taskId,
-                            isLastTask,
-                        )
-                    )
-                }
-            }
-        } else if (info.type == TRANSIT_CLOSE) {
-            // In some cases app will be closing as a result of back navigation but we would like
-            // to minimize. Mark the task closing as minimized.
-            var hasWallpaperClosing = false
-            var minimizingTask: Int? = null
-            for (change in info.changes) {
-                val taskInfo = change.taskInfo
-                if (taskInfo == null || taskInfo.taskId == -1) continue
-
-                if (
-                    TransitionUtil.isClosingMode(change.mode) &&
-                        DesktopWallpaperActivity.isWallpaperTask(taskInfo)
-                ) {
-                    hasWallpaperClosing = true
-                }
-
-                if (change.mode == TRANSIT_CLOSE && minimizingTask == null) {
-                    minimizingTask = getMinimizingTaskForClosingTransition(taskInfo)
-                }
-            }
-
-            if (minimizingTask == null) return
-            // If the transition has wallpaper closing, it means we are moving out of desktop.
-            desktopMixedTransitionHandler.addPendingMixedTransition(
-                DesktopMixedTransitionHandler.PendingMixedTransition.Minimize(
-                    transition,
-                    minimizingTask,
-                    isLastTask = hasWallpaperClosing,
-                )
-            )
-        }
-    }
-
-    /**
-     * Given this a closing task in a closing transition, a task is assumed to be closed by back
-     * navigation if:
-     * 1) Desktop mode is visible.
-     * 2) Task is in freeform.
-     * 3) Task is the latest task that the back gesture is triggered on.
-     * 4) It's not marked as a closing task as a result of closing it by the app header.
-     *
-     * This doesn't necessarily mean all the cases are because of back navigation but those cases
-     * will be rare. E.g. triggering back navigation on an app that pops up a close dialog, and
-     * closing it will minimize it here.
-     */
-    private fun getMinimizingTaskForClosingTransition(
-        taskInfo: ActivityManager.RunningTaskInfo
-    ): Int? {
-        val desktopRepository = desktopUserRepositories.getProfile(taskInfo.userId)
-        val isInDesktop = desktopRepository.isAnyDeskActive(taskInfo.displayId)
-        if (
-            isInDesktop &&
-                taskInfo.windowingMode == WINDOWING_MODE_FREEFORM &&
-                backAnimationController.latestTriggerBackTask == taskInfo.taskId &&
-                !desktopRepository.isClosingTask(taskInfo.taskId)
-        ) {
-            desktopRepository.minimizeTask(taskInfo.displayId, taskInfo.taskId)
-            return taskInfo.taskId
-        }
-        return null
+        return false
     }
 
     private fun removeWallpaperOnLastTaskClosingIfNeeded(
@@ -270,6 +178,36 @@ class DesktopTasksTransitionObserver(
                 }
             transitionToCloseWallpaper = null
         }
+
+        // If a task is closing and is not handled by back navigation logic, remove it here with a
+        // follow up transition fully so it doesn't show up on recents.
+        //
+        // The reason that this is done here and not on [DesktopTasksController#handleRequest] is
+        // because for closing tasks we first need to check whether it's because of back navigation
+        // so that we can minimize it if needed.
+        val info = closingTransitionToTransitionInfo.remove(transition) ?: return
+        removeClosingTasks(info)
+    }
+
+    /**
+     * Finds the closing tasks in the change and removes them full by a [TRANSIT_CLOSE] transition.
+     */
+    private fun removeClosingTasks(info: TransitionInfo) {
+        val wct = WindowContainerTransaction()
+        info.changes
+            .filter { it.mode == TRANSIT_CLOSE }
+            .mapNotNull { it.taskInfo }
+            .forEach { taskInfo ->
+                if (taskInfo.windowingMode != WINDOWING_MODE_FREEFORM) return@forEach
+                wct.removeTask(taskInfo.token)
+                ProtoLog.d(
+                    WM_SHELL_DESKTOP_MODE,
+                    "DesktopTasksTransitionObserver: removing closing task=%d fully",
+                    taskInfo.taskId,
+                )
+            }
+
+        if (!wct.isEmpty) transitions.startTransition(TRANSIT_CLOSE, wct, null)
     }
 
     private fun updateWallpaperToken(info: TransitionInfo) {
@@ -308,8 +246,9 @@ class DesktopTasksTransitionObserver(
                 change.taskInfo?.let { task ->
                     val desktopRepository = desktopUserRepositories.getProfile(task.userId)
                     val displayId = task.displayId
+                    val deskId = desktopRepository.getActiveDeskId(displayId) ?: return@forEachLoop
                     val transparentTaskId =
-                        desktopRepository.getTopTransparentFullscreenTaskId(displayId)
+                        desktopRepository.getTopTransparentFullscreenTaskData(deskId)?.taskId
                     if (transparentTaskId == null) return@forEachLoop
                     val changeMode = change.mode
                     val taskId = task.taskId
@@ -323,7 +262,7 @@ class DesktopTasksTransitionObserver(
                         isTopTransparentFullscreenTaskClosing ||
                             isNonTopTransparentFullscreenTaskOpening
                     ) {
-                        desktopRepository.clearTopTransparentFullscreenTaskId(displayId)
+                        desktopRepository.clearTopTransparentFullscreenTaskData(deskId)
                         return@forEachLoop
                     }
                 }

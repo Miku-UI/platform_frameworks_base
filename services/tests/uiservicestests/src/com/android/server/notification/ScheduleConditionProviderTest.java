@@ -31,7 +31,6 @@ import android.content.IntentFilter;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SimpleClock;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.service.notification.Condition;
 import android.service.notification.ScheduleCalendar;
@@ -378,7 +377,6 @@ public class ScheduleConditionProviderTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_MODES_HSUM)
     public void onSubscribe_registersReceiverForAllUsers() {
         Calendar now = getNow();
         Uri condition = ZenModeConfig.toScheduleConditionId(getScheduleEndsInHour(now));
@@ -394,7 +392,6 @@ public class ScheduleConditionProviderTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_MODES_HSUM)
     public void onAlarmClockChanged_storesNextAlarm() {
         Instant scheduleStart = Instant.parse("2024-10-22T16:00:00Z");
         Instant scheduleEnd = scheduleStart.plus(1, HOURS);
@@ -432,7 +429,6 @@ public class ScheduleConditionProviderTest extends UiServiceTestCase {
     }
 
     @Test
-    @EnableFlags(android.app.Flags.FLAG_MODES_HSUM)
     public void onAlarmClockChanged_forAnotherUser_isIgnored() {
         Instant scheduleStart = Instant.parse("2024-10-22T16:00:00Z");
         Instant now = scheduleStart.plus(15, MINUTES);

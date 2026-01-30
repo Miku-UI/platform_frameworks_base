@@ -39,54 +39,6 @@ class SizeVoteTest {
     }
 
     @Test
-    fun updatesSize_widthAndHeightNotSet_resolutionVotingDisabled() {
-        val summary = createVotesSummary(isDisplayResolutionRangeVotingEnabled = false)
-        summary.width = Vote.INVALID_SIZE
-        summary.height = Vote.INVALID_SIZE
-        summary.minWidth = 100
-        summary.minHeight = 200
-
-        sizeVote.updateSummary(summary)
-
-        assertThat(summary.width).isEqualTo(WIDTH)
-        assertThat(summary.height).isEqualTo(HEIGHT)
-        assertThat(summary.minWidth).isEqualTo(MIN_WIDTH)
-        assertThat(summary.minHeight).isEqualTo(MIN_HEIGHT)
-    }
-
-    @Test
-    fun doesNotUpdateSiz_widthSet_resolutionVotingDisabled() {
-        val summary = createVotesSummary(isDisplayResolutionRangeVotingEnabled = false)
-        summary.width = 150
-        summary.height = Vote.INVALID_SIZE
-        summary.minWidth = 100
-        summary.minHeight = 200
-
-        sizeVote.updateSummary(summary)
-
-        assertThat(summary.width).isEqualTo(150)
-        assertThat(summary.height).isEqualTo(Vote.INVALID_SIZE)
-        assertThat(summary.minWidth).isEqualTo(100)
-        assertThat(summary.minHeight).isEqualTo(200)
-    }
-
-    @Test
-    fun doesNotUpdateSize_heightSet_resolutionVotingDisabled() {
-        val summary = createVotesSummary(isDisplayResolutionRangeVotingEnabled = false)
-        summary.width = Vote.INVALID_SIZE
-        summary.height = 250
-        summary.minWidth = 100
-        summary.minHeight = 200
-
-        sizeVote.updateSummary(summary)
-
-        assertThat(summary.width).isEqualTo(Vote.INVALID_SIZE)
-        assertThat(summary.height).isEqualTo(250)
-        assertThat(summary.minWidth).isEqualTo(100)
-        assertThat(summary.minHeight).isEqualTo(200)
-    }
-
-    @Test
     fun updatesWidthWithSmallerValue_resolutionVotingEnabled() {
         val summary = createVotesSummary()
         summary.width = 850

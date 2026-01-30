@@ -24,13 +24,13 @@ import com.android.compose.animation.scene.TestScenes.SceneB
 import com.android.compose.animation.scene.TestScenes.SceneC
 import com.android.compose.animation.scene.content.state.TransitionState
 import com.android.compose.animation.scene.subjects.assertThat
-import com.android.compose.test.runMonotonicClockTest
 import com.android.compose.test.transition
 import com.google.common.truth.Correspondence
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.motion.compose.runMonotonicClockTest
 
 @RunWith(AndroidJUnit4::class)
 class InterruptionHandlerTest {

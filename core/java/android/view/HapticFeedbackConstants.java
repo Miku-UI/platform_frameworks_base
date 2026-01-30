@@ -43,6 +43,44 @@ public class HapticFeedbackConstants {
 
     private HapticFeedbackConstants() {}
 
+    /** @hide */
+    @IntDef(value = {
+            NO_HAPTICS,
+            LONG_PRESS,
+            VIRTUAL_KEY,
+            KEYBOARD_TAP,
+            CLOCK_TICK,
+            CALENDAR_DATE,
+            CONTEXT_CLICK,
+            KEYBOARD_RELEASE,
+            VIRTUAL_KEY_RELEASE,
+            TEXT_HANDLE_MOVE,
+            DRAG_CROSSING,
+            GESTURE_START,
+            GESTURE_END,
+            EDGE_SQUEEZE,
+            EDGE_RELEASE,
+            CONFIRM,
+            REJECT,
+            SCROLL_TICK,
+            SCROLL_ITEM_FOCUS,
+            SCROLL_LIMIT,
+            TOGGLE_ON,
+            TOGGLE_OFF,
+            GESTURE_THRESHOLD_ACTIVATE,
+            GESTURE_THRESHOLD_DEACTIVATE,
+            DRAG_START,
+            SEGMENT_TICK,
+            SEGMENT_FREQUENT_TICK,
+            SAFE_MODE_ENABLED,
+            ASSISTANT_BUTTON,
+            LONG_PRESS_POWER_BUTTON,
+            BIOMETRIC_CONFIRM,
+            BIOMETRIC_REJECT,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface FeedbackConstant {}
+
     /**
      * No haptic feedback should be performed. Applications may use this value to indicate skipping
      * a call to {@link View#performHapticFeedback} entirely, or else rely that it will immediately

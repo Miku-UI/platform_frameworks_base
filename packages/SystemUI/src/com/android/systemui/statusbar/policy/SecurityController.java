@@ -22,6 +22,8 @@ import android.graphics.drawable.Drawable;
 
 import com.android.systemui.Dumpable;
 import com.android.systemui.statusbar.policy.SecurityController.SecurityControllerCallback;
+import com.android.systemui.statusbar.policy.vpn.data.repository.VpnRepository;
+import com.android.systemui.supervision.data.model.SupervisionModel;
 
 public interface SecurityController extends CallbackController<SecurityControllerCallback>,
         Dumpable {
@@ -42,16 +44,22 @@ public interface SecurityController extends CallbackController<SecurityControlle
 
     /** Device owner component even if not on this user. **/
     ComponentName getDeviceOwnerComponentOnAnyUser();
-    // TODO(b/259908270): remove
-    /** Device owner type for a device owner. **/
-    @Deprecated
-    int getDeviceOwnerType(ComponentName admin);
     boolean isNetworkLoggingEnabled();
+    /** @deprecated Use {@link VpnRepository#getVpnState()} instead. */
+    @Deprecated
     boolean isVpnEnabled();
     boolean isVpnRestricted();
-    /** Whether the VPN network is validated. */
+    /**
+     * Whether the VPN network is validated.
+     * @deprecated Use {@link VpnRepository#getVpnState()} instead.
+     */
+    @Deprecated
     boolean isVpnValidated();
-    /** Whether the VPN app should use branded VPN iconography.  */
+    /**
+     * Whether the VPN app should use branded VPN iconography.
+     * @deprecated Use {@link VpnRepository#getVpnState()} instead.
+     */
+    @Deprecated
     boolean isVpnBranded();
     String getPrimaryVpnName();
     String getWorkProfileVpnName();
@@ -90,6 +98,13 @@ public interface SecurityController extends CallbackController<SecurityControlle
     /** Label for admin */
     @Nullable
     CharSequence getLabel();
+    /** Sets the supervision info for the current user. This method should only be called by
+     * {@link SecurityControllerStartable} or in tests. */
+    void setSupervisionModel(@Nullable SupervisionModel supervisionModel);
+
+    /** The supervision info for the current user. */
+    @Nullable
+    SupervisionModel getSupervisionModel();
 
     public interface SecurityControllerCallback {
         void onStateChanged();

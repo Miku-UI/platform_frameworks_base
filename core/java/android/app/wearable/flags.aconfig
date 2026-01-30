@@ -55,3 +55,11 @@ flag {
     description: "This flag enables the APIs for providing read-only ParcelFileDescriptors to the WearableSensingService."
     bug: "358130861"
 }
+
+flag {
+    name: "enable_wearable_sensing_manager_service_dump"
+    is_exported: false
+    namespace: "machine_learning"
+    description: "This flag enables the system WearableSensingManager binder to dump information."
+    bug: "437414825"
+}

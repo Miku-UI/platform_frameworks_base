@@ -29,7 +29,7 @@ import android.hardware.power.SessionConfig;
 import android.hardware.power.SessionTag;
 import android.hardware.power.SupportInfo;
 
-/** {@hide} */
+/** @hide */
 interface IHintManager {
     /**
      * Creates a {@link Session} for the given set of threads and associates to a binder token.

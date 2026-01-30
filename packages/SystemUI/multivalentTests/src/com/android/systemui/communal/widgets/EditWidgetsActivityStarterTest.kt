@@ -16,11 +16,14 @@
 
 package com.android.systemui.communal.widgets
 
+import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Intent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.communal.domain.interactor.communalSceneInteractor
+import com.android.systemui.communal.shared.model.EditModeState
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.testKosmos
@@ -31,9 +34,10 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.clearInvocations
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.times
+import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 
 @SmallTest
@@ -52,7 +56,58 @@ class EditWidgetsActivityStarterTest : SysuiTestCase() {
             EditWidgetsActivityStarterImpl(
                 context.applicationContext,
                 activityStarter,
+                kosmos.communalSceneInteractor,
             )
+    }
+
+    @Test
+    fun activityLaunch_editModeClearedWhenActivityLaunchCancelled() {
+        with(kosmos) {
+            testScope.runTest {
+                underTest.startActivity(shouldOpenWidgetPickerOnStart = true)
+
+                val captor = argumentCaptor<ActivityStarter.Callback>()
+                verify(activityStarter)
+                    .startActivityDismissingKeyguard(
+                        any(),
+                        eq(true),
+                        eq(true),
+                        any(),
+                        any(),
+                        captor.capture(),
+                    )
+
+                assertThat(communalSceneInteractor.editModeState.value)
+                    .isEqualTo(EditModeState.STARTING)
+
+                captor.lastValue.onActivityStarted(ActivityManager.START_CANCELED)
+
+                assertThat(communalSceneInteractor.editModeState.value).isNull()
+            }
+        }
+    }
+
+    @Test
+    fun activityLaunch_suppressesSubsequentLaunchesWhenPending() {
+        with(kosmos) {
+            testScope.runTest {
+                underTest.startActivity(shouldOpenWidgetPickerOnStart = true)
+                verify(activityStarter)
+                    .startActivityDismissingKeyguard(any(), eq(true), eq(true), any(), any(), any())
+
+                clearInvocations(activityStarter)
+
+                underTest.startActivity(shouldOpenWidgetPickerOnStart = false)
+                verify(activityStarter, never())
+                    .startActivityDismissingKeyguard(any(), eq(true), eq(true), any(), any(), any())
+
+                communalSceneInteractor.setEditModeState(null)
+
+                underTest.startActivity(shouldOpenWidgetPickerOnStart = true)
+                verify(activityStarter)
+                    .startActivityDismissingKeyguard(any(), eq(true), eq(true), any(), any(), any())
+            }
+        }
     }
 
     @Test
@@ -63,7 +118,14 @@ class EditWidgetsActivityStarterTest : SysuiTestCase() {
 
                 val captor = argumentCaptor<Intent>()
                 verify(activityStarter)
-                    .startActivityDismissingKeyguard(captor.capture(), eq(true), eq(true), any())
+                    .startActivityDismissingKeyguard(
+                        captor.capture(),
+                        eq(true),
+                        eq(true),
+                        any(),
+                        any(),
+                        any(),
+                    )
                 assertThat(captor.lastValue.component).isEqualTo(component)
                 assertThat(captor.lastValue.flags and Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0)
                 assertThat(captor.lastValue.flags and Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -75,10 +137,20 @@ class EditWidgetsActivityStarterTest : SysuiTestCase() {
                     )
                     .isEqualTo(true)
 
+                clearInvocations(activityStarter)
+                communalSceneInteractor.setEditModeState(null)
+
                 underTest.startActivity(shouldOpenWidgetPickerOnStart = false)
 
-                verify(activityStarter, times(2))
-                    .startActivityDismissingKeyguard(captor.capture(), eq(true), eq(true), any())
+                verify(activityStarter)
+                    .startActivityDismissingKeyguard(
+                        captor.capture(),
+                        eq(true),
+                        eq(true),
+                        any(),
+                        any(),
+                        any(),
+                    )
                 assertThat(captor.lastValue.component).isEqualTo(component)
                 assertThat(captor.lastValue.flags and Intent.FLAG_ACTIVITY_NEW_TASK).isNotEqualTo(0)
                 assertThat(captor.lastValue.flags and Intent.FLAG_ACTIVITY_CLEAR_TASK)

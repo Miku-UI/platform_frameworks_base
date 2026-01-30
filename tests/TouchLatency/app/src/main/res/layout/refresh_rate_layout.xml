@@ -11,6 +11,10 @@
             app:tickColor="@color/cardview_light_background"
             app:trackColor="@color/cardview_light_background"
             app:thumbColor="@color/cardview_dark_background"
-            android:visibility="visible"/>
+            android:visibility="visible"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

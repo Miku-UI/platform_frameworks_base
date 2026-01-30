@@ -51,5 +51,7 @@
         android:textSize="12sp"
         android:maxLines="3"
         android:textAppearance="@style/TextAppearance.Dialog.Body.Message"
+        android:hyphenationFrequency="normalFast"
+        android:lineBreakWordStyle="phrase"
         android:focusable="false" />
 </LinearLayout>

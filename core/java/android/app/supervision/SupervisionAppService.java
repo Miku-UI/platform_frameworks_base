@@ -18,6 +18,8 @@ package android.app.supervision;
 
 import android.annotation.FlaggedApi;
 import android.annotation.Nullable;
+import android.annotation.SdkConstant;
+import android.annotation.SdkConstant.SdkConstantType;
 import android.annotation.SystemApi;
 import android.app.Service;
 import android.app.supervision.flags.Flags;
@@ -25,24 +27,43 @@ import android.content.Intent;
 import android.os.IBinder;
 
 /**
- * Base class for a service that the {@code android.app.role.RoleManager.ROLE_SYSTEM_SUPERVISION}
- * role holder must implement.
+ * Base class for a service that the holders of the
+ * {@link android.app.role.RoleManager#ROLE_SYSTEM_SUPERVISION} or
+ * {@link android.app.role.RoleManager#ROLE_SUPERVISION} roles must extend.
+ *
+ * <p>When supervision is enabled, the system searches for this service from each supervision role
+ * holder using an intent filter for the {@link #ACTION_SUPERVISION_APP_SERVICE} action. The system
+ * attempts to maintain a bound connection to the service, keeping it in the foreground.
+ *
+ * <p>If a supervision role holder's process crashes, the system will restart it and automatically
+ * rebind to the service after a backoff period.
+ *
+ * <p>The service must be protected with the permission
+ * {@link android.Manifest.permission#BIND_SUPERVISION_APP_SERVICE}.
  *
  * @hide
  */
 @SystemApi
 @FlaggedApi(Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
 public class SupervisionAppService extends Service {
-    private final ISupervisionAppService mBinder =
-            new ISupervisionAppService.Stub() {
-                @Override
-                public void onEnabled() {
-                    SupervisionAppService.this.onEnabled();
-                }
+    /**
+     * Service Action: Action for a service that a supervision role holder must extend.
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.SERVICE_ACTION)
+    public static final String ACTION_SUPERVISION_APP_SERVICE =
+            "android.app.action.SUPERVISION_APP_SERVICE";
 
+    private final ISupervisionListener mBinder =
+            new ISupervisionListener.Stub() {
                 @Override
-                public void onDisabled() {
-                    SupervisionAppService.this.onDisabled();
+                public void onSetSupervisionEnabled(int userId, boolean enabled) {
+                    if (enabled) {
+                        SupervisionAppService.this.onSupervisionEnabled();
+                    } else {
+                        SupervisionAppService.this.onSupervisionDisabled();
+                    }
                 }
             };
 
@@ -59,7 +80,7 @@ public class SupervisionAppService extends Service {
      */
     @SystemApi
     @FlaggedApi(Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
-    public void onEnabled() {}
+    public void onSupervisionEnabled() {}
 
     /**
      * Called when supervision is disabled.
@@ -68,5 +89,5 @@ public class SupervisionAppService extends Service {
      */
     @SystemApi
     @FlaggedApi(Flags.FLAG_ENABLE_SUPERVISION_APP_SERVICE)
-    public void onDisabled() {}
+    public void onSupervisionDisabled() {}
 }

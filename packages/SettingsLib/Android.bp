@@ -5,12 +5,13 @@ package {
     // to get the below license kinds:
     //   SPDX-license-identifier-Apache-2.0
     default_applicable_licenses: ["frameworks_base_license"],
+    default_team: "trendy_team_android_settings_app",
 }
 
 android_library {
     name: "SettingsLib",
     defaults: [
-        "SettingsLibAvatarPickerDefaults",
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -34,6 +35,7 @@ android_library {
         "SettingsLibBulletPreference",
         "SettingsLibButtonPreference",
         "SettingsLibCardPreference",
+        "SettingsLibCategory",
         "SettingsLibCollapsingToolbarBaseActivity",
         "SettingsLibDeviceStateRotationLock",
         "SettingsLibDisplayUtils",
@@ -46,6 +48,7 @@ android_library {
         "SettingsLibIntroPreference",
         "SettingsLibLayoutPreference",
         "SettingsLibMainSwitchPreference",
+        "SettingsLibMenuPreference",
         "SettingsLibMetadata",
         "SettingsLibPreference",
         "SettingsLibProfileSelector",
@@ -62,6 +65,7 @@ android_library {
         "SettingsLibTwoTargetPreference",
         "SettingsLibUsageProgressBarPreference",
         "SettingsLibUtils",
+        "SettingsLibValuePreference",
         "SettingsLibZeroStatePreference",
         "settingslib_media_flags_lib",
     ],
@@ -69,6 +73,7 @@ android_library {
         // This flag library has been added in frameworks jar
         "aconfig_settingslib_flags_java_lib",
         "wifi_framework_aconfig_flags_lib",
+        "device_policy_aconfig_flags_lib",
     ],
     plugins: ["androidx.room_room-compiler-plugin"],
     use_resource_processor: true,
@@ -92,6 +97,21 @@ java_defaults {
     },
 }
 
+// defaults for apex_available
+java_defaults {
+    name: "SettingsLibApexDefaults",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.adservices",
+        "com.android.cellbroadcast",
+        "com.android.devicelock",
+        "com.android.extservices",
+        "com.android.healthfitness",
+        "com.android.mediaprovider",
+        "com.android.permission",
+    ],
+}
+
 // NOTE: Keep this module in sync with ./common.mk
 java_defaults {
     name: "SettingsLibDefaults",
@@ -112,33 +132,4 @@ aconfig_declarations {
 java_aconfig_library {
     name: "settingslib_media_flags_lib",
     aconfig_declarations: "settingslib_media_flags",
-}
-
-soong_config_module_type {
-    name: "avatar_picker_java_defaults",
-    module_type: "java_defaults",
-    config_namespace: "SettingsLib",
-    bool_variables: [
-        "legacy_avatar_picker_app_enabled",
-    ],
-    properties: [
-        "manifest",
-        "static_libs",
-    ],
-}
-
-soong_config_bool_variable {
-    name: "legacy_avatar_picker_app_enabled",
-}
-
-avatar_picker_java_defaults {
-    name: "SettingsLibAvatarPickerDefaults",
-    soong_config_variables: {
-        // If flag is enabled, add the library
-        legacy_avatar_picker_app_enabled: {
-            static_libs: [
-                "SettingsLibAvatarPicker",
-            ],
-        },
-    },
 }

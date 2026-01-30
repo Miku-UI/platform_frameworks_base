@@ -147,7 +147,7 @@ class ExtractFlaggedApisTest {
             """
             // Signature format: 2.0
             package android.location.provider {
-              @FlaggedApi(Flags.FLAG_NEW_GEOCODER) public final class ForwardGeocodeRequest implements android.os.Parcelable {
+              @FlaggedApi("android.location.flags.new_geocoder") public final class ForwardGeocodeRequest implements android.os.Parcelable {
                 method public int describeContents();
               }
               public static final class ForwardGeocodeRequest.Builder {
@@ -170,13 +170,13 @@ class ExtractFlaggedApisTest {
                 .setPackageName("android.location.provider")
                 .setClassName("ForwardGeocodeRequest")
                 .setMethodName("describeContents")
-        addFlaggedApi(expected, api1, "Flags.FLAG_NEW_GEOCODER")
+        addFlaggedApi(expected, api1, "android.location.flags.new_geocoder")
         val api2 =
             JavaMethod.newBuilder()
                 .setPackageName("android.location.provider")
                 .setClassName("ForwardGeocodeRequest.Builder")
                 .setMethodName("build")
-        addFlaggedApi(expected, api2, "Flags.FLAG_NEW_GEOCODER")
+        addFlaggedApi(expected, api2, "android.location.flags.new_geocoder")
         assertThat(result).ignoringRepeatedFieldOrder().isEqualTo(expected.build())
     }
 
@@ -186,7 +186,7 @@ class ExtractFlaggedApisTest {
             """
             // Signature format: 2.0
             package android.package.xyz {
-              @FlaggedApi(outer_class_flag) public final class OuterClass {
+              @FlaggedApi("outer_class_flag") public final class OuterClass {
                 method public int apiInOuterClass();
               }
               public final class OuterClass.Deeply.NestedClass {

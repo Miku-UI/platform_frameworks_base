@@ -119,7 +119,7 @@ public class OperatorNameViewController extends ViewController<OperatorNameView>
         return new SubInfo(
                 sI.getSubscriptionId(),
                 sI.getCarrierName(),
-                mKeyguardUpdateMonitor.getSimState(defaultSubId),
+                mKeyguardUpdateMonitor.getSimStateForSlotId(sI.getSimSlotIndex()),
                 mKeyguardUpdateMonitor.getServiceState(defaultSubId));
     }
 

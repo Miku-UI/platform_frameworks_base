@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Represents future work required to extract signals from notifications for ranking.
  *
- * {@hide}
+ * @hide
  */
 public abstract class RankingReconsideration implements Runnable {
     private static final long IMMEDIATE = 0l;

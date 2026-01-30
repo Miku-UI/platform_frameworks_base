@@ -23,47 +23,33 @@ import android.net.MacAddress;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Objects;
 
+//TODO(b/371198526): Update Javadoc: calling createAndSetDeviceId() assigns a key.
+// If the DeviceId is shared, other apps can fetch this app's associationInfo.
 /**
  *  A device id represents a device identifier managed by the companion app.
  */
-@FlaggedApi(Flags.FLAG_ASSOCIATION_TAG)
 public final class DeviceId implements Parcelable {
     /**
      * The length limit of custom id.
      */
     private static final int CUSTOM_ID_LENGTH_LIMIT = 1024;
 
+    private final byte[] mKey;
     private final String mCustomId;
     private final MacAddress mMacAddress;
 
     /**
      * @hide
      */
-    public DeviceId(@Nullable String customId, @Nullable MacAddress macAddress) {
+    public DeviceId(@Nullable String customId, @Nullable MacAddress macAddress,
+            @Nullable byte[] key) {
         mCustomId = customId;
         mMacAddress = macAddress;
-    }
-
-    /**
-     * Returns true if two Device ids are represent the same device. False otherwise.
-     * @hide
-     */
-    public boolean isSameDevice(@Nullable DeviceId other) {
-        if (other == null) {
-            return false;
-        }
-
-        if (this.mCustomId != null && other.mCustomId != null) {
-            return this.mCustomId.equals(other.mCustomId);
-        }
-        if (this.mMacAddress != null && other.mMacAddress != null) {
-            return this.mMacAddress.equals(other.mMacAddress);
-        }
-
-        return false;
+        mKey = key;
     }
 
     /** @hide */
@@ -88,6 +74,19 @@ public final class DeviceId implements Parcelable {
         return mMacAddress;
     }
 
+    /**
+     * @return A system generated 128-bit key, or {@code null} if no key is assigned.
+     *
+     * To assign a 128-bit key to this device id, you must call
+     * {@link CompanionDeviceManager#setDeviceId(int, DeviceId)}.
+     * @hide
+     */
+    @FlaggedApi(Flags.FLAG_ASSOCIATION_VERIFICATION)
+    @Nullable
+    public byte[] getKey() {
+        return mKey;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -102,7 +101,12 @@ public final class DeviceId implements Parcelable {
             dest.writeInt(0);
         }
         dest.writeTypedObject(mMacAddress, 0);
-
+        if (mKey != null) {
+            dest.writeInt(1);
+            dest.writeByteArray(mKey);
+        } else {
+            dest.writeInt(0);
+        }
     }
 
     private DeviceId(@NonNull Parcel in) {
@@ -113,6 +117,11 @@ public final class DeviceId implements Parcelable {
             mCustomId = null;
         }
         mMacAddress = in.readTypedObject(MacAddress.CREATOR);
+        if (in.readInt() == 1) {
+            mKey = in.createByteArray();
+        } else {
+            mKey = null;
+        }
     }
 
     @NonNull
@@ -131,7 +140,9 @@ public final class DeviceId implements Parcelable {
 
     @Override
     public int hashCode() {
-        return Objects.hash(mCustomId, mMacAddress);
+        int result = Objects.hash(mCustomId, mMacAddress);
+        result = 31 * result + Arrays.hashCode(mKey);
+        return result;
     }
 
     @Override
@@ -140,7 +151,8 @@ public final class DeviceId implements Parcelable {
         if (!(o instanceof DeviceId that)) return false;
 
         return Objects.equals(mCustomId, that.mCustomId)
-                && Objects.equals(mMacAddress, that.mMacAddress);
+                && Objects.equals(mMacAddress, that.mMacAddress)
+                && Arrays.equals(mKey, that.mKey);
     }
 
     @Override
@@ -203,7 +215,7 @@ public final class DeviceId implements Parcelable {
                 throw new IllegalArgumentException("At least one device id property must be"
                         + "non-null to build a DeviceId.");
             }
-            return new DeviceId(mCustomId, mMacAddress);
+            return new DeviceId(mCustomId, mMacAddress, null);
         }
     }
 }

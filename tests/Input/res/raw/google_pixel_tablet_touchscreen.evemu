@@ -1,6 +1,6 @@
 # EVEMU 1.2
 # One finger swipe gesture on the Google Pixel Tablet touchscreen
-N: NVTCapacitiveTouchScreen
+N: Test NVTCapacitiveTouchScreen
 I: 001c 0603 7806 0100
 P: 02 00 00 00 00 00 00 00
 B: 00 0b 00 00 00 00 00 00 00

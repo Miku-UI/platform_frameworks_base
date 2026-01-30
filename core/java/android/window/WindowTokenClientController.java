@@ -37,7 +37,6 @@ import android.view.WindowManagerGlobal;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.window.flags.Flags;
 
 /**
  * Singleton controller to manage the attached {@link WindowTokenClient}s, and to dispatch
@@ -141,9 +140,7 @@ public class WindowTokenClientController {
             // is initialized later, the SystemUiContext will start reporting from
             // DisplayContent#registerSystemUiContext, and WindowTokenClientController can report
             // the Configuration to the correct client.
-            if (Flags.trackSystemUiContextBeforeWms()) {
-                recordWindowContextToken(client);
-            }
+            recordWindowContextToken(client);
             return false;
         }
         final WindowContextInfo info;

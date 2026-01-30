@@ -24,7 +24,7 @@ import javax.inject.Inject
 class ShortcutHelperCustomizationModeInteractor
 @Inject
 constructor(private val customizationModeRepository: ShortcutHelperCustomizationModeRepository) {
-    val customizationMode = customizationModeRepository.isCustomizationModeEnabled
+    val isCustomizationModeEnabled = customizationModeRepository.isCustomizationModeEnabled
 
     fun toggleCustomizationMode(isCustomizing: Boolean) {
         customizationModeRepository.toggleCustomizationMode(isCustomizing)

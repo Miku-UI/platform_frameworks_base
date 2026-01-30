@@ -17,6 +17,7 @@
 package com.android.systemui.qs.panels.ui.viewmodel
 
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.qs.panels.domain.interactor.InFirstPageInteractor
 import javax.inject.Inject
 
 /*
@@ -24,6 +25,6 @@ import javax.inject.Inject
  * This requires it to be a `@SysUISingleton` to be shared between viewmodels.
  */
 @SysUISingleton
-class InFirstPageViewModel @Inject constructor() {
-    var inFirstPage = true
+class InFirstPageViewModel @Inject constructor(inFirstPageInteractor: InFirstPageInteractor) {
+    var inFirstPage by inFirstPageInteractor::inFirstPage
 }

@@ -25,11 +25,13 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.UserInfo;
-import android.credentials.flags.Flags;
 import android.database.ContentObserver;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Handler;
+import android.os.HandlerThread;
+import android.os.Looper;
+import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
@@ -195,6 +197,10 @@ public abstract class AbstractMasterSystemService<M extends AbstractMasterSystem
 
     private final MyPackageMonitor mPackageMonitor;
 
+    private static HandlerThread sPackageMonitorHandlerThread;
+
+    private static final Object sPackageMonitorLock = new Object();
+
     /**
      * Default constructor.
      *
@@ -291,8 +297,25 @@ public abstract class AbstractMasterSystemService<M extends AbstractMasterSystem
                 }
             });
         }
+
         mPackageMonitor = new MyPackageMonitor(/* supportsPackageRestartQuery */ true);
         startTrackingPackageChanges();
+    }
+
+    private void startTrackingPackageChanges() {
+        synchronized (sPackageMonitorLock) {
+            if (sPackageMonitorHandlerThread == null) {
+                sPackageMonitorHandlerThread = new HandlerThread(mTag + "PkgMonitorThread",
+                        Process.THREAD_PRIORITY_BACKGROUND);
+                // Start a new dedicated background thread for listening to package changes
+                try {
+                    sPackageMonitorHandlerThread.start();
+                } catch (IllegalThreadStateException e) {
+                    Slog.w(mTag, "Thread is already started: " + e.getMessage());
+                }
+            }
+        }
+        mPackageMonitor.startTrackingPackageChanges(sPackageMonitorHandlerThread.getLooper());
     }
 
     @Override // from SystemService
@@ -994,6 +1017,11 @@ public abstract class AbstractMasterSystemService<M extends AbstractMasterSystem
             super(supportsPackageRestartQuery);
         }
 
+        public void startTrackingPackageChanges(Looper looper) {
+            // package changes
+            this.register(getContext(), looper, UserHandle.ALL, true);
+        }
+
         @Override
         public void onPackageUpdateStarted(@NonNull String packageName, int uid) {
             if (verbose) Slog.v(mTag, "onPackageUpdateStarted(): " + packageName);
@@ -1180,13 +1208,12 @@ public abstract class AbstractMasterSystemService<M extends AbstractMasterSystem
                 final String[] serviceNames = mServiceNameResolver.getDefaultServiceNameList(
                         userId);
                 if (serviceNames != null) {
-                    if (Flags.packageUpdateFixEnabled()) {
-                        if (mServiceNameResolver.isConfiguredInMultipleMode()) {
-                            // Remove any service that is in the cache but is no longer valid
-                            // after this modification for this particular package
-                            removeInvalidCachedServicesLocked(serviceNames, packageName,
-                                    userId);
-                        }
+                    if (mServiceNameResolver.isConfiguredInMultipleMode()) {
+                        // Remove any service that is in the cache but is no
+                        // longer valid after this modification for this
+                        //particular package
+                        removeInvalidCachedServicesLocked(serviceNames,
+                            packageName, userId);
                     }
 
                     // Update services that are still valid
@@ -1242,11 +1269,6 @@ public abstract class AbstractMasterSystemService<M extends AbstractMasterSystem
         private void handlePackageUpdateLocked(String packageName) {
             visitServicesLocked((s) -> s.handlePackageUpdateLocked(packageName));
         }
-    }
-
-    private void startTrackingPackageChanges() {
-        // package changes
-        mPackageMonitor.register(getContext(), null, UserHandle.ALL, true);
     }
 
     @GuardedBy("mLock")

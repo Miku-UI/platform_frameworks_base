@@ -23,6 +23,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
+import static junit.framework.Assert.assertNotNull;
 import static junit.framework.Assert.assertNotSame;
 import static junit.framework.Assert.assertNull;
 import static junit.framework.Assert.assertTrue;
@@ -55,6 +56,7 @@ import android.hardware.biometrics.BiometricConstants;
 import android.hardware.biometrics.BiometricPrompt;
 import android.hardware.biometrics.BiometricStateListener;
 import android.hardware.biometrics.ComponentInfoInternal;
+import android.hardware.biometrics.Flags;
 import android.hardware.biometrics.IBiometricContextListener;
 import android.hardware.biometrics.IBiometricSysuiReceiver;
 import android.hardware.biometrics.PromptInfo;
@@ -72,6 +74,9 @@ import android.os.Handler;
 import android.os.RemoteException;
 import android.os.UserHandle;
 import android.os.UserManager;
+import android.platform.test.annotations.RequiresFlagsDisabled;
+import android.platform.test.flag.junit.CheckFlagsRule;
+import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.testing.TestableContext;
 import android.testing.TestableLooper;
 import android.testing.TestableLooper.RunWithLooper;
@@ -90,8 +95,11 @@ import com.android.systemui.SysuiTestCase;
 import com.android.systemui.biometrics.domain.interactor.LogContextInteractor;
 import com.android.systemui.biometrics.domain.interactor.PromptSelectorInteractor;
 import com.android.systemui.biometrics.ui.viewmodel.CredentialViewModel;
+import com.android.systemui.biometrics.ui.viewmodel.PromptFallbackViewModel;
 import com.android.systemui.biometrics.ui.viewmodel.PromptViewModel;
+import com.android.systemui.display.data.repository.FocusedDisplayRepository;
 import com.android.systemui.keyguard.WakefulnessLifecycle;
+import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.statusbar.CommandQueue;
 import com.android.systemui.statusbar.VibratorHelper;
 import com.android.systemui.util.concurrency.DelayableExecutor;
@@ -128,9 +136,19 @@ public class AuthControllerTest extends SysuiTestCase {
 
     @Rule
     public final MockitoRule mMockitoRule = MockitoJUnit.rule();
+    @Rule
+    public final CheckFlagsRule mCheckFlagsRule =
+            DeviceFlagsValueProvider.createCheckFlagsRule();
+
+    private final KosmosJavaAdapter mKosmos = new KosmosJavaAdapter(this);
+
+    private final FocusedDisplayRepository mFocusedDisplayRepository =
+            mKosmos.getFakeFocusedDisplayRepository();
 
     @Mock
     private PackageManager mPackageManager;
+    @Mock
+    private PromptFallbackViewModel.Factory mFallbackViewModelFactory;
     @Mock
     private IBiometricSysuiReceiver mReceiver;
     @Mock
@@ -526,6 +544,12 @@ public class AuthControllerTest extends SysuiTestCase {
                 BiometricConstants.BIOMETRIC_ERROR_TIMEOUT);
     }
 
+    @Test
+    public void testOnAuthenticationFailedInvoked_coex_whenFaceAuthRejected_unableToProcess() {
+        testOnAuthenticationFailedInvoked_coex_whenFaceAuthRejected(
+                BiometricConstants.BIOMETRIC_ERROR_UNABLE_TO_PROCESS);
+    }
+
     private void testOnAuthenticationFailedInvoked_coex_whenFaceAuthRejected(int error) {
         final int modality = BiometricAuthenticator.TYPE_FACE;
         final int userId = 0;
@@ -633,6 +657,7 @@ public class AuthControllerTest extends SysuiTestCase {
     }
 
     @Test
+    @RequiresFlagsDisabled(Flags.FLAG_BP_FALLBACK_OPTIONS)
     public void testErrorLockout_whenCredentialNotAllowed_sendsOnError() {
         showDialog(new int[] {1} /* sensorIds */, false /* credentialAllowed */);
         final int modality = BiometricAuthenticator.TYPE_FACE;
@@ -648,6 +673,7 @@ public class AuthControllerTest extends SysuiTestCase {
     }
 
     @Test
+    @RequiresFlagsDisabled(Flags.FLAG_BP_FALLBACK_OPTIONS)
     public void testErrorLockoutPermanent_whenCredentialNotAllowed_sendsOnError() {
         showDialog(new int[] {1} /* sensorIds */, false /* credentialAllowed */);
         final int modality = BiometricAuthenticator.TYPE_FACE;
@@ -805,7 +831,7 @@ public class AuthControllerTest extends SysuiTestCase {
         showDialog(new int[]{1} /* sensorIds */, false /* credentialAllowed */);
 
         // THEN callback should be received
-        verify(callback).onBiometricPromptShown();
+        verify(callback).onBiometricPromptShown(any());
     }
 
     @Test
@@ -821,7 +847,7 @@ public class AuthControllerTest extends SysuiTestCase {
                 mAuthController.mCurrentDialog.getRequestId());
 
         // THEN callback should be received
-        verify(callback).onBiometricPromptDismissed();
+        verify(callback).onBiometricPromptDismissed(BiometricPrompt.DISMISSED_REASON_USER_CANCEL);
     }
 
     @Test
@@ -835,7 +861,8 @@ public class AuthControllerTest extends SysuiTestCase {
         mAuthController.hideAuthenticationDialog(mAuthController.mCurrentDialog.getRequestId());
 
         // THEN callback should be received
-        verify(callback).onBiometricPromptDismissed();
+        verify(callback).onBiometricPromptDismissed(
+                BiometricPrompt.DISMISSED_REASON_SERVER_REQUESTED);
     }
 
     @Test
@@ -995,8 +1022,8 @@ public class AuthControllerTest extends SysuiTestCase {
     }
 
     @Test
-    public void testShowDialog_whenOwnerNotInForeground() {
-        PromptInfo promptInfo = createTestPromptInfo();
+    public void testShowDialog_whenOwnerNotInForegroundAndNotVisible() {
+        final PromptInfo promptInfo = createTestPromptInfo();
         promptInfo.setAllowBackgroundAuthentication(false);
         switchTask("other_package");
         mAuthController.showAuthenticationDialog(promptInfo,
@@ -1011,6 +1038,27 @@ public class AuthControllerTest extends SysuiTestCase {
 
         assertNull(mAuthController.mCurrentDialog);
         verify(mDialog1, never()).show(any());
+    }
+
+    @Test
+    public void testShowDialog_whenOwnerNotInForegroundAndVisible() {
+        final PromptInfo promptInfo = createTestPromptInfo();
+        final AuthController.Callback callback = mock(AuthController.Callback.class);
+        promptInfo.setAllowBackgroundAuthentication(false);
+        switchTaskWithVisibility("other_package", true /* isVisible */);
+        mAuthController.addCallback(callback);
+        mAuthController.showAuthenticationDialog(promptInfo,
+                mReceiver /* receiver */,
+                new int[]{1} /* sensorIds */,
+                false /* credentialAllowed */,
+                true /* requireConfirmation */,
+                0 /* userId */,
+                0 /* operationId */,
+                "testPackage",
+                REQUEST_ID);
+
+        assertNotNull(mAuthController.mCurrentDialog);
+        verify(mDialog1).show(mWindowManager);
     }
 
     @Test
@@ -1109,14 +1157,29 @@ public class AuthControllerTest extends SysuiTestCase {
                 REQUEST_ID);
     }
 
-    private void switchTask(String packageName) {
+    private void switchTaskWithVisibility(String packageName, boolean isVisible) {
         final List<ActivityManager.RunningTaskInfo> tasks = new ArrayList<>();
         final ActivityManager.RunningTaskInfo taskInfo =
                 mock(ActivityManager.RunningTaskInfo.class);
         taskInfo.topActivity = mock(ComponentName.class);
         when(taskInfo.topActivity.getPackageName()).thenReturn(packageName);
+        when(taskInfo.topActivity.getClassName()).thenReturn(AuthControllerTest.class.getName());
         tasks.add(taskInfo);
+
+        final ActivityManager.RunningTaskInfo callingTaskInfo =
+                mock(ActivityManager.RunningTaskInfo.class);
+        callingTaskInfo.topActivity = mock(ComponentName.class);
+        when(callingTaskInfo.topActivity.getPackageName()).thenReturn("Dialog1");
+        when(callingTaskInfo.topActivity.getClassName()).thenReturn(
+                AuthControllerTest.class.getName());
+        callingTaskInfo.isVisible = isVisible;
+        tasks.add(callingTaskInfo);
+
         when(mActivityTaskManager.getTasks(anyInt())).thenReturn(tasks);
+    }
+
+    private void switchTask(String packageName) {
+        switchTaskWithVisibility(packageName, false /* isVisible */);
     }
 
     private PromptInfo createTestPromptInfo() {
@@ -1213,7 +1276,8 @@ public class AuthControllerTest extends SysuiTestCase {
                     () -> mLogContextInteractor, () -> mPromptSelectionInteractor,
                     () -> mCredentialViewModel, () -> mPromptViewModel, mInteractionJankMonitor,
                     mHandler, mBackgroundExecutor, mUdfpsUtils, mVibratorHelper, mKeyguardManager,
-                    mMSDLPlayer, mWindowManagerProvider);
+                    mMSDLPlayer, mWindowManagerProvider, mFallbackViewModelFactory,
+                    mFocusedDisplayRepository);
         }
 
         @Override

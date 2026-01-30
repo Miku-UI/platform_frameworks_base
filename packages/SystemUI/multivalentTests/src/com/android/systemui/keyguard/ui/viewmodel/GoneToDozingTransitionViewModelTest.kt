@@ -23,6 +23,7 @@ import com.android.systemui.biometrics.data.repository.FakeFingerprintPropertyRe
 import com.android.systemui.biometrics.data.repository.fakeFingerprintPropertyRepository
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.FakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.FakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
@@ -42,6 +43,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class GoneToDozingTransitionViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
@@ -128,7 +130,7 @@ class GoneToDozingTransitionViewModelTest : SysuiTestCase() {
             to = KeyguardState.DOZING,
             value = value,
             transitionState = state,
-            ownerName = "GoneToDozingTransitionViewModelTest"
+            ownerName = "GoneToDozingTransitionViewModelTest",
         )
     }
 }

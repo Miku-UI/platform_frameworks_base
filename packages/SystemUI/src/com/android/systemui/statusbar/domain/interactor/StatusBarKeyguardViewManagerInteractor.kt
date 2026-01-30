@@ -18,13 +18,13 @@ package com.android.systemui.statusbar.domain.interactor
 
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.KeyguardOcclusionInteractor
+import com.android.systemui.keyguard.domain.interactor.KeyguardServiceShowLockscreenInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardSurfaceBehindInteractor
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.domain.interactor.WindowManagerLockscreenVisibilityInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.scene.shared.model.Scenes
-import com.android.systemui.util.kotlin.sample
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -50,12 +50,13 @@ constructor(
     powerInteractor: PowerInteractor,
     wmLockscreenVisibilityInteractor: WindowManagerLockscreenVisibilityInteractor,
     surfaceBehindInteractor: KeyguardSurfaceBehindInteractor,
+    showLockscreenInteractor: KeyguardServiceShowLockscreenInteractor,
 ) {
     /** Occlusion state to apply whenever a keyguard transition is STARTED, if any. */
     private val occlusionStateFromStartedStep: Flow<OccludedState> =
         keyguardTransitionInteractor.startedKeyguardTransitionStep
-            .sample(powerInteractor.detailedWakefulness, ::Pair)
-            .map { (startedStep, wakefulness) ->
+            .map { startedStep ->
+                val wakefulness = powerInteractor.detailedWakefulness.value
                 val transitioningFromPowerButtonGesture =
                     KeyguardState.deviceIsAsleepInState(startedStep.from) &&
                         startedStep.to == KeyguardState.OCCLUDED &&
@@ -120,8 +121,26 @@ constructor(
         combine(
                 wmLockscreenVisibilityInteractor.lockscreenVisibility,
                 surfaceBehindInteractor.isAnimatingSurface,
-            ) { lockscreenVisible, animatingSurface ->
+            ) { (lockscreenVisible, _), animatingSurface ->
                 lockscreenVisible || animatingSurface
             }
             .distinctUntilChanged()
+
+    /**
+     * Workaround for a bug where isKeyguardDismissible is not updated when we lock while awake and
+     * transition to DREAMING.
+     *
+     * Dismissability is currently (in our half-migrated world) updated via SBKVM#show/hide, which
+     * themselves are called whenever WM lockscreen visibility is updated. However, if we go to
+     * DREAMING directly from GONE (via a power button press or timeout), we never pass through a
+     * KeyguardState where WM lockscreen visibility is set to true. As a result, we never actually
+     * call SBKVM#show, and keyguard remains dismissible (according to KeyguardStateController)
+     * indefinitely.
+     *
+     * We can work around this by asking SBKVM to let KSC know when a 'lock now' event comes in. We
+     * can remove this once 'dismissibility' is refactored to be tracked in KeyguardRepository.
+     */
+    @Deprecated("Temporary workaround until SBKVM or KeyguardStateController are removed.")
+    val notifyKeyguardStateControllerKeyguardWillBeShowing =
+        showLockscreenInteractor.showNowEvents.map {}
 }

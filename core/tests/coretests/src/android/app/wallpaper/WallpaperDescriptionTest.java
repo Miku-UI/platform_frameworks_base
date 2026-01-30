@@ -19,6 +19,7 @@ import static android.app.WallpaperManager.ORIENTATION_LANDSCAPE;
 import static android.app.WallpaperManager.ORIENTATION_PORTRAIT;
 import static android.app.WallpaperManager.ORIENTATION_SQUARE_LANDSCAPE;
 import static android.app.WallpaperManager.ORIENTATION_SQUARE_PORTRAIT;
+import static android.app.WallpaperManager.ORIENTATION_UNKNOWN;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -52,6 +53,7 @@ public class WallpaperDescriptionTest {
     private static final Rect DEFAULT_CROP_LANDSCAPE = new Rect(5, 6, 7, 8);
     private static final Rect DEFAULT_CROP_SQUARE_PORTRAIT = new Rect(9, 10, 11, 12);
     private static final Rect DEFAULT_CROP_SQUARE_LANDSCAPE = new Rect(13, 14, 15, 16);
+    private static final Rect DEFAULT_CROP_UNKNOWN = new Rect(17, 18, 19, 20);
 
     private final ComponentName mTestComponent = new ComponentName("fakePackage", "fakeClass");
 
@@ -149,6 +151,8 @@ public class WallpaperDescriptionTest {
                 DEFAULT_CROP_SQUARE_PORTRAIT);
         assertThat(destination.getCropHints().get(ORIENTATION_SQUARE_LANDSCAPE)).isEqualTo(
                 DEFAULT_CROP_SQUARE_LANDSCAPE);
+        assertThat(destination.getCropHints().get(ORIENTATION_UNKNOWN)).isEqualTo(
+                DEFAULT_CROP_UNKNOWN);
         assertThat(destination.getSampleSize()).isEqualTo(sampleSize);
     }
 
@@ -248,6 +252,8 @@ public class WallpaperDescriptionTest {
                 DEFAULT_CROP_SQUARE_PORTRAIT);
         assertThat(destination.getCropHints().get(ORIENTATION_SQUARE_LANDSCAPE)).isEqualTo(
                 DEFAULT_CROP_SQUARE_LANDSCAPE);
+        assertThat(destination.getCropHints().get(ORIENTATION_UNKNOWN)).isEqualTo(
+                DEFAULT_CROP_UNKNOWN);
         assertThat(destination.getSampleSize()).isEqualTo(sampleSize);
     }
 
@@ -327,6 +333,8 @@ public class WallpaperDescriptionTest {
                 DEFAULT_CROP_SQUARE_PORTRAIT);
         assertThat(destination.getCropHints().get(ORIENTATION_SQUARE_LANDSCAPE)).isEqualTo(
                 DEFAULT_CROP_SQUARE_LANDSCAPE);
+        assertThat(destination.getCropHints().get(ORIENTATION_UNKNOWN)).isEqualTo(
+                DEFAULT_CROP_UNKNOWN);
         assertThat(destination.getSampleSize()).isEqualTo(sampleSize);
     }
 
@@ -342,6 +350,7 @@ public class WallpaperDescriptionTest {
         cropHints.put(ORIENTATION_LANDSCAPE, DEFAULT_CROP_LANDSCAPE);
         cropHints.put(ORIENTATION_SQUARE_PORTRAIT, DEFAULT_CROP_SQUARE_PORTRAIT);
         cropHints.put(ORIENTATION_SQUARE_LANDSCAPE, DEFAULT_CROP_SQUARE_LANDSCAPE);
+        cropHints.put(ORIENTATION_UNKNOWN, DEFAULT_CROP_UNKNOWN);
         return cropHints;
     }
 }

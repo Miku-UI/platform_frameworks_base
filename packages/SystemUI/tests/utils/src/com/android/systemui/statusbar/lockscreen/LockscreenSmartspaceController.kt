@@ -18,6 +18,10 @@ package com.android.systemui.statusbar.lockscreen
 
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.util.mockito.mock
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.stub
 
 val Kosmos.lockscreenSmartspaceController by
-    Kosmos.Fixture { mock<LockscreenSmartspaceController>() }
+    Kosmos.Fixture {
+        mock<LockscreenSmartspaceController>().stub { on { isEnabled } doReturn true }
+    }

@@ -17,7 +17,6 @@
 package com.android.server.location.gnss;
 
 import android.content.Context;
-import android.location.flags.Flags;
 import android.os.PersistableBundle;
 import android.os.SystemProperties;
 import android.telephony.CarrierConfigManager;
@@ -278,10 +277,8 @@ public class GnssConfiguration {
         }
         loadPropertiesFromCarrierConfig(inEmergency, activeSubId);
 
-        if (Flags.gnssConfigurationFromResource()) {
-            // Overlay carrier properties from resources.
-            loadPropertiesFromResource(mContext, mProperties);
-        }
+        // Overlay carrier properties from resources.
+        loadPropertiesFromResource(mContext, mProperties);
 
         if (isSimAbsent(mContext)) {
             // Use the default SIM's LPP profile when SIM is absent.

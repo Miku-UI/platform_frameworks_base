@@ -97,7 +97,7 @@ class BLASTSyncEngine {
         void onTransactionReady(int mSyncId, SurfaceControl.Transaction transaction);
         default void onTransactionCommitted() {}
         default void onTransactionCommitTimeout() {}
-        default void onReadyTimeout() {}
+        default void onSyncGroupTimeout(boolean isReadinessTimeout) {}
 
         default void onReadyTraceStart(String name, int id) {
             Trace.asyncTraceBegin(TRACE_TAG_WINDOW_MANAGER, name, id);
@@ -434,11 +434,13 @@ class BLASTSyncEngine {
                 allFinished = false;
                 Slog.i(TAG, "Unfinished dependency: " + mDependencies.get(i).mSyncId);
             }
+            boolean isReadinessTimeout = false;
             if (allFinished && !mReady) {
                 Slog.w(TAG, "Sync group " + mSyncId + " timed-out because not ready. If you see "
                         + "this, please file a bug.");
-                mListener.onReadyTimeout();
+                isReadinessTimeout = true;
             }
+            mListener.onSyncGroupTimeout(isReadinessTimeout);
             finishNow();
             removeFromDependencies(this);
         }

@@ -16,7 +16,7 @@
 
 package android.app.time;
 
-/** {@hide} */
+/** @hide */
 oneway interface ITimeDetectorListener {
     void onChange();
 }

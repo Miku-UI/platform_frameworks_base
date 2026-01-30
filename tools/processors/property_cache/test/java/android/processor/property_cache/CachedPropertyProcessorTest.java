@@ -52,13 +52,13 @@ public class CachedPropertyProcessorTest {
 
     @Test
     public void testCustomValues() {
-        JavaFileObject expectedJava = JavaFileObjects.forResource("CustomCache.java");
+        JavaFileObject expectedJava = JavaFileObjects.forResource("TestCache.java");
 
         Compilation compilation = mCompiler.compile(JavaFileObjects.forResource("Custom.java"));
         assertThat(compilation).succeeded();
         assertThat(compilation)
                 .generatedFile(StandardLocation.SOURCE_OUTPUT,
-                        "android/processor/property_cache/test/CustomCache.java")
+                        "android/processor/property_cache/test/TestCache.java")
                 .hasSourceEquivalentTo(expectedJava);
     }
 }

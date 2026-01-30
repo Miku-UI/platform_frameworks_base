@@ -17,6 +17,7 @@
 package android.app.servertransaction;
 
 import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+import static android.view.Display.DEFAULT_DISPLAY;
 
 import static java.util.Objects.requireNonNull;
 
@@ -277,7 +278,7 @@ class TestUtils {
                     mActivityOptions != null ? mActivityOptions.getSceneTransitionInfo() : null,
                     mIsForward, mProfilerInfo, mAssistToken, null /* activityClientController */,
                     mShareableActivityToken, mLaunchedFromBubble, mTaskFragmentToken,
-                    mInitialCallerInfoAccessToken, mActivityWindowInfo);
+                    mInitialCallerInfoAccessToken, mActivityWindowInfo, DEFAULT_DISPLAY);
         }
     }
 }

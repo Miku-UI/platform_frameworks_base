@@ -22,6 +22,7 @@ import android.view.GestureDetector.SimpleOnGestureListener
 import android.view.MotionEvent
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
+import com.android.systemui.statusbar.policy.DeviceProvisionedController
 import javax.inject.Inject
 
 /** Accepts touch events, detects long press, and calls ShadeViewController#onStatusBarLongPress. */
@@ -32,13 +33,20 @@ constructor(
     // TODO b/383125226 - Make this class per-display
     @Main context: Context,
     val shadeViewController: ShadeViewController,
+    val shadeController: ShadeController,
+    val deviceProvisionedController: DeviceProvisionedController,
 ) {
     val gestureDetector =
         GestureDetector(
             context,
             object : SimpleOnGestureListener() {
                 override fun onLongPress(event: MotionEvent) {
-                    shadeViewController.onStatusBarLongPress(event)
+                    if (
+                        shadeController.isShadeEnabled() &&
+                            deviceProvisionedController.isDeviceProvisioned()
+                    ) {
+                        shadeViewController.onStatusBarLongPress(event)
+                    }
                 }
             },
         )

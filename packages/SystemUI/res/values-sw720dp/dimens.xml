@@ -29,5 +29,8 @@
 
     <!-- Biometric Auth pattern view size, better to align keyguard_security_width -->
     <dimen name="biometric_auth_pattern_view_size">348dp</dimen>
+
+    <!-- Ongoing activity chips -->
+    <dimen name="ongoing_activity_chip_max_text_width">98dp</dimen>
 </resources>
 

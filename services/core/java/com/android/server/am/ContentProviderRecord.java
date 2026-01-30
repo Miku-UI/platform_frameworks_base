@@ -16,6 +16,9 @@
 
 package com.android.server.am;
 
+import static android.app.ActivityManager.PROCESS_STATE_PERSISTENT;
+import static android.app.ActivityManager.PROCESS_STATE_PERSISTENT_UI;
+
 import static com.android.server.am.ActivityManagerDebugConfig.TAG_AM;
 
 import android.app.ContentProviderHolder;
@@ -34,11 +37,13 @@ import android.util.Slog;
 
 import com.android.internal.app.procstats.AssociationState;
 import com.android.internal.app.procstats.ProcessStats;
+import com.android.server.am.psc.ContentProviderRecordInternal;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
 
-final class ContentProviderRecord implements ComponentName.WithComponentName {
+final class ContentProviderRecord extends ContentProviderRecordInternal
+        implements ComponentName.WithComponentName {
     // Maximum attempts to bring up the content provider before giving up.
     static final int MAX_RETRY_COUNT = 3;
 
@@ -46,7 +51,6 @@ final class ContentProviderRecord implements ComponentName.WithComponentName {
     public final ProviderInfo info;
     final int uid;
     final ApplicationInfo appInfo;
-    final ComponentName name;
     final boolean singleton;
     public IContentProvider provider;
     public boolean noReleaseNeeded;
@@ -66,22 +70,24 @@ final class ContentProviderRecord implements ComponentName.WithComponentName {
 
     public ContentProviderRecord(ActivityManagerService _service, ProviderInfo _info,
             ApplicationInfo ai, ComponentName _name, boolean _singleton) {
+        super(_name);
+
         service = _service;
         info = _info;
         uid = ai.uid;
         appInfo = ai;
-        name = _name;
         singleton = _singleton;
         noReleaseNeeded = (uid == 0 || uid == Process.SYSTEM_UID)
                 && (_name == null || !"com.android.settings".equals(_name.getPackageName()));
     }
 
     public ContentProviderRecord(ContentProviderRecord cpr) {
+        super(cpr.name);
+
         service = cpr.service;
         info = cpr.info;
         uid = cpr.uid;
         appInfo = cpr.appInfo;
-        name = cpr.name;
         singleton = cpr.singleton;
         noReleaseNeeded = cpr.noReleaseNeeded;
     }
@@ -92,6 +98,17 @@ final class ContentProviderRecord implements ComponentName.WithComponentName {
         holder.noReleaseNeeded = noReleaseNeeded;
         holder.connection = conn;
         holder.mLocal = local;
+
+        if (android.app.Flags.skipRefContentProvider()) {
+            if (conn == null || conn.provider == null || conn.provider.proc == null) {
+                return holder;
+            }
+            final int procState = conn.provider.proc.getCurProcState();
+            if (procState == PROCESS_STATE_PERSISTENT || procState == PROCESS_STATE_PERSISTENT_UI) {
+                holder.noReleaseNeededIfUnstable = true;
+            }
+        }
+
         return holder;
     }
 
@@ -173,6 +190,7 @@ final class ContentProviderRecord implements ComponentName.WithComponentName {
         }
     }
 
+    @Override
     public boolean hasExternalProcessHandles() {
         return (externalProcessTokenToHandle != null || externalProcessNoHandleCount > 0);
     }
@@ -223,6 +241,21 @@ final class ContentProviderRecord implements ComponentName.WithComponentName {
             }
             conn.waiting = false;
         }
+    }
+
+    @Override
+    public ProcessRecord getHostProcess() {
+        return proc;
+    }
+
+    @Override
+    public int numberOfConnections() {
+        return connections.size();
+    }
+
+    @Override
+    public ContentProviderConnection getConnectionsAt(int index) {
+        return connections.get(index);
     }
 
     void dump(PrintWriter pw, String prefix, boolean full) {

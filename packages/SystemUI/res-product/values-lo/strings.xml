@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"ກຳລັງຫຼິ້ນຢູ່ແທັບເລັດນີ້"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"ທ່ານສາມາດຊອກຫາສະຖານທີ່ຂອງໂທລະສັບເຄື່ອງນີ້ໄດ້ດ້ວຍແອັບຊອກຫາອຸປະກອນຂອງຂ້ອຍເຖິງແມ່ນວ່າຈະປິດເຄື່ອງຢູ່ກໍຕາມ"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"ທ່ານສາມາດຊອກຫາສະຖານທີ່ຂອງແທັບເລັດເຄື່ອງນີ້ໄດ້ດ້ວຍແອັບຊອກຫາອຸປະກອນຂອງຂ້ອຍເຖິງແມ່ນວ່າຈະປິດເຄື່ອງຢູ່ກໍຕາມ"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"ທ່ານສາມາດຊອກຫາໂທລະສັບເຄື່ອງນີ້ດ້ວຍສູນການຊອກຫາເຖິງແມ່ນວ່າຈະປິດເຄື່ອງຢູ່ກໍຕາມ"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"ທ່ານສາມາດຊອກຫາແທັບເລັດເຄື່ອງນີ້ດ້ວຍສູນການຊອກຫາເຖິງແມ່ນວ່າຈະປິດເຄື່ອງຢູ່ກໍຕາມ"</string>
 </resources>

@@ -18,7 +18,7 @@ package android.telephony.ims.aidl;
 
 /**
  * See ImsFeature#CapabilityCallback for more information.
- * {@hide}
+ * @hide
  */
 oneway interface IImsCapabilityCallback {
     void onQueryCapabilityConfiguration(int capability, int radioTech, boolean enabled);

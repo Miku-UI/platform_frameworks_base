@@ -20,6 +20,9 @@ import static android.app.ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREG
 import static android.companion.AssociationRequest.DEVICE_PROFILE_AUTOMOTIVE_PROJECTION;
 
 import static com.android.internal.util.CollectionUtils.any;
+import static com.android.internal.util.CollectionUtils.filter;
+import static com.android.server.companion.utils.RolesUtils.NLS_PROFILES;
+import static com.android.server.companion.utils.RolesUtils.isRoleInUseByAssociations;
 import static com.android.server.companion.utils.RolesUtils.removeRoleHolderForAssociation;
 
 import static java.util.concurrent.TimeUnit.DAYS;
@@ -28,18 +31,26 @@ import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.annotation.UserIdInt;
 import android.app.ActivityManager;
+import android.app.NotificationManager;
 import android.companion.AssociationInfo;
+import android.companion.Flags;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.content.pm.PackageManagerInternal;
+import android.content.pm.ResolveInfo;
 import android.os.Binder;
 import android.os.SystemProperties;
 import android.os.UserHandle;
+import android.service.notification.NotificationListenerService;
 import android.util.Slog;
 
 import com.android.server.companion.datatransfer.SystemDataTransferRequestStore;
 import com.android.server.companion.devicepresence.CompanionAppBinder;
 import com.android.server.companion.devicepresence.DevicePresenceProcessor;
 import com.android.server.companion.transport.CompanionTransportManager;
+
+import java.util.List;
 
 /**
  * This class responsible for disassociation.
@@ -67,6 +78,8 @@ public class DisassociationProcessor {
     @NonNull
     private final PackageManagerInternal mPackageManagerInternal;
     @NonNull
+    private final PackageManager mPackageManager;
+    @NonNull
     private final DevicePresenceProcessor mDevicePresenceMonitor;
     @NonNull
     private final SystemDataTransferRequestStore mSystemDataTransferRequestStore;
@@ -76,6 +89,7 @@ public class DisassociationProcessor {
     private final CompanionTransportManager mTransportManager;
     private final OnPackageVisibilityChangeListener mOnPackageVisibilityChangeListener;
     private final ActivityManager mActivityManager;
+    private final NotificationManager mNotificationManager;
 
     public DisassociationProcessor(@NonNull Context context,
             @NonNull ActivityManager activityManager,
@@ -84,7 +98,8 @@ public class DisassociationProcessor {
             @NonNull DevicePresenceProcessor devicePresenceMonitor,
             @NonNull CompanionAppBinder applicationController,
             @NonNull SystemDataTransferRequestStore systemDataTransferRequestStore,
-            @NonNull CompanionTransportManager companionTransportManager) {
+            @NonNull CompanionTransportManager companionTransportManager,
+            @NonNull NotificationManager notificationManager) {
         mContext = context;
         mActivityManager = activityManager;
         mAssociationStore = associationStore;
@@ -95,23 +110,37 @@ public class DisassociationProcessor {
         mCompanionAppController = applicationController;
         mSystemDataTransferRequestStore = systemDataTransferRequestStore;
         mTransportManager = companionTransportManager;
+        mNotificationManager = notificationManager;
+        mPackageManager = context.getPackageManager();
     }
 
     /**
      * Disassociate an association by id.
      */
-    // TODO: also revoke notification access
     public void disassociate(int id, String reason) {
         Slog.i(TAG, "Disassociating id=[" + id + "]...");
 
-        final AssociationInfo association = mAssociationStore.getAssociationWithCallerChecks(id);
+        final AssociationInfo association;
+        try {
+            // Attempt to get the association.
+            association = mAssociationStore.getAssociationWithCallerChecks(id);
+        } catch (IllegalArgumentException e) {
+            // The association does not exist. This is NOT an error for disassociation.
+            // It means our job is already done. Log it and return successfully.
+            Slog.w(TAG, "Association id=" + id + " is already disassociated.");
+            return;
+        }
+
         final int userId = association.getUserId();
         final String packageName = association.getPackageName();
         final String deviceProfile = association.getDeviceProfile();
 
-        final boolean isRoleInUseByOtherAssociations = deviceProfile != null
-                && any(mAssociationStore.getActiveAssociationsByPackage(userId, packageName),
-                    it -> deviceProfile.equals(it.getDeviceProfile()) && id != it.getId());
+        final List<AssociationInfo> otherActiveAssociations = filter(
+                mAssociationStore.getActiveAssociationsByPackage(userId, packageName),
+                it -> id != it.getId()
+        );
+        final boolean isRoleInUseByOtherAssociations =
+                isRoleInUseByAssociations(otherActiveAssociations, deviceProfile);
 
         final int packageProcessImportance = getPackageProcessImportance(userId, packageName);
         if (packageProcessImportance <= IMPORTANCE_FOREGROUND && deviceProfile != null
@@ -128,12 +157,33 @@ public class DisassociationProcessor {
             return;
         }
 
-        // Detach transport if exists
+        // Detach transports and listeners if exists
+        mTransportManager.removeListeners(id);
         mTransportManager.detachSystemDataTransport(id);
 
         // Association cleanup.
         mSystemDataTransferRequestStore.removeRequestsByAssociationId(userId, id);
         mAssociationStore.removeAssociation(association.getId(), reason);
+
+        // Revoke NLS if the last association has been removed for the package
+        Binder.withCleanCallingIdentity(() -> {
+            if (mAssociationStore.getAssociationsByPackage(userId, packageName).isEmpty()) {
+                if (association.getDeviceProfile() != null
+                        && NLS_PROFILES.contains(association.getDeviceProfile())) {
+                    Intent nlsIntent = new Intent(
+                            NotificationListenerService.SERVICE_INTERFACE);
+                    List<ResolveInfo> matchedServiceList = mContext.getPackageManager()
+                            .queryIntentServicesAsUser(nlsIntent, /* flags */ 0, userId);
+                    for (ResolveInfo service : matchedServiceList) {
+                        if (service.getComponentInfo().getComponentName().getPackageName()
+                                .equals(packageName)) {
+                            mNotificationManager.setNotificationListenerAccessGranted(
+                                    service.getComponentInfo().getComponentName(), false, false);
+                        }
+                    }
+                }
+            }
+        });
 
         // If role is not in use by other associations, revoke the role.
         // Do not need to remove the system role since it was pre-granted by the system.
@@ -142,18 +192,20 @@ public class DisassociationProcessor {
             removeRoleHolderForAssociation(mContext, association.getUserId(),
                     association.getPackageName(), association.getDeviceProfile());
         }
-
-        // Unbind the app if needed.
-        final boolean wasPresent = mDevicePresenceMonitor.isDevicePresent(id);
-        if (!wasPresent || !association.isNotifyOnDeviceNearby()) {
-            return;
-        }
-        final boolean shouldStayBound = any(
-                mAssociationStore.getActiveAssociationsByPackage(userId, packageName),
-                it -> it.isNotifyOnDeviceNearby()
-                        && mDevicePresenceMonitor.isDevicePresent(it.getId()));
-        if (!shouldStayBound) {
-            mCompanionAppController.unbindCompanionApp(userId, packageName);
+        // Handle unbind in DevicePresenceProcessor instead.
+        if (!Flags.notifyAssociationRemoved()) {
+            // Unbind the app if needed.
+            final boolean wasPresent = mDevicePresenceMonitor.isDevicePresent(id);
+            if (!wasPresent || !association.isNotifyOnDeviceNearby()) {
+                return;
+            }
+            final boolean shouldStayBound = any(
+                    mAssociationStore.getActiveAssociationsByPackage(userId, packageName),
+                    it -> it.isNotifyOnDeviceNearby()
+                            && mDevicePresenceMonitor.isDevicePresent(it.getId()));
+            if (!shouldStayBound) {
+                mCompanionAppController.unbindCompanionApp(userId, packageName);
+            }
         }
     }
 
@@ -258,16 +310,20 @@ public class DisassociationProcessor {
                 return;
             }
 
-            final String packageName = mPackageManagerInternal.getNameForUid(uid);
-            if (packageName == null) {
+            // A UID can be shared by multiple packages if android:sharedUserId is used.
+            // We must get all packages for the UID to ensure we find the correct one.
+            final String[] packageNames = mPackageManager.getPackagesForUid(uid);
+            if (packageNames == null || packageNames.length == 0) {
                 // Not interested in this uid.
                 return;
             }
 
             int userId = UserHandle.getUserId(uid);
-            for (AssociationInfo association : mAssociationStore.getRevokedAssociations(userId,
-                    packageName)) {
-                disassociate(association.getId(), REASON_REVOKED);
+            for (String packageName : packageNames) {
+                for (AssociationInfo association : mAssociationStore.getRevokedAssociations(userId,
+                        packageName)) {
+                    disassociate(association.getId(), REASON_REVOKED);
+                }
             }
 
             if (mAssociationStore.getRevokedAssociations().isEmpty()) {

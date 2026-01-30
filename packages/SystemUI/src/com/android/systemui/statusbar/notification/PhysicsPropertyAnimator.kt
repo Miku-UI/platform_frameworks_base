@@ -16,15 +16,24 @@
 package com.android.systemui.statusbar.notification
 
 import android.util.FloatProperty
+import android.util.Log
 import android.util.Property
 import android.view.View
+import androidx.annotation.VisibleForTesting
 import com.android.internal.dynamicanimation.animation.DynamicAnimation
 import com.android.internal.dynamicanimation.animation.SpringAnimation
 import com.android.internal.dynamicanimation.animation.SpringForce
 import com.android.systemui.res.R
+import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator.Companion.TAG
 import com.android.systemui.statusbar.notification.PhysicsPropertyAnimator.Companion.createDefaultSpring
 import com.android.systemui.statusbar.notification.stack.AnimationProperties
+import kotlin.math.PI
+import kotlin.math.absoluteValue
+import kotlin.math.asin
+import kotlin.math.ln
+import kotlin.math.pow
 import kotlin.math.sign
+import kotlin.math.sqrt
 
 /**
  * A physically animatable property of a view.
@@ -34,8 +43,11 @@ import kotlin.math.sign
  * @param avoidDoubleOvershoot should this property avoid double overshoot when animated
  */
 data class PhysicsProperty
-@JvmOverloads constructor(
-    val tag: Int, val property: Property<View, Float>, val avoidDoubleOvershoot: Boolean = true
+@JvmOverloads
+constructor(
+    val tag: Int,
+    val property: Property<View, Float>,
+    val avoidDoubleOvershoot: Boolean = true,
 ) {
     val offsetProperty =
         object : FloatProperty<View>(property.name) {
@@ -52,9 +64,8 @@ data class PhysicsProperty
 
     fun setFinalValue(view: View, finalValue: Float) {
         val propertyData = obtainPropertyData(view, this)
-        val previousValue = propertyData.finalValue
-        if (previousValue != finalValue) {
-            propertyData.finalValue = finalValue
+        propertyData.finalValue = finalValue
+        if (propertyData.finalValue + propertyData.offset != property.get(view)) {
             property.set(view, propertyData.finalValue + propertyData.offset)
         }
     }
@@ -66,8 +77,14 @@ data class PropertyData(
     var offset: Float = 0f,
     var animator: SpringAnimation? = null,
     var delayRunnable: Runnable? = null,
+
+    /**
+     * A runnable that should be executed if the animation is skipped to end / cancelled before the
+     * animation actually starts running.
+     */
+    var endedBeforeStartingCleanupHandler: ((Boolean) -> Unit)? = null,
     var startOffset: Float = 0f,
-    var doubleOvershootAvoidingListener: DynamicAnimation.OnAnimationUpdateListener? = null
+    var doubleOvershootAvoidingListener: DynamicAnimation.OnAnimationUpdateListener? = null,
 )
 
 /**
@@ -94,9 +111,7 @@ class PhysicsPropertyAnimator {
         // Uses the standard spatial material spring by default
         @JvmStatic
         fun createDefaultSpring(): SpringForce {
-            return SpringForce()
-                .setStiffness(380f)
-                .setDampingRatio(0.68f);
+            return SpringForce().setStiffness(380f).setDampingRatio(0.68f)
         }
 
         @JvmStatic
@@ -106,6 +121,9 @@ class PhysicsPropertyAnimator {
          * animated can be used to request an animation. If the view isn't animated, this utility
          * will update the current animation if existent, such that the end value will point
          * to @param newEndValue or apply it directly if there's no animation.
+         *
+         * @param maxOvershoot limit the spring overshoot of the animation. If specified, must be a
+         *   positive, finite distance.
          */
         fun setProperty(
             view: View,
@@ -114,9 +132,17 @@ class PhysicsPropertyAnimator {
             properties: AnimationProperties? = null,
             animated: Boolean = false,
             endListener: DynamicAnimation.OnAnimationEndListener? = null,
+            maxOvershoot: Float? = null,
         ) {
             if (animated) {
-                startAnimation(view, animatableProperty, newEndValue, properties, endListener)
+                startAnimation(
+                    view,
+                    animatableProperty,
+                    newEndValue,
+                    properties,
+                    endListener,
+                    maxOvershoot,
+                )
             } else {
                 animatableProperty.setFinalValue(view, newEndValue)
             }
@@ -126,6 +152,8 @@ class PhysicsPropertyAnimator {
             val (_, _, animator, _) = obtainPropertyData(view, property)
             return animator?.isRunning ?: false
         }
+
+        internal val TAG = "PhysicsPropertyAnimator"
     }
 }
 
@@ -135,6 +163,7 @@ private fun startAnimation(
     newEndValue: Float,
     properties: AnimationProperties?,
     endListener: DynamicAnimation.OnAnimationEndListener?,
+    maxOvershoot: Float?,
 ) {
     val property = animatableProperty.property
     val propertyData = obtainPropertyData(view, animatableProperty)
@@ -163,8 +192,10 @@ private fun startAnimation(
             propertyData.offset = 0f
         }
     }
-    if (animatableProperty.avoidDoubleOvershoot
-        && propertyData.doubleOvershootAvoidingListener == null) {
+    if (
+        animatableProperty.avoidDoubleOvershoot &&
+            propertyData.doubleOvershootAvoidingListener == null
+    ) {
         propertyData.doubleOvershootAvoidingListener =
             DynamicAnimation.OnAnimationUpdateListener { _, offset: Float, velocity: Float ->
                 val isOscillatingBackwards = velocity.sign == propertyData.startOffset.sign
@@ -174,25 +205,39 @@ private fun startAnimation(
                 if (isOvershooting && isOscillatingBackwards && !didAlreadyRemoveBounciness) {
                     // our offset is starting to decrease, let's remove all overshoot
                     animator.spring.setDampingRatio(SpringForce.DAMPING_RATIO_NO_BOUNCY)
-                } else if (!isOvershooting
-                    && (didAlreadyRemoveBounciness || isOscillatingBackwards)) {
+                } else if (
+                    !isOvershooting && (didAlreadyRemoveBounciness || isOscillatingBackwards)
+                ) {
                     // we already did overshoot, let's skip to the end to avoid oscillations.
                     // Usually we shouldn't hit this as setting the damping ratio avoid overshoots
                     // but it may still happen if we see jank
-                    animator.skipToEnd();
+                    animator.skipToEnd()
                 }
             }
         animator.addUpdateListener(propertyData.doubleOvershootAvoidingListener)
-    } else if (!animatableProperty.avoidDoubleOvershoot
-        && propertyData.doubleOvershootAvoidingListener != null) {
+    } else if (
+        !animatableProperty.avoidDoubleOvershoot &&
+            propertyData.doubleOvershootAvoidingListener != null
+    ) {
         animator.removeUpdateListener(propertyData.doubleOvershootAvoidingListener)
     }
+
+    val startOffset = previousEndValue - newEndValue + propertyData.offset
+
     // reset a new spring as it may have been modified
-    animator.setSpring(createDefaultSpring().setFinalPosition(0f))
+    val spring = createDefaultSpring().setFinalPosition(0f)
+    maxOvershoot
+        ?.takeIf { it > 0f }
+        ?.let {
+            // The spring will animate from [startOffset] to 0. Modify the spring parameters to
+            // guarantee the overshoot won't exceed [maxOvershoot].
+            spring.limitOvershoot(initialDisplacement = startOffset, maxOvershoot = it)
+        }
+    animator.setSpring(spring)
+
     // TODO(b/393581344): look at custom spring
     endListener?.let { animator.addEndListener(it) }
 
-    val startOffset = previousEndValue - newEndValue + propertyData.offset
     // Immediately set the new offset that compensates for the immediate end value change
     propertyData.offset = startOffset
     propertyData.startOffset = startOffset
@@ -208,6 +253,29 @@ private fun startAnimation(
         // conditions and will never actually end them only calling start explicitly does that,
         // so let's start them again!
         animator.start()
+        propertyData.endedBeforeStartingCleanupHandler = null
+    }
+    propertyData.endedBeforeStartingCleanupHandler = { cancelled ->
+        val listener = properties?.getAnimationEndListener(animatableProperty.property)
+        listener?.onAnimationEnd(
+            propertyData.animator,
+            cancelled,
+            0f /* value */,
+            0f, /* velocity */
+        )
+        endListener?.onAnimationEnd(
+            propertyData.animator,
+            cancelled,
+            0f /* value */,
+            0f, /* velocity */
+        )
+        propertyData.animator = null
+        propertyData.doubleOvershootAvoidingListener = null
+        propertyData.offset = 0f
+        // We always reset the offset as we never want to get stuck with old values. This is
+        // consistent with the end listener above.
+        property.set(view, propertyData.finalValue)
+        propertyData.endedBeforeStartingCleanupHandler = null
     }
     if (properties != null && properties.delay > 0 && !animator.isRunning) {
         propertyData.delayRunnable = startRunnable
@@ -225,4 +293,75 @@ private fun obtainPropertyData(view: View, animatableProperty: PhysicsProperty):
         view.setTag(animatableProperty.tag, propertyData)
     }
     return propertyData
+}
+
+/**
+ * Modifies this spring's parameters to guarantee it overshoots by at most [maxOvershoot], when
+ * started with [initialDisplacement] and an initial velocity of 0.
+ *
+ * This requires the current spring parameters to be under-damped.
+ */
+@VisibleForTesting
+fun SpringForce.limitOvershoot(initialDisplacement: Float, maxOvershoot: Float) {
+    require(maxOvershoot > 0)
+    val absoluteDisplacement = initialDisplacement.absoluteValue.toDouble()
+    if (absoluteDisplacement == 0.0) {
+        // Nothing to animate, cannot compute the constraint
+        return
+    }
+
+    val originalStiffness = stiffness.toDouble()
+    val originalDamping = dampingRatio.toDouble()
+    if (originalDamping <= 0 || originalDamping >= 1) {
+        Log.w(
+            TAG,
+            "limitOvershoot can be applied to under-damped springs only, but is $originalDamping",
+        )
+        return
+    }
+
+    if (maxOvershoot >= absoluteDisplacement) {
+        // the overshoot is guaranteed to be less than absoluteDisplacement, so we don't need to
+        // adjust
+        return
+    }
+
+    // Calculate required damping to guarantee the overshoot won't exceed maxOvershoot.
+    val lnOvershootRatio = ln(absoluteDisplacement / maxOvershoot)
+    val requiredDamping = lnOvershootRatio / sqrt(PI.pow(2) + lnOvershootRatio.pow(2))
+    if (requiredDamping < originalDamping) {
+        // The current damping is already sufficient to not exceed the maxOvershoot. No need to
+        // modify the spring
+        return
+    }
+
+    if (requiredDamping >= 1) {
+        // A critically / over-damped spring would never overshoot. Given the initial conditions
+        // above, the branch should not be reached. Log a warning and don't modify the spring, this
+        // is a state we did not expect.
+        Log.w(
+            TAG,
+            "Unexpected required damping of $requiredDamping. " +
+                "(original: $originalDamping, " +
+                "displacement: $absoluteDisplacement, " +
+                "maxOvershoot: $maxOvershoot)",
+        )
+        return
+    }
+
+    // The requiredDamping computed above guarantees that the overshoot won't exceed maxOvershoot
+    // Now tweak the stiffness to compensate for the shift in frequency. We do this by aligning the
+    // first 0-crossing with the original parameters.
+
+    // Compute the time 0 is crossed, assuming the spring starts with 0 initial velocity.
+    val omegaN = sqrt(originalStiffness) // Natural frequency
+    val omegaD = omegaN * sqrt(1f - originalDamping.pow(2)) // Damped frequency
+    val targetTime = (PI / 2f + asin(originalDamping)) / omegaD
+
+    val numerator = PI / 2.0 + asin(requiredDamping)
+    val denominator = targetTime * sqrt(1.0 - requiredDamping.pow(2))
+    val requiredStiffness = (numerator / denominator).pow(2)
+
+    setStiffness(requiredStiffness.toFloat())
+    setDampingRatio(requiredDamping.toFloat())
 }

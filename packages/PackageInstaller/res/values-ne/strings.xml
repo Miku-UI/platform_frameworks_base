@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"अपडेट गर्नुहोस्"</string>
     <string name="done" msgid="6632441120016885253">"सम्पन्न भयो"</string>
     <string name="cancel" msgid="1018267193425558088">"रद्द गर्नुहोस्"</string>
+    <string name="more_details" msgid="3643407086654820243">"थप विवरणहरू"</string>
+    <string name="dont_install" msgid="414055123295505225">"इन्स्टल नगर्नुहोस्"</string>
     <string name="installing" msgid="4921993079741206516">"इन्स्टल गरिँदै छ"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> इन्स्टल गरिँदै छ"</string>
     <string name="install_done" msgid="5987363587661783896">"एप इन्स्टल गरियो।"</string>
@@ -44,7 +46,7 @@
     <string name="unknown_apps_user_restriction_dlg_text" msgid="151020786933988344">"यी प्रयोगकर्ता अज्ञात एपहरू इन्स्टल गर्न सक्नुहुन्न"</string>
     <string name="install_apps_user_restriction_dlg_text" msgid="2154119597001074022">"यो प्रयोगकर्तालाई एपहरू इन्स्टल गर्ने अनुमति छैन"</string>
     <string name="ok" msgid="7871959885003339302">"ठिक छ"</string>
-    <string name="archive" msgid="4447791830199354721">"अभिलेखमा राख्नुहोस्"</string>
+    <string name="archive" msgid="4447791830199354721">"अर्काइभमा राख्नुहोस्"</string>
     <string name="update_anyway" msgid="8792432341346261969">"जे भए पनि अपडेट गर्नुहोस्"</string>
     <string name="manage_applications" msgid="5400164782453975580">"एपको प्रबन्ध गर्नु…"</string>
     <string name="out_of_space_dlg_title" msgid="4156690013884649502">"खाली ठाउँ छैन"</string>
@@ -68,7 +70,7 @@
     <string name="uninstall_application_text_user" msgid="498072714173920526">"तपाईं प्रयोगकर्ता <xliff:g id="USERNAME">%1$s</xliff:g> का लागि यो एप अनइन्स्टल गर्न चाहनुहुन्छ?"</string>
     <string name="uninstall_application_text_current_user_work_profile" msgid="8788387739022366193">"तपाईं आफ्नो कार्य प्रोफाइलबाट यो एप अनइन्स्टल गर्न चाहनुहुन्छ?"</string>
     <string name="uninstall_update_text" msgid="863648314632448705">"यस एपलाई फ्याक्ट्रीको संस्करणले बदल्ने हो? सबै डेटा हटाइने छ।"</string>
-    <string name="uninstall_update_text_multiuser" msgid="8992883151333057227">"यस एपलाई फ्याक्ट्रीको संस्करणले बदल्ने हो? सबै डेटा हटाइने छ। यसले यस डिभाइसका कार्य प्रोफाइल भएका लगायत सबै प्रयोगकर्ताहरूमा असर पार्छ।"</string>
+    <string name="uninstall_update_text_multiuser" msgid="8992883151333057227">"यस एपलाई फ्याक्ट्रीको संस्करणले बदल्ने हो? सबै डेटा हटाइने छ। यसले यस डिभाइसका वर्क प्रोफाइल भएका लगायत सबै प्रयोगकर्ताहरूमा असर पार्छ।"</string>
     <string name="uninstall_keep_data" msgid="7002379587465487550">"<xliff:g id="SIZE">%1$s</xliff:g> एपको डेटा राख्नुहोस्।"</string>
     <string name="uninstall_application_text_current_user_clone_profile" msgid="835170400160011636">"तपाईं यो एप मेटाउन चाहनुहुन्छ?"</string>
     <string name="uninstall_application_text_with_clone_instance" msgid="6944473334273349036">"तपाईं यो एप अनइन्स्टल गर्न चाहनुहुन्छ? <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> क्लोन पनि मेटाइने छ।"</string>

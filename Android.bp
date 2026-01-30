@@ -107,6 +107,7 @@ filegroup {
         ":android.hardware.radio.data-V5-java-source",
         ":android.hardware.radio.network-V5-java-source",
         ":android.hardware.radio.voice-V5-java-source",
+        ":android.hardware.security.keymint-V4-java-source",
         ":android.hardware.security.secureclock-V1-java-source",
         ":android.hardware.thermal-V3-java-source",
         ":android.hardware.tv.tuner-V3-java-source",
@@ -115,6 +116,7 @@ filegroup {
         ":android.security.legacykeystore-java-source",
         ":android.security.maintenance-java-source",
         ":android.security.metrics-java-source",
+        ":android.system.keystore2-V5-java-source",
         ":android.hardware.cas-V1-java-source",
         ":credstore_aidl",
         ":dumpstate_aidl",
@@ -147,16 +149,7 @@ filegroup {
         ":statslog-framework-java-gen", // FrameworkStatsLog.java
         ":statslog-hwui-java-gen", // HwuiStatsLog.java
         ":audio_policy_configuration_V7_0",
-    ] + select(release_flag("RELEASE_ATTEST_MODULES"), {
-        true: [
-            ":android.hardware.security.keymint-V4-java-source",
-            ":android.system.keystore2-V5-java-source",
-        ],
-        default: [
-            ":android.hardware.security.keymint-V3-java-source",
-            ":android.system.keystore2-V4-java-source",
-        ],
-    }),
+    ],
 }
 
 java_library {
@@ -197,7 +190,7 @@ java_defaults {
             "opengl/java",
             "rs/java",
             "sax/java",
-            "telecomm/java",
+            "telecomm/framework/java",
 
             // TODO(b/147699819): remove this
             "telephony/java",
@@ -251,15 +244,12 @@ java_library {
         "android.hardware.usb.gadget-V1.0-java",
         "android.hardware.usb.gadget-V1.1-java",
         "android.hardware.usb.gadget-V1.2-java",
-        "android.hardware.vibrator-V1.0-java",
-        "android.hardware.vibrator-V1.1-java",
-        "android.hardware.vibrator-V1.2-java",
-        "android.hardware.vibrator-V1.3-java",
         "android.hardware.vibrator-V3-java",
         "android.se.omapi-V1-java",
         "android.system.suspend.control.internal-java",
         "devicepolicyprotosnano",
         "ImmutabilityAnnotation",
+        "DevicePolicyAnnotation",
 
         "com.android.sysprop.localization",
         "PlatformProperties",
@@ -345,7 +335,7 @@ java_defaults {
             "media/aidl",
         ],
         include_dirs: [
-            "frameworks/av/aidl",
+            "frameworks/av/media/aidl",
             "frameworks/native/libs/permission/aidl",
             "packages/modules/Bluetooth/framework/aidl-export",
             "packages/modules/Connectivity/framework/aidl-export",
@@ -366,12 +356,14 @@ java_defaults {
     ],
     jarjar_rules: ":framework-jarjar-rules",
     javac_shard_size: 150,
+    javac_srcjar_shards: 15,
     plugins: [
         "cached-property-annotation-processor",
         "view-inspector-annotation-processor",
         "staledataclass-annotation-processor",
         "error_prone_android_framework",
         "systemfeatures-metadata-processor",
+        "DevicePolicyAnnotationProcessor",
     ],
     // Exports needed for staledataclass-annotation-processor, see b/139342589.
     javacflags: [
@@ -408,8 +400,11 @@ java_defaults {
         "bouncycastle-repackaged-unbundled",
         "com.android.sysprop.foldlockbehavior",
         "com.android.sysprop.view",
+        "com.android.sysprop.nativebinderstats",
         "framework-internal-utils",
+        "dropboxmanager_aidl-java",
         "dynamic_instrumentation_manager_aidl-java",
+        "process_info_service_aidl-java",
         // If MimeMap ever becomes its own APEX, then this dependency would need to be removed
         // in favor of an API stubs dependency in java_library "framework" below.
         "mimemap",
@@ -423,6 +418,7 @@ java_defaults {
         "modules-utils-preconditions",
         "modules-utils-statemachine",
         "modules-utils-os",
+        "modules-utils-ravenwood",
         "modules-utils-uieventlogger-interface",
         "framework-permission-aidl-java",
         "spatializer-aidl-java",
@@ -433,6 +429,7 @@ java_defaults {
         "perfetto_trace_javastream_protos_jarjar",
         "libaconfig_java_proto_nano",
         "aconfig_device_paths_java",
+        "perfetto_trace_lib_framework_java",
     ],
 }
 
@@ -442,6 +439,7 @@ java_library {
     name: "framework-non-updatable-unbundled-impl-libs",
     static_libs: [
         "framework-location.impl",
+        "framework-virtualization.impl",
     ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
         "true": [],
         default: [
@@ -450,6 +448,9 @@ java_library {
     }) + select(release_flag("RELEASE_ONDEVICE_INTELLIGENCE_MODULE"), {
         true: [],
         default: ["framework-ondeviceintelligence-platform.impl"],
+    }) + select(release_flag("RELEASE_TELEPHONY_MODULE"), {
+        true: [],
+        default: ["framework-platformtelephony.impl"],
     }),
     sdk_version: "core_platform",
     installable: false,
@@ -460,7 +461,6 @@ java_defaults {
     name: "framework-minus-apex-with-libs-defaults",
     defaults: ["framework-minus-apex-defaults"],
     libs: [
-        "framework-virtualization.stubs.module_lib",
         "framework-non-updatable-unbundled-impl-libs",
     ],
 }
@@ -494,6 +494,9 @@ java_library {
     visibility: [
         "//frameworks/base:__subpackages__",
         "//packages/modules/NeuralNetworks:__subpackages__",
+        // TODO(b/429127828): Clean this up along with RELEASE_TELEPHONY_MODULE
+        "//packages/modules/Telephony/framework:__subpackages__",
+        "//packages/modules/Virtualization:__subpackages__",
     ],
     compile_dex: false,
     headers_only: true,
@@ -530,6 +533,7 @@ java_library {
             "FlaggedApi",
         ],
     },
+    header_jar_override: "framework-minus-apex-headers",
     jarjar_prefix: "com.android.internal.hidden_from_bootclasspath",
     jarjar_shards: "10",
 }
@@ -548,6 +552,7 @@ java_library {
         enabled: false,
 
     },
+    javac_shard_size: 150,
 }
 
 // This "framework" module is NOT installed to the device. It's
@@ -585,7 +590,7 @@ java_library {
         "documents-ui-compat-config",
         "calendar-provider-compat-config",
         "contacts-provider-platform-compat-config",
-        "SystemUI-core-compat-config",
+        "SystemUI-application-compat-config",
     ] + select(soong_config_variable("ANDROID", "release_crashrecovery_module"), {
         "true": [],
         default: [
@@ -594,6 +599,9 @@ java_library {
     }) + select(release_flag("RELEASE_ONDEVICE_INTELLIGENCE_MODULE"), {
         true: [],
         default: ["framework-ondeviceintelligence-platform-compat-config"],
+    }) + select(release_flag("RELEASE_TELEPHONY_MODULE"), {
+        true: [],
+        default: ["framework-platformtelephony-compat-config"],
     }),
 }
 
@@ -608,7 +616,6 @@ filegroup {
     srcs: [
         "core/java/com/android/internal/util/HexDump.java",
         "core/java/com/android/internal/util/WakeupMessage.java",
-        "packages/Vcn/framework-b/src/android/net/vcn/util/PersistableBundleUtils.java",
         "telephony/java/android/telephony/Annotation.java",
     ],
 }

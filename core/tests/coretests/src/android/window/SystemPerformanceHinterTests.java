@@ -37,6 +37,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 
+import android.gui.EarlyWakeupInfo;
 import android.os.PerformanceHintManager;
 import android.platform.test.annotations.Presubmit;
 import android.view.SurfaceControl;
@@ -190,7 +191,7 @@ public class SystemPerformanceHinterTests {
         assertEquals(0, mRootProvider.getCount);
 
         // Verify we call SF
-        verify(mTransaction).setEarlyWakeupStart();
+        verify(mTransaction).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
     }
 
@@ -202,7 +203,7 @@ public class SystemPerformanceHinterTests {
         session.close();
 
         // Verify we call SF
-        verify(mTransaction).setEarlyWakeupEnd();
+        verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
     }
 
@@ -249,7 +250,7 @@ public class SystemPerformanceHinterTests {
                 eq(mDefaultDisplayRoot),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
-        verify(mTransaction).setEarlyWakeupStart();
+        verify(mTransaction).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession).sendHint(eq(CPU_LOAD_UP));
     }
@@ -270,7 +271,7 @@ public class SystemPerformanceHinterTests {
                 eq(mDefaultDisplayRoot),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
-        verify(mTransaction).setEarlyWakeupEnd();
+        verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession).sendHint(eq(CPU_LOAD_RESET));
     }
@@ -291,7 +292,7 @@ public class SystemPerformanceHinterTests {
                     eq(mDefaultDisplayRoot),
                     eq(FRAME_RATE_CATEGORY_DEFAULT),
                     eq(false));
-            verify(mTransaction).setEarlyWakeupEnd();
+            verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
             verify(mTransaction).applyAsyncUnsafe();
             verify(mAdpfSession).sendHint(eq(CPU_LOAD_RESET));
         }
@@ -310,7 +311,7 @@ public class SystemPerformanceHinterTests {
                 eq(mDefaultDisplayRoot),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
-        verify(mTransaction).setEarlyWakeupStart();
+        verify(mTransaction).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession).sendHint(eq(CPU_LOAD_UP));
         reset(mTransaction);
@@ -321,7 +322,7 @@ public class SystemPerformanceHinterTests {
         // Verify we never call SF and perf manager since session1 is already running
         verify(mTransaction, never()).setFrameRateSelectionStrategy(any(), anyInt());
         verify(mTransaction, never()).setFrameRateCategory(any(), anyInt(), anyBoolean());
-        verify(mTransaction, never()).setEarlyWakeupEnd();
+        verify(mTransaction, never()).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
         verify(mTransaction, never()).applyAsyncUnsafe();
         verify(mAdpfSession, never()).sendHint(anyInt());
 
@@ -329,7 +330,7 @@ public class SystemPerformanceHinterTests {
         // Verify we have not cleaned up because session1 is still running
         verify(mTransaction, never()).setFrameRateSelectionStrategy(any(), anyInt());
         verify(mTransaction, never()).setFrameRateCategory(any(), anyInt(), anyBoolean());
-        verify(mTransaction, never()).setEarlyWakeupEnd();
+        verify(mTransaction, never()).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
         verify(mTransaction, never()).applyAsyncUnsafe();
         verify(mAdpfSession, never()).sendHint(anyInt());
 
@@ -342,7 +343,7 @@ public class SystemPerformanceHinterTests {
                 eq(mDefaultDisplayRoot),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
-        verify(mTransaction).setEarlyWakeupEnd();
+        verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession).sendHint(eq(CPU_LOAD_RESET));
     }
@@ -361,7 +362,7 @@ public class SystemPerformanceHinterTests {
                 eq(mDefaultDisplayRoot),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
-        verify(mTransaction).setEarlyWakeupStart();
+        verify(mTransaction).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession).sendHint(eq(CPU_LOAD_UP));
         reset(mTransaction);
@@ -377,7 +378,7 @@ public class SystemPerformanceHinterTests {
                 eq(mSecondaryDisplayRoot),
                 eq(FRAME_RATE_CATEGORY_HIGH),
                 eq(false));
-        verify(mTransaction, never()).setEarlyWakeupStart();
+        verify(mTransaction, never()).setEarlyWakeupStart(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession, never()).sendHint(anyInt());
         reset(mTransaction);
@@ -400,7 +401,7 @@ public class SystemPerformanceHinterTests {
                 eq(mSecondaryDisplayRoot),
                 anyInt(),
                 eq(false));
-        verify(mTransaction, never()).setEarlyWakeupEnd();
+        verify(mTransaction, never()).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession, never()).sendHint(anyInt());
         reset(mTransaction);
@@ -418,7 +419,7 @@ public class SystemPerformanceHinterTests {
                 eq(mSecondaryDisplayRoot),
                 eq(FRAME_RATE_CATEGORY_DEFAULT),
                 eq(false));
-        verify(mTransaction).setEarlyWakeupEnd();
+        verify(mTransaction).setEarlyWakeupEnd(any(EarlyWakeupInfo.class));
         verify(mTransaction).applyAsyncUnsafe();
         verify(mAdpfSession).sendHint(eq(CPU_LOAD_RESET));
     }

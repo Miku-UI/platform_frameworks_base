@@ -19,6 +19,8 @@ package android.widget;
 import android.annotation.IdRes;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.jank.AppJankStats;
+import android.app.jank.JankTracker;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Context;
 import android.content.Intent;
@@ -213,6 +215,12 @@ public class ListView extends AbsListView {
     // Keeps focused children visible through resizes
     private FocusSelector mFocusSelector;
 
+    // Associates scroll state changes to frame counts for jank metric reporting.
+    private JankTracker mJankTracker;
+    // Used to keep track of scroll state transitions for jank metrics. Value of -1 indicates no
+    // previous state has been set.
+    private int mPreviousScrollState = -1;
+
     public ListView(Context context) {
         this(context, null);
     }
@@ -268,6 +276,56 @@ public class ListView extends AbsListView {
         mFooterDividersEnabled = a.getBoolean(R.styleable.ListView_footerDividersEnabled, true);
 
         a.recycle();
+
+        if (android.app.jank.Flags.instrumentListviewScrollStates()) {
+            initializeScrollStateTracking(String.valueOf(this.getId()));
+        }
+    }
+
+    private void initializeScrollStateTracking(String widgetId) {
+        this.setOnScrollStateChangeListener(new OnScrollListener() {
+            @Override
+            public void onScrollStateChanged(AbsListView view, int scrollState) {
+                if (mJankTracker == null) {
+                    mJankTracker = view.getJankTracker();
+                }
+                // Certain apps are not supported based on their app category. In unsupported apps
+                // JankTracker will always be null.
+                if (mJankTracker != null && scrollState != mPreviousScrollState) {
+                    if (mPreviousScrollState == -1) {
+                        mJankTracker.addUiState(AppJankStats.WIDGET_CATEGORY_SCROLL,
+                                widgetId,
+                                getWidgetStateFromScrollState(scrollState));
+                    } else {
+                        mJankTracker.updateUiState(AppJankStats.WIDGET_CATEGORY_SCROLL, widgetId,
+                                getWidgetStateFromScrollState(mPreviousScrollState),
+                                getWidgetStateFromScrollState(scrollState));
+                    }
+                    mPreviousScrollState = scrollState;
+                }
+            }
+
+            @Override
+            public void onScroll(AbsListView view, int firstVisibleItem, int visibleItemCount,
+                    int totalItemCount) {
+                // onScroll is not needed, for jank tracking we are only concerned with state
+                // transitions, not item count and visibility.
+
+            }
+        });
+    }
+
+    private String getWidgetStateFromScrollState(int scrollState) {
+        switch (scrollState) {
+            case OnScrollListener.SCROLL_STATE_FLING -> {
+                return AppJankStats.WIDGET_STATE_FLINGING;
+            } case OnScrollListener.SCROLL_STATE_TOUCH_SCROLL -> {
+                return AppJankStats.WIDGET_STATE_SCROLLING;
+            }
+            default -> {
+                return AppJankStats.WIDGET_STATE_NONE;
+            }
+        }
     }
 
     /**

@@ -25,7 +25,7 @@ import android.view.Surface;
  /**
    * A remote connection to a scroll capture target.
    *
-   * {@hide}
+   * @hide
    */
 interface IScrollCaptureConnection {
 

@@ -1,0 +1,3 @@
+com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations#addOne
+com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations#addTwo
+com.android.hoststubgen.test.tinyframework.TinyFrameworkForTextPolicy#toBeRemoved

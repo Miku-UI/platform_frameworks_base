@@ -10,6 +10,10 @@ package {
 cc_library_shared {
     name: "libaudioeffect_jni",
 
+    defaults: [
+        "media_jni_lib_defaults",
+    ],
+
     srcs: [
         "android_media_AudioEffect.cpp",
         "android_media_SourceDefaultEffect.cpp",
@@ -34,8 +38,6 @@ cc_library_shared {
     export_shared_lib_headers: [
         "framework-permission-aidl-cpp",
     ],
-
-    version_script: "exports.lds",
 
     cflags: [
         "-Wall",

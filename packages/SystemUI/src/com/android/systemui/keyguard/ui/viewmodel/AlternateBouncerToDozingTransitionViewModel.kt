@@ -16,6 +16,7 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryUdfpsInteractor
 import com.android.systemui.keyguard.domain.interactor.FromAlternateBouncerTransitionInteractor
@@ -26,6 +27,7 @@ import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
 
 /**
@@ -38,12 +40,22 @@ class AlternateBouncerToDozingTransitionViewModel
 constructor(
     deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     animationFlow: KeyguardTransitionAnimationFlow,
+    dozingTransitionFlows: DozingTransitionFlows,
 ) : DeviceEntryIconTransition {
     private val transitionAnimation =
         animationFlow.setup(
             duration = FromAlternateBouncerTransitionInteractor.TO_DOZING_DURATION,
             edge = Edge.create(from = ALTERNATE_BOUNCER, to = DOZING),
         )
+
+    val lockscreenAlpha: Flow<Float> =
+        if (Flags.newDozingKeyguardStates()) {
+            dozingTransitionFlows.lockscreenAlpha(from = ALTERNATE_BOUNCER)
+        } else {
+            emptyFlow()
+        }
+
+    val nonAuthUIAlpha: Flow<Float> = dozingTransitionFlows.nonAuthUIAlpha(from = ALTERNATE_BOUNCER)
 
     val deviceEntryBackgroundViewAlpha: Flow<Float> =
         transitionAnimation.immediatelyTransitionTo(0f)

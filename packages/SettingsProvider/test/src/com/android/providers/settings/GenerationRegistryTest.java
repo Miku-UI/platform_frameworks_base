@@ -22,22 +22,26 @@ import static android.provider.Settings.CALL_METHOD_TRACK_GENERATION_KEY;
 
 import static com.google.common.truth.Truth.assertThat;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.util.MemoryIntArray;
 
-import androidx.test.runner.AndroidJUnit4;
+import junitparams.JUnitParamsRunner;
+import junitparams.Parameters;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
 import java.io.IOException;
 
-@RunWith(AndroidJUnit4.class)
+@RunWith(JUnitParamsRunner.class)
 public class GenerationRegistryTest {
     @Test
-    public void testGenerationsWithRegularSetting() throws IOException {
+    @Parameters(method = "getAllDeviceIds")
+    public void testGenerationsWithRegularSetting(int deviceId) throws IOException {
         final GenerationRegistry generationRegistry = new GenerationRegistry(2);
-        final int secureKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SECURE, 0);
+        final long secureKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_SECURE, 0, deviceId);
         final String testSecureSetting = "test_secure_setting";
         Bundle b = new Bundle();
         // IncrementGeneration should have no effect on a non-cached setting.
@@ -53,7 +57,8 @@ public class GenerationRegistryTest {
         // Index is still 0 and generation is now 2; also check direct array access
         assertThat(getArray(b).get(0)).isEqualTo(2);
 
-        final int systemKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SYSTEM, 0);
+        final long systemKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_SYSTEM, 0, deviceId);
         final String testSystemSetting = "test_system_setting";
         generationRegistry.addGenerationData(b, systemKey, testSystemSetting);
         // Default index is 0 and generation is 1 for another backingStore (system)
@@ -70,13 +75,14 @@ public class GenerationRegistryTest {
         // First system setting generation now incremented to 3
         checkBundle(b, 0, 3, false);
 
-        final int systemKey2 = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SYSTEM, 10);
+        final long systemKey2 = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_SYSTEM, 10, deviceId);
         generationRegistry.addGenerationData(b, systemKey2, testSystemSetting);
         // User 10 has a new set of backingStores
         checkBundle(b, 0, 1, false);
 
         // Check user removal
-        generationRegistry.onUserRemoved(10);
+        generationRegistry.onUserAndDeviceRemoved(10, deviceId);
         generationRegistry.incrementGeneration(systemKey2, testSystemSetting);
 
         // Removed user should not affect existing caches
@@ -95,7 +101,8 @@ public class GenerationRegistryTest {
     public void testGenerationsWithConfigSetting() throws IOException {
         final GenerationRegistry generationRegistry = new GenerationRegistry(1);
         final String prefix = "test_namespace/";
-        final int configKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_CONFIG, 0);
+        final long configKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_CONFIG, 0, Context.DEVICE_ID_DEFAULT);
 
         Bundle b = new Bundle();
         generationRegistry.addGenerationData(b, configKey, prefix);
@@ -109,32 +116,36 @@ public class GenerationRegistryTest {
     }
 
     @Test
-    public void testMaxNumBackingStores() throws IOException {
+    @Parameters(method = "getAllDeviceIds")
+    public void testMaxNumBackingStores(int deviceId) throws IOException {
         final GenerationRegistry generationRegistry = new GenerationRegistry(2);
         final String testSecureSetting = "test_secure_setting";
         Bundle b = new Bundle();
         for (int i = 0; i < generationRegistry.getMaxNumBackingStores(); i++) {
             b.clear();
-            final int key = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SECURE, i);
+            final long key = SettingsState.makeKey(
+                    SettingsState.SETTINGS_TYPE_SECURE, i, deviceId);
             generationRegistry.addGenerationData(b, key, testSecureSetting);
             checkBundle(b, 0, 1, false);
         }
         b.clear();
-        final int key = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SECURE,
-                generationRegistry.getMaxNumBackingStores() + 1);
+        final long key = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SECURE,
+                generationRegistry.getMaxNumBackingStores() + 1, deviceId);
         generationRegistry.addGenerationData(b, key, testSecureSetting);
         // Should fail to add generation because the number of backing stores has reached limit
         checkBundle(b, -1, -1, true);
         // Remove one user should free up a backing store
-        generationRegistry.onUserRemoved(0);
+        generationRegistry.onUserAndDeviceRemoved(0, deviceId);
         generationRegistry.addGenerationData(b, key, testSecureSetting);
         checkBundle(b, 0, 1, false);
     }
 
     @Test
-    public void testMaxSizeBackingStore() throws IOException {
+    @Parameters(method = "getAllDeviceIds")
+    public void testMaxSizeBackingStore(int deviceId) throws IOException {
         final GenerationRegistry generationRegistry = new GenerationRegistry(1);
-        final int secureKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SECURE, 0);
+        final long secureKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_SECURE, 0, deviceId);
         final String testSecureSetting = "test_secure_setting";
         Bundle b = new Bundle();
         for (int i = 0; i < GenerationRegistry.MAX_BACKING_STORE_SIZE; i++) {
@@ -152,9 +163,11 @@ public class GenerationRegistryTest {
     }
 
     @Test
-    public void testUnsetSettings() throws IOException {
+    @Parameters(method = "getAllDeviceIds")
+    public void testUnsetSettings(int deviceId) throws IOException {
         final GenerationRegistry generationRegistry = new GenerationRegistry(1);
-        final int secureKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_SECURE, 0);
+        final long secureKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_SECURE, 0, deviceId);
         final String testSecureSetting = "test_secure_setting";
         Bundle b = new Bundle();
         generationRegistry.addGenerationData(b, secureKey, testSecureSetting);
@@ -173,13 +186,15 @@ public class GenerationRegistryTest {
     @Test
     public void testGlobalSettings() throws IOException {
         final GenerationRegistry generationRegistry = new GenerationRegistry(2);
-        final int globalKey = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 0);
+        final long globalKey = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_GLOBAL, 0, Context.DEVICE_ID_DEFAULT);
         final String testGlobalSetting = "test_global_setting";
         final Bundle b = new Bundle();
         generationRegistry.addGenerationData(b, globalKey, testGlobalSetting);
         checkBundle(b, 0, 1, false);
         final MemoryIntArray array = getArray(b);
-        final int globalKey2 = SettingsState.makeKey(SettingsState.SETTINGS_TYPE_GLOBAL, 10);
+        final long globalKey2 = SettingsState.makeKey(
+                SettingsState.SETTINGS_TYPE_GLOBAL, 10, Context.DEVICE_ID_DEFAULT);
         b.clear();
         generationRegistry.addGenerationData(b, globalKey2, testGlobalSetting);
         checkBundle(b, 0, 1, false);
@@ -222,5 +237,9 @@ public class GenerationRegistryTest {
     private MemoryIntArray getArray(Bundle b) {
         return b.getParcelable(
                 CALL_METHOD_TRACK_GENERATION_KEY, android.util.MemoryIntArray.class);
+    }
+
+    private static Integer[] getAllDeviceIds() {
+        return new Integer[]{Context.DEVICE_ID_DEFAULT, 5, 10, 93589, 999, Integer.MAX_VALUE};
     }
 }

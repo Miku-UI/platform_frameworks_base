@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Heimild áskilin"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Uppsetning læst"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Undirbýr forrit…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Viltu setja þetta forrit upp?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Setur upp…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Forrit uppsett"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Setja þetta forrit upp aftur?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Setur upp aftur…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Forrit sett upp aftur"</string>
+    <string name="title_update" msgid="1747328630716712391">"Uppfæra þetta forrit?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Nota <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g> til að uppfæra þetta forrit?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Uppfærir…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Forrit uppfært"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Ekki er hægt að setja forritið upp"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Uppsetning læst"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Forrit er ekki samhæft"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Ógildur pakki"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Ekki nógu mikið geymslurými"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Forritið er ekki uppsett"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Viltu fjarlægja þetta forrit?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Eyða þessu forritsklóni?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Fjarlægja uppfærslur forrits?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Fjarlægja uppfærslur forrits fyrir alla notendur?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Fjarlægja þetta forrit fyrir alla notendur?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Viltu fjarlægja þetta forrit fyrir notandann „<xliff:g id="USER_NAME">%1$s</xliff:g>“?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"Forritið finnst ekki"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Ekki er hægt að fjarlægja þetta forrit"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Forrit var ekki fjarlægt"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Setja þetta forrit í geymslu?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Setja þetta forrit í geymslu fyrir alla notendur?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Viltu setja þetta forrit í geymslu fyrir notandann „<xliff:g id="USER_NAME">%1$s</xliff:g>“?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Endurheimta þetta forrit?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Aðgerðar krafist"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Ekki nógu mikið geymslurými"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Þú ert ekki á netinu"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"Slökkt er á <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> er ekki uppsett"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Eitthvað fór úrskeiðis"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Þetta forrit fær yfirleitt uppfærslur frá &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Með því að uppfæra frá öðrum uppruna gætirðu fengið framtíðaruppfærslur frá hvaða uppruna sem er í spjaldtölvunni. Forritseiginleikar kunna að breytast."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Þetta forrit fær yfirleitt uppfærslur frá &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Með því að uppfæra frá öðrum uppruna gætirðu fengið framtíðaruppfærslur frá hvaða uppruna sem er í sjónvarpinu. Forritseiginleikar kunna að breytast."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Þetta forrit fær yfirleitt uppfærslur frá &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Með því að uppfæra frá öðrum uppruna gætirðu fengið framtíðaruppfærslur frá hvaða uppruna sem er í símanum. Forritseiginleikar kunna að breytast."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Af öryggisástæðum er ekki heimilt að setja upp óþekkt forrit frá þessum uppruna í spjaldtölvunni þinni. Þú getur breytt þessu í stillingunum."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Af öryggisástæðum er ekki heimilt að setja upp óþekkt forrit frá þessum uppruna í sjónvarpinu þínu. Þú getur breytt þessu í stillingunum."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Af öryggisástæðum er ekki heimilt að setja upp óþekkt forrit frá þessum uppruna í úrinu þínu. Þú getur breytt þessu í stillingunum."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Af öryggisástæðum er ekki heimilt að setja upp óþekkt forrit frá þessum uppruna í símanum þínum. Þú getur breytt þessu í stillingunum."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Síminn þinn og persónuleg gögn eru berskjaldaðri fyrir árásum forrita af óþekktum uppruna. Með uppsetningu þessa forrits samþykkirðu að bera fulla ábyrgð á hverju því tjóni sem verða kann á símanum eða gagnatapi sem leiða kann af notkun þess."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Spjaldtölvan þín og persónuleg gögn eru berskjaldaðri fyrir árásum forrita af óþekktum uppruna. Með uppsetningu þessa forrits samþykkirðu að bera fulla ábyrgð á hverju því tjóni sem verða kann á spjaldtölvunni eða gagnatapi sem leiða kann af notkun þess."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Sjónvarpið þitt og persónuleg gögn eru berskjaldaðri fyrir árásum forrita af óþekktum uppruna. Með uppsetningu þessa forrits samþykkirðu að bera fulla ábyrgð á hverju því tjóni sem verða kann á sjónvarpinu eða gagnatapi sem leiða kann af notkun þess."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Lokað var á uppsetningu á þessu forriti"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Þetta forrit skarast á við forrit sem er þegar í tækinu þínu"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Þetta forrit er ekki samhæft tækinu þínu"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Vandamál kom upp með uppsetningarskrá þessa forrits"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Til að setja þetta forrit upp skaltu losa um geymslurými og reyna aftur"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Vandamál kom upp með forritsskrána"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Lokað hefur verið fyrir uppsetningu forrita"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Lokað hefur verið fyrir uppsetningu óþekktra forrita"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Klón af þessu forriti er einnig til staðar og því verður eytt"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Þetta forrit er klón af <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Þessu forriti verður skipt út fyrir upprunalega útgáfu þess. Öll forritsgögn verða fjarlægð."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Þessu forriti verður skipt út fyrir upprunalega útgáfu þess hjá öllum notendum þessa tækis. Öll forritsgögn verða fjarlægð."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Þetta forrit verður fjarlægt af vinnuprófílnum þínum"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Þetta forrit verður fjarlægt úr leynirýminu þínu"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Þetta forrit fannst ekki á lista yfir uppsett forrit eða hefur þegar verið fjarlægt"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Núverandi notandi hefur ekki heimild til að fjarlægja þetta"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Ekki tókst að fjarlægja þetta forrit"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Halda forritsgögnum"</string>
+    <string name="message_archive" msgid="943853731737315850">"Forritsgögnin þín verða vistuð"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Öll forritsgögn verða vistuð"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Forritsgögn verða vistuð"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Þetta forrit verður sett í geymslu og fjarlægt af vinnuprófílnum þínum. Forritsgögnin þín verða vistuð."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Þetta forrit verður sett í geymslu og fjarlægt úr leynirýminu þínu. Forritsgögnin þín verða vistuð."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Þetta forrit verður sótt frá <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> í bakgrunninum"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> þarfnast meiri upplýsinga áður en þú getur endurheimt þetta forrit"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Til að endurheimta þetta forrit skaltu losa um <xliff:g id="BYTES">%1$s</xliff:g> í geymslurými og reyna aftur"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Til að endurheimta forritið skaltu athuga nettenginguna þína og reyna aftur"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Kveiktu á <xliff:g id="INSTALLERNAME">%1$s</xliff:g> í stillingunum til að endurheimta þetta forrit"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Þú þarft að setja upp <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> til að endurheimta þetta forrit"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Vandamál kom upp við að endurheimta þetta forrit"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> er hluti af þessu forriti: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Þetta forrit var sett á bannlista. Til að gæta að öryggi tækisins þíns og gagna er aðeins hægt að setja upp forrit frá staðfestum þróunaraðilum.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Ekki tókst að uppfæra forritið. Til að gæta að öryggi tækisins þíns og gagna er aðeins hægt að setja upp uppfærslur frá staðfestum þróunaraðilum.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Ekki tókst að setja forritið upp. Forrit frá óstaðfestum þróunaraðilum geta verið óörugg.&lt;/p&gt; &lt;p&gt;Nettengingar er krafist til að staðfesta þróunaraðila forritsins. Athugaðu tenginguna þína og reyndu síðan að setja aftur upp. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Ekki tókst að uppfæra forritið. Uppfærslur frá óstaðfestum þróunaraðilum geta verið óöruggar.&lt;/p&gt; &lt;p&gt;Nettengingar er krafist til að staðfesta þróunaraðila forritsins. Athugaðu tenginguna þína og reyndu síðan að uppfæra aftur. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Vandamál kom upp við að staðfesta þróunaraðila þessa forrits. Þetta forrit var ekki sett upp vegna þess að forrit frá óstaðfestum þróunaraðilum geta verið óörugg.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Vandamál kom upp við að staðfesta þróunaraðila þessa forrits. Forritið var ekki uppfært vegna þess að uppfærslur frá óstaðfestum þróunaraðilum geta verið óöruggar.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Þetta forrit var sett á bannlista vegna vandamáls sem kom upp við að staðfesta þróunaraðila þess. Til að gæta að öryggi tækisins þíns og gagna er aðeins hægt að setja upp forrit frá staðfestum þróunaraðilum.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;Ekki tókst að uppfæra forritið vegna vandamáls sem kom upp við að staðfesta þróunaraðila þess. Til að gæta að öryggi tækisins þíns og gagna er aðeins hægt að setja upp uppfærslur frá staðfestum þróunaraðilum.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Nánar um staðfestingu þróunaraðila&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Ef þú setur forritið upp án staðfestingar skaltu hafa í huga að forrit frá óstaðfestum þróunaraðilum gætu verið hættuleg fyrir tækið og gögnin þín."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Ef þú uppfærir forritið án staðfestingar skaltu hafa í huga að uppfærslur frá óstaðfestum þróunaraðilum gætu verið hættulegar fyrir tækið og gögnin þín."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Óstaðfestur þróunaraðili forrits"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Engin nettenging, ekki er hægt að staðfesta þróunaraðila forrits"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Ekki er hægt að staðfesta þróunaraðila forrits"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Setja upp án staðfestingar"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Uppfæra án staðfestingar"</string>
+    <string name="button_install" msgid="7434013176505680162">"Setja upp"</string>
+    <string name="button_update" msgid="3046719350226327526">"Uppfæra"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Uppfæra samt"</string>
+    <string name="button_done" msgid="3408025390982260629">"Lokið"</string>
+    <string name="button_open" msgid="6892684987374117955">"Opna"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Hætta við"</string>
+    <string name="button_continue" msgid="107501685249826244">"Halda áfram"</string>
+    <string name="button_close" msgid="7187308556466275899">"Loka"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Fjarlægja"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Eyða"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Setja upp aftur"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Stjórna forritum"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Setja í geymslu"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Endurheimta"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Fjarlægja uppfærslur"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Stillingar"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Reyna aftur"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Afrit af <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+</resources>

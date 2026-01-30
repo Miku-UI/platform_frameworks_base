@@ -16,72 +16,80 @@
 
 package android.widget.focus;
 
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 
 import android.os.Handler;
-import android.test.ActivityInstrumentationTestCase2;
 import android.util.AndroidRuntimeException;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.View.OnFocusChangeListener;
-import android.view.ViewTreeObserver.OnGlobalFocusChangeListener;
 import android.widget.Button;
 
-import androidx.test.annotation.UiThreadTest;
+import androidx.test.ext.junit.rules.ActivityScenarioRule;
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.LargeTest;
 import androidx.test.filters.MediumTest;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import com.android.frameworks.coretests.R;
 
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.RunWith;
 import org.mockito.InOrder;
 
 /**
  * {@link RequestFocusTest} is set up to exercise cases where the views that
  * have focus become invisible or GONE.
  */
-public class RequestFocusTest extends ActivityInstrumentationTestCase2<RequestFocus> {
-
+@RunWith(AndroidJUnit4.class)
+public class RequestFocusTest {
     private Button mTopLeftButton;
     private Button mBottomLeftButton;
     private Button mTopRightButton;
     private Button mBottomRightButton;
     private Handler mHandler;
 
-    public RequestFocusTest() {
-        super(RequestFocus.class);
-    }
+    @Rule
+    public ActivityScenarioRule<RequestFocus> activityRule =
+            new ActivityScenarioRule<>(RequestFocus.class);
 
-    @Override
-    public void setUp() throws Exception {
-        super.setUp();
+    @Before
+    public void setViewFieldsAndForceNonTouchMode() throws Exception {
+        activityRule.getScenario().onActivity(a -> {
+            mHandler = a.getHandler();
+            mTopLeftButton = (Button) a.findViewById(R.id.topLeftButton);
+            mBottomLeftButton = (Button) a.findViewById(R.id.bottomLeftButton);
+            mTopRightButton = (Button) a.findViewById(R.id.topRightButton);
+            mBottomRightButton = (Button) a.findViewById(R.id.bottomRightButton);
 
-        final RequestFocus a = getActivity();
-        mHandler = a.getHandler();
-        mTopLeftButton = (Button) a.findViewById(R.id.topLeftButton);
-        mBottomLeftButton = (Button) a.findViewById(R.id.bottomLeftButton);
-        mTopRightButton = (Button) a.findViewById(R.id.topRightButton);
-        mBottomRightButton = (Button) a.findViewById(R.id.bottomRightButton);
-    }
+            assertNotNull(mHandler);
+            assertNotNull(mTopLeftButton);
+            assertNotNull(mTopRightButton);
+            assertNotNull(mBottomLeftButton);
+            assertNotNull(mBottomRightButton);
+            assertTrue("requestFocus() should work from onCreate.", mBottomRightButton.hasFocus());
+        });
 
-    // Test that setUp did what we expect it to do.  These asserts
-    // can't go in SetUp, or the test will hang.
-    @MediumTest
-    public void testSetUpConditions() throws Exception {
-        assertNotNull(mHandler);
-        assertNotNull(mTopLeftButton);
-        assertNotNull(mTopRightButton);
-        assertNotNull(mBottomLeftButton);
-        assertNotNull(mBottomRightButton);
-        assertTrue("requestFocus() should work from onCreate.", mBottomRightButton.hasFocus());
+        // Force non-touch mode by sending a key.
+        android.app.Instrumentation instrumentation = InstrumentationRegistry.getInstrumentation();
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_DPAD_DOWN);
+        instrumentation.waitForIdleSync(); // Wait for UI thread to be idle
     }
 
     // Test that a posted requestFocus works.
+    @Test
     @LargeTest
     public void testPostedRequestFocus() throws Exception {
-        mHandler.post(new Runnable() { public void run() {
-            mBottomLeftButton.requestFocus();
-        }});
-        synchronized(this) {
+        mHandler.post(new Runnable() {
+            public void run() {
+                mBottomLeftButton.requestFocus();
+            }
+        });
+        synchronized (this) {
             try {
                 wait(500);
             } catch (InterruptedException e) {
@@ -92,6 +100,7 @@ public class RequestFocusTest extends ActivityInstrumentationTestCase2<RequestFo
     }
 
     // Test that a requestFocus from the wrong thread fails.
+    @Test
     @MediumTest
     public void testWrongThreadRequestFocusFails() throws Exception {
         try {
@@ -100,7 +109,7 @@ public class RequestFocusTest extends ActivityInstrumentationTestCase2<RequestFo
         } catch (AndroidRuntimeException e) {
             // Expected.  The actual exception is not public, so we can't catch it.
             assertEquals("android.view.ViewRootImpl$CalledFromWrongThreadException",
-                         e.getClass().getName());
+                    e.getClass().getName());
         }
     }
 
@@ -112,42 +121,40 @@ public class RequestFocusTest extends ActivityInstrumentationTestCase2<RequestFo
      *
      * @throws Exception If an error occurs.
      */
-    @UiThreadTest
-    public void testOnFocusChangeCallbackOrderWhenClearingFocusOfFirstFocusable()
-            throws Exception {
-        // Get the first focusable.
-        Button clearingFocusButton = mTopLeftButton;
-        Button gainingFocusButton = mTopLeftButton;
+    @Test
+    @LargeTest
+    public void testOnFocusChangeCallbackOrderWhenClearingFocusOfFirstFocusable() throws Exception {
+        activityRule.getScenario().onActivity(a -> {
+            // Get the first focusable.
+            Button clearingFocusButton = mTopLeftButton;
+            Button gainingFocusButton = mTopLeftButton;
 
-        // Make sure that the clearing focus View is the first focusable.
-        View focusCandidate = clearingFocusButton.getRootView().getParent().focusSearch(null,
-                View.FOCUS_FORWARD);
-        assertSame("The clearing focus button is the first focusable.",
-                clearingFocusButton, focusCandidate);
-        assertSame("The gaining focus button is the first focusable.",
-                gainingFocusButton, focusCandidate);
+            // Make sure that the clearing focus View is the first focusable.
+            View focusCandidate = clearingFocusButton.getRootView().getParent().focusSearch(
+                    null, View.FOCUS_FORWARD);
+            assertSame("The clearing focus button is the first focusable.", clearingFocusButton,
+                    focusCandidate);
+            assertSame("The gaining focus button is the first focusable.", gainingFocusButton,
+                    focusCandidate);
 
-        // Focus the clearing focus button.
-        clearingFocusButton.requestFocus();
-        assertTrue(clearingFocusButton.hasFocus());
+            // Focus the clearing focus button.
+            clearingFocusButton.requestFocus();
+            assertTrue(clearingFocusButton.hasFocus());
 
-        // Register the invocation order checker.
-        CombinedListeners mock = mock(CombinedListeners.class);
-        clearingFocusButton.setOnFocusChangeListener(mock);
-        gainingFocusButton.setOnFocusChangeListener(mock);
-        clearingFocusButton.getViewTreeObserver().addOnGlobalFocusChangeListener(mock);
+            // Register the invocation order checker.
+            OnFocusChangeListener mock = mock(OnFocusChangeListener.class);
+            clearingFocusButton.setOnFocusChangeListener(mock);
+            gainingFocusButton.setOnFocusChangeListener(mock);
 
-        // Try to clear focus.
-        clearingFocusButton.clearFocus();
+            // Try to clear focus.
+            clearingFocusButton.clearFocus();
 
-        // Check that no callback was invoked since focus did not move.
-        InOrder inOrder = inOrder(mock);
-        inOrder.verify(mock).onFocusChange(clearingFocusButton, false);
-        inOrder.verify(mock).onGlobalFocusChanged(clearingFocusButton, gainingFocusButton);
-        inOrder.verify(mock).onFocusChange(gainingFocusButton, true);
+            // Check that no callback was invoked since focus did not move.
+            InOrder inOrder = inOrder(mock);
+            inOrder.verify(mock).onFocusChange(clearingFocusButton, false);
+            inOrder.verify(mock).onFocusChange(gainingFocusButton, true);
+        });
     }
-
-    public interface CombinedListeners extends OnFocusChangeListener, OnGlobalFocusChangeListener {}
 
     /**
      * This tests check whether the on focus change callbacks are invoked in
@@ -156,37 +163,40 @@ public class RequestFocusTest extends ActivityInstrumentationTestCase2<RequestFo
      *
      * @throws Exception
      */
-    @UiThreadTest
+    @Test
+    @LargeTest
     public void testOnFocusChangeCallbackOrderWhenClearingFocusOfNotFirstFocusable()
             throws Exception {
-        Button clearingFocusButton = mTopRightButton;
-        Button gainingFocusButton = mTopLeftButton;
+        activityRule.getScenario().onActivity(a -> {
+            Button clearingFocusButton = mTopRightButton;
+            Button gainingFocusButton = mTopLeftButton;
 
-        // Make sure that the clearing focus View is not the first focusable.
-        View focusCandidate = clearingFocusButton.getRootView().getParent().focusSearch(null,
-                View.FOCUS_FORWARD);
-        assertNotSame("The clearing focus button is not the first focusable.",
-                clearingFocusButton, focusCandidate);
-        assertSame("The gaining focus button is the first focusable.",
-                gainingFocusButton, focusCandidate);
+            // Make sure that the clearing focus View is not the first focusable.
+            View focusCandidate = clearingFocusButton.getRootView().getParent().focusSearch(
+                    null, View.FOCUS_FORWARD);
 
-        // Focus the clearing focus button.
-        clearingFocusButton.requestFocus();
-        assertTrue(clearingFocusButton.hasFocus());
+            assertNotSame("The clearing focus button is not the first focusable.",
+                    clearingFocusButton, focusCandidate);
+            assertSame("The gaining focus button is the first focusable.", gainingFocusButton,
+                    focusCandidate);
 
-        // Register the invocation order checker.
-        CombinedListeners mock = mock(CombinedListeners.class);
-        clearingFocusButton.setOnFocusChangeListener(mock);
-        gainingFocusButton.setOnFocusChangeListener(mock);
-        clearingFocusButton.getViewTreeObserver().addOnGlobalFocusChangeListener(mock);
+            // Focus the clearing focus button.
+            clearingFocusButton.requestFocus();
+            assertTrue(clearingFocusButton.hasFocus());
 
-        // Try to clear focus.
-        clearingFocusButton.clearFocus();
+            // Register the invocation order checker.
+            OnFocusChangeListener mock = mock(OnFocusChangeListener.class);
+            clearingFocusButton.setOnFocusChangeListener(mock);
+            gainingFocusButton.setOnFocusChangeListener(mock);
 
-        // Check that no callback was invoked since focus did not move.
-        InOrder inOrder = inOrder(mock);
-        inOrder.verify(mock).onFocusChange(clearingFocusButton, false);
-        inOrder.verify(mock).onGlobalFocusChanged(clearingFocusButton, gainingFocusButton);
-        inOrder.verify(mock).onFocusChange(gainingFocusButton, true);
+            // Try to clear focus.
+            clearingFocusButton.clearFocus();
+
+            // Check that no callback was invoked since focus did not move.
+            InOrder inOrder = inOrder(mock);
+            inOrder.verify(mock).onFocusChange(clearingFocusButton, false);
+
+            inOrder.verify(mock).onFocusChange(gainingFocusButton, true);
+        });
     }
 }

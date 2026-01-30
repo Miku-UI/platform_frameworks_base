@@ -81,13 +81,15 @@ class NotificationSettingsControllerTest : SysuiTestCase() {
         mainHandler = Handler(testableLooper.looper)
         backgroundHandler = Handler(testableLooper.looper)
         allowTestableLooperAsMainThread()
+        whenever(userTracker.userId).thenReturn(ActivityManager.getCurrentUser())
+
         controller =
             NotificationSettingsController(
                 userTracker,
                 mainHandler,
                 backgroundHandler,
                 secureSettings,
-                dumpManager
+                dumpManager,
             )
     }
 
@@ -145,7 +147,7 @@ class NotificationSettingsControllerTest : SysuiTestCase() {
                 eq(settingUri1),
                 eq(false),
                 any(),
-                eq(ActivityManager.getCurrentUser())
+                eq(ActivityManager.getCurrentUser()),
             )
 
         controller.addCallback(settingUri1, Mockito.mock(Listener::class.java))
@@ -163,7 +165,7 @@ class NotificationSettingsControllerTest : SysuiTestCase() {
                 eq(settingUri1),
                 eq(false),
                 any(),
-                eq(ActivityManager.getCurrentUser())
+                eq(ActivityManager.getCurrentUser()),
             )
         clearInvocations(secureSettings)
 
@@ -175,7 +177,7 @@ class NotificationSettingsControllerTest : SysuiTestCase() {
                 eq(settingUri2),
                 eq(false),
                 any(),
-                eq(ActivityManager.getCurrentUser())
+                eq(ActivityManager.getCurrentUser()),
             )
     }
 
@@ -191,7 +193,7 @@ class NotificationSettingsControllerTest : SysuiTestCase() {
                 eq(settingUri1),
                 eq(false),
                 any(),
-                eq(ActivityManager.getCurrentUser())
+                eq(ActivityManager.getCurrentUser()),
             )
         clearInvocations(secureSettings)
 
@@ -258,7 +260,7 @@ class NotificationSettingsControllerTest : SysuiTestCase() {
                 any(Uri::class.java),
                 anyBoolean(),
                 capture(settingsObserverCaptor),
-                anyInt()
+                anyInt(),
             )
         verify(listenerSetting1a)
             .onSettingChanged(settingUri1, ActivityManager.getCurrentUser(), "9")

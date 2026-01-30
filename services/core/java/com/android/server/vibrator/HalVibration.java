@@ -22,7 +22,6 @@ import android.os.CombinedVibration;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.VibratorInfo;
-import android.os.vibrator.Flags;
 import android.os.vibrator.PrebakedSegment;
 import android.os.vibrator.VibrationEffectSegment;
 import android.util.SparseArray;
@@ -38,6 +37,7 @@ import java.util.function.IntFunction;
  */
 final class HalVibration extends Vibration {
 
+    // TODO(b/409002423): remove this map once remove_hidl_support flag removed
     public final SparseArray<VibrationEffect> mFallbacks = new SparseArray<>();
 
     /** A {@link CountDownLatch} to enable waiting for completion. */
@@ -54,8 +54,11 @@ final class HalVibration extends Vibration {
     @NonNull
     private volatile CombinedVibration mEffectToPlay;
 
-    /** Reported scale values applied to the vibration effects. */
+    // TODO(b/356600863): remove scale level once scale v2 flag is removed
     private int mScaleLevel;
+    /** Reported scale factor applied to the effect (e.g. waveform amplitude, primitive scale). */
+    private float mScaleFactor;
+    /** Reported adaptive scale factor applied on top of the scale factor to the effect. */
     private float mAdaptiveScale;
 
     HalVibration(@NonNull VibrationSession.CallerInfo callerInfo,
@@ -64,6 +67,7 @@ final class HalVibration extends Vibration {
         mOriginalEffect = effect;
         mEffectToPlay = effect;
         mScaleLevel = VibrationScaler.SCALE_NONE;
+        mScaleFactor = VibrationScaler.SCALE_FACTOR_NONE;
         mAdaptiveScale = VibrationScaler.ADAPTIVE_SCALE_NONE;
     }
 
@@ -91,6 +95,7 @@ final class HalVibration extends Vibration {
      * Add a fallback {@link VibrationEffect} to be played for each predefined effect id, which
      * might be necessary for replacement in realtime.
      */
+    // TODO(b/409002423): remove this method once remove_hidl_support flag removed
     public void fillFallbacks(IntFunction<VibrationEffect> fallbackProvider) {
         fillFallbacksForEffect(mEffectToPlay, fallbackProvider);
     }
@@ -103,6 +108,7 @@ final class HalVibration extends Vibration {
 
         // Save scale values for debugging purposes.
         mScaleLevel = scaler.getScaleLevel(vibrationUsage);
+        mScaleFactor = scaler.getScaleFactor(vibrationUsage, /* isExternalVibration= */ false);
         mAdaptiveScale = scaler.getAdaptiveHapticsScale(vibrationUsage);
         stats.reportAdaptiveScale(mAdaptiveScale);
 
@@ -150,13 +156,13 @@ final class HalVibration extends Vibration {
                 Objects.equals(mOriginalEffect, mEffectToPlay) ? null : mOriginalEffect;
         return new Vibration.DebugInfoImpl(getStatus(), callerInfo,
                 VibrationStats.StatsInfo.findVibrationType(mEffectToPlay), stats, mEffectToPlay,
-                originalEffect, mScaleLevel, mAdaptiveScale);
+                originalEffect, mScaleLevel, mScaleFactor, mAdaptiveScale);
     }
 
     /** Returns true if this vibration can pipeline with the specified one. */
     public boolean canPipelineWith(HalVibration vib,
             @Nullable SparseArray<VibratorInfo> vibratorInfos, int durationThresholdMs) {
-        long effectDuration = Flags.vibrationPipelineEnabled() && (vibratorInfos != null)
+        long effectDuration = vibratorInfos != null
                 ? mEffectToPlay.getDuration(vibratorInfos)
                 : mEffectToPlay.getDuration();
         if (effectDuration == Long.MAX_VALUE) {
@@ -165,8 +171,7 @@ final class HalVibration extends Vibration {
             // if we have a use-case, requiring changes to how pipelined vibrations are cancelled.
             return false;
         }
-        if (Flags.vibrationPipelineEnabled()
-                && (effectDuration > 0) && (effectDuration < durationThresholdMs)) {
+        if (effectDuration > 0 && effectDuration < durationThresholdMs) {
             // Duration is known and it's less than the pipeline threshold, so allow it.
             // No need to check UID, as we want to avoid cancelling any short effect and let the
             // vibrator hardware gracefully finish the vibration.
@@ -179,6 +184,7 @@ final class HalVibration extends Vibration {
                 && vib.callerInfo.attrs.isFlagSet(VibrationAttributes.FLAG_PIPELINED_EFFECT);
     }
 
+    // TODO(b/409002423): remove this method once remove_hidl_support flag removed
     private void fillFallbacksForEffect(CombinedVibration effect,
             IntFunction<VibrationEffect> fallbackProvider) {
         if (effect instanceof CombinedVibration.Mono) {
@@ -189,6 +195,7 @@ final class HalVibration extends Vibration {
             for (int i = 0; i < effects.size(); i++) {
                 fillFallbacksForEffect(effects.valueAt(i), fallbackProvider);
             }
+        // TODO(b/421857859): remove this once flag remove_sequential_combination is removed
         } else if (effect instanceof CombinedVibration.Sequential) {
             List<CombinedVibration> effects =
                     ((CombinedVibration.Sequential) effect).getEffects();
@@ -198,6 +205,7 @@ final class HalVibration extends Vibration {
         }
     }
 
+    // TODO(b/409002423): remove this method once remove_hidl_support flag removed
     private void fillFallbacksForEffect(VibrationEffect effect,
             IntFunction<VibrationEffect> fallbackProvider) {
         if (!(effect instanceof VibrationEffect.Composed composed)) {

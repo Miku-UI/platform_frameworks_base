@@ -1,6 +1,10 @@
 # Bug component: 137631
+jmtrivi@google.com
 elaurent@google.com
 lajos@google.com
 
 # go/android-fwk-media-solutions for info on areas of ownership.
 include platform/frameworks/av:/media/janitors/media_solutions_OWNERS
+
+# For MediaRouter-related components
+include platform/frameworks/av:/media/janitors/better_together_OWNERS

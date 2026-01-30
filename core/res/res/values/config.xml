@@ -58,10 +58,10 @@
         <item><xliff:g id="id">@string/status_bar_cast</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_ethernet</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_oem_satellite</xliff:g></item>
-        <item><xliff:g id="id">@string/status_bar_wifi</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_hotspot</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_stacked_mobile</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_mobile</xliff:g></item>
+        <item><xliff:g id="id">@string/status_bar_wifi</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_airplane</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_battery</xliff:g></item>
         <item><xliff:g id="id">@string/status_bar_sensors_off</xliff:g></item>
@@ -545,27 +545,10 @@
 
     <!-- If this is true, allow wake from theater mode when plugged in or unplugged. -->
     <bool name="config_allowTheaterModeWakeFromUnplug">false</bool>
-    <!-- If this is true, allow wake from theater mode from gesture. -->
-    <bool name="config_allowTheaterModeWakeFromGesture">false</bool>
-    <!-- If this is true, allow wake from theater mode from camera lens cover is switched. -->
-    <bool name="config_allowTheaterModeWakeFromCameraLens">false</bool>
-    <!-- If this is true, allow wake from theater mode from power key press. -->
-    <bool name="config_allowTheaterModeWakeFromPowerKey">true</bool>
-    <!-- If this is true, allow wake from theater mode from regular key press. Setting this value to
-         true implies config_allowTheaterModeWakeFromPowerKey is also true-->
-    <bool name="config_allowTheaterModeWakeFromKey">false</bool>
-    <!-- If this is true, allow wake from theater mode from motion. -->
-    <bool name="config_allowTheaterModeWakeFromMotion">false</bool>
-    <!-- If this is true, allow wake from theater mode from motion. -->
-    <bool name="config_allowTheaterModeWakeFromMotionWhenNotDreaming">false</bool>
-    <!-- If this is true, allow wake from theater mode from lid switch. -->
-    <bool name="config_allowTheaterModeWakeFromLidSwitch">false</bool>
     <!-- If this is true, allow wake from theater mode when docked. -->
     <bool name="config_allowTheaterModeWakeFromDock">false</bool>
     <!-- If this is true, allow wake from theater mode from window layout flag. -->
     <bool name="config_allowTheaterModeWakeFromWindowLayout">false</bool>
-    <!-- If this is true, go to sleep when theater mode is enabled from button press -->
-    <bool name="config_goToSleepOnButtonPressTheaterMode">true</bool>
     <!-- If this is true, long press on power button will be available from the non-interactive state -->
     <bool name="config_supportLongPressPowerWhenNonInteractive">false</bool>
     <!-- If this is true, short press on power button will be available whenever the default display
@@ -578,6 +561,10 @@
     <bool name="config_keepDreamingWhenUnplugging">false</bool>
 
     <!-- Auto-rotation behavior -->
+
+    <!-- If this is true, then always allow auto-rotation when dreaming, regardless of the user's
+         auto-rotation setting. -->
+    <bool name="config_alwaysAllowDreamRotation">false</bool>
 
     <!-- If true, enables auto-rotation features using the accelerometer.
          Otherwise, auto-rotation is disabled.  Applications may still request
@@ -1155,6 +1142,7 @@
             3 - Power off (without confirmation)
             4 - Go to voice assist
             5 - Go to assistant (Settings.Secure.ASSISTANT)
+            6 - Go to sleep (doze)
     -->
     <integer name="config_longPressOnPowerBehavior">5</integer>
 
@@ -1379,16 +1367,6 @@
         <item>10</item>
     </integer-array>
 
-    <!-- Vibrator pattern for feedback about booting with safe mode enabled -->
-    <integer-array name="config_safeModeEnabledVibePattern">
-        <item>0</item>
-        <item>1</item>
-        <item>20</item>
-        <item>21</item>
-        <item>500</item>
-        <item>600</item>
-    </integer-array>
-
     <!-- The URI to associate with each ringtone effect constant, intended to be used with the
          android.os.VibrationEffect#get(Uri, Context) API.
          The position of the string in the string-array determines which ringtone effect is chosen.
@@ -1550,6 +1528,38 @@
          fully booted. Setting this to true weakens a security feature; it should be done only when
          necessary, though it is still better than not using Weaver at all. -->
     <bool name="config_disableWeaverOnUnsecuredUsers">false</bool>
+
+    <!-- If true, then the Android system server will rate-limit guesses of lock screen knowledge
+         factors such as PINs. This does not replace the hardware (Gatekeeper or Weaver)
+         rate-limiter, but rather applies concurrently to it. The software rate-limiter uses
+         exponential backoff and allows up to 20 guesses in theory, but practically about 10-15
+         before the delays get very long. The software rate-limiter also does not count duplicate
+         wrong guesses, improving usability. -->
+    <bool name="config_softwareLskfRateLimiterEnforcing">false</bool>
+
+    <!-- Default value of the setting that controls whether animations should be disabled while
+         entering the PIN on the lockscreen.
+         False means animations should be enabled by default.
+         True means animations should be disabled by default. -->
+    <bool name="config_lockPinEnhancedPrivacyDefault">false</bool>
+
+    <!-- Default value for the setting that controls whether lock pattern is visible as user enters.
+         True means the pattern should be visible by default.
+         False means the pattern should not be visible by default. -->
+    <bool name="config_lockPatternVisibleDefault">true</bool>
+
+    <!-- If true, then enable the failed authentication lock feature (aka adaptive auth) which
+         locks the device after repeated authentication failures. Setting this to false weakens user
+         protection and is not recommended for production devices. -->
+    <bool name="config_enableFailedAuthLock">true</bool>
+
+    <!-- The maximum number of failed authentication attempts allowed before the device is locked,
+         if failed authentication lock is enabled -->
+    <integer name="config_maxAllowedFailedAuthAttempts">5</integer>
+
+    <!-- Whether to show a user-facing toggle for failed authentication lock if the feature is
+         enabled. -->
+    <bool name="config_enableFailedAuthLockToggle">true</bool>
 
     <!-- Control the behavior when the user long presses the home button.
             0 - Nothing
@@ -2029,6 +2039,9 @@
     <!-- Class name of WallpaperManagerService. -->
     <string name="config_wallpaperManagerServiceName" translatable="false">com.android.server.wallpaper.WallpaperManagerService</string>
 
+    <!-- True if live wallpapers can be supported in the deskop experience -->
+    <bool name="config_isLiveWallpaperSupportedInDesktopExperience">false</bool>
+
     <!-- Specifies priority of automatic time sources. Suggestions from higher entries in the list
          take precedence over lower ones.
          See com.android.server.timedetector.TimeDetectorStrategy for available sources. -->
@@ -2386,6 +2399,9 @@
     <!-- Flag indicating if ringer mode affects alarm stream -->
     <bool name="config_audio_ringer_mode_affects_alarm_stream">false</bool>
 
+    <!-- The default value for whether multi audio focus is enabled -->
+    <bool name="config_multi_audio_focus_enabled_default">false</bool>
+
     <!-- The default value for whether head tracking for
          spatial audio is enabled for a newly connected audio device -->
     <bool name="config_spatial_audio_head_tracking_enabled_default">false</bool>
@@ -2394,7 +2410,14 @@
     <integer name="config_mediaOutputSwitchDialogVersion">1</integer>
 
     <!-- Flag indicating that an outbound call must have a call capable phone account
-         that has declared it can process the call's handle. -->
+         that has declared it can process the call's handle.
+         @deprecated This configuration is no longer used as having it false is actually a bug.
+         This controlled which phone accounts we would consider using when finding call capable
+         phone accounts for an outgoing call.  When false we will consider any call capable phone
+         account even if the URI scheme doesn't match the outgoing call address.  That is wrong as
+         dialing a sip: scheme call and trying to use a tel: scheme phone account is not going to
+         work.  As such we now ALWAYS require the URI scheme to match when choosing call capable
+         phone accounts. -->
     <bool name="config_requireCallCapableAccountForHandle">false</bool>
 
     <!-- Flag indicating if the user is notified when the mobile network access is restricted -->
@@ -2652,10 +2675,15 @@
          If false, Content-disposition fragments are ignored -->
     <bool name="config_mms_content_disposition_support">true</bool>
 
-    <!-- MMS user agent string -->
+    <!-- MMS user agent string, for example OemNameDeviceName
+         If the string contains a '%s' format string then that substring will be replaced
+         with the value of Build.MODEL , ie
+         <string name="config_mms_user_agent">OemName%s</string> -->
     <string name="config_mms_user_agent" translatable="false"></string>
 
-    <!-- MMS user agent prolfile url -->
+    <!-- MMS user agent prolfile url, for example https://uaprof.oem_name.com/DeviceName.xml
+         if the string contains a '%s' format string then that substring will be replaced
+         with the value of Build.MODEL , ie https://uaprof.oem_name.com/%s.xml -->
     <string name="config_mms_user_agent_profile_url" translatable="false"></string>
 
     <!-- The default list of possible CMF Names|Style|ColorSource. This array can be
@@ -2813,6 +2841,8 @@
         <item>1</item>
     </integer-array>
 
+    <!-- Should we show the preference to set up when to start dreaming? -->
+    <bool name="config_dreamsShowWhenToDreamSetting">true</bool>
     <!-- Are we allowed to dream while not plugged in? -->
     <bool name="config_dreamsEnabledOnBattery">false</bool>
     <!-- Minimum battery level to allow dreaming when powered.
@@ -2845,10 +2875,22 @@
     <bool name="config_dreamsOnlyEnabledForDockUser">false</bool>
     <!-- Whether dreams are disabled when ambient mode is suppressed. -->
     <bool name="config_dreamsDisabledByAmbientModeSuppressionConfig">false</bool>
+    <!-- Whether to restrict dreams to wireless charging. -->
+    <bool name="config_onlyDreamWhenWirelessChargingDefault">false</bool>
 
     <!-- The default for the setting that controls when to auto-start hub mode.
           0 means "never" -->
     <integer name="config_whenToStartHubModeDefault">0</integer>
+    <!-- Whether to restrict auto-showing glanceable hub to wireless charging. -->
+    <bool name="config_onlyShowGlanceableHubWhenWirelessChargingDefault">false</bool>
+    <!-- Whether glanceable hub is enabled by default. -->
+    <bool name="config_glanceableHubEnabledByDefault">false</bool>
+
+    <!-- Whether or not low light display behavior is enabled -->
+    <bool name="config_lowLightDisplayBehaviorEnabledDefault">true</bool>
+
+    <!-- The default low light display behavior. 2 represents the low-light clock. -->
+    <integer name="config_lowLightDisplayBehaviorDefault">2</integer>
 
     <!-- The duration in milliseconds of the dream opening animation.  -->
     <integer name="config_dreamOpenAnimationDuration">250</integer>
@@ -2934,6 +2976,18 @@
     <!-- Control whether the pickup gesture is enabled by default. This value will be used
      during initialization when the setting is still null. -->
     <bool name="config_dozePickupGestureEnabled">true</bool>
+
+    <!-- Control whether doze is enabled by default. This value will be used during initialization
+     when the setting is still null. -->
+    <bool name="config_dozeEnabled">true</bool>
+
+    <!-- Control whether the single tap gesture is enabled by default. This value will be used
+     during initialization when the setting is still null. -->
+    <bool name="config_dozeTapGestureEnabled">true</bool>
+
+    <!-- Control whether the double tap gesture is enabled by default. This value will be used
+     during initialization when the setting is still null. -->
+    <bool name="config_dozeDoubleTapGestureEnabled">true</bool>
 
     <!-- Control whether the always on display mode is enabled by default. This value will be used
          during initialization when the setting is still null. -->
@@ -3124,10 +3178,6 @@
          down event for an interaction to be considered a double-tap. -->
     <integer name="config_doubleTapMinTimeMillis">40</integer>
 
-    <!-- Maximum duration in milliseconds between a touch pad touch and release for a given touch
-         to be considered a tap (click) as opposed to a hover movement gesture. -->
-    <integer name="config_hoverTapTimeoutMillis">150</integer>
-
     <!-- The amount of time in milliseconds that the zoom controls should be displayed on the
          screen. -->
     <integer name="config_zoomControlsTimeoutMillis">3000</integer>
@@ -3159,15 +3209,28 @@
     <!-- The default value if the SyncStorageEngine should sync automatically or not -->
     <bool name="config_syncstorageengine_masterSyncAutomatically">true</bool>
 
-    <!--  Maximum number of supported users -->
+    <!--  Maximum number of supported switchable users (excluding Guests & Demo users).
+          Does not include profiles. See {@link UserManager#getMaxSwitchableUsers()} for details.
+
+          Setting to 1 disables multiple switchable users (e.g. secondary users).
+
+          To limit the number of any particular user type (whether switchable or not), set the
+          appropriate maximum in {@link com.android.internal.R.xml#config_user_types}.
+
+         Note: If > 1, it is expected that UserManager.USER_TYPE_FULL_SECONDARY users are supported
+         on the device (at least for testing purposes, even if in practice the UI really only allows
+         other switchable types, such as restricted profiles or guests, to be created).
+         -->
     <integer name="config_multiuserMaximumUsers">1</integer>
 
-    <!-- Maximum number of users we allow to be running at a time -->
+    <!-- Maximum number of users we allow to be running at a time. -->
     <integer name="config_multiuserMaxRunningUsers">3</integer>
 
-    <!-- Number of seconds of uptime after a full user enters the background before we attempt to
-         stop it due to inactivity. Set to -1 to disable scheduling stopping background users. -->
-    <integer name="config_backgroundUserScheduledStopTimeSecs">1800</integer> <!-- 30 minutes -->
+    <!-- Number of seconds of uptime after a full user enters the background before we consider
+         it as no longer important, and therefore can consider automatically stopping it.
+         Set to -1 to disable this feature (i.e. don't auto-stop background users after some elapsed
+         time). -->
+    <integer name="config_backgroundUserConsideredDispensableTimeSecs">93600</integer> <!-- 26 hours -->
 
     <!-- Whether to delay user data locking for background user.
          If false, user switched-out from user switching will still be in running state until
@@ -3222,15 +3285,49 @@
          Note that HSUM devices without this enabled will not automatically have a main user. -->
     <bool name="config_isMainUserPermanentAdmin">true</bool>
 
+    <!-- Whether to disallow the removal of the last admin user on device. This generally has no
+         effect on non-HSUM devices, where the system user is always an admin and cannot be removed.
+         Note that if config_isMainUserPermanentAdmin is true, this config is generally irrelevant,
+         since then the main user is a permanent admin. -->
+    <bool name="config_disallowRemovingLastAdminUser">true</bool>
+
     <!-- Whether all secondary users (and the system user) are eligible to have profiles.
-         If false, only the MainUser is eligible to have profiles. -->
+         If false, only the MainUser is eligible to have profiles.
+          NOTE: this feature not supported yet, and CTS will fail if it's set to
+          true.
+    -->
     <bool name="config_supportProfilesOnNonMainUser">false</bool>
+
+    <!-- Whether the system should create the initial full user on boot.
+         Notice that if config_isMainUserPermanentAdmin is true, this config is
+         ignored (as the initial user is the main user). -->
+    <bool name="config_createInitialUser">false</bool>
+
+    <!-- Whether the system should "designate" the main user on boot:
+         - If it's true and the device doesn't have a main user (meaning it's the first boot or it
+           migrated from false to true), then the system will either promote the first admin
+           (migration) to be the main user, or create a main user (first boot).
+         - If it's false and the device has a main user (meaning it migrated from true to false),
+           then the main user will be "demoted" to just an admin.
+
+         Notice that if config_isMainUserPermanentAdmin is true, this config is
+         ignored (i.e, the system will act as it was true) as main user is required in this case.
+    -->
+    <bool name="config_designateMainUser">false</bool>
 
     <!-- Whether switch to headless system user is allowed. If allowed,
     headless system user can run in the foreground even though it is not a full user. -->
     <bool name="config_canSwitchToHeadlessSystemUser">false</bool>
 
-    <!-- Whether UI for multi user should be shown -->
+    <!-- Whether UI for multi user should be shown.
+         Note: If true, it is expected that secondary users are supported on the device (at least
+         for testing purposes, even if in practice the UI really only allows other switchable
+         types, such as restricted profiles or guests, to be created).
+         @deprecated  Use config_multiuserMaximumUsers instead.
+         This config will likely be removed in the future; config_multiuserMaximumUsers, which now
+         only applies to full users, not profiles, should be updated accordingly as needed.
+         TODO(b/435521983): Remove this since it's now made redundant by config_multiuserMaximumUsers
+         -->
     <bool name="config_enableMultiUserUI">false</bool>
 
     <!-- Indicates the boot strategy in Headless System User Mode (HSUM)
@@ -3333,6 +3430,12 @@
     <!-- When true, local displays that do not contain any of their own content will automatically
          mirror the content of the default display. -->
     <bool name="config_localDisplaysMirrorContent">true</bool>
+
+    <!-- When true, the {@link Display#FLAG_PRESENTATION} flag is set to all internal displays.
+         When false, presentations are not allowed on internal displays by default, but vendors can
+         still explicitly override this by explicitly adding the flag to the internal display(s).
+    -->
+    <bool name="config_allowPresentationOnInternalDisplay">true</bool>
 
     <!-- When true, udfps vote is ignored. This feature is disabled by default. -->
     <bool name="config_ignoreUdfpsVote">false</bool>
@@ -3647,7 +3750,6 @@
         <item>com.android.server.notification.ZenModeExtractor</item>
         <item>com.android.server.notification.ImportanceExtractor</item>
         <!-- depends on ImportanceExtractor-->
-        <item>com.android.server.notification.NotificationIntrusivenessExtractor</item>
         <item>com.android.server.notification.VisibilityExtractor</item>
         <!-- Depends on ZenModeExtractor -->
         <item>com.android.server.notification.BadgeExtractor</item>
@@ -3777,9 +3879,7 @@
     <string name="config_screenshotAppClipsServiceComponent" translatable="false"
             >com.android.systemui/com.android.systemui.screenshot.appclips.AppClipsService</string>
 
-    <!-- The component name of a special dock app that merely launches a dream.
-         We don't want to launch this app when docked because it causes an unnecessary
-         activity transition.  We just want to start the dream.. -->
+    <!-- The component name for the service which handles taking a screenshot. -->
     <string name="config_screenshotServiceComponent" translatable="false"
             >com.android.systemui/com.android.systemui.screenshot.TakeScreenshotService</string>
 
@@ -3822,6 +3922,9 @@
          should show a display overlay on the screen -->
     <bool name="config_windowEnableCircularEmulatorDisplayOverlay">false</bool>
 
+    <!-- Whether the emulator shows screen brightness dim in the overlay. -->
+    <bool name="config_windowEnableScreenBrightnessEmulatorDisplayOverlay">false</bool>
+
     <!-- Defines the default set of global actions. Actions may still be disabled or hidden based
          on the current state of the device.
          Each item must be one of the following strings:
@@ -3833,6 +3936,7 @@
          "users" = list of users
          "restart" = restart device
          "emergency" = Launch emergency dialer
+         "lock" = Lock device without requiring strong authentication
          "lockdown" = Lock down device until the user authenticates
          "logout" =  Logout the current user
          "system_update" = Launch System Update screen
@@ -3949,6 +4053,7 @@
     <!-- Flag specifying whether the device will use the "allow_hold_in_ims_call" carrier config
          option.  When false, the device will support holding of IMS calls, regardless of the
          carrier config setting. -->
+    <!-- @deprecated all carriers should support hold so this is obsolete -->
     <bool name="config_device_respects_hold_carrier_config">true</bool>
 
     <!-- Flag specifying whether VT should be available for carrier: independent of
@@ -3972,6 +4077,7 @@
     <bool name="config_allow_ussd_over_ims">false</bool>
 
     <!-- String array containing numbers that shouldn't be logged. Country-specific. -->
+    <!-- @deprecated this now resides in the Telecom framework (same name). -->
     <string-array name="unloggable_phone_numbers" />
 
     <bool name="config_networkSamplingWakesDevice">true</bool>
@@ -4149,6 +4255,9 @@
     <!-- Whether to keep fullscreen magnification zoom level when context changes. -->
     <bool name="config_magnification_keep_zoom_level_when_context_changed">false</bool>
 
+    <!-- The default value whether to magnify IME and keyboard with fullscreen magnification . -->
+    <bool name="config_magnification_magnify_keyboard_default">false</bool>
+
     <!-- If true, the display will be shifted around in ambient mode. -->
     <bool name="config_enableBurnInProtection">false</bool>
 
@@ -4325,6 +4434,31 @@
     <!-- The default vibration strength, must be between 1 and 255 inclusive. -->
     <integer name="config_defaultVibrationAmplitude">255</integer>
 
+    <!-- The scale factor to be applied at each vibration intensity level supported by the device,
+     defined by a positive float value.
+     The default framework scaling will be applied if this is not set, based on the user and the
+     default scales for each usage.
+     The number of entries here must be the device supported scale levels for LOW/MEDIUM/HIGH.
+     Example:
+     <string-array name="config_vibrationIntensityScaleFactors" translatable="false">
+       <item>0.5</item> -> Vibrator.VIBRATION_INTENSITY_LOW
+       <item>0.7</item> -> Vibrator.VIBRATION_INTENSITY_MEDIUM
+       <item>1.0</item> -> Vibrator.VIBRATION_INTENSITY_HIGH
+     </string-array> -->
+    <string-array name="config_vibrationIntensityScaleFactors" translatable="false" />
+
+    <!-- The scale factor to be applied for external vibrations only (i.e. audio-coupled haptics),
+         defined by a positive float value.
+         The values from config_vibrationIntensityScaleFactors will be used if this is not set.
+         The number of entries here must be the device supported scale levels for LOW/MEDIUM/HIGH.
+         Example:
+         <string-array name="config_externalVibrationIntensityScaleFactors" translatable="false">
+           <item>0.3</item> -> Vibrator.VIBRATION_INTENSITY_LOW
+           <item>0.5</item> -> Vibrator.VIBRATION_INTENSITY_MEDIUM
+           <item>1.0</item> -> Vibrator.VIBRATION_INTENSITY_HIGH
+         </string-array> -->
+    <string-array name="config_externalVibrationIntensityScaleFactors" translatable="false" />
+
     <!-- The max vibration strength allowed in audio haptic channels, must be positive or zero if
          limit is unknown. -->
     <item name="config_hapticChannelMaxVibrationAmplitude" format="float" type="dimen">0</item>
@@ -4338,6 +4472,24 @@
 
     <!-- Indicating if ringtone vibration settings supported or not. -->
     <bool name="config_ringtoneVibrationSettingsSupported">false</bool>
+
+    <!-- Mapping for the ringtone vibration pattern name to metric ID for logging
+         ringtone vibration customization.
+     Example:
+     <string-array name="config_ringtoneVibrationPatternToMetricIdMapping" translatable="false">
+       <item>Classic_ringtone.xml,101</item>
+       <item>Bumps.xml,102</item>
+     </string-array> -->
+    <string-array name="config_ringtoneVibrationPatternToMetricIdMapping" translatable="false" />
+
+    <!-- Mapping for the notification vibration pattern name to metric ID for logging
+         notification vibration customization.
+     Example:
+     <string-array name="config_notificationVibrationPatternToMetricIdMapping" translatable="false">
+       <item>Classic_notification.xml,201</item>
+       <item>Taps.xml,202</item>
+     </string-array> -->
+    <string-array name="config_notificationVibrationPatternToMetricIdMapping" translatable="false" />
 
     <!-- If the device should still vibrate even in low power mode, for certain priority vibrations
      (e.g. accessibility, alarms). This is mainly for Wear devices that don't have speakers. -->
@@ -4707,7 +4859,8 @@
     <string name="config_defaultDndDeniedPackages" translatable="false"></string>
 
     <!-- User restrictions set on the SYSTEM user when it is first created.
-         Note: Also update appropriate overlay files. -->
+         @deprecated Set the System's default-restrictions in config_user_types.xml, which
+         overwrites this value anyway, instead.  -->
     <string-array translatable="false" name="config_defaultFirstUserRestrictions">
     </string-array>
 
@@ -4776,7 +4929,10 @@
     <bool name="config_allow3rdPartyAppOnInternal">true</bool>
 
     <!-- Specifies the path that is used by AdaptiveIconDrawable class to crop launcher icons. -->
-    <string name="config_icon_mask" translatable="false">"M50,0L92,0C96.42,0 100,4.58 100 8L100,92C100, 96.42 96.42 100 92 100L8 100C4.58, 100 0 96.42 0 92L0 8 C 0 4.42 4.42 0 8 0L50 0Z"</string>
+    <string name="config_icon_mask" translatable="false">"M 50 0 L 92 0 A 8 8 0 0 1 100 8 L 100 92 A 8 8 0 0 1 92 100 L 8 100 A 8 8 0 0 1 0 92 L 0 8 A 8 8 0 0 1 8 0 L 50 0 Z"</string>
+    <!-- Specifies the path that is used by AdaptiveIconDrawable class to crop launcher banners. -->
+    <string name="config_banner_mask" translatable="false">@string/config_icon_mask</string>
+
 
     <!-- The component name, flattened to a string, for the default accessibility service to be
          enabled by the accessibility shortcut. This service must be trusted, as it can be activated
@@ -4789,6 +4945,11 @@
          name is not preinstalled then this shortcut will do nothing. -->
     <string name="config_defaultSelectToSpeakService" translatable="false"></string>
 
+    <!-- The component name, flattened to a string, for the default voice access service to be
+     enabled by the accessibility keyboard shortcut. If the service with the specified component
+     name is not preinstalled then this shortcut will do nothing. -->
+    <string name="config_defaultVoiceAccessService" translatable="false"></string>
+
     <!-- URI for default Accessibility notification sound when to enable accessibility shortcut. -->
     <string name="config_defaultAccessibilityNotificationSound" translatable="false"></string>
 
@@ -4799,6 +4960,13 @@
         <!--
         <item>com.example.package.first/com.example.class.FirstService</item>
         <item>com.example.package.second/com.example.class.SecondService</item>
+        -->
+    </string-array>
+
+    <string-array translatable="false" name="config_forceInvertPackageBlocklist">
+        <!--
+        <item>com.example.package.first</item>
+        <item>com.example.package.second</item>
         -->
     </string-array>
 
@@ -5956,8 +6124,13 @@
     only. The component must be part of a system app. -->
     <string name="config_defaultSupervisionProfileOwnerComponent" translatable="false"></string>
 
-    <!-- The package name of the default supervision package. -->
+    <!-- The package name of the default system supervision package. -->
     <string name="config_systemSupervision" translatable="false"></string>
+
+    <!-- Semicolon separated list of packages allowed to hold the supervision role. If the package
+         is not a system app, the signing certificate digest must be included (separated by a colon
+         from the package name). -->
+    <string name="config_allowedSupervisionRolePackages" translatable="false"></string>
 
     <!-- Trigger a warning for notifications with RemoteView objects that are larger in bytes than
     this value (default 1MB)-->
@@ -5985,6 +6158,9 @@
 
     <!-- The list of packages that will use ANGLE as the GLES driver -->
     <string-array name="config_angleAllowList"></string-array>
+
+    <!-- The list of packages that will not use ANGLE as the GLES driver -->
+    <string-array name="config_angleDenyList"></string-array>
 
     <!-- The list of packages to automatically opt in to refresh rate suppressing by small area
     detection. Format of this array should be packageName:threshold and threshold value should
@@ -6184,6 +6360,11 @@
 
     <!-- If true, multiuser switcher would be automatically enabled when second user is created on the device. -->
     <bool name="config_enableUserSwitcherUponUserCreation">true</bool>
+
+    <!--
+    Whether the user switching can only happen by logging out and going through the system user (login screen).
+    -->
+    <bool name="config_userSwitchingMustGoThroughLoginScreen">false</bool>
 
     <!-- Set to true to make assistant show in front of the dream/screensaver. -->
     <bool name="config_assistantOnTopOfDream">false</bool>
@@ -6418,9 +6599,12 @@
         is enabled and activity is connected to the camera in fullscreen. -->
     <bool name="config_isWindowManagerCameraCompatSplitScreenAspectRatioEnabled">false</bool>
 
-    <!-- Which aspect ratio to use when camera compat treatment is enabled and an activity eligible
-        for treatment is connected to the camera. -->
-    <item name="config_windowManagerCameraCompatAspectRatio" format="float" type="dimen">1.0</item>
+    <!-- Whether camera compat treatment which simulates app's requested orientation is enabled. The
+        purpose of the treatment is to mitigate issues caused by orientation mismatch between camera
+        buffer and an app window. This includes letterboxing fixed orientation activities connected
+        to the camera, cropping the camera buffer (rotate-and-crop) and sandboxing display rotation
+        to match what the apps most likely expect in their requested orientation. -->
+    <bool name="config_isCameraCompatSimulateRequestedOrientationTreatmentEnabled">true</bool>
 
     <!-- Docking is a uiMode configuration change and will cause activities to relaunch if it's not
          handled. If true, the configuration change will be sent but activities will not be
@@ -6457,6 +6641,10 @@
     <bool name="config_enableBackSound">false</bool>
 
     <!-- Chooser image editing activity.  Must handle ACTION_EDIT image/png intents.
+         This name is in the ComponentName flattened format (package/class) [DO NOT TRANSLATE]  -->
+    <string name="config_preferredSystemImageEditor" translatable="false"></string>
+    <!-- Chooser fallback image editing activity, used if the preferred one is disabled.
+         Must handle ACTION_EDIT image/png intents.
          If omitted, image editing will not be offered via Chooser.
          This name is in the ComponentName flattened format (package/class) [DO NOT TRANSLATE]  -->
     <string name="config_systemImageEditor" translatable="false"></string>
@@ -6686,6 +6874,12 @@
     <bool name="config_cecQuerySadMaxEnabled_default">true</bool>
     <bool name="config_cecQuerySadMaxDisabled_allowed">true</bool>
     <bool name="config_cecQuerySadMaxDisabled_default">false</bool>
+
+    <bool name="config_cecTvBehaviorOnStandbyMessage_userConfigurable">false</bool>
+    <bool name="config_cecTvBehaviorOnStandbyMessageGoToSleep_allowed">true</bool>
+    <bool name="config_cecTvBehaviorOnStandbyMessageGoToSleep_default">true</bool>
+    <bool name="config_cecTvBehaviorOnStandbyMessageGoToDream_allowed">true</bool>
+    <bool name="config_cecTvBehaviorOnStandbyMessageGoToDream_default">false</bool>
 
     <!-- eARC Configuration -->
     <bool name="config_earcEnabled_userConfigurable">true</bool>
@@ -7196,6 +7390,12 @@
     </string-array>
 
     <!-- Certificate digests for trusted apps that will be allowed to obtain the knownSigner
+         permission for computer control access. The digest should be computed over the
+         DER encoding of the trusted certificate using the SHA-256 digest algorithm. -->
+    <string-array name="config_accessComputerControlKnownSigners">
+    </string-array>
+
+    <!-- Certificate digests for trusted apps that will be allowed to obtain the knownSigner
          permission for staging HealthConnect's remote data. The digest should be computed over the
          DER encoding of the trusted certificate using the SHA-256 digest algorithm. -->
     <string-array name="config_healthConnectRestoreKnownSigners">
@@ -7399,6 +7599,9 @@
     <!-- Maximum number of active tasks on a given Desktop Windowing session. Set to 0 for unlimited. -->
     <integer name="config_maxDesktopWindowingActiveTasks">0</integer>
 
+    <!-- Maximum number desks on a device running Desktop Windowing. Set to 0 for unlimited. -->
+    <integer name="config_maxDesktopWindowingDesks">4</integer>
+
     <!-- Whether a display enters desktop mode by default when the windowing mode of the display's
          root TaskDisplayArea is set to WINDOWING_MODE_FREEFORM. -->
     <bool name="config_enterDesktopByDefaultOnFreeformDisplay">false</bool>
@@ -7406,6 +7609,12 @@
     <!-- Whether a desktop window should be maximized when it's dragged to the top edge of the
          screen. -->
     <bool name="config_dragToMaximizeInDesktopMode">false</bool>
+
+    <!-- Whether the home screen should be shown behind freeform tasks in desktop mode. -->
+    <bool name="config_showHomeBehindDesktop">false</bool>
+
+    <!-- List of packages which should be exempt from desktop mode. -->
+    <string-array name="config_desktopExemptPackages" translatable="false"/>
 
     <!-- Frame rate compatibility value for Wallpaper
          FRAME_RATE_COMPATIBILITY_MIN (102) is used by default for lower power consumption -->
@@ -7428,6 +7637,10 @@
     <!-- Whether to show GAIA education screen during account login of private space setup.
          OEM/Partner can explicitly opt to disable the screen. -->
     <bool name="config_enableGaiaEducationInPrivateSpace">true</bool>
+
+    <!-- Default dismiss timeout (in milliseconds) for the power menu (Global Actions) dialog to
+         avoid possible screen burn in issues. Set to '0' to disable timeout -->
+    <integer name="config_globalActionsDialogTimeout">0</integer>
 
     <!-- Whether to enable usb state update via udc sysfs. -->
     <bool name="config_enableUdcSysfsUsbStateUpdate">false</bool>
@@ -7505,4 +7718,75 @@
     <!-- Biometrics fingerprint frr notification target activity component name, it shall be customized by OEMs -->
     <string translatable="false" name="config_fingerprintFrrTargetComponent"></string>
 
+    <!-- Default name for all newly configured tv profiles. -->
+    <string name="config_configured_tv_profile_name">configured_user</string>
+
+    <!-- Whether cv is available on the device. -->
+    <bool name="config_cv_available">false</bool>
+
+    <!-- The selection toolbar render service component name -->
+    <string translatable="false" name="config_systemUiSelectionToolbarRenderService">com.android.systemui/.selectiontoolbar.app.service.SysUiSelectionToolbarRenderService</string>
+
+    <!-- An allowlist of Private Space apps that should receive {@link android.intent.action.LOCKED_BOOT_COMPLETED}
+     and {@link android.intent.action.BOOT_COMPLETED} intents immediately after private space gets
+      unlocked instead of when these apps start. -->
+    <string-array name="config_privateSpaceBootCompletedImmediateReceivers" translatable="false">
+        <item>com.android.privatespace</item>
+    </string-array>
+
+    <!-- Whether Sys UI reboot UI is prioritized for reocvery triggered UI. -->
+    <bool name="config_prioritizeSysUiForRecoveryRebootUi">false</bool>
+
+    <!-- Maximum number of devices that allows for audio sharing. -->
+    <integer name="config_audio_sharing_maximum_sinks">2</integer>
+
+    <!-- Whether ResolverActivity should highlight the last used app.
+         When false, ResolverActivity shows a list of apps instead of highlighting the last used app
+         and displaying other apps separately. -->
+    <bool name="config_resolverActivityFilterLastUsed">true</bool>
+
+    <!--For App Function, this configuration lists package names grouped as "Device Settings".
+        Packages in this list share the same App Function access settings. In the UI, they are
+        presented as a single "Device Settings" item rather than individually. -->
+    <string-array name="config_appFunctionDeviceSettingsPackages" translatable="false">
+    </string-array>
+
+    <!-- Defines the default allowlist of package names for preloaded agents authorized to use App
+         Function features. This static list operates as a fallback allowlist in case the
+         updatable allowlist is not available. -->
+    <string-array name="config_defaultAppFunctionAgentAllowlist" translatable="false">
+    </string-array>
+
+    <!-- Package name for developer verification service provider app [DO NOT TRANSLATE] -->
+    <string name="config_developerVerificationServiceProviderPackageName" translatable="false"></string>
+    <!-- Package name for developer verification policy delegate app [DO NOT TRANSLATE] -->
+    <string name="config_developerVerificationPolicyDelegatePackageName" translatable="false"></string>
+
+    <!-- Whether the system package installer supports the material design. -->
+    <bool name="config_enableMaterialDesignInPackageInstaller">true</bool>
+
+    <!-- Whether to enable partial sleep wake locks. -->
+    <bool name="config_allowPartialSleepWakeLocks">false</bool>
+
+    <!-- Maximum partial sleep wake lock duration in milliseconds. -->
+    <integer name="config_maximumPartialSleepWakeLockDuration">1000</integer>
+
+    <!-- Package and class info to bind to ProximityProviderService -->
+    <string name="proximity_provider_service_package_name" translatable="false">android</string>
+    <string name="proximity_provider_service_class_name" translatable="false">android.proximity.DefaultProximityProviderService</string>
+
+    <!-- Action for opening trusted location settings page [CHAR LIMIT=NONE] [DO NOT TRANSLATE] -->
+    <string name="trusted_location_settings_action" translatable="false"></string>
+
+    <!-- The delay in milliseconds to suppress the toast after the user presses the
+         power button. -->
+    <integer name="config_turnOffTvToastSuppressionDelayMs">0</integer>
+
+    <!-- The delay in milliseconds to show the toast after the user presses the power button. -->
+    <integer name="config_turnOffTvToastPostDelayMs">0</integer>
+
+    <!-- A list of permissions to be granted under WatchFaceBehavior role
+        It can only contain non-AOSP permissions outside of the android.*
+        and com.android.* namespace. -->
+    <string-array name="config_watchFacePermissions" translatable="false"/>
 </resources>

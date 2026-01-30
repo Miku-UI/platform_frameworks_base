@@ -36,7 +36,6 @@ import static com.android.server.pm.PackageManagerService.SCAN_AS_SYSTEM;
 import static com.android.server.pm.PackageManagerService.SCAN_AS_SYSTEM_EXT;
 import static com.android.server.pm.PackageManagerService.SCAN_AS_VENDOR;
 import static com.android.server.pm.PackageManagerService.SCAN_AS_VIRTUAL_PRELOAD;
-import static com.android.server.pm.PackageManagerService.SCAN_BOOTING;
 import static com.android.server.pm.PackageManagerService.SCAN_DONT_KILL_APP;
 import static com.android.server.pm.PackageManagerService.SCAN_FIRST_BOOT_OR_UPGRADE;
 import static com.android.server.pm.PackageManagerService.SCAN_MOVE;
@@ -51,6 +50,8 @@ import static com.android.server.pm.PackageManagerServiceUtils.getLastModifiedTi
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.content.ContentResolver;
+import android.content.Context;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.Flags;
 import android.content.pm.PackageManager;
@@ -76,6 +77,7 @@ import android.util.apk.ApkSignatureVerifier;
 import android.util.jar.StrictJarFile;
 
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.content.NativeLibraryHelper;
 import com.android.internal.pm.parsing.pkg.ParsedPackage;
 import com.android.internal.pm.pkg.component.ComponentMutateUtils;
 import com.android.internal.pm.pkg.component.ParsedActivity;
@@ -137,8 +139,6 @@ final class ScanPackageUtils {
         final SharedUserSetting sharedUserSetting = request.mSharedUserSetting;
         final UserHandle user = request.mUser;
         final boolean isPlatformPackage = request.mIsPlatformPackage;
-
-        List<String> changedAbiCodePath = null;
 
         if (DEBUG_PACKAGE_SCANNING) {
             if ((parseFlags & ParsingPackageUtils.PARSE_CHATTY) != 0) {
@@ -423,46 +423,43 @@ final class ScanPackageUtils {
         }
 
         boolean is16KbDevice = Os.sysconf(OsConstants._SC_PAGESIZE) == PAGE_SIZE_16KB;
-        if (Flags.appCompatOption16kb() && is16KbDevice) {
+
+        // If package is upgrading, mPageSizeCompatFlags in PackageSetting should be populated
+        // according to the upgraded package.
+        if (!createNewPackage) {
+            pkgSetting.clearPageSizeAppCompatFlags();
+        }
+
+        if (Flags.appCompatOption16kb() && (is16KbDevice || request.mEnableAlignmentChecks)) {
             // Alignment checks are used decide whether this app should run in compat mode when
             // nothing was specified in manifest. Manifest should always take precedence over
             // something decided by platform.
             if (parsedPackage.getPageSizeAppCompatFlags()
                     > ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED) {
                 pkgSetting.setPageSizeAppCompatFlags(parsedPackage.getPageSizeAppCompatFlags());
-            } else {
-                // 16 KB is only support for 64 bit ABIs and for apps which are being installed
-                // Check alignment. System, Apex and Platform packages should be page-agnostic now
-                if ((Build.SUPPORTED_64_BIT_ABIS.length > 0)
-                        && !isSystemApp
-                        && !isApex
-                        && !isPlatformPackage) {
-                    int mode =
-                            packageAbiHelper.checkPackageAlignment(
-                                    parsedPackage,
-                                    pkgSetting.getLegacyNativeLibraryPath(),
-                                    parsedPackage.isNativeLibraryRootRequiresIsa(),
-                                    pkgSetting.getCpuAbiOverride());
-                    if (mode >= ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED) {
-                        pkgSetting.setPageSizeAppCompatFlags(mode);
-                    } else {
-                        Slog.e(TAG, "Error occurred while checking alignment of package : "
-                                + parsedPackage.getPackageName());
-                    }
+            }
+
+            // 16 KB is only support for 64 bit ABIs and for apps which are being installed
+            // Check alignment. System, Apex and Platform packages should be page-agnostic now
+            if ((Build.SUPPORTED_64_BIT_ABIS.length > 0)
+                    && !isSystemApp
+                    && !isApex
+                    && !isPlatformPackage) {
+                NativeLibraryHelper.AlignmentResult res =
+                        packageAbiHelper.checkPackageAlignment(
+                                parsedPackage,
+                                pkgSetting.getLegacyNativeLibraryPath(),
+                                parsedPackage.isNativeLibraryRootRequiresIsa(),
+                                pkgSetting.getCpuAbiOverride());
+                if (res != null && res.unalignedLibraries != null
+                        && res.flags >= ApplicationInfo.PAGE_SIZE_APP_COMPAT_FLAG_UNDEFINED) {
+                    pkgSetting.setPageSizeAppCompatFlags(res.flags);
+                    pkgSetting.setLibraryAlignmentInfo(res.unalignedLibraries);
+                } else {
+                    Slog.e(TAG, "Error occurred while checking alignment of package : "
+                            + parsedPackage.getPackageName());
                 }
             }
-        }
-
-        if ((scanFlags & SCAN_BOOTING) == 0 && oldSharedUserSetting != null) {
-            // We don't do this here during boot because we can do it all
-            // at once after scanning all existing packages.
-            //
-            // We also do this *before* we perform dexopt on this package, so that
-            // we can avoid redundant dexopts, and also to make sure we've got the
-            // code and package path correct.
-            changedAbiCodePath = applyAdjustedAbiToSharedUser(oldSharedUserSetting,
-                    parsedPackage, packageAbiHelper.getAdjustedAbiForSharedUser(
-                            oldSharedUserSetting.getPackageStates(), parsedPackage));
         }
 
         parsedPackage.setFactoryTest(isUnderFactoryTest && parsedPackage.getRequestedPermissions()
@@ -536,10 +533,9 @@ final class ScanPackageUtils {
             }
         }
 
-        return new ScanResult(request, pkgSetting, changedAbiCodePath,
-                !createNewPackage /* existingSettingCopied */,
-                Process.INVALID_UID /* previousAppId */ , sdkLibraryInfo,
-                staticSharedLibraryInfo, dynamicSharedLibraryInfos);
+        return new ScanResult(request, pkgSetting, !createNewPackage /* existingSettingCopied */,
+                Process.INVALID_UID /* previousAppId */ , sdkLibraryInfo, staticSharedLibraryInfo,
+                dynamicSharedLibraryInfos);
     }
 
     /**
@@ -1096,6 +1092,48 @@ final class ScanPackageUtils {
                 }
             }
         }
+    }
+
+    static boolean enableAlignmentChecks(@NonNull ParsedPackage parsedPackage,
+            Context context, String initiatingPackage, boolean isSystemApp,
+            boolean isPlatformPackage, int scanFlags) {
+        // Run alignment checks when feature flag is enabled
+        if (!Flags.appCompatWarnings16kb()) {
+            return false;
+        }
+
+        final boolean isApex = (scanFlags & SCAN_AS_APEX) != 0;
+        final boolean isNewInstall = (scanFlags & SCAN_NEW_INSTALL) != 0;
+        if ((Build.SUPPORTED_64_BIT_ABIS.length == 0)
+                || isSystemApp
+                || isApex
+                || isPlatformPackage
+                || !isNewInstall) {
+            return false;
+        }
+
+        if (context == null) {
+            Slog.w(TAG, "Provided context is null!");
+            return false;
+        }
+
+        final ContentResolver resolver = context.getContentResolver();
+        if (resolver == null) {
+            Slog.w(TAG, "Content resolver not available!");
+            return false;
+        }
+
+        final boolean isDebuggable = parsedPackage.isDebuggable();
+        if (!isDebuggable) {
+            return false;
+        }
+        boolean isInstalledByAdb = PackageManagerServiceUtils.isInstalledByAdb(initiatingPackage);
+        if (!isInstalledByAdb) {
+            return false;
+        }
+        final boolean isDeveloperMode = android.provider.Settings.Global.getInt(resolver,
+                android.provider.Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0;
+        return isDeveloperMode;
     }
 
     /** Directory where installed application's 32-bit native libraries are copied. */

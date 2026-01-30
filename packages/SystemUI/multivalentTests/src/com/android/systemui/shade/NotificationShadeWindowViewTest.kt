@@ -24,6 +24,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.widget.FrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.keyguard.KeyguardSecurityContainerController
 import com.android.keyguard.dagger.KeyguardBouncerComponent
 import com.android.systemui.Flags as AConfigFlags
@@ -31,6 +32,7 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
 import com.android.systemui.classifier.FalsingCollectorFake
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent
 import com.android.systemui.dock.DockManager
 import com.android.systemui.dump.DumpManager
 import com.android.systemui.flags.FakeFeatureFlags
@@ -38,6 +40,7 @@ import com.android.systemui.flags.Flags
 import com.android.systemui.keyevent.domain.interactor.SysUIKeyEventHandler
 import com.android.systemui.keyguard.KeyguardUnlockAnimationController
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
+import com.android.systemui.keyguard.domain.interactor.dozeTouchInteractor
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN
@@ -50,6 +53,7 @@ import com.android.systemui.shade.data.repository.ShadeAnimationRepository
 import com.android.systemui.shade.data.repository.ShadeRepositoryImpl
 import com.android.systemui.shade.domain.interactor.PanelExpansionInteractor
 import com.android.systemui.shade.domain.interactor.ShadeAnimationInteractorLegacyImpl
+import com.android.systemui.shade.domain.interactor.shadeStatusBarComponentsInteractor
 import com.android.systemui.statusbar.BlurUtils
 import com.android.systemui.statusbar.DragDownHelper
 import com.android.systemui.statusbar.LockscreenShadeTransitionController
@@ -67,8 +71,10 @@ import com.android.systemui.statusbar.phone.ConfigurationForwarder
 import com.android.systemui.statusbar.phone.DozeScrimController
 import com.android.systemui.statusbar.phone.DozeServiceHost
 import com.android.systemui.statusbar.window.StatusBarWindowStateController
+import com.android.systemui.testKosmos
 import com.android.systemui.unfold.SysUIUnfoldComponent
 import com.android.systemui.unfold.UnfoldTransitionProgressProvider
+import com.android.systemui.util.kotlin.javaAdapter
 import com.android.systemui.util.mockito.any
 import com.android.systemui.util.mockito.whenever
 import com.android.systemui.util.time.FakeSystemClock
@@ -85,6 +91,7 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
 import org.mockito.Captor
 import org.mockito.Mock
+import org.mockito.Mockito.anyInt
 import org.mockito.Mockito.never
 import org.mockito.Mockito.spy
 import org.mockito.Mockito.verify
@@ -96,6 +103,8 @@ import org.mockito.kotlin.mock
 @RunWithLooper(setAsMainLooper = true)
 @SmallTest
 class NotificationShadeWindowViewTest : SysuiTestCase() {
+
+    private val kosmos = testKosmos()
 
     @Mock private lateinit var choreographer: Choreographer
     @Mock private lateinit var blurUtils: BlurUtils
@@ -117,6 +126,10 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
     private lateinit var notificationStackScrollLayoutController:
         NotificationStackScrollLayoutController
     @Mock private lateinit var statusBarWindowStateController: StatusBarWindowStateController
+    @Mock private lateinit var systemUIDisplaySubcomponent: SystemUIDisplaySubcomponent
+    @Mock
+    private lateinit var perDisplaySubcomponentRepository:
+        PerDisplayRepository<SystemUIDisplaySubcomponent>
     @Mock
     private lateinit var lockscreenShadeTransitionController: LockscreenShadeTransitionController
     @Mock private lateinit var keyguardUnlockAnimationController: KeyguardUnlockAnimationController
@@ -170,6 +183,10 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
         whenever(dockManager.isDocked).thenReturn(false)
         whenever(keyguardTransitionInteractor.transition(Edge.create(LOCKSCREEN, DREAMING)))
             .thenReturn(emptyFlow())
+        whenever(systemUIDisplaySubcomponent.statusBarWindowStateController)
+            .thenReturn(statusBarWindowStateController)
+        whenever(perDisplaySubcomponentRepository.getOrDefault(anyInt()))
+            .thenReturn(systemUIDisplaySubcomponent)
 
         val featureFlags = FakeFeatureFlags()
         featureFlags.set(Flags.SPLIT_SHADE_SUBPIXEL_OPTIMIZATION, true)
@@ -195,7 +212,7 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
                 panelExpansionInteractor,
                 ShadeExpansionStateManager(),
                 notificationStackScrollLayoutController,
-                statusBarWindowStateController,
+                perDisplaySubcomponentRepository,
                 centralSurfaces,
                 dozeServiceHost,
                 dozeScrimController,
@@ -221,6 +238,9 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
                 { configurationForwarder },
                 brightnessMirrorShowingInteractor,
                 UnconfinedTestDispatcher(),
+                kosmos.shadeStatusBarComponentsInteractor,
+                kosmos.dozeTouchInteractor,
+                kosmos.javaAdapter,
             )
 
         controller.setupExpandedStatusBar()
@@ -259,7 +279,6 @@ class NotificationShadeWindowViewTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(AConfigFlags.FLAG_SHADE_LAUNCH_ACCESSIBILITY)
     fun requestSendAccessibilityEvent_duringLaunchAnimation_blocksFocusEvent() {
         underTest.setAnimatingContentLaunch(true)
 

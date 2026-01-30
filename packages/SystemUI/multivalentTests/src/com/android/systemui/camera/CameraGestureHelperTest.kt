@@ -64,10 +64,10 @@ class CameraGestureHelperTest : SysuiTestCase() {
     @Mock lateinit var activityTaskManager: IActivityTaskManager
     @Mock lateinit var cameraIntents: CameraIntentsWrapper
     @Mock lateinit var contentResolver: ContentResolver
-    @Mock lateinit var mSelectedUserInteractor: SelectedUserInteractor
+    @Mock lateinit var selectedUserInteractor: SelectedUserInteractor
     @Mock lateinit var devicePolicyManager: DevicePolicyManager
     @Mock lateinit var lockscreenUserManager: NotificationLockscreenUserManager
-
+    private val TEST_USER_ID = 1
     private lateinit var underTest: CameraGestureHelper
 
     @Before
@@ -93,7 +93,7 @@ class CameraGestureHelperTest : SysuiTestCase() {
                 cameraIntents = cameraIntents,
                 contentResolver = contentResolver,
                 uiExecutor = MoreExecutors.directExecutor(),
-                selectedUserInteractor = mSelectedUserInteractor,
+                selectedUserInteractor = selectedUserInteractor,
                 devicePolicyManager = devicePolicyManager,
                 lockscreenUserManager = lockscreenUserManager,
             )
@@ -123,7 +123,8 @@ class CameraGestureHelperTest : SysuiTestCase() {
         isCameraActivityRunningOnTop: Boolean = false,
         isTaskListEmpty: Boolean = false,
     ) {
-        whenever(lockscreenUserManager.getCurrentUserId()).thenReturn(1)
+        whenever(lockscreenUserManager.getCurrentUserId()).thenReturn(TEST_USER_ID)
+        whenever(selectedUserInteractor.getSelectedUserId()).thenReturn(TEST_USER_ID)
         if (isCameraAllowedByAdmin) {
             whenever(devicePolicyManager.getCameraDisabled(isNull(), any())).thenReturn(false)
             whenever(keyguardStateController.isMethodSecure).thenReturn(false)
@@ -135,6 +136,9 @@ class CameraGestureHelperTest : SysuiTestCase() {
             .thenReturn(installedCameraAppCount > 1)
 
         whenever(keyguardStateController.isMethodSecure).thenReturn(isUsingSecureScreenLockOption)
+        whenever(keyguardStateController.isShowing())
+            .thenReturn(true)
+            .thenReturn(!isUsingSecureScreenLockOption)
         whenever(keyguardStateController.canDismissLockScreen())
             .thenReturn(!isUsingSecureScreenLockOption)
 
@@ -227,6 +231,14 @@ class CameraGestureHelperTest : SysuiTestCase() {
     }
 
     @Test
+    fun canCameraGestureBeLaunched_fullscreenBouncerNeeded_returnsFalse() {
+        prepare()
+        whenever(statusBarKeyguardViewManager.needsFullscreenBouncer()).thenReturn(true)
+
+        assertThat(underTest.canCameraGestureBeLaunched(StatusBarState.KEYGUARD)).isFalse()
+    }
+
+    @Test
     fun launchCamera_onlyOneCameraAppInstalled_usingSecureScreenLockOption() {
         val source = 1337
 
@@ -255,16 +267,13 @@ class CameraGestureHelperTest : SysuiTestCase() {
         assertActivityStarting(
             isSecure = true,
             source = source,
-            moreThanOneCameraAppInstalled = true
+            moreThanOneCameraAppInstalled = true,
         )
     }
 
     @Test
     fun launchCamera_multipleCameraAppsInstalled_usingNonSecureScreenLockOption() {
-        prepare(
-            isUsingSecureScreenLockOption = false,
-            installedCameraAppCount = 2,
-        )
+        prepare(isUsingSecureScreenLockOption = false, installedCameraAppCount = 2)
         val source = 1337
 
         underTest.launchCamera(source)
@@ -272,7 +281,7 @@ class CameraGestureHelperTest : SysuiTestCase() {
         assertActivityStarting(
             isSecure = false,
             moreThanOneCameraAppInstalled = true,
-            source = source
+            source = source,
         )
     }
 
@@ -296,7 +305,7 @@ class CameraGestureHelperTest : SysuiTestCase() {
                     anyInt(),
                     isNull(),
                     any(),
-                    anyInt()
+                    anyInt(),
                 )
         } else {
             verify(activityStarter).startActivity(intentCaptor.capture(), eq(false))

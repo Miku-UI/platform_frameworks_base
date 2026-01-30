@@ -66,8 +66,8 @@ public class WindowContainerTraversalTests extends WindowTestsBase {
     @SetupWindows(addWindows = { W_ACTIVITY, W_INPUT_METHOD })
     @Test
     public void testTraverseImeRegardlessOfImeTarget() {
-        mDisplayContent.setImeLayeringTarget(mAppWindow);
         mDisplayContent.setImeInputTarget(mAppWindow);
+        mDisplayContent.setImeLayeringTarget(mAppWindow);
         mAppWindow.mHasSurface = false;
         mAppWindow.mActivityRecord.setVisibleRequested(false);
         mAppWindow.mActivityRecord.setVisible(false);

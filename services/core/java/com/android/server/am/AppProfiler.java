@@ -26,6 +26,8 @@ import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_CRI
 import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_LOW;
 import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_MODERATE;
 import static com.android.internal.app.procstats.ProcessStats.ADJ_MEM_FACTOR_NORMAL;
+import static com.android.internal.os.ProcfsMemoryUtil.DmaBufType;
+import static com.android.internal.os.ProcfsMemoryUtil.readDmabufFromProcfs;
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_OOM_ADJ;
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_PSS;
 import static com.android.server.am.ActivityManagerDebugConfig.DEBUG_RSS;
@@ -246,18 +248,6 @@ public class AppProfiler {
     private int mLastNumProcesses;
 
     /**
-     * Total time spent with RAM that has been added in the past since the last idle time.
-     */
-    @GuardedBy("mProcLock")
-    private long mLowRamTimeSinceLastIdle = 0;
-
-    /**
-     * If RAM is currently low, when that horrible situation started.
-     */
-    @GuardedBy("mProcLock")
-    private long mLowRamStartTime = 0;
-
-    /**
      * Last time we report a memory usage.
      */
     @GuardedBy("mService")
@@ -300,12 +290,6 @@ public class AppProfiler {
 
     @GuardedBy("mProfilerLock")
     private boolean mMemWatchIsUserInitiated;
-
-    @GuardedBy("mService")
-    boolean mHasHomeProcess;
-
-    @GuardedBy("mService")
-    boolean mHasPreviousProcess;
 
     /**
      * Used to collect per-process CPU use for ANRs, battery stats, etc.
@@ -925,9 +909,6 @@ public class AppProfiler {
                     + " lastPss=" + profile.getLastPss()
                     + " state=" + ProcessList.makeProcStateString(procState));
         }
-        if (profile.getInitialIdlePssOrRss() == 0) {
-            profile.setInitialIdlePssOrRss(pss);
-        }
         profile.setLastPss(pss);
         profile.setLastSwapPss(swapPss);
         if (procState >= ActivityManager.PROCESS_STATE_HOME) {
@@ -991,9 +972,6 @@ public class AppProfiler {
                     "rss of " + proc.toShortString() + ": " + rss
                     + " lastRss=" + profile.getLastRss()
                     + " state=" + ProcessList.makeProcStateString(procState));
-        }
-        if (profile.getInitialIdlePssOrRss() == 0) {
-            profile.setInitialIdlePssOrRss(rss);
         }
         profile.setLastRss(rss);
         if (procState >= ActivityManager.PROCESS_STATE_HOME) {
@@ -1340,14 +1318,6 @@ public class AppProfiler {
         return mLastMemoryLevel <= ADJ_MEM_FACTOR_NORMAL;
     }
 
-    @GuardedBy("mProcLock")
-    void updateLowRamTimestampLPr(long now) {
-        mLowRamTimeSinceLastIdle = 0;
-        if (mLowRamStartTime != 0) {
-            mLowRamStartTime = now;
-        }
-    }
-
     @GuardedBy("mService")
     void setAllowLowerMemLevelLocked(boolean allowLowerMemLevel) {
         mAllowLowerMemLevel = allowLowerMemLevel;
@@ -1438,15 +1408,11 @@ public class AppProfiler {
                 app -> {
                     final ProcessProfileRecord profile = app.mProfile;
                     final IApplicationThread thread;
-                    final ProcessStateRecord state = app.mState;
-                    if (state.hasProcStateChanged()) {
-                        state.setProcStateChanged(false);
-                    }
-                    int procState = app.mState.getCurProcState();
+                    int procState = app.getCurProcState();
                     if (((procState >= ActivityManager.PROCESS_STATE_IMPORTANT_BACKGROUND
                                             && procState
                                                     < ActivityManager.PROCESS_STATE_CACHED_ACTIVITY)
-                                    || app.mState.isSystemNoUi())
+                                    || app.isSystemNoUi())
                             && app.mProfile.hasPendingUiClean()) {
                         // If this application is now in the background and it
                         // had done UI, then give it the special trim level to
@@ -1466,8 +1432,8 @@ public class AppProfiler {
 
     @GuardedBy({"mService", "mProcLock"})
     private void trimMemoryUiHiddenIfNecessaryLSP(ProcessRecord app) {
-        if ((app.mState.getCurProcState() >= ActivityManager.PROCESS_STATE_IMPORTANT_BACKGROUND
-                || app.mState.isSystemNoUi()) && app.mProfile.hasPendingUiClean()) {
+        if ((app.getCurProcState() >= ActivityManager.PROCESS_STATE_IMPORTANT_BACKGROUND
+                || app.isSystemNoUi()) && app.mProfile.hasPendingUiClean()) {
             // If this application is now in the background and it
             // had done UI, then give it the special trim level to
             // have it free UI resources.
@@ -1485,17 +1451,12 @@ public class AppProfiler {
                 if (DEBUG_SWITCH || DEBUG_OOM_ADJ) {
                     Slog.v(TAG_OOM_ADJ, msg + app.processName + " to " + level);
                 }
-                mService.mOomAdjuster.mCachedAppOptimizer.unfreezeTemporarily(app,
+                mService.getCachedAppOptimizer().unfreezeTemporarily(app,
                         CachedAppOptimizer.UNFREEZE_REASON_TRIM_MEMORY);
                 thread.scheduleTrimMemory(level);
             } catch (RemoteException e) {
             }
         }
-    }
-
-    @GuardedBy("mProcLock")
-    long getLowRamTimeSinceIdleLPr(long now) {
-        return mLowRamTimeSinceLastIdle + (mLowRamStartTime > 0 ? (now - mLowRamStartTime) : 0);
     }
 
     /**
@@ -1633,11 +1594,10 @@ public class AppProfiler {
                 if (rec == dyingProc || rec.getThread() == null) {
                     return;
                 }
-                final ProcessStateRecord state = rec.mState;
                 if (memInfos != null) {
                     memInfos.add(new ProcessMemInfo(rec.processName, rec.getPid(),
-                                state.getSetAdj(), state.getSetProcState(),
-                                state.getAdjType(), state.makeAdjReason()));
+                                rec.getSetAdj(), rec.getSetProcState(),
+                                rec.getAdjType(), rec.makeAdjReason()));
                 }
                 final ProcessProfileRecord profile = rec.mProfile;
                 if ((profile.getLastLowMemory() + mService.mConstants.GC_MIN_INTERVAL) <= now) {
@@ -1645,7 +1605,7 @@ public class AppProfiler {
                     // state for a GC request.  Make sure to do
                     // heavy/important/visible/foreground processes first.
                     synchronized (mProfilerLock) {
-                        if (state.getSetAdj() <= ProcessList.HEAVY_WEIGHT_APP_ADJ) {
+                        if (rec.getSetAdj() <= ProcessList.HEAVY_WEIGHT_APP_ADJ) {
                             profile.setLastRequestedGc(0);
                         } else {
                             profile.setLastRequestedGc(profile.getLastLowMemory());
@@ -1684,11 +1644,15 @@ public class AppProfiler {
         for (int i = 0; i < statsCount; i++) {
             ProcessCpuTracker.Stats st = stats.get(i);
             long pss = Debug.getPss(st.pid, swaptrackTmp, memtrackTmp);
-            if (pss > 0) {
+            long dmabufRss = readDmabufFromProcfs(DmaBufType.RSS, st.pid);
+            long dmabufPss = readDmabufFromProcfs(DmaBufType.PSS, st.pid);
+            if (pss > 0 || dmabufPss > 0) {
                 if (infoMap.indexOfKey(st.pid) < 0) {
                     ProcessMemInfo mi = new ProcessMemInfo(st.name, st.pid,
                             ProcessList.NATIVE_ADJ, -1, "native", null);
                     mi.pss = pss;
+                    mi.dmabufRss = dmabufRss;
+                    mi.dmabufPss = dmabufPss;
                     mi.swapPss = swaptrackTmp[1];
                     mi.memtrack = memtrackTmp[0];
                     totalMemtrackGraphics += memtrackTmp[1];
@@ -1705,6 +1669,8 @@ public class AppProfiler {
             ProcessMemInfo mi = memInfos.get(i);
             if (mi.pss == 0) {
                 mi.pss = Debug.getPss(mi.pid, swaptrackTmp, memtrackTmp);
+                mi.dmabufRss = readDmabufFromProcfs(DmaBufType.RSS, mi.pid);
+                mi.dmabufPss = readDmabufFromProcfs(DmaBufType.PSS, mi.pid);
                 mi.swapPss = swaptrackTmp[1];
                 mi.memtrack = memtrackTmp[0];
                 totalMemtrackGraphics += memtrackTmp[1];
@@ -1802,7 +1768,7 @@ public class AppProfiler {
                 // from smaller native processes let's dump a summary of that.
                 if (extraNativeRam > 0) {
                     appendBasicMemEntry(shortNativeBuilder, ProcessList.NATIVE_ADJ,
-                            -1, extraNativeRam, extraNativeMemtrack, "(Other native)");
+                            -1, -1, -1, extraNativeRam, extraNativeMemtrack, "(Other native)");
                     shortNativeBuilder.append('\n');
                     extraNativeRam = 0;
                 }
@@ -2441,7 +2407,7 @@ public class AppProfiler {
                 }
             } else if (instr != null && instr.mProfileFile != null) {
                 profilerInfo = new ProfilerInfo(instr.mProfileFile, null, 0, false, false, null,
-                        false, 0, ProfilerInfo.OUTPUT_VERSION_DEFAULT);
+                        false, 0, ProfilerInfo.OUTPUT_VERSION_DEFAULT, false, 0);
             }
             if (mAppAgentMap != null && mAppAgentMap.containsKey(processName)) {
                 // We need to do a debuggable check here. See setAgentApp for why the check is
@@ -2452,7 +2418,7 @@ public class AppProfiler {
                     if (profilerInfo == null) {
                         profilerInfo = new ProfilerInfo(null, null, 0, false, false,
                                 mAppAgentMap.get(processName), true, 0,
-                                ProfilerInfo.OUTPUT_VERSION_DEFAULT);
+                                ProfilerInfo.OUTPUT_VERSION_DEFAULT, false, 0);
                     } else if (profilerInfo.agent == null) {
                         profilerInfo = profilerInfo.setAgent(mAppAgentMap.get(processName), true);
                     }

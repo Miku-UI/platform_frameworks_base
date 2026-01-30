@@ -90,6 +90,13 @@ system_optimized_java_defaults {
         FULL_SYSTEM_OPTIMIZE_JAVA: {
             optimize: {
                 optimize: true,
+                // TODO(b/212737576): Apply this property for the SYSTEM_OPTIMIZE_JAVA case after
+                // resolving all downstream cyclic dependencies. For now, full optimization is
+                // more sensitive to downstream lib references, so it stands the most to benefit.
+                trace_references_from: select(soong_config_variable("ANDROID", "system_server_trace_refs"), {
+                    any @ trace_refs: trace_refs,
+                    default: [],
+                }),
             },
         },
     },
@@ -132,8 +139,11 @@ filegroup {
         ":services.permission-sources",
         ":services.print-sources",
         ":services.profcollect-sources",
+        ":services.userrecovery-sources",
         ":services.restrictions-sources",
         ":services.searchui-sources",
+        ":services.selectiontoolbar-sources",
+        ":services.serial-sources",
         ":services.smartspace-sources",
         ":services.soundtrigger-sources",
         ":services.supervision-sources",
@@ -146,6 +156,7 @@ filegroup {
         ":services.wallpapereffectsgeneration-sources",
         ":services.wifi-sources",
         ":framework-pm-common-shared-srcs",
+        ":framework-minus-apex-aconfig-srcjars",
     ],
     visibility: ["//visibility:private"],
 }
@@ -153,6 +164,9 @@ filegroup {
 java_library {
     name: "Slogf",
     srcs: ["core/java/com/android/server/utils/Slogf.java"],
+    libs: [
+        "error_prone_annotations",
+    ],
 }
 
 soong_config_module_type {
@@ -238,6 +252,28 @@ ondeviceintelligence_module_java_defaults {
     },
 }
 
+// Conditionally add anomaly detector stubs library
+soong_config_module_type {
+    name: "anomaly_detector_java_defaults",
+    module_type: "java_defaults",
+    config_namespace: "ANDROID",
+    bool_variables: [
+        "release_anomaly_detector",
+    ],
+    properties: [
+        "libs",
+    ],
+}
+
+anomaly_detector_java_defaults {
+    name: "services_anomaly_detector_stubs_conditionally",
+    soong_config_variables: {
+        release_anomaly_detector: {
+            libs: ["service-anomaly-detector.stubs.system_server"],
+        },
+    },
+}
+
 soong_config_module_type {
     name: "system_java_library",
     module_type: "java_library",
@@ -276,6 +312,7 @@ java_library {
     defaults: [
         "services_crashrecovery_stubs_conditionally",
         "ondeviceintelligence_conditionally",
+        "services_anomaly_detector_stubs_conditionally",
     ],
 
     exclude_kotlinc_generated_files: true,
@@ -309,8 +346,11 @@ java_library {
         "services.permission",
         "services.print",
         "services.profcollect",
+        "services.userrecovery",
         "services.restrictions",
         "services.searchui",
+        "services.selectiontoolbar",
+        "services.serial",
         "services.smartspace",
         "services.soundtrigger",
         "services.supervision",
@@ -328,6 +368,9 @@ java_library {
     ] + select(release_flag("RELEASE_MOVE_VCN_TO_MAINLINE"), {
         true: [],
         default: ["service-connectivity-b-platform"],
+    }) + select(release_flag("RELEASE_ANOMALY_DETECTOR"), {
+        true: ["services.signal-collectors"],
+        default: [],
     }),
 
     libs: [
@@ -347,6 +390,10 @@ java_library {
         ":__subpackages__",
         "//frameworks/opt:__subpackages__",
     ],
+
+    lint: {
+        baseline_filename: "lint-baseline.xml",
+    },
 }
 
 // merge all required services into one final installable jar
@@ -358,6 +405,9 @@ system_java_library {
         "art_profile_java_defaults",
     ],
     installable: true,
+    optimize: {
+        d8_on_eng: true,
+    },
 
     exclude_kotlinc_generated_files: true,
 
@@ -390,8 +440,8 @@ system_java_library {
 
     required: [
         "libukey2_jni_shared",
-        "protolog.conf.json.gz",
         "core.protolog.pb",
+        "libusb4_policies_jni",
     ],
     lint: {
         baseline_filename: "lint-baseline.xml",
@@ -455,6 +505,13 @@ non_updatable_exportable_droidstubs {
         "services-stubs-default",
     ],
     check_api: {
+        // Use the compatibility check properties to supply the previously released API to which
+        // flagged APIs can be reverted but disable the compatibility check as it is not required.
+        last_released: {
+            enabled: false,
+            api_file: ":android.api.combined.system-server.latest",
+            removed_api_file: ":android-removed.api.combined.system-server.latest",
+        },
         current: {
             api_file: "api/current.txt",
             removed_api_file: "api/removed.txt",

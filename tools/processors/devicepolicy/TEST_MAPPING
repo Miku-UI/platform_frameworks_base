@@ -1,0 +1,12 @@
+{
+  "postsubmit": [
+    {
+      "name": "DevicePolicyAnnotationProcessorTests"
+    }
+  ],
+  "presubmit": [
+    {
+      "name": "DevicePolicyAnnotationProcessorTests"
+    }
+  ]
+}

@@ -20,7 +20,7 @@ import com.android.ims.ImsFeatureContainer;
 /**
  *  Interface from ImsResolver to FeatureConnections.
  * Callback to FeatureConnections when a feature's status changes.
- * {@hide}
+ * @hide
  */
 oneway interface IImsServiceFeatureCallback {
     void imsFeatureCreated(in ImsFeatureContainer feature, int subId);

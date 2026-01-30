@@ -16,25 +16,43 @@
 
 package com.android.systemui.notifications.ui.composable.row
 
-import android.content.Context
 import android.graphics.drawable.Drawable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
@@ -46,8 +64,10 @@ import com.android.compose.animation.scene.ContentScope
 import com.android.compose.animation.scene.ElementKey
 import com.android.compose.animation.scene.SceneKey
 import com.android.compose.animation.scene.SceneTransitionLayout
-import com.android.compose.theme.PlatformTheme
+import com.android.compose.animation.scene.rememberMutableSceneTransitionLayoutState
+import com.android.compose.animation.scene.transitions
 import com.android.compose.ui.graphics.painter.rememberDrawablePainter
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.notification.row.ui.viewmodel.BundleHeaderViewModel
 
 object BundleHeader {
@@ -57,31 +77,83 @@ object BundleHeader {
     }
 
     object Elements {
+        // The right most PreviewIcon
         val PreviewIcon1 = ElementKey("PreviewIcon1")
+        // The middle PreviewIcon
         val PreviewIcon2 = ElementKey("PreviewIcon2")
+        // The left most PreviewIcon
         val PreviewIcon3 = ElementKey("PreviewIcon3")
         val TitleText = ElementKey("TitleText")
     }
 }
 
-fun createComposeView(viewModel: BundleHeaderViewModel, context: Context): ComposeView {
-    // TODO(b/399588047): Check if we can init PlatformTheme once instead of once per ComposeView
-    return ComposeView(context).apply { setContent { PlatformTheme { BundleHeader(viewModel) } } }
-}
-
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun BundleHeader(viewModel: BundleHeaderViewModel, modifier: Modifier = Modifier) {
-    Box(modifier) {
+    val state =
+        rememberMutableSceneTransitionLayoutState(
+            initialScene = BundleHeader.Scenes.Collapsed,
+            transitions =
+                transitions {
+                    from(BundleHeader.Scenes.Collapsed, to = BundleHeader.Scenes.Expanded) {
+                        spec = tween(350, easing = FastOutSlowInEasing)
+                        val scale = 0.6f
+                        timestampRange(endMillis = 250, easing = FastOutSlowInEasing) {
+                            scaleDraw(BundleHeader.Elements.PreviewIcon1, scale, scale)
+                        }
+                        timestampRange(startMillis = 150, endMillis = 250, easing = LinearEasing) {
+                            fade(BundleHeader.Elements.PreviewIcon1)
+                        }
+                        timestampRange(startMillis = 150, endMillis = 250, easing = LinearEasing) {
+                            fade(NotificationRowPrimitives.Elements.ExpandedNumber)
+                        }
+                        timestampRange(
+                            startMillis = 50,
+                            endMillis = 300,
+                            easing = FastOutSlowInEasing,
+                        ) {
+                            translate(BundleHeader.Elements.PreviewIcon2, x = 16.dp)
+                            scaleDraw(BundleHeader.Elements.PreviewIcon2, scale, scale)
+                        }
+                        timestampRange(startMillis = 150, endMillis = 300, easing = LinearEasing) {
+                            fade(BundleHeader.Elements.PreviewIcon2)
+                        }
+                        timestampRange(startMillis = 100, easing = FastOutSlowInEasing) {
+                            translate(BundleHeader.Elements.PreviewIcon3, x = 32.dp)
+                            scaleDraw(BundleHeader.Elements.PreviewIcon3, scale, scale)
+                        }
+                        timestampRange(startMillis = 200, endMillis = 350, easing = LinearEasing) {
+                            fade(BundleHeader.Elements.PreviewIcon3)
+                        }
+                    }
+                },
+        )
+
+    DisposableEffect(viewModel, state) {
+        viewModel.state = state
+        onDispose { viewModel.state = null }
+    }
+
+    val scope = rememberCoroutineScope()
+    DisposableEffect(viewModel, state) {
+        viewModel.composeScope = scope
+        onDispose { viewModel.composeScope = null }
+    }
+
+    // In most cases the height is expected to be equal to the header height dimension's value, but
+    // it is set as the minimum here so that the header can resize if necessary for larger font
+    // or display sizes.
+    Box(
+        modifier =
+            modifier.heightIn(min = dimensionResource(R.dimen.notification_bundle_header_height))
+    ) {
         Background(background = viewModel.backgroundDrawable, modifier = Modifier.matchParentSize())
-        val scope = rememberCoroutineScope()
         SceneTransitionLayout(
-            state = viewModel.state,
-            modifier =
-                Modifier.clickable(
-                    onClick = { viewModel.onHeaderClicked(scope) },
-                    interactionSource = null,
-                    indication = null,
-                ),
+            state = state,
+            // The BundleHeader is clickable, but clicks are handled at the level of the
+            // ExpandableNotificationRow. We clear all semantics here so that accessibility focus
+            // remains on the same element as handles the clicks and actions.
+            modifier = Modifier.clearAndSetSemantics {},
         ) {
             scene(BundleHeader.Scenes.Collapsed) {
                 BundleHeaderContent(viewModel, collapsed = true)
@@ -115,30 +187,51 @@ private fun ContentScope.BundleHeaderContent(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.padding(vertical = 16.dp),
+        modifier = modifier.padding(vertical = 12.dp),
     ) {
-        BundleIcon(viewModel.bundleIcon, modifier = Modifier.padding(horizontal = 16.dp))
+        BundleIcon(
+            viewModel.bundleIcon,
+            large = false, // BundleHeader is always small
+            modifier =
+                Modifier.padding(start = 16.dp, end = 16.dp)
+                    .align(Alignment.CenterVertically)
+                    .width(40.dp)
+                    // Has to be a shared element because we may have a semi-transparent background
+                    .element(NotificationRowPrimitives.Elements.NotificationIconBackground),
+        )
+
+        // Set FontWeight.ExtraBold if bold text adjustment is enabled
+        // because titleMediumEmphasized is already bold
+        val config = LocalConfiguration.current
+        val isBoldTextEnabled = config.fontWeightAdjustment > 0
         Text(
-            text = viewModel.titleText,
-            style = MaterialTheme.typography.titleMediumEmphasized,
+            text = stringResource(viewModel.titleText),
+            style =
+                MaterialTheme.typography.titleMediumEmphasized.copy(
+                    fontWeight = if (isBoldTextEnabled) FontWeight.ExtraBold else FontWeight.Bold
+                ),
             color = MaterialTheme.colorScheme.primary,
             overflow = TextOverflow.Ellipsis,
             maxLines = 1,
             modifier = Modifier.element(BundleHeader.Elements.TitleText).weight(1f),
         )
 
-        if (collapsed && viewModel.previewIcons.isNotEmpty()) {
-            BundlePreviewIcons(
-                previewDrawables = viewModel.previewIcons,
-                modifier = Modifier.padding(start = 8.dp),
-            )
+        if (collapsed) {
+            if (viewModel.previewIcons.isNotEmpty()) {
+                BundlePreviewIcons(
+                    previewDrawables = viewModel.previewIcons,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
         }
 
         ExpansionControl(
             collapsed = collapsed,
-            hasUnread = viewModel.hasUnreadMessages,
-            numberToShow = viewModel.numberOfChildren,
-            modifier = Modifier.padding(start = 8.dp, end = 16.dp),
+            numberToShow = if (collapsed) viewModel.numberOfChildren else null,
+            modifier =
+                Modifier.padding(start = 8.dp, end = 16.dp).semantics(mergeDescendants = false) {
+                    contentDescription = viewModel.numberOfChildrenContentDescription
+                },
         )
     }
 }
@@ -149,21 +242,69 @@ private fun ContentScope.BundlePreviewIcons(
     modifier: Modifier = Modifier,
 ) {
     check(previewDrawables.isNotEmpty())
-    val iconSize = 32.dp
-    HalfOverlappingReversedRow(modifier = modifier) {
+    val iconSize = 24.dp
+
+    // The design stroke width is 2.5dp but there is a ~4% padding inside app icons; ~1.25dp here.
+    val borderWidth = 1.25.dp
+    HalfOverlappingReversedRow(
+        modifier =
+            modifier.graphicsLayer {
+                // This is needed for rendering transparent PreviewIcon border
+                compositingStrategy = CompositingStrategy.Offscreen
+            }
+    ) {
+        // We need to lay out icons from the end (icon1) to the start (icon3) so that we can define
+        // STL animations statically per element, rather than making the movement of each element's
+        // animation dynamic based on the number of visible siblings. This take/reversed does that,
+        // while preserving the user's expected ordering of start-to-end == top-to-bottom contents.
+        val reversedIcons = previewDrawables.take(3).reversed()
         PreviewIcon(
-            drawable = previewDrawables[0],
+            drawable = reversedIcons[0],
             modifier = Modifier.element(BundleHeader.Elements.PreviewIcon1).size(iconSize),
+            borderWidth = borderWidth,
         )
-        if (previewDrawables.size < 2) return@HalfOverlappingReversedRow
+        if (reversedIcons.size < 2) return@HalfOverlappingReversedRow
         PreviewIcon(
-            drawable = previewDrawables[1],
+            drawable = reversedIcons[1],
             modifier = Modifier.element(BundleHeader.Elements.PreviewIcon2).size(iconSize),
+            borderWidth = borderWidth,
         )
-        if (previewDrawables.size < 3) return@HalfOverlappingReversedRow
+        if (reversedIcons.size < 3) return@HalfOverlappingReversedRow
         PreviewIcon(
-            drawable = previewDrawables[2],
+            drawable = reversedIcons[2],
             modifier = Modifier.element(BundleHeader.Elements.PreviewIcon3).size(iconSize),
+            borderWidth = borderWidth,
+        )
+    }
+}
+
+/** The Icon used to display a preview of contained child notifications in a Bundle. */
+@Composable
+private fun PreviewIcon(drawable: Drawable, modifier: Modifier = Modifier, borderWidth: Dp) {
+    val strokeWidthPx = with(LocalDensity.current) { borderWidth.toPx() }
+    Box(
+        modifier =
+            modifier.drawWithContent {
+                // Draw a circle with BlendMode.Clear to 'erase' pixels for the "border".
+                // This will punch a hole in *this* icon's local offscreen buffer, allowing the
+                // background of the containing Composable (which needs to have a global
+                // offscreen layer) to show through.
+                drawCircle(
+                    color = Color.Black, // Color doesn't matter for BlendMode.Clear
+                    radius = (size.minDimension / 2f) + strokeWidthPx,
+                    center = center,
+                    blendMode = BlendMode.Clear,
+                )
+
+                // Draw the original content of the inner Box
+                drawContent()
+            }
+    ) {
+        Image(
+            painter = rememberDrawablePainter(drawable),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit,
         )
     }
 }

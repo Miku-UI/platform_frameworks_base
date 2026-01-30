@@ -19,9 +19,8 @@ package com.android.systemui.qs.panels.ui.compose
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.android.compose.animation.scene.ContentScope
-import com.android.systemui.qs.panels.shared.model.SizedTile
-import com.android.systemui.qs.panels.shared.model.TileRow
 import com.android.systemui.qs.panels.ui.viewmodel.EditTileViewModel
+import com.android.systemui.qs.panels.ui.viewmodel.PaginatableViewModel
 import com.android.systemui.qs.panels.ui.viewmodel.TileViewModel
 import com.android.systemui.qs.pipeline.shared.TileSpec
 
@@ -29,14 +28,18 @@ import com.android.systemui.qs.pipeline.shared.TileSpec
 interface GridLayout {
 
     /**
-     * [listening] can be used to compose the grid but limit when tiles should be listening. It
-     * should be a function tracking a snapshot state.
+     * Displays a grid of tiles with an optional reveal animation.
+     *
+     * @param listening can be used to compose the grid but limit when tiles should be listening. It
+     *   should be a function tracking a snapshot state.
+     * @param enableRevealEffect If `true`, the tiles will animate using the reveal animation.
      */
     @Composable
     fun ContentScope.TileGrid(
         tiles: List<TileViewModel>,
         modifier: Modifier,
         listening: () -> Boolean,
+        enableRevealEffect: Boolean,
     )
 
     @Composable
@@ -50,48 +53,9 @@ interface GridLayout {
     )
 }
 
-/**
- * A type of [GridLayout] that can be paginated, to use together with [PaginatedGridLayout].
- *
- * [splitIntoPages] determines how to split a list of tiles based on the number of rows and columns
- * available.
- */
+/** A type of [GridLayout] that can be paginated, to use together with [PaginatedGridLayout]. */
 interface PaginatableGridLayout : GridLayout {
-    fun splitIntoPages(
-        tiles: List<TileViewModel>,
-        rows: Int,
-        columns: Int,
-    ): List<List<TileViewModel>>
 
-    companion object {
-
-        /**
-         * Splits a list of [SizedTile] into rows, each with at most [columns] occupied.
-         *
-         * It will leave gaps at the end of a row if the next [SizedTile] has [SizedTile.width] that
-         * is larger than the space remaining in the row.
-         */
-        fun splitInRows(
-            tiles: List<SizedTile<TileViewModel>>,
-            columns: Int,
-        ): List<List<SizedTile<TileViewModel>>> {
-            val row = TileRow<TileViewModel>(columns)
-
-            return buildList {
-                for (tile in tiles) {
-                    check(tile.width <= columns)
-                    if (!row.maybeAddTile(tile)) {
-                        // Couldn't add tile to previous row, create a row with the current tiles
-                        // and start a new one
-                        add(row.tiles)
-                        row.clear()
-                        row.maybeAddTile(tile)
-                    }
-                }
-                if (row.tiles.isNotEmpty()) {
-                    add(row.tiles)
-                }
-            }
-        }
-    }
+    /** The factory to use when creating the grid layout view model. */
+    val viewModelFactory: PaginatableViewModel.Factory
 }

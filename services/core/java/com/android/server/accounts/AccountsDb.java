@@ -724,27 +724,17 @@ class AccountsDb implements AutoCloseable {
                 new String[] {account.name, account.type});
     }
 
-    List<Account> getSharedAccounts() {
+    Account[] getSharedAccounts() {
         SQLiteDatabase db = mDeDatabase.getReadableDatabase();
-        ArrayList<Account> accountList = new ArrayList<>();
-        Cursor cursor = null;
-        try {
-            cursor = db.query(TABLE_SHARED_ACCOUNTS, new String[] {ACCOUNTS_NAME, ACCOUNTS_TYPE},
-                    null, null, null, null, null);
-            if (cursor != null && cursor.moveToFirst()) {
-                int nameIndex = cursor.getColumnIndex(ACCOUNTS_NAME);
-                int typeIndex = cursor.getColumnIndex(ACCOUNTS_TYPE);
-                do {
-                    accountList.add(new Account(cursor.getString(nameIndex),
-                            cursor.getString(typeIndex)));
-                } while (cursor.moveToNext());
+        try (Cursor cursor = db.query(TABLE_SHARED_ACCOUNTS, new String[] {ACCOUNTS_NAME, ACCOUNTS_TYPE},
+                    null, null, null, null, null)) {
+            Account[] accounts = new Account[cursor.getCount()];
+            int i = 0;
+            while (cursor.moveToNext()) {
+                accounts[i++] = new Account(cursor.getString(0), cursor.getString(1));
             }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
+            return accounts;
         }
-        return accountList;
     }
 
     long findSharedAccountId(Account account) {
@@ -874,21 +864,18 @@ class AccountsDb implements AutoCloseable {
                 new String[] {String.valueOf(accountId), authTokenType, String.valueOf(uid)}) > 0;
     }
 
-    List<Integer> findAllUidGrants() {
+    int[] findAllUidGrants() {
         SQLiteDatabase db = mDeDatabase.getReadableDatabase();
-        List<Integer> result = new ArrayList<>();
-        final Cursor cursor = db.query(TABLE_GRANTS,
+        try (Cursor cursor = db.query(TABLE_GRANTS,
                 new String[]{GRANTS_GRANTEE_UID},
-                null, null, GRANTS_GRANTEE_UID, null, null);
-        try {
+                null, null, GRANTS_GRANTEE_UID, null, null)) {
+            int[] result = new int[cursor.getCount()];
+            int index = 0;
             while (cursor.moveToNext()) {
-                final int uid = cursor.getInt(0);
-                result.add(uid);
+                result[index++] = cursor.getInt(0);
             }
-        } finally {
-            cursor.close();
+            return result;
         }
-        return result;
     }
 
     long findMatchingGrantsCount(int uid, String authTokenType, Account account) {
@@ -1087,19 +1074,19 @@ class AccountsDb implements AutoCloseable {
     /**
      * Returns list of all grants as {@link Pair pairs} of account name and UID.
      */
-    List<Pair<String, Integer>> findAllAccountGrants() {
+    Pair<String[], int[]> findAllAccountGrants() {
         SQLiteDatabase db = mDeDatabase.getReadableDatabase();
         try (Cursor cursor = db.rawQuery(ACCOUNT_ACCESS_GRANTS, null)) {
-            if (cursor == null || !cursor.moveToFirst()) {
-                return Collections.emptyList();
+            final int count = cursor.getCount();
+            String[] accountNames = new String[count];
+            int[] uids = new int[count];
+            int i = 0;
+            while (cursor.moveToNext()) {
+                accountNames[i] = cursor.getString(0);
+                uids[i] = cursor.getInt(1);
+                i++;
             }
-            List<Pair<String, Integer>> results = new ArrayList<>();
-            do {
-                final String accountName = cursor.getString(0);
-                final int uid = cursor.getInt(1);
-                results.add(Pair.create(accountName, uid));
-            } while (cursor.moveToNext());
-            return results;
+            return Pair.create(accountNames, uids);
         }
     }
 
@@ -1316,7 +1303,7 @@ class AccountsDb implements AutoCloseable {
                     + " LIMIT 1";
             return DatabaseUtils.longForQuery(db, queryCountDebugDbRows, null);
         } catch (SQLiteException e) {
-            Log.e(TAG, "Failed to open debug table" + e);
+            Log.e(TAG, "Failed to open debug table", e);
             return -1;
         }
     }
@@ -1340,7 +1327,7 @@ class AccountsDb implements AutoCloseable {
             mDebugStatementForLogging =  compileSqlStatementForLogging();
             return mDebugStatementForLogging;
         } catch (SQLiteException e) {
-            Log.e(TAG, "Failed to open debug table" + e);
+            Log.e(TAG, "Failed to open debug table", e);
             return null;
         }
     }

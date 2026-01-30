@@ -22,6 +22,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.StringDef;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.hardware.hdmi.HdmiControlManager;
@@ -29,6 +30,7 @@ import android.os.Environment;
 import android.os.SystemProperties;
 import android.provider.Settings.Global;
 import android.util.ArrayMap;
+import android.util.ArraySet;
 import android.util.Slog;
 
 import com.android.internal.R;
@@ -57,7 +59,26 @@ public class HdmiCecConfig {
     private static final String CONFIG_FILE = "cec_config.xml";
     private static final String SHARED_PREFS_DIR = "shared_prefs";
     private static final String SHARED_PREFS_NAME = "cec_config.xml";
+    /** Name of the file used to store preferences related to HDMI settings migration. */
+    private static final String HDMI_MIGRATION_PREF_FILE = "hdmi_migration_prefs.xml";
+    /**
+     * SharedPreferences key used as a flag to indicate whether the migration of HDMI settings from
+     * {@link android.provider.Settings.Global} to SharedPreferences has been completed.
+     */
+    private static final String MIGRATION_GLOBAL_TO_SHARED_DONE_KEY = "global_to_shared_migrated";
 
+    // Legacy Settings.Global keys from Android R/S
+    private static final String LEGACY_GLOBAL_HDMI_CONTROL_ENABLED = "hdmi_control_enabled";
+    private static final String LEGACY_GLOBAL_HDMI_CONTROL_AUTO_WAKEUP_ENABLED =
+            "hdmi_control_auto_wakeup_enabled";
+    private static final String LEGACY_GLOBAL_HDMI_CONTROL_AUTO_DEVICE_OFF_ENABLED =
+            "hdmi_control_auto_device_off_enabled";
+    private static final String LEGACY_GLOBAL_HDMI_CONTROL_VOLUME_CONTROL_ENABLED =
+            "hdmi_control_volume_control_enabled";
+    private static final String LEGACY_GLOBAL_HDMI_SYSTEM_AUDIO_CONTROL_ENABLED =
+            "hdmi_system_audio_control_enabled";
+    private static final String LEGACY_GLOBAL_HDMI_CEC_SWITCH_ENABLED =
+            "hdmi_cec_switch_enabled";
     private static final int STORAGE_SYSPROPS = 0;
     private static final int STORAGE_GLOBAL_SETTINGS = 1;
     private static final int STORAGE_SHARED_PREFS = 2;
@@ -179,6 +200,16 @@ public class HdmiCecConfig {
         public void storeSharedPref(@NonNull String storageKey,
                                     @NonNull String value) {
             mSharedPrefs.edit().putString(storageKey, value).apply();
+        }
+
+        /**
+         * Checks if a shared preference with the given key exists.
+         *
+         * @param storageKey the key for the shared preference
+         * @return true if the shared preference exists, false otherwise
+         */
+        public boolean containsSharedPref(@NonNull String storageKey) {
+            return mSharedPrefs.contains(storageKey);
         }
     }
 
@@ -676,6 +707,18 @@ public class HdmiCecConfig {
                 R.bool.config_cecQuerySadMaxDisabled_allowed,
                 R.bool.config_cecQuerySadMaxDisabled_default);
 
+        Setting tvBehaviorOnStandby = registerSetting(
+                HdmiControlManager.CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE,
+                R.bool.config_cecTvBehaviorOnStandbyMessage_userConfigurable);
+        tvBehaviorOnStandby.registerValue(
+                HdmiControlManager.TV_BEHAVIOR_ON_STANDBY_MESSAGE_GO_TO_SLEEP,
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToSleep_allowed,
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToSleep_default);
+        tvBehaviorOnStandby.registerValue(
+                HdmiControlManager.TV_BEHAVIOR_ON_STANDBY_MESSAGE_GO_TO_DREAM,
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToDream_allowed,
+                R.bool.config_cecTvBehaviorOnStandbyMessageGoToDream_default);
+
         Setting earcEnabled = registerSetting(
                 HdmiControlManager.SETTING_NAME_EARC_ENABLED,
                 R.bool.config_earcEnabled_userConfigurable);
@@ -691,6 +734,141 @@ public class HdmiCecConfig {
 
     HdmiCecConfig(@NonNull Context context) {
         this(context, new StorageAdapter(context));
+        migrateSettingsIfNeeded();
+    }
+
+    /**
+     * Returns the {@link SharedPreferences} instance used to track the status of HDMI settings
+     * migrations.
+     */
+    private SharedPreferences getMigrationPrefs() {
+        Context deviceContext = mContext.createDeviceProtectedStorageContext();
+        // Construct the full path to the preferences file.
+        File prefsFile = new File(new File(Environment.getDataSystemDirectory(),
+                SHARED_PREFS_DIR), HDMI_MIGRATION_PREF_FILE);
+        return deviceContext.getSharedPreferences(prefsFile, Context.MODE_PRIVATE);
+    }
+
+    /**
+     * Helper method to migrate a single integer setting from Global.Settings to SharedPreferences,
+     * handling potential key name changes and value mapping.
+     */
+    private void migrateIntSetting(ContentResolver resolver, @NonNull String oldKey,
+            @NonNull @SettingName String newKey, int enabledValue, int disabledValue) {
+        // Skip if already present in the new SharedPreferences storage.
+        if (hasSettingValue(newKey)) {
+            Slog.d(TAG, "Setting " + newKey + " already in SharedPreferences. Skipping "
+                    + "migration.");
+            return;
+        }
+
+        String globalValue = Global.getString(resolver, oldKey);
+        if (globalValue != null) {
+            Slog.i(TAG, "Migrating setting: " + oldKey + " -> " + newKey);
+            try {
+                int oldValue = Integer.parseInt(globalValue);
+                // Legacy Global.Settings store 1 for enabled, 0 for disabled.
+                int newValue = (oldValue == 1) ? enabledValue : disabledValue;
+                setIntValue(newKey, newValue);
+                Slog.i(TAG, "Migrated " + oldKey + " (" + globalValue + ") to " + newKey + " ( "
+                        + newValue + ")");
+            } catch (NumberFormatException e) {
+                Slog.e(TAG, "Failed to parse Global setting " + oldKey + ": " + globalValue, e);
+            } catch (IllegalArgumentException e) {
+                Slog.e(TAG, "Failed to migrate setting " + newKey + ", value from " + oldKey
+                        +" (" + globalValue + ")", e);
+            } catch (Exception e) {
+                Slog.e(TAG, "Unexpected error migrating setting " + oldKey + " to " + newKey,
+                        e);
+            }
+        } else {
+            Slog.d(TAG, "No value found for " + oldKey + " in Global.Settings.");
+        }
+    }
+
+    /**
+     * Migrates HDMI CEC settings from {@link android.provider.Settings.Global} to
+     * {@link SharedPreferences}.
+     *
+     * <p>This is a one-time migration. It checks if the migration has been performed before by
+     * checking a flag in a dedicated SharedPreferences file. If not, it iterates through all known
+     * CEC settings, reads their values from Global Settings (if they exist), and writes them to the
+     * new SharedPreferences storage.
+     *
+     * <p>This ensures a seamless transition for users who have existing settings configured.
+     */
+    private void migrateSettingsIfNeeded() {
+        SharedPreferences migrationPrefs = getMigrationPrefs();
+        if (migrationPrefs.getBoolean(MIGRATION_GLOBAL_TO_SHARED_DONE_KEY, false)) {
+            Slog.i(TAG, "Settings migration already performed.");
+            return;
+        }
+        Slog.i(TAG, "Starting settings migration from Global.Settings to SharedPreferences.");
+        ContentResolver resolver = mContext.getContentResolver();
+
+        // Migrate settings with known key changes between R/S and U.
+        migrateIntSetting(resolver, LEGACY_GLOBAL_HDMI_CONTROL_ENABLED,
+                HdmiControlManager.CEC_SETTING_NAME_HDMI_CEC_ENABLED,
+                HdmiControlManager.HDMI_CEC_CONTROL_ENABLED,
+                HdmiControlManager.HDMI_CEC_CONTROL_DISABLED);
+
+        migrateIntSetting(resolver, LEGACY_GLOBAL_HDMI_CONTROL_AUTO_WAKEUP_ENABLED,
+                HdmiControlManager.CEC_SETTING_NAME_TV_WAKE_ON_ONE_TOUCH_PLAY,
+                HdmiControlManager.TV_WAKE_ON_ONE_TOUCH_PLAY_ENABLED,
+                HdmiControlManager.TV_WAKE_ON_ONE_TOUCH_PLAY_DISABLED);
+
+        migrateIntSetting(resolver, LEGACY_GLOBAL_HDMI_CONTROL_AUTO_DEVICE_OFF_ENABLED,
+                HdmiControlManager.CEC_SETTING_NAME_TV_SEND_STANDBY_ON_SLEEP,
+                HdmiControlManager.TV_SEND_STANDBY_ON_SLEEP_ENABLED,
+                HdmiControlManager.TV_SEND_STANDBY_ON_SLEEP_DISABLED);
+
+        migrateIntSetting(resolver, LEGACY_GLOBAL_HDMI_CONTROL_VOLUME_CONTROL_ENABLED,
+                HdmiControlManager.CEC_SETTING_NAME_VOLUME_CONTROL_MODE,
+                HdmiControlManager.VOLUME_CONTROL_ENABLED,
+                HdmiControlManager.VOLUME_CONTROL_DISABLED);
+
+        migrateIntSetting(resolver, LEGACY_GLOBAL_HDMI_SYSTEM_AUDIO_CONTROL_ENABLED,
+                HdmiControlManager.CEC_SETTING_NAME_SYSTEM_AUDIO_CONTROL,
+                HdmiControlManager.SYSTEM_AUDIO_CONTROL_ENABLED,
+                HdmiControlManager.SYSTEM_AUDIO_CONTROL_DISABLED);
+
+        migrateIntSetting(resolver, LEGACY_GLOBAL_HDMI_CEC_SWITCH_ENABLED,
+                HdmiControlManager.CEC_SETTING_NAME_ROUTING_CONTROL,
+                HdmiControlManager.ROUTING_CONTROL_ENABLED,
+                HdmiControlManager.ROUTING_CONTROL_DISABLED);
+
+        // Iterate through all other settings to migrate any that kept the same key name
+        for (String settingName : getAllSettings()) {
+            String key = settingName;
+            // Skip if already present in the new SharedPreferences storage.
+            if (hasSettingValue(settingName)) {
+                continue;
+            }
+            // Try to read the old value from Global.Settings using the same key name.
+            String globalValue = Global.getString(resolver, key);
+            if (globalValue != null) {
+                Slog.i(TAG, "Migrating setting (same key): " + key);
+                try {
+                    if (isIntValueType(key)) {
+                        setIntValue(key, Integer.parseInt(globalValue));
+                    } else {
+                        setStringValue(key, globalValue);
+                    }
+                    Slog.i(TAG, "Migrated " + key + " = " + globalValue);
+                } catch (NumberFormatException e) {
+                    Slog.e(TAG, "Failed to parse Global setting " + key + ": " + globalValue, e);
+                } catch (IllegalArgumentException e) {
+                    Slog.e(TAG, "Failed to migrate setting " + key + ", value " + globalValue
+                            + " likely not allowed.", e);
+                } catch (Exception e) {
+                    Slog.e(TAG, "Unexpected error migrating setting " + key, e);
+                }
+            }
+        }
+
+        // Mark migration as completed.
+        migrationPrefs.edit().putBoolean(MIGRATION_GLOBAL_TO_SHARED_DONE_KEY, true).apply();
+        Slog.i(TAG, "Settings migration from Global.Settings to SharedPreferences complete.");
     }
 
     private Setting registerSetting(@NonNull @SettingName String name,
@@ -785,6 +963,8 @@ public class HdmiCecConfig {
                 return STORAGE_SHARED_PREFS;
             case HdmiControlManager.CEC_SETTING_NAME_QUERY_SAD_MAX:
                 return STORAGE_SHARED_PREFS;
+            case HdmiControlManager.CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE:
+                return STORAGE_SHARED_PREFS;
             case HdmiControlManager.SETTING_NAME_EARC_ENABLED:
                 return STORAGE_SHARED_PREFS;
             default:
@@ -861,6 +1041,8 @@ public class HdmiCecConfig {
             case HdmiControlManager.CEC_SETTING_NAME_QUERY_SAD_WMAPRO:
                 return setting.getName();
             case HdmiControlManager.CEC_SETTING_NAME_QUERY_SAD_MAX:
+                return setting.getName();
+            case HdmiControlManager.CEC_SETTING_NAME_TV_BEHAVIOR_ON_STANDBY_MESSAGE:
                 return setting.getName();
             case HdmiControlManager.SETTING_NAME_EARC_ENABLED:
                 return setting.getName();
@@ -1164,5 +1346,30 @@ public class HdmiCecConfig {
         }
         HdmiLogger.debug("Updating CEC setting '" + name + "' to '" + value + "'.");
         storeValue(setting, Integer.toString(value));
+    }
+
+    /**
+     * Checks if a setting has a value stored in its persistent storage.
+     * This is used to determine if a setting has been explicitly set before,
+     * for example during migration from a different storage type.
+     *
+     * <p>Note: This currently only supports settings stored in SharedPreferences.
+     *
+     * @param name The name of the setting.
+     * @return {@code true} if the setting has a value in storage, {@code false} otherwise.
+     */
+    public boolean hasSettingValue(@NonNull @SettingName String name) {
+        Setting setting = getSetting(name);
+        if (setting == null) {
+            Slog.w(TAG, "hasSettingValue: Setting " + name + " not found.");
+            return false;
+        }
+        @Storage int storage = getStorage(setting);
+        String storageKey = getStorageKey(setting);
+
+        if (storage == STORAGE_SHARED_PREFS) {
+            return mStorageAdapter.containsSharedPref(storageKey);
+        }
+        return false;
     }
 }

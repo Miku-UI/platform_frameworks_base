@@ -15,9 +15,14 @@
  */
 package com.android.systemui.statusbar.phone.dagger
 
+import android.view.Display
+import com.android.app.displaylib.DefaultDisplayOnlyInstanceRepositoryImpl
+import com.android.app.displaylib.PerDisplayInstanceRepositoryImpl
+import com.android.app.displaylib.PerDisplayRepository
 import com.android.systemui.CoreStartable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Default
+import com.android.systemui.display.dagger.ReferenceSysUIDisplaySubcomponent
 import com.android.systemui.statusbar.CommandQueue
 import com.android.systemui.statusbar.core.CommandQueueInitializer
 import com.android.systemui.statusbar.core.MultiDisplayStatusBarInitializerStore
@@ -29,11 +34,12 @@ import com.android.systemui.statusbar.core.StatusBarInitializer
 import com.android.systemui.statusbar.core.StatusBarInitializerImpl
 import com.android.systemui.statusbar.core.StatusBarInitializerStore
 import com.android.systemui.statusbar.core.StatusBarRootModernization
-import com.android.systemui.statusbar.data.repository.DarkIconDispatcherStore
 import com.android.systemui.statusbar.data.repository.PrivacyDotViewControllerStoreModule
 import com.android.systemui.statusbar.data.repository.PrivacyDotWindowControllerStoreModule
 import com.android.systemui.statusbar.data.repository.StatusBarConfigurationControllerStore
 import com.android.systemui.statusbar.data.repository.StatusBarModeRepositoryStore
+import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshInteractor
+import com.android.systemui.statusbar.domain.interactor.StatusBarIconRefreshPerDisplayInstanceProvider
 import com.android.systemui.statusbar.events.PrivacyDotViewControllerModule
 import com.android.systemui.statusbar.phone.AutoHideControllerStore
 import com.android.systemui.statusbar.phone.CentralSurfacesCommandQueueCallbacks
@@ -107,13 +113,16 @@ interface StatusBarPhoneModule {
             statusBarWindowControllerStore: StatusBarWindowControllerStore,
             statusBarModeRepositoryStore: StatusBarModeRepositoryStore,
             statusBarConfigurationControllerStore: StatusBarConfigurationControllerStore,
-            darkIconDispatcherStore: DarkIconDispatcherStore,
+            displayComponentRepo: PerDisplayRepository<ReferenceSysUIDisplaySubcomponent>,
         ): StatusBarInitializerImpl {
+            val systemUIDisplaySubcomponent = displayComponentRepo[Display.DEFAULT_DISPLAY]!!
             return implFactory.create(
                 statusBarWindowControllerStore.defaultDisplay,
                 statusBarModeRepositoryStore.defaultDisplay,
                 statusBarConfigurationControllerStore.defaultDisplay,
-                darkIconDispatcherStore.defaultDisplay,
+                systemUIDisplaySubcomponent.statusBarFragmentProvider,
+                systemUIDisplaySubcomponent.statusBarRootFactory,
+                systemUIDisplaySubcomponent.homeStatusBarComponentFactory,
             )
         }
 
@@ -196,6 +205,31 @@ interface StatusBarPhoneModule {
                 multiDisplayLazy.get()
             } else {
                 CoreStartable.NOP
+            }
+        }
+
+        /**
+         * This is added for compat with SysUISingleton scoped objects.
+         * StatusBarIconRefreshInteractor is provided as @PerDisplaysingleton, and should be used as
+         * such from per-display classes.
+         */
+        @SysUISingleton
+        @Provides
+        fun provideStatusBarIconRefreshPerDisplayProvider(
+            repositoryFactory:
+                PerDisplayInstanceRepositoryImpl.Factory<StatusBarIconRefreshInteractor>,
+            instanceProvider: StatusBarIconRefreshPerDisplayInstanceProvider,
+        ): PerDisplayRepository<StatusBarIconRefreshInteractor> {
+            return if (StatusBarConnectedDisplays.isEnabled) {
+                repositoryFactory.create(
+                    debugName = "StatusBarIconRefreshInteractor",
+                    instanceProvider,
+                )
+            } else {
+                DefaultDisplayOnlyInstanceRepositoryImpl(
+                    "StatusBarIconRefreshInteractor",
+                    instanceProvider,
+                )
             }
         }
 

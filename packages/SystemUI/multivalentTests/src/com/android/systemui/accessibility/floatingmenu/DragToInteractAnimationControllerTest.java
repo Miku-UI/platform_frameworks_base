@@ -20,8 +20,6 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 
 import android.annotation.NonNull;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.testing.TestableLooper;
 import android.view.WindowManager;
 import android.view.accessibility.AccessibilityManager;
@@ -30,7 +28,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.accessibility.utils.TestUtils;
 import com.android.systemui.util.settings.SecureSettings;
@@ -75,13 +72,8 @@ public class DragToInteractAnimationControllerTest extends SysuiTestCase {
         mInteractView = spy(new DragToInteractView(mContext, stubWindowManager));
         mDismissView = spy(new DismissView(mContext));
 
-        if (Flags.floatingMenuDragToEdit()) {
-            mDragToInteractAnimationController = new DragToInteractAnimationController(
-                    mInteractView, stubMenuView);
-        } else {
-            mDragToInteractAnimationController = new DragToInteractAnimationController(
-                    mDismissView, stubMenuView);
-        }
+        mDragToInteractAnimationController = new DragToInteractAnimationController(
+                mInteractView, stubMenuView);
 
         mDragToInteractAnimationController.setMagnetListener(new MagnetizedObject.MagnetListener() {
             @Override
@@ -106,23 +98,6 @@ public class DragToInteractAnimationControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
-    public void showDismissView_success_old() {
-        mDragToInteractAnimationController.showInteractView(true);
-
-        verify(mDismissView).show();
-    }
-
-    @Test
-    @DisableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
-    public void hideDismissView_success_old() {
-        mDragToInteractAnimationController.showInteractView(false);
-
-        verify(mDismissView).hide();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void showDismissView_success() {
         mDragToInteractAnimationController.showInteractView(true);
 
@@ -130,7 +105,6 @@ public class DragToInteractAnimationControllerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_FLOATING_MENU_DRAG_TO_EDIT)
     public void hideDismissView_success() {
         mDragToInteractAnimationController.showInteractView(false);
 

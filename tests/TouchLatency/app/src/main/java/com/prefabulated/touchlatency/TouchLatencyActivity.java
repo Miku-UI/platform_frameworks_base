@@ -16,6 +16,7 @@
 
 package com.prefabulated.touchlatency;
 
+import android.app.AlertDialog;
 import android.hardware.display.DisplayManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -29,6 +30,8 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
+import androidx.core.view.WindowCompat;
 
 import com.google.android.material.slider.RangeSlider;
 import com.google.android.material.slider.RangeSlider.OnChangeListener;
@@ -42,6 +45,8 @@ public class TouchLatencyActivity extends AppCompatActivity {
     private int mCurrentModeIndex;
     private float mSliderPreferredRefreshRate;
     private DisplayManager mDisplayManager;
+
+    public static final String ACTION_MODE_ON_CREATE = "action_mode_on_create";
 
     private final DisplayManager.DisplayListener mDisplayListener =
             new DisplayManager.DisplayListener() {
@@ -57,7 +62,10 @@ public class TouchLatencyActivity extends AppCompatActivity {
 
         @Override
         public void onDisplayChanged(int i) {
-            updateOptionsMenu();
+            boolean hasArrSupport = getWindowManager().getDefaultDisplay().hasArrSupport();
+            if (!hasArrSupport) {
+                updateOptionsMenu();
+            }
         }
     };
 
@@ -76,9 +84,12 @@ public class TouchLatencyActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
         Trace.beginSection("TouchLatencyActivity onCreate");
         setContentView(R.layout.activity_touch_latency);
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
         mTouchView = findViewById(R.id.canvasView);
 
         configureDisplayListener();
@@ -93,6 +104,7 @@ public class TouchLatencyActivity extends AppCompatActivity {
                 break;
             }
         }
+
         Trace.endSection();
     }
 
@@ -112,6 +124,15 @@ public class TouchLatencyActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_touch_latency, mMenu);
         updateOptionsMenu();
+        int initActionMode = getIntent().getIntExtra(ACTION_MODE_ON_CREATE, 0);
+        if (initActionMode < mTouchView.ACTION_MODES.length) {
+            MenuItem menuItem = mMenu.findItem(R.id.action_settings);
+            // Calling changeMode() cycles through the supported modes. So loop
+            // through the modes to get the request one.
+            for (int i = 0; i < initActionMode; i++) {
+                mTouchView.changeMode(menuItem);
+            }
+        }
         Trace.endSection();
         return true;
     }
@@ -146,10 +167,6 @@ public class TouchLatencyActivity extends AppCompatActivity {
             mSliderPreferredRefreshRate = highestRefreshRate;
         }
         slider.setValues(mSliderPreferredRefreshRate);
-    }
-
-    private void updateMultiDisplayMenu(MenuItem item) {
-        item.setVisible(mDisplayManager.getDisplays().length > 1);
     }
 
     private void configureDisplayListener() {
@@ -201,10 +218,37 @@ public class TouchLatencyActivity extends AppCompatActivity {
                 changeDisplayMode(item);
                 break;
             }
+            case R.id.supported_refresh_rates: {
+                showSupportedRefreshRates();
+                break;
+            }
         }
 
         Trace.endSection();
         return super.onOptionsItemSelected(item);
+    }
+
+    private void showSupportedRefreshRates() {
+        Display display = getWindowManager().getDefaultDisplay();
+        boolean hasArrSupport = display.hasArrSupport();
+        final float[] refreshRates = display.getSupportedRefreshRates();
+        String[] refreshRatesStr = new String[refreshRates.length + 1];
+        refreshRatesStr[0] = "ARR Supported: " + (hasArrSupport ? "Yes" : "No");
+        for (int i = 0; i < refreshRates.length; i++) {
+            refreshRatesStr[i + 1] = String.format("%.2f", refreshRates[i]);
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Supported Refresh Rates");
+        builder.setItems(refreshRatesStr, (dialog, which) -> {
+            if (which == 0) {
+                // Do nothing for the ARR support item
+                return;
+            }
+            float selectedRefreshRate = refreshRates[which - 1];
+            mTouchView.setRequestedFrameRate(selectedRefreshRate);
+        });
+        builder.create().show();
     }
 
     @Override

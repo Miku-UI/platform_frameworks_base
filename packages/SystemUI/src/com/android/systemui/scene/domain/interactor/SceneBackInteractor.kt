@@ -30,6 +30,7 @@ import com.android.systemui.scene.data.model.sceneStackOf
 import com.android.systemui.scene.domain.SceneFrameworkTableLog
 import com.android.systemui.scene.shared.logger.SceneLogger
 import com.android.systemui.scene.shared.model.SceneContainerConfig
+import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,6 +91,22 @@ constructor(
             prevVal = DiffableSceneStack(prevVal),
             newVal = DiffableSceneStack(backStack.value),
         )
+    }
+
+    /**
+     * If the [Scenes.Lockscreen] is on the bottom of the navigation backstack, replaces it with
+     * [Scenes.Gone].
+     */
+    fun replaceLockscreenSceneOnBackStack() {
+        updateBackStack { stack ->
+            val list = stack.asIterable().toMutableList()
+            if (list.lastOrNull() == Scenes.Lockscreen) {
+                list[list.size - 1] = Scenes.Gone
+                sceneStackOf(*list.toTypedArray())
+            } else {
+                stack
+            }
+        }
     }
 
     private fun stackOperation(from: SceneKey, to: SceneKey, stack: SceneStack): StackOperation? {

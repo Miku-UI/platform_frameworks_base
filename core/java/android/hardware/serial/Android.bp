@@ -1,0 +1,6 @@
+team {
+    name: "trendy_team_webapps_cros_android",
+
+    // go/trendy/manage/engineers/5643017580281856
+    trendy_team_id: "5643017580281856",
+}

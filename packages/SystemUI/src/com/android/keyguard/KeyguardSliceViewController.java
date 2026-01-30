@@ -211,6 +211,11 @@ public class KeyguardSliceViewController extends ViewController<KeyguardSliceVie
         }
     }
 
+    public void translate(int x, int y) {
+        mView.setTranslationX(x);
+        mView.setTranslationY(y);
+    }
+
     void showSlice(Slice slice) {
         Trace.beginSection("KeyguardSliceViewController#showSlice");
         if (slice == null) {

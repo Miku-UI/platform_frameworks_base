@@ -3,7 +3,7 @@ per-file Android.bp = file:platform/build/soong:/OWNERS #{LAST_RESORT_SUGGESTION
 # art-team@ manages the system server profile
 per-file art-profile* = file:platform/art:main:/OWNERS_boot_profile
 
-per-file java/com/android/server/HsumBootUserInitializer.java = file:/MULTIUSER_OWNERS
+per-file **/HsumBootUserInitializer* = file:/MULTIUSER_OWNERS
 
 per-file java/com/android/server/* = patb@google.com #{LAST_RESORT_SUGGESTION}
 per-file tests/servicestests/src/com/android/server/systemconfig/* = patb@google.com

@@ -229,9 +229,9 @@ public class OptPropFactory {
                         mValue = VALUE_FALSE;
                     } else {
                         mValue = VALUE_UNSET;
+                        Slog.w(TAG, "Error reading the property:" + mPropertyName);
                     }
                 } catch (Exception e) {
-                    Slog.w(TAG, "Cannot read opt property " + mPropertyName);
                     mValue = VALUE_UNSET;
                 }
             }

@@ -413,35 +413,7 @@ public class MainContentCaptureSessionTest {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_FLUSH_AFTER_EACH_FRAME)
-    @SuppressWarnings("GuardedBy")
-    public void notifyContentCaptureEvents_started_ContentCaptureEnabled_ProtectionEnabled()
-            throws RemoteException {
-        ContentCaptureOptions options =
-                createOptions(
-                        /* enableContentCaptureReceiver= */ true,
-                        /* enableContentProtectionReceiver= */ true);
-        MainContentCaptureSession session = createSession(options);
-        session.mDirectServiceInterface = mMockContentCaptureDirectManager;
-
-        session.onSessionStarted(0x2, null);
-        // Override the processor for interaction verification.
-        session.mContentProtectionEventProcessor = mMockContentProtectionEventProcessor;
-        notifyContentCaptureEvents(session);
-        mTestableLooper.processAllMessages();
-
-        // Force flush will happen twice.
-        verify(mMockContentCaptureDirectManager, times(1))
-                .sendEvents(any(), eq(FLUSH_REASON_VIEW_TREE_APPEARING), any());
-        verify(mMockContentCaptureDirectManager, times(1))
-                .sendEvents(any(), eq(FLUSH_REASON_VIEW_TREE_APPEARED), any());
-        // Other than the five view events, there will be two additional tree appearing events.
-        verify(mMockContentProtectionEventProcessor, times(7)).processEvent(any());
-        assertThat(session.mEvents).isEmpty();
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_FLUSH_AFTER_EACH_FRAME)
+    @DisableFlags(Flags.FLAG_REDUCE_BINDER_TRANSACTION_ENABLED)
     @SuppressWarnings("GuardedBy")
     public void notifyContentCaptureEvents_started_ContentCaptureEnabled_ProtectionEnabled_Flush()
             throws RemoteException {
@@ -463,6 +435,33 @@ public class MainContentCaptureSessionTest {
                 .sendEvents(any(), eq(FLUSH_REASON_VIEW_TREE_APPEARING), any());
         verify(mMockContentCaptureDirectManager, times(1))
                 .sendEvents(any(), eq(FLUSH_REASON_VIEW_TREE_APPEARED), any());
+        // 5 view events + 2 view tree events + 1 flush event
+        verify(mMockContentProtectionEventProcessor, times(8)).processEvent(any());
+        assertThat(session.mEvents).isEmpty();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REDUCE_BINDER_TRANSACTION_ENABLED)
+    @SuppressWarnings("GuardedBy")
+    public void notifyContentCaptureEvents_flush_reducedBinderTransactionEnabled()
+            throws RemoteException {
+        ContentCaptureOptions options =
+                createOptions(
+                        /* enableContentCaptureReceiver= */ true,
+                        /* enableContentProtectionReceiver= */ true);
+        MainContentCaptureSession session = createSession(options);
+        session.mDirectServiceInterface = mMockContentCaptureDirectManager;
+
+        session.onSessionStarted(0x2, null);
+        // Override the processor for interaction verification.
+        session.mContentProtectionEventProcessor = mMockContentProtectionEventProcessor;
+        notifyContentCaptureEvents(session);
+        mTestableLooper.processAllMessages();
+
+        // Force flush will happen only once when flag enabled.
+        verify(mMockContentCaptureDirectManager, times(1))
+                .sendEvents(any(), anyInt(), any());
+        verifyNoMoreInteractions(mMockContentCaptureDirectManager);
         // 5 view events + 2 view tree events + 1 flush event
         verify(mMockContentProtectionEventProcessor, times(8)).processEvent(any());
         assertThat(session.mEvents).isEmpty();
@@ -532,6 +531,43 @@ public class MainContentCaptureSessionTest {
                 .sendEvents(any(), anyInt(), any());
         assertThat(session.mEvents).isEmpty();
         assertThat(session.mEventProcessQueue).hasSize(1);
+    }
+
+    @Test
+    @DisableFlags(Flags.FLAG_REDUCE_BINDER_TRANSACTION_ENABLED)
+    public void notifyViewsAppeared_reducedBinderTransactionDisabled() throws RemoteException {
+        ContentCaptureOptions options =
+                createOptions(
+                        /* enableContentCaptureReceiver= */ true,
+                        /* enableContentProtectionReceiver= */ false);
+        MainContentCaptureSession session = createSession(options);
+        session.mDirectServiceInterface = mMockContentCaptureDirectManager;
+        session.onSessionStarted(0x2, null);
+        View view = prepareView(session);
+
+        session.notifyViewsAppeared(List.of(session.newViewStructure(view)));
+        mTestableLooper.processAllMessages();
+
+        verify(mMockContentCaptureDirectManager, times(2)).sendEvents(any(), anyInt(), any());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_REDUCE_BINDER_TRANSACTION_ENABLED)
+    public void notifyViewsAppeared_reducedBinderTransactionEnabled() throws RemoteException {
+        ContentCaptureOptions options =
+                createOptions(
+                        /* enableContentCaptureReceiver= */ true,
+                        /* enableContentProtectionReceiver= */ false);
+        MainContentCaptureSession session = createSession(options);
+        session.mDirectServiceInterface = mMockContentCaptureDirectManager;
+        session.onSessionStarted(0x2, null);
+        View view = prepareView(session);
+
+        session.notifyViewsAppeared(List.of(session.newViewStructure(view)));
+        mTestableLooper.processAllMessages();
+
+        // No events should be sent to the service.
+        verifyNoMoreInteractions(mMockContentCaptureDirectManager);
     }
 
     /** Simulates the regular content capture events sequence. */

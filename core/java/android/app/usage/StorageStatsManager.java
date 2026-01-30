@@ -59,13 +59,13 @@ public class StorageStatsManager {
     private final Context mContext;
     private final IStorageStatsManager mService;
 
-    /** {@hide} */
+    /** @hide */
     public StorageStatsManager(Context context, IStorageStatsManager service) {
         mContext = Objects.requireNonNull(context);
         mService = Objects.requireNonNull(service);
     }
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public boolean isQuotaSupported(@NonNull UUID storageUuid) {
         try {
@@ -75,13 +75,13 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public boolean isQuotaSupported(String uuid) {
         return isQuotaSupported(convert(uuid));
     }
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     public boolean isReservedSupported(@NonNull UUID storageUuid) {
         try {
@@ -118,7 +118,7 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public long getTotalBytes(String uuid) throws IOException {
         return getTotalBytes(convert(uuid));
@@ -150,13 +150,13 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public long getFreeBytes(String uuid) throws IOException {
         return getFreeBytes(convert(uuid));
     }
 
-    /** {@hide} */
+    /** @hide */
     public @BytesLong long getCacheBytes(@NonNull UUID storageUuid) throws IOException {
         try {
             return mService.getCacheBytes(convert(storageUuid), mContext.getOpPackageName());
@@ -168,7 +168,7 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public long getCacheBytes(String uuid) throws IOException {
         return getCacheBytes(convert(uuid));
@@ -219,7 +219,7 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public StorageStats queryStatsForPackage(String uuid, String packageName,
             UserHandle user) throws PackageManager.NameNotFoundException, IOException {
@@ -260,7 +260,7 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public StorageStats queryStatsForUid(String uuid, int uid) throws IOException {
         return queryStatsForUid(convert(uuid), uid);
@@ -298,7 +298,7 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public StorageStats queryStatsForUser(String uuid, UserHandle user) throws IOException {
         return queryStatsForUser(convert(uuid), user);
@@ -335,14 +335,14 @@ public class StorageStatsManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Deprecated
     public ExternalStorageStats queryExternalStatsForUser(String uuid, UserHandle user)
             throws IOException {
         return queryExternalStatsForUser(convert(uuid), user);
     }
 
-    /** {@hide} */
+    /** @hide */
     public long getCacheQuotaBytes(String volumeUuid, int uid) {
         try {
             return mService.getCacheQuotaBytes(volumeUuid, uid, mContext.getOpPackageName());

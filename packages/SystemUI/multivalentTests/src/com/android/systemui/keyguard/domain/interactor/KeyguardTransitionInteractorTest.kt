@@ -208,6 +208,7 @@ class KeyguardTransitionInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer // Uses KeyguardState.GONE
     fun transitionValue_canceled_toAnotherState() =
         testScope.runTest {
             resetTransitionValueReplayCache(setOf(AOD, GONE, LOCKSCREEN))
@@ -235,6 +236,7 @@ class KeyguardTransitionInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer // Uses KeyguardState.GONE
     fun transitionValue_canceled_backToOriginalState() =
         testScope.runTest {
             resetTransitionValueReplayCache(setOf(AOD, GONE))

@@ -116,4 +116,19 @@ enum class DeviceEntryRestrictionReason {
      * Restriction: Only bouncer based device entry is allowed.
      */
     BouncerLockedOut,
+    /**
+     * Reason: Secure lock device has been enabled.
+     *
+     * Restriction: Only primary auth on the bouncer is allowed, biometric authentication is
+     * disabled.
+     */
+    SecureLockDevicePrimaryAuth,
+
+    /**
+     * Reason: Secure lock device has been enabled, and the user has completed the first-factor
+     * bouncer authentication.
+     *
+     * Restriction: Only strong biometric authentication is allowed.
+     */
+    SecureLockDeviceStrongBiometricOnlyAuth,
 }

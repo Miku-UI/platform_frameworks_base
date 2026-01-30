@@ -5129,6 +5129,9 @@ public class AccessibilityNodeInfo implements Parcelable {
             parcel.writeInt(mCollectionItemInfo.getColumnSpan());
             parcel.writeInt(mCollectionItemInfo.isHeading() ? 1 : 0);
             parcel.writeInt(mCollectionItemInfo.isSelected() ? 1 : 0);
+            if (Flags.a11ySortDirectionApi()) {
+                parcel.writeInt(mCollectionItemInfo.getSortDirection());
+            }
         }
 
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
@@ -5263,11 +5266,18 @@ public class AccessibilityNodeInfo implements Parcelable {
                         ci.mImportantForAccessibilityItemCount);
         CollectionItemInfo cii = other.mCollectionItemInfo;
         CollectionItemInfo.Builder builder = new CollectionItemInfo.Builder();
-        mCollectionItemInfo = (cii == null)  ? null
-                : builder.setRowTitle(cii.mRowTitle).setRowIndex(cii.mRowIndex).setRowSpan(
-                        cii.mRowSpan).setColumnTitle(cii.mColumnTitle).setColumnIndex(
-                                cii.mColumnIndex).setColumnSpan(cii.mColumnSpan).setHeading(
-                                        cii.mHeading).setSelected(cii.mSelected).build();
+        if (cii == null) {
+            mCollectionItemInfo = null;
+        } else {
+            builder.setRowTitle(cii.mRowTitle).setRowIndex(cii.mRowIndex).setRowSpan(
+                    cii.mRowSpan).setColumnTitle(cii.mColumnTitle).setColumnIndex(
+                    cii.mColumnIndex).setColumnSpan(cii.mColumnSpan).setHeading(
+                    cii.mHeading).setSelected(cii.mSelected);
+            if (Flags.a11ySortDirectionApi()) {
+                builder.setSortDirection(cii.mSortDirection);
+            }
+            mCollectionItemInfo = builder.build();
+        }
         ExtraRenderingInfo ti = other.mExtraRenderingInfo;
         mExtraRenderingInfo = (ti == null) ? null
                 : new ExtraRenderingInfo(ti);
@@ -5421,17 +5431,19 @@ public class AccessibilityNodeInfo implements Parcelable {
                         parcel.readInt())
                 : null;
 
-        mCollectionItemInfo = isBitSet(nonDefaultFields, fieldIndex++)
-                ? new CollectionItemInfo(
-                        parcel.readString(),
-                        parcel.readInt(),
-                        parcel.readInt(),
-                        parcel.readString(),
-                        parcel.readInt(),
-                        parcel.readInt(),
-                        parcel.readInt() == 1,
-                        parcel.readInt() == 1)
-                : null;
+        if (isBitSet(nonDefaultFields, fieldIndex++)) {
+            CollectionItemInfo.Builder builder = new CollectionItemInfo.Builder();
+            builder.setRowTitle(parcel.readString()).setRowIndex(parcel.readInt()).setRowSpan(
+                    parcel.readInt()).setColumnTitle(parcel.readString()).setColumnIndex(
+                    parcel.readInt()).setColumnSpan(parcel.readInt()).setHeading(
+                    parcel.readInt() == 1).setSelected(parcel.readInt() == 1);
+            if (Flags.a11ySortDirectionApi()) {
+                builder.setSortDirection(parcel.readInt());
+            }
+            mCollectionItemInfo = builder.build();
+        } else {
+            mCollectionItemInfo = null;
+        }
 
         if (isBitSet(nonDefaultFields, fieldIndex++)) {
             mTouchDelegateInfo = TouchDelegateInfo.CREATOR.createFromParcel(parcel);
@@ -6078,7 +6090,7 @@ public class AccessibilityNodeInfo implements Parcelable {
 
     /**
      * A class defining an action that can be performed on an {@link AccessibilityNodeInfo}.
-     * Each action has a unique id that is mandatory and optional data.
+     * Each action has a mandatory unique id and optional data.
      * <p>
      * There are three categories of actions:
      * <ul>
@@ -7435,6 +7447,55 @@ public class AccessibilityNodeInfo implements Parcelable {
      */
     public static final class CollectionItemInfo {
         /**
+         * There is no sort direction.
+         *
+         * @see #getSortDirection()
+         * @see Builder#setSortDirection(int)
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_SORT_DIRECTION_API)
+        public static final int SORT_DIRECTION_NONE = 0;
+
+        /**
+         * Items are sorted in ascending order (e.g., A-Z, 0-9).
+         *
+         * @see #getSortDirection()
+         * @see Builder#setSortDirection(int)
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_SORT_DIRECTION_API)
+        public static final int SORT_DIRECTION_ASCENDING = 1;
+
+        /**
+         * Items are sorted in descending order (e.g., Z-A, 9-0).
+         *
+         * @see #getSortDirection()
+         * @see Builder#setSortDirection(int)
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_SORT_DIRECTION_API)
+        public static final int SORT_DIRECTION_DESCENDING = 2;
+
+        /**
+         * Items are sorted, but using a method other than ascending
+         * or descending (e.g., based on relevance or a custom algorithm).
+         *
+         * @see #getSortDirection()
+         * @see Builder#setSortDirection(int)
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_SORT_DIRECTION_API)
+        public static final int SORT_DIRECTION_OTHER = 3;
+
+        /** @hide */
+        @Retention(RetentionPolicy.SOURCE)
+        @IntDef(
+                prefix = "SORT_DIRECTION_",
+                value = {
+                        SORT_DIRECTION_NONE,
+                        SORT_DIRECTION_ASCENDING,
+                        SORT_DIRECTION_DESCENDING,
+                        SORT_DIRECTION_OTHER,
+                })
+        public @interface SortDirection {}
+
+        /**
          * Instantiates a CollectionItemInfo that is a clone of another one.
          *
          * @deprecated Object pooling has been discontinued. Create a new instance using the
@@ -7449,7 +7510,7 @@ public class AccessibilityNodeInfo implements Parcelable {
         public static CollectionItemInfo obtain(CollectionItemInfo other) {
             return new CollectionItemInfo(other.mRowTitle, other.mRowIndex, other.mRowSpan,
                 other.mColumnTitle, other.mColumnIndex, other.mColumnSpan, other.mHeading,
-                other.mSelected);
+                other.mSelected, other.mSortDirection);
         }
 
         /**
@@ -7528,6 +7589,7 @@ public class AccessibilityNodeInfo implements Parcelable {
         private int mRowIndex;
         private int mColumnSpan;
         private int mRowSpan;
+        private @SortDirection int mSortDirection;
         private boolean mSelected;
         private String mRowTitle;
         private String mColumnTitle;
@@ -7593,6 +7655,28 @@ public class AccessibilityNodeInfo implements Parcelable {
         }
 
         /**
+         * Creates a new instance.
+         *
+         * @param rowTitle The row title at which the item is located.
+         * @param rowIndex The row index at which the item is located.
+         * @param rowSpan The number of rows the item spans.
+         * @param columnTitle The column title at which the item is located.
+         * @param columnIndex The column index at which the item is located.
+         * @param columnSpan The number of columns the item spans.
+         * @param heading Whether the item is a heading.
+         * @param selected Whether the item is selected.
+         * @param sortDirection The sort direction applied to the data associated with this node.
+         * @hide
+         */
+        public CollectionItemInfo(@Nullable String rowTitle, int rowIndex, int rowSpan,
+                @Nullable String columnTitle, int columnIndex, int columnSpan, boolean heading,
+                boolean selected, @SortDirection int sortDirection) {
+            this(rowTitle, rowIndex, rowSpan, columnTitle, columnIndex, columnSpan, heading,
+                    selected);
+            mSortDirection = sortDirection;
+        }
+
+        /**
          * Gets the column index at which the item is located.
          *
          * @return The column index.
@@ -7626,6 +7710,29 @@ public class AccessibilityNodeInfo implements Parcelable {
          */
         public int getRowSpan() {
             return mRowSpan;
+        }
+
+        /**
+         * Gets the sort direction applied to the data associated with this
+         * node.
+         * <p>
+         * This item can only be set on a heading node within a table collection.
+         * Given the heading node's collection item, a subsequent collection item uses this sort
+         * direction if it has the same row or column index, and a greater index in the other
+         * dimension. For example, an item at row 2, column 2 can reference a heading at row 2,
+         * column 1 for its sort direction.
+         *
+         * @return The current sort direction, one of:
+         *     <ul>
+         *       <li>{@link #SORT_DIRECTION_NONE}
+         *       <li>{@link #SORT_DIRECTION_ASCENDING}
+         *       <li>{@link #SORT_DIRECTION_DESCENDING}
+         *       <li>{@link #SORT_DIRECTION_OTHER}
+         *     </ul>
+         */
+        @FlaggedApi(Flags.FLAG_A11Y_SORT_DIRECTION_API)
+        public @SortDirection int getSortDirection() {
+            return mSortDirection;
         }
 
         /**
@@ -7686,6 +7793,10 @@ public class AccessibilityNodeInfo implements Parcelable {
             mSelected = false;
             mRowTitle = null;
             mColumnTitle = null;
+
+            if (Flags.a11ySortDirectionApi()) {
+                mSortDirection = SORT_DIRECTION_NONE;
+            }
         }
 
         /**
@@ -7697,6 +7808,7 @@ public class AccessibilityNodeInfo implements Parcelable {
             private int mRowIndex;
             private int mColumnSpan;
             private int mRowSpan;
+            private int mSortDirection;
             private boolean mSelected;
             private String mRowTitle;
             private String mColumnTitle;
@@ -7768,6 +7880,32 @@ public class AccessibilityNodeInfo implements Parcelable {
             }
 
             /**
+             * Sets the sort direction for this item.
+             * <p>
+             * Valid only if {@link AccessibilityNodeInfo#isHeading()} returns {@code true}.
+             * Indicates that collection content associated with this heading is presented in the
+             * indicated sort direction. It should only be called by accessibility providers. For
+             * accessibility services, see {@link #getSortDirection()} to query the current state.
+             *
+             * @param sortDirection the sort direction of this collection item info
+             * @throws IllegalArgumentException If {@code sortDirection} is not one of:
+             *     <ul>
+             *       <li>{@link #SORT_DIRECTION_NONE}
+             *       <li>{@link #SORT_DIRECTION_ASCENDING}
+             *       <li>{@link #SORT_DIRECTION_DESCENDING}
+             *       <li>{@link #SORT_DIRECTION_OTHER}
+             *     </ul>
+             * @return This builder
+             */
+            @FlaggedApi(Flags.FLAG_A11Y_SORT_DIRECTION_API)
+            @NonNull
+            public CollectionItemInfo.Builder setSortDirection(@SortDirection int sortDirection) {
+                enforceValidSortDirection(sortDirection);
+                mSortDirection = sortDirection;
+                return this;
+            }
+
+            /**
              * Sets the collection item is selected.
              *
              * @param selected The number of rows spans
@@ -7818,7 +7956,26 @@ public class AccessibilityNodeInfo implements Parcelable {
                 collectionItemInfo.mRowTitle = mRowTitle;
                 collectionItemInfo.mColumnTitle = mColumnTitle;
 
+                if (Flags.a11ySortDirectionApi()) {
+                    collectionItemInfo.mSortDirection = mSortDirection;
+                }
+
                 return collectionItemInfo;
+            }
+        }
+
+        private static void enforceValidSortDirection(int sortDirection) {
+            if (Flags.a11ySortDirectionApi()) {
+                switch (sortDirection) {
+                    case SORT_DIRECTION_NONE:
+                    case SORT_DIRECTION_ASCENDING:
+                    case SORT_DIRECTION_DESCENDING:
+                    case SORT_DIRECTION_OTHER:
+                        return;
+                    default:
+                        throw new IllegalArgumentException(
+                                "Unknown sort direction: " + sortDirection);
+                }
             }
         }
     }

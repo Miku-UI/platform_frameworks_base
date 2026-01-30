@@ -19,6 +19,7 @@ package com.android.wm.shell.compatui.letterbox
 import android.graphics.Rect
 import android.view.SurfaceControl
 import android.view.SurfaceControl.Transaction
+import android.window.WindowContainerToken
 
 /**
  * Abstracts the component responsible to handle a single or multiple letterbox surfaces for a
@@ -26,44 +27,32 @@ import android.view.SurfaceControl.Transaction
  */
 interface LetterboxController {
 
-    /**
-     * Creates a Letterbox Surface for a given displayId/taskId if it doesn't exist.
-     */
+    /** Creates a Letterbox Surface for a given displayId/taskId if it doesn't exist. */
     fun createLetterboxSurface(
         key: LetterboxKey,
         transaction: Transaction,
-        parentLeash: SurfaceControl
+        parentLeash: SurfaceControl,
+        token: WindowContainerToken?,
     )
 
-    /**
-     * Invoked to destroy the surfaces for a letterbox session for given displayId/taskId.
-     */
-    fun destroyLetterboxSurface(
-        key: LetterboxKey,
-        transaction: Transaction
-    )
+    /** Invoked to destroy the surfaces for a letterbox session for given displayId/taskId. */
+    fun destroyLetterboxSurface(key: LetterboxKey, transaction: Transaction)
 
-    /**
-     * Invoked to show/hide the letterbox surfaces for given displayId/taskId.
-     */
+    /** Invoked to show/hide the letterbox surfaces for given displayId/taskId. */
     fun updateLetterboxSurfaceVisibility(
         key: LetterboxKey,
         transaction: Transaction,
-        visible: Boolean
+        visible: Boolean,
     )
 
-    /**
-     * Updates the bounds for the letterbox surfaces for given displayId/taskId.
-     */
+    /** Updates the bounds for the letterbox surfaces for given displayId/taskId. */
     fun updateLetterboxSurfaceBounds(
         key: LetterboxKey,
         transaction: Transaction,
         taskBounds: Rect,
-        activityBounds: Rect
+        activityBounds: Rect,
     )
 
-    /**
-     * Utility method to dump the current state.
-     */
+    /** Utility method to dump the current state. */
     fun dump()
 }

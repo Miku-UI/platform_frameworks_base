@@ -33,6 +33,7 @@ import android.service.notification.ZenPolicy;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.Nullable;
 
+import java.time.Instant;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class TestModeBuilder {
@@ -204,6 +205,11 @@ public class TestModeBuilder {
         return this;
     }
 
+    public TestModeBuilder setLastManualActivation(@Nullable Instant lastManualActivation) {
+        mConfigZenRule.lastManualActivation = lastManualActivation;
+        return this;
+    }
+
     public TestModeBuilder makeManualDnd() {
         mIsManualDnd = true;
         // Set the "fixed" properties of a DND mode. Other things, such as policy/filter may be set
@@ -220,7 +226,8 @@ public class TestModeBuilder {
     public ZenMode build() {
         if (mIsManualDnd) {
             return ZenMode.manualDndMode(mRule, mConfigZenRule.condition != null
-                    && mConfigZenRule.condition.state == Condition.STATE_TRUE);
+                    && mConfigZenRule.condition.state == Condition.STATE_TRUE,
+                    mConfigZenRule.lastManualActivation);
         } else {
             return new ZenMode(mId, mRule, mConfigZenRule);
         }

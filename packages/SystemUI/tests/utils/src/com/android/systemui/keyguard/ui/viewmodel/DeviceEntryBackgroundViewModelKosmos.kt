@@ -21,6 +21,7 @@ import com.android.systemui.common.ui.domain.interactor.configurationInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.scene.domain.interactor.sceneInteractor
 
 val Kosmos.deviceEntryBackgroundViewModel by Fixture {
     DeviceEntryBackgroundViewModel(
@@ -49,5 +50,6 @@ val Kosmos.deviceEntryBackgroundViewModel by Fixture {
         lockscreenToDozingTransitionViewModel = lockscreenToDozingTransitionViewModel,
         glanceableHubToAodTransitionViewModel = glanceableHubToAodTransitionViewModel,
         glanceableHubToLockscreenTransitionViewModel = glanceableHubToLockscreenTransitionViewModel,
+        sceneInteractor = { sceneInteractor },
     )
 }

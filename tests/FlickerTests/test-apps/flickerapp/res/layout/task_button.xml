@@ -19,10 +19,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
-    android:background="@android:color/holo_orange_light">
+    android:background="@android:color/holo_orange_light"
+    android:orientation="vertical">
     <Button
         android:id="@+id/launch_new_task"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="New task" />
+        android:text="New task (multiple task)" />
+    <Button
+        android:id="@+id/launch_new_task_with_recycle_if_possible"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="New task (clear top + recycle if possible)" />
 </LinearLayout>

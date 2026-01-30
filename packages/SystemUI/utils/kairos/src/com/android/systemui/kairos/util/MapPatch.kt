@@ -51,7 +51,7 @@ fun <K, V> Map<K, V>.applyPatch(patch: MapPatch<K, V>): Map<K, V> {
  *   mapValues { (key, value) -> Maybe.present(value) }
  * ```
  */
-fun <K, V> Map<K, V>.toMapPatch(): MapPatch<K, V> = mapValues { Maybe.present(it.value) }
+fun <K, V> Map<K, V>.toMapPatch(): MapPatch<K, V> = mapValues { maybeOf(it.value) }
 
 /**
  * Returns a [MapPatch] that, when applied, includes all of the entries from [new] whose keys are
@@ -67,10 +67,10 @@ fun <K, V> mapPatchFromKeyDiff(old: Map<K, V>, new: Map<K, V>): MapPatch<K, V> {
     val adds = new - old.keys
     return buildMap {
         for (removed in removes) {
-            put(removed, Maybe.absent)
+            put(removed, maybeOf())
         }
         for ((newKey, newValue) in adds) {
-            put(newKey, Maybe.present(newValue))
+            put(newKey, maybeOf(newValue))
         }
     }
 }
@@ -87,15 +87,13 @@ fun <K, V> mapPatchFromKeyDiff(old: Map<K, V>, new: Map<K, V>): MapPatch<K, V> {
 fun <K, V> mapPatchFromFullDiff(old: Map<K, V>, new: Map<K, V>): MapPatch<K, V> {
     val removes = old.keys - new.keys
     val adds =
-        new.mapMaybeValues { (k, v) ->
-            if (k in old && v == old[k]) Maybe.absent else Maybe.present(v)
-        }
+        new.mapMaybeValues { (k, v) -> if (k in old && v == old[k]) maybeOf() else maybeOf(v) }
     return hashMapOf<K, Maybe<V>>().apply {
         for (removed in removes) {
-            put(removed, Maybe.absent)
+            put(removed, maybeOf())
         }
         for ((newKey, newValue) in adds) {
-            put(newKey, Maybe.present(newValue))
+            put(newKey, maybeOf(newValue))
         }
     }
 }

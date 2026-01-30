@@ -42,7 +42,7 @@ public class HearingDevicesPresetsController implements
         LocalBluetoothProfileManager.ServiceListener, BluetoothHapClient.Callback {
 
     private static final String TAG = "HearingDevicesPresetsController";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     private final LocalBluetoothProfileManager mProfileManager;
     private final HapClientProfile mHapClientProfile;

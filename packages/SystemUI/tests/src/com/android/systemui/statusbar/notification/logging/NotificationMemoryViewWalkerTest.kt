@@ -8,8 +8,9 @@ import android.widget.RemoteViews
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.statusbar.notification.row.NotificationRowContentBinder
-import com.android.systemui.statusbar.notification.row.NotificationTestHelper
+import com.android.systemui.statusbar.notification.row.createRow
+import com.android.systemui.statusbar.notification.row.createRowWithNotif
+import com.android.systemui.testKosmos
 import com.android.systemui.tests.R
 import com.google.common.truth.Truth.assertThat
 import org.junit.Before
@@ -20,13 +21,11 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper
 class NotificationMemoryViewWalkerTest : SysuiTestCase() {
-
-    private lateinit var testHelper: NotificationTestHelper
+    val kosmos = testKosmos()
 
     @Before
     fun setUp() {
         allowTestableLooperAsMainThread()
-        testHelper = NotificationTestHelper(mContext, mDependency, TestableLooper.get(this))
     }
 
     @Test
@@ -38,9 +37,9 @@ class NotificationMemoryViewWalkerTest : SysuiTestCase() {
 
     @Test
     fun testViewWalker_plainNotification() {
-        val row = testHelper.createRow()
+        val row = kosmos.createRow()
         val result = NotificationMemoryViewWalker.getViewUsage(row)
-        assertThat(result).hasSize(3)
+        assertThat(result).hasSize(4)
         assertThat(result)
             .contains(NotificationViewUsage(ViewType.PRIVATE_EXPANDED_VIEW, 0, 0, 0, 0, 0, 0))
         assertThat(result)
@@ -52,9 +51,8 @@ class NotificationMemoryViewWalkerTest : SysuiTestCase() {
     fun testViewWalker_plainNotification_withPublicView() {
         val icon = Icon.createWithBitmap(Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888))
         val publicIcon = Icon.createWithBitmap(Bitmap.createBitmap(20, 20, Bitmap.Config.ARGB_8888))
-        testHelper.setDefaultInflationFlags(NotificationRowContentBinder.FLAG_CONTENT_VIEW_ALL)
         val row =
-            testHelper.createRow(
+            kosmos.createRowWithNotif(
                 Notification.Builder(mContext)
                     .setContentText("Test")
                     .setContentTitle("title")
@@ -126,7 +124,7 @@ class NotificationMemoryViewWalkerTest : SysuiTestCase() {
         val icon = Icon.createWithBitmap(Bitmap.createBitmap(10, 10, Bitmap.Config.ARGB_8888))
         val largeIcon = Icon.createWithBitmap(Bitmap.createBitmap(30, 30, Bitmap.Config.ARGB_8888))
         val row =
-            testHelper.createRow(
+            kosmos.createRowWithNotif(
                 Notification.Builder(mContext)
                     .setContentText("Test")
                     .setContentTitle("title")
@@ -136,7 +134,7 @@ class NotificationMemoryViewWalkerTest : SysuiTestCase() {
                     .build()
             )
         val result = NotificationMemoryViewWalker.getViewUsage(row)
-        assertThat(result).hasSize(3)
+        assertThat(result).hasSize(5)
         assertThat(result)
             .contains(
                 NotificationViewUsage(
@@ -188,7 +186,7 @@ class NotificationMemoryViewWalkerTest : SysuiTestCase() {
         val views = RemoteViews(mContext.packageName, R.layout.custom_view_dark)
         views.setImageViewBitmap(R.id.custom_view_dark_image, bitmap)
         val row =
-            testHelper.createRow(
+            kosmos.createRowWithNotif(
                 Notification.Builder(mContext)
                     .setContentText("Test")
                     .setContentTitle("title")
@@ -198,7 +196,7 @@ class NotificationMemoryViewWalkerTest : SysuiTestCase() {
                     .build()
             )
         val result = NotificationMemoryViewWalker.getViewUsage(row)
-        assertThat(result).hasSize(3)
+        assertThat(result).hasSize(4)
         assertThat(result)
             .contains(
                 NotificationViewUsage(

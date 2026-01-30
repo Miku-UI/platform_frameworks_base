@@ -21,7 +21,7 @@ import android.hardware.radio.ProgramSelector;
 import android.hardware.radio.RadioManager;
 import android.hardware.radio.RadioMetadata;
 
-/** {@hide} */
+/** @hide */
 oneway interface ITunerCallback {
     void onError(int status);
 

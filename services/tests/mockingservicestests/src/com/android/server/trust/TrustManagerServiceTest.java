@@ -94,12 +94,12 @@ import com.android.internal.infra.AndroidFuture;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.internal.widget.LockPatternUtils.StrongAuthTracker;
 import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.StrongAuthFlags;
-import com.android.internal.widget.LockSettingsInternal;
-import com.android.internal.widget.LockSettingsStateListener;
 import com.android.modules.utils.testing.ExtendedMockitoRule;
 import com.android.server.LocalServices;
 import com.android.server.SystemService;
 import com.android.server.SystemServiceManager;
+import com.android.server.locksettings.LockSettingsInternal;
+import com.android.server.locksettings.LockSettingsStateListener;
 import com.android.server.pm.UserManagerInternal;
 
 import org.junit.After;
@@ -113,14 +113,14 @@ import org.mockito.ArgumentMatcher;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
 
 @RunWith(ParameterizedAndroidJunit4.class)
 public class TrustManagerServiceTest {

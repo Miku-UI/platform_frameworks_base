@@ -39,18 +39,26 @@ constructor(
 
     val isLogoutEnabled: StateFlow<Boolean> =
         combine(
-                userRepository.isSecondaryUserLogoutEnabled,
-                userRepository.isLogoutToSystemUserEnabled,
+                userRepository.isPolicyManagerLogoutEnabled,
+                userRepository.isUserManagerLogoutEnabled,
                 Boolean::or,
             )
             .stateIn(applicationScope, SharingStarted.Eagerly, false)
 
+    val isLogoutToSystemUserEnabled: StateFlow<Boolean> = userRepository.isUserManagerLogoutEnabled
+
+    suspend fun logOutToSystemUser() {
+        if (isLogoutToSystemUserEnabled.value) {
+            userRepository.logOutWithUserManager()
+        }
+    }
+
     fun logOut() {
         applicationScope.launch {
-            if (userRepository.isSecondaryUserLogoutEnabled.value) {
-                userRepository.logOutSecondaryUser()
-            } else if (userRepository.isLogoutToSystemUserEnabled.value) {
-                userRepository.logOutToSystemUser()
+            if (userRepository.isPolicyManagerLogoutEnabled.value) {
+                userRepository.logOutWithPolicyManager()
+            } else if (userRepository.isUserManagerLogoutEnabled.value) {
+                userRepository.logOutWithUserManager()
             }
         }
     }

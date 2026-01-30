@@ -36,20 +36,25 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"Leiho bakar batean ireki daiteke aplikazioa"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"Baliteke aplikazioak ez funtzionatzea bigarren mailako pantailetan."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"Aplikazioa ezin da exekutatu bigarren mailako pantailatan."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"Aplikazioak ez ditu onartzen burbuilak"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"Pantaila-zatitzailea"</string>
     <string name="divider_title" msgid="1963391955593749442">"Pantaila-zatitzailea"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"Ezarri ezkerraldea pantaila osoan"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"Ezarri ezkerraldea % 70en"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"Ezarri ezkerraldea % 50en"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"Ezarri ezkerraldea % 30en"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"Ezarri eskuinaldea pantaila osoan"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"Aldatu goiko aplikazioa behekoagatik"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"Aldatu ezkerreko aplikazioa eskuinekoagatik"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"Ezarri goialdea pantaila osoan"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"Ezarri goialdea % 70en"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"Ezarri goialdea % 50en"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"Ezarri goialdea % 30en"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"Ezarri behealdea pantaila osoan"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"Jarri ezkerreko aplikazioa pantaila osoan"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"% 10 ezkerraldean, % 90 eskuinaldean"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"% 30 ezkerraldean, % 70 eskuinaldean"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"% 50 ezkerraldean, % 50 eskuinaldean"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"% 70 ezkerraldean, % 30 eskuinaldean"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"% 90 ezkerraldean, % 10 eskuinaldean"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"Jarri eskuineko aplikazioa pantaila osoan"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"Aldatu goiko aplikazioa behekoarekin eta mantendu oraingo zatiketa"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"Aldatu ezkerreko aplikazioa eskuinekoarekin eta mantendu oraingo zatiketa"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"Jarri goiko aplikazioa pantaila osoan"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"% 10 goialdean, % 90 behealdean"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"% 30 goialdean, % 70 behealdean"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"% 50 goialdean, % 50 behealdean"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"% 70 goialdean, % 30 behealdean"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"% 90 goialdean, % 10 behealdean"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"Jarri beheko aplikazioa pantaila osoan"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"Zatitu ezkerraldean"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"Zatitu eskuinaldean"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"Zatitu goialdean"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"Kudeatu leihoak"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"Aldatu aspektu-erlazioa"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"Optimizatu ikuspegia"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"Errore-ikonoa"</string>
     <string name="close_text" msgid="4986518933445178928">"Itxi"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"Itxi menua"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ordenagailuan leihoak erabiltzeko modua)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"Handitu pantaila"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"Aldatu tamaina"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"Aplikazioa ezin da hona ekarri"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"Ireki da aplikazioaren leiho berri bat"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"Aplikazioaren leihoa ixten"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"Minimizatu da aplikazioaren leihoa"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (fokuratuta)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (fokuratu gabe)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"Murgiltzailea"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"Leheneratu"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"Maximizatu"</string>

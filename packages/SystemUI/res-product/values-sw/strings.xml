@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Inacheza kwenye kompyuta hii kibao"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Unaweza kutambua mahali ilipo simu hii ukitumia programu ya Tafuta Kifaa Changu hata kama simu imezimwa"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Unaweza kutambua mahali kilipo kishikwambi hiki ukitumia programu ya Tafuta Kifaa Changu hata kama kimezimwa"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Unaweza kutambua mahali ilipo simu hii ukitumia programu ya Kitafutaji hata kama simu imezimwa"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Unaweza kutambua mahali kilipo kishikwambi hiki ukitumia programu ya Kitafutaji hata kama kimezimwa"</string>
 </resources>

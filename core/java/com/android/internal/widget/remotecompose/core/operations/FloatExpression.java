@@ -39,6 +39,7 @@ import com.android.internal.widget.remotecompose.core.serialize.Serializable;
 import com.android.internal.widget.remotecompose.core.serialize.SerializeTags;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Operation to deal with AnimatedFloats This is designed to be an optimized calculation for things
@@ -50,17 +51,17 @@ public class FloatExpression extends Operation
     private static final int OP_CODE = Operations.ANIMATED_FLOAT;
     private static final String CLASS_NAME = "FloatExpression";
     public int mId;
-    @NonNull public float[] mSrcValue;
-    @Nullable public float[] mSrcAnimation;
+    public @NonNull float [] mSrcValue;
+    public @Nullable float [] mSrcAnimation;
     @Nullable public FloatAnimation mFloatAnimation;
     @Nullable private SpringStopEngine mSpring;
-    @Nullable public float[] mPreCalcValue;
+    public @Nullable float [] mPreCalcValue;
     private float mLastChange = Float.NaN;
     private float mLastCalculatedValue = Float.NaN;
     @NonNull AnimatedFloatExpression mExp = new AnimatedFloatExpression();
     public static final int MAX_EXPRESSION_SIZE = 32;
 
-    public FloatExpression(int id, @NonNull float[] value, @Nullable float[] animation) {
+    public FloatExpression(int id, @NonNull float [] value, @Nullable float [] animation) {
         this.mId = id;
         this.mSrcValue = value;
         this.mSrcAnimation = animation;
@@ -159,7 +160,7 @@ public class FloatExpression extends Operation
                 try {
                     mLastCalculatedValue =
                             mExp.eval(
-                                    context.getCollectionsAccess(),
+                                    Objects.requireNonNull(context.getCollectionsAccess()),
                                     mPreCalcValue,
                                     mPreCalcValue.length);
                     mFloatAnimation.setTargetValue(mLastCalculatedValue);
@@ -172,7 +173,9 @@ public class FloatExpression extends Operation
                 }
             }
             float lastComputedValue = mFloatAnimation.get(t - mLastChange);
-            if (lastComputedValue != mLastAnimatedValue) {
+
+            if (lastComputedValue != mLastAnimatedValue
+                    || t - mLastChange <= mFloatAnimation.getDuration()) {
                 mLastAnimatedValue = lastComputedValue;
                 context.loadFloat(mId, lastComputedValue);
                 context.needsRepaint();
@@ -180,7 +183,9 @@ public class FloatExpression extends Operation
             }
         } else if (mSpring != null) { // support damped spring animation
             float lastComputedValue = mSpring.get(t - mLastChange);
-            if (lastComputedValue != mLastAnimatedValue) {
+            float epsilon = 0.01f;
+            if (lastComputedValue != mLastAnimatedValue
+                    || Math.abs(mSpring.getTargetValue() - lastComputedValue) > epsilon) {
                 mLastAnimatedValue = lastComputedValue;
                 context.loadFloat(mId, lastComputedValue);
                 context.needsRepaint();
@@ -188,7 +193,11 @@ public class FloatExpression extends Operation
         } else { // no animation
             float v = 0;
             try {
-                v = mExp.eval(context.getCollectionsAccess(), mPreCalcValue, mPreCalcValue.length);
+                v =
+                        mExp.eval(
+                                Objects.requireNonNull(context.getCollectionsAccess()),
+                                mPreCalcValue,
+                                mPreCalcValue.length);
             } catch (Exception e) {
                 throw new RuntimeException(this.toString() + " len = " + mPreCalcValue.length, e);
             }
@@ -208,7 +217,10 @@ public class FloatExpression extends Operation
         if (Float.isNaN(mLastChange)) {
             mLastChange = t;
         }
-        return mExp.eval(context.getCollectionsAccess(), mPreCalcValue, mPreCalcValue.length);
+        return mExp.eval(
+                Objects.requireNonNull(context.getCollectionsAccess()),
+                mPreCalcValue,
+                mPreCalcValue.length);
     }
 
     @Override
@@ -225,17 +237,11 @@ public class FloatExpression extends Operation
                 labels[i] = "[" + Utils.idStringFromNan(mSrcValue[i]) + "]";
             }
         }
-        if (mPreCalcValue == null) {
-            return "FloatExpression["
-                    + mId
-                    + "] = ("
-                    + AnimatedFloatExpression.toString(mSrcValue, labels)
-                    + ")";
-        }
+        float[] toDisplay = mPreCalcValue != null ? mPreCalcValue : mSrcValue;
         return "FloatExpression["
                 + mId
                 + "] = ("
-                + AnimatedFloatExpression.toString(mPreCalcValue, labels)
+                + AnimatedFloatExpression.toString(toDisplay, labels)
                 + ")";
     }
 
@@ -269,8 +275,8 @@ public class FloatExpression extends Operation
     public static void apply(
             @NonNull WireBuffer buffer,
             int id,
-            @NonNull float[] value,
-            @Nullable float[] animation) {
+            @NonNull float [] value,
+            @Nullable float [] animation) {
         buffer.start(OP_CODE);
         buffer.writeInt(id);
 
@@ -359,7 +365,7 @@ public class FloatExpression extends Operation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addTags(SerializeTags.EXPRESSION)
                 .addType(CLASS_NAME)

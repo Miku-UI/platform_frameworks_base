@@ -20,7 +20,7 @@ package android.telephony.ims.aidl;
 /**
  * Provides callback interface for FeatureProvisioning when a value has changed.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IFeatureProvisioningCallback {
     void onFeatureProvisioningChanged(int capability, int tech, boolean isProvisioned);

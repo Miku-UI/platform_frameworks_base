@@ -41,10 +41,7 @@ class KeyEventInteractorTest : SysuiTestCase() {
     @Before
     fun setup() {
         repository = FakeKeyEventRepository()
-        underTest =
-            KeyEventInteractor(
-                repository,
-            )
+        underTest = KeyEventInteractor(repository)
     }
 
     @Test
@@ -56,18 +53,5 @@ class KeyEventInteractorTest : SysuiTestCase() {
 
             repository.setPowerButtonDown(true)
             assertThat(isPowerDown).isTrue()
-        }
-
-    @Test
-    fun testPowerButtonBeingLongPressedInteractor() =
-        runTest {
-            val isPowerButtonLongPressed by collectLastValue(
-                underTest.isPowerButtonLongPressed)
-
-            repository.setPowerButtonLongPressed(false)
-            assertThat(isPowerButtonLongPressed).isFalse()
-
-            repository.setPowerButtonLongPressed(true)
-            assertThat(isPowerButtonLongPressed).isTrue()
         }
 }

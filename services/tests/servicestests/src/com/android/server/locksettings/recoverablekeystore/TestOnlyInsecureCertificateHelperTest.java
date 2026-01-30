@@ -9,6 +9,7 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.internal.widget.LockPatternUtils;
+import com.android.internal.widget.LockscreenCredential;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -25,32 +26,37 @@ public class TestOnlyInsecureCertificateHelperTest {
             = new TestOnlyInsecureCertificateHelper();
 
     @Test
-    public void testDoesCredentailSupportInsecureMode_forNonWhitelistedPassword() throws Exception {
-        assertThat(mHelper.doesCredentialSupportInsecureMode(
-                LockPatternUtils.CREDENTIAL_TYPE_PASSWORD, "secret12345".getBytes())).isFalse();
-        assertThat(mHelper.doesCredentialSupportInsecureMode(
-                LockPatternUtils.CREDENTIAL_TYPE_PASSWORD, "1234".getBytes())).isFalse();
+    public void testDoesCredentialSupportInsecureMode_forNonWhitelistedPassword() throws Exception {
+        assertThat(
+                        mHelper.doesCredentialSupportInsecureMode(
+                                LockscreenCredential.createPassword("secret12345")))
+                .isFalse();
+        assertThat(
+                        mHelper.doesCredentialSupportInsecureMode(
+                                LockscreenCredential.createPassword("1234")))
+                .isFalse();
     }
 
     @Test
-    public void testDoesCredentailSupportInsecureMode_forWhitelistedPassword() throws Exception {
-        assertThat(mHelper.doesCredentialSupportInsecureMode(
-                LockPatternUtils.CREDENTIAL_TYPE_PASSWORD,
-                TrustedRootCertificates.INSECURE_PASSWORD_PREFIX.getBytes())).isTrue();
+    public void testDoesCredentialSupportInsecureMode_forWhitelistedPassword() throws Exception {
+        assertThat(
+                        mHelper.doesCredentialSupportInsecureMode(
+                                LockscreenCredential.createPassword(
+                                        TrustedRootCertificates.INSECURE_PASSWORD_PREFIX)))
+                .isTrue();
 
-        assertThat(mHelper.doesCredentialSupportInsecureMode(
-                LockPatternUtils.CREDENTIAL_TYPE_PASSWORD,
-                (TrustedRootCertificates.INSECURE_PASSWORD_PREFIX + "12").getBytes())).isTrue();
+        assertThat(
+                        mHelper.doesCredentialSupportInsecureMode(
+                                LockscreenCredential.createPassword(
+                                        TrustedRootCertificates.INSECURE_PASSWORD_PREFIX + "12")))
+                .isTrue();
     }
 
     @Test
-    public void testDoesCredentailSupportInsecureMode_Pattern() throws Exception {
-        assertThat(mHelper.doesCredentialSupportInsecureMode(
-                LockPatternUtils.CREDENTIAL_TYPE_PATTERN,
-                TrustedRootCertificates.INSECURE_PASSWORD_PREFIX.getBytes())).isFalse();
-        assertThat(mHelper.doesCredentialSupportInsecureMode(
-                LockPatternUtils.CREDENTIAL_TYPE_NONE,
-                TrustedRootCertificates.INSECURE_PASSWORD_PREFIX.getBytes())).isFalse();
+    public void testDoesCredentialSupportInsecureMode_Pattern() throws Exception {
+        assertThat(mHelper.doesCredentialSupportInsecureMode(createPattern("1234"))).isFalse();
+        assertThat(mHelper.doesCredentialSupportInsecureMode(LockscreenCredential.createNone()))
+                .isFalse();
     }
 
     @Test
@@ -150,5 +156,10 @@ public class TestOnlyInsecureCertificateHelperTest {
     @Test
     public void testIsValidRootCertificateAlias_unknownCertAlias() {
         assertThat(mHelper.isValidRootCertificateAlias("unknown-root-certifiate-alias")).isFalse();
+    }
+
+    private static LockscreenCredential createPattern(String patternString) {
+        return LockscreenCredential.createPattern(
+                LockPatternUtils.byteArrayToPattern(patternString.getBytes()));
     }
 }

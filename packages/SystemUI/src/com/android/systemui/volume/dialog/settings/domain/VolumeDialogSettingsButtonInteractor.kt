@@ -18,10 +18,12 @@ package com.android.systemui.volume.dialog.settings.domain
 
 import android.app.ActivityManager
 import com.android.app.tracing.coroutines.flow.flowName
+import com.android.systemui.shade.domain.interactor.ShadeInteractor
 import com.android.systemui.statusbar.policy.DeviceProvisionedController
 import com.android.systemui.volume.Events
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialog
 import com.android.systemui.volume.dialog.dagger.scope.VolumeDialogScope
+import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.domain.interactor.VolumeDialogVisibilityInteractor
 import com.android.systemui.volume.dialog.shared.model.VolumeDialogVisibilityModel
 import com.android.systemui.volume.panel.domain.interactor.VolumePanelGlobalStateInteractor
@@ -41,6 +43,8 @@ constructor(
     private val deviceProvisionedController: DeviceProvisionedController,
     private val volumePanelGlobalStateInteractor: VolumePanelGlobalStateInteractor,
     private val visibilityInteractor: VolumeDialogVisibilityInteractor,
+    private val shadeInteractor: ShadeInteractor,
+    private val desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
 ) {
 
     val isVisible: StateFlow<Boolean> =
@@ -54,7 +58,15 @@ constructor(
             .stateIn(coroutineScope, SharingStarted.Eagerly, false)
 
     fun onButtonClicked() {
-        volumePanelGlobalStateInteractor.setVisible(true)
+        if (desktopAudioTileDetailsFeatureInteractor.isEnabled()) {
+            shadeInteractor.expandQuickSettingsShade(QS_SHADE_EXPAND_REASON)
+        } else {
+            volumePanelGlobalStateInteractor.setVisible(true)
+        }
         visibilityInteractor.dismissDialog(Events.DISMISS_REASON_SETTINGS_CLICKED)
+    }
+
+    private companion object {
+        const val QS_SHADE_EXPAND_REASON = "Volume dialog settings button clicked"
     }
 }

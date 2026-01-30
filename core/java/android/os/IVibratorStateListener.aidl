@@ -18,7 +18,7 @@ package android.os;
 
 /**
  * Listener for vibrator state.
- * {@hide}
+ * @hide
  */
 oneway interface IVibratorStateListener {
     /**

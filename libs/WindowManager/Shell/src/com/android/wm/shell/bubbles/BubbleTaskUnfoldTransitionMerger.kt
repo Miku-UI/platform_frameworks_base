@@ -26,8 +26,9 @@ interface BubbleTaskUnfoldTransitionMerger {
     /** Attempts to merge the transition. Returns `true` if the change was merged. */
     fun mergeTaskWithUnfold(
         taskInfo: ActivityManager.RunningTaskInfo,
+        info: TransitionInfo,
         change: TransitionInfo.Change,
         startT: SurfaceControl.Transaction,
-        finishT: SurfaceControl.Transaction
+        finishT: SurfaceControl.Transaction,
     ): Boolean
 }

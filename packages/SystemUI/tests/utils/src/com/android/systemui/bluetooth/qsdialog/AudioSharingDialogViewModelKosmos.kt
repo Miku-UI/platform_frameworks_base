@@ -19,6 +19,7 @@ package com.android.systemui.bluetooth.qsdialog
 import android.content.applicationContext
 import com.android.internal.logging.uiEventLogger
 import com.android.settingslib.bluetooth.CachedBluetoothDevice
+import com.android.systemui.bluetooth.ui.viewModel.AudioSharingDialogViewModel
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope

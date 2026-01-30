@@ -24,10 +24,16 @@ import android.app.IUiModeManagerCallback;
  * @hide
  */
 interface IUiModeManager {
+
     /**
      * @hide
      */
-    void addCallback(IUiModeManagerCallback callback);
+    void addCallback(IUiModeManagerCallback callback, int userId);
+
+    /**
+     * @hide
+     */
+    void removeCallback(IUiModeManagerCallback callback, int userId);
 
     /**
      * Enables the car mode. Only the system can do this.
@@ -48,9 +54,9 @@ interface IUiModeManager {
     void disableCarModeByCallingPackage(int flags, String callingPackage);
 
     /**
-     * Return the current running mode.
+     * Returns the current running mode on the given display.
      */
-    int getCurrentModeType();
+    int getCurrentModeType(int displayId);
 
     /**
      * Sets the night mode.
@@ -63,14 +69,14 @@ interface IUiModeManager {
     void setNightMode(int mode);
 
     /**
-     * Gets the currently configured night mode.
+     * Returns the currently configured night mode on the given display.
      * <p>
      * Returns
      * <ol>notnight mode</ol>
      * <ol>night mode</ol>
      * <ol>custom schedule mode switching</ol>
      */
-    int getNightMode();
+    int getNightMode(int displayId);
 
     /**
      * Sets the current night mode to {@link #MODE_NIGHT_CUSTOM} with the custom night mode type
@@ -215,15 +221,21 @@ interface IUiModeManager {
     int getActiveProjectionTypes();
 
     /**
-     * Returns the contrast for the current user.
+     * Returns the contrast for the given user.
      */
-    float getContrast();
-
+    float getContrast(int userId);
 
     /**
-     * Returns the force invert state.
+     * Returns the force invert state for the given user.
      *
      * @hide
      */
-    int getForceInvertState();
+    int getForceInvertState(int userId);
+
+    /**
+     * Returns the force invert override state for the given package.
+     *
+     * @hide
+     */
+    int getForceInvertOverrideState(int userId, String packageName);
 }

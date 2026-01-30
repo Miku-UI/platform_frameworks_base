@@ -29,6 +29,7 @@
 #include <android/asset_manager.h>
 #include <android/bitmap.h>
 #include <android/data_space.h>
+#include <android/graphics/bitmap.h>
 #include <android/imagedecoder.h>
 #include <android/rect.h>
 #include <fcntl.h>
@@ -197,7 +198,7 @@ static const ImageDecoder* toDecoder(const AImageDecoder* d) {
 // version returns kGray_8_SkColorType for ANDROID_BITMAP_FORMAT_A_8. SkCodec
 // allows decoding single channel images to gray, which Android then treats
 // as A_8/ALPHA_8.
-static SkColorType getColorType(AndroidBitmapFormat format) {
+static SkColorType getColorType(uint32_t format) {
     switch (format) {
         case ANDROID_BITMAP_FORMAT_RGBA_8888:
             return kN32_SkColorType;
@@ -211,6 +212,12 @@ static SkColorType getColorType(AndroidBitmapFormat format) {
             return kRGBA_F16_SkColorType;
         case ANDROID_BITMAP_FORMAT_RGBA_1010102:
             return kRGBA_1010102_SkColorType;
+        case ANDROID_BITMAP_FORMAT_BGRA_8888:
+            return kBGRA_8888_SkColorType;
+        case ANDROID_BITMAP_FORMAT_BGRA_1010102:
+            return kBGRA_1010102_SkColorType;
+        case ANDROID_BITMAP_FORMAT_BGRX_1010102:
+            return kBGR_101010x_SkColorType;
         default:
             return kUnknown_SkColorType;
     }

@@ -183,6 +183,12 @@ public class NotificationHeaderView extends RelativeLayout {
 
     /**
      * Center top line  and expand button vertically.
+     * Note that this is primarily only used as a remotable method to ensure the correct initial
+     * state of the RemoteView. For further updating the position after the RemoteView has been
+     * created, we directly apply a translation obtained from
+     * {@link NotificationHeaderView#getTopLineTranslation()} and
+     * {@link NotificationHeaderView#getExpandButtonTranslation()} to the corresponding children, in
+     * order to have a smoother transition.
      */
     @RemotableViewMethod
     public void centerTopLine(boolean center) {

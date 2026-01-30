@@ -18,7 +18,7 @@ package com.android.ims.internal;
 
 /**
  * Interface from ImsFeature in the ImsService to ImsServiceController.
- * {@hide}
+ * @hide
  */
 oneway interface IImsFeatureStatusCallback {
     void notifyImsFeatureStatus(int featureStatus);

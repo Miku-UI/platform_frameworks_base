@@ -21,8 +21,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import android.os.LocaleList;
-import android.view.inputmethod.InputMethodSubtype;
-import android.view.inputmethod.InputMethodSubtype.InputMethodSubtypeBuilder;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
@@ -37,7 +35,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IllformedLocaleException;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -45,41 +42,6 @@ import java.util.Set;
 @SmallTest
 @RunWith(AndroidJUnit4.class)
 public class LocaleStoreTest {
-    @Test
-    public void testTransformImeLanguageTagToLocaleInfo() {
-        List<InputMethodSubtype> list = List.of(
-                new InputMethodSubtypeBuilder().setLanguageTag("en-US").build(),
-                new InputMethodSubtypeBuilder().setLanguageTag("zh-TW").build(),
-                new InputMethodSubtypeBuilder().setLanguageTag("ja-JP").build());
-
-        Set<LocaleInfo> localeSet = LocaleStore.transformImeLanguageTagToLocaleInfo(list);
-
-        Set<String> expectedLanguageTag = Set.of("en-US", "zh-TW", "ja-JP");
-        assertEquals(localeSet.size(), expectedLanguageTag.size());
-        for (LocaleInfo info : localeSet) {
-            assertEquals(info.mSuggestionFlags, LocaleInfo.SUGGESTION_TYPE_IME_LANGUAGE);
-            assertTrue(expectedLanguageTag.contains(info.getId()));
-        }
-    }
-
-    @Test
-    public void testTransformImeLanguageTagToLocaleInfo_duplicateTagFilter() {
-        List<InputMethodSubtype> list = List.of(
-                new InputMethodSubtypeBuilder().setLanguageTag("en-US").build(),
-                new InputMethodSubtypeBuilder().setLanguageTag("en-US").build(),
-                new InputMethodSubtypeBuilder().setLanguageTag("en-US").build(),
-                new InputMethodSubtypeBuilder().setLanguageTag("zh-TW").build(),
-                new InputMethodSubtypeBuilder().setLanguageTag("ja-JP").build());
-
-        Set<LocaleInfo> localeSet = LocaleStore.transformImeLanguageTagToLocaleInfo(list);
-
-        Set<String> expectedLanguageTag = Set.of("en-US", "zh-TW", "ja-JP");
-        assertEquals(localeSet.size(), expectedLanguageTag.size());
-        for (LocaleInfo info : localeSet) {
-            assertEquals(info.mSuggestionFlags, LocaleInfo.SUGGESTION_TYPE_IME_LANGUAGE);
-            assertTrue(expectedLanguageTag.contains(info.getId()));
-        }
-    }
 
     @Test
     public void convertExplicitLocales_noExplicitLcoales_returnEmptyHashMap() {

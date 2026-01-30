@@ -48,13 +48,17 @@ object KeyguardSettingsViewBinder {
     fun bind(
         view: View,
         viewModel: KeyguardSettingsMenuViewModel,
-        touchHandlingViewModel: KeyguardTouchHandlingViewModel,
+        touchHandlingViewModelFactory: KeyguardTouchHandlingViewModel.Factory,
         rootViewModel: KeyguardRootViewModel?,
         vibratorHelper: VibratorHelper,
         activityStarter: ActivityStarter,
     ): DisposableHandle {
         val disposableHandle =
             view.repeatWhenAttached {
+                val touchHandlingViewModel: KeyguardTouchHandlingViewModel by lazy {
+                    touchHandlingViewModelFactory.create()
+                }
+
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
                     launch("$TAG#viewModel.isVisible") {
                         viewModel.isVisible.distinctUntilChanged().collect { isVisible ->

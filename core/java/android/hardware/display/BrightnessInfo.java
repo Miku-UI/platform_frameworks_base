@@ -57,12 +57,16 @@ public final class BrightnessInfo implements Parcelable {
      */
     public static final int HIGH_BRIGHTNESS_MODE_HDR = 2;
 
-    @IntDef(prefix = {"BRIGHTNESS_MAX_REASON_"}, value = {
-            BRIGHTNESS_MAX_REASON_NONE,
-            BRIGHTNESS_MAX_REASON_THERMAL,
-            BRIGHTNESS_MAX_REASON_POWER_IC,
-            BRIGHTNESS_MAX_REASON_WEAR_BEDTIME_MODE
-    })
+    @IntDef(
+            prefix = {"BRIGHTNESS_MAX_REASON_"},
+            value = {
+                BRIGHTNESS_MAX_REASON_NONE,
+                BRIGHTNESS_MAX_REASON_THERMAL,
+                BRIGHTNESS_MAX_REASON_POWER_IC,
+                BRIGHTNESS_MAX_REASON_WEAR_BEDTIME_MODE,
+                BRIGHTNESS_MAX_REASON_MODES,
+                BRIGHTNESS_MAX_REASON_MINMODE
+            })
     @Retention(RetentionPolicy.SOURCE)
     public @interface BrightnessMaxReason {}
 
@@ -85,6 +89,16 @@ public final class BrightnessInfo implements Parcelable {
      * Maximum brightness is restricted due to the Wear bedtime mode.
      */
     public static final int BRIGHTNESS_MAX_REASON_WEAR_BEDTIME_MODE = 3;
+
+    /**
+     * Maximum brightness is restricted by {@link android.app.NotificationManager} for quiet modes
+     */
+    public static final int BRIGHTNESS_MAX_REASON_MODES = 4;
+
+    /**
+     * Maximum brightness is restricted due to the MinMode
+     */
+    public static final int BRIGHTNESS_MAX_REASON_MINMODE = 5;
 
     /** Brightness */
     public final float brightness;
@@ -169,6 +183,8 @@ public final class BrightnessInfo implements Parcelable {
                 return "power IC";
             case BRIGHTNESS_MAX_REASON_WEAR_BEDTIME_MODE:
                 return "wear bedtime";
+            case BRIGHTNESS_MAX_REASON_MODES:
+                return "modes";
         }
         return "invalid";
     }

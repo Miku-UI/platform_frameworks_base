@@ -77,6 +77,7 @@ class InputGestureDataAdapterTest : SysuiTestCase() {
             name = FAKE_ACTIVITY_NAME
             icon = 0x1
             nonLocalizedLabel = TEST_SHORTCUT_LABEL
+            packageName = TEST_ROLE_PACKAGE
         }
     private val mockSelectorIntent: Intent = mock()
 

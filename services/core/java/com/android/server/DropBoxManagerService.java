@@ -17,6 +17,8 @@
 package com.android.server;
 
 import android.Manifest;
+import android.annotation.CurrentTimeMillisLong;
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.AppOpsManager;
@@ -202,12 +204,13 @@ public final class DropBoxManagerService extends SystemService {
         }
 
         @Override
-        public DropBoxManager.Entry getNextEntry(String tag, long millis, String callingPackage) {
+        public IDropBoxManagerService.Entry getNextEntry(
+                String tag, long millis, String callingPackage) {
             return getNextEntryWithAttribution(tag, millis, callingPackage, null);
         }
 
         @Override
-        public DropBoxManager.Entry getNextEntryWithAttribution(String tag, long millis,
+        public IDropBoxManagerService.Entry getNextEntryWithAttribution(String tag, long millis,
                 String callingPackage, String callingAttributionTag) {
             return DropBoxManagerService.this.getNextEntry(tag, millis, callingPackage,
                     callingAttributionTag);
@@ -634,7 +637,10 @@ public final class DropBoxManagerService extends SystemService {
         }
     }
 
-    public synchronized DropBoxManager.Entry getNextEntry(String tag, long millis,
+    /**
+     * Implementation returning the expected entry from the AIDL.
+     */
+    public synchronized @Nullable IDropBoxManagerService.Entry getNextEntry(String tag, long millis,
             String callingPackage, @Nullable String callingAttributionTag) {
         if (!checkPermission(Binder.getCallingUid(), callingPackage, callingAttributionTag)) {
             return null;
@@ -653,12 +659,11 @@ public final class DropBoxManagerService extends SystemService {
         for (EntryFile entry : list.contents.tailSet(new EntryFile(millis + 1))) {
             if (entry.tag == null) continue;
             if ((entry.flags & DropBoxManager.IS_EMPTY) != 0) {
-                return new DropBoxManager.Entry(entry.tag, entry.timestampMillis);
+                return createDropBoxEntry(entry.tag, entry.timestampMillis);
             }
             final File file = entry.getFile(mDropBoxDir);
             try {
-                return new DropBoxManager.Entry(
-                        entry.tag, entry.timestampMillis, file, entry.flags);
+                return createDropBoxEntry(entry.tag, entry.timestampMillis, file, entry.flags);
             } catch (IOException e) {
                 Slog.wtf(TAG, "Can't read: " + file, e);
                 // Continue to next file
@@ -666,6 +671,45 @@ public final class DropBoxManagerService extends SystemService {
         }
 
         return null;
+    }
+
+
+    /**
+     * Mimics the legacy constructor implementation of {@link DropBoxManager.Entry} that was
+     * previously used to return from {@link getNextEntry}.
+     */
+    private static IDropBoxManagerService.Entry createDropBoxEntry(
+                @NonNull String tag, @CurrentTimeMillisLong long millis) {
+        if (tag == null) throw new NullPointerException("createDropBoxEntry tag == null");
+
+        IDropBoxManagerService.Entry entry = new IDropBoxManagerService.Entry();
+        entry.tag = tag;
+        entry.timestampMillis = millis;
+        entry.data = null;
+        entry.fd = null;
+        entry.flags = DropBoxManager.IS_EMPTY;
+        return entry;
+    }
+
+    /**
+     * Mimics the legacy constructor implementation of {@link DropBoxManager.Entry} that was
+     * previously used to return from {@link getNextEntry}.
+     */
+    private static IDropBoxManagerService.Entry createDropBoxEntry(
+            @NonNull String tag, @CurrentTimeMillisLong long millis,
+            @NonNull File data, @DropBoxManager.Flags int flags)throws IOException {
+        if (tag == null) throw new NullPointerException(
+                "createDropBoxEntry (with file) tag == null");
+        if ((flags & DropBoxManager.IS_EMPTY) != 0) throw new IllegalArgumentException(
+                "Bad flags: " + flags);
+
+        IDropBoxManagerService.Entry entry = new IDropBoxManagerService.Entry();
+        entry.tag = tag;
+        entry.timestampMillis = millis;
+        entry.data = null;
+        entry.fd = ParcelFileDescriptor.open(data, ParcelFileDescriptor.MODE_READ_ONLY);
+        entry.flags = flags;
+        return entry;
     }
 
     private synchronized void setLowPriorityRateLimit(long period) {

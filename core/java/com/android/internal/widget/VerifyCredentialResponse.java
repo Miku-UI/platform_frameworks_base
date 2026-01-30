@@ -23,8 +23,11 @@ import android.os.Parcelable;
 import android.service.gatekeeper.GateKeeperResponse;
 import android.util.Slog;
 
+import com.android.internal.util.Preconditions;
+
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.time.Duration;
 
 /**
  * Response object for a ILockSettings credential verification request.
@@ -32,18 +35,57 @@ import java.lang.annotation.RetentionPolicy;
  */
 public final class VerifyCredentialResponse implements Parcelable {
 
-    public static final int RESPONSE_ERROR = -1;
-    public static final int RESPONSE_OK = 0;
-    public static final int RESPONSE_RETRY = 1;
-    @IntDef({RESPONSE_ERROR,
-            RESPONSE_OK,
-            RESPONSE_RETRY})
+    /**
+     * Credential verification failed for a reason that isn't covered by one of the more specific
+     * response codes.
+     */
+    private static final int RESPONSE_OTHER_ERROR = -1;
+
+    /** Credential was successfully verified. */
+    private static final int RESPONSE_OK = 0;
+
+    /**
+     * The credential could not be verified because a timeout is still active. {@link #getTimeout()}
+     * gives the currently active timeout.
+     *
+     * <p>Alternatively, a timeout was not active, the credential was incorrect, and there is a
+     * timeout before the <em>next</em> attempt will be allowed. {@link #getTimeout()} gives the
+     * newly active timeout. The preferred response code in this case is {@link
+     * #RESPONSE_CRED_INCORRECT}, but some devices use a rate-limiting HAL implementation that does
+     * not differentiate this case from the "timeout is still active" case.
+     */
+    private static final int RESPONSE_RETRY = 1;
+
+    /** Credential was shorter than the minimum length. */
+    private static final int RESPONSE_CRED_TOO_SHORT = 2;
+
+    /** Credential was incorrect and was already tried recently. */
+    private static final int RESPONSE_CRED_ALREADY_TRIED = 3;
+
+    /**
+     * Credential was incorrect and none of {@link #RESPONSE_RETRY}, {@link
+     * #RESPONSE_CRED_TOO_SHORT}, or {@link #RESPONSE_CRED_ALREADY_TRIED} applies.
+     *
+     * <p>{@link #getTimeout()} gives the newly active timeout, if any.
+     */
+    private static final int RESPONSE_CRED_INCORRECT = 4;
+
+    @IntDef({
+        RESPONSE_OTHER_ERROR,
+        RESPONSE_OK,
+        RESPONSE_RETRY,
+        RESPONSE_CRED_TOO_SHORT,
+        RESPONSE_CRED_ALREADY_TRIED,
+        RESPONSE_CRED_INCORRECT
+    })
     @Retention(RetentionPolicy.SOURCE)
     @interface ResponseCode {}
 
+    private static final Duration MAX_TIMEOUT = Duration.ofMillis(Integer.MAX_VALUE);
+
     public static final VerifyCredentialResponse OK = new VerifyCredentialResponse.Builder()
             .build();
-    public static final VerifyCredentialResponse ERROR = fromError();
+    public static final VerifyCredentialResponse OTHER_ERROR = fromError(RESPONSE_OTHER_ERROR);
     private static final String TAG = "VerifyCredentialResponse";
 
     private final @ResponseCode int mResponseCode;
@@ -101,10 +143,8 @@ public final class VerifyCredentialResponse implements Parcelable {
     }
 
     /**
-     * Since timeouts are always an error, provide a way to create the VerifyCredentialResponse
-     * object directly. None of the other fields (Gatekeeper HAT, Gatekeeper Password, etc)
-     * are valid in this case. Similarly, the response code will always be
-     * {@link #RESPONSE_RETRY}.
+     * Builds a {@link VerifyCredentialResponse} with {@link #RESPONSE_RETRY} and the given timeout
+     * in milliseconds.
      */
     public static VerifyCredentialResponse fromTimeout(int timeout) {
         return new VerifyCredentialResponse(RESPONSE_RETRY,
@@ -114,11 +154,74 @@ public final class VerifyCredentialResponse implements Parcelable {
     }
 
     /**
-     * Since error (incorrect password) should never result in any of the other fields from
-     * being populated, provide a default method to return a VerifyCredentialResponse.
+     * Builds a {@link VerifyCredentialResponse} with {@link #RESPONSE_RETRY} and the given timeout.
+     *
+     * <p>The timeout is clamped to fit in an int. See {@link #timeoutToClampedMillis(Duration)}.
      */
+    public static VerifyCredentialResponse fromTimeout(Duration timeout) {
+        return fromTimeout(timeoutToClampedMillis(timeout));
+    }
+
+    /**
+     * Builds a {@link VerifyCredentialResponse} with {@link #RESPONSE_CRED_INCORRECT} and the given
+     * timeout.
+     *
+     * <p>The timeout is clamped to fit in an int. See {@link #timeoutToClampedMillis(Duration)}.
+     */
+    public static VerifyCredentialResponse credIncorrect(Duration timeout) {
+        return new VerifyCredentialResponse(
+                VerifyCredentialResponse.RESPONSE_CRED_INCORRECT,
+                timeoutToClampedMillis(timeout),
+                /* gatekeeperHAT= */ null,
+                /* gatekeeperPasswordHandle= */ 0L);
+    }
+
+    /**
+     * Clamps the given timeout to fit in an int that holds a non-negative milliseconds value.
+     *
+     * <p>A negative timeout should never occur here, since the rate-limiters do not report negative
+     * timeouts. If a negative timeout is seen anyway, fail secure and treat it as possibly intended
+     * to be an unsigned value, i.e. clamp it to MAX_VALUE rather than MIN_VALUE.
+     */
+    private static int timeoutToClampedMillis(Duration timeout) {
+        if (timeout.isNegative() || timeout.compareTo(MAX_TIMEOUT) > 0) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) timeout.toMillis();
+    }
+
+    /** Builds a {@link VerifyCredentialResponse} with {@link #RESPONSE_OTHER_ERROR}. */
     public static VerifyCredentialResponse fromError() {
-        return new VerifyCredentialResponse(RESPONSE_ERROR,
+        return fromError(RESPONSE_OTHER_ERROR);
+    }
+
+    /** Builds a {@link VerifyCredentialResponse} with {@link #RESPONSE_CRED_TOO_SHORT}. */
+    public static VerifyCredentialResponse credTooShort() {
+        return fromError(RESPONSE_CRED_TOO_SHORT);
+    }
+
+    /** Builds a {@link VerifyCredentialResponse} with {@link #RESPONSE_CRED_ALREADY_TRIED}. */
+    public static VerifyCredentialResponse credAlreadyTried() {
+        return fromError(RESPONSE_CRED_ALREADY_TRIED);
+    }
+
+    /** Builds a {@link VerifyCredentialResponse} with {@link #RESPONSE_CRED_INCORRECT}. */
+    public static VerifyCredentialResponse credIncorrect() {
+        return fromError(RESPONSE_CRED_INCORRECT);
+    }
+
+    /**
+     * Builds a {@link VerifyCredentialResponse} for an error response that does not use any of the
+     * additional fields.
+     */
+    private static VerifyCredentialResponse fromError(@ResponseCode int responseCode) {
+        Preconditions.checkArgument(
+                responseCode == RESPONSE_OTHER_ERROR
+                        || responseCode == RESPONSE_CRED_TOO_SHORT
+                        || responseCode == RESPONSE_CRED_ALREADY_TRIED
+                        || responseCode == RESPONSE_CRED_INCORRECT);
+        return new VerifyCredentialResponse(
+                responseCode,
                 0 /* timeout */,
                 null /* gatekeeperHAT */,
                 0L /* gatekeeperPasswordHandle */);
@@ -130,11 +233,6 @@ public final class VerifyCredentialResponse implements Parcelable {
         mTimeout = timeout;
         mGatekeeperHAT = gatekeeperHAT;
         mGatekeeperPasswordHandle = gatekeeperPasswordHandle;
-    }
-
-    public VerifyCredentialResponse stripPayload() {
-        return new VerifyCredentialResponse(mResponseCode, mTimeout,
-                null /* gatekeeperHAT */, 0L /* gatekeeperPasswordHandle */);
     }
 
     @Override
@@ -167,12 +265,62 @@ public final class VerifyCredentialResponse implements Parcelable {
         return mTimeout;
     }
 
-    public @ResponseCode int getResponseCode() {
-        return mResponseCode;
+    public Duration getTimeoutAsDuration() {
+        return Duration.ofMillis(mTimeout);
     }
 
+    /** Returns true if credential verification succeeded. */
     public boolean isMatched() {
         return mResponseCode == RESPONSE_OK;
+    }
+
+    /**
+     * Returns true if credential verification failed and there is a timeout before the next request
+     * will be allowed.
+     */
+    public boolean hasTimeout() {
+        if (android.security.Flags.softwareRatelimiter()) {
+            // Check mTimeout directly. It can be nonzero for either RESPONSE_RETRY or
+            // RESPONSE_CRED_INCORRECT.
+            return mTimeout != 0;
+        }
+        return mResponseCode == RESPONSE_RETRY;
+    }
+
+    /**
+     * Returns true if credential verification failed because the credential was shorter than the
+     * minimum length.
+     */
+    public boolean isCredTooShort() {
+        return mResponseCode == RESPONSE_CRED_TOO_SHORT;
+    }
+
+    /**
+     * Returns true if credential verification failed because the credential was incorrect and was
+     * already tried recently.
+     */
+    public boolean isCredAlreadyTried() {
+        return mResponseCode == RESPONSE_CRED_ALREADY_TRIED;
+    }
+
+    /**
+     * Returns true if the credential is known for certain to be incorrect. Returns false in all
+     * other cases: credential verification succeeded, or credential verification failed but it is
+     * not known for certain that the credential is incorrect. (A credential that failed to verify
+     * could still be correct if there is an active timeout or if there was a transient error.)
+     */
+    public boolean isCredCertainlyIncorrect() {
+        return mResponseCode == RESPONSE_CRED_TOO_SHORT
+                || mResponseCode == RESPONSE_CRED_ALREADY_TRIED
+                || mResponseCode == RESPONSE_CRED_INCORRECT;
+    }
+
+    /**
+     * Returns true if credential verification failed for a reason that isn't covered by {@link
+     * #hasTimeout()} or {@link #isCredCertainlyIncorrect()}.
+     */
+    public boolean isOtherError() {
+        return mResponseCode == RESPONSE_OTHER_ERROR;
     }
 
     @Override

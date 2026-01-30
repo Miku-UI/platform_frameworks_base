@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Estableciendo conexión…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Conectado<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Emparejando…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"No se puede emparejar"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"No se puede conectar"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Conectado a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> (sin audio de teléfono)"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Conectado (sin audio multimedia) a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Conectado a <xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> (sin audio de teléfono ni multimedia)"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"Izquierdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> de batería. Derecho: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Izquierdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Derecho: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Funda: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Izquierdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, funda: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Derecho: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, funda: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Izquierdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, derecho: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"I: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, F: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, D: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> de batería"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Izquierda <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Derecha <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Activo"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Activo (solo derecho)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Activo (izquierdo y derecho)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"No se han podido actualizar los alrededores"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"No se ha podido actualizar el preajuste"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Seleccionado"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Activo (solo multimedia). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Activo (solo multimedia). Izquierdo: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g> de batería. Derecho: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> de batería."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Dispositivo invitado. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> de batería."</string>
@@ -264,7 +273,7 @@
     <string name="enable_adb_wireless_summary" msgid="7344391423657093011">"Activa el modo de depuración cuando haya conexión Wi‑Fi"</string>
     <string name="adb_wireless_error" msgid="721958772149779856">"Error"</string>
     <string name="adb_wireless_settings" msgid="2295017847215680229">"Depuración inalámbrica"</string>
-    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Para ver y utilizar los dispositivos disponibles, activa la depuración inalámbrica"</string>
+    <string name="adb_wireless_list_empty_off" msgid="1713707973837255490">"Para ver y usar los dispositivos disponibles, activa la depuración inalámbrica"</string>
     <string name="adb_pair_method_qrcode_title" msgid="6982904096137468634">"Emparejar dispositivo con código QR"</string>
     <string name="adb_pair_method_qrcode_summary" msgid="7130694277228970888">"Empareja nuevos dispositivos con el escáner de códigos QR"</string>
     <string name="adb_pair_method_code_title" msgid="1122590300445142904">"Emparejar dispositivo con código de sincronización"</string>
@@ -292,7 +301,7 @@
     <string name="bugreport_in_power_summary" msgid="1885529649381831775">"Muestra un botón en el menú de encendido para crear un informe de errores"</string>
     <string name="keep_screen_on" msgid="1187161672348797558">"Pantalla activa"</string>
     <string name="keep_screen_on_summary" msgid="1510731514101925829">"La pantalla nunca entra en modo Suspensión si el dispositivo se está cargando"</string>
-    <string name="bt_hci_snoop_log" msgid="7291287955649081448">"Habilitar registro de Bluetooth HCI"</string>
+    <string name="bt_hci_snoop_log" msgid="7291287955649081448">"Habilitar el registro de Bluetooth HCI"</string>
     <string name="bt_hci_snoop_log_summary" msgid="6808538971394092284">"Capturar paquetes de Bluetooth (después de cambiar esta opción, desactiva y activa el Bluetooth)"</string>
     <string name="oem_unlock_enable" msgid="5334869171871566731">"Desbloqueo de OEM"</string>
     <string name="oem_unlock_enable_summary" msgid="5857388174390953829">"Permitir desbloquear el bootloader"</string>
@@ -336,11 +345,11 @@
     <string name="private_dns_mode_provider_failure" msgid="8356259467861515108">"No se ha podido establecer la conexión"</string>
     <string name="wifi_display_certification_summary" msgid="8111151348106907513">"Muestra opciones para la certificación de la pantalla inalámbrica"</string>
     <string name="wifi_verbose_logging_summary" msgid="4993823188807767892">"Aumenta el nivel de registro de la conexión Wi-Fi y se muestra por SSID RSSI en el selector Wi-Fi"</string>
-    <string name="wifi_scan_throttling_summary" msgid="2577105472017362814">"Reduce el consumo de batería y mejora el rendimiento de la red"</string>
-    <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Si este modo está habilitado, es posible que la dirección MAC del dispositivo cambie cada vez que se conecte a una red que tenga habilitada la aleatorización de MAC."</string>
+    <string name="wifi_scan_throttling_summary" msgid="2577105472017362814">"Reduce el consumo excesivo de batería y mejora el rendimiento de la red"</string>
+    <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"Si este modo está habilitado, es posible que la dirección MAC del dispositivo cambie cada vez que se conecte a una red que tenga habilitada la aleatorización de MAC"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Medida"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"No medida"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Tamaños de los búferes de registro"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Tamaño del búfer del registrador de eventos"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Elige el tamaño del Logger por búfer"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"¿Borrar almacenamiento continuo del registrador?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"Cuando ya no supervisamos la actividad con el registrador de forma continua, estamos obligados a borrar los datos del registrador almacenados en el dispositivo."</string>
@@ -363,7 +372,7 @@
     <string name="verify_apps_over_usb_title" msgid="6031809675604442636">"Verificar aplicaciones por USB"</string>
     <string name="verify_apps_over_usb_summary" msgid="1317933737581167839">"Comprueba las aplicaciones instaladas por ADB/ADT para detectar comportamientos dañinos"</string>
     <string name="bluetooth_show_devices_without_names_summary" msgid="780964354377854507">"Muestra los dispositivos Bluetooth sin nombre (solo direcciones MAC)"</string>
-    <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"Inhabilita la función de volumen absoluto de Bluetooth si se producen problemas de \\nvolumen con dispositivos remotos (p. ej., volumen excesivamente alto o falta de control)"</string>
+    <string name="bluetooth_disable_absolute_volume_summary" msgid="2006309932135547681">"Inhabilita la función de volumen absoluto de Bluetooth si se producen problemas de volumen con dispositivos remotos (p. ej., volumen excesivamente alto o falta de control)"</string>
     <string name="bluetooth_enable_gabeldorsche_summary" msgid="2054730331770712629">"Habilita la pila de funciones de Bluetooth Gabeldorsche"</string>
     <string name="enhanced_connectivity_summary" msgid="1576414159820676330">"Habilita la función de conectividad mejorada."</string>
     <string name="enable_terminal_title" msgid="3834790541986303654">"Terminal local"</string>
@@ -387,7 +396,7 @@
     <string name="media_category" msgid="8122076702526144053">"Multimedia"</string>
     <string name="debug_monitoring_category" msgid="1597387133765424994">"Supervisión"</string>
     <string name="window_management_category" msgid="2015535427098365170">"Gestión de ventanas"</string>
-    <string name="strict_mode" msgid="889864762140862437">"Modo Estricto habilitado"</string>
+    <string name="strict_mode" msgid="889864762140862437">"Modo estricto habilitado"</string>
     <string name="strict_mode_summary" msgid="1838248687233554654">"Hace parpadear la pantalla si las aplicaciones tardan mucho en el subproceso principal"</string>
     <string name="pointer_location" msgid="7516929526199520173">"Ubicación del puntero"</string>
     <string name="pointer_location_summary" msgid="957120116989798464">"Superpone los datos de las pulsaciones en la pantalla"</string>
@@ -398,12 +407,12 @@
     <string name="touchpad_visualizer" msgid="3707916068870825115">"Mostrar entrada del panel táctil"</string>
     <string name="touchpad_visualizer_summary" msgid="4056080018119847449">"Superposición en pantalla que muestra los datos introducidos en el panel táctil y los gestos reconocidos"</string>
     <string name="show_screen_updates" msgid="2078782895825535494">"Mostrar cambios de superficies"</string>
-    <string name="show_screen_updates_summary" msgid="2126932969682087406">"Hace parpadear todas las superficies de la ventana cuando se actualizan"</string>
+    <string name="show_screen_updates_summary" msgid="2126932969682087406">"Hace parpadear todas las superficies de ventanas cuando se actualizan"</string>
     <string name="show_hw_screen_updates" msgid="2021286231267747506">"Ver actualizaciones de vista"</string>
-    <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"Hacer parpadear las vistas dentro de las ventanas cuando se dibujan"</string>
+    <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"Hace parpadear las vistas dentro de las ventanas cuando se dibujan"</string>
     <string name="show_hw_layers_updates" msgid="5268370750002509767">"Ver actualizaciones de capas de hardware"</string>
-    <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"Hacer parpadear las capas de hardware en verde cuando se actualizan"</string>
-    <string name="debug_hw_overdraw" msgid="8944851091008756796">"Depurar sobredibujos de GPU"</string>
+    <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"Hace parpadear las capas de hardware en verde cuando se actualizan"</string>
+    <string name="debug_hw_overdraw" msgid="8944851091008756796">"Depurar overdraw de GPU"</string>
     <string name="disable_overlays" msgid="4206590799671557143">"Inhabilitar superposiciones de hardware"</string>
     <string name="disable_overlays_summary" msgid="1954852414363338166">"Usa siempre la GPU para componer pantallas"</string>
     <string name="simulate_color_space" msgid="1206503300335835151">"Simular espacio de color"</string>
@@ -415,7 +424,7 @@
     <string name="force_rtl_layout_all_locales" msgid="8690762598501599796">"Forzar dirección RTL"</string>
     <string name="force_rtl_layout_all_locales_summary" msgid="6663016859517239880">"Fuerza la dirección RTL para todos los idiomas"</string>
     <string name="transparent_navigation_bar" msgid="1933192171384678484">"Barra de navegación transparente"</string>
-    <string name="transparent_navigation_bar_summary" msgid="5454359021817330722">"Haz que el color de fondo de la barra de navegación sea transparente de forma predeterminada"</string>
+    <string name="transparent_navigation_bar_summary" msgid="5454359021817330722">"Hace que el color de fondo de la barra de navegación sea transparente de forma predeterminada"</string>
     <string name="window_blurs" msgid="6831008984828425106">"Permitir difuminar ventanas"</string>
     <string name="force_msaa" msgid="4081288296137775550">"Forzar MSAA 4x"</string>
     <string name="force_msaa_summary" msgid="9070437493586769500">"Habilita MSAA 4x en aplicaciones de OpenGL ES 2.0"</string>
@@ -424,7 +433,7 @@
     <string name="enable_gpu_debug_layers" msgid="4986675516188740397">"Activar capas de depuración de GPU"</string>
     <string name="enable_gpu_debug_layers_summary" msgid="4921521407377170481">"Permite cargar capas de depuración de GPU en aplicaciones de depuración"</string>
     <string name="enable_verbose_vendor_logging" msgid="1196698788267682072">"Habilitar registro de proveedor detallado"</string>
-    <string name="enable_verbose_vendor_logging_summary" msgid="5426292185780393708">"Incluye otros registros de proveedor específicos del dispositivo en informes de errores, lo que puede añadir información privada, usar más batería u ocupar más espacio de almacenamiento."</string>
+    <string name="enable_verbose_vendor_logging_summary" msgid="5426292185780393708">"Incluye otros registros de proveedor específicos del dispositivo en informes de errores, que pueden contener información privada, usar más batería u ocupar más almacenamiento"</string>
     <string name="enable_verbose_vendor_logging_checkbox" msgid="3864578373293835530">"Inhabilitar después de un día"</string>
     <string name="verbose_vendor_logging_notification_title" msgid="6811217272559843592">"El registro de proveedor detallado ha finalizado"</string>
     <string name="verbose_vendor_logging_notification_summary" msgid="5226524769774370942">"Habilitado durante un día"</string>
@@ -438,14 +447,14 @@
     <string name="shade_display_awareness_title" msgid="8000009404669495876">"Posición del panel en la pantalla"</string>
     <string name="debug_applications_category" msgid="5394089406638954196">"Aplicaciones"</string>
     <string name="immediately_destroy_activities" msgid="1826287490705167403">"No mantener actividades"</string>
-    <string name="immediately_destroy_activities_summary" msgid="6289590341144557614">"Destruir actividades cuando el usuario salga de ellas"</string>
+    <string name="immediately_destroy_activities_summary" msgid="6289590341144557614">"Destruye actividades cuando el usuario salga de ellas"</string>
     <string name="app_process_limit_title" msgid="8361367869453043007">"Límitar procesos en segundo plano"</string>
-    <string name="show_all_anrs" msgid="9160563836616468726">"Mostrar ANR en segundo plano"</string>
+    <string name="show_all_anrs" msgid="9160563836616468726">"Mostrar ANRs en segundo plano"</string>
     <string name="show_all_anrs_summary" msgid="8562788834431971392">"Muestra un cuadro de diálogo que informa de que la aplicación no responde en aplicaciones en segundo plano"</string>
     <string name="show_notification_channel_warnings" msgid="3448282400127597331">"Ver advertencias del canal de notificaciones"</string>
     <string name="show_notification_channel_warnings_summary" msgid="68031143745094339">"Muestra una advertencia en pantalla cuando una aplicación publica una notificación sin un canal válido"</string>
-    <string name="force_allow_on_external" msgid="9187902444231637880">"Forzar permitir aplicaciones en almacenamiento externo"</string>
-    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"Permite que cualquier aplicación se pueda escribir en un almacenamiento externo independientemente de los valores de manifiesto"</string>
+    <string name="force_allow_on_external" msgid="9187902444231637880">"Forzar la autorización de apps en almacenamiento externo"</string>
+    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"Permite que cualquier aplicación se pueda escribir en un almacenamiento externo independientemente de los valores de manifiesto."</string>
     <string name="force_resizable_activities" msgid="7143612144399959606">"Forzar que las actividades puedan cambiar de tamaño"</string>
     <string name="force_resizable_activities_summary" msgid="2490382056981583062">"Permite que todas las actividades puedan cambiar de tamaño en multiventana independientemente de los valores de manifiesto"</string>
     <string name="enable_freeform_support" msgid="7599125687603914253">"Habilitar ventanas de forma libre"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"Hace <xliff:g id="ID_1">%1$s</xliff:g>"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"Tiempo restante: <xliff:g id="ID_1">%1$s</xliff:g>"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"El más pequeño"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Más pequeño"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Pequeño"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Predeterminado"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Grande"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Más grande"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Lo más grande posible"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Más grande"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Muy grande"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Extragrande"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"El más grande"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Personalizado (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menú"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Escribe una contraseña para restablecer estado de fábrica en modo Demo"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 dispositivo conectado}other{# dispositivos conectados}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"Más tiempo."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Menos tiempo."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Ampliación"</string>
     <string name="cancel" msgid="5665114069455378395">"Cancelar"</string>
     <string name="next" msgid="2699398661093607009">"Siguiente"</string>
     <string name="back" msgid="5554327870352703710">"Atrás"</string>
@@ -652,9 +666,9 @@
     <string name="user_add_user_message_long" msgid="1527434966294733380">"Puedes compartir este dispositivo si creas más usuarios. Cada uno tendrá su propio espacio y podrá personalizarlo con aplicaciones, un fondo de pantalla y más. Los usuarios también pueden ajustar opciones del dispositivo, como la conexión Wi‑Fi, que afectan a todos los usuarios.\n\nCuando añadas un usuario, tendrá que configurar su espacio.\n\nCualquier usuario puede actualizar aplicaciones de todos los usuarios. Es posible que no se transfieran los servicios y opciones de accesibilidad al nuevo usuario."</string>
     <string name="user_add_user_message_short" msgid="3295959985795716166">"Al añadir un nuevo usuario, dicha persona debe configurar su espacio.\n\nCualquier usuario puede actualizar las aplicaciones del resto de los usuarios."</string>
     <string name="user_grant_admin_title" msgid="5157031020083343984">"¿Convertir a este usuario en administrador?"</string>
-    <string name="user_grant_admin_message" msgid="1673791931033486709">"Los administradores tienen privilegios especiales que otros usuarios no tienen. Los administradores pueden gestionar todos los usuarios, actualizar o restablecer este dispositivo, modificar los ajustes, ver todas las aplicaciones instaladas y conceder o revocar privilegios de administrador a otros usuarios."</string>
+    <string name="user_grant_admin_message" msgid="1673791931033486709">"Los administradores tienen privilegios especiales que otros usuarios no tienen. Los administradores pueden gestionar todos los usuarios, actualizar o restablecer este dispositivo, modificar los ajustes, ver todas las apps instaladas y conceder o revocar privilegios de administrador a otros usuarios."</string>
     <string name="user_grant_admin_button" msgid="5441486731331725756">"Convertir en administrador"</string>
-    <string name="user_setup_dialog_title" msgid="8037342066381939995">"¿Configurar usuario ahora?"</string>
+    <string name="user_setup_dialog_title" msgid="8037342066381939995">"¿Configurar usuario?"</string>
     <string name="user_setup_dialog_message" msgid="269931619868102841">"Asegúrate de que la persona está disponible en este momento para usar el dispositivo y configurar su espacio."</string>
     <string name="user_setup_profile_dialog_message" msgid="4788197052296962620">"¿Quieres configurar un perfil ahora?"</string>
     <string name="user_setup_button_setup_now" msgid="1708269547187760639">"Configurar ahora"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"Si emites <xliff:g id="SWITCHAPP">%1$s</xliff:g> o cambias la salida, tu emisión actual se detendrá"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Emitir <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Cambiar salida"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Animaciones para acciones de retorno predictivas"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Habilita animaciones del sistema para acciones de retorno predictivas."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"Este ajuste habilita animaciones del sistema para acciones gestuales predictivas. Exige definir el valor de enableOnBackInvokedCallback en \"verdadero\" para cada aplicación en el archivo de manifiesto."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Sin especificar"</string>
     <string name="neuter" msgid="2075249330106127310">"Neutro"</string>

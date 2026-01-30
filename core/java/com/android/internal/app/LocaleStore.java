@@ -25,7 +25,6 @@ import android.provider.Settings;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.util.Log;
-import android.view.inputmethod.InputMethodSubtype;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -36,7 +35,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IllformedLocaleException;
-import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
@@ -47,6 +45,7 @@ public class LocaleStore {
     private static final HashMap<String, LocaleInfo> sLocaleCache = new HashMap<>();
     private static final String TAG = LocaleStore.class.getSimpleName();
     private static boolean sFullyInitialized = false;
+    private static Set<String> sSimCountries;
 
     public static class LocaleInfo implements Serializable {
         public static final int SUGGESTION_TYPE_NONE = 0;
@@ -303,18 +302,26 @@ public class LocaleStore {
         TelephonyManager tm = context.getSystemService(TelephonyManager.class);
 
         if (tm != null) {
-            String iso = tm.getSimCountryIso().toUpperCase(Locale.US);
-            if (!iso.isEmpty()) {
-                result.add(iso);
+            String simIso = tm.getSimCountryIso().toUpperCase(Locale.US);
+            if (!simIso.isEmpty()) {
+                result.add(simIso);
             }
 
-            iso = tm.getNetworkCountryIso().toUpperCase(Locale.US);
-            if (!iso.isEmpty()) {
-                result.add(iso);
+            String networkIso = tm.getNetworkCountryIso().toUpperCase(Locale.US);
+            if (!networkIso.isEmpty()) {
+                result.add(networkIso);
             }
         }
 
         return result;
+    }
+
+    /**
+     * @return whether SIM country or network country code is available during locale initialization
+     */
+    public static boolean isSimOrNwCountryAvailable() {
+        Log.d(TAG, "country available:" + !sSimCountries.isEmpty());
+        return !sSimCountries.isEmpty();
     }
 
     /*
@@ -333,13 +340,18 @@ public class LocaleStore {
      */
     public static void updateSimCountries(Context context) {
         Set<String> simCountries = getSimCountries(context);
+        if (sSimCountries.equals(simCountries)) {
+            return;
+        } else {
+            sSimCountries = simCountries;
+        }
 
         for (LocaleInfo li : sLocaleCache.values()) {
             // This method sets the suggestion flags for the (new) SIM locales, but it does not
             // try to clean up the old flags. After all, if the user replaces a German SIM
             // with a French one, it is still possible that they are speaking German.
             // So both French and German are reasonable suggestions.
-            if (simCountries.contains(li.getLocale().getCountry())) {
+            if (sSimCountries.contains(li.getLocale().getCountry())) {
                 li.mSuggestionFlags |= LocaleInfo.SUGGESTION_TYPE_SIM;
             }
         }
@@ -379,30 +391,6 @@ public class LocaleStore {
             Log.d(TAG, "IllegalArgumentException ", e);
         }
         return null;
-    }
-
-    /**
-     * Transform IME's language tag to LocaleInfo.
-     *
-     * @param list A list which includes IME's subtype.
-     * @return A LocaleInfo set which includes IME's language tags.
-     */
-    public static Set<LocaleInfo> transformImeLanguageTagToLocaleInfo(
-            List<InputMethodSubtype> list) {
-        Set<LocaleInfo> imeLocales = new HashSet<>();
-        Set<String> languageTagSet = new HashSet<>();
-        for (InputMethodSubtype subtype : list) {
-            String languageTag = subtype.getLanguageTag();
-            if (!languageTagSet.contains(languageTag)) {
-                languageTagSet.add(languageTag);
-                Locale locale = Locale.forLanguageTag(languageTag);
-                LocaleInfo cacheInfo = getLocaleInfo(locale, sLocaleCache);
-                LocaleInfo localeInfo = new LocaleInfo(cacheInfo);
-                localeInfo.mSuggestionFlags |= LocaleInfo.SUGGESTION_TYPE_IME_LANGUAGE;
-                imeLocales.add(localeInfo);
-            }
-        }
-        return imeLocales;
     }
 
     /**
@@ -462,7 +450,7 @@ public class LocaleStore {
             return;
         }
 
-        Set<String> simCountries = getSimCountries(context);
+        sSimCountries = getSimCountries(context);
 
         final boolean isInDeveloperMode = Settings.Global.getInt(context.getContentResolver(),
                 Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 0;
@@ -489,7 +477,7 @@ public class LocaleStore {
                 }
             }
 
-            if (simCountries.contains(li.getLocale().getCountry())) {
+            if (sSimCountries.contains(li.getLocale().getCountry())) {
                 li.mSuggestionFlags |= LocaleInfo.SUGGESTION_TYPE_SIM;
             }
             numberSystemLocaleList.forEach(l -> {

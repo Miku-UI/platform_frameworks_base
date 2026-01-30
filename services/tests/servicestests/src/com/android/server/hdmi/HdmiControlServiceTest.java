@@ -110,6 +110,7 @@ public class HdmiControlServiceTest {
     private ArrayList<Integer> mLocalDeviceTypes = new ArrayList<>();
     private static final int PORT_ID_EARC_SUPPORTED = 3;
     private static final int EARC_TRIGGER_START_ARC_ACTION_DELAY = 500;
+    private static final int RETRY_ON_TIMEOUT = 3;
 
     @Before
     public void setUp() throws Exception {
@@ -801,12 +802,14 @@ public class HdmiControlServiceTest {
                 HdmiControlManager.CEC_SETTING_NAME_HDMI_CEC_ENABLED,
                 HdmiControlManager.HDMI_CEC_CONTROL_ENABLED);
         mTestLooper.dispatchAll();
-        // Hit timeout twice due to retries
-        mTestLooper.moveTimeForward(HdmiConfig.TIMEOUT_MS);
-        mTestLooper.dispatchAll();
         mTestLooper.moveTimeForward(HdmiConfig.TIMEOUT_MS);
         mTestLooper.dispatchAll();
 
+        // Hit timeout multiple times due to retries
+        for (int i = 0; i < RETRY_ON_TIMEOUT; i++) {
+            mTestLooper.moveTimeForward(HdmiConfig.TIMEOUT_MS);
+            mTestLooper.dispatchAll();
+        }
         assertThat(hdmiControlStatusCallback.mCecEnabled).isTrue();
         assertThat(hdmiControlStatusCallback.mCecAvailable).isFalse();
     }
@@ -925,9 +928,11 @@ public class HdmiControlServiceTest {
         // Wait for DevicePowerStatusAction to finish.
         mTestLooper.moveTimeForward(HdmiConfig.TIMEOUT_MS);
         mTestLooper.dispatchAll();
-        mTestLooper.moveTimeForward(HdmiConfig.TIMEOUT_MS);
-        mTestLooper.dispatchAll();
 
+        for (int i = 0; i < RETRY_ON_TIMEOUT; i++) {
+            mTestLooper.moveTimeForward(HdmiConfig.TIMEOUT_MS);
+            mTestLooper.dispatchAll();
+        }
         assertThat(hdmiControlStatusCallback.mCecEnabled).isTrue();
         assertThat(hdmiControlStatusCallback.mCecAvailable).isFalse();
     }

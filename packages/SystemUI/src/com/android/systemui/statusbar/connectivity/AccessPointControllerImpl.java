@@ -183,10 +183,15 @@ public class AccessPointControllerImpl implements AccessPointController,
     @Override
     public MergedCarrierEntry getMergedCarrierEntry() {
         if (mWifiPickerTracker == null) {
+            Log.w(TAG, "WifiPickerTracker is null!");
             fireAccessPointsCallback(Collections.emptyList());
             return null;
         }
-        return mWifiPickerTracker.getMergedCarrierEntry();
+        MergedCarrierEntry entry = mWifiPickerTracker.getMergedCarrierEntry();
+        if (mWifiPickerTracker.isVerboseLoggingEnabled()) {
+            Log.d(TAG, "WifiPickerTracker: getMergedCarrierEntry()=" + entry);
+        }
+        return entry;
     }
 
     @Override

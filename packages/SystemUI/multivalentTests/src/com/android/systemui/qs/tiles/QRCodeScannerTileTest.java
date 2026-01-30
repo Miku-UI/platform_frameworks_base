@@ -38,7 +38,6 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.qrcodescanner.controller.QRCodeScannerController;
 import com.android.systemui.qs.QSHost;
 import com.android.systemui.qs.QsEventLogger;
-import com.android.systemui.qs.flags.QsInCompose;
 import com.android.systemui.qs.logging.QSLogger;
 import com.android.systemui.qs.tileimpl.QSTileImpl;
 import com.android.systemui.res.R;
@@ -136,10 +135,6 @@ public class QRCodeScannerTileTest extends SysuiTestCase {
     }
 
     private QSTile.Icon createExpectedIcon(int resId) {
-        if (QsInCompose.isEnabled()) {
-            return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
-        } else {
-            return QSTileImpl.ResourceIcon.get(resId);
-        }
+        return new QSTileImpl.DrawableIconWithRes(mContext.getDrawable(resId), resId);
     }
 }

@@ -63,6 +63,13 @@ public class RecoverableKeyStoreDbTest {
     private static final byte[] SERVER_PARAMS2 =
             new byte[]{1, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
 
+    private static final byte[] SALT =
+            new byte[]{1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 1, 1, 1, 1};
+
+    private static final byte[] SALT2 =
+            new byte[]{2, 2, 2, 2, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4};
+
+
     @Before
     public void setUp() {
         Context context = InstrumentationRegistry.getTargetContext();
@@ -354,6 +361,26 @@ public class RecoverableKeyStoreDbTest {
 
         assertEquals(badGuessCounter, mRecoverableKeyStoreDb.getBadRemoteGuessCounter(userId));
         assertEquals(badGuessCounter2, mRecoverableKeyStoreDb.getBadRemoteGuessCounter(userId2));
+    }
+
+    @Test
+    public void getRemoteBadGuessCounter_returnsNullAsDefaultValue() {
+        assertNull(mRecoverableKeyStoreDb.getLskfSalt(50));
+    }
+
+    @Test
+    public void getLskfSalt_returnsStoredValue() {
+        int userId = 42;
+        int userId2 = 44;
+        int badGuessCounter = 3;
+
+        mRecoverableKeyStoreDb.setBadRemoteGuessCounter(userId, badGuessCounter);
+        mRecoverableKeyStoreDb.setLskfSalt(userId, SALT);
+        mRecoverableKeyStoreDb.setLskfSalt(userId2, SALT2);
+
+        assertArrayEquals(SALT, mRecoverableKeyStoreDb.getLskfSalt(userId));
+        assertArrayEquals(SALT2, mRecoverableKeyStoreDb.getLskfSalt(userId2));
+        assertEquals(badGuessCounter, mRecoverableKeyStoreDb.getBadRemoteGuessCounter(userId));
     }
 
     @Test

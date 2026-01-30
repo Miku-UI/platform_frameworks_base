@@ -26,7 +26,6 @@ import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.power.data.repository.fakePowerRepository
 import com.android.systemui.power.shared.model.WakefulnessState
-import com.android.systemui.statusbar.notification.shared.NotificationViewFlipperPausing
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
@@ -36,7 +35,6 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnableFlags(NotificationViewFlipperPausing.FLAG_NAME)
 class NotificationViewFlipperViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     val underTest

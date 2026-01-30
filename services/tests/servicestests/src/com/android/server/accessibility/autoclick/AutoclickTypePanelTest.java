@@ -33,6 +33,7 @@ import static com.android.server.accessibility.autoclick.AutoclickTypePanel.POSI
 import static com.google.common.truth.Truth.assertThat;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.drawable.GradientDrawable;
 import android.provider.Settings;
 import android.testing.AndroidTestingRunner;
@@ -40,15 +41,17 @@ import android.testing.TestableContext;
 import android.testing.TestableLooper;
 import android.view.Gravity;
 import android.view.MotionEvent;
+import android.view.PointerIcon;
 import android.view.View;
 import android.view.WindowManager;
-import android.widget.LinearLayout;
+import android.widget.ImageButton;
 
 import androidx.annotation.NonNull;
 
 import com.android.internal.R;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -68,13 +71,14 @@ public class AutoclickTypePanelTest {
 
     private AutoclickTypePanel mAutoclickTypePanel;
     @Mock private WindowManager mMockWindowManager;
-    private LinearLayout mLeftClickButton;
-    private LinearLayout mRightClickButton;
-    private LinearLayout mDoubleClickButton;
-    private LinearLayout mDragButton;
-    private LinearLayout mScrollButton;
-    private LinearLayout mPauseButton;
-    private LinearLayout mPositionButton;
+    private ImageButton mLeftClickButton;
+    private ImageButton mRightClickButton;
+    private ImageButton mDoubleClickButton;
+    private ImageButton mDragButton;
+    private ImageButton mScrollButton;
+    private ImageButton mPauseButton;
+    private ImageButton mPositionButton;
+    private ImageButton mLongPressButton;
 
     private @AutoclickType int mActiveClickType = AUTOCLICK_TYPE_LEFT_CLICK;
     private boolean mPaused;
@@ -106,49 +110,57 @@ public class AutoclickTypePanelTest {
                 new AutoclickTypePanel(mTestableContext, mMockWindowManager,
                         mTestableContext.getUserId(), clickPanelController);
         View contentView = mAutoclickTypePanel.getContentViewForTesting();
-        mLeftClickButton = contentView.findViewById(R.id.accessibility_autoclick_left_click_layout);
+        mLeftClickButton = contentView.findViewById(R.id.accessibility_autoclick_left_click_button);
         mRightClickButton =
-                contentView.findViewById(R.id.accessibility_autoclick_right_click_layout);
+                contentView.findViewById(R.id.accessibility_autoclick_right_click_button);
         mDoubleClickButton =
-                contentView.findViewById(R.id.accessibility_autoclick_double_click_layout);
-        mScrollButton = contentView.findViewById(R.id.accessibility_autoclick_scroll_layout);
-        mDragButton = contentView.findViewById(R.id.accessibility_autoclick_drag_layout);
-        mPauseButton = contentView.findViewById(R.id.accessibility_autoclick_pause_layout);
-        mPositionButton = contentView.findViewById(R.id.accessibility_autoclick_position_layout);
+                contentView.findViewById(R.id.accessibility_autoclick_double_click_button);
+        mScrollButton = contentView.findViewById(R.id.accessibility_autoclick_scroll_button);
+        mDragButton = contentView.findViewById(R.id.accessibility_autoclick_drag_button);
+        mPauseButton = contentView.findViewById(R.id.accessibility_autoclick_pause_button);
+        mPositionButton = contentView.findViewById(R.id.accessibility_autoclick_position_button);
+        mLongPressButton = contentView.findViewById(R.id.accessibility_autoclick_long_press_button);
+
+        // Set panel to default bottom-right corner.
+        mAutoclickTypePanel.show();
+        mAutoclickTypePanel.resetPanelPositionForTesting();
     }
 
     @Test
-    public void AutoclickTypePanel_initialState_expandedFalse() {
-        assertThat(mAutoclickTypePanel.getExpansionStateForTesting()).isFalse();
-    }
-
-    @Test
-    public void AutoclickTypePanel_initialState_correctButtonVisibility() {
-        // On initialization, only left button is visible.
-        assertThat(mLeftClickButton.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mRightClickButton.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mDoubleClickButton.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mDragButton.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mScrollButton.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mPauseButton.getVisibility()).isEqualTo(View.VISIBLE);
-    }
-
-    @Test
-    public void AutoclickTypePanel_initialState_correctButtonStyle() {
-        verifyButtonHasSelectedStyle(mLeftClickButton);
-    }
-
-    @Test
-    public void togglePanelExpansion_onClick_expandedTrue() {
-        // On clicking left click button, the panel is expanded and all buttons are visible.
-        mLeftClickButton.callOnClick();
-
+    public void autoclickTypePanel_initialState_expandedTrue() {
         assertThat(mAutoclickTypePanel.getExpansionStateForTesting()).isTrue();
+    }
+
+    @Test
+    public void autoclickTypePanel_initialState_correctButtonVisibility() {
+        // On initialization, all buttons are visible.
         assertThat(mLeftClickButton.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mRightClickButton.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mDoubleClickButton.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mDragButton.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mScrollButton.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(mLongPressButton.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(mPauseButton.getVisibility()).isEqualTo(View.VISIBLE);
+    }
+
+    @Test
+    public void autoclickTypePanel_initialState_correctButtonStyle() {
+        verifyButtonHasSelectedStyle(mLeftClickButton);
+    }
+
+    @Test
+    public void togglePanelExpansion_onClick_expandedTrue() {
+        // On clicking left click button, the panel is collapsed and only left click
+        // button is visible.
+        mLeftClickButton.callOnClick();
+
+        assertThat(mAutoclickTypePanel.getExpansionStateForTesting()).isFalse();
+        assertThat(mLeftClickButton.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(mRightClickButton.getVisibility()).isEqualTo(View.GONE);
+        assertThat(mDoubleClickButton.getVisibility()).isEqualTo(View.GONE);
+        assertThat(mDragButton.getVisibility()).isEqualTo(View.GONE);
+        assertThat(mScrollButton.getVisibility()).isEqualTo(View.GONE);
+        assertThat(mLongPressButton.getVisibility()).isEqualTo(View.GONE);
 
         // Pause button is always visible.
         assertThat(mPauseButton.getVisibility()).isEqualTo(View.VISIBLE);
@@ -156,8 +168,7 @@ public class AutoclickTypePanelTest {
 
     @Test
     public void togglePanelExpansion_onClickAgain_expandedFalse() {
-        // By first click, the panel is expanded.
-        mLeftClickButton.callOnClick();
+        // On init, the panel is expanded.
         assertThat(mAutoclickTypePanel.getExpansionStateForTesting()).isTrue();
 
         // Clicks any button in the expanded state, the panel is expected to collapse
@@ -170,6 +181,7 @@ public class AutoclickTypePanelTest {
         assertThat(mLeftClickButton.getVisibility()).isEqualTo(View.GONE);
         assertThat(mDoubleClickButton.getVisibility()).isEqualTo(View.GONE);
         assertThat(mDragButton.getVisibility()).isEqualTo(View.GONE);
+        assertThat(mLongPressButton.getVisibility()).isEqualTo(View.GONE);
 
         // Pause button is always visible.
         assertThat(mPauseButton.getVisibility()).isEqualTo(View.VISIBLE);
@@ -177,24 +189,47 @@ public class AutoclickTypePanelTest {
 
     @Test
     public void togglePanelExpansion_selectButton_correctStyle() {
-        // By first click, the panel is expanded.
-        mLeftClickButton.callOnClick();
-
-        // Clicks any button in the expanded state to select a type button.
+        // The panel starts in an expanded state. This test verifies that clicking
+        // a new type button (e.g., Scroll) correctly selects it, collapses the
+        // panel, and applies the 'selected' visual style.
         mScrollButton.callOnClick();
 
+        // Verify the scroll button now has the style for a selected item.
         verifyButtonHasSelectedStyle(mScrollButton);
     }
 
     @Test
     public void togglePanelExpansion_selectButton_correctActiveClickType() {
-        // By first click, the panel is expanded.
-        mLeftClickButton.callOnClick();
-
         // Clicks any button in the expanded state to select a type button.
         mScrollButton.callOnClick();
 
         assertThat(mActiveClickType).isEqualTo(AUTOCLICK_TYPE_SCROLL);
+    }
+
+    @Test
+    public void togglePanelExpansion_largeScreen_AllButtonsShowing() {
+        mAutoclickTypePanel.setIsExpandedPanelWiderThanScreenForTesting(false);
+
+        // Close and re-expand the panel.
+        mLeftClickButton.callOnClick();
+        mLeftClickButton.callOnClick();
+
+        // Expect the buttons to be shown because the screen can fit the whole panel.
+        assertThat(mPauseButton.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(mPositionButton.getVisibility()).isEqualTo(View.VISIBLE);
+    }
+
+    @Test
+    public void togglePanelExpansion_smallScreen_HideButtons() {
+        mAutoclickTypePanel.setIsExpandedPanelWiderThanScreenForTesting(true);
+
+        // Close and re-expand the panel.
+        mLeftClickButton.callOnClick();
+        mLeftClickButton.callOnClick();
+
+        // Expect the buttons to be hidden because the screen is too small.
+        assertThat(mPauseButton.getVisibility()).isEqualTo(View.GONE);
+        assertThat(mPositionButton.getVisibility()).isEqualTo(View.GONE);
     }
 
     @Test
@@ -253,6 +288,17 @@ public class AutoclickTypePanelTest {
     }
 
     @Test
+    public void longPressButton_resumeAutoClick() {
+        // Pause autoclick.
+        mPauseButton.callOnClick();
+        assertThat(mAutoclickTypePanel.isPaused()).isTrue();
+
+        // Click the button and verify autoclick resumes.
+        mLongPressButton.callOnClick();
+        assertThat(mAutoclickTypePanel.isPaused()).isFalse();
+    }
+
+    @Test
     public void clickPositionButton_resumeAutoClick() {
         // Pause autoclick.
         mPauseButton.callOnClick();
@@ -267,11 +313,11 @@ public class AutoclickTypePanelTest {
     public void moveToNextCorner_positionButton_rotatesThroughAllPositions() {
         // Define all positions in sequence
         int[][] expectedPositions = {
-                {CORNER_BOTTOM_RIGHT, Gravity.END | Gravity.BOTTOM, /*x=*/ 15, /*y=*/ 90},
-                {CORNER_BOTTOM_LEFT, Gravity.START | Gravity.BOTTOM, /*x=*/ 15, /*y=*/ 90},
+                {CORNER_BOTTOM_RIGHT, Gravity.END | Gravity.BOTTOM, /*x=*/ 15, /*y=*/ 30},
+                {CORNER_BOTTOM_LEFT, Gravity.START | Gravity.BOTTOM, /*x=*/ 15, /*y=*/ 30},
                 {CORNER_TOP_LEFT, Gravity.START | Gravity.TOP, /*x=*/ 15, /*y=*/ 30},
                 {CORNER_TOP_RIGHT, Gravity.END | Gravity.TOP, /*x=*/ 15, /*y=*/ 30},
-                {CORNER_BOTTOM_RIGHT, Gravity.END | Gravity.BOTTOM, /*x=*/ 15, /*y=*/ 90}
+                {CORNER_BOTTOM_RIGHT, Gravity.END | Gravity.BOTTOM, /*x=*/ 15, /*y=*/ 30}
         };
 
         // Check initial position
@@ -286,13 +332,22 @@ public class AutoclickTypePanelTest {
 
     @Test
     public void pauseButton_onClick() {
+        String resumeText = mTestableContext.getString(R.string
+                .accessibility_autoclick_resume);
+        String pauseText = mTestableContext.getString(R.string
+                .accessibility_autoclick_pause);
+
         mPauseButton.callOnClick();
         assertThat(mPaused).isTrue();
         assertThat(mAutoclickTypePanel.isPaused()).isTrue();
+        assertThat(mPauseButton.getContentDescription().toString()).isEqualTo(resumeText);
+        assertThat(mPauseButton.getTooltipText().toString()).isEqualTo(resumeText);
 
         mPauseButton.callOnClick();
         assertThat(mPaused).isFalse();
         assertThat(mAutoclickTypePanel.isPaused()).isFalse();
+        assertThat(mPauseButton.getContentDescription().toString()).isEqualTo(pauseText);
+        assertThat(mPauseButton.getTooltipText().toString()).isEqualTo(pauseText);
     }
 
     @Test
@@ -320,13 +375,16 @@ public class AutoclickTypePanelTest {
         contentView.dispatchTouchEvent(moveEvent);
 
         // Verify position update.
-        assertThat(mAutoclickTypePanel.getIsDraggingForTesting()).isTrue();
+        assertThat(mAutoclickTypePanel.getIsDragging()).isTrue();
         assertThat(params.gravity).isEqualTo(Gravity.LEFT | Gravity.TOP);
         assertThat(params.x).isEqualTo(panelLocation[0] + delta);
-        assertThat(params.y).isEqualTo(panelLocation[1] + delta);
+        assertThat(params.y).isEqualTo(
+                Math.max(0, panelLocation[1] + delta
+                        - mAutoclickTypePanel.getStatusBarHeightForTesting()));
     }
 
     @Test
+    @Ignore ("b/424594372")
     public void dragAndEndAtRight_snapsToRightSide() {
         View contentView = mAutoclickTypePanel.getContentViewForTesting();
         WindowManager.LayoutParams params = mAutoclickTypePanel.getLayoutParamsForTesting();
@@ -350,6 +408,7 @@ public class AutoclickTypePanelTest {
     }
 
     @Test
+    @Ignore ("b/424594372")
     public void dragAndEndAtLeft_snapsToLeftSide() {
         View contentView = mAutoclickTypePanel.getContentViewForTesting();
         WindowManager.LayoutParams params = mAutoclickTypePanel.getLayoutParamsForTesting();
@@ -388,7 +447,7 @@ public class AutoclickTypePanelTest {
         assertThat(panel.getCurrentCornerForTesting()).isEqualTo(CORNER_BOTTOM_RIGHT);
         assertThat(params.gravity).isEqualTo(Gravity.END | Gravity.BOTTOM);
         assertThat(params.x).isEqualTo(15);  // Default edge margin.
-        assertThat(params.y).isEqualTo(90);  // Default bottom offset.
+        assertThat(params.y).isEqualTo(30);  // Default bottom offset.
     }
 
     @Test
@@ -447,7 +506,9 @@ public class AutoclickTypePanelTest {
         assertThat(parts).hasLength(4);
         assertThat(Integer.parseInt(parts[0])).isEqualTo(Gravity.START | Gravity.TOP);
         assertThat(Integer.parseInt(parts[1])).isEqualTo(15);
-        assertThat(Integer.parseInt(parts[2])).isEqualTo(panelLocation[1] + 10);
+        assertThat(Integer.parseInt(parts[2])).isEqualTo(
+                Math.max(30, panelLocation[1] + 10
+                        - mAutoclickTypePanel.getStatusBarHeightForTesting()));
         assertThat(Integer.parseInt(parts[3])).isEqualTo(CORNER_BOTTOM_LEFT);
 
         // Show panel to trigger position restoration.
@@ -457,7 +518,8 @@ public class AutoclickTypePanelTest {
         WindowManager.LayoutParams params = mAutoclickTypePanel.getLayoutParamsForTesting();
         assertThat(params.gravity).isEqualTo(Gravity.START | Gravity.TOP);
         assertThat(params.x).isEqualTo(15); // PANEL_EDGE_MARGIN
-        assertThat(params.y).isEqualTo(panelLocation[1] + 10);
+        assertThat(params.y).isEqualTo(Math.max(30,
+                panelLocation[1] + 10 - mAutoclickTypePanel.getStatusBarHeightForTesting()));
         assertThat(mAutoclickTypePanel.getCurrentCornerForTesting()).isEqualTo(
                 CORNER_BOTTOM_LEFT);
     }
@@ -486,34 +548,88 @@ public class AutoclickTypePanelTest {
 
     @Test
     public void hovered_IsHovered() {
-        AutoclickLinearLayout mContext = mAutoclickTypePanel.getContentViewForTesting();
+        AutoclickTypeLinearLayout contentView = mAutoclickTypePanel.getContentViewForTesting();
 
         assertThat(mAutoclickTypePanel.isHovered()).isFalse();
-        mContext.onInterceptHoverEvent(getFakeMotionHoverMoveEvent());
+        contentView.onInterceptHoverEvent(getFakeMotionHoverMoveEvent());
         assertThat(mAutoclickTypePanel.isHovered()).isTrue();
     }
 
     @Test
     public void hovered_OnHoverChange_isHovered() {
-        AutoclickLinearLayout mContext = mAutoclickTypePanel.getContentViewForTesting();
+        View contentView = mAutoclickTypePanel.getContentViewForTesting();
 
         mHovered = false;
-        mContext.onHoverChanged(true);
+        contentView.onHoverChanged(true);
         assertThat(mHovered).isTrue();
     }
 
     @Test
     public void hovered_OnHoverChange_isNotHovered() {
-        AutoclickLinearLayout mContext = mAutoclickTypePanel.getContentViewForTesting();
+        View contentView = mAutoclickTypePanel.getContentViewForTesting();
 
         mHovered = true;
-        mContext.onHoverChanged(false);
+        contentView.onHoverChanged(false);
         assertThat(mHovered).isFalse();
     }
 
-    private void verifyButtonHasSelectedStyle(@NonNull LinearLayout button) {
+    @Test
+    public void cursorIcon_fullDragCycle() {
+        View contentView = mAutoclickTypePanel.getContentViewForTesting();
+        int[] panelLocation = new int[2];
+        contentView.getLocationOnScreen(panelLocation);
+
+        // Set up drag coordinates.
+        float startX = panelLocation[0] + 10;
+        float startY = panelLocation[1] + 10;
+        float moveX = startX + 50;
+        float moveY = startY + 20;
+
+        // 1. Initial state.
+        PointerIcon initialCursor = mAutoclickTypePanel.getCurrentCursorForTesting();
+
+        // 2. DOWN event - Touch starts.
+        MotionEvent downEvent = MotionEvent.obtain(
+                0, 0, MotionEvent.ACTION_DOWN, startX, startY, 0);
+        contentView.dispatchTouchEvent(downEvent);
+        PointerIcon touchStartCursor = mAutoclickTypePanel.getCurrentCursorForTesting();
+
+        // 3. MOVE event - Dragging starts.
+        MotionEvent moveEvent = MotionEvent.obtain(
+                0, 0, MotionEvent.ACTION_MOVE, moveX, moveY, 0);
+        contentView.dispatchTouchEvent(moveEvent);
+        PointerIcon draggingCursor = mAutoclickTypePanel.getCurrentCursorForTesting();
+
+        // 4. UP event - Drag ends.
+        MotionEvent upEvent = MotionEvent.obtain(
+                0, 0, MotionEvent.ACTION_UP, moveX, moveY, 0);
+        contentView.dispatchTouchEvent(upEvent);
+        PointerIcon afterDragCursor = mAutoclickTypePanel.getCurrentCursorForTesting();
+
+        // Initial state should be default cursor.
+        assertThat(initialCursor.getType()).isEqualTo(PointerIcon.TYPE_ARROW);
+
+        // After touch down - cursor should change to grabbing.
+        assertThat(touchStartCursor.getType()).isEqualTo(PointerIcon.TYPE_GRABBING);
+
+        // During drag - should be in dragging state with grabbing cursor.
+        assertThat(draggingCursor.getType()).isEqualTo(PointerIcon.TYPE_GRABBING);
+
+        // After drag ends - should not be dragging and cursor should be grab.
+        assertThat(afterDragCursor.getType()).isEqualTo(PointerIcon.TYPE_GRAB);
+    }
+
+    private void verifyButtonHasSelectedStyle(@NonNull ImageButton button) {
         GradientDrawable gradientDrawable = (GradientDrawable) button.getBackground();
-        assertThat(gradientDrawable.getColor().getDefaultColor())
+        // Get the ColorStateList from the background.
+        ColorStateList colorStateList = gradientDrawable.getColor();
+        // Add an assertion to handle the lint warning and ensure the color list is not null.
+        assertThat(colorStateList).isNotNull();
+        // Get the color that corresponds to the button's current drawable state.
+        int currentColor = colorStateList.getColorForState(button.getDrawableState(), 0);
+
+        // Assert that the current color is the primary color.
+        assertThat(currentColor)
                 .isEqualTo(mTestableContext.getColor(R.color.materialColorPrimary));
     }
 

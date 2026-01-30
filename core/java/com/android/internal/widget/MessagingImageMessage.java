@@ -139,7 +139,7 @@ public class MessagingImageMessage extends ImageView implements MessagingMessage
         boolean populated = createdMessage.setMessage(m, /* usePrecomputedText= */false);
         if (!populated) {
             createdMessage.recycle();
-            return MessagingTextMessage.createMessage(layout, m, usePrecomputedText);
+            return MessagingTextMessage.createMessage(layout, m, usePrecomputedText, false);
         }
         return createdMessage;
     }

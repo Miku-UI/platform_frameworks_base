@@ -45,14 +45,14 @@ abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
     private lateinit var cancelButton: TextView
     private lateinit var screenShareModeSpinner: Spinner
     protected lateinit var dialog: AlertDialog
-    protected lateinit var viewBinder: BaseMediaProjectionPermissionViewBinder
+    protected lateinit var contentManager: BaseMediaProjectionPermissionContentManager
 
     /**
      * Create the view binder for the permission dialog, this can be override by child classes to
      * support a different type of view binder
      */
-    open fun createViewBinder(): BaseMediaProjectionPermissionViewBinder {
-        return BaseMediaProjectionPermissionViewBinder(
+    open fun createContentManager(): BaseMediaProjectionPermissionContentManager {
+        return BaseMediaProjectionPermissionContentManager(
             screenShareOptions,
             appName,
             hostUid,
@@ -63,7 +63,7 @@ abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
 
     @CallSuper
     override fun onStop(dialog: T) {
-        viewBinder.unbind()
+        contentManager.unbind()
     }
 
     @CallSuper
@@ -75,10 +75,10 @@ abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
         dialogTitle = dialog.requireViewById(R.id.screen_share_dialog_title)
         cancelButton = dialog.requireViewById(android.R.id.button2)
         updateIcon()
-        if (!::viewBinder.isInitialized) {
-            viewBinder = createViewBinder()
+        if (!::contentManager.isInitialized) {
+            contentManager = createContentManager()
         }
-        viewBinder.bind(dialog.requireViewById(R.id.screen_share_permission_dialog))
+        contentManager.bind(dialog.requireViewById(R.id.screen_share_permission_dialog))
     }
 
     private fun updateIcon() {
@@ -92,7 +92,7 @@ abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
     }
 
     fun getSelectedScreenShareOption(): ScreenShareOption {
-        return viewBinder.selectedScreenShareOption
+        return contentManager.selectedScreenShareOption
     }
 
     /** Protected methods for the text updates & functionality */
@@ -102,7 +102,7 @@ abstract class BaseMediaProjectionPermissionDialogDelegate<T : AlertDialog>(
     }
 
     protected fun setStartButtonOnClickListener(listener: View.OnClickListener?) {
-        viewBinder.setStartButtonOnClickListener(listener)
+        contentManager.setStartButtonOnClickListener(listener)
     }
 
     protected fun setCancelButtonOnClickListener(listener: View.OnClickListener?) {

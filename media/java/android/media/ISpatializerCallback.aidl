@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for the AudioService to signal Spatializer state changes.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ISpatializerCallback {
 

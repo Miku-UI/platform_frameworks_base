@@ -19,7 +19,9 @@
 //#define LOG_NDEBUG 0
 #define LOG_TAG "Camera-JNI"
 #include <android/content/AttributionSourceState.h>
+#include <android/content/res/CameraCompatibilityInfo.h>
 #include <android_os_Parcel.h>
+#include <android_runtime/android_content_res_CameraCompatibilityInfo.h>
 #include <android_runtime/android_graphics_SurfaceTexture.h>
 #include <android_runtime/android_view_Surface.h>
 #include <binder/IMemory.h>
@@ -589,7 +591,7 @@ static bool attributionSourceStateForJavaParcel(JNIEnv *env, jobject jClientAttr
         return false;
     }
 
-    if (!(useContextAttributionSource && flags::data_delivery_permission_checks())) {
+    if (!useContextAttributionSource) {
         clientAttribution.uid = Camera::USE_CALLING_UID;
         clientAttribution.pid = Camera::USE_CALLING_PID;
     }
@@ -610,13 +612,21 @@ static jint android_hardware_Camera_getNumberOfCameras(JNIEnv *env, jobject thiz
 }
 
 static void android_hardware_Camera_getCameraInfo(JNIEnv *env, jobject thiz, jint cameraId,
-                                                  jint rotationOverride,
+                                                  jobject jCompatMode,
                                                   jobject jClientAttributionParcel,
                                                   jint devicePolicy, jobject info_obj) {
     AttributionSourceState clientAttribution;
     if (!attributionSourceStateForJavaParcel(env, jClientAttributionParcel,
                                              /* useContextAttributionSource= */ false,
                                              clientAttribution)) {
+        return;
+    }
+
+    CameraCompatibilityInfo compatInfo;
+    status_t ciStatus = android::android_content_res_CameraCompatibilityInfo_toNative(env,
+                                                                       jCompatMode, &compatInfo);
+    if (ciStatus != NO_ERROR) {
+        jniThrowRuntimeException(env, "Fail to get camera compatibility info");
         return;
     }
 
@@ -627,7 +637,7 @@ static void android_hardware_Camera_getCameraInfo(JNIEnv *env, jobject thiz, jin
         return;
     }
 
-    status_t rc = Camera::getCameraInfo(cameraId, rotationOverride, clientAttribution, devicePolicy,
+    status_t rc = Camera::getCameraInfo(cameraId, compatInfo, clientAttribution, devicePolicy,
                                         &cameraInfo);
     if (rc != NO_ERROR) {
         jniThrowRuntimeException(env, "Fail to get camera info");
@@ -645,7 +655,7 @@ static void android_hardware_Camera_getCameraInfo(JNIEnv *env, jobject thiz, jin
 
 // connect to camera service
 static jint android_hardware_Camera_native_setup(JNIEnv *env, jobject thiz, jobject weak_this,
-                                                 jint cameraId, jint rotationOverride,
+                                                 jint cameraId, jobject jCompatMode,
                                                  jboolean forceSlowJpegMode,
                                                  jobject jClientAttributionParcel,
                                                  jint devicePolicy) {
@@ -653,12 +663,19 @@ static jint android_hardware_Camera_native_setup(JNIEnv *env, jobject thiz, jobj
     if (!attributionSourceStateForJavaParcel(env, jClientAttributionParcel,
                                              /* useContextAttributionSource= */ true,
                                              clientAttribution)) {
-        return -EACCES;
+        return -EINVAL;
+    }
+
+    CameraCompatibilityInfo compatInfo;
+    status_t ciStatus = android::android_content_res_CameraCompatibilityInfo_toNative(env,
+                                                                        jCompatMode, &compatInfo);
+    if (ciStatus != NO_ERROR) {
+        return -EINVAL;
     }
 
     int targetSdkVersion = android_get_application_target_sdk_version();
-    sp<Camera> camera = Camera::connect(cameraId, targetSdkVersion, rotationOverride,
-                                        forceSlowJpegMode, clientAttribution, devicePolicy);
+    sp<Camera> camera = Camera::connect(cameraId, targetSdkVersion, compatInfo, forceSlowJpegMode,
+                                        clientAttribution, devicePolicy);
     if (camera == NULL) {
         return -EACCES;
     }
@@ -686,7 +703,7 @@ static jint android_hardware_Camera_native_setup(JNIEnv *env, jobject thiz, jobj
 
     // Update default display orientation in case the sensor is reverse-landscape
     CameraInfo cameraInfo;
-    status_t rc = Camera::getCameraInfo(cameraId, rotationOverride, clientAttribution, devicePolicy,
+    status_t rc = Camera::getCameraInfo(cameraId, compatInfo, clientAttribution, devicePolicy,
                                         &cameraInfo);
     if (rc != NO_ERROR) {
         ALOGE("%s: getCameraInfo error: %d", __FUNCTION__, rc);
@@ -1189,9 +1206,10 @@ static int32_t android_hardware_Camera_getAudioRestriction(
 static const JNINativeMethod camMethods[] = {
         {"_getNumberOfCameras", "(Landroid/os/Parcel;I)I",
          (void *)android_hardware_Camera_getNumberOfCameras},
-        {"_getCameraInfo", "(IILandroid/os/Parcel;ILandroid/hardware/Camera$CameraInfo;)V",
+        {"_getCameraInfo",
+         "(ILandroid/content/res/CameraCompatibilityInfo;Landroid/os/Parcel;ILandroid/hardware/Camera$CameraInfo;)V",
          (void *)android_hardware_Camera_getCameraInfo},
-        {"native_setup", "(Ljava/lang/Object;IIZLandroid/os/Parcel;I)I",
+        {"native_setup", "(Ljava/lang/Object;ILandroid/content/res/CameraCompatibilityInfo;ZLandroid/os/Parcel;I)I",
          (void *)android_hardware_Camera_native_setup},
         {"native_release", "()V", (void *)android_hardware_Camera_release},
         {"setPreviewSurface", "(Landroid/view/Surface;)V",

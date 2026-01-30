@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"ଅନୁମତି ଆବଶ୍ୟକ"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"ଇନଷ୍ଟଲକୁ ବ୍ଲକ କରାଯାଇଛି"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"ଆପକୁ ପ୍ରସ୍ତୁତ କରାଯାଉଛି…"</string>
+    <string name="title_install" msgid="6806728682404990326">"ଏହି ଆପକୁ ଇନଷ୍ଟଲ କରିବେ?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"ଇନଷ୍ଟଲ କରାଯାଉଛି…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"ଆପ ଇନଷ୍ଟଲ କରାଯାଇଛି"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"ଏହି ଆପକୁ ପୁଣି ଇନଷ୍ଟଲ କରିବେ?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"ପୁଣି ଇନଷ୍ଟଲ କରାଯାଉଛି…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"ଆପକୁ ପୁଣି ଇନଷ୍ଟଲ କରାଯାଇଛି"</string>
+    <string name="title_update" msgid="1747328630716712391">"ଏହି ଆପକୁ ଅପଡେଟ କରିବେ?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>କୁ ବ୍ୟବହାର କରି ଏହି ଆପକୁ ଅପଡେଟ କରିବେ?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"ଅପଡେଟ କରାଯାଉଛି…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"ଆପକୁ ଅପଡେଟ କରାଯାଇଛି"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"ଆପ ଇନଷ୍ଟଲ କରାଯାଇପାରିବ ନାହିଁ"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"ଇନଷ୍ଟଲକୁ ବ୍ଲକ କରାଯାଇଛି"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"ଆପ କମ୍ପାଟିବଲ ନୁହେଁ"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"ଅବୈଧ ପେକେଜ"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"ଯଥେଷ୍ଟ ଷ୍ଟୋରେଜ ନାହିଁ"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"ଆପକୁ ଇନଷ୍ଟଲ କରାଯାଇନାହିଁ"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"ଏହି ଆପକୁ ଅନଇନଷ୍ଟଲ କରିବେ?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"ଏହି ଆପ କ୍ଲୋନକୁ ଡିଲିଟ କରିବେ?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"ଆପ ଅପଡେଟଗୁଡ଼ିକୁ ଅନଇନଷ୍ଟଲ କରିବେ?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"ସମସ୍ତ ୟୁଜରଙ୍କ ପାଇଁ ଆପ ଅପଡେଟଗୁଡ଼ିକୁ ଅନଇନଷ୍ଟଲ କରିବେ?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"ସମସ୍ତ ୟୁଜରଙ୍କ ପାଇଁ ଏହି ଆପକୁ ଅନଇନଷ୍ଟଲ କରିବେ?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"ୟୁଜର \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"ଙ୍କ ପାଇଁ ଏହି ଆପକୁ ଅନଇନଷ୍ଟଲ କରିବେ?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"ଆପ ମିଳିଲା ନାହିଁ"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"ଏହି ଆପକୁ ଅନଇନଷ୍ଟଲ କରାଯାଇପାରିବ ନାହିଁ"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"ଆପକୁ ଅନଇନଷ୍ଟଲ କରାଯାଇନାହିଁ"</string>
+    <string name="title_archive" msgid="2876455228073419830">"ଏହି ଆପକୁ ଆର୍କାଇଭ କରିବେ?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"ସମସ୍ତ ୟୁଜରଙ୍କ ପାଇଁ ଏହି ଆପକୁ ଆର୍କାଇଭ କରିବେ?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"ୟୁଜର \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"ଙ୍କ ପାଇଁ ଏହି ଆପକୁ ଆର୍କାଇଭ କରିବେ?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"ଏହି ଆପକୁ ରିଷ୍ଟୋର କରିବେ?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"ପଦକ୍ଷେପ ନେବା ଆବଶ୍ୟକ"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"ଯଥେଷ୍ଟ ଷ୍ଟୋରେଜ ନାହିଁ"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"ଆପଣ ଅଫଲାଇନ ଅଛନ୍ତି"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>କୁ ଅକ୍ଷମ କରାଯାଇଛି"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>କୁ ଇନଷ୍ଟଲ କରାଯାଇନାହିଁ"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"କିଛି ତ୍ରୁଟି ହୋଇଛି"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"ଏହି ଆପ ସାଧାରଣତଃ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;ରୁ ଅପଡେଟ ଗ୍ରହଣ କରେ। ଏକ ଭିନ୍ନ ସୋର୍ସକୁ ବ୍ୟବହାର କରି ଅପଡେଟ କରିବା ଫଳରେ ଆପଣ ଆପଣଙ୍କ ଟାବଲେଟରେ ଯେ କୌଣସି ସୋର୍ସରୁ ଭବିଷ୍ୟତର ଅପଡେଟଗୁଡ଼ିକ ପାଇପାରନ୍ତି। ଆପ କାର୍ଯ୍ୟକ୍ଷମତା ପରିବର୍ତ୍ତନ ହୋଇପାରେ।"</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"ଏହି ଆପ ସାଧାରଣତଃ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;ରୁ ଅପଡେଟ ଗ୍ରହଣ କରେ। ଏକ ଭିନ୍ନ ସୋର୍ସକୁ ବ୍ୟବହାର କରି ଅପଡେଟ କରିବା ଫଳରେ ଆପଣ ଆପଣଙ୍କ ଟିଭିରେ ଯେ କୌଣସି ସୋର୍ସରୁ ଭବିଷ୍ୟତର ଅପଡେଟଗୁଡ଼ିକ ପାଇପାରନ୍ତି। ଆପ କାର୍ଯ୍ୟକ୍ଷମତା ପରିବର୍ତ୍ତନ ହୋଇପାରେ।"</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"ଏହି ଆପ ସାଧାରଣତଃ &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;ରୁ ଅପଡେଟ ଗ୍ରହଣ କରେ। ଏକ ଭିନ୍ନ ସୋର୍ସକୁ ବ୍ୟବହାର କରି ଅପଡେଟ କରିବା ଫଳରେ ଆପଣ ଆପଣଙ୍କ ଫୋନରେ ଯେ କୌଣସି ସୋର୍ସରୁ ଭବିଷ୍ୟତର ଅପଡେଟଗୁଡ଼ିକ ପାଇପାରନ୍ତି। ଆପ କାର୍ଯ୍ୟକ୍ଷମତା ପରିବର୍ତ୍ତନ ହୋଇପାରେ।"</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"ଆପଣଙ୍କ ସୁରକ୍ଷା ପାଇଁ, ଆପଣଙ୍କ ଟାବଲେଟକୁ ବର୍ତ୍ତମାନ ଏହି ସୋର୍ସରୁ ଆସିଥିବା ଅଜଣା ଆପ୍ସକୁ ଇନଷ୍ଟଲ କରିବା ପାଇଁ ଅନୁମତି ଦିଆଯାଇନାହିଁ। ଆପଣ ଏହାକୁ ସେଟିଂସରେ ପରିବର୍ତ୍ତନ କରିପାରିବେ।"</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"ଆପଣଙ୍କ ସୁରକ୍ଷା ପାଇଁ, ଆପଣଙ୍କ ଟିଭିକୁ ବର୍ତ୍ତମାନ ଏହି ସୋର୍ସରୁ ଆସିଥିବା ଅଜଣା ଆପ୍ସକୁ ଇନଷ୍ଟଲ କରିବା ପାଇଁ ଅନୁମତି ଦିଆଯାଇନାହିଁ। ଆପଣ ଏହାକୁ ସେଟିଂସରେ ପରିବର୍ତ୍ତନ କରିପାରିବେ।"</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"ଆପଣଙ୍କ ସୁରକ୍ଷା ପାଇଁ ବର୍ତ୍ତମାନ ଏହି ସୋର୍ସରୁ ଅଜଣା ଆପ୍ସକୁ ଇନଷ୍ଟଲ କରିବା ପାଇଁ ଆପଣଙ୍କ ୱାଚକୁ ଅନୁମତି ଦିଆଯାଇନାହିଁ। ଆପଣ ଏହାକୁ ସେଟିଂସରେ ପରିବର୍ତ୍ତନ କରିପାରିବେ।"</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"ଆପଣଙ୍କ ସୁରକ୍ଷା ପାଇଁ, ଆପଣଙ୍କ ଫୋନକୁ ବର୍ତ୍ତମାନ ଏହି ସୋର୍ସରୁ ଆସିଥିବା ଅଜଣା ଆପ୍ସକୁ ଇନଷ୍ଟଲ କରିବା ପାଇଁ ଅନୁମତି ଦିଆଯାଇନାହିଁ। ଆପଣ ଏହାକୁ ସେଟିଂସରେ ପରିବର୍ତ୍ତନ କରିପାରିବେ।"</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"ଆପଣଙ୍କ ଫୋନ ଏବଂ ବ୍ୟକ୍ତିଗତ ଡାଟା ଅଜଣା ଆପ୍ସର ଆକ୍ରମଣ ପ୍ରତି ଅଧିକ ଅସୁରକ୍ଷିତ ଅଟେ। ଏହି ଆପକୁ ଇନଷ୍ଟଲ କରି, ଆପଣ ଏହାର ବ୍ୟବହାର ଯୋଗୁଁ ଆପଣଙ୍କର ଟିଭିରେ ହେଉଥିବା ଯେ କୌଣସି କ୍ଷତି କିମ୍ବା ଡାଟା ହରାଇବା ପାଇଁ ଦାୟୀ ଅଟନ୍ତି ବୋଲି ରାଜି ହେଉଛନ୍ତି।"</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"ଆପଣଙ୍କ ଟାବଲେଟ ଏବଂ ବ୍ୟକ୍ତିଗତ ଡାଟା ଅଜଣା ଆପ୍ସର ଆକ୍ରମଣ ପ୍ରତି ଅଧିକ ଅସୁରକ୍ଷିତ ଅଟେ। ଏହି ଆପକୁ ଇନଷ୍ଟଲ କରି, ଆପଣ ଏହାର ବ୍ୟବହାର ଯୋଗୁଁ ଆପଣଙ୍କର ଟିଭିରେ ହେଉଥିବା ଯେ କୌଣସି କ୍ଷତି କିମ୍ବା ଡାଟା ହରାଇବା ପାଇଁ ଦାୟୀ ଅଟନ୍ତି ବୋଲି ରାଜି ହେଉଛନ୍ତି।"</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"ଆପଣଙ୍କ ଟିଭି ଏବଂ ବ୍ୟକ୍ତିଗତ ଡାଟା ଅଜଣା ଆପ୍ସର ଆକ୍ରମଣ ପ୍ରତି ଅଧିକ ଅସୁରକ୍ଷିତ ଅଟେ। ଏହି ଆପକୁ ଇନଷ୍ଟଲ କରି, ଆପଣ ଏହାର ବ୍ୟବହାର ଯୋଗୁଁ ଆପଣଙ୍କର ଟିଭିରେ ହେଉଥିବା ଯେ କୌଣସି କ୍ଷତି କିମ୍ବା ଡାଟା ହରାଇବା ପାଇଁ ଦାୟୀ ଅଟନ୍ତି ବୋଲି ରାଜି ହେଉଛନ୍ତି।"</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"ଏହି ଆପକୁ ଇନଷ୍ଟଲ କରାଯିବାରୁ ବ୍ଲକ କରାଯାଇଛି"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"ଏହି ଆପ ଆପଣଙ୍କ ଡିଭାଇସରେ ପୂର୍ବରୁ ଥିବା ଏକ ଆପ ସହିତ ଦ୍ୱନ୍ଦ୍ୱ ସୃଷ୍ଟି କରୁଛି"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"ଏହି ଆପ ଆପଣଙ୍କ ଡିଭାଇସ ସହ କମ୍ପାଟିବଲ ନୁହେଁ"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"ଏହି ଆପର ଇନଷ୍ଟଲେସନ ଫାଇଲରେ ଏକ ସମସ୍ୟା ଅଛି"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"ଏହି ଆପକୁ ଇନଷ୍ଟଲ କରିବା ପାଇଁ ସ୍ପେସ ଖାଲି କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"ଆପ ଫାଇଲରେ ଏକ ସମସ୍ୟା ଅଛି"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"ଆପ୍ସ ଇନଷ୍ଟଲ କରିବାକୁ ପ୍ରତିବନ୍ଧିତ କରାଯାଇଛି"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"ଅଜଣା ଆପ୍ସ ଇନଷ୍ଟଲ କରିବାକୁ ପ୍ରତିବନ୍ଧିତ କରାଯାଇଛି"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"ଏହି ଆପର ଏକ କ୍ଲୋନ ମଧ୍ୟ ଅଛି ଏବଂ ଏହାକୁ ଡିଲିଟ କରିଦିଆଯିବ"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"ଏହି ଆପ <xliff:g id="APP_LABEL">%1$s</xliff:g>ର ଏକ କ୍ଲୋନ ଅଟେ"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"ଏହି ଆପକୁ ଫେକ୍ଟୋରୀ ଭର୍ସନ ସହିତ ପରିବର୍ତ୍ତନ କରାଯିବ। ସମସ୍ତ ଆପ ଡାଟାକୁ କାଢ଼ି ଦିଆଯିବ।"</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"ଏହି ଆପକୁ ଡିଭାଇସର ସମସ୍ତ ୟୁଜରଙ୍କ ପାଇଁ ଫେକ୍ଟୋରୀ ଭର୍ସନ ସହିତ ପରିବର୍ତ୍ତନ କରାଯିବ। ସମସ୍ତ ଆପ ଡାଟାକୁ କାଢ଼ି ଦିଆଯିବ।"</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"ଏହି ଆପକୁ ଆପଣଙ୍କ ୱାର୍କ ପ୍ରୋଫାଇଲରୁ ଅନଇନଷ୍ଟଲ କରାଯିବ"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"ଏହି ଆପ ଆପଣଙ୍କ ପ୍ରାଇଭେଟ ସ୍ପେସରୁ ଅନଇନଷ୍ଟଲ ହୋଇଯିବ"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"ଏହି ଆପ ଇନଷ୍ଟଲ କରାଯାଇଥିବା ଆପ୍ସ ତାଲିକାରେ ମିଳିଲା ନାହିଁ କିମ୍ବା ପୂର୍ବରୁ ଏହାକୁ ଅନଇନଷ୍ଟଲ କରାଯାଇଛି"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"ଏହି ଅନଇନଷ୍ଟଲେସନ କରିବାକୁ ବର୍ତ୍ତମାନର ୟୁଜରଙ୍କୁ ଅନୁମତି ଦିଆଯାଇନାହିଁ"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"ଏହି ଆପକୁ ଅନଇନଷ୍ଟଲ କରାଯାଇପାରିବ ନାହିଁ"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"ଆପ ଡାଟା ରଖନ୍ତୁ"</string>
+    <string name="message_archive" msgid="943853731737315850">"ଆପଣଙ୍କର ଆପ ଡାଟାକୁ ସେଭ କରାଯିବ"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"ସମସ୍ତ ଆପ ଡାଟାକୁ ସେଭ କରାଯିବ"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"ଆପ ଡାଟାକୁ ସେଭ କରାଯିବ"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"ଏହି ଆପକୁ ଆପଣଙ୍କ ୱାର୍କ ପ୍ରୋଫାଇଲରୁ ଆର୍କାଇଭ କରାଯିବ। ଆପଣଙ୍କର ଆପ ଡାଟାକୁ ସେଭ କରାଯିବ।"</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"ଏହି ଆପକୁ ଆପଣଙ୍କ ପ୍ରାଇଭେଟ ସ୍ପେସରୁ ଆର୍କାଇଭ କରାଯିବ। ଆପଣଙ୍କର ଆପ ଡାଟାକୁ ସେଭ କରାଯିବ।"</string>
+    <string name="message_restore" msgid="8402726798623569969">"ଏହି ଆପ ବେକଗ୍ରାଉଣ୍ଡରେ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>ରୁ ଡାଉନଲୋଡ ହେବ"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"ଆପଣ ଏହି ଆପକୁ ରିଷ୍ଟୋର କରିବା ପୂର୍ବରୁ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ଅଧିକ ସୂଚନା ଆବଶ୍ୟକ କରେ"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"ଏହି ଆପକୁ ରିଷ୍ଟୋର କରିବା ପାଇଁ, &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; ଖାଲି କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"ଏହି ଆପକୁ ରିଷ୍ଟୋର କରିବା ପାଇଁ, ଆପଣଙ୍କ ଇଣ୍ଟର୍ନେଟ କନେକ୍ସନକୁ ଯାଞ୍ଚ କରି ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"ଏହି ଆପକୁ ରିଷ୍ଟୋର କରିବା ପାଇଁ, ସେଟିଂସରେ <xliff:g id="INSTALLERNAME">%1$s</xliff:g>କୁ ସକ୍ଷମ କରନ୍ତୁ"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"ଏହି ଆପକୁ ରିଷ୍ଟୋର କରିବା ପାଇଁ, ଆପଣଙ୍କୁ <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ଇନଷ୍ଟଲ କରିବାକୁ ହେବ"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"ଏହି ଆପକୁ ରିଷ୍ଟୋର କରିବା ପାଇଁ ଚେଷ୍ଟା କରିବା ସମୟରେ ଏକ ସମସ୍ୟା ହୋଇଛି"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> ହେଉଛି ନିମ୍ନୋକ୍ତ ଆପର ଏକ ଅଂଶ: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;ଏହି ଆପକୁ ବ୍ଲକ କରାଯାଇଛି। ଆପଣଙ୍କ ଡିଭାଇସ ଏବଂ ଡାଟାକୁ ସୁରକ୍ଷିତ ରଖିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ କେବଳ ଯାଞ୍ଚ ହୋଇଥିବା ଡେଭେଲପରମାନଙ୍କର ଆପ୍ସକୁ ଇନଷ୍ଟଲ କରାଯାଇପାରିବ।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;ଏହି ଆପକୁ ଅପଡେଟ କରାଯାଇନାହିଁ। ଆପଣଙ୍କ ଡିଭାଇସ ଏବଂ ଡାଟାକୁ ସୁରକ୍ଷିତ ରଖିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ, କେବଳ ଯାଞ୍ଚ ହୋଇଥିବା ଡେଭେଲପରମାନଙ୍କର ଅପଡେଟଗୁଡ଼ିକୁ ଇନଷ୍ଟଲ କରାଯାଇପାରିବ।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;ଏହି ଆପକୁ ଇନଷ୍ଟଲ କରାଯାଇନାହିଁ। ଯାଞ୍ଚ ହୋଇନଥିବା ଡେଭେଲପରମାନଙ୍କର ଆପ୍ସ ଅସୁରକ୍ଷିତ ହୋଇପାରେ।&lt;/p&gt; &lt;p&gt;ଆପ ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରିବା ପାଇଁ ଏକ ଇଣ୍ଟର୍ନେଟ କନେକ୍ସନ ଆବଶ୍ୟକ। ଆପଣଙ୍କ କନେକ୍ସନ ଯାଞ୍ଚ କରନ୍ତୁ, ତା\'ପରେ ପୁଣି ଇନଷ୍ଟଲ କରିବାକୁ ଚେଷ୍ଟା କରନ୍ତୁ। &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;ଏହି ଆପକୁ ଅପଡେଟ କରାଯାଇନାହିଁ। ଯାଞ୍ଚ ହୋଇନଥିବା ଡେଭେଲପରମାନଙ୍କର ଅପଡେଟଗୁଡ଼ିକ ଅସୁରକ୍ଷିତ ହୋଇପାରେ।&lt;/p&gt; &lt;p&gt;ଆପ ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରିବା ପାଇଁ ଏକ ଇଣ୍ଟର୍ନେଟ କନେକ୍ସନ ଆବଶ୍ୟକ। ଆପଣଙ୍କ କନେକ୍ସନ ଯାଞ୍ଚ କରନ୍ତୁ, ତା\'ପରେ ପୁଣି ଅପଡେଟ କରିବାକୁ ଚେଷ୍ଟା କରନ୍ତୁ। &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;ଏହି ଆପର ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରିବାରେ ଏକ ସମସ୍ୟା ହୋଇଛି। ଯାଞ୍ଚ ହୋଇନଥିବା ଡେଭେଲପରମାନଙ୍କର ଆପ୍ସ ଅସୁରକ୍ଷିତ ହୋଇପାରେ, ତେଣୁ ଆପକୁ ଇନଷ୍ଟଲ କରାଯାଇନାହିଁ।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;ଏହି ଆପର ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରିବାରେ ଏକ ସମସ୍ୟା ହୋଇଛି। ଯାଞ୍ଚ ହୋଇନଥିବା ଡେଭେଲପରମାନଙ୍କର ଅପଡେଟଗୁଡ଼ିକ ଅସୁରକ୍ଷିତ ହୋଇପାରେ, ତେଣୁ ଆପକୁ ଅପଡେଟ କରାଯାଇନାହିଁ।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରିବାରେ ଏକ ସମସ୍ୟା ହୋଇଥିବା ଯୋଗୁଁ ଏହି ଆପକୁ ବ୍ଲକ କରାଯାଇଛି। ଆପଣଙ୍କ ଡିଭାଇସ ଏବଂ ଡାଟାକୁ ସୁରକ୍ଷିତ ରଖିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ କେବଳ ଯାଞ୍ଚ ହୋଇଥିବା ଡେଭେଲପରମାନଙ୍କର ଆପ୍ସକୁ ଇନଷ୍ଟଲ କରାଯାଇପାରିବ।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରିବାରେ ଏକ ସମସ୍ୟା ହୋଇଥିବା ଯୋଗୁଁ ଏହି ଆପକୁ ଅପଡେଟ କରାଯାଇନାହିଁ। ଆପଣଙ୍କ ଡିଭାଇସ ଏବଂ ଡାଟାକୁ ସୁରକ୍ଷିତ ରଖିବାରେ ସାହାଯ୍ୟ କରିବା ପାଇଁ, କେବଳ ଯାଞ୍ଚ ହୋଇଥିବା ଡେଭେଲପରମାନଙ୍କର ଅପଡେଟଗୁଡ଼ିକୁ ଇନଷ୍ଟଲ କରାଯାଇପାରିବ।&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;ଡେଭେଲପର ଯାଞ୍ଚକରଣ ବିଷୟରେ ଅଧିକ ଜାଣନ୍ତୁ&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"ଯଦି ଆପଣ ଯାଞ୍ଚ ନକରି ଇନଷ୍ଟଲ କରନ୍ତି, ତେବେ ମନେରଖନ୍ତୁ ଯେ ଯାଞ୍ଚ ହୋଇନଥିବା ଡେଭେଲପରମାନଙ୍କଠାରୁ ଆପ୍ସ ଆପଣଙ୍କ ଡିଭାଇସ ଏବଂ ଡାଟାକୁ ବିପଦରେ ପକାଇପାରେ।"</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"ଯଦି ଆପଣ ଯାଞ୍ଚ ନକରି ଅପଡେଟ କରନ୍ତି, ତେବେ ମନେରଖନ୍ତୁ ଯେ ଯାଞ୍ଚ ହୋଇନଥିବା ଡେଭେଲପରମାନଙ୍କଠାରୁ ଅପଡେଟଗୁଡ଼ିକ ଆପଣଙ୍କ ଡିଭାଇସ ଏବଂ ଡାଟାକୁ ବିପଦରେ ପକାଇପାରେ।"</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"ଆପ ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରାଯାଇନାହିଁ"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"ଇଣ୍ଟର୍ନେଟ ନାହିଁ, ଆପ ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରାଯାଇପାରିବ ନାହିଁ"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"ଆପ ଡେଭେଲପରଙ୍କୁ ଯାଞ୍ଚ କରାଯାଇପାରିବ ନାହିଁ"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"ଯାଞ୍ଚ ନକରି ଇନଷ୍ଟଲ କରନ୍ତୁ"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"ଯାଞ୍ଚ ନକରି ଅପଡେଟ କରନ୍ତୁ"</string>
+    <string name="button_install" msgid="7434013176505680162">"ଇନଷ୍ଟଲ କରନ୍ତୁ"</string>
+    <string name="button_update" msgid="3046719350226327526">"ଅପଡେଟ କରନ୍ତୁ"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"ଯେ କୌଣସି ମତେ ଅପଡେଟ କରନ୍ତୁ"</string>
+    <string name="button_done" msgid="3408025390982260629">"ହୋଇଗଲା"</string>
+    <string name="button_open" msgid="6892684987374117955">"ଖୋଲନ୍ତୁ"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"ବାତିଲ କରନ୍ତୁ"</string>
+    <string name="button_continue" msgid="107501685249826244">"ଜାରି ରଖନ୍ତୁ"</string>
+    <string name="button_close" msgid="7187308556466275899">"ବନ୍ଦ କରନ୍ତୁ"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"ଅନଇନଷ୍ଟଲ କରନ୍ତୁ"</string>
+    <string name="button_delete" msgid="1050833585936159792">"ଡିଲିଟ କରନ୍ତୁ"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"ପୁଣି ଇନଷ୍ଟଲ କରନ୍ତୁ"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"ଆପ୍ସକୁ ପରିଚାଳନା କରନ୍ତୁ"</string>
+    <string name="button_archive" msgid="2719647830439699121">"ଆର୍କାଇଭ କରନ୍ତୁ"</string>
+    <string name="button_restore" msgid="4388317532933866637">"ରିଷ୍ଟୋର କରନ୍ତୁ"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"ଅପଡେଟଗୁଡ଼ିକୁ ଅନଇନଷ୍ଟଲ କରନ୍ତୁ"</string>
+    <string name="button_settings" msgid="3837571366246132287">"ସେଟିଂସ"</string>
+    <string name="button_retry" msgid="6736082260813816198">"ପୁଣି ଚେଷ୍ଟା କରନ୍ତୁ"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> କ୍ଲୋନ"</string>
+</resources>

@@ -37,7 +37,7 @@ import java.util.List;
 
 /**
  * See MmTelFeature for more information.
- * {@hide}
+ * @hide
  */
 interface IImsMmTelFeature {
     void setListener(IImsMmTelListener l);

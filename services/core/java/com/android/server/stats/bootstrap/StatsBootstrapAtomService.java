@@ -16,6 +16,7 @@
 package com.android.server.stats.bootstrap;
 
 import android.content.Context;
+import android.os.Binder;
 import android.os.IStatsBootstrapAtomService;
 import android.os.StatsBootstrapAtom;
 import android.os.StatsBootstrapAtomValue;
@@ -35,10 +36,71 @@ public class StatsBootstrapAtomService extends IStatsBootstrapAtomService.Stub {
     private static final String TAG = "StatsBootstrapAtomService";
     private static final boolean DEBUG = false;
 
+    private boolean verifyAtomValidity(StatsBootstrapAtom atom) {
+        switch (atom.atomId) {
+            // EvsUsageStatsReported atom
+            case 274 -> {
+                if (Binder.getCallingUid() != 1062 /*AID_AUTOMOTIVE_EVS*/) {
+                    Slog.e(TAG, "Atom ID " + atom.atomId + " sent from unsupported app.");
+                    return false;
+                }
+                return true;
+            }
+            // APEX_INSTALLATION_REQUESTED atom, APEX_INSTALLATION_ENDED atom
+            case 732, 734 -> {
+                if (Binder.getCallingUid() != 0) {
+                    Slog.e(TAG, "Atom ID " + atom.atomId + " sent from non-root app.");
+                    return false;
+                }
+                return true;
+            }
+            // Binder spam atom, Binder Latency atom
+            case 1064, 1090 -> {
+                if (atom.values == null || atom.values.length < 2) {
+                    Slog.e(TAG,
+                            "Atom ID " + atom.atomId + " has no values, cannot check server UID");
+                    return false;
+                }
+                StatsBootstrapAtomValue firstValueContainer = atom.values[1];
+
+                if (firstValueContainer == null || firstValueContainer.value == null
+                        || firstValueContainer.value.getTag()
+                                != StatsBootstrapAtomValue.Primitive.longValue) {
+                    Slog.e(TAG,
+                            "Atom ID " + atom.atomId
+                                    + " missing or has incorrect type for server UID field.");
+                    return false;
+                }
+                long serverUidFromAtom = firstValueContainer.value.getLongValue();
+                long callingUid = Binder.getCallingUid();
+                if (serverUidFromAtom != callingUid) {
+                    Slog.e(TAG,
+                            "Atom ID 1064 server UID mismatch. Atom UID: " + serverUidFromAtom
+                                    + ", Calling UID: " + callingUid);
+                    return false;
+                }
+                return true;
+            }
+            // surface flinger SURFACE_CONTROL_EVENT atom
+            case 948 -> {
+                if (Binder.getCallingUid() != 1000) {
+                    Slog.e(TAG, "Atom ID 948 sent from non-system app.");
+                    return false;
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
     @Override
     public void reportBootstrapAtom(StatsBootstrapAtom atom) {
         if (atom.atomId < 1 || atom.atomId >= 10000) {
             Slog.e(TAG, "Atom ID " + atom.atomId + " is not a valid atom ID");
+            return;
+        }
+        // b/427987059 move verification to a dedicated service for native binder stats.
+        if (!verifyAtomValidity(atom)) {
             return;
         }
         StatsEvent.Builder builder = StatsEvent.newBuilder().setAtomId(atom.atomId);
@@ -70,7 +132,6 @@ public class StatsBootstrapAtomService extends IStatsBootstrapAtomService.Stub {
                     Slog.e(TAG, "Unexpected value type " + value.getTag()
                             + " when logging atom " + atom.atomId);
                     return;
-
             }
             StatsBootstrapAtomValue.Annotation[] annotations = atomValue.annotations;
             for (StatsBootstrapAtomValue.Annotation annotation : atomValue.annotations) {

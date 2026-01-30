@@ -140,7 +140,7 @@ public class WatchedArraySet<E> extends WatchableImpl
         this(capacity, false);
     }
 
-    /** {@hide} */
+    /** @hide */
     public WatchedArraySet(int capacity, boolean identityHashCode) {
         mStorage = new ArraySet<E>(capacity, identityHashCode);
     }

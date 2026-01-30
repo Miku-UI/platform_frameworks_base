@@ -65,7 +65,7 @@ import java.util.Objects;
  * NOTE: All lifecycle methods are called from the system server's main looper thread.
  * </p>
  *
- * {@hide}
+ * @hide
  */
 @SystemApi(client = Client.SYSTEM_SERVER)
 @android.ravenwood.annotation.RavenwoodKeepWholeClass

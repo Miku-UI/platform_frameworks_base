@@ -21,6 +21,13 @@ public class IpcDataCache<Input, Output> {
     public static class Config {
         public Config(int max, String module, String api, String name) {
         }
+
+        /**
+         * Set the cacheNull behavior.
+         */
+        public Config cacheNulls(boolean enable) {
+            return this;
+        }
     }
 
     /** Shadow method for generated code compilation tests purposes only.

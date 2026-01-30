@@ -39,7 +39,6 @@ import androidx.annotation.VisibleForTesting;
 import androidx.collection.ArraySet;
 
 import com.android.settingslib.R;
-import com.android.settingslib.flags.Flags;
 import com.android.settingslib.utils.ThreadUtils;
 
 import java.util.Collection;
@@ -235,25 +234,14 @@ public class BluetoothEventManager {
 
         LocalBluetoothLeBroadcast broadcast = mBtManager == null ? null
                 : mBtManager.getProfileManager().getLeAudioBroadcastProfile();
-        LocalBluetoothLeBroadcastAssistant assistant = mBtManager == null ? null
-                : mBtManager.getProfileManager().getLeAudioBroadcastAssistantProfile();
-        // Trigger updateFallbackActiveDeviceIfNeeded when ASSISTANT profile disconnected when
-        // audio sharing is enabled.
-        if (bluetoothProfile == BluetoothProfile.LE_AUDIO_BROADCAST_ASSISTANT
-                && state == BluetoothAdapter.STATE_DISCONNECTED
-                && BluetoothUtils.isAudioSharingUIAvailable(mContext)
-                && broadcast != null && assistant != null && broadcast.isProfileReady()
-                && assistant.isProfileReady()) {
-            Log.d(TAG, "updateFallbackActiveDeviceIfNeeded, ASSISTANT profile disconnected");
-            broadcast.updateFallbackActiveDeviceIfNeeded();
-        }
         // Dispatch handleOnProfileStateChanged to local broadcast profile
-        if (Flags.promoteAudioSharingForSecondAutoConnectedLeaDevice()
-                && broadcast != null
-                && state == BluetoothAdapter.STATE_CONNECTED) {
+        if (broadcast != null && state == BluetoothAdapter.STATE_CONNECTED) {
             Log.d(TAG, "dispatchProfileConnectionStateChanged to local broadcast profile");
-            var unused = ThreadUtils.postOnBackgroundThread(
-                    () -> broadcast.handleProfileConnected(device, bluetoothProfile, mBtManager));
+            var unused =
+                    ThreadUtils.postOnBackgroundThread(
+                            () ->
+                                    broadcast.handleProfileConnected(
+                                            device, bluetoothProfile, mBtManager));
         }
     }
 
@@ -436,7 +424,9 @@ public class BluetoothEventManager {
             for (BluetoothCallback callback : mCallbacks) {
                 callback.onDeviceBondStateChanged(cachedDevice, bondState);
             }
-            cachedDevice.onBondingStateChanged(bondState);
+            int prevBondState = intent.getIntExtra(BluetoothDevice.EXTRA_PREVIOUS_BOND_STATE,
+                    BluetoothDevice.ERROR);
+            cachedDevice.onBondingStateChanged(bondState, prevBondState);
 
             if (bondState == BluetoothDevice.BOND_NONE) {
                 // Check if we need to remove other Coordinated set member devices / Hearing Aid
@@ -558,20 +548,18 @@ public class BluetoothEventManager {
                 return;
             }
 
-            // Avoid to notify Settings UI for Hearing Aid sub device.
-            if (mDeviceManager.isSubDevice(device)) {
-                return;
-            }
-
             final String action = intent.getAction();
             if (action == null) {
                 Log.w(TAG, "AclStateChangedHandler: action is null");
                 return;
             }
-            final CachedBluetoothDevice activeDevice = mDeviceManager.findDevice(device);
+            CachedBluetoothDevice activeDevice = mDeviceManager.findDevice(device);
             if (activeDevice == null) {
-                Log.w(TAG, "AclStateChangedHandler: activeDevice is null");
-                return;
+                activeDevice = mDeviceManager.addDevice(device);
+                Log.d(
+                        TAG,
+                        "AclStateChangedHandler created new CachedBluetoothDevice "
+                                + device.getAnonymizedAddress());
             }
             final int state;
             switch (action) {
@@ -585,6 +573,9 @@ public class BluetoothEventManager {
                     Log.w(TAG, "ActiveDeviceChangedHandler: unknown action " + action);
                     return;
             }
+            int transport = intent
+                    .getIntExtra(BluetoothDevice.EXTRA_TRANSPORT, BluetoothDevice.TRANSPORT_BREDR);
+            activeDevice.onAclStateChanged(state, transport);
             dispatchAclStateChanged(activeDevice, state);
         }
     }

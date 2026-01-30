@@ -33,7 +33,7 @@ import java.util.List;
 
 /**
  * Tracks events related to the default network for the purpose of default network metrics.
- * {@hide}
+ * @hide
  */
 public class DefaultNetworkMetrics {
 

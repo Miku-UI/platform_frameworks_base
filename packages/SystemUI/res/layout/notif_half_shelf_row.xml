@@ -50,6 +50,22 @@
             android:orientation="vertical"
         >
             <TextView
+                android:featureFlag="android.app.notifications_redesign_fonts"
+                android:id="@+id/channel_name"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:paddingBottom="0dp"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:gravity="center_vertical|start"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:fontFamily="variable-title-medium"
+                android:textColor="@androidprv:color/materialColorOnSurface"
+                android:textSize="16sp"
+            />
+            <TextView
+                android:featureFlag="!android.app.notifications_redesign_fonts"
                 android:id="@+id/channel_name"
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
@@ -62,9 +78,25 @@
                 android:fontFamily="@*android:string/config_headlineFontFamily"
                 android:textColor="@androidprv:color/materialColorOnSurface"
                 android:textSize="16sp"
-            />
+                />
 
             <TextView
+                android:featureFlag="android.app.notifications_redesign_fonts"
+                android:id="@+id/channel_description"
+                android:layout_height="wrap_content"
+                android:layout_width="wrap_content"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:gravity="center_vertical|start"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:layout_below="@id/channel_name"
+                android:fontFamily="variable-body-medium"
+                android:textColor="@androidprv:color/materialColorOnSurfaceVariant"
+                android:textSize="14sp"
+            />
+            <TextView
+                android:featureFlag="!android.app.notifications_redesign_fonts"
                 android:id="@+id/channel_description"
                 android:layout_height="wrap_content"
                 android:layout_width="wrap_content"
@@ -77,7 +109,7 @@
                 android:fontFamily="@*android:string/config_bodyFontFamily"
                 android:textColor="@androidprv:color/materialColorOnSurfaceVariant"
                 android:textSize="14sp"
-            />
+                />
         </RelativeLayout>
 
         <com.google.android.material.materialswitch.MaterialSwitch

@@ -71,6 +71,16 @@ flag {
 }
 
 flag {
+  name: "dpe_based_on_async_apis_enabled"
+  namespace: "supervision"
+  description: "Whether DPE's synchronous APIs use async APIs."
+  bug: "374123015"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
   name: "coexistence_migration_for_supervision_enabled"
   is_exported: true
   namespace: "enterprise"
@@ -100,6 +110,16 @@ flag {
  namespace: "enterprise"
  description: "Enables coexistence support for setApplicationRestrictions."
  bug: "359188153"
+}
+
+flag {
+  name: "app_restrictions_coexistence"
+  namespace: "supervision"
+  description: "Enables coexistence support for setApplicationRestrictions."
+  bug: "359188153"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
 }
 
 flag {
@@ -353,16 +373,6 @@ flag {
 }
 
 flag {
-    name: "user_provisioning_same_state"
-    namespace: "enterprise"
-    description: "Handle exceptions while setting same provisioning state."
-    bug: "326441417"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "remove_managed_profile_enabled"
     namespace: "enterprise"
     description: "API that removes a given managed profile."
@@ -421,4 +431,108 @@ flag {
   metadata {
     purpose: PURPOSE_BUGFIX
   }
+}
+
+flag {
+  name: "associate_disallow_grant_admin_with_permission"
+  namespace: "supervision"
+  description: "DISALLOW_GRANT_ADMIN restriction is currently not associated with any permission, causing null pointer exceptions when client try to add it."
+  bug: "407776766"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "enterprise_esim_using_carrier_privileges"
+  namespace: "enterprise"
+  description: "Check for enterprise management indicator in carrier privileges of an eSIM profile"
+  bug: "373466339"
+}
+
+flag {
+  name: "policy_transparency_refactor_enabled"
+  namespace: "enterprise"
+  description: "Refactor policy transparency to use new generic policy transparency API."
+  bug: "414733570"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "remove_device_admin_feature_checks"
+  namespace: "enterprise"
+  description: "Remove device_admin feature checks for coexistence enabled APIs."
+  bug: "420867009"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "dont_write_is_system_authority"
+  namespace: "enterprise"
+  description: "Stop writing redundant is-system attribute in EnforcingAdmin XML representation ."
+  bug: "336315393"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "cross_profile_widget_provider_bulk_apis"
+  namespace: "enterprise"
+  description: "Add bulk APIs for cross profile widget providers"
+  bug: "421053737"
+  is_exported: true
+}
+
+flag {
+  name: "policy_streamlining"
+  is_exported: true
+  namespace: "enterprise"
+  description: "Enable the policy streamlining APIs."
+  bug: "434919316"
+}
+
+flag {
+  name: "remove_hack_in_policy_engine"
+  namespace: "enterprise"
+  description: "[Coexistence] Remove hack for handling user control disabled policy result code in the policy engine."
+  bug: "285532044"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "enforcing_admin_get_component_name_enabled"
+  namespace: "enterprise"
+  description: "Enables the getter API for componentName field of EnforcingAdmin"
+  bug: "414733570"
+  is_exported: true
+}
+
+flag {
+  name: "enforcing_admin_extra_enabled"
+  namespace: "enterprise"
+  description: "Adds a new API for extra that contains EnforcingAdmin"
+  bug: "414733570"
+  is_exported: true
+}
+
+flag {
+  name: "device_owner_for_all"
+  namespace: "enterprise"
+  description: "Enable any user (not just the Main User) to be a DeviceOwner"
+  bug: "435271558"
+}
+
+flag {
+  name: "multi_user_management_device_provisioning"
+  is_exported: true
+  namespace: "enterprise"
+  description: "Enable the multi user management device provisioning APIs."
+  bug: "390162247"
 }

@@ -83,6 +83,7 @@
                 android:adjustViewBounds="true"
                 systemui:hasOverlappingRendering="false"
                 />
+            <!-- TODO(b/314812750): this can be removed once the flag is rolled out -->
             <ImageView
                 android:id="@+id/mobile_roaming"
                 android:layout_width="wrap_content"
@@ -93,5 +94,14 @@
                 android:contentDescription="@string/data_connection_roaming"
                 android:visibility="gone" />
         </FrameLayout>
+        <ImageView
+            android:id="@+id/mobile_roaming_updated"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/status_bar_mobile_roam_size_updated"
+            android:layout_marginStart="@dimen/status_bar_end_side_roam_icon_margin_start"
+            android:layout_marginTop="1sp"
+            android:visibility="gone"
+            android:src="@drawable/stat_sys_roaming_updated"
+            android:contentDescription="@string/data_connection_roaming"/>
     </com.android.keyguard.AlphaOptimizedLinearLayout>
 </merge>

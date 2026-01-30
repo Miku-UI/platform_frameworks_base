@@ -21,7 +21,7 @@ import android.view.SurfaceControl;
 
 /**
  * Interface for WindowManager to delegate control of display areas.
- * {@hide}
+ * @hide
  */
 oneway interface IDisplayAreaOrganizer {
     void onDisplayAreaAppeared(in DisplayAreaInfo displayAreaInfo, in SurfaceControl leash);

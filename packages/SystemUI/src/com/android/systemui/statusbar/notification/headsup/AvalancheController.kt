@@ -15,6 +15,7 @@
  */
 package com.android.systemui.statusbar.notification.headsup
 
+import android.app.Notification
 import android.os.Handler
 import androidx.annotation.VisibleForTesting
 import com.android.internal.logging.UiEvent
@@ -23,8 +24,9 @@ import com.android.systemui.Dumpable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dump.DumpManager
-import com.android.systemui.statusbar.chips.notification.shared.StatusBarNotifChips
 import com.android.systemui.statusbar.notification.headsup.HeadsUpManagerImpl.HeadsUpEntry
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
+import com.android.systemui.statusbar.notification.shared.AvalancheReplaceHunWhenCritical
 import com.android.systemui.statusbar.notification.shared.NotificationThrottleHun
 import java.io.PrintWriter
 import javax.inject.Inject
@@ -154,7 +156,11 @@ constructor(
         } else if (entry in nextMap) {
             outcome = "update next"
             nextMap[entry]?.add(runnable)
-            checkNextPinnedByUser(entry)?.let { outcome = "$outcome & $it" }
+            if (AvalancheReplaceHunWhenCritical.isEnabled) {
+                checkReplaceCurrentHun(entry)?.let { outcome = "$outcome & $it" }
+            } else {
+                checkNextPinnedByUser(entry)?.let { outcome = "$outcome & $it" }
+            }
         } else if (headsUpEntryShowing == null) {
             outcome = "show now"
             showNow(entry, arrayListOf(runnable))
@@ -166,9 +172,14 @@ constructor(
             outcome = "add next"
             addToNext(entry, runnable)
 
-            val nextIsPinnedByUserResult = checkNextPinnedByUser(entry)
-            if (nextIsPinnedByUserResult != null) {
-                outcome = "$outcome & $nextIsPinnedByUserResult"
+            val nextReplacementResult =
+                if (AvalancheReplaceHunWhenCritical.isEnabled) {
+                    checkReplaceCurrentHun(entry)
+                } else {
+                    checkNextPinnedByUser(entry)
+                }
+            if (nextReplacementResult != null) {
+                outcome = "$outcome & $nextReplacementResult"
             } else {
                 // Shorten headsUpEntryShowing display time
                 val nextIndex = nextList.indexOf(entry)
@@ -179,6 +190,7 @@ constructor(
                     headsUpEntryShowing!!.updateEntry(
                         /* updatePostTime= */ false,
                         /* updateEarliestRemovalTime= */ false,
+                        /* ignoreSticky= */ false,
                         /* reason= */ "shorten duration of previously-last HUN",
                     )
                 }
@@ -192,6 +204,7 @@ constructor(
     fun addToNext(entry: HeadsUpEntry, runnable: Runnable) {
         nextMap[entry] = arrayListOf(runnable)
         nextList.add(entry)
+        headsUpManagerLogger.logAddToNext(entry.mEntry)
     }
 
     /**
@@ -201,19 +214,78 @@ constructor(
      * @return a string representing the outcome, or null if nothing changed.
      */
     private fun checkNextPinnedByUser(entry: HeadsUpEntry): String? {
+        AvalancheReplaceHunWhenCritical.assertInLegacyMode()
         if (
-            StatusBarNotifChips.isEnabled &&
+            PromotedNotificationUi.isEnabled &&
                 entry.requestedPinnedStatus == PinnedStatus.PinnedByUser
         ) {
             val string = "next is PinnedByUser"
             headsUpEntryShowing?.updateEntry(
                 /* updatePostTime= */ false,
                 /* updateEarliestRemovalTime= */ false,
+                /* ignoreSticky= */ false,
                 /* reason= */ string,
             )
             return string
         }
         return null
+    }
+
+    /**
+     * Checks if the given entry should replace the showing HUN immediately.
+     *
+     * @return a string representing the reason for replacement, or null if should not replace.
+     */
+    private fun checkReplaceCurrentHun(entry: HeadsUpEntry): String? {
+        if (AvalancheReplaceHunWhenCritical.isUnexpectedlyInLegacyMode()) return null
+        var result: String? = null
+        var ignoreSticky = false
+        if (entry.hasFullScreenIntent()) {
+            result = "next has FSI"
+            ignoreSticky = true
+        }
+        if (entry.isCriticalCall()) {
+            result = "$result next is critical call"
+            ignoreSticky = true
+        }
+        if (
+            PromotedNotificationUi.isEnabled &&
+                entry.requestedPinnedStatus == PinnedStatus.PinnedByUser
+        ) {
+            result = "$result next is PinnedByUser"
+            ignoreSticky = true
+        }
+
+        if (result != null) {
+            headsUpEntryShowing?.updateEntry(
+                /* updatePostTime= */ false,
+                /* updateEarliestRemovalTime= */ false,
+                /* ignoreSticky= */ ignoreSticky,
+                /* reason= */ result,
+            )
+        }
+
+        return result
+    }
+
+    private fun HeadsUpEntry.hasFullScreenIntent(): Boolean {
+        return this.mEntry?.sbn?.notification?.fullScreenIntent != null
+    }
+
+    /**
+     * Determines if the notification is for a critical call that must display on top of an active
+     * input notification. The call isOngoing check is for a special case of incoming calls where
+     * the call is not yet answered (see b/164291424).
+     */
+    private fun HeadsUpEntry.isCriticalCall(): Boolean {
+        val notificationEntry = this.mEntry ?: return false
+        val notification = notificationEntry.sbn.notification
+        val isIncomingCall =
+            notification.isStyle(Notification.CallStyle::class.java) &&
+                notification.extras.getInt(Notification.EXTRA_CALL_TYPE) ==
+                    Notification.CallStyle.CALL_TYPE_INCOMING
+        return isIncomingCall ||
+            (notificationEntry.sbn.isOngoing && Notification.CATEGORY_CALL == notification.category)
     }
 
     /**
@@ -340,7 +412,7 @@ constructor(
         val nextKey = getKey(nextEntry)
 
         if (
-            StatusBarNotifChips.isEnabled &&
+            PromotedNotificationUi.isEnabled &&
                 nextEntry.requestedPinnedStatus == PinnedStatus.PinnedByUser
         ) {
             return RemainingDuration.HideImmediately.also {
@@ -352,32 +424,84 @@ constructor(
                 )
             }
         }
-        if (nextEntry.compareNonTimeFields(entry) == -1) {
-            return RemainingDuration.UpdatedDuration(500).also {
-                headsUpManagerLogger.logAvalancheDuration(
-                    thisKey,
-                    duration = it,
-                    "LOWER priority than next: ",
-                    nextKey,
-                )
-            }
-        } else if (nextEntry.compareNonTimeFields(entry) == 0) {
-            return RemainingDuration.UpdatedDuration(1000).also {
-                headsUpManagerLogger.logAvalancheDuration(
-                    thisKey,
-                    duration = it,
-                    "SAME priority as next: ",
-                    nextKey,
-                )
+        if (AvalancheReplaceHunWhenCritical.isEnabled) {
+            return when (val nextPriority = entry.getNextHunPriority(nextEntry)) {
+
+                // When next is critical, replace immediately
+                is NextHunPriority.ReplaceImmediately -> {
+                    RemainingDuration.HideImmediately.also {
+                        headsUpManagerLogger.logAvalancheDuration(
+                            thisKey,
+                            duration = it,
+                            nextPriority.message,
+                            nextKey,
+                        )
+                    }
+                }
+
+                // When next has higher priority, wait 500ms before replacement
+                is NextHunPriority.HigherPriority -> {
+                    RemainingDuration.UpdatedDuration(500).also {
+                        headsUpManagerLogger.logAvalancheDuration(
+                            thisKey,
+                            duration = it,
+                            "LOWER priority than next: ",
+                            nextKey,
+                        )
+                    }
+                }
+
+                // When next has same priority, wait 1000ms before replacement
+                is NextHunPriority.SamePriority -> {
+                    RemainingDuration.UpdatedDuration(1000).also {
+                        headsUpManagerLogger.logAvalancheDuration(
+                            thisKey,
+                            duration = it,
+                            "SAME priority as next: ",
+                            nextKey,
+                        )
+                    }
+                }
+
+                // When next has lower priority, wait until auto dismiss
+                is NextHunPriority.LowerPriority -> {
+                    headsUpManagerLogger.logAvalancheDuration(
+                        thisKey,
+                        autoDismissMs,
+                        "HIGHER priority than next: ",
+                        nextKey,
+                    )
+                    return autoDismissMs
+                }
             }
         } else {
-            headsUpManagerLogger.logAvalancheDuration(
-                thisKey,
-                autoDismissMs,
-                "HIGHER priority than next: ",
-                nextKey,
-            )
-            return autoDismissMs
+            if (nextEntry.compareNonTimeFields(entry) == -1) {
+                return RemainingDuration.UpdatedDuration(500).also {
+                    headsUpManagerLogger.logAvalancheDuration(
+                        thisKey,
+                        duration = it,
+                        "LOWER priority than next: ",
+                        nextKey,
+                    )
+                }
+            } else if (nextEntry.compareNonTimeFields(entry) == 0) {
+                return RemainingDuration.UpdatedDuration(1000).also {
+                    headsUpManagerLogger.logAvalancheDuration(
+                        thisKey,
+                        duration = it,
+                        "SAME priority as next: ",
+                        nextKey,
+                    )
+                }
+            } else {
+                headsUpManagerLogger.logAvalancheDuration(
+                    thisKey,
+                    autoDismissMs,
+                    "HIGHER priority than next: ",
+                    nextKey,
+                )
+                return autoDismissMs
+            }
         }
     }
 

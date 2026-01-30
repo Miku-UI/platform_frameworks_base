@@ -47,7 +47,6 @@ import android.util.Pair;
 import android.util.Slog;
 
 import com.android.internal.app.IBatteryStats;
-import com.android.server.power.optimization.Flags;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -132,7 +131,7 @@ public class SystemHealthManager {
                         ServiceManager.getService(Context.PERFORMANCE_HINT_SERVICE)));
     }
 
-    /** {@hide} */
+    /** @hide */
     public SystemHealthManager(@NonNull IBatteryStats batteryStats,
             @Nullable IPowerStatsService powerStats, @Nullable IHintManager hintManager) {
         mBatteryStats = batteryStats;
@@ -385,14 +384,6 @@ public class SystemHealthManager {
      * @see Process#myUid() Process.myUid()
      */
     public HealthStats takeUidSnapshot(int uid) {
-        if (!Flags.onewayBatteryStatsService()) {
-            try {
-                final HealthStatsParceler parceler = mBatteryStats.takeUidSnapshot(uid);
-                return parceler.getHealthStats();
-            } catch (RemoteException ex) {
-                throw ex.rethrowFromSystemServer();
-            }
-        }
         final HealthStats[] result = takeUidSnapshots(new int[]{uid});
         if (result != null && result.length >= 1) {
             return result[0];
@@ -425,20 +416,6 @@ public class SystemHealthManager {
      * other than its own.
      */
     public HealthStats[] takeUidSnapshots(int[] uids) {
-        if (!Flags.onewayBatteryStatsService()) {
-            try {
-                final HealthStatsParceler[] parcelers = mBatteryStats.takeUidSnapshots(uids);
-                final int count = uids.length;
-                final HealthStats[] results = new HealthStats[count];
-                for (int i = 0; i < count; i++) {
-                    results[i] = parcelers[i].getHealthStats();
-                }
-                return results;
-            } catch (RemoteException ex) {
-                throw ex.rethrowFromSystemServer();
-            }
-        }
-
         SynchronousResultReceiver resultReceiver;
         synchronized (mPendingUidSnapshots) {
             if (Arrays.equals(mPendingUidSnapshots.uids, uids)) {

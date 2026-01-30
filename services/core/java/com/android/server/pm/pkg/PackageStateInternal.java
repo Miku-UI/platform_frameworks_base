@@ -26,6 +26,7 @@ import com.android.internal.pm.parsing.pkg.AndroidPackageInternal;
 import com.android.server.pm.InstallSource;
 import com.android.server.pm.PackageKeySetData;
 import com.android.server.pm.permission.LegacyPermissionState;
+import com.android.server.pm.verify.developer.DeveloperVerificationStatusInternal;
 
 import java.io.File;
 import java.util.Set;
@@ -121,4 +122,10 @@ public interface PackageStateInternal extends PackageState {
      * @return the source of the app metadata that is currently associated with the given package.
      */
     int getAppMetadataSource();
+
+    /**
+     * @return the developer verification status of the package which was set when the package was
+     * installed or updated.
+     */
+    DeveloperVerificationStatusInternal getDeveloperVerificationStatusInternal();
 }

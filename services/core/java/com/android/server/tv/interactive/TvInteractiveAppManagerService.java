@@ -797,7 +797,7 @@ public class TvInteractiveAppManagerService extends SystemService {
                 Slog.e(TAG, "error in onSessionReleased", e);
             }
         }
-        removeAdSessionStateLocked(state.mSessionToken, state.mUserId);
+        removeSessionStateLocked(state.mSessionToken, state.mUserId);
     }
 
     @GuardedBy("mLock")
@@ -1054,7 +1054,7 @@ public class TvInteractiveAppManagerService extends SystemService {
             final long identity = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    releaseSessionLocked(sessionToken, callingUid, resolvedUserId);
+                    releaseAdSessionLocked(sessionToken, callingUid, resolvedUserId);
                 }
             } finally {
                 Binder.restoreCallingIdentity(identity);
@@ -1365,7 +1365,7 @@ public class TvInteractiveAppManagerService extends SystemService {
         public void notifyTvInputSessionData(
                 IBinder sessionToken, String type, Bundle data, int userId) {
             if (DEBUG) {
-                Slogf.d(TAG, "notifyTvInputSessionData(type=%d)", type);
+                Slogf.d(TAG, "notifyTvInputSessionData(type=%s)", type);
             }
             final int callingUid = Binder.getCallingUid();
             final int callingPid = Binder.getCallingPid();
@@ -1714,7 +1714,7 @@ public class TvInteractiveAppManagerService extends SystemService {
             final long identity = Binder.clearCallingIdentity();
             try {
                 synchronized (mLock) {
-                    releaseAdSessionLocked(sessionToken, callingUid, resolvedUserId);
+                    releaseSessionLocked(sessionToken, callingUid, resolvedUserId);
                 }
             } finally {
                 Binder.restoreCallingIdentity(identity);

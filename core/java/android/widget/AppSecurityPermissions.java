@@ -27,7 +27,7 @@ import com.android.internal.R;
  * Allows the device admin to show certain dialogs. Should be integrated into settings.
  *
  * @deprecated
- * {@hide}
+ * @hide
  */
 @Deprecated
 public class AppSecurityPermissions {

@@ -52,6 +52,7 @@ import android.util.Log;
 import android.util.Pair;
 import android.util.Range;
 import android.util.Size;
+import android.util.SparseArray;
 
 import com.android.internal.camera.flags.Flags;
 
@@ -290,7 +291,8 @@ public final class CameraExtensionCharacteristics {
         }
 
         private void connectToProxyLocked(Context ctx, int extension, boolean useFallback) {
-            if (mConnectionManager.getConnection(extension) == null) {
+            if ((mConnectionManager.getConnection(extension) == null) ||
+                    (mConnectionManager.getProxy(extension) == null)) {
                 Intent intent = new Intent();
                 intent.setClassName(PROXY_PACKAGE_NAME, PROXY_SERVICE_NAME);
                 String vendorProxyPackage = SystemProperties.get(
@@ -463,7 +465,7 @@ public final class CameraExtensionCharacteristics {
             // Check if user enabled fallback impl
             ContentResolver resolver = ctx.getContentResolver();
             int userEnabled = Settings.Secure.getInt(resolver,
-                    Settings.Secure.CAMERA_EXTENSIONS_FALLBACK, 1);
+                    Settings.Secure.CAMERA_EXTENSIONS_FALLBACK, 0);
 
             boolean vendorImpl = true;
             if (ret && (mConnectionManager.getProxy(extension) != null) && (userEnabled == 1)) {
@@ -819,21 +821,25 @@ public final class CameraExtensionCharacteristics {
      */
     public @NonNull List<Integer> getSupportedExtensions() {
         ArrayList<Integer> ret = new ArrayList<>();
-        final IBinder token = new Binder(TAG + "#getSupportedExtensions:" + mCameraId);
-
         IntArray extensionList = new IntArray(EXTENSION_LIST.length);
         extensionList.addAll(EXTENSION_LIST);
+        SparseArray<IBinder> tokens = new SparseArray<>();
 
-        for (int extensionType : extensionList.toArray()) {
-            try {
+        try {
+            for (int extensionType : extensionList.toArray()) {
+                final IBinder token = new Binder(TAG + "#getSupportedExtensions:" + mCameraId);
                 boolean success = registerClient(mContext, token, extensionType, mCameraId,
                         mCharacteristicsMapNative);
-                if (success && isExtensionSupported(mCameraId, extensionType,
-                        mCharacteristicsMapNative)) {
-                    ret.add(extensionType);
+                if (success) {
+                    tokens.put(extensionType, token);
+                    if (isExtensionSupported(mCameraId, extensionType, mCharacteristicsMapNative)) {
+                        ret.add(extensionType);
+                    }
                 }
-            } finally {
-                unregisterClient(mContext, token, extensionType);
+            }
+        } finally {
+            for (int i = 0; i < tokens.size(); i++) {
+                unregisterClient(mContext, tokens.valueAt(i), tokens.keyAt(i));
             }
         }
 
@@ -1098,7 +1104,7 @@ public final class CameraExtensionCharacteristics {
                     return getSupportedSizes(
                             extenders.second.getSupportedPostviewResolutions(sz), format);
                 }  else if (format == ImageFormat.JPEG_R || format == ImageFormat.YCBCR_P010 ||
-                        (Flags.depthJpegExtensions() && (format == ImageFormat.DEPTH_JPEG))) {
+                        format == ImageFormat.DEPTH_JPEG) {
                     // DepthJpeg/Jpeg_R/UltraHDR + YCBCR_P010 is currently not supported in the
                     // basic extension case
                     return new ArrayList<>();
@@ -1265,7 +1271,7 @@ public final class CameraExtensionCharacteristics {
                             return generateSupportedSizes(null, format, streamMap);
                         }
                     } else if (format == ImageFormat.JPEG_R || format == ImageFormat.YCBCR_P010 ||
-                            (Flags.depthJpegExtensions() && (format == ImageFormat.DEPTH_JPEG))) {
+                            format == ImageFormat.DEPTH_JPEG) {
                         // DepthJpeg/Jpeg_R/UltraHDR + YCBCR_P010 is currently not supported in the
                         // basic extension case
                         return new ArrayList<>();
@@ -1357,7 +1363,7 @@ public final class CameraExtensionCharacteristics {
                     return  null;
                 }
                 if (format == ImageFormat.JPEG_R || format == ImageFormat.YCBCR_P010 ||
-                        (Flags.depthJpegExtensions() && (format == ImageFormat.DEPTH_JPEG))) {
+                        format == ImageFormat.DEPTH_JPEG) {
                     // DepthJpeg/JpegR/UltraHDR + YCBCR_P010 is not supported for basic extensions
                     return null;
                 }

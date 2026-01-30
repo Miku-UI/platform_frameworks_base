@@ -68,4 +68,6 @@
     <string name="media_transfer_playing_this_device" product="tablet" msgid="222514408550408633">"Diputar di tablet ini"</string>
     <string name="finder_active" product="default" msgid="2734050945122991747">"Anda dapat menemukan lokasi ponsel ini dengan aplikasi Temukan Perangkat Saya meskipun ponsel dimatikan"</string>
     <string name="finder_active" product="tablet" msgid="8045583079989970505">"Anda dapat menemukan lokasi tablet ini dengan aplikasi Temukan Perangkat Saya meskipun tablet dimatikan"</string>
+    <string name="find_hub_active" product="default" msgid="8884083861904230143">"Anda dapat menemukan lokasi ponsel ini dengan Hub Pencari meskipun ponsel dimatikan"</string>
+    <string name="find_hub_active" product="tablet" msgid="7422713080929515642">"Anda dapat menemukan lokasi tablet ini dengan Hub Pencari meskipun tablet dimatikan"</string>
 </resources>

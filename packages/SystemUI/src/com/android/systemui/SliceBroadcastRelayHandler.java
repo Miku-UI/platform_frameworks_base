@@ -14,8 +14,6 @@
 
 package com.android.systemui;
 
-import static com.android.systemui.Flags.sliceBroadcastRelayInBackground;
-
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentProvider;
@@ -69,12 +67,7 @@ public class SliceBroadcastRelayHandler implements CoreStartable {
         if (DEBUG) Log.d(TAG, "Start");
         IntentFilter filter = new IntentFilter(SliceBroadcastRelay.ACTION_REGISTER);
         filter.addAction(SliceBroadcastRelay.ACTION_UNREGISTER);
-
-        if (sliceBroadcastRelayInBackground()) {
-            mBroadcastDispatcher.registerReceiver(mReceiver, filter, mBackgroundExecutor);
-        } else {
-            mBroadcastDispatcher.registerReceiver(mReceiver, filter);
-        }
+        mBroadcastDispatcher.registerReceiver(mReceiver, filter, mBackgroundExecutor);
     }
 
     // This does not use BroadcastDispatcher as the filter may have schemas or mime types.

@@ -28,7 +28,7 @@ please see styles_device_defaults.xml.
                         PLEASE READ
 ===============================================================
  -->
-<resources>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Global Theme Styles -->
     <eat-comment/>
 
@@ -990,7 +990,9 @@ please see styles_device_defaults.xml.
     </style>
 
     <style name="TextAppearance.Toast">
-        <item name="fontFamily">@*android:string/config_bodyFontFamily</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@*android:string/config_bodyFontFamily</item>
+
         <item name="textSize">14sp</item>
         <item name="lineHeight">20sp</item>
         <item name="textColor">?android:attr/textColorPrimary</item>
@@ -1638,12 +1640,17 @@ please see styles_device_defaults.xml.
 
     <!-- The style for normal action button on notification -->
     <style name="NotificationAction" parent="Widget.Material.Light.Button.Borderless.Small">
-        <item name="textColor">@color/notification_action_button_text_color</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-small-emphasized</item>
+
+        <item name="textColor" android:featureFlag="android.app.notifications_redesign_fonts">@color/materialColorPrimary</item>
+        <item name="textColor" android:featureFlag="!android.app.notifications_redesign_fonts">@color/notification_action_button_text_color</item>
+
         <item name="background">@drawable/notification_material_action_background</item>
     </style>
 
-    <!-- The style for emphasized action button on notification: Colored bordered ink button -->
+    <!-- The style for emphasized action button on notification (used e.g. for calls): Colored bordered ink button -->
     <style name="NotificationEmphasizedAction" parent="Widget.Material.Button">
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-medium-emphasized</item>
         <item name="background">@drawable/btn_notification_emphasized</item>
         <item name="stateListAnimator">@anim/flat_button_state_list_anim_material</item>
     </style>
@@ -1653,8 +1660,36 @@ please see styles_device_defaults.xml.
         <item name="textColor">#555555</item>
     </style>
 
-    <!-- The default style for input method switch dialog -->
-    <style name="InputMethodSwitchDialogStyle" parent="AlertDialog.DeviceDefault">
+    <!-- @hide -->
+    <style name="NotificationMetricLabel" parent="Widget.DeviceDefault.Notification.Text">
+        <item name="ellipsize">end</item>
+        <item name="maxLines">1</item>
+        <item name="textSize">14sp</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+    </style>
+
+    <!-- @hide -->
+    <style name="NotificationMetricValue" parent="Widget.DeviceDefault.Notification.Text">
+        <item name="ellipsize">end</item>
+        <item name="maxLines">1</item>
+        <item name="textSize">14sp</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+    </style>
+
+    <!-- @hide -->
+    <style name="NotificationMetricUnit" parent="Widget.DeviceDefault.Notification.Text">
+        <item name="ellipsize">end</item>
+        <item name="maxLines">1</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+    </style>
+
+    <!-- @hide -->
+    <style name="NotificationExpandedMetricLabel" parent="NotificationMetricLabel" />
+
+    <!-- @hide -->
+    <style name="NotificationExpandedMetricValue" parent="NotificationMetricValue">
+        <item name="textSize">28sp</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-headline-medium-emphasized</item>
     </style>
 
     <style name="AccessibilityDialog">
@@ -1745,20 +1780,17 @@ please see styles_device_defaults.xml.
         <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
     </style>
 
-    <style name="AccessibilityAutoclickPanelButtonLayoutStyle">
-        <item name="android:gravity">center</item>
-        <item name="android:background">@drawable/accessibility_autoclick_button_rounded_background</item>
-        <item name="android:layout_width">@dimen/accessibility_autoclick_type_panel_button_size</item>
-        <item name="android:layout_height">@dimen/accessibility_autoclick_type_panel_button_size</item>
-    </style>
-
     <style name="AccessibilityAutoclickPanelImageButtonStyle">
         <item name="android:gravity">center</item>
-        <item name="android:layout_width">wrap_content</item>
-        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">
+            @drawable/accessibility_autoclick_button_rounded_background
+        </item>
+        <item name="android:layout_width">@dimen/accessibility_autoclick_type_panel_button_size
+        </item>
+        <item name="android:layout_height">@dimen/accessibility_autoclick_type_panel_button_size
+        </item>
         <item name="android:scaleType">center</item>
-        <item name="android:background">@android:color/transparent</item>
-        <item name="android:tint">@color/materialColorPrimary</item>
+        <item name="android:tint">@color/accessibility_autoclick_type_button_color</item>
     </style>
 
     <style name="AccessibilityAutoclickScrollPanelButtonLayoutStyle">

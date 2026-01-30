@@ -29,6 +29,7 @@ import android.content.pm.ShortcutInfo;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.graphics.Region;
+import android.os.Binder;
 import android.os.Handler;
 import android.view.SurfaceControl;
 import android.view.SurfaceHolder;
@@ -54,6 +55,12 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
          */
         default void onInitialized() {}
 
+        /**
+         * Only called when the surface has been created, and the task view has already been
+         * initialized (and onInitialized has been called)
+         */
+        default void onSurfaceAlreadyCreated() {}
+
         /** Called when the container can no longer launch activities. */
         default void onReleased() {}
 
@@ -65,6 +72,9 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
 
         /** Called when a task is about to be removed from the stack inside the container. */
         default void onTaskRemovalStarted(int taskId) {}
+
+        /** Called when the task's info has changed. */
+        default void onTaskInfoChanged(ActivityManager.RunningTaskInfo taskInfo) {}
 
         /** Called when a task is created inside the container. */
         default void onBackPressedOnTaskRoot(int taskId) {}
@@ -79,6 +89,7 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
     private Region mObscuredTouchRegion;
     private Insets mCaptionInsets;
     private Handler mHandler;
+    private boolean mIsMovingWindows;
 
     public TaskView(Context context, TaskViewController taskViewController,
             TaskViewTaskController taskViewTaskController) {
@@ -94,6 +105,34 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
 
     public TaskViewTaskController getController() {
         return mTaskViewTaskController;
+    }
+
+    /**
+     * Sets whether this task view is starting to move windows or just finished moving windows.
+     *
+     * <p>This is intended to be used temporarily while the task view is moving between windows to
+     * avoid having its surface destroyed. Call this method with {@code true} before removing it
+     * from the old window and again with {@code false} before adding it to the new window.
+     */
+    public void setIsMovingWindows(boolean isMovingWindows) {
+        mIsMovingWindows = isMovingWindows;
+        if (isMovingWindows) {
+            getViewTreeObserver().removeOnComputeInternalInsetsListener(this);
+            mHandler = Handler.getMain();
+        } else {
+            getViewTreeObserver().addOnComputeInternalInsetsListener(this);
+            mHandler = getHandler();
+        }
+    }
+
+    /**
+     * Whether this task view is temporarily marked for moving windows.
+     *
+     * @see #setIsMovingWindows(boolean)
+     */
+    @VisibleForTesting
+    public boolean isMovingWindows() {
+        return mIsMovingWindows;
     }
 
     /**
@@ -132,20 +171,6 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void moveToFullscreen() {
         mTaskViewController.moveTaskViewToFullscreen(mTaskViewTaskController);
-    }
-
-    @Override
-    public void onTaskAppeared(ActivityManager.RunningTaskInfo taskInfo, SurfaceControl leash) {
-        if (mTaskViewController.isUsingShellTransitions()) {
-            // No need for additional work as it is already taken care of during
-            // prepareOpenAnimation().
-            return;
-        }
-        onLocationChanged();
-        if (taskInfo.taskDescription != null) {
-            final int bgColor = taskInfo.taskDescription.getBackgroundColor();
-            runOnViewThread(() -> setResizeBackgroundColor(bgColor));
-        }
     }
 
     @Override
@@ -227,6 +252,13 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     /**
+     * Call to get the owner of the caption insets source.
+     */
+    @Nullable public Binder getCaptionInsetsOwner() {
+        return mTaskViewTaskController.getCaptionInsetsOwner();
+    }
+
+    /**
      * Call when view position or size has changed. Do not call when animating.
      */
     public void onLocationChanged() {
@@ -239,6 +271,13 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
      */
     public void removeTask() {
         mTaskViewController.removeTaskView(mTaskViewTaskController, null /* token */);
+    }
+
+    /**
+     * Call to unregister the task from the controller.
+     */
+    public void unregisterTask() {
+        mTaskViewController.unregisterTaskView(mTaskViewTaskController);
     }
 
     /**
@@ -305,7 +344,18 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
     }
 
     @Override
+    protected void onWindowVisibilityChanged(int visibility) {
+        if (mIsMovingWindows) {
+            return;
+        }
+        super.onWindowVisibilityChanged(visibility);
+    }
+
+    @Override
     protected void onAttachedToWindow() {
+        if (mIsMovingWindows) {
+            return;
+        }
         super.onAttachedToWindow();
         getViewTreeObserver().addOnComputeInternalInsetsListener(this);
         mHandler = getHandler();
@@ -313,6 +363,9 @@ public class TaskView extends SurfaceView implements SurfaceHolder.Callback,
 
     @Override
     protected void onDetachedFromWindow() {
+        if (mIsMovingWindows) {
+            return;
+        }
         super.onDetachedFromWindow();
         getViewTreeObserver().removeOnComputeInternalInsetsListener(this);
         mHandler = Handler.getMain();

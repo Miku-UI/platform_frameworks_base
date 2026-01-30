@@ -16,19 +16,25 @@
 
 package com.android.systemui.bouncer.domain.interactor
 
+import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.internal.logging.uiEventLogger
 import com.android.systemui.authentication.domain.interactor.authenticationInteractor
 import com.android.systemui.bouncer.data.repository.bouncerRepository
 import com.android.systemui.classifier.domain.interactor.falsingInteractor
 import com.android.systemui.common.ui.domain.interactor.configurationInteractor
+import com.android.systemui.deviceentry.domain.interactor.activeUnlockInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryFaceAuthInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.kosmos.runCurrent
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.log.sessionTracker
 import com.android.systemui.power.domain.interactor.powerInteractor
 import com.android.systemui.scene.domain.interactor.sceneBackInteractor
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.scene.shared.model.Scenes
+import kotlinx.coroutines.flow.flowOf
 
 val Kosmos.bouncerInteractor by Fixture {
     BouncerInteractor(
@@ -43,5 +49,30 @@ val Kosmos.bouncerInteractor by Fixture {
         sceneInteractor = sceneInteractor,
         sceneBackInteractor = sceneBackInteractor,
         configurationInteractor = configurationInteractor,
+        activeUnlockInteractor = activeUnlockInteractor,
     )
+}
+
+/** Helper method for setting the scene interactor state to show bouncer */
+fun Kosmos.bouncerIsShowing() {
+    sceneInteractor.snapToScene(Scenes.Lockscreen, "lockscreen for tests")
+    sceneInteractor.instantlyShowOverlay(Overlays.Bouncer, "bouncer for tests")
+    sceneInteractor.setTransitionState(
+        flowOf(
+            ObservableTransitionState.Idle(
+                sceneInteractor.currentScene.value,
+                setOf(Overlays.Bouncer),
+            )
+        )
+    )
+    runCurrent()
+}
+
+/** Helper method for setting the scene interactor state to hide bouncer */
+fun Kosmos.bouncerIsNotShowing() {
+    sceneInteractor.instantlyHideOverlay(Overlays.Bouncer, "hiding bouncer for tests")
+    sceneInteractor.setTransitionState(
+        flowOf(ObservableTransitionState.Idle(sceneInteractor.currentScene.value))
+    )
+    runCurrent()
 }

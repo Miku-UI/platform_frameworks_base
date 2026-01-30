@@ -42,6 +42,9 @@ class AndroidFrameworkIssueRegistry : IssueRegistry() {
         PermissionMethodDetector.ISSUE_CAN_BE_PERMISSION_METHOD,
         FeatureAutomotiveDetector.ISSUE,
         PendingIntentGetActivityDetector.ISSUE_PENDING_INTENT_GET_ACTIVITY,
+        JavaStreamDetector.ISSUE,
+        DebugFieldDetector.ISSUE_DEBUG_TRUE,
+        DebugFieldDetector.ISSUE_NON_FINAL_DEBUG,
     )
 
     override val api: Int

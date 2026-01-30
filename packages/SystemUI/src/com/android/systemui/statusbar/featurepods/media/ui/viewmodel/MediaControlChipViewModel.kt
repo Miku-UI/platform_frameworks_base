@@ -25,9 +25,10 @@ import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.lifecycle.Hydrator
 import com.android.systemui.statusbar.featurepods.media.domain.interactor.MediaControlChipInteractor
 import com.android.systemui.statusbar.featurepods.media.shared.model.MediaControlChipModel
-import com.android.systemui.statusbar.featurepods.popups.shared.model.HoverBehavior
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipId
-import com.android.systemui.statusbar.featurepods.popups.shared.model.PopupChipModel
+import com.android.systemui.statusbar.featurepods.popups.ui.model.ChipIcon
+import com.android.systemui.statusbar.featurepods.popups.ui.model.HoverBehavior
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipId
+import com.android.systemui.statusbar.featurepods.popups.ui.model.PopupChipModel
 import com.android.systemui.statusbar.featurepods.popups.ui.viewmodel.StatusBarPopupChipViewModel
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
@@ -71,16 +72,21 @@ constructor(
         val contentDescription = model.appName?.let { ContentDescription.Loaded(description = it) }
 
         val defaultIcon =
-            model.appIcon?.loadDrawable(applicationContext)?.let {
-                Icon.Loaded(drawable = it, contentDescription = contentDescription)
+            when (model) {
+                is MediaControlChipModel.Legacy -> {
+                    model.appIcon?.loadDrawable(applicationContext)?.let {
+                        Icon.Loaded(drawable = it, contentDescription = contentDescription)
+                    }
+                        ?: Icon.Resource(
+                            resId = com.android.internal.R.drawable.ic_audio_media,
+                            contentDescription = contentDescription,
+                        )
+                }
+                is MediaControlChipModel.Compose -> model.appIcon
             }
-                ?: Icon.Resource(
-                    res = com.android.internal.R.drawable.ic_audio_media,
-                    contentDescription = contentDescription,
-                )
         return PopupChipModel.Shown(
             chipId = PopupChipId.MediaControl,
-            icon = defaultIcon,
+            icons = listOf(ChipIcon(icon = defaultIcon)),
             chipText = model.songName.toString(),
             hoverBehavior = createHoverBehavior(model),
         )
@@ -94,9 +100,15 @@ constructor(
         val contentDescription =
             ContentDescription.Loaded(description = playOrPause.contentDescription.toString())
 
-        return HoverBehavior.Button(
-            icon = Icon.Loaded(drawable = icon, contentDescription = contentDescription),
-            onIconPressed = { action.run() },
+        return HoverBehavior.Buttons(
+            icons =
+                listOf(
+                    ChipIcon(
+                        icon =
+                            Icon.Loaded(drawable = icon, contentDescription = contentDescription),
+                        onClick = { action.run() },
+                    )
+                )
         )
     }
 

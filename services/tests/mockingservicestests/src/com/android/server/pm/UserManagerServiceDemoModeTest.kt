@@ -19,7 +19,6 @@ package com.android.server.pm
 import android.content.res.Configuration
 import android.os.Looper
 import android.os.SystemProperties
-import android.os.UserHandle
 import android.util.ArrayMap
 import com.android.server.LockGuard
 import com.android.server.extendedtestutils.wheneverStatic
@@ -51,8 +50,8 @@ class UserManagerServiceDemoModeTest {
         }
 
         wheneverStatic { LockGuard.installNewLock(LockGuard.INDEX_USER) }.thenReturn(Object())
-        whenever(rule.mocks().systemConfig.getAndClearPackageToUserTypeWhitelist()).thenReturn(ArrayMap<String, Set<String>>())
-        whenever(rule.mocks().systemConfig.getAndClearPackageToUserTypeBlacklist()).thenReturn(ArrayMap<String, Set<String>>())
+        whenever(rule.mocks().systemConfig.getAndClearPackageToUserTypeAllowlist()).thenReturn(ArrayMap<String, Set<String>>())
+        whenever(rule.mocks().systemConfig.getAndClearPackageToUserTypeDenylist()).thenReturn(ArrayMap<String, Set<String>>())
         whenever(rule.mocks().resources.getStringArray(com.android.internal.R.array.config_defaultFirstUserRestrictions)).thenReturn(arrayOf<String>())
         whenever(rule.mocks().resources.configuration).thenReturn(Configuration())
 

@@ -19,13 +19,9 @@ package com.android.systemui.statusbar.notification.row;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.statusbar.notification.row.icon.AppIconProviderModule;
 import com.android.systemui.statusbar.notification.row.icon.NotificationIconStyleProviderModule;
-import com.android.systemui.statusbar.notification.row.shared.NotificationRowContentBinderRefactor;
 
 import dagger.Binds;
 import dagger.Module;
-import dagger.Provides;
-
-import javax.inject.Provider;
 
 /**
  * Dagger Module containing notification row and view inflation implementations.
@@ -36,18 +32,10 @@ public abstract class NotificationRowModule {
     /**
      * Provides notification row content binder instance.
      */
-    @Provides
+    @Binds
     @SysUISingleton
-    public static NotificationRowContentBinder provideNotificationRowContentBinder(
-            Provider<NotificationContentInflater> legacyImpl,
-            Provider<NotificationRowContentBinderImpl> refactoredImpl
-    ) {
-        if (NotificationRowContentBinderRefactor.isEnabled()) {
-            return refactoredImpl.get();
-        } else {
-            return legacyImpl.get();
-        }
-    }
+    public abstract NotificationRowContentBinder provideNotificationRowContentBinder(
+            NotificationRowContentBinderImpl impl);
 
     /**
      * Provides notification remote view cache instance.

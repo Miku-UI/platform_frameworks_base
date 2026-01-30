@@ -168,15 +168,30 @@ public abstract class TaskStackListener extends ITaskStackListener.Stub {
             throws RemoteException {
     }
 
+    /**
+     * @deprecated Use {@link android.window.TaskSnapshotManager.TaskSnapshotListener} to receive
+     * callback.
+     */
+    @Deprecated
     @Override
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public void onTaskSnapshotChanged(int taskId, TaskSnapshot snapshot) throws RemoteException {
-        if (mIsRemote && snapshot != null && snapshot.getHardwareBuffer() != null) {
+        if (!mIsRemote || snapshot == null) {
+            return;
+        }
+        if (com.android.window.flags.Flags.reduceTaskSnapshotMemoryUsage()) {
+            snapshot.closeBuffer();
+        } else if (snapshot.getHardwareBuffer() != null) {
             // Preemptively clear any reference to the buffer
             snapshot.getHardwareBuffer().close();
         }
     }
 
+    /**
+     * @deprecated Use {@link android.window.SnapshotManager.TaskSnapshotListener} to receive
+     * callback.
+     */
+    @Deprecated
     @Override
     public void onTaskSnapshotInvalidated(int taskId) { }
 

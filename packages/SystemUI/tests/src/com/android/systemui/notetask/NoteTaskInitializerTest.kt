@@ -21,13 +21,6 @@ import android.hardware.input.InputManager
 import android.hardware.input.KeyGestureEvent
 import android.os.UserHandle
 import android.os.UserManager
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
-import android.platform.test.flag.junit.SetFlagsRule
-import android.view.KeyEvent
-import android.view.KeyEvent.ACTION_DOWN
-import android.view.KeyEvent.ACTION_UP
-import android.view.KeyEvent.KEYCODE_N
 import android.view.KeyEvent.KEYCODE_STYLUS_BUTTON_TAIL
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -36,7 +29,6 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.notetask.NoteTaskEntryPoint.KEYBOARD_SHORTCUT
 import com.android.systemui.notetask.NoteTaskEntryPoint.TAIL_BUTTON
 import com.android.systemui.settings.FakeUserTracker
-import com.android.systemui.statusbar.CommandQueue
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.mockito.mock
 import com.android.systemui.util.mockito.whenever
@@ -46,7 +38,6 @@ import com.android.wm.shell.bubbles.Bubbles
 import com.google.common.truth.Truth.assertThat
 import java.util.Optional
 import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Mock
@@ -60,14 +51,10 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 
 /** atest SystemUITests:NoteTaskInitializerTest */
-@OptIn(InternalNoteTaskApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 internal class NoteTaskInitializerTest : SysuiTestCase() {
 
-    @get:Rule val setFlagsRule = SetFlagsRule()
-
-    @Mock lateinit var commandQueue: CommandQueue
     @Mock lateinit var inputManager: InputManager
     @Mock lateinit var bubbles: Bubbles
     @Mock lateinit var controller: NoteTaskController
@@ -77,7 +64,6 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
 
     private val executor = FakeExecutor(FakeSystemClock())
     private val userTracker = FakeUserTracker()
-    private val handlerCallbacks = mutableListOf<Runnable>()
 
     @Before
     fun setUp() {
@@ -88,7 +74,6 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
     private fun createUnderTest(isEnabled: Boolean, bubbles: Bubbles?): NoteTaskInitializer =
         NoteTaskInitializer(
             controller = controller,
-            commandQueue = commandQueue,
             optionalBubbles = Optional.ofNullable(bubbles),
             isEnabled = isEnabled,
             roleManager = roleManager,
@@ -97,14 +82,6 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
             inputManager = inputManager,
             backgroundExecutor = executor,
         )
-
-    private fun createKeyEvent(
-        action: Int,
-        code: Int,
-        downTime: Long = 0L,
-        eventTime: Long = 0L,
-        metaState: Int = 0,
-    ): KeyEvent = KeyEvent(downTime, eventTime, action, code, 0 /*repeat*/, metaState)
 
     @Test
     fun initialize_withUserUnlocked() {
@@ -135,14 +112,7 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
 
         underTest.initialize()
 
-        verifyNoMoreInteractions(
-            commandQueue,
-            bubbles,
-            controller,
-            roleManager,
-            userManager,
-            keyguardMonitor,
-        )
+        verifyNoMoreInteractions(bubbles, controller, roleManager, userManager, keyguardMonitor)
     }
 
     @Test
@@ -151,36 +121,10 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
 
         underTest.initialize()
 
-        verifyNoMoreInteractions(
-            commandQueue,
-            bubbles,
-            controller,
-            roleManager,
-            userManager,
-            keyguardMonitor,
-        )
+        verifyNoMoreInteractions(bubbles, controller, roleManager, userManager, keyguardMonitor)
     }
 
     @Test
-    @DisableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
-    fun initialize_handleSystemKey() {
-        val expectedKeyEvent =
-            createKeyEvent(
-                ACTION_DOWN,
-                KEYCODE_N,
-                metaState = KeyEvent.META_META_ON or KeyEvent.META_CTRL_ON,
-            )
-        val underTest = createUnderTest(isEnabled = true, bubbles = bubbles)
-        underTest.initialize()
-        val callback = withArgCaptor { verify(commandQueue).addCallback(capture()) }
-
-        callback.handleSystemKey(expectedKeyEvent)
-
-        verify(controller).showNoteTask(any())
-    }
-
-    @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
     fun initialize_keyGestureTypeOpenNotes_isRegistered() {
         val underTest = createUnderTest(isEnabled = true, bubbles = bubbles)
         underTest.initialize()
@@ -192,7 +136,6 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
     fun handlesShortcut_keyGestureTypeOpenNotes() {
         val gestureEvent =
             KeyGestureEvent.Builder()
@@ -212,7 +155,6 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
     fun handlesShortcut_stylusTailButton() {
         val gestureEvent =
             KeyGestureEvent.Builder()
@@ -233,7 +175,6 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
     fun ignoresUnrelatedShortcuts() {
         val gestureEvent =
             KeyGestureEvent.Builder()
@@ -298,64 +239,5 @@ internal class NoteTaskInitializerTest : SysuiTestCase() {
         userTracker.callbacks.first().onUserChanged(0, mock())
 
         verify(controller, times(2)).updateNoteTaskForCurrentUserAndManagedProfiles()
-    }
-
-    @Test
-    @DisableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
-    fun tailButtonGestureDetection_singlePress_shouldShowNoteTaskOnUp() {
-        val underTest = createUnderTest(isEnabled = true, bubbles = bubbles)
-        underTest.initialize()
-        val callback = withArgCaptor { verify(commandQueue).addCallback(capture()) }
-
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_DOWN, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 0, eventTime = 0)
-        )
-        verify(controller, never()).showNoteTask(any())
-
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_UP, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 0, eventTime = 50)
-        )
-
-        verify(controller).showNoteTask(any())
-    }
-
-    @Test
-    @DisableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
-    fun tailButtonGestureDetection_doublePress_shouldNotShowNoteTaskTwice() {
-        val underTest = createUnderTest(isEnabled = true, bubbles = bubbles)
-        underTest.initialize()
-        val callback = withArgCaptor { verify(commandQueue).addCallback(capture()) }
-
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_DOWN, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 0, eventTime = 0)
-        )
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_UP, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 0, eventTime = 50)
-        )
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_DOWN, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 99, eventTime = 99)
-        )
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_UP, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 99, eventTime = 150)
-        )
-
-        verify(controller, times(1)).showNoteTask(any())
-    }
-
-    @Test
-    @DisableFlags(com.android.hardware.input.Flags.FLAG_USE_KEY_GESTURE_EVENT_HANDLER)
-    fun tailButtonGestureDetection_longPress_shouldNotShowNoteTask() {
-        val underTest = createUnderTest(isEnabled = true, bubbles = bubbles)
-        underTest.initialize()
-        val callback = withArgCaptor { verify(commandQueue).addCallback(capture()) }
-
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_DOWN, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 0, eventTime = 0)
-        )
-        callback.handleSystemKey(
-            createKeyEvent(ACTION_UP, KEYCODE_STYLUS_BUTTON_TAIL, downTime = 0, eventTime = 1000)
-        )
-
-        verify(controller, never()).showNoteTask(any())
     }
 }

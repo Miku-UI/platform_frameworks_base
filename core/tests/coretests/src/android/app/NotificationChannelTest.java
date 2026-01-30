@@ -91,9 +91,7 @@ public class NotificationChannelTest {
 
     @Parameters(name = "{0}")
     public static List<FlagsParameterization> getParams() {
-        return FlagsParameterization.allCombinationsOf(
-                Flags.FLAG_NOTIF_CHANNEL_CROP_VIBRATION_EFFECTS,
-                Flags.FLAG_NOTIF_CHANNEL_ESTIMATE_EFFECT_SIZE);
+        return FlagsParameterization.allCombinationsOf();
     }
 
     @Rule
@@ -256,8 +254,37 @@ public class NotificationChannelTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API,
-            Flags.FLAG_NOTIF_CHANNEL_CROP_VIBRATION_EFFECTS})
+    public void testSetId_longStringIsTrimmed() {
+        NotificationChannel channel =
+                new NotificationChannel("id", "name", NotificationManager.IMPORTANCE_DEFAULT);
+        String longId = Strings.repeat("A", NotificationChannel.MAX_TEXT_LENGTH + 10);
+
+        channel.setId(longId);
+
+        assertThat(channel.getId()).hasLength(NotificationChannel.MAX_TEXT_LENGTH);
+        assertThat(channel.getId())
+                .isEqualTo(longId.substring(0, NotificationChannel.MAX_TEXT_LENGTH));
+    }
+
+    @Test
+    public void testSetConversationId_longStringsAreTrimmed() {
+        NotificationChannel channel =
+                new NotificationChannel("id", "name", NotificationManager.IMPORTANCE_DEFAULT);
+        String longParentId = Strings.repeat("P", NotificationChannel.MAX_TEXT_LENGTH + 10);
+        String longConversationId = Strings.repeat("C", NotificationChannel.MAX_TEXT_LENGTH + 10);
+
+        channel.setConversationId(longParentId, longConversationId);
+
+        assertThat(channel.getParentChannelId()).hasLength(NotificationChannel.MAX_TEXT_LENGTH);
+        assertThat(channel.getParentChannelId())
+                .isEqualTo(longParentId.substring(0, NotificationChannel.MAX_TEXT_LENGTH));
+        assertThat(channel.getConversationId()).hasLength(NotificationChannel.MAX_TEXT_LENGTH);
+        assertThat(channel.getConversationId())
+                .isEqualTo(longConversationId.substring(0, NotificationChannel.MAX_TEXT_LENGTH));
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API)
     public void testLongVibrationFields_canWriteToXml() throws Exception {
         NotificationChannel channel = new NotificationChannel("id", "name", 3);
         // populate pattern with contents
@@ -283,9 +310,7 @@ public class NotificationChannelTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API,
-            Flags.FLAG_NOTIF_CHANNEL_CROP_VIBRATION_EFFECTS,
-            Flags.FLAG_NOTIF_CHANNEL_ESTIMATE_EFFECT_SIZE})
+    @EnableFlags(Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API)
     public void testVibrationEffect_droppedIfTooLargeAndNotTrimmable() {
         NotificationChannel channel = new NotificationChannel("id", "name", 3);
         // populate pattern with contents
@@ -302,9 +327,7 @@ public class NotificationChannelTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API,
-            Flags.FLAG_NOTIF_CHANNEL_CROP_VIBRATION_EFFECTS,
-            Flags.FLAG_NOTIF_CHANNEL_ESTIMATE_EFFECT_SIZE})
+    @EnableFlags(Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API)
     public void testVibrationEffect_trimmedIfLargeAndTrimmable() {
         NotificationChannel channel = new NotificationChannel("id", "name", 3);
         // populate pattern with contents
@@ -323,9 +346,7 @@ public class NotificationChannelTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API,
-            Flags.FLAG_NOTIF_CHANNEL_CROP_VIBRATION_EFFECTS,
-            Flags.FLAG_NOTIF_CHANNEL_ESTIMATE_EFFECT_SIZE})
+    @EnableFlags(Flags.FLAG_NOTIFICATION_CHANNEL_VIBRATION_EFFECT_API)
     public void testVibrationEffect_keptIfSmall() {
         NotificationChannel channel = new NotificationChannel("id", "name", 3);
         VibrationEffect effect = VibrationEffect.createOneShot(1, 100);
@@ -704,8 +725,6 @@ public class NotificationChannelTest {
     }
 
     @Test
-    @EnableFlags({Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_MEDIA,
-            Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_CALL, Flags.FLAG_RESTRICT_AUDIO_ATTRIBUTES_ALARM})
     public void testCopy() {
         NotificationChannel original = new NotificationChannel("id", "name", 2);
         original.setDescription("desc");

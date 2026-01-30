@@ -58,7 +58,7 @@ import java.util.Objects;
  * @see SubscriptionManager#getSubscriptionPlans(int)
  */
 public final class SubscriptionPlan implements Parcelable {
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = "LIMIT_BEHAVIOR_", value = {
             LIMIT_BEHAVIOR_UNKNOWN,
             LIMIT_BEHAVIOR_DISABLED,
@@ -208,7 +208,7 @@ public final class SubscriptionPlan implements Parcelable {
         }
     };
 
-    /** {@hide} */
+    /** @hide */
     public @NonNull RecurrenceRule getCycleRule() {
         return cycleRule;
     }
@@ -294,7 +294,7 @@ public final class SubscriptionPlan implements Parcelable {
     public static class Builder {
         private final SubscriptionPlan plan;
 
-        /** {@hide} */
+        /** @hide */
         public Builder(ZonedDateTime start, ZonedDateTime end, Period period) {
             plan = new SubscriptionPlan(new RecurrenceRule(start, end, period));
         }
@@ -335,21 +335,21 @@ public final class SubscriptionPlan implements Parcelable {
             return new Builder(start, null, period);
         }
 
-        /** {@hide} */
+        /** @hide */
         @SystemApi
         @Deprecated
         public static Builder createRecurringMonthly(ZonedDateTime start) {
             return new Builder(start, null, Period.ofMonths(1));
         }
 
-        /** {@hide} */
+        /** @hide */
         @SystemApi
         @Deprecated
         public static Builder createRecurringWeekly(ZonedDateTime start) {
             return new Builder(start, null, Period.ofDays(7));
         }
 
-        /** {@hide} */
+        /** @hide */
         @SystemApi
         @Deprecated
         public static Builder createRecurringDaily(ZonedDateTime start) {

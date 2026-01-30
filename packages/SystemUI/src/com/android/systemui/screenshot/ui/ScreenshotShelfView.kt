@@ -18,7 +18,6 @@ package com.android.systemui.screenshot.ui
 
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Insets
 import android.graphics.Rect
 import android.graphics.Region
 import android.util.AttributeSet
@@ -48,7 +47,6 @@ class ScreenshotShelfView(context: Context, attrs: AttributeSet? = null) :
     private val tmpRect = Rect()
     private lateinit var actionsContainerBackground: View
     private lateinit var actionsContainer: View
-    private lateinit var dismissButton: View
 
     // Prepare an internal `GestureDetector` to determine when we can initiate a touch-interception
     // session (with the client's provided `onTouchInterceptListener`). We delegate out to their
@@ -109,7 +107,6 @@ class ScreenshotShelfView(context: Context, attrs: AttributeSet? = null) :
         screenshotStatic = requireViewById(R.id.screenshot_static)
         actionsContainerBackground = requireViewById(R.id.actions_container_background)
         actionsContainer = requireViewById(R.id.actions_container)
-        dismissButton = requireViewById(R.id.screenshot_dismiss_button)
 
         // Configure to extend the timeout during ongoing gestures (i.e. scrolls) that are already
         // being handled by our child views.
@@ -119,7 +116,21 @@ class ScreenshotShelfView(context: Context, attrs: AttributeSet? = null) :
         })
     }
 
-    fun getTouchRegion(gestureInsets: Insets): Region {
+    fun getObservedRegion(insets: WindowInsets): Region {
+        val region = getTouchRegion(insets)
+        if (
+            resources.getInteger(com.android.internal.R.integer.config_navBarInteractionMode) !=
+                NAV_BAR_MODE_GESTURAL
+        ) {
+            val boundingRects = insets.getBoundingRects(WindowInsets.Type.navigationBars())
+            if (boundingRects.isNotEmpty()) {
+                region.op(boundingRects.first(), Region.Op.UNION)
+            }
+        }
+        return region
+    }
+
+    fun getTouchRegion(insets: WindowInsets): Region {
         val region = getSwipeRegion()
 
         // only add gesture insets to touch region in gestural mode
@@ -127,6 +138,7 @@ class ScreenshotShelfView(context: Context, attrs: AttributeSet? = null) :
             resources.getInteger(com.android.internal.R.integer.config_navBarInteractionMode) ==
                 NAV_BAR_MODE_GESTURAL
         ) {
+            val gestureInsets = insets.getInsets(WindowInsets.Type.systemGestures())
             // Receive touches in gesture insets so they don't cause TOUCH_OUTSIDE
             // left edge gesture region
             val insetRect = Rect(0, 0, gestureInsets.left, displayMetrics.heightPixels)
@@ -197,6 +209,13 @@ class ScreenshotShelfView(context: Context, attrs: AttributeSet? = null) :
         }
     }
 
+    fun setSavingAnnouncement(string: String) {
+        val announceRegion = findViewById<View>(R.id.screenshot_saving_live_region)
+        // clear the description to make sure we announce for successive screenshots
+        announceRegion.contentDescription = ""
+        announceRegion.contentDescription = string
+    }
+
     // Max function for two or more params.
     private fun max(first: Int, second: Int, vararg items: Int): Int {
         var largest = if (first > second) first else second
@@ -213,7 +232,6 @@ class ScreenshotShelfView(context: Context, attrs: AttributeSet? = null) :
         val padding = FloatingWindowUtil.dpToPx(displayMetrics, -1 * TOUCH_PADDING_DP).toInt()
         swipeRegion.addInsetView(screenshotPreview, padding)
         swipeRegion.addInsetView(actionsContainerBackground, padding)
-        swipeRegion.addInsetView(dismissButton, padding)
         findViewById<View>(R.id.screenshot_message_container)?.let {
             swipeRegion.addInsetView(it, padding)
         }

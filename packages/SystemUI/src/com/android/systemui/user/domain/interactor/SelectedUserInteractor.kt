@@ -4,6 +4,7 @@ import android.annotation.UserIdInt
 import android.content.pm.UserInfo
 import android.os.UserManager
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.user.data.model.SelectionStatus
 import com.android.systemui.user.data.repository.UserRepository
 import javax.inject.Inject
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -19,9 +20,13 @@ class SelectedUserInteractor @Inject constructor(private val repository: UserRep
     /** Flow providing the [UserInfo] of the currently selected user. */
     val selectedUserInfo = repository.selectedUserInfo
 
+    /** Flow providing whether we're currently switching to another user. */
+    val isUserSwitching =
+        repository.selectedUser.map { it.selectionStatus == SelectionStatus.SELECTION_IN_PROGRESS }
+            .distinctUntilChanged()
+
     /** Returns the ID of the currently-selected user. */
     @UserIdInt
-    @JvmOverloads
     fun getSelectedUserId(): Int {
         return repository.getSelectedUserInfo().id
     }

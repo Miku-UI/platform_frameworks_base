@@ -539,6 +539,10 @@ public class ImageReader implements AutoCloseable {
      *
      * @return latest frame of image data, or {@code null} if no image data is available.
      * @throws IllegalStateException if too many images are currently acquired
+     * @throws UnsupporteOperationException Until API level 36 if the format of acquired
+     * image is different than format of the ImageReader.
+     * (If format is {@link ImageFormat#PRIVATE PRIVATE} or API level is 37 or later,
+     * the exception is not thrown and an image is acquired.)
      */
     public Image acquireLatestImage() {
         Image image = acquireNextImage();
@@ -645,6 +649,10 @@ public class ImageReader implements AutoCloseable {
      *
      * @return a new frame of image data, or {@code null} if no image data is available.
      * @throws IllegalStateException if {@code maxImages} images are currently acquired
+     * @throws UnsupporteOperationException Until API level 36 if the format of acquired
+     * image is different than format of the ImageReader.
+     * (If format is {@link ImageFormat#PRIVATE PRIVATE} or API level is 37 or later,
+     * the exception is not thrown and an image is acquired.)
      * @see #acquireLatestImage
      */
     public Image acquireNextImage() {

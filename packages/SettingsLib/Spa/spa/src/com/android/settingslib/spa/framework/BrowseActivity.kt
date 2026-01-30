@@ -54,8 +54,8 @@ import com.android.settingslib.spa.framework.compose.localNavController
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.framework.util.PageLogger
 import com.android.settingslib.spa.framework.util.getDestination
-import com.android.settingslib.spa.framework.util.getEntryId
 import com.android.settingslib.spa.framework.util.getSessionName
+import com.android.settingslib.spa.framework.util.highlightItemKey
 import com.android.settingslib.spa.framework.util.navRoute
 
 private const val TAG = "BrowseActivity"
@@ -169,11 +169,10 @@ private fun NavControllerWrapperImpl.InitialDestination(
 
     val initialDestination = initialIntent?.getDestination() ?: defaultDestination
     if (initialDestination.isEmpty()) return
-    val initialEntryId = initialIntent?.getEntryId()
     val sessionSourceName = initialIntent?.getSessionName()
 
     LaunchedEffect(Unit) {
-        highlightId = initialEntryId
+        highlightItemKey = initialIntent?.highlightItemKey
         sessionName = sessionSourceName
         navController.navigate(initialDestination) {
             popUpTo(navController.graph.findStartDestination().id) {

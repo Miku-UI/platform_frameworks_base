@@ -35,9 +35,7 @@
 #include "android_media_MediaDataSource.h"
 #include "android_media_Streams.h"
 #include "android_util_Binder.h"
-#include <com_android_media_playback_flags.h>
 
-namespace playback_flags = com::android::media::playback::flags;
 using namespace android;
 
 struct fields_t {
@@ -272,11 +270,9 @@ static jobject getBitmapFromVideoFrame(
     ScopedLocalRef<jobject> config(env, ABitmapConfig_getConfigFromFormat(env, outColorType));
 
     uint32_t width, height, displayWidth, displayHeight;
-    bool swapWidthAndHeight = false;
     if (videoFrame->mRotationAngle == 90 || videoFrame->mRotationAngle == 270) {
         width = videoFrame->mHeight;
         height = videoFrame->mWidth;
-        swapWidthAndHeight = true;
         displayWidth = videoFrame->mDisplayHeight;
         displayHeight = videoFrame->mDisplayWidth;
     } else {
@@ -343,10 +339,9 @@ static jobject getBitmapFromVideoFrame(
     return jBitmap;
 }
 
-static AndroidBitmapFormat getColorFormat(JNIEnv *env, jobject options,
-        AndroidBitmapFormat defaultPreferred = ANDROID_BITMAP_FORMAT_RGBA_8888) {
+static AndroidBitmapFormat getColorFormat(JNIEnv *env, jobject options) {
     if (options == NULL) {
-        return defaultPreferred;
+        return ANDROID_BITMAP_FORMAT_RGBA_8888;
     }
 
     ScopedLocalRef<jobject> inConfig(env, env->GetObjectField(options, fields.inPreferredConfig));
@@ -377,11 +372,7 @@ static jobject android_media_MediaMetadataRetriever_getFrameAtTime(
         return NULL;
     }
 
-    AndroidBitmapFormat defaultColorFormat =
-            playback_flags::mediametadataretriever_default_rgba8888()
-            ? ANDROID_BITMAP_FORMAT_RGBA_8888
-            : ANDROID_BITMAP_FORMAT_RGB_565;
-    AndroidBitmapFormat colorFormat = getColorFormat(env, params, defaultColorFormat);
+    AndroidBitmapFormat colorFormat = getColorFormat(env, params);
 
     // Call native method to retrieve a video frame
     VideoFrame *videoFrame = NULL;

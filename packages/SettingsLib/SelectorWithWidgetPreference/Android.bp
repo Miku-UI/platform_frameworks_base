@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibSelectorWithWidgetPreference",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -18,40 +19,10 @@ android_library {
     resource_dirs: ["res"],
 
     static_libs: [
-        "androidx.preference_preference",
         "SettingsLibSettingsTheme",
-        "settingslib_selectorwithwidgetpreference_flags_lib",
+        "androidx.preference_preference",
     ],
 
     sdk_version: "system_current",
-    min_sdk_version: "21",
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.permission",
-        "com.android.mediaprovider",
-        "com.android.healthfitness",
-    ],
-}
-
-aconfig_declarations {
-    name: "settingslib_selectorwithwidgetpreference_flags",
-    package: "com.android.settingslib.widget.selectorwithwidgetpreference.flags",
-    container: "system",
-    srcs: [
-        "aconfig/selectorwithwidgetpreference.aconfig",
-    ],
-}
-
-java_aconfig_library {
-    name: "settingslib_selectorwithwidgetpreference_flags_lib",
-    aconfig_declarations: "settingslib_selectorwithwidgetpreference_flags",
-
-    min_sdk_version: "30",
-    sdk_version: "system_current",
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.permission",
-        "com.android.mediaprovider",
-        "com.android.healthfitness",
-    ],
+    min_sdk_version: "23",
 }

@@ -16,8 +16,6 @@
 
 package com.android.systemui.statusbar.phone;
 
-import static com.android.wm.shell.transition.Transitions.ENABLE_SHELL_TRANSITIONS;
-
 import android.annotation.Nullable;
 import android.app.ActivityOptions;
 import android.content.Context;
@@ -146,14 +144,10 @@ public interface CentralSurfaces extends Dumpable, LifecycleOwner, CoreStartable
             @Nullable RemoteAnimationAdapter animationAdapter) {
         ActivityOptions options;
         if (animationAdapter != null) {
-            if (ENABLE_SHELL_TRANSITIONS) {
-                options = ActivityOptions.makeRemoteTransition(
-                        new RemoteTransition(
-                                RemoteAnimationRunnerCompat.wrap(animationAdapter.getRunner()),
-                                animationAdapter.getCallingApplication(), "SysUILaunch"));
-            } else {
-                options = ActivityOptions.makeRemoteAnimation(animationAdapter);
-            }
+            options = ActivityOptions.makeRemoteTransition(
+                    new RemoteTransition(
+                            RemoteAnimationRunnerCompat.wrap(animationAdapter.getRunner()),
+                            animationAdapter.getCallingApplication(), "SysUILaunch"));
         } else {
             options = ActivityOptions.makeBasic();
         }

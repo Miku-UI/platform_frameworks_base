@@ -35,10 +35,10 @@ final class DeviceAdapter implements CombinedVibration.VibratorAdapter {
     private static final String TAG = "DeviceAdapter";
 
     /**
-     * The VibratorController.getInfo might trigger HAL method calls, so just keep a reference to
-     * the system controllers until the adaptor is triggered by the VibrationThread.
+     * The HalVibrator.getInfo might trigger HAL binder calls, so just keep a reference to
+     * the system vibrators until the adaptor is triggered by the VibrationThread.
      */
-    private final SparseArray<VibratorController> mAvailableVibrators;
+    private final SparseArray<HalVibrator> mAvailableVibrators;
     private final int[] mAvailableVibratorIds;
 
     /**
@@ -53,9 +53,10 @@ final class DeviceAdapter implements CombinedVibration.VibratorAdapter {
      */
     private final List<VibrationSegmentsValidator> mSegmentsValidators;
 
-    DeviceAdapter(VibrationSettings settings, SparseArray<VibratorController> vibrators) {
+    DeviceAdapter(VibrationSettings settings, SparseArray<HalVibrator> vibrators) {
         mSegmentAdapters = Arrays.asList(
-                // TODO(b/167947076): add filter that replaces unsupported prebaked with fallback
+                // Replace unsupported prebaked effects with fallback
+                new PrebakedFallbackAdapter(settings.getFallbackEffects()),
                 // Updates primitive delays to hardware supported pauses
                 new PrimitiveDelayAdapter(),
                 // Convert segments based on device capabilities
@@ -76,7 +77,9 @@ final class DeviceAdapter implements CombinedVibration.VibratorAdapter {
                 // Validate Pwle segments base on the vibrators frequency range
                 new PwleSegmentsValidator(),
                 // Validate primitive segments based on device support
-                new PrimitiveSegmentsValidator()
+                new PrimitiveSegmentsValidator(),
+                // Validate prebaked segments based on device support
+                new PrebakedSegmentsValidator()
         );
         mAvailableVibrators = vibrators;
         mAvailableVibratorIds = new int[vibrators.size()];
@@ -85,7 +88,7 @@ final class DeviceAdapter implements CombinedVibration.VibratorAdapter {
         }
     }
 
-    SparseArray<VibratorController> getAvailableVibrators() {
+    SparseArray<HalVibrator> getAvailableVibrators() {
         return mAvailableVibrators;
     }
 
@@ -101,13 +104,13 @@ final class DeviceAdapter implements CombinedVibration.VibratorAdapter {
             return effect;
         }
 
-        VibratorController controller = mAvailableVibrators.get(vibratorId);
-        if (controller == null) {
+        HalVibrator vibrator = mAvailableVibrators.get(vibratorId);
+        if (vibrator == null) {
             // Effect mapped to nonexistent vibrator, skip adapter.
             return effect;
         }
 
-        VibratorInfo info = controller.getVibratorInfo();
+        VibratorInfo info = vibrator.getInfo();
         List<VibrationEffectSegment> newSegments = new ArrayList<>(composed.getSegments());
         int newRepeatIndex = composed.getRepeatIndex();
 

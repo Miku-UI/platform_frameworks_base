@@ -18,7 +18,6 @@ package com.android.server.accessibility;
 
 import static junit.framework.Assert.assertTrue;
 
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertFalse;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -28,13 +27,12 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.hamcrest.MockitoHamcrest.argThat;
 
-import android.os.IBinder;
 import android.view.KeyEvent;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.accessibility.test.MessageCapturingHandler;
-import com.android.server.policy.WindowManagerPolicy;
+import com.android.server.input.InputManagerInternal;
 
 import org.hamcrest.Description;
 import org.hamcrest.TypeSafeMatcher;
@@ -57,13 +55,13 @@ public class KeyboardInterceptorTest {
             msg -> mInterceptor.handleMessage(msg));
     @Mock AccessibilityManagerService mMockAms;
     @Mock AccessibilityTraceManager mMockTraceManager;
-    @Mock WindowManagerPolicy mMockPolicy;
+    @Mock InputManagerInternal mMockInputManager;
 
     @Before
     public void setUp() {
         MockitoAnnotations.initMocks(this);
         when(mMockAms.getTraceManager()).thenReturn(mMockTraceManager);
-        mInterceptor = new KeyboardInterceptor(mMockAms, mMockPolicy, mHandler);
+        mInterceptor = new KeyboardInterceptor(mMockAms, mMockInputManager, mHandler);
     }
 
     @After
@@ -82,8 +80,8 @@ public class KeyboardInterceptorTest {
     @Test
     public void whenVolumeKeyArrives_andPolicySaysUseIt_eventGoesToAms() {
         KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(event)), eq(0))).thenReturn(0L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(event)))).thenReturn(0L);
         mInterceptor.onKeyEvent(event, 0);
         verify(mMockAms).notifyKeyEvent(argThat(matchesKeyEvent(event)), eq(0));
     }
@@ -91,8 +89,8 @@ public class KeyboardInterceptorTest {
     @Test
     public void whenVolumeKeyArrives_andPolicySaysDropIt_eventDropped() {
         KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_UP);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(event)), eq(0))).thenReturn(-1L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(event)))).thenReturn(-1L);
         mInterceptor.onKeyEvent(event, 0);
         verify(mMockAms, times(0)).notifyKeyEvent(any(), anyInt());
         assertFalse(mHandler.hasMessages());
@@ -101,15 +99,15 @@ public class KeyboardInterceptorTest {
     @Test
     public void whenVolumeKeyArrives_andPolicySaysDelayThenUse_eventQueuedThenSentToAms() {
         KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_UP);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(event)), eq(0))).thenReturn(150L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(event)))).thenReturn(150L);
         mInterceptor.onKeyEvent(event, 0);
 
         assertTrue(mHandler.hasMessages());
         verify(mMockAms, times(0)).notifyKeyEvent(any(), anyInt());
 
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(event)), eq(0))).thenReturn(0L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(event)))).thenReturn(0L);
         mHandler.sendAllMessages();
 
         verify(mMockAms).notifyKeyEvent(argThat(matchesKeyEvent(event)), eq(0));
@@ -118,15 +116,15 @@ public class KeyboardInterceptorTest {
     @Test
     public void whenVolumeKeyArrives_andPolicySaysDelayThenDrop_eventQueuedThenDropped() {
         KeyEvent event = new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(event)), eq(0))).thenReturn(150L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(event)))).thenReturn(150L);
         mInterceptor.onKeyEvent(event, 0);
 
         assertTrue(mHandler.hasMessages());
         verify(mMockAms, times(0)).notifyKeyEvent(any(), anyInt());
 
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(event)), eq(0))).thenReturn(-1L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(event)))).thenReturn(-1L);
         mHandler.sendAllMessages();
 
         verify(mMockAms, times(0)).notifyKeyEvent(any(), anyInt());
@@ -140,19 +138,19 @@ public class KeyboardInterceptorTest {
                 new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_VOLUME_UP),
                 new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_0)};
 
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[1])), eq(0))).thenReturn(150L);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[3])), eq(0))).thenReturn(75L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[1])))).thenReturn(150L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[3])))).thenReturn(75L);
 
         for (KeyEvent event : events) {
             mInterceptor.onKeyEvent(event, 0);
         }
 
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[1])), eq(0))).thenReturn(0L);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[3])), eq(0))).thenReturn(0L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[1])))).thenReturn(0L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[3])))).thenReturn(0L);
 
         mHandler.sendAllMessages();
 
@@ -170,19 +168,19 @@ public class KeyboardInterceptorTest {
                 new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_VOLUME_UP),
                 new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_0)};
 
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[1])), eq(0))).thenReturn(150L);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[3])), eq(0))).thenReturn(75L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[1])))).thenReturn(150L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[3])))).thenReturn(75L);
 
         for (KeyEvent event : events) {
             mInterceptor.onKeyEvent(event, 0);
         }
 
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[1])), eq(0))).thenReturn(-1L);
-        when(mMockPolicy.interceptKeyBeforeDispatching((IBinder) argThat(nullValue()),
-                argThat(matchesKeyEvent(events[3])), eq(0))).thenReturn(-1L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[1])))).thenReturn(-1L);
+        when(mMockInputManager.interceptKeyCombinationBeforeAccessibility(
+                argThat(matchesKeyEvent(events[3])))).thenReturn(-1L);
 
         mHandler.sendAllMessages();
 

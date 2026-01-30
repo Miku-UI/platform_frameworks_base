@@ -23,6 +23,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState.ALTERNATE_BOUNCE
 import com.android.systemui.keyguard.shared.model.KeyguardState.OCCLUDED
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
+import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
@@ -35,10 +36,12 @@ class OccludedToAlternateBouncerTransitionViewModel
 @Inject
 constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTransition {
     private val transitionAnimation =
-        animationFlow.setup(
-            duration = TO_ALTERNATE_BOUNCER_DURATION,
-            edge = Edge.create(from = OCCLUDED, to = ALTERNATE_BOUNCER),
-        )
+        animationFlow
+            .setup(
+                duration = TO_ALTERNATE_BOUNCER_DURATION,
+                edge = Edge.create(from = Scenes.Occluded, to = ALTERNATE_BOUNCER),
+            )
+            .setupWithoutSceneContainer(edge = Edge.create(from = OCCLUDED, to = ALTERNATE_BOUNCER))
 
     val lockscreenAlpha: Flow<Float> = transitionAnimation.immediatelyTransitionTo(0f)
 

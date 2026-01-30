@@ -18,7 +18,7 @@ package android.os.instrumentation;
 /**
  * Represents the location of the code for a compiled method within a process'
  * memory.
- * {@hide}
+ * @hide
  */
 @JavaDerive(toString=true)
 parcelable ExecutableMethodFileOffsets {

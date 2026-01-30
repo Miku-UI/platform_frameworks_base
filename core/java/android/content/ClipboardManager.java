@@ -126,7 +126,7 @@ public class ClipboardManager extends android.text.ClipboardManager {
         void onPrimaryClipChanged();
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage
     public ClipboardManager(Context context, Handler handler) throws ServiceNotFoundException {
         mContext = context;

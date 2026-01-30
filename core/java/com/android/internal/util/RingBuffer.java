@@ -28,7 +28,7 @@ import java.util.function.Supplier;
  * A simple ring buffer structure with bounded capacity backed by an array.
  * Events can always be added at the logical end of the buffer. If the buffer is
  * full, oldest events are dropped when new events are added.
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class RingBuffer<T> {

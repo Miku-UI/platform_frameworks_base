@@ -16,15 +16,12 @@
 
 package android.view;
 
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 
-import com.android.window.flags.Flags;
 
 /**
  * Provides a mechanism for a SurfaceControl to receive input events.
  */
-@FlaggedApi(Flags.FLAG_SURFACE_CONTROL_INPUT_RECEIVER)
 public interface SurfaceControlInputReceiver {
     /**
      * When input events are batched, this is called at most once per frame. When non batched, this

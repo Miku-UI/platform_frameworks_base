@@ -16,13 +16,21 @@
 
 package com.google.android.lint.parcel
 
-import com.android.tools.lint.detector.api.*
+import com.android.tools.lint.detector.api.Category
+import com.android.tools.lint.detector.api.Context
+import com.android.tools.lint.detector.api.Detector
+import com.android.tools.lint.detector.api.Implementation
+import com.android.tools.lint.detector.api.Issue
+import com.android.tools.lint.detector.api.JavaContext
+import com.android.tools.lint.detector.api.Scope
+import com.android.tools.lint.detector.api.Severity
+import com.android.tools.lint.detector.api.SourceCodeScanner
+import com.android.tools.lint.detector.api.UastLintUtils
 import com.intellij.psi.PsiMethod
 import com.intellij.psi.PsiSubstitutor
 import com.intellij.psi.PsiType
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.uast.UCallExpression
-import java.util.*
 
 @Suppress("UnstableApiUsage")
 class SaferParcelChecker : Detector(), SourceCodeScanner {
@@ -67,7 +75,7 @@ class SaferParcelChecker : Detector(), SourceCodeScanner {
                     """,
                 category = Category.SECURITY,
                 priority = 8,
-                severity = Severity.WARNING,
+                severity = Severity.ERROR,
 
                 implementation = Implementation(
                         SaferParcelChecker::class.java,
@@ -76,30 +84,48 @@ class SaferParcelChecker : Detector(), SourceCodeScanner {
         )
 
         // Parcel
-        private val PARCEL_METHOD_READ_SERIALIZABLE = Method("android.os.Parcel", "readSerializable", listOf())
-        private val PARCEL_METHOD_READ_ARRAY_LIST = Method("android.os.Parcel", "readArrayList", listOf("java.lang.ClassLoader"))
-        private val PARCEL_METHOD_READ_LIST = Method("android.os.Parcel", "readList", listOf("java.util.List", "java.lang.ClassLoader"))
-        private val PARCEL_METHOD_READ_PARCELABLE = Method(listOf("T"), "android.os.Parcel", "readParcelable", listOf("java.lang.ClassLoader"))
-        private val PARCEL_METHOD_READ_PARCELABLE_LIST = Method(listOf("T"), "android.os.Parcel", "readParcelableList", listOf("java.util.List<T>", "java.lang.ClassLoader"))
-        private val PARCEL_METHOD_READ_SPARSE_ARRAY = Method(listOf("T"), "android.os.Parcel", "readSparseArray", listOf("java.lang.ClassLoader"))
-        private val PARCEL_METHOD_READ_ARRAY = Method("android.os.Parcel", "readArray", listOf("java.lang.ClassLoader"))
-        private val PARCEL_METHOD_READ_PARCELABLE_ARRAY = Method("android.os.Parcel", "readParcelableArray", listOf("java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_SERIALIZABLE =
+            Method("android.os.Parcel", "readSerializable", listOf())
+        private val PARCEL_METHOD_READ_ARRAY_LIST =
+            Method("android.os.Parcel", "readArrayList", listOf("java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_LIST =
+            Method("android.os.Parcel", "readList", listOf("java.util.List", "java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_PARCELABLE =
+            Method(listOf("T"), "android.os.Parcel", "readParcelable", listOf("java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_PARCELABLE_LIST =
+            Method(listOf("T"), "android.os.Parcel", "readParcelableList", listOf("java.util.List<T>", "java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_SPARSE_ARRAY =
+            Method(listOf("T"), "android.os.Parcel", "readSparseArray", listOf("java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_ARRAY =
+            Method("android.os.Parcel", "readArray", listOf("java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_PARCELABLE_ARRAY =
+            Method("android.os.Parcel", "readParcelableArray", listOf("java.lang.ClassLoader"))
 
         // Bundle
-        private val BUNDLE_METHOD_GET_SERIALIZABLE = Method("android.os.Bundle", "getSerializable", listOf("java.lang.String"))
-        private val BUNDLE_METHOD_GET_PARCELABLE = Method(listOf("T"), "android.os.Bundle", "getParcelable", listOf("java.lang.String"))
-        private val BUNDLE_METHOD_GET_PARCELABLE_ARRAY_LIST = Method(listOf("T"), "android.os.Bundle", "getParcelableArrayList", listOf("java.lang.String"))
-        private val BUNDLE_METHOD_GET_PARCELABLE_ARRAY = Method("android.os.Bundle", "getParcelableArray", listOf("java.lang.String"))
-        private val BUNDLE_METHOD_GET_SPARSE_PARCELABLE_ARRAY = Method(listOf("T"), "android.os.Bundle", "getSparseParcelableArray", listOf("java.lang.String"))
+        private val BUNDLE_METHOD_GET_SERIALIZABLE =
+            Method("android.os.Bundle", "getSerializable", listOf("java.lang.String"))
+        private val BUNDLE_METHOD_GET_PARCELABLE =
+            Method(listOf("T"), "android.os.Bundle", "getParcelable", listOf("java.lang.String"))
+        private val BUNDLE_METHOD_GET_PARCELABLE_ARRAY_LIST =
+            Method(listOf("T"), "android.os.Bundle", "getParcelableArrayList", listOf("java.lang.String"))
+        private val BUNDLE_METHOD_GET_PARCELABLE_ARRAY =
+            Method("android.os.Bundle", "getParcelableArray", listOf("java.lang.String"))
+        private val BUNDLE_METHOD_GET_SPARSE_PARCELABLE_ARRAY =
+            Method(listOf("T"), "android.os.Bundle", "getSparseParcelableArray", listOf("java.lang.String"))
 
         // Intent
-        private val INTENT_METHOD_GET_SERIALIZABLE_EXTRA = Method("android.content.Intent", "getSerializableExtra", listOf("java.lang.String"))
-        private val INTENT_METHOD_GET_PARCELABLE_EXTRA = Method(listOf("T"), "android.content.Intent", "getParcelableExtra", listOf("java.lang.String"))
-        private val INTENT_METHOD_GET_PARCELABLE_ARRAY_EXTRA = Method("android.content.Intent", "getParcelableArrayExtra", listOf("java.lang.String"))
-        private val INTENT_METHOD_GET_PARCELABLE_ARRAY_LIST_EXTRA = Method(listOf("T"), "android.content.Intent", "getParcelableArrayListExtra", listOf("java.lang.String"))
+        private val INTENT_METHOD_GET_SERIALIZABLE_EXTRA =
+            Method("android.content.Intent", "getSerializableExtra", listOf("java.lang.String"))
+        private val INTENT_METHOD_GET_PARCELABLE_EXTRA =
+            Method(listOf("T"), "android.content.Intent", "getParcelableExtra", listOf("java.lang.String"))
+        private val INTENT_METHOD_GET_PARCELABLE_ARRAY_EXTRA =
+            Method("android.content.Intent", "getParcelableArrayExtra", listOf("java.lang.String"))
+        private val INTENT_METHOD_GET_PARCELABLE_ARRAY_LIST_EXTRA =
+            Method(listOf("T"), "android.content.Intent", "getParcelableArrayListExtra", listOf("java.lang.String"))
 
         // TODO: Write migrators for methods below
-        private val PARCEL_METHOD_READ_PARCELABLE_CREATOR = Method("android.os.Parcel", "readParcelableCreator", listOf("java.lang.ClassLoader"))
+        private val PARCEL_METHOD_READ_PARCELABLE_CREATOR =
+            Method("android.os.Parcel", "readParcelableCreator", listOf("java.lang.ClassLoader"))
 
         private val MIGRATORS = listOf(
             ReturnMigrator(PARCEL_METHOD_READ_PARCELABLE, setOf("android.os.Parcelable")),

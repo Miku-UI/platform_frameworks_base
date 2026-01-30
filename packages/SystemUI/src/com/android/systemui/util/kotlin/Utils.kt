@@ -185,6 +185,29 @@ data class Septuple<A, B, C, D, E, F, G>(
     val seventh: G,
 )
 
+data class Octuple<A, B, C, D, E, F, G, H>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+    val fifth: E,
+    val sixth: F,
+    val seventh: G,
+    val eighth: H,
+)
+
+data class Nonuple<A, B, C, D, E, F, G, H, I>(
+    val first: A,
+    val second: B,
+    val third: C,
+    val fourth: D,
+    val fifth: E,
+    val sixth: F,
+    val seventh: G,
+    val eighth: H,
+    val ninth: I,
+)
+
 fun Int.toPx(context: Context): Int {
     return (this * context.resources.displayMetrics.density).toInt()
 }

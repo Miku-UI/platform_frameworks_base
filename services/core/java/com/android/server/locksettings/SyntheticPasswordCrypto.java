@@ -155,7 +155,7 @@ class SyntheticPasswordCrypto {
         return KeyProperties.NAMESPACE_LOCKSETTINGS;
     }
 
-    private static KeyStore getKeyStore()
+    static KeyStore getKeyStore()
             throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException {
         KeyStore keyStore = KeyStore.getInstance(androidKeystoreProviderName());
         keyStore.load(new AndroidKeyStoreLoadStoreParameter(keyNamespace()));

@@ -15,7 +15,9 @@
  */
 package com.android.internal.os;
 
-import static android.os.Process.*;
+import static android.os.Process.PROC_NEWLINE_TERM;
+import static android.os.Process.PROC_OUT_LONG;
+import static android.os.Process.PROC_OUT_STRING;
 
 import android.annotation.Nullable;
 import android.os.Process;
@@ -34,6 +36,13 @@ public final class ProcfsMemoryUtil {
     };
     private static final String[] VMSTAT_KEYS = new String[] {
             "oom_kill"
+    };
+    private static final int[] DMABUF_FILE_FORMAT = new int[] {PROC_OUT_LONG};
+
+    public enum DmaBufType {
+        RSS,
+        RSS_HWM,
+        PSS
     };
 
     private ProcfsMemoryUtil() {}
@@ -79,6 +88,47 @@ public final class ProcfsMemoryUtil {
         snapshot.rssShmemKilobytes = (int) output[4];
         snapshot.swapInKilobytes = (int) output[5];
         return snapshot;
+    }
+
+    /**
+     * Reads dmabuf stats of the current process from procfs.
+     *
+     * <p>Returns values related to RSS, RSS_HWM and PSS from, respectively, /proc/pid/{dmabuf_rss,
+     * dmabuf_rss_hwm, dmabuf_pss}, in kilobytes or -1 if not available.
+     */
+    public static int readDmabufFromProcfs(DmaBufType type, int pid) {
+        return readDmabufFromProcfs(type, String.valueOf(pid));
+    }
+
+    /**
+     * Reads dmabuf stats of the current process from procfs.
+     *
+     * <p>Returns values related to RSS, RSS_HWM and PSS from, respectively, /proc/self/{dmabuf_rss,
+     * dmabuf_rss_hwm, dmabuf_pss}, in kilobytes or -1 if not available.
+     */
+    public static int readDmabufFromProcfs(DmaBufType type) {
+        return readDmabufFromProcfs(type, "self");
+    }
+
+    private static int readDmabufFromProcfs(DmaBufType type, String path) {
+        // These files have maximum 1 line.
+        long[] output = new long[1];
+        String dmabuf_file = switch (type) {
+            case RSS -> "dmabuf_rss";
+            case RSS_HWM -> "dmabuf_rss_hwm";
+            case PSS -> "dmabuf_pss";
+        };
+
+        if (!Process.readProcFile(
+                "/proc/" + path + "/" + dmabuf_file, DMABUF_FILE_FORMAT, null, output, null)) {
+            /* Catches the case when the file is empty, doesn't exist, or the
+             * kernel does not support reporting these values. We should not
+             * report the value 0, as it would correspond to no dmabuf memory
+             * allocations, so we report an error value of -1. */
+            return -1;
+        }
+
+        return (int) (output[0] / 1024);
     }
 
     /**

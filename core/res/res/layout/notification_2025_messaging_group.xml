@@ -21,6 +21,8 @@
     android:id="@+id/status_bar_latest_event_content"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:clipChildren="false"
+    android:clipToPadding="false"
     android:orientation="horizontal" >
     <FrameLayout
         android:id="@+id/message_icon_container"
@@ -31,7 +33,7 @@
             android:id="@+id/message_icon"
             android:layout_width="@dimen/notification_2025_icon_circle_size"
             android:layout_height="@dimen/notification_2025_icon_circle_size"
-            android:background="@drawable/notification_icon_circle"
+            android:background="@drawable/notification_2025_conversation_icon_background"
             android:clipToOutline="true"
             android:scaleType="centerCrop"
             android:importantForAccessibility="no" />
@@ -42,6 +44,8 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:baselineAligned="true"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:orientation="vertical">
         <com.android.internal.widget.ImageFloatingTextView
             android:id="@+id/message_name"
@@ -53,6 +57,8 @@
             android:id="@+id/group_message_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             android:spacing="2dp" />
     </com.android.internal.widget.RemeasuringLinearLayout>
     <FrameLayout

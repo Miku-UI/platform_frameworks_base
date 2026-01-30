@@ -16,28 +16,33 @@
 
 package com.android.systemui.screenshot
 
+import android.hardware.display.DisplayManager
 import android.net.Uri
 import android.os.Trace
 import android.util.Log
 import android.view.Display
 import android.view.WindowManager.ScreenshotSource
 import android.view.WindowManager.TAKE_SCREENSHOT_PROVIDED_IMAGE
+import android.window.DesktopExperienceFlags
+import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.logging.UiEventLogger
 import com.android.internal.util.ScreenshotRequest
-import com.android.systemui.Flags.screenshotMultidisplayFocusChange
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.display.data.repository.DisplayRepository
-import com.android.systemui.display.data.repository.FocusedDisplayRepository
 import com.android.systemui.res.R
 import com.android.systemui.screenshot.ScreenshotEvent.SCREENSHOT_CAPTURE_FAILED
 import com.android.systemui.screenshot.ScreenshotEvent.SCREENSHOT_DISMISSED_OTHER
 import com.android.systemui.screenshot.TakeScreenshotService.RequestCallback
+import com.android.systemui.screenshot.proxy.ScreenshotProxy
 import java.util.function.Consumer
 import javax.inject.Inject
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.first
-import com.android.app.tracing.coroutines.launchTraced as launch
+import kotlinx.coroutines.withContext
 
 interface TakeScreenshotExecutor {
     suspend fun executeScreenshots(
@@ -79,12 +84,14 @@ class TakeScreenshotExecutorImpl
 constructor(
     private val interactiveScreenshotHandlerFactory: InteractiveScreenshotHandler.Factory,
     private val displayRepository: DisplayRepository,
+    private val displayManager: DisplayManager,
     @Application private val mainScope: CoroutineScope,
     private val screenshotRequestProcessor: ScreenshotRequestProcessor,
     private val uiEventLogger: UiEventLogger,
     private val screenshotNotificationControllerFactory: ScreenshotNotificationsController.Factory,
     private val headlessScreenshotHandler: HeadlessScreenshotHandler,
-    private val focusedDisplayRepository: FocusedDisplayRepository,
+    private val screenshotProxy: ScreenshotProxy,
+    @Background private val backgroundDispatcher: CoroutineDispatcher,
 ) : TakeScreenshotExecutor {
     private val displays = displayRepository.displays
     private var screenshotController: InteractiveScreenshotHandler? = null
@@ -101,7 +108,7 @@ constructor(
         onSaved: (Uri?) -> Unit,
         requestCallback: RequestCallback,
     ) {
-        if (screenshotMultidisplayFocusChange()) {
+        if (SCREENSHOT_MULTIDISPLAY_FOCUS_CHANGE.isTrue) {
             val display = getDisplayToScreenshot(screenshotRequest)
             val screenshotHandler = getScreenshotController(display)
             dispatchToController(
@@ -204,24 +211,29 @@ constructor(
     // Return the single display to be screenshot based upon the request.
     private suspend fun getDisplayToScreenshot(screenshotRequest: ScreenshotRequest): Display {
         return when (screenshotRequest.source) {
-            ScreenshotSource.SCREENSHOT_OVERVIEW ->
-                // Show on the display where overview was shown if available.
-                displayRepository.getDisplay(screenshotRequest.displayId)
-                    ?: displayRepository.getDisplay(Display.DEFAULT_DISPLAY)
+            // For screenshots from Overview or the Screen Capture UI, use the display where the UI
+            // was shown, if available.
+            ScreenshotSource.SCREENSHOT_OVERVIEW,
+            ScreenshotSource.SCREENSHOT_SCREEN_CAPTURE_UI ->
+                displayManager.getDisplay(screenshotRequest.displayId)
+                    ?: displayManager.getDisplay(Display.DEFAULT_DISPLAY)
                     ?: error("Can't find default display")
 
             // Key chord and vendor gesture occur on the device itself, so screenshot the device's
             // display
             ScreenshotSource.SCREENSHOT_KEY_CHORD,
             ScreenshotSource.SCREENSHOT_VENDOR_GESTURE ->
-                displayRepository.getDisplay(Display.DEFAULT_DISPLAY)
+                displayManager.getDisplay(Display.DEFAULT_DISPLAY)
                     ?: error("Can't find default display")
 
             // All other invocations use the focused display
-            else ->
-                displayRepository.getDisplay(focusedDisplayRepository.focusedDisplayId.value)
-                    ?: displayRepository.getDisplay(Display.DEFAULT_DISPLAY)
+            else -> {
+                val focusedDisplay = getFocusedDisplay()
+                Log.i(TAG, "Focused display ID is $focusedDisplay")
+                displayManager.getDisplay(focusedDisplay)
+                    ?: displayManager.getDisplay(Display.DEFAULT_DISPLAY)
                     ?: error("Can't find default display")
+            }
         }
     }
 
@@ -245,6 +257,9 @@ constructor(
         screenshotController = null
     }
 
+    private suspend fun getFocusedDisplay() =
+        withContext(backgroundDispatcher) { screenshotProxy.getFocusedDisplay() }
+
     private fun getNotificationController(id: Int): ScreenshotNotificationsController {
         return notificationControllers.computeIfAbsent(id) {
             screenshotNotificationControllerFactory.create(id)
@@ -263,6 +278,16 @@ constructor(
     }
 
     private fun getScreenshotController(display: Display): InteractiveScreenshotHandler {
+
+        if (
+            SCREENSHOT_MULTIDISPLAY_FOCUS_CHANGE.isTrue &&
+                screenshotController?.getDisplay() != display
+        ) {
+            // New request is from a different display, throw out the old UI so we can instantiate a
+            // new one.
+            screenshotController?.onDestroy()
+            screenshotController = null
+        }
         val controller = screenshotController ?: interactiveScreenshotHandlerFactory.create(display)
         screenshotController = controller
         return controller
@@ -330,6 +355,13 @@ constructor(
                 Display.TYPE_INTERNAL,
                 Display.TYPE_OVERLAY,
                 Display.TYPE_WIFI,
+            )
+
+        val SCREENSHOT_MULTIDISPLAY_FOCUS_CHANGE =
+            DesktopExperienceFlags.DesktopExperienceFlag(
+                Flags::screenshotMultidisplayFocusChange,
+                /* shouldOverrideByDevOption= */ true,
+                Flags.FLAG_SCREENSHOT_MULTIDISPLAY_FOCUS_CHANGE,
             )
     }
 }

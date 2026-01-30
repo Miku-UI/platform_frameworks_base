@@ -28,18 +28,16 @@ import android.os.Binder
 import android.os.Handler
 import android.os.RemoteException
 import android.os.UserHandle
-import android.platform.test.annotations.EnableFlags
 import android.service.quicksettings.Tile
 import android.testing.TestableContext
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.kosmos.testCase
 import com.android.systemui.qs.pipeline.shared.TileSpec
-import com.android.systemui.qs.tiles.impl.custom.packageManagerAdapterFacade
 import com.android.systemui.qs.tiles.impl.custom.customTileSpec
+import com.android.systemui.qs.tiles.impl.custom.packageManagerAdapterFacade
 import com.android.systemui.testKosmos
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.mockito.whenever
@@ -77,7 +75,6 @@ class CloseShadeRightAfterClickTestB339290820 : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX)
     fun testStopListeningShortlyAfterClick_clickIsSent() {
         with(kosmos) {
             val tile = FakeCustomTileInterface(tileServices)
@@ -111,6 +108,7 @@ private val testComponentName = ComponentName("pkg", "srv")
 private class FakeCustomTileInterface(tileServices: TileServices) : CustomTileInterface {
     override val user: Int
         get() = 0
+
     override val qsTile: Tile = Tile()
     override val component: ComponentName = testComponentName
     private var listening = false
@@ -167,15 +165,13 @@ private class FakeCustomTileInterface(tileServices: TileServices) : CustomTileIn
     }
 }
 
-private class ContextWrapperDelayedBind(
-    val context: Context,
-    val executor: FakeExecutor,
-) : ContextWrapper(context) {
+private class ContextWrapperDelayedBind(val context: Context, val executor: FakeExecutor) :
+    ContextWrapper(context) {
     override fun bindServiceAsUser(
         service: Intent,
         conn: ServiceConnection,
         flags: Int,
-        user: UserHandle
+        user: UserHandle,
     ): Boolean {
         executor.execute { super.bindServiceAsUser(service, conn, flags, user) }
         return true
@@ -185,7 +181,7 @@ private class ContextWrapperDelayedBind(
         service: Intent,
         conn: ServiceConnection,
         flags: BindServiceFlags,
-        user: UserHandle
+        user: UserHandle,
     ): Boolean {
         executor.execute { super.bindServiceAsUser(service, conn, flags, user) }
         return true
@@ -196,7 +192,7 @@ private class ContextWrapperDelayedBind(
         conn: ServiceConnection?,
         flags: Int,
         handler: Handler?,
-        user: UserHandle?
+        user: UserHandle?,
     ): Boolean {
         executor.execute { super.bindServiceAsUser(service, conn, flags, handler, user) }
         return true
@@ -207,7 +203,7 @@ private class ContextWrapperDelayedBind(
         conn: ServiceConnection,
         flags: BindServiceFlags,
         handler: Handler,
-        user: UserHandle
+        user: UserHandle,
     ): Boolean {
         executor.execute { super.bindServiceAsUser(service, conn, flags, handler, user) }
         return true

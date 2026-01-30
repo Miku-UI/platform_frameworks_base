@@ -16,6 +16,7 @@
 
 package com.android.systemui.communal.shared.log
 
+import com.android.compose.animation.scene.ContentKey
 import com.android.compose.animation.scene.ObservableTransitionState
 import com.android.compose.animation.scene.SceneKey
 import com.android.systemui.log.LogBuffer
@@ -25,12 +26,7 @@ import javax.inject.Inject
 
 class CommunalSceneLogger @Inject constructor(@CommunalLog private val logBuffer: LogBuffer) {
 
-    fun logSceneChangeRequested(
-        from: SceneKey,
-        to: SceneKey,
-        reason: String,
-        isInstant: Boolean,
-    ) {
+    fun logSceneChangeRequested(from: SceneKey, to: SceneKey, reason: String, isInstant: Boolean) {
         logBuffer.log(
             tag = TAG,
             level = LogLevel.INFO,
@@ -52,10 +48,7 @@ class CommunalSceneLogger @Inject constructor(@CommunalLog private val logBuffer
         )
     }
 
-    fun logSceneChangeCommitted(
-        from: SceneKey,
-        to: SceneKey,
-    ) {
+    fun logSceneChangeCommitted(from: SceneKey, to: SceneKey) {
         logBuffer.log(
             tag = TAG,
             level = LogLevel.INFO,
@@ -89,6 +82,32 @@ class CommunalSceneLogger @Inject constructor(@CommunalLog private val logBuffer
                 )
             }
         }
+    }
+
+    fun logSceneChangeRejection(
+        from: ContentKey?,
+        to: ContentKey?,
+        originalChangeReason: String?,
+        rejectionReason: String,
+    ) {
+        logBuffer.log(
+            tag = TAG,
+            level = LogLevel.INFO,
+            messageInitializer = {
+                str1 = "${from?.debugName ?: "<none>"} → ${to?.debugName ?: "<none>"}"
+                str2 = rejectionReason
+                str3 = originalChangeReason
+            },
+            messagePrinter = {
+                buildString {
+                    append("REJECTED ")
+                    append("scene change $str1 because \"$str2\"")
+                    if (str3 != null) {
+                        append(" (original change reason: \"$str3\")")
+                    }
+                }
+            },
+        )
     }
 
     companion object {

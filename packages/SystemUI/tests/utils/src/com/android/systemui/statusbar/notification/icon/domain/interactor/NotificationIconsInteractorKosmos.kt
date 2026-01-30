@@ -16,13 +16,14 @@
 
 package com.android.systemui.statusbar.notification.icon.domain.interactor
 
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
+import android.content.applicationContext
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryBypassInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.statusbar.data.repository.notificationListenerSettingsRepository
+import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
 import com.android.systemui.statusbar.notification.data.repository.notificationsKeyguardViewStateRepository
-import com.android.systemui.statusbar.notification.domain.interactor.activeNotificationsInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.headsUpNotificationIconInteractor
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.aodPromotedNotificationInteractor
 import com.android.wm.shell.bubbles.bubblesOptional
@@ -30,7 +31,7 @@ import com.android.wm.shell.bubbles.bubblesOptional
 val Kosmos.alwaysOnDisplayNotificationIconsInteractor by Fixture {
     AlwaysOnDisplayNotificationIconsInteractor(
         bgContext = testDispatcher,
-        deviceEntryInteractor = deviceEntryInteractor,
+        deviceEntryBypassInteractor = deviceEntryBypassInteractor,
         iconsInteractor = notificationIconsInteractor,
     )
 }
@@ -45,10 +46,11 @@ val Kosmos.statusBarNotificationIconsInteractor by Fixture {
 
 val Kosmos.notificationIconsInteractor by Fixture {
     NotificationIconsInteractor(
-        activeNotificationsInteractor = activeNotificationsInteractor,
+        activeNotificationsRepository = activeNotificationListRepository,
         bubbles = bubblesOptional,
         headsUpNotificationIconInteractor = headsUpNotificationIconInteractor,
         aodPromotedNotificationInteractor = aodPromotedNotificationInteractor,
         keyguardViewStateRepository = notificationsKeyguardViewStateRepository,
+        appContext = applicationContext,
     )
 }

@@ -19,6 +19,7 @@ package com.android.systemui.volume.dialog.ringer.ui.binder
 import android.animation.ArgbEvaluator
 import android.content.res.Configuration
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.InsetDrawable
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageButton
@@ -268,8 +269,7 @@ constructor(
             // progress update once because these changes should be applied once on volume dialog
             // background and ringer drawer views.
             coroutineScope {
-                val selectedCornerRadius =
-                    (selectedButton.background as GradientDrawable).cornerRadius
+                val selectedCornerRadius = selectedButton.backgroundShape().cornerRadius
                 if (selectedCornerRadius.toInt() != selectedButtonUiModel.cornerRadius) {
                     launchTraced("VDRVB#selectedButtonAnimation") {
                         selectedButton.animateTo(
@@ -282,8 +282,7 @@ constructor(
                         )
                     }
                 }
-                val unselectedCornerRadius =
-                    (unselectedButton.background as GradientDrawable).cornerRadius
+                val unselectedCornerRadius = unselectedButton.backgroundShape().cornerRadius
                 if (unselectedCornerRadius.toInt() != unselectedButtonUiModel.cornerRadius) {
                     launchTraced("VDRVB#unselectedButtonAnimation") {
                         unselectedButton.animateTo(
@@ -404,9 +403,8 @@ constructor(
         val roundnessAnimation =
             SpringAnimation(FloatValueHolder(0F), 1F).setSpring(roundnessSpringForce)
         val colorAnimation = SpringAnimation(FloatValueHolder(0F), 1F).setSpring(colorSpringForce)
-        val radius = (background as GradientDrawable).cornerRadius
-        val cornerRadiusDiff =
-            ringerButtonUiModel.cornerRadius - (background as GradientDrawable).cornerRadius
+        val radius = backgroundShape().cornerRadius
+        val cornerRadiusDiff = ringerButtonUiModel.cornerRadius - backgroundShape().cornerRadius
 
         roundnessAnimation.minimumVisibleChange = BUTTON_MIN_VISIBLE_CHANGE
         colorAnimation.minimumVisibleChange = BUTTON_MIN_VISIBLE_CHANGE
@@ -422,18 +420,18 @@ constructor(
                     val currentBgColor =
                         rgbEvaluator.evaluate(
                             value.coerceIn(0F, 1F),
-                            (background as GradientDrawable).color?.colors?.get(0),
+                            backgroundShape().color?.colors?.get(0),
                             ringerButtonUiModel.backgroundColor,
                         ) as Int
 
-                    (background as GradientDrawable).setColor(currentBgColor)
+                    backgroundShape().setColor(currentBgColor)
                     background.invalidateSelf()
                     setColorFilter(currentIconColor)
                 }
             }
             roundnessAnimation.suspendAnimate { value ->
                 onProgressChanged(value, cornerRadiusDiff > 0F)
-                (background as GradientDrawable).cornerRadius = radius + value * cornerRadiusDiff
+                backgroundShape().cornerRadius = radius + value * cornerRadiusDiff
                 background.invalidateSelf()
             }
         }
@@ -445,3 +443,6 @@ constructor(
         background.invalidateSelf()
     }
 }
+
+private fun ImageButton.backgroundShape(): GradientDrawable =
+    (background as InsetDrawable).drawable as GradientDrawable

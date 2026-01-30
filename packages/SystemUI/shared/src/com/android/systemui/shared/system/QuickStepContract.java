@@ -137,6 +137,8 @@ public class QuickStepContract {
     // This only takes effect while the IME is visible. By default, it is set while the IME is
     // visible, but may be overridden by the backDispositionMode set by the IME.
     public static final long SYSUI_STATE_BACK_DISMISS_IME = 1L << 36;
+    // Whether WindowManagerService/DisplayPolicy returns false for hasNavigationBar().
+    public static final long SYSUI_STATE_NAVIGATION_BAR_DISABLED = 1L << 37;
 
     // Mask for SystemUiStateFlags to isolate SYSUI_STATE_AWAKE and
     // SYSUI_STATE_WAKEFULNESS_TRANSITION, to match WAKEFULNESS_* constants
@@ -302,6 +304,9 @@ public class QuickStepContract {
         if ((flags & SYSUI_STATE_BACK_DISMISS_IME) != 0) {
             str.add("back_dismiss_ime");
         }
+        if ((flags & SYSUI_STATE_NAVIGATION_BAR_DISABLED) != 0) {
+            str.add("hasNavigationBar=false");
+        }
 
         return str.toString();
     }
@@ -414,6 +419,8 @@ public class QuickStepContract {
      * Corner radius that should be used on windows in order to cover the display.
      * These values are expressed in pixels because they should not respect display or font
      * scaling. The corner radius may change when folding/unfolding the device.
+     *
+     * @param context A display associated context.
      */
     public static float getWindowCornerRadius(Context context) {
         return ScreenDecorationsUtils.getWindowCornerRadius(context);

@@ -24,10 +24,12 @@ import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcast
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant
 import com.android.settingslib.bluetooth.LocalBluetoothProfileManager
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.android.systemui.volume.data.repository.audioSharingRepository
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -58,12 +60,14 @@ class AudioSharingRepositoryTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
+        whenever(kosmos.localBluetoothManager.profileManager).thenReturn(profileManager)
         underTest =
             AudioSharingRepositoryImpl(
                 kosmos.localBluetoothManager,
                 kosmos.audioSharingRepository,
                 kosmos.bluetoothTileDialogLogger,
                 kosmos.testDispatcher,
+                kosmos.testScope.backgroundScope,
             )
     }
 
@@ -91,7 +95,6 @@ class AudioSharingRepositoryTest : SysuiTestCase() {
     fun testStartAudioSharing() =
         with(kosmos) {
             testScope.runTest {
-                whenever(localBluetoothManager.profileManager).thenReturn(profileManager)
                 whenever(profileManager.leAudioBroadcastProfile).thenReturn(leAudioBroadcastProfile)
                 audioSharingRepository.setAudioSharingAvailable(true)
                 underTest.startAudioSharing()
@@ -117,7 +120,6 @@ class AudioSharingRepositoryTest : SysuiTestCase() {
     fun testStopAudioSharing() =
         with(kosmos) {
             testScope.runTest {
-                whenever(localBluetoothManager.profileManager).thenReturn(profileManager)
                 whenever(profileManager.leAudioBroadcastProfile).thenReturn(leAudioBroadcastProfile)
                 audioSharingRepository.setAudioSharingAvailable(true)
                 underTest.stopAudioSharing()
@@ -155,7 +157,6 @@ class AudioSharingRepositoryTest : SysuiTestCase() {
     fun testAddSource_noMetadata_doesNothing() =
         with(kosmos) {
             testScope.runTest {
-                whenever(localBluetoothManager.profileManager).thenReturn(profileManager)
                 whenever(profileManager.leAudioBroadcastProfile).thenReturn(leAudioBroadcastProfile)
                 audioSharingRepository.setAudioSharingAvailable(true)
                 whenever(leAudioBroadcastProfile.latestBluetoothLeBroadcastMetadata)
@@ -210,6 +211,40 @@ class AudioSharingRepositoryTest : SysuiTestCase() {
                 verify(leAudioBroadcastAssistant).addSource(bluetoothDevice, metadata, false)
                 verify(bluetoothTileDialogLogger)
                     .logAudioSharingRequest(AudioSharingRequest.ADD_SOURCE)
+            }
+        }
+
+    @Test
+    fun testIsAudioSharingProfilesReady_notReady() =
+        with(kosmos) {
+            testScope.runTest {
+                whenever(localBluetoothManager.profileManager).thenReturn(profileManager)
+                whenever(profileManager.leAudioBroadcastProfile).thenReturn(leAudioBroadcastProfile)
+                whenever(profileManager.leAudioBroadcastAssistantProfile)
+                    .thenReturn(leAudioBroadcastAssistant)
+                whenever(leAudioBroadcastProfile.isProfileReady).thenReturn(false)
+                whenever(leAudioBroadcastAssistant.isProfileReady).thenReturn(false)
+                val value by collectLastValue(underTest.isAudioSharingProfilesReady)
+                runCurrent()
+
+                assertThat(value).isFalse()
+            }
+        }
+
+    @Test
+    fun testIsAudioSharingProfilesReady_ready() =
+        with(kosmos) {
+            testScope.runTest {
+                whenever(localBluetoothManager.profileManager).thenReturn(profileManager)
+                whenever(profileManager.leAudioBroadcastProfile).thenReturn(leAudioBroadcastProfile)
+                whenever(profileManager.leAudioBroadcastAssistantProfile)
+                    .thenReturn(leAudioBroadcastAssistant)
+                whenever(leAudioBroadcastProfile.isProfileReady).thenReturn(true)
+                whenever(leAudioBroadcastAssistant.isProfileReady).thenReturn(true)
+                val value by collectLastValue(underTest.isAudioSharingProfilesReady)
+                runCurrent()
+
+                assertThat(value).isTrue()
             }
         }
 }

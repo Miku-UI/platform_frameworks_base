@@ -32,6 +32,7 @@ import android.os.Message;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.android.internal.os.DebugStore;
 import com.android.internal.os.SomeArgs;
 
 import java.lang.ref.WeakReference;
@@ -79,6 +80,9 @@ public abstract class JobServiceEngine {
     /** Message that the network to use has changed. */
     private static final int MSG_INFORM_OF_NETWORK_CHANGE = 8;
 
+    private static final boolean DEBUG_STORE_ENABLED =
+            com.android.internal.os.Flags.debugStoreEnabled();
+
     private final IJobService mBinder;
 
     /**
@@ -125,6 +129,12 @@ public abstract class JobServiceEngine {
             JobServiceEngine service = mService.get();
             if (service != null) {
                 Message m = Message.obtain(service.mHandler, MSG_EXECUTE_JOB, jobParams);
+                if (DEBUG_STORE_ENABLED) {
+                    DebugStore.recordScheduleStartJob(
+                            System.identityHashCode(m.obj),
+                            jobParams.getJobId(),
+                            jobParams.getJobNamespace());
+                }
                 m.sendToTarget();
             }
         }
@@ -144,6 +154,12 @@ public abstract class JobServiceEngine {
             JobServiceEngine service = mService.get();
             if (service != null) {
                 Message m = Message.obtain(service.mHandler, MSG_STOP_JOB, jobParams);
+                if (DEBUG_STORE_ENABLED) {
+                    DebugStore.recordScheduleStopJob(
+                            System.identityHashCode(m.obj),
+                            jobParams.getJobId(),
+                            jobParams.getJobNamespace());
+                }
                 m.sendToTarget();
             }
         }
@@ -164,6 +180,11 @@ public abstract class JobServiceEngine {
             switch (msg.what) {
                 case MSG_EXECUTE_JOB: {
                     final JobParameters params = (JobParameters) msg.obj;
+                    long debugStoreId = -1;
+                    if (DEBUG_STORE_ENABLED) {
+                            debugStoreId =
+                                    DebugStore.recordStartJob(System.identityHashCode(params));
+                    }
                     try {
                         params.enableCleaner();
                         boolean workOngoing = JobServiceEngine.this.onStartJob(params);
@@ -174,17 +195,29 @@ public abstract class JobServiceEngine {
                     } catch (Exception e) {
                         Log.e(TAG, "Error while executing job: " + params.getJobId());
                         throw new RuntimeException(e);
+                    } finally {
+                        if (DEBUG_STORE_ENABLED) {
+                            DebugStore.recordEventEnd(debugStoreId);
+                        }
                     }
                     break;
                 }
                 case MSG_STOP_JOB: {
                     final JobParameters params = (JobParameters) msg.obj;
+                    long debugStoreId = -1;
+                    if (DEBUG_STORE_ENABLED) {
+                        debugStoreId = DebugStore.recordStopJob(System.identityHashCode(params));
+                    }
                     try {
                         boolean ret = JobServiceEngine.this.onStopJob(params);
                         ackStopMessage(params, ret);
                     } catch (Exception e) {
                         Log.e(TAG, "Application unable to handle onStopJob.", e);
                         throw new RuntimeException(e);
+                    } finally {
+                        if (DEBUG_STORE_ENABLED) {
+                            DebugStore.recordEventEnd(debugStoreId);
+                        }
                     }
                     break;
                 }

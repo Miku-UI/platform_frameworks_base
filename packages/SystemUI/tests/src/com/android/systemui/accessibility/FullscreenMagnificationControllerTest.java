@@ -37,7 +37,6 @@ import android.graphics.Rect;
 import android.graphics.drawable.GradientDrawable;
 import android.hardware.display.DisplayManager;
 import android.os.RemoteException;
-import android.platform.test.annotations.EnableFlags;
 import android.testing.AndroidTestingRunner;
 import android.testing.TestableLooper;
 import android.view.Display;
@@ -53,7 +52,6 @@ import android.window.InputTransferToken;
 import androidx.test.filters.FlakyTest;
 import androidx.test.filters.SmallTest;
 
-import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
 
@@ -218,7 +216,6 @@ public class FullscreenMagnificationControllerTest extends SysuiTestCase {
         verify(mSurfaceControlViewHost).relayout(newWidth, newHeight);
     }
 
-    @EnableFlags(Flags.FLAG_UPDATE_CORNER_RADIUS_ON_DISPLAY_CHANGED)
     @Test
     public void enableFullscreenMagnification_applyPrimaryCornerRadius()
             throws InterruptedException {
@@ -229,7 +226,6 @@ public class FullscreenMagnificationControllerTest extends SysuiTestCase {
         assertThat(backgroundDrawable.getCornerRadius()).isEqualTo(CORNER_RADIUS_PRIMARY);
     }
 
-    @EnableFlags(Flags.FLAG_UPDATE_CORNER_RADIUS_ON_DISPLAY_CHANGED)
     @Test
     public void onDisplayChanged_applyCornerRadiusToBorder() throws InterruptedException {
         enableFullscreenMagnificationAndWaitForTransactionAndAnimation();

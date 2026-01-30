@@ -21,7 +21,7 @@ import android.media.AudioDeviceAttributes;
 /**
  * AIDL for AudioService to signal changes to an audio device's volume behavior
  *
- * {@hide}
+ * @hide
  */
 oneway interface IDeviceVolumeBehaviorDispatcher {
 

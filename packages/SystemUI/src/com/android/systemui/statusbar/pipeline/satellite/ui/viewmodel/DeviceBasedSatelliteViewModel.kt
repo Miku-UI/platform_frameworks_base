@@ -25,7 +25,7 @@ import com.android.systemui.log.core.LogLevel
 import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.log.table.logDiffsForTable
 import com.android.systemui.res.R
-import com.android.systemui.statusbar.pipeline.airplane.data.repository.AirplaneModeRepository
+import com.android.systemui.statusbar.pipeline.airplane.domain.interactor.AirplaneModeInteractor
 import com.android.systemui.statusbar.pipeline.dagger.DeviceBasedSatelliteInputLog
 import com.android.systemui.statusbar.pipeline.dagger.DeviceBasedSatelliteTableLog
 import com.android.systemui.statusbar.pipeline.satellite.domain.interactor.DeviceBasedSatelliteInteractor
@@ -68,7 +68,7 @@ constructor(
     context: Context,
     interactor: DeviceBasedSatelliteInteractor,
     @Application scope: CoroutineScope,
-    airplaneModeRepository: AirplaneModeRepository,
+    airplaneModeInteractor: AirplaneModeInteractor,
     @DeviceBasedSatelliteInputLog logBuffer: LogBuffer,
     @DeviceBasedSatelliteTableLog tableLog: TableLogBuffer,
 ) : DeviceBasedSatelliteViewModel {
@@ -122,7 +122,7 @@ constructor(
                                 interactor.isAnyConnectionNtn,
                                 interactor.connectionState,
                                 interactor.isWifiActive,
-                                airplaneModeRepository.isAirplaneMode,
+                                airplaneModeInteractor.isAirplaneMode,
                             ) { showForOos, anyNtn, connectionState, isWifiActive, isAirplaneMode ->
                                 // anyNtn means that there is some mobile network using ntn, and the
                                 // mobile icon will show its own satellite icon

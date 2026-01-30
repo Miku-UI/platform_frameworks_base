@@ -28,6 +28,7 @@ import android.graphics.Rect;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.util.Log;
 import android.util.Size;
 import android.window.TaskFragmentAnimationParams;
 import android.window.TaskFragmentInfo;
@@ -142,6 +143,13 @@ class TaskFragmentContainer {
      */
     @Nullable
     private IBinder mLastCompanionTaskFragment;
+
+    /**
+     * Activity token that was requested last via
+     * {@link android.window.TaskFragmentOperation#OP_TYPE_SET_COMPANION_TASK_FRAGMENT}.
+     */
+    @Nullable
+    private IBinder mLastCompanionToBeFinishedActivity;
 
     /**
      * When the TaskFragment has appeared in server, but is empty, we should remove the TaskFragment
@@ -491,6 +499,10 @@ class TaskFragmentContainer {
             return;
         }
         mPendingAppearedIntent = null;
+        if (mPendingAppearedActivities.isEmpty() && mAppearEmptyTimeout != null) {
+            // Nothing to wait. Can be cleanup now.
+            mAppearEmptyTimeout.run();
+        }
     }
 
     boolean hasActivity(@NonNull IBinder activityToken) {
@@ -540,6 +552,12 @@ class TaskFragmentContainer {
             if (mPendingAppearedIntent != null || !mPendingAppearedActivities.isEmpty()) {
                 mAppearEmptyTimeout = () -> {
                     synchronized (mController.mLock) {
+                        if (mAppearEmptyTimeout == null) {
+                            // The timeout has already been executed.
+                            return;
+                        }
+                        Log.w(SplitController.TAG,
+                                "Fail to wait for activity start in TaskFragment=" + this);
                         mAppearEmptyTimeout = null;
                         // Call without the pass-in wct when timeout. We need to applyWct directly
                         // in this case.
@@ -645,12 +663,29 @@ class TaskFragmentContainer {
      * finished on exit. Otherwise, return {@code false}.
      */
     boolean hasActivityToFinishOnExit(@NonNull TaskFragmentContainer container) {
+        return getActivityToFinishOnExitInternal(container) != null;
+    }
+
+    /**
+     * Returns the Activity from the given {@code container} that was added to be finished on exit.
+     * Otherwise, return {@code false}.
+     */
+    @Nullable
+    IBinder getActivityToFinishOnExit(@NonNull TaskFragmentContainer container) {
+        if (!com.android.window.flags.Flags.taskFragmentCompanionActivity()) {
+            return null;
+        }
+        return getActivityToFinishOnExitInternal(container);
+    }
+
+    @Nullable
+    private IBinder getActivityToFinishOnExitInternal(@NonNull TaskFragmentContainer container) {
         for (IBinder activity : mParcelableData.mActivitiesToFinishOnExit) {
             if (container.hasActivity(activity)) {
-                return true;
+                return activity;
             }
         }
-        return false;
+        return null;
     }
 
     /**
@@ -886,16 +921,20 @@ class TaskFragmentContainer {
      * Checks if last requested companion TaskFragment token is equal to the provided value.
      * @see android.window.TaskFragmentOperation#OP_TYPE_SET_COMPANION_TASK_FRAGMENT
      */
-    boolean isLastCompanionTaskFragmentEqual(@Nullable IBinder fragmentToken) {
-        return Objects.equals(mLastCompanionTaskFragment, fragmentToken);
+    boolean isLastCompanionTaskFragmentEqual(@Nullable IBinder fragmentToken,
+            @Nullable IBinder toBeFinishedActivity) {
+        return Objects.equals(mLastCompanionTaskFragment, fragmentToken)
+                && Objects.equals(mLastCompanionToBeFinishedActivity, toBeFinishedActivity);
     }
 
     /**
      * Updates the last requested companion TaskFragment token.
      * @see android.window.TaskFragmentOperation#OP_TYPE_SET_COMPANION_TASK_FRAGMENT
      */
-    void setLastCompanionTaskFragment(@Nullable IBinder fragmentToken) {
+    void setLastCompanionTaskFragment(@Nullable IBinder fragmentToken,
+            @Nullable IBinder toBeFinishedActivity) {
         mLastCompanionTaskFragment = fragmentToken;
+        mLastCompanionToBeFinishedActivity = toBeFinishedActivity;
     }
 
     /** Returns whether to enable isolated navigation or not. */
@@ -977,11 +1016,6 @@ class TaskFragmentContainer {
     /** Gets the parent leaf Task id. */
     int getTaskId() {
         return mTaskContainer.getTaskId();
-    }
-
-    @NonNull
-    IBinder getToken() {
-        return mParcelableData.mToken;
     }
 
     @NonNull

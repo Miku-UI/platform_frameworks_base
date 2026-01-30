@@ -20,14 +20,11 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
-import android.platform.test.flag.junit.FlagsParameterization
-import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.testing.TestableLooper
 import androidx.lifecycle.LifecycleOwner
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.logging.MetricsLogger
 import com.android.systemui.SysuiTestCase
@@ -46,8 +43,8 @@ import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.plugins.statusbar.StatusBarStateController
 import com.android.systemui.qs.QSHost
 import com.android.systemui.qs.QsEventLogger
-import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.qs.logging.QSLogger
+import com.android.systemui.qs.pipeline.domain.interactor.PanelInteractor
 import com.android.systemui.qs.tileimpl.QSTileImpl
 import com.android.systemui.res.R
 import com.android.systemui.util.mockito.any
@@ -72,17 +69,12 @@ import org.mockito.Mockito.verify
 import org.mockito.Mockito.verifyNoMoreInteractions
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
+import org.mockito.kotlin.never
 
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4::class)
+@RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
-class DeviceControlsTileTest(flags: FlagsParameterization) : SysuiTestCase() {
-
-    init {
-        mSetFlagsRule.setFlagsParameterization(flags)
-    }
+class DeviceControlsTileTest : SysuiTestCase() {
 
     @Mock private lateinit var qsHost: QSHost
     @Mock private lateinit var metricsLogger: MetricsLogger
@@ -95,6 +87,7 @@ class DeviceControlsTileTest(flags: FlagsParameterization) : SysuiTestCase() {
     @Mock private lateinit var controlsController: ControlsController
     @Mock private lateinit var serviceInfo: ControlsServiceInfo
     @Mock private lateinit var uiEventLogger: QsEventLogger
+    @Mock private lateinit var panelInteractor: PanelInteractor
     @Captor
     private lateinit var listingCallbackCaptor:
         ArgumentCaptor<ControlsListingController.ControlsListingCallback>
@@ -318,6 +311,41 @@ class DeviceControlsTileTest(flags: FlagsParameterization) : SysuiTestCase() {
     }
 
     @Test
+    fun handleClick_alreadyVisible_noActivityStarted_panelCollapsed() {
+        verify(controlsListingController)
+            .observe(any(LifecycleOwner::class.java), capture(listingCallbackCaptor))
+        `when`(controlsComponent.getVisibility()).thenReturn(ControlsComponent.Visibility.AVAILABLE)
+        `when`(controlsUiController.resolveActivity()).thenReturn(ControlsActivity::class.java)
+        `when`(controlsController.getPreferredSelection())
+            .thenReturn(
+                SelectedItem.StructureItem(
+                    StructureInfo(
+                        ComponentName("pkg", "cls"),
+                        "structure",
+                        listOf(ControlInfo("id", "title", "subtitle", 1)),
+                    )
+                )
+            )
+
+        listingCallbackCaptor.value.onServicesUpdated(listOf(serviceInfo))
+        testableLooper.processAllMessages()
+
+        `when`(controlsUiController.isShowing).thenReturn(true)
+
+        tile.click(null)
+        testableLooper.processAllMessages()
+
+        verify(activityStarter, never())
+            .startActivity(
+                any(),
+                anyBoolean(),
+                nullable(ActivityTransitionAnimator.Controller::class.java),
+                anyBoolean(),
+            )
+        verify(panelInteractor).collapsePanels()
+    }
+
+    @Test
     fun handleClick_available_shownOverLockscreenWhenLocked() {
         verify(controlsListingController)
             .observe(any(LifecycleOwner::class.java), capture(listingCallbackCaptor))
@@ -390,16 +418,7 @@ class DeviceControlsTileTest(flags: FlagsParameterization) : SysuiTestCase() {
     }
 
     @Test
-    @DisableFlags(QSComposeFragment.FLAG_NAME)
-    fun tileIconEqualsResourceFromComponent_composeFlagDisabled() {
-        tile.refreshState()
-        testableLooper.processAllMessages()
-        assertThat(tile.state.icon).isEqualTo(QSTileImpl.ResourceIcon.get(R.drawable.controls_icon))
-    }
-
-    @Test
-    @EnableFlags(QSComposeFragment.FLAG_NAME)
-    fun tileIconEqualsResourceFromComponent_composeFlagEnable() {
+    fun tileIconEqualsResourceFromComponent() {
         tile.refreshState()
         testableLooper.processAllMessages()
         assertThat(tile.state.icon)
@@ -423,19 +442,12 @@ class DeviceControlsTileTest(flags: FlagsParameterization) : SysuiTestCase() {
                 activityStarter,
                 qsLogger,
                 controlsComponent,
+                panelInteractor,
             )
             .also {
                 it.initialize()
                 testableLooper.processAllMessages()
             }
-    }
-
-    companion object {
-        @JvmStatic
-        @Parameters(name = "{0}")
-        fun getParams(): List<FlagsParameterization> {
-            return allCombinationsOf(QSComposeFragment.FLAG_NAME)
-        }
     }
 }
 

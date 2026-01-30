@@ -342,11 +342,11 @@ public final class PictureInPictureParams implements Parcelable {
      */
     private Boolean mIsLaunchIntoPip;
 
-    /** {@hide} */
+    /** @hide */
     PictureInPictureParams() {
     }
 
-    /** {@hide} */
+    /** @hide */
     PictureInPictureParams(Parcel in) {
         mAspectRatio = readRationalFromParcel(in);
         mExpandedAspectRatio = readRationalFromParcel(in);
@@ -375,7 +375,7 @@ public final class PictureInPictureParams implements Parcelable {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     PictureInPictureParams(Rational aspectRatio, Rational expandedAspectRatio,
             List<RemoteAction> actions, RemoteAction closeAction, Rect sourceRectHint,
             Boolean autoEnterEnabled, Boolean seamlessResizeEnabled, CharSequence title,

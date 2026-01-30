@@ -40,16 +40,6 @@ class MediaDataRepository @Inject constructor(dumpManager: DumpManager) : Dumpab
         dumpManager.registerNormalDumpable(TAG, this)
     }
 
-    /**
-     * Marks the recommendation data as dismissed.
-     *
-     * @return true if the recommendation was dismissed or already inactive, false otherwise.
-     */
-    fun dismissSmartspaceRecommendation(key: String): Boolean {
-        // TODO(b/382680767): remove
-        return true
-    }
-
     fun removeMediaEntry(key: String): MediaData? {
         val entries = LinkedHashMap<String, MediaData>(_mediaEntries.value)
         val mediaData = entries.remove(key)

@@ -75,8 +75,8 @@ run_pta() {
         --output-script $OUT_SCRIPT \
         --annotation-allowed-classes-file $AAC \
         $(with_flag --policy-override-file $POLICIES) \
-        $(with_flag --src $SOURCES) \
-        $extra_args
+        $extra_args \
+        $SOURCES
 
     if ! [[ -f $OUT_SCRIPT ]] ; then
         echo "No files need updating."

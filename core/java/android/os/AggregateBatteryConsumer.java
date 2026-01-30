@@ -30,7 +30,7 @@ import java.io.PrintWriter;
 /**
  * Contains power consumption data across the entire device.
  *
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
 public final class AggregateBatteryConsumer extends BatteryConsumer {

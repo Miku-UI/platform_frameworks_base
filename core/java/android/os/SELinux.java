@@ -26,7 +26,7 @@ import java.io.IOException;
 /**
  * This class provides access to the centralized jni bindings for
  * SELinux interaction.
- * {@hide}
+ * @hide
  */
 public class SELinux {
     private static final String TAG = "SELinux";

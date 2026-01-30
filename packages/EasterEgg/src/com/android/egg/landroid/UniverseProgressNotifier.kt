@@ -84,8 +84,8 @@ class UniverseProgressNotifier(val context: Context, val universe: Universe) {
                 )
             )
             .setFlag(Notification.FLAG_ONLY_ALERT_ONCE, true)
-            .setColorized(true)
             .setOngoing(true)
+            .setRequestPromotedOngoing(true)
             .setColor(Colors.Eigengrau2.toArgb())
             .setStyle(progress)
 

@@ -18,6 +18,7 @@
 
 #include <android/hardware/power/stats/1.0/IPowerStats.h>
 #include <jni.h>
+#include <mutex>
 #include <nativehelper/JNIHelp.h>
 
 #include <log/log.h>

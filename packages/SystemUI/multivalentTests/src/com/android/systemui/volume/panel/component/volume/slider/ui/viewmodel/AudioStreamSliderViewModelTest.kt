@@ -16,7 +16,6 @@
 
 package com.android.systemui.volume.panel.component.volume.slider.ui.viewmodel
 
-import android.app.Flags
 import android.app.NotificationManager.INTERRUPTION_FILTER_NONE
 import android.graphics.drawable.TestStubDrawable
 import android.media.AudioManager
@@ -58,7 +57,6 @@ class AudioStreamSliderViewModelTest : SysuiTestCase() {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI, Flags.FLAG_MODES_UI_ICONS)
     fun slider_media_hasDisabledByModesText() =
         kosmos.runTest {
             val mediaSlider by
@@ -90,7 +88,6 @@ class AudioStreamSliderViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI, Flags.FLAG_MODES_UI_ICONS)
     fun slider_alarms_hasDisabledByModesText() =
         kosmos.runTest {
             val alarmsSlider by
@@ -121,7 +118,6 @@ class AudioStreamSliderViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI, Flags.FLAG_MODES_UI_ICONS)
     fun slider_other_hasDisabledText() =
         kosmos.runTest {
             val otherSlider by
@@ -140,7 +136,6 @@ class AudioStreamSliderViewModelTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_MODES_UI, Flags.FLAG_MODES_UI_ICONS)
     fun slider_notification_hasSpecialDisabledText() =
         kosmos.runTest {
             val notificationSlider by
@@ -174,7 +169,7 @@ class AudioStreamSliderViewModelTest : SysuiTestCase() {
                 .isEqualTo(
                     Icon.Loaded(
                         drawable = TestStubDrawable(),
-                        res = R.drawable.ic_volume_media_bt,
+                        resId = R.drawable.ic_volume_media_bt,
                         contentDescription = null,
                     )
                 )

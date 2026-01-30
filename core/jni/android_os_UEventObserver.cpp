@@ -29,6 +29,8 @@
 #include <utils/String8.h>
 #include <nativehelper/ScopedUtfChars.h>
 
+#include <algorithm>
+
 namespace android {
 
 static Mutex gMatchesMutex;

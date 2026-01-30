@@ -21,7 +21,7 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.plugins.log.TableLogBufferBase
+import com.android.systemui.log.table.TableLogBuffer
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.time.FakeSystemClock
 import java.util.Arrays
@@ -51,7 +51,7 @@ class ConditionMonitorTest : SysuiTestCase() {
     private lateinit var conditions: HashSet<Condition>
     private val executor = FakeExecutor(FakeSystemClock())
 
-    @Mock private lateinit var logBuffer: TableLogBufferBase
+    @Mock private lateinit var logBuffer: TableLogBuffer
 
     private lateinit var conditionMonitor: Monitor
 

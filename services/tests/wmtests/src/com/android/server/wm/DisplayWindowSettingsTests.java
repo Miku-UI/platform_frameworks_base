@@ -506,20 +506,42 @@ public class DisplayWindowSettingsTests extends WindowTestsBase {
 
     @Test
     public void testShouldShowImeOnDisplayWithinForceDesktopMode() {
-        try {
-            // Presume display enabled force desktop mode from developer options.
-            final DisplayContent dc = createMockSimulatedDisplay();
-            mWm.setForceDesktopModeOnExternalDisplays(true);
-            final WindowManagerInternal wmInternal = LocalServices.getService(
-                    WindowManagerInternal.class);
-            // Make sure WindowManagerInter#getDisplayImePolicy is SHOW_IME_ON_DISPLAY is due to
-            // mForceDesktopModeOnExternalDisplays being SHOW_IME_ON_DISPLAY.
-            assertEquals(DISPLAY_IME_POLICY_FALLBACK_DISPLAY,
-                    mWm.mDisplayWindowSettings.getImePolicyLocked(dc));
-            assertEquals(DISPLAY_IME_POLICY_LOCAL, wmInternal.getDisplayImePolicy(dc.getDisplayId()));
-        } finally {
-            mWm.setForceDesktopModeOnExternalDisplays(false);
-        }
+        mWm.mAtmService.mSupportsFreeformWindowManagement = true;
+        mWm.setForceDesktopModeOnExternalDisplays(true);
+
+        // Presume display enabled force desktop mode from developer options.
+        final SettingsEntry settingsEntry = new SettingsEntry();
+        settingsEntry.mShouldShowSystemDecors = true;
+        final DisplayContent dc = createMockSimulatedDisplay(settingsEntry);
+        final WindowManagerInternal wmInternal = LocalServices.getService(
+                WindowManagerInternal.class);
+        // Make sure WindowManagerInter#getDisplayImePolicy is SHOW_IME_ON_DISPLAY is due to
+        // mForceDesktopModeOnExternalDisplays being SHOW_IME_ON_DISPLAY.
+        assertEquals(DISPLAY_IME_POLICY_FALLBACK_DISPLAY,
+                mWm.mDisplayWindowSettings.getImePolicyLocked(dc));
+        assertEquals(DISPLAY_IME_POLICY_LOCAL, wmInternal.getDisplayImePolicy(dc.getDisplayId()));
+    }
+
+    @Test
+    @EnableFlags(com.android.server.display.feature.flags.Flags
+            .FLAG_ENABLE_DISPLAY_CONTENT_MODE_MANAGEMENT)
+    public void testShouldShowImeOnDisplayForDisplayWithEligibleForDesktopMode() {
+        mWm.mAtmService.mSupportsFreeformWindowManagement = true;
+
+        final DisplayContent mockDc = mock(DisplayContent.class);
+        doReturn(mDefaultDisplay.getDisplayId() + 1).when(mockDc).getDisplayId();
+        doReturn(true).when(mockDc).isSystemDecorationsSupported();
+        doReturn(true).when(mockDc).allowContentModeSwitch();
+        doReturn(false).when(mockDc).isPublicSecondaryDisplayWithDesktopModeForceEnabled();
+
+        final DisplayInfo displayInfo = new DisplayInfo();
+        displayInfo.displayId = mDefaultDisplay.getDisplayId() + 1;
+        displayInfo.uniqueId = "testid";
+        doReturn(displayInfo).when(mockDc).getDisplayInfo();
+
+        assertEquals(
+                DISPLAY_IME_POLICY_LOCAL,
+                mDisplayWindowSettings.getImePolicyLocked(mockDc));
     }
 
     @Test

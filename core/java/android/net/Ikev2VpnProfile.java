@@ -532,8 +532,13 @@ public final class Ikev2VpnProfile extends PlatformVpnProfile {
                 break;
             case TYPE_IKEV2_IPSEC_RSA:
                 profile.ipsecUserCert = certificateToPemString(mUserCert);
-                profile.ipsecSecret =
-                        PREFIX_INLINE + encodeForIpsecSecret(mRsaPrivateKey.getEncoded());
+                final byte[] secret = mRsaPrivateKey.getEncoded();
+                if (secret == null) {
+                    profile.ipsecSecret =
+                            PREFIX_KEYSTORE_ALIAS + getAliasFromAndroidKeystore(mUserCert);
+                } else {
+                    profile.ipsecSecret = PREFIX_INLINE + encodeForIpsecSecret(secret);
+                }
                 profile.ipsecCaCert =
                         mServerRootCaCert == null ? "" : certificateToPemString(mServerRootCaCert);
                 break;
@@ -554,6 +559,17 @@ public final class Ikev2VpnProfile extends PlatformVpnProfile {
                         "Unexpected key type returned from android keystore.");
             }
             return (PrivateKey) key;
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to load key from android keystore.", e);
+        }
+    }
+
+    private static String getAliasFromAndroidKeystore(X509Certificate cert) {
+        try {
+            final KeyStore keystore = KeyStore.getInstance(ANDROID_KEYSTORE_PROVIDER);
+            keystore.load(null);
+            return checkNotNull(
+                    keystore.getCertificateAlias(cert), MISSING_PARAM_MSG_TMPL, "secret");
         } catch (Exception e) {
             throw new IllegalStateException("Failed to load key from android keystore.", e);
         }

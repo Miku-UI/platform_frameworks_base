@@ -16,16 +16,28 @@
 
 package com.android.server.appop;
 
+import static android.app.AppOpsManager.MODE_ALLOWED;
+import static android.app.AppOpsManager.MODE_IGNORED;
+import static android.app.AppOpsManager.MODE_ERRORED;
+import static android.app.AppOpsManager.MODE_DEFAULT;
+import static android.app.AppOpsManager.MODE_FOREGROUND;
+
 import android.app.AppOpsManager;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraDevice.CAMERA_AUDIO_RESTRICTION;
 import android.media.AudioAttributes;
+import android.util.ArrayMap;
 import android.util.ArraySet;
 import android.util.Slog;
+import com.android.server.utils.EventLogger;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 
+import com.android.internal.util.Preconditions;
+
 import java.io.PrintWriter;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  * AudioRestrictionManager host all audio restriction related logic and states for AppOpsService.
@@ -34,9 +46,11 @@ public class AudioRestrictionManager {
     static final String TAG = "AudioRestriction";
 
     // Audio restrictions coming from Zen mode API
-    final SparseArray<SparseArray<Restriction>> mZenModeAudioRestrictions = new SparseArray<>();
+    final ArrayMap<Key, Restriction> mZenModeAudioRestrictions = new ArrayMap<>();
     // Audio restrictions coming from Camera2 API
     @CAMERA_AUDIO_RESTRICTION int mCameraAudioRestriction = CameraDevice.AUDIO_RESTRICTION_NONE;
+
+    final EventLogger mEventLogger = new EventLogger(/* size= */ 80, "Historical restrictions");
     // Predefined <code, usages> camera audio restriction settings
     static final SparseArray<SparseBooleanArray> CAMERA_AUDIO_RESTRICTIONS;
 
@@ -61,10 +75,45 @@ public class AudioRestrictionManager {
         CAMERA_AUDIO_RESTRICTIONS.append(AppOpsManager.OP_VIBRATE, vibrationMutedUsages);
     }
 
-    private static final class Restriction {
-        private static final ArraySet<String> NO_EXCEPTIONS = new ArraySet<String>();
-        int mode;
-        ArraySet<String> exceptionPackages = NO_EXCEPTIONS;
+    private record Key(int op, int usage) {
+        @Override
+        public String toString() {
+            return "op: "
+                    + AppOpsManager.opToName(op)
+                    + ", usage: "
+                    + AudioAttributes.usageToString(usage);
+        }
+    }
+
+    private record Restriction(int mode, Set<String> exceptionPackages) {
+        Restriction {
+            Objects.requireNonNull(exceptionPackages);
+            // Should not be MODE_ALLOWED
+            Preconditions.checkArgument(mode == MODE_IGNORED || mode == MODE_DEFAULT
+                    || mode == MODE_ERRORED || mode == MODE_FOREGROUND,
+                    "Invalid mode for restriction %d", mode);
+        }
+        @Override
+        public String toString() {
+            return "Restriction[mode: "
+                    + AppOpsManager.modeToName(mode)
+                    + ", exceptions: "
+                    + exceptionPackages;
+        }
+    }
+
+    private static class ZenRestrictionEvent extends EventLogger.Event {
+        private Key mKey;
+        private Restriction mRestriction;
+        ZenRestrictionEvent(Key k, Restriction r) {
+            mKey = k;
+            mRestriction = r;
+        }
+        @Override
+        public String eventToString() {
+            return mKey.toString() + ": " + ((mRestriction != null) ?
+                    mRestriction.toString() : "restriction removed");
+        }
     }
 
     public int checkAudioOperation(int code, int usage, int uid, String packageName) {
@@ -77,54 +126,43 @@ public class AudioRestrictionManager {
                     final SparseBooleanArray mutedUsages = CAMERA_AUDIO_RESTRICTIONS.get(code);
                     if (mutedUsages != null) {
                         if (mutedUsages.get(usage)) {
-                            return AppOpsManager.MODE_IGNORED;
+                            return MODE_IGNORED;
                         }
                     }
                 }
             }
 
-            final int mode = checkZenModeRestrictionLocked(code, usage, uid, packageName);
-            if (mode != AppOpsManager.MODE_ALLOWED) {
+            final int mode = checkZenModeRestrictionLocked(code, usage, packageName);
+            if (mode != MODE_ALLOWED) {
                 return mode;
             }
         }
-        return AppOpsManager.MODE_ALLOWED;
+        return MODE_ALLOWED;
     }
 
-    private int checkZenModeRestrictionLocked(int code, int usage, int uid, String packageName) {
-        final SparseArray<Restriction> usageRestrictions = mZenModeAudioRestrictions.get(code);
-        if (usageRestrictions != null) {
-            final Restriction r = usageRestrictions.get(usage);
-            if (r != null && !r.exceptionPackages.contains(packageName)) {
+    private int checkZenModeRestrictionLocked(int code, int usage, String packageName) {
+        final Restriction r = mZenModeAudioRestrictions.get(new Key(code, usage));
+        if (r != null && (packageName == null || !r.exceptionPackages.contains(packageName))) {
                 return r.mode;
-            }
+        } else {
+            return MODE_ALLOWED;
         }
-        return AppOpsManager.MODE_ALLOWED;
     }
 
-    public void setZenModeAudioRestriction(int code, int usage, int uid, int mode,
+    public void setZenModeAudioRestriction(int code, int usage, int mode,
             String[] exceptionPackages) {
         synchronized (this) {
-            SparseArray<Restriction> usageRestrictions = mZenModeAudioRestrictions.get(code);
-            if (usageRestrictions == null) {
-                usageRestrictions = new SparseArray<Restriction>();
-                mZenModeAudioRestrictions.put(code, usageRestrictions);
-            }
-            usageRestrictions.remove(usage);
-            if (mode != AppOpsManager.MODE_ALLOWED) {
-                final Restriction r = new Restriction();
-                r.mode = mode;
-                if (exceptionPackages != null) {
-                    final int N = exceptionPackages.length;
-                    r.exceptionPackages = new ArraySet<String>(N);
-                    for (int i = 0; i < N; i++) {
-                        final String pkg = exceptionPackages[i];
-                        if (pkg != null) {
-                            r.exceptionPackages.add(pkg.trim());
-                        }
-                    }
+            final var k = new Key(code, usage);
+            if (mode != MODE_ALLOWED) {
+                final var r = new Restriction(mode, exceptionPackages != null ?
+                                              Set.of(exceptionPackages) : Set.of());
+                if (!r.equals(mZenModeAudioRestrictions.put(k, r))) {
+                    mEventLogger.enqueue(new ZenRestrictionEvent(k, r));
                 }
-                usageRestrictions.put(usage, r);
+            } else {
+                if (mZenModeAudioRestrictions.remove(k) != null) {
+                    mEventLogger.enqueue(new ZenRestrictionEvent(k, null));
+                }
             }
         }
     }
@@ -135,49 +173,19 @@ public class AudioRestrictionManager {
         }
     }
 
-    public boolean hasActiveRestrictions() {
-        boolean hasActiveRestrictions = false;
-        synchronized (this) {
-            hasActiveRestrictions = (mZenModeAudioRestrictions.size() > 0 ||
-                mCameraAudioRestriction != CameraDevice.AUDIO_RESTRICTION_NONE);
-        }
-        return hasActiveRestrictions;
-    }
-
     // return: needSep used by AppOpsService#dump
     public boolean dump(PrintWriter pw) {
-        boolean printedHeader = false;
-        boolean needSep = hasActiveRestrictions();
-
+        pw.println("  Audio Restrictions:");
         synchronized (this) {
-            for (int o = 0; o < mZenModeAudioRestrictions.size(); o++) {
-                final String op = AppOpsManager.opToName(mZenModeAudioRestrictions.keyAt(o));
-                final SparseArray<Restriction> restrictions = mZenModeAudioRestrictions.valueAt(o);
-                for (int i = 0; i < restrictions.size(); i++) {
-                    if (!printedHeader){
-                        pw.println("  Zen Mode Audio Restrictions:");
-                        printedHeader = true;
-
-                    }
-                    final int usage = restrictions.keyAt(i);
-                    pw.print("    "); pw.print(op);
-                    pw.print(" usage="); pw.print(AudioAttributes.usageToString(usage));
-                    Restriction r = restrictions.valueAt(i);
-                    pw.print(": mode="); pw.println(AppOpsManager.modeToName(r.mode));
-                    if (!r.exceptionPackages.isEmpty()) {
-                        pw.println("      Exceptions:");
-                        for (int j = 0; j < r.exceptionPackages.size(); j++) {
-                            pw.print("        "); pw.println(r.exceptionPackages.valueAt(j));
-                        }
-                    }
-                }
-            }
-            if (mCameraAudioRestriction != CameraDevice.AUDIO_RESTRICTION_NONE) {
-                pw.println("  Camera Audio Restriction Mode: " +
-                        cameraRestrictionModeToName(mCameraAudioRestriction));
-            }
+            pw.println("   Zen Audio Restriction Mode: ");
+            mZenModeAudioRestrictions.forEach((k, v) -> pw.println("    " + k + ": " + v));
+            pw.println("   Camera Audio Restriction Mode: " +
+                    cameraRestrictionModeToName(mCameraAudioRestriction));
         }
-        return needSep;
+        pw.println();
+        mEventLogger.dump(pw, "    ");
+        pw.println();
+        return true;
     }
 
     private static String cameraRestrictionModeToName(@CAMERA_AUDIO_RESTRICTION int mode) {

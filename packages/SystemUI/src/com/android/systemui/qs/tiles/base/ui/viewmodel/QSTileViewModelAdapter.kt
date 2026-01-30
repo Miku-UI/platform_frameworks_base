@@ -272,9 +272,9 @@ constructor(
                 icon =
                     when (val stateIcon = viewModelState.icon) {
                         is Icon.Loaded ->
-                            if (stateIcon.res == null) DrawableIcon(stateIcon.drawable)
-                            else DrawableIconWithRes(stateIcon.drawable, stateIcon.res)
-                        is Icon.Resource -> ResourceIcon.get(stateIcon.res)
+                            if (stateIcon.resId == null) DrawableIcon(stateIcon.drawable)
+                            else DrawableIconWithRes(stateIcon.drawable, stateIcon.resId!!)
+                        is Icon.Resource -> ResourceIcon.get(stateIcon.resId)
                         null -> null
                     }
 
@@ -295,7 +295,7 @@ constructor(
                             when (viewModelState.sideViewIcon.icon) {
                                 is Icon.Loaded -> viewModelState.sideViewIcon.icon.drawable
                                 is Icon.Resource ->
-                                    context.getDrawable(viewModelState.sideViewIcon.icon.res)
+                                    context.getDrawable(viewModelState.sideViewIcon.icon.resId)
                             }
                     }
                     is QSTileState.SideViewIcon.Chevron -> {

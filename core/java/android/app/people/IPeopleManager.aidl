@@ -25,7 +25,7 @@ import android.os.IBinder;
 
 /**
  * System private API for talking with the people service.
- * {@hide}
+ * @hide
  */
 interface IPeopleManager {
 

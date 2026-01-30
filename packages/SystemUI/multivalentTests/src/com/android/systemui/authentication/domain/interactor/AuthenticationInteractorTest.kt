@@ -40,6 +40,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -98,12 +99,16 @@ class AuthenticationInteractorTest : SysuiTestCase() {
             assertFailed(underTest.authenticate(listOf(9, 8, 7, 6, 5, 4)))
         }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun authenticate_withEmptyPin_throwsException() =
-        testScope.runTest {
-            kosmos.fakeAuthenticationRepository.setAuthenticationMethod(Pin)
-            underTest.authenticate(listOf())
+    @Test
+    fun authenticate_withEmptyPin_throwsException() {
+        Assert.assertThrows(IllegalArgumentException::class.java) {
+            testScope.runTest {
+                kosmos.fakeAuthenticationRepository.setAuthenticationMethod(Pin)
+                
+                underTest.authenticate(listOf())
+            }
         }
+    }
 
     @Test
     fun authenticate_withCorrectMaxLengthPin_succeeds() =

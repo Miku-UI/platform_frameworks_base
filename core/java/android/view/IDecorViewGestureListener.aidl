@@ -19,7 +19,7 @@ package android.view;
 /**
  * Listener for changes to gesture interception detector running at DecorView.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IDecorViewGestureListener {
     /**

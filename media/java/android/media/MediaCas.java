@@ -1306,7 +1306,9 @@ public final class MediaCas implements AutoCloseable {
                         mCasSystemId,
                         FrameworkStatsLog.TV_CAS_SESSION_OPEN_STATUS__STATE__SUCCEEDED);
                 return session;
-            } catch (ServiceSpecificException | RemoteException e) {
+            } catch (ServiceSpecificException se) {
+                MediaCasException.throwExceptionIfNeeded(se.errorCode);
+            } catch (RemoteException e) {
                 cleanupAndRethrowIllegalState();
             }
         }

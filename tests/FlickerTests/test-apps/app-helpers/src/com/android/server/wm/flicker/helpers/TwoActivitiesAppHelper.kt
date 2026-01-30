@@ -18,42 +18,32 @@ package com.android.server.wm.flicker.helpers
 
 import android.app.Instrumentation
 import android.tools.device.apphelpers.StandardAppHelper
-import android.tools.helpers.FIND_TIMEOUT
 import android.tools.traces.component.ComponentNameMatcher
 import android.tools.traces.parsers.WindowManagerStateHelper
 import android.tools.traces.parsers.toFlickerComponent
-import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
-import androidx.test.uiautomator.Until
-import com.android.server.wm.flicker.testapp.ActivityOptions
+import com.android.server.wm.flicker.testapp.ActivityOptions.LaunchNewActivity
+import com.android.server.wm.flicker.testapp.ActivityOptions.SimpleActivity
 
+/**
+ * App helper for [LaunchNewActivity], which contains a button to launch a second activity.
+ */
 class TwoActivitiesAppHelper
 @JvmOverloads
 constructor(
     instr: Instrumentation,
-    launcherName: String = ActivityOptions.LaunchNewActivity.LABEL,
-    component: ComponentNameMatcher =
-        ActivityOptions.LaunchNewActivity.COMPONENT.toFlickerComponent()
+    launcherName: String = LaunchNewActivity.LABEL,
+    component: ComponentNameMatcher = LaunchNewActivity.COMPONENT.toFlickerComponent(),
 ) : StandardAppHelper(instr, launcherName, component) {
 
-    private val secondActivityComponent =
-        ActivityOptions.SimpleActivity.COMPONENT.toFlickerComponent()
+    private val secondActivityComponent = SimpleActivity.COMPONENT.toFlickerComponent()
 
+    /** Opens the second activity and waits for it to become fullscreen. */
     fun openSecondActivity(device: UiDevice, wmHelper: WindowManagerStateHelper) {
-        val launchActivityButton = By.res(packageName, LAUNCH_SECOND_ACTIVITY)
-        val button = device.wait(Until.findObject(launchActivityButton), FIND_TIMEOUT)
-
-        requireNotNull(button) {
-            "Button not found, this usually happens when the device " +
-                "was left in an unknown state (e.g. in split screen)"
-        }
-        button.click()
-
-        device.wait(Until.gone(launchActivityButton), FIND_TIMEOUT)
-        wmHelper.StateSyncBuilder().withFullScreenApp(secondActivityComponent).waitForAndVerify()
-    }
-
-    companion object {
-        private const val LAUNCH_SECOND_ACTIVITY = "launch_second_activity"
+        clickButtonAndWaitForSync(
+            device = device,
+            wmHelper = wmHelper,
+            buttonResId = LaunchNewActivity.RES_ID_LAUNCH_SECOND_ACTIVITY_BUTTON,
+        ) { withFullScreenApp(secondActivityComponent) }
     }
 }

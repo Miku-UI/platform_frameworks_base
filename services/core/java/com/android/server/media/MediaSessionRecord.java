@@ -22,6 +22,8 @@ import static android.media.VolumeProvider.VOLUME_CONTROL_RELATIVE;
 import static android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_LOCAL;
 import static android.media.session.MediaController.PlaybackInfo.PLAYBACK_TYPE_REMOTE;
 
+import static com.android.media.mediasession.flags.Flags.removeWiuAllowlistingFromMediacontrollerSendcommand;
+
 import android.Manifest;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
@@ -85,6 +87,7 @@ import com.android.server.uri.UriGrantsManagerInternal;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -93,10 +96,10 @@ import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * This is the system implementation of a Session. Apps will interact with the
- * MediaSession wrapper class instead.
+ * This is the system implementation of a Session. Apps will interact with the MediaSession wrapper
+ * class instead.
  */
-// TODO(jaewan): Do not call service method directly -- introduce listener instead.
+// TODO: Do not call service method directly -- introduce listener instead.
 public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinder.DeathRecipient {
 
     /**
@@ -156,6 +159,9 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
     private static final AudioAttributes DEFAULT_ATTRIBUTES =
             new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).build();
 
+    private static final String IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE =
+            "Ignoring call to destroyed session";
+
     private static int getVolumeStream(@Nullable AudioAttributes attr) {
         if (attr == null) {
             return DEFAULT_ATTRIBUTES.getVolumeControlStream();
@@ -182,6 +188,7 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
     private final MediaSessionService mService;
     private final UriGrantsManagerInternal mUgmInternal;
     private final Context mContext;
+    private final AudioManager mAudioManager;
 
     private final Object mLock = new Object();
     // This field is partially guarded by mLock. Writes and non-atomic iterations (for example:
@@ -207,7 +214,6 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
 
     // Volume handling fields
     private AudioAttributes mAudioAttrs;
-    private AudioManager mAudioManager;
     private int mVolumeType = PLAYBACK_TYPE_LOCAL;
     private int mVolumeControlType = VOLUME_CONTROL_ABSOLUTE;
     private int mMaxVolume = 0;
@@ -248,31 +254,31 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
     /**
      * Indicates that the {@link UserEngagementState} is not yet set.
      *
-     * @see #updateUserEngagedStateIfNeededLocked(boolean)
+     * @see #updateUserEngagedStateIfNeededLocked(boolean, boolean)
      */
     private static final int USER_ENGAGEMENT_UNSET = -1;
 
     /**
-     * Indicates that the session is {@linkplain MediaSession#isActive() active} and in one of the
-     * {@linkplain PlaybackState#isActive() active states}.
+     * Indicates that the session is in one of the {@linkplain PlaybackState#isActive() active
+     * states}.
      *
-     * @see #updateUserEngagedStateIfNeededLocked(boolean)
+     * @see #updateUserEngagedStateIfNeededLocked(boolean, boolean)
      */
     private static final int USER_PERMANENTLY_ENGAGED = 0;
 
     /**
-     * Indicates that the session is {@linkplain MediaSession#isActive() active} and has recently
-     * switched to one of the {@linkplain PlaybackState#isActive() inactive states}.
+     * Indicates that the session has recently switched to one of the {@linkplain
+     * PlaybackState#isActive() inactive states}.
      *
-     * @see #updateUserEngagedStateIfNeededLocked(boolean)
+     * @see #updateUserEngagedStateIfNeededLocked(boolean, boolean)
      */
     private static final int USER_TEMPORARILY_ENGAGED = 1;
 
     /**
-     * Indicates that the session is either not {@linkplain MediaSession#isActive() active} or in
-     * one of the {@linkplain PlaybackState#isActive() inactive states}.
+     * Indicates that the session is in one of the {@linkplain PlaybackState#isActive() inactive
+     * states}.
      *
-     * @see #updateUserEngagedStateIfNeededLocked(boolean)
+     * @see #updateUserEngagedStateIfNeededLocked(boolean, boolean)
      */
     private static final int USER_DISENGAGED = 2;
 
@@ -294,9 +300,9 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         mPackageName = ownerPackageName;
         mTag = tag;
         mSessionInfo = sessionInfo;
-        mController = new ControllerStub();
+        mController = new ControllerStub(this, ownerPackageName);
         mSessionToken = new MediaSession.Token(ownerUid, mController);
-        mSession = new SessionStub();
+        mSession = new SessionStub(this);
         mSessionCb = new SessionCb(cb);
         mService = service;
         mContext = mService.getContext();
@@ -373,8 +379,8 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
     }
 
     /**
-     * Check if this session has system priorty and should receive media buttons
-     * before any other sessions.
+     * Check if this session has system priority and should receive media buttons before any other
+     * sessions.
      *
      * @return True if this is a system priority session, false otherwise
      */
@@ -577,10 +583,12 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
                 return;
             }
             mSessionCb.mCb.asBinder().unlinkToDeath(this, 0);
+            mController.release();
+            mSession.release();
             mDestroyed = true;
             mPlaybackState = null;
-            updateUserEngagedStateIfNeededLocked(
-                    /* isTimeoutExpired= */ true, /* isGlobalPrioritySessionActive= */ false);
+            mUserEngagementState = USER_DISENGAGED;
+            mHandler.removeCallbacks(mUserEngagementTimeoutExpirationRunnable);
             mHandler.post(MessageHandler.MSG_DESTROYED);
         }
     }
@@ -782,6 +790,11 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
             String opPackageName,
             int uid,
             int pid) {
+
+        if (MediaRouter2ServiceImpl.maybeHandleVolumeKeyEvent(TAG, direction, stream)) {
+            return;
+        }
+
         try {
             if (useSuggested) {
                 if (AudioSystem.isStreamActive(stream, 0)) {
@@ -935,6 +948,8 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
                 return;
             }
         }
+        mService.onSessionUserEngagementStateChange(
+                /* mediaSessionRecord= */ this, /* isUserEngaged= */ false);
         performOnCallbackHolders(
                 "pushSessionDestroyed",
                 holder -> {
@@ -1033,6 +1048,519 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
                 volumeType, VOLUME_CONTROL_ABSOLUTE, max, current, attributes, null);
     }
 
+    private void sendCommand(String packageName, String command, Bundle args, ResultReceiver cb) {
+        mSessionCb.sendCommand(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), command, args, cb);
+    }
+
+    private boolean sendMediaButton(String packageName, KeyEvent keyEvent) {
+        return mSessionCb.sendMediaButton(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), false, keyEvent);
+    }
+
+    private void registerCallback(String packageName, ISessionControllerCallback cb) {
+        synchronized (mLock) {
+            if (getControllerHolderIndexForCb(cb) < 0) {
+                ISessionControllerCallbackHolder holder =
+                        new ISessionControllerCallbackHolder(
+                                cb, packageName, () -> unregisterCallback(cb));
+                mControllerCallbackHolders.add(holder);
+                if (DEBUG) {
+                    Slog.d(
+                            TAG,
+                            "registering controller callback "
+                                    + cb
+                                    + " from controller"
+                                    + packageName);
+                }
+                // Avoid callback leaks
+                try {
+                    // cb is not referenced outside of the MediaSessionRecord, so the death
+                    // handler won't prevent MediaSessionRecord to be garbage collected.
+                    cb.asBinder().linkToDeath(holder.mDeathMonitor, 0);
+                } catch (RemoteException e) {
+                    unregisterCallback(cb);
+                    Slog.w(TAG, "registerCallback failed to linkToDeath", e);
+                }
+            }
+        }
+    }
+
+    private void unregisterCallback(ISessionControllerCallback cb) {
+        synchronized (mLock) {
+            int index = getControllerHolderIndexForCb(cb);
+            if (index != -1) {
+                try {
+                    cb.asBinder()
+                            .unlinkToDeath(mControllerCallbackHolders.get(index).mDeathMonitor, 0);
+                } catch (NoSuchElementException e) {
+                    Slog.w(TAG, "error unlinking to binder death", e);
+                }
+                mControllerCallbackHolders.remove(index);
+            }
+            if (DEBUG) {
+                Slog.d(TAG, "unregistering callback " + cb.asBinder());
+            }
+        }
+    }
+
+    private String getTag() {
+        return mTag;
+    }
+
+    private Bundle getSessionInfo() {
+        return mSessionInfo;
+    }
+
+    private PendingIntent getLaunchPendingIntent() {
+        return mLaunchIntent;
+    }
+
+    private long getFlags() {
+        return mFlags;
+    }
+
+    private void adjustVolume(String packageName, String opPackageName, int direction, int flags) {
+        final int pid = Binder.getCallingPid();
+        final int uid = Binder.getCallingUid();
+        final long token = Binder.clearCallingIdentity();
+        try {
+            adjustVolume(
+                    packageName,
+                    opPackageName,
+                    pid,
+                    uid,
+                    false,
+                    direction,
+                    flags,
+                    false /* useSuggested */);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+    }
+
+    private void setVolumeTo(String packageName, String opPackageName, int value, int flags) {
+        int pid = Binder.getCallingPid();
+        int uid = Binder.getCallingUid();
+        final long token = Binder.clearCallingIdentity();
+        try {
+            MediaSessionRecord.this.setVolumeTo(packageName, opPackageName, pid, uid, value, flags);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+    }
+
+    private void prepare(String packageName) {
+        mSessionCb.prepare(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void prepareFromMediaId(String packageName, String mediaId, Bundle extras) {
+        mSessionCb.prepareFromMediaId(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), mediaId, extras);
+    }
+
+    private void prepareFromSearch(String packageName, String query, Bundle extras) {
+        mSessionCb.prepareFromSearch(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), query, extras);
+    }
+
+    private void prepareFromUri(String packageName, Uri uri, Bundle extras) {
+        mSessionCb.prepareFromUri(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), uri, extras);
+    }
+
+    private void play(String packageName) {
+        mSessionCb.play(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void playFromMediaId(String packageName, String mediaId, Bundle extras) {
+        mSessionCb.playFromMediaId(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), mediaId, extras);
+    }
+
+    private void playFromSearch(String packageName, String query, Bundle extras) {
+        mSessionCb.playFromSearch(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), query, extras);
+    }
+
+    private void playFromUri(String packageName, Uri uri, Bundle extras) {
+        mSessionCb.playFromUri(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), uri, extras);
+    }
+
+    private void skipToQueueItem(String packageName, long id) {
+        mSessionCb.skipToTrack(packageName, Binder.getCallingPid(), Binder.getCallingUid(), id);
+    }
+
+    private void pause(String packageName) {
+        mSessionCb.pause(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void stop(String packageName) {
+        mSessionCb.stop(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void next(String packageName) {
+        mSessionCb.next(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void previous(String packageName) {
+        mSessionCb.previous(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void fastForward(String packageName) {
+        mSessionCb.fastForward(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void rewind(String packageName) {
+        mSessionCb.rewind(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+    }
+
+    private void seekTo(String packageName, long pos) {
+        mSessionCb.seekTo(packageName, Binder.getCallingPid(), Binder.getCallingUid(), pos);
+    }
+
+    private void rate(String packageName, Rating rating) {
+        mSessionCb.rate(packageName, Binder.getCallingPid(), Binder.getCallingUid(), rating);
+    }
+
+    private void setPlaybackSpeed(String packageName, float speed) {
+        mSessionCb.setPlaybackSpeed(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), speed);
+    }
+
+    private void sendCustomAction(String packageName, String action, Bundle args) {
+        mSessionCb.sendCustomAction(
+                packageName, Binder.getCallingPid(), Binder.getCallingUid(), action, args);
+    }
+
+    private MediaMetadata getMetadata() {
+        synchronized (mLock) {
+            return mMetadata;
+        }
+    }
+
+    private PlaybackState getPlaybackState() {
+        return getStateWithUpdatedPosition();
+    }
+
+    private ParceledListSlice<MediaSession.QueueItem> getQueue() {
+        synchronized (mLock) {
+            return mQueue == null ? null : new ParceledListSlice<>(mQueue);
+        }
+    }
+
+    private CharSequence getQueueTitle() {
+        return mQueueTitle;
+    }
+
+    private Bundle getExtras() {
+        synchronized (mLock) {
+            return mExtras;
+        }
+    }
+
+    private int getRatingType() {
+        return mRatingType;
+    }
+
+    private void destroySession() {
+        final long token = Binder.clearCallingIdentity();
+        try {
+            mService.onSessionDied(MediaSessionRecord.this);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+    }
+
+    private void sendEvent(String event, Bundle data) {
+        mHandler.post(MessageHandler.MSG_SEND_EVENT, event, data == null ? null : new Bundle(data));
+    }
+
+    private ISessionController getController() {
+        return mController;
+    }
+
+    private void setActive(boolean active) {
+        // Log the session's active state
+        // to measure usage of foreground service resources
+        int callingUid = Binder.getCallingUid();
+        int callingPid = Binder.getCallingPid();
+        if (active) {
+            LocalServices.getService(ActivityManagerInternal.class)
+                    .logFgsApiBegin(
+                            ActivityManager.FOREGROUND_SERVICE_API_TYPE_MEDIA_PLAYBACK,
+                            callingUid,
+                            callingPid);
+        } else {
+            LocalServices.getService(ActivityManagerInternal.class)
+                    .logFgsApiEnd(
+                            ActivityManager.FOREGROUND_SERVICE_API_TYPE_MEDIA_PLAYBACK,
+                            callingUid,
+                            callingPid);
+        }
+        synchronized (mLock) {
+            mIsActive = active;
+        }
+        final long token = Binder.clearCallingIdentity();
+        try {
+            mService.onSessionActiveStateChanged(MediaSessionRecord.this, mPlaybackState);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+        mHandler.post(MessageHandler.MSG_UPDATE_SESSION_STATE);
+    }
+
+    private void setFlags(int flags) {
+        if ((flags & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY) != 0) {
+            int pid = Binder.getCallingPid();
+            int uid = Binder.getCallingUid();
+            mService.enforcePhoneStatePermission(pid, uid);
+        }
+        mFlags = flags;
+        if ((flags & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY) != 0) {
+            final long token = Binder.clearCallingIdentity();
+            try {
+                mService.setGlobalPrioritySession(MediaSessionRecord.this);
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
+        }
+        mHandler.post(MessageHandler.MSG_UPDATE_SESSION_STATE);
+    }
+
+    private void setMediaButtonReceiver(@Nullable PendingIntent pi) {
+        final int uid = Binder.getCallingUid();
+        final long token = Binder.clearCallingIdentity();
+        try {
+            if ((mPolicies & MediaSessionPolicyProvider.SESSION_POLICY_IGNORE_BUTTON_RECEIVER)
+                    != 0) {
+                return;
+            }
+
+            if (pi != null && pi.isActivity()) {
+                if (CompatChanges.isChangeEnabled(THROW_FOR_ACTIVITY_MEDIA_BUTTON_RECEIVER, uid)) {
+                    throw new IllegalArgumentException(
+                            "The media button receiver cannot be set to an activity.");
+                } else {
+                    Slog.w(TAG, "Ignoring invalid media button receiver targeting an activity.");
+                    return;
+                }
+            }
+
+            mMediaButtonReceiverHolder =
+                    MediaButtonReceiverHolder.create(mUserId, pi, mPackageName);
+            mService.onMediaButtonReceiverChanged(MediaSessionRecord.this);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+    }
+
+    @RequiresPermission(Manifest.permission.INTERACT_ACROSS_USERS)
+    private void setMediaButtonBroadcastReceiver(ComponentName receiver) {
+        final int uid = Binder.getCallingUid();
+        final long token = Binder.clearCallingIdentity();
+        try {
+            // mPackageName has been verified in MediaSessionService.enforcePackageName().
+            if (receiver != null && !TextUtils.equals(mPackageName, receiver.getPackageName())) {
+                EventLog.writeEvent(0x534e4554, "238177121", -1, ""); // SafetyNet logging.
+                throw new IllegalArgumentException(
+                        "receiver does not belong to "
+                                + "package name provided to MediaSessionRecord. Pkg = "
+                                + mPackageName
+                                + ", Receiver Pkg = "
+                                + receiver.getPackageName());
+            }
+            if ((mPolicies & MediaSessionPolicyProvider.SESSION_POLICY_IGNORE_BUTTON_RECEIVER)
+                    != 0) {
+                return;
+            }
+
+            if (!componentNameExists(receiver, mContext, mUserId)) {
+                if (CompatChanges.isChangeEnabled(THROW_FOR_INVALID_BROADCAST_RECEIVER, uid)) {
+                    throw new IllegalArgumentException("Invalid component name: " + receiver);
+                } else {
+                    Slog.w(
+                            TAG,
+                            "setMediaButtonBroadcastReceiver(): "
+                                    + "Ignoring invalid component name="
+                                    + receiver);
+                }
+                return;
+            }
+
+            mMediaButtonReceiverHolder = MediaButtonReceiverHolder.create(mUserId, receiver);
+            mService.onMediaButtonReceiverChanged(MediaSessionRecord.this);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+    }
+
+    private void setLaunchPendingIntent(PendingIntent pi) {
+        mLaunchIntent = pi;
+    }
+
+    private void setMetadata(MediaMetadata metadata, long duration, String metadataDescription) {
+        synchronized (mLock) {
+            mDuration = duration;
+            mMetadataDescription = metadataDescription;
+            mMetadata = sanitizeMediaMetadata(metadata);
+        }
+        mHandler.post(MessageHandler.MSG_UPDATE_METADATA);
+    }
+
+    private MediaMetadata sanitizeMediaMetadata(MediaMetadata metadata) {
+        if (metadata == null) {
+            return null;
+        }
+
+        // Find all URIs that need to be sanitized
+        List<String> urisToSanitize = new ArrayList<>();
+        for (String key : ART_URIS) {
+            String uriString = metadata.getString(key);
+            if (TextUtils.isEmpty(uriString)) {
+                continue;
+            }
+            Uri uri = Uri.parse(uriString);
+            if (!ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
+                continue;
+            }
+            try {
+                mUgmInternal.checkGrantUriPermission(
+                        getUid(),
+                        getPackageName(),
+                        ContentProvider.getUriWithoutUserId(uri),
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                        ContentProvider.getUserIdFromUri(uri, getUserId()));
+            } catch (SecurityException e) {
+                urisToSanitize.add(key);
+            }
+        }
+
+        // Avoid creating a Builder (and copying the metadata) if there are no URIs to
+        // sanitize.
+        if (urisToSanitize.isEmpty()) {
+            return metadata;
+        }
+
+        MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder(metadata);
+        for (String key : urisToSanitize) {
+            metadataBuilder.putString(key, null);
+        }
+        MediaMetadata sanitizedMetadata = metadataBuilder.build();
+        // sanitizedMetadata.size() guarantees that the underlying bundle is unparceled
+        // before we set it to prevent concurrent reads from throwing an
+        // exception
+        sanitizedMetadata.size();
+        return sanitizedMetadata;
+    }
+
+    private void setPlaybackState(PlaybackState state) {
+        int oldState =
+                mPlaybackState == null ? PlaybackState.STATE_NONE : mPlaybackState.getState();
+        int newState = state == null ? PlaybackState.STATE_NONE : state.getState();
+        boolean shouldUpdatePriority =
+                ALWAYS_PRIORITY_STATES.contains(newState)
+                        || (!TRANSITION_PRIORITY_STATES.contains(oldState)
+                                && TRANSITION_PRIORITY_STATES.contains(newState));
+        boolean isGlobalPrioritySessionActive = mService.isGlobalPrioritySessionActive();
+        synchronized (mLock) {
+            mPlaybackState = state;
+            updateUserEngagedStateIfNeededLocked(
+                    /* isTimeoutExpired= */ false, isGlobalPrioritySessionActive);
+        }
+        final long token = Binder.clearCallingIdentity();
+        try {
+            mService.onSessionPlaybackStateChanged(
+                    MediaSessionRecord.this, shouldUpdatePriority, mPlaybackState);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+        mHandler.post(MessageHandler.MSG_UPDATE_PLAYBACK_STATE);
+    }
+
+    private void resetQueue() {
+        synchronized (mLock) {
+            mQueue = null;
+        }
+        mHandler.post(MessageHandler.MSG_UPDATE_QUEUE);
+    }
+
+    private IBinder getBinderForSetQueue() {
+        return new ParcelableListBinder<>(
+                QueueItem.class,
+                (list) -> {
+                    synchronized (mLock) {
+                        mQueue = list;
+                    }
+                    mHandler.post(MessageHandler.MSG_UPDATE_QUEUE);
+                });
+    }
+
+    private void setQueueTitle(CharSequence title) {
+        mQueueTitle = title;
+        mHandler.post(MessageHandler.MSG_UPDATE_QUEUE_TITLE);
+    }
+
+    private void setExtras(Bundle extras) {
+        synchronized (mLock) {
+            mExtras = extras == null ? null : new Bundle(extras);
+        }
+        mHandler.post(MessageHandler.MSG_UPDATE_EXTRAS);
+    }
+
+    private void setRatingType(int type) {
+        mRatingType = type;
+    }
+
+    private void setCurrentVolume(int volume) {
+        mCurrentVolume = volume;
+        mHandler.post(MessageHandler.MSG_UPDATE_VOLUME);
+    }
+
+    private void setPlaybackToLocal(AudioAttributes attributes) {
+        boolean typeChanged;
+        synchronized (mLock) {
+            typeChanged = mVolumeType == PlaybackInfo.PLAYBACK_TYPE_REMOTE;
+            mVolumeType = PLAYBACK_TYPE_LOCAL;
+            mVolumeControlId = null;
+            if (attributes != null) {
+                mAudioAttrs = attributes;
+            } else {
+                Slog.e(TAG, "Received null audio attributes, using existing attributes");
+            }
+        }
+        if (typeChanged) {
+            final long token = Binder.clearCallingIdentity();
+            try {
+                mService.onSessionPlaybackTypeChanged(MediaSessionRecord.this);
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
+            mHandler.post(MessageHandler.MSG_UPDATE_VOLUME);
+        }
+    }
+
+    private void setPlaybackToRemote(int control, int max, String controlId) {
+        boolean typeChanged;
+        synchronized (mLock) {
+            typeChanged = mVolumeType == PLAYBACK_TYPE_LOCAL;
+            mVolumeType = PlaybackInfo.PLAYBACK_TYPE_REMOTE;
+            mVolumeControlType = control;
+            mMaxVolume = max;
+            mVolumeControlId = controlId;
+        }
+        if (typeChanged) {
+            final long token = Binder.clearCallingIdentity();
+            try {
+                mService.onSessionPlaybackTypeChanged(MediaSessionRecord.this);
+            } finally {
+                Binder.restoreCallingIdentity(token);
+            }
+            mHandler.post(MessageHandler.MSG_UPDATE_VOLUME);
+        }
+    }
+
     private final Runnable mClearOptimisticVolumeRunnable =
             () -> {
                 boolean needUpdate = (mOptimisticVolume != mCurrentVolume);
@@ -1066,7 +1594,7 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         }
         int oldUserEngagedState = mUserEngagementState;
         int newUserEngagedState;
-        if (isActive() && mPlaybackState != null && mPlaybackState.isActive()) {
+        if (mPlaybackState != null && mPlaybackState.isActive()) {
             newUserEngagedState = USER_PERMANENTLY_ENGAGED;
         } else if (oldUserEngagedState == USER_PERMANENTLY_ENGAGED
                 || oldUserEngagedState == USER_ENGAGEMENT_UNSET
@@ -1099,309 +1627,196 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         }
     }
 
-    private final class SessionStub extends ISession.Stub {
-        @Override
-        public void destroySession() throws RemoteException {
-            final long token = Binder.clearCallingIdentity();
-            try {
-                mService.onSessionDied(MediaSessionRecord.this);
-            } finally {
-                Binder.restoreCallingIdentity(token);
-            }
+    private static final class SessionStub extends ISession.Stub {
+        private final WeakReference<MediaSessionRecord> mRecord;
+
+        SessionStub(MediaSessionRecord record) {
+            mRecord = new WeakReference<>(record);
+        }
+
+        public void release() {
+            mRecord.clear();
         }
 
         @Override
-        public void sendEvent(String event, Bundle data) throws RemoteException {
-            mHandler.post(MessageHandler.MSG_SEND_EVENT, event,
-                    data == null ? null : new Bundle(data));
+        public void destroySession() {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.destroySession();
+        }
+
+        @Override
+        public void sendEvent(String event, Bundle data) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.sendEvent(event, data);
         }
 
         @Override
         public ISessionController getController() throws RemoteException {
-            return mController;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
+            }
+            return record.getController();
         }
 
         @Override
-        public void setActive(boolean active) throws RemoteException {
-            // Log the session's active state
-            // to measure usage of foreground service resources
-            int callingUid = Binder.getCallingUid();
-            int callingPid = Binder.getCallingPid();
-            if (active) {
-                LocalServices.getService(ActivityManagerInternal.class)
-                        .logFgsApiBegin(ActivityManager.FOREGROUND_SERVICE_API_TYPE_MEDIA_PLAYBACK,
-                                callingUid, callingPid);
-            } else {
-                LocalServices.getService(ActivityManagerInternal.class)
-                        .logFgsApiEnd(ActivityManager.FOREGROUND_SERVICE_API_TYPE_MEDIA_PLAYBACK,
-                                callingUid, callingPid);
+        public void setActive(boolean active) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
-            boolean isGlobalPrioritySessionActive = mService.isGlobalPrioritySessionActive();
-            synchronized (mLock) {
-                mIsActive = active;
-                updateUserEngagedStateIfNeededLocked(
-                        /* isTimeoutExpired= */ false, isGlobalPrioritySessionActive);
-            }
-            long token = Binder.clearCallingIdentity();
-            try {
-                mService.onSessionActiveStateChanged(MediaSessionRecord.this, mPlaybackState);
-            } finally {
-                Binder.restoreCallingIdentity(token);
-            }
-            mHandler.post(MessageHandler.MSG_UPDATE_SESSION_STATE);
+            record.setActive(active);
         }
 
         @Override
-        public void setFlags(int flags) throws RemoteException {
-            if ((flags & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY) != 0) {
-                int pid = Binder.getCallingPid();
-                int uid = Binder.getCallingUid();
-                mService.enforcePhoneStatePermission(pid, uid);
+        public void setFlags(int flags) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
-            mFlags = flags;
-            if ((flags & MediaSession.FLAG_EXCLUSIVE_GLOBAL_PRIORITY) != 0) {
-                final long token = Binder.clearCallingIdentity();
-                try {
-                    mService.setGlobalPrioritySession(MediaSessionRecord.this);
-                } finally {
-                    Binder.restoreCallingIdentity(token);
-                }
-            }
-            mHandler.post(MessageHandler.MSG_UPDATE_SESSION_STATE);
+            record.setFlags(flags);
         }
 
         @Override
-        public void setMediaButtonReceiver(@Nullable PendingIntent pi) throws RemoteException {
-            final int uid = Binder.getCallingUid();
-            final long token = Binder.clearCallingIdentity();
-            try {
-                if ((mPolicies & MediaSessionPolicyProvider.SESSION_POLICY_IGNORE_BUTTON_RECEIVER)
-                        != 0) {
-                    return;
-                }
-
-                if (pi != null && pi.isActivity()) {
-                    if (CompatChanges.isChangeEnabled(
-                            THROW_FOR_ACTIVITY_MEDIA_BUTTON_RECEIVER, uid)) {
-                        throw new IllegalArgumentException(
-                                "The media button receiver cannot be set to an activity.");
-                    } else {
-                        Slog.w(
-                                TAG,
-                                "Ignoring invalid media button receiver targeting an activity.");
-                        return;
-                    }
-                }
-
-                mMediaButtonReceiverHolder =
-                        MediaButtonReceiverHolder.create(mUserId, pi, mPackageName);
-                mService.onMediaButtonReceiverChanged(MediaSessionRecord.this);
-            } finally {
-                Binder.restoreCallingIdentity(token);
+        public void setMediaButtonReceiver(@Nullable PendingIntent pi) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
+            record.setMediaButtonReceiver(pi);
         }
 
         @Override
         @RequiresPermission(Manifest.permission.INTERACT_ACROSS_USERS)
-        public void setMediaButtonBroadcastReceiver(ComponentName receiver) throws RemoteException {
-            final int uid = Binder.getCallingUid();
-            final long token = Binder.clearCallingIdentity();
-            try {
-                //mPackageName has been verified in MediaSessionService.enforcePackageName().
-                if (receiver != null && !TextUtils.equals(
-                        mPackageName, receiver.getPackageName())) {
-                    EventLog.writeEvent(0x534e4554, "238177121", -1, ""); // SafetyNet logging.
-                    throw new IllegalArgumentException("receiver does not belong to "
-                            + "package name provided to MediaSessionRecord. Pkg = " + mPackageName
-                            + ", Receiver Pkg = " + receiver.getPackageName());
-                }
-                if ((mPolicies & MediaSessionPolicyProvider.SESSION_POLICY_IGNORE_BUTTON_RECEIVER)
-                        != 0) {
-                    return;
-                }
-
-                if (!componentNameExists(receiver, mContext, mUserId)) {
-                    if (CompatChanges.isChangeEnabled(THROW_FOR_INVALID_BROADCAST_RECEIVER, uid)) {
-                        throw new IllegalArgumentException("Invalid component name: " + receiver);
-                    } else {
-                        Slog.w(
-                                TAG,
-                                "setMediaButtonBroadcastReceiver(): "
-                                        + "Ignoring invalid component name="
-                                        + receiver);
-                    }
-                    return;
-                }
-
-                mMediaButtonReceiverHolder = MediaButtonReceiverHolder.create(mUserId, receiver);
-                mService.onMediaButtonReceiverChanged(MediaSessionRecord.this);
-            } finally {
-                Binder.restoreCallingIdentity(token);
+        public void setMediaButtonBroadcastReceiver(ComponentName receiver) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
+            record.setMediaButtonBroadcastReceiver(receiver);
         }
 
         @Override
-        public void setLaunchPendingIntent(PendingIntent pi) throws RemoteException {
-            mLaunchIntent = pi;
+        public void setLaunchPendingIntent(PendingIntent pi) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.setLaunchPendingIntent(pi);
         }
 
         @Override
-        public void setMetadata(MediaMetadata metadata, long duration, String metadataDescription)
-                throws RemoteException {
-            synchronized (mLock) {
-                mDuration = duration;
-                mMetadataDescription = metadataDescription;
-                mMetadata = sanitizeMediaMetadata(metadata);
+        public void setMetadata(MediaMetadata metadata, long duration, String metadataDescription) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
-            mHandler.post(MessageHandler.MSG_UPDATE_METADATA);
-        }
-
-        private MediaMetadata sanitizeMediaMetadata(MediaMetadata metadata) {
-            if (metadata == null) {
-                return null;
-            }
-            MediaMetadata.Builder metadataBuilder = new MediaMetadata.Builder(metadata);
-            for (String key: ART_URIS) {
-                String uriString = metadata.getString(key);
-                if (TextUtils.isEmpty(uriString)) {
-                    continue;
-                }
-                Uri uri = Uri.parse(uriString);
-                if (!ContentResolver.SCHEME_CONTENT.equals(uri.getScheme())) {
-                    continue;
-                }
-                try {
-                    mUgmInternal.checkGrantUriPermission(getUid(),
-                            getPackageName(),
-                            ContentProvider.getUriWithoutUserId(uri),
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                            ContentProvider.getUserIdFromUri(uri, getUserId()));
-                } catch (SecurityException e) {
-                    metadataBuilder.putString(key, null);
-                }
-            }
-            MediaMetadata sanitizedMetadata = metadataBuilder.build();
-            // sanitizedMetadata.size() guarantees that the underlying bundle is unparceled
-            // before we set it to prevent concurrent reads from throwing an
-            // exception
-            sanitizedMetadata.size();
-            return sanitizedMetadata;
+            record.setMetadata(metadata, duration, metadataDescription);
         }
 
         @Override
-        public void setPlaybackState(PlaybackState state) throws RemoteException {
-            int oldState = mPlaybackState == null
-                    ? PlaybackState.STATE_NONE : mPlaybackState.getState();
-            int newState = state == null
-                    ? PlaybackState.STATE_NONE : state.getState();
-            boolean shouldUpdatePriority = ALWAYS_PRIORITY_STATES.contains(newState)
-                    || (!TRANSITION_PRIORITY_STATES.contains(oldState)
-                    && TRANSITION_PRIORITY_STATES.contains(newState));
-            boolean isGlobalPrioritySessionActive = mService.isGlobalPrioritySessionActive();
-            synchronized (mLock) {
-                mPlaybackState = state;
-                updateUserEngagedStateIfNeededLocked(
-                        /* isTimeoutExpired= */ false, isGlobalPrioritySessionActive);
+        public void setPlaybackState(PlaybackState state) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
-            final long token = Binder.clearCallingIdentity();
-            try {
-                mService.onSessionPlaybackStateChanged(
-                        MediaSessionRecord.this, shouldUpdatePriority, mPlaybackState);
-            } finally {
-                Binder.restoreCallingIdentity(token);
-            }
-            mHandler.post(MessageHandler.MSG_UPDATE_PLAYBACK_STATE);
+            record.setPlaybackState(state);
         }
 
         @Override
-        public void resetQueue() throws RemoteException {
-            synchronized (mLock) {
-                mQueue = null;
+        public void resetQueue() {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
-            mHandler.post(MessageHandler.MSG_UPDATE_QUEUE);
+            record.resetQueue();
         }
 
         @Override
         public IBinder getBinderForSetQueue() throws RemoteException {
-            return new ParcelableListBinder<QueueItem>(
-                    QueueItem.class,
-                    (list) -> {
-                        synchronized (mLock) {
-                            mQueue = list;
-                        }
-                        mHandler.post(MessageHandler.MSG_UPDATE_QUEUE);
-                    });
-        }
-
-        @Override
-        public void setQueueTitle(CharSequence title) throws RemoteException {
-            mQueueTitle = title;
-            mHandler.post(MessageHandler.MSG_UPDATE_QUEUE_TITLE);
-        }
-
-        @Override
-        public void setExtras(Bundle extras) throws RemoteException {
-            synchronized (mLock) {
-                mExtras = extras == null ? null : new Bundle(extras);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
             }
-            mHandler.post(MessageHandler.MSG_UPDATE_EXTRAS);
+            return record.getBinderForSetQueue();
         }
 
         @Override
-        public void setRatingType(int type) throws RemoteException {
-            mRatingType = type;
+        public void setQueueTitle(CharSequence title) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.setQueueTitle(title);
         }
 
         @Override
-        public void setCurrentVolume(int volume) throws RemoteException {
-            mCurrentVolume = volume;
-            mHandler.post(MessageHandler.MSG_UPDATE_VOLUME);
+        public void setExtras(Bundle extras) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.setExtras(extras);
         }
 
         @Override
-        public void setPlaybackToLocal(AudioAttributes attributes) throws RemoteException {
-            boolean typeChanged;
-            synchronized (mLock) {
-                typeChanged = mVolumeType == PlaybackInfo.PLAYBACK_TYPE_REMOTE;
-                mVolumeType = PLAYBACK_TYPE_LOCAL;
-                mVolumeControlId = null;
-                if (attributes != null) {
-                    mAudioAttrs = attributes;
-                } else {
-                    Slog.e(TAG, "Received null audio attributes, using existing attributes");
-                }
+        public void setRatingType(int type) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
-            if (typeChanged) {
-                final long token = Binder.clearCallingIdentity();
-                try {
-                    mService.onSessionPlaybackTypeChanged(MediaSessionRecord.this);
-                } finally {
-                    Binder.restoreCallingIdentity(token);
-                }
-                mHandler.post(MessageHandler.MSG_UPDATE_VOLUME);
-            }
+            record.setRatingType(type);
         }
 
         @Override
-        public void setPlaybackToRemote(int control, int max, String controlId)
-                throws RemoteException {
-            boolean typeChanged;
-            synchronized (mLock) {
-                typeChanged = mVolumeType == PLAYBACK_TYPE_LOCAL;
-                mVolumeType = PlaybackInfo.PLAYBACK_TYPE_REMOTE;
-                mVolumeControlType = control;
-                mMaxVolume = max;
-                mVolumeControlId = controlId;
+        public void setCurrentVolume(int volume) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
-            if (typeChanged) {
-                final long token = Binder.clearCallingIdentity();
-                try {
-                    mService.onSessionPlaybackTypeChanged(MediaSessionRecord.this);
-                } finally {
-                    Binder.restoreCallingIdentity(token);
-                }
-                mHandler.post(MessageHandler.MSG_UPDATE_VOLUME);
+            record.setCurrentVolume(volume);
+        }
+
+        @Override
+        public void setPlaybackToLocal(AudioAttributes attributes) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
+            record.setPlaybackToLocal(attributes);
+        }
+
+        @Override
+        public void setPlaybackToRemote(int control, int max, String controlId) {
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.setPlaybackToRemote(control, max, controlId);
         }
     }
 
@@ -1461,9 +1876,11 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         public void sendCommand(String packageName, int pid, int uid, String command, Bundle args,
                 ResultReceiver cb) {
             try {
-                final String reason = TAG + ":" + command;
-                mService.tempAllowlistTargetPkgIfPossible(getUid(), getPackageName(),
-                        pid, uid, packageName, reason);
+                if (!removeWiuAllowlistingFromMediacontrollerSendcommand()) {
+                    final String reason = TAG + ":" + command;
+                    mService.tempAllowlistTargetPkgIfPossible(
+                            getUid(), getPackageName(), pid, uid, packageName, reason);
+                }
                 mCb.onCommand(packageName, pid, uid, command, args, cb);
             } catch (RemoteException e) {
                 Slog.e(TAG, "Remote failure in sendCommand.", e);
@@ -1719,285 +2136,416 @@ public class MediaSessionRecord extends MediaSessionRecordImpl implements IBinde
         }
     }
 
-    class ControllerStub extends ISessionController.Stub {
+    private static final class ControllerStub extends ISessionController.Stub {
+        private final WeakReference<MediaSessionRecord> mRecord;
+        private final String mPackageName;
+
+        ControllerStub(MediaSessionRecord record, String packageName) {
+            mRecord = new WeakReference<>(record);
+            mPackageName = packageName;
+        }
+
+        public void release() {
+            mRecord.clear();
+        }
+
         @Override
         public void sendCommand(String packageName, String command, Bundle args,
                 ResultReceiver cb) {
-            mSessionCb.sendCommand(packageName, Binder.getCallingPid(), Binder.getCallingUid(),
-                    command, args, cb);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.sendCommand(packageName, command, args, cb);
         }
 
         @Override
         public boolean sendMediaButton(String packageName, KeyEvent keyEvent) {
-            return mSessionCb.sendMediaButton(packageName, Binder.getCallingPid(),
-                    Binder.getCallingUid(), false, keyEvent);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return false;
+            }
+            return record.sendMediaButton(packageName, keyEvent);
         }
 
         @Override
         public void registerCallback(String packageName, ISessionControllerCallback cb) {
-            synchronized (mLock) {
-                // If this session is already destroyed tell the caller and
-                // don't add them.
-                if (mDestroyed) {
-                    try {
-                        cb.onSessionDestroyed();
-                    } catch (Exception e) {
-                        // ignored
-                    }
-                    return;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                try {
+                    // If this session is already destroyed tell the caller.
+                    cb.onSessionDestroyed();
+                } catch (Exception e) {
+                    // ignored
                 }
-                if (getControllerHolderIndexForCb(cb) < 0) {
-                    ISessionControllerCallbackHolder holder = new ISessionControllerCallbackHolder(
-                        cb, packageName, Binder.getCallingUid(), () -> unregisterCallback(cb));
-                    mControllerCallbackHolders.add(holder);
-                    if (DEBUG) {
-                        Slog.d(
-                                TAG,
-                                "registering controller callback " + cb
-                                        + " from controller" + packageName);
-                    }
-                    // Avoid callback leaks
-                    try {
-                        // cb is not referenced outside of the MediaSessionRecord, so the death
-                        // handler won't prevent MediaSessionRecord to be garbage collected.
-                        cb.asBinder().linkToDeath(holder.mDeathMonitor, 0);
-                    } catch (RemoteException e) {
-                        unregisterCallback(cb);
-                        Slog.w(TAG, "registerCallback failed to linkToDeath", e);
-                    }
-                }
+                return;
             }
+            record.registerCallback(packageName, cb);
         }
 
         @Override
         public void unregisterCallback(ISessionControllerCallback cb) {
-            synchronized (mLock) {
-                int index = getControllerHolderIndexForCb(cb);
-                if (index != -1) {
-                    try {
-                        cb.asBinder().unlinkToDeath(
-                          mControllerCallbackHolders.get(index).mDeathMonitor, 0);
-                    } catch (NoSuchElementException e) {
-                        Slog.w(TAG, "error unlinking to binder death", e);
-                    }
-                    mControllerCallbackHolders.remove(index);
-                }
-                if (DEBUG) {
-                    Slog.d(TAG, "unregistering callback " + cb.asBinder());
-                }
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
+            record.unregisterCallback(cb);
         }
 
         @Override
         public String getPackageName() {
-            return mPackageName;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return mPackageName;
+            }
+            return record.getPackageName();
         }
 
         @Override
         public String getTag() {
-            return mTag;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return "";
+            }
+            return record.getTag();
         }
 
         @Override
         public Bundle getSessionInfo() {
-            return mSessionInfo;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return Bundle.EMPTY;
+            }
+            return record.getSessionInfo();
         }
 
         @Override
         public PendingIntent getLaunchPendingIntent() {
-            return mLaunchIntent;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
+            }
+            return record.getLaunchPendingIntent();
         }
 
         @Override
         public long getFlags() {
-            return mFlags;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return 0;
+            }
+            return record.getFlags();
         }
 
         @NonNull
         @Override
         public PlaybackInfo getVolumeAttributes() {
-            return MediaSessionRecord.this.getVolumeAttributes();
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return new PlaybackInfo(
+                        PLAYBACK_TYPE_LOCAL,
+                        VOLUME_CONTROL_ABSOLUTE,
+                        /* maxVolume= */ 0,
+                        /* currentVolume= */ 0,
+                        new AudioAttributes.Builder().build(),
+                        /* volumeControlId= */ null);
+            }
+            return record.getVolumeAttributes();
         }
 
         @Override
         public void adjustVolume(String packageName, String opPackageName, int direction,
                 int flags) {
-            int pid = Binder.getCallingPid();
-            int uid = Binder.getCallingUid();
-            final long token = Binder.clearCallingIdentity();
-            try {
-                MediaSessionRecord.this.adjustVolume(packageName, opPackageName, pid, uid,
-                        false, direction, flags, false /* useSuggested */);
-            } finally {
-                Binder.restoreCallingIdentity(token);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
+            record.adjustVolume(packageName, opPackageName, direction, flags);
         }
 
         @Override
         public void setVolumeTo(String packageName, String opPackageName, int value, int flags) {
-            int pid = Binder.getCallingPid();
-            int uid = Binder.getCallingUid();
-            final long token = Binder.clearCallingIdentity();
-            try {
-                MediaSessionRecord.this.setVolumeTo(packageName, opPackageName, pid, uid, value,
-                        flags);
-            } finally {
-                Binder.restoreCallingIdentity(token);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
             }
+            record.setVolumeTo(packageName, opPackageName, value, flags);
         }
 
         @Override
         public void prepare(String packageName) {
-            mSessionCb.prepare(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.prepare(packageName);
         }
 
         @Override
         public void prepareFromMediaId(String packageName, String mediaId, Bundle extras) {
-            mSessionCb.prepareFromMediaId(packageName, Binder.getCallingPid(),
-                    Binder.getCallingUid(), mediaId, extras);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.prepareFromMediaId(packageName, mediaId, extras);
         }
 
         @Override
         public void prepareFromSearch(String packageName, String query, Bundle extras) {
-            mSessionCb.prepareFromSearch(packageName, Binder.getCallingPid(),
-                    Binder.getCallingUid(), query, extras);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.prepareFromSearch(packageName, query, extras);
         }
 
         @Override
         public void prepareFromUri(String packageName, Uri uri, Bundle extras) {
-            mSessionCb.prepareFromUri(packageName, Binder.getCallingPid(), Binder.getCallingUid(),
-                    uri, extras);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.prepareFromUri(packageName, uri, extras);
         }
 
         @Override
         public void play(String packageName) {
-            mSessionCb.play(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.play(packageName);
         }
 
         @Override
         public void playFromMediaId(String packageName, String mediaId, Bundle extras) {
-            mSessionCb.playFromMediaId(packageName, Binder.getCallingPid(), Binder.getCallingUid(),
-                    mediaId, extras);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.playFromMediaId(packageName, mediaId, extras);
         }
 
         @Override
         public void playFromSearch(String packageName, String query, Bundle extras) {
-            mSessionCb.playFromSearch(packageName, Binder.getCallingPid(), Binder.getCallingUid(),
-                     query, extras);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.playFromSearch(packageName, query, extras);
         }
 
         @Override
         public void playFromUri(String packageName, Uri uri, Bundle extras) {
-            mSessionCb.playFromUri(packageName, Binder.getCallingPid(), Binder.getCallingUid(),
-                    uri, extras);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.playFromUri(packageName, uri, extras);
         }
 
         @Override
         public void skipToQueueItem(String packageName, long id) {
-            mSessionCb.skipToTrack(packageName, Binder.getCallingPid(), Binder.getCallingUid(), id);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.skipToQueueItem(packageName, id);
         }
 
         @Override
         public void pause(String packageName) {
-            mSessionCb.pause(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.pause(packageName);
         }
 
         @Override
         public void stop(String packageName) {
-            mSessionCb.stop(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.stop(packageName);
         }
 
         @Override
         public void next(String packageName) {
-            mSessionCb.next(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.next(packageName);
         }
 
         @Override
         public void previous(String packageName) {
-            mSessionCb.previous(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.previous(packageName);
         }
 
         @Override
         public void fastForward(String packageName) {
-            mSessionCb.fastForward(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.fastForward(packageName);
         }
 
         @Override
         public void rewind(String packageName) {
-            mSessionCb.rewind(packageName, Binder.getCallingPid(), Binder.getCallingUid());
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.rewind(packageName);
         }
 
         @Override
         public void seekTo(String packageName, long pos) {
-            mSessionCb.seekTo(packageName, Binder.getCallingPid(), Binder.getCallingUid(), pos);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.seekTo(packageName, pos);
         }
 
         @Override
         public void rate(String packageName, Rating rating) {
-            mSessionCb.rate(packageName, Binder.getCallingPid(), Binder.getCallingUid(), rating);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.rate(packageName, rating);
         }
 
         @Override
         public void setPlaybackSpeed(String packageName,
                 float speed) {
-            mSessionCb.setPlaybackSpeed(packageName, Binder.getCallingPid(), Binder.getCallingUid(),
-                    speed);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.setPlaybackSpeed(packageName, speed);
         }
 
         @Override
         public void sendCustomAction(String packageName, String action, Bundle args) {
-            mSessionCb.sendCustomAction(packageName, Binder.getCallingPid(), Binder.getCallingUid(),
-                    action, args);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return;
+            }
+            record.sendCustomAction(packageName, action, args);
         }
 
         @Override
         public MediaMetadata getMetadata() {
-            synchronized (mLock) {
-                return mMetadata;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
             }
+            return record.getMetadata();
         }
 
         @Override
         public PlaybackState getPlaybackState() {
-            return getStateWithUpdatedPosition();
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
+            }
+            return record.getPlaybackState();
         }
 
         @Override
         public ParceledListSlice getQueue() {
-            synchronized (mLock) {
-                return mQueue == null ? null : new ParceledListSlice<>(mQueue);
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
             }
+            return record.getQueue();
         }
 
         @Override
         public CharSequence getQueueTitle() {
-            return mQueueTitle;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
+            }
+            return record.getQueueTitle();
         }
 
         @Override
         public Bundle getExtras() {
-            synchronized (mLock) {
-                return mExtras;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return null;
             }
+            return record.getExtras();
         }
 
         @Override
         public int getRatingType() {
-            return mRatingType;
+            MediaSessionRecord record = mRecord.get();
+            if (record == null) {
+                Log.w(TAG, IGNORE_CALL_TO_DESTROYED_SESSION_MESSAGE);
+                return Rating.RATING_NONE;
+            }
+            return record.getRatingType();
         }
     }
 
-    private class ISessionControllerCallbackHolder {
+    private static class ISessionControllerCallbackHolder {
         private final ISessionControllerCallback mCallback;
         private final String mPackageName;
-        private final int mUid;
         private final IBinder.DeathRecipient mDeathMonitor;
 
-        ISessionControllerCallbackHolder(ISessionControllerCallback callback, String packageName,
-                int uid, IBinder.DeathRecipient deathMonitor) {
+        ISessionControllerCallbackHolder(
+                ISessionControllerCallback callback,
+                String packageName,
+                IBinder.DeathRecipient deathMonitor) {
             mCallback = callback;
             mPackageName = packageName;
-            mUid = uid;
             mDeathMonitor = deathMonitor;
         }
     }

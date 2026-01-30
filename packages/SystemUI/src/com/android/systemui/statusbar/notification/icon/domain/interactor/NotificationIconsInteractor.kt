@@ -15,13 +15,22 @@
 
 package com.android.systemui.statusbar.notification.icon.domain.interactor
 
+import android.content.Context
+import android.graphics.drawable.Icon
+import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Background
-import com.android.systemui.deviceentry.domain.interactor.DeviceEntryInteractor
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBypassInteractor
+import com.android.systemui.kairos.util.Either
+import com.android.systemui.kairos.util.mergeSecond
 import com.android.systemui.statusbar.data.repository.NotificationListenerSettingsRepository
+import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationListRepository
+import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore
 import com.android.systemui.statusbar.notification.data.repository.NotificationsKeyguardViewStateRepository
-import com.android.systemui.statusbar.notification.domain.interactor.ActiveNotificationsInteractor
 import com.android.systemui.statusbar.notification.domain.interactor.HeadsUpNotificationIconInteractor
 import com.android.systemui.statusbar.notification.promoted.domain.interactor.AODPromotedNotificationInteractor
+import com.android.systemui.statusbar.notification.shared.ActiveBundleModel
+import com.android.systemui.statusbar.notification.shared.ActiveNotificationEntryModel
+import com.android.systemui.statusbar.notification.shared.ActiveNotificationGroupModel
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
 import com.android.wm.shell.bubbles.Bubbles
 import java.util.Optional
@@ -38,11 +47,12 @@ import kotlinx.coroutines.flow.flowOn
 class NotificationIconsInteractor
 @Inject
 constructor(
-    private val activeNotificationsInteractor: ActiveNotificationsInteractor,
+    private val activeNotificationsRepository: ActiveNotificationListRepository,
     private val bubbles: Optional<Bubbles>,
     private val headsUpNotificationIconInteractor: HeadsUpNotificationIconInteractor,
-    private val aodPromotedNotificationInteractor: AODPromotedNotificationInteractor,
+    aodPromotedNotificationInteractor: AODPromotedNotificationInteractor,
     private val keyguardViewStateRepository: NotificationsKeyguardViewStateRepository,
+    @Application private val appContext: Context,
 ) {
     private val aodPromotedKeyToHide: Flow<String?> =
         combine(
@@ -65,30 +75,72 @@ constructor(
         showRepliedMessages: Boolean = true,
         showPulsing: Boolean = true,
         showAodPromoted: Boolean = true,
-    ): Flow<Set<ActiveNotificationModel>> {
+    ): Flow<Set<ActiveNotificationIconModel>> {
         return combine(
-            activeNotificationsInteractor.topLevelRepresentativeNotifications,
+            activeNotificationsRepository.activeNotifications,
             headsUpNotificationIconInteractor.isolatedNotification,
             if (showAodPromoted) flowOf(null) else aodPromotedKeyToHide,
             keyguardViewStateRepository.areNotificationsFullyHidden,
-        ) { notifications, isolatedNotifKey, aodPromotedKeyToHide, notifsFullyHidden ->
-            notifications
+        ) { store, isolatedNotifKey, aodPromotedKeyToHide, notifsFullyHidden ->
+            store.renderList
                 .asSequence()
-                .filter { model: ActiveNotificationModel ->
-                    shouldShowNotificationIcon(
-                        model = model,
-                        forceShowHeadsUp = forceShowHeadsUp,
-                        showAmbient = showAmbient,
-                        showLowPriority = showLowPriority,
-                        showDismissed = showDismissed,
-                        showRepliedMessages = showRepliedMessages,
-                        showPulsing = showPulsing,
-                        isolatedNotifKey = isolatedNotifKey,
-                        aodPromotedKeyToHide = aodPromotedKeyToHide,
-                        notifsFullyHidden = notifsFullyHidden,
-                    )
+                .mapNotNull { key: ActiveNotificationsStore.Key ->
+                    store[key]
+                        ?.let {
+                            when (it) {
+                                // bundles are located in the silent section, so only include them
+                                // if we're showing low priority icons
+                                is ActiveBundleModel ->
+                                    if (shouldShowBundleIcon(it, showAmbient, showLowPriority)) {
+                                        Either.first(it.toIconModel())
+                                    } else {
+                                        null
+                                    }
+                                is ActiveNotificationGroupModel -> Either.second(it.summary)
+                                is ActiveNotificationModel -> Either.second(it)
+                            }
+                        }
+                        // for non-bundles, perform additional filtering based on the provided
+                        // arguments
+                        ?.mergeSecond { notifModel: ActiveNotificationModel ->
+                            notifModel
+                                .takeIf {
+                                    shouldShowNotificationIcon(
+                                        model = notifModel,
+                                        forceShowHeadsUp = forceShowHeadsUp,
+                                        showAmbient = showAmbient,
+                                        showLowPriority = showLowPriority,
+                                        showDismissed = showDismissed,
+                                        showRepliedMessages = showRepliedMessages,
+                                        showPulsing = showPulsing,
+                                        isolatedNotifKey = isolatedNotifKey,
+                                        aodPromotedKeyToHide = aodPromotedKeyToHide,
+                                        notifsFullyHidden = notifsFullyHidden,
+                                    )
+                                }
+                                ?.toIconModel()
+                        }
                 }
                 .toSet()
+        }
+    }
+
+    private fun shouldShowBundleIcon(
+        model: ActiveBundleModel,
+        showAmbient: Boolean,
+        showLowPriority: Boolean,
+    ): Boolean {
+        return when {
+            !showLowPriority -> false
+            !showAmbient && areAllChildrenSuppressed(model.children) -> false
+            else -> true
+        }
+    }
+
+    private fun areAllChildrenSuppressed(children: List<ActiveNotificationEntryModel>): Boolean {
+        return children.none {
+            (it is ActiveNotificationModel && !it.isSuppressedFromStatusBar) ||
+                (it is ActiveNotificationGroupModel && !areAllChildrenSuppressed(it.children))
         }
     }
 
@@ -117,18 +169,59 @@ constructor(
             else -> true
         }
     }
+
+    private fun ActiveBundleModel.toIconModel(): ActiveNotificationIconModel =
+        ActiveNotificationIconModel(
+            notifKey = key,
+            groupKey = key,
+            shelfIcon = icon,
+            statusBarIcon = icon,
+            aodIcon = icon,
+            isAmbient = false,
+        )
 }
+
+private fun ActiveNotificationModel.toIconModel(): ActiveNotificationIconModel? =
+    groupKey?.let {
+        ActiveNotificationIconModel(
+            notifKey = key,
+            groupKey = groupKey,
+            shelfIcon = shelfIcon,
+            statusBarIcon = statusBarIcon,
+            aodIcon = aodIcon,
+            isAmbient = isAmbient,
+        )
+    }
+
+/**
+ * Model for an individual notification icon. This can be associated with an individual top-level
+ * notification, a group of notifications, or a bundle.
+ */
+data class ActiveNotificationIconModel(
+    /** Key of notification pipeline entry associated with this icon. */
+    val notifKey: String,
+    /** Group key associated with this icon. */
+    val groupKey: String,
+    /** Icon to display in the notification shelf. */
+    val shelfIcon: Icon?,
+    /** Icon to display in the status bar. */
+    val statusBarIcon: Icon?,
+    /** Icon to display on AOD. */
+    val aodIcon: Icon?,
+    /** Is the associated pipeline entry in the ambient / minimized section (lowest priority)? */
+    val isAmbient: Boolean,
+)
 
 /** Domain logic related to notification icons shown on the always-on display. */
 class AlwaysOnDisplayNotificationIconsInteractor
 @Inject
 constructor(
     @Background bgContext: CoroutineContext,
-    deviceEntryInteractor: DeviceEntryInteractor,
+    deviceEntryBypassInteractor: DeviceEntryBypassInteractor,
     iconsInteractor: NotificationIconsInteractor,
 ) {
-    val aodNotifs: Flow<Set<ActiveNotificationModel>> =
-        deviceEntryInteractor.isBypassEnabled
+    val aodNotifs: Flow<Set<ActiveNotificationIconModel>> =
+        deviceEntryBypassInteractor.isBypassEnabled
             .flatMapLatest { isBypassEnabled ->
                 iconsInteractor.filteredNotifSet(
                     showAmbient = false,
@@ -149,7 +242,7 @@ constructor(
     iconsInteractor: NotificationIconsInteractor,
     settingsRepository: NotificationListenerSettingsRepository,
 ) {
-    val statusBarNotifs: Flow<Set<ActiveNotificationModel>> =
+    val statusBarNotifs: Flow<Set<ActiveNotificationIconModel>> =
         settingsRepository.showSilentStatusIcons
             .flatMapLatest { showSilentIcons ->
                 iconsInteractor.filteredNotifSet(

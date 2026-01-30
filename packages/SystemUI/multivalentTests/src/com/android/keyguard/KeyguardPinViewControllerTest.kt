@@ -45,7 +45,9 @@ import com.android.systemui.statusbar.policy.DevicePostureController.DEVICE_POST
 import com.android.systemui.testKosmos
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor
 import com.android.systemui.util.mockito.whenever
+import com.android.systemui.util.wrapper.LockPatternCheckerWrapper
 import com.google.common.truth.Truth.assertThat
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -106,10 +108,16 @@ class KeyguardPinViewControllerTest : SysuiTestCase() {
     @Mock lateinit var uiEventLogger: UiEventLogger
     @Mock lateinit var mUserActivityNotifier: UserActivityNotifier
     @Mock lateinit var inputManager: InputManager
+    @Mock private lateinit var lockPatternChecker: LockPatternCheckerWrapper
 
     @Captor lateinit var postureCallbackCaptor: ArgumentCaptor<DevicePostureController.Callback>
 
     private val kosmos = testKosmos()
+    private var underTest: KeyguardPinViewController? = null
+        set(value) {
+            field?.onPause()
+            field = value
+        }
 
     @Before
     fun setup() {
@@ -136,48 +144,53 @@ class KeyguardPinViewControllerTest : SysuiTestCase() {
                 .requireViewById(R.id.keyguard_pin_view) as KeyguardPINView
     }
 
-    private fun constructPinViewController(
-        mKeyguardPinView: KeyguardPINView
-    ): KeyguardPinViewController {
-        return KeyguardPinViewController(
-            mKeyguardPinView,
-            keyguardUpdateMonitor,
-            securityMode,
-            lockPatternUtils,
-            mKeyguardSecurityCallback,
-            keyguardMessageAreaControllerFactory,
-            mLatencyTracker,
-            mEmergencyButtonController,
-            falsingCollector,
-            postureController,
-            featureFlags,
-            mSelectedUserInteractor,
-            uiEventLogger,
-            keyguardKeyboardInteractor,
-            kosmos.bouncerHapticPlayer,
-            mUserActivityNotifier,
-            inputManager,
-        )
+    @After
+    fun tearDown() {
+        underTest?.onPause()
+    }
+
+    private fun constructPinViewController(mKeyguardPinView: KeyguardPINView) {
+        underTest =
+            KeyguardPinViewController(
+                mKeyguardPinView,
+                keyguardUpdateMonitor,
+                securityMode,
+                lockPatternUtils,
+                mKeyguardSecurityCallback,
+                keyguardMessageAreaControllerFactory,
+                mLatencyTracker,
+                mEmergencyButtonController,
+                falsingCollector,
+                postureController,
+                featureFlags,
+                mSelectedUserInteractor,
+                uiEventLogger,
+                keyguardKeyboardInteractor,
+                kosmos.bouncerHapticPlayer,
+                mUserActivityNotifier,
+                inputManager,
+                lockPatternChecker,
+            )
     }
 
     @Test
     fun onViewAttached_deviceHalfFolded_propagatedToPatternView() {
-        val pinViewController = constructPinViewController(objectKeyguardPINView)
+        constructPinViewController(objectKeyguardPINView)
         overrideResource(R.dimen.half_opened_bouncer_height_ratio, 0.5f)
         whenever(postureController.devicePosture).thenReturn(DEVICE_POSTURE_HALF_OPENED)
 
-        pinViewController.onViewAttached()
+        underTest?.onViewAttached()
 
         assertThat(getPinTopGuideline()).isEqualTo(getHalfOpenedBouncerHeightRatio())
     }
 
     @Test
     fun onDevicePostureChanged_deviceOpened_propagatedToPatternView() {
-        val pinViewController = constructPinViewController(objectKeyguardPINView)
+        constructPinViewController(objectKeyguardPINView)
         overrideResource(R.dimen.half_opened_bouncer_height_ratio, 0.5f)
 
         whenever(postureController.devicePosture).thenReturn(DEVICE_POSTURE_HALF_OPENED)
-        pinViewController.onViewAttached()
+        underTest?.onViewAttached()
 
         // Verify view begins in posture state DEVICE_POSTURE_HALF_OPENED
         assertThat(getPinTopGuideline()).isEqualTo(getHalfOpenedBouncerHeightRatio())
@@ -211,9 +224,9 @@ class KeyguardPinViewControllerTest : SysuiTestCase() {
 
     @Test
     fun testOnViewAttached() {
-        val pinViewController = constructPinViewController(mockKeyguardPinView)
+        constructPinViewController(mockKeyguardPinView)
 
-        pinViewController.onViewAttached()
+        underTest?.onViewAttached()
 
         verify(keyguardMessageAreaController)
             .setMessage(context.resources.getString(R.string.keyguard_enter_your_pin), false)
@@ -221,23 +234,23 @@ class KeyguardPinViewControllerTest : SysuiTestCase() {
 
     @Test
     fun testOnViewAttached_withExistingMessage() {
-        val pinViewController = constructPinViewController(mockKeyguardPinView)
+        constructPinViewController(mockKeyguardPinView)
         Mockito.`when`(keyguardMessageAreaController.message).thenReturn("Unlock to continue.")
 
-        pinViewController.onViewAttached()
+        underTest?.onViewAttached()
 
         verify(keyguardMessageAreaController, Mockito.never()).setMessage(anyString(), anyBoolean())
     }
 
     @Test
     fun testOnViewAttached_withAutoPinConfirmationFailedPasswordAttemptsLessThan5() {
-        val pinViewController = constructPinViewController(mockKeyguardPinView)
+        constructPinViewController(mockKeyguardPinView)
         `when`(lockPatternUtils.getPinLength(anyInt())).thenReturn(6)
         `when`(lockPatternUtils.isAutoPinConfirmEnabled(anyInt())).thenReturn(true)
         `when`(lockPatternUtils.getCurrentFailedPasswordAttempts(anyInt())).thenReturn(3)
         `when`(passwordTextView.text).thenReturn("")
 
-        pinViewController.onViewAttached()
+        underTest?.onViewAttached()
 
         verify(deleteButton).visibility = View.INVISIBLE
         verify(enterButton).visibility = View.INVISIBLE
@@ -247,13 +260,13 @@ class KeyguardPinViewControllerTest : SysuiTestCase() {
 
     @Test
     fun testOnViewAttached_withAutoPinConfirmationFailedPasswordAttemptsMoreThan5() {
-        val pinViewController = constructPinViewController(mockKeyguardPinView)
+        constructPinViewController(mockKeyguardPinView)
         `when`(lockPatternUtils.getPinLength(anyInt())).thenReturn(6)
         `when`(lockPatternUtils.isAutoPinConfirmEnabled(anyInt())).thenReturn(true)
         `when`(lockPatternUtils.getCurrentFailedPasswordAttempts(anyInt())).thenReturn(6)
         `when`(passwordTextView.text).thenReturn("")
 
-        pinViewController.onViewAttached()
+        underTest?.onViewAttached()
 
         verify(deleteButton).visibility = View.VISIBLE
         verify(enterButton).visibility = View.VISIBLE
@@ -263,16 +276,16 @@ class KeyguardPinViewControllerTest : SysuiTestCase() {
 
     @Test
     fun handleLockout_readsNumberOfErrorAttempts() {
-        val pinViewController = constructPinViewController(mockKeyguardPinView)
+        constructPinViewController(mockKeyguardPinView)
 
-        pinViewController.handleAttemptLockout(0)
+        underTest?.handleAttemptLockout(0)
 
         verify(lockPatternUtils).getCurrentFailedPasswordAttempts(anyInt())
     }
 
     @Test
     fun onUserInput_autoConfirmation_attemptsUnlock() {
-        val pinViewController = constructPinViewController(mockKeyguardPinView)
+        constructPinViewController(mockKeyguardPinView)
         whenever(lockPatternUtils.getPinLength(anyInt())).thenReturn(6)
         whenever(lockPatternUtils.isAutoPinConfirmEnabled(anyInt())).thenReturn(true)
         whenever(passwordTextView.text).thenReturn("000000")
@@ -280,7 +293,7 @@ class KeyguardPinViewControllerTest : SysuiTestCase() {
         whenever(mockKeyguardPinView.enteredCredential)
             .thenReturn(LockscreenCredential.createPin("000000"))
 
-        pinViewController.onUserInput()
+        underTest?.onUserInput()
 
         verify(uiEventLogger).log(PinBouncerUiEvent.ATTEMPT_UNLOCK_WITH_AUTO_CONFIRM_FEATURE)
         verify(keyguardUpdateMonitor).setCredentialAttempted()

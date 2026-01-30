@@ -26,7 +26,7 @@ import android.content.Context;
 /**
  * Allows querying and posting system update information.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 @SystemService(Context.SYSTEM_UPDATE_SERVICE)

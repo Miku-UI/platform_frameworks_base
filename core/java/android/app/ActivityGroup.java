@@ -36,7 +36,7 @@ public class ActivityGroup extends Activity {
 
     /**
      * This field should be made private, so it is hidden from the SDK.
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     protected LocalActivityManager mLocalActivityManager;
@@ -94,7 +94,7 @@ public class ActivityGroup extends Activity {
      * Returns a HashMap mapping from child activity ids to the return values
      * from calls to their onRetainNonConfigurationInstance methods.
      *
-     * {@hide}
+     * @hide
      */
     @Override
     public HashMap<String,Object> onRetainNonConfigurationChildInstances() {

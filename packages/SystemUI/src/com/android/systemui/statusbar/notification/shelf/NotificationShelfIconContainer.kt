@@ -36,7 +36,6 @@ constructor(context: Context, attrs: AttributeSet? = null) :
     /**
      * @return The left boundary (not the RTL compatible start) of the area that icons can be added.
      */
-    @VisibleForTesting
     public override fun getLeftBound(): Float {
         if (!NotificationMinimalism.isEnabled) {
             return super.getLeftBound()

@@ -18,7 +18,6 @@
 
 #include <jni.h>
 #include <android/bitmap.h>
-#include <hwui/Bitmap.h>
 
 struct SkImageInfo;
 
@@ -35,8 +34,8 @@ enum BitmapCreateFlags {
 };
 
 jobject createBitmap(JNIEnv* env, Bitmap* bitmap, int bitmapCreateFlags,
-                     jbyteArray ninePatchChunk = nullptr, jobject ninePatchInsets = nullptr,
-                     int density = -1, int64_t id = Bitmap::UNDEFINED_BITMAP_ID);
+                    jbyteArray ninePatchChunk = nullptr, jobject ninePatchInsets = nullptr,
+                    int density = -1);
 
 Bitmap& toBitmap(jlong bitmapHandle);
 

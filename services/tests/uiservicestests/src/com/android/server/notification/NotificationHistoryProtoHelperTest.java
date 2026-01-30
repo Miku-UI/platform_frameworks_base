@@ -49,7 +49,10 @@ public class NotificationHistoryProtoHelperTest extends UiServiceTestCase {
     }
 
     private HistoricalNotification getHistoricalNotification(String packageName, int index) {
-        String expectedChannelName = "channelName" + index;
+        String expectedChannelName = null;
+        if (index % 2 == 0) {
+            expectedChannelName = "channelName" + index;
+        }
         String expectedChannelId = "channelId" + index;
         int expectedUid = 1123456 + index;
         int expectedUserId = 11 + index;
@@ -143,7 +146,9 @@ public class NotificationHistoryProtoHelperTest extends UiServiceTestCase {
 
             if (i % 2 == 0) {
                 expectedStrings.add(n.getPackage());
-                expectedStrings.add(n.getChannelName());
+                if (i % 2 == 0) {
+                    expectedStrings.add(n.getChannelName());
+                }
                 expectedStrings.add(n.getChannelId());
                 if (!TextUtils.isEmpty(n.getConversationId())) {
                     expectedStrings.add(n.getConversationId());
@@ -185,7 +190,9 @@ public class NotificationHistoryProtoHelperTest extends UiServiceTestCase {
 
             if (i <= maxCount) {
                 expectedStrings.add(n.getPackage());
-                expectedStrings.add(n.getChannelName());
+                if (i % 2 == 0) {
+                    expectedStrings.add(n.getChannelName());
+                }
                 expectedStrings.add(n.getChannelId());
                 if (!TextUtils.isEmpty(n.getConversationId())) {
                     expectedStrings.add(n.getConversationId());
@@ -237,7 +244,9 @@ public class NotificationHistoryProtoHelperTest extends UiServiceTestCase {
 
             if (i <= (maxCount - 2)) {
                 expectedStrings.add(n.getPackage());
-                expectedStrings.add(n.getChannelName());
+                if (i % 2 == 0) {
+                    expectedStrings.add(n.getChannelName());
+                }
                 expectedStrings.add(n.getChannelId());
                 if (n.getConversationId() != null) {
                     expectedStrings.add(n.getConversationId());
@@ -277,7 +286,9 @@ public class NotificationHistoryProtoHelperTest extends UiServiceTestCase {
             HistoricalNotification n = getHistoricalNotification(i);
             expectedEntries.add(n);
             expectedStrings.add(n.getPackage());
-            expectedStrings.add(n.getChannelName());
+            if (i % 2 == 0) {
+                expectedStrings.add(n.getChannelName());
+            }
             expectedStrings.add(n.getChannelId());
             if (n.getConversationId() != null) {
                 expectedStrings.add(n.getConversationId());
@@ -295,7 +306,9 @@ public class NotificationHistoryProtoHelperTest extends UiServiceTestCase {
             HistoricalNotification n = getHistoricalNotification(i);
             expectedEntries.add(n);
             expectedStrings.add(n.getPackage());
-            expectedStrings.add(n.getChannelName());
+            if (i % 2 == 0) {
+                expectedStrings.add(n.getChannelName());
+            }
             expectedStrings.add(n.getChannelId());
             if (n.getConversationId() != null) {
                 expectedStrings.add(n.getConversationId());

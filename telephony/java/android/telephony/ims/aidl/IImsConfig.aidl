@@ -28,7 +28,7 @@ import com.android.ims.ImsConfigListener;
  * Provides APIs to get/set the IMS service feature/capability/parameters.
  * The config items include items provisioned by the operator.
  *
- * {@hide}
+ * @hide
  */
 interface IImsConfig {
 

@@ -30,7 +30,7 @@ easier.
                         PLEASE READ
 ===============================================================
  -->
-<resources>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Widget Styles -->
     <style name="Widget.DeviceDefault" parent="Widget.Material"/>
     <style name="Widget.DeviceDefault.Button" parent="Widget.Material.Button"/>
@@ -285,22 +285,34 @@ easier.
         <item name="fontFamily">@string/config_bodyFontFamily</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification" parent="TextAppearance.Material.Notification">
-        <item name="fontFamily">@string/config_bodyFontFamily</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Title" parent="TextAppearance.Material.Notification.Title">
-        <item name="fontFamily">@string/config_headlineFontFamilyMedium</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-small-emphasized</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_headlineFontFamilyMedium</item>
     </style>
+    <!-- unused as of the 2025 redesign -->
     <style name="TextAppearance.DeviceDefault.Notification.BigTitle" parent="TextAppearance.Material.Notification.BigTitle">
-        <item name="fontFamily">@string/config_headlineFontFamilyMedium</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-title-small-emphasized</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_headlineFontFamilyMedium</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Reply" parent="TextAppearance.Material.Notification.Reply">
-        <item name="fontFamily">@string/config_bodyFontFamily</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-medium</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Info" parent="TextAppearance.Material.Notification.Info">
-        <item name="fontFamily">@string/config_bodyFontFamily</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-small</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
+    </style>
+    <style name="TextAppearance.DeviceDefault.Notification.Label">
+        <item name="fontFamily">variable-label-small-emphasized</item>
+        <item name="textSize">11sp</item>
+        <item name="lineHeight">16sp</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Notification.Time" parent="TextAppearance.Material.Notification.Time">
-        <item name="fontFamily">@string/config_bodyFontFamily</item>
+        <item name="fontFamily" android:featureFlag="android.app.notifications_redesign_fonts">variable-body-small</item>
+        <item name="fontFamily" android:featureFlag="!android.app.notifications_redesign_fonts">@string/config_bodyFontFamily</item>
     </style>
     <style name="TextAppearance.DeviceDefault.Widget" parent="TextAppearance.Material.Widget">
         <item name="fontFamily">@string/config_bodyFontFamily</item>

@@ -319,6 +319,32 @@ public final class AutofillManager {
             "android.view.autofill.extra.AUTOFILL_REQUEST_ID";
 
     /**
+     * Internal {@link DirectAction#getId()} used to pass to the {@link ActivityThread} to fill a
+     * remote app.
+     *
+     * @hide
+     */
+    public static final String DIRECT_ACTION_ID_REMOTE_AUTOFILL = "android.REMOTE_AUTOFILL";
+
+    /**
+     * Internal extra used to pass an {@link AutofillId} to the {@link ActivityThread} to fill a
+     * remote app.
+     *
+     * @hide
+     */
+    public static final String EXTRA_REMOTE_AUTOFILL_ID =
+            "android.view.autofill.extra.REMOTE_AUTOFILL_ID";
+
+    /**
+     * Internal extra used to pass an {@link AutofillValue} to the {@link ActivityThread} to fill a
+     * remote app.
+     *
+     * @hide
+     */
+    public static final String EXTRA_REMOTE_AUTOFILL_VALUE =
+            "android.view.autofill.extra.REMOTE_AUTOFILL_VALUE";
+
+    /**
      * Autofill Hint to indicate that it can match any field.
      *
      * @hide
@@ -592,7 +618,7 @@ public final class AutofillManager {
 
     /**
      * There is currently no session running.
-     * {@hide}
+     * @hide
      */
     public static final int NO_SESSION = Integer.MAX_VALUE;
 
@@ -939,6 +965,10 @@ public final class AutofillManager {
      * @hide
      */
     public AutofillManager(Context context, IAutoFillManager service) {
+        if (sVerbose) {
+            Log.v(TAG,
+                    "Constructing AutofillManager instance: " + this + " with context: " + context);
+        }
         mContext = Objects.requireNonNull(context, "context cannot be null");
         mService = service;
         mOptions = context.getAutofillOptions();
@@ -1301,7 +1331,7 @@ public final class AutofillManager {
      *
      * @param savedInstanceState The state to be restored
      *
-     * {@hide}
+     * @hide
      */
     public void onCreate(Bundle savedInstanceState) {
         if (!hasAutofillFeature()) {
@@ -1350,7 +1380,7 @@ public final class AutofillManager {
                     } catch (RemoteException e) {
                         Log.e(TAG, "Could not figure out if there was an autofill session", e);
                     } catch (SyncResultReceiver.TimeoutException e) {
-                        Log.e(TAG, "Fail to get session restore status: " + e);
+                        Log.e(TAG, "Fail to get session restore status", e);
                     }
                 }
             }
@@ -1362,7 +1392,7 @@ public final class AutofillManager {
      *
      * @see AutofillClient#autofillClientIsVisibleForAutofill()
      *
-     * {@hide}
+     * @hide
      */
     public void onVisibleForAutofill() {
         // This gets called when the client just got visible at which point the visibility
@@ -1386,7 +1416,7 @@ public final class AutofillManager {
      *
      * @param isExpiredResponse The response has expired or not
      *
-     * {@hide}
+     * @hide
      */
     public void onInvisibleForAutofill(boolean isExpiredResponse) {
         synchronized (mLock) {
@@ -1419,7 +1449,7 @@ public final class AutofillManager {
      *
      * @param outState Place to store the state
      *
-     * {@hide}
+     * @hide
      */
     public void onSaveInstanceState(Bundle outState) {
         if (!hasAutofillFeature()) {
@@ -1480,7 +1510,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            Log.e(TAG, "Fail to get fill event history: " + e);
+            Log.e(TAG, "Fail to get fill event history", e);
             return null;
         }
     }
@@ -2077,7 +2107,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             // The failure could be a consequence of something going wrong on the
             // server side. Just log the exception and move-on.
-            Log.w(TAG, "notifyImeAnimationStart(): RemoteException caught but ignored " + e);
+            Log.w(TAG, "notifyImeAnimationStart(): RemoteException caught but ignored", e);
         }
     }
 
@@ -2091,7 +2121,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             // The failure could be a consequence of something going wrong on the
             // server side. Just log the exception and move-on.
-            Log.w(TAG, "notifyImeAnimationStart(): RemoteException caught but ignored " + e);
+            Log.w(TAG, "notifyImeAnimationStart(): RemoteException caught but ignored", e);
         }
     }
 
@@ -2223,7 +2253,7 @@ public final class AutofillManager {
                             // The failure could be a consequence of something going wrong on the
                             // server side. Do nothing here since it's just logging, but it's
                             // possible follow-up actions may fail.
-                            Log.w(TAG, "RemoteException caught but ignored " + e);
+                            Log.w(TAG, "RemoteException caught but ignored", e);
                         }
                     }
                 }
@@ -2391,7 +2421,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            throw new RuntimeException("Fail to get enabled autofill services status. " + e);
+            throw new RuntimeException("Fail to get enabled autofill services status.", e);
         }
     }
 
@@ -2410,7 +2440,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            throw new RuntimeException("Fail to get autofill services component name. " + e);
+            throw new RuntimeException("Fail to get autofill services component name.", e);
         }
     }
 
@@ -2437,7 +2467,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            throw new RuntimeException("Fail to get user data id for field classification. " + e);
+            throw new RuntimeException("Fail to get user data id for field classification.", e);
         }
     }
 
@@ -2460,7 +2490,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            throw new RuntimeException("Fail to get user data for field classification. " + e);
+            throw new RuntimeException("Fail to get user data for field classification.", e);
         }
     }
 
@@ -2500,7 +2530,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            throw new RuntimeException("Fail to get field classification enabled status. " + e);
+            throw new RuntimeException("Fail to get field classification enabled status.", e);
         }
     }
 
@@ -2524,7 +2554,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            throw new RuntimeException("Fail to get default field classification algorithm. " + e);
+            throw new RuntimeException("Fail to get default field classification algorithm.", e);
         }
     }
 
@@ -2547,7 +2577,7 @@ public final class AutofillManager {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
             throw new
-                RuntimeException("Fail to get available field classification algorithms. " + e);
+                RuntimeException("Fail to get available field classification algorithms.", e);
         }
     }
 
@@ -2571,7 +2601,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            throw new RuntimeException("Fail to get autofill supported status. " + e);
+            throw new RuntimeException("Fail to get autofill supported status.", e);
         }
     }
 
@@ -2602,7 +2632,8 @@ public final class AutofillManager {
     /** @hide */
     public void onAuthenticationResult(int authenticationId, Intent data, View focusView) {
         if (sVerbose) {
-            Log.v(TAG, "onAuthenticationResult(): authId= " + authenticationId + ", data=" + data);
+            Log.v(TAG, "onAuthenticationResult(): authId= " + authenticationId + ", data="
+                    + data + ", autofill manager instance=" + this + ", context=" + mContext);
         }
         if (!hasAutofillFeature()) {
             if (sVerbose) {
@@ -2719,7 +2750,9 @@ public final class AutofillManager {
                     + ", compatMode=" + isCompatibilityModeEnabledLocked()
                     + ", augmentedOnly=" + mForAugmentedAutofillOnly
                     + ", enabledAugmentedOnly=" + mEnabledForAugmentedAutofillOnly
-                    + ", enteredIds=" + mEnteredIds);
+                    + ", enteredIds=" + mEnteredIds
+                    + ", autofill manager instance=" + this
+                    + ", context=" + mContext);
         }
         // We need to reset the augmented-only state when a manual request is made, as it's possible
         // that the service returned null for the first request and now the user is manually
@@ -2783,7 +2816,7 @@ public final class AutofillManager {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
             // no-op, just log the error message.
-            Log.w(TAG, "Exception getting result from SyncResultReceiver: " + e);
+            Log.w(TAG, "Exception getting result from SyncResultReceiver:", e);
         }
     }
 
@@ -2884,7 +2917,7 @@ public final class AutofillManager {
                 try {
                     flags = receiver.getIntResult();
                 } catch (SyncResultReceiver.TimeoutException e) {
-                    Log.w(TAG, "Failed to initialize autofill: " + e);
+                    Log.w(TAG, "Failed to initialize autofill:", e);
                     // Reset the states initialized above.
                     mService.removeClient(mServiceClient, userId);
                     mServiceClient = null;
@@ -3029,7 +3062,7 @@ public final class AutofillManager {
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();
         } catch (SyncResultReceiver.TimeoutException e) {
-            Log.e(TAG, "Fail to get the result of set AugmentedAutofill whitelist. " + e);
+            Log.e(TAG, "Fail to get the result of set AugmentedAutofill whitelist.", e);
             return;
         }
         switch (resultCode) {
@@ -3204,7 +3237,7 @@ public final class AutofillManager {
                 // The failure could be a consequence of something going wrong on the server side.
                 // Do nothing here since it's just logging, but it's possible follow-up actions may
                 // fail.
-                Log.w(TAG, "Unable to log due to " + e);
+                Log.w(TAG, "Unable to log due to", e);
             }
         } else {
             if (sDebug) {
@@ -3712,7 +3745,7 @@ public final class AutofillManager {
             try {
                 result.send(0, resultData);
             } catch (RemoteException e) {
-                Log.w(TAG, "Could not send AugmentedAutofillClient back: " + e);
+                Log.w(TAG, "Could not send AugmentedAutofillClient back:", e);
             }
         }
     }
@@ -3945,7 +3978,9 @@ public final class AutofillManager {
                 pw.print(" ("); pw.print(client.autofillClientGetActivityToken()); pw.println(')');
             }
             pw.print(pfx); pw.print("enabled: "); pw.println(mEnabled);
-            pw.print(pfx); pw.print("enabledAugmentedOnly: "); pw.println(mForAugmentedAutofillOnly);
+            pw.print(pfx);
+            pw.print("enabledAugmentedOnly: ");
+            pw.println(mForAugmentedAutofillOnly);
             pw.print(pfx); pw.print("hasService: "); pw.println(mService != null);
             pw.print(pfx); pw.print("hasCallback: "); pw.println(mCallback != null);
             pw.print(pfx); pw.print("onInvisibleCalled "); pw.println(mOnInvisibleCalled);
@@ -3958,7 +3993,9 @@ public final class AutofillManager {
                 final String pfx2 = pfx + "  ";
                 pw.println();
                 pw.print(pfx2); pw.print("visible:"); pw.println(mTrackedViews.mVisibleTrackedIds);
-                pw.print(pfx2); pw.print("invisible:"); pw.println(mTrackedViews.mInvisibleTrackedIds);
+                pw.print(pfx2);
+                pw.print("invisible:");
+                pw.println(mTrackedViews.mInvisibleTrackedIds);
             }
             pw.print(pfx); pw.print("fillable ids: "); pw.println(mFillableIds);
             pw.print(pfx); pw.print("entered ids: "); pw.println(mEnteredIds);
@@ -4118,6 +4155,32 @@ public final class AutofillManager {
             return true;
         }
         return false;
+    }
+
+    /**
+     * This method is used for a system component like SystemUI to autofill a remote app.
+     *
+     * @hide
+     */
+    public void autofillRemoteApp(
+            @NonNull AutofillId autofillId,
+            @NonNull String value,
+            @NonNull IBinder shareableActivityToken,
+            int taskId) {
+        if (android.view.contentcapture.flags.Flags.enableSystemUiUnderlay() && mService != null) {
+            final AutofillValue autofillValue = AutofillValue.forText(value);
+
+            try {
+                mService.autofillRemoteApp(
+                        shareableActivityToken,
+                        taskId,
+                        autofillId,
+                        autofillValue,
+                        mContext.getUserId());
+            } catch (Exception e) {
+                Log.e(TAG, "autofillRemoteApp() - cannot autofill remote app", e);
+            }
+        }
     }
 
     /**

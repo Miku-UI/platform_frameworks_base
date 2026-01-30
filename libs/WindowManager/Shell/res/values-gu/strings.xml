@@ -36,20 +36,25 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"આ ઍપ માત્ર 1 વિન્ડોમાં ખોલી શકાય છે"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"ઍપ્લિકેશન ગૌણ ડિસ્પ્લે પર કદાચ કામ ન કરે."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"ઍપ્લિકેશન ગૌણ ડિસ્પ્લે પર લૉન્ચનું સમર્થન કરતી નથી."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"ઍપ બબલને સપોર્ટ કરતી નથી"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"સ્ક્રીનને વિભાજિત કરતું વિભાજક"</string>
     <string name="divider_title" msgid="1963391955593749442">"સ્ક્રીનને વિભાજિત કરતું વિભાજક"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"ડાબી પૂર્ણ સ્ક્રીન"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"ડાબે 70%"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"ડાબે 50%"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"ડાબે 30%"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"જમણી સ્ક્રીન સ્ક્રીન"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"એકદમ ઉપરની ઍપને એકદમ નીચેની સાથે સ્વૉપ કરો"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"ડાબી ઍપને જમણી સાથે સ્વૉપ કરો"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"શીર્ષ પૂર્ણ સ્ક્રીન"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"શીર્ષ 70%"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"શીર્ષ 50%"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"શીર્ષ 30%"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"તળિયાની પૂર્ણ સ્ક્રીન"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"ડાબી ઍપ પૂર્ણ સ્ક્રીનમાં ખોલો"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"ડાબે 10%, જમણે 90%"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"ડાબે 30%, જમણે 70%"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"ડાબે 50%, જમણે 50%"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"ડાબે 70%, જમણે 30%"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"ડાબે 90%, જમણે 10%"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"જમણી ઍપ પૂર્ણ સ્ક્રીનમાં ખોલો"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"ઉપરની ઍપને નીચેની ઍપ સાથે સ્વૉપ કરો, હાલનું વિભાજન રાખો"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"ડાબી ઍપને જમણી ઍપ સાથે સ્વૉપ કરો, હાલનું વિભાજન રાખો"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"ઉપરની ઍપ પૂર્ણ સ્ક્રીનમાં ખોલો"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"ઉપર 10%, નીચે 90%"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"ઉપર 30%, નીચે 70%"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"ઉપર 50%, નીચે 50%"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"ઉપર 70%, નીચે 30%"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"ઉપર 90%, નીચે 10%"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"નીચેની ઍપ પૂર્ણ સ્ક્રીનમાં ખોલો"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"ડાબે વિભાજિત કરો"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"જમણે વિભાજિત કરો"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"ઉપર વિભાજિત કરો"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"વિન્ડો મેનેજ કરો"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"સાપેક્ષ ગુણોત્તર બદલો"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"વ્યૂ ઑપ્ટિમાઇઝ કરો"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"ભૂલનું આઇકન"</string>
     <string name="close_text" msgid="4986518933445178928">"બંધ કરો"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"મેનૂ બંધ કરો"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ડેસ્કટૉપ વિન્ડોઇંગ)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"સ્ક્રીન કરો મોટી કરો"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"કદ બદલો"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"ઍપ અહીં ખસેડી શકાતી નથી"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"નવી વિન્ડો ખોલવી"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"ઍપની વિન્ડો બંધ કરી રહ્યાં છીએ"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"ઍપ વિન્ડો ન્યૂનતમ કરવી"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ફોકસ કરેલ)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ફોકસ ન કરેલી)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"ઇમર્સિવ"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"રિસ્ટોર કરો"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"મોટું કરો"</string>

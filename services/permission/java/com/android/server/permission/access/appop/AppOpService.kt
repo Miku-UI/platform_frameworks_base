@@ -22,7 +22,6 @@ import android.os.Binder
 import android.os.Handler
 import android.os.UserHandle
 import android.permission.PermissionManager
-import android.permission.flags.Flags
 import android.util.ArrayMap
 import android.util.ArraySet
 import android.util.LongSparseArray
@@ -107,12 +106,10 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
     }
 
     override fun systemReady() {
-        if (Flags.runtimePermissionAppopsMappingEnabled()) {
-            createPermissionAppOpMapping()
-            val permissionListener = OnPermissionFlagsChangedListener()
-            permissionPolicy.addOnPermissionFlagsChangedListener(permissionListener)
-            devicePermissionPolicy.addOnPermissionFlagsChangedListener(permissionListener)
-        }
+        createPermissionAppOpMapping()
+        val permissionListener = OnPermissionFlagsChangedListener()
+        permissionPolicy.addOnPermissionFlagsChangedListener(permissionListener)
+        devicePermissionPolicy.addOnPermissionFlagsChangedListener(permissionListener)
     }
 
     private fun createPermissionAppOpMapping() {
@@ -127,7 +124,11 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                 // Multiple ops might map to a single permission but only one is considered the
                 // runtime appop calculations.
                 if (appOpCode == AppOpsManager.permissionToOpCode(permissionName)) {
-                    val permission = permissions[permissionName]!!
+                    val permission =
+                        checkNotNull(permissions[permissionName]) {
+                            "Missing permission definition for permission \"$permissionName\"" +
+                                " associated with app op $appOpCode"
+                        }
                     if (permission.isRuntime) {
                         runtimePermissionNameToAppOp[permissionName] = appOpCode
                         runtimeAppOpToPermissionNames[appOpCode] = permissionName
@@ -154,13 +155,10 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
         service.getState {
             val modes =
                 with(appIdPolicy) { opNameMapToOpSparseArray(getAppOpModes(appId, userId)?.map) }
-            if (Flags.runtimePermissionAppopsMappingEnabled()) {
-                runtimePermissionNameToAppOp.forEachIndexed { _, permissionName, appOpCode ->
-                    val mode =
-                        getUidModeFromPermissionState(appId, userId, permissionName, deviceId)
-                    if (mode != AppOpsManager.opToDefaultMode(appOpCode)) {
-                        modes[appOpCode] = mode
-                    }
+            runtimePermissionNameToAppOp.forEachIndexed { _, permissionName, appOpCode ->
+                val mode = getUidModeFromPermissionState(appId, userId, permissionName, deviceId)
+                if (mode != AppOpsManager.opToDefaultMode(appOpCode)) {
+                    modes[appOpCode] = mode
                 }
             }
 
@@ -172,13 +170,18 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
         return opNameMapToOpSparseArray(getPackageModes(packageName, userId))
     }
 
+    override fun getUidsWithOpMode(op: Int, mode: Int, userId: Int): List<Int> {
+        val opName = AppOpsManager.opToPublicName(op)
+        return service.getState { with(appIdPolicy) { getUidsWithOpMode(opName, mode, userId) } }
+    }
+
     override fun getUidMode(uid: Int, deviceId: String, op: Int): Int {
         val appId = UserHandle.getAppId(uid)
         val userId = UserHandle.getUserId(uid)
         val opName = AppOpsManager.opToPublicName(op)
         val permissionName = runtimeAppOpToPermissionNames[op]
 
-        return if (!Flags.runtimePermissionAppopsMappingEnabled() || permissionName == null) {
+        return if (permissionName == null) {
             service.getState { with(appIdPolicy) { getAppOpMode(appId, userId, opName) } }
         } else {
             service.getState {
@@ -197,7 +200,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
         appId: Int,
         userId: Int,
         permissionName: String,
-        deviceId: String
+        deviceId: String,
     ): Int {
         val checkDevicePermissionFlags =
             deviceId != VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT &&
@@ -237,7 +240,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
 
     private fun evaluateModeFromPermissionFlags(
         foregroundFlags: Int,
-        backgroundFlags: Int = PermissionFlags.RUNTIME_GRANTED
+        backgroundFlags: Int = PermissionFlags.RUNTIME_GRANTED,
     ): Int =
         if (PermissionFlags.isAppOpGranted(foregroundFlags)) {
             if (PermissionFlags.isAppOpGranted(backgroundFlags)) {
@@ -254,9 +257,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
         val userId = UserHandle.getUserId(uid)
         val appOpName = AppOpsManager.opToPublicName(code)
 
-        if (
-            Flags.runtimePermissionAppopsMappingEnabled() && code in runtimeAppOpToPermissionNames
-        ) {
+        if (code in runtimeAppOpToPermissionNames) {
             val oldMode =
                 service.getState { with(appIdPolicy) { getAppOpMode(appId, userId, appOpName) } }
             val wouldHaveChanged = oldMode != mode
@@ -296,15 +297,12 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
     override fun setPackageMode(packageName: String, appOpCode: Int, mode: Int, userId: Int) {
         val appOpName = AppOpsManager.opToPublicName(appOpCode)
 
-        if (
-            Flags.runtimePermissionAppopsMappingEnabled() &&
-                appOpCode in runtimeAppOpToPermissionNames
-        ) {
+        if (appOpCode in runtimeAppOpToPermissionNames) {
             Slog.w(
                 LOG_TAG,
                 "(packageName=$packageName, userId=$userId)'s appop state" +
                     " for runtime op $appOpName should not be set directly.",
-                RuntimeException()
+                RuntimeException(),
             )
             return
         }
@@ -350,11 +348,9 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                     this[AppOpsManager.strOpToOp(op)] = true
                 }
             }
-            if (Flags.runtimePermissionAppopsMappingEnabled()) {
-                foregroundableOps.forEachIndexed { _, op, _ ->
-                    if (getUidMode(uid, deviceId, op) == AppOpsManager.MODE_FOREGROUND) {
-                        this[op] = true
-                    }
+            foregroundableOps.forEachIndexed { _, op, _ ->
+                if (getUidMode(uid, deviceId, op) == AppOpsManager.MODE_FOREGROUND) {
+                    this[op] = true
                 }
             }
         }
@@ -367,11 +363,9 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                     this[AppOpsManager.strOpToOp(op)] = true
                 }
             }
-            if (Flags.runtimePermissionAppopsMappingEnabled()) {
-                foregroundableOps.forEachIndexed { _, op, _ ->
-                    if (getPackageMode(packageName, op, userId) == AppOpsManager.MODE_FOREGROUND) {
-                        this[op] = true
-                    }
+            foregroundableOps.forEachIndexed { _, op, _ ->
+                if (getPackageMode(packageName, op, userId) == AppOpsManager.MODE_FOREGROUND) {
+                    this[op] = true
                 }
             }
         }
@@ -405,7 +399,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
             userId: Int,
             appOpName: String,
             oldMode: Int,
-            newMode: Int
+            newMode: Int,
         ) {
             val uid = UserHandle.getUid(userId, appId)
             val appOpCode = AppOpsManager.strOpToOp(appOpName)
@@ -425,7 +419,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                         uid,
                         appOpCode,
                         mode,
-                        VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT
+                        VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,
                     )
                 }
             }
@@ -444,7 +438,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
             userId: Int,
             appOpName: String,
             oldMode: Int,
-            newMode: Int
+            newMode: Int,
         ) {
             val appOpCode = AppOpsManager.strOpToOp(appOpName)
             val key = Triple(packageName, userId, appOpCode)
@@ -479,7 +473,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
             userId: Int,
             permissionName: String,
             oldFlags: Int,
-            newFlags: Int
+            newFlags: Int,
         ) {
             onDevicePermissionFlagsChanged(
                 appId,
@@ -487,7 +481,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                 VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT,
                 permissionName,
                 oldFlags,
-                newFlags
+                newFlags,
             )
         }
 
@@ -497,7 +491,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
             deviceId: String,
             permissionName: String,
             oldFlags: Int,
-            newFlags: Int
+            newFlags: Int,
         ) {
             backgroundToForegroundPermissionNames[permissionName]?.let { foregroundPermissions ->
                 // This is a background permission; there may be multiple foreground permissions
@@ -514,7 +508,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                             foregroundPermissionFlags,
                             oldFlags,
                             foregroundPermissionFlags,
-                            newFlags
+                            newFlags,
                         )
                     }
                 }
@@ -532,11 +526,11 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                             oldFlags,
                             backgroundPermissionFlags,
                             newFlags,
-                            backgroundPermissionFlags
+                            backgroundPermissionFlags,
                         )
                     }
                 }
-                    ?: runtimePermissionNameToAppOp[permissionName]?.let { appOpCode ->
+                ?: runtimePermissionNameToAppOp[permissionName]?.let { appOpCode ->
                     addPendingChangedModeIfNeeded(
                         appId,
                         userId,
@@ -545,7 +539,7 @@ class AppOpService(private val service: AccessCheckingService) : AppOpsCheckingS
                         oldFlags,
                         PermissionFlags.RUNTIME_GRANTED,
                         newFlags,
-                        PermissionFlags.RUNTIME_GRANTED
+                        PermissionFlags.RUNTIME_GRANTED,
                     )
                 }
         }

@@ -17,15 +17,22 @@
 package com.android.systemui.statusbar.notification.stack
 
 import android.os.VibrationAttributes
+import android.os.VibrationEffect
 import androidx.dynamicanimation.animation.SpringForce
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.statusbar.VibratorHelper
+import com.android.systemui.statusbar.notification.Roundable
+import com.android.systemui.statusbar.notification.TopBottomRoundness
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow
 import com.android.systemui.statusbar.notification.row.NotificationRowLogger
+import com.android.systemui.util.time.SystemClock
 import com.google.android.msdl.data.model.MSDLToken
 import com.google.android.msdl.domain.InteractionProperties
 import com.google.android.msdl.domain.MSDLPlayer
 import javax.inject.Inject
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sign
 import org.jetbrains.annotations.TestOnly
@@ -35,13 +42,28 @@ class MagneticNotificationRowManagerImpl
 @Inject
 constructor(
     private val msdlPlayer: MSDLPlayer,
+    private val vibratorHelper: VibratorHelper,
     private val notificationTargetsHelper: NotificationTargetsHelper,
     private val notificationRoundnessManager: NotificationRoundnessManager,
     private val logger: NotificationRowLogger,
+    private val systemClock: SystemClock,
 ) : MagneticNotificationRowManager {
 
     var currentState = State.IDLE
-        private set
+        private set(value) {
+            val swipedLoggingKey =
+                currentMagneticListeners.swipedListener()?.getRowLoggingKey().toString()
+            if (swipedLoggingKey == "null") {
+                logger.logMagneticRowManagerInvalidStateChange(from = currentState, to = value)
+            } else {
+                logger.logMagneticRowManagerStateSet(
+                    loggingKey = swipedLoggingKey,
+                    from = currentState,
+                    to = value,
+                )
+            }
+            field = value
+        }
 
     // Magnetic targets
     var currentMagneticListeners = listOf<MagneticRowListener?>()
@@ -59,23 +81,38 @@ constructor(
         SpringForce().setStiffness(DETACH_STIFFNESS).setDampingRatio(DETACH_DAMPING_RATIO)
     private val snapForce =
         SpringForce().setStiffness(SNAP_BACK_STIFFNESS).setDampingRatio(SNAP_BACK_DAMPING_RATIO)
-    private val attachForce =
-        SpringForce().setStiffness(ATTACH_STIFFNESS).setDampingRatio(ATTACH_DAMPING_RATIO)
 
     // Multiplier applied to the translation of a row while swiped
     val swipedRowMultiplier =
         MAGNETIC_TRANSLATION_MULTIPLIERS[MAGNETIC_TRANSLATION_MULTIPLIERS.size / 2]
 
-    /**
-     * An offset applied to input translation that increases on subsequent re-attachments of a
-     * detached magnetic view. This helps keep computations consistent when the drag gesture input
-     * and the swiped notification don't share the same origin point after a re-attaching animation.
-     */
-    private var translationOffset = 0f
-
     private var dismissVelocity = 0f
 
     private val detachDirectionEstimator = DirectionEstimator()
+
+    private var magneticSwipeInfoProvider: MagneticNotificationRowManager.SwipeInfoProvider? = null
+
+    // Last time pulling haptics played, in milliseconds since boot
+    // (see SystemClock.elapsedRealtime)
+    private var lastVibrationTime = 0L
+
+    private val detachedRoundnessSet =
+        List(ROUNDNESS_MULTIPLIERS.size) { index ->
+            when (index) {
+                ROUNDNESS_MULTIPLIERS.size / 2 - 1 ->
+                    TopBottomRoundness(topRoundness = 0f, bottomRoundness = 1f)
+                ROUNDNESS_MULTIPLIERS.size / 2 -> TopBottomRoundness(roundness = 1f)
+                ROUNDNESS_MULTIPLIERS.size / 2 + 1 ->
+                    TopBottomRoundness(topRoundness = 1f, bottomRoundness = 0f)
+                else -> TopBottomRoundness(roundness = 0f)
+            }
+        }
+
+    override fun setInfoProvider(
+        swipeInfoProvider: MagneticNotificationRowManager.SwipeInfoProvider?
+    ) {
+        magneticSwipeInfoProvider = swipeInfoProvider
+    }
 
     override fun onDensityChange(density: Float) {
         magneticDetachThreshold =
@@ -91,7 +128,6 @@ constructor(
         sectionsManager: NotificationSectionsManager,
     ) {
         if (currentState == State.IDLE) {
-            translationOffset = 0f
             detachDirectionEstimator.reset()
             updateMagneticAndRoundableTargets(swipingRow, stackScrollLayout, sectionsManager)
             currentState = State.TARGETS_SET
@@ -105,24 +141,24 @@ constructor(
         stackScrollLayout: NotificationStackScrollLayout,
         sectionsManager: NotificationSectionsManager,
     ) {
-        // Update roundable targets
-        notificationRoundnessManager.clear()
-        val currentRoundableTargets =
-            notificationTargetsHelper.findRoundableTargets(
-                expandableNotificationRow,
-                stackScrollLayout,
-                sectionsManager,
-            )
-        notificationRoundnessManager.setRoundableTargets(currentRoundableTargets)
-
-        // Update magnetic targets
-        val newListeners =
-            notificationTargetsHelper.findMagneticTargets(
+        // All targets
+        val newTargets =
+            notificationTargetsHelper.findMagneticRoundableTargets(
                 expandableNotificationRow,
                 stackScrollLayout,
                 sectionsManager,
                 MAGNETIC_TRANSLATION_MULTIPLIERS.size,
             )
+
+        // Update roundable targets
+        notificationRoundnessManager.clear()
+        notificationRoundnessManager.setRoundableTargets(newTargets.map { it.roundable })
+
+        val newListeners =
+            newTargets
+                // Remove the roundable boundaries
+                .filterIndexed { i, _ -> i > 0 && i < newTargets.size - 1 }
+                .map { it.magneticRowListener }
         newListeners.forEach {
             if (currentMagneticListeners.contains(it)) {
                 it?.cancelMagneticAnimations()
@@ -142,29 +178,28 @@ constructor(
 
         val canTargetBeDismissed =
             currentMagneticListeners.swipedListener()?.canRowBeDismissed() ?: false
-        val correctedTranslation = translation - translationOffset
         when (currentState) {
             State.IDLE -> {
                 logger.logMagneticRowTranslationNotSet(currentState, row.getLoggingKey())
                 return false
             }
             State.TARGETS_SET -> {
-                detachDirectionEstimator.recordTranslation(correctedTranslation)
-                pullTargets(correctedTranslation, canTargetBeDismissed)
+                detachDirectionEstimator.recordTranslation(translation)
+                pullTargets(translation, canTargetBeDismissed)
                 currentState = State.PULLING
             }
             State.PULLING -> {
-                detachDirectionEstimator.recordTranslation(correctedTranslation)
-                updateRoundness(correctedTranslation)
+                detachDirectionEstimator.recordTranslation(translation)
+                updateRoundness(translation)
                 if (canTargetBeDismissed) {
-                    pullDismissibleRow(correctedTranslation)
+                    pullDismissibleRow(translation)
                 } else {
-                    pullTargets(correctedTranslation, canSwipedBeDismissed = false)
+                    pullTargets(translation, canSwipedBeDismissed = false)
                 }
             }
             State.DETACHED -> {
-                detachDirectionEstimator.recordTranslation(correctedTranslation)
-                translateDetachedRow(correctedTranslation)
+                detachDirectionEstimator.recordTranslation(translation)
+                translateDetachedRow(translation)
             }
         }
         return true
@@ -172,8 +207,18 @@ constructor(
 
     private fun updateRoundness(translation: Float, animate: Boolean = false) {
         val normalizedTranslation = abs(swipedRowMultiplier * translation) / magneticDetachThreshold
+        val cappedRoundness = normalizedTranslation.coerceIn(0f, MAX_PRE_DETACH_ROUNDNESS)
+        val roundnessSet =
+            ROUNDNESS_MULTIPLIERS.mapIndexed { i, multiplier ->
+                val roundness = multiplier * cappedRoundness
+                when (i) {
+                    0 -> TopBottomRoundness(bottomRoundness = roundness)
+                    ROUNDNESS_MULTIPLIERS.size - 1 -> TopBottomRoundness(topRoundness = roundness)
+                    else -> TopBottomRoundness(roundness)
+                }
+            }
         notificationRoundnessManager.setRoundnessForAffectedViews(
-            /* roundness */ normalizedTranslation.coerceIn(0f, MAX_PRE_DETACH_ROUNDNESS),
+            /* roundnessSet */ roundnessSet,
             animate,
         )
     }
@@ -205,10 +250,13 @@ constructor(
                 it.setMagneticTranslation(targetTranslation)
             }
         }
-        // TODO(b/399633875): Enable pull haptics after we have a clear and polished haptics design
+        playPullHaptics(mappedTranslation = translation * swipedRowMultiplier, canSwipedBeDismissed)
     }
 
     private fun playPullHaptics(mappedTranslation: Float, canSwipedBeDismissed: Boolean) {
+        val currentTime = systemClock.elapsedRealtime()
+        if ((currentTime - lastVibrationTime) < VIBRATION_TIME_THRESHOLD) return
+        lastVibrationTime = currentTime
         val normalizedTranslation = abs(mappedTranslation) / magneticDetachThreshold
         val scaleFactor =
             if (canSwipedBeDismissed) {
@@ -216,14 +264,41 @@ constructor(
             } else {
                 STRONG_VIBRATION_SCALE
             }
-        val vibrationScale = scaleFactor * normalizedTranslation
-        msdlPlayer.playToken(
-            MSDLToken.DRAG_INDICATOR_CONTINUOUS,
-            InteractionProperties.DynamicVibrationScale(
-                scale = vibrationScale.pow(VIBRATION_PERCEPTION_EXPONENT),
-                vibrationAttributes = VIBRATION_ATTRIBUTES_PIPELINING,
-            ),
-        )
+        val vibrationScale = scaleFactor * normalizedTranslation.pow(VIBRATION_SCALE_EXPONENT)
+        val compensatedScale =
+            vibrationScale.pow(VIBRATION_PERCEPTION_EXPONENT).coerceAtMost(maximumValue = 1f)
+        if (Flags.msdlFeedback()) {
+            msdlPlayer.playToken(
+                MSDLToken.DRAG_INDICATOR_CONTINUOUS,
+                InteractionProperties.DynamicVibrationScale(
+                    scale = compensatedScale,
+                    vibrationAttributes = VIBRATION_ATTRIBUTES_PIPELINING,
+                ),
+            )
+        } else {
+            val composition =
+                VibrationEffect.startComposition().apply {
+                    repeat(N_LOW_TICKS) {
+                        addPrimitive(
+                            VibrationEffect.Composition.PRIMITIVE_LOW_TICK,
+                            compensatedScale,
+                        )
+                    }
+                }
+            vibratorHelper.vibrate(composition.compose(), VIBRATION_ATTRIBUTES_PIPELINING)
+        }
+    }
+
+    private fun playThresholdHaptics() {
+        if (Flags.msdlFeedback()) {
+            msdlPlayer.playToken(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
+        } else {
+            val composition =
+                VibrationEffect.startComposition()
+                    .addPrimitive(VibrationEffect.Composition.PRIMITIVE_CLICK, 0.7f)
+                    .compose()
+            vibratorHelper.vibrate(composition)
+        }
     }
 
     private fun snapNeighborsBack(velocity: Float? = null) {
@@ -238,13 +313,19 @@ constructor(
     }
 
     private fun detach(listener: MagneticRowListener, toPosition: Float) {
+        val direction = detachDirectionEstimator.direction
+        val velocity = magneticSwipeInfoProvider?.getCurrentSwipeVelocity() ?: 0f
         listener.cancelMagneticAnimations()
-        listener.triggerMagneticForce(toPosition, detachForce)
+        listener.triggerMagneticForce(
+            toPosition,
+            detachForce,
+            startVelocity = direction * abs(velocity),
+        )
         notificationRoundnessManager.setRoundnessForAffectedViews(
-            /* roundness */ 1f,
+            /* roundnessSet */ detachedRoundnessSet,
             /* animate */ true,
         )
-        msdlPlayer.playToken(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
+        playThresholdHaptics()
     }
 
     private fun snapBack(listener: MagneticRowListener, velocity: Float?) {
@@ -259,30 +340,57 @@ constructor(
     private fun translateDetachedRow(translation: Float) {
         val crossedThreshold = abs(translation) <= magneticAttachThreshold
         if (crossedThreshold) {
-            translationOffset += translation
-            detachDirectionEstimator.reset()
-            updateRoundness(translation = 0f, animate = true)
-            currentMagneticListeners.swipedListener()?.let { attach(it) }
+            updateRoundness(translation, animate = true)
+            attach(translation)
             currentState = State.PULLING
         } else {
             val swiped = currentMagneticListeners.swipedListener()
-            swiped?.setMagneticTranslation(translation, trackEagerly = false)
+            swiped?.setMagneticTranslation(translation)
         }
     }
 
-    private fun attach(listener: MagneticRowListener) {
-        listener.cancelMagneticAnimations()
-        listener.triggerMagneticForce(endTranslation = 0f, attachForce)
-        msdlPlayer.playToken(MSDLToken.SWIPE_THRESHOLD_INDICATOR)
+    private fun attach(translation: Float) {
+        val detachDirection = detachDirectionEstimator.direction
+        val swipeVelocity = magneticSwipeInfoProvider?.getCurrentSwipeVelocity() ?: 0f
+        playThresholdHaptics()
+        currentMagneticListeners.forEachIndexed { i, listener ->
+            val targetTranslation = MAGNETIC_TRANSLATION_MULTIPLIERS[i] * translation
+            val attachForce =
+                SpringForce().setStiffness(ATTACH_STIFFNESS).setDampingRatio(ATTACH_DAMPING_RATIO)
+            val velocity =
+                if (i == currentMagneticListeners.size / 2) {
+                    -detachDirection * abs(swipeVelocity)
+                } else {
+                    0f
+                }
+            listener?.cancelMagneticAnimations()
+            listener?.triggerMagneticForce(
+                endTranslation = targetTranslation,
+                springForce = attachForce,
+                startVelocity = velocity,
+            )
+        }
+        detachDirectionEstimator.reset()
     }
 
-    override fun onMagneticInteractionEnd(row: ExpandableNotificationRow, velocity: Float?) {
-        translationOffset = 0f
+    override fun onMagneticInteractionEnd(
+        row: ExpandableNotificationRow,
+        dismissing: Boolean,
+        velocity: Float?,
+    ) {
         detachDirectionEstimator.reset()
         if (row.isSwipedTarget()) {
             when (currentState) {
-                State.TARGETS_SET -> currentState = State.IDLE
+                State.TARGETS_SET -> {
+                    if (dismissing) {
+                        playThresholdHaptics()
+                    }
+                    currentState = State.IDLE
+                }
                 State.PULLING -> {
+                    if (dismissing) {
+                        playThresholdHaptics()
+                    }
                     snapNeighborsBack(velocity)
                     currentState = State.IDLE
                 }
@@ -318,10 +426,16 @@ constructor(
         }
     }
 
+    override fun getDetachDirection(row: ExpandableNotificationRow): Int =
+        if (row.isSwipedTarget()) {
+            detachDirectionEstimator.direction.toInt()
+        } else {
+            0
+        }
+
     override fun resetRoundness() = notificationRoundnessManager.clear()
 
     override fun reset() {
-        translationOffset = 0f
         detachDirectionEstimator.reset()
         currentMagneticListeners.forEach {
             it?.cancelMagneticAnimations()
@@ -338,10 +452,10 @@ constructor(
     private fun ExpandableNotificationRow.isSwipedTarget(): Boolean =
         magneticRowListener == currentMagneticListeners.swipedListener()
 
-    private fun NotificationRoundnessManager.clear() = setViewsAffectedBySwipe(null, null, null)
+    private fun NotificationRoundnessManager.clear() = setViewsAffectedBySwipe(listOf())
 
-    private fun NotificationRoundnessManager.setRoundableTargets(targets: RoundableTargets) =
-        setViewsAffectedBySwipe(targets.before, targets.swiped, targets.after)
+    private fun NotificationRoundnessManager.setRoundableTargets(targets: List<Roundable?>) =
+        setViewsAffectedBySwipe(targets)
 
     /**
      * A class to estimate the direction of a gesture translations with a moving average.
@@ -351,12 +465,27 @@ constructor(
      */
     class DirectionEstimator {
 
-        // A buffer to hold past translations. This is used as a FIFO structure with a fixed size.
-        private val translationBuffer = ArrayDeque<Float>()
+        // A ring buffer to hold past translations. This is a FIFO structure with a fixed size.
+        private val translationBuffer = FloatArray(size = TRANSLATION_BUFFER_SIZE)
+        // The head points to the next available slot in the buffer
+        private var bufferHead = 0
 
         /**
-         * The estimated direction of the translations. It will be estimated as the average of the
-         * values in the [translationBuffer] and set only once when the estimator is halted.
+         * A kernel function that multiplies values in the translation buffer to derive a weighted
+         * average.
+         *
+         * The kernel should give higher weights to most recent values in the buffer, and smaller
+         * weights to past values.
+         */
+        private val kernel =
+            FloatArray(size = TRANSLATION_BUFFER_SIZE) { i ->
+                val x = (i + 1) / TRANSLATION_BUFFER_SIZE.toFloat()
+                -0.45f * cos(kotlin.math.PI.toFloat() * x) + 0.55f
+            }
+
+        /**
+         * The estimated direction of the translations. It will be estimated as the weighted average
+         * of the values in the [translationBuffer] and set only once when the estimator is halted.
          */
         var direction = 0f
             private set
@@ -371,35 +500,44 @@ constructor(
         fun recordTranslation(translation: Float) {
             if (!acceptTranslations) return
 
-            if (translationBuffer.size == TRANSLATION_BUFFER_SIZE) {
-                translationBuffer.removeFirst()
-            }
-            translationBuffer.addLast(translation)
+            translationBuffer[bufferHead] = translation
+            // Move the head pointer, wrapping if necessary
+            bufferHead = (bufferHead + 1) % TRANSLATION_BUFFER_SIZE
         }
 
         /**
          * Halt the operation of the estimator.
          *
          * This stops the estimator from receiving new translations and derives the estimated
-         * direction. This is the sign of the average value from the available data in the
+         * direction. This is the sign of the weighted average value from the available data in the
          * [translationBuffer].
          */
         fun halt() {
             acceptTranslations = false
-            direction = translationBuffer.mean()
+            direction = translationBuffer.kernelMean()
         }
 
         fun reset() {
-            translationBuffer.clear()
+            direction = 0f
+            translationBuffer.fill(element = 0f)
             acceptTranslations = true
         }
 
-        private fun ArrayDeque<Float>.mean(): Float =
-            if (isEmpty()) {
-                0f
-            } else {
-                sign(sum() / translationBuffer.size)
+        private fun FloatArray.kernelMean(): Float {
+            // Unfold the ring buffer into a list with the most recent translations to the right
+            val unfolded = mutableListOf<Float>()
+            var i = bufferHead
+            repeat(times = size) {
+                unfolded.add(translationBuffer[i])
+                i = (i + 1) % size
             }
+            // Get a weighted average after applying the kernel function
+            val weightedSum =
+                kernel
+                    .zip(other = unfolded) { kernelMultiplier, value -> value * kernelMultiplier }
+                    .sum()
+            return sign(weightedSum / size)
+        }
 
         companion object {
             private const val TRANSLATION_BUFFER_SIZE = 10
@@ -422,6 +560,13 @@ constructor(
          */
         private val MAGNETIC_TRANSLATION_MULTIPLIERS = listOf(0.04f, 0.12f, 0.5f, 0.12f, 0.04f)
 
+        /**
+         * Multipliers applied to roundable targets. Their structure mimic that of
+         * [MAGNETIC_TRANSLATION_MULTIPLIERS] but are only used to modify the roundness of current
+         * targets.
+         */
+        private val ROUNDNESS_MULTIPLIERS = listOf(0.5f, 0.7f, 0.9f, 1.0f, 0.9f, 0.7f, 0.5f)
+
         const val MAGNETIC_REDUCTION = 0.65f
 
         /** Spring parameters for physics animators */
@@ -429,7 +574,7 @@ constructor(
         private const val DETACH_DAMPING_RATIO = 0.95f
         private const val SNAP_BACK_STIFFNESS = 550f
         private const val SNAP_BACK_DAMPING_RATIO = 0.6f
-        private const val ATTACH_STIFFNESS = 800f
+        private const val ATTACH_STIFFNESS = 850f
         private const val ATTACH_DAMPING_RATIO = 0.95f
 
         private const val DISMISS_VELOCITY = 500 // in dp/sec
@@ -442,8 +587,15 @@ constructor(
                 .setUsage(VibrationAttributes.USAGE_TOUCH)
                 .setFlags(VibrationAttributes.FLAG_PIPELINED_EFFECT)
                 .build()
-        private const val VIBRATION_PERCEPTION_EXPONENT = 1 / 0.89f
         private const val WEAK_VIBRATION_SCALE = 0.2f
-        private const val STRONG_VIBRATION_SCALE = 0.45f
+        private const val STRONG_VIBRATION_SCALE = 0.4f
+        // Exponent applied to a normalized translation to make the linear translation exponential
+        private const val VIBRATION_SCALE_EXPONENT = 1.27f
+        // Exponent applied to a vibration scale to compensate for human vibration perception
+        private const val VIBRATION_PERCEPTION_EXPONENT = 1 / 0.89f
+        // How much time we wait (in milliseconds) before we play a new pulling vibration
+        private const val VIBRATION_TIME_THRESHOLD = 60
+        // The number of LOW_TICK primitives in a pulling vibration
+        private const val N_LOW_TICKS = 5
     }
 }

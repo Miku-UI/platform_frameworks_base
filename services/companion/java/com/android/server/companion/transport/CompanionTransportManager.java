@@ -16,16 +16,13 @@
 
 package com.android.server.companion.transport;
 
-import static android.companion.AssociationRequest.DEVICE_PROFILE_WEARABLE_SENSING;
 import static android.companion.CompanionDeviceManager.MESSAGE_REQUEST_PERMISSION_RESTORE;
-import static android.companion.CompanionDeviceManager.TRANSPORT_FLAG_EXTEND_PATCH_DIFF;
-
-import static com.android.server.companion.transport.TransportUtils.enforceAssociationCanUseTransportFlags;
 
 import android.annotation.NonNull;
 import android.annotation.SuppressLint;
 import android.companion.AssociationInfo;
 import android.companion.IOnMessageReceivedListener;
+import android.companion.IOnTransportEventListener;
 import android.companion.IOnTransportsChangedListener;
 import android.content.Context;
 import android.os.Build;
@@ -53,7 +50,7 @@ import java.util.concurrent.Future;
 public class CompanionTransportManager {
     private static final String TAG = "CDM_CompanionTransportManager";
 
-    private boolean mSecureTransportEnabled = true;
+    private int mOverriddenTransportType = 0;
 
     private final Context mContext;
     private final AssociationStore mAssociationStore;
@@ -68,6 +65,16 @@ public class CompanionTransportManager {
     @GuardedBy("mTransports")
     private final RemoteCallbackList<IOnTransportsChangedListener> mTransportsListeners =
             new RemoteCallbackList<>();
+
+    /** Association ID -> IOnTransportEventListener
+     * Can be registered even if the transport for a given association ID doesn't exist yet.
+     * The transport manager will retroactively add newly registered listeners to an existing
+     * transport and also add all registered listeners to a new transport.
+     */
+    @GuardedBy("mEventListeners")
+    @NonNull
+    private final SparseArray<Set<IOnTransportEventListener>> mEventListeners =
+            new SparseArray<>();
 
     /** Message type -> IOnMessageReceivedListener */
     @GuardedBy("mMessageListeners")
@@ -98,6 +105,24 @@ public class CompanionTransportManager {
     }
 
     /**
+     * Add a listener to receive callbacks when transport reports an event
+     */
+    public void addListener(int associationId, IOnTransportEventListener listener) {
+        synchronized (mEventListeners) {
+            if (!mEventListeners.contains(associationId)) {
+                mEventListeners.put(associationId, new HashSet<IOnTransportEventListener>());
+            }
+            mEventListeners.get(associationId).add(listener);
+        }
+        synchronized (mTransports) {
+            if (!mTransports.contains(associationId)) {
+                return;
+            }
+            mTransports.get(associationId).addListener(listener);
+        }
+    }
+
+    /**
      * Add a listener to receive callbacks when any of the transports is changed
      */
     public void addListener(IOnTransportsChangedListener listener) {
@@ -114,6 +139,33 @@ public class CompanionTransportManager {
                     }
                 }
             });
+        }
+    }
+
+    /**
+     * Remove the listener for transport events. Ignore if there is no transport for the given ID.
+     */
+    public void removeListener(int associationId, IOnTransportEventListener listener) {
+        synchronized (mEventListeners) {
+            if (!mEventListeners.contains(associationId)) {
+                return;
+            }
+            mEventListeners.get(associationId).remove(listener);
+        }
+        synchronized (mTransports) {
+            if (!mTransports.contains(associationId)) {
+                return;
+            }
+            mTransports.get(associationId).removeListener(listener);
+        }
+    }
+
+    /**
+     * Remove all listeners for a given association (for clean up during disassociation).
+     */
+    public void removeListeners(int associationId) {
+        synchronized (mEventListeners) {
+            mEventListeners.delete(associationId);
         }
     }
 
@@ -141,29 +193,30 @@ public class CompanionTransportManager {
     /**
      * Send a message to remote devices through the transports
      */
-    public void sendMessage(int message, byte[] data, int[] associationIds) {
+    public SparseArray<Future<byte[]>> sendMessage(int message, byte[] data, int[] associationIds) {
         Slog.d(TAG, "Sending message 0x" + Integer.toHexString(message)
                 + " data length " + data.length);
+        SparseArray<Future<byte[]>> futures = new SparseArray<>();
         synchronized (mTransports) {
             for (int i = 0; i < associationIds.length; i++) {
-                if (mTransports.contains(associationIds[i])) {
-                    mTransports.get(associationIds[i]).sendMessage(message, data);
+                int associationId = associationIds[i];
+                if (mTransports.contains(associationId)) {
+                    futures.put(associationId,
+                            mTransports.get(associationId).sendMessage(message, data));
                 }
             }
         }
+        return futures;
     }
 
     /**
      * Attach transport.
      */
-    public void attachSystemDataTransport(int associationId, ParcelFileDescriptor fd,
-                                          int flags) {
+    public void attachSystemDataTransport(int associationId, ParcelFileDescriptor fd) {
         Slog.i(TAG, "Attaching transport for association id=[" + associationId + "]...");
 
         AssociationInfo association =
                 mAssociationStore.getAssociationWithCallerChecks(associationId);
-
-        enforceAssociationCanUseTransportFlags(association, flags);
 
         synchronized (mTransports) {
             if (mTransports.contains(associationId)) {
@@ -171,7 +224,7 @@ public class CompanionTransportManager {
             }
 
             // TODO: Implement new API to pass a PSK
-            initializeTransport(association, fd, null, flags);
+            initializeTransport(association, fd, null);
 
             notifyOnTransportsChanged();
         }
@@ -193,14 +246,18 @@ public class CompanionTransportManager {
                 return;
             }
 
-            transport.stop();
+            transport.close();
             notifyOnTransportsChanged();
         }
 
         Slog.i(TAG, "Transport detached.");
     }
 
-    private List<AssociationInfo> getAssociationsWithTransport() {
+    /**
+     * Returns a list of associations that has a transport attached.
+     * @return a list of associations
+     */
+    public List<AssociationInfo> getAssociationsWithTransport() {
         List<AssociationInfo> associations = new ArrayList<>();
         synchronized (mTransports) {
             for (int i = 0; i < mTransports.size(); i++) {
@@ -227,43 +284,52 @@ public class CompanionTransportManager {
 
     private void initializeTransport(AssociationInfo association,
                                      ParcelFileDescriptor fd,
-                                     byte[] preSharedKey,
-                                     int flags) {
+                                     byte[] preSharedKey) {
         Slog.i(TAG, "Initializing transport");
-        int associationId = association.getId();
-        Transport transport;
-        if (!isSecureTransportEnabled()) {
-            // If secure transport is explicitly disabled for testing, use raw transport
-            Slog.i(TAG, "Secure channel is disabled. Creating raw transport");
-            transport = new RawTransport(associationId, fd, mContext);
-        } else if (Build.isDebuggable()) {
-            // If device is debug build, use hardcoded test key for authentication
-            Slog.d(TAG, "Creating an unauthenticated secure channel");
-            final byte[] testKey = "CDM".getBytes(StandardCharsets.UTF_8);
-            transport = new SecureTransport(associationId, fd, mContext, testKey, null, 0);
-        } else if (preSharedKey != null) {
-            // If either device is not Android, then use app-specific pre-shared key
-            Slog.d(TAG, "Creating a PSK-authenticated secure channel");
-            transport = new SecureTransport(associationId, fd, mContext, preSharedKey, null, 0);
-        } else if (DEVICE_PROFILE_WEARABLE_SENSING.equals(association.getDeviceProfile())) {
-            // If device is glasses with WEARABLE_SENSING profile, extend the allowed patch
-            // difference to 2 years instead of 1.
-            Slog.d(TAG, "Creating a secure channel with extended patch difference allowance");
-            transport = new SecureTransport(associationId, fd, mContext,
-                    TRANSPORT_FLAG_EXTEND_PATCH_DIFF);
-        } else {
-            // If none of the above applies, then use secure channel with attestation verification
-            Slog.d(TAG, "Creating a secure channel");
-            transport = new SecureTransport(associationId, fd, mContext, flags);
-        }
-
-        addMessageListenersToTransport(transport);
+        int flags = association.getTransportFlags();
+        Transport transport = createTransport(association, fd, preSharedKey, flags);
+        addListenersToTransport(transport);
         transport.setOnTransportClosedListener(this::detachSystemDataTransport);
         transport.start();
         synchronized (mTransports) {
-            mTransports.put(associationId, transport);
+            mTransports.put(association.getId(), transport);
+        }
+    }
+
+    private Transport createTransport(AssociationInfo association,
+            ParcelFileDescriptor fd,
+            byte[] preSharedKey,
+            int flags) {
+        int associationId = association.getId();
+
+        // If transport type is overridden to secure, create a secure transport.
+        if (mOverriddenTransportType == 2) {
+            Slog.i(TAG, "Creating secure transport by override");
+            return new SecureTransport(associationId, fd, mContext, flags);
         }
 
+        // If transport type is overridden to raw, create a raw transport.
+        if (mOverriddenTransportType == 1) {
+            Slog.i(TAG, "Creating raw transport by override");
+            return new RawTransport(associationId, fd, mContext);
+        }
+
+        // If device is debug build, use hardcoded test key for authentication
+        if (Build.isDebuggable()) {
+            Slog.d(TAG, "Creating an unauthenticated secure channel");
+            final byte[] testKey = "CDM".getBytes(StandardCharsets.UTF_8);
+            return new SecureTransport(associationId, fd, mContext, testKey, null, 0);
+        }
+
+        // If either device is not Android, then use app-specific pre-shared key
+        if (preSharedKey != null) {
+            Slog.d(TAG, "Creating a PSK-authenticated secure channel");
+            return new SecureTransport(associationId, fd, mContext, preSharedKey, null, 0);
+        }
+
+        // If none of the above applies, then use secure channel with attestation verification
+        Slog.d(TAG, "Creating a secure channel");
+        return new SecureTransport(associationId, fd, mContext, flags);
     }
 
     public Future<?> requestPermissionRestore(int associationId, byte[] data) {
@@ -298,8 +364,8 @@ public class CompanionTransportManager {
     /**
      * @hide
      */
-    public void enableSecureTransport(boolean enabled) {
-        this.mSecureTransportEnabled = enabled;
+    public void overrideTransportType(int typeOverride) {
+        this.mOverriddenTransportType = typeOverride;
     }
 
     /**
@@ -312,7 +378,7 @@ public class CompanionTransportManager {
             FileDescriptor fd = new FileDescriptor();
             ParcelFileDescriptor pfd = new ParcelFileDescriptor(fd);
             EmulatedTransport transport = new EmulatedTransport(associationId, pfd, mContext);
-            addMessageListenersToTransport(transport);
+            addListenersToTransport(transport);
             mTransports.put(associationId, transport);
             notifyOnTransportsChanged();
             return transport;
@@ -344,15 +410,20 @@ public class CompanionTransportManager {
         }
     }
 
-    private boolean isSecureTransportEnabled() {
-        return mSecureTransportEnabled;
-    }
-
-    private void addMessageListenersToTransport(Transport transport) {
+    private void addListenersToTransport(Transport transport) {
         synchronized (mMessageListeners) {
             for (int i = 0; i < mMessageListeners.size(); i++) {
                 for (IOnMessageReceivedListener listener : mMessageListeners.valueAt(i)) {
                     transport.addListener(mMessageListeners.keyAt(i), listener);
+                }
+            }
+        }
+        synchronized (mEventListeners) {
+            int associationId = transport.getAssociationId();
+            Set<IOnTransportEventListener> listeners = mEventListeners.get(associationId);
+            if (listeners != null) {
+                for (IOnTransportEventListener listener : listeners) {
+                    transport.addListener(listener);
                 }
             }
         }

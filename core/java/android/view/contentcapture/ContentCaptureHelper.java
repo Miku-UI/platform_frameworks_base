@@ -21,7 +21,6 @@ import static android.view.contentcapture.ContentCaptureManager.LOGGING_LEVEL_OF
 import static android.view.contentcapture.ContentCaptureManager.LOGGING_LEVEL_VERBOSE;
 
 import android.annotation.Nullable;
-import android.os.Build;
 import android.provider.DeviceConfig;
 import android.util.ArraySet;
 import android.util.Log;
@@ -41,7 +40,7 @@ public final class ContentCaptureHelper {
     private static final String TAG = ContentCaptureHelper.class.getSimpleName();
 
     public static boolean sVerbose = false;
-    public static boolean sDebug = true;
+    public static boolean sDebug = false;
 
     /**
      * Used to log text that could contain PII.
@@ -56,7 +55,7 @@ public final class ContentCaptureHelper {
      */
     @LoggingLevel
     public static int getDefaultLoggingLevel() {
-        return Build.IS_DEBUGGABLE ? LOGGING_LEVEL_DEBUG : LOGGING_LEVEL_OFF;
+        return LOGGING_LEVEL_OFF;
     }
 
     /**

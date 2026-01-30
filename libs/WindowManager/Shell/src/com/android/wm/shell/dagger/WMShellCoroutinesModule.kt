@@ -19,6 +19,7 @@ package com.android.wm.shell.dagger
 import android.os.Handler
 import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread
+import com.android.wm.shell.shared.annotations.ShellDesktopThread
 import com.android.wm.shell.shared.annotations.ShellMainThread
 import dagger.Module
 import dagger.Provides
@@ -56,6 +57,12 @@ class WMShellCoroutinesModule {
   fun provideBackgroundDispatcher(
       @ShellBackgroundThread backgroundHandler: Handler
   ): MainCoroutineDispatcher = backgroundHandler.asCoroutineDispatcher()
+
+  @Provides
+  @ShellDesktopThread
+  fun provideDesktopDispatcher(
+    @ShellDesktopThread desktopHandler: Handler
+  ): MainCoroutineDispatcher = desktopHandler.asCoroutineDispatcher()
 
   @Provides
   @WMSingleton

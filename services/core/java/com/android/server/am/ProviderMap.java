@@ -352,7 +352,7 @@ public final class ProviderMap {
     protected boolean dumpProvider(FileDescriptor fd, PrintWriter pw, String name, String[] args,
             int opti, boolean dumpAll) {
         try {
-            mAm.mOomAdjuster.mCachedAppOptimizer.enableFreezer(false);
+            mAm.getCachedAppOptimizer().enableFreezer(false);
             ArrayList<ContentProviderRecord> providers = getProvidersForName(name);
 
             if (providers.size() <= 0) {
@@ -369,7 +369,7 @@ public final class ProviderMap {
             }
             return true;
         } finally {
-            mAm.mOomAdjuster.mCachedAppOptimizer.enableFreezer(true);
+            mAm.getCachedAppOptimizer().enableFreezer(true);
         }
     }
 

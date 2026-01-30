@@ -308,7 +308,7 @@ public class LegacyPermissionManagerService extends ILegacyPermissionManager.Stu
                         userId));
     }
 
-    @Override
+    @Deprecated
     public void grantDefaultPermissionsToEnabledCarrierApps(String[] packageNames, int userId) {
         final int callingUid = Binder.getCallingUid();
         PackageManagerServiceUtils.enforceSystemOrPhoneCaller(

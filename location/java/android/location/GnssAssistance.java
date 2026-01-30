@@ -55,12 +55,16 @@ public final class GnssAssistance implements Parcelable {
     /** QZSS assistance. */
     @Nullable private final QzssAssistance mQzssAssistance;
 
+    /** IONEX assistance. */
+    @Nullable private final IonexAssistance mIonexAssistance;
+
     private GnssAssistance(Builder builder) {
         mGpsAssistance = builder.mGpsAssistance;
         mGlonassAssistance = builder.mGlonassAssistance;
         mGalileoAssistance = builder.mGalileoAssistance;
         mBeidouAssistance = builder.mBeidouAssistance;
         mQzssAssistance = builder.mQzssAssistance;
+        mIonexAssistance = builder.mIonexAssistance;
     }
 
     /** Returns the GPS assistance. */
@@ -93,6 +97,13 @@ public final class GnssAssistance implements Parcelable {
         return mQzssAssistance;
     }
 
+    /** Returns the Ionex assistance */
+    @FlaggedApi(Flags.FLAG_SUPPORT_IONEX_ASSISTANCE)
+    @Nullable
+    public IonexAssistance getIonexAssistance() {
+        return mIonexAssistance;
+    }
+
     public static final @NonNull Creator<GnssAssistance> CREATOR =
             new Creator<GnssAssistance>() {
                 @Override
@@ -104,6 +115,7 @@ public final class GnssAssistance implements Parcelable {
                             .setGalileoAssistance(in.readTypedObject(GalileoAssistance.CREATOR))
                             .setBeidouAssistance(in.readTypedObject(BeidouAssistance.CREATOR))
                             .setQzssAssistance(in.readTypedObject(QzssAssistance.CREATOR))
+                            .setIonexAssistance(in.readTypedObject(IonexAssistance.CREATOR))
                             .build();
                 }
 
@@ -125,6 +137,7 @@ public final class GnssAssistance implements Parcelable {
         parcel.writeTypedObject(mGalileoAssistance, flags);
         parcel.writeTypedObject(mBeidouAssistance, flags);
         parcel.writeTypedObject(mQzssAssistance, flags);
+        parcel.writeTypedObject(mIonexAssistance, flags);
     }
 
     @Override
@@ -136,6 +149,7 @@ public final class GnssAssistance implements Parcelable {
         builder.append(", galileoAssistance = ").append(mGalileoAssistance);
         builder.append(", beidouAssistance = ").append(mBeidouAssistance);
         builder.append(", qzssAssistance = ").append(mQzssAssistance);
+        builder.append(", ionexAssistance = ").append(mIonexAssistance);
         builder.append("]");
         return builder.toString();
     }
@@ -147,6 +161,8 @@ public final class GnssAssistance implements Parcelable {
         private GalileoAssistance mGalileoAssistance;
         private BeidouAssistance mBeidouAssistance;
         private QzssAssistance mQzssAssistance;
+        private IonexAssistance mIonexAssistance;
+
 
         /** Sets the GPS assistance. */
         @NonNull
@@ -180,6 +196,14 @@ public final class GnssAssistance implements Parcelable {
         @NonNull
         public Builder setQzssAssistance(@Nullable QzssAssistance qzssAssistance) {
             mQzssAssistance = qzssAssistance;
+            return this;
+        }
+
+        /** Sets the IONEX assistance */
+        @FlaggedApi(Flags.FLAG_SUPPORT_IONEX_ASSISTANCE)
+        @NonNull
+        public Builder setIonexAssistance(@Nullable IonexAssistance ionexAssistance) {
+            mIonexAssistance = ionexAssistance;
             return this;
         }
 

@@ -41,6 +41,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Handler;
 import android.util.Size;
 import android.view.Choreographer;
+import android.view.Display;
 import android.view.InsetsState;
 import android.view.MotionEvent;
 import android.view.SurfaceControl;
@@ -62,10 +63,15 @@ import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.SyncTransactionQueue;
 import com.android.wm.shell.shared.annotations.ShellBackgroundThread;
 import com.android.wm.shell.shared.annotations.ShellMainThread;
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus;
+import com.android.wm.shell.shared.desktopmode.DesktopConfig;
+import com.android.wm.shell.transition.Transitions;
+import com.android.wm.shell.windowdecor.caption.OccludingElement;
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHost;
 import com.android.wm.shell.windowdecor.common.viewhost.WindowDecorViewHostSupplier;
 import com.android.wm.shell.windowdecor.extension.TaskInfoKt;
+
+import java.util.List;
+import java.util.function.BiFunction;
 
 /**
  * Defines visuals and behaviors of a window decoration of a caption bar and shadows. It works with
@@ -75,9 +81,9 @@ import com.android.wm.shell.windowdecor.extension.TaskInfoKt;
 public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearLayout> {
     private final Handler mHandler;
     private final @ShellMainThread ShellExecutor mMainExecutor;
-    private final @ShellBackgroundThread ShellExecutor mBgExecutor;
     private final Choreographer mChoreographer;
     private final SyncTransactionQueue mSyncQueue;
+    private final DesktopConfig mDesktopConfig;
 
     private View.OnClickListener mOnCaptionButtonClickListener;
     private View.OnTouchListener mOnCaptionTouchListener;
@@ -96,18 +102,20 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
             RunningTaskInfo taskInfo,
             SurfaceControl taskSurface,
             Handler handler,
+            @NonNull Transitions transitions,
             @ShellMainThread ShellExecutor mainExecutor,
             @ShellBackgroundThread ShellExecutor bgExecutor,
             Choreographer choreographer,
             SyncTransactionQueue syncQueue,
-            @NonNull WindowDecorViewHostSupplier<WindowDecorViewHost> windowDecorViewHostSupplier) {
-        super(context, userContext, displayController, taskOrganizer, taskInfo,
-                taskSurface, windowDecorViewHostSupplier);
+            @NonNull WindowDecorViewHostSupplier<WindowDecorViewHost> windowDecorViewHostSupplier,
+            DesktopConfig desktopConfig) {
+        super(context, handler, transitions, userContext, displayController, taskOrganizer,
+                taskInfo, taskSurface, windowDecorViewHostSupplier, bgExecutor);
         mHandler = handler;
         mMainExecutor = mainExecutor;
-        mBgExecutor = bgExecutor;
         mChoreographer = choreographer;
         mSyncQueue = syncQueue;
+        mDesktopConfig = desktopConfig;
     }
 
     void setCaptionListeners(
@@ -121,7 +129,6 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
         mDragPositioningCallback = dragPositioningCallback;
     }
 
-    @Override
     @NonNull
     Rect calculateValidDragArea() {
         final Context displayContext = mDisplayController.getDisplayContext(mTaskInfo.displayId);
@@ -200,7 +207,8 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
         // synced with the buffer transaction (that draws the View). Both will be shown on screen
         // at the same, whereas applying them independently causes flickering. See b/270202228.
         relayout(taskInfo, t, t, true /* applyStartTransactionOnDraw */,
-                shouldSetTaskVisibilityPositionAndCrop, hasGlobalFocus, displayExclusionRegion);
+                shouldSetTaskVisibilityPositionAndCrop, hasGlobalFocus, displayExclusionRegion,
+                /* inSyncWithTransition= */ false);
     }
 
     @VisibleForTesting
@@ -214,11 +222,13 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
             boolean isKeyguardVisibleAndOccluded,
             InsetsState displayInsetsState,
             boolean hasGlobalFocus,
-            @NonNull Region globalExclusionRegion) {
+            @NonNull Region globalExclusionRegion,
+            boolean shouldSetBackground,
+            boolean inSyncWithTransition) {
         relayoutParams.reset();
         relayoutParams.mRunningTaskInfo = taskInfo;
         relayoutParams.mLayoutResId = R.layout.caption_window_decor;
-        relayoutParams.mCaptionHeightId = getCaptionHeightIdStatic(taskInfo.getWindowingMode());
+        relayoutParams.mCaptionHeightCalculator = getCaptionHeightCalculator();
         if (DesktopExperienceFlags.ENABLE_DYNAMIC_RADIUS_COMPUTATION_BUGFIX.isTrue()) {
             relayoutParams.mShadowRadiusId = hasGlobalFocus
                     ? R.dimen.freeform_decor_shadow_focused_thickness
@@ -235,6 +245,7 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
         relayoutParams.mIsCaptionVisible = taskInfo.isFreeform()
                 || (isStatusBarVisible && !isKeyguardVisibleAndOccluded);
         relayoutParams.mDisplayExclusionRegion.set(globalExclusionRegion);
+        relayoutParams.mInSyncWithTransition = inSyncWithTransition;
 
         if (TaskInfoKt.isTransparentCaptionBarAppearance(taskInfo)) {
             // If the app is requesting to customize the caption bar, allow input to fall
@@ -242,23 +253,23 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
             // their custom content.
             relayoutParams.mInputFeatures |= WindowManager.LayoutParams.INPUT_FEATURE_SPY;
         }
-        final RelayoutParams.OccludingCaptionElement backButtonElement =
-                new RelayoutParams.OccludingCaptionElement();
-        backButtonElement.mWidthResId = R.dimen.caption_left_buttons_width;
-        backButtonElement.mAlignment = RelayoutParams.OccludingCaptionElement.Alignment.START;
-        relayoutParams.mOccludingCaptionElements.add(backButtonElement);
-        // Then, the right-aligned section (minimize, maximize and close buttons).
-        final RelayoutParams.OccludingCaptionElement controlsElement =
-                new RelayoutParams.OccludingCaptionElement();
-        controlsElement.mWidthResId = R.dimen.caption_right_buttons_width;
-        controlsElement.mAlignment = RelayoutParams.OccludingCaptionElement.Alignment.END;
-        relayoutParams.mOccludingCaptionElements.add(controlsElement);
+        relayoutParams.mOccludingElementsCalculator = () -> List.of(
+                // First, the left-aligned section (back button).
+                new OccludingElement(context.getResources()
+                        .getDimensionPixelSize(R.dimen.caption_left_buttons_width),
+                        OccludingElement.Alignment.START),
+                // Then, the right-aligned section (minimize, maximize and close buttons).
+                new OccludingElement(context.getResources()
+                        .getDimensionPixelSize(R.dimen.caption_right_buttons_width),
+                        OccludingElement.Alignment.END)
+        );
+
         relayoutParams.mCaptionTopPadding = getTopPadding(relayoutParams,
                 taskInfo.getConfiguration().windowConfiguration.getBounds(), displayInsetsState);
         // Set opaque background for all freeform tasks to prevent freeform tasks below
         // from being visible if freeform task window above is translucent.
         // Otherwise if fluid resize is enabled, add a background to freeform tasks.
-        relayoutParams.mShouldSetBackground = DesktopModeStatus.shouldSetBackground(taskInfo);
+        relayoutParams.mShouldSetBackground = shouldSetBackground;
     }
 
     @SuppressLint("MissingPermission")
@@ -266,7 +277,7 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
             SurfaceControl.Transaction startT, SurfaceControl.Transaction finishT,
             boolean applyStartTransactionOnDraw, boolean shouldSetTaskVisibilityPositionAndCrop,
             boolean hasGlobalFocus,
-            @NonNull Region globalExclusionRegion) {
+            @NonNull Region globalExclusionRegion, boolean inSyncWithTransition) {
         final boolean isFreeform =
                 taskInfo.getWindowingMode() == WindowConfiguration.WINDOWING_MODE_FREEFORM;
         final boolean isDragResizeable = ENABLE_WINDOWING_SCALED_RESIZING.isTrue()
@@ -280,9 +291,10 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
                 shouldSetTaskVisibilityPositionAndCrop, mIsStatusBarVisible,
                 mIsKeyguardVisibleAndOccluded,
                 mDisplayController.getInsetsState(taskInfo.displayId), hasGlobalFocus,
-                globalExclusionRegion);
+                globalExclusionRegion, mDesktopConfig.shouldSetBackground(taskInfo),
+                inSyncWithTransition);
 
-        relayout(mRelayoutParams, startT, finishT, wct, oldRootView, mResult);
+        relayout(mRelayoutParams, startT, finishT, wct, oldRootView, getLeash(), mResult);
         // After this line, mTaskInfo is up-to-date and should be used instead of taskInfo
 
         mBgExecutor.execute(() -> mTaskOrganizer.applyTransaction(wct));
@@ -418,7 +430,7 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
     private static int getTopPadding(RelayoutParams params, Rect taskBounds,
             InsetsState insetsState) {
         if (!params.mRunningTaskInfo.isFreeform()) {
-            Insets systemDecor = insetsState.calculateInsets(taskBounds,
+            Insets systemDecor = insetsState.calculateInsets(taskBounds, taskBounds,
                     WindowInsets.Type.systemBars() & ~WindowInsets.Type.captionBar(),
                     false /* ignoreVisibility */);
             return systemDecor.top;
@@ -445,12 +457,13 @@ public class CaptionWindowDecoration extends WindowDecoration<WindowDecorLinearL
     }
 
     @Override
-    int getCaptionHeightId(@WindowingMode int windowingMode) {
-        return getCaptionHeightIdStatic(windowingMode);
+    int getCaptionHeight(@WindowingMode int windowingMode) {
+        return getCaptionHeightCalculator().apply(mContext, mDisplay);
     }
 
-    private static int getCaptionHeightIdStatic(@WindowingMode int windowingMode) {
-        return R.dimen.freeform_decor_caption_height;
+    private static BiFunction<Context, Display, Integer> getCaptionHeightCalculator() {
+        return (ctx, display) -> loadDimensionPixelSize(ctx.getResources(),
+                R.dimen.freeform_decor_caption_height);
     }
 
     @Override

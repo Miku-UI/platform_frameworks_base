@@ -123,7 +123,7 @@ constructor(
         return if (resolvedActivity == null) {
             null
         } else {
-            Icon.createWithResource(context, resolvedActivity.iconResource)
+            Icon.createWithResource(resolvedActivity.packageName, resolvedActivity.iconResource)
         }
     }
 

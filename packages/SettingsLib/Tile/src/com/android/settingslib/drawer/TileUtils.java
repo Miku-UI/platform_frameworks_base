@@ -220,6 +220,14 @@ public class TileUtils {
             "com.android.settings.pending_intent";
 
     /**
+     * Name of the meta-data item that should be set in the AndroidManifest.xml to specify the
+     * content provider providing the alert count that should be displayed for the preference.
+     *
+     * <p>Value provided will only render if greater than zero.
+     */
+    public static final String META_DATA_PREFERENCE_ALERT_URI = "com.android.settings.alert_uri";
+
+    /**
      * Value for {@link #META_DATA_KEY_PROFILE}. When the device has a managed profile, the app will
      * always be run in the primary profile.
      *
@@ -578,6 +586,21 @@ public class TileUtils {
             Map<String, IContentProvider> providerMap, String key) {
         final Bundle bundle = getBundleFromUri(context, uri, providerMap, null /* bundle */);
         return (bundle != null) ? bundle.getBoolean(key) : false;
+    }
+
+    /**
+     * Gets the integer associated with the input key from the content provider.
+     *
+     * @param context context
+     * @param uri URI for the content provider
+     * @param providerMap Maps URI authorities to providers
+     * @param key Key mapping to the text in bundle returned by the content provider
+     * @return Integer associated with the key, if returned by the content provider
+     */
+    public static int getIntFromUri(@NonNull Context context, @NonNull Uri uri,
+            @NonNull Map<String, IContentProvider> providerMap, @NonNull String key) {
+        final Bundle bundle = getBundleFromUri(context, uri, providerMap, null /* bundle */);
+        return (bundle != null) ? bundle.getInt(key) : 0;
     }
 
     /**

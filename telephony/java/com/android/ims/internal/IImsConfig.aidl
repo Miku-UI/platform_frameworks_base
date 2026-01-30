@@ -25,7 +25,7 @@ import com.android.ims.ImsConfigListener;
  * 1) Items provisioned by the operator.
  * 2) Items configured by user. Mainly service feature class.
  *
- * {@hide}
+ * @hide
  */
 interface IImsConfig {
     /**

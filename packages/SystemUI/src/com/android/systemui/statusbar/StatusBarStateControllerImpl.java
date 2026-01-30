@@ -50,7 +50,6 @@ import com.android.systemui.plugins.statusbar.StatusBarStateController.StateList
 import com.android.systemui.scene.data.model.SceneStack;
 import com.android.systemui.scene.data.model.SceneStackKt;
 import com.android.systemui.scene.domain.interactor.SceneBackInteractor;
-import com.android.systemui.scene.domain.interactor.SceneContainerOcclusionInteractor;
 import com.android.systemui.scene.domain.interactor.SceneInteractor;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.scene.shared.model.Overlays;
@@ -111,7 +110,6 @@ public class StatusBarStateControllerImpl implements
     private final Lazy<ShadeInteractor> mShadeInteractorLazy;
     private final Lazy<DeviceUnlockedInteractor> mDeviceUnlockedInteractorLazy;
     private final Lazy<SceneInteractor> mSceneInteractorLazy;
-    private final Lazy<SceneContainerOcclusionInteractor> mSceneContainerOcclusionInteractorLazy;
     private final Lazy<KeyguardClockInteractor> mKeyguardClockInteractorLazy;
     private final Lazy<SceneBackInteractor> mSceneBackInteractorLazy;
     private final Lazy<AlternateBouncerInteractor> mAlternateBouncerInteractorLazy;
@@ -181,7 +179,6 @@ public class StatusBarStateControllerImpl implements
             Lazy<ShadeInteractor> shadeInteractorLazy,
             Lazy<DeviceUnlockedInteractor> deviceUnlockedInteractorLazy,
             Lazy<SceneInteractor> sceneInteractorLazy,
-            Lazy<SceneContainerOcclusionInteractor> sceneContainerOcclusionInteractor,
             Lazy<KeyguardClockInteractor> keyguardClockInteractorLazy,
             Lazy<SceneBackInteractor> sceneBackInteractorLazy,
             Lazy<AlternateBouncerInteractor> alternateBouncerInteractorLazy) {
@@ -192,7 +189,6 @@ public class StatusBarStateControllerImpl implements
         mShadeInteractorLazy = shadeInteractorLazy;
         mDeviceUnlockedInteractorLazy = deviceUnlockedInteractorLazy;
         mSceneInteractorLazy = sceneInteractorLazy;
-        mSceneContainerOcclusionInteractorLazy = sceneContainerOcclusionInteractor;
         mKeyguardClockInteractorLazy = keyguardClockInteractorLazy;
         mSceneBackInteractorLazy = sceneBackInteractorLazy;
         mAlternateBouncerInteractorLazy = alternateBouncerInteractorLazy;
@@ -203,7 +199,7 @@ public class StatusBarStateControllerImpl implements
 
     @Override
     public void start() {
-        mJavaAdapter.alwaysCollectFlow(
+        mJavaAdapter.alwaysCollectFlowInBackground(
                 mKeyguardTransitionInteractorLazy.get().isFinishedIn(
                         /* scene */ Scenes.Gone,
                         /* stateWithoutSceneContainer */ GONE),
@@ -213,7 +209,9 @@ public class StatusBarStateControllerImpl implements
                     }
                 });
 
-        mJavaAdapter.alwaysCollectFlow(mShadeInteractorLazy.get().isAnyExpanded(),
+        // Use getAnyExpansion instead of isAnyExpanded, as the latter will trigger when
+        // opening/closing the bouncer
+        mJavaAdapter.alwaysCollectFlow(mShadeInteractorLazy.get().getAnyExpansion(),
                 this::onShadeOrQsExpanded);
 
         if (SceneContainerFlag.isEnabled()) {
@@ -223,7 +221,6 @@ public class StatusBarStateControllerImpl implements
                         mSceneInteractorLazy.get().getCurrentScene(),
                         mSceneInteractorLazy.get().getCurrentOverlays(),
                         mSceneBackInteractorLazy.get().getBackStack(),
-                        mSceneContainerOcclusionInteractorLazy.get().getInvisibleDueToOcclusion(),
                         mAlternateBouncerInteractorLazy.get().isVisible(),
                         this::calculateStateFromSceneFramework),
                     this::onStatusBarStateChanged);
@@ -422,7 +419,8 @@ public class StatusBarStateControllerImpl implements
         }
     }
 
-    private void onShadeOrQsExpanded(Boolean isExpanded) {
+    private void onShadeOrQsExpanded(float expansion) {
+        boolean isExpanded = expansion > 0f;
         if (mIsExpanded != isExpanded) {
             mIsExpanded = isExpanded;
             String tag = getClass().getSimpleName() + "#setIsExpanded";
@@ -623,11 +621,11 @@ public class StatusBarStateControllerImpl implements
             SceneKey currentScene,
             Set<OverlayKey> currentOverlays,
             SceneStack backStack,
-            boolean isOccluded,
             boolean alternateBouncerIsVisible) {
         SceneContainerFlag.isUnexpectedlyInLegacyMode();
 
         final boolean onCommunal = currentScene.equals(Scenes.Communal);
+        final boolean onOccluded = currentScene.equals(Scenes.Occluded);
         final boolean onGone = currentScene.equals(Scenes.Gone);
         final boolean onDream = currentScene.equals(Scenes.Dream);
         final boolean onLockscreen = currentScene.equals(Scenes.Lockscreen);
@@ -637,6 +635,7 @@ public class StatusBarStateControllerImpl implements
         final boolean overlaidBouncer = currentOverlays.contains(Overlays.Bouncer);
         final boolean overCommunal = SceneStackKt.contains(backStack, Scenes.Communal);
         final boolean overShade = SceneStackKt.contains(backStack, Scenes.Shade);
+        final boolean overOccluded = SceneStackKt.contains(backStack, Scenes.Occluded);
 
         final boolean overlaidShade = currentOverlays.contains(Overlays.NotificationsShade);
         final boolean overlaidQuickSettings = currentOverlays.contains(Overlays.QuickSettingsShade);
@@ -645,7 +644,7 @@ public class StatusBarStateControllerImpl implements
 
         final String inputLogString = "currentScene=" + currentScene.getTestTag()
                 + " currentOverlays=" + currentOverlays + " backStack=" + backStack
-                + " isUnlocked=" + isUnlocked + " isOccluded=" + isOccluded
+                + " isUnlocked=" + isUnlocked + " occluded=" + (onOccluded || overOccluded)
                 + " alternateBouncerIsVisible=" + alternateBouncerIsVisible;
 
         int newState;
@@ -670,7 +669,7 @@ public class StatusBarStateControllerImpl implements
 
         final boolean onKeyguardish = onLockscreen || overlaidBouncer || onCommunal;
 
-        if (isOccluded) {
+        if (onOccluded || overOccluded) {
             // Occlusion is special; even though the device is still technically on the lockscreen,
             // the UI behaves as if it is unlocked.
             newState = StatusBarState.SHADE;

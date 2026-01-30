@@ -1,0 +1,68 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_applicable_licenses: ["Android-Apache-2.0"],
+    default_team: "trendy_team_desktop_connectivity",
+}
+
+rust_library {
+    name: "libusb4_policies",
+    crate_name: "usb4_policies",
+    crate_root: "src/policy/lib.rs",
+    rustlibs: [
+        "libuevent-framework",
+        "libanyhow",
+        "liblogger",
+        "liblog_rust",
+        "libkobject_uevent",
+        "libtokio",
+    ],
+    host_supported: true,
+}
+
+rust_test_host {
+    name: "usb4_policies_test",
+    crate_name: "usb4_policies_test",
+    srcs: ["tests/lib.rs"],
+    rustlibs: [
+        "libusb4_policies",
+        "libtempfile",
+        "libkobject_uevent",
+        "libtokio",
+        "liblogger",
+        "liblog_rust",
+        "libuevent-framework",
+        "libenv_logger",
+    ],
+    test_suites: ["general-tests"],
+    auto_gen_config: true,
+    test_options: {
+        unit_test: true,
+    },
+}
+
+rust_ffi_shared {
+    name: "libusb4_policies_jni",
+    crate_name: "usb4_policies_jni",
+    srcs: ["src/bindings/lib.rs"],
+    rustlibs: [
+        "libonce_cell",
+        "libjni",
+        "liblogger",
+        "liblog_rust",
+        "libusb4_policies",
+    ],
+    compile_multilib: "first",
+}

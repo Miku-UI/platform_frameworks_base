@@ -10,11 +10,24 @@ flag {
 }
 
 flag {
-     namespace: "system_performance"
-     name: "intent_save_to_xml_package"
-     description: "Add package to saveToXml so save then restore passes filterEquals."
-     bug: "369856202"
-     metadata {
-         purpose: PURPOSE_BUGFIX
-     }
+    name: "stop_voice_command"
+    is_exported: true
+    namespace: "bluetooth"
+    description: "Feature flag to stop voice assistant session"
+    bug: "419049796"
+}
+
+flag {
+    name: "enable_system_contacts_picker"
+    namespace: "profile_experiences"
+    description: "Enable the new system contacts picker application components and the new intent action ACTION_PICK_CONTACTS."
+    bug: "427934258"
+}
+
+flag {
+    name: "enable_update_service_bindings"
+    is_exported: true
+    namespace: "desktop_pnp"
+    description: "Allow apps to batch update service bindings."
+    bug: "414865437"
 }

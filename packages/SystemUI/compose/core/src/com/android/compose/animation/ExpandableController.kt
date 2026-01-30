@@ -132,9 +132,7 @@ fun rememberExpandableController(
     DisposableEffect(Unit) {
         onDispose {
             isComposed = false
-            if (TransitionAnimator.returnAnimationsEnabled()) {
-                controller.onDispose()
-            }
+            controller.onDispose()
         }
     }
 
@@ -192,7 +190,7 @@ internal class ExpandableControllerImpl(
                 }
 
                 val controller = activityController(launchCujType, cookie, component, returnCujType)
-                if (TransitionAnimator.returnAnimationsEnabled() && isEphemeral) {
+                if (isEphemeral) {
                     activityControllerForDisposal?.onDispose()
                     activityControllerForDisposal = controller
                 }

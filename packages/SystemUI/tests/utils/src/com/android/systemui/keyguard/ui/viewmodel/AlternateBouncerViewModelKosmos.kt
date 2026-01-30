@@ -18,6 +18,8 @@ package com.android.systemui.keyguard.ui.viewmodel
 
 import com.android.systemui.bouncer.domain.interactor.alternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.primaryBouncerInteractor
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryBiometricsAllowedInteractor
+import com.android.systemui.deviceentry.domain.interactor.deviceEntryFaceAuthInteractor
 import com.android.systemui.keyguard.dismissCallbackRegistry
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.kosmos.Kosmos
@@ -31,5 +33,7 @@ val Kosmos.alternateBouncerViewModel by Fixture {
         dismissCallbackRegistry = dismissCallbackRegistry,
         alternateBouncerInteractor = { alternateBouncerInteractor },
         primaryBouncerInteractor = primaryBouncerInteractor,
+        deviceEntryBiometricsAllowedInteractor = deviceEntryBiometricsAllowedInteractor,
+        deviceEntryFaceAuthInteractor = deviceEntryFaceAuthInteractor,
     )
 }

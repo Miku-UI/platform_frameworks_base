@@ -26,9 +26,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.UserHandle;
-import android.platform.test.annotations.RequiresFlagsEnabled;
-import android.platform.test.flag.junit.CheckFlagsRule;
-import android.platform.test.flag.junit.DeviceFlagsValueProvider;
 import android.provider.DeviceConfig;
 
 import androidx.test.InstrumentationRegistry;
@@ -38,10 +35,8 @@ import androidx.test.uiautomator.UiDevice;
 
 import com.android.frameworks.coretests.aidl.ICmdCallback;
 import com.android.frameworks.coretests.aidl.ICmdReceiver;
-import com.android.server.power.optimization.Flags;
 
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -57,14 +52,11 @@ import java.util.regex.Pattern;
 @LargeTest
 @android.platform.test.annotations.DisabledOnRavenwood(reason = "Integration test")
 public class CpuPowerStatsCollectorValidationTest {
-    @Rule
-    public final CheckFlagsRule mCheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule();
-
-    private static final int WORK_DURATION_MS = 2000;
+    private static final int WORK_DURATION_MS = 5000;
     private static final String TEST_PKG = "com.android.coretests.apps.bstatstestapp";
     private static final String TEST_ACTIVITY = TEST_PKG + ".TestActivity";
     private static final String EXTRA_KEY_CMD_RECEIVER = "cmd_receiver";
-    private static final int START_ACTIVITY_TIMEOUT_MS = 2000;
+    private static final int START_ACTIVITY_TIMEOUT_MS = 5000;
 
     private Context mContext;
     private UiDevice mUiDevice;
@@ -79,7 +71,6 @@ public class CpuPowerStatsCollectorValidationTest {
     }
 
     @Test
-    @RequiresFlagsEnabled(Flags.FLAG_STREAMLINED_BATTERY_STATS)
     public void totalTimeInPowerBrackets() throws Exception {
         dumpCpuStats();     // For the side effect of capturing the baseline.
 

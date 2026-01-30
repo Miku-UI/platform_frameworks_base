@@ -126,6 +126,7 @@ public class AuthenticationStatsCollectorTest {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_FRR_DIALOG_IMPROVEMENT)
     public void authenticate_authenticationSucceeded_mapShouldBeUpdated() {
         // Assert that the user doesn't exist in the map initially.
         assertThat(mAuthenticationStatsCollector.getAuthenticationStatsForUser(USER_ID_1)).isNull();
@@ -148,6 +149,7 @@ public class AuthenticationStatsCollectorTest {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_FRR_DIALOG_IMPROVEMENT)
     public void authenticate_authenticationFailed_mapShouldBeUpdated() {
         // Assert that the user doesn't exist in the map initially.
         assertThat(mAuthenticationStatsCollector.getAuthenticationStatsForUser(USER_ID_1)).isNull();
@@ -168,6 +170,46 @@ public class AuthenticationStatsCollectorTest {
         assertThat(authenticationStats.getEnrollmentNotifications()).isEqualTo(0);
         assertThat(authenticationStats.getLastEnrollmentTime()).isEqualTo(0L);
         assertThat(authenticationStats.getLastFrrNotificationTime()).isEqualTo(0L);
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FRR_DIALOG_IMPROVEMENT)
+    public void authenticate_dualBiometrics_nonFp_mapShouldNotExist() {
+        // Assert that the user doesn't exist in the map initially.
+        assertThat(mAuthenticationStatsCollector.getAuthenticationStatsForUser(USER_ID_1)).isNull();
+
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT))
+                .thenReturn(true);
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_FACE)).thenReturn(true);
+        when(mFingerprintManager.hasEnrolledTemplates(anyInt())).thenReturn(true);
+        when(mFaceManager.hasEnrolledTemplates(anyInt())).thenReturn(true);
+
+        mAuthenticationStatsCollector.authenticate(USER_ID_1, true /* authenticated */);
+
+        assertThat(mAuthenticationStatsCollector.getAuthenticationStatsForUser(USER_ID_1)).isNull();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_FRR_DIALOG_IMPROVEMENT)
+    public void authenticate_dualBiometrics_fp_mapShouldExist() {
+        // Use fingerprint modality
+        mAuthenticationStatsCollector = new AuthenticationStatsCollector(mContext,
+                BiometricsProtoEnums.MODALITY_FINGERPRINT, mBiometricNotification, mClock);
+
+        // Assert that the user doesn't exist in the map initially.
+        assertThat(mAuthenticationStatsCollector.getAuthenticationStatsForUser(USER_ID_1)).isNull();
+
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_FINGERPRINT))
+                .thenReturn(true);
+        when(mPackageManager.hasSystemFeature(PackageManager.FEATURE_FACE)).thenReturn(true);
+        when(mFingerprintManager.hasEnrolledTemplates(anyInt())).thenReturn(true);
+        when(mFaceManager.hasEnrolledTemplates(anyInt())).thenReturn(true);
+
+        mAuthenticationStatsCollector.authenticate(USER_ID_1, true /* authenticated */);
+
+        AuthenticationStats authenticationStats =
+                mAuthenticationStatsCollector.getAuthenticationStatsForUser(USER_ID_1);
+        assertThat(authenticationStats.getUserId()).isEqualTo(USER_ID_1);
     }
 
     /**
@@ -200,8 +242,8 @@ public class AuthenticationStatsCollectorTest {
         assertThat(authenticationStats.getLastFrrNotificationTime()).isEqualTo(200L);
     }
 
-    // TODO WIP
     @Test
+    @DisableFlags(Flags.FLAG_FRR_DIALOG_IMPROVEMENT)
     public void authenticate_frrNotExceeded_notificationNotExceeded_shouldNotSendNotification() {
 
         mAuthenticationStatsCollector.setAuthenticationStatsForUser(USER_ID_1,

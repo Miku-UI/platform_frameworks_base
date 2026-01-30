@@ -15,8 +15,14 @@
  */
 package android.os;
 
+import static android.annotation.SystemApi.Client.MODULE_LIBRARIES;
+
+import static com.android.internal.telephony.flags.Flags.FLAG_ENABLE_PHONE_NUMBER_PARSING_API;
+
+import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SystemApi;
 import android.content.Context;
 
 /**
@@ -27,7 +33,10 @@ import android.content.Context;
  *
  * @hide
  */
-public class TelephonyServiceManager {
+@SystemApi(client = MODULE_LIBRARIES)
+@FlaggedApi(FLAG_ENABLE_PHONE_NUMBER_PARSING_API)
+public final class TelephonyServiceManager {
+
     /**
      * @hide
      */
@@ -48,9 +57,24 @@ public class TelephonyServiceManager {
         }
 
         /**
-         * Register a system server binding object for a service.
+         * Publish the service so it is accessible to other services and apps.
+         *
+         * @param service the service object
+         *
+         * @hide
+         *
          */
+        // TODO: Replaced all callers to use publishBinderService().
         public void register(@NonNull IBinder service) {
+            ServiceManager.addService(mServiceName, service);
+        }
+
+        /**
+         * Publish the service so it is accessible to other services and apps.
+         *
+         * @param service the service object
+         */
+        public void publishBinderService(@NonNull IBinder service) {
             ServiceManager.addService(mServiceName, service);
         }
 
@@ -59,6 +83,8 @@ public class TelephonyServiceManager {
          *
          * <p>This blocks until the service instance is ready,
          * or a timeout happens, in which case it returns null.
+         *
+         * @return The binder object, or null if the service is not found or a timeout occurs.
          */
         @Nullable
         public IBinder get() {
@@ -70,6 +96,8 @@ public class TelephonyServiceManager {
          *
          * <p>This blocks until the service instance is ready,
          * or a timeout happens, in which case it throws {@link ServiceNotFoundException}.
+         *
+         * @hide
          */
         @NonNull
         public IBinder getOrThrow() throws ServiceNotFoundException {
@@ -83,6 +111,8 @@ public class TelephonyServiceManager {
         /**
          * Get the system server binding object for a service. If the specified service is
          * not available, it returns null.
+         *
+         * @hide
          */
         @Nullable
         public IBinder tryGet() {
@@ -109,6 +139,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the "telephony" service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getTelephonyServiceRegisterer() {
@@ -117,6 +149,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the telephony IMS service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getTelephonyImsServiceRegisterer() {
@@ -125,6 +159,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the telephony RCS message service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getTelephonyRcsMessageServiceRegisterer() {
@@ -133,6 +169,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the subscription service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getSubscriptionServiceRegisterer() {
@@ -141,6 +179,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the phone sub service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getPhoneSubServiceRegisterer() {
@@ -149,6 +189,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the opportunistic network service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getOpportunisticNetworkServiceRegisterer() {
@@ -157,6 +199,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the carrier config service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getCarrierConfigServiceRegisterer() {
@@ -165,6 +209,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the "SMS" service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getSmsServiceRegisterer() {
@@ -173,6 +219,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the eUICC controller service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getEuiccControllerService() {
@@ -181,6 +229,8 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the eUICC card controller service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getEuiccCardControllerServiceRegisterer() {
@@ -189,9 +239,19 @@ public class TelephonyServiceManager {
 
     /**
      * Returns {@link ServiceRegisterer} for the ICC phone book service.
+     *
+     * @hide
      */
     @NonNull
     public ServiceRegisterer getIccPhoneBookServiceRegisterer() {
         return new ServiceRegisterer("simphonebook");
+    }
+
+    /**
+     * Returns {@link ServiceRegisterer} for the Phone Number Service.
+     */
+    @NonNull
+    public ServiceRegisterer getPhoneNumberServiceRegisterer() {
+        return new ServiceRegisterer(Context.TELEPHONY_PHONE_NUMBER_SERVICE);
     }
 }

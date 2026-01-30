@@ -33,7 +33,6 @@ import android.view.WindowManager
 import android.view.WindowManagerGlobal
 import com.android.app.tracing.coroutines.launchTraced as launch
 import com.android.internal.infra.ServiceConnector
-import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
@@ -84,11 +83,7 @@ constructor(
         options: ActivityOptions?,
         transitionCoordinator: ExitTransitionCoordinator?,
     ) {
-        if (Flags.fixScreenshotActionDismissSystemWindows()) {
-            activityManagerWrapper.closeSystemWindows(
-                CentralSurfaces.SYSTEM_DIALOG_REASON_SCREENSHOT
-            )
-        }
+        activityManagerWrapper.closeSystemWindows(CentralSurfaces.SYSTEM_DIALOG_REASON_SCREENSHOT)
         screenshotProxy.dismissKeyguard()
         var transitionOptions: ActivityOptions? = null
         if (transitionCoordinator?.decor?.isAttachedToWindow == true) {

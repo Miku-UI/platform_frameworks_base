@@ -40,6 +40,7 @@ import com.android.settingslib.spaprivileged.tests.testutils.FakeRestrictionsPro
 import com.android.settingslib.spaprivileged.tests.testutils.TestTogglePermissionAppListModel
 import com.android.settingslib.spaprivileged.tests.testutils.TestTogglePermissionAppListProvider
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,126 +71,156 @@ class TogglePermissionAppInfoPageTest {
 
     @Test
     fun buildEntry() {
-        val entryList = appInfoPageProvider.buildEntry(null)
+        runBlocking {
+            val entryList = appInfoPageProvider.buildEntry(null)
 
-        assertThat(entryList).hasSize(1)
-        assertThat(entryList[0].label).isEqualTo("AllowControl")
+            assertThat(entryList).hasSize(1)
+            assertThat(entryList[0].label).isEqualTo("AllowControl")
+        }
     }
 
     @Test
     fun entryItem_whenNotChangeable_notDisplayed() {
-        val listModel = TestTogglePermissionAppListModel(isChangeable = false)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isChangeable = false)
 
-        setEntryItem(listModel)
+            setEntryItem(listModel)
 
-        composeTestRule.onRoot().assertIsNotDisplayed()
+            composeTestRule.onRoot().assertIsNotDisplayed()
+        }
     }
 
     @Test
     fun entryItem_whenChangeable_titleDisplayed() {
-        val listModel = TestTogglePermissionAppListModel(isChangeable = true)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isChangeable = true)
 
-        setEntryItem(listModel)
+            setEntryItem(listModel)
 
-        composeTestRule.onNodeWithText(context.getString(listModel.pageTitleResId))
-            .assertIsDisplayed()
+            composeTestRule.onNodeWithText(context.getString(listModel.pageTitleResId))
+                .assertIsDisplayed()
+        }
     }
 
     @Test
     fun entryItem_whenAllowed_summaryIsAllowed() {
-        val listModel = TestTogglePermissionAppListModel(isAllowed = true, isChangeable = true)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isAllowed = true, isChangeable = true)
 
-        setEntryItem(listModel)
+            setEntryItem(listModel)
 
-        composeTestRule.waitUntilExists(
-            hasText(context.getString(R.string.app_permission_summary_allowed)))
+            composeTestRule.waitUntilExists(
+                hasText(context.getString(R.string.app_permission_summary_allowed))
+            )
+        }
     }
 
     @Test
     fun entryItem_whenNotAllowed_summaryIsNotAllowed() {
-        val listModel = TestTogglePermissionAppListModel(isAllowed = false, isChangeable = true)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isAllowed = false, isChangeable = true)
 
-        setEntryItem(listModel)
+            setEntryItem(listModel)
 
-        composeTestRule.onNodeWithText(
-            context.getString(R.string.app_permission_summary_not_allowed)
-        ).assertIsDisplayed()
+            composeTestRule.onNodeWithText(
+                context.getString(R.string.app_permission_summary_not_allowed)
+            ).assertIsDisplayed()
+        }
     }
 
     @Test
     fun entryItem_onClick() {
-        val listModel = TestTogglePermissionAppListModel(isChangeable = true)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isChangeable = true)
 
-        setEntryItem(listModel)
-        composeTestRule.onRoot().performClick()
+            setEntryItem(listModel)
+            composeTestRule.onRoot().performClick()
 
-        assertThat(fakeNavControllerWrapper.navigateCalledWith)
-            .isEqualTo("TogglePermissionAppInfoPage/test.PERMISSION/package.name/0")
+            assertThat(fakeNavControllerWrapper.navigateCalledWith)
+                .isEqualTo("TogglePermissionAppInfoPage/test.PERMISSION/package.name/0")
+        }
     }
 
     @Test
     fun infoPage_title_isDisplayed() {
-        val listModel = TestTogglePermissionAppListModel()
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel()
 
-        setTogglePermissionAppInfoPage(listModel)
+            setTogglePermissionAppInfoPage(listModel)
 
-        composeTestRule.onNodeWithText(context.getString(listModel.pageTitleResId))
-            .assertIsDisplayed()
+            composeTestRule.onNodeWithText(context.getString(listModel.pageTitleResId))
+                .assertIsDisplayed()
+        }
     }
 
     @Test
     fun infoPage_whenAllowed_switchIsOn() {
-        val listModel = TestTogglePermissionAppListModel(isAllowed = true)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isAllowed = true)
 
-        setTogglePermissionAppInfoPage(listModel)
+            setTogglePermissionAppInfoPage(listModel)
 
-        composeTestRule.waitUntilExists(
-            hasText(context.getString(listModel.switchTitleResId)) and isOn())
+            composeTestRule.waitUntilExists(
+                hasText(context.getString(listModel.switchTitleResId)) and isOn()
+            )
+        }
     }
 
     @Test
     fun infoPage_whenNotAllowed_switchIsOff() {
-        val listModel = TestTogglePermissionAppListModel(isAllowed = false)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isAllowed = false)
 
-        setTogglePermissionAppInfoPage(listModel)
+            setTogglePermissionAppInfoPage(listModel)
 
-        composeTestRule.waitUntilExists(
-            hasText(context.getString(listModel.switchTitleResId)) and isOff())
+            composeTestRule.waitUntilExists(
+                hasText(context.getString(listModel.switchTitleResId)) and isOff()
+            )
+        }
     }
 
     @Test
     fun infoPage_whenChangeableAndClick() {
-        val listModel = TestTogglePermissionAppListModel(isAllowed = false, isChangeable = true)
-        val switchTitle = context.getString(listModel.switchTitleResId)
+        runBlocking {
+            val listModel = TestTogglePermissionAppListModel(isAllowed = false, isChangeable = true)
+            val switchTitle = context.getString(listModel.switchTitleResId)
 
-        setTogglePermissionAppInfoPage(listModel)
-        composeTestRule.waitUntilExists(hasText(switchTitle))
-        composeTestRule.onNodeWithText(switchTitle).performClick()
+            setTogglePermissionAppInfoPage(listModel)
+            composeTestRule.waitUntilExists(hasText(switchTitle))
+            composeTestRule.onNodeWithText(switchTitle).performClick()
 
-        composeTestRule.waitUntilExists(hasText(switchTitle) and isOn())
+            composeTestRule.waitUntilExists(hasText(switchTitle) and isOn())
+        }
     }
 
     @Test
     fun infoPage_whenNotChangeableAndClick() {
-        val listModel = TestTogglePermissionAppListModel(isAllowed = false, isChangeable = false)
-        val switchTitle = context.getString(listModel.switchTitleResId)
+        runBlocking {
+            val listModel =
+                TestTogglePermissionAppListModel(isAllowed = false, isChangeable = false)
+            val switchTitle = context.getString(listModel.switchTitleResId)
 
-        setTogglePermissionAppInfoPage(listModel)
-        composeTestRule.waitUntilExists(hasText(switchTitle))
-        composeTestRule.onNodeWithText(switchTitle).performClick()
+            setTogglePermissionAppInfoPage(listModel)
+            composeTestRule.waitUntilExists(hasText(switchTitle))
+            composeTestRule.onNodeWithText(switchTitle).performClick()
 
-        composeTestRule.waitUntilExists(hasText(switchTitle) and isOff())
+            composeTestRule.waitUntilExists(hasText(switchTitle) and isOff())
+        }
     }
 
     @Test
     fun infoPage_whenNotChangeable_switchNotEnabled() {
-        val listModel = TestTogglePermissionAppListModel(isAllowed = false, isChangeable = false)
+        runBlocking {
+            val listModel =
+                TestTogglePermissionAppListModel(isAllowed = false, isChangeable = false)
 
-        setTogglePermissionAppInfoPage(listModel)
+            setTogglePermissionAppInfoPage(listModel)
 
-        composeTestRule.onNodeWithText(context.getString(listModel.switchTitleResId))
-            .assertIsDisplayed()
-            .assertIsNotEnabled()
+            composeTestRule.waitUntilExists(hasText(context.getString(listModel.switchTitleResId)))
+            composeTestRule.onNodeWithText(context.getString(listModel.switchTitleResId))
+                .assertIsDisplayed()
+                .assertIsNotEnabled()
+        }
     }
 
     @Test

@@ -48,7 +48,8 @@ public class AconfigPackagePerfTest {
         return Arrays.asList(new Object[][] {{false}, {true}});
     }
 
-    private static final Set<String> PLATFORM_CONTAINERS = Set.of("system", "vendor", "product");
+    private static final Set<String> PLATFORM_CONTAINERS =
+        Set.of("system", "system_ext", "vendor", "product");
     private static List<parsed_flag> sFlags;
 
     @BeforeClass

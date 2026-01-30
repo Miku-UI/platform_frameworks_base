@@ -25,8 +25,6 @@
         android:id="@+id/ambient_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="@dimen/bluetooth_dialog_layout_margin"
-        android:layout_marginEnd="@dimen/bluetooth_dialog_layout_margin"
         android:gravity="center_vertical"
         android:orientation="horizontal">
         <ImageView
@@ -45,11 +43,8 @@
             android:layout_weight="1"
             android:paddingStart="10dp"
             android:text="@string/hearing_devices_ambient_label"
-            android:textAppearance="@style/TextAppearance.Dialog.Title"
-            android:textDirection="locale"
-            android:textSize="16sp"
-            android:gravity="center_vertical"
-            android:fontFamily="@*android:string/config_headlineFontFamilyMedium" />
+            android:textAppearance="@style/TextAppearance.HearingDeviceDialog.Title"
+            android:gravity="center_vertical" />
         <ImageView
             android:id="@+id/ambient_expand_icon"
             android:layout_width="48dp"

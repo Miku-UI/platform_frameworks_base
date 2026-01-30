@@ -1,0 +1,4 @@
+# Policy file used for "PTA" golden test.
+
+# Just allow this class. Other classes are not allow-listed.
+com.android.hoststubgen.test.tinyframework.TinyFrameworkAnnotations

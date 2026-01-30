@@ -58,6 +58,7 @@ import com.android.server.pm.pkg.AndroidPackage;
 import com.android.server.pm.pkg.PackageState;
 import com.android.server.pm.pkg.PackageStateInternal;
 import com.android.server.pm.pkg.PackageUserStateInternal;
+import com.android.server.pm.verify.developer.DeveloperVerificationStatusInternal;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -159,8 +160,7 @@ final class InstallRequest {
     @NonNull
     private int[] mUpdateBroadcastInstantUserIds = EMPTY_INT_ARRAY;
 
-    @NonNull
-    private final ArrayList<String> mWarnings = new ArrayList<>();
+    @NonNull private final ArrayList<String> mWarnings;
 
     @Nullable
     private DomainSet mPreVerifiedDomains;
@@ -172,6 +172,8 @@ final class InstallRequest {
     private boolean mKeepArtProfile = false;
     private final boolean mDependencyInstallerEnabled;
     private final int mMissingSharedLibraryCount;
+    @Nullable
+    private final DeveloperVerificationStatusInternal mDeveloperVerificationStatus;;
 
     // New install
     InstallRequest(InstallingSession params) {
@@ -194,6 +196,8 @@ final class InstallRequest {
         mHasAppMetadataFileFromInstaller = params.mHasAppMetadataFile;
         mDependencyInstallerEnabled = params.mDependencyInstallerEnabled;
         mMissingSharedLibraryCount = params.mMissingSharedLibraryCount;
+        mDeveloperVerificationStatus = params.mDeveloperVerificationStatus;
+        mWarnings = new ArrayList<>(params.mWarnings);
     }
 
     // Install existing package as user
@@ -215,6 +219,8 @@ final class InstallRequest {
         mHasAppMetadataFileFromInstaller = false;
         mDependencyInstallerEnabled = false;
         mMissingSharedLibraryCount = 0;
+        mDeveloperVerificationStatus = null;
+        mWarnings = new ArrayList<>();
     }
 
     // addForInit
@@ -239,6 +245,8 @@ final class InstallRequest {
         mHasAppMetadataFileFromInstaller = false;
         mDependencyInstallerEnabled = false;
         mMissingSharedLibraryCount = 0;
+        mDeveloperVerificationStatus = null;
+        mWarnings = new ArrayList<>();
     }
 
     @Nullable
@@ -326,12 +334,6 @@ final class InstallRequest {
     public File getOldCodeFile() {
         return (mRemovedInfo != null && mRemovedInfo.mArgs != null)
                 ? mRemovedInfo.mArgs.getCodeFile() : null;
-    }
-
-    @Nullable
-    public String[] getOldInstructionSet() {
-        return (mRemovedInfo != null && mRemovedInfo.mArgs != null)
-                ? mRemovedInfo.mArgs.getInstructionSets() : null;
     }
 
     public UserHandle getUser() {
@@ -590,12 +592,6 @@ final class InstallRequest {
     public String getRealPackageName() {
         assertScanResultExists();
         return mScanResult.mRequest.mRealPkgName;
-    }
-
-    @Nullable
-    public List<String> getChangedAbiCodePath() {
-        assertScanResultExists();
-        return mScanResult.mChangedAbiCodePath;
     }
 
     public boolean isApplicationEnabledSettingPersistent() {
@@ -1097,5 +1093,9 @@ final class InstallRequest {
 
     boolean isDependencyInstallerEnabled() {
         return mDependencyInstallerEnabled;
+    }
+
+    DeveloperVerificationStatusInternal getDeveloperVerificationStatus() {
+        return mDeveloperVerificationStatus;
     }
 }

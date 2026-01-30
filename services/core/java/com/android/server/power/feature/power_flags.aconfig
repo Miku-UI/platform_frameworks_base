@@ -12,11 +12,10 @@ flag {
 }
 
 flag {
-    name: "enable_screen_timeout_policy_listener_api"
-    namespace: "power"
-    description: "Enables APIs that allow to listen to screen timeout policy changes"
-    bug: "363174979"
-    is_fixed_read_only: true
+    name: "separate_timeouts_flicker"
+    namespace: "lse_desktop_experience"
+    description: "Prevent timeout flicker when timing out"
+    bug: "425275163"
     metadata {
       purpose: PURPOSE_BUGFIX
     }
@@ -50,10 +49,13 @@ flag {
 }
 
 flag {
-    name: "framework_wakelock_info"
-    namespace: "power"
-    description: "Feature flag to enable statsd pulling of FrameworkWakelockInfo atoms"
-    bug: "380847722"
+    name: "lock_on_unplug"
+    namespace: "lse_desktop_experience"
+    description: "Fixes device locking when all remaining external displays are unplugged"
+    bug: "414558760"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -76,4 +78,53 @@ flag {
     namespace: "power"
     description: "Feature flag to disable/enable wakelocks of a process when it is frozen/unfrozen"
     bug: "291115867"
+}
+
+flag {
+    name: "force_disable_wakelocks"
+    namespace: "power"
+    description: "Feature flag to force disable wakelocks"
+    bug: "370557028"
+}
+
+flag {
+    name: "enable_app_wakelock_data_source"
+    namespace: "power"
+    description: "Feature flag to enable a new Perfetto data source for tracing app wakelocks."
+    bug: "400774865"
+}
+
+flag {
+    name: "shutdown_system_api"
+    namespace: "power"
+    description: "Feature flag to have a system API which shuts down the device."
+    bug: "365055195"
+}
+
+flag {
+    name: "partial_sleep_wakelocks"
+    namespace: "power"
+    description: "Enable new wakelock to keep device asleep - for the user, but ensure that the CPU remains awake."
+    bug: "401624085"
+    is_fixed_read_only: true
+}
+
+flag {
+    name: "extra_logging_separate_timeout"
+    namespace: "power"
+    description: "Adds extra logs to triage some test flakiness"
+    bug: "428848574"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "wake_adjacent_displays_on_wakeup_call"
+    namespace: "lse_desktop_experience"
+    description: "Wakes up the displays from default and default adjacent group"
+    bug: "428848574"
+    metadata {
+      purpose: PURPOSE_BUGFIX
+    }
 }

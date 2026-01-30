@@ -16,8 +16,14 @@
 
 package com.android.server.locksettings;
 
+import static android.security.Flags.FLAG_SECURE_LOCK_DEVICE;
+
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED;
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_BOOT;
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_LOCKOUT;
 import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT;
+import static com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE;
 import static com.android.server.locksettings.LockSettingsStrongAuth.DEFAULT_NON_STRONG_BIOMETRIC_IDLE_TIMEOUT_MS;
 import static com.android.server.locksettings.LockSettingsStrongAuth.DEFAULT_NON_STRONG_BIOMETRIC_TIMEOUT_MS;
 import static com.android.server.locksettings.LockSettingsStrongAuth.NON_STRONG_BIOMETRIC_IDLE_TIMEOUT_ALARM_TAG;
@@ -32,6 +38,7 @@ import static junit.framework.Assert.assertTrue;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -39,7 +46,9 @@ import static org.mockito.Mockito.when;
 import android.app.AlarmManager;
 import android.app.admin.DevicePolicyManager;
 import android.content.Context;
+import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.util.Log;
 
 import androidx.test.InstrumentationRegistry;
@@ -51,16 +60,19 @@ import com.android.server.locksettings.LockSettingsStrongAuth.NonStrongBiometric
 import com.android.server.locksettings.LockSettingsStrongAuth.StrongAuthTimeoutAlarmListener;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 @SmallTest
 @Presubmit
 @RunWith(AndroidJUnit4.class)
 public class LockSettingsStrongAuthTest {
-
+    @Rule public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+    @Rule public MockitoRule mockito = MockitoJUnit.rule();
     private static final String TAG = LockSettingsStrongAuthTest.class.getSimpleName();
 
     private static final int PRIMARY_USER_ID = 0;
@@ -80,8 +92,6 @@ public class LockSettingsStrongAuthTest {
 
     @Before
     public void setUp() {
-        MockitoAnnotations.initMocks(this);
-
         when(mInjector.getAlarmManager(mContext)).thenReturn(mAlarmManager);
         when(mInjector.getDefaultStrongAuthFlags(mContext)).thenReturn(mDefaultStrongAuthFlags);
         when(mContext.getSystemService(Context.DEVICE_POLICY_SERVICE)).thenReturn(mDPM);
@@ -141,6 +151,151 @@ public class LockSettingsStrongAuthTest {
         // verify that the StrongAuthFlags for the user contains the expected flag
         final int expectedFlag = STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT;
         verifyStrongAuthFlags(expectedFlag, PRIMARY_USER_ID);
+    }
+
+    private void enableSecureLockDevice() {
+        mStrongAuth.requireStrongAuth(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+        mStrongAuth.requireStrongAuth(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    public void testStrongAuthChanges_whenSecureLockDeviceEnabled() {
+        setupAlarms(PRIMARY_USER_ID);
+        enableSecureLockDevice();
+        waitForIdle();
+
+        // verify that the StrongAuthFlags for the user contains the expected flags
+        verifyStrongAuthFlags(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE, PRIMARY_USER_ID);
+        verifyStrongAuthFlags(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+
+        // Non-strong biometrics disabled by STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
+        verifyIfNonStrongBiometricsAllowed(PRIMARY_USER_ID, false);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    public void testStrongAuthChanges_onPrimaryAuthInSecureLockDeviceMode() {
+        setupAlarms(PRIMARY_USER_ID);
+        enableSecureLockDevice();
+        waitForIdle();
+
+        // On successful primary auth
+        mStrongAuth.reportSuccessfulPrimaryAuthInSecureLockDeviceMode(PRIMARY_USER_ID);
+        waitForIdle();
+
+        // Verify that unlocking with primary auth (PIN/pattern/password) does not cancel alarms
+        // for fallback and idle timeout and does not re-allow unlocking with non-strong biometric
+        verifyAlarmsNotCancelled(PRIMARY_USER_ID);
+        verifyIfNonStrongBiometricsAllowed(PRIMARY_USER_ID, false);
+
+        // Expect PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is unset
+        verifyStrongAuthFlagNotSet(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE, PRIMARY_USER_ID);
+
+        // Expect STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag still set
+        verifyStrongAuthFlags(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    public void testStrongAuthChanges_onSuccessfulBiometricAuthInSecureLockDeviceMode() {
+        setupAlarms(PRIMARY_USER_ID);
+        enableSecureLockDevice();
+        mStrongAuth.reportSuccessfulPrimaryAuthInSecureLockDeviceMode(PRIMARY_USER_ID);
+        waitForIdle();
+
+        mStrongAuth.reportSuccessfulBiometricUnlock(true /* isStrongBiometric */, PRIMARY_USER_ID);
+        mStrongAuth.disableSecureLockDevice(PRIMARY_USER_ID, true);
+        waitForIdle();
+
+        // verify that unlocking with strong biometric cancels alarms for fallback and idle timeout
+        // and re-allow unlocking with non-strong biometric
+        verifyAlarmsCancelledAndNonStrongBiometricAllowed(PRIMARY_USER_ID);
+
+        // Expect STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is unset
+        verifyStrongAuthFlagNotSet(
+                STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE, PRIMARY_USER_ID);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    public void testStrongAuthChanges_onSecureLockDeviceModeManuallyDisabled() {
+        setupAlarms(PRIMARY_USER_ID);
+        enableSecureLockDevice();
+        waitForIdle();
+
+        mStrongAuth.disableSecureLockDevice(PRIMARY_USER_ID, /* authenticationComplete= */ false);
+        waitForIdle();
+
+        // Expect default flags are set
+        final int userFlags = mStrongAuth.mStrongAuthForUser.get(PRIMARY_USER_ID,
+                mDefaultStrongAuthFlags);
+        assertEquals(mDefaultStrongAuthFlags, userFlags);
+
+        // Verify that manually disabling secure lock device does not cancel alarms for fallback and
+        // idle timeout
+        verifyAlarmsNotCancelled(PRIMARY_USER_ID);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    public void testStrongAuthAfterBootFlagUnsetOnPrimaryAuth_whenSecureLockDeviceEnabled() {
+        // Set secure lock device flags
+        mStrongAuth.requireStrongAuth(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+        // Verify setting secure lock device strong biometric auth flag
+        mStrongAuth.requireStrongAuth(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+
+        // Mock device rebooted, STRONG_AUTH_REQUIRED_AFTER_BOOT flag set
+        mStrongAuth.requireStrongAuth(STRONG_AUTH_REQUIRED_AFTER_BOOT, PRIMARY_USER_ID);
+        waitForIdle();
+
+        mStrongAuth.reportSuccessfulPrimaryAuthInSecureLockDeviceMode(PRIMARY_USER_ID);
+        waitForIdle();
+
+        // Expect PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is unset
+        verifyStrongAuthFlagNotSet(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE, PRIMARY_USER_ID);
+
+        // Expect STRONG_AUTH_REQUIRED_AFTER_BOOT flag is unset
+        verifyStrongAuthFlagNotSet(STRONG_AUTH_REQUIRED_AFTER_BOOT, PRIMARY_USER_ID);
+
+        // Expect STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag still set
+        verifyStrongAuthFlags(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+    }
+
+    @Test
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    public void testStrongAuthAfterLockoutFlagUnsetOnPrimaryAuth_whenSecureLockDeviceEnabled() {
+        // Set secure lock device flags
+        mStrongAuth.requireStrongAuth(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+        // Verify setting secure lock device strong biometric auth flag
+        mStrongAuth.requireStrongAuth(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
+
+        // Mock lockout event, STRONG_AUTH_REQUIRED_AFTER_LOCKOUT flag set
+        mStrongAuth.requireStrongAuth(STRONG_AUTH_REQUIRED_AFTER_LOCKOUT, PRIMARY_USER_ID);
+        waitForIdle();
+
+        // On successful primary auth
+        mStrongAuth.reportSuccessfulPrimaryAuthInSecureLockDeviceMode(PRIMARY_USER_ID);
+        waitForIdle();
+
+        // Expect PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag is unset
+        verifyStrongAuthFlagNotSet(PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE, PRIMARY_USER_ID);
+
+        // Expect STRONG_AUTH_REQUIRED_AFTER_LOCKOUT flag is unset
+        verifyStrongAuthFlagNotSet(STRONG_AUTH_REQUIRED_AFTER_LOCKOUT, PRIMARY_USER_ID);
+
+        // Expect STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE flag still set
+        verifyStrongAuthFlags(STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                PRIMARY_USER_ID);
     }
 
     @Test
@@ -251,26 +406,68 @@ public class LockSettingsStrongAuthTest {
         assertTrue(containsFlag(flags, reason));
     }
 
+    private void verifyStrongAuthFlagNotSet(int reason, int userId) {
+        final int flags = mStrongAuth.mStrongAuthForUser.get(userId, mDefaultStrongAuthFlags);
+        Log.d(TAG, "verifyStrongAuthFlagNotSet:"
+                + " reason=" + Integer.toHexString(reason)
+                + " userId=" + userId
+                + " flags=" + Integer.toHexString(flags));
+        assertFalse(containsFlag(flags, reason));
+    }
+
     private void setupAlarms(int userId) {
-        // schedule (a) an alarm for non-strong biometric fallback timeout and (b) an alarm for
-        // non-strong biometric idle timeout, so later we can verify that unlocking with
-        // strong biometric or primary auth will cancel those alarms
+        // Used to verify that unlocking with strong biometric or primary auth will cancel
+        // non strong biometric timeout alarms
+        setupNonStrongBiometricFallbackTimeoutAlarm(userId);
+        setupNonStrongBiometricIdleTimeoutAlarm(userId);
+    }
+
+    private void setupNonStrongBiometricFallbackTimeoutAlarm(int userId) {
+        // schedule an alarm for non-strong biometric fallback timeout, so later we can verify that
+        // unlocking with strong biometric or primary auth will cancel that alarm
         mStrongAuth.reportSuccessfulBiometricUnlock(false /* isStrongBiometric */, userId);
+    }
+
+    private void setupNonStrongBiometricIdleTimeoutAlarm(int userId) {
+        // schedule an alarm for non-strong biometric idle timeout, so later we can verify that
+        // unlocking with strong biometric or primary auth will cancel that alarm
         mStrongAuth.scheduleNonStrongBiometricIdleTimeout(userId);
     }
 
     private void verifyAlarmsCancelledAndNonStrongBiometricAllowed(int userId) {
         // verify that the current alarm for non-strong biometric fallback timeout is cancelled and
         // removed
-        verify(mAlarmManager).cancel(any(NonStrongBiometricTimeoutAlarmListener.class));
+        verify(mAlarmManager, atLeastOnce()).cancel(
+                any(NonStrongBiometricTimeoutAlarmListener.class));
         assertNull(mStrongAuth.mNonStrongBiometricTimeoutAlarmListener.get(userId));
 
         // verify that the current alarm for non-strong biometric idle timeout is cancelled
-        verify(mAlarmManager).cancel(any(NonStrongBiometricIdleTimeoutAlarmListener.class));
+        verify(mAlarmManager, atLeastOnce()).cancel(
+                any(NonStrongBiometricIdleTimeoutAlarmListener.class));
 
         // verify that unlocking with non-strong biometrics is allowed
-        assertTrue(mStrongAuth.mIsNonStrongBiometricAllowedForUser
-                .get(userId, mDefaultIsNonStrongBiometricAllowed));
+        verifyIfNonStrongBiometricsAllowed(userId, true);
+    }
+
+    private void verifyAlarmsNotCancelled(int userId) {
+        // verify that the current alarm for non-strong biometric fallback timeout is not
+        // cancelled or removed
+        verify(mAlarmManager, never()).cancel(any(NonStrongBiometricTimeoutAlarmListener.class));
+        assertNotNull(mStrongAuth.mNonStrongBiometricTimeoutAlarmListener.get(userId));
+
+        // verify that the current alarm for non-strong biometric idle timeout is not cancelled
+        verify(mAlarmManager, never())
+                .cancel(any(NonStrongBiometricIdleTimeoutAlarmListener.class));
+    }
+
+    private void verifyIfNonStrongBiometricsAllowed(int userId, boolean isAllowed) {
+        if (isAllowed) {
+            assertTrue(mStrongAuth.mIsNonStrongBiometricAllowedForUser
+                    .get(userId, mDefaultIsNonStrongBiometricAllowed));
+        } else {
+            assertFalse(mStrongAuth.mIsNonStrongBiometricAllowedForUser
+                    .get(userId, mDefaultIsNonStrongBiometricAllowed));
+        }
     }
 
     private static boolean containsFlag(int haystack, int needle) {

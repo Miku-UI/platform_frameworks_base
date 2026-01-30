@@ -48,6 +48,7 @@ import android.content.pm.PackageManager.ApplicationInfoFlags;
 import android.content.pm.PackageManager.NameNotFoundException;
 import android.media.projection.MediaProjectionManager;
 import android.os.UserHandle;
+import android.os.Process;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -88,7 +89,7 @@ import java.util.function.Consumer;
 @RunWith(AndroidJUnit4.class)
 @SuppressLint({"UseCheckPermission", "VisibleForTests", "MissingPermission"})
 public class MediaProjectionStopControllerTest {
-    private static final int UID = 10;
+    private static final int UID = Process.myUid();
     private static final String PACKAGE_NAME = "test.package";
     private final ApplicationInfo mAppInfo = new ApplicationInfo();
     @Rule
@@ -145,6 +146,11 @@ public class MediaProjectionStopControllerTest {
                 mMediaProjectionMetricsLoggerInjector);
 
         mAppInfo.targetSdkVersion = 35;
+        mAppInfo.packageName = PACKAGE_NAME;
+
+        doReturn(mAppInfo).when(mPackageManager).getApplicationInfoAsUser(anyString(),
+                any(ApplicationInfoFlags.class), any(UserHandle.class));
+        doReturn(UID).when(mPackageManager).getPackageUidAsUser(anyString(), any(int.class));
     }
 
     private static AppOpsManager mockAppOpsManager() {
@@ -414,7 +420,6 @@ public class MediaProjectionStopControllerTest {
         doReturn(mAppInfo).when(mPackageManager).getApplicationInfoAsUser(Mockito.isNull(),
                 any(ApplicationInfoFlags.class), any(UserHandle.class));
         return mService.createProjectionInternal(UID, packageName,
-                MediaProjectionManager.TYPE_SCREEN_CAPTURE, false, mContext.getUser(),
-                INVALID_DISPLAY);
+                MediaProjectionManager.TYPE_SCREEN_CAPTURE, false, INVALID_DISPLAY);
     }
 }

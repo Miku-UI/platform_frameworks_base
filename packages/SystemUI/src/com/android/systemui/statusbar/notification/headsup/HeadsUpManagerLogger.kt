@@ -204,6 +204,10 @@ constructor(@NotificationHeadsUpLog private val buffer: LogBuffer) {
         )
     }
 
+    fun logAddToNext(entry: NotificationEntry?) {
+        buffer.log(TAG, INFO, { str1 = entry?.logKey }, { "Add to next: $str1" })
+    }
+
     fun logRemoveEntryRequest(key: String, reason: String, isWaiting: Boolean) {
         buffer.log(
             TAG,

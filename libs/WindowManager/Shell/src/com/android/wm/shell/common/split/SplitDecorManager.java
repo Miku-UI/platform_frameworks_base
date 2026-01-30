@@ -39,6 +39,7 @@ import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Binder;
+import android.util.Log;
 import android.view.IWindow;
 import android.view.LayoutInflater;
 import android.view.SurfaceControl;
@@ -50,12 +51,15 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.android.launcher3.icons.IconProvider;
 import com.android.wm.shell.R;
 import com.android.wm.shell.common.ScreenshotUtils;
 import com.android.wm.shell.common.SurfaceUtils;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -108,6 +112,14 @@ public class SplitDecorManager extends WindowlessWindowManager {
     private int mOffsetX;
     private int mOffsetY;
     private int mRunningAnimationCount = 0;
+    /**
+     * Keeps track of all finish callbacks meant to be executed after all animations are finished.
+     * Do not add null values.
+     * <p>
+     * Maps a callback to the value meant to be passed in the callback. Default value to be passed
+     * to the callback is false.
+     */
+    private final Map<Consumer<Boolean>, Boolean> mAnimFinishCallbacks = new HashMap<>();
 
     public SplitDecorManager(Configuration configuration, IconProvider iconProvider) {
         super(configuration, null /* rootSurface */, null /* hostInputToken */);
@@ -325,11 +337,31 @@ public class SplitDecorManager extends WindowlessWindowManager {
     }
 
     /** Stops showing resizing hint. */
-    public void onResized(SurfaceControl.Transaction t, Consumer<Boolean> animFinishedCallback) {
+    public void onResized(SurfaceControl.Transaction t,
+            @Nullable Consumer<Boolean> animFinishedCallback) {
+        // If there is a running animation, place a placeholder callback to avoid calling the end
+        // callback too early when canceling the existed animation before the new animation starts.
+        final Consumer<Boolean> callbackPlaceHolder =
+                animFinishedCallback != null && mRunningAnimationCount > 0 ? status -> {} : null;
+        if (callbackPlaceHolder != null) {
+            mRunningAnimationCount++;
+            mAnimFinishCallbacks.put(callbackPlaceHolder, false);
+        }
+        animateResized(t, animFinishedCallback);
+        if (callbackPlaceHolder != null) {
+            mRunningAnimationCount--;
+            updateCallbackStatus(false /* callbackStatus */, callbackPlaceHolder);
+        }
+    }
+
+    private void animateResized(SurfaceControl.Transaction t,
+            @Nullable Consumer<Boolean> animFinishedCallback) {
         if (mScreenshotAnimator != null && mScreenshotAnimator.isRunning()) {
             mScreenshotAnimator.cancel();
         }
-
+        if (animFinishedCallback != null) {
+            mAnimFinishCallbacks.put(animFinishedCallback, false);
+        }
         if (mScreenshot != null) {
             t.setPosition(mScreenshot, mOffsetX, mOffsetY);
 
@@ -354,19 +386,14 @@ public class SplitDecorManager extends WindowlessWindowManager {
                     animT.apply();
                     animT.close();
                     mScreenshot = null;
-
-                    if (mRunningAnimationCount == 0 && animFinishedCallback != null) {
-                        animFinishedCallback.accept(true);
-                    }
+                    updateCallbackStatus(true /*callbackStatus*/, animFinishedCallback);
                 }
             });
             mScreenshotAnimator.start();
         }
 
         if (mVeilIconView == null) {
-            if (mRunningAnimationCount == 0 && animFinishedCallback != null) {
-                animFinishedCallback.accept(false);
-            }
+            updateCallbackStatus(false /*callbackStatus*/, animFinishedCallback);
             return;
         }
 
@@ -386,27 +413,54 @@ public class SplitDecorManager extends WindowlessWindowManager {
                         releaseDecor(finishT);
                         finishT.apply();
                         finishT.close();
-                        if (mRunningAnimationCount == 0 && animFinishedCallback != null) {
-                            animFinishedCallback.accept(true);
-                        }
+                        updateCallbackStatus(true /*callbackStatus*/, animFinishedCallback);
                     }
                 });
                 return;
             }
         }
         if (mShown) {
-            fadeOutDecor(()-> {
-                if (mRunningAnimationCount == 0 && animFinishedCallback != null) {
-                    animFinishedCallback.accept(true);
-                }
-            }, false /* addDelay */);
+            if (animFinishedCallback != null) {
+                // Update to return true. Will be executed when fadeOutDecor anims finish
+                mAnimFinishCallbacks.put(animFinishedCallback, true);
+            }
+            fadeOutDecor(()-> {}, false /* addDelay */);
         } else {
             // Decor surface is hidden so release it directly.
             releaseDecor(t);
-            if (mRunningAnimationCount == 0 && animFinishedCallback != null) {
-                animFinishedCallback.accept(false);
-            }
+            updateCallbackStatus(false /*callbackStatus*/, animFinishedCallback);
         }
+    }
+
+    /**
+     * Updates the value for the provided {@param callback} and optionally executes the callback
+     * list if no animations are in progress.
+     *
+     * @param callbackStatus the parameter that will be passed into the {@param callback}
+     * @param callback       no-op if null, must be added to {@link #mAnimFinishCallbacks} prior to
+     *                       updating via this method
+     */
+    private void updateCallbackStatus(boolean callbackStatus,
+            @Nullable Consumer<Boolean> callback) {
+        if (callback == null) {
+            return;
+        }
+        if (mAnimFinishCallbacks.get(callback) == null) {
+            Log.e(TAG, "Finish callback not found!");
+            return;
+        }
+
+        mAnimFinishCallbacks.put(callback, callbackStatus);
+        if (mRunningAnimationCount != 0) {
+            // Not all animations finished, wait
+            return;
+        }
+
+        // Run all finish callbacks
+        for (Map.Entry<Consumer<Boolean>, Boolean> c : mAnimFinishCallbacks.entrySet()) {
+            c.getKey().accept(c.getValue());
+        }
+        mAnimFinishCallbacks.clear();
     }
 
     /**
@@ -553,8 +607,14 @@ public class SplitDecorManager extends WindowlessWindowManager {
      *                 time to redraw.
      */
     private void startFadeAnimation(boolean show, boolean releaseSurface,
-            Runnable finishedCallback, boolean addDelay) {
+            @Nullable Runnable finishedCallback, boolean addDelay) {
         final SurfaceControl.Transaction animT = new SurfaceControl.Transaction();
+        final Consumer<Boolean> wrappedFinishCallback = aBoolean -> {
+            if (finishedCallback != null) {
+                finishedCallback.run();
+            }
+        };
+        mAnimFinishCallbacks.put(wrappedFinishCallback, false);
 
         mFadeAnimator = ValueAnimator.ofFloat(0f, 1f);
         if (addDelay) {
@@ -600,17 +660,14 @@ public class SplitDecorManager extends WindowlessWindowManager {
                 }
                 animT.apply();
                 animT.close();
-
-                if (mRunningAnimationCount == 0 && finishedCallback != null) {
-                    finishedCallback.run();
-                }
+                updateCallbackStatus(true /*callbackStatus*/, wrappedFinishCallback);
             }
         });
         mFadeAnimator.start();
     }
 
     /** Release or hide decor hint. */
-    private void releaseDecor(SurfaceControl.Transaction t) {
+    public void releaseDecor(SurfaceControl.Transaction t) {
         if (mBackgroundLeash != null) {
             t.remove(mBackgroundLeash);
             mBackgroundLeash = null;

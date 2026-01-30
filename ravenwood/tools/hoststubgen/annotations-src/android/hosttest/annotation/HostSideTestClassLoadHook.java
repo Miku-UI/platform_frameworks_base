@@ -22,14 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * THIS ANNOTATION IS EXPERIMENTAL. REACH OUT TO g/ravenwood BEFORE USING IT, OR YOU HAVE ANY
- * QUESTIONS ABOUT IT.
- *
- * Add this with a fully-specified method name (e.g. {@code "com.package.Class.methodName"})
- * of a callback to get a callback at the class load time.
- *
- * The method must be {@code public static} with a single argument that takes
- * {@link java.lang.Class}.
+ * Only used for HostStubGen tests. It's not used by Ravenwood.
  */
 @Target({TYPE})
 @Retention(RetentionPolicy.CLASS)

@@ -187,16 +187,14 @@ public class AppCompatSizeCompatTests extends WindowTestsBase {
      */
     void runTestScenario(@NonNull Consumer<SizeCompatRobotTest> consumer) {
         spyOn(mWm.mAppCompatConfiguration);
-        final SizeCompatRobotTest robot = new SizeCompatRobotTest(mWm, mAtm, mSupervisor);
+        final SizeCompatRobotTest robot = new SizeCompatRobotTest(this);
         consumer.accept(robot);
     }
 
     private static class SizeCompatRobotTest extends AppCompatRobotBase {
 
-        SizeCompatRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        SizeCompatRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         void checkShouldSendCompatFakeFocus(boolean expected) {

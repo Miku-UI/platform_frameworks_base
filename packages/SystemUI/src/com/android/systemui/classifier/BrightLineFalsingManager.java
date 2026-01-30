@@ -108,7 +108,7 @@ public class BrightLineFalsingManager implements FalsingManager {
                     "{belief=%s confidence=%s}",
                     mHistoryTracker.falseBelief(),
                     mHistoryTracker.falseConfidence()));
-            if (belief > FALSE_BELIEF_THRESHOLD) {
+            if (belief > FALSE_BELIEF_THRESHOLD && !skipFalsing(GENERIC)) {
                 mFalsingBeliefListeners.forEach(FalsingBeliefListener::onFalse);
                 logInfo("Triggering False Event (Threshold: " + FALSE_BELIEF_THRESHOLD + ")");
             }
@@ -395,7 +395,9 @@ public class BrightLineFalsingManager implements FalsingManager {
                 || mDataProvider.isFromTrackpad()
                 || mDataProvider.isFromKeyboard()
                 || !mDataProvider.isTouchScreenSource()
-                || mDataProvider.isUnfolded();
+                || mDataProvider.isDesktop()
+                || mDataProvider.isUnfolded()
+                || mDataProvider.isShowingCommunalHub();
     }
 
     @Override
@@ -495,13 +497,16 @@ public class BrightLineFalsingManager implements FalsingManager {
     }
 
     @Override
-    public void cleanupInternal() {
+    public List<FalsingBeliefListener> cleanupInternal() {
+        List<FalsingBeliefListener> existingBeliefListeners
+                = new ArrayList<>(mFalsingBeliefListeners);
         mDestroyed = true;
         mDataProvider.removeSessionListener(mSessionListener);
         mDataProvider.removeGestureCompleteListener(mGestureFinalizedListener);
         mClassifiers.forEach(FalsingClassifier::cleanup);
         mFalsingBeliefListeners.clear();
         mHistoryTracker.removeBeliefListener(mBeliefListener);
+        return existingBeliefListeners;
     }
 
     private static Collection<FalsingClassifier.Result> getPassedResult(double confidence) {

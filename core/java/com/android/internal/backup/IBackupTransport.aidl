@@ -26,7 +26,7 @@ import android.os.ParcelFileDescriptor;
 import com.android.internal.backup.ITransportStatusCallback;
 import com.android.internal.infra.AndroidFuture;
 
-/** {@hide} */
+/** @hide */
 oneway interface IBackupTransport {
     /**
      * Ask the transport for the String name under which it should be registered.  This will

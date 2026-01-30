@@ -21,10 +21,18 @@ import com.android.settingslib.notification.modes.ZenMode
 /**
  * Represents the list of [ZenMode] instances that are currently active.
  *
- * @property modeNames Names of all the active modes, sorted by their priority.
- * @property mainMode The most prioritized active mode, if any modes active. Guaranteed to be
- *   non-null if [modeNames] is not empty.
+ * @property names Names of all the active modes, sorted by their priority.
+ * @property main The most prioritized active mode, if any modes active. Guaranteed to be non-null
+ *   if [isAnyActive] is `true`.
  */
-data class ActiveZenModes(val modeNames: List<String>, val mainMode: ZenModeInfo?) {
-    fun isAnyActive(): Boolean = modeNames.isNotEmpty()
+data class ActiveZenModes(val names: List<String>, val main: ZenModeInfo?) {
+    init {
+        require(names.isEmpty() || main != null) {
+            "If names is not empty, main mode must be non-null"
+        }
+    }
+
+    val count: Int = names.size
+
+    fun isAnyActive(): Boolean = names.isNotEmpty()
 }

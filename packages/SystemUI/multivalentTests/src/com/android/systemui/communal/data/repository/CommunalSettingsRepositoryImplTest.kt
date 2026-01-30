@@ -27,16 +27,15 @@ import android.os.UserManager.USER_TYPE_PROFILE_MANAGED
 import android.platform.test.annotations.DisableFlags
 import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
-import android.provider.Settings
 import androidx.test.filters.SmallTest
 import com.android.systemui.Flags.FLAG_COMMUNAL_HUB
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_BLURRED_BACKGROUND
+import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT
 import com.android.systemui.Flags.FLAG_GLANCEABLE_HUB_V2
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.communal.data.repository.CommunalSettingsRepositoryImpl.Companion.GLANCEABLE_HUB_BACKGROUND_SETTING
 import com.android.systemui.communal.shared.model.CommunalBackgroundType
-import com.android.systemui.communal.shared.model.WhenToDream
 import com.android.systemui.flags.Flags.COMMUNAL_SERVICE_ENABLED
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.kosmos.Kosmos
@@ -46,7 +45,7 @@ import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.nullable
 import com.android.systemui.util.mockito.whenever
-import com.android.systemui.util.settings.fakeSettings
+import com.android.systemui.util.settings.data.repository.userAwareSecureSettingsRepository
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
 import org.junit.After
@@ -90,6 +89,10 @@ class CommunalSettingsRepositoryImplTest(flags: FlagsParameterization?) : SysuiT
             com.android.internal.R.bool.config_dreamsActivatedOnPosturedByDefault,
             false,
         )
+        mContext.orCreateTestableResources.addOverride(
+            com.android.internal.R.bool.config_glanceableHubEnabledByDefault,
+            true,
+        )
     }
 
     @After
@@ -102,6 +105,9 @@ class CommunalSettingsRepositoryImplTest(flags: FlagsParameterization?) : SysuiT
         )
         mContext.orCreateTestableResources.removeOverride(
             com.android.internal.R.bool.config_dreamsActivatedOnPosturedByDefault
+        )
+        mContext.orCreateTestableResources.removeOverride(
+            com.android.internal.R.bool.config_glanceableHubEnabledByDefault
         )
     }
 
@@ -214,19 +220,18 @@ class CommunalSettingsRepositoryImplTest(flags: FlagsParameterization?) : SysuiT
     @DisableFlags(FLAG_GLANCEABLE_HUB_BLURRED_BACKGROUND)
     fun backgroundType_defaultValue() =
         kosmos.runTest {
-            val backgroundType by collectLastValue(underTest.getBackground(PRIMARY_USER))
+            val backgroundType by collectLastValue(underTest.getBackground())
             assertThat(backgroundType).isEqualTo(CommunalBackgroundType.ANIMATED)
         }
 
     @Test
     fun backgroundType_verifyAllValues() =
         kosmos.runTest {
-            val backgroundType by collectLastValue(underTest.getBackground(PRIMARY_USER))
+            val backgroundType by collectLastValue(underTest.getBackground())
             for (type in CommunalBackgroundType.entries) {
-                fakeSettings.putIntForUser(
+                kosmos.userAwareSecureSettingsRepository.setInt(
                     GLANCEABLE_HUB_BACKGROUND_SETTING,
                     type.value,
-                    PRIMARY_USER.id,
                 )
                 assertWithMessage(
                         "Expected $type when $GLANCEABLE_HUB_BACKGROUND_SETTING is set to" +
@@ -237,89 +242,45 @@ class CommunalSettingsRepositoryImplTest(flags: FlagsParameterization?) : SysuiT
             }
         }
 
+    @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
+    @DisableFlags(FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT)
     @Test
-    fun whenToDream_charging() =
-        kosmos.runTest {
-            val whenToDreamState by collectLastValue(underTest.getWhenToDreamState(PRIMARY_USER))
-
-            fakeSettings.putIntForUser(
-                Settings.Secure.SCREENSAVER_ACTIVATE_ON_SLEEP,
-                1,
-                PRIMARY_USER.id,
-            )
-
-            assertThat(whenToDreamState).isEqualTo(WhenToDream.WHILE_CHARGING)
-        }
-
-    @Test
-    fun whenToDream_charging_defaultValue() =
+    fun hubEnabledByUser_defaultsToConfigValue_true() =
         kosmos.runTest {
             mContext.orCreateTestableResources.addOverride(
-                com.android.internal.R.bool.config_dreamsActivatedOnSleepByDefault,
+                com.android.internal.R.bool.config_glanceableHubEnabledByDefault,
                 true,
             )
 
-            val whenToDreamState by collectLastValue(underTest.getWhenToDreamState(PRIMARY_USER))
-            assertThat(whenToDreamState).isEqualTo(WhenToDream.WHILE_CHARGING)
+            val enabled by collectLastValue(underTest.getSettingEnabledByUser())
+            assertThat(enabled).isTrue()
         }
 
+    @EnableFlags(FLAG_GLANCEABLE_HUB_V2)
+    @DisableFlags(FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT)
     @Test
-    fun whenToDream_docked() =
-        kosmos.runTest {
-            val whenToDreamState by collectLastValue(underTest.getWhenToDreamState(PRIMARY_USER))
-
-            fakeSettings.putIntForUser(
-                Settings.Secure.SCREENSAVER_ACTIVATE_ON_DOCK,
-                1,
-                PRIMARY_USER.id,
-            )
-
-            assertThat(whenToDreamState).isEqualTo(WhenToDream.WHILE_DOCKED)
-        }
-
-    @Test
-    fun whenToDream_docked_defaultValue() =
+    fun hubEnabledByUser_defaultsToConfigValue_false() =
         kosmos.runTest {
             mContext.orCreateTestableResources.addOverride(
-                com.android.internal.R.bool.config_dreamsActivatedOnDockByDefault,
-                true,
+                com.android.internal.R.bool.config_glanceableHubEnabledByDefault,
+                false,
             )
 
-            val whenToDreamState by collectLastValue(underTest.getWhenToDreamState(PRIMARY_USER))
-            assertThat(whenToDreamState).isEqualTo(WhenToDream.WHILE_DOCKED)
+            val enabled by collectLastValue(underTest.getSettingEnabledByUser())
+            assertThat(enabled).isFalse()
         }
 
+    @EnableFlags(FLAG_GLANCEABLE_HUB_V2, FLAG_GLANCEABLE_HUB_ENABLED_BY_DEFAULT)
     @Test
-    fun whenToDream_postured() =
-        kosmos.runTest {
-            val whenToDreamState by collectLastValue(underTest.getWhenToDreamState(PRIMARY_USER))
-
-            fakeSettings.putIntForUser(
-                Settings.Secure.SCREENSAVER_ACTIVATE_ON_POSTURED,
-                1,
-                PRIMARY_USER.id,
-            )
-
-            assertThat(whenToDreamState).isEqualTo(WhenToDream.WHILE_POSTURED)
-        }
-
-    @Test
-    fun whenToDream_postured_defaultValue() =
+    fun hubEnabledByUser_defaultsToTrue_whenFlagTrue() =
         kosmos.runTest {
             mContext.orCreateTestableResources.addOverride(
-                com.android.internal.R.bool.config_dreamsActivatedOnPosturedByDefault,
-                true,
+                com.android.internal.R.bool.config_glanceableHubEnabledByDefault,
+                false,
             )
 
-            val whenToDreamState by collectLastValue(underTest.getWhenToDreamState(PRIMARY_USER))
-            assertThat(whenToDreamState).isEqualTo(WhenToDream.WHILE_POSTURED)
-        }
-
-    @Test
-    fun whenToDream_default() =
-        kosmos.runTest {
-            val whenToDreamState by collectLastValue(underTest.getWhenToDreamState(PRIMARY_USER))
-            assertThat(whenToDreamState).isEqualTo(WhenToDream.NEVER)
+            val enabled by collectLastValue(underTest.getSettingEnabledByUser())
+            assertThat(enabled).isTrue()
         }
 
     private fun setKeyguardFeaturesDisabled(user: UserInfo, disabledFlags: Int) {

@@ -719,8 +719,7 @@ public class LauncherApps {
             anyOf = {ACCESS_HIDDEN_PROFILES_FULL, ACCESS_HIDDEN_PROFILES})
     public List<UserHandle> getProfiles() {
         if (mUserManager.isManagedProfile()
-                || (android.multiuser.Flags.enableLauncherAppsHiddenProfileChecks()
-                    && android.os.Flags.allowPrivateProfile()
+                || (android.os.Flags.allowPrivateProfile()
                     && android.multiuser.Flags.enablePrivateSpaceFeatures()
                     && mUserManager.isPrivateProfile())) {
             // If it's a managed or private profile, only return the current profile.
@@ -728,15 +727,11 @@ public class LauncherApps {
             result.add(android.os.Process.myUserHandle());
             return result;
         } else {
-            if (android.multiuser.Flags.enableLauncherAppsHiddenProfileChecks()) {
-                try {
-                    return mService.getUserProfiles();
-                } catch (RemoteException re) {
-                    throw re.rethrowFromSystemServer();
-                }
+            try {
+                return mService.getUserProfiles();
+            } catch (RemoteException re) {
+                throw re.rethrowFromSystemServer();
             }
-
-            return mUserManager.getUserProfiles();
         }
     }
 
@@ -1055,6 +1050,88 @@ public class LauncherApps {
                     component, sourceBounds, opts, user);
         } catch (RemoteException re) {
             throw re.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Retrieves a map of available applications for a given user.
+     * <p>
+     * This method queries the system service to obtain a list of available applications
+     * for the specified {@link UserHandle}. The returned map contains {@link ComponentName}
+     * as keys and corresponding launch {@link Intent}s as values.
+     * </p>
+     *
+     * <p><b>Permissions Required:</b></p>
+     * <ul>
+     *     <li>{@link android.Manifest.permission#INTERACT_ACROSS_USERS}</li>
+     *     <li>{@link android.Manifest.permission#MANAGE_USERS}</li>
+     * </ul>
+     *
+     * @param user The {@link UserHandle} representing the user for whom available apps are queried.
+     * @return A map where the keys are {@link ComponentName} instances representing app components,
+     *         and the values are {@link Intent} instances used to launch these apps.
+     * @throws SecurityException If the caller lacks the necessary permissions.
+     * @hide
+     *
+     */
+    public @NonNull Map<ComponentName, Intent> getActivityLaunchIntentForAllApps(
+            @NonNull UserHandle user) {
+        logErrorForInvalidProfileAccess(user);
+        try {
+            ParceledListSlice<AppLaunchInfo> infos =
+                    mService.getActivityLaunchIntentForAllApps(mContext.getPackageName(), user);
+            if (infos == null || infos.getList().isEmpty()) {
+                return new HashMap<>();
+            }
+            List<AppLaunchInfo> appLaunchInfos =
+                    infos.getList();
+            Map<ComponentName, Intent> convertedApps = new HashMap<>(appLaunchInfos.size());
+
+            for (AppLaunchInfo info : appLaunchInfos) {
+                if (info.getComponentName() != null) {
+                    convertedApps.put(info.getComponentName(), info.getLaunchIntent());
+                }
+            }
+            return convertedApps;
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
+        }
+    }
+
+    /**
+     * Retrieves a list of available shortcuts for a given user.
+     * <p>
+     * This method queries the system service to fetch the available {@link ShortcutInfo}
+     * objects associated with the specified {@link UserHandle}. The returned list contains
+     * shortcut information that can be used for launching apps or specific actions.
+     * </p>
+     *
+     * <p><b>Permissions Required:</b></p>
+     * <ul>
+     *     <li>{@link android.Manifest.permission#INTERACT_ACROSS_USERS}</li>
+     *     <li>{@link android.Manifest.permission#MANAGE_USERS}</li>
+     * </ul>
+     *
+     * @param user The {@link UserHandle} representing the user for whom available shortcuts
+     * are queried.
+     * @return A list of {@link ShortcutInfo} objects representing the available shortcuts
+     * for the specified user.
+     * @throws SecurityException If the caller lacks the necessary permissions.
+     * @hide
+     *
+     */
+    public @NonNull List<ShortcutInfo> getAvailableShortcuts(@NonNull UserHandle user) {
+        logErrorForInvalidProfileAccess(user);
+        try {
+            ParceledListSlice<ShortcutInfo> shortcuts = mService.getAvailableShortcuts(
+                    mContext.getPackageName(), user);
+            if (shortcuts == null || shortcuts.getList().isEmpty()) {
+                return Collections.EMPTY_LIST;
+            }
+            return shortcuts.getList();
+
+        } catch (RemoteException e) {
+            throw e.rethrowFromSystemServer();
         }
     }
 
@@ -2065,9 +2142,7 @@ public class LauncherApps {
 
         @Override
         public void onPackageAdded(UserHandle user, String packageName) throws RemoteException {
-            if (DEBUG) {
-                Log.d(TAG, "onPackageAdded " + user.getIdentifier() + "," + packageName);
-            }
+            Log.d(TAG, "onPackageAdded " + user.getIdentifier() + "," + packageName);
             synchronized (LauncherApps.this) {
                 for (CallbackMessageHandler callback : mCallbacks) {
                     callback.postOnPackageAdded(packageName, user);

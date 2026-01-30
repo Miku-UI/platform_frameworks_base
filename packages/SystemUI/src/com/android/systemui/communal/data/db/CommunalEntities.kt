@@ -18,9 +18,13 @@ package com.android.systemui.communal.data.db
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "communal_widget_table")
+@Entity(
+    tableName = "communal_widget_table",
+    indices = [Index(value = ["widget_id"], unique = true, name = "widget_id_index")],
+)
 data class CommunalWidgetItem(
     @PrimaryKey(autoGenerate = true) val uid: Long,
     /** Id of an app widget */

@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Posodobi"</string>
     <string name="done" msgid="6632441120016885253">"Končano"</string>
     <string name="cancel" msgid="1018267193425558088">"Prekliči"</string>
+    <string name="more_details" msgid="3643407086654820243">"Več podrobnosti"</string>
+    <string name="dont_install" msgid="414055123295505225">"Ne namesti"</string>
     <string name="installing" msgid="4921993079741206516">"Nameščanje …"</string>
     <string name="installing_app" msgid="1165095864863849422">"Nameščanje aplikacije <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> …"</string>
     <string name="install_done" msgid="5987363587661783896">"Aplikacija je nameščena."</string>

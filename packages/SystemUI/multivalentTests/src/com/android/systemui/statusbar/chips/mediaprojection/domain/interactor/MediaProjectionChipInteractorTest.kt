@@ -21,10 +21,8 @@ import android.content.Intent
 import android.content.packageManager
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
-import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.Flags.FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.Kosmos
@@ -93,7 +91,6 @@ class MediaProjectionChipInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
     fun projection_noScreenState_otherDevicesPackage_isCastToOtherAndAudio() =
         testScope.runTest {
             val latest by collectLastValue(underTest.projection)
@@ -143,7 +140,6 @@ class MediaProjectionChipInteractorTest : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(FLAG_STATUS_BAR_SHOW_AUDIO_ONLY_PROJECTION_CHIP)
     fun projection_noScreenState_normalPackage_isShareToAppAndAudio() =
         testScope.runTest {
             val latest by collectLastValue(underTest.projection)

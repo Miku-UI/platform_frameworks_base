@@ -43,7 +43,6 @@ import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.ArrayUtils;
 import com.android.internal.util.BitUtils;
-import com.android.internal.util.FrameworkStatsLog;
 import com.android.internal.util.RingBuffer;
 import com.android.internal.util.TokenBucket;
 import com.android.net.module.util.BaseNetdEventListener;
@@ -325,10 +324,6 @@ public class NetdEventListenerService extends BaseNetdEventListener {
                     - System.currentTimeMillis();
             bsi.noteCpuWakingNetworkPacket(network, elapsedMs, event.uid);
         }
-
-        final String dstMac = String.valueOf(event.dstHwAddr);
-        FrameworkStatsLog.write(FrameworkStatsLog.PACKET_WAKEUP_OCCURRED,
-                uid, event.iface, ethertype, dstMac, srcIp, dstIp, ipNextHeader, srcPort, dstPort);
     }
 
     @Override

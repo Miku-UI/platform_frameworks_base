@@ -16,6 +16,7 @@
 
 package com.android.server.wm.flicker.service.close.flicker
 
+import androidx.test.filters.RequiresDevice
 import android.tools.Rotation
 import android.tools.flicker.FlickerConfig
 import android.tools.flicker.annotation.ExpectedScenarios
@@ -27,6 +28,7 @@ import com.android.server.wm.flicker.service.close.scenarios.CloseAppSwipeToHome
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@RequiresDevice
 @RunWith(FlickerServiceJUnit4ClassRunner::class)
 class CloseAppSwipeToHomeGesturalNavPortrait : CloseAppSwipeToHome(Rotation.ROTATION_0) {
     @ExpectedScenarios(["APP_CLOSE_TO_HOME"])

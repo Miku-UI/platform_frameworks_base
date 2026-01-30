@@ -52,32 +52,6 @@ class MediaLogger @Inject constructor(@MediaLog private val buffer: LogBuffer) {
         )
     }
 
-    fun logRecommendationLoaded(key: String, isActive: Boolean, reason: String) {
-        buffer.log(
-            TAG,
-            LogLevel.DEBUG,
-            {
-                str1 = key
-                bool1 = isActive
-                str2 = reason
-            },
-            { "add recommendation $str1, active $bool1, reason: $str2" },
-        )
-    }
-
-    fun logRecommendationRemoved(key: String, immediately: Boolean, reason: String) {
-        buffer.log(
-            TAG,
-            LogLevel.DEBUG,
-            {
-                str1 = key
-                bool1 = immediately
-                str2 = reason
-            },
-            { "removing recommendation $str1, immediate=$bool1, reason: $str2" },
-        )
-    }
-
     fun logMediaCardAdded(instanceId: InstanceId) {
         buffer.log(
             TAG,
@@ -93,24 +67,6 @@ class MediaLogger @Inject constructor(@MediaLog private val buffer: LogBuffer) {
             LogLevel.DEBUG,
             { str1 = instanceId.toString() },
             { "removing media card $str1 from carousel" },
-        )
-    }
-
-    fun logMediaRecommendationCardAdded(key: String) {
-        buffer.log(
-            TAG,
-            LogLevel.DEBUG,
-            { str1 = key },
-            { "adding recommendation card $str1 to carousel" },
-        )
-    }
-
-    fun logMediaRecommendationCardRemoved(key: String) {
-        buffer.log(
-            TAG,
-            LogLevel.DEBUG,
-            { str1 = key },
-            { "removing recommendation card $str1 from carousel" },
         )
     }
 

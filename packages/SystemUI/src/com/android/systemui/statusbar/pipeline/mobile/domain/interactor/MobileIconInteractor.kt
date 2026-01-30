@@ -17,7 +17,6 @@
 package com.android.systemui.statusbar.pipeline.mobile.domain.interactor
 
 import android.content.Context
-import com.android.internal.telephony.flags.Flags
 import com.android.settingslib.SignalIcon.MobileIconGroup
 import com.android.settingslib.graph.SignalDrawable
 import com.android.settingslib.mobile.MobileIconCarrierIdOverrides
@@ -46,6 +45,11 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 interface MobileIconInteractor {
+    /** The subscriptionId that this connection represents */
+    // TODO(b/423048138): The interactor should have enough information to get the proper RAT
+    // indicator icon, rather than just exposing the subId here.
+    val subscriptionId: Int
+
     /** The table log created for this connection */
     val tableLogBuffer: TableLogBuffer
 
@@ -147,6 +151,8 @@ class MobileIconInteractorImpl(
     private val context: Context,
     val carrierIdOverrides: MobileIconCarrierIdOverrides = MobileIconCarrierIdOverridesImpl(),
 ) : MobileIconInteractor {
+    override val subscriptionId = connectionRepository.subId
+
     override val tableLogBuffer: TableLogBuffer = connectionRepository.tableLogBuffer
 
     override val activity = connectionRepository.dataActivityDirection
@@ -325,12 +331,7 @@ class MobileIconInteractorImpl(
     // Satellite level is unaffected by the inflateSignalStrength property
     // See b/346904529 for details
     private val satelliteShownLevel: StateFlow<Int> =
-        if (Flags.carrierRoamingNbIotNtn()) {
-                connectionRepository.satelliteLevel
-            } else {
-                combine(level, isInService) { level, isInService -> if (isInService) level else 0 }
-            }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), 0)
+        connectionRepository.satelliteLevel.stateIn(scope, SharingStarted.WhileSubscribed(), 0)
 
     private val cellularIcon: Flow<SignalIconModel.Cellular> =
         combine(

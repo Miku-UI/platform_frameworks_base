@@ -34,7 +34,7 @@ import com.android.ims.internal.IImsEcbmListener;
 /**
  * Provides the ECBM interface
  *
- * {@hide}
+ * @hide
  */
 interface IImsEcbm {
     /**

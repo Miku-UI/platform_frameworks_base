@@ -17,6 +17,31 @@
 package com.android.systemui.qs.tiles.base.shared.model
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.qs.tiles.impl.airplane.qsAirplaneModeTileConfig
+import com.android.systemui.qs.tiles.impl.alarm.qsAlarmTileConfig
+import com.android.systemui.qs.tiles.impl.battery.qsBatterySaverTileConfig
+import com.android.systemui.qs.tiles.impl.bluetooth.qsBluetoothTileConfig
+import com.android.systemui.qs.tiles.impl.cast.qsCastTileConfig
+import com.android.systemui.qs.tiles.impl.colorcorrection.qsColorCorrectionTileConfig
+import com.android.systemui.qs.tiles.impl.flashlight.qsFlashlightTileConfig
+import com.android.systemui.qs.tiles.impl.internet.qsInternetTileConfig
+import com.android.systemui.qs.tiles.impl.inversion.qsColorInversionTileConfig
+import com.android.systemui.qs.tiles.impl.uimodenight.qsUiModeNightTileConfig
 
 val Kosmos.fakeQSTileConfigProvider by Kosmos.Fixture { FakeQSTileConfigProvider() }
 var Kosmos.qSTileConfigProvider: QSTileConfigProvider by Kosmos.Fixture { fakeQSTileConfigProvider }
+
+fun Kosmos.populateQsTileConfigProvider() {
+    with(fakeQSTileConfigProvider) {
+        putConfig(qsAirplaneModeTileConfig.tileSpec, qsAirplaneModeTileConfig)
+        putConfig(qsAlarmTileConfig.tileSpec, qsAlarmTileConfig)
+        putConfig(qsBatterySaverTileConfig.tileSpec, qsBatterySaverTileConfig)
+        putConfig(qsColorCorrectionTileConfig.tileSpec, qsColorCorrectionTileConfig)
+        putConfig(qsColorInversionTileConfig.tileSpec, qsColorInversionTileConfig)
+        putConfig(qsFlashlightTileConfig.tileSpec, qsFlashlightTileConfig)
+        putConfig(qsInternetTileConfig.tileSpec, qsInternetTileConfig)
+        putConfig(qsUiModeNightTileConfig.tileSpec, qsUiModeNightTileConfig)
+        putConfig(qsBluetoothTileConfig.tileSpec, qsBluetoothTileConfig)
+        putConfig(qsCastTileConfig.tileSpec, qsCastTileConfig)
+    }
+}

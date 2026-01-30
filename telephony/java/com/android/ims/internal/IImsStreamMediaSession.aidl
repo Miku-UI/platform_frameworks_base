@@ -18,7 +18,7 @@ package com.android.ims.internal;
 
 /**
  *
- * {@hide}
+ * @hide
  */
 interface IImsStreamMediaSession {
     void close();

@@ -17,7 +17,13 @@
 package com.android.systemui.wallpapers.domain.interactor
 
 import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.wallpapers.data.repository.FakeWallpaperRepository
 import com.android.systemui.wallpapers.data.repository.wallpaperRepository
 
 val Kosmos.wallpaperInteractor by
     Kosmos.Fixture { WallpaperInteractor(wallpaperRepository = wallpaperRepository) }
+
+val Kosmos.fakeWallpaperRepository by Kosmos.Fixture { FakeWallpaperRepository() }
+
+val Kosmos.wallpaperInteractorFaked by
+    Kosmos.Fixture { WallpaperInteractor(wallpaperRepository = fakeWallpaperRepository) }

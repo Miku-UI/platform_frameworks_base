@@ -52,6 +52,9 @@ import static com.android.server.am.BroadcastRecord.intentToString;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers.CanBeALL;
+import android.annotation.SpecialUsers.CanBeCURRENT;
+import android.annotation.UserIdInt;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AppGlobals;
@@ -108,6 +111,7 @@ import android.util.proto.ProtoOutputStream;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
+import com.android.internal.util.ArrayUtils;
 import com.android.server.IntentResolver;
 import com.android.server.LocalManagerRegistry;
 import com.android.server.LocalServices;
@@ -144,6 +148,14 @@ class BroadcastController {
     @ChangeId
     @EnabledSince(targetSdkVersion = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     private static final long DYNAMIC_RECEIVER_EXPLICIT_EXPORT_REQUIRED = 161145287L;
+
+    /**
+     * It is now required for apps to be in the foreground to send remote intent broadcasts on Wear
+     * devices.
+     */
+    @ChangeId
+    @EnabledSince(targetSdkVersion = Build.VERSION_CODES.BAKLAVA)
+    private static final long WEAR_REMOTE_INTENT_BLOCKED_IN_BACKGROUND = 419106561L;
 
     // Maximum number of receivers an app can register.
     private static final int MAX_RECEIVERS_ALLOWED_PER_APP = 1000;
@@ -196,8 +208,7 @@ class BroadcastController {
      * Resolver for broadcast intents to registered receivers.
      * Holds BroadcastFilter (subclass of IntentFilter).
      */
-    final IntentResolver<BroadcastFilter, BroadcastFilter> mReceiverResolver =
-            new IntentResolver<>() {
+    final class BroadcastIntentResolver extends IntentResolver<BroadcastFilter, BroadcastFilter> {
         @Override
         protected boolean allowFilterResult(
                 BroadcastFilter filter, List<BroadcastFilter> dest) {
@@ -234,7 +245,21 @@ class BroadcastController {
         protected boolean isPackageForFilter(String packageName, BroadcastFilter filter) {
             return packageName.equals(filter.packageName);
         }
+
+        public List<BroadcastFilter> queryIntent(@NonNull PackageDataSnapshot snapshot,
+                Intent intent, String resolvedType, boolean defaultOnly, @UserIdInt int userId,
+                @Nullable String[] includedPackages) {
+            final List<BroadcastFilter> infos = super.queryIntent(snapshot, intent,
+                    resolvedType, defaultOnly, userId);
+            // TODO: b/428262517 - filter out packages that are not in includedPackages close to
+            // intent resolution.
+            if (includedPackages != null) {
+                infos.removeIf(info -> !ArrayUtils.contains(includedPackages, info.packageName));
+            }
+            return infos;
+        }
     };
+    private final BroadcastIntentResolver mReceiverResolver = new BroadcastIntentResolver();
 
     BroadcastController(Context context, ActivityManagerService service, BroadcastQueue queue) {
         mContext = context;
@@ -248,7 +273,8 @@ class BroadcastController {
 
     Intent registerReceiverWithFeature(IApplicationThread caller, String callerPackage,
             String callerFeatureId, String receiverId, IIntentReceiver receiver,
-            IntentFilter filter, String permission, int userId, int flags) {
+            IntentFilter filter, String permission,  @CanBeALL @CanBeCURRENT @UserIdInt int userId,
+            int flags) {
         traceRegistrationBegin(receiverId, receiver, filter, userId);
         try {
             return registerReceiverWithFeatureTraced(caller, callerPackage, callerFeatureId,
@@ -260,9 +286,6 @@ class BroadcastController {
 
     private static void traceRegistrationBegin(String receiverId, IIntentReceiver receiver,
             IntentFilter filter, int userId) {
-        if (!Flags.traceReceiverRegistration()) {
-            return;
-        }
         if (Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
             final StringBuilder sb = new StringBuilder("registerReceiver: ");
             sb.append(Binder.getCallingUid()); sb.append('/');
@@ -285,9 +308,6 @@ class BroadcastController {
     }
 
     private static void traceRegistrationEnd() {
-        if (!Flags.traceReceiverRegistration()) {
-            return;
-        }
         if (Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
             Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
         }
@@ -296,7 +316,7 @@ class BroadcastController {
     private Intent registerReceiverWithFeatureTraced(IApplicationThread caller,
             String callerPackage, String callerFeatureId, String receiverId,
             IIntentReceiver receiver, IntentFilter filter, String permission,
-            int userId, int flags) {
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId, int flags) {
         mService.enforceNotIsolatedCaller("registerReceiver");
 
         if (!mAreStickyCachesInvalidated) {
@@ -487,15 +507,10 @@ class BroadcastController {
                 // provider that needs to lock mProviderMap in ActivityThread
                 // and also it may need to wait application response, so we
                 // cannot lock ActivityManagerService here.
-                final int match;
-                if (Flags.avoidResolvingType()) {
-                    match = filter.match(intent.getAction(), broadcast.resolvedDataType,
-                            intent.getScheme(), intent.getData(), intent.getCategories(),
-                            TAG, false /* supportsWildcards */, null /* ignoreActions */,
-                            intent.getExtras());
-                } else {
-                    match = filter.match(resolver, intent, true, TAG);
-                }
+                final int match = filter.match(intent.getAction(), broadcast.resolvedDataType,
+                        intent.getScheme(), intent.getData(), intent.getCategories(),
+                        TAG, false /* supportsWildcards */, null /* ignoreActions */,
+                        intent.getExtras());
                 if (match >= 0) {
                     if (allSticky == null) {
                         allSticky = new ArrayList<>();
@@ -599,11 +614,13 @@ class BroadcastController {
                         sticky = broadcast.intent;
                     }
                     BroadcastQueue queue = mBroadcastQueue;
-                    BroadcastRecord r = new BroadcastRecord(queue, broadcast.intent, null,
-                            null, null, -1, -1, false, null, null, null, null, OP_NONE,
+                    BroadcastRecord r = new BroadcastRecord(queue, broadcast.intent, null, null,
+                            null, -1  /*callingPid*/, -1 /*callingUid*/, false, null, null, null,
+                            null, OP_NONE,
                             BroadcastOptions.makeWithDeferUntilActive(broadcast.deferUntilActive),
-                            receivers, null, null, 0, null, null, false, true, true, -1,
-                            originalStickyCallingUid, BackgroundStartPrivileges.NONE,
+                            receivers, null, null, 0, null, null, false, true, true, -1 /*userId*/,
+                            originalStickyCallingUid, -1 /*realCallingPid*/,
+                            BackgroundStartPrivileges.NONE,
                             false /* only PRE_BOOT_COMPLETED should be exempt, no stickies */,
                             null /* filterExtrasForReceiver */,
                             broadcast.originalCallingAppProcessState, mService.mPlatformCompat);
@@ -625,9 +642,6 @@ class BroadcastController {
     }
 
     private static void traceUnregistrationBegin(IIntentReceiver receiver) {
-        if (!Flags.traceReceiverRegistration()) {
-            return;
-        }
         if (Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
             Trace.traceBegin(Trace.TRACE_TAG_ACTIVITY_MANAGER,
                     TextUtils.formatSimple("unregisterReceiver: %d/%s", Binder.getCallingUid(),
@@ -636,9 +650,6 @@ class BroadcastController {
     }
 
     private static void traceUnregistrationEnd() {
-        if (!Flags.traceReceiverRegistration()) {
-            return;
-        }
         if (Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
             Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
         }
@@ -712,7 +723,7 @@ class BroadcastController {
             int resultCode, String resultData, Bundle resultExtras,
             String[] requiredPermissions, String[] excludedPermissions,
             String[] excludedPackages, int appOp, Bundle bOptions,
-            boolean serialized, boolean sticky, int userId) {
+            boolean serialized, boolean sticky, @CanBeALL @CanBeCURRENT @UserIdInt int userId) {
         mService.enforceNotIsolatedCaller("broadcastIntent");
         final int result;
 
@@ -729,12 +740,6 @@ class BroadcastController {
             // Permission regimes around sender-supplied broadcast options.
             enforceBroadcastOptionPermissionsInternal(bOptions, callingUid);
 
-            final ComponentName cn = intent.getComponent();
-
-            Trace.traceBegin(
-                    Trace.TRACE_TAG_ACTIVITY_MANAGER,
-                    "broadcastIntent:" + (cn != null ? cn.toString() : intent.getAction()));
-
             final long origId = Binder.clearCallingIdentity();
             try {
                 result = broadcastIntentLocked(callerApp,
@@ -745,7 +750,6 @@ class BroadcastController {
                         callingPid, userId, BackgroundStartPrivileges.NONE, null, null);
             } finally {
                 Binder.restoreCallingIdentity(origId);
-                Trace.traceEnd(Trace.TRACE_TAG_ACTIVITY_MANAGER);
             }
         }
 
@@ -795,7 +799,7 @@ class BroadcastController {
             Bundle resultExtras, String[] requiredPermissions,
             String[] excludedPermissions, String[] excludedPackages, int appOp, Bundle bOptions,
             boolean ordered, boolean sticky, int callingPid, int callingUid,
-            int realCallingUid, int realCallingPid, int userId,
+            int realCallingUid, int realCallingPid, @CanBeALL @CanBeCURRENT @UserIdInt int userId,
             BackgroundStartPrivileges backgroundStartPrivileges,
             @Nullable int[] broadcastAllowList,
             @Nullable BiFunction<Integer, Bundle, Bundle> filterExtrasForReceiver) {
@@ -821,9 +825,6 @@ class BroadcastController {
 
     private static int traceBroadcastIntentBegin(Intent intent, IIntentReceiver resultTo,
             boolean ordered, boolean sticky, int callingUid, int realCallingUid, int userId) {
-        if (!Flags.traceReceiverRegistration()) {
-            return BroadcastQueue.traceBegin("broadcastIntentLockedTraced");
-        }
         if (Trace.isTagEnabled(Trace.TRACE_TAG_ACTIVITY_MANAGER)) {
             final StringBuilder sb = new StringBuilder("broadcastIntent: ");
             sb.append(callingUid); sb.append('/');
@@ -839,6 +840,10 @@ class BroadcastController {
                 sb.append('/');
                 sb.append("sender="); sb.append(realCallingUid);
             }
+            final String target = intent.getComponent() != null
+                    ? intent.getComponent().flattenToShortString()
+                    : intent.getPackage();
+            Trace.instant(Trace.TRACE_TAG_ACTIVITY_MANAGER, "broadcastIntentTarget:" + target);
             return BroadcastQueue.traceBegin(sb.toString());
         }
         return 0;
@@ -857,7 +862,8 @@ class BroadcastController {
             Bundle resultExtras, String[] requiredPermissions,
             String[] excludedPermissions, String[] excludedPackages, int appOp,
             BroadcastOptions brOptions, boolean ordered, boolean sticky, int callingPid,
-            int callingUid, int realCallingUid, int realCallingPid, int userId,
+            int callingUid, int realCallingUid, int realCallingPid,
+            @CanBeALL @CanBeCURRENT @UserIdInt int userId,
             BackgroundStartPrivileges backgroundStartPrivileges,
             @Nullable int[] broadcastAllowList,
             @Nullable BiFunction<Integer, Bundle, Bundle> filterExtrasForReceiver,
@@ -1026,6 +1032,10 @@ class BroadcastController {
                     brOptions.setDebugLogEnabled(false);
                 }
             }
+
+            if (!UserHandle.isCore(callingUid)) {
+                brOptions.setDebugReason(null);
+            }
         }
 
         // Verify that protected broadcasts are only being sent by system code,
@@ -1106,12 +1116,16 @@ class BroadcastController {
                 intent.addFlags(Intent.FLAG_RECEIVER_INCLUDE_BACKGROUND);
             }
 
-            // TODO: b/329211459 - Remove this after background remote intent is fixed.
+            // TODO: b/329211459 - Remove this when the remote intent broadcast receiver is removed
+            // from Wear.
             if (mContext.getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)
-                    && getWearRemoteIntentAction().equals(action)) {
-                final int callerProcState = callerApp != null
-                        ? callerApp.getCurProcState()
-                        : ActivityManager.PROCESS_STATE_NONEXISTENT;
+                    && getWearRemoteIntentAction().equals(action)
+                    && CompatChanges.isChangeEnabled(
+                            WEAR_REMOTE_INTENT_BLOCKED_IN_BACKGROUND, callingUid)) {
+                final int callerProcState =
+                        callerApp != null
+                                ? callerApp.getCurProcState()
+                                : ActivityManager.PROCESS_STATE_NONEXISTENT;
                 if (ActivityManager.RunningAppProcessInfo.procStateToImportance(callerProcState)
                         > ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND) {
                     return ActivityManager.START_CANCELED;
@@ -1515,10 +1529,13 @@ class BroadcastController {
         // Need to resolve the intent to interested receivers...
         if ((intent.getFlags() & Intent.FLAG_RECEIVER_REGISTERED_ONLY) == 0) {
             receivers = collectReceiverComponents(
-                    intent, resolvedType, callingUid, callingPid, users, broadcastAllowList);
+                    intent, resolvedType, callingUid, callingPid, users, broadcastAllowList,
+                    brOptions == null ? null : brOptions.getIncludedPackages());
         }
         if (intent.getComponent() == null) {
             final PackageDataSnapshot snapshot = mService.getPackageManagerInternal().snapshot();
+            final String[] includedPackages = brOptions != null
+                    ? brOptions.getIncludedPackages() : null;
             if (userId == UserHandle.USER_ALL && callingUid == SHELL_UID) {
                 // Query one target user at a time, excluding shell-restricted users
                 for (int i = 0; i < users.length; i++) {
@@ -1527,8 +1544,8 @@ class BroadcastController {
                         continue;
                     }
                     List<BroadcastFilter> registeredReceiversForUser =
-                            mReceiverResolver.queryIntent(snapshot, intent,
-                                    resolvedType, false /*defaultOnly*/, users[i]);
+                            mReceiverResolver.queryIntent(snapshot, intent, resolvedType,
+                                    false /*defaultOnly*/, users[i], includedPackages);
                     if (registeredReceivers == null) {
                         registeredReceivers = registeredReceiversForUser;
                     } else if (registeredReceiversForUser != null) {
@@ -1537,7 +1554,7 @@ class BroadcastController {
                 }
             } else {
                 registeredReceivers = mReceiverResolver.queryIntent(snapshot, intent,
-                        resolvedType, false /*defaultOnly*/, userId);
+                        resolvedType, false /*defaultOnly*/, userId, includedPackages);
             }
             if (registeredReceivers != null) {
                 SaferIntentUtils.blockNullAction(args, registeredReceivers);
@@ -1654,8 +1671,8 @@ class BroadcastController {
             BroadcastRecord r = new BroadcastRecord(queue, intent, callerApp, callerPackage,
                     callerFeatureId, callingPid, callingUid, callerInstantApp, resolvedType,
                     requiredPermissions, excludedPermissions, excludedPackages, appOp, brOptions,
-                    receivers, resultToApp, resultTo, resultCode, resultData, resultExtras,
-                    ordered, sticky, false, userId,
+                    receivers, resultToApp, resultTo, resultCode, resultData, resultExtras, ordered,
+                    sticky, false, userId, -1 /* originalStickyCallingUid */, realCallingUid,
                     backgroundStartPrivileges, timeoutExempt, filterExtrasForReceiver,
                     callerAppProcessState, mService.mPlatformCompat);
             broadcastSentEventRecord.setBroadcastRecord(r);
@@ -1699,7 +1716,7 @@ class BroadcastController {
                 final boolean shareIdentity = (options != null && options.isShareIdentityEnabled());
                 thread.scheduleRegisteredReceiver(
                         resultTo, intent, Activity.RESULT_CANCELED, null, null,
-                        false, false, true, userId, app.mState.getReportedProcState(),
+                        false, false, true, userId, app.getReportedProcState(),
                         shareIdentity ? callingUid : Process.INVALID_UID,
                         shareIdentity ? callingPackage : null);
             } catch (RemoteException e) {
@@ -1720,7 +1737,7 @@ class BroadcastController {
             }
         }
         if (app != null && app.getThread() != null && !app.isKilled()) {
-            return app.mState.getCurProcState();
+            return app.getCurProcState();
         }
         return PROCESS_STATE_NONEXISTENT;
     }
@@ -1965,7 +1982,7 @@ class BroadcastController {
 
     private List<ResolveInfo> collectReceiverComponents(
             Intent intent, String resolvedType, int callingUid, int callingPid,
-            int[] users, int[] broadcastAllowList) {
+            int[] users, int[] broadcastAllowList, String[] includedPackages) {
         // TODO: come back and remove this assumption to triage all broadcasts
         long pmFlags = STOCK_PM_FLAGS | MATCH_DEBUG_TRIAGED_MISSING;
 
@@ -1980,7 +1997,8 @@ class BroadcastController {
                 continue;
             }
             List<ResolveInfo> newReceivers = mService.mPackageManagerInt.queryIntentReceivers(
-                    intent, resolvedType, pmFlags, callingUid, callingPid, user, /* forSend */true);
+                    intent, resolvedType, pmFlags, callingUid, callingPid, user,
+                    /* forSend */ true, includedPackages);
             if (user != UserHandle.USER_SYSTEM && newReceivers != null) {
                 // If this is not the system user, we need to check for
                 // any receivers that should be filtered out.

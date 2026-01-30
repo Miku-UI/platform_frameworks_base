@@ -17,6 +17,7 @@
 package com.android.internal.net;
 
 import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -40,12 +41,27 @@ public class ConnectivityBlobStoreTest {
     private static final String DATABASE_FILENAME = "ConnectivityBlobStore.db";
     private static final String TEST_NAME = "TEST_NAME";
     private static final byte[] TEST_BLOB = new byte[] {(byte) 10, (byte) 90, (byte) 45, (byte) 12};
+    private static final int TEST_UID = 1234;
 
     private Context mContext;
     private File mFile;
 
-    private ConnectivityBlobStore createConnectivityBlobStore() {
-        return new ConnectivityBlobStore(mFile);
+    // Local subclass to allow us to override methods for testing.
+    private class TestConnectivityBlobStore extends ConnectivityBlobStore {
+        private int mCallingUid = TEST_UID;
+
+        TestConnectivityBlobStore() {
+            super(mFile);
+        }
+
+        @Override
+        protected int getCallingUidMockable() {
+            return mCallingUid;
+        }
+
+        public void setCallingUid(int newCallingUid) {
+            mCallingUid = newCallingUid;
+        }
     }
 
     @Before
@@ -62,7 +78,7 @@ public class ConnectivityBlobStoreTest {
     @Test
     public void testFileCreateDelete() {
         assertFalse(mFile.exists());
-        createConnectivityBlobStore();
+        ConnectivityBlobStore connectivityBlobStore = new ConnectivityBlobStore(mFile);
         assertTrue(mFile.exists());
 
         assertTrue(mContext.deleteDatabase(DATABASE_FILENAME));
@@ -71,7 +87,7 @@ public class ConnectivityBlobStoreTest {
 
     @Test
     public void testPutAndGet() throws Exception {
-        final ConnectivityBlobStore connectivityBlobStore = createConnectivityBlobStore();
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
         assertNull(connectivityBlobStore.get(TEST_NAME));
 
         assertTrue(connectivityBlobStore.put(TEST_NAME, TEST_BLOB));
@@ -85,7 +101,7 @@ public class ConnectivityBlobStoreTest {
 
     @Test
     public void testRemove() throws Exception {
-        final ConnectivityBlobStore connectivityBlobStore = createConnectivityBlobStore();
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
         assertNull(connectivityBlobStore.get(TEST_NAME));
         assertFalse(connectivityBlobStore.remove(TEST_NAME));
 
@@ -100,10 +116,56 @@ public class ConnectivityBlobStoreTest {
     }
 
     @Test
+    public void testRemoveAll() throws Exception {
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
+        final int numEntries = 5;
+        for (int i = 0; i < numEntries; i++) {
+            assertTrue(connectivityBlobStore.put(TEST_NAME + i, TEST_BLOB));
+        }
+        assertEquals(numEntries, connectivityBlobStore.list("").length);
+
+        // Remove all blobs and check that the blob store is empty.
+        assertTrue(connectivityBlobStore.removeAll());
+        assertEquals(0, connectivityBlobStore.list("").length);
+
+        // Removing all blobs from an empty database should also succeed.
+        assertTrue(connectivityBlobStore.removeAll());
+    }
+
+    @Test
+    public void testRemoveAll_multipleUids() throws Exception {
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
+        final int numEntries = 5;
+        final int uid1 = TEST_UID, uid2 = TEST_UID + 1;
+
+        // Add several entries as UID 1.
+        connectivityBlobStore.setCallingUid(uid1);
+        for (int i = 0; i < numEntries; i++) {
+            assertTrue(connectivityBlobStore.put(TEST_NAME + i, TEST_BLOB));
+        }
+        assertEquals(numEntries, connectivityBlobStore.list("").length);
+
+        // Add several entries as UID 2.
+        connectivityBlobStore.setCallingUid(uid2);
+        for (int i = 0; i < numEntries; i++) {
+            assertTrue(connectivityBlobStore.put(TEST_NAME + i, TEST_BLOB));
+        }
+        assertEquals(numEntries, connectivityBlobStore.list("").length);
+
+        // Clear all entries as UID 2.
+        connectivityBlobStore.removeAll();
+        assertEquals(0, connectivityBlobStore.list("").length);
+
+        // All entries added by UID 1 should still exist.
+        connectivityBlobStore.setCallingUid(uid1);
+        assertEquals(numEntries, connectivityBlobStore.list("").length);
+    }
+
+    @Test
     public void testMultipleNames() throws Exception {
         final String name1 = TEST_NAME + "1";
         final String name2 = TEST_NAME + "2";
-        final ConnectivityBlobStore connectivityBlobStore = createConnectivityBlobStore();
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
 
         assertNull(connectivityBlobStore.get(name1));
         assertNull(connectivityBlobStore.get(name2));
@@ -145,7 +207,7 @@ public class ConnectivityBlobStoreTest {
                 "1",
                 "2"
         };
-        final ConnectivityBlobStore connectivityBlobStore = createConnectivityBlobStore();
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
 
         for (int i = 0; i < unsortedNames.length; i++) {
             assertTrue(connectivityBlobStore.put(unsortedNames[i], TEST_BLOB));
@@ -163,7 +225,7 @@ public class ConnectivityBlobStoreTest {
         };
         // The '_' in the prefix should not be treated as a wildcard so the only match is "000".
         final String[] expected = new String[] {"000"};
-        final ConnectivityBlobStore connectivityBlobStore = createConnectivityBlobStore();
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
 
         for (int i = 0; i < unsortedNames.length; i++) {
             assertTrue(connectivityBlobStore.put(unsortedNames[i], TEST_BLOB));
@@ -182,7 +244,7 @@ public class ConnectivityBlobStoreTest {
         };
         // The '%' in the prefix should not be treated as a wildcard so the only match is "0".
         final String[] expected = new String[] {"0"};
-        final ConnectivityBlobStore connectivityBlobStore = createConnectivityBlobStore();
+        final TestConnectivityBlobStore connectivityBlobStore = new TestConnectivityBlobStore();
 
         for (int i = 0; i < unsortedNames.length; i++) {
             assertTrue(connectivityBlobStore.put(unsortedNames[i], TEST_BLOB));

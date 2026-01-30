@@ -23,11 +23,8 @@ import com.android.internal.annotations.KeepForWeakReference
 import com.android.internal.annotations.VisibleForTesting
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.media.controls.shared.model.MediaData
-import com.android.systemui.media.controls.shared.model.SmartspaceMediaData
 import com.android.systemui.settings.UserTracker
 import com.android.systemui.statusbar.NotificationLockscreenUserManager
-import com.android.systemui.util.time.SystemClock
-import java.util.SortedMap
 import java.util.concurrent.Executor
 import javax.inject.Inject
 import kotlin.collections.LinkedHashMap
@@ -37,8 +34,7 @@ private const val DEBUG = true
 
 /**
  * Filters data updates from [MediaDataCombineLatest] based on the current user ID, and handles user
- * switches (removing entries for the previous user, adding back entries for the current user). Also
- * filters out smartspace updates in favor of local recent media, when avaialble.
+ * switches (removing entries for the previous user, adding back entries for the current user).
  *
  * This is added at the end of the pipeline since we may still need to handle callbacks from
  * background users (e.g. timeouts).
@@ -49,7 +45,6 @@ constructor(
     private val userTracker: UserTracker,
     private val lockscreenUserManager: NotificationLockscreenUserManager,
     @Main private val executor: Executor,
-    private val systemClock: SystemClock,
 ) : MediaDataManager.Listener {
     private val _listeners: MutableSet<MediaDataManager.Listener> = mutableSetOf()
     val listeners: Set<MediaDataManager.Listener>
@@ -83,8 +78,6 @@ constructor(
         oldKey: String?,
         data: MediaData,
         immediately: Boolean,
-        receivedSmartspaceCardLatency: Int,
-        isSsReactivated: Boolean,
     ) {
         if (oldKey != null && oldKey != key) {
             allEntries.remove(oldKey)
@@ -107,24 +100,12 @@ constructor(
         listeners.forEach { it.onMediaDataLoaded(key, oldKey, data) }
     }
 
-    override fun onSmartspaceMediaDataLoaded(
-        key: String,
-        data: SmartspaceMediaData,
-        shouldPrioritize: Boolean,
-    ) {
-        // TODO(b/382680767): remove
-    }
-
     override fun onMediaDataRemoved(key: String, userInitiated: Boolean) {
         allEntries.remove(key)
         userEntries.remove(key)?.let {
             // Only notify listeners if something actually changed
             listeners.forEach { it.onMediaDataRemoved(key, userInitiated) }
         }
-    }
-
-    override fun onSmartspaceMediaDataRemoved(key: String, immediately: Boolean) {
-        // TODO(b/382680767): remove
     }
 
     @VisibleForTesting
@@ -183,23 +164,4 @@ constructor(
 
     /** Remove a listener that was registered with addListener */
     fun removeListener(listener: MediaDataManager.Listener) = _listeners.remove(listener)
-
-    /**
-     * Return the time since last active for the most-recent media.
-     *
-     * @param sortedEntries userEntries sorted from the earliest to the most-recent.
-     * @return The duration in milliseconds from the most-recent media's last active timestamp to
-     *   the present. MAX_VALUE will be returned if there is no media.
-     */
-    private fun timeSinceActiveForMostRecentMedia(
-        sortedEntries: SortedMap<String, MediaData>
-    ): Long {
-        if (sortedEntries.isEmpty()) {
-            return Long.MAX_VALUE
-        }
-
-        val now = systemClock.elapsedRealtime()
-        val lastActiveKey = sortedEntries.lastKey() // most recently active
-        return sortedEntries.get(lastActiveKey)?.let { now - it.lastActive } ?: Long.MAX_VALUE
-    }
 }

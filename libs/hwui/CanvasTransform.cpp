@@ -33,35 +33,35 @@
 
 namespace android::uirenderer {
 
-SkColor makeLight(SkColor color) {
+SkColor4f makeLight(SkColor4f color) {
     Lab lab = sRGBToLab(color);
     float invertedL = std::min(110 - lab.L, 100.0f);
     if (invertedL > lab.L) {
         lab.L = invertedL;
-        return LabToSRGB(lab, SkColorGetA(color));
+        return LabToSRGB(lab, color.fA);
     } else {
         return color;
     }
 }
 
-SkColor makeDark(SkColor color) {
+SkColor4f makeDark(SkColor4f color) {
     Lab lab = sRGBToLab(color);
     float invertedL = std::min(110 - lab.L, 100.0f);
     if (invertedL < lab.L) {
         lab.L = invertedL;
-        return LabToSRGB(lab, SkColorGetA(color));
+        return LabToSRGB(lab, color.fA);
     } else {
         return color;
     }
 }
 
-SkColor invert(SkColor color) {
+SkColor4f invert(SkColor4f color) {
     Lab lab = sRGBToLab(color);
     lab.L = 100 - lab.L;
-    return LabToSRGB(lab, SkColorGetA(color));
+    return LabToSRGB(lab, color.fA);
 }
 
-SkColor transformColor(ColorTransform transform, SkColor color) {
+SkColor4f transformColor(ColorTransform transform, SkColor4f color) {
     switch (transform) {
         case ColorTransform::Light:
             return makeLight(color);
@@ -74,7 +74,7 @@ SkColor transformColor(ColorTransform transform, SkColor color) {
     }
 }
 
-SkColor transformColorInverse(ColorTransform transform, SkColor color) {
+SkColor4f transformColorInverse(ColorTransform transform, SkColor4f color) {
     switch (transform) {
         case ColorTransform::Dark:
             return makeLight(color);
@@ -85,15 +85,26 @@ SkColor transformColorInverse(ColorTransform transform, SkColor color) {
     }
 }
 
+/**
+ * Invert's the paint's current color filter by composing it with an inversion filter.
+ *
+ * Relies on the undocumented behavior that makeComposed() will just return this if inner is null.
+ */
+static void composeWithInvertedColorFilter(SkPaint& paint) {
+    SkHighContrastConfig config;
+    config.fInvertStyle = SkHighContrastConfig::InvertStyle::kInvertLightness;
+    paint.setColorFilter(SkHighContrastFilter::Make(config)->makeComposed(paint.refColorFilter()));
+}
+
 static void applyColorTransform(ColorTransform transform, SkPaint& paint) {
     if (transform == ColorTransform::None) return;
 
-    SkColor newColor = transformColor(transform, paint.getColor());
+    SkColor4f newColor = transformColor(transform, paint.getColor4f());
     paint.setColor(newColor);
 
     if (paint.getShader()) {
         SkAndroidFrameworkUtils::LinearGradientInfo info;
-        std::array<SkColor, 10> _colorStorage;
+        std::array<SkColor4f, 10> _colorStorage;
         std::array<SkScalar, _colorStorage.size()> _offsetStorage;
         info.fColorCount = _colorStorage.size();
         info.fColors = _colorStorage.data();
@@ -105,34 +116,22 @@ static void applyColorTransform(ColorTransform transform, SkPaint& paint) {
                 info.fColors[i] = transformColor(transform, info.fColors[i]);
             }
             paint.setShader(SkGradientShader::MakeLinear(
-                    info.fPoints, info.fColors, info.fColorOffsets, info.fColorCount,
+                    info.fPoints, info.fColors, nullptr, info.fColorOffsets, info.fColorCount,
                     info.fTileMode, info.fGradientFlags, nullptr));
-        } else {
-            if (transform == ColorTransform::Invert) {
-                // Since we're trying to invert every thing around this draw call, we invert
-                // the color of the draw call if we don't know what it is.
-                auto filter = SkHighContrastFilter::Make(
-                        {/* grayscale= */ false,
-                         SkHighContrastConfig::InvertStyle::kInvertLightness,
-                         /* contrast= */ 0.0f});
-
-                if (paint.getColorFilter()) {
-                    paint.setColorFilter(SkColorFilters::Compose(filter, paint.refColorFilter()));
-                } else {
-                    paint.setColorFilter(filter);
-                }
-                return;
-            }
         }
     }
 
     if (paint.getColorFilter()) {
         SkBlendMode mode;
         SkColor color;
+
         // TODO: LRU this or something to avoid spamming new color mode filters
         if (paint.getColorFilter()->asAColorMode(&color, &mode)) {
-            color = transformColor(transform, color);
-            paint.setColorFilter(SkColorFilters::Blend(color, mode));
+            SkColor4f transformedColor = transformColor(transform, SkColor4f::FromColor(color));
+            paint.setColorFilter(SkColorFilters::Blend(transformedColor, nullptr, mode));
+        } else if (transform == ColorTransform::Invert) {
+            // Handle matrix and others type of filters
+            composeWithInvertedColorFilter(paint);
         }
     }
 }
@@ -143,8 +142,9 @@ static BitmapPalette paletteForColorHSV(SkColor color) {
     return hsv[2] >= .5f ? BitmapPalette::Light : BitmapPalette::Dark;
 }
 
-static BitmapPalette filterPalette(const SkPaint* paint, BitmapPalette palette) {
-    if (palette == BitmapPalette::Unknown || !paint || !paint->getColorFilter()) {
+BitmapPalette filterPalette(const SkPaint* paint, BitmapPalette palette) {
+    if ((palette != BitmapPalette::Light && palette != BitmapPalette::Dark) || !paint ||
+        !paint->getColorFilter()) {
         return palette;
     }
 
@@ -162,10 +162,13 @@ bool transformPaint(ColorTransform transform, SkPaint* paint) {
 
 bool transformPaint(ColorTransform transform, SkPaint* paint, BitmapPalette palette) {
     bool shouldInvert = false;
-    if (transform == ColorTransform::Invert && palette != BitmapPalette::Colorful) {
-        // When the transform is Invert we invert any image that is not deemed "colorful",
-        // regardless of calculated image brightness.
-        shouldInvert = true;
+    if (transform == ColorTransform::Invert) {
+        if (palette != BitmapPalette::GrayScale && palette != BitmapPalette::Barcode &&
+            palette != BitmapPalette::Colorful) {
+            // When the transform is Invert we invert any image that is not deemed "colorful",
+            // "gray-scale" or a barcode, regardless of calculated image brightness.
+            shouldInvert = true;
+        }
     }
     palette = filterPalette(paint, palette);
     if (palette == BitmapPalette::Light && transform == ColorTransform::Dark) {
@@ -175,9 +178,7 @@ bool transformPaint(ColorTransform transform, SkPaint* paint, BitmapPalette pale
         shouldInvert = true;
     }
     if (shouldInvert) {
-        SkHighContrastConfig config;
-        config.fInvertStyle = SkHighContrastConfig::InvertStyle::kInvertLightness;
-        paint->setColorFilter(SkHighContrastFilter::Make(config)->makeComposed(paint->refColorFilter()));
+        composeWithInvertedColorFilter(*paint);
     }
     return shouldInvert;
 }

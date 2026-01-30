@@ -21,7 +21,7 @@ import java.util.List;
 /**
  * Private API to be notified about trust changes.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ITrustListener {
     void onEnabledTrustAgentsChanged(int userId);

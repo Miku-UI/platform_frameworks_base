@@ -21,7 +21,7 @@
     <string name="previous_button_content_description" msgid="840869171117765966">"ไปที่หน้าจอก่อนหน้า"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"ไปที่หน้าจอถัดไป"</string>
     <string name="accessibility_menu_description" msgid="4458354794093858297">"เมนูการช่วยเหลือพิเศษเป็นเมนูขนาดใหญ่บนหน้าจอที่มีไว้ควบคุมอุปกรณ์ คุณจะล็อกอุปกรณ์ ควบคุมระดับเสียงและความสว่าง ถ่ายภาพหน้าจอ และอื่นๆ ได้"</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"ควบคุมอุปกรณ์ผ่านเมนูขนาดใหญ่"</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"ควบคุมระดับเสียง ความสว่าง และอื่นๆ ด้วยเมนูขนาดใหญ่"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"การตั้งค่าเมนูการช่วยเหลือพิเศษ"</string>
     <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"ปุ่มใหญ่"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"เพิ่มขนาดของปุ่มเมนูการช่วยเหลือพิเศษ"</string>

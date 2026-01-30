@@ -16,13 +16,17 @@
 
 package com.android.server.pm.permission;
 
+import static android.content.pm.PackageManager.FLAG_PERMISSION_ONE_TIME;
+
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.ActivityManagerInternal;
 import android.app.AlarmManager;
 import android.app.IActivityManager;
 import android.app.IUidObserver;
 import android.app.UidObserver;
+import android.companion.virtual.VirtualDeviceManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -30,14 +34,24 @@ import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.RemoteException;
+import android.os.SystemClock;
 import android.permission.PermissionControllerManager;
+import android.permission.PermissionManager;
+import android.permission.flags.Flags;
 import android.provider.DeviceConfig;
+import android.util.ArraySet;
 import android.util.Log;
 import android.util.SparseArray;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.util.FrameworkStatsLog;
 import com.android.server.LocalServices;
 import com.android.server.PermissionThread;
+import com.android.server.companion.virtual.VirtualDeviceManagerInternal;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Class that handles one-time permissions for a user
@@ -56,6 +70,7 @@ public class OneTimePermissionUserManager {
     private final @NonNull ActivityManagerInternal mActivityManagerInternal;
     private final @NonNull AlarmManager mAlarmManager;
     private final @NonNull PermissionControllerManager mPermissionControllerManager;
+    private final @NonNull PermissionManager mPermissionManager;
 
     private final Object mLock = new Object();
 
@@ -64,13 +79,16 @@ public class OneTimePermissionUserManager {
         public void onReceive(Context context, Intent intent) {
             if (Intent.ACTION_UID_REMOVED.equals(intent.getAction())) {
                 int uid = intent.getIntExtra(Intent.EXTRA_UID, -1);
-                PackageInactivityListener listener = mListeners.get(uid);
-                if (listener != null) {
-                    if (DEBUG) {
-                        Log.d(LOG_TAG, "Removing  the inactivity listener for " + uid);
+                synchronized (mLock) {
+                    PackageInactivityListener listener = mListeners.get(uid);
+                    if (listener != null) {
+                        if (DEBUG) {
+                            Log.d(LOG_TAG, "Removing  the inactivity listener for " + uid);
+                        }
+                        listener.cancel();
+                        mListeners.remove(uid);
+                        mHandler.post(() -> logOneTimeSessionEvent(listener));
                     }
-                    listener.cancel();
-                    mListeners.remove(uid);
                 }
             }
         }
@@ -88,6 +106,7 @@ public class OneTimePermissionUserManager {
         mAlarmManager = context.getSystemService(AlarmManager.class);
         mPermissionControllerManager = new PermissionControllerManager(
                 mContext, PermissionThread.getHandler());
+        mPermissionManager = mContext.getSystemService(PermissionManager.class);
         mHandler = context.getMainThreadHandler();
     }
 
@@ -134,8 +153,10 @@ public class OneTimePermissionUserManager {
             if (listener != null) {
                 mListeners.remove(uid);
                 listener.cancel();
+                mHandler.post(() -> logOneTimeSessionEvent(listener));
             }
         }
+
     }
 
     /**
@@ -144,6 +165,19 @@ public class OneTimePermissionUserManager {
      */
     void registerUninstallListener() {
         mContext.registerReceiver(mUninstallListener, new IntentFilter(Intent.ACTION_UID_REMOVED));
+    }
+
+    /**
+     * Log the session duration when the session is finished.
+     *
+     * @param listener listener for which the one time session is finished/expired.
+     */
+    private void logOneTimeSessionEvent(@NonNull PackageInactivityListener listener) {
+        if (Flags.permissionOneTimeSessionLoggingEnabled()) {
+            long durationMillis = SystemClock.elapsedRealtime() - listener.mSessionStartMillis;
+            FrameworkStatsLog.write(FrameworkStatsLog.PERMISSION_ONE_TIME_SESSION_EVENT_REPORTED,
+                    listener.mUid, listener.mPermissions.toArray(new String[0]), durationMillis);
+        }
     }
 
     /**
@@ -171,6 +205,11 @@ public class OneTimePermissionUserManager {
 
         private final Object mInnerLock = new Object();
         private final Object mToken = new Object();
+        // timestamp to track when the one time session starts.
+        private final long mSessionStartMillis = SystemClock.elapsedRealtime();
+        // Permissions for which the session is started, used in logging
+        private final ArraySet<String> mPermissions = new ArraySet<>();
+
         private final IUidObserver mObserver = new UidObserver() {
             @Override
             public void onUidGone(int uid, boolean disabled) {
@@ -209,6 +248,10 @@ public class OneTimePermissionUserManager {
                             DEFAULT_KILLED_DELAY_MILLIS)
                     : revokeAfterkilledDelay;
 
+            if (Flags.permissionOneTimeSessionLoggingEnabled()) {
+                mPermissions.addAll(getOneTimePermissions(packageName, deviceId));
+            }
+
             try {
                 mIActivityManager.registerUidObserver(mObserver,
                         ActivityManager.UID_OBSERVER_GONE | ActivityManager.UID_OBSERVER_PROCSTATE,
@@ -225,6 +268,39 @@ public class OneTimePermissionUserManager {
             updateUidState();
         }
 
+        private @NonNull List<String> getOneTimePermissions(@NonNull String packageName,
+                int deviceId) {
+            List<String> permissions = new ArrayList<>();
+            String persistentDeviceId = getPersistentDeviceId(deviceId);
+            if (persistentDeviceId == null) {
+                Log.w(LOG_TAG, "No persistence device id found for device : " +  deviceId);
+                return permissions;
+            }
+            Map<String, PermissionManager.PermissionState> permissionStates =
+                    mPermissionManager.getAllPermissionStates(packageName, persistentDeviceId);
+            for (Map.Entry<String, PermissionManager.PermissionState> entry :
+                    permissionStates.entrySet()) {
+                PermissionManager.PermissionState permissionState = entry.getValue();
+                if (permissionState.isGranted()
+                        && (permissionState.getFlags() & FLAG_PERMISSION_ONE_TIME) != 0) {
+                    permissions.add(entry.getKey());
+                }
+            }
+            return permissions;
+        }
+
+        private @Nullable String getPersistentDeviceId(int deviceId) {
+            if (deviceId == Context.DEVICE_ID_DEFAULT) {
+                return VirtualDeviceManager.PERSISTENT_DEVICE_ID_DEFAULT;
+            }
+            VirtualDeviceManagerInternal virtualDeviceManagerInternal =
+                    LocalServices.getService(VirtualDeviceManagerInternal.class);
+            if (virtualDeviceManagerInternal != null) {
+                return virtualDeviceManagerInternal.getPersistentIdForDevice(deviceId);
+            }
+            return null;
+        }
+
         public void updateSessionParameters(long timeoutMillis, long revokeAfterKilledDelayMillis) {
             synchronized (mInnerLock) {
                 mTimeout = Math.min(mTimeout, timeoutMillis);
@@ -239,6 +315,9 @@ public class OneTimePermissionUserManager {
                                 + ". timeout=" + mTimeout
                                 + " killedDelay=" + mRevokeAfterKilledDelay);
                 updateUidState();
+            }
+            if (Flags.permissionOneTimeSessionLoggingEnabled()) {
+                mPermissions.addAll(getOneTimePermissions(mPackageName, mDeviceId));
             }
         }
 
@@ -372,7 +451,7 @@ public class OneTimePermissionUserManager {
             }
             if (DEBUG) {
                 Log.d(LOG_TAG, "onPackageInactiveLocked stack trace for "
-                        + mPackageName + " (" + mUid + "). device ID " + mDeviceId,
+                                + mPackageName + " (" + mUid + "). device ID " + mDeviceId,
                         new RuntimeException());
             }
             mIsFinished = true;
@@ -392,6 +471,7 @@ public class OneTimePermissionUserManager {
             synchronized (mLock) {
                 mListeners.remove(mUid);
             }
+            mHandler.post(() -> logOneTimeSessionEvent(this));
         }
 
         @Override

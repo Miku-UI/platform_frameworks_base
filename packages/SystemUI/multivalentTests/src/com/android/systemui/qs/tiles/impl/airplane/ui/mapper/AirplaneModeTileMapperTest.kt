@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.airplane.ui.mapper
 
 import android.graphics.drawable.TestStubDrawable
-import android.service.quicksettings.Tile
 import android.widget.Switch
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -64,7 +63,6 @@ class AirplaneModeTileMapperTest : SysuiTestCase() {
         val expectedState =
             createAirplaneModeState(
                 QSTileState.ActivationState.ACTIVE,
-                context.resources.getStringArray(R.array.tile_states_airplane)[Tile.STATE_ACTIVE],
                 R.drawable.qs_airplane_icon_on,
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
@@ -79,7 +77,6 @@ class AirplaneModeTileMapperTest : SysuiTestCase() {
         val expectedState =
             createAirplaneModeState(
                 QSTileState.ActivationState.INACTIVE,
-                context.resources.getStringArray(R.array.tile_states_airplane)[Tile.STATE_INACTIVE],
                 R.drawable.qs_airplane_icon_off,
             )
         QSTileStateSubject.assertThat(outputState).isEqualTo(expectedState)
@@ -87,7 +84,6 @@ class AirplaneModeTileMapperTest : SysuiTestCase() {
 
     private fun createAirplaneModeState(
         activationState: QSTileState.ActivationState,
-        secondaryLabel: String,
         iconRes: Int,
     ): QSTileState {
         val label = context.getString(R.string.airplane_mode)
@@ -95,10 +91,10 @@ class AirplaneModeTileMapperTest : SysuiTestCase() {
             Icon.Loaded(context.getDrawable(iconRes)!!, null, iconRes),
             label,
             activationState,
-            secondaryLabel,
+            secondaryLabel = null,
             setOf(QSTileState.UserAction.CLICK, QSTileState.UserAction.LONG_CLICK),
             label,
-            null,
+            stateDescription = null,
             QSTileState.SideViewIcon.None,
             QSTileState.EnabledState.ENABLED,
             Switch::class.qualifiedName,

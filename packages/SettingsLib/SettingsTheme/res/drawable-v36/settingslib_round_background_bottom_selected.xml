@@ -19,16 +19,12 @@
     android:color="?android:colorControlHighlight">
     <item
         android:start="?android:attr/listPreferredItemPaddingStart"
-        android:end="?android:attr/listPreferredItemPaddingEnd"
-        android:top="2dp"
-        android:bottom="16dp">
+        android:end="?android:attr/listPreferredItemPaddingEnd">
         <shape android:shape="rectangle">
             <solid
                 android:color="@color/settingslib_materialColorSurfaceContainer" />
             <corners
                 android:radius="@dimen/settingslib_expressive_radius_extralarge1" />
-            <padding
-                android:bottom="16dp"/>
         </shape>
     </item>
 </ripple>

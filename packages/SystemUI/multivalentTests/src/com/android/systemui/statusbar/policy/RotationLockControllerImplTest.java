@@ -28,7 +28,10 @@ import androidx.test.filters.SmallTest;
 
 import com.android.internal.view.RotationPolicy;
 import com.android.systemui.SysuiTestCase;
-import com.android.systemui.util.wrapper.RotationPolicyWrapper;
+import com.android.systemui.util.concurrency.FakeExecutor;
+import com.android.systemui.util.time.FakeSystemClock;
+import com.android.systemui.rotation.RotationPolicyWrapper;
+import com.android.systemui.util.wrapper.CameraRotationSettingProvider;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -49,9 +52,13 @@ public class RotationLockControllerImplTest extends SysuiTestCase {
     @Mock
     RotationPolicyWrapper mRotationPolicyWrapper;
     @Mock
+    CameraRotationSettingProvider mCameraRotationSettingProvider;
+    @Mock
     DeviceStateRotationLockSettingController mDeviceStateRotationLockSettingController;
 
     private ArgumentCaptor<RotationPolicy.RotationPolicyListener> mRotationPolicyListenerCaptor;
+
+    private FakeExecutor mFakeExecutor = new FakeExecutor(new FakeSystemClock());
 
     @Before
     public void setUp() {
@@ -79,6 +86,7 @@ public class RotationLockControllerImplTest extends SysuiTestCase {
     public void whenFlagOn_deviceStateRotationControllerAddedToCallbacks() {
         createRotationLockController();
         captureRotationPolicyListener().onChange();
+        mFakeExecutor.runAllReady();
 
         verify(mDeviceStateRotationLockSettingController)
                 .onRotationLockStateChanged(anyBoolean(), anyBoolean());
@@ -97,7 +105,12 @@ public class RotationLockControllerImplTest extends SysuiTestCase {
     private void createRotationLockController(String[] deviceStateRotationLockDefaults) {
         new RotationLockControllerImpl(
                 mRotationPolicyWrapper,
+                mCameraRotationSettingProvider,
                 Optional.of(mDeviceStateRotationLockSettingController),
-                deviceStateRotationLockDefaults);
+                deviceStateRotationLockDefaults,
+                mFakeExecutor,
+                mFakeExecutor
+        );
+        mFakeExecutor.runAllReady();
     }
 }

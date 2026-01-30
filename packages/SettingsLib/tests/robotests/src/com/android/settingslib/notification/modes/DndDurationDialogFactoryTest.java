@@ -22,8 +22,6 @@ import static com.android.settingslib.notification.modes.DndDurationDialogFactor
 import static com.android.settingslib.notification.modes.DndDurationDialogFactory.MAX_BUCKET_MINUTES;
 import static com.android.settingslib.notification.modes.DndDurationDialogFactory.MIN_BUCKET_MINUTES;
 
-import static com.google.common.truth.Truth.assertThat;
-
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
 import static junit.framework.Assert.assertTrue;
@@ -193,25 +191,5 @@ public class DndDurationDialogFactoryTest {
         tag.countdownZenDuration = 75;
         mController.onClickTimeButton(view, tag, true, COUNTDOWN_CONDITION_INDEX);
         assertEquals(120, tag.countdownZenDuration);
-    }
-
-    @Test
-    public void testAccessibility() {
-        Settings.Secure.putInt(mContentResolver, Settings.Secure.ZEN_DURATION,
-                Settings.Secure.ZEN_DURATION_FOREVER);
-        mController.setupDialog(mBuilder);
-        ConditionTag forever = mController.getConditionTagAt(FOREVER_CONDITION_INDEX);
-        ConditionTag countdown = mController.getConditionTagAt(COUNTDOWN_CONDITION_INDEX);
-        ConditionTag alwaysAsk = mController.getConditionTagAt(ALWAYS_ASK_CONDITION_INDEX);
-
-        forever.rb.setChecked(true);
-        assertThat(forever.line1.getStateDescription().toString()).isEqualTo("selected");
-        assertThat(countdown.line1.getStateDescription()).isNull();
-        assertThat(alwaysAsk.line1.getStateDescription()).isNull();
-
-        alwaysAsk.rb.setChecked(true);
-        assertThat(forever.line1.getStateDescription()).isNull();
-        assertThat(countdown.line1.getStateDescription()).isNull();
-        assertThat(alwaysAsk.line1.getStateDescription().toString()).isEqualTo("selected");
     }
 }

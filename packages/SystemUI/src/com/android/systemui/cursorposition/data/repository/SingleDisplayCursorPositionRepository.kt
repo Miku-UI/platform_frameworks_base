@@ -18,6 +18,7 @@ package com.android.systemui.cursorposition.data.repository
 
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Choreographer
 import android.view.InputDevice.SOURCE_MOUSE
 import android.view.InputDevice.SOURCE_TOUCHPAD
@@ -40,6 +41,7 @@ import kotlinx.coroutines.channels.ProducerScope
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flowOn
 
 /** Repository for cursor position in single display. */
@@ -90,6 +92,9 @@ constructor(
             // "backgroundDispatcher" which does not have a looper) and input receiver could use
             // its background looper and choreographer
             .flowOn(backgroundHandler.asCoroutineDispatcher())
+            .catch { exception ->
+                Log.e(TAG, "Error creating input monitor for display $displayId", exception)
+            }
 
     override val cursorPositions: Flow<CursorPosition> = createInputMonitorCallbackFlow(displayId)
 

@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"Connecting…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"Connected<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"Pairing…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"Can\'t pair"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"Can\'t connect"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"Connected (no phone)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"Connected (no media)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"Connected (no phone or media)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> battery."</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"Left: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> battery"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"Right: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> battery"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"Case: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> battery"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"Left: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Case: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> battery"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"Right: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Case: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> battery"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"Left: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, Right: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> battery"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, C: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> battery"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"Left <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"Right <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"Active"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"Active (right only)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"Active (left and right)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"Couldn’t update surroundings"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"Couldn’t update preset"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"Selected"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"Active (media only). <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> battery."</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"Active (media only). L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>, R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> battery."</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"Guest device. <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> battery."</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"When this mode is enabled, this device’s MAC address may change each time it connects to a network that has MAC randomization enabled."</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"Metered"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"Unmetered"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"Logger buffer sizes"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"Logger buffer size"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"Select Logger sizes per log buffer"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"Clear logger persistent storage?"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"When we no longer are monitoring with the persistent logger, we are required to erase the logger data resident on your device."</string>
@@ -491,8 +500,8 @@
     <string name="daltonizer_mode_deuteranomaly" msgid="3507284319584683963">"Deuteranomaly (red-green)"</string>
     <string name="daltonizer_mode_protanomaly" msgid="7805583306666608440">"Protanomaly (red-green)"</string>
     <string name="daltonizer_mode_tritanomaly" msgid="7135266249220732267">"Tritanomaly (blue-yellow)"</string>
-    <string name="accessibility_display_daltonizer_preference_title" msgid="1810693571332381974">"Color correction"</string>
-    <string name="accessibility_display_daltonizer_preference_subtitle" msgid="1522101114585266455">"Color correction can be helpful when you want to:&lt;br/&gt; &lt;ol&gt; &lt;li&gt;&amp;nbsp;See colors more accurately&lt;/li&gt; &lt;li&gt;&amp;nbsp;Remove colors to help you focus&lt;/li&gt; &lt;/ol&gt;"</string>
+    <string name="accessibility_display_daltonizer_preference_title" msgid="1810693571332381974">"Colour correction"</string>
+    <string name="accessibility_display_daltonizer_preference_subtitle" msgid="1522101114585266455">"Colour correction can be helpful when you want to:&lt;br/&gt; &lt;ol&gt; &lt;li&gt;&amp;nbsp;See colours more accurately&lt;/li&gt; &lt;li&gt;&amp;nbsp;Remove colours to help you focus&lt;/li&gt; &lt;/ol&gt;"</string>
     <string name="daltonizer_type_overridden" msgid="4509604753672535721">"Overridden by <xliff:g id="TITLE">%1$s</xliff:g>"</string>
     <string name="power_remaining_settings_home_page" msgid="4885165789445462557">"<xliff:g id="PERCENTAGE">%1$s</xliff:g> - <xliff:g id="TIME_STRING">%2$s</xliff:g>"</string>
     <string name="power_charging_on_hold_settings_home_page" msgid="7690464049464805856">"<xliff:g id="LEVEL">%1$s</xliff:g> - Charging on hold to protect battery"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> ago"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> left"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"Smallest"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"Smaller"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"Small"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"Default"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"Large"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"Larger"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"Largest"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"Larger"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"Very Large"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"Extra Large"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"Largest"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"Custom (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"Menu"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"Enter password to perform factory reset in demo mode"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 device connected}other{# devices connected}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"More time."</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"Less time."</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"Magnification"</string>
     <string name="cancel" msgid="5665114069455378395">"Cancel"</string>
     <string name="next" msgid="2699398661093607009">"Next"</string>
     <string name="back" msgid="5554327870352703710">"Back"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"If you broadcast <xliff:g id="SWITCHAPP">%1$s</xliff:g> or change the output, your current broadcast will stop"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"Broadcast <xliff:g id="SWITCHAPP">%1$s</xliff:g>"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"Change output"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"Predictive back animations"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"Enable system animations for predictive back."</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"This setting enables system animations for predictive gesture animation. It requires setting per-app enableOnBackInvokedCallback to true in the manifest file."</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"Not specified"</string>
     <string name="neuter" msgid="2075249330106127310">"Neuter"</string>

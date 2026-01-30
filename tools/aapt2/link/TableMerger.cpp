@@ -234,6 +234,48 @@ static ResourceTable::CollisionResult MergeConfigValue(
   return collision_result;
 }
 
+bool TableMerger::MergeConfigValues(const char* config_value_section, ResourceNameRef res_name,
+                                    bool overlay,
+                                    const std::vector<std::unique_ptr<ResourceConfigValue>>& values,
+                                    FindFunc find_function, FindFunc find_or_create_function) {
+  using CollisionResult = ResourceTable::CollisionResult;
+  bool error = false;
+
+  for (auto& src_config_value : values) {
+    ResourceConfigValue* dst_config_value =
+        find_function(src_config_value->value->GetFlag().value(), src_config_value->config,
+                      src_config_value->product);
+    if (dst_config_value) {
+      CollisionResult collision_result = MergeConfigValue(
+          context_, res_name, overlay, options_.override_styles_instead_of_overlaying,
+          dst_config_value, src_config_value.get(), &main_table_->string_pool);
+      if (collision_result == CollisionResult::kConflict) {
+        context_->GetDiagnostics()->Error(
+            android::DiagMessage(src_config_value->value->GetSource())
+            << "duplicate " << config_value_section << " value for resource '"
+            << res_name.to_string() << "' " << "with config '" << src_config_value->config
+            << "' and flag '" << (src_config_value->value->GetFlag()->negated ? "!" : "")
+            << src_config_value->value->GetFlag()->name << "'");
+        context_->GetDiagnostics()->Note(android::DiagMessage(dst_config_value->value->GetSource())
+                                         << "resource previously defined here");
+        error = true;
+        continue;
+      } else if (collision_result == CollisionResult::kKeepOriginal) {
+        continue;
+      }
+    } else {
+      dst_config_value =
+          find_or_create_function(src_config_value->value->GetFlag().value(),
+                                  src_config_value->config, src_config_value->product);
+      // Resource does not exist, add it now.
+      // Must clone the value since it might be in the values vector as well
+      CloningValueTransformer cloner(&main_table_->string_pool);
+      dst_config_value->value = src_config_value->value->Transform(cloner);
+    }
+  }
+  return !error;
+}
+
 bool TableMerger::DoMerge(const android::Source& src, ResourceTablePackage* src_package,
                           bool mangle_package, bool overlay, bool allow_new_resources) {
   bool error = false;
@@ -324,28 +366,28 @@ bool TableMerger::DoMerge(const android::Source& src, ResourceTablePackage* src_
       }
 
       // disabled values
-      for (auto& src_config_value : src_entry->flag_disabled_values) {
-        auto dst_config_value = dst_entry->FindOrCreateFlagDisabledValue(
-            src_config_value->value->GetFlag().value(), src_config_value->config,
-            src_config_value->product);
-        if (!dst_config_value->value) {
-          // Resource does not exist, add it now.
-          // Must clone the value since it might be in the values vector as well
-          CloningValueTransformer cloner(&main_table_->string_pool);
-          dst_config_value->value = src_config_value->value->Transform(cloner);
-        } else {
-          error = true;
-          context_->GetDiagnostics()->Error(
-              android::DiagMessage(src_config_value->value->GetSource())
-              << "duplicate value for resource '" << src_entry->name << "' " << "with config '"
-              << src_config_value->config << "' and flag '"
-              << (src_config_value->value->GetFlag()->negated ? "!" : "")
-              << src_config_value->value->GetFlag()->name << "'");
-          context_->GetDiagnostics()->Note(
-              android::DiagMessage(dst_config_value->value->GetSource())
-              << "resource previously defined here");
-        }
-      }
+      MergeConfigValues(
+          "flag_disabled_values", res_name, overlay, src_entry->flag_disabled_values,
+          [&](const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
+              const std::string& product) {
+            return dst_entry->FindFlagDisabledValue(flag, config, product);
+          },
+          [&](const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
+              const std::string& product) {
+            return dst_entry->FindOrCreateFlagDisabledValue(flag, config, product);
+          });
+
+      // read/write flag values
+      MergeConfigValues(
+          "readwrite_flag_values", res_name, overlay, src_entry->readwrite_flag_values,
+          [&](const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
+              const std::string& product) {
+            return dst_entry->FindReadWriteFlagValue(flag, config, product);
+          },
+          [&](const FeatureFlagAttribute& flag, const android::ConfigDescription& config,
+              const std::string& product) {
+            return dst_entry->FindOrCreateReadWriteFlagValue(flag, config, product);
+          });
     }
   }
   return !error;

@@ -27,4 +27,5 @@ public interface AudioPolicyFacade {
     public INativePermissionController getPermissionController();
     public void registerOnStartTask(Runnable r);
     public void setEnableHardening(boolean shouldEnable);
+    public boolean isServiceAvailable();
 }

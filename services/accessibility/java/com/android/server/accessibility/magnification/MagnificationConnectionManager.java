@@ -45,6 +45,7 @@ import android.util.Slog;
 import android.util.SparseArray;
 import android.util.SparseBooleanArray;
 import android.view.MotionEvent;
+import android.view.View;
 import android.view.accessibility.IMagnificationConnection;
 import android.view.accessibility.IMagnificationConnectionCallback;
 import android.view.accessibility.MagnificationAnimationCallback;
@@ -144,6 +145,8 @@ public class MagnificationConnectionManager implements
     private SparseArray<WindowMagnifier> mWindowMagnifiers = new SparseArray<>();
     // Whether the following typing focus feature for magnification is enabled.
     private boolean mMagnificationFollowTypingEnabled = true;
+    // Whether the following keyboard focus feature for magnification is enabled.
+    private boolean mMagnificationFollowKeyboardEnabled = false;
     @GuardedBy("mLock")
     private final SparseBooleanArray mIsImeVisibleArray = new SparseBooleanArray();
     @GuardedBy("mLock")
@@ -408,22 +411,37 @@ public class MagnificationConnectionManager implements
 
     @Override
     public void onRectangleOnScreenRequested(int displayId, int left, int top, int right,
-            int bottom) {
-        if (!mMagnificationFollowTypingEnabled) {
-            return;
-        }
-
+            int bottom, int source) {
         float toCenterX = (float) (left + right) / 2;
         float toCenterY = (float) (top + bottom) / 2;
 
         synchronized (mLock) {
-            if (mIsImeVisibleArray.get(displayId, false)
-                    && !isPositionInSourceBounds(displayId, toCenterX, toCenterY)
-                    && isTrackingTypingFocusEnabled(displayId)) {
+            if (isPositionInSourceBounds(displayId, toCenterX, toCenterY)) {
+                return;
+            }
+
+            boolean followTyping = shouldFollowTyping(source)
+                    && mIsImeVisibleArray.get(displayId, false)
+                    && isTrackingTypingFocusEnabled(displayId);
+            boolean followKeyboard = shouldFollowKeyboard(source);
+
+            if (followTyping || followKeyboard) {
                 moveWindowMagnifierToPositionInternal(displayId, toCenterX, toCenterY,
                         STUB_ANIMATION_CALLBACK);
             }
         }
+    }
+
+    private boolean shouldFollowTyping(int source) {
+        // Treat UNDEFINED as following typing to preserve behavior for backwards compatibility.
+        return mMagnificationFollowTypingEnabled
+                && (source == View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_TEXT_CURSOR
+                || source == View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED);
+    }
+
+    private boolean shouldFollowKeyboard(int source) {
+        return mMagnificationFollowKeyboardEnabled
+                && source == View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_INPUT_FOCUS;
     }
 
     void setMagnificationFollowTypingEnabled(boolean enabled) {
@@ -433,6 +451,15 @@ public class MagnificationConnectionManager implements
     boolean isMagnificationFollowTypingEnabled() {
         return mMagnificationFollowTypingEnabled;
     }
+
+    void setMagnificationFollowKeyboardEnabled(boolean enabled) {
+        mMagnificationFollowKeyboardEnabled = enabled;
+    }
+
+    boolean isMagnificationFollowKeyboardEnabled() {
+        return mMagnificationFollowKeyboardEnabled;
+    }
+
 
     /**
      * Get the ID of the last service that changed the magnification config.

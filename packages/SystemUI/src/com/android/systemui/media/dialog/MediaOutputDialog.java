@@ -16,12 +16,15 @@
 
 package com.android.systemui.media.dialog;
 
-import static com.android.settingslib.flags.Flags.legacyLeAudioSharing;
+import static com.android.media.flags.Flags.enableOutputSwitcherPersonalAudioSharing;
 import static com.android.media.flags.Flags.enableOutputSwitcherRedesign;
 
+import android.annotation.Nullable;
+import android.app.Dialog;
 import android.content.Context;
+import android.content.res.Configuration;
+import android.media.RoutingSessionInfo;
 import android.os.Bundle;
-import android.util.FeatureFlagUtils;
 import android.view.View;
 import android.view.WindowManager;
 
@@ -44,6 +47,7 @@ import java.util.concurrent.Executor;
 public class MediaOutputDialog extends MediaOutputBaseDialog {
     private final DialogTransitionAnimator mDialogTransitionAnimator;
     private final UiEventLogger mUiEventLogger;
+    @Nullable private final OnDialogEventListener mOnDialogEventListener;
 
     MediaOutputDialog(
             Context context,
@@ -54,7 +58,8 @@ public class MediaOutputDialog extends MediaOutputBaseDialog {
             UiEventLogger uiEventLogger,
             Executor mainExecutor,
             Executor backgroundExecutor,
-            boolean includePlaybackAndAppMetadata) {
+            boolean includePlaybackAndAppMetadata,
+            @Nullable OnDialogEventListener onDialogEventListener) {
         super(context, broadcastSender, mediaSwitchingController, includePlaybackAndAppMetadata);
         mDialogTransitionAnimator = dialogTransitionAnimator;
         mUiEventLogger = uiEventLogger;
@@ -62,6 +67,7 @@ public class MediaOutputDialog extends MediaOutputBaseDialog {
                 ? new MediaOutputAdapter(mMediaSwitchingController)
                 : new MediaOutputAdapterLegacy(mMediaSwitchingController, mainExecutor,
                         backgroundExecutor);
+        mOnDialogEventListener = onDialogEventListener;
         if (!aboveStatusbar) {
             getWindow().setType(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY);
         }
@@ -71,6 +77,18 @@ public class MediaOutputDialog extends MediaOutputBaseDialog {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mUiEventLogger.log(MediaOutputEvent.MEDIA_OUTPUT_DIALOG_SHOW);
+
+        if (mOnDialogEventListener != null) {
+            mOnDialogEventListener.onCreate(this);
+        }
+    }
+
+    @Override
+    public void onConfigurationChanged(Configuration configuration) {
+        super.onConfigurationChanged(configuration);
+        if (mOnDialogEventListener != null) {
+            mOnDialogEventListener.onConfigurationChanged(this, configuration);
+        }
     }
 
     @Override
@@ -106,77 +124,32 @@ public class MediaOutputDialog extends MediaOutputBaseDialog {
                     mMediaSwitchingController.isActiveRemoteDevice(
                             mMediaSwitchingController.getCurrentConnectedMediaDevice());
         }
-        boolean showBroadcastButton =
-                isBroadcastSupported() && mMediaSwitchingController.isPlaying();
+        boolean inBroadcast =
+                enableOutputSwitcherPersonalAudioSharing()
+                        && mMediaSwitchingController.getSessionReleaseType()
+                                == RoutingSessionInfo.RELEASE_TYPE_SHARING;
 
-        return (isActiveRemoteDevice || showBroadcastButton) ? View.VISIBLE : View.GONE;
-    }
-
-    @Override
-    public boolean isBroadcastSupported() {
-        if (!legacyLeAudioSharing()) return false;
-        boolean isBluetoothLeDevice = false;
-        boolean isBroadcastEnabled = false;
-        if (FeatureFlagUtils.isEnabled(mContext,
-                FeatureFlagUtils.SETTINGS_NEED_CONNECTED_BLE_DEVICE_FOR_BROADCAST)) {
-            if (mMediaSwitchingController.getCurrentConnectedMediaDevice() != null) {
-                isBluetoothLeDevice =
-                        mMediaSwitchingController.isBluetoothLeDevice(
-                                mMediaSwitchingController.getCurrentConnectedMediaDevice());
-                // if broadcast is active, broadcast should be considered as supported
-                // there could be a valid case that broadcast is ongoing
-                // without active LEA device connected
-                isBroadcastEnabled = mMediaSwitchingController.isBluetoothLeBroadcastEnabled();
-            }
-        } else {
-            // To decouple LE Audio Broadcast and Unicast, it always displays the button when there
-            // is no LE Audio device connected to the phone
-            isBluetoothLeDevice = true;
-        }
-
-        return mMediaSwitchingController.isBroadcastSupported()
-                && (isBluetoothLeDevice || isBroadcastEnabled);
-    }
-
-    @Override
-    public CharSequence getStopButtonText() {
-        int resId = R.string.media_output_dialog_button_stop_casting;
-        if (isBroadcastSupported()
-                && mMediaSwitchingController.isPlaying()
-                && !mMediaSwitchingController.isBluetoothLeBroadcastEnabled()) {
-            resId = R.string.media_output_broadcast;
-        }
-        return mContext.getText(resId);
-    }
-
-    @Override
-    public void onStopButtonClick() {
-        if (isBroadcastSupported() && mMediaSwitchingController.isPlaying()) {
-            if (!mMediaSwitchingController.isBluetoothLeBroadcastEnabled()) {
-                if (startLeBroadcastDialogForFirstTime()) {
-                    return;
-                }
-                startLeBroadcast();
-            } else {
-                stopLeBroadcast();
-            }
-        } else {
-            mMediaSwitchingController.releaseSession();
-            mDialogTransitionAnimator.disableAllCurrentDialogsExitAnimations();
-            dismiss();
-        }
-    }
-
-    @Override
-    public int getBroadcastIconVisibility() {
-        return (isBroadcastSupported() && mMediaSwitchingController.isBluetoothLeBroadcastEnabled())
+        return (isActiveRemoteDevice || inBroadcast)
                 ? View.VISIBLE
                 : View.GONE;
     }
 
     @Override
-    public void onBroadcastIconClick() {
-        startLeBroadcastDialog();
+    public CharSequence getStopButtonText() {
+        if (enableOutputSwitcherPersonalAudioSharing()) {
+            CharSequence stopButtonText = getTextForSessionReleaseType();
+            if (stopButtonText != null) {
+                return stopButtonText;
+            }
+        }
+        return mContext.getText(R.string.media_output_dialog_button_stop_casting);
+    }
+
+    @Override
+    public void onStopButtonClick() {
+        mMediaSwitchingController.releaseSession();
+        mDialogTransitionAnimator.disableAllCurrentDialogsExitAnimations();
+        dismiss();
     }
 
     @VisibleForTesting
@@ -194,5 +167,25 @@ public class MediaOutputDialog extends MediaOutputBaseDialog {
         public int getId() {
             return mId;
         }
+    }
+
+    @Nullable
+    private CharSequence getTextForSessionReleaseType() {
+        return switch (mMediaSwitchingController.getSessionReleaseType()) {
+            case RoutingSessionInfo.RELEASE_TYPE_CASTING ->
+                    mContext.getText(R.string.media_output_dialog_button_stop_casting);
+            case RoutingSessionInfo.RELEASE_TYPE_SHARING ->
+                    mContext.getText(R.string.media_output_dialog_button_stop_sharing);
+            default -> null;
+        };
+    }
+
+    /** Callback for configuration changes . */
+    public interface OnDialogEventListener{
+        /** Will be called inside onConfigurationChanged. */
+        void onConfigurationChanged(Dialog dialog, Configuration newConfig);
+
+        /** Will be called when the dialog is created. */
+        void onCreate(Dialog dialog);
     }
 }

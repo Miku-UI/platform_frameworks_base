@@ -16,43 +16,38 @@
 
 package com.android.systemui.qs.ui.viewmodel
 
+import android.platform.test.annotations.EnableFlags
 import android.testing.TestableLooper
+import android.view.Display
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_SHADE_WINDOW_GOES_AROUND
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.flags.EnableSceneContainer
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
-import com.android.systemui.media.controls.data.repository.mediaFilterRepository
 import com.android.systemui.media.controls.shared.model.MediaData
+import com.android.systemui.media.remedia.data.repository.mediaPipelineRepository
 import com.android.systemui.qs.composefragment.dagger.usingMediaInComposeFragment
-import com.android.systemui.scene.domain.startable.sceneContainerStartable
-import com.android.systemui.shade.domain.interactor.enableDualShade
-import com.android.systemui.shade.domain.interactor.shadeModeInteractor
+import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
-@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper
-@EnableSceneContainer
 class QuickSettingsContainerViewModelTest : SysuiTestCase() {
 
     private val kosmos =
-        testKosmos().apply {
+        testKosmos().useUnconfinedTestDispatcher().apply {
             usingMediaInComposeFragment = false // This is not for the compose fragment
         }
     private val testScope = kosmos.testScope
-
-    private val shadeModeInteractor = kosmos.shadeModeInteractor
 
     private val underTest by lazy {
         kosmos.quickSettingsContainerViewModelFactory.create(supportsBrightnessMirroring = false)
@@ -60,56 +55,57 @@ class QuickSettingsContainerViewModelTest : SysuiTestCase() {
 
     @Before
     fun setUp() {
-        kosmos.sceneContainerStartable.start()
-        kosmos.enableDualShade()
         underTest.activateIn(testScope)
     }
 
     @Test
-    fun showHeader_showsOnNarrowScreen() =
-        testScope.runTest {
-            kosmos.enableDualShade(wideLayout = false)
-            val isShadeLayoutWide by collectLastValue(shadeModeInteractor.isShadeLayoutWide)
-            assertThat(isShadeLayoutWide).isFalse()
+    fun isBrightnessSliderVisible_defaultDisplay_isVisible() =
+        with(kosmos) {
+            testScope.runTest {
+                fakeShadeDisplaysRepository.setPendingDisplayId(Display.DEFAULT_DISPLAY)
 
-            assertThat(underTest.showHeader).isTrue()
+                assertThat(underTest.isBrightnessSliderVisible).isTrue()
+            }
         }
 
     @Test
-    fun showHeader_hidesOnWideScreen() =
-        testScope.runTest {
-            kosmos.enableDualShade(wideLayout = true)
-            val isShadeLayoutWide by collectLastValue(shadeModeInteractor.isShadeLayoutWide)
-            assertThat(isShadeLayoutWide).isTrue()
-
-            assertThat(underTest.showHeader).isFalse()
-        }
-
-    @Test
-    fun showMedia_activeMedia_true() =
-        testScope.runTest {
-            kosmos.mediaFilterRepository.addSelectedUserMediaEntry(MediaData(active = true))
-            runCurrent()
-
-            assertThat(underTest.showMedia).isTrue()
-        }
-
-    @Test
-    fun showMedia_InactiveMedia_true() =
-        testScope.runTest {
-            kosmos.mediaFilterRepository.addSelectedUserMediaEntry(MediaData(active = false))
-            runCurrent()
-
-            assertThat(underTest.showMedia).isTrue()
-        }
-
-    @Test
-    fun showMedia_noMedia_false() =
-        testScope.runTest {
-            kosmos.mediaFilterRepository.addSelectedUserMediaEntry(MediaData(active = true))
-            kosmos.mediaFilterRepository.clearSelectedUserMedia()
-            runCurrent()
+    fun addAndRemoveMedia_mediaVisibilityIsUpdated() =
+        kosmos.runTest {
+            val userMedia = MediaData(active = true)
 
             assertThat(underTest.showMedia).isFalse()
+
+            mediaPipelineRepository.addCurrentUserMediaEntry(userMedia)
+
+            assertThat(underTest.showMedia).isTrue()
+
+            mediaPipelineRepository.removeCurrentUserMediaEntry(userMedia.instanceId)
+
+            assertThat(underTest.showMedia).isFalse()
+        }
+
+    @Test
+    fun addInactiveMedia_mediaVisibilityIsUpdated() =
+        kosmos.runTest {
+            val userMedia = MediaData(active = false)
+
+            assertThat(underTest.showMedia).isFalse()
+
+            mediaPipelineRepository.addCurrentUserMediaEntry(userMedia)
+
+            assertThat(underTest.showMedia).isTrue()
+        }
+
+    @Test
+    @EnableFlags(FLAG_SHADE_WINDOW_GOES_AROUND)
+    fun isBrightnessSliderVisible_externalDisplay_isInvisible() =
+        with(kosmos) {
+            testScope.runTest {
+                fakeShadeDisplaysRepository.setPendingDisplayId(
+                    Display.DEFAULT_DISPLAY + 1
+                ) // Not default.
+
+                assertThat(underTest.isBrightnessSliderVisible).isFalse()
+            }
         }
 }

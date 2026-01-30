@@ -16,13 +16,14 @@
 
 package com.android.systemui.qs.tiles.impl.modes.domain.interactor
 
+import android.app.Flags
 import android.content.Intent
 import android.provider.Settings
 import android.util.Log
+import com.android.settingslib.notification.modes.ZenMode
 import com.android.systemui.animation.Expandable
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Main
-import com.android.systemui.qs.flags.QSComposeFragment
 import com.android.systemui.qs.tiles.base.domain.actions.QSTileIntentUserInputHandler
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileUserActionInteractor
 import com.android.systemui.qs.tiles.base.domain.model.QSTileInput
@@ -44,6 +45,7 @@ constructor(
     // TODO(b/353896370): The domain layer should not have to depend on the UI layer.
     private val dialogDelegate: ModesDialogDelegate,
     private val zenModeInteractor: ZenModeInteractor,
+    private val dataInteractor: ModesTileDataInteractor,
     private val dialogEventLogger: ModesDialogEventLogger,
 ) : QSTileUserActionInteractor<ModesTileModel> {
     val longClickIntent = Intent(Settings.ACTION_ZEN_MODE_SETTINGS)
@@ -70,34 +72,47 @@ constructor(
     }
 
     suspend fun handleToggleClick(modesTileModel: ModesTileModel) {
-        if (QSComposeFragment.isUnexpectedlyInLegacyMode()) {
-            return
-        }
-
-        // If no modes are on, turn on DND since it's the highest-priority mode. Otherwise, turn
+        // If no modes are on, turn on the last mode that was manually activated. Otherwise, turn
         // them all off.
         // We want this toggle to work as a shortcut to DND in most cases, but it should still
         // correctly toggle the tile state to "off" as the user would expect when more modes are on.
         if (modesTileModel.activeModes.isEmpty()) {
-            val dnd = zenModeInteractor.dndMode.value
-            if (dnd == null) {
-                Log.wtf(TAG, "Triggered DND but it's null!?")
-                return
-            }
-
-            if (zenModeInteractor.shouldAskForZenDuration(dnd)) {
-                dialogEventLogger.logOpenDurationDialog(dnd)
-                withContext(mainContext) {
-                    // NOTE: The dialog handles turning on the mode itself.
-                    val dialog = dialogDelegate.makeDndDurationDialog()
-                    dialog.show()
+            if (Flags.modesUiTileReactivatesLast()) {
+                // TODO: b/405988332 - When inlining modes_ui_tile_reactivates_last, this is just
+                //   activateMode(modesTileModel.quickMode)
+                val modeToActivate = modesTileModel.quickMode
+                if (modeToActivate == null) {
+                    Log.wtf(TAG, "No quick mode to activate!?")
+                    return
                 }
+                activateMode(modeToActivate)
             } else {
-                dialogEventLogger.logModeOn(dnd)
-                zenModeInteractor.activateMode(dnd)
+                val dnd = zenModeInteractor.dndMode.value
+                if (dnd == null) {
+                    Log.wtf(TAG, "Triggered DND but it's null!?")
+                    return
+                }
+                activateMode(dnd)
             }
         } else {
+            if (Flags.modesUiTileReactivatesLast()) {
+                dataInteractor.setQuickModeOverride(modesTileModel.activeModes.mapNotNull { it.id })
+            }
             zenModeInteractor.deactivateAllModes()
+        }
+    }
+
+    private suspend fun activateMode(mode: ZenMode) {
+        if (mode.isManualDnd && zenModeInteractor.shouldAskForZenDuration(mode)) {
+            dialogEventLogger.logOpenDurationDialog(mode)
+            withContext(mainContext) {
+                // NOTE: The dialog handles turning on the mode itself.
+                val dialog = dialogDelegate.makeDndDurationDialog()
+                dialog.show()
+            }
+        } else {
+            dialogEventLogger.logModeOn(mode)
+            zenModeInteractor.activateMode(mode)
         }
     }
 

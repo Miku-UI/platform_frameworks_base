@@ -18,11 +18,14 @@ package com.android.server.input;
 
 import static android.hardware.input.InputGestureData.createKeyTrigger;
 
+import static com.android.hardware.input.Flags.enableQuickSettingsPanelShortcut;
 import static com.android.hardware.input.Flags.enableTalkbackAndMagnifierKeyGestures;
+import static com.android.hardware.input.Flags.enableSelectToSpeakKeyGestures;
+import static com.android.hardware.input.Flags.enableTalkbackKeyGestures;
 import static com.android.hardware.input.Flags.enableVoiceAccessKeyGestures;
 import static com.android.hardware.input.Flags.keyboardA11yShortcutControl;
-import static com.android.server.flags.Flags.newBugreportKeyboardShortcut;
-import static com.android.window.flags.Flags.enableMoveToNextDisplayShortcut;
+import static com.android.hardware.input.Flags.enablePartialScreenshotKeyboardShortcut;
+import static com.android.hardware.input.Flags.keyboardBacklightShortcuts;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -30,12 +33,11 @@ import android.annotation.UserIdInt;
 import android.content.Context;
 import android.hardware.input.InputGestureData;
 import android.hardware.input.InputManager;
-import android.hardware.input.InputSettings;
 import android.hardware.input.KeyGestureEvent;
-import android.os.SystemProperties;
 import android.util.IndentingPrintWriter;
 import android.util.SparseArray;
 import android.view.KeyEvent;
+import android.window.DesktopExperienceFlags;
 import android.window.DesktopModeFlags;
 
 import com.android.internal.annotations.GuardedBy;
@@ -103,158 +105,263 @@ final class InputGestureManager {
         // Initialize all system shortcuts
         List<InputGestureData> systemShortcuts = new ArrayList<>(List.of(
                 createKeyGesture(
-                        KeyEvent.KEYCODE_A,
+                        KeyEvent.KEYCODE_SPACE,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_ASSISTANT
+                        KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_ASSISTANT,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_H,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_HOME
+                        KeyGestureEvent.KEY_GESTURE_TYPE_HOME,
+                        /* allowCaptureByFocusedWindow = */false
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_ENTER,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_HOME
+                        KeyGestureEvent.KEY_GESTURE_TYPE_HOME,
+                        /* allowCaptureByFocusedWindow = */false
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_I,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SYSTEM_SETTINGS
+                        KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_SYSTEM_SETTINGS,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_L,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_LOCK_SCREEN
+                        KeyGestureEvent.KEY_GESTURE_TYPE_LOCK_SCREEN,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_N,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL
+                        KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_NOTIFICATION_PANEL,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_S,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT
+                        KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_SCREENSHOT,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_ESCAPE,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_BACK
+                        KeyGestureEvent.KEY_GESTURE_TYPE_BACK,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_DPAD_UP,
                         KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_MULTI_WINDOW_NAVIGATION
+                        KeyGestureEvent.KEY_GESTURE_TYPE_MULTI_WINDOW_NAVIGATION,
+                        /* allowCaptureByFocusedWindow = */false
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_DPAD_DOWN,
                         KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_DESKTOP_MODE
+                        KeyGestureEvent.KEY_GESTURE_TYPE_DESKTOP_MODE,
+                        /* allowCaptureByFocusedWindow = */false
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_DPAD_LEFT,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_BACK
+                        KeyGestureEvent.KEY_GESTURE_TYPE_BACK,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_DPAD_LEFT,
                         KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_SPLIT_SCREEN_NAVIGATION_LEFT
+                        KeyGestureEvent.KEY_GESTURE_TYPE_SPLIT_SCREEN_NAVIGATION_LEFT,
+                        /* allowCaptureByFocusedWindow = */false
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_DPAD_RIGHT,
                         KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_SPLIT_SCREEN_NAVIGATION_RIGHT
+                        KeyGestureEvent.KEY_GESTURE_TYPE_SPLIT_SCREEN_NAVIGATION_RIGHT,
+                        /* allowCaptureByFocusedWindow = */false
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_SLASH,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_OPEN_SHORTCUT_HELPER
+                        KeyGestureEvent.KEY_GESTURE_TYPE_OPEN_SHORTCUT_HELPER,
+                        /* allowCaptureByFocusedWindow = */true
                 ),
                 createKeyGesture(
                         KeyEvent.KEYCODE_TAB,
                         KeyEvent.META_META_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_RECENT_APPS
+                        KeyGestureEvent.KEY_GESTURE_TYPE_RECENT_APPS,
+                        /* allowCaptureByFocusedWindow = */true
                 )
         ));
-        if (newBugreportKeyboardShortcut() && "1".equals(SystemProperties.get("ro.debuggable"))) {
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_DEL,
-                    KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_TRIGGER_BUG_REPORT
-            ));
+        systemShortcuts.add(
+                createKeyGesture(
+                        KeyEvent.KEYCODE_DEL,
+                        KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
+                        KeyGestureEvent.KEY_GESTURE_TYPE_TRIGGER_BUG_REPORT,
+                        /* allowCaptureByFocusedWindow = */true
+                ));
+        if (DesktopExperienceFlags.ENABLE_MOVE_TO_NEXT_DISPLAY_SHORTCUT.isTrue()) {
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_D,
+                            KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_MOVE_TO_NEXT_DISPLAY,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
         }
-        if (enableMoveToNextDisplayShortcut()) {
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_D,
-                    KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_MOVE_TO_NEXT_DISPLAY
-            ));
+        if (enableSelectToSpeakKeyGestures()) {
+            systemShortcuts.add(
+                    createKeyGesture(KeyEvent.KEYCODE_S,
+                            KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_ACTIVATE_SELECT_TO_SPEAK,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
         }
         if (enableTalkbackAndMagnifierKeyGestures()) {
-            systemShortcuts.add(createKeyGesture(KeyEvent.KEYCODE_T,
-                    KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_TALKBACK));
-            systemShortcuts.add(createKeyGesture(KeyEvent.KEYCODE_M,
-                    KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_MAGNIFICATION));
-            systemShortcuts.add(createKeyGesture(KeyEvent.KEYCODE_S,
-                    KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_ACTIVATE_SELECT_TO_SPEAK));
+            systemShortcuts.add(
+                    createKeyGesture(KeyEvent.KEYCODE_M,
+                            KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_MAGNIFICATION,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
+        }
+        if (enableTalkbackKeyGestures()) {
+            systemShortcuts.add(
+                    createKeyGesture(KeyEvent.KEYCODE_T,
+                            KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_SCREEN_READER,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
         }
         if (enableVoiceAccessKeyGestures()) {
             systemShortcuts.add(
                     createKeyGesture(
                             KeyEvent.KEYCODE_V,
                             KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_VOICE_ACCESS));
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_VOICE_ACCESS,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
         }
         if (DesktopModeFlags.ENABLE_TASK_RESIZING_KEYBOARD_SHORTCUTS.isTrue()) {
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_LEFT_BRACKET,
-                    KeyEvent.META_META_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_SNAP_LEFT_FREEFORM_WINDOW
-            ));
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_RIGHT_BRACKET,
-                    KeyEvent.META_META_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_SNAP_RIGHT_FREEFORM_WINDOW
-            ));
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_EQUALS,
-                    KeyEvent.META_META_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_MAXIMIZE_FREEFORM_WINDOW
-            ));
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_MINUS,
-                    KeyEvent.META_META_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_MINIMIZE_FREEFORM_WINDOW
-            ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_LEFT_BRACKET,
+                            KeyEvent.META_META_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_SNAP_LEFT_FREEFORM_WINDOW,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_RIGHT_BRACKET,
+                            KeyEvent.META_META_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_SNAP_RIGHT_FREEFORM_WINDOW,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_EQUALS,
+                            KeyEvent.META_META_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_MAXIMIZE_FREEFORM_WINDOW,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_MINUS,
+                            KeyEvent.META_META_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_MINIMIZE_FREEFORM_WINDOW,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
         }
         if (keyboardA11yShortcutControl()) {
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_3,
-                    KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_BOUNCE_KEYS
-            ));
-            if (InputSettings.isAccessibilityMouseKeysFeatureFlagEnabled()) {
-                systemShortcuts.add(createKeyGesture(
-                        KeyEvent.KEYCODE_4,
-                        KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                        KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_MOUSE_KEYS
-                ));
-            }
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_5,
-                    KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_STICKY_KEYS
-            ));
-            systemShortcuts.add(createKeyGesture(
-                    KeyEvent.KEYCODE_6,
-                    KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
-                    KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_SLOW_KEYS
-            ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_3,
+                            KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_BOUNCE_KEYS,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_4,
+                            KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_MOUSE_KEYS,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_5,
+                            KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_STICKY_KEYS,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_6,
+                            KeyEvent.META_META_ON | KeyEvent.META_ALT_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_SLOW_KEYS,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
+        }
+        if (DesktopExperienceFlags.ENABLE_KEYBOARD_SHORTCUTS_TO_SWITCH_DESKS.isTrue()) {
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_LEFT_BRACKET,
+                            KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_SWITCH_TO_PREVIOUS_DESK,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_RIGHT_BRACKET,
+                            KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_SWITCH_TO_NEXT_DESK,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
+        }
+        if (DesktopExperienceFlags.CLOSE_TASK_KEYBOARD_SHORTCUT.isTrue()) {
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_W,
+                            KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_QUIT_FOCUSED_DESKTOP_TASK,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
+        }
+        if (enableQuickSettingsPanelShortcut()) {
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_Q,
+                            KeyEvent.META_META_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TOGGLE_QUICK_SETTINGS_PANEL,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
+        }
+        if (enablePartialScreenshotKeyboardShortcut()) {
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_S,
+                            KeyEvent.META_META_ON | KeyEvent.META_CTRL_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_TAKE_PARTIAL_SCREENSHOT,
+                            /* allowCaptureByFocusedWindow = */true
+                    ));
+        }
+        if (keyboardBacklightShortcuts()) {
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_BRIGHTNESS_UP,
+                            KeyEvent.META_META_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_KEYBOARD_BACKLIGHT_UP,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
+            systemShortcuts.add(
+                    createKeyGesture(
+                            KeyEvent.KEYCODE_BRIGHTNESS_DOWN,
+                            KeyEvent.META_META_ON,
+                            KeyGestureEvent.KEY_GESTURE_TYPE_KEYBOARD_BACKLIGHT_DOWN,
+                            /* allowCaptureByFocusedWindow = */false
+                    ));
         }
         synchronized (mGestureLock) {
             for (InputGestureData systemShortcut : systemShortcuts) {
@@ -428,10 +535,11 @@ final class InputGestureManager {
     }
 
     private static InputGestureData createKeyGesture(int keycode, int modifierState,
-            int keyGestureType) {
+            int keyGestureType, boolean allowCaptureByFocusedWindow) {
         return new InputGestureData.Builder()
                 .setTrigger(createKeyTrigger(keycode, modifierState))
                 .setKeyGestureType(keyGestureType)
+                .setAllowCaptureByFocusedWindow(allowCaptureByFocusedWindow)
                 .build();
     }
 

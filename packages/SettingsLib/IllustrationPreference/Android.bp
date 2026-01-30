@@ -11,6 +11,7 @@ android_library {
     name: "SettingsLibIllustrationPreference",
     use_resource_processor: true,
     defaults: [
+        "SettingsLibApexDefaults",
         "SettingsLintDefaults",
     ],
 
@@ -19,19 +20,14 @@ android_library {
 
     static_libs: [
         "SettingsLibColor",
+        "SettingsLibSettingsTheme",
         "androidx.preference_preference",
         "lottie",
-        "SettingsLibSettingsTheme",
         "settingslib_illustrationpreference_flags_lib",
     ],
 
     sdk_version: "system_current",
     min_sdk_version: "28",
-
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.permission",
-    ],
 }
 
 aconfig_declarations {
@@ -50,8 +46,7 @@ java_aconfig_library {
     min_sdk_version: "30",
     sdk_version: "system_current",
 
-    apex_available: [
-        "//apex_available:platform",
-        "com.android.permission",
+    defaults: [
+        "SettingsLibApexDefaults",
     ],
 }

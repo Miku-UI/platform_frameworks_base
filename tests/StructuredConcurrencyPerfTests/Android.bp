@@ -1,0 +1,85 @@
+// Copyright (C) 2025 The Android Open Source Project
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package {
+    default_team: "trendy_team_system_ui_performance",
+    default_applicable_licenses: ["Android-Apache-2.0"],
+}
+
+java_defaults {
+    name: "structured_concurrency_perf_tests_defaults",
+    defaults: [
+        "platform_app_defaults",
+    ],
+    srcs: [
+        "src/**/*.kt",
+    ],
+    static_libs: [
+        "collector-device-lib",
+        "tracinglib-platform",
+        "kotlinx_coroutines_android",
+        "kairos",
+        "com.android.systemui.util.kotlin",
+        "androidx.benchmark_benchmark-common",
+        "androidx.benchmark_benchmark-junit4",
+        "androidx.benchmark_benchmark-macro",
+        // benchmark-macro includes a copy of the trace_processor_shell
+        // binary, which will be run on device to create metrics
+        "androidx.benchmark_benchmark-macro-junit4",
+        "androidx.benchmark_benchmark-traceprocessor",
+        "androidx.compose.runtime_runtime",
+    ],
+    test_suites: ["performance-tests"],
+    platform_apis: true,
+    certificate: "platform",
+    use_resource_processor: true,
+}
+
+android_test {
+    name: "StructuredConcurrencyPerfTests",
+    defaults: [
+        "structured_concurrency_perf_tests_defaults",
+        "SystemUI_optimized_defaults",
+    ],
+    optimize: {
+        proguard_flags_files: ["proguard.flags"],
+    },
+    test_config: "configs/structured-concurrency-perf.xml",
+    test_options: {
+        extra_test_configs: [
+            "configs/structured-concurrency-perf.xml",
+            "configs/structured-concurrency-base.xml",
+        ],
+    },
+}
+
+android_test {
+    name: "StructuredConcurrencyPerfTests-debug",
+    defaults: [
+        "structured_concurrency_perf_tests_defaults",
+    ],
+    test_config: "configs/structured-concurrency-debug.xml",
+    test_options: {
+        extra_test_configs: [
+            "configs/structured-concurrency-debug.xml",
+            "configs/structured-concurrency-base.xml",
+        ],
+    },
+    srcs: [
+        "src-debug/**/*.kt",
+    ],
+    exclude_srcs: [
+        "src/com/android/app/concurrent/benchmark/util/Constants.kt",
+    ],
+}

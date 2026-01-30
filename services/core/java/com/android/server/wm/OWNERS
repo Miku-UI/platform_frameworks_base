@@ -19,8 +19,8 @@ wilsonshih@google.com
 jiamingliu@google.com
 pdwilliams@google.com
 charlesccchen@google.com
-marziana@google.com
 mcarli@google.com
+pbdr@google.com
 
 # Files related to background activity launches
 per-file Background*Start* = set noparent
@@ -39,3 +39,12 @@ per-file *WindowTracing* = file:platform/development:/tools/winscope/OWNERS
 per-file ActivityStarter.java = file:/ACTIVITY_SECURITY_OWNERS
 per-file ActivityStartController.java = file:/ACTIVITY_SECURITY_OWNERS
 per-file ActivityTaskManagerService.java = file:/ACTIVITY_SECURITY_OWNERS
+
+# Files related to device state based auto-rotate
+per-file DeviceStateAutoRotateSetting* = file:/services/foldables/OWNERS
+
+# Files related to content recordering
+per-file ContentRecord*.java = file:/media/java/android/media/projection/OWNERS
+
+# For desktop-first mode related chanegs.
+per-file DesktopMode* = toshikikikuchi@google.com

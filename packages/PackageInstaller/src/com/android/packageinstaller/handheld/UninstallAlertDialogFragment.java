@@ -39,6 +39,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.CheckBox;
 import android.widget.TextView;
 
@@ -300,6 +301,29 @@ public class UninstallAlertDialogFragment extends DialogFragment implements
         if (isAdded()) {
             getActivity().finish();
         }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        if (getContext().getPackageManager().hasSystemFeature(PackageManager.FEATURE_WATCH)) {
+            // Focus is important on watches, since it is needed to navigate the screen with
+            // rotary input. Because a dialog loses focuses anytime it's hidden, we request
+            // it here to make sure that the focus is gained everytime it shows.
+            requestFocusOnDialog();
+        }
+    }
+
+    private void requestFocusOnDialog() {
+        Dialog dialog = getDialog();
+        if (dialog == null) {
+            return;
+        }
+        Window window = dialog.getWindow();
+        if (window == null) {
+            return;
+        }
+        window.getDecorView().requestFocus();
     }
 
     /**

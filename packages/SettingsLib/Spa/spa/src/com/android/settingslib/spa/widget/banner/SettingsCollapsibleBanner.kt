@@ -105,7 +105,7 @@ private fun Header(
 @Composable
 private fun BannerCount(modelSize: Int, expanded: Boolean) {
     Surface(
-        shape = SettingsShape.CornerExtraLarge,
+        shape = SettingsShape.CornerExtraLarge1,
         color = MaterialTheme.colorScheme.secondaryContainer,
     ) {
         Row(

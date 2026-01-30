@@ -44,7 +44,8 @@ constructor(private val uiEventLogger: UiEventLogger, private val clock: SystemC
      * one is forgotten. e.g. if you send two types of events interlaced all within the delay
      * window, e.g. A->B->A within 1000ms, all three will be logged.
      */
-    @JvmOverloads fun logThrottled(event: UiEventEnum, delayBeforeLoggingMs: Int = 2000) {
+    @JvmOverloads
+    fun logThrottled(event: UiEventEnum, delayBeforeLoggingMs: Int = 2000) {
         synchronized(clock) {
             val currentTimeMs = clock.elapsedRealtime()
             val shouldThrottle =
@@ -75,33 +76,35 @@ constructor(private val uiEventLogger: UiEventLogger, private val clock: SystemC
     }
 
     /** Events regarding interaction with the magnifier settings panel */
-    enum class MagnificationSettingsEvent constructor(private val id: Int) :
-        UiEventEnum {
+    enum class MagnificationSettingsEvent constructor(private val id: Int) : UiEventEnum {
         @UiEvent(
             doc =
                 "Magnification settings panel opened. The selection rank is from which " +
                     "magnifier mode it was opened (fullscreen or window)"
         )
         MAGNIFICATION_SETTINGS_PANEL_OPENED(1381),
-
         @UiEvent(doc = "Magnification settings panel closed")
         MAGNIFICATION_SETTINGS_PANEL_CLOSED(1382),
-
         @UiEvent(doc = "Magnification settings panel edit size button clicked")
         MAGNIFICATION_SETTINGS_SIZE_EDITING_ACTIVATED(1383),
-
         @UiEvent(doc = "Magnification settings panel edit size save button clicked")
         MAGNIFICATION_SETTINGS_SIZE_EDITING_DEACTIVATED(1384),
-
         @UiEvent(doc = "Magnification settings panel zoom slider changed")
         MAGNIFICATION_SETTINGS_ZOOM_SLIDER_CHANGED(1385),
-
         @UiEvent(
             doc =
                 "Magnification settings panel window size selected. The selection rank is " +
                     "which size was selected."
         )
-        MAGNIFICATION_SETTINGS_WINDOW_SIZE_SELECTED(1386);
+        MAGNIFICATION_SETTINGS_WINDOW_SIZE_SELECTED(1386),
+        @UiEvent(doc = "Magnification settings panel magnify ime preference enabled")
+        MAGNIFICATION_SETTINGS_PANEL_MAGNIFY_IME_ENABLED(2321),
+        @UiEvent(doc = "Magnification settings panel magnify ime preference disabled")
+        MAGNIFICATION_SETTINGS_PANEL_MAGNIFY_IME_DISABLED(2322),
+        @UiEvent(doc = "Magnification settings panel magnify typing preference enabled")
+        MAGNIFICATION_SETTINGS_PANEL_FOLLOW_TYPING_ENABLED(2323),
+        @UiEvent(doc = "Magnification settings panel magnify typing preference disabled")
+        MAGNIFICATION_SETTINGS_PANEL_FOLLOW_TYPING_DISABLED(2324);
 
         override fun getId(): Int = this.id
     }

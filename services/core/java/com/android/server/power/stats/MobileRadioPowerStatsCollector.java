@@ -182,7 +182,7 @@ public class MobileRadioPowerStatsCollector extends PowerStatsCollector {
     }
 
     @Override
-    public PowerStats collectStats() {
+    public PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
         if (!ensureInitialized()) {
             return null;
         }
@@ -196,12 +196,12 @@ public class MobileRadioPowerStatsCollector extends PowerStatsCollector {
         mConsumedEnergyHelper.collectConsumedEnergy(mPowerStats, mLayout);
 
         if (mPowerStats.durationMs == 0) {
-            setTimestamp(mClock.elapsedRealtime());
+            setTimestamp(elapsedRealtimeMs);
         }
 
         if (mObserver != null) {
             mObserver.onMobileRadioPowerStatsRetrieved(modemActivityDelta,
-                    networkStatsDeltas, mClock.elapsedRealtime(), mClock.uptimeMillis());
+                    networkStatsDeltas, elapsedRealtimeMs, uptimeMs);
         }
         return mPowerStats;
     }

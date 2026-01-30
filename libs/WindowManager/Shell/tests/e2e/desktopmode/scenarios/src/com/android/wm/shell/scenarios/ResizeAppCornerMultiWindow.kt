@@ -17,70 +17,53 @@
 package com.android.wm.shell.scenarios
 
 import android.app.Instrumentation
-import android.tools.NavBar
 import android.tools.Rotation
 import android.tools.traces.parsers.WindowManagerStateHelper
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.UiDevice
-import com.android.launcher3.tapl.LauncherInstrumentation
 import com.android.server.wm.flicker.helpers.DesktopModeAppHelper
-import com.android.server.wm.flicker.helpers.ImeAppHelper
 import com.android.server.wm.flicker.helpers.MailAppHelper
-import com.android.server.wm.flicker.helpers.NewTasksAppHelper
-import com.android.server.wm.flicker.helpers.SimpleAppHelper
-import com.android.window.flags.Flags
-import com.android.wm.shell.Utils
+import com.android.wm.shell.shared.desktopmode.DesktopConfig
 import org.junit.After
-import org.junit.Assume
 import org.junit.Before
 import org.junit.Ignore
-import org.junit.Rule
 import org.junit.Test
 
 @Ignore("Test Base Class")
 abstract class ResizeAppCornerMultiWindow
 constructor(val rotation: Rotation = Rotation.ROTATION_0,
     val horizontalChange: Int = 50,
-    val verticalChange: Int = -50) {
+    val verticalChange: Int = -50) : TestScenarioBase(rotation) {
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
-    private val tapl = LauncherInstrumentation()
     private val wmHelper = WindowManagerStateHelper(instrumentation)
     private val device = UiDevice.getInstance(instrumentation)
-    private val testApp = DesktopModeAppHelper(SimpleAppHelper(instrumentation))
-    private val mailApp = DesktopModeAppHelper(MailAppHelper(instrumentation))
-    private val newTasksApp = DesktopModeAppHelper(NewTasksAppHelper(instrumentation))
-    private val imeApp = DesktopModeAppHelper(ImeAppHelper(instrumentation))
+    private val desktopConfig = DesktopConfig.fromContext(instrumentation.context)
 
-    @Rule
-    @JvmField
-    val testSetupRule = Utils.testSetupRule(NavBar.MODE_GESTURAL, rotation)
+    private val mailAppHelper = MailAppHelper(instrumentation)
+    private val mailAppDesktopHelper = DesktopModeAppHelper(mailAppHelper)
+
+    private val maxNum = desktopConfig.maxTaskLimit
 
     @Before
     fun setup() {
-        Assume.assumeTrue(Flags.enableDesktopWindowingMode() && tapl.isTablet)
-        tapl.setEnableRotation(true)
-        tapl.setExpectedRotation(rotation.value)
-        testApp.enterDesktopMode(wmHelper, device)
-        mailApp.launchViaIntent(wmHelper)
-        newTasksApp.launchViaIntent(wmHelper)
-        imeApp.launchViaIntent(wmHelper)
+        mailAppDesktopHelper.enterDesktopMode(wmHelper, device)
+        mailAppDesktopHelper.openTasks(wmHelper, numTasks = maxNum - 1)
     }
 
     @Test
     open fun resizeAppWithCornerResize() {
-        imeApp.cornerResize(wmHelper,
+        mailAppDesktopHelper.cornerResize(
+            wmHelper,
             device,
             DesktopModeAppHelper.Corners.RIGHT_TOP,
             horizontalChange,
-            verticalChange)
+            verticalChange
+        )
     }
 
     @After
     fun teardown() {
-        testApp.exit(wmHelper)
-        mailApp.exit(wmHelper)
-        newTasksApp.exit(wmHelper)
-        imeApp.exit(wmHelper)
+        mailAppDesktopHelper.exit(wmHelper)
     }
 }

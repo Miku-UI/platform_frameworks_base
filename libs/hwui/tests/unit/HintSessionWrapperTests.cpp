@@ -187,7 +187,7 @@ TEST_F(HintSessionWrapperTests, loadUpHintsSendCorrectly) {
             .Times(1);
     mWrapper->init();
     waitForWrapperReady();
-    mWrapper->sendLoadIncreaseHint();
+    mWrapper->sendCpuLoadIncreaseHint();
 }
 
 TEST_F(HintSessionWrapperTests, loadResetHintsSendCorrectly) {
@@ -196,7 +196,7 @@ TEST_F(HintSessionWrapperTests, loadResetHintsSendCorrectly) {
             .Times(1);
     mWrapper->init();
     waitForWrapperReady();
-    mWrapper->sendLoadResetHint();
+    mWrapper->sendCpuLoadResetHint();
 }
 
 TEST_F(HintSessionWrapperTests, delayedDeletionWorksCorrectlyAndOnlyClosesOnce) {
@@ -316,7 +316,7 @@ TEST_F(HintSessionWrapperTests, loadUpDoesNotResetDeletionTimer) {
     scheduleDelayedDestroyManaged();
 
     // Then, send a load_up hint
-    mWrapper->sendLoadIncreaseHint();
+    mWrapper->sendCpuLoadIncreaseHint();
 
     // Then, run the delayed deletion after sending the update
     allowDelayedDestructionToStart();

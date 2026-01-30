@@ -24,13 +24,15 @@ aconfig_declarations_group {
         "aconfig_settingslib_flags_java_lib",
         "aconfig_trade_in_mode_flags_java_lib",
         "adpf_flags_java_lib",
-        "android.adaptiveauth.flags-aconfig-java",
+        "anomaly-detector-exported-aconfig-flags-lib",
         "android.app.appfunctions.flags-aconfig-java",
         "android.app.assist.flags-aconfig-java",
         "android.app.contextualsearch.flags-aconfig-java",
         "android.app.flags-aconfig-java",
         "android.app.jank.flags-aconfig-java",
         "android.app.ondeviceintelligence-aconfig-java",
+        "android.app.privatecompute.flags-aconfig-java",
+        "android.app.userrecovery.flags-aconfig-java",
         "android.app.smartspace.flags-aconfig-java",
         "android.app.supervision.flags-aconfig-java",
         "android.app.usage.flags-aconfig-java",
@@ -54,6 +56,7 @@ aconfig_declarations_group {
         "android.hardware.usb.flags-aconfig-java",
         "android.location.flags-aconfig-java",
         "android.media.codec-aconfig-java",
+        "android.media.mediarecorder-aconfig-java",
         "android.media.tv.flags-aconfig-java",
         "android.multiuser.flags-aconfig-java",
         "android.net.platform.flags-aconfig-java",
@@ -73,6 +76,7 @@ aconfig_declarations_group {
         "android.service.controls.flags-aconfig-java",
         "android.service.dreams.flags-aconfig-java",
         "android.service.notification.flags-aconfig-java",
+        "android.service.quicksettings.flags-aconfig-java",
         "android.service.quickaccesswallet.flags-aconfig-java",
         "android.service.selinux.flags-aconfig-java",
         "android.service.voice.flags-aconfig-java",
@@ -87,20 +91,23 @@ aconfig_declarations_group {
         "android.webkit.flags-aconfig-java",
         "android.widget.flags-aconfig-java",
         "android.xr.flags-aconfig-java-export",
+        "com.android.microxr.flags-aconfig-java",
         "art_exported_aconfig_flags_lib",
         "backstage_power_flags_lib",
         "backup_flags_lib",
         "camera_platform_flags_core_java_lib",
+        "com.android.eyedropper.flags-aconfig-java",
         "com.android.hardware.input-aconfig-java",
         "com.android.input.flags-aconfig-java",
         "com.android.internal.compat.flags-aconfig-java",
+        "com.android.internal.content.storage.flags-aconfig-java",
         "com.android.internal.foldables.flags-aconfig-java",
         "com.android.internal.os.flags-aconfig-java",
         "com.android.internal.pm.pkg.component.flags-aconfig-java",
         "com.android.internal.widget.flags-aconfig-java",
         "com.android.media.flags.bettertogether-aconfig-java",
         "com.android.media.flags.editing-aconfig-java",
-        "com.android.media.flags.performance-aconfig-java",
+        "com.android.media.flags.mediasession-aconfig-java",
         "com.android.media.flags.projection-aconfig-java",
         "com.android.net.http.flags-aconfig-exported-java",
         "com.android.net.thread.platform.flags-aconfig-java",
@@ -108,12 +115,13 @@ aconfig_declarations_group {
         "com.android.ranging.flags.ranging-aconfig-java-export",
         "com.android.server.contextualsearch.flags-java",
         "com.android.server.flags.services-aconfig-java",
+        "com.android.server.voiceinteraction.flags-java",
         "com.android.text.flags-aconfig-java",
         "com.android.window.flags.window-aconfig-java",
         "configinfra_framework_flags_java_exported_lib",
         "conscrypt_exported_aconfig_flags_lib",
-        "sdk_sandbox_exported_flags_lib",
         "device_policy_aconfig_flags_lib",
+        "devicelock-exported-aconfig-flags-lib",
         "display_flags_lib",
         "dropbox_flags_lib",
         "framework-jobscheduler-job.flags-aconfig-java",
@@ -121,14 +129,17 @@ aconfig_declarations_group {
         "hwui_flags_java_lib",
         "icu_exported_aconfig_flags_lib",
         "interaction_jank_monitor_flags_lib",
-        "keystore2_flags_java-framework",
         "libcore_exported_aconfig_flags_lib",
         "libcore_readonly_aconfig_flags_lib",
         "libgui_flags_java_lib",
+        "mediaprovider_exported_aconfig_flag_lib",
+        "networksecurity_exported_aconfig_flags_lib",
         "power_flags_lib",
+        "sdk_sandbox_exported_flags_lib",
         "surfaceflinger_flags_java_lib",
         "telecom_flags_core_java_lib",
         "telephony_flags_core_java_lib",
+        "timezone_flags_core_java_lib",
         // !!! KEEP THIS LIST ALPHABETICAL !!!
     ],
 }
@@ -218,11 +229,30 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+// Conscrypt - Networksecurity
+java_aconfig_library {
+    name: "networksecurity_exported_aconfig_flags_lib",
+    aconfig_declarations: "networksecurity-aconfig-flags",
+    mode: "exported",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
 // Telecom
 java_aconfig_library {
     name: "telecom_flags_core_java_lib",
     aconfig_declarations: "telecom_flags",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
+java_aconfig_library {
+    name: "telecom_flags_core_java_aconfig_java_exported_lib",
+    aconfig_declarations: "telecom_flags",
+    mode: "exported",
+    min_sdk_version: "30",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    apex_available: [
+        "com.android.permission",
+    ],
 }
 
 // Telephony
@@ -238,7 +268,9 @@ java_aconfig_library {
     mode: "exported",
     min_sdk_version: "30",
     apex_available: [
+        "//apex_available:platform",
         "com.android.wifi",
+        "com.android.extservices",
     ],
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
@@ -246,6 +278,20 @@ java_aconfig_library {
 cc_aconfig_library {
     name: "telephony_flags_c_lib",
     aconfig_declarations: "telephony_flags",
+}
+
+// Timezone
+aconfig_declarations {
+    name: "timezone_flags",
+    package: "android.timezone.flags",
+    container: "system",
+    srcs: ["core/java/android/timezone/flags/flags.aconfig"],
+}
+
+java_aconfig_library {
+    name: "timezone_flags_core_java_lib",
+    aconfig_declarations: "timezone_flags",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
 // Window
@@ -261,6 +307,18 @@ java_aconfig_library {
     name: "com.android.window.flags.window-aconfig-java",
     aconfig_declarations: "com.android.window.flags.window-aconfig",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
+java_aconfig_library {
+    name: "com.android.window.flags.window-aconfig-java-export",
+    aconfig_declarations: "com.android.window.flags.window-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    mode: "exported",
+    min_sdk_version: "30",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.permission",
+    ],
 }
 
 cc_aconfig_library {
@@ -296,6 +354,7 @@ aconfig_declarations {
 java_aconfig_library {
     name: "com.android.hardware.input-aconfig-java",
     aconfig_declarations: "com.android.hardware.input.input-aconfig",
+    host_supported: true,
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
@@ -367,11 +426,23 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+java_aconfig_library {
+    name: "android.location.flags-aconfig-java-export",
+    aconfig_declarations: "android.location.flags-aconfig",
+    mode: "exported",
+    min_sdk_version: "30",
+    apex_available: [
+        "com.android.permission",
+    ],
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
 // NFC
 aconfig_declarations {
     name: "android.nfc.flags-aconfig",
     package: "android.nfc",
     container: "system",
+    exportable: true,
     srcs: ["nfc-non-updatable/flags/*.aconfig"],
 }
 
@@ -392,6 +463,7 @@ java_aconfig_library {
     name: "android.nfc.flags-aconfig-java",
     aconfig_declarations: "android.nfc.flags-aconfig",
     min_sdk_version: "34",
+    mode: "exported",
     apex_available: [
         "//apex_available:platform",
         "com.android.nfcservices",
@@ -529,6 +601,12 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+cc_aconfig_library {
+    name: "com.android.internal.os_flags_c_lib",
+    aconfig_declarations: "com.android.internal.os.flags-aconfig",
+    host_supported: true,
+}
+
 // VirtualDeviceManager
 cc_aconfig_library {
     name: "android.companion.virtualdevice.flags-aconfig-cc",
@@ -590,6 +668,13 @@ aconfig_declarations {
 java_aconfig_library {
     name: "android.view.inputmethod.flags-aconfig-java",
     aconfig_declarations: "android.view.inputmethod.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
+java_aconfig_library {
+    name: "android.view.inputmethod.flags-aconfig-java-host",
+    aconfig_declarations: "android.view.inputmethod.flags-aconfig",
+    host_supported: true,
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
@@ -756,6 +841,29 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+cc_aconfig_library {
+    name: "android.content.res.flags-aconfig-cc",
+    aconfig_declarations: "android.content.res.flags-aconfig",
+}
+
+cc_aconfig_library {
+    name: "android.content.res.flags-aconfig-cc-host",
+    aconfig_declarations: "android.content.res.flags-aconfig",
+    host_supported: true,
+}
+
+cc_aconfig_library {
+    name: "android.content.res.flags-aconfig-cc-host-ro",
+    aconfig_declarations: "android.content.res.flags-aconfig",
+    mode: "force-read-only",
+    host_supported: true,
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
+}
+
 // Media BetterTogether
 aconfig_declarations {
     name: "com.android.media.flags.bettertogether-aconfig",
@@ -799,6 +907,23 @@ cc_aconfig_library {
     aconfig_declarations: "com.android.media.flags.editing-aconfig",
 }
 
+// MediaSession
+aconfig_declarations {
+    name: "com.android.media.flags.mediasession-aconfig",
+    exportable: true,
+    package: "com.android.media.mediasession.flags",
+    container: "system",
+    srcs: [
+        "media/java/android/media/flags/mediasession.aconfig",
+    ],
+}
+
+java_aconfig_library {
+    name: "com.android.media.flags.mediasession-aconfig-java",
+    aconfig_declarations: "com.android.media.flags.mediasession-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
 // MediaProjection
 aconfig_declarations {
     name: "com.android.media.flags.projection-aconfig",
@@ -812,22 +937,6 @@ aconfig_declarations {
 java_aconfig_library {
     name: "com.android.media.flags.projection-aconfig-java",
     aconfig_declarations: "com.android.media.flags.projection-aconfig",
-    defaults: ["framework-minus-apex-aconfig-java-defaults"],
-}
-
-// Media Performance
-aconfig_declarations {
-    name: "com.android.media.flags.performance-aconfig",
-    package: "com.android.media.performance.flags",
-    container: "system",
-    srcs: [
-        "media/java/android/media/flags/performance.aconfig",
-    ],
-}
-
-java_aconfig_library {
-    name: "com.android.media.flags.performance-aconfig-java",
-    aconfig_declarations: "com.android.media.flags.performance-aconfig",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
@@ -868,9 +977,11 @@ java_aconfig_library {
     min_sdk_version: "30",
     apex_available: [
         "//apex_available:platform",
+        "com.android.appsearch",
+        "com.android.extservices",
         "com.android.nfcservices",
         "com.android.permission",
-        "com.android.extservices",
+        "com.android.tethering",
     ],
 }
 
@@ -961,6 +1072,18 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+java_aconfig_library {
+    name: "display_flags_lib-export",
+    aconfig_declarations: "display_flags",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    min_sdk_version: "30",
+    mode: "exported",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.nfcservices",
+    ],
+}
+
 cc_aconfig_library {
     name: "android.server.display.flags-aconfig-cc",
     aconfig_declarations: "display_flags",
@@ -994,9 +1117,16 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+java_aconfig_library {
+    name: "com.android.internal.content.storage.flags-aconfig-java",
+    aconfig_declarations: "com.android.internal.content.storage.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
 // Multi user
 aconfig_declarations {
     name: "android.multiuser.flags-aconfig",
+    exportable: true,
     package: "android.multiuser",
     container: "system",
     srcs: ["core/java/android/content/pm/multiuser.aconfig"],
@@ -1006,6 +1136,19 @@ java_aconfig_library {
     name: "android.multiuser.flags-aconfig-java",
     aconfig_declarations: "android.multiuser.flags-aconfig",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    min_sdk_version: "30",
+}
+
+java_aconfig_library {
+    name: "android.multiuser.flags-aconfig-java-export",
+    aconfig_declarations: "android.multiuser.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    mode: "exported",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.wifi",
+    ],
+    min_sdk_version: "30",
 }
 
 // XR
@@ -1023,6 +1166,24 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
     min_sdk_version: "30",
     mode: "exported",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.permission",
+    ],
+}
+
+// XR - Glasses
+aconfig_declarations {
+    name: "com.android.microxr.flags-aconfig",
+    container: "system",
+    package: "com.android.microxr",
+    srcs: ["core/java/android/content/pm/glasses.aconfig"],
+}
+
+java_aconfig_library {
+    name: "com.android.microxr.flags-aconfig-java",
+    aconfig_declarations: "com.android.microxr.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
     apex_available: [
         "//apex_available:platform",
         "com.android.permission",
@@ -1121,6 +1282,20 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+// Voice Interaction System Service
+aconfig_declarations {
+    name: "com.android.server.voiceinteraction.flags-aconfig",
+    package: "com.android.server.voiceinteraction.flags",
+    container: "system",
+    srcs: ["services/voiceinteraction/flags/flags.aconfig"],
+}
+
+java_aconfig_library {
+    name: "com.android.server.voiceinteraction.flags-java",
+    aconfig_declarations: "com.android.server.voiceinteraction.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
 // Server Services Flags
 aconfig_declarations {
     name: "com.android.server.flags.services-aconfig",
@@ -1212,6 +1387,18 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+java_aconfig_library {
+    name: "android.companion.flags-aconfig-java-export",
+    aconfig_declarations: "android.companion.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    mode: "exported",
+    min_sdk_version: "30",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.permission",
+    ],
+}
+
 // Networking
 aconfig_declarations {
     name: "android.net.platform.flags-aconfig",
@@ -1220,6 +1407,21 @@ aconfig_declarations {
     container: "system",
     srcs: ["core/java/android/net/flags.aconfig"],
     visibility: [":__subpackages__"],
+}
+
+// User Recovery
+aconfig_declarations {
+    name: "android.app.userrecovery.flags-aconfig",
+    exportable: true,
+    package: "android.app.userrecovery.flags",
+    container: "system",
+    srcs: ["core/java/android/app/userrecovery/flags/flags.aconfig"],
+}
+
+java_aconfig_library {
+    name: "android.app.userrecovery.flags-aconfig-java",
+    aconfig_declarations: "android.app.userrecovery.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
 // Thread network
@@ -1238,29 +1440,39 @@ java_aconfig_library {
     visibility: [":__subpackages__"],
 }
 
+cc_aconfig_library {
+    name: "android.net.platform.flags-aconfig-cc",
+    aconfig_declarations: "android.net.platform.flags-aconfig",
+}
+
+java_aconfig_library {
+    name: "android.net.platform.flags-aconfig-java-export",
+    aconfig_declarations: "android.net.platform.flags-aconfig",
+    mode: "exported",
+    min_sdk_version: "30",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.tethering",
+    ],
+}
+
 java_aconfig_library {
     name: "com.android.net.thread.platform.flags-aconfig-java",
     aconfig_declarations: "com.android.net.thread.platform.flags-aconfig",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
-// Media
-aconfig_declarations {
-    name: "android.media.playback.flags-aconfig",
-    package: "com.android.media.playback.flags",
-    container: "system",
-    srcs: ["media/jni/playback_flags.aconfig"],
-}
-
-cc_aconfig_library {
-    name: "android.media.playback.flags-aconfig-cc",
-    aconfig_declarations: "android.media.playback.flags-aconfig",
-}
-
 java_aconfig_library {
-    name: "android.media.playback.flags-aconfig-java",
-    aconfig_declarations: "android.media.playback.flags-aconfig",
+    name: "com.android.net.thread.platform.flags-aconfig-java-export",
+    aconfig_declarations: "com.android.net.thread.platform.flags-aconfig",
+    mode: "exported",
+    min_sdk_version: "30",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.tethering",
+    ],
 }
 
 // DevicePolicy
@@ -1380,6 +1592,22 @@ java_aconfig_library {
     ],
 }
 
+// Quick Settings
+aconfig_declarations {
+    name: "android.service.quicksettings.flags-aconfig",
+    package: "android.service.quicksettings",
+    exportable: true,
+    container: "system",
+    srcs: ["core/java/android/service/quicksettings/flags.aconfig"],
+}
+
+java_aconfig_library {
+    name: "android.service.quicksettings.flags-aconfig-java",
+    aconfig_declarations: "android.service.quicksettings.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    mode: "exported",
+}
+
 // Contextual Search
 aconfig_declarations {
     name: "android.app.contextualsearch.flags-aconfig",
@@ -1438,11 +1666,30 @@ java_aconfig_library {
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
+java_aconfig_library {
+    name: "android.app.supervision.flags-aconfig-java-host",
+    aconfig_declarations: "android.app.supervision.flags-aconfig",
+    host_supported: true,
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
 // SurfaceFlinger
 java_aconfig_library {
     name: "surfaceflinger_flags_java_lib",
     aconfig_declarations: "surfaceflinger_flags",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
+java_aconfig_library {
+    name: "surfaceflinger_exported_flags_lib",
+    aconfig_declarations: "surfaceflinger_flags",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    mode: "exported",
+    min_sdk_version: "30",
+    apex_available: [
+        "//apex_available:platform",
+        "com.android.permission",
+    ],
 }
 
 java_aconfig_library {
@@ -1572,6 +1819,7 @@ java_aconfig_library {
     name: "android.provider.flags-aconfig-java",
     aconfig_declarations: "android.provider.flags-aconfig",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    min_sdk_version: "30",
 }
 
 // ContextHub
@@ -1657,20 +1905,6 @@ java_aconfig_library {
         "com.android.permission",
     ],
     min_sdk_version: "30",
-}
-
-// Adaptive Auth
-aconfig_declarations {
-    name: "android.adaptiveauth.flags-aconfig",
-    package: "android.adaptiveauth",
-    container: "system",
-    srcs: ["core/java/android/adaptiveauth/*.aconfig"],
-}
-
-java_aconfig_library {
-    name: "android.adaptiveauth.flags-aconfig-java",
-    aconfig_declarations: "android.adaptiveauth.flags-aconfig",
-    defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }
 
 // CrashRecovery Module
@@ -1766,7 +2000,15 @@ aconfig_declarations {
     name: "android.systemserver.flags-aconfig",
     package: "android.server",
     container: "system",
+    exportable: true,
     srcs: ["services/java/com/android/server/flags.aconfig"],
+}
+
+java_aconfig_library {
+    name: "android.systemserver.flags-aconfig-java-export",
+    aconfig_declarations: "android.systemserver.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+    mode: "exported",
 }
 
 java_aconfig_library {
@@ -1976,5 +2218,26 @@ aconfig_declarations {
 java_aconfig_library {
     name: "android.hardware.serial.flags-aconfig-java",
     aconfig_declarations: "android.hardware.serial.flags-aconfig",
+    defaults: ["framework-minus-apex-aconfig-java-defaults"],
+}
+
+rust_aconfig_library {
+    name: "libandroid_hardware_serial_flags_rust",
+    crate_name: "android_hardware_serial_flags",
+    aconfig_declarations: "android.hardware.serial.flags-aconfig",
+}
+
+// Private Compute Core (PCC)
+aconfig_declarations {
+    name: "android.app.privatecompute.flags-aconfig",
+    exportable: true,
+    package: "android.app.privatecompute.flags",
+    container: "system",
+    srcs: ["core/java/android/app/privatecompute/flags/flags.aconfig"],
+}
+
+java_aconfig_library {
+    name: "android.app.privatecompute.flags-aconfig-java",
+    aconfig_declarations: "android.app.privatecompute.flags-aconfig",
     defaults: ["framework-minus-apex-aconfig-java-defaults"],
 }

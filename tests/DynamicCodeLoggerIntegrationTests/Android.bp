@@ -48,6 +48,9 @@ android_test {
     static_libs: [
         "androidx.test.rules",
         "truth",
+        "flag-junit",
+        "platform-test-annotations",
+        "com.android.server.flags.services-aconfig-java",
     ],
 
     compile_multilib: "both",

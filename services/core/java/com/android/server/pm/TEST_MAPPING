@@ -227,6 +227,153 @@
               "exclude-annotation":"org.junit.Ignore"
           }
       ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJDeviceAdminTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJInstallationTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJInstallationViaIntentForResultTestCasesV2",
+      "file_patterns": [
+          "core/java/.*Install.*",
+          "services/core/.*Install.*",
+          "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJInstallationViaSessionTestCasesV2",
+      "file_patterns": [
+          "core/java/.*Install.*",
+          "services/core/.*Install.*",
+          "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJMultiUsersTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJUninstallationTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJUpdateOwnerShipTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJUpdateSelfTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageManagerBroadcastTestCases",
+      "options":[
+        {
+          "exclude-annotation":"androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation":"org.junit.Ignore"
+        }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJDeveloperVerificationTestCases",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ]
     }
   ],
   "presubmit-large":[
@@ -414,6 +561,163 @@
               "exclude-annotation":"org.junit.Ignore"
           }
       ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJDeviceAdminTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJInstallationTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJInstallationViaIntentForResultTestCasesV2",
+      "file_patterns": [
+          "core/java/.*Install.*",
+          "services/core/.*Install.*",
+          "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJInstallationViaSessionTestCasesV2",
+      "file_patterns": [
+          "core/java/.*Install.*",
+          "services/core/.*Install.*",
+          "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJMultiUsersTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJUninstallationTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJUpdateOwnerShipTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJUpdateSelfTestCasesV2",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ],
+      "options":[
+          {
+              "exclude-annotation":"androidx.test.filters.FlakyTest"
+          },
+          {
+              "exclude-annotation":"org.junit.Ignore"
+          }
+      ]
+    },
+    {
+      "name": "CtsPackageManagerBroadcastTestCases",
+      "options":[
+        {
+          "exclude-annotation":"androidx.test.filters.FlakyTest"
+        },
+        {
+          "exclude-annotation":"org.junit.Ignore"
+        }
+      ]
+    },
+    {
+      "name": "CtsPackageInstallerCUJDeveloperVerificationTestCases",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ]
+    }
+  ],
+  "desktop-presubmit": [
+    {
+      "name": "CtsPackageInstallTestCases",
+      "file_patterns": [
+        "core/java/.*Install.*",
+        "services/core/.*Install.*",
+        "services/core/java/com/android/server/pm/.*"
+      ]
     }
   ],
   "imports": [
@@ -422,6 +726,14 @@
     },
     {
       "path": "vendor/xts/gts-tests/hostsidetests/stagedinstall"
+    }
+  ],
+  "hsum-presubmit": [
+    {
+      "name": "CtsMultiUserTestCases",
+      "file_patterns": [
+        "(/|^)User[^/]*\\.java"
+      ]
     }
   ]
 }

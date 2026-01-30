@@ -1,0 +1,132 @@
+metric_bundles {
+  row {
+    values {
+      double_value: 22000000.0
+    }
+    values {
+      double_value: 20750000.0
+    }
+    values {
+      double_value: 2.0
+    }
+    dimension {
+      string_value: "FIRST_CUJ"
+    }
+  }
+  row {
+    values {
+      double_value: 25500000.0
+    }
+    values {
+      double_value: 25500000.0
+    }
+    values {
+      double_value: 1.0
+    }
+    dimension {
+      string_value: "SECOND_CUJ"
+    }
+  }
+  specs {
+    id: "android_sf_critical_work_region_sampling_cuj_max_dur"
+    dimensions: "cuj_name"
+    value: "max_dur"
+    query {
+      interval_intersect {
+        base {
+          inner_query_id: "drawLayersInternal_to_waitForever_duration"
+        }
+        interval_intersect {
+          inner_query_id: "sf_region_sampling_cujs"
+        }
+      }
+      group_by {
+        column_names: "cuj_name"
+        aggregates {
+          column_name: "dur"
+          op: MAX
+          result_column_name: "max_dur"
+        }
+        aggregates {
+          column_name: "dur"
+          op: MEAN
+          result_column_name: "avg_dur"
+        }
+        aggregates {
+          column_name: "id"
+          op: COUNT
+          result_column_name: "count"
+        }
+      }
+    }
+    bundle_id: "android_sf_critical_work_region_sampling_cuj"
+  }
+  specs {
+    id: "android_sf_critical_work_region_sampling_cuj_avg_dur"
+    dimensions: "cuj_name"
+    value: "avg_dur"
+    query {
+      interval_intersect {
+        base {
+          inner_query_id: "drawLayersInternal_to_waitForever_duration"
+        }
+        interval_intersect {
+          inner_query_id: "sf_region_sampling_cujs"
+        }
+      }
+      group_by {
+        column_names: "cuj_name"
+        aggregates {
+          column_name: "dur"
+          op: MAX
+          result_column_name: "max_dur"
+        }
+        aggregates {
+          column_name: "dur"
+          op: MEAN
+          result_column_name: "avg_dur"
+        }
+        aggregates {
+          column_name: "id"
+          op: COUNT
+          result_column_name: "count"
+        }
+      }
+    }
+    bundle_id: "android_sf_critical_work_region_sampling_cuj"
+  }
+  specs {
+    id: "android_sf_critical_work_region_sampling_cuj_count"
+    dimensions: "cuj_name"
+    value: "count"
+    query {
+      interval_intersect {
+        base {
+          inner_query_id: "drawLayersInternal_to_waitForever_duration"
+        }
+        interval_intersect {
+          inner_query_id: "sf_region_sampling_cujs"
+        }
+      }
+      group_by {
+        column_names: "cuj_name"
+        aggregates {
+          column_name: "dur"
+          op: MAX
+          result_column_name: "max_dur"
+        }
+        aggregates {
+          column_name: "dur"
+          op: MEAN
+          result_column_name: "avg_dur"
+        }
+        aggregates {
+          column_name: "id"
+          op: COUNT
+          result_column_name: "count"
+        }
+      }
+    }
+    bundle_id: "android_sf_critical_work_region_sampling_cuj"
+  }
+}

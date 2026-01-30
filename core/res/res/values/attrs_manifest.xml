@@ -2080,7 +2080,6 @@
              other applications in the same task. If set to false, activity launches which would
              replace this application with another when in the user's view will be blocked.
              The default is true. -->
-        <!-- @FlaggedApi("android.security.asm_restrictions_enabled") -->
         <attr name="allowCrossUidActivitySwitchFromBelow" format="boolean" />
         <attr name="persistent" />
         <attr name="persistentWhenFeatureAvailable" />
@@ -2382,6 +2381,13 @@
              {@link android.content.pm.PackageManager#changeLauncherIconConfig}
              @FlaggedApi(android.content.pm.Flags.FLAG_CHANGE_LAUNCHER_BADGING) -->
         <attr name="alternateLauncherLabels" format="reference" />
+
+        <!-- Specifies whether this app should run in the Private Compute Core sandbox.
+             If true, the app will be subject to system restrictions, limiting access to some
+             system resources and restricting communication with non-PCC apps.
+             @FlaggedApi(android.app.privatecompute.flags.Flags.FLAG_ENABLE_PCC_FRAMEWORK_SUPPORT)
+        -->
+        <attr name="runInPccSandbox" format="boolean"/>
     </declare-styleable>
 
     <!-- An attribution is a logical part of an app and is identified by a tag.
@@ -2443,6 +2449,38 @@
              of Android higher than the number given here, the permission will not
              be created.  -->
         <attr name="maxSdkVersion" />
+        <!-- Optional: specify if valid purpose is required for this permission. True indicates
+             it is required, false or not specifying the element indicates optional.
+
+             <p>If set to true, {@link #AndroidManifestValidPurpose valid-purpose} tag must be used
+             to specify at least one valid purpose. As a result of doing that, to prevent automatic
+             revocation at install time, all permission requests made using the
+             {@link #AndroidManifestUsesPermission uses-permission} tag will need to specify at
+             least one of these configured valid purposes. This enforcement of purpose validation
+             is currently only supported for normal permissions defined within the platform
+             manifest. -->
+        <attr name="requiresPurpose" format="boolean" />
+        <!-- Required to be set when {@code requiresPurpose} is {@code true}; optional otherwise.
+             Use it to specify the app's minimum target SDK version for which purpose validation
+             should be enforced in order to prevent app compatibility issues. This must be set to
+             at least SDK version 37. -->
+        <attr name="requiresPurposeTargetSdkVersion"  format="integer" />
+</declare-styleable>
+
+    <!-- The <code>valid-purpose</code> tag is used to specify valid purpose(s) for a permission.
+         If there are multiple valid purposes, use multiple <code>valid-purpose</code> tags.
+
+         <p>This appears as a child tag of the
+         {@link #AndroidManifestPermission permission} tag. -->
+    <declare-styleable name="AndroidManifestValidPurpose" parent="AndroidManifestPermission">
+        <!-- Specify the name of the valid purpose. -->
+        <attr name="name" />
+        <!-- Optional: This is mainly intended to deprecate a pre-defined purpose. Specify the max
+             target SDK version for which this purpose is valid. Not specifying this attribute
+             signifies the purpose is valid indefinitely. To avoid app compatibility issues, DO NOT
+             simply delete the purpose from the manifest. Note that deprecation of purposes cannot
+             be done retroactively on older platform versions. -->
+        <attr name="maxTargetSdkVersion" format="integer" />
     </declare-styleable>
 
     <!-- The <code>permission-group</code> tag declares a logical grouping of
@@ -2548,7 +2586,10 @@
         request it at all. -->
         <attr name="requiredNotFeature" format="string" />
         <!-- Optional: set of flags that should apply to this permission request. Note that
-             these flags start at 0x4 to match PackageInfo.requestedPermissionsFlags. -->
+             these flags start at 0x4 to match PackageInfo.requestedPermissionsFlags.
+
+             <p>Please refrain from using this for purpose related flags; use
+             {@link #AndroidManifestPurpose purpose} child tag instead. -->
         <attr name="usesPermissionFlags">
             <!-- Strong assertion by a developer that they will never use this
                  permission to derive the physical location of the device, even
@@ -2556,6 +2597,28 @@
                  ACCESS_COARSE_LOCATION permissions. -->
             <flag name="neverForLocation" value="0x00010000" />
         </attr>
+    </declare-styleable>
+
+    <!-- Use <code>purpose</code> tag to specify purpose(s) for requesting a permission.
+         Purpose(s) will need to be provided if the requested
+         {@link #AndroidManifestPermission permission} tag's <code>requiresPurpose</code> attribute
+         is set to true. Only valid purposes from the permission's
+         {@link #AndroidManifestValidPurpose valid-purpose} tags can be specified. If there are
+         multiple purposes for requesting the permission, use multiple <code>purpose</code> tags.
+
+         <p>This appears as a child tag of the
+         {@link #AndroidManifestUsesPermission uses-permission} tag. -->
+    <declare-styleable name="AndroidManifestPurpose" parent="AndroidManifestUsesPermission">
+        <!-- Specify the name of the purpose. -->
+        <attr name="name" />
+        <!-- Optional: specify the min SDK version for which the permission is requested with the
+             declared purpose. Not specifying this element implies there’s no lower bound on the
+             SDK version for which the purpose is declared. -->
+        <attr name="minSdkVersion" format="integer|string" />
+        <!-- Optional: specify the max SDK version for which the permission is requested with the
+             declared purpose. Not specifying this element implies there’s no upper bound on the SDK
+             version for which the purpose is declared. -->
+        <attr name="maxSdkVersion" format="integer" />
     </declare-styleable>
 
     <!-- <code>required-feature</code> and <code>required-not-feature</code> elements inside

@@ -21,25 +21,31 @@ import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.Display.INVALID_DISPLAY;
 import static android.view.WindowManager.TRANSIT_CHANGE;
 import static android.view.WindowManager.TRANSIT_OPEN;
+import static android.window.DesktopExperienceFlags.ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS;
 import static android.window.TransitionInfo.FLAG_IS_DISPLAY;
 import static android.window.TransitionInfo.FLAG_MOVED_TO_TOP;
 
-import static com.android.window.flags.Flags.enableDisplayFocusInShellTransitions;
 import static com.android.wm.shell.transition.Transitions.TransitionObserver;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 import android.app.ActivityManager.RunningTaskInfo;
 import android.os.RemoteException;
 import android.util.ArraySet;
 import android.util.IndentingPrintWriter;
 import android.util.Slog;
 import android.util.SparseArray;
+import android.window.DesktopExperienceFlags;
 import android.window.TransitionInfo;
 
 import com.android.wm.shell.shared.FocusTransitionListener;
 import com.android.wm.shell.shared.IFocusTransitionListener;
+import com.android.wm.shell.shared.TransitionUtil.LeafTaskFilter;
+import com.android.wm.shell.sysui.ShellCommandHandler;
+import com.android.wm.shell.sysui.ShellInit;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +59,8 @@ import java.util.concurrent.Executor;
 public class FocusTransitionObserver {
     private static final String TAG = FocusTransitionObserver.class.getSimpleName();
 
+    private final ShellCommandHandler mShellCommandHandler;
+
     private IFocusTransitionListener mRemoteListener;
     private final Map<FocusTransitionListener, Executor> mLocalListeners =
             new HashMap<>();
@@ -62,24 +70,47 @@ public class FocusTransitionObserver {
 
     private final ArraySet<RunningTaskInfo> mTmpTasksToBeNotified = new ArraySet<>();
 
-    public FocusTransitionObserver() {}
+    public FocusTransitionObserver(
+            @NonNull ShellInit shellInit,
+            @NonNull ShellCommandHandler shellCommandHandler) {
+        mShellCommandHandler = shellCommandHandler;
+        shellInit.addInitCallback(this::onInit, this);
+    }
+
+    private void onInit() {
+        mShellCommandHandler.addDumpCallback(this::dump, this);
+    }
 
     /**
      * Update display/window focus state from the given transition info and notifies changes if any.
      */
     public void updateFocusState(@NonNull TransitionInfo info) {
-        if (!enableDisplayFocusInShellTransitions()) {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()) {
             return;
         }
         final SparseArray<RunningTaskInfo> lastTransitionFocusedTasks =
                 mFocusedTaskOnDisplay.clone();
 
+        // Find all leaf tasks in the transition.
+        final List<Integer> leafTasks = new ArrayList<>();
+        final LeafTaskFilter leafTaskFilter = new LeafTaskFilter();
+        for (int i = 0; i < info.getChanges().size(); i++) {
+            final TransitionInfo.Change change = info.getChanges().get(i);
+            if (leafTaskFilter.test(change)) {
+                leafTasks.add(change.getTaskInfo().taskId);
+            }
+        }
         final List<TransitionInfo.Change> changes = info.getChanges();
+        // Iterate in reverse, so front-most tasks are processed last.
         for (int i = changes.size() - 1; i >= 0; i--) {
             final TransitionInfo.Change change = changes.get(i);
 
             final RunningTaskInfo task = change.getTaskInfo();
-            if (task != null) {
+            final boolean updateTaskFocus =
+                    DesktopExperienceFlags.EXCLUDE_DESK_ROOTS_FROM_DESKTOP_TASKS.isTrue()
+                            ? (task != null && leafTasks.contains(task.taskId))
+                            : task != null;
+            if (updateTaskFocus) {
                 if (change.hasFlags(FLAG_MOVED_TO_TOP) || change.getMode() == TRANSIT_OPEN) {
                     updateFocusedTaskPerDisplay(task, task.displayId);
                 } else {
@@ -149,7 +180,7 @@ public class FocusTransitionObserver {
      */
     public void setLocalFocusTransitionListener(FocusTransitionListener listener,
             Executor executor) {
-        if (!enableDisplayFocusInShellTransitions()) {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()) {
             return;
         }
         mLocalListeners.put(listener, executor);
@@ -160,12 +191,12 @@ public class FocusTransitionObserver {
     }
 
     /**
-     * Sets the focus transition listener that receives any transitions resulting in focus switch.
+     * Unsets the focus transition listener that receives any transitions resulting in focus switch.
      * This is for calls from outside the Shell, within the host process.
      *
      */
     public void unsetLocalFocusTransitionListener(FocusTransitionListener listener) {
-        if (!enableDisplayFocusInShellTransitions()) {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()) {
             return;
         }
         mLocalListeners.remove(listener);
@@ -177,7 +208,7 @@ public class FocusTransitionObserver {
      */
     public void setRemoteFocusTransitionListener(Transitions transitions,
             IFocusTransitionListener listener) {
-        if (!enableDisplayFocusInShellTransitions()) {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()) {
             return;
         }
         mRemoteListener = listener;
@@ -188,8 +219,8 @@ public class FocusTransitionObserver {
         final boolean isFocusedOnDisplay = isFocusedOnDisplay(task);
         final boolean isFocusedGlobally = hasGlobalFocus(task);
         mLocalListeners.forEach((listener, executor) ->
-                executor.execute(() -> listener.onFocusedTaskChanged(task.taskId,
-                        isFocusedOnDisplay, isFocusedGlobally)));
+                executor.execute(() -> listener.onFocusedTaskChanged(task, isFocusedOnDisplay,
+                        isFocusedGlobally)));
     }
 
     private void notifyFocusedDisplayChanged() {
@@ -211,18 +242,28 @@ public class FocusTransitionObserver {
     }
 
     private boolean isFocusedOnDisplay(@NonNull RunningTaskInfo task) {
-        if (!enableDisplayFocusInShellTransitions()) {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()) {
             return task.isFocused;
         }
         final RunningTaskInfo focusedTaskOnDisplay = mFocusedTaskOnDisplay.get(task.displayId);
         return focusedTaskOnDisplay != null && focusedTaskOnDisplay.taskId == task.taskId;
     }
 
+    /** Returns the globally focused display id. */
+    public int getGloballyFocusedDisplayId() {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()
+                || mFocusedDisplayId == INVALID_DISPLAY) {
+            return INVALID_DISPLAY;
+        }
+        return mFocusedDisplayId;
+    }
+
     /**
      * Gets the globally focused task ID.
      */
     public int getGloballyFocusedTaskId() {
-        if (!enableDisplayFocusInShellTransitions() || mFocusedDisplayId == INVALID_DISPLAY) {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()
+                || mFocusedDisplayId == INVALID_DISPLAY) {
             return INVALID_TASK_ID;
         }
         final RunningTaskInfo globallyFocusedTask = mFocusedTaskOnDisplay.get(mFocusedDisplayId);
@@ -234,10 +275,26 @@ public class FocusTransitionObserver {
      * (Note {@link RunningTaskInfo#isFocused} represents per-display focus.)
      */
     public boolean hasGlobalFocus(@NonNull RunningTaskInfo task) {
-        if (!enableDisplayFocusInShellTransitions()) {
+        if (!ENABLE_DISPLAY_FOCUS_IN_SHELL_TRANSITIONS.isTrue()) {
             return task.isFocused;
         }
         return task.displayId == mFocusedDisplayId && isFocusedOnDisplay(task);
+    }
+
+    /**
+     * Gets the focused task ID on a specific display.
+     *
+     * @param displayId The ID of the display.
+     * @return The task ID of the focused task on the given display,
+     *         or {@code INVALID_TASK_ID} if no task is focused or display not recorded in the
+     *         observer.
+     */
+    public int getFocusedTaskIdOnDisplay(int displayId) {
+        final RunningTaskInfo taskInfo = mFocusedTaskOnDisplay.get(displayId);
+        // Some properties of `taskInfo` can be stale as this observer only updates the cache when
+        // the focus changes. So we here returns only taskId to ask callers to fetch the TaskInfo
+        // if needed.
+        return taskInfo != null ? taskInfo.taskId : INVALID_TASK_ID;
     }
 
     /** Dumps focused display and tasks. */

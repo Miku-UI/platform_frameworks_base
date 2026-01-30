@@ -1,7 +1,9 @@
 package com.android.systemui.keyguard.ui.preview
 
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import android.platform.test.flag.junit.FlagsParameterization
+import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DO_NOT_USE_RUN_BLOCKING
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.util.mockito.mock
 import com.google.common.truth.Truth.assertThat
@@ -10,22 +12,35 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 @SmallTest
-@RunWith(AndroidJUnit4::class)
-@android.platform.test.annotations.EnabledOnRavenwood
-class KeyguardRemotePreviewManagerTest : SysuiTestCase() {
+@RunWith(ParameterizedAndroidJunit4::class)
+class KeyguardRemotePreviewManagerTest(flags: FlagsParameterization) : SysuiTestCase() {
 
     private val testDispatcher = StandardTestDispatcher()
     private val testScope = TestScope(testDispatcher)
 
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return allCombinationsOf(FLAG_DO_NOT_USE_RUN_BLOCKING)
+        }
+    }
+
     @Test
     fun onDestroy_clearsReferencesToRenderer() =
         testScope.runTest {
-            val renderer = mock<KeyguardPreviewRenderer>()
+            val preview = KeyguardPreview(mock(), mock(), mock(), mock(), mock(), mock())
             val onDestroy: (PreviewLifecycleObserver) -> Unit = {}
 
-            val observer = PreviewLifecycleObserver(this, testDispatcher, renderer, onDestroy)
+            val observer = PreviewLifecycleObserver(this, testDispatcher, preview, onDestroy)
 
             // Precondition check.
             assertThat(observer.renderer).isNotNull()

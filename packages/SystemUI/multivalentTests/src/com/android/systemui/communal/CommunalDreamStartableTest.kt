@@ -27,6 +27,7 @@ import com.android.systemui.SysuiTestCase
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.domain.interactor.communalSettingsInteractor
 import com.android.systemui.communal.domain.interactor.setCommunalV2Enabled
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.flags.Flags.COMMUNAL_SERVICE_ENABLED
 import com.android.systemui.flags.fakeFeatureFlagsClassic
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
@@ -55,6 +56,7 @@ import platform.test.runner.parameterized.Parameters
 
 @SmallTest
 @EnableFlags(Flags.FLAG_COMMUNAL_HUB)
+@DisableSceneContainer
 @RunWith(ParameterizedAndroidJunit4::class)
 class CommunalDreamStartableTest(flags: FlagsParameterization) : SysuiTestCase() {
     private val kosmos = testKosmos()

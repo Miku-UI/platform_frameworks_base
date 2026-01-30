@@ -532,22 +532,29 @@ public class StagingManager {
             throw new IllegalStateException("Committed session must be destroyed before aborting it"
                     + " from StagingManager");
         }
+
+        // Abort the apex session. The apex session might be in one of three states:
+        // - yet to be created (abandoned before submitStagedSession() is not called)
+        // - created(VERIFIED) but not marked ready (abandoned before markStagedSessionReady())
+        // - ready(STAGED), but not committed yet (abandoned after markStagedSessionReady())
+        // Even when it's ready, the StagedSession may not be committed yet when abandon() is called
+        // before PackageSessionVerifier.Callback is called.
+        if (!ensureActiveApexSessionIsAborted(session)) {
+            // Failed to ensure apex session is aborted, so it can still be staged. We can still
+            // safely cleanup the staged session since pre-reboot verification is complete.
+            // Also, cleaning up the stageDir prevents the apex from being activated.
+            Slog.e(TAG, "Failed to abort apex session " + session.sessionId());
+        }
+
         if (getStagedSession(sessionId) == null) {
-            Slog.w(TAG, "Session " + sessionId + " has been abandoned already");
+            Slog.w(TAG, "Session " + sessionId + " has been abandoned already,"
+                    + " or not committed yet");
             return;
         }
 
-        // A session could be marked ready once its pre-reboot verification ends
-        if (session.isSessionReady()) {
-            if (!ensureActiveApexSessionIsAborted(session)) {
-                // Failed to ensure apex session is aborted, so it can still be staged. We can still
-                // safely cleanup the staged session since pre-reboot verification is complete.
-                // Also, cleaning up the stageDir prevents the apex from being activated.
-                Slog.e(TAG, "Failed to abort apex session " + session.sessionId());
-            }
-            if (session.containsApexSession()) {
-                notifyStagedApexObservers();
-            }
+        // Since we have notified observers on commitSession(), notify them on abort as well.
+        if (session.isSessionReady() && session.containsApexSession()) {
+            notifyStagedApexObservers();
         }
 
         // Session was successfully aborted from apexd (if required) and pre-reboot verification
@@ -629,11 +636,11 @@ public class StagingManager {
             StagedSession session = sessions.get(i);
             // Quick check that PackageInstallerService gave us sessions we expected.
             Preconditions.checkArgument(!session.hasParentSessionId(),
-                    session.sessionId() + " is a child session");
+                    "%d is a child session", session.sessionId());
             Preconditions.checkArgument(session.isCommitted(),
-                    session.sessionId() + " is not committed");
+                    "%d is not committed", session.sessionId());
             Preconditions.checkArgument(!session.isInTerminalState(),
-                    session.sessionId() + " is in terminal state");
+                    "%d is in terminal state", session.sessionId());
             // Store this parent session which will be used to check overlapping later
             createSession(session);
         }
@@ -665,6 +672,26 @@ public class StagingManager {
                     + "fs-checkpoint support");
         }
 
+        // Collect unknown/dangling APEX sessions before handleNonReadyAndDestroyedSessions(),
+        // which mutates |sessions|.
+        final SparseArray<ApexSessionInfo> apexSessions = mApexManager.getSessions();
+        List<Integer> sessionIdsToBeAborted = new ArrayList<>();
+
+        for (int index = 0; index < apexSessions.size(); index++) {
+            int sessionId = apexSessions.keyAt(index);
+            // check if StagingManager knows this APEX session.
+            boolean stagedSessionFound = false;
+            for (int sessionIndex = 0; sessionIndex < sessions.size(); sessionIndex++) {
+                if (sessions.get(sessionIndex).sessionId() == sessionId) {
+                    stagedSessionFound = true;
+                    break;
+                }
+            }
+            if (!stagedSessionFound) {
+                sessionIdsToBeAborted.add(sessionId);
+            }
+        }
+
         // Do a set of quick checks before resuming individual sessions:
         //   1. Schedule a pre-reboot verification for non-ready sessions.
         //   2. Abandon destroyed sessions.
@@ -672,7 +699,6 @@ public class StagingManager {
 
         //   3. Check state of apex sessions is consistent. All non-applied sessions will be marked
         //      as failed.
-        final SparseArray<ApexSessionInfo> apexSessions = mApexManager.getSessions();
         boolean hasFailedApexSession = false;
         boolean hasAppliedApexSession = false;
         for (int i = 0; i < sessions.size(); i++) {
@@ -709,12 +735,14 @@ public class StagingManager {
                 // Apexd did not apply the session for some unknown reason. There is no guarantee
                 // that apexd will install it next time. Safer to proactively mark it as failed.
                 hasFailedApexSession = true;
+                sessionIdsToBeAborted.add(session.sessionId());
                 session.setSessionFailed(PackageManager.INSTALL_ACTIVATION_FAILED,
                         "Staged session " + session.sessionId() + " at boot didn't activate nor "
                         + "fail. Marking it as failed anyway.");
             } else {
                 Slog.w(TAG, "Apex session " + session.sessionId() + " is in impossible state");
                 hasFailedApexSession = true;
+                sessionIdsToBeAborted.add(session.sessionId());
                 session.setSessionFailed(PackageManager.INSTALL_ACTIVATION_FAILED,
                         "Impossible state");
             }
@@ -738,7 +766,18 @@ public class StagingManager {
                 session.setSessionFailed(PackageManager.INSTALL_ACTIVATION_FAILED,
                         "Another apex session failed");
             }
+            // And make sure to keep failures in sync. abortStagedSession(id) will destroy the
+            // failed APEX sessions.
+            for (int index = 0; index < sessionIdsToBeAborted.size(); index++) {
+                mApexManager.abortStagedSession(sessionIdsToBeAborted.get(index));
+            }
             return;
+        }
+
+        // At this point, there's no failed APEX sessions. In case there's dangling APEX sessions,
+        // abort them first and then continue to resume successful sessions.
+        for (int index = 0; index < sessionIdsToBeAborted.size(); index++) {
+            mApexManager.abortStagedSession(sessionIdsToBeAborted.get(index));
         }
 
         // Time to resume sessions.
@@ -814,9 +853,9 @@ public class StagingManager {
     List<ApexInfo> getStagedApexInfos(@NonNull StagedSession session) {
         Preconditions.checkArgument(session != null, "Session is null");
         Preconditions.checkArgument(!session.hasParentSessionId(),
-                session.sessionId() + " session has parent session");
+                "%d session has parent session", session.sessionId());
         Preconditions.checkArgument(session.containsApexSession(),
-                session.sessionId() + " session does not contain apex");
+                "%d session does not contain apex", session.sessionId());
 
         // Even if caller calls this method on ready session, the session could be abandoned
         // right after this method is called.

@@ -73,9 +73,10 @@ public class RegenerateIdmapTest extends OverlayRemountedTestBase {
     public void testIdmapPoliciesChanged() throws Exception {
         final String targetResource = resourceName(TARGET_PACKAGE, "bool",
                 "signature_policy_overlaid");
+        final String overlayPath = "/product/overlay/TestOverlay.apk";
 
         mPreparer.pushResourceFile(TARGET_APK, "/product/app/OverlayTarget.apk")
-                .pushResourceFile(OVERLAY_APK, "/product/overlay/TestOverlay.apk")
+                .pushResourceFile(OVERLAY_APK, overlayPath)
                 .reboot()
                 .setOverlayEnabled(OVERLAY_PACKAGE, false);
 
@@ -87,7 +88,9 @@ public class RegenerateIdmapTest extends OverlayRemountedTestBase {
 
         // Replace the overlay with a version of the overlay that is signed with the same signature
         // as the target.
-        mPreparer.pushResourceFile(OVERLAY_SIGNATURE_APK, "/product/overlay/TestOverlay.apk")
+        mPreparer.remount()
+                .deleteFile(overlayPath)
+                .pushResourceFile(OVERLAY_SIGNATURE_APK, overlayPath)
                 .reboot();
 
         // The idmap should have been recreated with the signature policy fulfilled.

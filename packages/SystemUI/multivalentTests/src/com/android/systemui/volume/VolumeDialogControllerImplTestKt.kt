@@ -23,19 +23,15 @@ import android.content.applicationContext
 import android.content.packageManager
 import android.content.testableContext
 import android.media.AudioManager
-import android.media.IVolumeController
 import android.os.Handler
 import android.os.looper
 import android.os.testableLooper
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.SetFlagsRule
 import android.testing.TestableLooper
 import android.view.accessibility.accessibilityManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.volume.data.model.VolumeControllerEvent
-import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.broadcast.broadcastDispatcher
 import com.android.systemui.broadcast.broadcastDispatcherContext
@@ -49,7 +45,7 @@ import com.android.systemui.testKosmos
 import com.android.systemui.util.RingerModeLiveData
 import com.android.systemui.util.concurrency.FakeExecutor
 import com.android.systemui.util.concurrency.FakeThreadFactory
-import com.android.systemui.util.kotlin.JavaAdapter
+import com.android.systemui.util.kotlin.javaAdapter
 import com.android.systemui.util.time.fakeSystemClock
 import com.android.systemui.volume.data.repository.audioRepository
 import com.android.systemui.volume.domain.interactor.FakeAudioSharingInteractor
@@ -60,7 +56,6 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.any
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -75,7 +70,6 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
     private val kosmos: Kosmos = testKosmos()
     private val audioManager: AudioManager = mock {}
     private val callbacks: VolumeDialogController.Callbacks = mock {}
-    private val javaAdapter: JavaAdapter = JavaAdapter(kosmos.testScope)
     private val fakeAudioSharingInteractor: FakeAudioSharingInteractor =
         FakeAudioSharingInteractor()
 
@@ -85,7 +79,6 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
     @Before
     fun setUp() =
         with(kosmos) {
-            audioRepository.init()
             threadFactory =
                 FakeThreadFactory(FakeExecutor(fakeSystemClock)).apply { setLooper(looper) }
             broadcastDispatcherContext = testableContext
@@ -113,7 +106,7 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
                         mock { on { userContext }.thenReturn(applicationContext) },
                         dumpManager,
                         fakeAudioSharingInteractor,
-                        javaAdapter,
+                        kosmos.javaAdapter,
                         mock {},
                     )
                     .apply {
@@ -141,20 +134,11 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
         }
 
     @Test
-    @EnableFlags(Flags.FLAG_USE_VOLUME_CONTROLLER)
-    fun useVolumeControllerEnabled_listensToVolumeController() =
-        testVolumeController { stream: Int, flags: Int ->
-            audioRepository.sendVolumeControllerEvent(
-                VolumeControllerEvent.VolumeChanged(streamType = stream, flags = flags)
-            )
-        }
-
-    @Test
-    @DisableFlags(Flags.FLAG_USE_VOLUME_CONTROLLER)
-    fun useVolumeControllerDisabled_listensToVolumeController() =
-        testVolumeController { stream: Int, flags: Int ->
-            audioManager.emitVolumeChange(stream, flags)
-        }
+    fun listensToVolumeController() = testVolumeController { stream: Int, flags: Int ->
+        audioRepository.sendVolumeControllerEvent(
+            VolumeControllerEvent.VolumeChanged(streamType = stream, flags = flags)
+        )
+    }
 
     private fun testVolumeController(
         emitVolumeChange: suspend Kosmos.(stream: Int, flags: Int) -> Unit
@@ -174,13 +158,4 @@ class VolumeDialogControllerImplTestKt : SysuiTestCase() {
                 verify(callbacks) { 1 * { onShowRequested(any(), any(), any()) } }
             }
         }
-
-    private companion object {
-
-        private fun AudioManager.emitVolumeChange(stream: Int, flags: Int = 0) {
-            val captor = argumentCaptor<IVolumeController>()
-            verify(this) { 1 * { volumeController = captor.capture() } }
-            captor.firstValue.volumeChanged(stream, flags)
-        }
-    }
 }

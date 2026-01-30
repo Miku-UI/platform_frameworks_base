@@ -129,14 +129,34 @@ public class ProtoLogCommandHandlerTest {
 
     @Test
     public void handlesGroupStatusCommandWithNoGroups() {
+        Mockito.when(mProtoLogConfigurationService.getGroups())
+                .thenReturn(new String[]{"MY_GROUP", "MY_OTHER_GROUP"});
+        Mockito.when(mProtoLogConfigurationService.isLoggingToLogcat("MY_GROUP")).thenReturn(true);
+        Mockito.when(mProtoLogConfigurationService.isLoggingToLogcat("MY_OTHER_GROUP"))
+                .thenReturn(false);
         final ProtoLogCommandHandler cmdHandler =
                 new ProtoLogCommandHandler(mProtoLogConfigurationService, mPrintWriter);
 
         cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
-                FileDescriptor.err, new String[] { "groups", "status" });
+                FileDescriptor.err, new String[]{"groups", "status"});
 
         Mockito.verify(mPrintWriter, times(1))
-                .println(contains("Incomplete command"));
+                .println(contains("MY_GROUP: LOG_TO_LOGCAT = true"));
+        Mockito.verify(mPrintWriter, times(1))
+                .println(contains("MY_OTHER_GROUP: LOG_TO_LOGCAT = false"));
+    }
+
+    @Test
+    public void handlesGroupStatusCommandWithNoGroupArgumentAndNoRegisteredGroups() {
+        Mockito.when(mProtoLogConfigurationService.getGroups()).thenReturn(new String[]{});
+        final ProtoLogCommandHandler cmdHandler =
+                new ProtoLogCommandHandler(mProtoLogConfigurationService, mPrintWriter);
+
+        cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
+                FileDescriptor.err, new String[]{"groups", "status"});
+
+        Mockito.verify(mPrintWriter, times(1))
+                .println(contains("No ProtoLog groups registered"));
     }
 
     @Test
@@ -159,13 +179,13 @@ public class ProtoLogCommandHandlerTest {
         cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
                 FileDescriptor.err, new String[] { "logcat", "enable", "MY_GROUP" });
         Mockito.verify(mProtoLogConfigurationService)
-                .enableProtoLogToLogcat(Mockito.any(), eq("MY_GROUP"));
+                .enableProtoLogToLogcat(Mockito.any(PrintWriter.class), eq("MY_GROUP"));
 
         cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
                 FileDescriptor.err,
                 new String[] { "logcat", "enable", "MY_GROUP", "MY_OTHER_GROUP" });
         Mockito.verify(mProtoLogConfigurationService)
-                .enableProtoLogToLogcat(Mockito.any(),
+                .enableProtoLogToLogcat(Mockito.any(PrintWriter.class),
                         eq("MY_GROUP"), eq("MY_OTHER_GROUP"));
     }
 
@@ -177,34 +197,42 @@ public class ProtoLogCommandHandlerTest {
         cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
                 FileDescriptor.err, new String[] { "logcat", "disable", "MY_GROUP" });
         Mockito.verify(mProtoLogConfigurationService)
-                .disableProtoLogToLogcat(Mockito.any(), eq("MY_GROUP"));
+                .disableProtoLogToLogcat(Mockito.any(PrintWriter.class), eq("MY_GROUP"));
 
         cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
                 FileDescriptor.err,
                 new String[] { "logcat", "disable", "MY_GROUP", "MY_OTHER_GROUP" });
         Mockito.verify(mProtoLogConfigurationService)
-                .disableProtoLogToLogcat(Mockito.any(),
+                .disableProtoLogToLogcat(Mockito.any(PrintWriter.class),
                         eq("MY_GROUP"), eq("MY_OTHER_GROUP"));
     }
 
     @Test
     public void handlesLogcatEnableCommandWithNoGroups() {
+        Mockito.when(mProtoLogConfigurationService.getGroups())
+                .thenReturn(new String[]{"MY_GROUP", "MY_OTHER_GROUP"});
         final ProtoLogCommandHandler cmdHandler =
                 new ProtoLogCommandHandler(mProtoLogConfigurationService, mPrintWriter);
 
         cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
                 FileDescriptor.err, new String[] { "logcat", "enable" });
-        Mockito.verify(mPrintWriter).println(contains("Incomplete command"));
+        Mockito.verify(mProtoLogConfigurationService)
+                .enableProtoLogToLogcat(Mockito.any(PrintWriter.class),
+                        eq("MY_GROUP"), eq("MY_OTHER_GROUP"));
     }
 
     @Test
     public void handlesLogcatDisableCommandWithNoGroups() {
+        Mockito.when(mProtoLogConfigurationService.getGroups())
+                .thenReturn(new String[]{"MY_GROUP", "MY_OTHER_GROUP"});
         final ProtoLogCommandHandler cmdHandler =
                 new ProtoLogCommandHandler(mProtoLogConfigurationService, mPrintWriter);
 
         cmdHandler.exec(mMockBinder, FileDescriptor.in, FileDescriptor.out,
                 FileDescriptor.err, new String[] { "logcat", "disable" });
-        Mockito.verify(mPrintWriter).println(contains("Incomplete command"));
+        Mockito.verify(mProtoLogConfigurationService)
+                .disableProtoLogToLogcat(Mockito.any(PrintWriter.class),
+                        eq("MY_GROUP"), eq("MY_OTHER_GROUP"));
     }
 
     private void validateOnHelpPrinted() {
@@ -212,7 +240,7 @@ public class ProtoLogCommandHandlerTest {
         Mockito.verify(mPrintWriter, times(1))
                 .println(endsWith("groups (list | status)"));
         Mockito.verify(mPrintWriter, times(1))
-                .println(endsWith("logcat (enable | disable) <group>"));
+                .println(endsWith("logcat (enable | disable) <group>?"));
         Mockito.verify(mPrintWriter, atLeast(0)).println(anyString());
     }
 }

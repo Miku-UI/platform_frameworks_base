@@ -43,6 +43,7 @@
     <xs:complexType name="layout">
         <xs:sequence>
             <xs:element name="state" type="xs:nonNegativeInteger" />
+            <xs:element name="name" type="xs:string" minOccurs="0" maxOccurs="1" />
             <xs:element name="display" type="display" maxOccurs="unbounded"/>
         </xs:sequence>
     </xs:complexType>

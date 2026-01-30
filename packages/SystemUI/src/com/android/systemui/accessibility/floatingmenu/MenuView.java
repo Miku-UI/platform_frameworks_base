@@ -38,7 +38,6 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.android.internal.accessibility.dialog.AccessibilityTarget;
 import com.android.modules.expresslog.Counter;
 import com.android.settingslib.bluetooth.HearingAidDeviceManager;
-import com.android.systemui.Flags;
 import com.android.systemui.util.settings.SecureSettings;
 
 import java.util.ArrayList;
@@ -285,9 +284,7 @@ class MenuView extends FrameLayout implements
         onPositionChanged();
 
         boolean shouldSendFeatureChangeNotification =
-                com.android.systemui.Flags.floatingMenuNotifyTargetsChangedOnStrictDiff()
-                    ? !areFeatureListsIdentical(targetFeatures, newTargetFeatures)
-                    : true;
+                !areFeatureListsIdentical(targetFeatures, newTargetFeatures);
         if (mFeaturesChangeListener != null && shouldSendFeatureChangeNotification) {
             mFeaturesChangeListener.onChange(newTargetFeatures);
         }
@@ -450,9 +447,6 @@ class MenuView extends FrameLayout implements
     }
 
     void incrementTexMetric(String metric) {
-        if (!Flags.floatingMenuDragToEdit()) {
-            return;
-        }
         Counter.logIncrement(metric);
     }
 

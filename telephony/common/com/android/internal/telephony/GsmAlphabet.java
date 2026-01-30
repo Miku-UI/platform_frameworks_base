@@ -35,7 +35,7 @@ import java.util.List;
  * the GSM SMS 7-bit alphabet specified in TS 23.038 6.2.1
  * and UTF-16
  *
- * {@hide}
+ * @hide
  */
 public class GsmAlphabet {
     private static final String TAG = "GSM";

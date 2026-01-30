@@ -37,7 +37,6 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import com.android.modules.utils.testing.TestableDeviceConfig;
 
 import org.junit.Before;
-import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mock;
@@ -51,8 +50,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 public class FaceDownDetectorTest {
-    @ClassRule
-    public static final TestableContext sContext = new TestableContext(
+    @Rule
+    public final TestableContext mContext = new TestableContext(
             InstrumentationRegistry.getInstrumentation().getTargetContext(), null);
     @Rule
     public TestableDeviceConfig.TestableDeviceConfigRule
@@ -70,8 +69,8 @@ public class FaceDownDetectorTest {
     @Before
     public void setup() throws Exception {
         MockitoAnnotations.initMocks(this);
-        sContext.addMockSystemService(SensorManager.class, mSensorManager);
-        sContext.addMockSystemService(PowerManager.class, mPowerManager);
+        mContext.addMockSystemService(SensorManager.class, mSensorManager);
+        mContext.addMockSystemService(PowerManager.class, mPowerManager);
         doReturn(true).when(mPowerManager).isInteractive();
         DeviceConfig.setProperty(NAMESPACE_ATTENTION_MANAGER_SERVICE,
                 KEY_FEATURE_ENABLED, "true", false);
@@ -82,7 +81,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void faceDownFor2Seconds_triggersFaceDown() throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
 
         triggerFaceDown();
 
@@ -92,7 +91,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void faceDownFor2Seconds_withMotion_DoesNotTriggerFaceDown() throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
 
         // Face up
         mFaceDownDetector.onSensorChanged(createTestEvent(0.5f, 0.0f, 10.0f));
@@ -109,7 +108,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void faceDownForHalfSecond_DoesNotTriggerFaceDown() throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
 
         // Face up
         mFaceDownDetector.onSensorChanged(createTestEvent(0.5f, 0.0f, 10.0f));
@@ -125,7 +124,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void faceDownFor2Seconds_followedByFaceUp_triggersFaceDownExit() throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
 
         triggerFaceDown();
 
@@ -139,7 +138,7 @@ public class FaceDownDetectorTest {
     @Test
     public void notInteractive_doesNotTriggerFaceDown() throws Exception {
         doReturn(false).when(mPowerManager).isInteractive();
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
 
         triggerFaceDown();
 
@@ -149,7 +148,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void afterDisablingFeature_doesNotTriggerFaceDown() throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
         setEnabled(false);
 
         triggerFaceDown();
@@ -159,7 +158,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void afterReenablingWhileNonInteractive_doesNotTriggerFaceDown() throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
         setEnabled(false);
 
         doReturn(false).when(mPowerManager).isInteractive();
@@ -172,7 +171,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void afterReenablingWhileInteractive_doesTriggerFaceDown() throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
         setEnabled(false);
 
         setEnabled(true);
@@ -185,13 +184,13 @@ public class FaceDownDetectorTest {
     @Test
     public void faceDownToScreenOff_followedByScreenOnAndUserInteraction_doesNotDisable()
             throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
         // Face down to screen off
         triggerFaceDown();
-        mFaceDownDetector.mScreenReceiver.onReceive(sContext, new Intent(Intent.ACTION_SCREEN_OFF));
+        mFaceDownDetector.mScreenReceiver.onReceive(mContext, new Intent(Intent.ACTION_SCREEN_OFF));
 
         // Screen on
-        mFaceDownDetector.mScreenReceiver.onReceive(sContext, new Intent(Intent.ACTION_SCREEN_ON));
+        mFaceDownDetector.mScreenReceiver.onReceive(mContext, new Intent(Intent.ACTION_SCREEN_ON));
 
         // User interaction
         mFaceDownDetector.userActivity(PowerManager.USER_ACTIVITY_EVENT_TOUCH);
@@ -205,7 +204,7 @@ public class FaceDownDetectorTest {
 
     @Test
     public void faceDownUserInteraction_disablesDetector()  throws Exception {
-        mFaceDownDetector.systemReady(sContext);
+        mFaceDownDetector.systemReady(mContext);
         triggerFaceDown();
         mFaceDownDetector.userActivity(PowerManager.USER_ACTIVITY_EVENT_TOUCH);
         waitForListenerToHandle();
@@ -288,7 +287,7 @@ public class FaceDownDetectorTest {
 
     private void waitForListenerToHandle() throws Exception {
         final CountDownLatch latch = new CountDownLatch(1);
-        sContext.getMainExecutor().execute(latch::countDown);
+        mContext.getMainExecutor().execute(latch::countDown);
         assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
     }
 }

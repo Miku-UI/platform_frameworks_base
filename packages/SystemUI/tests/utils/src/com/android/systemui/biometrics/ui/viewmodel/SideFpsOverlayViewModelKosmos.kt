@@ -17,8 +17,8 @@
 package com.android.systemui.biometrics.ui.viewmodel
 
 import android.content.applicationContext
-import com.android.systemui.biometrics.domain.interactor.displayStateInteractor
 import com.android.systemui.biometrics.domain.interactor.sideFpsSensorInteractor
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.keyguard.domain.interactor.deviceEntrySideFpsOverlayInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture

@@ -29,7 +29,6 @@ import com.android.systemui.keyguard.ui.StateToValue
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.power.shared.model.WakeSleepReason.FOLD
-import com.android.systemui.util.kotlin.sample
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +44,6 @@ class LockscreenToAodTransitionViewModel
 constructor(
     deviceEntryUdfpsInteractor: DeviceEntryUdfpsInteractor,
     private val powerInteractor: PowerInteractor,
-    shadeDependentFlows: ShadeDependentFlows,
     animationFlow: KeyguardTransitionAnimationFlow,
 ) : DeviceEntryIconTransition {
 
@@ -62,15 +60,11 @@ constructor(
         )
 
     val deviceEntryBackgroundViewAlpha: Flow<Float> =
-        shadeDependentFlows.transitionFlow(
-            flowWhenShadeIsExpanded = transitionAnimation.immediatelyTransitionTo(0f),
-            flowWhenShadeIsNotExpanded =
-                transitionAnimation.sharedFlow(
-                    duration = 300.milliseconds,
-                    onStep = { 1 - it },
-                    onCancel = { 0f },
-                    onFinish = { 0f },
-                ),
+        transitionAnimation.sharedFlowWithShade(
+            duration = 300.milliseconds,
+            onStep = { step, isShadeExpanded -> if (isShadeExpanded) 0f else 1 - step },
+            onCancel = { 0f },
+            onFinish = { 0f },
         )
 
     val shortcutsAlpha: Flow<Float> =
@@ -89,8 +83,8 @@ constructor(
                 onStart = { startAlpha = viewState.alpha() },
                 onStep = { MathUtils.lerp(startAlpha, 1f, it) },
             )
-            .sample(powerInteractor.detailedWakefulness, ::Pair)
-            .transform { (alpha, wakefulness) ->
+            .transform { alpha ->
+                val wakefulness = powerInteractor.detailedWakefulness.value
                 if (wakefulness.lastSleepReason != FOLD) {
                     emit(alpha)
                 }
@@ -99,13 +93,9 @@ constructor(
 
     val lockscreenAlphaOnFold: Flow<Float> =
         transitionAnimationOnFold
-            .sharedFlow(
-                startTime = 600.milliseconds,
-                duration = 500.milliseconds,
-                onStep = { it },
-            )
-            .sample(powerInteractor.detailedWakefulness, ::Pair)
-            .transform { (alpha, wakefulness) ->
+            .sharedFlow(startTime = 600.milliseconds, duration = 500.milliseconds, onStep = { it })
+            .transform { alpha ->
+                val wakefulness = powerInteractor.detailedWakefulness.value
                 if (wakefulness.lastSleepReason == FOLD) {
                     emit(alpha)
                 }
@@ -113,13 +103,9 @@ constructor(
 
     val notificationAlphaOnFold: Flow<Float> =
         transitionAnimationOnFold
-            .sharedFlow(
-                duration = 1100.milliseconds,
-                onStep = { 0f },
-                onFinish = { 1f },
-            )
-            .sample(powerInteractor.detailedWakefulness, ::Pair)
-            .transform { (alpha, wakefulness) ->
+            .sharedFlow(duration = 1100.milliseconds, onStep = { 0f }, onFinish = { 1f })
+            .transform { alpha ->
+                val wakefulness = powerInteractor.detailedWakefulness.value
                 if (wakefulness.lastSleepReason == FOLD) {
                     emit(alpha)
                 }
@@ -135,8 +121,8 @@ constructor(
                 onFinish = { 0f },
                 interpolator = EMPHASIZED_DECELERATE,
             )
-            .sample(powerInteractor.detailedWakefulness, ::Pair)
-            .transform { (stateToValue, wakefulness) ->
+            .transform { stateToValue ->
+                val wakefulness = powerInteractor.detailedWakefulness.value
                 if (wakefulness.lastSleepReason == FOLD) {
                     emit(stateToValue)
                 }
@@ -147,26 +133,18 @@ constructor(
         deviceEntryUdfpsInteractor.isUdfpsEnrolledAndEnabled.flatMapLatest {
             isUdfpsEnrolledAndEnabled ->
             if (isUdfpsEnrolledAndEnabled) {
-                shadeDependentFlows.transitionFlow(
-                    flowWhenShadeIsExpanded = // fade in
-                    transitionAnimation.sharedFlow(
-                            duration = 300.milliseconds,
-                            onStep = { it },
-                            onCancel = { 1f },
-                            onFinish = { 1f },
-                        ),
-                    flowWhenShadeIsNotExpanded = transitionAnimation.immediatelyTransitionTo(1f),
+                transitionAnimation.sharedFlowWithShade(
+                    duration = 300.milliseconds,
+                    onStep = { step, isShadeExpanded -> if (isShadeExpanded) step else 1f },
+                    onCancel = { 1f },
+                    onFinish = { 1f },
                 )
             } else {
-                shadeDependentFlows.transitionFlow(
-                    flowWhenShadeIsExpanded = transitionAnimation.immediatelyTransitionTo(0f),
-                    flowWhenShadeIsNotExpanded = // fade out
-                    transitionAnimation.sharedFlow(
-                            duration = 200.milliseconds,
-                            onStep = { 1f - it },
-                            onCancel = { 0f },
-                            onFinish = { 0f },
-                        ),
+                transitionAnimation.sharedFlowWithShade(
+                    duration = 200.milliseconds,
+                    onStep = { step, isShadeExpanded -> if (isShadeExpanded) 0f else 1f - step },
+                    onCancel = { 0f },
+                    onFinish = { 0f },
                 )
             }
         }

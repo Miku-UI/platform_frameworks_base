@@ -20,6 +20,9 @@
 #include "FeatureFlags.h"
 #include "HardwareBitmapUploader.h"
 #include "Properties.h"
+#include "utils/Color.h"
+#include <utils/Trace.h>
+
 #ifdef __ANDROID__  // Layoutlib does not support render thread
 #include <com_android_graphics_surfaceflinger_flags.h>
 #include <private/android/AHardwareBufferHelpers.h>
@@ -28,8 +31,10 @@
 
 #include "renderthread/RenderProxy.h"
 #endif
-#include "utils/Color.h"
-#include <utils/Trace.h>
+
+#ifdef __linux__
+#include <com_android_graphics_hwui_flags.h>
+#endif // __linux__
 
 #ifndef _WIN32
 #include <sys/mman.h>
@@ -62,8 +67,7 @@
 #include <format>
 #include <limits>
 
-#ifdef __ANDROID__
-#include <com_android_graphics_hwui_flags.h>
+#ifdef __linux__
 namespace hwui_flags = com::android::graphics::hwui::flags;
 #else
 namespace hwui_flags {
@@ -208,7 +212,14 @@ sk_sp<Bitmap> Bitmap::allocateHardwareBitmap(const SkBitmap& bitmap) {
 #ifdef __ANDROID__  // Layoutlib does not support hardware acceleration
     return uirenderer::HardwareBitmapUploader::allocateHardwareBitmap(bitmap);
 #else
-    return Bitmap::allocateHeapBitmap(bitmap.info());
+    sk_sp<Bitmap> dest = Bitmap::allocateHeapBitmap(bitmap.info());
+
+    // HardwareBitmapUploader::allocateHardwareBitmap(SkBitmap&) copies Bitmap contents
+    // to a GL texture. To simulate this with an heap bitmap, we use memcpy.
+    auto destPM = dest->getSkBitmap().pixmap();
+    LOG_ALWAYS_FATAL_IF(!bitmap.pixmap().readPixels(destPM), "failed to copy pixels");
+
+    return dest;
 #endif
 }
 
@@ -267,7 +278,7 @@ sk_sp<Bitmap> Bitmap::createFrom(AHardwareBuffer* hardwareBuffer, const SkImageI
 #endif
 
 sk_sp<Bitmap> Bitmap::createFrom(const SkImageInfo& info, size_t rowBytes, int fd, void* addr,
-                                 size_t size, bool readOnly, int64_t id) {
+                                 size_t size, bool readOnly) {
 #ifdef _WIN32 // ashmem not implemented on Windows
      return nullptr;
 #else
@@ -286,7 +297,7 @@ sk_sp<Bitmap> Bitmap::createFrom(const SkImageInfo& info, size_t rowBytes, int f
         }
     }
 
-    sk_sp<Bitmap> bitmap(new Bitmap(addr, fd, size, info, rowBytes, id));
+    sk_sp<Bitmap> bitmap(new Bitmap(addr, fd, size, info, rowBytes));
     if (readOnly) {
         bitmap->setImmutable();
     }
@@ -514,6 +525,24 @@ private:
     int mCount = 0;
 };
 
+template <int N>
+class Histogram {
+public:
+    // Expects values between 0f and 1f
+    void add(float sample) {
+        if (sample >= 0.f && sample <= 1.f) {
+            buckets[std::min(N - 1, static_cast<int>(sample * N))]++;
+        }
+    }
+
+    int size() { return N; }
+
+    int operator[](int i) const { return buckets[i]; }
+
+private:
+    std::array<int, N> buckets;
+};
+
 BitmapPalette Bitmap::computePalette(const SkImageInfo& info, const void* addr, size_t rowBytes) {
     ATRACE_CALL();
 
@@ -525,6 +554,8 @@ BitmapPalette Bitmap::computePalette(const SkImageInfo& info, const void* addr, 
 
     MinMaxAverage hue, saturation, value;
     int sampledCount = 0;
+    Histogram<10> saturationHistogram;
+    Histogram<10> valueHistogram;
 
     // Sample a grid of 100 pixels to get an overall estimation of the colors in play
     const int x_step = std::max(1, pixmap.width() / 10);
@@ -540,8 +571,12 @@ BitmapPalette Bitmap::computePalette(const SkImageInfo& info, const void* addr, 
             float hsv[3];
             SkColorToHSV(color, hsv);
             hue.add(hsv[0]);
-            saturation.add(hsv[1]);
-            value.add(hsv[2]);
+            float s = hsv[1];
+            saturation.add(s);
+            saturationHistogram.add(s);
+            float val = hsv[2];
+            value.add(val);
+            valueHistogram.add(val);
         }
     }
 
@@ -559,6 +594,30 @@ BitmapPalette Bitmap::computePalette(const SkImageInfo& info, const void* addr, 
           saturation.average(), info.width(), info.height());
 
     if (CC_UNLIKELY(view_accessibility_flags::force_invert_color())) {
+        // The following palettes only apply when the app is applying Force Invert and are not
+        // used by classic Force Dark.
+        // TODO: b/411725862 - Improve the barcode heuristic by incorporating actual barcode specs
+        if (sampledCount > 80) {
+            // The image should be majority pure black and white, but not entirely one color.
+            int expectedBlackAndWhiteSamples = sampledCount * 0.9;
+            int expectedBlackOrWhiteSamples = sampledCount * 0.25;
+            int blackSamples = valueHistogram[0];
+            int whiteSamples = valueHistogram[valueHistogram.size() - 1];
+            if (blackSamples + whiteSamples >= expectedBlackAndWhiteSamples &&
+                blackSamples >= expectedBlackOrWhiteSamples &&
+                whiteSamples >= expectedBlackOrWhiteSamples) {
+                return BitmapPalette::Barcode;
+            }
+        }
+
+        // Identify if the image is grayscale by checking if most samples have low saturation,
+        // but it is not purely black or purely white.
+        int expectedGrayScaleSamples = sampledCount * 0.9;
+        int graySamples = saturationHistogram[0];
+        if (graySamples > expectedGrayScaleSamples && value.delta() > 0.05f) {
+            return BitmapPalette::GrayScale;
+        }
+
         if (saturation.delta() > 0.1f ||
             (hue.delta() > 20 && saturation.average() > 0.2f && value.average() < 0.9f)) {
             return BitmapPalette::Colorful;
@@ -681,7 +740,7 @@ void Bitmap::traceBitmapCreate() {
 void Bitmap::traceBitmapDelete() {
     size_t bytes = getAllocationByteCount();
     std::lock_guard lock{mLock};
-    mTotalBitmapBytes -= getAllocationByteCount();
+    mTotalBitmapBytes -= bytes;
     mTotalBitmapCount--;
     if (ATRACE_ENABLED()) {
         ATRACE_INT64("Bitmap Memory", mTotalBitmapBytes);

@@ -353,7 +353,7 @@ public class MediaDescription implements Parcelable {
          * @return this
          */
         public Builder setIconBitmap(@Nullable Bitmap icon) {
-            mIcon = icon;
+            mIcon = icon != null ? icon.asShared() : null;
             return this;
         }
 
@@ -397,14 +397,8 @@ public class MediaDescription implements Parcelable {
          * @return a new media description.
          */
         public MediaDescription build() {
-            if (com.android.media.performance.flags.Flags.mediaDescriptionAshmemBitmap()) {
-                Bitmap icon = mIcon != null ? mIcon.asShared() : null;
-                return new MediaDescription(mMediaId, mTitle, mSubtitle, mDescription, icon,
+            return new MediaDescription(mMediaId, mTitle, mSubtitle, mDescription, mIcon,
                         mIconUri, mExtras, mMediaUri);
-            } else {
-                return new MediaDescription(mMediaId, mTitle, mSubtitle, mDescription, mIcon,
-                        mIconUri, mExtras, mMediaUri);
-            }
         }
     }
 }

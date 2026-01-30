@@ -36,20 +36,25 @@
     <string name="dock_multi_instances_not_supported_text" msgid="5011042177901502928">"To aplikacijo je mogoče odpreti samo v enem oknu"</string>
     <string name="forced_resizable_secondary_display" msgid="1768046938673582671">"Aplikacija morda ne bo delovala na sekundarnem zaslonu."</string>
     <string name="activity_launch_on_secondary_display_failed_text" msgid="4226485344988071769">"Aplikacija ne podpira zagona na sekundarnih zaslonih."</string>
+    <string name="bubble_not_supported_text" msgid="8843806122229754809">"Aplikacija ne podpira oblačka"</string>
     <string name="accessibility_divider" msgid="6407584574218956849">"Razdelilnik zaslonov"</string>
     <string name="divider_title" msgid="1963391955593749442">"Razdelilnik zaslonov"</string>
-    <string name="accessibility_action_divider_left_full" msgid="1792313656305328536">"Levi v celozaslonski način"</string>
-    <string name="accessibility_action_divider_left_70" msgid="8859845045360659250">"Levi 70 %"</string>
-    <string name="accessibility_action_divider_left_50" msgid="3488317024557521561">"Levi 50 %"</string>
-    <string name="accessibility_action_divider_left_30" msgid="6023611335723838727">"Levi 30 %"</string>
-    <string name="accessibility_action_divider_right_full" msgid="3408505054325944903">"Desni v celozaslonski način"</string>
-    <string name="accessibility_action_divider_swap_vertical" msgid="3644891227133372072">"Zamenjava zgornje aplikacije s spodnjo"</string>
-    <string name="accessibility_action_divider_swap_horizontal" msgid="2722197605446631628">"Zamenjava leve aplikacije z desno"</string>
-    <string name="accessibility_action_divider_top_full" msgid="3495871951082107594">"Zgornji v celozaslonski način"</string>
-    <string name="accessibility_action_divider_top_70" msgid="1779164068887875474">"Zgornji 70 %"</string>
-    <string name="accessibility_action_divider_top_50" msgid="8649582798829048946">"Zgornji 50 %"</string>
-    <string name="accessibility_action_divider_top_30" msgid="3572788224908570257">"Zgornji 30 %"</string>
-    <string name="accessibility_action_divider_bottom_full" msgid="2831868345092314060">"Spodnji v celozaslonski način"</string>
+    <string name="accessibility_action_divider_left_full" msgid="1857937769498651238">"Preklop leve aplikacije v celozaslonski način"</string>
+    <string name="accessibility_action_divider_left_10" formatted="false" msgid="8237692006159749086">"10 % levo, 90 % desno"</string>
+    <string name="accessibility_action_divider_left_30" formatted="false" msgid="5033298971212011735">"30 % levo, 70 % desno"</string>
+    <string name="accessibility_action_divider_left_50" formatted="false" msgid="170317638773112190">"50 % levo, 50 % desno"</string>
+    <string name="accessibility_action_divider_left_70" formatted="false" msgid="3986621081137830158">"70 % levo, 30 % desno"</string>
+    <string name="accessibility_action_divider_left_90" formatted="false" msgid="3525922058426249817">"90 % levo, 10 % desno"</string>
+    <string name="accessibility_action_divider_right_full" msgid="4162106720432709858">"Preklop desne aplikacije v celozaslonski način"</string>
+    <string name="accessibility_action_divider_swap_vertical" msgid="8673406394251984853">"Zamenjava zgornje aplikacije s spodnjo, ohranitev trenutne razdelitve"</string>
+    <string name="accessibility_action_divider_swap_horizontal" msgid="588604748596242580">"Zamenjava leve aplikacije z desno, ohranitev trenutne razdelitve"</string>
+    <string name="accessibility_action_divider_top_full" msgid="3986693999427747701">"Preklop zgornje aplikacije v celozaslonski način"</string>
+    <string name="accessibility_action_divider_top_10" formatted="false" msgid="6898920573675831044">"10 % zgoraj, 90 % spodaj"</string>
+    <string name="accessibility_action_divider_top_30" formatted="false" msgid="6515643651303176050">"30 % zgoraj, 70 % spodaj"</string>
+    <string name="accessibility_action_divider_top_50" formatted="false" msgid="1038204315880066213">"50 % zgoraj, 50 % spodaj"</string>
+    <string name="accessibility_action_divider_top_70" formatted="false" msgid="5125673390883238862">"70 % zgoraj, 30 % spodaj"</string>
+    <string name="accessibility_action_divider_top_90" formatted="false" msgid="7662868544020662698">"90 % zgoraj, 10 % spodaj"</string>
+    <string name="accessibility_action_divider_bottom_full" msgid="6437134983210745664">"Preklop spodnje aplikacije v celozaslonski način"</string>
     <string name="accessibility_split_left" msgid="1713683765575562458">"Delitev levo"</string>
     <string name="accessibility_split_right" msgid="8441001008181296837">"Delitev desno"</string>
     <string name="accessibility_split_top" msgid="2789329702027147146">"Delitev zgoraj"</string>
@@ -133,12 +138,18 @@
     <string name="manage_windows_text" msgid="5567366688493093920">"Upravljanje oken"</string>
     <string name="change_aspect_ratio_text" msgid="9104456064548212806">"Sprememba razmerja stranic"</string>
     <string name="handle_menu_restart_text" msgid="3907767216238298098">"Optimizacija pogleda"</string>
+    <string name="handle_menu_error_icon_text" msgid="7200375184879808684">"Ikona za napako"</string>
     <string name="close_text" msgid="4986518933445178928">"Zapri"</string>
     <string name="collapse_menu_text" msgid="7515008122450342029">"Zapri meni"</string>
     <string name="desktop_mode_app_header_chip_text" msgid="7617377295944971651">"<xliff:g id="APP_NAME">%1$s</xliff:g> (namizni način prikaza več oken hkrati)"</string>
     <string name="desktop_mode_maximize_menu_maximize_text" msgid="3275717276171114411">"Maksimiraj zaslon"</string>
     <string name="desktop_mode_maximize_menu_snap_text" msgid="5673738963174074006">"Spremeni velikost"</string>
     <string name="desktop_mode_non_resizable_snap_text" msgid="3771776422751387878">"Aplikacije ni mogoče premakniti sem"</string>
+    <string name="desktop_mode_talkback_state_opening" msgid="8505494249513712682">"Odpiranje novega okna aplikacije"</string>
+    <string name="desktop_mode_talkback_state_closing" msgid="6791583518636526904">"Zapiranje okna aplikacije"</string>
+    <string name="desktop_mode_talkback_state_minimizing" msgid="7406911785134757827">"Minimiranje okna aplikacije"</string>
+    <string name="desktop_mode_talkback_state_focused" msgid="6287982923335568236">"<xliff:g id="APP_NAME">%1$s</xliff:g> (v fokusu)"</string>
+    <string name="desktop_mode_talkback_state_not_focused" msgid="4640618691603218929">"<xliff:g id="APP_NAME">%1$s</xliff:g> (ni v fokusu)"</string>
     <string name="desktop_mode_maximize_menu_immersive_button_text" msgid="559492223133829481">"Poglobljeno"</string>
     <string name="desktop_mode_maximize_menu_immersive_restore_button_text" msgid="4900114367354709257">"Obnovi"</string>
     <string name="desktop_mode_maximize_menu_maximize_button_text" msgid="3090199175564175845">"Maksimiraj"</string>

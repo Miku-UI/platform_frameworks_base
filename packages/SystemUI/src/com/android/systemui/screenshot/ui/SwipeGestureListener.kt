@@ -31,6 +31,8 @@ class SwipeGestureListener(
     private val displayMetrics = view.resources.displayMetrics
 
     private var startX = 0f
+    private var previousX = 0f
+    private var previousTime = 0L
 
     fun onMotionEvent(ev: MotionEvent): Boolean {
         ev.offsetLocation(view.translationX, 0f)
@@ -38,10 +40,20 @@ class SwipeGestureListener(
             MotionEvent.ACTION_DOWN -> {
                 velocityTracker.addMovement(ev)
                 startX = ev.rawX
+                previousX = ev.rawX
+                previousTime = ev.eventTime
             }
             MotionEvent.ACTION_UP -> {
+
                 velocityTracker.computeCurrentVelocity(1)
                 val xVelocity = velocityTracker.xVelocity
+
+                val dt = ev.eventTime - previousTime
+                // Apply the velocity for the time elapsed since the last translation (the animation
+                // will not start immediately and doesn't know how much time has passed since the
+                // last ACTION_MOVE).
+                view.translationX = previousX + xVelocity * dt - startX
+
                 if (
                     abs(xVelocity) > FloatingWindowUtil.dpToPx(displayMetrics, FLING_THRESHOLD_DP)
                 ) {
@@ -61,6 +73,9 @@ class SwipeGestureListener(
             MotionEvent.ACTION_MOVE -> {
                 velocityTracker.addMovement(ev)
                 view.translationX = ev.rawX - startX
+
+                previousX = ev.rawX
+                previousTime = ev.eventTime
             }
         }
         return false

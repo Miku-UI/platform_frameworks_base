@@ -22,13 +22,14 @@ import android.telephony.SubscriptionManager.PROFILE_CLASS_UNSET
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.demoModeController
 import com.android.systemui.demomode.DemoMode
+import com.android.systemui.kairos.ActivatedKairosFixture
 import com.android.systemui.kairos.ExperimentalKairosApi
 import com.android.systemui.kairos.KairosTestScope
 import com.android.systemui.kairos.runKairosTest
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.useUnconfinedTestDispatcher
+import com.android.systemui.mockDemoModeController
 import com.android.systemui.statusbar.pipeline.mobile.data.model.SubscriptionModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.DemoMobileConnectionsRepositoryKairos
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.demo.validMobileEvent
@@ -56,15 +57,20 @@ class MobileRepositorySwitcherKairosTest : SysuiTestCase() {
     private val kosmos =
         testKosmos().apply {
             useUnconfinedTestDispatcher()
-            demoModeController.stub {
+            mockDemoModeController.stub {
                 // Never start in demo mode
                 on { isInDemoMode } doReturn false
             }
             wifiDataSource.stub { on { wifiEvents } doReturn MutableStateFlow(null) }
         }
 
-    private val Kosmos.underTest
-        get() = mobileRepositorySwitcherKairos
+    private val Kosmos.underTest by ActivatedKairosFixture {
+        MobileRepositorySwitcherKairos(
+            realRepository = mobileConnectionsRepositoryKairosImpl,
+            demoRepositoryFactory = demoMobileConnectionsRepositoryKairosFactory,
+            demoModeController = mockDemoModeController,
+        )
+    }
 
     private val Kosmos.realRepo
         get() = mobileConnectionsRepositoryKairosImpl
@@ -74,7 +80,7 @@ class MobileRepositorySwitcherKairosTest : SysuiTestCase() {
 
     @Test
     fun activeRepoMatchesDemoModeSetting() = runTest {
-        demoModeController.stub { on { isInDemoMode } doReturn false }
+        mockDemoModeController.stub { on { isInDemoMode } doReturn false }
 
         val latest by underTest.activeRepo.collectLastValue()
 
@@ -91,7 +97,7 @@ class MobileRepositorySwitcherKairosTest : SysuiTestCase() {
 
     @Test
     fun subscriptionListUpdatesWhenDemoModeChanges() = runTest {
-        demoModeController.stub { on { isInDemoMode } doReturn false }
+        mockDemoModeController.stub { on { isInDemoMode } doReturn false }
 
         subscriptionManager.stub {
             on { completeActiveSubscriptionInfoList } doReturn listOf(SUB_1, SUB_2)
@@ -119,12 +125,12 @@ class MobileRepositorySwitcherKairosTest : SysuiTestCase() {
     }
 
     private fun KairosTestScope.startDemoMode() {
-        demoModeController.stub { on { isInDemoMode } doReturn true }
+        mockDemoModeController.stub { on { isInDemoMode } doReturn true }
         getDemoModeCallback().onDemoModeStarted()
     }
 
     private fun KairosTestScope.finishDemoMode() {
-        demoModeController.stub { on { isInDemoMode } doReturn false }
+        mockDemoModeController.stub { on { isInDemoMode } doReturn false }
         getDemoModeCallback().onDemoModeFinished()
     }
 
@@ -138,7 +144,7 @@ class MobileRepositorySwitcherKairosTest : SysuiTestCase() {
 
     private fun KairosTestScope.getDemoModeCallback(): DemoMode =
         argumentCaptor<DemoMode>()
-            .apply { verify(demoModeController).addCallback(capture()) }
+            .apply { verify(mockDemoModeController).addCallback(capture()) }
             .lastValue
 
     companion object {

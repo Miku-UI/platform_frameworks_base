@@ -16,11 +16,8 @@
 
 package android.service.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
-
 import android.annotation.CallSuper;
 import android.annotation.CallbackExecutor;
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SdkConstant;
@@ -89,7 +86,6 @@ import java.util.function.LongConsumer;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public abstract class OnDeviceIntelligenceService extends Service {
     private static final int MSG_ON_READY = 1;
     private static final int MSG_GET_VERSION = 2;

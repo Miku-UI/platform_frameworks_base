@@ -77,7 +77,9 @@ public class UsbCommand extends Svc.Command {
                 + "         'V1_2', 'V1_3'\n"
                 + "       svc usb resetUsbPort [port number]\n"
                 + "         Reset the specified connected usb port\n"
-                + "         default: the first connected usb port\n";
+                + "         default: the first connected usb port\n"
+                + "       svc usb enableUsbDataSignal [enable]\n"
+                + "         Toggle USB data signaling, possible values are `true` and `false`\n";
     }
 
     @Override
@@ -212,6 +214,9 @@ public class UsbCommand extends Svc.Command {
                 } catch (Exception e) {
                     System.err.println("Error communicating with UsbManager: " + e);
                 }
+                return;
+            } else if ("enableUsbDataSignal".equals(args[1])) {
+                usbManager.enableUsbDataSignal(Boolean.parseBoolean(args[2]));
                 return;
             }
         }

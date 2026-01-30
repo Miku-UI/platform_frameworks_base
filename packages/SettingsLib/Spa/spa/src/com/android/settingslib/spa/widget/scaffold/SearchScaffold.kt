@@ -74,6 +74,7 @@ import com.android.settingslib.spa.widget.preference.PreferenceModel
 @Composable
 fun SearchScaffold(
     title: String,
+    isFirstLayerPageWhenEmbedded: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable (bottomPadding: Dp, searchQuery: () -> String) -> Unit,
 ) {
@@ -87,6 +88,7 @@ fun SearchScaffold(
         topBar = {
             SearchableTopAppBar(
                 title = title,
+                isFirstLayerPageWhenEmbedded = isFirstLayerPageWhenEmbedded,
                 actions = actions,
                 scrollBehavior = scrollBehavior,
                 isSearchMode = isSearchMode,
@@ -121,6 +123,7 @@ internal class SearchScaffoldViewModel : ViewModel() {
 @Composable
 private fun SearchableTopAppBar(
     title: String,
+    isFirstLayerPageWhenEmbedded: Boolean,
     actions: @Composable RowScope.() -> Unit,
     scrollBehavior: TopAppBarScrollBehavior,
     isSearchMode: Boolean,
@@ -136,7 +139,7 @@ private fun SearchableTopAppBar(
             actions = actions,
         )
     } else {
-        SettingsTopAppBar(title, scrollBehavior) {
+        SettingsTopAppBar(title, scrollBehavior, isFirstLayerPageWhenEmbedded) {
             SearchAction {
                 scrollBehavior.collapse()
                 onSearchQueryChange(TextFieldValue())

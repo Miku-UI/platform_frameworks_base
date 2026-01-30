@@ -48,25 +48,34 @@ public class Layout {
 
     private final List<Display> mDisplays = new ArrayList<>(2);
 
+    private final String mName;
+
+    public Layout() {
+        this(null);
+    }
+
+    public Layout(String name) {
+        mName = name;
+    }
+
     @Override
     public String toString() {
-        return mDisplays.toString();
+        return "[" + (TextUtils.isEmpty(mName) ? "" : (mName + ": ")) + mDisplays.toString() + "]";
     }
 
     @Override
     public boolean equals(Object obj) {
-
-        if (!(obj instanceof  Layout)) {
+        if (!(obj instanceof Layout)) {
             return false;
         }
-
         Layout otherLayout = (Layout) obj;
-        return this.mDisplays.equals(otherLayout.mDisplays);
+        return TextUtils.equals(mName, otherLayout.mName)
+                && mDisplays.equals(otherLayout.mDisplays);
     }
 
     @Override
     public int hashCode() {
-        return mDisplays.hashCode();
+        return Objects.hash(mName, mDisplays);
     }
 
     /**

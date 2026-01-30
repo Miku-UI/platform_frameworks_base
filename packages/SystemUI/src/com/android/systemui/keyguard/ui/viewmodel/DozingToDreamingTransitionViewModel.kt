@@ -17,11 +17,13 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.keyguard.domain.interactor.FromDozingTransitionInteractor
+import com.android.systemui.keyguard.domain.interactor.FromDozingTransitionInteractor.Companion.TO_DREAMING_DURATION
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState.DOZING
 import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
+import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
+import com.android.systemui.scene.shared.model.Scenes
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
 
@@ -31,12 +33,25 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class DozingToDreamingTransitionViewModel
 @Inject
-constructor(animationFlow: KeyguardTransitionAnimationFlow) {
+constructor(animationFlow: KeyguardTransitionAnimationFlow) : DeviceEntryIconTransition {
     private val transitionAnimation =
-        animationFlow.setup(
-            duration = FromDozingTransitionInteractor.TO_DREAMING_DURATION,
-            edge = Edge.create(from = DOZING, to = DREAMING),
-        )
+        animationFlow
+            .setup(
+                duration = TO_DREAMING_DURATION,
+                edge = Edge.create(from = DOZING, to = Scenes.Dream),
+            )
+            .setupWithoutSceneContainer(edge = Edge.create(from = DOZING, to = DREAMING))
 
     val lockscreenAlpha: Flow<Float> = transitionAnimation.immediatelyTransitionTo(0f)
+
+    val nonAuthUIAlpha: Flow<Float> =
+        transitionAnimation.sharedFlow(
+            duration = TO_DREAMING_DURATION,
+            onStep = { null },
+            onCancel = { 1f },
+            onFinish = { 1f },
+        )
+
+    override val deviceEntryParentViewAlpha: Flow<Float> =
+        transitionAnimation.immediatelyTransitionTo(0f)
 }

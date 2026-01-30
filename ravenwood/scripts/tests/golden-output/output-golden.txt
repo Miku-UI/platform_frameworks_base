@@ -1,0 +1,358 @@
+
+=========================================================================
+  Test: Run with no arguments
+=========================================================================
+Running: run-ravenwood-tests-wrapper
+
+List test options: 
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  Test2
+  Test3
+  SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+
+=========================================================================
+  Test: Help
+=========================================================================
+Running: run-ravenwood-tests-wrapper -h
+
+
+run-ravenwood-tests.sh: Run all or specified ravenwood tests
+
+  Usage:
+     run-ravenwood-tests.sh [OPTIONS]
+        Run all ravenwood tests and relevant host side tests.
+
+     run-ravenwood-tests.sh [OPTIONS] TEST-MODULE-NAME...
+        Run specified test module
+
+  Note:
+     Tests with @FlakyTest are always ignored.
+
+  Options:
+   -s Remove slow tests
+   -x Take a PCRE from the arg, and use it as an exclusion filter. Example: -x '^(Cts|hoststub)' # Exclude CTS and hoststubgen tests.
+   -f Take a PCRE from the arg, and use it as an inclusion filter.
+   -d Dry run
+   -t Redirect log to terminal
+   -a atest options (e.g. "-t")
+   -L exclude large tests
+   -r only run tests under frameworks/base/ravenwood/
+   -D Only run device tests under frameworks/base/ravenwood/
+   -R Run disabled tests too
+   -h Show help
+
+
+=========================================================================
+  Test: Smoke tests
+=========================================================================
+Running: run-ravenwood-tests-wrapper -s
+
+List test options: 
+smoke_exclude_re=^(SystemUiRavenTests|CtsIcuTestCasesRavenwood|CarSystemUIRavenTests|PowerStatsTestsRavenwood|CarServiceHostUnitTest|CarLibHostUnitTest)$
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  Test2
+  Test3
+Excluded tests:
+< SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+
+=========================================================================
+  Test: Exclude large tests
+=========================================================================
+Running: run-ravenwood-tests-wrapper -L
+
+List test options: 
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  Test2
+  Test3
+  SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+
+=========================================================================
+  Test: With -r
+=========================================================================
+Running: run-ravenwood-tests-wrapper -r
+
+List test options: -r
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  Test2
+  Test3
+  SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+
+=========================================================================
+  Test: -r with smoke tests
+=========================================================================
+Running: run-ravenwood-tests-wrapper -r -s
+
+List test options: -r
+smoke_exclude_re=^(SystemUiRavenTests|CtsIcuTestCasesRavenwood|CarSystemUIRavenTests|PowerStatsTestsRavenwood|CarServiceHostUnitTest|CarLibHostUnitTest)$
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  Test2
+  Test3
+Excluded tests:
+< SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+
+=========================================================================
+  Test: Run specific tests
+=========================================================================
+Running: run-ravenwood-tests-wrapper -s TestX TestY
+
+List test options: 
+smoke_exclude_re=^(SystemUiRavenTests|CtsIcuTestCasesRavenwood|CarSystemUIRavenTests|PowerStatsTestsRavenwood|CarServiceHostUnitTest|CarLibHostUnitTest)$
+Target tests:
+  TestX
+  TestY
+Excluded tests:
+< hoststubgentest
+< tiny-framework-dump-test
+< hoststubgen-invoke-test
+< ravenwood-stats-checker
+< ravenhelpertest
+< ravenwood-scripts-sh-golden-test
+< RavenwoodCoreTest
+< SystemUiRavenTests
+---
+> TestX
+> TestY
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report TestX TestY -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+atest --class-level-report TestX TestY -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+
+=========================================================================
+  Test: Run specific tests with -s
+=========================================================================
+Running: run-ravenwood-tests-wrapper -s TestX TestY
+
+List test options: 
+smoke_exclude_re=^(SystemUiRavenTests|CtsIcuTestCasesRavenwood|CarSystemUIRavenTests|PowerStatsTestsRavenwood|CarServiceHostUnitTest|CarLibHostUnitTest)$
+Target tests:
+  TestX
+  TestY
+Excluded tests:
+< hoststubgentest
+< tiny-framework-dump-test
+< hoststubgen-invoke-test
+< ravenwood-stats-checker
+< ravenhelpertest
+< ravenwood-scripts-sh-golden-test
+< RavenwoodCoreTest
+< SystemUiRavenTests
+---
+> TestX
+> TestY
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report TestX TestY -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+atest --class-level-report TestX TestY -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test1:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test2:exclude-annotation:androidx.test.filters.LargeTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg Test3:exclude-annotation:androidx.test.filters.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.LargeTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.LargeTest
+
+=========================================================================
+  Test: Inclusion
+=========================================================================
+Running: run-ravenwood-tests-wrapper -f (Test[2345])
+
+List test options: 
+Target tests:
+  Test2
+  Test3
+Excluded tests:
+< hoststubgentest
+< tiny-framework-dump-test
+< hoststubgen-invoke-test
+< ravenwood-stats-checker
+< ravenhelpertest
+< ravenwood-scripts-sh-golden-test
+< RavenwoodCoreTest
+< SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report Test2 Test3 -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+atest --class-level-report Test2 Test3 -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+
+=========================================================================
+  Test: Exclusion
+=========================================================================
+Running: run-ravenwood-tests-wrapper -x (Test[2345])
+
+List test options: 
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+
+=========================================================================
+  Test: Run device tests (-D) 
+=========================================================================
+Running: run-ravenwood-tests-wrapper -D
+
+List test options: -D
+Target tests:
+  DeviceTest1
+  DeviceTest2
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report DeviceTest1 DeviceTest2 -- --module-arg DeviceTest1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg DeviceTest1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg DeviceTest2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg DeviceTest2:exclude-annotation:androidx.test.filters.FlakyTest
+atest --class-level-report DeviceTest1 DeviceTest2 -- --module-arg DeviceTest1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg DeviceTest1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg DeviceTest2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg DeviceTest2:exclude-annotation:androidx.test.filters.FlakyTest
+
+=========================================================================
+  Test: Run with disabled tests
+=========================================================================
+Running: run-ravenwood-tests-wrapper -R
+
+List test options: 
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  Test2
+  Test3
+  SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=1
+RAVENWOOD_FORCE_FILTER_REGEX=
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+
+=========================================================================
+  Test: Make sure env vars are printed
+=========================================================================
+Running: run-ravenwood-tests-wrapper
+
+List test options: 
+Target tests:
+  hoststubgentest
+  tiny-framework-dump-test
+  hoststubgen-invoke-test
+  ravenwood-stats-checker
+  ravenhelpertest
+  ravenwood-scripts-sh-golden-test
+  RavenwoodCoreTest
+  Test1
+  Test2
+  Test3
+  SystemUiRavenTests
+RAVENWOOD_TEST_ENABLEMENT_POLICY=...
+Test "RavenwoodUiTest_exp" can use experimental APIs.
+Test "CtsViewTestCasesRavenwood" can use experimental APIs.
+Test "SystemUiRavenTests" can use experimental APIs.
+RAVENWOOD_RUN_DISABLED_TESTS=xxx
+RAVENWOOD_FORCE_FILTER_REGEX=yyy
+Running: echo atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+atest --class-level-report hoststubgentest tiny-framework-dump-test hoststubgen-invoke-test ravenwood-stats-checker ravenhelpertest ravenwood-scripts-sh-golden-test RavenwoodCoreTest Test1 Test2 Test3 SystemUiRavenTests -- --module-arg RavenwoodCoreTest:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg RavenwoodCoreTest:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test1:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test1:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test2:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test2:exclude-annotation:androidx.test.filters.FlakyTest --module-arg Test3:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg Test3:exclude-annotation:androidx.test.filters.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:android.platform.test.annotations.FlakyTest --module-arg SystemUiRavenTests:exclude-annotation:androidx.test.filters.FlakyTest
+== All commands finished ==

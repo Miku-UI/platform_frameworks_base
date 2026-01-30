@@ -23,7 +23,7 @@ import android.os.instrumentation.TargetProcess;
 /**
  * System private API for managing the dynamic attachment of instrumentation.
  *
- * {@hide}
+ * @hide
  */
 interface IDynamicInstrumentationManager {
     /** Provides ART metadata about the described compiled method within the target process */

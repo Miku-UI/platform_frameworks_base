@@ -267,7 +267,9 @@ public class CollapsingCoordinatorLayout extends CoordinatorLayout {
                     @Override
                     public boolean canDrag(@NonNull AppBarLayout appBarLayout) {
                         // Header can be scrolling while device in landscape mode and SDK > 33
-                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.TIRAMISU) {
+                        if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.TIRAMISU
+                                || SettingsThemeHelper.isExpressiveTheme(
+                                appBarLayout.getContext())) {
                             return false;
                         } else {
                             return appBarLayout.getResources().getConfiguration().orientation

@@ -27,7 +27,7 @@ import android.os.PersistableBundle;
 /**
  * System private API for talking with the UsageStatsManagerService.
  *
- * {@hide}
+ * @hide
  */
 interface IUsageStatsManager {
     @UnsupportedAppUsage(maxTargetSdk = 30, trackingBug = 170729553)

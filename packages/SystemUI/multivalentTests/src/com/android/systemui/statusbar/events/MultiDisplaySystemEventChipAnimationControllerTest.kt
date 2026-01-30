@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.events
 
 import android.platform.test.annotations.EnableFlags
+import android.view.Display
 import androidx.core.animation.AnimatorSet
 import androidx.core.animation.ValueAnimator
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -49,6 +50,8 @@ class MultiDisplaySystemEventChipAnimationControllerTest : SysuiTestCase() {
 
     @Before
     fun installDisplays() = runBlocking {
+        // Remove the default display, so that we can control exactly which displays are installed.
+        displayRepository.removeDisplay(displayId = Display.DEFAULT_DISPLAY)
         INSTALLED_DISPLAY_IDS.forEach { displayRepository.addDisplay(displayId = it) }
     }
 

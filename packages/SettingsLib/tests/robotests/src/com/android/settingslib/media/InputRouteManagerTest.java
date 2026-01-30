@@ -26,6 +26,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -35,11 +36,14 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.media.MediaRecorder;
 
+import androidx.annotation.Nullable;
+
 import com.android.settingslib.testutils.shadow.ShadowRouter2Manager;
 
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.RuntimeEnvironment;
@@ -58,6 +62,7 @@ public class InputRouteManagerTest {
     private static final int INPUT_USB_HEADSET_ID = 4;
     private static final int INPUT_USB_ACCESSORY_ID = 5;
     private static final int HDMI_ID = 6;
+    private static final int INPUT_USB_DEVICE_2_ID = 7;
     private static final int MAX_VOLUME = 1;
     private static final int CURRENT_VOLUME = 0;
     private static final boolean VOLUME_FIXED_TRUE = true;
@@ -65,9 +70,13 @@ public class InputRouteManagerTest {
     private static final String PRODUCT_NAME_WIRED_HEADSET = "My Wired Headset";
     private static final String PRODUCT_NAME_USB_HEADSET = "My USB Headset";
     private static final String PRODUCT_NAME_USB_DEVICE = "My USB Device";
+    private static final String PRODUCT_NAME_USB_DEVICE_1 = "USB Device 1";
+    private static final String PRODUCT_NAME_USB_DEVICE_2 = "USB Device 2";
     private static final String PRODUCT_NAME_USB_ACCESSORY = "My USB Accessory";
     private static final String PRODUCT_NAME_HDMI_DEVICE = "HDMI device";
 
+    @Mock InfoMediaManager mInfoMediaManager;
+    @Mock AudioManager mAudioManager;
     private final Context mContext = spy(RuntimeEnvironment.application);
     private InputRouteManager mInputRouteManager;
 
@@ -77,6 +86,8 @@ public class InputRouteManagerTest {
         when(info.getId()).thenReturn(BUILTIN_MIC_ID);
         when(info.getAddress()).thenReturn("");
         when(info.getProductName()).thenReturn(PRODUCT_NAME_BUILTIN_MIC);
+        when(info.isSource()).thenReturn(true);
+        when(info.isSink()).thenReturn(false);
         return info;
     }
 
@@ -86,6 +97,8 @@ public class InputRouteManagerTest {
         when(info.getId()).thenReturn(INPUT_WIRED_HEADSET_ID);
         when(info.getAddress()).thenReturn("");
         when(info.getProductName()).thenReturn(PRODUCT_NAME_WIRED_HEADSET);
+        when(info.isSource()).thenReturn(true);
+        when(info.isSink()).thenReturn(false);
         return info;
     }
 
@@ -95,6 +108,20 @@ public class InputRouteManagerTest {
         when(info.getId()).thenReturn(INPUT_USB_DEVICE_ID);
         when(info.getAddress()).thenReturn("");
         when(info.getProductName()).thenReturn(PRODUCT_NAME_USB_DEVICE);
+        when(info.isSource()).thenReturn(true);
+        when(info.isSink()).thenReturn(false);
+        return info;
+    }
+
+    private AudioDeviceInfo mockUsbDeviceInfoWithAddress(
+            int id, String address, String productName) {
+        final AudioDeviceInfo info = mock(AudioDeviceInfo.class);
+        when(info.getType()).thenReturn(AudioDeviceInfo.TYPE_USB_DEVICE);
+        when(info.getId()).thenReturn(id);
+        when(info.getAddress()).thenReturn(address);
+        when(info.getProductName()).thenReturn(productName);
+        when(info.isSource()).thenReturn(true);
+        when(info.isSink()).thenReturn(false);
         return info;
     }
 
@@ -104,6 +131,8 @@ public class InputRouteManagerTest {
         when(info.getId()).thenReturn(INPUT_USB_HEADSET_ID);
         when(info.getAddress()).thenReturn("");
         when(info.getProductName()).thenReturn(PRODUCT_NAME_USB_HEADSET);
+        when(info.isSource()).thenReturn(true);
+        when(info.isSink()).thenReturn(false);
         return info;
     }
 
@@ -113,6 +142,8 @@ public class InputRouteManagerTest {
         when(info.getId()).thenReturn(INPUT_USB_ACCESSORY_ID);
         when(info.getAddress()).thenReturn("");
         when(info.getProductName()).thenReturn(PRODUCT_NAME_USB_ACCESSORY);
+        when(info.isSource()).thenReturn(true);
+        when(info.isSink()).thenReturn(false);
         return info;
     }
 
@@ -122,6 +153,19 @@ public class InputRouteManagerTest {
         when(info.getId()).thenReturn(HDMI_ID);
         when(info.getAddress()).thenReturn("");
         when(info.getProductName()).thenReturn(PRODUCT_NAME_HDMI_DEVICE);
+        when(info.isSource()).thenReturn(true);
+        when(info.isSink()).thenReturn(false);
+        return info;
+    }
+
+    private AudioDeviceInfo mockUsbHeadsetOutputInfo() {
+        final AudioDeviceInfo info = mock(AudioDeviceInfo.class);
+        when(info.getType()).thenReturn(AudioDeviceInfo.TYPE_USB_HEADSET);
+        when(info.getId()).thenReturn(INPUT_USB_HEADSET_ID);
+        when(info.getAddress()).thenReturn("");
+        when(info.getProductName()).thenReturn(PRODUCT_NAME_USB_HEADSET);
+        when(info.isSource()).thenReturn(false);
+        when(info.isSink()).thenReturn(true);
         return info;
     }
 
@@ -146,29 +190,24 @@ public class InputRouteManagerTest {
                 /* address= */ "");
     }
 
+    private AudioDeviceAttributes getUsbDeviceAttributesWithAddress(String address) {
+        return new AudioDeviceAttributes(
+                AudioDeviceAttributes.ROLE_INPUT, AudioDeviceInfo.TYPE_USB_DEVICE, address);
+    }
+
     private AudioDeviceAttributes getHdmiDeviceAttributes() {
         return new AudioDeviceAttributes(
                 AudioDeviceAttributes.ROLE_INPUT, AudioDeviceInfo.TYPE_HDMI, /* address= */ "");
     }
 
-    private void onPreferredDevicesForCapturePresetChanged(InputRouteManager inputRouteManager) {
+    private void onPreferredDevicesForCapturePresetChanged() {
         final List<AudioDeviceAttributes> audioDeviceAttributesList =
                 new ArrayList<AudioDeviceAttributes>();
-        inputRouteManager.onPreferredDevicesForCapturePresetChangedListener(
+        mInputRouteManager.onPreferredDevicesForCapturePresetChangedListener(
                 MediaRecorder.AudioSource.MIC, audioDeviceAttributesList);
     }
 
-    @Before
-    public void setUp() {
-        MockitoAnnotations.initMocks(this);
-
-        final AudioManager audioManager = mock(AudioManager.class);
-        mInputRouteManager = new InputRouteManager(mContext, audioManager);
-    }
-
-    @Test
-    public void onAudioDevicesAdded_shouldUpdateInputMediaDevice() {
-        final AudioManager audioManager = mock(AudioManager.class);
+    private void addListOfAudioDevices() {
         AudioDeviceInfo[] devices = {
             mockBuiltinMicInfo(),
             mockWiredHeadsetInfo(),
@@ -177,220 +216,302 @@ public class InputRouteManagerTest {
             mockUsbAccessoryInfo(),
             mockHdmiInfo()
         };
-        when(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
+        when(mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
 
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
+        assertThat(mInputRouteManager.mInputMediaDevices).isEmpty();
 
-        assertThat(inputRouteManager.mInputMediaDevices).isEmpty();
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
+        onPreferredDevicesForCapturePresetChanged();
+    }
 
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
-        onPreferredDevicesForCapturePresetChanged(inputRouteManager);
+    @Before
+    public void setUp() {
+        MockitoAnnotations.initMocks(this);
+
+        mInputRouteManager = new InputRouteManager(mContext, mAudioManager, mInfoMediaManager);
+    }
+
+    @Test
+    public void onAudioDevicesAdded_shouldUpdateInputMediaDevice() {
+        addListOfAudioDevices();
 
         // The unsupported (hdmi) info should be filtered out.
-        assertThat(inputRouteManager.mInputMediaDevices).hasSize(devices.length - 1);
-        assertThat(inputRouteManager.mInputMediaDevices.get(0).getId())
+        // devices.length - 1 = 5
+        assertThat(mInputRouteManager.mInputMediaDevices).hasSize(5);
+        assertThat(mInputRouteManager.mInputMediaDevices.get(0).getId())
                 .isEqualTo(String.valueOf(BUILTIN_MIC_ID));
-        assertThat(inputRouteManager.mInputMediaDevices.get(1).getId())
+        assertThat(mInputRouteManager.mInputMediaDevices.get(1).getId())
                 .isEqualTo(String.valueOf(INPUT_WIRED_HEADSET_ID));
-        assertThat(inputRouteManager.mInputMediaDevices.get(2).getId())
+        assertThat(mInputRouteManager.mInputMediaDevices.get(2).getId())
                 .isEqualTo(String.valueOf(INPUT_USB_DEVICE_ID));
-        assertThat(inputRouteManager.mInputMediaDevices.get(3).getId())
+        assertThat(mInputRouteManager.mInputMediaDevices.get(3).getId())
                 .isEqualTo(String.valueOf(INPUT_USB_HEADSET_ID));
-        assertThat(inputRouteManager.mInputMediaDevices.get(4).getId())
+        assertThat(mInputRouteManager.mInputMediaDevices.get(4).getId())
                 .isEqualTo(String.valueOf(INPUT_USB_ACCESSORY_ID));
     }
 
     @Test
     public void onAudioDevicesRemoved_shouldUpdateInputMediaDevice() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        when(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS))
+        when(mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS))
                 .thenReturn(new AudioDeviceInfo[] {});
 
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
-
         final MediaDevice device = mock(MediaDevice.class);
-        inputRouteManager.mInputMediaDevices.add(device);
+        mInputRouteManager.mInputMediaDevices.add(device);
 
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesRemoved(
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesRemoved(
                 new AudioDeviceInfo[] {mockWiredHeadsetInfo()});
-        onPreferredDevicesForCapturePresetChanged(inputRouteManager);
+        onPreferredDevicesForCapturePresetChanged();
 
-        assertThat(inputRouteManager.mInputMediaDevices).isEmpty();
+        assertThat(mInputRouteManager.mInputMediaDevices).isEmpty();
     }
 
     @Test
     public void getSelectedInputDevice_returnOneFromAudioManager() {
-        final AudioManager audioManager = mock(AudioManager.class);
         AudioDeviceInfo[] devices = {mockWiredHeadsetInfo(), mockBuiltinMicInfo()};
-        when(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
+        when(mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
 
         // Mock audioManager.getDevicesForAttributes returns exactly one audioDeviceAttributes.
-        when(audioManager.getDevicesForAttributes(INPUT_ATTRIBUTES))
+        when(mAudioManager.getDevicesForAttributes(INPUT_ATTRIBUTES))
                 .thenReturn(Collections.singletonList(getWiredHeadsetDeviceAttributes()));
 
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
-        onPreferredDevicesForCapturePresetChanged(inputRouteManager);
+        mInputRouteManager = new InputRouteManager(mContext, mAudioManager, mInfoMediaManager);
+        onPreferredDevicesForCapturePresetChanged();
 
         // The selected input device has the same type as the one returned from AudioManager.
-        InputMediaDevice selectedInputDevice =
-                (InputMediaDevice) inputRouteManager.getSelectedInputDevice();
-        assertThat(selectedInputDevice.getAudioDeviceInfoType())
+        assertThat(getSelectedInputDevice().getAudioDeviceInfoType())
                 .isEqualTo(AudioDeviceInfo.TYPE_WIRED_HEADSET);
     }
 
     @Test
     public void getSelectedInputDevice_returnMoreThanOneFromAudioManager() {
-        final AudioManager audioManager = mock(AudioManager.class);
         AudioDeviceInfo[] devices = {mockWiredHeadsetInfo(), mockBuiltinMicInfo()};
-        when(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
+        when(mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
 
         // Mock audioManager.getDevicesForAttributes returns more than one audioDeviceAttributes.
         List<AudioDeviceAttributes> attributesOfSelectedInputDevices = new ArrayList<>();
         attributesOfSelectedInputDevices.add(getWiredHeadsetDeviceAttributes());
         attributesOfSelectedInputDevices.add(getBuiltinMicDeviceAttributes());
-        when(audioManager.getDevicesForAttributes(INPUT_ATTRIBUTES))
+        when(mAudioManager.getDevicesForAttributes(INPUT_ATTRIBUTES))
                 .thenReturn(attributesOfSelectedInputDevices);
 
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
-        onPreferredDevicesForCapturePresetChanged(inputRouteManager);
+        mInputRouteManager = new InputRouteManager(mContext, mAudioManager, mInfoMediaManager);
+        onPreferredDevicesForCapturePresetChanged();
 
         // The selected input device has the same type as the first one returned from AudioManager.
-        InputMediaDevice selectedInputDevice =
-                (InputMediaDevice) inputRouteManager.getSelectedInputDevice();
-        assertThat(selectedInputDevice.getAudioDeviceInfoType())
+        assertThat(getSelectedInputDevice().getAudioDeviceInfoType())
                 .isEqualTo(AudioDeviceInfo.TYPE_WIRED_HEADSET);
     }
 
     @Test
     public void getSelectedInputDevice_returnEmptyFromAudioManager() {
-        final AudioManager audioManager = mock(AudioManager.class);
         AudioDeviceInfo[] devices = {mockWiredHeadsetInfo(), mockBuiltinMicInfo()};
-        when(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
+        when(mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
 
         // Mock audioManager.getDevicesForAttributes returns empty list of audioDeviceAttributes.
         List<AudioDeviceAttributes> emptyAttributesOfSelectedInputDevices = new ArrayList<>();
-        when(audioManager.getDevicesForAttributes(INPUT_ATTRIBUTES))
+        when(mAudioManager.getDevicesForAttributes(INPUT_ATTRIBUTES))
                 .thenReturn(emptyAttributesOfSelectedInputDevices);
 
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
-        onPreferredDevicesForCapturePresetChanged(inputRouteManager);
+        onPreferredDevicesForCapturePresetChanged();
 
         // The selected input device has default type AudioDeviceInfo.TYPE_BUILTIN_MIC.
-        InputMediaDevice selectedInputDevice =
-                (InputMediaDevice) inputRouteManager.getSelectedInputDevice();
-        assertThat(selectedInputDevice.getAudioDeviceInfoType())
+        assertThat(getSelectedInputDevice().getAudioDeviceInfoType())
                 .isEqualTo(AudioDeviceInfo.TYPE_BUILTIN_MIC);
     }
 
     @Test
     public void selectDevice() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
         final MediaDevice builtinMicDevice =
                 InputMediaDevice.create(
                         mContext,
                         String.valueOf(BUILTIN_MIC_ID),
+                        "",
                         AudioDeviceInfo.TYPE_BUILTIN_MIC,
                         MAX_VOLUME,
                         CURRENT_VOLUME,
                         VOLUME_FIXED_TRUE,
+                        /* isSelected= */ false,
                         PRODUCT_NAME_BUILTIN_MIC);
-        inputRouteManager.selectDevice(builtinMicDevice);
+        mInputRouteManager.mInputMediaDevices.add(builtinMicDevice);
+        mInputRouteManager.selectDevice(builtinMicDevice);
 
         for (@MediaRecorder.Source int preset : PRESETS) {
-            verify(audioManager, atLeastOnce())
+            verify(mAudioManager, atLeastOnce())
                     .setPreferredDeviceForCapturePreset(preset, getBuiltinMicDeviceAttributes());
         }
     }
 
     @Test
-    public void onInitiation_shouldApplyDefaultSelectedDeviceToAllPresets() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        new InputRouteManager(mContext, audioManager);
+    public void selectDevice_withAddress_updatesSelectionCorrectly() {
+        // 1. Setup: Create devices with same type but different addresses.
+        final AudioDeviceInfo builtinMicInfo = mockBuiltinMicInfo();
+        final AudioDeviceInfo usbDevice1Info =
+                mockUsbDeviceInfoWithAddress(
+                        INPUT_USB_DEVICE_ID, "address1", PRODUCT_NAME_USB_DEVICE_1);
+        final AudioDeviceInfo usbDevice2Info =
+                mockUsbDeviceInfoWithAddress(
+                        INPUT_USB_DEVICE_2_ID, "address2", PRODUCT_NAME_USB_DEVICE_2);
 
-        verify(audioManager, atLeastOnce()).getDevicesForAttributes(INPUT_ATTRIBUTES);
+        AudioDeviceInfo[] devices = {builtinMicInfo, usbDevice1Info, usbDevice2Info};
+        when(mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
+
+        // Initial state: Built-in mic is selected by default.
+        when(mAudioManager.getDevicesForAttributes(INPUT_ATTRIBUTES))
+                .thenReturn(Collections.singletonList(getBuiltinMicDeviceAttributes()));
+        mInputRouteManager = new InputRouteManager(mContext, mAudioManager, mInfoMediaManager);
+        onPreferredDevicesForCapturePresetChanged();
+
+        assertThat(getSelectedInputDevice().getAudioDeviceInfoType())
+                .isEqualTo(AudioDeviceInfo.TYPE_BUILTIN_MIC);
+
+        // 2. Action: Select the first USB device.
+        MediaDevice usbDevice1 = getInputDeviceById(INPUT_USB_DEVICE_ID);
+        mInputRouteManager.selectDevice(usbDevice1);
+        onPreferredDevicesForCapturePresetChanged(); // This triggers dispatchInputDeviceListUpdate.
+
+        // 3. Assertions.
+        // Verify the selected device in the list is correct.
+        InputMediaDevice selectedDevice = getSelectedInputDevice();
+        assertThat(selectedDevice.getId()).isEqualTo(String.valueOf(INPUT_USB_DEVICE_ID));
+
+        // Verify other devices are not selected.
+        assertThat(getInputDeviceById(INPUT_USB_DEVICE_2_ID).isSelected())
+                .isFalse();
+        assertThat(getInputDeviceById(BUILTIN_MIC_ID).isSelected())
+                .isFalse();
+    }
+
+    @Test
+    public void onInitiation_shouldApplyDefaultSelectedDeviceToAllPresets() {
+        verify(mAudioManager, atLeastOnce()).getDevicesForAttributes(INPUT_ATTRIBUTES);
         for (@MediaRecorder.Source int preset : PRESETS) {
-            verify(audioManager, atLeastOnce())
+            verify(mAudioManager, atLeastOnce())
                     .setPreferredDeviceForCapturePreset(preset, getBuiltinMicDeviceAttributes());
         }
     }
 
     @Test
     public void onAudioDevicesAdded_shouldActivateAddedDevice() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
         AudioDeviceInfo[] devices = {mockWiredHeadsetInfo()};
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
 
         // The only added wired headset will be activated.
         for (@MediaRecorder.Source int preset : PRESETS) {
-            verify(audioManager, atLeast(1))
+            verify(mAudioManager, atLeast(1))
                     .setPreferredDeviceForCapturePreset(preset, getWiredHeadsetDeviceAttributes());
         }
     }
 
     @Test
     public void onAudioDevicesAdded_shouldActivateLastAddedDevice() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
         AudioDeviceInfo[] devices = {mockWiredHeadsetInfo(), mockUsbHeadsetInfo()};
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
 
         // When adding multiple valid input devices, the last added device (usb headset in this
         // case) will be activated.
         for (@MediaRecorder.Source int preset : PRESETS) {
-            verify(audioManager, never())
+            verify(mAudioManager, never())
                     .setPreferredDeviceForCapturePreset(preset, getWiredHeadsetDeviceAttributes());
-            verify(audioManager, atLeast(1))
+            verify(mAudioManager, atLeast(1))
                     .setPreferredDeviceForCapturePreset(preset, getUsbHeadsetDeviceAttributes());
         }
     }
 
     @Test
     public void onAudioDevicesAdded_doNotActivateInvalidAddedDevice() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
         AudioDeviceInfo[] devices = {mockHdmiInfo()};
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
 
         // Do not activate since HDMI is not a valid input device.
         for (@MediaRecorder.Source int preset : PRESETS) {
-            verify(audioManager, never())
+            verify(mAudioManager, never())
                     .setPreferredDeviceForCapturePreset(preset, getHdmiDeviceAttributes());
         }
     }
 
     @Test
-    public void onAudioDevicesAdded_doNotActivatePreexistingDevice() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
+    public void onAudioDevicesAdded_doNotActivateOnOutputDeviceAdded() {
+        AudioDeviceInfo[] devices = {mockUsbHeadsetOutputInfo()};
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
 
+        // Do not activate input since the added device is output.
+        for (@MediaRecorder.Source int preset : PRESETS) {
+            verify(mAudioManager, never())
+                    .setPreferredDeviceForCapturePreset(preset, getUsbHeadsetDeviceAttributes());
+        }
+    }
+
+    @Test
+    public void onAudioDevicesAdded_doNotActivatePreexistingDevice() {
         final AudioDeviceInfo info = mockWiredHeadsetInfo();
         InputMediaDevice device = createInputMediaDeviceFromDeviceInfo(info);
-        inputRouteManager.mInputMediaDevices.add(device);
+        mInputRouteManager.mInputMediaDevices.add(device);
 
         // Trigger onAudioDevicesAdded with a device that already exists in the device list.
         AudioDeviceInfo[] devices = {info};
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
 
         // The device should not be activated.
         for (@MediaRecorder.Source int preset : PRESETS) {
-            verify(audioManager, never())
+            verify(mAudioManager, never())
                     .setPreferredDeviceForCapturePreset(preset, getWiredHeadsetDeviceAttributes());
         }
     }
 
     @Test
     public void onAudioDevicesRemoved_shouldApplyDefaultSelectedDeviceToAllPresets() {
-        final AudioManager audioManager = mock(AudioManager.class);
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
         AudioDeviceInfo[] devices = {mockWiredHeadsetInfo()};
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesRemoved(devices);
+        MediaDevice inputWiredHeadset = createInputMediaDeviceFromDeviceInfo(devices[0]);
 
-        // Called twice, one after initiation, the other after onAudioDevicesRemoved call.
-        verify(audioManager, atLeast(2)).getDevicesForAttributes(INPUT_ATTRIBUTES);
+        addListOfAudioDevices();
+        mInputRouteManager.selectDevice(inputWiredHeadset);
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesRemoved(devices);
+
+        // Called three times, one after initiation, one at devices added
+        // and the other after onAudioDevicesRemoved call.
+        verify(mAudioManager, times(3)).getDevicesForAttributes(INPUT_ATTRIBUTES);
         for (@MediaRecorder.Source int preset : PRESETS) {
-            verify(audioManager, atLeast(2))
+            verify(mAudioManager, times(3))
+                    .setPreferredDeviceForCapturePreset(preset, getBuiltinMicDeviceAttributes());
+        }
+    }
+
+    @Test
+    public void onAudioDevicesRemoved_doNotApplyDefaultSelectedTypeUnselectedDevRemoved() {
+        final MediaDevice usbAccessory =
+                InputMediaDevice.create(
+                        mContext,
+                        String.valueOf(INPUT_USB_ACCESSORY_ID),
+                        "",
+                        AudioDeviceInfo.TYPE_USB_ACCESSORY,
+                        MAX_VOLUME,
+                        CURRENT_VOLUME,
+                        VOLUME_FIXED_TRUE,
+                        /* isSelected= */ false,
+                        PRODUCT_NAME_USB_ACCESSORY);
+        AudioDeviceInfo[] devices = {mockUsbHeadsetInfo()};
+
+        addListOfAudioDevices();
+        mInputRouteManager.selectDevice(usbAccessory);
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesRemoved(devices);
+
+        // Called two times, one after init, one at devices added
+        verify(mAudioManager, atLeast(2)).getDevicesForAttributes(INPUT_ATTRIBUTES);
+        for (@MediaRecorder.Source int preset : PRESETS) {
+            verify(mAudioManager, times(2))
+                    .setPreferredDeviceForCapturePreset(preset, getBuiltinMicDeviceAttributes());
+        }
+    }
+
+    @Test
+    public void onAudioDevicesRemoved_doNotApplyDefaultSelectedTypeAtOutputRemoval() {
+        AudioDeviceInfo[] devices = {mockUsbHeadsetOutputInfo()};
+
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesRemoved(devices);
+
+        // Called just once after init.
+        for (@MediaRecorder.Source int preset : PRESETS) {
+            verify(mAudioManager, times(1))
                     .setPreferredDeviceForCapturePreset(preset, getBuiltinMicDeviceAttributes());
         }
     }
@@ -432,20 +553,17 @@ public class InputRouteManagerTest {
         InputMediaDevice inputMediaDevice4 =
                 createInputMediaDeviceFromDeviceInfo(infoWithBlankProductName);
 
-        final AudioManager audioManager = mock(AudioManager.class);
         AudioDeviceInfo[] devices = {
             info1, info2, infoWithNullProductName, infoWithBlankProductName
         };
-        when(audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
+        when(mAudioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)).thenReturn(devices);
 
-        InputRouteManager inputRouteManager = new InputRouteManager(mContext, audioManager);
+        assertThat(mInputRouteManager.mInputMediaDevices).isEmpty();
 
-        assertThat(inputRouteManager.mInputMediaDevices).isEmpty();
+        mInputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
+        onPreferredDevicesForCapturePresetChanged();
 
-        inputRouteManager.mAudioDeviceCallback.onAudioDevicesAdded(devices);
-        onPreferredDevicesForCapturePresetChanged(inputRouteManager);
-
-        assertThat(inputRouteManager.mInputMediaDevices)
+        assertThat(mInputRouteManager.mInputMediaDevices)
                 .containsExactly(
                         inputMediaDevice1, inputMediaDevice2, inputMediaDevice3, inputMediaDevice4)
                 .inOrder();
@@ -455,10 +573,26 @@ public class InputRouteManagerTest {
         return InputMediaDevice.create(
                 mContext,
                 String.valueOf(info.getId()),
+                info.getAddress(),
                 info.getType(),
                 MAX_VOLUME,
                 CURRENT_VOLUME,
                 VOLUME_FIXED_TRUE,
+                /* isSelected= */ false,
                 info.getProductName() == null ? null : info.getProductName().toString());
+    }
+
+    @Nullable
+    private InputMediaDevice getSelectedInputDevice() {
+        return (InputMediaDevice) mInputRouteManager.mInputMediaDevices.stream().filter(
+                MediaDevice::isSelected).findFirst().orElse(null);
+    }
+
+    @Nullable
+    private InputMediaDevice getInputDeviceById(int deviceId) {
+        return (InputMediaDevice) mInputRouteManager.mInputMediaDevices.stream()
+                        .filter(d -> d.getId().equals(String.valueOf(deviceId)))
+                        .findFirst()
+                        .orElse(null);
     }
 }

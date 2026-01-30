@@ -136,11 +136,17 @@ class ResourceEntry {
   // The staged resource id for a finalized resource.
   std::optional<StagedId> staged_id;
 
-  // The resource's values for each configuration.
+  // The resource's values for each configuration. A resource only gets an id if there are entries
+  // in this vector. For this reason, some of the values could be duplicates of those behind
+  // disabled read-only flags or read/write flags but they will be removed after id generation but
+  // before they are serialized to the apk.
   std::vector<std::unique_ptr<ResourceConfigValue>> values;
 
   // The resource's values that are behind disabled flags.
   std::vector<std::unique_ptr<ResourceConfigValue>> flag_disabled_values;
+
+  // The resource's values that are behind read/write flags.
+  std::vector<std::unique_ptr<ResourceConfigValue>> readwrite_flag_values;
 
   explicit ResourceEntry(android::StringPiece name) : name(name) {
   }
@@ -154,12 +160,27 @@ class ResourceEntry {
                                          android::StringPiece product);
   std::vector<ResourceConfigValue*> FindAllValues(const android::ConfigDescription& config);
 
+  ResourceConfigValue* FindFlagDisabledValue(const FeatureFlagAttribute& flag,
+                                             const android::ConfigDescription& config,
+                                             android::StringPiece product = {});
+
+  ResourceConfigValue* FindReadWriteFlagValue(const FeatureFlagAttribute& flag,
+                                              const android::ConfigDescription& config,
+                                              android::StringPiece product = {});
+
   // Either returns the existing ResourceConfigValue in the disabled list with the given flag,
   // config, and product or creates a new one and returns that. In either case the returned value
   // does not have the flag set on the value so it must be set by the caller.
   ResourceConfigValue* FindOrCreateFlagDisabledValue(const FeatureFlagAttribute& flag,
                                                      const android::ConfigDescription& config,
                                                      android::StringPiece product = {});
+
+  // Either returns the existing ResourceConfigValue in the read/write list with the given flag,
+  // config, and product or creates a new one and returns that. In either case the returned value
+  // does not have the flag set on the value so it must be set by the caller.
+  ResourceConfigValue* FindOrCreateReadWriteFlagValue(const FeatureFlagAttribute& flag,
+                                                      const android::ConfigDescription& config,
+                                                      android::StringPiece product = {});
 
   template <typename Func>
   std::vector<ResourceConfigValue*> FindValuesIf(Func f) {
@@ -229,6 +250,7 @@ struct ResourceTableEntryView {
   std::optional<StagedId> staged_id;
   std::vector<const ResourceConfigValue*> values;
   std::vector<const ResourceConfigValue*> flag_disabled_values;
+  std::vector<const ResourceConfigValue*> readwrite_flag_values;
 
   const ResourceConfigValue* FindValue(const android::ConfigDescription& config,
                                        android::StringPiece product = {}) const;
@@ -236,6 +258,10 @@ struct ResourceTableEntryView {
   const ResourceConfigValue* FindFlagDisabledValue(const FeatureFlagAttribute& flag,
                                                    const android::ConfigDescription& config,
                                                    android::StringPiece product = {}) const;
+
+  const ResourceConfigValue* FindReadWriteFlagValue(const FeatureFlagAttribute& flag,
+                                                    const android::ConfigDescription& config,
+                                                    android::StringPiece product = {}) const;
 };
 
 struct ResourceTableTypeView {

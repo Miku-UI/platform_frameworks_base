@@ -16,5 +16,5 @@
 
 package android.os.connectivity;
 
-/** {@hide} */
+/** @hide */
 parcelable WifiBatteryStats;

@@ -148,8 +148,6 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
     int ACTION_PASS_TO_USER = 0x00000001;
     /** Layout state may have changed (so another layout will be performed) */
     int FINISH_LAYOUT_REDO_LAYOUT = 0x0001;
-    /** Configuration state may have changed */
-    int FINISH_LAYOUT_REDO_CONFIG = 0x0002;
     /** Wallpaper may need to move */
     int FINISH_LAYOUT_REDO_WALLPAPER = 0x0004;
     /** Need to recompute animations */
@@ -544,8 +542,18 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
             case TYPE_SYSTEM_DIALOG:
                 return  6;
             case TYPE_TOAST:
-                // toasts and the plugged-in battery thing
-                return  7;
+                if (Flags.bugToastsOnTopOfBubble()) {
+                    // system added toasts must be on top of any always-on-top windows.
+                    // toasts and the plugged-in battery thing
+                    // canAddInternalSystemWindow is to distinguish between legacy toasts and ones
+                    // managed by the system. A legacy toast can have an arbitrary view and tap jack
+                    // other views. Toasts are given low priority to prevent this. Toasts added by
+                    // the system are safe and can have higher visibility.
+                    return canAddInternalSystemWindow ? 27 : 7;
+                } else {
+                    // toasts and the plugged-in battery thing
+                    return 7;
+                }
             case TYPE_PRIORITY_PHONE:
                 // SIM errors and unlock.  Not sure if this really should be in a high layer.
                 return  8;
@@ -735,13 +743,9 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
      * @param focusedToken Client window token that currently has focus. This is where the key
      *            event will normally go.
      * @param event The key event.
-     * @param policyFlags The policy flags associated with the key.
-     * @return 0 if the key should be dispatched immediately, -1 if the key should
-     * not be dispatched ever, or a positive value indicating the number of
-     * milliseconds by which the key dispatch should be delayed before trying
-     * again.
+     * @return {@code true} if consumed, and {@code false} otherwise.
      */
-    long interceptKeyBeforeDispatching(IBinder focusedToken, KeyEvent event, int policyFlags);
+    boolean interceptKeyBeforeDispatching(IBinder focusedToken, KeyEvent event);
 
     /**
      * Called from the input dispatcher thread when an application did not handle
@@ -902,8 +906,18 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
 
     /**
      * Return whether the default display is on and not blocked by a black surface.
+     *
+     * @deprecated Use {@link #isScreenOn(int)} instead, to better support multi-display.
      */
-    public boolean isScreenOn();
+    @Deprecated
+    default boolean isScreenOn() {
+        return isScreenOn(Display.DEFAULT_DISPLAY);
+    }
+
+    /**
+     * Return whether the specified display is on and not blocked by a black surface.
+     */
+    boolean isScreenOn(int displayId);
 
     /**
      * @param ignoreScreenOn {@code true} if screen state should be ignored.
@@ -1165,7 +1179,8 @@ public interface WindowManagerPolicy extends WindowManagerPolicyConstants {
 
     /**
      * Write the WindowManagerPolicy's state into the protocol buffer.
-     * The message is described in {@link com.android.server.wm.WindowManagerPolicyProto}
+     * The message is described in
+     * {@link android.internal.perfetto.protos.Windowmanagerservice.WindowManagerPolicyProto}
      *
      * @param proto The protocol buffer output stream to write to.
      */

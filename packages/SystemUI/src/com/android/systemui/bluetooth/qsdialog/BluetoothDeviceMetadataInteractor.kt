@@ -18,6 +18,8 @@ package com.android.systemui.bluetooth.qsdialog
 
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import com.android.settingslib.bluetooth.CachedBluetoothDevice
+import com.android.settingslib.flags.Flags.refactorBatteryLevelDisplay
 import com.android.systemui.common.coroutine.ChannelExt.trySendWithFailureLogging
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
@@ -44,38 +46,64 @@ constructor(
 ) {
     private fun metadataUpdateForDevice(bluetoothDevice: BluetoothDevice): Flow<Unit> =
         conflatedCallbackFlow {
-            val metadataChangedListener =
-                BluetoothAdapter.OnMetadataChangedListener { device, key, value ->
-                    when (key) {
-                        BluetoothDevice.METADATA_UNTETHERED_LEFT_BATTERY,
-                        BluetoothDevice.METADATA_UNTETHERED_RIGHT_BATTERY,
-                        BluetoothDevice.METADATA_UNTETHERED_CASE_BATTERY,
-                        BluetoothDevice.METADATA_MAIN_BATTERY -> {
-                            trySendWithFailureLogging(Unit, TAG, "onMetadataChanged")
-                            logger.logBatteryChanged(device.address, key, value)
+                val metadataChangedListener =
+                    BluetoothAdapter.OnMetadataChangedListener { device, key, value ->
+                        when (key) {
+                            BluetoothDevice.METADATA_UNTETHERED_LEFT_BATTERY,
+                            BluetoothDevice.METADATA_UNTETHERED_RIGHT_BATTERY,
+                            BluetoothDevice.METADATA_UNTETHERED_CASE_BATTERY,
+                            BluetoothDevice.METADATA_MAIN_BATTERY -> {
+                                trySendWithFailureLogging(Unit, TAG, "onMetadataChanged")
+                                logger.logBatteryChanged(device.address, key, value)
+                            }
                         }
                     }
-                }
-            bluetoothAdapter?.addOnMetadataChangedListener(
-                bluetoothDevice,
-                executor,
-                metadataChangedListener
-            )
-            awaitClose {
-                bluetoothAdapter?.removeOnMetadataChangedListener(
+                bluetoothAdapter?.addOnMetadataChangedListener(
                     bluetoothDevice,
-                    metadataChangedListener
+                    executor,
+                    metadataChangedListener,
                 )
-            }
-        }
-
-    val metadataUpdate: Flow<Unit> =
-        deviceItemInteractor.deviceItemUpdate
-            .distinctUntilChangedBy { it.bluetoothDevices }
-            .flatMapLatest { items ->
-                items.bluetoothDevices.map { device -> metadataUpdateForDevice(device) }.merge()
+                awaitClose {
+                    bluetoothAdapter?.removeOnMetadataChangedListener(
+                        bluetoothDevice,
+                        metadataChangedListener,
+                    )
+                }
             }
             .flowOn(backgroundDispatcher)
+
+    private fun callbackUpdateForCachedBluetoothDevice(
+        cachedBluetoothDevice: CachedBluetoothDevice
+    ): Flow<Unit> =
+        conflatedCallbackFlow {
+                val attributesChangedCallback =
+                    CachedBluetoothDevice.Callback {
+                        trySendWithFailureLogging(Unit, TAG, "onAttributesChanged")
+                        logger.logAttributesChanged(cachedBluetoothDevice.address)
+                    }
+                cachedBluetoothDevice.registerCallback(executor, attributesChangedCallback)
+                awaitClose { cachedBluetoothDevice.unregisterCallback(attributesChangedCallback) }
+            }
+            .flowOn(backgroundDispatcher)
+
+    val metadataUpdate: Flow<Unit> =
+        if (refactorBatteryLevelDisplay()) {
+            deviceItemInteractor.deviceItemUpdate
+                .distinctUntilChangedBy { it.cachedBluetoothDevices }
+                .flatMapLatest { items ->
+                    items.cachedBluetoothDevices
+                        .map { cachedBluetoothDevice ->
+                            callbackUpdateForCachedBluetoothDevice(cachedBluetoothDevice)
+                        }
+                        .merge()
+                }
+        } else {
+            deviceItemInteractor.deviceItemUpdate
+                .distinctUntilChangedBy { it.bluetoothDevices }
+                .flatMapLatest { items ->
+                    items.bluetoothDevices.map { device -> metadataUpdateForDevice(device) }.merge()
+                }
+        }
 
     private companion object {
         private const val TAG = "BluetoothDeviceMetadataInteractor"
@@ -84,6 +112,12 @@ constructor(
                 flatMapTo(mutableSetOf()) { item ->
                     listOf(item.cachedBluetoothDevice.device) +
                         item.cachedBluetoothDevice.memberDevice.map { it.device }
+                }
+
+        private val List<DeviceItem>.cachedBluetoothDevices: Set<CachedBluetoothDevice>
+            get() =
+                flatMapTo(mutableSetOf()) { item ->
+                    listOf(item.cachedBluetoothDevice) + item.cachedBluetoothDevice.memberDevice
                 }
     }
 }

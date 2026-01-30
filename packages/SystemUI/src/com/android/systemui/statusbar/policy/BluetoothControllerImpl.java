@@ -42,8 +42,8 @@ import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.settings.UserTracker;
-import com.android.systemui.statusbar.policy.bluetooth.BluetoothRepository;
-import com.android.systemui.statusbar.policy.bluetooth.ConnectionStatusModel;
+import com.android.systemui.statusbar.policy.bluetooth.data.repository.BluetoothRepository;
+import com.android.systemui.statusbar.policy.bluetooth.data.repository.ConnectionStatusModel;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -137,10 +137,6 @@ public class BluetoothControllerImpl implements BluetoothController, BluetoothCa
         pw.print("  mIsActive="); pw.println(mIsActive);
         pw.print("  mConnectedDevices="); pw.println(getConnectedDevices());
         pw.print("  mCallbacks.size="); pw.println(mHandler.mCallbacks.size());
-        pw.println("  Bluetooth Devices:");
-        for (CachedBluetoothDevice device : getDevices()) {
-            pw.println("    " + getDeviceString(device));
-        }
     }
 
     private static String connectionStateToString(@ConnectionState int state) {

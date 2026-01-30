@@ -94,7 +94,7 @@ public final class UsbOperationInternal extends IUsbOperationInternal.Stub {
         this.mAsynchronous = true;
     }
 
-    UsbOperationInternal(int operationID, String id) {
+    public UsbOperationInternal(int operationID, String id) {
         this.mOperationID = operationID;
         this.mId = id;
     }

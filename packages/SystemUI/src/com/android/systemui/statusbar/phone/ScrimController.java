@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.phone;
 
 import static com.android.systemui.keyguard.shared.model.KeyguardState.ALTERNATE_BOUNCER;
+import static com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING;
 import static com.android.systemui.keyguard.shared.model.KeyguardState.GLANCEABLE_HUB;
 import static com.android.systemui.keyguard.shared.model.KeyguardState.GONE;
 import static com.android.systemui.keyguard.shared.model.KeyguardState.LOCKSCREEN;
@@ -29,6 +30,7 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.annotation.IntDef;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Color;
 import android.os.Handler;
@@ -41,6 +43,7 @@ import android.view.animation.DecelerateInterpolator;
 import android.view.animation.Interpolator;
 
 import androidx.annotation.FloatRange;
+import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import com.android.app.tracing.coroutines.TrackTracer;
@@ -56,6 +59,7 @@ import com.android.systemui.Dumpable;
 import com.android.systemui.Flags;
 import com.android.systemui.animation.ShadeInterpolation;
 import com.android.systemui.bouncer.shared.constants.KeyguardBouncerConstants;
+import com.android.systemui.bouncer.ui.BouncerColors;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dock.DockManager;
@@ -63,45 +67,51 @@ import com.android.systemui.keyguard.KeyguardUnlockAnimationController;
 import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor;
 import com.android.systemui.keyguard.shared.model.Edge;
-import com.android.systemui.keyguard.shared.model.KeyguardState;
 import com.android.systemui.keyguard.shared.model.ScrimAlpha;
 import com.android.systemui.keyguard.shared.model.TransitionState;
 import com.android.systemui.keyguard.shared.model.TransitionStep;
 import com.android.systemui.keyguard.ui.transitions.BlurConfig;
 import com.android.systemui.keyguard.ui.viewmodel.AlternateBouncerToGoneTransitionViewModel;
+import com.android.systemui.keyguard.ui.viewmodel.LockscreenToDreamingTransitionViewModel;
+import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToDreamingTransitionViewModel;
 import com.android.systemui.keyguard.ui.viewmodel.PrimaryBouncerToGoneTransitionViewModel;
 import com.android.systemui.res.R;
 import com.android.systemui.scene.shared.flag.SceneContainerFlag;
 import com.android.systemui.scene.shared.model.Scenes;
 import com.android.systemui.scrim.ScrimView;
-import com.android.systemui.shade.ShadeViewController;
+import com.android.systemui.shade.NotificationPanelViewController;
 import com.android.systemui.shade.transition.LargeScreenShadeInterpolator;
+import com.android.systemui.shade.transition.ScrimShadeTransitionController;
+import com.android.systemui.shade.ui.ShadeColors;
 import com.android.systemui.statusbar.notification.stack.ViewState;
 import com.android.systemui.statusbar.policy.ConfigurationController;
 import com.android.systemui.statusbar.policy.KeyguardStateController;
-import com.android.systemui.util.kotlin.JavaAdapter;
 import com.android.systemui.util.wakelock.DelayedWakeLock;
 import com.android.systemui.util.wakelock.WakeLock;
 import com.android.systemui.window.domain.interactor.WindowRootViewBlurInteractor;
 
 import dagger.Lazy;
 
+import kotlin.Deprecated;
+
 import kotlinx.coroutines.CoroutineDispatcher;
+import kotlinx.coroutines.ExperimentalCoroutinesApi;
 
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 import javax.inject.Inject;
 
 /**
  * Controls both the scrim behind the notifications and in front of the notifications (when a
- * security method gets shown).
+ * security method gets shown). Unused when the scene_container flag is enabled.
  */
+@SuppressLint("DumpableNotRegistered") // CentralSurfaces dumps ScrimController
 @SysUISingleton
+@ExperimentalCoroutinesApi
+@Deprecated(message = "Scrim controller cannot be used when SceneContainerFlag is enabled")
 public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dumpable {
 
     static final String TAG = "ScrimController";
@@ -152,7 +162,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     /**
      * Same as {@link #mTransitionToFullShadeProgress}, but specifically for the notifications scrim
      * on the lock screen.
-     *
+     * <p>
      * On split shade lock screen we want the different scrims to fade in at different times and
      * rates.
      */
@@ -169,10 +179,9 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
      */
     @FloatRange(from = 0, to = 1)
     private float mBouncerHiddenFraction = KeyguardBouncerConstants.EXPANSION_HIDDEN;
-    private boolean mIsBlurSupported = false;
 
     private float getDefaultScrimAlpha(boolean ignoreCurrentState) {
-        if (Flags.bouncerUiRevamp() && mIsBlurSupported) {
+        if (Flags.bouncerUiRevamp() && isBlurCurrentlySupported()) {
             // Hack to not make the shade transparent when shade blur is not enabled.
             if (!Flags.notificationShadeBlur() && !ignoreCurrentState) {
                 // When we expand directly to full quick settings, shade state is KEYGUARD
@@ -181,7 +190,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                     return BUSY_SCRIM_ALPHA;
                 }
             }
-            return TRANSPARENT_BOUNCER_SCRIM_ALPHA;
+            return Color.alpha(BouncerColors.surfaceColor(mContext, true)) / 255.0f;
         } else {
             return BUSY_SCRIM_ALPHA;
         }
@@ -204,21 +213,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
      * Default alpha value for most scrims.
      */
     protected static final float KEYGUARD_SCRIM_ALPHA = 0.2f;
-    /**
-     * Scrim opacity when the phone is about to wake-up.
-     */
-    public static final float WAKE_SENSOR_SCRIM_ALPHA = 0.6f;
 
     /**
      * The default scrim under the shade and dialogs.
      * This should not be lower than 0.54, otherwise we won't pass GAR.
      */
     public static final float BUSY_SCRIM_ALPHA = 1f;
-
-    /**
-     * Scrim opacity that can have text on top.
-     */
-    public static final float GAR_SCRIM_ALPHA = 0.6f;
 
     static final int TAG_KEY_ANIM = R.id.scrim;
     private static final int TAG_START_ALPHA = R.id.scrim_alpha_start;
@@ -229,7 +229,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
 
     private ScrimState mState = ScrimState.UNINITIALIZED;
 
-    private Context mContext;
+    private final Context mContext;
 
     private ScrimView mScrimInFront;
     private ScrimView mNotificationsScrim;
@@ -241,21 +241,17 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private final DockManager mDockManager;
     private final KeyguardVisibilityCallback mKeyguardVisibilityCallback;
     private final Handler mHandler;
-    private final Executor mMainExecutor;
-    private final JavaAdapter mJavaAdapter;
     private final ScreenOffAnimationController mScreenOffAnimationController;
     private final KeyguardUnlockAnimationController mKeyguardUnlockAnimationController;
     private final StatusBarKeyguardViewManager mStatusBarKeyguardViewManager;
     private final KeyguardInteractor mKeyguardInteractor;
 
-    private GradientColors mColors;
+    private final GradientColors mColors;
     private boolean mNeedsDrawableColorUpdate;
 
     private float mAdditionalScrimBehindAlphaKeyguard = 0f;
     // Combined scrim behind keyguard alpha of default scrim + additional scrim
     private float mScrimBehindAlphaKeyguard = KEYGUARD_SCRIM_ALPHA;
-
-    static final float TRANSPARENT_BOUNCER_SCRIM_ALPHA = 0.54f;
 
     private float mRawPanelExpansionFraction;
     private float mPanelScrimMinFraction;
@@ -302,12 +298,16 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private boolean mWakeLockHeld;
     private boolean mKeyguardOccluded;
 
-    private KeyguardTransitionInteractor mKeyguardTransitionInteractor;
-    private CoroutineDispatcher mMainDispatcher;
+    private final KeyguardTransitionInteractor mKeyguardTransitionInteractor;
+    private final CoroutineDispatcher mMainDispatcher;
     private boolean mIsBouncerToGoneTransitionRunning = false;
-    private PrimaryBouncerToGoneTransitionViewModel mPrimaryBouncerToGoneTransitionViewModel;
-    private AlternateBouncerToGoneTransitionViewModel mAlternateBouncerToGoneTransitionViewModel;
-    private final Consumer<ScrimAlpha> mScrimAlphaConsumer =
+    private final PrimaryBouncerToDreamingTransitionViewModel
+            mPrimaryBouncerToDreamingTransitionViewModel;
+    private final PrimaryBouncerToGoneTransitionViewModel mPrimaryBouncerToGoneTransitionViewModel;
+    private final AlternateBouncerToGoneTransitionViewModel
+            mAlternateBouncerToGoneTransitionViewModel;
+    private final LockscreenToDreamingTransitionViewModel mLockscreenToDreamingTransitionViewModel;
+    private final Consumer<ScrimAlpha> mBouncerToGoneScrimAlphaConsumer =
             (ScrimAlpha alphas) -> {
                 mInFrontAlpha = alphas.getFrontAlpha();
                 mScrimInFront.setViewAlpha(mInFrontAlpha);
@@ -322,18 +322,18 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     /**
      * Consumer that fades the behind scrim in and out during the transition between the lock screen
      * and the glanceable hub.
-     *
+     * <p>
      * While the lock screen is showing, the behind scrim is used to slightly darken the lock screen
      * wallpaper underneath. Since the glanceable hub is under all of the scrims, we want to fade
      * out the scrim so that the glanceable hub isn't darkened when it opens.
-     *
+     * <p>
      * {@link #applyState()} handles the scrim alphas once on the glanceable hub, this is only
      * responsible for setting the behind alpha during the transition.
      */
     private final Consumer<TransitionStep> mGlanceableHubConsumer = (TransitionStep step) -> {
         final float baseAlpha = ScrimState.KEYGUARD.getBehindAlpha();
         final float transitionProgress = step.getValue();
-        if (step.getTo() == KeyguardState.LOCKSCREEN) {
+        if (step.getTo() == LOCKSCREEN) {
             // Transitioning back to lock screen, fade in behind scrim again.
             mBehindAlpha = baseAlpha * transitionProgress;
         } else if (step.getTo() == GLANCEABLE_HUB) {
@@ -342,6 +342,38 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         }
         mScrimBehind.setViewAlpha(mBehindAlpha);
     };
+
+    /**
+     * Consumer that dispatches the scrim state at the end of the primary bouncer to dream
+     * transition. This triggers both when entering dream from lock screen with the bouncer open or
+     * when closing the bouncer on top of the dream.
+     *
+     * This extra dispatch is needed as scrim transitions are not directly tied to keyguard
+     * transitions and the scrim transition may end before the keyguard transition does. The last
+     * dispatch of the scrim visibility happens when the scrim transition ends, meaning that if the
+     * keyguard transition hasn't ended by then, the scrims aren't transparent yet as the bouncer to
+     * dream keyguard transition directly controls the scrim alpha. This issue does not occur in
+     * every shade configuration, but can cause the shade window to stay visible and steal touches
+     * on top of the dream. See b/434038809.
+     */
+    Consumer<TransitionStep> mBouncerToDreamTransition = (TransitionStep step) -> {
+        TransitionState state = step.getTransitionState();
+        if (state == TransitionState.FINISHED || state == TransitionState.CANCELED) {
+            dispatchScrimsVisible();
+            dispatchBackScrimState(mScrimBehind.getViewAlpha());
+        }
+    };
+
+    /**
+     * Consumer used to fade the behind scrim when entering the dream from a lockscreen state or
+     * when closing the primary bouncer from the dream. This is done because the behind scrim is on
+     * top of the dream.
+     */
+    private final Consumer<ScrimAlpha> mDreamBehindScrimAlphaConsumer =
+            (ScrimAlpha alphas) -> {
+                mBehindAlpha = alphas.getBehindAlpha();
+                mScrimBehind.setViewAlpha(mBehindAlpha);
+            };
 
     @VisibleForTesting
     Consumer<TransitionStep> mBouncerToGoneTransition;
@@ -358,13 +390,13 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             KeyguardUpdateMonitor keyguardUpdateMonitor,
             DockManager dockManager,
             ConfigurationController configurationController,
-            @Main Executor mainExecutor,
-            JavaAdapter javaAdapter,
             ScreenOffAnimationController screenOffAnimationController,
             KeyguardUnlockAnimationController keyguardUnlockAnimationController,
             StatusBarKeyguardViewManager statusBarKeyguardViewManager,
+            PrimaryBouncerToDreamingTransitionViewModel primaryBouncerToDreamingTransitionViewModel,
             PrimaryBouncerToGoneTransitionViewModel primaryBouncerToGoneTransitionViewModel,
             AlternateBouncerToGoneTransitionViewModel alternateBouncerToGoneTransitionViewModel,
+            LockscreenToDreamingTransitionViewModel lockscreenToDreamingTransitionViewModel,
             KeyguardTransitionInteractor keyguardTransitionInteractor,
             KeyguardInteractor keyguardInteractor,
             @Main CoroutineDispatcher mainDispatcher,
@@ -372,6 +404,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             BlurConfig blurConfig,
             @Main Context context,
             Lazy<WindowRootViewBlurInteractor> windowRootViewBlurInteractor) {
+        SceneContainerFlag.assertInLegacyMode();
         mContext = context;
         mScrimStateListener = lightBarController::setScrimState;
         mLargeScreenShadeInterpolator = largeScreenShadeInterpolator;
@@ -383,8 +416,6 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         mKeyguardUpdateMonitor = keyguardUpdateMonitor;
         mKeyguardVisibilityCallback = new KeyguardVisibilityCallback();
         mHandler = handler;
-        mMainExecutor = mainExecutor;
-        mJavaAdapter = javaAdapter;
         mScreenOffAnimationController = screenOffAnimationController;
         mWakeLock = delayedWakeLockFactory.create("Scrims");
         // Scrim alpha is initially set to the value on the resource but might be changed
@@ -412,8 +443,10 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             }
         });
         mColors = new GradientColors();
+        mPrimaryBouncerToDreamingTransitionViewModel = primaryBouncerToDreamingTransitionViewModel;
         mPrimaryBouncerToGoneTransitionViewModel = primaryBouncerToGoneTransitionViewModel;
         mAlternateBouncerToGoneTransitionViewModel = alternateBouncerToGoneTransitionViewModel;
+        mLockscreenToDreamingTransitionViewModel = lockscreenToDreamingTransitionViewModel;
         mKeyguardTransitionInteractor = keyguardTransitionInteractor;
         mKeyguardInteractor = keyguardInteractor;
         mMainDispatcher = mainDispatcher;
@@ -436,11 +469,10 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         mNotificationsScrim.enableRoundedCorners(true);
 
         final ScrimState[] states = ScrimState.values();
-        for (int i = 0; i < states.length; i++) {
-            states[i].init(mScrimInFront, mScrimBehind, mDozeParameters, mDockManager,
-                    this::isBlurCurrentlySupported);
-            states[i].setScrimBehindAlphaKeyguard(mScrimBehindAlphaKeyguard);
-            states[i].setDefaultScrimAlpha(getDefaultScrimAlpha());
+        for (ScrimState scrimState : states) {
+            scrimState.init(mScrimInFront, mScrimBehind, mDozeParameters, mDockManager);
+            scrimState.setScrimBehindAlphaKeyguard(mScrimBehindAlphaKeyguard);
+            scrimState.setDefaultScrimAlpha(getDefaultScrimAlpha());
         }
 
         mTransparentScrimBackground = notificationsScrim.getResources()
@@ -459,10 +491,6 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     }
 
     private void hydrateStateInternally(ScrimView behindScrim) {
-        if (SceneContainerFlag.isEnabled()) {
-            return;
-        }
-
         // Directly control transition to UNLOCKED scrim state from PRIMARY_BOUNCER, and make sure
         // to report back that keyguard has faded away. This fixes cases where the scrim state was
         // rapidly switching on unlock, due to shifts in state in CentralSurfacesImpl
@@ -487,13 +515,23 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                     }
                 };
 
+        // PRIMARY_BOUNCER->DREAMING
+        if (Flags.dreamBouncerTransitionFix()) {
+            collectFlow(behindScrim, mKeyguardTransitionInteractor.transition(
+                            Edge.Companion.create(PRIMARY_BOUNCER, Scenes.Dream),
+                            Edge.Companion.create(PRIMARY_BOUNCER, DREAMING)),
+                    mBouncerToDreamTransition, mMainDispatcher);
+            collectFlow(behindScrim, mPrimaryBouncerToDreamingTransitionViewModel.getScrimAlpha(),
+                    mDreamBehindScrimAlphaConsumer, mMainDispatcher);
+        }
+
         // PRIMARY_BOUNCER->GONE
         collectFlow(behindScrim, mKeyguardTransitionInteractor.transition(
                 Edge.Companion.getINVALID(),
                 Edge.Companion.create(PRIMARY_BOUNCER, GONE)),
                 mBouncerToGoneTransition, mMainDispatcher);
         collectFlow(behindScrim, mPrimaryBouncerToGoneTransitionViewModel.getScrimAlpha(),
-                mScrimAlphaConsumer, mMainDispatcher);
+                mBouncerToGoneScrimAlphaConsumer, mMainDispatcher);
 
         // ALTERNATE_BOUNCER->GONE
         collectFlow(behindScrim, mKeyguardTransitionInteractor.transition(
@@ -501,7 +539,11 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                 Edge.Companion.create(ALTERNATE_BOUNCER, GONE)),
                 mBouncerToGoneTransition, mMainDispatcher);
         collectFlow(behindScrim, mAlternateBouncerToGoneTransitionViewModel.getScrimAlpha(),
-                mScrimAlphaConsumer, mMainDispatcher);
+                mBouncerToGoneScrimAlphaConsumer, mMainDispatcher);
+
+        // LOCKSCREEN->DREAMING
+        collectFlow(behindScrim, mLockscreenToDreamingTransitionViewModel.getScrimAlpha(),
+                mDreamBehindScrimAlphaConsumer, mMainDispatcher);
 
         // LOCKSCREEN<->GLANCEABLE_HUB
         collectFlow(
@@ -524,13 +566,6 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         }
     }
 
-    private void updateDefaultScrimAlphas() {
-        for (ScrimState state : ScrimState.values()) {
-            state.setDefaultScrimAlpha(getDefaultScrimAlpha(true));
-        }
-        applyAndDispatchState();
-    }
-
     private boolean isBlurCurrentlySupported() {
         return mWindowRootViewBlurInteractor.get()
                 .isBlurCurrentlySupported()
@@ -538,9 +573,13 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     }
 
     private void handleBlurSupportedChanged(boolean isBlurSupported) {
-        this.mIsBlurSupported = isBlurSupported;
+        debugLog("blur support changed to " + isBlurSupported + " for current scrim state: "
+                + mState.name());
         if (Flags.bouncerUiRevamp()) {
-            updateDefaultScrimAlphas();
+            updateThemeColors();
+            for (ScrimState state : ScrimState.values()) {
+                state.setDefaultScrimAlpha(getDefaultScrimAlpha(true));
+            }
             if (isBlurSupported) {
                 ScrimState.BOUNCER_SCRIMMED.setNotifBlurRadius(mBlurConfig.getMaxBlurRadiusPx());
             } else {
@@ -548,9 +587,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             }
         }
         if (Flags.notificationShadeBlur()) {
-            mState.prepare(mState);
-            applyAndDispatchState();
+            for (ScrimState state : ScrimState.values()) {
+                state.setNotificationScrimColor(getNotificationsScrimColor());
+                state.setShadePanelColor(getShadePanelColor());
+            }
         }
+        applyAndDispatchState();
     }
 
     // TODO(b/270984686) recompute scrim height accurately, based on shade contents.
@@ -575,22 +617,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         mScrimVisibleListener = listener;
     }
 
-    public void transitionTo(ScrimState state) {
-        if (SceneContainerFlag.isUnexpectedlyInLegacyMode() || !mViewsAttached) {
-            return;
-        }
-
-        internalTransitionTo(state, null);
-    }
-
     /**
      * Transitions to the given {@link ScrimState}.
      *
      * @deprecated Legacy codepath only. Do not call directly.
      */
-    @Deprecated
     public void legacyTransitionTo(ScrimState state) {
-        SceneContainerFlag.assertInLegacyMode();
         internalTransitionTo(state, null);
     }
 
@@ -599,13 +631,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
      *
      * @deprecated Legacy codepath only. Do not call directly.
      */
-    @Deprecated
     public void legacyTransitionTo(ScrimState state, Callback callback) {
-        SceneContainerFlag.assertInLegacyMode();
         internalTransitionTo(state, callback);
     }
 
     private void internalTransitionTo(ScrimState state, Callback callback) {
+        debugLog("internalTransitionTo to state " + state.name());
         if (mIsBouncerToGoneTransitionRunning) {
             Log.i(TAG, "Skipping transition to: " + state
                     + " while mIsBouncerToGoneTransitionRunning");
@@ -617,8 +648,8 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                 callback.onFinished();
             }
             return;
-        } else if (DEBUG) {
-            Log.d(TAG, "State changed to: " + state);
+        } else {
+            debugLog("State changed to: " + state);
         }
 
         if (state == ScrimState.UNINITIALIZED) {
@@ -695,6 +726,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         dispatchBackScrimState(mScrimBehind.getViewAlpha());
     }
 
+    private static void debugLog(String state) {
+        if (DEBUG) {
+            Log.d(TAG, state);
+        }
+    }
+
     public ScrimState getState() {
         return mState;
     }
@@ -730,8 +767,8 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private void setScrimBehindValues(float scrimBehindAlphaKeyguard) {
         mScrimBehindAlphaKeyguard = scrimBehindAlphaKeyguard;
         ScrimState[] states = ScrimState.values();
-        for (int i = 0; i < states.length; i++) {
-            states[i].setScrimBehindAlphaKeyguard(scrimBehindAlphaKeyguard);
+        for (ScrimState state : states) {
+            state.setScrimBehindAlphaKeyguard(scrimBehindAlphaKeyguard);
         }
         scheduleUpdate();
     }
@@ -767,9 +804,9 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     /**
      * Current state of the shade expansion when pulling it from the top.
      * This value is 1 when on top of the keyguard and goes to 0 as the user drags up.
-     *
+     * <p>
      * The expansion fraction is tied to the scrim opacity.
-     *
+     * <p>
      * See {@link ScrimShadeTransitionController#onPanelExpansionChanged}.
      *
      * @param rawPanelExpansionFraction From 0 to 1 where 0 means collapsed and 1 expanded.
@@ -783,7 +820,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         calculateAndUpdatePanelExpansion();
     }
 
-    /** See {@link ShadeViewController#setPanelScrimMinFraction(float)}. */
+    /** See {@link NotificationPanelViewController#setPanelScrimMinFraction(float)}. */
     public void setPanelScrimMinFraction(float minFraction) {
         if (isNaN(minFraction)) {
             throw new IllegalArgumentException("minFraction should not be NaN");
@@ -973,7 +1010,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         applyAndDispatchState();
     }
 
-    private void setOrAdaptCurrentAnimation(@Nullable View scrim) {
+    private void setOrAdaptCurrentAnimation(@Nullable ScrimView scrim) {
         if (scrim == null) {
             return;
         }
@@ -987,16 +1024,20 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             float previousStartValue = (Float) scrim.getTag(TAG_START_ALPHA);
             float relativeDiff = alpha - previousEndValue;
             float newStartValue = previousStartValue + relativeDiff;
+            debugLog("Adapting alpha anim for " + getScrimName(scrim) + " newStartValue "
+                    + newStartValue + " end alpha = " + alpha);
             scrim.setTag(TAG_START_ALPHA, newStartValue);
             scrim.setTag(TAG_END_ALPHA, alpha);
             previousAnimator.setCurrentPlayTime(previousAnimator.getCurrentPlayTime());
         } else {
             // Set animation.
+
             updateScrimColor(scrim, alpha, getCurrentScrimTint(scrim));
         }
     }
 
     private void applyState() {
+        debugLog("Applying state: " + mState.name());
         mInFrontTint = mState.getFrontTint();
         mBehindTint = mState.getBehindTint();
         mNotificationsTint = mState.getNotifTint();
@@ -1008,13 +1049,17 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         assertAlphasValid();
 
         if (!mExpansionAffectsAlpha) {
+            debugLog("Early return in applyState");
+            if (Flags.notificationShadeBlur() && mState == ScrimState.UNLOCKED) {
+                mBehindAlpha = 0.0f;
+                mNotificationsAlpha = 0.0f;
+            }
             return;
         }
 
         if (mState == ScrimState.UNLOCKED || mState == ScrimState.DREAMING
                 || mState == ScrimState.GLANCEABLE_HUB_OVER_DREAM) {
-            final boolean occluding =
-                    mOccludeAnimationPlaying || mState.mLaunchingAffordanceWithPreview;
+            final boolean occluding = mOccludeAnimationPlaying;
             // Darken scrim as it's pulled down while unlocked. If we're unlocked but playing the
             // screen off/occlusion animations, ignore expansion changes while those animations
             // play.
@@ -1030,7 +1075,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                     mBehindAlpha = 1;
                     mNotificationsAlpha = behindFraction * MIKU_ALPHA;
                 } else {
-                    if (Flags.notificationShadeBlur()) {
+                    if (Flags.notificationShadeBlur() && isBlurCurrentlySupported()) {
                         // TODO (b/390730594): match any spec for controlling alpha based on shade
                         //  expansion fraction.
                         mBehindAlpha = mState.getBehindAlpha() * mPanelExpansionFraction;
@@ -1189,6 +1234,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private void applyAndDispatchState() {
         applyState();
         if (mUpdatePending) {
+            debugLog("Skipping update because update is already pending");
             return;
         }
         setOrAdaptCurrentAnimation(mScrimBehind);
@@ -1213,8 +1259,8 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             updateScrims();
         }
 
-        mState.AOD.setAodFrontScrimAlpha(alpha);
-        mState.PULSING.setAodFrontScrimAlpha(alpha);
+        ScrimState.AOD.setAodFrontScrimAlpha(alpha);
+        ScrimState.PULSING.setAodFrontScrimAlpha(alpha);
     }
 
     private boolean shouldUpdateFrontScrimAlpha() {
@@ -1280,11 +1326,12 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         }
 
         // We also want to hide FLAG_SHOW_WHEN_LOCKED activities under the scrim.
-        boolean hideFlagShowWhenLockedActivities =
-                (mState == ScrimState.PULSING || mState == ScrimState.AOD)
-                && mKeyguardOccluded;
-        if (hideFlagShowWhenLockedActivities) {
-            mBehindAlpha = 1;
+        if (mState == ScrimState.PULSING || mState == ScrimState.AOD) {
+            if (mKeyguardOccluded) {
+                mBehindAlpha = 1;
+            } else {
+                mBehindAlpha = 0;
+            }
         }
         // Prevent notification scrim flicker when transitioning away from keyguard.
         if (mKeyguardStateController.isKeyguardGoingAway()) {
@@ -1364,8 +1411,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
 
     private void updateScrimColor(View scrim, float alpha, int tint) {
         alpha = Math.max(0, Math.min(1.0f, alpha));
-        if (scrim instanceof ScrimView) {
-            ScrimView scrimView = (ScrimView) scrim;
+        if (scrim instanceof ScrimView scrimView) {
             if (DEBUG_MODE) {
                 tint = getDebugScrimTint(scrimView);
             }
@@ -1374,11 +1420,14 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
                     (int) (alpha * 255));
             TrackTracer.instantForGroup("scrim", getScrimName(scrimView) + "_tint",
                     Color.alpha(tint));
+            debugLog("updating scrim " + getScrimName(scrimView) + " color: " + tint);
             scrimView.setTint(tint);
             if (!mIsBouncerToGoneTransitionRunning) {
+                debugLog("updating scrim " + getScrimName(scrimView) + " alpha: " + alpha);
                 scrimView.setViewAlpha(alpha);
             }
         } else {
+            debugLog("updating non scrimView " + scrim + " view alpha to " + alpha);
             scrim.setAlpha(alpha);
         }
         dispatchScrimsVisible();
@@ -1599,9 +1648,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
             // Setting power states can happen after we push out the frame. Make sure we
             // stay fully opaque until the power state request reaches the lower levels.
             final int delay = mScreenOn ? 32 : 500;
-            if (DEBUG) {
-                Log.d(TAG, "Fading out scrims with delay: " + delay);
-            }
+            debugLog("Fading out scrims with delay: " + delay);
             mHandler.postDelayed(mBlankingTransitionRunnable, delay);
         };
         doOnTheNextFrame(mPendingFrameCallback);
@@ -1630,13 +1677,28 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
         final boolean isBackgroundLight = !ContrastColorUtil.isColorDark(background);
         mColors.setSupportsDarkText(isBackgroundLight);
 
-        int surface = mContext.getColor(
-                com.android.internal.R.color.materialColorSurface);
+        int surface;
+        if (Flags.bouncerUiRevamp()) {
+            surface = BouncerColors.surfaceColor(mContext, isBlurCurrentlySupported());
+        } else {
+            surface = mContext.getColor(
+                    com.android.internal.R.color.materialColorSurface);
+        }
         for (ScrimState state : ScrimState.values()) {
-            state.setSurfaceColor(surface);
+            state.setBouncerSurfaceColor(surface);
+            state.setShadePanelColor(getShadePanelColor());
+            state.setNotificationScrimColor(getNotificationsScrimColor());
         }
 
         mNeedsDrawableColorUpdate = true;
+    }
+
+    private int getNotificationsScrimColor() {
+        return ShadeColors.notificationScrim(mContext, isBlurCurrentlySupported());
+    }
+
+    private int getShadePanelColor() {
+        return ShadeColors.shadePanel(mContext, isBlurCurrentlySupported(), true);
     }
 
     private void onThemeChanged() {
@@ -1645,7 +1707,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     }
 
     @Override
-    public void dump(PrintWriter pw, String[] args) {
+    public void dump(PrintWriter pw, @NonNull String[] args) {
         pw.println(" ScrimController: ");
         pw.print("  state: ");
         pw.println(mState);
@@ -1691,9 +1753,7 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     public void onScreenTurnedOn() {
         mScreenOn = true;
         if (mHandler.hasCallbacks(mBlankingTransitionRunnable)) {
-            if (DEBUG) {
-                Log.d(TAG, "Shorter blanking because screen turned on. All good.");
-            }
+            debugLog("Shorter blanking because screen turned on. All good.");
             mHandler.removeCallbacks(mBlankingTransitionRunnable);
             mBlankingTransitionRunnable.run();
         }
@@ -1722,12 +1782,6 @@ public class ScrimController implements ViewTreeObserver.OnPreDrawListener, Dump
     private void setKeyguardFadingAway(boolean fadingAway, long duration) {
         for (ScrimState state : ScrimState.values()) {
             state.setKeyguardFadingAway(fadingAway, duration);
-        }
-    }
-
-    public void setLaunchingAffordanceWithPreview(boolean launchingAffordanceWithPreview) {
-        for (ScrimState state : ScrimState.values()) {
-            state.setLaunchingAffordanceWithPreview(launchingAffordanceWithPreview);
         }
     }
 

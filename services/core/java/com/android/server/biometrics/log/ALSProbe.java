@@ -24,7 +24,6 @@ import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Handler;
-import android.os.Looper;
 import android.util.Slog;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -44,7 +43,7 @@ final class ALSProbe implements Probe {
     @Nullable
     private final Sensor mLightSensor;
     @NonNull
-    private final Handler mTimer;
+    private final Handler mHandler;
     @DurationMillisLong
     private long mMaxSubscriptionTime = -1;
 
@@ -71,10 +70,10 @@ final class ALSProbe implements Probe {
      * Create a probe with a 1-minute max sampling time.
      *
      * @param sensorManager Sensor manager
+     * @param handler Handler to use for callbacks events from sensorManager
      */
-    ALSProbe(@NonNull SensorManager sensorManager) {
-        this(sensorManager, new Handler(Looper.getMainLooper()),
-                TimeUnit.MINUTES.toMillis(1));
+    ALSProbe(@NonNull SensorManager sensorManager, @NonNull Handler handler) {
+        this(sensorManager, handler, TimeUnit.MINUTES.toMillis(1));
     }
 
     /**
@@ -86,7 +85,7 @@ final class ALSProbe implements Probe {
      * avoid relying on this timeout to unsubscribe from the sensor when it is not needed.
      *
      * @param sensorManager Sensor manager
-     * @param handler Timeout handler
+     * @param handler Handler to use for callbacks events from sensorManager
      * @param maxTime The max amount of time to subscribe to events. If this time is exceeded
      *                {@link #disable()} will be called and no sampling will occur until {@link
      *                #enable()} is called again.
@@ -97,7 +96,7 @@ final class ALSProbe implements Probe {
         mSensorManager = sensorManager;
         mLightSensor = sensorManager != null
                 ? sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT) : null;
-        mTimer = handler;
+        mHandler = handler;
         mMaxSubscriptionTime = maxTime;
 
         if (mSensorManager == null || mLightSensor == null) {
@@ -194,7 +193,7 @@ final class ALSProbe implements Probe {
             mEnabled = true;
             mLastAmbientLux = -1;
             mSensorManager.registerListener(mLightSensorListener, mLightSensor,
-                    SensorManager.SENSOR_DELAY_NORMAL);
+                    SensorManager.SENSOR_DELAY_NORMAL, mHandler);
             Slog.v(TAG, "Enable ALS: " + mLightSensorListener.hashCode());
         }
 
@@ -215,9 +214,9 @@ final class ALSProbe implements Probe {
     }
 
     private void resetTimerLocked(boolean start) {
-        mTimer.removeCallbacksAndMessages(this /* token */);
+        mHandler.removeCallbacksAndMessages(this /* token */);
         if (start && mMaxSubscriptionTime > 0) {
-            mTimer.postDelayed(this::onTimeout, this /* token */, mMaxSubscriptionTime);
+            mHandler.postDelayed(this::onTimeout, this /* token */, mMaxSubscriptionTime);
         }
     }
 

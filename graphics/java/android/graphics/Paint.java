@@ -34,6 +34,7 @@ import android.annotation.Size;
 import android.app.compat.CompatChanges;
 import android.compat.annotation.ChangeId;
 import android.compat.annotation.EnabledSince;
+import android.compat.annotation.NoLogging;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.graphics.fonts.FontVariationAxis;
 import android.graphics.text.TextRunShaper;
@@ -752,7 +753,13 @@ public class Paint {
         setTextLocales(LocaleList.getAdjustedDefault());
         resetElegantTextHeight();
         mFontFeatureSettings = null;
-        mFontVariationSettings = null;
+        if (com.android.text.flags.Flags.fixPaintResetInconsistency()) {
+            setFontVariationSettings(null);
+            setFontVariationOverride(null);
+            setTypeface(null);
+        } else {
+            mFontVariationSettings = null;
+        }
 
         mShadowLayerRadius = 0.0f;
         mShadowLayerDx = 0.0f;
@@ -1589,19 +1596,7 @@ public class Paint {
      * @return         typeface
      */
     public Typeface setTypeface(Typeface typeface) {
-        if (Flags.typefaceRedesignReadonly() && typeface != null
-                && typeface.isVariationInstance()) {
-            Log.w(TAG, "Attempting to set a Typeface on a Paint object that was previously "
-                    + "configured with setFontVariationSettings(). This is no longer supported as "
-                    + "of Target SDK " + Build.VERSION_CODES.BAKLAVA + ". To apply font"
-                    + " variations, call setFontVariationSettings() directly on the Paint object"
-                    + " instead.");
-        }
-        return setTypefaceWithoutWarning(typeface);
-    }
-
-    private Typeface setTypefaceWithoutWarning(Typeface typeface) {
-        final long typefaceNative = typeface == null ? 0 : typeface.native_instance;
+        final long typefaceNative = typeface == null ? 0 : typeface.getNativeInstance();
         nSetTypeface(mNativePaint, typefaceNative);
         mTypeface = typeface;
         return typeface;
@@ -1925,6 +1920,7 @@ public class Paint {
      * @hide
      */
     @ChangeId
+    @NoLogging
     @EnabledSince(targetSdkVersion = Build.VERSION_CODES.VANILLA_ICE_CREAM)
     public static final long DEPRECATE_UI_FONT = 279646685L;
 
@@ -2159,7 +2155,7 @@ public class Paint {
 
         if (settings == null || settings.length() == 0) {
             mFontVariationSettings = null;
-            setTypefaceWithoutWarning(Typeface.createFromTypefaceWithVariation(mTypeface,
+            setTypeface(Typeface.createFromTypefaceWithVariation(mTypeface,
                       Collections.emptyList()));
             return true;
         }
@@ -2178,8 +2174,7 @@ public class Paint {
             return false;
         }
         mFontVariationSettings = settings;
-        setTypefaceWithoutWarning(
-                Typeface.createFromTypefaceWithVariation(targetTypeface, filteredAxes));
+        setTypeface(Typeface.createFromTypefaceWithVariation(targetTypeface, filteredAxes));
         return true;
     }
 

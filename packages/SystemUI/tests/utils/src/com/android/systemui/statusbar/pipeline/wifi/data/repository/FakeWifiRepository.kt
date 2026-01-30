@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.pipeline.wifi.data.repository
 
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
+import com.android.systemui.statusbar.pipeline.shared.ui.model.WifiToggleState
 import com.android.systemui.statusbar.pipeline.wifi.data.repository.prod.WifiRepositoryImpl.Companion.ACTIVITY_DEFAULT
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiNetworkModel
 import com.android.systemui.statusbar.pipeline.wifi.shared.model.WifiScanEntry
@@ -42,6 +43,21 @@ class FakeWifiRepository : WifiRepository {
 
     override val wifiScanResults: MutableStateFlow<List<WifiScanEntry>> =
         MutableStateFlow(emptyList())
+
+    override val wifiToggleState: StateFlow<WifiToggleState> =
+        MutableStateFlow(WifiToggleState.Normal)
+
+    override fun enableWifi() {
+        // No op
+    }
+
+    override fun pauseWifi() {
+        // No op
+    }
+
+    override fun scanForWifi() {
+        // No op
+    }
 
     fun setIsWifiEnabled(enabled: Boolean) {
         _isWifiEnabled.value = enabled

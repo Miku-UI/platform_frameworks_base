@@ -29,7 +29,7 @@ import com.android.internal.inputmethod.IRemoteInputConnection;
 
 /**
  * Sub-interface of IInputMethod which is safe to give to client applications.
- * {@hide}
+ * @hide
  */
 oneway interface IInputMethodSession {
     void updateExtractedText(int token, in ExtractedText text);

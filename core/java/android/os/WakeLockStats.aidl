@@ -16,5 +16,5 @@
 
 package android.os;
 
-/** {@hide} */
+/** @hide */
 parcelable WakeLockStats;

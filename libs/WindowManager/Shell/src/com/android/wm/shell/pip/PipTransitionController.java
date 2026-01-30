@@ -144,23 +144,24 @@ public abstract class PipTransitionController implements Transitions.TransitionH
     /**
      * Called when the Shell wants to start an exit-via-expand from Pip transition/animation.
      */
-    public void startExpandTransition(WindowContainerTransaction out, boolean toSplit) {
+    public void startExpandTransition(
+            WindowContainerTransaction wct, boolean toSplit, boolean hasFirstHandler) {
         // Default implementation does nothing.
     }
 
     /**
      * Called when the Shell wants to start a remove Pip transition/animation.
      */
-    public void startRemoveTransition(boolean withFadeout) {
+    public void startRemoveTransition(WindowContainerTransaction wct, boolean withFadeout) {
         // Default implementation does nothing.
     }
 
     /**
-     * Called when the Shell wants to start resizing Pip transition/animation.
+     * Called when the Shell wants to start changing the Pip bounds transition/animation.
      *
-     * @param duration the suggested duration for resize animation.
+     * @param duration the suggested duration for bounds change animation.
      */
-    public void startResizeTransition(WindowContainerTransaction wct, int duration) {
+    public void startPipBoundsChangeTransition(WindowContainerTransaction wct, int duration) {
         // Default implementation does nothing.
     }
 
@@ -190,9 +191,7 @@ public abstract class PipTransitionController implements Transitions.TransitionH
         mShellTaskOrganizer = shellTaskOrganizer;
         mPipBoundsAlgorithm = pipBoundsAlgorithm;
         mTransitions = transitions;
-        if (Transitions.ENABLE_SHELL_TRANSITIONS) {
-            shellInit.addInitCallback(this::onInit, this);
-        }
+        shellInit.addInitCallback(this::onInit, this);
     }
 
     protected void onInit() {
@@ -346,6 +345,12 @@ public abstract class PipTransitionController implements Transitions.TransitionH
         return false;
     }
 
+    /** Whether a particular task id the current pip task id. */
+    public boolean isTaskActiveInPip(int taskId) {
+        // No-op, to be handled differently in PIP1 and PIP2
+        return false;
+    }
+
     /** Add PiP-related changes to `outWCT` for the given request. */
     public void augmentRequest(@NonNull IBinder transition,
             @NonNull TransitionRequestInfo request, @NonNull WindowContainerTransaction outWCT) {
@@ -401,12 +406,26 @@ public abstract class PipTransitionController implements Transitions.TransitionH
     }
 
     /**
+     * Callback when the transition is aborted.
+     */
+    public void onTransitionAborted() {
+    }
+
+    /**
      * End the currently-playing PiP animation.
      *
      * @param onTransitionEnd callback to run upon finishing the playing transition.
      */
     public void end(@Nullable Runnable onTransitionEnd) {
     }
+
+    /**
+     * Clean up stored PIP state.
+     * <p>
+     * Should only be called after a task has exited due to external reasons. Does not modify the
+     * task itself or move it out of PIP.
+     */
+    public void cleanUpState() {}
 
     /** Starts the {@link android.window.SystemPerformanceHinter.HighPerfSession}. */
     public void startHighPerfSession() {}

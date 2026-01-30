@@ -1254,9 +1254,9 @@ Lcom/android/server/utils/WatchedSparseBooleanMatrix;
 Lcom/android/server/utils/WatchedSparseIntArray;
 Lcom/android/server/utils/WatchedSparseSetArray;
 Lcom/android/server/utils/Watcher;
+Lcom/android/server/vibrator/HalVibrator$Callbacks;
+Lcom/android/server/vibrator/HalVibratorManager$Callbacks;
 Lcom/android/server/vibrator/VibratorController$NativeWrapper;
-Lcom/android/server/vibrator/VibratorController$OnVibrationCompleteListener;
-Lcom/android/server/vibrator/VibratorManagerService$VibratorManagerNativeCallbacks;
 Lcom/android/server/vibrator/VibratorManagerService;
 Lcom/android/server/wm/AbsAppSnapshotController;
 Lcom/android/server/wm/ActionChain$Tracker;
@@ -19822,14 +19822,14 @@ PLcom/android/server/vibrator/VibratorController$$ExternalSyntheticLambda0;-><in
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;-><init>()V
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;->compose([Landroid/os/vibrator/PrimitiveSegment;J)J
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;->getInfo(Landroid/os/VibratorInfo$Builder;)Z
-PLcom/android/server/vibrator/VibratorController$NativeWrapper;->init(ILcom/android/server/vibrator/VibratorController$OnVibrationCompleteListener;)V
+PLcom/android/server/vibrator/VibratorController$NativeWrapper;->init(ILcom/android/server/vibrator/HalVibrator$Callbacks;)V
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;->off()V
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;->on(JJ)J
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;->perform(JJJ)J
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;->setAmplitude(F)V
 PLcom/android/server/vibrator/VibratorController$NativeWrapper;->setExternalControl(Z)V
 PLcom/android/server/vibrator/VibratorController$VibratorState;-><clinit>()V
-PLcom/android/server/vibrator/VibratorController;-><init>(ILcom/android/server/vibrator/VibratorController$OnVibrationCompleteListener;Lcom/android/server/vibrator/VibratorController$NativeWrapper;)V
+PLcom/android/server/vibrator/VibratorController;-><init>(ILcom/android/server/vibrator/HalVibrator$Callbacks;Lcom/android/server/vibrator/VibratorController$NativeWrapper;)V
 PLcom/android/server/vibrator/VibratorController;->dump(Landroid/util/IndentingPrintWriter;)V
 HPLcom/android/server/vibrator/VibratorController;->off()V
 PLcom/android/server/vibrator/VibratorController;->on(Landroid/os/vibrator/PrebakedSegment;J)J
@@ -19865,7 +19865,7 @@ PLcom/android/server/vibrator/VibratorManagerService$Lifecycle;->onStart()V
 PLcom/android/server/vibrator/VibratorManagerService$NativeWrapper;-><init>()V
 PLcom/android/server/vibrator/VibratorManagerService$NativeWrapper;->cancelSynced()V
 PLcom/android/server/vibrator/VibratorManagerService$NativeWrapper;->clearSessions()V
-PLcom/android/server/vibrator/VibratorManagerService$NativeWrapper;->init(Lcom/android/server/vibrator/VibratorManagerService$VibratorManagerNativeCallbacks;)V
+PLcom/android/server/vibrator/VibratorManagerService$NativeWrapper;->init(Lcom/android/server/vibrator/HalVibratorManager$Callbacks;)V
 PLcom/android/server/vibrator/VibratorManagerService$VendorVibrationSessionCallbacks;-><init>(Lcom/android/server/vibrator/VibratorManagerService;)V
 PLcom/android/server/vibrator/VibratorManagerService$VibrationCompleteListener;->onComplete(IJ)V
 PLcom/android/server/vibrator/VibratorManagerService$VibrationRecord;-><init>(Lcom/android/server/vibrator/VibrationSession$DebugInfo;)V

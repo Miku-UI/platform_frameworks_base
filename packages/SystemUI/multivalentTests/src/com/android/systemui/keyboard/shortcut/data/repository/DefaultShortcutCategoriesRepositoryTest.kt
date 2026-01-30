@@ -57,12 +57,11 @@ import com.android.systemui.keyboard.shortcut.shortcutHelperInputShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperMultiTaskingShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperSystemShortcutsSource
 import com.android.systemui.keyboard.shortcut.shortcutHelperTestHelper
-import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -80,8 +79,7 @@ class DefaultShortcutCategoriesRepositoryTest : SysuiTestCase() {
     private val fakeAppCategoriesSource = FakeKeyboardShortcutGroupsSource()
 
     private val kosmos =
-        testKosmos().also {
-            it.testDispatcher = UnconfinedTestDispatcher()
+        testKosmos().useUnconfinedTestDispatcher().also {
             it.shortcutHelperSystemShortcutsSource = fakeSystemSource
             it.shortcutHelperMultiTaskingShortcutsSource = fakeMultiTaskingSource
             it.shortcutHelperAppCategoriesShortcutsSource = fakeAppCategoriesSource
@@ -120,6 +118,25 @@ class DefaultShortcutCategoriesRepositoryTest : SysuiTestCase() {
                 )
 
             assertThat(systemCategory).isEqualTo(expectedCategory)
+        }
+
+    @Test
+    fun subcategoryLabel_isEmpty_whenKeyboardShortcutGroupLabelIsNull() =
+        testScope.runTest {
+            fakeSystemSource.setGroups(
+                KeyboardShortcutGroup(
+                    /* label= */ null,
+                    /* items= */ listOf(simpleShortcutInfo(KEYCODE_1)),
+                )
+            )
+
+            helper.toggle(deviceId = 123)
+            val categories by collectLastValue(repo.categories)
+
+            val systemCategory = categories?.firstOrNull { it.type == ShortcutCategoryType.System }
+
+            // Also Tests will fail if NPE is thrown when KeyboardShortcutGroup.label is null
+            assertThat(systemCategory?.subCategories?.firstOrNull()?.label).isEmpty()
         }
 
     @Test

@@ -16,5 +16,5 @@
 
 package android.net;
 
-/** {@hide} */
+/** @hide */
 parcelable ConnectivityMetricsEvent;

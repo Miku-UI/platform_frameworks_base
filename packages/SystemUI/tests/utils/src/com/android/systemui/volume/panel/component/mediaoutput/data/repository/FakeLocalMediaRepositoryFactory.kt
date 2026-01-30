@@ -28,8 +28,8 @@ class FakeLocalMediaRepositoryFactory(private val defaultProvider: () -> LocalMe
         repositories[packageName] = localMediaRepository
     }
 
-    override fun create(
+    override suspend fun create(
         packageName: String?,
-        coroutineScope: CoroutineScope
+        coroutineScope: CoroutineScope,
     ): LocalMediaRepository = repositories[packageName] ?: defaultProvider()
 }

@@ -16,12 +16,9 @@
 
 package com.android.systemui.biometrics.shared.model
 
-import android.hardware.fingerprint.FingerprintSensorProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.biometrics.faceSensorPropertiesInternal
-import com.android.systemui.biometrics.fingerprintSensorPropertiesInternal
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,9 +36,11 @@ class BiometricModalitiesTest : SysuiTestCase() {
     fun hasUdfps() {
         with(
             BiometricModalities(
-                fingerprintProperties = fingerprintSensorPropertiesInternal(
-                    sensorType = FingerprintSensorProperties.TYPE_UDFPS_OPTICAL
-                ).first(),
+                fingerprintSensorInfo =
+                    FingerprintSensorInfo(
+                        type = FingerprintSensorType.UDFPS_OPTICAL,
+                        strength = SensorStrength.STRONG,
+                    )
             )
         ) {
             assertThat(isEmpty).isFalse()
@@ -59,9 +58,11 @@ class BiometricModalitiesTest : SysuiTestCase() {
     fun hasSfps() {
         with(
             BiometricModalities(
-                fingerprintProperties = fingerprintSensorPropertiesInternal(
-                    sensorType = FingerprintSensorProperties.TYPE_POWER_BUTTON
-                ).first(),
+                fingerprintSensorInfo =
+                    FingerprintSensorInfo(
+                        type = FingerprintSensorType.POWER_BUTTON,
+                        strength = SensorStrength.STRONG,
+                    )
             )
         ) {
             assertThat(isEmpty).isFalse()
@@ -76,24 +77,70 @@ class BiometricModalitiesTest : SysuiTestCase() {
     }
 
     @Test
-    fun fingerprintOnly() {
+    fun isSfpsStrong() {
         with(
             BiometricModalities(
-                fingerprintProperties = fingerprintSensorPropertiesInternal().first(),
+                fingerprintSensorInfo =
+                    FingerprintSensorInfo(
+                        type = FingerprintSensorType.POWER_BUTTON,
+                        strength = SensorStrength.STRONG,
+                    ),
+                faceSensorInfo = null,
             )
         ) {
-            assertThat(isEmpty).isFalse()
-            assertThat(hasFace).isFalse()
-            assertThat(hasFaceOnly).isFalse()
-            assertThat(hasFingerprint).isTrue()
-            assertThat(hasFingerprintOnly).isTrue()
-            assertThat(hasFaceAndFingerprint).isFalse()
+            assertThat(isSfpsStrong).isTrue()
+        }
+
+        with(
+            BiometricModalities(
+                fingerprintSensorInfo =
+                    FingerprintSensorInfo(
+                        type = FingerprintSensorType.POWER_BUTTON,
+                        strength = SensorStrength.WEAK,
+                    ),
+                faceSensorInfo = null,
+            )
+        ) {
+            assertThat(isSfpsStrong).isFalse()
+        }
+    }
+
+    @Test
+    fun isUdfpsStrong() {
+        with(
+            BiometricModalities(
+                fingerprintSensorInfo =
+                    FingerprintSensorInfo(
+                        type = FingerprintSensorType.UDFPS_ULTRASONIC,
+                        strength = SensorStrength.STRONG,
+                    ),
+                faceSensorInfo = null,
+            )
+        ) {
+            assertThat(isUdfpsStrong).isTrue()
+        }
+
+        with(
+            BiometricModalities(
+                fingerprintSensorInfo =
+                    FingerprintSensorInfo(
+                        type = FingerprintSensorType.UDFPS_ULTRASONIC,
+                        strength = SensorStrength.WEAK,
+                    ),
+                faceSensorInfo = null,
+            )
+        ) {
+            assertThat(isUdfpsStrong).isFalse()
         }
     }
 
     @Test
     fun faceOnly() {
-        with(BiometricModalities(faceProperties = faceSensorPropertiesInternal().first())) {
+        with(
+            BiometricModalities(
+                faceSensorInfo = FaceSensorInfo(id = 0, strength = SensorStrength.STRONG)
+            )
+        ) {
             assertThat(isEmpty).isFalse()
             assertThat(hasFace).isTrue()
             assertThat(hasFaceOnly).isTrue()
@@ -107,8 +154,8 @@ class BiometricModalitiesTest : SysuiTestCase() {
     fun faceStrength() {
         with(
             BiometricModalities(
-                fingerprintProperties = fingerprintSensorPropertiesInternal(strong = false).first(),
-                faceProperties = faceSensorPropertiesInternal(strong = true).first()
+                fingerprintSensorInfo = null,
+                faceSensorInfo = FaceSensorInfo(id = 0, strength = SensorStrength.STRONG),
             )
         ) {
             assertThat(isFaceStrong).isTrue()
@@ -116,8 +163,8 @@ class BiometricModalitiesTest : SysuiTestCase() {
 
         with(
             BiometricModalities(
-                fingerprintProperties = fingerprintSensorPropertiesInternal(strong = false).first(),
-                faceProperties = faceSensorPropertiesInternal(strong = false).first()
+                fingerprintSensorInfo = null,
+                faceSensorInfo = FaceSensorInfo(id = 0, strength = SensorStrength.WEAK),
             )
         ) {
             assertThat(isFaceStrong).isFalse()
@@ -128,8 +175,12 @@ class BiometricModalitiesTest : SysuiTestCase() {
     fun faceAndFingerprint() {
         with(
             BiometricModalities(
-                fingerprintProperties = fingerprintSensorPropertiesInternal().first(),
-                faceProperties = faceSensorPropertiesInternal().first(),
+                fingerprintSensorInfo =
+                    FingerprintSensorInfo(
+                        type = FingerprintSensorType.POWER_BUTTON,
+                        strength = SensorStrength.STRONG,
+                    ),
+                faceSensorInfo = FaceSensorInfo(id = 0, strength = SensorStrength.STRONG),
             )
         ) {
             assertThat(isEmpty).isFalse()

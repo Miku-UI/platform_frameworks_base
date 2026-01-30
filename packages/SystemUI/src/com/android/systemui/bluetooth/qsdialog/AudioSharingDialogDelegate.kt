@@ -21,6 +21,8 @@ import android.widget.Button
 import android.widget.TextView
 import com.android.internal.logging.UiEventLogger
 import com.android.settingslib.bluetooth.CachedBluetoothDevice
+import com.android.systemui.bluetooth.ui.viewModel.AudioSharingDialogState
+import com.android.systemui.bluetooth.ui.viewModel.AudioSharingDialogViewModel
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.SystemUIDialog

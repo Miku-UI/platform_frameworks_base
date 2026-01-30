@@ -30,7 +30,8 @@ import org.junit.runner.RunWith;
 public class ProtoLogTest {
     @Test
     public void canTrace() {
-        ProtoLog.init(TEST_GROUP_1, TEST_GROUP_2);
+        ProtoLog.registerLogGroupInProcess(TEST_GROUP_1, TEST_GROUP_2);
+        ProtoLog.init();
 
         ProtoLog.v(TEST_GROUP_1, "Verbose message");
         ProtoLog.d(TEST_GROUP_1, "Debug message");

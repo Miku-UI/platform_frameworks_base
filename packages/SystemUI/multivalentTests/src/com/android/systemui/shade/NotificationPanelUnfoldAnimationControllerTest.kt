@@ -16,21 +16,31 @@
 
 package com.android.systemui.shade
 
+import android.os.Looper
+import android.platform.test.annotations.EnableFlags
+import android.testing.TestableLooper.RunWithLooper
+import android.view.Display
 import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.res.R
+import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.plugins.statusbar.StatusBarStateController
+import com.android.systemui.res.R
+import com.android.systemui.shade.data.repository.fakeShadeDisplaysRepository
+import com.android.systemui.shade.domain.interactor.shadeDisplaysInteractor
 import com.android.systemui.statusbar.StatusBarState.KEYGUARD
 import com.android.systemui.statusbar.StatusBarState.SHADE
 import com.android.systemui.statusbar.StatusBarState.SHADE_LOCKED
+import com.android.systemui.testKosmos
 import com.android.systemui.unfold.UnfoldTransitionProgressProvider.TransitionProgressListener
 import com.android.systemui.unfold.util.NaturalRotationUnfoldProgressProvider
 import com.android.systemui.util.mockito.capture
-import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,6 +50,7 @@ import org.mockito.Mock
 import org.mockito.Mockito.atLeastOnce
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.whenever
 
 /**
  * Translates items away/towards the hinge when the device is opened/closed. This is controlled by
@@ -47,7 +58,10 @@ import org.mockito.MockitoAnnotations
  */
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@RunWithLooper
 class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
+
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
     @Mock private lateinit var progressProvider: NaturalRotationUnfoldProgressProvider
 
@@ -59,6 +73,10 @@ class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
 
     @Mock private lateinit var statusBarStateController: StatusBarStateController
 
+    private val shadeDisplaysInteractor = kosmos.shadeDisplaysInteractor
+    private val shadeDisplaysRepository = kosmos.fakeShadeDisplaysRepository
+    private val testScope = kosmos.testScope
+
     private lateinit var underTest: NotificationPanelUnfoldAnimationController
     private lateinit var progressListeners: List<TransitionProgressListener>
     private var xTranslationMax = 0f
@@ -66,7 +84,7 @@ class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
     @Before
     fun setup() {
         MockitoAnnotations.initMocks(this)
-
+        if (Looper.myLooper() == null) Looper.prepare()
         xTranslationMax =
             context.resources.getDimensionPixelSize(R.dimen.notification_side_paddings).toFloat()
 
@@ -74,11 +92,12 @@ class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
             NotificationPanelUnfoldAnimationController(
                 context,
                 statusBarStateController,
-                progressProvider
+                progressProvider,
+                { shadeDisplaysInteractor },
+                testScope.backgroundScope,
             )
-        whenever(parent.findViewById<ViewGroup>(R.id.split_shade_status_bar)).thenReturn(
-            splitShadeStatusBar
-        )
+        whenever(parent.findViewById<ViewGroup>(R.id.split_shade_status_bar))
+            .thenReturn(splitShadeStatusBar)
         underTest.setup(parent)
 
         verify(progressProvider, atLeastOnce()).addCallback(capture(progressListenerCaptor))
@@ -204,6 +223,28 @@ class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
         assertThat(view.translationX).isZero()
     }
 
+    @Test
+    @EnableFlags(Flags.FLAG_SHADE_WINDOW_GOES_AROUND)
+    fun whenShadeOnExternalDisplay_nothingMoves() =
+        testScope.runTest {
+            whenever(statusBarStateController.getState()).thenReturn(SHADE)
+            shadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY + 1) // not default anymore
+
+            val view = View(context)
+            whenever(parent.findViewById<View>(R.id.quick_settings_panel)).thenReturn(view)
+
+            onTransitionStarted()
+            assertThat(view.translationX).isZero()
+
+            onTransitionProgress(0.5f)
+            assertThat(view.translationX).isZero()
+
+            shadeDisplaysRepository.setDisplayId(Display.DEFAULT_DISPLAY) // back to default!
+
+            onTransitionProgress(0.5f)
+            assertThat(view.translationX).isNonZero()
+        }
+
     private fun onTransitionStarted() {
         progressListeners.forEach { it.onTransitionStarted() }
     }
@@ -215,5 +256,4 @@ class NotificationPanelUnfoldAnimationControllerTest : SysuiTestCase() {
     private fun onTransitionFinished() {
         progressListeners.forEach { it.onTransitionFinished() }
     }
-
 }

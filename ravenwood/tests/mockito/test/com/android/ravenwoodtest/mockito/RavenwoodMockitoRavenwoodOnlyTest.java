@@ -19,6 +19,7 @@ import static com.google.common.truth.Truth.assertThat;
 
 import android.app.ActivityManager;
 import android.platform.test.ravenwood.RavenwoodRule;
+import android.platform.test.ravenwood.RavenwoodUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -33,6 +34,12 @@ public class RavenwoodMockitoRavenwoodOnlyTest {
         try (MockedStatic<ActivityManager> am = Mockito.mockStatic(ActivityManager.class)) {
             am.when(ActivityManager::isUserAMonkey).thenReturn(true);
             assertThat(ActivityManager.isUserAMonkey()).isEqualTo(true);
+
+            // Mockito's static mocking only works on the current thread.
+            // (unlike ExtendedMockito's)
+            RavenwoodUtils.runOnMainThreadSync(() -> {
+                assertThat(ActivityManager.isUserAMonkey()).isEqualTo(false);
+            });
         }
     }
 }

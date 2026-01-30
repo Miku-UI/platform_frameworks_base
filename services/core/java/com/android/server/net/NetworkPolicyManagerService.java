@@ -4138,6 +4138,8 @@ public class NetworkPolicyManagerService extends INetworkPolicyManager.Stub {
                     fout.println("Merged subscriptions: " + Arrays.toString(
                             NetworkIdentityUtils.scrubSubscriberIds(mergedSubscribers)));
                 }
+                fout.print("Default platform warning bytes: ");
+                fout.println(getPlatformDefaultWarningBytes());
 
                 fout.println();
                 fout.println("Policy for UIDs:");

@@ -23,6 +23,7 @@ import android.appwidget.AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTI
 import android.appwidget.AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE
 import android.content.ComponentName
 import android.os.Bundle
+import android.os.DeadObjectException
 import android.os.UserHandle
 import android.widget.RemoteViews
 import androidx.annotation.WorkerThread
@@ -149,11 +150,16 @@ constructor(
         bgScope.launch {
             val newProviders = mutableMapOf<Int, AppWidgetProviderInfo?>()
             appWidgetHost.appWidgetIds.forEach { appWidgetId ->
-                // Listen for updates from each bound widget
-                addListener(appWidgetId)
+                try {
+                    // Listen for updates from each bound widget
+                    addListener(appWidgetId)
 
-                // Fetch provider info of the widget
-                newProviders[appWidgetId] = getAppWidgetInfo(appWidgetId)
+                    // Fetch provider info of the widget
+                    newProviders[appWidgetId] = getAppWidgetInfo(appWidgetId)
+                } catch (exception: DeadObjectException) {
+                    logger.e("failed to add listener for $appWidgetId", exception)
+                    newProviders.remove(appWidgetId)
+                }
             }
 
             _appWidgetProviders.value = newProviders.toMap()
@@ -165,17 +171,23 @@ constructor(
     }
 
     override fun onHostStopListening() {
-        // Remove listeners
-        _appWidgetProviders.value.keys.forEach { appWidgetId ->
-            appWidgetHost.removeListener(appWidgetId)
-        }
+        bgScope.launch {
+            // Remove listeners
+            _appWidgetProviders.value.keys.forEach { appWidgetId ->
+                appWidgetHost.removeListener(appWidgetId)
+            }
 
-        // Clear providers
-        _appWidgetProviders.value = emptyMap()
+            // Clear providers
+            _appWidgetProviders.value = emptyMap()
+        }
     }
 
     override fun onAllocateAppWidgetId(appWidgetId: Int) {
-        addListener(appWidgetId)
+        try {
+            addListener(appWidgetId)
+        } catch (exception: DeadObjectException) {
+            logger.e("Could not add listener upon allocation", exception)
+        }
     }
 
     override fun onDeleteAppWidgetId(appWidgetId: Int) {

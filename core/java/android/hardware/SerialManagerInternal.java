@@ -26,7 +26,6 @@ import java.util.function.Supplier;
  *
  * @hide
  */
-@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public abstract class SerialManagerInternal {
     public abstract void addVirtualSerialPortForTest(@NonNull String name,
             @NonNull Supplier<ParcelFileDescriptor> supplier);

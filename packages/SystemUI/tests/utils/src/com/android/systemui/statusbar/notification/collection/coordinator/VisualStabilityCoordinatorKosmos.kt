@@ -22,7 +22,6 @@ import com.android.systemui.dump.dumpManager
 import com.android.systemui.keyguard.domain.interactor.keyguardTransitionInteractor
 import com.android.systemui.keyguard.wakefulnessLifecycle
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.kosmos.testScope
 import com.android.systemui.plugins.statusbar.statusBarStateController
 import com.android.systemui.shade.domain.interactor.shadeAnimationInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
@@ -31,7 +30,7 @@ import com.android.systemui.statusbar.notification.domain.interactor.seenNotific
 import com.android.systemui.statusbar.notification.stack.data.repository.headsUpNotificationRepository
 import com.android.systemui.statusbar.notification.visibilityLocationProvider
 import com.android.systemui.statusbar.policy.keyguardStateController
-import com.android.systemui.util.kotlin.JavaAdapter
+import com.android.systemui.util.kotlin.javaAdapter
 import org.mockito.kotlin.mock
 
 var Kosmos.visualStabilityCoordinator: VisualStabilityCoordinator by
@@ -42,7 +41,7 @@ var Kosmos.visualStabilityCoordinator: VisualStabilityCoordinator by
             dumpManager,
             headsUpNotificationRepository,
             shadeAnimationInteractor,
-            JavaAdapter(testScope.backgroundScope),
+            javaAdapter,
             seenNotificationsInteractor,
             statusBarStateController,
             visibilityLocationProvider,

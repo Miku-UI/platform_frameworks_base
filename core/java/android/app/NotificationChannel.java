@@ -20,6 +20,7 @@ import static android.service.notification.Adjustment.TYPE_NEWS;
 import static android.service.notification.Adjustment.TYPE_PROMOTION;
 import static android.service.notification.Adjustment.TYPE_SOCIAL_MEDIA;
 import static android.service.notification.Flags.FLAG_NOTIFICATION_CONVERSATION_CHANNEL_MANAGEMENT;
+import static android.service.notification.Flags.FLAG_NOTIFICATION_GET_ORIGINAL_IMPORTANCE;
 
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
@@ -123,7 +124,8 @@ public final class NotificationChannel implements Parcelable {
      * {@link ShortcutInfo#getId() id} of the conversation.
      * @hide
      */
-    public static final String CONVERSATION_CHANNEL_ID_FORMAT = "%1$s : %2$s";
+    // TODO: b/432250872 - Delete when inlining random_conversation_ids flag.
+    public static final String OLD_CONVERSATION_CHANNEL_ID_FORMAT = "%1$s : %2$s";
 
     /**
      * TODO: STOPSHIP  remove
@@ -402,35 +404,24 @@ public final class NotificationChannel implements Parcelable {
         mDeletedTime = in.readLong();
         mImportanceLockedDefaultApp = in.readBoolean();
 
-        // Add new fields above this line and not after vibration effect! When
-        // notif_channel_estimate_effect_size is true, we use parcel size to detect whether the
-        // vibration effect might be too large to handle, so this must remain at the end lest any
-        // following fields cause the data to get incorrectly dropped.
+        // Add new fields above this line and not after vibration effect! We use parcel size to
+        // detect whether the vibration effect might be too large to handle, so this must remain at
+        // the end lest any following fields cause the data to get incorrectly dropped.
         mVibrationPattern = in.createLongArray();
         if (mVibrationPattern != null && mVibrationPattern.length > MAX_VIBRATION_LENGTH) {
             mVibrationPattern = Arrays.copyOf(mVibrationPattern, MAX_VIBRATION_LENGTH);
         }
-        boolean largeEffect = false;
-        if (Flags.notifChannelEstimateEffectSize()) {
-            // Note that we must check the length of remaining data in the parcel before reading in
-            // the data.
-            largeEffect = (in.dataAvail() > MAX_SERIALIZED_VIBRATION_LENGTH);
-        }
+        // Note that we must check the length of remaining data in the parcel before reading in
+        // the data.
+        boolean largeEffect = (in.dataAvail() > MAX_SERIALIZED_VIBRATION_LENGTH);
         if (Flags.notificationChannelVibrationEffectApi()) {
             mVibrationEffect =
                     in.readInt() != 0 ? VibrationEffect.CREATOR.createFromParcel(in) : null;
-            if (Flags.notifChannelCropVibrationEffects() && mVibrationEffect != null) {
-                if (Flags.notifChannelEstimateEffectSize()) {
-                    // Try trimming the effect if the remaining parcel size is large. If trimming is
-                    // not applicable for the effect, rather than serializing to XML (expensive) to
-                    // check the exact serialized length, we just reject the effect.
-                    if (largeEffect) {
-                        mVibrationEffect = mVibrationEffect.cropToLengthOrNull(
-                                MAX_VIBRATION_LENGTH);
-                    }
-                } else {
-                    mVibrationEffect = getTrimmedVibrationEffect(mVibrationEffect);
-                }
+            if (mVibrationEffect != null && largeEffect) {
+                // Try trimming the effect if the remaining parcel size is large. If trimming is
+                // not applicable for the effect, rather than serializing to XML (expensive) to
+                // check the exact serialized length, we just reject the effect.
+                mVibrationEffect = mVibrationEffect.cropToLengthOrNull(MAX_VIBRATION_LENGTH);
             }
         }
     }
@@ -650,7 +641,7 @@ public final class NotificationChannel implements Parcelable {
      * @hide
      */
     public void setId(String id) {
-        mId = id;
+        mId = getTrimmedString(id);
     }
 
     // Modifiable by apps on channel creation.
@@ -749,10 +740,8 @@ public final class NotificationChannel implements Parcelable {
     public void setVibrationPattern(long[] vibrationPattern) {
         this.mVibrationEnabled = vibrationPattern != null && vibrationPattern.length > 0;
         this.mVibrationPattern = vibrationPattern;
-        if (Flags.notifChannelCropVibrationEffects()) {
-            if (vibrationPattern != null && vibrationPattern.length > MAX_VIBRATION_LENGTH) {
-                this.mVibrationPattern = Arrays.copyOf(vibrationPattern, MAX_VIBRATION_LENGTH);
-            }
+        if (vibrationPattern != null && vibrationPattern.length > MAX_VIBRATION_LENGTH) {
+            this.mVibrationPattern = Arrays.copyOf(vibrationPattern, MAX_VIBRATION_LENGTH);
         }
         if (Flags.notificationChannelVibrationEffectApi()) {
             try {
@@ -800,7 +789,7 @@ public final class NotificationChannel implements Parcelable {
     public void setVibrationEffect(@Nullable VibrationEffect effect) {
         this.mVibrationEnabled = effect != null;
         this.mVibrationEffect = effect;
-        if (Flags.notifChannelCropVibrationEffects() && effect != null) {
+        if (effect != null) {
             long[] pattern = effect.computeCreateWaveformOffOnTimingsOrNull();
             if (pattern != null) {
                 // If this effect has an equivalent pattern, AND the pattern needs to be truncated
@@ -819,9 +808,8 @@ public final class NotificationChannel implements Parcelable {
                 this.mVibrationPattern = null;
             }
         } else {
-            this.mVibrationPattern =
-                    mVibrationEffect == null
-                            ? null : mVibrationEffect.computeCreateWaveformOffOnTimingsOrNull();
+            // effect is set to null, so also set pattern to null.
+            this.mVibrationPattern = null;
         }
     }
 
@@ -894,8 +882,8 @@ public final class NotificationChannel implements Parcelable {
      */
     public void setConversationId(@NonNull String parentChannelId,
             @NonNull String conversationId) {
-        mParentId = parentChannelId;
-        mConversationId = conversationId;
+        mParentId = getTrimmedString(parentChannelId);
+        mConversationId = getTrimmedString(conversationId);
     }
 
     /**
@@ -927,7 +915,7 @@ public final class NotificationChannel implements Parcelable {
      * See {@link NotificationChannelGroup#isBlocked()} and
      * {@link NotificationManager#areNotificationsEnabled()}.
      */
-    public int getImportance() {
+    public @Importance int getImportance() {
         return mImportance;
     }
 
@@ -1147,10 +1135,15 @@ public final class NotificationChannel implements Parcelable {
     }
 
     /**
-     * @hide
+     * Returns the app-defined importance for this channel, prior to any user modifications. This
+     * may differ from {@link #getImportance()} if the user has changed the setting. Typically
+     * reflects the channel's initial importance set upon creation.
+     *
+     * @return The original importance as set by the app.
+     * @see #getImportance()
      */
-    @TestApi
-    public int getOriginalImportance() {
+    @FlaggedApi(FLAG_NOTIFICATION_GET_ORIGINAL_IMPORTANCE)
+    public @Importance int getOriginalImportance() {
         return mOriginalImportance;
     }
 
@@ -1158,7 +1151,7 @@ public final class NotificationChannel implements Parcelable {
      * @hide
      */
     @TestApi
-    public void setOriginalImportance(int importance) {
+    public void setOriginalImportance(@Importance int importance) {
         mOriginalImportance = importance;
     }
 
@@ -1262,8 +1255,7 @@ public final class NotificationChannel implements Parcelable {
                 // Restore the effect only if it is not null. This allows to avoid undoing a
                 // `setVibrationPattern` call above, if that was done with a non-null pattern
                 // (e.g. back up from a version that did not support `setVibrationEffect`), or
-                // when notif_channel_crop_vibration_effects is true, if there is an equivalent
-                // vibration pattern available.
+                // if there is an equivalent vibration pattern available.
                 setVibrationEffect(vibrationEffect);
             }
         }
@@ -1460,12 +1452,10 @@ public final class NotificationChannel implements Parcelable {
         if (getVibrationPattern() != null) {
             out.attribute(null, ATT_VIBRATION, longArrayToString(getVibrationPattern()));
         }
-        if (getVibrationEffect() != null) {
-            if (!Flags.notifChannelCropVibrationEffects() || getVibrationPattern() == null) {
-                // When notif_channel_crop_vibration_effects is on, only serialize the vibration
-                // effect if we do not already have an equivalent vibration pattern.
-                out.attribute(null, ATT_VIBRATION_EFFECT, vibrationToString(getVibrationEffect()));
-            }
+        if (getVibrationEffect() != null && getVibrationPattern() == null) {
+            // Only serialize the vibration effect if we do not already have an equivalent
+            // vibration pattern.
+            out.attribute(null, ATT_VIBRATION_EFFECT, vibrationToString(getVibrationEffect()));
         }
         if (getUserLockedFields() != 0) {
             out.attributeInt(null, ATT_USER_LOCKED, getUserLockedFields());

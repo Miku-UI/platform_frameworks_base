@@ -72,7 +72,8 @@ class PackageFlattener {
                    SparseEntriesMode sparse_entries, bool compact_entries,
                    bool collapse_key_stringpool,
                    const std::set<ResourceName>& name_collapse_exemptions,
-                   bool deduplicate_entry_values)
+                   bool deduplicate_entry_values,
+                   const std::map<std::string, android::StringPool::Ref>& flag_name_references)
       : context_(context),
         diag_(context->GetDiagnostics()),
         package_(package),
@@ -81,7 +82,8 @@ class PackageFlattener {
         compact_entries_(compact_entries),
         collapse_key_stringpool_(collapse_key_stringpool),
         name_collapse_exemptions_(name_collapse_exemptions),
-        deduplicate_entry_values_(deduplicate_entry_values) {
+        deduplicate_entry_values_(deduplicate_entry_values),
+        flag_name_references_(flag_name_references) {
   }
 
   bool FlattenPackage(BigBuffer* buffer) {
@@ -143,7 +145,8 @@ class PackageFlattener {
   // 1) it is enabled, and that
   // 2) the entries will be accessed on platforms U+, and
   // 3) all entry keys can be encoded in 16 bits
-  bool UseCompactEntries(const ConfigDescription& config, std::vector<FlatEntry>* entries) const {
+  bool UseCompactEntries(const ConfigDescription& config,
+                         const std::vector<FlatEntry>* entries) const {
     return compact_entries_ && context_->GetMinSdkVersion() > SDK_TIRAMISU &&
       std::none_of(entries->cbegin(), entries->cend(),
         [](const auto& e) { return e.entry_key >= std::numeric_limits<uint16_t>::max(); });
@@ -165,8 +168,8 @@ class PackageFlattener {
     }
   }
 
-  bool FlattenConfig(const ResourceTableTypeView& type, const ConfigDescription& config,
-                     const size_t num_total_entries, std::vector<FlatEntry>* entries,
+  void FlattenConfig(const ResourceTableTypeView& type, const ConfigDescription& config,
+                     const size_t num_total_entries, const std::vector<FlatEntry>* entries,
                      BigBuffer* buffer) {
     CHECK(num_total_entries != 0);
     CHECK(num_total_entries <= std::numeric_limits<uint16_t>::max());
@@ -186,7 +189,7 @@ class PackageFlattener {
     auto res_entry_writer = GetResEntryWriter(deduplicate_entry_values_,
                                               compact_entry, &values_buffer);
 
-    for (FlatEntry& flat_entry : *entries) {
+    for (const FlatEntry& flat_entry : *entries) {
       CHECK(static_cast<size_t>(flat_entry.entry->id.value()) < num_total_entries);
       offsets[flat_entry.entry->id.value()] = res_entry_writer->Write(&flat_entry);
     }
@@ -250,7 +253,25 @@ class PackageFlattener {
     type_header->entriesStart = android::util::HostToDevice32(type_writer.size());
     type_writer.buffer()->AppendBuffer(std::move(values_buffer));
     type_writer.Finish();
-    return true;
+  }
+
+  void FlattenFlag(const ResourceTableTypeView& type, const FeatureFlagAttribute& flag,
+                   const std::map<ConfigDescription, std::vector<FlatEntry>>& entry_map,
+                   const size_t num_total_entries, BigBuffer* buffer) {
+    CHECK(num_total_entries != 0);
+    CHECK(num_total_entries <= std::numeric_limits<uint16_t>::max());
+    ChunkWriter flag_writer(buffer);
+    ResTable_flagged* flag_header = flag_writer.StartChunk<ResTable_flagged>(RES_TABLE_FLAGGED);
+    flag_header->flag_name_index.index =
+        android::util::HostToDevice32(flag_name_references_[flag.name].index());
+    flag_header->flag_negated = flag.negated;
+
+    // Flatten a configuration value.
+    for (auto& entry : entry_map) {
+      FlattenConfig(type, entry.first, num_total_entries, &entry.second, buffer);
+    }
+
+    flag_writer.Finish();
   }
 
   bool FlattenAliases(BigBuffer* buffer) {
@@ -307,7 +328,7 @@ class PackageFlattener {
           if (!(chunk.source == item.overlayable->source)) {
             // The name of an overlayable set of resources must be unique
             context_->GetDiagnostics()->Error(android::DiagMessage(item.overlayable->source)
-                                              << "duplicate overlayable name"
+                                              << "duplicate overlayable name '"
                                               << item.overlayable->name << "'");
             context_->GetDiagnostics()->Error(android::DiagMessage(chunk.source)
                                               << "previous declaration here");
@@ -325,13 +346,7 @@ class PackageFlattener {
           return false;
         }
 
-        auto policy = overlayable_chunk->policy_ids.find(item.policies);
-        if (policy != overlayable_chunk->policy_ids.end()) {
-          policy->second.insert(id);
-        } else {
-          overlayable_chunk->policy_ids.insert(
-              std::make_pair(item.policies, std::set<ResourceId>{id}));
-        }
+        overlayable_chunk->policy_ids[item.policies].insert(id);
       }
     }
 
@@ -459,15 +474,18 @@ class PackageFlattener {
       }
 
       // Since the entries are sorted by ID, the last ID will be the largest.
-      const size_t num_entries = type.entries.back().id.value() + 1;
+      size_t num_entries = type.entries.back().id.value() + 1;
 
-      // The binary resource table lists resource entries for each
-      // configuration.
-      // We store them inverted, where a resource entry lists the values for
-      // each
-      // configuration available. Here we reverse this to match the binary
-      // table.
+      // The binary resource table lists resource entries for each configuration.
+      // We store them inverted, where a resource entry lists the values for each
+      // configuration available. Here we reverse this to match the binary table.
       std::map<ConfigDescription, std::vector<FlatEntry>> config_to_entry_list_map;
+
+      // Within a type we store all of the values that behind the same flag in the same flagged
+      // chunk. Within those chunks the values are stored the same as the config_to_entry_list_map
+      // above.
+      std::map<FeatureFlagAttribute, std::map<ConfigDescription, std::vector<FlatEntry>>>
+          flag_config_to_entry_list_map;
 
       for (const ResourceTableEntryView& entry : type.entries) {
         if (entry.staged_id) {
@@ -508,13 +526,25 @@ class PackageFlattener {
               FlatEntry{&entry, config_value->value.get(), local_key_index,
                         config_value->uses_readwrite_feature_flags});
         }
+
+        // Group rw flagged values by flag and then configuration.
+        for (auto& config_value : entry.readwrite_flag_values) {
+          flag_config_to_entry_list_map[config_value->value->GetFlag().value()]
+                                       [config_value->config]
+                                           .push_back(FlatEntry{
+                                               &entry, config_value->value.get(), local_key_index,
+                                               config_value->uses_readwrite_feature_flags});
+        }
+      }
+
+      // Flatten a configuration value with read/write flags.
+      for (auto& flagged_entry : flag_config_to_entry_list_map) {
+        FlattenFlag(type, flagged_entry.first, flagged_entry.second, num_entries, buffer);
       }
 
       // Flatten a configuration value.
       for (auto& entry : config_to_entry_list_map) {
-        if (!FlattenConfig(type, entry.first, num_entries, &entry.second, buffer)) {
-          return false;
-        }
+        FlattenConfig(type, entry.first, num_entries, &entry.second, buffer);
       }
 
       // And now we can update the type entries count in the typeSpec header.
@@ -564,12 +594,37 @@ class PackageFlattener {
   const std::set<ResourceName>& name_collapse_exemptions_;
   std::map<uint32_t, uint32_t> aliases_;
   bool deduplicate_entry_values_;
+  std::map<std::string, android::StringPool::Ref> flag_name_references_;
 };
 
 }  // namespace
 
+static std::map<std::string, android::StringPool::Ref> storeFlagNames(
+    android::StringPool& pool, const ResourceTableView& table) {
+  std::map<std::string, android::StringPool::Ref> map;
+  for (const auto& package : table.packages) {
+    for (const auto& type : package.types) {
+      for (const auto& entry : type.entries) {
+        for (const auto& value : entry.readwrite_flag_values) {
+          const auto& name = value->value->GetFlag()->name;
+          auto it = map.lower_bound(name);
+          if (it == map.end() || it->first != name) {
+            map.emplace_hint(it, name, pool.MakeRef(name));
+          }
+        }
+      }
+    }
+  }
+  return map;
+}
+
 bool TableFlattener::Consume(IAaptContext* context, ResourceTable* table) {
   TRACE_CALL();
+  const auto& table_view =
+      table->GetPartitionedView(ResourceTableViewOptions{.create_alias_entries = true});
+
+  auto flag_map = storeFlagNames(table->string_pool, table_view);
+
   // We must do this before writing the resources, since the string pool IDs may change.
   table->string_pool.Prune();
   table->string_pool.Sort(
@@ -582,8 +637,6 @@ bool TableFlattener::Consume(IAaptContext* context, ResourceTable* table) {
       });
 
   // Write the ResTable header.
-  const auto& table_view =
-      table->GetPartitionedView(ResourceTableViewOptions{.create_alias_entries = true});
   ChunkWriter table_writer(buffer_);
   ResTable_header* table_header = table_writer.StartChunk<ResTable_header>(RES_TABLE_TYPE);
   table_header->packageCount = android::util::HostToDevice32(table_view.packages.size());
@@ -591,6 +644,18 @@ bool TableFlattener::Consume(IAaptContext* context, ResourceTable* table) {
   // Flatten the values string pool.
   android::StringPool::FlattenUtf8(table_writer.buffer(), table->string_pool,
                                    context->GetDiagnostics());
+
+  if (!flag_map.empty()) {
+    android::BigBuffer flag_buffer(1024);
+    ChunkWriter flag_writer(&flag_buffer);
+    flag_writer.StartChunk<ResTable_flag_list>(RES_TABLE_FLAG_LIST);
+    uint32_t* indices = flag_writer.NextBlock<uint32_t>(flag_map.size());
+    for (const auto& [_, ref] : flag_map) {
+      *indices++ = android::util::HostToDevice32(ref.index());
+    }
+    flag_writer.Finish();
+    table_writer.buffer()->AppendBuffer(std::move(flag_buffer));
+  }
 
   android::BigBuffer package_buffer(1024);
 
@@ -614,11 +679,9 @@ bool TableFlattener::Consume(IAaptContext* context, ResourceTable* table) {
     }
 
     PackageFlattener flattener(context, package, &table->included_packages_,
-                               options_.sparse_entries,
-                               options_.use_compact_entries,
-                               options_.collapse_key_stringpool,
-                               options_.name_collapse_exemptions,
-                               options_.deduplicate_entry_values);
+                               options_.sparse_entries, options_.use_compact_entries,
+                               options_.collapse_key_stringpool, options_.name_collapse_exemptions,
+                               options_.deduplicate_entry_values, flag_map);
     if (!flattener.FlattenPackage(&package_buffer)) {
       return false;
     }

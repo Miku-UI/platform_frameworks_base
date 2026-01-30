@@ -16,15 +16,18 @@
 package android.content.pm;
 
 import static android.Manifest.permission.INTERACT_ACROSS_USERS;
+import static android.annotation.RestrictedForEnvironment.ENVIRONMENT_SDK_RUNTIME;
 import static android.app.admin.DevicePolicyResources.Strings.Core.SWITCH_TO_PERSONAL_LABEL;
 import static android.app.admin.DevicePolicyResources.Strings.Core.SWITCH_TO_WORK_LABEL;
 import static android.content.pm.PackageManager.MATCH_DEFAULT_ONLY;
 import static android.app.admin.flags.Flags.FLAG_ALLOW_QUERYING_PROFILE_TYPE;
 
+
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.RequiresPermission;
+import android.annotation.RestrictedForEnvironment;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
 import android.annotation.UserHandleAware;
@@ -59,6 +62,8 @@ import java.util.stream.Collectors;
  * instance in any profile that is in {@link #getTargetUserProfiles()}. For example, app can
  * use this class to start its main activity in managed profile.
  */
+@RestrictedForEnvironment(
+        environments = ENVIRONMENT_SDK_RUNTIME, from = Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 public class CrossProfileApps {
 
     /**

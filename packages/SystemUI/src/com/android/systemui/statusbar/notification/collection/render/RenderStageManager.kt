@@ -18,12 +18,15 @@ package com.android.systemui.statusbar.notification.collection.render
 
 import com.android.app.tracing.traceSection
 import com.android.systemui.dagger.SysUISingleton
+import com.android.systemui.statusbar.notification.collection.BundleEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntry
-import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.PipelineDumpable
 import com.android.systemui.statusbar.notification.collection.PipelineDumper
+import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.ShadeListBuilder
+import com.android.systemui.statusbar.notification.collection.forEachGroupEntry
+import com.android.systemui.statusbar.notification.collection.listbuilder.OnAfterRenderBundleEntryListener
 import com.android.systemui.statusbar.notification.collection.listbuilder.OnAfterRenderEntryListener
 import com.android.systemui.statusbar.notification.collection.listbuilder.OnAfterRenderGroupListener
 import com.android.systemui.statusbar.notification.collection.listbuilder.OnAfterRenderListListener
@@ -39,6 +42,8 @@ class RenderStageManager @Inject constructor() : PipelineDumpable {
     private val onAfterRenderListListeners = mutableListOf<OnAfterRenderListListener>()
     private val onAfterRenderGroupListeners = mutableListOf<OnAfterRenderGroupListener>()
     private val onAfterRenderEntryListeners = mutableListOf<OnAfterRenderEntryListener>()
+    private val onAfterRenderBundleEntryListeners =
+        mutableListOf<OnAfterRenderBundleEntryListener>()
     private var viewRenderer: NotifViewRenderer? = null
 
     /** Attach this stage to the rest of the pipeline */
@@ -51,6 +56,7 @@ class RenderStageManager @Inject constructor() : PipelineDumpable {
             val viewRenderer = viewRenderer ?: return
             viewRenderer.onRenderList(notifList)
             dispatchOnAfterRenderList(notifList)
+            dispatchOnAfterBundleRenderEntries(viewRenderer, notifList)
             dispatchOnAfterRenderGroups(viewRenderer, notifList)
             dispatchOnAfterRenderEntries(viewRenderer, notifList)
             viewRenderer.onDispatchComplete()
@@ -77,12 +83,18 @@ class RenderStageManager @Inject constructor() : PipelineDumpable {
         onAfterRenderEntryListeners.add(listener)
     }
 
+    /** Adds a listener that will get a callback for each bundle entry rendered. */
+    fun addOnAfterRenderBundleEntryListener(listener: OnAfterRenderBundleEntryListener) {
+        onAfterRenderBundleEntryListeners.add(listener)
+    }
+
     override fun dumpPipeline(d: PipelineDumper) =
         with(d) {
             dump("viewRenderer", viewRenderer)
             dump("onAfterRenderListListeners", onAfterRenderListListeners)
             dump("onAfterRenderGroupListeners", onAfterRenderGroupListeners)
             dump("onAfterRenderEntryListeners", onAfterRenderEntryListeners)
+            dump("onAfterRenderBundleEntryListeners", onAfterRenderBundleEntryListeners)
         }
 
     private fun dispatchOnAfterRenderList(entries: List<PipelineEntry>) {
@@ -99,7 +111,7 @@ class RenderStageManager @Inject constructor() : PipelineDumpable {
             if (onAfterRenderGroupListeners.isEmpty()) {
                 return
             }
-            entries.asSequence().filterIsInstance<GroupEntry>().forEach { group ->
+            entries.forEachGroupEntry { group ->
                 val controller = viewRenderer.getGroupController(group)
                 onAfterRenderGroupListeners.forEach { listener ->
                     listener.onAfterRenderGroup(group, controller)
@@ -125,6 +137,23 @@ class RenderStageManager @Inject constructor() : PipelineDumpable {
         }
     }
 
+    private fun dispatchOnAfterBundleRenderEntries(
+        viewRenderer: NotifViewRenderer,
+        entries: List<PipelineEntry>,
+    ) {
+        traceSection("RenderStageManager.dispatchOnAfterRenderBundleEntries") {
+            if (onAfterRenderBundleEntryListeners.isEmpty()) {
+                return
+            }
+            entries.forEachBundleEntry { entry ->
+                val controller = viewRenderer.getBundleController(entry)
+                onAfterRenderBundleEntryListeners.forEach { listener ->
+                    listener.onAfterRenderEntry(entry, controller)
+                }
+            }
+        }
+    }
+
     /**
      * Performs a forward, depth-first traversal of the list where the group's summary immediately
      * precedes the group's children.
@@ -139,8 +168,25 @@ class RenderStageManager @Inject constructor() : PipelineDumpable {
                     action(entry.requireSummary)
                     entry.children.forEach(action)
                 }
+                is BundleEntry -> {
+                    for (bundleChild in entry.children) {
+                        if (bundleChild is GroupEntry) {
+                            action(bundleChild.requireSummary)
+                            bundleChild.children.forEach(action)
+                        } else if (bundleChild is NotificationEntry) {
+                            action(bundleChild)
+                        }
+                    }
+                }
                 else -> error("Unhandled entry: $entry")
             }
+        }
+    }
+
+    private inline fun List<PipelineEntry>.forEachBundleEntry(action: (BundleEntry) -> Unit) {
+        val bundleEntries = this.filterIsInstance<BundleEntry>()
+        for (entry in bundleEntries) {
+            action(entry)
         }
     }
 }

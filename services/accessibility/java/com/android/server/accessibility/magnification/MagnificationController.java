@@ -50,15 +50,18 @@ import android.util.SparseIntArray;
 import android.util.SparseLongArray;
 import android.util.TypedValue;
 import android.view.Display;
+import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.accessibility.MagnificationAnimationCallback;
 
 import com.android.internal.accessibility.util.AccessibilityStatsLogUtils;
+import com.android.internal.accessibility.util.AccessibilityUtils;
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.util.function.pooled.PooledLambda;
 import com.android.server.LocalServices;
 import com.android.server.accessibility.AccessibilityManagerService;
+import com.android.server.accessibility.Flags;
 import com.android.server.wm.WindowManagerInternal;
 
 import java.util.concurrent.Executor;
@@ -124,6 +127,7 @@ public class MagnificationController implements MagnificationConnectionManager.C
     // in multiple directions at once (for example, up + left), tracking last
     // panned time ensures that panning doesn't occur too frequently.
     private long mLastPannedTime = 0;
+    private long mLastMotionEventTriggeredUiChangeTime = 0;
     private boolean mRepeatKeysEnabled = true;
 
     private @ZoomDirection int mActiveZoomDirection = ZOOM_DIRECTION_IN;
@@ -385,12 +389,17 @@ public class MagnificationController implements MagnificationConnectionManager.C
 
     @Override
     public void onTouchInteractionStart(int displayId, int mode) {
-        handleUserInteractionChanged(displayId, mode);
+        handleUserInteractionChanged(displayId, mode, /* isMouse= */ false);
     }
 
     @Override
     public void onTouchInteractionEnd(int displayId, int mode) {
-        handleUserInteractionChanged(displayId, mode);
+        handleUserInteractionChanged(displayId, mode, /* isMouse= */ false);
+    }
+
+    @Override
+    public void onMouseMove(int displayId, int mode) {
+        handleUserInteractionChanged(displayId, mode, /* isMouse= */ true);
     }
 
     @Override
@@ -454,6 +463,39 @@ public class MagnificationController implements MagnificationConnectionManager.C
         mActivePanDirections = new boolean[]{false, false, false, false};
     }
 
+    @Override
+    public boolean isMagnificationActivated(int displayId) {
+        return isAnyMagnificationActivated(displayId);
+    }
+
+    /**
+     * Return {@code true} if either full-screen magnification or window magnification is activated.
+     *
+     * @param displayId The logical display id
+     */
+    public boolean isAnyMagnificationActivated(int displayId) {
+        return mFullScreenMagnificationController.isActivated(displayId)
+                || getMagnificationConnectionManager().isWindowMagnifierEnabled(displayId);
+    }
+
+    /**
+     * Perform the action to activate the fullscreen magnification and zoom in with persisted scale.
+     *
+     * @param displayId The logical display id
+     */
+    public void zoomInFullScreenMagnification(int displayId) {
+        final float scale = mFullScreenMagnificationController.getPersistedScale(displayId);
+        mFullScreenMagnificationController.setScaleAndCenter(
+                displayId,
+                scale,
+                Float.NaN,
+                Float.NaN,
+                /* animate= */ true,
+                AccessibilityManagerService.MAGNIFICATION_GESTURE_HANDLER_ID);
+
+        // TODO: b/440359677 - Rename the method and add zoom in for window magnification.
+    }
+
     private void maybeContinuePan() {
         if (mActivePanDisplay == Display.INVALID_DISPLAY) {
             return;
@@ -493,10 +535,21 @@ public class MagnificationController implements MagnificationConnectionManager.C
         return mInitialKeyboardRepeatIntervalMs;
     }
 
-    private void handleUserInteractionChanged(int displayId, int mode) {
+    private void handleUserInteractionChanged(int displayId, int mode, boolean isMouse) {
         if (mMagnificationCapabilities != Settings.Secure.ACCESSIBILITY_MAGNIFICATION_MODE_ALL) {
             return;
         }
+
+        // Mouse events are always throttled. Touch events are throttled only when the flag is on.
+        if (isMouse || Flags.throttleMotionEventsForUiUpdate()) {
+            final long currentTime = mSystemClock.uptimeMillis();
+            if (currentTime - mLastMotionEventTriggeredUiChangeTime
+                    < AccessibilityUtils.MAGNIFICATION_HANDLE_UI_CHANGE_INTERVAL_MS) {
+                return;
+            }
+            mLastMotionEventTriggeredUiChangeTime = currentTime;
+        }
+
         updateMagnificationUIControls(displayId, mode);
     }
 
@@ -744,14 +797,20 @@ public class MagnificationController implements MagnificationConnectionManager.C
 
     @Override
     public void onRectangleOnScreenRequested(int displayId, int left, int top, int right,
-            int bottom) {
+            int bottom, int source) {
         WindowManagerInternal.AccessibilityControllerInternal.UiChangesForAccessibilityCallbacks
                 delegate;
         synchronized (mLock) {
             delegate = mAccessibilityCallbacksDelegateArray.get(displayId);
         }
         if (delegate != null) {
-            delegate.onRectangleOnScreenRequested(displayId, left, top, right, bottom);
+            if (android.view.accessibility.Flags.requestRectangleWithSource()) {
+                delegate.onRectangleOnScreenRequested(displayId, left, top, right, bottom, source);
+            } else {
+                delegate.onRectangleOnScreenRequested(displayId, left, top, right, bottom,
+                        View.RECTANGLE_ON_SCREEN_REQUEST_SOURCE_UNDEFINED);
+            }
+
         }
     }
 
@@ -1029,6 +1088,16 @@ public class MagnificationController implements MagnificationConnectionManager.C
     public void setMagnificationFollowTypingEnabled(boolean enabled) {
         getMagnificationConnectionManager().setMagnificationFollowTypingEnabled(enabled);
         getFullScreenMagnificationController().setMagnificationFollowTypingEnabled(enabled);
+    }
+
+    /**
+     * Called when the following keyboard focus feature is switched.
+     *
+     * @param enabled Enable the following keyboard focus feature
+     */
+    public void setMagnificationFollowKeyboardEnabled(boolean enabled) {
+        getMagnificationConnectionManager().setMagnificationFollowKeyboardEnabled(enabled);
+        getFullScreenMagnificationController().setMagnificationFollowKeyboardEnabled(enabled);
     }
 
     /**

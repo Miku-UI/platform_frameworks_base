@@ -45,27 +45,22 @@ import android.os.IBinder;
 import android.os.ResultReceiver;
 import android.os.ShellCallback;
 import android.util.Slog;
-import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.view.inputmethod.CursorAnchorInfo;
 import android.view.inputmethod.EditorInfo;
-import android.view.inputmethod.ImeTracker;
 import android.view.inputmethod.InputMethodInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.view.inputmethod.InputMethodSubtype;
-import android.window.ImeOnBackInvokedDispatcher;
 
-import com.android.internal.annotations.GuardedBy;
 import com.android.internal.inputmethod.DirectBootAwareness;
 import com.android.internal.inputmethod.IBooleanListener;
 import com.android.internal.inputmethod.IConnectionlessHandwritingCallback;
 import com.android.internal.inputmethod.IImeTracker;
 import com.android.internal.inputmethod.IInputMethodClient;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
-import com.android.internal.inputmethod.InputBindResult;
 import com.android.internal.inputmethod.InputMethodInfoSafeList;
-import com.android.internal.inputmethod.SoftInputShowHideReason;
 import com.android.internal.inputmethod.StartInputFlags;
 import com.android.internal.inputmethod.StartInputReason;
 import com.android.internal.util.FunctionalUtils.ThrowingRunnable;
@@ -77,22 +72,16 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
 
 /**
  * A proxy that processes all {@link IInputMethodManager} calls asynchronously.
  */
 final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
 
-    interface Callback extends IInputMethodManagerImpl.Callback {
-        @GuardedBy("ImfLock.class")
-        ClientState getClientStateLocked(IInputMethodClient client);
-    }
-
-    private final Callback mInner;
+    private final IInputMethodManagerImpl.Callback mInner;
     private final Executor mExecutor;
 
-    ZeroJankProxy(Executor executor, Callback inner) {
+    ZeroJankProxy(Executor executor, IInputMethodManagerImpl.Callback inner) {
         mInner = inner;
         mExecutor = executor;
     }
@@ -173,51 +162,6 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
     }
 
     @Override
-    public boolean showSoftInput(IInputMethodClient client, IBinder windowToken,
-            @Nullable ImeTracker.Token statsToken, @InputMethodManager.ShowFlags int flags,
-            @MotionEvent.ToolType int lastClickToolType, ResultReceiver resultReceiver,
-            @SoftInputShowHideReason int reason, boolean async) {
-
-        if (async) {
-            offload(() -> mInner.showSoftInput(
-                    client, windowToken, statsToken, flags, lastClickToolType, resultReceiver,
-                    reason, async));
-            return true;
-        } else {
-            final var future = CompletableFuture.supplyAsync(
-                    () -> mInner.showSoftInput(
-                            client,
-                            windowToken,
-                            statsToken,
-                            flags,
-                            lastClickToolType,
-                            resultReceiver,
-                            reason,
-                            async),
-                    this::offload);
-            return future.completeOnTimeout(false, 1, TimeUnit.SECONDS).join();
-        }
-    }
-
-    @Override
-    public boolean hideSoftInput(IInputMethodClient client, IBinder windowToken,
-            @Nullable ImeTracker.Token statsToken, @InputMethodManager.HideFlags int flags,
-            ResultReceiver resultReceiver, @SoftInputShowHideReason int reason, boolean async) {
-
-        if (async) {
-            offload(() -> mInner.hideSoftInput(
-                    client, windowToken, statsToken, flags, resultReceiver, reason, async));
-            return true;
-        } else {
-            final var future = CompletableFuture.supplyAsync(
-                    () -> mInner.hideSoftInput(
-                            client, windowToken, statsToken, flags, resultReceiver, reason, async),
-                    this::offload);
-            return future.completeOnTimeout(false, 1, TimeUnit.SECONDS).join();
-        }
-    }
-
-    @Override
     @IInputMethodManagerImpl.PermissionVerified(Manifest.permission.TEST_INPUT_METHOD)
     public void hideSoftInputFromServerForTest() {
         mInner.hideSoftInputFromServerForTest();
@@ -225,59 +169,28 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
 
     @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS_FULL)
     @Override
-    public void startInputOrWindowGainedFocusAsync(
-            @StartInputReason int startInputReason,
-            IInputMethodClient client, IBinder windowToken,
-            @StartInputFlags int startInputFlags,
+    public void startInputOrWindowGainedFocus(
+            @StartInputReason int startInputReason, @NonNull IInputMethodClient client,
+            @Nullable IBinder windowToken, @StartInputFlags int startInputFlags,
             @WindowManager.LayoutParams.SoftInputModeFlags int softInputMode,
-            int windowFlags, @Nullable EditorInfo editorInfo,
-            IRemoteInputConnection inputConnection,
-            IRemoteAccessibilityInputConnection remoteAccessibilityInputConnection,
+            @WindowManager.LayoutParams.Flags int windowFlags, @Nullable EditorInfo editorInfo,
+            @Nullable IRemoteInputConnection inputConnection,
+            @Nullable IRemoteAccessibilityInputConnection remoteAccessibilityInputConnection,
+            @Nullable IRemoteComputerControlInputConnection remoteComputerControlInputConnection,
             int unverifiedTargetSdkVersion, @UserIdInt int userId,
-            @NonNull ImeOnBackInvokedDispatcher imeDispatcher, boolean imeRequestedVisible,
-            int startInputSeq, boolean useAsyncShowHideMethod) {
-        offload(() -> {
-            InputBindResult result = mInner.startInputOrWindowGainedFocus(startInputReason, client,
-                    windowToken, startInputFlags, softInputMode, windowFlags,
-                    editorInfo,
-                    inputConnection, remoteAccessibilityInputConnection,
-                    unverifiedTargetSdkVersion,
-                    userId, imeDispatcher, imeRequestedVisible);
-            sendOnStartInputResult(client, result, startInputSeq);
-            // For first-time client bind, MSG_BIND should arrive after MSG_START_INPUT_RESULT.
-            if (result.result == InputBindResult.ResultCode.SUCCESS_WAITING_IME_SESSION) {
-                InputMethodManagerService imms = ((InputMethodManagerService) mInner);
-                synchronized (ImfLock.class) {
-                    ClientState cs = imms.getClientStateLocked(client);
-                    if (cs != null) {
-                        imms.requestClientSessionLocked(cs, userId);
-                        imms.requestClientSessionForAccessibilityLocked(cs);
-                    }
-                }
-            }
-        });
-    }
-
-    @RequiresPermission(android.Manifest.permission.INTERACT_ACROSS_USERS_FULL)
-    @Override
-    public InputBindResult startInputOrWindowGainedFocus(
-            @StartInputReason int startInputReason,
-            IInputMethodClient client, IBinder windowToken,
-            @StartInputFlags int startInputFlags,
-            @WindowManager.LayoutParams.SoftInputModeFlags int softInputMode,
-            int windowFlags, @Nullable EditorInfo editorInfo,
-            IRemoteInputConnection inputConnection,
-            IRemoteAccessibilityInputConnection remoteAccessibilityInputConnection,
-            int unverifiedTargetSdkVersion, @UserIdInt int userId,
-            @NonNull ImeOnBackInvokedDispatcher imeDispatcher, boolean imeRequestedVisible) {
-        // Should never be called when flag is enabled i.e. when this proxy is used.
-        return null;
+            @NonNull ResultReceiver imeBackCallbackReceiver, boolean imeRequestedVisible,
+            int startInputSeq) {
+        offload(() -> mInner.startInputOrWindowGainedFocus(startInputReason, client,
+                windowToken, startInputFlags, softInputMode, windowFlags, editorInfo,
+                inputConnection, remoteAccessibilityInputConnection,
+                remoteComputerControlInputConnection, unverifiedTargetSdkVersion, userId,
+                imeBackCallbackReceiver, imeRequestedVisible, startInputSeq));
     }
 
     @Override
     public void showInputMethodPickerFromClient(IInputMethodClient client,
             int auxiliarySubtypeMode) {
-        offload(() -> mInner.showInputMethodPickerFromClient(client, auxiliarySubtypeMode));
+        mInner.showInputMethodPickerFromClient(client, auxiliarySubtypeMode);
     }
 
     @IInputMethodManagerImpl.PermissionVerified(allOf = {
@@ -331,27 +244,13 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
     }
 
     @Override
-    public void reportPerceptibleAsync(@NonNull IBinder windowToken, boolean perceptible) {
-        // Already async TODO(b/293640003): ordering issues?
-        mInner.reportPerceptibleAsync(windowToken, perceptible);
-    }
-
-    @IInputMethodManagerImpl.PermissionVerified(allOf = {
-            Manifest.permission.INTERACT_ACROSS_USERS_FULL,
-            Manifest.permission.INTERNAL_SYSTEM_WINDOW})
-    @Override
-    public void removeImeSurface(int displayId) {
-        mInner.removeImeSurface(displayId);
+    public void reportPerceptible(@NonNull IBinder windowToken, boolean perceptible) {
+        mInner.reportPerceptible(windowToken, perceptible);
     }
 
     @Override
-    public void removeImeSurfaceFromWindowAsync(IBinder windowToken) {
-        mInner.removeImeSurfaceFromWindowAsync(windowToken);
-    }
-
-    @Override
-    public void startProtoDump(byte[] bytes, int i, String s) {
-        mInner.startProtoDump(bytes, i, s);
+    public void removeImeSurfaceFromWindow(@NonNull IBinder windowToken) {
+        mInner.removeImeSurfaceFromWindow(windowToken);
     }
 
     @Override
@@ -445,6 +344,13 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
         mInner.setStylusWindowIdleTimeoutForTest(client, timeout);
     }
 
+    @IInputMethodManagerImpl.PermissionVerified("android.permission.TEST_INPUT_METHOD")
+    @Override
+    public void setAllowedImesByPolicyForTest(
+            IInputMethodClient client, @NonNull List<String> allowedPackages) {
+        mInner.setAllowedImesByPolicyForTest(client, allowedPackages);
+    }
+
     @Override
     public IImeTracker getImeTrackerService() {
         return mInner.getImeTrackerService();
@@ -462,21 +368,6 @@ final class ZeroJankProxy implements IInputMethodManagerImpl.Callback {
     public void dump(@NonNull FileDescriptor fd, @NonNull PrintWriter fout,
             @Nullable String[] args) {
         mInner.dump(fd, fout, args);
-    }
-
-    private void sendOnStartInputResult(
-            IInputMethodClient client, InputBindResult res, int startInputSeq) {
-        synchronized (ImfLock.class) {
-            final ClientState cs = mInner.getClientStateLocked(client);
-            if (cs != null) {
-                cs.mClient.onStartInputResult(res, startInputSeq);
-            } else {
-                // client is unbound.
-                Slog.i(TAG, "Client that requested startInputOrWindowGainedFocus is no longer"
-                        + " bound. InputBindResult: " + res + " for startInputSeq: "
-                        + startInputSeq);
-            }
-        }
     }
 }
 

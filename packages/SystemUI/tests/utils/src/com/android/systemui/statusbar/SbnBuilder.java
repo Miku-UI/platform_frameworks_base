@@ -19,10 +19,12 @@ package com.android.systemui.statusbar;
 import android.annotation.Nullable;
 import android.app.Notification;
 import android.content.Context;
+import android.graphics.drawable.Icon;
 import android.os.UserHandle;
 import android.service.notification.StatusBarNotification;
 
 import com.android.internal.logging.InstanceId;
+import com.android.systemui.res.R;
 
 /**
  * Convenience builder for {@link StatusBarNotification} since its constructor is terrifying.
@@ -47,6 +49,11 @@ public class SbnBuilder {
     public SbnBuilder() {
     }
 
+    public SbnBuilder(Context context) {
+        mPkg = context.getPackageName();
+        mOpPkg = context.getOpPackageName();
+    }
+
     public SbnBuilder(StatusBarNotification source) {
         mPkg = source.getPackageName();
         mOpPkg = source.getOpPkg();
@@ -69,6 +76,7 @@ public class SbnBuilder {
             notification = mNotification;
         } else {
             notification = new Notification();
+            notification.setSmallIcon(Icon.createWithResource("android", R.drawable.ic_android));
         }
 
         if (mBubbleMetadata != null) {

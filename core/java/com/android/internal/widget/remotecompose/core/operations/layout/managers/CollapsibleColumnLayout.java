@@ -169,8 +169,7 @@ public class CollapsibleColumnLayout extends ColumnLayout {
             boolean verticalWrap,
             @NonNull MeasurePass measure,
             @NonNull Size size) {
-        computeVisibleChildren(
-                context, maxWidth, maxHeight, horizontalWrap, verticalWrap, measure, size);
+        computeVisibleChildren(context, maxWidth, maxHeight, verticalWrap, measure, size);
     }
 
     @Override
@@ -181,7 +180,7 @@ public class CollapsibleColumnLayout extends ColumnLayout {
             float minHeight,
             float maxHeight,
             @NonNull MeasurePass measure) {
-        computeVisibleChildren(context, maxWidth, maxHeight, false, false, measure, null);
+        computeVisibleChildren(context, maxWidth, maxHeight, false, measure, null);
     }
 
     @Override
@@ -190,14 +189,13 @@ public class CollapsibleColumnLayout extends ColumnLayout {
         super.internalLayoutMeasure(context, measure);
         // Check again for visibility
         ComponentMeasure m = measure.get(this);
-        computeVisibleChildren(context, m.getW(), m.getH(), false, false, measure, null);
+        computeVisibleChildren(context, m.getW(), m.getH(), false, measure, null);
     }
 
     private void computeVisibleChildren(
             @NonNull PaintContext context,
             float maxWidth,
             float maxHeight,
-            boolean horizontalWrap,
             boolean verticalWrap,
             @NonNull MeasurePass measure,
             @Nullable Size size) {

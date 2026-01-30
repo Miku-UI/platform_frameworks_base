@@ -18,6 +18,8 @@ package com.android.systemui.accessibility;
 
 import static android.view.WindowManager.LayoutParams;
 
+import static com.android.window.flags.Flags.scvhSurfaceControlLifetimeFix;
+
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ObjectAnimator;
@@ -55,7 +57,6 @@ import androidx.annotation.UiThread;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.policy.ScreenDecorationsUtils;
-import com.android.systemui.Flags;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.res.R;
 import com.android.systemui.util.leak.RotationUtils;
@@ -76,6 +77,9 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
     private final IWindowManager mIWindowManager;
     private Supplier<SurfaceControlViewHost> mScvhSupplier;
     private SurfaceControlViewHost mSurfaceControlViewHost = null;
+    /**
+     * The SurfaceControl provided by SurfaceControlViewHost.
+     */
     private SurfaceControl mBorderSurfaceControl = null;
     private Rect mWindowBounds;
     private SurfaceControl.Transaction mTransaction;
@@ -103,6 +107,7 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
     private final DisplayManager mDisplayManager;
     private final DisplayManager.DisplayListener mDisplayListener;
     private String mCurrentDisplayUniqueId;
+    private boolean mShouldAttachOverlay = true;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef({
@@ -277,13 +282,17 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
     void cleanUpBorder() {
         mContext.unregisterComponentCallbacks(this);
 
-        if (Flags.updateCornerRadiusOnDisplayChanged()) {
-            mDisplayManager.unregisterDisplayListener(mDisplayListener);
-        }
+        mDisplayManager.unregisterDisplayListener(mDisplayListener);
 
         if (mSurfaceControlViewHost != null) {
             mSurfaceControlViewHost.release();
             mSurfaceControlViewHost = null;
+        }
+
+        if (mBorderSurfaceControl != null) {
+            mTransaction.reparent(mBorderSurfaceControl, null).apply();
+            mBorderSurfaceControl.release();
+            mBorderSurfaceControl = null;
         }
 
         if (mFullscreenBorder != null) {
@@ -300,6 +309,7 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
                 Log.w(TAG, "Failed to remove rotation watcher", e);
             }
         }
+        mShouldAttachOverlay = true; // After cleanup, a new creation will need to attach.
         setState(DISABLED);
     }
 
@@ -344,9 +354,9 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
             } catch (Exception e) {
                 Log.w(TAG, "Failed to register rotation watcher", e);
             }
-            if (Flags.updateCornerRadiusOnDisplayChanged()) {
-                applyCornerRadiusToBorder();
-            }
+            applyCornerRadiusToBorder();
+            // A new SurfaceControl was created, so attachment is necessary.
+            mShouldAttachOverlay = true;
         }
 
         mTransaction
@@ -364,11 +374,15 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
                 .show(mBorderSurfaceControl)
                 .apply();
 
-        mAccessibilityManager.attachAccessibilityOverlayToDisplay(
-                mDisplayId, mBorderSurfaceControl);
-        if (Flags.updateCornerRadiusOnDisplayChanged()) {
-            mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
+        if (mShouldAttachOverlay) {
+            // Only attach if deemed necessary
+            mAccessibilityManager.attachAccessibilityOverlayToDisplay(mDisplayId,
+                    mBorderSurfaceControl);
+            if (scvhSurfaceControlLifetimeFix()) {
+                mShouldAttachOverlay = false;
+            }
         }
+        mDisplayManager.registerDisplayListener(mDisplayListener, mHandler);
 
         applyTouchableRegion();
     }
@@ -426,11 +440,9 @@ public class FullscreenMagnificationController implements ComponentCallbacks {
             final int newWidth = mWindowBounds.width() + 2 * mBorderOffset;
             final int newHeight = mWindowBounds.height() + 2 * mBorderOffset;
             mSurfaceControlViewHost.relayout(newWidth, newHeight);
-            if (Flags.updateCornerRadiusOnDisplayChanged()) {
-                // Recenter the border
-                mTransaction.setPosition(
-                        mBorderSurfaceControl, -mBorderOffset, -mBorderOffset).apply();
-            }
+            // Recenter the border
+            mTransaction.setPosition(
+                    mBorderSurfaceControl, -mBorderOffset, -mBorderOffset).apply();
         }
 
         // Rotating from Landscape to ReverseLandscape will not trigger the config changes in

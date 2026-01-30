@@ -17,6 +17,7 @@
 package com.android.internal.os;
 
 import android.annotation.Nullable;
+import android.app.job.JobParameters;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
@@ -28,17 +29,17 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
-
 /**
  * The DebugStore class provides methods for recording various debug events related to service
  * lifecycle, broadcast receivers and others.
- * The DebugStore class facilitates debugging ANR issues by recording time-stamped events
- * related to service lifecycles, broadcast receivers, and other framework operations. It logs
- * the start and end times of operations within the ANR timer scope called  by framework,
- * enabling pinpointing of methods and events contributing to ANRs.
  *
- * Usage currently includes recording service starts, binds, and asynchronous operations initiated
- * by broadcast receivers, providing a granular view of system behavior that facilitates
+ * <p>The DebugStore class facilitates debugging ANR issues by recording time-stamped events related
+ * to service lifecycles, broadcast receivers, and other framework operations. It logs the start and
+ * end times of operations within the ANR timer scope called by framework, enabling pinpointing of
+ * methods and events contributing to ANRs.
+ *
+ * <p>Usage currently includes recording service starts, binds, and asynchronous operations
+ * initiated by broadcast receivers, providing a granular view of system behavior that facilitates
  * identifying performance bottlenecks and optimizing issue resolution.
  *
  * @hide
@@ -54,74 +55,204 @@ public class DebugStore {
     public static void setDebugStoreNative(DebugStoreNative nativeImpl) {
         sDebugStoreNative = nativeImpl;
     }
+
+    /**
+     * Records the scheduling of a service start.
+     *
+     * @param msgId The object id of the looper message payload.
+     * @param intent The Intent associated with the service start.
+     */
+    @UnsupportedAppUsage
+    public static void recordScheduleServiceStart(int msgId, @Nullable Intent intent) {
+        sDebugStoreNative.recordEvent(
+                "SchSvcStart",
+                List.of(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        intentAct(intent),
+                        "cmp",
+                        intentCmp(intent),
+                        "mid",
+                        Integer.toHexString(msgId)));
+    }
+
     /**
      * Records the start of a service.
      *
-     * @param startId The start ID of the service.
-     * @param flags Additional flags for the service start.
-     * @param intent The Intent associated with the service start.
+     * @param msgId The object id of the looper message payload.
      * @return A unique ID for the recorded event.
      */
     @UnsupportedAppUsage
-    public static long recordServiceOnStart(int startId, int flags, @Nullable Intent intent) {
-        return sDebugStoreNative.beginEvent(
-                "SvcStart",
+    public static long recordServiceStart(int msgId) {
+        return sDebugStoreNative.beginEvent("SvcStart", List.of("mid", Integer.toHexString(msgId)));
+    }
+
+    /**
+     * Records the scheduling of a service creation.
+     *
+     * @param msgId The object id of the looper message payload.
+     * @param serviceInfo Information about the service being created.
+     */
+    @UnsupportedAppUsage
+    public static void recordScheduleServiceCreate(int msgId, @Nullable ServiceInfo serviceInfo) {
+        sDebugStoreNative.recordEvent(
+                "SchSvcCreate",
                 List.of(
-                        "stId",
-                        String.valueOf(startId),
-                        "flg",
-                        Integer.toHexString(flags),
-                        "act",
-                        Objects.toString(intent != null ? intent.getAction() : null),
-                        "comp",
-                        Objects.toString(intent != null ? intent.getComponent() : null),
-                        "pkg",
-                        Objects.toString(intent != null ? intent.getPackage() : null)));
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "name",
+                        Objects.toString(serviceInfo != null ? serviceInfo.name : null),
+                        "mid",
+                        Integer.toHexString(msgId)));
     }
 
     /**
      * Records the creation of a service.
      *
-     * @param serviceInfo Information about the service being created.
+     * @param msgId The object id of the looper message payload.
      * @return A unique ID for the recorded event.
      */
     @UnsupportedAppUsage
-    public static long recordServiceCreate(@Nullable ServiceInfo serviceInfo) {
+    public static long recordServiceCreate(int msgId) {
         return sDebugStoreNative.beginEvent(
-                "SvcCreate",
+                "SvcCreate", List.of("mid", Integer.toHexString(msgId)));
+    }
+
+    /**
+     * Records the scheduling of a service bind.
+     *
+     * @param msgId The object id of the looper message payload.
+     * @param intent The Intent associated with the service bind.
+     */
+    @UnsupportedAppUsage
+    public static void recordScheduleServiceBind(int msgId, @Nullable Intent intent) {
+        sDebugStoreNative.recordEvent(
+                "SchSvcBind",
                 List.of(
-                        "name",
-                        Objects.toString(serviceInfo != null ? serviceInfo.name : null),
-                        "pkg",
-                        Objects.toString(serviceInfo != null ? serviceInfo.packageName : null)));
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        intentAct(intent),
+                        "cmp",
+                        intentCmp(intent),
+                        "mid",
+                        Integer.toHexString(msgId)));
     }
 
     /**
      * Records the binding of a service.
      *
-     * @param isRebind Indicates whether the service is being rebound.
-     * @param intent The Intent associated with the service binding.
+     * @param msgId The object id of the looper message payload.
      * @return A unique identifier for the recorded event.
      */
     @UnsupportedAppUsage
-    public static long recordServiceBind(boolean isRebind, @Nullable Intent intent) {
-        return sDebugStoreNative.beginEvent(
-                "SvcBind",
+    public static long recordServiceBind(int msgId) {
+        return sDebugStoreNative.beginEvent("SvcBind", List.of("mid", Integer.toHexString(msgId)));
+    }
+
+    /**
+     * Records the scheduling of a (manifest-declared) broadcast receiver.
+     *
+     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
+     * @param intent The Intent associated with the broadcast.
+     */
+    @UnsupportedAppUsage
+    public static void recordScheduleBroadcastReceive(
+            int pendingResultId, @Nullable Intent intent) {
+        sDebugStoreNative.recordEvent(
+                "SchRcv",
                 List.of(
-                        "rebind",
-                        String.valueOf(isRebind),
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
                         "act",
                         Objects.toString(intent != null ? intent.getAction() : null),
                         "cmp",
-                        Objects.toString(intent != null ? intent.getComponent() : null),
-                        "pkg",
-                        Objects.toString(intent != null ? intent.getPackage() : null)));
+                        intentCmp(intent),
+                        "prid",
+                        Integer.toHexString(pendingResultId)));
+    }
+
+    /**
+     * Records the running of a (manifest-declared) broadcast receiver.
+     *
+     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
+     * @param receiverClass The class name of the receiver.
+     * @return A unique ID for the recorded event.
+     */
+    @UnsupportedAppUsage
+    public static long recordBroadcastReceive(int pendingResultId, String receiverClass) {
+        return sDebugStoreNative.beginEvent(
+                "Rcv",
+                List.of(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "cls",
+                        Objects.toString(receiverClass),
+                        "prid",
+                        Integer.toHexString(pendingResultId)));
+    }
+
+    /**
+     * Records the scheduling of a (context-registered) broadcast receiver.
+     *
+     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
+     * @param intent The Intent associated with the broadcast.
+     */
+    @UnsupportedAppUsage
+    public static void recordScheduleBroadcastReceiveReg(
+            int pendingResultId, @Nullable Intent intent) {
+        sDebugStoreNative.recordEvent(
+                "SchRcvReg",
+                List.of(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "act",
+                        intentAct(intent),
+                        "cmp",
+                        intentCmp(intent),
+                        "prid",
+                        Integer.toHexString(pendingResultId)));
+    }
+
+    /**
+     * Records the running of a (context-registered) broadcast receiver.
+     *
+     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
+     * @param receiverClass The class name of the receiver.
+     * @return A unique ID for the recorded event.
+     */
+    @UnsupportedAppUsage
+    public static long recordBroadcastReceiveReg(int pendingResultId, String receiverClass) {
+        return sDebugStoreNative.beginEvent(
+                "RcvReg",
+                List.of(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "cls",
+                        Objects.toString(receiverClass),
+                        "prid",
+                        Integer.toHexString(pendingResultId)));
     }
 
     /**
      * Records an asynchronous operation initiated by a broadcast receiver through calling GoAsync.
      *
-     * @param receiverClassName The class name of the broadcast receiver.
+     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
      */
     @UnsupportedAppUsage
     public static void recordGoAsync(int pendingResultId) {
@@ -139,7 +270,7 @@ public class DebugStore {
     /**
      * Records the completion of a broadcast operation through calling Finish.
      *
-     * @param receiverClassName The class of the broadcast receiver that completed the operation.
+     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
      */
     @UnsupportedAppUsage
     public static void recordFinish(int pendingResultId) {
@@ -154,6 +285,92 @@ public class DebugStore {
                         Integer.toHexString(pendingResultId)));
     }
 
+    /** Records the scheduling of an application bind. */
+    @UnsupportedAppUsage
+    public static void recordScheduleBindApplication() {
+        sDebugStoreNative.recordEvent("SchBindApp", List.of());
+    }
+
+    /**
+     * Records the binding of an application.
+     *
+     * @return A unique ID for the recorded event.
+     */
+    @UnsupportedAppUsage
+    public static long recordBindApplication() {
+        return sDebugStoreNative.beginEvent("BindApp", List.of());
+    }
+
+    /**
+     * Records the scheduling of a job start.
+     *
+     * @param msgId The object id of the looper message payload.
+     * @param jobId The ID of the job.
+     * @param jobNamespace The namespace of the job.
+     */
+    @UnsupportedAppUsage
+    public static void recordScheduleStartJob(int msgId, int jobId, @Nullable String jobNamespace) {
+        sDebugStoreNative.recordEvent(
+                "SchJobStart",
+                List.of(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "jobid",
+                        String.valueOf(jobId),
+                        "jobns",
+                        String.valueOf(jobNamespace),
+                        "mid",
+                        Integer.toHexString(msgId)));
+    }
+
+    /**
+     * Records the execution of a job.
+     *
+     * @param msgId The object id of the looper message payload.
+     * @return A unique ID for the recorded event.
+     */
+    @UnsupportedAppUsage
+    public static long recordStartJob(int msgId) {
+        return sDebugStoreNative.beginEvent("JobStart", List.of("mid", Integer.toHexString(msgId)));
+    }
+
+    /**
+     * Records the scheduling of a job stop.
+     *
+     * @param msgId The object id of the looper message payload.
+     * @param jobId The ID of the job.
+     * @param jobNamespace The namespace of the job.
+     */
+    @UnsupportedAppUsage
+    public static void recordScheduleStopJob(int msgId, int jobId, @Nullable String jobNamespace) {
+        sDebugStoreNative.recordEvent(
+                "SchJobStop",
+                List.of(
+                        "tname",
+                        Thread.currentThread().getName(),
+                        "tid",
+                        String.valueOf(Thread.currentThread().getId()),
+                        "jobid",
+                        String.valueOf(jobId),
+                        "jobns",
+                        String.valueOf(jobNamespace),
+                        "mid",
+                        Integer.toHexString(msgId)));
+    }
+
+    /**
+     * Records the stopping of a job.
+     *
+     * @param msgId The object id of the looper message payload.
+     * @return A unique ID for the recorded event.
+     */
+    @UnsupportedAppUsage
+    public static long recordStopJob(int msgId) {
+        return sDebugStoreNative.beginEvent("JobStop", List.of("mid", Integer.toHexString(msgId)));
+    }
+
     /**
      * Records the completion of a long-running looper message.
      *
@@ -162,8 +379,8 @@ public class DebugStore {
      * @param elapsedTimeMs The time that was taken to process the message, in milliseconds.
      */
     @UnsupportedAppUsage
-    public static void recordLongLooperMessage(int messageCode, String targetClass,
-            long elapsedTimeMs) {
+    public static void recordLongLooperMessage(
+            int messageCode, String targetClass, long elapsedTimeMs) {
         sDebugStoreNative.recordEvent(
                 "LooperMsg",
                 List.of(
@@ -173,96 +390,6 @@ public class DebugStore {
                         Objects.toString(targetClass),
                         "elapsed",
                         String.valueOf(elapsedTimeMs)));
-    }
-
-
-    /**
-     * Records the reception of a broadcast by a manifest-declared receiver.
-     *
-     * @param intent The Intent associated with the broadcast.
-     * @return A unique ID for the recorded event.
-     */
-    @UnsupportedAppUsage
-    public static long recordBroadcastReceive(@Nullable Intent intent, int pendingResultId) {
-        return sDebugStoreNative.beginEvent(
-                "BcRcv",
-                List.of(
-                        "tname",
-                        Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
-                        "act",
-                        Objects.toString(intent != null ? intent.getAction() : null),
-                        "cmp",
-                        Objects.toString(intent != null ? intent.getComponent() : null),
-                        "pkg",
-                        Objects.toString(intent != null ? intent.getPackage() : null),
-                        "prid",
-                        Integer.toHexString(pendingResultId)));
-    }
-
-    /**
-     * Records the reception of a broadcast by a context-registered receiver.
-     *
-     * @param intent The Intent associated with the broadcast.
-     * @param pendingResultId The object ID of the PendingResult associated with the broadcast.
-     * @return A unique ID for the recorded event.
-     */
-    @UnsupportedAppUsage
-    public static long recordBroadcastReceiveReg(@Nullable Intent intent, int pendingResultId) {
-        return sDebugStoreNative.beginEvent(
-                "BcRcvReg",
-                List.of(
-                        "tname",
-                        Thread.currentThread().getName(),
-                        "tid",
-                        String.valueOf(Thread.currentThread().getId()),
-                        "act",
-                        Objects.toString(intent != null ? intent.getAction() : null),
-                        "cmp",
-                        Objects.toString(intent != null ? intent.getComponent() : null),
-                        "pkg",
-                        Objects.toString(intent != null ? intent.getPackage() : null),
-                        "prid",
-                        Integer.toHexString(pendingResultId)));
-    }
-
-    /**
-     * Records the binding of an application.
-     *
-     * @return A unique ID for the recorded event.
-     */
-    @UnsupportedAppUsage
-    public static long recordHandleBindApplication() {
-        return sDebugStoreNative.beginEvent("BindApp", List.of());
-    }
-
-    /**
-     * Records the scheduling of a receiver.
-     *
-     * @return A unique ID for the recorded event.
-     */
-    @UnsupportedAppUsage
-    public static long recordScheduleReceiver() {
-        return sDebugStoreNative.beginEvent(
-                "SchRcv",
-                List.of(
-                        "tname", Thread.currentThread().getName(),
-                        "tid", String.valueOf(Thread.currentThread().getId())));
-    }
-
-    /**
-     * Records the scheduling of a registered receiver.
-     *
-     * @return A unique ID for the recorded event.
-     */
-    @UnsupportedAppUsage
-    public static long recordScheduleRegisteredReceiver() {
-        return sDebugStoreNative.beginEvent(
-                "SchRcvReg",
-                List.of(
-                        "tname", Thread.currentThread().getName(),
-                        "tid", String.valueOf(Thread.currentThread().getId())));
     }
 
     /**
@@ -275,26 +402,33 @@ public class DebugStore {
         sDebugStoreNative.endEvent(id, Collections.emptyList());
     }
 
+    private static String intentAct(@Nullable Intent intent) {
+        return Objects.toString(intent != null ? intent.getAction() : null);
+    }
+
+    private static String intentCmp(@Nullable Intent intent) {
+        return Objects.toString(
+                (intent != null && intent.getComponent() != null)
+                        ? intent.getComponent().flattenToShortString()
+                        : null);
+    }
+
     /**
-     * An interface for a class that acts as a wrapper for the static native methods
-     * of the Debug Store.
+     * An interface for a class that acts as a wrapper for the static native methods of the Debug
+     * Store.
      *
-     * It allows us to mock static native methods in our tests and should be removed
-     * once mocking static methods becomes easier.
+     * <p>It allows us to mock static native methods in our tests and should be removed once mocking
+     * static methods becomes easier.
      */
     @VisibleForTesting
     public interface DebugStoreNative {
-        /**
-         * Begins an event with the given name and attributes.
-         */
+        /** Begins an event with the given name and attributes. */
         long beginEvent(String eventName, List<String> attributes);
-        /**
-         * Ends an event with the given ID and attributes.
-         */
+
+        /** Ends an event with the given ID and attributes. */
         void endEvent(long id, List<String> attributes);
-        /**
-         * Records an event with the given name and attributes.
-         */
+
+        /** Records an event with the given name and attributes. */
         void recordEvent(String eventName, List<String> attributes);
     }
 
@@ -326,9 +460,7 @@ public class DebugStore {
             DebugStore.recordEventNative(eventName, attributes);
         }
 
-        /**
-         * Returns a string like "[key1=foo, key2=bar]"
-         */
+        /** Returns a string like "[key1=foo, key2=bar]" */
         private String attributeString(List<String> attributes) {
             StringBuilder sb = new StringBuilder().append("[");
 

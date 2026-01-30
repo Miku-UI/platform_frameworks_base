@@ -55,7 +55,6 @@ import com.android.internal.config.sysui.SystemUiDeviceConfigFlags.TASK_MANAGER_
 import com.android.internal.config.sysui.SystemUiDeviceConfigFlags.TASK_MANAGER_SHOW_USER_VISIBLE_JOBS
 import com.android.internal.jank.InteractionJankMonitor
 import com.android.systemui.Dumpable
-import com.android.systemui.Flags
 import com.android.systemui.animation.DialogCuj
 import com.android.systemui.animation.DialogTransitionAnimator
 import com.android.systemui.animation.Expandable
@@ -411,6 +410,10 @@ constructor(
                     newChangesSinceDialogWasDismissed = false
                     synchronized(lock) {
                         this.dialog = null
+                        // Adapters keep references to RV they're added to and
+                        // we need to explicitly clear that reference via setAdapter
+                        // to avoid a leak.
+                        recyclerView.adapter = null
                         updateAppItemsLocked()
                     }
                     onDialogDismissedListeners.forEach {
@@ -753,10 +756,8 @@ constructor(
                 }
             // If the app wants to be a good citizen by being stoppable, even if the category it
             // belongs to is exempted for background restriction, let it be stoppable by user.
-            if (Flags.stoppableFgsSystemApp()) {
-                if (isStoppableApp(packageName)) {
-                    uiControl = UIControl.NORMAL
-                }
+            if (isStoppableApp(packageName)) {
+                uiControl = UIControl.NORMAL
             }
 
             uiControlInitialized = true

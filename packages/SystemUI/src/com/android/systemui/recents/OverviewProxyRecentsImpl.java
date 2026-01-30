@@ -21,6 +21,7 @@ import android.os.Handler;
 import android.os.RemoteException;
 import android.util.Log;
 
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.dagger.SysUISingleton;
 import com.android.systemui.plugins.ActivityStarter;
 import com.android.systemui.shared.recents.ILauncherProxy;

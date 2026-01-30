@@ -20,10 +20,12 @@ import android.content.pm.ApplicationInfo.PRIVATE_FLAG_PRIVILEGED
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Process
+import android.platform.test.annotations.RequiresFlagsEnabled
 import android.util.Log
 import com.android.internal.pm.parsing.PackageParserException
 import com.android.server.pm.pkg.AndroidPackage
 import com.android.server.testutils.whenever
+import com.google.common.truth.Truth
 import java.io.File
 import org.hamcrest.MatcherAssert.assertThat
 import org.hamcrest.Matchers.equalTo
@@ -56,13 +58,40 @@ class PackageManagerServiceBootTest {
     }
 
     private fun createPackageManagerService(): PackageManagerService {
+        val sdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT
+        val sdkVersionFull = if (android.sdk.Flags.majorMinorVersioningScheme())
+            Build.parseFullVersion(sdkVersion.toString())
+        else
+            0
         return PackageManagerService(rule.mocks().injector,
                 false /*factoryTest*/,
                 MockSystem.DEFAULT_VERSION_INFO.fingerprint,
                 false /*isEngBuild*/,
                 false /*isUserDebugBuild*/,
+                sdkVersion,
+                Build.VERSION.INCREMENTAL,
+                sdkVersionFull)
+    }
+
+    @Test
+    @RequiresFlagsEnabled(android.sdk.Flags.FLAG_MAJOR_MINOR_VERSIONING_SCHEME)
+    fun sdkVersionNotMatched_throwException() {
+        try {
+            val pm = PackageManagerService(
+                rule.mocks().injector,
+                false /*factoryTest*/,
+                MockSystem.DEFAULT_VERSION_INFO.fingerprint,
+                false /*isEngBuild*/,
+                false /*isUserDebugBuild*/,
                 Build.VERSION_CODES.CUR_DEVELOPMENT,
-                Build.VERSION.INCREMENTAL)
+                Build.VERSION.INCREMENTAL,
+                0
+            )
+        } catch (e: Exception) {
+            // expected
+            Truth.assertThat(e.message).contains(
+                "don't match. Please check your build configurations!")
+        }
     }
 
     @Test

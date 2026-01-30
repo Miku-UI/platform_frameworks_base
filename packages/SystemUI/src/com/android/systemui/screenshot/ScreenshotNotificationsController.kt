@@ -24,7 +24,7 @@ import android.os.UserHandle
 import android.view.Display
 import com.android.internal.R
 import com.android.internal.messages.nano.SystemMessageProto
-import com.android.systemui.SystemUIApplication
+import com.android.systemui.statusbar.notification.NotificationUtils
 import com.android.systemui.util.NotificationChannels
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -81,11 +81,11 @@ internal constructor(
                     intent,
                     PendingIntent.FLAG_IMMUTABLE,
                     null,
-                    UserHandle.CURRENT
+                    UserHandle.CURRENT,
                 )
             builder.setContentIntent(pendingIntent)
         }
-        SystemUIApplication.overrideNotificationAppName(context, builder, true)
+        NotificationUtils.overrideNotificationAppName(context, builder, true)
         val notification = Notification.BigTextStyle(builder).bigText(errorMsg).build()
         // A different id for external displays to keep the 2 error notifications separated.
         val id =

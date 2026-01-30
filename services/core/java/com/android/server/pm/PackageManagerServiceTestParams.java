@@ -33,7 +33,6 @@ import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.content.om.OverlayConfig;
 import com.android.internal.pm.parsing.PackageParser2;
 import com.android.server.pm.dex.ArtManagerService;
-import com.android.server.pm.dex.DexManager;
 import com.android.server.pm.dex.DynamicCodeLogger;
 import com.android.server.pm.permission.LegacyPermissionManagerInternal;
 import com.android.server.pm.pkg.AndroidPackage;
@@ -50,7 +49,6 @@ public final class PackageManagerServiceTestParams {
     public @Nullable String configuratorPackage;
     public int defParseFlags;
     public DefaultAppProvider defaultAppProvider;
-    public DexManager dexManager;
     public DynamicCodeLogger dynamicCodeLogger;
     public List<ScanPartition> dirsToScanAsSystem;
     public boolean factoryTest;
@@ -66,6 +64,7 @@ public final class PackageManagerServiceTestParams {
     public boolean isPreNmr1Upgrade;
     public boolean isPreQupgrade;
     public int priorSdkVersion = -1;
+    public int priorSdkVersionFull = -1;
     public boolean isUpgrade;
     public LegacyPermissionManagerInternal legacyPermissionManagerInternal;
     public DisplayMetrics Metrics;
@@ -73,7 +72,6 @@ public final class PackageManagerServiceTestParams {
     public MovePackageHelper.MoveCallbacks moveCallbacks;
     public boolean onlyCore;
     public OverlayConfig overlayConfig;
-    public PackageDexOptimizer packageDexOptimizer;
     public PackageParser2.Callback packageParserCallback;
     public PendingPackageBroadcasts pendingPackageBroadcasts;
     public PackageManagerInternal pmInternal;
@@ -100,6 +98,7 @@ public final class PackageManagerServiceTestParams {
     public ComponentName resolveComponentName;
     public ArrayMap<String, AndroidPackage> packages;
     public int sdkVersion;
+    public int sdkVersionFull;
     public File appInstallDir;
     public File appLib32InstallDir;
     public boolean isEngBuild;
@@ -122,4 +121,6 @@ public final class PackageManagerServiceTestParams {
     public boolean shouldStopSystemPackagesByDefault;
     public FreeStorageHelper freeStorageHelper;
     public PackageMonitorCallbackHelper packageMonitorCallbackHelper;
+    public @Nullable ComponentName developerVerificationServiceProvider;
+    public @Nullable String developerVerificationPolicyDelegatePackage;
 }

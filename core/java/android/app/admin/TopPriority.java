@@ -55,7 +55,7 @@ public final class TopPriority<V> extends ResolutionMechanism<V> {
         int size = source.readInt();
         for (int i = 0; i < size; i++) {
             mHighestToLowestPriorityAuthorities.add(
-                    source.readParcelable(Authority.class.getClassLoader()));
+                    source.readParcelable(Authority.class.getClassLoader(), Authority.class));
         }
     }
 

@@ -164,7 +164,7 @@ class SettingsEntryTest {
         assertThat(entry2.isAllowSearch).isFalse()
 
         // Clear SppHome in spa environment
-        SpaEnvironmentFactory.reset()
+        SpaEnvironmentFactory.clear()
         val entry3 = entryBuilder.build()
         assertThat(entry3.id).isEqualTo(genEntryId("myEntry", owner))
         assertThat(entry3.label).isEqualTo("myEntryDisplay")

@@ -17,41 +17,29 @@
 package com.android.systemui.qs.tiles.impl.battery.domain.interactor
 
 import android.os.UserHandle
-import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.qs.tiles.base.domain.interactor.QSTileDataInteractor
 import com.android.systemui.qs.tiles.base.domain.model.DataUpdateTrigger
 import com.android.systemui.qs.tiles.impl.battery.domain.model.BatterySaverTileModel
-import com.android.systemui.statusbar.policy.BatteryController
-import com.android.systemui.util.kotlin.getBatteryLevel
-import com.android.systemui.util.kotlin.isBatteryPowerSaveEnabled
-import com.android.systemui.util.kotlin.isDevicePluggedIn
+import com.android.systemui.statusbar.pipeline.battery.data.repository.BatteryRepository
 import javax.inject.Inject
-import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.flowOn
 
 /** Observes BatterySaver mode state changes providing the [BatterySaverTileModel.Standard]. */
 open class BatterySaverTileDataInteractor
 @Inject
-constructor(
-    @Background private val bgCoroutineContext: CoroutineContext,
-    private val batteryController: BatteryController,
-) : QSTileDataInteractor<BatterySaverTileModel> {
+constructor(private val batteryRepository: BatteryRepository) :
+    QSTileDataInteractor<BatterySaverTileModel> {
 
     override fun tileData(
         user: UserHandle,
         triggers: Flow<DataUpdateTrigger>,
     ): Flow<BatterySaverTileModel> =
         combine(
-            batteryController.isDevicePluggedIn().distinctUntilChanged().flowOn(bgCoroutineContext),
-            batteryController
-                .isBatteryPowerSaveEnabled()
-                .distinctUntilChanged()
-                .flowOn(bgCoroutineContext),
-            batteryController.getBatteryLevel().distinctUntilChanged().flowOn(bgCoroutineContext),
+            batteryRepository.isPluggedIn,
+            batteryRepository.isPowerSaveEnabled,
+            batteryRepository.level,
         ) {
             isPluggedIn: Boolean,
             isPowerSaverEnabled: Boolean,

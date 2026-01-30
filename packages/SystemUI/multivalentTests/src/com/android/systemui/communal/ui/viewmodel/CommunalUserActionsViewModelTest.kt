@@ -23,12 +23,15 @@ import com.android.compose.animation.scene.UserActionResult
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.authentication.data.repository.fakeAuthenticationRepository
 import com.android.systemui.authentication.shared.model.AuthenticationMethodModel
-import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.domain.interactor.deviceUnlockedInteractor
 import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.shared.model.SuccessFingerprintAuthenticationStatus
+import com.android.systemui.kosmos.Kosmos
+import com.android.systemui.kosmos.collectLastValue
+import com.android.systemui.kosmos.runTest
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.kosmos.useUnconfinedTestDispatcher
 import com.android.systemui.lifecycle.activateIn
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAsleepForTest
 import com.android.systemui.power.domain.interactor.PowerInteractor.Companion.setAwakeForTest
@@ -43,9 +46,6 @@ import com.android.systemui.shade.domain.interactor.enableSplitShade
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
-import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.runner.RunWith
 
@@ -54,22 +54,22 @@ import org.junit.runner.RunWith
 @EnableSceneContainer
 class CommunalUserActionsViewModelTest : SysuiTestCase() {
 
-    private val kosmos = testKosmos()
-    private val testScope = kosmos.testScope
+    private val kosmos = testKosmos().useUnconfinedTestDispatcher()
 
-    private lateinit var underTest: CommunalUserActionsViewModel
+    private val underTest: CommunalUserActionsViewModel by lazy {
+        kosmos.communalUserActionsViewModel
+    }
 
     @Before
     fun setUp() {
-        underTest = kosmos.communalUserActionsViewModel
-        underTest.activateIn(testScope)
+        underTest.activateIn(kosmos.testScope)
     }
 
     @Test
     fun actions_singleShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val actions by collectLastValue(underTest.actions)
-            kosmos.enableSingleShade()
+            enableSingleShade()
 
             setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
             assertThat(actions).isNotEmpty()
@@ -90,9 +90,9 @@ class CommunalUserActionsViewModelTest : SysuiTestCase() {
 
     @Test
     fun actions_splitShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val actions by collectLastValue(underTest.actions)
-            kosmos.enableSplitShade()
+            enableSplitShade()
 
             setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
             assertThat(actions).isNotEmpty()
@@ -115,9 +115,9 @@ class CommunalUserActionsViewModelTest : SysuiTestCase() {
 
     @Test
     fun actions_dualShade() =
-        testScope.runTest {
+        kosmos.runTest {
             val actions by collectLastValue(underTest.actions)
-            kosmos.enableDualShade()
+            enableDualShade()
 
             setUpState(isShadeTouchable = true, isDeviceUnlocked = false)
             assertThat(actions).isNotEmpty()
@@ -138,11 +138,11 @@ class CommunalUserActionsViewModelTest : SysuiTestCase() {
                 .isEqualTo(UserActionResult.ShowOverlay(Overlays.NotificationsShade))
         }
 
-    private fun TestScope.setUpState(isShadeTouchable: Boolean, isDeviceUnlocked: Boolean) {
+    private fun Kosmos.setUpState(isShadeTouchable: Boolean, isDeviceUnlocked: Boolean) {
         if (isShadeTouchable) {
-            kosmos.powerInteractor.setAwakeForTest()
+            powerInteractor.setAwakeForTest()
         } else {
-            kosmos.powerInteractor.setAsleepForTest()
+            powerInteractor.setAsleepForTest()
         }
 
         if (isDeviceUnlocked) {
@@ -150,28 +150,23 @@ class CommunalUserActionsViewModelTest : SysuiTestCase() {
         } else {
             lockDevice()
         }
-        runCurrent()
     }
 
-    private fun TestScope.lockDevice() {
-        val deviceUnlockStatus by
-            collectLastValue(kosmos.deviceUnlockedInteractor.deviceUnlockStatus)
+    private fun Kosmos.lockDevice() {
+        val deviceUnlockStatus by collectLastValue(deviceUnlockedInteractor.deviceUnlockStatus)
 
-        kosmos.fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
+        fakeAuthenticationRepository.setAuthenticationMethod(AuthenticationMethodModel.Pin)
         assertThat(deviceUnlockStatus?.isUnlocked).isFalse()
-        kosmos.sceneInteractor.changeScene(Scenes.Lockscreen, "reason")
-        runCurrent()
+        sceneInteractor.changeScene(Scenes.Lockscreen, "reason")
     }
 
-    private fun TestScope.unlockDevice() {
-        val deviceUnlockStatus by
-            collectLastValue(kosmos.deviceUnlockedInteractor.deviceUnlockStatus)
+    private fun Kosmos.unlockDevice() {
+        val deviceUnlockStatus by collectLastValue(deviceUnlockedInteractor.deviceUnlockStatus)
 
-        kosmos.fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
+        fakeDeviceEntryFingerprintAuthRepository.setAuthenticationStatus(
             SuccessFingerprintAuthenticationStatus(0, true)
         )
         assertThat(deviceUnlockStatus?.isUnlocked).isTrue()
-        kosmos.sceneInteractor.changeScene(Scenes.Gone, "reason")
-        runCurrent()
+        sceneInteractor.changeScene(Scenes.Gone, "reason")
     }
 }

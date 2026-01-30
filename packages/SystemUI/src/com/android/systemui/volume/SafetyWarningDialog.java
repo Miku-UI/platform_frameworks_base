@@ -116,7 +116,6 @@ abstract public class SafetyWarningDialog extends SystemUIDialog
             if (Intent.ACTION_CLOSE_SYSTEM_DIALOGS.equals(intent.getAction())) {
                 if (D.BUG) Log.d(TAG, "Received ACTION_CLOSE_SYSTEM_DIALOGS");
                 cancel();
-                cleanUp();
             }
         }
     };

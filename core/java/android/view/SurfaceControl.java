@@ -22,9 +22,9 @@ import static android.graphics.Matrix.MSKEW_X;
 import static android.graphics.Matrix.MSKEW_Y;
 import static android.graphics.Matrix.MTRANS_X;
 import static android.graphics.Matrix.MTRANS_Y;
-import static android.view.SurfaceControlProto.HASH_CODE;
-import static android.view.SurfaceControlProto.LAYER_ID;
-import static android.view.SurfaceControlProto.NAME;
+import static android.internal.perfetto.protos.Surfacecontrol.SurfaceControlProto.HASH_CODE;
+import static android.internal.perfetto.protos.Surfacecontrol.SurfaceControlProto.LAYER_ID;
+import static android.internal.perfetto.protos.Surfacecontrol.SurfaceControlProto.NAME;
 
 import android.Manifest;
 import android.annotation.CallbackExecutor;
@@ -46,10 +46,14 @@ import android.graphics.Matrix;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Region;
 import android.gui.BorderSettings;
+import android.gui.BoxShadowSettings;
 import android.gui.DropInputMode;
+import android.gui.EarlyWakeupInfo;
 import android.gui.StalledTransactionInfo;
+import android.gui.TransactionBarrier;
 import android.gui.TrustedOverlay;
 import android.hardware.DataSpace;
 import android.hardware.DisplayLuts;
@@ -68,6 +72,7 @@ import android.os.IBinder;
 import android.os.Looper;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.Trace;
 import android.util.ArrayMap;
 import android.util.Log;
 import android.util.Slog;
@@ -108,6 +113,8 @@ import java.util.function.Consumer;
  */
 public final class SurfaceControl implements Parcelable {
     private static final String TAG = "SurfaceControl";
+    private static final NativeProperties RELEASED_NATIVE_PROPERTIES =
+            new NativeProperties(0, "<released>", -1);
 
     private static native long nativeCreate(SurfaceSession session, String name,
             int w, int h, int format, int flags, long parentObject, Parcel metadata)
@@ -119,7 +126,7 @@ public final class SurfaceControl implements Parcelable {
     private static native void nativeDisconnect(long nativeObject);
     private static native void nativeUpdateDefaultBufferSize(long nativeObject, int width, int height);
 
-    private static native long nativeMirrorSurface(long mirrorOfObject);
+    private static native long nativeMirrorSurface(long mirrorOfObject, long stopAtObject);
     private static native long nativeCreateTransaction();
     private static native long nativeGetNativeTransactionFinalizer();
     private static native void nativeApplyTransaction(long transactionObj, boolean sync,
@@ -128,8 +135,8 @@ public final class SurfaceControl implements Parcelable {
             long otherTransactionObj);
     private static native void nativeClearTransaction(long transactionObj);
     private static native void nativeSetAnimationTransaction(long transactionObj);
-    private static native void nativeSetEarlyWakeupStart(long transactionObj);
-    private static native void nativeSetEarlyWakeupEnd(long transactionObj);
+    private static native void nativeSetEarlyWakeupStart(long transactionObj, Parcel request);
+    private static native void nativeSetEarlyWakeupEnd(long transactionObj, Parcel request);
     private static native long nativeGetTransactionId(long transactionObj);
 
     private static native void nativeSetLayer(long transactionObj, long nativeObject, int zorder);
@@ -162,10 +169,18 @@ public final class SurfaceControl implements Parcelable {
             float l, float t, float r, float b);
     private static native void nativeSetCornerRadius(long transactionObj, long nativeObject,
             float cornerRadius);
-    private static native void nativeSetClientDrawnCornerRadius(long transactionObj,
-            long nativeObject, float clientDrawnCornerRadius);
+    private static native void nativeSetCornerRadius(
+            long transactionObj, long nativeObject, float topLeft, float topRight,
+                                float bottomLeft, float bottomRight);
+    private static native void nativeSetClientDrawnCornerRadius(
+            long transactionObj, long nativeObject, float topLeft, float topRight,
+                                                float bottomLeft, float bottomRight,
+                                                float cropTop, float cropLeft,
+                                                float cropBottom, float cropRight);
     private static native void nativeSetBackgroundBlurRadius(long transactionObj, long nativeObject,
             int blurRadius);
+    private static native void nativeSetBackgroundBlurScale(long transactionObj, long nativeObject,
+            float blurScale);
     private static native void nativeSetLayerStack(long transactionObj, long nativeObject,
             int layerStack);
     private static native void nativeSetBlurRegions(long transactionObj, long nativeObj,
@@ -254,6 +269,7 @@ public final class SurfaceControl implements Parcelable {
             Parcel data);
     private static native void nativeAddWindowInfosReportedListener(long transactionObj,
             Runnable listener);
+    private static native void nativeAddTransactionBarrier(long transactionObj, Parcel barrier);
     private static native boolean nativeGetDisplayBrightnessSupport(IBinder displayToken);
     private static native boolean nativeSetDisplayBrightness(IBinder displayToken,
             float sdrBrightness, float sdrBrightnessNits, float displayBrightness,
@@ -262,6 +278,9 @@ public final class SurfaceControl implements Parcelable {
     private static native void nativeWriteTransactionToParcel(long nativeObject, Parcel out);
     private static native void nativeSetShadowRadius(long transactionObj, long nativeObject,
             float shadowRadius);
+
+    private static native void nativeSetBoxShadowSettings(long transactionObj, long nativeObject,
+            Parcel settings);
 
     private static native void nativeSetBorderSettings(long transactionObj, long nativeObject,
             Parcel settings);
@@ -327,6 +346,9 @@ public final class SurfaceControl implements Parcelable {
             long nativeObject, long pictureProfileId);
     private static native void nativeSetContentPriority(long transactionObj, long nativeObject,
             int priority);
+    private static native void nativeSetSystemContentPriority(
+            long transactionObj, long nativeObject, int priority);
+    private static native String nativeGetName(long nativeObject);
 
     /**
      * Transforms that can be applied to buffers as they are displayed to a window.
@@ -342,8 +364,8 @@ public final class SurfaceControl implements Parcelable {
             value = {BUFFER_TRANSFORM_IDENTITY, BUFFER_TRANSFORM_MIRROR_HORIZONTAL,
                     BUFFER_TRANSFORM_MIRROR_VERTICAL, BUFFER_TRANSFORM_ROTATE_90,
                     BUFFER_TRANSFORM_ROTATE_180, BUFFER_TRANSFORM_ROTATE_270,
-                    BUFFER_TRANSFORM_MIRROR_HORIZONTAL | BUFFER_TRANSFORM_ROTATE_90,
-                    BUFFER_TRANSFORM_MIRROR_VERTICAL | BUFFER_TRANSFORM_ROTATE_90})
+                    BUFFER_TRANSFORM_MIRROR_HORIZONTAL_ROTATE_90,
+                    BUFFER_TRANSFORM_MIRROR_VERTICAL_ROTATE_90})
     public @interface BufferTransform {
     }
 
@@ -375,14 +397,29 @@ public final class SurfaceControl implements Parcelable {
     public static final int BUFFER_TRANSFORM_ROTATE_90 = 0x04;
     /**
      * Rotate 180 degrees clock-wise. Cannot be combined with other transforms.
+     * Equivalent to ({@link #BUFFER_TRANSFORM_MIRROR_HORIZONTAL} |
+     *                {@link #BUFFER_TRANSFORM_MIRROR_VERTICAL}).
      */
-    public static final int BUFFER_TRANSFORM_ROTATE_180 =
-            BUFFER_TRANSFORM_MIRROR_HORIZONTAL | BUFFER_TRANSFORM_MIRROR_VERTICAL;
+    public static final int BUFFER_TRANSFORM_ROTATE_180 = 0x03;
     /**
      * Rotate 270 degrees clock-wise. Cannot be combined with other transforms.
+     * Equivalent to ({@link #BUFFER_TRANSFORM_ROTATE_180} | {@link #BUFFER_TRANSFORM_ROTATE_90}).
      */
-    public static final int BUFFER_TRANSFORM_ROTATE_270 =
-            BUFFER_TRANSFORM_ROTATE_180 | BUFFER_TRANSFORM_ROTATE_90;
+    public static final int BUFFER_TRANSFORM_ROTATE_270 = 0x07;
+    /**
+     * Mirror horizontally and rotate 90 degrees clock-wise.
+     * Equivalent to ({@link #BUFFER_TRANSFORM_MIRROR_HORIZONTAL} |
+     *                {@link #BUFFER_TRANSFORM_ROTATE_90}).
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_ADD_SURFACECONTROL_CONSTANTS)
+    public static final int BUFFER_TRANSFORM_MIRROR_HORIZONTAL_ROTATE_90 = 0x05;
+    /**
+     * Mirror vertically and rotate 90 degrees clock-wise.
+     * Equivalent to ({@link #BUFFER_TRANSFORM_MIRROR_VERTICAL} |
+     *                {@link #BUFFER_TRANSFORM_ROTATE_90}).
+     */
+    @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_ADD_SURFACECONTROL_CONSTANTS)
+    public static final int BUFFER_TRANSFORM_MIRROR_VERTICAL_ROTATE_90 = 0x06;
 
     /**
      * @hide
@@ -655,16 +692,32 @@ public final class SurfaceControl implements Parcelable {
         }
     }
 
+    /**
+     * Cache SurfaceControl properties for easy rerieval. Cache is updated everytime
+     * native object changes.
+     */
+    private static class NativeProperties {
+        public final long nativeHandle;
+        public final String name;
+        public final int layerId;
+
+        NativeProperties(long nativeHandle, String name, int layerId) {
+            this.nativeHandle = nativeHandle;
+            this.name = name;
+            this.layerId = layerId;
+        }
+    }
+
+
     private final CloseGuard mCloseGuard = CloseGuard.get();
-    private String mName;
+    private NativeProperties mNativeProperties = RELEASED_NATIVE_PROPERTIES;
     private String mCallsite;
 
      /**
      * Note: do not rename, this field is used by native code.
      * @hide
      */
-    public long mNativeObject;
-    private long mNativeHandle;
+    public long mNativeObject; // used by native
 
     private final Object mChoreographerLock = new Object();
     @GuardedBy("mChoreographerLock")
@@ -992,6 +1045,14 @@ public final class SurfaceControl implements Parcelable {
     @Retention(RetentionPolicy.SOURCE)
     public @interface CachingHint {}
 
+    private NativeProperties getNativeProperties(long nativeObject) {
+        if (nativeObject == 0) {
+            return RELEASED_NATIVE_PROPERTIES;
+        }
+        return new NativeProperties(nativeGetHandle(nativeObject), nativeGetName(nativeObject),
+                nativeGetLayerId(nativeObject));
+    }
+
     private void assignNativeObject(long nativeObject, String callsite) {
         if (mNativeObject != 0) {
             release();
@@ -1001,7 +1062,7 @@ public final class SurfaceControl implements Parcelable {
                     sRegistry.registerNativeAllocation(this, nativeObject);
         }
         mNativeObject = nativeObject;
-        mNativeHandle = mNativeObject != 0 ? nativeGetHandle(nativeObject) : 0;
+        mNativeProperties = getNativeProperties(mNativeObject);
         if (sDebugUsageAfterRelease && mNativeObject == 0) {
             mReleaseStack = new Throwable("Assigned invalid nativeObject");
         } else {
@@ -1019,7 +1080,6 @@ public final class SurfaceControl implements Parcelable {
      * @hide
      */
     public void copyFrom(@NonNull SurfaceControl other, String callsite) {
-        mName = other.mName;
         mWidth = other.mWidth;
         mHeight = other.mHeight;
         mLocalOwnerView = other.mLocalOwnerView;
@@ -1480,7 +1540,6 @@ public final class SurfaceControl implements Parcelable {
             throw new IllegalArgumentException("name must not be null");
         }
 
-        mName = name;
         mWidth = w;
         mHeight = h;
         mLocalOwnerView = localOwnerView;
@@ -1540,7 +1599,6 @@ public final class SurfaceControl implements Parcelable {
             throw new IllegalArgumentException("source must not be null");
         }
 
-        mName = in.readString8();
         mWidth = in.readInt();
         mHeight = in.readInt();
 
@@ -1561,7 +1619,6 @@ public final class SurfaceControl implements Parcelable {
         if (sDebugUsageAfterRelease) {
             checkNotReleased();
         }
-        dest.writeString8(mName);
         dest.writeInt(mWidth);
         dest.writeInt(mHeight);
         if (mNativeObject == 0) {
@@ -1616,7 +1673,7 @@ public final class SurfaceControl implements Parcelable {
      * @hide
      */
     @NonNull String getName() {
-        return mName;
+        return mNativeProperties.name;
     }
 
     /**
@@ -1628,7 +1685,7 @@ public final class SurfaceControl implements Parcelable {
      */
     @TestApi
     public boolean isSameSurface(@NonNull SurfaceControl other) {
-        return other.mNativeHandle == mNativeHandle;
+        return other.mNativeProperties.nativeHandle == mNativeProperties.nativeHandle;
     }
 
     /**
@@ -1670,7 +1727,8 @@ public final class SurfaceControl implements Parcelable {
         checkNotReleased();
         synchronized (mChoreographerLock) {
             if (mChoreographer == null) {
-                mChoreographer = Choreographer.getInstanceForSurfaceControl(mNativeHandle, looper);
+                mChoreographer = Choreographer.getInstanceForSurfaceControl(
+                        mNativeProperties.nativeHandle, looper);
             } else if (!mChoreographer.isTheLooperSame(looper)) {
                 throw new IllegalStateException(
                         "Choreographer already exists with a different looper");
@@ -1696,7 +1754,7 @@ public final class SurfaceControl implements Parcelable {
 
     /**
      * Write to a protocol buffer output stream. Protocol buffer message definition is at {@link
-     * android.view.SurfaceControlProto}.
+     * android.internal.perfetto.protos.Surfacecontrol.SurfaceControlProto}.
      *
      * @param proto Stream to write the SurfaceControl object to.
      * @param fieldId Field Id of the SurfaceControl as defined in the parent message.
@@ -1705,7 +1763,7 @@ public final class SurfaceControl implements Parcelable {
     public void dumpDebug(ProtoOutputStream proto, long fieldId) {
         final long token = proto.start(fieldId);
         proto.write(HASH_CODE, System.identityHashCode(this));
-        proto.write(NAME, mName);
+        proto.write(NAME, mNativeProperties.name);
         proto.write(LAYER_ID, getLayerId());
         proto.end(token);
     }
@@ -1754,7 +1812,7 @@ public final class SurfaceControl implements Parcelable {
             }
             mFreeNativeResources.run();
             mNativeObject = 0;
-            mNativeHandle = 0;
+            mNativeProperties = RELEASED_NATIVE_PROPERTIES;
             if (sDebugUsageAfterRelease) {
                 mReleaseStack = new Throwable("Released");
             }
@@ -1889,8 +1947,8 @@ public final class SurfaceControl implements Parcelable {
 
     @Override
     public String toString() {
-        return "Surface(name=" + mName + ")/@0x" +
-                Integer.toHexString(System.identityHashCode(this));
+        return "Surface(name=" + mNativeProperties.name + ")/@0x"
+                + Integer.toHexString(System.identityHashCode(this));
     }
 
     /**
@@ -1900,18 +1958,22 @@ public final class SurfaceControl implements Parcelable {
      */
     public static final class StaticDisplayInfo {
         public boolean isInternal;
+        public int port;
         public float density;
         public boolean secure;
         public DeviceProductInfo deviceProductInfo;
         public @Surface.Rotation int installOrientation;
+        public int screenPartStatus;
 
         @Override
         public String toString() {
             return "StaticDisplayInfo{isInternal=" + isInternal
+                    + ", port=" + port
                     + ", density=" + density
                     + ", secure=" + secure
                     + ", deviceProductInfo=" + deviceProductInfo
-                    + ", installOrientation=" + installOrientation + "}";
+                    + ", installOrientation=" + installOrientation
+                    + ", screenPartStatus=" + screenPartStatus + "}";
         }
 
         @Override
@@ -1920,15 +1982,18 @@ public final class SurfaceControl implements Parcelable {
             if (o == null || getClass() != o.getClass()) return false;
             StaticDisplayInfo that = (StaticDisplayInfo) o;
             return isInternal == that.isInternal
+                    && port == that.port
                     && density == that.density
                     && secure == that.secure
                     && Objects.equals(deviceProductInfo, that.deviceProductInfo)
-                    && installOrientation == that.installOrientation;
+                    && installOrientation == that.installOrientation
+                    && screenPartStatus == that.screenPartStatus;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(isInternal, density, secure, deviceProductInfo, installOrientation);
+            return Objects.hash(isInternal, port, density, secure, deviceProductInfo,
+                installOrientation, screenPartStatus);
         }
     }
 
@@ -2769,10 +2834,42 @@ public final class SurfaceControl implements Parcelable {
      *
      * @hide
      */
-    public static SurfaceControl mirrorSurface(SurfaceControl mirrorOf) {
-        long nativeObj = nativeMirrorSurface(mirrorOf.mNativeObject);
+    public static SurfaceControl mirrorSurface(@NonNull SurfaceControl mirrorOf) {
+        return mirrorSurface(mirrorOf, null);
+    }
+
+    /**
+     * Creates a mirrored hierarchy for the mirrorOf {@link SurfaceControl}.
+     *
+     * Real Hierarchy    Mirror
+     *                     SC (value that's returned)
+     *                      |
+     *      A               A'
+     *      |               |
+     *      B               B'
+     *
+     * With stopAt specified as layer B:
+     *
+     * Real Hierarchy    Mirror
+     *      A              SC
+     *      |               |
+     *      B               A'
+     *      |
+     *      C
+     *
+     * @param mirrorOf The root of the hierarchy that should be mirrored.
+     * @param stopAt An optional SurfaceControl. When non-null the mirrored
+     * hierarchy won't include the specified SurfaceControl or anything z-ordered
+     * above it.
+     * @return A SurfaceControl that's the parent of the root of the mirrored hierarchy.
+     *
+     * @hide
+     */
+    public static SurfaceControl mirrorSurface(@NonNull SurfaceControl mirrorOf,
+            SurfaceControl stopAt) {
+        long stopAtObj = stopAt != null ? stopAt.mNativeObject : 0;
+        long nativeObj = nativeMirrorSurface(mirrorOf.mNativeObject, stopAtObj);
         SurfaceControl sc = new SurfaceControl();
-        sc.mName = mirrorOf.mName + " (mirror)";
         sc.assignNativeObject(nativeObj, "mirrorSurface");
         return sc;
     }
@@ -3497,6 +3594,23 @@ public final class SurfaceControl implements Parcelable {
         }
 
         /**
+         * Adds a transaction barrier.
+         *
+         * @param barrier Transaction Barrier.
+         *
+         * @hide
+         */
+        @NonNull
+        public Transaction addTransactionBarrier(@NonNull TransactionBarrier barrier) {
+            Parcel barrierParcel = Parcel.obtain();
+            barrier.writeToParcel(barrierParcel, 0);
+            barrierParcel.setDataPosition(0);
+            nativeAddTransactionBarrier(mNativeObject, barrierParcel);
+            return this;
+        }
+
+
+        /**
          * Adds a callback that is called after WindowInfosListeners from the systems server are
          * complete. This is primarily used to ensure that InputDispatcher::setInputWindowsLocked
          * has been called before running the added callback.
@@ -3722,33 +3836,78 @@ public final class SurfaceControl implements Parcelable {
             return this;
         }
 
-
         /**
-         * Disables corner radius of a {@link SurfaceControl}. When the radius set by
-         * {@link Transaction#setCornerRadius(SurfaceControl, float)} is equal to
-         * clientDrawnCornerRadius the corner radius drawn by SurfaceFlinger is disabled.
+         * Sets the corner radius for each corner of a {@link SurfaceControl}. This is applied to
+         * the SurfaceControl and its children. The API expects a crop to be set on the
+         * SurfaceControl to ensure that the corner radius is applied to the correct region. If the
+         * crop does not intersect with the SurfaceControl's visible content, the corner radius will
+         * not be applied.
          *
          * @param sc SurfaceControl
-         * @param clientDrawnCornerRadius Corner radius drawn by the client
-         * @return Itself.
          * @hide
          */
         @NonNull
-        public Transaction setClientDrawnCornerRadius(@NonNull SurfaceControl sc,
-                                                            float clientDrawnCornerRadius) {
+        public Transaction setCornerRadius(
+                SurfaceControl sc, float topLeft, float topRight,
+                float bottomLeft, float bottomRight) {
             checkPreconditions(sc);
             if (SurfaceControlRegistry.sCallStackDebuggingEnabled) {
-                SurfaceControlRegistry.getProcessInstance().checkCallStackDebugging(
-                        "setClientDrawnCornerRadius", this, sc, "clientDrawnCornerRadius="
-                        + clientDrawnCornerRadius);
+                SurfaceControlRegistry.getProcessInstance()
+                        .checkCallStackDebugging(
+                                "setCornerRadius",
+                                this,
+                                sc,
+                                "topLeft=" + topLeft
+                                + " , topRight=" + topRight
+                                + ", bottomLeft=" + bottomLeft
+                                + " , bottomRight=" + bottomRight);
             }
-            if (Flags.ignoreCornerRadiusAndShadows()) {
-                nativeSetClientDrawnCornerRadius(mNativeObject, sc.mNativeObject,
-                                                                clientDrawnCornerRadius);
-            } else {
+
+            if (!com.android.graphics.surfaceflinger.flags.Flags.setClientDrawnCornerRadii()) {
+                Log.w(TAG, "setCornerRadius was called but"
+                           + "set_client_drawn_corner_radii flag is disabled");
+                return this;
+            }
+            nativeSetCornerRadius(mNativeObject, sc.mNativeObject,
+                                        topLeft, topRight, bottomLeft, bottomRight);
+
+            return this;
+        }
+
+        /**
+         * Disables corner radius of a {@link SurfaceControl}. When the radius set by {@link
+         * Transaction#setCornerRadius(SurfaceControl, float)} is equal to clientDrawnCornerRadius
+         * and the crop set by the client matches the bounds in SurfaceFlinger,
+         * the corner radius drawn by SurfaceFlinger is disabled.
+         *
+         * @hide
+         */
+        @NonNull
+        public Transaction setClientDrawnCornerRadius(
+                @NonNull SurfaceControl sc, float topLeft, float topRight,
+                    float bottomLeft, float bottomRight, RectF crop) {
+            checkPreconditions(sc);
+            if (SurfaceControlRegistry.sCallStackDebuggingEnabled) {
+                SurfaceControlRegistry.getProcessInstance()
+                        .checkCallStackDebugging(
+                                "setClientDrawnCornerRadius",
+                                this,
+                                sc,
+                                "topLeft=" + topLeft
+                                + " , topRight=" + topRight
+                                + ", bottomLeft=" + bottomLeft
+                                + " , bottomRight=" + bottomRight
+                                + ", crop=" + crop);
+            }
+            if (!com.android.graphics.surfaceflinger.flags.Flags.setClientDrawnCornerRadii()) {
                 Log.w(TAG, "setClientDrawnCornerRadius was called but"
-                            + "ignore_corner_radius_and_shadows flag is disabled");
+                           + "set_client_drawn_corner_radii flag is disabled");
+                return this;
             }
+
+            nativeSetClientDrawnCornerRadius(mNativeObject, sc.mNativeObject,
+                                            topLeft, topRight, bottomLeft, bottomRight,
+                                            crop.left, crop.top, crop.right, crop.bottom);
 
             return this;
         }
@@ -3768,6 +3927,24 @@ public final class SurfaceControl implements Parcelable {
                         "setBackgroundBlurRadius", this, sc, "radius=" + radius);
             }
             nativeSetBackgroundBlurRadius(mNativeObject, sc.mNativeObject, radius);
+            return this;
+        }
+
+        /**
+         * Sets the background blur scaling of the {@link SurfaceControl}.
+         *
+         * @param sc SurfaceControl.
+         * @param scale Zoom level to apply, where 1.0f is 100%.
+         * @return itself.
+         * @hide
+         */
+        public Transaction setBackgroundBlurScale(SurfaceControl sc, float scale) {
+            checkPreconditions(sc);
+            if (SurfaceControlRegistry.sCallStackDebuggingEnabled) {
+                SurfaceControlRegistry.getProcessInstance().checkCallStackDebugging(
+                        "setBackgroundBlurScale", this, sc, "scale=" + scale);
+            }
+            nativeSetBackgroundBlurScale(mNativeObject, sc.mNativeObject, scale);
             return this;
         }
 
@@ -3986,7 +4163,11 @@ public final class SurfaceControl implements Parcelable {
         /**
          * Sets the layer stack of the display.
          *
-         * All layers with the same layer stack will be drawn on this display.
+         * All layers with the same layer stack will be drawn on this display. Layer stacks
+         * are unique to each display unless it is an UNASSIGNED_LAYER_STACK. An
+         * UNASSIGNED_LAYER_STACK can be used to represent offscreen layers and can be set
+         * for multiple displays. By default, displays are initialized with a UINT32_MAX
+         * layer stack ID.
          * @hide
          */
         public Transaction setDisplayLayerStack(IBinder displayToken, int layerStack) {
@@ -4060,8 +4241,13 @@ public final class SurfaceControl implements Parcelable {
           * @hide
           */
         @RequiresPermission(Manifest.permission.WAKEUP_SURFACE_FLINGER)
-        public Transaction setEarlyWakeupStart() {
-            nativeSetEarlyWakeupStart(mNativeObject);
+        public Transaction setEarlyWakeupStart(@NonNull EarlyWakeupInfo info) {
+            Parcel infoParcel = Parcel.obtain();
+            info.writeToParcel(infoParcel, 0);
+            infoParcel.setDataPosition(0);
+            nativeSetEarlyWakeupStart(mNativeObject, infoParcel);
+            Trace.instantForTrack(Trace.TRACE_TAG_APP, "EarlyWakeup",
+                    "setEarlyWakeupStart: called by " + info.trace + " with " + info.token);
             return this;
         }
 
@@ -4071,8 +4257,13 @@ public final class SurfaceControl implements Parcelable {
          * @hide
          */
         @RequiresPermission(Manifest.permission.WAKEUP_SURFACE_FLINGER)
-        public Transaction setEarlyWakeupEnd() {
-            nativeSetEarlyWakeupEnd(mNativeObject);
+        public Transaction setEarlyWakeupEnd(@NonNull EarlyWakeupInfo info) {
+            Parcel infoParcel = Parcel.obtain();
+            info.writeToParcel(infoParcel, 0);
+            infoParcel.setDataPosition(0);
+            nativeSetEarlyWakeupEnd(mNativeObject, infoParcel);
+            Trace.instantForTrack(Trace.TRACE_TAG_APP, "EarlyWakeup",
+                    "setEarlyWakeupEnd: called by " + info.trace + " with " + info.token);
             return this;
         }
 
@@ -4134,6 +4325,36 @@ public final class SurfaceControl implements Parcelable {
                         "setShadowRadius", this, sc, "radius=" + shadowRadius);
             }
             nativeSetShadowRadius(mNativeObject, sc.mNativeObject, shadowRadius);
+
+
+            return this;
+        }
+
+        /**
+         * Sets the box shadow settings on this SurfaceControl. If any box shadows are set,
+         * the box shadows will be immediately drawn after the elevation shadow and before
+         * any outline. The box shadow will use the same bounds as elevation shadows.
+         *
+         * @hide
+         */
+        public Transaction setBoxShadowSettings(SurfaceControl sc,
+                @NonNull BoxShadowSettings settings) {
+            checkPreconditions(sc);
+            if (SurfaceControlRegistry.sCallStackDebuggingEnabled) {
+                SurfaceControlRegistry.getProcessInstance().checkCallStackDebugging(
+                        "setBoxShadowSettings", this, sc, "settings=" + settings);
+            }
+
+            if (!Flags.enableBoxShadowSettings()) {
+                Log.w(TAG, "setBoxShadowSettings was called but"
+                            + "enable_box_shadow_settings flag is disabled");
+                return this;
+            }
+
+            Parcel settingsParcel = Parcel.obtain();
+            settings.writeToParcel(settingsParcel, 0);
+            settingsParcel.setDataPosition(0);
+            nativeSetBoxShadowSettings(mNativeObject, sc.mNativeObject, settingsParcel);
             return this;
         }
 
@@ -4731,7 +4952,6 @@ public final class SurfaceControl implements Parcelable {
          * @return this
          * @see #setExtendedRangeBrightness
          **/
-        @FlaggedApi(com.android.graphics.hwui.flags.Flags.FLAG_LIMITED_HDR)
         public @NonNull Transaction setDesiredHdrHeadroom(@NonNull SurfaceControl sc,
                 @FloatRange(from = 0.0f) float desiredRatio) {
             checkPreconditions(sc);
@@ -4832,6 +5052,27 @@ public final class SurfaceControl implements Parcelable {
             checkPreconditions(sc);
 
             nativeSetContentPriority(mNativeObject, sc.mNativeObject, priority);
+            return this;
+        }
+
+        /**
+         * Sets the system-level importance of the window's content.
+         * <p>
+         * This priority is used by the system to make decisions for different use cases where the
+         * resource is limited.
+         * <p>
+         * This is intended for system internal use.
+         *
+         * @param sc       The SurfaceControl of the layer to update.
+         * @param priority The system content priority to assign to this layer. The range of the
+         *                 system priority is [-10. 10]. A window with higher priority value gets
+         *                 preferred access to limited resources.
+         * @hide
+         */
+        public @NonNull Transaction setSystemContentPriority(
+                @NonNull SurfaceControl sc, @IntRange(from = -10, to = 10) int priority) {
+            checkPreconditions(sc);
+            nativeSetSystemContentPriority(mNativeObject, sc.mNativeObject, priority);
             return this;
         }
 
@@ -5368,11 +5609,7 @@ public final class SurfaceControl implements Parcelable {
      * @hide
      */
     public int getLayerId() {
-        if (mNativeObject != 0) {
-            return nativeGetLayerId(mNativeObject);
-        }
-
-        return -1;
+        return mNativeProperties.layerId;
     }
 
     // Called by native

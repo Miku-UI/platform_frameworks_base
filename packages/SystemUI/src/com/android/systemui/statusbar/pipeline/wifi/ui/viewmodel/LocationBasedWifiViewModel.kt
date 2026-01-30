@@ -26,9 +26,9 @@ import java.lang.IllegalArgumentException
  *
  * Must be subclassed for each distinct location.
  */
-abstract class LocationBasedWifiViewModel(
-    private val commonImpl: WifiViewModelCommon,
-) : WifiViewModelCommon by commonImpl {
+@Deprecated("Deprecated in favor of WifiIconViewModel once SystemStatusIconsInCompose is launched")
+abstract class LocationBasedWifiViewModel(private val commonImpl: WifiViewModelCommon) :
+    WifiViewModelCommon by commonImpl {
     val defaultColor: Int = Color.WHITE
 
     companion object {
@@ -54,24 +54,24 @@ abstract class LocationBasedWifiViewModel(
  * A view model for the wifi icon shown on the "home" page (aka, when the device is unlocked and not
  * showing the shade, so the user is on the home-screen, or in an app).
  */
-class HomeWifiViewModel(
-    commonImpl: WifiViewModelCommon,
-) : WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)
+@Deprecated("Deprecated in favor of WifiIconViewModel once SystemStatusIconsInCompose is launched")
+class HomeWifiViewModel(commonImpl: WifiViewModelCommon) :
+    WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)
 
 /** A view model for the wifi icon shown on keyguard (lockscreen). */
-class KeyguardWifiViewModel(
-    commonImpl: WifiViewModelCommon,
-) : WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)
+@Deprecated("Deprecated in favor of WifiIconViewModel once SystemStatusIconsInCompose is launched")
+class KeyguardWifiViewModel(commonImpl: WifiViewModelCommon) :
+    WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)
 
 /** A view model for the wifi icon shown in quick settings (when the shade is pulled down). */
-class QsWifiViewModel(
-    commonImpl: WifiViewModelCommon,
-) : WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)
+@Deprecated("Deprecated in favor of WifiIconViewModel once SystemStatusIconsInCompose is launched")
+class QsWifiViewModel(commonImpl: WifiViewModelCommon) :
+    WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)
 
 /**
  * A view model for the wifi icon in the shade carrier group (visible when quick settings is fully
  * expanded, and in large screen shade). Currently unused.
  */
-class ShadeCarrierGroupWifiViewModel(
-    commonImpl: WifiViewModelCommon,
-) : WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)
+@Deprecated("Deprecated in favor of WifiIconViewModel once SystemStatusIconsInCompose is launched")
+class ShadeCarrierGroupWifiViewModel(commonImpl: WifiViewModelCommon) :
+    WifiViewModelCommon, LocationBasedWifiViewModel(commonImpl)

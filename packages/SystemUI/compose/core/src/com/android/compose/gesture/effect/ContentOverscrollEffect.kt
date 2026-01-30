@@ -84,7 +84,7 @@ open class BaseContentOverscrollEffect(
         val currentOffset = animatable.value
         val sameDirection = deltaForAxis.sign == currentOffset.sign
         val consumedByPreScroll =
-            if (abs(currentOffset) > 0.5 && !sameDirection) {
+            if (abs(currentOffset) > 0f && !sameDirection) {
                     // The user has scrolled in the opposite direction.
                     val prevOverscrollValue = currentOffset
                     val newOverscrollValue = currentOffset + deltaForAxis
@@ -112,11 +112,16 @@ open class BaseContentOverscrollEffect(
 
         // If the user is dragging (not flinging), and there's any remaining scroll delta after the
         // standard scrolling logic has been applied, we add it to the overscroll.
-        if (abs(overscrollDelta.toFloat()) > 0.5 && source == NestedScrollSource.UserInput) {
-            animationScope.launch { animatable.snapTo(currentOffset + overscrollDelta.toFloat()) }
-        }
+        val overscroll = overscrollDelta.toFloat()
+        val consumedByPostScroll =
+            if (abs(overscroll) > 0f && source == NestedScrollSource.UserInput) {
+                animationScope.launch { animatable.snapTo(currentOffset + overscroll) }
+                overscroll.toOffset()
+            } else {
+                Offset.Zero
+            }
 
-        return delta
+        return consumedByPreScroll + consumedByScroll + consumedByPostScroll
     }
 
     override suspend fun applyToFling(

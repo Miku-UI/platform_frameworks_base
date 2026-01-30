@@ -22,7 +22,7 @@ import java.util.List;
 
 /**
 * Interface used to communicate with the application code that holds the Dependency Installer role.
-* {@hide}
+* @hide
 */
 oneway interface IDependencyInstallerService {
     /**

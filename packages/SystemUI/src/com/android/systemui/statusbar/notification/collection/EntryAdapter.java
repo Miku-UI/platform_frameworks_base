@@ -27,6 +27,8 @@ import com.android.systemui.statusbar.notification.collection.notifcollection.No
 import com.android.systemui.statusbar.notification.icon.IconPack;
 import com.android.systemui.statusbar.notification.people.PeopleNotificationIdentifier;
 import com.android.systemui.statusbar.notification.row.ExpandableNotificationRow;
+import com.android.systemui.statusbar.notification.row.NotifBindPipeline;
+import com.android.systemui.statusbar.notification.row.RowContentBindStage;
 
 import kotlinx.coroutines.flow.StateFlow;
 
@@ -148,7 +150,7 @@ public interface EntryAdapter {
      * in the shade and change something about its appearance to delay the appearance change until
      * the ranking reordering is likely to have settled.
      */
-    void markForUserTriggeredMovement();
+    void markForUserTriggeredMovement(boolean marked);
 
     /**
      * Determines whether a row is considered 'high priority'.
@@ -197,9 +199,58 @@ public interface EntryAdapter {
      */
     void onNotificationActionClicked();
 
-    NotificationEntry.DismissState getDismissState();
-
     void onEntryClicked(ExpandableNotificationRow row);
 
+    @Nullable RemoteInputEntryAdapter getRemoteInputEntryAdapter();
+
+    /** Add a listener to be notified when the entry's sensitivity changes. */
+    void addOnSensitivityChangedListener(
+            @NonNull PipelineEntry.OnSensitivityChangedListener listener);
+
+    /** Remove a listener that was registered above. */
+    void removeOnSensitivityChangedListener(
+            @NonNull PipelineEntry.OnSensitivityChangedListener listener);
+
+    void setSeenInShade(boolean seen);
+
+    boolean isSeenInShade();
+
+    void onEntryAnimatingAwayEnded();
+
+    @NonNull
+    Runnable registerFutureDismissal();
+
+    void markForReinflation(@NonNull RowContentBindStage stage);
+
+    boolean isViewBacked();
+
+    void requestRebind(@NonNull RowContentBindStage stage,
+            @NonNull NotifBindPipeline.BindCallback callback);
+
+    /**
+     * Returns whether this entry *is within* a bundle. The bundle header will always return false.
+     */
+    boolean isBundled();
+
+    boolean isParentDismissed();
+
+    /**
+     * Returns whether this entry *is* a bundle.
+     */
+    boolean isBundle();
+
+    /** Processes when the bundle this entry is within is disabled. */
+    void onBundleDisabledForEntry();
+
+    /**
+     * Processes when the entry is removed from the bundle it's within because of changed app
+     * permissions.
+     */
+    void onBundleDisabledForApp();
+
+    /**
+     * Returns the bundle type of this entry if it is a bundle.
+     */
+    int getBundleType();
 }
 

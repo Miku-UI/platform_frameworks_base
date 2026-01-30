@@ -23,7 +23,6 @@ import android.view.ViewGroup;
 import android.view.ViewGroup.MarginLayoutParams;
 import android.view.animation.BaseInterpolator;
 import android.view.animation.PathInterpolator;
-import android.widget.flags.Flags;
 
 /**
  * This class is ported from
@@ -230,7 +229,7 @@ public class ViewGroupFader {
                 continue;
             }
 
-            if (Flags.enableFadingViewGroup() && Resources.getSystem().getBoolean(
+            if (Resources.getSystem().getBoolean(
                     com.android.internal.R.bool.config_enableViewGroupScalingFading)) {
                 if (child instanceof ViewGroup) {
                     updateListElementFades((ViewGroup) child, true);

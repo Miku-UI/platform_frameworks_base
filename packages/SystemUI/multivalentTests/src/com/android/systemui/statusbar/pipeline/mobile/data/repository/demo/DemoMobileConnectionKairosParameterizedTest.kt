@@ -81,7 +81,7 @@ internal class DemoMobileConnectionKairosParameterizedTest(private val testCase:
         val networkModel =
             FakeNetworkEventModel.Mobile(
                 level = testCase.level,
-                dataType = testCase.dataType,
+                dataType = testCase.dataType.toIconGroup(),
                 subId = testCase.subId,
                 carrierId = testCase.carrierId,
                 inflateStrength = testCase.inflateStrength,
@@ -94,6 +94,15 @@ internal class DemoMobileConnectionKairosParameterizedTest(private val testCase:
         demoModeMobileConnectionDataSourceKairos.fake.mobileEvents.emit(networkModel)
         assertConnection(underTest!!, networkModel)
     }
+
+    private fun DataType.toIconGroup(): SignalIcon.MobileIconGroup =
+        when (this) {
+            DataType.THREE_G -> TelephonyIcons.THREE_G
+            DataType.LTE -> TelephonyIcons.LTE
+            DataType.FOUR_G -> TelephonyIcons.FOUR_G
+            DataType.NR_5G -> TelephonyIcons.NR_5G
+            DataType.NR_5G_PLUS -> TelephonyIcons.NR_5G_PLUS
+        }
 
     private suspend fun KairosTestScope.assertConnection(
         conn: DemoMobileConnectionRepositoryKairos,
@@ -138,7 +147,7 @@ internal class DemoMobileConnectionKairosParameterizedTest(private val testCase:
     /** Matches [FakeNetworkEventModel] */
     internal data class TestCase(
         val level: Int,
-        val dataType: SignalIcon.MobileIconGroup,
+        val dataType: DataType,
         val subId: Int,
         val carrierId: Int,
         val inflateStrength: Boolean,
@@ -166,7 +175,7 @@ internal class DemoMobileConnectionKairosParameterizedTest(private val testCase:
         // Convenience for iterating test data and creating new cases
         fun modifiedBy(
             level: Int? = null,
-            dataType: SignalIcon.MobileIconGroup? = null,
+            dataType: DataType? = null,
             subId: Int? = null,
             carrierId: Int? = null,
             inflateStrength: Boolean? = null,
@@ -192,6 +201,17 @@ internal class DemoMobileConnectionKairosParameterizedTest(private val testCase:
             )
     }
 
+    // Define these here and defer resolving to MobileIconGroup until test runtime. This works
+    // around an issue where accessing the TelephonyIcons constants during static initialization can
+    // throw an exception, due to querying Flags.
+    internal enum class DataType {
+        THREE_G,
+        LTE,
+        FOUR_G,
+        NR_5G,
+        NR_5G_PLUS,
+    }
+
     companion object {
         private val subId = 1
 
@@ -199,11 +219,11 @@ internal class DemoMobileConnectionKairosParameterizedTest(private val testCase:
         private val levels = listOf(0, 1, 2, 3)
         private val dataTypes =
             listOf(
-                TelephonyIcons.THREE_G,
-                TelephonyIcons.LTE,
-                TelephonyIcons.FOUR_G,
-                TelephonyIcons.NR_5G,
-                TelephonyIcons.NR_5G_PLUS,
+                DataType.THREE_G,
+                DataType.LTE,
+                DataType.FOUR_G,
+                DataType.NR_5G,
+                DataType.NR_5G_PLUS,
             )
         private val carrierIds = listOf(1, 10, 100)
         private val inflateStrength = booleanList

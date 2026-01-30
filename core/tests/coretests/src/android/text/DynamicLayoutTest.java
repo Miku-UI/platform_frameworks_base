@@ -150,6 +150,9 @@ public class DynamicLayoutTest {
     public void testGetLineExtra_withLinespacing() {
         final SpannableStringBuilder text = new SpannableStringBuilder("a\nb\nc");
         final TextPaint textPaint = new TextPaint();
+
+        textPaint.setTextSize(10);  // Make 1em = 10px
+
         final float spacingMultiplier = 2f;
         final float spacingAdd = 4;
 

@@ -20,6 +20,8 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.view.DisplayInfo;
 
+import java.util.EnumSet;
+
 /**
  * Helper class to copy only subset of fields of DisplayInfo object or to perform
  * comparison operation between DisplayInfo objects only with a subset of fields.
@@ -28,7 +30,7 @@ public class DisplayInfoOverrides {
 
     /**
      * Set of DisplayInfo fields that are overridden in DisplayManager using values from
-     * WindowManager
+     * WindowManager. Any changes to the fields in here need to update {@link #WM_OVERRIDE_GROUPS}.
      */
     public static final DisplayInfoFieldsUpdater WM_OVERRIDE_FIELDS = (out, source) -> {
         out.appWidth = source.appWidth;
@@ -47,6 +49,24 @@ public class DisplayInfoOverrides {
         out.roundedCorners = source.roundedCorners;
         out.displayShape = source.displayShape;
     };
+
+    /**
+     * A bitmask of all {@link DisplayInfo.DisplayInfoGroup}s that can be affected by
+     * {@link #WM_OVERRIDE_FIELDS}. Must be in sync with {@link #WM_OVERRIDE_FIELDS}
+     * and {@link #WM_OVERRIDE_GROUPS_ENUMSET}.
+     */
+    public static final int WM_OVERRIDE_GROUPS =
+            DisplayInfo.DisplayInfoGroup.ORIENTATION_AND_ROTATION.getMask()
+                    | DisplayInfo.DisplayInfoGroup.DIMENSIONS_AND_SHAPES.getMask();
+
+    /**
+     * Same as {@link #WM_OVERRIDE_GROUPS}, but as an EnumSet.
+     * This is used to optimize part of the code
+     * in {@link LogicalDisplay#setDisplayInfoOverrideFromWindowManagerLocked}.
+     */
+    public static final EnumSet<DisplayInfo.DisplayInfoGroup> WM_OVERRIDE_GROUPS_ENUMSET =
+            EnumSet.of(DisplayInfo.DisplayInfoGroup.ORIENTATION_AND_ROTATION,
+                    DisplayInfo.DisplayInfoGroup.DIMENSIONS_AND_SHAPES);
 
     /**
      * Gets {@param base} DisplayInfo, overrides WindowManager-specific overrides using

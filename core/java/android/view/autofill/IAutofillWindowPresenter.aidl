@@ -23,7 +23,7 @@ import android.view.WindowManager;
  * This is a handle to the FillUi for controlling
  * when its window should be shown and hidden.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAutofillWindowPresenter {
     void show(in WindowManager.LayoutParams p, in Rect transitionEpicenter,

@@ -21,6 +21,7 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -36,19 +37,26 @@ import com.google.common.collect.Range
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class GoneToAodTransitionViewModelTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
     private val repository = kosmos.fakeKeyguardTransitionRepository
-    private val underTest = kosmos.goneToAodTransitionViewModel
     private val fingerprintPropertyRepository = kosmos.fingerprintPropertyRepository
     private val biometricSettingsRepository = kosmos.biometricSettingsRepository
     private val powerRepository = kosmos.powerRepository
+    private lateinit var underTest: GoneToAodTransitionViewModel
+
+    @Before
+    fun setup() {
+        underTest = kosmos.goneToAodTransitionViewModel
+    }
 
     @Test
     fun enterFromTopTranslationY_whenNotOnFold() =
@@ -57,7 +65,7 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
                 rawState = WakefulnessState.STARTING_TO_SLEEP,
                 lastWakeReason = WakeSleepReason.POWER_BUTTON,
                 lastSleepReason = WakeSleepReason.POWER_BUTTON,
-                powerButtonLaunchGestureTriggered = false
+                powerButtonLaunchGestureTriggered = false,
             )
 
             val pixels = -100f
@@ -73,7 +81,7 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
                         from = KeyguardState.GONE,
                         to = KeyguardState.AOD,
                         transitionState = TransitionState.STARTED,
-                        value = pixels
+                        value = pixels,
                     )
                 )
 
@@ -91,7 +99,7 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
                         from = KeyguardState.GONE,
                         to = KeyguardState.AOD,
                         transitionState = TransitionState.RUNNING,
-                        value = 0f
+                        value = 0f,
                     )
                 )
         }
@@ -103,7 +111,7 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
                 rawState = WakefulnessState.STARTING_TO_SLEEP,
                 lastWakeReason = WakeSleepReason.POWER_BUTTON,
                 lastSleepReason = WakeSleepReason.FOLD,
-                powerButtonLaunchGestureTriggered = false
+                powerButtonLaunchGestureTriggered = false,
             )
 
             val pixels = -100f
@@ -131,7 +139,7 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
                 rawState = WakefulnessState.STARTING_TO_SLEEP,
                 lastWakeReason = WakeSleepReason.POWER_BUTTON,
                 lastSleepReason = WakeSleepReason.FOLD,
-                powerButtonLaunchGestureTriggered = false
+                powerButtonLaunchGestureTriggered = false,
             )
 
             val pixels = -100f
@@ -147,7 +155,7 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
                         from = KeyguardState.GONE,
                         to = KeyguardState.AOD,
                         transitionState = TransitionState.STARTED,
-                        value = pixels
+                        value = pixels,
                     )
                 )
 
@@ -165,7 +173,7 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
                         from = KeyguardState.GONE,
                         to = KeyguardState.AOD,
                         transitionState = TransitionState.RUNNING,
-                        value = 0f
+                        value = 0f,
                     )
                 )
         }
@@ -219,20 +227,17 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
             val deviceEntryParentViewAlpha by collectLastValue(underTest.deviceEntryParentViewAlpha)
             runCurrent()
 
-            // animation doesn't start until the end
+            // immediately 1f
             repository.sendTransitionStep(step(0f, TransitionState.STARTED))
-            assertThat(deviceEntryParentViewAlpha).isEqualTo(0f)
+            assertThat(deviceEntryParentViewAlpha).isEqualTo(1f)
 
-            repository.sendTransitionStep(step(0.5f))
-            assertThat(deviceEntryParentViewAlpha).isEqualTo(0f)
+            repository.sendTransitionStep(step(0.4f))
+            assertThat(deviceEntryParentViewAlpha).isEqualTo(1f)
 
-            repository.sendTransitionStep(step(.95f))
-            assertThat(deviceEntryParentViewAlpha).isIn(Range.closed(.01f, 1f))
+            repository.sendTransitionStep(step(.85f))
+            assertThat(deviceEntryParentViewAlpha).isEqualTo(1f)
 
             repository.sendTransitionStep(step(1f))
-            assertThat(deviceEntryParentViewAlpha).isIn(Range.closed(.99f, 1f))
-
-            repository.sendTransitionStep(step(1f, TransitionState.FINISHED))
             assertThat(deviceEntryParentViewAlpha).isEqualTo(1f)
         }
 
@@ -288,14 +293,14 @@ class GoneToAodTransitionViewModelTest : SysuiTestCase() {
 
     private fun step(
         value: Float,
-        state: TransitionState = TransitionState.RUNNING
+        state: TransitionState = TransitionState.RUNNING,
     ): TransitionStep {
         return TransitionStep(
             from = KeyguardState.GONE,
             to = KeyguardState.AOD,
             value = value,
             transitionState = state,
-            ownerName = "GoneToAodTransitionViewModelTest"
+            ownerName = "GoneToAodTransitionViewModelTest",
         )
     }
 }

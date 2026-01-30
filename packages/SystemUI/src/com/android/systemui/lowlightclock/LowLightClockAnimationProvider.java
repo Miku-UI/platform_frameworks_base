@@ -24,7 +24,7 @@ import android.view.animation.Interpolator;
 
 import com.android.app.animation.Interpolators;
 import com.android.dream.lowlight.util.TruncatedInterpolator;
-import com.android.systemui.lowlightclock.dagger.LowLightModule;
+import com.android.systemui.lowlightclock.dagger.LowLightClockModule;
 import com.android.systemui.statusbar.CrossFadeHelper;
 
 import javax.inject.Inject;
@@ -50,13 +50,13 @@ public class LowLightClockAnimationProvider {
 
     @Inject
     public LowLightClockAnimationProvider(
-            @Named(LowLightModule.Y_TRANSLATION_ANIMATION_OFFSET)
+            @Named(LowLightClockModule.Y_TRANSLATION_ANIMATION_OFFSET)
                     int yTranslationAnimationInStartOffset,
-            @Named(LowLightModule.Y_TRANSLATION_ANIMATION_DURATION_MILLIS)
+            @Named(LowLightClockModule.Y_TRANSLATION_ANIMATION_DURATION_MILLIS)
                     long yTranslationAnimationInDurationMillis,
-            @Named(LowLightModule.ALPHA_ANIMATION_IN_START_DELAY_MILLIS)
+            @Named(LowLightClockModule.ALPHA_ANIMATION_IN_START_DELAY_MILLIS)
                     long alphaAnimationInStartDelayMillis,
-            @Named(LowLightModule.ALPHA_ANIMATION_DURATION_MILLIS)
+            @Named(LowLightClockModule.ALPHA_ANIMATION_DURATION_MILLIS)
                     long alphaAnimationDurationMillis) {
         mYTranslationAnimationInStartOffset = yTranslationAnimationInStartOffset;
         mYTranslationAnimationInDurationMillis = yTranslationAnimationInDurationMillis;

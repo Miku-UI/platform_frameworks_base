@@ -150,18 +150,6 @@ constructor(
 
     /** Destroys the task fragment */
     fun destroy() {
-        organizer.applyTransaction(
-            WindowContainerTransaction()
-                .addTaskFragmentOperation(
-                    fragmentToken,
-                    TaskFragmentOperation.Builder(
-                            TaskFragmentOperation.OP_TYPE_DELETE_TASK_FRAGMENT
-                        )
-                        .build(),
-                ),
-            TaskFragmentOrganizer.TASK_FRAGMENT_TRANSIT_CLOSE,
-            false,
-        )
         organizer.unregisterOrganizer()
     }
 }

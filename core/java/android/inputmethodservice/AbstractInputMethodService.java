@@ -32,7 +32,6 @@ import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.WindowManager;
 import android.view.WindowManagerGlobal;
-import android.view.inputmethod.Flags;
 import android.view.inputmethod.InputMethod;
 import android.view.inputmethod.InputMethodSession;
 import android.window.WindowProviderService;
@@ -190,7 +189,7 @@ public abstract class AbstractInputMethodService extends WindowProviderService
             if (callback != null) {
                 callback.finishedEvent(seq, handled);
             }
-            if (Flags.imeSwitcherRevamp() && !handled && event.getAction() == KeyEvent.ACTION_DOWN
+            if (!handled && event.getAction() == KeyEvent.ACTION_DOWN
                     && event.getUnicodeChar() > 0 && mInputMethodServiceInternal != null) {
                 mInputMethodServiceInternal.notifyUserActionIfNecessary();
             }

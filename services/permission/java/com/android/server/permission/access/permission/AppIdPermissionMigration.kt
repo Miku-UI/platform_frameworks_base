@@ -34,19 +34,19 @@ class AppIdPermissionMigration {
 
         migratePermissions(
             state.mutateSystemState().mutatePermissions(),
-            legacyPermissionsManager.legacyPermissions
+            legacyPermissionsManager.legacyPermissions,
         )
         migratePermissions(
             state.mutateSystemState().mutatePermissionTrees(),
             legacyPermissionsManager.legacyPermissionTrees,
-            true
+            true,
         )
     }
 
     private fun migratePermissions(
         permissions: MutableIndexedMap<String, Permission>,
         legacyPermissions: Map<String, PermissionMigrationHelper.LegacyPermission>,
-        isPermissionTree: Boolean = false
+        isPermissionTree: Boolean = false,
     ) {
         legacyPermissions.forEach { (_, legacyPermission) ->
             val permission =
@@ -57,7 +57,7 @@ class AppIdPermissionMigration {
                     LOG_TAG,
                     "Migrated permission: ${permission.name}, type: " +
                         "${permission.type}, appId: ${permission.appId}, protectionLevel: " +
-                        "${permission.protectionLevel}, tree: $isPermissionTree"
+                        "${permission.protectionLevel}, tree: $isPermissionTree",
                 )
             }
         }
@@ -92,7 +92,7 @@ class AppIdPermissionMigration {
                     Slog.w(
                         LOG_TAG,
                         "Dropping unknown permission $permissionName for app ID $appId" +
-                            " when migrating permission state"
+                            " when migrating permission state",
                     )
                     return@forEachPermission
                 }
@@ -109,7 +109,7 @@ class AppIdPermissionMigration {
         permission: Permission,
         legacyPermissionState: PermissionMigrationHelper.LegacyPermissionState,
         appId: Int,
-        userId: Int
+        userId: Int,
     ): Int {
         var flags =
             when {
@@ -138,7 +138,7 @@ class AppIdPermissionMigration {
                 permission,
                 flags,
                 legacyPermissionState.flags,
-                legacyPermissionState.flags
+                legacyPermissionState.flags,
             )
         if (DEBUG_MIGRATION) {
             val oldFlagString = PermissionFlags.apiFlagsToString(legacyPermissionState.flags)
@@ -151,7 +151,7 @@ class AppIdPermissionMigration {
                 "Migrated appId: $appId, permission: " +
                     "${permission.name}, user: $userId, oldGrantState: $oldGrantState" +
                     ", oldFlags: $oldFlagString, newFlags: $newFlagString, grantMismatch: " +
-                    "${oldGrantState != newGrantState}, flagsMismatch: $flagsMismatch"
+                    "${oldGrantState != newGrantState}, flagsMismatch: $flagsMismatch",
             )
         }
         return flags

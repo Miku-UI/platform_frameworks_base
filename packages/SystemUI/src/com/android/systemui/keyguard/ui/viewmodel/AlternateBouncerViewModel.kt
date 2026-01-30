@@ -20,18 +20,26 @@ package com.android.systemui.keyguard.ui.viewmodel
 import android.graphics.Color
 import com.android.systemui.bouncer.domain.interactor.AlternateBouncerInteractor
 import com.android.systemui.bouncer.domain.interactor.PrimaryBouncerInteractor
+import com.android.systemui.deviceentry.domain.interactor.DeviceEntryBiometricsAllowedInteractor
+import com.android.systemui.deviceentry.domain.interactor.SystemUIDeviceEntryFaceAuthInteractor
 import com.android.systemui.keyguard.DismissCallbackRegistry
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardState.ALTERNATE_BOUNCER
+import com.android.systemui.lifecycle.ExclusiveActivatable
 import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.statusbar.phone.StatusBarKeyguardViewManager
 import dagger.Lazy
 import javax.inject.Inject
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 
 class AlternateBouncerViewModel
 @Inject
@@ -41,7 +49,9 @@ constructor(
     private val dismissCallbackRegistry: DismissCallbackRegistry,
     alternateBouncerInteractor: Lazy<AlternateBouncerInteractor>,
     private val primaryBouncerInteractor: PrimaryBouncerInteractor,
-) {
+    deviceEntryBiometricsAllowedInteractor: DeviceEntryBiometricsAllowedInteractor,
+    deviceEntryFaceAuthInteractor: SystemUIDeviceEntryFaceAuthInteractor,
+) : ExclusiveActivatable() {
     // When we're fully transitioned to the AlternateBouncer, the alpha of the scrim should be:
     private val alternateBouncerScrimAlpha = .66f
 
@@ -64,6 +74,19 @@ constructor(
     val registerForDismissGestures: Flow<Boolean> =
         transitionToAlternateBouncerProgress.map { it == 1f }.distinctUntilChanged()
 
+    val strongFaceAuthLockout =
+        deviceEntryBiometricsAllowedInteractor.isStrongFaceAuth.flatMapLatest { isStrongFaceAuth ->
+            if (isStrongFaceAuth) {
+                deviceEntryFaceAuthInteractor.isLockedOut.filter { it }.map {} // Unit
+            } else {
+                emptyFlow()
+            }
+        }
+
+    override suspend fun onActivated() {
+        coroutineScope { launch { strongFaceAuthLockout.collect { onStrongFaceAuthLockout() } } }
+    }
+
     fun onTapped() {
         statusBarKeyguardViewManager.showPrimaryBouncer(
             /* scrimmed */ true,
@@ -79,5 +102,9 @@ constructor(
         statusBarKeyguardViewManager.hideAlternateBouncer(false)
         dismissCallbackRegistry.notifyDismissCancelled()
         primaryBouncerInteractor.setDismissAction(null, null)
+    }
+
+    private fun onStrongFaceAuthLockout() {
+        statusBarKeyguardViewManager.showPrimaryBouncer(true, "strongFaceAuthLockout")
     }
 }

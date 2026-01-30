@@ -412,7 +412,7 @@ public class CpuPowerStatsCollectorTest {
         CpuPowerStatsCollector collector = new CpuPowerStatsCollector(
                 new TestInjector(defaultCpuPowerBrackets, defaultCpuPowerBracketsPerEnergyConsumer)
         );
-        collector.addConsumer(stats -> mCollectedStats = stats);
+        collector.addConsumer((stats, elapsedRealtime, uptime) -> mCollectedStats = stats);
         collector.setEnabled(true);
         return collector;
     }

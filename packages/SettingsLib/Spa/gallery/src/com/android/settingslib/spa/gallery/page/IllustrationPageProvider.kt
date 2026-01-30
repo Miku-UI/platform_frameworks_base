@@ -16,77 +16,89 @@
 
 package com.android.settingslib.spa.gallery.page
 
+import android.net.Uri
 import android.os.Bundle
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
-import com.android.settingslib.spa.framework.common.SettingsEntry
-import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
+import com.airbnb.lottie.compose.LottieCompositionSpec
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.gallery.R
+import com.android.settingslib.spa.widget.button.CategoryButton
 import com.android.settingslib.spa.widget.illustration.Illustration
 import com.android.settingslib.spa.widget.illustration.IllustrationModel
 import com.android.settingslib.spa.widget.illustration.ResourceType
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
+import com.android.settingslib.spa.widget.scaffold.RegularScaffold
+import com.android.settingslib.spa.widget.ui.CategoryTitle
 
 private const val TITLE = "Sample Illustration"
 
 object IllustrationPageProvider : SettingsPageProvider {
     override val name = "Illustration"
-    private val owner = createSettingsPage()
 
-    override fun buildEntry(arguments: Bundle?): List<SettingsEntry> {
-        val entryList = mutableListOf<SettingsEntry>()
-        entryList.add(
-            SettingsEntryBuilder.create("Lottie Illustration", owner)
-                .setUiLayoutFn {
-                    Preference(object : PreferenceModel {
-                        override val title = "Lottie Illustration"
-                    })
+    @Composable
+    override fun Page(arguments: Bundle?) {
+        RegularScaffold(TITLE) {
+            CategoryTitle("Lottie Illustration")
+            var lottieSpec: LottieCompositionSpec by remember {
+                mutableStateOf(
+                    LottieCompositionSpec.RawRes(R.raw.accessibility_shortcut_type_triple_tap)
+                )
+            }
+            Illustration(lottieSpec)
+            JsonFileUploadButton { uri ->
+                if (uri != null) {
+                    lottieSpec = LottieCompositionSpec.ContentProvider(uri)
+                }
+            }
 
-                    Illustration(object : IllustrationModel {
-                        override val resId = R.raw.accessibility_shortcut_type_triple_tap
-                        override val resourceType = ResourceType.LOTTIE
-                    })
-                }.build()
-        )
-        entryList.add(
-            SettingsEntryBuilder.create("Image Illustration", owner)
-                .setUiLayoutFn {
-                    Preference(object : PreferenceModel {
-                        override val title = "Image Illustration"
-                    })
-
-                    Illustration(object : IllustrationModel {
-                        override val resId = R.drawable.accessibility_captioning_banner
-                        override val resourceType = ResourceType.IMAGE
-                    })
-                }.build()
-        )
-
-        return entryList
+            CategoryTitle("Image Illustration")
+            Illustration(
+                object : IllustrationModel {
+                    override val resId = R.drawable.accessibility_captioning_banner
+                    override val resourceType = ResourceType.IMAGE
+                }
+            )
+        }
     }
 
     @Composable
     fun Entry() {
-        Preference(object : PreferenceModel {
-            override val title = TITLE
-            override val onClick = navigator(name)
-        })
-    }
-
-    override fun getTitle(arguments: Bundle?): String {
-        return TITLE
+        Preference(
+            object : PreferenceModel {
+                override val title = TITLE
+                override val onClick = navigator(name)
+            }
+        )
     }
 }
 
-@Preview(showBackground = true)
+@Composable
+fun JsonFileUploadButton(onResult: (Uri?) -> Unit) {
+    val launcher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.GetContent(),
+            onResult = onResult,
+        )
+
+    CategoryButton(Icons.Outlined.FileUpload, "Upload JSON File") {
+        launcher.launch("application/json")
+    }
+}
+
+@Preview
 @Composable
 private fun IllustrationPagePreview() {
-    SettingsTheme {
-        IllustrationPageProvider.Page(null)
-    }
+    SettingsTheme { IllustrationPageProvider.Page(null) }
 }

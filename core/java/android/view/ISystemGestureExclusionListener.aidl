@@ -21,7 +21,7 @@ import android.graphics.Region;
 /**
  * Listener for changes to the system gesture exclusion region
  *
- * {@hide}
+ * @hide
  */
 oneway interface ISystemGestureExclusionListener {
     /**

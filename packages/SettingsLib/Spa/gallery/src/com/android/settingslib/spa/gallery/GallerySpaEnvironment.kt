@@ -21,8 +21,8 @@ import com.android.settingslib.spa.debug.DebugLogger
 import com.android.settingslib.spa.framework.common.SettingsPageProviderRepository
 import com.android.settingslib.spa.framework.common.SpaEnvironment
 import com.android.settingslib.spa.framework.common.createSettingsPage
-import com.android.settingslib.spa.gallery.button.ActionButtonPageProvider
 import com.android.settingslib.spa.gallery.banner.BannerPageProvider
+import com.android.settingslib.spa.gallery.button.ActionButtonPageProvider
 import com.android.settingslib.spa.gallery.card.CardPageProvider
 import com.android.settingslib.spa.gallery.chart.ChartPageProvider
 import com.android.settingslib.spa.gallery.dialog.DialogMainPageProvider
@@ -30,15 +30,14 @@ import com.android.settingslib.spa.gallery.dialog.NavDialogProvider
 import com.android.settingslib.spa.gallery.editor.EditorMainPageProvider
 import com.android.settingslib.spa.gallery.editor.SettingsDropdownBoxPageProvider
 import com.android.settingslib.spa.gallery.editor.SettingsDropdownCheckBoxProvider
-import com.android.settingslib.spa.gallery.home.HomePageProvider
 import com.android.settingslib.spa.gallery.editor.SettingsOutlinedTextFieldPageProvider
 import com.android.settingslib.spa.gallery.editor.SettingsTextFieldPasswordPageProvider
+import com.android.settingslib.spa.gallery.home.HomePageProvider
 import com.android.settingslib.spa.gallery.page.ArgumentPageProvider
 import com.android.settingslib.spa.gallery.page.FooterPageProvider
 import com.android.settingslib.spa.gallery.page.IllustrationPageProvider
 import com.android.settingslib.spa.gallery.page.LoadingBarPageProvider
 import com.android.settingslib.spa.gallery.page.ProgressBarPageProvider
-import com.android.settingslib.spa.gallery.scaffold.NonScrollablePagerPageProvider
 import com.android.settingslib.spa.gallery.page.SliderPageProvider
 import com.android.settingslib.spa.gallery.preference.CheckBoxPreferencePageProvider
 import com.android.settingslib.spa.gallery.preference.IntroPreferencePageProvider
@@ -51,12 +50,15 @@ import com.android.settingslib.spa.gallery.preference.TopIntroPreferencePageProv
 import com.android.settingslib.spa.gallery.preference.TwoTargetButtonPreferencePageProvider
 import com.android.settingslib.spa.gallery.preference.TwoTargetSwitchPreferencePageProvider
 import com.android.settingslib.spa.gallery.preference.ZeroStatePreferencePageProvider
+import com.android.settingslib.spa.gallery.restricted.GalleryRestrictedRepository
+import com.android.settingslib.spa.gallery.restricted.RestrictedSwitchPreferencePageProvider
+import com.android.settingslib.spa.gallery.scaffold.GlifScaffoldPageProvider
+import com.android.settingslib.spa.gallery.scaffold.NonScrollablePagerPageProvider
 import com.android.settingslib.spa.gallery.scaffold.PagerMainPageProvider
+import com.android.settingslib.spa.gallery.scaffold.ScrollablePagerPageProvider
 import com.android.settingslib.spa.gallery.scaffold.SearchScaffoldPageProvider
-import com.android.settingslib.spa.gallery.scaffold.SuwScaffoldPageProvider
 import com.android.settingslib.spa.gallery.ui.CategoryPageProvider
 import com.android.settingslib.spa.gallery.ui.CopyablePageProvider
-import com.android.settingslib.spa.gallery.scaffold.ScrollablePagerPageProvider
 import com.android.settingslib.spa.gallery.ui.SpinnerPageProvider
 
 /**
@@ -73,48 +75,48 @@ enum class SettingsPageProviderEnum(val displayName: String) {
 class GallerySpaEnvironment(context: Context) : SpaEnvironment(context) {
     override val pageProviderRepository = lazy {
         SettingsPageProviderRepository(
-            allPageProviders = listOf(
-                HomePageProvider,
-                PreferenceMainPageProvider,
-                PreferencePageProvider,
-                SwitchPreferencePageProvider,
-                MainSwitchPreferencePageProvider,
-                ListPreferencePageProvider,
-                TwoTargetSwitchPreferencePageProvider,
-                ZeroStatePreferencePageProvider,
-                ArgumentPageProvider,
-                SliderPageProvider,
-                SpinnerPageProvider,
-                PagerMainPageProvider,
-                NonScrollablePagerPageProvider,
-                ScrollablePagerPageProvider,
-                FooterPageProvider,
-                IllustrationPageProvider,
-                CategoryPageProvider,
-                ActionButtonPageProvider,
-                ProgressBarPageProvider,
-                LoadingBarPageProvider,
-                ChartPageProvider,
-                DialogMainPageProvider,
-                NavDialogProvider,
-                EditorMainPageProvider,
-                SettingsOutlinedTextFieldPageProvider,
-                SettingsDropdownBoxPageProvider,
-                SettingsDropdownCheckBoxProvider,
-                SettingsTextFieldPasswordPageProvider,
-                SearchScaffoldPageProvider,
-                SuwScaffoldPageProvider,
-                BannerPageProvider,
-                CopyablePageProvider,
-                IntroPreferencePageProvider,
-                TopIntroPreferencePageProvider,
-                CheckBoxPreferencePageProvider,
-                TwoTargetButtonPreferencePageProvider,
-                CardPageProvider,
-            ),
-            rootPages = listOf(
-                HomePageProvider.createSettingsPage(),
-            )
+            allPageProviders =
+                listOf(
+                    HomePageProvider,
+                    PreferenceMainPageProvider,
+                    PreferencePageProvider,
+                    SwitchPreferencePageProvider,
+                    MainSwitchPreferencePageProvider,
+                    ListPreferencePageProvider,
+                    TwoTargetSwitchPreferencePageProvider,
+                    ZeroStatePreferencePageProvider,
+                    ArgumentPageProvider,
+                    SliderPageProvider,
+                    SpinnerPageProvider,
+                    PagerMainPageProvider,
+                    NonScrollablePagerPageProvider,
+                    ScrollablePagerPageProvider,
+                    FooterPageProvider,
+                    IllustrationPageProvider,
+                    CategoryPageProvider,
+                    ActionButtonPageProvider,
+                    ProgressBarPageProvider,
+                    LoadingBarPageProvider,
+                    ChartPageProvider,
+                    DialogMainPageProvider,
+                    NavDialogProvider,
+                    EditorMainPageProvider,
+                    SettingsOutlinedTextFieldPageProvider,
+                    SettingsDropdownBoxPageProvider,
+                    SettingsDropdownCheckBoxProvider,
+                    SettingsTextFieldPasswordPageProvider,
+                    SearchScaffoldPageProvider,
+                    GlifScaffoldPageProvider,
+                    BannerPageProvider,
+                    CopyablePageProvider,
+                    IntroPreferencePageProvider,
+                    TopIntroPreferencePageProvider,
+                    CheckBoxPreferencePageProvider,
+                    TwoTargetButtonPreferencePageProvider,
+                    CardPageProvider,
+                    RestrictedSwitchPreferencePageProvider,
+                ),
+            rootPages = listOf(HomePageProvider.createSettingsPage()),
         )
     }
 
@@ -126,4 +128,6 @@ class GallerySpaEnvironment(context: Context) : SpaEnvironment(context) {
     override val searchProviderAuthorities = "com.android.spa.gallery.search.provider"
 
     override val isSpaExpressiveEnabled = true
+
+    override fun getRestrictedRepository(context: Context) = GalleryRestrictedRepository(context)
 }

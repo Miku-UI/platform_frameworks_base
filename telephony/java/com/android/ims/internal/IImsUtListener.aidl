@@ -25,7 +25,7 @@ import android.telephony.ims.ImsReasonInfo;
 import android.telephony.ims.ImsSsData;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IImsUtListener {
     /**

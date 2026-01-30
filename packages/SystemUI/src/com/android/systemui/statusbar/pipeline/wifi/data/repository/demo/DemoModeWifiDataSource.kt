@@ -35,10 +35,7 @@ import kotlinx.coroutines.flow.shareIn
 @SysUISingleton
 class DemoModeWifiDataSource
 @Inject
-constructor(
-    demoModeController: DemoModeController,
-    @Application scope: CoroutineScope,
-) {
+constructor(demoModeController: DemoModeController, @Application scope: CoroutineScope) {
     private val demoCommandStream = demoModeController.demoFlowForCommand(COMMAND_NETWORK)
     private val _wifiCommands = demoCommandStream.map { args -> args.toWifiEvent() }
     val wifiEvents = _wifiCommands.shareIn(scope, SharingStarted.WhileSubscribed())
@@ -72,9 +69,16 @@ constructor(
         val subId = getString("slot")?.toInt() ?: DEFAULT_CARRIER_MERGED_SUB_ID
         val level = getString("level")?.toInt() ?: 0
         val numberOfLevels = getString("numlevels")?.toInt() ?: DEFAULT_NUM_LEVELS
+        val inflateSignalStrength = getString("inflate")?.toBoolean() ?: false
         val activity = getString("activity").toActivity()
 
-        return FakeWifiEventModel.CarrierMerged(subId, level, numberOfLevels, activity)
+        return FakeWifiEventModel.CarrierMerged(
+            subscriptionId = subId,
+            level = level,
+            numberOfLevels = numberOfLevels,
+            inflateSignalStrength = inflateSignalStrength,
+            activity = activity,
+        )
     }
 
     private fun String?.toActivity(): Int =

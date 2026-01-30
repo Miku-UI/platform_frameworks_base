@@ -23,9 +23,12 @@ import com.android.systemui.animation.ActivityTransitionAnimator
 import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
-import com.google.common.truth.Truth
+import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertFalse
@@ -67,6 +70,7 @@ class CommunalTransitionAnimatorControllerTest : SysuiTestCase() {
         }
     }
 
+    @DisableSceneContainer
     @Test
     fun animationCancelled_launchingWidgetStateIsCleared() {
         with(kosmos) {
@@ -75,7 +79,7 @@ class CommunalTransitionAnimatorControllerTest : SysuiTestCase() {
                 val scene by collectLastValue(communalSceneInteractor.currentScene)
 
                 communalSceneInteractor.changeScene(CommunalScenes.Communal, "test")
-                Truth.assertThat(scene).isEqualTo(CommunalScenes.Communal)
+                assertThat(scene).isEqualTo(CommunalScenes.Communal)
                 communalSceneInteractor.setIsLaunchingWidget(true)
                 assertTrue(launching!!)
 
@@ -94,6 +98,35 @@ class CommunalTransitionAnimatorControllerTest : SysuiTestCase() {
         }
     }
 
+    @EnableSceneContainer
+    @Test
+    fun animationCancelled_sceneContainerEnabled_launchingWidgetStateIsCleared() {
+        with(kosmos) {
+            testScope.runTest {
+                val launching by collectLastValue(communalSceneInteractor.isLaunchingWidget)
+                val scene by collectLastValue(communalSceneInteractor.currentScene)
+
+                communalSceneInteractor.changeScene(Scenes.Communal, "test")
+                assertThat(scene).isEqualTo(Scenes.Communal)
+                communalSceneInteractor.setIsLaunchingWidget(true)
+                assertTrue(launching!!)
+
+                underTest.onIntentStarted(willAnimate = true)
+                assertTrue(launching!!)
+                verify(controller).onIntentStarted(willAnimate = true)
+
+                underTest.onTransitionAnimationStart(isExpandingFullyAbove = true)
+                assertTrue(launching!!)
+                verify(controller).onTransitionAnimationStart(isExpandingFullyAbove = true)
+
+                underTest.onTransitionAnimationCancelled(newKeyguardOccludedState = true)
+                assertFalse(launching!!)
+                verify(controller).onTransitionAnimationCancelled(newKeyguardOccludedState = true)
+            }
+        }
+    }
+
+    @DisableSceneContainer
     @Test
     fun animationComplete_launchingWidgetStateIsClearedAndSceneIsChanged() {
         with(kosmos) {
@@ -102,7 +135,7 @@ class CommunalTransitionAnimatorControllerTest : SysuiTestCase() {
                 val scene by collectLastValue(communalSceneInteractor.currentScene)
 
                 communalSceneInteractor.changeScene(CommunalScenes.Communal, "test")
-                Truth.assertThat(scene).isEqualTo(CommunalScenes.Communal)
+                assertThat(scene).isEqualTo(CommunalScenes.Communal)
                 communalSceneInteractor.setIsLaunchingWidget(true)
                 assertTrue(launching!!)
 
@@ -118,7 +151,38 @@ class CommunalTransitionAnimatorControllerTest : SysuiTestCase() {
 
                 underTest.onTransitionAnimationEnd(isExpandingFullyAbove = true)
                 assertFalse(launching!!)
-                Truth.assertThat(scene).isEqualTo(CommunalScenes.Blank)
+                assertThat(scene).isEqualTo(CommunalScenes.Blank)
+                verify(controller).onTransitionAnimationEnd(isExpandingFullyAbove = true)
+            }
+        }
+    }
+
+    @EnableSceneContainer
+    @Test
+    fun animationComplete_sceneContainerEnabled_launchingWidgetStateIsClearedAndSceneIsChanged() {
+        with(kosmos) {
+            testScope.runTest {
+                val launching by collectLastValue(communalSceneInteractor.isLaunchingWidget)
+                val scene by collectLastValue(communalSceneInteractor.currentScene)
+
+                communalSceneInteractor.changeScene(Scenes.Communal, "test")
+                assertThat(scene).isEqualTo(Scenes.Communal)
+                communalSceneInteractor.setIsLaunchingWidget(true)
+                assertTrue(launching!!)
+
+                underTest.onIntentStarted(willAnimate = true)
+                assertTrue(launching!!)
+                verify(controller).onIntentStarted(willAnimate = true)
+
+                underTest.onTransitionAnimationStart(isExpandingFullyAbove = true)
+                assertTrue(launching!!)
+                verify(controller).onTransitionAnimationStart(isExpandingFullyAbove = true)
+
+                testScope.advanceTimeBy(ActivityTransitionAnimator.TIMINGS.totalDuration)
+
+                underTest.onTransitionAnimationEnd(isExpandingFullyAbove = true)
+                assertFalse(launching!!)
+                assertThat(scene).isEqualTo(Scenes.Lockscreen)
                 verify(controller).onTransitionAnimationEnd(isExpandingFullyAbove = true)
             }
         }

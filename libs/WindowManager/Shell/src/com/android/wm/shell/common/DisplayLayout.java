@@ -158,6 +158,20 @@ public class DisplayLayout {
     /**
      * Construct a display layout based on a live display.
      * @param context Used for resources.
+     * @param rawDisplay Display object for the layout
+     * @param hasNavigationBar whether the navigation bar is visible on that display
+     * @param hasStatusBar whether the status bar is visible on that display
+     */
+    public DisplayLayout(@NonNull Context context, @NonNull Display rawDisplay,
+            boolean hasNavigationBar, boolean hasStatusBar) {
+        DisplayInfo info = new DisplayInfo();
+        rawDisplay.getDisplayInfo(info);
+        init(info, context.getResources(), hasNavigationBar, hasStatusBar);
+    }
+
+    /**
+     * Construct a display layout based on a live display.
+     * @param context Used for resources.
      */
     public DisplayLayout(@NonNull Context context, @NonNull Display rawDisplay) {
         final int displayId = rawDisplay.getDisplayId();
@@ -200,7 +214,7 @@ public class DisplayLayout {
         mRotation = info.rotation;
         mCutout = info.displayCutout;
         mDensityDpi = info.logicalDensityDpi;
-        mGlobalBoundsDp = new RectF(0, 0, pxToDp(mWidth), pxToDp(mHeight));
+        mGlobalBoundsDp = new RectF();
         mHasNavigationBar = hasNavigationBar;
         mHasStatusBar = hasStatusBar;
         mAllowSeamlessRotationDespiteNavBarMoving = res.getBoolean(
@@ -261,6 +275,17 @@ public class DisplayLayout {
         mHeight = displaySize.getHeight();
 
         recalcInsets(res);
+    }
+
+    /**
+     * Apply a rotation to this layout followed up by an update to its dimensions in new rotation.
+     */
+    public void rotateAndResizeTo(Resources res, @Surface.Rotation int toRotation,
+            @NonNull Size displaySize) {
+        // The convention is that if attempting to rotate and resize in one go, the new size should
+        // be in the final rotation; so rotate the layout in place first.
+        rotateTo(res, toRotation);
+        resizeTo(res, displaySize);
     }
 
     /** Update the global bounds of this layout, in DP. */
@@ -408,8 +433,10 @@ public class DisplayLayout {
 
         // Only navigation bar
         if (hasNavigationBar) {
+            final Rect displayFrame = insetsState.getDisplayFrame();
             final Insets insets = insetsState.calculateInsets(
-                    insetsState.getDisplayFrame(),
+                    displayFrame,
+                    displayFrame,
                     WindowInsets.Type.navigationBars(),
                     false /* ignoreVisibility */);
             int position = navigationBarPosition(res, displayWidth, displayHeight, displayRotation);

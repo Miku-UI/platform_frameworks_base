@@ -20,4 +20,6 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="recents_quick_scrub_onboarding" msgid="2452671841151577157">"ଆପ୍‌ ମଧ୍ୟରେ ଶୀଘ୍ର ବଦଳ କରିବା ପାଇଁ ବାମକୁ ଡ୍ରାଗ୍ କରନ୍ତୁ"</string>
+    <string name="dual_shade_educational_tooltip_notifs" msgid="6543179539438220549">"ବିଜ୍ଞପ୍ତିଗୁଡ଼ିକୁ ଖୋଲିବା ପାଇଁ ଉପର ଡାହାଣ ପଟରୁ ସ୍ୱାଇପ କରନ୍ତୁ"</string>
+    <string name="dual_shade_educational_tooltip_qs" msgid="5760503283520058116">"କୁଇକ ସେଟିଂସ ଖୋଲିବାକୁ ଉପର ବାମ ପଟରୁ ସ୍ୱାଇପ କରନ୍ତୁ"</string>
 </resources>

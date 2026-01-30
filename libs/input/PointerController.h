@@ -54,6 +54,7 @@ public:
     vec2 move(float deltaX, float deltaY) override;
     void setPosition(float x, float y) override;
     vec2 getPosition() const override;
+    vec2 getPositionInLogicalDisplay() const override;
     ui::LogicalDisplayId getDisplayId() const override;
     void fade(Transition transition) override;
     void unfade(Transition transition) override;
@@ -173,6 +174,9 @@ public:
         LOG_ALWAYS_FATAL("Should not be called");
     }
     vec2 getPosition() const override {
+        LOG_ALWAYS_FATAL("Should not be called");
+    }
+    vec2 getPositionInLogicalDisplay() const override {
         LOG_ALWAYS_FATAL("Should not be called");
     }
     ui::LogicalDisplayId getDisplayId() const override {

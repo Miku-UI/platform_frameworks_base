@@ -622,7 +622,9 @@ class SlidingWindowFlowTest : SysuiTestCase() {
 
         val collectJob =
             backgroundScope.launch {
-                emptyFlow<Int>().slidingWindow(100.milliseconds).toList(output)
+                emptyFlow<Int>()
+                    .slidingWindow(100.milliseconds, choreographer.fakeClock)
+                    .toList(output)
             }
 
         choreographer.advanceAndRun(0)

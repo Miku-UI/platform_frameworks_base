@@ -16,6 +16,9 @@
 
 package com.android.internal.protolog.common;
 
+import android.annotation.NonNull;
+import android.annotation.Nullable;
+
 import java.util.List;
 
 /**
@@ -31,8 +34,8 @@ public interface IProtoLog {
      * @param paramsMask The parameters mask of the message.
      * @param args The arguments of the message.
      */
-    void log(LogLevel logLevel, IProtoLogGroup group, long messageHash, int paramsMask,
-            Object[] args);
+    void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group, long messageHash,
+            int paramsMask, @Nullable Object[] args);
 
     /**
      * Log a ProtoLog message
@@ -41,7 +44,8 @@ public interface IProtoLog {
      * @param messageString The message string.
      * @param args The arguments of the message.
      */
-    void log(LogLevel logLevel, IProtoLogGroup group, String messageString, Object... args);
+    void log(@NonNull LogLevel logLevel, @NonNull IProtoLogGroup group,
+            @NonNull String messageString, @NonNull Object... args);
 
     /**
      * Check if ProtoLog is tracing.
@@ -54,14 +58,14 @@ public interface IProtoLog {
      * @param groups Groups to start text logging for
      * @return status code
      */
-    int startLoggingToLogcat(String[] groups, ILogger logger);
+    int startLoggingToLogcat(@NonNull String[] groups, @NonNull ILogger logger);
 
     /**
      * Stop logging log groups to logcat
      * @param groups Groups to start text logging for
      * @return status code
      */
-    int stopLoggingToLogcat(String[] groups, ILogger logger);
+    int stopLoggingToLogcat(@NonNull String[] groups, @NonNull ILogger logger);
 
     /**
      * Should return true iff logging is enabled to ProtoLog or to Logcat for this group and level.
@@ -69,10 +73,18 @@ public interface IProtoLog {
      * @param level ProtoLog level to check for.
      * @return If we need to log this group and level to either ProtoLog or Logcat.
      */
-    boolean isEnabled(IProtoLogGroup group, LogLevel level);
+    boolean isEnabled(@NonNull IProtoLogGroup group, @NonNull LogLevel level);
 
     /**
      * @return an immutable list of the registered ProtoLog groups in this ProtoLog instance.
      */
+    @NonNull
     List<IProtoLogGroup> getRegisteredGroups();
+
+    /**
+     * Register ProtoLog groups with this ProtoLog instance.
+     * Only groups registered with this ProtoLog instance should be logged through this instance.
+     * @param groups The groups to register.
+     */
+    void registerGroups(@NonNull IProtoLogGroup... groups);
 }

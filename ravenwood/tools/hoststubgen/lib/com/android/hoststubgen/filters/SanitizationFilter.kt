@@ -66,7 +66,7 @@ class SanitizationFilter(
     override fun getRedirectionClass(className: String): String? {
         return super.getRedirectionClass(className)?.also { clazz ->
             if (classes.findClass(clazz) == null) {
-                log.w("Redirection class $clazz not found. Class must be available at runtime.")
+                log.v("Redirection class $clazz not found. Class must be available at runtime.")
             } else if (outermostFilter.getPolicyForClass(clazz).policy != FilterPolicy.KeepClass) {
                 // If the class exists, it must have a KeepClass policy.
                 errors.onErrorFound("Redirection class $clazz must have @KeepWholeClass.")

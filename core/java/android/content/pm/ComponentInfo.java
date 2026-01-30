@@ -185,7 +185,7 @@ public class ComponentInfo extends PackageItemInfo {
         return banner != 0 ? banner : applicationInfo.banner;
     }
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public ComponentName getComponentName() {
         return new ComponentName(packageName, name);

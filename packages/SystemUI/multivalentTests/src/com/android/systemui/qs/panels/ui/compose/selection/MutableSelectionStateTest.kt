@@ -146,6 +146,41 @@ class MutableSelectionStateTest : SysuiTestCase() {
             .isEqualTo(None)
     }
 
+    @Test
+    fun toggleSelection_correctlyUpdatesSelection() {
+        // Select the first spec
+        underTest.toggleSelection(TEST_SPEC)
+        assertThat(underTest.selection).isEqualTo(TEST_SPEC)
+
+        // Select a second spec
+        underTest.toggleSelection(TEST_SPEC_2)
+        assertThat(underTest.selection).isEqualTo(TEST_SPEC_2)
+
+        // Toggle on the same spec and assert the selection is now null
+        underTest.toggleSelection(TEST_SPEC_2)
+        assertThat(underTest.selection).isNull()
+    }
+
+    @Test
+    fun placeTileAt_onlyWhenPlacementEnabled() {
+        // Without enabling placement mode, attempt a placement
+        underTest.placeTileAt(TEST_SPEC)
+
+        // Assert nothing happened
+        assertThat(underTest.placementEvent).isNull()
+    }
+
+    @Test
+    fun placeTileAt_createsCorrectPlacementEvent() {
+        underTest.enterPlacementMode(TEST_SPEC)
+        underTest.placeTileAt(TEST_SPEC_2)
+
+        assertThat(underTest.placementEnabled).isFalse()
+        val event = underTest.placementEvent as PlacementEvent.PlaceToTileSpec
+        assertThat(event.movingSpec).isEqualTo(TEST_SPEC)
+        assertThat(event.targetSpec).isEqualTo(TEST_SPEC_2)
+    }
+
     companion object {
         private val TEST_SPEC = TileSpec.create("testSpec")
         private val TEST_SPEC_2 = TileSpec.create("testSpec2")

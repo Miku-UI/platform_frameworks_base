@@ -155,6 +155,9 @@ public class DreamBackend {
     private final boolean mDreamsActivatedOnSleepByDefault;
     private final boolean mDreamsActivatedOnDockByDefault;
     private final boolean mDreamsActivatedOnPosturedByDefault;
+    private final boolean mDreamOnlyOnWirelssChargingDefault;
+    private final boolean mLowLightDisplayBehaviorEnabledDefault;
+    private final int mLowLightDisplayBehaviorDefault;
     private final Set<ComponentName> mDisabledDreams;
     private final List<String> mLoggableDreamPrefixes;
     private Set<Integer> mSupportedComplications;
@@ -182,6 +185,12 @@ public class DreamBackend {
                 com.android.internal.R.bool.config_dreamsActivatedOnDockByDefault);
         mDreamsActivatedOnPosturedByDefault = resources.getBoolean(
                 com.android.internal.R.bool.config_dreamsActivatedOnPosturedByDefault);
+        mDreamOnlyOnWirelssChargingDefault = resources.getBoolean(
+                com.android.internal.R.bool.config_onlyDreamWhenWirelessChargingDefault);
+        mLowLightDisplayBehaviorEnabledDefault = resources.getBoolean(
+                com.android.internal.R.bool.config_lowLightDisplayBehaviorEnabledDefault);
+        mLowLightDisplayBehaviorDefault = resources.getInteger(
+                com.android.internal.R.integer.config_lowLightDisplayBehaviorDefault);
         mDisabledDreams = Arrays.stream(resources.getStringArray(
                         com.android.internal.R.array.config_disabledDreamComponents))
                 .map(ComponentName::unflattenFromString)
@@ -292,18 +301,89 @@ public class DreamBackend {
         return null;
     }
 
+    /**
+     * Return whether the low light display behavior is enabled.
+     */
+    public boolean getLowLightDisplayBehaviorEnabled() {
+        return Settings.Secure.getInt(
+                mContext.getContentResolver(),
+                Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_ENABLED,
+                mLowLightDisplayBehaviorEnabledDefault ? 1 : 0) != 0;
+    }
+
+    /**
+     * Enable or disable the low light display behavior.
+     */
+    public void setLowLightDisplayBehaviorEnabled(boolean enabled) {
+        Settings.Secure.putInt(mContext.getContentResolver(),
+                Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR_ENABLED, enabled ? 1 : 0);
+    }
+
+    /**
+     * Get the value of the current low light display behavior.
+     */
+    @Settings.Secure.LowLightDisplayBehavior
+    public int getLowLightDisplayBehavior() {
+        return Settings.Secure.getInt(
+                mContext.getContentResolver(),
+                Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR,
+                mLowLightDisplayBehaviorDefault);
+    }
+
+    /**
+     * Set the low light display behavior to the given value.
+     */
+    public void setLowLightDisplayBehavior(int behavior) {
+        Settings.Secure.putInt(mContext.getContentResolver(),
+                Settings.Secure.LOW_LIGHT_DISPLAY_BEHAVIOR, behavior);
+    }
+
     @WhenToDream
     public int getWhenToDreamSetting() {
-        return isActivatedOnDock() && isActivatedOnSleep() ? WHILE_CHARGING_OR_DOCKED
-                : isActivatedOnSleep() ? WHILE_CHARGING
-                        : isActivatedOnDock() ? WHILE_DOCKED
-                                : isActivatedOnPostured() ? WHILE_POSTURED
+        return getWhenToDreamSetting(false);
+    }
+
+    /**
+     * Returns the default when to dream setting.
+     */
+    @WhenToDream
+    public int getDefaultWhenToDreamSetting() {
+        return getWhenToDreamSetting(true);
+    }
+
+    /**
+     * Retrieves when to dream setting.
+     * @param defaultOnly Retrieve default value only.
+     */
+    @WhenToDream
+    @VisibleForTesting
+    private int getWhenToDreamSetting(boolean defaultOnly) {
+        final boolean isActivatedOnDock = defaultOnly ? mDreamsActivatedOnDockByDefault
+                : isActivatedOnDock();
+        final boolean isActivatedOnSleep = defaultOnly ? mDreamsActivatedOnSleepByDefault
+                : isActivatedOnSleep();
+        final boolean isActivatedOnPostured = defaultOnly ? mDreamsActivatedOnPosturedByDefault
+                : isActivatedOnPostured();
+
+        return isActivatedOnDock && isActivatedOnSleep ? WHILE_CHARGING_OR_DOCKED
+                : isActivatedOnSleep ? WHILE_CHARGING
+                        : isActivatedOnDock ? WHILE_DOCKED
+                                : isActivatedOnPostured ? WHILE_POSTURED
                                         : NEVER;
     }
 
     public void setWhenToDream(@WhenToDream int whenToDream) {
         setEnabled(whenToDream != NEVER);
 
+        updateWhenToDream(whenToDream);
+
+        logDreamSettingChangeToStatsd(DS_TYPE_WHEN_TO_DREAM);
+    }
+
+    /**
+     * Allows when to dream to be toggled without changing the enabled status or logging.
+     */
+    private void updateWhenToDream(@WhenToDream int whenToDream) {
         switch (whenToDream) {
             case WHILE_CHARGING:
                 setActivatedOnDock(false);
@@ -333,8 +413,29 @@ public class DreamBackend {
             default:
                 break;
         }
+    }
 
-        logDreamSettingChangeToStatsd(DS_TYPE_WHEN_TO_DREAM);
+    /**
+     * Updates set whenToDream setting to be within the given option set.
+     * @param availableOptions the available whenToDream settings options
+     */
+    public void resolveMissingWhenToDream(int[] availableOptions) {
+        final int current = getWhenToDreamSetting();
+
+        // If selected option is available, exit early.
+        if (Arrays.stream(availableOptions).anyMatch(option ->option == current)) {
+            return;
+        }
+
+        // Turn off dreams
+        setEnabled(false);
+
+        final int defaultOption = getDefaultWhenToDreamSetting();
+
+        // set to default value if available.
+        if (Arrays.stream(availableOptions).anyMatch(option ->option == defaultOption)) {
+            updateWhenToDream(defaultOption);
+        }
     }
 
     /** Gets all complications which have been enabled by the user. */
@@ -386,6 +487,20 @@ public class DreamBackend {
         return Settings.Secure.getInt(
                 mContext.getContentResolver(),
                 Settings.Secure.SCREENSAVER_COMPLICATIONS_ENABLED, 1) == 1;
+    }
+
+    /** Set whether to restrict showing dreams to only when charging wirelessly. */
+    public void setRestrictToWirelessCharging(boolean restrict) {
+        Settings.Secure.putInt(
+                mContext.getContentResolver(),
+                Settings.Secure.SCREENSAVER_RESTRICT_TO_WIRELESS_CHARGING, restrict ? 1 : 0);
+    }
+
+    /** Get whether to restrict showing dreams to only when charging wirelessly. */
+    public boolean getRestrictToWirelessCharging() {
+        return Settings.Secure.getInt(mContext.getContentResolver(),
+                Settings.Secure.SCREENSAVER_RESTRICT_TO_WIRELESS_CHARGING,
+                mDreamOnlyOnWirelssChargingDefault ? 1 : 0) == 1;
     }
 
     /** Gets all dream complications which are supported on this device. **/

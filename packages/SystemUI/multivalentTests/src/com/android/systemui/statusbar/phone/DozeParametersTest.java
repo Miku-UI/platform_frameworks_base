@@ -33,12 +33,14 @@ import android.content.res.Resources;
 import android.hardware.display.AmbientDisplayConfiguration;
 import android.os.Handler;
 import android.os.PowerManager;
+import android.platform.test.annotations.EnableFlags;
 import android.provider.Settings;
 
 import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.keyguard.KeyguardUpdateMonitor;
+import com.android.systemui.Flags;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.doze.AlwaysOnDisplayPolicy;
 import com.android.systemui.doze.DozeScreenState;
@@ -46,6 +48,7 @@ import com.android.systemui.dump.DumpManager;
 import com.android.systemui.keyguard.domain.interactor.DozeInteractor;
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor;
 import com.android.systemui.keyguard.shared.model.KeyguardState;
+import com.android.systemui.minmode.MinModeManager;
 import com.android.systemui.plugins.statusbar.StatusBarStateController;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.policy.BatteryController;
@@ -91,6 +94,7 @@ public class DozeParametersTest extends SysuiTestCase {
     @Mock private ConfigurationController mConfigurationController;
     @Mock private UserTracker mUserTracker;
     @Mock private DozeInteractor mDozeInteractor;
+    @Mock private MinModeManager mMinModeManager;
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
     private KeyguardTransitionInteractor mKeyguardTransitionInteractor;
     @Captor private ArgumentCaptor<BatteryStateChangeCallback> mBatteryStateChangeCallback;
@@ -119,6 +123,7 @@ public class DozeParametersTest extends SysuiTestCase {
         when(mSysUIUnfoldComponent.getFoldAodAnimationController())
                 .thenReturn(mFoldAodAnimationController);
         when(mUserTracker.getUserId()).thenReturn(ActivityManager.getCurrentUser());
+        when(mMinModeManager.isMinModeEnabled()).thenReturn(false);
 
         SecureSettings secureSettings = new FakeSettings();
         mDozeParameters = new DozeParameters(
@@ -140,7 +145,8 @@ public class DozeParametersTest extends SysuiTestCase {
             mUserTracker,
             mDozeInteractor,
             mKeyguardTransitionInteractor,
-            secureSettings
+            secureSettings,
+            Optional.of(mMinModeManager)
         );
 
         verify(mBatteryController).addCallback(mBatteryStateChangeCallback.capture());
@@ -326,6 +332,37 @@ public class DozeParametersTest extends SysuiTestCase {
 
         mDozeParameters.mKeyguardVisibilityCallback.onKeyguardVisibilityChanged(true);
         assertTrue(mDozeParameters.shouldControlScreenOff());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MINMODE)
+    public void testIsMinModeEnabled_proxiesToManager() {
+        when(mMinModeManager.isMinModeEnabled()).thenReturn(true);
+        assertThat(mDozeParameters.isMinModeActive()).isTrue();
+
+        when(mMinModeManager.isMinModeEnabled()).thenReturn(false);
+        assertThat(mDozeParameters.isMinModeActive()).isFalse();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MINMODE)
+    public void testGetAlwaysOn_falseWhenMinModeEnabled() {
+        when(mAmbientDisplayConfiguration.alwaysOnEnabled(anyInt())).thenReturn(true);
+        mDozeParameters.onTuningChanged(Settings.Secure.DOZE_ALWAYS_ON, "1");
+        when(mBatteryController.isAodPowerSave()).thenReturn(false);
+
+        when(mMinModeManager.isMinModeEnabled()).thenReturn(true);
+
+        assertThat(mDozeParameters.getAlwaysOn()).isTrue();
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_ENABLE_MINMODE)
+    public void testShouldAnimateDozingChange_falseWhenMinModeEnabled() {
+        when(mScreenOffAnimationController.shouldAnimateDozingChange()).thenReturn(true);
+        when(mMinModeManager.isMinModeEnabled()).thenReturn(true);
+
+        assertThat(mDozeParameters.shouldAnimateDozingChange()).isTrue();
     }
 
     private void setDisplayNeedsBlankingForTest(boolean needsBlanking) {

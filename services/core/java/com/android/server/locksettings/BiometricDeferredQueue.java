@@ -300,9 +300,8 @@ public class BiometricDeferredQueue {
             Slog.wtf(TAG, "VerifyChallenge failed, null response");
             return null;
         }
-        if (response.getResponseCode() != VerifyCredentialResponse.RESPONSE_OK) {
-            Slog.wtf(TAG, "VerifyChallenge failed, response: "
-                    + response.getResponseCode());
+        if (!response.isMatched()) {
+            Slog.wtf(TAG, "VerifyChallenge failed: " + response);
             return null;
         }
         if (response.getGatekeeperHAT() == null) {

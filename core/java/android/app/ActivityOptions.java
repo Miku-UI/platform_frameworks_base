@@ -58,7 +58,6 @@ import android.os.UserHandle;
 import android.transition.TransitionManager;
 import android.util.Pair;
 import android.util.Slog;
-import android.view.AppTransitionAnimationSpec;
 import android.view.IAppTransitionAnimationSpecsFuture;
 import android.view.RemoteAnimationAdapter;
 import android.view.View;
@@ -67,8 +66,6 @@ import android.view.Window;
 import android.window.RemoteTransition;
 import android.window.SplashScreen;
 import android.window.WindowContainerToken;
-
-import com.android.window.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -131,7 +128,6 @@ public class ActivityOptions extends ComponentOptions {
      * Restrictions on starting activities from the background</a>).
      */
     @Deprecated
-    @FlaggedApi(Flags.FLAG_BAL_ADDITIONAL_START_MODES)
     public static final int MODE_BACKGROUND_ACTIVITY_START_ALLOWED = 1;
     /**
      * Denies the {@link PendingIntent} any background activity start privileges.
@@ -152,7 +148,6 @@ public class ActivityOptions extends ComponentOptions {
      * <a href="https://developer.android.com/guide/components/activities/background-starts">
      * Restrictions on starting activities from the background</a>
      */
-    @FlaggedApi(Flags.FLAG_BAL_ADDITIONAL_START_MODES)
     public static final int MODE_BACKGROUND_ACTIVITY_START_ALLOW_ALWAYS = 3;
     /**
      * Grants the {@link PendingIntent} background activity start privileges only when the app
@@ -163,7 +158,6 @@ public class ActivityOptions extends ComponentOptions {
      * <a href="https://developer.android.com/guide/components/activities/background-starts">
      * Restrictions on starting activities from the background</a>
      */
-    @FlaggedApi(Flags.FLAG_BAL_ADDITIONAL_START_MODES)
     public static final int MODE_BACKGROUND_ACTIVITY_START_ALLOW_IF_VISIBLE = 4;
     /**
      * Provides compatibility with previous Android versions regarding background activity starts.
@@ -180,11 +174,13 @@ public class ActivityOptions extends ComponentOptions {
     public static final String KEY_PACKAGE_NAME = "android:activity.packageName";
 
     /**
-     * The bounds (window size) that the activity should be launched in. Set to null explicitly for
-     * full screen. If the key is not found, previous bounds will be preserved.
+     * The bounds (window size) that the activity should be launched in.
+     * If the key is not found, previous bounds will be preserved.
      * NOTE: This value is ignored on devices that don't have
      * {@link android.content.pm.PackageManager#FEATURE_FREEFORM_WINDOW_MANAGEMENT} or
-     * {@link android.content.pm.PackageManager#FEATURE_PICTURE_IN_PICTURE} enabled.
+     * {@link android.content.pm.PackageManager#FEATURE_PICTURE_IN_PICTURE} enabled, and on displays
+     * that don't support {@link WindowConfiguration#WINDOWING_MODE_FREEFORM} and
+     * {@link WindowConfiguration#WINDOWING_MODE_PINNED}.
      * @hide
      */
     public static final String KEY_LAUNCH_BOUNDS = "android:activity.launchBounds";
@@ -282,11 +278,6 @@ public class ActivityOptions extends ComponentOptions {
             "android:activity.animationFinishedListener";
 
     /**
-     * Descriptions of app transition animations to be played during the activity launch.
-     */
-    private static final String KEY_ANIM_SPECS = "android:activity.animSpecs";
-
-    /**
      * Whether the activity should be launched into LockTask mode.
      * @see #setLockTaskEnabled(boolean)
      */
@@ -382,6 +373,12 @@ public class ActivityOptions extends ComponentOptions {
     private static final String KEY_TASK_ALWAYS_ON_TOP = "android.activity.alwaysOnTop";
 
     /**
+     * See {@link #setReparentLeafTaskToTda}
+     */
+    private static final String KEY_REPARENT_LEAF_TASK_TO_TDA =
+            "android.activity.reparentLeafTaskToTda";
+
+    /**
      * See {@link #setTaskOverlay}.
      * @hide
      */
@@ -459,9 +456,14 @@ public class ActivityOptions extends ComponentOptions {
     /** See {@link #setRemoveWithTaskOrganizer(boolean)}. */
     private static final String KEY_REMOVE_WITH_TASK_ORGANIZER =
             "android.activity.removeWithTaskOrganizer";
+
     /** See {@link #setLaunchedFromBubble(boolean)}. */
     private static final String KEY_LAUNCHED_FROM_BUBBLE =
             "android.activity.launchTypeBubble";
+
+    /** See {@link #setLaunchNextToBubble(boolean)} */
+    private static final String KEY_LAUNCH_NEXT_TO_BUBBLE =
+            "android.activity.launchNextToBubble";
 
     /** See {@link #setSplashScreenStyle(int)}. */
     private static final String KEY_SPLASH_SCREEN_STYLE =
@@ -496,6 +498,12 @@ public class ActivityOptions extends ComponentOptions {
      */
     public static final String KEY_LAUNCH_COOKIE = "android.activity.launchCookie";
 
+    /**
+     * @see #setWindowingLayer
+     * @hide
+     */
+    public static final String KEY_WINDOWING_LAYER = "android.activity.windowingLayer";
+
     /** @hide */
     public static final int ANIM_UNDEFINED = -1;
     /** @hide */
@@ -528,6 +536,36 @@ public class ActivityOptions extends ComponentOptions {
     public static final int ANIM_REMOTE_ANIMATION = 13;
     /** @hide */
     public static final int ANIM_FROM_STYLE = 14;
+
+    /**
+     * The windowing layer is not specified. The system will use a default layer.
+     * @hide
+     */
+    public static final int WINDOWING_LAYER_UNDEFINED = 0;
+    /**
+     * The windowing layer for normal application windows.
+     * @hide
+     */
+    public static final int WINDOWING_LAYER_NORMAL_APP = 1;
+    /**
+     * The windowing layer for pinned windows, these windows are typically displayed above normal
+     * application windows.
+     * @hide
+     */
+    public static final int WINDOWING_LAYER_PINNED = 2;
+
+    /**
+     * Defines the windowing layer for an activity, which can affect its Z-ordering.
+     * @hide
+     */
+    @IntDef(prefix = { "WINDOWING_LAYER_" }, value = {
+            WINDOWING_LAYER_UNDEFINED,
+            WINDOWING_LAYER_NORMAL_APP,
+            WINDOWING_LAYER_PINNED,
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    public @interface WindowingLayer {
+    }
 
     private String mPackageName;
     private Rect mLaunchBounds;
@@ -565,11 +603,11 @@ public class ActivityOptions extends ComponentOptions {
     private boolean mApplyMultipleTaskFlagForShortcut;
     private boolean mApplyNoUserActionFlagForShortcut;
     private boolean mTaskAlwaysOnTop;
+    private boolean mReparentLeafTaskToTda;
     private boolean mTaskOverlay;
     private boolean mTaskOverlayCanResume;
     private boolean mAvoidMoveToFront;
     private boolean mFreezeRecentTasksReordering;
-    private AppTransitionAnimationSpec mAnimSpecs[];
     private SourceInfo mSourceInfo;
     private int mRotationAnimationHint = -1;
     private Bundle mAppVerificationBundle;
@@ -584,6 +622,8 @@ public class ActivityOptions extends ComponentOptions {
     private boolean mIsEligibleForLegacyPermissionPrompt;
     private boolean mRemoveWithTaskOrganizer;
     private boolean mLaunchedFromBubble;
+    // TODO(b/407669465): remove it once migrated to the new approach
+    private boolean mLaunchNextToBubble;
     private boolean mTransientLaunch;
     private PictureInPictureParams mLaunchIntoPipParams;
     private boolean mDismissKeyguardIfInsecure;
@@ -593,6 +633,8 @@ public class ActivityOptions extends ComponentOptions {
     private boolean mFlexibleLaunchSize = false;
     private boolean mDisableStartingWindow;
     private boolean mAllowPassThroughOnTouchOutside;
+    @WindowingLayer
+    private int mWindowingLayer = WINDOWING_LAYER_UNDEFINED;
 
     /**
      * Create an ActivityOptions specifying a custom animation to run when
@@ -1041,21 +1083,6 @@ public class ActivityOptions extends ComponentOptions {
         return opts;
     }
 
-    /** @hide */
-    @android.ravenwood.annotation.RavenwoodThrow(blockedBy = View.class)
-    public static ActivityOptions makeThumbnailAspectScaleDownAnimation(View source,
-            AppTransitionAnimationSpec[] specs, Handler handler,
-            OnAnimationStartedListener onAnimationStartedListener,
-            OnAnimationFinishedListener onAnimationFinishedListener) {
-        ActivityOptions opts = new ActivityOptions();
-        opts.mPackageName = source.getContext().getPackageName();
-        opts.mAnimationType = ANIM_THUMBNAIL_ASPECT_SCALE_DOWN;
-        opts.mAnimSpecs = specs;
-        opts.setOnAnimationStartedListener(handler, onAnimationStartedListener);
-        opts.setOnAnimationFinishedListener(handler, onAnimationFinishedListener);
-        return opts;
-    }
-
     /**
      * Create an ActivityOptions to transition between Activities using cross-Activity scene
      * animations. This method carries the position of one shared element to the started Activity.
@@ -1326,6 +1353,7 @@ public class ActivityOptions extends ComponentOptions {
         final ActivityOptions opts = new ActivityOptions();
         opts.mLaunchIntoPipParams = new PictureInPictureParams.Builder(pictureInPictureParams)
                 .setIsLaunchIntoPip(true)
+                .setAutoEnterEnabled(true)
                 .build();
         return opts;
     }
@@ -1408,6 +1436,7 @@ public class ActivityOptions extends ComponentOptions {
         mLaunchTaskId = opts.getInt(KEY_LAUNCH_TASK_ID, -1);
         mPendingIntentLaunchFlags = opts.getInt(KEY_PENDING_INTENT_LAUNCH_FLAGS, 0);
         mTaskAlwaysOnTop = opts.getBoolean(KEY_TASK_ALWAYS_ON_TOP, false);
+        mReparentLeafTaskToTda = opts.getBoolean(KEY_REPARENT_LEAF_TASK_TO_TDA, false);
         mTaskOverlay = opts.getBoolean(KEY_TASK_OVERLAY, false);
         mTaskOverlayCanResume = opts.getBoolean(KEY_TASK_OVERLAY_CAN_RESUME, false);
         mAvoidMoveToFront = opts.getBoolean(KEY_AVOID_MOVE_TO_FRONT, false);
@@ -1420,13 +1449,6 @@ public class ActivityOptions extends ComponentOptions {
                 KEY_APPLY_MULTIPLE_TASK_FLAG_FOR_SHORTCUT, false);
         mApplyNoUserActionFlagForShortcut = opts.getBoolean(
                 KEY_APPLY_NO_USER_ACTION_FLAG_FOR_SHORTCUT, false);
-        if (opts.containsKey(KEY_ANIM_SPECS)) {
-            Parcelable[] specs = opts.getParcelableArray(KEY_ANIM_SPECS);
-            mAnimSpecs = new AppTransitionAnimationSpec[specs.length];
-            for (int i = specs.length - 1; i >= 0; i--) {
-                mAnimSpecs[i] = (AppTransitionAnimationSpec) specs[i];
-            }
-        }
         if (opts.containsKey(KEY_ANIMATION_FINISHED_LISTENER)) {
             mAnimationFinishedListener = IRemoteCallback.Stub.asInterface(
                     opts.getBinder(KEY_ANIMATION_FINISHED_LISTENER));
@@ -1445,6 +1467,7 @@ public class ActivityOptions extends ComponentOptions {
         mSplashScreenThemeResName = opts.getString(KEY_SPLASH_SCREEN_THEME);
         mRemoveWithTaskOrganizer = opts.getBoolean(KEY_REMOVE_WITH_TASK_ORGANIZER);
         mLaunchedFromBubble = opts.getBoolean(KEY_LAUNCHED_FROM_BUBBLE);
+        mLaunchNextToBubble = opts.getBoolean(KEY_LAUNCH_NEXT_TO_BUBBLE);
         mTransientLaunch = opts.getBoolean(KEY_TRANSIENT_LAUNCH);
         mSplashScreenStyle = opts.getInt(KEY_SPLASH_SCREEN_STYLE);
         mLaunchIntoPipParams = opts.getParcelable(KEY_LAUNCH_INTO_PIP_PARAMS, android.app.PictureInPictureParams.class);
@@ -1459,17 +1482,18 @@ public class ActivityOptions extends ComponentOptions {
         mAllowPassThroughOnTouchOutside = opts.getBoolean(KEY_ALLOW_PASS_THROUGH_ON_TOUCH_OUTSIDE);
         mAnimationAbortListener = IRemoteCallback.Stub.asInterface(
                 opts.getBinder(KEY_ANIM_ABORT_LISTENER));
+        mWindowingLayer = opts.getInt(KEY_WINDOWING_LAYER);
     }
 
     /**
      * Sets the bounds (window size and position) that the activity should be launched in.
      * Rect position should be provided in pixels and in screen coordinates.
-     * Set to {@code null} to explicitly launch fullscreen.
      * <p>
      * <strong>NOTE:</strong> This value is ignored on devices that don't have
      * {@link android.content.pm.PackageManager#FEATURE_FREEFORM_WINDOW_MANAGEMENT} or
-     * {@link android.content.pm.PackageManager#FEATURE_PICTURE_IN_PICTURE} enabled.
-     * @param screenSpacePixelRect launch bounds or {@code null} for fullscreen
+     * {@link android.content.pm.PackageManager#FEATURE_PICTURE_IN_PICTURE} enabled, and on displays
+     * that don't support freeform and PiP windows.
+     * @param screenSpacePixelRect launch bounds
      * @return {@code this} {@link ActivityOptions} instance
      */
     public ActivityOptions setLaunchBounds(@Nullable Rect screenSpacePixelRect) {
@@ -1586,9 +1610,6 @@ public class ActivityOptions extends ComponentOptions {
     public PendingIntent getUsageTimeReport() {
         return mUsageTimeReport;
     }
-
-    /** @hide */
-    public AppTransitionAnimationSpec[] getAnimSpecs() { return mAnimSpecs; }
 
     /** @hide */
     public IAppTransitionAnimationSpecsFuture getSpecsFuture() {
@@ -1774,8 +1795,10 @@ public class ActivityOptions extends ComponentOptions {
     /**
      * Sets the id of the display where the activity should be launched.
      * An app can launch activities on public displays or displays where the app already has
-     * activities. Otherwise, trying to launch on a private display or providing an invalid display
-     * id will result in an exception.
+     * activities. Otherwise, trying to launch on a display for which
+     * {@link android.app.ActivityManager#isActivityStartAllowedOnDisplay(Context, int, Intent)}
+     * returns {@code false} (such as a private display or providing an invalid display id) will
+     * result in an exception.
      * <p>
      * Setting launch display id will be ignored on devices that don't have
      * {@link android.content.pm.PackageManager#FEATURE_ACTIVITIES_ON_SECONDARY_DISPLAYS}.
@@ -1990,10 +2013,27 @@ public class ActivityOptions extends ComponentOptions {
     }
 
     /**
+     * Similar to {@link WindowContainerTransaction#setReparentLeafTaskToTda(boolean)}, requests
+     * that the given launch should reparent the leaf task to the ancestor TaskDisplayArea if it
+     * is not currently parented there.
+     * @hide
+     */
+    public void setReparentLeafTaskToTda(boolean reparent) {
+        mReparentLeafTaskToTda = reparent;
+    }
+
+    /**
      * @hide
      */
     public boolean getTaskAlwaysOnTop() {
         return mTaskAlwaysOnTop;
+    }
+
+    /**
+     * @hide
+     */
+    public boolean getReparentLeafTaskToTda() {
+        return mReparentLeafTaskToTda;
     }
 
     /**
@@ -2103,6 +2143,31 @@ public class ActivityOptions extends ComponentOptions {
     /** @hide */
     public boolean isApplyNoUserActionFlagForShortcut() {
         return mApplyNoUserActionFlagForShortcut;
+    }
+
+    /**
+     * Sets the windowing layer for the activity. This can be used to affect the Z-ordering
+     * of the activity's window relative to other windows.
+     *
+     * <p>
+     * The new activity will be displayed at the requested layer if possible.
+     * This can only be used in conjunction with {@link Intent.FLAG_ACTIVITY_NEW_TASK}.
+     * Also, setting {@link Intent.FLAG_ACTIVITY_MULTIPLE_TASK} is required if you
+     * want a new instance of an existing activity to be created.
+     *
+     * @param windowingLayer The windowing layer to set.
+     * @return {@code this} {@link ActivityOptions} instance for chaining.
+     * @hide
+     */
+    public ActivityOptions setWindowingLayer(@WindowingLayer int windowingLayer) {
+        mWindowingLayer = windowingLayer;
+        return this;
+    }
+
+    /** @hide */
+    @WindowingLayer
+    public int getWindowingLayer() {
+        return mWindowingLayer;
     }
 
     /**
@@ -2284,6 +2349,23 @@ public class ActivityOptions extends ComponentOptions {
     }
 
     /**
+     * Sets the policy of this launching Task that the new Tasks launched from it will be a Bubble.
+     * @hide
+     */
+    public ActivityOptions setLaunchNextToBubble(boolean launchNextToBubble) {
+        mLaunchNextToBubble = launchNextToBubble;
+        return this;
+    }
+
+    /**
+     * @return whether the new Tasks that are launched from this launching Task should be a Bubble.
+     * @hide
+     */
+    public boolean getLaunchNextToBubble() {
+        return mLaunchNextToBubble;
+    }
+
+    /**
      * Sets whether the activity launch is part of a transient operation. If it is, it will not
      * cause lifecycle changes in existing activities even if it were to occlude them (ie. other
      * activities occluded by this one will not be paused or stopped until the launch is committed).
@@ -2419,11 +2501,11 @@ public class ActivityOptions extends ComponentOptions {
         }
         mLockTaskMode = otherOptions.mLockTaskMode;
         mShareIdentity = otherOptions.mShareIdentity;
-        mAnimSpecs = otherOptions.mAnimSpecs;
         mAnimationFinishedListener = otherOptions.mAnimationFinishedListener;
         mSpecsFuture = otherOptions.mSpecsFuture;
         mRemoteAnimationAdapter = otherOptions.mRemoteAnimationAdapter;
         mLaunchIntoPipParams = otherOptions.mLaunchIntoPipParams;
+        mLaunchDisplayId = otherOptions.mLaunchDisplayId;
         mIsEligibleForLegacyPermissionPrompt = otherOptions.mIsEligibleForLegacyPermissionPrompt;
 
         sendResultIgnoreErrors(mAnimationAbortListener, null);
@@ -2537,6 +2619,9 @@ public class ActivityOptions extends ComponentOptions {
         if (mTaskAlwaysOnTop) {
             b.putBoolean(KEY_TASK_ALWAYS_ON_TOP, mTaskAlwaysOnTop);
         }
+        if (mReparentLeafTaskToTda) {
+            b.putBoolean(KEY_REPARENT_LEAF_TASK_TO_TDA, mReparentLeafTaskToTda);
+        }
         if (mTaskOverlay) {
             b.putBoolean(KEY_TASK_OVERLAY, mTaskOverlay);
         }
@@ -2562,9 +2647,6 @@ public class ActivityOptions extends ComponentOptions {
         }
         if (mApplyNoUserActionFlagForShortcut) {
             b.putBoolean(KEY_APPLY_NO_USER_ACTION_FLAG_FOR_SHORTCUT, true);
-        }
-        if (mAnimSpecs != null) {
-            b.putParcelableArray(KEY_ANIM_SPECS, mAnimSpecs);
         }
         if (mAnimationFinishedListener != null) {
             b.putBinder(KEY_ANIMATION_FINISHED_LISTENER, mAnimationFinishedListener.asBinder());
@@ -2602,6 +2684,9 @@ public class ActivityOptions extends ComponentOptions {
         if (mLaunchedFromBubble) {
             b.putBoolean(KEY_LAUNCHED_FROM_BUBBLE, mLaunchedFromBubble);
         }
+        if (mLaunchNextToBubble) {
+            b.putBoolean(KEY_LAUNCH_NEXT_TO_BUBBLE, mLaunchNextToBubble);
+        }
         if (mTransientLaunch) {
             b.putBoolean(KEY_TRANSIENT_LAUNCH, mTransientLaunch);
         }
@@ -2635,6 +2720,9 @@ public class ActivityOptions extends ComponentOptions {
         }
         b.putBinder(KEY_ANIM_ABORT_LISTENER,
                 mAnimationAbortListener != null ? mAnimationAbortListener.asBinder() : null);
+        if (mWindowingLayer != WINDOWING_LAYER_UNDEFINED) {
+            b.putInt(KEY_WINDOWING_LAYER, mWindowingLayer);
+        }
         return b;
     }
 
@@ -2822,12 +2910,22 @@ public class ActivityOptions extends ComponentOptions {
         public static final int TYPE_RECENTS_ANIMATION = 4;
         /** Launched from desktop's transition handler. */
         public static final int TYPE_DESKTOP_ANIMATION = 5;
+        /** Launched from QSS (Quick Settings Shade). */
+        public static final int TYPE_QSS = 6;
+        /** Launched from a Wear OS tile. */
+        public static final int TYPE_TILE = 7;
+        /** Launched from a Wear OS complication. */
+        public static final int TYPE_COMPLICATION = 8;
 
         @IntDef(prefix = { "TYPE_" }, value = {
                 TYPE_LAUNCHER,
                 TYPE_NOTIFICATION,
                 TYPE_LOCKSCREEN,
-                TYPE_DESKTOP_ANIMATION
+                TYPE_RECENTS_ANIMATION,
+                TYPE_DESKTOP_ANIMATION,
+                TYPE_QSS,
+                TYPE_TILE,
+                TYPE_COMPLICATION
         })
         @Retention(RetentionPolicy.SOURCE)
         public @interface SourceType {}

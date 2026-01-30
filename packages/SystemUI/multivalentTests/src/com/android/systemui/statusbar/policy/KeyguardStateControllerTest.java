@@ -33,13 +33,15 @@ import androidx.test.filters.SmallTest;
 import com.android.internal.widget.LockPatternUtils;
 import com.android.keyguard.KeyguardUpdateMonitor;
 import com.android.keyguard.KeyguardUpdateMonitorCallback;
-import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.keyguard.logging.KeyguardUpdateMonitorLogger;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.keyguard.KeyguardUnlockAnimationController;
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+import com.android.systemui.util.concurrency.FakeExecutor;
+import com.android.systemui.util.time.FakeSystemClock;
 
 import dagger.Lazy;
 
@@ -82,6 +84,7 @@ public class KeyguardStateControllerTest extends SysuiTestCase {
     @Before
     public void setup() {
         MockitoAnnotations.initMocks(this);
+        FakeExecutor mainExecutor = new FakeExecutor(new FakeSystemClock());
         mKeyguardStateController = new KeyguardStateControllerImpl(
                 mContext,
                 mKeyguardUpdateMonitor,
@@ -91,7 +94,9 @@ public class KeyguardStateControllerTest extends SysuiTestCase {
                 mDumpManager,
                 mKeyguardInteractorLazy,
                 mFeatureFlags,
-                mSelectedUserInteractor);
+                mSelectedUserInteractor,
+                mainExecutor);
+        mainExecutor.runAllReady();
     }
 
     @Test

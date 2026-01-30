@@ -24,6 +24,7 @@ import com.android.internal.policy.IKeyguardStateCallback
 import com.android.keyguard.trustManager
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.dismissCallbackRegistry
 import com.android.systemui.keyguard.shared.model.KeyguardState
@@ -71,6 +72,7 @@ class KeyguardStateCallbackInteractorTest : SysuiTestCase() {
     }
 
     @Test
+    @DisableSceneContainer
     fun test_addCallback_passesInitialValues() =
         testScope.runTest {
             underTest.addCallback(callback)
@@ -109,6 +111,7 @@ class KeyguardStateCallbackInteractorTest : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun test_lockscreenVisibility_reportsKeyguardShowingChanged() =
         testScope.runTest {
             underTest.addCallback(callback)

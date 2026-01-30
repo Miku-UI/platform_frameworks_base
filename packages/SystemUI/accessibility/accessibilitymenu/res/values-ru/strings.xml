@@ -2,7 +2,7 @@
 <resources xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <string name="accessibility_menu_service_name" msgid="730136711554740131">"Меню спец. возможностей"</string>
-    <string name="accessibility_menu_intro" msgid="3164193281544042394">"С помощью большого экранного меню специальных возможностей можно блокировать устройство, регулировать громкость звука и яркость экрана, делать скриншоты и выполнять другие действия."</string>
+    <string name="accessibility_menu_intro" msgid="3164193281544042394">"Крупные кнопки в меню специальных возможностей помогут блокировать устройство, регулировать громкость звука и яркость экрана, сохранять скриншоты и делать многое другое."</string>
     <string name="assistant_label" msgid="6796392082252272356">"Ассистент"</string>
     <string name="assistant_utterance" msgid="65509599221141377">"Ассистент"</string>
     <string name="a11y_settings_label" msgid="3977714687248445050">"Настройки спец. возможностей"</string>
@@ -20,10 +20,10 @@
     <string name="brightness_down_label" msgid="7115662941913272072">"Уменьшить яркость"</string>
     <string name="previous_button_content_description" msgid="840869171117765966">"Вернуться на предыдущий экран"</string>
     <string name="next_button_content_description" msgid="6810058269847364406">"Перейти на следующий экран"</string>
-    <string name="accessibility_menu_description" msgid="4458354794093858297">"С помощью большого экранного меню специальных возможностей можно блокировать устройство, регулировать громкость звука и яркость экрана, делать скриншоты и выполнять другие действия."</string>
-    <string name="accessibility_menu_summary" msgid="340071398148208130">"Управление устройством с помощью большого меню"</string>
+    <string name="accessibility_menu_description" msgid="4458354794093858297">"Крупные кнопки в меню специальных возможностей помогут блокировать устройство, регулировать громкость звука и яркость экрана, сохранять скриншоты и делать многое другое."</string>
+    <string name="accessibility_menu_summary" msgid="4051992323622465342">"Настраивайте громкость, яркость и другие параметры в большом меню"</string>
     <string name="accessibility_menu_settings_name" msgid="1716888058785672611">"Настройки меню спец. возможностей"</string>
-    <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Увеличить кнопки"</string>
+    <string name="accessibility_menu_large_buttons_title" msgid="8978499601044961736">"Крупные кнопки"</string>
     <string name="accessibility_menu_large_buttons_summary" msgid="236873938502785311">"Увеличить размер кнопок в меню специальных возможностей"</string>
     <string name="pref_help_title" msgid="6871558837025010641">"Справка"</string>
     <string name="brightness_percentage_label" msgid="7391554573977867369">"Яркость <xliff:g id="PERCENTAGE">%1$s</xliff:g> %%"</string>

@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"Жаңарту"</string>
     <string name="done" msgid="6632441120016885253">"Дайын"</string>
     <string name="cancel" msgid="1018267193425558088">"Бас тарту"</string>
+    <string name="more_details" msgid="3643407086654820243">"Қосымша ақпарат"</string>
+    <string name="dont_install" msgid="414055123295505225">"Орнатпау"</string>
     <string name="installing" msgid="4921993079741206516">"Орнатылуда…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> орнатылуда…"</string>
     <string name="install_done" msgid="5987363587661783896">"Қолданба орнатылды."</string>
@@ -52,7 +54,7 @@
     <string name="app_not_found_dlg_title" msgid="5107924008597470285">"Қолданба табылмады"</string>
     <string name="app_not_found_dlg_text" msgid="5219983779377811611">"Қолданба орнатылған қолданбалар тізімінен табылмады."</string>
     <string name="user_is_not_allowed_dlg_title" msgid="6915293433252210232">"Рұқсат етілмеген"</string>
-    <string name="user_is_not_allowed_dlg_text" msgid="3468447791330611681">"Ағымдағы пайдаланушыға бұл жою әрекетіне рұқсат берілмеген."</string>
+    <string name="user_is_not_allowed_dlg_text" msgid="3468447791330611681">"Берілген пайдаланушыға бұл қолданбаны жоюға рұқсат берілмеген."</string>
     <string name="generic_error_dlg_title" msgid="5863195085927067752">"Қате"</string>
     <string name="generic_error_dlg_text" msgid="5287861443265795232">"Қолданба жойылмады."</string>
     <string name="uninstall_application_title" msgid="4045420072401428123">"Қолданбаны жою"</string>
@@ -123,7 +125,7 @@
     <string name="unarchive_error_installer_disabled_title" msgid="4815715617014985605">"<xliff:g id="INSTALLERNAME">%1$s</xliff:g> өшірілген"</string>
     <string name="unarchive_error_installer_disabled_body" msgid="4820821285907011729">"Бұл қолданбаны қалпына келтіру үшін параметрлерден <xliff:g id="INSTALLERNAME">%1$s</xliff:g> қызметін қосыңыз."</string>
     <string name="unarchive_error_installer_uninstalled_title" msgid="3748354109176326489">"<xliff:g id="INSTALLERNAME">%1$s</xliff:g> жойылған"</string>
-    <string name="unarchive_error_installer_uninstalled_body" msgid="944733542444183204">"Бұл қолданбаны қалпына келтіру үшін орнатқышты (<xliff:g id="INSTALLERNAME">%1$s</xliff:g>) орнатуыңыз керек."</string>
+    <string name="unarchive_error_installer_uninstalled_body" msgid="944733542444183204">"Бұл қолданбаны қалпына келтіру үшін <xliff:g id="INSTALLERNAME">%1$s</xliff:g> орнатуыңыз керек."</string>
     <string name="unarchive_action_required_continue" msgid="5711202111224184257">"Жалғастыру"</string>
     <string name="unarchive_clear_storage_button" msgid="1549537154535608744">"Жадты тазалау"</string>
     <string name="unarchive_settings_button" msgid="3504171760009177425">"Параметрлер"</string>

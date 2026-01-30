@@ -16,6 +16,7 @@
 
 package com.android.compose.gesture.effect
 
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.ScrollableState
@@ -29,6 +30,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.platform.testTag
@@ -327,5 +329,21 @@ class OffsetOverscrollEffectTest {
 
         assertThat(info.scrollableState.isScrollInProgress).isFalse()
         assertThat(info.overscrollEffect.isInProgress).isFalse()
+    }
+
+    @Test
+    fun applyToScroll_doesNotConsumeFlingScrolls() = runTest {
+        val effect = OffsetOverscrollEffect(animationScope = this, animationSpec = spring())
+        assertThat(
+                effect.applyToScroll(Offset(0f, 20f), source = NestedScrollSource.SideEffect) {
+                    scroll ->
+                    assertThat(scroll).isEqualTo(Offset(0f, 20f))
+
+                    // Consume some of the delta during scroll.
+                    Offset(0f, 15f)
+                }
+            )
+            // The remaining offset was not consumed to overscroll given that the source is a fling.
+            .isEqualTo(Offset(0f, 15f))
     }
 }

@@ -138,11 +138,18 @@ public class IllustrationPreference extends Preference implements GroupSectionDi
         ImageView backgroundViewTablet =
                 (ImageView) holder.findViewById(R.id.background_view_tablet);
 
+        boolean isExpressive = SettingsThemeHelper.isExpressiveTheme(getContext());
         if (backgroundView != null) {
-            backgroundView.setVisibility(mIsTablet ? View.GONE : View.VISIBLE);
+            // Setting visibility to INVISIBLE instead of GONE to prevent unnecessary layout
+            // recalculations and redraws when dealing with dynamic set image.
+            backgroundView.setVisibility(isExpressive
+                    ? View.INVISIBLE : (mIsTablet ? View.GONE : View.VISIBLE));
         }
         if (backgroundViewTablet != null) {
-            backgroundViewTablet.setVisibility(mIsTablet ? View.VISIBLE : View.GONE);
+            // Setting visibility to INVISIBLE instead of GONE to prevent unnecessary layout
+            // recalculations and redraws when dealing with dynamic set image.
+            backgroundViewTablet.setVisibility(isExpressive
+                    ? View.INVISIBLE : (!mIsTablet ? View.GONE : View.VISIBLE));
         }
         if (mIsTablet) {
             backgroundView = backgroundViewTablet;
@@ -595,5 +602,6 @@ public class IllustrationPreference extends Preference implements GroupSectionDi
             setMaxHeight(context.getResources().getDimensionPixelSize(
                     R.dimen.settingslib_illustration_height_tablet));
         }
+        setPersistent(false);
     }
 }

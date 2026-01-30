@@ -18,11 +18,11 @@ package com.android.systemui.statusbar.notification.footer.ui.viewmodel
 
 import android.annotation.DrawableRes
 import android.annotation.StringRes
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.Flow
 
 /** A ViewModel for the string message that can be shown in the footer. */
 data class FooterMessageViewModel(
     @StringRes val messageId: Int,
     @DrawableRes val iconId: Int,
-    val isVisible: StateFlow<Boolean>,
+    val isVisible: Flow<Boolean>,
 )

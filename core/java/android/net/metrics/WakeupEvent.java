@@ -23,7 +23,7 @@ import java.util.StringJoiner;
 /**
  * An event logged when NFLOG notifies userspace of a wakeup packet for
  * watched interfaces.
- * {@hide}
+ * @hide
  */
 public class WakeupEvent {
     public String iface;

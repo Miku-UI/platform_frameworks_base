@@ -22,7 +22,6 @@ import com.android.systemui.Dumpable
 import com.android.systemui.util.asIndenting
 import com.android.systemui.util.printCollection
 import com.android.systemui.util.time.SystemClock
-import com.android.systemui.util.time.SystemClockImpl
 import com.android.systemui.util.withIncreasedIndent
 import java.io.PrintWriter
 import java.util.concurrent.ConcurrentHashMap
@@ -43,7 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class NotifCollectionCache<V>(
     private val retainCount: Int = 1,
     private val purgeTimeoutMillis: Long = 1000L,
-    private val systemClock: SystemClock = SystemClockImpl(),
+    private val systemClock: SystemClock,
 ) : Dumpable {
     @get:VisibleForTesting val cache = ConcurrentHashMap<String, CacheEntry>()
 
@@ -91,7 +90,7 @@ class NotifCollectionCache<V>(
 
             // Using elapsedRealtime since it's guaranteed to be monotonic, as we don't want a
             // timezone/clock change to break us
-            val now = UseElapsedRealtimeForCreationTime.getCurrentTime(systemClock)
+            val now = systemClock.elapsedRealtime()
 
             // Cannot purge the same entry from two threads simultaneously
             synchronized(key) {
@@ -158,9 +157,38 @@ class NotifCollectionCache<V>(
      * purge((c));    // deletes a from the cache and marks b for deletion, etc.
      * ```
      */
-    fun purge(wantedKeys: Collection<String>) {
+    fun purge(wantedKeys: Collection<String>) = purgeUnless { it in wantedKeys }
+
+    /**
+     * Clear entries whose keys do NOT match [predicate]. This can be called from any thread.
+     *
+     * If a key matches the [predicate], it will be preserved, otherwise it may be purged depending
+     * on internal retainCount.
+     *
+     * If retainCount > 0, a given key will need to match [predicate] in ([retainCount] + 1)
+     * consecutive [purge] calls made more than [purgeTimeoutMillis] apart in order to be cleared.
+     * This count will be reset for any given key 1) if [getOrFetch] is called for the key or 2) if
+     * the key matches [predicate] in a subsequent [purge] call. We prioritize keeping the entry if
+     * possible, so if [purge] is called simultaneously with [getOrFetch] on different threads for
+     * example, we will try to keep it in the cache, although it is not guaranteed. If avoiding
+     * cache misses is a concern, consider increasing the [retainCount] or [purgeTimeoutMillis].
+     *
+     * For example, say [retainCount] = 1 and [purgeTimeoutMillis] = 1000 and we start with entries
+     * (a, b, c) in the cache:
+     * ```kotlin
+     * purgeUnless { it in (a, c) } // marks b for deletion
+     * Thread.sleep(500)
+     * purgeUnless { it in (a, c) } // does nothing as it was called earlier than the min 1s
+     * Thread.sleep(500)
+     * purgeUnless { it in (b, c) } // b is no longer marked for deletion, but now a is
+     * Thread.sleep(1000);
+     * purgeUnless { it == c }      // deletes a from the cache and marks b for deletion, etc.
+     * ```
+     */
+    fun purgeUnless(predicate: (String) -> Boolean) {
         for ((key, entry) in cache) {
-            if (key in wantedKeys) {
+            val keep = predicate(key)
+            if (keep) {
                 entry.resetLives()
             } else if (entry.tryPurge()) {
                 cache.remove(key)

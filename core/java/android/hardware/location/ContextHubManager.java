@@ -141,7 +141,7 @@ public final class ContextHubManager {
     /**
      * Constants describing the type of events from a Context Hub, as defined in
      * {@link ContextHubClientCallback}.
-     * {@hide}
+     * @hide
      */
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(prefix = { "EVENT_" }, value = {

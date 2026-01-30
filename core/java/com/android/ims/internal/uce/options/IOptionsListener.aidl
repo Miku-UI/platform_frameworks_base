@@ -21,7 +21,7 @@ import com.android.ims.internal.uce.options.OptionsCapInfo;
 import com.android.ims.internal.uce.options.OptionsCmdStatus;
 import com.android.ims.internal.uce.common.StatusCode;
 
-/** {@hide} */
+/** @hide */
 interface IOptionsListener
 {
     /**

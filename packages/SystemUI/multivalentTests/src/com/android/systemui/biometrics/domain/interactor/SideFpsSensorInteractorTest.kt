@@ -29,14 +29,15 @@ import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.biometrics.FingerprintInteractiveToAuthProvider
 import com.android.systemui.biometrics.data.repository.FakeFingerprintPropertyRepository
-import com.android.systemui.biometrics.shared.model.DisplayRotation
-import com.android.systemui.biometrics.shared.model.DisplayRotation.ROTATION_0
-import com.android.systemui.biometrics.shared.model.DisplayRotation.ROTATION_180
-import com.android.systemui.biometrics.shared.model.DisplayRotation.ROTATION_270
-import com.android.systemui.biometrics.shared.model.DisplayRotation.ROTATION_90
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.biometrics.shared.model.SensorStrength
 import com.android.systemui.coroutines.collectLastValue
+import com.android.systemui.display.domain.interactor.DisplayStateInteractor
+import com.android.systemui.display.shared.model.DisplayRotation
+import com.android.systemui.display.shared.model.DisplayRotation.ROTATION_0
+import com.android.systemui.display.shared.model.DisplayRotation.ROTATION_180
+import com.android.systemui.display.shared.model.DisplayRotation.ROTATION_270
+import com.android.systemui.display.shared.model.DisplayRotation.ROTATION_90
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
@@ -114,7 +115,7 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
                 Optional.of(fingerprintInteractiveToAuthProvider),
                 kosmos.biometricSettingsRepository,
                 kosmos.keyguardTransitionInteractor,
-                SideFpsLogger(logcatLogBuffer("SfpsLogger"))
+                SideFpsLogger(logcatLogBuffer("SfpsLogger")),
             )
     }
 
@@ -145,19 +146,15 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
     private suspend fun sendTransition(from: KeyguardState, to: KeyguardState) {
         kosmos.fakeKeyguardTransitionRepository.sendTransitionSteps(
             listOf(
-                TransitionStep(
-                    from = from,
-                    to = to,
-                    transitionState = TransitionState.STARTED,
-                ),
+                TransitionStep(from = from, to = to, transitionState = TransitionState.STARTED),
                 TransitionStep(
                     from = from,
                     to = to,
                     transitionState = TransitionState.FINISHED,
-                    value = 1.0f
-                )
+                    value = 1.0f,
+                ),
             ),
-            testScope
+            testScope,
         )
     }
 
@@ -440,7 +437,7 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
         sensorLocationX: Int = 0,
         sensorLocationY: Int = 0,
         rotation: DisplayRotation,
-        sensorWidth: Int
+        sensorWidth: Int,
     ) {
         setupDisplayDimensions(width, height)
         currentRotation.value = rotation
@@ -448,7 +445,7 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
             x = sensorLocationX,
             y = sensorLocationY,
             displayId = "expanded_display",
-            sensorRadius = sensorWidth / 2
+            sensorRadius = sensorWidth / 2,
         )
     }
 
@@ -467,7 +464,7 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
         x: Int = 0,
         y: Int = 0,
         displayId: String = "display_id_1",
-        sensorRadius: Int = 150
+        sensorRadius: Int = 150,
     ) {
         contextDisplayInfo.uniqueId = displayId
         fingerprintRepository.setProperties(
@@ -483,14 +480,8 @@ class SideFpsSensorInteractorTest : SysuiTestCase() {
                             y + 100,
                             sensorRadius,
                         ),
-                    displayId to
-                        SensorLocationInternal(
-                            displayId,
-                            x,
-                            y,
-                            sensorRadius,
-                        )
-                )
+                    displayId to SensorLocationInternal(displayId, x, y, sensorRadius),
+                ),
         )
         // Emit a display change event, this happens whenever any display related change happens,
         // rotation, active display changing etc, display switched off/on.

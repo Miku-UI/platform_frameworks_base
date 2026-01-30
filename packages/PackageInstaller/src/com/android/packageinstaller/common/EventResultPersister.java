@@ -30,6 +30,8 @@ import android.util.Xml;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import com.android.packageinstaller.PackageUtil;
+
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlSerializer;
@@ -94,7 +96,18 @@ public class EventResultPersister {
 
     /** Call back when a result is received. Observer is removed when onResult it called. */
     public interface EventResultObserver {
+        /**
+         * Called when a result is received.
+         */
         void onResult(int status, int legacyStatus, @Nullable String message, int serviceId);
+
+        /**
+         * Return true if the intent is handled by the observer. When the intent is handled,
+         * do not trigger #onResult() and not remove the observer.
+         */
+        default boolean onHandleIntent(Intent intent) {
+            return false;
+        }
     }
 
     /**
@@ -178,17 +191,22 @@ public class EventResultPersister {
     }
 
     /**
-     * Add a result. If the result is an pending user action, execute the pending user action
-     * directly and do not queue a result.
+     * Add a result. If the result is a pending user action, execute the pending user action
+     * directly and do not queue a result in version one. In version two, call back the
+     * EventResultObserver#onHandleIntent to make sure if the intent is handled first.
      *
      * @param context The context the event was received in
      * @param intent The intent the activity received
      */
     void onEventReceived(@NonNull Context context, @NonNull Intent intent) {
         int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, 0);
+        Log.d(LOG_TAG, "Received event with status " + status
+                + ", action = " + intent.getAction());
 
-        if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            Intent intentToStart = intent.getParcelableExtra(Intent.EXTRA_INTENT);
+        // If it is PIA version one, starts the activity directly.
+        if (!PackageUtil.isVersionTwoEnabled(context)
+                && status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+            Intent intentToStart = intent.getParcelableExtra(Intent.EXTRA_INTENT, Intent.class);
             intentToStart.addFlags(FLAG_ACTIVITY_NEW_TASK);
             context.startActivity(intentToStart);
 
@@ -201,19 +219,28 @@ public class EventResultPersister {
         int serviceId = intent.getIntExtra(EXTRA_SERVICE_ID, 0);
 
         EventResultObserver observerToCall = null;
+        boolean isIntentHandled = false;
         synchronized (mLock) {
             int numObservers = mObservers.size();
             for (int i = 0; i < numObservers; i++) {
                 if (mObservers.keyAt(i) == id) {
                     observerToCall = mObservers.valueAt(i);
-                    mObservers.removeAt(i);
+                    // If the intent is handled, don't remove the observer, still needs to
+                    // receive the later events.
+                    isIntentHandled = observerToCall.onHandleIntent(intent);
+                    if (!isIntentHandled) {
+                        mObservers.removeAt(i);
+                    }
 
                     break;
                 }
             }
 
             if (observerToCall != null) {
-                observerToCall.onResult(status, legacyStatus, statusMessage, serviceId);
+                // If the intent is handled, don't call back the observer#onResult().
+                if (!isIntentHandled) {
+                    observerToCall.onResult(status, legacyStatus, statusMessage, serviceId);
+                }
             } else {
                 mResults.put(id, new EventResult(status, legacyStatus, statusMessage, serviceId));
                 writeState();

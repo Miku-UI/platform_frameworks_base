@@ -27,30 +27,66 @@ import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.android.systemui.media.controls.ui.view.MediaHost
+import com.android.systemui.media.remedia.shared.flag.MediaControlsInComposeFlag
+import com.android.systemui.media.remedia.ui.compose.Media
+import com.android.systemui.media.remedia.ui.compose.MediaPresentationStyle
+import com.android.systemui.media.remedia.ui.compose.MediaUiBehavior
+import com.android.systemui.media.remedia.ui.viewmodel.MediaCarouselVisibility
+import com.android.systemui.media.remedia.ui.viewmodel.MediaViewModel
 import com.android.systemui.res.R
 
 /** Displays a popup containing media controls. Embeds the MediaCarousel within a Compose popup. */
 @Composable
-fun MediaControlPopup(mediaHost: MediaHost, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier =
-            modifier
-                .width(400.dp)
-                .height(200.dp)
-                .clip(
-                    shape =
-                        RoundedCornerShape(dimensionResource(R.dimen.notification_corner_radius))
+fun MediaControlPopup(
+    viewModelFactory: MediaViewModel.Factory,
+    mediaHost: MediaHost,
+    modifier: Modifier = Modifier,
+) {
+    if (MediaControlsInComposeFlag.isEnabled) {
+        Media(
+            viewModelFactory = viewModelFactory,
+            presentationStyle = MediaPresentationStyle.Default,
+            behavior =
+                MediaUiBehavior(
+                    carouselVisibility = MediaCarouselVisibility.WhenAnyCardIsActive,
+                    isCarouselDismissible = false,
+                    isCarouselScrollingEnabled = false,
                 ),
-        factory = { _ ->
-            mediaHost.hostView.apply {
-                layoutParams =
-                    FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                    )
-            }
-            mediaHost.hostView
-        },
-        onReset = {},
-    )
+            onDismissed = {},
+            modifier =
+                modifier
+                    .width(400.dp)
+                    .height(200.dp)
+                    .clip(
+                        shape =
+                            RoundedCornerShape(
+                                dimensionResource(R.dimen.notification_corner_radius)
+                            )
+                    ),
+        )
+    } else {
+        AndroidView(
+            modifier =
+                modifier
+                    .width(400.dp)
+                    .height(200.dp)
+                    .clip(
+                        shape =
+                            RoundedCornerShape(
+                                dimensionResource(R.dimen.notification_corner_radius)
+                            )
+                    ),
+            factory = { _ ->
+                mediaHost.hostView.apply {
+                    layoutParams =
+                        FrameLayout.LayoutParams(
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                            FrameLayout.LayoutParams.MATCH_PARENT,
+                        )
+                }
+                mediaHost.hostView
+            },
+            onReset = {},
+        )
+    }
 }

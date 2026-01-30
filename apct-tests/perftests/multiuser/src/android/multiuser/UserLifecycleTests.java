@@ -155,7 +155,7 @@ public class UserLifecycleTests {
                     + " rather than the system user");
         }
         mUserSwitchTimeoutMs = setSystemProperty(
-                "debug.usercontroller.user_switch_timeout_ms", "100000");
+                "debug.usercontroller.user_switch_timeout_ms", "" + (1000 * TIMEOUT_IN_SECOND / 3));
         mDisableUserSwitchingDialogAnimations = setSystemProperty(
                 "debug.usercontroller.disable_user_switching_dialog_animations", "true");
     }

@@ -1,11 +1,6 @@
 # Bug component: 24939
 
-romainguy@google.com
-jreck@google.com
-sumir@google.com
-djsollen@google.com
-alecmouri@google.com
-sallyqi@google.com
+include /graphics/java/android/graphics/CORE_GRAPHICS_OWNERS
 
 per-file BLASTBufferQueue.java = file:/services/core/java/com/android/server/wm/OWNERS
 per-file FontFamily.java = file:fonts/OWNERS

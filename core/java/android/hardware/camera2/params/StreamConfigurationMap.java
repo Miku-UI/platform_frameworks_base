@@ -1621,6 +1621,99 @@ public final class StreamConfigurationMap {
     }
 
     /**
+     * Convert an internal format and an internal dataspace from {@code graphics.h}
+     * to a public format defined in {@code ImageFormat}.
+     *
+     * <p>In particular below conversion is done:</p>
+     *
+     * HAL_DATASPACE_DEPTH ==>
+     *     HAL_PIXEL_FORMAT_BLOB ==>       ImageFormat.DEPTH_POINT_CLOUD
+     *     HAL_PIXEL_FORMAT_Y16 ==>        ImageFormat.DEPTH16
+     *     HAL_PIXEL_FORMAT_RAW16 ==>      ImageFormat.RAW_DEPTH
+     *     HAL_PIXEL_FORMAT_RAW10 ==>      ImageFormat.RAW_DEPTH10
+     *
+     * HAL_PIXEL_FORMAT_BLOB ==>
+     *     HAL_DATASPACE_DYNAMIC_DEPTH ==> ImageFormat.DEPTH_JPEG
+     *     HAL_DATASPACE_HEIF ==>          ImageFormat.HEIC
+     *     HAL_DATASPACE_JPEG_R ==>        ImageFormat.JPEG_R
+     *     DATASPACE_HEIF_ULTRAHDR ==>     ImageFormat.HEIC_ULTRAHDR
+     *     HAL_DATASPACE_V0_JFIF ==>       ImageFormat.JPEG
+     *
+     * HAL_PIXEL_FORMAT_RGBA_8888 ===>     PixelFormat.RGBA_8888
+     * HAL_PIXEL_FORMAT_RGBX_8888 ===>     PixelFormat.RGBX_8888
+     * HAL_PIXEL_FORMAT_RGB_888  ===>      PixelFormat.RGB_888
+     * HAL_PIXEL_FORMAT_RGB_565 ==>        PixelFormat.RGB_565
+     * HAL_PIXEL_FORMAT_YCBCR_422_SP ==>   ImageFormat.NV16
+     * HAL_PIXEL_FORMAT_YCRCB_420_SP ===>  ImageFormat.NV21
+     * HAL_PIXEL_FORMAT_YCBCR_422_I ===>   ImageFormat.YUY2
+     * HAL_PIXEL_FORMAT_RAW16 ==>          ImageFormat.RAW_SENSOR
+     * HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED ==> ImageFormat.PRIVATE
+     * HAL_PIXEL_FORMAT_YCBCR_420_888 ==>  ImageFormat.YUV_420_888
+     * HAL_PIXEL_FORMAT_RAW_OPAQUE ==>     ImageFormat.RAW_PRIVATE
+     * HAL_PIXEL_FORMAT_RAW10 ==>          ImageFormat.RAW10
+     * HAL_PIXEL_FORMAT_RAW12 ==>          ImageFormat.RAW12
+     * HAL_PIXEL_FORMAT_YCBCR_P010 ==>     ImageFormat.YCBCR_P010
+     * HAL_PIXEL_FORMAT_YCBCR_P210 ==>     ImageFormat.YCBCR_P210
+     * HAL_PIXEL_FORMAT_Y8 ===>            ImageFormat.Y8
+     * HAL_PIXEL_FORMAT_Y16 ===>           ImageFormat.Y16
+     * HAL_PIXEL_FORMAT_FORMAT_YV12 ==>    ImageFormat.YV12
+     *
+     * @hide
+     */
+    static int internalFormatAndDataspaceToImageFormat(int internalFormat, int dataSpace) {
+        // Convert all depth formats
+        if (dataSpace == HAL_DATASPACE_DEPTH) {
+            return depthFormatToPublic(internalFormat);
+        }
+
+        // Convert all blob formats
+        if (internalFormat == HAL_PIXEL_FORMAT_BLOB) {
+            if (Flags.cameraHeifGainmap()) {
+                if (dataSpace == DataSpace.DATASPACE_HEIF_ULTRAHDR) {
+                    return ImageFormat.HEIC_ULTRAHDR;
+                }
+            }
+
+            switch (dataSpace) {
+                case HAL_DATASPACE_DYNAMIC_DEPTH:
+                    return ImageFormat.DEPTH_JPEG;
+                case HAL_DATASPACE_HEIF:
+                    return ImageFormat.HEIC;
+                case HAL_DATASPACE_JPEG_R:
+                    return ImageFormat.JPEG_R;
+                case HAL_DATASPACE_V0_JFIF:
+                default:
+                    return ImageFormat.JPEG;
+            }
+        }
+
+        // Remaining recognized formats that are equal between public and internal.
+        switch (internalFormat) {
+            case HAL_PIXEL_FORMAT_RGBA_8888:
+            case HAL_PIXEL_FORMAT_RGBX_8888:
+            case HAL_PIXEL_FORMAT_RGB_888:
+            case HAL_PIXEL_FORMAT_RGB_565:
+            case HAL_PIXEL_FORMAT_YCBCR_422_SP:
+            case HAL_PIXEL_FORMAT_YCRCB_420_SP:
+            case HAL_PIXEL_FORMAT_YCBCR_422_I:
+            case HAL_PIXEL_FORMAT_RAW16:
+            case HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED:
+            case HAL_PIXEL_FORMAT_YCBCR_420_888:
+            case HAL_PIXEL_FORMAT_RAW_OPAQUE:
+            case HAL_PIXEL_FORMAT_RAW10:
+            case HAL_PIXEL_FORMAT_RAW12:
+            case HAL_PIXEL_FORMAT_YCBCR_P010:
+            case HAL_PIXEL_FORMAT_YCBCR_P210:
+            case HAL_PIXEL_FORMAT_Y8:
+            case HAL_PIXEL_FORMAT_Y16:
+            case HAL_PIXEL_FORMAT_YV12:
+                return internalFormat;
+            default:
+                return ImageFormat.UNKNOWN;
+        }
+    }
+
+    /**
      * Convert image formats from public to internal formats (in-place).
      *
      * @param formats an array of image formats
@@ -2130,16 +2223,26 @@ public final class StreamConfigurationMap {
     }
 
     // from system/core/include/system/graphics.h
+    private static final int HAL_PIXEL_FORMAT_RGBA_8888 = 0x01;
+    private static final int HAL_PIXEL_FORMAT_RGBX_8888 = 0x02;
+    private static final int HAL_PIXEL_FORMAT_RGB_888 = 0x03;
+    private static final int HAL_PIXEL_FORMAT_RGB_565 = 0x04;
+    private static final int HAL_PIXEL_FORMAT_YCBCR_422_SP = 0x10;
+    private static final int HAL_PIXEL_FORMAT_YCRCB_420_SP = 0x11;
+    private static final int HAL_PIXEL_FORMAT_YCBCR_422_I = 0x14;
     private static final int HAL_PIXEL_FORMAT_RAW16 = 0x20;
     /** @hide */
     public static final int HAL_PIXEL_FORMAT_BLOB = 0x21;
     private static final int HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED = 0x22;
-    private static final int HAL_PIXEL_FORMAT_YCbCr_420_888 = 0x23;
+    private static final int HAL_PIXEL_FORMAT_YCBCR_420_888 = 0x23;
     private static final int HAL_PIXEL_FORMAT_RAW_OPAQUE = 0x24;
     private static final int HAL_PIXEL_FORMAT_RAW10 = 0x25;
     private static final int HAL_PIXEL_FORMAT_RAW12 = 0x26;
+    private static final int HAL_PIXEL_FORMAT_YCBCR_P010 = 0x36;
+    private static final int HAL_PIXEL_FORMAT_YCBCR_P210 = 0x3c;
+    private static final int HAL_PIXEL_FORMAT_Y8 = 0x20203859;
     private static final int HAL_PIXEL_FORMAT_Y16 = 0x20363159;
-
+    private static final int HAL_PIXEL_FORMAT_YV12 = 0x32315659;
 
     private static final int HAL_DATASPACE_STANDARD_SHIFT = 16;
     private static final int HAL_DATASPACE_TRANSFER_SHIFT = 22;

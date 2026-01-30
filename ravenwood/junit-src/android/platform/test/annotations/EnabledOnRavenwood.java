@@ -29,10 +29,8 @@ import java.lang.annotation.Target;
  * annotation, and an {@link EnabledOnRavenwood} annotation always takes precedence over
  * an {@link DisabledOnRavenwood} annotation.
  *
- * This annotation only takes effect when the containing class has a {@code
- * RavenwoodRule} or {@code RavenwoodClassRule} configured. Ignoring is accomplished by
- * throwing an {@code org.junit.AssumptionViolatedException} which test infrastructure treats as
- * being ignored.
+ * Ignoring is accomplished by throwing an {@code org.junit.AssumptionViolatedException} which
+ * test infrastructure treats as being ignored.
  *
  * This annotation has no effect on any other non-Ravenwood test environments.
  *

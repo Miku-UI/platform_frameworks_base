@@ -31,6 +31,8 @@ import android.content.Context;
 import android.content.pm.ProviderInfo;
 import android.content.res.AssetFileDescriptor;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.CancellationSignal;
@@ -39,6 +41,7 @@ import android.os.Process;
 import android.platform.test.annotations.EnableFlags;
 import android.view.View;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.RemoteViews;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -46,7 +49,6 @@ import androidx.test.filters.SmallTest;
 
 import com.android.server.notification.Flags;
 import com.android.systemui.SysuiTestCase;
-import com.android.systemui.log.LogAssertKt;
 import com.android.systemui.statusbar.notification.collection.NotificationEntry;
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder;
 
@@ -168,16 +170,28 @@ public class NotificationCustomContentMemoryVerifierTest extends SysuiTestCase {
                 .isTrue();
     }
 
+    /**
+     * You can create a view with `BitmapDrawable` that has a null Bitmap.
+     */
+    @Test
+    @EnableCompatChanges({
+            NotificationCustomContentCompat.CHECK_SIZE_OF_INFLATED_CUSTOM_VIEWS})
+    public void computeViewHierarchyImageViewSize_nullableBitmapDrawable_doesntCrash() {
+        ImageView iv = new ImageView(getContext());
+        iv.setImageDrawable(new BitmapDrawable(getContext().getResources(), (Bitmap) null));
+        assertThat(
+                NotificationCustomContentMemoryVerifier.computeViewHierarchyImageViewSize(iv)
+        ).isEqualTo(0);
+    }
+
     @Test
     @EnableCompatChanges({
             NotificationCustomContentCompat.CHECK_SIZE_OF_INFLATED_CUSTOM_VIEWS})
     public void satisfiesMemoryLimits_viewWithoutCustomNotificationRoot_returnsTrue() {
         NotificationEntry entry = new NotificationEntryBuilder().build();
         View view = new FrameLayout(mContext);
-        LogAssertKt.assertRunnableLogsWtf(() -> {
-            assertThat(NotificationCustomContentMemoryVerifier.satisfiesMemoryLimits(view, entry))
-                    .isTrue();
-        });
+        assertThat(NotificationCustomContentMemoryVerifier.satisfiesMemoryLimits(view, entry))
+                .isTrue();
     }
 
     @Test
@@ -207,7 +221,7 @@ public class NotificationCustomContentMemoryVerifierTest extends SysuiTestCase {
 
 
     /** This provider serves the images for inflation. */
-    class TestImageContentProvider extends ContentProvider {
+    static class TestImageContentProvider extends ContentProvider {
 
         TestImageContentProvider(Context context) {
             ProviderInfo info = new ProviderInfo();
@@ -225,8 +239,8 @@ public class NotificationCustomContentMemoryVerifierTest extends SysuiTestCase {
         @Override
         public ParcelFileDescriptor openFile(Uri uri, String mode) {
             return getContext().getResources().openRawResourceFd(
-                    NotificationCustomContentNotificationBuilder.getDRAWABLE_IMAGE_RESOURCE())
-                        .getParcelFileDescriptor();
+                        NotificationCustomContentNotificationBuilder.getDRAWABLE_IMAGE_RESOURCE())
+                    .getParcelFileDescriptor();
         }
 
         @Override

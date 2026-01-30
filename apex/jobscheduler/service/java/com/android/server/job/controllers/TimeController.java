@@ -33,6 +33,7 @@ import android.util.proto.ProtoOutputStream;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.modules.expresslog.Counter;
 import com.android.server.AppSchedulingModuleThread;
+
 import com.android.server.job.JobSchedulerService;
 import com.android.server.job.StateControllerProto;
 
@@ -113,8 +114,7 @@ public final class TimeController extends StateController {
             mTrackedJobs.add(job);
 
             job.setTrackingController(JobStatus.TRACKING_TIME);
-            WorkSource ws =
-                    mService.deriveWorkSource(job.getSourceUid(), job.getSourcePackageName());
+            WorkSource ws = mService.deriveWorkSource(job.getSourceUid());
 
             // Only update alarms if the job would be ready with the relevant timing constraint
             // satisfied.
@@ -143,6 +143,24 @@ public final class TimeController extends StateController {
         }
     }
 
+    /**
+     * Check if the delay alarm has been delayed past the next scheduled time.
+     * This can happen since we use a in-exact alarm for the delay.
+     * Checking here avoids unnecessary delays in starting the job.
+     */
+    private boolean isDelayAlarmDelayed() {
+        return sElapsedRealtimeClock.millis() >= mNextDelayExpiredElapsedMillis;
+    }
+
+    /**
+     * Check if the deadline alarm has been delayed past the next scheduled time.
+     * This can happen since we use a in-exact alarm for the deadline.
+     * Checking here avoids unnecessary delays in starting the job.
+     */
+    private boolean isDeadlineAlarmDelayed() {
+        return sElapsedRealtimeClock.millis() >= mNextJobExpiredElapsedMillis;
+    }
+
     @Override
     public void evaluateStateLocked(JobStatus job) {
         final long nowElapsedMillis = sElapsedRealtimeClock.millis();
@@ -151,7 +169,8 @@ public final class TimeController extends StateController {
         // unnecessary processing of the timing delay.
         if (job.hasDeadlineConstraint()
                 && !job.isConstraintSatisfied(JobStatus.CONSTRAINT_DEADLINE)
-                && job.getLatestRunTimeElapsed() <= mNextJobExpiredElapsedMillis) {
+                && (job.getLatestRunTimeElapsed() <= mNextJobExpiredElapsedMillis
+                        || isDeadlineAlarmDelayed())) {
             if (evaluateDeadlineConstraint(job, nowElapsedMillis)) {
                 if (job.isReady()) {
                     // If the job still isn't ready, there's no point trying to rush the
@@ -164,12 +183,13 @@ public final class TimeController extends StateController {
             } else if (wouldBeReadyWithConstraintLocked(job, JobStatus.CONSTRAINT_DEADLINE)) {
                 // This job's deadline is earlier than the current set alarm. Update the alarm.
                 setDeadlineExpiredAlarmLocked(job.getLatestRunTimeElapsed(),
-                        mService.deriveWorkSource(job.getSourceUid(), job.getSourcePackageName()));
+                        mService.deriveWorkSource(job.getSourceUid()));
             }
         }
         if (job.hasTimingDelayConstraint()
                 && !job.isConstraintSatisfied(JobStatus.CONSTRAINT_TIMING_DELAY)
-                && job.getEarliestRunTime() <= mNextDelayExpiredElapsedMillis) {
+                && (job.getEarliestRunTime() <= mNextDelayExpiredElapsedMillis
+                        || isDelayAlarmDelayed())) {
             // Since this is just the delay, we don't need to rush the Scheduler to run the job
             // immediately if the constraint is satisfied here.
             if (evaluateTimingDelayConstraint(job, nowElapsedMillis)) {
@@ -179,7 +199,7 @@ public final class TimeController extends StateController {
             } else if (wouldBeReadyWithConstraintLocked(job, JobStatus.CONSTRAINT_TIMING_DELAY)) {
                 // This job's delay is earlier than the current set alarm. Update the alarm.
                 setDelayExpiredAlarmLocked(job.getEarliestRunTime(),
-                        mService.deriveWorkSource(job.getSourceUid(), job.getSourcePackageName()));
+                        mService.deriveWorkSource(job.getSourceUid()));
             }
         }
     }
@@ -252,7 +272,7 @@ public final class TimeController extends StateController {
                 }
             }
             setDeadlineExpiredAlarmLocked(nextExpiryTime,
-                    mService.deriveWorkSource(nextExpiryUid, nextExpiryPackageName));
+                    mService.deriveWorkSource(nextExpiryUid));
         }
     }
 
@@ -314,7 +334,7 @@ public final class TimeController extends StateController {
                 mStateChangedListener.onControllerStateChanged(changedJobs);
             }
             setDelayExpiredAlarmLocked(nextDelayTime,
-                    mService.deriveWorkSource(nextDelayUid, nextDelayPackageName));
+                    mService.deriveWorkSource(nextDelayUid));
         }
     }
 
@@ -401,7 +421,11 @@ public final class TimeController extends StateController {
             if (DEBUG) {
                 Slog.d(TAG, "Deadline-expired alarm fired");
             }
-            checkExpiredDeadlinesAndResetAlarm();
+
+            synchronized (mLock) {
+                mNextJobExpiredElapsedMillis = Long.MAX_VALUE;
+                checkExpiredDeadlinesAndResetAlarm();
+            }
         }
     };
 
@@ -411,8 +435,12 @@ public final class TimeController extends StateController {
             if (DEBUG) {
                 Slog.d(TAG, "Delay-expired alarm fired");
             }
-            mLastFiredDelayExpiredElapsedMillis = sElapsedRealtimeClock.millis();
-            checkExpiredDelaysAndResetAlarm();
+
+            synchronized (mLock) {
+                mLastFiredDelayExpiredElapsedMillis = sElapsedRealtimeClock.millis();
+                mNextDelayExpiredElapsedMillis = Long.MAX_VALUE;
+                checkExpiredDelaysAndResetAlarm();
+            }
         }
     };
 

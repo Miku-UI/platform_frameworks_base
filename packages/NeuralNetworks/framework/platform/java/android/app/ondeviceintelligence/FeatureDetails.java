@@ -16,9 +16,6 @@
 
 package android.app.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
-
-import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
@@ -37,7 +34,6 @@ import java.text.MessageFormat;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public final class FeatureDetails implements Parcelable {
     @Status
     private final int mFeatureStatus;

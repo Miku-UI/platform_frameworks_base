@@ -22,12 +22,12 @@ import android.compat.annotation.UnsupportedAppUsage;
 import android.content.om.OverlayableInfo;
 import android.content.res.loader.AssetsProvider;
 import android.content.res.loader.ResourcesProvider;
-import android.ravenwood.annotation.RavenwoodClassLoadHook;
 import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.text.TextUtils;
 import android.util.Log;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 
 import dalvik.annotation.optimization.CriticalNative;
 
@@ -49,7 +49,6 @@ import java.util.Objects;
  * @hide
  */
 @RavenwoodKeepWholeClass
-@RavenwoodClassLoadHook(RavenwoodClassLoadHook.LIBANDROID_LOADING_HOOK)
 public final class ApkAssets {
     private static final boolean DEBUG = false;
 
@@ -513,6 +512,26 @@ public final class ApkAssets {
         pw.println(prefix + "class=" + getClass());
         pw.println(prefix + "debugName=" + getDebugName());
         pw.println(prefix + "assetPath=" + getAssetPath());
+    }
+
+    /**
+     * This exists as a function the native layer can call through jni to determine which android
+     * feature flags are enabled.
+     *
+     * @param flagNames An array of all the names the native layer needs to know the status of
+     * @return An array that parallels the flagNames parameter and contains if each flag is enabled
+     */
+    private static boolean[] getFlagValuesForNative(@NonNull String[] flagNames) {
+        boolean[] values = new boolean[flagNames.length];
+        for (int i = 0; i < flagNames.length; i++) {
+            Boolean value = ParsingPackageUtils.getAconfigFlags().getFlagValue(flagNames[i]);
+            if (value == null) {
+                Log.w("ApkAssets", "Couldn't find flag value for native: " + flagNames[i]);
+            } else {
+                values[i] = value;
+            }
+        }
+        return values;
     }
 
     private static native long nativeLoad(@FormatType int format, @NonNull String path,

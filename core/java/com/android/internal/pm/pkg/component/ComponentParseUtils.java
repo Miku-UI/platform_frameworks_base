@@ -27,16 +27,21 @@ import android.content.pm.parsing.result.ParseResult;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.content.res.XmlResourceParser;
+import android.permission.flags.Flags;
 import android.text.TextUtils;
 
+import com.android.internal.R;
 import com.android.internal.pm.pkg.parsing.ParsingPackage;
 import com.android.internal.pm.pkg.parsing.ParsingPackageUtils;
 import com.android.internal.pm.pkg.parsing.ParsingUtils;
+import com.android.internal.util.XmlUtils;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @hide
@@ -54,6 +59,14 @@ public class ComponentParseUtils {
     static <Component extends ParsedComponentImpl> ParseResult<Component> parseAllMetaData(
             ParsingPackage pkg, Resources res, XmlResourceParser parser, String tag,
             Component component, ParseInput input) throws XmlPullParserException, IOException {
+        // Beginning in Android 17, permissions may specify valid usage purposes. Currently, valid
+        // purposes are only processed for enforcement if the permission is defined within the
+        // Android platform manifest. This limitation might be lifted in future versions.
+        final boolean shouldParseValidPurposes =
+                Flags.purposeDeclarationEnabled()
+                        && component instanceof ParsedPermissionImpl
+                        && "android".equals(pkg.getPackageName());
+        final List<ParsedValidPurpose> validPurposes = new ArrayList<>();
         final int depth = parser.getDepth();
         int type;
         while ((type = parser.next()) != XmlPullParser.END_DOCUMENT
@@ -62,12 +75,20 @@ public class ComponentParseUtils {
                 continue;
             }
             if (ParsingPackageUtils.getAconfigFlags().skipCurrentElement(pkg, parser)) {
+                XmlUtils.skipCurrentTag(parser);
                 continue;
             }
 
-            final ParseResult result;
+            final ParseResult<?> result;
             if ("meta-data".equals(parser.getName())) {
                 result = ParsedComponentUtils.addMetaData(component, pkg, res, parser, input);
+            } else if (shouldParseValidPurposes && "valid-purpose".equals(parser.getName())) {
+                final ParseResult<ParsedValidPurpose> validPurposeResult =
+                        parseValidPurpose(res, parser, input);
+                result = validPurposeResult;
+                if (validPurposeResult.isSuccess()) {
+                    validPurposes.add(validPurposeResult.getResult());
+                }
             } else {
                 result = ParsingUtils.unknownTag(tag, pkg, parser, input);
             }
@@ -77,7 +98,37 @@ public class ComponentParseUtils {
             }
         }
 
+        if (shouldParseValidPurposes) {
+            final ParsedPermissionImpl permission = (ParsedPermissionImpl) component;
+            if (permission.isPurposeRequired() && validPurposes.isEmpty()) {
+                return input.error(
+                        "<permission> requires purpose but no valid purpose defined!");
+            } else {
+                permission.setValidPurposes(validPurposes);
+            }
+        }
+
         return input.success(component);
+    }
+
+    private static ParseResult<ParsedValidPurpose> parseValidPurpose(
+            Resources res, XmlResourceParser parser, ParseInput input) {
+        TypedArray sa = res.obtainAttributes(parser, R.styleable.AndroidManifestValidPurpose);
+        try {
+            final String name = sa.getString(R.styleable.AndroidManifestValidPurpose_name);
+            if (TextUtils.isEmpty(name)) {
+                return input.error(
+                        "The android:name attribute for <valid-purpose> cannot be null or empty!");
+            }
+            final int maxTargetSdkVersion =
+                    ParsingPackageUtils.parseMinOrMaxSdkVersion(
+                            sa,
+                            R.styleable.AndroidManifestValidPurpose_maxTargetSdkVersion,
+                            /* defaultValue= */ Integer.MAX_VALUE);
+            return input.success(new ParsedValidPurposeImpl(name, maxTargetSdkVersion));
+        } finally {
+            sa.recycle();
+        }
     }
 
     @NonNull

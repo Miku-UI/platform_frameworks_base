@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 /**
  * Generate {@link ClassPathPackageInfo}s by scanning apk paths.
  *
- * {@hide} Not needed for 1.0 SDK.
+ * @hide Not needed for 1.0 SDK.
  */
 @Deprecated
 public class ClassPathPackageInfoSource {

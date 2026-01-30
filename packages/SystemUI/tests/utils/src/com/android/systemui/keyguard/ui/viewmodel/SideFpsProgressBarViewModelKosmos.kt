@@ -18,9 +18,9 @@ package com.android.systemui.keyguard.ui.viewmodel
 
 import android.content.applicationContext
 import com.android.systemui.biometrics.domain.interactor.biometricStatusInteractor
-import com.android.systemui.biometrics.domain.interactor.displayStateInteractor
 import com.android.systemui.biometrics.domain.interactor.sideFpsSensorInteractor
 import com.android.systemui.deviceentry.domain.interactor.deviceEntryFingerprintAuthInteractor
+import com.android.systemui.display.domain.interactor.displayStateInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.testDispatcher
@@ -40,6 +40,6 @@ val Kosmos.sideFpsProgressBarViewModel by
             displayStateInteractor = displayStateInteractor,
             mainDispatcher = testDispatcher,
             applicationScope = testScope.backgroundScope,
-            powerInteractor = powerInteractor
+            powerInteractor = powerInteractor,
         )
     }

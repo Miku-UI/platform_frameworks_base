@@ -264,7 +264,6 @@ public abstract class CompanionDeviceService extends Service {
      * @param associationInfo A record for the companion device.
      * @deprecated use {@link #onDevicePresenceEvent(DevicePresenceEvent)}} instead.
      */
-    @FlaggedApi(Flags.FLAG_DEVICE_PRESENCE)
     @Deprecated
     @MainThread
     public void onDeviceAppeared(@NonNull AssociationInfo associationInfo) {
@@ -279,7 +278,6 @@ public abstract class CompanionDeviceService extends Service {
      * @param associationInfo A record for the companion device.
      * @deprecated use {@link #onDevicePresenceEvent(DevicePresenceEvent)}} instead.
      */
-    @FlaggedApi(Flags.FLAG_DEVICE_PRESENCE)
     @Deprecated
     @MainThread
     public void onDeviceDisappeared(@NonNull AssociationInfo associationInfo) {
@@ -293,9 +291,21 @@ public abstract class CompanionDeviceService extends Service {
      *
      * @see CompanionDeviceManager#startObservingDevicePresence(ObservingDevicePresenceRequest)
      */
-    @FlaggedApi(Flags.FLAG_DEVICE_PRESENCE)
     @MainThread
     public void onDevicePresenceEvent(@NonNull DevicePresenceEvent event) {
+        // Do nothing. Companion apps can override this function.
+    }
+
+    /**
+     * Called by the system when it requests an action for an association managed
+     * by this app.
+     * @param associationInfo The association for which the action is requested.
+     * @param request The specific request being requested
+     */
+    @MainThread
+    @FlaggedApi(Flags.FLAG_ENABLE_DATA_SYNC)
+    public void onActionRequested(
+            @NonNull AssociationInfo associationInfo, @NonNull ActionRequest request) {
         // Do nothing. Companion apps can override this function.
     }
 
@@ -337,6 +347,15 @@ public abstract class CompanionDeviceService extends Service {
         public void onDevicePresenceEvent(DevicePresenceEvent event) {
             if (Flags.devicePresence()) {
                 mMainHandler.postAtFrontOfQueue(() -> mService.onDevicePresenceEvent(event));
+            }
+        }
+
+        @Override
+        public void onActionRequested(@NonNull AssociationInfo association,
+                 ActionRequest request) {
+            if (Flags.enableDataSync()) {
+                mMainHandler.postAtFrontOfQueue(
+                        () -> mService.onActionRequested(association, request));
             }
         }
     }

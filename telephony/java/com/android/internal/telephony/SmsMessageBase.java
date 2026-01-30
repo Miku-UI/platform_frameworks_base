@@ -33,65 +33,65 @@ import java.util.regex.Pattern;
 
 /**
  * Base class declaring the specific methods and members for SmsMessage.
- * {@hide}
+ * @hide
  */
 public abstract class SmsMessageBase {
     // Copied from Telephony.Mms.NAME_ADDR_EMAIL_PATTERN
     public static final Pattern NAME_ADDR_EMAIL_PATTERN =
             Pattern.compile("\\s*(\"[^\"]*\"|[^<>\"]+)\\s*<([^<>]+)>\\s*");
 
-    /** {@hide} The address of the SMSC. May be null */
+    /** @hide The address of the SMSC. May be null */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected String mScAddress;
 
-    /** {@hide} The address of the sender */
+    /** @hide The address of the sender */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected SmsAddress mOriginatingAddress;
 
-    /** {@hide} The address of the receiver */
+    /** @hide The address of the receiver */
     protected SmsAddress mRecipientAddress;
 
-    /** {@hide} The message body as a string. May be null if the message isn't text */
+    /** @hide The message body as a string. May be null if the message isn't text */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected String mMessageBody;
 
-    /** {@hide} */
+    /** @hide */
     protected String mPseudoSubject;
 
-    /** {@hide} Non-null if this is an email gateway message */
+    /** @hide Non-null if this is an email gateway message */
     protected String mEmailFrom;
 
-    /** {@hide} Non-null if this is an email gateway message */
+    /** @hide Non-null if this is an email gateway message */
     protected String mEmailBody;
 
-    /** {@hide} */
+    /** @hide */
     protected boolean mIsEmail;
 
-    /** {@hide} Time when SC (service centre) received the message */
+    /** @hide Time when SC (service centre) received the message */
     protected long mScTimeMillis;
 
-    /** {@hide} The raw PDU of the message */
+    /** @hide The raw PDU of the message */
     @UnsupportedAppUsage
     protected byte[] mPdu;
 
-    /** {@hide} The raw bytes for the user data section of the message */
+    /** @hide The raw bytes for the user data section of the message */
     protected byte[] mUserData;
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected SmsHeader mUserDataHeader;
 
     // "Message Waiting Indication Group"
     // 23.038 Section 4
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected boolean mIsMwi;
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected boolean mMwiSense;
 
-    /** {@hide} */
+    /** @hide */
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     protected boolean mMwiDontStore;
 
@@ -295,7 +295,7 @@ public abstract class SmsMessageBase {
     /**
      * Returns an object representing the user data header
      *
-     * {@hide}
+     * @hide
      */
     @UnsupportedAppUsage
     public SmsHeader getUserDataHeader() {
@@ -512,7 +512,7 @@ public abstract class SmsMessageBase {
     }
 
     /**
-     * {@hide}
+     * @hide
      * Returns the receiver address of this SMS message in String
      * form or null if unavailable
      */

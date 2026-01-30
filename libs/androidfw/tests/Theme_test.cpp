@@ -36,7 +36,8 @@ namespace android {
 class ThemeTest : public ::testing::Test {
  public:
   void SetUp() override {
-    system_assets_ = ApkAssets::Load(GetTestDataPath() + "/system/system.apk", PROPERTY_SYSTEM);
+    system_assets_ = ApkAssets::Load(GetTestDataPath() + "/system/system.apk",
+                                     nullptr, PROPERTY_SYSTEM);
     ASSERT_NE(nullptr, system_assets_);
 
     style_assets_ = ApkAssets::Load(GetTestDataPath() + "/styles/styles.apk");
@@ -260,7 +261,7 @@ TEST_F(ThemeTest, ThemeRebase) {
   ResTable_config night{};
   night.uiMode = ResTable_config::UI_MODE_NIGHT_YES;
   night.version = 8u;
-  am_night.SetConfigurations({{night}});
+  am_night.SetConfigurations({night});
 
   auto theme = am.NewTheme();
   {

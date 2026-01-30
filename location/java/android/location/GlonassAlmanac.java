@@ -131,7 +131,7 @@ public final class GlonassAlmanac implements Parcelable {
         /** Calendar day number within the four-year period beginning since the leap year. */
         private final int mCalendarDayNumber;
 
-        /** Flag to indicates if the satellite is a GLONASS-M satellitee. */
+        /** Flag to indicates if the satellite is a GLONASS-M satellite. */
         private final boolean mGlonassM;
 
         /** Coarse value of satellite time correction to GLONASS time in seconds. */
@@ -163,8 +163,13 @@ public final class GlonassAlmanac implements Parcelable {
             Preconditions.checkArgument(builder.mSlotNumber >= 1);
             // Allow healthState beyond the range to support potential future extensibility.
             Preconditions.checkArgument(builder.mHealthState >= 0);
-            Preconditions.checkArgumentInRange(
-                    builder.mFrequencyChannelNumber, 0, 31, "FrequencyChannelNumber");
+            if (Flags.fixGlonassAlmanacFrequencyChannelRange()) {
+                Preconditions.checkArgumentInRange(
+                        builder.mFrequencyChannelNumber, -7, 6, "FrequencyChannelNumber");
+            } else {
+                Preconditions.checkArgumentInRange(
+                        builder.mFrequencyChannelNumber, 0, 31, "FrequencyChannelNumber");
+            }
             Preconditions.checkArgumentInRange(
                     builder.mCalendarDayNumber, 1, 1461, "CalendarDayNumber");
             Preconditions.checkArgumentInRange(builder.mTau, -1.9e-3f, 1.9e-3f, "Tau");
@@ -202,7 +207,7 @@ public final class GlonassAlmanac implements Parcelable {
         }
 
         /** Returns the frequency channel number. */
-        @IntRange(from = 0, to = 31)
+        @IntRange(from = -7, to = 6)
         public int getFrequencyChannelNumber() {
             return mFrequencyChannelNumber;
         }
@@ -216,7 +221,7 @@ public final class GlonassAlmanac implements Parcelable {
             return mCalendarDayNumber;
         }
 
-        /** Returns true if the satellite is a GLONASS-M satellitee, false otherwise. */
+        /** Returns true if the satellite is a GLONASS-M satellite, false otherwise. */
         public boolean isGlonassM() {
             return mGlonassM;
         }
@@ -375,7 +380,7 @@ public final class GlonassAlmanac implements Parcelable {
             /** Sets the frequency channel number. */
             @NonNull
             public Builder setFrequencyChannelNumber(
-                    @IntRange(from = 0, to = 31) int frequencyChannelNumber) {
+                    @IntRange(from = -7, to = 6) int frequencyChannelNumber) {
                 mFrequencyChannelNumber = frequencyChannelNumber;
                 return this;
             }
@@ -391,7 +396,7 @@ public final class GlonassAlmanac implements Parcelable {
                 return this;
             }
 
-            /** Sets to true if the satellite is a GLONASS-M satellitee, false otherwise. */
+            /** Sets to true if the satellite is a GLONASS-M satellite, false otherwise. */
             @NonNull
             public Builder setGlonassM(boolean isGlonassM) {
                 this.mGlonassM = isGlonassM;

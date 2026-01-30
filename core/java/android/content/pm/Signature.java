@@ -297,7 +297,7 @@ public class Signature implements Parcelable {
         }
     };
 
-    /** {@hide} */
+    /** @hide */
     public void writeToXmlAttributeBytesHex(@NonNull TypedXmlSerializer out,
             @Nullable String namespace, @NonNull String name) throws IOException {
         out.attributeBytesHex(namespace, name, mSignature);

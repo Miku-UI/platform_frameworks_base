@@ -124,13 +124,16 @@ public class ApexManagerTest {
         });
 
         mMockSystem.system().stageNominalSystemState();
+        final int sdkVersion = Build.VERSION_CODES.CUR_DEVELOPMENT;
+        final int sdkVersionFull = Build.parseFullVersion(String.valueOf(sdkVersion));
         mPmService = new PackageManagerService(mMockSystem.mocks().getInjector(),
                 false /*factoryTest*/,
                 MockSystem.Companion.getDEFAULT_VERSION_INFO().fingerprint,
                 false /*isEngBuild*/,
                 false /*isUserDebugBuild*/,
-                Build.VERSION_CODES.CUR_DEVELOPMENT,
-                Build.VERSION.INCREMENTAL);
+                sdkVersion,
+                Build.VERSION.INCREMENTAL,
+                sdkVersionFull);
         mMockSystem.system().validateFinalState();
         mInstallPackageHelper = new InstallPackageHelper(mPmService, mock(AppDataHelper.class),
                 mock(RemovePackageHelper.class), mock(DeletePackageHelper.class),

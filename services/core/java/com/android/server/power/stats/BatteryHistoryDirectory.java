@@ -115,7 +115,7 @@ public class BatteryHistoryDirectory implements BatteryStatsHistory.BatteryHisto
     private final ReentrantLock mLock = new ReentrantLock();
     private final Compressor mCompressor;
     private boolean mWaitForDirectoryLock = false;
-    private boolean mFileCompressionEnabled;
+    private boolean mFileCompressionEnabled = true;
 
     public BatteryHistoryDirectory(@NonNull File directory, int maxHistorySize) {
         this(directory, maxHistorySize, DEFAULT_COMPRESSOR);
@@ -131,6 +131,7 @@ public class BatteryHistoryDirectory implements BatteryStatsHistory.BatteryHisto
         mCompressor = compressor;
     }
 
+    @VisibleForTesting
     public void setFileCompressionEnabled(boolean enabled) {
         mFileCompressionEnabled = enabled;
     }

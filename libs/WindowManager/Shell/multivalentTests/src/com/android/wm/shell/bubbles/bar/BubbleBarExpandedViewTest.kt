@@ -16,10 +16,8 @@
 
 package com.android.wm.shell.bubbles.bar
 
-import android.app.ActivityManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.ShortcutInfo
 import android.graphics.Insets
 import android.graphics.Rect
 import android.view.LayoutInflater
@@ -38,26 +36,18 @@ import com.android.wm.shell.bubbles.BubbleExpandedViewManager
 import com.android.wm.shell.bubbles.BubbleLogger
 import com.android.wm.shell.bubbles.BubblePositioner
 import com.android.wm.shell.bubbles.BubbleTaskView
-import com.android.wm.shell.bubbles.BubbleTaskViewFactory
 import com.android.wm.shell.bubbles.FakeBubbleExpandedViewManager
-import com.android.wm.shell.bubbles.RegionSamplingProvider
+import com.android.wm.shell.bubbles.FakeBubbleFactory
+import com.android.wm.shell.bubbles.FakeBubbleTaskViewFactory
 import com.android.wm.shell.bubbles.UiEventSubject.Companion.assertThat
 import com.android.wm.shell.common.TestShellExecutor
 import com.android.wm.shell.shared.bubbles.DeviceConfig
-import com.android.wm.shell.shared.handles.RegionSamplingHelper
-import com.android.wm.shell.taskview.TaskView
-import com.android.wm.shell.taskview.TaskViewController
-import com.android.wm.shell.taskview.TaskViewTaskController
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
-import com.google.common.util.concurrent.MoreExecutors.directExecutor
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.whenever
-import java.util.concurrent.Executor
 
 /** Tests for [BubbleBarExpandedViewTest] */
 @SmallTest
@@ -78,10 +68,9 @@ class BubbleBarExpandedViewTest {
     private lateinit var positioner: BubblePositioner
     private lateinit var bubbleTaskView: BubbleTaskView
     private lateinit var bubble: Bubble
+    private lateinit var bubbleTaskViewFactory: FakeBubbleTaskViewFactory
 
     private lateinit var bubbleExpandedView: BubbleBarExpandedView
-    private var testableRegionSamplingHelper: TestableRegionSamplingHelper? = null
-    private var regionSamplingProvider: TestRegionSamplingProvider? = null
 
     private val uiEventLoggerFake = UiEventLoggerFake()
 
@@ -105,13 +94,12 @@ class BubbleBarExpandedViewTest {
         positioner.update(deviceConfig)
 
         expandedViewManager = FakeBubbleExpandedViewManager(bubbleBar = true, expanded = true)
-        bubbleTaskView = FakeBubbleTaskViewFactory().create()
+        bubbleTaskViewFactory = FakeBubbleTaskViewFactory(context, mainExecutor)
 
-        val inflater = LayoutInflater.from(context)
+        bubble = FakeBubbleFactory.createChatBubble(context)
+        bubbleTaskView = bubbleTaskViewFactory.create()
 
-        regionSamplingProvider = TestRegionSamplingProvider()
-
-        bubbleExpandedView = inflater.inflate(
+        bubbleExpandedView = LayoutInflater.from(context).inflate(
             R.layout.bubble_bar_expanded_view, null, false /* attachToRoot */
         ) as BubbleBarExpandedView
         bubbleExpandedView.bubbleLogger = BubbleLogger(uiEventLoggerFake)
@@ -119,103 +107,16 @@ class BubbleBarExpandedViewTest {
             expandedViewManager,
             positioner,
             false /* isOverflow */,
+            bubble,
             bubbleTaskView,
-            mainExecutor,
-            bgExecutor,
-            regionSamplingProvider,
         )
 
-        getInstrumentation().runOnMainSync {
-            bubbleExpandedView.onAttachedToWindow()
-            // Helper should be created once attached to window
-            testableRegionSamplingHelper = regionSamplingProvider!!.helper
-        }
-
-        bubble = Bubble(
-            "key",
-            ShortcutInfo.Builder(context, "id").build(),
-            100 /* desiredHeight */,
-            0 /* desiredHeightResId */,
-            "title",
-            0 /* taskId */,
-            null /* locus */,
-            true /* isDismissable */,
-            directExecutor(),
-            directExecutor()
-        ) {}
         bubbleExpandedView.update(bubble)
     }
 
     @After
     fun tearDown() {
-        testableRegionSamplingHelper?.stopAndDestroy()
         getInstrumentation().waitForIdleSync()
-    }
-
-    @Test
-    fun testCreateSamplingHelper_onAttach() {
-        assertThat(testableRegionSamplingHelper).isNotNull()
-    }
-
-    @Test
-    fun testDestroySamplingHelper_onDetach() {
-        bubbleExpandedView.onDetachedFromWindow()
-        assertThat(testableRegionSamplingHelper!!.isDestroyed).isTrue()
-    }
-
-    @Test
-    fun testStopSampling_onDragStart() {
-        bubbleExpandedView.setContentVisibility(true)
-        assertThat(testableRegionSamplingHelper!!.isStarted).isTrue()
-
-        bubbleExpandedView.setDragging(true)
-        assertThat(testableRegionSamplingHelper!!.isStopped).isTrue()
-    }
-
-    @Test
-    fun testStartSampling_onDragEnd() {
-        bubbleExpandedView.setDragging(true)
-        bubbleExpandedView.setContentVisibility(true)
-        assertThat(testableRegionSamplingHelper!!.isStopped).isTrue()
-
-        bubbleExpandedView.setDragging(false)
-        assertThat(testableRegionSamplingHelper!!.isStarted).isTrue()
-    }
-
-    @Test
-    fun testStartSampling_onContentVisible() {
-        bubbleExpandedView.setContentVisibility(true)
-        assertThat(testableRegionSamplingHelper!!.setWindowVisible).isTrue()
-        assertThat(testableRegionSamplingHelper!!.isStarted).isTrue()
-    }
-
-    @Test
-    fun testStopSampling_onContentInvisible() {
-        bubbleExpandedView.setContentVisibility(false)
-
-        assertThat(testableRegionSamplingHelper!!.setWindowInvisible).isTrue()
-        assertThat(testableRegionSamplingHelper!!.isStopped).isTrue()
-    }
-
-    @Test
-    fun testSampling_startStopAnimating_visible() {
-        bubbleExpandedView.isAnimating = true
-        bubbleExpandedView.setContentVisibility(true)
-        assertThat(testableRegionSamplingHelper!!.isStopped).isTrue()
-
-        bubbleExpandedView.isAnimating = false
-        assertThat(testableRegionSamplingHelper!!.isStarted).isTrue()
-    }
-
-    @Test
-    fun testSampling_startStopAnimating_invisible() {
-        bubbleExpandedView.isAnimating = true
-        bubbleExpandedView.setContentVisibility(false)
-        assertThat(testableRegionSamplingHelper!!.isStopped).isTrue()
-        testableRegionSamplingHelper!!.reset()
-
-        bubbleExpandedView.isAnimating = false
-        assertThat(testableRegionSamplingHelper!!.isStopped).isTrue()
     }
 
     @Test
@@ -258,10 +159,18 @@ class BubbleBarExpandedViewTest {
     @Test
     fun animateExpansion_waitsUntilTaskCreated() {
         var animated = false
-        bubbleExpandedView.animateExpansionWhenTaskViewVisible { animated = true }
+        var endRunnableRun = false
+        bubbleExpandedView.animateExpansionWhenTaskViewVisible(
+            { animated = true },
+            { endRunnableRun = true }
+        )
         assertThat(animated).isFalse()
+        assertThat(endRunnableRun).isFalse()
         bubbleExpandedView.onTaskCreated()
         assertThat(animated).isTrue()
+        // The end runnable should not be run unless the animation is canceled by
+        // cancelPendingAnimation.
+        assertThat(endRunnableRun).isFalse()
     }
 
     @Test
@@ -270,7 +179,7 @@ class BubbleBarExpandedViewTest {
         val expandedView = inflater.inflate(
             R.layout.bubble_bar_expanded_view, null, false /* attachToRoot */
         ) as BubbleBarExpandedView
-        val taskView = FakeBubbleTaskViewFactory().create()
+        val taskView = bubbleTaskViewFactory.create()
         val taskViewParent = FrameLayout(context)
         taskViewParent.addView(taskView.taskView)
         taskView.listener.onTaskCreated(666, ComponentName(context, "BubbleBarExpandedViewTest"))
@@ -280,27 +189,23 @@ class BubbleBarExpandedViewTest {
             expandedViewManager,
             positioner,
             false /* isOverflow */,
+            bubble,
             taskView,
-            mainExecutor,
-            bgExecutor,
-            regionSamplingProvider,
         )
 
-        // the task view should be removed from its parent
-        assertThat(taskView.taskView.parent).isNull()
+        // the task view should be added to the expanded view
+        assertThat(taskView.taskView.parent).isEqualTo(expandedView)
 
         var animated = false
-        expandedView.animateExpansionWhenTaskViewVisible { animated = true }
-        assertThat(animated).isFalse()
-
-        // send an invisible signal to simulate the surface getting destroyed
-        expandedView.onContentVisibilityChanged(false)
-
-        // send a visible signal to simulate a new surface getting created
-        expandedView.onContentVisibilityChanged(true)
-
-        assertThat(taskView.taskView.parent).isEqualTo(expandedView)
+        var endRunnableRun = false
+        expandedView.animateExpansionWhenTaskViewVisible(
+            { animated = true },
+            { endRunnableRun = true }
+        )
         assertThat(animated).isTrue()
+        // The end runnable should not be run unless the animation is canceled by
+        // cancelPendingAnimation.
+        assertThat(endRunnableRun).isFalse()
     }
 
     @Test
@@ -309,7 +214,7 @@ class BubbleBarExpandedViewTest {
         val expandedView = inflater.inflate(
             R.layout.bubble_bar_expanded_view, null, false /* attachToRoot */
         ) as BubbleBarExpandedView
-        val taskView = FakeBubbleTaskViewFactory().create()
+        val taskView = bubbleTaskViewFactory.create()
         val taskViewParent = FrameLayout(context)
         taskViewParent.addView(taskView.taskView)
         taskView.listener.onTaskCreated(666, ComponentName(context, "BubbleBarExpandedViewTest"))
@@ -321,23 +226,89 @@ class BubbleBarExpandedViewTest {
             expandedViewManager,
             positioner,
             false /* isOverflow */,
+            bubble,
             taskView,
-            mainExecutor,
-            bgExecutor,
-            regionSamplingProvider,
         )
 
         // the task view should be added to the expanded view
         assertThat(taskView.taskView.parent).isEqualTo(expandedView)
 
         var animated = false
-        expandedView.animateExpansionWhenTaskViewVisible { animated = true }
+        var endRunnableRun = false
+        expandedView.animateExpansionWhenTaskViewVisible(
+            { animated = true },
+            { endRunnableRun = true }
+        )
         assertThat(animated).isFalse()
+        assertThat(endRunnableRun).isFalse()
 
         // send a visible signal to simulate a new surface getting created
         expandedView.onContentVisibilityChanged(true)
 
         assertThat(animated).isTrue()
+        assertThat(endRunnableRun).isFalse()
+    }
+
+
+    @Test
+    fun animateExpansion_taskViewAttachedAndInvisibleThenAnimationCanceled() {
+        val inflater = LayoutInflater.from(context)
+        val expandedView = inflater.inflate(
+            R.layout.bubble_bar_expanded_view, null, false /* attachToRoot */
+        ) as BubbleBarExpandedView
+        val taskView = bubbleTaskViewFactory.create()
+        val taskViewParent = FrameLayout(context)
+        taskViewParent.addView(taskView.taskView)
+        taskView.listener.onTaskCreated(666, ComponentName(context, "BubbleBarExpandedViewTest"))
+        assertThat(taskView.isVisible).isTrue()
+        taskView.listener.onTaskVisibilityChanged(666, false)
+        assertThat(taskView.isVisible).isFalse()
+
+        expandedView.initialize(
+            expandedViewManager,
+            positioner,
+            false /* isOverflow */,
+            bubble,
+            taskView,
+        )
+
+        // the task view should be added to the expanded view
+        assertThat(taskView.taskView.parent).isEqualTo(expandedView)
+
+        var animated = false
+        var endRunnableRun = false
+        expandedView.animateExpansionWhenTaskViewVisible(
+            { animated = true },
+            { endRunnableRun = true }
+        )
+        assertThat(animated).isFalse()
+        assertThat(endRunnableRun).isFalse()
+
+        // Cancel the pending animation.
+        expandedView.cancelPendingAnimation()
+
+        assertThat(animated).isFalse()
+        assertThat(endRunnableRun).isTrue()
+    }
+
+    @Test
+    fun initialize_forOverflow_hidesCaptionAndHandle() {
+        val overflowExpandedView = LayoutInflater.from(context).inflate(
+                R.layout.bubble_bar_expanded_view, null, false /* attachToRoot */
+        ) as BubbleBarExpandedView
+        overflowExpandedView.bubbleLogger = BubbleLogger(uiEventLoggerFake)
+
+        overflowExpandedView.initialize(
+                expandedViewManager,
+                positioner,
+                true /* isOverflow */,
+                null, /* bubble */
+                null /* bubbleTaskView */
+        )
+
+        val captionView = overflowExpandedView.findViewById<View>(R.id.bubble_bar_caption_view)
+        assertThat(captionView.visibility).isEqualTo(View.GONE)
+        assertThat(overflowExpandedView.handleView.visibility).isEqualTo(View.GONE)
     }
 
     private fun BubbleBarExpandedView.menuView(): BubbleBarMenuView {
@@ -350,77 +321,5 @@ class BubbleBarExpandedViewTest {
         assertWithMessage("Expecting a single action with text '$text'").that(views).hasSize(1)
         // findViewsWithText returns the TextView, but the click listener is on the parent container
         return views.first().parent as View
-    }
-
-    private inner class FakeBubbleTaskViewFactory : BubbleTaskViewFactory {
-        override fun create(): BubbleTaskView {
-            val taskViewTaskController = mock<TaskViewTaskController>()
-            val taskView = TaskView(context, mock<TaskViewController>(), taskViewTaskController)
-            val taskInfo = mock<ActivityManager.RunningTaskInfo>()
-            whenever(taskViewTaskController.taskInfo).thenReturn(taskInfo)
-            return BubbleTaskView(taskView, mainExecutor)
-        }
-    }
-
-    private inner class TestRegionSamplingProvider : RegionSamplingProvider {
-
-        lateinit var helper: TestableRegionSamplingHelper
-
-        override fun createHelper(
-            sampledView: View?,
-            callback: RegionSamplingHelper.SamplingCallback?,
-            backgroundExecutor: Executor?,
-            mainExecutor: Executor?
-        ): RegionSamplingHelper {
-            helper = TestableRegionSamplingHelper(sampledView, callback, backgroundExecutor,
-                mainExecutor)
-            return helper
-        }
-    }
-
-    private inner class TestableRegionSamplingHelper(
-        sampledView: View?,
-        samplingCallback: SamplingCallback?,
-        backgroundExecutor: Executor?,
-        mainExecutor: Executor?
-    ) : RegionSamplingHelper(sampledView, samplingCallback, backgroundExecutor, mainExecutor) {
-
-        var isStarted = false
-        var isStopped = false
-        var isDestroyed = false
-        var setWindowVisible = false
-        var setWindowInvisible = false
-
-        override fun start(initialSamplingBounds: Rect) {
-            super.start(initialSamplingBounds)
-            isStarted = true
-        }
-
-        override fun stop() {
-            super.stop()
-            isStopped = true
-        }
-
-        override fun stopAndDestroy() {
-            super.stopAndDestroy()
-            isDestroyed = true
-        }
-
-        override fun setWindowVisible(visible: Boolean) {
-            super.setWindowVisible(visible)
-            if (visible) {
-                setWindowVisible = true
-            } else {
-                setWindowInvisible = true
-            }
-        }
-
-        fun reset() {
-            isStarted = false
-            isStopped = false
-            isDestroyed = false
-            setWindowVisible = false
-            setWindowInvisible = false
-        }
     }
 }

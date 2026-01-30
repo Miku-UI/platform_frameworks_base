@@ -1416,7 +1416,7 @@ public class SpannableStringBuilder implements CharSequence, GetChars, Spannable
 
     /**
      * Don't call this yourself -- exists for Canvas to use internally.
-     * {@hide}
+     * @hide
      */
     @Override
     public void drawText(BaseCanvas c, int start, int end, float x, float y, Paint p) {
@@ -1438,7 +1438,7 @@ public class SpannableStringBuilder implements CharSequence, GetChars, Spannable
 
     /**
      * Don't call this yourself -- exists for Canvas to use internally.
-     * {@hide}
+     * @hide
      */
     @Override
     public void drawTextRun(BaseCanvas c, int start, int end, int contextStart, int contextEnd,
@@ -1462,7 +1462,7 @@ public class SpannableStringBuilder implements CharSequence, GetChars, Spannable
 
     /**
      * Don't call this yourself -- exists for Paint to use internally.
-     * {@hide}
+     * @hide
      */
     public float measureText(int start, int end, Paint p) {
         checkRange("measureText", start, end);
@@ -1486,7 +1486,7 @@ public class SpannableStringBuilder implements CharSequence, GetChars, Spannable
 
     /**
      * Don't call this yourself -- exists for Paint to use internally.
-     * {@hide}
+     * @hide
      */
     public int getTextWidths(int start, int end, float[] widths, Paint p) {
         checkRange("getTextWidths", start, end);
@@ -1510,7 +1510,7 @@ public class SpannableStringBuilder implements CharSequence, GetChars, Spannable
 
     /**
      * Don't call this yourself -- exists for Paint to use internally.
-     * {@hide}
+     * @hide
      */
     public float getTextRunAdvances(int start, int end, int contextStart, int contextEnd, boolean isRtl,
             float[] advances, int advancesPos, Paint p) {

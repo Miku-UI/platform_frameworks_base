@@ -28,10 +28,12 @@ import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.BlurConfig
 import com.android.systemui.keyguard.ui.transitions.DeviceEntryIconTransition
 import com.android.systemui.keyguard.ui.transitions.PrimaryBouncerTransition
+import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.scene.shared.model.Overlays
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * Breaks down PRIMARY BOUNCER->LOCKSCREEN transition into discrete steps for corresponding views to
@@ -40,11 +42,8 @@ import kotlinx.coroutines.flow.Flow
 @SysUISingleton
 class PrimaryBouncerToLockscreenTransitionViewModel
 @Inject
-constructor(
-    private val blurConfig: BlurConfig,
-    animationFlow: KeyguardTransitionAnimationFlow,
-    shadeDependentFlows: ShadeDependentFlows,
-) : DeviceEntryIconTransition, PrimaryBouncerTransition {
+constructor(private val blurConfig: BlurConfig, animationFlow: KeyguardTransitionAnimationFlow) :
+    DeviceEntryIconTransition, PrimaryBouncerTransition {
     private val transitionAnimation =
         animationFlow
             .setup(
@@ -61,12 +60,19 @@ constructor(
         )
 
     fun lockscreenAlpha(viewState: ViewStateAccessor): Flow<Float> {
-        var currentAlpha = 0f
-        return transitionAnimation.sharedFlow(
-            duration = 250.milliseconds,
-            onStart = { currentAlpha = viewState.alpha() },
-            onStep = { MathUtils.lerp(currentAlpha, 1f, it) },
-        )
+        if (SceneContainerFlag.isEnabled) {
+            // Lockscreen -> Bouncer is a scene transition in Flexiglass.
+            // SharedNotificationContainerViewModel#alphaForShadeAndQsExpansion might be relevant
+            // instead.
+            return emptyFlow()
+        } else {
+            var currentAlpha = 0f
+            return transitionAnimation.sharedFlow(
+                duration = 250.milliseconds,
+                onStart = { currentAlpha = viewState.alpha() },
+                onStep = { MathUtils.lerp(currentAlpha, 1f, it) },
+            )
+        }
     }
 
     val deviceEntryBackgroundViewAlpha: Flow<Float> =
@@ -75,24 +81,23 @@ constructor(
         transitionAnimation.immediatelyTransitionTo(1f)
 
     override val windowBlurRadius: Flow<Float> =
-        shadeDependentFlows.transitionFlow(
-            flowWhenShadeIsExpanded =
-                if (Flags.notificationShadeBlur()) {
-                    transitionAnimation.immediatelyTransitionTo(blurConfig.maxBlurRadiusPx)
+        transitionAnimation.sharedFlowWithShade(
+            duration = FromPrimaryBouncerTransitionInteractor.TO_LOCKSCREEN_DURATION,
+            onStep = { step, isShadeExpanded ->
+                if (isShadeExpanded) {
+                    if (Flags.notificationShadeBlur()) {
+                        blurConfig.maxBlurRadiusPx
+                    } else {
+                        blurConfig.minBlurRadiusPx
+                    }
                 } else {
-                    transitionAnimation.immediatelyTransitionTo(blurConfig.minBlurRadiusPx)
-                },
-            flowWhenShadeIsNotExpanded =
-                transitionAnimation.sharedFlow(
-                    duration = FromPrimaryBouncerTransitionInteractor.TO_LOCKSCREEN_DURATION,
-                    onStep = {
-                        transitionProgressToBlurRadius(
-                            starBlurRadius = blurConfig.maxBlurRadiusPx,
-                            endBlurRadius = blurConfig.minBlurRadiusPx,
-                            transitionProgress = it,
-                        )
-                    },
-                ),
+                    transitionProgressToBlurRadius(
+                        starBlurRadius = blurConfig.maxBlurRadiusPx,
+                        endBlurRadius = blurConfig.minBlurRadiusPx,
+                        transitionProgress = step,
+                    )
+                }
+            },
         )
 
     override val notificationBlurRadius: Flow<Float> =

@@ -16,6 +16,9 @@
 
 package com.android.server.display.whitebalance;
 
+import static com.android.server.display.TestUtilsKt.createSensor;
+import static com.android.server.display.TestUtilsKt.createSensorEvent;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -35,7 +38,6 @@ import android.os.Looper;
 
 import androidx.test.InstrumentationRegistry;
 
-import com.android.server.display.TestUtils;
 import com.android.server.display.whitebalance.AmbientSensor.AmbientBrightnessSensor;
 import com.android.server.display.whitebalance.AmbientSensor.AmbientColorTemperatureSensor;
 
@@ -69,8 +71,8 @@ public final class AmbientSensorTest {
     @Before
     public void setUp() throws Exception {
         MockitoAnnotations.initMocks(this);
-        mLightSensor = TestUtils.createSensor(Sensor.TYPE_LIGHT, null);
-        mAmbientColorSensor = TestUtils.createSensor(AMBIENT_COLOR_TYPE, AMBIENT_COLOR_TYPE_STR);
+        mLightSensor = createSensor(Sensor.TYPE_LIGHT);
+        mAmbientColorSensor = createSensor(AMBIENT_COLOR_TYPE, AMBIENT_COLOR_TYPE_STR);
         mContextSpy = spy(new ContextWrapper(InstrumentationRegistry.getContext()));
         mResourcesSpy = spy(mContextSpy.getResources());
         when(mContextSpy.getResources()).thenReturn(mResourcesSpy);
@@ -92,7 +94,7 @@ public final class AmbientSensorTest {
         // There should be no issues when we callback the listener, even if there is no callback
         // set.
         SensorEventListener listener = captor.getValue();
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, 100));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, 100));
     }
 
     @Test
@@ -104,12 +106,9 @@ public final class AmbientSensorTest {
 
         final int[] luxReturned = new int[] { -1 };
         final CountDownLatch  changeSignal = new CountDownLatch(1);
-        abs.setCallbacks(new AmbientBrightnessSensor.Callbacks() {
-            @Override
-            public void onAmbientBrightnessChanged(float value) {
-                luxReturned[0] = (int) value;
-                changeSignal.countDown();
-            }
+        abs.setCallbacks(value -> {
+            luxReturned[0] = (int) value;
+            changeSignal.countDown();
         });
 
         abs.setEnabled(true);
@@ -118,7 +117,7 @@ public final class AmbientSensorTest {
         verify(mSensorManagerMock).registerListener(captor.capture(), eq(mLightSensor),
                 anyInt(), eq(mHandler));
         SensorEventListener listener = captor.getValue();
-        listener.onSensorChanged(TestUtils.createSensorEvent(mLightSensor, luxValue));
+        listener.onSensorChanged(createSensorEvent(mLightSensor, luxValue));
         assertTrue(changeSignal.await(5, TimeUnit.SECONDS));
         assertEquals(luxValue, luxReturned[0]);
     }
@@ -137,12 +136,9 @@ public final class AmbientSensorTest {
 
         final int[] colorTempReturned = new int[] { -1 };
         final CountDownLatch  changeSignal = new CountDownLatch(1);
-        abs.setCallbacks(new AmbientColorTemperatureSensor.Callbacks() {
-            @Override
-            public void onAmbientColorTemperatureChanged(float value) {
-                colorTempReturned[0] = (int) value;
-                changeSignal.countDown();
-            }
+        abs.setCallbacks(value -> {
+            colorTempReturned[0] = (int) value;
+            changeSignal.countDown();
         });
 
         abs.setEnabled(true);
@@ -151,7 +147,7 @@ public final class AmbientSensorTest {
         verify(mSensorManagerMock).registerListener(captor.capture(), eq(mAmbientColorSensor),
                 anyInt(), eq(mHandler));
         SensorEventListener listener = captor.getValue();
-        listener.onSensorChanged(TestUtils.createSensorEvent(mAmbientColorSensor, colorTempValue));
+        listener.onSensorChanged(createSensorEvent(mAmbientColorSensor, colorTempValue));
         assertTrue(changeSignal.await(5, TimeUnit.SECONDS));
         assertEquals(colorTempValue, colorTempReturned[0]);
     }

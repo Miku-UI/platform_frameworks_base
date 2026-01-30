@@ -33,6 +33,7 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.permission.PermissionManager;
 import android.permission.flags.Flags;
+import android.ravenwood.annotation.RavenwoodKeepWholeClass;
 import android.util.ArraySet;
 import android.util.Log;
 
@@ -90,12 +91,15 @@ import java.util.Set;
  * permission protected APIs since some app in the chain may not have the permission.
  */
 @Immutable
+@RavenwoodKeepWholeClass
 public final class AttributionSource implements Parcelable {
     private static final String TAG = "AttributionSource";
     private static final String DESCRIPTOR = "android.content.AttributionSource";
 
     private static final Binder sDefaultToken = new Binder(DESCRIPTOR);
 
+    // Note: AttributionSourceState is auto-generated, so it can't use ravenwood annotations (yet).
+    // We use ravenwood-framework-policies.txt to apply @RavenwoodKeepWholeClass on it.
     private final @NonNull AttributionSourceState mAttributionSourceState;
 
     private @Nullable AttributionSource mNextCached;

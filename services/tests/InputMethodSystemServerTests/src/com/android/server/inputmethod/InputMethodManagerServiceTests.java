@@ -104,6 +104,7 @@ public final class InputMethodManagerServiceTests {
                 null,
                 null,
                 null,
+                null,
                 TEST_IME_USER_ID));
 
         history.dump(new PrintWriter(writer), "" /* prefix */);

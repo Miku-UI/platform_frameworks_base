@@ -29,28 +29,40 @@ import java.util.ArrayList;
 /**
  * An insets controller that keeps track of pending requests. This is such that an app can freely
  * use {@link WindowInsetsController} before the view root is attached during activity startup.
+ *
  * @hide
  */
 public class PendingInsetsController implements WindowInsetsController {
 
     private static final int KEEP_BEHAVIOR = -1;
+    @NonNull
     private final ArrayList<PendingRequest> mRequests = new ArrayList<>();
-    private @Appearance int mAppearance;
-    private @Appearance int mAppearanceMask;
-    private @Appearance int mAppearanceFromResource;
-    private @Appearance int mAppearanceFromResourceMask;
-    private @Behavior int mBehavior = KEEP_BEHAVIOR;
+    @Appearance
+    private int mAppearance;
+    @Appearance
+    private int mAppearanceMask;
+    @Appearance
+    private int mAppearanceFromResource;
+    @Appearance
+    private int mAppearanceFromResourceMask;
+    @Behavior
+    private int mBehavior = KEEP_BEHAVIOR;
     private boolean mAnimationsDisabled;
+    @NonNull
     private final InsetsState mDummyState = new InsetsState();
+    @Nullable
     private InsetsController mReplayedInsetsController;
-    private ArrayList<OnControllableInsetsChangedListener> mControllableInsetsChangedListeners
+    @NonNull
+    private final ArrayList<OnControllableInsetsChangedListener> mControllableInsetsChangedListeners
             = new ArrayList<>();
     private int mImeCaptionBarInsetsHeight = 0;
+    @Nullable
     private WindowInsetsAnimationControlListener mLoggingListener;
-    private @InsetsType int mRequestedVisibleTypes = WindowInsets.Type.defaultVisible();
+    @InsetsType
+    private int mRequestedVisibleTypes = WindowInsets.Type.defaultVisible();
 
     @Override
-    public void show(int types) {
+    public void show(@InsetsType int types) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.show(types);
         } else {
@@ -60,7 +72,7 @@ public class PendingInsetsController implements WindowInsetsController {
     }
 
     @Override
-    public void hide(int types) {
+    public void hide(@InsetsType int types) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.hide(types);
         } else {
@@ -70,7 +82,7 @@ public class PendingInsetsController implements WindowInsetsController {
     }
 
     @Override
-    public void setSystemBarsAppearance(int appearance, int mask) {
+    public void setSystemBarsAppearance(@Appearance int appearance, @Appearance int mask) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.setSystemBarsAppearance(appearance, mask);
         } else {
@@ -80,7 +92,8 @@ public class PendingInsetsController implements WindowInsetsController {
     }
 
     @Override
-    public void setSystemBarsAppearanceFromResource(int appearance, int mask) {
+    public void setSystemBarsAppearanceFromResource(@Appearance int appearance,
+            @Appearance int mask) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.setSystemBarsAppearanceFromResource(appearance, mask);
         } else {
@@ -89,6 +102,7 @@ public class PendingInsetsController implements WindowInsetsController {
         }
     }
 
+    @Appearance
     @Override
     public int getSystemBarsAppearance() {
         if (mReplayedInsetsController != null) {
@@ -103,7 +117,7 @@ public class PendingInsetsController implements WindowInsetsController {
     }
 
     @Override
-    public void setSystemBarsBehavior(int behavior) {
+    public void setSystemBarsBehavior(@Behavior int behavior) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.setSystemBarsBehavior(behavior);
         } else {
@@ -111,6 +125,7 @@ public class PendingInsetsController implements WindowInsetsController {
         }
     }
 
+    @Behavior
     @Override
     public int getSystemBarsBehavior() {
         if (mReplayedInsetsController != null) {
@@ -132,6 +147,7 @@ public class PendingInsetsController implements WindowInsetsController {
     }
 
     @Override
+    @NonNull
     public InsetsState getState() {
         return mDummyState;
     }
@@ -146,7 +162,7 @@ public class PendingInsetsController implements WindowInsetsController {
 
     @Override
     public void addOnControllableInsetsChangedListener(
-            OnControllableInsetsChangedListener listener) {
+            @NonNull OnControllableInsetsChangedListener listener) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.addOnControllableInsetsChangedListener(listener);
         } else {
@@ -157,7 +173,7 @@ public class PendingInsetsController implements WindowInsetsController {
 
     @Override
     public void removeOnControllableInsetsChangedListener(
-            OnControllableInsetsChangedListener listener) {
+            @NonNull OnControllableInsetsChangedListener listener) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.removeOnControllableInsetsChangedListener(listener);
         } else {
@@ -170,7 +186,7 @@ public class PendingInsetsController implements WindowInsetsController {
      * calls will be forwarded to the real instance in the future.
      */
     @VisibleForTesting
-    public void replayAndAttach(InsetsController controller) {
+    public void replayAndAttach(@NonNull InsetsController controller) {
         if (mBehavior != KEEP_BEHAVIOR) {
             controller.setSystemBarsBehavior(mBehavior);
         }
@@ -236,7 +252,7 @@ public class PendingInsetsController implements WindowInsetsController {
     @Override
     public void controlWindowInsetsAnimation(@InsetsType int types, long durationMillis,
             @Nullable Interpolator interpolator,
-            CancellationSignal cancellationSignal,
+            @Nullable CancellationSignal cancellationSignal,
             @NonNull WindowInsetsAnimationControlListener listener) {
         if (mReplayedInsetsController != null) {
             mReplayedInsetsController.controlWindowInsetsAnimation(types, durationMillis,
@@ -247,33 +263,35 @@ public class PendingInsetsController implements WindowInsetsController {
     }
 
     private interface PendingRequest {
-        void replay(InsetsController controller);
+        void replay(@NonNull InsetsController controller);
     }
 
-    private static class ShowRequest implements PendingRequest {
+    private static final class ShowRequest implements PendingRequest {
 
-        private final @InsetsType int mTypes;
+        @InsetsType
+        private final int mTypes;
 
-        public ShowRequest(int types) {
+        ShowRequest(@InsetsType int types) {
             mTypes = types;
         }
 
         @Override
-        public void replay(InsetsController controller) {
+        public void replay(@NonNull InsetsController controller) {
             controller.show(mTypes);
         }
     }
 
-    private static class HideRequest implements PendingRequest {
+    private static final class HideRequest implements PendingRequest {
 
-        private final @InsetsType int mTypes;
+        @InsetsType
+        private final int mTypes;
 
-        public HideRequest(int types) {
+        HideRequest(@InsetsType int types) {
             mTypes = types;
         }
 
         @Override
-        public void replay(InsetsController controller) {
+        public void replay(@NonNull InsetsController controller) {
             controller.hide(mTypes);
         }
     }

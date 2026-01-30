@@ -65,6 +65,8 @@ class BleDeviceProcessor implements AssociationStore.OnChangeListener {
     }
 
     @NonNull
+    private final DevicePresenceProcessor mDevicePresenceProcessor;
+    @NonNull
     private final AssociationStore mAssociationStore;
     @NonNull
     private final Callback mCallback;
@@ -78,8 +80,10 @@ class BleDeviceProcessor implements AssociationStore.OnChangeListener {
     // Only accessed from the Main thread.
     private boolean mScanning = false;
 
-    BleDeviceProcessor(@NonNull AssociationStore associationStore, @NonNull Callback callback) {
+    BleDeviceProcessor(@NonNull AssociationStore associationStore,
+            @NonNull DevicePresenceProcessor devicePresenceProcessor, @NonNull Callback callback) {
         mAssociationStore = associationStore;
+        mDevicePresenceProcessor = devicePresenceProcessor;
         mCallback = callback;
     }
 
@@ -160,23 +164,23 @@ class BleDeviceProcessor implements AssociationStore.OnChangeListener {
         }
 
         // Collect MAC addresses from all associations.
-        final Set<String> macAddresses = new HashSet<>();
+        final Set<String> macAddressesToScan = new HashSet<>();
         for (AssociationInfo association : mAssociationStore.getActiveAssociations()) {
-            if (!association.isNotifyOnDeviceNearby()) continue;
-
-            // Beware that BT stack does not consider low-case MAC addresses valid, while
-            // MacAddress.toString() return a low-case String.
             final String macAddress = association.getDeviceMacAddressAsString();
-            if (macAddress != null) {
-                macAddresses.add(macAddress);
+            if (association.isNotifyOnDeviceNearby()
+                    && !mDevicePresenceProcessor.isBtConnected(association.getId())
+                    && macAddress != null) {
+                macAddressesToScan.add(macAddress);
+                Slog.i(TAG, "Adding " + macAddress + " to BLE scan filters.");
             }
         }
-        if (macAddresses.isEmpty()) {
+        if (macAddressesToScan.isEmpty()) {
+            Slog.i(TAG, "No devices require BLE scanning. BLE scan remains stopped.");
             return;
         }
 
-        final List<ScanFilter> filters = new ArrayList<>(macAddresses.size());
-        for (String macAddress : macAddresses) {
+        final List<ScanFilter> filters = new ArrayList<>(macAddressesToScan.size());
+        for (String macAddress : macAddressesToScan) {
             final ScanFilter filter = new ScanFilter.Builder()
                     .setDeviceAddress(macAddress)
                     .build();

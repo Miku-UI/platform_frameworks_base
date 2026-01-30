@@ -36,19 +36,6 @@ object NotificationMinimalism {
         get() = Flags.notificationMinimalism()
 
     /**
-     * The prototype will (by default) use a promoter to ensure that the top unseen notification is
-     * not grouped, but this property read allows that behavior to be disabled.
-     */
-    val ungroupTopUnseen: Boolean
-        get() =
-            if (isUnexpectedlyInLegacyMode()) false
-            else
-                SystemProperties.getBoolean(
-                    "persist.notification_minimalism_prototype.ungroup_top_unseen",
-                    false
-                )
-
-    /**
      * Called to ensure code is only run when the flag is enabled. This protects users from the
      * unintended behaviors caused by accidentally running new logic, while also crashing on an eng
      * build to ensure that the refactor author catches issues in testing.

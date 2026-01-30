@@ -16,6 +16,7 @@
 
 package com.android.server.wm.flicker.service.quickswitch.flicker
 
+import androidx.test.filters.RequiresDevice
 import android.tools.Rotation
 import android.tools.flicker.FlickerConfig
 import android.tools.flicker.annotation.ExpectedScenarios
@@ -27,6 +28,7 @@ import com.android.server.wm.flicker.service.quickswitch.scenarios.QuickSwitchBe
 import org.junit.Test
 import org.junit.runner.RunWith
 
+@RequiresDevice
 @RunWith(FlickerServiceJUnit4ClassRunner::class)
 class QuickSwitchBetweenTwoAppsForwardGesturalNavLandscape :
     QuickSwitchBetweenTwoAppsForward(Rotation.ROTATION_90) {

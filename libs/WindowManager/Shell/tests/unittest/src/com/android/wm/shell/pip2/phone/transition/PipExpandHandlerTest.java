@@ -17,11 +17,15 @@
 package com.android.wm.shell.pip2.phone.transition;
 
 import static android.app.WindowConfiguration.WINDOWING_MODE_FULLSCREEN;
+import static android.app.WindowConfiguration.WINDOWING_MODE_PINNED;
 import static android.view.WindowManager.TRANSIT_CHANGE;
+import static android.view.WindowManager.TRANSIT_OPEN;
 
+import static com.android.window.flags.Flags.FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_EXIT_PIP;
 import static com.android.wm.shell.transition.Transitions.TRANSIT_EXIT_PIP_TO_SPLIT;
 
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -34,15 +38,21 @@ import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.PictureInPictureParams;
 import android.app.WindowConfiguration;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.Resources;
 import android.graphics.Rect;
 import android.os.IBinder;
-import android.testing.AndroidTestingRunner;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.FlagsParameterization;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.testing.TestableLooper;
 import android.view.Surface;
 import android.view.SurfaceControl;
 import android.view.WindowManager;
+import android.window.DisplayAreaInfo;
 import android.window.TransitionInfo;
 import android.window.TransitionRequestInfo;
 import android.window.WindowContainerToken;
@@ -51,17 +61,25 @@ import android.window.WindowContainerTransaction;
 import androidx.test.filters.SmallTest;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import com.android.wm.shell.Flags;
+import com.android.wm.shell.RootTaskDisplayAreaOrganizer;
+import com.android.wm.shell.common.DisplayController;
+import com.android.wm.shell.common.DisplayLayout;
 import com.android.wm.shell.common.pip.PipBoundsAlgorithm;
 import com.android.wm.shell.common.pip.PipBoundsState;
+import com.android.wm.shell.common.pip.PipDesktopState;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
+import com.android.wm.shell.pip2.PipSurfaceTransactionHelper;
 import com.android.wm.shell.pip2.animation.PipExpandAnimator;
 import com.android.wm.shell.pip2.phone.PipInteractionHandler;
+import com.android.wm.shell.pip2.phone.PipScheduler;
 import com.android.wm.shell.pip2.phone.PipTransitionState;
 import com.android.wm.shell.splitscreen.SplitScreenController;
 import com.android.wm.shell.transition.TransitionInfoBuilder;
 import com.android.wm.shell.util.StubTransaction;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.ArgumentCaptor;
@@ -69,6 +87,10 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
+import platform.test.runner.parameterized.Parameters;
+
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -77,14 +99,17 @@ import java.util.Optional;
 
 @SmallTest
 @TestableLooper.RunWithLooper
-@RunWith(AndroidTestingRunner.class)
+@EnableFlags(Flags.FLAG_ENABLE_PIP2)
+@RunWith(ParameterizedAndroidJunit4.class)
 public class PipExpandHandlerTest {
     @Mock private Context mMockContext;
     @Mock private PipBoundsState mMockPipBoundsState;
     @Mock private PipBoundsAlgorithm mMockPipBoundsAlgorithm;
     @Mock private PipTransitionState mMockPipTransitionState;
     @Mock private PipDisplayLayoutState mMockPipDisplayLayoutState;
+    @Mock private PipDesktopState mMockPipDesktopState;
     @Mock private PipInteractionHandler mMockPipInteractionHandler;
+    @Mock private PipScheduler mMockPipScheduler;
     @Mock private SplitScreenController mMockSplitScreenController;
 
     @Mock private IBinder mMockTransitionToken;
@@ -92,7 +117,10 @@ public class PipExpandHandlerTest {
     @Mock private StubTransaction mStartT;
     @Mock private StubTransaction mFinishT;
     @Mock private SurfaceControl mPipLeash;
-
+    @Mock private DisplayController mMockDisplayController;
+    @Mock private RootTaskDisplayAreaOrganizer mMockRootTaskDisplayAreaOrganizer;
+    @Mock private DisplayAreaInfo mMockDisplayAreaInfo;
+    @Mock private DisplayLayout mMockDisplayLayout;
     @Mock private PipExpandAnimator mMockPipExpandAnimator;
 
     @Captor private ArgumentCaptor<Runnable> mAnimatorCallbackArgumentCaptor;
@@ -104,8 +132,29 @@ public class PipExpandHandlerTest {
     private static final Rect PIP_BOUNDS = new Rect(0, 0, 100, 100);
     private static final Rect DISPLAY_BOUNDS = new Rect(0, 0, 1000, 1000);
     private static final Rect RIGHT_HALF_DISPLAY_BOUNDS = new Rect(500, 0, 1000, 1000);
+    private static final int DEFAULT_DISPLAY_ID = 0;
+    private static final int SECONDARY_DISPLAY_ID = 1;
+    private static final String SAMPLE_PACKAGE_NAME = "com.google.example";
+    private static final String SAMPLE_CLASS_NAME = "com.google.example.activity";
+    private static final int TASk_ID = 1;
 
     private PipExpandHandler mPipExpandHandler;
+
+    @Mock
+    private PipSurfaceTransactionHelper mPipSurfaceTransactionHelper;
+
+    @Parameters(name = "{0}")
+    public static List<FlagsParameterization> getParams() {
+        return FlagsParameterization.allCombinationsOf(
+                Flags.FLAG_ENABLE_PIP_BOX_SHADOWS);
+    }
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
+
+    public PipExpandHandlerTest(FlagsParameterization flags) {
+        mSetFlagsRule.setFlagsParameterization(flags);
+    }
 
     @Before
     public void setUp() {
@@ -113,22 +162,75 @@ public class PipExpandHandlerTest {
         when(mMockPipBoundsState.getBounds()).thenReturn(PIP_BOUNDS);
         when(mMockPipBoundsAlgorithm.getSnapFraction(eq(PIP_BOUNDS))).thenReturn(SNAP_FRACTION);
         when(mMockPipDisplayLayoutState.getRotation()).thenReturn(DISPLAY_ROTATION);
+        when(mMockContext.getResources()).thenReturn(mock(Resources.class));
+        when(mMockPipDesktopState.getRootTaskDisplayAreaOrganizer()).thenReturn(
+                mMockRootTaskDisplayAreaOrganizer);
+        when(mMockRootTaskDisplayAreaOrganizer.getDisplayAreaInfo(DEFAULT_DISPLAY_ID)).thenReturn(
+                mMockDisplayAreaInfo);
+        when(mMockDisplayController.getDisplayLayout(DEFAULT_DISPLAY_ID)).thenReturn(
+                mMockDisplayLayout);
 
-        mPipExpandHandler = new PipExpandHandler(mMockContext, mMockPipBoundsState,
+        mPipExpandHandler = new PipExpandHandler(mMockContext,
+                mPipSurfaceTransactionHelper,
+                mMockPipBoundsState,
                 mMockPipBoundsAlgorithm, mMockPipTransitionState, mMockPipDisplayLayoutState,
-                mMockPipInteractionHandler, Optional.of(mMockSplitScreenController));
-        mPipExpandHandler.setPipExpandAnimatorSupplier((context, leash, startTransaction,
-                finishTransaction, baseBounds, startBounds, endBounds,
-                sourceRectHint, rotation) -> mMockPipExpandAnimator);
+                mMockPipDesktopState, mMockPipInteractionHandler, mMockPipScheduler,
+                Optional.of(mMockSplitScreenController), mMockDisplayController);
+        mPipExpandHandler.setPipExpandAnimatorSupplier(
+                (context, pipSurfaceTransactionHelper, leash, startTransaction,
+                        finishTransaction, baseBounds, startBounds, endBounds,
+                        sourceRectHint, rotation, isPipInDesktopMode) -> mMockPipExpandAnimator);
     }
 
     @Test
-    public void handleRequest_returnNull() {
-        // All expand from PiP transitions are started in Shell, so handleRequest shouldn't be
-        // returning any non-null WCT
+    @DisableFlags(FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH)
+    public void handleRequest_crossDisplaysPipLaunchFlagDisabled_returnsNull() {
         WindowContainerTransaction wct = mPipExpandHandler.handleRequest(
                 mMockTransitionToken, mMockRequestInfo);
         assertNull(wct);
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH)
+    public void handleRequest_opensPipOnAnotherDisplay_returnsWct() {
+        final ActivityManager.RunningTaskInfo pipTaskInfo = createPipTaskInfo(
+                TASk_ID, WINDOWING_MODE_PINNED, new PictureInPictureParams.Builder().build());
+        when(mMockPipTransitionState.getPipTaskInfo()).thenReturn(pipTaskInfo);
+        when(mMockPipTransitionState.getPipTaskToken()).thenReturn(pipTaskInfo.getToken());
+        when(mMockRequestInfo.getType()).thenReturn(TRANSIT_OPEN);
+        when(mMockRequestInfo.getTriggerTask()).thenReturn(pipTaskInfo);
+        when(mMockPipDisplayLayoutState.getDisplayId()).thenReturn(SECONDARY_DISPLAY_ID);
+        when(mMockPipScheduler.getExitPipViaExpandIntoDisplayTransaction(
+                DEFAULT_DISPLAY_ID)).thenReturn(new WindowContainerTransaction());
+
+        WindowContainerTransaction wct = mPipExpandHandler.handleRequest(
+                mMockTransitionToken, mMockRequestInfo);
+
+        assertNotNull(wct);
+    }
+
+    @Test
+    @EnableFlags(FLAG_ENABLE_CROSS_DISPLAYS_PIP_TASK_LAUNCH)
+    public void startAnimation_exitViaExpandOnDifferentDisplay_startExpandAnimation() {
+        final ActivityManager.RunningTaskInfo pipTaskInfo = createPipTaskInfo(
+                TASk_ID, WINDOWING_MODE_PINNED, new PictureInPictureParams.Builder().build());
+        final TransitionInfo info = getExpandFromPipTransitionInfo(
+                TRANSIT_OPEN, pipTaskInfo, null /* lastParent */, false /* toSplit */);
+        final WindowContainerToken pipToken = pipTaskInfo.getToken();
+        when(mMockPipTransitionState.getPipTaskToken()).thenReturn(pipToken);
+        mPipExpandHandler.mExitViaExpandTransition = mMockTransitionToken;
+
+        mPipExpandHandler.startAnimation(mMockTransitionToken, info, mStartT, mFinishT,
+                (wct) -> {});
+
+        verify(mMockPipExpandAnimator, times(1)).start();
+        verify(mMockPipBoundsState, times(1)).saveReentryState(SNAP_FRACTION);
+        verify(mMockPipExpandAnimator, times(1))
+                .setAnimationStartCallback(mAnimatorCallbackArgumentCaptor.capture());
+        InstrumentationRegistry.getInstrumentation()
+                .runOnMainSync(mAnimatorCallbackArgumentCaptor.getValue());
+        verify(mMockPipInteractionHandler, times(1)).begin(any(),
+                eq(PipInteractionHandler.INTERACTION_EXIT_PIP));
     }
 
     @Test
@@ -201,10 +303,12 @@ public class PipExpandHandlerTest {
             int windowingMode, PictureInPictureParams params) {
         ActivityManager.RunningTaskInfo taskInfo = new ActivityManager.RunningTaskInfo();
         taskInfo.taskId = taskId;
+        taskInfo.topActivity = new ComponentName(SAMPLE_PACKAGE_NAME, SAMPLE_CLASS_NAME);
         taskInfo.configuration.windowConfiguration.setWindowingMode(windowingMode);
         taskInfo.token = mock(WindowContainerToken.class);
         taskInfo.baseIntent = mock(Intent.class);
         taskInfo.pictureInPictureParams = params;
+        taskInfo.displayId = DEFAULT_DISPLAY_ID;
         return taskInfo;
     }
 }

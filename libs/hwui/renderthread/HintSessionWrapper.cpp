@@ -167,7 +167,7 @@ void HintSessionWrapper::setActiveFunctorThreads(std::vector<pid_t> threadIds) {
     });
 }
 
-void HintSessionWrapper::sendLoadResetHint() {
+void HintSessionWrapper::sendCpuLoadResetHint() {
     static constexpr int kMaxResetsSinceLastReport = 2;
     if (!init()) return;
     nsecs_t now = systemTime();
@@ -179,9 +179,14 @@ void HintSessionWrapper::sendLoadResetHint() {
     mLastFrameNotification = now;
 }
 
-void HintSessionWrapper::sendLoadIncreaseHint() {
+void HintSessionWrapper::sendCpuLoadIncreaseHint() {
     if (!init()) return;
     mBinding->sendHint(mHintSession, static_cast<int32_t>(SessionHint::CPU_LOAD_UP));
+}
+
+void HintSessionWrapper::sendGpuLoadIncreaseHint() {
+    if (!init()) return;
+    mBinding->sendHint(mHintSession, static_cast<int32_t>(SessionHint::GPU_LOAD_UP));
 }
 
 bool HintSessionWrapper::alive() {

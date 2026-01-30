@@ -1,0 +1,66 @@
+// This file is auto-generated. DO NOT MODIFY.
+// Args: com.android.systemfeatures.RoUnavailableFeaturesFromXml \
+//            --readonly=true \
+//            --unavailable-feature-xml-files=frameworks/base/tools/systemfeatures/tests/data/features-1.xml,frameworks/base/tools/systemfeatures/tests/data/features-2.xml
+package com.android.systemfeatures;
+
+import android.annotation.NonNull;
+import android.annotation.Nullable;
+import android.content.Context;
+import android.content.pm.FeatureInfo;
+import android.content.pm.PackageManager;
+import android.util.ArrayMap;
+import com.android.aconfig.annotations.AssumeFalseForR8;
+
+/**
+ * @hide
+ */
+public final class RoUnavailableFeaturesFromXml {
+    /**
+     * Check for FEATURE_PC.
+     *
+     * @hide
+     */
+    @AssumeFalseForR8
+    public static boolean hasFeaturePc(Context context) {
+        return false;
+    }
+
+    /**
+     * Check for FEATURE_WATCH.
+     *
+     * @hide
+     */
+    @AssumeFalseForR8
+    public static boolean hasFeatureWatch(Context context) {
+        return false;
+    }
+
+    private static boolean hasFeatureFallback(Context context, String featureName) {
+        return context.getPackageManager().hasSystemFeature(featureName);
+    }
+
+    /**
+     * @hide
+     */
+    @Nullable
+    public static Boolean maybeHasFeature(String featureName, int version) {
+        switch (featureName) {
+            case PackageManager.FEATURE_PC: return false;
+            case PackageManager.FEATURE_WATCH: return false;
+            default: break;
+        }
+        return null;
+    }
+
+    /**
+     * Gets features marked as available at compile-time, keyed by name.
+     *
+     * @hide
+     */
+    @NonNull
+    public static ArrayMap<String, FeatureInfo> getReadOnlySystemEnabledFeatures() {
+        ArrayMap<String, FeatureInfo> features = new ArrayMap<>(0);
+        return features;
+    }
+}

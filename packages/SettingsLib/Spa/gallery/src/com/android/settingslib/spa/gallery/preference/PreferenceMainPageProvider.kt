@@ -17,9 +17,12 @@
 package com.android.settingslib.spa.gallery.preference
 
 import android.os.Bundle
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.runtime.Composable
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
 import com.android.settingslib.spa.framework.compose.navigator
+import com.android.settingslib.spa.widget.button.CategoryButton
 import com.android.settingslib.spa.widget.preference.Preference
 import com.android.settingslib.spa.widget.preference.PreferenceModel
 import com.android.settingslib.spa.widget.scaffold.RegularScaffold
@@ -38,6 +41,7 @@ object PreferenceMainPageProvider : SettingsPageProvider {
                 ListPreferencePageProvider.Entry()
                 CheckBoxPreferencePageProvider.Entry()
             }
+            CategoryButton(icon = Icons.Outlined.Add, text = "Sample Category Button") {}
             Category {
                 SwitchPreferencePageProvider.Entry()
                 MainSwitchPreferencePageProvider.Entry()

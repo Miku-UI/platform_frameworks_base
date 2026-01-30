@@ -43,6 +43,7 @@ import static android.net.ipsec.ike.IkeSessionParams.ESP_ENCAP_TYPE_UDP;
 import static android.net.ipsec.ike.IkeSessionParams.ESP_IP_VERSION_AUTO;
 import static android.net.ipsec.ike.IkeSessionParams.ESP_IP_VERSION_IPV4;
 import static android.net.ipsec.ike.IkeSessionParams.ESP_IP_VERSION_IPV6;
+import static android.net.platform.flags.Flags.FLAG_COLLECT_VPN_METRICS;
 import static android.os.UserHandle.PER_USER_RANGE;
 import static android.telephony.CarrierConfigManager.KEY_CARRIER_CONFIG_APPLIED_BOOL;
 import static android.telephony.CarrierConfigManager.KEY_MIN_UDP_PORT_4500_NAT_TIMEOUT_SEC_INT;
@@ -157,6 +158,8 @@ import android.os.Process;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.os.test.TestLooper;
+import android.platform.test.annotations.EnableFlags;
+import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.Settings;
 import android.security.Credentials;
 import android.telephony.CarrierConfigManager;
@@ -177,11 +180,13 @@ import com.android.internal.net.VpnConfig;
 import com.android.internal.net.VpnProfile;
 import com.android.internal.util.HexDump;
 import com.android.internal.util.IndentingPrintWriter;
+import com.android.net.module.util.CollectionUtils;
 import com.android.server.DeviceIdleInternal;
 import com.android.server.IpSecService;
 import com.android.server.VpnTestBase;
 
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.AdditionalAnswers;
@@ -222,8 +227,12 @@ import java.util.regex.Pattern;
  */
 @RunWith(AndroidJUnit4.class)
 @SmallTest
+@EnableFlags(FLAG_COLLECT_VPN_METRICS)
 public class VpnTest extends VpnTestBase {
     private static final String TAG = "VpnTest";
+
+    @Rule
+    public final SetFlagsRule mSetFlagsRule = new SetFlagsRule();
 
     static final Network EGRESS_NETWORK = new Network(101);
     static final String EGRESS_IFACE = "wlan0";
@@ -244,7 +253,7 @@ public class VpnTest extends VpnTestBase {
     private static final InetAddress TEST_VPN_CLIENT_IP_2 =
             InetAddresses.parseNumericAddress("192.0.2.200");
     private static final InetAddress TEST_VPN_SERVER_IP_2 =
-            InetAddresses.parseNumericAddress("192.0.2.201");
+            InetAddresses.parseNumericAddress("2001:db8::2");
     private static final InetAddress TEST_VPN_INTERNAL_IP =
             InetAddresses.parseNumericAddress("198.51.100.10");
     private static final InetAddress TEST_VPN_INTERNAL_IP6 =
@@ -303,6 +312,7 @@ public class VpnTest extends VpnTestBase {
     @Mock private SubscriptionManager mSubscriptionManager;
     @Mock private IpSecService mIpSecService;
     @Mock private VpnProfileStore mVpnProfileStore;
+    @Mock private VpnConnectivityMetrics mVpnConnectivityMetrics;
     private final TestExecutor mExecutor;
     @Mock DeviceIdleInternal mDeviceIdleInternal;
     private final VpnProfile mVpnProfile;
@@ -1315,6 +1325,26 @@ public class VpnTest extends VpnTestBase {
     }
 
     @Test
+    public void testDeleteVpnProfileDueToAppRemoval() throws Exception {
+        final Vpn vpn = createVpn(AppOpsManager.OPSTR_ACTIVATE_PLATFORM_VPN);
+
+        when(mVpnProfileStore.get(vpn.getProfileNameForPackage(TEST_VPN_PKG)))
+                .thenReturn(mVpnProfile.encode());
+
+        vpn.startVpnProfile(TEST_VPN_PKG);
+        verifyPlatformVpnIsActivated(TEST_VPN_PKG);
+
+        // This mock is to make sure verifyCallingUidOrSystemUidAndPackage() would pass, the test
+        // will fail since the unit test UID is not the SYSTEM_UID.
+        when(mPackageManager.getPackageUidAsUser(any(), anyInt())).thenReturn(Process.myUid());
+        vpn.deleteVpnProfileDueToAppRemoval(
+                TEST_VPN_PKG, UserHandle.getUid(PRIMARY_USER.id, Process.myUid()));
+
+        verify(mVpnProfileStore)
+                .remove(eq(vpn.getProfileNameForPackage(TEST_VPN_PKG)));
+        verifyPlatformVpnIsDeactivated(TEST_VPN_PKG);
+    }
+    @Test
     public void testDeleteVpnProfileRestrictedUser() throws Exception {
         final Vpn vpn =
                 createVpn(
@@ -1507,6 +1537,7 @@ public class VpnTest extends VpnTestBase {
                 eq(TEST_VPN_PKG),
                 eq(null) /* attributionTag */,
                 eq(null) /* message */);
+        verify(mVpnConnectivityMetrics, times(1)).setVpnType(VpnManager.TYPE_VPN_SERVICE);
         // Call establish() twice with the same config, it should match seamless handover case and
         // startOp() shouldn't be called again.
         vpn.establish(config);
@@ -1516,6 +1547,7 @@ public class VpnTest extends VpnTestBase {
                 eq(TEST_VPN_PKG),
                 eq(null) /* attributionTag */,
                 eq(null) /* message */);
+        verify(mVpnConnectivityMetrics, times(2)).setVpnType(VpnManager.TYPE_VPN_SERVICE);
     }
 
     private void verifyVpnManagerEvent(String sessionKey, String category, int errorClass,
@@ -2203,6 +2235,25 @@ public class VpnTest extends VpnTestBase {
                 any(), any(), anyString(), ncCaptor.capture(), lpCaptor.capture(),
                 any(), nacCaptor.capture(), any(), any());
         verify(mIkeSessionWrapper).setUnderpinnedNetwork(TEST_NETWORK);
+        if (vpnProfile.type == VpnProfile.TYPE_IKEV2_IPSEC_USER_PASS
+                || vpnProfile.type == VpnProfile.TYPE_IKEV2_IPSEC_PSK) {
+            verify(mVpnConnectivityMetrics).setAllowedAlgorithms(
+                    Ikev2VpnProfile.DEFAULT_ALGORITHMS);
+        }
+        verify(mVpnConnectivityMetrics).setVpnType(VpnManager.TYPE_VPN_PLATFORM);
+        verify(mVpnConnectivityMetrics).setVpnProfileType(vpnProfile.type);
+        verify(mVpnConnectivityMetrics).updateUnderlyingNetworkTypes(
+                argThat(networks -> Arrays.asList(networks).contains(TEST_NETWORK)));
+        verify(mVpnConnectivityMetrics).updateVpnNetworkIpProtocol(argThat(addresses ->
+                CollectionUtils.all(List.of(
+                                new LinkAddress(TEST_VPN_INTERNAL_IP, IP4_PREFIX_LEN),
+                                new LinkAddress(TEST_VPN_INTERNAL_IP6, IP6_PREFIX_LEN)),
+                        address -> addresses.contains(address))));
+        verify(mVpnConnectivityMetrics).updateServerIpProtocol(TEST_VPN_SERVER_IP);
+        verify(mVpnConnectivityMetrics).setMtu(
+                !mtuSupportsIpv6 ? IPV6_MIN_MTU - 1 : IPV6_MIN_MTU);
+        // Verify connection metrics notification.
+        verify(mVpnConnectivityMetrics).notifyVpnConnected();
         // Check LinkProperties
         final LinkProperties lp = lpCaptor.getValue();
         final List<RouteInfo> expectedRoutes =
@@ -2778,8 +2829,12 @@ public class VpnTest extends VpnTestBase {
 
         // Mock the MOBIKE procedure
         vpnSnapShot.ikeCb.onIkeSessionConnectionInfoChanged(createIkeConnectInfo_2());
+        verify(mVpnConnectivityMetrics).updateServerIpProtocol(TEST_VPN_SERVER_IP_2);
         vpnSnapShot.childCb.onIpSecTransformsMigrated(
                 createIpSecTransform(), createIpSecTransform());
+        verify(mVpnConnectivityMetrics).updateUnderlyingNetworkTypes(
+                argThat(networks -> Arrays.asList(networks).contains(TEST_NETWORK_2)));
+        verify(mVpnConnectivityMetrics).setMtu(newMtu);
 
         verify(mIpSecService).setNetworkForTunnelInterface(
                 eq(TEST_TUNNEL_RESOURCE_ID), eq(TEST_NETWORK_2), anyString());
@@ -2817,8 +2872,12 @@ public class VpnTest extends VpnTestBase {
                 vpnSnapShot.vpn.mNetworkCapabilities.getUnderlyingNetworks());
 
         vpnSnapShot.ikeCb.onIkeSessionConnectionInfoChanged(createIkeConnectInfo_2());
+        verify(mVpnConnectivityMetrics).updateServerIpProtocol(TEST_VPN_SERVER_IP_2);
         vpnSnapShot.childCb.onIpSecTransformsMigrated(
                 createIpSecTransform(), createIpSecTransform());
+        verify(mVpnConnectivityMetrics).updateUnderlyingNetworkTypes(
+                argThat(networks -> Arrays.asList(networks).contains(TEST_NETWORK_2)));
+        verify(mVpnConnectivityMetrics).setMtu(newMtu);
 
         // Verify removal of IPv6 addresses and routes triggers a network agent restart
         final ArgumentCaptor<LinkProperties> lpCaptor =
@@ -2853,7 +2912,6 @@ public class VpnTest extends VpnTestBase {
         }
 
         assertEquals(newMtu, lp.getMtu());
-
         vpnSnapShot.vpn.mVpnRunner.exitVpnRunner();
     }
 
@@ -3003,6 +3061,9 @@ public class VpnTest extends VpnTestBase {
         assertEquals(expectedRoutes, lp.getRoutes());
 
         verify(mMockNetworkAgent, timeout(TEST_TIMEOUT_MS)).unregister();
+        // Verify disconnection metrics notification.
+        verify(mVpnConnectivityMetrics).notifyVpnDisconnected();
+        verify(mVpnConnectivityMetrics).resetMetrics();
     }
 
     @Test
@@ -3274,6 +3335,12 @@ public class VpnTest extends VpnTestBase {
             if (!mIgnoreCallingUidChecks) {
                 super.verifyCallingUidAndPackage(context, packageName, userId);
             }
+        }
+
+        @Override
+        public VpnConnectivityMetrics makeVpnConnectivityMetrics(int userId,
+                ConnectivityManager cm) {
+            return mVpnConnectivityMetrics;
         }
     }
 

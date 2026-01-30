@@ -16,6 +16,7 @@
 
 package com.android.settingslib;
 
+import android.app.admin.EnforcingAdmin;
 import android.content.Context;
 import android.util.AttributeSet;
 import android.view.Gravity;
@@ -98,6 +99,7 @@ public class PrimarySwitchPreference extends RestrictedPreference {
             mSwitch.setContentDescription(getTitle());
             mSwitch.setChecked(mChecked);
             mSwitch.setEnabled(mEnableSwitch);
+            mSwitch.setFocusable(mEnableSwitch);
         }
     }
 
@@ -154,6 +156,15 @@ public class PrimarySwitchPreference extends RestrictedPreference {
      * Otherwise, keep it enabled.
      */
     public void setDisabledByAdmin(EnforcedAdmin admin) {
+        super.setDisabledByAdmin(admin);
+        setSwitchEnabled(admin == null);
+    }
+
+    /**
+     * If admin is not null, disables the switch.
+     * Otherwise, keep it enabled.
+     */
+    public void setDisabledByAdmin(EnforcingAdmin admin) {
         super.setDisabledByAdmin(admin);
         setSwitchEnabled(admin == null);
     }

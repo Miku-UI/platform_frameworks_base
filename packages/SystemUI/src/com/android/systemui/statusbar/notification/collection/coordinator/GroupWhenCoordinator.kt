@@ -18,9 +18,10 @@ package com.android.systemui.statusbar.notification.collection.coordinator
 import android.util.ArrayMap
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.statusbar.notification.collection.GroupEntry
-import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.NotifPipeline
+import com.android.systemui.statusbar.notification.collection.PipelineEntry
 import com.android.systemui.statusbar.notification.collection.coordinator.dagger.CoordinatorScope
+import com.android.systemui.statusbar.notification.collection.forEachGroupEntry
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Invalidator
 import com.android.systemui.statusbar.notification.collection.render.NotifGroupController
 import com.android.systemui.util.concurrency.DelayableExecutor
@@ -35,7 +36,7 @@ class GroupWhenCoordinator
 @Inject
 constructor(
     @Main private val delayableExecutor: DelayableExecutor,
-    private val systemClock: SystemClock
+    private val systemClock: SystemClock,
 ) : Coordinator {
 
     private val invalidator = object : Invalidator("GroupWhenCoordinator") {}
@@ -58,7 +59,7 @@ constructor(
 
         val now = systemClock.currentTimeMillis()
         var closestFutureTime = Long.MAX_VALUE
-        entries.asSequence().filterIsInstance<GroupEntry>().forEach { groupEntry ->
+        entries.forEachGroupEntry { groupEntry ->
             val whenMillis = calculateGroupNotificationTime(groupEntry, now)
             notificationGroupTimes[groupEntry] = whenMillis
             if (whenMillis > now) {
@@ -83,7 +84,7 @@ constructor(
 
     private fun calculateGroupNotificationTime(
         groupEntry: GroupEntry,
-        currentTimeMillis: Long
+        currentTimeMillis: Long,
     ): Long {
         var pastTime = Long.MIN_VALUE
         var futureTime = Long.MAX_VALUE

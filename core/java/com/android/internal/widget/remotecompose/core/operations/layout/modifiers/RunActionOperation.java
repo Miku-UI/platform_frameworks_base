@@ -53,6 +53,7 @@ public class RunActionOperation extends PaintOperation implements Container {
      * @return list to be filled
      */
     @NonNull
+    @Override
     public ArrayList<Operation> getList() {
         return mList;
     }
@@ -68,7 +69,7 @@ public class RunActionOperation extends PaintOperation implements Container {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer.addType(CLASS_NAME).add("list", mList);
     }
 

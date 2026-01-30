@@ -16,9 +16,6 @@
 
 package android.app.ondeviceintelligence;
 
-import static android.app.ondeviceintelligence.flags.Flags.FLAG_ENABLE_ON_DEVICE_INTELLIGENCE;
-
-import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
 import android.os.Parcel;
@@ -32,7 +29,6 @@ import android.os.PersistableBundle;
  * @hide
  */
 @SystemApi
-@FlaggedApi(FLAG_ENABLE_ON_DEVICE_INTELLIGENCE)
 public final class TokenInfo implements Parcelable {
     private final long mCount;
     private final PersistableBundle mInfoParams;

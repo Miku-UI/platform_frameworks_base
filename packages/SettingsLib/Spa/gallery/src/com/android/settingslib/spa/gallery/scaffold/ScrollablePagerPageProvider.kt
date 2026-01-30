@@ -23,9 +23,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.android.settingslib.spa.framework.common.SettingsEntryBuilder
 import com.android.settingslib.spa.framework.common.SettingsPageProvider
-import com.android.settingslib.spa.framework.common.createSettingsPage
 import com.android.settingslib.spa.framework.compose.navigator
 import com.android.settingslib.spa.framework.theme.SettingsTheme
 import com.android.settingslib.spa.widget.preference.Preference
@@ -37,15 +35,15 @@ object ScrollablePagerPageProvider : SettingsPageProvider {
     override val name = "ScrollablePager"
     private const val TITLE = "Sample Scrollable SettingsPager"
 
-    fun buildInjectEntry() = SettingsEntryBuilder.createInject(owner = createSettingsPage())
-        .setUiLayoutFn {
-            Preference(object : PreferenceModel {
+    @Composable
+    fun Entry() {
+        Preference(
+            object : PreferenceModel {
                 override val title = TITLE
                 override val onClick = navigator(name)
-            })
-        }
-
-    override fun getTitle(arguments: Bundle?) = TITLE
+            }
+        )
+    }
 
     @Composable
     override fun Page(arguments: Bundle?) {
@@ -54,9 +52,11 @@ object ScrollablePagerPageProvider : SettingsPageProvider {
                 SettingsPager(listOf("Personal", "Work")) {
                     LazyColumn {
                         items(30) {
-                            Preference(object : PreferenceModel {
-                                override val title = it.toString()
-                            })
+                            Preference(
+                                object : PreferenceModel {
+                                    override val title = it.toString()
+                                }
+                            )
                         }
                     }
                 }
@@ -68,7 +68,5 @@ object ScrollablePagerPageProvider : SettingsPageProvider {
 @Preview(showBackground = true)
 @Composable
 private fun ScrollablePagerPageProviderPreview() {
-    SettingsTheme {
-        ScrollablePagerPageProvider.Page(null)
-    }
+    SettingsTheme { ScrollablePagerPageProvider.Page(null) }
 }

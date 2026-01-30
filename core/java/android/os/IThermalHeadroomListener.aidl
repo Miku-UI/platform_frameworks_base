@@ -20,7 +20,7 @@ package android.os;
  * Listener for thermal headroom and threshold changes.
  * This is mainly used by {@link android.os.PowerManager} to serve public thermal headoom related
  * APIs.
- * {@hide}
+ * @hide
  */
 oneway interface IThermalHeadroomListener {
     /**

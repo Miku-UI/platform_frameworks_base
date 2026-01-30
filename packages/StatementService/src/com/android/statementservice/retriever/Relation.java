@@ -16,7 +16,7 @@
 
 package com.android.statementservice.retriever;
 
-import android.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import java.util.regex.Pattern;
 

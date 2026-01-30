@@ -57,6 +57,8 @@ class FakeDeviceEntryFaceAuthRepository @Inject constructor() : DeviceEntryFaceA
     private val _isAuthRunning = MutableStateFlow(false)
     override val isAuthRunning: StateFlow<Boolean> = _isAuthRunning
 
+    override val isDetectRunning: StateFlow<Boolean> = MutableStateFlow(false)
+
     override val isBypassEnabled = MutableStateFlow(false)
 
     override fun setLockedOut(isLockedOut: Boolean) {

@@ -19,5 +19,7 @@ package android.os
 import com.android.systemui.concurrency.fakeExecutor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.util.concurrency.mockExecutorHandler
+import com.android.systemui.utils.os.FakeHandler
 
 val Kosmos.fakeExecutorHandler by Kosmos.Fixture { mockExecutorHandler(fakeExecutor) }
+val Kosmos.fakeHandler by Kosmos.Fixture { FakeHandler(Looper.getMainLooper()) }

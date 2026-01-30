@@ -21,13 +21,16 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 
+import android.annotation.NonNull;
 import android.content.Context;
 import android.os.BatteryManager;
 import android.os.BatteryStats;
 import android.os.ConditionVariable;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.Message;
 import android.os.Process;
+import android.os.SystemClock;
 import android.power.PowerStatsInternal;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -41,8 +44,6 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
-import java.util.Random;
-
 @RunWith(AndroidJUnit4.class)
 @android.platform.test.annotations.DisabledOnRavenwood(reason =
         "PowerStatsInternal is not supported under Ravenwood")
@@ -52,13 +53,17 @@ public class BatteryHistoryStepDetailsProviderTest {
 
     private final MockClock mMockClock = new MockClock();
     private MockBatteryStatsImpl mBatteryStats;
-    private final Random mRandom = new Random();
     private Handler mHandler;
 
     @Before
     public void setup() {
         mMockClock.currentTime = 3000;
-        mHandler = new Handler(Looper.getMainLooper());
+        mHandler = new Handler(Looper.getMainLooper()) {
+            public boolean sendMessageAtTime(@NonNull Message msg, long uptimeMillis) {
+                // Process delayed messages immediately.
+                return super.sendMessageAtTime(msg, SystemClock.uptimeMillis());
+            }
+        };
         mBatteryStats = new MockBatteryStatsImpl(mMockClock, null, mHandler,
                 mock(PowerProfile.class));
         mBatteryStats.setRecordAllHistoryLocked(true);

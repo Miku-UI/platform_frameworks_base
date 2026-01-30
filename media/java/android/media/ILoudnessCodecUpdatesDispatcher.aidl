@@ -23,7 +23,7 @@ import android.os.PersistableBundle;
  * Interface which provides updates for the clients about MediaCodec loudness
  * parameter changes.
  *
- * {@hide}
+ * @hide
  */
 oneway interface ILoudnessCodecUpdatesDispatcher {
 

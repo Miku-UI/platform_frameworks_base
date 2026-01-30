@@ -18,17 +18,24 @@ package com.android.server.wm;
 
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
 import static android.util.DisplayMetrics.DENSITY_DEFAULT;
+import static android.view.Display.DEFAULT_DISPLAY;
+import static android.view.Display.INVALID_DISPLAY;
+import static android.window.DisplayAreaOrganizer.FEATURE_UNDEFINED;
 
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_ATM;
 import static com.android.server.wm.ActivityTaskManagerDebugConfig.TAG_WITH_CLASS_NAME;
 
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.app.ActivityOptions;
 import android.content.pm.ActivityInfo;
 import android.graphics.Rect;
 import android.util.Size;
 import android.view.Gravity;
 import android.view.View;
+import android.window.WindowContainerToken;
+
+import java.util.function.Consumer;
 
 /**
  * The static class that defines some utility constants and functions that are shared among launch
@@ -271,5 +278,224 @@ class LaunchParamsUtil {
         final int xOffset = (int) (fractionOfHorizontalOffset * (stableBounds.width() - width));
         final int yOffset = (int) (fractionOfVerticalOffset * (stableBounds.height() - height));
         inOutBounds.offset(xOffset, yOffset);
+    }
+
+    @NonNull
+    static TaskDisplayArea getPreferredLaunchTaskDisplayArea(
+            @NonNull ActivityTaskSupervisor supervisor, @Nullable Task task,
+            @Nullable ActivityOptions options, @Nullable ActivityRecord source,
+            @Nullable LaunchParamsController.LaunchParams currentParams,
+            @Nullable ActivityRecord activityRecord, @Nullable ActivityStarter.Request request,
+            @NonNull Consumer<String> logger) {
+        TaskDisplayArea taskDisplayArea = null;
+
+        final WindowContainerToken optionLaunchTaskDisplayAreaToken = options != null
+                ? options.getLaunchTaskDisplayArea() : null;
+        if (optionLaunchTaskDisplayAreaToken != null) {
+            taskDisplayArea = (TaskDisplayArea) WindowContainer.fromBinder(
+                    optionLaunchTaskDisplayAreaToken.asBinder());
+            logger.accept("display-area-token-from-option=" + taskDisplayArea);
+        }
+
+        if (taskDisplayArea == null && options != null) {
+            final int launchTaskDisplayAreaFeatureId = options.getLaunchTaskDisplayAreaFeatureId();
+            if (launchTaskDisplayAreaFeatureId != FEATURE_UNDEFINED) {
+                final int launchDisplayId = options.getLaunchDisplayId() == INVALID_DISPLAY
+                        ? DEFAULT_DISPLAY : options.getLaunchDisplayId();
+                final DisplayContent dc = supervisor.mRootWindowContainer
+                        .getDisplayContent(launchDisplayId);
+                if (dc != null) {
+                    taskDisplayArea = dc.getItemFromTaskDisplayAreas(tda ->
+                            tda.mFeatureId == launchTaskDisplayAreaFeatureId ? tda : null);
+                    logger.accept("display-area-feature-from-option=" + taskDisplayArea);
+                }
+            }
+        }
+
+        // If task display area is not specified in options - try display id
+        if (taskDisplayArea == null) {
+            final int optionLaunchId =
+                    options != null ? options.getLaunchDisplayId() : INVALID_DISPLAY;
+            if (optionLaunchId != INVALID_DISPLAY) {
+                final DisplayContent dc = supervisor.mRootWindowContainer
+                        .getDisplayContent(optionLaunchId);
+                if (dc != null) {
+                    taskDisplayArea = dc.getDefaultTaskDisplayArea();
+                    logger.accept("display-from-option=" + optionLaunchId);
+                }
+            }
+        }
+
+        // If the source activity is a no-display activity, pass on the launch display area token
+        // from source activity as currently preferred.
+        if (taskDisplayArea == null && source != null && source.isNoDisplay()) {
+            taskDisplayArea = source.mHandoverTaskDisplayArea;
+            if (taskDisplayArea != null) {
+                logger.accept("display-area-from-no-display-source=" + taskDisplayArea);
+            } else {
+                // Try handover display id
+                final int displayId = source.mHandoverLaunchDisplayId;
+                final DisplayContent dc =
+                        supervisor.mRootWindowContainer.getDisplayContent(displayId);
+                if (dc != null) {
+                    taskDisplayArea = dc.getDefaultTaskDisplayArea();
+                    logger.accept("display-from-no-display-source=" + displayId);
+                }
+            }
+        }
+
+        if (taskDisplayArea == null && source != null) {
+            final TaskDisplayArea sourceDisplayArea = source.getDisplayArea();
+            logger.accept("display-area-from-source=" + sourceDisplayArea);
+            taskDisplayArea = sourceDisplayArea;
+        }
+
+        final Task rootTask = (taskDisplayArea == null && task != null)
+                ? task.getRootTask() : null;
+        if (rootTask != null) {
+            logger.accept("display-from-task=" + rootTask.getDisplayId());
+            taskDisplayArea = rootTask.getDisplayArea();
+        }
+
+        if (taskDisplayArea == null && options != null) {
+            final int callerDisplayId = options.getCallerDisplayId();
+            final DisplayContent dc =
+                    supervisor.mRootWindowContainer.getDisplayContent(callerDisplayId);
+            if (dc != null) {
+                taskDisplayArea = dc.getDefaultTaskDisplayArea();
+                logger.accept("display-from-caller=" + callerDisplayId);
+            }
+        }
+
+        if (taskDisplayArea == null && currentParams != null) {
+            taskDisplayArea = currentParams.mPreferredTaskDisplayArea;
+            logger.accept("display-area-from-current-params=" + taskDisplayArea);
+        }
+
+        // Re-route to default display if the device didn't declare support for multi-display
+        if (taskDisplayArea != null && !supervisor.mService.mSupportsMultiDisplay
+                && taskDisplayArea.getDisplayId() != DEFAULT_DISPLAY) {
+            taskDisplayArea = supervisor.mRootWindowContainer.getDefaultTaskDisplayArea();
+            logger.accept("display-area-from-no-multidisplay=" + taskDisplayArea);
+        }
+
+        // Re-route to default display if the home activity doesn't support multi-display
+        if (taskDisplayArea != null && activityRecord != null && activityRecord.isActivityTypeHome()
+                && !supervisor.mRootWindowContainer.canStartHomeOnDisplayArea(activityRecord.info,
+                taskDisplayArea, false /* allowInstrumenting */)) {
+            taskDisplayArea = supervisor.mRootWindowContainer.getDefaultTaskDisplayArea();
+            logger.accept("display-area-from-home=" + taskDisplayArea);
+        }
+
+        return (taskDisplayArea != null)
+                ? taskDisplayArea
+                : getFallbackDisplayAreaForActivity(activityRecord, request, supervisor, logger);
+    }
+
+    /**
+     * Calculates the default {@link TaskDisplayArea} for a task. We attempt to put the activity
+     * within the same display area if possible. The strategy is to find the display in the
+     * following order:
+     *
+     * <ol>
+     *     <li>The display area of the top activity from the launching process will be used</li>
+     *     <li>The display area of the top activity from the real launching process will be used
+     *     </li>
+     *     <li>The default display area of the current focused display will be used.</li>
+     * </ol>
+     * @param activityRecord the activity being started
+     * @param request optional {@link ActivityStarter.Request} made to start the activity record
+     * @return {@link TaskDisplayArea} to house the task
+     */
+    @NonNull
+    private static TaskDisplayArea getFallbackDisplayAreaForActivity(
+            @Nullable ActivityRecord activityRecord, @Nullable ActivityStarter.Request request,
+            @NonNull ActivityTaskSupervisor supervisor, @NonNull Consumer<String> logger) {
+        if (activityRecord != null) {
+            final WindowProcessController controllerFromLaunchingRecord =
+                    supervisor.mService.getProcessController(
+                            activityRecord.launchedFromPid, activityRecord.launchedFromUid);
+            if (controllerFromLaunchingRecord != null) {
+                final TaskDisplayArea taskDisplayAreaForLaunchingRecord =
+                        controllerFromLaunchingRecord.getTopActivityDisplayArea();
+                if (canPlaceEntityOnDisplay(taskDisplayAreaForLaunchingRecord, activityRecord,
+                        request, supervisor)) {
+                    logger.accept("display-area-for-launching-record="
+                            + taskDisplayAreaForLaunchingRecord);
+                    return taskDisplayAreaForLaunchingRecord;
+                }
+            }
+
+            final WindowProcessController controllerFromProcess =
+                    supervisor.mService.getProcessController(
+                            activityRecord.getProcessName(), activityRecord.getUid());
+            if (controllerFromProcess != null) {
+                final TaskDisplayArea displayAreaForRecord =
+                        controllerFromProcess.getTopActivityDisplayArea();
+                if (canPlaceEntityOnDisplay(displayAreaForRecord, activityRecord,
+                        request, supervisor)) {
+                    logger.accept("display-area-for-record=" + displayAreaForRecord);
+                    return displayAreaForRecord;
+                }
+            }
+        }
+
+        if (request != null) {
+            final WindowProcessController controllerFromRequest =
+                    supervisor.mService.getProcessController(
+                            request.realCallingPid, request.realCallingUid);
+            if (controllerFromRequest != null) {
+                final TaskDisplayArea displayAreaFromSourceProcess =
+                        controllerFromRequest.getTopActivityDisplayArea();
+                if (canPlaceEntityOnDisplay(displayAreaFromSourceProcess, activityRecord,
+                        request, supervisor)) {
+                    logger.accept("display-area-source-process=" + displayAreaFromSourceProcess);
+                    return displayAreaFromSourceProcess;
+                }
+            }
+        }
+
+        if (com.android.window.flags.Flags.fallbackToFocusedDisplay()) {
+            // Select the TDA from the top focused display if possible.
+            final DisplayContent focusedDisplay =
+                    supervisor.mRootWindowContainer.getTopFocusedDisplayContent();
+            final TaskDisplayArea defaultTaskDisplayArea;
+            if (canPlaceEntityOnDisplay(focusedDisplay.getDefaultTaskDisplayArea(), activityRecord,
+                    request, supervisor)) {
+                defaultTaskDisplayArea = focusedDisplay.getDefaultTaskDisplayArea();
+            } else {
+                defaultTaskDisplayArea =
+                        supervisor.mRootWindowContainer.getDefaultTaskDisplayArea();
+            }
+            logger.accept("display-area-from-default-fallback=" + defaultTaskDisplayArea);
+            return defaultTaskDisplayArea;
+        } else {
+            final TaskDisplayArea defaultTaskDisplayArea =
+                    supervisor.mRootWindowContainer.getDefaultTaskDisplayArea();
+            logger.accept("display-area-from-default-fallback=" + defaultTaskDisplayArea);
+            return defaultTaskDisplayArea;
+        }
+    }
+
+    /**
+     * Returns {@code true} if the given activity can be placed on the TaskDisplayArea.
+     */
+    private static boolean canPlaceEntityOnDisplay(@Nullable TaskDisplayArea tda,
+            @Nullable ActivityRecord activity, @Nullable ActivityStarter.Request request,
+            @NonNull ActivityTaskSupervisor supervisor) {
+        if (tda == null) {
+            return false;
+        }
+
+        final int displayId = tda.getDisplayId();
+        if (activity != null) {
+            return activity.canBeLaunchedOnDisplay(displayId);
+        }
+
+        if (request != null && request.activityInfo != null) {
+            return supervisor.canPlaceEntityOnDisplay(displayId, request.callingPid,
+                    request.callingUid, request.activityInfo);
+        }
+        return false;
     }
 }

@@ -22,6 +22,7 @@ import static com.android.internal.widget.remotecompose.core.documentation.Docum
 import static com.android.internal.widget.remotecompose.core.documentation.DocumentedOperation.LONG;
 
 import android.annotation.NonNull;
+import android.annotation.Nullable;
 
 import com.android.internal.widget.remotecompose.core.CoreDocument;
 import com.android.internal.widget.remotecompose.core.Operation;
@@ -46,7 +47,8 @@ import java.util.List;
 public class Header extends Operation implements RemoteComposeOperation {
     private static final int OP_CODE = Operations.HEADER;
     private static final String CLASS_NAME = "Header";
-    private static final int MAGIC_NUMBER = 0x048C0000; // to uniquly identify the protocol
+    private static final int MAGIC_NUMBER = 0x048C0000; // to uniquely identify the protocol
+    private static final int MAX_TABLE_SIZE = 1000;
 
     int mMajorVersion;
     int mMinorVersion;
@@ -57,7 +59,8 @@ public class Header extends Operation implements RemoteComposeOperation {
 
     float mDensity = 3;
     long mCapabilities = 0;
-    private IntMap<Object> mProperties;
+    int mProfiles = 0;
+    private @Nullable IntMap<Object> mProperties;
 
     /**
      * Get a property on the header
@@ -65,7 +68,10 @@ public class Header extends Operation implements RemoteComposeOperation {
      * @param property the property to get
      * @return the value of the property
      */
-    public Object get(short property) {
+    public @Nullable Object get(short property) {
+        if (mProperties == null) {
+            return null;
+        }
         return mProperties.get(property);
     }
 
@@ -87,7 +93,14 @@ public class Header extends Operation implements RemoteComposeOperation {
     /** The source of the document */
     public static final short DOC_SOURCE = 11;
 
+    /** The document is an update to the existing document */
     public static final short DOC_DATA_UPDATE = 12;
+
+    /** integer host action id to call if exception occurs */
+    public static final short HOST_EXCEPTION_HANDLER = 13;
+
+    /** profiles */
+    public static final short DOC_PROFILES = 14;
 
     /** The object is an integer */
     private static final short DATA_TYPE_INT = 0;
@@ -108,7 +121,9 @@ public class Header extends Operation implements RemoteComposeOperation {
         DOC_DESIRED_FPS,
         DOC_CONTENT_DESCRIPTION,
         DOC_SOURCE,
-        DOC_DATA_UPDATE
+        DOC_DATA_UPDATE,
+        HOST_EXCEPTION_HANDLER,
+        DOC_PROFILES
     };
     private static final String[] KEY_NAMES = {
         "DOC_WIDTH",
@@ -116,7 +131,10 @@ public class Header extends Operation implements RemoteComposeOperation {
         "DOC_DENSITY_AT_GENERATION",
         "DOC_DESIRED_FPS",
         "DOC_CONTENT_DESCRIPTION",
-        "DOC_SOURCE"
+        "DOC_SOURCE",
+        "DOC_DATA_UPDATE",
+        "HOST_EXCEPTION_HANDLER",
+        "DOC_PROFILES"
     };
 
     /**
@@ -154,7 +172,11 @@ public class Header extends Operation implements RemoteComposeOperation {
      * @param patchVersion the patch version of the RemoteCompose document API
      * @param properties the properties of the document
      */
-    public Header(int majorVersion, int minorVersion, int patchVersion, IntMap<Object> properties) {
+    public Header(
+            int majorVersion,
+            int minorVersion,
+            int patchVersion,
+            @Nullable IntMap<Object> properties) {
         this.mMajorVersion = majorVersion;
         this.mMinorVersion = minorVersion;
         this.mPatchVersion = patchVersion;
@@ -163,7 +185,12 @@ public class Header extends Operation implements RemoteComposeOperation {
             this.mWidth = getInt(DOC_WIDTH, 256);
             this.mHeight = getInt(DOC_HEIGHT, 256);
             this.mDensity = getFloat(DOC_DENSITY_AT_GENERATION, 0);
+            this.mProfiles = getInt(DOC_PROFILES, 0);
         }
+    }
+
+    public int getProfiles() {
+        return mProfiles;
     }
 
     private int getInt(int key, int defaultValue) {
@@ -178,17 +205,17 @@ public class Header extends Operation implements RemoteComposeOperation {
         }
     }
 
-    private long getLong(int key, long defaultValue) {
-        if (mProperties == null) {
-            return defaultValue;
-        }
-        Long value = (Long) mProperties.get(key);
-        if (value != null) {
-            return value;
-        } else {
-            return defaultValue;
-        }
-    }
+    // private long getLong(int key, long defaultValue) {
+    //    if (mProperties == null) {
+    //         return defaultValue;
+    //     }
+    //     Long value = (Long) mProperties.get(key);
+    //     if (value != null) {
+    //         return value;
+    //     } else {
+    //         return defaultValue;
+    //     }
+    // }
 
     private float getFloat(int key, float defaultValue) {
         if (mProperties == null) {
@@ -202,17 +229,17 @@ public class Header extends Operation implements RemoteComposeOperation {
         }
     }
 
-    private String getString(int key, String defaultValue) {
-        if (mProperties == null) {
-            return defaultValue;
-        }
-        String value = (String) mProperties.get(key);
-        if (value != null) {
-            return value;
-        } else {
-            return defaultValue;
-        }
-    }
+    // private String getString(int key, String defaultValue) {
+    //     if (mProperties == null) {
+    //         return defaultValue;
+    //     }
+    //     String value = (String) mProperties.get(key);
+    //     if (value != null) {
+    //         return value;
+    //     } else {
+    //         return defaultValue;
+    //     }
+    // }
 
     @Override
     public void write(@NonNull WireBuffer buffer) {
@@ -310,14 +337,46 @@ public class Header extends Operation implements RemoteComposeOperation {
      * Apply the header to the wire buffer
      *
      * @param buffer
+     * @param apiLevel
+     * @param type
+     * @param value
      */
-    public static void apply(@NonNull WireBuffer buffer, short[] type, Object[] value) {
+    public static void apply(
+            @NonNull WireBuffer buffer,
+            int apiLevel,
+            @NonNull short [] type,
+            @NonNull Object [] value) {
         buffer.start(OP_CODE);
-        buffer.writeInt(MAJOR_VERSION | MAGIC_NUMBER); // major version number of the protocol
-        buffer.writeInt(MINOR_VERSION); // minor version number of the protocol
-        buffer.writeInt(PATCH_VERSION); // patch version number of the protocol
-        buffer.writeInt(type.length);
-        writeMap(buffer, type, value);
+        if (apiLevel == CoreDocument.DOCUMENT_API_LEVEL) {
+            buffer.writeInt(MAJOR_VERSION | MAGIC_NUMBER); // major version number of the protocol
+            buffer.writeInt(MINOR_VERSION); // minor version number of the protocol
+            buffer.writeInt(PATCH_VERSION); // patch version number of the protocol
+            buffer.writeInt(type.length);
+            writeMap(buffer, type, value);
+        } else if (apiLevel == 6) {
+            buffer.writeInt(1); // major version number of the protocol
+            buffer.writeInt(0); // minor version number of the protocol
+            buffer.writeInt(0); // patch version number of the protocol
+            int width = getInt(type, value, DOC_WIDTH);
+            int height = getInt(type, value, DOC_HEIGHT);
+            buffer.writeInt(width);
+            buffer.writeInt(height);
+            buffer.writeLong(0L);
+        } else {
+            throw new RuntimeException("Unsupported API level " + apiLevel);
+        }
+    }
+
+    private static int getInt(short[] type, Object[] value, int key) {
+        for (int i = 0; i < type.length; i++) {
+            if (type[i] == key) {
+                if (value[i] instanceof Integer) {
+                    return (Integer) value[i];
+                }
+                return 0;
+            }
+        }
+        return 0;
     }
 
     /**
@@ -325,7 +384,7 @@ public class Header extends Operation implements RemoteComposeOperation {
      * @return the header
      * @throws IOException if there is an error reading the header
      */
-    public static Header readDirect(InputStream is) throws IOException {
+    public static @NonNull Header readDirect(@NonNull InputStream is) throws IOException {
         DataInputStream stream = new DataInputStream(is);
         try {
 
@@ -388,10 +447,9 @@ public class Header extends Operation implements RemoteComposeOperation {
             throws IOException {
         for (int i = 0; i < types.length; i++) {
             short tag = (short) stream.readShort();
-            int itemLen = stream.readShort();
+            stream.readShort(); // itemLen
             int dataType = tag >> 10;
             types[i] = (short) (tag & 0x3F);
-            Object value;
             switch (dataType) {
                 case DATA_TYPE_INT:
                     values[i] = stream.readInt();
@@ -410,6 +468,44 @@ public class Header extends Operation implements RemoteComposeOperation {
                     break;
             }
         }
+    }
+
+    /**
+     * Read the Header api level
+     *
+     * @param buffer
+     * @return api level, -1 if not found
+     */
+    public static int readApiLevel(@NonNull WireBuffer buffer) {
+        int index = buffer.getIndex();
+        int headerOpId = buffer.readByte();
+        if (headerOpId != Operations.HEADER) {
+            return -1;
+        }
+        int majorVersion = buffer.readInt();
+        int minorVersion = buffer.readInt();
+        buffer.setIndex(index);
+        if (majorVersion >= 0x10000) {
+            if ((majorVersion & 0xFFFF0000) != MAGIC_NUMBER) {
+                return -1;
+            }
+            majorVersion &= 0xFFFF;
+        }
+        if (majorVersion == 1 && minorVersion == 1) {
+            return 7;
+        }
+        if (majorVersion == 1 && minorVersion == 0) {
+            return 6;
+        }
+        if (majorVersion == 0 && (minorVersion <= 3)) {
+            // Cts tests
+            return 6;
+        }
+        if (majorVersion == 0 && minorVersion == 0) {
+            // RemoteFloat tests
+            return 6;
+        }
+        return -1;
     }
 
     /**
@@ -441,6 +537,9 @@ public class Header extends Operation implements RemoteComposeOperation {
         } else {
             majorVersion &= 0xFFFF;
             int length = buffer.readInt();
+            if (length > MAX_TABLE_SIZE) {
+                throw new RuntimeException("Invalid table size " + length);
+            }
             short[] types = new short[length];
             Object[] values = new Object[length];
             readMap(buffer, types, values);
@@ -454,6 +553,63 @@ public class Header extends Operation implements RemoteComposeOperation {
     }
 
     /**
+     * @param buffer the stream to read from
+     * @return the header
+     * @throws IOException if there is an error reading the header
+     */
+    public static @NonNull Header readDirect(@NonNull WireBuffer buffer) throws IOException {
+        int index = buffer.getIndex();
+        try {
+
+            int type = buffer.readByte();
+
+            if (type != OP_CODE) {
+                throw new IOException("Invalid header " + type + " != " + OP_CODE);
+            }
+            int majorVersion = buffer.readInt();
+            int minorVersion = buffer.readInt();
+            int patchVersion = buffer.readInt();
+
+            if (majorVersion < 0x10000) {
+                int width = buffer.readInt();
+                int height = buffer.readInt();
+                // float density = is.read();
+                float density = 1f;
+                long capabilities = buffer.readLong();
+                return new Header(
+                        majorVersion,
+                        minorVersion,
+                        patchVersion,
+                        width,
+                        height,
+                        density,
+                        capabilities);
+            }
+
+            if ((majorVersion & 0xFFFF0000) != MAGIC_NUMBER) {
+                throw new IOException(
+                        "Invalid header MAGIC_NUMBER "
+                                + (majorVersion & 0xFFFF0000)
+                                + " != "
+                                + MAGIC_NUMBER);
+            }
+            majorVersion &= 0xFFFF;
+            int len = buffer.readInt();
+            short[] types = new short[len];
+            Object[] values = new Object[len];
+            readMap(buffer, types, values);
+            IntMap<Object> map = new IntMap<>();
+            for (int i = 0; i < len; i++) {
+                map.put(types[i], values[i]);
+            }
+            return new Header(majorVersion, minorVersion, patchVersion, map);
+
+        } finally {
+            buffer.setIndex(index);
+        }
+    }
+
+    /**
      * Read this operation and add it to the list of operations
      *
      * @param buffer the buffer to read
@@ -463,10 +619,9 @@ public class Header extends Operation implements RemoteComposeOperation {
     private static void readMap(@NonNull WireBuffer buffer, short[] types, Object[] values) {
         for (int i = 0; i < types.length; i++) {
             short tag = (short) buffer.readShort();
-            int itemLen = buffer.readShort();
+            buffer.readShort(); // itemLen
             int dataType = tag >> 10;
             types[i] = (short) (tag & 0x3F);
-            Object value;
             switch (dataType) {
                 case DATA_TYPE_INT:
                     values[i] = buffer.readInt();
@@ -545,7 +700,8 @@ public class Header extends Operation implements RemoteComposeOperation {
      *
      * @param document
      */
-    public void setVersion(CoreDocument document) {
+    public void setVersion(@NonNull CoreDocument document) {
+        document.setHostExceptionID(getInt(HOST_EXCEPTION_HANDLER, 0));
         document.setUpdateDoc(getInt(DOC_DATA_UPDATE, 0) != 0);
         document.setVersion(mMajorVersion, mMinorVersion, mPatchVersion);
     }

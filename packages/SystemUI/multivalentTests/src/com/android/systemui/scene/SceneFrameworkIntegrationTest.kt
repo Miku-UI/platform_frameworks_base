@@ -57,6 +57,7 @@ import com.android.systemui.scene.shared.model.Overlays
 import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.scene.shared.model.fakeSceneDataSource
 import com.android.systemui.scene.ui.viewmodel.SceneContainerViewModel
+import com.android.systemui.shade.domain.interactor.enableSingleShade
 import com.android.systemui.shade.ui.viewmodel.shadeSceneContentViewModel
 import com.android.systemui.shade.ui.viewmodel.shadeUserActionsViewModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.fakeMobileConnectionsRepository
@@ -68,6 +69,7 @@ import com.android.systemui.util.settings.data.repository.userAwareSecureSetting
 import com.android.telecom.mockTelecomManager
 import com.google.common.truth.Truth.assertThat
 import com.google.common.truth.Truth.assertWithMessage
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -95,11 +97,13 @@ import org.junit.runner.RunWith
  *   being used when the state is as required (e.g. cannot unlock an already unlocked device, cannot
  *   put to sleep a device that's already asleep, etc.).
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @RunWithLooper
 @EnableSceneContainer
 class SceneFrameworkIntegrationTest : SysuiTestCase() {
+
     private val kosmos = testKosmos()
     private var bouncerOverlayJob: Job? = null
 
@@ -179,6 +183,7 @@ class SceneFrameworkIntegrationTest : SysuiTestCase() {
     @Test
     fun swipeUpOnShadeScene_withAuthMethodSwipe_lockscreenNotDismissed_goesToLockscreen() =
         kosmos.runTest {
+            enableSingleShade()
             val actions by collectLastValue(shadeUserActionsViewModel.actions)
             setAuthMethod(AuthenticationMethodModel.None, enableLockscreen = true)
             assertCurrentScene(Scenes.Lockscreen)
@@ -196,6 +201,7 @@ class SceneFrameworkIntegrationTest : SysuiTestCase() {
     @Test
     fun swipeUpOnShadeScene_withAuthMethodSwipe_lockscreenDismissed_goesToGone() =
         kosmos.runTest {
+            enableSingleShade()
             val actions by collectLastValue(shadeUserActionsViewModel.actions)
             val canSwipeToEnter by collectLastValue(deviceEntryInteractor.canSwipeToEnter)
 
@@ -711,7 +717,7 @@ class SceneFrameworkIntegrationTest : SysuiTestCase() {
         powerInteractor.setAsleepForTest()
         if (waitForLock) {
             testScope.advanceTimeBy(
-                kosmos.userAwareSecureSettingsRepository
+                userAwareSecureSettingsRepository
                     .getInt(
                         Settings.Secure.LOCK_SCREEN_LOCK_AFTER_TIMEOUT,
                         KeyguardViewMediator.KEYGUARD_LOCK_AFTER_DELAY_DEFAULT,
@@ -723,9 +729,8 @@ class SceneFrameworkIntegrationTest : SysuiTestCase() {
 
     /** Emulates the dismissal of the IME (soft keyboard). */
     private fun Kosmos.dismissIme() {
-        (currentValue(bouncerOverlayContentViewModel.authMethodViewModel)
-                as? PasswordBouncerViewModel)
-            ?.let { it.onImeDismissed() }
+        val authViewModel = bouncerOverlayContentViewModel.authMethodViewModel
+        (currentValue(authViewModel) as? PasswordBouncerViewModel)?.onImeDismissed()
     }
 
     private fun Kosmos.introduceLockedSim() {

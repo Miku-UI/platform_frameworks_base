@@ -16,7 +16,6 @@
 
 package com.android.systemui.qs.tiles.impl.battery.doman.interactor
 
-import android.platform.test.annotations.EnabledOnRavenwood
 import android.provider.Settings
 import android.testing.LeakCheck
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -34,7 +33,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class BatterySaverTileUserActionInteractorTest : SysuiTestCase() {
     private val inputHandler = FakeQSTileIntentUserInputHandler()

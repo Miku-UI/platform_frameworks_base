@@ -18,7 +18,6 @@ package com.android.systemui.navigationbar;
 
 import static android.app.StatusBarManager.WINDOW_NAVIGATION_BAR;
 import static android.provider.Settings.Secure.ACCESSIBILITY_BUTTON_MODE_FLOATING_MENU;
-import static android.provider.Settings.Secure.ACCESSIBILITY_BUTTON_MODE_GESTURE;
 import static android.provider.Settings.Secure.ACCESSIBILITY_BUTTON_MODE_NAVIGATION_BAR;
 import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL;
 
@@ -39,9 +38,6 @@ import static org.mockito.Mockito.when;
 import android.content.ComponentName;
 import android.content.res.Configuration;
 import android.os.Handler;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
-import android.provider.Flags;
 import android.view.IWindowManager;
 import android.view.accessibility.AccessibilityManager;
 
@@ -49,6 +45,7 @@ import androidx.test.filters.SmallTest;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.internal.accessibility.common.ShortcutConstants.UserShortcutType;
+import com.android.systemui.LauncherProxyService;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.accessibility.AccessibilityButtonModeObserver;
 import com.android.systemui.accessibility.AccessibilityButtonTargetsObserver;
@@ -57,7 +54,6 @@ import com.android.systemui.accessibility.SystemActions;
 import com.android.systemui.assist.AssistManager;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.navigationbar.gestural.EdgeBackGestureHandler;
-import com.android.systemui.recents.LauncherProxyService;
 import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.CommandQueue;
@@ -154,6 +150,7 @@ public class NavBarHelperTest extends SysuiTestCase {
         when(mUserTracker.getUserId()).thenReturn(1);
         when(mDisplayTracker.getDefaultDisplayId()).thenReturn(0);
         when(mEdgeBackGestureHandlerFactory.create(any())).thenReturn(mEdgeBackGestureHandler);
+        when(mLauncherProxyService.isSystemOrVisibleBgUser()).thenReturn(true);
 
         doAnswer((invocation) -> mAccessibilityServicesStateChangeListener =
                 invocation.getArgument(0)).when(
@@ -380,23 +377,6 @@ public class NavBarHelperTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(Flags.FLAG_A11Y_STANDALONE_GESTURE_ENABLED)
-    public void updateA11yState_gestureMode_softwareTargets_isClickable() {
-        when(mAccessibilityButtonModeObserver.getCurrentAccessibilityButtonMode()).thenReturn(
-                ACCESSIBILITY_BUTTON_MODE_GESTURE);
-        when(mAccessibilityManager.getAccessibilityShortcutTargets(UserShortcutType.SOFTWARE))
-                .thenReturn(createFakeShortcutTargets());
-
-        mNavBarHelper.updateA11yState();
-        long state = mNavBarHelper.getA11yButtonState();
-        assertThat(state & SYSUI_STATE_A11Y_BUTTON_CLICKABLE).isEqualTo(
-                SYSUI_STATE_A11Y_BUTTON_CLICKABLE);
-        assertThat(state & SYSUI_STATE_A11Y_BUTTON_LONG_CLICKABLE).isEqualTo(
-                SYSUI_STATE_A11Y_BUTTON_LONG_CLICKABLE);
-    }
-
-    @Test
-    @EnableFlags(Flags.FLAG_A11Y_STANDALONE_GESTURE_ENABLED)
     public void updateA11yState_gestureNavMode_floatingButtonMode_gestureTargets_isClickable() {
         mNavBarHelper.onNavigationModeChanged(NAV_BAR_MODE_GESTURAL);
         when(mAccessibilityButtonModeObserver.getCurrentAccessibilityButtonMode()).thenReturn(
@@ -413,7 +393,6 @@ public class NavBarHelperTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_A11Y_STANDALONE_GESTURE_ENABLED)
     public void updateA11yState_navBarMode_gestureTargets_isNotClickable() {
         when(mAccessibilityButtonModeObserver.getCurrentAccessibilityButtonMode()).thenReturn(
                 ACCESSIBILITY_BUTTON_MODE_NAVIGATION_BAR);
@@ -427,7 +406,6 @@ public class NavBarHelperTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_A11Y_STANDALONE_GESTURE_ENABLED)
     public void updateA11yState_singleTarget_clickableButNotLongClickable() {
         when(mAccessibilityButtonModeObserver.getCurrentAccessibilityButtonMode()).thenReturn(
                 ACCESSIBILITY_BUTTON_MODE_NAVIGATION_BAR);

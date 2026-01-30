@@ -18,10 +18,11 @@
 
 #include <androidfw/CursorWindow.h>
 
-#include <sys/mman.h>
-
 #include "android-base/logging.h"
+#include "android-base/mapped_file.h"
 #include "cutils/ashmem.h"
+
+using android::base::MappedFile;
 
 namespace android {
 
@@ -39,7 +40,7 @@ CursorWindow::CursorWindow() {
 
 CursorWindow::~CursorWindow() {
     if (mAshmemFd >= 0) {
-        ::munmap(mData, mSize);
+        mMappedFile.reset();
         ::close(mAshmemFd);
     } else {
         free(mData);
@@ -75,6 +76,7 @@ fail_silent:
 status_t CursorWindow::maybeInflate() {
     int ashmemFd = 0;
     void* newData = nullptr;
+    std::optional<MappedFile> newMappedFile;
 
     // Bail early when we can't expand any further
     if (mReadOnly || mSize == mInflatedSize) {
@@ -95,11 +97,12 @@ status_t CursorWindow::maybeInflate() {
         goto fail_silent;
     }
 
-    newData = ::mmap(nullptr, mInflatedSize, PROT_READ | PROT_WRITE, MAP_SHARED, ashmemFd, 0);
-    if (newData == MAP_FAILED) {
+    newMappedFile = MappedFile::Create(ashmemFd, 0, mInflatedSize, PROT_READ | PROT_WRITE);
+    if (!newMappedFile) {
         PLOG(ERROR) << "Failed mmap";
         goto fail_silent;
     }
+    newData = newMappedFile->data();
 
     if (ashmem_set_prot_region(ashmemFd, PROT_READ) < 0) {
         PLOG(ERROR) << "Failed ashmem_set_prot_region";
@@ -117,6 +120,7 @@ status_t CursorWindow::maybeInflate() {
 
         free(mData);
         mAshmemFd = ashmemFd;
+        mMappedFile = std::move(newMappedFile);
         mData = newData;
         mSize = mInflatedSize;
         mSlotsOffset = newSlotsOffset;
@@ -130,11 +134,11 @@ status_t CursorWindow::maybeInflate() {
 fail:
     LOG(ERROR) << "Failed maybeInflate";
 fail_silent:
-    ::munmap(newData, mInflatedSize);
     ::close(ashmemFd);
     return UNKNOWN_ERROR;
 }
 
+#ifdef __linux__
 status_t CursorWindow::createFromParcel(Parcel* parcel, CursorWindow** outWindow) {
     *outWindow = nullptr;
 
@@ -166,13 +170,13 @@ status_t CursorWindow::createFromParcel(Parcel* parcel, CursorWindow** outWindow
             PLOG(ERROR) << "Failed F_DUPFD_CLOEXEC";
             goto fail_silent;
         }
-
-        window->mData = ::mmap(nullptr, window->mSize, PROT_READ, MAP_SHARED, tempFd, 0);
-        if (window->mData == MAP_FAILED) {
+        window->mMappedFile = MappedFile::Create(tempFd, 0, window->mSize, PROT_READ);
+        if (!window->mMappedFile) {
             ::close(tempFd);
             PLOG(ERROR) << "Failed mmap";
             goto fail_silent;
         }
+        window->mData = window->mMappedFile->data();
 
         window->mAshmemFd = tempFd;
 
@@ -186,8 +190,9 @@ status_t CursorWindow::createFromParcel(Parcel* parcel, CursorWindow** outWindow
 
         window->mData = malloc(window->mSize);
         if (!window->mData) goto fail;
-
-        if (parcel->read(window->mData, window->mSize)) goto fail;
+        if (window->mSize > 0) {
+            if (parcel->read(window->mData, window->mSize)) goto fail;
+        }
     }
 
     // We just came from a remote source, so we're read-only
@@ -214,9 +219,12 @@ status_t CursorWindow::writeToParcel(Parcel* parcel) {
     if (parcel->writeString8(mName)) goto fail;
     if (parcel->writeUint32(mNumRows)) goto fail;
     if (parcel->writeUint32(mNumColumns)) goto fail;
-    if (mAshmemFd != -1) {
+    if (mNumRows == 0) {
+        if (parcel->writeUint32(/*size=*/0)) goto fail;
+        if (parcel->writeBool(/*isAshmem=*/false)) goto fail;
+    } else if (mAshmemFd != -1) {
         if (parcel->writeUint32(mSize)) goto fail;
-        if (parcel->writeBool(true)) goto fail;
+        if (parcel->writeBool(/*isAshmem=*/true)) goto fail;
         if (parcel->writeDupFileDescriptor(mAshmemFd)) goto fail;
     } else {
         // Since we know we're going to be read-only on the remote side,
@@ -224,7 +232,7 @@ status_t CursorWindow::writeToParcel(Parcel* parcel) {
         size_t slotsSize = sizeOfSlots();
         size_t compactedSize = sizeInUse();
         if (parcel->writeUint32(compactedSize)) goto fail;
-        if (parcel->writeBool(false)) goto fail;
+        if (parcel->writeBool(/*isAshmem=*/false)) goto fail;
         void* dest = parcel->writeInplace(compactedSize);
         if (!dest) goto fail;
         memcpy(static_cast<uint8_t*>(dest),
@@ -239,6 +247,7 @@ fail:
 fail_silent:
     return UNKNOWN_ERROR;
 }
+#endif
 
 status_t CursorWindow::clear() {
     if (mReadOnly) {

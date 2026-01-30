@@ -16,7 +16,6 @@
 
 package com.android.systemui.wallpapers
 
-import android.app.Flags
 import android.content.res.Configuration.UI_MODE_NIGHT_MASK
 import android.content.res.Configuration.UI_MODE_NIGHT_YES
 import android.graphics.Canvas
@@ -29,6 +28,7 @@ import android.graphics.Shader
 import android.service.wallpaper.WallpaperService
 import android.util.Log
 import android.view.SurfaceHolder
+import android.window.DesktopExperienceFlags
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.toRectF
 import com.android.systemui.res.R
@@ -37,7 +37,7 @@ import com.android.systemui.res.R
 class GradientColorWallpaper : WallpaperService() {
 
     override fun onCreateEngine(): Engine =
-        if (Flags.enableConnectedDisplaysWallpaper()) {
+        if (DesktopExperienceFlags.ENABLE_CONNECTED_DISPLAYS_WALLPAPER.isTrue) {
             GradientColorWallpaperEngine()
         } else {
             EmptyWallpaperEngine()

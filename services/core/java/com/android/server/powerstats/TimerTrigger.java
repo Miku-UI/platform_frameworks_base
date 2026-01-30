@@ -22,6 +22,8 @@ import android.os.Handler;
 import android.os.SystemClock;
 import android.util.Slog;
 
+import com.android.server.power.optimization.Flags;
+
 /**
  * TimerTrigger sets a 60 second opportunistic timer using postDelayed.
  * When the timer expires a message is sent to the PowerStatsLogger to
@@ -30,7 +32,6 @@ import android.util.Slog;
 public final class TimerTrigger extends PowerStatsLogTrigger {
     private static final String TAG = TimerTrigger.class.getSimpleName();
     private static final boolean DEBUG = false;
-    // TODO(b/166689029): Make configurable through global settings.
     private static final long LOG_PERIOD_MS_LOW_FREQUENCY = 60 * 60 * 1000; // 1 hour
     private static final long LOG_PERIOD_MS_HIGH_FREQUENCY = 2 * 60 * 1000; // 2 minutes
 
@@ -55,13 +56,9 @@ public final class TimerTrigger extends PowerStatsLogTrigger {
 
         @Override
         public void run() {
-            if (Flags.alarmBasedPowerstatsLogging()) {
-                final long nextAlarmMs = SystemClock.elapsedRealtime() + mPeriodMs;
-                mAlarmManager.set(AlarmManager.ELAPSED_REALTIME, nextAlarmMs,
-                        AlarmManager.WINDOW_EXACT, 0, mName, this, mHandler, null);
-            } else {
-                mHandler.postDelayed(this, mPeriodMs);
-            }
+            final long nextAlarmMs = SystemClock.elapsedRealtime() + mPeriodMs;
+            mAlarmManager.set(AlarmManager.ELAPSED_REALTIME, nextAlarmMs,
+                    AlarmManager.WINDOW_EXACT, 0, mName, this, mHandler, null);
             if (DEBUG) Slog.d(TAG, "Received delayed message (" + mName + ").  Logging rail data");
             logPowerStatsData(mMsgType);
         }
@@ -70,15 +67,29 @@ public final class TimerTrigger extends PowerStatsLogTrigger {
     public TimerTrigger(Context context, PowerStatsLogger powerStatsLogger,
             boolean triggerEnabled) {
         super(context, powerStatsLogger);
+        long logPeriodMsLowFrequency;
+        long logPeriodMsHighFrequency;
+        if (Flags.configurePowerStatsLogFrequency()) {
+            logPeriodMsLowFrequency = mContext.getResources().getInteger(
+                        com.android.internal.R.integer
+                            .config_powerStatsLogPeriodLowFrequencyMs);
+            logPeriodMsHighFrequency = mContext.getResources().getInteger(
+                        com.android.internal.R.integer
+                            .config_powerStatsLogPeriodHighFrequencyMs);
+        } else {
+            logPeriodMsLowFrequency = LOG_PERIOD_MS_LOW_FREQUENCY;
+            logPeriodMsHighFrequency = LOG_PERIOD_MS_HIGH_FREQUENCY;
+        }
+
         mHandler = mContext.getMainThreadHandler();
         mAlarmManager = mContext.getSystemService(AlarmManager.class);
 
         if (triggerEnabled) {
             final PeriodicTimer logDataLowFrequency = new PeriodicTimer("PowerStatsLowFreqLog",
-                    LOG_PERIOD_MS_LOW_FREQUENCY,
+                    logPeriodMsLowFrequency,
                     PowerStatsLogger.MSG_LOG_TO_DATA_STORAGE_LOW_FREQUENCY);
             final PeriodicTimer logDataHighFrequency = new PeriodicTimer("PowerStatsHighFreqLog",
-                    LOG_PERIOD_MS_HIGH_FREQUENCY,
+                    logPeriodMsHighFrequency,
                     PowerStatsLogger.MSG_LOG_TO_DATA_STORAGE_HIGH_FREQUENCY);
             logDataLowFrequency.run();
             logDataHighFrequency.run();

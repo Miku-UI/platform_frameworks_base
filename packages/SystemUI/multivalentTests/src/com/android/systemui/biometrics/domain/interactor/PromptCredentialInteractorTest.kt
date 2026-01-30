@@ -10,6 +10,7 @@ import com.android.systemui.biometrics.data.repository.FakePromptRepository
 import com.android.systemui.biometrics.domain.model.BiometricOperationInfo
 import com.android.systemui.biometrics.domain.model.BiometricPromptRequest
 import com.android.systemui.biometrics.promptInfo
+import com.android.systemui.biometrics.shared.model.BiometricModalities
 import com.android.systemui.biometrics.shared.model.BiometricUserInfo
 import com.android.systemui.biometrics.shared.model.PromptKind
 import com.android.systemui.coroutines.collectLastValue
@@ -113,7 +114,7 @@ class PromptCredentialInteractorTest : SysuiTestCase() {
                 userId = USER_ID,
                 requestId = REQUEST_ID,
                 challenge = OPERATION_ID,
-                opPackageName = OP_PACKAGE_NAME
+                opPackageName = OP_PACKAGE_NAME,
             )
             assertThat(showTitleOnly).isFalse()
         }
@@ -139,7 +140,7 @@ class PromptCredentialInteractorTest : SysuiTestCase() {
                 userId = USER_ID,
                 requestId = REQUEST_ID,
                 challenge = OPERATION_ID,
-                opPackageName = OP_PACKAGE_NAME
+                opPackageName = OP_PACKAGE_NAME,
             )
             assertThat(showTitleOnly).isTrue()
         }
@@ -168,7 +169,7 @@ class PromptCredentialInteractorTest : SysuiTestCase() {
                 userId = USER_ID,
                 requestId = REQUEST_ID,
                 challenge = OPERATION_ID,
-                opPackageName = OP_PACKAGE_NAME
+                opPackageName = OP_PACKAGE_NAME,
             )
             assertThat(showTitleOnly).isFalse()
         }
@@ -202,7 +203,7 @@ class PromptCredentialInteractorTest : SysuiTestCase() {
                 userId = USER_ID,
                 requestId = REQUEST_ID,
                 challenge = OPERATION_ID,
-                opPackageName = OP_PACKAGE_NAME
+                opPackageName = OP_PACKAGE_NAME,
             )
 
             assertThat(prompt?.title).isEqualTo(title)
@@ -356,6 +357,7 @@ class PromptCredentialInteractorTest : SysuiTestCase() {
         biometricPromptRepository.setPrompt(
             promptInfo,
             userId,
+            BiometricModalities(),
             requestId,
             challenge,
             kind,
@@ -373,7 +375,7 @@ private fun pinRequest(): BiometricPromptRequest.Credential.Pin =
     BiometricPromptRequest.Credential.Pin(
         promptInfo(),
         BiometricUserInfo(USER_ID),
-        BiometricOperationInfo(OPERATION_ID)
+        BiometricOperationInfo(OPERATION_ID),
     )
 
 private fun verified(hat: ByteArray) = CredentialStatus.Success.Verified(hat)

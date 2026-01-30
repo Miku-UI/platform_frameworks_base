@@ -57,7 +57,7 @@ import java.util.function.Supplier;
 @Deprecated
 public class ComponentAliasResolver {
     private static final String TAG = "ComponentAliasResolver";
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     /**
      * This flag has to be enabled for the "android" package to use component aliases.
@@ -481,7 +481,8 @@ public class ComponentAliasResolver {
         i.setComponent(resolution.getTarget());
 
         List<ResolveInfo> resolved = pmi.queryIntentReceivers(
-                i, resolvedType, packageFlags, callingUid, callingPid, userId, /*forSend*/ true);
+                i, resolvedType, packageFlags, callingUid, callingPid, userId, /* forSend */ true,
+                /* includedPackages */ null);
         if (resolved == null || resolved.size() == 0) {
             // Target component not found.
             Slog.w(TAG, "Alias target " + target.flattenToShortString() + " not found");

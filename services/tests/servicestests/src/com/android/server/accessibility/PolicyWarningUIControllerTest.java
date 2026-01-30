@@ -129,6 +129,7 @@ public class PolicyWarningUIControllerTest {
     public void receiveActionSendNotification_sendNotificationDisabled_doNothing() {
         mPolicyWarningUIController.enableSendingNonA11yToolNotification(false);
         addEnabledServiceInfo(TEST_COMPONENT_NAME, false);
+        getInstrumentation().waitForIdleSync();
 
         mFakeNotificationController.onReceive(mContext,
                 PolicyWarningUIController.createIntent(mContext, TEST_USER_ID,

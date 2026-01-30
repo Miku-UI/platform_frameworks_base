@@ -64,16 +64,6 @@ flag {
 }
 
 flag {
-  name: "fix_get_autofill_component"
-  namespace: "autofill"
-  description: "Fix getAutofillComponent returning null, even when user has selected provider"
-  bug: "319503432"
-  metadata {
-    purpose: PURPOSE_BUGFIX
-  }
-}
-
-flag {
   name: "test_flag"
   namespace: "autofill"
   description: "Test flag "
@@ -122,6 +112,23 @@ flag {
   namespace: "autofill"
   description: "Add accessibility title for augmented autofill dropdown"
   bug: "375284244"
+  metadata {
+    purpose: PURPOSE_BUGFIX
+  }
+}
+
+flag {
+  name: "log_augmented_service_uid"
+  namespace: "autofill"
+  description: "Log the UID of the augmented autofill service in FillRequest events"
+  bug: "411232512"
+}
+
+flag {
+  name: "disable_fill_dialog_on_automotive_multi_window"
+  namespace: "autofill"
+  description: "Disable fill dialog on automotive multi-window target"
+  bug: "420943436"
   metadata {
     purpose: PURPOSE_BUGFIX
   }

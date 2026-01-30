@@ -16,7 +16,7 @@
 
 package android.app;
 
-/** {@hide} */
+/** @hide */
 oneway interface IProcessObserver {
     /**
      * Invoked when an app process starts up.

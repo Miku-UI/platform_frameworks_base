@@ -22,6 +22,37 @@
         <item name="android:windowActionBar">false</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowAnimationStyle">@null</item>
+        <item name="textAppearanceInstallerAppLabel">@style/TextAppearance.PackageInstaller.AppLabel</item>
+        <item name="textAppearanceInstallerCustomMessage">@style/TextAppearance.PackageInstaller.CustomMessage</item>
+        <item name="textAppearanceInstallerKeepDataHeading">@style/TextAppearance.PackageInstaller.KeepData.Heading</item>
+        <item name="textAppearanceInstallerKeepDataSubHeading">@style/TextAppearance.PackageInstaller.KeepData.SubHeading</item>
+        <item name="textAppearanceInstallerTitle">@style/TextAppearance.PackageInstaller.Title</item>
     </style>
+
+    <style name="Theme.AlertDialogActivity.Material" parent="@style/Theme.Material3.DayNight.Dialog.Alert">
+        <item name="android:backgroundDimAmount">@dimen/alert_dialog_dim_amount</item>
+        <item name="materialAlertDialogTheme">@style/Theme.MaterialAlertDialog</item>
+        <item name="textAppearanceInstallerAppLabel">@style/TextAppearance.PackageInstaller.Material.AppLabel</item>
+        <item name="textAppearanceInstallerCustomMessage">@style/TextAppearance.PackageInstaller.Material.CustomMessage</item>
+        <item name="textAppearanceInstallerKeepDataHeading">@style/TextAppearance.PackageInstaller.Material.KeepData.Heading</item>
+        <item name="textAppearanceInstallerKeepDataSubHeading">@style/TextAppearance.PackageInstaller.Material.KeepData.SubHeading</item>
+        <item name="textAppearanceInstallerTitle">@style/TextAppearance.PackageInstaller.Material.Title</item>
+    </style>
+
+    <style name="Theme.MaterialAlertDialog" parent="@style/ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:background">@color/surfaceContainerHighColor</item>
+        <item name="android:backgroundDimAmount">@dimen/alert_dialog_dim_amount</item>
+        <item name="android:windowMinWidthMinor">@dimen/alert_dialog_min_width_minor</item>
+        <item name="buttonBarStyle">@style/Widget.PackageInstaller.Material.ButtonBar</item>
+        <item name="buttonBarPositiveButtonStyle">@style/Widget.PackageInstaller.Material.Button.Colored</item>
+        <item name="buttonBarNegativeButtonStyle">@style/Widget.PackageInstaller.Material.Button.Outlined</item>
+        <item name="materialAlertDialogTitleTextStyle">@style/Widget.PackageInstaller.Material.WindowTitle</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance</item>
+    </style>
+
+    <style name="Theme.UninstallerActivity"
+        parent="@style/Theme.AlertDialogActivity">
+    </style>
+
 
 </resources>

@@ -30,7 +30,7 @@ import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.flags.FeatureFlags;
 import com.android.systemui.flags.Flags;
 import com.android.systemui.plugins.PluginManager;
-import com.android.systemui.plugins.clocks.ClockMessageBuffers;
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockMessageBuffers;
 import com.android.systemui.res.R;
 import com.android.systemui.shade.ShadeDisplayAware;
 import com.android.systemui.shared.clocks.ClockRegistry;
@@ -70,7 +70,6 @@ public abstract class ClockRegistryModule {
                         || featureFlags.isEnabled(Flags.LOCKSCREEN_CUSTOM_CLOCKS),
                 /* handleAllUsers= */ true,
                 new DefaultClockProvider(
-                        context,
                         layoutInflater,
                         resources,
                         com.android.systemui.shared.Flags.clockReactiveVariants(),

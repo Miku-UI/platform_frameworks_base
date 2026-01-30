@@ -75,7 +75,7 @@ public class AppWidgetProviderInfo implements Parcelable {
     @Retention(RetentionPolicy.SOURCE)
     public @interface ResizeModeFlags {}
 
-    /** {@hide} */
+    /** @hide */
     public static final int WIDGET_CATEGORY_UNKNOWN = -1;
 
     /**

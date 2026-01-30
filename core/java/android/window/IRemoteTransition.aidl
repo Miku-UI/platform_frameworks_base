@@ -35,7 +35,7 @@ import android.window.WindowAnimationState;
  *  <li>Shell/Core finish-up the transition.
  * </ul>
  *
- * {@hide}
+ * @hide
  */
 oneway interface IRemoteTransition {
     /**

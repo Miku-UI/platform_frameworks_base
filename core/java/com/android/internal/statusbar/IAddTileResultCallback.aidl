@@ -16,7 +16,7 @@
 
 package com.android.internal.statusbar;
 
-/** {@hide} */
+/** @hide */
 oneway interface IAddTileResultCallback {
     void onTileRequest(int userResponse);
 }

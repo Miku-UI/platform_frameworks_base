@@ -995,7 +995,7 @@ final class HdmiCecController {
             try {
                 // Create an AIDL callback that can callback onCecMessage
                 mHdmiCec.setCallback(new HdmiCecCallbackAidl(callback));
-            } catch (RemoteException e) {
+            } catch (RemoteException | NullPointerException e) {
                 HdmiLogger.error("Couldn't initialise tv.cec callback : ", e);
             }
             try {

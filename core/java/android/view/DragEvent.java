@@ -596,6 +596,7 @@ public class DragEvent implements Parcelable {
         dest.writeFloat(mY);
         dest.writeFloat(mOffsetX);
         dest.writeFloat(mOffsetY);
+        dest.writeInt(mDisplayId);
         dest.writeInt(mFlags);
         dest.writeInt(mDragResult ? 1 : 0);
         if (mClipData == null) {
@@ -636,6 +637,7 @@ public class DragEvent implements Parcelable {
             event.mY = in.readFloat();
             event.mOffsetX = in.readFloat();
             event.mOffsetY = in.readFloat();
+            event.mDisplayId = in.readInt();
             event.mFlags = in.readInt();
             event.mDragResult = (in.readInt() != 0);
             if (in.readInt() != 0) {

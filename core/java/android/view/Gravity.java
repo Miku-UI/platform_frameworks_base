@@ -27,6 +27,7 @@ import java.lang.annotation.RetentionPolicy;
  * Standard constants and tools for placing an object within a potentially
  * larger container.
  */
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class Gravity
 {
     /** Constant indicating that no gravity has been set **/

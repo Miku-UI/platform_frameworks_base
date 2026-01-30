@@ -33,8 +33,8 @@ import com.android.systemui.clipboardoverlay.ActionIntentCreator;
 import com.android.systemui.clipboardoverlay.ClipboardOverlayView;
 import com.android.systemui.clipboardoverlay.DefaultIntentCreator;
 import com.android.systemui.clipboardoverlay.IntentCreator;
+import com.android.systemui.display.data.repository.FocusedDisplayRepository;
 import com.android.systemui.res.R;
-import com.android.systemui.settings.DisplayTracker;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.utils.windowmanager.WindowManagerProvider;
 
@@ -56,9 +56,13 @@ public interface ClipboardOverlayModule {
      */
     @Provides
     @OverlayWindowContext
-    static Context provideWindowContext(DisplayManager displayManager,
-            DisplayTracker displayTracker, Context context, UserTracker userTracker) {
-        Display display = displayManager.getDisplay(displayTracker.getDefaultDisplayId());
+    static Context provideWindowContext(Context context, DisplayManager displayManager,
+            UserTracker userTracker, FocusedDisplayRepository focusedDisplayRepository) {
+        Display display = displayManager.getDisplay(
+                focusedDisplayRepository.getFocusedDisplayId().getValue());
+        if (display == null) {
+            display = displayManager.getDisplay(Display.DEFAULT_DISPLAY);
+        }
         if (clipboardOverlayMultiuser()) {
             return userTracker.getUserContext().createWindowContext(display, TYPE_SCREENSHOT, null);
         } else {

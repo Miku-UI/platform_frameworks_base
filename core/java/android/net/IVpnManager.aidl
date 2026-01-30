@@ -26,7 +26,7 @@ import com.android.internal.net.VpnProfile;
 /**
  * Interface that manages VPNs.
  */
-/** {@hide} */
+/** @hide */
 interface IVpnManager {
     /** VpnService APIs */
     boolean prepareVpn(String oldPackage, String newPackage, int userId);

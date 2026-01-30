@@ -16,25 +16,13 @@
 
 package com.android.server.power.stats;
 
-import static com.android.server.power.stats.BatteryStatsImpl.ExternalStatsSync.UPDATE_ALL;
-import static com.android.server.power.stats.BatteryStatsImpl.ExternalStatsSync.UPDATE_BT;
-import static com.android.server.power.stats.BatteryStatsImpl.ExternalStatsSync.UPDATE_CAMERA;
-import static com.android.server.power.stats.BatteryStatsImpl.ExternalStatsSync.UPDATE_CPU;
-import static com.android.server.power.stats.BatteryStatsImpl.ExternalStatsSync.UPDATE_DISPLAY;
-import static com.android.server.power.stats.BatteryStatsImpl.ExternalStatsSync.UPDATE_RADIO;
-import static com.android.server.power.stats.BatteryStatsImpl.ExternalStatsSync.UPDATE_WIFI;
-
-import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
 import android.content.Context;
-import android.hardware.power.stats.EnergyConsumerResult;
-import android.hardware.power.stats.EnergyConsumerType;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.connectivity.WifiActivityEnergyInfo;
 import android.power.PowerStatsInternal;
-import android.util.IntArray;
 import android.util.SparseArray;
 
 import androidx.test.InstrumentationRegistry;
@@ -46,8 +34,6 @@ import com.android.internal.os.PowerProfile;
 
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.Arrays;
 
 /**
  * Tests for {@link BatteryExternalStatsWorker}.
@@ -61,6 +47,7 @@ public class BatteryExternalStatsWorkerTest {
     private BatteryExternalStatsWorker mBatteryExternalStatsWorker;
     private MockPowerStatsInternal mPowerStatsInternal;
     private Handler mHandler;
+    private MockClock mClock = new MockClock();
 
     @Before
     public void setUp() {
@@ -75,7 +62,8 @@ public class BatteryExternalStatsWorkerTest {
                 new PowerStatsUidResolver());
         mPowerStatsInternal = new MockPowerStatsInternal();
         mBatteryExternalStatsWorker =
-                new BatteryExternalStatsWorker(new TestInjector(context), batteryStats, mHandler);
+                new BatteryExternalStatsWorker(new TestInjector(context), batteryStats, mHandler,
+                        mClock);
     }
 
     @Test
@@ -103,128 +91,6 @@ public class BatteryExternalStatsWorkerTest {
         assertEquals(700, delta.getControllerRxDurationMillis());
         assertEquals(600, delta.getControllerScanDurationMillis());
         assertEquals(500, delta.getControllerIdleDurationMillis());
-    }
-
-    @Test
-    public void testTargetedEnergyConsumerQuerying() {
-        final int numCpuClusters = 4;
-        final int numDisplays = 5;
-        final int numOther = 3;
-
-        // Add some energy consumers used by BatteryExternalStatsWorker.
-        final IntArray tempAllIds = new IntArray();
-
-        final int[] displayIds = new int[numDisplays];
-        for (int i = 0; i < numDisplays; i++) {
-            displayIds[i] = mPowerStatsInternal.addEnergyConsumer(
-                    EnergyConsumerType.DISPLAY, i, "display" + i);
-            tempAllIds.add(displayIds[i]);
-            mPowerStatsInternal.incrementEnergyConsumption(displayIds[i], 12345 + i);
-        }
-        Arrays.sort(displayIds);
-
-        final int wifiId = mPowerStatsInternal.addEnergyConsumer(EnergyConsumerType.WIFI, 0,
-                "wifi");
-        tempAllIds.add(wifiId);
-        mPowerStatsInternal.incrementEnergyConsumption(wifiId, 23456);
-
-        final int btId = mPowerStatsInternal.addEnergyConsumer(EnergyConsumerType.BLUETOOTH, 0,
-                "bt");
-        tempAllIds.add(btId);
-        mPowerStatsInternal.incrementEnergyConsumption(btId, 34567);
-
-        final int gnssId = mPowerStatsInternal.addEnergyConsumer(EnergyConsumerType.GNSS, 0,
-                "gnss");
-        tempAllIds.add(gnssId);
-        mPowerStatsInternal.incrementEnergyConsumption(gnssId, 787878);
-
-        final int cameraId =
-                mPowerStatsInternal.addEnergyConsumer(EnergyConsumerType.CAMERA, 0, "camera");
-        tempAllIds.add(cameraId);
-        mPowerStatsInternal.incrementEnergyConsumption(cameraId, 901234);
-
-        final int mobileRadioId = mPowerStatsInternal.addEnergyConsumer(
-                EnergyConsumerType.MOBILE_RADIO, 0, "mobile_radio");
-        tempAllIds.add(mobileRadioId);
-        mPowerStatsInternal.incrementEnergyConsumption(mobileRadioId, 62626);
-
-        final int[] cpuClusterIds = new int[numCpuClusters];
-        for (int i = 0; i < numCpuClusters; i++) {
-            cpuClusterIds[i] = mPowerStatsInternal.addEnergyConsumer(
-                    EnergyConsumerType.CPU_CLUSTER, i, "cpu_cluster" + i);
-            tempAllIds.add(cpuClusterIds[i]);
-            mPowerStatsInternal.incrementEnergyConsumption(cpuClusterIds[i], 1111 + i);
-        }
-        Arrays.sort(cpuClusterIds);
-
-        final int[] otherIds = new int[numOther];
-        for (int i = 0; i < numOther; i++) {
-            otherIds[i] = mPowerStatsInternal.addEnergyConsumer(
-                    EnergyConsumerType.OTHER, i, "other" + i);
-            tempAllIds.add(otherIds[i]);
-            mPowerStatsInternal.incrementEnergyConsumption(otherIds[i], 3000 + i);
-        }
-        Arrays.sort(otherIds);
-
-        final int[] allIds = tempAllIds.toArray();
-        Arrays.sort(allIds);
-
-        // Inform BESW that PowerStatsInternal is ready to query
-        mBatteryExternalStatsWorker.systemServicesReady();
-
-        final EnergyConsumerResult[] displayResults =
-                mBatteryExternalStatsWorker.getEnergyConsumersLocked(UPDATE_DISPLAY).getNow(null);
-        // Results should only have the cpu cluster energy consumers
-        final int[] receivedDisplayIds = new int[displayResults.length];
-        for (int i = 0; i < displayResults.length; i++) {
-            receivedDisplayIds[i] = displayResults[i].id;
-        }
-        Arrays.sort(receivedDisplayIds);
-        assertArrayEquals(displayIds, receivedDisplayIds);
-
-        final EnergyConsumerResult[] wifiResults =
-                mBatteryExternalStatsWorker.getEnergyConsumersLocked(UPDATE_WIFI).getNow(null);
-        // Results should only have the wifi energy consumer
-        assertEquals(1, wifiResults.length);
-        assertEquals(wifiId, wifiResults[0].id);
-
-        final EnergyConsumerResult[] bluetoothResults =
-                mBatteryExternalStatsWorker.getEnergyConsumersLocked(UPDATE_BT).getNow(null);
-        // Results should only have the bluetooth energy consumer
-        assertEquals(1, bluetoothResults.length);
-        assertEquals(btId, bluetoothResults[0].id);
-
-        final EnergyConsumerResult[] mobileRadioResults =
-                mBatteryExternalStatsWorker.getEnergyConsumersLocked(UPDATE_RADIO).getNow(null);
-        // Results should only have the mobile radio energy consumer
-        assertEquals(1, mobileRadioResults.length);
-        assertEquals(mobileRadioId, mobileRadioResults[0].id);
-
-        final EnergyConsumerResult[] cpuResults =
-                mBatteryExternalStatsWorker.getEnergyConsumersLocked(UPDATE_CPU).getNow(null);
-        // Results should only have the cpu cluster energy consumers
-        final int[] receivedCpuIds = new int[cpuResults.length];
-        for (int i = 0; i < cpuResults.length; i++) {
-            receivedCpuIds[i] = cpuResults[i].id;
-        }
-        Arrays.sort(receivedCpuIds);
-        assertArrayEquals(cpuClusterIds, receivedCpuIds);
-
-        final EnergyConsumerResult[] cameraResults =
-                mBatteryExternalStatsWorker.getEnergyConsumersLocked(UPDATE_CAMERA).getNow(null);
-        // Results should only have the camera energy consumer
-        assertEquals(1, cameraResults.length);
-        assertEquals(cameraId, cameraResults[0].id);
-
-        final EnergyConsumerResult[] allResults =
-                mBatteryExternalStatsWorker.getEnergyConsumersLocked(UPDATE_ALL).getNow(null);
-        // All energy consumer results should be available
-        final int[] receivedAllIds = new int[allResults.length];
-        for (int i = 0; i < allResults.length; i++) {
-            receivedAllIds[i] = allResults[i].id;
-        }
-        Arrays.sort(receivedAllIds);
-        assertArrayEquals(allIds, receivedAllIds);
     }
 
     public class TestInjector extends BatteryExternalStatsWorker.Injector {

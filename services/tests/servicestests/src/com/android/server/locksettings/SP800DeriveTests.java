@@ -49,4 +49,18 @@ public class SP800DeriveTests {
                 "770dfab6a6a4a4bee0257ff335213f78"
                 + "d8287b4fd537d5c1fffa956910e7c779").toUpperCase(), HexDump.toHexString(res));
     }
+
+    @Test
+    public void testWithContext() throws Exception {
+        byte[] keyBytes = HexDump.hexStringToByteArray(
+            "e204d6d466aad507ffaf6d6dab0a5b26"
+            + "152c9e21e764370464e360c8fbc765c6");
+        SP800Derive sk = new SP800Derive(keyBytes);
+        byte[] label = HexDump.hexStringToByteArray("ed8282442dbfe03aaa1799faa5");
+        byte[] context = HexDump.hexStringToByteArray("6c0b857412ef52");
+        byte[] res = sk.withContext(label, context);
+        assertEquals((
+                "21658822e750a33d9ed743627697f0ea"
+                + "12543b5edef19cc453f01da949e5e37f").toUpperCase(), HexDump.toHexString(res));
+    }
 }

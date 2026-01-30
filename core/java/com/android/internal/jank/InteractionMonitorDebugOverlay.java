@@ -23,10 +23,9 @@ import static android.view.View.VISIBLE;
 import static android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
 import static android.view.WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY;
 
-import static com.android.internal.jank.FrameTracker.REASON_END_NORMAL;
-
 import android.annotation.AnyThread;
 import android.annotation.ColorInt;
+import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.UiThread;
 import android.app.Application;
@@ -45,8 +44,10 @@ import android.view.Display;
 import android.view.View;
 import android.view.WindowManager;
 
-import com.android.internal.jank.FrameTracker.Reasons;
+import com.android.internal.util.LatencyTracker;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
 
 /**
@@ -66,9 +67,21 @@ import java.util.ArrayList;
  *
  * @hide
  */
-class InteractionMonitorDebugOverlay {
+public class InteractionMonitorDebugOverlay {
     private static final String TAG = "InteractionMonitorDebug";
-    private static final int REASON_STILL_RUNNING = -1000;
+    private static final int STATUS_RUNNING = 0;
+    private static final int STATUS_ENDED = 1;
+    private static final int STATUS_CANCELLED = 2;
+
+    @IntDef({
+            STATUS_RUNNING,
+            STATUS_ENDED,
+            STATUS_CANCELLED
+    })
+    @Retention(RetentionPolicy.SOURCE)
+    private @interface TrackerStatus {
+    }
+
     private static final long HIDE_OVERLAY_DELAY = 2000L;
     // Sparse array where the key in the CUJ and the value is the session status, or null if
     // it's currently running
@@ -76,6 +89,7 @@ class InteractionMonitorDebugOverlay {
     private final Handler mUiThread;
     private final DebugOverlayView mDebugOverlayView;
     private final WindowManager mWindowManager;
+    private final LatencyTracker mLatencyTracker;
     private final ArrayList<TrackerState> mRunningCujs = new ArrayList<>();
 
     InteractionMonitorDebugOverlay(@NonNull Application currentApplication,
@@ -87,11 +101,13 @@ class InteractionMonitorDebugOverlay {
         final Context windowContext = mCurrentApplication.createDisplayContext(
                 display).createWindowContext(TYPE_SYSTEM_OVERLAY, null /* options */);
         mWindowManager = windowContext.getSystemService(WindowManager.class);
+        mLatencyTracker = LatencyTracker.getInstance(windowContext);
+        mLatencyTracker.setDebugOverlay(this);
 
         final Rect size = mWindowManager.getCurrentWindowMetrics().getBounds();
 
         final WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
-                WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY,
+                TYPE_SYSTEM_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                         | WindowManager.LayoutParams.FLAG_SPLIT_TOUCH
@@ -126,39 +142,36 @@ class InteractionMonitorDebugOverlay {
     };
 
     @AnyThread
-    void onTrackerAdded(@Cuj.CujType int addedCuj, int cookie) {
+    public void onTrackerAdded(String name, int cookie) {
         mUiThread.removeCallbacks(mHideOverlayRunnable);
         mUiThread.post(() -> {
-            String cujName = Cuj.getNameOfCuj(addedCuj);
-            Log.i(TAG, cujName + " started (cookie=" + cookie + ")");
-            mRunningCujs.add(new TrackerState(addedCuj, cookie));
+            Log.i(TAG, name + " started (cookie=" + cookie + ")");
+            mRunningCujs.add(new TrackerState(name, cookie));
             mDebugOverlayView.setVisibility(VISIBLE);
             mDebugOverlayView.invalidate();
         });
     }
 
     @AnyThread
-    void onTrackerRemoved(@Cuj.CujType int removedCuj, @Reasons int reason, int cookie) {
+    public void onTrackerRemoved(boolean cancelled, int cookie) {
         mUiThread.post(() -> {
             TrackerState foundTracker = null;
             boolean allTrackersEnded = true;
             for (int i = 0; i < mRunningCujs.size(); i++) {
                 TrackerState tracker = mRunningCujs.get(i);
-                if (tracker.mCuj == removedCuj && tracker.mCookie == cookie) {
+                if (tracker.mCookie == cookie) {
                     foundTracker = tracker;
                 } else {
-                    // If none of the trackers have REASON_STILL_RUNNING status, then
-                    // all CUJs have ended
-                    allTrackersEnded = allTrackersEnded && tracker.mState != REASON_STILL_RUNNING;
+                    // If none of the trackers are STATUS_RUNNING, then all CUJs have ended
+                    allTrackersEnded = allTrackersEnded && tracker.mState != STATUS_RUNNING;
                 }
             }
 
             if (foundTracker != null) {
-                foundTracker.mState = reason;
+                foundTracker.mState = cancelled ? STATUS_CANCELLED : STATUS_ENDED;
             }
 
-            String cujName = Cuj.getNameOfCuj(removedCuj);
-            Log.i(TAG, cujName + (reason == REASON_END_NORMAL ? " ended" : " cancelled")
+            Log.i(TAG, foundTracker.mName + (cancelled ? " cancelled" : " ended")
                     + " (cookie=" + cookie + ")");
 
             if (allTrackersEnded) {
@@ -171,6 +184,7 @@ class InteractionMonitorDebugOverlay {
 
     @AnyThread
     void dispose() {
+        mLatencyTracker.setDebugOverlay(null);
         mUiThread.post(() -> {
             mWindowManager.removeView(mDebugOverlayView);
         });
@@ -179,15 +193,13 @@ class InteractionMonitorDebugOverlay {
     @AnyThread
     private static class TrackerState {
         final int mCookie;
-        final int mCuj;
-        int mState;
+        final String mName;
+        @TrackerStatus int mState;
 
-        private TrackerState(int cuj, int cookie) {
-            mCuj = cuj;
+        private TrackerState(String name, int cookie) {
+            mName = name;
             mCookie = cookie;
-            // Use REASON_STILL_RUNNING (not technically one of the '@Reasons') to indicate the CUJ
-            // is still running
-            mState = REASON_STILL_RUNNING;
+            mState = STATUS_RUNNING;
         }
     }
 
@@ -252,8 +264,8 @@ class InteractionMonitorDebugOverlay {
             mDebugPaint.setTextSize(cujFontSize);
             float maxLength = 0;
             for (int i = 0; i < mRunningCujs.size(); i++) {
-                String cujName = Cuj.getNameOfCuj(mRunningCujs.get(i).mCuj);
-                float textLength = mDebugPaint.measureText(cujName);
+                String trackerName = mRunningCujs.get(i).mName;
+                float textLength = mDebugPaint.measureText(trackerName);
                 if (textLength > maxLength) {
                     maxLength = textLength;
                 }
@@ -293,29 +305,33 @@ class InteractionMonitorDebugOverlay {
             // Draw text for CUJ names
             for (int i = 0; i < mRunningCujs.size(); i++) {
                 TrackerState tracker = mRunningCujs.get(i);
-                int status = tracker.mState;
+                @TrackerStatus int status = tracker.mState;
                 String statusText = switch (status) {
-                    case REASON_STILL_RUNNING -> {
+                    case STATUS_RUNNING -> {
                         mDebugPaint.setColor(Color.BLACK);
                         mDebugPaint.setStrikeThruText(false);
                         yield "☐"; // BALLOT BOX
                     }
-                    case REASON_END_NORMAL -> {
+                    case STATUS_ENDED -> {
                         mDebugPaint.setColor(Color.GRAY);
                         mDebugPaint.setStrikeThruText(false);
                         yield "✅"; // WHITE HEAVY CHECK MARK
                     }
-                    default -> {
+                    case STATUS_CANCELLED -> {
                         // Cancelled, or otherwise ended for a bad reason
                         mDebugPaint.setColor(Color.RED);
                         mDebugPaint.setStrikeThruText(true);
                         yield "❌"; // CROSS MARK
                     }
+                    default -> {
+                        Log.w(TAG, "Unexpected tracker status value: " + status);
+                        yield "?";
+                    }
                 };
-                String cujName = Cuj.getNameOfCuj(tracker.mCuj);
+                String trackerName = tracker.mName;
                 canvas.translate(0, mCujNameTextHeight);
                 canvas.drawText(statusText, 0, 0, mDebugPaint);
-                canvas.drawText(cujName, mCujStatusWidth, 0, mDebugPaint);
+                canvas.drawText(trackerName, mCujStatusWidth, 0, mDebugPaint);
             }
             Trace.asyncTraceForTrackEnd(Trace.TRACE_TAG_APP, TRACK_NAME, 0);
         }

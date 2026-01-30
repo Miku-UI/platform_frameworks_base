@@ -82,6 +82,7 @@ import android.graphics.Color;
 import android.graphics.drawable.Icon;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Handler;
 import android.os.Process;
@@ -113,6 +114,7 @@ import com.android.internal.logging.InstanceIdSequence;
 import com.android.internal.logging.InstanceIdSequenceFake;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.internal.util.IntPair;
+import com.android.internal.util.VibrationStatsWriter;
 import com.android.server.UiServiceTestCase;
 import com.android.server.lights.LightsManager;
 import com.android.server.lights.LogicalLight;
@@ -156,6 +158,8 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
     private UserManager mUserManager;
     @Mock
     private PackageManager mPackageManager;
+    @Mock
+    private VibrationStatsWriter mVibrationStatsWriter;
     NotificationRecordLoggerFake mNotificationRecordLogger = new NotificationRecordLoggerFake();
     private InstanceIdSequence mNotificationInstanceIdSequence = new InstanceIdSequenceFake(
         1 << 30);
@@ -262,7 +266,7 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
         mAttentionHelper = new NotificationAttentionHelper(getContext(), new Object(),
                 mock(LightsManager.class),mAccessibilityManager, mPackageManager,
                 mUserManager, mUsageStats, mService.mNotificationManagerPrivate,
-                mock(ZenModeHelper.class), flagResolver);
+                mock(ZenModeHelper.class), flagResolver, mVibrationStatsWriter);
         mAttentionHelper.onSystemReady();
         mAttentionHelper.setVibratorHelper(spy(new VibratorHelper(getContext())));
         mAttentionHelper.setAudioManager(mAudioManager);
@@ -3285,7 +3289,6 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
 
     @Test
     public void testSoundResetsRankingTime() throws Exception {
-        mSetFlagsRule.enableFlags(android.app.Flags.FLAG_SORT_SECTION_BY_TIME);
         TestableFlagResolver flagResolver = new TestableFlagResolver();
         initAttentionHelper(flagResolver);
 
@@ -3320,6 +3323,26 @@ public class NotificationAttentionHelperTest extends UiServiceTestCase {
         mAttentionHelper.buzzBeepBlinkLocked(r, DEFAULT_SIGNALS);
 
         verify(mAccessibilityService, never()).sendAccessibilityEvent(any(), anyInt());
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_NOTIFICATION_VIBRATION_IN_SOUND_URI)
+    public void testVibrationStatsWriter_logWhenVibrate() {
+        mAttentionHelper = spy(mAttentionHelper);
+
+        NotificationChannel ringtoneChannel =
+                new NotificationChannel("ringtone", "", IMPORTANCE_HIGH);
+        ringtoneChannel.setSound(Settings.System.DEFAULT_NOTIFICATION_URI,
+                new AudioAttributes.Builder().setUsage(USAGE_NOTIFICATION_RINGTONE).build());
+        ringtoneChannel.enableVibration(true);
+        NotificationRecord ringtoneNotification = getCallRecord(1, ringtoneChannel, true);
+        mService.addNotification(ringtoneNotification);
+        mAttentionHelper.buzzBeepBlinkLocked(ringtoneNotification, DEFAULT_SIGNALS);
+        verifyDelayedVibrateLooped();
+
+        verify(mVibrationStatsWriter).logCustomVibrationPatternEventIfNeeded(
+                VibrationStatsWriter.VIBRATION_PATTERN_PLAYED,
+                RingtoneManager.TYPE_NOTIFICATION, ringtoneNotification.getSound());
     }
 
     static class VibrateRepeatMatcher implements ArgumentMatcher<VibrationEffect> {

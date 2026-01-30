@@ -34,6 +34,10 @@ import android.util.MathUtils;
  */
 public class BrightnessUtils {
 
+    // Float.NaN (used as invalid for brightness) cannot be stored in config.xml
+    // so -2 is used instead
+    public static final float INVALID_BRIGHTNESS_IN_CONFIG = -2f;
+
     // Hybrid Log Gamma constant values
     private static final float R = 0.5f;
     private static final float A = 0.17883277f;

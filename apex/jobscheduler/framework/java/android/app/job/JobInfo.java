@@ -818,13 +818,9 @@ public class JobInfo implements Parcelable {
      *
      * @deprecated Use {@link #isExpedited()} instead.
      */
-    @FlaggedApi(Flags.FLAG_IGNORE_IMPORTANT_WHILE_FOREGROUND)
     @Deprecated
     public boolean isImportantWhileForeground() {
-        if (Flags.ignoreImportantWhileForeground()) {
-            return false;
-        }
-        return (flags & FLAG_IMPORTANT_WHILE_FOREGROUND) != 0;
+        return false;
     }
 
     /**
@@ -1338,6 +1334,8 @@ public class JobInfo implements Parcelable {
             // job.
             mBackoffPolicy = job.getBackoffPolicy();
             mPriority = job.getPriority();
+            mDebugTags.addAll(job.getDebugTags());
+            mTraceTag = job.getTraceTag();
         }
 
         /**
@@ -1369,8 +1367,9 @@ public class JobInfo implements Parcelable {
 
         /** @hide */
         @NonNull
-        public void addDebugTags(@NonNull Set<String> tags) {
+        public Builder addDebugTags(@NonNull Set<String> tags) {
             mDebugTags.addAll(tags);
+            return this;
         }
 
         /**
@@ -2150,28 +2149,8 @@ public class JobInfo implements Parcelable {
          */
         @Deprecated
         public Builder setImportantWhileForeground(boolean importantWhileForeground) {
-            if (Flags.ignoreImportantWhileForeground()) {
-                Log.w(TAG, "Requested important-while-foreground flag for job" + mJobId
-                        + " is ignored and takes no effect");
-                return this;
-            }
-
-            if (importantWhileForeground) {
-                mFlags |= FLAG_IMPORTANT_WHILE_FOREGROUND;
-                if (mPriority == PRIORITY_DEFAULT) {
-                    // The default priority for important-while-foreground is HIGH, but only change
-                    // this if .setPriority() hasn't been called yet.
-                    mPriority = PRIORITY_HIGH;
-                }
-            } else {
-                if (mPriority == PRIORITY_HIGH
-                        && (mFlags & FLAG_IMPORTANT_WHILE_FOREGROUND) != 0) {
-                    // Reset the priority for the job, but only change this if .setPriority()
-                    // hasn't been called yet.
-                    mPriority = PRIORITY_DEFAULT;
-                }
-                mFlags &= (~FLAG_IMPORTANT_WHILE_FOREGROUND);
-            }
+            Log.w(TAG, "Requested important-while-foreground flag for job" + mJobId
+                    + " is ignored and takes no effect");
             return this;
         }
 

@@ -108,22 +108,9 @@ public class BatteryStatsResetTest {
 
     @Test
     public void testResetOnUnplug_highBatteryLevel() {
-        mBatteryStatsImpl.resetBatteryHistoryOnNewSession(false);
         long initialStartTime = mBatteryStatsImpl.getHistory().getStartTime();
-        resetOnUnplug_highBatteryLevel();
-        assertThat(mBatteryStatsImpl.getHistory().getStartTime()).isEqualTo(initialStartTime);
-    }
-
-    @Test
-    public void testResetOnUnplug_highBatteryLevel_resetHistory() {
-        mBatteryStatsImpl.resetBatteryHistoryOnNewSession(true);
-        resetOnUnplug_highBatteryLevel();
-        assertThat(mBatteryStatsImpl.getHistory().getStartTime())
-                .isEqualTo(mBatteryStatsImpl.getMonotonicStartTime());
-    }
-
-    private void resetOnUnplug_highBatteryLevel() {
         when(mConfig.shouldResetOnUnplugHighBatteryLevel()).thenReturn(true);
+        when(mConfig.getHighBatteryLevelAfterCharge()).thenReturn(94);
 
         long expectedResetTimeUs = 0;
 
@@ -131,9 +118,9 @@ public class BatteryStatsResetTest {
         dischargeToLevel(60);
 
         plugBattery(BatteryManager.BATTERY_PLUGGED_USB);
-        chargeToLevel(80);
+        chargeToLevel(93);
         unplugBattery();
-        // Reset should not occur until battery level above 90.
+        // Reset should not occur until battery level above getHighBatteryLevelAfterCharge.
         assertThat(mBatteryStatsImpl.getStatsStartRealtime()).isEqualTo(expectedResetTimeUs);
 
         plugBattery(BatteryManager.BATTERY_PLUGGED_USB);
@@ -156,25 +143,12 @@ public class BatteryStatsResetTest {
         unplugBattery();
         // Reset should not occur since the high battery level logic has been disabled.
         assertThat(mBatteryStatsImpl.getStatsStartRealtime()).isEqualTo(expectedResetTimeUs);
-    }
-
-    @Test
-    public void testResetOnUnplug_significantCharge() {
-        mBatteryStatsImpl.resetBatteryHistoryOnNewSession(false);
-        long initialStartTime = mBatteryStatsImpl.getHistory().getStartTime();
-        resetOnUnplug_significantCharge();
         assertThat(mBatteryStatsImpl.getHistory().getStartTime()).isEqualTo(initialStartTime);
     }
 
     @Test
-    public void testResetOnUnplug_significantCharge_resetHistory() {
-        mBatteryStatsImpl.resetBatteryHistoryOnNewSession(true);
-        resetOnUnplug_significantCharge();
-        assertThat(mBatteryStatsImpl.getHistory().getStartTime())
-                .isEqualTo(mBatteryStatsImpl.getMonotonicStartTime());
-    }
-
-    private void resetOnUnplug_significantCharge() {
+    public void testResetOnUnplug_significantCharge() {
+        long initialStartTime = mBatteryStatsImpl.getHistory().getStartTime();
         when(mConfig.shouldResetOnUnplugAfterSignificantCharge()).thenReturn(true);
         long expectedResetTimeUs = 0;
 
@@ -215,6 +189,7 @@ public class BatteryStatsResetTest {
         unplugBattery();
         // Reset should not occur after significant charge amount.
         assertThat(mBatteryStatsImpl.getStatsStartRealtime()).isEqualTo(expectedResetTimeUs);
+        assertThat(mBatteryStatsImpl.getHistory().getStartTime()).isEqualTo(initialStartTime);
     }
 
     @Test

@@ -19,9 +19,9 @@ import static android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED;
 import static android.net.NetworkCapabilities.TRANSPORT_VPN;
 
 import android.annotation.Nullable;
+import android.annotation.SuppressLint;
 import android.app.admin.DeviceAdminInfo;
 import android.app.admin.DevicePolicyManager;
-import android.app.admin.DevicePolicyManager.DeviceOwnerType;
 import android.app.supervision.SupervisionManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -63,6 +63,7 @@ import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dump.DumpManager;
 import com.android.systemui.res.R;
 import com.android.systemui.settings.UserTracker;
+import com.android.systemui.supervision.data.model.SupervisionModel;
 import com.android.systemui.supervision.shared.DeprecateDpmSupervisionApis;
 
 import org.xmlpull.v1.XmlPullParserException;
@@ -126,6 +127,8 @@ public class SecurityControllerImpl implements SecurityController {
                 }
             };
 
+    private SupervisionModel mSupervisionModel = null;
+
     /**
      */
     @Inject
@@ -173,7 +176,7 @@ public class SecurityControllerImpl implements SecurityController {
     public void dump(PrintWriter pw, String[] args) {
         pw.println("SecurityController state:");
         pw.print("  mCurrentVpns={");
-        for (int i = 0 ; i < mCurrentVpns.size(); i++) {
+        for (int i = 0; i < mCurrentVpns.size(); i++) {
             if (i > 0) {
                 pw.print(", ");
             }
@@ -289,13 +292,6 @@ public class SecurityControllerImpl implements SecurityController {
         return mDevicePolicyManager.getDeviceOwnerComponentOnAnyUser();
     }
 
-    // TODO(b/259908270): remove
-    @Override
-    @DeviceOwnerType
-    public int getDeviceOwnerType(@NonNull ComponentName admin) {
-        return mDevicePolicyManager.getDeviceOwnerType(admin);
-    }
-
     @Override
     public boolean isFinancedDevice() {
         return mDevicePolicyManager.isFinancedDevice();
@@ -403,9 +399,14 @@ public class SecurityControllerImpl implements SecurityController {
         fireCallbacks();
     }
 
+    @SuppressLint("MissingPermission")
     @Override
     public boolean isParentalControlsEnabled() {
-        if (DeprecateDpmSupervisionApis.isEnabled() && mSupervisionManager != null) {
+        SupervisionModel supervisionModel = getSupervisionModel();
+        if (DeprecateDpmSupervisionApis.isEnabled()
+                && supervisionModel != null) {
+            return supervisionModel.isSupervisionEnabled();
+        } else if (DeprecateDpmSupervisionApis.isEnabled() && mSupervisionManager != null) {
             return mSupervisionManager.isSupervisionEnabledForUser(mCurrentUserId);
         } else {
             return getProfileOwnerOrDeviceOwnerSupervisionComponent() != null;
@@ -426,9 +427,13 @@ public class SecurityControllerImpl implements SecurityController {
     @Nullable
     public Drawable getIcon() {
         DeprecateDpmSupervisionApis.unsafeAssertInNewMode();
-        return isParentalControlsEnabled()
-            ? mContext.getDrawable(R.drawable.ic_supervision)
-            : null;
+        if (!isParentalControlsEnabled()) {
+            return null;
+        }
+        if (getSupervisionModel() != null) {
+            return getSupervisionModel().getIcon();
+        }
+        return mContext.getDrawable(R.drawable.ic_supervision);
     }
 
     @Override
@@ -440,9 +445,30 @@ public class SecurityControllerImpl implements SecurityController {
     @Nullable
     public CharSequence getLabel() {
         DeprecateDpmSupervisionApis.unsafeAssertInNewMode();
-        return isParentalControlsEnabled()
-                ? mContext.getString(R.string.status_bar_supervision)
-                : null;
+        if (!isParentalControlsEnabled()) {
+            return null;
+        }
+        if (getSupervisionModel() != null) {
+            return getSupervisionModel().getLabel();
+        }
+        return mContext.getString(R.string.status_bar_supervision);
+    }
+
+    @Override
+    public void setSupervisionModel(@Nullable SupervisionModel supervisionModel) {
+        if (!android.app.supervision.flags.Flags.enableSupervisionAppService()) {
+            return;
+        }
+        mSupervisionModel = supervisionModel;
+    }
+
+    @Override
+    public SupervisionModel getSupervisionModel() {
+        if (!android.app.supervision.flags.Flags.enableSupervisionAppService()) {
+            return null;
+        }
+
+        return mSupervisionModel;
     }
 
     private ComponentName getProfileOwnerOrDeviceOwnerSupervisionComponent() {

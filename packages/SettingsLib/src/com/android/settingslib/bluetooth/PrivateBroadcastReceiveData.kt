@@ -20,9 +20,11 @@ import android.bluetooth.BluetoothDevice
 import android.os.Parcel
 import android.os.Parcelable
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState
-import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState.PAUSED
-import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState.STREAMING
 import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState.DECRYPTION_FAILED
+import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState.PAUSED
+import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState.PAUSED_BY_RECEIVER
+import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.LocalBluetoothLeBroadcastSourceState.STREAMING
+import com.android.settingslib.bluetooth.LocalBluetoothLeBroadcastAssistant.UNKNOWN_CHANNEL
 
 /**
  * Data class representing information received in a private broadcast.
@@ -41,6 +43,7 @@ data class PrivateBroadcastReceiveData(
     val broadcastId: Int = -1,
     val programInfo: String = "",
     val state: LocalBluetoothLeBroadcastSourceState?,
+    val selectedChannelIndex: Set<Int> = UNKNOWN_CHANNEL
 ) : Parcelable {
 
     override fun describeContents(): Int = 0
@@ -51,6 +54,7 @@ data class PrivateBroadcastReceiveData(
         parcel.writeInt(broadcastId)
         parcel.writeString(programInfo)
         parcel.writeSerializable(state)
+        parcel.writeSerializable(java.util.HashSet(selectedChannelIndex))
     }
 
     companion object {
@@ -70,7 +74,11 @@ data class PrivateBroadcastReceiveData(
                             state = readSerializable(
                                 LocalBluetoothLeBroadcastSourceState::class.java.classLoader,
                                 LocalBluetoothLeBroadcastSourceState::class.java
-                            )
+                            ),
+                            selectedChannelIndex = readSerializable(
+                                HashSet::class.java.classLoader,
+                                HashSet::class.java
+                            )?.filterIsInstance<Int>()?.toHashSet() ?: UNKNOWN_CHANNEL
                         )
                     }
                 override fun newArray(size: Int): Array<PrivateBroadcastReceiveData?> {
@@ -84,7 +92,8 @@ data class PrivateBroadcastReceiveData(
                     && broadcastId != -1
                     && (state == STREAMING
                     || state == PAUSED
-                    || state == DECRYPTION_FAILED)
+                    || state == DECRYPTION_FAILED
+                    || state == PAUSED_BY_RECEIVER)
         }
     }
 }

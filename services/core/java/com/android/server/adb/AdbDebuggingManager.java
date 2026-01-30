@@ -19,6 +19,7 @@ package com.android.server.adb;
 import static android.os.InputConstants.DEFAULT_DISPATCHING_TIMEOUT_MILLIS;
 
 import static com.android.internal.util.dump.DumpUtils.writeStringIfNotNull;
+import static com.android.server.adb.AdbDebuggingManager.AdbDebuggingHandler.MSG_START_ADB_WIFI;
 import static com.android.server.adb.AdbService.ADBD;
 
 import android.annotation.NonNull;
@@ -28,12 +29,10 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.ActivityNotFoundException;
-import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.content.pm.UserInfo;
 import android.content.res.Resources;
@@ -42,18 +41,14 @@ import android.debug.AdbManager;
 import android.debug.AdbNotifications;
 import android.debug.AdbProtoEnums;
 import android.debug.AdbTransportType;
-import android.debug.IAdbTransport;
 import android.debug.PairDevice;
-import android.net.ConnectivityManager;
 import android.net.LocalSocket;
 import android.net.LocalSocketAddress;
-import android.net.NetworkInfo;
 import android.net.Uri;
-import android.net.nsd.NsdManager;
-import android.net.nsd.NsdServiceInfo;
 import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.FileUtils;
@@ -61,72 +56,45 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import android.os.SystemClock;
-import android.os.SystemProperties;
 import android.os.SystemService;
 import android.os.UserHandle;
 import android.os.UserManager;
 import android.provider.Settings;
 import android.service.adb.AdbDebuggingManagerProto;
 import android.text.TextUtils;
-import android.util.AtomicFile;
 import android.util.Base64;
 import android.util.Slog;
-import android.util.Xml;
 
+import com.android.adbdauth.flags.Flags;
 import com.android.internal.R;
-import com.android.internal.annotations.Keep;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.messages.nano.SystemMessageProto.SystemMessage;
 import com.android.internal.util.FrameworkStatsLog;
-import com.android.internal.util.XmlUtils;
 import com.android.internal.util.dump.DualDumpOutputStream;
-import com.android.modules.utils.TypedXmlPullParser;
-import com.android.modules.utils.TypedXmlSerializer;
 import com.android.server.FgThread;
 
-import org.xmlpull.v1.XmlPullParser;
-import org.xmlpull.v1.XmlPullParserException;
-
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Provides communication to the Android Debug Bridge daemon to allow, deny, or clear public keys
- * that are authorized to connect to the ADB service itself.
- *
- * <p>The AdbDebuggingManager controls two files:
- * <ol>
- *     <li>adb_keys
- *     <li>adb_temp_keys.xml
- * </ol>
- *
- * <p>The ADB Daemon (adbd) reads <em>only</em> the adb_keys file for authorization. Public keys
- * from registered hosts are stored in adb_keys, one entry per line.
- *
- * <p>AdbDebuggingManager also keeps adb_temp_keys.xml, which is used for two things
- * <ol>
- *     <li>Removing unused keys from the adb_keys file
- *     <li>Managing authorized WiFi access points for ADB over WiFi
- * </ol>
+ * Manages communication with the Android Debug Bridge (ADB) daemon to allow, deny, or clear public
+ * keys that are authorized to connect to the ADB service itself. The storage of authorized public
+ * keys is done through {@link AdbKeyStore}.
  */
 public class AdbDebuggingManager {
     private static final String TAG = AdbDebuggingManager.class.getSimpleName();
@@ -144,7 +112,6 @@ public class AdbDebuggingManager {
     private final Context mContext;
     private final ContentResolver mContentResolver;
     @VisibleForTesting final AdbDebuggingHandler mHandler;
-    @Nullable private AdbDebuggingThread mThread;
     private boolean mAdbUsbEnabled = false;
     private boolean mAdbWifiEnabled = false;
     private String mFingerprints;
@@ -154,20 +121,32 @@ public class AdbDebuggingManager {
     @Nullable private final File mUserKeyFile;
     @Nullable private final File mTempKeysFile;
 
-    private static final String WIFI_PERSISTENT_GUID =
-            "persist.adb.wifi.guid";
+    static final String WIFI_PERSISTENT_GUID = "persist.adb.wifi.guid";
     private static final int PAIRING_CODE_LENGTH = 6;
-    /**
-     * The maximum time to wait for the adbd service to change state when toggling.
-     */
+
+    /** The maximum time to wait for the adbd service to change state when toggling. */
     private static final long ADBD_STATE_CHANGE_TIMEOUT = DEFAULT_DISPATCHING_TIMEOUT_MILLIS;
-    private PairingThread mPairingThread = null;
-    // A list of keys connected via wifi
-    private final Set<String> mWifiConnectedKeys = new HashSet<>();
+
+    private AdbPairingThread mAdbPairingThread = null;
+
+    /**
+     * The set of public keys for devices currently connected over Wi-Fi ADB.
+     *
+     * <p>This collection is thread-safe for reads from any thread but MUST only be modified on the
+     * {@link AdbDebuggingHandler} thread to avoid dead locks.
+     *
+     * <p>{@link CopyOnWriteArraySet} is used because reads (for updating the UI) are expected to be
+     * much more frequent than writes (device connections and disconnections), making lock-free
+     * reads highly efficient.
+     */
+    private final Set<String> mWifiConnectedKeys = new CopyOnWriteArraySet<>();
+
     // The current info of the adbwifi connection.
-    private AdbConnectionInfo mAdbConnectionInfo = new AdbConnectionInfo();
+    private final AdbConnectionInfo mAdbConnectionInfo = new AdbConnectionInfo();
+
     // Polls for a tls port property when adb wifi is enabled
     private AdbConnectionPortPoller mConnectionPortPoller;
+
     private final Ticker mTicker;
 
     public AdbDebuggingManager(Context context) {
@@ -181,8 +160,8 @@ public class AdbDebuggingManager {
     }
 
     /**
-     * Constructor that accepts the component to be invoked to confirm if the user wants to allow
-     * an adb connection from the key.
+     * Constructor that accepts the component to be invoked to confirm if the user wants to allow an
+     * adb connection from the key.
      */
     @VisibleForTesting
     AdbDebuggingManager(
@@ -197,197 +176,55 @@ public class AdbDebuggingManager {
         mConfirmComponent = confirmComponent;
         mUserKeyFile = testUserKeyFile;
         mTempKeysFile = tempKeysFile;
-        mThread = adbDebuggingThread;
         mTicker = ticker;
-        mHandler = new AdbDebuggingHandler(FgThread.get().getLooper(), mThread);
+        mHandler = new AdbDebuggingHandler(FgThread.get().getLooper(), adbDebuggingThread);
     }
 
-    static void sendBroadcastWithDebugPermission(@NonNull Context context, @NonNull Intent intent,
-            @NonNull UserHandle userHandle) {
-        context.sendBroadcastAsUser(intent, userHandle,
-                android.Manifest.permission.MANAGE_DEBUGGING);
+    static void sendBroadcastWithDebugPermission(
+            @NonNull Context context, @NonNull Intent intent, @NonNull UserHandle userHandle) {
+        context.sendBroadcastAsUser(
+                intent, userHandle, android.Manifest.permission.MANAGE_DEBUGGING);
     }
 
-    class PairingThread extends Thread implements NsdManager.RegistrationListener {
-        private NsdManager mNsdManager;
-        @Keep private String mPublicKey;
-        private String mPairingCode;
-        private String mGuid;
-        private String mServiceName;
-        // From RFC6763 (https://tools.ietf.org/html/rfc6763#section-7.2),
-        // The rules for Service Names [RFC6335] state that they may be no more
-        // than fifteen characters long (not counting the mandatory underscore),
-        // consisting of only letters, digits, and hyphens, must begin and end
-        // with a letter or digit, must not contain consecutive hyphens, and
-        // must contain at least one letter.
-        @VisibleForTesting static final String SERVICE_PROTOCOL = "adb-tls-pairing";
-        private final String mServiceType = String.format("_%s._tcp.", SERVICE_PROTOCOL);
-        private int mPort;
-
-        private native int native_pairing_start(String guid, String password);
-        private native void native_pairing_cancel();
-        private native boolean native_pairing_wait();
-
-        PairingThread(String pairingCode, String serviceName) {
-            super(TAG);
-            mPairingCode = pairingCode;
-            mGuid = SystemProperties.get(WIFI_PERSISTENT_GUID);
-            mServiceName = serviceName;
-            if (serviceName == null || serviceName.isEmpty()) {
-                mServiceName = mGuid;
-            }
-            mPort = -1;
-            mNsdManager = (NsdManager) mContext.getSystemService(Context.NSD_SERVICE);
+    private void startTLSPortPoller() {
+        if (wifiLifeCycleOverAdbdauthSupported()) {
+            Slog.d(TAG, "Expecting tls port from adbdauth");
+            return;
         }
 
-        @Override
-        public void run() {
-            // Register the mdns service
-            NsdServiceInfo serviceInfo = new NsdServiceInfo();
-            serviceInfo.setServiceName(mServiceName);
-            serviceInfo.setServiceType(mServiceType);
-            serviceInfo.setPort(mPort);
-            mNsdManager.registerService(serviceInfo, NsdManager.PROTOCOL_DNS_SD, this);
-
-            // Send pairing port to UI
-            Message msg = mHandler.obtainMessage(
-                    AdbDebuggingHandler.MSG_RESPONSE_PAIRING_PORT);
-            msg.obj = mPort;
-            mHandler.sendMessage(msg);
-
-            boolean paired = native_pairing_wait();
-            if (mPublicKey != null) {
-                Slog.i(TAG, "Pairing succeeded key=" + mPublicKey);
-            } else {
-                Slog.i(TAG, "Pairing failed");
-            }
-
-            mNsdManager.unregisterService(this);
-
-            Bundle bundle = new Bundle();
-            bundle.putString("publicKey", paired ? mPublicKey : null);
-            Message message = Message.obtain(mHandler,
-                                             AdbDebuggingHandler.MSG_RESPONSE_PAIRING_RESULT,
-                                             bundle);
-            mHandler.sendMessage(message);
-        }
-
-        @Override
-        public void start() {
-            /*
-             * If a user is fast enough to click cancel, native_pairing_cancel can be invoked
-             * while native_pairing_start is running which run the destruction of the object
-             * while it is being constructed. Here we start the pairing server on foreground
-             * Thread so native_pairing_cancel can never be called concurrently. Then we let
-             * the pairing server run on a background Thread.
-             */
-            if (mGuid.isEmpty()) {
-                Slog.e(TAG, "adbwifi guid was not set");
-                return;
-            }
-            mPort = native_pairing_start(mGuid, mPairingCode);
-            if (mPort <= 0) {
-                Slog.e(TAG, "Unable to start pairing server");
-                return;
-            }
-
-            super.start();
-        }
-
-        public void cancelPairing() {
-            native_pairing_cancel();
-        }
-
-        @Override
-        public void onServiceRegistered(NsdServiceInfo serviceInfo) {
-            Slog.i(TAG, "Registered pairing service: " + serviceInfo);
-        }
-
-        @Override
-        public void onRegistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
-            Slog.e(TAG, "Failed to register pairing service(err=" + errorCode
-                    + "): " + serviceInfo);
-            cancelPairing();
-        }
-
-        @Override
-        public void onServiceUnregistered(NsdServiceInfo serviceInfo) {
-            Slog.i(TAG, "Unregistered pairing service: " + serviceInfo);
-        }
-
-        @Override
-        public void onUnregistrationFailed(NsdServiceInfo serviceInfo, int errorCode) {
-            Slog.w(TAG, "Failed to unregister pairing service(err=" + errorCode
-                    + "): " + serviceInfo);
-        }
+        Slog.d(TAG, "Expecting tls port from ADB Wifi connection poller");
+        mConnectionPortPoller =
+                new AdbConnectionPortPoller(
+                        port -> {
+                            Slog.d(TAG, "Received tls port from poller =" + port);
+                            Message msg =
+                                    mHandler.obtainMessage(
+                                            port > 0
+                                                    ? AdbDebuggingHandler.MSG_SERVER_CONNECTED
+                                                    : AdbDebuggingHandler.MSG_SERVER_DISCONNECTED);
+                            msg.obj = port;
+                            mHandler.sendMessage(msg);
+                        });
+        mConnectionPortPoller.start();
     }
 
-    /**
-     * This class will poll for a period of time for adbd to write the port
-     * it connected to.
-     *
-     * TODO(joshuaduong): The port is being sent via system property because the adbd socket
-     * (AdbDebuggingManager) is not created when ro.adb.secure=0. Thus, we must communicate the
-     * port through different means. A better fix would be to always start AdbDebuggingManager, but
-     * it needs to adjust accordingly on whether ro.adb.secure is set.
-     */
-    private class AdbConnectionPortPoller extends Thread {
-        private final String mAdbPortProp = "service.adb.tls.port";
-        private final int mDurationSecs = 10;
-        private AtomicBoolean mCanceled = new AtomicBoolean(false);
-
-        @Override
-        public void run() {
-            Slog.d(TAG, "Starting adb port property poller");
-            // Once adbwifi is enabled, we poll the service.adb.tls.port
-            // system property until we get the port, or -1 on failure.
-            // Let's also limit the polling to 10 seconds, just in case
-            // something went wrong.
-            for (int i = 0; i < mDurationSecs; ++i) {
-                if (mCanceled.get()) {
-                    return;
-                }
-
-                // If the property is set to -1, then that means adbd has failed
-                // to start the server. Otherwise we should have a valid port.
-                int port = SystemProperties.getInt(mAdbPortProp, Integer.MAX_VALUE);
-                if (port == -1 || (port > 0 && port <= 65535)) {
-                    onPortReceived(port);
-                    return;
-                }
-                SystemClock.sleep(1000);
-            }
-            Slog.w(TAG, "Failed to receive adb connection port");
-            onPortReceived(-1);
+    private void stopTLSPortPoller() {
+        if (mConnectionPortPoller == null) {
+            return;
         }
 
-        private void onPortReceived(int port) {
-            Slog.d(TAG, "Received tls port=" + port);
-            Message msg = mHandler.obtainMessage(port > 0
-                    ? AdbDebuggingHandler.MSG_SERVER_CONNECTED
-                    : AdbDebuggingHandler.MSG_SERVER_DISCONNECTED);
-            msg.obj = port;
-            mHandler.sendMessage(msg);
-        }
-
-        public void cancelAndWait() {
-            mCanceled.set(true);
-            if (this.isAlive()) {
-                try {
-                    this.join();
-                } catch (InterruptedException e) {
-                }
-            }
-        }
+        mConnectionPortPoller.cancelAndWait();
+        mConnectionPortPoller = null;
     }
 
     @VisibleForTesting
     static class AdbDebuggingThread extends Thread {
-        private boolean mStopped;
         private LocalSocket mSocket;
         private OutputStream mOutputStream;
         private InputStream mInputStream;
         private Handler mHandler;
+
+        private boolean mConnected = false;
 
         @VisibleForTesting
         AdbDebuggingThread() {
@@ -403,19 +240,13 @@ public class AdbDebuggingManager {
         public void run() {
             Slog.d(TAG, "Entering thread");
             while (true) {
-                synchronized (this) {
-                    if (mStopped) {
-                        Slog.d(TAG, "Exiting thread");
-                        return;
-                    }
-                    try {
-                        openSocketLocked();
-                    } catch (Exception e) {
-                        /* Don't loop too fast if adbd dies, before init restarts it */
-                        SystemClock.sleep(1000);
-                    }
-                }
                 try {
+                    synchronized (this) {
+                        mConnected = false;
+                        openSocketLocked();
+                        mConnected = true;
+                    }
+
                     listenToSocket();
                 } catch (Exception e) {
                     /* Don't loop too fast if adbd dies, before init restarts it */
@@ -424,10 +255,14 @@ public class AdbDebuggingManager {
             }
         }
 
+        synchronized boolean isConnected() {
+            return mConnected;
+        }
+
         private void openSocketLocked() throws IOException {
             try {
-                LocalSocketAddress address = new LocalSocketAddress(ADBD_SOCKET,
-                        LocalSocketAddress.Namespace.RESERVED);
+                LocalSocketAddress address =
+                        new LocalSocketAddress(ADBD_SOCKET, LocalSocketAddress.Namespace.RESERVED);
                 mInputStream = null;
 
                 Slog.d(TAG, "Creating socket");
@@ -438,7 +273,7 @@ public class AdbDebuggingManager {
                 mInputStream = mSocket.getInputStream();
                 mHandler.sendEmptyMessage(AdbDebuggingHandler.MSG_ADBD_SOCKET_CONNECTED);
             } catch (IOException ioe) {
-                Slog.e(TAG, "Caught an exception opening the socket: " + ioe);
+                Slog.e(TAG, "adbd_auth domain socket unavailable: " + ioe);
                 closeSocketLocked();
                 throw ioe;
             }
@@ -456,70 +291,118 @@ public class AdbDebuggingManager {
                         break;
                     }
 
+                    Slog.d(TAG, "Recv packet: " + new String(Arrays.copyOfRange(buffer, 0, 2)));
+
+                    // These messages are send from AdbdAuthContext::SendPacket
+                    // in frameworks/native/libs/adbd_auth/adbd_auth.cpp
+
                     if (buffer[0] == 'P' && buffer[1] == 'K') {
+                        // PK adbauth.AdbdAuthPacketRequestAuthorization
                         String key = new String(Arrays.copyOfRange(buffer, 2, count));
                         Slog.d(TAG, "Received public key: " + key);
-                        Message msg = mHandler.obtainMessage(
-                                AdbDebuggingHandler.MESSAGE_ADB_CONFIRM);
+                        Message msg =
+                                mHandler.obtainMessage(AdbDebuggingHandler.MESSAGE_ADB_CONFIRM);
                         msg.obj = key;
                         mHandler.sendMessage(msg);
                     } else if (buffer[0] == 'D' && buffer[1] == 'C') {
+                        // DC adbauth.AdbdAuthPacketDisconnected
                         String key = new String(Arrays.copyOfRange(buffer, 2, count));
                         Slog.d(TAG, "Received disconnected message: " + key);
-                        Message msg = mHandler.obtainMessage(
-                                AdbDebuggingHandler.MESSAGE_ADB_DISCONNECT);
+                        Message msg =
+                                mHandler.obtainMessage(AdbDebuggingHandler.MESSAGE_ADB_DISCONNECT);
                         msg.obj = key;
                         mHandler.sendMessage(msg);
                     } else if (buffer[0] == 'C' && buffer[1] == 'K') {
+                        // CK adbauth.AdbdAuthPacketAuthenticated
                         String key = new String(Arrays.copyOfRange(buffer, 2, count));
                         Slog.d(TAG, "Received connected key message: " + key);
-                        Message msg = mHandler.obtainMessage(
-                                AdbDebuggingHandler.MESSAGE_ADB_CONNECTED_KEY);
+                        Message msg =
+                                mHandler.obtainMessage(
+                                        AdbDebuggingHandler.MESSAGE_ADB_CONNECTED_KEY);
                         msg.obj = key;
                         mHandler.sendMessage(msg);
                     } else if (buffer[0] == 'W' && buffer[1] == 'E') {
-                        // adbd_auth.h and AdbTransportType.aidl need to be kept in
-                        // sync.
+                        // WE adbauth.AdbdPacketTlsDeviceConnected
                         byte transportType = buffer[2];
                         String key = new String(Arrays.copyOfRange(buffer, 3, count));
-                        if (transportType == AdbTransportType.USB) {
-                            Slog.d(TAG, "Received USB TLS connected key message: " + key);
-                            Message msg = mHandler.obtainMessage(
-                                    AdbDebuggingHandler.MESSAGE_ADB_CONNECTED_KEY);
-                            msg.obj = key;
-                            mHandler.sendMessage(msg);
-                        } else if (transportType == AdbTransportType.WIFI) {
-                            Slog.d(TAG, "Received WIFI TLS connected key message: " + key);
-                            Message msg = mHandler.obtainMessage(
-                                    AdbDebuggingHandler.MSG_WIFI_DEVICE_CONNECTED);
-                            msg.obj = key;
-                            mHandler.sendMessage(msg);
-                        } else {
-                            Slog.e(TAG, "Got unknown transport type from adbd (" + transportType
-                                    + ")");
+                        switch (transportType) {
+                            case AdbTransportType.USB -> {
+                                Slog.d(TAG, "Received USB TLS connected key message: " + key);
+                                Message msg =
+                                        mHandler.obtainMessage(
+                                                AdbDebuggingHandler.MESSAGE_ADB_CONNECTED_KEY);
+                                msg.obj = key;
+                                mHandler.sendMessage(msg);
+                            }
+                            case AdbTransportType.WIFI -> {
+                                Slog.d(TAG, "Received WIFI TLS connected key message: " + key);
+                                Message msg =
+                                        mHandler.obtainMessage(
+                                                AdbDebuggingHandler.MSG_WIFI_DEVICE_CONNECTED);
+                                msg.obj = key;
+                                mHandler.sendMessage(msg);
+                            }
+                            case AdbTransportType.VSOCK ->
+                                    Slog.e(TAG, "AdbTransportType.VSOCK is not yet supported here");
+                            default ->
+                                    Slog.e(
+                                            TAG,
+                                            "Got unknown transport type from adbd ("
+                                                    + transportType
+                                                    + ")");
                         }
                     } else if (buffer[0] == 'W' && buffer[1] == 'F') {
+                        // WF adbauth.AdbdPacketTlsDeviceDisconnected
                         byte transportType = buffer[2];
                         String key = new String(Arrays.copyOfRange(buffer, 3, count));
-                        if (transportType == AdbTransportType.USB) {
-                            Slog.d(TAG, "Received USB TLS disconnect message: " + key);
-                            Message msg = mHandler.obtainMessage(
-                                    AdbDebuggingHandler.MESSAGE_ADB_DISCONNECT);
-                            msg.obj = key;
-                            mHandler.sendMessage(msg);
-                        } else if (transportType == AdbTransportType.WIFI) {
-                            Slog.d(TAG, "Received WIFI TLS disconnect key message: " + key);
-                            Message msg = mHandler.obtainMessage(
-                                    AdbDebuggingHandler.MSG_WIFI_DEVICE_DISCONNECTED);
-                            msg.obj = key;
-                            mHandler.sendMessage(msg);
-                        } else {
-                            Slog.e(TAG, "Got unknown transport type from adbd (" + transportType
-                                    + ")");
+                        switch (transportType) {
+                            case AdbTransportType.USB -> {
+                                Slog.d(TAG, "Received USB TLS disconnect message: " + key);
+                                Message msg =
+                                        mHandler.obtainMessage(
+                                                AdbDebuggingHandler.MESSAGE_ADB_DISCONNECT);
+                                msg.obj = key;
+                                mHandler.sendMessage(msg);
+                            }
+                            case AdbTransportType.WIFI -> {
+                                Slog.d(TAG, "Received WIFI TLS disconnect key message: " + key);
+                                Message msg =
+                                        mHandler.obtainMessage(
+                                                AdbDebuggingHandler.MSG_WIFI_DEVICE_DISCONNECTED);
+                                msg.obj = key;
+                                mHandler.sendMessage(msg);
+                            }
+                            case AdbTransportType.VSOCK ->
+                                    Slog.e(TAG, "AdbTransportType.VSOCK is not yet supported here");
+                            default ->
+                                    Slog.e(
+                                            TAG,
+                                            "Got unknown transport type from adbd ("
+                                                    + transportType
+                                                    + ")");
                         }
+                    } else if (buffer[0] == 'T' && buffer[1] == 'P') {
+                        // TP adbauth.AdbdPacketTlsServerPort
+                        if (count < 4) {
+                            Slog.e(TAG, "Bad TP message length " + count);
+                            break;
+                        }
+                        ByteBuffer bytes = ByteBuffer.wrap(buffer, 2, 2);
+                        bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+                        int port = bytes.getShort() & 0xFFFF;
+                        Slog.d(TAG, "Received tls port=" + port);
+                        Message msg =
+                                mHandler.obtainMessage(
+                                        port > 0
+                                                ? AdbDebuggingHandler.MSG_SERVER_CONNECTED
+                                                : AdbDebuggingHandler.MSG_SERVER_DISCONNECTED);
+                        msg.obj = port;
+                        mHandler.sendMessage(msg);
                     } else {
-                        Slog.e(TAG, "Wrong message: "
-                                + (new String(Arrays.copyOfRange(buffer, 0, 2))));
+                        Slog.e(
+                                TAG,
+                                "Wrong message: " + (new String(Arrays.copyOfRange(buffer, 0, 2))));
                         break;
                     }
                 }
@@ -552,17 +435,12 @@ public class AdbDebuggingManager {
             mHandler.sendEmptyMessage(AdbDebuggingHandler.MSG_ADBD_SOCKET_DISCONNECTED);
         }
 
-        /** Call to stop listening on the socket and exit the thread. */
-        void stopListening() {
-            synchronized (this) {
-                mStopped = true;
-                closeSocketLocked();
-            }
-        }
-
+        // TODO: Change the name of this method. This is not always a response. It should be called
+        // sendMessage.
         void sendResponse(String msg) {
             synchronized (this) {
-                if (!mStopped && mOutputStream != null) {
+                Slog.d(TAG, "Send packet " + msg);
+                if (mOutputStream != null) {
                     try {
                         mOutputStream.write(msg.getBytes());
                     } catch (IOException ex) {
@@ -573,129 +451,31 @@ public class AdbDebuggingManager {
         }
     }
 
-    private static class AdbConnectionInfo {
-        private String mBssid;
-        private String mSsid;
-        private int mPort;
-
-        AdbConnectionInfo() {
-            mBssid = "";
-            mSsid = "";
-            mPort = -1;
-        }
-
-        AdbConnectionInfo(String bssid, String ssid) {
-            mBssid = bssid;
-            mSsid = ssid;
-        }
-
-        AdbConnectionInfo(AdbConnectionInfo other) {
-            mBssid = other.mBssid;
-            mSsid = other.mSsid;
-            mPort = other.mPort;
-        }
-
-        public String getBSSID() {
-            return mBssid;
-        }
-
-        public String getSSID() {
-            return mSsid;
-        }
-
-        public int getPort() {
-            return mPort;
-        }
-
-        public void setPort(int port) {
-            mPort = port;
-        }
-
-        public void clear() {
-            mBssid = "";
-            mSsid = "";
-            mPort = -1;
-        }
+    // We need to know if ADBd will have access to the version of adbdauth which allows
+    // to send ADB Wifi TSL port and ADBWifi lifecycle management over methods.
+    private static boolean wifiLifeCycleOverAdbdauthSupported() {
+        return Flags.useTlsLifecycle()
+                && (Build.VERSION.SDK_INT >= 37
+                        || (Build.VERSION.SDK_INT == 36 && isAtLeastPreReleaseCodename("Baklava")));
     }
 
-    private void setAdbConnectionInfo(AdbConnectionInfo info) {
-        synchronized (mAdbConnectionInfo) {
-            if (info == null) {
-                mAdbConnectionInfo.clear();
-                return;
-            }
-            mAdbConnectionInfo = info;
+    // This should only be used with NDK APIs because the NDK lacks flagging support.
+    private static boolean isAtLeastPreReleaseCodename(@NonNull String codename) {
+        // Special case "REL", which means the build is not a pre-release build.
+        if ("REL".equals(Build.VERSION.CODENAME)) {
+            return false;
         }
-    }
 
-    private AdbConnectionInfo getAdbConnectionInfo() {
-        synchronized (mAdbConnectionInfo) {
-            return new AdbConnectionInfo(mAdbConnectionInfo);
-        }
+        // Otherwise lexically compare them. Return true if the build codename is equal to or
+        // greater than the requested codename.
+        return Build.VERSION.CODENAME.compareTo(codename) >= 0;
     }
 
     class AdbDebuggingHandler extends Handler {
         private NotificationManager mNotificationManager;
         private boolean mAdbNotificationShown;
 
-        private final BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                // We only care about when wifi is disabled, and when there is a wifi network
-                // change.
-                if (WifiManager.WIFI_STATE_CHANGED_ACTION.equals(action)) {
-                    int state = intent.getIntExtra(
-                            WifiManager.EXTRA_WIFI_STATE, WifiManager.WIFI_STATE_DISABLED);
-                    if (state == WifiManager.WIFI_STATE_DISABLED) {
-                        Slog.i(TAG, "Wifi disabled. Disabling adbwifi.");
-                        Settings.Global.putInt(mContentResolver,
-                                Settings.Global.ADB_WIFI_ENABLED, 0);
-                    }
-                } else if (WifiManager.NETWORK_STATE_CHANGED_ACTION.equals(action)) {
-                    // We only care about wifi type connections
-                    NetworkInfo networkInfo = (NetworkInfo) intent.getParcelableExtra(
-                            WifiManager.EXTRA_NETWORK_INFO, android.net.NetworkInfo.class);
-                    if (networkInfo.getType() == ConnectivityManager.TYPE_WIFI) {
-                        // Check for network disconnect
-                        if (!networkInfo.isConnected()) {
-                            Slog.i(TAG, "Network disconnected. Disabling adbwifi.");
-                            Settings.Global.putInt(mContentResolver,
-                                    Settings.Global.ADB_WIFI_ENABLED, 0);
-                            return;
-                        }
-
-                        WifiManager wifiManager =
-                                (WifiManager) mContext.getSystemService(Context.WIFI_SERVICE);
-                        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
-                        if (wifiInfo == null || wifiInfo.getNetworkId() == -1) {
-                            Slog.i(TAG, "Not connected to any wireless network."
-                                    + " Not enabling adbwifi.");
-                            Settings.Global.putInt(mContentResolver,
-                                    Settings.Global.ADB_WIFI_ENABLED, 0);
-                            return;
-                        }
-
-                        synchronized (mAdbConnectionInfo) {
-                            // Check for network change
-                            final String bssid = wifiInfo.getBSSID();
-                            if (TextUtils.isEmpty(bssid)) {
-                                Slog.e(TAG,
-                                        "Unable to get the wifi ap's BSSID. Disabling adbwifi.");
-                                Settings.Global.putInt(mContentResolver,
-                                        Settings.Global.ADB_WIFI_ENABLED, 0);
-                                return;
-                            }
-                            if (!TextUtils.equals(bssid, mAdbConnectionInfo.getBSSID())) {
-                                Slog.i(TAG, "Detected wifi network change. Disabling adbwifi.");
-                                Settings.Global.putInt(mContentResolver,
-                                        Settings.Global.ADB_WIFI_ENABLED, 0);
-                            }
-                        }
-                    }
-                }
-            }
-        };
+        private final AdbNetworkMonitor mAdbNetworkMonitor;
 
         private static final String ADB_NOTIFICATION_CHANNEL_ID_TV = "usbdevicemanager.adb.tv";
 
@@ -707,8 +487,8 @@ public class AdbDebuggingManager {
             if (mNotificationManager != null) {
                 return;
             }
-            mNotificationManager = (NotificationManager)
-                    mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+            mNotificationManager =
+                    (NotificationManager) mContext.getSystemService(Context.NOTIFICATION_SERVICE);
             if (mNotificationManager == null) {
                 Slog.e(TAG, "Unable to setup notifications for wireless debugging");
                 return;
@@ -718,7 +498,8 @@ public class AdbDebuggingManager {
             if (isTv()) {
                 // TV-specific notification channel
                 mNotificationManager.createNotificationChannel(
-                        new NotificationChannel(ADB_NOTIFICATION_CHANNEL_ID_TV,
+                        new NotificationChannel(
+                                ADB_NOTIFICATION_CHANNEL_ID_TV,
                                 mContext.getString(
                                         com.android.internal.R.string
                                                 .adb_debugging_notification_channel_tv),
@@ -788,34 +569,42 @@ public class AdbDebuggingManager {
 
         // === Messages we can send to adbd ===========
         static final String MSG_DISCONNECT_DEVICE = "DD";
+        static final String MSG_START_ADB_WIFI = "W1";
+        static final String MSG_STOP_ADB_WIFI = "W0";
 
-        @Nullable @VisibleForTesting AdbKeyStore mAdbKeyStore;
+        @NonNull @VisibleForTesting
+        final AdbKeyStore mAdbKeyStore =
+                new AdbKeyStore(mContext, mTempKeysFile, mUserKeyFile, mTicker);
 
-        // Usb, Wi-Fi transports can be enabled together or separately, so don't break the framework
-        // connection unless all transport types are disconnected.
-        private int mAdbEnabledRefCount = 0;
+        private final AdbDebuggingThread mThread;
 
-        private ContentObserver mAuthTimeObserver = new ContentObserver(this) {
-            @Override
-            public void onChange(boolean selfChange, Uri uri) {
-                Slog.d(TAG, "Received notification that uri " + uri
-                        + " was modified; rescheduling keystore job");
-                scheduleJobToUpdateAdbKeyStore();
-            }
-        };
+        private ContentObserver mAuthTimeObserver =
+                new ContentObserver(this) {
+                    @Override
+                    public void onChange(boolean selfChange, Uri uri) {
+                        Slog.d(
+                                TAG,
+                                "Received notification that uri "
+                                        + uri
+                                        + " was modified; rescheduling keystore job");
+                        scheduleJobToUpdateAdbKeyStore();
+                    }
+                };
 
         /** Constructor that accepts the AdbDebuggingThread to which responses should be sent. */
         @VisibleForTesting
         AdbDebuggingHandler(Looper looper, AdbDebuggingThread thread) {
             super(looper);
+            if (thread == null) {
+                thread = new AdbDebuggingThread();
+                thread.setHandler(this);
+            }
             mThread = thread;
-        }
-
-        /** Initialize the AdbKeyStore so tests can grab mAdbKeyStore immediately. */
-        @VisibleForTesting
-        void initKeyStore() {
-            if (mAdbKeyStore == null) {
-                mAdbKeyStore = new AdbKeyStore();
+            if (com.android.server.adb.Flags.allowAdbWifiReconnect()) {
+                mAdbNetworkMonitor =
+                        new AdbWifiNetworkMonitor(mContext, mAdbKeyStore::isTrustedNetwork);
+            } else {
+                mAdbNetworkMonitor = new AdbBroadcastReceiver(mContext, mAdbConnectionInfo);
             }
         }
 
@@ -827,146 +616,127 @@ public class AdbDebuggingManager {
             }
             setupNotifications();
             if (!mAdbNotificationShown) {
-                Notification notification = AdbNotifications.createNotification(mContext,
-                        AdbTransportType.WIFI);
+                Notification notification =
+                        AdbNotifications.createNotification(mContext, AdbTransportType.WIFI);
                 mAdbNotificationShown = true;
-                mNotificationManager.notifyAsUser(null, id, notification,
-                        UserHandle.ALL);
+                mNotificationManager.notifyAsUser(null, id, notification, UserHandle.ALL);
             } else {
                 mAdbNotificationShown = false;
                 mNotificationManager.cancelAsUser(null, id, UserHandle.ALL);
             }
         }
 
-        private void startAdbDebuggingThread() {
-            ++mAdbEnabledRefCount;
-            Slog.i(TAG, "startAdbDebuggingThread ref=" + mAdbEnabledRefCount);
-            if (mAdbEnabledRefCount > 1) {
-                return;
+        private void startAdbdWifi() {
+            if (wifiLifeCycleOverAdbdauthSupported()) {
+                mThread.sendResponse(MSG_START_ADB_WIFI);
+            } else {
+                AdbService.enableADBdWifi();
             }
-
-            registerForAuthTimeChanges();
-            mThread = new AdbDebuggingThread();
-            mThread.setHandler(mHandler);
-            mThread.start();
-
-            mAdbKeyStore.updateKeyStore();
-            scheduleJobToUpdateAdbKeyStore();
         }
 
-        private void stopAdbDebuggingThread() {
-            --mAdbEnabledRefCount;
-            Slog.i(TAG, "stopAdbDebuggingThread ref=" + mAdbEnabledRefCount);
-            if (mAdbEnabledRefCount > 0) {
-                return;
+        private void stopAdbdWifi() {
+            if (wifiLifeCycleOverAdbdauthSupported()) {
+                mThread.sendResponse(MSG_STOP_ADB_WIFI);
+            } else {
+                AdbService.disableADBdWifi();
             }
+        }
 
-            if (mThread != null) {
-                mThread.stopListening();
-                mThread = null;
-            }
+        // AdbService/AdbDebuggingManager are always created but we only start the connection
+        // with adbd thread when it is actually needed.
+        private void ensureAdbDebuggingThreadAlive() {
+            if (!mThread.isAlive()) {
+                mThread.start();
 
-            if (!mConnectedKeys.isEmpty()) {
-                for (Map.Entry<String, Integer> entry : mConnectedKeys.entrySet()) {
-                    mAdbKeyStore.setLastConnectionTime(entry.getKey(), mTicker.currentTimeMillis());
-                }
-                sendPersistKeyStoreMessage();
-                mConnectedKeys.clear();
-                mWifiConnectedKeys.clear();
+                registerForAuthTimeChanges();
+                mAdbKeyStore.updateKeyStore();
+                scheduleJobToUpdateAdbKeyStore();
             }
-            scheduleJobToUpdateAdbKeyStore();
         }
 
         public void handleMessage(Message msg) {
-            initKeyStore();
 
             switch (msg.what) {
-                case MESSAGE_ADB_ENABLED:
+                case MESSAGE_ADB_ENABLED -> {
                     if (mAdbUsbEnabled) {
                         break;
                     }
-                    startAdbDebuggingThread();
+                    ensureAdbDebuggingThreadAlive();
                     mAdbUsbEnabled = true;
-                    break;
-
-                case MESSAGE_ADB_DISABLED:
+                }
+                case MESSAGE_ADB_DISABLED -> {
                     if (!mAdbUsbEnabled) {
                         break;
                     }
-                    stopAdbDebuggingThread();
                     mAdbUsbEnabled = false;
-                    break;
-
-                case MESSAGE_ADB_ALLOW: {
+                }
+                case MESSAGE_ADB_ALLOW -> {
                     String key = (String) msg.obj;
                     String fingerprints = getFingerprints(key);
                     if (!fingerprints.equals(mFingerprints)) {
-                        Slog.e(TAG, "Fingerprints do not match. Got "
-                                + fingerprints + ", expected " + mFingerprints);
+                        Slog.e(
+                                TAG,
+                                "Fingerprints do not match. Got "
+                                        + fingerprints
+                                        + ", expected "
+                                        + mFingerprints);
                         break;
                     }
 
                     boolean alwaysAllow = msg.arg1 == 1;
-                    if (mThread != null) {
-                        mThread.sendResponse("OK");
-                        if (alwaysAllow) {
-                            if (!mConnectedKeys.containsKey(key)) {
-                                mConnectedKeys.put(key, 1);
-                            }
-                            mAdbKeyStore.setLastConnectionTime(key, mTicker.currentTimeMillis());
-                            sendPersistKeyStoreMessage();
-                            scheduleJobToUpdateAdbKeyStore();
+                    mThread.sendResponse("OK");
+                    if (alwaysAllow) {
+                        if (!mConnectedKeys.containsKey(key)) {
+                            mConnectedKeys.put(key, 1);
                         }
-                        logAdbConnectionChanged(key, AdbProtoEnums.USER_ALLOWED, alwaysAllow);
+                        mAdbKeyStore.setLastConnectionTime(key, mTicker.currentTimeMillis());
+                        sendPersistKeyStoreMessage();
+                        scheduleJobToUpdateAdbKeyStore();
                     }
-                    break;
+                    logAdbConnectionChanged(key, AdbProtoEnums.USER_ALLOWED, alwaysAllow);
                 }
-
-                case MESSAGE_ADB_DENY:
-                    if (mThread != null) {
-                        Slog.w(TAG, "Denying adb confirmation");
-                        mThread.sendResponse("NO");
-                        logAdbConnectionChanged(null, AdbProtoEnums.USER_DENIED, false);
-                    }
-                    break;
-
-                case MESSAGE_ADB_CONFIRM: {
+                case MESSAGE_ADB_DENY -> {
+                    Slog.w(TAG, "Denying adb confirmation");
+                    mThread.sendResponse("NO");
+                    logAdbConnectionChanged(null, AdbProtoEnums.USER_DENIED, false);
+                }
+                case MESSAGE_ADB_CONFIRM -> {
                     String key = (String) msg.obj;
                     String fingerprints = getFingerprints(key);
                     if ("".equals(fingerprints)) {
-                        if (mThread != null) {
-                            mThread.sendResponse("NO");
-                            logAdbConnectionChanged(key, AdbProtoEnums.DENIED_INVALID_KEY, false);
-                        }
+                        mThread.sendResponse("NO");
+                        logAdbConnectionChanged(key, AdbProtoEnums.DENIED_INVALID_KEY, false);
                         break;
                     }
                     logAdbConnectionChanged(key, AdbProtoEnums.AWAITING_USER_APPROVAL, false);
                     mFingerprints = fingerprints;
                     startConfirmationForKey(key, mFingerprints);
-                    break;
                 }
-
-                case MESSAGE_ADB_CLEAR: {
+                case MESSAGE_ADB_CLEAR -> {
                     Slog.d(TAG, "Received a request to clear the adb authorizations");
                     mConnectedKeys.clear();
-                    // If the key store has not yet been instantiated then do so now; this avoids
-                    // the unnecessary creation of the key store when adb is not enabled.
-                    initKeyStore();
                     mWifiConnectedKeys.clear();
                     mAdbKeyStore.deleteKeyStore();
                     cancelJobToUpdateAdbKeyStore();
                     // Disconnect all active sessions unless the user opted out through Settings.
-                    if (Settings.Global.getInt(mContentResolver,
-                            Settings.Global.ADB_DISCONNECT_SESSIONS_ON_REVOKE, 1) == 1) {
+                    if (Settings.Global.getInt(
+                                    mContentResolver,
+                                    Settings.Global.ADB_DISCONNECT_SESSIONS_ON_REVOKE,
+                                    1)
+                            == 1) {
                         // If adb is currently enabled, then toggle it off and back on to disconnect
                         // any existing sessions.
                         if (mAdbUsbEnabled) {
                             try {
                                 SystemService.stop(ADBD);
-                                SystemService.waitForState(ADBD, SystemService.State.STOPPED,
+                                SystemService.waitForState(
+                                        ADBD,
+                                        SystemService.State.STOPPED,
                                         ADBD_STATE_CHANGE_TIMEOUT);
                                 SystemService.start(ADBD);
-                                SystemService.waitForState(ADBD, SystemService.State.RUNNING,
+                                SystemService.waitForState(
+                                        ADBD,
+                                        SystemService.State.RUNNING,
                                         ADBD_STATE_CHANGE_TIMEOUT);
                             } catch (TimeoutException e) {
                                 Slog.e(TAG, "Timeout occurred waiting for adbd to cycle: ", e);
@@ -975,15 +745,13 @@ public class AdbDebuggingManager {
                                 // If adbd fails to toggle within the timeout window, set adb to
                                 // disabled to alert the user that further action is required if
                                 // they want to continue using adb after revoking the grants.
-                                Settings.Global.putInt(mContentResolver,
-                                        Settings.Global.ADB_ENABLED, 0);
+                                Settings.Global.putInt(
+                                        mContentResolver, Settings.Global.ADB_ENABLED, 0);
                             }
                         }
                     }
-                    break;
                 }
-
-                case MESSAGE_ADB_DISCONNECT: {
+                case MESSAGE_ADB_DISCONNECT -> {
                     String key = (String) msg.obj;
                     boolean alwaysAllow = false;
                     if (key != null && key.length() > 0) {
@@ -1004,21 +772,17 @@ public class AdbDebuggingManager {
                         Slog.w(TAG, "Received a disconnected key message with an empty key");
                     }
                     logAdbConnectionChanged(key, AdbProtoEnums.DISCONNECTED, alwaysAllow);
-                    break;
                 }
-
-                case MESSAGE_ADB_PERSIST_KEYSTORE: {
+                case MESSAGE_ADB_PERSIST_KEYSTORE -> {
                     if (mAdbKeyStore != null) {
                         mAdbKeyStore.persistKeyStore();
                     }
-                    break;
                 }
-
-                case MESSAGE_ADB_UPDATE_KEYSTORE: {
+                case MESSAGE_ADB_UPDATE_KEYSTORE -> {
                     if (!mConnectedKeys.isEmpty()) {
                         for (Map.Entry<String, Integer> entry : mConnectedKeys.entrySet()) {
-                            mAdbKeyStore.setLastConnectionTime(entry.getKey(),
-                                    mTicker.currentTimeMillis());
+                            mAdbKeyStore.setLastConnectionTime(
+                                    entry.getKey(), mTicker.currentTimeMillis());
                         }
                         sendPersistKeyStoreMessage();
                         scheduleJobToUpdateAdbKeyStore();
@@ -1026,10 +790,8 @@ public class AdbDebuggingManager {
                         mAdbKeyStore.updateKeyStore();
                         scheduleJobToUpdateAdbKeyStore();
                     }
-                    break;
                 }
-
-                case MESSAGE_ADB_CONNECTED_KEY: {
+                case MESSAGE_ADB_CONNECTED_KEY -> {
                     String key = (String) msg.obj;
                     if (key == null || key.length() == 0) {
                         Slog.w(TAG, "Received a connected key message with an empty key");
@@ -1044,58 +806,48 @@ public class AdbDebuggingManager {
                         scheduleJobToUpdateAdbKeyStore();
                         logAdbConnectionChanged(key, AdbProtoEnums.AUTOMATICALLY_ALLOWED, true);
                     }
-                    break;
                 }
-                case MSG_ADBDWIFI_ENABLE: {
+                case MSG_ADBDWIFI_ENABLE -> {
                     if (mAdbWifiEnabled) {
                         break;
                     }
 
                     AdbConnectionInfo currentInfo = getCurrentWifiApInfo();
                     if (currentInfo == null) {
-                        Settings.Global.putInt(mContentResolver,
-                                Settings.Global.ADB_WIFI_ENABLED, 0);
+                        Settings.Global.putInt(
+                                mContentResolver, Settings.Global.ADB_WIFI_ENABLED, 0);
                         break;
                     }
 
-                    if (!verifyWifiNetwork(currentInfo.getBSSID(),
-                            currentInfo.getSSID())) {
+                    if (!verifyWifiNetwork(currentInfo.getBSSID(), currentInfo.getSSID())) {
                         // This means that the network is not in the list of trusted networks.
                         // We'll give user a prompt on whether to allow wireless debugging on
                         // the current wifi network.
-                        Settings.Global.putInt(mContentResolver,
-                                Settings.Global.ADB_WIFI_ENABLED, 0);
+                        Settings.Global.putInt(
+                                mContentResolver, Settings.Global.ADB_WIFI_ENABLED, 0);
                         break;
                     }
 
-                    setAdbConnectionInfo(currentInfo);
-                    IntentFilter intentFilter =
-                            new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
-                    intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
-                    mContext.registerReceiver(mBroadcastReceiver, intentFilter);
-
-                    SystemProperties.set(AdbService.WIFI_PERSISTENT_CONFIG_PROPERTY, "1");
-                    mConnectionPortPoller = new AdbDebuggingManager.AdbConnectionPortPoller();
-                    mConnectionPortPoller.start();
-
-                    startAdbDebuggingThread();
+                    mAdbConnectionInfo.copy(currentInfo);
+                    mAdbNetworkMonitor.register();
+                    ensureAdbDebuggingThreadAlive();
+                    startTLSPortPoller();
+                    startAdbdWifi();
                     mAdbWifiEnabled = true;
 
                     Slog.i(TAG, "adb start wireless adb");
-                    break;
                 }
-                case MSG_ADBDWIFI_DISABLE:
+                case MSG_ADBDWIFI_DISABLE -> {
                     if (!mAdbWifiEnabled) {
                         break;
                     }
                     mAdbWifiEnabled = false;
-                    setAdbConnectionInfo(null);
-                    mContext.unregisterReceiver(mBroadcastReceiver);
-
+                    mAdbConnectionInfo.clear();
+                    mAdbNetworkMonitor.unregister();
+                    stopAdbdWifi();
                     onAdbdWifiServerDisconnected(-1);
-                    stopAdbDebuggingThread();
-                    break;
-                case MSG_ADBWIFI_ALLOW:
+                }
+                case MSG_ADBWIFI_ALLOW -> {
                     if (mAdbWifiEnabled) {
                         break;
                     }
@@ -1111,30 +863,20 @@ public class AdbDebuggingManager {
                     if (newInfo == null || !bssid.equals(newInfo.getBSSID())) {
                         break;
                     }
-
-                    setAdbConnectionInfo(newInfo);
-                    Settings.Global.putInt(mContentResolver,
-                            Settings.Global.ADB_WIFI_ENABLED, 1);
-                    IntentFilter intentFilter =
-                            new IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION);
-                    intentFilter.addAction(WifiManager.NETWORK_STATE_CHANGED_ACTION);
-                    mContext.registerReceiver(mBroadcastReceiver, intentFilter);
-
-                    SystemProperties.set(AdbService.WIFI_PERSISTENT_CONFIG_PROPERTY, "1");
-                    mConnectionPortPoller = new AdbDebuggingManager.AdbConnectionPortPoller();
-                    mConnectionPortPoller.start();
-
-                    startAdbDebuggingThread();
+                    mAdbConnectionInfo.copy(newInfo);
+                    Settings.Global.putInt(mContentResolver, Settings.Global.ADB_WIFI_ENABLED, 1);
+                    mAdbNetworkMonitor.register();
+                    ensureAdbDebuggingThreadAlive();
+                    startTLSPortPoller();
+                    startAdbdWifi();
                     mAdbWifiEnabled = true;
-
                     Slog.i(TAG, "adb start wireless adb");
-                    break;
-                case MSG_ADBWIFI_DENY:
-                    Settings.Global.putInt(mContentResolver,
-                            Settings.Global.ADB_WIFI_ENABLED, 0);
+                }
+                case MSG_ADBWIFI_DENY -> {
+                    Settings.Global.putInt(mContentResolver, Settings.Global.ADB_WIFI_ENABLED, 0);
                     sendServerConnectionState(false, -1);
-                    break;
-                case MSG_REQ_UNPAIR: {
+                }
+                case MSG_REQ_UNPAIR -> {
                     String fingerprint = (String) msg.obj;
                     // Tell adbd to disconnect the device if connected.
                     String publicKey = mAdbKeyStore.findKeyFromFingerprint(fingerprint);
@@ -1143,122 +885,95 @@ public class AdbDebuggingManager {
                         break;
                     }
                     String cmdStr = MSG_DISCONNECT_DEVICE + publicKey;
-                    if (mThread != null) {
-                        mThread.sendResponse(cmdStr);
-                    }
+                    mThread.sendResponse(cmdStr);
                     mAdbKeyStore.removeKey(publicKey);
                     // Send the updated paired devices list to the UI.
-                    sendPairedDevicesToUI(mAdbKeyStore.getPairedDevices());
-                    break;
+                    sendPairedDevicesToUI(getPairedDevicesForKeys(mAdbKeyStore.getKeys()));
                 }
-                case MSG_RESPONSE_PAIRING_RESULT: {
-                    Bundle bundle = (Bundle) msg.obj;
-                    String publicKey = bundle.getString("publicKey");
+                case MSG_RESPONSE_PAIRING_RESULT -> {
+                    String publicKey = (String) msg.obj;
                     onPairingResult(publicKey);
                     // Send the updated paired devices list to the UI.
-                    sendPairedDevicesToUI(mAdbKeyStore.getPairedDevices());
-                    break;
+                    sendPairedDevicesToUI(getPairedDevicesForKeys(mAdbKeyStore.getKeys()));
                 }
-                case MSG_RESPONSE_PAIRING_PORT: {
+                case MSG_RESPONSE_PAIRING_PORT -> {
                     int port = (int) msg.obj;
                     sendPairingPortToUI(port);
-                    break;
                 }
-                case MSG_PAIR_PAIRING_CODE: {
+                case MSG_PAIR_PAIRING_CODE -> {
                     String pairingCode = createPairingCode(PAIRING_CODE_LENGTH);
                     updateUIPairCode(pairingCode);
-                    mPairingThread = new PairingThread(pairingCode, null);
-                    mPairingThread.start();
-                    break;
+                    mAdbPairingThread = new AdbPairingThread(pairingCode, null, mContext, this);
+                    mAdbPairingThread.start();
                 }
-                case MSG_PAIR_QR_CODE: {
+                case MSG_PAIR_QR_CODE -> {
                     Bundle bundle = (Bundle) msg.obj;
                     String serviceName = bundle.getString("serviceName");
                     String password = bundle.getString("password");
-                    mPairingThread = new PairingThread(password, serviceName);
-                    mPairingThread.start();
-                    break;
+                    mAdbPairingThread = new AdbPairingThread(password, serviceName, mContext, this);
+                    mAdbPairingThread.start();
                 }
-                case MSG_PAIRING_CANCEL:
-                    if (mPairingThread != null) {
-                        mPairingThread.cancelPairing();
+                case MSG_PAIRING_CANCEL -> {
+                    if (mAdbPairingThread != null) {
+                        mAdbPairingThread.cancelPairing();
                         try {
-                            mPairingThread.join();
+                            mAdbPairingThread.join();
                         } catch (InterruptedException e) {
                             Slog.w(TAG, "Error while waiting for pairing thread to quit.");
                             e.printStackTrace();
                         }
-                        mPairingThread = null;
+                        mAdbPairingThread = null;
                     }
-                    break;
-                case MSG_WIFI_DEVICE_CONNECTED: {
+                }
+                case MSG_WIFI_DEVICE_CONNECTED -> {
                     String key = (String) msg.obj;
                     if (mWifiConnectedKeys.add(key)) {
-                        sendPairedDevicesToUI(mAdbKeyStore.getPairedDevices());
+                        sendPairedDevicesToUI(getPairedDevicesForKeys(mAdbKeyStore.getKeys()));
                         showAdbConnectedNotification(true);
                     }
-                    break;
                 }
-                case MSG_WIFI_DEVICE_DISCONNECTED: {
+                case MSG_WIFI_DEVICE_DISCONNECTED -> {
                     String key = (String) msg.obj;
                     if (mWifiConnectedKeys.remove(key)) {
-                        sendPairedDevicesToUI(mAdbKeyStore.getPairedDevices());
+                        sendPairedDevicesToUI(getPairedDevicesForKeys(mAdbKeyStore.getKeys()));
                         if (mWifiConnectedKeys.isEmpty()) {
                             showAdbConnectedNotification(false);
                         }
                     }
-                    break;
                 }
-                case MSG_SERVER_CONNECTED: {
+                case MSG_SERVER_CONNECTED -> {
                     int port = (int) msg.obj;
                     onAdbdWifiServerConnected(port);
-                    synchronized (mAdbConnectionInfo) {
-                        mAdbConnectionInfo.setPort(port);
-                    }
-                    Settings.Global.putInt(mContentResolver,
-                            Settings.Global.ADB_WIFI_ENABLED, 1);
-                    break;
+                    mAdbConnectionInfo.setPort(port);
                 }
-                case MSG_SERVER_DISCONNECTED: {
+                case MSG_SERVER_DISCONNECTED -> {
                     if (!mAdbWifiEnabled) {
                         break;
                     }
                     int port = (int) msg.obj;
                     onAdbdWifiServerDisconnected(port);
-                    Settings.Global.putInt(mContentResolver,
-                            Settings.Global.ADB_WIFI_ENABLED, 0);
-                    stopAdbDebuggingThread();
-                    if (mConnectionPortPoller != null) {
-                        mConnectionPortPoller.cancelAndWait();
-                        mConnectionPortPoller = null;
-                    }
-                    break;
+                    stopTLSPortPoller();
                 }
-                case MSG_ADBD_SOCKET_CONNECTED: {
+                case MSG_ADBD_SOCKET_CONNECTED -> {
                     Slog.d(TAG, "adbd socket connected");
                     if (mAdbWifiEnabled) {
                         // In scenarios where adbd is restarted, the tls port may change.
-                        mConnectionPortPoller =
-                                new AdbDebuggingManager.AdbConnectionPortPoller();
-                        mConnectionPortPoller.start();
+                        startTLSPortPoller();
+                        if (wifiLifeCycleOverAdbdauthSupported()) {
+                            mThread.sendResponse(MSG_START_ADB_WIFI);
+                        }
                     }
-                    break;
                 }
-                case MSG_ADBD_SOCKET_DISCONNECTED: {
+                case MSG_ADBD_SOCKET_DISCONNECTED -> {
                     Slog.d(TAG, "adbd socket disconnected");
-                    if (mConnectionPortPoller != null) {
-                        mConnectionPortPoller.cancelAndWait();
-                        mConnectionPortPoller = null;
-                    }
+                    stopTLSPortPoller();
                     if (mAdbWifiEnabled) {
                         // In scenarios where adbd is restarted, the tls port may change.
                         onAdbdWifiServerDisconnected(-1);
                     }
-                    break;
                 }
-                case MESSAGE_KEY_FILES_UPDATED: {
+                case MESSAGE_KEY_FILES_UPDATED -> {
                     mAdbKeyStore.reloadKeyMap();
-                    break;
                 }
             }
         }
@@ -1271,21 +986,32 @@ public class AdbDebuggingManager {
         private void logAdbConnectionChanged(String key, int state, boolean alwaysAllow) {
             long lastConnectionTime = mAdbKeyStore.getLastConnectionTime(key);
             long authWindow = mAdbKeyStore.getAllowedConnectionTime();
-            Slog.d(TAG,
-                    "Logging key " + key + ", state = " + state + ", alwaysAllow = " + alwaysAllow
-                            + ", lastConnectionTime = " + lastConnectionTime + ", authWindow = "
+            Slog.d(
+                    TAG,
+                    "Logging key "
+                            + key
+                            + ", state = "
+                            + state
+                            + ", alwaysAllow = "
+                            + alwaysAllow
+                            + ", lastConnectionTime = "
+                            + lastConnectionTime
+                            + ", authWindow = "
                             + authWindow);
-            FrameworkStatsLog.write(FrameworkStatsLog.ADB_CONNECTION_CHANGED, lastConnectionTime,
-                    authWindow, state, alwaysAllow);
+            FrameworkStatsLog.write(
+                    FrameworkStatsLog.ADB_CONNECTION_CHANGED,
+                    lastConnectionTime,
+                    authWindow,
+                    state,
+                    alwaysAllow);
         }
-
 
         /**
          * Schedules a job to update the connection time of the currently connected key and filter
          * out any keys that are beyond their expiration time.
          *
          * @return the time in ms when the next job will run or -1 if the job should not be
-         * scheduled to run.
+         *     scheduled to run.
          */
         @VisibleForTesting
         long scheduleJobToUpdateAdbKeyStore() {
@@ -1306,8 +1032,10 @@ public class AdbDebuggingManager {
                 // else the next job should be run either daily or when the next key is set to
                 // expire with a min job interval to ensure this job does not run too often if a
                 // small value is set for the key expiration.
-                delay = Math.max(Math.min(UPDATE_KEYSTORE_JOB_INTERVAL, keyExpiration),
-                        UPDATE_KEYSTORE_MIN_JOB_INTERVAL);
+                delay =
+                        Math.max(
+                                Math.min(UPDATE_KEYSTORE_JOB_INTERVAL, keyExpiration),
+                                UPDATE_KEYSTORE_MIN_JOB_INTERVAL);
             }
             Message message = obtainMessage(MESSAGE_ADB_UPDATE_KEYSTORE);
             sendMessageDelayed(message, delay);
@@ -1335,16 +1063,18 @@ public class AdbDebuggingManager {
 
         private void sendServerConnectionState(boolean connected, int port) {
             Intent intent = new Intent(AdbManager.WIRELESS_DEBUG_STATE_CHANGED_ACTION);
-            intent.putExtra(AdbManager.WIRELESS_STATUS_EXTRA, connected
-                    ? AdbManager.WIRELESS_STATUS_CONNECTED
-                    : AdbManager.WIRELESS_STATUS_DISCONNECTED);
+            intent.putExtra(
+                    AdbManager.WIRELESS_STATUS_EXTRA,
+                    connected
+                            ? AdbManager.WIRELESS_STATUS_CONNECTED
+                            : AdbManager.WIRELESS_STATUS_DISCONNECTED);
             intent.putExtra(AdbManager.WIRELESS_DEBUG_PORT_EXTRA, port);
             AdbDebuggingManager.sendBroadcastWithDebugPermission(mContext, intent, UserHandle.ALL);
         }
 
         private void onAdbdWifiServerConnected(int port) {
             // Send the paired devices list to the UI
-            sendPairedDevicesToUI(mAdbKeyStore.getPairedDevices());
+            sendPairedDevicesToUI(getPairedDevicesForKeys(mAdbKeyStore.getKeys()));
             sendServerConnectionState(true, port);
         }
 
@@ -1356,9 +1086,7 @@ public class AdbDebuggingManager {
             sendServerConnectionState(false, port);
         }
 
-        /**
-         * Returns the [bssid, ssid] of the current access point.
-         */
+        /** Returns the [bssid, ssid] of the current access point. */
         private AdbConnectionInfo getCurrentWifiApInfo() {
             WifiManager wifiManager = (WifiManager) mContext.getSystemService(Context.WIFI_SERVICE);
             WifiInfo wifiInfo = wifiManager.getConnectionInfo();
@@ -1411,12 +1139,12 @@ public class AdbDebuggingManager {
             if (publicKey == null) {
                 Intent intent = new Intent(AdbManager.WIRELESS_DEBUG_PAIRING_RESULT_ACTION);
                 intent.putExtra(AdbManager.WIRELESS_STATUS_EXTRA, AdbManager.WIRELESS_STATUS_FAIL);
-                AdbDebuggingManager.sendBroadcastWithDebugPermission(mContext, intent,
-                        UserHandle.ALL);
+                AdbDebuggingManager.sendBroadcastWithDebugPermission(
+                        mContext, intent, UserHandle.ALL);
             } else {
                 Intent intent = new Intent(AdbManager.WIRELESS_DEBUG_PAIRING_RESULT_ACTION);
-                intent.putExtra(AdbManager.WIRELESS_STATUS_EXTRA,
-                        AdbManager.WIRELESS_STATUS_SUCCESS);
+                intent.putExtra(
+                        AdbManager.WIRELESS_STATUS_EXTRA, AdbManager.WIRELESS_STATUS_SUCCESS);
                 String fingerprints = getFingerprints(publicKey);
                 String hostname = "nouser@nohostname";
                 String[] args = publicKey.split("\\s+");
@@ -1428,8 +1156,8 @@ public class AdbDebuggingManager {
                 device.guid = hostname;
                 device.connected = false;
                 intent.putExtra(AdbManager.WIRELESS_PAIR_DEVICE_EXTRA, device);
-                AdbDebuggingManager.sendBroadcastWithDebugPermission(mContext, intent,
-                        UserHandle.ALL);
+                AdbDebuggingManager.sendBroadcastWithDebugPermission(
+                        mContext, intent, UserHandle.ALL);
                 // Add the key into the keystore
                 mAdbKeyStore.setLastConnectionTime(publicKey, mTicker.currentTimeMillis());
                 sendPersistKeyStoreMessage();
@@ -1439,8 +1167,7 @@ public class AdbDebuggingManager {
 
         private void sendPairingPortToUI(int port) {
             Intent intent = new Intent(AdbManager.WIRELESS_DEBUG_PAIRING_RESULT_ACTION);
-            intent.putExtra(AdbManager.WIRELESS_STATUS_EXTRA,
-                    AdbManager.WIRELESS_STATUS_CONNECTED);
+            intent.putExtra(AdbManager.WIRELESS_STATUS_EXTRA, AdbManager.WIRELESS_STATUS_CONNECTED);
             intent.putExtra(AdbManager.WIRELESS_DEBUG_PORT_EXTRA, port);
             AdbDebuggingManager.sendBroadcastWithDebugPermission(mContext, intent, UserHandle.ALL);
         }
@@ -1457,13 +1184,28 @@ public class AdbDebuggingManager {
 
             Intent intent = new Intent(AdbManager.WIRELESS_DEBUG_PAIRING_RESULT_ACTION);
             intent.putExtra(AdbManager.WIRELESS_PAIRING_CODE_EXTRA, code);
-            intent.putExtra(AdbManager.WIRELESS_STATUS_EXTRA,
-                    AdbManager.WIRELESS_STATUS_PAIRING_CODE);
+            intent.putExtra(
+                    AdbManager.WIRELESS_STATUS_EXTRA, AdbManager.WIRELESS_STATUS_PAIRING_CODE);
             AdbDebuggingManager.sendBroadcastWithDebugPermission(mContext, intent, UserHandle.ALL);
         }
     }
 
-    private String getFingerprints(String key) {
+    /**
+     * Calculates and returns the MD5 fingerprint of a given key string. The key string is expected
+     * to be a Base64 encoded string, optionally followed by whitespace and other content. Only the
+     * first part (before any whitespace) is used for the fingerprint calculation.
+     *
+     * <p>The MD5 fingerprint is returned as a colon-separated hexadecimal string. For example:
+     * "A1:B2:C3:D4:E5:F6:A7:B8:C9:D0:E1:F2:A3:B4:C5:D6"
+     *
+     * @param key The key string from which to generate the fingerprint. Expected to contain a
+     *     Base64 encoded string as its first part.
+     * @return The MD5 fingerprint of the decoded Base64 key, or an empty string if the input key is
+     *     null, if the MD5 algorithm is not available, or if there's an error during Base64
+     *     decoding.
+     */
+    // TODO(b/420613813) move to AdbKey object.
+    static String getFingerprints(String key) {
         String hex = "0123456789ABCDEF";
         StringBuilder sb = new StringBuilder();
         MessageDigest digester;
@@ -1503,16 +1245,19 @@ public class AdbDebuggingManager {
         extras.add(new AbstractMap.SimpleEntry<String, String>("bssid", bssid));
         int currentUserId = ActivityManager.getCurrentUser();
         String componentString =
-                Resources.getSystem().getString(
-                        R.string.config_customAdbWifiNetworkConfirmationComponent);
+                Resources.getSystem()
+                        .getString(R.string.config_customAdbWifiNetworkConfirmationComponent);
         ComponentName componentName = ComponentName.unflattenFromString(componentString);
         UserInfo userInfo = UserManager.get(mContext).getUserInfo(currentUserId);
         if (startConfirmationActivity(componentName, userInfo.getUserHandle(), extras)
                 || startConfirmationService(componentName, userInfo.getUserHandle(), extras)) {
             return;
         }
-        Slog.e(TAG, "Unable to start customAdbWifiNetworkConfirmation[SecondaryUser]Component "
-                + componentString + " as an Activity or a Service");
+        Slog.e(
+                TAG,
+                "Unable to start customAdbWifiNetworkConfirmation[SecondaryUser]Component "
+                        + componentString
+                        + " as an Activity or a Service");
     }
 
     private void startConfirmationForKey(String key, String fingerprints) {
@@ -1523,29 +1268,40 @@ public class AdbDebuggingManager {
         UserInfo userInfo = UserManager.get(mContext).getUserInfo(currentUserId);
         String componentString;
         if (userInfo.isAdmin()) {
-            componentString = mConfirmComponent != null
-                    ? mConfirmComponent : Resources.getSystem().getString(
-                    com.android.internal.R.string.config_customAdbPublicKeyConfirmationComponent);
+            componentString =
+                    mConfirmComponent != null
+                            ? mConfirmComponent
+                            : Resources.getSystem()
+                                    .getString(
+                                            com.android.internal.R.string
+                                                    .config_customAdbPublicKeyConfirmationComponent);
         } else {
             // If the current foreground user is not the admin user we send a different
             // notification specific to secondary users.
-            componentString = Resources.getSystem().getString(
-                    R.string.config_customAdbPublicKeyConfirmationSecondaryUserComponent);
+            componentString =
+                    Resources.getSystem()
+                            .getString(
+                                    R.string
+                                            .config_customAdbPublicKeyConfirmationSecondaryUserComponent);
         }
         ComponentName componentName = ComponentName.unflattenFromString(componentString);
         if (startConfirmationActivity(componentName, userInfo.getUserHandle(), extras)
-                || startConfirmationService(componentName, userInfo.getUserHandle(),
-                        extras)) {
+                || startConfirmationService(componentName, userInfo.getUserHandle(), extras)) {
             return;
         }
-        Slog.e(TAG, "unable to start customAdbPublicKeyConfirmation[SecondaryUser]Component "
-                + componentString + " as an Activity or a Service");
+        Slog.e(
+                TAG,
+                "unable to start customAdbPublicKeyConfirmation[SecondaryUser]Component "
+                        + componentString
+                        + " as an Activity or a Service");
     }
 
     /**
      * @return true if the componentName led to an Activity that was started.
      */
-    private boolean startConfirmationActivity(ComponentName componentName, UserHandle userHandle,
+    private boolean startConfirmationActivity(
+            ComponentName componentName,
+            UserHandle userHandle,
             List<Map.Entry<String, String>> extras) {
         PackageManager packageManager = mContext.getPackageManager();
         Intent intent = createConfirmationIntent(componentName, extras);
@@ -1564,7 +1320,9 @@ public class AdbDebuggingManager {
     /**
      * @return true if the componentName led to a Service that was started.
      */
-    private boolean startConfirmationService(ComponentName componentName, UserHandle userHandle,
+    private boolean startConfirmationService(
+            ComponentName componentName,
+            UserHandle userHandle,
             List<Map.Entry<String, String>> extras) {
         Intent intent = createConfirmationIntent(componentName, extras);
         try {
@@ -1577,8 +1335,8 @@ public class AdbDebuggingManager {
         return false;
     }
 
-    private Intent createConfirmationIntent(ComponentName componentName,
-            List<Map.Entry<String, String>> extras) {
+    private Intent createConfirmationIntent(
+            ComponentName componentName, List<Map.Entry<String, String>> extras) {
         Intent intent = new Intent();
         intent.setClassName(componentName.getPackageName(), componentName.getClassName());
         for (Map.Entry<String, String> entry : extras) {
@@ -1587,9 +1345,7 @@ public class AdbDebuggingManager {
         return intent;
     }
 
-    /**
-     * Returns a new File with the specified name in the adb directory.
-     */
+    /** Returns a new File with the specified name in the adb directory. */
     private static File getAdbFile(String fileName) {
         File dataDir = Environment.getDataDirectory();
         File adbDir = new File(dataDir, ADB_DIRECTORY);
@@ -1610,55 +1366,37 @@ public class AdbDebuggingManager {
         return mUserKeyFile;
     }
 
-    private void writeKeys(Iterable<String> keys) {
-        if (mUserKeyFile == null) {
-            return;
-        }
-
-        AtomicFile atomicKeyFile = new AtomicFile(mUserKeyFile);
-        // Note: Do not use a try-with-resources with the FileOutputStream, because AtomicFile
-        // requires that it's cleaned up with AtomicFile.failWrite();
-        FileOutputStream fo = null;
-        try {
-            fo = atomicKeyFile.startWrite();
-            for (String key : keys) {
-                fo.write(key.getBytes());
-                fo.write('\n');
-            }
-            atomicKeyFile.finishWrite(fo);
-        } catch (IOException ex) {
-            Slog.e(TAG, "Error writing keys: " + ex);
-            atomicKeyFile.failWrite(fo);
-            return;
-        }
-
-        FileUtils.setPermissions(
-                mUserKeyFile.toString(),
-                FileUtils.S_IRUSR | FileUtils.S_IWUSR | FileUtils.S_IRGRP, -1, -1);
-    }
-
     /**
      * When {@code enabled} is {@code true}, this allows ADB debugging and starts the ADB handler
-     * thread. When {@code enabled} is {@code false}, this disallows ADB debugging for the given
-     * @{code transportType}. See {@link IAdbTransport} for all available transport types.
-     * If all transport types are disabled, the ADB handler thread will shut down.
+     * thread. When {@code enabled} is {@code false}, this disallows ADB debugging for the
+     * given @{code transportType}. See {@link IAdbTransport} for all available transport types. If
+     * all transport types are disabled, the ADB handler thread will shut down.
      */
     public void setAdbEnabled(boolean enabled, byte transportType) {
-        if (transportType == AdbTransportType.USB) {
-            mHandler.sendEmptyMessage(enabled ? AdbDebuggingHandler.MESSAGE_ADB_ENABLED
-                                              : AdbDebuggingHandler.MESSAGE_ADB_DISABLED);
-        } else if (transportType == AdbTransportType.WIFI) {
-            mHandler.sendEmptyMessage(enabled ? AdbDebuggingHandler.MSG_ADBDWIFI_ENABLE
-                                              : AdbDebuggingHandler.MSG_ADBDWIFI_DISABLE);
-        } else {
-            throw new IllegalArgumentException(
-                    "setAdbEnabled called with unimplemented transport type=" + transportType);
+        switch (transportType) {
+            case AdbTransportType.USB ->
+                    mHandler.sendEmptyMessage(
+                            enabled
+                                    ? AdbDebuggingHandler.MESSAGE_ADB_ENABLED
+                                    : AdbDebuggingHandler.MESSAGE_ADB_DISABLED);
+            case AdbTransportType.WIFI ->
+                    mHandler.sendEmptyMessage(
+                            enabled
+                                    ? AdbDebuggingHandler.MSG_ADBDWIFI_ENABLE
+                                    : AdbDebuggingHandler.MSG_ADBDWIFI_DISABLE);
+            case AdbTransportType.VSOCK ->
+                    throw new IllegalArgumentException(
+                            "AdbTransportType.VSOCK is not yet supported here");
+            default ->
+                    throw new IllegalArgumentException(
+                            "setAdbEnabled called with unimplemented transport type="
+                                    + transportType);
         }
     }
 
     /**
-     * Allows the debugging from the endpoint identified by {@code publicKey} either once or
-     * always if {@code alwaysAllow} is {@code true}.
+     * Allows the debugging from the endpoint identified by {@code publicKey} either once or always
+     * if {@code alwaysAllow} is {@code true}.
      */
     public void allowDebugging(boolean alwaysAllow, String publicKey) {
         Message msg = mHandler.obtainMessage(AdbDebuggingHandler.MESSAGE_ADB_ALLOW);
@@ -1667,24 +1405,22 @@ public class AdbDebuggingManager {
         mHandler.sendMessage(msg);
     }
 
-    /**
-     * Denies debugging connection from the device that last requested to connect.
-     */
+    /** Denies debugging connection from the device that last requested to connect. */
     public void denyDebugging() {
         mHandler.sendEmptyMessage(AdbDebuggingHandler.MESSAGE_ADB_DENY);
     }
 
     /**
-     * Clears all previously accepted ADB debugging public keys. Any subsequent request will need
-     * to pass through {@link #allowUsbDebugging(boolean, String)} again.
+     * Clears all previously accepted ADB debugging public keys. Any subsequent request will need to
+     * pass through {@link #allowUsbDebugging(boolean, String)} again.
      */
     public void clearDebuggingKeys() {
         mHandler.sendEmptyMessage(AdbDebuggingHandler.MESSAGE_ADB_CLEAR);
     }
 
     /**
-     * Allows wireless debugging on the network identified by {@code bssid} either once
-     * or always if {@code alwaysAllow} is {@code true}.
+     * Allows wireless debugging on the network identified by {@code bssid} either once or always if
+     * {@code alwaysAllow} is {@code true}.
      */
     public void allowWirelessDebugging(boolean alwaysAllow, String bssid) {
         Message msg = mHandler.obtainMessage(AdbDebuggingHandler.MSG_ADBWIFI_ALLOW);
@@ -1693,106 +1429,101 @@ public class AdbDebuggingManager {
         mHandler.sendMessage(msg);
     }
 
-    /**
-     * Denies wireless debugging connection on the last requested network.
-     */
+    /** Denies wireless debugging connection on the last requested network. */
     public void denyWirelessDebugging() {
         mHandler.sendEmptyMessage(AdbDebuggingHandler.MSG_ADBWIFI_DENY);
     }
 
-    /**
-     * Returns the port adbwifi is currently opened on.
-     */
+    /** Returns the port adbwifi is currently opened on. */
     public int getAdbWirelessPort() {
-        AdbConnectionInfo info = getAdbConnectionInfo();
-        if (info == null) {
-            return 0;
-        }
-        return info.getPort();
+        return mAdbConnectionInfo.getPort();
     }
 
-    /**
-     * Returns the list of paired devices.
-     */
+    /** Returns the list of paired devices. */
     public Map<String, PairDevice> getPairedDevices() {
-        AdbKeyStore keystore = new AdbKeyStore();
-        return keystore.getPairedDevices();
+        return getPairedDevicesForKeys(mHandler.mAdbKeyStore.getKeys());
     }
 
-    /**
-     * Unpair with device
-     */
+    private Map<String, PairDevice> getPairedDevicesForKeys(Set<String> keys) {
+        Map<String, PairDevice> pairedDevices = new HashMap();
+        for (String key : keys) {
+            String fingerprints = getFingerprints(key);
+            String hostname = "nouser@nohostname";
+            String[] args = key.split("\\s+");
+            if (args.length > 1) {
+                hostname = args[1];
+            }
+            PairDevice pairDevice = new PairDevice();
+            pairDevice.name = hostname;
+            pairDevice.guid = fingerprints;
+            pairDevice.connected = mWifiConnectedKeys.contains(key);
+            pairedDevices.put(key, pairDevice);
+        }
+        return pairedDevices;
+    }
+
+    /** Unpair with device */
     public void unpairDevice(String fingerprint) {
-        Message message = Message.obtain(mHandler,
-                                         AdbDebuggingHandler.MSG_REQ_UNPAIR,
-                                         fingerprint);
+        Message message = Message.obtain(mHandler, AdbDebuggingHandler.MSG_REQ_UNPAIR, fingerprint);
         mHandler.sendMessage(message);
     }
 
-    /**
-     * Enable pairing by pairing code
-     */
+    /** Enable pairing by pairing code */
     public void enablePairingByPairingCode() {
         mHandler.sendEmptyMessage(AdbDebuggingHandler.MSG_PAIR_PAIRING_CODE);
     }
 
-    /**
-     * Enable pairing by pairing code
-     */
+    /** Enable pairing by pairing code */
     public void enablePairingByQrCode(String serviceName, String password) {
         Bundle bundle = new Bundle();
         bundle.putString("serviceName", serviceName);
         bundle.putString("password", password);
-        Message message = Message.obtain(mHandler,
-                                         AdbDebuggingHandler.MSG_PAIR_QR_CODE,
-                                         bundle);
+        Message message = Message.obtain(mHandler, AdbDebuggingHandler.MSG_PAIR_QR_CODE, bundle);
         mHandler.sendMessage(message);
     }
 
-    /**
-     * Disables pairing
-     */
+    /** Disables pairing */
     public void disablePairing() {
         mHandler.sendEmptyMessage(AdbDebuggingHandler.MSG_PAIRING_CANCEL);
     }
 
-    /**
-     * Status enabled/disabled check
-     */
+    /** Status enabled/disabled check */
     public boolean isAdbWifiEnabled() {
         return mAdbWifiEnabled;
     }
 
-    /**
-     * Notify that they key files were updated so the AdbKeyManager reloads the keys.
-     */
+    /** Notify that they key files were updated so the AdbKeyManager reloads the keys. */
     public void notifyKeyFilesUpdated() {
         mHandler.sendEmptyMessage(AdbDebuggingHandler.MESSAGE_KEY_FILES_UPDATED);
     }
 
-    /**
-     * Sends a message to the handler to persist the keystore.
-     */
+    /** Sends a message to the handler to persist the keystore. */
     private void sendPersistKeyStoreMessage() {
         Message msg = mHandler.obtainMessage(AdbDebuggingHandler.MESSAGE_ADB_PERSIST_KEYSTORE);
         mHandler.sendMessage(msg);
     }
 
-    /**
-     * Dump the USB debugging state.
-     */
+    /** Dump the USB debugging state. */
     public void dump(DualDumpOutputStream dump, String idName, long id) {
         long token = dump.start(idName, id);
 
-        dump.write("connected_to_adb", AdbDebuggingManagerProto.CONNECTED_TO_ADB, mThread != null);
-        writeStringIfNotNull(dump, "last_key_received", AdbDebuggingManagerProto.LAST_KEY_RECEVIED,
+        dump.write(
+                "connected_to_adb",
+                AdbDebuggingManagerProto.CONNECTED_TO_ADB,
+                mHandler.mThread.isConnected());
+        writeStringIfNotNull(
+                dump,
+                "last_key_received",
+                AdbDebuggingManagerProto.LAST_KEY_RECEVIED,
                 mFingerprints);
 
         try {
             File userKeys = new File("/data/misc/adb/adb_keys");
             if (userKeys.exists()) {
-                dump.write("user_keys", AdbDebuggingManagerProto.USER_KEYS,
-                           FileUtils.readTextFile(userKeys, 0, null));
+                dump.write(
+                        "user_keys",
+                        AdbDebuggingManagerProto.USER_KEYS,
+                        FileUtils.readTextFile(userKeys, 0, null));
             } else {
                 Slog.i(TAG, "No user keys on this device");
             }
@@ -1801,14 +1532,18 @@ public class AdbDebuggingManager {
         }
 
         try {
-            dump.write("system_keys", AdbDebuggingManagerProto.SYSTEM_KEYS,
+            dump.write(
+                    "system_keys",
+                    AdbDebuggingManagerProto.SYSTEM_KEYS,
                     FileUtils.readTextFile(new File("/adb_keys"), 0, null));
         } catch (IOException e) {
             Slog.i(TAG, "Cannot read system keys", e);
         }
 
         try {
-            dump.write("keystore", AdbDebuggingManagerProto.KEYSTORE,
+            dump.write(
+                    "keystore",
+                    AdbDebuggingManagerProto.KEYSTORE,
                     FileUtils.readTextFile(mTempKeysFile, 0, null));
         } catch (IOException e) {
             Slog.i(TAG, "Cannot read keystore: ", e);
@@ -1818,448 +1553,10 @@ public class AdbDebuggingManager {
     }
 
     /**
-     * Handles adb keys for which the user has granted the 'always allow' option. This class ensures
-     * these grants are revoked after a period of inactivity as specified in the
-     * ADB_ALLOWED_CONNECTION_TIME setting.
-     */
-    class AdbKeyStore {
-        private AtomicFile mAtomicKeyFile;
-
-        private final Set<String> mSystemKeys;
-        private final Map<String, Long> mKeyMap = new HashMap<>();
-        private final List<String> mTrustedNetworks = new ArrayList<>();
-
-        private static final int KEYSTORE_VERSION = 1;
-        private static final int MAX_SUPPORTED_KEYSTORE_VERSION = 1;
-        private static final String XML_KEYSTORE_START_TAG = "keyStore";
-        private static final String XML_ATTRIBUTE_VERSION = "version";
-        private static final String XML_TAG_ADB_KEY = "adbKey";
-        private static final String XML_ATTRIBUTE_KEY = "key";
-        private static final String XML_ATTRIBUTE_LAST_CONNECTION = "lastConnection";
-        // A list of trusted networks a device can always wirelessly debug on (always allow).
-        // TODO: Move trusted networks list into a different file?
-        private static final String XML_TAG_WIFI_ACCESS_POINT = "wifiAP";
-        private static final String XML_ATTRIBUTE_WIFI_BSSID = "bssid";
-
-        private static final String SYSTEM_KEY_FILE = "/adb_keys";
-
-        /**
-         * Value returned by {@code getLastConnectionTime} when there is no previously saved
-         * connection time for the specified key.
-         */
-        public static final long NO_PREVIOUS_CONNECTION = 0;
-
-        /**
-         * Create an AdbKeyStore instance.
-         *
-         * <p>Upon creation, we parse {@link #mTempKeysFile} to determine authorized WiFi APs and
-         * retrieve the map of stored ADB keys and their last connected times. After that, we read
-         * the {@link #mUserKeyFile}, and any keys that exist in that file that do not exist in the
-         * map are added to the map (for backwards compatibility).
-         */
-        AdbKeyStore() {
-            initKeyFile();
-            readTempKeysFile();
-            mSystemKeys = getSystemKeysFromFile(SYSTEM_KEY_FILE);
-            addExistingUserKeysToKeyStore();
-        }
-
-        public void reloadKeyMap() {
-            readTempKeysFile();
-        }
-
-        public void addTrustedNetwork(String bssid) {
-            mTrustedNetworks.add(bssid);
-            sendPersistKeyStoreMessage();
-        }
-
-        public Map<String, PairDevice> getPairedDevices() {
-            Map<String, PairDevice> pairedDevices = new HashMap<String, PairDevice>();
-            for (Map.Entry<String, Long> keyEntry : mKeyMap.entrySet()) {
-                String fingerprints = getFingerprints(keyEntry.getKey());
-                String hostname = "nouser@nohostname";
-                String[] args = keyEntry.getKey().split("\\s+");
-                if (args.length > 1) {
-                    hostname = args[1];
-                }
-                PairDevice pairDevice = new PairDevice();
-                pairDevice.name = hostname;
-                pairDevice.guid = fingerprints;
-                pairDevice.connected = mWifiConnectedKeys.contains(keyEntry.getKey());
-                pairedDevices.put(keyEntry.getKey(), pairDevice);
-            }
-            return pairedDevices;
-        }
-
-        public String findKeyFromFingerprint(String fingerprint) {
-            for (Map.Entry<String, Long> entry : mKeyMap.entrySet()) {
-                String f = getFingerprints(entry.getKey());
-                if (fingerprint.equals(f)) {
-                    return entry.getKey();
-                }
-            }
-            return null;
-        }
-
-        public void removeKey(String key) {
-            if (mKeyMap.containsKey(key)) {
-                mKeyMap.remove(key);
-                sendPersistKeyStoreMessage();
-            }
-        }
-
-        /**
-         * Initializes the key file that will be used to persist the adb grants.
-         */
-        private void initKeyFile() {
-            // mTempKeysFile can be null if the adb file cannot be obtained
-            if (mTempKeysFile != null) {
-                mAtomicKeyFile = new AtomicFile(mTempKeysFile);
-            }
-        }
-
-        private Set<String> getSystemKeysFromFile(String fileName) {
-            Set<String> systemKeys = new HashSet<>();
-            File systemKeyFile = new File(fileName);
-            if (systemKeyFile.exists()) {
-                try (BufferedReader in = new BufferedReader(new FileReader(systemKeyFile))) {
-                    String key;
-                    while ((key = in.readLine()) != null) {
-                        key = key.trim();
-                        if (key.length() > 0) {
-                            systemKeys.add(key);
-                        }
-                    }
-                } catch (IOException e) {
-                    Slog.e(TAG, "Caught an exception reading " + fileName + ": " + e);
-                }
-            }
-            return systemKeys;
-        }
-
-        /**
-         * Returns whether there are any 'always allowed' keys in the keystore.
-         */
-        public boolean isEmpty() {
-            return mKeyMap.isEmpty();
-        }
-
-        /**
-         * Iterates through the keys in the keystore and removes any that are beyond the window
-         * within which connections are automatically allowed without user interaction.
-         */
-        public void updateKeyStore() {
-            if (filterOutOldKeys()) {
-                sendPersistKeyStoreMessage();
-            }
-        }
-
-        /**
-         * Update the key map and the trusted networks list with values parsed from the temp keys
-         * file.
-         */
-        private void readTempKeysFile() {
-            mKeyMap.clear();
-            mTrustedNetworks.clear();
-            if (mAtomicKeyFile == null) {
-                initKeyFile();
-                if (mAtomicKeyFile == null) {
-                    Slog.e(
-                            TAG,
-                            "Unable to obtain the key file, " + mTempKeysFile + ", for reading");
-                    return;
-                }
-            }
-            if (!mAtomicKeyFile.exists()) {
-                return;
-            }
-            try (FileInputStream keyStream = mAtomicKeyFile.openRead()) {
-                TypedXmlPullParser parser;
-                try {
-                    parser = Xml.resolvePullParser(keyStream);
-                    XmlUtils.beginDocument(parser, XML_KEYSTORE_START_TAG);
-
-                    int keystoreVersion = parser.getAttributeInt(null, XML_ATTRIBUTE_VERSION);
-                    if (keystoreVersion > MAX_SUPPORTED_KEYSTORE_VERSION) {
-                        Slog.e(TAG, "Keystore version=" + keystoreVersion
-                                + " not supported (max_supported="
-                                + MAX_SUPPORTED_KEYSTORE_VERSION + ")");
-                        return;
-                    }
-                } catch (XmlPullParserException e) {
-                    // This could be because the XML document doesn't start with
-                    // XML_KEYSTORE_START_TAG. Try again, instead just starting the document with
-                    // the adbKey tag (the old format).
-                    parser = Xml.resolvePullParser(keyStream);
-                }
-                readKeyStoreContents(parser);
-            } catch (IOException e) {
-                Slog.e(TAG, "Caught an IOException parsing the XML key file: ", e);
-            } catch (XmlPullParserException e) {
-                Slog.e(TAG, "Caught XmlPullParserException parsing the XML key file: ", e);
-            }
-        }
-
-        private void readKeyStoreContents(TypedXmlPullParser parser)
-                throws XmlPullParserException, IOException {
-            // This parser is very forgiving. For backwards-compatibility, we simply iterate through
-            // all the tags in the file, skipping over anything that's not an <adbKey> tag or a
-            // <wifiAP> tag. Invalid tags (such as ones that don't have a valid "lastConnection"
-            // attribute) are simply ignored.
-            while ((parser.next()) != XmlPullParser.END_DOCUMENT) {
-                String tagName = parser.getName();
-                if (XML_TAG_ADB_KEY.equals(tagName)) {
-                    addAdbKeyToKeyMap(parser);
-                } else if (XML_TAG_WIFI_ACCESS_POINT.equals(tagName)) {
-                    addTrustedNetworkToTrustedNetworks(parser);
-                } else {
-                    Slog.w(TAG, "Ignoring tag '" + tagName + "'. Not recognized.");
-                }
-                XmlUtils.skipCurrentTag(parser);
-            }
-        }
-
-        private void addAdbKeyToKeyMap(TypedXmlPullParser parser) {
-            String key = parser.getAttributeValue(null, XML_ATTRIBUTE_KEY);
-            try {
-                long connectionTime =
-                        parser.getAttributeLong(null, XML_ATTRIBUTE_LAST_CONNECTION);
-                mKeyMap.put(key, connectionTime);
-            } catch (XmlPullParserException e) {
-                Slog.e(TAG, "Error reading adbKey attributes", e);
-            }
-        }
-
-        private void addTrustedNetworkToTrustedNetworks(TypedXmlPullParser parser) {
-            String bssid = parser.getAttributeValue(null, XML_ATTRIBUTE_WIFI_BSSID);
-            mTrustedNetworks.add(bssid);
-        }
-
-        /**
-         * Updates the keystore with keys that were previously set to be always allowed before the
-         * connection time of keys was tracked.
-         */
-        private void addExistingUserKeysToKeyStore() {
-            if (mUserKeyFile == null || !mUserKeyFile.exists()) {
-                return;
-            }
-            boolean mapUpdated = false;
-            try (BufferedReader in = new BufferedReader(new FileReader(mUserKeyFile))) {
-                String key;
-                while ((key = in.readLine()) != null) {
-                    // if the keystore does not contain the key from the user key file then add
-                    // it to the Map with the current system time to prevent it from expiring
-                    // immediately if the user is actively using this key.
-                    if (!mKeyMap.containsKey(key)) {
-                        mKeyMap.put(key, mTicker.currentTimeMillis());
-                        mapUpdated = true;
-                    }
-                }
-            } catch (IOException e) {
-                Slog.e(TAG, "Caught an exception reading " + mUserKeyFile + ": " + e);
-            }
-            if (mapUpdated) {
-                sendPersistKeyStoreMessage();
-            }
-        }
-
-        /**
-         * Writes the key map to the key file.
-         */
-        public void persistKeyStore() {
-            // if there is nothing in the key map then ensure any keys left in the keystore files
-            // are deleted as well.
-            filterOutOldKeys();
-            if (mKeyMap.isEmpty() && mTrustedNetworks.isEmpty()) {
-                deleteKeyStore();
-                return;
-            }
-            if (mAtomicKeyFile == null) {
-                initKeyFile();
-                if (mAtomicKeyFile == null) {
-                    Slog.e(
-                            TAG,
-                            "Unable to obtain the key file, " + mTempKeysFile + ", for writing");
-                    return;
-                }
-            }
-            FileOutputStream keyStream = null;
-            try {
-                keyStream = mAtomicKeyFile.startWrite();
-                TypedXmlSerializer serializer = Xml.resolveSerializer(keyStream);
-                serializer.startDocument(null, true);
-
-                serializer.startTag(null, XML_KEYSTORE_START_TAG);
-                serializer.attributeInt(null, XML_ATTRIBUTE_VERSION, KEYSTORE_VERSION);
-                for (Map.Entry<String, Long> keyEntry : mKeyMap.entrySet()) {
-                    serializer.startTag(null, XML_TAG_ADB_KEY);
-                    serializer.attribute(null, XML_ATTRIBUTE_KEY, keyEntry.getKey());
-                    serializer.attributeLong(null, XML_ATTRIBUTE_LAST_CONNECTION,
-                            keyEntry.getValue());
-                    serializer.endTag(null, XML_TAG_ADB_KEY);
-                }
-                for (String bssid : mTrustedNetworks) {
-                    serializer.startTag(null, XML_TAG_WIFI_ACCESS_POINT);
-                    serializer.attribute(null, XML_ATTRIBUTE_WIFI_BSSID, bssid);
-                    serializer.endTag(null, XML_TAG_WIFI_ACCESS_POINT);
-                }
-                serializer.endTag(null, XML_KEYSTORE_START_TAG);
-                serializer.endDocument();
-                mAtomicKeyFile.finishWrite(keyStream);
-            } catch (IOException e) {
-                Slog.e(TAG, "Caught an exception writing the key map: ", e);
-                mAtomicKeyFile.failWrite(keyStream);
-            }
-            writeKeys(mKeyMap.keySet());
-        }
-
-        private boolean filterOutOldKeys() {
-            long allowedTime = getAllowedConnectionTime();
-            if (allowedTime == 0) {
-                return false;
-            }
-            boolean keysDeleted = false;
-            long systemTime = mTicker.currentTimeMillis();
-            Iterator<Map.Entry<String, Long>> keyMapIterator = mKeyMap.entrySet().iterator();
-            while (keyMapIterator.hasNext()) {
-                Map.Entry<String, Long> keyEntry = keyMapIterator.next();
-                long connectionTime = keyEntry.getValue();
-                if (systemTime > (connectionTime + allowedTime)) {
-                    keyMapIterator.remove();
-                    keysDeleted = true;
-                }
-            }
-            // if any keys were deleted then the key file should be rewritten with the active keys
-            // to prevent authorizing a key that is now beyond the allowed window.
-            if (keysDeleted) {
-                writeKeys(mKeyMap.keySet());
-            }
-            return keysDeleted;
-        }
-
-        /**
-         * Returns the time in ms that the next key will expire or -1 if there are no keys or the
-         * keys will not expire.
-         */
-        public long getNextExpirationTime() {
-            long minExpiration = -1;
-            long allowedTime = getAllowedConnectionTime();
-            // if the allowedTime is 0 then keys never expire; return -1 to indicate this
-            if (allowedTime == 0) {
-                return minExpiration;
-            }
-            long systemTime = mTicker.currentTimeMillis();
-            Iterator<Map.Entry<String, Long>> keyMapIterator = mKeyMap.entrySet().iterator();
-            while (keyMapIterator.hasNext()) {
-                Map.Entry<String, Long> keyEntry = keyMapIterator.next();
-                long connectionTime = keyEntry.getValue();
-                // if the key has already expired then ensure that the result is set to 0 so that
-                // any scheduled jobs to clean up the keystore can run right away.
-                long keyExpiration = Math.max(0, (connectionTime + allowedTime) - systemTime);
-                if (minExpiration == -1 || keyExpiration < minExpiration) {
-                    minExpiration = keyExpiration;
-                }
-            }
-            return minExpiration;
-        }
-
-        /**
-         * Removes all of the entries in the key map and deletes the key file.
-         */
-        public void deleteKeyStore() {
-            mKeyMap.clear();
-            mTrustedNetworks.clear();
-            if (mUserKeyFile != null) {
-                mUserKeyFile.delete();
-            }
-            if (mAtomicKeyFile == null) {
-                return;
-            }
-            mAtomicKeyFile.delete();
-        }
-
-        /**
-         * Returns the time of the last connection from the specified key, or {@code
-         * NO_PREVIOUS_CONNECTION} if the specified key does not have an active adb grant.
-         */
-        public long getLastConnectionTime(String key) {
-            return mKeyMap.getOrDefault(key, NO_PREVIOUS_CONNECTION);
-        }
-
-        /**
-         * Sets the time of the last connection for the specified key to the provided time.
-         */
-        public void setLastConnectionTime(String key, long connectionTime) {
-            setLastConnectionTime(key, connectionTime, false);
-        }
-
-        /**
-         * Sets the time of the last connection for the specified key to the provided time. If force
-         * is set to true the time will be set even if it is older than the previously written
-         * connection time.
-         */
-        @VisibleForTesting
-        void setLastConnectionTime(String key, long connectionTime, boolean force) {
-            // Do not set the connection time to a value that is earlier than what was previously
-            // stored as the last connection time unless force is set.
-            if (mKeyMap.containsKey(key) && mKeyMap.get(key) >= connectionTime && !force) {
-                return;
-            }
-            // System keys are always allowed so there's no need to keep track of their connection
-            // time.
-            if (mSystemKeys.contains(key)) {
-                return;
-            }
-            mKeyMap.put(key, connectionTime);
-        }
-
-        /**
-         * Returns the connection time within which a connection from an allowed key is
-         * automatically allowed without user interaction.
-         */
-        public long getAllowedConnectionTime() {
-            return Settings.Global.getLong(mContext.getContentResolver(),
-                    Settings.Global.ADB_ALLOWED_CONNECTION_TIME,
-                    Settings.Global.DEFAULT_ADB_ALLOWED_CONNECTION_TIME);
-        }
-
-        /**
-         * Returns whether the specified key should be authroized to connect without user
-         * interaction. This requires that the user previously connected this device and selected
-         * the option to 'Always allow', and the time since the last connection is within the
-         * allowed window.
-         */
-        public boolean isKeyAuthorized(String key) {
-            // A system key is always authorized to connect.
-            if (mSystemKeys.contains(key)) {
-                return true;
-            }
-            long lastConnectionTime = getLastConnectionTime(key);
-            if (lastConnectionTime == NO_PREVIOUS_CONNECTION) {
-                return false;
-            }
-            long allowedConnectionTime = getAllowedConnectionTime();
-            // if the allowed connection time is 0 then revert to the previous behavior of always
-            // allowing previously granted adb grants.
-            return allowedConnectionTime == 0
-                    || (mTicker.currentTimeMillis() < (lastConnectionTime + allowedConnectionTime));
-        }
-
-        /**
-         * Returns whether the specified bssid is in the list of trusted networks. This requires
-         * that the user previously allowed wireless debugging on this network and selected the
-         * option to 'Always allow'.
-         */
-        public boolean isTrustedNetwork(String bssid) {
-            return mTrustedNetworks.contains(bssid);
-        }
-    }
-
-    /**
      * A Guava-like interface for getting the current system time.
      *
-     * This allows us to swap a fake ticker in for testing to reduce "Thread.sleep()" calls and test
-     * for exact expected times instead of random ones.
+     * <p>This allows us to swap a fake ticker in for testing to reduce "Thread.sleep()" calls and
+     * test for exact expected times instead of random ones.
      */
     @VisibleForTesting
     interface Ticker {

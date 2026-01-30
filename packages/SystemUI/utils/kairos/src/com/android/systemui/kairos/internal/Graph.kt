@@ -16,8 +16,14 @@
 
 package com.android.systemui.kairos.internal
 
+import androidx.collection.MutableScatterSet
+import androidx.collection.ScatterSet
+import androidx.collection.mutableScatterSetOf
 import com.android.systemui.kairos.internal.util.Bag
+import com.android.systemui.kairos.internal.util.fastForEach
 import java.util.TreeMap
+
+internal val InputTracker = DepthTracker().apply { snapshotIsDirect = true }
 
 /**
  * Tracks all upstream connections for Mux nodes.
@@ -61,28 +67,30 @@ import java.util.TreeMap
  */
 internal class DepthTracker {
 
-    @Volatile var snapshotIsDirect = true
-    @Volatile private var snapshotIsIndirectRoot = false
+    var snapshotIsDirect = false
+    private var snapshotIsIndirectRoot = false
 
-    private inline val snapshotIsIndirect: Boolean
-        get() = !snapshotIsDirect
+    var snapshotIndirectDepth: Int = 0
+    var snapshotDirectDepth: Int = 0
 
-    @Volatile var snapshotIndirectDepth: Int = 0
-    @Volatile var snapshotDirectDepth: Int = 0
+    private val _snapshotIndirectRoots = MutableScatterSet<MuxDeferredNode<*, *, *>>()
 
-    private val _snapshotIndirectRoots = HashSet<MuxDeferredNode<*, *, *>>()
-    val snapshotIndirectRoots
-        get() = _snapshotIndirectRoots.toSet()
+    val snapshotIndirectRoots: ScatterSet<MuxDeferredNode<*, *, *>>
+        get() = _snapshotIndirectRoots.toScatterSet()
 
-    private val indirectAdditions = HashSet<MuxDeferredNode<*, *, *>>()
-    private val indirectRemovals = HashSet<MuxDeferredNode<*, *, *>>()
+    private val indirectAdditions = MutableScatterSet<MuxDeferredNode<*, *, *>>()
+    private val indirectRemovals = MutableScatterSet<MuxDeferredNode<*, *, *>>()
+
+    private inline val trackIndirectRootDiffs
+        get() = !snapshotIsDirect // && !snapshotIsIndirectRoot
+
     private val dirty_directUpstreamDepths = TreeMap<Int, Int>()
     private val dirty_indirectUpstreamDepths = TreeMap<Int, Int>()
     private val dirty_indirectUpstreamRoots = Bag<MuxDeferredNode<*, *, *>>()
-    @Volatile var dirty_directDepth = 0
-    @Volatile private var dirty_indirectDepth = 0
-    @Volatile private var dirty_depthIsDirect = true
-    @Volatile private var dirty_isIndirectRoot = false
+    var dirty_directDepth = 0
+    private var dirty_indirectDepth = 0
+    private var dirty_depthIsDirect = false
+    private var dirty_isIndirectRoot = false
 
     fun schedule(scheduler: Scheduler, node: MuxNode<*, *, *>) {
         if (dirty_depthIsDirect) {
@@ -159,31 +167,38 @@ internal class DepthTracker {
     }
 
     fun updateIndirectRoots(
-        additions: Set<MuxDeferredNode<*, *, *>>? = null,
-        removals: Set<MuxDeferredNode<*, *, *>>? = null,
+        additions: ScatterSet<MuxDeferredNode<*, *, *>>? = null,
+        removals: ScatterSet<MuxDeferredNode<*, *, *>>? = null,
         butNot: MuxDeferredNode<*, *, *>? = null,
     ): Boolean {
         val addsChanged =
             additions
                 ?.let { dirty_indirectUpstreamRoots.addAll(additions, butNot) }
-                ?.let {
-                    indirectAdditions.addAll(indirectRemovals.applyRemovalDiff(it))
+                ?.let { newlyAdded ->
+                    if (trackIndirectRootDiffs) {
+                        val remainder = indirectRemovals.applyRemovalDiff(newlyAdded)
+                        indirectAdditions.addAll(remainder)
+                    }
                     true
                 } ?: false
         val removalsChanged =
             removals
                 ?.let { dirty_indirectUpstreamRoots.removeAll(removals) }
-                ?.let {
-                    indirectRemovals.addAll(indirectAdditions.applyRemovalDiff(it))
+                ?.let { fullyRemoved ->
+                    if (trackIndirectRootDiffs) {
+                        val remainder = indirectAdditions.applyRemovalDiff(fullyRemoved)
+                        indirectRemovals.addAll(remainder)
+                    }
                     true
                 } ?: false
         return (!dirty_depthIsDirect && (addsChanged || removalsChanged))
     }
 
-    private fun <T> HashSet<T>.applyRemovalDiff(changeSet: Set<T>): Set<T> {
-        val remainder = HashSet<T>()
-        for (element in changeSet) {
-            if (!add(element)) {
+    private fun <T> MutableScatterSet<T>.applyRemovalDiff(changeSet: ScatterSet<T>): ScatterSet<T> {
+        if (isEmpty()) return changeSet
+        val remainder = mutableScatterSetOf<T>()
+        changeSet.forEach { element ->
+            if (!remove(element)) {
                 remainder.add(element)
             }
         }
@@ -196,30 +211,32 @@ internal class DepthTracker {
         }
     }
 
-    fun applyChanges(
-        scheduler: Scheduler,
-        downstreamSet: DownstreamSet,
-        muxNode: MuxNode<*, *, *>,
-    ) {
+    private fun <T> buildScatterSet(block: MutableScatterSet<T>.() -> Unit): ScatterSet<T> =
+        mutableScatterSetOf<T>().apply(block)
+
+    private fun <T> ScatterSet<T>.toScatterSet(): ScatterSet<T> = buildScatterSet {
+        addAll(this@toScatterSet)
+    }
+
+    fun applyChanges(scheduler: Scheduler, downstreamSet: DownstreamSet, owner: MuxNode<*, *, *>) {
         when {
             dirty_depthIsDirect -> {
                 if (snapshotIsDirect) {
+                    val oldDepth = snapshotDirectDepth
+                    reset(owner as? MuxDeferredNode<*, *, *>)
                     downstreamSet.adjustDirectUpstream(
                         scheduler,
-                        oldDepth = snapshotDirectDepth,
+                        oldDepth = oldDepth,
                         newDepth = dirty_directDepth,
                     )
                 } else {
+                    val oldIndirectDepth = snapshotIndirectDepth
+                    val oldIndirectSet = snapshotIndirectRoots
+                    reset(owner as? MuxDeferredNode<*, *, *>)
                     downstreamSet.moveIndirectUpstreamToDirect(
                         scheduler,
-                        oldIndirectDepth = snapshotIndirectDepth,
-                        oldIndirectSet =
-                            buildSet {
-                                addAll(snapshotIndirectRoots)
-                                if (snapshotIsIndirectRoot) {
-                                    add(muxNode as MuxDeferredNode<*, *, *>)
-                                }
-                            },
+                        oldIndirectDepth = oldIndirectDepth,
+                        oldIndirectSet = oldIndirectSet,
                         newDirectDepth = dirty_directDepth,
                     )
                 }
@@ -227,44 +244,49 @@ internal class DepthTracker {
 
             dirty_hasIndirectUpstream() || dirty_isIndirectRoot -> {
                 if (snapshotIsDirect) {
+                    val oldDirectDepth = snapshotDirectDepth
+                    val newIndirectSet = buildScatterSet {
+                        dirty_indirectUpstreamRoots.addAllKeysTo(this)
+                        if (dirty_isIndirectRoot) {
+                            add(owner as MuxDeferredNode<*, *, *>)
+                        }
+                    }
+                    reset(owner as? MuxDeferredNode<*, *, *>)
                     downstreamSet.moveDirectUpstreamToIndirect(
                         scheduler,
-                        oldDirectDepth = snapshotDirectDepth,
+                        oldDirectDepth = oldDirectDepth,
                         newIndirectDepth = dirty_indirectDepth,
-                        newIndirectSet =
-                            buildSet {
-                                addAll(dirty_indirectUpstreamRoots)
-                                if (dirty_isIndirectRoot) {
-                                    add(muxNode as MuxDeferredNode<*, *, *>)
-                                }
-                            },
+                        newIndirectSet = newIndirectSet,
                     )
                 } else {
+                    val oldDepth = snapshotIndirectDepth
+                    val wasIndirectRoot = snapshotIsIndirectRoot
+                    val removals = buildScatterSet {
+                        addAll(indirectRemovals)
+                        if (wasIndirectRoot && !dirty_isIndirectRoot) {
+                            add(owner as MuxDeferredNode<*, *, *>)
+                        }
+                    }
+                    val additions = buildScatterSet {
+                        addAll(indirectAdditions)
+                        if (!wasIndirectRoot && dirty_isIndirectRoot) {
+                            add(owner as MuxDeferredNode<*, *, *>)
+                        }
+                    }
+                    reset(owner as? MuxDeferredNode<*, *, *>)
                     downstreamSet.adjustIndirectUpstream(
                         scheduler,
-                        oldDepth = snapshotIndirectDepth,
+                        oldDepth = oldDepth,
                         newDepth = dirty_indirectDepth,
-                        removals =
-                            buildSet {
-                                addAll(indirectRemovals)
-                                if (snapshotIsIndirectRoot && !dirty_isIndirectRoot) {
-                                    add(muxNode as MuxDeferredNode<*, *, *>)
-                                }
-                            },
-                        additions =
-                            buildSet {
-                                addAll(indirectAdditions)
-                                if (!snapshotIsIndirectRoot && dirty_isIndirectRoot) {
-                                    add(muxNode as MuxDeferredNode<*, *, *>)
-                                }
-                            },
+                        removals = removals,
+                        additions = additions,
                     )
                 }
             }
 
             else -> {
                 // die
-                muxNode.lifecycle.lifecycleState = MuxLifecycleState.Dead
+                owner.lifecycle.lifecycleState = MuxLifecycleState.Dead
 
                 if (snapshotIsDirect) {
                     downstreamSet.removeDirectUpstream(scheduler, depth = snapshotDirectDepth)
@@ -272,21 +294,14 @@ internal class DepthTracker {
                     downstreamSet.removeIndirectUpstream(
                         scheduler,
                         depth = snapshotIndirectDepth,
-                        indirectSet =
-                            buildSet {
-                                addAll(snapshotIndirectRoots)
-                                if (snapshotIsIndirectRoot) {
-                                    add(muxNode as MuxDeferredNode<*, *, *>)
-                                }
-                            },
+                        indirectSet = snapshotIndirectRoots,
                     )
                 }
             }
         }
-        reset()
     }
 
-    fun dirty_hasDirectUpstream(): Boolean = dirty_directUpstreamDepths.isNotEmpty()
+    fun dirty_hasDirectUpstream(): Boolean = dirty_depthIsDirect
 
     private fun dirty_hasIndirectUpstream(): Boolean = dirty_indirectUpstreamRoots.isNotEmpty()
 
@@ -302,34 +317,39 @@ internal class DepthTracker {
             "dIndirectRoots=$dirty_indirectUpstreamRoots" +
             ")"
 
-    fun reset() {
-        snapshotIsDirect = dirty_hasDirectUpstream()
+    fun reset(owner: MuxDeferredNode<*, *, *>?) {
+        snapshotIsDirect = dirty_depthIsDirect
         snapshotDirectDepth = dirty_directDepth
         snapshotIndirectDepth = dirty_indirectDepth
-        snapshotIsIndirectRoot = dirty_isIndirectRoot
-        if (indirectAdditions.isNotEmpty() || indirectRemovals.isNotEmpty()) {
+        if (
+            indirectAdditions.isNotEmpty() ||
+                indirectRemovals.isNotEmpty() ||
+                snapshotIsIndirectRoot != dirty_isIndirectRoot
+        ) {
             _snapshotIndirectRoots.clear()
-            _snapshotIndirectRoots.addAll(dirty_indirectUpstreamRoots)
+            dirty_indirectUpstreamRoots.addAllKeysTo(_snapshotIndirectRoots)
+            if (dirty_isIndirectRoot) {
+                _snapshotIndirectRoots.add(owner!!)
+            }
         }
+        snapshotIsIndirectRoot = dirty_isIndirectRoot
         indirectAdditions.clear()
         indirectRemovals.clear()
-        //        check(!isDirty()) { "should not be dirty after a reset" }
     }
 
     fun isDirty(): Boolean =
         when {
             snapshotIsDirect -> !dirty_depthIsDirect || snapshotDirectDepth != dirty_directDepth
-            snapshotIsIndirectRoot -> dirty_depthIsDirect || !dirty_isIndirectRoot
             else ->
                 dirty_depthIsDirect ||
-                    dirty_isIndirectRoot ||
+                    snapshotIsIndirectRoot != dirty_isIndirectRoot ||
                     snapshotIndirectDepth != dirty_indirectDepth ||
                     indirectAdditions.isNotEmpty() ||
                     indirectRemovals.isNotEmpty()
         }
 
     fun dirty_depthIncreased(): Boolean =
-        snapshotDirectDepth < dirty_directDepth || snapshotIsIndirect && dirty_hasDirectUpstream()
+        snapshotDirectDepth < dirty_directDepth || !snapshotIsDirect && dirty_depthIsDirect
 }
 
 /**
@@ -338,10 +358,10 @@ internal class DepthTracker {
  */
 internal class DownstreamSet {
 
-    val outputs = HashSet<Output<*>>()
-    val stateWriters = mutableListOf<StateSource<*>>()
-    val muxMovers = HashSet<MuxDeferredNode<*, *, *>>()
-    val nodes = HashSet<SchedulableNode>()
+    val outputs = MutableScatterSet<Output<*>>(initialCapacity = 0)
+    val stateWriters = ArrayList<StateSource<*>>(/* initialCapacity= */ 0)
+    val muxMovers = MutableScatterSet<MuxDeferredNode<*, *, *>>(initialCapacity = 0)
+    val nodes = MutableScatterSet<SchedulableNode>(initialCapacity = 0)
 
     fun add(schedulable: Schedulable) {
         when (schedulable) {
@@ -362,18 +382,16 @@ internal class DownstreamSet {
     }
 
     fun adjustDirectUpstream(scheduler: Scheduler, oldDepth: Int, newDepth: Int) {
-        for (node in nodes) {
-            node.adjustDirectUpstream(scheduler, oldDepth, newDepth)
-        }
+        nodes.forEach { node -> node.adjustDirectUpstream(scheduler, oldDepth, newDepth) }
     }
 
     fun moveIndirectUpstreamToDirect(
         scheduler: Scheduler,
         oldIndirectDepth: Int,
-        oldIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+        oldIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
         newDirectDepth: Int,
     ) {
-        for (node in nodes) {
+        nodes.forEach { node ->
             node.moveIndirectUpstreamToDirect(
                 scheduler,
                 oldIndirectDepth,
@@ -381,7 +399,7 @@ internal class DownstreamSet {
                 newDirectDepth,
             )
         }
-        for (mover in muxMovers) {
+        muxMovers.forEach { mover ->
             mover.moveIndirectPatchNodeToDirect(scheduler, oldIndirectDepth, oldIndirectSet)
         }
     }
@@ -390,13 +408,13 @@ internal class DownstreamSet {
         scheduler: Scheduler,
         oldDepth: Int,
         newDepth: Int,
-        removals: Set<MuxDeferredNode<*, *, *>>,
-        additions: Set<MuxDeferredNode<*, *, *>>,
+        removals: ScatterSet<MuxDeferredNode<*, *, *>>,
+        additions: ScatterSet<MuxDeferredNode<*, *, *>>,
     ) {
-        for (node in nodes) {
+        nodes.forEach { node ->
             node.adjustIndirectUpstream(scheduler, oldDepth, newDepth, removals, additions)
         }
-        for (mover in muxMovers) {
+        muxMovers.forEach { mover ->
             mover.adjustIndirectPatchNode(scheduler, oldDepth, newDepth, removals, additions)
         }
     }
@@ -405,9 +423,9 @@ internal class DownstreamSet {
         scheduler: Scheduler,
         oldDirectDepth: Int,
         newIndirectDepth: Int,
-        newIndirectSet: Set<MuxDeferredNode<*, *, *>>,
+        newIndirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
     ) {
-        for (node in nodes) {
+        nodes.forEach { node ->
             node.moveDirectUpstreamToIndirect(
                 scheduler,
                 oldDirectDepth,
@@ -415,7 +433,7 @@ internal class DownstreamSet {
                 newIndirectSet,
             )
         }
-        for (mover in muxMovers) {
+        muxMovers.forEach { mover ->
             mover.moveDirectPatchNodeToIndirect(scheduler, newIndirectDepth, newIndirectSet)
         }
     }
@@ -423,29 +441,19 @@ internal class DownstreamSet {
     fun removeIndirectUpstream(
         scheduler: Scheduler,
         depth: Int,
-        indirectSet: Set<MuxDeferredNode<*, *, *>>,
+        indirectSet: ScatterSet<MuxDeferredNode<*, *, *>>,
     ) {
-        for (node in nodes) {
-            node.removeIndirectUpstream(scheduler, depth, indirectSet)
-        }
-        for (mover in muxMovers) {
-            mover.removeIndirectPatchNode(scheduler, depth, indirectSet)
-        }
-        for (output in outputs) {
-            output.kill()
-        }
+        nodes.forEach { node -> node.removeIndirectUpstream(scheduler, depth, indirectSet) }
+        muxMovers.forEach { mover -> mover.removeIndirectPatchNode(scheduler, depth, indirectSet) }
+        outputs.forEach { output -> output.kill() }
+        stateWriters.fastForEach { writer -> writer.kill() }
     }
 
     fun removeDirectUpstream(scheduler: Scheduler, depth: Int) {
-        for (node in nodes) {
-            node.removeDirectUpstream(scheduler, depth)
-        }
-        for (mover in muxMovers) {
-            mover.removeDirectPatchNode(scheduler)
-        }
-        for (output in outputs) {
-            output.kill()
-        }
+        nodes.forEach { node -> node.removeDirectUpstream(scheduler, depth) }
+        muxMovers.forEach { mover -> mover.removeDirectPatchNode(scheduler) }
+        outputs.forEach { output -> output.kill() }
+        stateWriters.fastForEach { writer -> writer.kill() }
     }
 
     fun clear() {
@@ -477,9 +485,9 @@ internal fun scheduleAll(
     downstreamSet: DownstreamSet,
     evalScope: EvalScope,
 ): Boolean {
-    downstreamSet.nodes.forEach { it.schedule(logIndent, evalScope) }
-    downstreamSet.muxMovers.forEach { it.scheduleMover(logIndent, evalScope) }
-    downstreamSet.outputs.forEach { it.schedule(logIndent, evalScope) }
-    downstreamSet.stateWriters.forEach { evalScope.schedule(it) }
+    downstreamSet.nodes.forEach { node -> node.schedule(logIndent, evalScope) }
+    downstreamSet.muxMovers.forEach { mover -> mover.scheduleMover(logIndent, evalScope) }
+    downstreamSet.outputs.forEach { output -> output.schedule(logIndent, evalScope) }
+    downstreamSet.stateWriters.fastForEach { writer -> writer.schedule(logIndent, evalScope) }
     return downstreamSet.isNotEmpty()
 }

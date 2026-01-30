@@ -19,6 +19,8 @@ package android.os;
 import android.annotation.AppIdInt;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
+import android.annotation.SpecialUsers.CanBeUsers;
+import android.annotation.SpecialUsers.SpecialUser;
 import android.annotation.SystemApi;
 import android.annotation.TestApi;
 import android.annotation.UserIdInt;
@@ -324,7 +326,9 @@ public final class UserHandle implements Parcelable {
 
     /** @hide */
     @SystemApi
-    public static UserHandle of(@UserIdInt int userId) {
+    public static @CanBeUsers(SpecialUser.ALLOW_EVERY) UserHandle of(
+            @CanBeUsers(SpecialUser.ALLOW_EVERY) @UserIdInt int userId) {
+
         if (userId == USER_SYSTEM) {
             return SYSTEM; // Most common.
         }

@@ -444,6 +444,11 @@ public final class AudioPlaybackConfiguration implements Parcelable {
         } else {
             builder.setUsage(in.mPlayerAttr.getUsage());
         }
+        // only copy the test ID if present, not the whole Bundle
+        final long testId = in.mPlayerAttr.getTestId();
+        if (testId != AudioAttributes.VALUE_TEST_ID_NONE) {
+            builder.setTestId(testId);
+        }
         anonymCopy.mPlayerAttr = builder.build();
         // anonymized data
         anonymCopy.mPlayerType = PLAYER_TYPE_UNKNOWN;
@@ -781,7 +786,9 @@ public final class AudioPlaybackConfiguration implements Parcelable {
     private boolean isMuteAffectingActiveState() {
         return (mMutedState & MUTED_BY_CLIENT_VOLUME) != 0
                 || (mMutedState & MUTED_BY_VOLUME_SHAPER) != 0
-                || (mMutedState & MUTED_BY_OP_PLAY_AUDIO) != 0;
+                || (mMutedState & MUTED_BY_OP_PLAY_AUDIO) != 0
+                || (mMutedState & MUTED_BY_STREAM_VOLUME) != 0
+                || (mMutedState & MUTED_BY_PORT_VOLUME) != 0;
     }
 
     /**

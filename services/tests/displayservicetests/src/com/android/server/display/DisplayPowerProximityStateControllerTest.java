@@ -17,6 +17,9 @@
 package com.android.server.display;
 
 import static com.android.dx.mockito.inline.extended.ExtendedMockito.verify;
+import static com.android.server.display.TestUtilsKt.createSensor;
+import static com.android.server.display.TestUtilsKt.createSensorEvent;
+import static com.android.server.display.TestUtilsKt.TEST_SENSOR_NAME;
 import static com.android.server.display.config.DisplayDeviceConfigTestUtilsKt.createSensorData;
 
 import static org.junit.Assert.assertEquals;
@@ -178,7 +181,7 @@ public final class DisplayPowerProximityStateControllerTest {
             throws Exception {
         when(mDisplayDeviceConfig.getProximitySensor()).thenReturn(createSensorData());
         when(mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)).thenReturn(
-                TestUtils.createSensor(Sensor.TYPE_PROXIMITY, "proximity"));
+                createSensor(Sensor.TYPE_PROXIMITY, "proximity"));
         mDisplayPowerProximityStateController = new DisplayPowerProximityStateController(
                 mWakelockController, mDisplayDeviceConfig, mTestLooper.getLooper(),
                 mNudgeUpdatePowerState, Display.DEFAULT_DISPLAY,
@@ -191,7 +194,7 @@ public final class DisplayPowerProximityStateControllerTest {
             throws Exception {
         when(mDisplayDeviceConfig.getProximitySensor()).thenReturn(createSensorData());
         when(mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)).thenReturn(
-                TestUtils.createSensor(Sensor.TYPE_PROXIMITY, "proximity"));
+                createSensor(Sensor.TYPE_PROXIMITY, "proximity"));
         mDisplayPowerProximityStateController = new DisplayPowerProximityStateController(
                 mWakelockController, mDisplayDeviceConfig, mTestLooper.getLooper(),
                 mNudgeUpdatePowerState, 1,
@@ -203,7 +206,7 @@ public final class DisplayPowerProximityStateControllerTest {
     public void isProximitySensorAvailableReturnsTrueWhenNoSensorConfigured() throws Exception {
         when(mDisplayDeviceConfig.getProximitySensor()).thenReturn(null);
         when(mSensorManager.getDefaultSensor(Sensor.TYPE_PROXIMITY)).thenReturn(
-                TestUtils.createSensor(Sensor.TYPE_PROXIMITY, Sensor.STRING_TYPE_PROXIMITY));
+                createSensor(Sensor.TYPE_PROXIMITY, Sensor.STRING_TYPE_PROXIMITY));
 
         mDisplayPowerProximityStateController = new DisplayPowerProximityStateController(
                 mWakelockController, mDisplayDeviceConfig, mTestLooper.getLooper(),
@@ -217,8 +220,8 @@ public final class DisplayPowerProximityStateControllerTest {
         DisplayDeviceConfig updatedDisplayDeviceConfig = mock(DisplayDeviceConfig.class);
         when(updatedDisplayDeviceConfig.getProximitySensor()).thenReturn(
                 createSensorData(Sensor.STRING_TYPE_PROXIMITY));
-        Sensor newProxSensor = TestUtils.createSensor(
-                Sensor.TYPE_PROXIMITY, Sensor.STRING_TYPE_PROXIMITY, 4.0f);
+        Sensor newProxSensor = createSensor(
+                Sensor.TYPE_PROXIMITY, Sensor.STRING_TYPE_PROXIMITY, TEST_SENSOR_NAME,  4.0f);
         when(mSensorManager.getSensorList(eq(Sensor.TYPE_ALL)))
                 .thenReturn(List.of(newProxSensor));
         mDisplayPowerProximityStateController.notifyDisplayDeviceChanged(
@@ -354,8 +357,8 @@ public final class DisplayPowerProximityStateControllerTest {
     }
 
     private void setUpProxSensor() throws Exception {
-        mProximitySensor = TestUtils.createSensor(
-                Sensor.TYPE_PROXIMITY, Sensor.STRING_TYPE_PROXIMITY, 5.0f);
+        mProximitySensor = createSensor(
+                Sensor.TYPE_PROXIMITY, Sensor.STRING_TYPE_PROXIMITY, TEST_SENSOR_NAME, 5.0f);
         when(mSensorManager.getSensorList(eq(Sensor.TYPE_ALL)))
                 .thenReturn(List.of(mProximitySensor));
     }
@@ -365,7 +368,7 @@ public final class DisplayPowerProximityStateControllerTest {
         // where the system is in positive proximity
         when(mWakelockController.releaseWakelock(
                 WakelockController.WAKE_LOCK_PROXIMITY_DEBOUNCE)).thenReturn(true);
-        mSensorEventListener.onSensorChanged(TestUtils.createSensorEvent(mProximitySensor, 4));
+        mSensorEventListener.onSensorChanged(createSensorEvent(mProximitySensor, 4));
         verify(mSensorManager).registerListener(mSensorEventListener,
                 mProximitySensor, SensorManager.SENSOR_DELAY_NORMAL,
                 mDisplayPowerProximityStateController.getHandler());

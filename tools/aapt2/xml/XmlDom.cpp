@@ -503,6 +503,7 @@ std::unique_ptr<Node> Element::Clone(const ElementCloneFunc& el_cloner) const {
   el->attributes.reserve(attributes.size());
   el_cloner(*this, el.get());
   el->children.reserve(children.size());
+  el->flag = flag;
   for (const std::unique_ptr<xml::Node>& child : children) {
     el->AppendChild(child->Clone(el_cloner));
   }

@@ -39,7 +39,7 @@ public class DrawCircle extends DrawBase3 {
      */
     public static void read(@NonNull WireBuffer buffer, @NonNull List<Operation> operations) {
         Maker m = DrawCircle::new;
-        read(m, buffer, operations);
+        read(buffer, operations, m);
     }
 
     /**
@@ -111,7 +111,7 @@ public class DrawCircle extends DrawBase3 {
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serialize(serializer, "cx", "cy", "radius").addType(CLASS_NAME);
     }
 }

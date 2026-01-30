@@ -1348,10 +1348,14 @@ public interface AndroidPackage {
     @NonNull
     List<String> getUsesOptionalNativeLibraries();
 
-    /** @hide */
+    /**
+     * A mapping of the requested permission name to its {@link ParsedUsesPermission} object.
+     *
+     * @hide
+     */
     @Immutable.Ignore
     @NonNull
-    List<ParsedUsesPermission> getUsesPermissions();
+    Map<String, ParsedUsesPermission> getUsesPermissionMapping();
 
     /**
      * TODO(b/135203078): Move SDK library stuff to an inner data class
@@ -1550,4 +1554,15 @@ public interface AndroidPackage {
      * @hide
      */
     int getIntentMatchingFlags();
+
+    /**
+     * Returns true if this application should run in the Private Compute Core sandbox.
+     *
+     * @see ApplicationInfo#PRIVATE_FLAG_EXT_RUN_IN_PCC_SANDBOX
+     * @see R.styleable#AndroidManifestApplication_runInPccSandbox
+     *
+     * @hide
+     */
+    boolean shouldRunInPccSandbox();
+
 }

@@ -18,6 +18,7 @@
 
 #include "SdkConstants.h"
 #include "androidfw/Util.h"
+#include "cmd/Util.h"
 
 using ::aapt::xml::Element;
 using ::aapt::xml::NodeCast;
@@ -59,6 +60,20 @@ class AllDisabledFlagsVisitor : public xml::Visitor {
   }
 };
 
+// An xml visitor that finds all elements with flags and moves them from xml attributes to a struct
+// on the element.
+class FlagMarkingVisitor : public xml::Visitor {
+ public:
+  void Visit(xml::Element* node) override {
+    if (auto attr = node->FindAttribute(xml::kSchemaAndroid, xml::kAttrFeatureFlag)) {
+      auto flag = ParseFlag(attr->value);
+      node->flag = flag;
+      node->RemoveAttribute(xml::kSchemaAndroid, xml::kAttrFeatureFlag);
+    }
+    VisitChildren(node);
+  }
+};
+
 std::vector<std::unique_ptr<xml::XmlResource>> FlaggedXmlVersioner::Process(IAaptContext* context,
                                                                             xml::XmlResource* doc) {
   std::vector<std::unique_ptr<xml::XmlResource>> docs;
@@ -68,15 +83,20 @@ std::vector<std::unique_ptr<xml::XmlResource>> FlaggedXmlVersioner::Process(IAap
              (static_cast<ApiVersion>(context->GetMinSdkVersion()) >= SDK_BAKLAVA)) {
     // Support for read/write flags was added in baklava so if the doc will only get used on
     // baklava or later we can just return the original doc.
-    docs.push_back(doc->Clone());
+    auto clonedVersion = doc->Clone();
+    FlagMarkingVisitor flag_marking_visitor;
+    clonedVersion->root->Accept(&flag_marking_visitor);
+    docs.push_back(std::move(clonedVersion));
   } else {
     auto preBaklavaVersion = doc->Clone();
-    AllDisabledFlagsVisitor visitor;
-    preBaklavaVersion->root->Accept(&visitor);
+    AllDisabledFlagsVisitor disabled_flag_visitor;
+    preBaklavaVersion->root->Accept(&disabled_flag_visitor);
     docs.push_back(std::move(preBaklavaVersion));
 
     auto baklavaVersion = doc->Clone();
     baklavaVersion->file.config.sdkVersion = SDK_BAKLAVA;
+    FlagMarkingVisitor flag_marking_visitor;
+    baklavaVersion->root->Accept(&flag_marking_visitor);
     docs.push_back(std::move(baklavaVersion));
   }
   return docs;

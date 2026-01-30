@@ -64,7 +64,6 @@ class TaskChangeNotificationController {
     private static final int NOTIFY_TASK_SNAPSHOT_INVALIDATED_LISTENERS_MSG = 29;
     private static final int NOTIFY_RECENT_TASK_REMOVED_FOR_ADD_TASK_LISTENERS_MSG = 30;
 
-
     // Delay in notifying task stack change listeners (in millis)
     private static final int NOTIFY_TASK_STACK_CHANGE_LISTENERS_DELAY = 100;
 
@@ -152,6 +151,13 @@ class TaskChangeNotificationController {
     private final TaskStackConsumer mNotifyTaskSnapshotChanged = (l, m) -> {
         l.onTaskSnapshotChanged(m.arg1, (TaskSnapshot) m.obj);
     };
+
+    private final TaskStackConsumer mNotifyTaskSnapshotChangedRemote = (l, m) -> {
+        final TaskSnapshot taskSnapshot = (TaskSnapshot) m.obj;
+        taskSnapshot.addReference(TaskSnapshot.REFERENCE_WRITE_TO_PARCEL);
+        l.onTaskSnapshotChanged(m.arg1, taskSnapshot);
+    };
+
     private final TaskStackConsumer mNotifyTaskSnapshotInvalidated = (l, m) -> {
         l.onTaskSnapshotInvalidated(m.arg1);
     };
@@ -251,7 +257,7 @@ class TaskChangeNotificationController {
                     forAllRemoteListeners(mNotifyTaskProfileLocked, msg);
                     break;
                 case NOTIFY_TASK_SNAPSHOT_CHANGED_LISTENERS_MSG:
-                    forAllRemoteListeners(mNotifyTaskSnapshotChanged, msg);
+                    forAllRemoteListeners(mNotifyTaskSnapshotChangedRemote, msg);
                     ((TaskSnapshot) msg.obj).removeReference(TaskSnapshot.REFERENCE_BROADCAST);
                     break;
                 case NOTIFY_BACK_PRESSED_ON_TASK_ROOT:

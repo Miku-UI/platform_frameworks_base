@@ -12,6 +12,23 @@
       "file_patterns": ["ContentInfo\\.java", "OnReceiveContentListener\\.java", "View\\.java"]
     }
   ],
+  // v2/sysui/suite/test-mapping-sysui-screenshot-test
+  "sysui-screenshot-test": [
+    {
+      "name": "SystemUIGoogleScreenshotTests",
+      "options": [
+          {
+          "exclude-annotation": "org.junit.Ignore"
+          },
+          {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+          },
+          {
+          "exclude-annotation": "android.platform.test.annotations.Postsubmit"
+          }
+      ]
+    }
+  ],
   "imports": [
     {
       "path": "cts/tests/surfacecontrol"

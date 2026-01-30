@@ -20,6 +20,7 @@ import static android.content.pm.ActivityInfo.OVERRIDE_MIN_ASPECT_RATIO;
 import static android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
 import static android.content.pm.PackageManager.USER_MIN_ASPECT_RATIO_3_2;
 import static android.content.pm.PackageManager.USER_MIN_ASPECT_RATIO_FULLSCREEN;
+import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.Surface.ROTATION_90;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_MIN_ASPECT_RATIO_OVERRIDE;
 import static android.view.WindowManager.PROPERTY_COMPAT_ALLOW_ORIENTATION_OVERRIDE;
@@ -32,6 +33,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
 import android.compat.testing.PlatformCompatChangeRule;
+import android.content.pm.ActivityInfo;
+import android.platform.test.annotations.DisableFlags;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 
@@ -276,11 +279,12 @@ public class AppCompatAspectRatioOverridesTest extends WindowTestsBase {
     }
 
     @Test
+    @DisableFlags(Flags.FLAG_CAMERA_COMPAT_UNIFY_CAMERA_POLICIES)
     public void testGetFixedOrientationLetterboxAspectRatio_splitScreenAspectEnabled() {
         runTestScenario((robot)-> {
             robot.applyOnConf((c) -> {
-                c.enableCameraCompatTreatment(/* enabled */ true);
-                c.enableCameraCompatTreatmentAtBuildTime(/* enabled */ true);
+                c.enableCameraCompatForceRotateTreatment(/* enabled */ true);
+                c.enableCameraCompatForceRotateTreatmentAtBuildTime(/* enabled */ true);
                 c.enableCameraCompatSplitScreenAspectRatio(/* enabled */ true);
                 c.enableDisplayAspectRatioEnabledForFixedOrientationLetterbox(/* enabled */ false);
                 c.setFixedOrientationLetterboxAspectRatio(/* aspectRatio */ 1.5f);
@@ -381,32 +385,112 @@ public class AppCompatAspectRatioOverridesTest extends WindowTestsBase {
         });
     }
 
+
+    @Test
+    @EnableFlags(Flags.FLAG_LIMIT_SYSTEM_FULLSCREEN_OVERRIDE_TO_DEFAULT_DISPLAY)
+    @EnableCompatChanges(ActivityInfo.OVERRIDE_ANY_ORIENTATION_TO_USER)
+    public void testSystemFullscreenOverride_isDefaultDisplay_true() {
+        runTestScenario((robot) -> {
+            robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY);
+                a.createActivityWithComponent();
+                a.setIgnoreOrientationRequest(true);
+                a.configureTopActivity(/* minAspect */ -1f, /* maxAspect */-1f,
+                        SCREEN_ORIENTATION_LANDSCAPE, true);
+            });
+
+            robot.checkHasFullscreenOverride(true);
+        });
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LIMIT_SYSTEM_FULLSCREEN_OVERRIDE_TO_DEFAULT_DISPLAY)
+    @EnableCompatChanges(ActivityInfo.OVERRIDE_ANY_ORIENTATION_TO_USER)
+    public void testSystemFullscreenOverride_notDefaultDisplay_false() {
+        runTestScenario((robot) -> {
+            robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY + 2);
+                a.createActivityWithComponent();
+                a.setIgnoreOrientationRequest(true);
+                a.configureTopActivity(/* minAspect */ -1f, /* maxAspect */-1f,
+                        SCREEN_ORIENTATION_LANDSCAPE, true);
+            });
+
+            robot.checkHasFullscreenOverride(false);
+        });
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LIMIT_SYSTEM_FULLSCREEN_OVERRIDE_TO_DEFAULT_DISPLAY)
+    @EnableCompatChanges(ActivityInfo.OVERRIDE_ANY_ORIENTATION_TO_USER)
+    public void testSystemFullscreenOverride_movedOutOfDefaultDisplay_true() {
+        runTestScenario((robot) -> {
+            robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY);
+                a.createActivityWithComponent();
+                a.setIgnoreOrientationRequest(true);
+                a.configureTopActivity(/* minAspect */ -1f, /* maxAspect */-1f,
+                        SCREEN_ORIENTATION_LANDSCAPE, true);
+
+                // Simulate display move.
+                a.setDisplayId(DEFAULT_DISPLAY + 2);
+            });
+
+            robot.checkHasFullscreenOverride(true);
+        });
+    }
+
+    @Test
+    @EnableFlags(Flags.FLAG_LIMIT_SYSTEM_FULLSCREEN_OVERRIDE_TO_DEFAULT_DISPLAY)
+    @EnableCompatChanges(ActivityInfo.OVERRIDE_ANY_ORIENTATION_TO_USER)
+    public void testSystemFullscreenOverride_activityRestartedInDefaultDisplay_true() {
+        runTestScenario((robot) -> {
+            robot.applyOnActivity((a) -> {
+                a.setDisplayId(DEFAULT_DISPLAY + 2);
+                a.createActivityWithComponentInNewTask();
+                a.top().mVisibleRequested = true;
+                a.top().setSavedState(null);
+                a.setIgnoreOrientationRequest(true);
+                a.configureTopActivity(/* minAspect */ -1f, /* maxAspect */-1f,
+                        SCREEN_ORIENTATION_LANDSCAPE, true);
+
+                // Simulate display move.
+                a.setDisplayId(DEFAULT_DISPLAY);
+            });
+
+            robot.checkHasFullscreenOverride(false);
+            robot.checkTaskIsResizeable(false);
+
+            robot.activity().top().restartProcessIfVisible();
+
+            robot.checkHasFullscreenOverride(true);
+            robot.checkTaskIsResizeable(true);
+        });
+    }
+
     /**
      * Runs a test scenario providing a Robot.
      */
     void runTestScenario(@NonNull Consumer<AspectRatioOverridesRobotTest> consumer) {
-        final AspectRatioOverridesRobotTest robot =
-                new AspectRatioOverridesRobotTest(mWm, mAtm, mSupervisor);
+        final AspectRatioOverridesRobotTest robot = new AspectRatioOverridesRobotTest(this);
         consumer.accept(robot);
     }
 
     private static class AspectRatioOverridesRobotTest extends AppCompatRobotBase {
 
-        AspectRatioOverridesRobotTest(@NonNull WindowManagerService wm,
-                @NonNull ActivityTaskManagerService atm,
-                @NonNull ActivityTaskSupervisor supervisor) {
-            super(wm, atm, supervisor);
+        AspectRatioOverridesRobotTest(@NonNull WindowTestsBase windowTestBase) {
+            super(windowTestBase);
         }
 
         @Override
         void onPostDisplayContentCreation(@NonNull DisplayContent displayContent) {
             super.onPostDisplayContentCreation(displayContent);
             spyOn(displayContent.mAppCompatCameraPolicy);
-            if (displayContent.mAppCompatCameraPolicy.hasDisplayRotationCompatPolicy()) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mDisplayRotationCompatPolicy);
+            if (displayContent.mAppCompatCameraPolicy.hasDisplayRotationPolicy()) {
+                spyOn(displayContent.mAppCompatCameraPolicy.mDisplayRotationPolicy);
             }
-            if (displayContent.mAppCompatCameraPolicy.hasCameraCompatFreeformPolicy()) {
-                spyOn(displayContent.mAppCompatCameraPolicy.mCameraCompatFreeformPolicy);
+            if (displayContent.mAppCompatCameraPolicy.hasSimReqOrientationPolicy()) {
+                spyOn(displayContent.mAppCompatCameraPolicy.mSimReqOrientationPolicy);
             }
         }
 
@@ -462,6 +546,10 @@ public class AppCompatAspectRatioOverridesTest extends WindowTestsBase {
         void checkHasFullscreenOverride(boolean expected) {
             assertEquals(expected,
                     getTopActivityAppCompatAspectRatioOverrides().hasFullscreenOverride());
+        }
+
+        void checkTaskIsResizeable(boolean expected) {
+            assertEquals(expected, activity().top().getTask().isResizeable());
         }
 
         private AppCompatAspectRatioOverrides getTopActivityAppCompatAspectRatioOverrides() {

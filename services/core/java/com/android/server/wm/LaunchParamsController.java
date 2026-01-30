@@ -30,8 +30,11 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityOptions;
 import android.app.WindowConfiguration.WindowingMode;
+import android.content.Context;
 import android.content.pm.ActivityInfo.WindowLayout;
 import android.graphics.Rect;
+
+import com.android.internal.policy.DesktopModeCompatPolicy;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -66,8 +69,10 @@ class LaunchParamsController {
      */
     void registerDefaultModifiers(ActivityTaskSupervisor supervisor) {
         // {@link TaskLaunchParamsModifier} handles window layout preferences.
-        registerModifier(new TaskLaunchParamsModifier(supervisor));
-        registerModifier(new DesktopModeLaunchParamsModifier(mService.mContext));
+        final Context context = mService.mContext;
+        registerModifier(new TaskLaunchParamsModifier(supervisor, context));
+        registerModifier(new DesktopModeLaunchParamsModifier(context, supervisor,
+                new DesktopModeCompatPolicy(context)));
     }
 
     /**
@@ -133,12 +138,20 @@ class LaunchParamsController {
                 mTmpParams);
 
         // No changes, return.
-        if (mTmpParams.isEmpty() || mTmpParams.mBounds.isEmpty()) {
+        if (mTmpParams.isEmpty()) {
             return false;
         }
 
         mService.deferWindowLayout();
         try {
+            if (mTmpParams.mBounds.isEmpty()) {
+                if (!mTmpParams.mBoundsSet) {
+                    return false;
+                }
+                // reset the task bounds
+                task.setBounds(mTmpParams.mBounds);
+                return true;
+            }
             if (task.getRootTask().inMultiWindowMode()) {
                 if (!mTmpParams.mAppBounds.isEmpty()) {
                     task.getRequestedOverrideConfiguration().windowConfiguration.setAppBounds(
@@ -176,6 +189,8 @@ class LaunchParamsController {
         /** The bounds within the parent container. */
         @NonNull
         final Rect mBounds = new Rect();
+        /** Whether the bounds have been set. */
+        boolean mBoundsSet = false;
         /** The bounds within the parent container respecting insets. Usually empty. */
         @NonNull
         final Rect mAppBounds = new Rect();
@@ -183,6 +198,10 @@ class LaunchParamsController {
         /** The display area the {@link Task} would prefer to be on. */
         @Nullable
         TaskDisplayArea mPreferredTaskDisplayArea;
+
+        /** The root task the {@link Task} would prefer to be on. */
+        @Nullable
+        Task mPreferredRootTask;
 
         /** The windowing mode to be in. */
         @WindowingMode
@@ -195,8 +214,10 @@ class LaunchParamsController {
         /** Sets values back to default. {@link #isEmpty} will return {@code true} once called. */
         void reset() {
             mBounds.setEmpty();
+            mBoundsSet = false;
             mAppBounds.setEmpty();
             mPreferredTaskDisplayArea = null;
+            mPreferredRootTask = null;
             mWindowingMode = WINDOWING_MODE_UNDEFINED;
             mNeedsSafeRegionBounds = null;
         }
@@ -204,8 +225,10 @@ class LaunchParamsController {
         /** Copies the values set on the passed in {@link LaunchParams}. */
         void set(LaunchParams params) {
             mBounds.set(params.mBounds);
+            mBoundsSet = params.mBoundsSet;
             mAppBounds.set(params.mAppBounds);
             mPreferredTaskDisplayArea = params.mPreferredTaskDisplayArea;
+            mPreferredRootTask = params.mPreferredRootTask;
             mWindowingMode = params.mWindowingMode;
             mNeedsSafeRegionBounds = params.mNeedsSafeRegionBounds;
         }
@@ -213,8 +236,10 @@ class LaunchParamsController {
         /** Merges the values set on the passed in {@link LaunchParams}. */
         void merge(LaunchParams params) {
             mBounds.set(params.mBounds);
+            mBoundsSet = params.mBoundsSet;
             mAppBounds.set(params.mAppBounds);
             mPreferredTaskDisplayArea = params.mPreferredTaskDisplayArea;
+            mPreferredRootTask = params.mPreferredRootTask;
             mWindowingMode = params.mWindowingMode;
             // Only update mNeedsSafeRegionBounds if a modifier updates it by setting a non null
             // value. Otherwise, carry over from previous modifiers
@@ -225,7 +250,9 @@ class LaunchParamsController {
 
         /** Returns {@code true} if no values have been explicitly set. */
         boolean isEmpty() {
-            return mBounds.isEmpty() && mAppBounds.isEmpty() && mPreferredTaskDisplayArea == null
+            return (mBounds.isEmpty() && !mBoundsSet) && mAppBounds.isEmpty()
+                    && mPreferredTaskDisplayArea == null
+                    && mPreferredRootTask == null
                     && mWindowingMode == WINDOWING_MODE_UNDEFINED && mNeedsSafeRegionBounds == null;
         }
 
@@ -245,18 +272,23 @@ class LaunchParamsController {
             LaunchParams that = (LaunchParams) o;
 
             if (mPreferredTaskDisplayArea != that.mPreferredTaskDisplayArea) return false;
+            if (mPreferredRootTask != that.mPreferredRootTask) return false;
             if (mWindowingMode != that.mWindowingMode) return false;
             if (!mAppBounds.equals(that.mAppBounds)) return false;
             if (!Objects.equals(mNeedsSafeRegionBounds, that.mNeedsSafeRegionBounds)) return false;
+            if (mBoundsSet != that.mBoundsSet) return false;
             return !mBounds.isEmpty() ? mBounds.equals(that.mBounds) : that.mBounds.isEmpty();
         }
 
         @Override
         public int hashCode() {
             int result = !mBounds.isEmpty() ? mBounds.hashCode() : 0;
+            result = 31 * result + Boolean.hashCode(mBoundsSet);
             result = 31 * result + mAppBounds.hashCode();
             result = 31 * result + (mPreferredTaskDisplayArea != null
                     ? mPreferredTaskDisplayArea.hashCode() : 0);
+            result = 31 * result + (mPreferredRootTask != null
+                    ? mPreferredRootTask.hashCode() : 0);
             result = 31 * result + mWindowingMode;
             result = 31 * result + (mNeedsSafeRegionBounds != null
                     ? Boolean.hashCode(mNeedsSafeRegionBounds) : 0);

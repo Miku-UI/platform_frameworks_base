@@ -17,6 +17,7 @@
 package android.security.net.config;
 
 import android.util.Pair;
+
 import java.util.Set;
 
 /** @hide */
@@ -29,11 +30,18 @@ public class TestConfigSource implements ConfigSource {
         mDefaultConfig = defaultConfig;
     }
 
+    @Override
     public Set<Pair<Domain, NetworkSecurityConfig>> getPerDomainConfigs() {
         return mConfigs;
     }
 
+    @Override
     public NetworkSecurityConfig getDefaultConfig() {
         return mDefaultConfig;
+    }
+
+    @Override
+    public NetworkSecurityConfig getLocalhostConfig() {
+        return null;
     }
 }

@@ -26,11 +26,11 @@ package com.android.internal.widget.remotecompose.core.operations.utilities;
  * having the id of the color between the ARGB values and the 62 i.e. 0xAARRGGBB 00 00 00 3E
  */
 public class ColorUtils {
-    public static int RC_COLOR = 62;
+    public static int sRC_COLOR = 62;
 
     long packRCColor(int defaultARGB, int id) {
         long l = defaultARGB;
-        return (l << 32) | id << 8 | RC_COLOR;
+        return (l << 32) | id << 8 | sRC_COLOR;
     }
 
     boolean isRCColor(long color) {

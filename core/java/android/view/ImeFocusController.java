@@ -16,14 +16,13 @@
 
 package android.view;
 
-import static android.view.ImeFocusControllerProto.HAS_IME_FOCUS;
+import static android.internal.perfetto.protos.Imefocuscontroller.ImeFocusControllerProto.HAS_IME_FOCUS;
 
 import android.annotation.AnyThread;
 import android.annotation.NonNull;
 import android.annotation.UiThread;
 import android.util.Log;
 import android.util.proto.ProtoOutputStream;
-import android.view.inputmethod.Flags;
 import android.view.inputmethod.InputMethodManager;
 
 import com.android.internal.inputmethod.InputMethodDebug;
@@ -151,8 +150,7 @@ public final class ImeFocusController {
         if (!mHasImeFocus || isInLocalFocusMode(windowAttribute)) {
             return InputMethodManager.DISPATCH_NOT_HANDLED;
         }
-        if (Flags.refactorInsetsController() && event instanceof KeyEvent keyEvent
-                && keyEvent.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+        if (event instanceof KeyEvent keyEvent && keyEvent.getKeyCode() == KeyEvent.KEYCODE_BACK) {
             final var insetsController = mViewRootImpl.getInsetsController();
             if (insetsController.getAnimationType(WindowInsets.Type.ime())
                     == InsetsController.ANIMATION_TYPE_HIDE

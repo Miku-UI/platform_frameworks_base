@@ -19,39 +19,45 @@ package com.android.systemui.bouncer.domain.interactor
 import android.content.pm.UserInfo
 import android.hardware.biometrics.BiometricFaceConstants
 import android.hardware.biometrics.BiometricSourceType
+import android.platform.test.annotations.EnableFlags
+import android.security.Flags.FLAG_SECURE_LOCK_DEVICE
 import android.testing.TestableLooper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.internal.widget.LockPatternUtils
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
+import com.android.internal.widget.LockPatternUtils.StrongAuthTracker.STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE
 import com.android.keyguard.KeyguardSecurityModel
 import com.android.keyguard.KeyguardSecurityModel.SecurityMode.PIN
 import com.android.keyguard.KeyguardSecurityModel.SecurityMode.Pattern
-import com.android.keyguard.KeyguardUpdateMonitor
+import com.android.keyguard.KeyguardSecurityModel.SecurityMode.SecureLockDeviceBiometricAuth
 import com.android.keyguard.KeyguardUpdateMonitorCallback
+import com.android.keyguard.keyguardSecurityModel
+import com.android.keyguard.keyguardUpdateMonitor
 import com.android.systemui.Flags
 import com.android.systemui.SysuiTestCase
-import com.android.systemui.biometrics.data.repository.FaceSensorInfo
 import com.android.systemui.biometrics.data.repository.fakeFacePropertyRepository
 import com.android.systemui.biometrics.data.repository.fakeFingerprintPropertyRepository
+import com.android.systemui.biometrics.shared.model.FaceSensorInfo
 import com.android.systemui.biometrics.shared.model.SensorStrength
-import com.android.systemui.bouncer.data.repository.BouncerMessageRepositoryImpl
 import com.android.systemui.bouncer.data.repository.fakeKeyguardBouncerRepository
 import com.android.systemui.bouncer.shared.model.BouncerMessageModel
 import com.android.systemui.coroutines.collectLastValue
-import com.android.systemui.deviceentry.domain.interactor.deviceEntryBiometricsAllowedInteractor
-import com.android.systemui.flags.SystemPropertiesHelper
+import com.android.systemui.flags.fakeSystemPropertiesHelper
 import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFingerprintAuthRepository
 import com.android.systemui.keyguard.data.repository.fakeTrustRepository
 import com.android.systemui.keyguard.shared.model.AuthenticationFlags
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.res.R
 import com.android.systemui.res.R.string.kg_too_many_failed_attempts_countdown
 import com.android.systemui.res.R.string.kg_trust_agent_disabled
+import com.android.systemui.securelockdevice.data.repository.fakeSecureLockDeviceRepository
+import com.android.systemui.securelockdevice.domain.interactor.secureLockDeviceInteractor
 import com.android.systemui.testKosmos
 import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.util.mockito.KotlinArgumentCaptor
-import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
@@ -62,9 +68,12 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.eq
 import org.mockito.Captor
-import org.mockito.Mock
 import org.mockito.Mockito.verify
+import org.mockito.Mockito.`when` as whenever
 import org.mockito.MockitoAnnotations
+
+private const val SYS_BOOT_REASON_PROP = "sys.boot.reason.last"
+private const val REBOOT_MAINLINE_UPDATE = "reboot,mainline_update"
 
 @SmallTest
 @TestableLooper.RunWithLooper(setAsMainLooper = true)
@@ -72,13 +81,11 @@ import org.mockito.MockitoAnnotations
 class BouncerMessageInteractorTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val countDownTimerCallback = KotlinArgumentCaptor(CountDownTimerCallback::class.java)
-    private val repository = BouncerMessageRepositoryImpl()
+    private val countDownTimerUtil = kosmos.countDownTimerUtil
     private val biometricSettingsRepository = kosmos.fakeBiometricSettingsRepository
+    private val updateMonitor = kosmos.keyguardUpdateMonitor
+    private val securityModel: KeyguardSecurityModel = kosmos.keyguardSecurityModel
     private val testScope = kosmos.testScope
-    @Mock private lateinit var updateMonitor: KeyguardUpdateMonitor
-    @Mock private lateinit var securityModel: KeyguardSecurityModel
-    @Mock private lateinit var countDownTimerUtil: CountDownTimerUtil
-    @Mock private lateinit var systemPropertiesHelper: SystemPropertiesHelper
     @Captor
     private lateinit var keyguardUpdateMonitorCaptor: ArgumentCaptor<KeyguardUpdateMonitorCallback>
 
@@ -89,39 +96,97 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
         MockitoAnnotations.initMocks(this)
         kosmos.fakeUserRepository.setUserInfos(listOf(PRIMARY_USER))
         allowTestableLooperAsMainThread()
-        whenever(securityModel.getSecurityMode(PRIMARY_USER_ID)).thenReturn(PIN)
+        whenever(securityModel.getSecurityMode(eq(PRIMARY_USER_ID))).thenReturn(PIN)
         biometricSettingsRepository.setIsFingerprintAuthCurrentlyAllowed(true)
         overrideResource(kg_trust_agent_disabled, "Trust agent is unavailable")
     }
 
     suspend fun TestScope.init(
+        faceAuthCurrentlyAllowed: Boolean = false,
+        faceAuthEnrolledAndEnabled: Boolean = false,
+        hasStrongFace: Boolean = false,
         fingerprintAuthCurrentlyAllowed: Boolean = true,
+        fingerprintAuthEnrolledAndEnabled: Boolean = true,
+        secureLockDeviceEnabled: Boolean? = null,
+        secureLockDeviceBiometricAuthActive: Boolean? = null,
     ) {
         kosmos.fakeUserRepository.setSelectedUserInfo(PRIMARY_USER)
         mSetFlagsRule.enableFlags(Flags.FLAG_REVAMPED_BOUNCER_MESSAGES)
-        underTest =
-            BouncerMessageInteractor(
-                repository = repository,
-                userRepository = kosmos.fakeUserRepository,
-                countDownTimerUtil = countDownTimerUtil,
-                updateMonitor = updateMonitor,
-                biometricSettingsRepository = biometricSettingsRepository,
-                applicationScope = testScope.backgroundScope,
-                trustRepository = kosmos.fakeTrustRepository,
-                systemPropertiesHelper = systemPropertiesHelper,
-                primaryBouncerInteractor = kosmos.primaryBouncerInteractor,
-                facePropertyRepository = kosmos.fakeFacePropertyRepository,
-                securityModel = securityModel,
-                deviceEntryBiometricsAllowedInteractor =
-                    kosmos.deviceEntryBiometricsAllowedInteractor,
-            )
+        underTest = kosmos.bouncerMessageInteractor
+
+        kosmos.fakeDeviceEntryFingerprintAuthRepository.setLockedOut(false)
+        kosmos.fakeDeviceEntryFaceAuthRepository.setLockedOut(false)
+
+        if (fingerprintAuthEnrolledAndEnabled) {
+            kosmos.fakeFingerprintPropertyRepository.supportsSideFps()
+        }
+        biometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(
+            fingerprintAuthEnrolledAndEnabled
+        )
         biometricSettingsRepository.setIsFingerprintAuthCurrentlyAllowed(
             fingerprintAuthCurrentlyAllowed
         )
-        kosmos.fakeDeviceEntryFingerprintAuthRepository.setLockedOut(false)
-        kosmos.fakeFingerprintPropertyRepository.supportsSideFps()
+
+        if (faceAuthEnrolledAndEnabled) {
+            kosmos.fakeFacePropertyRepository.setSensorInfo(
+                FaceSensorInfo(
+                    id = 0,
+                    strength =
+                        if (hasStrongFace) {
+                            SensorStrength.STRONG
+                        } else {
+                            SensorStrength.WEAK
+                        },
+                )
+            )
+        }
+        biometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(faceAuthEnrolledAndEnabled)
+        biometricSettingsRepository.setIsFaceAuthCurrentlyAllowed(faceAuthCurrentlyAllowed)
+
+        secureLockDeviceEnabled?.let { enabled ->
+            if (enabled) {
+                kosmos.fakeSecureLockDeviceRepository.onSecureLockDeviceEnabled()
+                secureLockDeviceBiometricAuthActive?.let {
+                    if (it) {
+                        kosmos.fakeSecureLockDeviceRepository.onSuccessfulPrimaryAuth()
+                        whenever(securityModel.getSecurityMode(eq(PRIMARY_USER_ID)))
+                            .thenReturn(SecureLockDeviceBiometricAuth)
+                        biometricSettingsRepository.setAuthenticationFlags(
+                            AuthenticationFlags(
+                                PRIMARY_USER_ID,
+                                STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE,
+                            )
+                        )
+                    } else {
+                        biometricSettingsRepository.setAuthenticationFlags(
+                            AuthenticationFlags(
+                                PRIMARY_USER_ID,
+                                (PRIMARY_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE or
+                                    STRONG_BIOMETRIC_AUTH_REQUIRED_FOR_SECURE_LOCK_DEVICE),
+                            )
+                        )
+                    }
+                }
+            } else {
+                kosmos.fakeSecureLockDeviceRepository.onSecureLockDeviceDisabled()
+            }
+        }
         kosmos.fakeKeyguardBouncerRepository.setPrimaryShow(true)
         runCurrent()
+
+        if (secureLockDeviceEnabled == true) {
+            val hasFingerprint by collectLastValue(kosmos.secureLockDeviceInteractor.hasFingerprint)
+            val hasFace by collectLastValue(kosmos.secureLockDeviceInteractor.hasFace)
+
+            runCurrent()
+            if (fingerprintAuthEnrolledAndEnabled) {
+                assertThat(hasFingerprint).isTrue()
+            }
+
+            if (hasStrongFace) {
+                assertThat(hasFace).isTrue()
+            }
+        }
     }
 
     @Test
@@ -134,6 +199,95 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
             )
             assertThat(bouncerMessage).isNotNull()
             assertThat(primaryResMessage(bouncerMessage)).isEqualTo("Enter PIN")
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun initialMessage_primaryBouncerAuth_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                fingerprintAuthEnrolledAndEnabled = true,
+                fingerprintAuthCurrentlyAllowed = false,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = false,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle = resString(R.string.keyguard_enter_pin)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun initialMessage_strongFingerprintAuth_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                fingerprintAuthCurrentlyAllowed = true,
+                fingerprintAuthEnrolledAndEnabled = true,
+                faceAuthCurrentlyAllowed = false,
+                faceAuthEnrolledAndEnabled = false,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle =
+                resString(
+                    R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint
+                )
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun initialMessage_strongFaceAuth_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                fingerprintAuthCurrentlyAllowed = false,
+                fingerprintAuthEnrolledAndEnabled = false,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle =
+                resString(R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun initialMessage_strongCoexAuth_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                fingerprintAuthCurrentlyAllowed = true,
+                fingerprintAuthEnrolledAndEnabled = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle =
+                resString(R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
         }
 
     @Test
@@ -156,6 +310,70 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
 
             assertThat(bouncerMessage).isNotNull()
             assertThat(primaryResMessage(bouncerMessage)).isEqualTo("Wrong PIN. Try again.")
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun onIncorrectSecurityInput_whenSecureLockDeviceEnabled_providesCorrectBouncerMessage() =
+        testScope.runTest {
+            init(
+                fingerprintAuthEnrolledAndEnabled = true,
+                fingerprintAuthCurrentlyAllowed = false,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = false,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            underTest.onPrimaryAuthIncorrectAttempt()
+
+            assertThat(bouncerMessage).isNotNull()
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle = resString(R.string.kg_wrong_pin_try_again)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun onFaceFailed_whenSecureLockDeviceEnabled_providesCorrectBouncerMessage() =
+        testScope.runTest {
+            init(
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            captureKeyguardUpdateMonitorCallback()
+
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            keyguardUpdateMonitorCaptor.value.onBiometricAuthFailed(BiometricSourceType.FACE)
+
+            assertThat(bouncerMessage).isNotNull()
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle = resString(R.string.bouncer_face_not_recognized)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun onFingerprintFailed_whenSecureLockDeviceEnabled_providesCorrectBouncerMessage() =
+        testScope.runTest {
+            init(
+                fingerprintAuthCurrentlyAllowed = true,
+                fingerprintAuthEnrolledAndEnabled = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            captureKeyguardUpdateMonitorCallback()
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            keyguardUpdateMonitorCaptor.value.onBiometricAuthFailed(BiometricSourceType.FINGERPRINT)
+
+            assertThat(bouncerMessage).isNotNull()
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle = resString(R.string.kg_fp_not_recognized)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
         }
 
     @Test
@@ -223,7 +441,7 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
 
             keyguardUpdateMonitorCaptor.value.onBiometricAcquired(
                 BiometricSourceType.FACE,
-                BiometricFaceConstants.FACE_ACQUIRED_START
+                BiometricFaceConstants.FACE_ACQUIRED_START,
             )
 
             assertThat(primaryResMessage(bouncerMessage))
@@ -246,7 +464,7 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
 
             keyguardUpdateMonitorCaptor.value.onBiometricAcquired(
                 BiometricSourceType.FACE,
-                BiometricFaceConstants.FACE_ACQUIRED_START
+                BiometricFaceConstants.FACE_ACQUIRED_START,
             )
 
             assertThat(primaryResMessage(bouncerMessage))
@@ -312,9 +530,13 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
     @Test
     fun onFaceLockout_propagatesState() =
         testScope.runTest {
-            init()
+            init(
+                fingerprintAuthEnrolledAndEnabled = true,
+                fingerprintAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = false,
+            )
             val lockoutMessage by collectLastValue(underTest.bouncerMessage)
-            kosmos.fakeBiometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(true)
             kosmos.fakeDeviceEntryFaceAuthRepository.setLockedOut(true)
             runCurrent()
 
@@ -334,14 +556,16 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
     @Test
     fun faceLockoutThenFaceFailure_doesNotUpdateMessage() =
         testScope.runTest {
-            init()
+            init(
+                fingerprintAuthEnrolledAndEnabled = true,
+                fingerprintAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = false,
+            )
             captureKeyguardUpdateMonitorCallback()
             val bouncerMessage by collectLastValue(underTest.bouncerMessage)
-
-            kosmos.fakeBiometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(true)
             kosmos.fakeDeviceEntryFaceAuthRepository.setLockedOut(true)
             runCurrent()
-
             assertThat(primaryResMessage(bouncerMessage))
                 .isEqualTo("Unlock with PIN or fingerprint")
             assertThat(secondaryResMessage(bouncerMessage))
@@ -363,7 +587,6 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
             init()
             val lockoutMessage by collectLastValue(underTest.bouncerMessage)
 
-            kosmos.fakeBiometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(false)
             runCurrent()
             kosmos.fakeDeviceEntryFaceAuthRepository.setLockedOut(true)
             runCurrent()
@@ -374,15 +597,41 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
             assertThat(lockoutMessage?.secondaryMessage?.messageResId).isEqualTo(0)
         }
 
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun onFaceLockout_whenSecureLockDeviceEnabled_propagatesState() =
+        testScope.runTest {
+            init(
+                faceAuthEnrolledAndEnabled = true,
+                faceAuthCurrentlyAllowed = false,
+                hasStrongFace = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = false,
+            )
+            runCurrent()
+
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+            kosmos.fakeDeviceEntryFaceAuthRepository.setLockedOut(true)
+            runCurrent()
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle = resString(R.string.kg_bio_too_many_attempts_pin)
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
     @Test
     fun onFaceLockout_whenItIsClass3_propagatesState() =
         testScope.runTest {
-            init()
-            val lockoutMessage by collectLastValue(underTest.bouncerMessage)
-            kosmos.fakeFacePropertyRepository.setSensorInfo(
-                FaceSensorInfo(1, SensorStrength.STRONG)
+            init(
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                fingerprintAuthCurrentlyAllowed = true,
+                fingerprintAuthEnrolledAndEnabled = true,
             )
-            kosmos.fakeBiometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(true)
+            val lockoutMessage by collectLastValue(underTest.bouncerMessage)
             kosmos.fakeDeviceEntryFaceAuthRepository.setLockedOut(true)
             runCurrent()
 
@@ -403,7 +652,6 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
         testScope.runTest {
             init()
             val lockedOutMessage by collectLastValue(underTest.bouncerMessage)
-            kosmos.fakeBiometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(true)
 
             kosmos.fakeDeviceEntryFingerprintAuthRepository.setLockedOut(true)
             runCurrent()
@@ -420,14 +668,34 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
             assertThat(lockedOutMessage?.secondaryMessage?.message).isNull()
         }
 
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun onFingerprintLockout_whenSecureLockDeviceEnabled_propagatesState() =
+        testScope.runTest {
+            init(
+                fingerprintAuthEnrolledAndEnabled = true,
+                fingerprintAuthCurrentlyAllowed = false,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = false,
+            )
+            runCurrent()
+
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+            kosmos.fakeDeviceEntryFingerprintAuthRepository.setLockedOut(true)
+            runCurrent()
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle = resString(R.string.kg_bio_too_many_attempts_pin)
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
     @Test
     fun onFingerprintLockoutStateChange_whenFingerprintIsNotEnrolled_isANoop() =
         testScope.runTest {
-            init()
+            init(fingerprintAuthEnrolledAndEnabled = false)
             val lockoutMessage by collectLastValue(underTest.bouncerMessage)
-
-            kosmos.fakeBiometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(true)
-            kosmos.fakeBiometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(false)
             runCurrent()
             kosmos.fakeDeviceEntryFingerprintAuthRepository.setLockedOut(true)
             runCurrent()
@@ -435,6 +703,159 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
             assertThat(primaryResMessage(lockoutMessage)).isEqualTo("Enter PIN")
             assertThat(lockoutMessage?.secondaryMessage?.message).isNull()
             assertThat(lockoutMessage?.secondaryMessage?.messageResId).isEqualTo(0)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun defaultMessageShown_afterStrongFingerprintAuthUnlock_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                fingerprintAuthCurrentlyAllowed = true,
+                fingerprintAuthEnrolledAndEnabled = true,
+                faceAuthCurrentlyAllowed = false,
+                faceAuthEnrolledAndEnabled = false,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle =
+                resString(
+                    R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_fingerprint
+                )
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+
+            underTest.onSecureLockDeviceUnlock()
+            runCurrent()
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun messageUpdated_onStrongFaceAuthErrorShownAndCleared_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                fingerprintAuthCurrentlyAllowed = false,
+                fingerprintAuthEnrolledAndEnabled = false,
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            var expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            var expectedSubtitle = resString(R.string.bouncer_face_not_recognized)
+
+            // Error shown when retry available
+            underTest.onSecureLockDeviceRetryAuthentication(showingError = true)
+            runCurrent()
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+
+            expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            expectedSubtitle =
+                resString(R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face)
+
+            // Error cleared, awaiting retry
+            underTest.onSecureLockDeviceRetryAuthentication(showingError = false)
+            runCurrent()
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun messageUpdated_onStrongFaceAuthPendingConfirmation_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                fingerprintAuthCurrentlyAllowed = false,
+                fingerprintAuthEnrolledAndEnabled = false,
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle =
+                resString(R.string.keyguard_face_successful_unlock_confirm_button)
+
+            underTest.onSecureLockDevicePendingConfirmation()
+            runCurrent()
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun defaultMessageShown_afterStrongFaceAuthUnlock_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                fingerprintAuthCurrentlyAllowed = false,
+                fingerprintAuthEnrolledAndEnabled = false,
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle =
+                resString(R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_face)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+
+            underTest.onSecureLockDeviceUnlock()
+            runCurrent()
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+        }
+
+    @EnableFlags(FLAG_SECURE_LOCK_DEVICE)
+    @Test
+    fun defaultMessageShown_afterStrongCoexAuthUnlock_secureLockDeviceEnabled() =
+        testScope.runTest {
+            init(
+                fingerprintAuthCurrentlyAllowed = true,
+                fingerprintAuthEnrolledAndEnabled = true,
+                faceAuthCurrentlyAllowed = true,
+                faceAuthEnrolledAndEnabled = true,
+                hasStrongFace = true,
+                secureLockDeviceEnabled = true,
+                secureLockDeviceBiometricAuthActive = true,
+            )
+            val bouncerMessage by collectLastValue(underTest.bouncerMessage)
+            runCurrent()
+
+            val expectedTitle = resString(R.string.kg_prompt_title_after_secure_lock_device)
+            val expectedSubtitle =
+                resString(R.string.kg_prompt_subtitle_for_secure_lock_device_biometric_auth_coex)
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
+
+            underTest.onSecureLockDeviceUnlock()
+            runCurrent()
+
+            assertThat(primaryResMessage(bouncerMessage)).isEqualTo(expectedTitle)
+            assertThat(secondaryResMessage(bouncerMessage)).isEqualTo(expectedSubtitle)
         }
 
     @Test
@@ -453,10 +874,8 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
     @Test
     fun onRestartForMainlineUpdate_shouldProvideRelevantMessage() =
         testScope.runTest {
-            init()
-            whenever(systemPropertiesHelper.get("sys.boot.reason.last"))
-                .thenReturn("reboot,mainline_update")
-            biometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(true)
+            init(faceAuthEnrolledAndEnabled = true)
+            kosmos.fakeSystemPropertiesHelper.set(SYS_BOOT_REASON_PROP, REBOOT_MAINLINE_UPDATE)
 
             verifyMessagesForAuthFlag(
                 LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_BOOT to
@@ -467,10 +886,14 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
     @Test
     fun onAuthFlagsChanged_withTrustNotManagedAndNoBiometrics_isANoop() =
         testScope.runTest {
-            init()
+            init(
+                fingerprintAuthEnrolledAndEnabled = false,
+                fingerprintAuthCurrentlyAllowed = false,
+                faceAuthEnrolledAndEnabled = false,
+                faceAuthCurrentlyAllowed = false,
+            )
+
             kosmos.fakeTrustRepository.setTrustUsuallyManaged(false)
-            biometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(false)
-            biometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(false)
             runCurrent()
 
             val defaultMessage = Pair("Enter PIN", null)
@@ -493,18 +916,20 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
                 LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_FOR_UNATTENDED_UPDATE to
                     defaultMessage,
                 LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_DPM_LOCK_NOW to
-                    Pair("Enter PIN", "For added security, device was locked by work policy")
+                    Pair("Enter PIN", "For added security, device was locked by work policy"),
             )
         }
 
     @Test
     fun authFlagsChanges_withTrustManaged_providesDifferentMessages() =
         testScope.runTest {
-            init()
+            init(
+                fingerprintAuthEnrolledAndEnabled = false,
+                fingerprintAuthCurrentlyAllowed = false,
+                faceAuthEnrolledAndEnabled = false,
+            )
 
             kosmos.fakeUserRepository.setSelectedUserInfo(PRIMARY_USER)
-            biometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(false)
-            biometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(false)
             runCurrent()
 
             kosmos.fakeTrustRepository.setCurrentUserTrustManaged(true)
@@ -532,7 +957,7 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
                     .STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT to
                     Pair(
                         "Enter PIN",
-                        "Added security required. Device wasn’t unlocked for a while."
+                        "Added security required. Device wasn’t unlocked for a while.",
                     ),
             )
         }
@@ -540,12 +965,14 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
     @Test
     fun authFlagsChanges_withFaceEnrolled_providesDifferentMessages() =
         testScope.runTest {
-            init()
+            init(
+                fingerprintAuthEnrolledAndEnabled = false,
+                fingerprintAuthCurrentlyAllowed = false,
+                faceAuthEnrolledAndEnabled = true,
+            )
             kosmos.fakeUserRepository.setSelectedUserInfo(PRIMARY_USER)
             kosmos.fakeTrustRepository.setTrustUsuallyManaged(false)
-            biometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(false)
 
-            biometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(true)
             val defaultMessage = Pair("Enter PIN", null)
 
             verifyMessagesForAuthFlag(
@@ -570,7 +997,7 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
                     .STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT to
                     Pair(
                         "Enter PIN",
-                        "Added security required. Device wasn’t unlocked for a while."
+                        "Added security required. Device wasn’t unlocked for a while.",
                     ),
             )
         }
@@ -578,20 +1005,15 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
     @Test
     fun authFlagsChanges_withFingerprintEnrolled_providesDifferentMessages() =
         testScope.runTest {
-            init()
+            init(fingerprintAuthCurrentlyAllowed = true, fingerprintAuthEnrolledAndEnabled = true)
             kosmos.fakeUserRepository.setSelectedUserInfo(PRIMARY_USER)
             kosmos.fakeTrustRepository.setCurrentUserTrustManaged(false)
-            biometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(false)
-
-            biometricSettingsRepository.setIsFingerprintAuthEnrolledAndEnabled(true)
-            biometricSettingsRepository.setIsFingerprintAuthCurrentlyAllowed(true)
             runCurrent()
 
             verifyMessagesForAuthFlag(
                 LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED to
                     Pair("Unlock with PIN or fingerprint", null)
             )
-
             biometricSettingsRepository.setIsFingerprintAuthCurrentlyAllowed(false)
             runCurrent()
 
@@ -614,7 +1036,7 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
                     .STRONG_AUTH_REQUIRED_AFTER_NON_STRONG_BIOMETRICS_TIMEOUT to
                     Pair(
                         "Enter PIN",
-                        "Added security required. Device wasn’t unlocked for a while."
+                        "Added security required. Device wasn’t unlocked for a while.",
                     ),
             )
         }
@@ -634,6 +1056,9 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
         val authFlagsMessage by collectLastValue(underTest.bouncerMessage)
 
         authFlagToExpectedMessages.forEach { (flag, messagePair) ->
+            if (flag != LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_BOOT) {
+                kosmos.fakeSystemPropertiesHelper.set(SYS_BOOT_REASON_PROP, "not mainline reboot")
+            }
             biometricSettingsRepository.setAuthenticationFlags(
                 AuthenticationFlags(PRIMARY_USER_ID, flag)
             )
@@ -660,7 +1085,7 @@ class BouncerMessageInteractorTest : SysuiTestCase() {
             UserInfo(
                 /* id= */ PRIMARY_USER_ID,
                 /* name= */ "primary user",
-                /* flags= */ UserInfo.FLAG_PRIMARY
+                /* flags= */ UserInfo.FLAG_PRIMARY,
             )
     }
 }

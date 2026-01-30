@@ -19,18 +19,21 @@ package com.android.server.inputmethod;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
+import android.os.ResultReceiver;
 import android.util.Pair;
 import android.util.SparseArray;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.ImeTracker;
 import android.view.inputmethod.InputMethodSubtype;
-import android.window.ImeOnBackInvokedDispatcher;
 
 import com.android.internal.annotations.GuardedBy;
 import com.android.internal.inputmethod.IRemoteAccessibilityInputConnection;
+import com.android.internal.inputmethod.IRemoteComputerControlInputConnection;
 import com.android.internal.inputmethod.IRemoteInputConnection;
 import com.android.internal.inputmethod.InputMethodSubtypeHandle;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -66,10 +69,6 @@ final class UserData {
             new InputMethodSubtypeSwitchingController();
 
     @NonNull
-    final HardwareKeyboardShortcutController mHardwareKeyboardShortcutController =
-            new HardwareKeyboardShortcutController();
-
-    @NonNull
     final ImeVisibilityStateComputer mVisibilityStateComputer;
 
     /**
@@ -103,12 +102,20 @@ final class UserData {
     IRemoteInputConnection mCurInputConnection;
 
     /**
-     * The {@link ImeOnBackInvokedDispatcher} last provided by the current client to
+     * The map of {@link IRemoteComputerControlInputConnection}, provided by an active client on a
+     * computer control display.
+     */
+    @NonNull
+    Map<Integer, IRemoteComputerControlInputConnection> mComputerControlInputConnectionMap =
+            new HashMap<>();
+
+    /**
+     * The {@link ResultReceiver} last provided by the current client to
      * receive {@link android.window.OnBackInvokedCallback}s forwarded from IME.
      */
     @GuardedBy("ImfLock.class")
     @Nullable
-    ImeOnBackInvokedDispatcher mCurImeDispatcher;
+    ResultReceiver mCurImeBackCallbackReceiver;
 
     /**
      * The {@link IRemoteAccessibilityInputConnection} last provided by the current client.

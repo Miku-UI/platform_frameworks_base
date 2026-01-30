@@ -17,11 +17,12 @@
 
 package android.app;
 
+import android.app.IBinderSession;
 import android.content.ComponentName;
 
 /** @hide */
 oneway interface IServiceConnection {
     @UnsupportedAppUsage
-    void connected(in ComponentName name, IBinder service, boolean dead);
+    void connected(in ComponentName name, IBinder service, in @nullable IBinderSession session,
+        boolean dead);
 }
-

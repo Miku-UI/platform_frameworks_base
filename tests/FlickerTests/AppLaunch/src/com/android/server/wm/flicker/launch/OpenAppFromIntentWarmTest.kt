@@ -17,11 +17,11 @@
 package com.android.server.wm.flicker.launch
 
 import android.platform.test.annotations.Presubmit
-import android.tools.flicker.annotation.FlickerServiceCompatible
+import androidx.test.filters.RequiresDevice
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import androidx.test.filters.FlakyTest
 import com.android.server.wm.flicker.helpers.setRotation
 import com.android.server.wm.flicker.launch.common.OpenAppFromLauncherTransition
@@ -53,11 +53,11 @@ import org.junit.runners.Parameterized
  *        apps are running before setup
  * ```
  */
-@FlickerServiceCompatible
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class OpenAppFromIntentWarmTest(flicker: LegacyFlickerTest) :
+class OpenAppFromIntentWarmTest(flicker: FlickerTest) :
     OpenAppFromLauncherTransition(flicker) {
     /** Defines the transition used to run the test */
     override val transition: FlickerBuilder.() -> Unit
@@ -93,11 +93,11 @@ class OpenAppFromIntentWarmTest(flicker: LegacyFlickerTest) :
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.nonRotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.nonRotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.nonRotationTests()
+        fun getParams() = FlickerTestFactory.nonRotationTests()
     }
 }

@@ -22,6 +22,7 @@ import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.app.Activity;
 import android.app.PendingIntent;
+import android.companion.virtualdevice.flags.Flags;
 import android.compat.annotation.UnsupportedAppUsage;
 import android.content.ComponentName;
 import android.content.Context;
@@ -72,7 +73,8 @@ import java.util.Objects;
  * create a {@link MediaController} to interact with the session.
  * <p>
  * To receive commands, media keys, and other events a {@link Callback} must be
- * set with {@link #setCallback(Callback)} and {@link #setActive(boolean)
+ * set with {@link #setCallback(Callback)}. To make the session discoverable by
+ * other apps, including system apps, {@link #setActive(boolean)
  * setActive(true)} must be called.
  * <p>
  * When an app is finished performing playback it must call {@link #release()}
@@ -132,7 +134,7 @@ public final class MediaSession {
     public @interface SessionFlags { }
 
     private final Object mLock = new Object();
-    private Context mContext;
+    private final Context mContext;
     private final int mMaxBitmapSize;
 
     private final Token mSessionToken;
@@ -145,6 +147,7 @@ public final class MediaSession {
     private CallbackMessageHandler mCallback;
     private VolumeProvider mVolumeProvider;
     private PlaybackState mPlaybackState;
+    private boolean mIsReleased;
 
     private boolean mActive = false;
 
@@ -237,15 +240,15 @@ public final class MediaSession {
         synchronized (mLock) {
             if (mCallback != null) {
                 // We're updating the callback, clear the session from the old one.
-                mCallback.mCallback.mSession = null;
-                mCallback.removeCallbacksAndMessages(null);
+                mCallback.mCallback.clearSession();
+
             }
             if (callback == null) {
                 mCallback = null;
                 return;
             }
             Looper looper = handler != null ? handler.getLooper() : Looper.myLooper();
-            callback.mSession = this;
+            callback.setSession(this);
             CallbackMessageHandler msgHandler = new CallbackMessageHandler(looper, callback);
             mCallback = msgHandler;
         }
@@ -397,10 +400,11 @@ public final class MediaSession {
     }
 
     /**
-     * Set if this session is currently active and ready to receive commands. If
-     * set to false your session's controller may not be discoverable. You must
-     * set the session to active before it can start receiving media button
-     * events or transport commands.
+     * Set if this session is currently active.
+     *
+     * <p>If set to false then your session's controller will not be
+     * discoverable via {@link MediaSessionManager#getActiveSessions(ComponentName)} by
+     * other apps, including system apps.
      *
      * @param active Whether this session is active or not.
      */
@@ -418,6 +422,10 @@ public final class MediaSession {
 
     /**
      * Get the current active state of this session.
+     *
+     * <p>If false then your session's controller will not be discoverable via
+     * {@link MediaSessionManager#getActiveSessions(ComponentName)} by other apps,
+     * including system apps.
      *
      * @return True if the session is active, false otherwise.
      */
@@ -450,11 +458,26 @@ public final class MediaSession {
      * but it must be released if your activity or service is being destroyed.
      */
     public void release() {
+        if (mIsReleased) {
+            return;
+        }
         setCallback(null);
         try {
             mBinder.destroySession();
         } catch (RemoteException e) {
             Log.wtf(TAG, "Error releasing session: ", e);
+        } finally {
+            mIsReleased = true;
+        }
+    }
+
+    @Override
+    protected void finalize() throws Throwable {
+        try {
+            // Fallback if release() hasn't been called already.
+            release();
+        } finally {
+            super.finalize();
         }
     }
 
@@ -505,7 +528,7 @@ public final class MediaSession {
     public void setMetadata(@Nullable MediaMetadata metadata) {
         long duration = -1;
         int fields = 0;
-        MediaDescription description = null;
+        String description = null;
         if (metadata != null) {
             metadata = new MediaMetadata.Builder(metadata)
                     .setBitmapDimensionLimit(mMaxBitmapSize)
@@ -514,7 +537,7 @@ public final class MediaSession {
                 duration = metadata.getLong(MediaMetadata.METADATA_KEY_DURATION);
             }
             fields = metadata.size();
-            description = metadata.getDescription();
+            description = metadata.getDescriptionString();
         }
         String metadataDescription = "size=" + fields + ", description=" + description;
 
@@ -542,7 +565,9 @@ public final class MediaSession {
                 mBinder.resetQueue();
             } else {
                 IBinder binder = mBinder.getBinderForSetQueue();
-                ParcelableListBinder.send(binder, queue);
+                if (binder != null) {
+                    ParcelableListBinder.send(binder, queue);
+                }
             }
         } catch (RemoteException e) {
             Log.wtf("Dead object in setQueue.", e);
@@ -891,11 +916,26 @@ public final class MediaSession {
      */
     public abstract static class Callback {
 
+        private final Object mSessionLock = new Object();
         private MediaSession mSession;
         private CallbackMessageHandler mHandler;
         private boolean mMediaPlayPauseKeyPending;
 
         public Callback() {
+        }
+
+        private void setSession(MediaSession session) {
+            synchronized (mSessionLock) {
+                mSession = session;
+            }
+        }
+
+        private void clearSession() {
+            synchronized (mSessionLock) {
+                mSession = null;
+                mMediaPlayPauseKeyPending = false;
+                mHandler.removeCallbacksAndMessages(null);
+            }
         }
 
         /**
@@ -925,83 +965,107 @@ public final class MediaSession {
          * @return True if the event was handled, false otherwise.
          */
         public boolean onMediaButtonEvent(@NonNull Intent mediaButtonIntent) {
-            if (mSession != null && mHandler != null
-                    && Intent.ACTION_MEDIA_BUTTON.equals(mediaButtonIntent.getAction())) {
-                KeyEvent ke = mediaButtonIntent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, android.view.KeyEvent.class);
-                if (ke != null && ke.getAction() == KeyEvent.ACTION_DOWN) {
-                    PlaybackState state = mSession.mPlaybackState;
-                    long validActions = state == null ? 0 : state.getActions();
-                    switch (ke.getKeyCode()) {
-                        case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                        case KeyEvent.KEYCODE_HEADSETHOOK:
-                            if (ke.getRepeatCount() > 0) {
-                                // Consider long-press as a single tap.
-                                handleMediaPlayPauseKeySingleTapIfPending();
-                            } else if (mMediaPlayPauseKeyPending) {
-                                // Consider double tap as the next.
-                                mHandler.removeMessages(CallbackMessageHandler
-                                        .MSG_PLAY_PAUSE_KEY_DOUBLE_TAP_TIMEOUT);
-                                mMediaPlayPauseKeyPending = false;
-                                if ((validActions & PlaybackState.ACTION_SKIP_TO_NEXT) != 0) {
-                                    onSkipToNext();
-                                }
-                            } else {
-                                mMediaPlayPauseKeyPending = true;
-                                mSession.dispatchMediaButtonDelayed(
-                                        mSession.getCurrentControllerInfo(),
-                                        mediaButtonIntent, ViewConfiguration.getDoubleTapTimeout());
-                            }
-                            return true;
-                        default:
-                            // If another key is pressed within double tap timeout, consider the
-                            // pending play/pause as a single tap to handle media keys in order.
-                            handleMediaPlayPauseKeySingleTapIfPending();
-                            break;
-                    }
-
-                    switch (ke.getKeyCode()) {
-                        case KeyEvent.KEYCODE_MEDIA_PLAY:
-                            if ((validActions & PlaybackState.ACTION_PLAY) != 0) {
-                                onPlay();
-                                return true;
-                            }
-                            break;
-                        case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                            if ((validActions & PlaybackState.ACTION_PAUSE) != 0) {
-                                onPause();
-                                return true;
-                            }
-                            break;
-                        case KeyEvent.KEYCODE_MEDIA_NEXT:
+            if (mHandler == null
+                    || !Intent.ACTION_MEDIA_BUTTON.equals(mediaButtonIntent.getAction())) {
+                return false;
+            }
+            KeyEvent ke = mediaButtonIntent.getParcelableExtra(
+                    Intent.EXTRA_KEY_EVENT, android.view.KeyEvent.class);
+            if (ke == null || ke.getAction() != KeyEvent.ACTION_DOWN) {
+                return false;
+            }
+            // Store some results into locals so we can invoke any app-implemented methods (like
+            // onSkipToNext()) outside the synchronized block and avoid the risk of a deadlock.
+            long validActions;
+            boolean eventHandled/* = false*/;
+            Runnable doubleTapHandlingAction = null;
+            synchronized (mSessionLock) {
+                if (mSession == null) {
+                    return false;
+                }
+                PlaybackState state = mSession.mPlaybackState;
+                validActions = state == null ? 0 : state.getActions();
+                switch (ke.getKeyCode()) {
+                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE, KeyEvent.KEYCODE_HEADSETHOOK -> {
+                        if (ke.getRepeatCount() > 0) {
+                            // Consider long-press as a single tap.
+                            doubleTapHandlingAction =
+                                    this::handleMediaPlayPauseKeySingleTapIfPending;
+                        } else if (mMediaPlayPauseKeyPending) {
+                            // Consider double tap as the next.
+                            mHandler.removeMessages(CallbackMessageHandler
+                                    .MSG_PLAY_PAUSE_KEY_DOUBLE_TAP_TIMEOUT);
+                            mMediaPlayPauseKeyPending = false;
                             if ((validActions & PlaybackState.ACTION_SKIP_TO_NEXT) != 0) {
-                                onSkipToNext();
-                                return true;
+                                doubleTapHandlingAction = this::onSkipToNext;
                             }
-                            break;
-                        case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                            if ((validActions & PlaybackState.ACTION_SKIP_TO_PREVIOUS) != 0) {
-                                onSkipToPrevious();
-                                return true;
-                            }
-                            break;
-                        case KeyEvent.KEYCODE_MEDIA_STOP:
-                            if ((validActions & PlaybackState.ACTION_STOP) != 0) {
-                                onStop();
-                                return true;
-                            }
-                            break;
-                        case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                            if ((validActions & PlaybackState.ACTION_FAST_FORWARD) != 0) {
-                                onFastForward();
-                                return true;
-                            }
-                            break;
-                        case KeyEvent.KEYCODE_MEDIA_REWIND:
-                            if ((validActions & PlaybackState.ACTION_REWIND) != 0) {
-                                onRewind();
-                                return true;
-                            }
-                            break;
+                        } else {
+                            mMediaPlayPauseKeyPending = true;
+                            mSession.dispatchMediaButtonDelayed(
+                                    mSession.getCurrentControllerInfo(),
+                                    mediaButtonIntent,
+                                    Flags.viewconfigurationApis()
+                                            ? ViewConfiguration.get(mSession.mContext)
+                                            .getDoubleTapTimeoutMillis()
+                                            : ViewConfiguration.getDoubleTapTimeout());
+                        }
+                        eventHandled = true;
+                    }
+                    default -> {
+                        // If another key is pressed within double tap timeout, consider the
+                        // pending play/pause as a single tap to handle media keys in order.
+                        doubleTapHandlingAction = this::handleMediaPlayPauseKeySingleTapIfPending;
+                        eventHandled = false;
+                    }
+                }
+            }
+            if (doubleTapHandlingAction != null) {
+                doubleTapHandlingAction.run();
+            }
+            if (eventHandled) {
+                return true;
+            }
+            switch (ke.getKeyCode()) {
+                case KeyEvent.KEYCODE_MEDIA_PLAY -> {
+                    if ((validActions & PlaybackState.ACTION_PLAY) != 0) {
+                        onPlay();
+                        return true;
+                    }
+                }
+                case KeyEvent.KEYCODE_MEDIA_PAUSE -> {
+                    if ((validActions & PlaybackState.ACTION_PAUSE) != 0) {
+                        onPause();
+                        return true;
+                    }
+                }
+                case KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                    if ((validActions & PlaybackState.ACTION_SKIP_TO_NEXT) != 0) {
+                        onSkipToNext();
+                        return true;
+                    }
+                }
+                case KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                    if ((validActions & PlaybackState.ACTION_SKIP_TO_PREVIOUS) != 0) {
+                        onSkipToPrevious();
+                        return true;
+                    }
+                }
+                case KeyEvent.KEYCODE_MEDIA_STOP -> {
+                    if ((validActions & PlaybackState.ACTION_STOP) != 0) {
+                        onStop();
+                        return true;
+                    }
+                }
+                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> {
+                    if ((validActions & PlaybackState.ACTION_FAST_FORWARD) != 0) {
+                        onFastForward();
+                        return true;
+                    }
+                }
+                case KeyEvent.KEYCODE_MEDIA_REWIND -> {
+                    if ((validActions & PlaybackState.ACTION_REWIND) != 0) {
+                        onRewind();
+                        return true;
                     }
                 }
             }
@@ -1009,12 +1073,16 @@ public final class MediaSession {
         }
 
         private void handleMediaPlayPauseKeySingleTapIfPending() {
-            if (!mMediaPlayPauseKeyPending) {
-                return;
+            PlaybackState state;
+            synchronized (mSessionLock) {
+                if (!mMediaPlayPauseKeyPending || mSession == null) {
+                    return;
+                }
+                mMediaPlayPauseKeyPending = false;
+                mHandler.removeMessages(
+                        CallbackMessageHandler.MSG_PLAY_PAUSE_KEY_DOUBLE_TAP_TIMEOUT);
+                state = mSession.mPlaybackState;
             }
-            mMediaPlayPauseKeyPending = false;
-            mHandler.removeMessages(CallbackMessageHandler.MSG_PLAY_PAUSE_KEY_DOUBLE_TAP_TIMEOUT);
-            PlaybackState state = mSession.mPlaybackState;
             long validActions = state == null ? 0 : state.getActions();
             boolean isPlaying = state != null
                     && state.getState() == PlaybackState.STATE_PLAYING;

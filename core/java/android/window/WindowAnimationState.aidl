@@ -22,7 +22,7 @@ import android.graphics.RectF;
 /**
  * Properties of a window animation at a given point in time.
  *
- * {@hide}
+ * @hide
  */
 parcelable WindowAnimationState {
     long timestamp;

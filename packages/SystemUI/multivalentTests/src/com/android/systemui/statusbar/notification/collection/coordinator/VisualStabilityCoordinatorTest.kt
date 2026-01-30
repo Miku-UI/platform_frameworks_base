@@ -15,7 +15,6 @@
  */
 package com.android.systemui.statusbar.notification.collection.coordinator
 
-import android.platform.test.annotations.EnableFlags
 import android.platform.test.flag.junit.FlagsParameterization
 import android.testing.TestableLooper.RunWithLooper
 import androidx.test.filters.SmallTest
@@ -50,7 +49,6 @@ import com.android.systemui.statusbar.notification.collection.GroupEntry
 import com.android.systemui.statusbar.notification.collection.GroupEntryBuilder
 import com.android.systemui.statusbar.notification.collection.NotificationEntry
 import com.android.systemui.statusbar.notification.collection.NotificationEntryBuilder
-import com.android.systemui.statusbar.notification.collection.UseElapsedRealtimeForCreationTime
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.NotifStabilityManager
 import com.android.systemui.statusbar.notification.collection.listbuilder.pluggable.Pluggable.PluggableListener
 import com.android.systemui.statusbar.notification.collection.notifPipeline
@@ -169,7 +167,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // THEN group changes are allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isTrue()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isTrue()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isTrue()
 
             // THEN section changes are allowed
@@ -186,7 +184,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // THEN group changes are NOT allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are NOT allowed
@@ -203,7 +201,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // THEN group changes are NOT allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are NOT allowed
@@ -220,7 +218,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // THEN group changes are allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isTrue()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isTrue()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isTrue()
 
             // THEN section changes are allowed
@@ -237,7 +235,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // THEN group changes are NOT allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are NOT allowed
@@ -245,7 +243,6 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
         }
 
     @Test
-    @BrokenWithSceneContainer(bugId = 377868472) // mReorderingAllowed is broken with SceneContainer
     fun testLockscreenPartlyShowing_groupAndSectionChangesNotAllowed() =
         testScope.runTest {
             // GIVEN the panel true expanded and device isn't pulsing
@@ -255,7 +252,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // THEN group changes are NOT allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are NOT allowed
@@ -263,7 +260,6 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
         }
 
     @Test
-    @BrokenWithSceneContainer(bugId = 377868472) // mReorderingAllowed is broken with SceneContainer
     fun testLockscreenFullyShowing_groupAndSectionChangesNotAllowed() =
         testScope.runTest {
             // GIVEN the panel true expanded and device isn't pulsing
@@ -273,7 +269,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // THEN group changes are NOT allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are NOT allowed
@@ -289,7 +285,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(true)
 
             // THEN group changes are NOT allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are NOT allowed
@@ -306,7 +302,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(true)
 
             // THEN group changes are NOT allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are NOT allowed
@@ -324,13 +320,10 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(true)
 
             // WHEN we temporarily allow section changes for this notification entry
-            underTest.temporarilyAllowSectionChanges(
-                entry,
-                UseElapsedRealtimeForCreationTime.getCurrentTime(fakeSystemClock),
-            )
+            underTest.temporarilyAllowSectionChanges(entry, fakeSystemClock.elapsedRealtime())
 
             // THEN group changes aren't allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // THEN section changes are allowed for this notification but not other notifications
@@ -353,10 +346,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // WHEN we temporarily allow section changes for this notification entry
-            underTest.temporarilyAllowSectionChanges(
-                entry,
-                UseElapsedRealtimeForCreationTime.getCurrentTime(fakeSystemClock),
-            )
+            underTest.temporarilyAllowSectionChanges(entry, fakeSystemClock.elapsedRealtime())
 
             // THEN the notification list is invalidated
             verifyStabilityManagerWasInvalidated(times(1))
@@ -372,10 +362,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(false)
 
             // WHEN we temporarily allow section changes for this notification entry
-            underTest.temporarilyAllowSectionChanges(
-                entry,
-                UseElapsedRealtimeForCreationTime.getCurrentTime(fakeSystemClock),
-            )
+            underTest.temporarilyAllowSectionChanges(entry, fakeSystemClock.elapsedRealtime())
 
             // THEN invalidate is not called because this entry was never suppressed from reordering
             verifyStabilityManagerWasInvalidated(never())
@@ -392,10 +379,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             assertThat(notifStabilityManager.isSectionChangeAllowed(entry)).isTrue()
 
             // WHEN we temporarily allow section changes for this notification entry
-            underTest.temporarilyAllowSectionChanges(
-                entry,
-                UseElapsedRealtimeForCreationTime.getCurrentTime(fakeSystemClock),
-            )
+            underTest.temporarilyAllowSectionChanges(entry, fakeSystemClock.elapsedRealtime())
 
             // THEN invalidate is not called because this entry was never suppressed from
             // reordering;
@@ -428,10 +412,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setPulsing(true)
 
             // WHEN we temporarily allow section changes for this notification entry
-            underTest.temporarilyAllowSectionChanges(
-                entry,
-                UseElapsedRealtimeForCreationTime.getCurrentTime(fakeSystemClock),
-            )
+            underTest.temporarilyAllowSectionChanges(entry, fakeSystemClock.elapsedRealtime())
             // can now reorder, so invalidates
             verifyStabilityManagerWasInvalidated(times(1))
 
@@ -506,7 +487,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setSleepy(false)
             setPanelExpanded(true)
 
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
 
             // WHEN the panel isn't expanded anymore
@@ -545,7 +526,6 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_CHECK_LOCKSCREEN_GONE_TRANSITION)
     @DisableSceneContainer
     fun testNotLockscreenInGoneTransitionLegacy_invalidationCalled() {
         // GIVEN visual stability is being maintained b/c animation is playing
@@ -563,7 +543,6 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
     }
 
     @Test
-    @EnableFlags(Flags.FLAG_CHECK_LOCKSCREEN_GONE_TRANSITION)
     @EnableSceneContainer
     @BrokenWithSceneContainer(bugId = 377868472) // mReorderingAllowed is broken with SceneContainer
     fun testNotLockscreenInGoneTransition_invalidationCalled() =
@@ -701,7 +680,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             setSleepy(false)
             setPanelExpanded(true)
             setPulsing(true)
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isFalse()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isFalse()
             assertThat(notifStabilityManager.isSectionChangeAllowed(entry)).isFalse()
 
@@ -709,7 +688,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             headsUpRepository.setHeadsUpKeys(entry.key)
 
             // THEN group + section changes are allowed
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isTrue()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isTrue()
             assertThat(notifStabilityManager.isSectionChangeAllowed(entry)).isTrue()
 
             // BUT pruning the group for which this is the summary would still NOT be allowed.
@@ -726,7 +705,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
 
             // THEN
             assertThat(notifStabilityManager.isEveryChangeAllowed()).isTrue()
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isTrue()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isTrue()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isTrue()
             assertThat(notifStabilityManager.isSectionChangeAllowed(entry)).isTrue()
             assertThat(notifStabilityManager.isEntryReorderingAllowed(entry)).isTrue()
@@ -745,7 +724,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
 
             // THEN
             assertThat(notifStabilityManager.isEveryChangeAllowed()).isTrue()
-            assertThat(notifStabilityManager.isGroupChangeAllowed(entry)).isTrue()
+            assertThat(notifStabilityManager.isParentChangeAllowed(entry)).isTrue()
             assertThat(notifStabilityManager.isGroupPruneAllowed(groupEntry)).isTrue()
             assertThat(notifStabilityManager.isSectionChangeAllowed(entry)).isTrue()
             assertThat(notifStabilityManager.isEntryReorderingAllowed(entry)).isTrue()
@@ -784,6 +763,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             whenever(nonHeadsUpGroupSummary.key).thenReturn("non_heads_up_group_key")
             whenever(nonHeadsUpGroupSummary.isSummaryWithChildren).thenReturn(true)
             val nonHeadsUpGroupEntry: GroupEntry = mock()
+            whenever(nonHeadsUpGroupEntry.asListEntry()).thenReturn(nonHeadsUpGroupEntry)
             whenever(nonHeadsUpGroupEntry.summary).thenReturn(nonHeadsUpGroupSummary)
             whenever(nonHeadsUpGroupEntry.representativeEntry).thenReturn(nonHeadsUpGroupSummary)
 
@@ -857,7 +837,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
                 .thenReturn(true)
 
             // THEN
-            assertThat(notifStabilityManager.isGroupChangeAllowed(headsUpGroupSummary)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(headsUpGroupSummary)).isFalse()
             assertThat(notifStabilityManager.isEntryReorderingAllowed(headsUpGroupSummary))
                 .isFalse()
             assertThat(notifStabilityManager.isSectionChangeAllowed(headsUpGroupSummary)).isFalse()
@@ -882,6 +862,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             whenever(groupSummary.isSummaryWithChildren).thenReturn(true)
 
             val nonHeadsUpGroupEntry: GroupEntry = mock()
+            whenever(nonHeadsUpGroupEntry.asListEntry()).thenReturn(nonHeadsUpGroupEntry)
             whenever(nonHeadsUpGroupEntry.summary).thenReturn(groupSummary)
             whenever(nonHeadsUpGroupEntry.representativeEntry).thenReturn(groupSummary)
 
@@ -892,7 +873,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
             whenever(childEntry.parent).thenReturn(nonHeadsUpGroupEntry)
 
             // THEN
-            assertThat(notifStabilityManager.isGroupChangeAllowed(childEntry)).isTrue()
+            assertThat(notifStabilityManager.isParentChangeAllowed(childEntry)).isTrue()
             assertThat(notifStabilityManager.isSectionChangeAllowed(childEntry)).isTrue()
             assertThat(notifStabilityManager.isEntryReorderingAllowed(nonHeadsUpGroupEntry))
                 .isTrue()
@@ -932,7 +913,7 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
                 .thenReturn(true)
 
             // THEN
-            assertThat(notifStabilityManager.isGroupChangeAllowed(childEntry)).isFalse()
+            assertThat(notifStabilityManager.isParentChangeAllowed(childEntry)).isFalse()
             assertThat(notifStabilityManager.isSectionChangeAllowed(childEntry)).isFalse()
             assertThat(notifStabilityManager.isEntryReorderingAllowed(childEntry)).isFalse()
         }
@@ -1001,12 +982,15 @@ class VisualStabilityCoordinatorTest(flags: FlagsParameterization) : SysuiTestCa
         } else {
             statusBarStateListener.onExpandedChanged(panelExpanded || lockscreenShowing > 0.0f)
         }
+        testScope.testScheduler.runCurrent()
     }
 
     private fun makeLockscreenTransitionStep(value: Float): TransitionStep {
         return when (value) {
-            0.0f -> TransitionStep(KeyguardState.GONE)
-            1.0f -> TransitionStep(KeyguardState.LOCKSCREEN)
+            0.0f ->
+                TransitionStep(from = KeyguardState.LOCKSCREEN, to = KeyguardState.GONE, value = 1f)
+            1.0f ->
+                TransitionStep(from = KeyguardState.GONE, to = KeyguardState.LOCKSCREEN, value = 1f)
             else ->
                 TransitionStep(
                     KeyguardState.GONE,

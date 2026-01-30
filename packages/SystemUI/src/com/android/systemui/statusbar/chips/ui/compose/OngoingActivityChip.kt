@@ -22,13 +22,17 @@ import android.util.Log
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,17 +42,20 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.times
 import androidx.compose.ui.viewinterop.AndroidView
 import com.android.compose.animation.Expandable
 import com.android.compose.modifiers.thenIf
 import com.android.systemui.animation.Expandable
 import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.common.ui.compose.load
+import com.android.systemui.compose.modifiers.sysuiResTag
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.StatusBarIconView
 import com.android.systemui.statusbar.chips.StatusBarChipsReturnAnimations
@@ -85,8 +92,12 @@ fun OngoingActivityChip(
             is OngoingActivityChipModel.ClickBehavior.ShowHeadsUpNotification -> { _ ->
                     clickBehavior.onClick()
                 }
+            is OngoingActivityChipModel.ClickBehavior.HideHeadsUpNotification -> { _ ->
+                    clickBehavior.onClick()
+                }
             is OngoingActivityChipModel.ClickBehavior.None -> null
         }
+    val onClickLabel = model.clickBehavior.customOnClickLabel?.let { stringResource(it) }
     val isClickable = onClick != null
 
     val chipSidePaddingTotal = 20.dp
@@ -106,10 +117,13 @@ fun OngoingActivityChip(
             RoundedCornerShape(dimensionResource(id = R.dimen.ongoing_activity_chip_corner_radius)),
         modifier =
             modifier
-                .height(dimensionResource(R.dimen.ongoing_appops_chip_height))
+                .wrapContentSize()
                 .semantics {
                     if (contentDescription != null) {
                         this.contentDescription = contentDescription
+                    }
+                    if (model.content is OngoingActivityChipModel.Content.Countdown) {
+                        liveRegion = LiveRegionMode.Assertive
                     }
                 }
                 .widthIn(min = minWidth)
@@ -135,6 +149,7 @@ fun OngoingActivityChip(
                 ),
         borderStroke = borderStroke,
         onClick = onClick,
+        onClickLabel = onClickLabel,
         useModifierBasedImplementation = StatusBarChipsReturnAnimations.isEnabled,
         // Some chips like the 3-2-1 countdown chip should be very small, smaller than a
         // reasonable minimum size.
@@ -157,7 +172,7 @@ private fun ChipBody(
         verticalAlignment = Alignment.CenterVertically,
         modifier =
             modifier
-                .fillMaxHeight()
+                .heightIn(min = dimensionResource(R.dimen.ongoing_appops_chip_height))
                 // Set the minWidth here as well as on the Expandable so that the content within
                 // this row is still centered correctly horizontally
                 .widthIn(min = minWidth)
@@ -178,9 +193,35 @@ private fun ChipBody(
             ChipIcon(viewModel = it, iconViewStore = iconViewStore, colors = model.colors)
         }
 
-        val isIconOnly = model is OngoingActivityChipModel.Active.IconOnly
+        val isIconOnly = model.content is OngoingActivityChipModel.Content.IconOnly
         if (!isIconOnly) {
-            ChipContent(viewModel = model)
+            ChipContent(
+                viewModel = model.content,
+                icon = model.icon,
+                colors = model.colors,
+                modifier = Modifier.sysuiResTag(STATUS_BAR_CHIP_CONTENT_ID),
+            )
+        }
+
+        model.decorativeIcon?.let {
+            val context = LocalContext.current
+            Box(
+                modifier =
+                    modifier
+                        .size(width = 24.dp, height = 16.dp)
+                        .background(
+                            color = Color(it.colors.background(context).defaultColor),
+                            shape = it.backgroundShape,
+                        )
+            ) {
+                Icon(
+                    icon = it.icon,
+                    tint = Color(it.colors.text(context)),
+                    modifier = Modifier.align(Alignment.Center).size(14.dp),
+                )
+            }
+
+            Spacer(modifier.width(4.dp))
         }
     }
 }
@@ -268,4 +309,6 @@ private fun StatusBarIcon(
 }
 
 private const val TAG = "OngoingActivityChip"
+// Used for end-to-end tests - if changing this, be sure to change the status bar e2e tests also.
+private const val STATUS_BAR_CHIP_CONTENT_ID = "ongoing_activity_chip_content"
 @IdRes private val CUSTOM_ICON_VIEW_ID = R.id.ongoing_activity_chip_custom_icon

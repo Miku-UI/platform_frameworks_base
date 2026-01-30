@@ -23,7 +23,6 @@ import com.android.systemui.kosmos.Kosmos.Fixture
 
 val Kosmos.lockscreenToPrimaryBouncerTransitionViewModel by Fixture {
     LockscreenToPrimaryBouncerTransitionViewModel(
-        shadeDependentFlows = shadeDependentFlows,
         animationFlow = keyguardTransitionAnimationFlow,
         blurConfig = blurConfig,
     )

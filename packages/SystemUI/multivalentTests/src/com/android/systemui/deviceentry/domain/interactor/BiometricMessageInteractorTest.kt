@@ -21,14 +21,17 @@ import android.hardware.biometrics.BiometricFaceConstants.FACE_ACQUIRED_TOO_RIGH
 import android.hardware.biometrics.BiometricFaceConstants.FACE_ERROR_HW_UNAVAILABLE
 import android.hardware.biometrics.BiometricFaceConstants.FACE_ERROR_TIMEOUT
 import android.hardware.fingerprint.FingerprintManager
+import android.os.UserHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.accessibility.data.repository.fakeAccessibilityRepository
 import com.android.systemui.biometrics.FaceHelpMessageDebouncer
 import com.android.systemui.biometrics.data.repository.fingerprintPropertyRepository
 import com.android.systemui.biometrics.domain.faceHelpMessageDeferral
 import com.android.systemui.biometrics.shared.model.FingerprintSensorType
 import com.android.systemui.biometrics.shared.model.SensorStrength
+import com.android.systemui.camera.data.repository.fakeCameraSensorPrivacyRepository
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.deviceentry.shared.model.ErrorFaceAuthenticationStatus
 import com.android.systemui.deviceentry.shared.model.FaceTimeoutMessage
@@ -37,12 +40,15 @@ import com.android.systemui.deviceentry.shared.model.FingerprintLockoutMessage
 import com.android.systemui.deviceentry.shared.model.HelpFaceAuthenticationStatus
 import com.android.systemui.keyguard.data.repository.biometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.deviceEntryFingerprintAuthRepository
+import com.android.systemui.keyguard.data.repository.fakeBiometricSettingsRepository
 import com.android.systemui.keyguard.data.repository.fakeDeviceEntryFaceAuthRepository
 import com.android.systemui.keyguard.shared.model.ErrorFingerprintAuthenticationStatus
 import com.android.systemui.keyguard.shared.model.FailFingerprintAuthenticationStatus
 import com.android.systemui.keyguard.shared.model.HelpFingerprintAuthenticationStatus
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.res.R
 import com.android.systemui.testKosmos
+import com.android.systemui.user.data.repository.FakeUserRepository.Companion.DEFAULT_SELECTED_USER
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
@@ -63,6 +69,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
     private val faceAuthRepository = kosmos.fakeDeviceEntryFaceAuthRepository
     private val biometricSettingsRepository = kosmos.biometricSettingsRepository
     private val faceHelpMessageDeferral = kosmos.faceHelpMessageDeferral
+    private val accessibilityRepository = kosmos.fakeAccessibilityRepository
 
     @Test
     fun fingerprintErrorMessage() =
@@ -76,7 +83,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
             fingerprintAuthRepository.setAuthenticationStatus(
                 ErrorFingerprintAuthenticationStatus(
                     msgId = FingerprintManager.FINGERPRINT_ERROR_HW_UNAVAILABLE,
-                    msg = "test"
+                    msg = "test",
                 )
             )
 
@@ -96,7 +103,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
             fingerprintAuthRepository.setAuthenticationStatus(
                 ErrorFingerprintAuthenticationStatus(
                     msgId = FingerprintManager.FINGERPRINT_ERROR_LOCKOUT,
-                    msg = "lockout"
+                    msg = "lockout",
                 )
             )
 
@@ -114,7 +121,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
             fingerprintAuthRepository.setAuthenticationStatus(
                 ErrorFingerprintAuthenticationStatus(
                     msgId = FingerprintManager.FINGERPRINT_ERROR_HW_UNAVAILABLE,
-                    msg = "test"
+                    msg = "test",
                 )
             )
 
@@ -134,7 +141,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
             fingerprintAuthRepository.setAuthenticationStatus(
                 HelpFingerprintAuthenticationStatus(
                     msgId = FingerprintManager.FINGERPRINT_ACQUIRED_IMAGER_DIRTY,
-                    msg = "test"
+                    msg = "test",
                 )
             )
 
@@ -154,7 +161,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
             fingerprintAuthRepository.setAuthenticationStatus(
                 HelpFingerprintAuthenticationStatus(
                     msgId = FingerprintManager.FINGERPRINT_ACQUIRED_IMAGER_DIRTY,
-                    msg = "test"
+                    msg = "test",
                 )
             )
 
@@ -172,7 +179,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
                 0,
                 SensorStrength.STRONG,
                 FingerprintSensorType.REAR,
-                mapOf()
+                mapOf(),
             )
 
             // GIVEN fingerprint is allowed
@@ -200,7 +207,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
                 0,
                 SensorStrength.STRONG,
                 FingerprintSensorType.UDFPS_OPTICAL,
-                mapOf()
+                mapOf(),
             )
 
             // GIVEN fingerprint is allowed
@@ -216,6 +223,28 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
                         com.android.internal.R.string.fingerprint_udfps_error_not_match
                     )
                 )
+        }
+
+    @Test
+    fun fingerprintA11yMessage_fps() =
+        testScope.runTest {
+            val fingerprintA11yMessage by collectLastValue(underTest.fingerprintMessage)
+
+            // GIVEN UDFPS
+            fingerprintPropertyRepository.setProperties(
+                0,
+                SensorStrength.STRONG,
+                FingerprintSensorType.UDFPS_OPTICAL,
+                mapOf(),
+            )
+            accessibilityRepository.isTouchExplorationEnabled.value = true
+
+            // GIVEN fingerprint is allowed
+            biometricSettingsRepository.setIsFingerprintAuthCurrentlyAllowed(true)
+
+            // THEN fingerprintA11yMessage is updated to fps message
+            assertThat(fingerprintA11yMessage?.message)
+                .isEqualTo(kosmos.mainResources.getString(R.string.fingerprint_dialog_touch_sensor))
         }
 
     @Test
@@ -302,10 +331,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
 
             // WHEN authentication status help
             faceAuthRepository.setAuthenticationStatus(
-                HelpFaceAuthenticationStatus(
-                    msg = "Move left",
-                    msgId = FACE_ACQUIRED_TOO_RIGHT,
-                )
+                HelpFaceAuthenticationStatus(msg = "Move left", msgId = FACE_ACQUIRED_TOO_RIGHT)
             )
 
             // THEN fingerprintHelpMessage is NOT updated
@@ -327,10 +353,7 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
 
             // WHEN authentication status help
             faceAuthRepository.setAuthenticationStatus(
-                HelpFaceAuthenticationStatus(
-                    msg = "Move left",
-                    msgId = FACE_ACQUIRED_TOO_RIGHT,
-                )
+                HelpFaceAuthenticationStatus(msg = "Move left", msgId = FACE_ACQUIRED_TOO_RIGHT)
             )
 
             // THEN fingerprintHelpMessage is NOT updated
@@ -366,6 +389,36 @@ class BiometricMessageInteractorTest : SysuiTestCase() {
 
             // THEN faceErrorMessage is updated
             assertThat(faceErrorMessage?.message).isEqualTo("test")
+        }
+
+    @Test
+    fun faceError_hwUnavailable_cameraSensorPrivacyEnabledMessage() =
+        testScope.runTest {
+            val isCameraPrivacyInterfering by
+                collectLastValue(kosmos.deviceEntryFaceAuthInteractor.isCameraPrivacyInterfering)
+            assertThat(isCameraPrivacyInterfering).isFalse()
+
+            val faceErrorMessage by collectLastValue(underTest.faceMessage)
+
+            // GIVEN camera sensor privacy is enabled (interfering with face auth)
+            kosmos.fakeBiometricSettingsRepository.setIsFaceAuthEnrolledAndEnabled(true)
+            runCurrent()
+            kosmos.fakeCameraSensorPrivacyRepository.setEnabled(
+                UserHandle(DEFAULT_SELECTED_USER),
+                true,
+            )
+            runCurrent()
+            assertThat(isCameraPrivacyInterfering).isTrue()
+
+            // WHEN authentication status error is FACE_ERROR_HW_UNAVAILABLE
+            faceAuthRepository.setAuthenticationStatus(
+                ErrorFaceAuthenticationStatus(msgId = FACE_ERROR_HW_UNAVAILABLE, msg = "test")
+            )
+            biometricSettingsRepository.setIsFaceAuthCurrentlyAllowed(true)
+
+            // THEN faceErrorMessage is updated to camera privacy message
+            assertThat(faceErrorMessage?.message).isNotNull()
+            assertThat(faceErrorMessage?.message).isNotEqualTo("test")
         }
 
     @Test

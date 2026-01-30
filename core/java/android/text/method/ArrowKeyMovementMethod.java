@@ -219,7 +219,7 @@ public class ArrowKeyMovementMethod extends BaseMovementMethod implements Moveme
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     protected boolean leftWord(TextView widget, Spannable buffer) {
         final int selectionEnd = widget.getSelectionEnd();
@@ -228,7 +228,7 @@ public class ArrowKeyMovementMethod extends BaseMovementMethod implements Moveme
         return Selection.moveToPreceding(buffer, wordIterator, isSelecting(buffer));
     }
 
-    /** {@hide} */
+    /** @hide */
     @Override
     protected boolean rightWord(TextView widget, Spannable buffer) {
         final int selectionEnd = widget.getSelectionEnd();

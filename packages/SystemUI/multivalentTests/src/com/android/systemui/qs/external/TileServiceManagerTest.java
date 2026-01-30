@@ -15,9 +15,6 @@
  */
 package com.android.systemui.qs.external;
 
-import static android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf;
-
-import static com.android.systemui.Flags.FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX;
 import static com.android.systemui.util.concurrency.MockExecutorHandlerKt.mockExecutorHandler;
 
 import static com.google.common.truth.Truth.assertThat;
@@ -41,10 +38,8 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Handler;
 import android.os.UserHandle;
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
-import android.platform.test.flag.junit.FlagsParameterization;
 
+import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.filters.SmallTest;
 
 import com.android.systemui.SysuiTestCase;
@@ -62,19 +57,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import java.util.List;
-
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4;
-import platform.test.runner.parameterized.Parameters;
-
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4.class)
+@RunWith(AndroidJUnit4.class)
 public class TileServiceManagerTest extends SysuiTestCase {
-
-    @Parameters(name = "{0}")
-    public static List<FlagsParameterization> getParams() {
-        return allCombinationsOf(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX);
-    }
 
     @Mock
     private TileServices mTileServices;
@@ -93,11 +78,6 @@ public class TileServiceManagerTest extends SysuiTestCase {
 
     private TileServiceManager mTileServiceManager;
     private ComponentName mComponentName;
-
-    public TileServiceManagerTest(FlagsParameterization flags) {
-        super();
-        mSetFlagsRule.setFlagsParameterization(flags);
-    }
 
     @Before
     public void setUp() throws Exception {
@@ -228,25 +208,6 @@ public class TileServiceManagerTest extends SysuiTestCase {
     }
 
     @Test
-    @DisableFlags(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX)
-    public void testStopListeningAndUnbindImmediatelyAfterUpdate() {
-        when(mTileLifecycle.isActiveTile()).thenReturn(true);
-        mTileServiceManager.startLifecycleManagerAndAddTile();
-        mTileServiceManager.setBindAllowed(true);
-        clearInvocations(mTileLifecycle);
-
-        mTileServiceManager.setBindRequested(true);
-        verify(mTileLifecycle).executeSetBindService(true);
-
-        mTileServiceManager.setLastUpdate(0);
-        mFakeExecutor.advanceClockToLast();
-        mFakeExecutor.runAllReady();
-        verify(mTileLifecycle).onStopListening();
-        verify(mTileLifecycle).executeSetBindService(false);
-    }
-
-    @Test
-    @EnableFlags(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX)
     public void testStopListeningAndUnbindImmediatelyAfterUpdate_ifRequestedFromTileService() {
         when(mTileLifecycle.isActiveTile()).thenReturn(true);
         mTileServiceManager.startLifecycleManagerAndAddTile();
@@ -265,7 +226,6 @@ public class TileServiceManagerTest extends SysuiTestCase {
     }
 
     @Test
-    @EnableFlags(FLAG_QS_CUSTOM_TILE_CLICK_GUARANTEED_BUG_FIX)
     public void testNotUnbindImmediatelyAfterUpdate_ifRequestedFromSystemUI() {
         when(mTileLifecycle.isActiveTile()).thenReturn(true);
         mTileServiceManager.startLifecycleManagerAndAddTile();

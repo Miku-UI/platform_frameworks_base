@@ -35,7 +35,7 @@ import android.media.soundtrigger.RecognitionConfig;
  * In additon to recognition events, this module will also produce abort events in cases where
  * recognition has been externally preempted.
  *
- * {@hide}
+ * @hide
  */
 interface ISoundTriggerModule {
     /**

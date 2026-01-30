@@ -18,6 +18,13 @@ EMOJI_FONT_TO_UNICODE_MAP = {
     '2.047': 16.0,
 }
 
+EMOJI_FLAG_FONT_TO_UNICODE_MAP = {
+    '2.034': 15.0,
+    '2.042': 15.1,
+    '2.047': 16.0,
+    '2.048': 16.0,
+}
+
 EMOJI_VS = 0xFE0F
 
 LANG_TO_SCRIPT = {
@@ -415,10 +422,14 @@ def check_emoji_not_compat(all_emoji, equivalent_emoji):
 def is_flag_emoji(font):
     return 0x1F1E6 in get_best_cmap(font)
 
-def emoji_font_version_to_unicode_version(font_version):
+def emoji_font_version_to_unicode_version(font_version, flag_font):
     version_str = '%.3f' % font_version
-    assert version_str in EMOJI_FONT_TO_UNICODE_MAP, 'Unknown emoji font verion: %s' % version_str
-    return EMOJI_FONT_TO_UNICODE_MAP[version_str]
+    if flag_font:
+        assert version_str in EMOJI_FLAG_FONT_TO_UNICODE_MAP, 'Unknown emoji flag font version: %s' % version_str
+        return EMOJI_FLAG_FONT_TO_UNICODE_MAP[version_str]
+    else:
+        assert version_str in EMOJI_FONT_TO_UNICODE_MAP, 'Unknown emoji font version: %s' % version_str
+        return EMOJI_FONT_TO_UNICODE_MAP[version_str]
 
 
 def check_emoji_font_coverage(emoji_fonts, all_emoji, equivalent_emoji):
@@ -435,8 +446,8 @@ def check_emoji_font_coverage(emoji_fonts, all_emoji, equivalent_emoji):
         else:
           emoji_font_version = max(emoji_font_version, version)
 
-    emoji_flag_unicode_version = emoji_font_version_to_unicode_version(emoji_flag_font_version)
-    emoji_unicode_version = emoji_font_version_to_unicode_version(emoji_font_version)
+    emoji_flag_unicode_version = emoji_font_version_to_unicode_version(emoji_flag_font_version, True)
+    emoji_unicode_version = emoji_font_version_to_unicode_version(emoji_font_version, False)
 
     errors = []
 
@@ -530,7 +541,7 @@ def check_emoji_defaults(default_emoji):
 def parse_unicode_seq(chars):
     if ' ' in chars:  # character sequence
         sequence = [int(ch, 16) for ch in chars.split(' ')]
-        additions = [tuple(sequence)]
+        additions = [tuple([ch for ch in sequence if ch != EMOJI_VS])]
     elif '..' in chars:  # character range
         char_start, char_end = chars.split('..')
         char_start = int(char_start, 16)
@@ -637,6 +648,9 @@ def parse_ucd(ucd_path):
         path.join(ucd_path, 'DerivedAge.txt'))
     _age_by_chars.update(parse_sequence_age(
         path.join(ucd_path, 'emoji-sequences.txt')))
+    _age_by_chars.update(parse_sequence_age(
+        path.join(ucd_path, 'emoji-zwj-sequences.txt')
+    ))
     sequences = parse_emoji_variants(
         path.join(ucd_path, 'emoji-variation-sequences.txt'))
     _text_variation_sequences, _emoji_variation_sequences = sequences
@@ -751,12 +765,10 @@ def compute_expected_emoji():
     _emoji_sequences[EMPTY_FLAG_SEQUENCE] = 'Emoji_Tag_Sequence'
 
     for sequence in _emoji_sequences.keys():
-        sequence = tuple(ch for ch in sequence if ch != EMOJI_VS)
         all_sequences.add(sequence)
         sequence_pieces.update(sequence)
 
     for sequence in adjusted_emoji_zwj_sequences.keys():
-        sequence = tuple(ch for ch in sequence if ch != EMOJI_VS)
         all_sequences.add(sequence)
         sequence_pieces.update(sequence)
 
@@ -805,15 +817,6 @@ def check_vertical_metrics():
             assert font['head'].yMax == 2163 and font['head'].yMin == -555, (
                 'yMax and yMin of %s do not match expected values.' % (
                 record.font,))
-
-        if record.name in ['sans-serif', 'sans-serif-condensed',
-                           'serif', 'monospace']:
-            font = open_font(record.font)
-            assert (font['hhea'].ascent == 1900 and
-                    font['hhea'].descent == -500), (
-                        'ascent and descent of %s do not match expected '
-                        'values.' % (record.font,))
-
 
 def check_cjk_punctuation():
     cjk_scripts = {'Hans', 'Hant', 'Jpan', 'Kore'}

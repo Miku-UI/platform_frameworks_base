@@ -32,7 +32,9 @@ import static android.os.UserHandle.getCallingUserId;
 import static android.os.UserManager.isVisibleBackgroundUsersEnabled;
 import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.ViewRootImpl.CLIENT_TRANSIENT;
+import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_2BUTTON_OVERLAY;
 import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_3BUTTON_OVERLAY;
+import static android.view.WindowManagerPolicyConstants.NAV_BAR_MODE_GESTURAL_OVERLAY;
 
 import android.Manifest;
 import android.annotation.NonNull;
@@ -68,6 +70,7 @@ import android.inputmethodservice.InputMethodService.BackDispositionMode;
 import android.inputmethodservice.InputMethodService.ImeWindowVisibility;
 import android.media.INearbyMediaDevicesProvider;
 import android.media.MediaRoute2Info;
+import android.media.session.MediaSession;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
@@ -96,6 +99,7 @@ import android.view.WindowInsets;
 import android.view.WindowInsets.Type.InsetsType;
 import android.view.WindowInsetsController.Appearance;
 import android.view.WindowInsetsController.Behavior;
+import android.window.DesktopExperienceFlags.DesktopExperienceFlag;
 
 import com.android.internal.R;
 import com.android.internal.annotations.GuardedBy;
@@ -130,8 +134,10 @@ import com.android.systemui.shared.Flags;
 
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
+import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -172,6 +178,12 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
     @ChangeId
     @EnabledAfter(targetSdkVersion = Build.VERSION_CODES.TIRAMISU)
     static final long REQUEST_LISTENING_OTHER_USER_NOOP = 242194868L;
+
+    private static final DesktopExperienceFlag STATUS_BAR_CONNECTED_DISPLAYS =
+            new DesktopExperienceFlag(
+                    Flags::statusBarConnectedDisplays,
+                    /* shouldOverrideByDevOption= */ true,
+                    Flags.FLAG_STATUS_BAR_CONNECTED_DISPLAYS);
 
     private final Context mContext;
 
@@ -990,11 +1002,12 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
         }
 
         @Override
-        public void showMediaOutputSwitcher(String targetPackageName, UserHandle targetUserHandle) {
+        public void showMediaOutputSwitcher(String targetPackageName, UserHandle targetUserHandle,
+                @Nullable MediaSession.Token sessionToken) {
             IStatusBar bar = mBar;
             if (bar != null) {
                 try {
-                    bar.showMediaOutputSwitcher(targetPackageName, targetUserHandle);
+                    bar.showMediaOutputSwitcher(targetPackageName, targetUserHandle, sessionToken);
                 } catch (RemoteException ex) {
                 }
             }
@@ -1372,15 +1385,9 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
         enforceValidCallingUser();
 
         synchronized (mLock) {
-            if (Flags.statusBarConnectedDisplays()) {
-                IntArray displayIds = new IntArray();
-                for (int i = 0; i < mDisplayUiState.size(); i++) {
-                    displayIds.add(mDisplayUiState.keyAt(i));
-                }
-                disableAllDisplaysLocked(displayIds, userId, what, token, pkg, /* whichFlag= */ 1);
-            } else {
-                disableLocked(DEFAULT_DISPLAY, userId, what, token, pkg, /* whichFlag= */ 1);
-            }
+            // TODO(b/409327478):- Call disableForAllDisplays if StatusBarConnectedDisplays
+            // flag is enabled.
+            disableLocked(DEFAULT_DISPLAY, userId, what, token, pkg, /* whichFlag= */ 1);
         }
     }
 
@@ -1408,15 +1415,9 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
         enforceStatusBar();
 
         synchronized (mLock) {
-            if (Flags.statusBarConnectedDisplays()) {
-                IntArray displayIds = new IntArray();
-                for (int i = 0; i < mDisplayUiState.size(); i++) {
-                    displayIds.add(mDisplayUiState.keyAt(i));
-                }
-                disableAllDisplaysLocked(displayIds, userId, what, token, pkg, /* whichFlag= */ 2);
-            } else {
-                disableLocked(DEFAULT_DISPLAY, userId, what, token, pkg, /* whichFlag= */ 2);
-            }
+            // TODO(b/409327478):- Call disableForAllDisplays if StatusBarConnectedDisplays
+            // flag is enabled.
+            disableLocked(DEFAULT_DISPLAY, userId, what, token, pkg, /* whichFlag= */ 2);
         }
     }
 
@@ -2068,7 +2069,7 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
     public void onNotificationClear(String pkg, int userId, String key,
             @NotificationStats.DismissalSurface int dismissalSurface,
             @NotificationStats.DismissalSentiment int dismissalSentiment,
-            NotificationVisibility nv) {
+            NotificationVisibility nv, boolean fromBundle) {
         // enforceValidCallingUser is not required here as the NotificationManagerService
         // will handle multi-user scenarios
         enforceStatusBarService();
@@ -2077,7 +2078,7 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
         final long identity = Binder.clearCallingIdentity();
         try {
             mNotificationDelegate.onNotificationClear(callingUid, callingPid, pkg, userId,
-                    key, dismissalSurface, dismissalSentiment, nv);
+                    key, dismissalSurface, dismissalSentiment, nv, fromBundle);
         } finally {
             Binder.restoreCallingIdentity(identity);
         }
@@ -2604,6 +2605,22 @@ public class StatusBarManagerService extends IStatusBarService.Stub implements D
             if (overlayManager != null && navBarMode == NAV_BAR_MODE_KIDS
                     && isPackageSupported(NAV_BAR_MODE_3BUTTON_OVERLAY)) {
                 overlayManager.setEnabledExclusiveInCategory(NAV_BAR_MODE_3BUTTON_OVERLAY, userId);
+            } else if (overlayManager != null && navBarMode == NAV_BAR_MODE_DEFAULT) {
+                List<String> defaultOverlayPackages =
+                        Arrays.asList(overlayManager.getDefaultOverlayPackages());
+                if (defaultOverlayPackages.contains(NAV_BAR_MODE_3BUTTON_OVERLAY)
+                        && isPackageSupported(NAV_BAR_MODE_3BUTTON_OVERLAY)) {
+                    overlayManager.setEnabledExclusiveInCategory(
+                            NAV_BAR_MODE_3BUTTON_OVERLAY, userId);
+                } else if (defaultOverlayPackages.contains(NAV_BAR_MODE_2BUTTON_OVERLAY)
+                        && isPackageSupported(NAV_BAR_MODE_2BUTTON_OVERLAY)) {
+                    overlayManager.setEnabledExclusiveInCategory(
+                            NAV_BAR_MODE_2BUTTON_OVERLAY, userId);
+                } else if (defaultOverlayPackages.contains(NAV_BAR_MODE_GESTURAL_OVERLAY)
+                        && isPackageSupported(NAV_BAR_MODE_GESTURAL_OVERLAY)) {
+                    overlayManager.setEnabledExclusiveInCategory(
+                            NAV_BAR_MODE_GESTURAL_OVERLAY, userId);
+                }
             }
         } catch (RemoteException e) {
             throw e.rethrowFromSystemServer();

@@ -26,7 +26,7 @@ import java.util.Objects;
 final class FlagUnion extends ResolutionMechanism<Integer> {
 
     @Override
-    IntegerPolicyValue resolve(
+    ResolvedPolicy<Integer> resolve(
             @NonNull LinkedHashMap<EnforcingAdmin, PolicyValue<Integer>> adminPolicies) {
         Objects.requireNonNull(adminPolicies);
         if (adminPolicies.isEmpty()) {
@@ -34,10 +34,37 @@ final class FlagUnion extends ResolutionMechanism<Integer> {
         }
 
         Integer unionOfPolicies = 0;
-        for (PolicyValue<Integer> policy : adminPolicies.values()) {
-            unionOfPolicies |= policy.getValue();
+        for (PolicyValue<Integer> policyValue : adminPolicies.values()) {
+            unionOfPolicies |= policyValue.getValue();
         }
-        return new IntegerPolicyValue(unionOfPolicies);
+        return new ResolvedPolicy<>(new IntegerPolicyValue(unionOfPolicies),
+                // Since it's union, all admins contribute to the final value.
+                adminPolicies.keySet());
+    }
+
+    /**
+     * Checks whether the given policy {@code value} is considered applied
+     * based on the {@code resolvedPolicy} and the {@code FlagUnion} resolution
+     * mechanism.
+     *
+     * <p> This mechanism treats the Integer values as bitmasks. The check passes
+     *     if all flags set in the {@code value} parameter are also set in the
+     *     {@code resolvedPolicy}.
+     *
+     * @param value the policy value representing the flag(s) to check for.
+     * @param resolvedPolicy The current resolved policy value, representing
+     *                       the bitmask of all enabled flags.
+     * @return true if all flags in {@code value} are set within
+     *         {@code resolvedPolicy}, false otherwise.
+     */
+    @Override
+    public boolean isPolicyApplied(@NonNull PolicyValue<Integer> value,
+            @NonNull PolicyValue<Integer> resolvedPolicy) {
+        Objects.requireNonNull(value, "Input PolicyValue 'value' cannot be null.");
+        Objects.requireNonNull(resolvedPolicy, "Input PolicyValue 'resolvedPolicy'"
+                + " cannot be null.");
+
+        return ((resolvedPolicy.getValue() & value.getValue()) == value.getValue());
     }
 
     @Override

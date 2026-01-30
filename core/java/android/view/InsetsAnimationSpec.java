@@ -16,6 +16,7 @@
 
 package android.view;
 
+import android.annotation.Nullable;
 import android.view.animation.Interpolator;
 
 import com.android.internal.annotations.VisibleForTesting;
@@ -35,5 +36,6 @@ public interface InsetsAnimationSpec {
      * @param hasZeroInsetsIme whether IME has no insets (floating, fullscreen or non-overlapping).
      * @return The interpolator used for the animation
      */
+    @Nullable
     Interpolator getInsetsInterpolator(boolean hasZeroInsetsIme);
 }

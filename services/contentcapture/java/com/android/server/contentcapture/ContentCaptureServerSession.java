@@ -48,6 +48,10 @@ final class ContentCaptureServerSession {
 
     private static final String TAG = ContentCaptureServerSession.class.getSimpleName();
 
+    /**
+     * The {@link Activity#getActivityToken()}.
+     * Note, not the {@link Activity#getShareableActivityToken()}.
+     */
     final IBinder mActivityToken;
     private final ContentCapturePerUserService mService;
 
@@ -73,6 +77,8 @@ final class ContentCaptureServerSession {
 
     private final Object mLock;
 
+    private final ActivityId mActivityId;
+
     public final ComponentName appComponentName;
 
     ContentCaptureServerSession(@NonNull Object lock, @NonNull IBinder activityToken,
@@ -86,6 +92,7 @@ final class ContentCaptureServerSession {
         mService = service;
         mId = sessionId;
         mUid = uid;
+        mActivityId = activityId;
         mContentCaptureContext = new ContentCaptureContext(/* clientContext= */ null,
                 activityId, appComponentName, displayId, activityToken, flags);
         mSessionStateReceiver = sessionStateReceiver;
@@ -98,9 +105,18 @@ final class ContentCaptureServerSession {
 
     /**
      * Returns whether this session is for the given activity.
+     *
+     * @param activityToken the {@link Activity#getActivityToken()} from the activity.
      */
     boolean isActivitySession(@NonNull IBinder activityToken) {
         return mActivityToken.equals(activityToken);
+    }
+
+    /**
+     * Returns whether this session is for the given activity.
+     */
+    boolean isActivitySession(@NonNull ActivityId activityId) {
+        return mActivityId.equals(activityId);
     }
 
     /**
@@ -211,6 +227,10 @@ final class ContentCaptureServerSession {
         if (mService.isVerbose()) Slog.v(TAG, "pausing " + mActivityToken);
         setClientState(mSessionStateReceiver, STATE_DISABLED | STATE_SERVICE_UPDATING,
                 /* binder= */ null);
+    }
+
+    int getSessionId() {
+        return mId;
     }
 
     /**

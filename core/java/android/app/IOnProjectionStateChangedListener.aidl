@@ -16,7 +16,7 @@
 
 package android.app;
 
-/** {@hide} */
+/** @hide */
 oneway interface IOnProjectionStateChangedListener {
   void onProjectionStateChanged(int activeProjectionTypes, in List<String> projectingPackages);
 }

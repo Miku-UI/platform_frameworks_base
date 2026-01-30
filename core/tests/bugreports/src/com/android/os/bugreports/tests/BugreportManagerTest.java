@@ -38,6 +38,8 @@ import android.os.HandlerThread;
 import android.os.ParcelFileDescriptor;
 import android.os.Process;
 import android.os.StrictMode;
+import android.platform.test.annotations.DisableFlags;
+import android.platform.test.annotations.EnableFlags;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -119,17 +121,6 @@ public class BugreportManagerTest {
 
     @Before
     public void setup() throws Exception {
-        if (!android.tracing.Flags.perfettoIme()) {
-            mUiTracesPreDumped.add(Paths.get("/data/misc/wmtrace/ime_trace_clients.winscope"));
-            mUiTracesPreDumped.add(
-                    Paths.get("/data/misc/wmtrace/ime_trace_managerservice.winscope"));
-            mUiTracesPreDumped.add(Paths.get("/data/misc/wmtrace/ime_trace_service.winscope"));
-        }
-
-        if (!android.tracing.Flags.perfettoProtologTracing()) {
-            mUiTracesPreDumped.add(Paths.get("/data/misc/wmtrace/wm_log.winscope"));
-        }
-
         mHandler = createHandler();
         mExecutor = (runnable) -> {
             if (mHandler != null) {
@@ -296,6 +287,58 @@ public class BugreportManagerTest {
     }
 
     @Test
+    @LargeTest
+    @EnableFlags(android.os.Flags.FLAG_BUGREPORT_DEFERRED_CONSENT_SCREENSHOT_FIX)
+    public void deferredConsentFlow_screenshotFixEnabled() throws Exception {
+        // Uses a placeholder file descriptor for the startBugreport call. This file is unused as
+        // startBugreport does not copy the bugreport content if the consent is deferred.
+        File placeholderFile = createTempFile("placeholder_file", ".zip");
+        ParcelFileDescriptor placeholderFd = parcelFd(placeholderFile);
+        BugreportCallbackImpl callback = new BugreportCallbackImpl();
+        mBrm.startBugreport(placeholderFd, null /*screenshotFd = null*/, fullWithDeferredConsent(),
+                mExecutor, callback);
+
+        waitTillDoneOrTimeout(callback);
+        assertThat(callback.isDone()).isTrue();
+        String bugreportFile = callback.mBugreportFile;
+        callback = new BugreportCallbackImpl();
+
+        mBrm.retrieveBugreport(bugreportFile, mBugreportFd, mExecutor, callback);
+        shareConsentDialog(ConsentReply.ALLOW);
+        waitTillDoneOrTimeout(callback);
+
+        assertThat(placeholderFile.length()).isEqualTo(0L);
+        assertThat(mBugreportFile.length()).isGreaterThan(0L);
+        assertFdsAreClosed(placeholderFd, mBugreportFd);
+    }
+
+    @Test
+    @LargeTest
+    @DisableFlags(android.os.Flags.FLAG_BUGREPORT_DEFERRED_CONSENT_SCREENSHOT_FIX)
+    public void deferredConsentFlow_screenshotFixDisabled() throws Exception {
+        // Uses a placeholder file descriptor for the startBugreport call. This file is unused as
+        // startBugreport does not copy the bugreport content if the consent is deferred.
+        File placeholderFile = createTempFile("placeholder_file", ".zip");
+        ParcelFileDescriptor placeholderFd = parcelFd(placeholderFile);
+        BugreportCallbackImpl callback = new BugreportCallbackImpl();
+        mBrm.startBugreport(placeholderFd, null /*screenshotFd = null*/, fullWithDeferredConsent(),
+                mExecutor, callback);
+
+        waitTillDoneOrTimeout(callback);
+        assertThat(callback.isDone()).isTrue();
+        String bugreportFile = callback.mBugreportFile;
+
+        callback = new BugreportCallbackImpl();
+        mBrm.retrieveBugreport(bugreportFile, mBugreportFd, mExecutor, callback);
+        shareConsentDialog(ConsentReply.ALLOW);
+        waitTillDoneOrTimeout(callback);
+
+        assertThat(placeholderFile.length()).isEqualTo(0L);
+        assertThat(mBugreportFile.length()).isGreaterThan(0L);
+        assertFdsAreClosed(placeholderFd, mBugreportFd);
+    }
+
+    @Test
     public void simultaneousBugreportsNotAllowed() throws Exception {
         // Start bugreport #1
         BugreportCallbackImpl callback = new BugreportCallbackImpl();
@@ -435,6 +478,7 @@ public class BugreportManagerTest {
         private boolean mReceivedProgress = false;
         private boolean mEarlyReportFinished = false;
         private final Object mLock = new Object();
+        private String mBugreportFile;
 
         @Override
         public void onProgress(float progress) {
@@ -455,7 +499,16 @@ public class BugreportManagerTest {
         public void onFinished() {
             synchronized (mLock) {
                 Log.d(TAG, "bugreport finished.");
-                mSuccess =  true;
+                mSuccess = true;
+            }
+        }
+
+        @Override
+        public void onFinished(@NonNull String bugreportFile) {
+            synchronized (mLock) {
+                Log.d(TAG, "consent defer bugreport finished bugreportFile=" + bugreportFile);
+                mSuccess = true;
+                mBugreportFile = bugreportFile;
             }
         }
 
@@ -802,6 +855,11 @@ public class BugreportManagerTest {
     private static BugreportParams fullWithUsePreDumpFlag() {
         return new BugreportParams(BugreportParams.BUGREPORT_MODE_FULL,
                 BugreportParams.BUGREPORT_FLAG_USE_PREDUMPED_UI_DATA);
+    }
+
+    private static BugreportParams fullWithDeferredConsent() {
+        return new BugreportParams(BugreportParams.BUGREPORT_MODE_FULL,
+                BugreportParams.BUGREPORT_FLAG_DEFER_CONSENT);
     }
 
     /* Allow/deny the consent dialog to sharing bugreport data or check existence only. */

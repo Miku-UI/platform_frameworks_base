@@ -37,6 +37,8 @@ import android.view.SurfaceControl;
 import android.view.SurfaceControl.Builder;
 import android.view.SurfaceControl.Transaction;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.test.filters.SmallTest;
 
 import com.android.server.wm.SurfaceAnimator.Animatable;
@@ -56,7 +58,7 @@ import java.io.PrintWriter;
 /**
  * Test class for {@link SurfaceAnimatorTest}.
  *
- * Build/Install/Run:
+ * <p>Build/Install/Run:
  *  atest WmTests:SurfaceAnimatorTest
  */
 @SmallTest
@@ -283,11 +285,13 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
             mSurfaceAnimator = new SurfaceAnimator(this, mFinishedCallback, wm);
         }
 
+        @NonNull
         @Override
         public SurfaceControl.Transaction getSyncTransaction() {
             return mTransaction;
         }
 
+        @NonNull
         @Override
         public Transaction getPendingTransaction() {
             return mTransaction;
@@ -298,17 +302,19 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
         }
 
         @Override
-        public void onAnimationLeashCreated(Transaction t, SurfaceControl leash) {
+        public void onAnimationLeashCreated(@NonNull Transaction t, @NonNull SurfaceControl leash) {
         }
 
         @Override
-        public void onAnimationLeashLost(Transaction t) {
+        public void onAnimationLeashLost(@NonNull Transaction t) {
         }
 
+        @NonNull
         @Override
         public Builder makeAnimationLeash() {
             return new Builder() {
 
+                @NonNull
                 @Override
                 public SurfaceControl build() {
                     mLeash = super.build();
@@ -317,16 +323,19 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
             }.setParent(mParent);
         }
 
+        @Nullable
         @Override
         public SurfaceControl getAnimationLeashParent() {
             return mParent;
         }
 
+        @Nullable
         @Override
         public SurfaceControl getSurfaceControl() {
             return mSurface;
         }
 
+        @Nullable
         @Override
         public SurfaceControl getParentSurfaceControl() {
             return mParent;
@@ -361,14 +370,14 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
         }
 
         @Override
-        public void startAnimation(SurfaceControl animationLeash, Transaction t, int type,
-                OnAnimationFinishedCallback finishCallback) {
+        public void startAnimation(@NonNull SurfaceControl animationLeash, @NonNull Transaction t,
+                @AnimationType int type, @NonNull OnAnimationFinishedCallback finishCallback) {
             mFinishCallback = finishCallback;
             mAnimationLeash = animationLeash;
         }
 
         @Override
-        public void onAnimationCancelled(SurfaceControl animationLeash) {
+        public void onAnimationCancelled(@Nullable SurfaceControl animationLeash) {
         }
 
         @Override
@@ -382,15 +391,15 @@ public class SurfaceAnimatorTest extends WindowTestsBase {
         }
 
         @Override
-        public void dump(PrintWriter pw, String prefix) {
+        public void dump(@NonNull PrintWriter pw, @NonNull String prefix) {
         }
 
         @Override
-        public void dumpDebug(ProtoOutputStream proto) {
+        public void dumpDebug(@NonNull ProtoOutputStream proto) {
         }
 
         @Override
-        public boolean shouldDeferAnimationFinish(Runnable endDeferFinishCallback) {
+        public boolean shouldDeferAnimationFinish(@NonNull Runnable endDeferFinishCallback) {
             mEndDeferFinishCallback = endDeferFinishCallback;
             return true;
         }

@@ -1,4 +1,6 @@
+# Files related to windowing
 per-file Window*.java = file:/services/core/java/com/android/server/wm/OWNERS
+per-file TaskWindowingLayerRequestHandlerTest.java = file:/services/core/java/com/android/server/wm/OWNERS
 
 # Notification, DND, Status bar
 per-file *Notification* = file:/packages/SystemUI/OWNERS

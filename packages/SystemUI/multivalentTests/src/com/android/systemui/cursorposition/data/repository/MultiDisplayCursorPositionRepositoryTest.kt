@@ -83,35 +83,38 @@ class MultiDisplayCursorPositionRepositoryTest(private val cursorEventSource: In
     @Before
     fun setup() {
         testableLooper = TestableLooper.get(this)
-        val testHandler = Handler(testableLooper.looper)
         whenever(inputMonitor.getInputReceiver(any(), any(), any())).thenReturn(inputReceiver)
         displayLifecycleManager.displayIds.value = setOf(DEFAULT_DISPLAY, DISPLAY_2)
 
+        underTest = createMultiDisplayCursorPositionRepository { _: String, _: Int -> inputMonitor }
+    }
+
+    private fun createMultiDisplayCursorPositionRepository(
+        inputMonitorBuilder: InputMonitorBuilder
+    ): MultiDisplayCursorPositionRepository {
         val cursorPerDisplayRepository =
             PerDisplayInstanceRepositoryImpl(
                 debugName = "testCursorPositionPerDisplayInstanceRepository",
                 instanceProvider =
                     TestCursorPositionRepositoryInstanceProvider(
-                        testHandler,
+                        Handler(testableLooper.looper),
                         { channel ->
                             listener = defaultInputEventListenerBuilder.build(channel)
                             listener
                         },
-                    ) { _: String, _: Int ->
-                        inputMonitor
-                    },
+                        inputMonitorBuilder,
+                    ),
                 displayLifecycleManager,
                 kosmos.backgroundScope,
                 displayRepository,
                 kosmos.perDisplayDumpHelper,
             )
 
-        underTest =
-            MultiDisplayCursorPositionRepositoryImpl(
-                displayRepository,
-                backgroundScope = kosmos.backgroundScope,
-                cursorPerDisplayRepository,
-            )
+        return MultiDisplayCursorPositionRepositoryImpl(
+            displayRepository,
+            backgroundScope = kosmos.backgroundScope,
+            cursorPerDisplayRepository,
+        )
     }
 
     @Test
@@ -150,6 +153,17 @@ class MultiDisplayCursorPositionRepositoryTest(private val cursorEventSource: In
 
         verify(inputMonitor).dispose()
         verify(inputReceiver).dispose()
+    }
+
+    @Test
+    fun notThrowExceptionFromInputMonitorBuilder() {
+        val inputMonitorBuilder = InputMonitorBuilder { _: String, _: Int ->
+            throw IllegalArgumentException()
+        }
+        underTest = createMultiDisplayCursorPositionRepository(inputMonitorBuilder)
+
+        setUpAndRunTest { addDisplay(id = DISPLAY_2, type = TYPE_EXTERNAL) }
+        // No exception is thrown, otherwise it would fail the test
     }
 
     private fun setUpAndRunTest(block: suspend () -> Unit) =

@@ -28,22 +28,25 @@
     <string name="chooser_title" msgid="2235819929238267637">"選擇要設定的<xliff:g id="PROFILE_NAME">%1$s</xliff:g>"</string>
     <string name="single_device_title" msgid="4199861437545438606">"尋找<xliff:g id="PROFILE_NAME">%1$s</xliff:g>"</string>
     <string name="summary_watch" msgid="8134580124808507407">"這個應用程式可同步處理資訊 (例如來電者名稱) 和取得<xliff:g id="DEVICE_TYPE">%1$s</xliff:g>上的這些權限"</string>
+    <string name="profile_name_fitness_tracker" msgid="3107192493390199691">"健身智慧手環"</string>
     <string name="confirmation_title_glasses" msgid="8288346850537727333">"要允許「<xliff:g id="APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;管理「<xliff:g id="DEVICE_NAME">%2$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;嗎？"</string>
     <string name="profile_name_glasses" msgid="3506504967216601277">"裝置"</string>
     <string name="summary_glasses" msgid="5469208629679579157">"這個應用程式將可取得<xliff:g id="DEVICE_TYPE">%1$s</xliff:g>上的這些權限"</string>
-    <string name="title_app_streaming" msgid="1047090167914857893">"要允許「<xliff:g id="APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;將<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>的應用程式和系統功能串流傳輸到 &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; 嗎？"</string>
-    <string name="summary_app_streaming" msgid="7990244299655610920">"「<xliff:g id="APP_NAME_0">%1$s</xliff:g>」將可存取<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>顯示或播放的所有內容，包括音訊、相片、付款資訊、密碼和訊息。&lt;br/&gt;&lt;br/&gt;「<xliff:g id="APP_NAME_1">%1$s</xliff:g>」可將應用程式串流傳輸到 <xliff:g id="DEVICE_NAME">%3$s</xliff:g>，直到你移除這個權限為止。"</string>
-    <string name="helper_summary_app_streaming" msgid="1872657107404139828">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」正在代表 <xliff:g id="DEVICE_NAME">%2$s</xliff:g> 要求必要權限，以便從<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>串流傳輸應用程式和系統功能"</string>
+    <string name="profile_name_medical" msgid="5617160509499466400">"醫療器材"</string>
+    <string name="title_app_streaming" msgid="237666000400427614">"要允許「<xliff:g id="APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;在<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>和 &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; 間串流傳輸應用程式和系統功能嗎？"</string>
+    <string name="summary_app_streaming" msgid="8346968726357732862">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」將獲得下列權限："</string>
+    <string name="summary_app_streaming_legacy" msgid="8994180646987541606">"「<xliff:g id="APP_NAME_0">%1$s</xliff:g>」將可存取<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>顯示或播放的所有內容，包括音訊、相片、付款資訊、密碼和訊息。&lt;br/&gt;&lt;br/&gt;「<xliff:g id="APP_NAME_1">%1$s</xliff:g>」可將應用程式串流傳輸到 <xliff:g id="DEVICE_NAME">%3$s</xliff:g>，直到你撤銷這項權限為止。"</string>
+    <string name="helper_summary_app_streaming" msgid="160149899100957545">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」正在代表 <xliff:g id="DEVICE_NAME">%2$s</xliff:g> 要求必要權限，以便在裝置間串流傳輸應用程式和系統功能。"</string>
     <string name="title_automotive_projection" msgid="3296005598978412847"></string>
     <string name="summary_automotive_projection" msgid="8683801274662496164"></string>
-    <string name="title_computer" msgid="4782923323932440751">"允許「<xliff:g id="APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;存取<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>中的這項資訊"</string>
-    <string name="summary_computer" msgid="3798467601598297062"></string>
+    <string name="title_computer" msgid="5040395223341777259">"允許「<xliff:g id="DISPLAY_NAME">%3$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;從<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>存取這項資訊"</string>
     <string name="helper_summary_computer" msgid="2298803016482139668">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」正在代表你的 <xliff:g id="DEVICE_NAME">%2$s</xliff:g> 要求必要權限，以便存取<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>上的相片、媒體和通知"</string>
-    <string name="title_nearby_device_streaming" msgid="2727103756701741359">"要允許「<xliff:g id="APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;將<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>的應用程式串流傳輸到 &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; 嗎？"</string>
-    <string name="summary_nearby_device_streaming" msgid="70434958004946884">"「<xliff:g id="APP_NAME_0">%1$s</xliff:g>」將可存取 <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> 顯示或播放的所有內容，包括音訊、相片、付款資訊、密碼和訊息。&lt;br/&gt;&lt;br/&gt;「<xliff:g id="APP_NAME_2">%1$s</xliff:g>」可將應用程式串流傳輸到 <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g>，直到你移除這個權限為止。"</string>
+    <string name="title_nearby_device_streaming" msgid="5342768208699657581">"要允許「<xliff:g id="APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;在<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>和 &lt;strong&gt;<xliff:g id="DEVICE_NAME">%3$s</xliff:g>&lt;/strong&gt; 間串流傳輸應用程式和系統功能嗎？"</string>
+    <string name="summary_nearby_device_streaming" msgid="7940640272770197219">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」將獲得下列權限："</string>
+    <string name="summary_nearby_device_streaming_legacy" msgid="4306665203887990326">"「<xliff:g id="APP_NAME_0">%1$s</xliff:g>」將可存取 <xliff:g id="DEVICE_NAME_1">%3$s</xliff:g> 顯示或播放的所有內容，包括音訊、相片、付款資訊、密碼和訊息。&lt;br/&gt;&lt;br/&gt;「<xliff:g id="APP_NAME_2">%1$s</xliff:g>」可將應用程式串流傳輸到 <xliff:g id="DEVICE_NAME_3">%3$s</xliff:g>，直到你撤銷這項權限為止。"</string>
     <string name="helper_summary_nearby_device_streaming" msgid="4712712177819370967">"「<xliff:g id="APP_NAME">%1$s</xliff:g>」正在代表 <xliff:g id="DEVICE_NAME">%2$s</xliff:g> 要求必要權限，以便從<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>串流傳輸應用程式"</string>
     <string name="title_virtual_device" msgid="6556338763070329395">"要允許「<xliff:g id="APP_NAME">%1$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;在<xliff:g id="DEVICE_TYPE">%3$s</xliff:g>和「<xliff:g id="DEVICE_NAME">%2$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;間串流傳輸音訊和系統功能嗎？"</string>
-    <string name="summary_virtual_device" msgid="3502592544171322817">"「<xliff:g id="APP_NAME_0">%2$s</xliff:g>」將可存取「<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>」播放的所有內容。&lt;br/&gt;&lt;br/&gt;「<xliff:g id="APP_NAME_2">%2$s</xliff:g>」可在「<xliff:g id="DEVICE_NAME_3">%3$s</xliff:g>」串流播放音訊，直到你移除這個權限為止。"</string>
+    <string name="summary_virtual_device" msgid="1062189396947962635">"「<xliff:g id="APP_NAME">%2$s</xliff:g>」將獲得下列權限："</string>
     <string name="profile_name_generic" msgid="6851028682723034988">"裝置"</string>
     <string name="summary_generic" msgid="1761976003668044801">"這個應用程式可在手機和指定裝置間同步資訊，例如來電者名稱"</string>
     <string name="consent_yes" msgid="8344487259618762872">"允許"</string>
@@ -67,6 +70,11 @@
     <string name="permission_media_routing_control" msgid="5498639511586715253">"變更媒體輸出"</string>
     <string name="permission_storage" msgid="6831099350839392343">"相片和媒體"</string>
     <string name="permission_notifications" msgid="4099418516590632909">"通知"</string>
+    <string name="permission_create_virtual_device" msgid="1102905050922460040">"將資料串流傳輸到<xliff:g id="DEVICE_TYPE">%1$s</xliff:g>"</string>
+    <string name="permission_add_mirror_display" msgid="3743433250535606288">"鏡像投放畫面"</string>
+    <string name="permission_add_trusted_display" msgid="9052824856626276723">"串流傳輸應用程式內容"</string>
+    <string name="permission_schedule_exact_alarm" msgid="5680932535987512225">"設定鬧鐘和提醒"</string>
+    <string name="permission_bypass_dnd" msgid="1241123166903040347">"略過「零打擾」設定"</string>
     <string name="permission_phone_summary" msgid="8246321093970051702">"撥打電話及管理通話"</string>
     <string name="permission_call_logs_summary" msgid="7545243592757693321">"讀取及寫入通話記錄"</string>
     <string name="permission_sms_summary" msgid="8499509535410068616">"傳送及查看簡訊"</string>
@@ -75,9 +83,15 @@
     <string name="permission_microphone_summary" msgid="4862628553869973259">"錄音"</string>
     <string name="permission_nearby_devices_summary" msgid="1306752848196464817">"尋找、連線及判斷鄰近裝置的相對位置"</string>
     <string name="permission_notification_listener_access_summary" msgid="7856071768185367749">"讀取所有通知，包括聯絡人、訊息和相片等資訊"</string>
-    <string name="permission_notifications_summary" msgid="2272810466047367030">"• 讀取所有通知，包括聯絡人、訊息和相片等資訊&lt;br/&gt;• 傳送通知&lt;br/&gt;&lt;br/&gt;你隨時可以前往「設定」&gt;「通知」，管理這個應用程式讀取和傳送通知的功能。"</string>
+    <string name="permission_notifications_summary" msgid="6819393427371255636">"• 讀取所有通知，包括聯絡人、訊息和相片等資訊&lt;br/&gt;• 傳送通知給你&lt;br/&gt;&lt;br/&gt;你隨時可以前往「設定」&gt;「通知」，管理這個應用程式讀取和傳送通知的功能。"</string>
     <string name="permission_storage_summary" msgid="3918240895519506417"></string>
+    <string name="permission_post_notifications_summary" msgid="1099188848900200165">"傳送通知給你"</string>
+    <string name="permission_create_virtual_device_summary" msgid="3570256456647725172">"將「<xliff:g id="DEVICE_NAME">%3$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;的麥克風、相機和其他感應器資料串流傳輸到<xliff:g id="DEVICE_TYPE">%2$s</xliff:g>。"</string>
+    <string name="permission_add_mirror_display_summary" msgid="1385423940454941534">"錄製、投放<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>畫面或分享到「<xliff:g id="DEVICE_NAME">%3$s</xliff:g>」&lt;strong&gt;&lt;/strong&gt;。&lt;br/&gt;&lt;br/&gt;「<xliff:g id="APP_NAME">%1$s</xliff:g>」將可存取<xliff:g id="DEVICE_TYPE_1">%2$s</xliff:g>顯示或播放的所有內容，包括音訊、相片、付款資訊、密碼和訊息。"</string>
+    <string name="permission_add_trusted_display_summary" msgid="7399955172055281447">"將<xliff:g id="DEVICE_TYPE_0">%2$s</xliff:g>的應用程式串流傳輸到 &lt;strong&gt;<xliff:g id="DEVICE_NAME_1">%3$s</xliff:g>;&lt;/strong&gt;。&lt;br/&gt;&lt;br/&gt;「<xliff:g id="APP_NAME">%1$s</xliff:g>」將可存取 <xliff:g id="DEVICE_NAME_2">%3$s</xliff:g> 顯示或播放的所有內容，包括音訊、相片、付款資訊、密碼和訊息，即使<xliff:g id="DEVICE_TYPE_3">%2$s</xliff:g>處於鎖定狀態也一樣。"</string>
     <string name="permission_media_routing_control_summary" msgid="2714631092321412250">"存取可用裝置清單，並控制哪一部裝置可串流播放或投放其他應用程式的音訊或影片"</string>
+    <string name="permission_schedule_exact_alarm_summary" msgid="5938321911309800377"></string>
+    <string name="permission_bypass_dnd_summary" msgid="6221709271927387626"></string>
     <string name="device_type" product="default" msgid="8268703872070046263">"手機"</string>
     <string name="device_type" product="tablet" msgid="5038791954983067774">"平板電腦"</string>
     <string name="device_type" product="tv" msgid="5355611506659405636">"電視"</string>

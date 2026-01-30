@@ -257,58 +257,58 @@ class SoundTriggerModule implements IBinder.DeathRecipient, ISoundTriggerHal.Glo
 
         @Override
         public int loadModel(@NonNull SoundModel model) {
-            synchronized (SoundTriggerModule.this) {
-                SoundTriggerMiddlewareImpl.AudioSessionProvider.AudioSession audioSession =
-                        mAudioSessionProvider.acquireSession();
-                try {
+            final var audioSession = mAudioSessionProvider.acquireSession();
+            try {
+                synchronized (SoundTriggerModule.this) {
                     checkValid();
                     Model loadedModel = new Model();
                     return loadedModel.load(model, audioSession);
-                } catch (Exception e) {
-                    // We must do this outside the lock, to avoid possible deadlocks with the remote
-                    // process that provides the audio sessions, which may also be calling into us.
-                    try {
-                        mAudioSessionProvider.releaseSession(audioSession.mSessionHandle);
-                    } catch (Exception ee) {
-                        Slog.e(TAG, "Failed to release session.", ee);
-                    }
-                    throw e;
                 }
+            } catch (Exception e) {
+                try {
+                    if (audioSession != null) {
+                        mAudioSessionProvider.releaseSession(audioSession.mSessionHandle);
+                    }
+                } catch (Exception ee) {
+                    Slog.e(TAG, "Failed to release session.", ee);
+                }
+                throw e;
             }
         }
 
         @Override
         public int loadPhraseModel(@NonNull PhraseSoundModel model) {
-            synchronized (SoundTriggerModule.this) {
-                SoundTriggerMiddlewareImpl.AudioSessionProvider.AudioSession audioSession =
-                        mAudioSessionProvider.acquireSession();
-                try {
+            final var audioSession = mAudioSessionProvider.acquireSession();
+            try {
+                synchronized (SoundTriggerModule.this) {
                     checkValid();
                     Model loadedModel = new Model();
                     int result = loadedModel.load(model, audioSession);
                     Slog.d(TAG, String.format("loadPhraseModel()->%d", result));
                     return result;
-                } catch (Exception e) {
-                    // We must do this outside the lock, to avoid possible deadlocks with the remote
-                    // process that provides the audio sessions, which may also be calling into us.
-                    try {
-                        mAudioSessionProvider.releaseSession(audioSession.mSessionHandle);
-                    } catch (Exception ee) {
-                        Slog.e(TAG, "Failed to release session.", ee);
-                    }
-                    throw e;
                 }
+            } catch (Exception e) {
+                try {
+                    if (audioSession != null) {
+                        mAudioSessionProvider.releaseSession(audioSession.mSessionHandle);
+                    }
+                } catch (Exception ee) {
+                    Slog.e(TAG, "Failed to release session.", ee);
+                }
+                throw e;
             }
         }
 
         @Override
         public void unloadModel(int modelHandle) {
+            int sessionHandle;
             synchronized (SoundTriggerModule.this) {
                 checkValid();
                 final var session = mLoadedModels.get(modelHandle).getSession();
+                sessionHandle = session.mSessionHandle;
                 mLoadedModels.remove(modelHandle);
-                mAudioSessionProvider.releaseSession(session.mSessionHandle);
             }
+            mAudioSessionProvider.releaseSession(sessionHandle);
             // We don't need to post-synchronize on anything once the HAL has finished the unload
             // and dispatched any appropriate callbacks -- since we don't do any state checking
             // onModelUnloaded regardless.

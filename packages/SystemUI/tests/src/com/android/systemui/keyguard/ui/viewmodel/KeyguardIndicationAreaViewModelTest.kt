@@ -25,6 +25,8 @@ import com.android.systemui.communal.domain.interactor.communalSceneInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.doze.util.BurnInHelperWrapper
+import com.android.systemui.flags.DisableSceneContainer
+import com.android.systemui.flags.EnableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardRepository
 import com.android.systemui.keyguard.domain.interactor.BurnInInteractor
 import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
@@ -34,10 +36,14 @@ import com.android.systemui.keyguard.shared.model.StatusBarState
 import com.android.systemui.keyguard.shared.quickaffordance.KeyguardQuickAffordancePosition
 import com.android.systemui.kosmos.testDispatcher
 import com.android.systemui.kosmos.testScope
+import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.scene.shared.model.Scenes
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
@@ -46,6 +52,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @SmallTest
 class KeyguardIndicationAreaViewModelTest() : SysuiTestCase() {
     private val kosmos = testKosmos()
@@ -108,6 +115,7 @@ class KeyguardIndicationAreaViewModelTest() : SysuiTestCase() {
         }
 
     @Test
+    @DisableSceneContainer
     fun visibilityWhenCommunalShowing() =
         testScope.runTest {
             keyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
@@ -127,10 +135,29 @@ class KeyguardIndicationAreaViewModelTest() : SysuiTestCase() {
             assertThat(visible).isFalse()
         }
 
-    private fun setDozeAmountAndCalculateExpectedTranslationY(dozeAmount: Float): Float {
-        keyguardRepository.setDozeAmount(dozeAmount)
-        return dozeAmount * (RETURNED_BURN_IN_OFFSET - DEFAULT_BURN_IN_OFFSET)
-    }
+    @Test
+    @EnableSceneContainer
+    fun withSceneContainerEnabled_visibilityWhenCommunalShowing() =
+        testScope.runTest {
+            keyguardRepository.setStatusBarState(StatusBarState.KEYGUARD)
+            kosmos.sceneInteractor.setTransitionState(
+                MutableStateFlow(ObservableTransitionState.Idle(currentScene = Scenes.Communal))
+            )
+            runCurrent()
+
+            val visible by collectLastValue(underTest.visible)
+
+            assertThat(visible).isTrue()
+            keyguardRepository.setStatusBarState(StatusBarState.SHADE)
+            runCurrent()
+            assertThat(visible).isTrue()
+
+            kosmos.sceneInteractor.setTransitionState(
+                MutableStateFlow(ObservableTransitionState.Idle(currentScene = Scenes.Lockscreen))
+            )
+            runCurrent()
+            assertThat(visible).isFalse()
+        }
 
     companion object {
         private const val DEFAULT_BURN_IN_OFFSET = 5

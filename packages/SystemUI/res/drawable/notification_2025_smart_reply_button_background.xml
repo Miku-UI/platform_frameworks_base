@@ -18,14 +18,17 @@
 
 <ripple xmlns:android="http://schemas.android.com/apk/res/android"
         android:color="@color/notification_ripple_untinted_color">
+    <!-- Insets are chosen so that, in a container of height 48 (for the tap target), the chip
+      has a height of 32dp. -->
     <item>
         <inset
             android:insetLeft="0dp"
-            android:insetTop="6dp"
+            android:insetTop="8dp"
             android:insetRight="0dp"
-            android:insetBottom="6dp">
+            android:insetBottom="8dp">
             <shape android:shape="rectangle">
-              <corners android:radius="@dimen/notification_2025_smart_reply_button_corner_radius" />
+                <corners android:radius="@dimen/notification_2025_smart_reply_button_corner_radius" />
+                <!-- Note that the stroke and fill colors are being overridden in SmartReplyView. -->
                 <stroke android:width="@dimen/smart_reply_button_stroke_width"
                         android:color="@color/smart_reply_button_stroke" />
                 <solid android:color="@color/smart_reply_button_background"/>

@@ -39,7 +39,6 @@ import android.os.Looper;
 import android.os.PowerMonitor;
 import android.os.PowerMonitorReadings;
 import android.os.ResultReceiver;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.provider.DeviceConfig;
 import android.provider.DeviceConfigInterface;
@@ -1242,7 +1241,6 @@ public class PowerStatsServiceTest {
                 .map(PowerMonitor::getName).toList()).contains("ENERGYCONSUMER0");
     }
 
-    @EnableFlags(Flags.FLAG_VERIFY_NON_NULL_ARGUMENTS)
     @Test
     public void testGetSupportedPowerMonitors_withNullArguments() {
         IPowerStatsService iPowerStatsService = mService.getIPowerStatsServiceForTest();
@@ -1250,7 +1248,6 @@ public class PowerStatsServiceTest {
                 () -> iPowerStatsService.getSupportedPowerMonitors(null));
     }
 
-    @EnableFlags(Flags.FLAG_VERIFY_NON_NULL_ARGUMENTS)
     @Test
     public void testGetPowerMonitorReadings_withNullArguments() {
         IPowerStatsService iPowerStatsService = mService.getIPowerStatsServiceForTest();

@@ -19,7 +19,7 @@ package android.media;
 /**
  * AIDL for the AudioService to signal audio server state changes
  *
- * {@hide}
+ * @hide
  */
 oneway interface IAudioServerStateDispatcher {
 

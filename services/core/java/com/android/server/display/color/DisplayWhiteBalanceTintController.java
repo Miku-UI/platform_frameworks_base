@@ -145,16 +145,10 @@ final class DisplayWhiteBalanceTintController extends ColorTemperatureTintContro
 
         mTransitionDuration = res.getInteger(
                 R.integer.config_displayWhiteBalanceTransitionTime);
-
-        if (!mDisplayManagerFlags.isAdaptiveTone2Enabled()) {
-            mTransitionDurationDecrease = mTransitionDuration;
-            mTransitionDurationIncrease = mTransitionDuration;
-        } else {
-            mTransitionDurationIncrease = res.getInteger(
-                    R.integer.config_displayWhiteBalanceTransitionTimeIncrease);
-            mTransitionDurationDecrease = res.getInteger(
-                    R.integer.config_displayWhiteBalanceTransitionTimeDecrease);
-        }
+        mTransitionDurationIncrease = res.getInteger(
+                R.integer.config_displayWhiteBalanceTransitionTimeIncrease);
+        mTransitionDurationDecrease = res.getInteger(
+                R.integer.config_displayWhiteBalanceTransitionTimeDecrease);
 
         int[] cctRangeMinimums = res.getIntArray(
                 R.array.config_displayWhiteBalanceDisplayRangeMinimums);

@@ -91,7 +91,7 @@ class DevicePermissionPolicy : SchemePolicy() {
     override fun MutateStateScope.onStorageVolumeMounted(
         volumeUuid: String?,
         packageNames: List<String>,
-        isSystemUpdated: Boolean
+        isSystemUpdated: Boolean,
     ) {
         packageNames.forEachIndexed { _, packageName ->
             // The package may still be removed even if it was once notified as installed.
@@ -114,7 +114,7 @@ class DevicePermissionPolicy : SchemePolicy() {
     override fun MutateStateScope.onPackageUninstalled(
         packageName: String,
         appId: Int,
-        userId: Int
+        userId: Int,
     ) {
         resetRuntimePermissions(packageName, userId)
     }
@@ -171,7 +171,7 @@ class DevicePermissionPolicy : SchemePolicy() {
     private inline fun MutateStateScope.anyPackageInAppId(
         appId: Int,
         state: AccessState = newState,
-        predicate: (PackageState) -> Boolean
+        predicate: (PackageState) -> Boolean,
     ): Boolean {
         val packageNames = state.externalState.appIdPackageNames[appId]!!
         return packageNames.anyIndexed { _, packageName ->
@@ -183,7 +183,7 @@ class DevicePermissionPolicy : SchemePolicy() {
     private inline fun MutateStateScope.forEachPackageInAppId(
         appId: Int,
         state: AccessState = newState,
-        action: (PackageState) -> Unit
+        action: (PackageState) -> Unit,
     ) {
         val packageNames = state.externalState.appIdPackageNames[appId]!!
         packageNames.forEachIndexed { _, packageName ->
@@ -206,21 +206,20 @@ class DevicePermissionPolicy : SchemePolicy() {
         appId: Int,
         deviceId: String,
         userId: Int,
-        permissionName: String
+        permissionName: String,
     ): Int {
         val flags =
             state.userStates[userId]
                 ?.appIdDevicePermissionFlags
                 ?.get(appId)
                 ?.get(deviceId)
-                ?.getWithDefault(permissionName, 0)
-                ?: 0
+                ?.getWithDefault(permissionName, 0) ?: 0
         if (PermissionManager.DEBUG_DEVICE_PERMISSIONS) {
             Slog.i(
                 LOG_TAG,
                 "getPermissionFlags: appId=$appId, userId=$userId," +
                     " deviceId=$deviceId, permissionName=$permissionName," +
-                    " flags=${PermissionFlags.toString(flags)}"
+                    " flags=${PermissionFlags.toString(flags)}",
             )
         }
         return flags
@@ -229,19 +228,16 @@ class DevicePermissionPolicy : SchemePolicy() {
     fun GetStateScope.getAllPermissionFlags(
         appId: Int,
         persistentDeviceId: String,
-        userId: Int
+        userId: Int,
     ): IndexedMap<String, Int>? =
-        state.userStates[userId]
-            ?.appIdDevicePermissionFlags
-            ?.get(appId)
-            ?.get(persistentDeviceId)
+        state.userStates[userId]?.appIdDevicePermissionFlags?.get(appId)?.get(persistentDeviceId)
 
     fun MutateStateScope.setPermissionFlags(
         appId: Int,
         deviceId: String,
         userId: Int,
         permissionName: String,
-        flags: Int
+        flags: Int,
     ): Boolean =
         updatePermissionFlags(
             appId,
@@ -249,7 +245,7 @@ class DevicePermissionPolicy : SchemePolicy() {
             userId,
             permissionName,
             PermissionFlags.MASK_ALL,
-            flags
+            flags,
         )
 
     private fun MutateStateScope.updatePermissionFlags(
@@ -258,7 +254,7 @@ class DevicePermissionPolicy : SchemePolicy() {
         userId: Int,
         permissionName: String,
         flagMask: Int,
-        flagValues: Int
+        flagValues: Int,
     ): Boolean {
         if (userId !in newState.userStates) {
             // Despite that we check UserManagerInternal.exists() in PermissionService, we may still
@@ -285,7 +281,7 @@ class DevicePermissionPolicy : SchemePolicy() {
                 LOG_TAG,
                 "setPermissionFlags(): appId=$appId, userId=$userId," +
                     " deviceId=$deviceId, permissionName=$permissionName," +
-                    " newFlags=${PermissionFlags.toString(newFlags)}"
+                    " newFlags=${PermissionFlags.toString(newFlags)}",
             )
         }
         val permissionFlags = devicePermissionFlags.mutateOrPut(deviceId) { MutableIndexedMap() }
@@ -303,7 +299,7 @@ class DevicePermissionPolicy : SchemePolicy() {
                 deviceId,
                 permissionName,
                 oldFlags,
-                newFlags
+                newFlags,
             )
         }
         return true
@@ -332,7 +328,7 @@ class DevicePermissionPolicy : SchemePolicy() {
             deviceId: String,
             permissionName: String,
             oldFlags: Int,
-            newFlags: Int
+            newFlags: Int,
         )
 
         /**

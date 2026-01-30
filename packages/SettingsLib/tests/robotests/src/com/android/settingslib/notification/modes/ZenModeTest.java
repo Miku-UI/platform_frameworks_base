@@ -55,6 +55,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
@@ -202,7 +203,7 @@ public class ZenModeTest {
                 .setPackage(SystemZenRules.PACKAGE_ANDROID)
                 .setType(AutomaticZenRule.TYPE_OTHER)
                 .build();
-        ZenMode mode = ZenMode.manualDndMode(dndRule, false);
+        ZenMode mode = ZenMode.manualDndMode(dndRule, false, null);
 
         assertThat(mode.isCustomManual()).isFalse();
     }
@@ -406,7 +407,8 @@ public class ZenModeTest {
         assertUnparceledIsEqualToOriginal("example",
                 new ZenMode("id", ZEN_RULE, zenConfigRuleFor(ZEN_RULE, false)));
 
-        assertUnparceledIsEqualToOriginal("dnd", ZenMode.manualDndMode(ZEN_RULE, true));
+        assertUnparceledIsEqualToOriginal("dnd", ZenMode.manualDndMode(ZEN_RULE, true,
+                Instant.ofEpochMilli(300)));
 
         assertUnparceledIsEqualToOriginal("custom_manual",
                 ZenMode.newCustomManual("New mode", R.drawable.ic_zen_mode_type_immersive));

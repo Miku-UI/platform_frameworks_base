@@ -29,7 +29,6 @@ import android.testing.AndroidTestingRunner
 import android.view.Display.DEFAULT_DISPLAY
 import android.window.WindowContainerTransaction
 import androidx.test.filters.SmallTest
-import com.android.dx.mockito.inline.extended.ExtendedMockito.doReturn
 import com.android.dx.mockito.inline.extended.ExtendedMockito.mockitoSession
 import com.android.dx.mockito.inline.extended.ExtendedMockito.never
 import com.android.dx.mockito.inline.extended.StaticMockitoSession
@@ -43,10 +42,11 @@ import com.android.wm.shell.common.ShellExecutor
 import com.android.wm.shell.common.TaskStackListenerImpl
 import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFreeformTask
 import com.android.wm.shell.desktopmode.DesktopTestHelpers.createFullscreenTask
-import com.android.wm.shell.desktopmode.persistence.Desktop
-import com.android.wm.shell.desktopmode.persistence.DesktopPersistentRepository
-import com.android.wm.shell.desktopmode.persistence.DesktopRepositoryInitializer
-import com.android.wm.shell.shared.desktopmode.DesktopModeStatus
+import com.android.wm.shell.desktopmode.data.DesktopRepositoryInitializer
+import com.android.wm.shell.desktopmode.data.persistence.Desktop
+import com.android.wm.shell.desktopmode.data.persistence.DesktopPersistentRepository
+import com.android.wm.shell.shared.desktopmode.FakeDesktopConfig
+import com.android.wm.shell.shared.desktopmode.FakeDesktopState
 import com.android.wm.shell.sysui.ShellController
 import com.android.wm.shell.sysui.ShellInit
 import com.android.wm.shell.transition.Transitions
@@ -60,6 +60,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
@@ -67,7 +68,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentCaptor
 import org.mockito.ArgumentMatchers.isNull
-import org.mockito.Mock
 import org.mockito.Mockito.anyInt
 import org.mockito.Mockito.clearInvocations
 import org.mockito.Mockito.spy
@@ -76,6 +76,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.atLeastOnce
 import org.mockito.kotlin.capture
 import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 import org.mockito.quality.Strictness
 
@@ -89,17 +90,19 @@ import org.mockito.quality.Strictness
 @ExperimentalCoroutinesApi
 @EnableFlags(FLAG_ENABLE_DESKTOP_WINDOWING_MODE, FLAG_RESPECT_ORIENTATION_CHANGE_FOR_UNRESIZEABLE)
 class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
-    @Mock lateinit var testExecutor: ShellExecutor
-    @Mock lateinit var shellTaskOrganizer: ShellTaskOrganizer
-    @Mock lateinit var transitions: Transitions
-    @Mock lateinit var resizeTransitionHandler: ToggleResizeDesktopTaskTransitionHandler
-    @Mock lateinit var taskStackListener: TaskStackListenerImpl
-    @Mock lateinit var persistentRepository: DesktopPersistentRepository
-    @Mock lateinit var repositoryInitializer: DesktopRepositoryInitializer
-    @Mock lateinit var userManager: UserManager
-    @Mock lateinit var shellController: ShellController
-    @Mock lateinit var displayController: DisplayController
-    @Mock lateinit var displayLayout: DisplayLayout
+    private val testExecutor: ShellExecutor = mock()
+    private val shellTaskOrganizer: ShellTaskOrganizer = mock()
+    private val transitions: Transitions = mock()
+    private val resizeTransitionHandler: ToggleResizeDesktopTaskTransitionHandler = mock()
+    private val taskStackListener: TaskStackListenerImpl = mock()
+    private val persistentRepository: DesktopPersistentRepository = mock()
+    private val repositoryInitializer: DesktopRepositoryInitializer = mock()
+    private val userManager: UserManager = mock()
+    private val shellController: ShellController = mock()
+    private val displayController: DisplayController = mock()
+    private val displayLayout: DisplayLayout = mock()
+    private val desktopState = FakeDesktopState()
+    private val desktopConfig = FakeDesktopConfig()
 
     private lateinit var mockitoSession: StaticMockitoSession
     private lateinit var handler: DesktopActivityOrientationChangeHandler
@@ -113,24 +116,22 @@ class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
     @Before
     fun setUp() {
         Dispatchers.setMain(StandardTestDispatcher())
-        mockitoSession =
-            mockitoSession()
-                .strictness(Strictness.LENIENT)
-                .spyStatic(DesktopModeStatus::class.java)
-                .startMocking()
-        doReturn(true).`when` { DesktopModeStatus.canEnterDesktopMode(any()) }
+        mockitoSession = mockitoSession().strictness(Strictness.LENIENT).startMocking()
+        desktopState.canEnterDesktopMode = true
 
         testScope = CoroutineScope(Dispatchers.Unconfined + SupervisorJob())
         shellInit = spy(ShellInit(testExecutor))
         userRepositories =
             DesktopUserRepositories(
-                context,
                 shellInit,
                 shellController,
                 persistentRepository,
                 repositoryInitializer,
                 testScope,
+                TestScope(),
                 userManager,
+                desktopState,
+                desktopConfig,
             )
         whenever(shellTaskOrganizer.getRunningTasks(anyInt())).thenAnswer { runningTasks }
         whenever(transitions.startTransition(anyInt(), any(), isNull())).thenAnswer { Binder() }
@@ -147,6 +148,7 @@ class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
                 resizeTransitionHandler,
                 userRepositories,
                 displayController,
+                desktopState,
             )
 
         shellInit.init()
@@ -167,7 +169,7 @@ class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
 
     @Test
     fun instantiate_cannotEnterDesktopMode_doNotAddInitCallback() {
-        whenever(DesktopModeStatus.canEnterDesktopMode(context)).thenReturn(false)
+        desktopState.canEnterDesktopMode = false
         clearInvocations(shellInit)
 
         handler =
@@ -179,6 +181,7 @@ class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
                 resizeTransitionHandler,
                 userRepositories,
                 displayController,
+                desktopState,
             )
 
         verify(shellInit, never())
@@ -209,7 +212,12 @@ class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
         activityInfo.screenOrientation = SCREEN_ORIENTATION_PORTRAIT
         task.topActivityInfo = activityInfo
         whenever(shellTaskOrganizer.getRunningTaskInfo(task.taskId)).thenReturn(task)
-        userRepositories.current.addTask(DEFAULT_DISPLAY, task.taskId, isVisible = true)
+        userRepositories.current.addTask(
+            DEFAULT_DISPLAY,
+            task.taskId,
+            isVisible = true,
+            task.configuration.windowConfiguration.bounds,
+        )
         runningTasks.add(task)
 
         taskStackListener.onActivityRequestedOrientationChanged(
@@ -241,7 +249,12 @@ class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
         userRepositories.current.addDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
         userRepositories.current.setActiveDesk(displayId = DEFAULT_DISPLAY, deskId = 0)
         val task = setUpFreeformTask(isResizeable = false)
-        userRepositories.current.updateTask(task.displayId, task.taskId, isVisible = false)
+        userRepositories.current.updateTask(
+            task.displayId,
+            task.taskId,
+            isVisible = false,
+            task.configuration.windowConfiguration.bounds,
+        )
 
         taskStackListener.onActivityRequestedOrientationChanged(
             task.taskId,
@@ -325,7 +338,12 @@ class DesktopActivityOrientationChangeHandlerTest : ShellTestCase() {
         task.topActivityInfo = activityInfo
         task.isResizeable = isResizeable
         whenever(shellTaskOrganizer.getRunningTaskInfo(task.taskId)).thenReturn(task)
-        userRepositories.current.addTask(displayId, task.taskId, isVisible = true)
+        userRepositories.current.addTask(
+            displayId,
+            task.taskId,
+            isVisible = true,
+            task.configuration.windowConfiguration.bounds,
+        )
         runningTasks.add(task)
         return task
     }

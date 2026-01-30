@@ -30,5 +30,6 @@ val Kosmos.iconAndNameCustomRepository by
             installedTilesRepository,
             userTracker,
             backgroundCoroutineContext,
+            appIconRepositoryFactory,
         )
     }

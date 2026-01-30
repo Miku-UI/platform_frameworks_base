@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Kudingeka imvume"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Ukufaka kuvinjiwe"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Kulungiselelwa i-app…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Ufuna ukufaka le app?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Iyafaka…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"Ifakiwe i-app"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Ufuna ukuyifaka kabusha le app?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Kufakwa kabusha…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"Ifakwe kabusha i-app"</string>
+    <string name="title_update" msgid="1747328630716712391">"Ufuna ukubuyekeza le app?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Ufuna ukubuyekeza le app usebenzisa i-<xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Iyabuyekeza…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"Ibuyekeziwe i-app"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Asikwazi ukufaka i-app"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Ukufaka kuvinjiwe"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"Ayihambelani i-app"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Ayisebenzisi iphakheji"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Isitoreji asanele"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"Ayifakiwe i-app"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Ufuna ukukhipha le app?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Ufuna ukusula ikhophi yale app?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Ufuna ukukhipha okubuyekeziwe kule app?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Ufuna ukukhipha okubuyekeziwe kule app kubo bonke abasebenzisi?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Ufuna ukukhipha le app kubo bonke abasebenzisi?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Khipha le app wenzela umsebenzisi \"u-<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"I-app ayitholakalanga"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Awukwazi ukukhipha le app"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Ayikhishiwe i-app"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Ufuna ukugcina le app isikhathi eside?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Ufuna ukubagcinela le app isikhathi eside bonke abasebenzisi bakho?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Faka le app kungobo yomlando wenzela umsebenzisi \"u-<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Ufuna ukubuyisa le app?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Kudingeka wenze okuthile"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Isitoreji asanele"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Awuxhunyiwe ku-inthanethi"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"I-<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ivinjiwe"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"I-<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ayifakiwe"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Kukhona okungahambanga kahle"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Le app ngokuvamile ithola izibuyekezo ezisuka &lt;b&gt;ku-<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Ngokubuyekeza usebenzisa kumthombo ohlukile, esikhathini esizayo ungase uthole izinto ezibuyekeziwe zayo yonke imithombo ekuthebulethi yakho. Kungase kushintshe ukusebenza kwe-app."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Le app ngokuvamile ithola izibuyekezo ezisuka &lt;b&gt;ku-<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Ngokubuyekeza usebenzisa kumthombo ohlukile, esikhathini esizayo ungase uthole izinto ezibuyekeziwe zayo yonke imithombo eku-TV yakho. Kungase kushintshe ukusebenza kwe-app."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Le app ngokuvamile ithola izibuyekezo ezisuka &lt;b&gt;ku-<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Ngokubuyekeza usebenzisa kumthombo ohlukile, esikhathini esizayo ungase uthole izinto ezibuyekeziwe zayo yonke imithombo esefonini yakho. Kungase kushintshe ukusebenza kwe-app."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Ukuze uphephe, okwamanje ithebulethi yakho ayivunyelwe ukufaka ama-app angaziwa avela kulo mthombo. Ungakushintsha lokhu Kumasethingi."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Ukuze uphephe, okwamanje i-TV yakho ayivunyelwe ukufaka ama-app angaziwa avela kulo mthombo. Ungakushintsha lokhu Kumasethingi."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Ukuze uphephe, okwamanje iwashi lakho alivunyelwe ukufaka ama-app angaziwa avela kulo mthombo. Ungakushintsha lokhu Kumasethingi."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Ukuze uphephe, okwamanje ifoni yakho ayivunyelwe ukufaka ama-app angaziwa avela kulo mthombo. Ungakushintsha lokhu Kumasethingi."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"Idatha yefoni yakho neyomuntu siqu isengcupheni kakhulu yokuhlaselwa ama-app angaziwa. Ngokufaka le app, uyavuma ukuthi akekho umuntu ozombeka icala ngokulimala kwe-TV yakho noma ngokulahlekelwa idatha okungase kubangelwe ukusebenzisa le app."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"Idatha yethebhulethi yakho neyomuntu siqu isengcupheni kakhulu yokuhlaselwa ama-app angaziwa. Ngokufaka le app, uyavuma ukuthi akekho umuntu ozombeka icala ngokulimala kwe-TV yakho noma ngokulahlekelwa idatha okungase kubangelwe ukusebenzisa le app."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"Idatha yakho ye-TV neyomuntu siqu isengcupheni kakhulu yokuhlaselwa ama-app angaziwa. Ngokufaka le app, uyavuma ukuthi akekho umuntu ozombeka icala ngokulimala kwe-TV yakho noma ngokulahlekelwa idatha okungase kubangelwe ukusebenzisa le app."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"Le app ivinjiwe ukuba ifakwe"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"Le app ishayisana ne-app ekule divayisi yakho"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"Le app ayihambelani nedivayisi yakho"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Kunenkinga ngefayela efaka le app"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Ukuze ufake le app, vula isikhala bese uyazama futhi."</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Kukhona inkinga ngefayela ye-app"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"Ukufakwa kwama-app kunomkhawulo"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"Ukufakwa kwama-app angaziwa kunomkhawulo"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Ikhona ikhophi yale app futhi izosulwa"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"Le app iyikhophi ye-<xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"Le app izothathelwa indawo uhlobo lwasefekthri. Yonke idatha ye-app izosuswa."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"Le app izothathelwa indawo uhlobo lwasefekthri kubo bonke abasebenzisi abakule divayisi. Yonke idatha ye-app izosuswa."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"Le app izokhishwa kuphrofayela yakho yomsebenzi"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"Le app izokhishwa esikhaleni sakho sangasese"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"Le app ayitholakalanga ohlwini lwama-app afakiwe, noma isifakiwe vele"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"Umsebenzisi okhona akavunyelwe ukufaka lokhu"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Asikwazanga ukufaka le app"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Gcina idatha ye-app"</string>
+    <string name="message_archive" msgid="943853731737315850">"Idatha ye-app yakho izolondolozwa"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Yonke idatha ye-app izolondolozwa"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"Idatha ye-app izolondolozwa"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"Le app izogcinwa isikhathi eside kuphrofayela yakho yomsebenzi. Idatha ye-app yakho izolondolozwa."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"Le app izogcinwa isikhathi eside endaweni yangasese. Idatha ye-app yakho izolondolozwa."</string>
+    <string name="message_restore" msgid="8402726798623569969">"Le app izodawuniloda izinto eziku-<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ngemuva"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"I-<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> idinga imininingwane eyengeziwe ngaphambi kokubuyisa le app"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Ukuze ubuyise le app, vula isikhala esingu-<xliff:g id="BYTES">%1$s</xliff:g> bese uyazama futhi"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Ukuze ubuyise le app, hlola i-inthanethi yakho bese uyazama futhi"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Ukuze ubuyise le app, vula i-<xliff:g id="INSTALLERNAME">%1$s</xliff:g> Kumasethingi"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Ukuze ubuyise le app, kuzodingeka ufake i-<xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Kube nenkinga ngesikhathi sizama ukubuyisa le app"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"I-<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> iyingxenye ye-app elandelayo: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Le app ivinjiwe. Ukusiza ukugcina idivayisi yakho nedatha ziphephile, ama-app avela konjiniyela abaqinisekisiwe kuphela angafakwa.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;Le app ayizange ibuyekezwe. Ukusiza ukugcina idivayisi yakho nedatha ziphephile, izibuyekezo kuphela ezivela konjiniyela abaqinisekisiwe ezingafakwa.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;Le app ayizange ifakwe. Ama-app onjiniyela abangaqinisekisiwe angase angaphephi.&lt;/p&gt; &lt;p&gt;Kudingeka ukuxhumeka kwe-inthanethi ukuze uqinisekise unjiniyela we-app. Hlola ukuxhuma kwakho, bese uzama ukufaka futhi. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;Le app ayizange ibuyekezwe. Izibuyekezo ezivela konjiniyela abangaqinisekisiwe kungenzeka zingabi eziphephile.&lt;/p&gt; &lt;p&gt;Ukuxhumeka kwe-inthanethi kuyadingeka ukuze kuqinisekiswe unjiniyela we-app. Hlola ukuxhuma kwakho, bese uzama ukubuyekeza futhi. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;Kube nenkinga ngokuqinisekisa unjiniyela wale app. Ama-app avela konjiniyela abangaqinisekisiwe kungenzeka angaphephi, ngakho-ke i-app ayizange ifakwe.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;Kube nenkinga ngokuqinisekisa unjiniyela wale app. Izibuyekezo ezivela konjiniyela abangaqinisekisiwe kungenzeka zingaphephi, ngakho-ke i-app ayizange ibuyekezwe.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;Le app ivaliwe ngoba kube nenkinga yokuqinisekisa unjiniyela. Ukusiza ukugcina idivayisi yakho nedatha ziphephile, ama-app avela konjiniyela abaqinisekisiwe kuphela angafakwa.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"Le app ayibuyekezwanga ngoba kube nenkinga ekuqinisekiseni unjiniyela. Ukusiza ukugcina idivayisi yakho nedatha ziphephile, izibuyekezo kuphela ezivela konjiniyela abaqinisekisiwe ezingafakwa.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Funda kabanzi mayelana nokuqinisekiswa konjiniyela&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Uma uyifaka ngaphandle kokuqinisekisa, ukhumbule ukuthi ama-app onjiniyela abangaqinisekisiwe angase abeke idivayisi nedatha yakho engcupheni."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Uma ubuyekeza ngaphandle kokuqinisekisa, ukhumbule ukuthi okubuyekeziwe konjiniyela abangaqinisekisiwe kungase kufake idivayisi nedatha yakho engcupheni."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Akaqinisekisiwe unjiniyela we-app"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Ayikho i-inthanethi, ngeke ukwazi ukuqinisekisa unjiniyela"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Asikwazi ukuqinisekisa unjiniyela we-app"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Faka ngaphandle kokuqinisekisa"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Buyekeza ngaphandle kokuqinisekisa"</string>
+    <string name="button_install" msgid="7434013176505680162">"Faka"</string>
+    <string name="button_update" msgid="3046719350226327526">"Buyekeza"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Buyekeza noma kunjalo"</string>
+    <string name="button_done" msgid="3408025390982260629">"Kwenziwe"</string>
+    <string name="button_open" msgid="6892684987374117955">"Vula"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Khansela"</string>
+    <string name="button_continue" msgid="107501685249826244">"Qhubeka"</string>
+    <string name="button_close" msgid="7187308556466275899">"Vala"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Khipha"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Sula"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Faka kabusha"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Lawula ama-app"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Gcina isikhathi eside"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Buyisela"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Khipha okubuyekeziwe"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Amasethingi"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Zama futhi"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Ikhophi ye-<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+</resources>

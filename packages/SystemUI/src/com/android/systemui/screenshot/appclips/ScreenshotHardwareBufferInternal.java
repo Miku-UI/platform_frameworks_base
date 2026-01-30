@@ -22,7 +22,7 @@ import android.graphics.ParcelableColorSpace;
 import android.hardware.HardwareBuffer;
 import android.os.Parcel;
 import android.os.Parcelable;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
 
 /**
  * An internal version of {@link ScreenshotHardwareBuffer} that helps with parceling the information

@@ -267,7 +267,7 @@ class PrivacyItemControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun testPassageOfTimeDoesNotRemoveIndicators() {
+    fun testPassageOfTimeDoesNotRemoveCameraIndicators() {
         doReturn(listOf(
                 PrivacyItem(PrivacyType.TYPE_CAMERA,
                         PrivacyApplication(TEST_PACKAGE_NAME, TEST_UID), 0)
@@ -283,7 +283,7 @@ class PrivacyItemControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun testNotHeldAfterTimeIsOff() {
+    fun testCameraPrivacyItemNotHeldAfterTimeIsOff() {
         // Start with some element at time 0
         doReturn(listOf(
                 PrivacyItem(PrivacyType.TYPE_CAMERA,
@@ -306,7 +306,46 @@ class PrivacyItemControllerTest : SysuiTestCase() {
     }
 
     @Test
-    fun testElementNotRemovedBeforeHoldTime() {
+    fun testPassageOfTimeDoesNotRemoveLocationIndicators() {
+        // Start with some element at time 0
+        doReturn(listOf(
+                PrivacyItem(PrivacyType.TYPE_LOCATION,
+                        PrivacyApplication(TEST_PACKAGE_NAME, TEST_UID), 0)
+        )).`when`(privacyItemMonitor).getActivePrivacyItems()
+        privacyItemController.addCallback(callback)
+        executor.runAllReady()
+        doReturn(emptyList<PrivacyItem>()).`when`(privacyItemMonitor).getActivePrivacyItems()
+
+        fakeClock.advanceTime(PrivacyItemController.TIME_TO_HOLD_INDICATORS + 1)
+                executor.runAllReady()
+        // Verify that LOCATION items are not removed after TIME_TO_HOLD_INDICATORS
+        assertTrue(privacyItemController.privacyList.isNotEmpty())
+    }
+
+    @Test
+    fun testLocationPrivacyItemsNotHeldAfterTimeIsOff() {
+        // Start with some element at time 0
+        doReturn(listOf(
+                PrivacyItem(PrivacyType.TYPE_LOCATION,
+                        PrivacyApplication(TEST_PACKAGE_NAME, TEST_UID), 0)
+        )).`when`(privacyItemMonitor).getActivePrivacyItems()
+        privacyItemController.addCallback(callback)
+        executor.runAllReady()
+        doReturn(emptyList<PrivacyItem>()).`when`(privacyItemMonitor).getActivePrivacyItems()
+
+        fakeClock.advanceTime(PrivacyItemController.TIME_TO_HOLD_INDICATORS_FOR_LOCATION + 1)
+        verify(privacyItemMonitor).startListening(capture(argCaptorCallback))
+        argCaptorCallback.value.onPrivacyItemsChanged()
+        executor.runAllReady()
+
+        // See it's not there
+        verify(callback).onPrivacyItemsChanged(emptyList())
+        assertTrue(privacyItemController.privacyList.isEmpty())
+    }
+
+
+    @Test
+    fun testCameraElementNotRemovedBeforeHoldTime() {
         // Start with some element at current time
         doReturn(listOf(
                 PrivacyItem(PrivacyType.TYPE_CAMERA,

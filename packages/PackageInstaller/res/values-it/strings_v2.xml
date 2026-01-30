@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+  ~ Copyright (C) 2025 The Android Open Source Project
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~      https://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+   -->
+
+<resources xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
+    <string name="title_unknown_source_blocked" msgid="50770689337399043">"Autorizzazione necessaria"</string>
+    <string name="title_install_blocked" msgid="8292546042865448054">"Installazione bloccata"</string>
+    <string name="title_install_staging" msgid="6207460764383813714">"Preparazione dell\'app in corso…"</string>
+    <string name="title_install" msgid="6806728682404990326">"Vuoi installare l\'app?"</string>
+    <string name="title_installing" msgid="3738380766257176010">"Installazione in corso…"</string>
+    <string name="title_installed" msgid="6551855346109302601">"App installata"</string>
+    <string name="title_reinstall" msgid="1750856338036455388">"Vuoi reinstallare l\'app?"</string>
+    <string name="title_reinstalling" msgid="8194821341725321638">"Reinstallazione in corso…"</string>
+    <string name="title_reinstalled" msgid="4805694558041089418">"App reinstallata"</string>
+    <string name="title_update" msgid="1747328630716712391">"Aggiornare l\'app?"</string>
+    <string name="title_update_ownership_change" msgid="6628818356381453406">"Vuoi aggiornare l\'app utilizzando <xliff:g id="NEW_UPDATE_OWNER">%1$s</xliff:g>?"</string>
+    <string name="title_updating" msgid="5449073288264173554">"Aggiornamento in corso…"</string>
+    <string name="title_updated" msgid="3286125118804971449">"App aggiornata"</string>
+    <string name="title_cant_install_app" msgid="8683361719005005686">"Impossibile installare l\'app"</string>
+    <string name="title_install_failed_blocked" msgid="4864724257000850526">"Installazione bloccata"</string>
+    <string name="title_install_failed_incompatible" msgid="9153043742028690470">"App non compatibile"</string>
+    <string name="title_install_failed_invalid_package" msgid="3390527559613519562">"Pacchetto non valido"</string>
+    <string name="title_install_failed_less_storage" msgid="4854855960405469248">"Spazio di archiviazione insufficiente"</string>
+    <string name="title_install_failed_not_installed" msgid="8014023519071426269">"App non installata"</string>
+    <string name="title_uninstall" msgid="428653424812685605">"Disinstallare l\'app?"</string>
+    <string name="title_uninstall_clone" msgid="7974889929002929136">"Eliminare il clone dell\'app?"</string>
+    <string name="title_uninstall_updates_system_app" msgid="4827243291196043359">"Vuoi disinstallare gli aggiornamenti dell\'app?"</string>
+    <string name="title_uninstall_updates_system_app_all_users" msgid="5720572619103268328">"Disinstallare gli aggiornamenti dell\'app per tutti gli utenti?"</string>
+    <string name="title_uninstall_all_users" msgid="2008934480150627653">"Vuoi disinstallare l\'app per tutti gli utenti?"</string>
+    <string name="title_uninstall_other_user" msgid="2271467467800640363">"Vuoi disinstallare l\'app per l\'utente \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_uninstall_app_not_found" msgid="501803094061097579">"App non trovata"</string>
+    <string name="title_uninstall_user_not_allowed" msgid="1555448944495159635">"Impossibile disinstallare l\'app"</string>
+    <string name="title_uninstall_failed" msgid="4522950368147075143">"Disinstallazione dell\'app non riuscita"</string>
+    <string name="title_archive" msgid="2876455228073419830">"Archiviare l\'app?"</string>
+    <string name="title_archive_all_users" msgid="5904736601499520543">"Archiviare l\'app per tutti gli utenti?"</string>
+    <string name="title_archive_other_user" msgid="6686508642274629645">"Vuoi archiviare questa app per l\'utente \"<xliff:g id="USER_NAME">%1$s</xliff:g>\"?"</string>
+    <string name="title_restore" msgid="8934911753892124574">"Ripristinare l\'app?"</string>
+    <string name="title_restore_error_user_action_needed" msgid="5696944142011800104">"Azione richiesta"</string>
+    <string name="title_restore_error_less_storage" msgid="1702198163928260711">"Spazio di archiviazione insufficiente"</string>
+    <string name="title_restore_error_offline" msgid="4611160277876184886">"Sei offline"</string>
+    <string name="title_restore_error_installer_disabled" msgid="6955341343521073762">"L\'app <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> non è attiva"</string>
+    <string name="title_restore_error_installer_absent" msgid="4650702260526161948">"L\'app <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> non è installata"</string>
+    <string name="title_restore_error_generic" msgid="3675732737839176301">"Si è verificato un problema"</string>
+    <string name="message_update_owner_change" product="tablet" msgid="721928859405955082">"Generalmente l\'app riceve gli aggiornamenti da &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Se la aggiorni usando un\'origine diversa, in futuro potresti ricevere aggiornamenti da qualsiasi origine sul tablet. La funzionalità dell\'app potrebbe cambiare."</string>
+    <string name="message_update_owner_change" product="tv" msgid="7398850682198100493">"Generalmente l\'app riceve gli aggiornamenti da &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Se la aggiorni usando un\'origine diversa, in futuro potresti ricevere aggiornamenti da qualsiasi origine sulla TV. La funzionalità dell\'app potrebbe cambiare."</string>
+    <string name="message_update_owner_change" product="default" msgid="8415571223941666411">"Generalmente l\'app riceve gli aggiornamenti da &lt;b&gt;<xliff:g id="EXISTING_UPDATE_OWNER">%1$s</xliff:g>&lt;/b&gt;. Se la aggiorni usando un\'origine diversa, in futuro potresti ricevere aggiornamenti da qualsiasi origine sullo smartphone. La funzionalità dell\'app potrebbe cambiare."</string>
+    <string name="message_external_source_blocked" product="tablet" msgid="1404860482919177902">"Per motivi di sicurezza, il tuo tablet non è attualmente autorizzato a installare app sconosciute da questa origine. Puoi modificare questa opzione nelle Impostazioni."</string>
+    <string name="message_external_source_blocked" product="tv" msgid="1394622045008552842">"Per motivi di sicurezza, la tua TV non è attualmente autorizzata a installare app sconosciute da questa origine. Puoi modificare questa opzione nelle Impostazioni."</string>
+    <string name="message_external_source_blocked" product="watch" msgid="1532513823566863443">"Per motivi di sicurezza, il tuo smartwatch non è attualmente autorizzato a installare app sconosciute da questa origine. Puoi modificare questa opzione nelle Impostazioni."</string>
+    <string name="message_external_source_blocked" product="default" msgid="2781541659935183726">"Per motivi di sicurezza, il tuo smartphone non è attualmente autorizzato a installare app sconosciute da questa origine. Puoi modificare questa opzione nelle Impostazioni."</string>
+    <string name="message_anonymous_source_warning" product="default" msgid="4012873091955414109">"I dati dello smartphone e i dati personali sono più vulnerabili agli attacchi di app sconosciute. Se installi questa app, accetti di essere responsabile degli eventuali danni allo smartphone o dell\'eventuale perdita di dati derivanti dall\'uso dell\'app."</string>
+    <string name="message_anonymous_source_warning" product="tablet" msgid="5167072167473447125">"I dati del tablet e i dati personali sono più vulnerabili agli attacchi di app sconosciute. Se installi questa app, accetti di essere responsabile degli eventuali danni al tablet o dell\'eventuale perdita di dati derivanti dall\'uso dell\'app."</string>
+    <string name="message_anonymous_source_warning" product="tv" msgid="6827454085562760175">"I dati della TV e i dati personali sono più vulnerabili agli attacchi di app sconosciute. Se installi questa app, accetti di essere responsabile degli eventuali danni alla TV o dell\'eventuale perdita di dati derivanti dall\'uso dell\'app."</string>
+    <string name="message_install_failed_blocked" msgid="8289588872577100349">"L\'installazione dell\'app è stata bloccata"</string>
+    <string name="message_install_failed_conflict" msgid="1707670432024473123">"L\'app è in conflitto con un\'app già presente sul tuo dispositivo"</string>
+    <string name="message_install_failed_incompatible" msgid="184079710727317076">"L\'app non è compatibile con il dispositivo"</string>
+    <string name="message_install_failed_invalid" msgid="6607567121196588310">"Si è verificato un problema con il file di installazione dell\'app"</string>
+    <string name="message_install_failed_less_storage" msgid="5263281541675717769">"Per installare l\'app, libera spazio e riprova"</string>
+    <string name="message_parse_failed" msgid="205300138438352785">"Si è verificato un problema con il file dell\'app"</string>
+    <string name="message_no_install_apps_restriction" msgid="6772323689748831650">"L\'installazione di app è stata limitata"</string>
+    <string name="message_no_install_unknown_apps_restriction" msgid="6111967131011920924">"L\'installazione di app sconosciute è stata limitata"</string>
+    <string name="message_uninstall_with_clone_instance" msgid="12594156305221478">"Esiste anche un clone dell\'app che verrà eliminato"</string>
+    <string name="message_delete_clone_app" msgid="6632017049227330363">"L\'app è un clone di <xliff:g id="APP_LABEL">%1$s</xliff:g>"</string>
+    <string name="message_uninstall_updates_system_app" msgid="1246198093614610171">"L\'app verrà sostituita con la versione di fabbrica. Tutti i dati dell\'app verranno rimossi."</string>
+    <string name="message_uninstall_updates_system_app_all_users" msgid="1659615085602508659">"L\'app verrà sostituita con la versione di fabbrica per tutti gli utenti sul dispositivo. Tutti i dati dell\'app verranno rimossi."</string>
+    <string name="message_uninstall_work_profile" msgid="224587253086750763">"L\'app verrà disinstallata dal tuo profilo di lavoro"</string>
+    <string name="message_uninstall_private_space" msgid="2815872500665141251">"L\'app verrà disinstallata dal tuo spazio privato"</string>
+    <string name="message_uninstall_app_not_found" msgid="1228396155188846293">"L\'app non è presente nell\'elenco delle app installate o è già stata disinstallata"</string>
+    <string name="message_uninstall_user_not_allowed" msgid="4812707444447008148">"L\'utente corrente non può eseguire questa disinstallazione"</string>
+    <string name="message_uninstall_failed" msgid="4678598986902459187">"Impossibile disinstallare l\'app"</string>
+    <string name="message_uninstall_keep_data" msgid="3955153594868206983">"Conserva i dati dell\'app"</string>
+    <string name="message_archive" msgid="943853731737315850">"I tuoi dati dell\'app verranno salvati"</string>
+    <string name="message_archive_all_users" msgid="4664139369764501351">"Tutti i dati dell\'app verranno salvati"</string>
+    <string name="message_archive_other_user" msgid="6465828676043191175">"I dati dell\'app verranno salvati"</string>
+    <string name="message_archive_work_profile" msgid="7601504268820630858">"L\'app verrà archiviata dal tuo profilo di lavoro. I tuoi dati dell\'app verranno salvati."</string>
+    <string name="message_archive_private_space" msgid="4873651645762576624">"L\'app verrà archiviata dal tuo spazio privato. I tuoi dati dell\'app verranno salvati."</string>
+    <string name="message_restore" msgid="8402726798623569969">"L\'app verrà scaricata da <xliff:g id="INSTALLER_NAME">%1$s</xliff:g> in background"</string>
+    <string name="message_restore_error_user_action_needed" msgid="2206904734076205208">"<xliff:g id="INSTALLER_NAME">%1$s</xliff:g> ha bisogno di maggiori informazioni per poter ripristinare l\'app"</string>
+    <string name="message_restore_error_less_storage" msgid="4945507738776981462">"Per ripristinare l\'app, libera &lt;b&gt;<xliff:g id="BYTES">%1$s</xliff:g>&lt;/b&gt; e riprova"</string>
+    <string name="message_restore_error_offline" msgid="4212551781323276126">"Per ripristinare l\'app, controlla la tua connessione a internet e riprova"</string>
+    <string name="message_restore_error_installer_disabled" msgid="1089791898782445342">"Per ripristinare l\'app, abilita <xliff:g id="INSTALLERNAME">%1$s</xliff:g> in Impostazioni"</string>
+    <string name="message_restore_error_installer_absent" msgid="8492838251989389724">"Per ripristinare l\'app, dovrai installare <xliff:g id="INSTALLER_NAME">%1$s</xliff:g>"</string>
+    <string name="message_restore_error_generic" msgid="5903850636679929406">"Si è verificato un problema durante il ripristino dell\'app"</string>
+    <string name="message_uninstall_activity" msgid="3263352475743590167">"<xliff:g id="ACTIVITY_NAME">%1$s</xliff:g> fa parte della seguente app: <xliff:g id="APP_NAME">%2$s</xliff:g>"</string>
+    <string name="cannot_install_app_blocked_summary" msgid="2082063650842897085">"&lt;p&gt;Questa app è stata bloccata. Per proteggere il tuo dispositivo e i tuoi dati, puoi installare solo app di sviluppatori verificati.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="cannot_update_app_blocked_summary" msgid="7607734844900187499">"&lt;p&gt;L\'app non è stata aggiornata. Per proteggere il tuo dispositivo e i tuoi dati, puoi installare solo aggiornamenti di sviluppatori verificati.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_no_internet_summary" msgid="7298957699553589600">"&lt;p&gt;L\'app non è stata installata. Le app di sviluppatori non verificati potrebbero non essere sicure.&lt;/p&gt; &lt;p&gt;È necessaria una connessione a internet per verificare lo sviluppatore dell\'app. Controlla la connessione, quindi prova a ripetere l\'installazione. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_no_internet_summary" msgid="8094414928318316598">"&lt;p&gt;L\'app non è stata aggiornata. Gli aggiornamenti di sviluppatori non verificati potrebbero non essere sicuri.&lt;/p&gt; &lt;p&gt;È necessaria una connessione a internet per verificare lo sviluppatore dell\'app. Controlla la connessione, quindi prova a ripetere l\'aggiornamento. &lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_summary" msgid="3830073638843524892">"&lt;p&gt;È stato riscontrato un problema durante la verifica dello sviluppatore dell\'app. Le app di sviluppatori non verificati potrebbero non essere sicure, pertanto l\'app non è stata installata.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_summary" msgid="342184955548504019">"&lt;p&gt;È stato riscontrato un problema durante la verifica dello sviluppatore dell\'app. Gli aggiornamenti di sviluppatori non verificati potrebbero non essere sicuri, pertanto l\'app non è stata aggiornata.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="cannot_install_verification_unavailable_fail_closed_summary" msgid="3552780111383069051">"&lt;p&gt;L\'app è stata bloccata perché è stato riscontrato un problema durante la verifica dello sviluppatore. Per proteggere il tuo dispositivo e i tuoi dati, puoi installare solo app di sviluppatori verificati.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="cannot_update_verification_unavailable_fail_closed_summary" msgid="353457015429601377">"&lt;p&gt;L\'app non è stata aggiornata perché è stato riscontrato un problema durante la verifica dello sviluppatore. Per proteggere il tuo dispositivo e i tuoi dati, puoi installare solo aggiornamenti di sviluppatori verificati.&lt;/p&gt; &lt;a href=https://g.co/android/developer&gt;Scopri di più sulla verifica degli sviluppatori&lt;/a&gt;"</string>
+    <string name="more_details_expanded_install_summary" msgid="3545896392881608712">"Se esegui l\'installazione senza verificare, tieni presente che le app di sviluppatori non verificati potrebbero mettere a rischio il tuo dispositivo e i tuoi dati."</string>
+    <string name="more_details_expanded_update_summary" msgid="2239162864839036480">"Se esegui l\'aggiornamento senza verificare, tieni presente che gli aggiornamenti di sviluppatori non verificati potrebbero mettere a rischio il tuo dispositivo e i tuoi dati."</string>
+    <string name="cannot_install_app_blocked_title" msgid="6372444121824751694">"Sviluppatore di app non verificato"</string>
+    <string name="cannot_install_verification_no_internet_title" msgid="2862046642298119581">"Senza internet è impossibile verificare lo sviluppatore dell\'app"</string>
+    <string name="cannot_install_verification_unavailable_title" msgid="2038093442302309120">"Impossibile verificare lo sviluppatore dell\'app"</string>
+    <string name="install_without_verifying" msgid="5359680595440741626">"Installa senza verificare"</string>
+    <string name="update_without_verifying" msgid="2841466981431484179">"Aggiorna senza verificare"</string>
+    <string name="button_install" msgid="7434013176505680162">"Installa"</string>
+    <string name="button_update" msgid="3046719350226327526">"Aggiorna"</string>
+    <string name="button_update_anyway" msgid="6674207037708730779">"Aggiorna comunque"</string>
+    <string name="button_done" msgid="3408025390982260629">"Fine"</string>
+    <string name="button_open" msgid="6892684987374117955">"Apri"</string>
+    <string name="button_cancel" msgid="6690491435205617214">"Annulla"</string>
+    <string name="button_continue" msgid="107501685249826244">"Continua"</string>
+    <string name="button_close" msgid="7187308556466275899">"Chiudi"</string>
+    <string name="button_uninstall" msgid="6317309210023038915">"Disinstalla"</string>
+    <string name="button_delete" msgid="1050833585936159792">"Elimina"</string>
+    <string name="button_reinstall" msgid="476377927808336418">"Reinstalla"</string>
+    <string name="button_manage_apps" msgid="957735904821659812">"Gestisci app"</string>
+    <string name="button_archive" msgid="2719647830439699121">"Archivia"</string>
+    <string name="button_restore" msgid="4388317532933866637">"Ripristina"</string>
+    <string name="button_uninstall_updates_system_app" msgid="5510230756003755497">"Disinstalla aggiornamenti"</string>
+    <string name="button_settings" msgid="3837571366246132287">"Impostazioni"</string>
+    <string name="button_retry" msgid="6736082260813816198">"Riprova"</string>
+    <string name="string_cloned_app_label" msgid="3596634458716024562">"Clone di <xliff:g id="PACKAGE_LABEL">%1$s</xliff:g>"</string>
+</resources>

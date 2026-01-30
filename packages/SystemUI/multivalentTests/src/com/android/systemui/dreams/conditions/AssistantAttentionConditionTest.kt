@@ -15,7 +15,6 @@
  */
 package com.android.systemui.dreams.conditions
 
-import android.platform.test.annotations.EnabledOnRavenwood
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -38,7 +37,6 @@ import org.mockito.kotlin.eq
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@EnabledOnRavenwood
 class AssistantAttentionConditionTest : SysuiTestCase() {
     private val kosmos = Kosmos()
 

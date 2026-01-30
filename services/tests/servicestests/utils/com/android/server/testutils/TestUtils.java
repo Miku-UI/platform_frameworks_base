@@ -15,6 +15,8 @@
  */
 package com.android.server.testutils;
 
+import android.os.Message;
+import android.os.TestLooperManager;
 import android.test.MoreAsserts;
 
 import junit.framework.Assert;
@@ -59,5 +61,26 @@ public class TestUtils {
         return Mockito.mock(c, (Answer) invocation -> {
             throw new AssertionError("Unexpected invocation: " + invocation);
         });
+    }
+
+    /**
+     * Dispatch all the ready looper messages. The loopers might depend on each other and send
+     * messages to each other, so this method loops through all of them until there are no ready
+     * messages left in any of them.
+     * @param tlms The test looper managers
+     */
+    public static void flushLoopers(TestLooperManager... tlms) {
+        boolean noMoreMessages;
+        do {
+            noMoreMessages = true;
+            for (TestLooperManager tlm : tlms) {
+                Message m = tlm.poll();
+                if (m != null) {
+                    tlm.execute(m);
+                    tlm.recycle(m);
+                    noMoreMessages = false;
+                }
+            }
+        } while(!noMoreMessages);
     }
 }

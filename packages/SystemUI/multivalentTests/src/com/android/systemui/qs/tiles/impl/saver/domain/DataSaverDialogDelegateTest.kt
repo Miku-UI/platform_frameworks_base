@@ -17,7 +17,6 @@
 package com.android.systemui.qs.tiles.impl.saver.domain
 
 import android.content.SharedPreferences
-import android.platform.test.annotations.EnabledOnRavenwood
 import android.testing.LeakCheck
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
@@ -38,7 +37,6 @@ import org.mockito.Mockito.verify
 
 /** Test [DataSaverDialogDelegate]. */
 @SmallTest
-@EnabledOnRavenwood
 @RunWith(AndroidJUnit4::class)
 class DataSaverDialogDelegateTest : SysuiTestCase() {
 

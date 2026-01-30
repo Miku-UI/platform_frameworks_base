@@ -120,8 +120,13 @@ TEST_F(FlaggedXmlVersionerTest, PreBaklavaGetsSplit) {
   PrintDocToString(results[0].get(), &actual0);
   EXPECT_THAT(actual0, Eq(expected0));
 
+  auto baklava_doc = test::BuildXmlDomForPackageName(context_.get(), R"(
+      <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">
+        <TextView /><TextView /><TextView />
+      </LinearLayout>)");
+
   std::string expected1;
-  PrintDocToString(doc.get(), &expected1);
+  PrintDocToString(baklava_doc.get(), &expected1);
   std::string actual1;
   PrintDocToString(results[1].get(), &actual1);
   EXPECT_THAT(actual1, Eq(expected1));
@@ -151,8 +156,12 @@ TEST_F(FlaggedXmlVersionerTest, NoVersionGetsSplit) {
   PrintDocToString(results[0].get(), &actual0);
   EXPECT_THAT(actual0, Eq(expected0));
 
+  auto baklava_doc = test::BuildXmlDomForPackageName(context_.get(), R"(
+      <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">
+        <TextView /><TextView /><TextView />
+      </LinearLayout>)");
   std::string expected1;
-  PrintDocToString(doc.get(), &expected1);
+  PrintDocToString(baklava_doc.get(), &expected1);
   std::string actual1;
   PrintDocToString(results[1].get(), &actual1);
   EXPECT_THAT(actual1, Eq(expected1));
@@ -172,22 +181,20 @@ TEST_F(FlaggedXmlVersionerTest, NegatedFlagAttributeRemoved) {
   EXPECT_THAT(results[0]->file.config.sdkVersion, Eq(SDK_GINGERBREAD));
   EXPECT_THAT(results[1]->file.config.sdkVersion, Eq(SDK_BAKLAVA));
 
-  auto gingerbread_doc = test::BuildXmlDomForPackageName(context_.get(), R"(
+  auto processed_doc = test::BuildXmlDomForPackageName(context_.get(), R"(
       <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android">
         <TextView /><TextView /><TextView />
       </LinearLayout>)");
 
-  std::string expected0;
-  PrintDocToString(gingerbread_doc.get(), &expected0);
+  std::string expected;
+  PrintDocToString(processed_doc.get(), &expected);
   std::string actual0;
   PrintDocToString(results[0].get(), &actual0);
-  EXPECT_THAT(actual0, Eq(expected0));
+  EXPECT_THAT(actual0, Eq(expected));
 
-  std::string expected1;
-  PrintDocToString(doc.get(), &expected1);
   std::string actual1;
   PrintDocToString(results[1].get(), &actual1);
-  EXPECT_THAT(actual1, Eq(expected1));
+  EXPECT_THAT(actual1, Eq(expected));
 }
 
 TEST_F(FlaggedXmlVersionerTest, NegatedFlagAttributeRemovedNoSpecifiedVersion) {
@@ -208,17 +215,15 @@ TEST_F(FlaggedXmlVersionerTest, NegatedFlagAttributeRemovedNoSpecifiedVersion) {
         <TextView /><TextView /><TextView />
       </LinearLayout>)");
 
-  std::string expected0;
-  PrintDocToString(gingerbread_doc.get(), &expected0);
+  std::string expected;
+  PrintDocToString(gingerbread_doc.get(), &expected);
   std::string actual0;
   PrintDocToString(results[0].get(), &actual0);
-  EXPECT_THAT(actual0, Eq(expected0));
+  EXPECT_THAT(actual0, Eq(expected));
 
-  std::string expected1;
-  PrintDocToString(doc.get(), &expected1);
   std::string actual1;
   PrintDocToString(results[1].get(), &actual1);
-  EXPECT_THAT(actual1, Eq(expected1));
+  EXPECT_THAT(actual1, Eq(expected));
 }
 
 }  // namespace aapt

@@ -29,7 +29,7 @@ import java.util.ArrayList;
 
 /**
  * MtpPropertyGroup represents a list of MTP properties.
- * {@hide}
+ * @hide
  */
 class MtpPropertyGroup {
     private static final String TAG = MtpPropertyGroup.class.getSimpleName();

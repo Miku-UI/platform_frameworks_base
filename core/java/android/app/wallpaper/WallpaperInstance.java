@@ -16,9 +16,6 @@
 
 package android.app.wallpaper;
 
-import static android.app.Flags.FLAG_LIVE_WALLPAPER_CONTENT_HANDLING;
-
-import android.annotation.FlaggedApi;
 import android.app.WallpaperInfo;
 import android.os.Parcel;
 import android.os.Parcelable;
@@ -41,9 +38,14 @@ import java.util.Objects;
  * </ul>
  * </p>
  */
-@FlaggedApi(FLAG_LIVE_WALLPAPER_CONTENT_HANDLING)
 public final class WallpaperInstance implements Parcelable {
-    private static final String DEFAULT_ID = "default_id";
+    /**
+     * Default id to use when none is provided.
+     *
+     * @hide
+     */
+    public static final String DEFAULT_ID = "default_id";
+
     @Nullable private final WallpaperInfo mInfo;
     @NonNull private final WallpaperDescription mDescription;
     @Nullable private final String mIdOverride;

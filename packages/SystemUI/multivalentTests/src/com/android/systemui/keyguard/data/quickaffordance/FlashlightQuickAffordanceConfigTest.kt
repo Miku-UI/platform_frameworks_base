@@ -20,9 +20,9 @@ package com.android.systemui.keyguard.data.quickaffordance
 import android.content.Context
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
-import com.android.systemui.res.R
 import com.android.systemui.common.shared.model.Icon
 import com.android.systemui.keyguard.shared.quickaffordance.ActivationState
+import com.android.systemui.res.R
 import com.android.systemui.statusbar.policy.FlashlightController
 import com.android.systemui.utils.leaks.FakeFlashlightController
 import com.android.systemui.utils.leaks.LeakCheckedTest
@@ -40,7 +40,6 @@ import org.mockito.MockitoAnnotations
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-@android.platform.test.annotations.EnabledOnRavenwood
 class FlashlightQuickAffordanceConfigTest : LeakCheckedTest() {
 
     @Mock private lateinit var context: Context
@@ -76,7 +75,7 @@ class FlashlightQuickAffordanceConfigTest : LeakCheckedTest() {
             R.drawable.qs_flashlight_icon_on,
             ((lastValue as KeyguardQuickAffordanceConfig.LockScreenState.Visible).icon
                     as? Icon.Resource)
-                ?.res
+                ?.resId,
         )
         job.cancel()
     }
@@ -99,7 +98,7 @@ class FlashlightQuickAffordanceConfigTest : LeakCheckedTest() {
             R.drawable.qs_flashlight_icon_off,
             ((lastValue as KeyguardQuickAffordanceConfig.LockScreenState.Visible).icon
                     as? Icon.Resource)
-                ?.res
+                ?.resId,
         )
         job.cancel()
     }
@@ -122,7 +121,7 @@ class FlashlightQuickAffordanceConfigTest : LeakCheckedTest() {
             R.drawable.qs_flashlight_icon_off,
             ((lastValue as KeyguardQuickAffordanceConfig.LockScreenState.Visible).icon
                     as? Icon.Resource)
-                ?.res
+                ?.resId,
         )
         job.cancel()
     }
@@ -162,7 +161,7 @@ class FlashlightQuickAffordanceConfigTest : LeakCheckedTest() {
             (lastValue as KeyguardQuickAffordanceConfig.LockScreenState.Visible).activationState
                 is ActivationState.Active
         )
-        assertEquals(R.drawable.qs_flashlight_icon_on, (lastValue.icon as? Icon.Resource)?.res)
+        assertEquals(R.drawable.qs_flashlight_icon_on, (lastValue.icon as? Icon.Resource)?.resId)
         job.cancel()
     }
 
@@ -184,7 +183,7 @@ class FlashlightQuickAffordanceConfigTest : LeakCheckedTest() {
             (lastValue as KeyguardQuickAffordanceConfig.LockScreenState.Visible).activationState
                 is ActivationState.Inactive
         )
-        assertEquals(R.drawable.qs_flashlight_icon_off, (lastValue.icon as? Icon.Resource)?.res)
+        assertEquals(R.drawable.qs_flashlight_icon_off, (lastValue.icon as? Icon.Resource)?.resId)
         job.cancel()
     }
 

@@ -18,7 +18,7 @@ package com.android.systemui.media.controls.domain.pipeline
 
 import com.android.systemui.media.controls.shared.model.MediaData
 import com.android.systemui.media.controls.shared.model.MediaDeviceData
-import com.android.systemui.media.controls.shared.model.SmartspaceMediaData
+import com.android.systemui.media.controls.shared.model.SuggestionData
 import javax.inject.Inject
 
 /** Combines [MediaDataManager.Listener] events with [MediaDeviceManager.Listener] events. */
@@ -26,47 +26,75 @@ class MediaDataCombineLatest @Inject constructor() :
     MediaDataManager.Listener, MediaDeviceManager.Listener {
 
     private val listeners: MutableSet<MediaDataManager.Listener> = mutableSetOf()
-    private val entries: MutableMap<String, Pair<MediaData?, MediaDeviceData?>> = mutableMapOf()
+    private val entries: MutableMap<String, Triple<MediaData?, MediaDeviceData?, SuggestionData?>> =
+        mutableMapOf()
 
     override fun onMediaDataLoaded(
         key: String,
         oldKey: String?,
         data: MediaData,
         immediately: Boolean,
-        receivedSmartspaceCardLatency: Int,
-        isSsReactivated: Boolean
     ) {
         if (oldKey != null && oldKey != key && entries.contains(oldKey)) {
-            entries[key] = data to entries.remove(oldKey)?.second
+            val previousEntry = entries.remove(oldKey)
+            val (mediaDeviceData, suggestionData) = previousEntry?.second to previousEntry?.third
+            entries[key] = Triple(data, mediaDeviceData, suggestionData)
             update(key, oldKey)
         } else {
-            entries[key] = data to entries[key]?.second
+            val previousEntry = entries[key]
+            val (mediaDeviceData, suggestionData) = previousEntry?.second to previousEntry?.third
+            entries[key] = Triple(data, mediaDeviceData, suggestionData)
             update(key, key)
         }
-    }
-
-    override fun onSmartspaceMediaDataLoaded(
-        key: String,
-        data: SmartspaceMediaData,
-        shouldPrioritize: Boolean
-    ) {
-        listeners.toSet().forEach { it.onSmartspaceMediaDataLoaded(key, data) }
     }
 
     override fun onMediaDataRemoved(key: String, userInitiated: Boolean) {
         remove(key, userInitiated)
     }
 
-    override fun onSmartspaceMediaDataRemoved(key: String, immediately: Boolean) {
-        listeners.toSet().forEach { it.onSmartspaceMediaDataRemoved(key, immediately) }
-    }
-
     override fun onMediaDeviceChanged(key: String, oldKey: String?, data: MediaDeviceData?) {
         if (oldKey != null && oldKey != key && entries.contains(oldKey)) {
-            entries[key] = entries.remove(oldKey)?.first to data
+            val previousEntry = entries.remove(oldKey)
+            val (mediaData, suggestionData) = previousEntry?.first to previousEntry?.third
+            entries[key] = Triple(mediaData, data, suggestionData)
             update(key, oldKey)
         } else {
-            entries[key] = entries[key]?.first to data
+            val previousEntry = entries[key]
+            val (mediaData, suggestionData) = previousEntry?.first to previousEntry?.third
+            entries[key] = Triple(mediaData, data, suggestionData)
+            update(key, key)
+        }
+    }
+
+    override fun onSuggestionDataChanged(key: String, oldKey: String?, data: SuggestionData?) {
+        if (oldKey != null && oldKey != key && entries.contains(oldKey)) {
+            val previousEntry = entries.remove(oldKey)
+            val (mediaData, mediaDeviceData) = previousEntry?.first to previousEntry?.second
+            entries[key] = Triple(mediaData, mediaDeviceData, data)
+            update(key, oldKey)
+        } else {
+            val previousEntry = entries[key]
+            val (mediaData, mediaDeviceData) = previousEntry?.first to previousEntry?.second
+            entries[key] = Triple(mediaData, mediaDeviceData, data)
+            update(key, key)
+        }
+    }
+
+    override fun onMediaDeviceAndSuggestionDataChanged(
+        key: String,
+        oldKey: String?,
+        device: MediaDeviceData?,
+        suggestion: SuggestionData?,
+    ) {
+        if (oldKey != null && oldKey != key && entries.contains(oldKey)) {
+            val previousEntry = entries.remove(oldKey)
+            val mediaData = previousEntry?.first
+            entries[key] = Triple(mediaData, device, suggestion)
+            update(key, oldKey)
+        } else {
+            val previousEntry = entries[key]
+            val mediaData = previousEntry?.first
+            entries[key] = Triple(mediaData, device, suggestion)
             update(key, key)
         }
     }
@@ -84,9 +112,11 @@ class MediaDataCombineLatest @Inject constructor() :
     fun removeListener(listener: MediaDataManager.Listener) = listeners.remove(listener)
 
     private fun update(key: String, oldKey: String?) {
-        val (entry, device) = entries[key] ?: null to null
-        if (entry != null && device != null) {
-            val data = entry.copy(device = device)
+        val mediaData = entries[key]?.first
+        val mediaDeviceData = entries[key]?.second
+        val suggestionData = entries[key]?.third
+        if (mediaData != null && mediaDeviceData != null) {
+            val data = mediaData.copy(device = mediaDeviceData, suggestionData = suggestionData)
             val listenersCopy = listeners.toSet()
             listenersCopy.forEach { it.onMediaDataLoaded(key, oldKey, data) }
         }

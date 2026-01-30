@@ -38,7 +38,7 @@ import java.util.function.Supplier;
 public abstract class InternalEnumerateClient<T> extends HalClientMonitor<T>
         implements EnumerateConsumer {
 
-    private static final String TAG = "Biometrics/InternalEnumerateClient";
+    private static final String TAG = "InternalEnumerateClient";
 
     private BiometricUtils mUtils;
     // List of templates that are known to the Framework. Remove from this list when enumerate

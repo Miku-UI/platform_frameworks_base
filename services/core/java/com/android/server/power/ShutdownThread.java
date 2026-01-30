@@ -59,8 +59,8 @@ import android.view.SurfaceControl;
 import android.view.WindowManager;
 
 import com.android.internal.annotations.VisibleForTesting;
-import com.android.server.PackageWatchdog;
 import com.android.server.LocalServices;
+import com.android.server.PackageWatchdog;
 import com.android.server.statusbar.StatusBarManagerInternal;
 
 import java.io.File;
@@ -339,7 +339,11 @@ public final class ShutdownThread extends Thread {
                             com.android.internal.R.string.reboot_to_update_reboot));
             }
         } else if (mReason != null && mReason.equals(PowerManager.REBOOT_RECOVERY)) {
-            if (PackageWatchdog.isRecoveryTriggeredReboot()) {
+            boolean prioritizeSysUiForRecoveryRebootUi = context.getResources().getBoolean(
+                    com.android.internal.R.bool.config_prioritizeSysUiForRecoveryRebootUi);
+            if (prioritizeSysUiForRecoveryRebootUi && showSysuiReboot()) {
+                return null;
+            } else if (PackageWatchdog.isRecoveryTriggeredReboot()) {
                 // We're not actually doing a factory reset yet; we're rebooting
                 // to ask the user if they'd like to reset, so give them a less
                 // scary dialog message.
@@ -402,6 +406,20 @@ public final class ShutdownThread extends Thread {
                 return;
             }
             sIsStarted = true;
+        }
+
+        /*
+         * Write a system property in case the system_server reboots before we
+         * get to the actual hardware restart. If that happens, we'll retry at
+         * the beginning of the SystemServer startup.
+         *
+         * NOTE: the `init` process also monitors this property to kick off a
+         * watchdog making sure that the shutdown process doesn't take too long.
+         */
+        {
+            String reason = (sInstance.mReboot ? "1" : "0")
+                          + (sInstance.mReason != null ? sInstance.mReason : "");
+            SystemProperties.set(SHUTDOWN_ACTION_PROPERTY, reason);
         }
 
         sInstance.mProgressDialog = showShutdownDialog(context);
@@ -469,16 +487,6 @@ public final class ShutdownThread extends Thread {
         Thread dumpCheckPointsThread = ShutdownCheckPoints.newDumpThread(
                 new File(CHECK_POINTS_FILE_BASENAME));
         dumpCheckPointsThread.start();
-
-        /*
-         * Write a system property in case the system_server reboots before we
-         * get to the actual hardware restart. If that happens, we'll retry at
-         * the beginning of the SystemServer startup.
-         */
-        {
-            String reason = (mReboot ? "1" : "0") + (mReason != null ? mReason : "");
-            SystemProperties.set(SHUTDOWN_ACTION_PROPERTY, reason);
-        }
 
         /*
          * If we are rebooting into safe mode, write a system property

@@ -45,8 +45,11 @@ oneway interface IDesktopTaskListener {
     /** Entering desktop mode transition is started, send the signal with transition duration. */
     void onEnterDesktopModeTransitionStarted(int transitionDuration);
 
-    /** Exiting desktop mode transition is started, send the signal with transition duration. */
-    void onExitDesktopModeTransitionStarted(int transitionDuration);
+    /** Exiting desktop mode transition is started, send the signal with transition duration
+     *  and whether the display will end up at the home activity (as opposed to an app's full screen
+     *  mode).
+     */
+    void onExitDesktopModeTransitionStarted(int transitionDuration, boolean shouldEndUpAtHome);
 
     /**
      * Called when the conditions that allow the creation of a new desk changes. This is a global

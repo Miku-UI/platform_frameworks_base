@@ -310,6 +310,15 @@ public final class ImsCallProfile implements Parcelable {
             "android.telephony.ims.extra.ASSERTED_DISPLAY_NAME";
 
     /**
+     * Boolean extra property indicates that this call is a Video Color Ring Back Tone
+     * Call(Video CRBT).  Vendor IMS stack {@link ImsService} sets this on a call
+     * to indicate that the modem/network has identified the call as a video CRBT call.
+     */
+    @FlaggedApi(com.android.server.telecom.flags.Flags.FLAG_IS_USING_VIDEO_RINGBACK)
+    public static final String EXTRA_IS_USING_VIDEO_RINGBACK  =
+             "android.telephony.ims.extra.IS_USING_VIDEO_RINGBACK";
+
+    /**
      * Values for EXTRA_OIR / EXTRA_CNAP
      */
     /**

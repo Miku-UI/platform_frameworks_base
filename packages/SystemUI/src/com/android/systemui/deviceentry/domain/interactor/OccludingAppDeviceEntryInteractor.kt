@@ -37,7 +37,6 @@ import com.android.systemui.plugins.ActivityStarter
 import com.android.systemui.power.domain.interactor.PowerInteractor
 import com.android.systemui.res.R
 import com.android.systemui.util.kotlin.combine
-import com.android.systemui.util.kotlin.sample
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -128,21 +127,15 @@ constructor(
             scope.launch {
                 // On fingerprint success when the screen is on and not dreaming, go to the home
                 // screen
-                fingerprintUnlockSuccessEvents
-                    .sample(
-                        combine(
-                            powerInteractor.isInteractive,
-                            keyguardInteractor.isDreaming,
-                            ::Pair,
-                        )
-                    )
-                    .collect { (interactive, dreaming) ->
-                        if (interactive && !dreaming) {
-                            goToHomeScreen()
-                        }
-                        // don't go to the home screen if the authentication is from
-                        // AOD/dozing/off/dreaming
+                fingerprintUnlockSuccessEvents.collect {
+                    val interactive = powerInteractor.isInteractive.value
+                    val dreaming = keyguardInteractor.isDreaming.value
+                    if (interactive && !dreaming) {
+                        goToHomeScreen()
                     }
+                    // don't go to the home screen if the authentication is from
+                    // AOD/dozing/off/dreaming
+                }
             }
         }
 

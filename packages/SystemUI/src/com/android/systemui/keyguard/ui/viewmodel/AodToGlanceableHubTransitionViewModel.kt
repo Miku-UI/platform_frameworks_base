@@ -17,9 +17,9 @@
 package com.android.systemui.keyguard.ui.viewmodel
 
 import android.util.MathUtils
-import com.android.systemui.communal.ui.compose.TransitionDuration
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.dagger.GlanceableHubBlurComponent
+import com.android.systemui.keyguard.domain.interactor.FromAodTransitionInteractor
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState.AOD
 import com.android.systemui.keyguard.shared.model.KeyguardState.GLANCEABLE_HUB
@@ -42,7 +42,7 @@ constructor(
     private val transitionAnimation =
         animationFlow
             .setup(
-                duration = TransitionDuration.TO_GLANCEABLE_HUB_DURATION_MS.milliseconds,
+                duration = FromAodTransitionInteractor.TO_GLANCEABLE_HUB_DURATION,
                 edge = Edge.create(AOD, Scenes.Communal),
             )
             .setupWithoutSceneContainer(edge = Edge.create(AOD, GLANCEABLE_HUB))
@@ -70,8 +70,17 @@ constructor(
                     }
             },
             onStep = { MathUtils.lerp(currentAlpha, 0f, it) },
+            onFinish = { 0f },
         )
     }
+
+    override val zoomOut: Flow<Float> =
+        transitionAnimation.sharedFlow(
+            onStep = { it },
+            onFinish = { 1f },
+            onCancel = { 0f },
+            name = "AOD->GLANCEABLE_HUB: zoomOut",
+        )
 
     override val windowBlurRadius: Flow<Float> =
         blurFactory.create(transitionAnimation).getBlurProvider().enterBlurRadius

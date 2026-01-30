@@ -19,12 +19,8 @@ package android.os;
 import android.annotation.IntDef;
 import android.net.Network;
 
-import com.android.internal.os.BinderCallsStats;
-import com.android.server.power.stats.SystemServerCpuThreadReader.SystemServiceCpuThreadTimes;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -67,9 +63,6 @@ public abstract class BatteryStatsInternal {
      */
     public abstract String[] getMobileIfaces();
 
-    /** Returns CPU times for system server thread groups. */
-    public abstract SystemServiceCpuThreadTimes getSystemServiceCpuThreadTimes();
-
     /**
      * Returns BatteryUsageStats, which contains power attribution data on a per-subsystem
      * and per-UID basis.
@@ -107,17 +100,6 @@ public abstract class BatteryStatsInternal {
      * @param elapsedMillis The time of the packet's arrival in elapsed timebase.
      */
     public abstract void noteCpuWakingBluetoothProxyPacket(int uid, long elapsedMillis);
-
-    /**
-     * Informs battery stats of binder stats for the given work source UID.
-     */
-    public abstract void noteBinderCallStats(int workSourceUid, long incrementalBinderCallCount,
-            Collection<BinderCallsStats.CallStat> callStats);
-
-    /**
-     * Informs battery stats of native thread IDs of threads taking incoming binder calls.
-     */
-    public abstract void noteBinderThreadNativeIds(int[] binderThreadNativeTids);
 
     /**
      * Reports a sound trigger recognition event that may have woken up the CPU.

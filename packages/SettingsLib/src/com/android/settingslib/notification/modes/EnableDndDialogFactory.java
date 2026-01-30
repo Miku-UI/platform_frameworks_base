@@ -26,8 +26,10 @@ import android.net.Uri;
 import android.provider.Settings;
 import android.service.notification.Condition;
 import android.service.notification.ZenModeConfig;
+import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.format.DateFormat;
+import android.text.style.RelativeSizeSpan;
 import android.util.Log;
 import android.util.Slog;
 import android.view.LayoutInflater;
@@ -194,10 +196,10 @@ public class EnableDndDialogFactory {
             mZenRadioGroup.addView(radioButton);
             radioButton.setId(i);
 
-            final View radioButtonContent = mLayoutInflater.inflate(R.layout.zen_mode_condition,
-                    mZenRadioGroupContent, false);
-            radioButtonContent.setId(i + MAX_MANUAL_DND_OPTIONS);
-            mZenRadioGroupContent.addView(radioButtonContent);
+            final View radioButtonExtraContent = mLayoutInflater.inflate(
+                    R.layout.zen_mode_condition_plusminus, mZenRadioGroupContent, false);
+            radioButtonExtraContent.setId(i + MAX_MANUAL_DND_OPTIONS);
+            mZenRadioGroupContent.addView(radioButtonExtraContent);
         }
 
         hideAllConditions();
@@ -227,14 +229,10 @@ public class EnableDndDialogFactory {
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
-                    tag.rb.setChecked(true);
                     if (DEBUG) Log.d(TAG, "onCheckedChanged " + conditionId);
                     mMetricsLogger.logOnConditionSelected();
                     updateAlarmWarningText(tag.condition);
                 }
-                tag.line1.setStateDescription(
-                        isChecked ? buttonView.getContext().getString(
-                                com.android.internal.R.string.selected) : null);
             }
         });
 
@@ -352,46 +350,28 @@ public class EnableDndDialogFactory {
 
     private void updateUi(ConditionTag tag, View row, Condition condition,
             boolean enabled, int rowId, Uri conditionId) {
-        if (tag.lines == null) {
-            tag.lines = row.findViewById(android.R.id.content);
-        }
-        if (tag.line1 == null) {
-            tag.line1 = (TextView) row.findViewById(android.R.id.text1);
-        }
-
-        if (tag.line2 == null) {
-            tag.line2 = (TextView) row.findViewById(android.R.id.text2);
-        }
 
         final String line1 = !TextUtils.isEmpty(condition.line1) ? condition.line1
                 : condition.summary;
         final String line2 = condition.line2;
-        tag.line1.setText(line1);
-        if (TextUtils.isEmpty(line2)) {
-            tag.line2.setVisibility(View.GONE);
-        } else {
-            tag.line2.setVisibility(View.VISIBLE);
-            tag.line2.setText(line2);
-        }
-        tag.lines.setEnabled(enabled);
-        tag.lines.setAlpha(enabled ? 1 : .4f);
 
-        tag.lines.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                tag.rb.setChecked(true);
-            }
-        });
+        if (!TextUtils.isEmpty(line2)) {
+            SpannableStringBuilder sb = new SpannableStringBuilder();
+            sb.append(line1).append("\n").append(line2, new RelativeSizeSpan(0.875f), 0);
+            tag.rb.setText(sb);
+        } else {
+            tag.rb.setText(line1);
+        }
 
         final long time = ZenModeConfig.tryParseCountdownConditionId(conditionId);
-        final ImageView minusButton = (ImageView) row.findViewById(android.R.id.button1);
-        final ImageView plusButton = (ImageView) row.findViewById(android.R.id.button2);
+        final ImageView minusButton = row.findViewById(android.R.id.button1);
+        final ImageView plusButton = row.findViewById(android.R.id.button2);
         if (rowId == COUNTDOWN_CONDITION_INDEX && time > 0) {
             minusButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
                     onClickTimeButton(row, tag, false /*down*/, rowId);
-                    tag.lines.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+                    tag.rb.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
                 }
             });
 
@@ -399,7 +379,7 @@ public class EnableDndDialogFactory {
                 @Override
                 public void onClick(View v) {
                     onClickTimeButton(row, tag, true /*up*/, rowId);
-                    tag.lines.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+                    tag.rb.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
                 }
             });
             if (mBucketIndex > -1) {
@@ -532,9 +512,6 @@ public class EnableDndDialogFactory {
     @VisibleForTesting
     protected static class ConditionTag {
         public RadioButton rb;
-        public View lines;
-        public TextView line1;
-        public TextView line2;
         public Condition condition;
     }
 }

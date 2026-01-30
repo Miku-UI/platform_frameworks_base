@@ -22,8 +22,8 @@ import android.app.StatusBarManager.WINDOW_STATUS_BAR
 import android.app.StatusBarManager.WindowVisibleState
 import android.app.StatusBarManager.windowStateToString
 import android.util.Log
-import com.android.systemui.dagger.SysUISingleton
-import com.android.systemui.dagger.qualifiers.DisplayId
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.DisplayAware
+import com.android.systemui.display.dagger.SystemUIDisplaySubcomponent.PerDisplaySingleton
 import com.android.systemui.statusbar.CommandQueue
 import com.android.systemui.statusbar.phone.CentralSurfaces
 import javax.inject.Inject
@@ -38,11 +38,11 @@ import javax.inject.Inject
  * Classes that want to get updates about the status bar window state should subscribe to this class
  * via [addListener] and should NOT add their own callback on [CommandQueue].
  */
-@SysUISingleton
+@PerDisplaySingleton
 @Deprecated("Use StatusBarWindowStateRepositoryStore.defaultDisplay instead")
 class StatusBarWindowStateController
 @Inject
-constructor(@DisplayId private val thisDisplayId: Int, commandQueue: CommandQueue) {
+constructor(@DisplayAware private val thisDisplayId: Int, commandQueue: CommandQueue) {
     private val commandQueueCallback =
         object : CommandQueue.Callbacks {
             override fun setWindowState(

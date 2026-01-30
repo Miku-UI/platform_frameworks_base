@@ -16,8 +16,9 @@
 
 package com.android.systemui.volume.panel.component.mediaoutput.domain.interactor
 
-import com.android.settingslib.media.PhoneMediaDevice.inputRoutingEnabledAndIsDesktop
 import android.content.Context
+import com.android.media.flags.Flags.enableOutputSwitcherPersonalAudioSharing
+import com.android.settingslib.media.PhoneMediaDevice.inputRoutingEnabledAndIsDesktop
 import com.android.settingslib.volume.domain.interactor.AudioModeInteractor
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.volume.domain.interactor.AudioOutputInteractor
@@ -69,11 +70,7 @@ constructor(
                 }
             }
             .wrapInResult()
-            .stateIn(
-                coroutineScope,
-                SharingStarted.Eagerly,
-                Result.Loading(),
-            )
+            .stateIn(coroutineScope, SharingStarted.Eagerly, Result.Loading())
 
     private val currentAudioDevice: Flow<AudioOutputDevice> =
         audioOutputInteractor.currentAudioDevice.filter { it !is AudioOutputDevice.Unavailable }
@@ -98,13 +95,15 @@ constructor(
                         )
                     )
                 } else {
+                    val canOpenAudioSwitcherForAudioSharing: Boolean =
+                        enableOutputSwitcherPersonalAudioSharing() || !isInAudioSharing
                     sessionWithPlaybackState.filterData().map { sessionWithPlaybackState ->
                         if (sessionWithPlaybackState == null) {
                             MediaOutputComponentModel.Idle(
                                 device = currentAudioDevice,
                                 isInAudioSharing = isInAudioSharing,
                                 canOpenAudioSwitcher =
-                                    !isInAudioSharing &&
+                                    canOpenAudioSwitcherForAudioSharing &&
                                         currentAudioDevice !is AudioOutputDevice.Unknown,
                             )
                         } else {
@@ -114,7 +113,7 @@ constructor(
                                 device = currentAudioDevice,
                                 isInAudioSharing = isInAudioSharing,
                                 canOpenAudioSwitcher =
-                                    !isInAudioSharing &&
+                                    canOpenAudioSwitcherForAudioSharing &&
                                         currentAudioDevice !is AudioOutputDevice.Unknown,
                             )
                         }

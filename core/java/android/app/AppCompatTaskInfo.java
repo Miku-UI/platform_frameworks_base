@@ -74,6 +74,12 @@ public class AppCompatTaskInfo implements Parcelable {
     public Rect topActivityLetterboxBounds;
 
     /**
+     * Contains the aspect ratio of the top non-resizable activity or
+     * {@link TaskInfo#PROPERTY_VALUE_UNSET} otherwise.
+     */
+    public float topNonResizableActivityAspectRatio = PROPERTY_VALUE_UNSET;
+
+    /**
      * Stores camera-related app compat information about a particular Task.
      */
     public CameraCompatTaskInfo cameraCompatTaskInfo = CameraCompatTaskInfo.create();
@@ -106,6 +112,10 @@ public class AppCompatTaskInfo implements Parcelable {
     private static final int FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE = FLAG_BASE << 10;
     /** Top activity flag for whether activity opted out of edge to edge. */
     public static final int FLAG_OPT_OUT_EDGE_TO_EDGE = FLAG_BASE << 11;
+    /** Top activity flag for whether activity is letterboxed for a safe region. */
+    public static final int FLAG_SAFE_REGION_LETTERBOXED = FLAG_BASE << 12;
+    /** The related task is a leaf task. */
+    public static final int FLAG_IS_LEAF_TASK = FLAG_BASE << 13;
 
     @Retention(RetentionPolicy.SOURCE)
     @IntDef(flag = true, value = {
@@ -121,7 +131,9 @@ public class AppCompatTaskInfo implements Parcelable {
             FLAG_FULLSCREEN_OVERRIDE_USER,
             FLAG_HAS_MIN_ASPECT_RATIO_OVERRIDE,
             FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE,
-            FLAG_OPT_OUT_EDGE_TO_EDGE
+            FLAG_OPT_OUT_EDGE_TO_EDGE,
+            FLAG_SAFE_REGION_LETTERBOXED,
+            FLAG_IS_LEAF_TASK
     })
     public @interface TopActivityFlag {}
 
@@ -136,12 +148,13 @@ public class AppCompatTaskInfo implements Parcelable {
     private static final int FLAGS_ORGANIZER_INTERESTED = FLAG_IS_FROM_LETTERBOX_DOUBLE_TAP
             | FLAG_ELIGIBLE_FOR_USER_ASPECT_RATIO_BUTTON | FLAG_FULLSCREEN_OVERRIDE_SYSTEM
             | FLAG_FULLSCREEN_OVERRIDE_USER | FLAG_HAS_MIN_ASPECT_RATIO_OVERRIDE
-            | FLAG_OPT_OUT_EDGE_TO_EDGE | FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE;
+            | FLAG_OPT_OUT_EDGE_TO_EDGE | FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE
+            | FLAG_IS_LEAF_TASK;
 
     @TopActivityFlag
     private static final int FLAGS_COMPAT_UI_INTERESTED = FLAGS_ORGANIZER_INTERESTED
             | FLAG_IN_SIZE_COMPAT | FLAG_ELIGIBLE_FOR_LETTERBOX_EDU | FLAG_LETTERBOX_EDU_ENABLED
-            | FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE;
+            | FLAG_ENABLE_RESTART_MENU_FOR_DISPLAY_MOVE | FLAG_SAFE_REGION_LETTERBOXED;
 
     private AppCompatTaskInfo() {
         // Do nothing
@@ -210,6 +223,20 @@ public class AppCompatTaskInfo implements Parcelable {
      */
     public boolean eligibleForLetterboxEducation() {
         return isTopActivityFlagEnabled(FLAG_ELIGIBLE_FOR_LETTERBOX_EDU);
+    }
+
+    /**
+     * Set if the current Task is a leaf task.
+     */
+    public void setIsLeafTask(boolean isLeafTask) {
+        setTopActivityFlag(FLAG_IS_LEAF_TASK, isLeafTask);
+    }
+
+    /**
+     * @return {@code true} if the task is a leaf task.
+     */
+    public boolean isLeafTask() {
+        return isTopActivityFlagEnabled(FLAG_IS_LEAF_TASK);
     }
 
     /**
@@ -324,6 +351,21 @@ public class AppCompatTaskInfo implements Parcelable {
     }
 
     /**
+     * @return {@code true} if the top activity bounds are letterboxed for a safe region.
+     */
+    public boolean isTopActivitySafeRegionLetterboxed() {
+        return isTopActivityFlagEnabled(FLAG_SAFE_REGION_LETTERBOXED);
+    }
+
+    /**
+     * Sets the top activity flag for whether the top activity bounds are letterboxed for a safe
+     * region.
+     */
+    public void setTopActivitySafeRegionLetterboxed(boolean enable) {
+        setTopActivityFlag(FLAG_SAFE_REGION_LETTERBOXED, enable);
+    }
+
+    /**
      * @return {@code true} if the top activity bounds are letterboxed.
      */
     public boolean isTopActivityLetterboxed() {
@@ -382,12 +424,13 @@ public class AppCompatTaskInfo implements Parcelable {
         return (mTopActivityFlags & FLAGS_ORGANIZER_INTERESTED)
                     == (that.mTopActivityFlags & FLAGS_ORGANIZER_INTERESTED)
                 && topActivityLetterboxVerticalPosition == that.topActivityLetterboxVerticalPosition
-                && topActivityLetterboxWidth == that.topActivityLetterboxWidth
-                && topActivityLetterboxHeight == that.topActivityLetterboxHeight
-                && topActivityAppBounds.equals(that.topActivityAppBounds)
                 && topActivityLetterboxHorizontalPosition
                     == that.topActivityLetterboxHorizontalPosition
-                && cameraCompatTaskInfo.equalsForTaskOrganizer(that.cameraCompatTaskInfo);
+                && topActivityLetterboxWidth == that.topActivityLetterboxWidth
+                && topActivityLetterboxHeight == that.topActivityLetterboxHeight
+                && Objects.equals(topActivityAppBounds, that.topActivityAppBounds)
+                && cameraCompatTaskInfo.equalsForTaskOrganizer(that.cameraCompatTaskInfo)
+                && topNonResizableActivityAspectRatio == that.topNonResizableActivityAspectRatio;
     }
 
     /**
@@ -404,7 +447,7 @@ public class AppCompatTaskInfo implements Parcelable {
                     == that.topActivityLetterboxHorizontalPosition
                 && topActivityLetterboxWidth == that.topActivityLetterboxWidth
                 && topActivityLetterboxHeight == that.topActivityLetterboxHeight
-                && topActivityAppBounds.equals(that.topActivityAppBounds)
+                && Objects.equals(topActivityAppBounds, that.topActivityAppBounds)
                 && cameraCompatTaskInfo.equalsForCompatUi(that.cameraCompatTaskInfo);
     }
 
@@ -420,6 +463,7 @@ public class AppCompatTaskInfo implements Parcelable {
         topActivityAppBounds.set(Objects.requireNonNull(source.readTypedObject(Rect.CREATOR)));
         topActivityLetterboxBounds = source.readTypedObject(Rect.CREATOR);
         cameraCompatTaskInfo = source.readTypedObject(CameraCompatTaskInfo.CREATOR);
+        topNonResizableActivityAspectRatio = source.readFloat();
     }
 
     /**
@@ -435,11 +479,13 @@ public class AppCompatTaskInfo implements Parcelable {
         dest.writeTypedObject(topActivityAppBounds, flags);
         dest.writeTypedObject(topActivityLetterboxBounds, flags);
         dest.writeTypedObject(cameraCompatTaskInfo, flags);
+        dest.writeFloat(topNonResizableActivityAspectRatio);
     }
 
     @Override
     public String toString() {
         return "AppCompatTaskInfo { topActivityInSizeCompat=" + isTopActivityInSizeCompat()
+                + " isLeafTask= " + isLeafTask()
                 + " eligibleForLetterboxEducation= " + eligibleForLetterboxEducation()
                 + " isLetterboxEducationEnabled= " + isLetterboxEducationEnabled()
                 + " isLetterboxDoubleTapEnabled= " + isLetterboxDoubleTapEnabled()
@@ -457,6 +503,7 @@ public class AppCompatTaskInfo implements Parcelable {
                 + " hasMinAspectRatioOverride=" + hasMinAspectRatioOverride()
                 + " topActivityLetterboxBounds=" + topActivityLetterboxBounds
                 + " cameraCompatTaskInfo=" + cameraCompatTaskInfo.toString()
+                + " topNonResizableActivityAspectRatio=" + topNonResizableActivityAspectRatio
                 + "}";
     }
 

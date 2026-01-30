@@ -16,10 +16,16 @@
 
 package android.window;
 
+import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY;
+import static android.hardware.display.DisplayManager.VIRTUAL_DISPLAY_FLAG_PUBLIC;
 import static android.view.Display.DEFAULT_DISPLAY;
+import static android.view.WindowManager.LayoutParams.INVALID_WINDOW_TYPE;
+import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_ATTACHED_DIALOG;
 import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+import static android.view.WindowManager.LayoutParams.TYPE_APPLICATION_SUB_PANEL;
 import static android.view.WindowManager.LayoutParams.TYPE_INPUT_METHOD;
+import static android.window.WindowProvider.KEY_REPARENT_TO_DEFAULT_DISPLAY_WITH_DISPLAY_REMOVAL;
 
 import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.Truth.assertWithMessage;
@@ -27,11 +33,14 @@ import static com.google.common.truth.Truth.assertWithMessage;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -45,14 +54,21 @@ import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
+import android.content.pm.ApplicationInfo;
 import android.content.res.Configuration;
+import android.graphics.PixelFormat;
 import android.graphics.Rect;
 import android.hardware.display.DisplayManager;
+import android.hardware.display.VirtualDisplay;
+import android.media.ImageReader;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.IBinder;
+import android.os.RemoteException;
 import android.platform.test.annotations.EnableFlags;
 import android.platform.test.annotations.Presubmit;
 import android.platform.test.flag.junit.SetFlagsRule;
+import android.util.PollingCheck;
 import android.view.Display;
 import android.view.IWindowManager;
 import android.view.View;
@@ -68,6 +84,9 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import androidx.test.rule.ActivityTestRule;
 
 import com.android.frameworks.coretests.R;
+import com.android.internal.jank.Cuj;
+import com.android.internal.jank.InteractionJankMonitor;
+import com.android.internal.util.GcUtils;
 import com.android.window.flags.Flags;
 
 import org.junit.After;
@@ -76,6 +95,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import java.lang.ref.WeakReference;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -179,8 +199,25 @@ public class WindowContextTest {
         mWindowContext.release();
 
         // After the window context's release, the window token is also removed.
-        assertFalse("Token must be removed after release.", mWms.isWindowToken(token));
+        PollingCheck.waitFor(() -> {
+            try {
+                return !mWms.isWindowToken(token);
+            } catch (RemoteException e) {
+                fail("Fail to call isWindowToken:" + e);
+                return false;
+            }
+        });
     }
+
+    @EnableFlags(android.view.accessibility.Flags.FLAG_FORCE_INVERT_COLOR)
+    @Test
+    public void testCreateWindowContext_applicationTheme() {
+        final WindowContext windowContext = createWindowContext();
+
+        final int applicationTheme = mInstrumentation.getTargetContext().getApplicationInfo().theme;
+        assertThat(windowContext.getThemeResId()).isEqualTo(applicationTheme);
+    }
+
 
     /**
      * Verifies the behavior when window context attaches an {@link Activity} by override
@@ -378,6 +415,272 @@ public class WindowContextTest {
         );
     }
 
+    @Test
+    public void testAttachWindow() throws InterruptedException {
+        final View window = new View(mWindowContext);
+        final AttachStateListener listener = new AttachStateListener();
+        window.addOnAttachStateChangeListener(listener);
+
+        final WindowManager.LayoutParams subWindowParams =
+                new WindowManager.LayoutParams(TYPE_APPLICATION_ATTACHED_DIALOG);
+
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        assertThrows(WindowManager.BadTokenException.class,
+                () -> mInstrumentation.runOnMainSync(() ->
+                        wm.addView(new View(mWindowContext), subWindowParams)));
+
+        mWindowContext.attachWindow(window);
+
+        mInstrumentation.runOnMainSync(() ->
+                wm.addView(window, new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY)));
+
+        assertTrue(listener.mLatch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS));
+
+        mInstrumentation.runOnMainSync(() -> wm.addView(new View(mWindowContext), subWindowParams));
+
+        assertThat(subWindowParams.token).isEqualTo(window.getWindowToken());
+    }
+
+    @Test
+    public void testSetFallbackWindowType() {
+        int windowType = INVALID_WINDOW_TYPE;
+        mWindowContext.setFallbackWindowType(windowType);
+        assertThat(mWindowContext.getFallbackWindowType()).isEqualTo(windowType);
+
+        windowType = mWindowContext.getWindowType();
+        mWindowContext.setFallbackWindowType(windowType);
+        assertThat(mWindowContext.getFallbackWindowType()).isEqualTo(windowType);
+
+        windowType = TYPE_APPLICATION_ATTACHED_DIALOG;
+        mWindowContext.setFallbackWindowType(windowType);
+        assertThat(mWindowContext.getFallbackWindowType()).isEqualTo(windowType);
+
+        final int invalidType = TYPE_APPLICATION;
+        assertThrows(IllegalArgumentException.class,
+                () -> mWindowContext.setFallbackWindowType(invalidType));
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndAddView_invalidFallbackWindowType_noOverride() {
+        WindowManager.LayoutParams params =
+                new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY);
+        mWindowContext.setFallbackWindowType(INVALID_WINDOW_TYPE);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        mInstrumentation.runOnMainSync(() -> wm.addView(new View(mWindowContext), params));
+
+        assertThat(params.type).isEqualTo(TYPE_APPLICATION_OVERLAY);
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndAddView_invalidWindowContextType_override() {
+        int windowType = mWindowContext.getWindowType();
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams();
+        mWindowContext.setFallbackWindowType(windowType);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        mInstrumentation.runOnMainSync(() -> wm.addView(new View(mWindowContext), params));
+
+        assertThat(params.type).isEqualTo(windowType);
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndAddView_statusBarPanel_override() {
+        int windowType = mWindowContext.getWindowType();
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.TYPE_STATUS_BAR_PANEL);
+        mWindowContext.setFallbackWindowType(windowType);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        mInstrumentation.runOnMainSync(() -> wm.addView(new View(mWindowContext), params));
+
+        assertThat(params.type).isEqualTo(windowType);
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndAddView_subWindowWithoutParent_throwException() {
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams();
+        mWindowContext.setFallbackWindowType(TYPE_APPLICATION_ATTACHED_DIALOG);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> mInstrumentation.runOnMainSync(() ->
+                        wm.addView(new View(mWindowContext), params)));
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndAddView_subWindowWithParent_override()
+            throws InterruptedException {
+        final View parentWindow = new View(mWindowContext);
+        final AttachStateListener listener = new AttachStateListener();
+        parentWindow.addOnAttachStateChangeListener(listener);
+        mWindowContext.attachWindow(parentWindow);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        mInstrumentation.runOnMainSync(() -> wm.addView(
+                parentWindow, new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY)));
+
+        assertTrue(listener.mLatch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS));
+
+        mWindowContext.setFallbackWindowType(TYPE_APPLICATION_ATTACHED_DIALOG);
+
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams();
+        mInstrumentation.runOnMainSync(() -> wm.addView(new View(mWindowContext), params));
+
+        assertThat(params.type).isEqualTo(TYPE_APPLICATION_ATTACHED_DIALOG);
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndAddView_isSubWindow_noOverride()
+            throws InterruptedException {
+        final View parentWindow = new View(mWindowContext);
+        final AttachStateListener listener = new AttachStateListener();
+        parentWindow.addOnAttachStateChangeListener(listener);
+        mWindowContext.attachWindow(parentWindow);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        mInstrumentation.runOnMainSync(() -> wm.addView(
+                parentWindow, new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY)));
+
+        assertTrue(listener.mLatch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS));
+
+        mWindowContext.setFallbackWindowType(TYPE_APPLICATION_ATTACHED_DIALOG);
+
+        WindowManager.LayoutParams params =
+                new WindowManager.LayoutParams(TYPE_APPLICATION_SUB_PANEL);
+        mInstrumentation.runOnMainSync(() -> wm.addView(new View(mWindowContext), params));
+
+        assertThat(params.type).isEqualTo(TYPE_APPLICATION_SUB_PANEL);
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndAddView_typeMatch_noOverride()
+            throws InterruptedException {
+        final View parentWindow = new View(mWindowContext);
+        final AttachStateListener listener = new AttachStateListener();
+        parentWindow.addOnAttachStateChangeListener(listener);
+        mWindowContext.attachWindow(parentWindow);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        mInstrumentation.runOnMainSync(() -> wm.addView(
+                parentWindow, new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY)));
+
+        assertTrue(listener.mLatch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS));
+
+        mWindowContext.setFallbackWindowType(TYPE_APPLICATION_ATTACHED_DIALOG);
+
+        WindowManager.LayoutParams params =
+                new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY);
+        mInstrumentation.runOnMainSync(() -> wm.addView(new View(mWindowContext), params));
+
+        assertThat(params.type).isEqualTo(TYPE_APPLICATION_OVERLAY);
+    }
+
+    @Test
+    public void testSetFallbackWindowTypeAndUpdateLayout_diffType_noOverride() {
+        final View view = new View(mWindowContext);
+        mWindowContext.attachWindow(view);
+        final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+        final WindowManager.LayoutParams params =
+                new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY);
+
+        mInstrumentation.runOnMainSync(() -> wm.addView(view, params));
+
+        mWindowContext.setFallbackWindowType(TYPE_APPLICATION_ATTACHED_DIALOG);
+
+        mInstrumentation.runOnMainSync(() -> wm.updateViewLayout(view, params));
+
+        assertThat(params.type).isEqualTo(TYPE_APPLICATION_OVERLAY);
+    }
+
+    @Test
+    public void testBuildInteractionJankMonitorConfigWithWindowAttached_notCrash() {
+        final ApplicationInfo appInfo = mWindowContext.getApplicationInfo();
+        // Enable hardware accelerated to initialize thread renderer, which is essential to
+        // build InteractionJankMonitor Configuration
+        final int origFlags = appInfo.flags;
+        appInfo.flags |= ApplicationInfo.FLAG_HARDWARE_ACCELERATED;
+        try {
+            final View window = new View(mWindowContext);
+            final AttachStateListener listener = new AttachStateListener();
+            window.addOnAttachStateChangeListener(listener);
+
+            final WindowManager wm = mWindowContext.getSystemService(WindowManager.class);
+            mWindowContext.attachWindow(window);
+
+            mInstrumentation.runOnMainSync(() ->
+                    wm.addView(window, new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY)));
+
+            try {
+                assertTrue(listener.mLatch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS));
+            } catch (InterruptedException e) {
+                fail("Fail due to " + e);
+            }
+
+            assertThat(InteractionJankMonitor.Configuration.Builder.withView(
+                    Cuj.CUJ_NOTIFICATION_SHADE_EXPAND_COLLAPSE, window).build()).isNotNull();
+        } finally {
+            appInfo.flags = origFlags;
+        }
+    }
+
+    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
+    @Test
+    public void testDisplayRemovePolicyReparentToDefault_notAddWindow_reparent() {
+        testDisplayRemovePolicyReparentToDefault(false /* shouldVerifyAddingView */);
+    }
+
+    @EnableFlags(Flags.FLAG_REPARENT_WINDOW_TOKEN_API)
+    @Test
+    public void testDisplayRemovePolicyReparentToDefault_addWindow_reparent() {
+        testDisplayRemovePolicyReparentToDefault(true /* shouldVerifyAddingView */);
+    }
+
+    private void testDisplayRemovePolicyReparentToDefault(boolean shouldVerifyAddingView) {
+        final VirtualDisplay virtualDisplay = createVirtualDisplay();
+
+        // Attach the WindowContext to the virtual display
+        final Display display = virtualDisplay.getDisplay();
+        final Bundle options = new Bundle();
+        options.putBoolean(KEY_REPARENT_TO_DEFAULT_DISPLAY_WITH_DISPLAY_REMOVAL, true);
+        final Context windowContext = mInstrumentation.getTargetContext().createWindowContext(
+                display, TYPE_APPLICATION_OVERLAY, options);
+
+        final int virtualDisplayId = display.getDisplayId();
+        assertWithMessage("WindowContext must be attached to display#" + virtualDisplayId)
+                .that(windowContext.getDisplay().getDisplayId()).isEqualTo(virtualDisplayId);
+
+        if (shouldVerifyAddingView) {
+            final View view = new View(windowContext);
+            final AttachStateListener listener = new AttachStateListener();
+            view.addOnAttachStateChangeListener(listener);
+
+            mInstrumentation.runOnMainSync(() ->
+                    windowContext.getSystemService(WindowManager.class)
+                            .addView(view,
+                                    new WindowManager.LayoutParams(TYPE_APPLICATION_OVERLAY)));
+
+            // Checks that the view is attached.
+            try {
+                assertThat(listener.mLatch.await(TIMEOUT_IN_SECONDS, TimeUnit.SECONDS)).isTrue();
+            } catch (InterruptedException e) {
+                fail("Failure due to " + e);
+            }
+
+        }
+        virtualDisplay.release();
+
+        PollingCheck.waitFor(() -> windowContext.getDisplayId() == DEFAULT_DISPLAY);
+    }
+
+    @NonNull
+    private VirtualDisplay createVirtualDisplay() {
+        final int width = 800;
+        final int height = 480;
+        final int density = 160;
+        ImageReader reader = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888,
+                2 /* maxImages */);
+        final Context context = mInstrumentation.getTargetContext();
+        final DisplayManager displayManager = context.getSystemService(DisplayManager.class);
+        return displayManager.createVirtualDisplay(
+                WindowContextTest.class.getName(), width, height, density, reader.getSurface(),
+                VIRTUAL_DISPLAY_FLAG_PUBLIC | VIRTUAL_DISPLAY_FLAG_OWN_CONTENT_ONLY);
+    }
+
     private WindowContext createWindowContext() {
         return createWindowContext(TYPE_APPLICATION_OVERLAY);
     }
@@ -389,9 +692,26 @@ public class WindowContextTest {
         return (WindowContext) instContext.createWindowContext(display, type,  null /* options */);
     }
 
+    @Test
+    public void testWindowContextCleanup() {
+        final WindowTokenClientController mockController = mock(WindowTokenClientController.class);
+        doReturn(true).when(mockController).attachToDisplayArea(
+                any(), anyInt(), anyInt(), any());
+        doNothing().when(mockController).detachIfNeeded(any());
+        WindowTokenClientController.overrideForTesting(mockController);
+
+        WeakReference<WindowContext> windowContextRef = new WeakReference<>(createWindowContext());
+        final WindowTokenClient token =
+                (WindowTokenClient) windowContextRef.get().getWindowContextToken();
+
+        GcUtils.runGcAndFinalizersSync();
+
+        verify(mockController).detachIfNeeded(eq(token));
+    }
+
     private static class ConfigurationListener implements ComponentCallbacks {
         private Configuration mConfiguration;
-        private CountDownLatch mLatch = new CountDownLatch(1);
+        private final CountDownLatch mLatch = new CountDownLatch(1);
 
         @Override
         public void onConfigurationChanged(@NonNull Configuration newConfig) {

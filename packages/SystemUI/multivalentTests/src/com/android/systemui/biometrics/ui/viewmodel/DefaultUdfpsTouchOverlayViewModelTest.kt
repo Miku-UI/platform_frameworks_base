@@ -30,7 +30,7 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.shadeTestUtil
 import com.android.systemui.statusbar.phone.SystemUIDialogManager
-import com.android.systemui.statusbar.phone.systemUIDialogManager
+import com.android.systemui.statusbar.phone.mockSystemUIDialogManager
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runCurrent
@@ -57,7 +57,7 @@ class DefaultUdfpsTouchOverlayViewModelTest(flags: FlagsParameterization) : Sysu
 
     @Captor
     private lateinit var sysuiDialogListenerCaptor: ArgumentCaptor<SystemUIDialogManager.Listener>
-    private var systemUIDialogManager = kosmos.systemUIDialogManager
+    private var systemUIDialogManager = kosmos.mockSystemUIDialogManager
     private val keyguardRepository = kosmos.fakeKeyguardRepository
 
     private val shadeTestUtil by lazy { kosmos.shadeTestUtil }
@@ -79,11 +79,7 @@ class DefaultUdfpsTouchOverlayViewModelTest(flags: FlagsParameterization) : Sysu
     @Before
     fun setUp() {
         MockitoAnnotations.initMocks(this)
-        underTest =
-            DefaultUdfpsTouchOverlayViewModel(
-                kosmos.shadeInteractor,
-                systemUIDialogManager,
-            )
+        underTest = DefaultUdfpsTouchOverlayViewModel(kosmos.shadeInteractor, systemUIDialogManager)
     }
 
     private fun shadeExpanded(expanded: Boolean) {

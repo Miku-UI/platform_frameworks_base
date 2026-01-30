@@ -51,8 +51,8 @@ class AppListPageTest {
     }
 
     @Test
-    fun appListState_hasCorrectInitialState() {
-        val inputState by setContent()
+    fun appListState_hideSystemAppsInitially_hasCorrectInitialState() {
+        val inputState by setContent(showSystemAppsInitially = false)
 
         val state = inputState!!.state
         assertThat(state.showSystem()).isFalse()
@@ -60,8 +60,17 @@ class AppListPageTest {
     }
 
     @Test
-    fun canShowSystem() {
-        val inputState by setContent()
+    fun appListState_showSystemAppsInitially_hasCorrectInitialState() {
+        val inputState by setContent(showSystemAppsInitially = true)
+
+        val state = inputState!!.state
+        assertThat(state.showSystem()).isTrue()
+        assertThat(state.searchQuery()).isEqualTo("")
+    }
+
+    @Test
+    fun hideSystemAppsInitially_canShowSystem() {
+        val inputState by setContent(showSystemAppsInitially = false)
 
         onMoreOptions().performClick()
         composeTestRule.onNodeWithText(context.getString(R.string.menu_show_system)).performClick()
@@ -71,14 +80,37 @@ class AppListPageTest {
     }
 
     @Test
-    fun afterShowSystem_displayHideSystem() {
-        setContent()
+    fun showSystemAppsInitially_canHideSystem() {
+        val inputState by setContent(showSystemAppsInitially = true)
+
+        onMoreOptions().performClick()
+        composeTestRule.onNodeWithText(context.getString(R.string.menu_hide_system)).performClick()
+
+        val state = inputState!!.state
+        assertThat(state.showSystem()).isFalse()
+    }
+
+    @Test
+    fun hideSystemAppsInitially_afterShowSystem_displayHideSystem() {
+        setContent(showSystemAppsInitially = false)
         onMoreOptions().performClick()
         composeTestRule.onNodeWithText(context.getString(R.string.menu_show_system)).performClick()
 
         onMoreOptions().performClick()
 
         composeTestRule.onNodeWithText(context.getString(R.string.menu_hide_system))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun showSystemAppsInitially_afterHideSystem_displayShowSystem() {
+        setContent(showSystemAppsInitially = true)
+        onMoreOptions().performClick()
+        composeTestRule.onNodeWithText(context.getString(R.string.menu_hide_system)).performClick()
+
+        onMoreOptions().performClick()
+
+        composeTestRule.onNodeWithText(context.getString(R.string.menu_show_system))
             .assertIsDisplayed()
     }
 
@@ -98,6 +130,7 @@ class AppListPageTest {
     }
 
     private fun setContent(
+        showSystemAppsInitially: Boolean = false,
         noMoreOptions: Boolean = false,
         header: @Composable () -> Unit = {},
     ): State<AppListInput<TestAppRecord>?> {
@@ -106,6 +139,7 @@ class AppListPageTest {
             AppListPage(
                 title = TITLE,
                 listModel = TestAppListModel(),
+                showSystemAppsInitially = showSystemAppsInitially,
                 noMoreOptions = noMoreOptions,
                 header = header,
                 appList = { appListState.value = this },

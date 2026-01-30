@@ -31,6 +31,7 @@ import android.ravenwood.annotation.RavenwoodRedirect;
 import android.ravenwood.annotation.RavenwoodRedirectionClass;
 import android.ravenwood.annotation.RavenwoodThrow;
 
+import dalvik.annotation.optimization.CriticalNative;
 import dalvik.annotation.optimization.FastNative;
 import dalvik.system.CloseGuard;
 
@@ -94,24 +95,24 @@ public class CursorWindow extends SQLiteClosable implements Parcelable {
 
     // Below native methods don't do unconstrained work, so are FastNative for performance
 
-    @FastNative
+    @CriticalNative
     @RavenwoodThrow
     private static native void nativeClear(long windowPtr);
 
-    @FastNative
+    @CriticalNative
     @RavenwoodRedirect
     private static native int nativeGetNumRows(long windowPtr);
-    @FastNative
+    @CriticalNative
     @RavenwoodRedirect
     private static native boolean nativeSetNumColumns(long windowPtr, int columnNum);
     @FastNative
     @RavenwoodRedirect
     private static native boolean nativeAllocRow(long windowPtr);
-    @FastNative
+    @CriticalNative
     @RavenwoodThrow
     private static native void nativeFreeLastRow(long windowPtr);
 
-    @FastNative
+    @CriticalNative
     @RavenwoodRedirect
     private static native int nativeGetType(long windowPtr, int row, int column);
     @FastNative
@@ -121,13 +122,13 @@ public class CursorWindow extends SQLiteClosable implements Parcelable {
     @RavenwoodRedirect
     private static native double nativeGetDouble(long windowPtr, int row, int column);
 
-    @FastNative
+    @CriticalNative
     @RavenwoodRedirect
     private static native boolean nativePutLong(long windowPtr, long value, int row, int column);
-    @FastNative
+    @CriticalNative
     @RavenwoodRedirect
     private static native boolean nativePutDouble(long windowPtr, double value, int row, int column);
-    @FastNative
+    @CriticalNative
     @RavenwoodThrow
     private static native boolean nativePutNull(long windowPtr, int row, int column);
 

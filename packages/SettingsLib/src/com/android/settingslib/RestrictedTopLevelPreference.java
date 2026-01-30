@@ -18,6 +18,7 @@ package com.android.settingslib;
 
 import static com.android.settingslib.RestrictedLockUtils.EnforcedAdmin;
 
+import android.app.admin.EnforcingAdmin;
 import android.content.Context;
 import android.os.UserHandle;
 import android.util.AttributeSet;
@@ -98,7 +99,7 @@ public class RestrictedTopLevelPreference extends Preference implements
     @Override
     public void setEnabled(boolean enabled) {
         if (enabled && isDisabledByAdmin()) {
-            mHelper.setDisabledByAdmin(/* admin= */ null);
+            mHelper.setDisabledByEnforcingAdmin(/* admin= */ null);
             return;
         }
         super.setEnabled(enabled);
@@ -121,6 +122,18 @@ public class RestrictedTopLevelPreference extends Preference implements
      */
     public void setDisabledByAdmin(EnforcedAdmin admin) {
         if (mHelper.setDisabledByAdmin(admin)) {
+            notifyChanged();
+        }
+    }
+
+    /**
+     * Disable preference based on the enforcing admin.
+     *
+     * @param admin details of the admin who enforced the restriction. If it is {@code null}, then
+     *              this preference will be enabled. Otherwise, it will be disabled.
+     */
+    public void setDisabledByAdmin(EnforcingAdmin admin) {
+        if (mHelper.setDisabledByEnforcingAdmin(admin)) {
             notifyChanged();
         }
     }

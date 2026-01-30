@@ -93,6 +93,7 @@ public final class ImsRegistrationAttributes implements Parcelable {
         private final int mRegistrationTech;
         private Set<String> mFeatureTags = Collections.emptySet();
         private @Nullable SipDetails mSipDetails;
+        private @Nullable String mPcscfAddress;
 
         private @ImsAttributeFlag int mAttributeFlags;
 
@@ -142,6 +143,17 @@ public final class ImsRegistrationAttributes implements Parcelable {
         }
 
         /**
+         * Set the current Proxy-CSCF(P-CSCF) address which UE registers with based on the
+         * registration procedure in 3GPP TS 24.229.
+         * @param address The P-CSCF address.
+         */
+        @FlaggedApi(Flags.FLAG_PCSCF_ADDRESS)
+        public @NonNull Builder setPcscfAddress(@NonNull String address) {
+            mPcscfAddress = address;
+            return this;
+        }
+
+        /**
          * Set the attribute flag ATTR_REGISTRATION_TYPE_EMERGENCY.
          */
         @FlaggedApi(Flags.FLAG_EMERGENCY_REGISTRATION_STATE)
@@ -166,7 +178,7 @@ public final class ImsRegistrationAttributes implements Parcelable {
             return new ImsRegistrationAttributes(mRegistrationTech,
                     RegistrationManager.getAccessType(mRegistrationTech),
                     mAttributeFlags,
-                    mFeatureTags, mSipDetails);
+                    mFeatureTags, mSipDetails, mPcscfAddress);
         }
     }
 
@@ -175,6 +187,7 @@ public final class ImsRegistrationAttributes implements Parcelable {
     private final int mImsAttributeFlags;
     private final ArrayList<String> mFeatureTags;
     private final @Nullable SipDetails mSipDetails;
+    private final @Nullable String mPcscfAddress;
     /**
      * Create a new {@link ImsRegistrationAttributes} instance.
      * This is for backward compatibility.
@@ -195,6 +208,7 @@ public final class ImsRegistrationAttributes implements Parcelable {
         mImsAttributeFlags = imsAttributeFlags;
         mFeatureTags = new ArrayList<>(featureTags);
         mSipDetails = null;
+        mPcscfAddress = null;
     }
 
     /**
@@ -219,6 +233,34 @@ public final class ImsRegistrationAttributes implements Parcelable {
         mImsAttributeFlags = imsAttributeFlags;
         mFeatureTags = new ArrayList<>(featureTags);
         mSipDetails = details;
+        mPcscfAddress = null;
+    }
+
+    /**
+     * Create a new {@link ImsRegistrationAttributes} instance.
+     *
+     * @param registrationTech The technology that IMS has been registered on.
+     * @param transportType The transport type that IMS has been registered on.
+     * @param imsAttributeFlags The attributes associated with the IMS registration.
+     * @param featureTags The feature tags included in the IMS registration.
+     * @param details The SIP information associated with the IMS registration.
+     * @param pcscfAddress The current P-CSCF address which UE currently registers with.
+     * @see Builder
+     * @hide
+     */
+    public ImsRegistrationAttributes(
+            @ImsRegistrationImplBase.ImsRegistrationTech int registrationTech,
+            @AccessNetworkConstants.TransportType int transportType,
+            @ImsAttributeFlag int imsAttributeFlags,
+            @Nullable Set<String> featureTags,
+            @Nullable SipDetails details,
+            @Nullable String pcscfAddress) {
+        mRegistrationTech = registrationTech;
+        mTransportType = transportType;
+        mImsAttributeFlags = imsAttributeFlags;
+        mFeatureTags = new ArrayList<>(featureTags);
+        mSipDetails = details;
+        mPcscfAddress = pcscfAddress;
     }
 
     /**@hide*/
@@ -230,6 +272,7 @@ public final class ImsRegistrationAttributes implements Parcelable {
         source.readList(mFeatureTags, null /*classloader*/, java.lang.String.class);
         mSipDetails = source.readParcelable(null /*loader*/,
                 android.telephony.ims.SipDetails.class);
+        mPcscfAddress = source.readString();
     }
 
     /**
@@ -305,6 +348,15 @@ public final class ImsRegistrationAttributes implements Parcelable {
         return mSipDetails;
     }
 
+    /**
+     * @return The current Proxy-CSCF(P-CSCF) address which UE registers with based on the
+     * registration procedure in 3GPP TS 24.229; otherwise, null if the address is not set.
+     */
+    @FlaggedApi(Flags.FLAG_PCSCF_ADDRESS)
+    public @Nullable String getPcscfAddress() {
+        return mPcscfAddress;
+    }
+
     @Override
     public int describeContents() {
         return 0;
@@ -317,6 +369,7 @@ public final class ImsRegistrationAttributes implements Parcelable {
         dest.writeInt(mImsAttributeFlags);
         dest.writeList(mFeatureTags);
         dest.writeParcelable(mSipDetails, flags);
+        dest.writeString(mPcscfAddress);
     }
 
     public static final @NonNull Creator<ImsRegistrationAttributes> CREATOR =
@@ -341,13 +394,14 @@ public final class ImsRegistrationAttributes implements Parcelable {
                 && mTransportType == that.mTransportType
                 && mImsAttributeFlags == that.mImsAttributeFlags
                 && Objects.equals(mFeatureTags, that.mFeatureTags)
-                && Objects.equals(mSipDetails, that.mSipDetails);
+                && Objects.equals(mSipDetails, that.mSipDetails)
+                && Objects.equals(mPcscfAddress, that.mPcscfAddress);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(mRegistrationTech, mTransportType, mImsAttributeFlags, mFeatureTags,
-                mSipDetails);
+                mSipDetails, mPcscfAddress);
     }
 
     @Override

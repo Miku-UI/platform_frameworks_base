@@ -32,6 +32,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.kotlin.StubberKt.doNothing;
 
 import android.graphics.drawable.Icon;
 import android.platform.test.annotations.DisableFlags;
@@ -52,7 +53,6 @@ import com.android.settingslib.utils.ThreadUtils;
 import com.android.systemui.SysuiTestCase;
 import com.android.systemui.res.R;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
 import org.junit.Before;
@@ -64,7 +64,6 @@ import org.mockito.Captor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
 
 @SmallTest
 @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_REDESIGN)
@@ -85,12 +84,10 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
     // Mock
     private MediaSwitchingController mMediaSwitchingController =
             mock(MediaSwitchingController.class);
-    private MediaOutputDialog mMediaOutputDialog = mock(MediaOutputDialog.class);
     private MediaDevice mMediaDevice1 = mock(MediaDevice.class);
     private MediaDevice mMediaDevice2 = mock(MediaDevice.class);
     private Icon mIcon = mock(Icon.class);
     private IconCompat mIconCompat = mock(IconCompat.class);
-    private View mDialogLaunchView = mock(View.class);
 
     @Captor
     private ArgumentCaptor<SeekBar.OnSeekBarChangeListener> mOnSeekBarChangeListenerCaptor;
@@ -174,52 +171,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
                 mContext.getText(R.string.media_output_dialog_pairing_new).toString());
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
-    @Test
-    public void onBindViewHolder_bindGroup_withSessionName_verifyView() {
-        when(mMediaSwitchingController.getSelectedMediaDevice())
-                .thenReturn(
-                        mMediaItems.stream()
-                                .map((item) -> item.getMediaDevice().get())
-                                .collect(Collectors.toList()));
-        when(mMediaSwitchingController.getSessionName()).thenReturn(TEST_SESSION_NAME);
-        mMediaOutputAdapter = new MediaOutputAdapterLegacy(mMediaSwitchingController, mMainExecutor,
-                mBackgroundExecutor);
-        mMediaOutputAdapter.updateItems();
-        mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
-                .onCreateViewHolder(new LinearLayout(mContext), 0);
-        mMediaOutputAdapter.getItemCount();
-        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 0);
-
-        assertThat(mViewHolder.mSeekBar.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mProgressBar.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.VISIBLE);
-    }
-
-    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
-    @Test
-    public void onBindViewHolder_bindGroup_noSessionName_verifyView() {
-        when(mMediaSwitchingController.getSelectedMediaDevice())
-                .thenReturn(
-                        mMediaItems.stream()
-                                .map((item) -> item.getMediaDevice().get())
-                                .collect(Collectors.toList()));
-        when(mMediaSwitchingController.getSessionName()).thenReturn(null);
-        mMediaOutputAdapter = new MediaOutputAdapterLegacy(mMediaSwitchingController, mMainExecutor,
-                mBackgroundExecutor);
-        mMediaOutputAdapter.updateItems();
-        mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
-                .onCreateViewHolder(new LinearLayout(mContext), 0);
-        mMediaOutputAdapter.getItemCount();
-        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 0);
-
-        assertThat(mViewHolder.mSeekBar.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mProgressBar.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.VISIBLE);
-    }
-
     @Test
     public void onBindViewHolder_bindConnectedDevice_verifyView() {
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 0);
@@ -247,13 +198,10 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         assertThat(mViewHolder.mSeekBar.getVisibility()).isEqualTo(View.VISIBLE);
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void onBindViewHolder_bindConnectedRemoteDevice_verifyView() {
-        when(mMediaSwitchingController.getSelectedMediaDevice())
-                .thenReturn(ImmutableList.of(mMediaDevice1));
-        when(mMediaSwitchingController.getSelectableMediaDevice())
-                .thenReturn(ImmutableList.of(mMediaDevice2));
+        when(mMediaDevice1.isSelected()).thenReturn(true);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         when(mMediaSwitchingController.isCurrentConnectedDeviceRemote()).thenReturn(true);
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
@@ -263,16 +211,15 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         assertThat(mViewHolder.mTitleText.getText().toString()).isEqualTo(TEST_DEVICE_NAME_1);
         assertThat(mViewHolder.mSubTitleText.getVisibility()).isEqualTo(View.GONE);
         assertThat(mViewHolder.mProgressBar.getVisibility()).isEqualTo(View.GONE);
-        assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.GONE);
         assertThat(mViewHolder.mEndClickIcon.getVisibility()).isEqualTo(View.GONE);
         assertThat(mViewHolder.mSeekBar.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mEndTouchArea.getVisibility()).isEqualTo(View.VISIBLE);
+        assertThat(mViewHolder.mEndTouchArea.getVisibility()).isEqualTo(View.GONE);
     }
 
     @Test
     public void onBindViewHolder_bindConnectedRemoteDevice_verifyContentDescriptionNotNull() {
-        when(mMediaSwitchingController.getSelectableMediaDevice())
-                .thenReturn(ImmutableList.of(mMediaDevice2));
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         when(mMediaSwitchingController.isCurrentConnectedDeviceRemote()).thenReturn(true);
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
@@ -288,7 +235,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
 
     @Test
     public void onBindViewHolder_bindSingleConnectedRemoteDevice_verifyView() {
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(ImmutableList.of());
         when(mMediaSwitchingController.isCurrentConnectedDeviceRemote()).thenReturn(true);
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
@@ -306,7 +252,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
     @Test
     public void onBindViewHolder_bindConnectedRemoteDeviceWithOnGoingSession_verifyView() {
         when(mMediaDevice1.hasOngoingSession()).thenReturn(true);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(ImmutableList.of());
         when(mMediaSwitchingController.isCurrentConnectedDeviceRemote()).thenReturn(true);
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
@@ -327,7 +272,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
     public void onBindViewHolder_bindConnectedRemoteDeviceWithHostOnGoingSession_verifyView() {
         when(mMediaDevice1.hasOngoingSession()).thenReturn(true);
         when(mMediaDevice1.isHostForOngoingSession()).thenReturn(true);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(ImmutableList.of());
         when(mMediaSwitchingController.isCurrentConnectedDeviceRemote()).thenReturn(true);
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
@@ -433,12 +377,9 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         verify(mMediaSwitchingController).logInteractionAdjustVolume(mMediaDevice1);
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void onBindViewHolder_bindSelectableDevice_verifyView() {
-        List<MediaDevice> selectableDevices = new ArrayList<>();
-        selectableDevices.add(mMediaDevice2);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(selectableDevices);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
 
         assertThat(mViewHolder.mProgressBar.getVisibility()).isEqualTo(View.GONE);
@@ -454,15 +395,20 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         verify(mMediaSwitchingController).addDeviceToPlayMedia(mMediaDevice2);
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void onBindViewHolder_bindDeselectableDevice_verifyView() {
-        when(mMediaSwitchingController.getSelectedMediaDevice()).thenReturn(
-                List.of(mMediaDevice1, mMediaDevice2));
-        when(mMediaSwitchingController.getDeselectableMediaDevice()).thenReturn(
-                List.of(mMediaDevice1, mMediaDevice2));
-        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
+        when(mMediaDevice1.isSelected()).thenReturn(true);
+        when(mMediaDevice1.isDeselectable()).thenReturn(true);
+        when(mMediaDevice2.isSelected()).thenReturn(true);
+        when(mMediaDevice2.isDeselectable()).thenReturn(true);
+        when(mMediaSwitchingController.hasGroupPlayback()).thenReturn(true);
+        when(mMediaSwitchingController.hasGroupPlayback()).thenReturn(true);
 
+        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 0);
+        // Expand the group control.
+        mViewHolder.mEndClickIcon.performClick();
+
+        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
         assertThat(mViewHolder.mEndTouchArea.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.VISIBLE);
         assertThat(mViewHolder.mCheckBox.isChecked()).isTrue();
@@ -472,21 +418,24 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         verify(mMediaSwitchingController).removeDeviceFromPlayMedia(mMediaDevice2);
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void onBindViewHolder_changingSelectedValue_doesntTriggerChangeListener() {
-        List<MediaDevice> selectableDevices = List.of(mMediaDevice2);
-        List<MediaDevice> selectedDevices = new ArrayList<>();
-        selectedDevices.add(mMediaDevice1);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(selectableDevices);
-        when(mMediaSwitchingController.getSelectedMediaDevice()).thenReturn(selectedDevices);
+        when(mMediaDevice1.isSelected()).thenReturn(true);
+        when(mMediaDevice1.isDeselectable()).thenReturn(true);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
+        when(mMediaDevice2.isDeselectable()).thenReturn(true);
 
         // mMediaDevice2 is selected
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
         assertThat(mViewHolder.mCheckBox.isChecked()).isFalse();
 
         // changing the selected state programmatically (not a user click)
-        selectedDevices.add(mMediaDevice2);
+        when(mMediaDevice2.isSelected()).thenReturn(true);
+
+        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 0);
+        // Expand the group control.
+        mViewHolder.mEndClickIcon.performClick();
+
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
         assertThat(mViewHolder.mCheckBox.isChecked()).isTrue();
 
@@ -715,15 +664,16 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         assertThat(mMediaDevice2.getState()).isEqualTo(
                 LocalMediaManager.MediaDeviceState.STATE_DISCONNECTED);
         when(mMediaDevice2.getSelectionBehavior()).thenReturn(SELECTION_BEHAVIOR_TRANSFER);
-        mMediaOutputAdapter = new MediaOutputAdapterLegacy(mMediaSwitchingController,
-                mContext.getMainExecutor(), ThreadUtils.getBackgroundExecutor());
+        mMediaOutputAdapter = new MediaOutputAdapterLegacy(mMediaSwitchingController, mMainExecutor,
+                mBackgroundExecutor);
         mMediaOutputAdapter.updateItems();
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
         MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy spyMediaDeviceViewHolder = spy(
                 mViewHolder);
-        mMediaOutputAdapter.getItemCount();
+        doNothing().when(spyMediaDeviceViewHolder).showCustomEndSessionDialog(mMediaDevice2);
 
+        mMediaOutputAdapter.getItemCount();
         mMediaOutputAdapter.onBindViewHolder(spyMediaDeviceViewHolder, 0);
         mMediaOutputAdapter.onBindViewHolder(spyMediaDeviceViewHolder, 1);
         spyMediaDeviceViewHolder.mContainerLayout.performClick();
@@ -768,9 +718,7 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
 
     @Test
     public void onGroupActionTriggered_clicksEndAreaOfSelectableDevice_triggerGrouping() {
-        List<MediaDevice> selectableDevices = new ArrayList<>();
-        selectableDevices.add(mMediaDevice2);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(selectableDevices);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
@@ -780,14 +728,10 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         verify(mMediaSwitchingController).addDeviceToPlayMedia(mMediaDevice2);
     }
 
-    @DisableFlags(Flags.FLAG_DISABLE_TRANSFER_WHEN_APPS_DO_NOT_SUPPORT)
     @Test
-    public void clickFullItemOfSelectableDevice_flagOff_hasListingPreference_verifyConnectDevice() {
-        List<MediaDevice> mediaDevices = new ArrayList<>();
-        mediaDevices.add(mMediaDevice2);
+    public void clickFullItemOfSelectableDevice_hasListingPreference_verifyConnectDevice() {
         when(mMediaDevice2.hasRouteListingPreferenceItem()).thenReturn(true);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(mediaDevices);
-        when(mMediaSwitchingController.getTransferableMediaDevices()).thenReturn(List.of());
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         when(mMediaSwitchingController.isCurrentOutputDeviceHasSessionOngoing()).thenReturn(false);
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
 
@@ -803,37 +747,11 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         verify(mMediaSwitchingController).connectDevice(mMediaDevice2);
     }
 
-    @EnableFlags(Flags.FLAG_DISABLE_TRANSFER_WHEN_APPS_DO_NOT_SUPPORT)
     @Test
-    public void clickFullItemOfSelectableDevice_flagOn_hasListingPreference_verifyConnectDevice() {
-        List<MediaDevice> mediaDevices = new ArrayList<>();
-        mediaDevices.add(mMediaDevice2);
-        when(mMediaDevice2.hasRouteListingPreferenceItem()).thenReturn(true);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(mediaDevices);
-        when(mMediaSwitchingController.getTransferableMediaDevices()).thenReturn(List.of());
-        when(mMediaSwitchingController.isCurrentOutputDeviceHasSessionOngoing()).thenReturn(false);
-        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
-
-        assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getText().toString()).isEqualTo(TEST_DEVICE_NAME_2);
-        assertThat(mViewHolder.mTitleText.getAlpha())
-                .isEqualTo(MediaOutputAdapterLegacy.DEVICE_ACTIVE_ALPHA);
-        assertThat(mViewHolder.mContainerLayout.isFocusable()).isTrue();
-
-        mViewHolder.mContainerLayout.performClick();
-
-        verify(mMediaSwitchingController).connectDevice(mMediaDevice2);
-    }
-
-    @DisableFlags(Flags.FLAG_DISABLE_TRANSFER_WHEN_APPS_DO_NOT_SUPPORT)
-    @Test
-    public void clickFullItemOfSelectableDevice_flagOff_isTransferable_verifyConnectDevice() {
-        List<MediaDevice> mediaDevices = new ArrayList<>();
-        mediaDevices.add(mMediaDevice2);
+    public void clickFullItemOfSelectableDevice_isTransferable_verifyConnectDevice() {
         when(mMediaDevice2.hasRouteListingPreferenceItem()).thenReturn(false);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(mediaDevices);
-        when(mMediaSwitchingController.getTransferableMediaDevices()).thenReturn(mediaDevices);
+        when(mMediaDevice2.isTransferable()).thenReturn(true);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         when(mMediaSwitchingController.isCurrentOutputDeviceHasSessionOngoing()).thenReturn(false);
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
 
@@ -849,60 +767,10 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         verify(mMediaSwitchingController).connectDevice(mMediaDevice2);
     }
 
-    @EnableFlags(Flags.FLAG_DISABLE_TRANSFER_WHEN_APPS_DO_NOT_SUPPORT)
     @Test
-    public void clickFullItemOfSelectableDevice_flagOn_isTransferable_verifyConnectDevice() {
-        List<MediaDevice> mediaDevices = new ArrayList<>();
-        mediaDevices.add(mMediaDevice2);
+    public void clickFullItemOfSelectableDevice_notTransferable_verifyNotConnectDevice() {
         when(mMediaDevice2.hasRouteListingPreferenceItem()).thenReturn(false);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(mediaDevices);
-        when(mMediaSwitchingController.getTransferableMediaDevices()).thenReturn(mediaDevices);
-        when(mMediaSwitchingController.isCurrentOutputDeviceHasSessionOngoing()).thenReturn(false);
-        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
-
-        assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getText().toString()).isEqualTo(TEST_DEVICE_NAME_2);
-        assertThat(mViewHolder.mTitleText.getAlpha())
-                .isEqualTo(MediaOutputAdapterLegacy.DEVICE_ACTIVE_ALPHA);
-        assertThat(mViewHolder.mContainerLayout.isFocusable()).isTrue();
-
-        mViewHolder.mContainerLayout.performClick();
-
-        verify(mMediaSwitchingController).connectDevice(mMediaDevice2);
-    }
-
-    @DisableFlags(Flags.FLAG_DISABLE_TRANSFER_WHEN_APPS_DO_NOT_SUPPORT)
-    @Test
-    public void clickFullItemOfSelectableDevice_flagOff_notTransferable_verifyConnectDevice() {
-        List<MediaDevice> mediaDevices = new ArrayList<>();
-        mediaDevices.add(mMediaDevice2);
-        when(mMediaDevice2.hasRouteListingPreferenceItem()).thenReturn(false);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(mediaDevices);
-        when(mMediaSwitchingController.getTransferableMediaDevices()).thenReturn(List.of());
-        when(mMediaSwitchingController.isCurrentOutputDeviceHasSessionOngoing()).thenReturn(false);
-        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
-
-        assertThat(mViewHolder.mCheckBox.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getVisibility()).isEqualTo(View.VISIBLE);
-        assertThat(mViewHolder.mTitleText.getText().toString()).isEqualTo(TEST_DEVICE_NAME_2);
-        assertThat(mViewHolder.mTitleText.getAlpha())
-                .isEqualTo(MediaOutputAdapterLegacy.DEVICE_ACTIVE_ALPHA);
-        assertThat(mViewHolder.mContainerLayout.isFocusable()).isTrue();
-
-        mViewHolder.mContainerLayout.performClick();
-
-        verify(mMediaSwitchingController).connectDevice(mMediaDevice2);
-    }
-
-    @EnableFlags(Flags.FLAG_DISABLE_TRANSFER_WHEN_APPS_DO_NOT_SUPPORT)
-    @Test
-    public void clickFullItemOfSelectableDevice_flagOn_notTransferable_verifyNotConnectDevice() {
-        List<MediaDevice> mediaDevices = new ArrayList<>();
-        mediaDevices.add(mMediaDevice2);
-        when(mMediaDevice2.hasRouteListingPreferenceItem()).thenReturn(false);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(mediaDevices);
-        when(mMediaSwitchingController.getTransferableMediaDevices()).thenReturn(List.of());
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         when(mMediaSwitchingController.isCurrentOutputDeviceHasSessionOngoing()).thenReturn(false);
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
 
@@ -920,12 +788,9 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
 
     @Test
     public void onGroupActionTriggered_clickSelectedRemoteDevice_triggerUngrouping() {
-        when(mMediaSwitchingController.getSelectableMediaDevice())
-                .thenReturn(ImmutableList.of(mMediaDevice2));
-        when(mMediaSwitchingController.getDeselectableMediaDevice())
-                .thenReturn(ImmutableList.of(mMediaDevice1));
-        when(mMediaSwitchingController.getSelectedMediaDevice())
-                .thenReturn(ImmutableList.of(mMediaDevice1));
+        when(mMediaDevice1.isSelected()).thenReturn(true);
+        when(mMediaDevice1.isDeselectable()).thenReturn(true);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
         when(mMediaSwitchingController.isCurrentConnectedDeviceRemote()).thenReturn(true);
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(new LinearLayout(mContext), 0);
@@ -936,21 +801,15 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         verify(mMediaSwitchingController).removeDeviceFromPlayMedia(mMediaDevice1);
     }
 
-    @DisableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void onBindViewHolder_hasVolumeAdjustmentRestriction_verifySeekbarDisabled() {
-        when(mMediaSwitchingController.getSelectedMediaDevice()).thenReturn(
-                List.of(mMediaDevice1, mMediaDevice2));
+        when(mMediaDevice1.isSelected()).thenReturn(true);
         when(mMediaSwitchingController.isCurrentConnectedDeviceRemote()).thenReturn(true);
         when(mMediaSwitchingController.hasAdjustVolumeUserRestriction()).thenReturn(true);
         mMediaOutputAdapter.updateItems();
 
         // Connected and selected device
         mMediaOutputAdapter.onBindViewHolder(mViewHolder, 0);
-        assertThat(mViewHolder.mSeekBar.getVisibility()).isEqualTo(View.GONE);
-
-        // Selected device
-        mMediaOutputAdapter.onBindViewHolder(mViewHolder, 1);
         assertThat(mViewHolder.mSeekBar.getVisibility()).isEqualTo(View.GONE);
     }
 
@@ -1043,7 +902,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
                 .isEqualTo(R.drawable.media_output_icon_volume);
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void multipleSelectedDevices_verifySessionView() {
         initializeSession();
@@ -1064,7 +922,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         assertThat(mViewHolder.mSeekBar.getVolume()).isEqualTo(TEST_CURRENT_VOLUME);
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void multipleSelectedDevices_verifyCollapsedView() {
         initializeSession();
@@ -1078,7 +935,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         assertThat(mViewHolder.mEndTouchArea.getVisibility()).isEqualTo(View.GONE);
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void multipleSelectedDevices_expandIconClicked_verifyInitialView() {
         initializeSession();
@@ -1101,7 +957,6 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         assertThat(mViewHolder.mTitleText.getText().toString()).isEqualTo(TEST_DEVICE_NAME_1);
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void multipleSelectedDevices_expandIconClicked_verifyCollapsedView() {
         initializeSession();
@@ -1124,14 +979,10 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
         assertThat(mViewHolder.mTitleText.getText().toString()).isEqualTo(TEST_DEVICE_NAME_2);
     }
 
-    @EnableFlags(Flags.FLAG_ENABLE_OUTPUT_SWITCHER_DEVICE_GROUPING)
     @Test
     public void deviceCanNotBeDeselected_verifyView() {
-        List<MediaDevice> selectedDevices = new ArrayList<>();
-        selectedDevices.add(mMediaDevice1);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(selectedDevices);
-        when(mMediaSwitchingController.getSelectedMediaDevice()).thenReturn(selectedDevices);
-        when(mMediaSwitchingController.getDeselectableMediaDevice()).thenReturn(new ArrayList<>());
+        when(mMediaDevice1.isSelected()).thenReturn(true);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
 
         mViewHolder = (MediaOutputAdapterLegacy.MediaDeviceViewHolderLegacy) mMediaOutputAdapter
                 .onCreateViewHolder(
@@ -1147,13 +998,16 @@ public class MediaOutputAdapterLegacyTest extends SysuiTestCase {
     }
 
     private void initializeSession() {
-        List<MediaDevice> selectedDevices = new ArrayList<>();
-        selectedDevices.add(mMediaDevice1);
-        selectedDevices.add(mMediaDevice2);
-        when(mMediaSwitchingController.getSelectableMediaDevice()).thenReturn(selectedDevices);
-        when(mMediaSwitchingController.getSelectedMediaDevice()).thenReturn(selectedDevices);
-        when(mMediaSwitchingController.getDeselectableMediaDevice()).thenReturn(selectedDevices);
+        when(mMediaDevice1.isSelected()).thenReturn(true);
+        when(mMediaDevice1.isSelectable()).thenReturn(true);
+        when(mMediaDevice1.isDeselectable()).thenReturn(true);
+        when(mMediaDevice2.isSelected()).thenReturn(true);
+        when(mMediaDevice2.isSelectable()).thenReturn(true);
+        when(mMediaDevice2.isDeselectable()).thenReturn(true);
+        when(mMediaSwitchingController.hasGroupPlayback()).thenReturn(true);
 
+        mMediaOutputAdapter = new MediaOutputAdapterLegacy(mMediaSwitchingController, mMainExecutor,
+                mBackgroundExecutor);
         mMediaOutputAdapter.updateItems();
     }
 }

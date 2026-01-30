@@ -87,6 +87,8 @@
     <string name="bluetooth_connecting" msgid="5871702668260192755">"مربوط ہو رہا ہے…"</string>
     <string name="bluetooth_connected" msgid="8065345572198502293">"<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g> سے منسلک ہو گیا"</string>
     <string name="bluetooth_pairing" msgid="4269046942588193600">"جوڑا بنایا جا رہا ہے…"</string>
+    <string name="bluetooth_pairing_failure" msgid="6914444518793157913">"جوڑا نہیں بنایا جا سکتا"</string>
+    <string name="bluetooth_connection_failure" msgid="384203214661155324">"منسلک نہیں ہو سکتا"</string>
     <string name="bluetooth_connected_no_headset" msgid="2224101138659967604">"منسلک ہے (فون کے علاوہ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_a2dp" msgid="8566874395813947092">"منسلک ہے (میڈیا کے علاوہ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
     <string name="bluetooth_connected_no_headset_no_a2dp" msgid="2893204819854215433">"منسلک ہے (فون یا میڈیا کے علاوہ)<xliff:g id="ACTIVE_DEVICE">%1$s</xliff:g>"</string>
@@ -103,6 +105,11 @@
     <string name="bluetooth_battery_level_untethered" msgid="1616774716076301755">"‏L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، ‏R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> بیٹری۔"</string>
     <string name="bluetooth_battery_level_untethered_left" msgid="5725764679536058365">"بائيں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> بیٹری"</string>
     <string name="bluetooth_battery_level_untethered_right" msgid="8377995536997790142">"دائيں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> بیٹری"</string>
+    <string name="bluetooth_battery_level_untethered_case" msgid="6783758530890124772">"کیس: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> بیٹری"</string>
+    <string name="bluetooth_battery_level_untethered_left_case" msgid="7676759299091682229">"بائیں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، کیس: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> بیٹری"</string>
+    <string name="bluetooth_battery_level_untethered_right_case" msgid="1299184574560442389">"دائیں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، کیس: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> بیٹری"</string>
+    <string name="bluetooth_battery_level_untethered_left_right" msgid="6953449613092012043">"بائیں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، دائیں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> بیٹری"</string>
+    <string name="bluetooth_battery_level_untethered_left_case_right" msgid="5434524614259536880">"بائیں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، کیس: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g>، دائیں: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_2">%3$s</xliff:g> بیٹری"</string>
     <string name="tv_bluetooth_battery_level_untethered_left" msgid="337629670583744410">"بائیں <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="tv_bluetooth_battery_level_untethered_right" msgid="8610019317279155595">"دائیں <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g>"</string>
     <string name="bluetooth_active_no_battery_level" msgid="4155462233006205630">"فعال"</string>
@@ -111,6 +118,8 @@
     <string name="bluetooth_hearing_aid_right_active" msgid="2244728507170385397">"فعال ہے (صرف دایاں)"</string>
     <string name="bluetooth_hearing_aid_left_and_right_active" msgid="4294571497939983181">"فعال ہے (بایاں اور دایاں)"</string>
     <string name="bluetooth_hearing_device_ambient_error" msgid="6035857289108813878">"اطراف کو اپ ڈیٹ نہیں کیا جا سکا"</string>
+    <string name="bluetooth_hearing_aids_presets_error" msgid="4523942574698610976">"پہلے سے ترتیب شدہ کو اپ ڈیٹ نہیں کر سکے"</string>
+    <string name="hearing_device_spinner_item_selected" msgid="3884049360428514878">"منتخب کردہ"</string>
     <string name="bluetooth_active_media_only_battery_level" msgid="7772517511061834073">"فعال (صرف میڈیا)۔ <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> بیٹری۔"</string>
     <string name="bluetooth_active_media_only_battery_level_untethered" msgid="7444753133664620926">"‏فعال (صرف میڈیا)۔ L: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_0">%1$s</xliff:g>، ‏R: <xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE_1">%2$s</xliff:g> بیٹری۔"</string>
     <string name="bluetooth_guest_battery_level" msgid="2820003593899467676">"مہمان آلہ۔ ‫<xliff:g id="BATTERY_LEVEL_AS_PERCENTAGE">%1$s</xliff:g> بیٹری۔"</string>
@@ -209,7 +218,7 @@
     <string name="tts_settings" msgid="8130616705989351312">"ٹیکسٹ ٹو اسپیچ کی ترتیبات"</string>
     <string name="tts_settings_title" msgid="7602210956640483039">"ٹیکسٹ ٹو اسپیچ آؤٹ پٹ"</string>
     <string name="tts_default_rate_title" msgid="3964187817364304022">"اسپیچ کی شرح"</string>
-    <string name="tts_default_rate_summary" msgid="3781937042151716987">"متن بولے جانے کی رفتار"</string>
+    <string name="tts_default_rate_summary" msgid="3781937042151716987">"ٹیکسٹ بولے جانے کی رفتار"</string>
     <string name="tts_default_pitch_title" msgid="6988592215554485479">"پچ"</string>
     <string name="tts_default_pitch_summary" msgid="9132719475281551884">"تصنعی اسپیچ کی ٹون کو متاثر کرتا ہے"</string>
     <string name="tts_default_lang_title" msgid="4698933575028098940">"زبان"</string>
@@ -340,7 +349,7 @@
     <string name="wifi_non_persistent_mac_randomization_summary" msgid="2159794543105053930">"‏اس وضع کے فعال ہونے پر اس آلے کا MAC پتہ ہر بار تبدیل ہو سکتا ہے جب بھی یہ کسی ایسے نیٹ ورک سے منسلک ہوتا ہے جس میں MAC رینڈمائزیشن فعال ہو۔"</string>
     <string name="wifi_metered_label" msgid="8737187690304098638">"میٹرڈ"</string>
     <string name="wifi_unmetered_label" msgid="6174142840934095093">"غیر میٹر شدہ"</string>
-    <string name="select_logd_size_title" msgid="1604578195914595173">"لاگر بفر کے سائز"</string>
+    <string name="select_logd_size_title" msgid="4393502933789367691">"لاگر بفر سائز"</string>
     <string name="select_logd_size_dialog_title" msgid="2105401994681013578">"فی لاگ بفر لاگر کے سائز منتخب کریں"</string>
     <string name="dev_logpersist_clear_warning_title" msgid="8631859265777337991">"لاگر مستقل اسٹوریج صاف کریں؟"</string>
     <string name="dev_logpersist_clear_warning_message" msgid="6447590867594287413">"جب ہم مستقل لاگر کے ساتھ نگرانی نہیں کر رہے ہوتے تو ہمیں آپ کے آلہ پر موجود لاگر ڈیٹا کو مٹانا ہوتا ہے۔"</string>
@@ -397,9 +406,9 @@
     <string name="show_key_presses_summary" msgid="725387457373015024">"\'طبعی کلید کو دبانا\' کیلئے ویژوئل تاثرات دکھائیں"</string>
     <string name="touchpad_visualizer" msgid="3707916068870825115">"ٹچ پیڈ ان پٹ دکھائیں"</string>
     <string name="touchpad_visualizer_summary" msgid="4056080018119847449">"اسکرین اوورلے ٹچ پیڈ ان پٹ ڈیٹا اور تسلیم شدہ اشاروں کو ظاہر کرتا ہے"</string>
-    <string name="show_screen_updates" msgid="2078782895825535494">"سطح کے اپ ڈیٹس دکھائیں"</string>
+    <string name="show_screen_updates" msgid="2078782895825535494">"سطح کی اپ ڈیٹس دکھائیں"</string>
     <string name="show_screen_updates_summary" msgid="2126932969682087406">"اپ ڈیٹ ہونے پر ونڈو کی پوری سطحیں جھلملائیں"</string>
-    <string name="show_hw_screen_updates" msgid="2021286231267747506">"منظر کے اپ ڈیٹس دکھائیں"</string>
+    <string name="show_hw_screen_updates" msgid="2021286231267747506">"منظر کی اپ ڈیٹس دکھائیں"</string>
     <string name="show_hw_screen_updates_summary" msgid="3539770072741435691">"تیار ہونے پر ملاحظات ونڈوز کے اندر جھلملائیں"</string>
     <string name="show_hw_layers_updates" msgid="5268370750002509767">"ہارڈویئر پرتوں کی اپ ڈیٹس دکھائیں"</string>
     <string name="show_hw_layers_updates_summary" msgid="5850955890493054618">"ہارڈویئر پرتیں اپ ڈیٹ ہونے پر سبز رنگ میں جھلملائیں"</string>
@@ -441,11 +450,11 @@
     <string name="immediately_destroy_activities_summary" msgid="6289590341144557614">"صارف کی ہر سرگرمی صارف کے چھوڑنے پر حذف کر دیں"</string>
     <string name="app_process_limit_title" msgid="8361367869453043007">"پس منظر پروسیس کی حد"</string>
     <string name="show_all_anrs" msgid="9160563836616468726">"‏پس منظر ANRs دکھائیں"</string>
-    <string name="show_all_anrs_summary" msgid="8562788834431971392">"پس منظر کی ایپس کیلئے \'ایپ جواب نہیں دے رہی ہے\' ڈائلاگ ڈسپلے کریں"</string>
+    <string name="show_all_anrs_summary" msgid="8562788834431971392">"پس منظر کی ایپس کیلئے \'ایپ جواب نہیں دے رہی ہے\' ڈائیلاگ ڈسپلے کریں"</string>
     <string name="show_notification_channel_warnings" msgid="3448282400127597331">"چینل کی اطلاعی تنبیہات دکھائیں"</string>
     <string name="show_notification_channel_warnings_summary" msgid="68031143745094339">"کسی ایپ کی طرف سے درست چینل کے بغیر اطلاع پوسٹ ہونے پر آن اسکرین تنبیہ ڈسپلے کرتا ہے"</string>
     <string name="force_allow_on_external" msgid="9187902444231637880">"بیرونی پر ایپس کو زبردستی اجازت دیں"</string>
-    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"‏manifest اقدار سے قطع نظر، کسی بھی ایپ کو بیرونی اسٹوریج پر لکھے جانے کا اہل بناتا ہے"</string>
+    <string name="force_allow_on_external_summary" msgid="8525425782530728238">"مینی فیسٹ اقدار سے قطع نظر، کسی بھی ایپ کو بیرونی اسٹوریج پر لکھے جانے کا اہل بناتا ہے"</string>
     <string name="force_resizable_activities" msgid="7143612144399959606">"سرگرمیوں کو ری سائز ایبل بنائیں"</string>
     <string name="force_resizable_activities_summary" msgid="2490382056981583062">"مینی فیسٹ اقدار سے قطع نظر، ملٹی ونڈو کیلئے تمام سرگرمیوں کو ری سائز ایبل بنائیں۔"</string>
     <string name="enable_freeform_support" msgid="7599125687603914253">"‏freeform ونڈوز فعال کریں"</string>
@@ -520,7 +529,7 @@
     <string name="power_charging_future_paused" msgid="1809543660923642799">"<xliff:g id="LEVEL">%1$s</xliff:g> - چارج ہو رہی ہے"</string>
     <string name="power_fast_charging_duration_v2" msgid="3797735998640359490">"<xliff:g id="LEVEL">%1$s</xliff:g> - <xliff:g id="STATUS">%2$s</xliff:g> - <xliff:g id="TIME">%3$s</xliff:g> تک مکمل ہو جائے گی"</string>
     <string name="power_charging_duration_v2" msgid="2938998284074003248">"<xliff:g id="LEVEL">%1$s</xliff:g> - <xliff:g id="TIME">%2$s</xliff:g> تک مکمل چارج ہو جائے گی"</string>
-    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"<xliff:g id="TIME">%1$s</xliff:g> تک مکمل چارج ہو جائے گی"</string>
+    <string name="power_remaining_charging_duration_only_v2" msgid="5358176435722950193">"‫<xliff:g id="TIME">%1$s</xliff:g> تک مکمل چارج ہو جائے گی"</string>
     <string name="power_remaining_fast_charging_duration_only_v2" msgid="6270950195810579563">"<xliff:g id="TIME">%1$s</xliff:g> تک مکمل ہو جائے گی"</string>
     <string name="battery_info_status_unknown" msgid="268625384868401114">"نامعلوم"</string>
     <string name="battery_info_status_charging" msgid="4279958015430387405">"چارج ہو رہا ہے"</string>
@@ -551,11 +560,15 @@
   </string-array>
     <string name="charge_length_format" msgid="6941645744588690932">"<xliff:g id="ID_1">%1$s</xliff:g> قبل"</string>
     <string name="remaining_length_format" msgid="4310625772926171089">"<xliff:g id="ID_1">%1$s</xliff:g> باقی ہیں"</string>
+    <string name="screen_zoom_summary_smallest" msgid="1042159093382395789">"سب سے چھوٹا"</string>
+    <string name="screen_zoom_summary_smaller" msgid="7452722393802683776">"قدرے چھوٹا"</string>
     <string name="screen_zoom_summary_small" msgid="6050633151263074260">"چھوٹا"</string>
     <string name="screen_zoom_summary_default" msgid="1888865694033865408">"ڈیفالٹ"</string>
     <string name="screen_zoom_summary_large" msgid="4706951482598978984">"بڑا"</string>
-    <string name="screen_zoom_summary_very_large" msgid="7317423942896999029">"قدرے بڑا"</string>
-    <string name="screen_zoom_summary_extremely_large" msgid="1438045624562358554">"سب سے بڑا"</string>
+    <string name="screen_zoom_summary_larger" msgid="7346406528348409139">"قدرے بڑا"</string>
+    <string name="screen_zoom_summary_very_large" msgid="6853699118427019538">"کافی بڑا"</string>
+    <string name="screen_zoom_summary_extra_large" msgid="4898389280769475551">"مزید بڑا"</string>
+    <string name="screen_zoom_summary_largest" msgid="5120290329622591371">"سب سے بڑا"</string>
     <string name="screen_zoom_summary_custom" msgid="3468154096832912210">"حسب ضرورت (<xliff:g id="DENSITYDPI">%d</xliff:g>)"</string>
     <string name="content_description_menu_button" msgid="6254844309171779931">"مینیو"</string>
     <string name="retail_demo_reset_message" msgid="5392824901108195463">"ڈیمو موڈ میں فیکٹری ری سیٹ کیلئے پاس ورڈ درج کریں"</string>
@@ -574,6 +587,7 @@
     <string name="wifi_tether_connected_summary" msgid="5100712926640492336">"{count,plural, =1{1 آلہ منسلک ہے}other{# آلات منسلک ہیں}}"</string>
     <string name="accessibility_manual_zen_more_time" msgid="5141801092071134235">"زیادہ وقت۔"</string>
     <string name="accessibility_manual_zen_less_time" msgid="6828877595848229965">"کم وقت۔"</string>
+    <string name="accessibility_screen_magnification_title" msgid="4981096059561256342">"میگنیفکیشن"</string>
     <string name="cancel" msgid="5665114069455378395">"منسوخ کریں"</string>
     <string name="next" msgid="2699398661093607009">"آگے جائیں"</string>
     <string name="back" msgid="5554327870352703710">"پیچھے جائیں"</string>
@@ -754,9 +768,6 @@
     <string name="bt_le_audio_broadcast_dialog_sub_title" msgid="268234802198852753">"اگر آپ <xliff:g id="SWITCHAPP">%1$s</xliff:g> براڈکاسٹ کرتے ہیں یا آؤٹ پٹ کو تبدیل کرتے ہیں تو آپ کا موجودہ براڈکاسٹ رک جائے گا"</string>
     <string name="bt_le_audio_broadcast_dialog_switch_app" msgid="5749813313369517812">"<xliff:g id="SWITCHAPP">%1$s</xliff:g> پر براڈکاسٹ کریں"</string>
     <string name="bt_le_audio_broadcast_dialog_different_output" msgid="2638402023060391333">"آؤٹ پٹ تبدیل کریں"</string>
-    <string name="back_navigation_animation" msgid="8105467568421689484">"پیچھے جانے کے اشارے کی پیش گوئی والی اینیمیشنز"</string>
-    <string name="back_navigation_animation_summary" msgid="741292224121599456">"پیچھے جانے کے پیش گوئی والے اشارے کے لیے سسٹم اینیمیشنز فعال کریں۔"</string>
-    <string name="back_navigation_animation_dialog" msgid="8696966520944625596">"‏یہ ترتیب پیش گوئی والی اشارے کی اینیمیشن کے لیے سسٹم کی اینیمیشنز کو فعال کرتی ہے۔ اس کے لیے manifest فائل میں فی ایپ enableOnBackInvokedCallback کو درست پر سیٹ کرنے کی ضرورت ہے۔"</string>
     <string name="font_scale_percentage" msgid="2624057443622817886">"<xliff:g id="PERCENTAGE">%1$d</xliff:g> %%"</string>
     <string name="not_specified" msgid="5423502443185110328">"متعین نہیں ہے"</string>
     <string name="neuter" msgid="2075249330106127310">"غیر واضح"</string>

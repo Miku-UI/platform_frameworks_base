@@ -1,0 +1,9 @@
+package: "com.android.internal.content.storage.flags"
+container: "system"
+
+flag {
+    name: "use_file_system_provider_search_limits"
+    namespace: "documentsui"
+    description: "Enable FileSystemProvider to obey search limit specifications from DocumentsUI."
+    bug: "414495650"
+}

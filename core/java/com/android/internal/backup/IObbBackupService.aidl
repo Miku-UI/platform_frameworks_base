@@ -27,7 +27,7 @@ import android.os.ParcelFileDescriptor;
  * apps that do not have permission to access external storage in the usual way can still
  * use OBBs.
  *
- * {@hide}
+ * @hide
  */
 oneway interface IObbBackupService {
     /*

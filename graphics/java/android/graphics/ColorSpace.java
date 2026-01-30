@@ -35,6 +35,7 @@ import libcore.util.NativeAllocationRegistry;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.function.DoubleUnaryOperator;
 
 /**
@@ -141,8 +142,6 @@ import java.util.function.DoubleUnaryOperator;
 @SuppressWarnings("StaticInitializerReferencesSubClass")
 @SuppressAutoDoc
 @android.ravenwood.annotation.RavenwoodKeepWholeClass
-@android.ravenwood.annotation.RavenwoodClassLoadHook(
-        android.ravenwood.annotation.RavenwoodClassLoadHook.LIBANDROID_LOADING_HOOK)
 public abstract class ColorSpace {
     /**
      * Standard CIE 1931 2° illuminant A, encoded in xyY.
@@ -236,7 +235,7 @@ public abstract class ColorSpace {
 
     // See static initialization block next to #get(Named)
     private static final HashMap<Integer, ColorSpace> sNamedColorSpaceMap =
-            new HashMap<>();
+            new LinkedHashMap<>();
 
     private static final SparseIntArray sDataToColorSpaces = new SparseIntArray();
 

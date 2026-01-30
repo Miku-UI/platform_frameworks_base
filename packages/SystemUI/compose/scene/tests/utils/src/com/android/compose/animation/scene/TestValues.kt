@@ -28,6 +28,8 @@ object TestScenes {
     val SceneC = SceneKey("SceneC")
     val SceneD = SceneKey("SceneD")
     val SceneE = SceneKey("SceneE")
+    val SceneF = SceneKey("SceneF")
+    val SceneG = SceneKey("SceneG")
 }
 
 /** Overlay keys that can be reused by tests. */

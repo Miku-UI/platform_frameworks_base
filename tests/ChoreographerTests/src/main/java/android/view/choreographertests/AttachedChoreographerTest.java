@@ -105,11 +105,6 @@ public class AttachedChoreographerTest {
 
         UiDevice uiDevice = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());
 
-        // TODO(b/290634611): clean this up once SF new front end is enabled by default
-        boolean sfNewFeEnabled = uiDevice.executeShellCommand("dumpsys SurfaceFlinger")
-                .indexOf("SurfaceFlinger New Frontend Enabled:true") != -1;
-        assumeTrue(sfNewFeEnabled);
-
         uiDevice.wakeUp();
         uiDevice.executeShellCommand("wm dismiss-keyguard");
         mScenario.moveToState(Lifecycle.State.RESUMED);

@@ -20,6 +20,7 @@ import com.android.systemui.deviceentry.domain.interactor.deviceEntryInteractor
 import com.android.systemui.keyguard.data.repository.keyguardTransitionRepository
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.applicationCoroutineScope
+import com.android.systemui.scene.domain.interactor.onBootTransitionInteractor
 import com.android.systemui.statusbar.policy.domain.interactor.deviceProvisioningInteractor
 
 val Kosmos.keyguardTransitionBootInteractor: KeyguardTransitionBootInteractor by
@@ -31,5 +32,6 @@ val Kosmos.keyguardTransitionBootInteractor: KeyguardTransitionBootInteractor by
             keyguardTransitionInteractor = keyguardTransitionInteractor,
             repository = keyguardTransitionRepository,
             internalTransitionInteractor = internalKeyguardTransitionInteractor,
+            onBootTransitionInteractor = onBootTransitionInteractor,
         )
     }

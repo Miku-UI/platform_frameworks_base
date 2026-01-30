@@ -313,7 +313,8 @@ public final class ShadeControllerImpl extends BaseShadeControllerImpl {
 
         // Update the visibility of notification shade and status bar window.
         mNotificationShadeWindowController.setPanelVisible(false);
-        mStatusBarWindowControllerStore.getDefaultDisplay().setForceStatusBarVisible(false);
+        mStatusBarWindowControllerStore.getDefaultDisplay().setForceStatusBarVisible(
+                false, /* source=*/ "ShadeControllerImpl#makeExpandedInvisible");
 
         // Close any guts that might be visible
         mGutsManager.get().closeAndSaveGuts(

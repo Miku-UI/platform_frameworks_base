@@ -36,7 +36,7 @@ import java.util.Collection;
  * and requeries.
  * </p>
  *
- * {@hide}
+ * @hide
  */
 public final class CursorToBulkCursorAdaptor extends BulkCursorNative
         implements IBinder.DeathRecipient {

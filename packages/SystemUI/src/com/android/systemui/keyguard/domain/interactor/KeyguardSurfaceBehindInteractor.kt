@@ -39,7 +39,7 @@ import kotlinx.coroutines.flow.onStart
  * Distance over which the surface behind the keyguard is animated in during a Y-translation
  * animation.
  */
-const val SURFACE_TRANSLATION_Y_DISTANCE_DP = 250
+const val SURFACE_TRANSLATION_Y_DISTANCE_DP = 200
 
 @SysUISingleton
 class KeyguardSurfaceBehindInteractor

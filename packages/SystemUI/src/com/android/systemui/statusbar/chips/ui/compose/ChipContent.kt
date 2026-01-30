@@ -27,33 +27,43 @@ import androidx.compose.ui.layout.MeasureResult
 import androidx.compose.ui.layout.MeasureScope
 import androidx.compose.ui.node.LayoutModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrain
 import androidx.compose.ui.unit.dp
 import com.android.systemui.res.R
+import com.android.systemui.statusbar.chips.ui.model.ColorsModel
 import com.android.systemui.statusbar.chips.ui.model.OngoingActivityChipModel
 import com.android.systemui.statusbar.chips.ui.viewmodel.formatTimeRemainingData
 import com.android.systemui.statusbar.chips.ui.viewmodel.rememberChronometerState
 import com.android.systemui.statusbar.chips.ui.viewmodel.rememberTimeRemainingState
+import java.text.NumberFormat
+import java.util.Locale
 import kotlin.math.min
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ChipContent(viewModel: OngoingActivityChipModel.Active, modifier: Modifier = Modifier) {
+fun ChipContent(
+    viewModel: OngoingActivityChipModel.Content,
+    icon: OngoingActivityChipModel.ChipIcon?,
+    colors: ColorsModel,
+    modifier: Modifier = Modifier,
+) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val locale: Locale? = LocalConfiguration.current.locales[0]
     val textStyle = MaterialTheme.typography.labelLargeEmphasized
-    val textColor = Color(viewModel.colors.text(context))
+    val textColor = Color(colors.text(context))
     val maxTextWidth = dimensionResource(id = R.dimen.ongoing_activity_chip_max_text_width)
-    val icon = viewModel.icon
     val startPadding =
         if (icon != null && !icon.hasEmbeddedPadding) {
             // Add padding only if this text is next to an icon that doesn't embed its own padding
@@ -73,7 +83,7 @@ fun ChipContent(viewModel: OngoingActivityChipModel.Active, modifier: Modifier =
         }
     val textMeasurer = rememberTextMeasurer()
     when (viewModel) {
-        is OngoingActivityChipModel.Active.Timer -> {
+        is OngoingActivityChipModel.Content.Timer -> {
             val timerState =
                 rememberChronometerState(
                     eventTimeMillis = viewModel.startTimeMs,
@@ -96,42 +106,45 @@ fun ChipContent(viewModel: OngoingActivityChipModel.Active, modifier: Modifier =
                                 startPadding = startPadding,
                                 endPadding = endPadding,
                             )
-                            .neverDecreaseWidth(density),
+                            .neverDecreaseWidth(density, locale),
                 )
             }
         }
 
-        is OngoingActivityChipModel.Active.Countdown -> {
-            val text = viewModel.secondsUntilStarted.toString()
+        is OngoingActivityChipModel.Content.Countdown -> {
+            val text = NumberFormat.getIntegerInstance().format(viewModel.secondsUntilStarted)
             Text(
                 text = text,
                 style = textStyle,
                 color = textColor,
                 softWrap = false,
-                modifier = modifier.neverDecreaseWidth(density),
+                textAlign = TextAlign.Center,
+                modifier = modifier.neverDecreaseWidth(density, locale),
             )
         }
 
-        is OngoingActivityChipModel.Active.Text -> {
+        is OngoingActivityChipModel.Content.Text -> {
             val text = viewModel.text
-            Text(
-                text = text,
-                color = textColor,
-                style = textStyle,
-                softWrap = false,
-                modifier =
-                    modifier.hideTextIfDoesNotFit(
-                        text = text,
-                        textStyle = textStyle,
-                        textMeasurer = textMeasurer,
-                        maxTextWidth = maxTextWidth,
-                        startPadding = startPadding,
-                        endPadding = endPadding,
-                    ),
-            )
+            if (text.isNotBlank()) {
+                Text(
+                    text = text,
+                    color = textColor,
+                    style = textStyle,
+                    softWrap = false,
+                    modifier =
+                        modifier.hideTextIfDoesNotFit(
+                            text = text,
+                            textStyle = textStyle,
+                            textMeasurer = textMeasurer,
+                            maxTextWidth = maxTextWidth,
+                            startPadding = startPadding,
+                            endPadding = endPadding,
+                        ),
+                )
+            }
         }
 
-        is OngoingActivityChipModel.Active.ShortTimeDelta -> {
+        is OngoingActivityChipModel.Content.ShortTimeDelta -> {
             val timeRemainingState =
                 rememberTimeRemainingState(
                     futureTimeMillis = viewModel.time,
@@ -158,34 +171,34 @@ fun ChipContent(viewModel: OngoingActivityChipModel.Active, modifier: Modifier =
             }
         }
 
-        is OngoingActivityChipModel.Active.IconOnly -> {
+        is OngoingActivityChipModel.Content.IconOnly -> {
             throw IllegalStateException("ChipContent should only be used if the chip shows text")
         }
     }
 }
 
 /** A modifier that ensures the width of the content only increases and never decreases. */
-private fun Modifier.neverDecreaseWidth(density: Density): Modifier {
-    return this.then(NeverDecreaseWidthElement(density))
+private fun Modifier.neverDecreaseWidth(density: Density, locale: Locale?): Modifier {
+    return this.then(NeverDecreaseWidthElement(density, locale))
 }
 
-private data class NeverDecreaseWidthElement(val density: Density) :
+private data class NeverDecreaseWidthElement(val density: Density, val locale: Locale?) :
     ModifierNodeElement<NeverDecreaseWidthNode>() {
     override fun create(): NeverDecreaseWidthNode {
         return NeverDecreaseWidthNode()
     }
 
     override fun update(node: NeverDecreaseWidthNode) {
-        node.onDensityUpdated()
+        node.onDisplayParamsUpdated()
     }
 }
 
 private class NeverDecreaseWidthNode : Modifier.Node(), LayoutModifierNode {
     private var minWidth = 0
 
-    fun onDensityUpdated() {
-        // When the font or display size changes, we should re-determine what our minWidth is from
-        // scratch (e.g. if the font size decreased, we may be able to take *less* room).
+    fun onDisplayParamsUpdated() {
+        // When the font, display size, or locale changes, we should re-determine what our minWidth
+        // is from scratch (e.g. if the font size decreased, we may be able to take *less* room).
         // See b/395607413.
         minWidth = 0
     }
@@ -282,7 +295,7 @@ private class HideTextIfDoesNotFitNode(
             val height = placeable.height
             val width = placeable.width
             layout(width + horizontalPadding.roundToPx(), height) {
-                placeable.place(startPadding.roundToPx(), 0)
+                placeable.placeRelative(x = startPadding.roundToPx(), y = 0)
             }
         } else {
             layout(0, 0) {}

@@ -137,7 +137,7 @@
     <item msgid="1212577207279552119">"32 ବିଟସ୍‌/ନମୂନା"</item>
   </string-array>
   <string-array name="bluetooth_a2dp_codec_bits_per_sample_summaries">
-    <item msgid="9196208128729063711">"ସିଷ୍ଟମ୍‌ ମନୋନୟନ (ଡିଫଲ୍ଟ) ବ୍ୟବହାର କରନ୍ତୁ"</item>
+    <item msgid="9196208128729063711">"ସିଷ୍ଟମ ଚୟନ (ଡିଫଲ୍ଟ) ବ୍ୟବହାର କରନ୍ତୁ"</item>
     <item msgid="1084497364516370912">"୧୬ ବିଟସ୍‌/ନମୁନା"</item>
     <item msgid="2077889391457961734">"24 ବିଟସ୍‌/ନମୂନା"</item>
     <item msgid="3836844909491316925">"32 ବିଟସ୍‌/ନମୁନା"</item>
@@ -200,14 +200,14 @@
   </string-array>
   <string-array name="select_logpersist_summaries">
     <item msgid="97587758561106269">"ବନ୍ଦ"</item>
-    <item msgid="7126170197336963369">"ସମସ୍ତ ଲଗ୍‌ ବଫର୍‌"</item>
+    <item msgid="7126170197336963369">"ସମସ୍ତ ଲଗ ବଫର"</item>
     <item msgid="7167543126036181392">"ରେଡିଓ ଲଗ୍‌ ବଫର୍‌‌ଗୁଡିକ ଛଡ଼ା ଅନ୍ୟ ସବୁ"</item>
     <item msgid="5135340178556563979">"କେବଳ କର୍ନେଲ୍‌ ଲଗ୍‌ ବଫର୍‌"</item>
   </string-array>
   <string-array name="window_animation_scale_entries">
     <item msgid="2675263395797191850">"ଆନିମେଶନ୍‌ ବନ୍ଦ କରନ୍ତୁ"</item>
     <item msgid="5790132543372767872">"ଆନିମେଶନ ସ୍କେଲ .5x"</item>
-    <item msgid="2529692189302148746">"ଆନିମେଶନ୍‌ ସ୍କେଲ୍‌ 1x"</item>
+    <item msgid="2529692189302148746">"ଆନିମେସନ ସ୍କେଲ 1x"</item>
     <item msgid="8072785072237082286">"ଆନିମେଶନ୍‌ ସ୍କେଲ୍‌ 1.5x"</item>
     <item msgid="3531560925718232560">"ଆନିମେଶନ ସ୍କେଲ 2x"</item>
     <item msgid="4542853094898215187">"ଆନିମେଶନ୍‌ ସ୍କେଲ୍‌ 5x"</item>
@@ -225,7 +225,7 @@
   <string-array name="animator_duration_scale_entries">
     <item msgid="6416998593844817378">"ଆନିମେଶନ୍ ବନ୍ଦ"</item>
     <item msgid="875345630014338616">"ଆନିମେଶନ୍‌ ସ୍କେଲ୍‌ .5x"</item>
-    <item msgid="2753729231187104962">"ଆନିମେଶନ୍‌ ସ୍କେଲ୍‌ 1x"</item>
+    <item msgid="2753729231187104962">"ଆନିମେସନ ସ୍କେଲ 1x"</item>
     <item msgid="1368370459723665338">"ଆନିମେଶନ୍ ସ୍କେଲ୍ 1.5x"</item>
     <item msgid="5768005350534383389">"ଆନିମେଶନ୍ ସ୍କେଲ୍ 2x"</item>
     <item msgid="3728265127284005444">"ଆନିମେଶନ୍‌ ସ୍କେଲ୍‌ 5x"</item>

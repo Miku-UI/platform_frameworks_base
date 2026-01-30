@@ -105,6 +105,21 @@ public class TransitionUtil {
         return false;
     }
 
+    /**
+     * Returns {@code true} if the transition has a display change that is not just an order-change.
+     */
+    public static boolean hasNonOrderOnlyDisplayChange(@NonNull TransitionInfo info) {
+        for (int i = info.getChanges().size() - 1; i >= 0; --i) {
+            final TransitionInfo.Change change = info.getChanges().get(i);
+            if (change.getMode() == TRANSIT_CHANGE
+                    && change.hasFlags(FLAG_IS_DISPLAY)
+                    && !isOrderOnly(change)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Returns `true` if `change` is a wallpaper. */
     public static boolean isWallpaper(TransitionInfo.Change change) {
         return (change.getTaskInfo() == null)
@@ -135,7 +150,8 @@ public class TransitionUtil {
                 && (change.getFlags() & FLAG_MOVED_TO_TOP) != 0
                 && change.getStartAbsBounds().equals(change.getEndAbsBounds())
                 && (change.getLastParent() == null
-                        || change.getLastParent().equals(change.getParent()));
+                        || change.getLastParent().equals(change.getParent()))
+                && (change.getStartRotation() == change.getEndRotation());
     }
 
     /**
@@ -243,14 +259,6 @@ public class TransitionUtil {
             t.setLayer(leash, Integer.MAX_VALUE);
             return;
         }
-        if (isDimLayer(change)) {
-            // When a dim layer gets reparented onto the transition root, we need to zero out its
-            // position so that it's in line with everything else on the transition root. Also,
-            // we need to set a crop because we don't want it applying MATCH_PARENT on the whole
-            // root surface.
-            t.setPosition(leash, 0, 0);
-            t.setCrop(leash, change.getEndAbsBounds());
-        }
 
         // Put all the OPEN/SHOW on top
         if ((change.getFlags() & FLAG_IS_WALLPAPER) != 0) {
@@ -304,12 +312,8 @@ public class TransitionUtil {
         // Copied Transitions setup code (which expects bottom-to-top order, so we swap here)
         setupLeash(leashSurface, change, info.getChanges().size() - order, info, t);
         t.reparent(change.getLeash(), leashSurface);
-        if (!isDimLayer(change)) {
-            // Most leashes going onto the transition root should have their alpha set here to make
-            // them visible. But dim layers should be left untouched (their alpha value is their
-            // actual dim value).
-            t.setAlpha(change.getLeash(), 1.0f);
-        }
+
+        t.setAlpha(change.getLeash(), 1.0f);
         if (!isDividerBar(change)) {
             // For divider, don't modify its inner leash position when creating the outer leash
             // for the transition. In case the position being wrong after the transition finished.

@@ -16,7 +16,6 @@
 
 package com.android.settingslib.bluetooth.devicesettings.data.repository
 
-import android.bluetooth.BluetoothAdapter
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -66,6 +65,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapNotNull
+import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -77,7 +77,6 @@ import kotlinx.coroutines.withContext
 class DeviceSettingServiceConnection(
     private val cachedDevice: CachedBluetoothDevice,
     private val context: Context,
-    private val bluetoothAdaptor: BluetoothAdapter,
     private val coroutineScope: CoroutineScope,
     private val backgroundCoroutineContext: CoroutineContext,
 ) {
@@ -121,6 +120,7 @@ class DeviceSettingServiceConnection(
                         null
                     }
                 }
+                .retryWhen { cause, attempt -> cause is DeadObjectException || attempt < 2 }
                 .catch { e ->
                     if (e is DeadObjectException) {
                         Log.e(TAG, "DeadObjectException happens when try to get service status.", e)
@@ -195,20 +195,23 @@ class DeviceSettingServiceConnection(
                     Log.w(TAG, "Service is disabled")
                     return@flow
                 }
-                getSettingsProviderServices()
-                    ?.values
-                    ?.map {
-                        it.flatMapLatest { status ->
-                            when (status) {
-                                is ServiceConnectionStatus.Connected ->
-                                    getDeviceSettingsFromService(cachedDevice, status.service)
-                                else -> flowOf(emptyList())
+                val services = getSettingsProviderServices()?.values
+                if (services == null || services.isEmpty()) {
+                    emit(mapOf())
+                    return@flow
+                }
+                services
+                    .map {
+                        it.filterIsInstance<
+                                ServiceConnectionStatus.Connected<IDeviceSettingsProviderService>
+                            >()
+                            .flatMapLatest { status ->
+                                getDeviceSettingsFromService(cachedDevice, status.service)
                             }
-                        }
                     }
-                    ?.let { items -> combine(items) { it.toList().flatten() } }
-                    ?.map { items -> items.associateBy { it.settingId } }
-                    ?.let { emitAll(it) }
+                    .let { items -> combine(items) { it.toList().flatten() } }
+                    .map { items -> items.associateBy { it.settingId } }
+                    .let { emitAll(it) }
             }
             .shareIn(scope = coroutineScope, started = SharingStarted.WhileSubscribed(), replay = 1)
 
@@ -224,12 +227,10 @@ class DeviceSettingServiceConnection(
             Log.w(TAG, "Service is disabled")
             return null
         }
+        // Wait until all settings providers are ready.
+        settingIdToItemMapping.firstOrNull()
         return readConfig()
     }
-
-    /** Gets all device settings for the device. */
-    fun getDeviceSettingList(): Flow<List<DeviceSetting>> =
-        settingIdToItemMapping.map { it.values.toList() }
 
     /** Gets the device settings with the ID for the device. */
     fun getDeviceSetting(@DeviceSettingId deviceSettingId: Int): Flow<DeviceSetting?> =
@@ -289,7 +290,9 @@ class DeviceSettingServiceConnection(
                             getService(intent, IDeviceSettingsProviderService.Stub::asInterface)
                                 .stateIn(
                                     coroutineScope.plus(backgroundCoroutineContext),
-                                    SharingStarted.WhileSubscribed(stopTimeoutMillis = SERVICE_CONNECTION_STOP_MILLIS),
+                                    SharingStarted.WhileSubscribed(
+                                        stopTimeoutMillis = SERVICE_CONNECTION_STOP_MILLIS
+                                    ),
                                     ServiceConnectionStatus.Connecting,
                                 )
                         },
@@ -322,7 +325,7 @@ class DeviceSettingServiceConnection(
                     throw e
                 }
             }
-            .stateIn(coroutineScope, SharingStarted.WhileSubscribed(), emptyList())
+            .shareIn(coroutineScope, SharingStarted.WhileSubscribed(), 1)
     }
 
     private fun <T : IInterface> getService(

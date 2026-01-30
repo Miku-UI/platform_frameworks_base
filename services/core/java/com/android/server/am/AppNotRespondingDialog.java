@@ -137,6 +137,10 @@ final class AppNotRespondingDialog extends BaseErrorDialog implements View.OnCli
         }
     }
 
+    Data getData() {
+        return mData;
+    }
+
     private final Handler mHandler = new Handler() {
         public void handleMessage(Message msg) {
             Intent appErrorIntent = null;

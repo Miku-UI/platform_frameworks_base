@@ -14,14 +14,15 @@
  * limitations under the License.
  */
 
-#include <androidfw/BigBuffer.h>
 #include <androidfw/StringPool.h>
 
 #include <algorithm>
+#include <concepts>
 #include <memory>
 #include <string>
 
 #include "android-base/logging.h"
+#include "androidfw/BigBuffer.h"
 #include "androidfw/ResourceTypes.h"
 #include "androidfw/StringPiece.h"
 #include "androidfw/Util.h"
@@ -180,7 +181,7 @@ StringPool::Ref StringPool::MakeRefImpl(StringPiece str, const Context& context,
   }
 
   std::unique_ptr<Entry> entry(new Entry());
-  entry->value = std::string(str);
+  entry->value.assign(str);
   entry->context = context;
   entry->index_ = strings_.size();
   entry->ref_ = 0;
@@ -254,11 +255,13 @@ void StringPool::Merge(StringPool&& pool) {
   }
 
   // Now move the styles, strings, and indices over.
-  std::move(pool.styles_.begin(), pool.styles_.end(), std::back_inserter(styles_));
+  styles_.insert(styles_.end(), std::make_move_iterator(pool.styles_.begin()),
+                 std::make_move_iterator(pool.styles_.end()));
   pool.styles_.clear();
-  std::move(pool.strings_.begin(), pool.strings_.end(), std::back_inserter(strings_));
+  strings_.insert(strings_.end(), std::make_move_iterator(pool.strings_.begin()),
+                  std::make_move_iterator(pool.strings_.end()));
   pool.strings_.clear();
-  indexed_strings_.insert(pool.indexed_strings_.begin(), pool.indexed_strings_.end());
+  indexed_strings_.merge(std::move(pool.indexed_strings_));
   pool.indexed_strings_.clear();
 
   ReAssignIndices();
@@ -270,28 +273,18 @@ void StringPool::HintWillAdd(size_t string_count, size_t style_count) {
 }
 
 void StringPool::Prune() {
-  const auto iter_end = indexed_strings_.end();
-  auto index_iter = indexed_strings_.begin();
-  while (index_iter != iter_end) {
-    if (index_iter->second->ref_ <= 0) {
-      index_iter = indexed_strings_.erase(index_iter);
-    } else {
-      ++index_iter;
-    }
+  // First clean up the styles - it has references to the strings container for the span names.
+  const auto removed_styles =
+      std::erase_if(styles_, [](const auto& entry) { return entry->ref_ <= 0; });
+  // Next, prune the index - it holds raw pointers into the strings vector and doesn't own them.
+  const auto removed_strings =
+      std::erase_if(indexed_strings_, [](const auto& pair) { return pair.second->ref_ <= 0; });
+  if (removed_strings) {
+    std::erase_if(strings_, [](const auto& entry) { return entry->ref_ <= 0; });
   }
-
-  auto end_iter2 =
-      std::remove_if(strings_.begin(), strings_.end(),
-                     [](const std::unique_ptr<Entry>& entry) -> bool { return entry->ref_ <= 0; });
-  auto end_iter3 = std::remove_if(
-      styles_.begin(), styles_.end(),
-      [](const std::unique_ptr<StyleEntry>& entry) -> bool { return entry->ref_ <= 0; });
-
-  // Remove the entries at the end or else we'll be accessing a deleted string from the StyleEntry.
-  strings_.erase(end_iter2, strings_.end());
-  styles_.erase(end_iter3, styles_.end());
-
-  ReAssignIndices();
+  if (removed_styles || removed_strings) {
+    ReAssignIndices();
+  }
 }
 
 template <typename E>
@@ -318,10 +311,8 @@ void StringPool::Sort(base::function_ref<int(const Context&, const Context&)> cm
   ReAssignIndices();
 }
 
-template <typename T>
+template <std::integral T>
 static T* EncodeLength(T* data, size_t length) {
-  static_assert(std::is_integral<T>::value, "wat.");
-
   constexpr size_t kMask = 1 << ((sizeof(T) * 8) - 1);
   constexpr size_t kMaxSize = kMask - 1;
   if (length > kMaxSize) {
@@ -337,10 +328,8 @@ static T* EncodeLength(T* data, size_t length) {
  *    EncodeLengthMax<char> -> maximum unit length of 0x7FFF
  *    EncodeLengthMax<char16_t> -> maximum unit length of 0x7FFFFFFF
  **/
-template <typename T>
-static size_t EncodeLengthMax() {
-  static_assert(std::is_integral<T>::value, "wat.");
-
+template <std::integral T>
+static constexpr size_t EncodeLengthMax() {
   constexpr size_t kMask = 1 << ((sizeof(T) * 8 * 2) - 1);
   constexpr size_t max = kMask - 1;
   return max;
@@ -350,18 +339,16 @@ static size_t EncodeLengthMax() {
  * Returns the number of units (1 or 2) needed to encode the string length
  * before writing the string.
  */
-template <typename T>
-static size_t EncodedLengthUnits(size_t length) {
-  static_assert(std::is_integral<T>::value, "wat.");
-
+template <std::integral T>
+static constexpr size_t EncodedLengthUnits(size_t length) {
   constexpr size_t kMask = 1 << ((sizeof(T) * 8) - 1);
   constexpr size_t kMaxSize = kMask - 1;
   return length > kMaxSize ? 2 : 1;
 }
 
-const std::string kStringTooLarge = "STRING_TOO_LARGE";
+constexpr auto kStringTooLarge = std::string_view("STRING_TOO_LARGE");
 
-static bool EncodeString(const std::string& str, const bool utf8, BigBuffer* out,
+static bool EncodeString(std::string_view str, const bool utf8, BigBuffer* out,
                          IDiagnostics* diag) {
   if (utf8) {
     const std::string& encoded = util::Utf8ToModifiedUtf8(str);

@@ -18,22 +18,42 @@ package com.android.systemui.statusbar.notification.collection
 
 import com.android.internal.statusbar.NotificationVisibility
 import com.android.systemui.statusbar.notification.collection.notifcollection.DismissedByUserStats
+import com.android.systemui.statusbar.notification.shared.NotificationBundleUi
 
 /**
  * A holder class for a [NotificationEntry] and an associated [DismissedByUserStats], used by
  * [NotifCollection] for handling dismissal.
  */
-data class EntryWithDismissStats(val entry: NotificationEntry?,
-                                 val stats: DismissedByUserStats,
-                                 val key: String,
-                                 val entryHashCode: Int) {
+data class EntryWithDismissStats(
     /**
-     * Creates deep a copy of this object, but with the entry, key and rank updated to correspond to
-     * the given entry.
+     * A [NotificationEntry] associated with [stats]. Will be `null` if
+     * [NotificationBundleUi.isEnabled], in which case [key] and [entryHashCode] should be used to
+     * lookup the entry in [NotifCollection].
      */
+    private val _entry: NotificationEntry?,
+    val stats: DismissedByUserStats,
+    val key: String,
+    val entryHashCode: Int,
+) {
+
+    init {
+        if (_entry == null) {
+            NotificationBundleUi.isUnexpectedlyInLegacyMode()
+        } else {
+            NotificationBundleUi.assertInLegacyMode()
+        }
+    }
+
+    val entry: NotificationEntry
+        get() {
+            NotificationBundleUi.assertInLegacyMode()
+            return _entry!!
+        }
+
+    /** Creates deep a copy of this object, but updated to correspond to [newEntry]. */
     fun copyForEntry(newEntry: NotificationEntry) =
         EntryWithDismissStats(
-            entry = newEntry,
+            _entry = if (NotificationBundleUi.isEnabled) null else newEntry,
             stats =
                 DismissedByUserStats(
                     stats.dismissalSurface,
@@ -46,6 +66,6 @@ data class EntryWithDismissStats(val entry: NotificationEntry?,
                     ),
                 ),
             key = newEntry.key,
-            entryHashCode = newEntry.hashCode()
+            entryHashCode = newEntry.hashCode(),
         )
 }

@@ -29,10 +29,11 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.dagger.qualifiers.NotifInflation
-import javax.inject.Inject
+import com.android.systemui.statusbar.notification.collection.coordinator.BundleCoordinator.Companion.debugBundleLog
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import javax.inject.Inject
 
 @SysUISingleton
 class AsyncRowInflater
@@ -42,6 +43,8 @@ constructor(
     @Main private val mainCoroutineDispatcher: CoroutineDispatcher,
     @NotifInflation private val inflationCoroutineDispatcher: CoroutineDispatcher,
 ) {
+    val TAG: String = "AsyncRowInflater"
+
     /**
      * Inflate the layout on the background thread, and invoke the listener on the main thread when
      * finished.
@@ -60,11 +63,12 @@ constructor(
         return applicationScope.launchTraced("AsyncRowInflater-bg", inflationCoroutineDispatcher) {
             val view =
                 try {
+                    debugBundleLog(TAG, { "inflater.inflate resId: $resId parent: $parent" });
                     inflater.inflate(resId, parent, false)
                 } catch (ex: RuntimeException) {
                     // Probably a Looper failure, retry on the UI thread
                     Log.w(
-                        "AsyncRowInflater",
+                        TAG,
                         "Failed to inflate resource in the background!" +
                             " Retrying on the UI thread",
                         ex,
@@ -74,6 +78,8 @@ constructor(
             withContextTraced("AsyncRowInflater-ui", mainCoroutineDispatcher) {
                 // If the inflate failed on the inflation thread, try again on the main thread
                 val finalView = view ?: inflater.inflate(resId, parent, false)
+                debugBundleLog(TAG, { "finalView: $finalView" });
+
                 // Inform the listener of the completion
                 listener.onInflateFinished(finalView, resId, parent)
             }

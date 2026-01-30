@@ -88,7 +88,7 @@ TEST(ManifestClassGeneratorTest, CommentsAndAnnotationsArePresent) {
              @hide
              @SystemApi -->
         <permission android:name="android.permission.SECRET" />
-        <!-- @TestApi This is a test only permission. -->
+        <!-- @hide @TestApi This is a test only permission. -->
         <permission android:name="android.permission.TEST_ONLY" />
       </manifest>)");
 
@@ -112,9 +112,9 @@ TEST(ManifestClassGeneratorTest, CommentsAndAnnotationsArePresent) {
 
   const char* expected_secret = R"(    /**
      * This is a private permission for system only!
-     * @hide
      */
     @android.annotation.SystemApi
+    @android.annotation.Hide
     public static final String SECRET="android.permission.SECRET";)";
   EXPECT_THAT(actual, HasSubstr(expected_secret));
 
@@ -122,6 +122,7 @@ TEST(ManifestClassGeneratorTest, CommentsAndAnnotationsArePresent) {
      * This is a test only permission.
      */
     @android.annotation.TestApi
+    @android.annotation.Hide
     public static final String TEST_ONLY="android.permission.TEST_ONLY";)";
   EXPECT_THAT(actual, HasSubstr(expected_test));
 }
@@ -163,7 +164,6 @@ TEST(ManifestClassGeneratorTest, CommentsAndAnnotationsArePresentButNoApiAnnotat
 
   const char* expected_secret = R"(    /**
      * This is a private permission for system only!
-     * @hide
      */
     public static final String SECRET="android.permission.SECRET";)";
   EXPECT_THAT(actual, HasSubstr(expected_secret));

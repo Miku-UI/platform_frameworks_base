@@ -36,8 +36,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ComponentInfo;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.graphics.Color;
 import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.os.Parcel;
@@ -303,17 +305,27 @@ public abstract class Tile implements Parcelable {
         if (iconResId != 0 && iconResId != android.R.color.transparent) {
             final Icon icon = Icon.createWithResource(componentInfo.packageName, iconResId);
             if (isIconTintable(context)) {
-                final TypedArray a =
-                        context.obtainStyledAttributes(
-                                new int[] {android.R.attr.colorControlNormal});
-                final int tintColor = a.getColor(0, 0);
-                a.recycle();
-                icon.setTint(tintColor);
+                icon.setTintList(getIconTintColorStateList(context));
             }
             return icon;
         } else {
             return null;
         }
+    }
+
+    /**
+     * Returns {@link ColorStateList} for the icon with enabled/disabled state.
+     */
+    public static ColorStateList getIconTintColorStateList(@NonNull Context context) {
+        TypedArray typedArray = context.obtainStyledAttributes(
+                new int[]{android.R.attr.colorControlNormal, android.R.attr.disabledAlpha});
+        int tintColor = typedArray.getColor(0, 0);
+        float disabledAlpha = typedArray.getFloat(1, 1f);
+        int disabledTintColor = Color.argb((int) (Color.alpha(tintColor) * disabledAlpha),
+                Color.red(tintColor), Color.green(tintColor), Color.blue(tintColor));
+        typedArray.recycle();
+        return new ColorStateList(new int[][]{{android.R.attr.state_enabled}, {}},
+                new int[]{tintColor, disabledTintColor});
     }
 
     /**

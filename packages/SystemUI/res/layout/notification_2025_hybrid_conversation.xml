@@ -34,7 +34,7 @@
             android:layout_width="@dimen/notification_2025_single_line_avatar_size"
             android:layout_height="@dimen/notification_2025_single_line_avatar_size"
             android:layout_gravity="center_vertical|end"
-            android:background="@*android:drawable/notification_icon_circle"
+            android:background="@*android:drawable/notification_2025_conversation_icon_background"
             android:clipToOutline="true"
         />
 

@@ -51,8 +51,8 @@ import com.android.systemui.recordissue.RecordIssueDialogDelegate
 import com.android.systemui.recordissue.RecordIssueModule.Companion.TILE_SPEC
 import com.android.systemui.recordissue.TraceurConnection
 import com.android.systemui.res.R
-import com.android.systemui.screenrecord.RecordingController
 import com.android.systemui.screenrecord.RecordingService
+import com.android.systemui.screenrecord.ScreenRecordUxController
 import com.android.systemui.settings.UserContextProvider
 import com.android.systemui.statusbar.phone.KeyguardDismissUtil
 import com.android.systemui.statusbar.policy.KeyguardStateController
@@ -84,7 +84,7 @@ constructor(
     @Background private val bgExecutor: Executor,
     private val issueRecordingState: IssueRecordingState,
     private val delegateFactory: RecordIssueDialogDelegate.Factory,
-    private val recordingController: RecordingController,
+    private val screenRecordUxController: ScreenRecordUxController,
 ) :
     QSTileImpl<QSTile.BooleanState>(
         host,
@@ -144,29 +144,33 @@ constructor(
     @VisibleForTesting
     public override fun handleClick(expandable: Expandable?) {
         if (issueRecordingState.isRecording) {
-            stopIssueRecordingService()
+            sendStopIssueRecordingServiceIntent()
         } else {
             mUiHandler.post { showPrompt(expandable) }
         }
     }
 
     private fun startIssueRecordingService() =
-        recordingController.startCountdown(
+        screenRecordUxController.startCountdown(
             DELAY_MS,
             INTERVAL_MS,
-            pendingServiceIntent(
+            { sendStartIssueRecordingServiceIntent() },
+            { sendStopIssueRecordingServiceIntent() },
+        )
+
+    private fun sendStopIssueRecordingServiceIntent() =
+        pendingServiceIntent(getStopIntent(userContextProvider.userContext))
+            .send(BroadcastOptions.makeBasic().apply { isInteractive = true }.toBundle())
+
+    private fun sendStartIssueRecordingServiceIntent() =
+        pendingServiceIntent(
                 getStartIntent(
                     userContextProvider.userContext,
                     issueRecordingState.traceConfig,
                     issueRecordingState.recordScreen,
                     issueRecordingState.takeBugreport,
                 )
-            ),
-            pendingServiceIntent(getStopIntent(userContextProvider.userContext)),
-        )
-
-    private fun stopIssueRecordingService() =
-        pendingServiceIntent(getStopIntent(userContextProvider.userContext))
+            )
             .send(BroadcastOptions.makeBasic().apply { isInteractive = true }.toBundle())
 
     private fun pendingServiceIntent(action: Intent) =

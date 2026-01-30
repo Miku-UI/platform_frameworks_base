@@ -23,6 +23,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.PatternMatcher
 import android.os.RemoteException
+import android.service.dreams.Flags
 import android.service.dreams.IDreamManager
 import android.util.Log
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
@@ -91,7 +92,7 @@ constructor(
             }
 
             if (
-                communalSettingsInteractor.isV2FlagEnabled() &&
+                Flags.dreamsV2() &&
                     packageManager.getComponentEnabledSetting(overlayServiceComponent) ==
                         PackageManager.COMPONENT_ENABLED_STATE_ENABLED
             ) {
@@ -111,8 +112,8 @@ constructor(
             return
         }
 
-        // Enable for hub on mobile
-        if (communalSettingsInteractor.isV2FlagEnabled()) {
+        // Enable for dreams on mobile.
+        if (Flags.dreamsV2()) {
             // Not available on TV or auto
             if (
                 packageManager.hasSystemFeature(PackageManager.FEATURE_AUTOMOTIVE) ||

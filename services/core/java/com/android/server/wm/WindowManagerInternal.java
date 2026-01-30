@@ -22,6 +22,7 @@ import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.UserIdInt;
+import android.app.IAssistDataReceiver;
 import android.content.ClipData;
 import android.content.Context;
 import android.graphics.Matrix;
@@ -48,12 +49,13 @@ import android.view.SurfaceControl;
 import android.view.SurfaceControlViewHost;
 import android.view.WindowManager.DisplayImePolicy;
 import android.view.inputmethod.ImeTracker;
-import android.window.ScreenCapture;
-import android.window.ScreenCapture.ScreenshotHardwareBuffer;
+import android.window.ScreenCaptureInternal;
+import android.window.ScreenCaptureInternal.ScreenshotHardwareBuffer;
 
 import com.android.internal.policy.KeyInterceptionInfo;
 import com.android.server.input.InputManagerService;
 import com.android.server.policy.WindowManagerPolicy;
+import com.android.server.wm.DisplayPolicy;
 import com.android.server.wm.SensitiveContentPackages.PackageInfo;
 
 import java.lang.annotation.Retention;
@@ -147,7 +149,7 @@ public abstract class WindowManagerInternal {
              * @param bottom The rectangle bottom.
              */
             void onRectangleOnScreenRequested(int displayId, int left, int top, int right,
-                    int bottom);
+                    int bottom, int source);
         }
     }
 
@@ -202,11 +204,18 @@ public abstract class WindowManagerInternal {
 
         /**
          * Called when the region where magnification operates changes. Note that this isn't the
-         * entire screen. For example, IMEs are not magnified.
+         * entire screen. For example, IMEs are not always magnified.
          *
          * @param magnificationRegion the current magnification region
          */
         void onMagnificationRegionChanged(Region magnificationRegion);
+
+        /**
+         * Called when the region used by TYPE_INPUT_METHOD windows changes.
+         *
+         * @param imeRegion the current region taken by TYPE_INPUT_METHOD window(s).
+         */
+        void onImeRegionChanged(Region imeRegion);
 
         /**
          * Called when an application requests a rectangle on the screen to allow
@@ -289,7 +298,6 @@ public abstract class WindowManagerInternal {
          *        bar caused by this app transition in millis
          *
          * @return Return any bit set of {@link WindowManagerPolicy#FINISH_LAYOUT_REDO_LAYOUT},
-         * {@link WindowManagerPolicy#FINISH_LAYOUT_REDO_CONFIG},
          * {@link WindowManagerPolicy#FINISH_LAYOUT_REDO_WALLPAPER},
          * or {@link WindowManagerPolicy#FINISH_LAYOUT_REDO_ANIM}.
          */
@@ -547,6 +555,13 @@ public abstract class WindowManagerInternal {
     public abstract boolean isKeyguardLocked();
 
     /**
+     * @return Whether the keyguard is showing, reported by WindowManager policy. This value matches
+     * the initial value reported by {@link android.app.KeyguardManager#isKeyguardLocked()}, for
+     * system_server internal use only.
+     */
+    public abstract boolean isKeyguardShowing();
+
+    /**
     * @return Whether the keyguard is showing and not occluded.
     */
     public abstract boolean isKeyguardShowingAndNotOccluded();
@@ -689,15 +704,38 @@ public abstract class WindowManagerInternal {
     public abstract void setDismissImeOnBackKeyPressed(boolean dismissImeOnBackKeyPressed);
 
     /**
-     * Notifies WindowManagerService that the current IME window status is being changed.
+     * Notifies WindowManagerService that the current IME target window has changed. This will get
+     * set as the new {@link DisplayContent#mImeInputTarget}.
      *
      * <p>Only {@link com.android.server.inputmethod.InputMethodManagerService} is the expected and
      * tested caller of this method.</p>
      *
-     * @param imeTargetWindowToken token to identify the target window that the IME is associated
-     *                             with
+     * @param windowToken the token to identify the IME target window.
      */
-    public abstract void updateInputMethodTargetWindow(@NonNull IBinder imeTargetWindowToken);
+    public abstract void updateImeTargetWindow(@NonNull IBinder windowToken);
+
+    /**
+     * Shows the IME screenshot and attaches it to the given IME target window.
+     *
+     * @param imeTarget the token of the IME target window.
+     * @param displayId the ID of the display to show the screenshot on.
+     * @return {@code true} if successful, {@code false} otherwise.
+     */
+    public abstract boolean showImeScreenshot(@NonNull IBinder imeTarget, int displayId);
+
+    /**
+     * Removes the IME screenshot from the given display.
+     *
+     * @param displayId The target display of showing IME screenshot.
+     * @return {@code true} if successful, {@code false} otherwise.
+     */
+    public abstract boolean removeImeScreenshot(int displayId);
+
+    /**
+     * Enables/disables window and transition animations for the given display. Animations are
+     * enabled by default on any display.
+     */
+    public abstract void setAnimationsDisabledForDisplay(int displayId, boolean disabled);
 
     /**
       * Returns true when the hardware keyboard is available.
@@ -778,7 +816,7 @@ public abstract class WindowManagerInternal {
     /**
      * Checks whether the specified IME client has IME focus or not.
      *
-     * @param windowToken The window token of the input method client
+     * @param windowToken The token of the IME client window
      * @param uid UID of the process to be queried
      * @param pid PID of the process to be queried
      * @param displayId Display ID reported from the client. Note that this method also verifies
@@ -786,8 +824,9 @@ public abstract class WindowManagerInternal {
      * @return {@code true} if the IME client specified with {@code uid}, {@code pid}, and
      *         {@code displayId} has IME focus
      */
-    public abstract @ImeClientFocusResult int hasInputMethodClientFocus(IBinder windowToken,
-            int uid, int pid, int displayId);
+    @ImeClientFocusResult
+    public abstract int hasInputMethodClientFocus(IBinder windowToken, int uid, int pid,
+            int displayId);
 
     @Retention(SOURCE)
     @IntDef({
@@ -826,6 +865,22 @@ public abstract class WindowManagerInternal {
      * @return The UI context of top focused display.
      */
     public abstract Context getTopFocusedDisplayUiContext();
+
+    /**
+     * @return The UI context of the display.
+     *
+     * @param displayId The id of the display
+     */
+    public abstract Context getDisplayUiContext(int displayId);
+
+    /**
+     * Returns the display policy for a given display.
+     *
+     * @param displayId The display id.
+     * @return The display policy, or null if display not found.
+     */
+    @Nullable
+    public abstract DisplayPolicy getDisplayPolicy(int displayId);
 
     /**
      * Sets the rotation of a non-default display.
@@ -885,23 +940,11 @@ public abstract class WindowManagerInternal {
     public abstract @DisplayImePolicy int getDisplayImePolicy(int displayId);
 
     /**
-     * Show IME on imeTargetWindow once IME has finished layout.
+     * Called by UiModeManager when the UI mode for the given display has changed.
      *
-     * @param imeTargetWindowToken token of the (IME target) window which IME should be shown.
-     * @param statsToken the token tracking the current IME request.
+     * @param displayId The id of the display
      */
-    public abstract void showImePostLayout(IBinder imeTargetWindowToken,
-            @NonNull ImeTracker.Token statsToken);
-
-    /**
-     * Hide IME using imeTargetWindow when requested.
-     *
-     * @param imeTargetWindowToken token of the (IME target) window which requests hiding IME.
-     * @param displayId the id of the display the IME is on.
-     * @param statsToken the token tracking the current IME request.
-     */
-    public abstract void hideIme(IBinder imeTargetWindowToken, int displayId,
-            @NonNull ImeTracker.Token statsToken);
+    public abstract void onDisplayUiModeChanged(int displayId);
 
     /**
      * Tell window manager about a package that should be running with a restricted range of
@@ -969,33 +1012,40 @@ public abstract class WindowManagerInternal {
 
     /** The information of input method target when IME is requested to show or hide. */
     public static class ImeTargetInfo {
-        public final String focusedWindowName;
-        public final String requestWindowName;
 
-        /** The window name of IME Insets control target. */
-        public final String imeControlTargetName;
+        /** The name of the focused window. */
+        @NonNull
+        public final String mFocusedWindowName;
 
-        /**
-         * The current window name of the input method is on top of.
-         * <p>
-         * Note that the concept of this window is only used to reparent the target window behind
-         * the input method window, it may be different from the window reported by
-         * {@link com.android.server.inputmethod.InputMethodManagerService#reportStartInput} which
-         * has input connection.
-         */
-        public final String imeLayerTargetName;
+        /** The name of the window that requested the IME visibility change. */
+        @NonNull
+        public final String mRequestWindowName;
+
+        /** The name of the {@link DisplayContent#mImeLayeringTarget}. */
+        @NonNull
+        public final String mImeLayeringTargetName;
+
+        /** The name of the {@link DisplayContent#mImeInputTarget}. */
+        @NonNull
+        public final String mImeInputTargetName;
+
+        /** The name of the {@link DisplayContent#mImeControlTarget}. */
+        @NonNull
+        public final String mImeControlTargetName;
 
         /** The surface parent of the IME container. */
-        public final String imeSurfaceParentName;
+        @NonNull
+        public final String mImeSurfaceParentName;
 
-        public ImeTargetInfo(String focusedWindowName, String requestWindowName,
-                String imeControlTargetName, String imeLayerTargetName,
-                String imeSurfaceParentName) {
-            this.focusedWindowName = focusedWindowName;
-            this.requestWindowName = requestWindowName;
-            this.imeControlTargetName = imeControlTargetName;
-            this.imeLayerTargetName = imeLayerTargetName;
-            this.imeSurfaceParentName = imeSurfaceParentName;
+        public ImeTargetInfo(@NonNull String focusedWindowName, @NonNull String requestWindowName,
+                @NonNull String imeLayeringTargetName, @NonNull String imeInputTargetName,
+                @NonNull String imeControlTargetName, @NonNull String imeSurfaceParentName) {
+            mFocusedWindowName = focusedWindowName;
+            mRequestWindowName = requestWindowName;
+            mImeLayeringTargetName = imeLayeringTargetName;
+            mImeInputTargetName = imeInputTargetName;
+            mImeControlTargetName = imeControlTargetName;
+            mImeSurfaceParentName = imeSurfaceParentName;
         }
     }
 
@@ -1074,9 +1124,10 @@ public abstract class WindowManagerInternal {
      * Captures the entire display specified by the displayId using the args provided. If the args
      * are null or if the sourceCrop is invalid or null, the entire display bounds will be captured.
      */
-    public abstract void captureDisplay(int displayId,
-                                        @Nullable ScreenCapture.CaptureArgs captureArgs,
-                                        ScreenCapture.ScreenCaptureListener listener);
+    public abstract void captureDisplay(
+            int displayId,
+            @Nullable ScreenCaptureInternal.CaptureArgs captureArgs,
+            ScreenCaptureInternal.ScreenCaptureListener listener);
 
     /**
      * Device has a software navigation bar (separate from the status bar) on specific display.
@@ -1162,7 +1213,40 @@ public abstract class WindowManagerInternal {
      * services - such as the cursor or any current contextual search window.
      *
      * @param uid the UID of the contextual search application. System alert windows belonging
-     * to this UID will be excluded from the screenshot.
+     *            to this UID will be excluded from the screenshot.
+     * @param displayId the display ID of the display to capture the screenshot of
      */
-    public abstract ScreenshotHardwareBuffer takeContextualSearchScreenshot(int uid);
+    public abstract ScreenshotHardwareBuffer takeContextualSearchScreenshot(int uid, int displayId);
+
+    /**
+     * Used only for assist -- request a screenshot of the current application on the display of
+     * the given activity token.
+     */
+    public abstract void requestAssistScreenshot(IAssistDataReceiver receiver,
+            IBinder activityToken);
+
+    /**
+     * Creates a backup payload of overridden display window settings for a specific user.
+     * <p>
+     * This method reads the user-specific display settings file, filters out any device-specific
+     * values, and returns the result as a byte array suitable for backup.
+     *
+     * @param userId The user for whom to back up the settings.
+     * @return A byte array representing the filtered settings data, or {@code null} if no settings
+     *         file exists for the user or an error occurs during reading.
+     */
+    public abstract byte[] backupDisplayWindowSettings(int userId);
+
+    /**
+     * Restores overridden display window settings from a backup payload for a specific user.
+     * <p>
+     * This method writes the provided payload to the user's display settings file and then
+     * triggers a reload of these settings to apply the changes immediately.
+     *
+     * @param userId The user for whom to restore the settings.
+     * @param payload The settings data to restore, typically obtained from
+     *                {@link #backupDisplayWindowSettings(int)}.
+     * @throws RuntimeException if the payload cannot be written to the settings file.
+     */
+    public abstract void restoreDisplayWindowSettings(int userId, byte[] payload);
 }

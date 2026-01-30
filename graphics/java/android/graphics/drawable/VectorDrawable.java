@@ -315,6 +315,7 @@ import java.util.Stack;
  *
  */
 
+@android.ravenwood.annotation.RavenwoodKeepWholeClass
 public class VectorDrawable extends Drawable {
     private static final String LOGTAG = VectorDrawable.class.getSimpleName();
 

@@ -40,6 +40,7 @@ import androidx.collection.ArraySet;
 
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.settingslib.bluetooth.HearingAidAudioRoutingConstants.RoutingValue;
+import com.android.settingslib.bluetooth.hearingdevices.metrics.HearingDeviceLocalDataManager;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

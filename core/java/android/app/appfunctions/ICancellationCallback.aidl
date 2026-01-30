@@ -18,7 +18,7 @@ package android.app.appfunctions;
 
 import android.os.ICancellationSignal;
 
-/** {@hide} */
+/** @hide */
 oneway interface ICancellationCallback {
     void sendCancellationTransport(in ICancellationSignal cancellationTransport);
 }

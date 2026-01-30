@@ -19,6 +19,6 @@ package android.app.assist;
 parcelable AssistStructure;
 
 /**
- * {@hide}
+ * @hide
  */
 parcelable AssistStructure.ViewNodeParcelable;

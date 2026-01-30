@@ -69,13 +69,13 @@ class FakeUserRepository @Inject constructor() : UserRepository {
         )
     override val selectedUserInfo: Flow<UserInfo> = selectedUser.map { it.userInfo }
 
-    private val _isSecondaryUserLogoutEnabled = MutableStateFlow<Boolean>(false)
-    override val isSecondaryUserLogoutEnabled: StateFlow<Boolean> =
-        _isSecondaryUserLogoutEnabled.asStateFlow()
+    private val _isPolicyManagerLogoutEnabled = MutableStateFlow<Boolean>(false)
+    override val isPolicyManagerLogoutEnabled: StateFlow<Boolean> =
+        _isPolicyManagerLogoutEnabled.asStateFlow()
 
-    private val _isLogoutToSystemUserEnabled = MutableStateFlow<Boolean>(false)
-    override val isLogoutToSystemUserEnabled: StateFlow<Boolean> =
-        _isLogoutToSystemUserEnabled.asStateFlow()
+    private val _isUserManagerLogoutEnabled = MutableStateFlow<Boolean>(false)
+    override val isUserManagerLogoutEnabled: StateFlow<Boolean> =
+        _isUserManagerLogoutEnabled.asStateFlow()
 
     private val _userUnlockedState = MutableStateFlow(emptyMap<UserHandle, Boolean>())
 
@@ -122,30 +122,38 @@ class FakeUserRepository @Inject constructor() : UserRepository {
         return _userSwitcherSettings.value.isUserSwitcherEnabled
     }
 
-    fun setSecondaryUserLogoutEnabled(logoutEnabled: Boolean) {
-        _isSecondaryUserLogoutEnabled.value = logoutEnabled
+    fun setPolicyManagerLogoutEnabled(logoutEnabled: Boolean) {
+        _isPolicyManagerLogoutEnabled.value = logoutEnabled
     }
 
-    var logOutSecondaryUserCallCount: Int = 0
+    var logOutWithPolicyManagerCallCount: Int = 0
         private set
 
-    override suspend fun logOutSecondaryUser() {
-        logOutSecondaryUserCallCount++
+    override suspend fun logOutWithPolicyManager() {
+        logOutWithPolicyManagerCallCount++
     }
 
-    fun setLogoutToSystemUserEnabled(logoutEnabled: Boolean) {
-        _isLogoutToSystemUserEnabled.value = logoutEnabled
+    fun setUserManagerLogoutEnabled(logoutEnabled: Boolean) {
+        _isUserManagerLogoutEnabled.value = logoutEnabled
     }
 
-    var logOutToSystemUserCallCount: Int = 0
+    var logOutWithUserManagerCallCount: Int = 0
         private set
 
-    override suspend fun logOutToSystemUser() {
-        logOutToSystemUserCallCount++
+    override suspend fun logOutWithUserManager() {
+        logOutWithUserManagerCallCount++
     }
 
     fun setUserInfos(infos: List<UserInfo>) {
         _userInfos.value = infos
+    }
+
+    suspend fun setMainUserIsUserSwitching() {
+        setUserInfos(listOf(MAIN_USER))
+        setSelectedUserInfo(
+            userInfo = MAIN_USER,
+            selectionStatus = SelectionStatus.SELECTION_IN_PROGRESS,
+        )
     }
 
     suspend fun setSelectedUserInfo(
@@ -189,6 +197,10 @@ class FakeUserRepository @Inject constructor() : UserRepository {
 
     fun setUserUnlocked(userHandle: UserHandle, unlocked: Boolean) {
         _userUnlockedState.update { it + (userHandle to unlocked) }
+    }
+
+    fun getMainUser(): UserInfo {
+        return MAIN_USER
     }
 }
 

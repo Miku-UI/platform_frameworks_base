@@ -35,6 +35,11 @@ private val actionAccessibilityLabelActivate =
     R.string.accessibility_quick_settings_bluetooth_device_tap_to_activate
 private val actionAccessibilityLabelDisconnect =
     R.string.accessibility_quick_settings_bluetooth_device_tap_to_disconnect
+private val gearAccessibilityLabel = R.string.accessibility_bluetooth_device_settings_gear_with_name
+private val addIconAccessibilityLabelRes =
+    R.string.accessibility_bluetooth_device_settings_plus_button_with_name
+private val onGoingIconAccessibilityLabelRes =
+    R.string.accessibility_bluetooth_device_settings_checkmark_with_name
 
 /** Factories to create different types of Bluetooth device items from CachedBluetoothDevice. */
 abstract class DeviceItemFactory {
@@ -64,6 +69,7 @@ abstract class DeviceItemFactory {
             actionAccessibilityLabel: String,
             isActive: Boolean,
             actionIconRes: Int = R.drawable.ic_settings_24dp,
+            actionIconAccessibilityLabelRes: Int = gearAccessibilityLabel,
         ): DeviceItem {
             return DeviceItem(
                 type = type,
@@ -77,6 +83,7 @@ abstract class DeviceItemFactory {
                 actionAccessibilityLabel = actionAccessibilityLabel,
                 isActive = isActive,
                 actionIconRes = actionIconRes,
+                actionIconAccessibilityLabelRes = actionIconAccessibilityLabelRes,
             )
         }
     }
@@ -129,6 +136,7 @@ internal class AudioSharingMediaDeviceItemFactory(
             "",
             isActive = !cachedDevice.isBusy,
             actionIconRes = audioSharingOnGoingIcon,
+            actionIconAccessibilityLabelRes = onGoingIconAccessibilityLabelRes,
         )
     }
 }
@@ -162,6 +170,7 @@ internal class AvailableAudioSharingMediaDeviceItemFactory(
             "",
             isActive = false,
             actionIconRes = audioSharingAddIcon,
+            actionIconAccessibilityLabelRes = addIconAccessibilityLabelRes,
         )
     }
 }

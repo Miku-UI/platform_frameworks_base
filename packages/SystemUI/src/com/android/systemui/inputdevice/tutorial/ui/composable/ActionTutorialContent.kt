@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,6 +46,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.window.core.layout.WindowSizeClass
 import com.android.compose.windowsizeclass.LocalWindowSizeClass
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.Error
 import com.android.systemui.inputdevice.tutorial.ui.composable.TutorialActionState.Finished
@@ -172,7 +172,10 @@ private fun VerticalDescriptionAndAnimation(
 ) {
     val horizontalPadding = if (isCompactWindow) 24.dp else 96.dp
     // Represents the majority of tablets in portrait - we need extra spacer at the top and bottom
-    val isTablet = LocalWindowSizeClass.current.heightSizeClass == WindowHeightSizeClass.Expanded
+    val isTablet =
+        LocalWindowSizeClass.current.isHeightAtLeastBreakpoint(
+            WindowSizeClass.HEIGHT_DP_EXPANDED_LOWER_BOUND
+        )
     Column(
         modifier =
             modifier.fillMaxWidth().padding(start = 0.dp, top = 100.dp, end = 0.dp, bottom = 8.dp)

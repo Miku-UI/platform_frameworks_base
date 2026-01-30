@@ -18,7 +18,7 @@ package com.android.ims;
 
 /**
  * Used by IMS config client to monitor the config operation results.
- * {@hide}
+ * @hide
  */
 oneway interface ImsConfigListener {
     /**

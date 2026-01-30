@@ -28,7 +28,6 @@ import platform.test.runner.parameterized.Parameters
 import platform.test.screenshot.DeviceEmulationSpec
 import platform.test.screenshot.PhoneAndTabletMinimal
 
-/** A screenshot test for ExampleFeature. */
 @RunWith(ParameterizedAndroidJunit4::class)
 class MainSwitchPreferenceScreenshotTest(emulationSpec: DeviceEmulationSpec) {
     companion object {

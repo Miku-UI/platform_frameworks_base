@@ -17,7 +17,6 @@
 */
 -->
 
-
 <com.android.systemui.shade.NotificationPanelView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:systemui="http://schemas.android.com/apk/res-auto"
@@ -26,7 +25,7 @@
     android:layout_height="match_parent"
     android:background="@android:color/transparent">
 
-    <com.android.systemui.common.ui.view.TouchHandlingView
+    <com.android.systemui.deviceentry.ui.view.UdfpsAccessibilityOverlayOverlappingTouchHandlingView
         android:id="@+id/keyguard_long_press"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />

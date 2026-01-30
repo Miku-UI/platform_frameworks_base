@@ -33,14 +33,11 @@ import java.time.Duration
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -57,7 +54,7 @@ interface ZenModeRepository {
     val globalZenMode: StateFlow<Int?>
 
     /** A list of all existing priority modes. */
-    val modes: Flow<List<ZenMode>>
+    val modes: StateFlow<List<ZenMode>>
 
     fun getModes(): List<ZenMode>
 
@@ -132,46 +129,40 @@ class ZenModeRepositoryImpl(
             .stateIn(applicationScope, SharingStarted.WhileSubscribed(), null)
 
     private val zenConfigChanged by lazy {
-        if (android.app.Flags.modesUi()) {
-            callbackFlow {
-                    val observer =
-                        object : ContentObserver(backgroundHandler) {
-                            override fun onChange(selfChange: Boolean) {
-                                trySend(Unit)
-                            }
+        callbackFlow {
+                val observer =
+                    object : ContentObserver(backgroundHandler) {
+                        override fun onChange(selfChange: Boolean) {
+                            trySend(Unit)
                         }
+                    }
 
-                    contentResolver.registerContentObserver(
-                        Settings.Global.getUriFor(Settings.Global.ZEN_MODE),
-                        /* notifyForDescendants= */ false,
-                        observer,
-                    )
-                    contentResolver.registerContentObserver(
-                        Settings.Global.getUriFor(Settings.Global.ZEN_MODE_CONFIG_ETAG),
-                        /* notifyForDescendants= */ false,
-                        observer,
-                    )
+                contentResolver.registerContentObserver(
+                    Settings.Global.getUriFor(Settings.Global.ZEN_MODE),
+                    /* notifyForDescendants= */ false,
+                    observer,
+                )
+                contentResolver.registerContentObserver(
+                    Settings.Global.getUriFor(Settings.Global.ZEN_MODE_CONFIG_ETAG),
+                    /* notifyForDescendants= */ false,
+                    observer,
+                )
 
-                    awaitClose { contentResolver.unregisterContentObserver(observer) }
-                }
-                .flowOn(backgroundCoroutineContext)
-        } else {
-            flowOf(Unit)
-        }
+                awaitClose { contentResolver.unregisterContentObserver(observer) }
+            }
+            .flowOn(backgroundCoroutineContext)
     }
 
     override val modes: StateFlow<List<ZenMode>> =
-        if (android.app.Flags.modesUi())
-            zenConfigChanged
-                .map { backend.modes }
-                .distinctUntilChanged()
-                .flowOn(backgroundCoroutineContext)
-                .stateIn(
-                    scope = applicationScope,
-                    started = SharingStarted.Eagerly,
-                    initialValue = backend.modes,
-                )
-        else MutableStateFlow<List<ZenMode>>(emptyList())
+        zenConfigChanged
+            .map { backend.modes }
+            .distinctUntilChanged()
+            .flowOn(backgroundCoroutineContext)
+            .stateIn(
+                scope = applicationScope,
+                started = SharingStarted.Eagerly,
+                initialValue = backend.modes,
+            )
 
     /**
      * Gets the current list of [ZenMode] instances according to the backend.

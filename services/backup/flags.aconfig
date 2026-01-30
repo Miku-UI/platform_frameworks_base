@@ -78,10 +78,28 @@ flag {
     description: "Enables read all external storage files"
     bug: "376598575"
 }
+
 flag {
-    name: "enable_metrics_settings_backup_agents"
+    name: "enable_cross_platform_transfer"
     namespace: "onboarding"
-    description: "Enable SettingsBackupAgent to collect B&R agent metrics."
-    bug: "379861078"
+    description: "Enables cross platform transfers for backup agents"
+    bug: "403956528"
     is_fixed_read_only: true
+    is_exported: true
+}
+
+flag {
+    name: "enable_delayed_restore_api"
+    namespace: "onboarding"
+    description: "Enables delayed restore API for system components"
+    bug: "399038494"
+    is_fixed_read_only: true
+}
+
+flag {
+    name: "enable_kv_backup_logs_from_transport_with_proper_flow_id"
+    namespace: "onboarding"
+    description: "Enables getting the backup manager monitor from the transport "
+            "on KV backup and logging agent logs with the proper flow id."
+    bug: "443738546"
 }

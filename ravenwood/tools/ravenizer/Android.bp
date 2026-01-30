@@ -17,7 +17,7 @@ java_binary_host {
     ],
     java_resources: [
         ":ravenizer-standard-options",
-        ":ravenwood-standard-annotations",
+        ":ravenwood-common-options",
         ":ravenwood-common-policies",
     ],
     visibility: ["//visibility:public"],

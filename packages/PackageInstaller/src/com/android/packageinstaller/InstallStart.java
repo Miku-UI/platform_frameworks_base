@@ -16,7 +16,6 @@
 
 package com.android.packageinstaller;
 
-import static android.content.pm.Flags.usePiaV2;
 import static com.android.packageinstaller.PackageUtil.getMaxTargetSdkVersionForUid;
 
 import android.Manifest;
@@ -37,12 +36,14 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Process;
 import android.os.UserManager;
-import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.EventLog;
 import android.util.Log;
+
 import androidx.annotation.Nullable;
+
 import com.android.packageinstaller.v2.ui.InstallLaunch;
+
 import java.util.Arrays;
 
 /**
@@ -64,18 +65,17 @@ public class InstallStart extends Activity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        boolean testOverrideForPiaV2 = Settings.System.getInt(getContentResolver(),
-                "use_pia_v2", 0) == 1;
-        boolean usePiaV2aConfig = usePiaV2();
-
-        if (usePiaV2aConfig || testOverrideForPiaV2) {
-            logReasonForDebug(usePiaV2aConfig, testOverrideForPiaV2);
-
+        if (PackageUtil.isVersionTwoEnabled(this)) {
             Intent piaV2 = new Intent(getIntent());
             piaV2.putExtra(InstallLaunch.EXTRA_CALLING_PKG_NAME, getLaunchedFromPackage());
             piaV2.putExtra(InstallLaunch.EXTRA_CALLING_PKG_UID, getLaunchedFromUid());
             piaV2.setClass(this, InstallLaunch.class);
-            piaV2.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
+            int flags = Intent.FLAG_ACTIVITY_FORWARD_RESULT;
+            if ((piaV2.getFlags() & Intent.FLAG_GRANT_READ_URI_PERMISSION) != 0) {
+                flags = flags | Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            }
+
+            piaV2.setFlags(flags);
             startActivity(piaV2);
             finish();
             return;
@@ -100,21 +100,23 @@ public class InstallStart extends Activity {
         // be PIA.
         int originatingUid = callingUid;
 
+        String intentAction = intent.getAction();
         final boolean isSessionInstall =
-                PackageInstaller.ACTION_CONFIRM_PRE_APPROVAL.equals(intent.getAction())
-                        || PackageInstaller.ACTION_CONFIRM_INSTALL.equals(intent.getAction());
+                PackageInstaller.ACTION_CONFIRM_PRE_APPROVAL.equals(intentAction)
+                || PackageInstaller.ACTION_CONFIRM_INSTALL.equals(intentAction);
 
         // If the activity was started via a PackageInstaller session, we retrieve the originating
         // UID from that session
         final int sessionId = (isSessionInstall
                 ? intent.getIntExtra(PackageInstaller.EXTRA_SESSION_ID, SessionInfo.INVALID_ID)
                 : SessionInfo.INVALID_ID);
+        int originatingUidFromSession = callingUid;
         if (sessionId != SessionInfo.INVALID_ID) {
             PackageInstaller.SessionInfo sessionInfo = mPackageInstaller.getSessionInfo(sessionId);
             if (sessionInfo != null) {
                 callingAttributionTag = sessionInfo.getInstallerAttributionTag();
                 if (sessionInfo.getOriginatingUid() != Process.INVALID_UID) {
-                    originatingUid = sessionInfo.getOriginatingUid();
+                    originatingUidFromSession = sessionInfo.getOriginatingUid();
                 }
             }
         }
@@ -131,24 +133,40 @@ public class InstallStart extends Activity {
         boolean isSystemDownloadsProvider = PackageUtil.getSystemDownloadsProviderInfo(
                                                 mPackageManager, callingUid) != null;
 
+        // By default, the originatingUid is callingUid. If the caller is the system download
+        // provider or the documents manager, we parse the originatingUid from the
+        // Intent.EXTRA_ORIGINATING_UID. And we check the appOps permission for the originatingUid
+        // later.
+        if (isDocumentsManager || isSystemDownloadsProvider) {
+            // The originating uid from the intent. We only trust/use this if it comes from either
+            // the document manager app or the downloads provider. It may be Process.INVALID_UID if
+            // the original owner App is not installed on the device now.
+            originatingUid = getIntent().getIntExtra(Intent.EXTRA_ORIGINATING_UID,
+                    Process.INVALID_UID);
+        }
+
         boolean isPrivilegedAndKnown = (sourceInfo != null && sourceInfo.isPrivilegedApp()) &&
             intent.getBooleanExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, false);
-        boolean isInstallPkgPermissionGranted =
-            checkPermission(Manifest.permission.INSTALL_PACKAGES, /* pid= */ -1, callingUid)
-                    == PackageManager.PERMISSION_GRANTED;
+        boolean isInstallPkgPermissionGranted = originatingUid != Process.INVALID_UID
+                && checkPermission(Manifest.permission.INSTALL_PACKAGES, /* pid= */ -1,
+                originatingUid) == PackageManager.PERMISSION_GRANTED;
 
         boolean isTrustedSource = isPrivilegedAndKnown || isInstallPkgPermissionGranted;
 
-        if (!isTrustedSource && !isSystemDownloadsProvider && !isDocumentsManager
-                && callingUid != Process.INVALID_UID) {
-            final int targetSdkVersion = getMaxTargetSdkVersionForUid(this, callingUid);
+        // In general case, the originatingUid is callingUid. If callingUid is INVALID_UID, return
+        // InstallAborted in the check above. When the originatingUid is INVALID_UID here, it means
+        // the originatingUid is from the system download manager or the system documents manager,
+        // and the package doesn't exist on the device. For this case, we don't need to check the
+        // permission for the originatingUid. The package doesn't exist.
+        if (!isTrustedSource && originatingUid != Process.INVALID_UID) {
+            final int targetSdkVersion = getMaxTargetSdkVersionForUid(this, originatingUid);
             if (targetSdkVersion < 0) {
-                Log.e(TAG, "Cannot get target sdk version for uid " + callingUid);
+                Log.e(TAG, "Cannot get target sdk version for uid " + originatingUid);
                 // Invalid originating uid supplied. Abort install.
                 mAbortInstall = true;
             } else if (targetSdkVersion >= Build.VERSION_CODES.O && !isUidRequestingPermission(
-                callingUid, Manifest.permission.REQUEST_INSTALL_PACKAGES)) {
-                Log.e(TAG, "Requesting uid " + callingUid + " needs to declare permission "
+                    originatingUid, Manifest.permission.REQUEST_INSTALL_PACKAGES)) {
+                Log.e(TAG, "Requesting uid " + originatingUid + " needs to declare permission "
                         + Manifest.permission.REQUEST_INSTALL_PACKAGES);
                 mAbortInstall = true;
             }
@@ -177,6 +195,7 @@ public class InstallStart extends Activity {
         }
 
         if (mAbortInstall) {
+            android.util.Log.d(TAG, "Abort the installation");
             setResult(RESULT_CANCELED);
             if (mShouldFinish) {
                 finish();
@@ -195,6 +214,8 @@ public class InstallStart extends Activity {
                 callingAttributionTag);
         nextActivity.putExtra(PackageInstallerActivity.EXTRA_ORIGINAL_SOURCE_INFO, sourceInfo);
         nextActivity.putExtra(Intent.EXTRA_ORIGINATING_UID, originatingUid);
+        nextActivity.putExtra(PackageInstallerActivity.EXTRA_ORIGINATING_UID_FROM_SESSION_INFO,
+                originatingUidFromSession);
         nextActivity.putExtra(PackageInstallerActivity.EXTRA_IS_TRUSTED_SOURCE, isTrustedSource);
 
         if (isSessionInstall) {
@@ -203,9 +224,9 @@ public class InstallStart extends Activity {
         } else {
             Uri packageUri = intent.getData();
 
-            if (packageUri != null
-                    && packageUri.getScheme().equals(ContentResolver.SCHEME_CONTENT)
-                    && canPackageQuery(callingUid, packageUri)) {
+            if (packageUri != null && packageUri.getScheme().equals(ContentResolver.SCHEME_CONTENT)
+                    && (originatingUid == Process.INVALID_UID
+                    || canPackageQuery(originatingUid, packageUri))) {
                 // [IMPORTANT] This path is deprecated, but should still work. Only necessary
                 // features should be added.
 
@@ -225,6 +246,7 @@ public class InstallStart extends Activity {
             }
         }
 
+        android.util.Log.d(TAG, "nextActivity = " + nextActivity);
         if (nextActivity != null) {
             try {
                 startActivity(nextActivity);
@@ -397,21 +419,5 @@ public class InstallStart extends Activity {
                         R.string.unknown_apps_user_restriction_dlg_text);
         }
         return null;
-    }
-
-    private void logReasonForDebug(boolean usePiaV2aConfig, boolean testOverrideForPiaV2) {
-        StringBuilder sb = new StringBuilder("Using Pia V2 due to: ");
-        boolean aconfigUsed = false;
-        if (usePiaV2aConfig) {
-            sb.append("aconfig flag USE_PIA_V2");
-            aconfigUsed = true;
-        }
-        if (testOverrideForPiaV2) {
-            if (aconfigUsed) {
-                sb.append(" and ");
-            }
-            sb.append("testOverrideForPiaV2.");
-        }
-        Log.i(TAG, sb.toString());
     }
 }

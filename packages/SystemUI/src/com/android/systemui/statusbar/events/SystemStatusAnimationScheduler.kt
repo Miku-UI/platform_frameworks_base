@@ -20,6 +20,7 @@ import androidx.core.animation.Animator
 import androidx.core.animation.AnimatorSet
 import androidx.core.animation.PathInterpolator
 import com.android.systemui.Dumpable
+import com.android.systemui.privacy.PrivacyItem
 import com.android.systemui.statusbar.events.shared.model.SystemEventAnimationState
 import com.android.systemui.statusbar.policy.CallbackController
 import kotlinx.coroutines.flow.StateFlow
@@ -59,7 +60,10 @@ interface SystemStatusAnimationCallback {
     }
 
     // Best method name, change my mind
-    fun onSystemStatusAnimationTransitionToPersistentDot(contentDescription: String?): Animator? {
+    fun onSystemStatusAnimationTransitionToPersistentDot(
+        contentDescription: String?,
+        privacyItems: List<PrivacyItem>?,
+    ): Animator? {
         return null
     }
 

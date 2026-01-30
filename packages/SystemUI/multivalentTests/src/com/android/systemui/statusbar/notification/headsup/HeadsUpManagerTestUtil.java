@@ -18,8 +18,10 @@ package com.android.systemui.statusbar.notification.headsup;
 import android.app.ActivityManager;
 import android.app.Notification;
 import android.app.PendingIntent;
+import android.app.Person;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.UserHandle;
 import android.service.notification.StatusBarNotification;
 
@@ -77,6 +79,25 @@ public class HeadsUpManagerTestUtil {
         final Notification notif = new Notification.Builder(context, "")
                 .setSmallIcon(com.android.systemui.res.R.drawable.ic_person)
                 .setFullScreenIntent(intent, /* highPriority */ true)
+                .build();
+        return HeadsUpManagerTestUtil.createEntry(id, notif);
+    }
+
+    protected static NotificationEntry createCallEntry(int id, Context context) {
+        final Person person = new Person.Builder()
+                .setName("name")
+                .setKey("abc")
+                .setUri(Uri.parse("fake_uri").toString())
+                .setBot(false)
+                .build();
+
+        final PendingIntent intent = PendingIntent.getActivity(
+                context, 0, new Intent(),
+                PendingIntent.FLAG_IMMUTABLE);
+
+        final Notification notif = new Notification.Builder(context, "")
+                .setSmallIcon(com.android.systemui.res.R.drawable.ic_person)
+                .setStyle(Notification.CallStyle.forIncomingCall(person, intent, intent))
                 .build();
         return HeadsUpManagerTestUtil.createEntry(id, notif);
     }

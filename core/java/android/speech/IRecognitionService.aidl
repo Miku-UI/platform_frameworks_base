@@ -30,7 +30,7 @@ import android.speech.IRecognitionSupportCallback;
 * recognition servers, and notify you when results are ready. In most of the cases, 
 * this class should not be used directly, instead use {@link SpeechRecognizer} for
 * accessing recognition service. 
-* {@hide}
+* @hide
 */
 oneway interface IRecognitionService {
     /**

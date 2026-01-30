@@ -24,17 +24,21 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import com.android.keyguard.KeyguardSliceView
 import com.android.keyguard.KeyguardSliceViewController
-import com.android.systemui.customization.R as customR
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
 import com.android.systemui.dump.DumpManager
+import com.android.systemui.keyguard.domain.interactor.KeyguardInteractor
 import com.android.systemui.keyguard.shared.model.KeyguardSection
+import com.android.systemui.keyguard.ui.binder.KeyguardSliceViewBinder
+import com.android.systemui.keyguard.ui.viewmodel.AodBurnInViewModel
 import com.android.systemui.plugins.ActivityStarter
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockViewIds
 import com.android.systemui.res.R
 import com.android.systemui.settings.DisplayTracker
 import com.android.systemui.statusbar.lockscreen.LockscreenSmartspaceController
 import com.android.systemui.statusbar.policy.ConfigurationController
 import javax.inject.Inject
+import kotlinx.coroutines.DisposableHandle
 
 class KeyguardSliceViewSection
 @Inject
@@ -47,12 +51,14 @@ constructor(
     val configurationController: ConfigurationController,
     val dumpManager: DumpManager,
     val displayTracker: DisplayTracker,
+    val keyguardInteractor: KeyguardInteractor,
+    val aodBurnInViewModel: AodBurnInViewModel,
 ) : KeyguardSection() {
     private lateinit var sliceView: KeyguardSliceView
+    private var disposableHandle: DisposableHandle? = null
 
     override fun addViews(constraintLayout: ConstraintLayout) {
         if (smartspaceController.isEnabled) return
-
         sliceView =
             layoutInflater.inflate(R.layout.keyguard_slice_view, null, false) as KeyguardSliceView
         constraintLayout.addView(sliceView)
@@ -60,7 +66,6 @@ constructor(
 
     override fun bindData(constraintLayout: ConstraintLayout) {
         if (smartspaceController.isEnabled) return
-
         val controller =
             KeyguardSliceViewController(
                 handler,
@@ -71,12 +76,21 @@ constructor(
                 dumpManager,
                 displayTracker,
             )
+        controller.setupUri(null)
         controller.init()
+
+        disposableHandle?.dispose()
+        disposableHandle =
+            KeyguardSliceViewBinder.bind(
+                sliceView,
+                keyguardInteractor,
+                controller,
+                aodBurnInViewModel,
+            )
     }
 
     override fun applyConstraints(constraintSet: ConstraintSet) {
         if (smartspaceController.isEnabled) return
-
         constraintSet.apply {
             connect(
                 R.id.keyguard_slice_view,
@@ -95,7 +109,7 @@ constructor(
             connect(
                 R.id.keyguard_slice_view,
                 ConstraintSet.TOP,
-                customR.id.lockscreen_clock_view,
+                ClockViewIds.LOCKSCREEN_CLOCK_VIEW_SMALL,
                 ConstraintSet.BOTTOM,
             )
 
@@ -110,7 +124,6 @@ constructor(
 
     override fun removeViews(constraintLayout: ConstraintLayout) {
         if (smartspaceController.isEnabled) return
-
         constraintLayout.removeView(R.id.keyguard_slice_view)
     }
 }

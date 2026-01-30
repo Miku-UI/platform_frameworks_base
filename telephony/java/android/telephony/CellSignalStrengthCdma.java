@@ -21,7 +21,6 @@ import android.os.Parcel;
 import android.os.Parcelable;
 import android.os.PersistableBundle;
 
-import com.android.internal.telephony.flags.Flags;
 import com.android.telephony.Rlog;
 
 import java.util.Objects;
@@ -69,17 +68,7 @@ public final class CellSignalStrengthCdma extends CellSignalStrength implements 
      */
     public CellSignalStrengthCdma(int cdmaDbm, int cdmaEcio, int evdoDbm, int evdoEcio,
             int evdoSnr) {
-        if (Flags.cleanupCdma()) {
-            setDefaultValues();
-        } else {
-            mCdmaDbm = inRangeOrUnavailable(cdmaDbm, -120, 0);
-            mCdmaEcio = inRangeOrUnavailable(cdmaEcio, -160, 0);
-            mEvdoDbm = inRangeOrUnavailable(evdoDbm, -120, 0);
-            mEvdoEcio = inRangeOrUnavailable(evdoEcio, -160, 0);
-            mEvdoSnr = inRangeOrUnavailable(evdoSnr, 0, 8);
-
-            updateLevel(null, null);
-        }
+        setDefaultValues();
     }
 
     /** @hide */
@@ -89,16 +78,7 @@ public final class CellSignalStrengthCdma extends CellSignalStrength implements 
 
     /** @hide */
     protected void copyFrom(CellSignalStrengthCdma s) {
-        if (Flags.cleanupCdma()) {
-            setDefaultValues();
-            return;
-        }
-        mCdmaDbm = s.mCdmaDbm;
-        mCdmaEcio = s.mCdmaEcio;
-        mEvdoDbm = s.mEvdoDbm;
-        mEvdoEcio = s.mEvdoEcio;
-        mEvdoSnr = s.mEvdoSnr;
-        mLevel = s.mLevel;
+        setDefaultValues();
     }
 
     /** @hide */
@@ -398,8 +378,7 @@ public final class CellSignalStrengthCdma extends CellSignalStrength implements 
     /** @hide */
     @Override
     public boolean isValid() {
-        if (Flags.cleanupCdma()) return false;
-        return !this.equals(sInvalid);
+        return false;
     }
 
     @Override
@@ -457,11 +436,7 @@ public final class CellSignalStrengthCdma extends CellSignalStrength implements 
         mEvdoSnr = in.readInt();
         mLevel = in.readInt();
 
-        if (Flags.cleanupCdma()) {
-            setDefaultValues();
-        } else {
-            if (DBG) log("CellSignalStrengthCdma(Parcel): " + toString());
-        }
+        setDefaultValues();
     }
 
     /** Implement the Parcelable interface */

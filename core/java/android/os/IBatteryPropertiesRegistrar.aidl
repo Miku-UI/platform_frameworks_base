@@ -19,7 +19,7 @@ package android.os;
 import android.os.BatteryProperty;
 
 /**
- * {@hide}
+ * @hide
  */
 
 interface IBatteryPropertiesRegistrar {

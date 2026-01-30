@@ -16,6 +16,9 @@
 
 package com.android.systemui.statusbar.notification;
 
+import static android.app.NotificationChannel.SYSTEM_RESERVED_IDS;
+import static android.service.notification.Flags.notificationClassification;
+
 import android.app.INotificationManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -23,6 +26,8 @@ import android.content.Context;
 import android.os.Bundle;
 import android.os.RemoteException;
 import android.os.UserHandle;
+import android.service.notification.NotificationListenerService;
+import android.service.notification.StatusBarNotification;
 import android.text.TextUtils;
 import android.util.Slog;
 
@@ -38,23 +43,27 @@ public class NotificationChannelHelper {
     public static NotificationChannel createConversationChannelIfNeeded(
             Context context,
             INotificationManager notificationManager,
-            NotificationEntry entry,
+            NotificationListenerService.Ranking ranking,
+            StatusBarNotification sbn,
             NotificationChannel channel) {
+        if (notificationClassification() && SYSTEM_RESERVED_IDS.contains(channel.getId())) {
+            return channel;
+        }
         if (!TextUtils.isEmpty(channel.getConversationId())) {
             return channel;
         }
-        final String conversationId = entry.getSbn().getShortcutId();
-        final String pkg = entry.getSbn().getPackageName();
-        final int appUid = entry.getSbn().getUid();
+        final String conversationId =sbn.getShortcutId();
+        final String pkg = sbn.getPackageName();
+        final int appUid = sbn.getUid();
         if (TextUtils.isEmpty(conversationId) || TextUtils.isEmpty(pkg)
-            || entry.getRanking().getConversationShortcutInfo() == null) {
+            || ranking.getConversationShortcutInfo() == null) {
             return channel;
         }
 
         // If this channel is not already a customized conversation channel, create
         // a custom channel
         try {
-            channel.setName(getName(entry));
+            channel.setName(getName(ranking, sbn));
             notificationManager.createConversationNotificationChannelForPackage(
                     pkg, appUid, channel,
                     conversationId);
@@ -67,11 +76,12 @@ public class NotificationChannelHelper {
         return channel;
     }
 
-    private static CharSequence getName(NotificationEntry entry) {
-        if (entry.getRanking().getConversationShortcutInfo().getLabel() != null) {
-            return entry.getRanking().getConversationShortcutInfo().getLabel().toString();
+    public static CharSequence getName(NotificationListenerService.Ranking ranking,
+            StatusBarNotification sbn) {
+        if (ranking.getConversationShortcutInfo().getLabel() != null) {
+            return ranking.getConversationShortcutInfo().getLabel().toString();
         }
-        Bundle extras = entry.getSbn().getNotification().extras;
+        Bundle extras = sbn.getNotification().extras;
         CharSequence nameString = extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE);
         if (TextUtils.isEmpty(nameString)) {
             nameString = extras.getCharSequence(Notification.EXTRA_TITLE);

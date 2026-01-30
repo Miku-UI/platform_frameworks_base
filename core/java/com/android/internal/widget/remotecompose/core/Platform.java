@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 package com.android.internal.widget.remotecompose.core;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 
@@ -27,8 +26,7 @@ public interface Platform {
      * @param image
      * @return
      */
-    @Nullable
-    byte[] imageToByteArray(@NonNull Object image);
+    @Nullable byte [] imageToByteArray(@NonNull Object image);
 
     /**
      * Returns the width of a platform-specific image object
@@ -57,11 +55,18 @@ public interface Platform {
     /**
      * Converts a platform-specific path object into a platform-independent float buffer
      *
-     * @param path
-     * @return
+     * @param path path object
+     * @return float array of the path
      */
-    @Nullable
-    float[] pathToFloatArray(@NonNull Object path);
+    @Nullable float [] pathToFloatArray(@NonNull Object path);
+
+    /**
+     * Parse a path represented as a string and returns a Path object
+     *
+     * @param pathData path data
+     * @return platform path
+     */
+    @NonNull Object parsePath(@NonNull String pathData);
 
     enum LogCategory {
         DEBUG,
@@ -77,7 +82,7 @@ public interface Platform {
      * @param category
      * @param message
      */
-    void log(LogCategory category, String message);
+    void log(@NonNull LogCategory category, @NonNull String message);
 
     /**
      * Represents a precomputed text layout, for complex text painting / measuring / layout. Allows
@@ -128,6 +133,11 @@ public interface Platform {
                 }
 
                 @Override
-                public void log(LogCategory category, String message) {}
+                public @NonNull Object parsePath(@NonNull String pathData) {
+                    throw new UnsupportedOperationException();
+                }
+
+                @Override
+                public void log(@NonNull LogCategory category, @NonNull String message) {}
             };
 }

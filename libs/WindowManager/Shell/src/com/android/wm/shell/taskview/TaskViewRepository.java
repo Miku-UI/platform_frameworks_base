@@ -16,10 +16,15 @@
 
 package com.android.wm.shell.taskview;
 
+import static com.android.wm.shell.protolog.ShellProtoLogGroup.WM_SHELL_BUBBLES_NOISY;
+
 import android.annotation.Nullable;
 import android.graphics.Rect;
 import android.window.WindowContainerToken;
 
+import com.android.internal.protolog.ProtoLog;
+
+import java.io.PrintWriter;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 
@@ -71,12 +76,14 @@ public class TaskViewRepository {
 
     /** Start tracking {@param tv}. */
     public void add(TaskViewTaskController tv) {
+        ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "Repo.add(): taskView=%d", tv.hashCode());
         if (contains(tv)) return;
         mTaskViews.add(new TaskViewState(tv));
     }
 
     /** Remove {@param tv} from tracking. */
     public void remove(TaskViewTaskController tv) {
+        ProtoLog.d(WM_SHELL_BUBBLES_NOISY, "Repo.remove(): taskView=%d", tv.hashCode());
         int idx = findAndPrune(tv);
         if (idx < 0) return;
         mTaskViews.remove(idx);
@@ -118,5 +125,16 @@ public class TaskViewRepository {
             }
         }
         return null;
+    }
+
+    /** Dumps TaskViewRepository state. */
+    public void dump(PrintWriter pw, String prefix) {
+        pw.print(prefix); pw.println("TaskViewRepository state:");
+        pw.print(prefix); pw.println("  task view count: " + mTaskViews.size());
+        for (TaskViewState taskViewState : mTaskViews) {
+            pw.print(prefix); pw.println("    task view: " + taskViewState.getTaskView());
+            pw.print(prefix); pw.println("      is visible: " + taskViewState.mVisible);
+            pw.print(prefix); pw.println("      bounds: " + taskViewState.mBounds);
+        }
     }
 }

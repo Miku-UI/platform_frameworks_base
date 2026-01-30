@@ -40,14 +40,8 @@ class PackageUsage extends AbstractStatsBase<Map<String, PackageSetting>> {
     private static final String USAGE_FILE_MAGIC = "PACKAGE_USAGE__VERSION_";
     private static final String USAGE_FILE_MAGIC_VERSION_1 = USAGE_FILE_MAGIC + "1";
 
-    private boolean mIsHistoricalPackageUsageAvailable = true;
-
     PackageUsage() {
         super("package-usage.list", "PackageUsage_DiskWriter", /* lock */ true);
-    }
-
-    boolean isHistoricalPackageUsageAvailable() {
-        return mIsHistoricalPackageUsageAvailable;
     }
 
     @Override
@@ -103,43 +97,13 @@ class PackageUsage extends AbstractStatsBase<Map<String, PackageSetting>> {
                 // Empty file. Do nothing.
             } else if (USAGE_FILE_MAGIC_VERSION_1.equals(firstLine)) {
                 readVersion1LP(pkgSettings, in, sb);
-            } else {
-                readVersion0LP(pkgSettings, in, sb, firstLine);
             }
         } catch (FileNotFoundException expected) {
-            mIsHistoricalPackageUsageAvailable = false;
+            // Expected. Nothing to do.
         } catch (IOException e) {
             Log.w(PackageManagerService.TAG, "Failed to read package usage times", e);
         } finally {
             IoUtils.closeQuietly(in);
-        }
-    }
-
-    private void readVersion0LP(Map<String, PackageSetting> pkgSettings, InputStream in,
-            StringBuilder sb, String firstLine)
-            throws IOException {
-        // Initial version of the file had no version number and stored one
-        // package-timestamp pair per line.
-        // Note that the first line has already been read from the InputStream.
-        for (String line = firstLine; line != null; line = readLine(in, sb)) {
-            String[] tokens = line.split(" ");
-            if (tokens.length != 2) {
-                throw new IOException("Failed to parse " + line +
-                        " as package-timestamp pair.");
-            }
-
-            String packageName = tokens[0];
-            PackageSetting pkgSetting = pkgSettings.get(packageName);
-            if (pkgSetting == null) {
-                continue;
-            }
-
-            long timestamp = parseAsLong(tokens[1]);
-            for (int reason = 0;
-                    reason < PackageManager.NOTIFY_PACKAGE_USE_REASONS_COUNT;
-                    reason++) {
-                pkgSetting.getPkgState().setLastPackageUsageTimeInMills(reason, timestamp);
-            }
         }
     }
 

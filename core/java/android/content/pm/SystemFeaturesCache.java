@@ -49,8 +49,8 @@ public final class SystemFeaturesCache {
     /**
      * Installs the process-global cache instance.
      *
-     * <p>Note: Usage should be gated on android.content.pm.Flags.cacheSdkSystemFeature(). In
-     * practice, this should only be called from 1) SystemServer init, or 2) bindApplication.
+     * <p>Note: In practice, this should only be called from 1) SystemServer init,
+     * or 2) bindApplication.
      */
     @MainThread
     public static void setInstance(SystemFeaturesCache instance) {
@@ -63,8 +63,7 @@ public final class SystemFeaturesCache {
     /**
      * Gets the process-global cache instance.
      *
-     * Note: Usage should be gated on android.content.pm.Flags.cacheSdkSystemFeature(), and should
-     * always occur after the instance has been installed early in the process lifecycle.
+     * Note: Usage must occur after the instance has been installed early in the process lifecycle.
      */
     public static @NonNull SystemFeaturesCache getInstance() {
         SystemFeaturesCache instance = sInstance;

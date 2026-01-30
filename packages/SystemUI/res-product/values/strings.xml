@@ -183,4 +183,9 @@
     <string name="finder_active" product="default">You can locate this phone with Find My Device even when powered off</string>
     <string name="finder_active" product="tablet">You can locate this tablet with Find My Device even when powered off</string>
 
+    <!-- Message shown during phone shutdown when Find Hub with Dead Battery Finder is active. Same as 2734050945122991747, except the new product name that should be taken from Localizer.  [CHAR LIMIT=300] [BACKUP_MESSAGE_ID: 2734050945122991747]-->
+    <string name="find_hub_active" product="default">You can locate this phone with Find Hub even when powered off</string>
+    <!-- Message shown during tablet shutdown when Find Hub with Dead Battery Finder is active Same as 8045583079989970505, except the new product name that should be taken from Localizer.  [CHAR LIMIT=300] [BACKUP_MESSAGE_ID: 8045583079989970505]-->
+    <string name="find_hub_active" product="tablet">You can locate this tablet with Find Hub even when powered off</string>
+
 </resources>

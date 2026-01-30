@@ -1,0 +1,46 @@
+<state persistence-version="1">
+    <associations max-id="3">
+        <association
+            id="1"
+            package="com.sample.companion.app"
+            mac_address="AA:BB:CC:DD:EE:00"
+            self_managed="false"
+            notify_device_nearby="false"
+            revoked="false"
+            last_time_connected="1634641160229"
+            time_approved="1634389553216"
+            system_data_sync_flags="0"
+            transport_flags="0">
+            <device_id
+                custom_device_id="1234"/>
+            <packages_to_notify
+                package_to_notify="com.sample.anotherCompanion.app"/>
+        </association>
+        <association
+            id="3"
+            profile="android.app.role.COMPANION_DEVICE_WATCH"
+            package="com.sample.companion.another.app"
+            display_name="John's Watch"
+            self_managed="true"
+            notify_device_nearby="false"
+            revoked="false"
+            last_time_connected="1634641160229"
+            time_approved="1634641160229"
+            system_data_sync_flags="1"
+            transport_flags="0">
+            <device_id
+                custom_device_id="1234"/>
+            <packages_to_notify
+                package_to_notify="com.sample1.anotherCompanion.app|com.sample2.anotherCompanion.app"/>
+            <metadata>
+                <pbundle_as_map name="feature1">
+                    <int name="version" value="1"/>
+                    <string name="data">test</string>
+                </pbundle_as_map>
+                <pbundle_as_map name="feature2">
+                    <string name="data">test</string>
+                </pbundle_as_map>
+            </metadata>
+        </association>
+    </associations>
+</state>

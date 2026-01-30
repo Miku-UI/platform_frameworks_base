@@ -123,6 +123,7 @@ public class DozeSensors {
     private boolean mListeningProxSensors;
     private boolean mListeningAodOnlySensors;
     private boolean mUdfpsEnrolled;
+    private boolean mOpticalUdfpsEnrolled;
 
     @DevicePostureController.DevicePostureInt
     private int mDevicePosture;
@@ -182,6 +183,8 @@ public class DozeSensors {
 
         mUdfpsEnrolled =
                 mAuthController.isUdfpsEnrolled(mSelectedUserInteractor.getSelectedUserId());
+        mOpticalUdfpsEnrolled =
+                mAuthController.isOpticalUdfpsEnrolled(mSelectedUserInteractor.getSelectedUserId());
         mAuthController.addCallback(mAuthControllerCallback);
         mTriggerSensors = new TriggerSensor[] {
                 new TriggerSensor(
@@ -223,7 +226,7 @@ public class DozeSensors {
                         true /* touchscreen */,
                         false /* ignoresSetting */,
                         dozeParameters.singleTapUsesProx(mDevicePosture) /* requiresProx */,
-                        true /* immediatelyReRegister */,
+                        false /* immediatelyReRegister */,
                         mDevicePosture,
                         false
                 ),
@@ -304,6 +307,11 @@ public class DozeSensors {
     }
 
     private boolean quickPickUpConfigured() {
+        if (Flags.newDozingKeyguardStates()) {
+            return mOpticalUdfpsEnrolled
+                    && mConfig.quickPickupSensorEnabled(
+                            mSelectedUserInteractor.getSelectedUserId());
+        }
         return mUdfpsEnrolled
                 && mConfig.quickPickupSensorEnabled(mSelectedUserInteractor.getSelectedUserId());
     }
@@ -441,11 +449,7 @@ public class DozeSensors {
         }
 
         if (!anyListening) {
-            if (Flags.registerContentObserversAsync()) {
-                mSecureSettings.unregisterContentObserverAsync(mSettingsObserver);
-            } else {
-                mSecureSettings.unregisterContentObserverSync(mSettingsObserver);
-            }
+            mSecureSettings.unregisterContentObserverAsync(mSettingsObserver);
         } else if (!mSettingRegistered) {
             for (TriggerSensor s : mTriggerSensors) {
                 s.registerSettingsObserver(mSettingsObserver);
@@ -519,6 +523,7 @@ public class DozeSensors {
         pw.println("mListeningProxSensors=" + mListeningProxSensors);
         pw.println("mScreenOffUdfpsEnabled=" + mScreenOffUdfpsEnabled);
         pw.println("mUdfpsEnrolled=" + mUdfpsEnrolled);
+        pw.println("mOpticalUdfpsEnrolled=" + mOpticalUdfpsEnrolled);
         IndentingPrintWriter idpw = new IndentingPrintWriter(pw);
         idpw.increaseIndent();
         for (TriggerSensor s : mTriggerSensors) {
@@ -769,13 +774,8 @@ public class DozeSensors {
 
         public void registerSettingsObserver(ContentObserver settingsObserver) {
             if (mConfigured && !TextUtils.isEmpty(mSetting)) {
-                if (Flags.registerContentObserversAsync()) {
-                    mSecureSettings.registerContentObserverForUserAsync(
-                            mSetting, mSettingsObserver, UserHandle.USER_ALL);
-                } else {
-                    mSecureSettings.registerContentObserverForUserSync(
-                            mSetting, mSettingsObserver, UserHandle.USER_ALL);
-                }
+                mSecureSettings.registerContentObserverForUserAsync(
+                        mSetting, mSettingsObserver, UserHandle.USER_ALL);
             }
         }
 
@@ -897,8 +897,9 @@ public class DozeSensors {
         }
 
         private void updateUdfpsEnrolled() {
-            mUdfpsEnrolled = mAuthController.isUdfpsEnrolled(
-                    mSelectedUserInteractor.getSelectedUserId());
+            final int userId = mSelectedUserInteractor.getSelectedUserId();
+            mUdfpsEnrolled = mAuthController.isUdfpsEnrolled(userId);
+            mOpticalUdfpsEnrolled = mAuthController.isOpticalUdfpsEnrolled(userId);
             for (TriggerSensor sensor : mTriggerSensors) {
                 if (REASON_SENSOR_QUICK_PICKUP == sensor.mPulseReason) {
                     sensor.setConfigured(quickPickUpConfigured());

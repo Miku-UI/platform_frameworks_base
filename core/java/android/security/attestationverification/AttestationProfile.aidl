@@ -17,6 +17,6 @@
 package android.security.attestationverification;
 
 /**
- * {@hide}
+ * @hide
  */
 parcelable AttestationProfile;

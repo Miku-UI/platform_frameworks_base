@@ -60,7 +60,7 @@ constructor(
                     if (
                         sensorPrivacyController.requiresAuthentication() &&
                             keyguardInteractor.isKeyguardDismissible.value &&
-                            keyguardInteractor.isKeyguardShowing()
+                            keyguardInteractor.isKeyguardCurrentlyShowing()
                     ) {
                         activityStarter.postQSRunnableDismissingKeyguard {
                             sensorPrivacyController.setSensorBlocked(QS_TILE, sensorId, !blocked)

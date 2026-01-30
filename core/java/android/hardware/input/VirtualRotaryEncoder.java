@@ -19,9 +19,7 @@ package android.hardware.input;
 import android.annotation.FlaggedApi;
 import android.annotation.NonNull;
 import android.annotation.SystemApi;
-import android.companion.virtual.IVirtualDevice;
 import android.companion.virtualdevice.flags.Flags;
-import android.os.IBinder;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -36,10 +34,11 @@ import android.util.Log;
 @FlaggedApi(Flags.FLAG_VIRTUAL_ROTARY)
 @SystemApi
 public class VirtualRotaryEncoder extends VirtualInputDevice {
+
     /** @hide */
-    public VirtualRotaryEncoder(VirtualRotaryEncoderConfig config, IVirtualDevice virtualDevice,
-            IBinder token) {
-        super(config, virtualDevice, token);
+    public VirtualRotaryEncoder(VirtualRotaryEncoderConfig config,
+            IVirtualInputDevice virtualInputDevice) {
+        super(config, virtualInputDevice);
     }
 
     /**
@@ -49,7 +48,7 @@ public class VirtualRotaryEncoder extends VirtualInputDevice {
      */
     public void sendScrollEvent(@NonNull VirtualRotaryEncoderScrollEvent event) {
         try {
-            if (!mVirtualDevice.sendRotaryEncoderScrollEvent(mToken, event)) {
+            if (!mVirtualInputDevice.sendRotaryEncoderScrollEvent(event)) {
                 Log.w(TAG, "Failed to send scroll event from virtual rotary "
                         + mConfig.getInputDeviceName());
             }

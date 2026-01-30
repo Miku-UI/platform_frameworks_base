@@ -20,13 +20,13 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SpecialUsers.CanBeNULL;
 import android.annotation.UserIdInt;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.LauncherUserInfo;
 import android.content.pm.UserInfo;
 import android.content.pm.UserProperties;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
-import android.multiuser.Flags;
 import android.os.Bundle;
 import android.os.UserManager;
 import android.util.DebugUtils;
@@ -36,6 +36,7 @@ import com.android.internal.annotations.Keep;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @hide Only for use within the system server.
@@ -198,44 +199,6 @@ public abstract class UserManagerInternal {
     public abstract void removeUserLifecycleListener(UserLifecycleListener listener);
 
     /**
-     * Called by {@link com.android.server.devicepolicy.DevicePolicyManagerService} to update
-     * whether the device is managed by device owner.
-     *
-     * @deprecated Use methods in {@link android.app.admin.DevicePolicyManagerInternal}.
-     */
-    @Deprecated
-    // TODO(b/258213147): Remove
-    public abstract void setDeviceManaged(boolean isManaged);
-
-    /**
-     * Returns whether the device is managed by device owner.
-     *
-     * @deprecated Use methods in {@link android.app.admin.DevicePolicyManagerInternal}.
-     */
-    @Deprecated
-    // TODO(b/258213147): Remove
-    public abstract boolean isDeviceManaged();
-
-    /**
-     * Called by {@link com.android.server.devicepolicy.DevicePolicyManagerService} to update
-     * whether the user is managed by profile owner.
-     *
-     * @deprecated Use methods in {@link android.app.admin.DevicePolicyManagerInternal}.
-     */
-    // TODO(b/258213147): Remove
-    @Deprecated
-    public abstract void setUserManaged(int userId, boolean isManaged);
-
-    /**
-     * Whether a profile owner manages this user.
-     *
-     * @deprecated Use methods in {@link android.app.admin.DevicePolicyManagerInternal}.
-     */
-    // TODO(b/258213147): Remove
-    @Deprecated
-    public abstract boolean isUserManaged(int userId);
-
-    /**
      * Called by {@link com.android.server.devicepolicy.DevicePolicyManagerService} to omit
      * restriction check, because DevicePolicyManager must always be able to set user icon
      * regardless of any restriction.
@@ -249,15 +212,6 @@ public abstract class UserManagerInternal {
      * user manager whether all users should be created ephemeral.
      */
     public abstract void setForceEphemeralUsers(boolean forceEphemeralUsers);
-
-    /**
-     * Switches to the system user and deletes all other users.
-     *
-     * <p>Called by the {@link com.android.server.devicepolicy.DevicePolicyManagerService} when
-     * the force-ephemeral-users policy is toggled on to make sure there are no pre-existing
-     * non-ephemeral users left.
-     */
-    public abstract void removeAllUsers();
 
     /**
      * Called by the activity manager when the ephemeral user goes to background and its removal
@@ -346,14 +300,6 @@ public abstract class UserManagerInternal {
     public abstract @NonNull List<UserInfo> getUsers(boolean excludeDying);
 
     /**
-     * Internal implementation of getUsers does not check permissions.
-     * This improves performance for calls from inside system server which already have permissions
-     * checked.
-     */
-    public abstract @NonNull List<UserInfo> getUsers(boolean excludePartial, boolean excludeDying,
-            boolean excludePreCreated);
-
-    /**
      * Returns a list of the users that are associated with the specified user, including the user
      * itself. This includes the user, its profiles, its parent, and its parent's other profiles,
      * as applicable.
@@ -366,6 +312,22 @@ public abstract class UserManagerInternal {
      *         exists. Otherwise, an empty array.
      */
     public abstract @NonNull int[] getProfileIds(@UserIdInt int userId, boolean enabledOnly);
+
+    /**
+     * Returns an array of ids for profiles associated with the specified user including the user
+     * itself.
+     * <p>Note that this includes all profile types (not including Restricted profiles), and,
+     * optionally, any {@link UserProperties#getAlwaysVisible() always visible} profiles.
+     *
+     * @param userId      id of the user to return profiles for
+     * @param enabledOnly whether return only {@link UserInfo#isEnabled() enabled} profiles
+     * @param includeAlwaysVisible whether to also include {@link UserProperties#getAlwaysVisible()
+     *        visible} profiles, even if userId is not their parent
+     * @return A non-empty array of ids of profiles associated with the specified user if the user
+     *         exists. Otherwise, an empty array.
+     */
+    public abstract @NonNull int[] getProfileIds(@UserIdInt int userId, boolean enabledOnly,
+            boolean includeAlwaysVisible);
 
     /**
      * Returns a list of the users that are associated with the specified user, including the user
@@ -615,6 +577,14 @@ public abstract class UserManagerInternal {
     public abstract @UserIdInt int getMainUserId();
 
     /**
+     * Returns the value of {@link com.android.internal.R.bool#config_isMainUserPermanentAdmin}.
+     *
+     * <p>If the main user is a permanent admin user it can't be deleted or downgraded to non-admin
+     * status.
+     */
+    public abstract boolean isMainUserPermanentAdmin();
+
+    /**
      * Returns the id of the user which should be in the foreground after boot completes.
      *
      * <p>If a boot user has been provided by calling {@link UserManager#setBootUser}, the
@@ -639,18 +609,41 @@ public abstract class UserManagerInternal {
     public abstract @CanBeNULL @UserIdInt int getCommunalProfileId();
 
     /**
+     * Returns list of bundles keyed by package name for all apps with restrictions in the given
+     * user.
+     * This method reads deprecated app restrictions and MUST NOT be used except for migration
+     * purposes during upgrade.
+     */
+    public abstract Map<String, Bundle> getApplicationRestrictionsForUser(@UserIdInt int userId);
+
+    /**
      * Returns the user id of the supervising profile, or {@link android.os.UserHandle#USER_NULL} if
      * there is no such user.
      */
     public abstract @CanBeNULL @UserIdInt int getSupervisingProfileId();
+
+    /** Optimized version of {@link UserManager#isHeadlessSystemUserMode()} */
+    public abstract boolean isHeadlessSystemUserMode();
+
+    // TODO(b/414326600): for now it's only logging launched activities, but once the allowlist
+    // mechanism is implemented, it should pass some sort of @HsuUiActionResult int result
+    /** Logs an activity launched in the headless system user */
+    public abstract void logLaunchedHsuActivity(ComponentName activity);
+
+    /**
+     * Sets the id of the {@code DeviceOwner}, if any.
+     *
+     * <p>{@code DeviceOwner} is a {@code DPM} (Device Policy Management) concept and hence should
+     * only be called by the {@code DPM} infra.
+     */
+    public abstract void setDeviceOwnerUserId(@CanBeNULL @UserIdInt int userId);
 
     /**
      * Checks whether to show a notification for sounds (e.g., alarms, timers, etc.) from background
      * users.
      */
     public static boolean shouldShowNotificationForBackgroundUserSounds() {
-        return Flags.addUiForSoundsFromBackgroundUsers() && Resources.getSystem().getBoolean(
-                com.android.internal.R.bool.config_showNotificationForBackgroundUserAlarms)
-                && UserManager.supportsMultipleUsers();
+        return UserManager.supportsMultipleUsers() && Resources.getSystem().getBoolean(
+                com.android.internal.R.bool.config_showNotificationForBackgroundUserAlarms);
     }
 }

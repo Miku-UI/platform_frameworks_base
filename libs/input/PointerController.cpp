@@ -22,6 +22,7 @@
 #include <SkBlendMode.h>
 #include <SkCanvas.h>
 #include <SkColor.h>
+#include <android-base/logging.h>
 #include <android-base/stringprintf.h>
 #include <android-base/thread_annotations.h>
 #include <ftl/enum.h>
@@ -105,11 +106,10 @@ PointerController::PointerController(const sp<PointerControllerPolicyInterface>&
       : PointerController(
                 policy, looper, spriteController,
                 [](const sp<android::gui::WindowInfosListener>& listener) {
-                    auto initialInfo = std::make_pair(std::vector<android::gui::WindowInfo>{},
-                                                      std::vector<android::gui::DisplayInfo>{});
-                    SurfaceComposerClient::getDefault()->addWindowInfosListener(listener,
-                                                                                &initialInfo);
-                    return initialInfo.second;
+                    android::base::Result<gui::WindowInfosUpdate> result =
+                            SurfaceComposerClient::getDefault()->addWindowInfosListener(listener);
+                    LOG_IF(FATAL, !result.ok()) << "Can't add window info listener";
+                    return result->displayInfos;
                 },
                 [](const sp<android::gui::WindowInfosListener>& listener) {
                     SurfaceComposerClient::getDefault()->removeWindowInfosListener(listener);
@@ -168,6 +168,10 @@ vec2 PointerController::getPosition() const {
         std::scoped_lock lock(getLock());
         return getTransformForDisplayLocked(displayId).inverse().transform(p.x, p.y);
     }
+}
+
+vec2 PointerController::getPositionInLogicalDisplay() const {
+    return mCursorController.getPosition();
 }
 
 ui::LogicalDisplayId PointerController::getDisplayId() const {

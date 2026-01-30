@@ -2592,7 +2592,9 @@ public class SubscriptionManager {
      * Get the subscription id for specified logical SIM slot index.
      *
      * @param slotIndex The logical SIM slot index.
-     * @return The subscription id. {@link #INVALID_SUBSCRIPTION_ID} if SIM is absent.
+     * @return The subscription id. {@link SubscriptionManager#INVALID_SUBSCRIPTION_ID} if SIM is
+     * absent. If slotIndex is {@link SubscriptionManager#SLOT_INDEX_FOR_REMOTE_SIM_SUB}, the last
+     * inserted remote SIM subscription id will be returned.
      */
     public static int getSubscriptionId(int slotIndex) {
         if (!isValidSlotIndex(slotIndex)) {
@@ -3540,29 +3542,7 @@ public class SubscriptionManager {
     @SystemApi
     public boolean canManageSubscription(@NonNull SubscriptionInfo info,
             @NonNull String packageName) {
-        if (Flags.hsumPackageManager()) {
-            return canManageSubscriptionAsUser(info, packageName, mContext.getUser());
-        } else {
-            if (info == null || info.getAccessRules() == null || packageName == null) {
-                return false;
-            }
-            PackageManager packageManager = mContext.getPackageManager();
-            PackageInfo packageInfo;
-            try {
-                packageInfo = packageManager.getPackageInfo(packageName,
-                        PackageManager.GET_SIGNING_CERTIFICATES);
-            } catch (PackageManager.NameNotFoundException e) {
-                logd("Unknown package: " + packageName);
-                return false;
-            }
-            for (UiccAccessRule rule : info.getAccessRules()) {
-                if (rule.getCarrierPrivilegeStatus(packageInfo)
-                        == TelephonyManager.CARRIER_PRIVILEGE_STATUS_HAS_ACCESS) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        return canManageSubscriptionAsUser(info, packageName, mContext.getUser());
     }
 
     /**

@@ -241,13 +241,13 @@ public final class CellIdentityNr extends CellIdentity {
     @Override
     public String toString() {
         return new StringBuilder(TAG + ":{")
-                .append(" mPci = ").append(mPci)
-                .append(" mTac = ").append(mTac)
-                .append(" mNrArfcn = ").append(mNrArfcn)
+                .append(" mPci = ").append(Rlog.pii(TAG, mPci))
+                .append(" mTac = ").append(Rlog.pii(TAG, mTac))
+                .append(" mNrArfcn = ").append(Rlog.pii(TAG, mNrArfcn))
                 .append(" mBands = ").append(Arrays.toString(mBands))
                 .append(" mMcc = ").append(mMccStr)
                 .append(" mMnc = ").append(mMncStr)
-                .append(" mNci = ").append(mNci)
+                .append(" mNci = ").append(Rlog.pii(TAG, mNci))
                 .append(" mAlphaLong = ").append(mAlphaLong)
                 .append(" mAlphaShort = ").append(mAlphaShort)
                 .append(" mAdditionalPlmns = ").append(mAdditionalPlmns)

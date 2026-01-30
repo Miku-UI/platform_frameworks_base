@@ -22,7 +22,7 @@ import android.os.Bundle;
 import android.os.UserHandle;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IOnAppsChangedListener {
     void onPackageRemoved(in UserHandle user, String packageName);

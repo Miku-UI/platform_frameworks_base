@@ -40,10 +40,12 @@ import com.android.systemui.common.ui.compose.Icon
 import com.android.systemui.haptics.slider.SliderHapticFeedbackFilter
 import com.android.systemui.haptics.slider.compose.ui.SliderHapticsViewModel
 import com.android.systemui.res.R
+import com.android.systemui.volume.dialog.domain.interactor.DesktopAudioTileDetailsFeatureInteractor
 import com.android.systemui.volume.dialog.sliders.dagger.VolumeDialogSliderScope
 import com.android.systemui.volume.dialog.sliders.ui.compose.SliderTrack
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogOverscrollViewModel
 import com.android.systemui.volume.dialog.sliders.ui.viewmodel.VolumeDialogSliderViewModel
+import com.android.systemui.volume.haptics.ui.VolumeHapticsConfigsProvider
 import com.android.systemui.volume.ui.compose.slider.AccessibilityParams
 import com.android.systemui.volume.ui.compose.slider.Haptics
 import com.android.systemui.volume.ui.compose.slider.Slider
@@ -60,20 +62,19 @@ constructor(
     private val viewModel: VolumeDialogSliderViewModel,
     private val overscrollViewModel: VolumeDialogOverscrollViewModel,
     private val hapticsViewModelFactory: SliderHapticsViewModel.Factory,
+    private val desktopAudioTileDetailsFeatureInteractor: DesktopAudioTileDetailsFeatureInteractor,
 ) {
     fun bind(view: View) {
+        // Use horizontal volume dialog if the audio tile details view is enabled
+        val isVolumeDialogVertical = !desktopAudioTileDetailsFeatureInteractor.isEnabled()
         val sliderComposeView: ComposeView = view.requireViewById(R.id.volume_dialog_slider)
         sliderComposeView.setContent {
             PlatformTheme {
                 VolumeDialogSlider(
                     viewModel = viewModel,
                     overscrollViewModel = overscrollViewModel,
-                    hapticsViewModelFactory =
-                        if (com.android.systemui.Flags.hapticsForComposeSliders()) {
-                            hapticsViewModelFactory
-                        } else {
-                            null
-                        },
+                    hapticsViewModelFactory = hapticsViewModelFactory,
+                    isVolumeDialogVertical = isVolumeDialogVertical,
                 )
             }
         }
@@ -85,7 +86,8 @@ constructor(
 private fun VolumeDialogSlider(
     viewModel: VolumeDialogSliderViewModel,
     overscrollViewModel: VolumeDialogOverscrollViewModel,
-    hapticsViewModelFactory: SliderHapticsViewModel.Factory?,
+    hapticsViewModelFactory: SliderHapticsViewModel.Factory,
+    isVolumeDialogVertical: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val colors =
@@ -123,38 +125,50 @@ private fun VolumeDialogSlider(
         onValueChangeFinished = { viewModel.onSliderChangeFinished(it) },
         isEnabled = !sliderStateModel.isDisabled,
         isReverseDirection = true,
-        isVertical = true,
+        isVertical = isVolumeDialogVertical,
         colors = colors,
         interactionSource = interactionSource,
         haptics =
-            hapticsViewModelFactory?.let {
-                Haptics.Enabled(
-                    hapticsViewModelFactory = it,
-                    hapticFilter = SliderHapticFeedbackFilter(),
-                    orientation = Orientation.Vertical,
-                )
-            } ?: Haptics.Disabled,
+            Haptics.Enabled(
+                hapticsViewModelFactory = hapticsViewModelFactory,
+                hapticConfigs =
+                    VolumeHapticsConfigsProvider.continuousConfigs(SliderHapticFeedbackFilter()),
+                orientation =
+                    if (isVolumeDialogVertical) {
+                        Orientation.Vertical
+                    } else {
+                        Orientation.Horizontal
+                    },
+            ),
         stepDistance = 1f,
         track = { sliderState ->
             SliderTrack(
                 sliderState,
                 colors = colors,
                 isEnabled = !sliderStateModel.isDisabled,
-                isVertical = true,
-                activeTrackStartIcon = { iconsState ->
+                isVertical = isVolumeDialogVertical,
+                activeTrackEndIcon = { iconsState ->
                     SliderIcon(
                         icon = {
-                            Icon(icon = sliderStateModel.icon, modifier = Modifier.size(20.dp))
+                            Icon(
+                                icon = sliderStateModel.icon,
+                                tint = null,
+                                modifier = Modifier.size(20.dp),
+                            )
                         },
-                        isVisible = iconsState.isActiveTrackStartIconVisible,
+                        isVisible = !iconsState.isInactiveTrackEndIconVisible,
                     )
                 },
-                inactiveTrackStartIcon = { iconsState ->
+                inactiveTrackEndIcon = { iconsState ->
                     SliderIcon(
                         icon = {
-                            Icon(icon = sliderStateModel.icon, modifier = Modifier.size(20.dp))
+                            Icon(
+                                icon = sliderStateModel.icon,
+                                tint = null,
+                                modifier = Modifier.size(20.dp),
+                            )
                         },
-                        isVisible = !iconsState.isActiveTrackStartIconVisible,
+                        isVisible = iconsState.isInactiveTrackEndIconVisible,
                     )
                 },
             )
@@ -165,7 +179,12 @@ private fun VolumeDialogSlider(
                 interactionSource = interactions,
                 enabled = !sliderStateModel.isDisabled,
                 colors = colors,
-                thumbSize = DpSize(52.dp, 4.dp),
+                thumbSize =
+                    if (isVolumeDialogVertical) {
+                        DpSize(52.dp, 4.dp)
+                    } else {
+                        DpSize(4.dp, 52.dp)
+                    },
             )
         },
         accessibilityParams = AccessibilityParams(contentDescription = sliderStateModel.label),

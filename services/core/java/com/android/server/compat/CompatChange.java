@@ -87,7 +87,7 @@ public final class CompatChange extends CompatibilityChangeInfo {
     private ConcurrentHashMap<String, PackageOverride> mRawOverrides;
 
     public CompatChange(long changeId) {
-        this(changeId, null, -1, -1, false, false, null, false);
+        this(changeId, null, -1, -1, false, false, false, null, false);
     }
 
     /**
@@ -96,7 +96,7 @@ public final class CompatChange extends CompatibilityChangeInfo {
     public CompatChange(Change change) {
         this(change.getId(), change.getName(), change.getEnableAfterTargetSdk(),
                 change.getEnableSinceTargetSdk(), change.getDisabled(), change.getLoggingOnly(),
-                change.getDescription(), change.getOverridable());
+                change.getNoLogging(), change.getDescription(), change.getOverridable());
     }
 
     /**
@@ -109,10 +109,10 @@ public final class CompatChange extends CompatibilityChangeInfo {
      * @param disabled If {@code true}, overrides any {@code enableAfterTargetSdk} set.
      */
     public CompatChange(long changeId, @Nullable String name, int enableAfterTargetSdk,
-            int enableSinceTargetSdk, boolean disabled, boolean loggingOnly, String description,
-            boolean overridable) {
+            int enableSinceTargetSdk, boolean disabled, boolean loggingOnly, boolean noLogging,
+            String description, boolean overridable) {
         super(changeId, name, enableAfterTargetSdk, enableSinceTargetSdk, disabled, loggingOnly,
-              description, overridable);
+              noLogging, description, overridable);
 
         // Initialize override maps.
         mEvaluatedOverrides = new ConcurrentHashMap<>();
@@ -374,6 +374,9 @@ public final class CompatChange extends CompatibilityChangeInfo {
         }
         if (getLoggingOnly()) {
             sb.append("; loggingOnly");
+        }
+        if (getNoLogging()) {
+            sb.append("; noLogging");
         }
         if (!mEvaluatedOverrides.isEmpty()) {
             sb.append("; packageOverrides=").append(mEvaluatedOverrides);

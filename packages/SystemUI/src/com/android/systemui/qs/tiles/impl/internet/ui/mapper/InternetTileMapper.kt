@@ -78,9 +78,9 @@ constructor(
                 is InternetTileIconModel.Satellite -> {
                     icon =
                         Icon.Loaded(
-                            resources.getDrawable(dataIcon.resourceIcon.res, theme),
+                            resources.getDrawable(dataIcon.resourceIcon.resId, theme),
                             contentDescription = null,
-                            dataIcon.resourceIcon.res,
+                            dataIcon.resourceIcon.resId,
                         )
                 }
             }

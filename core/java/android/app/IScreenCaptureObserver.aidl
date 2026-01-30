@@ -16,7 +16,7 @@
 
 package android.app;
 
-/** {@hide} */
+/** @hide */
 interface IScreenCaptureObserver {
     oneway void onScreenCaptured();
 }

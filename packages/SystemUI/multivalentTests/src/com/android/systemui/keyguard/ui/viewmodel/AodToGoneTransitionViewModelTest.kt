@@ -20,6 +20,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectValues
+import com.android.systemui.flags.DisableSceneContainer
 import com.android.systemui.keyguard.data.repository.fakeKeyguardTransitionRepository
 import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
@@ -28,16 +29,23 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class AodToGoneTransitionViewModelTest : SysuiTestCase() {
     val kosmos = testKosmos()
     val testScope = kosmos.testScope
     val repository = kosmos.fakeKeyguardTransitionRepository
-    val underTest = kosmos.aodToGoneTransitionViewModel
+    private lateinit var underTest: AodToGoneTransitionViewModel
+
+    @Before
+    fun setup() {
+        underTest = kosmos.aodToGoneTransitionViewModel
+    }
 
     @Test
     fun lockscreenAlpha() =
@@ -48,7 +56,7 @@ class AodToGoneTransitionViewModelTest : SysuiTestCase() {
             repository.sendTransitionSteps(
                 from = KeyguardState.AOD,
                 to = KeyguardState.GONE,
-                testScope
+                testScope,
             )
 
             assertThat(alpha[0]).isEqualTo(0.5f)
@@ -75,14 +83,14 @@ class AodToGoneTransitionViewModelTest : SysuiTestCase() {
 
     private fun step(
         value: Float,
-        state: TransitionState = TransitionState.RUNNING
+        state: TransitionState = TransitionState.RUNNING,
     ): TransitionStep {
         return TransitionStep(
             from = KeyguardState.AOD,
             to = KeyguardState.GONE,
             value = value,
             transitionState = state,
-            ownerName = "AodToGoneTransitionViewModelTest"
+            ownerName = "AodToGoneTransitionViewModelTest",
         )
     }
 }

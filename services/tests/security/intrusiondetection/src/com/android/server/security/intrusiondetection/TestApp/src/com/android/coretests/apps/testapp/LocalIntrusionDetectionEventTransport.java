@@ -18,6 +18,7 @@
 
 package com.android.coretests.apps.testapp;
 
+import android.app.admin.DnsEvent;
 import android.app.admin.SecurityLog;
 import android.app.admin.SecurityLog.SecurityEvent;
 import android.content.Context;
@@ -43,8 +44,11 @@ public class LocalIntrusionDetectionEventTransport extends IntrusionDetectionEve
 
     private static final String ACTION_SECURITY_EVENT_RECEIVED =
             "com.android.coretests.apps.testapp.ACTION_SECURITY_EVENT_RECEIVED";
+    private static final String ACTION_DNS_EVENT_RECEIVED =
+            "com.android.coretests.apps.testapp.ACTION_DNS_EVENT_RECEIVED";
     private static final String TAG = "LocalIntrusionDetectionEventTransport";
     private static final String TEST_SECURITY_EVENT_TAG = "test_security_event_tag";
+    private static final String TEST_DNS_EVENT_TAG = "google.com";
     private static Context sContext;
 
     public LocalIntrusionDetectionEventTransport(Context context) {
@@ -57,22 +61,42 @@ public class LocalIntrusionDetectionEventTransport extends IntrusionDetectionEve
         try {
             Intent intent = new Intent(ACTION_SECURITY_EVENT_RECEIVED);
             sContext.sendBroadcast(intent);
-            Log.i(TAG, "LIZ_TESTING: sent broadcast");
         } catch (Exception e) {
-            Log.e(TAG, "Exception sending broadcast", e);
+            Log.e(TAG, "Exception sending security event broadcast", e);
         }
     }
 
-    private static void checkIfSecurityEventReceivedFromCts(List<IntrusionDetectionEvent> events) {
+    // Broadcast an intent to the CTS test service to indicate that the DNS
+    // event was received.
+    private static void broadcastDnsEventReceived() {
+        try {
+            Intent intent = new Intent(ACTION_DNS_EVENT_RECEIVED);
+            sContext.sendBroadcast(intent);
+        } catch (Exception e) {
+            Log.e(TAG, "Exception sending network event broadcast", e);
+        }
+    }
+
+    private static void checkIfCtsEventReceived(List<IntrusionDetectionEvent> events) {
         // Loop through the events and check if any of them are the security event
         // that uses the TEST_SECURITY_EVENT_TAG tag, which is set by the CTS test.
         for (IntrusionDetectionEvent event : events) {
             if (event.getType() == IntrusionDetectionEvent.SECURITY_EVENT) {
                 SecurityEvent securityEvent = event.getSecurityEvent();
+                if (securityEvent.getData() == null) {
+                    continue;
+                }
                 Object[] eventData = (Object[]) securityEvent.getData();
                 if (securityEvent.getTag() == SecurityLog.TAG_KEY_GENERATED
                         && eventData[1].equals(TEST_SECURITY_EVENT_TAG)) {
                     broadcastSecurityEventReceived();
+                    return;
+                }
+            }
+            if (event.getType() == IntrusionDetectionEvent.NETWORK_EVENT_DNS) {
+                DnsEvent dnsEvent = event.getDnsEvent();
+                if (dnsEvent.getHostname().equals(TEST_DNS_EVENT_TAG)) {
+                    broadcastDnsEventReceived();
                     return;
                 }
             }
@@ -90,7 +114,7 @@ public class LocalIntrusionDetectionEventTransport extends IntrusionDetectionEve
         // verify the event is received with the appropriate data, we will
         // check the events locally and set a property value that can be
         // read by the test.
-        checkIfSecurityEventReceivedFromCts(events);
+        checkIfCtsEventReceived(events);
         mEvents.addAll(events);
         return true;
     }

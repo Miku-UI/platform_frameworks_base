@@ -17,6 +17,7 @@
 package com.android.systemui.keyboard.shortcut.ui
 
 import android.app.Dialog
+import android.content.Context
 import android.content.res.Resources
 import android.view.WindowManager.LayoutParams.PRIVATE_FLAG_ALLOW_ACTION_KEY_EVENTS
 import androidx.compose.foundation.layout.padding
@@ -40,6 +41,7 @@ import com.android.systemui.res.R
 import com.android.systemui.statusbar.phone.SystemUIDialog
 import com.android.systemui.statusbar.phone.SystemUIDialogFactory
 import com.android.systemui.statusbar.phone.create
+import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
 import dagger.assisted.AssistedInject
 import kotlinx.coroutines.awaitCancellation
@@ -51,6 +53,7 @@ class ShortcutCustomizationDialogStarter
 constructor(
     viewModelFactory: ShortcutCustomizationViewModel.Factory,
     private val dialogFactory: SystemUIDialogFactory,
+    @Assisted private val displayContext: Context,
     @Main private val resources: Resources,
 ) : ExclusiveActivatable() {
 
@@ -86,8 +89,10 @@ constructor(
     }
 
     private fun createDialog(): Dialog {
-        return dialogFactory.create(dialogDelegate = ShortcutCustomizationDialogDelegate()) { dialog
-            ->
+        return dialogFactory.create(
+            context = displayContext,
+            dialogDelegate = ShortcutCustomizationDialogDelegate(),
+        ) { dialog ->
             val uiState by viewModel.shortcutCustomizationUiState.collectAsStateWithLifecycle()
             val coroutineScope = rememberCoroutineScope()
             ShortcutCustomizationDialog(
@@ -141,6 +146,6 @@ constructor(
 
     @AssistedFactory
     interface Factory {
-        fun create(): ShortcutCustomizationDialogStarter
+        fun create(displayContext: Context): ShortcutCustomizationDialogStarter
     }
 }

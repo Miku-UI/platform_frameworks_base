@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * {@hide}
+ * @hide
  *
  * The DecoderCapabilities class is used to retrieve the types of the
  * video and audio decoder(s) supported on a specific Android platform.

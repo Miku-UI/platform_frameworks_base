@@ -53,7 +53,7 @@ public class TouchExpression extends Operation
     private float mDefValue;
     private float mOutDefValue;
     private int mId;
-    public float[] mSrcExp;
+    public @Nullable float [] mSrcExp;
     int mMode = 1; // 0 = delta, 1 = absolute
     float mMax = 1;
     float mMin = 1;
@@ -122,15 +122,15 @@ public class TouchExpression extends Operation
      */
     public TouchExpression(
             int id,
-            float[] exp,
+            @NonNull float [] exp,
             float defValue,
             float min,
             float max,
             int touchEffects,
             float velocityId,
             int stopMode,
-            float[] stopSpec,
-            float[] easingSpec) {
+            @Nullable float [] stopSpec,
+            @Nullable float [] easingSpec) {
         this.mId = id;
         this.mSrcExp = exp;
         mOutDefValue = mDefValue = defValue;
@@ -160,7 +160,7 @@ public class TouchExpression extends Operation
     }
 
     @Override
-    public void updateVariables(RemoteContext context) {
+    public void updateVariables(@NonNull RemoteContext context) {
         if (mPreCalcValue == null || mPreCalcValue.length != mSrcExp.length) {
             mPreCalcValue = new float[mSrcExp.length];
         }
@@ -213,7 +213,7 @@ public class TouchExpression extends Operation
     }
 
     @Override
-    public void registerListening(RemoteContext context) {
+    public void registerListening(@NonNull RemoteContext context) {
         if (Float.isNaN(mMax)) {
             context.listensTo(Utils.idFromNan(mMax), this);
         }
@@ -260,7 +260,7 @@ public class TouchExpression extends Operation
             target = Math.max(Math.min(target, mOutMax), mOutMin);
         }
         float[] positions = new float[mStopSpec.length];
-        float min = (mWrapMode) ? 0 : mOutMin;
+        float min = mWrapMode ? 0 : mOutMin;
 
         switch (mStopMode) {
             case STOP_ENDS:
@@ -308,7 +308,7 @@ public class TouchExpression extends Operation
     }
 
     void haptic(RemoteContext context) {
-        int touch = ((mTouchEffects) & 0xFF);
+        int touch = (mTouchEffects & 0xFF);
         if ((mTouchEffects & (1 << 15)) != 0) {
             touch = context.getInteger(mTouchEffects & 0x7FFF);
         }
@@ -323,7 +323,7 @@ public class TouchExpression extends Operation
         float next = mCurrentValue;
         mLastValue = next;
 
-        float min = (mWrapMode) ? 0 : mOutMin;
+        float min = mWrapMode ? 0 : mOutMin;
         float max = mOutMax;
 
         switch (mStopMode) {
@@ -404,7 +404,7 @@ public class TouchExpression extends Operation
     }
 
     @Override
-    public void apply(RemoteContext context) {
+    public void apply(@NonNull RemoteContext context) {
         updateBounds();
         if (mUnmodified) {
             mCurrentValue = mOutDefValue;
@@ -449,7 +449,7 @@ public class TouchExpression extends Operation
     float mDownTouchValue; // The calculated value at down
 
     @Override
-    public void touchDown(RemoteContext context, float x, float y) {
+    public void touchDown(@NonNull RemoteContext context, float x, float y) {
         if (!(x >= mScrLeft && x <= mScrRight && y >= mScrTop && y <= mScrBottom)) {
             Utils.log("NOT IN WINDOW " + x + ", " + y + " " + mScrLeft + ", " + mScrTop);
             return;
@@ -466,7 +466,7 @@ public class TouchExpression extends Operation
     }
 
     @Override
-    public void touchUp(RemoteContext context, float x, float y, float dx, float dy) {
+    public void touchUp(@NonNull RemoteContext context, float x, float y, float dx, float dy) {
         // calculate the slope (using small changes)
         if (!mTouchDown) {
             return;
@@ -501,7 +501,7 @@ public class TouchExpression extends Operation
     }
 
     @Override
-    public void touchDrag(RemoteContext context, float x, float y) {
+    public void touchDrag(@NonNull RemoteContext context, float x, float y) {
         if (!mTouchDown) {
             return;
         }
@@ -510,7 +510,7 @@ public class TouchExpression extends Operation
     }
 
     @Override
-    public void write(WireBuffer buffer) {
+    public void write(@NonNull WireBuffer buffer) {
         apply(
                 buffer,
                 mId,
@@ -539,14 +539,16 @@ public class TouchExpression extends Operation
                     + mId
                     + "] = ("
                     + AnimatedFloatExpression.toString(mSrcExp, labels)
-                    + ")";
+                    + ") - "
+                    + mLastChange;
         }
         return CLASS_NAME
                 + "["
                 + mId
                 + "] = ("
                 + AnimatedFloatExpression.toString(mPreCalcValue, labels)
-                + ")";
+                + ") - "
+                + mLastChange;
     }
 
     // ===================== static ======================
@@ -586,17 +588,17 @@ public class TouchExpression extends Operation
      * @param easingSpec the spec of when the object comes to an easing
      */
     public static void apply(
-            WireBuffer buffer,
+            @NonNull WireBuffer buffer,
             int id,
             float value,
             float min,
             float max,
             float velocityId,
             int touchEffects,
-            float[] exp,
+            @NonNull float [] exp,
             int touchMode,
-            float[] touchSpec,
-            float[] easingSpec) {
+            @Nullable float [] touchSpec,
+            @Nullable float [] easingSpec) {
         buffer.start(OP_CODE);
         buffer.writeInt(id);
         buffer.writeFloat(value);
@@ -684,7 +686,7 @@ public class TouchExpression extends Operation
      *
      * @param doc to append the description to.
      */
-    public static void documentation(DocumentationBuilder doc) {
+    public static void documentation(@NonNull DocumentationBuilder doc) {
         doc.operation("Expressions Operations", OP_CODE, CLASS_NAME)
                 .description("A Float expression")
                 .field(INT, "id", "The id of the Color")
@@ -714,7 +716,7 @@ public class TouchExpression extends Operation
     }
 
     @Override
-    public void serialize(MapSerializer serializer) {
+    public void serialize(@NonNull MapSerializer serializer) {
         serializer
                 .addType(CLASS_NAME)
                 .add("id", mId)

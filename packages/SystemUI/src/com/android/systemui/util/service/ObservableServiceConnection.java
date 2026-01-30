@@ -28,10 +28,10 @@ import android.util.Log;
 import androidx.annotation.NonNull;
 import androidx.annotation.WorkerThread;
 
+import com.android.internal.annotations.WeaklyReferencedCallback;
 import com.android.systemui.dagger.qualifiers.Background;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.util.DumpUtilsKt;
-import com.android.systemui.util.annotations.WeaklyReferencedCallback;
 
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;

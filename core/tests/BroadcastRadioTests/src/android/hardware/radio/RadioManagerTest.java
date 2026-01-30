@@ -1127,24 +1127,18 @@ public final class RadioManagerTest {
 
     @Test
     public void isSignalAcquired_forProgramInfo() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-
         mExpect.withMessage("Signal acquisition status for HD program info")
                 .that(HD_PROGRAM_INFO.isSignalAcquired()).isTrue();
     }
 
     @Test
     public void isHdSisAvailable_forProgramInfo() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-
         mExpect.withMessage("SIS information acquisition status for HD program")
                 .that(HD_PROGRAM_INFO.isHdSisAvailable()).isTrue();
     }
 
     @Test
     public void isHdAudioAvailable_forProgramInfo() {
-        mSetFlagsRule.enableFlags(Flags.FLAG_HD_RADIO_IMPROVED);
-
         mExpect.withMessage("Audio acquisition status for HD program")
                 .that(HD_PROGRAM_INFO.isHdAudioAvailable()).isFalse();
     }

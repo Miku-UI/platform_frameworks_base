@@ -18,13 +18,9 @@ package com.android.systemui.brightness.data.repository
 
 import android.content.applicationContext
 import android.os.UserManager
-import android.platform.test.annotations.DisableFlags
-import android.platform.test.annotations.EnableFlags
-import android.platform.test.flag.junit.FlagsParameterization
-import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
+import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.settingslib.RestrictedLockUtils.EnforcedAdmin
-import com.android.systemui.Flags.FLAG_ENFORCE_BRIGHTNESS_BASE_USER_RESTRICTION
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.coroutines.collectLastValue
 import com.android.systemui.kosmos.testDispatcher
@@ -32,34 +28,27 @@ import com.android.systemui.kosmos.testScope
 import com.android.systemui.testKosmos
 import com.android.systemui.user.data.repository.fakeUserRepository
 import com.android.systemui.user.data.repository.userRepository
-import com.android.systemui.util.mockito.any
-import com.android.systemui.util.mockito.eq
-import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
 import com.android.systemui.utils.PolicyRestriction
 import com.android.systemui.utils.UserRestrictionChecker
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.ArgumentMatchers.anyInt
-import org.mockito.ArgumentMatchers.anyString
-import platform.test.runner.parameterized.ParameterizedAndroidJunit4
-import platform.test.runner.parameterized.Parameters
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doReturn
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.whenever
 
 @SmallTest
-@RunWith(ParameterizedAndroidJunit4::class)
-class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTestCase() {
-
-    init {
-        mSetFlagsRule.setFlagsParameterization(flags)
-    }
+@RunWith(AndroidJUnit4::class)
+class BrightnessPolicyRepositoryImplTest : SysuiTestCase() {
 
     private val kosmos = testKosmos()
 
     private val mockUserRestrictionChecker: UserRestrictionChecker = mock {
-        whenever(checkIfRestrictionEnforced(any(), anyString(), anyInt())).thenReturn(null)
-        whenever(hasBaseUserRestriction(any(), anyString(), anyInt())).thenReturn(false)
+        on { checkIfRestrictionEnforced(any(), any(), any()) } doReturn null
+        on { hasBaseUserRestriction(any(), any(), any()) } doReturn false
     }
 
     private val underTest =
@@ -97,7 +86,7 @@ class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTe
                         mockUserRestrictionChecker.checkIfRestrictionEnforced(
                             any(),
                             eq(RESTRICTION),
-                            eq(userRepository.getSelectedUserInfo().id)
+                            eq(userRepository.getSelectedUserInfo().id),
                         )
                     )
                     .thenReturn(enforcedAdmin)
@@ -123,7 +112,7 @@ class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTe
                         mockUserRestrictionChecker.checkIfRestrictionEnforced(
                             any(),
                             eq(RESTRICTION),
-                            eq(userRepository.mainUserId)
+                            eq(userRepository.mainUserId),
                         )
                     )
                     .thenReturn(enforcedAdmin)
@@ -139,26 +128,6 @@ class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTe
         }
 
     @Test
-    @DisableFlags(FLAG_ENFORCE_BRIGHTNESS_BASE_USER_RESTRICTION)
-    fun brightnessBaseUserRestriction_flagOff_noRestriction() =
-        with(kosmos) {
-            testScope.runTest {
-                whenever(
-                        mockUserRestrictionChecker.hasBaseUserRestriction(
-                            any(),
-                            eq(RESTRICTION),
-                            eq(userRepository.getSelectedUserInfo().id)
-                        )
-                    )
-                    .thenReturn(true)
-
-                val restrictions by collectLastValue(underTest.restrictionPolicy)
-
-                assertThat(restrictions).isEqualTo(PolicyRestriction.NoRestriction)
-            }
-        }
-
-    @Test
     fun bothRestrictions_returnsSetEnforcedAdminFromCheck() =
         with(kosmos) {
             testScope.runTest {
@@ -169,7 +138,7 @@ class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTe
                         mockUserRestrictionChecker.checkIfRestrictionEnforced(
                             any(),
                             eq(RESTRICTION),
-                            eq(userRepository.getSelectedUserInfo().id)
+                            eq(userRepository.getSelectedUserInfo().id),
                         )
                     )
                     .thenReturn(enforcedAdmin)
@@ -178,7 +147,7 @@ class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTe
                         mockUserRestrictionChecker.hasBaseUserRestriction(
                             any(),
                             eq(RESTRICTION),
-                            eq(userRepository.getSelectedUserInfo().id)
+                            eq(userRepository.getSelectedUserInfo().id),
                         )
                     )
                     .thenReturn(true)
@@ -190,15 +159,14 @@ class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTe
         }
 
     @Test
-    @EnableFlags(FLAG_ENFORCE_BRIGHTNESS_BASE_USER_RESTRICTION)
-    fun brightnessBaseUserRestriction_flagOn_emptyRestriction() =
+    fun restrictionPolicy_hasBaseUserRestriction_returnsSetEnforcedAdminFromCheck() =
         with(kosmos) {
             testScope.runTest {
                 whenever(
                         mockUserRestrictionChecker.hasBaseUserRestriction(
                             any(),
                             eq(RESTRICTION),
-                            eq(userRepository.getSelectedUserInfo().id)
+                            eq(userRepository.getSelectedUserInfo().id),
                         )
                     )
                     .thenReturn(true)
@@ -211,10 +179,5 @@ class BrightnessPolicyRepositoryImplTest(flags: FlagsParameterization) : SysuiTe
 
     companion object {
         private const val RESTRICTION = UserManager.DISALLOW_CONFIG_BRIGHTNESS
-        @JvmStatic
-        @Parameters(name = "{0}")
-        fun getParams(): List<FlagsParameterization> {
-            return allCombinationsOf(FLAG_ENFORCE_BRIGHTNESS_BASE_USER_RESTRICTION)
-        }
     }
 }

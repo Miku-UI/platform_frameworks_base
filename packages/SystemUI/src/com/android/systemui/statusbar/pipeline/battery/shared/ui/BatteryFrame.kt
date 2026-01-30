@@ -16,6 +16,10 @@
 
 package com.android.systemui.statusbar.pipeline.battery.shared.ui
 
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.addSvg
 import androidx.compose.ui.unit.Dp
@@ -36,11 +40,44 @@ object BatteryFrame {
             viewportWidth = 21.dp,
         )
 
+    val bodyPathSpec: PathSpec =
+        PathSpec(
+            path =
+                Path().apply {
+                    addRoundRect(
+                        RoundRect(
+                            rect = Rect(0f, 0f, 24f, 13f),
+                            topLeft = CornerRadius(4f),
+                            topRight = CornerRadius(4f),
+                            bottomRight = CornerRadius(4f),
+                            bottomLeft = CornerRadius(4f),
+                        )
+                    )
+                },
+            viewportWidth = 24.dp,
+            viewportHeight = 13.dp,
+        )
+
+    val capPathSpec: PathSpec =
+        PathSpec(
+            path =
+                Path().apply {
+                    addSvg(
+                        "M0.3333,-0.0037L0,-0.0037L0,6.0234L0.3333,6.0234C0.9777,6.0234 1.5,5.5011 1.5,4.8567L1.5,1.163C1.5,0.5187 0.9777,-0.0037 0.3333,-0.0037Z"
+                    )
+                },
+            viewportWidth = 1.5.dp,
+            viewportHeight = 6.03.dp,
+        )
+
     /** The width of the drawable that is usable for inside elements */
-    const val innerWidth = 19.5f
+    const val innerWidth = 24f
 
     /** The height of the drawable that is usable for inside elements */
-    const val innerHeight = 12f
+    const val innerHeight = 13f
+
+    /** Corner radius for the battery body */
+    const val cornerRadius = 4f
 }
 
 /**
@@ -57,4 +94,7 @@ data class PathSpec(val path: Path, val viewportWidth: Dp, val viewportHeight: D
 
         return min(xScale, yScale)
     }
+
+    fun scaledSize(scale: Float): Size =
+        Size(width = viewportWidth.value * scale, height = viewportHeight.value * scale)
 }

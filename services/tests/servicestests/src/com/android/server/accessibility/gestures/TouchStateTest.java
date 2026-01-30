@@ -23,15 +23,12 @@ import static com.android.server.accessibility.gestures.TouchState.STATE_TOUCH_E
 
 import static com.google.common.truth.Truth.assertThat;
 
-import android.platform.test.annotations.DisableFlags;
-import android.platform.test.annotations.EnableFlags;
 import android.platform.test.flag.junit.SetFlagsRule;
 import android.view.Display;
 
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.accessibility.AccessibilityManagerService;
-import com.android.server.accessibility.Flags;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -52,7 +49,6 @@ public class TouchStateTest {
         mTouchState = new TouchState(Display.DEFAULT_DISPLAY, mMockAms);
     }
 
-    @EnableFlags(Flags.FLAG_POINTER_UP_MOTION_EVENT_IN_TOUCH_EXPLORATION)
     @Test
     public void injectedEvent_interactionEnd_pointerDown_startsTouchExploring() {
         mTouchState.mReceivedPointerTracker.mReceivedPointersDown = 1;
@@ -60,17 +56,9 @@ public class TouchStateTest {
         assertThat(mTouchState.getState()).isEqualTo(STATE_TOUCH_EXPLORING);
     }
 
-    @EnableFlags(Flags.FLAG_POINTER_UP_MOTION_EVENT_IN_TOUCH_EXPLORATION)
     @Test
     public void injectedEvent_interactionEnd_pointerUp_clears() {
         mTouchState.mReceivedPointerTracker.mReceivedPointersDown = 0;
-        mTouchState.onInjectedAccessibilityEvent(TYPE_TOUCH_INTERACTION_END);
-        assertThat(mTouchState.getState()).isEqualTo(STATE_CLEAR);
-    }
-
-    @DisableFlags(Flags.FLAG_POINTER_UP_MOTION_EVENT_IN_TOUCH_EXPLORATION)
-    @Test
-    public void injectedEvent_interactionEnd_clears() {
         mTouchState.onInjectedAccessibilityEvent(TYPE_TOUCH_INTERACTION_END);
         assertThat(mTouchState.getState()).isEqualTo(STATE_CLEAR);
     }

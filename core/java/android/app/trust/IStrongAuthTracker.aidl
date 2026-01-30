@@ -19,7 +19,7 @@ package android.app.trust;
 /**
  * Private API to be notified about strong auth changes
  *
- * {@hide}
+ * @hide
  */
 oneway interface IStrongAuthTracker {
     void onStrongAuthRequiredChanged(int strongAuthRequired, int userId);

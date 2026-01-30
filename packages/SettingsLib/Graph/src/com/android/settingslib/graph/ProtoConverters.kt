@@ -16,6 +16,7 @@
 
 package com.android.settingslib.graph
 
+import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -25,6 +26,8 @@ import com.android.settingslib.graph.proto.BundleProto
 import com.android.settingslib.graph.proto.BundleProto.BundleValue
 import com.android.settingslib.graph.proto.IntentProto
 import com.android.settingslib.graph.proto.TextProto
+import com.android.settingslib.metadata.marshallParcel
+import com.android.settingslib.metadata.unmarshallBundle
 import com.google.protobuf.ByteString
 
 fun TextProto.getText(context: Context): String? =
@@ -44,11 +47,10 @@ fun Intent.toProto(): IntentProto = intentProto {
     this@toProto.type?.let { mimeType = it }
 }
 
-fun IntentProto.toIntent(): Intent? {
-    if (!hasComponent()) return null
-    val componentName = ComponentName.unflattenFromString(component) ?: return null
+@SuppressLint("WrongConstant")
+fun IntentProto.toIntent(): Intent {
     val intent = Intent()
-    intent.component = componentName
+    if (hasComponent()) intent.component = ComponentName.unflattenFromString(component)
     if (hasAction()) intent.action = action
     if (hasData()) intent.data = Uri.parse(data)
     if (hasPkg()) intent.`package` = pkg
@@ -58,7 +60,25 @@ fun IntentProto.toIntent(): Intent? {
     return intent
 }
 
+@Suppress("DEPRECATION")
 fun Bundle.toProto(): BundleProto = bundleProto {
+    fun Any.hasUnknownType(): Boolean =
+        when (this@hasUnknownType) {
+            is String,
+            is ByteArray,
+            is Int,
+            is Long,
+            is Boolean,
+            is Double -> false
+            is Bundle -> keySet().any { get(it)?.hasUnknownType() == true }
+            else -> true
+        }
+
+    if (this@toProto.hasUnknownType()) {
+        parcelBytes = ByteString.copyFrom(marshallParcel())
+        return@bundleProto
+    }
+
     fun toProto(value: Any): BundleValue = bundleValueProto {
         when (value) {
             is String -> stringValue = value
@@ -73,12 +93,14 @@ fun Bundle.toProto(): BundleProto = bundleProto {
     }
 
     for (key in keySet()) {
-        @Suppress("DEPRECATION") get(key)?.let { putValues(key, toProto(it)) }
+        get(key)?.let { putValues(key, toProto(it)) }
     }
 }
 
-fun BundleProto.toBundle(): Bundle =
-    Bundle().apply {
+fun BundleProto.toBundle(): Bundle {
+    val bytes = parcelBytes.toByteArray()
+    if (bytes.isNotEmpty()) return bytes.unmarshallBundle()
+    return Bundle().apply {
         for ((key, value) in valuesMap) {
             when {
                 value.hasBooleanValue() -> putBoolean(key, value.booleanValue)
@@ -92,3 +114,4 @@ fun BundleProto.toBundle(): Bundle =
             }
         }
     }
+}

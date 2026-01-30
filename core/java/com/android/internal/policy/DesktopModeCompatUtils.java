@@ -18,9 +18,14 @@ package com.android.internal.policy;
 
 import static android.content.pm.ActivityInfo.INSETS_DECOUPLED_CONFIGURATION_ENFORCED;
 import static android.content.pm.ActivityInfo.OVERRIDE_EXCLUDE_CAPTION_INSETS_FROM_APP_BOUNDS;
+import static android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+import static android.content.res.Configuration.ORIENTATION_PORTRAIT;
 
 import android.annotation.NonNull;
 import android.content.pm.ActivityInfo;
+import android.content.res.Configuration;
+import android.graphics.Rect;
+import android.view.Gravity;
 import android.window.DesktopModeFlags;
 
 /**
@@ -46,6 +51,40 @@ public final class DesktopModeCompatUtils {
                 && !isConfigurationDecoupled(info, optOutEdgeToEdge)
                 && (!isResizeable
                     || info.isChangeEnabled(OVERRIDE_EXCLUDE_CAPTION_INSETS_FROM_APP_BOUNDS));
+    }
+
+    /**
+     * Applies a vertical and horizontal gravity on the inOutBounds in relation to the stableBounds.
+     */
+    public static void applyLayoutGravity(int verticalGravity, int horizontalGravity,
+            @NonNull Rect inOutBounds, @NonNull Rect stableBounds) {
+        final int width = inOutBounds.width();
+        final int height = inOutBounds.height();
+
+        final float fractionOfHorizontalOffset = switch (horizontalGravity) {
+            case Gravity.LEFT -> 0f;
+            case Gravity.RIGHT -> 1f;
+            default -> 0.5f;
+        };
+
+        final float fractionOfVerticalOffset = switch (verticalGravity) {
+            case Gravity.TOP -> 0f;
+            case Gravity.BOTTOM -> 1f;
+            default -> 0.5f;
+        };
+
+        inOutBounds.offsetTo(stableBounds.left, stableBounds.top);
+        final int xOffset = (int) (fractionOfHorizontalOffset * (stableBounds.width() - width));
+        final int yOffset = (int) (fractionOfVerticalOffset * (stableBounds.height() - height));
+        inOutBounds.offset(xOffset, yOffset);
+    }
+
+    /**
+     * Returns the orientation of the given {@code rect}.
+     */
+    public static @Configuration.Orientation int computeConfigOrientation(@NonNull Rect rect) {
+        return rect.height() >= rect.width()
+                ? ORIENTATION_PORTRAIT : ORIENTATION_LANDSCAPE;
     }
 
     private static boolean isConfigurationDecoupled(@NonNull ActivityInfo info,

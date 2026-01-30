@@ -23,12 +23,16 @@ sealed interface ShortcutCustomizationRequestInfo {
         val categoryType: ShortcutCategoryType
         val subCategoryLabel: String
         val defaultShortcutCommand: ShortcutCommand?
+        val packageName: String
+        val className: String
 
         data class Add(
             override val label: String = "",
             override val categoryType: ShortcutCategoryType = ShortcutCategoryType.System,
             override val subCategoryLabel: String = "",
             override val defaultShortcutCommand: ShortcutCommand? = null,
+            override val packageName: String = "",
+            override val className: String = "",
         ) : SingleShortcutCustomization
 
         data class Delete(
@@ -37,6 +41,8 @@ sealed interface ShortcutCustomizationRequestInfo {
             override val subCategoryLabel: String = "",
             override val defaultShortcutCommand: ShortcutCommand? = null,
             val customShortcutCommand: ShortcutCommand? = null,
+            override val packageName: String = "",
+            override val className: String = "",
         ) : SingleShortcutCustomization
     }
 

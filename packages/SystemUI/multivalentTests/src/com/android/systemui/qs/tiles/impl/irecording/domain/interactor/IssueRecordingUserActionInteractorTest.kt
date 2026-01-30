@@ -33,7 +33,7 @@ import com.android.systemui.qs.tiles.base.shared.model.QSTileUserAction
 import com.android.systemui.qs.tiles.impl.irecording.data.model.IssueRecordingModel
 import com.android.systemui.recordissue.IssueRecordingState
 import com.android.systemui.recordissue.RecordIssueDialogDelegate
-import com.android.systemui.screenrecord.RecordingController
+import com.android.systemui.screenrecord.ScreenRecordUxController
 import com.android.systemui.settings.UserContextProvider
 import com.android.systemui.settings.userFileManager
 import com.android.systemui.settings.userTracker
@@ -54,7 +54,7 @@ import org.mockito.MockitoAnnotations
 @RunWith(AndroidJUnit4::class)
 class IssueRecordingUserActionInteractorTest : SysuiTestCase() {
 
-    @Mock private lateinit var recordingController: RecordingController
+    @Mock private lateinit var screenRecordUxController: ScreenRecordUxController
 
     val user = UserHandle(1)
     val kosmos = testKosmos().also { it.testCase = this }
@@ -103,7 +103,7 @@ class IssueRecordingUserActionInteractorTest : SysuiTestCase() {
                     panelInteractor,
                     userTracker,
                     factory,
-                    recordingController,
+                    screenRecordUxController,
                 )
         }
     }

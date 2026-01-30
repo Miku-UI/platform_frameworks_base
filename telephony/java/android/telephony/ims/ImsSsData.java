@@ -33,7 +33,7 @@ import java.util.List;
 /**
  * Provides STK Call Control Supplementary Service information.
  *
- * {@hide}
+ * @hide
  */
 @SystemApi
 public final class ImsSsData implements Parcelable {

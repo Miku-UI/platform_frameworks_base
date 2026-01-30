@@ -20,11 +20,16 @@ import com.android.systemui.keyguard.ui.keyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.blurConfig
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
+import com.android.systemui.shade.domain.interactor.shadeInteractor
+import com.android.systemui.shade.domain.interactor.shadeModeInteractor
+import com.android.systemui.statusbar.notification.headsup.headsUpManager
 
 val Kosmos.primaryBouncerToOccludedTransitionViewModel by Fixture {
     PrimaryBouncerToOccludedTransitionViewModel(
         animationFlow = keyguardTransitionAnimationFlow,
         blurConfig = blurConfig,
-        shadeDependentFlows = shadeDependentFlows,
+        shadeInteractor = shadeInteractor,
+        shadeModeInteractor = shadeModeInteractor,
+        headsUpManager = headsUpManager,
     )
 }

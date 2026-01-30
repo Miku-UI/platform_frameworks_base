@@ -36,6 +36,11 @@ static struct {
     jmethodID removeInputChannel;
 } gWindowManagerGlobal;
 
+static struct {
+    jclass clazz;
+    jmethodID release;
+} gSurfaceControl;
+
 std::shared_ptr<InputChannel> createInputChannel(
         const sp<IBinder>& clientToken, const InputTransferToken& hostInputTransferToken,
         const SurfaceControl& surfaceControl, const InputTransferToken& clientInputTransferToken) {
@@ -62,6 +67,7 @@ std::shared_ptr<InputChannel> createInputChannel(
                                                         surfaceControlObj.get(),
                                                         clientInputTransferTokenObj.get()));
 
+    env->CallVoidMethod(surfaceControlObj.get(), gSurfaceControl.release);
     return android_view_InputChannel_getInputChannel(env, inputChannelObj.get());
 }
 
@@ -84,6 +90,10 @@ int register_android_view_WindowManagerGlobal(JNIEnv* env) {
     gWindowManagerGlobal.removeInputChannel =
             GetStaticMethodIDOrDie(env, windowManagerGlobalClass, "removeInputChannel",
                                    "(Landroid/os/IBinder;)V");
+
+    jclass surfaceControlClass = FindClassOrDie(env, "android/view/SurfaceControl");
+    gSurfaceControl.clazz = MakeGlobalRefOrDie(env, surfaceControlClass);
+    gSurfaceControl.release = GetMethodIDOrDie(env, gSurfaceControl.clazz, "release", "()V");
 
     return NO_ERROR;
 }

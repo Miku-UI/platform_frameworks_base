@@ -16,7 +16,9 @@
 
 package com.android.server.wm.flicker.testapp;
 
+import static android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP;
 import static android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK;
+import static android.content.Intent.FLAG_ACTIVITY_NEW_TASK;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -24,16 +26,25 @@ import android.os.Bundle;
 import android.widget.Button;
 
 public class LaunchNewTaskActivity extends Activity {
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.task_button);
 
-        Button button = findViewById(R.id.launch_new_task);
-        button.setOnClickListener(v -> {
-            Intent intent = new Intent(LaunchNewTaskActivity.this, SimpleActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_MULTIPLE_TASK);
-            startActivity(intent);
-        });
+        final Button newTaskbutton = findViewById(R.id.launch_new_task);
+        newTaskbutton.setOnClickListener(
+                v -> launchNewTask(FLAG_ACTIVITY_NEW_TASK | FLAG_ACTIVITY_MULTIPLE_TASK));
+
+        final Button newTaskWithRecycleIfPossibleButton =
+                findViewById(R.id.launch_new_task_with_recycle_if_possible);
+        newTaskWithRecycleIfPossibleButton.setOnClickListener(
+                v -> launchNewTask(FLAG_ACTIVITY_CLEAR_TOP | FLAG_ACTIVITY_NEW_TASK));
+    }
+
+    private void launchNewTask(int flags) {
+        final Intent intent = new Intent(LaunchNewTaskActivity.this, SimpleActivity.class);
+        intent.setFlags(flags);
+        startActivity(intent);
     }
 }

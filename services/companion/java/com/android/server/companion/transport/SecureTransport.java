@@ -16,11 +16,14 @@
 
 package com.android.server.companion.transport;
 
+import static android.security.attestationverification.AttestationVerificationManager.FLAG_FAILURE_PATCH_LEVEL_DIFF;
+
 import android.annotation.NonNull;
 import android.content.Context;
 import android.os.ParcelFileDescriptor;
 import android.util.Slog;
 
+import com.android.server.companion.securechannel.AttestationVerificationException;
 import com.android.server.companion.securechannel.AttestationVerifier;
 import com.android.server.companion.securechannel.SecureChannel;
 
@@ -100,6 +103,7 @@ class SecureTransport extends Transport implements SecureChannel.Callback {
             // the request processing thread is dead. Assume latter and detach the transport.
             Slog.w(TAG, "Failed to queue message 0x" + Integer.toHexString(message)
                     + " . Request buffer is full; detaching transport.", e);
+            eventCallback(translateError(e));
             close();
         }
     }
@@ -110,8 +114,22 @@ class SecureTransport extends Transport implements SecureChannel.Callback {
             mSecureChannel.establishSecureConnection();
         } catch (Exception e) {
             Slog.e(TAG, "Failed to initiate secure channel handshake.", e);
+            eventCallback(translateError(e));
             close();
         }
+    }
+
+    @TransportEvent
+    private int translateError(Throwable error) {
+        // IMPORTANT: Be careful with oversharing error to prevent malicious apps from
+        // determining the state of the device.
+        if (error instanceof AttestationVerificationException) {
+            int flags = ((AttestationVerificationException) error).getFlags();
+            if ((flags & FLAG_FAILURE_PATCH_LEVEL_DIFF) > 0) {
+                return ERROR_UPDATE_REQUIRED;
+            }
+        }
+        return ERROR_UNKNOWN;
     }
 
     @Override
@@ -127,10 +145,12 @@ class SecureTransport extends Transport implements SecureChannel.Callback {
                     mSecureChannel.sendSecureMessage(request);
                 } catch (Exception e) {
                     Slog.e(TAG, "Failed to send secure message.", e);
+                    eventCallback(translateError(e));
                     close();
                 }
             }
         }).start();
+        eventCallback(SUCCESSFUL_CONNECTION);
     }
 
     @Override
@@ -147,12 +167,14 @@ class SecureTransport extends Transport implements SecureChannel.Callback {
         } catch (IOException error) {
             // IOException won't be thrown here because a separate thread is handling
             // the write operations inside onSecureConnection().
+            eventCallback(translateError(error));
         }
     }
 
     @Override
     public void onError(Throwable error) {
         Slog.e(TAG, "Secure transport encountered an error.", error);
+        eventCallback(translateError(error));
 
         // If the channel was stopped as a result of the error, then detach itself.
         if (mSecureChannel.isStopped()) {

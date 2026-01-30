@@ -40,6 +40,7 @@ import com.android.systemui.statusbar.notification.data.model.activeNotification
 import com.android.systemui.statusbar.notification.data.repository.ActiveNotificationsStore
 import com.android.systemui.statusbar.notification.data.repository.activeNotificationListRepository
 import com.android.systemui.statusbar.notification.domain.interactor.activeNotificationsInteractor
+import com.android.systemui.statusbar.notification.promoted.PromotedNotificationUi
 import com.android.systemui.statusbar.notification.promoted.shared.model.PromotedNotificationContentBuilder
 import com.android.systemui.statusbar.notification.shared.ActiveNotificationModel
 import com.android.systemui.statusbar.notification.shared.CallType
@@ -68,7 +69,7 @@ import org.mockito.kotlin.whenever
 @SmallTest
 @RunWith(AndroidJUnit4::class)
 @TestableLooper.RunWithLooper
-@DisableFlags(StatusBarChipsModernization.FLAG_NAME)
+@DisableFlags(StatusBarChipsModernization.FLAG_NAME, PromotedNotificationUi.FLAG_NAME)
 class OngoingCallControllerTest : SysuiTestCase() {
     private val kosmos = testKosmos()
 
@@ -192,7 +193,8 @@ class OngoingCallControllerTest : SysuiTestCase() {
     fun notifRepoHasOngoingCallNotif_isOngoingCallNotif_windowControllerUpdated() {
         setCallNotifOnRepo()
 
-        verify(mockStatusBarWindowController).setOngoingProcessRequiresStatusBarVisible(true)
+        verify(mockStatusBarWindowController)
+            .setOngoingProcessRequiresStatusBarVisible(eq(true), any())
     }
 
     @Test
@@ -308,7 +310,8 @@ class OngoingCallControllerTest : SysuiTestCase() {
 
         setNoNotifsOnRepo()
 
-        verify(mockStatusBarWindowController).setOngoingProcessRequiresStatusBarVisible(false)
+        verify(mockStatusBarWindowController)
+            .setOngoingProcessRequiresStatusBarVisible(eq(false), any())
     }
 
     @Test

@@ -64,6 +64,7 @@ import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
 import android.app.job.JobInfo;
+import android.app.usage.UsageStatsManager;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -1546,8 +1547,8 @@ public class ConnectivityControllerTest {
                 .setEstimatedNetworkBytes(DataUnit.MEBIBYTES.toBytes(1), 0)
                 .setRequiredNetworkType(JobInfo.NETWORK_TYPE_CELLULAR), UID_RED);
         final JobStatus unnetworked = createJobStatus(createJob(), UID_BLUE);
-        networked.setStandbyBucket(FREQUENT_INDEX);
-        unnetworked.setStandbyBucket(FREQUENT_INDEX);
+        networked.setStandbyBucket(FREQUENT_INDEX, UsageStatsManager.REASON_MAIN_PREDICTED);
+        unnetworked.setStandbyBucket(FREQUENT_INDEX, UsageStatsManager.REASON_MAIN_PREDICTED);
 
         final Network cellularNet = mock(Network.class);
         final NetworkCapabilities cellularCaps =
@@ -1562,8 +1563,8 @@ public class ConnectivityControllerTest {
         assertTrue(networked.isConstraintSatisfied(CONSTRAINT_CONNECTIVITY));
         assertFalse(unnetworked.isConstraintSatisfied(CONSTRAINT_CONNECTIVITY));
 
-        networked.setStandbyBucket(RESTRICTED_INDEX);
-        unnetworked.setStandbyBucket(RESTRICTED_INDEX);
+        networked.setStandbyBucket(RESTRICTED_INDEX, UsageStatsManager.REASON_MAIN_TIMEOUT);
+        unnetworked.setStandbyBucket(RESTRICTED_INDEX, UsageStatsManager.REASON_MAIN_TIMEOUT);
         controller.startTrackingRestrictedJobLocked(networked);
         controller.startTrackingRestrictedJobLocked(unnetworked);
         assertFalse(networked.isConstraintSatisfied(CONSTRAINT_CONNECTIVITY));
@@ -1571,8 +1572,8 @@ public class ConnectivityControllerTest {
         // connectivity constraint.
         assertFalse(unnetworked.isConstraintSatisfied(CONSTRAINT_CONNECTIVITY));
 
-        networked.setStandbyBucket(RARE_INDEX);
-        unnetworked.setStandbyBucket(RARE_INDEX);
+        networked.setStandbyBucket(RARE_INDEX, UsageStatsManager.REASON_MAIN_TIMEOUT);
+        unnetworked.setStandbyBucket(RARE_INDEX, UsageStatsManager.REASON_MAIN_TIMEOUT);
         controller.stopTrackingRestrictedJobLocked(networked);
         controller.stopTrackingRestrictedJobLocked(unnetworked);
         assertTrue(networked.isConstraintSatisfied(CONSTRAINT_CONNECTIVITY));
@@ -1842,8 +1843,23 @@ public class ConnectivityControllerTest {
 
     private static JobStatus createJobStatus(JobInfo.Builder job, int uid,
             long earliestRunTimeElapsedMillis, long latestRunTimeElapsedMillis) {
-        return new JobStatus(job.build(), uid, null, -1, 0, null, null,
-                earliestRunTimeElapsedMillis, latestRunTimeElapsedMillis, 0, 0, 0, null, 0, 0);
+        return new JobStatus(
+                /* job= */ job.build(),
+                /* callingUid= */ uid,
+                /* sourcePkgName= */ null,
+                /* sourceUserId= */ -1,
+                /* standbyBucket= */ 0,
+                /* standbyBucketReason= */ 0,
+                /* namespace= */ null,
+                /* sourceTag= */ null,
+                /* earliestRunTimeElapsedMillis= */ earliestRunTimeElapsedMillis,
+                /* latestRunTimeElapsedMillis= */ latestRunTimeElapsedMillis,
+                /* lastSuccessfulRunTime= */ 0,
+                /* lastFailedRunTime= */ 0,
+                /* cumulativeExecutionTimeMs= */ 0,
+                /* persistedExecutionTimesUTC= */ null,
+                /* innerFlags= */ 0,
+                /* dynamicConstraints= */ 0);
     }
 
     private void setDeviceConfigBoolean(ConnectivityController connectivityController,

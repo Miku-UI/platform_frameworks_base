@@ -23,7 +23,6 @@ import android.content.res.Resources;
 import android.graphics.PixelFormat;
 import android.graphics.Point;
 import android.graphics.Rect;
-import android.view.Display;
 import android.view.MotionEvent;
 import android.view.SurfaceControl;
 import android.view.View;
@@ -35,7 +34,6 @@ import androidx.annotation.NonNull;
 
 import com.android.wm.shell.R;
 import com.android.wm.shell.bubbles.DismissViewUtils;
-import com.android.wm.shell.common.DisplayController;
 import com.android.wm.shell.common.ShellExecutor;
 import com.android.wm.shell.common.pip.PipDisplayLayoutState;
 import com.android.wm.shell.common.pip.PipUiEventLogger;
@@ -48,7 +46,8 @@ import kotlin.Unit;
 /**
  * Handler of all Magnetized Object related code for PiP.
  */
-public class PipDismissTargetHandler implements ViewTreeObserver.OnPreDrawListener {
+public class PipDismissTargetHandler implements ViewTreeObserver.OnPreDrawListener,
+        PipDisplayLayoutState.DisplayIdListener {
 
     /* The multiplier to apply scale the target size by when applying the magnetic field radius */
     private static final float MAGNETIC_FIELD_RADIUS_MULTIPLIER = 1.25f;
@@ -87,36 +86,37 @@ public class PipDismissTargetHandler implements ViewTreeObserver.OnPreDrawListen
     private SurfaceControl mTaskLeash;
     private boolean mHasDismissTargetSurface;
 
-    private final Context mContext;
+    private Context mContext;
     private final PipMotionHelper mMotionHelper;
     private final PipUiEventLogger mPipUiEventLogger;
     private WindowManager mWindowManager;
-    /** The display id for the display that is associated with mWindowManager. */
-    private int mWindowManagerDisplayId = -1;
-    private final PipDisplayLayoutState mPipDisplayLayoutState;
-    private final DisplayController mDisplayController;
     private final ShellExecutor mMainExecutor;
 
     public PipDismissTargetHandler(Context context, PipUiEventLogger pipUiEventLogger,
             PipMotionHelper motionHelper, PipDisplayLayoutState pipDisplayLayoutState,
-            DisplayController displayController, ShellExecutor mainExecutor) {
+            ShellExecutor mainExecutor) {
         mContext = context;
         mPipUiEventLogger = pipUiEventLogger;
         mMotionHelper = motionHelper;
-        mPipDisplayLayoutState = pipDisplayLayoutState;
-        mDisplayController = displayController;
         mMainExecutor = mainExecutor;
+        mWindowManager = mContext.getSystemService(WindowManager.class);
+
+        pipDisplayLayoutState.addDisplayIdListener(this);
+    }
+
+    private void maybeCleanUpDismissTarget() {
+        if (mTargetViewContainer != null) {
+            // Remove the old view from view hierarchy
+            cleanUpDismissTarget();
+        }
     }
 
     void init() {
+        maybeCleanUpDismissTarget();
+
         Resources res = mContext.getResources();
         mEnableDismissDragToEdge = res.getBoolean(R.bool.config_pipEnableDismissDragToEdge);
         mDismissAreaHeight = res.getDimensionPixelSize(R.dimen.floating_dismiss_gradient_height);
-
-        if (mTargetViewContainer != null) {
-            // init can be called multiple times, remove the old one from view hierarchy first.
-            cleanUpDismissTarget();
-        }
 
         mTargetViewContainer = new DismissView(mContext);
         DismissViewUtils.setup(mTargetViewContainer);
@@ -190,6 +190,16 @@ public class PipDismissTargetHandler implements ViewTreeObserver.OnPreDrawListen
         return true;
     }
 
+    @Override
+    public void onDisplayIdChanged(@NonNull Context context) {
+        maybeCleanUpDismissTarget();
+
+        mContext = context;
+        mWindowManager = mContext.getSystemService(WindowManager.class);
+        // If the displayId has changed, reset the UI for the current display
+        init();
+    }
+
     /**
      * Potentially start consuming future motion events if PiP is currently near the magnetized
      * object.
@@ -252,8 +262,6 @@ public class PipDismissTargetHandler implements ViewTreeObserver.OnPreDrawListen
 
     /** Adds the magnetic target view to the WindowManager so it's ready to be animated in. */
     public void createOrUpdateDismissTarget() {
-        getWindowManager();
-
         if (mTargetViewContainer.getParent() == null) {
             mTargetViewContainer.cancelAnimators();
 
@@ -322,17 +330,5 @@ public class PipDismissTargetHandler implements ViewTreeObserver.OnPreDrawListen
         if (mTargetViewContainer.getParent() != null) {
             mWindowManager.removeViewImmediate(mTargetViewContainer);
         }
-    }
-
-    /** Sets mWindowManager to WindowManager associated with the display where PiP is active on. */
-    private void getWindowManager() {
-        final int pipDisplayId = mPipDisplayLayoutState.getDisplayId();
-        if (mWindowManager != null && pipDisplayId == mWindowManagerDisplayId) {
-            return;
-        }
-        mWindowManagerDisplayId = pipDisplayId;
-        Display display = mDisplayController.getDisplay(mWindowManagerDisplayId);
-        Context uiContext = mContext.createWindowContext(display, WINDOW_TYPE, null);
-        mWindowManager = uiContext.getSystemService(WindowManager.class);
     }
 }

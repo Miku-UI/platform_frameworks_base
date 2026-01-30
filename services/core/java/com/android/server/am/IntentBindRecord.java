@@ -18,6 +18,7 @@ package com.android.server.am;
 
 import android.content.Context;
 import android.content.Intent;
+import android.os.Binder;
 import android.os.IBinder;
 import android.util.ArrayMap;
 import android.util.ArraySet;
@@ -28,7 +29,7 @@ import java.io.PrintWriter;
 /**
  * A particular Intent that has been bound to a Service.
  */
-final class IntentBindRecord {
+final class IntentBindRecord extends Binder {
     /** The running service. */
     final ServiceRecord service;
     /** The intent that is bound.*/

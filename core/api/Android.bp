@@ -16,6 +16,7 @@ package {
     default_visibility: [
         "//frameworks/base",
         "//frameworks/base/api",
+        "//frameworks/base/tools/systemfeatures",
     ],
     // See: http://go/android-license-faq
     // A large-scale-change added 'default_applicable_licenses' to import
@@ -63,6 +64,7 @@ filegroup {
     visibility: [
         "//frameworks/base",
         "//frameworks/base/api",
+        "//frameworks/base/tools/systemfeatures",
         "//cts/tests/signature/api",
     ],
 }

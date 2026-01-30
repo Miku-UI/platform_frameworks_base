@@ -16,4 +16,6 @@
 <resources xmlns:xliff="urn:oasis:names:tc:xliff:document:1.2">
     <!-- Label for split screen shortcut-->
     <string name="split_screen_shortcut_label">Split Screen Secondary Activity</string>
+    <string name="long_text">This\n is\n a\n long\n text\n to\n demonstrate\n scrolling\n.\n Keep\n scrolling\n down\n to\n find\n the\n finish\n button\n.\n</string>
+    <string name="finish_button_text">Finish</string>
 </resources>

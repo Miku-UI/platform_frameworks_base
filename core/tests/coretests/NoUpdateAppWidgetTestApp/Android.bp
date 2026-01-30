@@ -1,0 +1,7 @@
+package {
+    default_applicable_licenses: ["frameworks_base_license"],
+}
+
+android_test_helper_app {
+    name: "NoUpdateAppWidgetTestApp",
+}

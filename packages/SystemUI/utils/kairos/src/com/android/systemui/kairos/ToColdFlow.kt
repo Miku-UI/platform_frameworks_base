@@ -16,6 +16,9 @@
 
 package com.android.systemui.kairos
 
+import com.android.systemui.kairos.util.NameTag
+import com.android.systemui.kairos.util.plus
+import com.android.systemui.kairos.util.toNameData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.conflate
@@ -25,16 +28,28 @@ import kotlinx.coroutines.flow.conflate
  * transactionally connect to / disconnect from the [Events] when collection starts/stops.
  */
 @ExperimentalKairosApi
-fun <A> Events<A>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { observe { trySend(it) } } }.conflate()
+fun <A> Events<A>.toColdConflatedFlow(network: KairosNetwork, name: NameTag? = null): Flow<A> {
+    val nameData = name.toNameData("Events.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) { observeSync(nameData + "sendOutput") { trySend(it) } }
+        }
+        .conflate()
+}
 
 /**
  * Returns a cold [Flow] that, when collected, emits from this [State]. [network] is needed to
  * transactionally connect to / disconnect from the [State] when collection starts/stops.
  */
 @ExperimentalKairosApi
-fun <A> State<A>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { observe { trySend(it) } } }.conflate()
+fun <A> State<A>.toColdConflatedFlow(network: KairosNetwork, name: NameTag? = null): Flow<A> {
+    val nameData = name.toNameData("State.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) {
+                observeSync(nameData + "sendOutput", this@toColdConflatedFlow) { trySend(it) }
+            }
+        }
+        .conflate()
+}
 
 /**
  * Returns a cold [Flow] that, when collected, applies this [BuildSpec] in a new transaction in this
@@ -44,8 +59,18 @@ fun <A> State<A>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
  */
 @ExperimentalKairosApi
 @JvmName("eventsSpecToColdConflatedFlow")
-fun <A> BuildSpec<Events<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { applySpec().observe { trySend(it) } } }.conflate()
+fun <A> BuildSpec<Events<A>>.toColdConflatedFlow(
+    network: KairosNetwork,
+    name: NameTag? = null,
+): Flow<A> {
+    val nameData = name.toNameData("BuildSpec<Events>.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) {
+                applySpec().observeSync(nameData + "sendOutput") { trySend(it) }
+            }
+        }
+        .conflate()
+}
 
 /**
  * Returns a cold [Flow] that, when collected, applies this [BuildSpec] in a new transaction in this
@@ -55,8 +80,18 @@ fun <A> BuildSpec<Events<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A
  */
 @ExperimentalKairosApi
 @JvmName("stateSpecToColdConflatedFlow")
-fun <A> BuildSpec<State<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { applySpec().observe { trySend(it) } } }.conflate()
+fun <A> BuildSpec<State<A>>.toColdConflatedFlow(
+    network: KairosNetwork,
+    name: NameTag? = null,
+): Flow<A> {
+    val nameData = name.toNameData("BuildSpec<State>.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) {
+                observeSync(nameData + "sendOutput", applySpec()) { trySend(it) }
+            }
+        }
+        .conflate()
+}
 
 /**
  * Returns a cold [Flow] that, when collected, applies this [Transactional] in a new transaction in
@@ -64,8 +99,18 @@ fun <A> BuildSpec<State<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A>
  */
 @ExperimentalKairosApi
 @JvmName("transactionalFlowToColdConflatedFlow")
-fun <A> Transactional<Events<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { sample().observe { trySend(it) } } }.conflate()
+fun <A> Transactional<Events<A>>.toColdConflatedFlow(
+    network: KairosNetwork,
+    name: NameTag? = null,
+): Flow<A> {
+    val nameData = name.toNameData("Transactional<Events>.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) {
+                sample().observeSync(nameData + "sendOutput") { trySend(it) }
+            }
+        }
+        .conflate()
+}
 
 /**
  * Returns a cold [Flow] that, when collected, applies this [Transactional] in a new transaction in
@@ -73,8 +118,18 @@ fun <A> Transactional<Events<A>>.toColdConflatedFlow(network: KairosNetwork): Fl
  */
 @ExperimentalKairosApi
 @JvmName("transactionalStateToColdConflatedFlow")
-fun <A> Transactional<State<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { sample().observe { trySend(it) } } }.conflate()
+fun <A> Transactional<State<A>>.toColdConflatedFlow(
+    network: KairosNetwork,
+    name: NameTag? = null,
+): Flow<A> {
+    val nameData = name.toNameData("Transactional<State>.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) {
+                observeSync(nameData + "sendOutput", sample()) { trySend(it) }
+            }
+        }
+        .conflate()
+}
 
 /**
  * Returns a cold [Flow] that, when collected, applies this [Stateful] in a new transaction in this
@@ -84,8 +139,18 @@ fun <A> Transactional<State<A>>.toColdConflatedFlow(network: KairosNetwork): Flo
  */
 @ExperimentalKairosApi
 @JvmName("statefulFlowToColdConflatedFlow")
-fun <A> Stateful<Events<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { applyStateful().observe { trySend(it) } } }.conflate()
+fun <A> Stateful<Events<A>>.toColdConflatedFlow(
+    network: KairosNetwork,
+    name: NameTag? = null,
+): Flow<A> {
+    val nameData = name.toNameData("Stateful<Events>.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) {
+                applyStateful().observeSync(nameData + "sendOutput") { trySend(it) }
+            }
+        }
+        .conflate()
+}
 
 /**
  * Returns a cold [Flow] that, when collected, applies this [Transactional] in a new transaction in
@@ -95,5 +160,15 @@ fun <A> Stateful<Events<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A>
  */
 @ExperimentalKairosApi
 @JvmName("statefulStateToColdConflatedFlow")
-fun <A> Stateful<State<A>>.toColdConflatedFlow(network: KairosNetwork): Flow<A> =
-    channelFlow { network.activateSpec { applyStateful().observe { trySend(it) } } }.conflate()
+fun <A> Stateful<State<A>>.toColdConflatedFlow(
+    network: KairosNetwork,
+    name: NameTag? = null,
+): Flow<A> {
+    val nameData = name.toNameData("Stateful<State>.toColdConflatedFlow")
+    return channelFlow {
+            network.activateSpec(nameData) {
+                observeSync(nameData + "sendOutput", applyStateful()) { trySend(it) }
+            }
+        }
+        .conflate()
+}

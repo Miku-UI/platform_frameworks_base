@@ -44,8 +44,4 @@ constructor(private val notificationListener: NotificationListener) : Notificati
     override fun resetUserExpandedStates() {}
 
     override fun setNotificationSnoozed(sbn: StatusBarNotification, snoozeOption: SnoozeOption) {}
-
-    override fun getActiveNotificationsCount(): Int {
-        return 0
-    }
 }

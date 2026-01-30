@@ -16,6 +16,7 @@
 
 package com.android.systemui.statusbar.pipeline.mobile.ui.binder
 
+import android.annotation.StyleRes
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -24,18 +25,28 @@ import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.statusbar.pipeline.mobile.ui.viewmodel.ShadeCarrierGroupMobileIconViewModel
 import com.android.systemui.util.AutoMarqueeTextView
 
+interface ShadeCarrierBinding {
+    fun setTextAppearance(@StyleRes resId: Int)
+}
+
 object ShadeCarrierBinder {
     /** Binds the view to the view-model, continuing to update the former based on the latter */
     @JvmStatic
     fun bind(
         carrierTextView: AutoMarqueeTextView,
         viewModel: ShadeCarrierGroupMobileIconViewModel,
-    ) {
+    ): ShadeCarrierBinding {
         carrierTextView.isVisible = true
 
         carrierTextView.repeatWhenAttached {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch { viewModel.carrierName.collect { carrierTextView.text = it } }
+            }
+        }
+
+        return object : ShadeCarrierBinding {
+            override fun setTextAppearance(resId: Int) {
+                carrierTextView.setTextAppearance(resId)
             }
         }
     }

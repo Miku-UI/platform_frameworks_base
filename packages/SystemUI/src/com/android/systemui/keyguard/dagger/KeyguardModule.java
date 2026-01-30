@@ -39,12 +39,14 @@ import com.android.systemui.Flags;
 import com.android.systemui.animation.ActivityTransitionAnimator;
 import com.android.systemui.bouncer.dagger.BouncerLoggerModule;
 import com.android.systemui.broadcast.BroadcastDispatcher;
+import com.android.systemui.camera.CameraSensorPrivacyModule;
 import com.android.systemui.classifier.FalsingCollector;
 import com.android.systemui.classifier.FalsingModule;
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor;
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor;
 import com.android.systemui.communal.ui.viewmodel.CommunalTransitionViewModel;
 import com.android.systemui.dagger.SysUISingleton;
+import com.android.systemui.dagger.qualifiers.Application;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.dagger.qualifiers.UiBackground;
 import com.android.systemui.dreams.DreamOverlayStateController;
@@ -100,7 +102,7 @@ import dagger.Provides;
 import dagger.multibindings.ClassKey;
 import dagger.multibindings.IntoMap;
 
-import kotlinx.coroutines.CoroutineDispatcher;
+import kotlinx.coroutines.CoroutineScope;
 
 import java.util.concurrent.Executor;
 
@@ -125,6 +127,8 @@ import java.util.concurrent.Executor;
             StartKeyguardTransitionModule.class,
             ResourceTrimmerModule.class,
             BouncerLoggerModule.class,
+            CameraSensorPrivacyModule.class,
+            KeyguardConnectedDisplaysModule.class,
         })
 public interface KeyguardModule {
     /**
@@ -174,7 +178,7 @@ public interface KeyguardModule {
             SystemSettings systemSettings,
             SystemClock systemClock,
             ProcessWrapper processWrapper,
-            @Main CoroutineDispatcher mainDispatcher,
+            @Application CoroutineScope applicationScope,
             Lazy<DreamViewModel> dreamViewModel,
             Lazy<CommunalTransitionViewModel> communalTransitionViewModel,
             SystemPropertiesHelper systemPropertiesHelper,
@@ -227,7 +231,7 @@ public interface KeyguardModule {
                 systemSettings,
                 systemClock,
                 processWrapper,
-                mainDispatcher,
+                applicationScope,
                 dreamViewModel,
                 communalTransitionViewModel,
                 systemPropertiesHelper,

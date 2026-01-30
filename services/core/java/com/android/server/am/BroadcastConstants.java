@@ -298,6 +298,15 @@ public class BroadcastConstants {
     private static final long DEFAULT_PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS =
             TimeUnit.MINUTES.toMillis(5);
 
+    /**
+     * For {@link BroadcastQueueImpl}: Threshold of pending broadcasts for triggering a trace
+     * event indicating a potential issue.
+     */
+    public int EXCESSIVE_PENDING_BROADCASTS = DEFAULT_EXCESSIVE_PENDING_BROADCASTS;
+    private static final String KEY_EXCESSIVE_PENDING_BROADCASTS =
+            "excessive_pending_broadcasts";
+    private static final int DEFAULT_EXCESSIVE_PENDING_BROADCASTS = 5000;
+
     // Settings override tracking for this instance
     private String mSettingsKey;
     private SettingsObserver mSettingsObserver;
@@ -450,6 +459,8 @@ public class BroadcastConstants {
                     KEY_PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS,
                     DEFAULT_PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS)
                             * Build.HW_TIMEOUT_MULTIPLIER;
+            EXCESSIVE_PENDING_BROADCASTS = getDeviceConfigInt(KEY_EXCESSIVE_PENDING_BROADCASTS,
+                    DEFAULT_EXCESSIVE_PENDING_BROADCASTS);
         }
 
         // TODO: migrate BroadcastRecord to accept a BroadcastConstants
@@ -509,6 +520,7 @@ public class BroadcastConstants {
                     MAX_FROZEN_OUTGOING_BROADCASTS).println();
             pw.print(KEY_PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS,
                     PENDING_COLD_START_ABANDON_TIMEOUT_MILLIS).println();
+            pw.print(KEY_EXCESSIVE_PENDING_BROADCASTS, EXCESSIVE_PENDING_BROADCASTS).println();
             pw.decreaseIndent();
             pw.println();
         }

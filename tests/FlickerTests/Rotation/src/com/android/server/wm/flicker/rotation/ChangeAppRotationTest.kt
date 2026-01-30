@@ -18,10 +18,11 @@ package com.android.server.wm.flicker.rotation
 
 import android.platform.test.annotations.PlatinumTest
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.helpers.SimpleAppHelper
 import org.junit.FixMethodOrder
@@ -80,10 +81,11 @@ import org.junit.runners.Parameterized
  *        apps are running before setup
  * ```
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class ChangeAppRotationTest(flicker: LegacyFlickerTest) : RotationTransition(flicker) {
+class ChangeAppRotationTest(flicker: FlickerTest) : RotationTransition(flicker) {
     override val testApp = SimpleAppHelper(instrumentation)
     override val transition: FlickerBuilder.() -> Unit
         get() = {
@@ -138,11 +140,11 @@ class ChangeAppRotationTest(flicker: LegacyFlickerTest) : RotationTransition(fli
         /**
          * Creates the test configurations.
          *
-         * See [LegacyFlickerTestFactory.rotationTests] for configuring screen orientation and
+         * See [FlickerTestFactory.rotationTests] for configuring screen orientation and
          * navigation modes.
          */
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
-        fun getParams() = LegacyFlickerTestFactory.rotationTests()
+        fun getParams() = FlickerTestFactory.rotationTests()
     }
 }

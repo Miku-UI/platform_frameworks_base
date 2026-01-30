@@ -22,7 +22,6 @@ import android.graphics.drawable.Icon
 import android.text.TextUtils
 import com.android.systemui.statusbar.NotificationLockscreenUserManager.RedactionType
 import com.android.systemui.statusbar.notification.row.shared.AsyncGroupHeaderViewInflation
-import com.android.systemui.statusbar.notification.row.shared.AsyncHybridViewInflation
 
 /**
  * An immutable object which contains minimal state extracted from an entry that represents state
@@ -41,6 +40,7 @@ internal constructor(
     val isChildInGroup: Boolean,
     val isGroupSummary: Boolean,
     val summarization: String?,
+    val isBundled: Boolean,
 ) {
     companion object {
         @JvmStatic
@@ -56,13 +56,12 @@ internal constructor(
                 oldAdjustment.redactionType != newAdjustment.redactionType -> true
                 areDifferent(oldAdjustment.smartActions, newAdjustment.smartActions) -> true
                 newAdjustment.smartReplies != oldAdjustment.smartReplies -> true
-                AsyncHybridViewInflation.isEnabled &&
-                    !oldAdjustment.isChildInGroup &&
-                    newAdjustment.isChildInGroup -> true
+                !oldAdjustment.isChildInGroup && newAdjustment.isChildInGroup -> true
                 AsyncGroupHeaderViewInflation.isEnabled &&
                     !oldAdjustment.isGroupSummary &&
                     newAdjustment.isGroupSummary -> true
                 oldAdjustment.summarization != newAdjustment.summarization -> true
+                oldAdjustment.isBundled != newAdjustment.isBundled -> true
                 else -> false
             }
 

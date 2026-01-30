@@ -36,6 +36,7 @@ import com.android.settingslib.metadata.PreferenceRemoteOpMetricsLogger
 import com.android.settingslib.metadata.PreferenceRestrictionProvider
 import com.android.settingslib.metadata.PreferenceScreenRegistry
 import com.android.settingslib.metadata.ReadWritePermit
+import com.android.settingslib.metadata.usePreferenceHierarchyScope
 
 /** Request to set preference value. */
 class PreferenceSetterRequest(
@@ -88,11 +89,9 @@ annotation class PreferenceSetterResult {
 class PreferenceSetterApiDescriptor(override val id: Int) :
     ApiDescriptor<PreferenceSetterRequest, Int> {
 
-    override val requestCodec: MessageCodec<PreferenceSetterRequest>
-        get() = PreferenceSetterRequestCodec
+    override val requestCodec = PreferenceSetterRequestCodec()
 
-    override val responseCodec: MessageCodec<Int>
-        get() = IntMessageCodec
+    override val responseCodec = IntMessageCodec()
 }
 
 /** Preference setter API implementation. */
@@ -132,7 +131,9 @@ class PreferenceSetterApiHandler(
             PreferenceScreenRegistry.create(application, request) ?: return notFound()
         val key = request.key
         val metadata =
-            screenMetadata.getPreferenceHierarchy(application).find(key) ?: return notFound()
+            usePreferenceHierarchyScope {
+                screenMetadata.getPreferenceHierarchy(application, this).findAsync(key)
+            } ?: return notFound()
 
         fun <T> PreferenceMetadata.checkWritePermit(value: T): Int {
             @Suppress("UNCHECKED_CAST") val preference = (this as PersistentPreference<T>)
@@ -207,11 +208,9 @@ class PreferenceSetterApiHandler(
         return result
     }
 
-    override val requestCodec: MessageCodec<PreferenceSetterRequest>
-        get() = PreferenceSetterRequestCodec
+    override val requestCodec = PreferenceSetterRequestCodec()
 
-    override val responseCodec: MessageCodec<Int>
-        get() = IntMessageCodec
+    override val responseCodec = IntMessageCodec()
 }
 
 /** Evaluates the write permit of a persistent preference. */
@@ -225,7 +224,7 @@ fun <T> PersistentPreference<T>.evalWritePermit(
         ?: getWritePermit(context, value, callingPid, callingUid)
 
 /** Message codec for [PreferenceSetterRequest]. */
-object PreferenceSetterRequestCodec : MessageCodec<PreferenceSetterRequest> {
+class PreferenceSetterRequestCodec : MessageCodec<PreferenceSetterRequest> {
     override fun encode(data: PreferenceSetterRequest) =
         Bundle(3).apply {
             putString(SCREEN_KEY, data.screenKey)
@@ -242,7 +241,9 @@ object PreferenceSetterRequestCodec : MessageCodec<PreferenceSetterRequest> {
             PreferenceValueProto.parseFrom(data.getByteArray(null)!!),
         )
 
-    private const val SCREEN_KEY = "s"
-    private const val KEY = "k"
-    private const val ARGS = "a"
+    companion object {
+        private const val SCREEN_KEY = "s"
+        private const val KEY = "k"
+        private const val ARGS = "a"
+    }
 }

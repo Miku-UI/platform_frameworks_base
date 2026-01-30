@@ -17,11 +17,13 @@
 package android.content.pm;
 
 import android.app.PendingIntent;
+import android.content.ComponentName;
 import android.content.pm.ArchivedPackageParcel;
 import android.content.pm.IPackageDeleteObserver2;
 import android.content.pm.IPackageInstallerCallback;
 import android.content.pm.IPackageInstallerSession;
 import android.content.pm.PackageInstaller;
+import android.content.pm.PackageInstaller.DeveloperVerificationUserConfirmationInfo;
 import android.content.pm.ParceledListSlice;
 import android.content.pm.VersionedPackage;
 import android.content.IntentSender;
@@ -30,7 +32,7 @@ import android.os.UserHandle;
 
 import android.graphics.Bitmap;
 
-/** {@hide} */
+/** @hide */
 interface IPackageInstaller {
     int createSession(in PackageInstaller.SessionParams params, String installerPackageName,
             String installerAttributionTag, int userId);
@@ -93,4 +95,20 @@ interface IPackageInstaller {
 
     @JavaPassthrough(annotation="@android.annotation.RequiresPermission(anyOf={android.Manifest.permission.INSTALL_PACKAGES,android.Manifest.permission.REQUEST_INSTALL_PACKAGES})")
     void reportUnarchivalStatus(int unarchiveId, int status, long requiredStorageBytes, in PendingIntent userActionIntent, in UserHandle userHandle);
+
+    @PermissionManuallyEnforced
+    int getDeveloperVerificationPolicy(int userId);
+    boolean setDeveloperVerificationPolicy(int policy, int userId);
+    ComponentName getDeveloperVerificationServiceProvider();
+    @EnforcePermission("DEVELOPER_VERIFICATION_AGENT")
+    String getDeveloperVerificationPolicyDelegatePackage(int userId);
+
+    @EnforcePermission("SET_DEVELOPER_VERIFICATION_USER_RESPONSE")
+    void setDeveloperVerificationUserResponse(int sessionId, int developerVerificationUserResponse);
+
+    @EnforcePermission("SET_DEVELOPER_VERIFICATION_USER_RESPONSE")
+    DeveloperVerificationUserConfirmationInfo getDeveloperVerificationUserConfirmationInfo(int sessionId);
+
+    void addDeveloperVerificationExperiment(String packageName, int verificationPolicy, in int[] results);
+    void clearDeveloperVerificationExperiment(String packagename);
 }

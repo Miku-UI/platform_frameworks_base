@@ -1,0 +1,9 @@
+package: "com.android.server.power.thermal"
+container: "system"
+
+flag {
+    name: "thermal_listener_lock_removal"
+    namespace: "game"
+    description: "Feature flag for removing the global lock from listeners"
+    bug: "406842699"
+}

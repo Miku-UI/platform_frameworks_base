@@ -19,11 +19,11 @@ package com.android.systemui.keyguard.domain.interactor
 import android.animation.ValueAnimator
 import com.android.app.animation.Interpolators
 import com.android.app.tracing.coroutines.launchTraced as launch
+import com.android.systemui.Flags
 import com.android.systemui.communal.domain.interactor.CommunalSceneInteractor
 import com.android.systemui.communal.domain.interactor.CommunalSettingsInteractor
 import com.android.systemui.communal.shared.model.CommunalScenes
 import com.android.systemui.communal.shared.model.CommunalTransitionKeys
-import com.android.systemui.communal.shared.model.EditModeState
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Background
 import com.android.systemui.dagger.qualifiers.Main
@@ -35,7 +35,6 @@ import com.android.systemui.scene.shared.flag.SceneContainerFlag
 import com.android.systemui.util.kotlin.BooleanFlowOperators.allOf
 import com.android.systemui.util.kotlin.BooleanFlowOperators.noneOf
 import com.android.systemui.util.kotlin.Utils.Companion.sampleFilter
-import com.android.systemui.util.kotlin.sample
 import javax.inject.Inject
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -128,11 +127,22 @@ constructor(
             powerInteractor.isAsleep
                 .filterRelevantKeyguardStateAnd { isAsleep -> isAsleep }
                 .collect {
-                    communalSceneInteractor.changeScene(
-                        newScene = CommunalScenes.Blank,
-                        loggingReason = "hub to sleep",
-                        keyguardState = keyguardInteractor.asleepKeyguardState.value,
-                    )
+                    if (Flags.communalPowerTransitionFix()) {
+                        // Snap to blank immediately when asleep so that KTF can transition
+                        // correctly if the power button is pressed quickly in succession, ex.
+                        // pressing twice should end up on lock screen.
+                        communalSceneInteractor.snapToScene(
+                            newScene = CommunalScenes.Blank,
+                            loggingReason = "hub to sleep",
+                            keyguardState = keyguardInteractor.asleepKeyguardState.value,
+                        )
+                    } else {
+                        communalSceneInteractor.changeScene(
+                            newScene = CommunalScenes.Blank,
+                            loggingReason = "hub to sleep",
+                            keyguardState = keyguardInteractor.asleepKeyguardState.value,
+                        )
+                    }
                 }
         }
     }
@@ -221,12 +231,15 @@ constructor(
                     ),
                 )
                 .filterRelevantKeyguardStateAnd { isKeyguardGoingAway -> isKeyguardGoingAway }
-                .sample(communalSceneInteractor.editModeState, ::Pair)
-                .collect { (_, editModeState) ->
-                    if (
-                        editModeState == EditModeState.STARTING ||
-                            editModeState == EditModeState.SHOWING
-                    ) {
+                .collect {
+                    val editModeState = communalSceneInteractor.editModeState.value
+                    if (editModeState != null) {
+                        if (Flags.hubEditModeTransition()) {
+                            // If transitioning to edit mode, do nothing here. Scene change is
+                            // handled by the edit mode activity.
+                            return@collect
+                        }
+
                         // Don't change scenes here as that is handled by the edit activity.
                         startTransitionTo(KeyguardState.GONE)
                     } else {

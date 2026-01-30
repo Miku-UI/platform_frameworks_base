@@ -34,7 +34,7 @@ import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction;
 import android.view.accessibility.IAccessibilityInteractionConnectionCallback;
 import android.view.accessibility.AccessibilityWindowInfo;
 import java.util.List;
-import android.window.ScreenCapture;
+import android.window.ScreenCaptureInternal;
 
 /**
  * Interface given to an AccessibilitySerivce to talk to the AccessibilityManagerService.
@@ -167,7 +167,7 @@ interface IAccessibilityServiceConnection {
 
     @RequiresNoPermission
     void takeScreenshotOfWindow(int accessibilityWindowId, int interactionId,
-        in ScreenCapture.ScreenCaptureListener listener,
+        in ScreenCaptureInternal.ScreenCaptureListener listener,
         IAccessibilityInteractionConnectionCallback callback);
 
     @RequiresNoPermission

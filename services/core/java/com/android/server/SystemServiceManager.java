@@ -68,7 +68,7 @@ import java.util.concurrent.TimeUnit;
  * Manages creating, starting, and other lifecycle events of
  * {@link com.android.server.SystemService system services}.
  *
- * {@hide}
+ * @hide
  */
 @android.ravenwood.annotation.RavenwoodKeepPartialClass
 @android.ravenwood.annotation.RavenwoodKeepStaticInitializer

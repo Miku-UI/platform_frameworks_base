@@ -15,6 +15,7 @@
  */
 package android.telephony;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntDef;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
@@ -22,10 +23,14 @@ import android.annotation.SystemApi;
 import android.content.pm.PackageManager;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.telephony.TelephonyManager.SimType;
+
+import com.android.internal.telephony.flags.Flags;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -71,6 +76,9 @@ public class UiccSlotInfo implements Parcelable {
     private final boolean mIsRemovable;
     private final List<UiccPortInfo> mPortList;
     private boolean mLogicalSlotAccessRestricted = false;
+    private final @SimType int mSimType;
+    private final @SimType int[] mSupportedSimTypes;
+
 
     public static final @NonNull Creator<UiccSlotInfo> CREATOR = new Creator<UiccSlotInfo>() {
         @Override
@@ -95,6 +103,8 @@ public class UiccSlotInfo implements Parcelable {
         mPortList = new ArrayList<UiccPortInfo>();
         in.readTypedList(mPortList, UiccPortInfo.CREATOR);
         mLogicalSlotAccessRestricted = in.readBoolean();
+        mSimType = in.readInt();
+        mSupportedSimTypes = in.createIntArray();
     }
 
     @Override
@@ -108,6 +118,8 @@ public class UiccSlotInfo implements Parcelable {
         dest.writeBoolean(mIsRemovable);
         dest.writeTypedList(mPortList, flags);
         dest.writeBoolean(mLogicalSlotAccessRestricted);
+        dest.writeInt(mSimType);
+        dest.writeIntArray(mSupportedSimTypes);
     }
 
     @Override
@@ -130,6 +142,8 @@ public class UiccSlotInfo implements Parcelable {
         this.mIsExtendedApduSupported = isExtendedApduSupported;
         this.mIsRemovable = false;
         this.mPortList = new ArrayList<UiccPortInfo>();
+        this.mSimType = TelephonyManager.SIM_TYPE_UNKNOWN;
+        this.mSupportedSimTypes = new int[] {TelephonyManager.SIM_TYPE_UNKNOWN};
     }
 
     /**
@@ -149,6 +163,31 @@ public class UiccSlotInfo implements Parcelable {
         this.mLogicalSlotIdx = portList.isEmpty()
                 ? SubscriptionManager.INVALID_PHONE_INDEX
                 : portList.get(0).getLogicalSlotIndex();
+        this.mSimType = TelephonyManager.SIM_TYPE_UNKNOWN;
+        this.mSupportedSimTypes = new int[] {TelephonyManager.SIM_TYPE_UNKNOWN};
+    }
+
+    /**
+     * Construct a UiccSlotInfo.
+     * @hide
+     */
+    public UiccSlotInfo(boolean isEuicc, String cardId,
+            @CardStateInfo int cardStateInfo, boolean isExtendedApduSupported,
+            boolean isRemovable, @NonNull List<UiccPortInfo> portList,
+            @SimType int simType, @NonNull @SimType int[] supportedSimTypes) {
+        // TODO(b/428312829): Instead of multiple constructors, migrate to builder.
+        this.mIsEuicc = isEuicc;
+        this.mCardId = cardId;
+        this.mCardStateInfo = cardStateInfo;
+        this.mIsExtendedApduSupported = isExtendedApduSupported;
+        this.mIsRemovable = isRemovable;
+        this.mPortList = portList;
+        this.mIsActive = !portList.isEmpty() && portList.get(0).isActive();
+        this.mLogicalSlotIdx = portList.isEmpty()
+                ? SubscriptionManager.INVALID_PHONE_INDEX
+                : portList.get(0).getLogicalSlotIndex();
+        this.mSimType = simType;
+        this.mSupportedSimTypes = supportedSimTypes;
     }
 
     /**
@@ -247,6 +286,22 @@ public class UiccSlotInfo implements Parcelable {
         this.mLogicalSlotAccessRestricted = logicalSlotAccessRestricted;
     }
 
+    /**
+     * Returns the currently active sim type on the physical slot.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_SLOT_SWITCHING_2PSIM_1ESIM_CONFIG)
+    public @SimType int getSimType() {
+        return mSimType;
+    }
+
+    /**
+     * Returns an array of the supported sim types on the physical slot.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_SLOT_SWITCHING_2PSIM_1ESIM_CONFIG)
+    public @NonNull @SimType int[] getSupportedSimTypes() {
+        return mSupportedSimTypes;
+    }
+
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
@@ -264,20 +319,23 @@ public class UiccSlotInfo implements Parcelable {
                 && (mLogicalSlotIdx == that.mLogicalSlotIdx)
                 && (mIsExtendedApduSupported == that.mIsExtendedApduSupported)
                 && (mIsRemovable == that.mIsRemovable)
-                && (Objects.equals(mPortList, that.mPortList));
+                && (Objects.equals(mPortList, that.mPortList))
+                && (mSimType == that.mSimType)
+                && (Arrays.equals(mSupportedSimTypes, that.mSupportedSimTypes));
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(mIsActive, mIsEuicc, mCardId, mCardStateInfo, mLogicalSlotIdx,
-                mIsExtendedApduSupported, mIsRemovable, mPortList);
+                mIsExtendedApduSupported, mIsRemovable, mPortList, mSimType,
+                Arrays.hashCode(mSupportedSimTypes));
     }
 
     @NonNull
     @Override
     public String toString() {
-        return "UiccSlotInfo ("
-                + ", mIsEuicc="
+        StringBuilder sb = new StringBuilder("UiccSlotInfo ("
+                + "mIsEuicc="
                 + mIsEuicc
                 + ", mCardId="
                 + SubscriptionInfo.getPrintableId(mCardId)
@@ -290,7 +348,12 @@ public class UiccSlotInfo implements Parcelable {
                 + ", mPortList="
                 + mPortList
                 + ", mLogicalSlotAccessRestricted="
-                + mLogicalSlotAccessRestricted
-                + ")";
+                + mLogicalSlotAccessRestricted);
+        if (Flags.supportSlotSwitching2psim1esimConfig()) {
+            sb.append(", mSimType=").append(mSimType)
+                    .append(", mSupportedSimTypes=").append(Arrays.toString(mSupportedSimTypes));
+        }
+        sb.append(")");
+        return sb.toString();
     }
 }

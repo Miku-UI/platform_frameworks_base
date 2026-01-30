@@ -35,6 +35,7 @@ import com.android.systemui.communal.data.backup.CommunalBackupUtils
 import com.android.systemui.communal.domain.backup.CommunalPrefsBackupHelper
 import com.android.systemui.controls.controller.AuxiliaryPersistenceWrapper
 import com.android.systemui.controls.controller.ControlsFavoritePersistenceWrapper
+import com.android.systemui.inputdevice.tutorial.domain.backup.TutorialSchedulerBackupHelper
 import com.android.systemui.keyguard.domain.backup.KeyguardQuickAffordanceBackupHelper
 import com.android.systemui.people.widget.PeopleBackupHelper
 import com.android.systemui.qs.panels.domain.backup.QSPreferencesBackupHelper
@@ -63,6 +64,8 @@ open class BackupHelper : BackupAgentHelper() {
         private const val COMMUNAL_PREFS_BACKUP_KEY = "systemui.communal.shared_preferences"
         private const val COMMUNAL_STATE_BACKUP_KEY = "systemui.communal_state"
         private const val QS_PREFERENCES_BACKUP_KEY = "systemui.qs.shared_preferences"
+        private const val INPUT_DEVICE_TUTORIAL_SCHEDULER_BACKUP_KEY =
+            "systemui.inputdevice.tutorial_data_store"
         val controlsDataLock = Any()
         const val ACTION_RESTORE_FINISHED = "com.android.systemui.backup.RESTORE_FINISHED"
         const val PERMISSION_SELF = "com.android.systemui.permission.SELF"
@@ -85,6 +88,10 @@ open class BackupHelper : BackupAgentHelper() {
         addHelper(
             QS_PREFERENCES_BACKUP_KEY,
             QSPreferencesBackupHelper(context = this, userId = userHandle.identifier),
+        )
+        addHelper(
+            INPUT_DEVICE_TUTORIAL_SCHEDULER_BACKUP_KEY,
+            TutorialSchedulerBackupHelper(context = applicationContext),
         )
         if (communalEnabled()) {
             addHelper(

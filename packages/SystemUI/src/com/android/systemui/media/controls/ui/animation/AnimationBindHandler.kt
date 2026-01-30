@@ -18,6 +18,8 @@ package com.android.systemui.media.controls.ui.animation
 
 import android.graphics.drawable.Animatable2
 import android.graphics.drawable.Drawable
+import androidx.annotation.VisibleForTesting
+import com.android.systemui.util.annotations.DeprecatedSysuiVisibleForTesting
 
 /**
  * AnimationBindHandler is responsible for tracking the bound animation state and preventing jank
@@ -34,7 +36,9 @@ import android.graphics.drawable.Drawable
  *      rebind id will be totally ignored to prevent the continuous animation from restarting.
  * ```
  */
-internal class AnimationBindHandler : Animatable2.AnimationCallback() {
+@DeprecatedSysuiVisibleForTesting
+@VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+class AnimationBindHandler : Animatable2.AnimationCallback() {
     private val onAnimationsComplete = mutableListOf<() -> Unit>()
     private val registrations = mutableListOf<Animatable2>()
     private var rebindId: Int? = null

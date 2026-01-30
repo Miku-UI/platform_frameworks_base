@@ -66,11 +66,11 @@ public final class CertUtilsTest {
 
     private static final String SIGNED_STR = "abcdefg\n";
     private static final String SIGNATURE_BASE64 = ""
-            + "KxBt9B3pwL3/59SrjTJTpuhc9JRxLOUNwNr3J4EEdXj5BqkYOUeXIOjyBGp8XaOnmuW8WmBxhko3"
-            + "yTR3/M9x0/pJuKDgqQSSFG+I56O/IAri7DmMBfY8QqcgiF8RaR86G7mWXUIdu8ixEtpKa//T4bN7"
-            + "c8Txvt96ApAcW0wJDihfCqDEXyi56pFCp+qEZuL4fS8iZtZTUkvxim1tb2/IsZ9OyDd9BWxp+JTs"
-            + "zihzH6xqnUCa1aELSUZnU8OzWGeuKpVDQDbDMtQpcxJ9o+6L6wO5vmQutZAulgw5gRPGhYWVs8+0"
-            + "ATdNEbv8TSomkXkZ3/lMYnmPXKmaHxcP4330DA==";
+            + "ddIPbKLkTEm2w+FMBcX8RwKINk01BhO7yLdEO7Cq5oP3FM7cxhidVMjX1n9NXP3KP4uYBzzQRsdY"
+            + "j47683DnMMtgo38mTeOY/UN1ocUGb+gIvSOOoKt4LH7BosvBOHQB6AnhDuQr0dqWPLmMHofGNkLH"
+            + "Jljv8+kHhSCBoZWGsUpBcEVmhuKmbT+At5M0Mzb7HE2a1wAX/TK10Y3wpZHjJK+JJNtqb5ADpOiK"
+            + "ZaETGdnVW22UtvvFugpv/6BSuD0cTtuSslw67jpQzvQguER9SG/WV/aiAOYSN4eJ+AshjQjzv3cG"
+            + "oHbbpiKyCFxXwu3wDvUn8nLSaavPrEqqex3ABg==";
     private static final PublicKey SIGNER_PUBLIC_KEY = TestData.INTERMEDIATE_CA_2.getPublicKey();
 
     @Test

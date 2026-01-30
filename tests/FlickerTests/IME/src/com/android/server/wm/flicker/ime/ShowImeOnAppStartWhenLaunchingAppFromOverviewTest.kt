@@ -17,11 +17,12 @@
 package com.android.server.wm.flicker.ime
 
 import android.platform.test.annotations.Presubmit
+import androidx.test.filters.RequiresDevice
 import android.tools.Rotation
 import android.tools.flicker.junit.FlickerParametersRunnerFactory
-import android.tools.flicker.legacy.FlickerBuilder
-import android.tools.flicker.legacy.LegacyFlickerTest
-import android.tools.flicker.legacy.LegacyFlickerTestFactory
+import android.tools.flicker.FlickerBuilder
+import android.tools.flicker.FlickerTest
+import android.tools.flicker.FlickerTestFactory
 import android.tools.traces.component.ComponentNameMatcher
 import com.android.server.wm.flicker.BaseTest
 import com.android.server.wm.flicker.helpers.ImeShownOnAppStartHelper
@@ -36,10 +37,11 @@ import org.junit.runners.Parameterized
  * Test IME window opening transitions.
  * To run this test: `atest FlickerTestsIme:ShowImeOnAppStartWhenLaunchingAppFromOverviewTest`
  */
+@RequiresDevice
 @RunWith(Parameterized::class)
 @Parameterized.UseParametersRunnerFactory(FlickerParametersRunnerFactory::class)
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
-class ShowImeOnAppStartWhenLaunchingAppFromOverviewTest(flicker: LegacyFlickerTest) :
+class ShowImeOnAppStartWhenLaunchingAppFromOverviewTest(flicker: FlickerTest) :
     BaseTest(flicker) {
     private val testApp = ImeShownOnAppStartHelper(instrumentation, flicker.scenario.startRotation)
 
@@ -47,7 +49,6 @@ class ShowImeOnAppStartWhenLaunchingAppFromOverviewTest(flicker: LegacyFlickerTe
     override val transition: FlickerBuilder.() -> Unit = {
         setup {
             tapl.expectedRotationCheckEnabled = false
-            tapl.workspace.switchToOverview().dismissAllTasks()
             testApp.launchViaIntent(wmHelper)
             testApp.openIME(wmHelper)
             this.setRotation(flicker.scenario.startRotation)
@@ -143,7 +144,7 @@ class ShowImeOnAppStartWhenLaunchingAppFromOverviewTest(flicker: LegacyFlickerTe
         @Parameterized.Parameters(name = "{0}")
         @JvmStatic
         fun getParams() =
-            LegacyFlickerTestFactory.nonRotationTests(
+            FlickerTestFactory.nonRotationTests(
                 supportedRotations = listOf(Rotation.ROTATION_0)
             )
     }

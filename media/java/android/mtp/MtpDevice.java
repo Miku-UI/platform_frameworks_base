@@ -175,7 +175,7 @@ public final class MtpDevice {
      * @param propertyStr string value for device property SESSION_INITIATOR_VERSION_INFO
      * @return -1 for error, 0 for success
      *
-     * {@hide}
+     * @hide
      */
     public int setDevicePropertyInitVersion(@NonNull String propertyStr) {
         return native_set_device_property_init_version(propertyStr);

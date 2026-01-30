@@ -68,13 +68,20 @@ constructor(
     }
 
     override val context: Context
-        get() {
+        get() =
             if (!ShadeWindowGoesAround.isEnabled) {
-                return defaultContext
+                defaultContext
+            } else {
+                getContextOrDefault(shadeDisplayId)
             }
-            val displayId = shadeDisplaysRepository.get().displayId.value
-            return getContextOrDefault(displayId)
-        }
+
+    private val shadeDisplayId: Int
+        get() =
+            if (!ShadeWindowGoesAround.isEnabled) {
+                Display.DEFAULT_DISPLAY
+            } else {
+                shadeDisplaysRepository.get().displayId.value
+            }
 
     private fun getContextOrDefault(displayId: Int): Context {
         return try {

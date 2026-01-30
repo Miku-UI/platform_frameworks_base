@@ -24,7 +24,6 @@ import com.android.systemui.Flags.notificationShadeBlur
 import com.android.systemui.lifecycle.repeatWhenAttached
 import com.android.systemui.statusbar.notification.NotificationActivityStarter
 import com.android.systemui.statusbar.notification.NotificationActivityStarter.SettingsIntent
-import com.android.systemui.statusbar.notification.emptyshade.shared.ModesEmptyShadeFix
 import com.android.systemui.statusbar.notification.footer.shared.NotifRedesignFooter
 import com.android.systemui.statusbar.notification.footer.ui.view.FooterView
 import com.android.systemui.statusbar.notification.footer.ui.viewmodel.FooterViewModel
@@ -40,43 +39,24 @@ object FooterViewBinder {
         footer: FooterView,
         viewModel: FooterViewModel,
         clearAllNotifications: View.OnClickListener,
-        launchNotificationSettings: View.OnClickListener,
-        launchNotificationHistory: View.OnClickListener,
         notificationActivityStarter: NotificationActivityStarter,
     ): DisposableHandle {
         return footer.repeatWhenAttached {
             lifecycleScope.launch {
-                bind(
-                    footer,
-                    viewModel,
-                    clearAllNotifications,
-                    launchNotificationSettings,
-                    launchNotificationHistory,
-                    notificationActivityStarter,
-                )
+                bind(footer, viewModel, clearAllNotifications, notificationActivityStarter)
             }
         }
     }
 
-    suspend fun bind(
+    private suspend fun bind(
         footer: FooterView,
         viewModel: FooterViewModel,
         clearAllNotifications: View.OnClickListener,
-        launchNotificationSettings: View.OnClickListener,
-        launchNotificationHistory: View.OnClickListener,
         notificationActivityStarter: NotificationActivityStarter,
     ) = coroutineScope {
         launch { bindClearAllButton(footer, viewModel, clearAllNotifications) }
         if (!NotifRedesignFooter.isEnabled) {
-            launch {
-                bindManageOrHistoryButton(
-                    footer,
-                    viewModel,
-                    launchNotificationSettings,
-                    launchNotificationHistory,
-                    notificationActivityStarter,
-                )
-            }
+            launch { bindManageOrHistoryButton(footer, viewModel, notificationActivityStarter) }
         } else {
             launch { bindSettingsButton(footer, viewModel, notificationActivityStarter) }
             launch { bindHistoryButton(footer, viewModel, notificationActivityStarter) }
@@ -178,26 +158,14 @@ object FooterViewBinder {
     private suspend fun bindManageOrHistoryButton(
         footer: FooterView,
         viewModel: FooterViewModel,
-        launchNotificationSettings: View.OnClickListener,
-        launchNotificationHistory: View.OnClickListener,
         notificationActivityStarter: NotificationActivityStarter,
     ) = coroutineScope {
         launch {
-            if (ModesEmptyShadeFix.isEnabled) {
-                viewModel.manageOrHistoryButtonClick.collect { settingsIntent ->
-                    val onClickListener = { view: View ->
-                        notificationActivityStarter.startSettingsIntent(view, settingsIntent)
-                    }
-                    footer.setManageButtonClickListener(onClickListener)
+            viewModel.manageOrHistoryButtonClick.collect { settingsIntent ->
+                val onClickListener = { view: View ->
+                    notificationActivityStarter.startSettingsIntent(view, settingsIntent)
                 }
-            } else {
-                viewModel.manageButtonShouldLaunchHistory.collect { shouldLaunchHistory ->
-                    if (shouldLaunchHistory) {
-                        footer.setManageButtonClickListener(launchNotificationHistory)
-                    } else {
-                        footer.setManageButtonClickListener(launchNotificationSettings)
-                    }
-                }
+                footer.setManageButtonClickListener(onClickListener)
             }
         }
 

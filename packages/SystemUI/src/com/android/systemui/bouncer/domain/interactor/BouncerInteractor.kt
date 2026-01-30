@@ -36,6 +36,7 @@ import com.android.systemui.classifier.domain.interactor.FalsingInteractor
 import com.android.systemui.common.ui.domain.interactor.ConfigurationInteractor
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.dagger.qualifiers.Application
+import com.android.systemui.deviceentry.domain.interactor.ActiveUnlockInteractor
 import com.android.systemui.deviceentry.domain.interactor.DeviceEntryFaceAuthInteractor
 import com.android.systemui.log.SessionTracker
 import com.android.systemui.power.domain.interactor.PowerInteractor
@@ -74,6 +75,7 @@ constructor(
     private val sessionTracker: SessionTracker,
     sceneInteractor: SceneInteractor,
     sceneBackInteractor: SceneBackInteractor,
+    private val activeUnlockInteractor: ActiveUnlockInteractor,
     @ShadeDisplayAware private val configurationInteractor: ConfigurationInteractor,
 ) {
     private val _onIncorrectBouncerInput = MutableSharedFlow<Unit>()
@@ -114,6 +116,10 @@ constructor(
             userSwitcherVisible ||
                 (repository.isOneHandedBouncerSupportedInConfig && (authMethod !is Password))
         }
+
+    /** Whether interactions should be improved for large-screen (non-handheld) form factor. */
+    val isImproveLargeScreenInteractionEnabled: Boolean =
+        repository.isImproveLargeScreenInteractionEnabledInConfig
 
     /**
      * Preferred side of the screen where the input area on the bouncer should be. This is
@@ -181,6 +187,17 @@ constructor(
             }
             .distinctUntilChanged()
             .traceAsCounter("bouncer_expansion") { (it * 100f).toInt() }
+
+    /**
+     * Returns true if a passive authentication method (such as face authentication or watch unlock)
+     * may authenticate the device before the user has the opportunity to enter their
+     * pin/pattern/password. Else, false.
+     */
+    suspend fun passiveAuthMaySucceedBeforeFullyShowingBouncer(): Boolean {
+        return authenticationInteractor.getAuthenticationMethod() != Sim &&
+            (deviceEntryFaceAuthInteractor.canFaceAuthRun() ||
+                activeUnlockInteractor.canRunActiveUnlock.value)
+    }
 
     /** Notifies that the user has places down a pointer, not necessarily dragging just yet. */
     fun onDown() {

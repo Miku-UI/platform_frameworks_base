@@ -131,7 +131,7 @@ public class DynamicChildBindControllerTest extends SysuiTestCase {
     private ExpandableNotificationRow createRow(NotificationEntry entry) {
         LayoutInflater inflater = LayoutInflater.from(mContext);
         inflater.setFactory2(
-                new RowInflaterTask.RowAsyncLayoutInflater(entry, new FakeSystemClock(), mock(
+                new RowInflaterTask.RowAsyncLayoutFactory(entry, new FakeSystemClock(), mock(
                         RowInflaterTaskLogger.class), mContext.getUser()));
 
         ExpandableNotificationRow row = (ExpandableNotificationRow)

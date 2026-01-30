@@ -18,6 +18,7 @@ package com.android.server.vibrator;
 
 import static android.os.Trace.TRACE_TAG_VIBRATOR;
 
+import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.hardware.vibrator.IVibrator;
 import android.os.Binder;
@@ -41,7 +42,8 @@ import com.android.internal.annotations.VisibleForTesting;
 import libcore.util.NativeAllocationRegistry;
 
 /** Controls a single vibrator. */
-final class VibratorController {
+// TODO(b/409002423): remove this class once remove_hidl_support flag removed
+final class VibratorController implements HalVibrator {
     private static final String TAG = "VibratorController";
 
     private final Object mLock = new Object();
@@ -58,81 +60,45 @@ final class VibratorController {
     // for a snippet of the current known vibrator state/info.
     private volatile VibratorInfo mVibratorInfo;
     private volatile boolean mVibratorInfoLoadSuccessful;
-    private volatile VibratorState mCurrentState;
+    private volatile State mCurrentState;
     private volatile float mCurrentAmplitude;
 
-    /**
-     * Listener for vibration completion callbacks from native.
-     *
-     * <p>Only the latest active native call to {@link VibratorController#on} will ever trigger this
-     * completion callback, to avoid race conditions during a vibration playback. If a new call to
-     * {@link #on} or {@link #off} happens before a previous callback was triggered then the
-     * previous callback will be disabled, even if the new command fails.
-     */
-    public interface OnVibrationCompleteListener {
-
-        /** Callback triggered when an active vibration command is complete. */
-        void onComplete(int vibratorId, long vibrationId, long stepId);
+    VibratorController(int vibratorId) {
+        this(vibratorId, new NativeWrapper());
     }
 
-    /** Representation of the vibrator state based on the interactions through this controller. */
-    private enum VibratorState {
-        IDLE, VIBRATING, UNDER_EXTERNAL_CONTROL
-    }
-
-    VibratorController(int vibratorId, OnVibrationCompleteListener listener) {
-        this(vibratorId, listener, new NativeWrapper());
-    }
-
-    @VisibleForTesting
-    VibratorController(int vibratorId, OnVibrationCompleteListener listener,
-            NativeWrapper nativeWrapper) {
+    VibratorController(int vibratorId, NativeWrapper nativeWrapper) {
         mNativeWrapper = nativeWrapper;
-        mNativeWrapper.init(vibratorId, listener);
-        VibratorInfo.Builder vibratorInfoBuilder = new VibratorInfo.Builder(vibratorId);
-        mVibratorInfoLoadSuccessful = mNativeWrapper.getInfo(vibratorInfoBuilder);
-        mVibratorInfo = vibratorInfoBuilder.build();
-        mCurrentState = VibratorState.IDLE;
-
-        if (!mVibratorInfoLoadSuccessful) {
-            Slog.e(TAG,
-                    "Vibrator controller initialization failed to load some HAL info for vibrator "
-                            + vibratorId);
-        }
+        mVibratorInfo = new VibratorInfo.Builder(vibratorId).build();
+        mCurrentState = State.IDLE;
     }
 
-    /** Register state listener for this vibrator. */
-    public boolean registerVibratorStateListener(IVibratorStateListener listener) {
-        final long token = Binder.clearCallingIdentity();
+    @Override
+    public void init(@NonNull Callbacks callbacks) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.init");
         try {
-            // Register the listener and send the first state atomically, to avoid potentially
-            // out of order broadcasts in between.
-            synchronized (mLock) {
-                if (!mVibratorStateListeners.register(listener)) {
-                    return false;
-                }
-                // Notify its callback after new client registered.
-                notifyStateListener(listener, isVibrating(mCurrentState));
+            int vibratorId = mVibratorInfo.getId();
+            mNativeWrapper.init(vibratorId, callbacks);
+            // Try to load VibratorInfo early.
+            VibratorInfo.Builder vibratorInfoBuilder = new VibratorInfo.Builder(vibratorId);
+            mVibratorInfoLoadSuccessful = mNativeWrapper.getInfo(vibratorInfoBuilder);
+            mVibratorInfo = vibratorInfoBuilder.build();
+            if (!mVibratorInfoLoadSuccessful) {
+                Slog.e(TAG, "Init failed to load some HAL info for vibrator " + vibratorId);
             }
-            return true;
+
+            // Reset the hardware to a default state.
+            // In case this is a runtime restart instead of a fresh boot.
+            setExternalControl(false);
+            off();
         } finally {
-            Binder.restoreCallingIdentity(token);
+            Trace.traceEnd(TRACE_TAG_VIBRATOR);
         }
     }
 
-    /** Remove registered state listener for this vibrator. */
-    public boolean unregisterVibratorStateListener(IVibratorStateListener listener) {
-        final long token = Binder.clearCallingIdentity();
-        try {
-            return mVibratorStateListeners.unregister(listener);
-        } finally {
-            Binder.restoreCallingIdentity(token);
-        }
-    }
-
-    /** Reruns the query to the vibrator to load the {@link VibratorInfo}, if not yet successful. */
-    public void reloadVibratorInfoIfNeeded() {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#reloadVibratorInfoIfNeeded");
+    @Override
+    public void onSystemReady() {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onSystemReady");
         try {
             // Early check outside lock, for quick return.
             if (mVibratorInfoLoadSuccessful) {
@@ -155,96 +121,83 @@ final class VibratorController {
         }
     }
 
+    @Override
+    public boolean registerVibratorStateListener(@NonNull IVibratorStateListener listener) {
+        final long token = Binder.clearCallingIdentity();
+        try {
+            // Register the listener and send the first state atomically, to avoid potentially
+            // out of order broadcasts in between.
+            synchronized (mLock) {
+                if (!mVibratorStateListeners.register(listener)) {
+                    return false;
+                }
+                // Notify its callback after new client registered.
+                notifyStateListener(listener, isVibrating(mCurrentState));
+            }
+            return true;
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+    }
+
+    @Override
+    public boolean unregisterVibratorStateListener(@NonNull IVibratorStateListener listener) {
+        final long token = Binder.clearCallingIdentity();
+        try {
+            return mVibratorStateListeners.unregister(listener);
+        } finally {
+            Binder.restoreCallingIdentity(token);
+        }
+    }
+
     /** Checks if the {@link VibratorInfo} was loaded from the vibrator hardware successfully. */
     boolean isVibratorInfoLoadSuccessful() {
         return mVibratorInfoLoadSuccessful;
     }
 
-    /** Return the {@link VibratorInfo} representing the vibrator controlled by this instance. */
-    public VibratorInfo getVibratorInfo() {
+    @NonNull
+    @Override
+    public VibratorInfo getInfo() {
         return mVibratorInfo;
     }
 
-    /**
-     * Return {@code true} is this vibrator is currently vibrating, false otherwise.
-     *
-     * <p>This state is controlled by calls to {@link #on} and {@link #off} methods, and is
-     * automatically notified to any registered {@link IVibratorStateListener} on change.
-     */
+    @Override
     public boolean isVibrating() {
         return isVibrating(mCurrentState);
     }
 
-    /**
-     * Returns the current amplitude the device is vibrating.
-     *
-     * <p>This value is set to 1 by the method {@link #on(long, long)}, and can be updated via
-     * {@link #setAmplitude(float)} if called while the device is vibrating.
-     *
-     * <p>If the device is vibrating via any other {@link #on} method then the current amplitude is
-     * unknown and this will return -1.
-     *
-     * <p>If {@link #isVibrating()} is false then this will be zero.
-     */
+    @Override
     public float getCurrentAmplitude() {
         return mCurrentAmplitude;
     }
 
-    /**
-     * Check against this vibrator capabilities.
-     *
-     * @param capability one of IVibrator.CAP_*
-     * @return true if this vibrator has this capability, false otherwise
-     */
-    public boolean hasCapability(long capability) {
-        return mVibratorInfo.hasCapability(capability);
-    }
-
-    /** Return {@code true} if the underlying vibrator is currently available, false otherwise. */
-    public boolean isAvailable() {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#isAvailable");
-        try {
-            synchronized (mLock) {
-                return mNativeWrapper.isAvailable();
-            }
-        } finally {
-            Trace.traceEnd(TRACE_TAG_VIBRATOR);
-        }
-    }
-
-    /**
-     * Set the vibrator control to be external or not, based on given flag.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     */
-    public void setExternalControl(boolean externalControl) {
+    @Override
+    public boolean setExternalControl(boolean externalControl) {
         Trace.traceBegin(TRACE_TAG_VIBRATOR,
-                externalControl ? "VibratorController#enableExternalControl"
-                : "VibratorController#disableExternalControl");
+                externalControl ? "HalVibrator.enableExternalControl"
+                : "HalVibrator.disableExternalControl");
         try {
             if (!mVibratorInfo.hasCapability(IVibrator.CAP_EXTERNAL_CONTROL)) {
-                return;
+                return false;
             }
-            VibratorState newState =
-                    externalControl ? VibratorState.UNDER_EXTERNAL_CONTROL : VibratorState.IDLE;
+            State newState = externalControl ? State.UNDER_EXTERNAL_CONTROL : State.IDLE;
             synchronized (mLock) {
                 mNativeWrapper.setExternalControl(externalControl);
                 updateStateAndNotifyListenersLocked(newState);
             }
+            return true;
         } finally {
             Trace.traceEnd(TRACE_TAG_VIBRATOR);
         }
     }
 
-    /**
-     * Update the predefined vibration effect saved with given id. This will remove the saved effect
-     * if given {@code effect} is {@code null}.
-     */
-    public void updateAlwaysOn(int id, @Nullable PrebakedSegment prebaked) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#updateAlwaysOn");
+    @Override
+    public boolean setAlwaysOn(int id, @Nullable PrebakedSegment prebaked) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR,
+                prebaked != null ? "HalVibrator.enableAlwaysOn" : "HalVibrator.disableAlwaysOn");
         try {
             if (!mVibratorInfo.hasCapability(IVibrator.CAP_ALWAYS_ON_CONTROL)) {
-                return;
+                return false;
             }
             synchronized (mLock) {
                 if (prebaked == null) {
@@ -254,45 +207,40 @@ final class VibratorController {
                             prebaked.getEffectStrength());
                 }
             }
+            return true;
         } finally {
             Trace.traceEnd(TRACE_TAG_VIBRATOR);
         }
     }
 
-    /** Set the vibration amplitude. This will NOT affect the state of {@link #isVibrating()}. */
-    public void setAmplitude(float amplitude) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#setAmplitude");
+    @Override
+    public boolean setAmplitude(float amplitude) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.setAmplitude");
         try {
+            boolean success = false;
             synchronized (mLock) {
                 if (mVibratorInfo.hasCapability(IVibrator.CAP_AMPLITUDE_CONTROL)) {
                     mNativeWrapper.setAmplitude(amplitude);
+                    success = true;
                 }
-                if (mCurrentState == VibratorState.VIBRATING) {
+                if (mCurrentState == State.VIBRATING) {
                     mCurrentAmplitude = amplitude;
                 }
             }
+            return success;
         } finally {
             Trace.traceEnd(TRACE_TAG_VIBRATOR);
         }
     }
 
-    /**
-     * Turn on the vibrator for {@code milliseconds} time, using {@code vibrationId} for completion
-     * callback to {@link OnVibrationCompleteListener}.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     *
-     * @return The positive duration of the vibration started, if successful, zero if the vibrator
-     * do not support the input or a negative number if the operation failed.
-     */
-    public long on(long milliseconds, long vibrationId, long stepId) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#on");
+    @Override
+    public long on(long vibrationId, long stepId, long milliseconds) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onMillis");
         try {
             synchronized (mLock) {
                 long duration = mNativeWrapper.on(milliseconds, vibrationId, stepId);
                 if (duration > 0) {
-                    mCurrentAmplitude = -1;
-                    updateStateAndNotifyListenersLocked(VibratorState.VIBRATING);
+                    updateStateAndNotifyListenersLocked(State.VIBRATING);
                 }
                 return duration;
             }
@@ -301,17 +249,9 @@ final class VibratorController {
         }
     }
 
-    /**
-     * Plays vendor vibration effect, using {@code vibrationId} for completion callback to
-     * {@link OnVibrationCompleteListener}.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     *
-     * @return The positive duration of the vibration started, if successful, zero if the vibrator
-     * do not support the input or a negative number if the operation failed.
-     */
-    public long on(VibrationEffect.VendorEffect vendorEffect, long vibrationId, long stepId) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#on (vendor)");
+    @Override
+    public long on(long vibrationId, long stepId, VibrationEffect.VendorEffect vendorEffect) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onVendor");
         synchronized (mLock) {
             Parcel vendorData = Parcel.obtain();
             try {
@@ -321,8 +261,7 @@ final class VibratorController {
                         vendorEffect.getEffectStrength(), vendorEffect.getScale(),
                         vendorEffect.getAdaptiveScale(), vibrationId, stepId);
                 if (duration > 0) {
-                    mCurrentAmplitude = -1;
-                    updateStateAndNotifyListenersLocked(VibratorState.VIBRATING);
+                    updateStateAndNotifyListenersLocked(State.VIBRATING);
                 }
                 return duration;
             } finally {
@@ -332,24 +271,15 @@ final class VibratorController {
         }
     }
 
-    /**
-     * Plays predefined vibration effect, using {@code vibrationId} for completion callback to
-     * {@link OnVibrationCompleteListener}.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     *
-     * @return The positive duration of the vibration started, if successful, zero if the vibrator
-     * do not support the input or a negative number if the operation failed.
-     */
-    public long on(PrebakedSegment prebaked, long vibrationId, long stepId) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#on (Prebaked)");
+    @Override
+    public long on(long vibrationId, long stepId, PrebakedSegment prebaked) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPrebaked");
         try {
             synchronized (mLock) {
                 long duration = mNativeWrapper.perform(prebaked.getEffectId(),
                         prebaked.getEffectStrength(), vibrationId, stepId);
                 if (duration > 0) {
-                    mCurrentAmplitude = -1;
-                    updateStateAndNotifyListenersLocked(VibratorState.VIBRATING);
+                    updateStateAndNotifyListenersLocked(State.VIBRATING);
                 }
                 return duration;
             }
@@ -358,17 +288,9 @@ final class VibratorController {
         }
     }
 
-    /**
-     * Plays a composition of vibration primitives, using {@code vibrationId} for completion
-     * callback to {@link OnVibrationCompleteListener}.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     *
-     * @return The positive duration of the vibration started, if successful, zero if the vibrator
-     * do not support the input or a negative number if the operation failed.
-     */
-    public long on(PrimitiveSegment[] primitives, long vibrationId, long stepId) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#on (Primitive)");
+    @Override
+    public long on(long vibrationId, long stepId, PrimitiveSegment[] primitives) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPrimitives");
         try {
             if (!mVibratorInfo.hasCapability(IVibrator.CAP_COMPOSE_EFFECTS)) {
                 return 0;
@@ -376,8 +298,7 @@ final class VibratorController {
             synchronized (mLock) {
                 long duration = mNativeWrapper.compose(primitives, vibrationId, stepId);
                 if (duration > 0) {
-                    mCurrentAmplitude = -1;
-                    updateStateAndNotifyListenersLocked(VibratorState.VIBRATING);
+                    updateStateAndNotifyListenersLocked(State.VIBRATING);
                 }
                 return duration;
             }
@@ -386,16 +307,9 @@ final class VibratorController {
         }
     }
 
-    /**
-     * Plays a composition of pwle primitives, using {@code vibrationId} for completion callback
-     * to {@link OnVibrationCompleteListener}.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     *
-     * @return The duration of the effect playing, or 0 if unsupported.
-     */
-    public long on(RampSegment[] primitives, long vibrationId, long stepId) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#on (PWLE)");
+    @Override
+    public long on(long vibrationId, long stepId, RampSegment[] primitives) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPwleV1");
         try {
             if (!mVibratorInfo.hasCapability(IVibrator.CAP_COMPOSE_PWLE_EFFECTS)) {
                 return 0;
@@ -405,8 +319,7 @@ final class VibratorController {
                 long duration = mNativeWrapper.composePwle(
                         primitives, braking, vibrationId, stepId);
                 if (duration > 0) {
-                    mCurrentAmplitude = -1;
-                    updateStateAndNotifyListenersLocked(VibratorState.VIBRATING);
+                    updateStateAndNotifyListenersLocked(State.VIBRATING);
                 }
                 return duration;
             }
@@ -415,16 +328,9 @@ final class VibratorController {
         }
     }
 
-    /**
-     * Plays a composition of pwle v2 points, using {@code vibrationId} for completion callback
-     * to {@link OnVibrationCompleteListener}.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     *
-     * @return The duration of the effect playing, or 0 if unsupported.
-     */
-    public long on(PwlePoint[] pwlePoints, long vibrationId, long stepId) {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#on (PWLE v2)");
+    @Override
+    public long on(long vibrationId, long stepId, PwlePoint[] pwlePoints) {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.onPwleV2");
         try {
             if (!mVibratorInfo.hasCapability(IVibrator.CAP_COMPOSE_PWLE_EFFECTS_V2)) {
                 return 0;
@@ -432,8 +338,7 @@ final class VibratorController {
             synchronized (mLock) {
                 long duration = mNativeWrapper.composePwleV2(pwlePoints, vibrationId, stepId);
                 if (duration > 0) {
-                    mCurrentAmplitude = -1;
-                    updateStateAndNotifyListenersLocked(VibratorState.VIBRATING);
+                    updateStateAndNotifyListenersLocked(State.VIBRATING);
                 }
                 return duration;
             }
@@ -442,31 +347,18 @@ final class VibratorController {
         }
     }
 
-    /**
-     * Turns off the vibrator and disables completion callback to any pending vibration.
-     *
-     * <p>This will affect the state of {@link #isVibrating()}.
-     */
-    public void off() {
-        Trace.traceBegin(TRACE_TAG_VIBRATOR, "VibratorController#off");
+    @Override
+    public boolean off() {
+        Trace.traceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.off");
         try {
             synchronized (mLock) {
                 mNativeWrapper.off();
-                mCurrentAmplitude = 0;
-                updateStateAndNotifyListenersLocked(VibratorState.IDLE);
+                updateStateAndNotifyListenersLocked(State.IDLE);
             }
+            return true;
         } finally {
             Trace.traceEnd(TRACE_TAG_VIBRATOR);
         }
-    }
-
-    /**
-     * Resets the vibrator hardware to a default state.
-     * This turns the vibrator off, which will affect the state of {@link #isVibrating()}.
-     */
-    public void reset() {
-        setExternalControl(false);
-        off();
     }
 
     @Override
@@ -481,7 +373,8 @@ final class VibratorController {
                 + '}';
     }
 
-    void dump(IndentingPrintWriter pw) {
+    @Override
+    public void dump(IndentingPrintWriter pw) {
         pw.println("Vibrator (id=" + mVibratorInfo.getId() + "):");
         pw.increaseIndent();
         pw.println("currentState = " + mCurrentState.name());
@@ -497,10 +390,18 @@ final class VibratorController {
      * Updates current vibrator state and notify listeners if {@link #isVibrating()} result changed.
      */
     @GuardedBy("mLock")
-    private void updateStateAndNotifyListenersLocked(VibratorState state) {
+    private void updateStateAndNotifyListenersLocked(State state) {
+        if (mCurrentState == State.IDLE && state == State.VIBRATING) {
+            // First vibrate command.
+            Trace.asyncTraceBegin(TRACE_TAG_VIBRATOR, "HalVibrator.vibration", 0);
+        } else if (mCurrentState == State.VIBRATING && state == State.IDLE) {
+            // First off after a vibrate command.
+            Trace.asyncTraceEnd(TRACE_TAG_VIBRATOR, "HalVibrator.vibration", 0);
+        }
         boolean previousIsVibrating = isVibrating(mCurrentState);
         final boolean newIsVibrating = isVibrating(state);
         mCurrentState = state;
+        mCurrentAmplitude = newIsVibrating ? -1 : 0;
         if (previousIsVibrating != newIsVibrating) {
             // The broadcast method is safe w.r.t. register/unregister listener methods, but lock
             // is required here to guarantee delivery order.
@@ -517,9 +418,9 @@ final class VibratorController {
         }
     }
 
-    /** Returns true only if given state is not {@link VibratorState#IDLE}. */
-    private static boolean isVibrating(VibratorState state) {
-        return state != VibratorState.IDLE;
+    /** Returns true only if given state is not {@link State#IDLE}. */
+    private static boolean isVibrating(State state) {
+        return state != State.IDLE;
     }
 
     /** Wrapper around the static-native methods of {@link VibratorController} for tests. */
@@ -527,23 +428,21 @@ final class VibratorController {
     public static class NativeWrapper {
         /**
          * Initializes the native part of this controller, creating a global reference to given
-         * {@link OnVibrationCompleteListener} and returns a newly allocated native pointer. This
+         * {@link Callbacks} and returns a newly allocated native pointer. This
          * wrapper is responsible for deleting this pointer by calling the method pointed
          * by {@link #getNativeFinalizer()}.
          *
-         * <p><b>Note:</b> Make sure the given implementation of {@link OnVibrationCompleteListener}
+         * <p><b>Note:</b> Make sure the given implementation of {@link Callbacks}
          * do not hold any strong reference to the instance responsible for deleting the returned
          * pointer, to avoid creating a cyclic GC root reference.
          */
-        private static native long nativeInit(int vibratorId, OnVibrationCompleteListener listener);
+        private static native long nativeInit(int vibratorId, Callbacks callbacks);
 
         /**
          * Returns pointer to native function responsible for cleaning up the native pointer
-         * allocated and returned by {@link #nativeInit(int, OnVibrationCompleteListener)}.
+         * allocated and returned by {@link #nativeInit(int, Callbacks)}.
          */
         private static native long getNativeFinalizer();
-
-        private static native boolean isAvailable(long nativePtr);
 
         private static native long on(long nativePtr, long milliseconds, long vibrationId,
                 long stepId);
@@ -579,8 +478,8 @@ final class VibratorController {
         private long mNativePtr = 0;
 
         /** Initializes native controller and allocation registry to destroy native instances. */
-        public void init(int vibratorId, OnVibrationCompleteListener listener) {
-            mNativePtr = nativeInit(vibratorId, listener);
+        public void init(int vibratorId, Callbacks callbacks) {
+            mNativePtr = nativeInit(vibratorId, callbacks);
             long finalizerPtr = getNativeFinalizer();
 
             if (finalizerPtr != 0) {
@@ -589,11 +488,6 @@ final class VibratorController {
                                 VibratorController.class.getClassLoader(), finalizerPtr);
                 registry.registerNativeAllocation(this, mNativePtr);
             }
-        }
-
-        /** Check if the vibrator is currently available. */
-        public boolean isAvailable() {
-            return isAvailable(mNativePtr);
         }
 
         /** Turns vibrator on for given time. */

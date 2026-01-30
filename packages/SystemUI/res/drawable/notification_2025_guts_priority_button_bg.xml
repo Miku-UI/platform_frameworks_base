@@ -14,14 +14,7 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License
   -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-       android:shape="rectangle" >
-    <solid
-        android:color="@color/notification_guts_priority_button_bg_fill" />
-
-    <stroke
-        android:width="1.5dp"
-        android:color="@color/notification_guts_priority_button_bg_stroke" />
-
-    <corners android:radius="16dp" />
-</shape>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_selected="true" android:drawable="@drawable/notification_2025_guts_priority_button_bg_selected" />
+    <item android:drawable="@drawable/notification_2025_guts_priority_button_bg_unselected" />
+</selector>

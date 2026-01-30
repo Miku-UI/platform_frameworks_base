@@ -22,19 +22,25 @@ import com.android.systemui.keyguard.domain.interactor.keyguardInteractor
 import com.android.systemui.kosmos.Kosmos
 import com.android.systemui.kosmos.Kosmos.Fixture
 import com.android.systemui.scene.domain.interactor.sceneInteractor
+import com.android.systemui.settings.brightness.domain.interactor.brightnessMirrorShowingInteractor
 import com.android.systemui.shade.domain.interactor.shadeInteractor
 import com.android.systemui.shade.domain.interactor.shadeModeInteractor
 import com.android.systemui.statusbar.domain.interactor.remoteInputInteractor
+import com.android.systemui.statusbar.notification.stack.domain.interactor.headsUpNotificationInteractor
+import com.android.systemui.statusbar.notification.stack.domain.interactor.lockscreenNotificationDisplayConfigInteractor
 import com.android.systemui.statusbar.notification.stack.domain.interactor.notificationStackAppearanceInteractor
 
 val Kosmos.notificationScrollViewModel by Fixture {
     NotificationScrollViewModel(
         dumpManager = dumpManager,
+        lockscreenAppearanceInteractor = lockscreenNotificationDisplayConfigInteractor,
         stackAppearanceInteractor = notificationStackAppearanceInteractor,
+        brightnessMirrorShowingInteractorLazy = { brightnessMirrorShowingInteractor },
         shadeInteractor = shadeInteractor,
         shadeModeInteractor = shadeModeInteractor,
         bouncerInteractor = bouncerInteractor,
         remoteInputInteractor = remoteInputInteractor,
+        headsUpNotificationInteractor = headsUpNotificationInteractor,
         sceneInteractor = sceneInteractor,
         keyguardInteractor = { keyguardInteractor },
     )

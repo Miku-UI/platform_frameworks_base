@@ -21,6 +21,8 @@
     <string name="update" msgid="3932142540719227615">"अपडेट करा"</string>
     <string name="done" msgid="6632441120016885253">"पूर्ण झाले"</string>
     <string name="cancel" msgid="1018267193425558088">"रद्द करा"</string>
+    <string name="more_details" msgid="3643407086654820243">"अधिक तपशील"</string>
+    <string name="dont_install" msgid="414055123295505225">"इंस्टॉल करू नका"</string>
     <string name="installing" msgid="4921993079741206516">"इंस्‍टॉल होत आहे…"</string>
     <string name="installing_app" msgid="1165095864863849422">"<xliff:g id="PACKAGE_LABEL">%1$s</xliff:g> इंस्टॉल होत आहे…"</string>
     <string name="install_done" msgid="5987363587661783896">"अ‍ॅप इंस्टॉल झाले."</string>

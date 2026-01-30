@@ -17,6 +17,7 @@
 package com.android.server.permission.access.permission
 
 import android.content.pm.PermissionInfo
+import android.content.pm.ValidPurposeInfo
 import android.os.UserHandle
 import com.android.server.permission.access.util.hasBits
 import libcore.util.EmptyArray
@@ -145,6 +146,15 @@ data class Permission(
 
     inline val knownCerts: Set<String>
         get() = permissionInfo.knownCerts
+
+    inline val requiresPurpose: Boolean
+        get() = permissionInfo.requiresPurpose
+
+    inline val requiresPurposeTargetSdkVersion: Int
+        get() = permissionInfo.requiresPurposeTargetSdkVersion
+
+    inline val validPurposes: Map<String, ValidPurposeInfo>
+        get() = permissionInfo.validPurposes
 
     inline val hasGids: Boolean
         get() = gids.isNotEmpty()

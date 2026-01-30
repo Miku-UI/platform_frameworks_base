@@ -203,7 +203,7 @@ public class LaunchConversationActivity extends Activity {
                 mIStatusBarService.onNotificationClear(
                         packageName, userHandle.getIdentifier(), notifKey,
                         NotificationStats.DISMISSAL_OTHER,
-                        NotificationStats.DISMISS_SENTIMENT_POSITIVE, notifVisibility);
+                        NotificationStats.DISMISS_SENTIMENT_POSITIVE, notifVisibility, false);
             } catch (RemoteException e) {
                 Log.e(TAG, "Exception cancelling notification:" + e);
             }

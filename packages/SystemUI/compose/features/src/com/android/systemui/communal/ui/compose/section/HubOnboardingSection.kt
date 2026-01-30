@@ -150,6 +150,7 @@ private fun HubOnboardingBottomSheetContent(onButtonClicked: () -> Unit) {
         Text(
             text = stringResource(R.string.hub_onboarding_bottom_sheet_title),
             style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(32.dp))
         // TODO(b/388283881): Replace with correct animations and possibly add a content description

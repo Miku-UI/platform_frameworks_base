@@ -164,6 +164,8 @@ internal constructor(
         onReorderWidgets(widgetIdToRankMap)
     }
 
-    /** Returns true if the item at given index is editable. */
-    fun isItemEditable(index: Int) = list[index].isWidgetContent()
+    /** Returns true if the item for the given key is editable. */
+    fun isItemEditable(key: Any): Boolean {
+        return list.firstOrNull { content -> content.key == key }?.isWidgetContent() ?: false
+    }
 }

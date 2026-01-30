@@ -18,8 +18,6 @@ package com.android.server.wm;
 
 import static android.os.Trace.TRACE_TAG_WINDOW_MANAGER;
 
-import static com.android.server.wm.SnapshotPersistQueue.MAX_STORE_QUEUE_DEPTH;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.app.ActivityManager;
@@ -57,7 +55,7 @@ class ActivitySnapshotController extends AbsAppSnapshotController<ActivityRecord
     private static final boolean DEBUG = false;
     private static final String TAG = AbsAppSnapshotController.TAG;
     // Maximum persisted snapshot count on disk.
-    private static final int MAX_PERSIST_SNAPSHOT_COUNT = 20;
+    static final int MAX_PERSIST_SNAPSHOT_COUNT = 20;
 
     static final String SNAPSHOTS_DIRNAME = "activity_snapshots";
 
@@ -353,8 +351,9 @@ class ActivitySnapshotController extends AbsAppSnapshotController<ActivityRecord
         if (DEBUG) {
             Slog.d(TAG, "ActivitySnapshotController#recordSnapshot " + activity);
         }
-        if (mPersister.mSnapshotPersistQueue.peekWriteQueueSize() >= MAX_STORE_QUEUE_DEPTH
-                || mPersister.mSnapshotPersistQueue.peekQueueSize() > MAX_PERSIST_SNAPSHOT_COUNT) {
+        final int maxStoreQueue = mSnapshotPersistQueue.mMaxTotalStoreQueue;
+        if (mSnapshotPersistQueue.peekWriteQueueSize() >= maxStoreQueue
+                || mSnapshotPersistQueue.peekQueueSize() > MAX_PERSIST_SNAPSHOT_COUNT) {
             Slog.w(TAG, "Skipping recording activity snapshot, too many requests!");
             return;
         }
@@ -574,12 +573,18 @@ class ActivitySnapshotController extends AbsAppSnapshotController<ActivityRecord
         }, false /* traverseTopToBottom */);
     }
 
+    boolean invalidateSnapshot(ActivityRecord activity) {
+        if (shouldDisableSnapshots()) {
+            return false;
+        }
+        return removeIfUserSavedFileExist(activity);
+    }
+
     @Override
     void onAppRemoved(ActivityRecord activity) {
-        if (shouldDisableSnapshots()) {
+        if (!invalidateSnapshot(activity)) {
             return;
         }
-        removeIfUserSavedFileExist(activity);
         if (DEBUG) {
             Slog.d(TAG, "ActivitySnapshotController#onAppRemoved delete snapshot " + activity);
         }
@@ -587,10 +592,9 @@ class ActivitySnapshotController extends AbsAppSnapshotController<ActivityRecord
 
     @Override
     void onAppDied(ActivityRecord activity) {
-        if (shouldDisableSnapshots()) {
+        if (!invalidateSnapshot(activity)) {
             return;
         }
-        removeIfUserSavedFileExist(activity);
         if (DEBUG) {
             Slog.d(TAG, "ActivitySnapshotController#onAppDied delete snapshot " + activity);
         }
@@ -659,7 +663,7 @@ class ActivitySnapshotController extends AbsAppSnapshotController<ActivityRecord
         }
     }
 
-    private void removeIfUserSavedFileExist(ActivityRecord ar) {
+    private boolean removeIfUserSavedFileExist(ActivityRecord ar) {
         final UserSavedFile usf = findSavedFile(ar);
         if (usf != null) {
             final SparseArray<UserSavedFile> usfs = getUserFiles(ar.mUserId);
@@ -671,7 +675,9 @@ class ActivitySnapshotController extends AbsAppSnapshotController<ActivityRecord
             }
             mSavedFilesInOrder.remove(usf);
             mPersister.removeSnapshot(usf.mFileId, ar.mUserId);
+            return true;
         }
+        return false;
     }
 
     @VisibleForTesting

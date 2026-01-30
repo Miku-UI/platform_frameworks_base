@@ -22,12 +22,15 @@ import static android.view.WindowManager.DOCKED_LEFT;
 import static android.view.WindowManager.DOCKED_RIGHT;
 import static android.view.WindowManager.DOCKED_TOP;
 
-import static com.android.wm.shell.common.split.ResizingEffectPolicy.DEFAULT_OFFSCREEN_DIM;
 import static com.android.wm.shell.shared.animation.Interpolators.DIM_INTERPOLATOR;
 import static com.android.wm.shell.shared.animation.Interpolators.FAST_DIM_INTERPOLATOR;
+import static com.android.wm.shell.shared.split.SplitScreenConstants.ANIMATING_OFFSCREEN_TAP;
+import static com.android.wm.shell.shared.split.SplitScreenConstants.DEFAULT_OFFSCREEN_DIM;
 
 import android.graphics.Point;
 import android.graphics.Rect;
+
+import com.android.wm.shell.shared.split.SplitScreenConstants;
 
 /**
  * Calculation class, used when {@link com.android.wm.shell.common.split.SplitLayout#PARALLAX_FLEX}
@@ -69,22 +72,25 @@ public class FlexParallaxSpec implements ParallaxSpec {
         int endDismissPos = snapAlgorithm.getDismissEndTarget().getPosition();
         float progress;
 
-        if (startDismissPos <= position && position < firstTargetPos) {
-            // Divider is on the left/top (between 0% and 10% of screen), "fast dim" as it moves
-            // toward the screen edge
+        boolean between0and10 = startDismissPos <= position && position < firstTargetPos;
+        boolean between10and50 = firstTargetPos <= position && position < middleTargetPos;
+        boolean between50and90 = middleTargetPos <= position && position < lastTargetPos;
+        boolean between90and100 = lastTargetPos <= position && position <= endDismissPos;
+
+        if (between0and10) {
+            // "Fast dim" as the divider moves toward the screen edge.
             progress = (float) (firstTargetPos - position) / (firstTargetPos - startDismissPos);
             return fastDim(progress);
-        } else if (firstTargetPos <= position && position < middleTargetPos) {
-            // Divider is between 10% and 50%, "slow dim" as it moves toward the left/top target
+        } else if (between10and50) {
+            // "Slow dim" as the divider moves toward the left/top.
             progress = (float) (middleTargetPos - position) / (middleTargetPos - firstTargetPos);
             return slowDim(progress);
-        } else if (middleTargetPos <= position && position < lastTargetPos) {
-            // Divider is between 50% and 90%, "slow dim" as it moves toward the right/bottom target
+        } else if (between50and90) {
+            // "Slow dim" as the divider moves toward the right/bottom.
             progress = (float) (position - middleTargetPos) / (lastTargetPos - middleTargetPos);
             return slowDim(progress);
-        } else if (lastTargetPos <= position && position <= endDismissPos) {
-            // Divider is on the right/bottom (between 90% and 100% of screen), "fast dim" as it
-            // moves toward screen edge
+        } else if (between90and100) {
+            // "Fast dim" as the divider moves toward the screen edge.
             progress = (float) (position - lastTargetPos) / (endDismissPos - lastTargetPos);
             return fastDim(progress);
         }
@@ -94,7 +100,7 @@ public class FlexParallaxSpec implements ParallaxSpec {
     /**
      * Used by {@link #getDimValue} to determine the amount to dim an app. Starts at zero and ramps
      * up to the default amount of dimming for an offscreen app,
-     * {@link ResizingEffectPolicy#DEFAULT_OFFSCREEN_DIM}.
+     * {@link SplitScreenConstants#DEFAULT_OFFSCREEN_DIM}.
      */
     private float slowDim(float progress) {
         return DIM_INTERPOLATOR.getInterpolation(progress) * DEFAULT_OFFSCREEN_DIM;
@@ -102,7 +108,7 @@ public class FlexParallaxSpec implements ParallaxSpec {
 
     /**
      * Used by {@link #getDimValue} to determine the amount to dim an app. Starts at
-     * {@link ResizingEffectPolicy#DEFAULT_OFFSCREEN_DIM} and ramps up to 100% dim (full black).
+     * {@link SplitScreenConstants#DEFAULT_OFFSCREEN_DIM} and ramps up to 100% dim (full black).
      */
     private float fastDim(float progress) {
         return DEFAULT_OFFSCREEN_DIM + (FAST_DIM_INTERPOLATOR.getInterpolation(progress)
@@ -113,18 +119,35 @@ public class FlexParallaxSpec implements ParallaxSpec {
     public void getParallax(Point retreatingOut, Point advancingOut, int position,
             DividerSnapAlgorithm snapAlgorithm, boolean isLeftRightSplit, Rect displayBounds,
             Rect retreatingSurface, Rect retreatingContent, Rect advancingSurface,
-            Rect advancingContent, int dimmingSide, boolean topLeftShrink) {
+            Rect advancingContent, int dimmingSide, boolean topLeftShrink,
+            SplitState splitState) {
         // Whether an app is getting pushed offscreen by the divider.
         boolean isRetreatingOffscreen = !displayBounds.contains(retreatingSurface);
         // Whether an app was getting pulled onscreen at the beginning of the drag.
         boolean advancingSideStartedOffscreen = !displayBounds.contains(advancingContent);
 
-        // The simpler case when an app gets pushed offscreen (e.g. 50:50 -> 90:10)
-        if (isRetreatingOffscreen && !advancingSideStartedOffscreen) {
-            // On the left side, we use parallax to simulate the contents sticking to the
-            // divider. This is because surfaces naturally expand to the bottom and right,
-            // so when a surface's area expands, the contents stick to the left. This is
-            // correct behavior on the right-side surface, but not the left.
+        // If this is during the offscreen-tap animation, we adjust the left-top app to simulate the
+        // contents sticking to the divider. (Needed because the underlying surfaces are contracting
+        // and expanding unevenly as they move on- and offscreen.)
+        if (splitState.get() == ANIMATING_OFFSCREEN_TAP) {
+            if (topLeftShrink) {
+                if (isLeftRightSplit) {
+                    retreatingOut.x = retreatingSurface.width() - retreatingContent.width();
+                } else {
+                    retreatingOut.y = retreatingSurface.height() - retreatingContent.height();
+                }
+            } else {
+                if (isLeftRightSplit) {
+                    advancingOut.x = advancingSurface.width() - advancingContent.width();
+                } else {
+                    advancingOut.y = advancingSurface.height() - advancingContent.height();
+                }
+            }
+        } else if (isRetreatingOffscreen && !advancingSideStartedOffscreen) {
+            // Simple user-controlled case when an app gets pushed offscreen (e.g. 50:50 -> 90:10).
+            // On the left/top side, we use parallax to simulate the contents sticking to the
+            // divider. (Not needed on the right/bottom side because of the natural left-top
+            // alignment of content surfaces.)
             if (topLeftShrink) {
                 if (isLeftRightSplit) {
                     retreatingOut.x = retreatingSurface.width() - retreatingContent.width();
@@ -132,8 +155,8 @@ public class FlexParallaxSpec implements ParallaxSpec {
                     retreatingOut.y = retreatingSurface.height() - retreatingContent.height();
                 }
             }
-            // All other cases (e.g. 10:90 -> 50:50, 10:90 -> 90:10, 10:90 -> dismiss)
         } else {
+            // All other user-controlled cases (10:90 -> 50:50, 10:90 -> 90:10, 10:90 -> dismiss)
             mTempRect.set(retreatingSurface);
             Point rootOffset = new Point();
             // 10:90 -> 50:50, 10:90, or dismiss right

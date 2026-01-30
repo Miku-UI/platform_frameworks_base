@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,10 +42,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.integerResource
@@ -74,8 +77,8 @@ import platform.test.motion.compose.values.motionTestValues
  *
  * The user can press, hold, and drag their pointer to select dots along a grid of dots.
  *
- * If [centerDotsVertically] is `true`, the dots should be centered along the axis of interest; if
- * `false`, the dots will be pushed towards the end/bottom of the axis.
+ * If [centerDotsVertically] is `true`, the dots should be centered vertically; if `false`, the dots
+ * will be pushed towards the bottom.
  */
 @Composable
 @VisibleForTesting
@@ -91,7 +94,8 @@ fun PatternBouncer(
     val colCount = viewModel.columnCount
     val rowCount = viewModel.rowCount
 
-    val dotColor = MaterialTheme.colorScheme.secondary
+    val idleDotColor = MaterialTheme.colorScheme.onSurface
+    val activeDotColor = MaterialTheme.colorScheme.onPrimary
     val dotRadius = with(density) { (DOT_DIAMETER_DP / 2).dp.toPx() }
     val lineColor = MaterialTheme.colorScheme.primary
     val lineStrokeWidth = with(density) { LINE_STROKE_WIDTH_DP.dp.toPx() }
@@ -143,8 +147,7 @@ fun PatternBouncer(
             return@LaunchedEffect
         }
 
-        // Make sure that the current dot is scaled up while the other dots are scaled back
-        // down.
+        // Make sure that the current dot is scaled up while the other dots are scaled back down.
         dotScalingAnimatables.entries.forEach { (dot, animatable) ->
             val isSelected = dot == currentDot
             // Launch using the longer-lived scope because we want these animations to proceed to
@@ -211,11 +214,13 @@ fun PatternBouncer(
         }
     }
 
-    // This is the position of the input pointer.
+    // This is the position of the input pointer. Calculated in context of bouncer Box.
     var inputPosition: Offset? by remember { mutableStateOf(null) }
+    // Calculated in context of Canvas inside the Box.
     var gridCoordinates: LayoutCoordinates? by remember { mutableStateOf(null) }
+    // Calculated in context of Canvas inside the Box.
     var offset: Offset by remember { mutableStateOf(Offset.Zero) }
-    var scale: Float by remember { mutableStateOf(1f) }
+    var scale: Float by remember { mutableFloatStateOf(1f) }
     // This is the size of the drawing area, in dips.
     val dotDrawingArea =
         remember(colCount, rowCount) {
@@ -226,10 +231,9 @@ fun PatternBouncer(
                 // width.
                 width = (262 * colCount / 2).dp,
                 // Because the height also includes spacing above and below the topmost and
-                // bottommost
-                // dots in the grid and because UX mocks specify the height without that spacing,
-                // the
-                // actual height needs to be defined slightly bigger than the UX mock height.
+                // bottommost dots in the grid and because UX mocks specify the height without that
+                // spacing, the actual height needs to be defined slightly bigger than the UX mock
+                // height.
                 height = (262 * rowCount / 2).dp,
             )
         }
@@ -346,8 +350,10 @@ fun PatternBouncer(
                     }
 
                     // Draw the line between the most recently-selected dot and the input pointer
-                    // position.
-                    inputPosition?.let { lineEnd ->
+                    // position. Note that `inputPosition` is calculated relative to enclosing
+                    // `Box`.
+                    inputPosition?.let { lineEndInParent ->
+                        val lineEnd = lineEndInParent.minus(nonNullCoordinates.positionInParent())
                         currentDot?.let { dot ->
                             val from = pixelOffset(dot, spacing, horizontalOffset, verticalOffset)
                             val lineLength =
@@ -378,9 +384,11 @@ fun PatternBouncer(
                                 verticalOffset + appearOffset,
                             ),
                         color =
-                            dotColor.copy(
-                                alpha = checkNotNull(dotAppearFadeInAnimatables[dot]).value
-                            ),
+                            if (isAnimationEnabled && dot == currentDot) {
+                                activeDotColor
+                            } else {
+                                idleDotColor
+                            }.copy(alpha = checkNotNull(dotAppearFadeInAnimatables[dot]).value),
                         radius = dotRadius * checkNotNull(dotScalingAnimatables[dot]).value,
                     )
                 }

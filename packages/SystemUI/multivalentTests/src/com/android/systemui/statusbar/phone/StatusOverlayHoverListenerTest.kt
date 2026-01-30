@@ -32,17 +32,15 @@ import androidx.annotation.ColorInt
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
+import com.android.systemui.display.data.repository.displaySubcomponentPerDisplayRepository
+import com.android.systemui.plugins.fakeDarkIconDispatcher
 import com.android.systemui.res.R
 import com.android.systemui.statusbar.data.repository.statusBarConfigurationControllerStore
-import com.android.systemui.statusbar.data.repository.sysUiDarkIconDispatcherStore
-import com.android.systemui.statusbar.phone.SysuiDarkIconDispatcher.DarkChange
 import com.android.systemui.statusbar.policy.FakeConfigurationController
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.argumentCaptor
 import com.android.systemui.util.mockito.mock
-import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
-import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -56,14 +54,13 @@ class StatusOverlayHoverListenerTest : SysuiTestCase() {
     private val kosmos = testKosmos()
     private val viewOverlay = mock<ViewGroupOverlay>()
     private val overlayCaptor = argumentCaptor<Drawable>()
-    private val darkChange: MutableStateFlow<DarkChange> = MutableStateFlow(DarkChange.EMPTY)
-    private val darkDispatcher = kosmos.sysUiDarkIconDispatcherStore.forDisplay(context.displayId)
+    private val darkDispatcher = kosmos.fakeDarkIconDispatcher
 
     private val factory =
         StatusOverlayHoverListenerFactory(
             context.resources,
             FakeConfigurationController(),
-            kosmos.sysUiDarkIconDispatcherStore,
+            kosmos.displaySubcomponentPerDisplayRepository,
             kosmos.statusBarConfigurationControllerStore,
         )
     private val view = TestableStatusContainer(context, viewOverlay)
@@ -73,7 +70,6 @@ class StatusOverlayHoverListenerTest : SysuiTestCase() {
     @Before
     fun setUp() {
         looper = TestableLooper.get(this)
-        whenever(darkDispatcher.darkChangeFlow()).thenReturn(darkChange)
     }
 
     @Test
@@ -164,8 +160,7 @@ class StatusOverlayHoverListenerTest : SysuiTestCase() {
         get() = (overlayDrawable as PaintDrawable).paint.color
 
     private fun setIconsTint(@ColorInt color: Int) {
-        // passing empty ArrayList is equivalent to just accepting passed color as icons color
-        darkChange.value = DarkChange(/* areas= */ ArrayList(), /* darkIntensity= */ 1f, color)
+        darkDispatcher.setIconsTint(color)
     }
 
     private fun TestableStatusContainer.hoverStarted() {

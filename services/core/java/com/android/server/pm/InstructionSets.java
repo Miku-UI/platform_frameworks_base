@@ -35,21 +35,6 @@ public class InstructionSets {
     private static final String PREFERRED_INSTRUCTION_SET =
             VMRuntime.getInstructionSet(Build.SUPPORTED_ABIS[0]);
 
-    public static String[] getAppDexInstructionSets(String primaryCpuAbi, String secondaryCpuAbi) {
-        if (primaryCpuAbi != null) {
-            if (secondaryCpuAbi != null) {
-                return new String[] {
-                        VMRuntime.getInstructionSet(primaryCpuAbi),
-                        VMRuntime.getInstructionSet(secondaryCpuAbi) };
-            } else {
-                return new String[] {
-                        VMRuntime.getInstructionSet(primaryCpuAbi) };
-            }
-        }
-
-        return new String[] { getPreferredInstructionSet() };
-    }
-
     public static String getPreferredInstructionSet() {
         return PREFERRED_INSTRUCTION_SET;
     }

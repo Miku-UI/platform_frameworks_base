@@ -19,13 +19,12 @@ package com.android.wm.shell.back;
 import static android.view.Display.DEFAULT_DISPLAY;
 import static android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS;
 
-import static com.android.window.flags.Flags.enableMultidisplayTrackpadBackGesture;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.view.SurfaceControl;
+import android.window.DesktopExperienceFlags;
 
 import com.android.internal.graphics.ColorUtils;
 import com.android.internal.view.AppearanceRegion;
@@ -93,7 +92,7 @@ public class BackAnimationBackground {
                 .setCallsite("BackAnimationBackground")
                 .setColorLayer();
 
-        if (enableMultidisplayTrackpadBackGesture()) {
+        if (DesktopExperienceFlags.ENABLE_MULTIDISPLAY_TRACKPAD_BACK_GESTURE.isTrue()) {
             mRootTaskDisplayAreaOrganizer.attachToDisplayArea(displayId, colorLayerBuilder);
         } else {
             mRootTaskDisplayAreaOrganizer.attachToDisplayArea(DEFAULT_DISPLAY, colorLayerBuilder);

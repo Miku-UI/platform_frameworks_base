@@ -36,8 +36,9 @@ import com.android.systemui.biometrics.UdfpsController;
 import com.android.systemui.dagger.qualifiers.Main;
 import com.android.systemui.doze.dagger.DozeScope;
 import com.android.systemui.doze.dagger.WrappedService;
-import com.android.systemui.statusbar.phone.DozeParameters;
 import com.android.systemui.keyguard.domain.interactor.DozeInteractor;
+import com.android.systemui.scene.shared.flag.SceneContainerFlag;
+import com.android.systemui.statusbar.phone.DozeParameters;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
 import com.android.systemui.util.wakelock.SettableWakeLock;
 import com.android.systemui.util.wakelock.WakeLock;
@@ -208,7 +209,11 @@ public class DozeScreenState implements DozeMachine.Part {
                 mWakeLock.setAcquired(true);
             }
         } else if (turningOff) {
-            mDozeHost.prepareForGentleSleep(() -> applyScreenState(screenState));
+            if (SceneContainerFlag.isEnabled()) {
+                applyScreenState(screenState);
+            } else {
+                mDozeHost.prepareForGentleSleep(() -> applyScreenState(screenState));
+            }
         } else {
             applyScreenState(screenState);
         }

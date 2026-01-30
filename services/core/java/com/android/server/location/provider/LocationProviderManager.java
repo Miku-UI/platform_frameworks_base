@@ -395,6 +395,9 @@ public class LocationProviderManager extends
         @GuardedBy("mMultiplexerLock")
         private boolean mIsUsingHighPower;
 
+        @GuardedBy("mMultiplexerLock")
+        private boolean mIsInEmergency;
+
         @Nullable private Location mLastLocation = null;
 
         protected Registration(LocationRequest request, CallerIdentity identity, Executor executor,
@@ -421,6 +424,24 @@ public class LocationProviderManager extends
             }
         }
 
+        /** Update {@link #mIsInEmergency} by invoking Telephony APIs. **/
+        public void updateIsInEmergency() {
+            boolean isInEmergency = mEmergencyHelper.isInEmergency(0);
+            synchronized (mMultiplexerLock) {
+                mIsInEmergency = isInEmergency;
+            }
+        }
+
+        /**
+         * Make sure to call {@link #updateIsInEmergency()} before calling this method to keep
+         * {@link #mIsInEmergency} up-to-date.
+         *
+         * <p>See b/426562854 for more details. {@link #updateIsInEmergency()} is a short term
+         * solution to avoid calling IPC with a lock by caching the state right before onRegister().
+         * The long term solution should be avoiding any synchronous
+         * {@link EmergencyHelper#isInEmergency()}} and using the asynchronous emergency listeners
+         * instead.
+         */
         @GuardedBy("mMultiplexerLock")
         @Override
         protected void onRegister() {
@@ -435,7 +456,7 @@ public class LocationProviderManager extends
 
             // initialization order is important as there are ordering dependencies
             onLocationPermissionsChanged();
-            onBypassLocationPermissionsChanged(mEmergencyHelper.isInEmergency(0));
+            onBypassLocationPermissionsChanged(mIsInEmergency);
             mForeground = mAppForegroundHelper.isAppForeground(getIdentity().getUid());
             mProviderLocationRequest = calculateProviderLocationRequest();
             mIsUsingHighPower = isUsingHighPower();
@@ -1991,20 +2012,12 @@ public class LocationProviderManager extends
                         identity,
                         new GetCurrentLocationTransport(callback),
                         permissionLevel);
-
-        synchronized (mMultiplexerLock) {
-            Preconditions.checkState(mState != STATE_STOPPED);
-            final long ident = Binder.clearCallingIdentity();
-            try {
-                putRegistration(callback.asBinder(), registration);
-                if (!registration.isActive()) {
-                    // if the registration never activated, fail it immediately
-                    registration.deliverNull();
-                }
-            } finally {
-                Binder.restoreCallingIdentity(ident);
+        registerAndHandleIdentity(callback.asBinder(), registration, () -> {
+            if (!registration.isActive()) {
+                // if the registration never activated, fail it immediately
+                registration.deliverNull();
             }
-        }
+        });
 
         ICancellationSignal cancelTransport = CancellationSignal.createTransport();
         CancellationSignal.fromTransport(cancelTransport)
@@ -2045,16 +2058,7 @@ public class LocationProviderManager extends
                 identity,
                 new LocationListenerTransport(listener),
                 permissionLevel);
-
-        synchronized (mMultiplexerLock) {
-            Preconditions.checkState(mState != STATE_STOPPED);
-            final long ident = Binder.clearCallingIdentity();
-            try {
-                putRegistration(listener.asBinder(), registration);
-            } finally {
-                Binder.restoreCallingIdentity(ident);
-            }
-        }
+        registerAndHandleIdentity(listener.asBinder(), registration, () -> {});
     }
 
     public void registerLocationRequest(LocationRequest request, CallerIdentity callerIdentity,
@@ -2064,12 +2068,19 @@ public class LocationProviderManager extends
                 callerIdentity,
                 new LocationPendingIntentTransport(mContext, pendingIntent),
                 permissionLevel);
+        registerAndHandleIdentity(pendingIntent, registration, () -> {});
+    }
+
+    private <T> void registerAndHandleIdentity(T key, Registration registration,
+                                               Runnable postRegistrationRunnable) {
+        registration.updateIsInEmergency();
 
         synchronized (mMultiplexerLock) {
             Preconditions.checkState(mState != STATE_STOPPED);
             final long identity = Binder.clearCallingIdentity();
             try {
-                putRegistration(pendingIntent, registration);
+                putRegistration(key, registration);
+                postRegistrationRunnable.run();
             } finally {
                 Binder.restoreCallingIdentity(identity);
             }

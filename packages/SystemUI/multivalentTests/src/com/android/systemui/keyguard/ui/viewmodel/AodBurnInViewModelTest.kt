@@ -16,6 +16,8 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import android.platform.test.annotations.DisableFlags
+import android.platform.test.annotations.EnableFlags
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
 import com.android.systemui.SysuiTestCase
@@ -32,7 +34,7 @@ import com.android.systemui.keyguard.shared.model.KeyguardState
 import com.android.systemui.keyguard.shared.model.TransitionState
 import com.android.systemui.keyguard.shared.model.TransitionStep
 import com.android.systemui.kosmos.testScope
-import com.android.systemui.plugins.clocks.ClockController
+import com.android.systemui.plugins.keyguard.ui.clocks.ClockController
 import com.android.systemui.testKosmos
 import com.android.systemui.util.mockito.whenever
 import com.google.common.truth.Truth.assertThat
@@ -41,7 +43,6 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.Answers
@@ -63,10 +64,14 @@ class AodBurnInViewModelTest : SysuiTestCase() {
     private val testScope = kosmos.testScope
     private val keyguardTransitionRepository = kosmos.fakeKeyguardTransitionRepository
     private val keyguardClockRepository = kosmos.fakeKeyguardClockRepository
-    private lateinit var underTest: AodBurnInViewModel
+    private val underTest: AodBurnInViewModel by lazy {
+        kosmos.aodBurnInViewModel.apply { updateBurnInParams(burnInParameters) }
+    }
     // assign a smaller value to minViewY to avoid overflow
     private var burnInParameters = BurnInParameters(minViewY = Int.MAX_VALUE / 2)
-    private val burnInFlow = MutableStateFlow(BurnInModel())
+    private val burnInFlow: MutableStateFlow<BurnInModel> by lazy {
+        MutableStateFlow(BurnInModel())
+    }
 
     @Before
     @DisableSceneContainer
@@ -83,12 +88,10 @@ class AodBurnInViewModelTest : SysuiTestCase() {
         kosmos.goneToAodTransitionViewModel = goneToAodTransitionViewModel
         kosmos.lockscreenToAodTransitionViewModel = lockscreenToAodTransitionViewModel
         kosmos.fakeKeyguardClockRepository.setCurrentClock(clockController)
-
-        underTest = kosmos.aodBurnInViewModel
-        underTest.updateBurnInParams(burnInParameters)
     }
 
     @Test
+    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun movement_initializedToDefaultValues() =
         testScope.runTest {
             val movement by collectLastValue(underTest.movement)
@@ -98,6 +101,44 @@ class AodBurnInViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
+    fun movement_initializedToDefaultValues_reactiveSmartspace() =
+        testScope.runTest {
+            val movement by collectLastValue(underTest.movement)
+            assertThat(movement?.translationY).isEqualTo(0)
+            assertThat(movement?.translationX).isEqualTo(0)
+            assertThat(movement?.scale).isEqualTo(0.9f)
+        }
+
+    @Test
+    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
+    fun translationAndScale_whenNotDozing_reactiveSmartspace() =
+        testScope.runTest {
+            val movement by collectLastValue(underTest.movement)
+            assertThat(movement?.translationX).isEqualTo(0)
+
+            // Set to not dozing (on lockscreen)
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.AOD,
+                    to = KeyguardState.LOCKSCREEN,
+                    value = 1f,
+                    transitionState = TransitionState.FINISHED,
+                ),
+                validateStep = false,
+            )
+
+            // Trigger a change to the burn-in model
+            burnInFlow.value = BurnInModel(translationX = 20, translationY = 30, scale = 0.5f)
+
+            assertThat(movement?.translationX).isEqualTo(0)
+            assertThat(movement?.translationY).isEqualTo(0)
+            assertThat(movement?.scale).isEqualTo(0.9f)
+            assertThat(movement?.scaleClockOnly).isEqualTo(true)
+        }
+
+    @Test
+    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun translationAndScale_whenNotDozing() =
         testScope.runTest {
             val movement by collectLastValue(underTest.movement)
@@ -124,6 +165,55 @@ class AodBurnInViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
+    fun translationX_aodToLockscreen_reactiveSmartspace() =
+        testScope.runTest {
+            underTest.updateBurnInParams(burnInParameters.copy(translationX = { -100f }))
+            val movement by collectLastValue(underTest.movement)
+            assertThat(movement?.translationX).isEqualTo(0)
+
+            // Trigger a change to the burn-in model
+            burnInFlow.value = BurnInModel(translationX = 20, translationY = 30, scale = 0.5f)
+
+            // Set to not dozing (on lockscreen)
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.AOD,
+                    to = KeyguardState.LOCKSCREEN,
+                    value = 0f,
+                    transitionState = TransitionState.STARTED,
+                ),
+                validateStep = false,
+            )
+            // Set to not dozing (on lockscreen)
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.AOD,
+                    to = KeyguardState.LOCKSCREEN,
+                    value = 0f,
+                    transitionState = TransitionState.RUNNING,
+                ),
+                validateStep = false,
+            )
+            assertThat(movement?.translationX).isEqualTo(-100)
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.AOD,
+                    to = KeyguardState.LOCKSCREEN,
+                    value = 1f,
+                    transitionState = TransitionState.FINISHED,
+                ),
+                validateStep = false,
+            )
+
+            assertThat(movement?.translationX).isEqualTo(0)
+            assertThat(movement?.translationY).isEqualTo(0)
+            assertThat(movement?.scale).isEqualTo(0.9f)
+            assertThat(movement?.scaleClockOnly).isEqualTo(true)
+        }
+
+    @Test
+    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun translationX_aodToLockscreen() =
         testScope.runTest {
             underTest.updateBurnInParams(burnInParameters.copy(translationX = { -100f }))
@@ -171,6 +261,49 @@ class AodBurnInViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
+    fun translationAndScale_whenFullyDozing_reactiveSmartspace() =
+        testScope.runTest {
+            underTest.updateBurnInParams(burnInParameters.copy(minViewY = 100))
+            val movement by collectLastValue(underTest.movement)
+            assertThat(movement?.translationX).isEqualTo(0)
+
+            // Set to dozing (on AOD)
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.GONE,
+                    to = KeyguardState.AOD,
+                    value = 1f,
+                    transitionState = TransitionState.FINISHED,
+                ),
+                validateStep = false,
+            )
+            // Trigger a change to the burn-in model
+            burnInFlow.value = BurnInModel(translationX = 20, translationY = 30, scale = 0.5f)
+
+            assertThat(movement?.translationX).isEqualTo(20)
+            assertThat(movement?.translationY).isEqualTo(30)
+            assertThat(movement?.scale).isEqualTo(0.5f)
+            assertThat(movement?.scaleClockOnly).isEqualTo(true)
+
+            // Set to the beginning of GONE->AOD transition
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.GONE,
+                    to = KeyguardState.AOD,
+                    value = 0f,
+                    transitionState = TransitionState.STARTED,
+                ),
+                validateStep = false,
+            )
+            assertThat(movement?.translationX).isEqualTo(0)
+            assertThat(movement?.translationY).isEqualTo(0)
+            assertThat(movement?.scale).isEqualTo(0.9f)
+            assertThat(movement?.scaleClockOnly).isEqualTo(true)
+        }
+
+    @Test
+    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun translationAndScale_whenFullyDozing() =
         testScope.runTest {
             underTest.updateBurnInParams(burnInParameters.copy(minViewY = 100))
@@ -212,6 +345,50 @@ class AodBurnInViewModelTest : SysuiTestCase() {
         }
 
     @Test
+    @EnableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
+    fun translationAndScale_whenFullyDozing_MigrationFlagOn_staysOutOfTopInset_reactiveSmartspace() =
+        testScope.runTest {
+            underTest.updateBurnInParams(burnInParameters.copy(minViewY = 100, topInset = 80))
+            val movement by collectLastValue(underTest.movement)
+            assertThat(movement?.translationX).isEqualTo(0)
+
+            // Set to dozing (on AOD)
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.GONE,
+                    to = KeyguardState.AOD,
+                    value = 1f,
+                    transitionState = TransitionState.FINISHED,
+                ),
+                validateStep = false,
+            )
+
+            // Trigger a change to the burn-in model
+            burnInFlow.value = BurnInModel(translationX = 20, translationY = -30, scale = 0.5f)
+            assertThat(movement?.translationX).isEqualTo(20)
+            // -20 instead of -30, due to inset of 80
+            assertThat(movement?.translationY).isEqualTo(-20)
+            assertThat(movement?.scale).isEqualTo(0.5f)
+            assertThat(movement?.scaleClockOnly).isEqualTo(true)
+
+            // Set to the beginning of GONE->AOD transition
+            keyguardTransitionRepository.sendTransitionStep(
+                TransitionStep(
+                    from = KeyguardState.GONE,
+                    to = KeyguardState.AOD,
+                    value = 0f,
+                    transitionState = TransitionState.STARTED,
+                ),
+                validateStep = false,
+            )
+            assertThat(movement?.translationX).isEqualTo(0)
+            assertThat(movement?.translationY).isEqualTo(0)
+            assertThat(movement?.scale).isEqualTo(0.9f)
+            assertThat(movement?.scaleClockOnly).isEqualTo(true)
+        }
+
+    @Test
+    @DisableFlags(com.android.systemui.shared.Flags.FLAG_CLOCK_REACTIVE_SMARTSPACE_LAYOUT)
     fun translationAndScale_whenFullyDozing_MigrationFlagOn_staysOutOfTopInset() =
         testScope.runTest {
             underTest.updateBurnInParams(burnInParameters.copy(minViewY = 100, topInset = 80))
@@ -346,7 +523,6 @@ class AodBurnInViewModelTest : SysuiTestCase() {
 
     @Test
     @EnableSceneContainer
-    @Ignore("b/367659687")
     fun translationAndScale_sceneContainerOn_nonWeatherSmallClock() =
         testBurnInViewModelForClocks(
             isSmallClock = true,

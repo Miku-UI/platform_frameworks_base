@@ -16,24 +16,22 @@
 
 package com.android.systemui.screenshot.ui.viewmodel
 
-import android.view.accessibility.AccessibilityManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.SysuiTestCase
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mockito.Mockito.mock
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
-class ScreenshotViewModelTest {
-    private val accessibilityManager: AccessibilityManager = mock(AccessibilityManager::class.java)
+class ScreenshotViewModelTest : SysuiTestCase() {
     private val appearance = ActionButtonAppearance(null, "Label", "Description")
     private val onclick = {}
 
     @Test
     fun testAddAction() {
-        val viewModel = ScreenshotViewModel(accessibilityManager)
+        val viewModel = ScreenshotViewModel()
 
         assertThat(viewModel.actions.value).isEmpty()
 
@@ -49,7 +47,7 @@ class ScreenshotViewModelTest {
 
     @Test
     fun testRemoveAction() {
-        val viewModel = ScreenshotViewModel(accessibilityManager)
+        val viewModel = ScreenshotViewModel()
         val firstId = viewModel.addAction(ActionButtonAppearance(null, "", ""), false, {})
         val secondId = viewModel.addAction(appearance, false, onclick)
 
@@ -68,7 +66,7 @@ class ScreenshotViewModelTest {
 
     @Test
     fun testUpdateActionAppearance() {
-        val viewModel = ScreenshotViewModel(accessibilityManager)
+        val viewModel = ScreenshotViewModel()
         val id = viewModel.addAction(appearance, false, onclick)
         val otherAppearance = ActionButtonAppearance(null, "Other", "Other")
 
@@ -78,5 +76,11 @@ class ScreenshotViewModelTest {
         val updated = viewModel.actions.value[0]
         assertThat(updated.appearance).isEqualTo(otherAppearance)
         assertThat(updated.onClicked).isEqualTo(onclick)
+    }
+
+    companion object {
+        init {
+            waitUntilMockitoCanBeInitialized()
+        }
     }
 }

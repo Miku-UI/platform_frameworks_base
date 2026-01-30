@@ -16,20 +16,26 @@
 
 package android.telephony;
 
+import android.annotation.FlaggedApi;
 import android.annotation.IntRange;
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.annotation.SystemApi;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.telephony.TelephonyManager.SimType;
+
+import com.android.internal.telephony.flags.Flags;
 
 import java.util.Objects;
 
 /**
  * <p>Provides information for a SIM slot mapping, which establishes a unique mapping between a
- * logical SIM slot and a physical SIM slot and port index.  A logical SIM slot represents a
- * potentially active SIM slot, where a physical SIM slot and port index represent a hardware SIM
- * slot and port (capable of having an active profile) which can be mapped to a logical sim slot.
+ * logical SIM slot and a physical SIM slot and port index. It also includes the
+ * {@link android.telephony.TelephonyManager.SimType} mapped to the physical slot.
+ * A logical SIM slot represents a potentially active SIM slot, where a physical SIM slot and
+ * port index represent a hardware SIM slot and port (capable of having an active profile) which
+ * can be mapped to a logical sim slot.
  * <p>It contains the following parameters:
  * <ul>
  * <li>Port index: unique index referring to a port belonging to the physical SIM slot.
@@ -44,6 +50,9 @@ import java.util.Objects;
  * and go up depending on the number of supported active slots on a device.
  * For example, a dual-SIM device typically has slot 0 and slot 1. If a device has multiple physical
  * slots but only supports one active slot, it will have only the logical slot ID 0</li>
+ * <li>Sim type: {@link android.telephony.TelephonyManager.SimType} mapped to the physical slot.
+ * For example, some hardware configurations support more than one sim type on the physical slot
+ * but only one sim type can be mapped at a time.</li>
  * </ul>
  *
  * <p> This configurations tells a specific logical slot is mapped to a port from an actual physical
@@ -56,6 +65,7 @@ public final class UiccSlotMapping implements Parcelable {
     private final int mPortIndex;
     private final int mPhysicalSlotIndex;
     private final int mLogicalSlotIndex;
+    private final @SimType int mSimType;
 
     public static final @NonNull Creator<UiccSlotMapping> CREATOR =
             new Creator<UiccSlotMapping>() {
@@ -74,6 +84,7 @@ public final class UiccSlotMapping implements Parcelable {
         mPortIndex = in.readInt();
         mPhysicalSlotIndex = in.readInt();
         mLogicalSlotIndex = in.readInt();
+        mSimType = in.readInt();
     }
 
     @Override
@@ -81,6 +92,7 @@ public final class UiccSlotMapping implements Parcelable {
         dest.writeInt(mPortIndex);
         dest.writeInt(mPhysicalSlotIndex);
         dest.writeInt(mLogicalSlotIndex);
+        dest.writeInt(mSimType);
     }
 
     @Override
@@ -99,6 +111,22 @@ public final class UiccSlotMapping implements Parcelable {
         this.mPortIndex = portIndex;
         this.mPhysicalSlotIndex = physicalSlotIndex;
         this.mLogicalSlotIndex = logicalSlotIndex;
+        this.mSimType = TelephonyManager.SIM_TYPE_UNKNOWN;
+    }
+
+    /**
+     * @param portIndex The port index is an enumeration of the ports available on the UICC.
+     * @param physicalSlotIndex is unique index referring to a physical SIM slot.
+     * @param logicalSlotIndex is unique index referring to a logical SIM slot.
+     * @param simType SIM type mapped to the corresponding physical slot.
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_SLOT_SWITCHING_2PSIM_1ESIM_CONFIG)
+    public UiccSlotMapping(int portIndex, int physicalSlotIndex, int logicalSlotIndex,
+            @SimType int simType) {
+        this.mPortIndex = portIndex;
+        this.mPhysicalSlotIndex = physicalSlotIndex;
+        this.mLogicalSlotIndex = logicalSlotIndex;
+        this.mSimType = simType;
     }
 
     /**
@@ -133,6 +161,16 @@ public final class UiccSlotMapping implements Parcelable {
         return mLogicalSlotIndex;
     }
 
+    /**
+     * Gets the sim type connected to the corresponding physical slot.
+     *
+     * @return sim type;
+     */
+    @FlaggedApi(Flags.FLAG_SUPPORT_SLOT_SWITCHING_2PSIM_1ESIM_CONFIG)
+    public @SimType int getSimType() {
+        return mSimType;
+    }
+
     @Override
     public boolean equals(@Nullable Object obj) {
         if (this == obj) {
@@ -145,23 +183,29 @@ public final class UiccSlotMapping implements Parcelable {
         UiccSlotMapping that = (UiccSlotMapping) obj;
         return (mPortIndex == that.mPortIndex)
                 && (mPhysicalSlotIndex == that.mPhysicalSlotIndex)
-                && (mLogicalSlotIndex == that.mLogicalSlotIndex);
+                && (mLogicalSlotIndex == that.mLogicalSlotIndex)
+                && (mSimType == that.mSimType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(mPortIndex, mPhysicalSlotIndex, mLogicalSlotIndex);
+        return Objects.hash(mPortIndex, mPhysicalSlotIndex, mLogicalSlotIndex, mSimType);
     }
 
     @NonNull
     @Override
     public String toString() {
-        return "UiccSlotMapping (mPortIndex="
+        StringBuilder sb = new StringBuilder("UiccSlotMapping ("
+                + "mPortIndex="
                 + mPortIndex
                 + ", mPhysicalSlotIndex="
                 + mPhysicalSlotIndex
                 + ", mLogicalSlotIndex="
-                + mLogicalSlotIndex
-                + ")";
+                + mLogicalSlotIndex);
+        if (Flags.supportSlotSwitching2psim1esimConfig()) {
+            sb.append(", mSimType=").append(mSimType);
+        }
+        sb.append(")");
+        return sb.toString();
     }
 }

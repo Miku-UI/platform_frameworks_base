@@ -16,18 +16,21 @@
 
 package com.android.systemui.keyguard.ui.viewmodel
 
+import com.android.systemui.Flags
 import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.keyguard.domain.interactor.FromPrimaryBouncerTransitionInteractor
 import com.android.systemui.keyguard.shared.model.Edge
 import com.android.systemui.keyguard.shared.model.KeyguardState.DREAMING
 import com.android.systemui.keyguard.shared.model.KeyguardState.PRIMARY_BOUNCER
+import com.android.systemui.keyguard.shared.model.ScrimAlpha
 import com.android.systemui.keyguard.ui.KeyguardTransitionAnimationFlow
 import com.android.systemui.keyguard.ui.transitions.BlurConfig
 import com.android.systemui.keyguard.ui.transitions.PrimaryBouncerTransition
 import com.android.systemui.scene.shared.model.Overlays
+import com.android.systemui.statusbar.phone.ScrimState
 import javax.inject.Inject
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 
 @SysUISingleton
 class PrimaryBouncerToDreamingTransitionViewModel
@@ -42,18 +45,49 @@ constructor(blurConfig: BlurConfig, animationFlow: KeyguardTransitionAnimationFl
             )
             .setupWithoutSceneContainer(edge = Edge.create(from = PRIMARY_BOUNCER, to = DREAMING))
 
-    override val windowBlurRadius: Flow<Float> =
+    /**
+     * Bouncer container alpha. The dream starts underneath the bouncer so we want to fade the
+     * bouncer away as the dream launches.
+     */
+    val bouncerAlpha: Flow<Float> =
         transitionAnimation.sharedFlow(
-            onStart = { blurConfig.maxBlurRadiusPx },
-            onStep = {
-                transitionProgressToBlurRadius(
-                    blurConfig.maxBlurRadiusPx,
-                    endBlurRadius = blurConfig.minBlurRadiusPx,
-                    transitionProgress = it,
-                )
-            },
-            onFinish = { blurConfig.minBlurRadiusPx },
+            duration = FromPrimaryBouncerTransitionInteractor.TO_DREAMING_DURATION,
+            onStep = { 1f - it },
         )
 
-    override val notificationBlurRadius: Flow<Float> = emptyFlow()
+    override val windowBlurRadius: Flow<Float> =
+        transitionAnimation.sharedFlowWithShade(
+            onStep = { progress, isShadeExpanded ->
+                if (isShadeExpanded && Flags.notificationShadeBlur()) {
+                    blurConfig.maxBlurRadiusPx
+                } else {
+                    transitionProgressToBlurRadius(
+                        blurConfig.maxBlurRadiusPx,
+                        endBlurRadius = blurConfig.minBlurRadiusPx,
+                        transitionProgress = progress,
+                    )
+                }
+            },
+            onFinish = { isShadeExpanded ->
+                if (isShadeExpanded && Flags.notificationShadeBlur()) {
+                    blurConfig.maxBlurRadiusPx
+                } else {
+                    blurConfig.minBlurRadiusPx
+                }
+            },
+        )
+
+    override val notificationBlurRadius: Flow<Float> =
+        transitionAnimation.immediatelyTransitionTo(blurConfig.minBlurRadiusPx)
+
+    // Fade out behind scrim as it's on top of the dream.
+    val scrimAlpha: Flow<ScrimAlpha> =
+        transitionAnimation
+            .sharedFlow(
+                duration = FromPrimaryBouncerTransitionInteractor.TO_DREAMING_DURATION,
+                onStep = { step -> (1 - step) * ScrimState.BOUNCER.behindAlpha },
+                onFinish = { 0f },
+                onCancel = { ScrimState.BOUNCER.behindAlpha },
+            )
+            .map { ScrimAlpha(behindAlpha = it) }
 }

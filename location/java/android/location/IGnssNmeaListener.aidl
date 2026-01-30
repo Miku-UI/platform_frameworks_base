@@ -17,7 +17,7 @@
 package android.location;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface IGnssNmeaListener
 {

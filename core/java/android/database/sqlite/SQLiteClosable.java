@@ -125,7 +125,7 @@ public abstract class SQLiteClosable implements Closeable {
         synchronized (this) {
             if (mTrackClosure && (mClosedBy == null)) {
                 String name = getClass().getName();
-                mClosedBy = new Exception("closed by " + name + ".close()").fillInStackTrace();
+                mClosedBy = new Exception("closed by " + name + ".close()");
             }
         }
     }

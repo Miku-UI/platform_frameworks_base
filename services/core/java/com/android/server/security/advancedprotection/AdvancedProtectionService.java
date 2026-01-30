@@ -18,6 +18,7 @@ package com.android.server.security.advancedprotection;
 
 import static android.provider.Settings.Secure.ADVANCED_PROTECTION_MODE;
 import static android.provider.Settings.Secure.AAPM_USB_DATA_PROTECTION;
+
 import static com.android.internal.util.ConcurrentUtils.DIRECT_EXECUTOR;
 
 import android.Manifest;
@@ -34,6 +35,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.os.Message;
+import android.os.ParcelFileDescriptor;
 import android.os.PermissionEnforcer;
 import android.os.RemoteException;
 import android.os.ResultReceiver;
@@ -44,9 +46,9 @@ import android.security.advancedprotection.AdvancedProtectionFeature;
 import android.security.advancedprotection.AdvancedProtectionManager;
 import android.security.advancedprotection.AdvancedProtectionManager.FeatureId;
 import android.security.advancedprotection.AdvancedProtectionManager.SupportDialogType;
+import android.security.advancedprotection.AdvancedProtectionProtoEnums;
 import android.security.advancedprotection.IAdvancedProtectionCallback;
 import android.security.advancedprotection.IAdvancedProtectionService;
-import android.security.advancedprotection.AdvancedProtectionProtoEnums;
 import android.util.ArrayMap;
 import android.util.Slog;
 import android.util.StatsEvent;
@@ -64,14 +66,12 @@ import com.android.server.security.advancedprotection.features.DisallowCellular2
 import com.android.server.security.advancedprotection.features.DisallowInstallUnknownSourcesAdvancedProtectionHook;
 import com.android.server.security.advancedprotection.features.MemoryTaggingExtensionHook;
 import com.android.server.security.advancedprotection.features.UsbDataAdvancedProtectionHook;
-import com.android.server.security.advancedprotection.features.DisallowWepAdvancedProtectionProvider;
 
 import java.io.File;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 /** @hide */
 public class AdvancedProtectionService extends IAdvancedProtectionService.Stub {
@@ -120,12 +120,10 @@ public class AdvancedProtectionService extends IAdvancedProtectionService.Stub {
             Slog.e(TAG, "Failed to initialize DisallowInstallUnknownSources", e);
           }
         }
-        if (android.security.Flags.aapmFeatureMemoryTaggingExtension()) {
-          try {
+        try {
             mHooks.add(new MemoryTaggingExtensionHook(mContext, enabled));
-          } catch (Exception e) {
+        } catch (Exception e) {
             Slog.e(TAG, "Failed to initialize MemoryTaggingExtension", e);
-          }
         }
         if (android.security.Flags.aapmFeatureDisableCellular2g()) {
           try {
@@ -139,13 +137,11 @@ public class AdvancedProtectionService extends IAdvancedProtectionService.Stub {
                 && mStore.retrieveInt(AAPM_USB_DATA_PROTECTION, AdvancedProtectionStore.ON)
                 == AdvancedProtectionStore.ON) {
           try {
-            mHooks.add(new UsbDataAdvancedProtectionHook(mContext, enabled));
+            mHooks.add(new UsbDataAdvancedProtectionHook(mContext, enabled, this));
           } catch (Exception e) {
             Slog.e(TAG, "Failed to initialize UsbDataAdvancedProtection", e);
           }
         }
-
-        mProviders.add(new DisallowWepAdvancedProtectionProvider());
     }
 
     private void initLogging() {
@@ -304,8 +300,6 @@ public class AdvancedProtectionService extends IAdvancedProtectionService.Stub {
                 return AdvancedProtectionProtoEnums.FEATURE_ID_DISALLOW_INSTALL_UNKNOWN_SOURCES;
             case AdvancedProtectionManager.FEATURE_ID_DISALLOW_USB:
                 return AdvancedProtectionProtoEnums.FEATURE_ID_DISALLOW_USB;
-            case AdvancedProtectionManager.FEATURE_ID_DISALLOW_WEP:
-                return AdvancedProtectionProtoEnums.FEATURE_ID_DISALLOW_WEP;
             case AdvancedProtectionManager.FEATURE_ID_ENABLE_MTE:
                 return AdvancedProtectionProtoEnums.FEATURE_ID_ENABLE_MTE;
             default:
@@ -382,12 +376,24 @@ public class AdvancedProtectionService extends IAdvancedProtectionService.Stub {
         }
     }
 
+    /**
+     * Handles shell commands. This method is used instead of the deprecated {@code onShellCommand}
+     * to ensure that the caller is either the shell or root user, enforcing access checks for ADB
+     * commands.
+     */
     @Override
-    public void onShellCommand(FileDescriptor in, FileDescriptor out,
-            FileDescriptor err, @NonNull String[] args, ShellCallback callback,
-            @NonNull ResultReceiver resultReceiver) {
-        (new AdvancedProtectionShellCommand(this))
-                .exec(this, in, out, err, args, callback, resultReceiver);
+    public int handleShellCommand(
+            @NonNull ParcelFileDescriptor in,
+            @NonNull ParcelFileDescriptor out,
+            @NonNull ParcelFileDescriptor err,
+            @NonNull String[] args) {
+        return (new AdvancedProtectionShellCommand(this))
+                .exec(
+                        this,
+                        in.getFileDescriptor(),
+                        out.getFileDescriptor(),
+                        err.getFileDescriptor(),
+                        args);
     }
 
     @Override

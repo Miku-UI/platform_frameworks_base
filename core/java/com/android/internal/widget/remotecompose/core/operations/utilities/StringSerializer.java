@@ -22,8 +22,8 @@ import android.annotation.Nullable;
 public class StringSerializer {
     @NonNull StringBuffer mBuffer = new StringBuffer();
 
-    @NonNull
-    String mIndentBuffer = "                                                                      ";
+    @NonNull String mIndentBuffer =
+            "                                                                      ";
 
     /**
      * Append some content to the current buffer

@@ -16,7 +16,7 @@
 
 package com.android.server.power;
 
-import static android.os.PowerManagerInternal.WAKEFULNESS_AWAKE;
+import static android.os.PowerManager.USER_ACTIVITY_FLAG_INDIRECT;
 
 import static com.android.server.power.PowerManagerService.WAKE_LOCK_BUTTON_BRIGHT;
 import static com.android.server.power.PowerManagerService.WAKE_LOCK_SCREEN_BRIGHT;
@@ -26,8 +26,11 @@ import static com.android.server.power.PowerManagerService.WAKE_LOCK_SCREEN_TIME
 import android.annotation.IntDef;
 import android.content.Context;
 import android.os.PowerManager;
+import android.os.PowerManagerInternal;
 import android.util.IndentingPrintWriter;
 import android.util.Slog;
+
+import androidx.annotation.NonNull;
 
 import com.android.internal.annotations.VisibleForTesting;
 
@@ -45,7 +48,7 @@ final class ScreenTimeoutOverridePolicy {
     /**
      * Release reason code: The wake lock is never acquired.
      */
-    public static final int RELEASE_REASON_UNKNOWN = -1;
+    public static final int RELEASE_REASON_NOT_ACQUIRED = -1;
 
     /**
      * Release reason code: The wake lock can't be acquired because of screen off.
@@ -91,7 +94,7 @@ final class ScreenTimeoutOverridePolicy {
      * @hide
      */
     @IntDef(prefix = { "RELEASE_REASON_" }, value = {
-            RELEASE_REASON_UNKNOWN,
+            RELEASE_REASON_NOT_ACQUIRED,
             RELEASE_REASON_NON_INTERACTIVE,
             RELEASE_REASON_SCREEN_LOCK,
             RELEASE_REASON_USER_ACTIVITY_ATTENTION,
@@ -108,7 +111,7 @@ final class ScreenTimeoutOverridePolicy {
     private long mScreenTimeoutOverrideConfig;
 
     // The last reason that wake locks had been released by service.
-    private @ReleaseReason int mLastAutoReleaseReason = RELEASE_REASON_UNKNOWN;
+    private @ReleaseReason int mLastAutoReleaseReason = RELEASE_REASON_NOT_ACQUIRED;
 
     interface PolicyCallback {
         /**
@@ -118,8 +121,8 @@ final class ScreenTimeoutOverridePolicy {
     }
     private PolicyCallback mPolicyCallback;
 
-    ScreenTimeoutOverridePolicy(Context context, long minimumScreenOffTimeoutConfig,
-            PolicyCallback callback) {
+    ScreenTimeoutOverridePolicy(@NonNull Context context, long minimumScreenOffTimeoutConfig,
+            @NonNull PolicyCallback callback) {
         mScreenTimeoutOverrideConfig = context.getResources().getInteger(
                 com.android.internal.R.integer.config_screenTimeoutOverride);
         if (mScreenTimeoutOverrideConfig < minimumScreenOffTimeoutConfig) {
@@ -149,8 +152,10 @@ final class ScreenTimeoutOverridePolicy {
     /**
      * Called when the policy have to release all wake lock when user activity occurred.
      */
-    void onUserActivity(int wakeLockSummary, @PowerManager.UserActivityEvent int event) {
-        if (!isWakeLockAcquired(wakeLockSummary)) {
+    void onUserActivity(int wakeLockSummary, @PowerManager.UserActivityEvent int event, int flags) {
+        if (!isWakeLockAcquired(wakeLockSummary) || (flags & USER_ACTIVITY_FLAG_INDIRECT) != 0) {
+            // Do not release wake lock when there is no wake lock hold or the flag hints not to
+            // reset the user activity timeout.
             return;
         }
 
@@ -195,7 +200,7 @@ final class ScreenTimeoutOverridePolicy {
             return;
         }
 
-        if (globalWakefulness != WAKEFULNESS_AWAKE) {
+        if (!PowerManagerInternal.isInteractive(globalWakefulness)) {
             releaseAllWakeLocks(RELEASE_REASON_NON_INTERACTIVE);
         }
     }

@@ -16,8 +16,6 @@
 
 package com.android.internal.widget;
 
-import static android.widget.flags.Flags.notifLinearlayoutOptimized;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.content.Context;
@@ -87,8 +85,7 @@ public class NotificationOptimizedLinearLayout extends LinearLayout {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         final View weightedChildView = getSingleWeightedChild();
-        mShouldUseOptimizedLayout =
-                isUseOptimizedLinearLayoutFlagEnabled() && weightedChildView != null
+        mShouldUseOptimizedLayout = weightedChildView != null
                         && isOptimizationPossible(widthMeasureSpec, heightMeasureSpec);
 
         if (mShouldUseOptimizedLayout) {
@@ -96,14 +93,6 @@ public class NotificationOptimizedLinearLayout extends LinearLayout {
         } else {
             super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         }
-    }
-
-    private boolean isUseOptimizedLinearLayoutFlagEnabled() {
-        final boolean enabled = notifLinearlayoutOptimized();
-        if (!enabled) {
-            logSkipOptimizedOnMeasure("enableNotifLinearlayoutOptimized flag is off.");
-        }
-        return enabled;
     }
 
     /**
@@ -215,8 +204,7 @@ public class NotificationOptimizedLinearLayout extends LinearLayout {
 
         for (int i = 0; i < activeChildren.size(); i++) {
             final View child = activeChildren.get(i);
-            if (child.getLayoutParams() instanceof LayoutParams) {
-                final LayoutParams lp = (LayoutParams) child.getLayoutParams();
+            if (child.getLayoutParams() instanceof LayoutParams lp) {
                 int childBaseline = -1;
 
                 if (lp.height != LayoutParams.MATCH_PARENT) {
@@ -254,8 +242,7 @@ public class NotificationOptimizedLinearLayout extends LinearLayout {
         View singleWeightedChild = null;
         for (int i = 0; i < activeChildren.size(); i++) {
             final View child = activeChildren.get(i);
-            if (child.getLayoutParams() instanceof LayoutParams) {
-                final LayoutParams lp = (LayoutParams) child.getLayoutParams();
+            if (child.getLayoutParams() instanceof LayoutParams lp) {
                 if ((!isVertical && lp.width == ViewGroup.LayoutParams.MATCH_PARENT)
                         || (isVertical && lp.height == ViewGroup.LayoutParams.MATCH_PARENT)) {
                     logSkipOptimizedOnMeasure(

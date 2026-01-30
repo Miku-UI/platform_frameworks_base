@@ -29,6 +29,7 @@
 
         <ImageView
             android:id="@android:id/icon"
+            android:importantForAccessibility="no"
             style="@style/SettingsLibEntityHeaderIcon"/>
 
         <TextView
@@ -41,7 +42,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:minLines="1"
-            app:isCollapsable="true"/>
+            app:isCollapsable="false"/>
 
     </LinearLayout>
 

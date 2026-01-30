@@ -16,10 +16,7 @@
 
 package com.android.server.display
 
-import android.os.IBinder
 import androidx.test.filters.SmallTest
-import com.android.server.display.brightness.clamper.HdrClamper
-import com.android.server.display.feature.DisplayManagerFlags
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import org.mockito.kotlin.mock
@@ -37,9 +34,6 @@ class BrightnessRangeControllerTest {
     private val mockCallback = mock<Runnable>()
     private val mockConfig = mock<DisplayDeviceConfig>()
     private val mockNormalBrightnessController = mock<NormalBrightnessModeController>()
-    private val mockHdrClamper = mock<HdrClamper>()
-    private val mockFlags = mock<DisplayManagerFlags>()
-    private val mockToken = mock<IBinder>()
 
     @Test
     fun testMaxBrightness_HbmSupportedAndOn() {
@@ -81,7 +75,6 @@ class BrightnessRangeControllerTest {
         whenever(mockNormalBrightnessController.currentBrightnessMax).thenReturn(nbmMaxBrightness)
 
         return BrightnessRangeController(mockHbmController, mockCallback, mockConfig,
-            mockNormalBrightnessController, mockHdrClamper, mockFlags, mockToken,
-            DisplayDeviceInfo())
+            mockNormalBrightnessController)
     }
 }

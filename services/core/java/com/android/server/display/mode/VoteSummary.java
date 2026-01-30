@@ -16,6 +16,8 @@
 
 package com.android.server.display.mode;
 
+import static android.view.Display.Mode.INVALID_MODE_ID;
+
 import android.annotation.Nullable;
 import android.util.Slog;
 import android.util.SparseArray;
@@ -60,15 +62,12 @@ final class VoteSummary {
      */
     public Set<Integer> rejectedModeIds = new HashSet<>();
 
-    final boolean mIsDisplayResolutionRangeVotingEnabled;
-
     private final boolean mSupportedModesVoteEnabled;
     private final boolean mSupportsFrameRateOverride;
     private final boolean mLoggingEnabled;
 
-    VoteSummary(boolean isDisplayResolutionRangeVotingEnabled, boolean supportedModesVoteEnabled,
+    VoteSummary(boolean supportedModesVoteEnabled,
             boolean loggingEnabled, boolean supportsFrameRateOverride) {
-        mIsDisplayResolutionRangeVotingEnabled = isDisplayResolutionRangeVotingEnabled;
         mSupportedModesVoteEnabled = supportedModesVoteEnabled;
         mLoggingEnabled = loggingEnabled;
         mSupportsFrameRateOverride = supportsFrameRateOverride;
@@ -102,7 +101,7 @@ final class VoteSummary {
         if (height == Vote.INVALID_SIZE || width == Vote.INVALID_SIZE) {
             width = defaultMode.getPhysicalWidth();
             height = defaultMode.getPhysicalHeight();
-        } else if (mIsDisplayResolutionRangeVotingEnabled) {
+        } else {
             updateSummaryWithBestAllowedResolution(modes);
         }
         if (mLoggingEnabled) {
@@ -131,6 +130,9 @@ final class VoteSummary {
         boolean missingBaseModeRefreshRate = appRequestBaseModeRefreshRate > 0f;
 
         for (Display.Mode mode : modes) {
+            if (mode.getParentModeId() != INVALID_MODE_ID) {
+                continue;
+            }
             if (!validateRefreshRatesSupported(mode)) {
                 continue;
             }
@@ -447,8 +449,6 @@ final class VoteSummary {
                 + ", supportedRefreshRates=" + supportedRefreshRates
                 + ", supportedModeIds=" + supportedModeIds
                 + ", rejectedModeIds=" + rejectedModeIds
-                + ", mIsDisplayResolutionRangeVotingEnabled="
-                + mIsDisplayResolutionRangeVotingEnabled
                 + ", mSupportedModesVoteEnabled=" + mSupportedModesVoteEnabled
                 + ", mSupportsFrameRateOverride=" + mSupportsFrameRateOverride + " }";
     }

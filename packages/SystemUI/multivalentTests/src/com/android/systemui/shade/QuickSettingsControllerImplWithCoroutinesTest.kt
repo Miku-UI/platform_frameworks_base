@@ -19,6 +19,7 @@ package com.android.systemui.shade
 import android.app.StatusBarManager
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.flags.DisableSceneContainer;
 import com.android.systemui.statusbar.disableflags.shared.model.DisableFlagsModel
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.cancelChildren
@@ -29,6 +30,7 @@ import org.junit.runner.RunWith
 
 @SmallTest
 @RunWith(AndroidJUnit4::class)
+@DisableSceneContainer
 class QuickSettingsControllerImplWithCoroutinesTest : QuickSettingsControllerImplBaseTest() {
 
     @Test

@@ -44,13 +44,6 @@ flag {
 }
 
 flag {
-    name: "a11y_qs_shortcut"
-    namespace: "accessibility"
-    description: "Add Quick Setting as one of the a11y shortcut options"
-    bug: "297554934"
-}
-
-flag {
     name: "a11y_selection_api"
     namespace: "accessibility"
     description: "Enables new APIs for an AccessibilityService to control selection across nodes."
@@ -58,10 +51,17 @@ flag {
 }
 
 flag {
-    name: "allow_shortcut_chooser_on_lockscreen"
+    name: "a11y_sequential_focus_starting_point"
     namespace: "accessibility"
-    description: "Allows the a11y shortcut disambig dialog to appear on the lockscreen"
-    bug: "303871725"
+    description: "Enables sequential focus's starting point to be set to accessibility focus when system focus is null."
+    bug: "393668020"
+}
+
+flag {
+    name: "a11y_sort_direction_api"
+    namespace: "accessibility"
+    description: "Enables new APIs to convey the sort direction applied to the data associated with this node."
+    bug: "411187064"
 }
 
 flag {
@@ -73,10 +73,10 @@ flag {
 }
 
 flag {
-    name: "cleanup_accessibility_warning_dialog"
+    name: "button_chooser_activity_bottom_margin_system_bar"
     namespace: "accessibility"
-    description: "Cleans up duplicated or broken logic surrounding the accessibility warning dialog."
-    bug: "303511250"
+    description: "Uses system bar insets as a bottom margin for AccessibilityButtonChooserActivity, preventing overlap."
+    bug: "433572832"
 }
 
 flag {
@@ -88,10 +88,13 @@ flag {
 }
 
 flag {
-    name: "copy_events_for_gesture_detection"
+    name: "copy_surface_control_for_window_screenshots"
     namespace: "accessibility"
-    description: "Creates copies of MotionEvents and GestureEvents in GestureMatcher"
-    bug: "280130713"
+    description: "Copies and sends the copied SurfaceControl when an A11yService requests a single-window app screenshot"
+    bug: "431752508"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
 }
 
 flag {
@@ -111,10 +114,19 @@ flag {
 }
 
 flag {
-    name: "enable_system_pinch_zoom_gesture"
+    name: "enable_refresh_window_info"
     namespace: "accessibility"
-    description: "Feature flag for system pinch zoom gesture detector and related opt-out apis"
-    bug: "283323770"
+    is_exported: true
+    description: "Makes AccessibilityWindowInfo#refresh public for window state checks"
+    bug: "405371739"
+}
+
+flag {
+    name: "enable_trusted_accessibility_service_api"
+    namespace: "accessibility"
+    description: "API that allows an app to enable its own accessibility service if that service is trusted."
+    bug: "418057329"
+    is_exported: true
 }
 
 flag {
@@ -131,16 +143,6 @@ flag {
     is_exported: true
     description: "Makes flash notification APIs as system APIs for calling from mainline module"
     bug: "303131332"
-}
-
-flag {
-    name: "focus_rect_min_size"
-    namespace: "accessibility"
-    description: "Ensures the a11y focus rect is big enough to be drawn as visible"
-    bug: "368667566"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }
 
 flag {
@@ -175,6 +177,13 @@ flag {
 }
 
 flag {
+    name: "ignore_unimportant_root"
+    namespace: "accessibility"
+    description: "findViewByAccessibilityId will return null if the id matches the root but the root is unimportant."
+    bug: "407099631"
+}
+
+flag {
     name: "indeterminate_range_info"
     namespace: "accessibility"
     description: "Creates a way to create an INDETERMINATE RangeInfo"
@@ -183,10 +192,20 @@ flag {
 }
 
 flag {
-    name: "migrate_enable_shortcuts"
+    name: "launcher_app_display_progress_update_on_visibility_change"
     namespace: "accessibility"
-    description: "Refactors deprecated code to use AccessibilityManager#enableShortcutsForTargets."
-    bug: "332006721"
+    description: "Forces update to navbar button positioning upon changes to visibility"
+    bug: "417894369"
+    metadata {
+        purpose: PURPOSE_BUGFIX
+    }
+}
+
+flag {
+    name: "light_bar_update_button_tint_on_nav_mode_change"
+    namespace: "accessibility"
+    description: "adds logic to update navbar button tint when navigation mode changes"
+    bug: "387395420"
     metadata {
         purpose: PURPOSE_BUGFIX
     }
@@ -201,13 +220,10 @@ flag {
 }
 
 flag {
-    name: "prevent_a11y_nontool_from_injecting_into_sensitive_views"
+    name: "navbar_flip_order_option"
     namespace: "accessibility"
-    description: "Prevents injected gestures from A11yServices without isAccessibilityTool=true from reaching AccessibilityDataSensitive UI elements"
-    bug: "284180538"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
+    description: "Adds a setting for users to change the order of the navbar's 3 main buttons."
+    bug: "410601652"
 }
 
 flag {
@@ -243,26 +259,6 @@ flag {
 }
 
 flag {
-    name: "restore_a11y_secure_settings_on_hsum_device"
-    namespace: "accessibility"
-    description: "Grab the a11y settings and send the settings restored broadcast for current visible foreground user"
-    bug: "381294327"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
-    name: "restore_a11y_shortcut_target_service"
-    namespace: "accessibility"
-    description: "Perform merging and other bug fixes for SettingsProvider restore of ACCESSIBILITY_SHORTCUT_TARGET_SERVICES secure setting"
-    bug: "341374402"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
-}
-
-flag {
     name: "skip_accessibility_warning_dialog_for_trusted_services"
     namespace: "accessibility"
     description: "Skips showing the accessibility warning dialog for trusted services."
@@ -293,26 +289,16 @@ flag {
 }
 
 flag {
+    name: "text_cursor_blink_interval"
+    namespace: "accessibility"
+    description: "Configure the text cursor blink interval"
+    bug: "402134144"
+}
+
+flag {
     name: "tri_state_checked"
     namespace: "accessibility"
     description: "Feature flag for adding tri-state checked api"
     bug: "333784774"
     is_exported: true
-}
-
-flag {
-    namespace: "accessibility"
-    name: "update_always_on_a11y_service"
-    description: "Updates the Always-On A11yService state when the user changes the enablement of the shortcut."
-    bug: "298869916"
-}
-
-flag {
-    name: "warning_use_default_dialog_type"
-    namespace: "accessibility"
-    description: "Uses the default type for the A11yService warning dialog, instead of SYSTEM_ALERT_DIALOG"
-    bug: "336719951"
-    metadata {
-        purpose: PURPOSE_BUGFIX
-    }
 }

@@ -48,11 +48,6 @@ final class ScanResult {
     @Nullable
     public final PackageSetting mPkgSetting;
 
-    // TODO(b/260124949): Check if this can be dropped when the legacy PackageManager dexopt code is
-    // cleaned up.
-    /** ABI code paths that have changed in the package scan */
-    @Nullable public final List<String> mChangedAbiCodePath;
-
     public final SharedLibraryInfo mSdkSharedLibraryInfo;
 
     public final SharedLibraryInfo mStaticSharedLibraryInfo;
@@ -62,14 +57,13 @@ final class ScanResult {
     ScanResult(
             @NonNull ScanRequest request,
             @Nullable PackageSetting pkgSetting,
-            @Nullable List<String> changedAbiCodePath, boolean existingSettingCopied,
+            boolean existingSettingCopied,
             int previousAppId,
             SharedLibraryInfo sdkSharedLibraryInfo,
             SharedLibraryInfo staticSharedLibraryInfo,
             List<SharedLibraryInfo> dynamicSharedLibraryInfos) {
         mRequest = request;
         mPkgSetting = pkgSetting;
-        mChangedAbiCodePath = changedAbiCodePath;
         mExistingSettingCopied = existingSettingCopied;
         // Hardcode mPreviousAppId to INVALID_UID (http://b/221088088)
         // This will disable all migration code paths in PMS and PermMS

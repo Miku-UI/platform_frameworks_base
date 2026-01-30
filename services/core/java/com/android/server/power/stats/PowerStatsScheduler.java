@@ -41,7 +41,6 @@ public class PowerStatsScheduler {
     private static final long HOUR_IN_MILLIS = TimeUnit.HOURS.toMillis(1);
 
     private final AlarmScheduler mAlarmScheduler;
-    private boolean mEnablePeriodicPowerStatsCollection;
     @DurationMillisLong
     private final long mAggregatedPowerStatsSpanDuration;
     @DurationMillisLong
@@ -89,12 +88,9 @@ public class PowerStatsScheduler {
     /**
      * Kicks off the scheduling of power stats aggregation spans.
      */
-    public void start(boolean enablePeriodicPowerStatsCollection) {
-        mEnablePeriodicPowerStatsCollection = enablePeriodicPowerStatsCollection;
-        if (mEnablePeriodicPowerStatsCollection) {
-            schedulePowerStatsAggregation();
-            scheduleNextPowerStatsAggregation();
-        }
+    public void start() {
+        schedulePowerStatsAggregation();
+        scheduleNextPowerStatsAggregation();
     }
 
     private void scheduleNextPowerStatsAggregation() {

@@ -15,6 +15,7 @@
  */
 package com.android.internal.widget.remotecompose.player.platform;
 
+
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.graphics.Bitmap;
@@ -23,6 +24,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 
 import com.android.internal.widget.remotecompose.core.RemoteContext;
+import com.android.internal.widget.remotecompose.core.SystemClock;
 import com.android.internal.widget.remotecompose.core.TouchListener;
 import com.android.internal.widget.remotecompose.core.VariableSupport;
 import com.android.internal.widget.remotecompose.core.operations.BitmapData;
@@ -35,6 +37,8 @@ import com.android.internal.widget.remotecompose.core.types.LongConstant;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Clock;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -43,7 +47,32 @@ import java.util.HashMap;
  * <p>This is used to play the RemoteCompose operations on Android.
  */
 public class AndroidRemoteContext extends RemoteContext {
+    private static final boolean CHECK_DATA_SIZE = true;
 
+    private boolean mA11yAnimationEnabled = true;
+
+    /** Default constructor, uses a {@link SystemClock} as the clock. */
+    public AndroidRemoteContext() {
+        this(new SystemClock());
+    }
+
+    /**
+     * Context for the Android Implementation.
+     *
+     * @param clock The clock used for tracking time.
+     */
+    public AndroidRemoteContext(Clock clock) {
+        super(clock);
+    }
+
+    /**
+     * Sets the Canvas to be used by the RemoteContext for drawing operations. Typically received in
+     * onDraw. If a PaintContext already exists, it will be reset and updated with the new Canvas.
+     * Otherwise, a new AndroidPaintContext will be created. The width and height of the context are
+     * also updated based on the new Canvas.
+     *
+     * @param canvas The Android Canvas to be used for drawing.
+     */
     public void useCanvas(Canvas canvas) {
         if (mPaintContext == null) {
             mPaintContext = new AndroidPaintContext(this, canvas);
@@ -61,8 +90,9 @@ public class AndroidRemoteContext extends RemoteContext {
     ///////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
-    public void loadPathData(int instanceId, @NonNull float[] floatPath) {
+    public void loadPathData(int instanceId, int winding, @NonNull float [] floatPath) {
         mRemoteComposeState.putPathData(instanceId, floatPath);
+        mRemoteComposeState.putPathWinding(instanceId, winding);
     }
 
     @Override
@@ -107,9 +137,9 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void setNamedIntegerOverride(@NonNull String stringName, int value) {
-        if (mVarNameHashMap.get(stringName) != null) {
-            int id = mVarNameHashMap.get(stringName).mId;
+    public void setNamedIntegerOverride(@NonNull String integerName, int value) {
+        if (mVarNameHashMap.get(integerName) != null) {
+            int id = mVarNameHashMap.get(integerName).mId;
             overrideInt(id, value);
         }
     }
@@ -124,7 +154,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void setNamedFloatOverride(String floatName, float value) {
+    public void setNamedFloatOverride(@NonNull String floatName, float value) {
         if (mVarNameHashMap.get(floatName) != null) {
             int id = mVarNameHashMap.get(floatName).mId;
             overrideFloat(id, value);
@@ -132,7 +162,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void clearNamedFloatOverride(String floatName) {
+    public void clearNamedFloatOverride(@NonNull String floatName) {
         if (mVarNameHashMap.get(floatName) != null) {
             int id = mVarNameHashMap.get(floatName).mId;
             clearFloatOverride(id);
@@ -141,7 +171,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void setNamedLong(String name, long value) {
+    public void setNamedLong(@NonNull String name, long value) {
         VarName entry = mVarNameHashMap.get(name);
         if (entry != null) {
             int id = entry.mId;
@@ -151,7 +181,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void setNamedDataOverride(String dataName, Object value) {
+    public void setNamedDataOverride(@NonNull String dataName, @NonNull Object value) {
         if (mVarNameHashMap.get(dataName) != null) {
             int id = mVarNameHashMap.get(dataName).mId;
             overrideData(id, value);
@@ -159,7 +189,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void clearNamedDataOverride(String dataName) {
+    public void clearNamedDataOverride(@NonNull String dataName) {
         if (mVarNameHashMap.get(dataName) != null) {
             int id = mVarNameHashMap.get(dataName).mId;
             clearDataOverride(id);
@@ -173,9 +203,12 @@ public class AndroidRemoteContext extends RemoteContext {
      * @param colorName name of color
      * @param color
      */
+    @Override
     public void setNamedColorOverride(@NonNull String colorName, int color) {
-        int id = mVarNameHashMap.get(colorName).mId;
-        mRemoteComposeState.overrideColor(id, color);
+        if (mVarNameHashMap.get(colorName) != null) {
+            int id = mVarNameHashMap.get(colorName).mId;
+            mRemoteComposeState.overrideColor(id, color);
+        }
     }
 
     @Override
@@ -199,30 +232,48 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void runNamedAction(int id, Object value) {
+    public void runNamedAction(int id, @Nullable Object value) {
         String text = getText(id);
-        mDocument.runNamedAction(text, value);
+        if (text != null) {
+            mDocument.runNamedAction(text, value);
+        }
     }
 
     /**
      * Decode a byte array into an image and cache it using the given imageId
      *
+     * @param imageId the id of the image
      * @param encoding how the data is encoded 0 = png, 1 = raw, 2 = url
      * @param type the type of the data 0 = RGBA 8888, 1 = 888, 2 = 8 gray
      * @param width with of image to be loaded largest dimension is 32767
      * @param height height of image to be loaded
      * @param data a byte array containing the image information
-     * @oaram imageId the id of the image
      */
     @Override
     public void loadBitmap(
-            int imageId, short encoding, short type, int width, int height, @NonNull byte[] data) {
+            int imageId, short encoding, short type, int width, int height, @NonNull byte [] data) {
         if (!mRemoteComposeState.containsId(imageId)) {
             Bitmap image = null;
             switch (encoding) {
                 case BitmapData.ENCODING_INLINE:
                     switch (type) {
                         case BitmapData.TYPE_PNG_8888:
+                            if (CHECK_DATA_SIZE) {
+                                BitmapFactory.Options opts = new BitmapFactory.Options();
+                                opts.inJustDecodeBounds = true; // <-- do a bounds-only pass
+                                BitmapFactory.decodeByteArray(data, 0, data.length, opts);
+                                if (opts.outWidth > width || opts.outHeight > height) {
+                                    throw new RuntimeException(
+                                            "dimension don't match "
+                                                    + opts.outWidth
+                                                    + "x"
+                                                    + opts.outHeight
+                                                    + " vs "
+                                                    + width
+                                                    + "x"
+                                                    + height);
+                                }
+                            }
                             image = BitmapFactory.decodeByteArray(data, 0, data.length);
                             break;
                         case BitmapData.TYPE_PNG_ALPHA_8:
@@ -281,12 +332,15 @@ public class AndroidRemoteContext extends RemoteContext {
                     } catch (IOException e) {
                         throw new RuntimeException(e);
                     }
+                    break;
+                case BitmapData.ENCODING_EMPTY:
+                    image = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             }
             mRemoteComposeState.cacheData(imageId, image);
         }
     }
 
-    private Bitmap decodePreferringAlpha8(@NonNull byte[] data) {
+    private Bitmap decodePreferringAlpha8(@NonNull byte [] data) {
         BitmapFactory.Options options = new BitmapFactory.Options();
         options.inPreferredConfig = Bitmap.Config.ALPHA_8;
         return BitmapFactory.decodeByteArray(data, 0, data.length, options);
@@ -301,26 +355,59 @@ public class AndroidRemoteContext extends RemoteContext {
         }
     }
 
+    /**
+     * Overrides the text associated with a given ID.
+     *
+     * @param id The ID of the text to override.
+     * @param text The new text value.
+     */
     public void overrideText(int id, String text) {
         mRemoteComposeState.overrideData(id, text);
     }
 
+    /**
+     * Overrides the integer value associated with a given ID.
+     *
+     * @param id The ID of the integer to override.
+     * @param value The new integer value.
+     */
     public void overrideInt(int id, int value) {
         mRemoteComposeState.overrideInteger(id, value);
     }
 
+    /**
+     * Overrides the data associated with a given ID.
+     *
+     * @param id The ID of the data to override.
+     * @param value The new data value.
+     */
     public void overrideData(int id, Object value) {
         mRemoteComposeState.overrideData(id, value);
     }
 
+    /**
+     * Clears any data override for the given ID.
+     *
+     * @param id The ID for which to clear the data override.
+     */
     public void clearDataOverride(int id) {
         mRemoteComposeState.clearDataOverride(id);
     }
 
+    /**
+     * Clears any integer override for the given ID.
+     *
+     * @param id The ID for which to clear the integer override.
+     */
     public void clearIntegerOverride(int id) {
         mRemoteComposeState.clearIntegerOverride(id);
     }
 
+    /**
+     * Clears any float override for the given ID.
+     *
+     * @param id The ID for which to clear the float override.
+     */
     public void clearFloatOverride(int id) {
         mRemoteComposeState.clearFloatOverride(id);
     }
@@ -345,10 +432,24 @@ public class AndroidRemoteContext extends RemoteContext {
         mRemoteComposeState.updateInteger(id, value);
     }
 
+    /**
+     * Overrides the integer value associated with a given ID.
+     *
+     * @param id The ID of the integer to override.
+     * @param value The new integer value.
+     */
+    @Override
     public void overrideInteger(int id, int value) {
         mRemoteComposeState.overrideInteger(id, value);
     }
 
+    /**
+     * Overrides the text associated with a given ID, using a text value from another ID.
+     *
+     * @param id The ID of the text to override.
+     * @param valueId The ID of the text value to use for the override.
+     */
+    @Override
     public void overrideText(int id, int valueId) {
         String text = getText(valueId);
         overrideText(id, text);
@@ -405,8 +506,13 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
+    public @Nullable ArrayList<VariableSupport> getListeners(int id) {
+        return mRemoteComposeState.getListeners(id);
+    }
+
+    @Override
     public int updateOps() {
-        return mRemoteComposeState.getOpsToUpdate(this);
+        return mRemoteComposeState.getOpsToUpdate(this, currentTime);
     }
 
     @Override
@@ -416,7 +522,7 @@ public class AndroidRemoteContext extends RemoteContext {
     }
 
     @Override
-    public void addTouchListener(TouchListener touchExpression) {
+    public void addTouchListener(@NonNull TouchListener touchExpression) {
         mDocument.addTouchListener(touchExpression);
     }
 
@@ -438,7 +544,31 @@ public class AndroidRemoteContext extends RemoteContext {
         mDocument.addClickArea(id, contentDescription, left, top, right, bottom, metadata);
     }
 
+    /**
+     * Vibrate the device
+     *
+     * @param type 0 = none, 1-21 ,see HapticFeedbackConstants
+     */
+    @Override
     public void hapticEffect(int type) {
         mDocument.haptic(type);
+    }
+
+    /**
+     * Enable or disable animations for accessibility.
+     *
+     * @param animationEnabled true to enable animations, false to disable them.
+     */
+    public void setAccessibilityAnimationEnabled(boolean animationEnabled) {
+        this.mA11yAnimationEnabled = animationEnabled;
+    }
+
+    @Override
+    public boolean isAnimationEnabled() {
+        if (mA11yAnimationEnabled) {
+            return super.isAnimationEnabled();
+        } else {
+            return false;
+        }
     }
 }

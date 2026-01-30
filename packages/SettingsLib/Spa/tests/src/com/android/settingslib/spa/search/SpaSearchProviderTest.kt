@@ -147,10 +147,8 @@ class SpaSearchProviderTest {
         val bundle =
             staticData.getExtras(QueryEnum.SEARCH_STATIC_DATA_QUERY, ColumnEnum.INTENT_EXTRAS)
         Truth.assertThat(bundle).isNotNull()
-        Truth.assertThat(bundle!!.size()).isEqualTo(3)
+        Truth.assertThat(bundle!!.size()).isEqualTo(2)
         Truth.assertThat(bundle.getString("spaActivityDestination")).isEqualTo("SppForSearch")
-        Truth.assertThat(bundle.getString("highlightEntry"))
-            .isEqualTo(pageOwner.getEntryId("SearchStaticWithNoStatus"))
         Truth.assertThat(bundle.getString("sessionSource")).isEqualTo("search")
 
         staticData.moveToNext()
@@ -240,10 +238,8 @@ class SpaSearchProviderTest {
         val bundle =
             staticRow.getExtras(QueryEnum.SEARCH_STATIC_ROW_QUERY, ColumnEnum.INTENT_EXTRAS)
         Truth.assertThat(bundle).isNotNull()
-        Truth.assertThat(bundle!!.size()).isEqualTo(3)
+        Truth.assertThat(bundle!!.size()).isEqualTo(2)
         Truth.assertThat(bundle.getString("spaActivityDestination")).isEqualTo("SppForSearch")
-        Truth.assertThat(bundle.getString("highlightEntry"))
-            .isEqualTo(pageOwner.getEntryId("SearchStaticWithNoStatus"))
         Truth.assertThat(bundle.getString("sessionSource")).isEqualTo("search")
 
         Truth.assertThat(

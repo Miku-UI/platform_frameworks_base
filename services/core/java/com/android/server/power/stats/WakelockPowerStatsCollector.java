@@ -86,7 +86,7 @@ class WakelockPowerStatsCollector extends PowerStatsCollector {
 
     @Nullable
     @Override
-    protected PowerStats collectStats() {
+    protected PowerStats collectStats(long elapsedRealtimeMs, long uptimeMs) {
         if (!ensureInitialized()) {
             return null;
         }
@@ -94,8 +94,7 @@ class WakelockPowerStatsCollector extends PowerStatsCollector {
         Arrays.fill(mPowerStats.stats, 0);
         mPowerStats.uidStats.clear();
 
-        long elapsedRealtime = mClock.elapsedRealtime();
-        mPowerStats.durationMs = elapsedRealtime - mLastCollectionTime;
+        mPowerStats.durationMs = elapsedRealtimeMs - mLastCollectionTime;
 
         long wakelockDurationMillis = mWakelockDurationRetriever.getWakelockDurationMillis();
 
@@ -122,7 +121,7 @@ class WakelockPowerStatsCollector extends PowerStatsCollector {
             mLastUidWakelockDurations.put(uid, durationMs);
         });
 
-        mLastCollectionTime = elapsedRealtime;
+        mLastCollectionTime = elapsedRealtimeMs;
         mFirstCollection = false;
 
         return mPowerStats;

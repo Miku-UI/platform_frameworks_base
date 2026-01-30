@@ -17,16 +17,11 @@
 package com.android.systemui.statusbar.notification.collection.render
 
 import com.android.systemui.kosmos.Kosmos
-import com.android.systemui.statusbar.notification.collection.notifLiveDataStore
 import com.android.systemui.statusbar.notification.collection.notifPipeline
 import com.android.systemui.statusbar.notification.collection.provider.NotificationVisibilityProviderImpl
 import com.android.systemui.statusbar.notification.domain.interactor.activeNotificationsInteractor
 
 var Kosmos.notificationVisibilityProvider: NotificationVisibilityProvider by
     Kosmos.Fixture {
-        NotificationVisibilityProviderImpl(
-            activeNotificationsInteractor,
-            notifLiveDataStore,
-            notifPipeline,
-        )
+        NotificationVisibilityProviderImpl(activeNotificationsInteractor, notifPipeline)
     }

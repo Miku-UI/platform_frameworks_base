@@ -38,7 +38,7 @@ import java.util.List;
 /**
  * An event logged when there is a change or event that requires updating the
  * the APF program in place with a new APF program.
- * {@hide}
+ * @hide
  * @deprecated The event may not be sent in Android S and above. The events
  * are logged by a single caller in the system using signature permissions
  * and that caller is migrating to statsd.
@@ -54,7 +54,7 @@ public final class ApfProgramEvent implements IpConnectivityLog.Event {
     /** @hide */
     public static final int FLAG_HAS_IPV4_ADDRESS    = 1;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(flag = true, value = {FLAG_MULTICAST_FILTER_ON, FLAG_HAS_IPV4_ADDRESS})
     @Retention(RetentionPolicy.SOURCE)
     public @interface Flags {}

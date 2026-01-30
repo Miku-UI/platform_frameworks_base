@@ -33,13 +33,16 @@ class DeviceEntryIconLogger
 @Inject
 constructor(@DeviceEntryIconLog private val logBuffer: LogBuffer) {
     fun i(@CompileTimeConstant msg: String) = log(msg, INFO)
+
     fun d(@CompileTimeConstant msg: String) = log(msg, DEBUG)
+
     fun log(@CompileTimeConstant msg: String, level: LogLevel) =
         logBuffer.log(GENERIC_TAG, level, msg)
 
     fun logDeviceEntryUdfpsTouchOverlayShouldHandleTouches(
         shouldHandleTouches: Boolean,
         canTouchDeviceEntryViewAlpha: Boolean,
+        handleTouchesForSecureLockDeviceBiometricAuth: Boolean,
         alternateBouncerVisible: Boolean,
         hideAffordancesRequest: Boolean,
     ) {
@@ -51,11 +54,13 @@ constructor(@DeviceEntryIconLog private val logBuffer: LogBuffer) {
                 bool2 = alternateBouncerVisible
                 bool3 = hideAffordancesRequest
                 bool4 = shouldHandleTouches
+                bool5 = handleTouchesForSecureLockDeviceBiometricAuth
             },
             {
                 "shouldHandleTouches=$bool4 canTouchDeviceEntryViewAlpha=$bool1 " +
-                    "alternateBouncerVisible=$bool2 hideAffordancesRequest=$bool3"
-            }
+                    "alternateBouncerVisible=$bool2 hideAffordancesRequest=$bool3 " +
+                    "handleTouchesForSecureLockDeviceBiometricAuth=$bool5 "
+            },
         )
     }
 }

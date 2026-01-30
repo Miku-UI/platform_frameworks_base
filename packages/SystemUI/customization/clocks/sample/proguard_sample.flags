@@ -1,0 +1,12 @@
+-include ../../../proguard_kotlin.flags
+
+-keepattributes Signature
+-keepclassmembers class com.android.systemui.clocks.sample.R$* { public static <fields>; }
+
+# If we don't keep these compose methods than proguard becomes confused and assumes null return
+# values where it should not. This can cause an NPE or other exception at runtime.
+-keep !enum androidx.compose.**Scope { *; }
+-keep !enum androidx.compose.runtime.** {
+    *** startRestartGroup(...);
+    *** getApplier(...);
+}

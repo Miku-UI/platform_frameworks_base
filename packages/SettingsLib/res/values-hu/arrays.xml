@@ -55,7 +55,7 @@
   </string-array>
   <string-array name="hdcp_checking_summaries">
     <item msgid="4045840870658484038">"Soha ne használjon HDCP ellenőrzést"</item>
-    <item msgid="8254225038262324761">"Csak DRM-tartalomhoz használjon HDCP ellenőrzést"</item>
+    <item msgid="8254225038262324761">"Csak DRM-tartalomhoz használjon HDCP ellenőrzést."</item>
     <item msgid="6421717003037072581">"Mindig használjon HDCP ellenőrzést"</item>
   </string-array>
   <string-array name="bt_hci_snoop_log_entries">

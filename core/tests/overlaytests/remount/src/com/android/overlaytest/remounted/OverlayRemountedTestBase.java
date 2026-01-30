@@ -38,12 +38,15 @@ public class OverlayRemountedTestBase extends BaseHostJUnit4Test {
     protected final SystemPreparer mPreparer = new SystemPreparer(mTemporaryFolder,
             this::getDevice);
 
+    private int mCurrentUserId;
+
     @Rule
     public final RuleChain ruleChain = RuleChain.outerRule(mTemporaryFolder).around(mPreparer);
 
     @Before
     public void startBefore() throws DeviceNotAvailableException {
         getDevice().waitForDeviceAvailable();
+        mCurrentUserId = getDevice().getCurrentUser();
     }
 
     /** Builds the full name of a resource in the form package:type/entry. */
@@ -58,7 +61,8 @@ public class OverlayRemountedTestBase extends BaseHostJUnit4Test {
         final long endMillis = System.currentTimeMillis() + ASSERT_RESOURCE_TIMEOUT_MS;
         while (System.currentTimeMillis() <= endMillis) {
             result = getDevice().executeShellCommand(
-                    String.format("cmd overlay lookup %s %s", TARGET_PACKAGE, resourceName));
+                    String.format("cmd overlay lookup --user %d %s %s", mCurrentUserId,
+                            TARGET_PACKAGE, resourceName));
             if (result.equals(expectedValue + "\n") ||
                     result.endsWith("-> " + expectedValue + "\n")) {
                 return;
@@ -70,6 +74,7 @@ public class OverlayRemountedTestBase extends BaseHostJUnit4Test {
             }
         }
 
-        fail(String.format("expected: <[%s]> in: <[%s]>", expectedValue, result));
+        fail(String.format("expected: <[%s]> in: <[%s]>\nOverlay dump:\n%s", expectedValue, result,
+                getDevice().executeShellCommand("cmd overlay dump " + OVERLAY_PACKAGE)));
     }
 }

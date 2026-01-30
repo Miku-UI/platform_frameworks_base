@@ -89,6 +89,7 @@ import android.window.OnBackInvokedDispatcher;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
 import com.android.printspooler.R;
+import com.android.printspooler.flags.Flags;
 import com.android.printspooler.model.MutexFileProvider;
 import com.android.printspooler.model.PrintSpoolerProvider;
 import com.android.printspooler.model.PrintSpoolerService;
@@ -96,6 +97,7 @@ import com.android.printspooler.model.RemotePrintDocument;
 import com.android.printspooler.model.RemotePrintDocument.RemotePrintDocumentInfo;
 import com.android.printspooler.renderer.IPdfEditor;
 import com.android.printspooler.renderer.PdfManipulationService;
+import com.android.printspooler.stats.StatsAsyncLogger;
 import com.android.printspooler.util.ApprovedPrintServices;
 import com.android.printspooler.util.MediaSizeUtils;
 import com.android.printspooler.util.MediaSizeUtils.MediaSizeComparator;
@@ -118,8 +120,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.function.Consumer;
 
 public class PrintActivity extends Activity implements RemotePrintDocument.UpdateResultCallbacks,
@@ -843,6 +847,16 @@ public class PrintActivity extends Activity implements RemotePrintDocument.Updat
             Log.w(LOG_TAG, "Advanced options activity " + mAdvancedPrintOptionsActivity + " could "
                     + "not be found");
             return;
+        }
+
+        if (Flags.printingTelemetry()) {
+            final String serviceName = printer.getId().getServiceName().getPackageName();
+            try {
+                final int serviceUId = getPackageManager().getApplicationInfo(serviceName, 0).uid;
+                StatsAsyncLogger.INSTANCE.AdvancedOptionsUiLaunched(serviceUId);
+            } catch (NameNotFoundException e) {
+                Log.e(LOG_TAG, "Failed to get uid for service");
+            }
         }
 
         // The activity is a component name, therefore it is one or none.
@@ -2193,6 +2207,32 @@ public class PrintActivity extends Activity implements RemotePrintDocument.Updat
             return;
         }
 
+        if (Flags.printingTelemetry()) {
+            // If this runs any earlier we double log when a printjob
+            // is completed. If it gets called any later than it does
+            // not get called when a user launches the printing UI
+            // without printing anything or opening "All printers".
+
+            // We record the MainPrintUilaunched event and recorded
+            // printers/services at the end of the activity lifecycle
+            // so there has been time for printers to be discovered.
+            final List<PrinterInfo> printers = (mPrinterRegistry == null)
+                    ? new ArrayList<>() :
+                      mPrinterRegistry.getPrinters();
+            final Set<Integer> printServiceUIds = new HashSet<>();
+            for (final PrinterInfo printer : printers) {
+                final String serviceName = printer.getId().getServiceName().getPackageName();
+                try {
+                    final int serviceUId =
+                            getPackageManager().getApplicationInfo(serviceName, 0).uid;
+                    printServiceUIds.add(serviceUId);
+                } catch (NameNotFoundException e) {
+                    Log.e(LOG_TAG, "Failed to get uid for service");
+                }
+            }
+            StatsAsyncLogger.INSTANCE.MainPrintUiLaunched(printServiceUIds, printers.size());
+        }
+
         if (mIsFinishing) {
             return;
         }
@@ -2623,6 +2663,31 @@ public class PrintActivity extends Activity implements RemotePrintDocument.Updat
                 }
             }
 
+            if (Flags.printingTelemetry()) {
+                for (final PrinterInfo printer : newPrintersMap.values()) {
+                    final PrinterCapabilitiesInfo caps = printer.getCapabilities();
+                    int colorModesMask = 0;
+                    int duplexModesMask = 0;
+                    Set<MediaSize> mediaSizes = new HashSet<>();
+                    if (caps != null) {
+                        colorModesMask = caps.getColorModes();
+                        duplexModesMask = caps.getDuplexModes();
+                        mediaSizes = new HashSet<>(caps.getMediaSizes());
+                    }
+                    final String serviceName = printer.getId().getServiceName().getPackageName();
+                    try {
+                        final int serviceUId =
+                                getPackageManager().getApplicationInfo(serviceName, 0).uid;
+                        StatsAsyncLogger.INSTANCE
+                                .PrinterDiscovery(serviceUId,
+                                                  colorModesMask,
+                                                  duplexModesMask,
+                                                  mediaSizes);
+                    } catch (NameNotFoundException e) {
+                        Log.e(LOG_TAG, "Failed to get uid for service");
+                    }
+                }
+            }
             // Add the rest of the new printers, i.e. what is left.
             addPrinters(newPrinterHolders, newPrintersMap.values());
 
@@ -3217,8 +3282,20 @@ public class PrintActivity extends Activity implements RemotePrintDocument.Updat
 
                     @Override
                     protected void onPostExecute(String error) {
-                        mContext.unbindService(DocumentTransformer.this);
-                        mCallback.accept(error);
+                        try {
+                            mContext.unbindService(DocumentTransformer.this);
+                            mCallback.accept(error);
+                        } catch (IllegalArgumentException e) {
+                            // Unbinding can fail if the PrintActivity has already been torn down
+                            // before the document transform completes.  Since this is about to
+                            // exit, there's no need to attempt additional error recovery.
+                            Log.w(
+                                    LOG_TAG,
+                                    "Unable to unbind PdfManipulationService: "
+                                            + e
+                                            + ". Original error: "
+                                            + error);
+                        }
                     }
                 }.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR);
 

@@ -16,7 +16,6 @@
 
 package com.android.server.notification;
 
-import static android.app.Flags.sortSectionByTime;
 import static android.app.Notification.CATEGORY_MESSAGE;
 import static android.app.Notification.FLAG_INSISTENT;
 import static android.app.Notification.FLAG_ONLY_ALERT_ONCE;
@@ -50,6 +49,7 @@ import android.database.ContentObserver;
 import android.media.AudioAttributes;
 import android.media.AudioManager;
 import android.media.IRingtonePlayer;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.RemoteException;
@@ -68,12 +68,14 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 
 import com.android.internal.R;
+import com.android.internal.annotations.GuardedBy;
 import com.android.internal.annotations.VisibleForTesting;
 import com.android.internal.config.sysui.SystemUiSystemPropertiesFlags;
 import com.android.internal.config.sysui.SystemUiSystemPropertiesFlags.NotificationFlags;
 import com.android.internal.logging.MetricsLogger;
 import com.android.internal.logging.nano.MetricsProto;
 import com.android.internal.logging.nano.MetricsProto.MetricsEvent;
+import com.android.internal.util.VibrationStatsWriter;
 import com.android.server.EventLogTags;
 import com.android.server.lights.LightsManager;
 import com.android.server.lights.LogicalLight;
@@ -81,7 +83,6 @@ import com.android.server.lights.LogicalLight;
 import java.io.PrintWriter;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
-import com.android.internal.annotations.GuardedBy;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -167,6 +168,7 @@ public final class NotificationAttentionHelper {
     private final ZenModeHelper mZenModeHelper;
 
     private VibratorHelper mVibratorHelper;
+    private VibrationStatsWriter mVibrationStatsWriter;
     // The last key in this list owns the hardware.
     @GuardedBy("mLock")
     ArrayList<String> mLights = new ArrayList<>();
@@ -210,7 +212,8 @@ public final class NotificationAttentionHelper {
             AccessibilityManager accessibilityManager, PackageManager packageManager,
             UserManager userManager, NotificationUsageStats usageStats,
             NotificationManagerPrivate notificationManagerPrivate,
-            ZenModeHelper zenModeHelper, SystemUiSystemPropertiesFlags.FlagResolver flagResolver) {
+            ZenModeHelper zenModeHelper, SystemUiSystemPropertiesFlags.FlagResolver flagResolver,
+            VibrationStatsWriter vibrationStatsWriter) {
         mContext = context;
         mLock = lock;
         mPackageManager = packageManager;
@@ -223,6 +226,7 @@ public final class NotificationAttentionHelper {
         mFlagResolver = flagResolver;
 
         mVibratorHelper = new VibratorHelper(context);
+        mVibrationStatsWriter = vibrationStatsWriter;
 
         mNotificationLight = lightsManager.getLight(LightsManager.LIGHT_ID_NOTIFICATIONS);
         mAttentionLight = lightsManager.getLight(LightsManager.LIGHT_ID_ATTENTION);
@@ -573,10 +577,8 @@ public final class NotificationAttentionHelper {
                     Slog.v(TAG, "INTERRUPTIVENESS: "
                             + record.getKey() + " is interruptive: alerted");
                 }
-                if (sortSectionByTime()) {
-                    if (buzz || beep) {
-                        record.resetRankingTime();
-                    }
+                if (buzz || beep) {
+                    record.resetRankingTime();
                 }
             }
         }
@@ -869,6 +871,11 @@ public final class NotificationAttentionHelper {
         String reason = "Notification (" + record.getSbn().getOpPkg() + " "
                 + record.getSbn().getUid() + ") " + (delayed ? "(Delayed)" : "");
         mVibratorHelper.vibrate(effect, record.getAudioAttributes(), reason);
+        if (com.android.server.notification.Flags.notificationVibrationInSoundUri()) {
+            mVibrationStatsWriter.logCustomVibrationPatternEventIfNeeded(
+                    VibrationStatsWriter.VIBRATION_PATTERN_PLAYED,
+                    RingtoneManager.TYPE_NOTIFICATION, record.getSound());
+        }
     }
 
     void playInCallNotification() {

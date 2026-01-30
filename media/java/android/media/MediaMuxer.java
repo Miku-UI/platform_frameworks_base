@@ -602,70 +602,70 @@ final public class MediaMuxer {
      *   <tbody>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_AUDIO_AAC AAC}</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
-     *       <td>17</td>
+     *       <td>16</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_AUDIO_AMR_NB NB-AMR}</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
-     *       <td>17</td>
+     *       <td>16</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_AUDIO_AMR_WB WB-AMR}</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
-     *       <td>17</td>
+     *       <td>16</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_VIDEO_H263 H.263}</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
-     *       <td>17</td>
+     *       <td>16</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_VIDEO_MPEG4 MPEG-4}</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
-     *       <td>17</td>
+     *       <td>16</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_VIDEO_AVC AVC} (H.264)</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
-     *       <td>17</td>
+     *       <td>16</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_AUDIO_VORBIS Vorbis}</td>
      *       <td></td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td>21</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_VIDEO_VP8 VP8}</td>
      *       <td></td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td>21</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_VIDEO_VP9 VP9}</td>
      *       <td></td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td>24</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_VIDEO_HEVC HEVC} (H.265)</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
      *       <td>24</td>
@@ -673,23 +673,30 @@ final public class MediaMuxer {
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_AUDIO_OPUS OPUS}</td>
      *       <td></td>
-     *       <td>✓</td>
-     *       <td>✓</td>
-     *       <td>26</td>
-     *     </tr>
-     *     <tr>
-     *       <td>{@link MediaFormat#MIMETYPE_VIDEO_AV1 AV1}</td>
-     *       <td>✓</td>
-     *       <td></td>
-     *       <td></td>
-     *       <td>31</td>
+     *       <td>&#x2713;</td>
+     *       <td>&#x2713;</td>
+     *       <td>29</td>
      *     </tr>
      *     <tr>
      *       <td>{@link MediaFormat#MIMETYPE_VIDEO_DOLBY_VISION Dolby Vision}</td>
-     *       <td>✓</td>
+     *       <td>&#x2713;</td>
      *       <td></td>
      *       <td></td>
-     *       <td>32</td>
+     *       <td>33</td>
+     *     </tr>
+     *     <tr>
+     *       <td>{@link MediaFormat#MIMETYPE_VIDEO_AV1 AV1}</td>
+     *       <td>&#x2713;</td>
+     *       <td></td>
+     *       <td></td>
+     *       <td>34</td>
+     *     </tr>
+     *     <tr>
+     *       <td>{@link MediaFormat#MIMETYPE_VIDEO_APV APV}</td>
+     *       <td>&#x2713;</td>
+     *       <td></td>
+     *       <td></td>
+     *       <td>36</td>
      *     </tr>
      *   </tbody>
      * </table>

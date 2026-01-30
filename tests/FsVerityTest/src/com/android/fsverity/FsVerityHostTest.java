@@ -27,6 +27,7 @@ import com.android.tradefed.testtype.DeviceJUnit4ClassRunner;
 import com.android.tradefed.testtype.junit4.BaseHostJUnit4Test;
 import com.android.tradefed.testtype.junit4.DeviceTestRunOptions;
 
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -43,9 +44,16 @@ import org.junit.runner.RunWith;
 @RootPermissionTest
 @RunWith(DeviceJUnit4ClassRunner.class)
 public class FsVerityHostTest extends BaseHostJUnit4Test {
+    private static final String TARGET_APK = "FsVerityTestApp.apk";
     private static final String TARGET_PACKAGE = "com.android.fsverity";
 
     private static final String BASENAME = "test.file";
+
+    @Before
+    public void setUp() throws Exception {
+        installPackage(TARGET_APK);
+        // Note: BaseHostJUnit4Test handles the uninstall.
+    }
 
     @Test
     public void testFsVeritySmallFile() throws Exception {

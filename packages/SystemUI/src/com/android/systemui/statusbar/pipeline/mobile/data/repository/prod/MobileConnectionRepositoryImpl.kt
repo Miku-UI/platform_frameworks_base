@@ -60,7 +60,7 @@ import com.android.systemui.statusbar.pipeline.mobile.data.model.toDataConnectio
 import com.android.systemui.statusbar.pipeline.mobile.data.model.toNetworkNameModel
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.CarrierConfigRepository
 import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository
-import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository.Companion.DEFAULT_NUM_LEVELS
+import com.android.systemui.statusbar.pipeline.mobile.data.repository.MobileConnectionRepository.Companion.createNumberOfLevelsFlow
 import com.android.systemui.statusbar.pipeline.mobile.util.MobileMappingsProxy
 import com.android.systemui.statusbar.pipeline.shared.data.model.DataActivityModel
 import com.android.systemui.statusbar.pipeline.shared.data.model.toMobileDataActivityModel
@@ -155,7 +155,7 @@ class MobileConnectionRepositoryImpl(
                         }
 
                         override fun onCarrierRoamingNtnModeChanged(active: Boolean) {
-                            logger.logOnCarrierRoamingNtnModeChanged(active)
+                            logger.logOnCarrierRoamingNtnModeChanged(active, subId)
                             trySend(CallbackEvent.OnCarrierRoamingNtnModeChanged(active))
                         }
 
@@ -197,7 +197,7 @@ class MobileConnectionRepositoryImpl(
                         override fun onCarrierRoamingNtnSignalStrengthChanged(
                             signalStrength: NtnSignalStrength
                         ) {
-                            logger.logNtnSignalStrengthChanged(signalStrength)
+                            logger.logNtnSignalStrengthChanged(signalStrength, subId)
                             trySend(
                                 CallbackEvent.OnCarrierRoamingNtnSignalStrengthChanged(
                                     signalStrength
@@ -327,16 +327,7 @@ class MobileConnectionRepositoryImpl(
     override val inflateSignalStrength = systemUiCarrierConfig.shouldInflateSignalStrength
     override val allowNetworkSliceIndicator = systemUiCarrierConfig.allowNetworkSliceIndicator
 
-    override val numberOfLevels =
-        inflateSignalStrength
-            .map { shouldInflate ->
-                if (shouldInflate) {
-                    DEFAULT_NUM_LEVELS + 1
-                } else {
-                    DEFAULT_NUM_LEVELS
-                }
-            }
-            .stateIn(scope, SharingStarted.WhileSubscribed(), DEFAULT_NUM_LEVELS)
+    override val numberOfLevels = createNumberOfLevelsFlow(scope, inflateSignalStrength)
 
     override val carrierName =
         subscriptionModel
@@ -428,6 +419,10 @@ class MobileConnectionRepositoryImpl(
             .mapNotNull { it.onDataEnabledChanged }
             .map { it.enabled }
             .stateIn(scope, SharingStarted.WhileSubscribed(), initial)
+    }
+
+    override fun setDataEnabled(enabled: Boolean) {
+        telephonyManager.setDataEnabledForReason(TelephonyManager.DATA_ENABLED_REASON_USER, enabled)
     }
 
     override suspend fun isInEcmMode(): Boolean =

@@ -56,6 +56,11 @@ public final class InputGestureData {
         return new Action(mInputGestureData.gestureType, getAppLaunchData());
     }
 
+    /** Returns if the gesture can be captured by the focused window */
+    public boolean allowCaptureByFocusedWindow() {
+        return mInputGestureData.allowCaptureByFocusedWindow;
+    }
+
     private void validate() {
         Trigger trigger = getTrigger();
         Action action = getAction();
@@ -93,6 +98,7 @@ public final class InputGestureData {
         private int mKeyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_UNSPECIFIED;
         @Nullable
         private AppLaunchData mAppLaunchData = null;
+        private boolean mAllowCaptureByFocusedWindow = true;
 
         /** Set input gesture trigger data for key based gestures */
         public Builder setTrigger(Trigger trigger) {
@@ -110,6 +116,15 @@ public final class InputGestureData {
         public Builder setAppLaunchData(@NonNull AppLaunchData appLaunchData) {
             mKeyGestureType = KeyGestureEvent.KEY_GESTURE_TYPE_LAUNCH_APPLICATION;
             mAppLaunchData = appLaunchData;
+            return this;
+        }
+
+        /**
+         * Set whether the gesture can be blocked by the focused window when keyboard capture is
+         * enabled.
+         */
+        public Builder setAllowCaptureByFocusedWindow(boolean allowCapture) {
+            mAllowCaptureByFocusedWindow = allowCapture;
             return this;
         }
 
@@ -141,6 +156,7 @@ public final class InputGestureData {
                     throw new IllegalArgumentException("AppLaunchData type is invalid!");
                 }
             }
+            data.allowCaptureByFocusedWindow = mAllowCaptureByFocusedWindow;
             return new InputGestureData(data);
         }
     }
@@ -150,6 +166,7 @@ public final class InputGestureData {
         return "InputGestureData { "
                 + "trigger = " + getTrigger()
                 + ", action = " + getAction()
+                + ", allowCaptureByFocusedWindow = " + mInputGestureData.allowCaptureByFocusedWindow
                 + " }";
     }
 

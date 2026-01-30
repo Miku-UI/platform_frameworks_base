@@ -20,6 +20,8 @@ import android.media.session.MediaSession
 import android.os.Bundle
 import android.os.Handler
 import android.os.looper
+import android.platform.test.flag.junit.FlagsParameterization
+import android.platform.test.flag.junit.FlagsParameterization.allCombinationsOf
 import android.testing.TestableLooper.RunWithLooper
 import androidx.media.utils.MediaConstants
 import androidx.media3.common.Player
@@ -28,8 +30,8 @@ import androidx.media3.session.MediaController as Media3Controller
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import androidx.media3.session.SessionToken
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SmallTest
+import com.android.systemui.Flags.FLAG_DO_NOT_USE_RUN_BLOCKING
 import com.android.systemui.SysuiTestCase
 import com.android.systemui.graphics.imageLoader
 import com.android.systemui.kosmos.testScope
@@ -57,6 +59,8 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import platform.test.runner.parameterized.ParameterizedAndroidJunit4
+import platform.test.runner.parameterized.Parameters
 
 private const val PACKAGE_NAME = "package_name"
 private const val CUSTOM_ACTION_NAME = "Custom Action"
@@ -64,8 +68,8 @@ private const val CUSTOM_ACTION_COMMAND = "custom-action"
 
 @SmallTest
 @RunWithLooper
-@RunWith(AndroidJUnit4::class)
-class Media3ActionFactoryTest : SysuiTestCase() {
+@RunWith(ParameterizedAndroidJunit4::class)
+class Media3ActionFactoryTest(flags: FlagsParameterization) : SysuiTestCase() {
 
     private val kosmos = testKosmos()
     private val testScope = kosmos.testScope
@@ -97,6 +101,18 @@ class Media3ActionFactoryTest : SysuiTestCase() {
         }
 
     private lateinit var underTest: Media3ActionFactory
+
+    companion object {
+        @JvmStatic
+        @Parameters(name = "{0}")
+        fun getParams(): List<FlagsParameterization> {
+            return allCombinationsOf(FLAG_DO_NOT_USE_RUN_BLOCKING)
+        }
+    }
+
+    init {
+        mSetFlagsRule.setFlagsParameterization(flags)
+    }
 
     @Before
     fun setup() {

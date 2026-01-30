@@ -42,6 +42,7 @@ import android.view.WindowManager;
 import android.window.WindowInfosListener;
 
 import com.android.internal.annotations.GuardedBy;
+import com.android.window.flags.Flags;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -108,9 +109,11 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
      * @param displayId The display.
      * @param outWindows The visible windows list. The z-order of each window in the list
      *                   is from the top to bottom.
+     * @param topFocusedWindowToken The top focused window token, used to determine WindowInfo
+     *                              focused state
      */
     public void populateVisibleWindowsOnScreenLocked(int displayId,
-            List<AccessibilityWindow> outWindows) {
+            List<AccessibilityWindow> outWindows, IBinder topFocusedWindowToken) {
         List<InputWindowHandle> inputWindowHandles;
         final Matrix inverseMatrix = new Matrix();
         final Matrix displayMatrix = new Matrix();
@@ -129,7 +132,7 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
                 displayMatrix.set(displayInfo.mTransform);
             } else {
                 Slog.w(TAG, "The displayInfo of this displayId (" + displayId + ") called "
-                        + "back from the surface fligner is null");
+                        + "back from the surface flinger is null");
             }
         }
 
@@ -141,7 +144,7 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
         for (final InputWindowHandle windowHandle : inputWindowHandles) {
             final AccessibilityWindow accessibilityWindow =
                     AccessibilityWindow.initializeData(mService, windowHandle, inverseMatrix,
-                            pipMenuIBinder, displayMatrix);
+                            pipMenuIBinder, displayMatrix, topFocusedWindowToken);
 
             outWindows.add(accessibilityWindow);
         }
@@ -653,6 +656,8 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
         private int mInputConfig;
         private int mPrivateFlags;
         private boolean mIsPIPMenu;
+        // Only used if Flags.useInputReportedFocusForAccessibility() is false
+        // TODO(b/378565144): Remove with Flags.useInputReportedFocusForAccessibility()
         private boolean mIsFocused;
         private boolean mShouldMagnify;
         private final Region mTouchableRegionInScreen = new Region();
@@ -669,7 +674,7 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
          */
         public static AccessibilityWindow initializeData(WindowManagerService service,
                 InputWindowHandle inputWindowHandle, Matrix magnificationInverseMatrix,
-                IBinder pipIBinder, Matrix displayMatrix) {
+                IBinder pipIBinder, Matrix displayMatrix, IBinder topFocusedWindowToken) {
             final IBinder window = inputWindowHandle.getWindowToken();
             final WindowState windowState = window != null ? service.mWindowMap.get(window) : null;
 
@@ -683,8 +688,10 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
 
             // TODO (b/199357848): gets the private flag of the window from other way.
             instance.mPrivateFlags = windowState != null ? windowState.mAttrs.privateFlags : 0;
-            // TODO (b/199358208) : using new way to implement the focused window.
-            instance.mIsFocused = windowState != null && windowState.isFocused();
+            if (!Flags.useInputReportedFocusForAccessibility()) {
+                // TODO (b/199358208) : using new way to implement the focused window.
+                instance.mIsFocused = windowState != null && windowState.isFocused();
+            }
             instance.mShouldMagnify = windowState == null || windowState.shouldMagnify();
 
             final Rect windowFrame = new Rect(inputWindowHandle.frame);
@@ -696,6 +703,10 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
                     magnificationInverseMatrix, displayMatrix);
             instance.mWindowInfo = windowState != null
                     ? windowState.getWindowInfo() : getWindowInfoForWindowlessWindows(instance);
+            if (Flags.useInputReportedFocusForAccessibility()) {
+                instance.mWindowInfo.focused = window != null
+                        && window.equals(topFocusedWindowToken);
+            }
 
             // Compute the transform matrix that will transform bounds from the window
             // coordinates to screen coordinates.
@@ -779,7 +790,9 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
          * @return true if this window is focused.
          */
         public boolean isFocused() {
-            return mIsFocused;
+            return Flags.useInputReportedFocusForAccessibility()
+                    ? mWindowInfo.focused
+                    : mIsFocused;
         }
 
         /**
@@ -890,7 +903,7 @@ public final class AccessibilityWindowsPopulator extends WindowInfosListener {
                     + ", inputConfig=0x" + Integer.toHexString(mInputConfig)
                     + ", type=" + mType
                     + ", privateFlag=0x" + Integer.toHexString(mPrivateFlags)
-                    + ", focused=" + mIsFocused
+                    + ", focused=" + isFocused()
                     + ", shouldMagnify=" + mShouldMagnify
                     + ", isTrustedOverlay=" + isTrustedOverlay()
                     + ", regionInScreen=" + mTouchableRegionInScreen

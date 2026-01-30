@@ -46,6 +46,7 @@ import android.content.Intent;
 import android.content.om.FabricatedOverlay;
 import android.content.om.OverlayIdentifier;
 import android.content.res.Resources;
+import android.content.theming.ThemeStyle;
 import android.database.ContentObserver;
 import android.graphics.Color;
 import android.os.Handler;
@@ -68,10 +69,10 @@ import com.android.systemui.flags.SystemPropertiesHelper;
 import com.android.systemui.keyguard.WakefulnessLifecycle;
 import com.android.systemui.keyguard.domain.interactor.KeyguardTransitionInteractor;
 import com.android.systemui.monet.DynamicColors;
-import com.android.systemui.monet.Style;
 import com.android.systemui.settings.UserTracker;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController;
 import com.android.systemui.statusbar.policy.DeviceProvisionedController.DeviceProvisionedListener;
+import com.android.systemui.user.utils.UserScopedService;
 import com.android.systemui.util.kotlin.JavaAdapter;
 import com.android.systemui.util.settings.SecureSettings;
 
@@ -137,6 +138,8 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
     @Mock
     private WakefulnessLifecycle mWakefulnessLifecycle;
     @Mock
+    private UserScopedService<UiModeManager> mUiModeManagerProvider;
+    @Mock
     private UiModeManager mUiModeManager;
     @Mock
     private ActivityManager mActivityManager;
@@ -162,6 +165,7 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
 
         when(mFeatureFlags.isEnabled(Flags.MONET)).thenReturn(true);
         when(mWakefulnessLifecycle.getWakefulness()).thenReturn(WAKEFULNESS_AWAKE);
+        when(mUiModeManagerProvider.forUser(any(UserHandle.class))).thenReturn(mUiModeManager);
         when(mUiModeManager.getContrast()).thenReturn(0.5f);
 
         when(mResources.getColor(eq(android.R.color.system_accent1_500), any()))
@@ -187,8 +191,8 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
                 mBroadcastDispatcher, mBgHandler, mMainExecutor, mBgExecutor, mThemeOverlayApplier,
                 mSecureSettings, mWallpaperManager, mUserManager, mDeviceProvisionedController,
                 mUserTracker, mDumpManager, mFeatureFlags, mResources, mWakefulnessLifecycle,
-                mJavaAdapter, mKeyguardTransitionInteractor, mUiModeManager, mActivityManager,
-                mSystemProperties) {
+                mJavaAdapter, mKeyguardTransitionInteractor, mUiModeManager, mUiModeManagerProvider,
+                mActivityManager, mSystemProperties) {
             @VisibleForTesting
             protected boolean isNightMode() {
                 return false;
@@ -249,7 +253,7 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
         registrationRunnable.getValue().run();
         verify(mWallpaperManager, never()).getWallpaperColors(anyInt());
 
-        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(Style.MONOCHROMATIC);
+        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(ThemeStyle.MONOCHROMATIC);
         assertThat(mThemeOverlayController.mCurrentColors.get(0).getMainColors().get(
                 0).toArgb()).isEqualTo(Color.RED);
     }
@@ -267,7 +271,7 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
         registrationRunnable.getValue().run();
         verify(mWallpaperManager).getWallpaperColors(eq(WallpaperManager.FLAG_SYSTEM));
 
-        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(Style.VIBRANT);
+        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(ThemeStyle.VIBRANT);
     }
 
     @Test
@@ -280,8 +284,9 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
         registrationRunnable.getValue().run();
         verify(mWallpaperManager).getWallpaperColors(eq(WallpaperManager.FLAG_SYSTEM));
 
-        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(Style.TONAL_SPOT);
+        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(ThemeStyle.TONAL_SPOT);
     }
+
     @Test
     @HardwareColors(color = "BLK", options = {
             "BLK|MONOCHROMATIC|#FF0000",
@@ -295,7 +300,7 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
         registrationRunnable.getValue().run();
         verify(mWallpaperManager, never()).getWallpaperColors(anyInt());
 
-        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(Style.MONOCHROMATIC);
+        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(ThemeStyle.MONOCHROMATIC);
         assertThat(mThemeOverlayController.mCurrentColors.get(0).getMainColors().get(
                 0).toArgb()).isEqualTo(Color.RED);
 
@@ -510,13 +515,16 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
     @Test
     public void onSettingChanged_honorThemeStyle() {
         when(mDeviceProvisionedController.isUserSetup(anyInt())).thenReturn(true);
-        @Style.Type List<Integer> validStyles = Arrays.asList(Style.EXPRESSIVE, Style.SPRITZ,
-                Style.TONAL_SPOT, Style.FRUIT_SALAD, Style.RAINBOW, Style.VIBRANT);
-        for (@Style.Type int style : validStyles) {
+        @ThemeStyle.Type List<Integer> validStyles = Arrays.asList(
+                ThemeStyle.EXPRESSIVE, ThemeStyle.SPRITZ,
+                ThemeStyle.TONAL_SPOT, ThemeStyle.FRUIT_SALAD, ThemeStyle.RAINBOW,
+                ThemeStyle.VIBRANT);
+        for (@ThemeStyle.Type int style : validStyles) {
             reset(mSecureSettings);
 
             String jsonString = "{\"android.theme.customization.system_palette\":\"A16B00\","
-                    + "\"android.theme.customization.theme_style\":\"" + Style.name(style) + "\"}";
+                    + "\"android.theme.customization.theme_style\":\"" + ThemeStyle.name(style)
+                    + "\"}";
 
             when(mSecureSettings.getStringForUser(
                     eq(Settings.Secure.THEME_CUSTOMIZATION_OVERLAY_PACKAGES), anyInt()))
@@ -540,7 +548,7 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
 
         mSettingsObserver.getValue().onChange(true, null, 0, mUserTracker.getUserId());
 
-        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(Style.TONAL_SPOT);
+        assertThat(mThemeOverlayController.mThemeStyle).isEqualTo(ThemeStyle.TONAL_SPOT);
     }
 
     @Test
@@ -925,8 +933,8 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
                 mBroadcastDispatcher, mBgHandler, executor, executor, mThemeOverlayApplier,
                 mSecureSettings, mWallpaperManager, mUserManager, mDeviceProvisionedController,
                 mUserTracker, mDumpManager, mFeatureFlags, mResources, mWakefulnessLifecycle,
-                mJavaAdapter, mKeyguardTransitionInteractor, mUiModeManager, mActivityManager,
-                mSystemProperties) {
+                mJavaAdapter, mKeyguardTransitionInteractor, mUiModeManager, mUiModeManagerProvider,
+                mActivityManager, mSystemProperties) {
             @VisibleForTesting
             protected boolean isNightMode() {
                 return false;
@@ -966,8 +974,8 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
                 mBroadcastDispatcher, mBgHandler, executor, executor, mThemeOverlayApplier,
                 mSecureSettings, mWallpaperManager, mUserManager, mDeviceProvisionedController,
                 mUserTracker, mDumpManager, mFeatureFlags, mResources, mWakefulnessLifecycle,
-                mJavaAdapter, mKeyguardTransitionInteractor, mUiModeManager, mActivityManager,
-                mSystemProperties) {
+                mJavaAdapter, mKeyguardTransitionInteractor, mUiModeManager, mUiModeManagerProvider,
+                mActivityManager, mSystemProperties) {
             @VisibleForTesting
             protected boolean isNightMode() {
                 return false;
@@ -1140,21 +1148,19 @@ public class ThemeOverlayControllerTest extends SysuiTestCase {
         FabricatedOverlay neutrals = overlays[1];
         FabricatedOverlay dynamic = overlays[2];
 
-        final int colorsPerPalette = 13;
-
-        // Color resources were added for all 3 accent palettes
-        verify(accents, times(colorsPerPalette * 3))
+        // Color resources were added for all 3 accent palettes two times(light and dark themes)
+        verify(accents, times(DynamicColors.getAllAccentPalette().size() * 2))
                 .setResourceValue(any(String.class), eq(TYPE_INT_COLOR_ARGB8), anyInt(), eq(null));
         // Color resources were added for all 2 neutral palettes
-        verify(neutrals, times(colorsPerPalette * 2))
+        verify(neutrals, times(DynamicColors.getAllNeutralPalette().size() * 2))
                 .setResourceValue(any(String.class), eq(TYPE_INT_COLOR_ARGB8), anyInt(), eq(null));
-        // All dynamic colors were added twice: light and dark them
+        // All dynamic colors were added twice: light and dark themes
         // All fixed colors were added once
         // All custom dynamic tokens added twice
         verify(dynamic, times(
-                DynamicColors.getAllDynamicColorsMapped(false).size() * 2
-                        + DynamicColors.getFixedColorsMapped(false).size()
-                        + DynamicColors.getCustomColorsMapped(false).size() * 2)
+                DynamicColors.getAllDynamicColorsMapped().size() * 2
+                        + DynamicColors.getFixedColorsMapped().size()
+                        + DynamicColors.getCustomColorsMapped().size() * 2)
         ).setResourceValue(any(String.class), eq(TYPE_INT_COLOR_ARGB8), anyInt(), eq(null));
     }
 

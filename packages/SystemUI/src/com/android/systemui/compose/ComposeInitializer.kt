@@ -48,7 +48,8 @@ import com.android.systemui.lifecycle.ViewLifecycleOwner
  */
 object ComposeInitializer {
     /** Function to be called on your window root view's [View.onAttachedToWindow] function. */
-    fun onAttachedToWindow(root: View) {
+    @JvmOverloads
+    fun onAttachedToWindow(root: View, useSeparateThreadUnsafe: Boolean = false) {
         if (root.findViewTreeLifecycleOwner() != null) {
             error("root $root already has a LifecycleOwner")
         }
@@ -64,7 +65,7 @@ object ComposeInitializer {
 
         // The lifecycle owner, which is STARTED when [root] is visible and RESUMED when [root] is
         // both visible and focused.
-        val lifecycleOwner = ViewLifecycleOwner(root)
+        val lifecycleOwner = ViewLifecycleOwner(root, useSeparateThreadUnsafe)
 
         // We create a trivial implementation of [SavedStateRegistryOwner] that does not do any save
         // or restore because SystemUI process is always running and top-level windows using this

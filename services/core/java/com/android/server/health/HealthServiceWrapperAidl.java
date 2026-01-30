@@ -16,12 +16,11 @@
 
 package com.android.server.health;
 
-import static android.os.Flags.batteryPartStatusApi;
-
 import android.annotation.NonNull;
 import android.annotation.Nullable;
 import android.hardware.health.BatteryHealthData;
 import android.hardware.health.HealthInfo;
+import android.hardware.health.HingeInfo;
 import android.hardware.health.IHealth;
 import android.os.BatteryManager;
 import android.os.BatteryProperty;
@@ -48,7 +47,8 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 class HealthServiceWrapperAidl extends HealthServiceWrapper {
     private static final String TAG = "HealthServiceWrapperAidl";
-    @VisibleForTesting static final String SERVICE_NAME = IHealth.DESCRIPTOR + "/default";
+    @VisibleForTesting
+    static final String SERVICE_NAME = IHealth.DESCRIPTOR + "/default";
     private final HandlerThread mHandlerThread = new HandlerThread("HealthServiceBinder");
     private final AtomicReference<IHealth> mLastService = new AtomicReference<>();
     private final IServiceCallback mServiceCallback = new ServiceCallback();
@@ -115,7 +115,9 @@ class HealthServiceWrapperAidl extends HealthServiceWrapper {
 
     private int getPropertyInternal(int id, BatteryProperty prop) throws RemoteException {
         IHealth service = mLastService.get();
-        if (service == null) throw new RemoteException("no health service");
+        if (service == null) {
+            throw new RemoteException("no health service");
+        }
         BatteryHealthData healthData;
         try {
             switch (id) {
@@ -153,16 +155,12 @@ class HealthServiceWrapperAidl extends HealthServiceWrapper {
                     prop.setLong(healthData.batteryStateOfHealth);
                     break;
                 case BatteryManager.BATTERY_PROPERTY_SERIAL_NUMBER:
-                    if (batteryPartStatusApi()) {
-                        healthData = service.getBatteryHealthData();
-                        prop.setString(healthData.batterySerialNumber);
-                    }
+                    healthData = service.getBatteryHealthData();
+                    prop.setString(healthData.batterySerialNumber);
                     break;
                 case BatteryManager.BATTERY_PROPERTY_PART_STATUS:
-                    if (batteryPartStatusApi()) {
-                        healthData = service.getBatteryHealthData();
-                        prop.setLong(healthData.batteryPartStatus);
-                    }
+                    healthData = service.getBatteryHealthData();
+                    prop.setLong(healthData.batteryPartStatus);
                     break;
             }
         } catch (UnsupportedOperationException e) {
@@ -204,7 +202,9 @@ class HealthServiceWrapperAidl extends HealthServiceWrapper {
     @Override
     public HealthInfo getHealthInfo() throws RemoteException {
         IHealth service = mLastService.get();
-        if (service == null) return null;
+        if (service == null) {
+            return null;
+        }
         try {
             return service.getHealthInfo();
         } catch (UnsupportedOperationException | ServiceSpecificException ex) {
@@ -213,9 +213,24 @@ class HealthServiceWrapperAidl extends HealthServiceWrapper {
     }
 
     @Override
+    public HingeInfo[] getHingeInfo() throws RemoteException {
+        IHealth service = mLastService.get();
+        if (service == null) {
+            return null;
+        }
+        try {
+            return service.getHingeInfo();
+        } catch (UnsupportedOperationException | ServiceSpecificException ex) {
+            return null;
+        }
+    }
+
+    @Override
     public BatteryHealthData getBatteryHealthData() throws RemoteException {
         IHealth service = mLastService.get();
-        if (service == null) return null;
+        if (service == null) {
+            return null;
+        }
         try {
             return service.getBatteryHealthData();
         } catch (UnsupportedOperationException | ServiceSpecificException ex) {
@@ -225,7 +240,9 @@ class HealthServiceWrapperAidl extends HealthServiceWrapper {
 
     public void setChargingPolicy(int policy) throws RemoteException {
         IHealth service = mLastService.get();
-        if (service == null) return;
+        if (service == null) {
+            return;
+        }
         try {
             service.setChargingPolicy(policy);
         } catch (UnsupportedOperationException | ServiceSpecificException ex) {
@@ -245,19 +262,20 @@ class HealthServiceWrapperAidl extends HealthServiceWrapper {
         @Override
         public void onRegistration(String name, @NonNull final IBinder newBinder)
                 throws RemoteException {
-            if (!SERVICE_NAME.equals(name)) return;
+            if (!SERVICE_NAME.equals(name)) {
+                return;
+            }
             // This runnable only runs on mHandlerThread and ordering is ensured, hence
             // no locking is needed inside the runnable.
             getHandlerThread()
                     .getThreadHandler()
                     .post(
                             () -> {
-                                IHealth newService =
-                                        IHealth.Stub.asInterface(Binder.allowBlocking(newBinder));
+                                IHealth newService = IHealth.Stub.asInterface(Binder.allowBlocking(newBinder));
                                 IHealth oldService = mLastService.getAndSet(newService);
-                                IBinder oldBinder =
-                                        oldService != null ? oldService.asBinder() : null;
-                                if (Objects.equals(newBinder, oldBinder)) return;
+                                IBinder oldBinder = oldService != null ? oldService.asBinder() : null;
+                                if (Objects.equals(newBinder, oldBinder))
+                                    return;
 
                                 Slog.i(TAG, "New health AIDL HAL service registered");
                                 if (mRegCallback != null) {

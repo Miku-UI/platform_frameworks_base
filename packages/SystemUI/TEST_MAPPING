@@ -34,15 +34,32 @@
       ]
     },
     {
+      "name": "SystemUIComposeGalleryTests",
+      "options": [
+        {
+          "exclude-annotation": "org.junit.Ignore"
+        },
+        {
+          "exclude-annotation": "androidx.test.filters.FlakyTest"
+        }
+      ]
+    },
+    {
       // Permission indicators
       "name": "CtsVoiceRecognitionTestCases"
+    },
+    {
+      "name": "CtsInputTestCases"
+    },
+    {
+      "name": "InputTests"
     }
   ],
 
   "auto-end-to-end-postsubmit": [
     {
       "name": "AndroidAutomotiveHomeTests",
-      "options" : [
+      "options": [
         {
           "include-filter": "android.platform.tests.HomeTest"
         },
@@ -134,6 +151,9 @@
     },
     {
       "name": "SystemUIGoogleRobo2RNGTests"
+    },
+    {
+      "name": "SystemUIGoogleRoboRNGKeyguardTests"
     }
   ],
   "imports": [
@@ -145,6 +165,21 @@
   "sysui-e2e-presubmit": [
     {
       "name": "PlatformScenarioTests_SysUI_Presubmit"
+    }
+  ],
+
+  "desktop-presubmit": [
+    {
+      "name": "SystemUIGoogleScreenshotTests_desktop"
+    },
+    {
+      "name": "SystemUITests_desktop"
+    }
+  ],
+
+  "sysui-unit-test": [
+    {
+      "name": "SystemUITests_presubmit"
     }
   ]
 }

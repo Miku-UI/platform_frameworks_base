@@ -20,7 +20,7 @@ import android.location.Location;
 import android.os.IRemoteCallback;
 
 /**
- * {@hide}
+ * @hide
  */
 oneway interface ILocationListener
 {

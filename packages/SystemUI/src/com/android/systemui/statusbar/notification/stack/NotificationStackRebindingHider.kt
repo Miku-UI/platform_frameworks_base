@@ -17,6 +17,7 @@
 package com.android.systemui.statusbar.notification.stack
 
 import com.android.systemui.dagger.SysUISingleton
+import dagger.Lazy
 import javax.inject.Inject
 
 /**
@@ -33,9 +34,11 @@ interface NotificationStackRebindingHider {
 @SysUISingleton
 class NotificationStackRebindingHiderImpl
 @Inject
-constructor(private val nsslController: NotificationStackScrollLayoutController) :
-    NotificationStackRebindingHider {
+constructor(
+    // Lazy to avoid a Dagger dependency cycle crash.
+    private val nsslController: Lazy<NotificationStackScrollLayoutController>
+) : NotificationStackRebindingHider {
     override fun setVisible(visible: Boolean, animated: Boolean) {
-        nsslController.updateContainerVisibilityForRebind(visible, animated)
+        nsslController.get().updateContainerVisibilityForRebind(visible, animated)
     }
 }

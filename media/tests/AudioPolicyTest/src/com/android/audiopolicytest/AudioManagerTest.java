@@ -36,6 +36,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import android.content.Context;
 import android.media.AudioAttributes;
@@ -44,8 +45,10 @@ import android.media.AudioSystem;
 import android.media.IAudioService;
 import android.media.audiopolicy.AudioProductStrategy;
 import android.media.audiopolicy.AudioVolumeGroup;
+import android.net.Uri;
 import android.os.IBinder;
 import android.os.ServiceManager;
+import android.os.UserHandle;
 import android.platform.test.annotations.Presubmit;
 import android.util.Log;
 
@@ -66,6 +69,8 @@ public class AudioManagerTest {
     private static final String TAG = "AudioManagerTest";
 
     private AudioManager mAudioManager;
+    private static final Uri DEFAULT_RINGTONE_URI =
+            Uri.parse("content://media/internal/audio/media/10?title=DefaultRingtone&canonical=1");
 
     private static final int[] PUBLIC_STREAM_TYPES = {
             STREAM_VOICE_CALL,
@@ -407,6 +412,17 @@ public class AudioManagerTest {
             }
         } finally {
             mAudioManager.unregisterVolumeGroupCallback(vgCbReceiver);
+        }
+    }
+
+    @Test
+    public void testHasHapticsChannels_NoException() {
+        Context textContext = getApplicationContext().createContextAsUser(UserHandle.CURRENT, 0);
+        mAudioManager = textContext.getSystemService(AudioManager.class);
+        try {
+            AudioManager.hasHapticChannels(null, DEFAULT_RINGTONE_URI);
+        } catch (Exception e) {
+            fail("testHasHapticsChannels fails with an exception: " + e);
         }
     }
 }

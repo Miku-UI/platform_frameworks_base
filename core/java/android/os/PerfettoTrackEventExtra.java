@@ -16,7 +16,7 @@
 
 package android.os;
 
-import com.android.internal.ravenwood.RavenwoodEnvironment;
+import com.android.internal.ravenwood.RavenwoodHelperBridge;
 
 import dalvik.annotation.optimization.CriticalNative;
 import dalvik.annotation.optimization.FastNative;
@@ -37,22 +37,21 @@ import java.util.function.Supplier;
 public final class PerfettoTrackEventExtra {
     private static final boolean DEBUG = false;
     private static final int DEFAULT_EXTRA_CACHE_SIZE = 5;
-    private static final Builder NO_OP_BUILDER = new Builder(/* extra= */ null, /* isCategoryEnabled= */ false);
+    private static final Builder NO_OP_BUILDER = new Builder(/* extra= */
+            null, /* isCategoryEnabled= */ false);
     private static final ThreadLocal<PerfettoTrackEventExtra> sTrackEventExtra =
-            new ThreadLocal<PerfettoTrackEventExtra>() {
-                @Override
-                protected PerfettoTrackEventExtra initialValue() {
-                    return new PerfettoTrackEventExtra();
-                }
-            };
+            ThreadLocal.withInitial(PerfettoTrackEventExtra::new);
     private static final AtomicLong sNamedTrackId = new AtomicLong();
-    private static final Supplier<Flow> sFlowSupplier = Flow::new;
     private static final Supplier<Builder> sBuilderSupplier = Builder::new;
     private static final Supplier<FieldInt64> sFieldInt64Supplier = FieldInt64::new;
     private static final Supplier<FieldDouble> sFieldDoubleSupplier = FieldDouble::new;
     private static final Supplier<FieldString> sFieldStringSupplier = FieldString::new;
     private static final Supplier<FieldNested> sFieldNestedSupplier = FieldNested::new;
 
+    // This is to ensure that every pointer passed to the native layer has a java root. For objects
+    // in the cache it's fine, but for objects that aren't in the cache, they could be garbage
+    // collected before usage in the native layer, pending pointers just holds a reference to
+    // everything to avoid this problem.
     private final List<PerfettoPointer> mPendingPointers = new ArrayList<>();
     private CounterInt64 mCounterInt64;
     private CounterDouble mCounterDouble;
@@ -71,11 +70,11 @@ public final class PerfettoTrackEventExtra {
     }
 
     /**
-     * Container for {@link Field} instances.
+     * Container for field instances.
      */
     public interface FieldContainer {
         /**
-         * Add {@link Field} to the container.
+         * Add a field to the container.
          */
         void addField(PerfettoPointer field);
     }
@@ -444,7 +443,6 @@ public final class PerfettoTrackEventExtra {
 
         /**
          * Sets a long counter value on the event.
-         *
          */
         public Builder setCounter(long val) {
             if (!mIsCategoryEnabled) {
@@ -460,7 +458,6 @@ public final class PerfettoTrackEventExtra {
 
         /**
          * Sets a double counter value on the event.
-         *
          */
         public Builder setCounter(double val) {
             if (!mIsCategoryEnabled) {
@@ -525,10 +522,10 @@ public final class PerfettoTrackEventExtra {
         /**
          * Begins a proto field.
          * Fields can be added from this point and there must be a corresponding
-         * {@link endProto}.
+         * {@link #endProto}.
          *
          * The proto field is a singleton and all proto fields get added inside the
-         * one {@link beginProto} and {@link endProto} within the {@link Builder}.
+         * one {@link #beginProto} and {@link #endProto} within the {@link Builder}.
          */
         public Builder beginProto() {
             if (!mIsCategoryEnabled) {
@@ -558,7 +555,7 @@ public final class PerfettoTrackEventExtra {
         /**
          * Begins a nested proto field with field id {@code id}.
          * Fields can be added from this point and there must be a corresponding
-         * {@link endNested}.
+         * {@link #endNested}.
          */
         public Builder beginNested(long id) {
             if (!mIsCategoryEnabled) {
@@ -586,7 +583,6 @@ public final class PerfettoTrackEventExtra {
             return mParent;
         }
 
-
         private Builder initInternal(Builder parent, FieldContainer field) {
             mParent = parent;
             mCurrentContainer = field;
@@ -598,7 +594,8 @@ public final class PerfettoTrackEventExtra {
         private void checkState() {
             if (mIsBuilt) {
                 throw new IllegalStateException(
-                    "This builder has already been used. Create a new builder for another event.");
+                        "This builder has already been used. Create a new builder for another "
+                                + "event.");
             }
         }
 
@@ -613,7 +610,7 @@ public final class PerfettoTrackEventExtra {
             checkState();
             if (mCurrentContainer == null) {
                 throw new IllegalStateException(
-                    "Field operations must be within beginProto/endProto block");
+                        "Field operations must be within beginProto/endProto block");
             }
         }
     }
@@ -624,37 +621,38 @@ public final class PerfettoTrackEventExtra {
     public static Builder builder(boolean isCategoryEnabled) {
         if (isCategoryEnabled) {
             return sTrackEventExtra.get().mBuilderCache.get(sBuilderSupplier)
-                .initInternal(null, null);
+                    .initInternal(null, null);
         }
         return NO_OP_BUILDER;
     }
 
     private final RingBuffer<NamedTrack> mNamedTrackCache =
-            new RingBuffer(DEFAULT_EXTRA_CACHE_SIZE);
+            new RingBuffer<>(DEFAULT_EXTRA_CACHE_SIZE);
     private final RingBuffer<CounterTrack> mCounterTrackCache =
-            new RingBuffer(DEFAULT_EXTRA_CACHE_SIZE);
+            new RingBuffer<>(DEFAULT_EXTRA_CACHE_SIZE);
 
-    private final RingBuffer<ArgInt64> mArgInt64Cache = new RingBuffer(DEFAULT_EXTRA_CACHE_SIZE);
-    private final RingBuffer<ArgBool> mArgBoolCache = new RingBuffer(DEFAULT_EXTRA_CACHE_SIZE);
-    private final RingBuffer<ArgDouble> mArgDoubleCache = new RingBuffer(DEFAULT_EXTRA_CACHE_SIZE);
-    private final RingBuffer<ArgString> mArgStringCache = new RingBuffer(DEFAULT_EXTRA_CACHE_SIZE);
+    private final RingBuffer<ArgInt64> mArgInt64Cache = new RingBuffer<>(DEFAULT_EXTRA_CACHE_SIZE);
+    private final RingBuffer<ArgBool> mArgBoolCache = new RingBuffer<>(DEFAULT_EXTRA_CACHE_SIZE);
+    private final RingBuffer<ArgDouble> mArgDoubleCache = new RingBuffer<>(
+            DEFAULT_EXTRA_CACHE_SIZE);
+    private final RingBuffer<ArgString> mArgStringCache = new RingBuffer<>(
+            DEFAULT_EXTRA_CACHE_SIZE);
 
-    private final Pool<FieldInt64> mFieldInt64Cache = new Pool(DEFAULT_EXTRA_CACHE_SIZE);
-    private final Pool<FieldDouble> mFieldDoubleCache = new Pool(DEFAULT_EXTRA_CACHE_SIZE);
-    private final Pool<FieldString> mFieldStringCache = new Pool(DEFAULT_EXTRA_CACHE_SIZE);
-    private final Pool<FieldNested> mFieldNestedCache = new Pool(DEFAULT_EXTRA_CACHE_SIZE);
-    private final Pool<Builder> mBuilderCache = new Pool(DEFAULT_EXTRA_CACHE_SIZE);
+    private final Pool<FieldInt64> mFieldInt64Cache = new Pool<>(DEFAULT_EXTRA_CACHE_SIZE);
+    private final Pool<FieldDouble> mFieldDoubleCache = new Pool<>(DEFAULT_EXTRA_CACHE_SIZE);
+    private final Pool<FieldString> mFieldStringCache = new Pool<>(DEFAULT_EXTRA_CACHE_SIZE);
+    private final Pool<FieldNested> mFieldNestedCache = new Pool<>(DEFAULT_EXTRA_CACHE_SIZE);
+    private final Pool<Builder> mBuilderCache = new Pool<>(DEFAULT_EXTRA_CACHE_SIZE);
 
     private static final NativeAllocationRegistry sRegistry =
             NativeAllocationRegistry.createMalloced(
                     PerfettoTrackEventExtra.class.getClassLoader(), native_delete());
 
     private final long mPtr;
-    private static final String TAG = "PerfettoTrackEventExtra";
 
     private PerfettoTrackEventExtra() {
         mPtr = native_init();
-        if (!RavenwoodEnvironment.getInstance().isRunningOnRavenwood()) {
+        if (!RavenwoodHelperBridge.getInstance().isRunningOnRavenwood()) {
             sRegistry.registerNativeAllocation(this, mPtr);
         }
     }
@@ -760,12 +758,16 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native void native_set_process_flow(long ptr, long type);
+
         @CriticalNative
         private static native void native_set_process_terminating_flow(long ptr, long id);
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
     }
@@ -797,8 +799,10 @@ public final class PerfettoTrackEventExtra {
 
         @FastNative
         private static native long native_init(long id, String name, long parentUuid);
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
     }
@@ -830,8 +834,10 @@ public final class PerfettoTrackEventExtra {
 
         @FastNative
         private static native long native_init(String name, long parentUuid);
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
     }
@@ -861,10 +867,13 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native void native_set_value(long ptr, long value);
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
     }
@@ -894,10 +903,13 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native void native_set_value(long ptr, double value);
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
     }
@@ -937,10 +949,13 @@ public final class PerfettoTrackEventExtra {
 
         @FastNative
         private static native long native_init(String name);
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @CriticalNative
         private static native void native_set_value(long ptr, long val);
     }
@@ -980,10 +995,13 @@ public final class PerfettoTrackEventExtra {
 
         @FastNative
         private static native long native_init(String name);
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @CriticalNative
         private static native void native_set_value(long ptr, boolean val);
     }
@@ -1023,10 +1041,13 @@ public final class PerfettoTrackEventExtra {
 
         @FastNative
         private static native long native_init(String name);
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @CriticalNative
         private static native void native_set_value(long ptr, double val);
     }
@@ -1066,10 +1087,13 @@ public final class PerfettoTrackEventExtra {
 
         @FastNative
         private static native long native_init(String name);
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @FastNative
         private static native void native_set_value(long ptr, String val);
     }
@@ -1107,12 +1131,16 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @CriticalNative
         private static native void native_add_field(long ptr, long extraPtr);
+
         @CriticalNative
         private static native void native_clear_fields(long ptr);
     }
@@ -1145,10 +1173,13 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @CriticalNative
         private static native void native_set_value(long ptr, long id, long val);
     }
@@ -1181,10 +1212,13 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @CriticalNative
         private static native void native_set_value(long ptr, long id, double val);
     }
@@ -1217,10 +1251,13 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @FastNative
         private static native void native_set_value(long ptr, long id, String val);
     }
@@ -1258,12 +1295,16 @@ public final class PerfettoTrackEventExtra {
 
         @CriticalNative
         private static native long native_init();
+
         @CriticalNative
         private static native long native_delete();
+
         @CriticalNative
         private static native long native_get_extra_ptr(long ptr);
+
         @CriticalNative
         private static native void native_add_field(long ptr, long extraPtr);
+
         @CriticalNative
         private static native void native_set_id(long ptr, long id);
     }
@@ -1271,13 +1312,17 @@ public final class PerfettoTrackEventExtra {
     @CriticalNative
     @android.ravenwood.annotation.RavenwoodReplace
     private static native long native_init();
+
     @CriticalNative
     @android.ravenwood.annotation.RavenwoodReplace
     private static native long native_delete();
+
     @CriticalNative
     private static native void native_add_arg(long ptr, long extraPtr);
+
     @CriticalNative
     private static native void native_clear_args(long ptr);
+
     @FastNative
     private static native void native_emit(int type, long tag, String name, long ptr);
 

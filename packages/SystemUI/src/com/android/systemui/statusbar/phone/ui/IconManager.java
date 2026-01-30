@@ -33,11 +33,9 @@ import androidx.collection.MutableIntObjectMap;
 
 import com.android.internal.statusbar.StatusBarIcon;
 import com.android.internal.statusbar.StatusBarIcon.Shape;
-import com.android.systemui.Flags;
 import com.android.systemui.demomode.DemoModeCommandReceiver;
 import com.android.systemui.kairos.ExperimentalKairosApi;
 import com.android.systemui.kairos.KairosNetwork;
-import com.android.systemui.modes.shared.ModesUiIcons;
 import com.android.systemui.statusbar.BaseStatusBarFrameLayout;
 import com.android.systemui.statusbar.StatusBarIconView;
 import com.android.systemui.statusbar.StatusIconDisplayable;
@@ -46,6 +44,7 @@ import com.android.systemui.statusbar.phone.DemoStatusIcons;
 import com.android.systemui.statusbar.phone.StatusBarIconHolder;
 import com.android.systemui.statusbar.phone.StatusBarIconHolder.BindableIconHolder;
 import com.android.systemui.statusbar.phone.StatusBarLocation;
+import com.android.systemui.statusbar.pipeline.mobile.StatusBarMobileIconKairos;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapter;
 import com.android.systemui.statusbar.pipeline.mobile.ui.MobileUiAdapterKairos;
 import com.android.systemui.statusbar.pipeline.mobile.ui.binder.MobileIconsBinder;
@@ -68,7 +67,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CancellationException;
 
 /**
  * Turns info from StatusBarIconController into ImageViews in a ViewGroup.
@@ -253,7 +251,7 @@ public class IconManager implements DemoModeCommandReceiver {
     private ModernStatusBarMobileView onCreateModernStatusBarMobileView(
             String slot, int subId) {
         Context mobileContext = mMobileContextProvider.getMobileContextForSub(subId, mContext);
-        if (Flags.statusBarMobileIconKairos()) {
+        if (StatusBarMobileIconKairos.isEnabled()) {
             Pair<ModernStatusBarMobileView, Job> viewAndJob =
                     ModernStatusBarMobileView.constructAndBind(
                             mobileContext,
@@ -280,7 +278,7 @@ public class IconManager implements DemoModeCommandReceiver {
     }
 
     protected LinearLayout.LayoutParams onCreateLayoutParams(Shape shape) {
-        int width = ModesUiIcons.isEnabled() && shape == StatusBarIcon.Shape.FIXED_SPACE
+        int width = shape == StatusBarIcon.Shape.FIXED_SPACE
                 ? mIconSize
                 : ViewGroup.LayoutParams.WRAP_CONTENT;
 
@@ -300,12 +298,12 @@ public class IconManager implements DemoModeCommandReceiver {
         if (mIsInDemoMode) {
             mDemoStatusIcons.onRemoveIcon((StatusIconDisplayable) mGroup.getChildAt(viewIndex));
         }
-        if (Flags.statusBarMobileIconKairos()) {
+        if (StatusBarMobileIconKairos.isEnabled()) {
             View view = mGroup.getChildAt(viewIndex);
             if (view instanceof ModernStatusBarMobileView) {
                 Job bindingJob = mBindingJobs.remove(((ModernStatusBarMobileView) view).getSubId());
                 if (bindingJob != null) {
-                    bindingJob.cancel(new CancellationException());
+                    bindingJob.cancel(null);
                 }
             }
         }
@@ -315,12 +313,10 @@ public class IconManager implements DemoModeCommandReceiver {
     /** Called once an icon has been set. */
     public void onSetIcon(int viewIndex, StatusBarIcon icon) {
         StatusBarIconView view = (StatusBarIconView) mGroup.getChildAt(viewIndex);
-        if (ModesUiIcons.isEnabled()) {
-            ViewGroup.LayoutParams current = view.getLayoutParams();
-            ViewGroup.LayoutParams desired = onCreateLayoutParams(icon.shape);
-            if (desired.width != current.width || desired.height != current.height) {
-                view.setLayoutParams(desired);
-            }
+        ViewGroup.LayoutParams current = view.getLayoutParams();
+        ViewGroup.LayoutParams desired = onCreateLayoutParams(icon.shape);
+        if (desired.width != current.width || desired.height != current.height) {
+            view.setLayoutParams(desired);
         }
         view.set(icon);
     }
@@ -339,6 +335,11 @@ public class IconManager implements DemoModeCommandReceiver {
             default:
                 break;
         }
+    }
+
+    /** Returns the display id associated to the view group of this icon manager */
+    public int getDisplayId() {
+        return mGroup.getContext().getDisplayId();
     }
 
     @Override

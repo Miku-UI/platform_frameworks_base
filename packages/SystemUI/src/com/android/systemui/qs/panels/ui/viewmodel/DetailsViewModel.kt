@@ -23,14 +23,17 @@ import com.android.systemui.dagger.SysUISingleton
 import com.android.systemui.plugins.qs.TileDetailsViewModel
 import com.android.systemui.qs.pipeline.domain.interactor.CurrentTilesInteractor
 import com.android.systemui.qs.pipeline.shared.TileSpec
+import com.android.systemui.qs.tiles.dialog.AudioDetailsViewModel
 import com.android.systemui.shade.domain.interactor.ShadeModeInteractor
 import javax.inject.Inject
 
 @SysUISingleton
 @Stable
-class DetailsViewModel @Inject constructor(
+class DetailsViewModel
+@Inject
+constructor(
     val currentTilesInteractor: CurrentTilesInteractor,
-    val shadeModeInteractor: ShadeModeInteractor
+    val shadeModeInteractor: ShadeModeInteractor,
 ) {
 
     /**
@@ -56,7 +59,7 @@ class DetailsViewModel @Inject constructor(
      * @see activeTileDetails
      */
     fun onTileClicked(spec: TileSpec?): Boolean {
-        if (!shadeModeInteractor.isDualShade){
+        if (!shadeModeInteractor.isDualShade) {
             return false
         }
 
@@ -71,5 +74,12 @@ class DetailsViewModel @Inject constructor(
         return currentTile?.getDetailsViewModel { detailsViewModel ->
             _activeTileDetails.value = detailsViewModel
         } ?: false
+    }
+
+    /** Update the active [TileDetailsViewModel] to [AudioDetailsViewModel]. */
+    fun onVolumeSettingsButtonClicked(audioDetailsViewModel: AudioDetailsViewModel?) {
+        if (shadeModeInteractor.isDualShade) {
+            _activeTileDetails.value = audioDetailsViewModel
+        }
     }
 }

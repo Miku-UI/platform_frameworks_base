@@ -20,10 +20,13 @@
 
 #include "GnssAssistance.h"
 
+#include <android_location_flags.h>
 #include <utils/String16.h>
 
 #include "GnssAssistanceCallback.h"
 #include "Utils.h"
+
+namespace location_flags = android::location::flags;
 
 namespace android::gnss {
 
@@ -81,6 +84,7 @@ jmethodID method_satelliteAlmanacGetOmega;
 jmethodID method_satelliteAlmanacGetOmega0;
 jmethodID method_satelliteAlmanacGetOmegaDot;
 jmethodID method_satelliteAlmanacGetRootA;
+jmethodID method_satelliteAlmanacGetToaSeconds;
 
 jmethodID method_satelliteEphemerisTimeGetIode;
 jmethodID method_satelliteEphemerisTimeGetToeSeconds;
@@ -288,6 +292,8 @@ jmethodID method_glonassSatelliteClockModelGetClockBias;
 jmethodID method_glonassSatelliteClockModelGetFrequencyBias;
 jmethodID method_glonassSatelliteClockModelGetFrequencyChannelNumber;
 jmethodID method_glonassSatelliteClockModelGetTimeOfClockSeconds;
+jmethodID method_glonassSatelliteClockModelGetGroupDelayDiffSeconds;
+jmethodID method_glonassSatelliteClockModelIsGroupDelayDiffSecondsAvailable;
 
 jmethodID method_qzssAssistanceGetAlmanac;
 jmethodID method_qzssAssistanceGetIonosphericModel;
@@ -298,20 +304,16 @@ jmethodID method_qzssAssistanceGetSatelliteEphemeris;
 jmethodID method_qzssAssistanceGetSatelliteCorrections;
 jmethodID method_qzssAssistanceGetAuxiliaryInformation;
 jmethodID method_qzssAssistanceGetRealTimeIntegrityModels;
+
 jmethodID method_qzssSatelliteEphemerisGetSvid;
 jmethodID method_qzssSatelliteEphemerisGetGpsL2Params;
 jmethodID method_qzssSatelliteEphemerisGetSatelliteClockModel;
 jmethodID method_qzssSatelliteEphemerisGetSatelliteOrbitModel;
 jmethodID method_qzssSatelliteEphemerisGetSatelliteHealth;
 jmethodID method_qzssSatelliteEphemerisGetSatelliteEphemerisTime;
-jmethodID method_qzssSatelliteClockModelGetAf0;
-jmethodID method_qzssSatelliteClockModelGetAf1;
-jmethodID method_qzssSatelliteClockModelGetAf2;
-jmethodID method_qzssSatelliteClockModelGetAodc;
-jmethodID method_qzssSatelliteClockModelGetTgd1;
-jmethodID method_qzssSatelliteClockModelGetTgd2;
-jmethodID method_qzssSatelliteClockModelGetTimeOfClockSeconds;
 } // namespace
+
+constexpr double GLONASS_CLOCK_MODEL_GROUP_DELAY_DIFF_SECONDS_UNAVAILABLE = 0.999999999999E+09;
 
 void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz) {
     // Get the methods of GnssAssistance class.
@@ -371,6 +373,10 @@ void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz) {
     method_satelliteAlmanacGetOmegaDot =
             env->GetMethodID(satelliteAlmanacClass, "getOmegaDot", "()D");
     method_satelliteAlmanacGetRootA = env->GetMethodID(satelliteAlmanacClass, "getRootA", "()D");
+    if (location_flags::support_toa_in_gnss_satellite_almanac()) {
+        method_satelliteAlmanacGetToaSeconds =
+                env->GetMethodID(satelliteAlmanacClass, "getToaSeconds", "()I");
+    }
 
     // Get the mothods of SatelliteEphemerisTime class.
     jclass satelliteEphemerisTimeClass = env->FindClass("android/location/SatelliteEphemerisTime");
@@ -932,6 +938,11 @@ void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz) {
             env->GetMethodID(glonassSatelliteClockModelClass, "getFrequencyChannelNumber", "()I");
     method_glonassSatelliteClockModelGetTimeOfClockSeconds =
             env->GetMethodID(glonassSatelliteClockModelClass, "getTimeOfClockSeconds", "()J");
+    method_glonassSatelliteClockModelGetGroupDelayDiffSeconds =
+            env->GetMethodID(glonassSatelliteClockModelClass, "getGroupDelayDiffSeconds", "()D");
+    method_glonassSatelliteClockModelIsGroupDelayDiffSecondsAvailable =
+            env->GetMethodID(glonassSatelliteClockModelClass, "isGroupDelayDiffSecondsAvailable",
+                             "()Z");
 
     // Get the methods of QzssAssistance class.
     jclass qzssAssistanceClass = env->FindClass("android/location/QzssAssistance");
@@ -953,6 +964,9 @@ void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz) {
             env->GetMethodID(qzssAssistanceClass, "getSatelliteCorrections", "()Ljava/util/List;");
     method_qzssAssistanceGetAuxiliaryInformation =
             env->GetMethodID(qzssAssistanceClass, "getAuxiliaryInformation", "()Ljava/util/List;");
+    method_qzssAssistanceGetRealTimeIntegrityModels =
+            env->GetMethodID(qzssAssistanceClass, "getRealTimeIntegrityModels",
+                             "()Ljava/util/List;");
 
     // Get the methods of QzssSatelliteEphemeris class.
     jclass qzssSatelliteEphemerisClass = env->FindClass("android/location/QzssSatelliteEphemeris");
@@ -964,6 +978,9 @@ void GnssAssistance_class_init_once(JNIEnv* env, jclass clazz) {
     method_qzssSatelliteEphemerisGetSatelliteEphemerisTime =
             env->GetMethodID(qzssSatelliteEphemerisClass, "getSatelliteEphemerisTime",
                              "()Landroid/location/SatelliteEphemerisTime;");
+    method_qzssSatelliteEphemerisGetSatelliteClockModel =
+            env->GetMethodID(qzssSatelliteEphemerisClass, "getSatelliteClockModel",
+                             "()Landroid/location/GpsSatelliteEphemeris$GpsSatelliteClockModel;");
     method_qzssSatelliteEphemerisGetSatelliteHealth =
             env->GetMethodID(qzssSatelliteEphemerisClass, "getSatelliteHealth",
                              "()Landroid/location/GpsSatelliteEphemeris$GpsSatelliteHealth;");
@@ -1020,6 +1037,7 @@ void GnssAssistanceUtil::setGnssAssistance(JNIEnv* env, jobject gnssAssistanceOb
 
 void GnssAssistanceUtil::setQzssAssistance(JNIEnv* env, jobject qzssAssistanceObj,
                                            std::optional<QzssAssistance>& qzssAssistanceOpt) {
+    if (qzssAssistanceObj == nullptr) return;
     QzssAssistance qzssAssistance;
     jobject qzssAlmanacObj =
             env->CallObjectMethod(qzssAssistanceObj, method_qzssAssistanceGetAlmanac);
@@ -1037,16 +1055,22 @@ void GnssAssistanceUtil::setQzssAssistance(JNIEnv* env, jobject qzssAssistanceOb
             env->CallObjectMethod(qzssAssistanceObj, method_qzssAssistanceGetSatelliteCorrections);
     jobject qzssAuxiliaryInformationObj =
             env->CallObjectMethod(qzssAssistanceObj, method_qzssAssistanceGetAuxiliaryInformation);
+    jobject qzssRealTimeIntegrityModelsObj =
+            env->CallObjectMethod(qzssAssistanceObj,
+                                  method_qzssAssistanceGetRealTimeIntegrityModels);
+
     setGnssAlmanac(env, qzssAlmanacObj, qzssAssistance.almanac);
     setKlobucharIonosphericModel(env, qzssIonosphericModelObj, qzssAssistance.ionosphericModel);
     setUtcModel(env, qzssUtcModelObj, qzssAssistance.utcModel);
     setLeapSecondsModel(env, qzssLeapSecondsModelObj, qzssAssistance.leapSecondsModel);
     setTimeModels(env, qzssTimeModelsObj, qzssAssistance.timeModels);
-    setGpsOrQzssSatelliteEphemeris<QzssSatelliteEphemeris>(env, qzssSatelliteEphemerisObj,
-                                                           qzssAssistance.satelliteEphemeris);
+    setQzssSatelliteEphemeris(env, qzssSatelliteEphemerisObj, qzssAssistance.satelliteEphemeris);
+    setRealTimeIntegrityModels(env, qzssRealTimeIntegrityModelsObj,
+                               qzssAssistance.realTimeIntegrityModels);
     setSatelliteCorrections(env, qzssSatelliteCorrectionsObj, qzssAssistance.satelliteCorrections);
     setAuxiliaryInformations(env, qzssAuxiliaryInformationObj,
                              qzssAssistance.auxiliaryInformations);
+
     qzssAssistanceOpt = qzssAssistance;
     env->DeleteLocalRef(qzssAlmanacObj);
     env->DeleteLocalRef(qzssIonosphericModelObj);
@@ -1056,11 +1080,13 @@ void GnssAssistanceUtil::setQzssAssistance(JNIEnv* env, jobject qzssAssistanceOb
     env->DeleteLocalRef(qzssSatelliteEphemerisObj);
     env->DeleteLocalRef(qzssSatelliteCorrectionsObj);
     env->DeleteLocalRef(qzssAuxiliaryInformationObj);
+    env->DeleteLocalRef(qzssRealTimeIntegrityModelsObj);
 }
 
 void GnssAssistanceUtil::setGlonassAssistance(
         JNIEnv* env, jobject glonassAssistanceObj,
         std::optional<GlonassAssistance>& glonassAssistanceOpt) {
+    if (glonassAssistanceObj == nullptr) return;
     GlonassAssistance glonassAssistance;
     jobject glonassAlmanacObj =
             env->CallObjectMethod(glonassAssistanceObj, method_glonassAssistanceGetAlmanac);
@@ -1173,9 +1199,9 @@ void GnssAssistanceUtil::setGlonassSatelliteEphemeris(
                 env->CallObjectMethod(glonassSatelliteEphemerisListObj, method_listGet, i);
         if (glonassSatelliteEphemerisObj == nullptr) continue;
         GlonassSatelliteEphemeris glonassSatelliteEphemeris;
-        jdouble ageInDays = env->CallDoubleMethod(glonassSatelliteEphemerisObj,
-                                                  method_glonassSatelliteEphemerisGetAgeInDays);
-        glonassSatelliteEphemeris.ageInDays = ageInDays;
+        jint ageInDays = env->CallIntMethod(glonassSatelliteEphemerisObj,
+                                            method_glonassSatelliteEphemerisGetAgeInDays);
+        glonassSatelliteEphemeris.ageInDays = static_cast<int32_t>(ageInDays);
 
         // Set the GlonassSatelliteClockModel.
         jobject glonassSatelliteClockModelObj =
@@ -1194,10 +1220,22 @@ void GnssAssistanceUtil::setGlonassSatelliteEphemeris(
                                    method_glonassSatelliteClockModelGetFrequencyChannelNumber);
         glonassSatelliteClockModel.frequencyChannelNumber =
                 static_cast<int32_t>(frequencyChannelNumber);
-        jdouble timeOfClockSeconds =
-                env->CallDoubleMethod(glonassSatelliteClockModelObj,
-                                      method_glonassSatelliteClockModelGetTimeOfClockSeconds);
+        jlong timeOfClockSeconds =
+                env->CallLongMethod(glonassSatelliteClockModelObj,
+                                    method_glonassSatelliteClockModelGetTimeOfClockSeconds);
         glonassSatelliteClockModel.timeOfClockSeconds = timeOfClockSeconds;
+        jboolean isGroupDelayDiffSecondsAvailable = env->CallBooleanMethod(
+                glonassSatelliteClockModelObj,
+                method_glonassSatelliteClockModelIsGroupDelayDiffSecondsAvailable);
+        if (isGroupDelayDiffSecondsAvailable) {
+            jdouble groupDelayDiffSeconds = env->CallDoubleMethod(
+                    glonassSatelliteClockModelObj,
+                    method_glonassSatelliteClockModelGetGroupDelayDiffSeconds);
+            glonassSatelliteClockModel.groupDelayDiffSeconds = groupDelayDiffSeconds;
+        } else {
+            glonassSatelliteClockModel.groupDelayDiffSeconds =
+                    GLONASS_CLOCK_MODEL_GROUP_DELAY_DIFF_SECONDS_UNAVAILABLE;
+        }
         glonassSatelliteEphemeris.satelliteClockModel = glonassSatelliteClockModel;
         env->DeleteLocalRef(glonassSatelliteClockModelObj);
 
@@ -1266,6 +1304,7 @@ void GnssAssistanceUtil::setGlonassSatelliteEphemeris(
 void GnssAssistanceUtil::setGalileoAssistance(
         JNIEnv* env, jobject galileoAssistanceObj,
         std::optional<GalileoAssistance>& galileoAssistanceOpt) {
+    if (galileoAssistanceObj == nullptr) return;
     GalileoAssistance galileoAssistance;
     jobject galileoAlmanacObj =
             env->CallObjectMethod(galileoAssistanceObj, method_galileoAssistanceGetAlmanac);
@@ -1342,9 +1381,9 @@ void GnssAssistanceUtil::setGalileoSatelliteEphemeris(
         GalileoSatelliteEphemeris galileoSatelliteEphemeris;
         GalileoSvHealth galileoSvHealth;
         // Set the svid of the satellite.
-        jint svid = env->CallLongMethod(galileoSatelliteEphemerisObj,
-                                        method_galileoSatelliteEphemerisGetSvid);
-        galileoSatelliteEphemeris.svid = svid;
+        jint svid = env->CallIntMethod(galileoSatelliteEphemerisObj,
+                                       method_galileoSatelliteEphemerisGetSvid);
+        galileoSatelliteEphemeris.svid = static_cast<int32_t>(svid);
 
         // Set the satellite clock models.
         jobject galileoSatelliteClockModelListObj =
@@ -1378,9 +1417,9 @@ void GnssAssistanceUtil::setGalileoSatelliteEphemeris(
                     env->CallDoubleMethod(galileoSatelliteClockModelObj,
                                           method_galileoSatelliteClockModelGetSisaMeters);
             galileoSatelliteClockModel.sisaMeters = sisaMeters;
-            jdouble timeOfClockSeconds =
-                    env->CallDoubleMethod(galileoSatelliteClockModelObj,
-                                          method_galileoSatelliteClockModelGetTimeOfClockSeconds);
+            jlong timeOfClockSeconds =
+                    env->CallLongMethod(galileoSatelliteClockModelObj,
+                                        method_galileoSatelliteClockModelGetTimeOfClockSeconds);
             galileoSatelliteClockModel.timeOfClockSeconds = timeOfClockSeconds;
             galileoSatelliteEphemeris.satelliteClockModel.push_back(galileoSatelliteClockModel);
             env->DeleteLocalRef(galileoSatelliteClockModelObj);
@@ -1448,6 +1487,7 @@ void GnssAssistanceUtil::setGalileoSatelliteEphemeris(
 
 void GnssAssistanceUtil::setBeidouAssistance(JNIEnv* env, jobject beidouAssistanceObj,
                                              std::optional<BeidouAssistance>& beidouAssistanceOpt) {
+    if (beidouAssistanceObj == nullptr) return;
     BeidouAssistance beidouAssistance;
     jobject beidouAlmanacObj =
             env->CallObjectMethod(beidouAssistanceObj, method_beidouAssistanceGetAlmanac);
@@ -1523,8 +1563,8 @@ void GnssAssistanceUtil::setBeidouSatelliteEphemeris(
                                              method_beidouSatelliteClockModelGetTgd1);
         jdouble tgd2 = env->CallDoubleMethod(satelliteClockModelObj,
                                              method_beidouSatelliteClockModelGetTgd2);
-        jdouble aodc = env->CallDoubleMethod(satelliteClockModelObj,
-                                             method_beidouSatelliteClockModelGetAodc);
+        jint aodc =
+                env->CallIntMethod(satelliteClockModelObj, method_beidouSatelliteClockModelGetAodc);
         jlong timeOfClockSeconds =
                 env->CallLongMethod(satelliteClockModelObj,
                                     method_beidouSatelliteClockModelGetTimeOfClockSeconds);
@@ -1533,7 +1573,7 @@ void GnssAssistanceUtil::setBeidouSatelliteEphemeris(
         beidouSatelliteEphemeris.satelliteClockModel.af2 = af2;
         beidouSatelliteEphemeris.satelliteClockModel.tgd1 = tgd1;
         beidouSatelliteEphemeris.satelliteClockModel.tgd2 = tgd2;
-        beidouSatelliteEphemeris.satelliteClockModel.aodc = aodc;
+        beidouSatelliteEphemeris.satelliteClockModel.aodc = static_cast<int32_t>(aodc);
         beidouSatelliteEphemeris.satelliteClockModel.timeOfClockSeconds = timeOfClockSeconds;
         env->DeleteLocalRef(satelliteClockModelObj);
 
@@ -1550,10 +1590,10 @@ void GnssAssistanceUtil::setBeidouSatelliteEphemeris(
                 env->CallObjectMethod(beidouSatelliteEphemerisObj,
                                       method_beidouSatelliteEphemerisGetSatelliteHealth);
         jint satH1 = env->CallIntMethod(satelliteHealthObj, method_beidouSatelliteHealthGetSatH1);
-        jint svAccur =
-                env->CallIntMethod(satelliteHealthObj, method_beidouSatelliteHealthGetSvAccur);
+        jdouble svAccur =
+                env->CallDoubleMethod(satelliteHealthObj, method_beidouSatelliteHealthGetSvAccur);
         beidouSatelliteEphemeris.satelliteHealth.satH1 = static_cast<int32_t>(satH1);
-        beidouSatelliteEphemeris.satelliteHealth.svAccur = static_cast<int32_t>(svAccur);
+        beidouSatelliteEphemeris.satelliteHealth.svAccur = svAccur;
         env->DeleteLocalRef(satelliteHealthObj);
 
         // Set the satelliteEphemerisTime of the satellite.
@@ -1565,8 +1605,8 @@ void GnssAssistanceUtil::setBeidouSatelliteEphemeris(
         jint beidouWeekNumber =
                 env->CallIntMethod(satelliteEphemerisTimeObj,
                                    method_beidouSatelliteEphemerisTimeGetBeidouWeekNumber);
-        jint toeSeconds = env->CallDoubleMethod(satelliteEphemerisTimeObj,
-                                                method_beidouSatelliteEphemerisTimeGetToeSeconds);
+        jint toeSeconds = env->CallIntMethod(satelliteEphemerisTimeObj,
+                                             method_beidouSatelliteEphemerisTimeGetToeSeconds);
         beidouSatelliteEphemeris.satelliteEphemerisTime.aode = static_cast<int32_t>(aode);
         beidouSatelliteEphemeris.satelliteEphemerisTime.weekNumber =
                 static_cast<int32_t>(beidouWeekNumber);
@@ -1605,8 +1645,7 @@ void GnssAssistanceUtil::setGpsAssistance(JNIEnv* env, jobject gpsAssistanceObj,
     setUtcModel(env, utcModelObj, gpsAssistance.utcModel);
     setLeapSecondsModel(env, leapSecondsModelObj, gpsAssistance.leapSecondsModel);
     setTimeModels(env, timeModelsObj, gpsAssistance.timeModels);
-    setGpsOrQzssSatelliteEphemeris<GpsSatelliteEphemeris>(env, satelliteEphemerisObj,
-                                                          gpsAssistance.satelliteEphemeris);
+    setGpsSatelliteEphemeris(env, satelliteEphemerisObj, gpsAssistance.satelliteEphemeris);
     setRealTimeIntegrityModels(env, realTimeIntegrityModelsObj,
                                gpsAssistance.realTimeIntegrityModels);
     setSatelliteCorrections(env, satelliteCorrectionsObj, gpsAssistance.satelliteCorrections);
@@ -1623,18 +1662,17 @@ void GnssAssistanceUtil::setGpsAssistance(JNIEnv* env, jobject gpsAssistanceObj,
     env->DeleteLocalRef(auxiliaryInformationsObj);
 }
 
-/** Set the GPS/QZSS satellite ephemeris list. */
-template <class T>
-void GnssAssistanceUtil::setGpsOrQzssSatelliteEphemeris(JNIEnv* env,
-                                                        jobject satelliteEphemerisListObj,
-                                                        std::vector<T>& satelliteEphemerisList) {
+/** Set the GPS satellite ephemeris list. */
+void GnssAssistanceUtil::setGpsSatelliteEphemeris(
+        JNIEnv* env, jobject satelliteEphemerisListObj,
+        std::vector<GpsSatelliteEphemeris>& satelliteEphemerisList) {
     if (satelliteEphemerisListObj == nullptr) return;
     auto len = env->CallIntMethod(satelliteEphemerisListObj, method_listSize);
     for (uint16_t i = 0; i < len; ++i) {
         jobject satelliteEphemerisObj =
                 env->CallObjectMethod(satelliteEphemerisListObj, method_listGet, i);
         if (satelliteEphemerisObj == nullptr) continue;
-        T satelliteEphemeris;
+        GpsSatelliteEphemeris satelliteEphemeris;
         // Set the svid of the satellite.
         jint svid = env->CallIntMethod(satelliteEphemerisObj, method_gpsSatelliteEphemerisGetSvid);
         satelliteEphemeris.svid = static_cast<int32_t>(svid);
@@ -1661,7 +1699,7 @@ void GnssAssistanceUtil::setGpsOrQzssSatelliteEphemeris(JNIEnv* env,
         jdouble tgd =
                 env->CallDoubleMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetTgd);
         jint iodc =
-                env->CallDoubleMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetIodc);
+                env->CallIntMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetIodc);
         jlong timeOfClockSeconds =
                 env->CallLongMethod(satelliteClockModelObj,
                                     method_gpsSatelliteClockModelGetTimeOfClockSeconds);
@@ -1689,7 +1727,8 @@ void GnssAssistanceUtil::setGpsOrQzssSatelliteEphemeris(JNIEnv* env,
                 env->CallIntMethod(satelliteHealthObj, method_gpsSatelliteHealthGetSvHealth);
         jdouble svAccur =
                 env->CallDoubleMethod(satelliteHealthObj, method_gpsSatelliteHealthGetSvAccur);
-        jdouble fitInt = env->CallIntMethod(satelliteHealthObj, method_gpsSatelliteHealthGetFitInt);
+        jdouble fitInt =
+                env->CallDoubleMethod(satelliteHealthObj, method_gpsSatelliteHealthGetFitInt);
         satelliteEphemeris.satelliteHealth.svHealth = static_cast<int32_t>(svHealth);
         satelliteEphemeris.satelliteHealth.svAccur = svAccur;
         satelliteEphemeris.satelliteHealth.fitInt = fitInt;
@@ -1699,6 +1738,91 @@ void GnssAssistanceUtil::setGpsOrQzssSatelliteEphemeris(JNIEnv* env,
         jobject satelliteEphemerisTimeObj =
                 env->CallObjectMethod(satelliteEphemerisObj,
                                       method_gpsSatelliteEphemerisGetSatelliteEphemerisTime);
+        GnssAssistanceUtil::setSatelliteEphemerisTime(env, satelliteEphemerisTimeObj,
+                                                      satelliteEphemeris.satelliteEphemerisTime);
+        env->DeleteLocalRef(satelliteEphemerisTimeObj);
+
+        satelliteEphemerisList.push_back(satelliteEphemeris);
+        env->DeleteLocalRef(satelliteEphemerisObj);
+    }
+}
+
+/** Set the Qzss satellite ephemeris list. */
+void GnssAssistanceUtil::setQzssSatelliteEphemeris(
+        JNIEnv* env, jobject satelliteEphemerisListObj,
+        std::vector<QzssSatelliteEphemeris>& satelliteEphemerisList) {
+    if (satelliteEphemerisListObj == nullptr) return;
+    auto len = env->CallIntMethod(satelliteEphemerisListObj, method_listSize);
+    for (uint16_t i = 0; i < len; ++i) {
+        jobject satelliteEphemerisObj =
+                env->CallObjectMethod(satelliteEphemerisListObj, method_listGet, i);
+        if (satelliteEphemerisObj == nullptr) continue;
+        QzssSatelliteEphemeris satelliteEphemeris;
+        // Set the svid of the satellite.
+        jint svid = env->CallIntMethod(satelliteEphemerisObj, method_qzssSatelliteEphemerisGetSvid);
+        satelliteEphemeris.svid = static_cast<int32_t>(svid);
+
+        // Set the gpsL2Params of the satellite.
+        jobject gpsL2ParamsObj = env->CallObjectMethod(satelliteEphemerisObj,
+                                                       method_qzssSatelliteEphemerisGetGpsL2Params);
+        jint l2Code = env->CallIntMethod(gpsL2ParamsObj, method_gpsL2ParamsGetL2Code);
+        jint l2Flag = env->CallIntMethod(gpsL2ParamsObj, method_gpsL2ParamsGetL2Flag);
+        satelliteEphemeris.gpsL2Params.l2Code = static_cast<int32_t>(l2Code);
+        satelliteEphemeris.gpsL2Params.l2Flag = static_cast<int32_t>(l2Flag);
+        env->DeleteLocalRef(gpsL2ParamsObj);
+
+        // Set the satelliteClockModel of the satellite.
+        jobject satelliteClockModelObj =
+                env->CallObjectMethod(satelliteEphemerisObj,
+                                      method_qzssSatelliteEphemerisGetSatelliteClockModel);
+        jdouble af0 =
+                env->CallDoubleMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetAf0);
+        jdouble af1 =
+                env->CallDoubleMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetAf1);
+        jdouble af2 =
+                env->CallDoubleMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetAf2);
+        jdouble tgd =
+                env->CallDoubleMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetTgd);
+        jint iodc =
+                env->CallIntMethod(satelliteClockModelObj, method_gpsSatelliteClockModelGetIodc);
+        jlong timeOfClockSeconds =
+                env->CallLongMethod(satelliteClockModelObj,
+                                    method_gpsSatelliteClockModelGetTimeOfClockSeconds);
+        satelliteEphemeris.satelliteClockModel.af0 = af0;
+        satelliteEphemeris.satelliteClockModel.af1 = af1;
+        satelliteEphemeris.satelliteClockModel.af2 = af2;
+        satelliteEphemeris.satelliteClockModel.tgd = tgd;
+        satelliteEphemeris.satelliteClockModel.iodc = static_cast<int32_t>(iodc);
+        satelliteEphemeris.satelliteClockModel.timeOfClockSeconds = timeOfClockSeconds;
+        env->DeleteLocalRef(satelliteClockModelObj);
+
+        // Set the satelliteOrbitModel of the satellite.
+        jobject satelliteOrbitModelObj =
+                env->CallObjectMethod(satelliteEphemerisObj,
+                                      method_qzssSatelliteEphemerisGetSatelliteOrbitModel);
+        GnssAssistanceUtil::setKeplerianOrbitModel(env, satelliteOrbitModelObj,
+                                                   satelliteEphemeris.satelliteOrbitModel);
+        env->DeleteLocalRef(satelliteOrbitModelObj);
+
+        // Set the satelliteHealth of the satellite.
+        jobject satelliteHealthObj =
+                env->CallObjectMethod(satelliteEphemerisObj,
+                                      method_qzssSatelliteEphemerisGetSatelliteHealth);
+        jint svHealth =
+                env->CallIntMethod(satelliteHealthObj, method_gpsSatelliteHealthGetSvHealth);
+        jdouble svAccur =
+                env->CallDoubleMethod(satelliteHealthObj, method_gpsSatelliteHealthGetSvAccur);
+        jdouble fitInt =
+                env->CallDoubleMethod(satelliteHealthObj, method_gpsSatelliteHealthGetFitInt);
+        satelliteEphemeris.satelliteHealth.svHealth = static_cast<int32_t>(svHealth);
+        satelliteEphemeris.satelliteHealth.svAccur = svAccur;
+        satelliteEphemeris.satelliteHealth.fitInt = fitInt;
+        env->DeleteLocalRef(satelliteHealthObj);
+
+        // Set the satelliteEphemerisTime of the satellite.
+        jobject satelliteEphemerisTimeObj =
+                env->CallObjectMethod(satelliteEphemerisObj,
+                                      method_qzssSatelliteEphemerisGetSatelliteEphemerisTime);
         GnssAssistanceUtil::setSatelliteEphemerisTime(env, satelliteEphemerisTimeObj,
                                                       satelliteEphemeris.satelliteEphemerisTime);
         env->DeleteLocalRef(satelliteEphemerisTimeObj);
@@ -1770,12 +1894,12 @@ void GnssAssistanceUtil::setSatelliteCorrections(
             jobject gnssIntervalObj =
                     env->CallObjectMethod(gnssCorrectionComponentObj,
                                           method_gnssCorrectionComponentGetValidityInterval);
-            jdouble startMillisSinceGpsEpoch =
-                    env->CallDoubleMethod(gnssIntervalObj,
-                                          method_gnssIntervalGetStartMillisSinceGpsEpoch);
-            jdouble endMillisSinceGpsEpoch =
-                    env->CallDoubleMethod(gnssIntervalObj,
-                                          method_gnssIntervalGetEndMillisSinceGpsEpoch);
+            jlong startMillisSinceGpsEpoch =
+                    env->CallLongMethod(gnssIntervalObj,
+                                        method_gnssIntervalGetStartMillisSinceGpsEpoch);
+            jlong endMillisSinceGpsEpoch =
+                    env->CallLongMethod(gnssIntervalObj,
+                                        method_gnssIntervalGetEndMillisSinceGpsEpoch);
             ionosphericCorrection.ionosphericCorrectionComponent.validityInterval
                     .startMillisSinceGpsEpoch = startMillisSinceGpsEpoch;
             ionosphericCorrection.ionosphericCorrectionComponent.validityInterval
@@ -1853,13 +1977,13 @@ void GnssAssistanceUtil::setGnssSignalType(JNIEnv* env, jobject gnssSignalTypeOb
     jint constellationType =
             env->CallIntMethod(gnssSignalTypeObj, method_gnssSignalTypeGetConstellationType);
     jdouble carrierFrequencyHz =
-            env->CallIntMethod(gnssSignalTypeObj, method_gnssSignalTypeGetCarrierFrequencyHz);
+            env->CallDoubleMethod(gnssSignalTypeObj, method_gnssSignalTypeGetCarrierFrequencyHz);
     jstring codeType = static_cast<jstring>(
             env->CallObjectMethod(gnssSignalTypeObj, method_gnssSignalTypeGetCodeType));
     ScopedJniString jniCodeType{env, codeType};
 
     gnssSignalType.constellation = static_cast<GnssConstellationType>(constellationType);
-    gnssSignalType.carrierFrequencyHz = static_cast<int32_t>(carrierFrequencyHz);
+    gnssSignalType.carrierFrequencyHz = carrierFrequencyHz;
     gnssSignalType.codeType = std::string(jniCodeType.c_str());
 }
 
@@ -1871,12 +1995,12 @@ void GnssAssistanceUtil::setTimeModels(JNIEnv* env, jobject timeModelsObj,
         jobject timeModelObj = env->CallObjectMethod(timeModelsObj, method_listGet, i);
         TimeModel timeModel;
         jint toGnss = env->CallIntMethod(timeModelObj, method_timeModelsGetToGnss);
-        jlong timeOfWeek = env->CallLongMethod(timeModelObj, method_timeModelsGetTimeOfWeek);
+        jint timeOfWeek = env->CallIntMethod(timeModelObj, method_timeModelsGetTimeOfWeek);
         jint weekNumber = env->CallIntMethod(timeModelObj, method_timeModelsGetWeekNumber);
         jdouble a0 = env->CallDoubleMethod(timeModelObj, method_timeModelsGetA0);
         jdouble a1 = env->CallDoubleMethod(timeModelObj, method_timeModelsGetA1);
         timeModel.toGnss = static_cast<GnssConstellationType>(toGnss);
-        timeModel.timeOfWeek = timeOfWeek;
+        timeModel.timeOfWeek = static_cast<int32_t>(timeOfWeek);
         timeModel.weekNumber = static_cast<int32_t>(weekNumber);
         timeModel.a0 = a0;
         timeModel.a1 = a1;
@@ -1910,15 +2034,14 @@ void GnssAssistanceUtil::setLeapSecondsModel(JNIEnv* env, jobject leapSecondsMod
 void GnssAssistanceUtil::setSatelliteEphemerisTime(JNIEnv* env, jobject satelliteEphemerisTimeObj,
                                                    SatelliteEphemerisTime& satelliteEphemerisTime) {
     if (satelliteEphemerisTimeObj == nullptr) return;
-    jdouble iode =
-            env->CallDoubleMethod(satelliteEphemerisTimeObj, method_satelliteEphemerisTimeGetIode);
-    jdouble toeSeconds = env->CallDoubleMethod(satelliteEphemerisTimeObj,
-                                               method_satelliteEphemerisTimeGetToeSeconds);
+    jint iode = env->CallIntMethod(satelliteEphemerisTimeObj, method_satelliteEphemerisTimeGetIode);
+    jint toeSeconds = env->CallIntMethod(satelliteEphemerisTimeObj,
+                                         method_satelliteEphemerisTimeGetToeSeconds);
     jint weekNumber = env->CallIntMethod(satelliteEphemerisTimeObj,
                                          method_satelliteEphemerisTimeGetWeekNumber);
-    satelliteEphemerisTime.iode = iode;
-    satelliteEphemerisTime.toeSeconds = toeSeconds;
-    satelliteEphemerisTime.weekNumber = weekNumber;
+    satelliteEphemerisTime.iode = static_cast<int32_t>(iode);
+    satelliteEphemerisTime.toeSeconds = static_cast<int32_t>(toeSeconds);
+    satelliteEphemerisTime.weekNumber = static_cast<int32_t>(weekNumber);
 }
 
 void GnssAssistanceUtil::setKeplerianOrbitModel(JNIEnv* env, jobject keplerianOrbitModelObj,
@@ -1931,10 +2054,13 @@ void GnssAssistanceUtil::setKeplerianOrbitModel(JNIEnv* env, jobject keplerianOr
     jdouble m0 = env->CallDoubleMethod(keplerianOrbitModelObj, method_keplerianOrbitModelGetM0);
     jdouble omega =
             env->CallDoubleMethod(keplerianOrbitModelObj, method_keplerianOrbitModelGetOmega);
+    jdouble omega0 =
+            env->CallDoubleMethod(keplerianOrbitModelObj, method_keplerianOrbitModelGetOmega0);
     jdouble omegaDot =
             env->CallDoubleMethod(keplerianOrbitModelObj, method_keplerianOrbitModelGetOmegaDot);
     jdouble deltaN =
             env->CallDoubleMethod(keplerianOrbitModelObj, method_keplerianOrbitModelGetDeltaN);
+    jdouble i0 = env->CallDoubleMethod(keplerianOrbitModelObj, method_keplerianOrbitModelGetI0);
     jdouble iDot = env->CallDoubleMethod(keplerianOrbitModelObj, method_keplerianOrbitModelGetIDot);
     jobject secondOrderHarmonicPerturbationObj =
             env->CallObjectMethod(keplerianOrbitModelObj,
@@ -1954,10 +2080,12 @@ void GnssAssistanceUtil::setKeplerianOrbitModel(JNIEnv* env, jobject keplerianOr
     keplerianOrbitModel.rootA = rootA;
     keplerianOrbitModel.eccentricity = eccentricity;
     keplerianOrbitModel.m0 = m0;
+    keplerianOrbitModel.omega0 = omega0;
     keplerianOrbitModel.omega = omega;
     keplerianOrbitModel.omegaDot = omegaDot;
     keplerianOrbitModel.deltaN = deltaN;
     keplerianOrbitModel.iDot = iDot;
+    keplerianOrbitModel.i0 = i0;
     keplerianOrbitModel.secondOrderHarmonicPerturbation.cic = cic;
     keplerianOrbitModel.secondOrderHarmonicPerturbation.cis = cis;
     keplerianOrbitModel.secondOrderHarmonicPerturbation.crs = crs;
@@ -2005,11 +2133,11 @@ void GnssAssistanceUtil::setUtcModel(JNIEnv* env, jobject utcModelObj,
     UtcModel utcModel;
     jdouble a0 = env->CallDoubleMethod(utcModelObj, method_utcModelGetA0);
     jdouble a1 = env->CallDoubleMethod(utcModelObj, method_utcModelGetA1);
-    jlong timeOfWeek = env->CallLongMethod(utcModelObj, method_utcModelGetTimeOfWeek);
+    jint timeOfWeek = env->CallIntMethod(utcModelObj, method_utcModelGetTimeOfWeek);
     jint weekNumber = env->CallIntMethod(utcModelObj, method_utcModelGetWeekNumber);
     utcModel.a0 = a0;
     utcModel.a1 = a1;
-    utcModel.timeOfWeek = timeOfWeek;
+    utcModel.timeOfWeek = static_cast<int32_t>(timeOfWeek);
     utcModel.weekNumber = static_cast<int32_t>(weekNumber);
     utcModelOpt = utcModel;
 }
@@ -2022,13 +2150,13 @@ void GnssAssistanceUtil::setGnssAlmanac(JNIEnv* env, jobject gnssAlmanacObj,
             env->CallLongMethod(gnssAlmanacObj, method_gnssAlmanacGetIssueDateMillis);
     jint ioda = env->CallIntMethod(gnssAlmanacObj, method_gnssAlmanacGetIoda);
     jint weekNumber = env->CallIntMethod(gnssAlmanacObj, method_gnssAlmanacGetWeekNumber);
-    jlong toaSeconds = env->CallLongMethod(gnssAlmanacObj, method_gnssAlmanacGetToaSeconds);
+    jint toaSeconds = env->CallIntMethod(gnssAlmanacObj, method_gnssAlmanacGetToaSeconds);
     jboolean isCompleteAlmanacProvided =
             env->CallBooleanMethod(gnssAlmanacObj, method_gnssAlmanacIsCompleteAlmanacProvided);
     gnssAlmanac.issueDateMs = issueDateMillis;
-    gnssAlmanac.ioda = ioda;
-    gnssAlmanac.weekNumber = weekNumber;
-    gnssAlmanac.toaSeconds = toaSeconds;
+    gnssAlmanac.ioda = static_cast<int32_t>(ioda);
+    gnssAlmanac.weekNumber = static_cast<int32_t>(weekNumber);
+    gnssAlmanac.toaSeconds = static_cast<int32_t>(toaSeconds);
     gnssAlmanac.isCompleteAlmanacProvided = isCompleteAlmanacProvided;
 
     jobject satelliteAlmanacsListObj =
@@ -2058,6 +2186,12 @@ void GnssAssistanceUtil::setGnssAlmanac(JNIEnv* env, jobject gnssAlmanacObj,
                 env->CallDoubleMethod(gnssSatelliteAlmanacObj, method_satelliteAlmanacGetOmegaDot);
         jdouble rootA =
                 env->CallDoubleMethod(gnssSatelliteAlmanacObj, method_satelliteAlmanacGetRootA);
+
+        if (location_flags::support_toa_in_gnss_satellite_almanac()) {
+            jint toaSeconds = env->CallIntMethod(gnssSatelliteAlmanacObj,
+                                                 method_satelliteAlmanacGetToaSeconds);
+            gnssSatelliteAlmanac.toaSeconds = toaSeconds;
+        }
         gnssSatelliteAlmanac.svid = static_cast<int32_t>(svid);
         gnssSatelliteAlmanac.svHealth = static_cast<int32_t>(svHealth);
         gnssSatelliteAlmanac.af0 = af0;

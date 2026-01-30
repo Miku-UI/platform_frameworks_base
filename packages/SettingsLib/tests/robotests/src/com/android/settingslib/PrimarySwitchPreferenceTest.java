@@ -21,6 +21,7 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
+import android.app.admin.EnforcingAdmin;
 import android.content.Context;
 import android.view.LayoutInflater;
 import android.widget.CompoundButton;
@@ -162,7 +163,7 @@ public class PrimarySwitchPreferenceTest {
         toggle.setEnabled(false);
         mPreference.onBindViewHolder(mHolder);
 
-        mPreference.setDisabledByAdmin(null);
+        mPreference.setDisabledByAdmin((EnforcingAdmin) null);
         assertThat(toggle.isEnabled()).isTrue();
     }
 

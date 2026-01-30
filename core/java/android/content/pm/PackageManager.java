@@ -63,6 +63,7 @@ import android.content.pm.PackageInstaller.SessionParams;
 import android.content.pm.dex.ArtManager;
 import android.content.pm.parsing.result.ParseResult;
 import android.content.pm.parsing.result.ParseTypeImpl;
+import android.content.pm.verify.developer.DeveloperVerifierService;
 import android.content.pm.verify.domain.DomainVerificationManager;
 import android.content.res.Configuration;
 import android.content.res.Resources;
@@ -89,6 +90,7 @@ import android.os.incremental.IncrementalManager;
 import android.os.storage.StorageManager;
 import android.os.storage.VolumeInfo;
 import android.permission.PermissionManager;
+import android.ravenwood.annotation.RavenwoodSupported.SupportType;
 import android.telephony.TelephonyManager;
 import android.telephony.UiccCardInfo;
 import android.telephony.gba.GbaService;
@@ -141,10 +143,10 @@ import java.util.function.Function;
 public abstract class PackageManager {
     private static final String TAG = "PackageManager";
 
-    /** {@hide} */
+    /** @hide */
     public static final boolean APPLY_DEFAULT_TO_DEVICE_PROTECTED_STORAGE = true;
 
-    /** {@hide} */
+    /** @hide */
     public static final boolean ENABLE_SHARED_UID_MIGRATION = true;
 
     /**
@@ -1747,7 +1749,7 @@ public abstract class PackageManager {
      */
     public static final int INSTALL_GRANT_ALL_REQUESTED_PERMISSIONS = 0x00000100;
 
-    /** {@hide} */
+    /** @hide */
     public static final int INSTALL_FORCE_VOLUME_UUID = 0x00000200;
 
     /**
@@ -2527,7 +2529,7 @@ public abstract class PackageManager {
     @UnsupportedAppUsage
     public static final int NO_NATIVE_LIBRARIES = -114;
 
-    /** {@hide} */
+    /** @hide */
     public static final int INSTALL_FAILED_ABORTED = -115;
 
     /**
@@ -2852,7 +2854,7 @@ public abstract class PackageManager {
     @SystemApi
     public static final int DELETE_FAILED_OWNER_BLOCKED = -4;
 
-    /** {@hide} */
+    /** @hide */
     @SystemApi
     public static final int DELETE_FAILED_ABORTED = -5;
 
@@ -2860,7 +2862,7 @@ public abstract class PackageManager {
      * Deletion failed return code: this is passed to the
      * {@link IPackageDeleteObserver} if the system failed to delete the package
      * because the packge is a shared library used by other installed packages.
-     * {@hide} */
+     * @hide */
     public static final int DELETE_FAILED_USED_SHARED_LIBRARY = -6;
 
     /**
@@ -2975,7 +2977,7 @@ public abstract class PackageManager {
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static final int MOVE_EXTERNAL_MEDIA = 0x00000002;
 
-    /** {@hide} */
+    /** @hide */
     public static final String EXTRA_MOVE_ID = "android.content.pm.extra.MOVE_ID";
 
     /**
@@ -3339,7 +3341,7 @@ public abstract class PackageManager {
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_CONTEXT_HUB = "android.hardware.context_hub";
 
-    /** {@hide} */
+    /** @hide */
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_CTS = "android.software.cts";
 
@@ -3352,6 +3354,16 @@ public abstract class PackageManager {
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_CAR_TEMPLATES_HOST =
             "android.software.car.templates_host";
+
+    /**
+     * Feature for {@link #getSystemAvailableFeatures} and {@link #hasSystemFeature}: The device
+     * is opted-in to render the application using Automotive App Host for Media
+     *
+     * @hide
+     */
+    @SdkConstant(SdkConstantType.FEATURE)
+    public static final String FEATURE_CAR_TEMPLATES_HOST_MEDIA =
+            "android.software.car.templates_host.media";
 
     /**
      * Feature for {@link #getSystemAvailableFeatures} and {@link #hasSystemFeature}:If this
@@ -3471,7 +3483,7 @@ public abstract class PackageManager {
     /**
      * Feature for {@link #getSystemAvailableFeatures} and
      * {@link #hasSystemFeature}: The device can communicate using Near-Field
-     * Communications (NFC).
+     * Communications (NFC), acting as a reader.
      */
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_NFC = "android.hardware.nfc";
@@ -4456,6 +4468,16 @@ public abstract class PackageManager {
     public static final String FEATURE_PC = "android.hardware.type.pc";
 
     /**
+     * Feature for {@link #getSystemAvailableFeatures} and
+     * {@link #hasSystemFeature}: An XR peripheral is defined as a full stack Android device with
+     * or without a display, with or without inputs, and no user-installable apps. XR peripherals
+     * are worn on the user's body and likely require a companion device for user interactions.
+     */
+    @FlaggedApi(com.android.microxr.Flags.FLAG_XR_GLASSES_FEATURE)
+    @SdkConstant(SdkConstantType.FEATURE)
+    public static final String FEATURE_XR_PERIPHERAL = "android.hardware.type.xr_peripheral";
+
+    /**
      * Feature for {@link #getSystemAvailableFeatures} and {@link #hasSystemFeature}:
      * The device supports printing.
      */
@@ -4545,13 +4567,13 @@ public abstract class PackageManager {
     public static final String FEATURE_SECURELY_REMOVES_USERS
             = "android.software.securely_removes_users";
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_FILE_BASED_ENCRYPTION
             = "android.software.file_based_encryption";
 
-    /** {@hide} */
+    /** @hide */
     @TestApi
     @SdkConstant(SdkConstantType.FEATURE)
     public static final String FEATURE_ADOPTABLE_STORAGE
@@ -5184,6 +5206,26 @@ public abstract class PackageManager {
             "android.content.pm.action.REQUEST_PERMISSIONS_FOR_OTHER";
 
     /**
+     * Used by the system to query a {@link DeveloperVerifierService} provider,
+     * which registers itself via an intent-filter handling this action.
+     *
+     * <p class="note">Only the system can bind to the developer verifier service. This is protected
+     * by the {@link android.Manifest.permission#BIND_DEVELOPER_VERIFICATION_AGENT} permission. The
+     * developer verifier service app should protect the service by adding this permission in the
+     * service declaration in its manifest.
+     * <p>
+     * A developer verifier service must be a privileged app and hold the
+     * {@link android.Manifest.permission#DEVELOPER_VERIFICATION_AGENT} permission.
+     *
+     * @hide
+     */
+    @SystemApi
+    @FlaggedApi(android.content.pm.Flags.FLAG_VERIFICATION_SERVICE)
+    @SdkConstant(SdkConstantType.SERVICE_ACTION)
+    public static final String ACTION_VERIFY_DEVELOPER =
+            "android.content.pm.action.VERIFY_DEVELOPER";
+
+    /**
      * The names of the requested permissions.
      * <p>
      * <strong>Type:</strong> String[]
@@ -5685,7 +5727,7 @@ public abstract class PackageManager {
     @EnabledSince(targetSdkVersion = Build.VERSION_CODES.R)
     public static final long FILTER_APPLICATION_QUERY = 135549675L;
 
-    /** {@hide} */
+    /** @hide */
     @IntDef(prefix = {"SYSTEM_APP_STATE_"}, value = {
             SYSTEM_APP_STATE_HIDDEN_UNTIL_INSTALLED_HIDDEN,
             SYSTEM_APP_STATE_HIDDEN_UNTIL_INSTALLED_VISIBLE,
@@ -5807,7 +5849,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public int getUserId() {
         return UserHandle.myUserId();
     }
@@ -5817,6 +5859,7 @@ public abstract class PackageManager {
      * {@link Context#getPackageManager}
      */
     @Deprecated
+    @android.ravenwood.annotation.RavenwoodKeep
     public PackageManager() {}
 
     /**
@@ -6319,7 +6362,7 @@ public abstract class PackageManager {
     /**
      * Use {@link #getApplicationInfoAsUser(String, ApplicationInfoFlags, int)} when long flags are
      * needed.
-     * {@hide}
+     * @hide
      */
     @SuppressWarnings("HiddenAbstractMethod")
     @NonNull
@@ -6327,7 +6370,7 @@ public abstract class PackageManager {
     public abstract ApplicationInfo getApplicationInfoAsUser(@NonNull String packageName,
             int flags, @UserIdInt int userId) throws NameNotFoundException;
 
-    /** {@hide} */
+    /** @hide */
     @NonNull
     public ApplicationInfo getApplicationInfoAsUser(@NonNull String packageName,
             @NonNull ApplicationInfoFlags flags, @UserIdInt int userId)
@@ -7802,20 +7845,46 @@ public abstract class PackageManager {
      * Intent.resolveActivity(PackageManager)} do.
      * </p>
      *
-     * Use {@link #resolveActivityAsUser(Intent, ResolveInfoFlags, int)} when long flags are needed.
+     * Use {@link #resolveActivityAsUser(Intent, String, ResolveInfoFlags, int)}
+     * when long flags are needed.
      *
      * @param intent An intent containing all of the desired specification
      *            (action, data, type, category, and/or component).
+     * @param resolvedType A nullable resolved type for the intent's data.
+     *            Specified explicitly when the data type contained in the
+     *            intent cannot be trusted. If null is provided, the type will
+     *            be obtained from the intent using
+     *            {@link Intent#resolveTypeIfNeeded}.
      * @param flags Additional option flags to modify the data returned. The
      *            most important is {@link #MATCH_DEFAULT_ONLY}, to limit the
      *            resolution to only those activities that support the
-     *            {@link android.content.Intent#CATEGORY_DEFAULT}.
+     *            {@link Intent#CATEGORY_DEFAULT}.
      * @param userId The user id.
      * @return Returns a ResolveInfo object containing the final activity intent
      *         that was determined to be the best action. Returns null if no
      *         matching activity was found. If multiple matching activities are
      *         found and there is no default set, returns a ResolveInfo object
      *         containing something else, such as the activity resolver.
+     * @hide
+     */
+    @Nullable
+    public ResolveInfo resolveActivityAsUser(@NonNull Intent intent,
+            @Nullable String resolvedType, int flags, @UserIdInt int userId) {
+        return resolveActivityAsUser(intent, resolvedType, ResolveInfoFlags.of(flags), userId);
+    }
+
+    /**
+     * See {@link #resolveActivityAsUser(Intent, String, int, int)}.
+     * @hide
+     */
+    @Nullable
+    public ResolveInfo resolveActivityAsUser(@NonNull Intent intent,
+            @Nullable String resolvedType, @NonNull ResolveInfoFlags flags, @UserIdInt int userId) {
+        throw new UnsupportedOperationException(
+                "resolveActivityAsUser not implemented in subclass");
+    }
+     /**
+     * See {@link #resolveActivityAsUser(Intent, String, int, int)}.
      * @hide
      */
     @SuppressWarnings("HiddenAbstractMethod")
@@ -7825,7 +7894,7 @@ public abstract class PackageManager {
             int flags, @UserIdInt int userId);
 
     /**
-     * See {@link #resolveActivityAsUser(Intent, int, int)}.
+     * See {@link #resolveActivityAsUser(Intent, String, int, int)}.
      * @hide
      */
     @Nullable
@@ -8482,6 +8551,8 @@ public abstract class PackageManager {
      *             found on the system.
      */
     @NonNull
+    @android.ravenwood.annotation.RavenwoodSupported(
+            type = SupportType.SUBCLASS, subclass = "RavenwoodPackageManager")
     public abstract InstrumentationInfo getInstrumentationInfo(@NonNull ComponentName className,
             @InstrumentationInfoFlags int flags) throws NameNotFoundException;
 
@@ -9350,7 +9421,7 @@ public abstract class PackageManager {
     @SuppressWarnings("HiddenAbstractMethod")
     @SystemApi
     @RequiresPermission(Manifest.permission.INSTALL_PACKAGES)
-    public abstract void setUpdateAvailable(@NonNull String packageName, boolean updateAvaialble);
+    public abstract void setUpdateAvailable(@NonNull String packageName, boolean updateAvailable);
 
     /**
      * Attempts to delete a package. Since this may take a little while, the
@@ -9534,7 +9605,7 @@ public abstract class PackageManager {
         freeStorageAndNotify(null, freeStorageSize, observer);
     }
 
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage
     public abstract void freeStorageAndNotify(@Nullable String volumeUuid, long freeStorageSize,
@@ -9568,7 +9639,7 @@ public abstract class PackageManager {
         freeStorage(null, freeStorageSize, pi);
     }
 
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage
     public abstract void freeStorage(@Nullable String volumeUuid, long freeStorageSize,
@@ -10489,54 +10560,54 @@ public abstract class PackageManager {
     public abstract void setApplicationCategoryHint(@NonNull String packageName,
             @ApplicationInfo.Category int categoryHint);
 
-    /** {@hide} */
+    /** @hide */
     public static boolean isMoveStatusFinished(int status) {
         return (status < 0 || status > 100);
     }
 
-    /** {@hide} */
+    /** @hide */
     public static abstract class MoveCallback {
         public void onCreated(int moveId, Bundle extras) {}
         public abstract void onStatusChanged(int moveId, int status, long estMillis);
     }
 
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage
     public abstract int getMoveStatus(int moveId);
 
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage
     public abstract void registerMoveCallback(@NonNull MoveCallback callback,
             @NonNull Handler handler);
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage
     public abstract void unregisterMoveCallback(@NonNull MoveCallback callback);
 
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public abstract int movePackage(@NonNull String packageName, @NonNull VolumeInfo vol);
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public abstract @Nullable VolumeInfo getPackageCurrentVolume(@NonNull ApplicationInfo app);
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @NonNull
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public abstract List<VolumeInfo> getPackageCandidateVolumes(
             @NonNull ApplicationInfo app);
 
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     public abstract int movePrimaryStorage(@NonNull VolumeInfo vol);
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     public abstract @Nullable VolumeInfo getPrimaryStorageCurrentVolume();
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     public abstract @NonNull List<VolumeInfo> getPrimaryStorageCandidateVolumes();
 
@@ -10639,12 +10710,12 @@ public abstract class PackageManager {
     public abstract Drawable loadUnbadgedItemIcon(@NonNull PackageItemInfo itemInfo,
             @Nullable ApplicationInfo appInfo);
 
-    /** {@hide} */
+    /** @hide */
     @SuppressWarnings("HiddenAbstractMethod")
     @UnsupportedAppUsage
     public abstract boolean isPackageAvailable(@NonNull String packageName);
 
-    /** {@hide} */
+    /** @hide */
     @NonNull
     @UnsupportedAppUsage(maxTargetSdk = Build.VERSION_CODES.R, trackingBug = 170729553)
     public static String installStatusToString(int status, @Nullable String msg) {
@@ -10656,7 +10727,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @NonNull
     @UnsupportedAppUsage
     public static String installStatusToString(int status) {
@@ -10717,7 +10788,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static int installStatusToPublicStatus(int status) {
         switch (status) {
             case INSTALL_SUCCEEDED: return PackageInstaller.STATUS_SUCCESS;
@@ -10771,7 +10842,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @NonNull
     public static String deleteStatusToString(int status, @Nullable String msg) {
         final String str = deleteStatusToString(status);
@@ -10782,7 +10853,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @NonNull
     @UnsupportedAppUsage
     public static String deleteStatusToString(int status) {
@@ -10799,7 +10870,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static int deleteStatusToPublicStatus(int status) {
         switch (status) {
             case DELETE_SUCCEEDED: return PackageInstaller.STATUS_SUCCESS;
@@ -10814,7 +10885,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     @NonNull
     public static String permissionFlagToString(int flag) {
         switch (flag) {
@@ -10839,7 +10910,7 @@ public abstract class PackageManager {
         }
     }
 
-    /** {@hide} */
+    /** @hide */
     public static class LegacyPackageDeleteObserver extends PackageDeleteObserver {
         private final IPackageDeleteObserver mLegacy;
 
@@ -11709,12 +11780,6 @@ public abstract class PackageManager {
                     return getApplicationInfoAsUserUncached(
                             query.packageName, query.flags, query.userId);
                 }
-                @Override
-                public boolean resultEquals(ApplicationInfo cached, ApplicationInfo fetched) {
-                    // Implementing this debug check for ApplicationInfo would require a
-                    // complicated deep comparison, so just bypass it for now.
-                    return true;
-                }
             };
 
     /** @hide */
@@ -11799,12 +11864,6 @@ public abstract class PackageManager {
                     return getPackageInfoAsUserUncached(
                             query.packageName, query.flags, query.userId);
                 }
-                @Override
-                public boolean resultEquals(PackageInfo cached, PackageInfo fetched) {
-                    // Implementing this debug check for PackageInfo would require a
-                    // complicated deep comparison, so just bypass it for now.
-                    return true;
-                }
             };
 
     /** @hide */
@@ -11839,25 +11898,13 @@ public abstract class PackageManager {
         sPackageInfoCache.uncorkInvalidations();
     }
 
-    // This auto-corker is obsolete once the separate permission notifications feature is
-    // committed.
-    private static final PropertyInvalidatedCache.AutoCorker sCacheAutoCorker =
-            PropertyInvalidatedCache.separatePermissionNotificationsEnabled()
-            ? null
-            : new PropertyInvalidatedCache
-                    .AutoCorker(PermissionManager.CACHE_KEY_PACKAGE_INFO_CACHE);
-
     /**
      * Invalidate caches of package and permission information system-wide.
      *
      * @hide
      */
     public static void invalidatePackageInfoCache() {
-        if (PropertyInvalidatedCache.separatePermissionNotificationsEnabled()) {
-            sPackageInfoCache.invalidateCache();
-        } else {
-            sCacheAutoCorker.autoCork();
-        }
+        sPackageInfoCache.invalidateCache();
     }
 
     /**
@@ -12076,7 +12123,6 @@ public abstract class PackageManager {
      *
      * @throws SigningInfoException if the verification fails
      */
-    @FlaggedApi(android.content.pm.Flags.FLAG_CLOUD_COMPILATION_PM)
     public static @NonNull SigningInfo getVerifiedSigningInfo(@NonNull String path,
             @AppSigningSchemeVersion int minAppSigningSchemeVersion) throws SigningInfoException {
         ParseTypeImpl input = ParseTypeImpl.forDefaultParsing();

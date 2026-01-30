@@ -51,6 +51,7 @@ import com.android.systemui.haptics.msdl.FakeMSDLPlayer;
 import com.android.systemui.kosmos.KosmosJavaAdapter;
 import com.android.systemui.res.R;
 import com.android.systemui.user.domain.interactor.SelectedUserInteractor;
+import com.android.systemui.util.wrapper.LockPatternCheckerWrapper;
 
 import com.google.android.msdl.data.model.MSDLToken;
 
@@ -95,6 +96,8 @@ public class KeyguardAbsKeyInputViewControllerTest extends SysuiTestCase {
     private SelectedUserInteractor mSelectedUserInteractor;
     @Mock
     private UserActivityNotifier mUserActivityNotifier;
+    @Mock
+    private LockPatternCheckerWrapper mLockPatternCheckerWrapper;
     private KeyguardAbsKeyInputViewController mKeyguardAbsKeyInputViewController;
     private KosmosJavaAdapter mKosmosJavaAdapter = new KosmosJavaAdapter(this);
     private final BouncerHapticPlayer mBouncerHapticPlayer =
@@ -123,7 +126,7 @@ public class KeyguardAbsKeyInputViewControllerTest extends SysuiTestCase {
                 mKeyguardUpdateMonitor, mSecurityMode, mLockPatternUtils, mKeyguardSecurityCallback,
                 mKeyguardMessageAreaControllerFactory, mLatencyTracker, mFalsingCollector,
                 mEmergencyButtonController, mFeatureFlags, mSelectedUserInteractor,
-                mBouncerHapticPlayer, mUserActivityNotifier) {
+                mBouncerHapticPlayer, mUserActivityNotifier, mLockPatternCheckerWrapper) {
             @Override
             void resetState() {
             }

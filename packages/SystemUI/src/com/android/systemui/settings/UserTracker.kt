@@ -19,7 +19,7 @@ package com.android.systemui.settings
 import android.content.Context
 import android.content.pm.UserInfo
 import android.os.UserHandle
-import com.android.systemui.util.annotations.WeaklyReferencedCallback
+import com.android.internal.annotations.WeaklyReferencedCallback
 import java.util.concurrent.Executor
 
 /**
